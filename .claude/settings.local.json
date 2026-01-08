@@ -10,7 +10,16 @@
       "Bash(tree:*)",
       "Bash(curl:*)",
       "Bash(npx tsx:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(npm run build:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(find:*)",
+      "Bash(git checkout:*)",
+      "Bash(lsof:*)",
+      "Bash(xargs kill:*)",
+      "Bash(pkill:*)",
+      "Bash(kill:*)"
     ]
   }
 }

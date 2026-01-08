@@ -2,6 +2,22 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import {
+  Box,
+  Container,
+  Paper,
+  Typography,
+  TextField,
+  Button,
+  Avatar,
+  Alert,
+  CircularProgress,
+  Link as MuiLink,
+  Tabs,
+  Tab,
+} from '@mui/material';
+import { Person, ArrowBack } from '@mui/icons-material';
+import Link from 'next/link';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -37,7 +53,6 @@ export default function LoginPage() {
         throw new Error(data.error || '操作失敗');
       }
 
-      // 成功後導向旅行列表頁面
       router.push('/trips');
     } catch (err: any) {
       setError(err.message);
@@ -47,92 +62,182 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md">
-        <h1 className="text-3xl font-bold text-center text-gray-800 mb-6">
-          {isLogin ? '登入' : '註冊'}
-        </h1>
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        position: 'relative',
+        overflow: 'hidden',
+        p: 2,
+      }}
+    >
+      {/* 背景裝飾 */}
+      <Box
+        sx={{
+          position: 'absolute',
+          width: '400px',
+          height: '400px',
+          borderRadius: '50%',
+          background: 'rgba(255, 255, 255, 0.1)',
+          filter: 'blur(100px)',
+          top: '100px',
+          right: '100px',
+        }}
+      />
+      <Box
+        sx={{
+          position: 'absolute',
+          width: '300px',
+          height: '300px',
+          borderRadius: '50%',
+          background: 'rgba(255, 255, 255, 0.1)',
+          filter: 'blur(100px)',
+          bottom: '100px',
+          left: '100px',
+        }}
+      />
 
-        {error && (
-          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
-              用戶名
-            </label>
-            <input
-              type="text"
-              id="username"
-              value={formData.username}
-              onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              required
-              minLength={3}
-            />
-          </div>
-
-          {!isLogin && (
-            <div>
-              <label htmlFor="display_name" className="block text-sm font-medium text-gray-700 mb-1">
-                顯示名稱
-              </label>
-              <input
-                type="text"
-                id="display_name"
-                value={formData.display_name}
-                onChange={(e) => setFormData({ ...formData, display_name: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                required={!isLogin}
-              />
-            </div>
-          )}
-
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-              密碼
-            </label>
-            <input
-              type="password"
-              id="password"
-              value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              required
-              minLength={6}
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+      <Container maxWidth="sm" sx={{ position: 'relative', zIndex: 1 }}>
+        <Paper
+          elevation={10}
+          sx={{
+            p: 4,
+            borderRadius: 3,
+            bgcolor: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(10px)',
+          }}
+        >
+          {/* Logo */}
+          <Avatar
+            sx={{
+              width: 64,
+              height: 64,
+              mx: 'auto',
+              mb: 3,
+              bgcolor: 'primary.main',
+              boxShadow: 3,
+            }}
           >
-            {loading ? '處理中...' : isLogin ? '登入' : '註冊'}
-          </button>
-        </form>
+            <Person sx={{ fontSize: 32 }} />
+          </Avatar>
 
-        <div className="mt-6 text-center">
-          <button
-            onClick={() => {
-              setIsLogin(!isLogin);
+          {/* 標題 */}
+          <Typography
+            variant="h4"
+            align="center"
+            fontWeight={700}
+            sx={{
+              mb: 1,
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              backgroundClip: 'text',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+            }}
+          >
+            {isLogin ? '歡迎回來' : '加入我們'}
+          </Typography>
+          <Typography variant="body2" align="center" color="text.secondary" sx={{ mb: 4 }}>
+            {isLogin ? '登入您的帳號開始管理旅行' : '建立帳號開始您的旅程'}
+          </Typography>
+
+          {/* Tabs */}
+          <Tabs
+            value={isLogin ? 0 : 1}
+            onChange={(_, newValue) => {
+              setIsLogin(newValue === 0);
               setError('');
             }}
-            className="text-blue-600 hover:text-blue-800 text-sm"
+            variant="fullWidth"
+            sx={{ mb: 3 }}
           >
-            {isLogin ? '還沒有帳號? 點此註冊' : '已有帳號? 點此登入'}
-          </button>
-        </div>
+            <Tab label="登入" />
+            <Tab label="註冊" />
+          </Tabs>
 
-        <div className="mt-4 text-center">
-          <a href="/" className="text-gray-600 hover:text-gray-800 text-sm">
-            返回首頁
-          </a>
-        </div>
-      </div>
-    </main>
+          {/* 錯誤訊息 */}
+          {error && (
+            <Alert severity="error" sx={{ mb: 3 }}>
+              {error}
+            </Alert>
+          )}
+
+          {/* 表單 */}
+          <form onSubmit={handleSubmit}>
+            <TextField
+              fullWidth
+              label="用戶名"
+              value={formData.username}
+              onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+              required
+              inputProps={{ minLength: 3 }}
+              sx={{ mb: 2 }}
+            />
+
+            {!isLogin && (
+              <TextField
+                fullWidth
+                label="顯示名稱"
+                value={formData.display_name}
+                onChange={(e) => setFormData({ ...formData, display_name: e.target.value })}
+                required={!isLogin}
+                sx={{ mb: 2 }}
+              />
+            )}
+
+            <TextField
+              fullWidth
+              type="password"
+              label="密碼"
+              value={formData.password}
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              required
+              inputProps={{ minLength: 6 }}
+              helperText={!isLogin ? '至少 6 個字元' : ''}
+              sx={{ mb: 3 }}
+            />
+
+            <Button
+              type="submit"
+              fullWidth
+              variant="contained"
+              size="large"
+              disabled={loading}
+              sx={{
+                py: 1.5,
+                fontSize: '1rem',
+                fontWeight: 600,
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                boxShadow: 3,
+                '&:hover': {
+                  boxShadow: 6,
+                },
+              }}
+            >
+              {loading ? (
+                <CircularProgress size={24} color="inherit" />
+              ) : (
+                isLogin ? '登入' : '註冊'
+              )}
+            </Button>
+          </form>
+
+          {/* 返回首頁 */}
+          <Box sx={{ mt: 3, textAlign: 'center' }}>
+            <Button
+              component={Link}
+              href="/"
+              startIcon={<ArrowBack />}
+              color="inherit"
+              sx={{ textTransform: 'none' }}
+            >
+              返回首頁
+            </Button>
+          </Box>
+        </Paper>
+      </Container>
+    </Box>
   );
 }

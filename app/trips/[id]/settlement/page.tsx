@@ -2,6 +2,30 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import {
+  Box,
+  Container,
+  AppBar,
+  Toolbar,
+  Typography,
+  Button,
+  Card,
+  CardContent,
+  Alert,
+  CircularProgress,
+  Chip,
+  IconButton,
+  Divider,
+  Avatar,
+} from '@mui/material';
+import {
+  ArrowBack,
+  TrendingUp,
+  TrendingDown,
+  CheckCircle,
+  ArrowForward,
+  Lightbulb,
+} from '@mui/icons-material';
 
 interface Balance {
   userId: number;
@@ -57,170 +81,288 @@ export default function SettlementPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-lg">載入中...</div>
-      </div>
+      <Box
+        sx={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <CircularProgress size={60} />
+      </Box>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-red-600 mb-4">{error}</p>
-          <button
+      <Box
+        sx={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Box sx={{ textAlign: 'center' }}>
+          <Alert severity="error" sx={{ mb: 3 }}>
+            {error}
+          </Alert>
+          <Button
             onClick={() => router.push(`/trips/${tripId}`)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            variant="contained"
+            size="large"
           >
             返回旅行詳情
-          </button>
-        </div>
-      </div>
+          </Button>
+        </Box>
+      </Box>
     );
   }
 
   return (
-    <main className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => router.push(`/trips/${tripId}`)}
-              className="text-gray-600 hover:text-gray-800"
-            >
-              ← 返回
-            </button>
-            <h1 className="text-2xl font-bold text-gray-800">結算總覽</h1>
-          </div>
-        </div>
-      </nav>
+    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
+      <AppBar position="static" elevation={1} sx={{ bgcolor: 'white', color: 'text.primary' }}>
+        <Toolbar>
+          <IconButton
+            onClick={() => router.push(`/trips/${tripId}`)}
+            edge="start"
+            sx={{ mr: 2 }}
+          >
+            <ArrowBack />
+          </IconButton>
+          <Typography variant="h6" component="h1" sx={{ fontWeight: 700 }}>
+            結算總覽
+          </Typography>
+        </Toolbar>
+      </AppBar>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <Container maxWidth="lg" sx={{ py: 4 }}>
         {/* 總支出 */}
-        <div className="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-lg shadow-lg p-6 mb-6 text-white">
-          <h2 className="text-lg font-semibold mb-2">總支出</h2>
-          <p className="text-4xl font-bold">${totalExpenses.toLocaleString()}</p>
-        </div>
+        <Card
+          elevation={3}
+          sx={{
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            color: 'white',
+            mb: 3,
+          }}
+        >
+          <CardContent>
+            <Typography variant="h6" fontWeight={600} gutterBottom>
+              總支出
+            </Typography>
+            <Typography variant="h3" fontWeight={700}>
+              ${totalExpenses.toLocaleString()}
+            </Typography>
+          </CardContent>
+        </Card>
 
-        <div className="grid gap-6 lg:grid-cols-2">
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, 1fr)' }, gap: 3 }}>
           {/* 每人統計 */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-semibold text-gray-800 mb-4">每人統計</h2>
-            <div className="space-y-3">
-              {balances.map((balance) => (
-                <div
-                  key={balance.userId}
-                  className="border border-gray-200 rounded-lg p-4"
-                >
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className="font-semibold text-gray-800">{balance.username}</h3>
-                    <span
-                      className={`text-lg font-bold ${
-                        balance.balance > 0
-                          ? 'text-green-600'
-                          : balance.balance < 0
-                          ? 'text-red-600'
-                          : 'text-gray-600'
-                      }`}
-                    >
-                      {balance.balance >= 0 ? '+' : ''}${balance.balance.toFixed(0)}
-                    </span>
-                  </div>
-                  <div className="text-sm text-gray-600 space-y-1">
-                    <div className="flex justify-between">
-                      <span>總付款:</span>
-                      <span className="font-medium">${balance.totalPaid.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>總應付:</span>
-                      <span className="font-medium">${balance.totalOwed.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between pt-2 border-t border-gray-200">
-                      <span className="font-medium">狀態:</span>
-                      <span className={`font-medium ${
-                        balance.balance > 0
-                          ? 'text-green-600'
-                          : balance.balance < 0
-                          ? 'text-red-600'
-                          : 'text-gray-600'
-                      }`}>
-                        {balance.balance > 0
-                          ? '應收'
-                          : balance.balance < 0
-                          ? '應付'
-                          : '已結清'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          <Card elevation={2}>
+            <CardContent>
+              <Typography variant="h6" fontWeight={600} gutterBottom>
+                每人統計
+              </Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {balances.map((balance) => (
+                  <Card
+                    key={balance.userId}
+                    elevation={0}
+                    sx={{ border: '1px solid', borderColor: 'divider' }}
+                  >
+                    <CardContent>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Avatar sx={{ bgcolor: 'primary.main', width: 32, height: 32 }}>
+                            {balance.username.charAt(0)}
+                          </Avatar>
+                          <Typography variant="subtitle1" fontWeight={600}>
+                            {balance.username}
+                          </Typography>
+                        </Box>
+                        <Chip
+                          icon={
+                            balance.balance > 0 ? (
+                              <TrendingUp />
+                            ) : balance.balance < 0 ? (
+                              <TrendingDown />
+                            ) : (
+                              <CheckCircle />
+                            )
+                          }
+                          label={`${balance.balance >= 0 ? '+' : ''}$${balance.balance.toFixed(0)}`}
+                          color={
+                            balance.balance > 0
+                              ? 'success'
+                              : balance.balance < 0
+                              ? 'error'
+                              : 'default'
+                          }
+                          sx={{ fontWeight: 700 }}
+                        />
+                      </Box>
+                      <Divider sx={{ my: 1.5 }} />
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <Typography variant="body2" color="text.secondary">
+                            總付款:
+                          </Typography>
+                          <Typography variant="body2" fontWeight={500}>
+                            ${balance.totalPaid.toLocaleString()}
+                          </Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <Typography variant="body2" color="text.secondary">
+                            總應付:
+                          </Typography>
+                          <Typography variant="body2" fontWeight={500}>
+                            ${balance.totalOwed.toLocaleString()}
+                          </Typography>
+                        </Box>
+                        <Divider sx={{ my: 0.5 }} />
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <Typography variant="body2" fontWeight={600}>
+                            狀態:
+                          </Typography>
+                          <Typography
+                            variant="body2"
+                            fontWeight={600}
+                            color={
+                              balance.balance > 0
+                                ? 'success.main'
+                                : balance.balance < 0
+                                ? 'error.main'
+                                : 'text.secondary'
+                            }
+                          >
+                            {balance.balance > 0
+                              ? '應收'
+                              : balance.balance < 0
+                              ? '應付'
+                              : '已結清'}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </CardContent>
+                  </Card>
+                ))}
+              </Box>
+            </CardContent>
+          </Card>
 
           {/* 結算方案 */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-semibold text-gray-800 mb-4">
-              結算方案
-              {transactions.length > 0 && (
-                <span className="text-sm font-normal text-gray-600 ml-2">
-                  (共 {transactions.length} 筆轉帳)
-                </span>
+          <Card elevation={2}>
+            <CardContent>
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="h6" fontWeight={600} component="span">
+                  結算方案
+                </Typography>
+                {transactions.length > 0 && (
+                  <Typography variant="body2" color="text.secondary" component="span" sx={{ ml: 1 }}>
+                    (共 {transactions.length} 筆轉帳)
+                  </Typography>
+                )}
+              </Box>
+
+              {transactions.length === 0 ? (
+                <Box sx={{ textAlign: 'center', py: 8 }}>
+                  <Typography variant="h5" gutterBottom>
+                    🎉 太好了!
+                  </Typography>
+                  <Typography variant="body1" color="text.secondary">
+                    所有帳目已結清,無需進行轉帳
+                  </Typography>
+                </Box>
+              ) : (
+                <Box>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    {transactions.map((transaction, index) => (
+                      <Card
+                        key={index}
+                        elevation={0}
+                        sx={{
+                          background: 'linear-gradient(135deg, #fff5f5 0%, #ffe5e5 100%)',
+                          border: '2px solid',
+                          borderColor: 'warning.light',
+                        }}
+                      >
+                        <CardContent>
+                          <Box
+                            sx={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              flexWrap: 'wrap',
+                              gap: 2,
+                            }}
+                          >
+                            {/* 付款人 */}
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                              <Avatar
+                                sx={{
+                                  bgcolor: 'white',
+                                  color: 'text.primary',
+                                  border: '2px solid',
+                                  borderColor: 'divider',
+                                }}
+                              >
+                                {transaction.from.charAt(0)}
+                              </Avatar>
+                              <Box>
+                                <Typography variant="caption" color="text.secondary">
+                                  付款人
+                                </Typography>
+                                <Typography variant="body1" fontWeight={600}>
+                                  {transaction.from}
+                                </Typography>
+                              </Box>
+                            </Box>
+
+                            {/* 金額 */}
+                            <Box sx={{ textAlign: 'center' }}>
+                              <Typography variant="h5" fontWeight={700} color="warning.dark">
+                                ${transaction.amount.toFixed(0)}
+                              </Typography>
+                              <ArrowForward sx={{ fontSize: 16, color: 'text.secondary' }} />
+                            </Box>
+
+                            {/* 收款人 */}
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                              <Box sx={{ textAlign: 'right' }}>
+                                <Typography variant="caption" color="text.secondary">
+                                  收款人
+                                </Typography>
+                                <Typography variant="body1" fontWeight={600}>
+                                  {transaction.to}
+                                </Typography>
+                              </Box>
+                              <Avatar
+                                sx={{
+                                  bgcolor: 'white',
+                                  color: 'text.primary',
+                                  border: '2px solid',
+                                  borderColor: 'divider',
+                                }}
+                              >
+                                {transaction.to.charAt(0)}
+                              </Avatar>
+                            </Box>
+                          </Box>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </Box>
+
+                  <Alert severity="info" icon={<Lightbulb />} sx={{ mt: 3 }}>
+                    <strong>提示:</strong> 這是經過優化的最少轉帳次數方案,按照此方案進行轉帳即可完成結算。
+                  </Alert>
+                </Box>
               )}
-            </h2>
-
-            {transactions.length === 0 ? (
-              <div className="text-center text-gray-500 py-12">
-                <p className="text-lg mb-2">🎉 太好了!</p>
-                <p>所有帳目已結清,無需進行轉帳</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {transactions.map((transaction, index) => (
-                  <div
-                    key={index}
-                    className="bg-gradient-to-r from-orange-50 to-red-50 border border-orange-200 rounded-lg p-4"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="bg-white rounded-full w-10 h-10 flex items-center justify-center font-semibold text-gray-700">
-                          {transaction.from.charAt(0)}
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-600">付款人</p>
-                          <p className="font-semibold text-gray-800">{transaction.from}</p>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col items-center mx-4">
-                        <p className="text-2xl font-bold text-orange-600">
-                          ${transaction.amount.toFixed(0)}
-                        </p>
-                        <p className="text-xs text-gray-500">→</p>
-                      </div>
-
-                      <div className="flex items-center gap-3">
-                        <div>
-                          <p className="text-sm text-gray-600 text-right">收款人</p>
-                          <p className="font-semibold text-gray-800 text-right">{transaction.to}</p>
-                        </div>
-                        <div className="bg-white rounded-full w-10 h-10 flex items-center justify-center font-semibold text-gray-700">
-                          {transaction.to.charAt(0)}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-
-                <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-sm text-blue-800">
-                    💡 <strong>提示:</strong> 這是經過優化的最少轉帳次數方案,按照此方案進行轉帳即可完成結算。
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    </main>
+            </CardContent>
+          </Card>
+        </Box>
+      </Container>
+    </Box>
   );
 }

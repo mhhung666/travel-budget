@@ -2,6 +2,33 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import {
+  Box,
+  Container,
+  AppBar,
+  Toolbar,
+  Typography,
+  Button,
+  Card,
+  CardContent,
+  CardActionArea,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Alert,
+  CircularProgress,
+  Chip,
+  Avatar,
+} from '@mui/material';
+import {
+  Add,
+  GroupAdd,
+  Logout,
+  People,
+  CalendarToday,
+} from '@mui/icons-material';
 
 interface Trip {
   id: number;
@@ -112,198 +139,227 @@ export default function TripsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-lg">載入中...</div>
-      </div>
+      <Box
+        sx={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <CircularProgress size={60} />
+      </Box>
     );
   }
 
   return (
-    <main className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold text-gray-800">我的旅行</h1>
-            <div className="flex items-center gap-4">
-              <span className="text-gray-600">
-                歡迎, {user?.display_name}
-              </span>
-              <button
-                onClick={handleLogout}
-                className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition"
-              >
-                登出
-              </button>
-            </div>
-          </div>
-        </div>
-      </nav>
+    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
+      <AppBar position="static" elevation={1} sx={{ bgcolor: 'white', color: 'text.primary' }}>
+        <Toolbar>
+          <Typography variant="h6" component="h1" sx={{ flexGrow: 1, fontWeight: 700 }}>
+            我的旅行
+          </Typography>
+          <Chip
+            avatar={<Avatar sx={{ bgcolor: 'primary.main' }}>{user?.display_name?.charAt(0)}</Avatar>}
+            label={`歡迎, ${user?.display_name}`}
+            sx={{ mr: 2 }}
+          />
+          <Button
+            onClick={handleLogout}
+            variant="outlined"
+            startIcon={<Logout />}
+            sx={{ textTransform: 'none' }}
+          >
+            登出
+          </Button>
+        </Toolbar>
+      </AppBar>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-semibold text-gray-800">旅行列表</h2>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setShowJoinModal(true)}
-                className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition"
-              >
-                加入旅行
-              </button>
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-              >
-                建立新旅行
-              </button>
-            </div>
-          </div>
-
-          {trips.length === 0 ? (
-            <div className="text-center text-gray-500 py-12">
-              <p>目前還沒有旅行記錄</p>
-              <p className="text-sm mt-2">點擊「建立新旅行」開始規劃你的旅程!</p>
-            </div>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {trips.map((trip) => (
-                <div
-                  key={trip.id}
-                  onClick={() => router.push(`/trips/${trip.id}`)}
-                  className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition cursor-pointer"
+      <Container maxWidth="lg" sx={{ py: 4 }}>
+        <Card elevation={2}>
+          <CardContent sx={{ p: 3 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+              <Typography variant="h5" fontWeight={600}>
+                旅行列表
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <Button
+                  onClick={() => setShowJoinModal(true)}
+                  variant="outlined"
+                  startIcon={<GroupAdd />}
+                  sx={{ textTransform: 'none' }}
                 >
-                  <h3 className="font-semibold text-lg text-gray-800 mb-2">
-                    {trip.name}
-                  </h3>
-                  {trip.description && (
-                    <p className="text-gray-600 text-sm mb-3">{trip.description}</p>
-                  )}
-                  <div className="flex justify-between items-center text-sm text-gray-500">
-                    <span>{trip.member_count} 位成員</span>
-                    <span>{new Date(trip.created_at).toLocaleDateString('zh-TW')}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
+                  加入旅行
+                </Button>
+                <Button
+                  onClick={() => setShowCreateModal(true)}
+                  variant="contained"
+                  startIcon={<Add />}
+                  sx={{ textTransform: 'none' }}
+                >
+                  建立新旅行
+                </Button>
+              </Box>
+            </Box>
 
-      {/* 建立旅行 Modal */}
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h3 className="text-xl font-semibold mb-4">建立新旅行</h3>
-
-            {error && (
-              <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-                {error}
-              </div>
+            {trips.length === 0 ? (
+              <Box sx={{ textAlign: 'center', py: 8 }}>
+                <Typography variant="body1" color="text.secondary" gutterBottom>
+                  目前還沒有旅行記錄
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  點擊「建立新旅行」開始規劃你的旅程!
+                </Typography>
+              </Box>
+            ) : (
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' }, gap: 2 }}>
+                {trips.map((trip) => (
+                  <Card
+                    key={trip.id}
+                    elevation={0}
+                    sx={{
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      transition: 'all 0.3s',
+                      '&:hover': {
+                        boxShadow: 4,
+                        transform: 'translateY(-4px)',
+                      },
+                    }}
+                  >
+                    <CardActionArea onClick={() => router.push(`/trips/${trip.id}`)}>
+                      <CardContent>
+                        <Typography variant="h6" fontWeight={600} gutterBottom>
+                          {trip.name}
+                        </Typography>
+                        {trip.description && (
+                          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                            {trip.description}
+                          </Typography>
+                        )}
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Chip
+                            icon={<People />}
+                            label={`${trip.member_count} 位成員`}
+                            size="small"
+                            variant="outlined"
+                          />
+                          <Chip
+                            icon={<CalendarToday />}
+                            label={new Date(trip.created_at).toLocaleDateString('zh-TW')}
+                            size="small"
+                            variant="outlined"
+                          />
+                        </Box>
+                      </CardContent>
+                    </CardActionArea>
+                  </Card>
+                ))}
+              </Box>
             )}
+          </CardContent>
+        </Card>
+      </Container>
 
-            <form onSubmit={handleCreateTrip}>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  旅行名稱 *
-                </label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  required
-                />
-              </div>
-
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  描述 (可選)
-                </label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  rows={3}
-                />
-              </div>
-
-              <div className="flex gap-2 justify-end">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowCreateModal(false);
-                    setError('');
-                    setFormData({ name: '', description: '' });
-                  }}
-                  className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition"
-                >
-                  取消
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-                >
-                  建立
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* 加入旅行 Modal */}
-      {showJoinModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h3 className="text-xl font-semibold mb-4">加入旅行</h3>
-
+      {/* 建立旅行 Dialog */}
+      <Dialog
+        open={showCreateModal}
+        onClose={() => {
+          setShowCreateModal(false);
+          setError('');
+          setFormData({ name: '', description: '' });
+        }}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>建立新旅行</DialogTitle>
+        <form onSubmit={handleCreateTrip}>
+          <DialogContent>
             {error && (
-              <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+              <Alert severity="error" sx={{ mb: 2 }}>
                 {error}
-              </div>
+              </Alert>
             )}
+            <TextField
+              fullWidth
+              label="旅行名稱"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              required
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              fullWidth
+              label="描述 (可選)"
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              multiline
+              rows={3}
+            />
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <Button
+              onClick={() => {
+                setShowCreateModal(false);
+                setError('');
+                setFormData({ name: '', description: '' });
+              }}
+            >
+              取消
+            </Button>
+            <Button type="submit" variant="contained">
+              建立
+            </Button>
+          </DialogActions>
+        </form>
+      </Dialog>
 
-            <form onSubmit={handleJoinTrip}>
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  旅行 ID
-                </label>
-                <input
-                  type="number"
-                  value={joinTripId}
-                  onChange={(e) => setJoinTripId(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  required
-                  placeholder="請輸入旅行 ID"
-                />
-                <p className="text-sm text-gray-500 mt-1">
-                  向其他成員詢問旅行 ID 以加入
-                </p>
-              </div>
-
-              <div className="flex gap-2 justify-end">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowJoinModal(false);
-                    setError('');
-                    setJoinTripId('');
-                  }}
-                  className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition"
-                >
-                  取消
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-                >
-                  加入
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-    </main>
+      {/* 加入旅行 Dialog */}
+      <Dialog
+        open={showJoinModal}
+        onClose={() => {
+          setShowJoinModal(false);
+          setError('');
+          setJoinTripId('');
+        }}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>加入旅行</DialogTitle>
+        <form onSubmit={handleJoinTrip}>
+          <DialogContent>
+            {error && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {error}
+              </Alert>
+            )}
+            <TextField
+              fullWidth
+              type="number"
+              label="旅行 ID"
+              value={joinTripId}
+              onChange={(e) => setJoinTripId(e.target.value)}
+              required
+              placeholder="請輸入旅行 ID"
+              helperText="向其他成員詢問旅行 ID 以加入"
+            />
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <Button
+              onClick={() => {
+                setShowJoinModal(false);
+                setError('');
+                setJoinTripId('');
+              }}
+            >
+              取消
+            </Button>
+            <Button type="submit" variant="contained">
+              加入
+            </Button>
+          </DialogActions>
+        </form>
+      </Dialog>
+    </Box>
   );
 }
