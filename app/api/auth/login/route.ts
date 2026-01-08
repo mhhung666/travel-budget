@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import db from '@/lib/db';
+import { supabase } from '@/lib/supabase';
 import { createSession } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
@@ -17,13 +17,13 @@ export async function POST(request: NextRequest) {
     }
 
     // 查找用戶
-    const user = db.prepare(`
-      SELECT id, username, display_name, password
-      FROM users
-      WHERE username = ?
-    `).get(username) as any;
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('id, username, display_name, password')
+      .eq('username', username)
+      .single();
 
-    if (!user) {
+    if (error || !user) {
       return NextResponse.json(
         { error: '用戶名或密碼錯誤' },
         { status: 401 }

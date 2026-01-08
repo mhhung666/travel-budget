@@ -235,37 +235,56 @@ travel/
 - [x] 顯示結算結果
 - [x] 優化轉帳次數
 
-### Phase 6: 部署
-- [ ] 部署到 Vercel
+### Phase 6: 部署 ✅
+- [x] 遷移到 Supabase (雲端 Postgres)
+- [x] 更新所有 API routes
+- [x] 準備 Vercel 部署配置
+- [x] 建立部署文檔
+- [ ] 實際部署到 Vercel (等待你執行)
 - [ ] 測試手機訪問
 - [ ] 優化移動端體驗
+
+## 🚀 快速部署指南
+
+已完成 Supabase 遷移!請參考:
+- **[QUICKSTART.md](./QUICKSTART.md)** - 5 分鐘快速部署指南
+- **[SUPABASE_SETUP.md](./SUPABASE_SETUP.md)** - 詳細設定說明
+- **[DEPLOY_CHECKLIST.md](./DEPLOY_CHECKLIST.md)** - 部署檢查清單
+- **[MIGRATION_SUMMARY.md](./MIGRATION_SUMMARY.md)** - 遷移總結
 
 ## 技術棧總結
 
 | 類別 | 技術 |
 |------|------|
-| 前端框架 | React + Next.js 14 |
-| 樣式 | Tailwind CSS |
-| 數據庫 | SQLite (開發) / Postgres (生產) |
-| ORM | Prisma (可選) |
+| 前端框架 | React + Next.js 16 |
+| 樣式 | Material-UI (MUI) |
+| 數據庫 | Supabase (Postgres) |
+| 認證 | JWT (jose) |
 | 部署 | Vercel |
 | 語言 | TypeScript |
 
 ## 開始開發
 
+### 本地開發
+
 ```bash
-# 安裝依賴
+# 1. 安裝依賴
 npm install
 
-# 開發模式
+# 2. 設定環境變數 (複製 .env.example 為 .env.local)
+cp .env.example .env.local
+
+# 3. 在 .env.local 填入你的 Supabase 金鑰
+# NEXT_PUBLIC_SUPABASE_URL=...
+# NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+
+# 4. 啟動開發伺服器
 npm run dev
-
-# 構建
-npm run build
-
-# 部署
-vercel deploy
 ```
+
+### 部署到 Vercel
+
+請參考 [QUICKSTART.md](./QUICKSTART.md) 的完整步驟
 
 ## License
 MIT

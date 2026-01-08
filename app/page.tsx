@@ -93,7 +93,7 @@ export default function Home() {
               mx: 'auto',
             }}
           >
-            智能計算分帳，讓旅行更簡單，友誼更長久
+            智慧計算分帳，讓旅行更簡單
           </Typography>
 
           {/* 功能特色 */}

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import db from '@/lib/db';
+import { supabase } from '@/lib/supabase';
 import { getSession } from '@/lib/auth';
 import { calculateSettlement } from '@/lib/settlement';
 
@@ -18,10 +18,12 @@ export async function GET(
     const tripId = parseInt(id);
 
     // 檢查用戶是否是此旅行的成員
-    const isMember = db.prepare(`
-      SELECT id FROM trip_members
-      WHERE trip_id = ? AND user_id = ?
-    `).get(tripId, session.userId);
+    const { data: isMember } = await supabase
+      .from('trip_members')
+      .select('id')
+      .eq('trip_id', tripId)
+      .eq('user_id', session.userId)
+      .single();
 
     if (!isMember) {
       return NextResponse.json(
@@ -31,56 +33,68 @@ export async function GET(
     }
 
     // 獲取所有成員
-    const members = db.prepare(`
-      SELECT u.id, u.username, u.display_name
-      FROM users u
-      INNER JOIN trip_members tm ON u.id = tm.user_id
-      WHERE tm.trip_id = ?
-    `).all(tripId) as any[];
+    const { data: membersData } = await supabase
+      .from('trip_members')
+      .select(`
+        users!inner (
+          id,
+          username,
+          display_name
+        )
+      `)
+      .eq('trip_id', tripId);
+
+    const members = membersData?.map((m: any) => m.users) || [];
 
     // 計算每個成員的淨餘額
-    const balances = members.map(member => {
-      // 計算總付款
-      const totalPaid = db.prepare(`
-        SELECT COALESCE(SUM(amount), 0) as total
-        FROM expenses
-        WHERE payer_id = ? AND trip_id = ?
-      `).get(member.id, tripId) as any;
+    const balances = await Promise.all(
+      members.map(async (member: any) => {
+        // 計算總付款
+        const { data: paidData } = await supabase
+          .from('expenses')
+          .select('amount')
+          .eq('payer_id', member.id)
+          .eq('trip_id', tripId);
 
-      // 計算總應付
-      const totalOwed = db.prepare(`
-        SELECT COALESCE(SUM(share_amount), 0) as total
-        FROM expense_splits es
-        INNER JOIN expenses e ON es.expense_id = e.id
-        WHERE es.user_id = ? AND e.trip_id = ?
-      `).get(member.id, tripId) as any;
+        const totalPaid = paidData?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0;
 
-      const balance = totalPaid.total - totalOwed.total;
+        // 計算總應付
+        const { data: owedData } = await supabase
+          .from('expense_splits')
+          .select('share_amount, expenses!inner(trip_id)')
+          .eq('user_id', member.id)
+          .eq('expenses.trip_id', tripId);
 
-      return {
-        userId: member.id,
-        username: member.display_name,
-        totalPaid: totalPaid.total,
-        totalOwed: totalOwed.total,
-        balance: balance,
-      };
-    });
+        const totalOwed = owedData?.reduce((sum, s) => sum + (s.share_amount || 0), 0) || 0;
+
+        const balance = totalPaid - totalOwed;
+
+        return {
+          userId: member.id,
+          username: member.display_name,
+          totalPaid,
+          totalOwed,
+          balance,
+        };
+      })
+    );
 
     // 使用結算演算法計算轉帳方案 (需要複製一份數據,因為演算法會修改 balance)
     const balancesForCalculation = balances.map(b => ({ ...b }));
     const transactions = calculateSettlement(balancesForCalculation);
 
     // 計算總支出
-    const totalExpenses = db.prepare(`
-      SELECT COALESCE(SUM(amount), 0) as total
-      FROM expenses
-      WHERE trip_id = ?
-    `).get(tripId) as any;
+    const { data: expensesData } = await supabase
+      .from('expenses')
+      .select('amount')
+      .eq('trip_id', tripId);
+
+    const totalExpenses = expensesData?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0;
 
     return NextResponse.json({
       balances,
       transactions,
-      totalExpenses: totalExpenses.total,
+      totalExpenses,
     });
   } catch (error) {
     console.error('Get settlement error:', error);

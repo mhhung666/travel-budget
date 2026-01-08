@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import db from '@/lib/db';
+import { supabase } from '@/lib/supabase';
 import { getSession } from '@/lib/auth';
 
 // 獲取旅行詳情
@@ -17,10 +17,12 @@ export async function GET(
     const tripId = parseInt(id);
 
     // 檢查用戶是否是此旅行的成員
-    const isMember = db.prepare(`
-      SELECT id FROM trip_members
-      WHERE trip_id = ? AND user_id = ?
-    `).get(tripId, session.userId);
+    const { data: isMember } = await supabase
+      .from('trip_members')
+      .select('id')
+      .eq('trip_id', tripId)
+      .eq('user_id', session.userId)
+      .single();
 
     if (!isMember) {
       return NextResponse.json(
@@ -30,13 +32,13 @@ export async function GET(
     }
 
     // 獲取旅行詳情
-    const trip = db.prepare(`
-      SELECT id, name, description, created_at
-      FROM trips
-      WHERE id = ?
-    `).get(tripId);
+    const { data: trip, error: tripError } = await supabase
+      .from('trips')
+      .select('id, name, description, created_at')
+      .eq('id', tripId)
+      .single();
 
-    if (!trip) {
+    if (tripError || !trip) {
       return NextResponse.json(
         { error: '旅行不存在' },
         { status: 404 }

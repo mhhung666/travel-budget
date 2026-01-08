@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import db from '@/lib/db';
+import { supabase } from '@/lib/supabase';
 import { getSession } from '@/lib/auth';
 
 // 獲取用戶的所有旅行
@@ -11,17 +11,43 @@ export async function GET() {
     }
 
     // 查詢用戶參與的所有旅行
-    const trips = db.prepare(`
-      SELECT t.id, t.name, t.description, t.created_at,
-             COUNT(tm.user_id) as member_count
-      FROM trips t
-      INNER JOIN trip_members tm ON t.id = tm.trip_id
-      WHERE tm.user_id = ?
-      GROUP BY t.id
-      ORDER BY t.created_at DESC
-    `).all(session.userId);
+    const { data: tripMembers, error: tmError } = await supabase
+      .from('trip_members')
+      .select('trip_id')
+      .eq('user_id', session.userId);
 
-    return NextResponse.json({ trips });
+    if (tmError) throw tmError;
+
+    const tripIds = tripMembers?.map(tm => tm.trip_id) || [];
+
+    if (tripIds.length === 0) {
+      return NextResponse.json({ trips: [] });
+    }
+
+    const { data: trips, error: tripsError } = await supabase
+      .from('trips')
+      .select(`
+        id,
+        name,
+        description,
+        created_at,
+        trip_members(count)
+      `)
+      .in('id', tripIds)
+      .order('created_at', { ascending: false });
+
+    if (tripsError) throw tripsError;
+
+    // 格式化回應
+    const formattedTrips = trips?.map(trip => ({
+      id: trip.id,
+      name: trip.name,
+      description: trip.description,
+      created_at: trip.created_at,
+      member_count: trip.trip_members?.[0]?.count || 0,
+    }));
+
+    return NextResponse.json({ trips: formattedTrips });
   } catch (error) {
     console.error('Get trips error:', error);
     return NextResponse.json(
@@ -49,33 +75,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 開始事務
-    const createTrip = db.transaction(() => {
-      // 創建旅行
-      const result = db.prepare(`
-        INSERT INTO trips (name, description)
-        VALUES (?, ?)
-      `).run(name.trim(), description?.trim() || null);
+    // 創建旅行
+    const { data: trip, error: tripError } = await supabase
+      .from('trips')
+      .insert([{ name: name.trim(), description: description?.trim() || null }])
+      .select()
+      .single();
 
-      const tripId = result.lastInsertRowid;
+    if (tripError) throw tripError;
 
-      // 將創建者加入旅行成員
-      db.prepare(`
-        INSERT INTO trip_members (trip_id, user_id)
-        VALUES (?, ?)
-      `).run(tripId, session.userId);
+    // 將創建者加入旅行成員
+    const { error: memberError } = await supabase
+      .from('trip_members')
+      .insert([{ trip_id: trip.id, user_id: session.userId }]);
 
-      return tripId;
-    });
-
-    const tripId = createTrip();
-
-    // 獲取完整的旅行信息
-    const trip = db.prepare(`
-      SELECT id, name, description, created_at
-      FROM trips
-      WHERE id = ?
-    `).get(tripId);
+    if (memberError) throw memberError;
 
     return NextResponse.json({ trip }, { status: 201 });
   } catch (error) {

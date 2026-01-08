@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import db from '@/lib/db';
+import { supabase } from '@/lib/supabase';
 import { getSession } from '@/lib/auth';
 
 // 獲取旅行的所有支出
@@ -17,10 +17,12 @@ export async function GET(
     const tripId = parseInt(id);
 
     // 檢查用戶是否是此旅行的成員
-    const isMember = db.prepare(`
-      SELECT id FROM trip_members
-      WHERE trip_id = ? AND user_id = ?
-    `).get(tripId, session.userId);
+    const { data: isMember } = await supabase
+      .from('trip_members')
+      .select('id')
+      .eq('trip_id', tripId)
+      .eq('user_id', session.userId)
+      .single();
 
     if (!isMember) {
       return NextResponse.json(
@@ -30,29 +32,64 @@ export async function GET(
     }
 
     // 獲取所有支出及其分帳詳情
-    const expenses = db.prepare(`
-      SELECT e.id, e.amount, e.description, e.date, e.created_at,
-             u.id as payer_id, u.username as payer_username, u.display_name as payer_name
-      FROM expenses e
-      INNER JOIN users u ON e.payer_id = u.id
-      WHERE e.trip_id = ?
-      ORDER BY e.date DESC, e.created_at DESC
-    `).all(tripId) as any[];
+    const { data: expenses, error: expensesError } = await supabase
+      .from('expenses')
+      .select(`
+        id,
+        amount,
+        description,
+        date,
+        created_at,
+        payer:users!expenses_payer_id_fkey (
+          id,
+          username,
+          display_name
+        )
+      `)
+      .eq('trip_id', tripId)
+      .order('date', { ascending: false })
+      .order('created_at', { ascending: false });
+
+    if (expensesError) {
+      throw expensesError;
+    }
 
     // 為每個支出獲取分帳詳情
-    const expensesWithSplits = expenses.map(expense => {
-      const splits = db.prepare(`
-        SELECT es.user_id, es.share_amount, u.username, u.display_name
-        FROM expense_splits es
-        INNER JOIN users u ON es.user_id = u.id
-        WHERE es.expense_id = ?
-      `).all(expense.id);
+    const expensesWithSplits = await Promise.all(
+      (expenses || []).map(async (expense: any) => {
+        const { data: splits } = await supabase
+          .from('expense_splits')
+          .select(`
+            user_id,
+            share_amount,
+            users!expense_splits_user_id_fkey (
+              username,
+              display_name
+            )
+          `)
+          .eq('expense_id', expense.id);
 
-      return {
-        ...expense,
-        splits,
-      };
-    });
+        // 重新格式化資料
+        const formattedSplits = splits?.map((split: any) => ({
+          user_id: split.user_id,
+          share_amount: split.share_amount,
+          username: split.users.username,
+          display_name: split.users.display_name,
+        })) || [];
+
+        return {
+          id: expense.id,
+          amount: expense.amount,
+          description: expense.description,
+          date: expense.date,
+          created_at: expense.created_at,
+          payer_id: expense.payer.id,
+          payer_username: expense.payer.username,
+          payer_name: expense.payer.display_name,
+          splits: formattedSplits,
+        };
+      })
+    );
 
     return NextResponse.json({ expenses: expensesWithSplits });
   } catch (error) {
@@ -79,10 +116,12 @@ export async function POST(
     const tripId = parseInt(id);
 
     // 檢查用戶是否是此旅行的成員
-    const isMember = db.prepare(`
-      SELECT id FROM trip_members
-      WHERE trip_id = ? AND user_id = ?
-    `).get(tripId, session.userId);
+    const { data: isMember } = await supabase
+      .from('trip_members')
+      .select('id')
+      .eq('trip_id', tripId)
+      .eq('user_id', session.userId)
+      .single();
 
     if (!isMember) {
       return NextResponse.json(
@@ -110,9 +149,12 @@ export async function POST(
     }
 
     // 驗證 payer 和所有 split_with 成員都在旅行中
-    const memberIds = db.prepare(`
-      SELECT user_id FROM trip_members WHERE trip_id = ?
-    `).all(tripId).map((m: any) => m.user_id);
+    const { data: members } = await supabase
+      .from('trip_members')
+      .select('user_id')
+      .eq('trip_id', tripId);
+
+    const memberIds = members?.map(m => m.user_id) || [];
 
     if (!memberIds.includes(payer_id)) {
       return NextResponse.json(
@@ -133,41 +175,71 @@ export async function POST(
     // 計算每人應分擔金額
     const shareAmount = amount / split_with.length;
 
-    // 使用事務創建支出和分帳記錄
-    const createExpense = db.transaction(() => {
-      // 創建支出記錄
-      const result = db.prepare(`
-        INSERT INTO expenses (trip_id, payer_id, amount, description, date)
-        VALUES (?, ?, ?, ?, ?)
-      `).run(tripId, payer_id, amount, description, date);
+    // 創建支出記錄
+    const { data: expenseData, error: expenseError } = await supabase
+      .from('expenses')
+      .insert({
+        trip_id: tripId,
+        payer_id,
+        amount,
+        description,
+        date,
+      })
+      .select()
+      .single();
 
-      const expenseId = result.lastInsertRowid;
+    if (expenseError || !expenseData) {
+      throw expenseError;
+    }
 
-      // 創建分帳記錄
-      const insertSplit = db.prepare(`
-        INSERT INTO expense_splits (expense_id, user_id, share_amount)
-        VALUES (?, ?, ?)
-      `);
+    const expenseId = expenseData.id;
 
-      for (const userId of split_with) {
-        insertSplit.run(expenseId, userId, shareAmount);
-      }
+    // 創建分帳記錄
+    const splitsToInsert = split_with.map((userId: number) => ({
+      expense_id: expenseId,
+      user_id: userId,
+      share_amount: shareAmount,
+    }));
 
-      return expenseId;
-    });
+    const { error: splitsError } = await supabase
+      .from('expense_splits')
+      .insert(splitsToInsert);
 
-    const expenseId = createExpense();
+    if (splitsError) {
+      throw splitsError;
+    }
 
     // 獲取完整的支出信息
-    const expense = db.prepare(`
-      SELECT e.id, e.amount, e.description, e.date, e.created_at,
-             u.id as payer_id, u.username as payer_username, u.display_name as payer_name
-      FROM expenses e
-      INNER JOIN users u ON e.payer_id = u.id
-      WHERE e.id = ?
-    `).get(expenseId);
+    const { data: expense } = await supabase
+      .from('expenses')
+      .select(`
+        id,
+        amount,
+        description,
+        date,
+        created_at,
+        payer:users!expenses_payer_id_fkey (
+          id,
+          username,
+          display_name
+        )
+      `)
+      .eq('id', expenseId)
+      .single();
 
-    return NextResponse.json({ expense }, { status: 201 });
+    // 重新格式化資料
+    const formattedExpense = {
+      id: expense?.id,
+      amount: expense?.amount,
+      description: expense?.description,
+      date: expense?.date,
+      created_at: expense?.created_at,
+      payer_id: expense?.payer.id,
+      payer_username: expense?.payer.username,
+      payer_name: expense?.payer.display_name,
+    };
+
+    return NextResponse.json({ expense: formattedExpense }, { status: 201 });
   } catch (error) {
     console.error('Create expense error:', error);
     return NextResponse.json(

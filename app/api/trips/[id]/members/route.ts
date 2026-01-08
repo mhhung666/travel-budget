@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import db from '@/lib/db';
+import { supabase } from '@/lib/supabase';
 import { getSession } from '@/lib/auth';
 
 // 獲取旅行成員列表
@@ -17,10 +17,12 @@ export async function GET(
     const tripId = parseInt(id);
 
     // 檢查用戶是否是此旅行的成員
-    const isMember = db.prepare(`
-      SELECT id FROM trip_members
-      WHERE trip_id = ? AND user_id = ?
-    `).get(tripId, session.userId);
+    const { data: isMember } = await supabase
+      .from('trip_members')
+      .select('id')
+      .eq('trip_id', tripId)
+      .eq('user_id', session.userId)
+      .single();
 
     if (!isMember) {
       return NextResponse.json(
@@ -30,15 +32,32 @@ export async function GET(
     }
 
     // 獲取所有成員
-    const members = db.prepare(`
-      SELECT u.id, u.username, u.display_name, tm.joined_at
-      FROM users u
-      INNER JOIN trip_members tm ON u.id = tm.user_id
-      WHERE tm.trip_id = ?
-      ORDER BY tm.joined_at ASC
-    `).all(tripId);
+    const { data: members, error: membersError } = await supabase
+      .from('trip_members')
+      .select(`
+        joined_at,
+        users!inner (
+          id,
+          username,
+          display_name
+        )
+      `)
+      .eq('trip_id', tripId)
+      .order('joined_at', { ascending: true });
 
-    return NextResponse.json({ members });
+    if (membersError) {
+      throw membersError;
+    }
+
+    // 重新格式化資料以符合原本的結構
+    const formattedMembers = members?.map((member: any) => ({
+      id: member.users.id,
+      username: member.users.username,
+      display_name: member.users.display_name,
+      joined_at: member.joined_at,
+    })) || [];
+
+    return NextResponse.json({ members: formattedMembers });
   } catch (error) {
     console.error('Get trip members error:', error);
     return NextResponse.json(

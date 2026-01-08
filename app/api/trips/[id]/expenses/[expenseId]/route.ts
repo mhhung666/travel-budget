@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import db from '@/lib/db';
+import { supabase } from '@/lib/supabase';
 import { getSession } from '@/lib/auth';
 
 // 刪除支出
@@ -18,10 +18,12 @@ export async function DELETE(
     const expenseIdNum = parseInt(expenseId);
 
     // 檢查用戶是否是此旅行的成員
-    const isMember = db.prepare(`
-      SELECT id FROM trip_members
-      WHERE trip_id = ? AND user_id = ?
-    `).get(tripId, session.userId);
+    const { data: isMember } = await supabase
+      .from('trip_members')
+      .select('id')
+      .eq('trip_id', tripId)
+      .eq('user_id', session.userId)
+      .single();
 
     if (!isMember) {
       return NextResponse.json(
@@ -31,12 +33,14 @@ export async function DELETE(
     }
 
     // 檢查支出是否存在且屬於該旅行
-    const expense = db.prepare(`
-      SELECT id, payer_id FROM expenses
-      WHERE id = ? AND trip_id = ?
-    `).get(expenseIdNum, tripId) as any;
+    const { data: expense, error: expenseError } = await supabase
+      .from('expenses')
+      .select('id, payer_id')
+      .eq('id', expenseIdNum)
+      .eq('trip_id', tripId)
+      .single();
 
-    if (!expense) {
+    if (expenseError || !expense) {
       return NextResponse.json(
         { error: '支出不存在' },
         { status: 404 }
@@ -52,7 +56,14 @@ export async function DELETE(
     }
 
     // 刪除支出(分帳記錄會因為外鍵級聯刪除)
-    db.prepare('DELETE FROM expenses WHERE id = ?').run(expenseIdNum);
+    const { error: deleteError } = await supabase
+      .from('expenses')
+      .delete()
+      .eq('id', expenseIdNum);
+
+    if (deleteError) {
+      throw deleteError;
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

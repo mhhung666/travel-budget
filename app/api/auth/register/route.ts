@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import db from '@/lib/db';
+import { supabase } from '@/lib/supabase';
 import { createSession } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
@@ -31,7 +31,12 @@ export async function POST(request: NextRequest) {
     }
 
     // 檢查用戶名是否已存在
-    const existingUser = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('id')
+      .eq('username', username)
+      .single();
+
     if (existingUser) {
       return NextResponse.json(
         { error: '用戶名已被使用' },
@@ -43,22 +48,25 @@ export async function POST(request: NextRequest) {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // 創建用戶
-    const result = db.prepare(`
-      INSERT INTO users (username, display_name, password)
-      VALUES (?, ?, ?)
-    `).run(username, display_name, hashedPassword);
+    const { data: newUser, error } = await supabase
+      .from('users')
+      .insert([{ username, display_name, password: hashedPassword }])
+      .select()
+      .single();
 
-    const userId = result.lastInsertRowid as number;
+    if (error) {
+      throw error;
+    }
 
     // 創建 session
-    await createSession(userId, username);
+    await createSession(newUser.id, username);
 
     return NextResponse.json({
       success: true,
       user: {
-        id: userId,
-        username,
-        display_name,
+        id: newUser.id,
+        username: newUser.username,
+        display_name: newUser.display_name,
       },
     }, { status: 201 });
   } catch (error) {

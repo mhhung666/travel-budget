@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import db from '@/lib/db';
+import { supabase } from '@/lib/supabase';
 
 export async function GET() {
   try {
@@ -13,13 +13,13 @@ export async function GET() {
       );
     }
 
-    const user = db.prepare(`
-      SELECT id, username, display_name, created_at
-      FROM users
-      WHERE id = ?
-    `).get(session.userId);
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('id, username, display_name, created_at')
+      .eq('id', session.userId)
+      .single();
 
-    if (!user) {
+    if (error || !user) {
       return NextResponse.json(
         { error: '用戶不存在' },
         { status: 404 }

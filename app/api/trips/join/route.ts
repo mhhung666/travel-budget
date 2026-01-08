@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import db from '@/lib/db';
+import { supabase } from '@/lib/supabase';
 import { getSession } from '@/lib/auth';
 
 // 加入旅行
@@ -21,8 +21,13 @@ export async function POST(request: NextRequest) {
     }
 
     // 檢查旅行是否存在
-    const trip = db.prepare('SELECT id FROM trips WHERE id = ?').get(trip_id);
-    if (!trip) {
+    const { data: trip, error: tripError } = await supabase
+      .from('trips')
+      .select('id')
+      .eq('id', trip_id)
+      .single();
+
+    if (tripError || !trip) {
       return NextResponse.json(
         { error: '旅行不存在' },
         { status: 404 }
@@ -30,10 +35,12 @@ export async function POST(request: NextRequest) {
     }
 
     // 檢查是否已經是成員
-    const existingMember = db.prepare(`
-      SELECT id FROM trip_members
-      WHERE trip_id = ? AND user_id = ?
-    `).get(trip_id, session.userId);
+    const { data: existingMember } = await supabase
+      .from('trip_members')
+      .select('id')
+      .eq('trip_id', trip_id)
+      .eq('user_id', session.userId)
+      .single();
 
     if (existingMember) {
       return NextResponse.json(
@@ -43,10 +50,13 @@ export async function POST(request: NextRequest) {
     }
 
     // 加入旅行
-    db.prepare(`
-      INSERT INTO trip_members (trip_id, user_id)
-      VALUES (?, ?)
-    `).run(trip_id, session.userId);
+    const { error: insertError } = await supabase
+      .from('trip_members')
+      .insert({ trip_id, user_id: session.userId });
+
+    if (insertError) {
+      throw insertError;
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
