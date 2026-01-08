@@ -471,7 +471,7 @@ export default function TripDetailPage() {
               <InputLabel>付款人 *</InputLabel>
               <Select
                 value={expenseForm.payer_id}
-                onChange={(e) => setExpenseForm({ ...expenseForm, payer_id: parseInt(e.target.value as string) })}
+                onChange={(e) => setExpenseForm({ ...expenseForm, payer_id: typeof e.target.value === 'string' ? parseInt(e.target.value) : e.target.value })}
                 label="付款人 *"
                 required
               >

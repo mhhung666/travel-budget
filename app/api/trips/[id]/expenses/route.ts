@@ -70,22 +70,26 @@ export async function GET(
           .eq('expense_id', expense.id);
 
         // 重新格式化資料
-        const formattedSplits = splits?.map((split: any) => ({
-          user_id: split.user_id,
-          share_amount: split.share_amount,
-          username: split.users.username,
-          display_name: split.users.display_name,
-        })) || [];
+        const formattedSplits = splits?.map((split: any) => {
+          const user = Array.isArray(split.users) ? split.users[0] : split.users;
+          return {
+            user_id: split.user_id,
+            share_amount: split.share_amount,
+            username: user?.username,
+            display_name: user?.display_name,
+          };
+        }) || [];
 
+        const payer = Array.isArray(expense.payer) ? expense.payer[0] : expense.payer;
         return {
           id: expense.id,
           amount: expense.amount,
           description: expense.description,
           date: expense.date,
           created_at: expense.created_at,
-          payer_id: expense.payer.id,
-          payer_username: expense.payer.username,
-          payer_name: expense.payer.display_name,
+          payer_id: payer?.id,
+          payer_username: payer?.username,
+          payer_name: payer?.display_name,
           splits: formattedSplits,
         };
       })
@@ -228,15 +232,16 @@ export async function POST(
       .single();
 
     // 重新格式化資料
+    const payer = Array.isArray(expense?.payer) ? expense.payer[0] : expense?.payer;
     const formattedExpense = {
       id: expense?.id,
       amount: expense?.amount,
       description: expense?.description,
       date: expense?.date,
       created_at: expense?.created_at,
-      payer_id: expense?.payer.id,
-      payer_username: expense?.payer.username,
-      payer_name: expense?.payer.display_name,
+      payer_id: payer?.id,
+      payer_username: payer?.username,
+      payer_name: payer?.display_name,
     };
 
     return NextResponse.json({ expense: formattedExpense }, { status: 201 });

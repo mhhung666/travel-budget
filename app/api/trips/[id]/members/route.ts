@@ -50,12 +50,15 @@ export async function GET(
     }
 
     // 重新格式化資料以符合原本的結構
-    const formattedMembers = members?.map((member: any) => ({
-      id: member.users.id,
-      username: member.users.username,
-      display_name: member.users.display_name,
-      joined_at: member.joined_at,
-    })) || [];
+    const formattedMembers = members?.map((member: any) => {
+      const user = Array.isArray(member.users) ? member.users[0] : member.users;
+      return {
+        id: user?.id,
+        username: user?.username,
+        display_name: user?.display_name,
+        joined_at: member.joined_at,
+      };
+    }) || [];
 
     return NextResponse.json({ members: formattedMembers });
   } catch (error) {
