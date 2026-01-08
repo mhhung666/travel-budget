@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx create-next-app@latest . --typescript --tailwind --app --no-src --import-alias \"@/*\" --use-npm)",
+      "Bash(npm init -y)",
+      "Bash(npm install:*)",
+      "Bash(npx tailwindcss:*)",
+      "Bash(sqlite3:*)",
+      "Bash(npm run dev:*)",
+      "Bash(tree:*)",
+      "Bash(curl:*)",
+      "Bash(npx tsx:*)",
+      "Bash(python3:*)"
+    ]
+  }
+}
