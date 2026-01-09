@@ -72,7 +72,7 @@ export default function Home() {
               textShadow: '0 2px 10px rgba(0,0,0,0.1)',
             }}
           >
-            旅行分帳 App
+            Travel Budget Planner
           </Typography>
           <Typography
             variant="h5"
