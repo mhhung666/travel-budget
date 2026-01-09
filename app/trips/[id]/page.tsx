@@ -5,8 +5,6 @@ import { useRouter, useParams } from 'next/navigation';
 import {
   Box,
   Container,
-  AppBar,
-  Toolbar,
   Typography,
   Button,
   Card,
@@ -44,6 +42,7 @@ import {
   Warning,
   Edit,
 } from '@mui/icons-material';
+import Navbar from '@/components/Navbar';
 
 interface Trip {
   id: number;
@@ -394,22 +393,17 @@ export default function TripDetailPage() {
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
-      <AppBar position="static" elevation={1} sx={{ bgcolor: 'white', color: 'text.primary' }}>
-        <Toolbar>
-          <IconButton
-            onClick={() => router.push('/trips')}
-            edge="start"
-            sx={{ mr: 2 }}
-          >
-            <ArrowBack />
-          </IconButton>
-          <Typography variant="h6" component="h1" sx={{ fontWeight: 700 }}>
-            {trip.name}
-          </Typography>
-        </Toolbar>
-      </AppBar>
+      <Navbar
+        user={currentUser ? {
+          id: currentUser.id,
+          username: currentUser.display_name,
+          email: currentUser.email
+        } : null}
+        showUserMenu={true}
+        title={trip.name}
+      />
 
-      <Container maxWidth="lg" sx={{ py: 4 }}>
+      <Container maxWidth="lg" sx={{ pt: { xs: 10, sm: 12 }, pb: 4 }}>
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '2fr 1fr' }, gap: 3 }}>
           {/* 旅行資訊 */}
           <Box>

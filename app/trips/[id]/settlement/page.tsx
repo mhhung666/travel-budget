@@ -5,8 +5,6 @@ import { useRouter, useParams } from 'next/navigation';
 import {
   Box,
   Container,
-  AppBar,
-  Toolbar,
   Typography,
   Button,
   Card,
@@ -14,12 +12,10 @@ import {
   Alert,
   CircularProgress,
   Chip,
-  IconButton,
   Divider,
   Avatar,
 } from '@mui/material';
 import {
-  ArrowBack,
   TrendingUp,
   TrendingDown,
   CheckCircle,
@@ -27,6 +23,7 @@ import {
   ArrowDownward,
   Lightbulb,
 } from '@mui/icons-material';
+import Navbar from '@/components/Navbar';
 
 interface Balance {
   userId: number;
@@ -123,22 +120,13 @@ export default function SettlementPage() {
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
-      <AppBar position="static" elevation={1} sx={{ bgcolor: 'white', color: 'text.primary' }}>
-        <Toolbar>
-          <IconButton
-            onClick={() => router.push(`/trips/${tripId}`)}
-            edge="start"
-            sx={{ mr: 2 }}
-          >
-            <ArrowBack />
-          </IconButton>
-          <Typography variant="h6" component="h1" sx={{ fontWeight: 700 }}>
-            結算總覽
-          </Typography>
-        </Toolbar>
-      </AppBar>
+      <Navbar
+        user={null}
+        showUserMenu={true}
+        title="結算總覽"
+      />
 
-      <Container maxWidth="lg" sx={{ py: 4 }}>
+      <Container maxWidth="lg" sx={{ pt: { xs: 10, sm: 12 }, pb: 4 }}>
         {/* 總支出 */}
         <Card
           elevation={3}
