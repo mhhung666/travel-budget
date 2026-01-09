@@ -1,247 +1,248 @@
 'use client';
 
-import { Box, Container, Typography, Button, Card, CardContent, Grid, Avatar } from '@mui/material';
-import { CreditCard, Add, Calculate, Payments, ArrowForward } from '@mui/icons-material';
+import { Box, Container, Typography, Button, Card, CardContent } from '@mui/material';
+import { TravelExplore, Add, Calculate, Payments, ArrowForward } from '@mui/icons-material';
 import { useRouter } from 'next/navigation';
+import Navbar from '@/components/Navbar';
 
 export default function Home() {
   const router = useRouter();
 
   return (
-    <Box
-      sx={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        position: 'relative',
-        overflow: 'hidden',
-      }}
-    >
-      {/* 背景裝飾 */}
+    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
+      <Navbar showUserMenu={false} title="旅行記帳" />
+
+      {/* Hero Section */}
       <Box
         sx={{
-          position: 'absolute',
-          width: '500px',
-          height: '500px',
-          borderRadius: '50%',
-          background: 'rgba(255, 255, 255, 0.1)',
-          filter: 'blur(100px)',
-          top: '-200px',
-          right: '-200px',
+          pt: { xs: 12, sm: 16 },
+          pb: { xs: 8, sm: 12 },
+          minHeight: { xs: 'calc(100vh - 64px)', sm: '85vh' },
+          display: 'flex',
+          alignItems: 'center',
         }}
-      />
-      <Box
-        sx={{
-          position: 'absolute',
-          width: '400px',
-          height: '400px',
-          borderRadius: '50%',
-          background: 'rgba(255, 255, 255, 0.1)',
-          filter: 'blur(100px)',
-          bottom: '-150px',
-          left: '-150px',
-        }}
-      />
-
-      <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
-        <Box textAlign="center" py={8}>
-          {/* Logo */}
-          <Avatar
+      >
+        <Container maxWidth="lg">
+          <Box
             sx={{
-              width: 80,
-              height: 80,
-              mx: 'auto',
-              mb: 4,
-              bgcolor: 'white',
-              boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
-            }}
-          >
-            <CreditCard sx={{ fontSize: 40, color: 'primary.main' }} />
-          </Avatar>
-
-          {/* 標題 */}
-          <Typography
-            variant="h2"
-            component="h1"
-            sx={{
-              fontWeight: 800,
-              color: 'white',
-              mb: 2,
-              textShadow: '0 2px 10px rgba(0,0,0,0.1)',
-            }}
-          >
-            Travel Budget Planner
-          </Typography>
-          <Typography
-            variant="h5"
-            sx={{
-              color: 'rgba(255, 255, 255, 0.95)',
-              mb: 1,
-              fontWeight: 600,
-            }}
-          >
-            輕鬆管理旅行支出
-          </Typography>
-          <Typography
-            variant="body1"
-            sx={{
-              color: 'rgba(255, 255, 255, 0.8)',
-              mb: 6,
-              maxWidth: '600px',
+              textAlign: 'center',
+              maxWidth: '800px',
               mx: 'auto',
             }}
           >
-            智慧計算分帳，讓旅行更簡單
+            {/* Icon */}
+            <Box
+              sx={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: { xs: 64, sm: 80 },
+                height: { xs: 64, sm: 80 },
+                borderRadius: '20px',
+                bgcolor: 'primary.main',
+                mb: { xs: 3, sm: 4 },
+              }}
+            >
+              <TravelExplore sx={{ fontSize: { xs: 36, sm: 48 }, color: 'white' }} />
+            </Box>
+
+            {/* Title */}
+            <Typography
+              variant="h1"
+              component="h1"
+              sx={{
+                fontWeight: 700,
+                color: 'text.primary',
+                mb: 2,
+                fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' },
+              }}
+            >
+              輕鬆管理旅行支出
+            </Typography>
+
+            <Typography
+              variant="h5"
+              sx={{
+                color: 'text.secondary',
+                mb: { xs: 4, sm: 6 },
+                fontWeight: 400,
+                fontSize: { xs: '1rem', sm: '1.25rem' },
+                px: { xs: 2, sm: 0 },
+              }}
+            >
+              智慧計算分帳，讓每趟旅程都更簡單
+            </Typography>
+
+            {/* CTA Buttons */}
+            <Box
+              sx={{
+                display: 'flex',
+                gap: 2,
+                justifyContent: 'center',
+                flexDirection: { xs: 'column', sm: 'row' },
+                mb: { xs: 6, sm: 8 },
+                px: { xs: 2, sm: 0 },
+              }}
+            >
+              <Button
+                onClick={() => router.push('/login')}
+                variant="contained"
+                size="large"
+                endIcon={<ArrowForward />}
+                sx={{
+                  px: { xs: 4, sm: 5 },
+                  py: { xs: 1.5, sm: 1.75 },
+                  fontSize: { xs: '1rem', sm: '1.1rem' },
+                  fontWeight: 600,
+                }}
+              >
+                開始使用
+              </Button>
+              <Button
+                onClick={() => router.push('/trips')}
+                variant="outlined"
+                size="large"
+                sx={{
+                  px: { xs: 4, sm: 5 },
+                  py: { xs: 1.5, sm: 1.75 },
+                  fontSize: { xs: '1rem', sm: '1.1rem' },
+                  fontWeight: 600,
+                }}
+              >
+                查看旅行
+              </Button>
+            </Box>
+          </Box>
+        </Container>
+      </Box>
+
+      {/* Features Section */}
+      <Box sx={{ py: { xs: 6, sm: 8 }, bgcolor: '#fafafa' }}>
+        <Container maxWidth="lg">
+          <Typography
+            variant="h3"
+            sx={{
+              textAlign: 'center',
+              mb: { xs: 4, sm: 6 },
+              fontWeight: 700,
+              fontSize: { xs: '1.75rem', sm: '2rem' },
+            }}
+          >
+            核心功能
           </Typography>
 
-          {/* 功能特色 */}
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' }, gap: 3, mb: 6, maxWidth: '900px', mx: 'auto' }}>
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' },
+              gap: { xs: 3, sm: 4 },
+              px: { xs: 2, sm: 0 },
+            }}
+          >
             <Card
-                sx={{
-                  height: '100%',
-                  bgcolor: 'rgba(255, 255, 255, 0.95)',
-                  transition: 'transform 0.3s, box-shadow 0.3s',
-                  '&:hover': {
-                    transform: 'translateY(-8px)',
-                    boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
-                  },
-                }}
-              >
-                <CardContent sx={{ textAlign: 'center', py: 4 }}>
-                  <Avatar
-                    sx={{
-                      width: 60,
-                      height: 60,
-                      mx: 'auto',
-                      mb: 2,
-                      bgcolor: 'primary.light',
-                    }}
-                  >
-                    <Add sx={{ fontSize: 30 }} />
-                  </Avatar>
-                  <Typography variant="h6" fontWeight={600} gutterBottom>
-                    輕鬆記帳
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    快速記錄每筆支出
-                  </Typography>
-                </CardContent>
-              </Card>
-            <Card
-                sx={{
-                  height: '100%',
-                  bgcolor: 'rgba(255, 255, 255, 0.95)',
-                  transition: 'transform 0.3s, box-shadow 0.3s',
-                  '&:hover': {
-                    transform: 'translateY(-8px)',
-                    boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
-                  },
-                }}
-              >
-                <CardContent sx={{ textAlign: 'center', py: 4 }}>
-                  <Avatar
-                    sx={{
-                      width: 60,
-                      height: 60,
-                      mx: 'auto',
-                      mb: 2,
-                      bgcolor: 'secondary.light',
-                    }}
-                  >
-                    <Calculate sx={{ fontSize: 30 }} />
-                  </Avatar>
-                  <Typography variant="h6" fontWeight={600} gutterBottom>
-                    智能分帳
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    自動計算應付金額
-                  </Typography>
-                </CardContent>
-              </Card>
-            <Card
-                sx={{
-                  height: '100%',
-                  bgcolor: 'rgba(255, 255, 255, 0.95)',
-                  transition: 'transform 0.3s, box-shadow 0.3s',
-                  '&:hover': {
-                    transform: 'translateY(-8px)',
-                    boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
-                  },
-                }}
-              >
-                <CardContent sx={{ textAlign: 'center', py: 4 }}>
-                  <Avatar
-                    sx={{
-                      width: 60,
-                      height: 60,
-                      mx: 'auto',
-                      mb: 2,
-                      bgcolor: 'success.light',
-                    }}
-                  >
-                    <Payments sx={{ fontSize: 30 }} />
-                  </Avatar>
-                  <Typography variant="h6" fontWeight={600} gutterBottom>
-                    一鍵結算
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    最優化轉帳方案
-                  </Typography>
-                </CardContent>
-              </Card>
-          </Box>
+              sx={{
+                height: '100%',
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                },
+              }}
+            >
+              <CardContent sx={{ textAlign: 'center', p: { xs: 3, sm: 4 } }}>
+                <Box
+                  sx={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: 56,
+                    height: 56,
+                    borderRadius: '12px',
+                    bgcolor: 'primary.main',
+                    mb: 2,
+                  }}
+                >
+                  <Add sx={{ fontSize: 28, color: 'white' }} />
+                </Box>
+                <Typography variant="h6" fontWeight={600} gutterBottom sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }}>
+                  輕鬆記帳
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}>
+                  快速記錄每筆支出，隨時隨地更新
+                </Typography>
+              </CardContent>
+            </Card>
 
-          {/* 按鈕 */}
-          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Button
-              onClick={() => router.push('/login')}
-              variant="contained"
-              size="large"
-              endIcon={<ArrowForward />}
+            <Card
               sx={{
-                px: 4,
-                py: 1.5,
-                fontSize: '1.1rem',
-                fontWeight: 600,
-                bgcolor: 'white',
-                color: 'primary.main',
-                boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
+                height: '100%',
+                transition: 'all 0.3s ease',
                 '&:hover': {
-                  bgcolor: 'rgba(255, 255, 255, 0.95)',
-                  transform: 'translateY(-2px)',
-                  boxShadow: '0 15px 40px rgba(0,0,0,0.3)',
+                  transform: 'translateY(-4px)',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
                 },
-                transition: 'all 0.3s',
               }}
             >
-              開始使用
-            </Button>
-            <Button
-              onClick={() => router.push('/trips')}
-              variant="outlined"
-              size="large"
+              <CardContent sx={{ textAlign: 'center', p: { xs: 3, sm: 4 } }}>
+                <Box
+                  sx={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: 56,
+                    height: 56,
+                    borderRadius: '12px',
+                    bgcolor: 'primary.main',
+                    mb: 2,
+                  }}
+                >
+                  <Calculate sx={{ fontSize: 28, color: 'white' }} />
+                </Box>
+                <Typography variant="h6" fontWeight={600} gutterBottom sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }}>
+                  智能分帳
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}>
+                  自動計算每個人應付的金額
+                </Typography>
+              </CardContent>
+            </Card>
+
+            <Card
               sx={{
-                px: 4,
-                py: 1.5,
-                fontSize: '1.1rem',
-                fontWeight: 600,
-                color: 'white',
-                borderColor: 'white',
+                height: '100%',
+                transition: 'all 0.3s ease',
                 '&:hover': {
-                  borderColor: 'white',
-                  bgcolor: 'rgba(255, 255, 255, 0.1)',
-                  transform: 'translateY(-2px)',
+                  transform: 'translateY(-4px)',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
                 },
-                transition: 'all 0.3s',
               }}
             >
-              查看旅行
-            </Button>
+              <CardContent sx={{ textAlign: 'center', p: { xs: 3, sm: 4 } }}>
+                <Box
+                  sx={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: 56,
+                    height: 56,
+                    borderRadius: '12px',
+                    bgcolor: 'primary.main',
+                    mb: 2,
+                  }}
+                >
+                  <Payments sx={{ fontSize: 28, color: 'white' }} />
+                </Box>
+                <Typography variant="h6" fontWeight={600} gutterBottom sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }}>
+                  一鍵結算
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}>
+                  最優化的轉帳方案，省時又便利
+                </Typography>
+              </CardContent>
+            </Card>
           </Box>
-        </Box>
-      </Container>
+        </Container>
+      </Box>
     </Box>
   );
 }

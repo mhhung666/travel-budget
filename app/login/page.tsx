@@ -9,15 +9,14 @@ import {
   Typography,
   TextField,
   Button,
-  Avatar,
   Alert,
   CircularProgress,
-  Link as MuiLink,
   Tabs,
   Tab,
 } from '@mui/material';
-import { Person, ArrowBack } from '@mui/icons-material';
+import { TravelExplore, ArrowBack } from '@mui/icons-material';
 import Link from 'next/link';
+import Navbar from '@/components/Navbar';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -62,182 +61,179 @@ export default function LoginPage() {
   };
 
   return (
-    <Box
-      sx={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        position: 'relative',
-        overflow: 'hidden',
-        p: 2,
-      }}
-    >
-      {/* 背景裝飾 */}
+    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
+      <Navbar showUserMenu={false} title="旅行記帳" />
+
       <Box
         sx={{
-          position: 'absolute',
-          width: '400px',
-          height: '400px',
-          borderRadius: '50%',
-          background: 'rgba(255, 255, 255, 0.1)',
-          filter: 'blur(100px)',
-          top: '100px',
-          right: '100px',
+          pt: { xs: 10, sm: 12 },
+          pb: { xs: 4, sm: 6 },
+          minHeight: 'calc(100vh - 64px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          px: 2,
         }}
-      />
-      <Box
-        sx={{
-          position: 'absolute',
-          width: '300px',
-          height: '300px',
-          borderRadius: '50%',
-          background: 'rgba(255, 255, 255, 0.1)',
-          filter: 'blur(100px)',
-          bottom: '100px',
-          left: '100px',
-        }}
-      />
-
-      <Container maxWidth="sm" sx={{ position: 'relative', zIndex: 1 }}>
-        <Paper
-          elevation={10}
-          sx={{
-            p: 4,
-            borderRadius: 3,
-            bgcolor: 'rgba(255, 255, 255, 0.95)',
-            backdropFilter: 'blur(10px)',
-          }}
-        >
-          {/* Logo */}
-          <Avatar
+      >
+        <Container maxWidth="sm">
+          <Paper
+            elevation={0}
             sx={{
-              width: 64,
-              height: 64,
-              mx: 'auto',
-              mb: 3,
-              bgcolor: 'primary.main',
-              boxShadow: 3,
+              p: { xs: 3, sm: 5 },
+              borderRadius: 2,
+              border: '1px solid',
+              borderColor: 'divider',
             }}
           >
-            <Person sx={{ fontSize: 32 }} />
-          </Avatar>
-
-          {/* 標題 */}
-          <Typography
-            variant="h4"
-            align="center"
-            fontWeight={700}
-            sx={{
-              mb: 1,
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              backgroundClip: 'text',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-            }}
-          >
-            {isLogin ? '歡迎回來' : '加入我們'}
-          </Typography>
-          <Typography variant="body2" align="center" color="text.secondary" sx={{ mb: 4 }}>
-            {isLogin ? '登入您的帳號開始管理旅行' : '建立帳號開始您的旅程'}
-          </Typography>
-
-          {/* Tabs */}
-          <Tabs
-            value={isLogin ? 0 : 1}
-            onChange={(_, newValue) => {
-              setIsLogin(newValue === 0);
-              setError('');
-            }}
-            variant="fullWidth"
-            sx={{ mb: 3 }}
-          >
-            <Tab label="登入" />
-            <Tab label="註冊" />
-          </Tabs>
-
-          {/* 錯誤訊息 */}
-          {error && (
-            <Alert severity="error" sx={{ mb: 3 }}>
-              {error}
-            </Alert>
-          )}
-
-          {/* 表單 */}
-          <form onSubmit={handleSubmit}>
-            <TextField
-              fullWidth
-              label="用戶名"
-              value={formData.username}
-              onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-              required
-              inputProps={{ minLength: 3 }}
-              sx={{ mb: 2 }}
-            />
-
-            {!isLogin && (
-              <TextField
-                fullWidth
-                label="顯示名稱"
-                value={formData.display_name}
-                onChange={(e) => setFormData({ ...formData, display_name: e.target.value })}
-                required={!isLogin}
-                sx={{ mb: 2 }}
-              />
-            )}
-
-            <TextField
-              fullWidth
-              type="password"
-              label="密碼"
-              value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              required
-              inputProps={{ minLength: 6 }}
-              helperText={!isLogin ? '至少 6 個字元' : ''}
-              sx={{ mb: 3 }}
-            />
-
-            <Button
-              type="submit"
-              fullWidth
-              variant="contained"
-              size="large"
-              disabled={loading}
+            {/* Icon */}
+            <Box
               sx={{
-                py: 1.5,
-                fontSize: '1rem',
-                fontWeight: 600,
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                boxShadow: 3,
-                '&:hover': {
-                  boxShadow: 6,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 56,
+                height: 56,
+                borderRadius: '12px',
+                bgcolor: 'primary.main',
+                mx: 'auto',
+                mb: 3,
+              }}
+            >
+              <TravelExplore sx={{ fontSize: 32, color: 'white' }} />
+            </Box>
+
+            {/* 標題 */}
+            <Typography
+              variant="h4"
+              align="center"
+              fontWeight={700}
+              sx={{
+                mb: 1,
+                color: 'text.primary',
+                fontSize: { xs: '1.75rem', sm: '2rem' },
+              }}
+            >
+              {isLogin ? '歡迎回來' : '建立帳號'}
+            </Typography>
+            <Typography
+              variant="body1"
+              align="center"
+              color="text.secondary"
+              sx={{ mb: 4, fontSize: { xs: '0.875rem', sm: '1rem' } }}
+            >
+              {isLogin ? '登入您的帳號開始管理旅行' : '開始您的旅程'}
+            </Typography>
+
+            {/* Tabs */}
+            <Tabs
+              value={isLogin ? 0 : 1}
+              onChange={(_, newValue) => {
+                setIsLogin(newValue === 0);
+                setError('');
+              }}
+              variant="fullWidth"
+              sx={{
+                mb: 4,
+                '& .MuiTab-root': {
+                  fontWeight: 600,
+                  textTransform: 'none',
+                  fontSize: { xs: '0.875rem', sm: '1rem' },
                 },
               }}
             >
-              {loading ? (
-                <CircularProgress size={24} color="inherit" />
-              ) : (
-                isLogin ? '登入' : '註冊'
-              )}
-            </Button>
-          </form>
+              <Tab label="登入" />
+              <Tab label="註冊" />
+            </Tabs>
 
-          {/* 返回首頁 */}
-          <Box sx={{ mt: 3, textAlign: 'center' }}>
-            <Button
-              component={Link}
-              href="/"
-              startIcon={<ArrowBack />}
-              color="inherit"
-              sx={{ textTransform: 'none' }}
-            >
-              返回首頁
-            </Button>
-          </Box>
-        </Paper>
-      </Container>
+            {/* 錯誤訊息 */}
+            {error && (
+              <Alert
+                severity="error"
+                sx={{
+                  mb: 3,
+                  borderRadius: 2,
+                }}
+              >
+                {error}
+              </Alert>
+            )}
+
+            {/* 表單 */}
+            <form onSubmit={handleSubmit}>
+              <TextField
+                fullWidth
+                label="用戶名"
+                value={formData.username}
+                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                required
+                inputProps={{ minLength: 3 }}
+                sx={{ mb: 2.5 }}
+              />
+
+              {!isLogin && (
+                <TextField
+                  fullWidth
+                  label="顯示名稱"
+                  value={formData.display_name}
+                  onChange={(e) => setFormData({ ...formData, display_name: e.target.value })}
+                  required={!isLogin}
+                  sx={{ mb: 2.5 }}
+                />
+              )}
+
+              <TextField
+                fullWidth
+                type="password"
+                label="密碼"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                required
+                inputProps={{ minLength: 6 }}
+                helperText={!isLogin ? '至少 6 個字元' : ''}
+                sx={{ mb: 4 }}
+              />
+
+              <Button
+                type="submit"
+                fullWidth
+                variant="contained"
+                size="large"
+                disabled={loading}
+                sx={{
+                  py: 1.5,
+                  fontSize: { xs: '1rem', sm: '1.1rem' },
+                  fontWeight: 600,
+                }}
+              >
+                {loading ? (
+                  <CircularProgress size={24} color="inherit" />
+                ) : (
+                  isLogin ? '登入' : '註冊'
+                )}
+              </Button>
+            </form>
+
+            {/* 返回首頁 */}
+            <Box sx={{ mt: 3, textAlign: 'center' }}>
+              <Button
+                component={Link}
+                href="/"
+                startIcon={<ArrowBack />}
+                sx={{
+                  textTransform: 'none',
+                  color: 'text.secondary',
+                  fontSize: { xs: '0.875rem', sm: '1rem' },
+                  '&:hover': {
+                    color: 'text.primary',
+                  },
+                }}
+              >
+                返回首頁
+              </Button>
+            </Box>
+          </Paper>
+        </Container>
+      </Box>
     </Box>
   );
 }

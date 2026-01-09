@@ -5,8 +5,6 @@ import { useRouter } from 'next/navigation';
 import {
   Box,
   Container,
-  AppBar,
-  Toolbar,
   Typography,
   Button,
   Card,
@@ -19,18 +17,16 @@ import {
   TextField,
   Alert,
   CircularProgress,
-  Chip,
-  Avatar,
   Snackbar,
 } from '@mui/material';
 import {
   Add,
   GroupAdd,
-  Logout,
   People,
   CalendarToday,
   ContentCopy,
 } from '@mui/icons-material';
+import Navbar from '@/components/Navbar';
 
 interface Trip {
   id: number;
@@ -151,11 +147,6 @@ export default function TripsPage() {
     }
   };
 
-  const handleLogout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST' });
-    router.push('/');
-  };
-
   if (loading) {
     return (
       <Box
@@ -173,28 +164,17 @@ export default function TripsPage() {
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
-      <AppBar position="static" elevation={1} sx={{ bgcolor: 'white', color: 'text.primary' }}>
-        <Toolbar>
-          <Typography variant="h6" component="h1" sx={{ flexGrow: 1, fontWeight: 700 }}>
-            我的旅行
-          </Typography>
-          <Chip
-            avatar={<Avatar sx={{ bgcolor: 'primary.main' }}>{user?.display_name?.charAt(0)}</Avatar>}
-            label={`歡迎, ${user?.display_name}`}
-            sx={{ mr: 2 }}
-          />
-          <Button
-            onClick={handleLogout}
-            variant="outlined"
-            startIcon={<Logout />}
-            sx={{ textTransform: 'none' }}
-          >
-            登出
-          </Button>
-        </Toolbar>
-      </AppBar>
+      <Navbar
+        user={user ? {
+          id: user.id,
+          username: user.display_name,
+          email: user.email
+        } : null}
+        showUserMenu={true}
+        title="我的旅行"
+      />
 
-      <Container maxWidth="lg" sx={{ py: 4 }}>
+      <Container maxWidth="lg" sx={{ pt: { xs: 10, sm: 12 }, pb: 4 }}>
         <Card elevation={2}>
           <CardContent sx={{ p: 3 }}>
             <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'stretch', sm: 'center' }, gap: 2, mb: 3 }}>
