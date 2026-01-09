@@ -26,14 +26,14 @@ export async function GET(
     }
 
     // 檢查用戶是否是此旅行的成員
-    const { data: isMember } = await supabase
+    const { data: isMember, error: memberError } = await supabase
       .from('trip_members')
       .select('id')
       .eq('trip_id', tripId)
       .eq('user_id', session.userId)
       .single();
 
-    if (!isMember) {
+    if (memberError || !isMember) {
       return NextResponse.json(
         { error: '您不是此旅行的成員' },
         { status: 403 }
@@ -137,14 +137,14 @@ export async function POST(
     }
 
     // 檢查用戶是否是此旅行的成員
-    const { data: isMember } = await supabase
+    const { data: isMember, error: memberError } = await supabase
       .from('trip_members')
       .select('id')
       .eq('trip_id', tripId)
       .eq('user_id', session.userId)
       .single();
 
-    if (!isMember) {
+    if (memberError || !isMember) {
       return NextResponse.json(
         { error: '您不是此旅行的成員' },
         { status: 403 }

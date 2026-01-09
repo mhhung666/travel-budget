@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { getSession } from '@/lib/auth';
+import { getTripId } from '@/lib/permissions';
 
 // 刪除支出
 export async function DELETE(
@@ -14,18 +15,27 @@ export async function DELETE(
     }
 
     const { id, expenseId } = await params;
-    const tripId = parseInt(id);
+
+    // 支援 hash_code 或數字 ID
+    const tripId = await getTripId(id);
+    if (!tripId) {
+      return NextResponse.json(
+        { error: '旅行不存在' },
+        { status: 404 }
+      );
+    }
+
     const expenseIdNum = parseInt(expenseId);
 
     // 檢查用戶是否是此旅行的成員
-    const { data: isMember } = await supabase
+    const { data: isMember, error: memberError } = await supabase
       .from('trip_members')
       .select('id')
       .eq('trip_id', tripId)
       .eq('user_id', session.userId)
       .single();
 
-    if (!isMember) {
+    if (memberError || !isMember) {
       return NextResponse.json(
         { error: '您不是此旅行的成員' },
         { status: 403 }
