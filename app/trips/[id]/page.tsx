@@ -28,6 +28,7 @@ import {
   Checkbox,
   FormControlLabel,
   Divider,
+  Snackbar,
 } from '@mui/material';
 import {
   ArrowBack,
@@ -37,6 +38,10 @@ import {
   AttachMoney,
   Person,
   Close,
+  ContentCopy,
+  AdminPanelSettings,
+  PersonRemove,
+  Warning,
 } from '@mui/icons-material';
 
 interface Trip {
@@ -44,6 +49,7 @@ interface Trip {
   name: string;
   description: string | null;
   created_at: string;
+  hash_code: string;
 }
 
 interface Member {
@@ -51,6 +57,7 @@ interface Member {
   username: string;
   display_name: string;
   joined_at: string;
+  role: 'admin' | 'member';
 }
 
 interface Expense {
@@ -87,6 +94,17 @@ export default function TripDetailPage() {
     date: new Date().toISOString().split('T')[0],
     split_with: [] as number[],
   });
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success' as 'success' | 'error' | 'info',
+  });
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [removeMemberDialog, setRemoveMemberDialog] = useState<{
+    open: boolean;
+    member: Member | null;
+  }>({ open: false, member: null });
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     loadTripData();
@@ -200,6 +218,61 @@ export default function TripDetailPage() {
     }));
   };
 
+  const copyHashCode = async () => {
+    try {
+      await navigator.clipboard.writeText(trip?.hash_code || '');
+      setSnackbar({ open: true, message: 'ID 已複製!', severity: 'success' });
+    } catch (err) {
+      setSnackbar({ open: true, message: '複製失敗，請手動複製', severity: 'error' });
+    }
+  };
+
+  const handleDeleteTrip = async () => {
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`/api/trips/${tripId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error);
+      }
+
+      setSnackbar({ open: true, message: '旅行已刪除', severity: 'success' });
+      setTimeout(() => router.push('/trips'), 1000);
+    } catch (err: any) {
+      setSnackbar({ open: true, message: err.message, severity: 'error' });
+    } finally {
+      setIsDeleting(false);
+      setDeleteDialogOpen(false);
+    }
+  };
+
+  const handleRemoveMember = async (userId: number) => {
+    try {
+      const response = await fetch(
+        `/api/trips/${tripId}/members/${userId}`,
+        { method: 'DELETE' }
+      );
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error);
+      }
+
+      setSnackbar({ open: true, message: '成員已移除', severity: 'success' });
+      setRemoveMemberDialog({ open: false, member: null });
+      await loadTripData();
+    } catch (err: any) {
+      setSnackbar({ open: true, message: err.message, severity: 'error' });
+    }
+  };
+
+  const isCurrentUserAdmin = members.find(
+    m => m.id === currentUser?.id
+  )?.role === 'admin';
+
   if (loading) {
     return (
       <Box
@@ -275,15 +348,38 @@ export default function TripDetailPage() {
                   </Typography>
                 )}
                 <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 2 }}>
-                  <Chip label={`旅行 ID: ${trip.id}`} size="small" />
                   <Chip
                     label={`建立時間: ${new Date(trip.created_at).toLocaleDateString('zh-TW')}`}
                     size="small"
                   />
                 </Box>
-                <Alert severity="info" icon={false}>
-                  分享旅行 ID <strong>{trip.id}</strong> 給其他人,讓他們加入這個旅行!
-                </Alert>
+
+                {/* 分享功能 */}
+                <Card variant="outlined" sx={{ bgcolor: 'primary.50', borderColor: 'primary.200' }}>
+                  <CardContent>
+                    <Typography variant="subtitle2" gutterBottom fontWeight={600}>
+                      分享此旅行
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                      <TextField
+                        value={trip.hash_code}
+                        size="small"
+                        slotProps={{ input: { readOnly: true } }}
+                        sx={{ flex: 1 }}
+                      />
+                      <Button
+                        variant="outlined"
+                        startIcon={<ContentCopy />}
+                        onClick={copyHashCode}
+                      >
+                        複製
+                      </Button>
+                    </Box>
+                    <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                      分享此 ID 給朋友，他們就能加入旅行
+                    </Typography>
+                  </CardContent>
+                </Card>
               </CardContent>
             </Card>
 
@@ -398,14 +494,34 @@ export default function TripDetailPage() {
                       <Avatar sx={{ bgcolor: 'primary.main' }}>
                         {member.display_name.charAt(0)}
                       </Avatar>
-                      <Box>
-                        <Typography variant="body1" fontWeight={500}>
-                          {member.display_name}
-                        </Typography>
+                      <Box sx={{ flex: 1 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Typography variant="body1" fontWeight={500}>
+                            {member.display_name}
+                          </Typography>
+                          {member.role === 'admin' && (
+                            <Chip
+                              label="管理員"
+                              size="small"
+                              color="primary"
+                              icon={<AdminPanelSettings />}
+                            />
+                          )}
+                        </Box>
                         <Typography variant="body2" color="text.secondary">
                           @{member.username}
                         </Typography>
                       </Box>
+                      {/* 移除按鈕 - 僅管理員且不是自己 */}
+                      {isCurrentUserAdmin && member.id !== currentUser?.id && (
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => setRemoveMemberDialog({ open: true, member })}
+                        >
+                          <PersonRemove />
+                        </IconButton>
+                      )}
                     </Box>
                   ))}
                 </Box>
@@ -431,6 +547,29 @@ export default function TripDetailPage() {
                 </Typography>
               </CardContent>
             </Card>
+
+            {/* 危險操作區 - 僅管理員可見 */}
+            {isCurrentUserAdmin && (
+              <Card elevation={2} sx={{ mt: 3, borderColor: 'error.main', borderWidth: 1, borderStyle: 'solid' }}>
+                <CardContent>
+                  <Typography variant="subtitle2" color="error" gutterBottom fontWeight={600}>
+                    危險操作
+                  </Typography>
+                  <Button
+                    variant="outlined"
+                    color="error"
+                    startIcon={<Delete />}
+                    fullWidth
+                    onClick={() => setDeleteDialogOpen(true)}
+                  >
+                    刪除此旅行
+                  </Button>
+                  <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
+                    刪除後將無法恢復，包括所有支出記錄
+                  </Typography>
+                </CardContent>
+              </Card>
+            )}
           </Box>
         </Box>
       </Container>
@@ -583,6 +722,92 @@ export default function TripDetailPage() {
           </DialogActions>
         </form>
       </Dialog>
+
+      {/* 確認刪除旅行對話框 */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>確認刪除旅行</DialogTitle>
+        <DialogContent>
+          <Alert severity="warning" sx={{ mb: 2 }} icon={<Warning />}>
+            此操作無法復原！
+          </Alert>
+          <Typography>
+            確定要刪除「{trip?.name}」嗎？
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            這將永久刪除：
+          </Typography>
+          <Box component="ul" sx={{ pl: 2, mt: 1 }}>
+            <Typography component="li" variant="body2">所有成員記錄</Typography>
+            <Typography component="li" variant="body2">所有支出記錄</Typography>
+            <Typography component="li" variant="body2">所有分帳資料</Typography>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setDeleteDialogOpen(false)}>
+            取消
+          </Button>
+          <Button
+            onClick={handleDeleteTrip}
+            color="error"
+            variant="contained"
+            disabled={isDeleting}
+            startIcon={isDeleting ? <CircularProgress size={16} /> : <Delete />}
+          >
+            {isDeleting ? '刪除中...' : '確認刪除'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* 確認移除成員對話框 */}
+      <Dialog
+        open={removeMemberDialog.open}
+        onClose={() => setRemoveMemberDialog({ open: false, member: null })}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>移除成員</DialogTitle>
+        <DialogContent>
+          <Typography>
+            確定要將「{removeMemberDialog.member?.display_name}」移出旅行嗎？
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            該成員的支出記錄將會保留
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setRemoveMemberDialog({ open: false, member: null })}>
+            取消
+          </Button>
+          <Button
+            onClick={() => handleRemoveMember(removeMemberDialog.member!.id)}
+            color="error"
+            variant="contained"
+          >
+            移除
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Snackbar 通知 */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={3000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

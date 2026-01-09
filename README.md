@@ -71,6 +71,7 @@ CREATE TABLE trips (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
   description TEXT,
+  hash_code TEXT UNIQUE NOT NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 ```
@@ -81,9 +82,11 @@ CREATE TABLE trip_members (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   trip_id INTEGER NOT NULL,
   user_id INTEGER NOT NULL,
+  role TEXT DEFAULT 'member' CHECK(role IN ('admin', 'member')),
   joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (trip_id) REFERENCES trips(id),
-  FOREIGN KEY (user_id) REFERENCES users(id)
+  FOREIGN KEY (user_id) REFERENCES users(id),
+  UNIQUE(trip_id, user_id)
 );
 ```
 
@@ -213,15 +216,15 @@ travel/
 - **[QUICKSTART.md](./QUICKSTART.md)** - 5 分鐘快速部署指南
 - **[SUPABASE_SETUP.md](./SUPABASE_SETUP.md)** - 詳細設定說明
 
-### 🎯 當前開發計劃
+### ✅ 最新功能 (Phase 6 已完成)
 
-**Phase 6: 管理員功能與旅行分享**
-- 詳細計劃請參考: **[PHASE6_PLAN.md](./PHASE6_PLAN.md)**
-
-核心功能:
-1. **管理員權限系統** - 旅行創建者可刪除旅行或移除成員
-2. **簡化 ID 系統** - 使用短 hash code (如 `a7x9k2`) 替代數字 ID
-3. **旅行分享功能** - 分享 ID 讓其他人快速加入旅行
+**Phase 6: 管理員功能與旅行分享** ✅
+核心功能已全部實現:
+1. ✅ **管理員權限系統** - 旅行創建者可刪除旅行或移除成員
+2. ✅ **簡化 ID 系統** - 使用短 hash code (如 `a7x9k2`) 替代數字 ID
+3. ✅ **旅行分享功能** - 分享 ID 讓其他人快速加入旅行
+4. ✅ **快速加入頁面** - 通過連結 `/join/[hashCode]` 快速加入旅行
+5. ✅ **完整通知系統** - 操作成功/失敗提示
 
 ### 開發歷程
 所有開發階段的詳細文檔已歸檔至 [docs/archive](./docs/archive/) 目錄

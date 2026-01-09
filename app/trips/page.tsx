@@ -21,6 +21,7 @@ import {
   CircularProgress,
   Chip,
   Avatar,
+  Snackbar,
 } from '@mui/material';
 import {
   Add,
@@ -28,6 +29,7 @@ import {
   Logout,
   People,
   CalendarToday,
+  ContentCopy,
 } from '@mui/icons-material';
 
 interface Trip {
@@ -36,6 +38,7 @@ interface Trip {
   description: string | null;
   created_at: string;
   member_count: number;
+  hash_code: string;
 }
 
 export default function TripsPage() {
@@ -48,6 +51,11 @@ export default function TripsPage() {
   const [formData, setFormData] = useState({ name: '', description: '' });
   const [joinTripId, setJoinTripId] = useState('');
   const [error, setError] = useState('');
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success' as 'success' | 'error' | 'info',
+  });
 
   useEffect(() => {
     checkAuth();
@@ -115,7 +123,7 @@ export default function TripsPage() {
       const response = await fetch('/api/trips/join', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ trip_id: parseInt(joinTripId) }),
+        body: JSON.stringify({ trip_id: joinTripId }),
       });
 
       const data = await response.json();
@@ -126,9 +134,20 @@ export default function TripsPage() {
 
       setShowJoinModal(false);
       setJoinTripId('');
+      setSnackbar({ open: true, message: '成功加入旅行！', severity: 'success' });
       await loadTrips();
     } catch (err: any) {
       setError(err.message);
+    }
+  };
+
+  const copyHashCode = async (hashCode: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(hashCode);
+      setSnackbar({ open: true, message: 'ID 已複製！', severity: 'success' });
+    } catch (err) {
+      setSnackbar({ open: true, message: '複製失敗', severity: 'error' });
     }
   };
 
@@ -227,7 +246,7 @@ export default function TripsPage() {
                       },
                     }}
                   >
-                    <CardActionArea onClick={() => router.push(`/trips/${trip.id}`)}>
+                    <CardActionArea onClick={() => router.push(`/trips/${trip.hash_code}`)}>
                       <CardContent>
                         <Typography variant="h6" fontWeight={600} gutterBottom>
                           {trip.name}
@@ -237,7 +256,7 @@ export default function TripsPage() {
                             {trip.description}
                           </Typography>
                         )}
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1, mb: 1 }}>
                           <Chip
                             icon={<People />}
                             label={`${trip.member_count} 位成員`}
@@ -251,6 +270,16 @@ export default function TripsPage() {
                             variant="outlined"
                           />
                         </Box>
+                        <Chip
+                          label={`ID: ${trip.hash_code}`}
+                          size="small"
+                          onClick={(e) => copyHashCode(trip.hash_code, e)}
+                          icon={<ContentCopy fontSize="small" />}
+                          sx={{
+                            cursor: 'pointer',
+                            '&:hover': { bgcolor: 'primary.50' }
+                          }}
+                        />
                       </CardContent>
                     </CardActionArea>
                   </Card>
@@ -335,13 +364,12 @@ export default function TripsPage() {
             )}
             <TextField
               fullWidth
-              type="number"
               label="旅行 ID"
               value={joinTripId}
               onChange={(e) => setJoinTripId(e.target.value)}
               required
-              placeholder="請輸入旅行 ID"
-              helperText="向其他成員詢問旅行 ID 以加入"
+              placeholder="輸入 6-8 位旅行代碼 (例如: a7x9k2)"
+              helperText="向旅行創建者索取旅行代碼"
             />
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 2 }}>
@@ -360,6 +388,22 @@ export default function TripsPage() {
           </DialogActions>
         </form>
       </Dialog>
+
+      {/* Snackbar 通知 */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={3000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

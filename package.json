@@ -9,7 +9,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "migrate:phase6": "node scripts/migrate-phase6.js"
+    "migrate:phase6": "node docs/archive/phase6/migrate-phase6.js"
   },
   "keywords": [],
   "author": "",
