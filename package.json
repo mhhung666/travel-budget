@@ -3,11 +3,13 @@
   "version": "1.0.0",
   "description": "一個輕量化的旅行記帳與分帳應用程式,適合多人出國旅行時使用。",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "migrate:phase6": "node scripts/migrate-phase6.js"
   },
   "keywords": [],
   "author": "",
