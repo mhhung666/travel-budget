@@ -24,6 +24,7 @@ import {
   TrendingDown,
   CheckCircle,
   ArrowForward,
+  ArrowDownward,
   Lightbulb,
 } from '@mui/icons-material';
 
@@ -157,7 +158,7 @@ export default function SettlementPage() {
           </CardContent>
         </Card>
 
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, 1fr)' }, gap: 3 }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 3 }}>
           {/* 每人統計 */}
           <Card elevation={2}>
             <CardContent>
@@ -287,18 +288,19 @@ export default function SettlementPage() {
                           borderColor: 'warning.light',
                         }}
                       >
-                        <CardContent>
+                        <CardContent sx={{ p: '16px !important' }}>
                           <Box
                             sx={{
                               display: 'flex',
+                              flexDirection: { xs: 'column', sm: 'row' },
                               alignItems: 'center',
                               justifyContent: 'space-between',
-                              flexWrap: 'wrap',
-                              gap: 2,
+                              gap: { xs: 1, sm: 2 },
+                              width: '100%',
                             }}
                           >
                             {/* 付款人 */}
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: { xs: '100%', sm: 'auto' }, justifyContent: { xs: 'center', sm: 'flex-start' } }}>
                               <Avatar
                                 sx={{
                                   bgcolor: 'white',
@@ -319,16 +321,21 @@ export default function SettlementPage() {
                               </Box>
                             </Box>
 
-                            {/* 金額 */}
-                            <Box sx={{ textAlign: 'center' }}>
+                            {/* 金額與箭頭 */}
+                            <Box sx={{ my: { xs: 1, sm: 0 }, textAlign: 'center' }}>
                               <Typography variant="h5" fontWeight={700} color="warning.dark">
                                 ${transaction.amount.toFixed(0)}
                               </Typography>
-                              <ArrowForward sx={{ fontSize: 16, color: 'text.secondary' }} />
+                              <Box sx={{ display: { xs: 'block', sm: 'none' } }}>
+                                <ArrowDownward sx={{ color: 'text.secondary' }} />
+                              </Box>
+                              <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
+                                <ArrowForward sx={{ color: 'text.secondary' }} />
+                              </Box>
                             </Box>
 
                             {/* 收款人 */}
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: { xs: '100%', sm: 'auto' }, justifyContent: { xs: 'center', sm: 'flex-end' } }}>
                               <Box sx={{ textAlign: 'right' }}>
                                 <Typography variant="caption" color="text.secondary">
                                   收款人

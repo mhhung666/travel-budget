@@ -410,7 +410,7 @@ export default function TripDetailPage() {
       </AppBar>
 
       <Container maxWidth="lg" sx={{ py: 4 }}>
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '2fr 1fr' }, gap: 3 }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '2fr 1fr' }, gap: 3 }}>
           {/* 旅行資訊 */}
           <Box>
             <Card elevation={2} sx={{ mb: 3 }}>
@@ -741,7 +741,7 @@ export default function TripDetailPage() {
               </Select>
             </FormControl>
 
-            <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, mb: 2 }}>
               <TextField
                 fullWidth
                 type="number"
@@ -978,7 +978,7 @@ export default function TripDetailPage() {
               </Select>
             </FormControl>
 
-            <Box sx={{ display: 'flex', gap: 2 }}>
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2 }}>
               <TextField
                 fullWidth
                 label="金額"
