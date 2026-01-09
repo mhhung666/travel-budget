@@ -46,6 +46,9 @@ export async function GET(
       .select(`
         id,
         amount,
+        original_amount,
+        currency,
+        exchange_rate,
         description,
         date,
         created_at,
@@ -93,6 +96,9 @@ export async function GET(
         return {
           id: expense.id,
           amount: expense.amount,
+          original_amount: expense.original_amount,
+          currency: expense.currency,
+          exchange_rate: expense.exchange_rate,
           description: expense.description,
           date: expense.date,
           created_at: expense.created_at,
@@ -152,22 +158,50 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { payer_id, amount, description, date, split_with } = body;
+    const {
+      payer_id,
+      original_amount,  // 新增: 原始金額 (取代 amount)
+      currency = 'TWD', // 新增: 幣別,預設 TWD
+      exchange_rate = 1.0, // 新增: 匯率,預設 1.0
+      description,
+      date,
+      split_with
+    } = body;
 
     // 驗證輸入
-    if (!payer_id || !amount || !description || !date || !split_with || split_with.length === 0) {
+    if (!payer_id || !original_amount || !description || !date || !split_with || split_with.length === 0) {
       return NextResponse.json(
         { error: '所有欄位都是必填的' },
         { status: 400 }
       );
     }
 
-    if (amount <= 0) {
+    if (original_amount <= 0) {
       return NextResponse.json(
         { error: '金額必須大於 0' },
         { status: 400 }
       );
     }
+
+    // 驗證幣別
+    const validCurrencies = ['TWD', 'JPY', 'USD', 'EUR', 'HKD'];
+    if (!validCurrencies.includes(currency)) {
+      return NextResponse.json(
+        { error: '不支援的幣別' },
+        { status: 400 }
+      );
+    }
+
+    // 驗證匯率
+    if (currency !== 'TWD' && (!exchange_rate || exchange_rate <= 0)) {
+      return NextResponse.json(
+        { error: '匯率必須大於 0' },
+        { status: 400 }
+      );
+    }
+
+    // 計算 TWD 金額
+    const amount = original_amount * exchange_rate;
 
     // 驗證 payer 和所有 split_with 成員都在旅行中
     const { data: members } = await supabase
@@ -202,7 +236,10 @@ export async function POST(
       .insert({
         trip_id: tripId,
         payer_id,
-        amount,
+        amount,              // TWD 金額
+        original_amount,     // 原始金額
+        currency,            // 幣別
+        exchange_rate,       // 匯率
         description,
         date,
       })
@@ -236,6 +273,9 @@ export async function POST(
       .select(`
         id,
         amount,
+        original_amount,
+        currency,
+        exchange_rate,
         description,
         date,
         created_at,
@@ -253,6 +293,9 @@ export async function POST(
     const formattedExpense = {
       id: expense?.id,
       amount: expense?.amount,
+      original_amount: expense?.original_amount,
+      currency: expense?.currency,
+      exchange_rate: expense?.exchange_rate,
       description: expense?.description,
       date: expense?.date,
       created_at: expense?.created_at,

@@ -23,7 +23,8 @@
       "Bash(ls:*)",
       "Bash(node test-supabase.js:*)",
       "Bash(NEXT_PUBLIC_SUPABASE_URL=\"https://crmtjdtrxntxvlwnzwyf.supabase.co\" NEXT_PUBLIC_SUPABASE_ANON_KEY=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNybXRqZHRyeG50eHZsd256d3lmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc4Nzc2MTYsImV4cCI6MjA4MzQ1MzYxNn0.f-U7qFniq0lApOwE_XtfY550CZTRSPYDPARF1NkYXHM\" node:*)",
-      "Bash(npm run migrate:phase6:*)"
+      "Bash(npm run migrate:phase6:*)",
+      "Bash(wc:*)"
     ]
   }
 }
