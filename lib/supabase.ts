@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS trips (
   id SERIAL PRIMARY KEY,
   name TEXT NOT NULL,
   description TEXT,
+  hash_code TEXT UNIQUE NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -33,7 +34,9 @@ CREATE TABLE IF NOT EXISTS trip_members (
   id SERIAL PRIMARY KEY,
   trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  role TEXT DEFAULT 'member' CHECK(role IN ('admin', 'member')),
+  joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(trip_id, user_id)
 );
 
 -- 支出記錄表

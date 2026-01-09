@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { getSession } from '@/lib/auth';
+import { getTripId } from '@/lib/permissions';
 
-// 加入旅行
+// 加入旅行 (支援 hash_code 或數字 ID)
 export async function POST(request: NextRequest) {
   try {
     const session = await getSession();
@@ -15,19 +16,14 @@ export async function POST(request: NextRequest) {
 
     if (!trip_id) {
       return NextResponse.json(
-        { error: '請提供旅行 ID' },
+        { error: '請提供旅行 ID 或 hash code' },
         { status: 400 }
       );
     }
 
-    // 檢查旅行是否存在
-    const { data: trip, error: tripError } = await supabase
-      .from('trips')
-      .select('id')
-      .eq('id', trip_id)
-      .single();
-
-    if (tripError || !trip) {
+    // 支援 hash_code 或數字 ID
+    const tripId = await getTripId(trip_id);
+    if (!tripId) {
       return NextResponse.json(
         { error: '旅行不存在' },
         { status: 404 }
@@ -38,7 +34,7 @@ export async function POST(request: NextRequest) {
     const { data: existingMember } = await supabase
       .from('trip_members')
       .select('id')
-      .eq('trip_id', trip_id)
+      .eq('trip_id', tripId)
       .eq('user_id', session.userId)
       .single();
 
@@ -49,16 +45,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 加入旅行
+    // 加入旅行 (一般成員身分)
     const { error: insertError } = await supabase
       .from('trip_members')
-      .insert({ trip_id, user_id: session.userId });
+      .insert({
+        trip_id: tripId,
+        user_id: session.userId,
+        role: 'member'  // 加入的成員預設為一般成員
+      });
 
     if (insertError) {
       throw insertError;
     }
 
-    return NextResponse.json({ success: true });
+    // 返回旅行資訊
+    const { data: trip } = await supabase
+      .from('trips')
+      .select('id, name, hash_code')
+      .eq('id', tripId)
+      .single();
+
+    return NextResponse.json({
+      success: true,
+      trip
+    });
   } catch (error) {
     console.error('Join trip error:', error);
     return NextResponse.json(

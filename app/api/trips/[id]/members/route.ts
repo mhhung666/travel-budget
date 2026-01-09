@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { getSession } from '@/lib/auth';
+import { getTripId } from '@/lib/permissions';
 
 // 獲取旅行成員列表
 export async function GET(
@@ -14,7 +15,15 @@ export async function GET(
     }
 
     const { id } = await params;
-    const tripId = parseInt(id);
+
+    // 支援 hash_code 或數字 ID
+    const tripId = await getTripId(id);
+    if (!tripId) {
+      return NextResponse.json(
+        { error: '旅行不存在' },
+        { status: 404 }
+      );
+    }
 
     // 檢查用戶是否是此旅行的成員
     const { data: isMember } = await supabase
@@ -31,11 +40,12 @@ export async function GET(
       );
     }
 
-    // 獲取所有成員
+    // 獲取所有成員 (包含角色)
     const { data: members, error: membersError } = await supabase
       .from('trip_members')
       .select(`
         joined_at,
+        role,
         users!inner (
           id,
           username,
@@ -57,6 +67,7 @@ export async function GET(
         username: user?.username,
         display_name: user?.display_name,
         joined_at: member.joined_at,
+        role: member.role,  // 新增角色欄位
       };
     }) || [];
 

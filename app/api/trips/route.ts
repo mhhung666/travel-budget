@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { getSession } from '@/lib/auth';
+import { generateUniqueHashCode } from '@/lib/hashcode';
 
 // 獲取用戶的所有旅行
 export async function GET() {
@@ -31,6 +32,7 @@ export async function GET() {
         name,
         description,
         created_at,
+        hash_code,
         trip_members(count)
       `)
       .in('id', tripIds)
@@ -41,6 +43,7 @@ export async function GET() {
     // 格式化回應
     const formattedTrips = trips?.map(trip => ({
       id: trip.id,
+      hash_code: trip.hash_code,
       name: trip.name,
       description: trip.description,
       created_at: trip.created_at,
@@ -75,19 +78,37 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 生成唯一的 hash_code
+    const hashCode = await generateUniqueHashCode(async (code) => {
+      const { data } = await supabase
+        .from('trips')
+        .select('id')
+        .eq('hash_code', code)
+        .single();
+      return data !== null;
+    });
+
     // 創建旅行
     const { data: trip, error: tripError } = await supabase
       .from('trips')
-      .insert([{ name: name.trim(), description: description?.trim() || null }])
+      .insert([{
+        name: name.trim(),
+        description: description?.trim() || null,
+        hash_code: hashCode
+      }])
       .select()
       .single();
 
     if (tripError) throw tripError;
 
-    // 將創建者加入旅行成員
+    // 將創建者加入旅行成員並設為管理員
     const { error: memberError } = await supabase
       .from('trip_members')
-      .insert([{ trip_id: trip.id, user_id: session.userId }]);
+      .insert([{
+        trip_id: trip.id,
+        user_id: session.userId,
+        role: 'admin'  // 創建者自動成為管理員
+      }]);
 
     if (memberError) throw memberError;
 

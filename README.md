@@ -71,6 +71,7 @@ CREATE TABLE trips (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
   description TEXT,
+  hash_code TEXT UNIQUE NOT NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 ```
@@ -81,9 +82,11 @@ CREATE TABLE trip_members (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   trip_id INTEGER NOT NULL,
   user_id INTEGER NOT NULL,
+  role TEXT DEFAULT 'member' CHECK(role IN ('admin', 'member')),
   joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (trip_id) REFERENCES trips(id),
-  FOREIGN KEY (user_id) REFERENCES users(id)
+  FOREIGN KEY (user_id) REFERENCES users(id),
+  UNIQUE(trip_id, user_id)
 );
 ```
 
@@ -207,50 +210,24 @@ travel/
 └── README.md
 ```
 
-## 開發步驟
-
-### Phase 1: 基礎設置 ✅
-- [x] 初始化 Next.js 項目
-- [x] 設置 TypeScript
-- [x] 設置 Tailwind CSS
-- [x] 設置 SQLite 數據庫
-
-### Phase 2: 用戶功能 ✅
-- [x] 實現用戶註冊
-- [x] 實現用戶登入
-- [x] 實現 Session 管理
-
-### Phase 3: 旅行管理 ✅
-- [x] 建立旅行群組
-- [x] 加入旅行
-- [x] 顯示旅行列表
-
-### Phase 4: 記帳功能 ✅
-- [x] 新增支出
-- [x] 選擇分帳對象
-- [x] 顯示支出列表
-
-### Phase 5: 結算功能 ✅
-- [x] 實現結算演算法
-- [x] 顯示結算結果
-- [x] 優化轉帳次數
-
-### Phase 6: 部署 ✅
-- [x] 遷移到 Supabase (雲端 Postgres)
-- [x] 更新所有 API routes
-- [x] 準備 Vercel 部署配置
-- [x] 建立部署文檔
-- [ ] 實際部署到 Vercel (等待你執行)
-- [ ] 測試手機訪問
-- [ ] 優化移動端體驗
-
 ## 🚀 快速部署指南
 
-已完成 Supabase 遷移!請參考:
+請參考:
 - **[QUICKSTART.md](./QUICKSTART.md)** - 5 分鐘快速部署指南
 - **[SUPABASE_SETUP.md](./SUPABASE_SETUP.md)** - 詳細設定說明
-- **[DEPLOY_CHECKLIST.md](./DEPLOY_CHECKLIST.md)** - 部署檢查清單
-- **[MIGRATION_SUMMARY.md](./MIGRATION_SUMMARY.md)** - 遷移總結
+
+### ✅ 最新功能 (Phase 6 已完成)
+
+**Phase 6: 管理員功能與旅行分享** ✅
+核心功能已全部實現:
+1. ✅ **管理員權限系統** - 旅行創建者可刪除旅行或移除成員
+2. ✅ **簡化 ID 系統** - 使用短 hash code (如 `a7x9k2`) 替代數字 ID
+3. ✅ **旅行分享功能** - 分享 ID 讓其他人快速加入旅行
+4. ✅ **快速加入頁面** - 通過連結 `/join/[hashCode]` 快速加入旅行
+5. ✅ **完整通知系統** - 操作成功/失敗提示
+
+### 開發歷程
+所有開發階段的詳細文檔已歸檔至 [docs/archive](./docs/archive/) 目錄
 
 ## 技術棧總結
 

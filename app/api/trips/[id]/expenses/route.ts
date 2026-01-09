@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { getSession } from '@/lib/auth';
+import { getTripId } from '@/lib/permissions';
 
 // 獲取旅行的所有支出
 export async function GET(
@@ -14,7 +15,15 @@ export async function GET(
     }
 
     const { id } = await params;
-    const tripId = parseInt(id);
+
+    // 支援 hash_code 或數字 ID
+    const tripId = await getTripId(id);
+    if (!tripId) {
+      return NextResponse.json(
+        { error: '旅行不存在' },
+        { status: 404 }
+      );
+    }
 
     // 檢查用戶是否是此旅行的成員
     const { data: isMember } = await supabase
@@ -117,7 +126,15 @@ export async function POST(
     }
 
     const { id } = await params;
-    const tripId = parseInt(id);
+
+    // 支援 hash_code 或數字 ID
+    const tripId = await getTripId(id);
+    if (!tripId) {
+      return NextResponse.json(
+        { error: '旅行不存在' },
+        { status: 404 }
+      );
+    }
 
     // 檢查用戶是否是此旅行的成員
     const { data: isMember } = await supabase
