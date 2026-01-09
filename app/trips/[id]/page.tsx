@@ -42,6 +42,7 @@ import {
   AdminPanelSettings,
   PersonRemove,
   Warning,
+  Edit,
 } from '@mui/icons-material';
 
 interface Trip {
@@ -63,6 +64,9 @@ interface Member {
 interface Expense {
   id: number;
   amount: number;
+  original_amount: number;
+  currency: string;
+  exchange_rate: number;
   description: string;
   date: string;
   payer_id: number;
@@ -89,7 +93,9 @@ export default function TripDetailPage() {
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [expenseForm, setExpenseForm] = useState({
     payer_id: 0,
-    amount: '',
+    original_amount: '',  // 改為 original_amount
+    currency: 'TWD',      // 新增: 幣別
+    exchange_rate: '1.0', // 新增: 匯率
     description: '',
     date: new Date().toISOString().split('T')[0],
     split_with: [] as number[],
@@ -105,6 +111,16 @@ export default function TripDetailPage() {
     member: Member | null;
   }>({ open: false, member: null });
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // 編輯支出相關 state
+  const [editExpenseDialog, setEditExpenseDialog] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [editForm, setEditForm] = useState({
+    description: '',
+    original_amount: '',
+    currency: 'TWD',
+    exchange_rate: '1.0',
+  });
 
   useEffect(() => {
     loadTripData();
@@ -166,7 +182,8 @@ export default function TripDetailPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...expenseForm,
-          amount: parseFloat(expenseForm.amount),
+          original_amount: parseFloat(expenseForm.original_amount),
+          exchange_rate: parseFloat(expenseForm.exchange_rate),
         }),
       });
 
@@ -179,7 +196,9 @@ export default function TripDetailPage() {
       setShowAddExpense(false);
       setExpenseForm({
         payer_id: currentUser?.id || 0,
-        amount: '',
+        original_amount: '',
+        currency: 'TWD',
+        exchange_rate: '1.0',
         description: '',
         date: new Date().toISOString().split('T')[0],
         split_with: [],
@@ -207,6 +226,63 @@ export default function TripDetailPage() {
     } catch (err: any) {
       alert(err.message);
     }
+  };
+
+  const handleEditExpenseClick = (expense: Expense) => {
+    setEditingExpense(expense);
+    setEditForm({
+      description: expense.description,
+      original_amount: expense.original_amount.toString(),
+      currency: expense.currency,
+      exchange_rate: expense.exchange_rate.toString(),
+    });
+    setEditExpenseDialog(true);
+  };
+
+  const handleEditExpense = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingExpense) return;
+
+    setError('');
+
+    try {
+      const response = await fetch(`/api/trips/${tripId}/expenses/${editingExpense.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          description: editForm.description.trim(),
+          original_amount: parseFloat(editForm.original_amount),
+          currency: editForm.currency,
+          exchange_rate: parseFloat(editForm.exchange_rate),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error);
+      }
+
+      setSnackbar({ open: true, message: '支出已更新', severity: 'success' });
+      setEditExpenseDialog(false);
+      setEditingExpense(null);
+      await loadTripData();
+    } catch (err: any) {
+      setError(err.message);
+      setSnackbar({ open: true, message: err.message, severity: 'error' });
+    }
+  };
+
+  const calculateConvertedAmount = () => {
+    const amount = parseFloat(editForm.original_amount) || 0;
+    const rate = parseFloat(editForm.exchange_rate) || 1;
+    return amount * rate;
+  };
+
+  const calculateAddExpenseConvertedAmount = () => {
+    const amount = parseFloat(expenseForm.original_amount) || 0;
+    const rate = parseFloat(expenseForm.exchange_rate) || 1;
+    return amount * rate;
   };
 
   const toggleSplitMember = (userId: number) => {
@@ -432,19 +508,38 @@ export default function TripDetailPage() {
                               </Typography>
                             </Box>
                             <Box sx={{ textAlign: 'right' }}>
-                              <Typography variant="h6" color="primary" fontWeight={700}>
-                                ${expense.amount.toLocaleString()}
-                              </Typography>
+                              {expense.currency !== 'TWD' ? (
+                                <>
+                                  <Typography variant="body2" color="text.secondary">
+                                    {expense.original_amount.toLocaleString()} {expense.currency} (匯率 {expense.exchange_rate})
+                                  </Typography>
+                                  <Typography variant="h6" color="primary" fontWeight={700}>
+                                    = NT${expense.amount.toLocaleString()}
+                                  </Typography>
+                                </>
+                              ) : (
+                                <Typography variant="h6" color="primary" fontWeight={700}>
+                                  NT${expense.amount.toLocaleString()}
+                                </Typography>
+                              )}
                               {currentUser?.id === expense.payer_id && (
-                                <Button
-                                  onClick={() => handleDeleteExpense(expense.id)}
-                                  size="small"
-                                  color="error"
-                                  startIcon={<Delete />}
-                                  sx={{ mt: 0.5 }}
-                                >
-                                  刪除
-                                </Button>
+                                <Box sx={{ display: 'flex', gap: 1, mt: 0.5 }}>
+                                  <Button
+                                    onClick={() => handleEditExpenseClick(expense)}
+                                    size="small"
+                                    startIcon={<Edit />}
+                                  >
+                                    編輯
+                                  </Button>
+                                  <Button
+                                    onClick={() => handleDeleteExpense(expense.id)}
+                                    size="small"
+                                    color="error"
+                                    startIcon={<Delete />}
+                                  >
+                                    刪除
+                                  </Button>
+                                </Box>
                               )}
                             </Box>
                           </Box>
@@ -623,17 +718,60 @@ export default function TripDetailPage() {
               </Select>
             </FormControl>
 
-            <TextField
-              fullWidth
-              type="number"
-              label="金額 *"
-              value={expenseForm.amount}
-              onChange={(e) => setExpenseForm({ ...expenseForm, amount: e.target.value })}
-              required
-              inputProps={{ step: '0.01', min: '0.01' }}
-              placeholder="0.00"
-              sx={{ mb: 2 }}
-            />
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <InputLabel>幣別 *</InputLabel>
+              <Select
+                value={expenseForm.currency}
+                onChange={(e) => {
+                  const currency = e.target.value;
+                  setExpenseForm({
+                    ...expenseForm,
+                    currency,
+                    exchange_rate: currency === 'TWD' ? '1.0' : expenseForm.exchange_rate,
+                  });
+                }}
+                label="幣別 *"
+                required
+              >
+                <MenuItem value="TWD">TWD - 新台幣</MenuItem>
+                <MenuItem value="JPY">JPY - 日圓</MenuItem>
+                <MenuItem value="USD">USD - 美元</MenuItem>
+                <MenuItem value="EUR">EUR - 歐元</MenuItem>
+                <MenuItem value="HKD">HKD - 港幣</MenuItem>
+              </Select>
+            </FormControl>
+
+            <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+              <TextField
+                fullWidth
+                type="number"
+                label="金額 *"
+                value={expenseForm.original_amount}
+                onChange={(e) => setExpenseForm({ ...expenseForm, original_amount: e.target.value })}
+                required
+                inputProps={{ step: '0.01', min: '0.01' }}
+                placeholder="0.00"
+              />
+
+              {expenseForm.currency !== 'TWD' && (
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="匯率 (對TWD) *"
+                  value={expenseForm.exchange_rate}
+                  onChange={(e) => setExpenseForm({ ...expenseForm, exchange_rate: e.target.value })}
+                  required
+                  inputProps={{ step: '0.000001', min: '0' }}
+                  placeholder="例如: 0.22"
+                />
+              )}
+            </Box>
+
+            {expenseForm.currency !== 'TWD' && (
+              <Alert severity="info" icon={<AttachMoney />} sx={{ mb: 2 }}>
+                換算後: <strong>NT${calculateAddExpenseConvertedAmount().toLocaleString()}</strong>
+              </Alert>
+            )}
 
             <TextField
               fullWidth
@@ -696,9 +834,9 @@ export default function TripDetailPage() {
                   />
                 ))}
               </Box>
-              {expenseForm.split_with.length > 0 && expenseForm.amount && parseFloat(expenseForm.amount) > 0 && (
+              {expenseForm.split_with.length > 0 && expenseForm.original_amount && parseFloat(expenseForm.original_amount) > 0 && (
                 <Alert severity="info" icon={<AttachMoney />} sx={{ mt: 1 }}>
-                  每人分擔: <strong>${(parseFloat(expenseForm.amount) / expenseForm.split_with.length).toFixed(2)}</strong>
+                  每人分擔: <strong>NT${(calculateAddExpenseConvertedAmount() / expenseForm.split_with.length).toFixed(2)}</strong>
                 </Alert>
               )}
             </Box>
@@ -791,6 +929,107 @@ export default function TripDetailPage() {
             移除
           </Button>
         </DialogActions>
+      </Dialog>
+
+      {/* 編輯支出對話框 */}
+      <Dialog
+        open={editExpenseDialog}
+        onClose={() => setEditExpenseDialog(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <form onSubmit={handleEditExpense}>
+          <DialogTitle>編輯支出</DialogTitle>
+          <DialogContent>
+            {error && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {error}
+              </Alert>
+            )}
+
+            <TextField
+              fullWidth
+              label="項目描述"
+              value={editForm.description}
+              onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+              margin="normal"
+              required
+            />
+
+            <FormControl fullWidth margin="normal" required>
+              <InputLabel>幣別</InputLabel>
+              <Select
+                value={editForm.currency}
+                onChange={(e) => {
+                  const currency = e.target.value;
+                  setEditForm({
+                    ...editForm,
+                    currency,
+                    exchange_rate: currency === 'TWD' ? '1.0' : editForm.exchange_rate,
+                  });
+                }}
+                label="幣別"
+              >
+                <MenuItem value="TWD">TWD - 新台幣</MenuItem>
+                <MenuItem value="JPY">JPY - 日圓</MenuItem>
+                <MenuItem value="USD">USD - 美元</MenuItem>
+                <MenuItem value="EUR">EUR - 歐元</MenuItem>
+                <MenuItem value="HKD">HKD - 港幣</MenuItem>
+              </Select>
+            </FormControl>
+
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <TextField
+                fullWidth
+                label="金額"
+                type="number"
+                value={editForm.original_amount}
+                onChange={(e) => setEditForm({ ...editForm, original_amount: e.target.value })}
+                margin="normal"
+                required
+                inputProps={{ min: 0, step: '0.01' }}
+              />
+
+              {editForm.currency !== 'TWD' && (
+                <TextField
+                  fullWidth
+                  label="匯率 (對TWD)"
+                  type="number"
+                  value={editForm.exchange_rate}
+                  onChange={(e) => setEditForm({ ...editForm, exchange_rate: e.target.value })}
+                  margin="normal"
+                  required
+                  inputProps={{ min: 0, step: '0.000001' }}
+                />
+              )}
+            </Box>
+
+            {editForm.currency !== 'TWD' && (
+              <Alert severity="info" sx={{ mt: 2 }}>
+                換算後: {calculateConvertedAmount().toLocaleString()} TWD
+              </Alert>
+            )}
+
+            <Box sx={{ mt: 2, p: 2, bgcolor: 'background.default', borderRadius: 1 }}>
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                以下欄位不可修改:
+              </Typography>
+              <Typography variant="body2">
+                付款人: {editingExpense?.payer_name}
+              </Typography>
+              <Typography variant="body2">
+                日期: {editingExpense ? new Date(editingExpense.date).toLocaleDateString('zh-TW') : ''}
+              </Typography>
+              <Typography variant="body2">
+                分帳對象: {editingExpense?.splits.map(s => s.display_name).join(', ')}
+              </Typography>
+            </Box>
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <Button onClick={() => setEditExpenseDialog(false)}>取消</Button>
+            <Button type="submit" variant="contained">儲存修改</Button>
+          </DialogActions>
+        </form>
       </Dialog>
 
       {/* Snackbar 通知 */}
