@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import ThemeRegistry from "./ThemeRegistry";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 export const metadata: Metadata = {
   title: "Travel Budget Planner - 旅行記帳",
@@ -24,6 +25,7 @@ export default function RootLayout({
     <html lang="zh-TW">
       <body>
         <ThemeRegistry>{children}</ThemeRegistry>
+        <SpeedInsights />
       </body>
     </html>
   );
