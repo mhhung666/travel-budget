@@ -6,6 +6,10 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
+import dotenv from 'dotenv';
+
+// 載入環境變數
+dotenv.config({ path: '.env' });
 
 // 從環境變數讀取 Supabase 配置
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
