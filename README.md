@@ -96,7 +96,10 @@ CREATE TABLE expenses (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   trip_id INTEGER NOT NULL,
   payer_id INTEGER NOT NULL,
-  amount REAL NOT NULL,
+  amount REAL NOT NULL,                     -- TWD 換算金額 (用於結算)
+  original_amount REAL NOT NULL,            -- 原始幣別金額 (Phase 7+)
+  currency TEXT NOT NULL DEFAULT 'TWD',     -- 幣別代碼 (Phase 7+)
+  exchange_rate REAL NOT NULL DEFAULT 1.0,  -- 匯率 (Phase 7+)
   description TEXT NOT NULL,
   date DATE NOT NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -216,9 +219,17 @@ travel/
 - **[QUICKSTART.md](./QUICKSTART.md)** - 5 分鐘快速部署指南
 - **[SUPABASE_SETUP.md](./SUPABASE_SETUP.md)** - 詳細設定說明
 
-### ✅ 最新功能 (Phase 6 已完成)
+### ✅ 最新功能
 
-**Phase 6: 管理員功能與旅行分享** ✅
+**Phase 7: 支出編輯與多幣別功能** ✅ (v1.0.2)
+最新功能已全部實現:
+1. ✅ **支出編輯功能** - 付款人可以編輯已建立的支出項目和金額
+2. ✅ **多幣別支援** - 支援 TWD、JPY、USD、EUR、HKD 五種幣別
+3. ✅ **自動換算** - 外幣支出自動換算為 TWD 進行結算
+4. ✅ **即時計算** - 輸入金額和匯率時即時顯示換算結果
+5. ✅ **權限控制** - 只有付款人可以編輯自己的支出
+
+**Phase 6: 管理員功能與旅行分享** ✅ (v1.0.1)
 核心功能已全部實現:
 1. ✅ **管理員權限系統** - 旅行創建者可刪除旅行或移除成員
 2. ✅ **簡化 ID 系統** - 使用短 hash code (如 `a7x9k2`) 替代數字 ID
@@ -226,8 +237,9 @@ travel/
 4. ✅ **快速加入頁面** - 通過連結 `/join/[hashCode]` 快速加入旅行
 5. ✅ **完整通知系統** - 操作成功/失敗提示
 
-### 開發歷程
-所有開發階段的詳細文檔已歸檔至 [docs/archive](./docs/archive/) 目錄
+### 📚 開發歷程與文檔
+- **Phase 7 完成報告**: [docs/archive/PHASE7_COMPLETED.md](./docs/archive/PHASE7_COMPLETED.md)
+- **所有開發文檔**: [docs/archive](./docs/archive/) 目錄
 
 ## 技術棧總結
 
