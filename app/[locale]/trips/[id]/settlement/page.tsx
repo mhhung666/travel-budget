@@ -22,6 +22,7 @@ import {
   ArrowForward,
   ArrowDownward,
   Lightbulb,
+  ArrowBack,
 } from '@mui/icons-material';
 import Navbar from '@/components/Navbar';
 
@@ -127,6 +128,22 @@ export default function SettlementPage() {
       />
 
       <Container maxWidth="lg" sx={{ pt: { xs: 10, sm: 12 }, pb: 4 }}>
+        {/* 返回按鈕 */}
+        <Button
+          startIcon={<ArrowBack />}
+          onClick={() => router.push(`/trips/${tripId}`)}
+          sx={{
+            mb: 3,
+            textTransform: 'none',
+            color: 'text.secondary',
+            '&:hover': {
+              color: 'text.primary',
+            },
+          }}
+        >
+          返回旅行詳情
+        </Button>
+
         {/* 總支出 */}
         <Card
           elevation={3}
