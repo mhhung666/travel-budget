@@ -1,7 +1,7 @@
 'use client'
 
 import { AppBar, Toolbar, Typography, Button, Box, IconButton, Avatar, Menu, MenuItem, Container } from '@mui/material'
-import { AccountCircle, Logout, TravelExplore, Brightness4, Brightness7 } from '@mui/icons-material'
+import { AccountCircle, Logout, TravelExplore, Brightness3, Brightness5 } from '@mui/icons-material'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { useThemeContext } from '@/app/context/ThemeContext'
@@ -76,7 +76,7 @@ export default function Navbar({ user, showUserMenu = true, title = '旅行記�
             sx={{ mr: 1, color: 'text.primary' }}
             aria-label="切換主題"
           >
-            {mode === 'dark' ? <Brightness7 /> : <Brightness4 />}
+            {mode === 'dark' ? <Brightness5 /> : <Brightness3 />}
           </IconButton>
 
           {showUserMenu && user ? (
