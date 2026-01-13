@@ -4,8 +4,10 @@ import { AppBar, Toolbar, Typography, Button, Box, IconButton, Avatar, Menu, Men
 import { Logout, TravelExplore, Settings } from '@mui/icons-material'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { useThemeContext } from '@/app/context/ThemeContext'
+import { useThemeContext } from '@/app/[locale]/context/ThemeContext'
 import { MoonIcon, SunIcon } from './ThemeIcons'
+import LanguageSwitcher from './LanguageSwitcher'
+import { useTranslations } from 'next-intl'
 
 interface NavbarProps {
   user?: {
@@ -18,10 +20,12 @@ interface NavbarProps {
   title?: string
 }
 
-export default function Navbar({ user, showUserMenu = true, title = '旅行記帳' }: NavbarProps) {
+export default function Navbar({ user, showUserMenu = true, title }: NavbarProps) {
   const router = useRouter()
+  const t = useTranslations('nav')
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
   const { mode, toggleTheme } = useThemeContext()
+  const displayTitle = title || t('home')
 
   const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget)
@@ -73,8 +77,11 @@ export default function Navbar({ user, showUserMenu = true, title = '旅行記�
               fontSize: { xs: '1.1rem', sm: '1.25rem' }
             }}
           >
-            {title}
+            {displayTitle}
           </Typography>
+
+          {/* 語言切換 */}
+          <LanguageSwitcher />
 
           {/* 主題切換按鈕 */}
           <IconButton
@@ -128,15 +135,15 @@ export default function Navbar({ user, showUserMenu = true, title = '旅行記�
               >
                 <MenuItem onClick={handleTrips}>
                   <TravelExplore sx={{ mr: 1 }} fontSize="small" />
-                  我的旅行
+                  {t('trips')}
                 </MenuItem>
                 <MenuItem onClick={handleSettings}>
                   <Settings sx={{ mr: 1 }} fontSize="small" />
-                  個人設定
+                  {t('settings')}
                 </MenuItem>
                 <MenuItem onClick={handleLogout}>
                   <Logout sx={{ mr: 1 }} fontSize="small" />
-                  登出
+                  {t('logout')}
                 </MenuItem>
               </Menu>
             </Box>
@@ -151,7 +158,7 @@ export default function Navbar({ user, showUserMenu = true, title = '旅行記�
                 fontSize: { xs: '0.875rem', sm: '1rem' }
               }}
             >
-              登入
+              {t('login')}
             </Button>
           )}
         </Toolbar>

@@ -1,11 +1,9 @@
 import type { Metadata } from "next";
-import ThemeRegistry from "./ThemeRegistry";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
 export const metadata: Metadata = {
   title: "Travel Budget Planner - 旅行記帳",
   description: "輕量化的旅行記帳與分帳應用程式",
-  // 新增以下部分
   openGraph: {
     title: "Travel Budget Planner - 旅行記帳",
     description: "輕量化的旅行記帳與分帳應用程式",
@@ -21,12 +19,5 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return (
-    <html lang="zh-TW">
-      <body>
-        <ThemeRegistry>{children}</ThemeRegistry>
-        <SpeedInsights />
-      </body>
-    </html>
-  );
+  return children;
 }

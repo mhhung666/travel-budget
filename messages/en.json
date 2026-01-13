@@ -1,0 +1,151 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "back": "Back",
+    "confirm": "Confirm",
+    "yes": "Yes",
+    "no": "No",
+    "search": "Search",
+    "filter": "Filter",
+    "sort": "Sort",
+    "close": "Close",
+    "submit": "Submit",
+    "reset": "Reset"
+  },
+  "nav": {
+    "home": "Home",
+    "trips": "My Trips",
+    "settings": "Settings",
+    "login": "Login",
+    "logout": "Logout",
+    "register": "Register"
+  },
+  "home": {
+    "title": "Travel Budget",
+    "hero": {
+      "title": "Manage Travel Expenses Easily",
+      "subtitle": "Smart expense splitting for simpler trips",
+      "getStarted": "Get Started",
+      "viewTrips": "View Trips"
+    },
+    "features": {
+      "title": "Core Features",
+      "easyTracking": {
+        "title": "Easy Tracking",
+        "description": "Quickly record every expense, update anytime, anywhere"
+      },
+      "smartSplit": {
+        "title": "Smart Splitting",
+        "description": "Automatically calculate each person's share"
+      },
+      "quickSettlement": {
+        "title": "Quick Settlement",
+        "description": "Optimized payment plan, time-saving and convenient"
+      }
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "backToTrips": "Back to My Trips",
+    "profile": {
+      "title": "Profile",
+      "username": "Username",
+      "usernameHelp": "Username cannot be changed",
+      "displayName": "Display Name",
+      "saveChanges": "Save Changes",
+      "updateSuccess": "Display name updated"
+    },
+    "password": {
+      "title": "Change Password",
+      "current": "Current Password",
+      "new": "New Password",
+      "confirm": "Confirm New Password",
+      "minLength": "At least 6 characters",
+      "updateButton": "Update Password",
+      "updateSuccess": "Password updated",
+      "tooShort": "New password must be at least 6 characters",
+      "mismatch": "New password and confirmation do not match",
+      "updateError": "Failed to update password"
+    },
+    "errors": {
+      "fetchUser": "Failed to fetch user data",
+      "updateFailed": "Update failed"
+    }
+  },
+  "trips": {
+    "title": "My Trips",
+    "list": "Trip List",
+    "createTrip": "Create New Trip",
+    "joinTrip": "Join Trip",
+    "noTrips": "No trip records yet",
+    "noTripsDescription": "Click \"Create New Trip\" to start planning your journey!",
+    "members": "members",
+    "created": "Created on",
+    "idLabel": "ID:",
+    "idCopied": "ID copied!",
+    "copyFailed": "Copy failed",
+    "create": {
+      "title": "Create New Trip",
+      "name": "Trip Name",
+      "namePlaceholder": "e.g., Japan Kansai Trip",
+      "description": "Description (Optional)",
+      "descriptionPlaceholder": "Brief description of the trip (optional)",
+      "createButton": "Create",
+      "success": "Trip created successfully!"
+    },
+    "join": {
+      "title": "Join Trip",
+      "tripId": "Trip ID",
+      "tripIdPlaceholder": "Enter 6-8 character trip code (e.g.: a7x9k2)",
+      "tripIdHelp": "Ask the trip creator for the trip code",
+      "joinButton": "Join",
+      "success": "Successfully joined the trip!",
+      "error": "Failed to join"
+    },
+    "detail": {
+      "backToTrips": "Back to Trips",
+      "expenses": "Expenses",
+      "members": "Members",
+      "settlement": "Settlement",
+      "addExpense": "Add Expense",
+      "inviteCode": "Invite Code",
+      "copyCode": "Copy Code",
+      "codeCopied": "Code copied!",
+      "noExpenses": "No expenses yet",
+      "addFirstExpense": "Add your first expense",
+      "totalSpent": "Total Spent"
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Welcome Back",
+      "subtitle": "Sign in to your account to manage trips",
+      "username": "Username",
+      "password": "Password",
+      "loginButton": "Login",
+      "noAccount": "Don't have an account?",
+      "registerLink": "Register now",
+      "error": "Login failed",
+      "backToHome": "Back to Home"
+    },
+    "register": {
+      "title": "Create Account",
+      "subtitle": "Start your journey",
+      "username": "Username",
+      "displayName": "Display Name",
+      "password": "Password",
+      "confirmPassword": "Confirm Password",
+      "registerButton": "Register",
+      "hasAccount": "Already have an account?",
+      "loginLink": "Login now",
+      "error": "Registration failed",
+      "passwordMismatch": "Passwords do not match",
+      "passwordHelp": "At least 6 characters"
+    }
+  }
+}

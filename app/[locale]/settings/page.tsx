@@ -16,9 +16,12 @@ import {
 } from '@mui/material';
 import { ArrowBack, Person, Lock } from '@mui/icons-material';
 import Navbar from '@/components/Navbar';
+import { useTranslations } from 'next-intl';
 
 export default function SettingsPage() {
   const router = useRouter();
+  const t = useTranslations('settings');
+  const tCommon = useTranslations('common');
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -69,10 +72,10 @@ export default function SettingsPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || '更新失敗');
+        throw new Error(data.error || t('errors.updateFailed'));
       }
 
-      setSuccess('顯示名稱已更新');
+      setSuccess(t('profile.updateSuccess'));
       setUser({ ...user, display_name: displayName });
     } catch (err: any) {
       setError(err.message);
@@ -88,12 +91,12 @@ export default function SettingsPage() {
 
     // 驗證新密碼
     if (newPassword.length < 6) {
-      setError('新密碼至少需要 6 個字元');
+      setError(t('password.tooShort'));
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      setError('新密碼與確認密碼不符');
+      setError(t('password.mismatch'));
       return;
     }
 
@@ -112,10 +115,10 @@ export default function SettingsPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || '更新密碼失敗');
+        throw new Error(data.error || t('password.updateError'));
       }
 
-      setSuccess('密碼已更新');
+      setSuccess(t('password.updateSuccess'));
       // 清空密碼欄位
       setCurrentPassword('');
       setNewPassword('');
@@ -145,7 +148,7 @@ export default function SettingsPage() {
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
-      <Navbar user={user} title="個人設定" />
+      <Navbar user={user} title={t('title')} />
 
       <Box sx={{ pt: { xs: 10, sm: 12 }, pb: 4 }}>
         <Container maxWidth="md">
@@ -162,7 +165,7 @@ export default function SettingsPage() {
               },
             }}
           >
-            返回我的旅行
+            {t('backToTrips')}
           </Button>
 
           {/* 標題 */}
@@ -171,7 +174,7 @@ export default function SettingsPage() {
             fontWeight={700}
             sx={{ mb: 4, color: 'text.primary' }}
           >
-            個人設定
+            {t('title')}
           </Typography>
 
           {/* 訊息提示 */}
@@ -200,23 +203,23 @@ export default function SettingsPage() {
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
               <Person sx={{ mr: 1, color: 'primary.main' }} />
               <Typography variant="h6" fontWeight={600}>
-                個人資料
+                {t('profile.title')}
               </Typography>
             </Box>
 
             <form onSubmit={handleUpdateProfile}>
               <TextField
                 fullWidth
-                label="用戶名"
+                label={t('profile.username')}
                 value={user?.username || ''}
                 disabled
                 sx={{ mb: 3 }}
-                helperText="用戶名無法修改"
+                helperText={t('profile.usernameHelp')}
               />
 
               <TextField
                 fullWidth
-                label="顯示名稱"
+                label={t('profile.displayName')}
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 required
@@ -236,7 +239,7 @@ export default function SettingsPage() {
                 {updatingProfile ? (
                   <CircularProgress size={24} color="inherit" />
                 ) : (
-                  '儲存變更'
+                  t('profile.saveChanges')
                 )}
               </Button>
             </form>
@@ -255,7 +258,7 @@ export default function SettingsPage() {
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
               <Lock sx={{ mr: 1, color: 'primary.main' }} />
               <Typography variant="h6" fontWeight={600}>
-                修改密碼
+                {t('password.title')}
               </Typography>
             </Box>
 
@@ -263,7 +266,7 @@ export default function SettingsPage() {
               <TextField
                 fullWidth
                 type="password"
-                label="目前密碼"
+                label={t('password.current')}
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
                 required
@@ -273,19 +276,19 @@ export default function SettingsPage() {
               <TextField
                 fullWidth
                 type="password"
-                label="新密碼"
+                label={t('password.new')}
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 required
                 inputProps={{ minLength: 6 }}
-                helperText="至少 6 個字元"
+                helperText={t('password.minLength')}
                 sx={{ mb: 3 }}
               />
 
               <TextField
                 fullWidth
                 type="password"
-                label="確認新密碼"
+                label={t('password.confirm')}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
@@ -306,7 +309,7 @@ export default function SettingsPage() {
                 {updatingPassword ? (
                   <CircularProgress size={24} color="inherit" />
                 ) : (
-                  '更新密碼'
+                  t('password.updateButton')
                 )}
               </Button>
             </form>

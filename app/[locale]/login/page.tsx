@@ -17,9 +17,12 @@ import {
 import { TravelExplore, ArrowBack } from '@mui/icons-material';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
+import { useTranslations } from 'next-intl';
 
 export default function LoginPage() {
   const router = useRouter();
+  const t = useTranslations('auth');
+  const tCommon = useTranslations('common');
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({
     username: '',
@@ -49,7 +52,7 @@ export default function LoginPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || '操作失敗');
+        throw new Error(data.error || (isLogin ? t('login.error') : t('register.error')));
       }
 
       router.push('/trips');
@@ -62,7 +65,7 @@ export default function LoginPage() {
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
-      <Navbar showUserMenu={false} title="旅行記帳" />
+      <Navbar showUserMenu={false} />
 
       <Box
         sx={{
@@ -113,7 +116,7 @@ export default function LoginPage() {
                 fontSize: { xs: '1.75rem', sm: '2rem' },
               }}
             >
-              {isLogin ? '歡迎回來' : '建立帳號'}
+              {isLogin ? t('login.title') : t('register.title')}
             </Typography>
             <Typography
               variant="body1"
@@ -121,7 +124,7 @@ export default function LoginPage() {
               color="text.secondary"
               sx={{ mb: 4, fontSize: { xs: '0.875rem', sm: '1rem' } }}
             >
-              {isLogin ? '登入您的帳號開始管理旅行' : '開始您的旅程'}
+              {isLogin ? t('login.subtitle') : t('register.subtitle')}
             </Typography>
 
             {/* Tabs */}
@@ -141,8 +144,8 @@ export default function LoginPage() {
                 },
               }}
             >
-              <Tab label="登入" />
-              <Tab label="註冊" />
+              <Tab label={t('login.loginButton')} />
+              <Tab label={t('register.registerButton')} />
             </Tabs>
 
             {/* 錯誤訊息 */}
@@ -162,7 +165,7 @@ export default function LoginPage() {
             <form onSubmit={handleSubmit}>
               <TextField
                 fullWidth
-                label="用戶名"
+                label={t('login.username')}
                 value={formData.username}
                 onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                 required
@@ -173,7 +176,7 @@ export default function LoginPage() {
               {!isLogin && (
                 <TextField
                   fullWidth
-                  label="顯示名稱"
+                  label={t('register.displayName')}
                   value={formData.display_name}
                   onChange={(e) => setFormData({ ...formData, display_name: e.target.value })}
                   required={!isLogin}
@@ -184,12 +187,12 @@ export default function LoginPage() {
               <TextField
                 fullWidth
                 type="password"
-                label="密碼"
+                label={t('login.password')}
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 required
                 inputProps={{ minLength: 6 }}
-                helperText={!isLogin ? '至少 6 個字元' : ''}
+                helperText={!isLogin ? t('register.passwordHelp') : ''}
                 sx={{ mb: 4 }}
               />
 
@@ -208,7 +211,7 @@ export default function LoginPage() {
                 {loading ? (
                   <CircularProgress size={24} color="inherit" />
                 ) : (
-                  isLogin ? '登入' : '註冊'
+                  isLogin ? t('login.loginButton') : t('register.registerButton')
                 )}
               </Button>
             </form>
@@ -228,7 +231,7 @@ export default function LoginPage() {
                   },
                 }}
               >
-                返回首頁
+                {t('login.backToHome')}
               </Button>
             </Box>
           </Paper>

@@ -4,13 +4,15 @@ import { Box, Container, Typography, Button, Card, CardContent } from '@mui/mate
 import { TravelExplore, Add, Calculate, Payments, ArrowForward } from '@mui/icons-material';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
+import { useTranslations } from 'next-intl';
 
 export default function Home() {
   const router = useRouter();
+  const t = useTranslations('home');
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
-      <Navbar showUserMenu={false} title="旅行記帳" />
+      <Navbar showUserMenu={false} />
 
       {/* Hero Section */}
       <Box
@@ -57,7 +59,7 @@ export default function Home() {
                 fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' },
               }}
             >
-              輕鬆管理旅行支出
+              {t('hero.title')}
             </Typography>
 
             <Typography
@@ -70,7 +72,7 @@ export default function Home() {
                 px: { xs: 2, sm: 0 },
               }}
             >
-              智慧計算分帳，讓每趟旅程都更簡單
+              {t('hero.subtitle')}
             </Typography>
 
             {/* CTA Buttons */}
@@ -96,7 +98,7 @@ export default function Home() {
                   fontWeight: 600,
                 }}
               >
-                開始使用
+                {t('hero.getStarted')}
               </Button>
               <Button
                 onClick={() => router.push('/trips')}
@@ -109,7 +111,7 @@ export default function Home() {
                   fontWeight: 600,
                 }}
               >
-                查看旅行
+                {t('hero.viewTrips')}
               </Button>
             </Box>
           </Box>
@@ -128,7 +130,7 @@ export default function Home() {
               fontSize: { xs: '1.75rem', sm: '2rem' },
             }}
           >
-            核心功能
+            {t('features.title')}
           </Typography>
 
           <Box
@@ -165,10 +167,10 @@ export default function Home() {
                   <Add sx={{ fontSize: 28, color: 'white' }} />
                 </Box>
                 <Typography variant="h6" fontWeight={600} gutterBottom sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }}>
-                  輕鬆記帳
+                  {t('features.easyTracking.title')}
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}>
-                  快速記錄每筆支出，隨時隨地更新
+                  {t('features.easyTracking.description')}
                 </Typography>
               </CardContent>
             </Card>
@@ -199,10 +201,10 @@ export default function Home() {
                   <Calculate sx={{ fontSize: 28, color: 'white' }} />
                 </Box>
                 <Typography variant="h6" fontWeight={600} gutterBottom sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }}>
-                  智能分帳
+                  {t('features.smartSplit.title')}
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}>
-                  自動計算每個人應付的金額
+                  {t('features.smartSplit.description')}
                 </Typography>
               </CardContent>
             </Card>
@@ -233,10 +235,10 @@ export default function Home() {
                   <Payments sx={{ fontSize: 28, color: 'white' }} />
                 </Box>
                 <Typography variant="h6" fontWeight={600} gutterBottom sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }}>
-                  一鍵結算
+                  {t('features.quickSettlement.title')}
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}>
-                  最優化的轉帳方案，省時又便利
+                  {t('features.quickSettlement.description')}
                 </Typography>
               </CardContent>
             </Card>
