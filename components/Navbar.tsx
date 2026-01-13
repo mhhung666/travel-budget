@@ -1,10 +1,11 @@
 'use client'
 
 import { AppBar, Toolbar, Typography, Button, Box, IconButton, Avatar, Menu, MenuItem, Container } from '@mui/material'
-import { Logout, TravelExplore, Brightness2, Brightness5, Settings } from '@mui/icons-material'
+import { Logout, TravelExplore, Settings } from '@mui/icons-material'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { useThemeContext } from '@/app/context/ThemeContext'
+import { MoonIcon, SunIcon } from './ThemeIcons'
 
 interface NavbarProps {
   user?: {
@@ -81,7 +82,7 @@ export default function Navbar({ user, showUserMenu = true, title = '旅行記�
             sx={{ mr: 1, color: 'text.primary' }}
             aria-label="切換主題"
           >
-            {mode === 'dark' ? <Brightness5 /> : <Brightness2 />}
+            {mode === 'dark' ? <SunIcon /> : <MoonIcon />}
           </IconButton>
 
           {showUserMenu && user ? (
