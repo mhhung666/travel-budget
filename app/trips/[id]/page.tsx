@@ -404,6 +404,22 @@ export default function TripDetailPage() {
       />
 
       <Container maxWidth="lg" sx={{ pt: { xs: 10, sm: 12 }, pb: 4 }}>
+        {/* 返回按鈕 */}
+        <Button
+          startIcon={<ArrowBack />}
+          onClick={() => router.push('/trips')}
+          sx={{
+            mb: 3,
+            textTransform: 'none',
+            color: 'text.secondary',
+            '&:hover': {
+              color: 'text.primary',
+            },
+          }}
+        >
+          返回我的旅行
+        </Button>
+
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '2fr 1fr' }, gap: 3 }}>
           {/* 旅行資訊 */}
           <Box>
