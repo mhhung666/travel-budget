@@ -1,9 +1,10 @@
 'use client'
 
 import { AppBar, Toolbar, Typography, Button, Box, IconButton, Avatar, Menu, MenuItem, Container } from '@mui/material'
-import { AccountCircle, Logout, TravelExplore } from '@mui/icons-material'
+import { AccountCircle, Logout, TravelExplore, Brightness4, Brightness7 } from '@mui/icons-material'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import { useThemeContext } from '@/app/context/ThemeContext'
 
 interface NavbarProps {
   user?: {
@@ -18,6 +19,7 @@ interface NavbarProps {
 export default function Navbar({ user, showUserMenu = true, title = '旅行記帳' }: NavbarProps) {
   const router = useRouter()
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
+  const { mode, toggleTheme } = useThemeContext()
 
   const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget)
@@ -46,7 +48,7 @@ export default function Navbar({ user, showUserMenu = true, title = '旅行記�
       position="fixed"
       elevation={0}
       sx={{
-        backgroundColor: 'white',
+        backgroundColor: 'background.paper',
         borderBottom: '1px solid',
         borderColor: 'divider',
       }}
@@ -66,6 +68,16 @@ export default function Navbar({ user, showUserMenu = true, title = '旅行記�
           >
             {title}
           </Typography>
+
+          {/* 主題切換按鈕 */}
+          <IconButton
+            onClick={toggleTheme}
+            color="inherit"
+            sx={{ mr: 1, color: 'text.primary' }}
+            aria-label="切換主題"
+          >
+            {mode === 'dark' ? <Brightness7 /> : <Brightness4 />}
+          </IconButton>
 
           {showUserMenu && user ? (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>

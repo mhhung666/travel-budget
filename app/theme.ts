@@ -1,29 +1,9 @@
 'use client';
 
-import { createTheme } from '@mui/material/styles';
+import { createTheme, ThemeOptions } from '@mui/material/styles';
 
-export const theme = createTheme({
-  palette: {
-    primary: {
-      main: '#1a1a1a', // 深灰黑色，簡潔專業
-      dark: '#000000',
-      light: '#424242',
-    },
-    secondary: {
-      main: '#757575', // 中性灰
-      dark: '#616161',
-      light: '#9e9e9e',
-    },
-    background: {
-      default: '#ffffff', // 純白背景
-      paper: '#ffffff',
-    },
-    text: {
-      primary: '#1a1a1a',
-      secondary: '#757575',
-    },
-    divider: '#e0e0e0',
-  },
+// 共用的 Typography 和 Shape 設定
+const commonSettings: Pick<ThemeOptions, 'typography' | 'shape'> = {
   typography: {
     fontFamily: [
       '-apple-system',
@@ -76,7 +56,34 @@ export const theme = createTheme({
     },
   },
   shape: {
-    borderRadius: 8, // 更簡潔的圓角
+    borderRadius: 8,
+  },
+};
+
+// 淺色主題
+export const lightTheme = createTheme({
+  ...commonSettings,
+  palette: {
+    mode: 'light',
+    primary: {
+      main: '#1a1a1a',
+      dark: '#000000',
+      light: '#424242',
+    },
+    secondary: {
+      main: '#757575',
+      dark: '#616161',
+      light: '#9e9e9e',
+    },
+    background: {
+      default: '#ffffff',
+      paper: '#ffffff',
+    },
+    text: {
+      primary: '#1a1a1a',
+      secondary: '#757575',
+    },
+    divider: '#e0e0e0',
   },
   components: {
     MuiButton: {
@@ -138,3 +145,92 @@ export const theme = createTheme({
     },
   },
 });
+
+// 深色主題
+export const darkTheme = createTheme({
+  ...commonSettings,
+  palette: {
+    mode: 'dark',
+    primary: {
+      main: '#90caf9',
+      dark: '#42a5f5',
+      light: '#e3f2fd',
+    },
+    secondary: {
+      main: '#ce93d8',
+      dark: '#ab47bc',
+      light: '#f3e5f5',
+    },
+    background: {
+      default: '#0f172a',
+      paper: '#1e293b',
+    },
+    text: {
+      primary: '#f1f5f9',
+      secondary: '#94a3b8',
+    },
+    divider: '#334155',
+  },
+  components: {
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          textTransform: 'none',
+          fontWeight: 600,
+          borderRadius: 8,
+          padding: '10px 24px',
+          boxShadow: 'none',
+          '&:hover': {
+            boxShadow: 'none',
+          },
+        },
+        contained: {
+          '&:hover': {
+            boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+          },
+        },
+        outlined: {
+          borderWidth: '1.5px',
+          '&:hover': {
+            borderWidth: '1.5px',
+          },
+        },
+      },
+    },
+    MuiCard: {
+      styleOverrides: {
+        root: {
+          boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+          border: '1px solid #334155',
+          '&:hover': {
+            boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+          },
+        },
+      },
+    },
+    MuiTextField: {
+      styleOverrides: {
+        root: {
+          '& .MuiOutlinedInput-root': {
+            '& fieldset': {
+              borderColor: '#334155',
+            },
+            '&:hover fieldset': {
+              borderColor: '#475569',
+            },
+          },
+        },
+      },
+    },
+    MuiAppBar: {
+      styleOverrides: {
+        root: {
+          boxShadow: 'none',
+        },
+      },
+    },
+  },
+});
+
+// 向後兼容的預設匯出
+export const theme = lightTheme;

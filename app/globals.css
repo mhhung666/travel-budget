@@ -3,12 +3,32 @@
 :root {
   --background: #ffffff;
   --foreground: #1a1a1a;
+  --scrollbar-track: #f1f5f9;
+  --scrollbar-thumb: #cbd5e1;
+  --scrollbar-thumb-hover: #94a3b8;
+  --selection-bg: #3b82f6;
+  --selection-color: white;
+}
+
+[data-theme='dark'] {
+  --background: #0f172a;
+  --foreground: #f1f5f9;
+  --scrollbar-track: #1e293b;
+  --scrollbar-thumb: #475569;
+  --scrollbar-thumb-hover: #64748b;
+  --selection-bg: #90caf9;
+  --selection-color: #0f172a;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
     --background: #0f172a;
     --foreground: #f1f5f9;
+    --scrollbar-track: #1e293b;
+    --scrollbar-thumb: #475569;
+    --scrollbar-thumb-hover: #64748b;
+    --selection-bg: #90caf9;
+    --selection-color: #0f172a;
   }
 }
 
@@ -20,26 +40,28 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* 自定義滾動條 */
+/* 自定義滾動條 - 淺色模式 */
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: var(--scrollbar-track);
   border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: var(--scrollbar-thumb);
   border-radius: 10px;
+  transition: background 0.2s ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: var(--scrollbar-thumb-hover);
 }
 
 /* 平滑滾動 */
@@ -49,6 +71,24 @@ html {
 
 /* 優化選擇樣式 */
 ::selection {
-  background-color: #3b82f6;
-  color: white;
+  background-color: var(--selection-bg);
+  color: var(--selection-color);
+}
+
+/* 主題切換動畫 */
+* {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+
+/* 排除不需要動畫的元素 */
+*:focus,
+*:active,
+button,
+a,
+input,
+textarea,
+select {
+  transition-duration: 0.15s;
 }
