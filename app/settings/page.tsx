@@ -41,16 +41,13 @@ export default function SettingsPage() {
   const fetchUser = async () => {
     try {
       const response = await fetch('/api/auth/me');
-      if (!response.ok) {
-        router.push('/login');
-        return;
+      if (response.ok) {
+        const data = await response.json();
+        setUser(data.user);
+        setDisplayName(data.user.display_name);
       }
-      const data = await response.json();
-      setUser(data.user);
-      setDisplayName(data.user.display_name);
     } catch (error) {
       console.error('獲取用戶資料失敗:', error);
-      router.push('/login');
     } finally {
       setLoading(false);
     }

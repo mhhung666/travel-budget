@@ -55,21 +55,19 @@ export default function TripsPage() {
   });
 
   useEffect(() => {
-    checkAuth();
+    loadUserAndTrips();
   }, []);
 
-  const checkAuth = async () => {
+  const loadUserAndTrips = async () => {
     try {
       const response = await fetch('/api/auth/me');
-      if (!response.ok) {
-        router.push('/login');
-        return;
+      if (response.ok) {
+        const data = await response.json();
+        setUser(data.user);
       }
-      const data = await response.json();
-      setUser(data.user);
       await loadTrips();
     } catch (error) {
-      router.push('/login');
+      console.error('Load user error:', error);
     } finally {
       setLoading(false);
     }
