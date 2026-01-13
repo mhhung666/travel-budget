@@ -291,19 +291,19 @@ export default function SettlementPage() {
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: { xs: '100%', sm: 'auto' }, justifyContent: { xs: 'center', sm: 'flex-start' } }}>
                               <Avatar
                                 sx={{
-                                  bgcolor: 'white',
-                                  color: 'text.primary',
+                                  bgcolor: 'error.main',
+                                  color: 'white',
                                   border: '2px solid',
-                                  borderColor: 'divider',
+                                  borderColor: 'error.dark',
                                 }}
                               >
                                 {transaction.from.charAt(0)}
                               </Avatar>
                               <Box>
-                                <Typography variant="caption" color="text.secondary">
+                                <Typography variant="caption" color="text.primary" sx={{ opacity: 0.7 }}>
                                   付款人
                                 </Typography>
-                                <Typography variant="body1" fontWeight={600}>
+                                <Typography variant="body1" fontWeight={600} color="text.primary">
                                   {transaction.from}
                                 </Typography>
                               </Box>
@@ -325,19 +325,19 @@ export default function SettlementPage() {
                             {/* 收款人 */}
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: { xs: '100%', sm: 'auto' }, justifyContent: { xs: 'center', sm: 'flex-end' } }}>
                               <Box sx={{ textAlign: 'right' }}>
-                                <Typography variant="caption" color="text.secondary">
+                                <Typography variant="caption" color="text.primary" sx={{ opacity: 0.7 }}>
                                   收款人
                                 </Typography>
-                                <Typography variant="body1" fontWeight={600}>
+                                <Typography variant="body1" fontWeight={600} color="text.primary">
                                   {transaction.to}
                                 </Typography>
                               </Box>
                               <Avatar
                                 sx={{
-                                  bgcolor: 'white',
-                                  color: 'text.primary',
+                                  bgcolor: 'success.main',
+                                  color: 'white',
                                   border: '2px solid',
-                                  borderColor: 'divider',
+                                  borderColor: 'success.dark',
                                 }}
                               >
                                 {transaction.to.charAt(0)}
