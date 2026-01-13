@@ -1,7 +1,7 @@
 'use client'
 
 import { AppBar, Toolbar, Typography, Button, Box, IconButton, Avatar, Menu, MenuItem, Container } from '@mui/material'
-import { AccountCircle, Logout, TravelExplore, Brightness3, Brightness5 } from '@mui/icons-material'
+import { Logout, TravelExplore, Brightness2, Brightness5, Settings } from '@mui/icons-material'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { useThemeContext } from '@/app/context/ThemeContext'
@@ -43,6 +43,11 @@ export default function Navbar({ user, showUserMenu = true, title = '旅行記�
     handleClose()
   }
 
+  const handleSettings = () => {
+    router.push('/settings')
+    handleClose()
+  }
+
   return (
     <AppBar
       position="fixed"
@@ -76,7 +81,7 @@ export default function Navbar({ user, showUserMenu = true, title = '旅行記�
             sx={{ mr: 1, color: 'text.primary' }}
             aria-label="切換主題"
           >
-            {mode === 'dark' ? <Brightness5 /> : <Brightness3 />}
+            {mode === 'dark' ? <Brightness5 /> : <Brightness2 />}
           </IconButton>
 
           {showUserMenu && user ? (
@@ -122,6 +127,10 @@ export default function Navbar({ user, showUserMenu = true, title = '旅行記�
                 <MenuItem onClick={handleTrips}>
                   <TravelExplore sx={{ mr: 1 }} fontSize="small" />
                   我的旅行
+                </MenuItem>
+                <MenuItem onClick={handleSettings}>
+                  <Settings sx={{ mr: 1 }} fontSize="small" />
+                  個人設定
                 </MenuItem>
                 <MenuItem onClick={handleLogout}>
                   <Logout sx={{ mr: 1 }} fontSize="small" />
