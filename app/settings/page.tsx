@@ -129,19 +129,16 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
-        <Navbar user={user} title="個人設定" />
-        <Box
-          sx={{
-            pt: { xs: 10, sm: 12 },
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            minHeight: 'calc(100vh - 64px)',
-          }}
-        >
-          <CircularProgress />
-        </Box>
+      <Box
+        sx={{
+          minHeight: '100vh',
+          bgcolor: 'background.default',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}
+      >
+        <CircularProgress />
       </Box>
     );
   }

@@ -12,6 +12,7 @@ interface NavbarProps {
     id: number
     username: string
     email: string
+    display_name?: string
   } | null
   showUserMenu?: boolean
   title?: string
@@ -94,7 +95,7 @@ export default function Navbar({ user, showUserMenu = true, title = '旅行記�
                   color: 'text.secondary',
                 }}
               >
-                {user.username}
+                {user.display_name || user.username}
               </Typography>
               <IconButton
                 size="large"
@@ -109,7 +110,7 @@ export default function Navbar({ user, showUserMenu = true, title = '旅行記�
                     fontSize: '0.875rem'
                   }}
                 >
-                  {user.username.charAt(0).toUpperCase()}
+                  {(user.display_name || user.username).charAt(0).toUpperCase()}
                 </Avatar>
               </IconButton>
               <Menu
