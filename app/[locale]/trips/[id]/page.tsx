@@ -120,6 +120,9 @@ export default function TripDetailPage() {
   // 支出記錄展開/收合
   const [expensesExpanded, setExpensesExpanded] = useState(true);
 
+  // 成員列表展開/收合
+  const [membersExpanded, setMembersExpanded] = useState(true);
+
   // 編輯支出相關 state
   const [editExpenseDialog, setEditExpenseDialog] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
@@ -653,56 +656,78 @@ export default function TripDetailPage() {
           <Box>
             <Card elevation={2}>
               <CardContent>
-                <Typography variant="h6" fontWeight={600} gutterBottom>
-                  成員 ({members.length})
-                </Typography>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                  {members.map((member) => (
-                    <Box
-                      key={member.id}
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 2,
-                        p: 1.5,
-                        bgcolor: 'background.default',
-                        borderRadius: 1,
-                      }}
-                    >
-                      <Avatar sx={{ bgcolor: 'primary.main' }}>
-                        {member.display_name.charAt(0)}
-                      </Avatar>
-                      <Box sx={{ flex: 1 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Typography variant="body1" fontWeight={500}>
-                            {member.display_name}
-                          </Typography>
-                          {member.role === 'admin' && (
-                            <Chip
-                              label="管理員"
-                              size="small"
-                              color="primary"
-                              icon={<AdminPanelSettings />}
-                            />
-                          )}
-                        </Box>
-                        <Typography variant="body2" color="text.secondary">
-                          @{member.username}
-                        </Typography>
-                      </Box>
-                      {/* 移除按鈕 - 僅管理員且不是自己 */}
-                      {isCurrentUserAdmin && member.id !== currentUser?.id && (
-                        <IconButton
-                          size="small"
-                          color="error"
-                          onClick={() => setRemoveMemberDialog({ open: true, member })}
-                        >
-                          <PersonRemove />
-                        </IconButton>
-                      )}
-                    </Box>
-                  ))}
+                <Box
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    cursor: 'pointer',
+                    mb: membersExpanded ? 2 : 0,
+                  }}
+                  onClick={() => setMembersExpanded(!membersExpanded)}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography variant="h6" fontWeight={600}>
+                      成員
+                    </Typography>
+                    <Chip label={members.length} size="small" color="primary" />
+                  </Box>
+                  <IconButton size="small">
+                    {membersExpanded ? <ExpandLess /> : <ExpandMore />}
+                  </IconButton>
                 </Box>
+                <Collapse in={membersExpanded}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                    {members.map((member) => (
+                      <Box
+                        key={member.id}
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 2,
+                          p: 1.5,
+                          bgcolor: 'background.default',
+                          borderRadius: 1,
+                        }}
+                      >
+                        <Avatar sx={{ bgcolor: 'primary.main' }}>
+                          {member.display_name.charAt(0)}
+                        </Avatar>
+                        <Box sx={{ flex: 1 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Typography variant="body1" fontWeight={500}>
+                              {member.display_name}
+                            </Typography>
+                            {member.role === 'admin' && (
+                              <Chip
+                                label="管理員"
+                                size="small"
+                                color="primary"
+                                icon={<AdminPanelSettings />}
+                              />
+                            )}
+                          </Box>
+                          <Typography variant="body2" color="text.secondary">
+                            @{member.username}
+                          </Typography>
+                        </Box>
+                        {/* 移除按鈕 - 僅管理員且不是自己 */}
+                        {isCurrentUserAdmin && member.id !== currentUser?.id && (
+                          <IconButton
+                            size="small"
+                            color="error"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setRemoveMemberDialog({ open: true, member });
+                            }}
+                          >
+                            <PersonRemove />
+                          </IconButton>
+                        )}
+                      </Box>
+                    ))}
+                  </Box>
+                </Collapse>
               </CardContent>
             </Card>
 
