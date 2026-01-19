@@ -27,6 +27,7 @@ import {
   FormControlLabel,
   Divider,
   Snackbar,
+  Collapse,
 } from '@mui/material';
 import {
   ArrowBack,
@@ -41,6 +42,8 @@ import {
   PersonRemove,
   Warning,
   Edit,
+  ExpandMore,
+  ExpandLess,
 } from '@mui/icons-material';
 import Navbar from '@/components/Navbar';
 
@@ -113,6 +116,9 @@ export default function TripDetailPage() {
 
   // 篩選分帳對象
   const [filterMemberId, setFilterMemberId] = useState<number | 'all'>('all');
+
+  // 支出記錄展開/收合
+  const [expensesExpanded, setExpensesExpanded] = useState(true);
 
   // 編輯支出相關 state
   const [editExpenseDialog, setEditExpenseDialog] = useState(false);
@@ -475,17 +481,36 @@ export default function TripDetailPage() {
             {/* 支出列表 */}
             <Card elevation={2}>
               <CardContent>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
-                  <Typography variant="h6" fontWeight={600}>
-                    支出記錄
-                  </Typography>
-                  <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    cursor: 'pointer',
+                    mb: expensesExpanded ? 2 : 0,
+                  }}
+                  onClick={() => setExpensesExpanded(!expensesExpanded)}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography variant="h6" fontWeight={600}>
+                      支出記錄
+                    </Typography>
+                    <Chip label={expenses.length} size="small" color="primary" />
+                  </Box>
+                  <IconButton size="small">
+                    {expensesExpanded ? <ExpandLess /> : <ExpandMore />}
+                  </IconButton>
+                </Box>
+
+                <Collapse in={expensesExpanded}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
                     <FormControl size="small" sx={{ minWidth: 120 }}>
                       <InputLabel>篩選對象</InputLabel>
                       <Select
                         value={filterMemberId}
                         onChange={(e) => setFilterMemberId(e.target.value as number | 'all')}
                         label="篩選對象"
+                        onClick={(e) => e.stopPropagation()}
                       >
                         <MenuItem value="all">全部</MenuItem>
                         {members.map((member) => (
@@ -496,16 +521,18 @@ export default function TripDetailPage() {
                       </Select>
                     </FormControl>
                     <Button
-                      onClick={() => setShowAddExpense(true)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowAddExpense(true);
+                      }}
                       variant="contained"
                       startIcon={<Add />}
                     >
                       新增支出
                     </Button>
                   </Box>
-                </Box>
 
-                {(() => {
+                  {(() => {
                   const filteredExpenses = filterMemberId === 'all'
                     ? expenses
                     : expenses.filter(expense =>
@@ -617,6 +644,7 @@ export default function TripDetailPage() {
                     </Box>
                   );
                 })()}
+                </Collapse>
               </CardContent>
             </Card>
           </Box>
