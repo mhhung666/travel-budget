@@ -26,7 +26,10 @@
       "Bash(npm run migrate:phase6:*)",
       "Bash(wc:*)",
       "Bash(npm i:*)",
-      "Bash(head:*)"
+      "Bash(head:*)",
+      "Bash(npx next build:*)",
+      "Bash(npm run lint:*)",
+      "Bash(npx eslint:*)"
     ]
   }
 }

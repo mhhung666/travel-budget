@@ -111,6 +111,9 @@ export default function TripDetailPage() {
   }>({ open: false, member: null });
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // 篩選分帳對象
+  const [filterMemberId, setFilterMemberId] = useState<number | 'all'>('all');
+
   // 編輯支出相關 state
   const [editExpenseDialog, setEditExpenseDialog] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
@@ -472,31 +475,72 @@ export default function TripDetailPage() {
             {/* 支出列表 */}
             <Card elevation={2}>
               <CardContent>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
                   <Typography variant="h6" fontWeight={600}>
                     支出記錄
                   </Typography>
-                  <Button
-                    onClick={() => setShowAddExpense(true)}
-                    variant="contained"
-                    startIcon={<Add />}
-                  >
-                    新增支出
-                  </Button>
+                  <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                    <FormControl size="small" sx={{ minWidth: 120 }}>
+                      <InputLabel>篩選對象</InputLabel>
+                      <Select
+                        value={filterMemberId}
+                        onChange={(e) => setFilterMemberId(e.target.value as number | 'all')}
+                        label="篩選對象"
+                      >
+                        <MenuItem value="all">全部</MenuItem>
+                        {members.map((member) => (
+                          <MenuItem key={member.id} value={member.id}>
+                            {member.display_name}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                    <Button
+                      onClick={() => setShowAddExpense(true)}
+                      variant="contained"
+                      startIcon={<Add />}
+                    >
+                      新增支出
+                    </Button>
+                  </Box>
                 </Box>
 
-                {expenses.length === 0 ? (
-                  <Box sx={{ textAlign: 'center', py: 8 }}>
-                    <Typography variant="body1" color="text.secondary" gutterBottom>
-                      目前還沒有支出記錄
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      點擊「新增支出」開始記錄!
-                    </Typography>
-                  </Box>
-                ) : (
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    {expenses.map((expense) => (
+                {(() => {
+                  const filteredExpenses = filterMemberId === 'all'
+                    ? expenses
+                    : expenses.filter(expense =>
+                        expense.splits.some(split => split.user_id === filterMemberId)
+                      );
+
+                  if (expenses.length === 0) {
+                    return (
+                      <Box sx={{ textAlign: 'center', py: 8 }}>
+                        <Typography variant="body1" color="text.secondary" gutterBottom>
+                          目前還沒有支出記錄
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          點擊「新增支出」開始記錄!
+                        </Typography>
+                      </Box>
+                    );
+                  }
+
+                  if (filteredExpenses.length === 0) {
+                    return (
+                      <Box sx={{ textAlign: 'center', py: 8 }}>
+                        <Typography variant="body1" color="text.secondary" gutterBottom>
+                          沒有符合篩選條件的支出記錄
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          請選擇其他分帳對象或選擇「全部」
+                        </Typography>
+                      </Box>
+                    );
+                  }
+
+                  return (
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      {filteredExpenses.map((expense) => (
                       <Card
                         key={expense.id}
                         elevation={0}
@@ -532,8 +576,8 @@ export default function TripDetailPage() {
                                   NT${expense.amount.toLocaleString()}
                                 </Typography>
                               )}
-                              {currentUser?.id === expense.payer_id && (
-                                <Box sx={{ display: 'flex', gap: 1, mt: 0.5 }}>
+                              <Box sx={{ display: 'flex', gap: 1, mt: 0.5 }}>
+                                {currentUser?.id === expense.payer_id && (
                                   <Button
                                     onClick={() => handleEditExpenseClick(expense)}
                                     size="small"
@@ -541,16 +585,16 @@ export default function TripDetailPage() {
                                   >
                                     編輯
                                   </Button>
-                                  <Button
-                                    onClick={() => handleDeleteExpense(expense.id)}
-                                    size="small"
-                                    color="error"
-                                    startIcon={<Delete />}
-                                  >
-                                    刪除
-                                  </Button>
-                                </Box>
-                              )}
+                                )}
+                                <Button
+                                  onClick={() => handleDeleteExpense(expense.id)}
+                                  size="small"
+                                  color="error"
+                                  startIcon={<Delete />}
+                                >
+                                  刪除
+                                </Button>
+                              </Box>
                             </Box>
                           </Box>
                           <Divider sx={{ my: 1.5 }} />
@@ -569,9 +613,10 @@ export default function TripDetailPage() {
                           </Box>
                         </CardContent>
                       </Card>
-                    ))}
-                  </Box>
-                )}
+                      ))}
+                    </Box>
+                  );
+                })()}
               </CardContent>
             </Card>
           </Box>

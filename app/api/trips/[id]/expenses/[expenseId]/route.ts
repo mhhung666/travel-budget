@@ -249,14 +249,6 @@ export async function DELETE(
       );
     }
 
-    // 只有付款人可以刪除支出
-    if (expense.payer_id !== session.userId) {
-      return NextResponse.json(
-        { error: '只有付款人可以刪除此支出' },
-        { status: 403 }
-      );
-    }
-
     // 刪除支出(分帳記錄會因為外鍵級聯刪除)
     const { error: deleteError } = await supabase
       .from('expenses')
