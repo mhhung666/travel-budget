@@ -21,7 +21,11 @@ import {
 } from '@mui/material';
 import { CURRENCIES, formatCurrency } from '@/constants/currencies';
 import type { Member } from '@/services/member.service';
-import type { Expense, CreateExpenseRequest, UpdateExpenseRequest } from '@/services/expense.service';
+import type {
+  Expense,
+  CreateExpenseRequest,
+  UpdateExpenseRequest,
+} from '@/services/expense.service';
 
 export interface ExpenseFormData {
   payer_id: number;
@@ -121,11 +125,13 @@ export function ExpenseForm({
     }
   }, [open, mode, editingExpense, currentUserId, initialData]);
 
-  const handleChange = (field: keyof ExpenseFormData) => (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | { target: { value: unknown } }
-  ) => {
-    setForm((prev) => ({ ...prev, [field]: e.target.value }));
-  };
+  const handleChange =
+    (field: keyof ExpenseFormData) =>
+    (
+      e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | { target: { value: unknown } }
+    ) => {
+      setForm((prev) => ({ ...prev, [field]: e.target.value }));
+    };
 
   const toggleSplitMember = (userId: number) => {
     setForm((prev) => ({
@@ -276,7 +282,14 @@ export function ExpenseForm({
 
             {mode === 'create' && (
               <Box>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    mb: 1,
+                  }}
+                >
                   <Typography variant="subtitle2">Split with:</Typography>
                   <Button size="small" onClick={selectAllMembers} disabled={loading}>
                     Select All

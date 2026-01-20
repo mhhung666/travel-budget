@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import {
   Box,
   Container,
@@ -85,6 +86,15 @@ export default function TripDetailPage() {
   const router = useRouter();
   const params = useParams();
   const tripId = params.id as string;
+  const t = useTranslations();
+  const tCommon = useTranslations('common');
+  const tExpense = useTranslations('expense');
+  const tMember = useTranslations('member');
+  const tTrip = useTranslations('trip');
+  const tTrips = useTranslations('trips');
+  const tCurrency = useTranslations('currency');
+  const tError = useTranslations('error');
+  const tAction = useTranslations('action');
 
   const [trip, setTrip] = useState<Trip | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
@@ -95,8 +105,8 @@ export default function TripDetailPage() {
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [expenseForm, setExpenseForm] = useState({
     payer_id: 0,
-    original_amount: '',  // 改為 original_amount
-    currency: 'TWD',      // 新增: 幣別
+    original_amount: '', // 改為 original_amount
+    currency: 'TWD', // 新增: 幣別
     exchange_rate: '1.0', // 新增: 匯率
     description: '',
     date: new Date().toISOString().split('T')[0],
@@ -157,9 +167,9 @@ export default function TripDetailPage() {
 
       if (!tripResponse.ok) {
         if (tripResponse.status === 403) {
-          setError('您不是此旅行的成員');
+          setError(tError('notMember'));
         } else {
-          setError('無法載入旅行資料');
+          setError(tError('loadTripFailed'));
         }
         return;
       }
@@ -174,10 +184,10 @@ export default function TripDetailPage() {
 
       // 設置默認付款人為當前用戶
       if (authData.user && expenseForm.payer_id === 0) {
-        setExpenseForm(prev => ({ ...prev, payer_id: authData.user.id }));
+        setExpenseForm((prev) => ({ ...prev, payer_id: authData.user.id }));
       }
     } catch (err) {
-      setError('載入失敗');
+      setError(tError('loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -221,7 +231,7 @@ export default function TripDetailPage() {
   };
 
   const handleDeleteExpense = async (expenseId: number) => {
-    if (!confirm('確定要刪除這筆支出嗎?')) return;
+    if (!confirm(tExpense('confirm.delete'))) return;
 
     try {
       const response = await fetch(`/api/trips/${tripId}/expenses/${expenseId}`, {
@@ -274,7 +284,7 @@ export default function TripDetailPage() {
         throw new Error(data.error);
       }
 
-      setSnackbar({ open: true, message: '支出已更新', severity: 'success' });
+      setSnackbar({ open: true, message: tExpense('success.updated'), severity: 'success' });
       setEditExpenseDialog(false);
       setEditingExpense(null);
       await loadTripData();
@@ -297,10 +307,10 @@ export default function TripDetailPage() {
   };
 
   const toggleSplitMember = (userId: number) => {
-    setExpenseForm(prev => ({
+    setExpenseForm((prev) => ({
       ...prev,
       split_with: prev.split_with.includes(userId)
-        ? prev.split_with.filter(id => id !== userId)
+        ? prev.split_with.filter((id) => id !== userId)
         : [...prev.split_with, userId],
     }));
   };
@@ -308,9 +318,9 @@ export default function TripDetailPage() {
   const copyHashCode = async () => {
     try {
       await navigator.clipboard.writeText(trip?.hash_code || '');
-      setSnackbar({ open: true, message: 'ID 已複製!', severity: 'success' });
+      setSnackbar({ open: true, message: tAction('copySuccess'), severity: 'success' });
     } catch (err) {
-      setSnackbar({ open: true, message: '複製失敗，請手動複製', severity: 'error' });
+      setSnackbar({ open: true, message: tAction('copyFailed'), severity: 'error' });
     }
   };
 
@@ -326,7 +336,7 @@ export default function TripDetailPage() {
         throw new Error(data.error);
       }
 
-      setSnackbar({ open: true, message: '旅行已刪除', severity: 'success' });
+      setSnackbar({ open: true, message: tTrip('deleted'), severity: 'success' });
       setTimeout(() => router.push('/trips'), 1000);
     } catch (err: any) {
       setSnackbar({ open: true, message: err.message, severity: 'error' });
@@ -338,17 +348,14 @@ export default function TripDetailPage() {
 
   const handleRemoveMember = async (userId: number) => {
     try {
-      const response = await fetch(
-        `/api/trips/${tripId}/members/${userId}`,
-        { method: 'DELETE' }
-      );
+      const response = await fetch(`/api/trips/${tripId}/members/${userId}`, { method: 'DELETE' });
 
       if (!response.ok) {
         const data = await response.json();
         throw new Error(data.error);
       }
 
-      setSnackbar({ open: true, message: '成員已移除', severity: 'success' });
+      setSnackbar({ open: true, message: tMember('success.removed'), severity: 'success' });
       setRemoveMemberDialog({ open: false, member: null });
       await loadTripData();
     } catch (err: any) {
@@ -356,9 +363,7 @@ export default function TripDetailPage() {
     }
   };
 
-  const isCurrentUserAdmin = members.find(
-    m => m.id === currentUser?.id
-  )?.role === 'admin';
+  const isCurrentUserAdmin = members.find((m) => m.id === currentUser?.id)?.role === 'admin';
 
   if (loading) {
     return (
@@ -389,12 +394,8 @@ export default function TripDetailPage() {
           <Alert severity="error" sx={{ mb: 3 }}>
             {error}
           </Alert>
-          <Button
-            onClick={() => router.push('/trips')}
-            variant="contained"
-            size="large"
-          >
-            返回旅行列表
+          <Button onClick={() => router.push('/trips')} variant="contained" size="large">
+            {tTrips('detail.backToTrips')}
           </Button>
         </Box>
       </Box>
@@ -406,11 +407,15 @@ export default function TripDetailPage() {
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
       <Navbar
-        user={currentUser ? {
-          id: currentUser.id,
-          username: currentUser.display_name,
-          email: currentUser.email
-        } : null}
+        user={
+          currentUser
+            ? {
+                id: currentUser.id,
+                username: currentUser.display_name,
+                email: currentUser.email,
+              }
+            : null
+        }
         showUserMenu={true}
         title={trip.name}
       />
@@ -429,7 +434,7 @@ export default function TripDetailPage() {
             },
           }}
         >
-          返回我的旅行
+          {tTrips('detail.backToTrips')}
         </Button>
 
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '2fr 1fr' }, gap: 3 }}>
@@ -438,7 +443,7 @@ export default function TripDetailPage() {
             <Card elevation={2} sx={{ mb: 3 }}>
               <CardContent>
                 <Typography variant="h6" fontWeight={600} gutterBottom>
-                  旅行資訊
+                  {tTrip('info')}
                 </Typography>
                 {trip.description && (
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
@@ -447,7 +452,7 @@ export default function TripDetailPage() {
                 )}
                 <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 2 }}>
                   <Chip
-                    label={`建立時間: ${new Date(trip.created_at).toLocaleDateString('zh-TW')}`}
+                    label={`${tTrip('createdAt')} ${new Date(trip.created_at).toLocaleDateString()}`}
                     size="small"
                   />
                 </Box>
@@ -456,7 +461,7 @@ export default function TripDetailPage() {
                 <Card variant="outlined" sx={{ bgcolor: 'primary.50', borderColor: 'primary.200' }}>
                   <CardContent>
                     <Typography variant="subtitle2" gutterBottom fontWeight={600}>
-                      分享此旅行
+                      {tTrip('share')}
                     </Typography>
                     <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                       <TextField
@@ -465,16 +470,16 @@ export default function TripDetailPage() {
                         slotProps={{ input: { readOnly: true } }}
                         sx={{ flex: 1 }}
                       />
-                      <Button
-                        variant="outlined"
-                        startIcon={<ContentCopy />}
-                        onClick={copyHashCode}
-                      >
-                        複製
+                      <Button variant="outlined" startIcon={<ContentCopy />} onClick={copyHashCode}>
+                        {tCommon('copy')}
                       </Button>
                     </Box>
-                    <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                      分享此 ID 給朋友，他們就能加入旅行
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ mt: 1, display: 'block' }}
+                    >
+                      {tTrip('shareHint')}
                     </Typography>
                   </CardContent>
                 </Card>
@@ -496,7 +501,7 @@ export default function TripDetailPage() {
                 >
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Typography variant="h6" fontWeight={600}>
-                      支出記錄
+                      {tExpense('title')}
                     </Typography>
                     <Chip label={expenses.length} size="small" color="primary" />
                   </Box>
@@ -506,16 +511,25 @@ export default function TripDetailPage() {
                 </Box>
 
                 <Collapse in={expensesExpanded}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      mb: 2,
+                      flexWrap: 'wrap',
+                      gap: 2,
+                    }}
+                  >
                     <FormControl size="small" sx={{ minWidth: 120 }}>
-                      <InputLabel>篩選對象</InputLabel>
+                      <InputLabel>{tExpense('filter')}</InputLabel>
                       <Select
                         value={filterMemberId}
                         onChange={(e) => setFilterMemberId(e.target.value as number | 'all')}
-                        label="篩選對象"
+                        label={tExpense('filter')}
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <MenuItem value="all">全部</MenuItem>
+                        <MenuItem value="all">{tExpense('filterAll')}</MenuItem>
                         {members.map((member) => (
                           <MenuItem key={member.id} value={member.id}>
                             {member.display_name}
@@ -531,122 +545,137 @@ export default function TripDetailPage() {
                       variant="contained"
                       startIcon={<Add />}
                     >
-                      新增支出
+                      {tExpense('add')}
                     </Button>
                   </Box>
 
                   {(() => {
-                  const filteredExpenses = filterMemberId === 'all'
-                    ? expenses
-                    : expenses.filter(expense =>
-                        expense.splits.some(split => split.user_id === filterMemberId)
-                      );
+                    const filteredExpenses =
+                      filterMemberId === 'all'
+                        ? expenses
+                        : expenses.filter((expense) =>
+                            expense.splits.some((split) => split.user_id === filterMemberId)
+                          );
 
-                  if (expenses.length === 0) {
-                    return (
-                      <Box sx={{ textAlign: 'center', py: 8 }}>
-                        <Typography variant="body1" color="text.secondary" gutterBottom>
-                          目前還沒有支出記錄
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          點擊「新增支出」開始記錄!
-                        </Typography>
-                      </Box>
-                    );
-                  }
-
-                  if (filteredExpenses.length === 0) {
-                    return (
-                      <Box sx={{ textAlign: 'center', py: 8 }}>
-                        <Typography variant="body1" color="text.secondary" gutterBottom>
-                          沒有符合篩選條件的支出記錄
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          請選擇其他分帳對象或選擇「全部」
-                        </Typography>
-                      </Box>
-                    );
-                  }
-
-                  return (
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                      {filteredExpenses.map((expense) => (
-                      <Card
-                        key={expense.id}
-                        elevation={0}
-                        sx={{
-                          border: '1px solid',
-                          borderColor: 'divider',
-                          transition: 'all 0.3s',
-                          '&:hover': { boxShadow: 2 },
-                        }}
-                      >
-                        <CardContent>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-                            <Box sx={{ flex: 1 }}>
-                              <Typography variant="subtitle1" fontWeight={600}>
-                                {expense.description}
-                              </Typography>
-                              <Typography variant="body2" color="text.secondary">
-                                {expense.payer_name} 付款 • {new Date(expense.date).toLocaleDateString('zh-TW')}
-                              </Typography>
-                            </Box>
-                            <Box sx={{ textAlign: 'right' }}>
-                              {expense.currency !== 'TWD' ? (
-                                <>
-                                  <Typography variant="body2" color="text.secondary">
-                                    {expense.original_amount.toLocaleString()} {expense.currency} (匯率 {expense.exchange_rate})
-                                  </Typography>
-                                  <Typography variant="h6" color="primary" fontWeight={700}>
-                                    = NT${expense.amount.toLocaleString()}
-                                  </Typography>
-                                </>
-                              ) : (
-                                <Typography variant="h6" color="primary" fontWeight={700}>
-                                  NT${expense.amount.toLocaleString()}
-                                </Typography>
-                              )}
-                              <Box sx={{ display: 'flex', gap: 1, mt: 0.5 }}>
-                                {currentUser?.id === expense.payer_id && (
-                                  <Button
-                                    onClick={() => handleEditExpenseClick(expense)}
-                                    size="small"
-                                    startIcon={<Edit />}
-                                  >
-                                    編輯
-                                  </Button>
-                                )}
-                                <Button
-                                  onClick={() => handleDeleteExpense(expense.id)}
-                                  size="small"
-                                  color="error"
-                                  startIcon={<Delete />}
-                                >
-                                  刪除
-                                </Button>
-                              </Box>
-                            </Box>
-                          </Box>
-                          <Divider sx={{ my: 1.5 }} />
-                          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
-                            分帳對象:
+                    if (expenses.length === 0) {
+                      return (
+                        <Box sx={{ textAlign: 'center', py: 8 }}>
+                          <Typography variant="body1" color="text.secondary" gutterBottom>
+                            {tExpense('noExpenses')}
                           </Typography>
-                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                            {expense.splits.map((split) => (
-                              <Chip
-                                key={split.user_id}
-                                label={`${split.display_name}: $${split.share_amount.toFixed(0)}`}
-                                size="small"
-                                variant="outlined"
-                              />
-                            ))}
-                          </Box>
-                        </CardContent>
-                      </Card>
-                      ))}
-                    </Box>
-                  );
-                })()}
+                          <Typography variant="body2" color="text.secondary">
+                            {tExpense('clickToAdd')}
+                          </Typography>
+                        </Box>
+                      );
+                    }
+
+                    if (filteredExpenses.length === 0) {
+                      return (
+                        <Box sx={{ textAlign: 'center', py: 8 }}>
+                          <Typography variant="body1" color="text.secondary" gutterBottom>
+                            {tExpense('noFilterResults')}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {tExpense('noFilterResultsHint')}
+                          </Typography>
+                        </Box>
+                      );
+                    }
+
+                    return (
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        {filteredExpenses.map((expense) => (
+                          <Card
+                            key={expense.id}
+                            elevation={0}
+                            sx={{
+                              border: '1px solid',
+                              borderColor: 'divider',
+                              transition: 'all 0.3s',
+                              '&:hover': { boxShadow: 2 },
+                            }}
+                          >
+                            <CardContent>
+                              <Box
+                                sx={{
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'flex-start',
+                                  mb: 1,
+                                }}
+                              >
+                                <Box sx={{ flex: 1 }}>
+                                  <Typography variant="subtitle1" fontWeight={600}>
+                                    {expense.description}
+                                  </Typography>
+                                  <Typography variant="body2" color="text.secondary">
+                                    {expense.payer_name} {tExpense('paidBy')} •{' '}
+                                    {new Date(expense.date).toLocaleDateString()}
+                                  </Typography>
+                                </Box>
+                                <Box sx={{ textAlign: 'right' }}>
+                                  {expense.currency !== 'TWD' ? (
+                                    <>
+                                      <Typography variant="body2" color="text.secondary">
+                                        {expense.original_amount.toLocaleString()}{' '}
+                                        {expense.currency} ({tExpense('rate')} {expense.exchange_rate})
+                                      </Typography>
+                                      <Typography variant="h6" color="primary" fontWeight={700}>
+                                        = NT${expense.amount.toLocaleString()}
+                                      </Typography>
+                                    </>
+                                  ) : (
+                                    <Typography variant="h6" color="primary" fontWeight={700}>
+                                      NT${expense.amount.toLocaleString()}
+                                    </Typography>
+                                  )}
+                                  <Box sx={{ display: 'flex', gap: 1, mt: 0.5 }}>
+                                    {currentUser?.id === expense.payer_id && (
+                                      <Button
+                                        onClick={() => handleEditExpenseClick(expense)}
+                                        size="small"
+                                        startIcon={<Edit />}
+                                      >
+                                        {tCommon('edit')}
+                                      </Button>
+                                    )}
+                                    <Button
+                                      onClick={() => handleDeleteExpense(expense.id)}
+                                      size="small"
+                                      color="error"
+                                      startIcon={<Delete />}
+                                    >
+                                      {tCommon('delete')}
+                                    </Button>
+                                  </Box>
+                                </Box>
+                              </Box>
+                              <Divider sx={{ my: 1.5 }} />
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                display="block"
+                                sx={{ mb: 1 }}
+                              >
+                                {tExpense('splitMembers')}
+                              </Typography>
+                              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                                {expense.splits.map((split) => (
+                                  <Chip
+                                    key={split.user_id}
+                                    label={`${split.display_name}: $${split.share_amount.toFixed(0)}`}
+                                    size="small"
+                                    variant="outlined"
+                                  />
+                                ))}
+                              </Box>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </Box>
+                    );
+                  })()}
                 </Collapse>
               </CardContent>
             </Card>
@@ -668,7 +697,7 @@ export default function TripDetailPage() {
                 >
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Typography variant="h6" fontWeight={600}>
-                      成員
+                      {tMember('title')}
                     </Typography>
                     <Chip label={members.length} size="small" color="primary" />
                   </Box>
@@ -700,7 +729,7 @@ export default function TripDetailPage() {
                             </Typography>
                             {member.role === 'admin' && (
                               <Chip
-                                label="管理員"
+                                label={tMember('role.admin')}
                                 size="small"
                                 color="primary"
                                 icon={<AdminPanelSettings />}
@@ -743,20 +772,29 @@ export default function TripDetailPage() {
                   startIcon={<Calculate />}
                   sx={{ py: 1.5, fontWeight: 600 }}
                 >
-                  查看結算
+                  {tTrip('viewSettlement')}
                 </Button>
-                <Typography variant="caption" color="text.secondary" textAlign="center" display="block" sx={{ mt: 1 }}>
-                  查看每人應付/應收金額
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  textAlign="center"
+                  display="block"
+                  sx={{ mt: 1 }}
+                >
+                  {tTrip('viewSettlementHint')}
                 </Typography>
               </CardContent>
             </Card>
 
             {/* 危險操作區 - 僅管理員可見 */}
             {isCurrentUserAdmin && (
-              <Card elevation={2} sx={{ mt: 3, borderColor: 'error.main', borderWidth: 1, borderStyle: 'solid' }}>
+              <Card
+                elevation={2}
+                sx={{ mt: 3, borderColor: 'error.main', borderWidth: 1, borderStyle: 'solid' }}
+              >
                 <CardContent>
                   <Typography variant="subtitle2" color="error" gutterBottom fontWeight={600}>
-                    危險操作
+                    {tTrip('dangerZone')}
                   </Typography>
                   <Button
                     variant="outlined"
@@ -765,10 +803,15 @@ export default function TripDetailPage() {
                     fullWidth
                     onClick={() => setDeleteDialogOpen(true)}
                   >
-                    刪除此旅行
+                    {tTrip('deleteTrip')}
                   </Button>
-                  <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
-                    刪除後將無法恢復，包括所有支出記錄
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    display="block"
+                    sx={{ mt: 1 }}
+                  >
+                    {tTrip('deleteWarning')}
                   </Typography>
                 </CardContent>
               </Card>
@@ -789,7 +832,7 @@ export default function TripDetailPage() {
       >
         <DialogTitle>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            新增支出
+            {tExpense('add')}
             <IconButton
               onClick={() => {
                 setShowAddExpense(false);
@@ -810,14 +853,22 @@ export default function TripDetailPage() {
             )}
 
             <FormControl fullWidth sx={{ mb: 2 }}>
-              <InputLabel>付款人 *</InputLabel>
+              <InputLabel>{tExpense('form.payer')} *</InputLabel>
               <Select
                 value={expenseForm.payer_id}
-                onChange={(e) => setExpenseForm({ ...expenseForm, payer_id: typeof e.target.value === 'string' ? parseInt(e.target.value) : e.target.value })}
-                label="付款人 *"
+                onChange={(e) =>
+                  setExpenseForm({
+                    ...expenseForm,
+                    payer_id:
+                      typeof e.target.value === 'string'
+                        ? parseInt(e.target.value)
+                        : e.target.value,
+                  })
+                }
+                label={`${tExpense('form.payer')} *`}
                 required
               >
-                <MenuItem value={0}>請選擇付款人</MenuItem>
+                <MenuItem value={0}>--</MenuItem>
                 {members.map((member) => (
                   <MenuItem key={member.id} value={member.id}>
                     {member.display_name}
@@ -827,7 +878,7 @@ export default function TripDetailPage() {
             </FormControl>
 
             <FormControl fullWidth sx={{ mb: 2 }}>
-              <InputLabel>幣別 *</InputLabel>
+              <InputLabel>{tExpense('form.currency')} *</InputLabel>
               <Select
                 value={expenseForm.currency}
                 onChange={(e) => {
@@ -838,24 +889,28 @@ export default function TripDetailPage() {
                     exchange_rate: currency === 'TWD' ? '1.0' : expenseForm.exchange_rate,
                   });
                 }}
-                label="幣別 *"
+                label={`${tExpense('form.currency')} *`}
                 required
               >
-                <MenuItem value="TWD">TWD - 新台幣</MenuItem>
-                <MenuItem value="JPY">JPY - 日圓</MenuItem>
-                <MenuItem value="USD">USD - 美元</MenuItem>
-                <MenuItem value="EUR">EUR - 歐元</MenuItem>
-                <MenuItem value="HKD">HKD - 港幣</MenuItem>
+                <MenuItem value="TWD">{tCurrency('TWD_full')}</MenuItem>
+                <MenuItem value="JPY">{tCurrency('JPY_full')}</MenuItem>
+                <MenuItem value="USD">{tCurrency('USD_full')}</MenuItem>
+                <MenuItem value="EUR">{tCurrency('EUR_full')}</MenuItem>
+                <MenuItem value="HKD">{tCurrency('HKD_full')}</MenuItem>
               </Select>
             </FormControl>
 
-            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, mb: 2 }}>
+            <Box
+              sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, mb: 2 }}
+            >
               <TextField
                 fullWidth
                 type="number"
-                label="金額 *"
+                label={`${tExpense('form.amount')} *`}
                 value={expenseForm.original_amount}
-                onChange={(e) => setExpenseForm({ ...expenseForm, original_amount: e.target.value })}
+                onChange={(e) =>
+                  setExpenseForm({ ...expenseForm, original_amount: e.target.value })
+                }
                 required
                 inputProps={{ step: '0.01', min: '0.01' }}
                 placeholder="0.00"
@@ -865,36 +920,37 @@ export default function TripDetailPage() {
                 <TextField
                   fullWidth
                   type="number"
-                  label="匯率 (對TWD) *"
+                  label={`${tExpense('form.exchangeRate')} *`}
                   value={expenseForm.exchange_rate}
-                  onChange={(e) => setExpenseForm({ ...expenseForm, exchange_rate: e.target.value })}
+                  onChange={(e) =>
+                    setExpenseForm({ ...expenseForm, exchange_rate: e.target.value })
+                  }
                   required
                   inputProps={{ step: '0.000001', min: '0' }}
-                  placeholder="例如: 0.22"
+                  placeholder="0.22"
                 />
               )}
             </Box>
 
             {expenseForm.currency !== 'TWD' && (
               <Alert severity="info" icon={<AttachMoney />} sx={{ mb: 2 }}>
-                換算後: <strong>NT${calculateAddExpenseConvertedAmount().toLocaleString()}</strong>
+                {tExpense('form.convertedAmount')}: <strong>NT${calculateAddExpenseConvertedAmount().toLocaleString()}</strong>
               </Alert>
             )}
 
             <TextField
               fullWidth
-              label="項目描述 *"
+              label={`${tExpense('form.description')} *`}
               value={expenseForm.description}
               onChange={(e) => setExpenseForm({ ...expenseForm, description: e.target.value })}
               required
-              placeholder="例如: 午餐、交通費"
               sx={{ mb: 2 }}
             />
 
             <TextField
               fullWidth
               type="date"
-              label="日期 *"
+              label={`${tExpense('form.date')} *`}
               value={expenseForm.date}
               onChange={(e) => setExpenseForm({ ...expenseForm, date: e.target.value })}
               required
@@ -904,10 +960,10 @@ export default function TripDetailPage() {
 
             <Box sx={{ mb: 2 }}>
               <Typography variant="subtitle2" gutterBottom>
-                分帳對象 *
+                {tExpense('form.splitWith')} *
                 {expenseForm.split_with.length > 0 && (
                   <Typography component="span" color="primary" sx={{ ml: 1 }}>
-                    (已選 {expenseForm.split_with.length} 人)
+                    ({tExpense('selected')} {expenseForm.split_with.length})
                   </Typography>
                 )}
               </Typography>
@@ -942,11 +998,19 @@ export default function TripDetailPage() {
                   />
                 ))}
               </Box>
-              {expenseForm.split_with.length > 0 && expenseForm.original_amount && parseFloat(expenseForm.original_amount) > 0 && (
-                <Alert severity="info" icon={<AttachMoney />} sx={{ mt: 1 }}>
-                  每人分擔: <strong>NT${(calculateAddExpenseConvertedAmount() / expenseForm.split_with.length).toFixed(2)}</strong>
-                </Alert>
-              )}
+              {expenseForm.split_with.length > 0 &&
+                expenseForm.original_amount &&
+                parseFloat(expenseForm.original_amount) > 0 && (
+                  <Alert severity="info" icon={<AttachMoney />} sx={{ mt: 1 }}>
+                    {tExpense('perPerson')}{' '}
+                    <strong>
+                      NT$
+                      {(
+                        calculateAddExpenseConvertedAmount() / expenseForm.split_with.length
+                      ).toFixed(2)}
+                    </strong>
+                  </Alert>
+                )}
             </Box>
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 2 }}>
@@ -956,14 +1020,14 @@ export default function TripDetailPage() {
                 setError('');
               }}
             >
-              取消
+              {tCommon('cancel')}
             </Button>
             <Button
               type="submit"
               variant="contained"
               disabled={expenseForm.split_with.length === 0}
             >
-              新增支出
+              {tExpense('add')}
             </Button>
           </DialogActions>
         </form>
@@ -976,27 +1040,29 @@ export default function TripDetailPage() {
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>確認刪除旅行</DialogTitle>
+        <DialogTitle>{tTrip('deleteConfirmTitle')}</DialogTitle>
         <DialogContent>
           <Alert severity="warning" sx={{ mb: 2 }} icon={<Warning />}>
-            此操作無法復原！
+            {tTrip('deleteConfirmWarning')}
           </Alert>
-          <Typography>
-            確定要刪除「{trip?.name}」嗎？
-          </Typography>
+          <Typography>{tTrip('deleteConfirmMessage', { name: trip?.name })}</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            這將永久刪除：
+            {tTrip('deleteConfirmDetails')}
           </Typography>
           <Box component="ul" sx={{ pl: 2, mt: 1 }}>
-            <Typography component="li" variant="body2">所有成員記錄</Typography>
-            <Typography component="li" variant="body2">所有支出記錄</Typography>
-            <Typography component="li" variant="body2">所有分帳資料</Typography>
+            <Typography component="li" variant="body2">
+              {tTrip('deleteItem1')}
+            </Typography>
+            <Typography component="li" variant="body2">
+              {tTrip('deleteItem2')}
+            </Typography>
+            <Typography component="li" variant="body2">
+              {tTrip('deleteItem3')}
+            </Typography>
           </Box>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setDeleteDialogOpen(false)}>
-            取消
-          </Button>
+          <Button onClick={() => setDeleteDialogOpen(false)}>{tCommon('cancel')}</Button>
           <Button
             onClick={handleDeleteTrip}
             color="error"
@@ -1004,7 +1070,7 @@ export default function TripDetailPage() {
             disabled={isDeleting}
             startIcon={isDeleting ? <CircularProgress size={16} /> : <Delete />}
           >
-            {isDeleting ? '刪除中...' : '確認刪除'}
+            {isDeleting ? tTrip('deleting') : tTrip('confirmDelete')}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1016,25 +1082,21 @@ export default function TripDetailPage() {
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>移除成員</DialogTitle>
+        <DialogTitle>{tTrip('removeMember')}</DialogTitle>
         <DialogContent>
-          <Typography>
-            確定要將「{removeMemberDialog.member?.display_name}」移出旅行嗎？
-          </Typography>
+          <Typography>{tTrip('removeMemberConfirm', { name: removeMemberDialog.member?.display_name ?? '' })}</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            該成員的支出記錄將會保留
+            {tTrip('removeMemberNote')}
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setRemoveMemberDialog({ open: false, member: null })}>
-            取消
-          </Button>
+          <Button onClick={() => setRemoveMemberDialog({ open: false, member: null })}>{tCommon('cancel')}</Button>
           <Button
             onClick={() => handleRemoveMember(removeMemberDialog.member!.id)}
             color="error"
             variant="contained"
           >
-            移除
+            {tMember('remove')}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1047,7 +1109,7 @@ export default function TripDetailPage() {
         fullWidth
       >
         <form onSubmit={handleEditExpense}>
-          <DialogTitle>編輯支出</DialogTitle>
+          <DialogTitle>{tExpense('edit')}</DialogTitle>
           <DialogContent>
             {error && (
               <Alert severity="error" sx={{ mb: 2 }}>
@@ -1057,7 +1119,7 @@ export default function TripDetailPage() {
 
             <TextField
               fullWidth
-              label="項目描述"
+              label={tExpense('form.description')}
               value={editForm.description}
               onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
               margin="normal"
@@ -1065,7 +1127,7 @@ export default function TripDetailPage() {
             />
 
             <FormControl fullWidth margin="normal" required>
-              <InputLabel>幣別</InputLabel>
+              <InputLabel>{tExpense('form.currency')}</InputLabel>
               <Select
                 value={editForm.currency}
                 onChange={(e) => {
@@ -1076,20 +1138,20 @@ export default function TripDetailPage() {
                     exchange_rate: currency === 'TWD' ? '1.0' : editForm.exchange_rate,
                   });
                 }}
-                label="幣別"
+                label={tExpense('form.currency')}
               >
-                <MenuItem value="TWD">TWD - 新台幣</MenuItem>
-                <MenuItem value="JPY">JPY - 日圓</MenuItem>
-                <MenuItem value="USD">USD - 美元</MenuItem>
-                <MenuItem value="EUR">EUR - 歐元</MenuItem>
-                <MenuItem value="HKD">HKD - 港幣</MenuItem>
+                <MenuItem value="TWD">{tCurrency('TWD_full')}</MenuItem>
+                <MenuItem value="JPY">{tCurrency('JPY_full')}</MenuItem>
+                <MenuItem value="USD">{tCurrency('USD_full')}</MenuItem>
+                <MenuItem value="EUR">{tCurrency('EUR_full')}</MenuItem>
+                <MenuItem value="HKD">{tCurrency('HKD_full')}</MenuItem>
               </Select>
             </FormControl>
 
             <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2 }}>
               <TextField
                 fullWidth
-                label="金額"
+                label={tExpense('form.amount')}
                 type="number"
                 value={editForm.original_amount}
                 onChange={(e) => setEditForm({ ...editForm, original_amount: e.target.value })}
@@ -1101,7 +1163,7 @@ export default function TripDetailPage() {
               {editForm.currency !== 'TWD' && (
                 <TextField
                   fullWidth
-                  label="匯率 (對TWD)"
+                  label={tExpense('form.exchangeRate')}
                   type="number"
                   value={editForm.exchange_rate}
                   onChange={(e) => setEditForm({ ...editForm, exchange_rate: e.target.value })}
@@ -1114,28 +1176,29 @@ export default function TripDetailPage() {
 
             {editForm.currency !== 'TWD' && (
               <Alert severity="info" sx={{ mt: 2 }}>
-                換算後: {calculateConvertedAmount().toLocaleString()} TWD
+                {tExpense('form.convertedAmount')}: {calculateConvertedAmount().toLocaleString()} TWD
               </Alert>
             )}
 
             <Box sx={{ mt: 2, p: 2, bgcolor: 'background.default', borderRadius: 1 }}>
               <Typography variant="body2" color="text.secondary" gutterBottom>
-                以下欄位不可修改:
+                {tTrip('notEditable')}
+              </Typography>
+              <Typography variant="body2">{tExpense('form.payer')}: {editingExpense?.payer_name}</Typography>
+              <Typography variant="body2">
+                {tExpense('form.date')}:{' '}
+                {editingExpense ? new Date(editingExpense.date).toLocaleDateString() : ''}
               </Typography>
               <Typography variant="body2">
-                付款人: {editingExpense?.payer_name}
-              </Typography>
-              <Typography variant="body2">
-                日期: {editingExpense ? new Date(editingExpense.date).toLocaleDateString('zh-TW') : ''}
-              </Typography>
-              <Typography variant="body2">
-                分帳對象: {editingExpense?.splits.map(s => s.display_name).join(', ')}
+                {tExpense('form.splitWith')}: {editingExpense?.splits.map((s) => s.display_name).join(', ')}
               </Typography>
             </Box>
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 2 }}>
-            <Button onClick={() => setEditExpenseDialog(false)}>取消</Button>
-            <Button type="submit" variant="contained">儲存修改</Button>
+            <Button onClick={() => setEditExpenseDialog(false)}>{tCommon('cancel')}</Button>
+            <Button type="submit" variant="contained">
+              {tTrip('saveEdit')}
+            </Button>
           </DialogActions>
         </form>
       </Dialog>

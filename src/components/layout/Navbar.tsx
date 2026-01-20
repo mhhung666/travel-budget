@@ -1,58 +1,69 @@
-'use client'
+'use client';
 
-import { AppBar, Toolbar, Typography, Button, Box, IconButton, Avatar, Menu, MenuItem, Container } from '@mui/material'
-import { Logout, TravelExplore, Settings } from '@mui/icons-material'
-import { useRouter } from 'next/navigation'
-import { useState } from 'react'
-import { useThemeContext } from '@/app/[locale]/context/ThemeContext'
-import { MoonIcon, SunIcon } from './ThemeIcons'
-import LanguageSwitcher from './LanguageSwitcher'
-import { useTranslations } from 'next-intl'
+import {
+  AppBar,
+  Toolbar,
+  Typography,
+  Button,
+  Box,
+  IconButton,
+  Avatar,
+  Menu,
+  MenuItem,
+  Container,
+} from '@mui/material';
+import { Logout, TravelExplore, Settings } from '@mui/icons-material';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { useThemeContext } from '@/app/[locale]/context/ThemeContext';
+import { MoonIcon, SunIcon } from './ThemeIcons';
+import LanguageSwitcher from './LanguageSwitcher';
+import { useTranslations } from 'next-intl';
 
 interface NavbarProps {
   user?: {
-    id: number
-    username: string
-    email: string
-    display_name?: string
-  } | null
-  showUserMenu?: boolean
-  title?: string
+    id: number;
+    username: string;
+    email: string;
+    display_name?: string;
+  } | null;
+  showUserMenu?: boolean;
+  title?: string;
 }
 
 export default function Navbar({ user, showUserMenu = true, title }: NavbarProps) {
-  const router = useRouter()
-  const t = useTranslations('nav')
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
-  const { mode, toggleTheme } = useThemeContext()
-  const displayTitle = title || t('home')
+  const router = useRouter();
+  const t = useTranslations('nav');
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const { mode, toggleTheme } = useThemeContext();
+  const displayTitle = title || t('home');
 
   const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(event.currentTarget)
-  }
+    setAnchorEl(event.currentTarget);
+  };
 
   const handleClose = () => {
-    setAnchorEl(null)
-  }
+    setAnchorEl(null);
+  };
 
   const handleLogout = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' })
-      router.push('/login')
+      await fetch('/api/auth/logout', { method: 'POST' });
+      router.push('/login');
     } catch (error) {
-      console.error('登出失敗:', error)
+      console.error('登出失敗:', error);
     }
-  }
+  };
 
   const handleTrips = () => {
-    router.push('/trips')
-    handleClose()
-  }
+    router.push('/trips');
+    handleClose();
+  };
 
   const handleSettings = () => {
-    router.push('/settings')
-    handleClose()
-  }
+    router.push('/settings');
+    handleClose();
+  };
 
   return (
     <AppBar
@@ -74,7 +85,7 @@ export default function Navbar({ user, showUserMenu = true, title }: NavbarProps
               flexGrow: 1,
               color: 'text.primary',
               fontWeight: 600,
-              fontSize: { xs: '1.1rem', sm: '1.25rem' }
+              fontSize: { xs: '1.1rem', sm: '1.25rem' },
             }}
           >
             {displayTitle}
@@ -104,17 +115,13 @@ export default function Navbar({ user, showUserMenu = true, title }: NavbarProps
               >
                 {user.display_name || user.username}
               </Typography>
-              <IconButton
-                size="large"
-                onClick={handleMenu}
-                color="default"
-              >
+              <IconButton size="large" onClick={handleMenu} color="default">
                 <Avatar
                   sx={{
                     width: 32,
                     height: 32,
                     bgcolor: 'primary.main',
-                    fontSize: '0.875rem'
+                    fontSize: '0.875rem',
                   }}
                 >
                   {(user.display_name || user.username).charAt(0).toUpperCase()}
@@ -155,7 +162,7 @@ export default function Navbar({ user, showUserMenu = true, title }: NavbarProps
                 textTransform: 'none',
                 borderRadius: 2,
                 px: { xs: 2, sm: 3 },
-                fontSize: { xs: '0.875rem', sm: '1rem' }
+                fontSize: { xs: '0.875rem', sm: '1rem' },
               }}
             >
               {t('login')}
@@ -164,5 +171,5 @@ export default function Navbar({ user, showUserMenu = true, title }: NavbarProps
         </Toolbar>
       </Container>
     </AppBar>
-  )
+  );
 }

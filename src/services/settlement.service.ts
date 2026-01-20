@@ -30,6 +30,5 @@ export const settlementService = {
   /**
    * Get settlement data for a trip
    */
-  getSettlement: (tripId: string) =>
-    api.get<SettlementData>(`/api/trips/${tripId}/settlement`),
+  getSettlement: (tripId: string) => api.get<SettlementData>(`/api/trips/${tripId}/settlement`),
 };

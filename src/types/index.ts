@@ -23,10 +23,10 @@ export interface Expense {
   id: number;
   trip_id: number;
   payer_id: number;
-  amount: number;              // TWD 換算金額 (用於結算計算)
-  original_amount: number;     // 原始幣別金額
-  currency: string;            // 幣別代碼 (TWD, JPY, USD, EUR, HKD)
-  exchange_rate: number;       // 對 TWD 的匯率
+  amount: number; // TWD 換算金額 (用於結算計算)
+  original_amount: number; // 原始幣別金額
+  currency: string; // 幣別代碼 (TWD, JPY, USD, EUR, HKD)
+  exchange_rate: number; // 對 TWD 的匯率
   description: string;
   date: string;
   created_at: string;
@@ -58,9 +58,9 @@ export interface UserBalance {
 
 // 幣別定義
 export interface Currency {
-  code: string;    // TWD, JPY, USD, EUR, HKD
-  name: string;    // 新台幣, 日圓, 美元, 歐元, 港幣
-  symbol: string;  // NT$, ¥, $, €, HK$
+  code: string; // TWD, JPY, USD, EUR, HKD
+  name: string; // 新台幣, 日圓, 美元, 歐元, 港幣
+  symbol: string; // NT$, ¥, $, €, HK$
 }
 
 // 支援的幣別清單

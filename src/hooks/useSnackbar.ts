@@ -55,21 +55,33 @@ export function useSnackbar(): UseSnackbarReturn {
     setState({ open: true, message, severity });
   }, []);
 
-  const showSuccess = useCallback((message: string) => {
-    show(message, 'success');
-  }, [show]);
+  const showSuccess = useCallback(
+    (message: string) => {
+      show(message, 'success');
+    },
+    [show]
+  );
 
-  const showError = useCallback((message: string) => {
-    show(message, 'error');
-  }, [show]);
+  const showError = useCallback(
+    (message: string) => {
+      show(message, 'error');
+    },
+    [show]
+  );
 
-  const showWarning = useCallback((message: string) => {
-    show(message, 'warning');
-  }, [show]);
+  const showWarning = useCallback(
+    (message: string) => {
+      show(message, 'warning');
+    },
+    [show]
+  );
 
-  const showInfo = useCallback((message: string) => {
-    show(message, 'info');
-  }, [show]);
+  const showInfo = useCallback(
+    (message: string) => {
+      show(message, 'info');
+    },
+    [show]
+  );
 
   const hide = useCallback(() => {
     setState((prev) => ({ ...prev, open: false }));

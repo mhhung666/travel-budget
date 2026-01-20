@@ -210,8 +210,10 @@ export default function LoginPage() {
               >
                 {loading ? (
                   <CircularProgress size={24} color="inherit" />
+                ) : isLogin ? (
+                  t('login.loginButton')
                 ) : (
-                  isLogin ? t('login.loginButton') : t('register.registerButton')
+                  t('register.registerButton')
                 )}
               </Button>
             </form>

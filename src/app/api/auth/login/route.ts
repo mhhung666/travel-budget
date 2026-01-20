@@ -10,10 +10,7 @@ export async function POST(request: NextRequest) {
 
     // 驗證輸入
     if (!username || !password) {
-      return NextResponse.json(
-        { error: '請輸入用戶名和密碼' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: '請輸入用戶名和密碼' }, { status: 400 });
     }
 
     // 查找用戶
@@ -24,19 +21,13 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error || !user) {
-      return NextResponse.json(
-        { error: '用戶名或密碼錯誤' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: '用戶名或密碼錯誤' }, { status: 401 });
     }
 
     // 驗證密碼
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      return NextResponse.json(
-        { error: '用戶名或密碼錯誤' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: '用戶名或密碼錯誤' }, { status: 401 });
     }
 
     // 創建 session
@@ -52,9 +43,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Login error:', error);
-    return NextResponse.json(
-      { error: '登入失敗,請稍後再試' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: '登入失敗,請稍後再試' }, { status: 500 });
   }
 }

@@ -8,10 +8,7 @@ export async function PATCH(request: NextRequest) {
     const session = await getSession();
 
     if (!session) {
-      return NextResponse.json(
-        { error: '未登入' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: '未登入' }, { status: 401 });
     }
 
     const body = await request.json();
@@ -20,10 +17,7 @@ export async function PATCH(request: NextRequest) {
     // 如果要更新顯示名稱
     if (display_name !== undefined) {
       if (!display_name || display_name.trim().length === 0) {
-        return NextResponse.json(
-          { error: '顯示名稱不能為空' },
-          { status: 400 }
-        );
+        return NextResponse.json({ error: '顯示名稱不能為空' }, { status: 400 });
       }
 
       const { error } = await supabase
@@ -45,10 +39,7 @@ export async function PATCH(request: NextRequest) {
     if (current_password && new_password) {
       // 驗證新密碼長度
       if (new_password.length < 6) {
-        return NextResponse.json(
-          { error: '新密碼至少需要 6 個字元' },
-          { status: 400 }
-        );
+        return NextResponse.json({ error: '新密碼至少需要 6 個字元' }, { status: 400 });
       }
 
       // 獲取當前用戶資料
@@ -59,19 +50,13 @@ export async function PATCH(request: NextRequest) {
         .single();
 
       if (fetchError || !user) {
-        return NextResponse.json(
-          { error: '用戶不存在' },
-          { status: 404 }
-        );
+        return NextResponse.json({ error: '用戶不存在' }, { status: 404 });
       }
 
       // 驗證當前密碼
       const isPasswordValid = await bcrypt.compare(current_password, user.password);
       if (!isPasswordValid) {
-        return NextResponse.json(
-          { error: '目前密碼錯誤' },
-          { status: 400 }
-        );
+        return NextResponse.json({ error: '目前密碼錯誤' }, { status: 400 });
       }
 
       // 加密新密碼
@@ -93,15 +78,9 @@ export async function PATCH(request: NextRequest) {
       });
     }
 
-    return NextResponse.json(
-      { error: '請提供要更新的資料' },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: '請提供要更新的資料' }, { status: 400 });
   } catch (error) {
     console.error('Update user error:', error);
-    return NextResponse.json(
-      { error: '更新失敗,請稍後再試' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: '更新失敗,請稍後再試' }, { status: 500 });
   }
 }

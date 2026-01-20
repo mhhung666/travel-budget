@@ -147,5 +147,141 @@
       "passwordMismatch": "Passwords do not match",
       "passwordHelp": "At least 6 characters"
     }
+  },
+  "expense": {
+    "title": "Expenses",
+    "add": "Add Expense",
+    "edit": "Edit Expense",
+    "delete": "Delete Expense",
+    "noExpenses": "No expenses yet",
+    "addFirst": "Add your first expense",
+    "form": {
+      "amount": "Amount",
+      "currency": "Currency",
+      "exchangeRate": "Exchange Rate (to TWD)",
+      "description": "Description",
+      "date": "Date",
+      "payer": "Payer",
+      "splitWith": "Split With",
+      "convertedAmount": "Converted Amount"
+    },
+    "confirm": {
+      "delete": "Are you sure you want to delete this expense?",
+      "deleteMessage": "This action cannot be undone."
+    },
+    "success": {
+      "created": "Expense added",
+      "updated": "Expense updated",
+      "deleted": "Expense deleted"
+    },
+    "filter": "Filter by",
+    "filterAll": "All",
+    "noFilterResults": "No expenses match the filter",
+    "noFilterResultsHint": "Try selecting another member or select \"All\"",
+    "paidBy": "paid",
+    "rate": "rate",
+    "splitMembers": "Split with:",
+    "perPerson": "Per person:",
+    "selected": "selected",
+    "clickToAdd": "Click \"Add Expense\" to start!"
+  },
+  "member": {
+    "title": "Members",
+    "remove": "Remove Member",
+    "you": "(you)",
+    "joined": "Joined",
+    "role": {
+      "admin": "Admin",
+      "member": "Member"
+    },
+    "confirm": {
+      "remove": "Are you sure you want to remove this member?",
+      "removeMessage": "After removal, this member will no longer be able to view this trip.",
+      "expenseNote": "This member's expense records will be kept."
+    },
+    "success": {
+      "removed": "Member removed"
+    }
+  },
+  "settlement": {
+    "title": "Settlement",
+    "summary": "Settlement Summary",
+    "totalExpenses": "Total Expenses",
+    "balance": "Balance",
+    "paid": "Paid",
+    "owed": "Owed",
+    "status": "Status",
+    "shouldReceive": "To Receive",
+    "shouldPay": "To Pay",
+    "settled": "Settled",
+    "perPerson": "Per Person Stats",
+    "totalPaid": "Total Paid:",
+    "totalOwed": "Total Owed:",
+    "plan": "Settlement Plan",
+    "transferCount": "transfers",
+    "noTransfers": "All settled, no transfers needed!",
+    "great": "Great!",
+    "payer": "Payer",
+    "payee": "Payee",
+    "tip": "Tip:",
+    "tipContent": "This is the optimized minimum transfer plan. Follow this plan to complete the settlement.",
+    "backToTrip": "Back to Trip"
+  },
+  "currency": {
+    "TWD": "TWD",
+    "JPY": "JPY",
+    "USD": "USD",
+    "EUR": "EUR",
+    "HKD": "HKD",
+    "TWD_full": "TWD - Taiwan Dollar",
+    "JPY_full": "JPY - Japanese Yen",
+    "USD_full": "USD - US Dollar",
+    "EUR_full": "EUR - Euro",
+    "HKD_full": "HKD - Hong Kong Dollar"
+  },
+  "error": {
+    "network": "Network error, please try again later",
+    "unauthorized": "Please login first",
+    "forbidden": "You do not have permission to perform this action",
+    "notFound": "Resource not found",
+    "notMember": "You are not a member of this trip",
+    "server": "Server error",
+    "validation": "Invalid input",
+    "loadFailed": "Failed to load",
+    "loadTripFailed": "Failed to load trip data",
+    "loadSettlementFailed": "Failed to load settlement data"
+  },
+  "action": {
+    "copySuccess": "Copied to clipboard",
+    "copyFailed": "Copy failed",
+    "saveSuccess": "Saved successfully",
+    "deleteSuccess": "Deleted successfully"
+  },
+  "trip": {
+    "info": "Trip Info",
+    "createdAt": "Created:",
+    "share": "Share Trip",
+    "shareHint": "Share this ID with friends so they can join",
+    "dangerZone": "Danger Zone",
+    "deleteTrip": "Delete Trip",
+    "deleteWarning": "This cannot be undone. All expense records will be deleted.",
+    "deleteConfirmTitle": "Confirm Delete Trip",
+    "deleteConfirmWarning": "This action cannot be undone!",
+    "deleteConfirmMessage": "Are you sure you want to delete \"{name}\"?",
+    "deleteConfirmDetails": "This will permanently delete:",
+    "deleteItem1": "All member records",
+    "deleteItem2": "All expense records",
+    "deleteItem3": "All split data",
+    "deleting": "Deleting...",
+    "confirmDelete": "Confirm Delete",
+    "deleted": "Trip deleted",
+    "viewSettlement": "View Settlement",
+    "viewSettlementHint": "View amounts owed/receivable per person",
+    "removeMember": "Remove Member",
+    "removeMemberConfirm": "Are you sure you want to remove \"{name}\" from the trip?",
+    "removeMemberNote": "This member's expense records will be kept.",
+    "removed": "Removed",
+    "notEditable": "The following fields cannot be edited:",
+    "saveEdit": "Save Changes"
   }
 }

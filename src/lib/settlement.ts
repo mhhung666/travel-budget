@@ -19,8 +19,8 @@ export function calculateSettlement(balances: Balance[]): Transaction[] {
   const transactions: Transaction[] = [];
 
   // 分離債權人和債務人
-  const creditors = balances.filter(b => b.balance > 0.01).sort((a, b) => b.balance - a.balance);
-  const debtors = balances.filter(b => b.balance < -0.01).sort((a, b) => a.balance - b.balance);
+  const creditors = balances.filter((b) => b.balance > 0.01).sort((a, b) => b.balance - a.balance);
+  const debtors = balances.filter((b) => b.balance < -0.01).sort((a, b) => a.balance - b.balance);
 
   let i = 0;
   let j = 0;
@@ -36,7 +36,7 @@ export function calculateSettlement(balances: Balance[]): Transaction[] {
       transactions.push({
         from: debtor.username,
         to: creditor.username,
-        amount: Math.round(amount * 100) / 100 // 四捨五入到小數點後兩位
+        amount: Math.round(amount * 100) / 100, // 四捨五入到小數點後兩位
       });
     }
 

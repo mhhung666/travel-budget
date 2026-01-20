@@ -1,6 +1,14 @@
 'use client';
 
-import { Card, CardContent, CardActionArea, Typography, Box, Chip, IconButton } from '@mui/material';
+import {
+  Card,
+  CardContent,
+  CardActionArea,
+  Typography,
+  Box,
+  Chip,
+  IconButton,
+} from '@mui/material';
 import { ContentCopy, Group, CalendarToday } from '@mui/icons-material';
 import type { TripWithMembers } from '@/services/trip.service';
 
