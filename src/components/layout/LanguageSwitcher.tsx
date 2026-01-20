@@ -30,7 +30,7 @@ export default function LanguageSwitcher() {
   const handleLanguageChange = (newLocale: string) => {
     // 移除所有可能的 locale 前綴
     let pathWithoutLocale = pathname;
-    for (const loc of ['en', 'zh', 'zh-CN', 'ja']) {
+    for (const loc of Object.keys(languages)) {
       if (pathname.startsWith(`/${loc}/`)) {
         // e.g., /en/trips -> /trips (slice from position 3 for 'en')
         pathWithoutLocale = pathname.slice(loc.length + 1);
