@@ -1,0 +1,315 @@
+{
+  "common": {
+    "loading": "読み込み中...",
+    "save": "保存",
+    "cancel": "キャンセル",
+    "delete": "削除",
+    "edit": "編集",
+    "create": "作成",
+    "back": "戻る",
+    "confirm": "確認",
+    "yes": "はい",
+    "no": "いいえ",
+    "search": "検索",
+    "filter": "フィルター",
+    "sort": "並び替え",
+    "close": "閉じる",
+    "submit": "送信",
+    "reset": "リセット",
+    "add": "追加",
+    "selectAll": "すべて選択",
+    "copy": "コピー",
+    "retry": "再試行",
+    "goBack": "戻る"
+  },
+  "nav": {
+    "home": "ホーム",
+    "trips": "旅行一覧",
+    "settings": "設定",
+    "login": "ログイン",
+    "logout": "ログアウト",
+    "register": "新規登録"
+  },
+  "home": {
+    "title": "旅行家計簿",
+    "hero": {
+      "title": "旅行費用を簡単に管理",
+      "subtitle": "スマートな割り勘計算で、旅行をもっと楽しく",
+      "getStarted": "始める",
+      "viewTrips": "旅行を見る"
+    },
+    "features": {
+      "title": "主な機能",
+      "easyTracking": {
+        "title": "簡単記録",
+        "description": "いつでもどこでも、すばやく支出を記録"
+      },
+      "smartSplit": {
+        "title": "スマート割り勘",
+        "description": "各自の負担額を自動計算"
+      },
+      "quickSettlement": {
+        "title": "かんたん清算",
+        "description": "最適化された送金プランで、手間いらず"
+      }
+    }
+  },
+  "settings": {
+    "title": "設定",
+    "backToTrips": "旅行一覧に戻る",
+    "profile": {
+      "title": "プロフィール",
+      "username": "ユーザー名",
+      "usernameHelp": "ユーザー名は変更できません",
+      "displayName": "表示名",
+      "saveChanges": "変更を保存",
+      "updateSuccess": "表示名を更新しました"
+    },
+    "password": {
+      "title": "パスワード変更",
+      "current": "現在のパスワード",
+      "new": "新しいパスワード",
+      "confirm": "新しいパスワード（確認）",
+      "minLength": "6文字以上",
+      "updateButton": "パスワードを更新",
+      "updateSuccess": "パスワードを更新しました",
+      "tooShort": "新しいパスワードは6文字以上必要です",
+      "mismatch": "新しいパスワードが一致しません",
+      "updateError": "パスワードの更新に失敗しました"
+    },
+    "errors": {
+      "fetchUser": "ユーザー情報の取得に失敗しました",
+      "updateFailed": "更新に失敗しました"
+    }
+  },
+  "trips": {
+    "title": "旅行一覧",
+    "list": "旅行リスト",
+    "createTrip": "新しい旅行を作成",
+    "joinTrip": "旅行に参加",
+    "noTrips": "旅行記録がありません",
+    "noTripsDescription": "「新しい旅行を作成」をクリックして旅行を計画しましょう！",
+    "members": "人のメンバー",
+    "created": "作成日",
+    "idLabel": "ID:",
+    "idCopied": "IDをコピーしました！",
+    "copyFailed": "コピーに失敗しました",
+    "create": {
+      "title": "新しい旅行を作成",
+      "name": "旅行名",
+      "namePlaceholder": "例：関西旅行",
+      "description": "説明（任意）",
+      "descriptionPlaceholder": "旅行の簡単な説明（任意）",
+      "createButton": "作成",
+      "success": "旅行を作成しました！"
+    },
+    "join": {
+      "title": "旅行に参加",
+      "tripId": "旅行ID",
+      "tripIdPlaceholder": "6〜8文字の旅行コードを入力（例: a7x9k2）",
+      "tripIdHelp": "旅行作成者から旅行コードを取得してください",
+      "joinButton": "参加",
+      "success": "旅行に参加しました！",
+      "error": "参加に失敗しました"
+    },
+    "quickJoin": {
+      "notFound": "旅行が見つかりません。IDが正しいか確認してください。",
+      "loadError": "旅行情報を読み込めません",
+      "alreadyMember": "すでにこの旅行のメンバーです！リダイレクト中...",
+      "joining": "参加中...",
+      "joinThisTrip": "この旅行に参加",
+      "joinHint": "参加すると、支出記録の閲覧・追加ができます"
+    },
+    "detail": {
+      "backToTrips": "旅行一覧に戻る",
+      "expenses": "支出記録",
+      "members": "メンバー",
+      "settlement": "清算",
+      "addExpense": "支出を追加",
+      "inviteCode": "招待コード",
+      "copyCode": "コードをコピー",
+      "codeCopied": "コードをコピーしました！",
+      "noExpenses": "支出記録がありません",
+      "addFirstExpense": "最初の支出を追加",
+      "totalSpent": "総支出",
+      "tripInfo": "旅行情報",
+      "shareTrip": "旅行を共有",
+      "shareDescription": "このIDを友達と共有して、旅行に参加してもらいましょう",
+      "dangerZone": "危険な操作",
+      "deleteTrip": "旅行を削除",
+      "deleteTripWarning": "削除すると元に戻せません。すべての支出記録も削除されます"
+    },
+    "deleteConfirm": {
+      "title": "この旅行を削除しますか？",
+      "message": "この操作は取り消せません。すべての支出記録とメンバー情報が永久に削除されます。",
+      "success": "旅行を削除しました"
+    }
+  },
+  "expense": {
+    "title": "支出記録",
+    "add": "支出を追加",
+    "edit": "支出を編集",
+    "delete": "支出を削除",
+    "noExpenses": "支出記録がありません",
+    "addFirst": "最初の支出を追加",
+    "form": {
+      "amount": "金額",
+      "currency": "通貨",
+      "exchangeRate": "為替レート（TWD換算）",
+      "description": "説明",
+      "date": "日付",
+      "payer": "支払者",
+      "splitWith": "割り勘対象",
+      "convertedAmount": "換算金額"
+    },
+    "confirm": {
+      "delete": "この支出を削除しますか？",
+      "deleteMessage": "この操作は取り消せません。"
+    },
+    "success": {
+      "created": "支出を追加しました",
+      "updated": "支出を更新しました",
+      "deleted": "支出を削除しました"
+    },
+    "filter": "フィルター",
+    "filterAll": "すべて",
+    "noFilterResults": "条件に一致する支出記録がありません",
+    "noFilterResultsHint": "他のメンバーを選択するか、「すべて」を選択してください",
+    "paidBy": "支払",
+    "rate": "レート",
+    "splitMembers": "割り勘対象:",
+    "perPerson": "一人当たり:",
+    "selected": "選択済",
+    "clickToAdd": "「支出を追加」をクリックして記録を始めましょう！"
+  },
+  "member": {
+    "title": "メンバー",
+    "remove": "メンバーを削除",
+    "you": "（あなた）",
+    "joined": "参加日",
+    "role": {
+      "admin": "管理者",
+      "member": "メンバー"
+    },
+    "confirm": {
+      "remove": "このメンバーを削除しますか？",
+      "removeMessage": "削除すると、このメンバーは旅行を閲覧できなくなります。",
+      "expenseNote": "このメンバーの支出記録は保持されます"
+    },
+    "success": {
+      "removed": "メンバーを削除しました"
+    }
+  },
+  "settlement": {
+    "title": "清算",
+    "summary": "清算サマリー",
+    "totalExpenses": "総支出",
+    "balance": "残高",
+    "paid": "支払済",
+    "owed": "未払",
+    "status": "ステータス:",
+    "shouldReceive": "受取",
+    "shouldPay": "支払",
+    "settled": "精算済",
+    "perPerson": "一人当たりの統計",
+    "totalPaid": "支払総額:",
+    "totalOwed": "負担総額:",
+    "plan": "清算プラン",
+    "transferCount": "件の送金",
+    "noTransfers": "すべて精算済みです。送金は不要です",
+    "great": "すばらしい！",
+    "payer": "支払者",
+    "payee": "受取者",
+    "tip": "ヒント:",
+    "tipContent": "これは最適化された最小送金回数のプランです。このプランに従って送金すれば清算完了です。",
+    "backToTrip": "旅行詳細に戻る"
+  },
+  "currency": {
+    "TWD": "台湾ドル",
+    "JPY": "日本円",
+    "USD": "米ドル",
+    "EUR": "ユーロ",
+    "HKD": "香港ドル",
+    "TWD_full": "TWD - 台湾ドル",
+    "JPY_full": "JPY - 日本円",
+    "USD_full": "USD - 米ドル",
+    "EUR_full": "EUR - ユーロ",
+    "HKD_full": "HKD - 香港ドル"
+  },
+  "error": {
+    "network": "ネットワークエラー、後でもう一度お試しください",
+    "unauthorized": "ログインしてください",
+    "forbidden": "この操作を行う権限がありません",
+    "notFound": "リソースが見つかりません",
+    "notMember": "この旅行のメンバーではありません",
+    "server": "サーバーエラー",
+    "validation": "入力データに誤りがあります",
+    "loadFailed": "読み込みに失敗しました",
+    "loadTripFailed": "旅行データの読み込みに失敗しました",
+    "loadSettlementFailed": "清算データの読み込みに失敗しました"
+  },
+  "action": {
+    "copySuccess": "クリップボードにコピーしました",
+    "copyFailed": "コピーに失敗しました",
+    "saveSuccess": "保存しました",
+    "deleteSuccess": "削除しました"
+  },
+  "footer": {
+    "appName": "旅行家計簿",
+    "copyright": "MH Hung. All rights reserved."
+  },
+  "auth": {
+    "login": {
+      "title": "おかえりなさい",
+      "subtitle": "アカウントにログインして旅行を管理",
+      "username": "ユーザー名",
+      "password": "パスワード",
+      "loginButton": "ログイン",
+      "noAccount": "アカウントをお持ちでないですか？",
+      "registerLink": "新規登録",
+      "error": "ログインに失敗しました",
+      "backToHome": "ホームに戻る"
+    },
+    "register": {
+      "title": "アカウント作成",
+      "subtitle": "旅行を始めましょう",
+      "username": "ユーザー名",
+      "displayName": "表示名",
+      "password": "パスワード",
+      "confirmPassword": "パスワード（確認）",
+      "registerButton": "登録",
+      "hasAccount": "すでにアカウントをお持ちですか？",
+      "loginLink": "ログイン",
+      "error": "登録に失敗しました",
+      "passwordMismatch": "パスワードが一致しません",
+      "passwordHelp": "6文字以上"
+    }
+  },
+  "trip": {
+    "info": "旅行情報",
+    "createdAt": "作成日:",
+    "share": "旅行を共有",
+    "shareHint": "このIDを友達と共有して参加してもらいましょう",
+    "dangerZone": "危険な操作",
+    "deleteTrip": "旅行を削除",
+    "deleteWarning": "削除すると元に戻せません。すべての支出記録も削除されます",
+    "deleteConfirmTitle": "旅行の削除を確認",
+    "deleteConfirmWarning": "この操作は取り消せません！",
+    "deleteConfirmMessage": "「{name}」を削除しますか？",
+    "deleteConfirmDetails": "以下が永久に削除されます：",
+    "deleteItem1": "すべてのメンバー記録",
+    "deleteItem2": "すべての支出記録",
+    "deleteItem3": "すべての割り勘データ",
+    "deleting": "削除中...",
+    "confirmDelete": "削除を確認",
+    "deleted": "旅行を削除しました",
+    "viewSettlement": "清算を見る",
+    "viewSettlementHint": "各自の支払/受取金額を確認",
+    "removeMember": "メンバーを削除",
+    "removeMemberConfirm": "「{name}」を旅行から削除しますか？",
+    "removeMemberNote": "このメンバーの支出記録は保持されます",
+    "removed": "削除しました",
+    "notEditable": "以下のフィールドは編集できません:",
+    "saveEdit": "変更を保存"
+  }
+}

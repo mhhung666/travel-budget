@@ -1,0 +1,315 @@
+{
+  "common": {
+    "loading": "加载中...",
+    "save": "保存",
+    "cancel": "取消",
+    "delete": "删除",
+    "edit": "编辑",
+    "create": "创建",
+    "back": "返回",
+    "confirm": "确认",
+    "yes": "是",
+    "no": "否",
+    "search": "搜索",
+    "filter": "筛选",
+    "sort": "排序",
+    "close": "关闭",
+    "submit": "提交",
+    "reset": "重置",
+    "add": "新增",
+    "selectAll": "全选",
+    "copy": "复制",
+    "retry": "重试",
+    "goBack": "返回"
+  },
+  "nav": {
+    "home": "首页",
+    "trips": "我的旅行",
+    "settings": "个人设置",
+    "login": "登录",
+    "logout": "退出",
+    "register": "注册"
+  },
+  "home": {
+    "title": "旅行记账",
+    "hero": {
+      "title": "轻松管理旅行支出",
+      "subtitle": "智能计算分账，让每趟旅程都更简单",
+      "getStarted": "开始使用",
+      "viewTrips": "查看旅行"
+    },
+    "features": {
+      "title": "核心功能",
+      "easyTracking": {
+        "title": "轻松记账",
+        "description": "快速记录每笔支出，随时随地更新"
+      },
+      "smartSplit": {
+        "title": "智能分账",
+        "description": "自动计算每个人应付的金额"
+      },
+      "quickSettlement": {
+        "title": "一键结算",
+        "description": "最优化的转账方案，省时又便利"
+      }
+    }
+  },
+  "settings": {
+    "title": "个人设置",
+    "backToTrips": "返回我的旅行",
+    "profile": {
+      "title": "个人资料",
+      "username": "用户名",
+      "usernameHelp": "用户名无法修改",
+      "displayName": "显示名称",
+      "saveChanges": "保存更改",
+      "updateSuccess": "显示名称已更新"
+    },
+    "password": {
+      "title": "修改密码",
+      "current": "当前密码",
+      "new": "新密码",
+      "confirm": "确认新密码",
+      "minLength": "至少 6 个字符",
+      "updateButton": "更新密码",
+      "updateSuccess": "密码已更新",
+      "tooShort": "新密码至少需要 6 个字符",
+      "mismatch": "新密码与确认密码不符",
+      "updateError": "更新密码失败"
+    },
+    "errors": {
+      "fetchUser": "获取用户资料失败",
+      "updateFailed": "更新失败"
+    }
+  },
+  "trips": {
+    "title": "我的旅行",
+    "list": "旅行列表",
+    "createTrip": "创建新旅行",
+    "joinTrip": "加入旅行",
+    "noTrips": "目前还没有旅行记录",
+    "noTripsDescription": "点击「创建新旅行」开始规划你的旅程!",
+    "members": "位成员",
+    "created": "创建于",
+    "idLabel": "ID:",
+    "idCopied": "ID 已复制！",
+    "copyFailed": "复制失败",
+    "create": {
+      "title": "创建新旅行",
+      "name": "旅行名称",
+      "namePlaceholder": "例：日本关西之旅",
+      "description": "描述 (可选)",
+      "descriptionPlaceholder": "旅行的简短描述（选填）",
+      "createButton": "创建",
+      "success": "旅行创建成功！"
+    },
+    "join": {
+      "title": "加入旅行",
+      "tripId": "旅行 ID",
+      "tripIdPlaceholder": "输入 6-8 位旅行代码 (例如: a7x9k2)",
+      "tripIdHelp": "向旅行创建者索取旅行代码",
+      "joinButton": "加入",
+      "success": "成功加入旅行！",
+      "error": "加入失败"
+    },
+    "quickJoin": {
+      "notFound": "找不到此旅行，请确认 ID 是否正确",
+      "loadError": "无法加载旅行信息",
+      "alreadyMember": "您已经是此旅行的成员了！正在跳转旅行页面...",
+      "joining": "加入中...",
+      "joinThisTrip": "加入此旅行",
+      "joinHint": "加入后，您可以查看和新增支出记录"
+    },
+    "detail": {
+      "backToTrips": "返回旅行列表",
+      "expenses": "支出记录",
+      "members": "成员",
+      "settlement": "结算",
+      "addExpense": "新增支出",
+      "inviteCode": "邀请代码",
+      "copyCode": "复制代码",
+      "codeCopied": "代码已复制！",
+      "noExpenses": "还没有任何支出记录",
+      "addFirstExpense": "新增第一笔支出",
+      "totalSpent": "总支出",
+      "tripInfo": "旅行信息",
+      "shareTrip": "分享此旅行",
+      "shareDescription": "分享此 ID 给朋友，他们就能加入旅行",
+      "dangerZone": "危险区域",
+      "deleteTrip": "删除旅行",
+      "deleteTripWarning": "删除后将无法恢复，所有支出记录也会被删除"
+    },
+    "deleteConfirm": {
+      "title": "确定要删除这个旅行吗？",
+      "message": "此操作无法撤销。所有支出记录和成员资料都将被永久删除。",
+      "success": "旅行已删除"
+    }
+  },
+  "expense": {
+    "title": "支出记录",
+    "add": "新增支出",
+    "edit": "编辑支出",
+    "delete": "删除支出",
+    "noExpenses": "目前还没有支出记录",
+    "addFirst": "新增第一笔支出",
+    "form": {
+      "amount": "金额",
+      "currency": "币种",
+      "exchangeRate": "汇率 (换算为 TWD)",
+      "description": "描述",
+      "date": "日期",
+      "payer": "付款人",
+      "splitWith": "分账对象",
+      "convertedAmount": "换算金额"
+    },
+    "confirm": {
+      "delete": "确定要删除这笔支出吗？",
+      "deleteMessage": "此操作无法撤销。"
+    },
+    "success": {
+      "created": "支出已新增",
+      "updated": "支出已更新",
+      "deleted": "支出已删除"
+    },
+    "filter": "筛选对象",
+    "filterAll": "全部",
+    "noFilterResults": "没有符合筛选条件的支出记录",
+    "noFilterResultsHint": "请选择其他分账对象或选择「全部」",
+    "paidBy": "付款",
+    "rate": "汇率",
+    "splitMembers": "分账对象:",
+    "perPerson": "每人分摊:",
+    "selected": "已选",
+    "clickToAdd": "点击「新增支出」开始记录!"
+  },
+  "member": {
+    "title": "成员",
+    "remove": "移除成员",
+    "you": "(你)",
+    "joined": "加入于",
+    "role": {
+      "admin": "管理员",
+      "member": "成员"
+    },
+    "confirm": {
+      "remove": "确定要移除此成员吗？",
+      "removeMessage": "移除后，该成员将无法再查看此旅行。",
+      "expenseNote": "该成员的支出记录将会保留"
+    },
+    "success": {
+      "removed": "成员已移除"
+    }
+  },
+  "settlement": {
+    "title": "结算",
+    "summary": "结算总览",
+    "totalExpenses": "总支出",
+    "balance": "余额",
+    "paid": "已付",
+    "owed": "应付",
+    "status": "状态:",
+    "shouldReceive": "应收",
+    "shouldPay": "应付",
+    "settled": "已结清",
+    "perPerson": "每人统计",
+    "totalPaid": "总付款:",
+    "totalOwed": "总应付:",
+    "plan": "结算方案",
+    "transferCount": "笔转账",
+    "noTransfers": "所有账目已结清,无需进行转账",
+    "great": "太好了!",
+    "payer": "付款人",
+    "payee": "收款人",
+    "tip": "提示:",
+    "tipContent": "这是经过优化的最少转账次数方案,按照此方案进行转账即可完成结算。",
+    "backToTrip": "返回旅行详情"
+  },
+  "currency": {
+    "TWD": "新台币",
+    "JPY": "日元",
+    "USD": "美元",
+    "EUR": "欧元",
+    "HKD": "港币",
+    "TWD_full": "TWD - 新台币",
+    "JPY_full": "JPY - 日元",
+    "USD_full": "USD - 美元",
+    "EUR_full": "EUR - 欧元",
+    "HKD_full": "HKD - 港币"
+  },
+  "error": {
+    "network": "网络错误，请稍后重试",
+    "unauthorized": "请先登录",
+    "forbidden": "您没有权限执行此操作",
+    "notFound": "找不到资源",
+    "notMember": "您不是此旅行的成员",
+    "server": "服务器错误",
+    "validation": "输入数据有误",
+    "loadFailed": "加载失败",
+    "loadTripFailed": "无法加载旅行数据",
+    "loadSettlementFailed": "无法加载结算数据"
+  },
+  "action": {
+    "copySuccess": "已复制到剪贴板",
+    "copyFailed": "复制失败",
+    "saveSuccess": "保存成功",
+    "deleteSuccess": "删除成功"
+  },
+  "footer": {
+    "appName": "旅行记账",
+    "copyright": "MH Hung. All rights reserved."
+  },
+  "auth": {
+    "login": {
+      "title": "欢迎回来",
+      "subtitle": "登录您的账号开始管理旅行",
+      "username": "用户名",
+      "password": "密码",
+      "loginButton": "登录",
+      "noAccount": "还没有账号？",
+      "registerLink": "立即注册",
+      "error": "登录失败",
+      "backToHome": "返回首页"
+    },
+    "register": {
+      "title": "创建账号",
+      "subtitle": "开始您的旅程",
+      "username": "用户名",
+      "displayName": "显示名称",
+      "password": "密码",
+      "confirmPassword": "确认密码",
+      "registerButton": "注册",
+      "hasAccount": "已经有账号？",
+      "loginLink": "立即登录",
+      "error": "注册失败",
+      "passwordMismatch": "密码不符",
+      "passwordHelp": "至少 6 个字符"
+    }
+  },
+  "trip": {
+    "info": "旅行信息",
+    "createdAt": "创建时间:",
+    "share": "分享此旅行",
+    "shareHint": "分享此 ID 给朋友，他们就能加入旅行",
+    "dangerZone": "危险操作",
+    "deleteTrip": "删除此旅行",
+    "deleteWarning": "删除后将无法恢复，包括所有支出记录",
+    "deleteConfirmTitle": "确认删除旅行",
+    "deleteConfirmWarning": "此操作无法恢复！",
+    "deleteConfirmMessage": "确定要删除「{name}」吗？",
+    "deleteConfirmDetails": "这将永久删除：",
+    "deleteItem1": "所有成员记录",
+    "deleteItem2": "所有支出记录",
+    "deleteItem3": "所有分账数据",
+    "deleting": "删除中...",
+    "confirmDelete": "确认删除",
+    "deleted": "旅行已删除",
+    "viewSettlement": "查看结算",
+    "viewSettlementHint": "查看每人应付/应收金额",
+    "removeMember": "移除成员",
+    "removeMemberConfirm": "确定要将「{name}」移出旅行吗？",
+    "removeMemberNote": "该成员的支出记录将会保留",
+    "removed": "已移除",
+    "notEditable": "以下字段不可修改:",
+    "saveEdit": "保存修改"
+  }
+}

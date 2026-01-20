@@ -8,7 +8,9 @@ import { useState } from 'react';
 
 const languages = {
   en: 'English',
-  zh: '中文',
+  zh: '繁體中文',
+  'zh-CN': '简体中文',
+  jp: '日本語',
 };
 
 export default function LanguageSwitcher() {
@@ -28,7 +30,7 @@ export default function LanguageSwitcher() {
   const handleLanguageChange = (newLocale: string) => {
     // 移除所有可能的 locale 前綴
     let pathWithoutLocale = pathname;
-    for (const loc of ['en', 'zh']) {
+    for (const loc of ['en', 'zh', 'zh-CN', 'ja']) {
       if (pathname.startsWith(`/${loc}/`)) {
         // e.g., /en/trips -> /trips (slice from position 3 for 'en')
         pathWithoutLocale = pathname.slice(loc.length + 1);

@@ -1,7 +1,7 @@
 import { getRequestConfig } from 'next-intl/server';
 
 // 支持的语言
-export const locales = ['en', 'zh'] as const;
+export const locales = ['en', 'zh', 'zh-CN', 'jp'] as const;
 export type Locale = (typeof locales)[number];
 
 export const defaultLocale: Locale = 'zh';

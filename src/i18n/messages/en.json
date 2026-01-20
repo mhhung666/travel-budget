@@ -15,7 +15,12 @@
     "sort": "Sort",
     "close": "Close",
     "submit": "Submit",
-    "reset": "Reset"
+    "reset": "Reset",
+    "add": "Add",
+    "selectAll": "Select All",
+    "copy": "Copy",
+    "retry": "Retry",
+    "goBack": "Go Back"
   },
   "nav": {
     "home": "Home",
