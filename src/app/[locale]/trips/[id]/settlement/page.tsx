@@ -1,0 +1,380 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useRouter, useParams } from 'next/navigation';
+import {
+  Box,
+  Container,
+  Typography,
+  Button,
+  Card,
+  CardContent,
+  Alert,
+  CircularProgress,
+  Chip,
+  Divider,
+  Avatar,
+} from '@mui/material';
+import {
+  TrendingUp,
+  TrendingDown,
+  CheckCircle,
+  ArrowForward,
+  ArrowDownward,
+  Lightbulb,
+  ArrowBack,
+} from '@mui/icons-material';
+import Navbar from '@/components/layout/Navbar';
+
+interface Balance {
+  userId: number;
+  username: string;
+  totalPaid: number;
+  totalOwed: number;
+  balance: number;
+}
+
+interface Transaction {
+  from: string;
+  to: string;
+  amount: number;
+}
+
+export default function SettlementPage() {
+  const router = useRouter();
+  const params = useParams();
+  const tripId = params.id as string;
+
+  const [balances, setBalances] = useState<Balance[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [totalExpenses, setTotalExpenses] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    loadSettlement();
+  }, [tripId]);
+
+  const loadSettlement = async () => {
+    try {
+      const response = await fetch(`/api/trips/${tripId}/settlement`);
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          router.push('/login');
+          return;
+        }
+        throw new Error('無法載入結算資料');
+      }
+
+      const data = await response.json();
+      setBalances(data.balances);
+      setTransactions(data.transactions);
+      setTotalExpenses(data.totalExpenses);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <Box
+        sx={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <CircularProgress size={60} />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box
+        sx={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Box sx={{ textAlign: 'center' }}>
+          <Alert severity="error" sx={{ mb: 3 }}>
+            {error}
+          </Alert>
+          <Button
+            onClick={() => router.push(`/trips/${tripId}`)}
+            variant="contained"
+            size="large"
+          >
+            返回旅行詳情
+          </Button>
+        </Box>
+      </Box>
+    );
+  }
+
+  return (
+    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
+      <Navbar
+        user={null}
+        showUserMenu={true}
+        title="結算總覽"
+      />
+
+      <Container maxWidth="lg" sx={{ pt: { xs: 10, sm: 12 }, pb: 4 }}>
+        {/* 返回按鈕 */}
+        <Button
+          startIcon={<ArrowBack />}
+          onClick={() => router.push(`/trips/${tripId}`)}
+          sx={{
+            mb: 3,
+            textTransform: 'none',
+            color: 'text.secondary',
+            '&:hover': {
+              color: 'text.primary',
+            },
+          }}
+        >
+          返回旅行詳情
+        </Button>
+
+        {/* 總支出 */}
+        <Card
+          elevation={3}
+          sx={{
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            color: 'white',
+            mb: 3,
+          }}
+        >
+          <CardContent>
+            <Typography variant="h6" fontWeight={600} gutterBottom>
+              總支出
+            </Typography>
+            <Typography variant="h3" fontWeight={700}>
+              ${totalExpenses.toLocaleString()}
+            </Typography>
+          </CardContent>
+        </Card>
+
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 3 }}>
+          {/* 每人統計 */}
+          <Card elevation={2}>
+            <CardContent>
+              <Typography variant="h6" fontWeight={600} gutterBottom>
+                每人統計
+              </Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {balances.map((balance) => (
+                  <Card
+                    key={balance.userId}
+                    elevation={0}
+                    sx={{ border: '1px solid', borderColor: 'divider' }}
+                  >
+                    <CardContent>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Avatar sx={{ bgcolor: 'primary.main', width: 32, height: 32 }}>
+                            {balance.username.charAt(0)}
+                          </Avatar>
+                          <Typography variant="subtitle1" fontWeight={600}>
+                            {balance.username}
+                          </Typography>
+                        </Box>
+                        <Chip
+                          icon={
+                            balance.balance > 0 ? (
+                              <TrendingUp />
+                            ) : balance.balance < 0 ? (
+                              <TrendingDown />
+                            ) : (
+                              <CheckCircle />
+                            )
+                          }
+                          label={`${balance.balance >= 0 ? '+' : ''}$${balance.balance.toFixed(0)}`}
+                          color={
+                            balance.balance > 0
+                              ? 'success'
+                              : balance.balance < 0
+                              ? 'error'
+                              : 'default'
+                          }
+                          sx={{ fontWeight: 700 }}
+                        />
+                      </Box>
+                      <Divider sx={{ my: 1.5 }} />
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <Typography variant="body2" color="text.secondary">
+                            總付款:
+                          </Typography>
+                          <Typography variant="body2" fontWeight={500}>
+                            ${balance.totalPaid.toLocaleString()}
+                          </Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <Typography variant="body2" color="text.secondary">
+                            總應付:
+                          </Typography>
+                          <Typography variant="body2" fontWeight={500}>
+                            ${balance.totalOwed.toLocaleString()}
+                          </Typography>
+                        </Box>
+                        <Divider sx={{ my: 0.5 }} />
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <Typography variant="body2" fontWeight={600}>
+                            狀態:
+                          </Typography>
+                          <Typography
+                            variant="body2"
+                            fontWeight={600}
+                            color={
+                              balance.balance > 0
+                                ? 'success.main'
+                                : balance.balance < 0
+                                ? 'error.main'
+                                : 'text.secondary'
+                            }
+                          >
+                            {balance.balance > 0
+                              ? '應收'
+                              : balance.balance < 0
+                              ? '應付'
+                              : '已結清'}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </CardContent>
+                  </Card>
+                ))}
+              </Box>
+            </CardContent>
+          </Card>
+
+          {/* 結算方案 */}
+          <Card elevation={2}>
+            <CardContent>
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="h6" fontWeight={600} component="span">
+                  結算方案
+                </Typography>
+                {transactions.length > 0 && (
+                  <Typography variant="body2" color="text.secondary" component="span" sx={{ ml: 1 }}>
+                    (共 {transactions.length} 筆轉帳)
+                  </Typography>
+                )}
+              </Box>
+
+              {transactions.length === 0 ? (
+                <Box sx={{ textAlign: 'center', py: 8 }}>
+                  <Typography variant="h5" gutterBottom>
+                    🎉 太好了!
+                  </Typography>
+                  <Typography variant="body1" color="text.secondary">
+                    所有帳目已結清,無需進行轉帳
+                  </Typography>
+                </Box>
+              ) : (
+                <Box>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    {transactions.map((transaction, index) => (
+                      <Card
+                        key={index}
+                        elevation={0}
+                        sx={{
+                          background: 'linear-gradient(135deg, #fff5f5 0%, #ffe5e5 100%)',
+                          border: '2px solid',
+                          borderColor: 'warning.light',
+                        }}
+                      >
+                        <CardContent sx={{ p: '16px !important' }}>
+                          <Box
+                            sx={{
+                              display: 'flex',
+                              flexDirection: { xs: 'column', sm: 'row' },
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: { xs: 1, sm: 2 },
+                              width: '100%',
+                            }}
+                          >
+                            {/* 付款人 */}
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: { xs: '100%', sm: 'auto' }, justifyContent: { xs: 'center', sm: 'flex-start' } }}>
+                              <Avatar
+                                sx={{
+                                  bgcolor: 'error.main',
+                                  color: 'white',
+                                  border: '2px solid',
+                                  borderColor: 'error.dark',
+                                }}
+                              >
+                                {transaction.from.charAt(0)}
+                              </Avatar>
+                              <Box>
+                                <Typography variant="caption" sx={{ color: 'rgba(0, 0, 0, 0.6)' }}>
+                                  付款人
+                                </Typography>
+                                <Typography variant="body1" fontWeight={600} sx={{ color: 'rgba(0, 0, 0, 0.87)' }}>
+                                  {transaction.from}
+                                </Typography>
+                              </Box>
+                            </Box>
+
+                            {/* 金額與箭頭 */}
+                            <Box sx={{ my: { xs: 1, sm: 0 }, textAlign: 'center' }}>
+                              <Typography variant="h5" fontWeight={700} color="warning.dark">
+                                ${transaction.amount.toFixed(0)}
+                              </Typography>
+                              <Box sx={{ display: { xs: 'block', sm: 'none' } }}>
+                                <ArrowDownward sx={{ color: 'text.secondary' }} />
+                              </Box>
+                              <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
+                                <ArrowForward sx={{ color: 'text.secondary' }} />
+                              </Box>
+                            </Box>
+
+                            {/* 收款人 */}
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: { xs: '100%', sm: 'auto' }, justifyContent: { xs: 'center', sm: 'flex-end' } }}>
+                              <Box sx={{ textAlign: 'right' }}>
+                                <Typography variant="caption" sx={{ color: 'rgba(0, 0, 0, 0.6)' }}>
+                                  收款人
+                                </Typography>
+                                <Typography variant="body1" fontWeight={600} sx={{ color: 'rgba(0, 0, 0, 0.87)' }}>
+                                  {transaction.to}
+                                </Typography>
+                              </Box>
+                              <Avatar
+                                sx={{
+                                  bgcolor: 'success.main',
+                                  color: 'white',
+                                  border: '2px solid',
+                                  borderColor: 'success.dark',
+                                }}
+                              >
+                                {transaction.to.charAt(0)}
+                              </Avatar>
+                            </Box>
+                          </Box>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </Box>
+
+                  <Alert severity="info" icon={<Lightbulb />} sx={{ mt: 3 }}>
+                    <strong>提示:</strong> 這是經過優化的最少轉帳次數方案,按照此方案進行轉帳即可完成結算。
+                  </Alert>
+                </Box>
+              )}
+            </CardContent>
+          </Card>
+        </Box>
+      </Container>
+    </Box>
+  );
+}

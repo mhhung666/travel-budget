@@ -1,0 +1,248 @@
+{
+  "common": {
+    "loading": "載入中...",
+    "save": "儲存",
+    "cancel": "取消",
+    "delete": "刪除",
+    "edit": "編輯",
+    "create": "建立",
+    "back": "返回",
+    "confirm": "確認",
+    "yes": "是",
+    "no": "否",
+    "search": "搜尋",
+    "filter": "篩選",
+    "sort": "排序",
+    "close": "關閉",
+    "submit": "提交",
+    "reset": "重設",
+    "add": "新增",
+    "selectAll": "全選",
+    "copy": "複製",
+    "retry": "重試",
+    "goBack": "返回"
+  },
+  "nav": {
+    "home": "首頁",
+    "trips": "我的旅行",
+    "settings": "個人設定",
+    "login": "登入",
+    "logout": "登出",
+    "register": "註冊"
+  },
+  "home": {
+    "title": "旅行記帳",
+    "hero": {
+      "title": "輕鬆管理旅行支出",
+      "subtitle": "智慧計算分帳，讓每趟旅程都更簡單",
+      "getStarted": "開始使用",
+      "viewTrips": "查看旅行"
+    },
+    "features": {
+      "title": "核心功能",
+      "easyTracking": {
+        "title": "輕鬆記帳",
+        "description": "快速記錄每筆支出，隨時隨地更新"
+      },
+      "smartSplit": {
+        "title": "智能分帳",
+        "description": "自動計算每個人應付的金額"
+      },
+      "quickSettlement": {
+        "title": "一鍵結算",
+        "description": "最優化的轉帳方案，省時又便利"
+      }
+    }
+  },
+  "settings": {
+    "title": "個人設定",
+    "backToTrips": "返回我的旅行",
+    "profile": {
+      "title": "個人資料",
+      "username": "用戶名",
+      "usernameHelp": "用戶名無法修改",
+      "displayName": "顯示名稱",
+      "saveChanges": "儲存變更",
+      "updateSuccess": "顯示名稱已更新"
+    },
+    "password": {
+      "title": "修改密碼",
+      "current": "目前密碼",
+      "new": "新密碼",
+      "confirm": "確認新密碼",
+      "minLength": "至少 6 個字元",
+      "updateButton": "更新密碼",
+      "updateSuccess": "密碼已更新",
+      "tooShort": "新密碼至少需要 6 個字元",
+      "mismatch": "新密碼與確認密碼不符",
+      "updateError": "更新密碼失敗"
+    },
+    "errors": {
+      "fetchUser": "獲取用戶資料失敗",
+      "updateFailed": "更新失敗"
+    }
+  },
+  "trips": {
+    "title": "我的旅行",
+    "list": "旅行列表",
+    "createTrip": "建立新旅行",
+    "joinTrip": "加入旅行",
+    "noTrips": "目前還沒有旅行記錄",
+    "noTripsDescription": "點擊「建立新旅行」開始規劃你的旅程!",
+    "members": "位成員",
+    "created": "建立於",
+    "idLabel": "ID:",
+    "idCopied": "ID 已複製！",
+    "copyFailed": "複製失敗",
+    "create": {
+      "title": "建立新旅行",
+      "name": "旅行名稱",
+      "namePlaceholder": "例：日本關西之旅",
+      "description": "描述 (可選)",
+      "descriptionPlaceholder": "旅行的簡短描述（選填）",
+      "createButton": "建立",
+      "success": "旅行建立成功！"
+    },
+    "join": {
+      "title": "加入旅行",
+      "tripId": "旅行 ID",
+      "tripIdPlaceholder": "輸入 6-8 位旅行代碼 (例如: a7x9k2)",
+      "tripIdHelp": "向旅行創建者索取旅行代碼",
+      "joinButton": "加入",
+      "success": "成功加入旅行！",
+      "error": "加入失敗"
+    },
+    "detail": {
+      "backToTrips": "返回旅行列表",
+      "expenses": "支出記錄",
+      "members": "成員",
+      "settlement": "結算",
+      "addExpense": "新增支出",
+      "inviteCode": "邀請代碼",
+      "copyCode": "複製代碼",
+      "codeCopied": "代碼已複製！",
+      "noExpenses": "還沒有任何支出記錄",
+      "addFirstExpense": "新增第一筆支出",
+      "totalSpent": "總支出",
+      "tripInfo": "旅行資訊",
+      "shareTrip": "分享此旅行",
+      "shareDescription": "分享此 ID 給朋友，他們就能加入旅行",
+      "dangerZone": "危險區域",
+      "deleteTrip": "刪除旅行",
+      "deleteTripWarning": "刪除後將無法復原，所有支出記錄也會被刪除"
+    },
+    "deleteConfirm": {
+      "title": "確定要刪除這個旅行嗎？",
+      "message": "此操作無法撤銷。所有支出記錄和成員資料都將被永久刪除。",
+      "success": "旅行已刪除"
+    }
+  },
+  "expense": {
+    "title": "支出",
+    "add": "新增支出",
+    "edit": "編輯支出",
+    "delete": "刪除支出",
+    "noExpenses": "還沒有任何支出記錄",
+    "addFirst": "新增第一筆支出",
+    "form": {
+      "amount": "金額",
+      "currency": "幣別",
+      "exchangeRate": "匯率 (換算為 TWD)",
+      "description": "描述",
+      "date": "日期",
+      "payer": "付款人",
+      "splitWith": "分帳對象",
+      "convertedAmount": "換算金額"
+    },
+    "confirm": {
+      "delete": "確定要刪除這筆支出嗎？",
+      "deleteMessage": "此操作無法撤銷。"
+    },
+    "success": {
+      "created": "支出已新增",
+      "updated": "支出已更新",
+      "deleted": "支出已刪除"
+    }
+  },
+  "member": {
+    "title": "成員",
+    "remove": "移除成員",
+    "you": "(你)",
+    "joined": "加入於",
+    "role": {
+      "admin": "管理員",
+      "member": "成員"
+    },
+    "confirm": {
+      "remove": "確定要移除此成員嗎？",
+      "removeMessage": "移除後，該成員將無法再查看此旅行。"
+    },
+    "success": {
+      "removed": "成員已移除"
+    }
+  },
+  "settlement": {
+    "title": "結算",
+    "summary": "結算總覽",
+    "totalExpenses": "總支出",
+    "balance": "餘額",
+    "paid": "已付",
+    "owed": "應付",
+    "youOwe": "你欠",
+    "owesYou": "欠你",
+    "transfer": "{from} 轉給 {to}",
+    "noTransfers": "無需轉帳，已結清！",
+    "transfers": "轉帳明細",
+    "backToTrip": "返回旅行"
+  },
+  "currency": {
+    "TWD": "新台幣",
+    "JPY": "日圓",
+    "USD": "美元",
+    "EUR": "歐元",
+    "HKD": "港幣"
+  },
+  "error": {
+    "network": "網路錯誤，請稍後重試",
+    "unauthorized": "請先登入",
+    "forbidden": "您沒有權限執行此操作",
+    "notFound": "找不到資源",
+    "notMember": "您不是此旅行的成員",
+    "server": "伺服器錯誤",
+    "validation": "輸入資料有誤",
+    "loadFailed": "載入失敗"
+  },
+  "action": {
+    "copySuccess": "已複製到剪貼簿",
+    "copyFailed": "複製失敗",
+    "saveSuccess": "儲存成功",
+    "deleteSuccess": "刪除成功"
+  },
+  "auth": {
+    "login": {
+      "title": "歡迎回來",
+      "subtitle": "登入您的帳號開始管理旅行",
+      "username": "用戶名",
+      "password": "密碼",
+      "loginButton": "登入",
+      "noAccount": "還沒有帳號？",
+      "registerLink": "立即註冊",
+      "error": "登入失敗",
+      "backToHome": "返回首頁"
+    },
+    "register": {
+      "title": "建立帳號",
+      "subtitle": "開始您的旅程",
+      "username": "用戶名",
+      "displayName": "顯示名稱",
+      "password": "密碼",
+      "confirmPassword": "確認密碼",
+      "registerButton": "註冊",
+      "hasAccount": "已經有帳號？",
+      "loginLink": "立即登入",
+      "error": "註冊失敗",
+      "passwordMismatch": "密碼不符",
+      "passwordHelp": "至少 6 個字元"
+    }
+  }
+}
