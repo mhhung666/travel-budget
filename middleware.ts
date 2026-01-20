@@ -9,6 +9,7 @@ const i18nMiddleware = createMiddleware({
   locales,
   defaultLocale,
   localePrefix: 'as-needed',
+  localeDetection: false,
 });
 
 // 定義需要認證的路由（不包含 locale 前綴）
