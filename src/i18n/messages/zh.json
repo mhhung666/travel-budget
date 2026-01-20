@@ -112,6 +112,14 @@
       "success": "成功加入旅行！",
       "error": "加入失敗"
     },
+    "quickJoin": {
+      "notFound": "找不到此旅行，請確認 ID 是否正確",
+      "loadError": "無法載入旅行資訊",
+      "alreadyMember": "您已經是此旅行的成員了！正在導向旅行頁面...",
+      "joining": "加入中...",
+      "joinThisTrip": "加入此旅行",
+      "joinHint": "加入後，您可以查看和新增支出記錄"
+    },
     "detail": {
       "backToTrips": "返回旅行列表",
       "expenses": "支出記錄",

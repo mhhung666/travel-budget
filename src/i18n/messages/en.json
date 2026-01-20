@@ -107,6 +107,14 @@
       "success": "Successfully joined the trip!",
       "error": "Failed to join"
     },
+    "quickJoin": {
+      "notFound": "Trip not found. Please verify the ID is correct.",
+      "loadError": "Unable to load trip information",
+      "alreadyMember": "You are already a member of this trip! Redirecting...",
+      "joining": "Joining...",
+      "joinThisTrip": "Join this trip",
+      "joinHint": "After joining, you can view and add expense records"
+    },
     "detail": {
       "backToTrips": "Back to Trips",
       "expenses": "Expenses",

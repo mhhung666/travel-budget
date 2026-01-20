@@ -22,6 +22,7 @@ import {
 } from '@mui/material';
 import { Add, GroupAdd, People, CalendarToday, ContentCopy } from '@mui/icons-material';
 import Navbar from '@/components/layout/Navbar';
+import { useTranslations, useLocale } from 'next-intl';
 
 interface Trip {
   id: number;
@@ -34,6 +35,10 @@ interface Trip {
 
 export default function TripsPage() {
   const router = useRouter();
+  const t = useTranslations('trips');
+  const tCommon = useTranslations('common');
+  const tNav = useTranslations('nav');
+  const locale = useLocale();
   const [user, setUser] = useState<any>(null);
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
@@ -123,7 +128,7 @@ export default function TripsPage() {
 
       setShowJoinModal(false);
       setJoinTripId('');
-      setSnackbar({ open: true, message: '成功加入旅行！', severity: 'success' });
+      setSnackbar({ open: true, message: t('join.success'), severity: 'success' });
       await loadTrips();
     } catch (err: any) {
       setError(err.message);
@@ -134,9 +139,9 @@ export default function TripsPage() {
     e.stopPropagation();
     try {
       await navigator.clipboard.writeText(hashCode);
-      setSnackbar({ open: true, message: 'ID 已複製！', severity: 'success' });
+      setSnackbar({ open: true, message: t('idCopied'), severity: 'success' });
     } catch (err) {
-      setSnackbar({ open: true, message: '複製失敗', severity: 'error' });
+      setSnackbar({ open: true, message: t('copyFailed'), severity: 'error' });
     }
   };
 
@@ -168,7 +173,7 @@ export default function TripsPage() {
             : null
         }
         showUserMenu={true}
-        title="我的旅行"
+        title={tNav('trips')}
       />
 
       <Container maxWidth="lg" sx={{ pt: { xs: 10, sm: 12 }, pb: 4 }}>
@@ -185,7 +190,7 @@ export default function TripsPage() {
               }}
             >
               <Typography variant="h5" fontWeight={600}>
-                旅行列表
+                {t('list')}
               </Typography>
               <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 1 }}>
                 <Button
@@ -194,7 +199,7 @@ export default function TripsPage() {
                   startIcon={<GroupAdd />}
                   sx={{ textTransform: 'none' }}
                 >
-                  加入旅行
+                  {t('joinTrip')}
                 </Button>
                 <Button
                   onClick={() => setShowCreateModal(true)}
@@ -202,7 +207,7 @@ export default function TripsPage() {
                   startIcon={<Add />}
                   sx={{ textTransform: 'none' }}
                 >
-                  建立新旅行
+                  {t('createTrip')}
                 </Button>
               </Box>
             </Box>
@@ -210,10 +215,10 @@ export default function TripsPage() {
             {trips.length === 0 ? (
               <Box sx={{ textAlign: 'center', py: 8 }}>
                 <Typography variant="body1" color="text.secondary" gutterBottom>
-                  目前還沒有旅行記錄
+                  {t('noTrips')}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  點擊「建立新旅行」開始規劃你的旅程!
+                  {t('noTripsDescription')}
                 </Typography>
               </Box>
             ) : (
@@ -260,19 +265,21 @@ export default function TripsPage() {
                         >
                           <Chip
                             icon={<People />}
-                            label={`${trip.member_count} 位成員`}
+                            label={`${trip.member_count} ${t('members')}`}
                             size="small"
                             variant="outlined"
                           />
                           <Chip
                             icon={<CalendarToday />}
-                            label={new Date(trip.created_at).toLocaleDateString('zh-TW')}
+                            label={new Date(trip.created_at).toLocaleDateString(
+                              locale === 'zh' ? 'zh-TW' : 'en-US'
+                            )}
                             size="small"
                             variant="outlined"
                           />
                         </Box>
                         <Chip
-                          label={`ID: ${trip.hash_code}`}
+                          label={`${t('idLabel')} ${trip.hash_code}`}
                           size="small"
                           onClick={(e) => copyHashCode(trip.hash_code, e)}
                           icon={<ContentCopy fontSize="small" />}
@@ -291,7 +298,7 @@ export default function TripsPage() {
         </Card>
       </Container>
 
-      {/* 建立旅行 Dialog */}
+      {/* Create Trip Dialog */}
       <Dialog
         open={showCreateModal}
         onClose={() => {
@@ -302,7 +309,7 @@ export default function TripsPage() {
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>建立新旅行</DialogTitle>
+        <DialogTitle>{t('create.title')}</DialogTitle>
         <form onSubmit={handleCreateTrip}>
           <DialogContent>
             {error && (
@@ -312,7 +319,7 @@ export default function TripsPage() {
             )}
             <TextField
               fullWidth
-              label="旅行名稱"
+              label={t('create.name')}
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               required
@@ -320,7 +327,7 @@ export default function TripsPage() {
             />
             <TextField
               fullWidth
-              label="描述 (可選)"
+              label={t('create.description')}
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               multiline
@@ -335,16 +342,16 @@ export default function TripsPage() {
                 setFormData({ name: '', description: '' });
               }}
             >
-              取消
+              {tCommon('cancel')}
             </Button>
             <Button type="submit" variant="contained">
-              建立
+              {tCommon('create')}
             </Button>
           </DialogActions>
         </form>
       </Dialog>
 
-      {/* 加入旅行 Dialog */}
+      {/* Join Trip Dialog */}
       <Dialog
         open={showJoinModal}
         onClose={() => {
@@ -355,7 +362,7 @@ export default function TripsPage() {
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>加入旅行</DialogTitle>
+        <DialogTitle>{t('join.title')}</DialogTitle>
         <form onSubmit={handleJoinTrip}>
           <DialogContent>
             {error && (
@@ -365,12 +372,12 @@ export default function TripsPage() {
             )}
             <TextField
               fullWidth
-              label="旅行 ID"
+              label={t('join.tripId')}
               value={joinTripId}
               onChange={(e) => setJoinTripId(e.target.value)}
               required
-              placeholder="輸入 6-8 位旅行代碼 (例如: a7x9k2)"
-              helperText="向旅行創建者索取旅行代碼"
+              placeholder={t('join.tripIdPlaceholder')}
+              helperText={t('join.tripIdHelp')}
             />
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 2 }}>
@@ -381,16 +388,16 @@ export default function TripsPage() {
                 setJoinTripId('');
               }}
             >
-              取消
+              {tCommon('cancel')}
             </Button>
             <Button type="submit" variant="contained">
-              加入
+              {t('join.joinButton')}
             </Button>
           </DialogActions>
         </form>
       </Dialog>
 
-      {/* Snackbar 通知 */}
+      {/* Snackbar */}
       <Snackbar
         open={snackbar.open}
         autoHideDuration={3000}
