@@ -119,7 +119,7 @@ export default function Home() {
       </Box>
 
       {/* Features Section */}
-      <Box sx={{ py: { xs: 6, sm: 8 }, bgcolor: '#fafafa' }}>
+      <Box sx={{ py: { xs: 6, sm: 8 }, bgcolor: 'background.paper' }}>
         <Container maxWidth="lg">
           <Typography
             variant="h3"
