@@ -26,12 +26,21 @@ export default function LanguageSwitcher() {
   };
 
   const handleLanguageChange = (newLocale: string) => {
-    // 移除当前的 locale 前缀
-    const pathWithoutLocale = pathname.replace(`/${locale}`, '');
+    // 移除所有可能的 locale 前綴
+    let pathWithoutLocale = pathname;
+    for (const loc of ['en', 'zh']) {
+      if (pathname.startsWith(`/${loc}/`)) {
+        pathWithoutLocale = pathname.slice(loc.length + 1);
+        break;
+      } else if (pathname === `/${loc}`) {
+        pathWithoutLocale = '/';
+        break;
+      }
+    }
 
-    // 如果是默认语言（中文），不需要前缀
+    // 如果是預設語言（中文），不需要前綴
     const newPath =
-      newLocale === 'zh' ? pathWithoutLocale || '/' : `/${newLocale}${pathWithoutLocale || '/'}`;
+      newLocale === 'zh' ? pathWithoutLocale || '/' : `/${newLocale}${pathWithoutLocale}`;
 
     router.push(newPath);
     handleClose();
