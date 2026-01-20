@@ -30,12 +30,6 @@ export default function Footer() {
             gap: 2,
           }}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <TravelExplore sx={{ color: 'primary.main', fontSize: 20 }} />
-            <Typography variant="body2" color="text.secondary">
-              {t('appName')}
-            </Typography>
-          </Box>
 
           <Typography variant="body2" color="text.secondary">
             © {currentYear} {t('copyright')}
@@ -43,7 +37,7 @@ export default function Footer() {
 
           <Box sx={{ display: 'flex', gap: 2 }}>
             <Link
-              href="https://github.com/"
+              href="https://github.com/mhhung666"
               target="_blank"
               rel="noopener noreferrer"
               color="text.secondary"

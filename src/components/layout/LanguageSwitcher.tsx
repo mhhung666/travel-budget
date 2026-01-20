@@ -30,6 +30,7 @@ export default function LanguageSwitcher() {
     let pathWithoutLocale = pathname;
     for (const loc of ['en', 'zh']) {
       if (pathname.startsWith(`/${loc}/`)) {
+        // e.g., /en/trips -> /trips (slice from position 3 for 'en')
         pathWithoutLocale = pathname.slice(loc.length + 1);
         break;
       } else if (pathname === `/${loc}`) {
@@ -43,6 +44,7 @@ export default function LanguageSwitcher() {
       newLocale === 'zh' ? pathWithoutLocale || '/' : `/${newLocale}${pathWithoutLocale}`;
 
     router.push(newPath);
+    router.refresh();
     handleClose();
   };
 
