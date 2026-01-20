@@ -2,8 +2,10 @@
 
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
+import { Box } from '@mui/material';
 import { lightTheme, darkTheme } from './theme';
 import { ThemeContextProvider, useThemeContext } from './context/ThemeContext';
+import Footer from '@/components/layout/Footer';
 
 function MUIThemeProvider({ children }: { children: React.ReactNode }) {
   const { mode } = useThemeContext();
@@ -12,7 +14,18 @@ function MUIThemeProvider({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      {children}
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          minHeight: '100vh',
+        }}
+      >
+        <Box component="main" sx={{ flex: 1 }}>
+          {children}
+        </Box>
+        <Footer />
+      </Box>
     </ThemeProvider>
   );
 }

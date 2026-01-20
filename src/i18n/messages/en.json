@@ -265,6 +265,10 @@
     "saveSuccess": "Saved successfully",
     "deleteSuccess": "Deleted successfully"
   },
+  "footer": {
+    "appName": "Travel Budget",
+    "copyright": "MH Hung. All rights reserved."
+  },
   "trip": {
     "info": "Trip Info",
     "createdAt": "Created:",

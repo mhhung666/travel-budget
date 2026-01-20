@@ -254,6 +254,10 @@
     "saveSuccess": "儲存成功",
     "deleteSuccess": "刪除成功"
   },
+  "footer": {
+    "appName": "旅行記帳",
+    "copyright": "MH Hung. All rights reserved."
+  },
   "auth": {
     "login": {
       "title": "歡迎回來",
