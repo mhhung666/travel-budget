@@ -169,11 +169,7 @@ export default function SettingsPage() {
           </Button>
 
           {/* 標題 */}
-          <Typography
-            variant="h4"
-            fontWeight={700}
-            sx={{ mb: 4, color: 'text.primary' }}
-          >
+          <Typography variant="h4" fontWeight={700} sx={{ mb: 4, color: 'text.primary' }}>
             {t('title')}
           </Typography>
 
@@ -184,7 +180,11 @@ export default function SettingsPage() {
             </Alert>
           )}
           {success && (
-            <Alert severity="success" sx={{ mb: 3, borderRadius: 2 }} onClose={() => setSuccess('')}>
+            <Alert
+              severity="success"
+              sx={{ mb: 3, borderRadius: 2 }}
+              onClose={() => setSuccess('')}
+            >
               {success}
             </Alert>
           )}

@@ -20,28 +20,19 @@ export async function DELETE(
     // 支援 hash_code 或數字 ID
     const tripId = await getTripId(id);
     if (!tripId) {
-      return NextResponse.json(
-        { error: '旅行不存在' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: '旅行不存在' }, { status: 404 });
     }
 
     // 驗證管理員權限
     try {
       await requireAdmin(session.userId, tripId);
     } catch (error) {
-      return NextResponse.json(
-        { error: '只有管理員可以移除成員' },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: '只有管理員可以移除成員' }, { status: 403 });
     }
 
     // 防止管理員移除自己
     if (session.userId === targetUserId) {
-      return NextResponse.json(
-        { error: '管理員不能移除自己' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: '管理員不能移除自己' }, { status: 400 });
     }
 
     // 檢查目標用戶是否是旅行成員
@@ -53,10 +44,7 @@ export async function DELETE(
       .single();
 
     if (!memberCheck) {
-      return NextResponse.json(
-        { error: '該用戶不是此旅行的成員' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: '該用戶不是此旅行的成員' }, { status: 404 });
     }
 
     // 檢查該成員是否有支出記錄
@@ -88,13 +76,10 @@ export async function DELETE(
 
     return NextResponse.json({
       message: '成員已移除',
-      warning: hasExpenses ? '該成員的支出記錄已保留' : undefined
+      warning: hasExpenses ? '該成員的支出記錄已保留' : undefined,
     });
   } catch (error) {
     console.error('Remove member error:', error);
-    return NextResponse.json(
-      { error: '移除成員失敗' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: '移除成員失敗' }, { status: 500 });
   }
 }

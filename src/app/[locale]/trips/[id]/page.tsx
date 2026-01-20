@@ -95,8 +95,8 @@ export default function TripDetailPage() {
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [expenseForm, setExpenseForm] = useState({
     payer_id: 0,
-    original_amount: '',  // 改為 original_amount
-    currency: 'TWD',      // 新增: 幣別
+    original_amount: '', // 改為 original_amount
+    currency: 'TWD', // 新增: 幣別
     exchange_rate: '1.0', // 新增: 匯率
     description: '',
     date: new Date().toISOString().split('T')[0],
@@ -174,7 +174,7 @@ export default function TripDetailPage() {
 
       // 設置默認付款人為當前用戶
       if (authData.user && expenseForm.payer_id === 0) {
-        setExpenseForm(prev => ({ ...prev, payer_id: authData.user.id }));
+        setExpenseForm((prev) => ({ ...prev, payer_id: authData.user.id }));
       }
     } catch (err) {
       setError('載入失敗');
@@ -297,10 +297,10 @@ export default function TripDetailPage() {
   };
 
   const toggleSplitMember = (userId: number) => {
-    setExpenseForm(prev => ({
+    setExpenseForm((prev) => ({
       ...prev,
       split_with: prev.split_with.includes(userId)
-        ? prev.split_with.filter(id => id !== userId)
+        ? prev.split_with.filter((id) => id !== userId)
         : [...prev.split_with, userId],
     }));
   };
@@ -338,10 +338,7 @@ export default function TripDetailPage() {
 
   const handleRemoveMember = async (userId: number) => {
     try {
-      const response = await fetch(
-        `/api/trips/${tripId}/members/${userId}`,
-        { method: 'DELETE' }
-      );
+      const response = await fetch(`/api/trips/${tripId}/members/${userId}`, { method: 'DELETE' });
 
       if (!response.ok) {
         const data = await response.json();
@@ -356,9 +353,7 @@ export default function TripDetailPage() {
     }
   };
 
-  const isCurrentUserAdmin = members.find(
-    m => m.id === currentUser?.id
-  )?.role === 'admin';
+  const isCurrentUserAdmin = members.find((m) => m.id === currentUser?.id)?.role === 'admin';
 
   if (loading) {
     return (
@@ -389,11 +384,7 @@ export default function TripDetailPage() {
           <Alert severity="error" sx={{ mb: 3 }}>
             {error}
           </Alert>
-          <Button
-            onClick={() => router.push('/trips')}
-            variant="contained"
-            size="large"
-          >
+          <Button onClick={() => router.push('/trips')} variant="contained" size="large">
             返回旅行列表
           </Button>
         </Box>
@@ -406,11 +397,15 @@ export default function TripDetailPage() {
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
       <Navbar
-        user={currentUser ? {
-          id: currentUser.id,
-          username: currentUser.display_name,
-          email: currentUser.email
-        } : null}
+        user={
+          currentUser
+            ? {
+                id: currentUser.id,
+                username: currentUser.display_name,
+                email: currentUser.email,
+              }
+            : null
+        }
         showUserMenu={true}
         title={trip.name}
       />
@@ -465,15 +460,15 @@ export default function TripDetailPage() {
                         slotProps={{ input: { readOnly: true } }}
                         sx={{ flex: 1 }}
                       />
-                      <Button
-                        variant="outlined"
-                        startIcon={<ContentCopy />}
-                        onClick={copyHashCode}
-                      >
+                      <Button variant="outlined" startIcon={<ContentCopy />} onClick={copyHashCode}>
                         複製
                       </Button>
                     </Box>
-                    <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ mt: 1, display: 'block' }}
+                    >
                       分享此 ID 給朋友，他們就能加入旅行
                     </Typography>
                   </CardContent>
@@ -506,7 +501,16 @@ export default function TripDetailPage() {
                 </Box>
 
                 <Collapse in={expensesExpanded}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      mb: 2,
+                      flexWrap: 'wrap',
+                      gap: 2,
+                    }}
+                  >
                     <FormControl size="small" sx={{ minWidth: 120 }}>
                       <InputLabel>篩選對象</InputLabel>
                       <Select
@@ -536,117 +540,132 @@ export default function TripDetailPage() {
                   </Box>
 
                   {(() => {
-                  const filteredExpenses = filterMemberId === 'all'
-                    ? expenses
-                    : expenses.filter(expense =>
-                        expense.splits.some(split => split.user_id === filterMemberId)
-                      );
+                    const filteredExpenses =
+                      filterMemberId === 'all'
+                        ? expenses
+                        : expenses.filter((expense) =>
+                            expense.splits.some((split) => split.user_id === filterMemberId)
+                          );
 
-                  if (expenses.length === 0) {
-                    return (
-                      <Box sx={{ textAlign: 'center', py: 8 }}>
-                        <Typography variant="body1" color="text.secondary" gutterBottom>
-                          目前還沒有支出記錄
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          點擊「新增支出」開始記錄!
-                        </Typography>
-                      </Box>
-                    );
-                  }
-
-                  if (filteredExpenses.length === 0) {
-                    return (
-                      <Box sx={{ textAlign: 'center', py: 8 }}>
-                        <Typography variant="body1" color="text.secondary" gutterBottom>
-                          沒有符合篩選條件的支出記錄
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          請選擇其他分帳對象或選擇「全部」
-                        </Typography>
-                      </Box>
-                    );
-                  }
-
-                  return (
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                      {filteredExpenses.map((expense) => (
-                      <Card
-                        key={expense.id}
-                        elevation={0}
-                        sx={{
-                          border: '1px solid',
-                          borderColor: 'divider',
-                          transition: 'all 0.3s',
-                          '&:hover': { boxShadow: 2 },
-                        }}
-                      >
-                        <CardContent>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-                            <Box sx={{ flex: 1 }}>
-                              <Typography variant="subtitle1" fontWeight={600}>
-                                {expense.description}
-                              </Typography>
-                              <Typography variant="body2" color="text.secondary">
-                                {expense.payer_name} 付款 • {new Date(expense.date).toLocaleDateString('zh-TW')}
-                              </Typography>
-                            </Box>
-                            <Box sx={{ textAlign: 'right' }}>
-                              {expense.currency !== 'TWD' ? (
-                                <>
-                                  <Typography variant="body2" color="text.secondary">
-                                    {expense.original_amount.toLocaleString()} {expense.currency} (匯率 {expense.exchange_rate})
-                                  </Typography>
-                                  <Typography variant="h6" color="primary" fontWeight={700}>
-                                    = NT${expense.amount.toLocaleString()}
-                                  </Typography>
-                                </>
-                              ) : (
-                                <Typography variant="h6" color="primary" fontWeight={700}>
-                                  NT${expense.amount.toLocaleString()}
-                                </Typography>
-                              )}
-                              <Box sx={{ display: 'flex', gap: 1, mt: 0.5 }}>
-                                {currentUser?.id === expense.payer_id && (
-                                  <Button
-                                    onClick={() => handleEditExpenseClick(expense)}
-                                    size="small"
-                                    startIcon={<Edit />}
-                                  >
-                                    編輯
-                                  </Button>
-                                )}
-                                <Button
-                                  onClick={() => handleDeleteExpense(expense.id)}
-                                  size="small"
-                                  color="error"
-                                  startIcon={<Delete />}
-                                >
-                                  刪除
-                                </Button>
-                              </Box>
-                            </Box>
-                          </Box>
-                          <Divider sx={{ my: 1.5 }} />
-                          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
-                            分帳對象:
+                    if (expenses.length === 0) {
+                      return (
+                        <Box sx={{ textAlign: 'center', py: 8 }}>
+                          <Typography variant="body1" color="text.secondary" gutterBottom>
+                            目前還沒有支出記錄
                           </Typography>
-                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                            {expense.splits.map((split) => (
-                              <Chip
-                                key={split.user_id}
-                                label={`${split.display_name}: $${split.share_amount.toFixed(0)}`}
-                                size="small"
-                                variant="outlined"
-                              />
-                            ))}
-                          </Box>
-                        </CardContent>
-                      </Card>
-                      ))}
-                    </Box>
-                  );
-                })()}
+                          <Typography variant="body2" color="text.secondary">
+                            點擊「新增支出」開始記錄!
+                          </Typography>
+                        </Box>
+                      );
+                    }
+
+                    if (filteredExpenses.length === 0) {
+                      return (
+                        <Box sx={{ textAlign: 'center', py: 8 }}>
+                          <Typography variant="body1" color="text.secondary" gutterBottom>
+                            沒有符合篩選條件的支出記錄
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            請選擇其他分帳對象或選擇「全部」
+                          </Typography>
+                        </Box>
+                      );
+                    }
+
+                    return (
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        {filteredExpenses.map((expense) => (
+                          <Card
+                            key={expense.id}
+                            elevation={0}
+                            sx={{
+                              border: '1px solid',
+                              borderColor: 'divider',
+                              transition: 'all 0.3s',
+                              '&:hover': { boxShadow: 2 },
+                            }}
+                          >
+                            <CardContent>
+                              <Box
+                                sx={{
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'flex-start',
+                                  mb: 1,
+                                }}
+                              >
+                                <Box sx={{ flex: 1 }}>
+                                  <Typography variant="subtitle1" fontWeight={600}>
+                                    {expense.description}
+                                  </Typography>
+                                  <Typography variant="body2" color="text.secondary">
+                                    {expense.payer_name} 付款 •{' '}
+                                    {new Date(expense.date).toLocaleDateString('zh-TW')}
+                                  </Typography>
+                                </Box>
+                                <Box sx={{ textAlign: 'right' }}>
+                                  {expense.currency !== 'TWD' ? (
+                                    <>
+                                      <Typography variant="body2" color="text.secondary">
+                                        {expense.original_amount.toLocaleString()}{' '}
+                                        {expense.currency} (匯率 {expense.exchange_rate})
+                                      </Typography>
+                                      <Typography variant="h6" color="primary" fontWeight={700}>
+                                        = NT${expense.amount.toLocaleString()}
+                                      </Typography>
+                                    </>
+                                  ) : (
+                                    <Typography variant="h6" color="primary" fontWeight={700}>
+                                      NT${expense.amount.toLocaleString()}
+                                    </Typography>
+                                  )}
+                                  <Box sx={{ display: 'flex', gap: 1, mt: 0.5 }}>
+                                    {currentUser?.id === expense.payer_id && (
+                                      <Button
+                                        onClick={() => handleEditExpenseClick(expense)}
+                                        size="small"
+                                        startIcon={<Edit />}
+                                      >
+                                        編輯
+                                      </Button>
+                                    )}
+                                    <Button
+                                      onClick={() => handleDeleteExpense(expense.id)}
+                                      size="small"
+                                      color="error"
+                                      startIcon={<Delete />}
+                                    >
+                                      刪除
+                                    </Button>
+                                  </Box>
+                                </Box>
+                              </Box>
+                              <Divider sx={{ my: 1.5 }} />
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                display="block"
+                                sx={{ mb: 1 }}
+                              >
+                                分帳對象:
+                              </Typography>
+                              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                                {expense.splits.map((split) => (
+                                  <Chip
+                                    key={split.user_id}
+                                    label={`${split.display_name}: $${split.share_amount.toFixed(0)}`}
+                                    size="small"
+                                    variant="outlined"
+                                  />
+                                ))}
+                              </Box>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </Box>
+                    );
+                  })()}
                 </Collapse>
               </CardContent>
             </Card>
@@ -745,7 +764,13 @@ export default function TripDetailPage() {
                 >
                   查看結算
                 </Button>
-                <Typography variant="caption" color="text.secondary" textAlign="center" display="block" sx={{ mt: 1 }}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  textAlign="center"
+                  display="block"
+                  sx={{ mt: 1 }}
+                >
                   查看每人應付/應收金額
                 </Typography>
               </CardContent>
@@ -753,7 +778,10 @@ export default function TripDetailPage() {
 
             {/* 危險操作區 - 僅管理員可見 */}
             {isCurrentUserAdmin && (
-              <Card elevation={2} sx={{ mt: 3, borderColor: 'error.main', borderWidth: 1, borderStyle: 'solid' }}>
+              <Card
+                elevation={2}
+                sx={{ mt: 3, borderColor: 'error.main', borderWidth: 1, borderStyle: 'solid' }}
+              >
                 <CardContent>
                   <Typography variant="subtitle2" color="error" gutterBottom fontWeight={600}>
                     危險操作
@@ -767,7 +795,12 @@ export default function TripDetailPage() {
                   >
                     刪除此旅行
                   </Button>
-                  <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    display="block"
+                    sx={{ mt: 1 }}
+                  >
                     刪除後將無法恢復，包括所有支出記錄
                   </Typography>
                 </CardContent>
@@ -813,7 +846,15 @@ export default function TripDetailPage() {
               <InputLabel>付款人 *</InputLabel>
               <Select
                 value={expenseForm.payer_id}
-                onChange={(e) => setExpenseForm({ ...expenseForm, payer_id: typeof e.target.value === 'string' ? parseInt(e.target.value) : e.target.value })}
+                onChange={(e) =>
+                  setExpenseForm({
+                    ...expenseForm,
+                    payer_id:
+                      typeof e.target.value === 'string'
+                        ? parseInt(e.target.value)
+                        : e.target.value,
+                  })
+                }
                 label="付款人 *"
                 required
               >
@@ -849,13 +890,17 @@ export default function TripDetailPage() {
               </Select>
             </FormControl>
 
-            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, mb: 2 }}>
+            <Box
+              sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, mb: 2 }}
+            >
               <TextField
                 fullWidth
                 type="number"
                 label="金額 *"
                 value={expenseForm.original_amount}
-                onChange={(e) => setExpenseForm({ ...expenseForm, original_amount: e.target.value })}
+                onChange={(e) =>
+                  setExpenseForm({ ...expenseForm, original_amount: e.target.value })
+                }
                 required
                 inputProps={{ step: '0.01', min: '0.01' }}
                 placeholder="0.00"
@@ -867,7 +912,9 @@ export default function TripDetailPage() {
                   type="number"
                   label="匯率 (對TWD) *"
                   value={expenseForm.exchange_rate}
-                  onChange={(e) => setExpenseForm({ ...expenseForm, exchange_rate: e.target.value })}
+                  onChange={(e) =>
+                    setExpenseForm({ ...expenseForm, exchange_rate: e.target.value })
+                  }
                   required
                   inputProps={{ step: '0.000001', min: '0' }}
                   placeholder="例如: 0.22"
@@ -942,11 +989,19 @@ export default function TripDetailPage() {
                   />
                 ))}
               </Box>
-              {expenseForm.split_with.length > 0 && expenseForm.original_amount && parseFloat(expenseForm.original_amount) > 0 && (
-                <Alert severity="info" icon={<AttachMoney />} sx={{ mt: 1 }}>
-                  每人分擔: <strong>NT${(calculateAddExpenseConvertedAmount() / expenseForm.split_with.length).toFixed(2)}</strong>
-                </Alert>
-              )}
+              {expenseForm.split_with.length > 0 &&
+                expenseForm.original_amount &&
+                parseFloat(expenseForm.original_amount) > 0 && (
+                  <Alert severity="info" icon={<AttachMoney />} sx={{ mt: 1 }}>
+                    每人分擔:{' '}
+                    <strong>
+                      NT$
+                      {(
+                        calculateAddExpenseConvertedAmount() / expenseForm.split_with.length
+                      ).toFixed(2)}
+                    </strong>
+                  </Alert>
+                )}
             </Box>
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 2 }}>
@@ -981,22 +1036,24 @@ export default function TripDetailPage() {
           <Alert severity="warning" sx={{ mb: 2 }} icon={<Warning />}>
             此操作無法復原！
           </Alert>
-          <Typography>
-            確定要刪除「{trip?.name}」嗎？
-          </Typography>
+          <Typography>確定要刪除「{trip?.name}」嗎？</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
             這將永久刪除：
           </Typography>
           <Box component="ul" sx={{ pl: 2, mt: 1 }}>
-            <Typography component="li" variant="body2">所有成員記錄</Typography>
-            <Typography component="li" variant="body2">所有支出記錄</Typography>
-            <Typography component="li" variant="body2">所有分帳資料</Typography>
+            <Typography component="li" variant="body2">
+              所有成員記錄
+            </Typography>
+            <Typography component="li" variant="body2">
+              所有支出記錄
+            </Typography>
+            <Typography component="li" variant="body2">
+              所有分帳資料
+            </Typography>
           </Box>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setDeleteDialogOpen(false)}>
-            取消
-          </Button>
+          <Button onClick={() => setDeleteDialogOpen(false)}>取消</Button>
           <Button
             onClick={handleDeleteTrip}
             color="error"
@@ -1018,17 +1075,13 @@ export default function TripDetailPage() {
       >
         <DialogTitle>移除成員</DialogTitle>
         <DialogContent>
-          <Typography>
-            確定要將「{removeMemberDialog.member?.display_name}」移出旅行嗎？
-          </Typography>
+          <Typography>確定要將「{removeMemberDialog.member?.display_name}」移出旅行嗎？</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
             該成員的支出記錄將會保留
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setRemoveMemberDialog({ open: false, member: null })}>
-            取消
-          </Button>
+          <Button onClick={() => setRemoveMemberDialog({ open: false, member: null })}>取消</Button>
           <Button
             onClick={() => handleRemoveMember(removeMemberDialog.member!.id)}
             color="error"
@@ -1122,20 +1175,21 @@ export default function TripDetailPage() {
               <Typography variant="body2" color="text.secondary" gutterBottom>
                 以下欄位不可修改:
               </Typography>
+              <Typography variant="body2">付款人: {editingExpense?.payer_name}</Typography>
               <Typography variant="body2">
-                付款人: {editingExpense?.payer_name}
+                日期:{' '}
+                {editingExpense ? new Date(editingExpense.date).toLocaleDateString('zh-TW') : ''}
               </Typography>
               <Typography variant="body2">
-                日期: {editingExpense ? new Date(editingExpense.date).toLocaleDateString('zh-TW') : ''}
-              </Typography>
-              <Typography variant="body2">
-                分帳對象: {editingExpense?.splits.map(s => s.display_name).join(', ')}
+                分帳對象: {editingExpense?.splits.map((s) => s.display_name).join(', ')}
               </Typography>
             </Box>
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 2 }}>
             <Button onClick={() => setEditExpenseDialog(false)}>取消</Button>
-            <Button type="submit" variant="contained">儲存修改</Button>
+            <Button type="submit" variant="contained">
+              儲存修改
+            </Button>
           </DialogActions>
         </form>
       </Dialog>

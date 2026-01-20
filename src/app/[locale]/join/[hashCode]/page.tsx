@@ -14,11 +14,7 @@ import {
   Chip,
   Avatar,
 } from '@mui/material';
-import {
-  GroupAdd,
-  Info,
-  People,
-} from '@mui/icons-material';
+import { GroupAdd, Info, People } from '@mui/icons-material';
 
 interface Trip {
   id: number;
@@ -141,10 +137,7 @@ export default function QuickJoinPage() {
             <Alert severity="error" sx={{ mb: 3 }}>
               {error}
             </Alert>
-            <Button
-              variant="contained"
-              onClick={() => router.push('/trips')}
-            >
+            <Button variant="contained" onClick={() => router.push('/trips')}>
               返回旅行列表
             </Button>
           </CardContent>
@@ -230,7 +223,11 @@ export default function QuickJoinPage() {
                   {isJoining ? '加入中...' : '加入此旅行'}
                 </Button>
 
-                <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block' }}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ mt: 2, display: 'block' }}
+                >
                   加入後，您可以查看和新增支出記錄
                 </Typography>
               </>
@@ -239,10 +236,7 @@ export default function QuickJoinPage() {
         </Card>
 
         <Box sx={{ textAlign: 'center', mt: 3 }}>
-          <Button
-            variant="text"
-            onClick={() => router.push('/trips')}
-          >
+          <Button variant="text" onClick={() => router.push('/trips')}>
             返回旅行列表
           </Button>
         </Box>

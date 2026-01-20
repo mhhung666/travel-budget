@@ -107,11 +107,7 @@ export default function SettlementPage() {
           <Alert severity="error" sx={{ mb: 3 }}>
             {error}
           </Alert>
-          <Button
-            onClick={() => router.push(`/trips/${tripId}`)}
-            variant="contained"
-            size="large"
-          >
+          <Button onClick={() => router.push(`/trips/${tripId}`)} variant="contained" size="large">
             返回旅行詳情
           </Button>
         </Box>
@@ -121,11 +117,7 @@ export default function SettlementPage() {
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
-      <Navbar
-        user={null}
-        showUserMenu={true}
-        title="結算總覽"
-      />
+      <Navbar user={null} showUserMenu={true} title="結算總覽" />
 
       <Container maxWidth="lg" sx={{ pt: { xs: 10, sm: 12 }, pb: 4 }}>
         {/* 返回按鈕 */}
@@ -163,7 +155,9 @@ export default function SettlementPage() {
           </CardContent>
         </Card>
 
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 3 }}>
+        <Box
+          sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 3 }}
+        >
           {/* 每人統計 */}
           <Card elevation={2}>
             <CardContent>
@@ -178,7 +172,14 @@ export default function SettlementPage() {
                     sx={{ border: '1px solid', borderColor: 'divider' }}
                   >
                     <CardContent>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'flex-start',
+                          mb: 1,
+                        }}
+                      >
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <Avatar sx={{ bgcolor: 'primary.main', width: 32, height: 32 }}>
                             {balance.username.charAt(0)}
@@ -202,8 +203,8 @@ export default function SettlementPage() {
                             balance.balance > 0
                               ? 'success'
                               : balance.balance < 0
-                              ? 'error'
-                              : 'default'
+                                ? 'error'
+                                : 'default'
                           }
                           sx={{ fontWeight: 700 }}
                         />
@@ -238,15 +239,11 @@ export default function SettlementPage() {
                               balance.balance > 0
                                 ? 'success.main'
                                 : balance.balance < 0
-                                ? 'error.main'
-                                : 'text.secondary'
+                                  ? 'error.main'
+                                  : 'text.secondary'
                             }
                           >
-                            {balance.balance > 0
-                              ? '應收'
-                              : balance.balance < 0
-                              ? '應付'
-                              : '已結清'}
+                            {balance.balance > 0 ? '應收' : balance.balance < 0 ? '應付' : '已結清'}
                           </Typography>
                         </Box>
                       </Box>
@@ -265,7 +262,12 @@ export default function SettlementPage() {
                   結算方案
                 </Typography>
                 {transactions.length > 0 && (
-                  <Typography variant="body2" color="text.secondary" component="span" sx={{ ml: 1 }}>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    component="span"
+                    sx={{ ml: 1 }}
+                  >
                     (共 {transactions.length} 筆轉帳)
                   </Typography>
                 )}
@@ -305,7 +307,15 @@ export default function SettlementPage() {
                             }}
                           >
                             {/* 付款人 */}
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: { xs: '100%', sm: 'auto' }, justifyContent: { xs: 'center', sm: 'flex-start' } }}>
+                            <Box
+                              sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 1.5,
+                                width: { xs: '100%', sm: 'auto' },
+                                justifyContent: { xs: 'center', sm: 'flex-start' },
+                              }}
+                            >
                               <Avatar
                                 sx={{
                                   bgcolor: 'error.main',
@@ -320,7 +330,11 @@ export default function SettlementPage() {
                                 <Typography variant="caption" sx={{ color: 'rgba(0, 0, 0, 0.6)' }}>
                                   付款人
                                 </Typography>
-                                <Typography variant="body1" fontWeight={600} sx={{ color: 'rgba(0, 0, 0, 0.87)' }}>
+                                <Typography
+                                  variant="body1"
+                                  fontWeight={600}
+                                  sx={{ color: 'rgba(0, 0, 0, 0.87)' }}
+                                >
                                   {transaction.from}
                                 </Typography>
                               </Box>
@@ -340,12 +354,24 @@ export default function SettlementPage() {
                             </Box>
 
                             {/* 收款人 */}
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: { xs: '100%', sm: 'auto' }, justifyContent: { xs: 'center', sm: 'flex-end' } }}>
+                            <Box
+                              sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 1.5,
+                                width: { xs: '100%', sm: 'auto' },
+                                justifyContent: { xs: 'center', sm: 'flex-end' },
+                              }}
+                            >
                               <Box sx={{ textAlign: 'right' }}>
                                 <Typography variant="caption" sx={{ color: 'rgba(0, 0, 0, 0.6)' }}>
                                   收款人
                                 </Typography>
-                                <Typography variant="body1" fontWeight={600} sx={{ color: 'rgba(0, 0, 0, 0.87)' }}>
+                                <Typography
+                                  variant="body1"
+                                  fontWeight={600}
+                                  sx={{ color: 'rgba(0, 0, 0, 0.87)' }}
+                                >
                                   {transaction.to}
                                 </Typography>
                               </Box>
@@ -367,7 +393,8 @@ export default function SettlementPage() {
                   </Box>
 
                   <Alert severity="info" icon={<Lightbulb />} sx={{ mt: 3 }}>
-                    <strong>提示:</strong> 這是經過優化的最少轉帳次數方案,按照此方案進行轉帳即可完成結算。
+                    <strong>提示:</strong>{' '}
+                    這是經過優化的最少轉帳次數方案,按照此方案進行轉帳即可完成結算。
                   </Alert>
                 </Box>
               )}

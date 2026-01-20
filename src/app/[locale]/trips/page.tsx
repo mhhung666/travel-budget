@@ -20,13 +20,7 @@ import {
   Snackbar,
   Chip,
 } from '@mui/material';
-import {
-  Add,
-  GroupAdd,
-  People,
-  CalendarToday,
-  ContentCopy,
-} from '@mui/icons-material';
+import { Add, GroupAdd, People, CalendarToday, ContentCopy } from '@mui/icons-material';
 import Navbar from '@/components/layout/Navbar';
 
 interface Trip {
@@ -164,11 +158,15 @@ export default function TripsPage() {
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
       <Navbar
-        user={user ? {
-          id: user.id,
-          username: user.display_name,
-          email: user.email
-        } : null}
+        user={
+          user
+            ? {
+                id: user.id,
+                username: user.display_name,
+                email: user.email,
+              }
+            : null
+        }
         showUserMenu={true}
         title="我的旅行"
       />
@@ -176,7 +174,16 @@ export default function TripsPage() {
       <Container maxWidth="lg" sx={{ pt: { xs: 10, sm: 12 }, pb: 4 }}>
         <Card elevation={2}>
           <CardContent sx={{ p: 3 }}>
-            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'stretch', sm: 'center' }, gap: 2, mb: 3 }}>
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: { xs: 'column', sm: 'row' },
+                justifyContent: 'space-between',
+                alignItems: { xs: 'stretch', sm: 'center' },
+                gap: 2,
+                mb: 3,
+              }}
+            >
               <Typography variant="h5" fontWeight={600}>
                 旅行列表
               </Typography>
@@ -210,7 +217,13 @@ export default function TripsPage() {
                 </Typography>
               </Box>
             ) : (
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' }, gap: 2 }}>
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' },
+                  gap: 2,
+                }}
+              >
                 {trips.map((trip) => (
                   <Card
                     key={trip.id}
@@ -235,7 +248,16 @@ export default function TripsPage() {
                             {trip.description}
                           </Typography>
                         )}
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1, mb: 1 }}>
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            flexWrap: 'wrap',
+                            gap: 1,
+                            mb: 1,
+                          }}
+                        >
                           <Chip
                             icon={<People />}
                             label={`${trip.member_count} 位成員`}
@@ -256,7 +278,7 @@ export default function TripsPage() {
                           icon={<ContentCopy fontSize="small" />}
                           sx={{
                             cursor: 'pointer',
-                            '&:hover': { bgcolor: 'primary.50' }
+                            '&:hover': { bgcolor: 'primary.50' },
                           }}
                         />
                       </CardContent>

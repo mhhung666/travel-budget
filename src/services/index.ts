@@ -13,12 +13,7 @@ export type {
 
 // Trip service
 export { tripService } from './trip.service';
-export type {
-  Trip,
-  TripWithMembers,
-  CreateTripRequest,
-  UpdateTripRequest,
-} from './trip.service';
+export type { Trip, TripWithMembers, CreateTripRequest, UpdateTripRequest } from './trip.service';
 
 // Expense service
 export { expenseService } from './expense.service';

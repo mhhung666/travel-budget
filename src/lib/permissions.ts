@@ -17,10 +17,7 @@ export type TripRole = 'admin' | 'member';
  * @param tripId 旅行 ID (可以是數字 ID 或 hash_code)
  * @returns 是否為管理員
  */
-export async function isAdmin(
-  userId: number,
-  tripId: number | string
-): Promise<boolean> {
+export async function isAdmin(userId: number, tripId: number | string): Promise<boolean> {
   try {
     // 先取得旅行的實際 ID
     const actualTripId = await getTripId(tripId);
@@ -53,10 +50,7 @@ export async function isAdmin(
  * @param tripId 旅行 ID (可以是數字 ID 或 hash_code)
  * @returns 是否為成員
  */
-export async function isMember(
-  userId: number,
-  tripId: number | string
-): Promise<boolean> {
+export async function isMember(userId: number, tripId: number | string): Promise<boolean> {
   try {
     const actualTripId = await getTripId(tripId);
     if (!actualTripId) {
@@ -176,10 +170,7 @@ export async function getTripHashCode(tripId: number): Promise<string | null> {
  * @param tripId 旅行 ID
  * @throws 如果用戶不是管理員
  */
-export async function requireAdmin(
-  userId: number,
-  tripId: number | string
-): Promise<void> {
+export async function requireAdmin(userId: number, tripId: number | string): Promise<void> {
   const isUserAdmin = await isAdmin(userId, tripId);
   if (!isUserAdmin) {
     throw new Error('Forbidden: Admin role required');
@@ -192,10 +183,7 @@ export async function requireAdmin(
  * @param tripId 旅行 ID
  * @throws 如果用戶不是成員
  */
-export async function requireMember(
-  userId: number,
-  tripId: number | string
-): Promise<void> {
+export async function requireMember(userId: number, tripId: number | string): Promise<void> {
   const isUserMember = await isMember(userId, tripId);
   if (!isUserMember) {
     throw new Error('Forbidden: Trip member required');

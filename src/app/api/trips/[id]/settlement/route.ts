@@ -5,10 +5,7 @@ import { calculateSettlement } from '@/lib/settlement';
 import { getTripId } from '@/lib/permissions';
 
 // 獲取旅行結算
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getSession();
     if (!session) {
@@ -20,10 +17,7 @@ export async function GET(
     // 支援 hash_code 或數字 ID
     const tripId = await getTripId(id);
     if (!tripId) {
-      return NextResponse.json(
-        { error: '旅行不存在' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: '旅行不存在' }, { status: 404 });
     }
 
     // 檢查用戶是否是此旅行的成員
@@ -35,22 +29,21 @@ export async function GET(
       .single();
 
     if (memberError || !isMember) {
-      return NextResponse.json(
-        { error: '您不是此旅行的成員' },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: '您不是此旅行的成員' }, { status: 403 });
     }
 
     // 獲取所有成員
     const { data: membersData } = await supabase
       .from('trip_members')
-      .select(`
+      .select(
+        `
         users!inner (
           id,
           username,
           display_name
         )
-      `)
+      `
+      )
       .eq('trip_id', tripId);
 
     const members = membersData?.map((m: any) => m.users) || [];
@@ -89,7 +82,7 @@ export async function GET(
     );
 
     // 使用結算演算法計算轉帳方案 (需要複製一份數據,因為演算法會修改 balance)
-    const balancesForCalculation = balances.map(b => ({ ...b }));
+    const balancesForCalculation = balances.map((b) => ({ ...b }));
     const transactions = calculateSettlement(balancesForCalculation);
 
     // 計算總支出
@@ -107,9 +100,6 @@ export async function GET(
     });
   } catch (error) {
     console.error('Get settlement error:', error);
-    return NextResponse.json(
-      { error: '獲取結算信息失敗' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: '獲取結算信息失敗' }, { status: 500 });
   }
 }

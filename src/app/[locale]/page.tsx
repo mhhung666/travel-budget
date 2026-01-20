@@ -166,10 +166,19 @@ export default function Home() {
                 >
                   <Add sx={{ fontSize: 28, color: 'white' }} />
                 </Box>
-                <Typography variant="h6" fontWeight={600} gutterBottom sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }}>
+                <Typography
+                  variant="h6"
+                  fontWeight={600}
+                  gutterBottom
+                  sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }}
+                >
                   {t('features.easyTracking.title')}
                 </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}
+                >
                   {t('features.easyTracking.description')}
                 </Typography>
               </CardContent>
@@ -200,10 +209,19 @@ export default function Home() {
                 >
                   <Calculate sx={{ fontSize: 28, color: 'white' }} />
                 </Box>
-                <Typography variant="h6" fontWeight={600} gutterBottom sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }}>
+                <Typography
+                  variant="h6"
+                  fontWeight={600}
+                  gutterBottom
+                  sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }}
+                >
                   {t('features.smartSplit.title')}
                 </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}
+                >
                   {t('features.smartSplit.description')}
                 </Typography>
               </CardContent>
@@ -234,10 +252,19 @@ export default function Home() {
                 >
                   <Payments sx={{ fontSize: 28, color: 'white' }} />
                 </Box>
-                <Typography variant="h6" fontWeight={600} gutterBottom sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }}>
+                <Typography
+                  variant="h6"
+                  fontWeight={600}
+                  gutterBottom
+                  sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }}
+                >
                   {t('features.quickSettlement.title')}
                 </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}
+                >
                   {t('features.quickSettlement.description')}
                 </Typography>
               </CardContent>

@@ -1,6 +1,15 @@
 'use client';
 
-import { Card, CardContent, Typography, Box, Chip, IconButton, Avatar, Collapse } from '@mui/material';
+import {
+  Card,
+  CardContent,
+  Typography,
+  Box,
+  Chip,
+  IconButton,
+  Avatar,
+  Collapse,
+} from '@mui/material';
 import { Edit, Delete, ExpandMore, ExpandLess } from '@mui/icons-material';
 import { useState } from 'react';
 import { formatCurrency, getCurrencySymbol } from '@/constants/currencies';

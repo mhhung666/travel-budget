@@ -1,7 +1,16 @@
 'use client';
 
 import { useState } from 'react';
-import { Box, TextField, Button, Typography, Card, CardContent, Snackbar, Alert } from '@mui/material';
+import {
+  Box,
+  TextField,
+  Button,
+  Typography,
+  Card,
+  CardContent,
+  Snackbar,
+  Alert,
+} from '@mui/material';
 import { ContentCopy } from '@mui/icons-material';
 
 export interface ShareCodeProps {

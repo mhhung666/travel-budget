@@ -20,10 +20,7 @@ export async function PUT(
     // 支援 hash_code 或數字 ID
     const tripId = await getTripId(id);
     if (!tripId) {
-      return NextResponse.json(
-        { error: '旅行不存在' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: '旅行不存在' }, { status: 404 });
     }
 
     const expenseIdNum = parseInt(expenseId);
@@ -37,10 +34,7 @@ export async function PUT(
       .single();
 
     if (memberError || !isMember) {
-      return NextResponse.json(
-        { error: '您不是此旅行的成員' },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: '您不是此旅行的成員' }, { status: 403 });
     }
 
     // 檢查支出是否存在且屬於該旅行
@@ -52,51 +46,33 @@ export async function PUT(
       .single();
 
     if (expenseError || !expense) {
-      return NextResponse.json(
-        { error: '支出不存在' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: '支出不存在' }, { status: 404 });
     }
 
     // 只有付款人可以編輯支出
     if (expense.payer_id !== session.userId) {
-      return NextResponse.json(
-        { error: '只有付款人可以編輯此支出' },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: '只有付款人可以編輯此支出' }, { status: 403 });
     }
 
     // 驗證輸入
     const { description, original_amount, currency, exchange_rate } = body;
 
     if (description !== undefined && description.trim() === '') {
-      return NextResponse.json(
-        { error: '項目描述不可為空' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: '項目描述不可為空' }, { status: 400 });
     }
 
     if (original_amount !== undefined && original_amount <= 0) {
-      return NextResponse.json(
-        { error: '金額必須大於 0' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: '金額必須大於 0' }, { status: 400 });
     }
 
     if (currency !== undefined) {
       const validCurrencies = ['TWD', 'JPY', 'USD', 'EUR', 'HKD'];
       if (!validCurrencies.includes(currency)) {
-        return NextResponse.json(
-          { error: '不支援的幣別' },
-          { status: 400 }
-        );
+        return NextResponse.json({ error: '不支援的幣別' }, { status: 400 });
       }
 
       if (currency !== 'TWD' && (!exchange_rate || exchange_rate <= 0)) {
-        return NextResponse.json(
-          { error: '匯率必須大於 0' },
-          { status: 400 }
-        );
+        return NextResponse.json({ error: '匯率必須大於 0' }, { status: 400 });
       }
     }
 
@@ -157,7 +133,8 @@ export async function PUT(
     // 獲取更新後的支出資料
     const { data: updatedExpense, error: fetchError } = await supabase
       .from('expenses')
-      .select(`
+      .select(
+        `
         *,
         payer:users!expenses_payer_id_fkey(username),
         expense_splits(
@@ -165,7 +142,8 @@ export async function PUT(
           share_amount,
           user:users(username)
         )
-      `)
+      `
+      )
       .eq('id', expenseIdNum)
       .single();
 
@@ -188,10 +166,7 @@ export async function PUT(
     });
   } catch (error) {
     console.error('Update expense error:', error);
-    return NextResponse.json(
-      { error: '更新支出失敗' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: '更新支出失敗' }, { status: 500 });
   }
 }
 
@@ -211,10 +186,7 @@ export async function DELETE(
     // 支援 hash_code 或數字 ID
     const tripId = await getTripId(id);
     if (!tripId) {
-      return NextResponse.json(
-        { error: '旅行不存在' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: '旅行不存在' }, { status: 404 });
     }
 
     const expenseIdNum = parseInt(expenseId);
@@ -228,10 +200,7 @@ export async function DELETE(
       .single();
 
     if (memberError || !isMember) {
-      return NextResponse.json(
-        { error: '您不是此旅行的成員' },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: '您不是此旅行的成員' }, { status: 403 });
     }
 
     // 檢查支出是否存在且屬於該旅行
@@ -243,17 +212,11 @@ export async function DELETE(
       .single();
 
     if (expenseError || !expense) {
-      return NextResponse.json(
-        { error: '支出不存在' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: '支出不存在' }, { status: 404 });
     }
 
     // 刪除支出(分帳記錄會因為外鍵級聯刪除)
-    const { error: deleteError } = await supabase
-      .from('expenses')
-      .delete()
-      .eq('id', expenseIdNum);
+    const { error: deleteError } = await supabase.from('expenses').delete().eq('id', expenseIdNum);
 
     if (deleteError) {
       throw deleteError;
@@ -262,9 +225,6 @@ export async function DELETE(
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Delete expense error:', error);
-    return NextResponse.json(
-      { error: '刪除支出失敗' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: '刪除支出失敗' }, { status: 500 });
   }
 }

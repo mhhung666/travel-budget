@@ -79,9 +79,11 @@ export function ThemeContextProvider({ children }: { children: ReactNode }) {
 
 export function useThemeContext() {
   const context = useContext(ThemeContext);
-  return context || {
-    mode: 'light' as ThemeMode,
-    toggleTheme: () => {},
-    setThemeMode: () => {}
-  };
+  return (
+    context || {
+      mode: 'light' as ThemeMode,
+      toggleTheme: () => {},
+      setThemeMode: () => {},
+    }
+  );
 }

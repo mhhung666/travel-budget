@@ -46,7 +46,8 @@ export const expenseService = {
   /**
    * Get all expenses for a trip
    */
-  getExpenses: (tripId: string) => api.get<{ expenses: Expense[] }>(`/api/trips/${tripId}/expenses`),
+  getExpenses: (tripId: string) =>
+    api.get<{ expenses: Expense[] }>(`/api/trips/${tripId}/expenses`),
 
   /**
    * Get a single expense

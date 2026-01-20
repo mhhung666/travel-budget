@@ -30,9 +30,8 @@ export default function LanguageSwitcher() {
     const pathWithoutLocale = pathname.replace(`/${locale}`, '');
 
     // 如果是默认语言（中文），不需要前缀
-    const newPath = newLocale === 'zh'
-      ? pathWithoutLocale || '/'
-      : `/${newLocale}${pathWithoutLocale || '/'}`;
+    const newPath =
+      newLocale === 'zh' ? pathWithoutLocale || '/' : `/${newLocale}${pathWithoutLocale || '/'}`;
 
     router.push(newPath);
     handleClose();
