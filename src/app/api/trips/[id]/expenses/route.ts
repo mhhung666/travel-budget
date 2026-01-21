@@ -42,6 +42,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         currency,
         exchange_rate,
         description,
+        category,
         date,
         created_at,
         payer:users!expenses_payer_id_fkey (
@@ -96,6 +97,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
           currency: expense.currency,
           exchange_rate: expense.exchange_rate,
           description: expense.description,
+          category: expense.category || 'other',
           date: expense.date,
           created_at: expense.created_at,
           payer_id: payer?.id,
@@ -148,6 +150,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       currency = 'TWD', // 新增: 幣別,預設 TWD
       exchange_rate = 1.0, // 新增: 匯率,預設 1.0
       description,
+      category = 'other', // 消費類別,預設 other
       date,
       split_with,
     } = body;
@@ -177,6 +180,20 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     // 驗證匯率
     if (currency !== 'TWD' && (!exchange_rate || exchange_rate <= 0)) {
       return NextResponse.json({ error: '匯率必須大於 0' }, { status: 400 });
+    }
+
+    // 驗證類別
+    const validCategories = [
+      'accommodation',
+      'transportation',
+      'food',
+      'shopping',
+      'entertainment',
+      'tickets',
+      'other',
+    ];
+    if (!validCategories.includes(category)) {
+      return NextResponse.json({ error: '不支援的消費類別' }, { status: 400 });
     }
 
     // 計算 TWD 金額
@@ -214,6 +231,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         currency, // 幣別
         exchange_rate, // 匯率
         description,
+        category, // 消費類別
         date,
       })
       .select()
@@ -249,6 +267,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         currency,
         exchange_rate,
         description,
+        category,
         date,
         created_at,
         payer:users!expenses_payer_id_fkey (
@@ -270,6 +289,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       currency: expense?.currency,
       exchange_rate: expense?.exchange_rate,
       description: expense?.description,
+      category: expense?.category || 'other',
       date: expense?.date,
       created_at: expense?.created_at,
       payer_id: payer?.id,

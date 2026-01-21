@@ -50,7 +50,7 @@ export async function PUT(
     }
 
     // 驗證輸入
-    const { description, original_amount, currency, exchange_rate } = body;
+    const { description, original_amount, currency, exchange_rate, category } = body;
 
     if (description !== undefined && description.trim() === '') {
       return NextResponse.json({ error: '項目描述不可為空' }, { status: 400 });
@@ -71,12 +71,28 @@ export async function PUT(
       }
     }
 
+    if (category !== undefined) {
+      const validCategories = [
+        'accommodation',
+        'transportation',
+        'food',
+        'shopping',
+        'entertainment',
+        'tickets',
+        'other',
+      ];
+      if (!validCategories.includes(category)) {
+        return NextResponse.json({ error: '不支援的消費類別' }, { status: 400 });
+      }
+    }
+
     // 準備更新資料
     const updateData: any = {};
     if (description !== undefined) updateData.description = description.trim();
     if (original_amount !== undefined) updateData.original_amount = original_amount;
     if (currency !== undefined) updateData.currency = currency;
     if (exchange_rate !== undefined) updateData.exchange_rate = exchange_rate;
+    if (category !== undefined) updateData.category = category;
 
     // 如果修改了金額或匯率,需要重新計算 TWD 金額
     if (original_amount !== undefined || exchange_rate !== undefined) {

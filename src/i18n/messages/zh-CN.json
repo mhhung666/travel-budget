@@ -162,6 +162,7 @@
       "currency": "币种",
       "exchangeRate": "汇率 (换算为 TWD)",
       "description": "描述",
+      "category": "消费类别",
       "date": "日期",
       "payer": "付款人",
       "splitWith": "分账对象",
@@ -245,6 +246,15 @@
     "USD_full": "USD - 美元",
     "EUR_full": "EUR - 欧元",
     "HKD_full": "HKD - 港币"
+  },
+  "category": {
+    "accommodation": "住宿",
+    "transportation": "交通",
+    "food": "餐饮",
+    "shopping": "购物",
+    "entertainment": "娱乐",
+    "tickets": "票券",
+    "other": "其他"
   },
   "error": {
     "network": "网络错误，请稍后重试",

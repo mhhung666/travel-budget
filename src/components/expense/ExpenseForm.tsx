@@ -20,6 +20,7 @@ import {
   CircularProgress,
 } from '@mui/material';
 import { CURRENCIES, formatCurrency } from '@/constants/currencies';
+import { CATEGORIES, DEFAULT_CATEGORY } from '@/constants/categories';
 import type { Member } from '@/services/member.service';
 import type {
   Expense,
@@ -33,6 +34,7 @@ export interface ExpenseFormData {
   currency: string;
   exchange_rate: string;
   description: string;
+  category: string;
   date: string;
   split_with: number[];
 }
@@ -56,6 +58,7 @@ const defaultFormData: ExpenseFormData = {
   currency: 'TWD',
   exchange_rate: '1.0',
   description: '',
+  category: DEFAULT_CATEGORY,
   date: new Date().toISOString().split('T')[0],
   split_with: [],
 };
@@ -112,6 +115,7 @@ export function ExpenseForm({
           currency: editingExpense.currency,
           exchange_rate: editingExpense.exchange_rate.toString(),
           description: editingExpense.description,
+          category: editingExpense.category || DEFAULT_CATEGORY,
           date: editingExpense.date,
           split_with: editingExpense.splits.map((s) => s.user_id),
         });
@@ -165,6 +169,7 @@ export function ExpenseForm({
         currency: form.currency,
         exchange_rate: parseFloat(form.exchange_rate),
         description: form.description.trim(),
+        category: form.category,
         date: form.date,
         split_with: form.split_with,
       };
@@ -175,6 +180,7 @@ export function ExpenseForm({
         currency: form.currency,
         exchange_rate: parseFloat(form.exchange_rate),
         description: form.description.trim(),
+        category: form.category,
       };
       await onSubmit(data);
     }
@@ -222,6 +228,22 @@ export function ExpenseForm({
               required
               disabled={loading}
             />
+
+            <FormControl fullWidth>
+              <InputLabel>Category</InputLabel>
+              <Select
+                value={form.category}
+                onChange={handleChange('category') as any}
+                label="Category"
+                disabled={loading}
+              >
+                {CATEGORIES.map((c) => (
+                  <MenuItem key={c.code} value={c.code}>
+                    {c.icon} {c.code.charAt(0).toUpperCase() + c.code.slice(1)}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
 
             <Box sx={{ display: 'flex', gap: 2 }}>
               <TextField

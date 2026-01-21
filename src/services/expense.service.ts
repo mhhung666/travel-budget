@@ -17,6 +17,7 @@ export interface Expense {
   currency: string;
   exchange_rate: number;
   description: string;
+  category: string; // expense category
   date: string;
   created_at: string;
   splits: ExpenseSplit[];
@@ -28,6 +29,7 @@ export interface CreateExpenseRequest {
   currency: string;
   exchange_rate: number;
   description: string;
+  category: string;
   date: string;
   split_with: number[];
 }
@@ -37,6 +39,7 @@ export interface UpdateExpenseRequest {
   currency?: string;
   exchange_rate?: number;
   description?: string;
+  category?: string;
 }
 
 /**
