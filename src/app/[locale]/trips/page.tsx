@@ -20,14 +20,27 @@ import {
   Snackbar,
   Chip,
 } from '@mui/material';
-import { Add, GroupAdd, People, CalendarToday, ContentCopy } from '@mui/icons-material';
+import { Add, GroupAdd, People, CalendarToday, ContentCopy, LocationOn, DateRange } from '@mui/icons-material';
 import Navbar from '@/components/layout/Navbar';
 import { useTranslations, useLocale } from 'next-intl';
+import LocationAutocomplete, { LocationOption } from '@/components/location/LocationAutocomplete';
+
+interface Location {
+  name: string;
+  display_name: string;
+  lat: number;
+  lon: number;
+  country?: string;
+  country_code?: string;
+}
 
 interface Trip {
   id: number;
   name: string;
   description: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  location: Location | null;
   created_at: string;
   member_count: number;
   hash_code: string;
@@ -44,7 +57,13 @@ export default function TripsPage() {
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
-  const [formData, setFormData] = useState({ name: '', description: '' });
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    start_date: '',
+    end_date: '',
+  });
+  const [selectedLocation, setSelectedLocation] = useState<LocationOption | null>(null);
   const [joinTripId, setJoinTripId] = useState('');
   const [error, setError] = useState('');
   const [snackbar, setSnackbar] = useState({
@@ -89,10 +108,17 @@ export default function TripsPage() {
     setError('');
 
     try {
+      const requestBody = {
+        ...formData,
+        start_date: formData.start_date || null,
+        end_date: formData.end_date || null,
+        location: selectedLocation || null,
+      };
+
       const response = await fetch('/api/trips', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(requestBody),
       });
 
       const data = await response.json();
@@ -102,7 +128,8 @@ export default function TripsPage() {
       }
 
       setShowCreateModal(false);
-      setFormData({ name: '', description: '' });
+      setFormData({ name: '', description: '', start_date: '', end_date: '' });
+      setSelectedLocation(null);
       await loadTrips();
     } catch (err: any) {
       setError(err.message);
@@ -253,6 +280,38 @@ export default function TripsPage() {
                             {trip.description}
                           </Typography>
                         )}
+
+                        {/* 地點顯示 */}
+                        {trip.location && (
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1 }}>
+                            <LocationOn fontSize="small" color="action" />
+                            <Typography variant="body2" color="text.secondary">
+                              {trip.location.name}
+                              {trip.location.country && `, ${trip.location.country}`}
+                            </Typography>
+                          </Box>
+                        )}
+
+                        {/* 日期顯示 */}
+                        {(trip.start_date || trip.end_date) && (
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1 }}>
+                            <DateRange fontSize="small" color="action" />
+                            <Typography variant="body2" color="text.secondary">
+                              {trip.start_date
+                                ? new Date(trip.start_date).toLocaleDateString(
+                                    locale === 'zh' ? 'zh-TW' : locale === 'jp' ? 'ja-JP' : 'en-US'
+                                  )
+                                : ''}
+                              {trip.start_date && trip.end_date && ' ~ '}
+                              {trip.end_date
+                                ? new Date(trip.end_date).toLocaleDateString(
+                                    locale === 'zh' ? 'zh-TW' : locale === 'jp' ? 'ja-JP' : 'en-US'
+                                  )
+                                : ''}
+                            </Typography>
+                          </Box>
+                        )}
+
                         <Box
                           sx={{
                             display: 'flex',
@@ -304,7 +363,8 @@ export default function TripsPage() {
         onClose={() => {
           setShowCreateModal(false);
           setError('');
-          setFormData({ name: '', description: '' });
+          setFormData({ name: '', description: '', start_date: '', end_date: '' });
+          setSelectedLocation(null);
         }}
         maxWidth="sm"
         fullWidth
@@ -332,14 +392,50 @@ export default function TripsPage() {
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               multiline
               rows={3}
+              sx={{ mb: 2 }}
             />
+
+            {/* 旅遊地點 */}
+            <LocationAutocomplete
+              value={selectedLocation}
+              onChange={setSelectedLocation}
+              label={t('create.location')}
+              placeholder={t('create.locationPlaceholder')}
+              helperText={t('create.locationHelp')}
+            />
+
+            {/* 旅遊時間區間 */}
+            <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+              <TextField
+                fullWidth
+                label={t('create.startDate')}
+                type="date"
+                value={formData.start_date}
+                onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                slotProps={{
+                  inputLabel: { shrink: true },
+                }}
+              />
+              <TextField
+                fullWidth
+                label={t('create.endDate')}
+                type="date"
+                value={formData.end_date}
+                onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+                slotProps={{
+                  inputLabel: { shrink: true },
+                  htmlInput: { min: formData.start_date || undefined },
+                }}
+              />
+            </Box>
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 2 }}>
             <Button
               onClick={() => {
                 setShowCreateModal(false);
                 setError('');
-                setFormData({ name: '', description: '' });
+                setFormData({ name: '', description: '', start_date: '', end_date: '' });
+                setSelectedLocation(null);
               }}
             >
               {tCommon('cancel')}

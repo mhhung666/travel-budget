@@ -1,10 +1,23 @@
 import { api } from './api';
 
+// 地點資訊
+export interface Location {
+  name: string;
+  display_name: string;
+  lat: number;
+  lon: number;
+  country?: string;
+  country_code?: string;
+}
+
 export interface Trip {
   id: number;
   name: string;
   description: string | null;
   hash_code: string;
+  start_date: string | null;
+  end_date: string | null;
+  location: Location | null;
   created_at: string;
 }
 
@@ -16,11 +29,17 @@ export interface TripWithMembers extends Trip {
 export interface CreateTripRequest {
   name: string;
   description?: string;
+  start_date?: string;
+  end_date?: string;
+  location?: Location;
 }
 
 export interface UpdateTripRequest {
   name?: string;
-  description?: string;
+  description?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  location?: Location | null;
 }
 
 /**

@@ -47,11 +47,24 @@ import {
   ExpandLess,
 } from '@mui/icons-material';
 import Navbar from '@/components/layout/Navbar';
+import LocationAutocomplete, { LocationOption } from '@/components/location/LocationAutocomplete';
+
+interface Location {
+  name: string;
+  display_name: string;
+  lat: number;
+  lon: number;
+  country?: string;
+  country_code?: string;
+}
 
 interface Trip {
   id: number;
   name: string;
   description: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  location: Location | null;
   created_at: string;
   hash_code: string;
 }
@@ -142,6 +155,17 @@ export default function TripDetailPage() {
     currency: 'TWD',
     exchange_rate: '1.0',
   });
+
+  // 編輯旅行相關 state
+  const [editTripDialog, setEditTripDialog] = useState(false);
+  const [editTripForm, setEditTripForm] = useState({
+    name: '',
+    description: '',
+    start_date: '',
+    end_date: '',
+  });
+  const [editTripLocation, setEditTripLocation] = useState<LocationOption | null>(null);
+  const [isSavingTrip, setIsSavingTrip] = useState(false);
 
   useEffect(() => {
     loadTripData();
@@ -365,6 +389,64 @@ export default function TripDetailPage() {
 
   const isCurrentUserAdmin = members.find((m) => m.id === currentUser?.id)?.role === 'admin';
 
+  // 打開編輯旅行對話框
+  const handleEditTripClick = () => {
+    if (!trip) return;
+    setEditTripForm({
+      name: trip.name,
+      description: trip.description || '',
+      start_date: trip.start_date || '',
+      end_date: trip.end_date || '',
+    });
+    setEditTripLocation(trip.location ? {
+      name: trip.location.name,
+      display_name: trip.location.display_name,
+      lat: trip.location.lat,
+      lon: trip.location.lon,
+      country: trip.location.country,
+      country_code: trip.location.country_code,
+    } : null);
+    setEditTripDialog(true);
+  };
+
+  // 提交編輯旅行
+  const handleEditTrip = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!trip) return;
+
+    setIsSavingTrip(true);
+    setError('');
+
+    try {
+      const response = await fetch(`/api/trips/${tripId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editTripForm.name.trim(),
+          description: editTripForm.description.trim() || null,
+          start_date: editTripForm.start_date || null,
+          end_date: editTripForm.end_date || null,
+          location: editTripLocation || null,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error);
+      }
+
+      setSnackbar({ open: true, message: tTrip('editSuccess'), severity: 'success' });
+      setEditTripDialog(false);
+      await loadTripData();
+    } catch (err: any) {
+      setError(err.message);
+      setSnackbar({ open: true, message: err.message, severity: 'error' });
+    } finally {
+      setIsSavingTrip(false);
+    }
+  };
+
   if (loading) {
     return (
       <Box
@@ -442,14 +524,46 @@ export default function TripDetailPage() {
           <Box>
             <Card elevation={2} sx={{ mb: 3 }}>
               <CardContent>
-                <Typography variant="h6" fontWeight={600} gutterBottom>
-                  {tTrip('info')}
-                </Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                  <Typography variant="h6" fontWeight={600}>
+                    {tTrip('info')}
+                  </Typography>
+                  {isCurrentUserAdmin && (
+                    <Button
+                      size="small"
+                      startIcon={<Edit />}
+                      onClick={handleEditTripClick}
+                    >
+                      {tCommon('edit')}
+                    </Button>
+                  )}
+                </Box>
                 {trip.description && (
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                     {trip.description}
                   </Typography>
                 )}
+
+                {/* 地點顯示 */}
+                {trip.location && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      📍 {trip.location.name}{trip.location.country && `, ${trip.location.country}`}
+                    </Typography>
+                  </Box>
+                )}
+
+                {/* 日期顯示 */}
+                {(trip.start_date || trip.end_date) && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      📅 {trip.start_date ? new Date(trip.start_date).toLocaleDateString() : ''}
+                      {trip.start_date && trip.end_date && ' ~ '}
+                      {trip.end_date ? new Date(trip.end_date).toLocaleDateString() : ''}
+                    </Typography>
+                  </Box>
+                )}
+
                 <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 2 }}>
                   <Chip
                     label={`${tTrip('createdAt')} ${new Date(trip.created_at).toLocaleDateString()}`}
@@ -1197,6 +1311,91 @@ export default function TripDetailPage() {
           <DialogActions sx={{ px: 3, pb: 2 }}>
             <Button onClick={() => setEditExpenseDialog(false)}>{tCommon('cancel')}</Button>
             <Button type="submit" variant="contained">
+              {tTrip('saveEdit')}
+            </Button>
+          </DialogActions>
+        </form>
+      </Dialog>
+
+      {/* 編輯旅行對話框 */}
+      <Dialog
+        open={editTripDialog}
+        onClose={() => setEditTripDialog(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <form onSubmit={handleEditTrip}>
+          <DialogTitle>{tTrip('editTrip')}</DialogTitle>
+          <DialogContent>
+            {error && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {error}
+              </Alert>
+            )}
+
+            <TextField
+              fullWidth
+              label={tTrips('create.name')}
+              value={editTripForm.name}
+              onChange={(e) => setEditTripForm({ ...editTripForm, name: e.target.value })}
+              required
+              sx={{ mt: 1, mb: 2 }}
+            />
+
+            <TextField
+              fullWidth
+              label={tTrips('create.description')}
+              value={editTripForm.description}
+              onChange={(e) => setEditTripForm({ ...editTripForm, description: e.target.value })}
+              multiline
+              rows={3}
+              sx={{ mb: 2 }}
+            />
+
+            {/* 旅遊地點 */}
+            <LocationAutocomplete
+              value={editTripLocation}
+              onChange={setEditTripLocation}
+              label={tTrips('create.location')}
+              placeholder={tTrips('create.locationPlaceholder')}
+              helperText={tTrips('create.locationHelp')}
+            />
+
+            {/* 旅遊時間區間 */}
+            <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+              <TextField
+                fullWidth
+                label={tTrips('create.startDate')}
+                type="date"
+                value={editTripForm.start_date}
+                onChange={(e) => setEditTripForm({ ...editTripForm, start_date: e.target.value })}
+                slotProps={{
+                  inputLabel: { shrink: true },
+                }}
+              />
+              <TextField
+                fullWidth
+                label={tTrips('create.endDate')}
+                type="date"
+                value={editTripForm.end_date}
+                onChange={(e) => setEditTripForm({ ...editTripForm, end_date: e.target.value })}
+                slotProps={{
+                  inputLabel: { shrink: true },
+                  htmlInput: { min: editTripForm.start_date || undefined },
+                }}
+              />
+            </Box>
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <Button onClick={() => setEditTripDialog(false)}>
+              {tCommon('cancel')}
+            </Button>
+            <Button
+              type="submit"
+              variant="contained"
+              disabled={isSavingTrip || !editTripForm.name.trim()}
+              startIcon={isSavingTrip ? <CircularProgress size={16} /> : null}
+            >
               {tTrip('saveEdit')}
             </Button>
           </DialogActions>

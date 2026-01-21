@@ -100,6 +100,11 @@
       "namePlaceholder": "e.g., Japan Kansai Trip",
       "description": "Description (Optional)",
       "descriptionPlaceholder": "Brief description of the trip (optional)",
+      "location": "Destination",
+      "locationPlaceholder": "Search for a city or place",
+      "locationHelp": "Enter a city or country name to search",
+      "startDate": "Start Date",
+      "endDate": "End Date",
       "createButton": "Create",
       "success": "Trip created successfully!"
     },
@@ -299,6 +304,8 @@
     "removeMemberNote": "This member's expense records will be kept.",
     "removed": "Removed",
     "notEditable": "The following fields cannot be edited:",
-    "saveEdit": "Save Changes"
+    "saveEdit": "Save Changes",
+    "editTrip": "Edit Trip",
+    "editSuccess": "Trip information updated"
   }
 }

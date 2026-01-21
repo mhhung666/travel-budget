@@ -32,6 +32,9 @@ export async function GET() {
         id,
         name,
         description,
+        start_date,
+        end_date,
+        location,
         created_at,
         hash_code,
         trip_members(count)
@@ -48,6 +51,9 @@ export async function GET() {
       hash_code: trip.hash_code,
       name: trip.name,
       description: trip.description,
+      start_date: trip.start_date,
+      end_date: trip.end_date,
+      location: trip.location,
       created_at: trip.created_at,
       member_count: trip.trip_members?.[0]?.count || 0,
     }));
@@ -68,10 +74,15 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, description } = body;
+    const { name, description, start_date, end_date, location } = body;
 
     if (!name || name.trim().length === 0) {
       return NextResponse.json({ error: '旅行名稱不能為空' }, { status: 400 });
+    }
+
+    // 驗證日期（如果有提供）
+    if (start_date && end_date && new Date(start_date) > new Date(end_date)) {
+      return NextResponse.json({ error: '開始日期不能晚於結束日期' }, { status: 400 });
     }
 
     // 生成唯一的 hash_code
@@ -87,6 +98,9 @@ export async function POST(request: NextRequest) {
         {
           name: name.trim(),
           description: description?.trim() || null,
+          start_date: start_date || null,
+          end_date: end_date || null,
+          location: location || null,
           hash_code: hashCode,
         },
       ])

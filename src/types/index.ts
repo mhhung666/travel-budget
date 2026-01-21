@@ -5,10 +5,23 @@ export interface User {
   created_at: string;
 }
 
+// 地點資訊（用於地圖顯示）
+export interface Location {
+  name: string; // 地點名稱（顯示用）
+  display_name: string; // 完整地址
+  lat: number; // 緯度
+  lon: number; // 經度
+  country?: string; // 國家
+  country_code?: string; // 國家代碼
+}
+
 export interface Trip {
   id: number;
   name: string;
   description: string | null;
+  start_date: string | null; // 旅遊開始日期
+  end_date: string | null; // 旅遊結束日期
+  location: Location | null; // 旅遊地點
   created_at: string;
 }
 
