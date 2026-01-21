@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS users (
   username TEXT NOT NULL UNIQUE,
   display_name TEXT NOT NULL,
   password TEXT NOT NULL,
+  is_virtual BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

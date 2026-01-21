@@ -79,6 +79,7 @@ CREATE TABLE users (
   username TEXT NOT NULL UNIQUE,
   display_name TEXT NOT NULL,
   password TEXT NOT NULL,
+  is_virtual BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -269,3 +270,20 @@ ALTER TABLE trips ADD COLUMN IF NOT EXISTS location JSONB;
 ```
 
 > 地點資料由 OpenStreetMap Nominatim API 提供，儲存經緯度以便未來實作地圖可視化功能。
+
+### v2.2.0 - 新增虛擬成員功能
+
+如果你的資料庫是在此版本之前建立的，請執行以下 SQL 來新增欄位：
+
+```sql
+-- 新增虛擬成員欄位
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_virtual BOOLEAN DEFAULT FALSE;
+```
+
+**功能說明：**
+
+虛擬成員是為了讓不想註冊帳號的旅伴也能參與分帳。虛擬成員：
+- 使用 UUID 作為 username（無法登入）
+- 可以被指定為付款人或分帳對象
+- 可以被管理員直接從旅行中刪除
+- 未來可透過邀請功能轉為正式會員
