@@ -41,6 +41,7 @@ import {
   ContentCopy,
   AdminPanelSettings,
   PersonRemove,
+  PersonAdd,
   Warning,
   Edit,
   ExpandMore,
@@ -75,6 +76,7 @@ interface Member {
   display_name: string;
   joined_at: string;
   role: 'admin' | 'member';
+  is_virtual?: boolean;
 }
 
 interface Expense {
@@ -155,6 +157,11 @@ export default function TripDetailPage() {
     currency: 'TWD',
     exchange_rate: '1.0',
   });
+
+  // 新增虛擬成員相關 state
+  const [addVirtualMemberDialog, setAddVirtualMemberDialog] = useState(false);
+  const [virtualMemberName, setVirtualMemberName] = useState('');
+  const [isAddingVirtualMember, setIsAddingVirtualMember] = useState(false);
 
   // 編輯旅行相關 state
   const [editTripDialog, setEditTripDialog] = useState(false);
@@ -444,6 +451,41 @@ export default function TripDetailPage() {
       setSnackbar({ open: true, message: err.message, severity: 'error' });
     } finally {
       setIsSavingTrip(false);
+    }
+  };
+
+  // 新增虛擬成員
+  const handleAddVirtualMember = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!virtualMemberName.trim()) return;
+
+    setIsAddingVirtualMember(true);
+    setError('');
+
+    try {
+      const response = await fetch(`/api/trips/${tripId}/members`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          display_name: virtualMemberName.trim(),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error);
+      }
+
+      setSnackbar({ open: true, message: tMember('virtualMemberAdded'), severity: 'success' });
+      setAddVirtualMemberDialog(false);
+      setVirtualMemberName('');
+      await loadTripData();
+    } catch (err: any) {
+      setError(err.message);
+      setSnackbar({ open: true, message: err.message, severity: 'error' });
+    } finally {
+      setIsAddingVirtualMember(false);
     }
   };
 
@@ -791,6 +833,20 @@ export default function TripDetailPage() {
                   </IconButton>
                 </Box>
                 <Collapse in={membersExpanded}>
+                  {/* 新增虛擬成員按鈕 */}
+                  {isCurrentUserAdmin && (
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      startIcon={<PersonAdd />}
+                      onClick={() => setAddVirtualMemberDialog(true)}
+                      sx={{ mb: 2 }}
+                      fullWidth
+                    >
+                      {tMember('addVirtualMember')}
+                    </Button>
+                  )}
+
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
                     {members.map((member) => (
                       <Box
@@ -800,15 +856,17 @@ export default function TripDetailPage() {
                           alignItems: 'center',
                           gap: 2,
                           p: 1.5,
-                          bgcolor: 'background.default',
+                          bgcolor: member.is_virtual ? 'action.hover' : 'background.default',
                           borderRadius: 1,
+                          border: member.is_virtual ? '1px dashed' : 'none',
+                          borderColor: 'divider',
                         }}
                       >
-                        <Avatar sx={{ bgcolor: 'primary.main' }}>
+                        <Avatar sx={{ bgcolor: member.is_virtual ? 'grey.400' : 'primary.main' }}>
                           {member.display_name.charAt(0)}
                         </Avatar>
                         <Box sx={{ flex: 1 }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
                             <Typography variant="body1" fontWeight={500}>
                               {member.display_name}
                             </Typography>
@@ -820,10 +878,19 @@ export default function TripDetailPage() {
                                 icon={<AdminPanelSettings />}
                               />
                             )}
+                            {member.is_virtual && (
+                              <Chip
+                                label={tMember('role.virtual')}
+                                size="small"
+                                variant="outlined"
+                              />
+                            )}
                           </Box>
-                          <Typography variant="body2" color="text.secondary">
-                            @{member.username}
-                          </Typography>
+                          {!member.is_virtual && (
+                            <Typography variant="body2" color="text.secondary">
+                              @{member.username}
+                            </Typography>
+                          )}
                         </Box>
                         {/* 移除按鈕 - 僅管理員且不是自己 */}
                         {isCurrentUserAdmin && member.id !== currentUser?.id && (
