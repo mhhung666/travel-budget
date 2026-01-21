@@ -564,39 +564,12 @@ export default function TripDetailPage() {
                   </Box>
                 )}
 
-                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 2 }}>
+                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
                   <Chip
                     label={`${tTrip('createdAt')} ${new Date(trip.created_at).toLocaleDateString()}`}
                     size="small"
                   />
                 </Box>
-
-                {/* 分享功能 */}
-                <Card variant="outlined" sx={{ bgcolor: 'primary.50', borderColor: 'primary.200' }}>
-                  <CardContent>
-                    <Typography variant="subtitle2" gutterBottom fontWeight={600}>
-                      {tTrip('share')}
-                    </Typography>
-                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                      <TextField
-                        value={trip.hash_code}
-                        size="small"
-                        slotProps={{ input: { readOnly: true } }}
-                        sx={{ flex: 1 }}
-                      />
-                      <Button variant="outlined" startIcon={<ContentCopy />} onClick={copyHashCode}>
-                        {tCommon('copy')}
-                      </Button>
-                    </Box>
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      sx={{ mt: 1, display: 'block' }}
-                    >
-                      {tTrip('shareHint')}
-                    </Typography>
-                  </CardContent>
-                </Card>
               </CardContent>
             </Card>
 
@@ -869,6 +842,33 @@ export default function TripDetailPage() {
                     ))}
                   </Box>
                 </Collapse>
+              </CardContent>
+            </Card>
+
+            {/* 分享功能 */}
+            <Card elevation={2} sx={{ mt: 3, bgcolor: 'primary.50' }}>
+              <CardContent>
+                <Typography variant="subtitle2" gutterBottom fontWeight={600}>
+                  {tTrip('share')}
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                  <TextField
+                    value={trip.hash_code}
+                    size="small"
+                    slotProps={{ input: { readOnly: true } }}
+                    sx={{ flex: 1, bgcolor: 'background.paper' }}
+                  />
+                  <Button variant="outlined" startIcon={<ContentCopy />} onClick={copyHashCode}>
+                    {tCommon('copy')}
+                  </Button>
+                </Box>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ mt: 1, display: 'block' }}
+                >
+                  {tTrip('shareHint')}
+                </Typography>
               </CardContent>
             </Card>
 
