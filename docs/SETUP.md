@@ -87,6 +87,9 @@ CREATE TABLE trips (
   id SERIAL PRIMARY KEY,
   name TEXT NOT NULL,
   description TEXT,
+  start_date DATE,
+  end_date DATE,
+  location JSONB,
   hash_code TEXT UNIQUE NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -228,3 +231,41 @@ vercel --prod
 
 ### Q: 如何備份資料?
 在 Supabase **Database** → **Backups** 可以手動建立備份或設定自動備份。
+
+---
+
+## 資料庫升級 (Migration)
+
+### v2.1.0 - 新增旅遊時間與地點欄位
+
+如果你的資料庫是在此版本之前建立的，請執行以下 SQL 來新增欄位：
+
+```sql
+-- 新增旅遊時間與地點欄位
+ALTER TABLE trips ADD COLUMN IF NOT EXISTS start_date DATE;
+ALTER TABLE trips ADD COLUMN IF NOT EXISTS end_date DATE;
+ALTER TABLE trips ADD COLUMN IF NOT EXISTS location JSONB;
+```
+
+**新增欄位說明：**
+
+| 欄位 | 類型 | 說明 |
+|------|------|------|
+| `start_date` | DATE | 旅遊開始日期 |
+| `end_date` | DATE | 旅遊結束日期 |
+| `location` | JSONB | 旅遊地點資訊（包含經緯度） |
+
+**location JSONB 格式範例：**
+
+```json
+{
+  "name": "東京",
+  "display_name": "東京都, 日本",
+  "lat": 35.6762,
+  "lon": 139.6503,
+  "country": "日本",
+  "country_code": "JP"
+}
+```
+
+> 地點資料由 OpenStreetMap Nominatim API 提供，儲存經緯度以便未來實作地圖可視化功能。

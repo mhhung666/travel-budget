@@ -100,6 +100,11 @@
       "namePlaceholder": "例：関西旅行",
       "description": "説明（任意）",
       "descriptionPlaceholder": "旅行の簡単な説明（任意）",
+      "location": "目的地",
+      "locationPlaceholder": "都市や場所を検索",
+      "locationHelp": "都市名または国名を入力して検索",
+      "startDate": "開始日",
+      "endDate": "終了日",
       "createButton": "作成",
       "success": "旅行を作成しました！"
     },
@@ -310,6 +315,8 @@
     "removeMemberNote": "このメンバーの支出記録は保持されます",
     "removed": "削除しました",
     "notEditable": "以下のフィールドは編集できません:",
-    "saveEdit": "変更を保存"
+    "saveEdit": "変更を保存",
+    "editTrip": "旅行を編集",
+    "editSuccess": "旅行情報を更新しました"
   }
 }

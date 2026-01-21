@@ -100,6 +100,11 @@
       "namePlaceholder": "例：日本關西之旅",
       "description": "描述 (可選)",
       "descriptionPlaceholder": "旅行的簡短描述（選填）",
+      "location": "旅遊地點",
+      "locationPlaceholder": "搜尋城市或地點",
+      "locationHelp": "輸入城市或國家名稱搜尋",
+      "startDate": "開始日期",
+      "endDate": "結束日期",
       "createButton": "建立",
       "success": "旅行建立成功！"
     },
@@ -310,6 +315,8 @@
     "removeMemberNote": "該成員的支出記錄將會保留",
     "removed": "已移除",
     "notEditable": "以下欄位不可修改:",
-    "saveEdit": "儲存修改"
+    "saveEdit": "儲存修改",
+    "editTrip": "編輯旅行",
+    "editSuccess": "旅行資訊已更新"
   }
 }

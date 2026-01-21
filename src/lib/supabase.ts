@@ -25,6 +25,9 @@ CREATE TABLE IF NOT EXISTS trips (
   id SERIAL PRIMARY KEY,
   name TEXT NOT NULL,
   description TEXT,
+  start_date DATE,
+  end_date DATE,
+  location JSONB,
   hash_code TEXT UNIQUE NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
