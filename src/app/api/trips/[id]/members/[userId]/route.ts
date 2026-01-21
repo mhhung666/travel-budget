@@ -65,6 +65,15 @@ export async function DELETE(
     // (保留支出記錄以維持帳務完整性)
     const hasExpenses = (expenses && expenses.length > 0) || (splits && splits.length > 0);
 
+    // 檢查目標用戶是否為虛擬成員
+    const { data: targetUser } = await supabase
+      .from('users')
+      .select('is_virtual')
+      .eq('id', targetUserId)
+      .single();
+
+    const isVirtualMember = targetUser?.is_virtual || false;
+
     // 移除成員
     const { error: deleteError } = await supabase
       .from('trip_members')
@@ -73,6 +82,24 @@ export async function DELETE(
       .eq('user_id', targetUserId);
 
     if (deleteError) throw deleteError;
+
+    // 如果是虛擬成員且沒有支出記錄，則刪除用戶記錄
+    if (isVirtualMember && !hasExpenses) {
+      // 檢查虛擬成員是否還在其他旅行中
+      const { data: otherTrips } = await supabase
+        .from('trip_members')
+        .select('id')
+        .eq('user_id', targetUserId)
+        .limit(1);
+
+      // 如果沒有其他旅行，刪除虛擬用戶
+      if (!otherTrips || otherTrips.length === 0) {
+        await supabase
+          .from('users')
+          .delete()
+          .eq('id', targetUserId);
+      }
+    }
 
     return NextResponse.json({
       message: '成員已移除',

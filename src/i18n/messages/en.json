@@ -210,8 +210,13 @@
     "joined": "Joined",
     "role": {
       "admin": "Admin",
-      "member": "Member"
+      "member": "Member",
+      "virtual": "Virtual"
     },
+    "addVirtualMember": "Add Virtual Member",
+    "addVirtualMemberHint": "Virtual members are for travel companions who don't want to register. They can participate in expense splitting but cannot log in.",
+    "virtualMemberName": "Member Name",
+    "virtualMemberAdded": "Virtual member added",
     "confirm": {
       "remove": "Are you sure you want to remove this member?",
       "removeMessage": "After removal, this member will no longer be able to view this trip.",

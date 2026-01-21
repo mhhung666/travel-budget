@@ -194,8 +194,13 @@
     "joined": "参加日",
     "role": {
       "admin": "管理者",
-      "member": "メンバー"
+      "member": "メンバー",
+      "virtual": "仮想メンバー"
     },
+    "addVirtualMember": "仮想メンバーを追加",
+    "addVirtualMemberHint": "仮想メンバーはアカウント登録したくない旅行仲間向けです。割り勘に参加できますが、ログインはできません。",
+    "virtualMemberName": "メンバー名",
+    "virtualMemberAdded": "仮想メンバーを追加しました",
     "confirm": {
       "remove": "このメンバーを削除しますか？",
       "removeMessage": "削除すると、このメンバーは旅行を閲覧できなくなります。",
