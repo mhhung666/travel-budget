@@ -745,15 +745,13 @@ export default function TripDetailPage() {
                                     </Typography>
                                   )}
                                   <Box sx={{ display: 'flex', gap: 1, mt: 0.5 }}>
-                                    {currentUser?.id === expense.payer_id && (
-                                      <Button
-                                        onClick={() => handleEditExpenseClick(expense)}
-                                        size="small"
-                                        startIcon={<Edit />}
-                                      >
-                                        {tCommon('edit')}
-                                      </Button>
-                                    )}
+                                    <Button
+                                      onClick={() => handleEditExpenseClick(expense)}
+                                      size="small"
+                                      startIcon={<Edit />}
+                                    >
+                                      {tCommon('edit')}
+                                    </Button>
                                     <Button
                                       onClick={() => handleDeleteExpense(expense.id)}
                                       size="small"

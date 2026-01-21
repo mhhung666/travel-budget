@@ -40,18 +40,13 @@ export async function PUT(
     // 檢查支出是否存在且屬於該旅行
     const { data: expense, error: expenseError } = await supabase
       .from('expenses')
-      .select('id, payer_id')
+      .select('id')
       .eq('id', expenseIdNum)
       .eq('trip_id', tripId)
       .single();
 
     if (expenseError || !expense) {
       return NextResponse.json({ error: '支出不存在' }, { status: 404 });
-    }
-
-    // 只有付款人可以編輯支出
-    if (expense.payer_id !== session.userId) {
-      return NextResponse.json({ error: '只有付款人可以編輯此支出' }, { status: 403 });
     }
 
     // 驗證輸入
