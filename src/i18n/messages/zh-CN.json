@@ -194,8 +194,13 @@
     "joined": "加入于",
     "role": {
       "admin": "管理员",
-      "member": "成员"
+      "member": "成员",
+      "virtual": "虚拟成员"
     },
+    "addVirtualMember": "新增虚拟成员",
+    "addVirtualMemberHint": "虚拟成员适用于不想注册帐号的旅伴，可参与分账但无法登录。",
+    "virtualMemberName": "成员名称",
+    "virtualMemberAdded": "虚拟成员已新增",
     "confirm": {
       "remove": "确定要移除此成员吗？",
       "removeMessage": "移除后，该成员将无法再查看此旅行。",

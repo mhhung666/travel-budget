@@ -1467,6 +1467,45 @@ export default function TripDetailPage() {
         </form>
       </Dialog>
 
+      {/* 新增虛擬成員對話框 */}
+      <Dialog
+        open={addVirtualMemberDialog}
+        onClose={() => setAddVirtualMemberDialog(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <form onSubmit={handleAddVirtualMember}>
+          <DialogTitle>{tMember('addVirtualMember')}</DialogTitle>
+          <DialogContent>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              {tMember('addVirtualMemberHint')}
+            </Typography>
+            <TextField
+              fullWidth
+              label={tMember('virtualMemberName')}
+              value={virtualMemberName}
+              onChange={(e) => setVirtualMemberName(e.target.value)}
+              required
+              autoFocus
+              sx={{ mt: 1 }}
+            />
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <Button onClick={() => setAddVirtualMemberDialog(false)}>
+              {tCommon('cancel')}
+            </Button>
+            <Button
+              type="submit"
+              variant="contained"
+              disabled={isAddingVirtualMember || !virtualMemberName.trim()}
+              startIcon={isAddingVirtualMember ? <CircularProgress size={16} /> : null}
+            >
+              {tCommon('add')}
+            </Button>
+          </DialogActions>
+        </form>
+      </Dialog>
+
       {/* Snackbar 通知 */}
       <Snackbar
         open={snackbar.open}
