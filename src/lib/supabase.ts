@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS expenses (
   currency TEXT NOT NULL DEFAULT 'TWD',
   exchange_rate DECIMAL(10,6) NOT NULL DEFAULT 1.0,
   description TEXT NOT NULL,
+  category VARCHAR(50) DEFAULT 'other' CHECK (category IN ('accommodation', 'transportation', 'food', 'shopping', 'entertainment', 'tickets', 'other')),
   date DATE NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

@@ -41,6 +41,7 @@ export interface Expense {
   currency: string; // 幣別代碼 (TWD, JPY, USD, EUR, HKD)
   exchange_rate: number; // 對 TWD 的匯率
   description: string;
+  category: string; // 消費類別 (accommodation, transportation, food, shopping, entertainment, tickets, other)
   date: string;
   created_at: string;
 }

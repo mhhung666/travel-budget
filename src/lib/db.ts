@@ -59,6 +59,7 @@ export function initDatabase() {
       currency TEXT NOT NULL DEFAULT 'TWD',
       exchange_rate REAL NOT NULL DEFAULT 1.0,
       description TEXT NOT NULL,
+      category TEXT DEFAULT 'other' CHECK (category IN ('accommodation', 'transportation', 'food', 'shopping', 'entertainment', 'tickets', 'other')),
       date DATE NOT NULL,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (trip_id) REFERENCES trips(id) ON DELETE CASCADE,

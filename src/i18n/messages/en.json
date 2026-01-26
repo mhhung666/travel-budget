@@ -178,6 +178,7 @@
       "currency": "Currency",
       "exchangeRate": "Exchange Rate (to TWD)",
       "description": "Description",
+      "category": "Category",
       "date": "Date",
       "payer": "Payer",
       "splitWith": "Split With",
@@ -261,6 +262,15 @@
     "USD_full": "USD - US Dollar",
     "EUR_full": "EUR - Euro",
     "HKD_full": "HKD - Hong Kong Dollar"
+  },
+  "category": {
+    "accommodation": "Accommodation",
+    "transportation": "Transportation",
+    "food": "Food & Dining",
+    "shopping": "Shopping",
+    "entertainment": "Entertainment",
+    "tickets": "Tickets",
+    "other": "Other"
   },
   "error": {
     "network": "Network error, please try again later",

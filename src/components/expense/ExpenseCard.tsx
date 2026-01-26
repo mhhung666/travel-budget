@@ -13,6 +13,7 @@ import {
 import { Edit, Delete, ExpandMore, ExpandLess } from '@mui/icons-material';
 import { useState } from 'react';
 import { formatCurrency, getCurrencySymbol } from '@/constants/currencies';
+import { getCategoryIcon } from '@/constants/categories';
 import type { Expense } from '@/services/expense.service';
 
 export interface ExpenseCardProps {
@@ -65,6 +66,12 @@ export function ExpenseCard({
               <Typography variant="caption" color="text.secondary">
                 {new Date(expense.date).toLocaleDateString()}
               </Typography>
+              <Chip
+                label={getCategoryIcon(expense.category || 'other')}
+                size="small"
+                variant="outlined"
+                sx={{ minWidth: 32, fontSize: '14px' }}
+              />
             </Box>
             <Typography variant="body1" fontWeight={500}>
               {expense.description}
