@@ -185,28 +185,28 @@ export default function TripDetailPage() {
 
   const loadTripData = async () => {
     try {
-      // 檢查認證
-      const authResponse = await fetch('/api/auth/me');
-      if (!authResponse.ok) {
-        router.push('/login');
-        return;
+      // 嘗試檢查認證（不強制要求登入）
+      let user = null;
+      try {
+        const authResponse = await fetch('/api/auth/me');
+        if (authResponse.ok) {
+          const authData = await authResponse.json();
+          user = authData.user;
+          setCurrentUser(user);
+        }
+      } catch {
+        // 未登入，繼續以訪客身份瀏覽
       }
-      const authData = await authResponse.json();
-      setCurrentUser(authData.user);
 
-      // 載入旅行資料
+      // 使用公開 API 載入旅行資料（不需登入）
       const [tripResponse, membersResponse, expensesResponse] = await Promise.all([
-        fetch(`/api/trips/${tripId}`),
-        fetch(`/api/trips/${tripId}/members`),
-        fetch(`/api/trips/${tripId}/expenses`),
+        fetch(`/api/public/trips/${tripId}`),
+        fetch(`/api/public/trips/${tripId}/members`),
+        fetch(`/api/public/trips/${tripId}/expenses`),
       ]);
 
       if (!tripResponse.ok) {
-        if (tripResponse.status === 403) {
-          setError(tError('notMember'));
-        } else {
-          setError(tError('loadTripFailed'));
-        }
+        setError(tError('loadTripFailed'));
         return;
       }
 
@@ -215,12 +215,15 @@ export default function TripDetailPage() {
       const expensesData = await expensesResponse.json();
 
       setTrip(tripData.trip);
-      setMembers(membersData.members);
-      setExpenses(expensesData.expenses);
+      setMembers(membersData.members || []);
+      setExpenses(expensesData.expenses || []);
 
-      // 設置默認付款人為當前用戶
-      if (authData.user && expenseForm.payer_id === 0) {
-        setExpenseForm((prev) => ({ ...prev, payer_id: authData.user.id }));
+      // 設置默認付款人為當前用戶（如果已登入且是成員）
+      if (user && expenseForm.payer_id === 0) {
+        const isMember = membersData.members?.some((m: Member) => m.id === user.id);
+        if (isMember) {
+          setExpenseForm((prev) => ({ ...prev, payer_id: user.id }));
+        }
       }
     } catch (err) {
       setError(tError('loadFailed'));
@@ -403,6 +406,7 @@ export default function TripDetailPage() {
     }
   };
 
+  const isCurrentUserMember = currentUser && members.some((m) => m.id === currentUser.id);
   const isCurrentUserAdmin = members.find((m) => m.id === currentUser?.id)?.role === 'admin';
 
   // 打開編輯旅行對話框
@@ -675,16 +679,18 @@ export default function TripDetailPage() {
                         ))}
                       </Select>
                     </FormControl>
-                    <Button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowAddExpense(true);
-                      }}
-                      variant="contained"
-                      startIcon={<Add />}
-                    >
-                      {tExpense('add')}
-                    </Button>
+                    {isCurrentUserMember && (
+                      <Button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowAddExpense(true);
+                        }}
+                        variant="contained"
+                        startIcon={<Add />}
+                      >
+                        {tExpense('add')}
+                      </Button>
+                    )}
                   </Box>
 
                   {(() => {
@@ -701,9 +707,11 @@ export default function TripDetailPage() {
                           <Typography variant="body1" color="text.secondary" gutterBottom>
                             {tExpense('noExpenses')}
                           </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            {tExpense('clickToAdd')}
-                          </Typography>
+                          {isCurrentUserMember && (
+                            <Typography variant="body2" color="text.secondary">
+                              {tExpense('clickToAdd')}
+                            </Typography>
+                          )}
                         </Box>
                       );
                     }
@@ -770,23 +778,25 @@ export default function TripDetailPage() {
                                       NT${expense.amount.toLocaleString()}
                                     </Typography>
                                   )}
-                                  <Box sx={{ display: 'flex', gap: 1, mt: 0.5 }}>
-                                    <Button
-                                      onClick={() => handleEditExpenseClick(expense)}
-                                      size="small"
-                                      startIcon={<Edit />}
-                                    >
-                                      {tCommon('edit')}
-                                    </Button>
-                                    <Button
-                                      onClick={() => handleDeleteExpense(expense.id)}
-                                      size="small"
-                                      color="error"
-                                      startIcon={<Delete />}
-                                    >
-                                      {tCommon('delete')}
-                                    </Button>
-                                  </Box>
+                                  {isCurrentUserMember && (
+                                    <Box sx={{ display: 'flex', gap: 1, mt: 0.5 }}>
+                                      <Button
+                                        onClick={() => handleEditExpenseClick(expense)}
+                                        size="small"
+                                        startIcon={<Edit />}
+                                      >
+                                        {tCommon('edit')}
+                                      </Button>
+                                      <Button
+                                        onClick={() => handleDeleteExpense(expense.id)}
+                                        size="small"
+                                        color="error"
+                                        startIcon={<Delete />}
+                                      >
+                                        {tCommon('delete')}
+                                      </Button>
+                                    </Box>
+                                  )}
                                 </Box>
                               </Box>
                               <Divider sx={{ my: 1.5 }} />

@@ -61,13 +61,10 @@ export default function SettlementPage() {
 
   const loadSettlement = async () => {
     try {
-      const response = await fetch(`/api/trips/${tripId}/settlement`);
+      // 使用公開 API（不需登入）
+      const response = await fetch(`/api/public/trips/${tripId}/settlement`);
 
       if (!response.ok) {
-        if (response.status === 401) {
-          router.push('/login');
-          return;
-        }
         throw new Error(tError('loadSettlementFailed'));
       }
 
