@@ -110,12 +110,41 @@ export default function Navbar({ user, showUserMenu = true, title }: NavbarProps
           </IconButton>
 
           {showUserMenu && user ? (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.5, sm: 1 } }}>
+              {/* 導航按鈕 - 桌面版顯示文字 */}
+              <Box sx={{ display: { xs: 'none', md: 'flex' }, gap: 1 }}>
+                <Button
+                  onClick={handleTrips}
+                  startIcon={<TravelExplore />}
+                  sx={{ color: 'text.primary', textTransform: 'none' }}
+                >
+                  {t('trips')}
+                </Button>
+                <Button
+                  onClick={handleStats}
+                  startIcon={<BarChart />}
+                  sx={{ color: 'text.primary', textTransform: 'none' }}
+                >
+                  {t('stats')}
+                </Button>
+              </Box>
+
+              {/* 導航按鈕 - 手機版只顯示圖標 */}
+              <Box sx={{ display: { xs: 'flex', md: 'none' } }}>
+                <IconButton onClick={handleTrips} sx={{ color: 'text.primary' }}>
+                  <TravelExplore />
+                </IconButton>
+                <IconButton onClick={handleStats} sx={{ color: 'text.primary' }}>
+                  <BarChart />
+                </IconButton>
+              </Box>
+
               <Typography
                 variant="body2"
                 sx={{
                   display: { xs: 'none', sm: 'block' },
                   color: 'text.secondary',
+                  ml: 1,
                 }}
               >
                 {user.display_name || user.username}
@@ -145,14 +174,6 @@ export default function Navbar({ user, showUserMenu = true, title }: NavbarProps
                   horizontal: 'right',
                 }}
               >
-                <MenuItem onClick={handleTrips}>
-                  <TravelExplore sx={{ mr: 1 }} fontSize="small" />
-                  {t('trips')}
-                </MenuItem>
-                <MenuItem onClick={handleStats}>
-                  <BarChart sx={{ mr: 1 }} fontSize="small" />
-                  {t('stats')}
-                </MenuItem>
                 <MenuItem onClick={handleSettings}>
                   <Settings sx={{ mr: 1 }} fontSize="small" />
                   {t('settings')}
