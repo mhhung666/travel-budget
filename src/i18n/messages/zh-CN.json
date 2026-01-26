@@ -25,6 +25,7 @@
   "nav": {
     "home": "首页",
     "trips": "我的旅行",
+    "stats": "个人统计",
     "settings": "个人设置",
     "login": "登录",
     "logout": "退出",
@@ -304,6 +305,19 @@
       "passwordMismatch": "密码不符",
       "passwordHelp": "至少 6 个字符"
     }
+  },
+  "stats": {
+    "title": "个人统计",
+    "dateRange": "查询区间",
+    "startDate": "开始日期",
+    "endDate": "结束日期",
+    "totalSpent": "总支出",
+    "expenses": "笔",
+    "categoryStats": "分类统计",
+    "countryStats": "国家统计",
+    "countries": "个国家",
+    "trips": "趟旅行",
+    "noData": "暂无数据"
   },
   "trip": {
     "info": "旅行信息",

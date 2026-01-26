@@ -12,7 +12,7 @@ import {
   MenuItem,
   Container,
 } from '@mui/material';
-import { Logout, TravelExplore, Settings } from '@mui/icons-material';
+import { Logout, TravelExplore, Settings, BarChart } from '@mui/icons-material';
 import { useRouter } from '@/i18n/navigation';
 import { useState } from 'react';
 import { useThemeContext } from '@/app/[locale]/context/ThemeContext';
@@ -62,6 +62,11 @@ export default function Navbar({ user, showUserMenu = true, title }: NavbarProps
 
   const handleSettings = () => {
     router.push('/settings');
+    handleClose();
+  };
+
+  const handleStats = () => {
+    router.push('/stats');
     handleClose();
   };
 
@@ -143,6 +148,10 @@ export default function Navbar({ user, showUserMenu = true, title }: NavbarProps
                 <MenuItem onClick={handleTrips}>
                   <TravelExplore sx={{ mr: 1 }} fontSize="small" />
                   {t('trips')}
+                </MenuItem>
+                <MenuItem onClick={handleStats}>
+                  <BarChart sx={{ mr: 1 }} fontSize="small" />
+                  {t('stats')}
                 </MenuItem>
                 <MenuItem onClick={handleSettings}>
                   <Settings sx={{ mr: 1 }} fontSize="small" />
