@@ -50,6 +50,7 @@ import {
 } from '@mui/icons-material';
 import Navbar from '@/components/layout/Navbar';
 import LocationAutocomplete, { LocationOption } from '@/components/location/LocationAutocomplete';
+import { CATEGORIES, DEFAULT_CATEGORY, getCategoryIcon } from '@/constants/categories';
 
 interface Location {
   name: string;
@@ -87,6 +88,7 @@ interface Expense {
   currency: string;
   exchange_rate: number;
   description: string;
+  category: string;
   date: string;
   payer_id: number;
   payer_name: string;
@@ -125,6 +127,7 @@ export default function TripDetailPage() {
     currency: 'TWD', // 新增: 幣別
     exchange_rate: '1.0', // 新增: 匯率
     description: '',
+    category: DEFAULT_CATEGORY,
     date: new Date().toISOString().split('T')[0],
     split_with: [] as number[],
   });
@@ -157,6 +160,7 @@ export default function TripDetailPage() {
     original_amount: '',
     currency: 'TWD',
     exchange_rate: '1.0',
+    category: DEFAULT_CATEGORY,
   });
 
   // 新增虛擬成員相關 state
@@ -181,28 +185,28 @@ export default function TripDetailPage() {
 
   const loadTripData = async () => {
     try {
-      // 檢查認證
-      const authResponse = await fetch('/api/auth/me');
-      if (!authResponse.ok) {
-        router.push('/login');
-        return;
+      // 嘗試檢查認證（不強制要求登入）
+      let user = null;
+      try {
+        const authResponse = await fetch('/api/auth/me');
+        if (authResponse.ok) {
+          const authData = await authResponse.json();
+          user = authData.user;
+          setCurrentUser(user);
+        }
+      } catch {
+        // 未登入，繼續以訪客身份瀏覽
       }
-      const authData = await authResponse.json();
-      setCurrentUser(authData.user);
 
-      // 載入旅行資料
+      // 使用公開 API 載入旅行資料（不需登入）
       const [tripResponse, membersResponse, expensesResponse] = await Promise.all([
-        fetch(`/api/trips/${tripId}`),
-        fetch(`/api/trips/${tripId}/members`),
-        fetch(`/api/trips/${tripId}/expenses`),
+        fetch(`/api/public/trips/${tripId}`),
+        fetch(`/api/public/trips/${tripId}/members`),
+        fetch(`/api/public/trips/${tripId}/expenses`),
       ]);
 
       if (!tripResponse.ok) {
-        if (tripResponse.status === 403) {
-          setError(tError('notMember'));
-        } else {
-          setError(tError('loadTripFailed'));
-        }
+        setError(tError('loadTripFailed'));
         return;
       }
 
@@ -211,12 +215,15 @@ export default function TripDetailPage() {
       const expensesData = await expensesResponse.json();
 
       setTrip(tripData.trip);
-      setMembers(membersData.members);
-      setExpenses(expensesData.expenses);
+      setMembers(membersData.members || []);
+      setExpenses(expensesData.expenses || []);
 
-      // 設置默認付款人為當前用戶
-      if (authData.user && expenseForm.payer_id === 0) {
-        setExpenseForm((prev) => ({ ...prev, payer_id: authData.user.id }));
+      // 設置默認付款人為當前用戶（如果已登入且是成員）
+      if (user && expenseForm.payer_id === 0) {
+        const isMember = membersData.members?.some((m: Member) => m.id === user.id);
+        if (isMember) {
+          setExpenseForm((prev) => ({ ...prev, payer_id: user.id }));
+        }
       }
     } catch (err) {
       setError(tError('loadFailed'));
@@ -237,6 +244,7 @@ export default function TripDetailPage() {
           ...expenseForm,
           original_amount: parseFloat(expenseForm.original_amount),
           exchange_rate: parseFloat(expenseForm.exchange_rate),
+          category: expenseForm.category,
         }),
       });
 
@@ -253,6 +261,7 @@ export default function TripDetailPage() {
         currency: 'TWD',
         exchange_rate: '1.0',
         description: '',
+        category: DEFAULT_CATEGORY,
         date: new Date().toISOString().split('T')[0],
         split_with: [],
       });
@@ -288,6 +297,7 @@ export default function TripDetailPage() {
       original_amount: expense.original_amount.toString(),
       currency: expense.currency,
       exchange_rate: expense.exchange_rate.toString(),
+      category: expense.category || DEFAULT_CATEGORY,
     });
     setEditExpenseDialog(true);
   };
@@ -307,6 +317,7 @@ export default function TripDetailPage() {
           original_amount: parseFloat(editForm.original_amount),
           currency: editForm.currency,
           exchange_rate: parseFloat(editForm.exchange_rate),
+          category: editForm.category,
         }),
       });
 
@@ -395,6 +406,7 @@ export default function TripDetailPage() {
     }
   };
 
+  const isCurrentUserMember = currentUser && members.some((m) => m.id === currentUser.id);
   const isCurrentUserAdmin = members.find((m) => m.id === currentUser?.id)?.role === 'admin';
 
   // 打開編輯旅行對話框
@@ -667,16 +679,18 @@ export default function TripDetailPage() {
                         ))}
                       </Select>
                     </FormControl>
-                    <Button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowAddExpense(true);
-                      }}
-                      variant="contained"
-                      startIcon={<Add />}
-                    >
-                      {tExpense('add')}
-                    </Button>
+                    {isCurrentUserMember && (
+                      <Button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowAddExpense(true);
+                        }}
+                        variant="contained"
+                        startIcon={<Add />}
+                      >
+                        {tExpense('add')}
+                      </Button>
+                    )}
                   </Box>
 
                   {(() => {
@@ -693,9 +707,11 @@ export default function TripDetailPage() {
                           <Typography variant="body1" color="text.secondary" gutterBottom>
                             {tExpense('noExpenses')}
                           </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            {tExpense('clickToAdd')}
-                          </Typography>
+                          {isCurrentUserMember && (
+                            <Typography variant="body2" color="text.secondary">
+                              {tExpense('clickToAdd')}
+                            </Typography>
+                          )}
                         </Box>
                       );
                     }
@@ -736,9 +752,11 @@ export default function TripDetailPage() {
                                 }}
                               >
                                 <Box sx={{ flex: 1 }}>
-                                  <Typography variant="subtitle1" fontWeight={600}>
-                                    {expense.description}
-                                  </Typography>
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <Typography variant="subtitle1" fontWeight={600}>
+                                      {getCategoryIcon(expense.category)} {expense.description}
+                                    </Typography>
+                                  </Box>
                                   <Typography variant="body2" color="text.secondary">
                                     {expense.payer_name} {tExpense('paidBy')} •{' '}
                                     {new Date(expense.date).toLocaleDateString()}
@@ -760,23 +778,25 @@ export default function TripDetailPage() {
                                       NT${expense.amount.toLocaleString()}
                                     </Typography>
                                   )}
-                                  <Box sx={{ display: 'flex', gap: 1, mt: 0.5 }}>
-                                    <Button
-                                      onClick={() => handleEditExpenseClick(expense)}
-                                      size="small"
-                                      startIcon={<Edit />}
-                                    >
-                                      {tCommon('edit')}
-                                    </Button>
-                                    <Button
-                                      onClick={() => handleDeleteExpense(expense.id)}
-                                      size="small"
-                                      color="error"
-                                      startIcon={<Delete />}
-                                    >
-                                      {tCommon('delete')}
-                                    </Button>
-                                  </Box>
+                                  {isCurrentUserMember && (
+                                    <Box sx={{ display: 'flex', gap: 1, mt: 0.5 }}>
+                                      <Button
+                                        onClick={() => handleEditExpenseClick(expense)}
+                                        size="small"
+                                        startIcon={<Edit />}
+                                      >
+                                        {tCommon('edit')}
+                                      </Button>
+                                      <Button
+                                        onClick={() => handleDeleteExpense(expense.id)}
+                                        size="small"
+                                        color="error"
+                                        startIcon={<Delete />}
+                                      >
+                                        {tCommon('delete')}
+                                      </Button>
+                                    </Box>
+                                  )}
                                 </Box>
                               </Box>
                               <Divider sx={{ my: 1.5 }} />
@@ -1118,6 +1138,22 @@ export default function TripDetailPage() {
               </Alert>
             )}
 
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <InputLabel>{tExpense('form.category')} *</InputLabel>
+              <Select
+                value={expenseForm.category}
+                onChange={(e) => setExpenseForm({ ...expenseForm, category: e.target.value })}
+                label={`${tExpense('form.category')} *`}
+                required
+              >
+                {CATEGORIES.map((cat) => (
+                  <MenuItem key={cat.code} value={cat.code}>
+                    {cat.icon} {t(cat.nameKey)}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
             <TextField
               fullWidth
               label={`${tExpense('form.description')} *`}
@@ -1305,6 +1341,21 @@ export default function TripDetailPage() {
               margin="normal"
               required
             />
+
+            <FormControl fullWidth margin="normal" required>
+              <InputLabel>{tExpense('form.category')}</InputLabel>
+              <Select
+                value={editForm.category}
+                onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
+                label={tExpense('form.category')}
+              >
+                {CATEGORIES.map((cat) => (
+                  <MenuItem key={cat.code} value={cat.code}>
+                    {cat.icon} {t(cat.nameKey)}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
 
             <FormControl fullWidth margin="normal" required>
               <InputLabel>{tExpense('form.currency')}</InputLabel>
