@@ -1,10 +1,9 @@
 import { getRequestConfig } from 'next-intl/server';
+import { routing, locales, defaultLocale } from './routing';
+import type { Locale } from './routing';
 
-// 支持的语言
-export const locales = ['en', 'zh', 'zh-CN', 'jp'] as const;
-export type Locale = (typeof locales)[number];
-
-export const defaultLocale: Locale = 'zh';
+// 重新導出供其他模組使用
+export { locales, defaultLocale, type Locale };
 
 export default getRequestConfig(async ({ requestLocale }) => {
   // 获取 locale

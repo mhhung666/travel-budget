@@ -32,7 +32,8 @@
       "Bash(npx eslint:*)",
       "Bash(npm run test:run:*)",
       "Bash(npx next lint:*)",
-      "Bash(./node_modules/.bin/tsc:*)"
+      "Bash(./node_modules/.bin/tsc:*)",
+      "WebFetch(domain:next-intl.dev)"
     ]
   }
 }

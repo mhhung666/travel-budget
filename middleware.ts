@@ -2,15 +2,10 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getSessionFromRequest } from './src/lib/auth';
 import createMiddleware from 'next-intl/middleware';
-import { locales, defaultLocale } from './src/i18n/config';
+import { routing, locales, defaultLocale } from './src/i18n/routing';
 
-// 建立 i18n middleware
-const i18nMiddleware = createMiddleware({
-  locales,
-  defaultLocale,
-  localePrefix: 'as-needed',
-  localeDetection: false,
-});
+// 建立 i18n middleware（使用統一的 routing 配置）
+const i18nMiddleware = createMiddleware(routing);
 
 // 定義需要認證的路由（不包含 locale 前綴）
 const protectedRoutes = ['/trips', '/settings'];

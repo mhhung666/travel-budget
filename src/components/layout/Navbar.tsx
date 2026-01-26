@@ -13,7 +13,7 @@ import {
   Container,
 } from '@mui/material';
 import { Logout, TravelExplore, Settings } from '@mui/icons-material';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/i18n/navigation';
 import { useState } from 'react';
 import { useThemeContext } from '@/app/[locale]/context/ThemeContext';
 import { MoonIcon, SunIcon } from './ThemeIcons';

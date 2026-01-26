@@ -1,12 +1,13 @@
 'use client';
 
 import { useLocale } from 'next-intl';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter, usePathname } from '@/i18n/navigation';
 import { IconButton, Menu, MenuItem, Box } from '@mui/material';
 import { Language } from '@mui/icons-material';
 import { useState } from 'react';
+import { Locale } from '@/i18n/routing';
 
-const languages = {
+const languages: Record<Locale, string> = {
   en: 'English',
   zh: '繁體中文',
   'zh-CN': '简体中文',
@@ -27,26 +28,9 @@ export default function LanguageSwitcher() {
     setAnchorEl(null);
   };
 
-  const handleLanguageChange = (newLocale: string) => {
-    // 移除所有可能的 locale 前綴
-    let pathWithoutLocale = pathname;
-    for (const loc of Object.keys(languages)) {
-      if (pathname.startsWith(`/${loc}/`)) {
-        // e.g., /en/trips -> /trips (slice from position 3 for 'en')
-        pathWithoutLocale = pathname.slice(loc.length + 1);
-        break;
-      } else if (pathname === `/${loc}`) {
-        pathWithoutLocale = '/';
-        break;
-      }
-    }
-
-    // 如果是預設語言（中文），不需要前綴
-    const newPath =
-      newLocale === 'zh' ? pathWithoutLocale || '/' : `/${newLocale}${pathWithoutLocale}`;
-
-    router.push(newPath);
-    router.refresh();
+  const handleLanguageChange = (newLocale: Locale) => {
+    // next-intl 的 useRouter 會自動處理 locale 前綴
+    router.replace(pathname, { locale: newLocale });
     handleClose();
   };
 
@@ -78,7 +62,7 @@ export default function LanguageSwitcher() {
           horizontal: 'right',
         }}
       >
-        {Object.entries(languages).map(([code, name]) => (
+        {(Object.entries(languages) as [Locale, string][]).map(([code, name]) => (
           <MenuItem
             key={code}
             onClick={() => handleLanguageChange(code)}
