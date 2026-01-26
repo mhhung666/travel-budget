@@ -2,10 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { getSession } from '@/lib/auth';
 
+interface ExpenseDetail {
+  id: number;
+  date: string;
+  description: string;
+  amount: number; // 分帳後金額
+  tripName: string;
+}
+
 interface CategoryStat {
   category: string;
   total: number;
   count: number;
+  details: ExpenseDetail[];
 }
 
 interface RegionStat {
@@ -54,7 +63,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // 2. 取得用戶的分帳記錄和對應的支出資訊
+    // 2. 取得用戶的分帳記錄和對應的支出資訊（包含明細）
     let expenseSplitsQuery = supabase
       .from('expense_splits')
       .select(
@@ -64,7 +73,11 @@ export async function GET(request: NextRequest) {
           id,
           category,
           date,
-          trip_id
+          description,
+          trip_id,
+          trips!inner (
+            name
+          )
         )
       `
       )
@@ -86,15 +99,28 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: '獲取支出資料失敗' }, { status: 500 });
     }
 
-    // 3. 計算分類統計
-    const categoryMap = new Map<string, { total: number; count: number }>();
+    // 3. 計算分類統計（含明細）
+    const categoryMap = new Map<
+      string,
+      { total: number; count: number; details: ExpenseDetail[] }
+    >();
 
     expenseSplits?.forEach((split: any) => {
       const category = split.expenses.category || 'other';
-      const current = categoryMap.get(category) || { total: 0, count: 0 };
+      const current = categoryMap.get(category) || { total: 0, count: 0, details: [] };
+
+      const detail: ExpenseDetail = {
+        id: split.expenses.id,
+        date: split.expenses.date,
+        description: split.expenses.description || '',
+        amount: Math.round(split.share_amount || 0),
+        tripName: split.expenses.trips?.name || '',
+      };
+
       categoryMap.set(category, {
         total: current.total + (split.share_amount || 0),
         count: current.count + 1,
+        details: [...current.details, detail],
       });
     });
 
@@ -103,6 +129,10 @@ export async function GET(request: NextRequest) {
         category,
         total: Math.round(stats.total),
         count: stats.count,
+        // 明細按日期排序（新的在前）
+        details: stats.details.sort(
+          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+        ),
       })
     );
 

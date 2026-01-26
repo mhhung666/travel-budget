@@ -317,7 +317,8 @@
     "countryStats": "國家統計",
     "countries": "個國家",
     "trips": "趟旅行",
-    "noData": "尚無資料"
+    "noData": "尚無資料",
+    "noDescription": "無描述"
   },
   "trip": {
     "info": "旅行資訊",

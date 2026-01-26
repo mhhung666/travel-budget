@@ -25,14 +25,24 @@ import {
   Receipt,
   AttachMoney,
   Place,
+  CalendarToday,
 } from '@mui/icons-material';
 import Navbar from '@/components/layout/Navbar';
 import { getCategoryIcon } from '@/constants/categories';
+
+interface ExpenseDetail {
+  id: number;
+  date: string;
+  description: string;
+  amount: number;
+  tripName: string;
+}
 
 interface CategoryStat {
   category: string;
   total: number;
   count: number;
+  details: ExpenseDetail[];
 }
 
 interface RegionStat {
@@ -262,26 +272,33 @@ export default function StatsPage() {
               </Box>
 
               {stats?.categoryStats && stats.categoryStats.length > 0 ? (
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                <Box>
                   {stats.categoryStats.map((cat) => (
-                    <Card
+                    <Accordion
                       key={cat.category}
                       elevation={0}
-                      sx={{ border: '1px solid', borderColor: 'divider' }}
+                      sx={{
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        '&:before': { display: 'none' },
+                        mb: 1,
+                      }}
                     >
-                      <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
+                      <AccordionSummary expandIcon={<ExpandMore />}>
                         <Box
                           sx={{
                             display: 'flex',
-                            justifyContent: 'space-between',
                             alignItems: 'center',
+                            justifyContent: 'space-between',
+                            width: '100%',
+                            pr: 2,
                           }}
                         >
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                             <Typography variant="h6" component="span">
                               {getCategoryIcon(cat.category)}
                             </Typography>
-                            <Typography variant="body1" fontWeight={500}>
+                            <Typography variant="body1" fontWeight={600}>
                               {tCategory(cat.category)}
                             </Typography>
                           </Box>
@@ -294,8 +311,65 @@ export default function StatsPage() {
                             </Typography>
                           </Box>
                         </Box>
-                      </CardContent>
-                    </Card>
+                      </AccordionSummary>
+                      <AccordionDetails>
+                        <Divider sx={{ mb: 2 }} />
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                          {cat.details.map((detail) => (
+                            <Box
+                              key={detail.id}
+                              sx={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'flex-start',
+                                pl: 1,
+                              }}
+                            >
+                              <Box sx={{ flex: 1 }}>
+                                <Typography variant="body2" fontWeight={500}>
+                                  {detail.description || t('noDescription')}
+                                </Typography>
+                                <Box
+                                  sx={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 1,
+                                    mt: 0.5,
+                                  }}
+                                >
+                                  <CalendarToday
+                                    sx={{ fontSize: 14, color: 'text.secondary' }}
+                                  />
+                                  <Typography variant="caption" color="text.secondary">
+                                    {new Date(detail.date).toLocaleDateString(
+                                      locale === 'zh'
+                                        ? 'zh-TW'
+                                        : locale === 'jp'
+                                          ? 'ja-JP'
+                                          : 'en-US'
+                                    )}
+                                  </Typography>
+                                  <Typography variant="caption" color="text.secondary">
+                                    ·
+                                  </Typography>
+                                  <Typography variant="caption" color="text.secondary">
+                                    {detail.tripName}
+                                  </Typography>
+                                </Box>
+                              </Box>
+                              <Typography
+                                variant="body2"
+                                fontWeight={500}
+                                color="text.secondary"
+                                sx={{ ml: 2 }}
+                              >
+                                {formatCurrency(detail.amount)}
+                              </Typography>
+                            </Box>
+                          ))}
+                        </Box>
+                      </AccordionDetails>
+                    </Accordion>
                   ))}
                 </Box>
               ) : (
