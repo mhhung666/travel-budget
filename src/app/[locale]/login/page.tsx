@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, Link } from '@/i18n/navigation';
 import {
   Box,
   Container,
@@ -15,7 +15,6 @@ import {
   Tab,
 } from '@mui/material';
 import { TravelExplore, ArrowBack } from '@mui/icons-material';
-import Link from 'next/link';
 import Navbar from '@/components/layout/Navbar';
 import { useTranslations } from 'next-intl';
 

@@ -18,10 +18,11 @@ function MUIThemeProvider({ children }: { children: React.ReactNode }) {
         sx={{
           display: 'flex',
           flexDirection: 'column',
-          minHeight: '100vh',
+          height: '100dvh',
+          overflow: 'hidden',
         }}
       >
-        <Box component="main" sx={{ flex: 1 }}>
+        <Box component="main" sx={{ flex: 1, overflow: 'auto' }}>
           {children}
         </Box>
         <Footer />

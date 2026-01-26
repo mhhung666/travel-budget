@@ -2,7 +2,7 @@
 
 import { Box, Container, Typography, Button, Card, CardContent } from '@mui/material';
 import { TravelExplore, Add, Calculate, Payments, ArrowForward } from '@mui/icons-material';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/i18n/navigation';
 import Navbar from '@/components/layout/Navbar';
 import { useTranslations } from 'next-intl';
 
