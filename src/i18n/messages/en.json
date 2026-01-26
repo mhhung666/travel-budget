@@ -306,7 +306,8 @@
     "countryStats": "Country Stats",
     "countries": "countries",
     "trips": "trips",
-    "noData": "No data yet"
+    "noData": "No data yet",
+    "noDescription": "No description"
   },
   "trip": {
     "info": "Trip Info",
