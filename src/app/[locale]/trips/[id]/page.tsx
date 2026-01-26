@@ -50,6 +50,7 @@ import {
 } from '@mui/icons-material';
 import Navbar from '@/components/layout/Navbar';
 import LocationAutocomplete, { LocationOption } from '@/components/location/LocationAutocomplete';
+import { CATEGORIES, DEFAULT_CATEGORY, getCategoryIcon } from '@/constants/categories';
 
 interface Location {
   name: string;
@@ -87,6 +88,7 @@ interface Expense {
   currency: string;
   exchange_rate: number;
   description: string;
+  category: string;
   date: string;
   payer_id: number;
   payer_name: string;
@@ -125,6 +127,7 @@ export default function TripDetailPage() {
     currency: 'TWD', // 新增: 幣別
     exchange_rate: '1.0', // 新增: 匯率
     description: '',
+    category: DEFAULT_CATEGORY,
     date: new Date().toISOString().split('T')[0],
     split_with: [] as number[],
   });
@@ -157,6 +160,7 @@ export default function TripDetailPage() {
     original_amount: '',
     currency: 'TWD',
     exchange_rate: '1.0',
+    category: DEFAULT_CATEGORY,
   });
 
   // 新增虛擬成員相關 state
@@ -237,6 +241,7 @@ export default function TripDetailPage() {
           ...expenseForm,
           original_amount: parseFloat(expenseForm.original_amount),
           exchange_rate: parseFloat(expenseForm.exchange_rate),
+          category: expenseForm.category,
         }),
       });
 
@@ -253,6 +258,7 @@ export default function TripDetailPage() {
         currency: 'TWD',
         exchange_rate: '1.0',
         description: '',
+        category: DEFAULT_CATEGORY,
         date: new Date().toISOString().split('T')[0],
         split_with: [],
       });
@@ -288,6 +294,7 @@ export default function TripDetailPage() {
       original_amount: expense.original_amount.toString(),
       currency: expense.currency,
       exchange_rate: expense.exchange_rate.toString(),
+      category: expense.category || DEFAULT_CATEGORY,
     });
     setEditExpenseDialog(true);
   };
@@ -307,6 +314,7 @@ export default function TripDetailPage() {
           original_amount: parseFloat(editForm.original_amount),
           currency: editForm.currency,
           exchange_rate: parseFloat(editForm.exchange_rate),
+          category: editForm.category,
         }),
       });
 
@@ -736,9 +744,11 @@ export default function TripDetailPage() {
                                 }}
                               >
                                 <Box sx={{ flex: 1 }}>
-                                  <Typography variant="subtitle1" fontWeight={600}>
-                                    {expense.description}
-                                  </Typography>
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <Typography variant="subtitle1" fontWeight={600}>
+                                      {getCategoryIcon(expense.category)} {expense.description}
+                                    </Typography>
+                                  </Box>
                                   <Typography variant="body2" color="text.secondary">
                                     {expense.payer_name} {tExpense('paidBy')} •{' '}
                                     {new Date(expense.date).toLocaleDateString()}
@@ -1118,6 +1128,22 @@ export default function TripDetailPage() {
               </Alert>
             )}
 
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <InputLabel>{tExpense('form.category')} *</InputLabel>
+              <Select
+                value={expenseForm.category}
+                onChange={(e) => setExpenseForm({ ...expenseForm, category: e.target.value })}
+                label={`${tExpense('form.category')} *`}
+                required
+              >
+                {CATEGORIES.map((cat) => (
+                  <MenuItem key={cat.code} value={cat.code}>
+                    {cat.icon} {t(cat.nameKey)}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
             <TextField
               fullWidth
               label={`${tExpense('form.description')} *`}
@@ -1305,6 +1331,21 @@ export default function TripDetailPage() {
               margin="normal"
               required
             />
+
+            <FormControl fullWidth margin="normal" required>
+              <InputLabel>{tExpense('form.category')}</InputLabel>
+              <Select
+                value={editForm.category}
+                onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
+                label={tExpense('form.category')}
+              >
+                {CATEGORIES.map((cat) => (
+                  <MenuItem key={cat.code} value={cat.code}>
+                    {cat.icon} {t(cat.nameKey)}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
 
             <FormControl fullWidth margin="normal" required>
               <InputLabel>{tExpense('form.currency')}</InputLabel>
