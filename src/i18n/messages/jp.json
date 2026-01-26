@@ -25,6 +25,7 @@
   "nav": {
     "home": "ホーム",
     "trips": "旅行一覧",
+    "stats": "統計",
     "settings": "設定",
     "login": "ログイン",
     "logout": "ログアウト",
@@ -304,6 +305,19 @@
       "passwordMismatch": "パスワードが一致しません",
       "passwordHelp": "6文字以上"
     }
+  },
+  "stats": {
+    "title": "統計",
+    "dateRange": "期間指定",
+    "startDate": "開始日",
+    "endDate": "終了日",
+    "totalSpent": "総支出",
+    "expenses": "件",
+    "categoryStats": "カテゴリ別統計",
+    "countryStats": "国別統計",
+    "countries": "か国",
+    "trips": "回の旅行",
+    "noData": "データがありません"
   },
   "trip": {
     "info": "旅行情報",

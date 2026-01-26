@@ -25,6 +25,7 @@
   "nav": {
     "home": "Home",
     "trips": "My Trips",
+    "stats": "My Stats",
     "settings": "Settings",
     "login": "Login",
     "logout": "Logout",
@@ -293,6 +294,19 @@
   "footer": {
     "appName": "Travel Budget",
     "copyright": "MH Hung. All rights reserved."
+  },
+  "stats": {
+    "title": "My Stats",
+    "dateRange": "Date Range",
+    "startDate": "Start Date",
+    "endDate": "End Date",
+    "totalSpent": "Total Spent",
+    "expenses": "expenses",
+    "categoryStats": "Category Stats",
+    "countryStats": "Country Stats",
+    "countries": "countries",
+    "trips": "trips",
+    "noData": "No data yet"
   },
   "trip": {
     "info": "Trip Info",
