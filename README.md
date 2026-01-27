@@ -1,159 +1,87 @@
-# Travel Budget - 旅行記帳
+# Travel Budget
 
-一個輕量化的旅行記帳與分帳應用程式，適合多人出國旅行時使用。
+一個輕量化的旅行記帳與分帳應用程式，專為多人出國旅行設計。
 
-## ✨ 功能特色
+## ✨ 特色
 
-- 📝 **輕鬆記帳** - 快速記錄每筆支出，隨時隨地更新
-- 💰 **多幣別支援** - 支援 TWD、JPY、USD、EUR、HKD 自動換算
-- 👥 **智能分帳** - 自動計算每個人應付的金額
-- 📊 **一鍵結算** - 最優化的轉帳方案，省時又便利
-- 🔗 **邀請分享** - 使用短代碼邀請朋友加入旅行
-- 🌐 **多語言** - 支援中文和英文介面
-- 🌙 **深色模式** - 支援淺色/深色主題切換
-- 📱 **響應式設計** - 手機、平板、電腦都能使用
+- **多人協作**: 支援即時多人共同記帳
+- **智慧分帳**: 自動計算每個人應付金額，支援複雜的分帳規則
+- **多幣別支援**: 自動匯率轉換，輕鬆處理跨國消費
+- **視覺化統計**: 清晰的圖表展示支出分佈
+- **深色模式**: 舒適的夜間瀏覽體驗 (支援系統自動切換)
+- **響應式設計**: 手機、平板、電腦皆可完美使用
 
-## 🚀 快速開始
+## 🛠 技術棧 (Tech Stack)
 
-### 環境需求
+- **Framework**: [Next.js 16 (App Router)](https://nextjs.org/)
+- **Language**: [TypeScript](https://www.typescriptlang.org/)
+- **UI Library**: [Material UI (MUI) v7](https://mui.com/)
+- **Icons**: [Lucide React](https://lucide.dev/)
+- **Database / Auth**: [Supabase](https://supabase.com/)
+- **Internationalization**: [next-intl](https://next-intl-docs.vercel.app/)
 
-- Node.js 20.x 或更高版本
-- npm 或 yarn
-- Supabase 帳號 (免費)
+## 🚀 快速開始 (Getting Started)
 
-### 安裝步驟
+### 前置需求
 
-```bash
-# 1. 安裝依賴
-npm install
+- Node.js 18+
+- Supabase 專案 (需設定資料庫與環境變數)
 
-# 2. 建立環境變數
-cp .env.example .env.local
+### 安裝
 
-# 3. 編輯 .env.local，填入設定值
-# NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
-# NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-# JWT_SECRET=your-secret-key
+1. Clone 專案
+   ```bash
+   git clone <repository-url>
+   cd travel-budget
+   ```
 
-# 4. 啟動開發伺服器
-npm run dev
-```
+2. 安裝依賴
+   ```bash
+   npm install
+   # 或
+   yarn install
+   ```
 
-訪問 `http://localhost:3000` 開始使用。
+3. 設定環境變數
+   複製 `.env.example` 為 `.env` 並填入 Supabase URL 與 Key。
+   ```bash
+   cp .env.example .env
+   ```
+   
+   `.env` 內容範例:
+   ```env
+   NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+   ```
 
-📖 詳細設定請參考 [docs/SETUP.md](./docs/SETUP.md)
+4. 初始化資料庫
+   在 Supabase Dashboard 的 SQL Editor 中執行 `src/lib/supabase.ts` 內的 `INIT_SQL` 語法以建立資料表。
+
+5. 啟動開發伺服器
+   ```bash
+   npm run dev
+   ```
+
+6. 開啟瀏覽器訪問 `http://localhost:3000`
 
 ## 📁 專案結構
 
 ```
-travel-budget/
-├── src/
-│   ├── app/              # Next.js App Router
-│   ├── components/       # 共用元件
-│   ├── hooks/            # Custom Hooks
-│   ├── services/         # API 服務層
-│   ├── lib/              # 工具函數
-│   ├── types/            # TypeScript 型別（見下方）
-│   ├── constants/        # 常數定義
-│   └── i18n/             # 國際化
-├── docs/                 # 文件
-└── public/               # 靜態資源
+src/
+├── app/              # Next.js App Router 頁面與 API
+│   ├── [locale]/     # 多語系路由頁面
+│   └── api/          # 後端 API Routes
+├── components/       # 共用元件
+├── lib/              # 工具函式庫 (Supabase, Auth 等)
+├── services/         # API 服務層
+├── types/            # TypeScript 型別定義
+└── i18n/             # 國際化設定
 ```
 
-### Types 結構
+## 📜 腳本指令
 
-```
-src/types/
-├── index.ts              # 統一導出
-├── models/               # 領域模型（純資料結構）
-│   ├── user.ts          # User, Member, TripRole
-│   ├── trip.ts          # Trip, TripWithMembers
-│   ├── expense.ts       # Expense, ExpenseSplit
-│   └── settlement.ts    # UserBalance, Transfer, SettlementData
-├── common/               # 通用類型
-│   ├── location.ts      # Location
-│   └── currency.ts      # Currency
-└── api/
-    └── dto/              # API 資料傳輸物件
-        ├── auth.dto.ts  # LoginDto, RegisterDto, AuthResponseDto
-        ├── trip.dto.ts  # CreateTripDto, UpdateTripDto
-        └── expense.dto.ts # CreateExpenseDto, UpdateExpenseDto
-```
-
-**命名規範：**
-- 領域模型：無後綴（`User`, `Trip`, `Expense`）
-- DTO：`XxxDto` 後綴（`CreateTripDto`, `LoginDto`）
-
-📖 詳細架構請參考 [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)
-
-## 🛠 技術棧
-
-| 類別 | 技術 |
-|------|------|
-| 前端框架 | React 19 + Next.js 16 (App Router) |
-| UI 框架 | Material-UI (MUI) 7 |
-| 語言 | TypeScript 5.9 |
-| 資料庫 | Supabase (PostgreSQL) |
-| 認證 | JWT (jose) |
-| 國際化 | next-intl |
-| 部署 | Vercel |
-| 代碼品質 | ESLint + Prettier |
-| 測試 | Vitest + React Testing Library |
-
-## 📝 開發指令
-
-| 指令 | 說明 |
-|------|------|
-| `npm run dev` | 啟動開發伺服器 |
-| `npm run build` | 建置生產版本 |
-| `npm run lint` | 執行 ESLint 檢查 |
-| `npm run lint:fix` | 自動修復 ESLint 問題 |
-| `npm run format` | 格式化程式碼 |
-| `npm run test` | 執行測試 |
-
-## 📚 文件
-
-| 文件 | 說明 |
-|------|------|
-| [docs/SETUP.md](./docs/SETUP.md) | 環境設定指南 |
-| [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | 專案架構說明 |
-| [docs/REFACTOR_V2.md](./docs/REFACTOR_V2.md) | v2.0 重構記錄 |
-
-## 🌐 部署
-
-本專案可輕鬆部署到 Vercel:
-
-1. Fork 此專案到你的 GitHub
-2. 在 [Vercel](https://vercel.com) 匯入專案
-3. 設定環境變數
-4. 完成部署
-
-📖 詳細步驟請參考 [docs/SETUP.md](./docs/SETUP.md#vercel-部署)
-
-## 📦 版本歷史
-
-### v3.0.0 (進行中)
-- 重構 Types 結構：分離 models / common / api
-- 採用 DTO 命名規範（`CreateTripDto`, `LoginDto`）
-- 統一類型導出入口（`@/types`）
-
-### v2.0.0
-- 重構專案結構，移至 `src/` 目錄
-- 新增 ESLint + Prettier 配置
-- 建立 Custom Hooks 和 API 服務層
-- 提取共用元件
-- 完善 i18n 國際化
-
-### v1.0.2
-- 支出編輯功能
-- 多幣別支援 (TWD, JPY, USD, EUR, HKD)
-- 自動匯率換算
-
-### v1.0.1
-- 管理員權限系統
-- Hash code 邀請系統
-- 快速加入頁面
-
-## License
-
-MIT
+- `npm run dev`: 啟動開發環境
+- `npm run build`: 建置生產版本
+- `npm run start`: 執行生產版本
+- `npm run lint`: 執行 ESLint 檢查
+- `npm run format`: 執行 Prettier 格式化
