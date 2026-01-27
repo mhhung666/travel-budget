@@ -20,7 +20,7 @@ import {
   Snackbar,
   Chip,
 } from '@mui/material';
-import { Add, GroupAdd, People, CalendarToday, ContentCopy, LocationOn, DateRange } from '@mui/icons-material';
+import { Plus, UserPlus, Users, Calendar, Copy, MapPin, CalendarRange } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import { useTranslations, useLocale } from 'next-intl';
 import LocationAutocomplete, { LocationOption } from '@/components/location/LocationAutocomplete';
@@ -173,10 +173,10 @@ export default function TripsPage() {
         user={
           user
             ? {
-                id: user.id,
-                username: user.display_name,
-                email: user.email,
-              }
+              id: user.id,
+              username: user.display_name,
+              email: user.email,
+            }
             : null
         }
         showUserMenu={true}
@@ -203,7 +203,7 @@ export default function TripsPage() {
                 <Button
                   onClick={() => setShowJoinModal(true)}
                   variant="outlined"
-                  startIcon={<GroupAdd />}
+                  startIcon={<UserPlus />}
                   sx={{ textTransform: 'none' }}
                 >
                   {t('joinTrip')}
@@ -211,7 +211,7 @@ export default function TripsPage() {
                 <Button
                   onClick={() => setShowCreateModal(true)}
                   variant="contained"
-                  startIcon={<Add />}
+                  startIcon={<Plus />}
                   sx={{ textTransform: 'none' }}
                 >
                   {t('createTrip')}
@@ -264,7 +264,9 @@ export default function TripsPage() {
                         {/* 地點顯示 */}
                         {trip.location && (
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1 }}>
-                            <LocationOn fontSize="small" color="action" />
+                            <Box component="span" sx={{ color: 'action.active', display: 'flex' }}>
+                              <MapPin size={16} />
+                            </Box>
                             <Typography variant="body2" color="text.secondary">
                               {trip.location.name}
                               {trip.location.country && `, ${trip.location.country}`}
@@ -275,18 +277,20 @@ export default function TripsPage() {
                         {/* 日期顯示 */}
                         {(trip.start_date || trip.end_date) && (
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1 }}>
-                            <DateRange fontSize="small" color="action" />
+                            <Box component="span" sx={{ color: 'action.active', display: 'flex' }}>
+                              <CalendarRange size={16} />
+                            </Box>
                             <Typography variant="body2" color="text.secondary">
                               {trip.start_date
                                 ? new Date(trip.start_date).toLocaleDateString(
-                                    locale === 'zh' ? 'zh-TW' : locale === 'jp' ? 'ja-JP' : 'en-US'
-                                  )
+                                  locale === 'zh' ? 'zh-TW' : locale === 'jp' ? 'ja-JP' : 'en-US'
+                                )
                                 : ''}
                               {trip.start_date && trip.end_date && ' ~ '}
                               {trip.end_date
                                 ? new Date(trip.end_date).toLocaleDateString(
-                                    locale === 'zh' ? 'zh-TW' : locale === 'jp' ? 'ja-JP' : 'en-US'
-                                  )
+                                  locale === 'zh' ? 'zh-TW' : locale === 'jp' ? 'ja-JP' : 'en-US'
+                                )
                                 : ''}
                             </Typography>
                           </Box>
@@ -303,13 +307,13 @@ export default function TripsPage() {
                           }}
                         >
                           <Chip
-                            icon={<People />}
+                            icon={<Users size={16} />}
                             label={`${trip.member_count} ${t('members')}`}
                             size="small"
                             variant="outlined"
                           />
                           <Chip
-                            icon={<CalendarToday />}
+                            icon={<Calendar size={16} />}
                             label={new Date(trip.created_at).toLocaleDateString(
                               locale === 'zh' ? 'zh-TW' : 'en-US'
                             )}
@@ -321,7 +325,7 @@ export default function TripsPage() {
                           label={`${t('idLabel')} ${trip.hash_code}`}
                           size="small"
                           onClick={(e) => copyHashCode(trip.hash_code, e)}
-                          icon={<ContentCopy fontSize="small" />}
+                          icon={<Copy size={16} />}
                           sx={{
                             cursor: 'pointer',
                             '&:hover': { bgcolor: 'primary.50' },

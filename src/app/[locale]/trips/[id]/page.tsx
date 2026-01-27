@@ -12,7 +12,7 @@ import {
   CircularProgress,
   Snackbar,
 } from '@mui/material';
-import { ArrowBack } from '@mui/icons-material';
+import { ArrowLeft } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import type { Trip, Member, Expense } from '@/types';
 import {
@@ -358,7 +358,7 @@ export default function TripDetailPage() {
       <Container maxWidth="lg" sx={{ pt: { xs: 10, sm: 12 }, pb: 4 }}>
         {/* 返回按鈕 */}
         <Button
-          startIcon={<ArrowBack />}
+          startIcon={<ArrowLeft />}
           onClick={() => router.push('/trips')}
           sx={{
             mb: 3,

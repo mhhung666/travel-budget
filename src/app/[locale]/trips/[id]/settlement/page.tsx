@@ -21,11 +21,11 @@ import {
   TrendingUp,
   TrendingDown,
   CheckCircle,
-  ArrowForward,
-  ArrowDownward,
+  ArrowRight,
+  ArrowDown,
   Lightbulb,
-  ArrowBack,
-} from '@mui/icons-material';
+  ArrowLeft,
+} from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import type { Balance, Transaction } from '@/types';
 
@@ -110,7 +110,7 @@ export default function SettlementPage() {
       <Container maxWidth="lg" sx={{ pt: { xs: 10, sm: 12 }, pb: 4 }}>
         {/* 返回按鈕 */}
         <Button
-          startIcon={<ArrowBack />}
+          startIcon={<ArrowLeft />}
           onClick={() => router.push(`/trips/${tripId}`)}
           sx={{
             mb: 3,
@@ -179,11 +179,11 @@ export default function SettlementPage() {
                         <Chip
                           icon={
                             balance.balance > 0 ? (
-                              <TrendingUp />
+                              <TrendingUp size={18} />
                             ) : balance.balance < 0 ? (
-                              <TrendingDown />
+                              <TrendingDown size={18} />
                             ) : (
-                              <CheckCircle />
+                              <CheckCircle size={18} />
                             )
                           }
                           label={`${balance.balance >= 0 ? '+' : ''}$${balance.balance.toFixed(0)}`}
@@ -334,10 +334,14 @@ export default function SettlementPage() {
                                 ${transaction.amount.toFixed(0)}
                               </Typography>
                               <Box sx={{ display: { xs: 'block', sm: 'none' } }}>
-                                <ArrowDownward sx={{ color: 'text.secondary' }} />
+                                <Box component="span" sx={{ color: 'text.secondary', display: 'flex' }}>
+                                  <ArrowDown />
+                                </Box>
                               </Box>
                               <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
-                                <ArrowForward sx={{ color: 'text.secondary' }} />
+                                <Box component="span" sx={{ color: 'text.secondary', display: 'flex' }}>
+                                  <ArrowRight />
+                                </Box>
                               </Box>
                             </Box>
 

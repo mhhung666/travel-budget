@@ -15,7 +15,7 @@ import {
   Chip,
   Avatar,
 } from '@mui/material';
-import { GroupAdd, Info, People } from '@mui/icons-material';
+import { UserPlus, Info, Users } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { TripWithMembers } from '@/types';
 
@@ -151,7 +151,7 @@ export default function QuickJoinPage() {
                 fontSize: '2rem',
               }}
             >
-              <GroupAdd fontSize="large" />
+              <UserPlus size={40} />
             </Avatar>
 
             <Typography variant="h4" gutterBottom fontWeight={600}>
@@ -181,13 +181,13 @@ export default function QuickJoinPage() {
                     )}
                     <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 2 }}>
                       <Chip
-                        icon={<People />}
+                        icon={<Users size={18} />}
                         label={`${trip.member_count} ${t('members')}`}
                         size="small"
                         variant="outlined"
                       />
                       <Chip
-                        icon={<Info />}
+                        icon={<Info size={18} />}
                         label={`${t('idLabel')} ${trip.hash_code}`}
                         size="small"
                         variant="outlined"
@@ -208,7 +208,7 @@ export default function QuickJoinPage() {
                   fullWidth
                   onClick={handleJoin}
                   disabled={isJoining}
-                  startIcon={isJoining ? <CircularProgress size={20} /> : <GroupAdd />}
+                  startIcon={isJoining ? <CircularProgress size={20} /> : <UserPlus />}
                   sx={{ py: 1.5, fontWeight: 600 }}
                 >
                   {isJoining ? t('quickJoin.joining') : t('quickJoin.joinThisTrip')}

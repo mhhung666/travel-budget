@@ -14,7 +14,7 @@ import {
   Tabs,
   Tab,
 } from '@mui/material';
-import { TravelExplore, ArrowBack } from '@mui/icons-material';
+import { Compass, ArrowLeft } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import { useTranslations } from 'next-intl';
 
@@ -101,7 +101,7 @@ export default function LoginPage() {
                 mb: 3,
               }}
             >
-              <TravelExplore sx={{ fontSize: 32, color: 'white' }} />
+              <Compass size={32} color="white" />
             </Box>
 
             {/* 標題 */}
@@ -222,7 +222,7 @@ export default function LoginPage() {
               <Button
                 component={Link}
                 href="/"
-                startIcon={<ArrowBack />}
+                startIcon={<ArrowLeft />}
                 sx={{
                   textTransform: 'none',
                   color: 'text.secondary',

@@ -1,7 +1,7 @@
 'use client';
 
 import { Box, Container, Typography, Button, Card, CardContent } from '@mui/material';
-import { TravelExplore, Add, Calculate, Payments, ArrowForward } from '@mui/icons-material';
+import { Compass, Plus, Calculator, CreditCard, ArrowRight } from 'lucide-react';
 import { useRouter } from '@/i18n/navigation';
 import Navbar from '@/components/layout/Navbar';
 import { useTranslations } from 'next-intl';
@@ -45,7 +45,9 @@ export default function Home() {
                 mb: { xs: 3, sm: 4 },
               }}
             >
-              <TravelExplore sx={{ fontSize: { xs: 36, sm: 48 }, color: 'white' }} />
+              <Box component="span" sx={{ fontSize: { xs: 36, sm: 48 }, color: 'white', display: 'flex' }}>
+                <Compass size={undefined} width="1em" height="1em" />
+              </Box>
             </Box>
 
             {/* Title */}
@@ -90,7 +92,7 @@ export default function Home() {
                 onClick={() => router.push('/login')}
                 variant="contained"
                 size="large"
-                endIcon={<ArrowForward />}
+                endIcon={<ArrowRight />}
                 sx={{
                   px: { xs: 4, sm: 5 },
                   py: { xs: 1.5, sm: 1.75 },
@@ -164,7 +166,7 @@ export default function Home() {
                     mb: 2,
                   }}
                 >
-                  <Add sx={{ fontSize: 28, color: 'white' }} />
+                  <Plus size={28} color="white" />
                 </Box>
                 <Typography
                   variant="h6"
@@ -207,7 +209,7 @@ export default function Home() {
                     mb: 2,
                   }}
                 >
-                  <Calculate sx={{ fontSize: 28, color: 'white' }} />
+                  <Calculator size={28} color="white" />
                 </Box>
                 <Typography
                   variant="h6"
@@ -250,7 +252,7 @@ export default function Home() {
                     mb: 2,
                   }}
                 >
-                  <Payments sx={{ fontSize: 28, color: 'white' }} />
+                  <CreditCard size={28} color="white" />
                 </Box>
                 <Typography
                   variant="h6"

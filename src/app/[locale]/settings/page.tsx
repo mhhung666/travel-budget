@@ -14,7 +14,7 @@ import {
   Divider,
   IconButton,
 } from '@mui/material';
-import { ArrowBack, Person, Lock } from '@mui/icons-material';
+import { ArrowLeft, User, Lock } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import { useTranslations } from 'next-intl';
 
@@ -154,7 +154,7 @@ export default function SettingsPage() {
         <Container maxWidth="md">
           {/* 返回按鈕 */}
           <Button
-            startIcon={<ArrowBack />}
+            startIcon={<ArrowLeft />}
             onClick={() => router.push('/trips')}
             sx={{
               mb: 3,
@@ -201,7 +201,9 @@ export default function SettingsPage() {
             }}
           >
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-              <Person sx={{ mr: 1, color: 'primary.main' }} />
+              <Box component="span" sx={{ mr: 1, color: 'primary.main', display: 'flex' }}>
+                <User />
+              </Box>
               <Typography variant="h6" fontWeight={600}>
                 {t('profile.title')}
               </Typography>
@@ -256,7 +258,9 @@ export default function SettingsPage() {
             }}
           >
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-              <Lock sx={{ mr: 1, color: 'primary.main' }} />
+              <Box component="span" sx={{ mr: 1, color: 'primary.main', display: 'flex' }}>
+                <Lock />
+              </Box>
               <Typography variant="h6" fontWeight={600}>
                 {t('password.title')}
               </Typography>

@@ -19,14 +19,14 @@ import {
   Divider,
 } from '@mui/material';
 import {
-  ExpandMore,
-  Public,
-  Category,
+  ChevronDown,
+  Globe,
+  Grid2X2,
   Receipt,
-  AttachMoney,
-  Place,
-  CalendarToday,
-} from '@mui/icons-material';
+  DollarSign,
+  MapPin,
+  Calendar,
+} from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import { getCategoryIcon } from '@/constants/categories';
 import { getCountryFlag } from '@/constants/countries';
@@ -124,10 +124,10 @@ export default function StatsPage() {
         user={
           user
             ? {
-                id: user.id,
-                username: user.display_name || user.username,
-                email: user.email,
-              }
+              id: user.id,
+              username: user.display_name || user.username,
+              email: user.email,
+            }
             : null
         }
         showUserMenu={true}
@@ -184,7 +184,7 @@ export default function StatsPage() {
         >
           <CardContent>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-              <AttachMoney />
+              <DollarSign />
               <Typography variant="h6" fontWeight={600}>
                 {t('totalSpent')}
               </Typography>
@@ -193,7 +193,7 @@ export default function StatsPage() {
               {formatCurrency(stats?.totalAmount || 0)}
             </Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
-              <Receipt fontSize="small" />
+              <Receipt size={20} />
               <Typography variant="body1">
                 {stats?.totalExpenses || 0} {t('expenses')}
               </Typography>
@@ -208,7 +208,9 @@ export default function StatsPage() {
           <Card elevation={2}>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                <Category color="primary" />
+                <Box component="span" sx={{ color: 'primary.main', display: 'flex' }}>
+                  <Grid2X2 />
+                </Box>
                 <Typography variant="h6" fontWeight={600}>
                   {t('categoryStats')}
                 </Typography>
@@ -227,7 +229,7 @@ export default function StatsPage() {
                         mb: 1,
                       }}
                     >
-                      <AccordionSummary expandIcon={<ExpandMore />}>
+                      <AccordionSummary expandIcon={<ChevronDown />}>
                         <Box
                           sx={{
                             display: 'flex',
@@ -280,9 +282,9 @@ export default function StatsPage() {
                                     mt: 0.5,
                                   }}
                                 >
-                                  <CalendarToday
-                                    sx={{ fontSize: 14, color: 'text.secondary' }}
-                                  />
+                                  <Box component="span" sx={{ color: 'text.secondary', display: 'flex' }}>
+                                    <Calendar size={14} />
+                                  </Box>
                                   <Typography variant="caption" color="text.secondary">
                                     {new Date(detail.date).toLocaleDateString(
                                       locale === 'zh'
@@ -329,7 +331,9 @@ export default function StatsPage() {
           <Card elevation={2}>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                <Public color="primary" />
+                <Box component="span" sx={{ color: 'primary.main', display: 'flex' }}>
+                  <Globe />
+                </Box>
                 <Typography variant="h6" fontWeight={600}>
                   {t('countryStats')}
                 </Typography>
@@ -356,7 +360,7 @@ export default function StatsPage() {
                         mb: 1,
                       }}
                     >
-                      <AccordionSummary expandIcon={<ExpandMore />}>
+                      <AccordionSummary expandIcon={<ChevronDown />}>
                         <Box
                           sx={{
                             display: 'flex',
@@ -395,7 +399,9 @@ export default function StatsPage() {
                               }}
                             >
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <Place fontSize="small" color="action" />
+                                <Box component="span" sx={{ color: 'action.active', display: 'flex' }}>
+                                  <MapPin size={20} />
+                                </Box>
                                 <Typography variant="body2">{region.name}</Typography>
                               </Box>
                               <Typography variant="body2" color="text.secondary">
