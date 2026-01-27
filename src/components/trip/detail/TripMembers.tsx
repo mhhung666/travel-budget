@@ -9,7 +9,7 @@ import {
     Collapse,
     Avatar,
 } from '@mui/material';
-import { ExpandMore, ExpandLess, PersonAdd, AdminPanelSettings, PersonRemove } from '@mui/icons-material';
+import { ChevronDown, ChevronUp, UserPlus, Shield, UserMinus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { Member } from '@/types';
 
@@ -54,7 +54,7 @@ export default function TripMembers({
                         <Chip label={members.length} size="small" color="primary" />
                     </Box>
                     <IconButton size="small">
-                        {expanded ? <ExpandLess /> : <ExpandMore />}
+                        {expanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                     </IconButton>
                 </Box>
                 <Collapse in={expanded}>
@@ -63,7 +63,7 @@ export default function TripMembers({
                         <Button
                             variant="outlined"
                             size="small"
-                            startIcon={<PersonAdd />}
+                            startIcon={<UserPlus size={20} />}
                             onClick={onAddVirtualMember}
                             sx={{ mb: 2 }}
                             fullWidth
@@ -100,7 +100,7 @@ export default function TripMembers({
                                                 label={tMember('role.admin')}
                                                 size="small"
                                                 color="primary"
-                                                icon={<AdminPanelSettings />}
+                                                icon={<Shield size={16} />}
                                             />
                                         )}
                                         {member.is_virtual && (
@@ -127,7 +127,7 @@ export default function TripMembers({
                                             onRemoveMember(member);
                                         }}
                                     >
-                                        <PersonRemove />
+                                        <UserMinus size={20} />
                                     </IconButton>
                                 )}
                             </Box>

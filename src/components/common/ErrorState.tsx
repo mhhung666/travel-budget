@@ -1,7 +1,7 @@
 'use client';
 
 import { Box, Alert, Button, Typography } from '@mui/material';
-import { Refresh, ArrowBack } from '@mui/icons-material';
+import { RefreshCcw, ArrowLeft } from 'lucide-react';
 
 export interface ErrorStateProps {
   message: string;
@@ -65,12 +65,12 @@ export function ErrorState({
         </Alert>
         <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
           {onBack && (
-            <Button startIcon={<ArrowBack />} onClick={onBack} variant="outlined">
+            <Button startIcon={<ArrowLeft size={20} />} onClick={onBack} variant="outlined">
               {backText}
             </Button>
           )}
           {onRetry && (
-            <Button startIcon={<Refresh />} onClick={onRetry} variant="contained">
+            <Button startIcon={<RefreshCcw size={20} />} onClick={onRetry} variant="contained">
               {retryText}
             </Button>
           )}

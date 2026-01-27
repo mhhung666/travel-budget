@@ -9,7 +9,7 @@ import {
   Chip,
   IconButton,
 } from '@mui/material';
-import { ContentCopy, Group, CalendarToday } from '@mui/icons-material';
+import { Copy, Users, Calendar } from 'lucide-react';
 import type { TripWithMembers } from '@/types';
 
 export interface TripCardProps {
@@ -50,13 +50,13 @@ export function TripCard({ trip, onClick, onCopyCode }: TripCardProps) {
               )}
               <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                 <Chip
-                  icon={<Group />}
+                  icon={<Users size={16} />}
                   label={`${trip.member_count} members`}
                   size="small"
                   variant="outlined"
                 />
                 <Chip
-                  icon={<CalendarToday />}
+                  icon={<Calendar size={16} />}
                   label={new Date(trip.created_at).toLocaleDateString()}
                   size="small"
                   variant="outlined"
@@ -73,7 +73,7 @@ export function TripCard({ trip, onClick, onCopyCode }: TripCardProps) {
                 sx={{ ml: 1 }}
                 title="Copy trip code"
               >
-                <ContentCopy fontSize="small" />
+                <Copy size={20} />
               </IconButton>
             )}
           </Box>

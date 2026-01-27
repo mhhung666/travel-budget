@@ -1,7 +1,7 @@
 'use client';
 
 import { Box, Typography, Chip, Avatar, IconButton } from '@mui/material';
-import { AdminPanelSettings, PersonRemove } from '@mui/icons-material';
+import { Shield, UserMinus } from 'lucide-react';
 import type { Member } from '@/types';
 
 export interface MemberCardProps {
@@ -60,7 +60,7 @@ export function MemberCard({ member, isCurrentUser, canRemove, onRemove }: Membe
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
         {member.role === 'admin' && (
           <Chip
-            icon={<AdminPanelSettings />}
+            icon={<Shield size={16} />}
             label="Admin"
             size="small"
             color="primary"
@@ -74,7 +74,7 @@ export function MemberCard({ member, isCurrentUser, canRemove, onRemove }: Membe
             onClick={() => onRemove(member)}
             title="Remove member"
           >
-            <PersonRemove />
+            <UserMinus size={20} />
           </IconButton>
         )}
       </Box>

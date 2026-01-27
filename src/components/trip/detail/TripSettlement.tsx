@@ -1,5 +1,5 @@
 import { Card, CardContent, Button, Typography } from '@mui/material';
-import { Calculate } from '@mui/icons-material';
+import { Calculator } from 'lucide-react';
 import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 
@@ -20,7 +20,7 @@ export default function TripSettlement({ tripId }: TripSettlementProps) {
                     color="success"
                     fullWidth
                     size="large"
-                    startIcon={<Calculate />}
+                    startIcon={<Calculator size={20} />}
                     sx={{ py: 1.5, fontWeight: 600 }}
                 >
                     {tTrip('viewSettlement')}

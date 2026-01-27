@@ -13,7 +13,7 @@ import {
     MenuItem,
     Divider,
 } from '@mui/material';
-import { ExpandMore, ExpandLess, Add, Edit, Delete } from '@mui/icons-material';
+import { ChevronDown, ChevronUp, Plus, Edit2, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { getCategoryIcon } from '@/constants/categories';
 import type { Expense, Member } from '@/types';
@@ -66,7 +66,7 @@ export default function TripExpenses({
                         <Chip label={expenses.length} size="small" color="primary" />
                     </Box>
                     <IconButton size="small">
-                        {expanded ? <ExpandLess /> : <ExpandMore />}
+                        {expanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                     </IconButton>
                 </Box>
 
@@ -104,7 +104,7 @@ export default function TripExpenses({
                                     onAdd(e);
                                 }}
                                 variant="contained"
-                                startIcon={<Add />}
+                                startIcon={<Plus size={20} />}
                             >
                                 {tExpense('add')}
                             </Button>
@@ -201,7 +201,7 @@ export default function TripExpenses({
                                                             <Button
                                                                 onClick={() => onEdit(expense)}
                                                                 size="small"
-                                                                startIcon={<Edit />}
+                                                                startIcon={<Edit2 size={16} />}
                                                             >
                                                                 {tCommon('edit')}
                                                             </Button>
@@ -209,7 +209,7 @@ export default function TripExpenses({
                                                                 onClick={() => onDelete(expense.id)}
                                                                 size="small"
                                                                 color="error"
-                                                                startIcon={<Delete />}
+                                                                startIcon={<Trash2 size={16} />}
                                                             >
                                                                 {tCommon('delete')}
                                                             </Button>

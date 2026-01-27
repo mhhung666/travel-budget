@@ -1,7 +1,7 @@
 'use client';
 
 import { Box, Typography, Button, Alert } from '@mui/material';
-import { Add } from '@mui/icons-material';
+import { Plus } from 'lucide-react';
 import { ExpenseCard } from './ExpenseCard';
 import type { Expense } from '@/types';
 
@@ -47,7 +47,7 @@ export function ExpenseList({
           {emptyMessage}
         </Alert>
         {showAddButton && onAdd && (
-          <Button variant="contained" startIcon={<Add />} onClick={onAdd}>
+          <Button variant="contained" startIcon={<Plus size={20} />} onClick={onAdd}>
             {emptyActionLabel}
           </Button>
         )}

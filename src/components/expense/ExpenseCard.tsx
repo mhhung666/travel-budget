@@ -8,9 +8,10 @@ import {
   Chip,
   IconButton,
   Avatar,
+
   Collapse,
 } from '@mui/material';
-import { Edit, Delete, ExpandMore, ExpandLess } from '@mui/icons-material';
+import { Edit2, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { useState } from 'react';
 import { formatCurrency, getCurrencySymbol } from '@/constants/currencies';
 import { getCategoryIcon } from '@/constants/categories';
@@ -85,7 +86,7 @@ export function ExpenseCard({
             {canModify && (
               <>
                 <IconButton size="small" onClick={() => onEdit?.(expense)} title="Edit">
-                  <Edit fontSize="small" />
+                  <Edit2 size={16} />
                 </IconButton>
                 <IconButton
                   size="small"
@@ -93,12 +94,12 @@ export function ExpenseCard({
                   color="error"
                   title="Delete"
                 >
-                  <Delete fontSize="small" />
+                  <Trash2 size={16} />
                 </IconButton>
               </>
             )}
             <IconButton size="small" onClick={() => setExpanded(!expanded)}>
-              {expanded ? <ExpandLess /> : <ExpandMore />}
+              {expanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
             </IconButton>
           </Box>
         </Box>

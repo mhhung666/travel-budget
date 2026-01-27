@@ -17,7 +17,7 @@ import {
     Checkbox,
     Button
 } from '@mui/material';
-import { Close, AttachMoney } from '@mui/icons-material';
+import { X, DollarSign } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { CATEGORIES, DEFAULT_CATEGORY } from '@/constants/categories';
 import type { Member } from '@/types';
@@ -104,7 +104,7 @@ export default function AddExpenseDialog({
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     {tExpense('add')}
                     <IconButton onClick={onClose} size="small">
-                        <Close />
+                        <X size={20} />
                     </IconButton>
                 </Box>
             </DialogTitle>
@@ -197,7 +197,7 @@ export default function AddExpenseDialog({
                     </Box>
 
                     {form.currency !== 'TWD' && (
-                        <Alert severity="info" icon={<AttachMoney />} sx={{ mb: 2 }}>
+                        <Alert severity="info" icon={<DollarSign size={20} />} sx={{ mb: 2 }}>
                             {tExpense('form.convertedAmount')}: <strong>NT${calculateConvertedAmount().toLocaleString()}</strong>
                         </Alert>
                     )}
@@ -281,7 +281,7 @@ export default function AddExpenseDialog({
                         {form.split_with.length > 0 &&
                             form.original_amount &&
                             parseFloat(form.original_amount) > 0 && (
-                                <Alert severity="info" icon={<AttachMoney />} sx={{ mt: 1 }}>
+                                <Alert severity="info" icon={<DollarSign size={20} />} sx={{ mt: 1 }}>
                                     {tExpense('perPerson')}{' '}
                                     <strong>
                                         NT$

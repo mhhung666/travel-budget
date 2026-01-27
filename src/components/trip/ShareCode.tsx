@@ -11,7 +11,7 @@ import {
   Snackbar,
   Alert,
 } from '@mui/material';
-import { ContentCopy } from '@mui/icons-material';
+import { Copy } from 'lucide-react';
 
 export interface ShareCodeProps {
   hashCode: string;
@@ -59,7 +59,7 @@ export function ShareCode({
               slotProps={{ input: { readOnly: true } }}
               sx={{ flex: 1 }}
             />
-            <Button variant="outlined" startIcon={<ContentCopy />} onClick={handleCopy}>
+            <Button variant="outlined" startIcon={<Copy size={20} />} onClick={handleCopy}>
               Copy
             </Button>
           </Box>

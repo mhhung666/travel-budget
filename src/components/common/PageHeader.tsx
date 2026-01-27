@@ -1,7 +1,7 @@
 'use client';
 
 import { Box, Typography, Button, IconButton } from '@mui/material';
-import { ArrowBack } from '@mui/icons-material';
+import { ArrowLeft } from 'lucide-react';
 import { ReactNode } from 'react';
 
 export interface PageHeaderProps {
@@ -41,7 +41,7 @@ export function PageHeader({
     <Box sx={{ mb: 3 }}>
       {backButton && onBack && (
         <Button
-          startIcon={<ArrowBack />}
+          startIcon={<ArrowLeft size={20} />}
           onClick={onBack}
           sx={{
             mb: 2,

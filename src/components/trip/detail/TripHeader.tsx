@@ -1,5 +1,5 @@
 import { Box, Card, CardContent, Typography, Button, Chip } from '@mui/material';
-import { Edit } from '@mui/icons-material';
+import { Edit2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { Trip } from '@/types';
 
@@ -23,7 +23,7 @@ export default function TripHeader({ trip, isCurrentUserAdmin, onEdit }: TripHea
           {isCurrentUserAdmin && (
             <Button
               size="small"
-              startIcon={<Edit />}
+              startIcon={<Edit2 size={16} />}
               onClick={onEdit}
             >
               {tCommon('edit')}

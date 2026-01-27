@@ -12,7 +12,7 @@ import {
   MenuItem,
   Container,
 } from '@mui/material';
-import { Logout, TravelExplore, Settings, BarChart } from '@mui/icons-material';
+import { LogOut, Compass, Settings, BarChart3 } from 'lucide-react';
 import { useRouter } from '@/i18n/navigation';
 import { useState } from 'react';
 import { useThemeContext } from '@/app/[locale]/context/ThemeContext';
@@ -82,7 +82,7 @@ export default function Navbar({ user, showUserMenu = true, title }: NavbarProps
     >
       <Container maxWidth="lg">
         <Toolbar sx={{ px: { xs: 0 } }}>
-          <TravelExplore sx={{ mr: 1, color: 'primary.main' }} />
+          <Compass size={24} style={{ marginRight: 8, color: '#1976d2' }} />
           <Typography
             variant="h6"
             component="div"
@@ -115,14 +115,14 @@ export default function Navbar({ user, showUserMenu = true, title }: NavbarProps
               <Box sx={{ display: { xs: 'none', md: 'flex' }, gap: 1 }}>
                 <Button
                   onClick={handleTrips}
-                  startIcon={<TravelExplore />}
+                  startIcon={<Compass size={20} />}
                   sx={{ color: 'text.primary', textTransform: 'none' }}
                 >
                   {t('trips')}
                 </Button>
                 <Button
                   onClick={handleStats}
-                  startIcon={<BarChart />}
+                  startIcon={<BarChart3 size={20} />}
                   sx={{ color: 'text.primary', textTransform: 'none' }}
                 >
                   {t('stats')}
@@ -132,10 +132,10 @@ export default function Navbar({ user, showUserMenu = true, title }: NavbarProps
               {/* 導航按鈕 - 手機版只顯示圖標 */}
               <Box sx={{ display: { xs: 'flex', md: 'none' } }}>
                 <IconButton onClick={handleTrips} sx={{ color: 'text.primary' }}>
-                  <TravelExplore />
+                  <Compass size={24} />
                 </IconButton>
                 <IconButton onClick={handleStats} sx={{ color: 'text.primary' }}>
-                  <BarChart />
+                  <BarChart3 size={24} />
                 </IconButton>
               </Box>
 
@@ -175,11 +175,11 @@ export default function Navbar({ user, showUserMenu = true, title }: NavbarProps
                 }}
               >
                 <MenuItem onClick={handleSettings}>
-                  <Settings sx={{ mr: 1 }} fontSize="small" />
+                  <Settings size={18} style={{ marginRight: 8 }} />
                   {t('settings')}
                 </MenuItem>
                 <MenuItem onClick={handleLogout}>
-                  <Logout sx={{ mr: 1 }} fontSize="small" />
+                  <LogOut size={18} style={{ marginRight: 8 }} />
                   {t('logout')}
                 </MenuItem>
               </Menu>

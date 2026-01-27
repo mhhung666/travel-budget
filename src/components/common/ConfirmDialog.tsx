@@ -10,7 +10,7 @@ import {
   Box,
   CircularProgress,
 } from '@mui/material';
-import { Warning, Error, Info } from '@mui/icons-material';
+import { AlertTriangle, AlertCircle, Info } from 'lucide-react';
 
 export interface ConfirmDialogProps {
   open: boolean;
@@ -26,12 +26,12 @@ export interface ConfirmDialogProps {
 
 const severityConfig = {
   warning: {
-    icon: Warning,
+    icon: AlertTriangle,
     color: 'warning.main',
     buttonColor: 'warning' as const,
   },
   error: {
-    icon: Error,
+    icon: AlertCircle,
     color: 'error.main',
     buttonColor: 'error' as const,
   },
@@ -77,7 +77,7 @@ export function ConfirmDialog({
     <Dialog open={open} onClose={loading ? undefined : onCancel} maxWidth="xs" fullWidth>
       <DialogTitle>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Icon sx={{ color: config.color }} />
+          <Icon size={24} color="inherit" />
           {title}
         </Box>
       </DialogTitle>

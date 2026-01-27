@@ -8,7 +8,7 @@ import {
   Typography,
   CircularProgress,
 } from '@mui/material';
-import { LocationOn } from '@mui/icons-material';
+import { MapPin } from 'lucide-react';
 
 // Nominatim API 回傳的地點資料
 interface NominatimPlace {
@@ -72,13 +72,13 @@ export default function LocationAutocomplete({
     try {
       const response = await fetch(
         `https://nominatim.openstreetmap.org/search?` +
-          new URLSearchParams({
-            q: query,
-            format: 'json',
-            addressdetails: '1',
-            limit: '5',
-            'accept-language': 'zh-TW,en', // 優先使用繁體中文
-          }),
+        new URLSearchParams({
+          q: query,
+          format: 'json',
+          addressdetails: '1',
+          limit: '5',
+          'accept-language': 'zh-TW,en', // 優先使用繁體中文
+        }),
         {
           headers: {
             'User-Agent': 'TravelBudget/1.0', // Nominatim 要求提供 User-Agent
@@ -193,7 +193,7 @@ export default function LocationAutocomplete({
             {...rest}
             sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}
           >
-            <LocationOn sx={{ color: 'text.secondary', mt: 0.5 }} />
+            <MapPin size={20} style={{ marginTop: 4 }} className="text-gray-500" />
             <Box>
               <Typography variant="body1">{option.name}</Typography>
               <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>

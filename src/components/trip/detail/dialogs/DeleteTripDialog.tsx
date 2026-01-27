@@ -9,7 +9,7 @@ import {
     Button,
     CircularProgress
 } from '@mui/material';
-import { Warning, Delete } from '@mui/icons-material';
+import { AlertTriangle, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 interface DeleteTripDialogProps {
@@ -34,7 +34,7 @@ export default function DeleteTripDialog({
         <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
             <DialogTitle>{tTrip('deleteConfirmTitle')}</DialogTitle>
             <DialogContent>
-                <Alert severity="warning" sx={{ mb: 2 }} icon={<Warning />}>
+                <Alert severity="warning" sx={{ mb: 2 }} icon={<AlertTriangle size={24} />}>
                     {tTrip('deleteConfirmWarning')}
                 </Alert>
                 <Typography>{tTrip('deleteConfirmMessage', { name: tripName || '' })}</Typography>
@@ -60,7 +60,7 @@ export default function DeleteTripDialog({
                     color="error"
                     variant="contained"
                     disabled={isDeleting}
-                    startIcon={isDeleting ? <CircularProgress size={16} /> : <Delete />}
+                    startIcon={isDeleting ? <CircularProgress size={16} /> : <Trash2 size={20} />}
                 >
                     {isDeleting ? tTrip('deleting') : tTrip('confirmDelete')}
                 </Button>

@@ -1,5 +1,5 @@
 import { Card, CardContent, Typography, Button } from '@mui/material';
-import { Delete } from '@mui/icons-material';
+import { Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 interface TripDangerZoneProps {
@@ -21,7 +21,7 @@ export default function TripDangerZone({ onDelete }: TripDangerZoneProps) {
                 <Button
                     variant="outlined"
                     color="error"
-                    startIcon={<Delete />}
+                    startIcon={<Trash2 size={20} />}
                     fullWidth
                     onClick={onDelete}
                 >

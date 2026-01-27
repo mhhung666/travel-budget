@@ -3,7 +3,7 @@
 import { useLocale } from 'next-intl';
 import { useRouter, usePathname } from '@/i18n/navigation';
 import { IconButton, Menu, MenuItem, Box } from '@mui/material';
-import { Language } from '@mui/icons-material';
+import { Globe } from 'lucide-react';
 import { useState } from 'react';
 import { Locale } from '@/i18n/routing';
 
@@ -47,7 +47,7 @@ export default function LanguageSwitcher() {
           },
         }}
       >
-        <Language />
+        <Globe size={24} />
       </IconButton>
       <Menu
         anchorEl={anchorEl}
