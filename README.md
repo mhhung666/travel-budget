@@ -72,7 +72,7 @@ src/types/
 │   └── settlement.ts    # UserBalance, Transfer, SettlementData
 ├── common/               # 通用類型
 │   ├── location.ts      # Location
-│   └── currency.ts      # Currency, CURRENCIES
+│   └── currency.ts      # Currency
 └── api/
     └── dto/              # API 資料傳輸物件
         ├── auth.dto.ts  # LoginDto, RegisterDto, AuthResponseDto

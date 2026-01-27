@@ -4,13 +4,11 @@
  * 統一導出所有類型定義，使用方式：
  *
  * @example
- * // 匯入所有類型
+ * // 匯入類型
  * import type { User, Trip, Expense } from '@/types';
  *
- * // 匯入特定模組
- * import type { User } from '@/types/models';
- * import type { CreateTripDto } from '@/types/api';
- * import type { Location, Currency } from '@/types/common';
+ * // 匯入常數（從 constants）
+ * import { CURRENCIES } from '@/constants/currencies';
  */
 
 // ============================================
@@ -34,7 +32,6 @@ export type {
 // Common - 通用類型
 // ============================================
 export type { Location, Currency } from './common';
-export { CURRENCIES } from './common';
 
 // ============================================
 // API - DTO 類型
