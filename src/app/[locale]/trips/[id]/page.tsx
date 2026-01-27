@@ -51,54 +51,7 @@ import {
 import Navbar from '@/components/layout/Navbar';
 import LocationAutocomplete, { LocationOption } from '@/components/location/LocationAutocomplete';
 import { CATEGORIES, DEFAULT_CATEGORY, getCategoryIcon } from '@/constants/categories';
-
-interface Location {
-  name: string;
-  display_name: string;
-  lat: number;
-  lon: number;
-  country?: string;
-  country_code?: string;
-}
-
-interface Trip {
-  id: number;
-  name: string;
-  description: string | null;
-  start_date: string | null;
-  end_date: string | null;
-  location: Location | null;
-  created_at: string;
-  hash_code: string;
-}
-
-interface Member {
-  id: number;
-  username: string;
-  display_name: string;
-  joined_at: string;
-  role: 'admin' | 'member';
-  is_virtual?: boolean;
-}
-
-interface Expense {
-  id: number;
-  amount: number;
-  original_amount: number;
-  currency: string;
-  exchange_rate: number;
-  description: string;
-  category: string;
-  date: string;
-  payer_id: number;
-  payer_name: string;
-  splits: Array<{
-    user_id: number;
-    username: string;
-    display_name: string;
-    share_amount: number;
-  }>;
-}
+import type { Trip, Member, Expense } from '@/types';
 
 export default function TripDetailPage() {
   const router = useRouter();

@@ -1,87 +1,60 @@
-export interface User {
-  id: number;
-  username: string;
-  display_name: string;
-  created_at: string;
-}
+/**
+ * Types Module
+ *
+ * 統一導出所有類型定義，使用方式：
+ *
+ * @example
+ * // 匯入類型
+ * import type { User, Trip, Expense } from '@/types';
+ *
+ * // 匯入常數（從 constants）
+ * import { CURRENCIES } from '@/constants/currencies';
+ */
 
-// 地點資訊（用於地圖顯示）
-export interface Location {
-  name: string; // 地點名稱（顯示用）
-  display_name: string; // 完整地址
-  lat: number; // 緯度
-  lon: number; // 經度
-  country?: string; // 國家
-  country_code?: string; // 國家代碼
-}
+// ============================================
+// Models - 資料模型
+// ============================================
+export type {
+  User,
+  TripRole,
+  Member,
+  Trip,
+  TripWithMembers,
+  TripMember,
+  Expense,
+  ExpenseSplit,
+  UserBalance,
+  Transfer,
+  SettlementData,
+  Balance,
+  Transaction,
+  ExpenseDetail,
+  CategoryStat,
+  RegionStat,
+  CountryStat,
+  StatsData,
+} from './models';
 
-export interface Trip {
-  id: number;
-  name: string;
-  description: string | null;
-  start_date: string | null; // 旅遊開始日期
-  end_date: string | null; // 旅遊結束日期
-  location: Location | null; // 旅遊地點
-  created_at: string;
-}
+// ============================================
+// Common - 通用類型
+// ============================================
+export type { Location, Currency } from './common';
 
-export interface TripMember {
-  id: number;
-  trip_id: number;
-  user_id: number;
-  joined_at: string;
-}
-
-export interface Expense {
-  id: number;
-  trip_id: number;
-  payer_id: number;
-  amount: number; // TWD 換算金額 (用於結算計算)
-  original_amount: number; // 原始幣別金額
-  currency: string; // 幣別代碼 (TWD, JPY, USD, EUR, HKD)
-  exchange_rate: number; // 對 TWD 的匯率
-  description: string;
-  category: string; // 消費類別 (accommodation, transportation, food, shopping, entertainment, tickets, other)
-  date: string;
-  created_at: string;
-}
-
-export interface ExpenseSplit {
-  id: number;
-  expense_id: number;
-  user_id: number;
-  share_amount: number;
-}
-
-export interface ExpenseWithDetails extends Expense {
-  payer_name: string;
-  splits: Array<{
-    user_id: number;
-    username: string;
-    share_amount: number;
-  }>;
-}
-
-export interface UserBalance {
-  user_id: number;
-  username: string;
-  total_paid: number;
-  total_owed: number;
-  balance: number;
-}
-
-// 幣別定義
-export interface Currency {
-  code: string; // TWD, JPY, USD, EUR, HKD
-  name: string; // 新台幣, 日圓, 美元, 歐元, 港幣
-  symbol: string; // NT$, ¥, $, €, HK$
-}
-
-// 支援的幣別清單
-export const CURRENCIES: Currency[] = [
-  { code: 'TWD', name: '新台幣', symbol: 'NT$' },
-  { code: 'JPY', name: '日圓', symbol: '¥' },
-  { code: 'USD', name: '美元', symbol: '$' },
-  { code: 'EUR', name: '歐元', symbol: '€' },
-  { code: 'HKD', name: '港幣', symbol: 'HK$' },
-];
+// ============================================
+// API - DTO 類型
+// ============================================
+export type {
+  // Auth
+  LoginDto,
+  RegisterDto,
+  UpdateProfileDto,
+  AuthResponseDto,
+  // Trip
+  CreateTripDto,
+  UpdateTripDto,
+  // Expense
+  CreateExpenseDto,
+  UpdateExpenseDto,
+  // Common
+  ApiResponse,
+} from './api';

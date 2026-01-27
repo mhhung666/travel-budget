@@ -1,33 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { getSession } from '@/lib/auth';
-
-interface ExpenseDetail {
-  id: number;
-  date: string;
-  description: string;
-  amount: number; // 分帳後金額
-  tripName: string;
-}
-
-interface CategoryStat {
-  category: string;
-  total: number;
-  count: number;
-  details: ExpenseDetail[];
-}
-
-interface RegionStat {
-  name: string;
-  tripCount: number;
-}
-
-interface CountryStat {
-  country: string;
-  country_code: string;
-  tripCount: number;
-  regions: RegionStat[];
-}
+import type { ExpenseDetail, CategoryStat, CountryStat } from '@/types';
 
 // 獲取個人統計資料
 export async function GET(request: NextRequest) {

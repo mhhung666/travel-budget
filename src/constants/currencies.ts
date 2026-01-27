@@ -1,8 +1,4 @@
-export interface Currency {
-  code: string;
-  symbol: string;
-  nameKey: string; // i18n key for the currency name
-}
+import type { Currency } from '@/types';
 
 /**
  * Supported currencies with i18n keys for names

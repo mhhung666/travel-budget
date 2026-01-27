@@ -53,12 +53,36 @@ travel-budget/
 │   ├── hooks/            # Custom Hooks
 │   ├── services/         # API 服務層
 │   ├── lib/              # 工具函數
-│   ├── types/            # TypeScript 型別
+│   ├── types/            # TypeScript 型別（見下方）
 │   ├── constants/        # 常數定義
 │   └── i18n/             # 國際化
 ├── docs/                 # 文件
 └── public/               # 靜態資源
 ```
+
+### Types 結構
+
+```
+src/types/
+├── index.ts              # 統一導出
+├── models/               # 領域模型（純資料結構）
+│   ├── user.ts          # User, Member, TripRole
+│   ├── trip.ts          # Trip, TripWithMembers
+│   ├── expense.ts       # Expense, ExpenseSplit
+│   └── settlement.ts    # UserBalance, Transfer, SettlementData
+├── common/               # 通用類型
+│   ├── location.ts      # Location
+│   └── currency.ts      # Currency
+└── api/
+    └── dto/              # API 資料傳輸物件
+        ├── auth.dto.ts  # LoginDto, RegisterDto, AuthResponseDto
+        ├── trip.dto.ts  # CreateTripDto, UpdateTripDto
+        └── expense.dto.ts # CreateExpenseDto, UpdateExpenseDto
+```
+
+**命名規範：**
+- 領域模型：無後綴（`User`, `Trip`, `Expense`）
+- DTO：`XxxDto` 後綴（`CreateTripDto`, `LoginDto`）
 
 📖 詳細架構請參考 [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)
 
@@ -108,7 +132,12 @@ travel-budget/
 
 ## 📦 版本歷史
 
-### v2.0.0 (進行中)
+### v3.0.0 (進行中)
+- 重構 Types 結構：分離 models / common / api
+- 採用 DTO 命名規範（`CreateTripDto`, `LoginDto`）
+- 統一類型導出入口（`@/types`）
+
+### v2.0.0
 - 重構專案結構，移至 `src/` 目錄
 - 新增 ESLint + Prettier 配置
 - 建立 Custom Hooks 和 API 服務層

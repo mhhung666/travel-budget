@@ -17,15 +17,7 @@ import {
 } from '@mui/material';
 import { GroupAdd, Info, People } from '@mui/icons-material';
 import { useTranslations } from 'next-intl';
-
-interface Trip {
-  id: number;
-  name: string;
-  description: string | null;
-  hash_code: string;
-  created_at: string;
-  member_count: number;
-}
+import type { TripWithMembers } from '@/types';
 
 export default function QuickJoinPage() {
   const router = useRouter();
@@ -34,7 +26,7 @@ export default function QuickJoinPage() {
   const t = useTranslations('trips');
   const tError = useTranslations('error');
 
-  const [trip, setTrip] = useState<Trip | null>(null);
+  const [trip, setTrip] = useState<TripWithMembers | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [isJoining, setIsJoining] = useState(false);

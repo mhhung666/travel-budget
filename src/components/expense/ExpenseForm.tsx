@@ -21,12 +21,7 @@ import {
 } from '@mui/material';
 import { CURRENCIES, formatCurrency } from '@/constants/currencies';
 import { CATEGORIES, DEFAULT_CATEGORY } from '@/constants/categories';
-import type { Member } from '@/services/member.service';
-import type {
-  Expense,
-  CreateExpenseRequest,
-  UpdateExpenseRequest,
-} from '@/services/expense.service';
+import type { Member, Expense, CreateExpenseDto, UpdateExpenseDto } from '@/types';
 
 export interface ExpenseFormData {
   payer_id: number;
@@ -48,7 +43,7 @@ export interface ExpenseFormProps {
   editingExpense?: Expense | null;
   loading?: boolean;
   error?: string | null;
-  onSubmit: (data: CreateExpenseRequest | UpdateExpenseRequest) => Promise<void>;
+  onSubmit: (data: CreateExpenseDto | UpdateExpenseDto) => Promise<void>;
   onClose: () => void;
 }
 
@@ -163,7 +158,7 @@ export function ExpenseForm({
     e.preventDefault();
 
     if (mode === 'create') {
-      const data: CreateExpenseRequest = {
+      const data: CreateExpenseDto = {
         payer_id: form.payer_id,
         original_amount: parseFloat(form.original_amount),
         currency: form.currency,
@@ -175,7 +170,7 @@ export function ExpenseForm({
       };
       await onSubmit(data);
     } else {
-      const data: UpdateExpenseRequest = {
+      const data: UpdateExpenseDto = {
         original_amount: parseFloat(form.original_amount),
         currency: form.currency,
         exchange_rate: parseFloat(form.exchange_rate),

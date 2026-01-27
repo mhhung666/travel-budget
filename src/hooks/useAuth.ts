@@ -2,12 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-
-export interface User {
-  id: number;
-  username: string;
-  display_name: string;
-}
+import type { User } from '@/types';
 
 export interface UseAuthReturn {
   user: User | null;

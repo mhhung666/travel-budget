@@ -3,7 +3,7 @@
 import { Box, Typography, Button, Alert } from '@mui/material';
 import { Add } from '@mui/icons-material';
 import { ExpenseCard } from './ExpenseCard';
-import type { Expense } from '@/services/expense.service';
+import type { Expense } from '@/types';
 
 export interface ExpenseListProps {
   expenses: Expense[];

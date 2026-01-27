@@ -1,12 +1,5 @@
 import { api } from './api';
-
-export interface Member {
-  id: number;
-  username: string;
-  display_name: string;
-  joined_at: string;
-  role: 'admin' | 'member';
-}
+import type { Member } from '@/types';
 
 /**
  * Member service

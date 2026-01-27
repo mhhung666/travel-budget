@@ -14,7 +14,7 @@ import { Edit, Delete, ExpandMore, ExpandLess } from '@mui/icons-material';
 import { useState } from 'react';
 import { formatCurrency, getCurrencySymbol } from '@/constants/currencies';
 import { getCategoryIcon } from '@/constants/categories';
-import type { Expense } from '@/services/expense.service';
+import type { Expense } from '@/types';
 
 export interface ExpenseCardProps {
   expense: Expense;

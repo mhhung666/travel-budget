@@ -2,7 +2,7 @@
 
 import { Box, Typography, Divider } from '@mui/material';
 import { MemberCard } from './MemberCard';
-import type { Member } from '@/services/member.service';
+import type { Member } from '@/types';
 
 export interface MemberListProps {
   members: Member[];
