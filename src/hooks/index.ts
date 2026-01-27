@@ -1,6 +1,7 @@
 // Authentication
 export { useAuth, useRequireAuth } from './useAuth';
-export type { User, UseAuthReturn } from './useAuth';
+export type { UseAuthReturn } from './useAuth';
+export type { User } from '@/types';
 
 // UI State
 export { useSnackbar } from './useSnackbar';

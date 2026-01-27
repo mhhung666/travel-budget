@@ -1,33 +1,33 @@
 // Base API client
 export { api, ApiClient, ApiError } from './api';
-export type { ApiResponse } from './api';
+export type { ApiResponse } from '@/types';
 
 // Auth service
 export { authService } from './auth.service';
 export type {
-  LoginRequest,
-  RegisterRequest,
-  AuthResponse,
-  UpdateProfileRequest,
-} from './auth.service';
+  LoginDto,
+  RegisterDto,
+  AuthResponseDto,
+  UpdateProfileDto,
+} from '@/types';
 
 // Trip service
 export { tripService } from './trip.service';
-export type { Trip, TripWithMembers, CreateTripRequest, UpdateTripRequest } from './trip.service';
+export type { Trip, TripWithMembers, CreateTripDto, UpdateTripDto } from '@/types';
 
 // Expense service
 export { expenseService } from './expense.service';
 export type {
   Expense,
   ExpenseSplit,
-  CreateExpenseRequest,
-  UpdateExpenseRequest,
-} from './expense.service';
+  CreateExpenseDto,
+  UpdateExpenseDto,
+} from '@/types';
 
 // Member service
 export { memberService } from './member.service';
-export type { Member } from './member.service';
+export type { Member } from '@/types';
 
 // Settlement service
 export { settlementService } from './settlement.service';
-export type { UserBalance, Transfer, SettlementData } from './settlement.service';
+export type { UserBalance, Transfer, SettlementData } from '@/types';

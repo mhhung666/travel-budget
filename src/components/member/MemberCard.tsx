@@ -2,7 +2,7 @@
 
 import { Box, Typography, Chip, Avatar, IconButton } from '@mui/material';
 import { AdminPanelSettings, PersonRemove } from '@mui/icons-material';
-import type { Member } from '@/services/member.service';
+import type { Member } from '@/types';
 
 export interface MemberCardProps {
   member: Member;

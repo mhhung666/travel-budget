@@ -1,27 +1,5 @@
 import { api } from './api';
-
-export interface UserBalance {
-  user_id: number;
-  username: string;
-  display_name: string;
-  total_paid: number;
-  total_owed: number;
-  balance: number;
-}
-
-export interface Transfer {
-  from_id: number;
-  from_name: string;
-  to_id: number;
-  to_name: string;
-  amount: number;
-}
-
-export interface SettlementData {
-  balances: UserBalance[];
-  transfers: Transfer[];
-  total_expenses: number;
-}
+import type { SettlementData } from '@/types';
 
 /**
  * Settlement service

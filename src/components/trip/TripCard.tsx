@@ -10,7 +10,7 @@ import {
   IconButton,
 } from '@mui/material';
 import { ContentCopy, Group, CalendarToday } from '@mui/icons-material';
-import type { TripWithMembers } from '@/services/trip.service';
+import type { TripWithMembers } from '@/types';
 
 export interface TripCardProps {
   trip: TripWithMembers;

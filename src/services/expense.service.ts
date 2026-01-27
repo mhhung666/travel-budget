@@ -1,46 +1,9 @@
 import { api } from './api';
-
-export interface ExpenseSplit {
-  user_id: number;
-  username: string;
-  display_name: string;
-  share_amount: number;
-}
-
-export interface Expense {
-  id: number;
-  trip_id: number;
-  payer_id: number;
-  payer_name: string;
-  amount: number; // TWD converted amount
-  original_amount: number;
-  currency: string;
-  exchange_rate: number;
-  description: string;
-  category: string; // expense category
-  date: string;
-  created_at: string;
-  splits: ExpenseSplit[];
-}
-
-export interface CreateExpenseRequest {
-  payer_id: number;
-  original_amount: number;
-  currency: string;
-  exchange_rate: number;
-  description: string;
-  category: string;
-  date: string;
-  split_with: number[];
-}
-
-export interface UpdateExpenseRequest {
-  original_amount?: number;
-  currency?: string;
-  exchange_rate?: number;
-  description?: string;
-  category?: string;
-}
+import type {
+  Expense,
+  CreateExpenseDto,
+  UpdateExpenseDto,
+} from '@/types';
 
 /**
  * Expense service
@@ -61,13 +24,13 @@ export const expenseService = {
   /**
    * Create a new expense
    */
-  createExpense: (tripId: string, data: CreateExpenseRequest) =>
+  createExpense: (tripId: string, data: CreateExpenseDto) =>
     api.post<{ expense: Expense }>(`/api/trips/${tripId}/expenses`, data),
 
   /**
    * Update an expense (payer only)
    */
-  updateExpense: (tripId: string, expenseId: number, data: UpdateExpenseRequest) =>
+  updateExpense: (tripId: string, expenseId: number, data: UpdateExpenseDto) =>
     api.put<{ expense: Expense }>(`/api/trips/${tripId}/expenses/${expenseId}`, data),
 
   /**
