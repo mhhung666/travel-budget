@@ -4,6 +4,9 @@ import { notFound } from 'next/navigation';
 import ThemeRegistry from './ThemeRegistry';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { locales } from '@/i18n/config';
+import { Inter } from 'next/font/google';
+
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export default async function LocaleLayout({
   children,
@@ -23,7 +26,7 @@ export default async function LocaleLayout({
   const messages = await getMessages();
 
   return (
-    <html lang={locale}>
+    <html lang={locale} className={inter.variable}>
       <body>
         <NextIntlClientProvider messages={messages}>
           <ThemeRegistry>{children}</ThemeRegistry>
