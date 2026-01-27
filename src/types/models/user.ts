@@ -22,4 +22,6 @@ export interface Member {
   display_name: string;
   joined_at: string;
   role: TripRole;
+  /** 是否為虛擬成員（代付用） */
+  is_virtual?: boolean;
 }

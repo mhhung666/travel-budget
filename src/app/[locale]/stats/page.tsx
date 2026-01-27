@@ -29,65 +29,8 @@ import {
 } from '@mui/icons-material';
 import Navbar from '@/components/layout/Navbar';
 import { getCategoryIcon } from '@/constants/categories';
-
-interface ExpenseDetail {
-  id: number;
-  date: string;
-  description: string;
-  amount: number;
-  tripName: string;
-}
-
-interface CategoryStat {
-  category: string;
-  total: number;
-  count: number;
-  details: ExpenseDetail[];
-}
-
-interface RegionStat {
-  name: string;
-  tripCount: number;
-}
-
-interface CountryStat {
-  country: string;
-  country_code: string;
-  tripCount: number;
-  regions: RegionStat[];
-}
-
-interface StatsData {
-  categoryStats: CategoryStat[];
-  countries: CountryStat[];
-  totalAmount: number;
-  totalExpenses: number;
-}
-
-// 國旗 emoji 對照（常見國家）
-const countryFlags: Record<string, string> = {
-  JP: '\uD83C\uDDEF\uD83C\uDDF5',
-  CN: '\uD83C\uDDE8\uD83C\uDDF3',
-  TW: '\uD83C\uDDF9\uD83C\uDDFC',
-  HK: '\uD83C\uDDED\uD83C\uDDF0',
-  KR: '\uD83C\uDDF0\uD83C\uDDF7',
-  TH: '\uD83C\uDDF9\uD83C\uDDED',
-  VN: '\uD83C\uDDFB\uD83C\uDDF3',
-  SG: '\uD83C\uDDF8\uD83C\uDDEC',
-  MY: '\uD83C\uDDF2\uD83C\uDDFE',
-  US: '\uD83C\uDDFA\uD83C\uDDF8',
-  GB: '\uD83C\uDDEC\uD83C\uDDE7',
-  FR: '\uD83C\uDDEB\uD83C\uDDF7',
-  DE: '\uD83C\uDDE9\uD83C\uDDEA',
-  IT: '\uD83C\uDDEE\uD83C\uDDF9',
-  ES: '\uD83C\uDDEA\uD83C\uDDF8',
-  AU: '\uD83C\uDDE6\uD83C\uDDFA',
-  NZ: '\uD83C\uDDF3\uD83C\uDDFF',
-};
-
-function getCountryFlag(countryCode: string): string {
-  return countryFlags[countryCode] || '\uD83C\uDF0D';
-}
+import { getCountryFlag } from '@/constants/countries';
+import type { StatsData } from '@/types';
 
 export default function StatsPage() {
   const router = useRouter();

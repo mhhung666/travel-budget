@@ -16,7 +16,13 @@
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage"
   },
-  "keywords": ["travel", "budget", "expense", "split", "nextjs"],
+  "keywords": [
+    "travel",
+    "budget",
+    "expense",
+    "split",
+    "nextjs"
+  ],
   "author": "",
   "license": "ISC",
   "dependencies": {
@@ -54,6 +60,7 @@
     "eslint-config-prettier": "^10.1.5",
     "jsdom": "^26.1.0",
     "prettier": "^3.5.3",
+    "shadcn": "^3.7.0",
     "vitest": "^3.2.1"
   }
 }

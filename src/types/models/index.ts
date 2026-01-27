@@ -8,4 +8,13 @@ export type { Trip, TripWithMembers, TripMember } from './trip';
 export type { Expense, ExpenseSplit } from './expense';
 
 // Settlement
-export type { UserBalance, Transfer, SettlementData } from './settlement';
+export type { UserBalance, Transfer, SettlementData, Balance, Transaction } from './settlement';
+
+// Stats
+export type {
+  ExpenseDetail,
+  CategoryStat,
+  RegionStat,
+  CountryStat,
+  StatsData,
+} from './stats';

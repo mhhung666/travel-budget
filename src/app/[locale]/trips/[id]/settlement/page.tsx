@@ -27,20 +27,7 @@ import {
   ArrowBack,
 } from '@mui/icons-material';
 import Navbar from '@/components/layout/Navbar';
-
-interface Balance {
-  userId: number;
-  username: string;
-  totalPaid: number;
-  totalOwed: number;
-  balance: number;
-}
-
-interface Transaction {
-  from: string;
-  to: string;
-  amount: number;
-}
+import type { Balance, Transaction } from '@/types';
 
 export default function SettlementPage() {
   const router = useRouter();

@@ -26,6 +26,13 @@ export type {
   UserBalance,
   Transfer,
   SettlementData,
+  Balance,
+  Transaction,
+  ExpenseDetail,
+  CategoryStat,
+  RegionStat,
+  CountryStat,
+  StatsData,
 } from './models';
 
 // ============================================

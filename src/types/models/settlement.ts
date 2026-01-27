@@ -32,3 +32,23 @@ export interface SettlementData {
   transfers: Transfer[];
   total_expenses: number;
 }
+
+/**
+ * 用戶餘額（客戶端顯示用，camelCase）
+ */
+export interface Balance {
+  userId: number;
+  username: string;
+  totalPaid: number;
+  totalOwed: number;
+  balance: number;
+}
+
+/**
+ * 轉帳交易（客戶端顯示用）
+ */
+export interface Transaction {
+  from: string;
+  to: string;
+  amount: number;
+}

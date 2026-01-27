@@ -24,27 +24,7 @@ import { Add, GroupAdd, People, CalendarToday, ContentCopy, LocationOn, DateRang
 import Navbar from '@/components/layout/Navbar';
 import { useTranslations, useLocale } from 'next-intl';
 import LocationAutocomplete, { LocationOption } from '@/components/location/LocationAutocomplete';
-
-interface Location {
-  name: string;
-  display_name: string;
-  lat: number;
-  lon: number;
-  country?: string;
-  country_code?: string;
-}
-
-interface Trip {
-  id: number;
-  name: string;
-  description: string | null;
-  start_date: string | null;
-  end_date: string | null;
-  location: Location | null;
-  created_at: string;
-  member_count: number;
-  hash_code: string;
-}
+import type { TripWithMembers } from '@/types';
 
 export default function TripsPage() {
   const router = useRouter();
@@ -53,7 +33,7 @@ export default function TripsPage() {
   const tNav = useTranslations('nav');
   const locale = useLocale();
   const [user, setUser] = useState<any>(null);
-  const [trips, setTrips] = useState<Trip[]>([]);
+  const [trips, setTrips] = useState<TripWithMembers[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
