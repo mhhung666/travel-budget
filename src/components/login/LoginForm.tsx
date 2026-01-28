@@ -44,7 +44,7 @@ export default function LoginForm() {
         : await register({
             username: formData.username,
             display_name: formData.display_name,
-            email: formData.email || undefined,
+            email: formData.email,
             password: formData.password,
           });
 
@@ -166,6 +166,7 @@ export default function LoginForm() {
                 label={t('register.email')}
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                required
                 helperText={t('register.emailHelp')}
                 sx={{ mb: 2.5 }}
               />

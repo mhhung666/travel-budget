@@ -110,21 +110,32 @@ export async function register(input: RegisterInput): Promise<ActionResult<AuthU
     const { username, display_name, email, password } = validation.data;
 
     // Check if username exists (case-insensitive)
-    const { data: existingUser } = await supabase
+    const { data: existingUsername } = await supabase
       .from('users')
       .select('id')
       .ilike('username', username)
       .single();
 
-    if (existingUser) {
+    if (existingUsername) {
       return { success: false, error: '用戶名已被使用', code: 'CONFLICT' };
+    }
+
+    // Check if email exists (case-insensitive)
+    const { data: existingEmail } = await supabase
+      .from('users')
+      .select('id')
+      .ilike('email', email)
+      .single();
+
+    if (existingEmail) {
+      return { success: false, error: '此電子郵件已被使用', code: 'CONFLICT' };
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const { data: newUser, error } = await supabase
       .from('users')
-      .insert([{ username, display_name, email: email || null, password: hashedPassword }])
+      .insert([{ username, display_name, email, password: hashedPassword }])
       .select()
       .single();
 

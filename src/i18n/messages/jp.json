@@ -297,7 +297,7 @@
       "username": "ユーザー名",
       "displayName": "表示名",
       "email": "メールアドレス",
-      "emailHelp": "パスワード回復用（任意）",
+      "emailHelp": "パスワード回復用",
       "password": "パスワード",
       "confirmPassword": "パスワード（確認）",
       "registerButton": "登録",

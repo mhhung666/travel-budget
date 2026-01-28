@@ -158,7 +158,7 @@
       "username": "Username",
       "displayName": "Display Name",
       "email": "Email",
-      "emailHelp": "For password recovery (optional)",
+      "emailHelp": "For password recovery",
       "password": "Password",
       "confirmPassword": "Confirm Password",
       "registerButton": "Register",

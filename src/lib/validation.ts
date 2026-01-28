@@ -92,7 +92,7 @@ export const loginSchema = z.object({
 export const registerSchema = z.object({
   username: z.string().min(3, '用戶名至少需要 3 個字元'),
   display_name: z.string().min(1, '請輸入顯示名稱'),
-  email: z.string().email('請輸入有效的電子郵件').optional().or(z.literal('')),
+  email: z.string().email('請輸入有效的電子郵件'),
   password: z.string().min(6, '密碼至少需要 6 個字元'),
 });
 

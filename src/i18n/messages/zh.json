@@ -297,7 +297,7 @@
       "username": "用戶名",
       "displayName": "顯示名稱",
       "email": "電子郵件",
-      "emailHelp": "用於找回密碼（選填）",
+      "emailHelp": "用於找回密碼",
       "password": "密碼",
       "confirmPassword": "確認密碼",
       "registerButton": "註冊",
