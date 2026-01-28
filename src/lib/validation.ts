@@ -105,6 +105,7 @@ export const resetPasswordSchema = z.object({
 export const updateProfileSchema = z
   .object({
     display_name: z.string().min(1, '顯示名稱不能為空').optional(),
+    new_email: z.string().email('請輸入有效的電子郵件').optional(),
     current_password: z.string().optional(),
     new_password: z.string().min(6, '新密碼至少需要 6 個字元').optional(),
   })

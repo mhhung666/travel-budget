@@ -66,6 +66,14 @@
       "saveChanges": "変更を保存",
       "updateSuccess": "表示名を更新しました"
     },
+    "email": {
+      "title": "メールアドレス変更",
+      "current": "現在のメールアドレス",
+      "currentHelp": "現在登録されているメールアドレスです",
+      "new": "新しいメールアドレス",
+      "updateButton": "メールアドレスを更新",
+      "updateSuccess": "メールアドレスを更新しました"
+    },
     "password": {
       "title": "パスワード変更",
       "current": "現在のパスワード",

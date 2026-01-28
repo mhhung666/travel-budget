@@ -14,7 +14,7 @@ import {
   Divider,
   IconButton,
 } from '@mui/material';
-import { ArrowLeft, User, Lock } from 'lucide-react';
+import { ArrowLeft, User, Lock, Mail } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import { useTranslations } from 'next-intl';
 import { getCurrentUser, updateProfile } from '@/actions';
@@ -30,12 +30,15 @@ export default function SettingsPage() {
 
   // 表單狀態
   const [displayName, setDisplayName] = useState('');
+  const [email, setEmail] = useState('');
+  const [newEmail, setNewEmail] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
   // 提交狀態
   const [updatingProfile, setUpdatingProfile] = useState(false);
+  const [updatingEmail, setUpdatingEmail] = useState(false);
   const [updatingPassword, setUpdatingPassword] = useState(false);
 
   useEffect(() => {
@@ -48,6 +51,8 @@ export default function SettingsPage() {
       if (result.success && result.data) {
         setUser(result.data);
         setDisplayName(result.data.display_name);
+        setEmail(result.data.email || '');
+        setNewEmail(result.data.email || '');
       }
     } catch (error) {
       console.error('獲取用戶資料失敗:', error);
@@ -75,6 +80,29 @@ export default function SettingsPage() {
       setError(err.message);
     } finally {
       setUpdatingProfile(false);
+    }
+  };
+
+  const handleUpdateEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    setUpdatingEmail(true);
+
+    try {
+      const result = await updateProfile({ new_email: newEmail });
+
+      if (!result.success) {
+        throw new Error(result.error || t('errors.updateFailed'));
+      }
+
+      setSuccess(t('email.updateSuccess'));
+      setEmail(newEmail);
+      setUser({ ...user, email: newEmail });
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setUpdatingEmail(false);
     }
   };
 
@@ -230,6 +258,66 @@ export default function SettingsPage() {
                   <CircularProgress size={24} color="inherit" />
                 ) : (
                   t('profile.saveChanges')
+                )}
+              </Button>
+            </form>
+          </Paper>
+
+          {/* 電子郵件設定 */}
+          <Paper
+            elevation={0}
+            sx={{
+              p: { xs: 3, sm: 4 },
+              mb: 3,
+              borderRadius: 2,
+              border: '1px solid',
+              borderColor: 'divider',
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+              <Box component="span" sx={{ mr: 1, color: 'primary.main', display: 'flex' }}>
+                <Mail />
+              </Box>
+              <Typography variant="h6" fontWeight={600}>
+                {t('email.title')}
+              </Typography>
+            </Box>
+
+            <form onSubmit={handleUpdateEmail}>
+              <TextField
+                fullWidth
+                type="email"
+                label={t('email.current')}
+                value={email}
+                disabled
+                sx={{ mb: 3 }}
+                helperText={t('email.currentHelp')}
+              />
+
+              <TextField
+                fullWidth
+                type="email"
+                label={t('email.new')}
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                required
+                sx={{ mb: 3 }}
+              />
+
+              <Button
+                type="submit"
+                variant="contained"
+                disabled={updatingEmail || newEmail === email || !newEmail}
+                sx={{
+                  px: 4,
+                  py: 1.2,
+                  fontWeight: 600,
+                }}
+              >
+                {updatingEmail ? (
+                  <CircularProgress size={24} color="inherit" />
+                ) : (
+                  t('email.updateButton')
                 )}
               </Button>
             </form>
