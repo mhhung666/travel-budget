@@ -1,16 +1,18 @@
-'use client';
+import { getCurrentUser } from '@/actions';
+import { redirect } from '@/i18n/navigation';
+import HomePage from '@/components/home/HomePage';
 
-import { Box } from '@mui/material';
-import Navbar from '@/components/layout/Navbar';
-import Hero from '@/components/home/Hero';
-import Features from '@/components/home/Features';
+interface HomeProps {
+  params: Promise<{ locale: string }>;
+}
 
-export default function Home() {
-  return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
-      <Navbar showUserMenu={false} />
-      <Hero />
-      <Features />
-    </Box>
-  );
+export default async function Home({ params }: HomeProps) {
+  const { locale } = await params;
+  const result = await getCurrentUser();
+
+  if (result.success && result.data) {
+    redirect({ href: '/trips', locale });
+  }
+
+  return <HomePage />;
 }

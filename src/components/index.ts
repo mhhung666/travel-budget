@@ -6,10 +6,10 @@ export { default as Navbar } from './layout/Navbar';
 export { default as LanguageSwitcher } from './layout/LanguageSwitcher';
 
 // Trip components
-export * from './trip';
+export * from './trips';
 
 // Expense components
-export * from './expense';
+export * from './expenses';
 
 // Member components
 export * from './member';

@@ -12,9 +12,9 @@ export default function Hero() {
     return (
         <Box
             sx={{
-                pt: { xs: 12, sm: 16 },
-                pb: { xs: 8, sm: 12 },
-                minHeight: { xs: 'calc(100vh - 64px)', sm: '85vh' },
+                // pt: { xs: 12, sm: 16 },
+                // pb: { xs: 8, sm: 12 },
+                // minHeight: { xs: 'calc(100vh - 64px)', sm: '85vh' },
                 display: 'flex',
                 alignItems: 'center',
             }}
@@ -22,9 +22,9 @@ export default function Hero() {
             <Container maxWidth="lg">
                 <Box
                     sx={{
-                        textAlign: 'center',
+                        textAlign: { xs: 'center', md: 'left' },
                         maxWidth: '800px',
-                        mx: 'auto',
+                        mx: { xs: 'auto', md: 0 },
                     }}
                 >
                     {/* Icon */}
@@ -71,46 +71,6 @@ export default function Hero() {
                     >
                         {t('hero.subtitle')}
                     </Typography>
-
-                    {/* CTA Buttons */}
-                    <Box
-                        sx={{
-                            display: 'flex',
-                            gap: 2,
-                            justifyContent: 'center',
-                            flexDirection: { xs: 'column', sm: 'row' },
-                            mb: { xs: 6, sm: 8 },
-                            px: { xs: 2, sm: 0 },
-                        }}
-                    >
-                        <Button
-                            onClick={() => router.push('/login')}
-                            variant="contained"
-                            size="large"
-                            endIcon={<ArrowRight />}
-                            sx={{
-                                px: { xs: 4, sm: 5 },
-                                py: { xs: 1.5, sm: 1.75 },
-                                fontSize: { xs: '1rem', sm: '1.1rem' },
-                                fontWeight: 600,
-                            }}
-                        >
-                            {t('hero.getStarted')}
-                        </Button>
-                        <Button
-                            onClick={() => router.push('/trips')}
-                            variant="outlined"
-                            size="large"
-                            sx={{
-                                px: { xs: 4, sm: 5 },
-                                py: { xs: 1.5, sm: 1.75 },
-                                fontSize: { xs: '1rem', sm: '1.1rem' },
-                                fontWeight: 600,
-                            }}
-                        >
-                            {t('hero.viewTrips')}
-                        </Button>
-                    </Box>
                 </Box>
             </Container>
         </Box>

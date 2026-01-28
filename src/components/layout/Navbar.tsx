@@ -201,21 +201,7 @@ export default function Navbar({ user, showUserMenu = true, title }: NavbarProps
                   </MenuItem>
                 </Menu>
               </Box>
-            ) : (
-              <Button
-                variant="contained"
-                onClick={() => router.push('/login')}
-                sx={{
-                  textTransform: 'none',
-                  borderRadius: 2,
-                  px: { xs: 2, sm: 3 },
-                  fontSize: { xs: '0.875rem', sm: '1rem' },
-                  ml: 2
-                }}
-              >
-                {t('login')}
-              </Button>
-            )}
+            ) : null}
           </Box>
         </Toolbar>
       </Container>

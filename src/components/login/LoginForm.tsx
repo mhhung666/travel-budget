@@ -18,7 +18,11 @@ import { useTranslations } from 'next-intl';
 import { login, register } from '@/actions';
 import ForgotPasswordModal from './ForgotPasswordModal';
 
-export default function LoginForm() {
+interface LoginFormProps {
+  hideBackToHome?: boolean;
+}
+
+export default function LoginForm({ hideBackToHome = false }: LoginFormProps) {
   const router = useRouter();
   const t = useTranslations('auth');
 
@@ -42,11 +46,11 @@ export default function LoginForm() {
       const result = isLogin
         ? await login({ username: formData.username, password: formData.password })
         : await register({
-            username: formData.username,
-            display_name: formData.display_name,
-            email: formData.email,
-            password: formData.password,
-          });
+          username: formData.username,
+          display_name: formData.display_name,
+          email: formData.email,
+          password: formData.password,
+        });
 
       if (!result.success) {
         throw new Error(result.error || (isLogin ? t('login.error') : t('register.error')));
@@ -227,23 +231,25 @@ export default function LoginForm() {
         </form>
 
         {/* 返回首頁 */}
-        <Box sx={{ mt: 3, textAlign: 'center' }}>
-          <Button
-            component={Link}
-            href="/"
-            startIcon={<ArrowLeft />}
-            sx={{
-              textTransform: 'none',
-              color: 'text.secondary',
-              fontSize: { xs: '0.875rem', sm: '1rem' },
-              '&:hover': {
-                color: 'text.primary',
-              },
-            }}
-          >
-            {t('login.backToHome')}
-          </Button>
-        </Box>
+        {!hideBackToHome && (
+          <Box sx={{ mt: 3, textAlign: 'center' }}>
+            <Button
+              component={Link}
+              href="/"
+              startIcon={<ArrowLeft />}
+              sx={{
+                textTransform: 'none',
+                color: 'text.secondary',
+                fontSize: { xs: '0.875rem', sm: '1rem' },
+                '&:hover': {
+                  color: 'text.primary',
+                },
+              }}
+            >
+              {t('login.backToHome')}
+            </Button>
+          </Box>
+        )}
       </Paper>
 
       <ForgotPasswordModal
