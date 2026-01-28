@@ -6,9 +6,11 @@ import { createSession, deleteSession, getSession } from '@/lib/auth';
 import {
   loginSchema,
   registerSchema,
+  resetPasswordSchema,
   updateProfileSchema,
   type LoginInput,
   type RegisterInput,
+  type ResetPasswordInput,
   type UpdateProfileInput,
 } from '@/lib/validation';
 import type { ActionResult } from './types';
@@ -63,7 +65,7 @@ export async function login(input: LoginInput): Promise<ActionResult<AuthUser>> 
     const { data: user, error } = await supabase
       .from('users')
       .select('id, username, display_name, password')
-      .eq('username', username)
+      .ilike('username', username)
       .single();
 
     if (error || !user) {
@@ -105,24 +107,35 @@ export async function register(input: RegisterInput): Promise<ActionResult<AuthU
       };
     }
 
-    const { username, display_name, password } = validation.data;
+    const { username, display_name, email, password } = validation.data;
 
-    // Check if username exists
-    const { data: existingUser } = await supabase
+    // Check if username exists (case-insensitive)
+    const { data: existingUsername } = await supabase
       .from('users')
       .select('id')
-      .eq('username', username)
+      .ilike('username', username)
       .single();
 
-    if (existingUser) {
+    if (existingUsername) {
       return { success: false, error: '用戶名已被使用', code: 'CONFLICT' };
+    }
+
+    // Check if email exists (case-insensitive)
+    const { data: existingEmail } = await supabase
+      .from('users')
+      .select('id')
+      .ilike('email', email)
+      .single();
+
+    if (existingEmail) {
+      return { success: false, error: '此電子郵件已被使用', code: 'CONFLICT' };
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const { data: newUser, error } = await supabase
       .from('users')
-      .insert([{ username, display_name, password: hashedPassword }])
+      .insert([{ username, display_name, email, password: hashedPassword }])
       .select()
       .single();
 
@@ -225,5 +238,56 @@ export async function updateProfile(
   } catch (error) {
     console.error('Update user error:', error);
     return { success: false, error: '更新失敗,請稍後再試', code: 'INTERNAL_ERROR' };
+  }
+}
+
+/**
+ * Reset password (for forgot password)
+ */
+export async function resetPassword(
+  input: ResetPasswordInput
+): Promise<ActionResult<{ message: string }>> {
+  try {
+    const validation = resetPasswordSchema.safeParse(input);
+    if (!validation.success) {
+      return {
+        success: false,
+        error: validation.error.issues[0].message,
+        code: 'VALIDATION_ERROR',
+      };
+    }
+
+    const { username, email, new_password } = validation.data;
+
+    // Find user by username (case-insensitive) and email
+    const { data: user, error: fetchError } = await supabase
+      .from('users')
+      .select('id, email')
+      .ilike('username', username)
+      .single();
+
+    if (fetchError || !user) {
+      return { success: false, error: '找不到此用戶', code: 'NOT_FOUND' };
+    }
+
+    // Verify email matches
+    if (!user.email || user.email.toLowerCase() !== email.toLowerCase()) {
+      return { success: false, error: '帳戶與電子郵件不符', code: 'VALIDATION_ERROR' };
+    }
+
+    // Update password
+    const hashedPassword = await bcrypt.hash(new_password, 10);
+
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({ password: hashedPassword })
+      .eq('id', user.id);
+
+    if (updateError) throw updateError;
+
+    return { success: true, data: { message: '密碼已重設成功' } };
+  } catch (error) {
+    console.error('Reset password error:', error);
+    return { success: false, error: '重設密碼失敗,請稍後再試', code: 'INTERNAL_ERROR' };
   }
 }

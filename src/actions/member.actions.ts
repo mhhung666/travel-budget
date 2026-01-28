@@ -109,6 +109,7 @@ export async function addVirtualMember(
     // Create virtual user
     const virtualUsername = `virtual_${randomUUID()}`;
     const virtualPassword = randomUUID();
+    const virtualEmail = `${virtualUsername}@virtual.local`;
 
     const { data: newUser, error: userError } = await supabase
       .from('users')
@@ -116,6 +117,7 @@ export async function addVirtualMember(
         {
           username: virtualUsername,
           display_name: display_name.trim(),
+          email: virtualEmail,
           password: virtualPassword,
           is_virtual: true,
         },

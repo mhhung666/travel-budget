@@ -157,6 +157,8 @@
       "subtitle": "Start your journey",
       "username": "Username",
       "displayName": "Display Name",
+      "email": "Email",
+      "emailHelp": "For password recovery",
       "password": "Password",
       "confirmPassword": "Confirm Password",
       "registerButton": "Register",
@@ -165,6 +167,15 @@
       "error": "Registration failed",
       "passwordMismatch": "Passwords do not match",
       "passwordHelp": "At least 6 characters"
+    },
+    "forgotPassword": {
+      "link": "Forgot password?",
+      "title": "Reset Password",
+      "description": "Enter your username and email to reset your password",
+      "newPassword": "New Password",
+      "submit": "Reset Password",
+      "success": "Password has been reset successfully!",
+      "error": "Failed to reset password"
     }
   },
   "expense": {
