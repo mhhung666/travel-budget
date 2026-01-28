@@ -408,7 +408,7 @@ export default function TripDetailPage() {
           </Box>
 
           {/* 側邊欄 */}
-          <Box>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             {/* 成員列表 */}
             <TripMembers
               members={members}

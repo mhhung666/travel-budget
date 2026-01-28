@@ -12,7 +12,7 @@ export default function TripSettlement({ tripId }: TripSettlementProps) {
     const tTrip = useTranslations('trip');
 
     return (
-        <Card elevation={2} sx={{ mt: 3 }}>
+        <Card elevation={2}>
             <CardContent>
                 <Button
                     onClick={() => router.push(`/trips/${tripId}/settlement`)}

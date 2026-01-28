@@ -12,7 +12,7 @@ export default function TripDangerZone({ onDelete }: TripDangerZoneProps) {
     return (
         <Card
             elevation={2}
-            sx={{ mt: 3, borderColor: 'error.main', borderWidth: 1, borderStyle: 'solid' }}
+            sx={{ borderColor: 'error.main', borderWidth: 1, borderStyle: 'solid' }}
         >
             <CardContent>
                 <Typography variant="subtitle2" color="error" gutterBottom fontWeight={600}>
