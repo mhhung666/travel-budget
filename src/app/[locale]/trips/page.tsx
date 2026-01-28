@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from '@/i18n/navigation';
 import {
   Box,
   Container,
@@ -9,44 +8,29 @@ import {
   Button,
   Card,
   CardContent,
-  CardActionArea,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  Alert,
   CircularProgress,
   Snackbar,
-  Chip,
+  Alert,
 } from '@mui/material';
-import { Plus, UserPlus, Users, Calendar, Copy, MapPin, CalendarRange } from 'lucide-react';
+import { Plus, UserPlus } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
-import { useTranslations, useLocale } from 'next-intl';
-import LocationAutocomplete, { LocationOption } from '@/components/location/LocationAutocomplete';
-import { getCurrentUser, getTrips, createTrip, joinTrip } from '@/actions';
+import { useTranslations } from 'next-intl';
+import { getCurrentUser, getTrips } from '@/actions';
 import type { TripWithMembers } from '@/types';
+import CreateTripDialog from '@/components/trips/CreateTripDialog';
+import JoinTripDialog from '@/components/trips/JoinTripDialog';
+import TripList from '@/components/trips/TripList';
+import EmptyTripsState from '@/components/trips/EmptyTripsState';
 
 export default function TripsPage() {
-  const router = useRouter();
   const t = useTranslations('trips');
-  const tCommon = useTranslations('common');
   const tNav = useTranslations('nav');
-  const locale = useLocale();
   const [user, setUser] = useState<any>(null);
   const [trips, setTrips] = useState<TripWithMembers[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    start_date: '',
-    end_date: '',
-  });
-  const [selectedLocation, setSelectedLocation] = useState<LocationOption | null>(null);
-  const [joinTripId, setJoinTripId] = useState('');
-  const [error, setError] = useState('');
+
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: '',
@@ -82,53 +66,7 @@ export default function TripsPage() {
     }
   };
 
-  const handleCreateTrip = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-
-    try {
-      const result = await createTrip({
-        ...formData,
-        start_date: formData.start_date || null,
-        end_date: formData.end_date || null,
-        location: selectedLocation || null,
-      });
-
-      if (!result.success) {
-        throw new Error(result.error);
-      }
-
-      setShowCreateModal(false);
-      setFormData({ name: '', description: '', start_date: '', end_date: '' });
-      setSelectedLocation(null);
-      await loadTrips();
-    } catch (err: any) {
-      setError(err.message);
-    }
-  };
-
-  const handleJoinTrip = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-
-    try {
-      const result = await joinTrip(joinTripId);
-
-      if (!result.success) {
-        throw new Error(result.error);
-      }
-
-      setShowJoinModal(false);
-      setJoinTripId('');
-      setSnackbar({ open: true, message: t('join.success'), severity: 'success' });
-      await loadTrips();
-    } catch (err: any) {
-      setError(err.message);
-    }
-  };
-
-  const copyHashCode = async (hashCode: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const copyHashCode = async (hashCode: string) => {
     try {
       await navigator.clipboard.writeText(hashCode);
       setSnackbar({ open: true, message: t('idCopied'), severity: 'success' });
@@ -205,268 +143,30 @@ export default function TripsPage() {
             </Box>
 
             {trips.length === 0 ? (
-              <Box sx={{ textAlign: 'center', py: 8 }}>
-                <Typography variant="body1" color="text.secondary" gutterBottom>
-                  {t('noTrips')}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {t('noTripsDescription')}
-                </Typography>
-              </Box>
+              <EmptyTripsState />
             ) : (
-              <Box
-                sx={{
-                  display: 'grid',
-                  gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' },
-                  gap: 2,
-                }}
-              >
-                {trips.map((trip) => (
-                  <Card
-                    key={trip.id}
-                    elevation={0}
-                    sx={{
-                      height: '100%',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      border: '1px solid',
-                      borderColor: 'divider',
-                      transition: 'all 0.3s',
-                      '&:hover': {
-                        boxShadow: 4,
-                        transform: 'translateY(-4px)',
-                      },
-                    }}
-                  >
-                    <CardActionArea
-                      onClick={() => router.push(`/trips/${trip.hash_code}`)}
-                      sx={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'stretch', justifyContent: 'flex-start', textAlign: 'left' }}
-                    >
-                      <CardContent>
-                        <Typography variant="h6" fontWeight={600} gutterBottom>
-                          {trip.name}
-                        </Typography>
-                        {trip.description && (
-                          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                            {trip.description}
-                          </Typography>
-                        )}
-
-                        {/* 地點顯示 */}
-                        {trip.location && (
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1 }}>
-                            <Box component="span" sx={{ color: 'action.active', display: 'flex' }}>
-                              <MapPin size={16} />
-                            </Box>
-                            <Typography variant="body2" color="text.secondary">
-                              {trip.location.name}
-                              {trip.location.country && `, ${trip.location.country}`}
-                            </Typography>
-                          </Box>
-                        )}
-
-                        {/* 日期顯示 */}
-                        {(trip.start_date || trip.end_date) && (
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1 }}>
-                            <Box component="span" sx={{ color: 'action.active', display: 'flex' }}>
-                              <CalendarRange size={16} />
-                            </Box>
-                            <Typography variant="body2" color="text.secondary">
-                              {trip.start_date
-                                ? new Date(trip.start_date).toLocaleDateString(
-                                  locale === 'zh' ? 'zh-TW' : locale === 'jp' ? 'ja-JP' : 'en-US'
-                                )
-                                : ''}
-                              {trip.start_date && trip.end_date && ' ~ '}
-                              {trip.end_date
-                                ? new Date(trip.end_date).toLocaleDateString(
-                                  locale === 'zh' ? 'zh-TW' : locale === 'jp' ? 'ja-JP' : 'en-US'
-                                )
-                                : ''}
-                            </Typography>
-                          </Box>
-                        )}
-
-                        <Box
-                          sx={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            flexWrap: 'wrap',
-                            gap: 1,
-                            mb: 1,
-                          }}
-                        >
-                          <Chip
-                            icon={<Users size={16} />}
-                            label={`${trip.member_count} ${t('members')}`}
-                            size="small"
-                            variant="outlined"
-                          />
-                          <Chip
-                            icon={<Calendar size={16} />}
-                            label={new Date(trip.created_at).toLocaleDateString(
-                              locale === 'zh' ? 'zh-TW' : 'en-US'
-                            )}
-                            size="small"
-                            variant="outlined"
-                          />
-                        </Box>
-                        <Chip
-                          label={`${t('idLabel')} ${trip.hash_code}`}
-                          size="small"
-                          onClick={(e) => copyHashCode(trip.hash_code, e)}
-                          icon={<Copy size={16} />}
-                          sx={{
-                            cursor: 'pointer',
-                            '&:hover': { bgcolor: 'primary.50' },
-                          }}
-                        />
-                      </CardContent>
-                    </CardActionArea>
-                  </Card>
-                ))}
-              </Box>
+              <TripList trips={trips} onCopyCode={copyHashCode} />
             )}
           </CardContent>
         </Card>
       </Container>
 
       {/* Create Trip Dialog */}
-      <Dialog
+      <CreateTripDialog
         open={showCreateModal}
-        onClose={() => {
-          setShowCreateModal(false);
-          setError('');
-          setFormData({ name: '', description: '', start_date: '', end_date: '' });
-          setSelectedLocation(null);
-        }}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>{t('create.title')}</DialogTitle>
-        <form onSubmit={handleCreateTrip}>
-          <DialogContent>
-            {error && (
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {error}
-              </Alert>
-            )}
-            <TextField
-              fullWidth
-              label={t('create.name')}
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              required
-              sx={{ mb: 2 }}
-            />
-            <TextField
-              fullWidth
-              label={t('create.description')}
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              multiline
-              rows={3}
-              sx={{ mb: 2 }}
-            />
-
-            {/* 旅遊地點 */}
-            <LocationAutocomplete
-              value={selectedLocation}
-              onChange={setSelectedLocation}
-              label={t('create.location')}
-              placeholder={t('create.locationPlaceholder')}
-              helperText={t('create.locationHelp')}
-            />
-
-            {/* 旅遊時間區間 */}
-            <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
-              <TextField
-                fullWidth
-                label={t('create.startDate')}
-                type="date"
-                value={formData.start_date}
-                onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                slotProps={{
-                  inputLabel: { shrink: true },
-                }}
-              />
-              <TextField
-                fullWidth
-                label={t('create.endDate')}
-                type="date"
-                value={formData.end_date}
-                onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
-                slotProps={{
-                  inputLabel: { shrink: true },
-                  htmlInput: { min: formData.start_date || undefined },
-                }}
-              />
-            </Box>
-          </DialogContent>
-          <DialogActions sx={{ px: 3, pb: 2 }}>
-            <Button
-              onClick={() => {
-                setShowCreateModal(false);
-                setError('');
-                setFormData({ name: '', description: '', start_date: '', end_date: '' });
-                setSelectedLocation(null);
-              }}
-            >
-              {tCommon('cancel')}
-            </Button>
-            <Button type="submit" variant="contained">
-              {tCommon('create')}
-            </Button>
-          </DialogActions>
-        </form>
-      </Dialog>
+        onClose={() => setShowCreateModal(false)}
+        onSuccess={loadTrips}
+      />
 
       {/* Join Trip Dialog */}
-      <Dialog
+      <JoinTripDialog
         open={showJoinModal}
-        onClose={() => {
-          setShowJoinModal(false);
-          setError('');
-          setJoinTripId('');
+        onClose={() => setShowJoinModal(false)}
+        onSuccess={() => {
+          setSnackbar({ open: true, message: t('join.success'), severity: 'success' });
+          loadTrips();
         }}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>{t('join.title')}</DialogTitle>
-        <form onSubmit={handleJoinTrip}>
-          <DialogContent>
-            {error && (
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {error}
-              </Alert>
-            )}
-            <TextField
-              fullWidth
-              label={t('join.tripId')}
-              value={joinTripId}
-              onChange={(e) => setJoinTripId(e.target.value)}
-              required
-              placeholder={t('join.tripIdPlaceholder')}
-              helperText={t('join.tripIdHelp')}
-            />
-          </DialogContent>
-          <DialogActions sx={{ px: 3, pb: 2 }}>
-            <Button
-              onClick={() => {
-                setShowJoinModal(false);
-                setError('');
-                setJoinTripId('');
-              }}
-            >
-              {tCommon('cancel')}
-            </Button>
-            <Button type="submit" variant="contained">
-              {t('join.joinButton')}
-            </Button>
-          </DialogActions>
-        </form>
-      </Dialog>
+      />
 
       {/* Snackbar */}
       <Snackbar

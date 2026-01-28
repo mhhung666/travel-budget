@@ -28,7 +28,7 @@ import {
   AddVirtualMemberDialog,
   DeleteTripDialog,
   RemoveMemberDialog,
-} from '@/components/trip';
+} from '@/components/trips';
 import {
   getCurrentUser,
   getTrip,
