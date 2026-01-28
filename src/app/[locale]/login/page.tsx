@@ -13,11 +13,16 @@ import {
   CircularProgress,
   Tabs,
   Tab,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  IconButton,
 } from '@mui/material';
-import { Compass, ArrowLeft } from 'lucide-react';
+import { Compass, ArrowLeft, X } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import { useTranslations } from 'next-intl';
-import { login, register } from '@/actions';
+import { login, register, resetPassword } from '@/actions';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -27,10 +32,22 @@ export default function LoginPage() {
   const [formData, setFormData] = useState({
     username: '',
     display_name: '',
+    email: '',
     password: '',
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Forgot password modal state
+  const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
+  const [forgotPasswordData, setForgotPasswordData] = useState({
+    username: '',
+    email: '',
+    new_password: '',
+  });
+  const [forgotPasswordError, setForgotPasswordError] = useState('');
+  const [forgotPasswordSuccess, setForgotPasswordSuccess] = useState('');
+  const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,7 +57,12 @@ export default function LoginPage() {
     try {
       const result = isLogin
         ? await login({ username: formData.username, password: formData.password })
-        : await register(formData);
+        : await register({
+            username: formData.username,
+            display_name: formData.display_name,
+            email: formData.email || undefined,
+            password: formData.password,
+          });
 
       if (!result.success) {
         throw new Error(result.error || (isLogin ? t('login.error') : t('register.error')));
@@ -51,6 +73,32 @@ export default function LoginPage() {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotPasswordError('');
+    setForgotPasswordSuccess('');
+    setForgotPasswordLoading(true);
+
+    try {
+      const result = await resetPassword(forgotPasswordData);
+
+      if (!result.success) {
+        throw new Error(result.error || t('forgotPassword.error'));
+      }
+
+      setForgotPasswordSuccess(t('forgotPassword.success'));
+      setTimeout(() => {
+        setForgotPasswordOpen(false);
+        setForgotPasswordData({ username: '', email: '', new_password: '' });
+        setForgotPasswordSuccess('');
+      }, 2000);
+    } catch (err: any) {
+      setForgotPasswordError(err.message);
+    } finally {
+      setForgotPasswordLoading(false);
     }
   };
 
@@ -165,14 +213,25 @@ export default function LoginPage() {
               />
 
               {!isLogin && (
-                <TextField
-                  fullWidth
-                  label={t('register.displayName')}
-                  value={formData.display_name}
-                  onChange={(e) => setFormData({ ...formData, display_name: e.target.value })}
-                  required={!isLogin}
-                  sx={{ mb: 2.5 }}
-                />
+                <>
+                  <TextField
+                    fullWidth
+                    label={t('register.displayName')}
+                    value={formData.display_name}
+                    onChange={(e) => setFormData({ ...formData, display_name: e.target.value })}
+                    required={!isLogin}
+                    sx={{ mb: 2.5 }}
+                  />
+                  <TextField
+                    fullWidth
+                    type="email"
+                    label={t('register.email')}
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    helperText={t('register.emailHelp')}
+                    sx={{ mb: 2.5 }}
+                  />
+                </>
               )}
 
               <TextField
@@ -184,8 +243,27 @@ export default function LoginPage() {
                 required
                 inputProps={{ minLength: 6 }}
                 helperText={!isLogin ? t('register.passwordHelp') : ''}
-                sx={{ mb: 4 }}
+                sx={{ mb: isLogin ? 1 : 4 }}
               />
+
+              {isLogin && (
+                <Box sx={{ mb: 3, textAlign: 'right' }}>
+                  <Button
+                    size="small"
+                    onClick={() => setForgotPasswordOpen(true)}
+                    sx={{
+                      textTransform: 'none',
+                      color: 'text.secondary',
+                      fontSize: '0.875rem',
+                      '&:hover': {
+                        color: 'primary.main',
+                      },
+                    }}
+                  >
+                    {t('forgotPassword.link')}
+                  </Button>
+                </Box>
+              )}
 
               <Button
                 type="submit"
@@ -230,6 +308,95 @@ export default function LoginPage() {
           </Paper>
         </Container>
       </Box>
+
+      {/* Forgot Password Modal */}
+      <Dialog
+        open={forgotPasswordOpen}
+        onClose={() => setForgotPasswordOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          {t('forgotPassword.title')}
+          <IconButton
+            onClick={() => setForgotPasswordOpen(false)}
+            size="small"
+          >
+            <X size={20} />
+          </IconButton>
+        </DialogTitle>
+        <form onSubmit={handleForgotPassword}>
+          <DialogContent>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              {t('forgotPassword.description')}
+            </Typography>
+
+            {forgotPasswordError && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {forgotPasswordError}
+              </Alert>
+            )}
+
+            {forgotPasswordSuccess && (
+              <Alert severity="success" sx={{ mb: 2 }}>
+                {forgotPasswordSuccess}
+              </Alert>
+            )}
+
+            <TextField
+              fullWidth
+              label={t('login.username')}
+              value={forgotPasswordData.username}
+              onChange={(e) =>
+                setForgotPasswordData({ ...forgotPasswordData, username: e.target.value })
+              }
+              required
+              sx={{ mb: 2.5 }}
+            />
+
+            <TextField
+              fullWidth
+              type="email"
+              label={t('register.email')}
+              value={forgotPasswordData.email}
+              onChange={(e) =>
+                setForgotPasswordData({ ...forgotPasswordData, email: e.target.value })
+              }
+              required
+              sx={{ mb: 2.5 }}
+            />
+
+            <TextField
+              fullWidth
+              type="password"
+              label={t('forgotPassword.newPassword')}
+              value={forgotPasswordData.new_password}
+              onChange={(e) =>
+                setForgotPasswordData({ ...forgotPasswordData, new_password: e.target.value })
+              }
+              required
+              inputProps={{ minLength: 6 }}
+              helperText={t('register.passwordHelp')}
+            />
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 3 }}>
+            <Button onClick={() => setForgotPasswordOpen(false)} color="inherit">
+              {tCommon('cancel')}
+            </Button>
+            <Button
+              type="submit"
+              variant="contained"
+              disabled={forgotPasswordLoading}
+            >
+              {forgotPasswordLoading ? (
+                <CircularProgress size={20} color="inherit" />
+              ) : (
+                t('forgotPassword.submit')
+              )}
+            </Button>
+          </DialogActions>
+        </form>
+      </Dialog>
     </Box>
   );
 }

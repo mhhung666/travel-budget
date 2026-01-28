@@ -92,7 +92,14 @@ export const loginSchema = z.object({
 export const registerSchema = z.object({
   username: z.string().min(3, '用戶名至少需要 3 個字元'),
   display_name: z.string().min(1, '請輸入顯示名稱'),
+  email: z.string().email('請輸入有效的電子郵件').optional().or(z.literal('')),
   password: z.string().min(6, '密碼至少需要 6 個字元'),
+});
+
+export const resetPasswordSchema = z.object({
+  username: z.string().min(1, '請輸入用戶名'),
+  email: z.string().email('請輸入有效的電子郵件'),
+  new_password: z.string().min(6, '新密碼至少需要 6 個字元'),
 });
 
 export const updateProfileSchema = z
@@ -124,6 +131,7 @@ export type CreateExpenseInput = z.infer<typeof createExpenseSchema>;
 export type UpdateExpenseInput = z.infer<typeof updateExpenseSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type AddVirtualMemberInput = z.infer<typeof addVirtualMemberSchema>;
 export type LocationInput = z.infer<typeof locationSchema>;

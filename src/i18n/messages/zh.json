@@ -296,6 +296,8 @@
       "subtitle": "開始您的旅程",
       "username": "用戶名",
       "displayName": "顯示名稱",
+      "email": "電子郵件",
+      "emailHelp": "用於找回密碼（選填）",
       "password": "密碼",
       "confirmPassword": "確認密碼",
       "registerButton": "註冊",
@@ -304,6 +306,15 @@
       "error": "註冊失敗",
       "passwordMismatch": "密碼不符",
       "passwordHelp": "至少 6 個字元"
+    },
+    "forgotPassword": {
+      "link": "忘記密碼？",
+      "title": "重設密碼",
+      "description": "請輸入您的帳戶和電子郵件來重設密碼",
+      "newPassword": "新密碼",
+      "submit": "重設密碼",
+      "success": "密碼已重設成功！",
+      "error": "重設密碼失敗"
     }
   },
   "stats": {

@@ -8,6 +8,7 @@ export {
   register,
   logout,
   updateProfile,
+  resetPassword,
 } from './auth.actions';
 
 // Trip actions

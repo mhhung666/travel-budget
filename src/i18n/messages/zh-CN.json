@@ -296,6 +296,8 @@
       "subtitle": "开始您的旅程",
       "username": "用户名",
       "displayName": "显示名称",
+      "email": "电子邮件",
+      "emailHelp": "用于找回密码（选填）",
       "password": "密码",
       "confirmPassword": "确认密码",
       "registerButton": "注册",
@@ -304,6 +306,15 @@
       "error": "注册失败",
       "passwordMismatch": "密码不符",
       "passwordHelp": "至少 6 个字符"
+    },
+    "forgotPassword": {
+      "link": "忘记密码？",
+      "title": "重设密码",
+      "description": "请输入您的账户和电子邮件来重设密码",
+      "newPassword": "新密码",
+      "submit": "重设密码",
+      "success": "密码已重设成功！",
+      "error": "重设密码失败"
     }
   },
   "stats": {

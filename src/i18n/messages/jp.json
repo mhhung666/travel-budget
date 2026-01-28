@@ -296,6 +296,8 @@
       "subtitle": "旅行を始めましょう",
       "username": "ユーザー名",
       "displayName": "表示名",
+      "email": "メールアドレス",
+      "emailHelp": "パスワード回復用（任意）",
       "password": "パスワード",
       "confirmPassword": "パスワード（確認）",
       "registerButton": "登録",
@@ -304,6 +306,15 @@
       "error": "登録に失敗しました",
       "passwordMismatch": "パスワードが一致しません",
       "passwordHelp": "6文字以上"
+    },
+    "forgotPassword": {
+      "link": "パスワードをお忘れですか？",
+      "title": "パスワードリセット",
+      "description": "ユーザー名とメールアドレスを入力してパスワードをリセット",
+      "newPassword": "新しいパスワード",
+      "submit": "パスワードをリセット",
+      "success": "パスワードがリセットされました！",
+      "error": "パスワードのリセットに失敗しました"
     }
   },
   "stats": {
