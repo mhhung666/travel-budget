@@ -115,14 +115,7 @@ export default function TripCard({ trip, onClick, onCopyCode }: TripCardProps) {
               size="small"
               variant="outlined"
             />
-            <Chip
-              icon={<Calendar size={16} />}
-              label={new Date(trip.created_at).toLocaleDateString(
-                locale === 'zh' ? 'zh-TW' : 'en-US'
-              )}
-              size="small"
-              variant="outlined"
-            />
+
           </Box>
           <Chip
             label={`${t('idLabel')} ${trip.hash_code}`}

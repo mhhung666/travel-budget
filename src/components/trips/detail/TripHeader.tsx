@@ -56,12 +56,7 @@ export default function TripHeader({ trip, isCurrentUserAdmin, onEdit }: TripHea
           </Box>
         )}
 
-        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-          <Chip
-            label={`${tTrip('createdAt')} ${new Date(trip.created_at).toLocaleDateString()}`}
-            size="small"
-          />
-        </Box>
+
       </CardContent>
     </Card>
   );
