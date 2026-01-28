@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { getSessionFromRequest } from './src/lib/auth';
+import { getSessionFromRequest } from './lib/auth';
 import createMiddleware from 'next-intl/middleware';
-import { routing, locales, defaultLocale } from './src/i18n/routing';
+import { routing, locales, defaultLocale } from './i18n/routing';
 
 // 建立 i18n middleware（使用統一的 routing 配置）
 const i18nMiddleware = createMiddleware(routing);
