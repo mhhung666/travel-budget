@@ -1,43 +1,50 @@
-import { NextRequest, NextResponse } from 'next/server';
+'use server';
+
 import { supabase } from '@/lib/supabase';
 import { getSession } from '@/lib/auth';
-import type { ExpenseDetail, CategoryStat, CountryStat } from '@/types';
+import type { ActionResult } from './types';
+import type { StatsData, CategoryStat, CountryStat, ExpenseDetail } from '@/types';
 
-// 獲取個人統計資料
-export async function GET(request: NextRequest) {
+interface GetStatsOptions {
+  startDate?: string;
+  endDate?: string;
+}
+
+/**
+ * Get personal statistics
+ */
+export async function getStats(options: GetStatsOptions = {}): Promise<ActionResult<StatsData>> {
   try {
     const session = await getSession();
     if (!session) {
-      return NextResponse.json({ error: '未登入' }, { status: 401 });
+      return { success: false, error: '未登入', code: 'UNAUTHORIZED' };
     }
 
-    const { searchParams } = new URL(request.url);
-    const startDate = searchParams.get('start_date');
-    const endDate = searchParams.get('end_date');
+    const { startDate, endDate } = options;
 
-    // 1. 取得用戶參與的所有旅行
+    // 1. Get all trips the user is part of
     const { data: tripMembers, error: tripError } = await supabase
       .from('trip_members')
       .select('trip_id')
       .eq('user_id', session.userId);
 
-    if (tripError) {
-      console.error('Get trip members error:', tripError);
-      return NextResponse.json({ error: '獲取旅行資料失敗' }, { status: 500 });
-    }
+    if (tripError) throw tripError;
 
     const tripIds = tripMembers?.map((tm) => tm.trip_id) || [];
 
     if (tripIds.length === 0) {
-      return NextResponse.json({
-        categoryStats: [],
-        countries: [],
-        totalAmount: 0,
-        totalExpenses: 0,
-      });
+      return {
+        success: true,
+        data: {
+          categoryStats: [],
+          countries: [],
+          totalAmount: 0,
+          totalExpenses: 0,
+        },
+      };
     }
 
-    // 2. 取得用戶的分帳記錄和對應的支出資訊（包含明細）
+    // 2. Get expense splits with details
     let expenseSplitsQuery = supabase
       .from('expense_splits')
       .select(
@@ -58,7 +65,6 @@ export async function GET(request: NextRequest) {
       .eq('user_id', session.userId)
       .in('expenses.trip_id', tripIds);
 
-    // 日期篩選
     if (startDate) {
       expenseSplitsQuery = expenseSplitsQuery.gte('expenses.date', startDate);
     }
@@ -68,12 +74,9 @@ export async function GET(request: NextRequest) {
 
     const { data: expenseSplits, error: splitsError } = await expenseSplitsQuery;
 
-    if (splitsError) {
-      console.error('Get expense splits error:', splitsError);
-      return NextResponse.json({ error: '獲取支出資料失敗' }, { status: 500 });
-    }
+    if (splitsError) throw splitsError;
 
-    // 3. 計算分類統計（含明細）
+    // 3. Calculate category statistics
     const categoryMap = new Map<
       string,
       { total: number; count: number; details: ExpenseDetail[] }
@@ -103,20 +106,17 @@ export async function GET(request: NextRequest) {
         category,
         total: Math.round(stats.total),
         count: stats.count,
-        // 明細按日期排序（新的在前）
         details: stats.details.sort(
           (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
         ),
       })
     );
 
-    // 按金額排序
     categoryStats.sort((a, b) => b.total - a.total);
 
-    // 4. 取得旅行的地點資訊來統計國家
+    // 4. Get trip locations for country stats
     let tripsQuery = supabase.from('trips').select('id, location').in('id', tripIds);
 
-    // 如果有日期篩選，也篩選旅行
     if (startDate) {
       tripsQuery = tripsQuery.or(`start_date.gte.${startDate},end_date.gte.${startDate}`);
     }
@@ -126,12 +126,9 @@ export async function GET(request: NextRequest) {
 
     const { data: trips, error: tripsError } = await tripsQuery;
 
-    if (tripsError) {
-      console.error('Get trips error:', tripsError);
-      return NextResponse.json({ error: '獲取旅行地點失敗' }, { status: 500 });
-    }
+    if (tripsError) throw tripsError;
 
-    // 5. 統計國家和地區
+    // 5. Calculate country statistics
     const countryMap = new Map<
       string,
       { country_code: string; regions: Map<string, number>; tripCount: number }
@@ -159,32 +156,32 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    const countries: CountryStat[] = Array.from(countryMap.entries()).map(
-      ([country, data]) => ({
-        country,
-        country_code: data.country_code,
-        tripCount: data.tripCount,
-        regions: Array.from(data.regions.entries())
-          .map(([name, tripCount]) => ({ name, tripCount }))
-          .sort((a, b) => b.tripCount - a.tripCount),
-      })
-    );
+    const countries: CountryStat[] = Array.from(countryMap.entries()).map(([country, data]) => ({
+      country,
+      country_code: data.country_code,
+      tripCount: data.tripCount,
+      regions: Array.from(data.regions.entries())
+        .map(([name, tripCount]) => ({ name, tripCount }))
+        .sort((a, b) => b.tripCount - a.tripCount),
+    }));
 
-    // 按旅行次數排序
     countries.sort((a, b) => b.tripCount - a.tripCount);
 
-    // 6. 計算總計
+    // 6. Calculate totals
     const totalAmount = categoryStats.reduce((sum, cat) => sum + cat.total, 0);
     const totalExpenses = categoryStats.reduce((sum, cat) => sum + cat.count, 0);
 
-    return NextResponse.json({
-      categoryStats,
-      countries,
-      totalAmount,
-      totalExpenses,
-    });
+    return {
+      success: true,
+      data: {
+        categoryStats,
+        countries,
+        totalAmount,
+        totalExpenses,
+      },
+    };
   } catch (error) {
     console.error('Get stats error:', error);
-    return NextResponse.json({ error: '獲取統計資料失敗' }, { status: 500 });
+    return { success: false, error: '獲取統計資料失敗', code: 'INTERNAL_ERROR' };
   }
 }

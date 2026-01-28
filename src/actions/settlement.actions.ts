@@ -1,38 +1,41 @@
-import { NextRequest, NextResponse } from 'next/server';
+'use server';
+
 import { supabase } from '@/lib/supabase';
 import { getSession } from '@/lib/auth';
+import { getTripId, requireMember } from '@/lib/permissions';
 import { calculateSettlement } from '@/lib/settlement';
-import { getTripId } from '@/lib/permissions';
+import type { ActionResult } from './types';
+import type { Balance, Transaction } from '@/types';
 
-// 獲取旅行結算
-export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+interface SettlementResult {
+  balances: Balance[];
+  transactions: Transaction[];
+  totalExpenses: number;
+}
+
+/**
+ * Get settlement for a trip
+ */
+export async function getSettlement(tripIdOrCode: string): Promise<ActionResult<SettlementResult>> {
   try {
     const session = await getSession();
     if (!session) {
-      return NextResponse.json({ error: '未登入' }, { status: 401 });
+      return { success: false, error: '未登入', code: 'UNAUTHORIZED' };
     }
 
-    const { id } = await params;
-
-    // 支援 hash_code 或數字 ID
-    const tripId = await getTripId(id);
+    const tripId = await getTripId(tripIdOrCode);
     if (!tripId) {
-      return NextResponse.json({ error: '旅行不存在' }, { status: 404 });
+      return { success: false, error: '旅行不存在', code: 'NOT_FOUND' };
     }
 
-    // 檢查用戶是否是此旅行的成員
-    const { data: isMember, error: memberError } = await supabase
-      .from('trip_members')
-      .select('id')
-      .eq('trip_id', tripId)
-      .eq('user_id', session.userId)
-      .single();
-
-    if (memberError || !isMember) {
-      return NextResponse.json({ error: '您不是此旅行的成員' }, { status: 403 });
+    // Check membership
+    try {
+      await requireMember(session.userId, tripId);
+    } catch {
+      return { success: false, error: '您不是此旅行的成員', code: 'FORBIDDEN' };
     }
 
-    // 獲取所有成員
+    // Get all members
     const { data: membersData } = await supabase
       .from('trip_members')
       .select(
@@ -48,10 +51,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     const members = membersData?.map((m: any) => m.users) || [];
 
-    // 計算每個成員的淨餘額
+    // Calculate balances for each member
     const balances = await Promise.all(
       members.map(async (member: any) => {
-        // 計算總付款
+        // Total paid
         const { data: paidData } = await supabase
           .from('expenses')
           .select('amount')
@@ -60,7 +63,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
         const totalPaid = paidData?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0;
 
-        // 計算總應付
+        // Total owed
         const { data: owedData } = await supabase
           .from('expense_splits')
           .select('share_amount, expenses!inner(trip_id)')
@@ -81,11 +84,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       })
     );
 
-    // 使用結算演算法計算轉帳方案 (需要複製一份數據,因為演算法會修改 balance)
+    // Calculate transactions using settlement algorithm
     const balancesForCalculation = balances.map((b) => ({ ...b }));
     const transactions = calculateSettlement(balancesForCalculation);
 
-    // 計算總支出
+    // Calculate total expenses
     const { data: expensesData } = await supabase
       .from('expenses')
       .select('amount')
@@ -93,13 +96,16 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     const totalExpenses = expensesData?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0;
 
-    return NextResponse.json({
-      balances,
-      transactions,
-      totalExpenses,
-    });
+    return {
+      success: true,
+      data: {
+        balances,
+        transactions,
+        totalExpenses,
+      },
+    };
   } catch (error) {
     console.error('Get settlement error:', error);
-    return NextResponse.json({ error: '獲取結算信息失敗' }, { status: 500 });
+    return { success: false, error: '獲取結算信息失敗', code: 'INTERNAL_ERROR' };
   }
 }

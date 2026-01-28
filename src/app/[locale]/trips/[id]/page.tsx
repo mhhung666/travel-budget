@@ -29,6 +29,19 @@ import {
   DeleteTripDialog,
   RemoveMemberDialog,
 } from '@/components/trip';
+import {
+  getCurrentUser,
+  getTrip,
+  getMembers,
+  getExpenses,
+  createExpense,
+  updateExpense,
+  deleteExpense,
+  updateTrip,
+  deleteTrip,
+  addVirtualMember,
+  removeMember,
+} from '@/actions';
 
 export default function TripDetailPage() {
   const router = useRouter();
@@ -83,36 +96,37 @@ export default function TripDetailPage() {
     try {
       // 嘗試檢查認證（不強制要求登入）
       let user = null;
-      try {
-        const authResponse = await fetch('/api/auth/me');
-        if (authResponse.ok) {
-          const authData = await authResponse.json();
-          user = authData.user;
-          setCurrentUser(user);
+      const userResult = await getCurrentUser();
+      if (userResult.success && userResult.data) {
+        user = userResult.data;
+        setCurrentUser(user);
+      }
+
+      // 如果已登入，使用 Server Actions
+      if (user) {
+        const [tripResult, membersResult, expensesResult] = await Promise.all([
+          getTrip(tripId),
+          getMembers(tripId),
+          getExpenses(tripId),
+        ]);
+
+        if (!tripResult.success) {
+          // 如果不是成員，嘗試使用公開 API
+          if (tripResult.code === 'FORBIDDEN') {
+            await loadPublicTripData();
+            return;
+          }
+          setError(tError('loadTripFailed'));
+          return;
         }
-      } catch {
-        // 未登入，繼續以訪客身份瀏覽
+
+        setTrip(tripResult.data);
+        setMembers(membersResult.success ? membersResult.data : []);
+        setExpenses(expensesResult.success ? expensesResult.data : []);
+      } else {
+        // 未登入，使用公開 API
+        await loadPublicTripData();
       }
-
-      // 使用公開 API 載入旅行資料（不需登入）
-      const [tripResponse, membersResponse, expensesResponse] = await Promise.all([
-        fetch(`/api/public/trips/${tripId}`),
-        fetch(`/api/public/trips/${tripId}/members`),
-        fetch(`/api/public/trips/${tripId}/expenses`),
-      ]);
-
-      if (!tripResponse.ok) {
-        setError(tError('loadTripFailed'));
-        return;
-      }
-
-      const tripData = await tripResponse.json();
-      const membersData = await membersResponse.json();
-      const expensesData = await expensesResponse.json();
-
-      setTrip(tripData.trip);
-      setMembers(membersData.members || []);
-      setExpenses(expensesData.expenses || []);
     } catch (err) {
       setError(tError('loadFailed'));
     } finally {
@@ -120,23 +134,42 @@ export default function TripDetailPage() {
     }
   };
 
+  const loadPublicTripData = async () => {
+    const [tripResponse, membersResponse, expensesResponse] = await Promise.all([
+      fetch(`/api/public/trips/${tripId}`),
+      fetch(`/api/public/trips/${tripId}/members`),
+      fetch(`/api/public/trips/${tripId}/expenses`),
+    ]);
+
+    if (!tripResponse.ok) {
+      setError(tError('loadTripFailed'));
+      return;
+    }
+
+    const tripData = await tripResponse.json();
+    const membersData = await membersResponse.json();
+    const expensesData = await expensesResponse.json();
+
+    setTrip(tripData.trip);
+    setMembers(membersData.members || []);
+    setExpenses(expensesData.expenses || []);
+  };
+
   const handleAddExpense = async (data: any) => {
     try {
-      const response = await fetch(`/api/trips/${tripId}/expenses`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...data,
-          original_amount: parseFloat(data.original_amount),
-          exchange_rate: parseFloat(data.exchange_rate),
-          category: data.category,
-        }),
+      const result = await createExpense(tripId, {
+        payer_id: data.payer_id,
+        original_amount: parseFloat(data.original_amount),
+        currency: data.currency,
+        exchange_rate: parseFloat(data.exchange_rate),
+        description: data.description,
+        category: data.category,
+        date: data.date,
+        split_with: data.split_with,
       });
 
-      const resData = await response.json();
-
-      if (!response.ok) {
-        throw new Error(resData.error);
+      if (!result.success) {
+        throw new Error(result.error);
       }
 
       setShowAddExpense(false);
@@ -150,13 +183,10 @@ export default function TripDetailPage() {
     if (!confirm(tExpense('confirm.delete'))) return;
 
     try {
-      const response = await fetch(`/api/trips/${tripId}/expenses/${expenseId}`, {
-        method: 'DELETE',
-      });
+      const result = await deleteExpense(tripId, expenseId);
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error);
+      if (!result.success) {
+        throw new Error(result.error);
       }
 
       await loadTripData();
@@ -169,22 +199,16 @@ export default function TripDetailPage() {
     if (!editingExpense) return;
 
     try {
-      const response = await fetch(`/api/trips/${tripId}/expenses/${editingExpense.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          description: data.description.trim(),
-          original_amount: parseFloat(data.original_amount),
-          currency: data.currency,
-          exchange_rate: parseFloat(data.exchange_rate),
-          category: data.category,
-        }),
+      const result = await updateExpense(tripId, editingExpense.id, {
+        description: data.description.trim(),
+        original_amount: parseFloat(data.original_amount),
+        currency: data.currency,
+        exchange_rate: parseFloat(data.exchange_rate),
+        category: data.category,
       });
 
-      const resData = await response.json();
-
-      if (!response.ok) {
-        throw new Error(resData.error);
+      if (!result.success) {
+        throw new Error(result.error);
       }
 
       setSnackbar({ open: true, message: tExpense('success.updated'), severity: 'success' });
@@ -208,13 +232,10 @@ export default function TripDetailPage() {
   const handleDeleteTrip = async () => {
     setIsDeleting(true);
     try {
-      const response = await fetch(`/api/trips/${tripId}`, {
-        method: 'DELETE',
-      });
+      const result = await deleteTrip(tripId);
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error);
+      if (!result.success) {
+        throw new Error(result.error);
       }
 
       setSnackbar({ open: true, message: tTrip('deleted'), severity: 'success' });
@@ -230,11 +251,10 @@ export default function TripDetailPage() {
   const handleRemoveMember = async () => {
     if (!removeMemberDialog.member) return;
     try {
-      const response = await fetch(`/api/trips/${tripId}/members/${removeMemberDialog.member.id}`, { method: 'DELETE' });
+      const result = await removeMember(tripId, removeMemberDialog.member.id);
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error);
+      if (!result.success) {
+        throw new Error(result.error);
       }
 
       setSnackbar({ open: true, message: tMember('success.removed'), severity: 'success' });
@@ -247,22 +267,16 @@ export default function TripDetailPage() {
 
   const handleEditTrip = async (data: any) => {
     try {
-      const response = await fetch(`/api/trips/${tripId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: data.name.trim(),
-          description: data.description.trim() || null,
-          start_date: data.start_date || null,
-          end_date: data.end_date || null,
-          location: data.location || null,
-        }),
+      const result = await updateTrip(tripId, {
+        name: data.name.trim(),
+        description: data.description?.trim() || null,
+        start_date: data.start_date || null,
+        end_date: data.end_date || null,
+        location: data.location || null,
       });
 
-      const resData = await response.json();
-
-      if (!response.ok) {
-        throw new Error(resData.error);
+      if (!result.success) {
+        throw new Error(result.error);
       }
 
       setSnackbar({ open: true, message: tTrip('editSuccess'), severity: 'success' });
@@ -275,18 +289,12 @@ export default function TripDetailPage() {
 
   const handleAddVirtualMember = async (name: string) => {
     try {
-      const response = await fetch(`/api/trips/${tripId}/members`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          display_name: name.trim(),
-        }),
+      const result = await addVirtualMember(tripId, {
+        display_name: name.trim(),
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error);
+      if (!result.success) {
+        throw new Error(result.error);
       }
 
       setSnackbar({ open: true, message: tMember('virtualMemberAdded'), severity: 'success' });

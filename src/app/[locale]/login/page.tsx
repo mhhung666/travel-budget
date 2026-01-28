@@ -17,6 +17,7 @@ import {
 import { Compass, ArrowLeft } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import { useTranslations } from 'next-intl';
+import { login, register } from '@/actions';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -37,21 +38,12 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
-      const body = isLogin
-        ? { username: formData.username, password: formData.password }
-        : formData;
+      const result = isLogin
+        ? await login({ username: formData.username, password: formData.password })
+        : await register(formData);
 
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || (isLogin ? t('login.error') : t('register.error')));
+      if (!result.success) {
+        throw new Error(result.error || (isLogin ? t('login.error') : t('register.error')));
       }
 
       router.push('/trips');

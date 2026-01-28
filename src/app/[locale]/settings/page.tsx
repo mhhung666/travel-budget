@@ -17,6 +17,7 @@ import {
 import { ArrowLeft, User, Lock } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import { useTranslations } from 'next-intl';
+import { getCurrentUser, updateProfile } from '@/actions';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -43,11 +44,10 @@ export default function SettingsPage() {
 
   const fetchUser = async () => {
     try {
-      const response = await fetch('/api/auth/me');
-      if (response.ok) {
-        const data = await response.json();
-        setUser(data.user);
-        setDisplayName(data.user.display_name);
+      const result = await getCurrentUser();
+      if (result.success && result.data) {
+        setUser(result.data);
+        setDisplayName(result.data.display_name);
       }
     } catch (error) {
       console.error('獲取用戶資料失敗:', error);
@@ -63,16 +63,10 @@ export default function SettingsPage() {
     setUpdatingProfile(true);
 
     try {
-      const response = await fetch('/api/auth/update', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ display_name: displayName }),
-      });
+      const result = await updateProfile({ display_name: displayName });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || t('errors.updateFailed'));
+      if (!result.success) {
+        throw new Error(result.error || t('errors.updateFailed'));
       }
 
       setSuccess(t('profile.updateSuccess'));
@@ -103,19 +97,13 @@ export default function SettingsPage() {
     setUpdatingPassword(true);
 
     try {
-      const response = await fetch('/api/auth/update', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          current_password: currentPassword,
-          new_password: newPassword,
-        }),
+      const result = await updateProfile({
+        current_password: currentPassword,
+        new_password: newPassword,
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || t('password.updateError'));
+      if (!result.success) {
+        throw new Error(result.error || t('password.updateError'));
       }
 
       setSuccess(t('password.updateSuccess'));

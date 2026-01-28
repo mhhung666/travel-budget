@@ -18,6 +18,7 @@ import {
 import { UserPlus, Info, Users } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { TripWithMembers } from '@/types';
+import { getCurrentUser, getTrip, joinTrip } from '@/actions';
 
 export default function QuickJoinPage() {
   const router = useRouter();
@@ -38,25 +39,28 @@ export default function QuickJoinPage() {
 
   const checkAuthAndLoadTrip = async () => {
     try {
-      const authRes = await fetch('/api/auth/me');
-      if (!authRes.ok) {
+      const authResult = await getCurrentUser();
+      if (!authResult.success || !authResult.data) {
         router.push(`/login?redirect=/join/${hashCode}`);
         return;
       }
 
-      const tripRes = await fetch(`/api/trips/${hashCode}`);
-      if (!tripRes.ok) {
-        if (tripRes.status === 404) {
+      const tripResult = await getTrip(hashCode);
+      if (!tripResult.success) {
+        if (tripResult.code === 'NOT_FOUND') {
           setError(t('quickJoin.notFound'));
-        } else if (tripRes.status === 403) {
+        } else if (tripResult.code === 'FORBIDDEN') {
+          // 已經是成員，直接跳轉
           setAlreadyMember(true);
           setTimeout(() => router.push(`/trips/${hashCode}`), 2000);
         } else {
           setError(t('quickJoin.loadError'));
         }
       } else {
-        const data = await tripRes.json();
-        setTrip(data.trip);
+        setTrip({
+          ...tripResult.data,
+          member_count: 0, // 會在 getTrip 中沒有返回，使用預設值
+        } as TripWithMembers);
       }
     } catch (err) {
       setError(tError('loadFailed'));
@@ -70,16 +74,10 @@ export default function QuickJoinPage() {
     setError('');
 
     try {
-      const response = await fetch('/api/trips/join', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ trip_id: hashCode }),
-      });
+      const result = await joinTrip(hashCode);
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error);
+      if (!result.success) {
+        throw new Error(result.error);
       }
 
       router.push(`/trips/${hashCode}`);

@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import type { Balance, Transaction } from '@/types';
+import { getCurrentUser, getSettlement } from '@/actions';
 
 export default function SettlementPage() {
   const router = useRouter();
@@ -39,6 +40,7 @@ export default function SettlementPage() {
   const [balances, setBalances] = useState<Balance[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [totalExpenses, setTotalExpenses] = useState(0);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -48,7 +50,28 @@ export default function SettlementPage() {
 
   const loadSettlement = async () => {
     try {
-      // 使用公開 API（不需登入）
+      // 嘗試檢查認證
+      const userResult = await getCurrentUser();
+      if (userResult.success && userResult.data) {
+        setCurrentUser(userResult.data);
+      }
+
+      // 嘗試使用 Server Action
+      if (userResult.success && userResult.data) {
+        const result = await getSettlement(tripId);
+        if (result.success) {
+          setBalances(result.data.balances);
+          setTransactions(result.data.transactions);
+          setTotalExpenses(result.data.totalExpenses);
+          return;
+        }
+        // 如果不是成員，繼續使用公開 API
+        if (result.code !== 'FORBIDDEN') {
+          throw new Error(result.error);
+        }
+      }
+
+      // 未登入或非成員，使用公開 API
       const response = await fetch(`/api/public/trips/${tripId}/settlement`);
 
       if (!response.ok) {
@@ -105,7 +128,19 @@ export default function SettlementPage() {
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
-      <Navbar user={null} showUserMenu={true} title={tSettlement('summary')} />
+      <Navbar
+        user={
+          currentUser
+            ? {
+              id: currentUser.id,
+              username: currentUser.display_name,
+              email: currentUser.email,
+            }
+            : null
+        }
+        showUserMenu={true}
+        title={tSettlement('summary')}
+      />
 
       <Container maxWidth="lg" sx={{ pt: { xs: 10, sm: 12 }, pb: 4 }}>
         {/* 返回按鈕 */}

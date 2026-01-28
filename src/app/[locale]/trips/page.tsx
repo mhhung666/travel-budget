@@ -24,6 +24,7 @@ import { Plus, UserPlus, Users, Calendar, Copy, MapPin, CalendarRange } from 'lu
 import Navbar from '@/components/layout/Navbar';
 import { useTranslations, useLocale } from 'next-intl';
 import LocationAutocomplete, { LocationOption } from '@/components/location/LocationAutocomplete';
+import { getCurrentUser, getTrips, createTrip, joinTrip } from '@/actions';
 import type { TripWithMembers } from '@/types';
 
 export default function TripsPage() {
@@ -58,10 +59,9 @@ export default function TripsPage() {
 
   const loadUserAndTrips = async () => {
     try {
-      const response = await fetch('/api/auth/me');
-      if (response.ok) {
-        const data = await response.json();
-        setUser(data.user);
+      const userResult = await getCurrentUser();
+      if (userResult.success && userResult.data) {
+        setUser(userResult.data);
       }
       await loadTrips();
     } catch (error) {
@@ -73,10 +73,9 @@ export default function TripsPage() {
 
   const loadTrips = async () => {
     try {
-      const response = await fetch('/api/trips');
-      if (response.ok) {
-        const data = await response.json();
-        setTrips(data.trips);
+      const result = await getTrips();
+      if (result.success) {
+        setTrips(result.data);
       }
     } catch (error) {
       console.error('Load trips error:', error);
@@ -88,23 +87,15 @@ export default function TripsPage() {
     setError('');
 
     try {
-      const requestBody = {
+      const result = await createTrip({
         ...formData,
         start_date: formData.start_date || null,
         end_date: formData.end_date || null,
         location: selectedLocation || null,
-      };
-
-      const response = await fetch('/api/trips', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error);
+      if (!result.success) {
+        throw new Error(result.error);
       }
 
       setShowCreateModal(false);
@@ -121,16 +112,10 @@ export default function TripsPage() {
     setError('');
 
     try {
-      const response = await fetch('/api/trips/join', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ trip_id: joinTripId }),
-      });
+      const result = await joinTrip(joinTripId);
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error);
+      if (!result.success) {
+        throw new Error(result.error);
       }
 
       setShowJoinModal(false);

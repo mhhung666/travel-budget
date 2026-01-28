@@ -19,6 +19,7 @@ import { useThemeContext } from '@/app/[locale]/context/ThemeContext';
 import { MoonIcon, SunIcon } from './ThemeIcons';
 import LanguageSwitcher from './LanguageSwitcher';
 import { useTranslations } from 'next-intl';
+import { logout } from '@/actions';
 
 interface NavbarProps {
   user?: {
@@ -48,7 +49,7 @@ export default function Navbar({ user, showUserMenu = true, title }: NavbarProps
 
   const handleLogout = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
+      await logout();
       router.push('/login');
     } catch (error) {
       console.error('登出失敗:', error);

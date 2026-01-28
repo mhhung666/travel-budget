@@ -31,6 +31,7 @@ import Navbar from '@/components/layout/Navbar';
 import { getCategoryIcon } from '@/constants/categories';
 import { getCountryFlag } from '@/constants/countries';
 import type { StatsData } from '@/types';
+import { getCurrentUser, getStats } from '@/actions';
 
 export default function StatsPage() {
   const router = useRouter();
@@ -53,16 +54,15 @@ export default function StatsPage() {
 
   useEffect(() => {
     if (user) {
-      loadStats();
+      loadStatsData();
     }
   }, [user, startDate, endDate]);
 
   const loadUser = async () => {
     try {
-      const response = await fetch('/api/auth/me');
-      if (response.ok) {
-        const data = await response.json();
-        setUser(data.user);
+      const result = await getCurrentUser();
+      if (result.success && result.data) {
+        setUser(result.data);
       } else {
         router.push('/login');
       }
@@ -72,21 +72,19 @@ export default function StatsPage() {
     }
   };
 
-  const loadStats = async () => {
+  const loadStatsData = async () => {
     try {
       setLoading(true);
-      const params = new URLSearchParams();
-      if (startDate) params.append('start_date', startDate);
-      if (endDate) params.append('end_date', endDate);
+      const result = await getStats({
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+      });
 
-      const response = await fetch(`/api/stats?${params.toString()}`);
-
-      if (!response.ok) {
-        throw new Error(tError('loadFailed'));
+      if (!result.success) {
+        throw new Error(result.error);
       }
 
-      const data = await response.json();
-      setStats(data);
+      setStats(result.data);
     } catch (err: any) {
       setError(err.message);
     } finally {
