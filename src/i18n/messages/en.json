@@ -66,6 +66,14 @@
       "saveChanges": "Save Changes",
       "updateSuccess": "Display name updated"
     },
+    "email": {
+      "title": "Change Email",
+      "current": "Current Email",
+      "currentHelp": "This is your current email address",
+      "new": "New Email",
+      "updateButton": "Update Email",
+      "updateSuccess": "Email updated"
+    },
     "password": {
       "title": "Change Password",
       "current": "Current Password",

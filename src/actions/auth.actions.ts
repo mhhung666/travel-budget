@@ -17,7 +17,7 @@ import type { ActionResult } from './types';
 import type { User } from '@/types';
 
 type AuthUser = Pick<User, 'id' | 'username' | 'display_name'>;
-type AuthUserWithCreatedAt = AuthUser & { created_at: string };
+type AuthUserWithCreatedAt = AuthUser & { created_at: string; email?: string };
 
 /**
  * Get current authenticated user
@@ -31,7 +31,7 @@ export async function getCurrentUser(): Promise<ActionResult<AuthUserWithCreated
 
     const { data: user, error } = await supabase
       .from('users')
-      .select('id, username, display_name, created_at')
+      .select('id, username, display_name, email, created_at')
       .eq('id', session.userId)
       .single();
 
@@ -191,7 +191,7 @@ export async function updateProfile(
       };
     }
 
-    const { display_name, current_password, new_password } = validation.data;
+    const { display_name, new_email, current_password, new_password } = validation.data;
 
     // Update display name
     if (display_name !== undefined) {
@@ -203,6 +203,30 @@ export async function updateProfile(
       if (error) throw error;
 
       return { success: true, data: { message: '顯示名稱已更新' } };
+    }
+
+    // Update email
+    if (new_email !== undefined) {
+      // Check if email is already taken (case-insensitive)
+      const { data: existingEmail } = await supabase
+        .from('users')
+        .select('id')
+        .ilike('email', new_email)
+        .neq('id', session.userId)
+        .single();
+
+      if (existingEmail) {
+        return { success: false, error: '此電子郵件已被使用', code: 'CONFLICT' };
+      }
+
+      const { error } = await supabase
+        .from('users')
+        .update({ email: new_email.toLowerCase().trim() })
+        .eq('id', session.userId);
+
+      if (error) throw error;
+
+      return { success: true, data: { message: '電子郵件已更新' } };
     }
 
     // Update password

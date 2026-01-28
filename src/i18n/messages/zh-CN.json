@@ -66,6 +66,14 @@
       "saveChanges": "保存更改",
       "updateSuccess": "显示名称已更新"
     },
+    "email": {
+      "title": "修改电子邮件",
+      "current": "当前电子邮件",
+      "currentHelp": "这是您当前的电子邮件地址",
+      "new": "新电子邮件",
+      "updateButton": "更新电子邮件",
+      "updateSuccess": "电子邮件已更新"
+    },
     "password": {
       "title": "修改密码",
       "current": "当前密码",
