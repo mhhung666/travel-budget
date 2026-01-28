@@ -82,123 +82,141 @@ export default function Navbar({ user, showUserMenu = true, title }: NavbarProps
       }}
     >
       <Container maxWidth="lg">
-        <Toolbar sx={{ px: { xs: 0 } }}>
-          <Compass size={24} style={{ marginRight: 8, color: '#1976d2' }} />
-          <Typography
-            variant="h6"
-            component="div"
-            sx={{
-              flexGrow: 1,
-              color: 'text.primary',
-              fontWeight: 600,
-              fontSize: { xs: '1.1rem', sm: '1.25rem' },
-            }}
-          >
-            {displayTitle}
-          </Typography>
+        <Toolbar sx={{ px: { xs: 0 }, justifyContent: 'space-between', position: 'relative' }}>
+          {/* 左側：Logo 和標題 */}
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Compass size={24} style={{ marginRight: 8, color: '#1976d2' }} />
+            <Typography
+              variant="h6"
+              component="div"
+              sx={{
+                color: 'text.primary',
+                fontWeight: 600,
+                fontSize: { xs: '1.1rem', sm: '1.25rem' },
+                cursor: 'pointer'
+              }}
+              onClick={() => router.push('/')}
+            >
+              {displayTitle}
+            </Typography>
+          </Box>
 
-          {/* 語言切換 */}
-          <LanguageSwitcher />
-
-          {/* 主題切換按鈕 */}
-          <IconButton
-            onClick={toggleTheme}
-            color="inherit"
-            sx={{ mr: 1, color: 'text.primary' }}
-            aria-label="切換主題"
-          >
-            {mode === 'dark' ? <SunIcon /> : <MoonIcon />}
-          </IconButton>
-
-          {showUserMenu && user ? (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.5, sm: 1 } }}>
-              {/* 導航按鈕 - 桌面版顯示文字 */}
-              <Box sx={{ display: { xs: 'none', md: 'flex' }, gap: 1 }}>
-                <Button
-                  onClick={handleTrips}
-                  startIcon={<Compass size={20} />}
-                  sx={{ color: 'text.primary', textTransform: 'none' }}
-                >
-                  {t('trips')}
-                </Button>
-                <Button
-                  onClick={handleStats}
-                  startIcon={<BarChart3 size={20} />}
-                  sx={{ color: 'text.primary', textTransform: 'none' }}
-                >
-                  {t('stats')}
-                </Button>
-              </Box>
-
-              {/* 導航按鈕 - 手機版只顯示圖標 */}
-              <Box sx={{ display: { xs: 'flex', md: 'none' } }}>
-                <IconButton onClick={handleTrips} sx={{ color: 'text.primary' }}>
-                  <Compass size={24} />
-                </IconButton>
-                <IconButton onClick={handleStats} sx={{ color: 'text.primary' }}>
-                  <BarChart3 size={24} />
-                </IconButton>
-              </Box>
-
-              <Typography
-                variant="body2"
-                sx={{
-                  display: { xs: 'none', sm: 'block' },
-                  color: 'text.secondary',
-                  ml: 1,
-                }}
+          {/* 中間：導航按鈕 (僅桌面版顯示) */}
+          {showUserMenu && user && (
+            <Box sx={{
+              display: { xs: 'none', md: 'flex' },
+              gap: 1,
+              position: 'absolute',
+              left: '50%',
+              transform: 'translateX(-50%)'
+            }}>
+              <Button
+                onClick={handleTrips}
+                startIcon={<Compass size={20} />}
+                sx={{ color: 'text.primary', textTransform: 'none' }}
               >
-                {user.display_name || user.username}
-              </Typography>
-              <IconButton size="large" onClick={handleMenu} color="default">
-                <Avatar
+                {t('trips')}
+              </Button>
+              <Button
+                onClick={handleStats}
+                startIcon={<BarChart3 size={20} />}
+                sx={{ color: 'text.primary', textTransform: 'none' }}
+              >
+                {t('stats')}
+              </Button>
+            </Box>
+          )}
+
+          {/* 右側：功能區 */}
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            {/* 語言切換 */}
+            <LanguageSwitcher />
+
+            {/* 主題切換按鈕 */}
+            <IconButton
+              onClick={toggleTheme}
+              color="inherit"
+              sx={{ ml: 0.5, color: 'text.primary' }}
+              aria-label="切換主題"
+            >
+              {mode === 'dark' ? <SunIcon /> : <MoonIcon />}
+            </IconButton>
+
+            {showUserMenu && user ? (
+              <Box sx={{ display: 'flex', alignItems: 'center', ml: 1 }}>
+
+                {/* 導航按鈕 - 手機版只顯示圖標 (在右側) */}
+                <Box sx={{ display: { xs: 'flex', md: 'none' } }}>
+                  <IconButton onClick={handleTrips} sx={{ color: 'text.primary' }}>
+                    <Compass size={24} />
+                  </IconButton>
+                  <IconButton onClick={handleStats} sx={{ color: 'text.primary' }}>
+                    <BarChart3 size={24} />
+                  </IconButton>
+                </Box>
+
+                <Typography
+                  variant="body2"
                   sx={{
-                    width: 32,
-                    height: 32,
-                    bgcolor: 'primary.main',
-                    fontSize: '0.875rem',
+                    display: { xs: 'none', sm: 'block' },
+                    color: 'text.secondary',
+                    ml: 2,
+                    mr: 1
                   }}
                 >
-                  {(user.display_name || user.username).charAt(0).toUpperCase()}
-                </Avatar>
-              </IconButton>
-              <Menu
-                anchorEl={anchorEl}
-                open={Boolean(anchorEl)}
-                onClose={handleClose}
-                anchorOrigin={{
-                  vertical: 'bottom',
-                  horizontal: 'right',
-                }}
-                transformOrigin={{
-                  vertical: 'top',
-                  horizontal: 'right',
+                  {user.display_name || user.username}
+                </Typography>
+                <IconButton size="large" onClick={handleMenu} color="default" sx={{ p: 0.5 }}>
+                  <Avatar
+                    sx={{
+                      width: 32,
+                      height: 32,
+                      bgcolor: 'primary.main',
+                      fontSize: '0.875rem',
+                    }}
+                  >
+                    {(user.display_name || user.username).charAt(0).toUpperCase()}
+                  </Avatar>
+                </IconButton>
+                <Menu
+                  anchorEl={anchorEl}
+                  open={Boolean(anchorEl)}
+                  onClose={handleClose}
+                  anchorOrigin={{
+                    vertical: 'bottom',
+                    horizontal: 'right',
+                  }}
+                  transformOrigin={{
+                    vertical: 'top',
+                    horizontal: 'right',
+                  }}
+                >
+                  <MenuItem onClick={handleSettings}>
+                    <Settings size={18} style={{ marginRight: 8 }} />
+                    {t('settings')}
+                  </MenuItem>
+                  <MenuItem onClick={handleLogout}>
+                    <LogOut size={18} style={{ marginRight: 8 }} />
+                    {t('logout')}
+                  </MenuItem>
+                </Menu>
+              </Box>
+            ) : (
+              <Button
+                variant="contained"
+                onClick={() => router.push('/login')}
+                sx={{
+                  textTransform: 'none',
+                  borderRadius: 2,
+                  px: { xs: 2, sm: 3 },
+                  fontSize: { xs: '0.875rem', sm: '1rem' },
+                  ml: 2
                 }}
               >
-                <MenuItem onClick={handleSettings}>
-                  <Settings size={18} style={{ marginRight: 8 }} />
-                  {t('settings')}
-                </MenuItem>
-                <MenuItem onClick={handleLogout}>
-                  <LogOut size={18} style={{ marginRight: 8 }} />
-                  {t('logout')}
-                </MenuItem>
-              </Menu>
-            </Box>
-          ) : (
-            <Button
-              variant="contained"
-              onClick={() => router.push('/login')}
-              sx={{
-                textTransform: 'none',
-                borderRadius: 2,
-                px: { xs: 2, sm: 3 },
-                fontSize: { xs: '0.875rem', sm: '1rem' },
-              }}
-            >
-              {t('login')}
-            </Button>
-          )}
+                {t('login')}
+              </Button>
+            )}
+          </Box>
         </Toolbar>
       </Container>
     </AppBar>
