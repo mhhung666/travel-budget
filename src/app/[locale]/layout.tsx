@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import ThemeRegistry from './ThemeRegistry';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { locales } from '@/i18n/config';
+import type { Locale } from '@/i18n/config';
 import { Inter } from 'next/font/google';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
@@ -18,7 +19,7 @@ export default async function LocaleLayout({
   const { locale } = await params;
 
   // 验证 locale
-  if (!locales.includes(locale as any)) {
+  if (!locales.includes(locale as Locale)) {
     notFound();
   }
 

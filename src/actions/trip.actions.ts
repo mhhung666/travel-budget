@@ -13,6 +13,7 @@ import {
 } from '@/lib/validation';
 import type { ActionResult } from './types';
 import type { Trip, TripWithMembers } from '@/types';
+import type { Database } from '@/types/database.types';
 
 /**
  * Get all trips for the current user
@@ -157,10 +158,10 @@ export async function createTrip(input: CreateTripInput): Promise<ActionResult<T
           description: description?.trim() || null,
           start_date: start_date || null,
           end_date: end_date || null,
-          location: location || null,
+          location: (location || null) as any, // Cast to any/Json to satisfy Supabase Json type
           hash_code: hashCode,
         },
-      ])
+      ] satisfies Database['public']['Tables']['trips']['Insert'][])
       .select()
       .single();
 

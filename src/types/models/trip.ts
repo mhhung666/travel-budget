@@ -1,19 +1,13 @@
+import { Database } from '../database.types';
 import type { Location } from '../common/location';
 import type { TripRole } from './user';
 
 /**
  * 旅程基本資訊
  */
-export interface Trip {
-  id: number;
-  name: string;
-  description: string | null;
-  hash_code: string;
-  start_date: string | null;
-  end_date: string | null;
+export type Trip = Omit<Database['public']['Tables']['trips']['Row'], 'location'> & {
   location: Location | null;
-  created_at: string;
-}
+};
 
 /**
  * 旅程資訊（含成員數量和當前用戶角色）

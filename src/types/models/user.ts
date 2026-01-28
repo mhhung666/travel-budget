@@ -1,12 +1,9 @@
+import { Database } from '../database.types';
+
 /**
  * 用戶基本資訊
  */
-export interface User {
-  id: number;
-  username: string;
-  display_name: string;
-  created_at?: string;
-}
+export type User = Pick<Database['public']['Tables']['users']['Row'], 'id' | 'username' | 'display_name' | 'created_at'>;
 
 /**
  * 旅程中的角色

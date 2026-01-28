@@ -58,3 +58,5 @@ export type {
   // Common
   ApiResponse,
 } from './api';
+
+export type { Database } from './database.types';

@@ -26,19 +26,21 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         )
       `
       )
-      .eq('trip_id', tripId);
+      .eq('trip_id', tripId)
+      .returns<{ users: { id: number; username: string; display_name: string } }[]>();
 
-    const members = membersData?.map((m: any) => m.users) || [];
+    const members = membersData?.map((m) => m.users) || [];
 
     // 計算每個成員的淨餘額
     const balances = await Promise.all(
-      members.map(async (member: any) => {
+      members.map(async (member) => {
         // 計算總付款
         const { data: paidData } = await supabase
           .from('expenses')
           .select('amount')
           .eq('payer_id', member.id)
-          .eq('trip_id', tripId);
+          .eq('trip_id', tripId)
+          .returns<{ amount: number }[]>();
 
         const totalPaid = paidData?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0;
 
@@ -47,7 +49,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
           .from('expense_splits')
           .select('share_amount, expenses!inner(trip_id)')
           .eq('user_id', member.id)
-          .eq('expenses.trip_id', tripId);
+          .eq('expenses.trip_id', tripId)
+          .returns<{ share_amount: number; expenses: { trip_id: number } }[]>();
 
         const totalOwed = owedData?.reduce((sum, s) => sum + (s.share_amount || 0), 0) || 0;
 
@@ -71,7 +74,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const { data: expensesData } = await supabase
       .from('expenses')
       .select('amount')
-      .eq('trip_id', tripId);
+      .eq('trip_id', tripId)
+      .returns<{ amount: number }[]>();
 
     const totalExpenses = expensesData?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0;
 

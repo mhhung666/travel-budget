@@ -67,20 +67,20 @@ export const updateTripSchema = z
 export const createExpenseSchema = z.object({
   payer_id: z.number().int().positive('付款人 ID 必須為正整數'),
   original_amount: z.number().positive('金額必須大於 0'),
-  currency: z.enum(CURRENCIES, { error: '不支援的幣別' }),
+  currency: z.enum(CURRENCIES as unknown as [string, ...string[]]),
   exchange_rate: z.number().positive('匯率必須大於 0').default(1.0),
   description: z.string().min(1, '描述不能為空'),
-  category: z.enum(CATEGORIES, { error: '不支援的消費類別' }).default('other'),
+  category: z.enum(CATEGORIES as unknown as [string, ...string[]]).default('other'),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '日期格式錯誤'),
   split_with: z.array(z.number().int().positive()).min(1, '至少需要一位分帳對象'),
 });
 
 export const updateExpenseSchema = z.object({
   original_amount: z.number().positive('金額必須大於 0').optional(),
-  currency: z.enum(CURRENCIES, { error: '不支援的幣別' }).optional(),
+  currency: z.enum(CURRENCIES as unknown as [string, ...string[]]).optional(),
   exchange_rate: z.number().positive('匯率必須大於 0').optional(),
   description: z.string().min(1, '描述不能為空').optional(),
-  category: z.enum(CATEGORIES, { error: '不支援的消費類別' }).optional(),
+  category: z.enum(CATEGORIES as unknown as [string, ...string[]]).optional(),
 });
 
 // Auth schemas
