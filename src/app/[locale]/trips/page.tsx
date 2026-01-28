@@ -226,6 +226,9 @@ export default function TripsPage() {
                     key={trip.id}
                     elevation={0}
                     sx={{
+                      height: '100%',
+                      display: 'flex',
+                      flexDirection: 'column',
                       border: '1px solid',
                       borderColor: 'divider',
                       transition: 'all 0.3s',
@@ -235,7 +238,10 @@ export default function TripsPage() {
                       },
                     }}
                   >
-                    <CardActionArea onClick={() => router.push(`/trips/${trip.hash_code}`)}>
+                    <CardActionArea
+                      onClick={() => router.push(`/trips/${trip.hash_code}`)}
+                      sx={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'stretch', justifyContent: 'flex-start', textAlign: 'left' }}
+                    >
                       <CardContent>
                         <Typography variant="h6" fontWeight={600} gutterBottom>
                           {trip.name}
