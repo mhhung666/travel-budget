@@ -218,6 +218,19 @@
     },
     "success": {
       "removed": "メンバーを削除しました"
+    },
+    "convertVirtual": {
+      "clickHint": "クリックして正式メンバーとして登録",
+      "registerTitle": "正式メンバーとして登録",
+      "registerDescription": "仮想メンバー「{name}」を正式アカウントに変換します",
+      "linkTitle": "既存アカウントにリンク",
+      "linkDescription": "仮想メンバー「{name}」のデータをあなたのアカウントに移行します",
+      "hasAccount": "すでにアカウントをお持ちですか？",
+      "linkExisting": "既存アカウントにリンク",
+      "noAccount": "アカウントをお持ちでないですか？",
+      "registerNew": "新規アカウント登録",
+      "linkButton": "アカウントをリンク",
+      "error": "操作に失敗しました。後でもう一度お試しください"
     }
   },
   "settlement": {

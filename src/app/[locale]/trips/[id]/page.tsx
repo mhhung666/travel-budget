@@ -28,6 +28,8 @@ import {
   AddVirtualMemberDialog,
   DeleteTripDialog,
   RemoveMemberDialog,
+  RegisterVirtualMemberDialog,
+  LinkExistingMemberDialog,
 } from '@/components/trips';
 import {
   getCurrentUser,
@@ -74,6 +76,11 @@ export default function TripDetailPage() {
     open: boolean;
     member: Member | null;
   }>({ open: false, member: null });
+
+  // Virtual member convert dialogs (guest mode only)
+  const [registerVirtualDialog, setRegisterVirtualDialog] = useState(false);
+  const [linkVirtualDialog, setLinkVirtualDialog] = useState(false);
+  const [selectedVirtualMember, setSelectedVirtualMember] = useState<Member | null>(null);
 
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -418,6 +425,10 @@ export default function TripDetailPage() {
               isCurrentUserAdmin={!!isCurrentUserAdmin}
               onAddVirtualMember={() => setAddVirtualMemberDialog(true)}
               onRemoveMember={(member) => setRemoveMemberDialog({ open: true, member })}
+              onVirtualMemberClick={(member) => {
+                setSelectedVirtualMember(member);
+                setRegisterVirtualDialog(true);
+              }}
               expanded={membersExpanded}
               onToggleExpand={() => setMembersExpanded(!membersExpanded)}
             />
@@ -481,6 +492,34 @@ export default function TripDetailPage() {
         onClose={() => setRemoveMemberDialog({ open: false, member: null })}
         onConfirm={handleRemoveMember}
         member={removeMemberDialog.member}
+      />
+
+      <RegisterVirtualMemberDialog
+        open={registerVirtualDialog}
+        onClose={() => {
+          setRegisterVirtualDialog(false);
+          setSelectedVirtualMember(null);
+        }}
+        onSwitchToLink={() => {
+          setRegisterVirtualDialog(false);
+          setLinkVirtualDialog(true);
+        }}
+        virtualMember={selectedVirtualMember}
+        tripId={tripId}
+      />
+
+      <LinkExistingMemberDialog
+        open={linkVirtualDialog}
+        onClose={() => {
+          setLinkVirtualDialog(false);
+          setSelectedVirtualMember(null);
+        }}
+        onSwitchToRegister={() => {
+          setLinkVirtualDialog(false);
+          setRegisterVirtualDialog(true);
+        }}
+        virtualMember={selectedVirtualMember}
+        tripId={tripId}
       />
 
       {/* Snackbar */}

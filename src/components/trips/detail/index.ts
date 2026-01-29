@@ -10,3 +10,5 @@ export { default as EditTripDialog } from './dialogs/EditTripDialog';
 export { default as AddVirtualMemberDialog } from './dialogs/AddVirtualMemberDialog';
 export { default as DeleteTripDialog } from './dialogs/DeleteTripDialog';
 export { default as RemoveMemberDialog } from './dialogs/RemoveMemberDialog';
+export { default as RegisterVirtualMemberDialog } from './dialogs/RegisterVirtualMemberDialog';
+export { default as LinkExistingMemberDialog } from './dialogs/LinkExistingMemberDialog';

@@ -218,6 +218,19 @@
     },
     "success": {
       "removed": "成員已移除"
+    },
+    "convertVirtual": {
+      "clickHint": "點擊註冊為正式會員",
+      "registerTitle": "註冊為正式會員",
+      "registerDescription": "將虛擬成員「{name}」轉換為正式會員帳號",
+      "linkTitle": "連結已存在的會員",
+      "linkDescription": "將虛擬成員「{name}」的資料轉移到您的帳號",
+      "hasAccount": "已經有帳號？",
+      "linkExisting": "連結已存在的會員",
+      "noAccount": "還沒有帳號？",
+      "registerNew": "註冊新帳號",
+      "linkButton": "連結帳號",
+      "error": "操作失敗，請稍後再試"
     }
   },
   "settlement": {

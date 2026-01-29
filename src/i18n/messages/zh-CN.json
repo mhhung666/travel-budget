@@ -218,6 +218,19 @@
     },
     "success": {
       "removed": "成员已移除"
+    },
+    "convertVirtual": {
+      "clickHint": "点击注册为正式会员",
+      "registerTitle": "注册为正式会员",
+      "registerDescription": "将虚拟成员「{name}」转换为正式会员帐号",
+      "linkTitle": "连结已存在的会员",
+      "linkDescription": "将虚拟成员「{name}」的数据转移到您的帐号",
+      "hasAccount": "已经有帐号？",
+      "linkExisting": "连结已存在的会员",
+      "noAccount": "还没有帐号？",
+      "registerNew": "注册新帐号",
+      "linkButton": "连结帐号",
+      "error": "操作失败，请稍后再试"
     }
   },
   "settlement": {

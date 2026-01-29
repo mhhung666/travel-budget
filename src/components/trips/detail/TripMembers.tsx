@@ -19,6 +19,7 @@ interface TripMembersProps {
     isCurrentUserAdmin: boolean;
     onAddVirtualMember: () => void;
     onRemoveMember: (member: Member) => void;
+    onVirtualMemberClick?: (member: Member) => void;
     expanded: boolean;
     onToggleExpand: () => void;
 }
@@ -29,6 +30,7 @@ export default function TripMembers({
     isCurrentUserAdmin,
     onAddVirtualMember,
     onRemoveMember,
+    onVirtualMemberClick,
     expanded,
     onToggleExpand,
 }: TripMembersProps) {
@@ -73,9 +75,12 @@ export default function TripMembers({
                     )}
 
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                        {members.map((member) => (
+                        {members.map((member) => {
+                            const isClickableVirtual = !currentUser && member.is_virtual && onVirtualMemberClick;
+                            return (
                             <Box
                                 key={member.id}
+                                onClick={isClickableVirtual ? () => onVirtualMemberClick(member) : undefined}
                                 sx={{
                                     display: 'flex',
                                     alignItems: 'center',
@@ -84,7 +89,13 @@ export default function TripMembers({
                                     bgcolor: member.is_virtual ? 'action.hover' : 'background.default',
                                     borderRadius: 1,
                                     border: member.is_virtual ? '1px dashed' : 'none',
-                                    borderColor: 'divider',
+                                    borderColor: isClickableVirtual ? 'primary.main' : 'divider',
+                                    cursor: isClickableVirtual ? 'pointer' : 'default',
+                                    transition: 'all 0.2s',
+                                    '&:hover': isClickableVirtual ? {
+                                        bgcolor: 'action.selected',
+                                        borderColor: 'primary.main',
+                                    } : {},
                                 }}
                             >
                                 <Avatar sx={{ bgcolor: member.is_virtual ? 'grey.400' : 'primary.main' }}>
@@ -116,6 +127,11 @@ export default function TripMembers({
                                             @{member.username}
                                         </Typography>
                                     )}
+                                    {isClickableVirtual && (
+                                        <Typography variant="caption" color="primary.main">
+                                            {tMember('convertVirtual.clickHint')}
+                                        </Typography>
+                                    )}
                                 </Box>
                                 {/* 移除按鈕 - 僅管理員且不是自己 */}
                                 {isCurrentUserAdmin && member.id !== currentUser?.id && (
@@ -131,7 +147,8 @@ export default function TripMembers({
                                     </IconButton>
                                 )}
                             </Box>
-                        ))}
+                        );
+                        })}
                     </Box>
                 </Collapse>
             </CardContent>
