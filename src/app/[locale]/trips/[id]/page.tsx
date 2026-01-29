@@ -316,6 +316,7 @@ export default function TripDetailPage() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
+          bgcolor: 'background.default',
         }}
       >
         <CircularProgress size={60} />

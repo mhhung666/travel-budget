@@ -97,6 +97,7 @@ export default function SettlementPage() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
+          bgcolor: 'background.default',
         }}
       >
         <CircularProgress size={60} />

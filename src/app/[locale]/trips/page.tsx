@@ -83,6 +83,7 @@ export default function TripsPage() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
+          bgcolor: 'background.default',
         }}
       >
         <CircularProgress size={60} />

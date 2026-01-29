@@ -24,12 +24,14 @@ export function ThemeContextProvider({ children }: { children: ReactNode }) {
     if (savedMode) {
       setMode(savedMode);
       document.documentElement.setAttribute('data-theme', savedMode);
+      document.documentElement.style.colorScheme = savedMode;
     } else {
       // 檢查系統偏好
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
       const initialMode = prefersDark ? 'dark' : 'light';
       setMode(initialMode);
       document.documentElement.setAttribute('data-theme', initialMode);
+      document.documentElement.style.colorScheme = initialMode;
     }
   }, []);
 
@@ -55,6 +57,7 @@ export function ThemeContextProvider({ children }: { children: ReactNode }) {
       const newMode = prevMode === 'light' ? 'dark' : 'light';
       localStorage.setItem('theme-mode', newMode);
       document.documentElement.setAttribute('data-theme', newMode);
+      document.documentElement.style.colorScheme = newMode;
       return newMode;
     });
   };
@@ -63,6 +66,7 @@ export function ThemeContextProvider({ children }: { children: ReactNode }) {
     setMode(newMode);
     localStorage.setItem('theme-mode', newMode);
     document.documentElement.setAttribute('data-theme', newMode);
+    document.documentElement.style.colorScheme = newMode;
   };
 
   // 避免 SSR 和客戶端不匹配的問題
