@@ -237,6 +237,19 @@
     "addVirtualMember": "Add Virtual Member",
     "addVirtualMemberHint": "Virtual members are for travel companions who don't want to register. They can participate in expense splitting but cannot log in.",
     "virtualMemberName": "Member Name",
+    "convertVirtual": {
+      "clickHint": "Click to register as a member",
+      "registerTitle": "Register as a Member",
+      "registerDescription": "Convert virtual member \"{name}\" to a registered account",
+      "linkTitle": "Link to Existing Account",
+      "linkDescription": "Transfer virtual member \"{name}\"'s data to your account",
+      "hasAccount": "Already have an account?",
+      "linkExisting": "Link existing account",
+      "noAccount": "Don't have an account?",
+      "registerNew": "Register new account",
+      "linkButton": "Link Account",
+      "error": "Operation failed, please try again"
+    },
     "virtualMemberAdded": "Virtual member added",
     "confirm": {
       "remove": "Are you sure you want to remove this member?",
