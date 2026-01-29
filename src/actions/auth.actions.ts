@@ -193,40 +193,38 @@ export async function updateProfile(
 
     const { display_name, new_email, current_password, new_password } = validation.data;
 
-    // Update display name
-    if (display_name !== undefined) {
-      const { error } = await supabase
-        .from('users')
-        .update({ display_name: display_name.trim() })
-        .eq('id', session.userId);
+    // Update display name and/or email
+    if (display_name !== undefined || new_email !== undefined) {
+      const updateData: Record<string, string> = {};
 
-      if (error) throw error;
+      if (display_name !== undefined) {
+        updateData.display_name = display_name.trim();
+      }
 
-      return { success: true, data: { message: '顯示名稱已更新' } };
-    }
+      if (new_email !== undefined) {
+        // Check if email is already taken (case-insensitive)
+        const { data: existingEmail } = await supabase
+          .from('users')
+          .select('id')
+          .ilike('email', new_email)
+          .neq('id', session.userId)
+          .single();
 
-    // Update email
-    if (new_email !== undefined) {
-      // Check if email is already taken (case-insensitive)
-      const { data: existingEmail } = await supabase
-        .from('users')
-        .select('id')
-        .ilike('email', new_email)
-        .neq('id', session.userId)
-        .single();
+        if (existingEmail) {
+          return { success: false, error: '此電子郵件已被使用', code: 'CONFLICT' };
+        }
 
-      if (existingEmail) {
-        return { success: false, error: '此電子郵件已被使用', code: 'CONFLICT' };
+        updateData.email = new_email.toLowerCase().trim();
       }
 
       const { error } = await supabase
         .from('users')
-        .update({ email: new_email.toLowerCase().trim() })
+        .update(updateData)
         .eq('id', session.userId);
 
       if (error) throw error;
 
-      return { success: true, data: { message: '電子郵件已更新' } };
+      return { success: true, data: { message: '個人資料已更新' } };
     }
 
     // Update password
