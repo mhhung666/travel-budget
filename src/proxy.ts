@@ -13,7 +13,7 @@ const protectedRoutes = ['/trips', '/settings'];
 // 定義已登入用戶不應訪問的路由（如登入頁）
 const authRoutes = ['/login'];
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // 首先運行 i18n middleware
