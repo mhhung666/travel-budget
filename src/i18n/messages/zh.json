@@ -230,7 +230,8 @@
       "noAccount": "還沒有帳號？",
       "registerNew": "註冊新帳號",
       "linkButton": "連結帳號",
-      "error": "操作失敗，請稍後再試"
+      "error": "操作失敗，請稍後再試",
+      "alreadyMember": "此帳號已經是這個旅行的成員，無法再連結虛擬成員"
     }
   },
   "settlement": {
