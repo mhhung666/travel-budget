@@ -94,6 +94,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       .eq('user_id', realUserId)
       .single();
 
+    if (existingMember) {
+      return NextResponse.json(
+        { error: '此帳號已經是這個旅行的成員，無法再連結虛擬成員' },
+        { status: 409 }
+      );
+    }
+
     // === 遷移資料 ===
 
     // 1. 遷移 expenses.payer_id
@@ -123,26 +130,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       if (splitError) throw splitError;
     }
 
-    // 3. 處理 trip_members
-    if (existingMember) {
-      // 真實用戶已是成員 → 刪除虛擬成員的 trip_member 記錄
-      const { error: deleteMemberError } = await supabase
-        .from('trip_members')
-        .delete()
-        .eq('trip_id', tripId)
-        .eq('user_id', virtualUserId);
+    // 3. 將虛擬成員的 trip_member 轉移給真實用戶
+    const { error: updateMemberError } = await supabase
+      .from('trip_members')
+      .update({ user_id: realUserId })
+      .eq('trip_id', tripId)
+      .eq('user_id', virtualUserId);
 
-      if (deleteMemberError) throw deleteMemberError;
-    } else {
-      // 真實用戶不是成員 → 將虛擬成員的 trip_member 轉移給真實用戶
-      const { error: updateMemberError } = await supabase
-        .from('trip_members')
-        .update({ user_id: realUserId })
-        .eq('trip_id', tripId)
-        .eq('user_id', virtualUserId);
-
-      if (updateMemberError) throw updateMemberError;
-    }
+    if (updateMemberError) throw updateMemberError;
 
     // 4. 清理虛擬用戶（若無其他 trip 引用）
     const { data: otherTrips } = await supabase

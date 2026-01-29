@@ -248,7 +248,8 @@
       "noAccount": "Don't have an account?",
       "registerNew": "Register new account",
       "linkButton": "Link Account",
-      "error": "Operation failed, please try again"
+      "error": "Operation failed, please try again",
+      "alreadyMember": "This account is already a member of this trip and cannot be linked to a virtual member"
     },
     "virtualMemberAdded": "Virtual member added",
     "confirm": {
