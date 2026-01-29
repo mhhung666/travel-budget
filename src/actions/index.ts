@@ -15,6 +15,7 @@ export {
 export {
   getTrips,
   getTrip,
+  getTripPreview,
   createTrip,
   updateTrip,
   deleteTrip,

@@ -18,7 +18,7 @@ import {
 import { UserPlus, Info, Users } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { TripWithMembers } from '@/types';
-import { getCurrentUser, getTrip, joinTrip } from '@/actions';
+import { getCurrentUser, getTripPreview, joinTrip } from '@/actions';
 
 export default function QuickJoinPage() {
   const router = useRouter();
@@ -45,22 +45,19 @@ export default function QuickJoinPage() {
         return;
       }
 
-      const tripResult = await getTrip(hashCode);
+      const tripResult = await getTripPreview(hashCode);
       if (!tripResult.success) {
         if (tripResult.code === 'NOT_FOUND') {
           setError(t('quickJoin.notFound'));
-        } else if (tripResult.code === 'FORBIDDEN') {
-          // 已經是成員，直接跳轉
-          setAlreadyMember(true);
-          setTimeout(() => router.push(`/trips/${hashCode}`), 2000);
         } else {
           setError(t('quickJoin.loadError'));
         }
+      } else if (tripResult.data.isMember) {
+        // 已經是成員，直接跳轉
+        setAlreadyMember(true);
+        setTimeout(() => router.push(`/trips/${hashCode}`), 2000);
       } else {
-        setTrip({
-          ...tripResult.data,
-          member_count: 0, // 會在 getTrip 中沒有返回，使用預設值
-        } as TripWithMembers);
+        setTrip(tripResult.data);
       }
     } catch (err) {
       setError(tError('loadFailed'));

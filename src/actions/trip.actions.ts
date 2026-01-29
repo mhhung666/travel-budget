@@ -123,6 +123,60 @@ export async function getTrip(id: string): Promise<ActionResult<Trip>> {
 }
 
 /**
+ * Get trip preview info for join page (no membership required)
+ * Returns basic trip info + member count + whether current user is already a member
+ */
+export async function getTripPreview(
+  hashCode: string
+): Promise<ActionResult<TripWithMembers & { isMember: boolean }>> {
+  try {
+    const session = await getSession();
+    if (!session) {
+      return { success: false, error: '未登入', code: 'UNAUTHORIZED' };
+    }
+
+    const tripId = await getTripId(hashCode);
+    if (!tripId) {
+      return { success: false, error: '旅行不存在', code: 'NOT_FOUND' };
+    }
+
+    const { data: trip, error: tripError } = await supabase
+      .from('trips')
+      .select('id, name, description, start_date, end_date, location, created_at, hash_code')
+      .eq('id', tripId)
+      .single();
+
+    if (tripError || !trip) {
+      return { success: false, error: '旅行不存在', code: 'NOT_FOUND' };
+    }
+
+    const { count } = await supabase
+      .from('trip_members')
+      .select('id', { count: 'exact', head: true })
+      .eq('trip_id', tripId);
+
+    const { data: membership } = await supabase
+      .from('trip_members')
+      .select('id')
+      .eq('trip_id', tripId)
+      .eq('user_id', session.userId)
+      .single();
+
+    return {
+      success: true,
+      data: {
+        ...trip,
+        member_count: count ?? 0,
+        isMember: !!membership,
+      } as TripWithMembers & { isMember: boolean },
+    };
+  } catch (error) {
+    console.error('Get trip preview error:', error);
+    return { success: false, error: '獲取旅行預覽失敗', code: 'INTERNAL_ERROR' };
+  }
+}
+
+/**
  * Create a new trip
  */
 export async function createTrip(input: CreateTripInput): Promise<ActionResult<Trip>> {
