@@ -36,9 +36,14 @@ export function ShareCode({
 }: ShareCodeProps) {
   const [copied, setCopied] = useState(false);
 
+  const getShareUrl = () => {
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    return `${origin}/join/${hashCode}`;
+  };
+
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(hashCode);
+      await navigator.clipboard.writeText(getShareUrl());
       setCopied(true);
     } catch (err) {
       console.error('Failed to copy:', err);
@@ -54,7 +59,7 @@ export function ShareCode({
           </Typography>
           <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
             <TextField
-              value={hashCode}
+              value={getShareUrl()}
               size="small"
               slotProps={{ input: { readOnly: true } }}
               sx={{ flex: 1 }}

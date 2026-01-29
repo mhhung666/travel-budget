@@ -222,7 +222,8 @@ export default function TripDetailPage() {
 
   const copyHashCode = async () => {
     try {
-      await navigator.clipboard.writeText(trip?.hash_code || '');
+      const shareUrl = `${window.location.origin}/join/${trip?.hash_code || ''}`;
+      await navigator.clipboard.writeText(shareUrl);
       setSnackbar({ open: true, message: tAction('copySuccess'), severity: 'success' });
     } catch (err) {
       setSnackbar({ open: true, message: tAction('copyFailed'), severity: 'error' });

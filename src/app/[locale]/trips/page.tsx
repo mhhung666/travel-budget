@@ -68,7 +68,8 @@ export default function TripsPage() {
 
   const copyHashCode = async (hashCode: string) => {
     try {
-      await navigator.clipboard.writeText(hashCode);
+      const shareUrl = `${window.location.origin}/join/${hashCode}`;
+      await navigator.clipboard.writeText(shareUrl);
       setSnackbar({ open: true, message: t('idCopied'), severity: 'success' });
     } catch (err) {
       setSnackbar({ open: true, message: t('copyFailed'), severity: 'error' });
