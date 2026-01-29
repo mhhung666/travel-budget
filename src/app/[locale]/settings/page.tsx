@@ -76,7 +76,15 @@ export default function SettingsPage() {
         throw new Error(result.error || t('errors.updateFailed'));
       }
 
-      setSuccess(t('profile.updateSuccess'));
+      const nameChanged = displayName !== user?.display_name;
+      const emailChanged = email !== (user?.email || '');
+      if (nameChanged && emailChanged) {
+        setSuccess(`${t('profile.updateSuccess')}、${t('email.updateSuccess')}`);
+      } else if (emailChanged) {
+        setSuccess(t('email.updateSuccess'));
+      } else {
+        setSuccess(t('profile.updateSuccess'));
+      }
       setUser({ ...user, display_name: displayName, email });
     } catch (err: any) {
       setError(err.message);
