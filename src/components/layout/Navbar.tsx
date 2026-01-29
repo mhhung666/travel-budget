@@ -85,7 +85,6 @@ export default function Navbar({ user, showUserMenu = true, title }: NavbarProps
         <Toolbar sx={{ px: { xs: 0 }, justifyContent: 'space-between', position: 'relative' }}>
           {/* 左側：Logo 和標題 */}
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Compass size={24} style={{ marginRight: 8, color: '#1976d2' }} />
             <Typography
               variant="h6"
               component="div"
@@ -101,29 +100,37 @@ export default function Navbar({ user, showUserMenu = true, title }: NavbarProps
             </Typography>
           </Box>
 
-          {/* 中間：導航按鈕 (僅桌面版顯示) */}
+          {/* 中間：導航按鈕 */}
           {showUserMenu && user && (
             <Box sx={{
-              display: { xs: 'none', md: 'flex' },
-              gap: 1,
+              display: 'flex',
+              gap: { xs: 0, md: 1 },
               position: 'absolute',
               left: '50%',
               transform: 'translateX(-50%)'
             }}>
+              {/* 桌面版：帶文字按鈕 */}
               <Button
                 onClick={handleTrips}
                 startIcon={<Compass size={20} />}
-                sx={{ color: 'text.primary', textTransform: 'none' }}
+                sx={{ color: 'text.primary', textTransform: 'none', display: { xs: 'none', md: 'inline-flex' } }}
               >
                 {t('trips')}
               </Button>
               <Button
                 onClick={handleStats}
                 startIcon={<BarChart3 size={20} />}
-                sx={{ color: 'text.primary', textTransform: 'none' }}
+                sx={{ color: 'text.primary', textTransform: 'none', display: { xs: 'none', md: 'inline-flex' } }}
               >
                 {t('stats')}
               </Button>
+              {/* 手機版：僅圖標 */}
+              <IconButton onClick={handleTrips} sx={{ color: 'text.primary', display: { xs: 'flex', md: 'none' } }}>
+                <Compass size={24} />
+              </IconButton>
+              <IconButton onClick={handleStats} sx={{ color: 'text.primary', display: { xs: 'flex', md: 'none' } }}>
+                <BarChart3 size={24} />
+              </IconButton>
             </Box>
           )}
 
@@ -144,16 +151,6 @@ export default function Navbar({ user, showUserMenu = true, title }: NavbarProps
 
             {showUserMenu && user ? (
               <Box sx={{ display: 'flex', alignItems: 'center', ml: 1 }}>
-
-                {/* 導航按鈕 - 手機版只顯示圖標 (在右側) */}
-                <Box sx={{ display: { xs: 'flex', md: 'none' } }}>
-                  <IconButton onClick={handleTrips} sx={{ color: 'text.primary' }}>
-                    <Compass size={24} />
-                  </IconButton>
-                  <IconButton onClick={handleStats} sx={{ color: 'text.primary' }}>
-                    <BarChart3 size={24} />
-                  </IconButton>
-                </Box>
 
                 <Typography
                   variant="body2"
