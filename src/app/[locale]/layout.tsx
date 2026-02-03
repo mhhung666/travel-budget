@@ -13,6 +13,11 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 export const metadata: Metadata = {
   title: 'Travel Budget Planner - 旅行記帳',
   description: '輕量化的旅行記帳與分帳應用程式',
+  icons: {
+    icon: '/take-my-money.png',
+    shortcut: '/take-my-money.png',
+    apple: '/take-my-money.png',
+  },
   openGraph: {
     title: 'Travel Budget Planner - 旅行記帳',
     description: '輕量化的旅行記帳與分帳應用程式',
