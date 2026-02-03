@@ -17,15 +17,22 @@ import {
   AccordionDetails,
   Chip,
   Divider,
+  useTheme,
+  Grid,
+  Stack,
+  IconButton,
+  Tooltip,
 } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import {
   ChevronDown,
   Globe,
   Grid2X2,
   Receipt,
-  DollarSign,
   MapPin,
   Calendar,
+  Wallet,
+  ArrowRight,
 } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import { getCategoryIcon } from '@/constants/categories';
@@ -37,9 +44,8 @@ export default function StatsPage() {
   const router = useRouter();
   const t = useTranslations('stats');
   const tCategory = useTranslations('category');
-  const tNav = useTranslations('nav');
-  const tError = useTranslations('error');
   const locale = useLocale();
+  const theme = useTheme();
 
   const [user, setUser] = useState<any>(null);
   const [stats, setStats] = useState<StatsData | null>(null);
@@ -112,13 +118,19 @@ export default function StatsPage() {
           bgcolor: 'background.default',
         }}
       >
-        <CircularProgress size={60} />
+        <CircularProgress size={60} thickness={4} />
       </Box>
     );
   }
 
+  const cardGradient = theme.palette.mode === 'dark'
+    ? 'linear-gradient(135deg, #1E293B 0%, #0F172A 100%)'
+    : 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)';
+
+  const highlightGradient = 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)';
+
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
+    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', pb: 8 }}>
       <Navbar
         user={
           user
@@ -133,260 +145,355 @@ export default function StatsPage() {
         title={t('title')}
       />
 
-      <Container maxWidth="lg" sx={{ pt: { xs: 10, sm: 12 }, pb: 4 }}>
-        {error && (
-          <Alert severity="error" sx={{ mb: 3 }}>
-            {error}
-          </Alert>
-        )}
-
-        {/* 日期篩選 */}
-        <Card elevation={2} sx={{ mb: 3 }}>
-          <CardContent>
-            <Typography variant="h6" fontWeight={600} gutterBottom>
-              {t('dateRange')}
-            </Typography>
-            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-              <TextField
-                label={t('startDate')}
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                slotProps={{
-                  inputLabel: { shrink: true },
-                }}
-                sx={{ minWidth: 200 }}
-              />
-              <TextField
-                label={t('endDate')}
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                slotProps={{
-                  inputLabel: { shrink: true },
-                  htmlInput: { min: startDate || undefined },
-                }}
-                sx={{ minWidth: 200 }}
-              />
-            </Box>
-          </CardContent>
-        </Card>
-
-        {/* 總計卡片 */}
-        <Card
-          elevation={3}
+      <Container maxWidth="lg" sx={{ pt: { xs: 12, sm: 14 } }}>
+        <Box
           sx={{
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            color: 'white',
-            mb: 3,
+            animation: 'fadeIn 0.6s ease-out',
+            '@keyframes fadeIn': {
+              '0%': { opacity: 0, transform: 'translateY(20px)' },
+              '100%': { opacity: 1, transform: 'translateY(0)' },
+            },
           }}
         >
-          <CardContent>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-              <DollarSign />
-              <Typography variant="h6" fontWeight={600}>
-                {t('totalSpent')}
-              </Typography>
-            </Box>
-            <Typography variant="h3" fontWeight={700}>
-              {formatCurrency(stats?.totalAmount || 0)}
-            </Typography>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
-              <Receipt size={20} />
-              <Typography variant="body1">
-                {stats?.totalExpenses || 0} {t('expenses')}
-              </Typography>
-            </Box>
-          </CardContent>
-        </Card>
+          {error && (
+            <Alert severity="error" sx={{ mb: 4, borderRadius: 3 }}>
+              {error}
+            </Alert>
+          )}
 
-        <Box
-          sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 3 }}
-        >
-          {/* 分類統計 */}
-          <Card elevation={2}>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                <Box component="span" sx={{ color: 'primary.main', display: 'flex' }}>
-                  <Grid2X2 />
+          {/* 頂部總覽區塊 - 使用 Glassmorphism 與高級漸層 */}
+          <Card
+            elevation={0}
+            sx={{
+              mb: 5,
+              background: highlightGradient,
+              borderRadius: 4,
+              position: 'relative',
+              overflow: 'hidden',
+              boxShadow: '0 20px 25px -5px rgba(99, 102, 241, 0.25), 0 8px 10px -6px rgba(99, 102, 241, 0.25)',
+              color: 'white',
+            }}
+          >
+            {/* 裝飾性背景圖形 */}
+            <Box
+              sx={{
+                position: 'absolute',
+                top: -100,
+                right: -100,
+                width: 300,
+                height: 300,
+                borderRadius: '50%',
+                background: 'rgba(255, 255, 255, 0.1)',
+                filter: 'blur(40px)',
+              }}
+            />
+            <Box
+              sx={{
+                position: 'absolute',
+                bottom: -50,
+                left: -50,
+                width: 200,
+                height: 200,
+                borderRadius: '50%',
+                background: 'rgba(255, 255, 255, 0.1)',
+                filter: 'blur(30px)',
+              }}
+            />
+
+            <CardContent sx={{ position: 'relative', zIndex: 1, p: { xs: 3, md: 5 } }}>
+              <Stack direction={{ xs: 'column', md: 'row' }} spacing={4} justifyContent="space-between" alignItems="center">
+                <Box>
+                  <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1, opacity: 0.9 }}>
+                    <Wallet size={20} />
+                    <Typography variant="subtitle1" fontWeight={500}>
+                      {t('totalSpent')}
+                    </Typography>
+                  </Stack>
+                  <Typography variant="h2" fontWeight={800} sx={{ letterSpacing: '-0.02em', mb: 1 }}>
+                    {formatCurrency(stats?.totalAmount || 0)}
+                  </Typography>
+                  <Stack direction="row" alignItems="center" spacing={1} sx={{ opacity: 0.9 }}>
+                    <Receipt size={16} />
+                    <Typography variant="body2" fontWeight={500}>
+                      {stats?.totalExpenses || 0} {t('expenses')}
+                    </Typography>
+                  </Stack>
                 </Box>
-                <Typography variant="h6" fontWeight={600}>
+
+                {/* 日期過濾器 - 整合在頂部卡片中 */}
+                <Box
+                  sx={{
+                    bgcolor: 'rgba(255, 255, 255, 0.15)',
+                    backdropFilter: 'blur(10px)',
+                    p: 3,
+                    borderRadius: 3,
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    minWidth: { md: 400 },
+                    width: { xs: '100%', md: 'auto' }
+                  }}
+                >
+                  <Stack spacing={2}>
+                    <Typography variant="subtitle2" fontWeight={600} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Calendar size={16} /> {t('dateRange')}
+                    </Typography>
+                    <Stack direction="row" spacing={2}>
+                      <TextField
+                        type="date"
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                        variant="standard"
+                        InputProps={{
+                          disableUnderline: true,
+                          sx: {
+                            color: 'white',
+                            bgcolor: 'rgba(255,255,255,0.1)',
+                            borderRadius: 1,
+                            px: 1.5,
+                            py: 0.5,
+                            fontSize: '0.875rem',
+                            '& input::-webkit-calendar-picker-indicator': {
+                              filter: 'invert(1)',
+                              cursor: 'pointer'
+                            }
+                          }
+                        }}
+                        sx={{ flex: 1 }}
+                      />
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}><ArrowRight size={16} opacity={0.7} /></Box>
+                      <TextField
+                        type="date"
+                        value={endDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                        variant="standard"
+                        InputProps={{
+                          disableUnderline: true,
+                          sx: {
+                            color: 'white',
+                            bgcolor: 'rgba(255,255,255,0.1)',
+                            borderRadius: 1,
+                            px: 1.5,
+                            py: 0.5,
+                            fontSize: '0.875rem',
+                            '& input::-webkit-calendar-picker-indicator': {
+                              filter: 'invert(1)',
+                              cursor: 'pointer'
+                            }
+                          }
+                        }}
+                        slotProps={{
+                          htmlInput: { min: startDate || undefined },
+                        }}
+                        sx={{ flex: 1 }}
+                      />
+                    </Stack>
+                  </Stack>
+                </Box>
+              </Stack>
+            </CardContent>
+          </Card>
+
+          <Grid container spacing={4}>
+            {/* 分類統計 */}
+            <Grid size={{ xs: 12, lg: 6 }}>
+              <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                <Box
+                  sx={{
+                    p: 1,
+                    borderRadius: 2,
+                    bgcolor: 'primary.main',
+                    color: 'primary.contrastText',
+                    display: 'flex',
+                    boxShadow: '0 4px 6px -1px rgba(99, 102, 241, 0.4)'
+                  }}
+                >
+                  <Grid2X2 size={20} />
+                </Box>
+                <Typography variant="h5" fontWeight={700}>
                   {t('categoryStats')}
                 </Typography>
               </Box>
 
-              {stats?.categoryStats && stats.categoryStats.length > 0 ? (
-                <Box>
-                  {stats.categoryStats.map((cat) => (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {stats?.categoryStats && stats.categoryStats.length > 0 ? (
+                  stats.categoryStats.map((cat, index) => (
                     <Accordion
                       key={cat.category}
                       elevation={0}
+                      disableGutters
                       sx={{
+                        background: cardGradient,
+                        borderRadius: '16px !important',
                         border: '1px solid',
                         borderColor: 'divider',
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                         '&:before': { display: 'none' },
-                        mb: 1,
+                        '&:hover': {
+                          transform: 'translateY(-2px)',
+                          boxShadow: '0 12px 20px -10px rgba(0, 0, 0, 0.1)',
+                          borderColor: 'primary.light',
+                        },
+                        animation: `fadeIn 0.5s ease-out ${index * 0.1}s both`,
                       }}
                     >
-                      <AccordionSummary expandIcon={<ChevronDown />}>
-                        <Box
-                          sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            width: '100%',
-                            pr: 2,
-                          }}
-                        >
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Typography variant="h6" component="span">
+                      <AccordionSummary expandIcon={<ChevronDown size={20} />}>
+                        <Box sx={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', pr: 1 }}>
+                          <Stack direction="row" spacing={2} alignItems="center">
+                            <Box
+                              sx={{
+                                width: 40, height: 40,
+                                borderRadius: '12px',
+                                bgcolor: alpha(theme.palette.primary.main, 0.1),
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                fontSize: '1.25rem'
+                              }}
+                            >
                               {getCategoryIcon(cat.category)}
-                            </Typography>
-                            <Typography variant="body1" fontWeight={600}>
-                              {tCategory(cat.category)}
-                            </Typography>
-                          </Box>
-                          <Box sx={{ textAlign: 'right' }}>
-                            <Typography variant="body1" fontWeight={600} color="primary.main">
-                              {formatCurrency(cat.total)}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {cat.count} {t('expenses')}
-                            </Typography>
-                          </Box>
+                            </Box>
+                            <Box>
+                              <Typography variant="subtitle1" fontWeight={600}>
+                                {tCategory(cat.category)}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary" fontWeight={500}>
+                                {cat.count} {t('expenses')}
+                              </Typography>
+                            </Box>
+                          </Stack>
+                          <Typography variant="h6" fontWeight={700} color="primary.main">
+                            {formatCurrency(cat.total)}
+                          </Typography>
                         </Box>
                       </AccordionSummary>
-                      <AccordionDetails>
-                        <Divider sx={{ mb: 2 }} />
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                      <AccordionDetails sx={{ pt: 0, pb: 2 }}>
+                        <Divider sx={{ mb: 2, borderStyle: 'dashed' }} />
+                        <Stack spacing={1.5}>
                           {cat.details.map((detail) => (
                             <Box
                               key={detail.id}
                               sx={{
                                 display: 'flex',
                                 justifyContent: 'space-between',
-                                alignItems: 'flex-start',
-                                pl: 1,
+                                alignItems: 'center',
+                                p: 1.5,
+                                borderRadius: 3,
+                                bgcolor: alpha(theme.palette.background.default, 0.5),
+                                '&:hover': { bgcolor: alpha(theme.palette.background.default, 1) }
                               }}
                             >
-                              <Box sx={{ flex: 1 }}>
-                                <Typography variant="body2" fontWeight={500}>
+                              <Box sx={{ minWidth: 0, flex: 1, mr: 2 }}>
+                                <Typography variant="body2" fontWeight={500} noWrap>
                                   {detail.description || t('noDescription')}
                                 </Typography>
-                                <Box
-                                  sx={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: 1,
-                                    mt: 0.5,
-                                  }}
-                                >
-                                  <Box component="span" sx={{ color: 'text.secondary', display: 'flex' }}>
-                                    <Calendar size={14} />
-                                  </Box>
+                                <Stack direction="row" alignItems="center" spacing={1} mt={0.5}>
+                                  <Calendar size={12} color={theme.palette.text.secondary} />
                                   <Typography variant="caption" color="text.secondary">
                                     {new Date(detail.date).toLocaleDateString(
-                                      locale === 'zh'
-                                        ? 'zh-TW'
-                                        : locale === 'jp'
-                                          ? 'ja-JP'
-                                          : 'en-US'
+                                      locale === 'zh' ? 'zh-TW' : locale === 'jp' ? 'ja-JP' : 'en-US'
                                     )}
                                   </Typography>
-                                  <Typography variant="caption" color="text.secondary">
-                                    ·
-                                  </Typography>
-                                  <Typography variant="caption" color="text.secondary">
+                                  <Typography variant="caption" color="text.secondary">·</Typography>
+                                  <Typography variant="caption" color="text.secondary" noWrap>
                                     {detail.tripName}
                                   </Typography>
-                                </Box>
+                                </Stack>
                               </Box>
-                              <Typography
-                                variant="body2"
-                                fontWeight={500}
-                                color="text.secondary"
-                                sx={{ ml: 2 }}
-                              >
+                              <Typography variant="body2" fontWeight={700} color="text.primary">
                                 {formatCurrency(detail.amount)}
                               </Typography>
                             </Box>
                           ))}
-                        </Box>
+                        </Stack>
                       </AccordionDetails>
                     </Accordion>
-                  ))}
-                </Box>
-              ) : (
-                <Box sx={{ textAlign: 'center', py: 4 }}>
-                  <Typography variant="body1" color="text.secondary">
-                    {t('noData')}
-                  </Typography>
-                </Box>
-              )}
-            </CardContent>
-          </Card>
+                  ))
+                ) : (
+                  <Box sx={{ textAlign: 'center', py: 8, opacity: 0.6 }}>
+                    <Receipt size={48} strokeWidth={1} style={{ marginBottom: 16 }} />
+                    <Typography variant="body1" color="text.secondary">
+                      {t('noData')}
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+            </Grid>
 
-          {/* 國家統計 */}
-          <Card elevation={2}>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                <Box component="span" sx={{ color: 'primary.main', display: 'flex' }}>
-                  <Globe />
+            {/* 國家統計 */}
+            <Grid size={{ xs: 12, lg: 6 }}>
+              <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                <Box
+                  sx={{
+                    p: 1,
+                    borderRadius: 2,
+                    bgcolor: 'secondary.main',
+                    color: 'secondary.contrastText',
+                    display: 'flex',
+                    boxShadow: '0 4px 6px -1px rgba(100, 116, 139, 0.4)'
+                  }}
+                >
+                  <Globe size={20} />
                 </Box>
-                <Typography variant="h6" fontWeight={600}>
+                <Typography variant="h5" fontWeight={700}>
                   {t('countryStats')}
                 </Typography>
                 {stats?.countries && stats.countries.length > 0 && (
                   <Chip
-                    label={`${stats.countries.length} ${t('countries')}`}
+                    label={`${stats.countries.length}`}
                     size="small"
-                    color="primary"
-                    variant="outlined"
+                    sx={{ borderRadius: '6px', fontWeight: 700, bgcolor: alpha(theme.palette.secondary.main, 0.1), color: 'secondary.main' }}
                   />
                 )}
               </Box>
 
-              {stats?.countries && stats.countries.length > 0 ? (
-                <Box>
-                  {stats.countries.map((country) => (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {stats?.countries && stats.countries.length > 0 ? (
+                  stats.countries.map((country, index) => (
                     <Accordion
                       key={country.country}
                       elevation={0}
+                      disableGutters
                       sx={{
+                        background: cardGradient,
+                        borderRadius: '16px !important',
                         border: '1px solid',
                         borderColor: 'divider',
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                         '&:before': { display: 'none' },
-                        mb: 1,
+                        '&:hover': {
+                          transform: 'translateY(-2px)',
+                          boxShadow: '0 12px 20px -10px rgba(0, 0, 0, 0.1)',
+                          borderColor: 'secondary.light',
+                        },
+                        animation: `fadeIn 0.5s ease-out ${index * 0.1 + 0.2}s both`,
                       }}
                     >
-                      <AccordionSummary expandIcon={<ChevronDown />}>
-                        <Box
-                          sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            width: '100%',
-                            pr: 2,
-                          }}
-                        >
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Typography variant="h5" component="span">
+                      <AccordionSummary expandIcon={<ChevronDown size={20} />}>
+                        <Box sx={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', pr: 1 }}>
+                          <Stack direction="row" spacing={2} alignItems="center">
+                            <Box
+                              sx={{
+                                width: 48, height: 40,
+                                fontSize: '2rem',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                lineHeight: 1
+                              }}
+                            >
                               {getCountryFlag(country.country_code)}
-                            </Typography>
-                            <Typography variant="body1" fontWeight={600}>
-                              {country.country}
-                            </Typography>
-                          </Box>
+                            </Box>
+                            <Box>
+                              <Typography variant="subtitle1" fontWeight={600}>
+                                {country.country}
+                              </Typography>
+                            </Box>
+                          </Stack>
                           <Chip
                             label={`${country.tripCount} ${t('trips')}`}
                             size="small"
-                            color="default"
+                            sx={{ borderRadius: '8px', fontWeight: 600 }}
                           />
                         </Box>
                       </AccordionSummary>
-                      <AccordionDetails>
-                        <Divider sx={{ mb: 2 }} />
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                      <AccordionDetails sx={{ pt: 0, pb: 2 }}>
+                        <Divider sx={{ mb: 2, borderStyle: 'dashed' }} />
+                        <Stack spacing={1}>
                           {country.regions.map((region) => (
                             <Box
                               key={region.name}
@@ -394,36 +501,50 @@ export default function StatsPage() {
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'space-between',
-                                pl: 2,
+                                p: 1.5,
+                                borderRadius: 3,
+                                border: '1px solid',
+                                borderColor: 'divider',
+                                '&:hover': { bgcolor: alpha(theme.palette.action.hover, 0.1) }
                               }}
                             >
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <Box component="span" sx={{ color: 'action.active', display: 'flex' }}>
-                                  <MapPin size={20} />
-                                </Box>
-                                <Typography variant="body2">{region.name}</Typography>
-                              </Box>
-                              <Typography variant="body2" color="text.secondary">
-                                {region.tripCount} {t('trips')}
-                              </Typography>
+                              <Stack direction="row" alignItems="center" spacing={1.5}>
+                                <MapPin size={18} className="text-gray-400" />
+                                <Typography variant="body2" fontWeight={500}>{region.name}</Typography>
+                              </Stack>
+                              <Badge count={region.tripCount} label={t('trips')} />
                             </Box>
                           ))}
-                        </Box>
+                        </Stack>
                       </AccordionDetails>
                     </Accordion>
-                  ))}
-                </Box>
-              ) : (
-                <Box sx={{ textAlign: 'center', py: 4 }}>
-                  <Typography variant="body1" color="text.secondary">
-                    {t('noData')}
-                  </Typography>
-                </Box>
-              )}
-            </CardContent>
-          </Card>
+                  ))
+                ) : (
+                  <Box sx={{ textAlign: 'center', py: 8, opacity: 0.6 }}>
+                    <Globe size={48} strokeWidth={1} style={{ marginBottom: 16 }} />
+                    <Typography variant="body1" color="text.secondary">
+                      {t('noData')}
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+            </Grid>
+          </Grid>
         </Box>
       </Container>
+    </Box>
+  );
+}
+
+// 輔助組件
+function Badge({ count, label }: { count: number; label: string }) {
+  return (
+    <Box sx={{
+      display: 'flex', alignItems: 'center', gap: 0.5,
+      bgcolor: 'action.hover', px: 1, py: 0.5, borderRadius: 2
+    }}>
+      <Typography variant="body2" fontWeight={700} color="primary.main">{count}</Typography>
+      <Typography variant="caption" color="text.secondary">{label}</Typography>
     </Box>
   );
 }
