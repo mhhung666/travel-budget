@@ -49,11 +49,14 @@ export async function getSettlement(tripIdOrCode: string): Promise<ActionResult<
       )
       .eq('trip_id', tripId);
 
-    const members = membersData?.map((m: any) => m.users) || [];
+    type MemberQuery = {
+      users: { id: number; username: string; display_name: string } | { id: number; username: string; display_name: string }[];
+    };
+    const members = (membersData as unknown as MemberQuery[])?.map((m) => Array.isArray(m.users) ? m.users[0] : m.users) || [];
 
     // Calculate balances for each member
     const balances = await Promise.all(
-      members.map(async (member: any) => {
+      members.map(async (member) => {
         // Total paid
         const { data: paidData } = await supabase
           .from('expenses')

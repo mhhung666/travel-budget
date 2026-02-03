@@ -45,8 +45,12 @@ export default function JoinTripDialog({ open, onClose, onSuccess }: JoinTripDia
 
             handleClose();
             onSuccess();
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err: unknown) {
+            if (err instanceof Error) {
+                setError(err.message);
+            } else {
+                setError(tCommon('error.unknown'));
+            }
         }
     };
 

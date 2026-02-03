@@ -63,8 +63,21 @@ export async function getExpenses(tripIdOrCode: string): Promise<ActionResult<Ex
     if (expensesError) throw expensesError;
 
     // Get splits for each expense
+    type ExpenseQuery = {
+      id: number;
+      amount: number;
+      original_amount: number;
+      currency: string;
+      exchange_rate: number;
+      description: string;
+      category: 'accommodation' | 'transportation' | 'food' | 'shopping' | 'entertainment' | 'tickets' | 'other' | null;
+      date: string;
+      created_at: string;
+      payer: { id: number; username: string; display_name: string } | { id: number; username: string; display_name: string }[] | null;
+    };
+
     const expensesWithSplits = await Promise.all(
-      (expenses || []).map(async (expense: any) => {
+      (expenses as unknown as ExpenseQuery[])?.map(async (expense) => {
         const { data: splits } = await supabase
           .from('expense_splits')
           .select(
@@ -79,14 +92,20 @@ export async function getExpenses(tripIdOrCode: string): Promise<ActionResult<Ex
           )
           .eq('expense_id', expense.id);
 
+        type SplitQuery = {
+          user_id: number;
+          share_amount: number;
+          users: { username: string; display_name: string } | { username: string; display_name: string }[] | null;
+        };
+
         const formattedSplits =
-          splits?.map((split: any) => {
+          (splits as unknown as SplitQuery[])?.map((split) => {
             const user = Array.isArray(split.users) ? split.users[0] : split.users;
             return {
               user_id: split.user_id,
               share_amount: split.share_amount,
-              username: user?.username,
-              display_name: user?.display_name,
+              username: user?.username || 'Unknown',
+              display_name: user?.display_name || 'Unknown',
             };
           }) || [];
 
@@ -102,8 +121,8 @@ export async function getExpenses(tripIdOrCode: string): Promise<ActionResult<Ex
           category: expense.category || 'other',
           date: expense.date,
           created_at: expense.created_at,
-          payer_id: payer?.id,
-          payer_name: payer?.display_name,
+          payer_id: payer?.id as number,
+          payer_name: payer?.display_name || 'Unknown',
           splits: formattedSplits,
         };
       })

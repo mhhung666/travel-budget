@@ -3,7 +3,7 @@
 import { supabase } from '@/lib/supabase';
 import { getSession } from '@/lib/auth';
 import type { ActionResult } from './types';
-import type { StatsData, CategoryStat, CountryStat, ExpenseDetail } from '@/types';
+import type { StatsData, CategoryStat, CountryStat, ExpenseDetail, Location } from '@/types';
 
 interface GetStatsOptions {
   startDate?: string;
@@ -82,7 +82,19 @@ export async function getStats(options: GetStatsOptions = {}): Promise<ActionRes
       { total: number; count: number; details: ExpenseDetail[] }
     >();
 
-    expenseSplits?.forEach((split: any) => {
+    type ExpenseSplitQuery = {
+      share_amount: number;
+      expenses: {
+        id: number;
+        category: 'accommodation' | 'transportation' | 'food' | 'shopping' | 'entertainment' | 'tickets' | 'other' | null;
+        date: string;
+        description: string;
+        trip_id: number;
+        trips: { name: string } | null;
+      };
+    };
+
+    (expenseSplits as unknown as ExpenseSplitQuery[])?.forEach((split) => {
       const category = split.expenses.category || 'other';
       const current = categoryMap.get(category) || { total: 0, count: 0, details: [] };
 
@@ -134,7 +146,12 @@ export async function getStats(options: GetStatsOptions = {}): Promise<ActionRes
       { country_code: string; regions: Map<string, number>; tripCount: number }
     >();
 
-    trips?.forEach((trip: any) => {
+    type TripQuery = {
+      id: number;
+      location: Location;
+    };
+
+    (trips as unknown as TripQuery[])?.forEach((trip) => {
       if (trip.location && trip.location.country) {
         const country = trip.location.country;
         const countryCode = trip.location.country_code || '';

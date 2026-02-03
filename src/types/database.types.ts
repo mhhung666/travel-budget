@@ -45,7 +45,7 @@ export interface Database {
                     description: string | null
                     start_date: string | null
                     end_date: string | null
-                    location: any
+                    location: Json
                     hash_code: string
                     created_at: string
                 }
@@ -55,7 +55,7 @@ export interface Database {
                     description?: string | null
                     start_date?: string | null
                     end_date?: string | null
-                    location?: any
+                    location?: Json
                     hash_code: string
                     created_at?: string
                 }
@@ -65,7 +65,7 @@ export interface Database {
                     description?: string | null
                     start_date?: string | null
                     end_date?: string | null
-                    location?: any
+                    location?: Json
                     hash_code?: string
                     created_at?: string
                 }

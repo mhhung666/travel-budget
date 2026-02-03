@@ -57,8 +57,12 @@ export default function LoginForm({ hideBackToHome = false }: LoginFormProps) {
       }
 
       router.push('/trips');
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError(t('login.error'));
+      }
     } finally {
       setLoading(false);
     }

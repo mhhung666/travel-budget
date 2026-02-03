@@ -50,8 +50,24 @@ export async function getMembers(tripIdOrCode: string): Promise<ActionResult<Mem
 
     if (membersError) throw membersError;
 
+    type TripMemberQuery = {
+      joined_at: string;
+      role: 'admin' | 'member' | null;
+      users: {
+        id: number;
+        username: string;
+        display_name: string;
+        is_virtual: boolean | null;
+      } | {
+        id: number;
+        username: string;
+        display_name: string;
+        is_virtual: boolean | null;
+      }[];
+    };
+
     const formattedMembers: Member[] =
-      members?.map((member: any) => {
+      (members as unknown as TripMemberQuery[])?.map((member) => {
         const user = Array.isArray(member.users) ? member.users[0] : member.users;
         return {
           id: user?.id,
@@ -59,7 +75,7 @@ export async function getMembers(tripIdOrCode: string): Promise<ActionResult<Mem
           display_name: user?.display_name,
           is_virtual: user?.is_virtual || false,
           joined_at: member.joined_at,
-          role: member.role,
+          role: member.role || 'member',
         };
       }) || [];
 

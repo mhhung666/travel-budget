@@ -59,8 +59,12 @@ export default function CreateTripDialog({ open, onClose, onSuccess }: CreateTri
 
             handleClose();
             onSuccess();
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err: unknown) {
+            if (err instanceof Error) {
+                setError(err.message);
+            } else {
+                setError(tCommon('error.unknown'));
+            }
         }
     };
 
