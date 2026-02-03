@@ -169,7 +169,7 @@ export async function createExpense(
       };
     }
 
-    const { payer_id, original_amount, currency, exchange_rate, description, category, date, split_with } =
+    const { payer_id, original_amount, currency, exchange_rate, description, category, date, splits } =
       validation.data;
 
     // Calculate TWD amount
@@ -187,14 +187,11 @@ export async function createExpense(
       return { success: false, error: '付款人不是旅行成員', code: 'VALIDATION_ERROR' };
     }
 
-    for (const userId of split_with) {
-      if (!memberIds.includes(userId)) {
+    for (const split of splits) {
+      if (!memberIds.includes(split.user_id)) {
         return { success: false, error: '分帳對象必須都是旅行成員', code: 'VALIDATION_ERROR' };
       }
     }
-
-    // Calculate share amount
-    const shareAmount = amount / split_with.length;
 
     // Create expense
     const { data: expenseData, error: expenseError } = await supabase
@@ -216,10 +213,10 @@ export async function createExpense(
     if (expenseError || !expenseData) throw expenseError;
 
     // Create splits
-    const splitsToInsert = split_with.map((userId: number) => ({
+    const splitsToInsert = splits.map((split) => ({
       expense_id: expenseData.id,
-      user_id: userId,
-      share_amount: shareAmount,
+      user_id: split.user_id,
+      share_amount: split.share_amount,
     }));
 
     const { error: splitsError } = await supabase.from('expense_splits').insert(splitsToInsert);

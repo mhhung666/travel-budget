@@ -72,7 +72,14 @@ export const createExpenseSchema = z.object({
   description: z.string().min(1, '描述不能為空'),
   category: z.enum(CATEGORIES as unknown as [string, ...string[]]).default('other'),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '日期格式錯誤'),
-  split_with: z.array(z.number().int().positive()).min(1, '至少需要一位分帳對象'),
+  splits: z
+    .array(
+      z.object({
+        user_id: z.number().int().positive(),
+        share_amount: z.number().min(0),
+      })
+    )
+    .min(1, '至少需要一位分帳對象'),
 });
 
 export const updateExpenseSchema = z.object({

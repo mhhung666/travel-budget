@@ -53,9 +53,9 @@ export default function AddExpenseDialog({
         description: '',
         category: DEFAULT_CATEGORY,
         date: new Date().toISOString().split('T')[0],
-        split_with: [] as number[],
     });
 
+    const [splitState, setSplitState] = useState<Record<number, { selected: boolean; manualAmount: string }>>({});
     const [showAdvanced, setShowAdvanced] = useState(false);
 
     useEffect(() => {
@@ -68,18 +68,97 @@ export default function AddExpenseDialog({
                 description: '',
                 category: DEFAULT_CATEGORY,
                 date: new Date().toISOString().split('T')[0],
-                split_with: members.map(m => m.id), // Default select all
             });
+
+            // Init splits: All selected, no manual amounts (equal split)
+            const initialSplits: Record<number, { selected: boolean; manualAmount: string }> = {};
+            members.forEach(m => {
+                initialSplits[m.id] = { selected: true, manualAmount: '' };
+            });
+            setSplitState(initialSplits);
+
             setError('');
             setShowAdvanced(false);
         }
     }, [open, currentUser, members]);
 
+    // Calculate Splits Logic
+    const { calculatedSplits, isValidSplit, splitWarning } = (() => {
+        const totalAmount = (parseFloat(form.original_amount) || 0) * (parseFloat(form.exchange_rate) || 1);
+
+        let manualSum = 0;
+        let autoCheckCount = 0;
+        const result: Record<number, number> = {};
+
+        // 1. First pass: Sum manual amounts and count auto-selected
+        members.forEach(m => {
+            const state = splitState[m.id];
+            if (!state?.selected) {
+                result[m.id] = 0;
+                return;
+            }
+
+            if (state.manualAmount !== '') {
+                const val = parseFloat(state.manualAmount) || 0;
+                manualSum += val;
+                result[m.id] = val;
+            } else {
+                autoCheckCount++;
+            }
+        });
+
+        // 2. Distribute remaining amount
+        const remaining = Math.max(0, totalAmount - manualSum);
+        // Warning if manual exceeds total or no one to split remaining
+        let warning = '';
+        if (manualSum > totalAmount + 0.5) warning = tCommon('error.splitExceedsTotal'); // Tolerance 0.5
+        if (remaining > 0.5 && autoCheckCount === 0) warning = tCommon('error.splitNotFullyAllocated');
+
+        // 3. Assign auto amounts
+        if (autoCheckCount > 0) {
+            const perPerson = remaining / autoCheckCount;
+            members.forEach(m => {
+                const state = splitState[m.id];
+                if (state?.selected && state.manualAmount === '') {
+                    result[m.id] = perPerson;
+                }
+            });
+        }
+
+        return {
+            calculatedSplits: result,
+            isValidSplit: !warning, // Strict check? maybe soft check
+            splitWarning: warning
+        };
+    })();
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
+
+        if (!isValidSplit) {
+            setError(splitWarning);
+            return;
+        }
+
         try {
-            await onSubmit(form);
+            // Construct splits array
+            const finalSplits = members
+                .filter(m => splitState[m.id]?.selected)
+                .map(m => ({
+                    user_id: m.id,
+                    share_amount: calculatedSplits[m.id] // Use the calculated (TWD) amount
+                }));
+
+            if (finalSplits.length === 0) {
+                setError(tExpense('error.noMembersSelected'));
+                return;
+            }
+
+            await onSubmit({
+                ...form,
+                splits: finalSplits
+            });
             // Parent handles close
         } catch (err: unknown) {
             if (err instanceof Error) {
@@ -90,31 +169,38 @@ export default function AddExpenseDialog({
         }
     };
 
-    const calculateConvertedAmount = () => {
-        const amount = parseFloat(form.original_amount) || 0;
-        const rate = parseFloat(form.exchange_rate) || 1;
-        return amount * rate;
+    const handleSplitToggle = (userId: number) => {
+        setSplitState(prev => ({
+            ...prev,
+            [userId]: {
+                ...prev[userId],
+                selected: !prev[userId]?.selected,
+                manualAmount: '' // Reset manual if toggled? Optional logic.
+            }
+        }));
     };
 
-    const toggleSplitMember = (userId: number) => {
-        setForm((prev) => {
-            const isSelected = prev.split_with.includes(userId);
-            let newSplit;
-            if (isSelected) {
-                newSplit = prev.split_with.filter((id) => id !== userId);
-            } else {
-                newSplit = [...prev.split_with, userId];
+    const handleManualAmountChange = (userId: number, value: string) => {
+        setSplitState(prev => ({
+            ...prev,
+            [userId]: {
+                ...prev[userId],
+                selected: true, // Auto select if typing
+                manualAmount: value
             }
-            return { ...prev, split_with: newSplit };
-        });
+        }));
     };
 
     const handleSelectAll = () => {
-        if (form.split_with.length === members.length) {
-            setForm(prev => ({ ...prev, split_with: [] }));
-        } else {
-            setForm(prev => ({ ...prev, split_with: members.map(m => m.id) }));
-        }
+        const allSelected = members.every(m => splitState[m.id]?.selected);
+        const newState: Record<number, any> = {};
+        members.forEach(m => {
+            newState[m.id] = {
+                selected: !allSelected,
+                manualAmount: ''
+            };
+        });
+        setSplitState(newState);
     };
 
     const handleCategorySelect = (categoryCode: string) => {
@@ -270,7 +356,7 @@ export default function AddExpenseDialog({
                         })}
                     </Box>
 
-                    {/* Split Members - Chips */}
+                    {/* Split Members - List View */}
                     <Box sx={{ mb: 3 }}>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
                             <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 600 }}>
@@ -281,45 +367,87 @@ export default function AddExpenseDialog({
                                 onClick={handleSelectAll}
                                 sx={{ fontSize: '0.75rem', textTransform: 'none', py: 0 }}
                             >
-                                {form.split_with.length === members.length ? tCommon('deselectAll') : tCommon('selectAll')}
+                                {tCommon('toggleAll')}
                             </Button>
                         </Box>
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                             {members.map((member) => {
-                                const isSelected = form.split_with.includes(member.id);
+                                const state = splitState[member.id] || { selected: false, manualAmount: '' };
+                                const amount = calculatedSplits[member.id] || 0;
+                                const isManual = state.manualAmount !== '';
+
                                 return (
                                     <Box
                                         key={member.id}
-                                        onClick={() => toggleSplitMember(member.id)}
                                         sx={{
-                                            px: 1.5,
-                                            py: 0.75,
-                                            borderRadius: 99,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'space-between',
+                                            p: 1,
+                                            borderRadius: 2,
+                                            bgcolor: state.selected ? 'primary.soft' : 'transparent',
                                             border: '1px solid',
-                                            borderColor: isSelected ? 'primary.main' : 'divider',
-                                            bgcolor: isSelected ? 'primary.main' : 'transparent',
-                                            color: isSelected ? 'primary.contrastText' : 'text.primary',
-                                            fontSize: '0.875rem',
-                                            cursor: 'pointer',
-                                            userSelect: 'none',
-                                            transition: 'all 0.2s',
-                                            '&:hover': {
-                                                borderColor: 'primary.main',
-                                                bgcolor: isSelected ? 'primary.dark' : 'action.hover'
-                                            }
+                                            borderColor: state.selected ? 'primary.main' : 'divider',
+                                            opacity: state.selected ? 1 : 0.6
                                         }}
                                     >
-                                        {member.display_name}
+                                        <FormControlLabel
+                                            control={
+                                                <Checkbox
+                                                    checked={state.selected}
+                                                    onChange={() => handleSplitToggle(member.id)}
+                                                    size="small"
+                                                    sx={{ py: 0 }}
+                                                />
+                                            }
+                                            label={
+                                                <Typography variant="body2" fontWeight={500}>
+                                                    {member.display_name}
+                                                </Typography>
+                                            }
+                                            sx={{ m: 0, mr: 2 }}
+                                        />
+
+                                        {state.selected ? (
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                {/* <Typography variant="caption" color="text.secondary">TWD</Typography> */}
+                                                <TextField
+                                                    variant="standard"
+                                                    placeholder={amount.toFixed(0)}
+                                                    value={state.manualAmount}
+                                                    onChange={(e) => handleManualAmountChange(member.id, e.target.value)}
+                                                    type="number"
+                                                    InputProps={{
+                                                        disableUnderline: true,
+                                                        sx: {
+                                                            fontSize: '0.9rem',
+                                                            fontWeight: isManual ? 700 : 400,
+                                                            color: isManual ? 'primary.main' : 'text.primary',
+                                                            textAlign: 'right',
+                                                            width: '80px',
+                                                            bgcolor: 'background.paper',
+                                                            borderRadius: 1,
+                                                            px: 1
+                                                        },
+                                                        inputProps: {
+                                                            style: { textAlign: 'right' }
+                                                        }
+                                                    }}
+                                                />
+                                            </Box>
+                                        ) : (
+                                            <Typography variant="caption" color="text.secondary">--</Typography>
+                                        )}
                                     </Box>
                                 );
                             })}
                         </Box>
-                        {form.split_with.length > 0 && parseFloat(form.original_amount) > 0 && (
-                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1, textAlign: 'right' }}>
-                                {tExpense('perPerson')}: <Box component="span" sx={{ fontWeight: 600, color: 'primary.main' }}>
-                                    NT$ {(calculateConvertedAmount() / form.split_with.length).toFixed(0)}
-                                </Box>
-                            </Typography>
+
+                        {splitWarning && (
+                            <Alert severity="warning" sx={{ mt: 2, borderRadius: 2 }} icon={<DollarSign size={16} />}>
+                                {splitWarning}
+                            </Alert>
                         )}
                     </Box>
 
@@ -390,7 +518,7 @@ export default function AddExpenseDialog({
                     <Button
                         type="submit"
                         variant="contained"
-                        disabled={form.split_with.length === 0 || !form.original_amount}
+                        disabled={!isValidSplit || !form.original_amount}
                         sx={{
                             px: 4,
                             borderRadius: 2,

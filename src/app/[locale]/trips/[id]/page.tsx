@@ -172,7 +172,7 @@ export default function TripDetailPage() {
         description: data.description,
         category: data.category,
         date: data.date,
-        split_with: data.split_with,
+        splits: data.splits,
       });
 
       if (!result.success) {
