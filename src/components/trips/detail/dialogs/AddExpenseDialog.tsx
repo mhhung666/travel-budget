@@ -42,6 +42,8 @@ export default function AddExpenseDialog({
     const tCurrency = useTranslations('currency');
     const t = useTranslations(); // for categories
 
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 600;
+
     const [error, setError] = useState('');
     const [form, setForm] = useState({
         payer_id: 0,
@@ -54,32 +56,37 @@ export default function AddExpenseDialog({
         split_with: [] as number[],
     });
 
+    const [showAdvanced, setShowAdvanced] = useState(false);
+
     useEffect(() => {
         if (open) {
             setForm({
-                payer_id: currentUser?.id || 0,
+                payer_id: currentUser?.id || members[0]?.id || 0,
                 original_amount: '',
                 currency: 'TWD',
                 exchange_rate: '1.0',
                 description: '',
                 category: DEFAULT_CATEGORY,
                 date: new Date().toISOString().split('T')[0],
-                split_with: [],
+                split_with: members.map(m => m.id), // Default select all
             });
             setError('');
+            setShowAdvanced(false);
         }
-    }, [open, currentUser]);
+    }, [open, currentUser, members]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
         try {
             await onSubmit(form);
-            // onClose is called by parent after success, or we call it here?
-            // page.tsx logic: onSubmit calls API, then close.
-            // But here we await onSubmit, if it throws, we catch.
-        } catch (err: any) {
-            setError(err.message);
+            // Parent handles close
+        } catch (err: unknown) {
+            if (err instanceof Error) {
+                setError(err.message);
+            } else {
+                setError(tCommon('error.unknown'));
+            }
         }
     };
 
@@ -90,59 +97,96 @@ export default function AddExpenseDialog({
     };
 
     const toggleSplitMember = (userId: number) => {
-        setForm((prev) => ({
-            ...prev,
-            split_with: prev.split_with.includes(userId)
-                ? prev.split_with.filter((id) => id !== userId)
-                : [...prev.split_with, userId],
-        }));
+        setForm((prev) => {
+            const isSelected = prev.split_with.includes(userId);
+            let newSplit;
+            if (isSelected) {
+                newSplit = prev.split_with.filter((id) => id !== userId);
+            } else {
+                newSplit = [...prev.split_with, userId];
+            }
+            return { ...prev, split_with: newSplit };
+        });
     };
 
+    const handleSelectAll = () => {
+        if (form.split_with.length === members.length) {
+            setForm(prev => ({ ...prev, split_with: [] }));
+        } else {
+            setForm(prev => ({ ...prev, split_with: members.map(m => m.id) }));
+        }
+    };
+
+    const handleCategorySelect = (categoryCode: string) => {
+        setForm(prev => ({ ...prev, category: categoryCode }));
+    };
+
+    const currencies = [
+        { code: 'TWD', label: 'TWD' },
+        { code: 'JPY', label: 'JPY' },
+        { code: 'USD', label: 'USD' },
+        { code: 'EUR', label: 'EUR' },
+        { code: 'HKD', label: 'HKD' },
+    ];
+
     return (
-        <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-            <DialogTitle>
+        <Dialog
+            open={open}
+            onClose={onClose}
+            maxWidth="sm"
+            fullWidth
+            PaperProps={{
+                sx: {
+                    borderRadius: 3,
+                    maxHeight: '90vh'
+                }
+            }}
+        >
+            <DialogTitle sx={{ pb: 1 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    {tExpense('add')}
-                    <IconButton onClick={onClose} size="small">
+                    <Typography variant="h6" fontWeight={700}>
+                        {tExpense('add')}
+                    </Typography>
+                    <IconButton onClick={onClose} size="small" sx={{ bgcolor: 'action.hover' }}>
                         <X size={20} />
                     </IconButton>
                 </Box>
             </DialogTitle>
+
             <form onSubmit={handleSubmit}>
-                <DialogContent>
+                <DialogContent sx={{ pt: 1, pb: 2 }}>
                     {error && (
-                        <Alert severity="error" sx={{ mb: 2 }}>
+                        <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
                             {error}
                         </Alert>
                     )}
 
-                    <FormControl fullWidth sx={{ mb: 2 }}>
-                        <InputLabel>{tExpense('form.payer')} *</InputLabel>
-                        <Select
-                            value={form.payer_id}
-                            onChange={(e) =>
-                                setForm({
-                                    ...form,
-                                    payer_id:
-                                        typeof e.target.value === 'string'
-                                            ? parseInt(e.target.value)
-                                            : e.target.value,
-                                })
-                            }
-                            label={`${tExpense('form.payer')} *`}
+                    {/* Amount & Currency - Hero Section */}
+                    <Box sx={{
+                        p: 2,
+                        mb: 3,
+                        bgcolor: 'background.default',
+                        borderRadius: 3,
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1
+                    }}>
+                        <TextField
+                            fullWidth
+                            variant="standard"
+                            placeholder="0"
+                            value={form.original_amount}
+                            onChange={(e) => setForm({ ...form, original_amount: e.target.value })}
                             required
-                        >
-                            <MenuItem value={0}>--</MenuItem>
-                            {members.map((member) => (
-                                <MenuItem key={member.id} value={member.id}>
-                                    {member.display_name}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
-
-                    <FormControl fullWidth sx={{ mb: 2 }}>
-                        <InputLabel>{tExpense('form.currency')} *</InputLabel>
+                            type="number"
+                            InputProps={{
+                                disableUnderline: true,
+                                style: { fontSize: '2.5rem', fontWeight: 600 }
+                            }}
+                            autoFocus
+                        />
                         <Select
                             value={form.currency}
                             onChange={(e) => {
@@ -153,159 +197,218 @@ export default function AddExpenseDialog({
                                     exchange_rate: currency === 'TWD' ? '1.0' : form.exchange_rate,
                                 });
                             }}
-                            label={`${tExpense('form.currency')} *`}
-                            required
+                            variant="standard"
+                            disableUnderline
+                            sx={{
+                                fontSize: '1.25rem',
+                                fontWeight: 500,
+                                '& .MuiSelect-select': { py: 0 }
+                            }}
                         >
-                            <MenuItem value="TWD">{tCurrency('TWD_full')}</MenuItem>
-                            <MenuItem value="JPY">{tCurrency('JPY_full')}</MenuItem>
-                            <MenuItem value="USD">{tCurrency('USD_full')}</MenuItem>
-                            <MenuItem value="EUR">{tCurrency('EUR_full')}</MenuItem>
-                            <MenuItem value="HKD">{tCurrency('HKD_full')}</MenuItem>
-                        </Select>
-                    </FormControl>
-
-                    <Box
-                        sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, mb: 2 }}
-                    >
-                        <TextField
-                            fullWidth
-                            type="number"
-                            label={`${tExpense('form.amount')} *`}
-                            value={form.original_amount}
-                            onChange={(e) =>
-                                setForm({ ...form, original_amount: e.target.value })
-                            }
-                            required
-                            inputProps={{ step: '0.01', min: '0.01' }}
-                            placeholder="0.00"
-                        />
-
-                        {form.currency !== 'TWD' && (
-                            <TextField
-                                fullWidth
-                                type="number"
-                                label={`${tExpense('form.exchangeRate')} *`}
-                                value={form.exchange_rate}
-                                onChange={(e) =>
-                                    setForm({ ...form, exchange_rate: e.target.value })
-                                }
-                                required
-                                inputProps={{ step: '0.000001', min: '0' }}
-                                placeholder="0.22"
-                            />
-                        )}
-                    </Box>
-
-                    {form.currency !== 'TWD' && (
-                        <Alert severity="info" icon={<DollarSign size={20} />} sx={{ mb: 2 }}>
-                            {tExpense('form.convertedAmount')}: <strong>NT${calculateConvertedAmount().toLocaleString()}</strong>
-                        </Alert>
-                    )}
-
-                    <FormControl fullWidth sx={{ mb: 2 }}>
-                        <InputLabel>{tExpense('form.category')} *</InputLabel>
-                        <Select
-                            value={form.category}
-                            onChange={(e) => setForm({ ...form, category: e.target.value })}
-                            label={`${tExpense('form.category')} *`}
-                            required
-                        >
-                            {CATEGORIES.map((cat) => (
-                                <MenuItem key={cat.code} value={cat.code}>
-                                    {cat.icon} {t(cat.nameKey)}
-                                </MenuItem>
+                            {currencies.map((c) => (
+                                <MenuItem key={c.code} value={c.code}>{c.label}</MenuItem>
                             ))}
                         </Select>
-                    </FormControl>
+                    </Box>
 
+                    {/* Description - Quick Input */}
                     <TextField
                         fullWidth
-                        label={`${tExpense('form.description')} *`}
+                        placeholder={tExpense('form.descriptionPlaceholder')}
                         value={form.description}
                         onChange={(e) => setForm({ ...form, description: e.target.value })}
                         required
-                        sx={{ mb: 2 }}
+                        variant="outlined"
+                        sx={{ mb: 3 }}
+                        InputProps={{
+                            sx: { borderRadius: 2 }
+                        }}
                     />
 
-                    <TextField
-                        fullWidth
-                        type="date"
-                        label={`${tExpense('form.date')} *`}
-                        value={form.date}
-                        onChange={(e) => setForm({ ...form, date: e.target.value })}
-                        required
-                        InputLabelProps={{ shrink: true }}
-                        sx={{ mb: 2 }}
-                    />
-
-                    <Box sx={{ mb: 2 }}>
-                        <Typography variant="subtitle2" gutterBottom>
-                            {tExpense('form.splitWith')} *
-                            {form.split_with.length > 0 && (
-                                <Typography component="span" color="primary" sx={{ ml: 1 }}>
-                                    ({tExpense('selected')} {form.split_with.length})
-                                </Typography>
-                            )}
-                        </Typography>
-                        <Box
-                            sx={{
-                                maxHeight: 160,
-                                overflowY: 'auto',
-                                border: '1px solid',
-                                borderColor: 'divider',
-                                borderRadius: 1,
-                                p: 1,
-                                bgcolor: 'background.default',
-                            }}
-                        >
-                            {members.map((member) => (
-                                <FormControlLabel
-                                    key={member.id}
-                                    control={
-                                        <Checkbox
-                                            checked={form.split_with.includes(member.id)}
-                                            onChange={() => toggleSplitMember(member.id)}
-                                        />
-                                    }
-                                    label={member.display_name}
+                    {/* Category - Visual Grid */}
+                    <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1.5, fontWeight: 600 }}>
+                        {tExpense('form.category')}
+                    </Typography>
+                    <Box sx={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(4, 1fr)',
+                        gap: 1,
+                        mb: 3,
+                        overflowX: 'auto',
+                        pb: 1
+                    }}>
+                        {CATEGORIES.map((cat) => {
+                            const isSelected = form.category === cat.code;
+                            return (
+                                <Box
+                                    key={cat.code}
+                                    onClick={() => handleCategorySelect(cat.code)}
                                     sx={{
-                                        width: '100%',
-                                        m: 0,
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
                                         p: 1,
-                                        borderRadius: 1,
-                                        '&:hover': { bgcolor: 'action.hover' },
+                                        borderRadius: 2,
+                                        cursor: 'pointer',
+                                        bgcolor: isSelected ? 'primary.soft' : 'transparent',
+                                        border: '1px solid',
+                                        borderColor: isSelected ? 'primary.main' : 'transparent',
+                                        color: isSelected ? 'primary.main' : 'text.secondary',
+                                        transition: 'all 0.2s',
+                                        '&:hover': {
+                                            bgcolor: isSelected ? 'primary.soft' : 'action.hover'
+                                        }
                                     }}
-                                />
-                            ))}
-                        </Box>
-                        {form.split_with.length > 0 &&
-                            form.original_amount &&
-                            parseFloat(form.original_amount) > 0 && (
-                                <Alert severity="info" icon={<DollarSign size={20} />} sx={{ mt: 1 }}>
-                                    {tExpense('perPerson')}{' '}
-                                    <strong>
-                                        NT$
-                                        {(
-                                            calculateConvertedAmount() / form.split_with.length
-                                        ).toFixed(2)}
-                                    </strong>
-                                </Alert>
-                            )}
+                                >
+                                    <Box sx={{ fontSize: '1.5rem', mb: 0.5 }}>{cat.icon}</Box>
+                                    <Typography variant="caption" noWrap sx={{ maxWidth: '100%', fontWeight: isSelected ? 600 : 400 }}>
+                                        {t(cat.nameKey)}
+                                    </Typography>
+                                </Box>
+                            );
+                        })}
                     </Box>
+
+                    {/* Split Members - Chips */}
+                    <Box sx={{ mb: 3 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                            <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                                {tExpense('form.splitWith')}
+                            </Typography>
+                            <Button
+                                size="small"
+                                onClick={handleSelectAll}
+                                sx={{ fontSize: '0.75rem', textTransform: 'none', py: 0 }}
+                            >
+                                {form.split_with.length === members.length ? tCommon('deselectAll') : tCommon('selectAll')}
+                            </Button>
+                        </Box>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                            {members.map((member) => {
+                                const isSelected = form.split_with.includes(member.id);
+                                return (
+                                    <Box
+                                        key={member.id}
+                                        onClick={() => toggleSplitMember(member.id)}
+                                        sx={{
+                                            px: 1.5,
+                                            py: 0.75,
+                                            borderRadius: 99,
+                                            border: '1px solid',
+                                            borderColor: isSelected ? 'primary.main' : 'divider',
+                                            bgcolor: isSelected ? 'primary.main' : 'transparent',
+                                            color: isSelected ? 'primary.contrastText' : 'text.primary',
+                                            fontSize: '0.875rem',
+                                            cursor: 'pointer',
+                                            userSelect: 'none',
+                                            transition: 'all 0.2s',
+                                            '&:hover': {
+                                                borderColor: 'primary.main',
+                                                bgcolor: isSelected ? 'primary.dark' : 'action.hover'
+                                            }
+                                        }}
+                                    >
+                                        {member.display_name}
+                                    </Box>
+                                );
+                            })}
+                        </Box>
+                        {form.split_with.length > 0 && parseFloat(form.original_amount) > 0 && (
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1, textAlign: 'right' }}>
+                                {tExpense('perPerson')}: <Box component="span" sx={{ fontWeight: 600, color: 'primary.main' }}>
+                                    NT$ {(calculateConvertedAmount() / form.split_with.length).toFixed(0)}
+                                </Box>
+                            </Typography>
+                        )}
+                    </Box>
+
+                    {/* Advanced Options (Toggle) */}
+                    <Button
+                        fullWidth
+                        variant="text"
+                        onClick={() => setShowAdvanced(!showAdvanced)}
+                        sx={{
+                            justifyContent: 'flex-start',
+                            color: 'text.secondary',
+                            textTransform: 'none',
+                            mb: 1
+                        }}
+                    >
+                        {showAdvanced ? tCommon('hideDetails') : tCommon('moreDetails')}
+                    </Button>
+
+                    {showAdvanced && (
+                        <Box sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 2, animation: 'fadeIn 0.3s' }}>
+                            <FormControl fullWidth sx={{ mb: 2 }}>
+                                <InputLabel>{tExpense('form.payer')}</InputLabel>
+                                <Select
+                                    value={form.payer_id}
+                                    onChange={(e) => setForm({ ...form, payer_id: Number(e.target.value) })}
+                                    label={tExpense('form.payer')}
+                                    size="small"
+                                >
+                                    {members.map((member) => (
+                                        <MenuItem key={member.id} value={member.id}>
+                                            {member.display_name}
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+
+                            <TextField
+                                fullWidth
+                                type="date"
+                                label={tExpense('form.date')}
+                                value={form.date}
+                                onChange={(e) => setForm({ ...form, date: e.target.value })}
+                                size="small"
+                                sx={{ mb: 2 }}
+                                InputLabelProps={{ shrink: true }}
+                            />
+
+                            {form.currency !== 'TWD' && (
+                                <TextField
+                                    fullWidth
+                                    type="number"
+                                    label={tExpense('form.exchangeRate')}
+                                    value={form.exchange_rate}
+                                    onChange={(e) => setForm({ ...form, exchange_rate: e.target.value })}
+                                    size="small"
+                                    inputProps={{ step: '0.000001' }}
+                                    helperText={`1 ${form.currency} = ${form.exchange_rate} TWD`}
+                                />
+                            )}
+                        </Box>
+                    )}
+
                 </DialogContent>
-                <DialogActions sx={{ px: 3, pb: 2 }}>
-                    <Button onClick={onClose}>
+                <DialogActions sx={{ px: 3, pb: 2, pt: 0 }}>
+                    <Button onClick={onClose} sx={{ color: 'text.secondary', borderRadius: 2 }}>
                         {tCommon('cancel')}
                     </Button>
                     <Button
                         type="submit"
                         variant="contained"
-                        disabled={form.split_with.length === 0}
+                        disabled={form.split_with.length === 0 || !form.original_amount}
+                        sx={{
+                            px: 4,
+                            borderRadius: 2,
+                            fontWeight: 600,
+                            boxShadow: 'none',
+                            '&:hover': { boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }
+                        }}
                     >
                         {tExpense('add')}
                     </Button>
                 </DialogActions>
             </form>
+            <style jsx global>{`
+                @keyframes fadeIn {
+                    from { opacity: 0; transform: translateY(-10px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+            `}</style>
         </Dialog>
     );
 }
