@@ -20,7 +20,15 @@
     "selectAll": "全选",
     "copy": "复制",
     "retry": "重试",
-    "goBack": "返回"
+    "goBack": "返回",
+    "toggleAll": "全选",
+    "hideDetails": "隐藏详细信息",
+    "moreDetails": "显示详细信息",
+    "error": {
+      "splitExceedsTotal": "分账总额超过支出金额",
+      "splitNotFullyAllocated": "剩余金额未完全分配",
+      "unknown": "发生未知错误"
+    }
   },
   "nav": {
     "home": "首页",
@@ -195,7 +203,10 @@
     "splitMembers": "分账对象:",
     "perPerson": "每人分摊:",
     "selected": "已选",
-    "clickToAdd": "点击「新增支出」开始记录!"
+    "clickToAdd": "点击「新增支出」开始记录!",
+    "error": {
+      "noMembersSelected": "请至少选择一位分账对象"
+    }
   },
   "member": {
     "title": "成员",

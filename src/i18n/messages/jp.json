@@ -20,7 +20,15 @@
     "selectAll": "すべて選択",
     "copy": "コピー",
     "retry": "再試行",
-    "goBack": "戻る"
+    "goBack": "戻る",
+    "toggleAll": "すべて選択",
+    "hideDetails": "詳細を隠す",
+    "moreDetails": "詳細を表示",
+    "error": {
+      "splitExceedsTotal": "割り勘の合計が支出額を超えています",
+      "splitNotFullyAllocated": "残額が完全に割り当てられていません",
+      "unknown": "不明なエラーが発生しました"
+    }
   },
   "nav": {
     "home": "ホーム",
@@ -195,7 +203,10 @@
     "splitMembers": "割り勘対象:",
     "perPerson": "一人当たり:",
     "selected": "選択済",
-    "clickToAdd": "「支出を追加」をクリックして記録を始めましょう！"
+    "clickToAdd": "「支出を追加」をクリックして記録を始めましょう！",
+    "error": {
+      "noMembersSelected": "割り勘の相手を少なくとも1人選択してください"
+    }
   },
   "member": {
     "title": "メンバー",

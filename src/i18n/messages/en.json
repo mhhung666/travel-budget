@@ -20,7 +20,15 @@
     "selectAll": "Select All",
     "copy": "Copy",
     "retry": "Retry",
-    "goBack": "Go Back"
+    "goBack": "Go Back",
+    "toggleAll": "Select All",
+    "hideDetails": "Hide Details",
+    "moreDetails": "More Details",
+    "error": {
+      "splitExceedsTotal": "Total split amount exceeds expense amount",
+      "splitNotFullyAllocated": "Remaining amount not fully allocated",
+      "unknown": "Unknown error occurred"
+    }
   },
   "nav": {
     "home": "Home",
@@ -222,7 +230,10 @@
     "splitMembers": "Split with:",
     "perPerson": "Per person:",
     "selected": "selected",
-    "clickToAdd": "Click \"Add Expense\" to start!"
+    "clickToAdd": "Click \"Add Expense\" to start!",
+    "error": {
+      "noMembersSelected": "Please select at least one member to split with"
+    }
   },
   "member": {
     "title": "Members",

@@ -20,7 +20,15 @@
     "selectAll": "全選",
     "copy": "複製",
     "retry": "重試",
-    "goBack": "返回"
+    "goBack": "返回",
+    "toggleAll": "全選",
+    "hideDetails": "隱藏詳細資訊",
+    "moreDetails": "顯示詳細資訊",
+    "error": {
+      "splitExceedsTotal": "分帳總額超過支出金額",
+      "splitNotFullyAllocated": "剩餘金額未完全分配",
+      "unknown": "發生未知錯誤"
+    }
   },
   "nav": {
     "home": "首頁",
@@ -195,7 +203,10 @@
     "splitMembers": "分帳對象:",
     "perPerson": "每人分擔:",
     "selected": "已選",
-    "clickToAdd": "點擊「新增支出」開始記錄!"
+    "clickToAdd": "點擊「新增支出」開始記錄!",
+    "error": {
+      "noMembersSelected": "請至少選擇一位分帳對象"
+    }
   },
   "member": {
     "title": "成員",
