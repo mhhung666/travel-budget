@@ -144,6 +144,7 @@
     },
     "detail": {
       "backToTrips": "Back to Trips",
+      "backToTrip": "Back to Trip",
       "expenses": "Expenses",
       "members": "Members",
       "settlement": "Settlement",
@@ -357,6 +358,7 @@
   "trip": {
     "info": "Trip Info",
     "createdAt": "Created:",
+    "settings": "Settings",
     "share": "Share Trip",
     "shareHint": "Share this ID with friends so they can join",
     "dangerZone": "Danger Zone",

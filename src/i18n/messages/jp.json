@@ -144,6 +144,7 @@
     },
     "detail": {
       "backToTrips": "旅行一覧に戻る",
+      "backToTrip": "旅行詳細に戻る",
       "expenses": "支出記録",
       "members": "メンバー",
       "settlement": "清算",
@@ -368,6 +369,7 @@
   "trip": {
     "info": "旅行情報",
     "createdAt": "作成日:",
+    "settings": "設定",
     "share": "旅行を共有",
     "shareHint": "このIDを友達と共有して参加してもらいましょう",
     "dangerZone": "危険な操作",

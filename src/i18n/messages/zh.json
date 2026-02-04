@@ -144,6 +144,7 @@
     },
     "detail": {
       "backToTrips": "返回旅行列表",
+      "backToTrip": "返回旅行詳情",
       "expenses": "支出記錄",
       "members": "成員",
       "settlement": "結算",
@@ -368,6 +369,7 @@
   "trip": {
     "info": "旅行資訊",
     "createdAt": "建立時間:",
+    "settings": "設定",
     "share": "分享此旅行",
     "shareHint": "分享此 ID 給朋友，他們就能加入旅行",
     "dangerZone": "危險操作",
