@@ -323,7 +323,7 @@ export default function TripDetailPage() {
 
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '3fr 7fr' }, gap: 3 }}>
           {/* 左側：旅行資訊 & 結算功能 */}
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
             <TripHeader
               trip={trip}
               isCurrentUserAdmin={!!isCurrentUserAdmin}
