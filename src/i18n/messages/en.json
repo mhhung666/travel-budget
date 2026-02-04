@@ -206,6 +206,7 @@
       "currency": "Currency",
       "exchangeRate": "Exchange Rate (to TWD)",
       "description": "Description",
+      "descriptionPlaceholder": "e.g., Lunch, Transportation, Hotel",
       "category": "Category",
       "date": "Date",
       "payer": "Payer",

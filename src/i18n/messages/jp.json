@@ -179,6 +179,7 @@
       "currency": "通貨",
       "exchangeRate": "為替レート（TWD換算）",
       "description": "説明",
+      "descriptionPlaceholder": "例：ランチ、交通費、ホテル宿泊",
       "category": "カテゴリ",
       "date": "日付",
       "payer": "支払者",

@@ -179,6 +179,7 @@
       "currency": "币种",
       "exchangeRate": "汇率 (换算为 TWD)",
       "description": "描述",
+      "descriptionPlaceholder": "例：午餐、交通费、酒店住宿",
       "category": "消费类别",
       "date": "日期",
       "payer": "付款人",
