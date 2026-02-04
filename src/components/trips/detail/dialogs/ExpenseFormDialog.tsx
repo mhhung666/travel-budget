@@ -183,11 +183,6 @@ export default function ExpenseFormDialog({
         const remainingOriginal = Math.max(0, originalAmount - manualSumOriginal);
         const manualSumTWD = manualSumOriginal * exchangeRate;
 
-        // Warning if manual exceeds total or no one to split remaining
-        let warning = '';
-        if (manualSumTWD > totalAmountTWD + 0.5) warning = tCommon('error.splitExceedsTotal');
-        if (remainingOriginal > 0.01 && autoCheckCount === 0) warning = tCommon('error.splitNotFullyAllocated');
-
         // 3. Assign auto amounts (in original currency)
         if (autoCheckCount > 0) {
             const perPersonOriginal = remainingOriginal / autoCheckCount;
@@ -199,6 +194,24 @@ export default function ExpenseFormDialog({
                     resultTWD[m.id] = perPersonTWD;
                 }
             });
+        }
+
+        // Calculate total TWD splits for validation
+        let totalSplitsTWD = 0;
+        members.forEach(m => {
+            if (splitState[m.id]?.selected) {
+                totalSplitsTWD += resultTWD[m.id] || 0;
+            }
+        });
+
+        // Warning if manual exceeds total or splits don't match (with tolerance for floating point errors)
+        let warning = '';
+        const tolerance = Math.max(1, totalAmountTWD * 0.0001); // 0.01% tolerance or 1 TWD minimum
+
+        if (totalSplitsTWD > totalAmountTWD + tolerance) {
+            warning = tCommon('error.splitExceedsTotal');
+        } else if (Math.abs(totalSplitsTWD - totalAmountTWD) > tolerance) {
+            warning = tCommon('error.splitNotFullyAllocated');
         }
 
         return {
