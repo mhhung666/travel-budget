@@ -15,9 +15,11 @@ import {
     Typography,
     FormControlLabel,
     Checkbox,
-    Button
+    Button,
+    CircularProgress,
+    Tooltip
 } from '@mui/material';
-import { X, DollarSign } from 'lucide-react';
+import { X, DollarSign, RefreshCw } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { CATEGORIES, DEFAULT_CATEGORY } from '@/constants/categories';
 import type { Member } from '@/types';
@@ -58,6 +60,35 @@ export default function AddExpenseDialog({
     const [splitState, setSplitState] = useState<Record<number, { selected: boolean; manualAmount: string }>>({});
     const [showAdvanced, setShowAdvanced] = useState(false);
 
+    // Exchange rate states
+    const [exchangeRates, setExchangeRates] = useState<Record<string, number>>({});
+    const [loadingRates, setLoadingRates] = useState(false);
+    const [ratesError, setRatesError] = useState('');
+
+    // Fetch exchange rates
+    const fetchExchangeRates = async () => {
+        setLoadingRates(true);
+        setRatesError('');
+        try {
+            const response = await fetch('/api/exchange-rates');
+            const data = await response.json();
+
+            if (data.success) {
+                setExchangeRates(data.rates);
+            } else {
+                setRatesError('無法獲取匯率');
+                // Use fallback rates
+                if (data.rates) {
+                    setExchangeRates(data.rates);
+                }
+            }
+        } catch (err) {
+            setRatesError('獲取匯率失敗');
+        } finally {
+            setLoadingRates(false);
+        }
+    };
+
     useEffect(() => {
         if (open) {
             setForm({
@@ -79,6 +110,9 @@ export default function AddExpenseDialog({
 
             setError('');
             setShowAdvanced(false);
+
+            // Fetch exchange rates when dialog opens
+            fetchExchangeRates();
         }
     }, [open, currentUser, members]);
 
@@ -277,10 +311,11 @@ export default function AddExpenseDialog({
                             value={form.currency}
                             onChange={(e) => {
                                 const currency = e.target.value;
+                                const rate = currency === 'TWD' ? '1.0' : (exchangeRates[currency]?.toFixed(6) || form.exchange_rate);
                                 setForm({
                                     ...form,
                                     currency,
-                                    exchange_rate: currency === 'TWD' ? '1.0' : form.exchange_rate,
+                                    exchange_rate: rate,
                                 });
                             }}
                             variant="standard"
@@ -496,16 +531,46 @@ export default function AddExpenseDialog({
                             />
 
                             {form.currency !== 'TWD' && (
-                                <TextField
-                                    fullWidth
-                                    type="number"
-                                    label={tExpense('form.exchangeRate')}
-                                    value={form.exchange_rate}
-                                    onChange={(e) => setForm({ ...form, exchange_rate: e.target.value })}
-                                    size="small"
-                                    inputProps={{ step: '0.000001' }}
-                                    helperText={`1 ${form.currency} = ${form.exchange_rate} TWD`}
-                                />
+                                <Box>
+                                    <TextField
+                                        fullWidth
+                                        type="number"
+                                        label={tExpense('form.exchangeRate')}
+                                        value={form.exchange_rate}
+                                        onChange={(e) => setForm({ ...form, exchange_rate: e.target.value })}
+                                        size="small"
+                                        inputProps={{ step: '0.000001' }}
+                                        helperText={`1 ${form.currency} = ${form.exchange_rate} TWD`}
+                                        InputProps={{
+                                            endAdornment: (
+                                                <Tooltip title="重新獲取匯率">
+                                                    <IconButton
+                                                        size="small"
+                                                        onClick={fetchExchangeRates}
+                                                        disabled={loadingRates}
+                                                        sx={{ mr: -1 }}
+                                                    >
+                                                        {loadingRates ? (
+                                                            <CircularProgress size={16} />
+                                                        ) : (
+                                                            <RefreshCw size={16} />
+                                                        )}
+                                                    </IconButton>
+                                                </Tooltip>
+                                            )
+                                        }}
+                                    />
+                                    {exchangeRates[form.currency] && (
+                                        <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                                            參考匯率: 1 {form.currency} ≈ {exchangeRates[form.currency].toFixed(4)} TWD
+                                        </Typography>
+                                    )}
+                                    {ratesError && (
+                                        <Typography variant="caption" color="error" sx={{ mt: 0.5, display: 'block' }}>
+                                            {ratesError}（使用預設值）
+                                        </Typography>
+                                    )}
+                                </Box>
                             )}
                         </Box>
                     )}
