@@ -83,11 +83,22 @@ export const createExpenseSchema = z.object({
 });
 
 export const updateExpenseSchema = z.object({
+  payer_id: z.number().int().positive().optional(),
   original_amount: z.number().positive('金額必須大於 0').optional(),
   currency: z.enum(CURRENCIES as unknown as [string, ...string[]]).optional(),
   exchange_rate: z.number().positive('匯率必須大於 0').optional(),
   description: z.string().min(1, '描述不能為空').optional(),
   category: z.enum(CATEGORIES as unknown as [string, ...string[]]).optional(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '日期格式錯誤').optional(),
+  splits: z
+    .array(
+      z.object({
+        user_id: z.number().int().positive(),
+        share_amount: z.number().min(0),
+      })
+    )
+    .min(1, '至少需要一位分帳對象')
+    .optional(),
 });
 
 // Auth schemas

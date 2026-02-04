@@ -22,29 +22,30 @@ import {
 import { X, DollarSign, RefreshCw } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { CATEGORIES, DEFAULT_CATEGORY } from '@/constants/categories';
-import type { Member } from '@/types';
+import type { Expense, Member } from '@/types';
 
-interface AddExpenseDialogProps {
+interface ExpenseFormDialogProps {
+    mode: 'add' | 'edit';
     open: boolean;
     onClose: () => void;
     onSubmit: (data: any) => Promise<void>;
     members: Member[];
     currentUser: any;
+    expense?: Expense | null; // Required for edit mode
 }
 
-export default function AddExpenseDialog({
+export default function ExpenseFormDialog({
+    mode,
     open,
     onClose,
     onSubmit,
     members,
     currentUser,
-}: AddExpenseDialogProps) {
+    expense,
+}: ExpenseFormDialogProps) {
     const tExpense = useTranslations('expense');
     const tCommon = useTranslations('common');
-    const tCurrency = useTranslations('currency');
-    const t = useTranslations(); // for categories
-
-    const isMobile = typeof window !== 'undefined' && window.innerWidth < 600;
+    const t = useTranslations();
 
     const [error, setError] = useState('');
     const [form, setForm] = useState({
@@ -58,7 +59,7 @@ export default function AddExpenseDialog({
     });
 
     const [splitState, setSplitState] = useState<Record<number, { selected: boolean; manualAmount: string }>>({});
-    const [showAdvanced, setShowAdvanced] = useState(false);
+    const [showAdvanced, setShowAdvanced] = useState(mode === 'edit'); // Default expanded for edit
 
     // Exchange rate states
     const [exchangeRates, setExchangeRates] = useState<Record<string, number>>({});
@@ -77,7 +78,6 @@ export default function AddExpenseDialog({
                 setExchangeRates(data.rates);
             } else {
                 setRatesError('無法獲取匯率');
-                // Use fallback rates
                 if (data.rates) {
                     setExchangeRates(data.rates);
                 }
@@ -91,30 +91,63 @@ export default function AddExpenseDialog({
 
     useEffect(() => {
         if (open) {
-            setForm({
-                payer_id: currentUser?.id || members[0]?.id || 0,
-                original_amount: '',
-                currency: 'TWD',
-                exchange_rate: '1.0',
-                description: '',
-                category: DEFAULT_CATEGORY,
-                date: new Date().toISOString().split('T')[0],
-            });
+            if (mode === 'edit' && expense) {
+                // Edit mode: Load existing expense data
+                setForm({
+                    payer_id: expense.payer_id,
+                    original_amount: expense.original_amount.toString(),
+                    currency: expense.currency,
+                    exchange_rate: expense.exchange_rate.toString(),
+                    description: expense.description,
+                    category: expense.category || DEFAULT_CATEGORY,
+                    date: new Date(expense.date).toISOString().split('T')[0],
+                });
 
-            // Init splits: All selected, no manual amounts (equal split)
-            const initialSplits: Record<number, { selected: boolean; manualAmount: string }> = {};
-            members.forEach(m => {
-                initialSplits[m.id] = { selected: true, manualAmount: '' };
-            });
-            setSplitState(initialSplits);
+                // Initialize split state from existing splits
+                const initialSplits: Record<number, { selected: boolean; manualAmount: string }> = {};
+                const exchangeRate = parseFloat(expense.exchange_rate.toString());
+
+                members.forEach(m => {
+                    const existingSplit = expense.splits.find(s => s.user_id === m.id);
+                    if (existingSplit) {
+                        // Convert TWD back to original currency for display
+                        const originalAmount = existingSplit.share_amount / exchangeRate;
+                        initialSplits[m.id] = {
+                            selected: true,
+                            manualAmount: originalAmount.toFixed(expense.currency === 'JPY' ? 0 : 2)
+                        };
+                    } else {
+                        initialSplits[m.id] = { selected: false, manualAmount: '' };
+                    }
+                });
+                setSplitState(initialSplits);
+            } else {
+                // Add mode: Initialize with defaults
+                setForm({
+                    payer_id: currentUser?.id || members[0]?.id || 0,
+                    original_amount: '',
+                    currency: 'TWD',
+                    exchange_rate: '1.0',
+                    description: '',
+                    category: DEFAULT_CATEGORY,
+                    date: new Date().toISOString().split('T')[0],
+                });
+
+                // Init splits: All selected, no manual amounts (equal split)
+                const initialSplits: Record<number, { selected: boolean; manualAmount: string }> = {};
+                members.forEach(m => {
+                    initialSplits[m.id] = { selected: true, manualAmount: '' };
+                });
+                setSplitState(initialSplits);
+            }
 
             setError('');
-            setShowAdvanced(false);
+            setShowAdvanced(mode === 'edit');
 
             // Fetch exchange rates when dialog opens
             fetchExchangeRates();
         }
-    }, [open, currentUser, members]);
+    }, [open, mode, expense, members, currentUser]);
 
     // Calculate Splits Logic (in original currency)
     const { calculatedSplitsOriginal, calculatedSplitsTWD, isValidSplit, splitWarning } = (() => {
@@ -219,7 +252,7 @@ export default function AddExpenseDialog({
             [userId]: {
                 ...prev[userId],
                 selected: !prev[userId]?.selected,
-                manualAmount: '' // Reset manual if toggled? Optional logic.
+                manualAmount: '' // Reset manual if toggled
             }
         }));
     };
@@ -229,7 +262,7 @@ export default function AddExpenseDialog({
             ...prev,
             [userId]: {
                 ...prev[userId],
-                selected: true, // Auto select if typing
+                selected: true,
                 manualAmount: value
             }
         }));
@@ -275,7 +308,7 @@ export default function AddExpenseDialog({
             <DialogTitle sx={{ pb: 1 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <Typography variant="h6" fontWeight={700}>
-                        {tExpense('add')}
+                        {mode === 'add' ? tExpense('add') : tExpense('edit')}
                     </Typography>
                     <IconButton onClick={onClose} size="small" sx={{ bgcolor: 'action.hover' }}>
                         <X size={20} />
@@ -499,7 +532,7 @@ export default function AddExpenseDialog({
                         )}
                     </Box>
 
-                    {/* Advanced Options (Toggle) */}
+                    {/* Advanced Options (Payer, Date, Exchange Rate) */}
                     <Button
                         fullWidth
                         variant="text"
@@ -605,7 +638,7 @@ export default function AddExpenseDialog({
                             '&:hover': { boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }
                         }}
                     >
-                        {tExpense('add')}
+                        {mode === 'add' ? tExpense('add') : tCommon('save')}
                     </Button>
                 </DialogActions>
             </form>

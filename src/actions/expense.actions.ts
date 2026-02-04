@@ -319,7 +319,7 @@ export async function updateExpense(
       };
     }
 
-    const { original_amount, currency, exchange_rate, description, category } = validation.data;
+    const { original_amount, currency, exchange_rate, description, category, payer_id, date, splits } = validation.data;
 
     // Build update data
     const updateData: Record<string, unknown> = {};
@@ -328,6 +328,8 @@ export async function updateExpense(
     if (currency !== undefined) updateData.currency = currency;
     if (exchange_rate !== undefined) updateData.exchange_rate = exchange_rate;
     if (category !== undefined) updateData.category = category;
+    if (payer_id !== undefined) updateData.payer_id = payer_id;
+    if (date !== undefined) updateData.date = date;
 
     // Recalculate TWD amount if needed
     if (original_amount !== undefined || exchange_rate !== undefined) {
@@ -344,15 +346,37 @@ export async function updateExpense(
 
     if (updateError) throw updateError;
 
-    // Update splits if amount changed
-    if (updateData.amount !== undefined) {
-      const { data: splits } = await supabase
+    // Update splits if provided or if amount changed
+    if (splits !== undefined) {
+      // Delete existing splits
+      const { error: deleteSplitsError } = await supabase
+        .from('expense_splits')
+        .delete()
+        .eq('expense_id', expenseId);
+
+      if (deleteSplitsError) throw deleteSplitsError;
+
+      // Insert new splits
+      const newSplits = splits.map((split) => ({
+        expense_id: expenseId,
+        user_id: split.user_id,
+        share_amount: split.share_amount,
+      }));
+
+      const { error: insertSplitsError } = await supabase
+        .from('expense_splits')
+        .insert(newSplits);
+
+      if (insertSplitsError) throw insertSplitsError;
+    } else if (updateData.amount !== undefined) {
+      // If splits not provided but amount changed, update existing splits proportionally
+      const { data: existingSplits } = await supabase
         .from('expense_splits')
         .select('id')
         .eq('expense_id', expenseId);
 
-      if (splits && splits.length > 0) {
-        const shareAmount = (updateData.amount as number) / splits.length;
+      if (existingSplits && existingSplits.length > 0) {
+        const shareAmount = (updateData.amount as number) / existingSplits.length;
 
         const { error: updateSplitsError } = await supabase
           .from('expense_splits')

@@ -19,8 +19,7 @@ import {
   TripHeader,
   TripExpenses,
   TripSettlement,
-  AddExpenseDialog,
-  EditExpenseDialog,
+  ExpenseFormDialog,
   EditTripDialog,
 } from '@/components/trips';
 import {
@@ -182,11 +181,14 @@ export default function TripDetailPage() {
 
     try {
       const result = await updateExpense(tripId, editingExpense.id, {
-        description: data.description.trim(),
+        payer_id: data.payer_id,
         original_amount: parseFloat(data.original_amount),
         currency: data.currency,
         exchange_rate: parseFloat(data.exchange_rate),
+        description: data.description.trim(),
         category: data.category,
+        date: data.date,
+        splits: data.splits,
       });
 
       if (!result.success) {
@@ -355,7 +357,8 @@ export default function TripDetailPage() {
       </Container>
 
       {/* Dialogs */}
-      <AddExpenseDialog
+      <ExpenseFormDialog
+        mode="add"
         open={showAddExpense}
         onClose={() => setShowAddExpense(false)}
         onSubmit={handleAddExpense}
@@ -363,11 +366,14 @@ export default function TripDetailPage() {
         currentUser={currentUser}
       />
 
-      <EditExpenseDialog
+      <ExpenseFormDialog
+        mode="edit"
         open={editExpenseDialog}
         onClose={() => setEditExpenseDialog(false)}
         onSubmit={handleEditExpense}
         expense={editingExpense}
+        members={members}
+        currentUser={currentUser}
       />
 
       <EditTripDialog
