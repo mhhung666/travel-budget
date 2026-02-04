@@ -1,7 +1,7 @@
 'use client';
 
 import { Box, Container, Typography, Button } from '@mui/material';
-import { Compass, ArrowRight } from 'lucide-react';
+import Image from 'next/image';
 import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 
@@ -27,22 +27,25 @@ export default function Hero() {
                         mx: { xs: 'auto', md: 0 },
                     }}
                 >
-                    {/* Icon */}
+                    {/* Fun Image */}
                     <Box
                         sx={{
                             display: 'inline-flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            width: { xs: 64, sm: 80 },
-                            height: { xs: 64, sm: 80 },
-                            borderRadius: '20px',
-                            bgcolor: 'primary.main',
+                            width: { xs: 120, sm: 180, md: 240 },
+                            height: { xs: 120, sm: 180, md: 240 },
                             mb: { xs: 3, sm: 4 },
+                            position: 'relative',
                         }}
                     >
-                        <Box component="span" sx={{ fontSize: { xs: 36, sm: 48 }, color: 'white', display: 'flex' }}>
-                            <Compass size={undefined} width="1em" height="1em" />
-                        </Box>
+                        <Image
+                            src="/take-my-money.png"
+                            alt="Take my money!"
+                            fill
+                            style={{ objectFit: 'contain' }}
+                            priority
+                        />
                     </Box>
 
                     {/* Title */}
