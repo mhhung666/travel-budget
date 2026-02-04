@@ -321,16 +321,20 @@ export default function TripDetailPage() {
           )}
         </Box>
 
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '2fr 1fr' }, gap: 3 }}>
-          {/* 旅行資訊卡片 */}
-          <Box>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '3fr 7fr' }, gap: 3 }}>
+          {/* 左側：旅行資訊 & 結算功能 */}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             <TripHeader
               trip={trip}
               isCurrentUserAdmin={!!isCurrentUserAdmin}
               onEdit={() => setEditTripDialog(true)}
             />
 
-            {/* 支出列表 */}
+            <TripSettlement tripId={tripId} />
+          </Box>
+
+          {/* 右側：支出紀錄 */}
+          <Box>
             <TripExpenses
               expenses={expenses}
               members={members}
@@ -346,12 +350,6 @@ export default function TripDetailPage() {
               expanded={expensesExpanded}
               onToggleExpand={() => setExpensesExpanded(!expensesExpanded)}
             />
-          </Box>
-
-          {/* 側邊欄 */}
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            {/* 結算按鈕 */}
-            <TripSettlement tripId={tripId} />
           </Box>
         </Box>
       </Container>
