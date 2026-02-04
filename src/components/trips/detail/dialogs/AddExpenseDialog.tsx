@@ -116,52 +116,62 @@ export default function AddExpenseDialog({
         }
     }, [open, currentUser, members]);
 
-    // Calculate Splits Logic
-    const { calculatedSplits, isValidSplit, splitWarning } = (() => {
-        const totalAmount = (parseFloat(form.original_amount) || 0) * (parseFloat(form.exchange_rate) || 1);
+    // Calculate Splits Logic (in original currency)
+    const { calculatedSplitsOriginal, calculatedSplitsTWD, isValidSplit, splitWarning } = (() => {
+        const originalAmount = parseFloat(form.original_amount) || 0;
+        const exchangeRate = parseFloat(form.exchange_rate) || 1;
+        const totalAmountTWD = originalAmount * exchangeRate;
 
-        let manualSum = 0;
+        let manualSumOriginal = 0;
         let autoCheckCount = 0;
-        const result: Record<number, number> = {};
+        const resultOriginal: Record<number, number> = {};
+        const resultTWD: Record<number, number> = {};
 
-        // 1. First pass: Sum manual amounts and count auto-selected
+        // 1. First pass: Sum manual amounts (in original currency) and count auto-selected
         members.forEach(m => {
             const state = splitState[m.id];
             if (!state?.selected) {
-                result[m.id] = 0;
+                resultOriginal[m.id] = 0;
+                resultTWD[m.id] = 0;
                 return;
             }
 
             if (state.manualAmount !== '') {
-                const val = parseFloat(state.manualAmount) || 0;
-                manualSum += val;
-                result[m.id] = val;
+                const valOriginal = parseFloat(state.manualAmount) || 0;
+                manualSumOriginal += valOriginal;
+                resultOriginal[m.id] = valOriginal;
+                resultTWD[m.id] = valOriginal * exchangeRate;
             } else {
                 autoCheckCount++;
             }
         });
 
-        // 2. Distribute remaining amount
-        const remaining = Math.max(0, totalAmount - manualSum);
+        // 2. Distribute remaining amount (in original currency)
+        const remainingOriginal = Math.max(0, originalAmount - manualSumOriginal);
+        const manualSumTWD = manualSumOriginal * exchangeRate;
+
         // Warning if manual exceeds total or no one to split remaining
         let warning = '';
-        if (manualSum > totalAmount + 0.5) warning = tCommon('error.splitExceedsTotal'); // Tolerance 0.5
-        if (remaining > 0.5 && autoCheckCount === 0) warning = tCommon('error.splitNotFullyAllocated');
+        if (manualSumTWD > totalAmountTWD + 0.5) warning = tCommon('error.splitExceedsTotal');
+        if (remainingOriginal > 0.01 && autoCheckCount === 0) warning = tCommon('error.splitNotFullyAllocated');
 
-        // 3. Assign auto amounts
+        // 3. Assign auto amounts (in original currency)
         if (autoCheckCount > 0) {
-            const perPerson = remaining / autoCheckCount;
+            const perPersonOriginal = remainingOriginal / autoCheckCount;
+            const perPersonTWD = perPersonOriginal * exchangeRate;
             members.forEach(m => {
                 const state = splitState[m.id];
                 if (state?.selected && state.manualAmount === '') {
-                    result[m.id] = perPerson;
+                    resultOriginal[m.id] = perPersonOriginal;
+                    resultTWD[m.id] = perPersonTWD;
                 }
             });
         }
 
         return {
-            calculatedSplits: result,
-            isValidSplit: !warning, // Strict check? maybe soft check
+            calculatedSplitsOriginal: resultOriginal,
+            calculatedSplitsTWD: resultTWD,
+            isValidSplit: !warning,
             splitWarning: warning
         };
     })();
@@ -176,12 +186,12 @@ export default function AddExpenseDialog({
         }
 
         try {
-            // Construct splits array
+            // Construct splits array (using TWD amounts for storage)
             const finalSplits = members
                 .filter(m => splitState[m.id]?.selected)
                 .map(m => ({
                     user_id: m.id,
-                    share_amount: calculatedSplits[m.id] // Use the calculated (TWD) amount
+                    share_amount: calculatedSplitsTWD[m.id] // Use the calculated TWD amount
                 }));
 
             if (finalSplits.length === 0) {
@@ -409,7 +419,7 @@ export default function AddExpenseDialog({
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                             {members.map((member) => {
                                 const state = splitState[member.id] || { selected: false, manualAmount: '' };
-                                const amount = calculatedSplits[member.id] || 0;
+                                const amountOriginal = calculatedSplitsOriginal[member.id] || 0;
                                 const isManual = state.manualAmount !== '';
 
                                 return (
@@ -446,10 +456,12 @@ export default function AddExpenseDialog({
 
                                         {state.selected ? (
                                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                                {/* <Typography variant="caption" color="text.secondary">TWD</Typography> */}
+                                                <Typography variant="caption" color="text.secondary" sx={{ minWidth: '35px', textAlign: 'right' }}>
+                                                    {form.currency}
+                                                </Typography>
                                                 <TextField
                                                     variant="standard"
-                                                    placeholder={amount.toFixed(0)}
+                                                    placeholder={amountOriginal.toFixed(form.currency === 'JPY' ? 0 : 2)}
                                                     value={state.manualAmount}
                                                     onChange={(e) => handleManualAmountChange(member.id, e.target.value)}
                                                     type="number"
@@ -466,7 +478,8 @@ export default function AddExpenseDialog({
                                                             px: 1
                                                         },
                                                         inputProps: {
-                                                            style: { textAlign: 'right' }
+                                                            style: { textAlign: 'right' },
+                                                            step: form.currency === 'JPY' ? '1' : '0.01'
                                                         }
                                                     }}
                                                 />
