@@ -13,7 +13,7 @@ const protectedRoutes = ['/trips', '/settings'];
 // 定義已登入用戶不應訪問的路由（如登入頁）
 const authRoutes = ['/login'];
 
-export async function proxy(request: NextRequest) {
+export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // 首先運行 i18n middleware
@@ -61,8 +61,9 @@ export const config = {
      * - api (API routes)
      * - _next/static (static files)
      * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
+     * - _vercel (vercel files)
+     * - 所有靜態檔案（帶副檔名的檔案，如 .png, .jpg, .svg 等）
      */
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+    '/((?!api|_next|_vercel|.*\\..*).*)',
   ],
 };
