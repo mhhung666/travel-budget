@@ -13,3 +13,6 @@ export * from './expenses';
 
 // Member components
 export * from './member';
+
+// Stats components
+export * from './stats';
