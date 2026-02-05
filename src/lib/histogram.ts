@@ -1,0 +1,158 @@
+import type { CategoryStat, HistogramData, TimeInterval, HistogramDataPoint } from '@/types';
+
+/**
+ * 根據時間區間聚合支出數據
+ */
+export function aggregateExpensesByInterval(
+  categoryStats: CategoryStat[],
+  interval: TimeInterval,
+  startDate: string,
+  endDate: string,
+  locale: string
+): HistogramData {
+  // 1. 提取所有 expense details
+  const allExpenses = categoryStats.flatMap(cat => cat.details);
+
+  // 2. 根據區間生成時段列表
+  const periods = generatePeriods(interval, startDate, endDate);
+
+  // 3. 將 expenses 分配到各時段
+  const dataPoints: HistogramDataPoint[] = periods.map(period => {
+    const periodExpenses = allExpenses.filter(exp =>
+      exp.date >= period.startDate && exp.date <= period.endDate
+    );
+
+    return {
+      period: formatPeriodLabel(period, interval, locale),
+      amount: periodExpenses.reduce((sum, exp) => sum + exp.amount, 0),
+      count: periodExpenses.length,
+      startDate: period.startDate,
+      endDate: period.endDate,
+    };
+  });
+
+  return {
+    interval,
+    dataPoints,
+    totalAmount: dataPoints.reduce((sum, dp) => sum + dp.amount, 0),
+    totalCount: dataPoints.reduce((sum, dp) => sum + dp.count, 0),
+  };
+}
+
+/**
+ * 生成時段列表
+ */
+function generatePeriods(
+  interval: TimeInterval,
+  startDate: string,
+  endDate: string
+): Array<{ startDate: string; endDate: string }> {
+  const periods: Array<{ startDate: string; endDate: string }> = [];
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+
+  let current = new Date(start);
+
+  while (current <= end) {
+    let periodEnd: Date;
+
+    switch (interval) {
+      case 'year': {
+        // 按月分組
+        const monthStart = new Date(current.getFullYear(), current.getMonth(), 1);
+        periodEnd = new Date(current.getFullYear(), current.getMonth() + 1, 0);
+        periods.push({
+          startDate: monthStart.toISOString().split('T')[0],
+          endDate: periodEnd.toISOString().split('T')[0],
+        });
+        current = new Date(current.getFullYear(), current.getMonth() + 1, 1);
+        break;
+      }
+      case 'halfYear': {
+        // 按兩週分組
+        periodEnd = new Date(current);
+        periodEnd.setDate(periodEnd.getDate() + 13); // 14 天
+        if (periodEnd > end) periodEnd = new Date(end);
+        periods.push({
+          startDate: current.toISOString().split('T')[0],
+          endDate: periodEnd.toISOString().split('T')[0],
+        });
+        current = new Date(periodEnd);
+        current.setDate(current.getDate() + 1);
+        break;
+      }
+      case 'quarter': {
+        // 按週分組
+        periodEnd = new Date(current);
+        periodEnd.setDate(periodEnd.getDate() + 6); // 7 天
+        if (periodEnd > end) periodEnd = new Date(end);
+        periods.push({
+          startDate: current.toISOString().split('T')[0],
+          endDate: periodEnd.toISOString().split('T')[0],
+        });
+        current = new Date(periodEnd);
+        current.setDate(current.getDate() + 1);
+        break;
+      }
+      case 'month': {
+        // 按日分組
+        periods.push({
+          startDate: current.toISOString().split('T')[0],
+          endDate: current.toISOString().split('T')[0],
+        });
+        current.setDate(current.getDate() + 1);
+        break;
+      }
+    }
+
+    // 防止無限循環
+    if (periods.length > 365) break;
+  }
+
+  return periods;
+}
+
+/**
+ * 格式化時段標籤（支持多語言）
+ */
+function formatPeriodLabel(
+  period: { startDate: string; endDate: string },
+  interval: TimeInterval,
+  locale: string
+): string {
+  const startDate = new Date(period.startDate);
+  const intlLocale = locale === 'zh' ? 'zh-TW' : locale === 'jp' ? 'ja-JP' : locale === 'zh-CN' ? 'zh-CN' : 'en-US';
+
+  switch (interval) {
+    case 'year':
+      // "1月", "Jan", "1月"
+      return new Intl.DateTimeFormat(intlLocale, { month: 'short' }).format(startDate);
+    case 'halfYear':
+    case 'quarter': {
+      // "W1", "第1週"
+      const start = new Date(period.startDate);
+      const monthStart = new Date(start.getFullYear(), start.getMonth(), 1);
+      const weekNum = Math.ceil((start.getDate() + monthStart.getDay()) / 7);
+      return locale === 'en' ? `W${weekNum}` : `第${weekNum}週`;
+    }
+    case 'month':
+      // "1", "15", "31"
+      return startDate.getDate().toString();
+    default:
+      return period.startDate;
+  }
+}
+
+/**
+ * 根據日期範圍推薦時間區間
+ */
+export function suggestInterval(startDate: string, endDate: string): TimeInterval {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+
+  if (days > 270) return 'year';      // > 9個月 → 年度視圖
+  if (days > 120) return 'halfYear';  // > 4個月 → 半年視圖
+  if (days > 60) return 'quarter';    // > 2個月 → 季度視圖
+  return 'month';                     // <= 2個月 → 月度視圖
+}

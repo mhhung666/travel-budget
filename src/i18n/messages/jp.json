@@ -368,7 +368,12 @@
     "countries": "か国",
     "trips": "回の旅行",
     "noData": "データがありません",
-    "noDescription": "説明なし"
+    "noDescription": "説明なし",
+    "expenseHistogram": "支出トレンド",
+    "intervalYear": "年間",
+    "intervalHalfYear": "半年",
+    "intervalQuarter": "四半期",
+    "intervalMonth": "月間"
   },
   "trip": {
     "info": "旅行情報",

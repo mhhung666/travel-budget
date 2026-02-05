@@ -12,7 +12,7 @@ import {
   Grid,
 } from '@mui/material';
 import Navbar from '@/components/layout/Navbar';
-import { StatsOverviewCard, CategoryStats, CountryStats } from '@/components/stats';
+import { StatsOverviewCard, CategoryStats, CountryStats, ExpenseHistogram } from '@/components/stats';
 import type { StatsData } from '@/types';
 import { getCurrentUser, getStats } from '@/actions';
 
@@ -159,6 +159,16 @@ export default function StatsPage() {
             formatCurrency={formatCurrency}
             highlightGradient={highlightGradient}
             t={t}
+          />
+
+          <ExpenseHistogram
+            categoryStats={stats?.categoryStats || []}
+            startDate={startDate}
+            endDate={endDate}
+            formatCurrency={formatCurrency}
+            cardGradient={cardGradient}
+            t={t}
+            locale={locale}
           />
 
           <Grid container spacing={4}>

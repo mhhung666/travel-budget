@@ -363,7 +363,12 @@
     "countries": "countries",
     "trips": "trips",
     "noData": "No data yet",
-    "noDescription": "No description"
+    "noDescription": "No description",
+    "expenseHistogram": "Expense Trend",
+    "intervalYear": "Year",
+    "intervalHalfYear": "Half Year",
+    "intervalQuarter": "Quarter",
+    "intervalMonth": "Month"
   },
   "trip": {
     "info": "Trip Info",

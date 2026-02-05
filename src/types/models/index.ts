@@ -17,4 +17,7 @@ export type {
   RegionStat,
   CountryStat,
   StatsData,
+  TimeInterval,
+  HistogramDataPoint,
+  HistogramData,
 } from './stats';

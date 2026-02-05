@@ -368,7 +368,12 @@
     "countries": "個國家",
     "trips": "趟旅行",
     "noData": "尚無資料",
-    "noDescription": "無描述"
+    "noDescription": "無描述",
+    "expenseHistogram": "花費趨勢圖",
+    "intervalYear": "年度",
+    "intervalHalfYear": "半年",
+    "intervalQuarter": "季度",
+    "intervalMonth": "月度"
   },
   "trip": {
     "info": "旅行資訊",

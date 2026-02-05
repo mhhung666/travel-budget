@@ -1,0 +1,208 @@
+'use client';
+
+import { useState, useMemo } from 'react';
+import {
+  Box,
+  Card,
+  CardContent,
+  ToggleButtonGroup,
+  ToggleButton,
+  Typography,
+  useTheme,
+  alpha,
+} from '@mui/material';
+import { BarChart3 } from 'lucide-react';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+} from 'recharts';
+import { aggregateExpensesByInterval, suggestInterval } from '@/lib/histogram';
+import type { CategoryStat, TimeInterval } from '@/types';
+
+interface ExpenseHistogramProps {
+  categoryStats: CategoryStat[];
+  startDate: string;
+  endDate: string;
+  formatCurrency: (amount: number) => string;
+  cardGradient: string;
+  t: (key: string) => string;
+  locale: string;
+}
+
+export default function ExpenseHistogram({
+  categoryStats,
+  startDate,
+  endDate,
+  formatCurrency,
+  cardGradient,
+  t,
+  locale,
+}: ExpenseHistogramProps) {
+  const theme = useTheme();
+
+  // 初始區間：智能推薦
+  const defaultInterval = useMemo(
+    () => (startDate && endDate ? suggestInterval(startDate, endDate) : 'year'),
+    [startDate, endDate]
+  );
+
+  const [interval, setInterval] = useState<TimeInterval>(defaultInterval);
+
+  // 聚合數據
+  const histogramData = useMemo(() => {
+    if (!startDate || !endDate) return null;
+    return aggregateExpensesByInterval(
+      categoryStats,
+      interval,
+      startDate,
+      endDate,
+      locale
+    );
+  }, [categoryStats, interval, startDate, endDate, locale]);
+
+  // 自定義 Tooltip
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (!active || !payload?.[0]) return null;
+    const data = payload[0].payload;
+
+    return (
+      <Box
+        sx={{
+          bgcolor: alpha(theme.palette.background.paper, 0.95),
+          backdropFilter: 'blur(10px)',
+          border: `1px solid ${theme.palette.divider}`,
+          borderRadius: 2,
+          p: 1.5,
+          boxShadow: 3,
+        }}
+      >
+        <Typography variant="caption" fontWeight={600} display="block">
+          {data.period}
+        </Typography>
+        <Typography variant="body2" color="primary.main" fontWeight={700}>
+          {formatCurrency(data.amount)}
+        </Typography>
+        <Typography variant="caption" color="text.secondary">
+          {data.count} {t('expenses')}
+        </Typography>
+      </Box>
+    );
+  };
+
+  return (
+    <Card
+      elevation={0}
+      sx={{
+        background: cardGradient,
+        borderRadius: 4,
+        border: '1px solid',
+        borderColor: 'divider',
+        mb: 4,
+      }}
+    >
+      <CardContent sx={{ p: { xs: 2, md: 3 } }}>
+        {/* Header */}
+        <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Box
+              sx={{
+                p: 1,
+                borderRadius: 2,
+                bgcolor: 'primary.main',
+                color: 'primary.contrastText',
+                display: 'flex',
+                boxShadow: '0 4px 6px -1px rgba(99, 102, 241, 0.4)',
+              }}
+            >
+              <BarChart3 size={20} />
+            </Box>
+            <Typography variant="h5" fontWeight={700}>
+              {t('expenseHistogram')}
+            </Typography>
+          </Box>
+
+          {/* 時間區間選擇器 */}
+          <ToggleButtonGroup
+            value={interval}
+            exclusive
+            onChange={(_, newInterval) => {
+              if (newInterval) setInterval(newInterval);
+            }}
+            size="small"
+            sx={{
+              '& .MuiToggleButton-root': {
+                px: 2,
+                py: 0.5,
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                border: `1px solid ${theme.palette.divider}`,
+                '&.Mui-selected': {
+                  bgcolor: 'primary.main',
+                  color: 'primary.contrastText',
+                  '&:hover': {
+                    bgcolor: 'primary.dark',
+                  },
+                },
+              },
+            }}
+          >
+            <ToggleButton value="year">{t('intervalYear')}</ToggleButton>
+            <ToggleButton value="halfYear">{t('intervalHalfYear')}</ToggleButton>
+            <ToggleButton value="quarter">{t('intervalQuarter')}</ToggleButton>
+            <ToggleButton value="month">{t('intervalMonth')}</ToggleButton>
+          </ToggleButtonGroup>
+        </Box>
+
+        {/* Chart */}
+        {histogramData && histogramData.dataPoints.length > 0 ? (
+          <Box sx={{ width: '100%', height: 350 }}>
+            <ResponsiveContainer>
+              <BarChart data={histogramData.dataPoints} margin={{ top: 10, right: 10, left: 10, bottom: 30 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
+                <XAxis
+                  dataKey="period"
+                  stroke={theme.palette.text.secondary}
+                  tick={{ fontSize: 12 }}
+                  angle={-45}
+                  textAnchor="end"
+                  height={60}
+                />
+                <YAxis
+                  stroke={theme.palette.text.secondary}
+                  tick={{ fontSize: 12 }}
+                  tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                />
+                <Tooltip content={<CustomTooltip />} cursor={{ fill: alpha(theme.palette.primary.main, 0.1) }} />
+                <Bar dataKey="amount" radius={[8, 8, 0, 0]}>
+                  {histogramData.dataPoints.map((entry, index) => (
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={
+                        entry.amount > 0
+                          ? theme.palette.primary.main
+                          : alpha(theme.palette.text.disabled, 0.3)
+                      }
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </Box>
+        ) : (
+          <Box sx={{ textAlign: 'center', py: 8 }}>
+            <BarChart3 size={48} strokeWidth={1} style={{ opacity: 0.3, marginBottom: 16 }} />
+            <Typography variant="body1" color="text.secondary">
+              {t('noData')}
+            </Typography>
+          </Box>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
