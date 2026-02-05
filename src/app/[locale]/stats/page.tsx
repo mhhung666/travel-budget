@@ -89,6 +89,11 @@ export default function StatsPage() {
     );
   };
 
+  const handleYearSelect = (year: number) => {
+    setStartDate(`${year}-01-01`);
+    setEndDate(`${year}-12-31`);
+  };
+
   if (loading && !stats) {
     return (
       <Box
@@ -150,6 +155,7 @@ export default function StatsPage() {
             endDate={endDate}
             onStartDateChange={setStartDate}
             onEndDateChange={setEndDate}
+            onYearSelect={handleYearSelect}
             formatCurrency={formatCurrency}
             highlightGradient={highlightGradient}
             t={t}

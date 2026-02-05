@@ -4,6 +4,7 @@ import {
   Box,
   Card,
   CardContent,
+  Chip,
   Stack,
   TextField,
   Typography,
@@ -22,6 +23,7 @@ interface StatsOverviewCardProps {
   endDate: string;
   onStartDateChange: (value: string) => void;
   onEndDateChange: (value: string) => void;
+  onYearSelect: (year: number) => void;
   formatCurrency: (amount: number) => string;
   highlightGradient: string;
   t: (key: string) => string;
@@ -34,10 +36,17 @@ export default function StatsOverviewCard({
   endDate,
   onStartDateChange,
   onEndDateChange,
+  onYearSelect,
   formatCurrency,
   highlightGradient,
   t,
 }: StatsOverviewCardProps) {
+  const currentYear = new Date().getFullYear();
+  const years = [currentYear - 2, currentYear - 1, currentYear, currentYear + 1];
+
+  const isYearSelected = (year: number) => {
+    return startDate === `${year}-01-01` && endDate === `${year}-12-31`;
+  };
   return (
     <Card
       elevation={0}
@@ -113,6 +122,30 @@ export default function StatsOverviewCard({
               <Typography variant="subtitle2" fontWeight={600} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <Calendar size={16} /> {t('dateRange')}
               </Typography>
+
+              {/* 年度快速選擇 */}
+              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                {years.map((year) => (
+                  <Chip
+                    key={year}
+                    label={`${year}`}
+                    onClick={() => onYearSelect(year)}
+                    variant={isYearSelected(year) ? 'filled' : 'outlined'}
+                    sx={{
+                      color: 'white',
+                      borderColor: 'rgba(255,255,255,0.3)',
+                      bgcolor: isYearSelected(year) ? 'rgba(255,255,255,0.25)' : 'transparent',
+                      fontWeight: isYearSelected(year) ? 700 : 500,
+                      '&:hover': {
+                        bgcolor: 'rgba(255,255,255,0.2)',
+                        borderColor: 'rgba(255,255,255,0.5)',
+                      },
+                      transition: 'all 0.2s',
+                    }}
+                  />
+                ))}
+              </Stack>
+
               <Stack direction="row" spacing={2}>
                 <TextField
                   type="date"
