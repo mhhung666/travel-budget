@@ -30,12 +30,13 @@ export default function Hero() {
                     {/* Fun Image */}
                     <Box
                         sx={{
-                            display: 'inline-flex',
+                            display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            width: { xs: 120, sm: 180, md: 240 },
-                            height: { xs: 120, sm: 180, md: 240 },
+                            width: { xs: 200, sm: 280, md: 360 },
+                            height: { xs: 200, sm: 280, md: 360 },
                             mb: { xs: 3, sm: 4 },
+                            mx: 'auto',
                             position: 'relative',
                         }}
                     >
