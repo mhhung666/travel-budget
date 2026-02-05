@@ -234,7 +234,7 @@ export default function TripSettingsPage() {
             : null
         }
         showUserMenu={true}
-        title={`${trip.name} - ${tTrip('settings')}`}
+        title={`${tTrip('settings')}`}
       />
 
       <Container maxWidth="md" sx={{ pt: { xs: 10, sm: 12 }, pb: 4 }}>

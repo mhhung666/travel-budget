@@ -121,23 +121,38 @@ function formatPeriodLabel(
   locale: string
 ): string {
   const startDate = new Date(period.startDate);
+  const endDate = new Date(period.endDate);
   const intlLocale = locale === 'zh' ? 'zh-TW' : locale === 'jp' ? 'ja-JP' : locale === 'zh-CN' ? 'zh-CN' : 'en-US';
 
   switch (interval) {
     case 'month':
-      // "1月", "Jan", "1月"
-      return new Intl.DateTimeFormat(intlLocale, { month: 'short' }).format(startDate);
+      // "1月", "Jan", "1月" 或跨年時顯示 "2024/1月"
+      const monthLabel = new Intl.DateTimeFormat(intlLocale, { month: 'short' }).format(startDate);
+      // 如果是跨年數據，加上年份
+      const currentYear = new Date().getFullYear();
+      if (startDate.getFullYear() !== currentYear) {
+        return `${startDate.getFullYear()}/${monthLabel}`;
+      }
+      return monthLabel;
     case 'biweekly':
     case 'week': {
-      // "W1", "第1週"
-      const start = new Date(period.startDate);
-      const monthStart = new Date(start.getFullYear(), start.getMonth(), 1);
-      const weekNum = Math.ceil((start.getDate() + monthStart.getDay()) / 7);
-      return locale === 'en' ? `W${weekNum}` : `第${weekNum}週`;
+      // 顯示日期範圍：如 "1/1-1/7" 或跨月時 "12/25-1/7"
+      const startMonth = startDate.getMonth() + 1;
+      const startDay = startDate.getDate();
+      const endMonth = endDate.getMonth() + 1;
+      const endDay = endDate.getDate();
+
+      if (startMonth === endMonth) {
+        // 同月：顯示 "1/1-7"
+        return `${startMonth}/${startDay}-${endDay}`;
+      } else {
+        // 跨月：顯示 "12/25-1/7"
+        return `${startMonth}/${startDay}-${endMonth}/${endDay}`;
+      }
     }
     case 'day':
-      // "1", "15", "31"
-      return startDate.getDate().toString();
+      // 顯示 "月/日" 格式，如 "1/15"
+      return `${startDate.getMonth() + 1}/${startDate.getDate()}`;
     default:
       return period.startDate;
   }

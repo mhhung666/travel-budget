@@ -107,6 +107,31 @@ export default function ExpenseHistogram({
     );
   }, [categoryStats, interval, startDate, endDate, locale]);
 
+  // 格式化日期範圍顯示
+  const formatDateRange = (startDate: string, endDate: string) => {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const dateFormat = locale === 'zh' ? 'zh-TW' : locale === 'jp' ? 'ja-JP' : locale === 'zh-CN' ? 'zh-CN' : 'en-US';
+
+    if (startDate === endDate) {
+      // 同一天
+      return new Intl.DateTimeFormat(dateFormat, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      }).format(start);
+    } else if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
+      // 同一個月
+      return `${new Intl.DateTimeFormat(dateFormat, { month: 'short', day: 'numeric' }).format(start)} - ${end.getDate()}`;
+    } else if (start.getFullYear() === end.getFullYear()) {
+      // 同一年
+      return `${new Intl.DateTimeFormat(dateFormat, { month: 'short', day: 'numeric' }).format(start)} - ${new Intl.DateTimeFormat(dateFormat, { month: 'short', day: 'numeric' }).format(end)}`;
+    } else {
+      // 跨年
+      return `${new Intl.DateTimeFormat(dateFormat, { year: 'numeric', month: 'short', day: 'numeric' }).format(start)} - ${new Intl.DateTimeFormat(dateFormat, { year: 'numeric', month: 'short', day: 'numeric' }).format(end)}`;
+    }
+  };
+
   // 自定義 Tooltip
   const CustomTooltip = ({ active, payload }: any) => {
     if (!active || !payload?.[0]) return null;
@@ -123,10 +148,10 @@ export default function ExpenseHistogram({
           boxShadow: 3,
         }}
       >
-        <Typography variant="caption" fontWeight={600} display="block">
-          {data.period}
+        <Typography variant="caption" fontWeight={600} display="block" sx={{ mb: 0.5 }}>
+          {formatDateRange(data.startDate, data.endDate)}
         </Typography>
-        <Typography variant="body2" color="primary.main" fontWeight={700}>
+        <Typography variant="h6" color="primary.main" fontWeight={700}>
           {formatCurrency(data.amount)}
         </Typography>
         <Typography variant="caption" color="text.secondary">
