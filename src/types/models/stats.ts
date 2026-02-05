@@ -33,7 +33,7 @@ export interface StatsData {
 }
 
 // 時間區間類型
-export type TimeInterval = 'year' | 'halfYear' | 'quarter' | 'month';
+export type TimeInterval = 'day' | 'week' | 'biweekly' | 'month';
 
 // 直方圖數據點
 export interface HistogramDataPoint {

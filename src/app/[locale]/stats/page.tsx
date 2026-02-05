@@ -12,7 +12,7 @@ import {
   Grid,
 } from '@mui/material';
 import Navbar from '@/components/layout/Navbar';
-import { StatsOverviewCard, CategoryStats, CountryStats, ExpenseHistogram } from '@/components/stats';
+import { StatsSummaryCard, DateRangeFilter, CategoryStats, CountryStats, ExpenseHistogram } from '@/components/stats';
 import type { StatsData } from '@/types';
 import { getCurrentUser, getStats } from '@/actions';
 
@@ -114,8 +114,6 @@ export default function StatsPage() {
     ? 'linear-gradient(135deg, #1E293B 0%, #0F172A 100%)'
     : 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)';
 
-  const highlightGradient = 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)';
-
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', pb: 8 }}>
       <Navbar
@@ -148,18 +146,27 @@ export default function StatsPage() {
             </Alert>
           )}
 
-          <StatsOverviewCard
-            totalAmount={stats?.totalAmount || 0}
-            totalExpenses={stats?.totalExpenses || 0}
-            startDate={startDate}
-            endDate={endDate}
-            onStartDateChange={setStartDate}
-            onEndDateChange={setEndDate}
-            onYearSelect={handleYearSelect}
-            formatCurrency={formatCurrency}
-            highlightGradient={highlightGradient}
-            t={t}
-          />
+          {/* 總支出和查詢區間卡片 */}
+          <Grid container spacing={3} sx={{ mb: 4 }}>
+            <Grid size={{ xs: 12, md: 5 }}>
+              <StatsSummaryCard
+                totalAmount={stats?.totalAmount || 0}
+                totalExpenses={stats?.totalExpenses || 0}
+                formatCurrency={formatCurrency}
+                t={t}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 7 }}>
+              <DateRangeFilter
+                startDate={startDate}
+                endDate={endDate}
+                onStartDateChange={setStartDate}
+                onEndDateChange={setEndDate}
+                onYearSelect={handleYearSelect}
+                t={t}
+              />
+            </Grid>
+          </Grid>
 
           <ExpenseHistogram
             categoryStats={stats?.categoryStats || []}

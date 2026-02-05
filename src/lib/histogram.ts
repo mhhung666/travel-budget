@@ -57,7 +57,7 @@ function generatePeriods(
     let periodEnd: Date;
 
     switch (interval) {
-      case 'year': {
+      case 'month': {
         // 按月分組
         const monthStart = new Date(current.getFullYear(), current.getMonth(), 1);
         periodEnd = new Date(current.getFullYear(), current.getMonth() + 1, 0);
@@ -68,7 +68,7 @@ function generatePeriods(
         current = new Date(current.getFullYear(), current.getMonth() + 1, 1);
         break;
       }
-      case 'halfYear': {
+      case 'biweekly': {
         // 按兩週分組
         periodEnd = new Date(current);
         periodEnd.setDate(periodEnd.getDate() + 13); // 14 天
@@ -81,7 +81,7 @@ function generatePeriods(
         current.setDate(current.getDate() + 1);
         break;
       }
-      case 'quarter': {
+      case 'week': {
         // 按週分組
         periodEnd = new Date(current);
         periodEnd.setDate(periodEnd.getDate() + 6); // 7 天
@@ -94,7 +94,7 @@ function generatePeriods(
         current.setDate(current.getDate() + 1);
         break;
       }
-      case 'month': {
+      case 'day': {
         // 按日分組
         periods.push({
           startDate: current.toISOString().split('T')[0],
@@ -124,18 +124,18 @@ function formatPeriodLabel(
   const intlLocale = locale === 'zh' ? 'zh-TW' : locale === 'jp' ? 'ja-JP' : locale === 'zh-CN' ? 'zh-CN' : 'en-US';
 
   switch (interval) {
-    case 'year':
+    case 'month':
       // "1月", "Jan", "1月"
       return new Intl.DateTimeFormat(intlLocale, { month: 'short' }).format(startDate);
-    case 'halfYear':
-    case 'quarter': {
+    case 'biweekly':
+    case 'week': {
       // "W1", "第1週"
       const start = new Date(period.startDate);
       const monthStart = new Date(start.getFullYear(), start.getMonth(), 1);
       const weekNum = Math.ceil((start.getDate() + monthStart.getDay()) / 7);
       return locale === 'en' ? `W${weekNum}` : `第${weekNum}週`;
     }
-    case 'month':
+    case 'day':
       // "1", "15", "31"
       return startDate.getDate().toString();
     default:
@@ -151,8 +151,8 @@ export function suggestInterval(startDate: string, endDate: string): TimeInterva
   const end = new Date(endDate);
   const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
 
-  if (days > 270) return 'year';      // > 9個月 → 年度視圖
-  if (days > 120) return 'halfYear';  // > 4個月 → 半年視圖
-  if (days > 60) return 'quarter';    // > 2個月 → 季度視圖
-  return 'month';                     // <= 2個月 → 月度視圖
+  if (days > 120) return 'month';     // > 4個月 → 按月統計
+  if (days > 60) return 'biweekly';   // > 2個月 → 按雙週統計
+  if (days > 2) return 'week';        // > 2天 → 按週統計
+  return 'day';                       // <= 2天 → 按日統計
 }

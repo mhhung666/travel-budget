@@ -35,7 +35,7 @@ export default function Hero() {
                             justifyContent: 'center',
                             width: { xs: 200, sm: 280, md: 360 },
                             height: { xs: 200, sm: 280, md: 360 },
-                            mb: { xs: 1, sm: 2 },
+                            mb: { xs: 0.5, sm: 1 },
                             mx: 'auto',
                             position: 'relative',
                         }}

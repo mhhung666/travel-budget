@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Box,
   Card,
@@ -46,13 +46,54 @@ export default function ExpenseHistogram({
 }: ExpenseHistogramProps) {
   const theme = useTheme();
 
+  // 計算日期範圍天數
+  const daysDiff = useMemo(() => {
+    if (!startDate || !endDate) return 0;
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    return Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+  }, [startDate, endDate]);
+
   // 初始區間：智能推薦
   const defaultInterval = useMemo(
-    () => (startDate && endDate ? suggestInterval(startDate, endDate) : 'year'),
+    () => (startDate && endDate ? suggestInterval(startDate, endDate) : 'day'),
     [startDate, endDate]
   );
 
   const [interval, setInterval] = useState<TimeInterval>(defaultInterval);
+
+  // 根據日期範圍決定可用的區間選項
+  const availableIntervals = useMemo(() => {
+    const intervals: TimeInterval[] = [];
+
+    // 按日：始終可用
+    intervals.push('day');
+
+    // 按週：> 2天時可用
+    if (daysDiff > 2) {
+      intervals.push('week');
+    }
+
+    // 按雙週：> 60天時可用
+    if (daysDiff > 60) {
+      intervals.push('biweekly');
+    }
+
+    // 按月：> 120天時可用
+    if (daysDiff > 120) {
+      intervals.push('month');
+    }
+
+    return intervals;
+  }, [daysDiff]);
+
+  // 當可用區間改變時，確保當前選擇的區間仍然可用
+  useEffect(() => {
+    if (!availableIntervals.includes(interval)) {
+      // 如果當前區間不可用，切換到第一個可用的區間
+      setInterval(availableIntervals[0] || 'day');
+    }
+  }, [availableIntervals, interval]);
 
   // 聚合數據
   const histogramData = useMemo(() => {
@@ -149,13 +190,24 @@ export default function ExpenseHistogram({
                     bgcolor: 'primary.dark',
                   },
                 },
+                '&.Mui-disabled': {
+                  opacity: 0.4,
+                },
               },
             }}
           >
-            <ToggleButton value="year">{t('intervalYear')}</ToggleButton>
-            <ToggleButton value="halfYear">{t('intervalHalfYear')}</ToggleButton>
-            <ToggleButton value="quarter">{t('intervalQuarter')}</ToggleButton>
-            <ToggleButton value="month">{t('intervalMonth')}</ToggleButton>
+            <ToggleButton value="day" disabled={!availableIntervals.includes('day')}>
+              {t('intervalDay')}
+            </ToggleButton>
+            <ToggleButton value="week" disabled={!availableIntervals.includes('week')}>
+              {t('intervalWeek')}
+            </ToggleButton>
+            <ToggleButton value="biweekly" disabled={!availableIntervals.includes('biweekly')}>
+              {t('intervalBiweekly')}
+            </ToggleButton>
+            <ToggleButton value="month" disabled={!availableIntervals.includes('month')}>
+              {t('intervalMonth')}
+            </ToggleButton>
           </ToggleButtonGroup>
         </Box>
 
