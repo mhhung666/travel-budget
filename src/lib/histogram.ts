@@ -58,27 +58,16 @@ function generatePeriods(
 
     switch (interval) {
       case 'month': {
-        // 按月分組
-        const monthStart = new Date(current.getFullYear(), current.getMonth(), 1);
-        periodEnd = new Date(current.getFullYear(), current.getMonth() + 1, 0);
+        // 按月分組 - 使用 UTC 時間避免時區問題
+        const year = current.getFullYear();
+        const month = current.getMonth();
+        const monthStart = new Date(Date.UTC(year, month, 1));
+        periodEnd = new Date(Date.UTC(year, month + 1, 0));
         periods.push({
-          startDate: monthStart.toISOString().split('T')[0],
-          endDate: periodEnd.toISOString().split('T')[0],
+          startDate: formatDateToString(monthStart),
+          endDate: formatDateToString(periodEnd),
         });
-        current = new Date(current.getFullYear(), current.getMonth() + 1, 1);
-        break;
-      }
-      case 'biweekly': {
-        // 按兩週分組
-        periodEnd = new Date(current);
-        periodEnd.setDate(periodEnd.getDate() + 13); // 14 天
-        if (periodEnd > end) periodEnd = new Date(end);
-        periods.push({
-          startDate: current.toISOString().split('T')[0],
-          endDate: periodEnd.toISOString().split('T')[0],
-        });
-        current = new Date(periodEnd);
-        current.setDate(current.getDate() + 1);
+        current = new Date(Date.UTC(year, month + 1, 1));
         break;
       }
       case 'week': {
@@ -87,8 +76,8 @@ function generatePeriods(
         periodEnd.setDate(periodEnd.getDate() + 6); // 7 天
         if (periodEnd > end) periodEnd = new Date(end);
         periods.push({
-          startDate: current.toISOString().split('T')[0],
-          endDate: periodEnd.toISOString().split('T')[0],
+          startDate: formatDateToString(current),
+          endDate: formatDateToString(periodEnd),
         });
         current = new Date(periodEnd);
         current.setDate(current.getDate() + 1);
@@ -97,8 +86,8 @@ function generatePeriods(
       case 'day': {
         // 按日分組
         periods.push({
-          startDate: current.toISOString().split('T')[0],
-          endDate: current.toISOString().split('T')[0],
+          startDate: formatDateToString(current),
+          endDate: formatDateToString(current),
         });
         current.setDate(current.getDate() + 1);
         break;
@@ -110,6 +99,16 @@ function generatePeriods(
   }
 
   return periods;
+}
+
+/**
+ * 將日期格式化為 YYYY-MM-DD 字符串，避免時區問題
+ */
+function formatDateToString(date: Date): string {
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 /**
@@ -134,7 +133,6 @@ function formatPeriodLabel(
         return `${startDate.getFullYear()}/${monthLabel}`;
       }
       return monthLabel;
-    case 'biweekly':
     case 'week': {
       // 顯示日期範圍：如 "1/1-1/7" 或跨月時 "12/25-1/7"
       const startMonth = startDate.getMonth() + 1;
@@ -166,8 +164,7 @@ export function suggestInterval(startDate: string, endDate: string): TimeInterva
   const end = new Date(endDate);
   const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
 
-  if (days > 120) return 'month';     // > 4個月 → 按月統計
-  if (days > 60) return 'biweekly';   // > 2個月 → 按雙週統計
+  if (days > 90) return 'month';      // > 3個月 → 按月統計
   if (days > 2) return 'week';        // > 2天 → 按週統計
   return 'day';                       // <= 2天 → 按日統計
 }

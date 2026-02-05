@@ -74,13 +74,8 @@ export default function ExpenseHistogram({
       intervals.push('week');
     }
 
-    // 按雙週：> 60天時可用
-    if (daysDiff > 60) {
-      intervals.push('biweekly');
-    }
-
-    // 按月：> 120天時可用
-    if (daysDiff > 120) {
+    // 按月：> 90天時可用
+    if (daysDiff > 90) {
       intervals.push('month');
     }
 
@@ -226,9 +221,6 @@ export default function ExpenseHistogram({
             </ToggleButton>
             <ToggleButton value="week" disabled={!availableIntervals.includes('week')}>
               {t('intervalWeek')}
-            </ToggleButton>
-            <ToggleButton value="biweekly" disabled={!availableIntervals.includes('biweekly')}>
-              {t('intervalBiweekly')}
             </ToggleButton>
             <ToggleButton value="month" disabled={!availableIntervals.includes('month')}>
               {t('intervalMonth')}
