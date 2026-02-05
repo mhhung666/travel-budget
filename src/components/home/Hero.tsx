@@ -40,7 +40,7 @@ export default function Hero() {
                         }}
                     >
                         <Image
-                            src="/take-my-money.png"
+                            src="/shut-up-and-take-my-money.png"
                             alt="Take my money!"
                             fill
                             style={{ objectFit: 'contain' }}
