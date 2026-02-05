@@ -16,6 +16,10 @@ import {
   Chip,
   Divider,
   Avatar,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
 } from '@mui/material';
 import {
   TrendingUp,
@@ -43,10 +47,42 @@ export default function SettlementPage() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [selectedCurrency, setSelectedCurrency] = useState('TWD');
+  const [exchangeRates, setExchangeRates] = useState<Record<string, number>>({ TWD: 1 });
+  const [loadingRates, setLoadingRates] = useState(false);
 
   useEffect(() => {
     loadSettlement();
+    loadExchangeRates();
   }, [tripId]);
+
+  const loadExchangeRates = async () => {
+    try {
+      setLoadingRates(true);
+      const response = await fetch('/api/exchange-rates');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.rates) {
+          setExchangeRates(data.rates);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load exchange rates:', err);
+    } finally {
+      setLoadingRates(false);
+    }
+  };
+
+  const convertAmount = (amount: number): number => {
+    if (selectedCurrency === 'TWD') return amount;
+    const rate = exchangeRates[selectedCurrency];
+    return rate ? amount / rate : amount;
+  };
+
+  const formatAmount = (amount: number): string => {
+    const converted = convertAmount(amount);
+    return converted.toFixed(selectedCurrency === 'JPY' ? 0 : 2);
+  };
 
   const loadSettlement = async () => {
     try {
@@ -281,20 +317,37 @@ export default function SettlementPage() {
           {/* 結算方案 */}
           <Card elevation={2}>
             <CardContent>
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="h6" fontWeight={600} component="span">
-                  {tSettlement('plan')}
-                </Typography>
-                {transactions.length > 0 && (
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    component="span"
-                    sx={{ ml: 1 }}
-                  >
-                    ({transactions.length} {tSettlement('transferCount')})
+              <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+                <Box>
+                  <Typography variant="h6" fontWeight={600} component="span">
+                    {tSettlement('plan')}
                   </Typography>
-                )}
+                  {transactions.length > 0 && (
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      component="span"
+                      sx={{ ml: 1 }}
+                    >
+                      ({transactions.length} {tSettlement('transferCount')})
+                    </Typography>
+                  )}
+                </Box>
+                <FormControl size="small" sx={{ minWidth: 120 }}>
+                  <InputLabel>{tSettlement('currency')}</InputLabel>
+                  <Select
+                    value={selectedCurrency}
+                    label={tSettlement('currency')}
+                    onChange={(e) => setSelectedCurrency(e.target.value)}
+                    disabled={loadingRates}
+                  >
+                    <MenuItem value="TWD">TWD</MenuItem>
+                    <MenuItem value="JPY">JPY</MenuItem>
+                    <MenuItem value="USD">USD</MenuItem>
+                    <MenuItem value="EUR">EUR</MenuItem>
+                    <MenuItem value="HKD">HKD</MenuItem>
+                  </Select>
+                </FormControl>
               </Box>
 
               {transactions.length === 0 ? (
@@ -367,8 +420,13 @@ export default function SettlementPage() {
                             {/* 金額與箭頭 */}
                             <Box sx={{ my: { xs: 1, sm: 0 }, textAlign: 'center' }}>
                               <Typography variant="h5" fontWeight={700} color="warning.dark">
-                                ${transaction.amount.toFixed(0)}
+                                {selectedCurrency} {formatAmount(transaction.amount)}
                               </Typography>
+                              {selectedCurrency !== 'TWD' && (
+                                <Typography variant="caption" color="text.secondary">
+                                  (TWD ${transaction.amount.toFixed(0)})
+                                </Typography>
+                              )}
                               <Box sx={{ display: { xs: 'block', sm: 'none' } }}>
                                 <Box component="span" sx={{ color: 'text.secondary', display: 'flex' }}>
                                   <ArrowDown />

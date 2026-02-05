@@ -269,7 +269,11 @@
     "payee": "受取者",
     "tip": "ヒント:",
     "tipContent": "これは最適化された最小送金回数のプランです。このプランに従って送金すれば清算完了です。",
-    "backToTrip": "旅行詳細に戻る"
+    "backToTrip": "旅行詳細に戻る",
+    "currency": "表示通貨",
+    "convertedAmount": "換算金額",
+    "loadingRates": "為替レート読み込み中...",
+    "ratesError": "為替レートの読み込みに失敗しました"
   },
   "currency": {
     "TWD": "台湾ドル",

@@ -269,7 +269,11 @@
     "payee": "收款人",
     "tip": "提示:",
     "tipContent": "这是经过优化的最少转账次数方案,按照此方案进行转账即可完成结算。",
-    "backToTrip": "返回旅行详情"
+    "backToTrip": "返回旅行详情",
+    "currency": "显示币种",
+    "convertedAmount": "换算金额",
+    "loadingRates": "加载汇率中...",
+    "ratesError": "无法加载汇率"
   },
   "currency": {
     "TWD": "新台币",

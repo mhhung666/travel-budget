@@ -269,7 +269,11 @@
     "payee": "收款人",
     "tip": "提示:",
     "tipContent": "這是經過優化的最少轉帳次數方案,按照此方案進行轉帳即可完成結算。",
-    "backToTrip": "返回旅行詳情"
+    "backToTrip": "返回旅行詳情",
+    "currency": "顯示幣別",
+    "convertedAmount": "換算金額",
+    "loadingRates": "載入匯率中...",
+    "ratesError": "無法載入匯率"
   },
   "currency": {
     "TWD": "新台幣",
