@@ -35,7 +35,7 @@ export default function Hero() {
                             justifyContent: 'center',
                             width: { xs: 200, sm: 280, md: 360 },
                             height: { xs: 200, sm: 280, md: 360 },
-                            mb: { xs: 3, sm: 4 },
+                            mb: { xs: 1, sm: 2 },
                             mx: 'auto',
                             position: 'relative',
                         }}
@@ -57,7 +57,7 @@ export default function Hero() {
                             fontWeight: 700,
                             color: 'text.primary',
                             mb: 2,
-                            fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' },
+                            fontSize: { xs: '1.75rem', sm: '2rem', md: '2.5rem' },
                         }}
                     >
                         {t('hero.title')}
@@ -69,7 +69,7 @@ export default function Hero() {
                             color: 'text.secondary',
                             mb: { xs: 4, sm: 6 },
                             fontWeight: 400,
-                            fontSize: { xs: '1rem', sm: '1.25rem' },
+                            fontSize: { xs: '0.875rem', sm: '1.1rem' },
                             px: { xs: 2, sm: 0 },
                         }}
                     >
