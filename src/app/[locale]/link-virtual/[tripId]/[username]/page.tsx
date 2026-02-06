@@ -6,20 +6,16 @@ import { useTranslations } from 'next-intl';
 import {
   Box,
   Container,
-  Card,
-  CardContent,
-  Typography,
   CircularProgress,
-  Alert,
-  Button,
 } from '@mui/material';
 import Navbar from '@/components/layout/Navbar';
 import {
   RegisterVirtualMemberDialog,
   LinkExistingMemberDialog,
 } from '@/components/trips';
-import { getCurrentUser, getTrip, getMembers } from '@/actions';
+import { getCurrentUser, getMembers } from '@/actions';
 import type { Trip, Member } from '@/types';
+import { InviteCard, ErrorView } from '@/components/link-virtual';
 
 export default function LinkVirtualMemberPage() {
   const router = useRouter();
@@ -148,20 +144,7 @@ export default function LinkVirtualMemberPage() {
       <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
         <Navbar user={null} showUserMenu={false} />
         <Container maxWidth="sm" sx={{ pt: { xs: 10, sm: 12 }, pb: 4 }}>
-          <Card>
-            <CardContent sx={{ textAlign: 'center', py: 4 }}>
-              <Alert severity="error" sx={{ mb: 3 }}>
-                {error}
-              </Alert>
-              <Button
-                variant="contained"
-                onClick={() => router.push('/')}
-                size="large"
-              >
-                {tError('goBack')}
-              </Button>
-            </CardContent>
-          </Card>
+          <ErrorView error={error} />
         </Container>
       </Box>
     );
@@ -173,25 +156,16 @@ export default function LinkVirtualMemberPage() {
         user={
           currentUser
             ? {
-                id: currentUser.id,
-                username: currentUser.display_name,
-                email: currentUser.email,
-              }
+              id: currentUser.id,
+              username: currentUser.display_name,
+              email: currentUser.email,
+            }
             : null
         }
         showUserMenu={!!currentUser}
       />
       <Container maxWidth="sm" sx={{ pt: { xs: 10, sm: 12 }, pb: 4 }}>
-        <Card>
-          <CardContent sx={{ py: 4 }}>
-            <Typography variant="h5" fontWeight={600} gutterBottom align="center">
-              {t('inviteTitle', { tripName: trip?.name || '' })}
-            </Typography>
-            <Typography variant="body1" color="text.secondary" align="center" sx={{ mt: 2 }}>
-              {t('inviteDescription', { memberName: virtualMember?.display_name || '' })}
-            </Typography>
-          </CardContent>
-        </Card>
+        <InviteCard trip={trip} virtualMember={virtualMember} />
       </Container>
 
       {/* Dialogs */}
