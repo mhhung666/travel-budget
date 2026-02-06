@@ -1,16 +1,16 @@
+'use client';
+
+import { useTranslations } from 'next-intl';
+import { AlertTriangle, Trash2, Loader2 } from 'lucide-react';
 import {
     Dialog,
-    DialogTitle,
     DialogContent,
-    DialogActions,
-    Alert,
-    Typography,
-    Box,
-    Button,
-    CircularProgress
-} from '@mui/material';
-import { AlertTriangle, Trash2 } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface DeleteTripDialogProps {
     open: boolean;
@@ -31,40 +31,52 @@ export default function DeleteTripDialog({
     const tCommon = useTranslations('common');
 
     return (
-        <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-            <DialogTitle>{tTrip('deleteConfirmTitle')}</DialogTitle>
-            <DialogContent>
-                <Alert severity="warning" sx={{ mb: 2 }} icon={<AlertTriangle size={24} />}>
-                    {tTrip('deleteConfirmWarning')}
-                </Alert>
-                <Typography>{tTrip('deleteConfirmMessage', { name: tripName || '' })}</Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                    {tTrip('deleteConfirmDetails')}
-                </Typography>
-                <Box component="ul" sx={{ pl: 2, mt: 1 }}>
-                    <Typography component="li" variant="body2">
-                        {tTrip('deleteItem1')}
-                    </Typography>
-                    <Typography component="li" variant="body2">
-                        {tTrip('deleteItem2')}
-                    </Typography>
-                    <Typography component="li" variant="body2">
-                        {tTrip('deleteItem3')}
-                    </Typography>
-                </Box>
+        <Dialog open={open} onOpenChange={(val) => !val && onClose()}>
+            <DialogContent className="sm:max-w-[500px]">
+                <DialogHeader>
+                    <DialogTitle>{tTrip('deleteConfirmTitle')}</DialogTitle>
+                </DialogHeader>
+
+                <div className="py-4 space-y-4">
+                    <Alert variant="destructive" className="bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-900">
+                        <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400" />
+                        <AlertTitle className="text-red-800 dark:text-red-300">Warning</AlertTitle>
+                        <AlertDescription className="text-red-700 dark:text-red-400">
+                            {tTrip('deleteConfirmWarning')}
+                        </AlertDescription>
+                    </Alert>
+
+                    <p>
+                        {tTrip('deleteConfirmMessage', { name: tripName || '' })}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                        {tTrip('deleteConfirmDetails')}
+                    </p>
+                    <ul className="list-disc pl-5 text-sm space-y-1 text-muted-foreground">
+                        <li>{tTrip('deleteItem1')}</li>
+                        <li>{tTrip('deleteItem2')}</li>
+                        <li>{tTrip('deleteItem3')}</li>
+                    </ul>
+                </div>
+
+                <DialogFooter>
+                    <Button variant="outline" onClick={onClose} disabled={isDeleting}>
+                        {tCommon('cancel')}
+                    </Button>
+                    <Button
+                        variant="destructive"
+                        onClick={onConfirm}
+                        disabled={isDeleting}
+                    >
+                        {isDeleting ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                            <Trash2 className="mr-2 h-4 w-4" />
+                        )}
+                        {isDeleting ? tTrip('deleting') : tTrip('confirmDelete')}
+                    </Button>
+                </DialogFooter>
             </DialogContent>
-            <DialogActions sx={{ px: 3, pb: 2 }}>
-                <Button onClick={onClose}>{tCommon('cancel')}</Button>
-                <Button
-                    onClick={onConfirm}
-                    color="error"
-                    variant="contained"
-                    disabled={isDeleting}
-                    startIcon={isDeleting ? <CircularProgress size={16} /> : <Trash2 size={20} />}
-                >
-                    {isDeleting ? tTrip('deleting') : tTrip('confirmDelete')}
-                </Button>
-            </DialogActions>
         </Dialog>
     );
 }

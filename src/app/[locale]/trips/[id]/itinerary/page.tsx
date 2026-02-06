@@ -4,16 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
-import {
-  Box,
-  Container,
-  Typography,
-  Button,
-  Alert,
-  CircularProgress,
-  Snackbar,
-} from '@mui/material';
-import { ArrowLeft, Plus } from 'lucide-react';
+import { ArrowLeft, Plus, Loader2 } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import { ItineraryDayCard, ItineraryDayDialog } from '@/components/trips/detail/itinerary';
 import type { ItineraryDay, Member } from '@/types';
@@ -26,12 +17,18 @@ import {
   deleteItineraryDay,
 } from '@/actions';
 
+import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { useToast } from '@/hooks/use-toast';
+
 export default function ItineraryPage() {
   const router = useRouter();
   const params = useParams();
   const tripId = params.id as string;
   const tItinerary = useTranslations('itinerary');
   const tError = useTranslations('error');
+
+  const { toast } = useToast();
 
   const [days, setDays] = useState<ItineraryDay[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
@@ -44,12 +41,6 @@ export default function ItineraryPage() {
   const [dialogMode, setDialogMode] = useState<'add' | 'edit'>('add');
   const [editingDay, setEditingDay] = useState<ItineraryDay | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
-
-  const [snackbar, setSnackbar] = useState({
-    open: false,
-    message: '',
-    severity: 'success' as 'success' | 'error',
-  });
 
   const isCurrentUserAdmin = members.find((m) => m.id === currentUser?.id)?.role === 'admin';
 
@@ -130,6 +121,11 @@ export default function ItineraryPage() {
   const handleDeleteDay = async (dayId: number) => {
     if (deleteConfirmId !== dayId) {
       setDeleteConfirmId(dayId);
+      toast({
+        title: "Confirm Delete",
+        description: "Click trash icon again to confirm deletion.",
+        variant: "destructive"
+      });
       return;
     }
 
@@ -137,11 +133,17 @@ export default function ItineraryPage() {
       const result = await deleteItineraryDay(tripId, dayId);
       if (!result.success) throw new Error(result.error);
 
-      setSnackbar({ open: true, message: tItinerary('success.deleted'), severity: 'success' });
+      toast({
+        title: tItinerary('success.deleted'),
+      });
       setDeleteConfirmId(null);
       await loadData();
     } catch (err: any) {
-      setSnackbar({ open: true, message: err.message, severity: 'error' });
+      toast({
+        title: "Error",
+        description: err.message,
+        variant: "destructive"
+      });
     }
   };
 
@@ -149,113 +151,98 @@ export default function ItineraryPage() {
     if (dialogMode === 'add') {
       const result = await createItineraryDay(tripId, data);
       if (!result.success) throw new Error(result.error);
-      setSnackbar({ open: true, message: tItinerary('success.created'), severity: 'success' });
+      toast({
+        title: tItinerary('success.created'),
+      });
     } else if (editingDay) {
       const result = await updateItineraryDay(tripId, editingDay.id, data);
       if (!result.success) throw new Error(result.error);
-      setSnackbar({ open: true, message: tItinerary('success.updated'), severity: 'success' });
+      toast({
+        title: tItinerary('success.updated'),
+      });
     }
     await loadData();
   };
 
   if (loading) {
     return (
-      <Box
-        sx={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          bgcolor: 'background.default',
-        }}
-      >
-        <CircularProgress size={60} />
-      </Box>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+      </div>
     );
   }
 
   if (error) {
     return (
-      <Box
-        sx={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Box sx={{ textAlign: 'center' }}>
-          <Alert severity="error" sx={{ mb: 3 }}>
-            {error}
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <div className="text-center max-w-md w-full">
+          <Alert variant="destructive" className="mb-6">
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
           </Alert>
-          <Button onClick={() => router.push(`/trips/${tripId}`)} variant="contained" size="large">
+          <Button onClick={() => router.push(`/trips/${tripId}`)} size="lg">
             {tItinerary('backToTrip')}
           </Button>
-        </Box>
-      </Box>
+        </div>
+      </div>
     );
   }
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
+    <div className="min-h-screen bg-background pb-12">
       <Navbar
         user={
           currentUser
             ? {
-                id: currentUser.id,
-                username: currentUser.display_name,
-                email: currentUser.email,
-              }
+              id: currentUser.id,
+              username: currentUser.display_name,
+              email: currentUser.email,
+            }
             : null
         }
         showUserMenu={true}
         title={tItinerary('title')}
       />
 
-      <Container maxWidth="lg" sx={{ pt: { xs: 10, sm: 12 }, pb: 4 }}>
+      <div className="container mx-auto max-w-4xl pt-24 px-4 sm:px-6">
         {/* Back button */}
         <Button
-          startIcon={<ArrowLeft />}
+          variant="ghost"
+          className="text-muted-foreground hover:text-foreground mb-6 -ml-2"
           onClick={() => router.push(`/trips/${tripId}`)}
-          sx={{
-            mb: 3,
-            textTransform: 'none',
-            color: 'text.secondary',
-            '&:hover': { color: 'text.primary' },
-          }}
         >
+          <ArrowLeft className="mr-2 h-4 w-4" />
           {tItinerary('backToTrip')}
         </Button>
 
         {/* Header with Add button */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-          <Typography variant="h5" fontWeight={700}>
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold">
             {tItinerary('title')}
-          </Typography>
+          </h1>
           {isCurrentUserAdmin && (
             <Button
-              variant="contained"
-              startIcon={<Plus size={18} />}
               onClick={handleAddDay}
-              sx={{ textTransform: 'none' }}
+              className="gap-2"
             >
+              <Plus className="h-4 w-4" />
               {tItinerary('addDay')}
             </Button>
           )}
-        </Box>
+        </div>
 
         {/* Day cards */}
         {days.length === 0 ? (
-          <Box sx={{ textAlign: 'center', py: 8 }}>
-            <Typography variant="h6" color="text.secondary" gutterBottom>
+          <div className="text-center py-12 border-2 border-dashed rounded-lg bg-muted/30">
+            <h3 className="text-xl font-semibold mb-2">
               {tItinerary('emptyState')}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
+            </h3>
+            <p className="text-muted-foreground">
               {tItinerary('emptyStateHint')}
-            </Typography>
-          </Box>
+            </p>
+          </div>
         ) : (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          <div className="flex flex-col gap-6">
             {days.map((day) => (
               <ItineraryDayCard
                 key={day.id}
@@ -265,9 +252,9 @@ export default function ItineraryPage() {
                 onDelete={handleDeleteDay}
               />
             ))}
-          </Box>
+          </div>
         )}
-      </Container>
+      </div>
 
       {/* Add/Edit Dialog */}
       <ItineraryDayDialog
@@ -277,22 +264,6 @@ export default function ItineraryPage() {
         onSubmit={handleDialogSubmit}
         day={editingDay}
       />
-
-      {/* Snackbar */}
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={3000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert
-          onClose={() => setSnackbar({ ...snackbar, open: false })}
-          severity={snackbar.severity}
-          sx={{ width: '100%' }}
-        >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
-    </Box>
+    </div>
   );
 }

@@ -4,23 +4,30 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
-import {
-  Box,
-  Container,
-  Button,
-  Alert,
-  CircularProgress,
-  Snackbar,
-} from '@mui/material';
-import { ArrowLeft, Settings, Map, Calculator } from 'lucide-react';
+import { ArrowLeft, Settings, Map, Calculator, Loader2 } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import type { Trip, Member, Expense } from '@/types';
 import {
   TripHeader,
   TripExpenses,
+  TripMembers,
+  TripSettlement,
+  TripShare,
+  TripDangerZone,
+} from '@/components/trips/detail';
+
+// Dialogs
+import {
   ExpenseFormDialog,
   EditTripDialog,
-} from '@/components/trips';
+  DeleteTripDialog,
+  AddVirtualMemberDialog,
+  RegisterVirtualMemberDialog,
+  LinkExistingMemberDialog,
+  RemoveMemberDialog,
+  ToggleAdminDialog,
+} from '@/components/trips/detail/dialogs';
+
 import {
   getCurrentUser,
   getTrip,
@@ -30,7 +37,15 @@ import {
   updateExpense,
   deleteExpense,
   updateTrip,
+  addVirtualMember,
+  deleteTrip,
+  removeMember,
+  updateMemberRole,
 } from '@/actions';
+
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export default function TripDetailPage() {
   const router = useRouter();
@@ -43,7 +58,8 @@ export default function TripDetailPage() {
   const tTrip = useTranslations('trip');
   const tTrips = useTranslations('trips');
   const tError = useTranslations('error');
-  const tAction = useTranslations('action');
+
+  const { toast } = useToast();
 
   const [trip, setTrip] = useState<Trip | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
@@ -58,15 +74,22 @@ export default function TripDetailPage() {
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [editTripDialog, setEditTripDialog] = useState(false);
 
-  const [snackbar, setSnackbar] = useState({
-    open: false,
-    message: '',
-    severity: 'success' as 'success' | 'error' | 'info',
-  });
+  // Member management dialogs
+  const [addVirtualMemberDialog, setAddVirtualMemberDialog] = useState(false);
+  const [registerVirtualDialog, setRegisterVirtualDialog] = useState(false);
+  const [linkExistingDialog, setLinkExistingDialog] = useState(false);
+  const [selectedVirtualMember, setSelectedVirtualMember] = useState<Member | null>(null);
+  const [deleteTripDialog, setDeleteTripDialog] = useState(false);
+  const [isDeletingTrip, setIsDeletingTrip] = useState(false);
+  const [removeMemberDialog, setRemoveMemberDialog] = useState(false);
+  const [selectedMemberToRemove, setSelectedMemberToRemove] = useState<Member | null>(null);
+  const [toggleAdminDialog, setToggleAdminDialog] = useState(false);
+  const [selectedMemberToToggle, setSelectedMemberToToggle] = useState<Member | null>(null);
 
   // Filter & Expand states
   const [filterMemberId, setFilterMemberId] = useState<number | 'all'>('all');
   const [expensesExpanded, setExpensesExpanded] = useState(true);
+  const [membersExpanded, setMembersExpanded] = useState(true);
 
   useEffect(() => {
     loadTripData();
@@ -154,12 +177,17 @@ export default function TripDetailPage() {
 
       setShowAddExpense(false);
       await loadTripData();
+      toast({
+        title: tExpense('success.added'),
+        description: tExpense('success.addedMessage'),
+      });
     } catch (err: any) {
       throw err; // Let dialog handle error display
     }
   };
 
   const handleDeleteExpense = async (expenseId: number) => {
+    // Note: Ideally confirm via a dialog, but simple confirm for now is fine or use toast undo style
     if (!confirm(tExpense('confirm.delete'))) return;
 
     try {
@@ -170,8 +198,16 @@ export default function TripDetailPage() {
       }
 
       await loadTripData();
+      toast({
+        title: "Deleted",
+        description: tExpense('success.deleted'),
+      });
     } catch (err: any) {
-      alert(err.message);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: err.message,
+      });
     }
   };
 
@@ -194,10 +230,12 @@ export default function TripDetailPage() {
         throw new Error(result.error);
       }
 
-      setSnackbar({ open: true, message: tExpense('success.updated'), severity: 'success' });
       setEditExpenseDialog(false);
       setEditingExpense(null);
       await loadTripData();
+      toast({
+        title: tExpense('success.updated'),
+      });
     } catch (err: any) {
       throw err;
     }
@@ -218,11 +256,91 @@ export default function TripDetailPage() {
         throw new Error(result.error);
       }
 
-      setSnackbar({ open: true, message: tTrip('editSuccess'), severity: 'success' });
       setEditTripDialog(false);
       await loadTripData();
+      toast({
+        title: tTrip('editSuccess'),
+      });
     } catch (err: any) {
       throw err;
+    }
+  };
+
+  const handleAddVirtualMember = async (name: string) => {
+    try {
+      const result = await addVirtualMember(tripId, { display_name: name.trim() });
+      if (!result.success) throw new Error(result.error);
+
+      setAddVirtualMemberDialog(false);
+      await getMembers(tripId).then(res => res.success && setMembers(res.data));
+      toast({
+        title: tMember('success.added'),
+      });
+    } catch (err: any) {
+      throw err;
+    }
+  };
+
+  const handleDeleteTrip = async () => {
+    setIsDeletingTrip(true);
+    try {
+      const result = await deleteTrip(tripId);
+      if (!result.success) throw new Error(result.error);
+
+      router.push('/trips');
+      toast({
+        title: tTrip('deleteSuccess'),
+      });
+    } catch (err: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: err.message,
+      });
+      setIsDeletingTrip(false);
+    }
+  };
+
+  const handleRemoveMember = async () => {
+    if (!selectedMemberToRemove) return;
+    try {
+      const result = await removeMember(tripId, selectedMemberToRemove.id);
+      if (!result.success) throw new Error(result.error);
+
+      setRemoveMemberDialog(false);
+      setSelectedMemberToRemove(null);
+      await loadTripData();
+      toast({
+        title: tMember('success.removed'),
+      });
+    } catch (err: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: err.message,
+      });
+    }
+  };
+
+  const handleToggleAdmin = async () => {
+    if (!selectedMemberToToggle) return;
+    try {
+      const newRole = selectedMemberToToggle.role === 'admin' ? 'member' : 'admin';
+      const result = await updateMemberRole(tripId, selectedMemberToToggle.id, newRole);
+      if (!result.success) throw new Error(result.error);
+
+      setToggleAdminDialog(false);
+      setSelectedMemberToToggle(null);
+      await loadTripData();
+      toast({
+        title: newRole === 'admin' ? tMember('success.promoted') : tMember('success.demoted'),
+      });
+    } catch (err: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: err.message,
+      });
     }
   };
 
@@ -232,46 +350,32 @@ export default function TripDetailPage() {
 
   if (loading) {
     return (
-      <Box
-        sx={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          bgcolor: 'background.default',
-        }}
-      >
-        <CircularProgress size={60} />
-      </Box>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+      </div>
     );
   }
 
   if (error) {
     return (
-      <Box
-        sx={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Box sx={{ textAlign: 'center' }}>
-          <Alert severity="error" sx={{ mb: 3 }}>
-            {error}
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <div className="text-center max-w-md w-full">
+          <Alert variant="destructive" className="mb-6">
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
           </Alert>
-          <Button onClick={() => router.push('/trips')} variant="contained" size="large">
+          <Button onClick={() => router.push('/trips')} size="lg">
             {tTrips('detail.backToTrips')}
           </Button>
-        </Box>
-      </Box>
+        </div>
+      </div>
     );
   }
 
   if (!trip) return null;
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
+    <div className="min-h-screen bg-background pb-12">
       <Navbar
         user={
           currentUser
@@ -286,78 +390,102 @@ export default function TripDetailPage() {
         title={trip.name}
       />
 
-      <Container maxWidth="lg" sx={{ pt: { xs: 10, sm: 12 }, pb: 4 }}>
-        {/* 返回按鈕 & 設定按鈕 */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+      <div className="container mx-auto max-w-6xl pt-24 px-4 sm:px-6">
+        {/* Navigation & Header Actions */}
+        <div className="flex justify-between items-center mb-6">
           <Button
-            startIcon={<ArrowLeft />}
+            variant="ghost"
+            className="text-muted-foreground hover:text-foreground -ml-2"
             onClick={() => router.push('/trips')}
-            sx={{
-              textTransform: 'none',
-              color: 'text.secondary',
-              '&:hover': {
-                color: 'text.primary',
-              },
-            }}
           >
+            <ArrowLeft className="mr-2 h-4 w-4" />
             {tTrips('detail.backToTrips')}
           </Button>
 
           {isCurrentUserMember && (
             <Button
-              startIcon={<Settings />}
+              variant="outline"
               onClick={() => router.push(`/trips/${tripId}/settings`)}
-              sx={{
-                textTransform: 'none',
-                color: 'text.secondary',
-                '&:hover': {
-                  color: 'text.primary',
-                },
-              }}
+              className="gap-2"
             >
-              {tTrip('settings')}
+              <Settings className="h-4 w-4" />
+              <span className="hidden sm:inline">{tTrip('settings')}</span>
             </Button>
           )}
-        </Box>
+        </div>
 
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '3fr 7fr' }, gap: 3 }}>
-          {/* 左側：旅行資訊 & 操作按鈕 */}
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr] gap-6">
+          {/* Left Column: Sidebar (Info, Members, Settlement, Quick Actions) */}
+          <div className="space-y-6 flex flex-col h-full">
             <TripHeader
               trip={trip}
               isCurrentUserAdmin={!!isCurrentUserAdmin}
               onEdit={() => setEditTripDialog(true)}
             />
 
-            {/* Action buttons */}
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+            {/* Quick Actions / Navigation */}
+            <div className="grid grid-cols-1 gap-3">
+              {/* Mobile View: Show these prominently? They act as nav buttons */}
               <Button
                 onClick={() => router.push(`/trips/${tripId}/itinerary`)}
-                variant="contained"
-                color="primary"
-                fullWidth
-                size="large"
-                startIcon={<Map size={20} />}
-                sx={{ py: 1.5, fontWeight: 600 }}
+                className="w-full h-12 text-base font-semibold justify-start pl-4 gap-3 bg-card hover:bg-accent text-card-foreground border shadow-sm"
+                variant="outline"
               >
+                <Map className="h-5 w-5 text-primary" />
                 {tTrip('viewItinerary')}
               </Button>
               <Button
                 onClick={() => router.push(`/trips/${tripId}/settlement`)}
-                variant="contained"
-                color="success"
-                fullWidth
-                size="large"
-                startIcon={<Calculator size={20} />}
-                sx={{ py: 1.5, fontWeight: 600 }}
+                className="w-full h-12 text-base font-semibold justify-start pl-4 gap-3 bg-card hover:bg-accent text-card-foreground border shadow-sm"
+                variant="outline"
               >
+                <Calculator className="h-5 w-5 text-green-600" />
                 {tTrip('viewSettlement')}
               </Button>
-            </Box>
-          </Box>
+            </div>
 
-          {/* 右側：支出紀錄 */}
-          <Box>
+            <TripSettlement tripId={tripId} />
+
+            <TripMembers
+              members={members}
+              currentUser={currentUser}
+              isCurrentUserAdmin={!!isCurrentUserAdmin}
+              onAddVirtualMember={() => setAddVirtualMemberDialog(true)}
+              onRemoveMember={(member) => {
+                setSelectedMemberToRemove(member);
+                setRemoveMemberDialog(true);
+              }}
+              onToggleAdmin={(member) => {
+                setSelectedMemberToToggle(member);
+                setToggleAdminDialog(true);
+              }}
+              onCopyInviteLink={(member) => {
+                // TODO: Implement copy link logic properly
+                navigator.clipboard.writeText(`${window.location.origin}/join/${trip.hash_code}?virtual=${member.id}`);
+                toast({ title: "Copied!", description: "Invite link copied to clipboard." });
+              }}
+              onVirtualMemberClick={(member) => {
+                setSelectedVirtualMember(member);
+                // Logic to determine which dialog to open? 
+                // Assuming we open a chooser or default to register
+                setRegisterVirtualDialog(true);
+              }}
+              expanded={membersExpanded}
+              onToggleExpand={() => setMembersExpanded(!membersExpanded)}
+            />
+
+            <TripShare
+              tripHashCode={trip.hash_code}
+              onCopy={() => toast({ title: "Copied!", description: tTrip('shareCodeCopied') })}
+            />
+
+            {isCurrentUserAdmin && (
+              <TripDangerZone onDelete={() => setDeleteTripDialog(true)} />
+            )}
+          </div>
+
+          {/* Right Column: Expenses (Main Content) */}
+          <div className="min-w-0">
             <TripExpenses
               expenses={expenses}
               members={members}
@@ -373,9 +501,9 @@ export default function TripDetailPage() {
               expanded={expensesExpanded}
               onToggleExpand={() => setExpensesExpanded(!expensesExpanded)}
             />
-          </Box>
-        </Box>
-      </Container>
+          </div>
+        </div>
+      </div>
 
       {/* Dialogs */}
       <ExpenseFormDialog
@@ -404,22 +532,63 @@ export default function TripDetailPage() {
         trip={trip}
       />
 
+      <DeleteTripDialog
+        open={deleteTripDialog}
+        onClose={() => setDeleteTripDialog(false)}
+        onConfirm={handleDeleteTrip}
+        tripName={trip.name}
+        isDeleting={isDeletingTrip}
+      />
 
-      {/* Snackbar */}
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={3000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert
-          onClose={() => setSnackbar({ ...snackbar, open: false })}
-          severity={snackbar.severity}
-          sx={{ width: '100%' }}
-        >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
-    </Box>
+      <AddVirtualMemberDialog
+        open={addVirtualMemberDialog}
+        onClose={() => setAddVirtualMemberDialog(false)}
+        onSubmit={handleAddVirtualMember}
+      />
+
+      <RemoveMemberDialog
+        open={removeMemberDialog}
+        onClose={() => setRemoveMemberDialog(false)}
+        onConfirm={handleRemoveMember}
+        member={selectedMemberToRemove}
+      />
+
+      <ToggleAdminDialog
+        open={toggleAdminDialog}
+        onClose={() => setToggleAdminDialog(false)}
+        onConfirm={handleToggleAdmin}
+        member={selectedMemberToToggle}
+      />
+
+      {/* Virtual Member Linking Dialogs - Managing switch logic */}
+      <RegisterVirtualMemberDialog
+        open={registerVirtualDialog}
+        onClose={() => {
+          setRegisterVirtualDialog(false);
+          setSelectedVirtualMember(null);
+        }}
+        onSwitchToLink={() => {
+          setRegisterVirtualDialog(false);
+          setLinkExistingDialog(true);
+        }}
+        virtualMember={selectedVirtualMember}
+        tripId={tripId}
+      />
+
+      <LinkExistingMemberDialog
+        open={linkExistingDialog}
+        onClose={() => {
+          setLinkExistingDialog(false);
+          setSelectedVirtualMember(null);
+        }}
+        onSwitchToRegister={() => {
+          setLinkExistingDialog(false);
+          setRegisterVirtualDialog(true);
+        }}
+        virtualMember={selectedVirtualMember}
+        tripId={tripId}
+      />
+
+    </div>
   );
 }

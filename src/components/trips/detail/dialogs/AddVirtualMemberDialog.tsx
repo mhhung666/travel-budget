@@ -1,16 +1,21 @@
+'use client';
+
 import { useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
+import { Loader2 } from 'lucide-react';
+
 import {
     Dialog,
-    DialogTitle,
     DialogContent,
-    DialogActions,
-    TextField,
-    Button,
-    Typography,
-    CircularProgress,
-    Alert
-} from '@mui/material';
-import { useTranslations } from 'next-intl';
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface AddVirtualMemberDialogProps {
     open: boolean;
@@ -53,38 +58,48 @@ export default function AddVirtualMemberDialog({
     };
 
     return (
-        <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-            <form onSubmit={handleSubmit}>
-                <DialogTitle>{tMember('addVirtualMember')}</DialogTitle>
-                <DialogContent>
-                    {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        <Dialog open={open} onOpenChange={(val) => !val && onClose()}>
+            <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                    <DialogTitle>{tMember('addVirtualMember')}</DialogTitle>
+                    <DialogDescription>
                         {tMember('addVirtualMemberHint')}
-                    </Typography>
-                    <TextField
-                        fullWidth
-                        label={tMember('virtualMemberName')}
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        required
-                        autoFocus
-                        sx={{ mt: 1 }}
-                    />
-                </DialogContent>
-                <DialogActions sx={{ px: 3, pb: 2 }}>
-                    <Button onClick={onClose}>
-                        {tCommon('cancel')}
-                    </Button>
-                    <Button
-                        type="submit"
-                        variant="contained"
-                        disabled={isAdding || !name.trim()}
-                        startIcon={isAdding ? <CircularProgress size={16} /> : null}
-                    >
-                        {tCommon('add')}
-                    </Button>
-                </DialogActions>
-            </form>
+                    </DialogDescription>
+                </DialogHeader>
+
+                <form onSubmit={handleSubmit} className="space-y-4 py-2">
+                    {error && (
+                        <Alert variant="destructive">
+                            <AlertTitle>Error</AlertTitle>
+                            <AlertDescription>{error}</AlertDescription>
+                        </Alert>
+                    )}
+
+                    <div className="space-y-2">
+                        <Label htmlFor="virtual-name">{tMember('virtualMemberName')}</Label>
+                        <Input
+                            id="virtual-name"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            required
+                            autoFocus
+                        />
+                    </div>
+
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={onClose}>
+                            {tCommon('cancel')}
+                        </Button>
+                        <Button
+                            type="submit"
+                            disabled={isAdding || !name.trim()}
+                        >
+                            {isAdding && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            {tCommon('add')}
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
         </Dialog>
     );
 }

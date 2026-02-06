@@ -1,7 +1,10 @@
-import { Box, Card, CardContent, Typography, Button, Chip } from '@mui/material';
-import { Edit2 } from 'lucide-react';
+'use client';
+
+import { Edit2, MapPin, CalendarRange } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { Trip } from '@/types';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 
 interface TripHeaderProps {
   trip: Trip;
@@ -14,49 +17,52 @@ export default function TripHeader({ trip, isCurrentUserAdmin, onEdit }: TripHea
   const tCommon = useTranslations('common');
 
   return (
-    <Card elevation={2} sx={{ mb: 3 }}>
-      <CardContent>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Typography variant="h6" fontWeight={600}>
+    <Card className="mb-6">
+      <CardContent className="pt-6">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold">
             {tTrip('info')}
-          </Typography>
+          </h2>
           {isCurrentUserAdmin && (
             <Button
-              size="small"
-              startIcon={<Edit2 size={16} />}
+              size="sm"
+              variant="outline"
               onClick={onEdit}
+              className="gap-2"
             >
+              <Edit2 size={16} />
               {tCommon('edit')}
             </Button>
           )}
-        </Box>
+        </div>
+
         {trip.description && (
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          <p className="text-muted-foreground mb-4">
             {trip.description}
-          </Typography>
+          </p>
         )}
 
         {/* 地點顯示 */}
         {trip.location && (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-            <Typography variant="body2" color="text.secondary">
-              📍 {trip.location.name}{trip.location.country && `, ${trip.location.country}`}
-            </Typography>
-          </Box>
+          <div className="flex items-center gap-2 mb-2 text-sm text-muted-foreground">
+            <MapPin size={16} />
+            <span>
+              {trip.location.name}{trip.location.country && `, ${trip.location.country}`}
+            </span>
+          </div>
         )}
 
         {/* 日期顯示 */}
         {(trip.start_date || trip.end_date) && (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-            <Typography variant="body2" color="text.secondary">
-              📅 {trip.start_date ? new Date(trip.start_date).toLocaleDateString() : ''}
+          <div className="flex items-center gap-2 mb-2 text-sm text-muted-foreground">
+            <CalendarRange size={16} />
+            <span>
+              {trip.start_date ? new Date(trip.start_date).toLocaleDateString() : ''}
               {trip.start_date && trip.end_date && ' ~ '}
               {trip.end_date ? new Date(trip.end_date).toLocaleDateString() : ''}
-            </Typography>
-          </Box>
+            </span>
+          </div>
         )}
-
-
       </CardContent>
     </Card>
   );

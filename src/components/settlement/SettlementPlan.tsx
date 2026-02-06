@@ -1,19 +1,26 @@
+'use client';
+
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
+import { ArrowRight, ArrowDown, Lightbulb } from 'lucide-react';
+import type { Transaction } from '@/types';
+
 import {
-    Box,
     Card,
     CardContent,
-    Typography,
-    Avatar,
-    Alert,
-    FormControl,
-    InputLabel,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
+import {
     Select,
-    MenuItem,
-} from '@mui/material';
-import { ArrowRight, ArrowDown, Lightbulb } from 'lucide-react';
-import { useTranslations } from 'next-intl';
-import type { Transaction } from '@/types';
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Label } from '@/components/ui/label';
 
 interface SettlementPlanProps {
     transactions: Transaction[];
@@ -41,183 +48,115 @@ export default function SettlementPlan({
     };
 
     return (
-        <Card elevation={2}>
-            <CardContent>
-                <Box
-                    sx={{
-                        mb: 2,
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        flexWrap: 'wrap',
-                        gap: 2,
-                    }}
-                >
-                    <Box>
-                        <Typography variant="h6" fontWeight={600} component="span">
-                            {t('plan')}
-                        </Typography>
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                <div className="flex flex-col">
+                    <CardTitle className="text-xl font-semibold flex items-center gap-2">
+                        {t('plan')}
                         {transactions.length > 0 && (
-                            <Typography
-                                variant="body2"
-                                color="text.secondary"
-                                component="span"
-                                sx={{ ml: 1 }}
-                            >
+                            <span className="text-sm font-normal text-muted-foreground">
                                 ({transactions.length} {t('transferCount')})
-                            </Typography>
+                            </span>
                         )}
-                    </Box>
-                    <FormControl size="small" sx={{ minWidth: 120 }}>
-                        <InputLabel>{t('currency')}</InputLabel>
-                        <Select
-                            value={selectedCurrency}
-                            label={t('currency')}
-                            onChange={(e) => setSelectedCurrency(e.target.value)}
-                            disabled={loadingRates}
-                        >
-                            <MenuItem value="TWD">TWD</MenuItem>
-                            <MenuItem value="JPY">JPY</MenuItem>
-                            <MenuItem value="USD">USD</MenuItem>
-                            <MenuItem value="EUR">EUR</MenuItem>
-                            <MenuItem value="HKD">HKD</MenuItem>
-                        </Select>
-                    </FormControl>
-                </Box>
-
+                    </CardTitle>
+                </div>
+                <div className="w-[120px]">
+                    <Label className="sr-only">{t('currency')}</Label>
+                    <Select
+                        value={selectedCurrency}
+                        onValueChange={setSelectedCurrency}
+                        disabled={loadingRates}
+                    >
+                        <SelectTrigger className="h-8">
+                            <SelectValue placeholder={t('currency')} />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="TWD">TWD</SelectItem>
+                            <SelectItem value="JPY">JPY</SelectItem>
+                            <SelectItem value="USD">USD</SelectItem>
+                            <SelectItem value="EUR">EUR</SelectItem>
+                            <SelectItem value="HKD">HKD</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+            </CardHeader>
+            <CardContent>
                 {transactions.length === 0 ? (
-                    <Box sx={{ textAlign: 'center', py: 8 }}>
-                        <Typography variant="h5" gutterBottom>
+                    <div className="text-center py-8">
+                        <h4 className="text-xl font-semibold mb-2">
                             🎉 {t('great')}
-                        </Typography>
-                        <Typography variant="body1" color="text.secondary">
+                        </h4>
+                        <p className="text-muted-foreground">
                             {t('noTransfers')}
-                        </Typography>
-                    </Box>
+                        </p>
+                    </div>
                 ) : (
-                    <Box>
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <div className="space-y-4">
+                        <div className="flex flex-col gap-3">
                             {transactions.map((transaction, index) => (
-                                <Card
+                                <div
                                     key={index}
-                                    elevation={0}
-                                    sx={{
-                                        background: 'linear-gradient(135deg, #fff5f5 0%, #ffe5e5 100%)',
-                                        border: '2px solid',
-                                        borderColor: 'warning.light',
-                                    }}
+                                    className="rounded-xl border-2 border-orange-100 bg-gradient-to-br from-orange-50 to-red-50 dark:from-orange-950/20 dark:to-red-950/20 dark:border-orange-900/50 p-4"
                                 >
-                                    <CardContent sx={{ p: '16px !important' }}>
-                                        <Box
-                                            sx={{
-                                                display: 'flex',
-                                                flexDirection: { xs: 'column', sm: 'row' },
-                                                alignItems: 'center',
-                                                justifyContent: 'space-between',
-                                                gap: { xs: 1, sm: 2 },
-                                                width: '100%',
-                                            }}
-                                        >
-                                            {/* Payer */}
-                                            <Box
-                                                sx={{
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: 1.5,
-                                                    width: { xs: '100%', sm: 'auto' },
-                                                    justifyContent: { xs: 'center', sm: 'flex-start' },
-                                                }}
-                                            >
-                                                <Avatar
-                                                    sx={{
-                                                        bgcolor: 'error.main',
-                                                        color: 'white',
-                                                        border: '2px solid',
-                                                        borderColor: 'error.dark',
-                                                    }}
-                                                >
-                                                    {transaction.from.charAt(0)}
-                                                </Avatar>
-                                                <Box>
-                                                    <Typography variant="caption" sx={{ color: 'rgba(0, 0, 0, 0.6)' }}>
-                                                        {t('payer')}
-                                                    </Typography>
-                                                    <Typography
-                                                        variant="body1"
-                                                        fontWeight={600}
-                                                        sx={{ color: 'rgba(0, 0, 0, 0.87)' }}
-                                                    >
-                                                        {transaction.from}
-                                                    </Typography>
-                                                </Box>
-                                            </Box>
+                                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 w-full">
+                                        {/* Payer */}
+                                        <div className="flex items-center gap-3 w-full sm:w-auto justify-center sm:justify-start">
+                                            <Avatar className="h-10 w-10 border-2 border-red-200 bg-red-100">
+                                                <AvatarFallback className="text-red-700 font-bold bg-transparent">
+                                                    {transaction.from.charAt(0).toUpperCase()}
+                                                </AvatarFallback>
+                                            </Avatar>
+                                            <div>
+                                                <p className="text-xs text-muted-foreground">{t('payer')}</p>
+                                                <p className="font-semibold text-foreground">
+                                                    {transaction.from}
+                                                </p>
+                                            </div>
+                                        </div>
 
-                                            {/* Amount & Arrow */}
-                                            <Box sx={{ my: { xs: 1, sm: 0 }, textAlign: 'center' }}>
-                                                <Typography variant="h5" fontWeight={700} color="warning.dark">
-                                                    {selectedCurrency} {formatAmount(transaction.amount)}
-                                                </Typography>
-                                                {selectedCurrency !== 'TWD' && (
-                                                    <Typography variant="caption" color="text.secondary">
-                                                        (TWD ${transaction.amount.toFixed(0)})
-                                                    </Typography>
-                                                )}
-                                                <Box sx={{ display: { xs: 'block', sm: 'none' } }}>
-                                                    <Box component="span" sx={{ color: 'text.secondary', display: 'flex' }}>
-                                                        <ArrowDown />
-                                                    </Box>
-                                                </Box>
-                                                <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
-                                                    <Box component="span" sx={{ color: 'text.secondary', display: 'flex' }}>
-                                                        <ArrowRight />
-                                                    </Box>
-                                                </Box>
-                                            </Box>
+                                        {/* Amount & Arrow */}
+                                        <div className="text-center my-2 sm:my-0 flex-1">
+                                            <p className="text-lg font-bold text-orange-600 dark:text-orange-400">
+                                                {selectedCurrency} {formatAmount(transaction.amount)}
+                                            </p>
+                                            {selectedCurrency !== 'TWD' && (
+                                                <p className="text-xs text-muted-foreground">
+                                                    (TWD ${transaction.amount.toFixed(0)})
+                                                </p>
+                                            )}
+                                            <div className="flex justify-center mt-1 text-muted-foreground/50">
+                                                <ArrowDown className="sm:hidden h-5 w-5" />
+                                                <ArrowRight className="hidden sm:block h-5 w-5" />
+                                            </div>
+                                        </div>
 
-                                            {/* Payee */}
-                                            <Box
-                                                sx={{
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: 1.5,
-                                                    width: { xs: '100%', sm: 'auto' },
-                                                    justifyContent: { xs: 'center', sm: 'flex-end' },
-                                                }}
-                                            >
-                                                <Box sx={{ textAlign: 'right' }}>
-                                                    <Typography variant="caption" sx={{ color: 'rgba(0, 0, 0, 0.6)' }}>
-                                                        {t('payee')}
-                                                    </Typography>
-                                                    <Typography
-                                                        variant="body1"
-                                                        fontWeight={600}
-                                                        sx={{ color: 'rgba(0, 0, 0, 0.87)' }}
-                                                    >
-                                                        {transaction.to}
-                                                    </Typography>
-                                                </Box>
-                                                <Avatar
-                                                    sx={{
-                                                        bgcolor: 'success.main',
-                                                        color: 'white',
-                                                        border: '2px solid',
-                                                        borderColor: 'success.dark',
-                                                    }}
-                                                >
-                                                    {transaction.to.charAt(0)}
-                                                </Avatar>
-                                            </Box>
-                                        </Box>
-                                    </CardContent>
-                                </Card>
+                                        {/* Payee */}
+                                        <div className="flex items-center gap-3 w-full sm:w-auto justify-center sm:justify-end">
+                                            <div className="text-right">
+                                                <p className="text-xs text-muted-foreground">{t('payee')}</p>
+                                                <p className="font-semibold text-foreground">
+                                                    {transaction.to}
+                                                </p>
+                                            </div>
+                                            <Avatar className="h-10 w-10 border-2 border-green-200 bg-green-100">
+                                                <AvatarFallback className="text-green-700 font-bold bg-transparent">
+                                                    {transaction.to.charAt(0).toUpperCase()}
+                                                </AvatarFallback>
+                                            </Avatar>
+                                        </div>
+                                    </div>
+                                </div>
                             ))}
-                        </Box>
+                        </div>
 
-                        <Alert severity="info" icon={<Lightbulb />} sx={{ mt: 3 }}>
-                            <strong>{t('tip')}</strong>{' '}
-                            {t('tipContent')}
+                        <Alert className="mt-4 bg-blue-50/50 text-blue-900 border-blue-200 dark:bg-blue-900/10 dark:text-blue-200 dark:border-blue-900">
+                            <Lightbulb className="h-4 w-4 stroke-blue-600 dark:stroke-blue-400" />
+                            <AlertTitle className="text-blue-700 dark:text-blue-300 ml-2">{t('tip')}</AlertTitle>
+                            <AlertDescription className="ml-2 mt-1 opacity-90">
+                                {t('tipContent')}
+                            </AlertDescription>
                         </Alert>
-                    </Box>
+                    </div>
                 )}
             </CardContent>
         </Card>

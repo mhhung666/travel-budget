@@ -4,14 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
-import {
-  Box,
-  Container,
-  Button,
-  Alert,
-  CircularProgress,
-} from '@mui/material';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import type { Balance, Transaction } from '@/types';
 import { getCurrentUser, getSettlement } from '@/actions';
@@ -20,6 +13,8 @@ import {
   SettlementBalances,
   SettlementPlan,
 } from '@/components/settlement';
+import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export default function SettlementPage() {
   const router = useRouter();
@@ -102,44 +97,30 @@ export default function SettlementPage() {
 
   if (loading) {
     return (
-      <Box
-        sx={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          bgcolor: 'background.default',
-        }}
-      >
-        <CircularProgress size={60} />
-      </Box>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+      </div>
     );
   }
 
   if (error) {
     return (
-      <Box
-        sx={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Box sx={{ textAlign: 'center' }}>
-          <Alert severity="error" sx={{ mb: 3 }}>
-            {error}
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <div className="text-center max-w-md w-full">
+          <Alert variant="destructive" className="mb-6">
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
           </Alert>
-          <Button onClick={() => router.push(`/trips/${tripId}`)} variant="contained" size="large">
+          <Button onClick={() => router.push(`/trips/${tripId}`)} size="lg">
             {tSettlement('backToTrip')}
           </Button>
-        </Box>
-      </Box>
+        </div>
+      </div>
     );
   }
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
+    <div className="min-h-screen bg-background pb-12">
       <Navbar
         user={
           currentUser
@@ -154,29 +135,21 @@ export default function SettlementPage() {
         title={tSettlement('summary')}
       />
 
-      <Container maxWidth="lg" sx={{ pt: { xs: 10, sm: 12 }, pb: 4 }}>
+      <div className="container mx-auto max-w-6xl pt-24 px-4 sm:px-6">
         {/* 返回按鈕 */}
         <Button
-          startIcon={<ArrowLeft />}
+          variant="ghost"
+          className="text-muted-foreground hover:text-foreground mb-6 -ml-2"
           onClick={() => router.push(`/trips/${tripId}`)}
-          sx={{
-            mb: 3,
-            textTransform: 'none',
-            color: 'text.secondary',
-            '&:hover': {
-              color: 'text.primary',
-            },
-          }}
         >
+          <ArrowLeft className="mr-2 h-4 w-4" />
           {tSettlement('backToTrip')}
         </Button>
 
         {/* 總支出 */}
         <SettlementSummary totalExpenses={totalExpenses} />
 
-        <Box
-          sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 3 }}
-        >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* 每人統計 */}
           <SettlementBalances balances={balances} />
 
@@ -186,8 +159,8 @@ export default function SettlementPage() {
             exchangeRates={exchangeRates}
             loadingRates={loadingRates}
           />
-        </Box>
-      </Container>
-    </Box>
+        </div>
+      </div>
+    </div>
   );
 }

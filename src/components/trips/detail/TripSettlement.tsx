@@ -1,7 +1,10 @@
-import { Card, CardContent, Button, Typography } from '@mui/material';
+'use client';
+
 import { Calculator } from 'lucide-react';
 import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 
 interface TripSettlementProps {
     tripId: string;
@@ -12,28 +15,19 @@ export default function TripSettlement({ tripId }: TripSettlementProps) {
     const tTrip = useTranslations('trip');
 
     return (
-        <Card elevation={2}>
-            <CardContent>
+        <Card className="shadow-none border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-900/10">
+            <CardContent className="p-4 sm:p-6">
                 <Button
                     onClick={() => router.push(`/trips/${tripId}/settlement`)}
-                    variant="contained"
-                    color="success"
-                    fullWidth
-                    size="large"
-                    startIcon={<Calculator size={20} />}
-                    sx={{ py: 1.5, fontWeight: 600 }}
+                    className="w-full h-12 text-base font-semibold gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md hover:shadow-lg transition-all"
+                    size="lg"
                 >
+                    <Calculator className="h-5 w-5" />
                     {tTrip('viewSettlement')}
                 </Button>
-                <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    textAlign="center"
-                    display="block"
-                    sx={{ mt: 1 }}
-                >
+                <p className="text-xs text-center text-muted-foreground mt-2">
                     {tTrip('viewSettlementHint')}
-                </Typography>
+                </p>
             </CardContent>
         </Card>
     );

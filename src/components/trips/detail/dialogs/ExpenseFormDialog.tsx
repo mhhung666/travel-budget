@@ -458,13 +458,13 @@ export default function ExpenseFormDialog({
                                                     {form.currency}
                                                 </span>
                                                 <Input
-                                                    variant="ghost"
+                                                    // variant="ghost" removed
                                                     placeholder={amountOriginal.toFixed(form.currency === 'JPY' ? 0 : 2)}
                                                     value={state.manualAmount}
                                                     onChange={(e) => handleManualAmountChange(member.id, e.target.value)}
                                                     type="number"
                                                     className={cn(
-                                                        "h-8 w-24 text-right pr-2",
+                                                        "h-8 w-24 text-right pr-2 border-none shadow-none focus-visible:ring-0",
                                                         isManual ? "font-bold text-primary bg-background shadow-sm" : "bg-transparent"
                                                     )}
                                                 />
@@ -478,7 +478,7 @@ export default function ExpenseFormDialog({
                         </div>
 
                         {splitWarning && (
-                            <Alert variant="warning" className="bg-yellow-50 dark:bg-yellow-900/10 border-yellow-200 dark:border-yellow-900">
+                            <Alert className="bg-yellow-50 dark:bg-yellow-900/10 border-yellow-200 dark:border-yellow-900">
                                 <DollarSign className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
                                 <AlertTitle className="text-yellow-800 dark:text-yellow-300">Warning</AlertTitle>
                                 <AlertDescription className="text-yellow-700 dark:text-yellow-400">
