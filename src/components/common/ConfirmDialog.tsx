@@ -1,16 +1,17 @@
 'use client';
 
+import { AlertTriangle, AlertCircle, Info, Loader2 } from 'lucide-react';
 import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
-  Typography,
-  Box,
-  CircularProgress,
-} from '@mui/material';
-import { AlertTriangle, AlertCircle, Info } from 'lucide-react';
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
 
 export interface ConfirmDialogProps {
   open: boolean;
@@ -27,18 +28,18 @@ export interface ConfirmDialogProps {
 const severityConfig = {
   warning: {
     icon: AlertTriangle,
-    color: 'warning.main',
-    buttonColor: 'warning' as const,
+    variant: 'default' as const, // shadcn doesn't have warning button variant by default, use default or create one
+    iconColor: 'text-yellow-500',
   },
   error: {
     icon: AlertCircle,
-    color: 'error.main',
-    buttonColor: 'error' as const,
+    variant: 'destructive' as const,
+    iconColor: 'text-destructive',
   },
   info: {
     icon: Info,
-    color: 'info.main',
-    buttonColor: 'primary' as const,
+    variant: 'default' as const,
+    iconColor: 'text-blue-500',
   },
 };
 
@@ -73,31 +74,39 @@ export function ConfirmDialog({
   const config = severityConfig[severity];
   const Icon = config.icon;
 
+  const handleOpenChange = (openState: boolean) => {
+    if (!openState && !loading) {
+      onCancel();
+    }
+  }
+
   return (
-    <Dialog open={open} onClose={loading ? undefined : onCancel} maxWidth="xs" fullWidth>
-      <DialogTitle>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Icon size={24} color="inherit" />
-          {title}
-        </Box>
-      </DialogTitle>
-      <DialogContent>
-        <Typography>{message}</Typography>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onCancel} disabled={loading}>
-          {cancelText}
-        </Button>
-        <Button
-          onClick={onConfirm}
-          color={config.buttonColor}
-          variant="contained"
-          disabled={loading}
-          startIcon={loading ? <CircularProgress size={16} color="inherit" /> : undefined}
-        >
-          {confirmText}
-        </Button>
-      </DialogActions>
-    </Dialog>
+    <AlertDialog open={open} onOpenChange={handleOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2">
+            <Icon className={config.iconColor} size={24} />
+            {title}
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            {message}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={loading} onClick={onCancel}>{cancelText}</AlertDialogCancel>
+          <Button
+            variant={config.variant}
+            onClick={(e) => {
+              e.preventDefault(); // Prevent auto-closing if wrapped in AlertDialogAction
+              onConfirm();
+            }}
+            disabled={loading}
+          >
+            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {confirmText}
+          </Button>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

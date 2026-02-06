@@ -1,6 +1,7 @@
 'use client';
 
-import { Box, CircularProgress, Typography } from '@mui/material';
+import { Loader2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export interface LoadingStateProps {
   message?: string;
@@ -22,35 +23,24 @@ export interface LoadingStateProps {
  * if (loading) return <LoadingState fullScreen />;
  */
 export function LoadingState({ message, size = 60, fullScreen = false }: LoadingStateProps) {
+  // Convert 'size' number roughly to rem or px classes if needed, but
+  // lucide icons take numbers directly for pixels.
+
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 2,
-        ...(fullScreen && {
-          minHeight: '100vh',
-          bgcolor: 'background.default',
-          zIndex: 9999,
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-        }),
-        ...(!fullScreen && {
-          py: 8,
-        }),
-      }}
-    >
-      <CircularProgress size={size} />
-      {message && (
-        <Typography variant="body2" color="text.secondary">
-          {message}
-        </Typography>
+    <div
+      className={cn(
+        'flex flex-col items-center justify-center gap-4',
+        fullScreen
+          ? 'fixed inset-0 z-[9999] min-h-screen bg-background'
+          : 'py-16'
       )}
-    </Box>
+    >
+      <Loader2 className="animate-spin text-primary" size={size} />
+      {message && (
+        <p className="text-sm text-muted-foreground">
+          {message}
+        </p>
+      )}
+    </div>
   );
 }

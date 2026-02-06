@@ -1,7 +1,9 @@
 'use client';
 
-import { Box, Alert, Button, Typography } from '@mui/material';
-import { RefreshCcw, ArrowLeft } from 'lucide-react';
+import { RefreshCcw, ArrowLeft, AlertCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { cn } from '@/lib/utils';
 
 export interface ErrorStateProps {
   message: string;
@@ -39,43 +41,39 @@ export function ErrorState({
   fullScreen = false,
 }: ErrorStateProps) {
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 3,
-        ...(fullScreen && {
-          minHeight: '100vh',
-        }),
-        ...(!fullScreen && {
-          py: 8,
-        }),
-      }}
+    <div
+      className={cn(
+        'flex flex-col items-center justify-center gap-6',
+        fullScreen ? 'min-h-screen' : 'py-16'
+      )}
     >
-      <Box sx={{ textAlign: 'center', maxWidth: 400 }}>
+      <div className="text-center max-w-md w-full px-4">
         {title && (
-          <Typography variant="h6" gutterBottom>
-            {title}
-          </Typography>
+          <h2 className="text-xl font-semibold mb-4">{title}</h2>
         )}
-        <Alert severity="error" sx={{ mb: 3 }}>
-          {message}
+
+        <Alert variant="destructive" className="mb-6 flex flex-col items-center text-center">
+          <AlertCircle className="h-5 w-5 mb-2" />
+          <AlertDescription className="text-sm">
+            {message}
+          </AlertDescription>
         </Alert>
-        <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
+
+        <div className="flex gap-4 justify-center">
           {onBack && (
-            <Button startIcon={<ArrowLeft size={20} />} onClick={onBack} variant="outlined">
+            <Button variant="outline" onClick={onBack} className="gap-2">
+              <ArrowLeft size={16} />
               {backText}
             </Button>
           )}
           {onRetry && (
-            <Button startIcon={<RefreshCcw size={20} />} onClick={onRetry} variant="contained">
+            <Button onClick={onRetry} className="gap-2">
+              <RefreshCcw size={16} />
               {retryText}
             </Button>
           )}
-        </Box>
-      </Box>
-    </Box>
+        </div>
+      </div>
+    </div>
   );
 }
