@@ -138,18 +138,20 @@ export default function TripMembers({
                                     {/* 管理員操作按鈕 - 僅管理員且不是自己 */}
                                     {isCurrentUserAdmin && member.id !== currentUser?.id && (
                                         <Box sx={{ display: 'flex', gap: 0.5 }}>
-                                            {/* 切換管理員權限 */}
-                                            <IconButton
-                                                size="small"
-                                                color={member.role === 'admin' ? 'warning' : 'primary'}
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    onToggleAdmin(member);
-                                                }}
-                                                title={member.role === 'admin' ? tMember('demoteFromAdmin') : tMember('promoteToAdmin')}
-                                            >
-                                                {member.role === 'admin' ? <Shield size={20} /> : <ShieldCheck size={20} />}
-                                            </IconButton>
+                                            {/* 切換管理員權限 - 僅限非虛擬成員 */}
+                                            {!member.is_virtual && (
+                                                <IconButton
+                                                    size="small"
+                                                    color={member.role === 'admin' ? 'warning' : 'primary'}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        onToggleAdmin(member);
+                                                    }}
+                                                    title={member.role === 'admin' ? tMember('demoteFromAdmin') : tMember('promoteToAdmin')}
+                                                >
+                                                    {member.role === 'admin' ? <Shield size={20} /> : <ShieldCheck size={20} />}
+                                                </IconButton>
+                                            )}
                                             {/* 移除成員 */}
                                             <IconButton
                                                 size="small"
