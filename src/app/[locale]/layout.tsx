@@ -7,6 +7,7 @@ import { locales } from '@/i18n/config';
 import type { Locale } from '@/i18n/config';
 import { Inter } from 'next/font/google';
 import { ThemeProvider } from '@/components/theme-provider';
+import { Toaster } from '@/components/ui/toaster';
 import '../globals.css';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
@@ -64,6 +65,7 @@ export default async function LocaleLayout({
             disableTransitionOnChange
           >
             {children}
+            <Toaster />
           </ThemeProvider>
         </NextIntlClientProvider>
         <SpeedInsights />

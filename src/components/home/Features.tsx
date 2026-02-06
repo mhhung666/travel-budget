@@ -1,165 +1,58 @@
 'use client';
 
-import { Box, Container, Typography, Card, CardContent } from '@mui/material';
 import { Plus, Calculator, CreditCard } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { Card, CardContent } from '@/components/ui/card';
 
 export default function Features() {
     const t = useTranslations('home');
 
+    const features = [
+        {
+            icon: Plus,
+            titleKey: 'features.easyTracking.title',
+            descKey: 'features.easyTracking.description',
+        },
+        {
+            icon: Calculator,
+            titleKey: 'features.smartSplit.title',
+            descKey: 'features.smartSplit.description',
+        },
+        {
+            icon: CreditCard,
+            titleKey: 'features.quickSettlement.title',
+            descKey: 'features.quickSettlement.description',
+        },
+    ];
+
     return (
-        <Box sx={{ py: { xs: 6, sm: 8 }, bgcolor: 'background.paper' }}>
-            <Container maxWidth="lg">
-                <Typography
-                    variant="h3"
-                    sx={{
-                        textAlign: 'center',
-                        mb: { xs: 4, sm: 6 },
-                        fontWeight: 700,
-                        fontSize: { xs: '1.75rem', sm: '2rem' },
-                    }}
-                >
+        <div className="py-12 sm:py-16 bg-muted/30">
+            <div className="container mx-auto px-4">
+                <h3 className="text-3xl sm:text-4xl font-bold text-center mb-10 sm:mb-14 text-foreground">
                     {t('features.title')}
-                </Typography>
+                </h3>
 
-                <Box
-                    sx={{
-                        display: 'grid',
-                        gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' },
-                        gap: { xs: 3, sm: 4 },
-                        px: { xs: 2, sm: 0 },
-                    }}
-                >
-                    <Card
-                        sx={{
-                            height: '100%',
-                            transition: 'all 0.3s ease',
-                            '&:hover': {
-                                transform: 'translateY(-4px)',
-                                boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-                            },
-                        }}
-                    >
-                        <CardContent sx={{ textAlign: 'center', p: { xs: 3, sm: 4 } }}>
-                            <Box
-                                sx={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    width: 56,
-                                    height: 56,
-                                    borderRadius: '12px',
-                                    bgcolor: 'primary.main',
-                                    mb: 2,
-                                }}
-                            >
-                                <Plus size={28} color="white" />
-                            </Box>
-                            <Typography
-                                variant="h6"
-                                fontWeight={600}
-                                gutterBottom
-                                sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }}
-                            >
-                                {t('features.easyTracking.title')}
-                            </Typography>
-                            <Typography
-                                variant="body2"
-                                color="text.secondary"
-                                sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}
-                            >
-                                {t('features.easyTracking.description')}
-                            </Typography>
-                        </CardContent>
-                    </Card>
-
-                    <Card
-                        sx={{
-                            height: '100%',
-                            transition: 'all 0.3s ease',
-                            '&:hover': {
-                                transform: 'translateY(-4px)',
-                                boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-                            },
-                        }}
-                    >
-                        <CardContent sx={{ textAlign: 'center', p: { xs: 3, sm: 4 } }}>
-                            <Box
-                                sx={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    width: 56,
-                                    height: 56,
-                                    borderRadius: '12px',
-                                    bgcolor: 'primary.main',
-                                    mb: 2,
-                                }}
-                            >
-                                <Calculator size={28} color="white" />
-                            </Box>
-                            <Typography
-                                variant="h6"
-                                fontWeight={600}
-                                gutterBottom
-                                sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }}
-                            >
-                                {t('features.smartSplit.title')}
-                            </Typography>
-                            <Typography
-                                variant="body2"
-                                color="text.secondary"
-                                sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}
-                            >
-                                {t('features.smartSplit.description')}
-                            </Typography>
-                        </CardContent>
-                    </Card>
-
-                    <Card
-                        sx={{
-                            height: '100%',
-                            transition: 'all 0.3s ease',
-                            '&:hover': {
-                                transform: 'translateY(-4px)',
-                                boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-                            },
-                        }}
-                    >
-                        <CardContent sx={{ textAlign: 'center', p: { xs: 3, sm: 4 } }}>
-                            <Box
-                                sx={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    width: 56,
-                                    height: 56,
-                                    borderRadius: '12px',
-                                    bgcolor: 'primary.main',
-                                    mb: 2,
-                                }}
-                            >
-                                <CreditCard size={28} color="white" />
-                            </Box>
-                            <Typography
-                                variant="h6"
-                                fontWeight={600}
-                                gutterBottom
-                                sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }}
-                            >
-                                {t('features.quickSettlement.title')}
-                            </Typography>
-                            <Typography
-                                variant="body2"
-                                color="text.secondary"
-                                sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}
-                            >
-                                {t('features.quickSettlement.description')}
-                            </Typography>
-                        </CardContent>
-                    </Card>
-                </Box>
-            </Container>
-        </Box>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 px-2 sm:px-0">
+                    {features.map((feature, index) => (
+                        <Card
+                            key={index}
+                            className="h-full transition-all duration-300 hover:-translate-y-1 hover:shadow-lg border-border/50 bg-card"
+                        >
+                            <CardContent className="text-center p-6 sm:p-8 pt-8 sm:pt-10">
+                                <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-primary mb-6 shadow-sm">
+                                    <feature.icon size={28} className="text-primary-foreground" />
+                                </div>
+                                <h4 className="text-xl sm:text-2xl font-semibold mb-3 text-card-foreground">
+                                    {t(feature.titleKey)}
+                                </h4>
+                                <p className="text-muted-foreground text-sm sm:text-base leading-relaxed">
+                                    {t(feature.descKey)}
+                                </p>
+                            </CardContent>
+                        </Card>
+                    ))}
+                </div>
+            </div>
+        </div>
     );
 }

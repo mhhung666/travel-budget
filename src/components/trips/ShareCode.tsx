@@ -1,17 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import {
-  Box,
-  TextField,
-  Button,
-  Typography,
-  Card,
-  CardContent,
-  Snackbar,
-  Alert,
-} from '@mui/material';
-import { Copy } from 'lucide-react';
+import { Copy, Check } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
 
 export interface ShareCodeProps {
   hashCode: string;
@@ -35,6 +29,7 @@ export function ShareCode({
   description = 'Share this code to let others join',
 }: ShareCodeProps) {
   const [copied, setCopied] = useState(false);
+  const { toast } = useToast();
 
   const getShareUrl = () => {
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
@@ -45,40 +40,35 @@ export function ShareCode({
     try {
       await navigator.clipboard.writeText(getShareUrl());
       setCopied(true);
+      toast({
+        description: "Code copied to clipboard!",
+      });
+      setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error('Failed to copy:', err);
     }
   };
 
   return (
-    <>
-      <Card variant="outlined" sx={{ bgcolor: 'primary.50', borderColor: 'primary.200' }}>
-        <CardContent>
-          <Typography variant="subtitle2" gutterBottom fontWeight={600}>
-            {title}
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-            <TextField
-              value={getShareUrl()}
-              size="small"
-              slotProps={{ input: { readOnly: true } }}
-              sx={{ flex: 1 }}
-            />
-            <Button variant="outlined" startIcon={<Copy size={20} />} onClick={handleCopy}>
-              Copy
-            </Button>
-          </Box>
-          <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-            {description}
-          </Typography>
-        </CardContent>
-      </Card>
-
-      <Snackbar open={copied} autoHideDuration={2000} onClose={() => setCopied(false)}>
-        <Alert severity="success" onClose={() => setCopied(false)}>
-          Code copied!
-        </Alert>
-      </Snackbar>
-    </>
+    <Card className="bg-blue-50/50 border-blue-200 dark:bg-blue-900/10 dark:border-blue-800">
+      <CardContent className="p-4">
+        <h4 className="font-semibold text-sm mb-2 text-foreground">
+          {title}
+        </h4>
+        <div className="flex gap-2 items-center">
+          <Input
+            value={getShareUrl()}
+            readOnly
+            className="flex-1 bg-background h-9"
+          />
+          <Button variant="outline" size="icon" onClick={handleCopy} className="h-9 w-9 shrink-0">
+            {copied ? <Check size={16} className="text-green-500" /> : <Copy size={16} />}
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground mt-2">
+          {description}
+        </p>
+      </CardContent>
+    </Card>
   );
 }

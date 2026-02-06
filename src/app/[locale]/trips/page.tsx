@@ -1,41 +1,30 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import {
-  Box,
-  Container,
-  Typography,
-  Button,
-  Card,
-  CardContent,
-  CircularProgress,
-  Snackbar,
-  Alert,
-} from '@mui/material';
-import { Plus, UserPlus } from 'lucide-react';
-import Navbar from '@/components/layout/Navbar';
+import { Plus, UserPlus, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { getCurrentUser, getTrips } from '@/actions';
 import type { TripWithMembers } from '@/types';
+import Navbar from '@/components/layout/Navbar';
 import CreateTripDialog from '@/components/trips/CreateTripDialog';
 import JoinTripDialog from '@/components/trips/JoinTripDialog';
 import TripList from '@/components/trips/TripList';
 import EmptyTripsState from '@/components/trips/EmptyTripsState';
 
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useToast } from '@/hooks/use-toast';
+
 export default function TripsPage() {
   const t = useTranslations('trips');
   const tNav = useTranslations('nav');
+  const { toast } = useToast();
+
   const [user, setUser] = useState<any>(null);
   const [trips, setTrips] = useState<TripWithMembers[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
-
-  const [snackbar, setSnackbar] = useState({
-    open: false,
-    message: '',
-    severity: 'success' as 'success' | 'error' | 'info',
-  });
 
   useEffect(() => {
     loadUserAndTrips();
@@ -70,30 +59,28 @@ export default function TripsPage() {
     try {
       const shareUrl = `${window.location.origin}/join/${hashCode}`;
       await navigator.clipboard.writeText(shareUrl);
-      setSnackbar({ open: true, message: t('idCopied'), severity: 'success' });
+      toast({
+        description: t('idCopied'),
+        className: "bg-green-500 text-white border-green-600",
+      });
     } catch (err) {
-      setSnackbar({ open: true, message: t('copyFailed'), severity: 'error' });
+      toast({
+        variant: "destructive",
+        description: t('copyFailed'),
+      });
     }
   };
 
   if (loading) {
     return (
-      <Box
-        sx={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          bgcolor: 'background.default',
-        }}
-      >
-        <CircularProgress size={60} />
-      </Box>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+      </div>
     );
   }
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
+    <div className="min-h-screen bg-background">
       <Navbar
         user={
           user
@@ -108,42 +95,32 @@ export default function TripsPage() {
         title={tNav('trips')}
       />
 
-      <Container maxWidth="lg" sx={{ pt: { xs: 10, sm: 12 }, pb: 4 }}>
-        <Card elevation={2}>
-          <CardContent sx={{ p: 3 }}>
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: { xs: 'column', sm: 'row' },
-                justifyContent: 'space-between',
-                alignItems: { xs: 'stretch', sm: 'center' },
-                gap: 2,
-                mb: 3,
-              }}
-            >
-              <Typography variant="h5" fontWeight={600}>
-                {t('list')}
-              </Typography>
-              <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 1 }}>
-                <Button
-                  onClick={() => setShowJoinModal(true)}
-                  variant="outlined"
-                  startIcon={<UserPlus />}
-                  sx={{ textTransform: 'none' }}
-                >
-                  {t('joinTrip')}
-                </Button>
-                <Button
-                  onClick={() => setShowCreateModal(true)}
-                  variant="contained"
-                  startIcon={<Plus />}
-                  sx={{ textTransform: 'none' }}
-                >
-                  {t('createTrip')}
-                </Button>
-              </Box>
-            </Box>
+      <div className="container mx-auto px-4 pt-24 pb-8 max-w-6xl">
+        <Card className="border-none shadow-none bg-transparent sm:bg-card sm:border sm:shadow-sm">
+          <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 px-0 sm:px-6">
+            <CardTitle className="text-2xl font-bold">
+              {t('list')}
+            </CardTitle>
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+              <Button
+                onClick={() => setShowJoinModal(true)}
+                variant="outline"
+                className="gap-2"
+              >
+                <UserPlus size={16} />
+                {t('joinTrip')}
+              </Button>
+              <Button
+                onClick={() => setShowCreateModal(true)}
+                className="gap-2"
+              >
+                <Plus size={16} />
+                {t('createTrip')}
+              </Button>
+            </div>
+          </CardHeader>
 
+          <CardContent className="px-0 sm:px-6">
             {trips.length === 0 ? (
               <EmptyTripsState />
             ) : (
@@ -151,7 +128,7 @@ export default function TripsPage() {
             )}
           </CardContent>
         </Card>
-      </Container>
+      </div>
 
       {/* Create Trip Dialog */}
       <CreateTripDialog
@@ -165,26 +142,13 @@ export default function TripsPage() {
         open={showJoinModal}
         onClose={() => setShowJoinModal(false)}
         onSuccess={() => {
-          setSnackbar({ open: true, message: t('join.success'), severity: 'success' });
+          toast({
+            description: t('join.success'),
+            className: "bg-green-500 text-white border-green-600",
+          });
           loadTrips();
         }}
       />
-
-      {/* Snackbar */}
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={3000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert
-          onClose={() => setSnackbar({ ...snackbar, open: false })}
-          severity={snackbar.severity}
-          sx={{ width: '100%' }}
-        >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
-    </Box>
+    </div>
   );
 }

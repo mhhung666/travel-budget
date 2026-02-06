@@ -1,35 +1,27 @@
 'use client';
 
-import { Box, Container } from '@mui/material';
 import Navbar from '@/components/layout/Navbar';
 import Hero from '@/components/home/Hero';
 import { LoginForm } from '@/components/login';
 
 export default function HomePage() {
     return (
-        <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
+        <div className="min-h-screen bg-background text-foreground">
             <Navbar showUserMenu={false} />
 
-            <Container maxWidth="lg" sx={{ pt: { xs: 10, md: 12 }, pb: 8 }}>
-                <Box
-                    sx={{
-                        display: 'grid',
-                        gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' },
-                        gap: { xs: 4, md: 8 },
-                        alignItems: 'center',
-                    }}
-                >
+            <div className="container mx-auto px-4 pt-24 pb-16 md:pt-32">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-16 items-center">
                     {/* Left Side: Hero / Intro */}
-                    <Box>
+                    <div>
                         <Hero />
-                    </Box>
+                    </div>
 
                     {/* Right Side: Login Form */}
-                    <Box>
+                    <div>
                         <LoginForm hideBackToHome />
-                    </Box>
-                </Box>
-            </Container>
-        </Box>
+                    </div>
+                </div>
+            </div>
+        </div>
     );
 }
