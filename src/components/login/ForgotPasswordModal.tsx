@@ -1,21 +1,22 @@
 'use client';
 
 import { useState } from 'react';
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  Button,
-  Typography,
-  Alert,
-  CircularProgress,
-  IconButton,
-} from '@mui/material';
-import { X } from 'lucide-react';
+import { Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { resetPassword } from '@/actions';
+
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface ForgotPasswordModalProps {
   open: boolean;
@@ -35,11 +36,13 @@ export default function ForgotPasswordModal({ open, onClose }: ForgotPasswordMod
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleClose = () => {
-    setFormData({ username: '', email: '', new_password: '' });
-    setError('');
-    setSuccess('');
-    onClose();
+  const handleClose = (openState: boolean) => {
+    if (!openState) {
+      setFormData({ username: '', email: '', new_password: '' });
+      setError('');
+      setSuccess('');
+      onClose();
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -57,7 +60,7 @@ export default function ForgotPasswordModal({ open, onClose }: ForgotPasswordMod
 
       setSuccess(t('forgotPassword.success'));
       setTimeout(() => {
-        handleClose();
+        onClose();
       }, 2000);
     } catch (err: unknown) {
       if (err instanceof Error) {
@@ -71,70 +74,74 @@ export default function ForgotPasswordModal({ open, onClose }: ForgotPasswordMod
   };
 
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        {t('forgotPassword.title')}
-        <IconButton onClick={handleClose} size="small">
-          <X size={20} />
-        </IconButton>
-      </DialogTitle>
-      <form onSubmit={handleSubmit}>
-        <DialogContent>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>{t('forgotPassword.title')}</DialogTitle>
+          <DialogDescription>
             {t('forgotPassword.description')}
-          </Typography>
+          </DialogDescription>
+        </DialogHeader>
 
+        <form onSubmit={handleSubmit} className="space-y-4 py-4">
           {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
 
           {success && (
-            <Alert severity="success" sx={{ mb: 2 }}>
-              {success}
+            <Alert variant="default" className="border-green-500 text-green-500">
+              <CheckCircle2 className="h-4 w-4 text-green-500" />
+              <AlertDescription>{success}</AlertDescription>
             </Alert>
           )}
 
-          <TextField
-            fullWidth
-            label={t('login.username')}
-            value={formData.username}
-            onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-            required
-            sx={{ mb: 2.5 }}
-          />
+          <div className="space-y-2">
+            <Label htmlFor="reset-username">{t('login.username')}</Label>
+            <Input
+              id="reset-username"
+              value={formData.username}
+              onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+              required
+            />
+          </div>
 
-          <TextField
-            fullWidth
-            type="email"
-            label={t('register.email')}
-            value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            required
-            sx={{ mb: 2.5 }}
-          />
+          <div className="space-y-2">
+            <Label htmlFor="reset-email">{t('register.email')}</Label>
+            <Input
+              id="reset-email"
+              type="email"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              required
+            />
+          </div>
 
-          <TextField
-            fullWidth
-            type="password"
-            label={t('forgotPassword.newPassword')}
-            value={formData.new_password}
-            onChange={(e) => setFormData({ ...formData, new_password: e.target.value })}
-            required
-            inputProps={{ minLength: 6 }}
-            helperText={t('register.passwordHelp')}
-          />
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 3 }}>
-          <Button onClick={handleClose} color="inherit">
-            {tCommon('cancel')}
-          </Button>
-          <Button type="submit" variant="contained" disabled={loading}>
-            {loading ? <CircularProgress size={20} color="inherit" /> : t('forgotPassword.submit')}
-          </Button>
-        </DialogActions>
-      </form>
+          <div className="space-y-2">
+            <Label htmlFor="reset-password">{t('forgotPassword.newPassword')}</Label>
+            <Input
+              id="reset-password"
+              type="password"
+              value={formData.new_password}
+              onChange={(e) => setFormData({ ...formData, new_password: e.target.value })}
+              required
+              minLength={6}
+            />
+            <p className="text-[0.8rem] text-muted-foreground">{t('register.passwordHelp')}</p>
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onClose()}>
+              {tCommon('cancel')}
+            </Button>
+            <Button type="submit" disabled={loading}>
+              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : t('forgotPassword.submit')}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
     </Dialog>
   );
 }

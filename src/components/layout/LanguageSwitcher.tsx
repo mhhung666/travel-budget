@@ -2,10 +2,16 @@
 
 import { useLocale } from 'next-intl';
 import { useRouter, usePathname } from '@/i18n/navigation';
-import { IconButton, Menu, MenuItem, Box } from '@mui/material';
 import { Globe } from 'lucide-react';
-import { useState } from 'react';
 import { Locale } from '@/i18n/routing';
+
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 const languages: Record<Locale, string> = {
   en: 'English',
@@ -18,60 +24,31 @@ export default function LanguageSwitcher() {
   const locale = useLocale();
   const router = useRouter();
   const pathname = usePathname();
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-
-  const handleClick = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleClose = () => {
-    setAnchorEl(null);
-  };
 
   const handleLanguageChange = (newLocale: Locale) => {
     // next-intl 的 useRouter 會自動處理 locale 前綴
     router.replace(pathname, { locale: newLocale });
-    handleClose();
   };
 
   return (
-    <Box>
-      <IconButton
-        onClick={handleClick}
-        color="inherit"
-        aria-label="change language"
-        sx={{
-          color: 'text.secondary',
-          '&:hover': {
-            color: 'text.primary',
-          },
-        }}
-      >
-        <Globe size={24} />
-      </IconButton>
-      <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={handleClose}
-        anchorOrigin={{
-          vertical: 'bottom',
-          horizontal: 'right',
-        }}
-        transformOrigin={{
-          vertical: 'top',
-          horizontal: 'right',
-        }}
-      >
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+          <Globe className="h-5 w-5" />
+          <span className="sr-only">Change language</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
         {(Object.entries(languages) as [Locale, string][]).map(([code, name]) => (
-          <MenuItem
+          <DropdownMenuItem
             key={code}
             onClick={() => handleLanguageChange(code)}
-            selected={code === locale}
+            className={code === locale ? 'bg-accent' : ''}
           >
             {name}
-          </MenuItem>
+          </DropdownMenuItem>
         ))}
-      </Menu>
-    </Box>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
