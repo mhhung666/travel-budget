@@ -2,20 +2,16 @@
 
 import {
   Accordion,
-  AccordionDetails,
-  AccordionSummary,
-  Box,
-  Chip,
-  Divider,
-  Stack,
-  Typography,
-  useTheme,
-} from '@mui/material';
-import { alpha } from '@mui/material/styles';
-import { ChevronDown, Globe, MapPin } from 'lucide-react';
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
+import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
+import { Globe, MapPin, ChevronDown } from 'lucide-react';
 import { getCountryFlag } from '@/constants/countries';
 import type { CountryStat } from '@/types';
-import Badge from './Badge';
+import { cn } from '@/lib/utils';
 
 interface CountryStatsProps {
   countries: CountryStat[];
@@ -25,123 +21,83 @@ interface CountryStatsProps {
 
 export default function CountryStats({
   countries,
-  cardGradient,
   t,
 }: CountryStatsProps) {
-  const theme = useTheme();
 
   return (
     <>
-      <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1.5 }}>
-        <Box
-          sx={{
-            p: 1,
-            borderRadius: 2,
-            bgcolor: 'secondary.main',
-            color: 'secondary.contrastText',
-            display: 'flex',
-            boxShadow: '0 4px 6px -1px rgba(100, 116, 139, 0.4)'
-          }}
-        >
+      <div className="mb-4 flex items-center gap-3">
+        <div className="p-2 rounded-lg bg-secondary text-secondary-foreground shadow-sm">
           <Globe size={20} />
-        </Box>
-        <Typography variant="h5" fontWeight={700}>
+        </div>
+        <h2 className="text-xl font-bold">
           {t('countryStats')}
-        </Typography>
+        </h2>
         {countries.length > 0 && (
-          <Chip
-            label={`${countries.length}`}
-            size="small"
-            sx={{ borderRadius: '6px', fontWeight: 700, bgcolor: alpha(theme.palette.secondary.main, 0.1), color: 'secondary.main' }}
-          />
+          <Badge variant="secondary" className="text-sm font-bold px-2 py-0.5 rounded-md">
+            {countries.length}
+          </Badge>
         )}
-      </Box>
+      </div>
 
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <div className="flex flex-col gap-3">
         {countries.length > 0 ? (
-          countries.map((country, index) => (
-            <Accordion
-              key={country.country}
-              elevation={0}
-              disableGutters
-              sx={{
-                background: cardGradient,
-                borderRadius: '16px !important',
-                border: '1px solid',
-                borderColor: 'divider',
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                '&:before': { display: 'none' },
-                '&:hover': {
-                  transform: 'translateY(-2px)',
-                  boxShadow: '0 12px 20px -10px rgba(0, 0, 0, 0.1)',
-                  borderColor: 'secondary.light',
-                },
-                animation: `fadeIn 0.5s ease-out ${index * 0.1 + 0.2}s both`,
-              }}
-            >
-              <AccordionSummary expandIcon={<ChevronDown size={20} />}>
-                <Box sx={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', pr: 1 }}>
-                  <Stack direction="row" spacing={2} alignItems="center">
-                    <Box
-                      sx={{
-                        width: 48, height: 40,
-                        fontSize: '2rem',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        lineHeight: 1
-                      }}
-                    >
-                      {getCountryFlag(country.country_code)}
-                    </Box>
-                    <Box>
-                      <Typography variant="subtitle1" fontWeight={600}>
-                        {country.country}
-                      </Typography>
-                    </Box>
-                  </Stack>
-                  <Chip
-                    label={`${country.tripCount} ${t('trips')}`}
-                    size="small"
-                    sx={{ borderRadius: '8px', fontWeight: 600 }}
-                  />
-                </Box>
-              </AccordionSummary>
-              <AccordionDetails sx={{ pt: 0, pb: 2 }}>
-                <Divider sx={{ mb: 2, borderStyle: 'dashed' }} />
-                <Stack spacing={1}>
-                  {country.regions.map((region) => (
-                    <Box
-                      key={region.name}
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        p: 1.5,
-                        borderRadius: 3,
-                        border: '1px solid',
-                        borderColor: 'divider',
-                        '&:hover': { bgcolor: alpha(theme.palette.action.hover, 0.1) }
-                      }}
-                    >
-                      <Stack direction="row" alignItems="center" spacing={1.5}>
-                        <MapPin size={18} className="text-gray-400" />
-                        <Typography variant="body2" fontWeight={500}>{region.name}</Typography>
-                      </Stack>
-                      <Badge count={region.tripCount} label={t('trips')} />
-                    </Box>
-                  ))}
-                </Stack>
-              </AccordionDetails>
-            </Accordion>
-          ))
+          <Accordion type="single" collapsible className="space-y-3">
+            {countries.map((country, index) => (
+              <AccordionItem
+                key={country.country}
+                value={country.country}
+                className="border rounded-2xl bg-card border-none shadow-sm px-1 data-[state=open]:shadow-md transition-all duration-200"
+              >
+                <AccordionTrigger className="hover:no-underline px-4 py-3 [&[data-state=open]>div>svg]:rotate-180">
+                  <div className="flex w-full items-center justify-between pr-2">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-10 flex items-center justify-center text-4xl leading-none">
+                        {getCountryFlag(country.country_code)}
+                      </div>
+                      <div className="text-left">
+                        <span className="font-semibold text-base">
+                          {country.country}
+                        </span>
+                      </div>
+                    </div>
+                    <Badge variant="outline" className="font-semibold px-2 py-1 rounded-lg">
+                      {country.tripCount} {t('trips')}
+                    </Badge>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="px-4 pb-4 pt-0">
+                  <div className="my-2 border-t border-dashed border-border/50" />
+                  <div className="space-y-2">
+                    {country.regions.map((region) => (
+                      <div
+                        key={region.name}
+                        className="flex justify-between items-center p-3 rounded-xl border border-border/50 hover:bg-muted/50 transition-colors"
+                      >
+                        <div className="flex items-center gap-2">
+                          <MapPin size={18} className="text-muted-foreground" />
+                          <span className="font-medium text-sm">{region.name}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-muted text-muted-foreground text-xs font-medium">
+                          <span className="font-bold text-foreground">{region.tripCount}</span>
+                          <span>{t('trips')}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
         ) : (
-          <Box sx={{ textAlign: 'center', py: 8, opacity: 0.6 }}>
-            <Globe size={48} strokeWidth={1} style={{ marginBottom: 16 }} />
-            <Typography variant="body1" color="text.secondary">
+          <div className="text-center py-12 opacity-60 flex flex-col items-center">
+            <Globe size={48} strokeWidth={1} className="mb-4 text-muted-foreground" />
+            <p className="text-muted-foreground">
               {t('noData')}
-            </Typography>
-          </Box>
+            </p>
+          </div>
         )}
-      </Box>
+      </div>
     </>
   );
 }

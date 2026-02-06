@@ -1,14 +1,14 @@
-import {
-    Box,
-    Container,
-    Alert,
-    Grid,
-    useTheme,
-    CircularProgress,
-} from '@mui/material';
+'use client';
+
 import { useTranslations, useLocale } from 'next-intl';
-import { StatsSummaryCard, DateRangeFilter, CategoryStats, CountryStats, ExpenseHistogram } from './';
+import StatsSummaryCard from './StatsSummaryCard';
+import DateRangeFilter from './DateRangeFilter';
+import CategoryStats from './CategoryStats';
+import CountryStats from './CountryStats';
+import ExpenseHistogram from './ExpenseHistogram';
 import type { StatsData } from '@/types';
+import { Loader2 } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface StatsDashboardProps {
     stats: StatsData | null;
@@ -34,7 +34,6 @@ export default function StatsDashboard({
     const t = useTranslations('stats');
     const tCategory = useTranslations('category');
     const locale = useLocale();
-    const theme = useTheme();
 
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat(locale === 'zh' ? 'zh-TW' : locale === 'jp' ? 'ja-JP' : 'en-US', {
@@ -51,53 +50,34 @@ export default function StatsDashboard({
         );
     };
 
-    const cardGradient = theme.palette.mode === 'dark'
-        ? 'linear-gradient(135deg, #1E293B 0%, #0F172A 100%)'
-        : 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)';
-
     if (loading && !stats) {
         return (
-            <Box
-                sx={{
-                    minHeight: '60vh',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                }}
-            >
-                <CircularProgress size={60} thickness={4} />
-            </Box>
+            <div className="min-h-[60vh] flex items-center justify-center">
+                <Loader2 className="w-12 h-12 animate-spin text-primary" />
+            </div>
         );
     }
 
     return (
-        <Container maxWidth="lg" sx={{ pt: { xs: 12, sm: 14 } }}>
-            <Box
-                sx={{
-                    animation: 'fadeIn 0.6s ease-out',
-                    '@keyframes fadeIn': {
-                        '0%': { opacity: 0, transform: 'translateY(20px)' },
-                        '100%': { opacity: 1, transform: 'translateY(0)' },
-                    },
-                }}
-            >
+        <div className="container mx-auto px-4 pt-24 sm:pt-28 pb-12 max-w-7xl">
+            <div className="animate-in fade-in slide-in-from-bottom-5 duration-500">
                 {error && (
-                    <Alert severity="error" sx={{ mb: 4, borderRadius: 3 }}>
-                        {error}
+                    <Alert variant="destructive" className="mb-8 rounded-xl">
+                        <AlertDescription>{error}</AlertDescription>
                     </Alert>
                 )}
 
                 {/* 總支出和查詢區間卡片 */}
-                <Grid container spacing={3} sx={{ mb: 4 }}>
-                    <Grid size={{ xs: 12, md: 5 }}>
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-6 mb-8">
+                    <div className="md:col-span-5 h-full">
                         <StatsSummaryCard
                             totalAmount={stats?.totalAmount || 0}
                             totalExpenses={stats?.totalExpenses || 0}
                             formatCurrency={formatCurrency}
                             t={t}
                         />
-                    </Grid>
-                    <Grid size={{ xs: 12, md: 7 }}>
+                    </div>
+                    <div className="md:col-span-7 h-full">
                         <DateRangeFilter
                             startDate={startDate}
                             endDate={endDate}
@@ -106,40 +86,42 @@ export default function StatsDashboard({
                             onYearSelect={onYearSelect}
                             t={t}
                         />
-                    </Grid>
-                </Grid>
+                    </div>
+                </div>
 
-                <ExpenseHistogram
-                    categoryStats={stats?.categoryStats || []}
-                    startDate={startDate}
-                    endDate={endDate}
-                    formatCurrency={formatCurrency}
-                    cardGradient={cardGradient}
-                    t={t}
-                    locale={locale}
-                />
+                <div className="mb-8">
+                    <ExpenseHistogram
+                        categoryStats={stats?.categoryStats || []}
+                        startDate={startDate}
+                        endDate={endDate}
+                        formatCurrency={formatCurrency}
+                        t={t}
+                        locale={locale}
+                        cardGradient="" // Ignored
+                    />
+                </div>
 
-                <Grid container spacing={4}>
-                    <Grid size={{ xs: 12, lg: 6 }}>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div>
                         <CategoryStats
                             categoryStats={stats?.categoryStats || []}
-                            cardGradient={cardGradient}
                             formatCurrency={formatCurrency}
                             formatDate={formatDate}
                             t={t}
                             tCategory={tCategory}
+                            cardGradient="" // Ignored
                         />
-                    </Grid>
+                    </div>
 
-                    <Grid size={{ xs: 12, lg: 6 }}>
+                    <div>
                         <CountryStats
                             countries={stats?.countries || []}
-                            cardGradient={cardGradient}
                             t={t}
+                            cardGradient="" // Ignored
                         />
-                    </Grid>
-                </Grid>
-            </Box>
-        </Container>
+                    </div>
+                </div>
+            </div>
+        </div>
     );
 }

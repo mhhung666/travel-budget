@@ -2,22 +2,19 @@
 
 import {
   Accordion,
-  AccordionDetails,
-  AccordionSummary,
-  Box,
-  Divider,
-  Stack,
-  Typography,
-  useTheme,
-} from '@mui/material';
-import { alpha } from '@mui/material/styles';
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
+import { Card } from '@/components/ui/card';
 import { ChevronDown, Grid2X2, Receipt, Calendar } from 'lucide-react';
 import { getCategoryIcon } from '@/constants/categories';
 import type { CategoryStat } from '@/types';
+import { cn } from '@/lib/utils';
 
 interface CategoryStatsProps {
   categoryStats: CategoryStat[];
-  cardGradient: string;
+  cardGradient: string; // Not strictly needed with Tailwind but kept for API compatibility if needed (or removed)
   formatCurrency: (amount: number) => string;
   formatDate: (date: string) => string;
   t: (key: string) => string;
@@ -26,133 +23,90 @@ interface CategoryStatsProps {
 
 export default function CategoryStats({
   categoryStats,
-  cardGradient,
   formatCurrency,
   formatDate,
   t,
   tCategory,
 }: CategoryStatsProps) {
-  const theme = useTheme();
 
   return (
     <>
-      <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1.5 }}>
-        <Box
-          sx={{
-            p: 1,
-            borderRadius: 2,
-            bgcolor: 'primary.main',
-            color: 'primary.contrastText',
-            display: 'flex',
-            boxShadow: '0 4px 6px -1px rgba(99, 102, 241, 0.4)'
-          }}
-        >
+      <div className="mb-4 flex items-center gap-3">
+        <div className="p-2 rounded-lg bg-primary text-primary-foreground shadow-sm">
           <Grid2X2 size={20} />
-        </Box>
-        <Typography variant="h5" fontWeight={700}>
+        </div>
+        <h2 className="text-xl font-bold">
           {t('categoryStats')}
-        </Typography>
-      </Box>
+        </h2>
+      </div>
 
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <div className="flex flex-col gap-3">
         {categoryStats.length > 0 ? (
-          categoryStats.map((cat, index) => (
-            <Accordion
-              key={cat.category}
-              elevation={0}
-              disableGutters
-              sx={{
-                background: cardGradient,
-                borderRadius: '16px !important',
-                border: '1px solid',
-                borderColor: 'divider',
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                '&:before': { display: 'none' },
-                '&:hover': {
-                  transform: 'translateY(-2px)',
-                  boxShadow: '0 12px 20px -10px rgba(0, 0, 0, 0.1)',
-                  borderColor: 'primary.light',
-                },
-                animation: `fadeIn 0.5s ease-out ${index * 0.1}s both`,
-              }}
-            >
-              <AccordionSummary expandIcon={<ChevronDown size={20} />}>
-                <Box sx={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', pr: 1 }}>
-                  <Stack direction="row" spacing={2} alignItems="center">
-                    <Box
-                      sx={{
-                        width: 40, height: 40,
-                        borderRadius: '12px',
-                        bgcolor: alpha(theme.palette.primary.main, 0.1),
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: '1.25rem'
-                      }}
-                    >
-                      {getCategoryIcon(cat.category)}
-                    </Box>
-                    <Box>
-                      <Typography variant="subtitle1" fontWeight={600}>
-                        {tCategory(cat.category)}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary" fontWeight={500}>
-                        {cat.count} {t('expenses')}
-                      </Typography>
-                    </Box>
-                  </Stack>
-                  <Typography variant="h6" fontWeight={700} color="primary.main">
-                    {formatCurrency(cat.total)}
-                  </Typography>
-                </Box>
-              </AccordionSummary>
-              <AccordionDetails sx={{ pt: 0, pb: 2 }}>
-                <Divider sx={{ mb: 2, borderStyle: 'dashed' }} />
-                <Stack spacing={1.5}>
-                  {cat.details.map((detail) => (
-                    <Box
-                      key={detail.id}
-                      sx={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        p: 1.5,
-                        borderRadius: 3,
-                        bgcolor: alpha(theme.palette.background.default, 0.5),
-                        '&:hover': { bgcolor: alpha(theme.palette.background.default, 1) }
-                      }}
-                    >
-                      <Box sx={{ minWidth: 0, flex: 1, mr: 2 }}>
-                        <Typography variant="body2" fontWeight={500} noWrap>
-                          {detail.description || t('noDescription')}
-                        </Typography>
-                        <Stack direction="row" alignItems="center" spacing={1} mt={0.5}>
-                          <Calendar size={12} color={theme.palette.text.secondary} />
-                          <Typography variant="caption" color="text.secondary">
-                            {formatDate(detail.date)}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">·</Typography>
-                          <Typography variant="caption" color="text.secondary" noWrap>
-                            {detail.tripName}
-                          </Typography>
-                        </Stack>
-                      </Box>
-                      <Typography variant="body2" fontWeight={700} color="text.primary">
-                        {formatCurrency(detail.amount)}
-                      </Typography>
-                    </Box>
-                  ))}
-                </Stack>
-              </AccordionDetails>
-            </Accordion>
-          ))
+          <Accordion type="single" collapsible className="space-y-3">
+            {categoryStats.map((cat, index) => (
+              <AccordionItem
+                key={cat.category}
+                value={cat.category}
+                className="border rounded-2xl bg-card border-none shadow-sm px-1 data-[state=open]:shadow-md transition-all duration-200"
+              >
+                <AccordionTrigger className="hover:no-underline px-4 py-3 [&[data-state=open]>div>svg]:rotate-180">
+                  <div className="flex w-full items-center justify-between pr-2">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-xl">
+                        {getCategoryIcon(cat.category)}
+                      </div>
+                      <div className="text-left">
+                        <div className="font-semibold text-base leading-tight">
+                          {tCategory(cat.category)}
+                        </div>
+                        <div className="text-xs text-muted-foreground font-medium mt-0.5">
+                          {cat.count} {t('expenses')}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="font-bold text-lg text-primary">
+                      {formatCurrency(cat.total)}
+                    </div>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="px-4 pb-4 pt-0">
+                  <div className="my-2 border-t border-dashed border-border/50" />
+                  <div className="space-y-2">
+                    {cat.details.map((detail) => (
+                      <div
+                        key={detail.id}
+                        className="flex justify-between items-center p-3 rounded-xl bg-muted/30 hover:bg-muted/60 transition-colors"
+                      >
+                        <div className="flex-1 min-w-0 mr-4">
+                          <div className="font-medium text-sm truncate">
+                            {detail.description || t('noDescription')}
+                          </div>
+                          <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                            <Calendar size={12} />
+                            <span>{formatDate(detail.date)}</span>
+                            <span>·</span>
+                            <span className="truncate">{detail.tripName}</span>
+                          </div>
+                        </div>
+                        <div className="font-bold text-sm">
+                          {formatCurrency(detail.amount)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
         ) : (
-          <Box sx={{ textAlign: 'center', py: 8, opacity: 0.6 }}>
-            <Receipt size={48} strokeWidth={1} style={{ marginBottom: 16 }} />
-            <Typography variant="body1" color="text.secondary">
+          <div className="text-center py-12 opacity-60 flex flex-col items-center">
+            <Receipt size={48} strokeWidth={1} className="mb-4 text-muted-foreground" />
+            <p className="text-muted-foreground">
               {t('noData')}
-            </Typography>
-          </Box>
+            </p>
+          </div>
         )}
-      </Box>
+      </div>
     </>
   );
 }

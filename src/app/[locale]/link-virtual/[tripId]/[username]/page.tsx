@@ -3,16 +3,12 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import {
-  Box,
-  Container,
-  CircularProgress,
-} from '@mui/material';
+import { Loader2 } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import {
   RegisterVirtualMemberDialog,
   LinkExistingMemberDialog,
-} from '@/components/trips';
+} from '@/components/trips/detail/dialogs';
 import { getCurrentUser, getMembers } from '@/actions';
 import type { Trip, Member } from '@/types';
 import { InviteCard, ErrorView } from '@/components/link-virtual';
@@ -125,33 +121,25 @@ export default function LinkVirtualMemberPage() {
 
   if (loading) {
     return (
-      <Box
-        sx={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          bgcolor: 'background.default',
-        }}
-      >
-        <CircularProgress size={60} />
-      </Box>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+      </div>
     );
   }
 
   if (error) {
     return (
-      <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
+      <div className="min-h-screen bg-background">
         <Navbar user={null} showUserMenu={false} />
-        <Container maxWidth="sm" sx={{ pt: { xs: 10, sm: 12 }, pb: 4 }}>
+        <div className="container mx-auto px-4 max-w-sm pt-20 sm:pt-28 pb-8">
           <ErrorView error={error} />
-        </Container>
-      </Box>
+        </div>
+      </div>
     );
   }
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
+    <div className="min-h-screen bg-background">
       <Navbar
         user={
           currentUser
@@ -164,9 +152,9 @@ export default function LinkVirtualMemberPage() {
         }
         showUserMenu={!!currentUser}
       />
-      <Container maxWidth="sm" sx={{ pt: { xs: 10, sm: 12 }, pb: 4 }}>
+      <div className="container mx-auto px-4 max-w-sm pt-20 sm:pt-28 pb-8">
         <InviteCard trip={trip} virtualMember={virtualMember} />
-      </Container>
+      </div>
 
       {/* Dialogs */}
       <RegisterVirtualMemberDialog
@@ -184,6 +172,6 @@ export default function LinkVirtualMemberPage() {
         virtualMember={virtualMember}
         tripId={tripId}
       />
-    </Box>
+    </div>
   );
 }

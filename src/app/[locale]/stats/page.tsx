@@ -3,11 +3,11 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
-import { Box, CircularProgress } from '@mui/material';
 import Navbar from '@/components/layout/Navbar';
 import { StatsDashboard } from '@/components/stats';
 import type { StatsData } from '@/types';
 import { getCurrentUser, getStats } from '@/actions';
+import { Loader2 } from 'lucide-react';
 
 export default function StatsPage() {
   const router = useRouter();
@@ -71,22 +71,14 @@ export default function StatsPage() {
 
   if (loading && !stats) {
     return (
-      <Box
-        sx={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          bgcolor: 'background.default',
-        }}
-      >
-        <CircularProgress size={60} thickness={4} />
-      </Box>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-16 h-16 animate-spin text-primary" />
+      </div>
     );
   }
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', pb: 8 }}>
+    <div className="min-h-screen bg-background pb-16">
       <Navbar
         user={
           user
@@ -111,6 +103,6 @@ export default function StatsPage() {
         onEndDateChange={setEndDate}
         onYearSelect={handleYearSelect}
       />
-    </Box>
+    </div>
   );
 }
