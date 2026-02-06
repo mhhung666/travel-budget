@@ -119,26 +119,11 @@ export default function TripMembers({
                                                 />
                                             )}
                                             {member.is_virtual && (
-                                                <>
-                                                    <Chip
-                                                        label={tMember('role.virtual')}
-                                                        size="small"
-                                                        variant="outlined"
-                                                    />
-                                                    {isCurrentUserAdmin && (
-                                                        <IconButton
-                                                            size="small"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                onCopyInviteLink(member);
-                                                            }}
-                                                            title={tMember('copyInviteLink')}
-                                                            sx={{ ml: 0.5 }}
-                                                        >
-                                                            <Link size={16} />
-                                                        </IconButton>
-                                                    )}
-                                                </>
+                                                <Chip
+                                                    label={tMember('role.virtual')}
+                                                    size="small"
+                                                    variant="outlined"
+                                                />
                                             )}
                                         </Box>
                                         {!member.is_virtual && (
@@ -167,6 +152,20 @@ export default function TripMembers({
                                                     title={member.role === 'admin' ? tMember('demoteFromAdmin') : tMember('promoteToAdmin')}
                                                 >
                                                     {member.role === 'admin' ? <Shield size={20} /> : <ShieldCheck size={20} />}
+                                                </IconButton>
+                                            )}
+                                            {/* 複製邀請連結 - 僅限虛擬成員 */}
+                                            {member.is_virtual && (
+                                                <IconButton
+                                                    size="small"
+                                                    color="primary"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        onCopyInviteLink(member);
+                                                    }}
+                                                    title={tMember('copyInviteLink')}
+                                                >
+                                                    <Link size={20} />
                                                 </IconButton>
                                             )}
                                             {/* 移除成員 */}

@@ -86,60 +86,37 @@ export default function TripSettingsPage() {
 
   const loadData = async () => {
     try {
-      // Try to check authentication (not required for viewing)
-      let user = null;
+      // Check authentication - required for settings page
       const userResult = await getCurrentUser();
-      if (userResult.success && userResult.data) {
-        user = userResult.data;
-        setCurrentUser(user);
+      if (!userResult.success || !userResult.data) {
+        setError(tError('unauthorized'));
+        return;
       }
 
-      // If logged in, use Server Actions
-      if (user) {
-        const [tripResult, membersResult] = await Promise.all([
-          getTrip(tripId),
-          getMembers(tripId),
-        ]);
+      setCurrentUser(userResult.data);
 
-        if (!tripResult.success) {
-          // If not a member, try public API
-          if (tripResult.code === 'FORBIDDEN') {
-            await loadPublicData();
-            return;
-          }
+      // Get trip and members data
+      const [tripResult, membersResult] = await Promise.all([
+        getTrip(tripId),
+        getMembers(tripId),
+      ]);
+
+      if (!tripResult.success) {
+        if (tripResult.code === 'FORBIDDEN') {
+          setError(tError('forbidden'));
+        } else {
           setError(tError('loadTripFailed'));
-          return;
         }
-
-        setTrip(tripResult.data);
-        setMembers(membersResult.success ? membersResult.data : []);
-      } else {
-        // Not logged in, use public API
-        await loadPublicData();
+        return;
       }
+
+      setTrip(tripResult.data);
+      setMembers(membersResult.success ? membersResult.data : []);
     } catch (err) {
       setError(tError('loadFailed'));
     } finally {
       setLoading(false);
     }
-  };
-
-  const loadPublicData = async () => {
-    const [tripResponse, membersResponse] = await Promise.all([
-      fetch(`/api/public/trips/${tripId}`),
-      fetch(`/api/public/trips/${tripId}/members`),
-    ]);
-
-    if (!tripResponse.ok) {
-      setError(tError('loadTripFailed'));
-      return;
-    }
-
-    const tripData = await tripResponse.json();
-    const membersData = await membersResponse.json();
-
-    setTrip(tripData.trip || null);
-    setMembers(membersData.members || []);
   };
 
   const copyHashCode = async () => {
@@ -226,7 +203,7 @@ export default function TripSettingsPage() {
 
   const handleCopyInviteLink = async (member: Member) => {
     try {
-      const inviteUrl = `${window.location.origin}/link-virtual/${tripId}/${member.id}`;
+      const inviteUrl = `${window.location.origin}/link-virtual/${tripId}/${member.username}`;
       await navigator.clipboard.writeText(inviteUrl);
       setSnackbar({ open: true, message: tMember('inviteLinkCopied'), severity: 'success' });
     } catch (err) {

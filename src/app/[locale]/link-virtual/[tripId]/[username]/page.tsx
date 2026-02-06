@@ -25,7 +25,7 @@ export default function LinkVirtualMemberPage() {
   const router = useRouter();
   const params = useParams();
   const tripId = params.tripId as string;
-  const memberId = parseInt(params.memberId as string, 10);
+  const username = params.username as string;
 
   const t = useTranslations('member.convertVirtual');
   const tError = useTranslations('error');
@@ -40,7 +40,7 @@ export default function LinkVirtualMemberPage() {
 
   useEffect(() => {
     loadData();
-  }, [tripId, memberId]);
+  }, [tripId, username]);
 
   const loadData = async () => {
     try {
@@ -53,44 +53,50 @@ export default function LinkVirtualMemberPage() {
         setCurrentUser(userResult.data);
       }
 
-      // Get trip info
-      const tripResult = await getTrip(tripId);
-      if (!tripResult.success) {
-        setError(tError('loadTripFailed'));
-        return;
-      }
-      setTrip(tripResult.data);
+      // Use public API to get trip and virtual member info
+      const response = await fetch(`/api/public/link-virtual/${tripId}/${username}`);
 
-      // Get members to find the virtual member
-      const membersResult = await getMembers(tripId);
-      if (!membersResult.success) {
-        setError(tError('loadFailed'));
-        return;
-      }
-
-      const targetMember = membersResult.data.find((m) => m.id === memberId);
-      if (!targetMember) {
-        setError(t('notFound'));
+      if (!response.ok) {
+        const errorData = await response.json();
+        if (response.status === 404) {
+          setError(t('notFound'));
+        } else if (response.status === 400 && errorData.error === 'Member is not virtual') {
+          setError(t('alreadyLinked'));
+        } else {
+          setError(tError('loadFailed'));
+        }
         return;
       }
 
-      if (!targetMember.is_virtual) {
-        setError(t('alreadyLinked'));
-        return;
-      }
-
-      setVirtualMember(targetMember);
+      const data = await response.json();
+      setTrip(data.trip);
+      setVirtualMember({
+        id: data.member.id,
+        username: data.member.username,
+        display_name: data.member.display_name,
+        is_virtual: data.member.is_virtual,
+        joined_at: '',
+        role: 'member',
+      });
 
       // Check if user is already a member of this trip
       if (userResult.success && userResult.data) {
         const userId = userResult.data.id;
-        const isAlreadyMember = membersResult.data.some(
-          (m) => m.id === userId
-        );
-        if (isAlreadyMember) {
-          setError(t('alreadyMember'));
-          return;
+
+        // Try to get members - if it succeeds, check if user is in the list
+        // If it fails (FORBIDDEN), user is not a member
+        const membersResult = await getMembers(tripId);
+        if (membersResult.success) {
+          const isAlreadyMember = membersResult.data.some(
+            (m) => m.id === userId
+          );
+          if (isAlreadyMember) {
+            setError(t('alreadyMember'));
+            return;
+          }
         }
+
+        // If getMembers failed or user not in list, show link dialog
         // User is logged in but not a member - show link dialog
         setShowLinkDialog(true);
       } else {
