@@ -3,22 +3,24 @@
 import { useState, useEffect } from 'react';
 import {
   Dialog,
-  DialogTitle,
   DialogContent,
-  DialogActions,
-  Button,
-  TextField,
-  FormControl,
-  InputLabel,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
   Select,
-  MenuItem,
-  FormControlLabel,
-  Checkbox,
-  Box,
-  Typography,
-  Alert,
-  CircularProgress,
-} from '@mui/material';
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Loader2 } from 'lucide-react';
 import { CURRENCIES, formatCurrency } from '@/constants/currencies';
 import { CATEGORIES, DEFAULT_CATEGORY } from '@/constants/categories';
 import type { Member, Expense, CreateExpenseDto, UpdateExpenseDto } from '@/types';
@@ -58,30 +60,6 @@ const defaultFormData: ExpenseFormData = {
   split_with: [],
 };
 
-/**
- * Expense form dialog for creating or editing expenses
- *
- * @example
- * // Create mode
- * <ExpenseForm
- *   open={showDialog}
- *   mode="create"
- *   members={members}
- *   currentUserId={user.id}
- *   onSubmit={handleCreate}
- *   onClose={() => setShowDialog(false)}
- * />
- *
- * // Edit mode
- * <ExpenseForm
- *   open={showEditDialog}
- *   mode="edit"
- *   members={members}
- *   editingExpense={selectedExpense}
- *   onSubmit={handleUpdate}
- *   onClose={() => setShowEditDialog(false)}
- * />
- */
 export function ExpenseForm({
   open,
   mode,
@@ -126,11 +104,17 @@ export function ExpenseForm({
 
   const handleChange =
     (field: keyof ExpenseFormData) =>
-    (
-      e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | { target: { value: unknown } }
-    ) => {
-      setForm((prev) => ({ ...prev, [field]: e.target.value }));
-    };
+      (e: React.ChangeEvent<HTMLInputElement>) => {
+        setForm((prev) => ({ ...prev, [field]: e.target.value }));
+      };
+
+  const handleSelectChange = (field: keyof ExpenseFormData, value: string) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handlePayerChange = (value: string) => {
+    setForm((prev) => ({ ...prev, payer_id: Number(value) }));
+  };
 
   const toggleSplitMember = (userId: number) => {
     setForm((prev) => ({
@@ -187,164 +171,198 @@ export function ExpenseForm({
     (mode === 'edit' || (form.payer_id > 0 && form.split_with.length > 0));
 
   return (
-    <Dialog open={open} onClose={loading ? undefined : onClose} maxWidth="sm" fullWidth>
-      <form onSubmit={handleSubmit}>
-        <DialogTitle>{mode === 'create' ? 'Add Expense' : 'Edit Expense'}</DialogTitle>
-        <DialogContent>
+    <Dialog open={open} onOpenChange={(val) => !val && !loading && onClose()}>
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{mode === 'create' ? 'Add Expense' : 'Edit Expense'}</DialogTitle>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-4 py-2">
           {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
 
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+          <div className="space-y-4">
             {mode === 'create' && (
-              <FormControl fullWidth>
-                <InputLabel>Payer</InputLabel>
+              <div className="space-y-2">
+                <Label htmlFor="payer">Payer</Label>
                 <Select
-                  value={form.payer_id}
-                  onChange={handleChange('payer_id') as any}
-                  label="Payer"
+                  value={form.payer_id.toString()}
+                  onValueChange={handlePayerChange}
                   disabled={loading}
                 >
-                  {members.map((member) => (
-                    <MenuItem key={member.id} value={member.id}>
-                      {member.display_name || member.username}
-                    </MenuItem>
-                  ))}
+                  <SelectTrigger id="payer">
+                    <SelectValue placeholder="Select payer" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {members.map((member) => (
+                      <SelectItem key={member.id} value={member.id.toString()}>
+                        {member.display_name || member.username}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
                 </Select>
-              </FormControl>
+              </div>
             )}
 
-            <TextField
-              label="Description"
-              value={form.description}
-              onChange={handleChange('description')}
-              required
-              disabled={loading}
-            />
+            <div className="space-y-2">
+              <Label htmlFor="description">Description</Label>
+              <Input
+                id="description"
+                value={form.description}
+                onChange={handleChange('description')}
+                required
+                disabled={loading}
+              />
+            </div>
 
-            <FormControl fullWidth>
-              <InputLabel>Category</InputLabel>
+            <div className="space-y-2">
+              <Label htmlFor="category">Category</Label>
               <Select
                 value={form.category}
-                onChange={handleChange('category') as any}
-                label="Category"
+                onValueChange={(val) => handleSelectChange('category', val)}
                 disabled={loading}
               >
-                {CATEGORIES.map((c) => (
-                  <MenuItem key={c.code} value={c.code}>
-                    {c.icon} {c.code.charAt(0).toUpperCase() + c.code.slice(1)}
-                  </MenuItem>
-                ))}
+                <SelectTrigger id="category">
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {CATEGORIES.map((c) => (
+                    <SelectItem key={c.code} value={c.code}>
+                      <span className="flex items-center gap-2">
+                        <span>{c.icon}</span>
+                        <span>{c.code.charAt(0).toUpperCase() + c.code.slice(1)}</span>
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
               </Select>
-            </FormControl>
+            </div>
 
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <TextField
-                label="Amount"
-                type="number"
-                value={form.original_amount}
-                onChange={handleChange('original_amount')}
-                required
-                disabled={loading}
-                inputProps={{ step: '0.01', min: '0' }}
-                sx={{ flex: 1 }}
-              />
-              <FormControl sx={{ minWidth: 100 }}>
-                <InputLabel>Currency</InputLabel>
+            <div className="flex gap-2">
+              <div className="flex-1 space-y-2">
+                <Label htmlFor="amount">Amount</Label>
+                <Input
+                  id="amount"
+                  type="number"
+                  value={form.original_amount}
+                  onChange={handleChange('original_amount')}
+                  required
+                  disabled={loading}
+                  step="0.01"
+                  min="0"
+                />
+              </div>
+              <div className="w-[120px] space-y-2">
+                <Label htmlFor="currency">Currency</Label>
                 <Select
                   value={form.currency}
-                  onChange={handleChange('currency') as any}
-                  label="Currency"
+                  onValueChange={(val) => handleSelectChange('currency', val)}
                   disabled={loading}
                 >
-                  {CURRENCIES.map((c) => (
-                    <MenuItem key={c.code} value={c.code}>
-                      {c.symbol} {c.code}
-                    </MenuItem>
-                  ))}
+                  <SelectTrigger id="currency">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CURRENCIES.map((c) => (
+                      <SelectItem key={c.code} value={c.code}>
+                        {c.symbol} {c.code}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
                 </Select>
-              </FormControl>
-            </Box>
+              </div>
+            </div>
 
             {form.currency !== 'TWD' && (
-              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                <TextField
-                  label="Exchange Rate (to TWD)"
-                  type="number"
-                  value={form.exchange_rate}
-                  onChange={handleChange('exchange_rate')}
-                  disabled={loading}
-                  inputProps={{ step: '0.0001', min: '0' }}
-                  sx={{ flex: 1 }}
-                />
-                <Typography variant="body2" color="text.secondary">
+              <div className="space-y-2">
+                <div className="flex gap-2 items-end">
+                  <div className="flex-1 space-y-2">
+                    <Label htmlFor="exchange_rate">Exchange Rate (to TWD)</Label>
+                    <Input
+                      id="exchange_rate"
+                      type="number"
+                      value={form.exchange_rate}
+                      onChange={handleChange('exchange_rate')}
+                      disabled={loading}
+                      step="0.0001"
+                      min="0"
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
                   = {formatCurrency(calculateConvertedAmount(), 'TWD')}
-                </Typography>
-              </Box>
+                </p>
+              </div>
             )}
 
             {mode === 'create' && (
-              <TextField
-                label="Date"
-                type="date"
-                value={form.date}
-                onChange={handleChange('date')}
-                required
-                disabled={loading}
-                InputLabelProps={{ shrink: true }}
-              />
+              <div className="space-y-2">
+                <Label htmlFor="date">Date</Label>
+                <Input
+                  id="date"
+                  type="date"
+                  value={form.date}
+                  onChange={handleChange('date')}
+                  required
+                  disabled={loading}
+                />
+              </div>
             )}
 
             {mode === 'create' && (
-              <Box>
-                <Box
-                  sx={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    mb: 1,
-                  }}
-                >
-                  <Typography variant="subtitle2">Split with:</Typography>
-                  <Button size="small" onClick={selectAllMembers} disabled={loading}>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <Label>Split with:</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={selectAllMembers}
+                    disabled={loading}
+                    className="h-8 text-xs"
+                  >
                     Select All
                   </Button>
-                </Box>
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                </div>
+                <div className="flex flex-wrap gap-3">
                   {members.map((member) => (
-                    <FormControlLabel
-                      key={member.id}
-                      control={
-                        <Checkbox
-                          checked={form.split_with.includes(member.id)}
-                          onChange={() => toggleSplitMember(member.id)}
-                          disabled={loading}
-                        />
-                      }
-                      label={member.display_name || member.username}
-                    />
+                    <div key={member.id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`split-${member.id}`}
+                        checked={form.split_with.includes(member.id)}
+                        onCheckedChange={() => toggleSplitMember(member.id)}
+                        disabled={loading}
+                      />
+                      <Label
+                        htmlFor={`split-${member.id}`}
+                        className="text-sm font-normal cursor-pointer"
+                      >
+                        {member.display_name || member.username}
+                      </Label>
+                    </div>
                   ))}
-                </Box>
-              </Box>
+                </div>
+              </div>
             )}
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={onClose} disabled={loading}>
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            variant="contained"
-            disabled={loading || !isValid}
-            startIcon={loading ? <CircularProgress size={16} color="inherit" /> : undefined}
-          >
-            {mode === 'create' ? 'Add' : 'Save'}
-          </Button>
-        </DialogActions>
-      </form>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0 mt-6">
+            <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={loading || !isValid}
+            >
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {mode === 'create' ? 'Add' : 'Save'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
     </Dialog>
   );
 }

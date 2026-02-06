@@ -1,6 +1,7 @@
 'use client';
 
-import { Box, Typography, Button, Alert } from '@mui/material';
+import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Plus } from 'lucide-react';
 import { ExpenseCard } from './ExpenseCard';
 import type { Expense } from '@/types';
@@ -16,20 +17,6 @@ export interface ExpenseListProps {
   showAddButton?: boolean;
 }
 
-/**
- * Expense list component
- *
- * @example
- * <ExpenseList
- *   expenses={expenses}
- *   currentUserId={user.id}
- *   onEdit={handleEdit}
- *   onDelete={handleDelete}
- *   onAdd={() => setShowAddDialog(true)}
- *   emptyMessage="No expenses yet"
- *   emptyActionLabel="Add your first expense"
- * />
- */
 export function ExpenseList({
   expenses,
   currentUserId,
@@ -42,21 +29,22 @@ export function ExpenseList({
 }: ExpenseListProps) {
   if (expenses.length === 0) {
     return (
-      <Box sx={{ textAlign: 'center', py: 4 }}>
-        <Alert severity="info" sx={{ mb: 2 }}>
-          {emptyMessage}
+      <div className="text-center py-8">
+        <Alert variant="default" className="mb-4 w-fit mx-auto border-blue-200 bg-blue-50 text-blue-900 dark:bg-blue-900/10 dark:text-blue-200 dark:border-blue-900">
+          <AlertDescription>{emptyMessage}</AlertDescription>
         </Alert>
         {showAddButton && onAdd && (
-          <Button variant="contained" startIcon={<Plus size={20} />} onClick={onAdd}>
+          <Button onClick={onAdd}>
+            <Plus size={20} className="mr-2" />
             {emptyActionLabel}
           </Button>
         )}
-      </Box>
+      </div>
     );
   }
 
   return (
-    <Box>
+    <div className="space-y-2">
       {expenses.map((expense) => (
         <ExpenseCard
           key={expense.id}
@@ -66,6 +54,6 @@ export function ExpenseList({
           onDelete={onDelete}
         />
       ))}
-    </Box>
+    </div>
   );
 }

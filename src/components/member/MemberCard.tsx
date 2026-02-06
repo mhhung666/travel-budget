@@ -1,8 +1,11 @@
 'use client';
 
-import { Box, Typography, Chip, Avatar, IconButton } from '@mui/material';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Shield, UserMinus } from 'lucide-react';
 import type { Member } from '@/types';
+import { cn } from '@/lib/utils';
 
 export interface MemberCardProps {
   member: Member;
@@ -11,73 +14,56 @@ export interface MemberCardProps {
   onRemove?: (member: Member) => void;
 }
 
-/**
- * Member card component displaying member info
- *
- * @example
- * <MemberCard
- *   member={member}
- *   isCurrentUser={member.id === currentUser.id}
- *   canRemove={isAdmin && member.id !== currentUser.id}
- *   onRemove={handleRemove}
- * />
- */
 export function MemberCard({ member, isCurrentUser, canRemove, onRemove }: MemberCardProps) {
   const displayName = member.display_name || member.username;
 
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        py: 1,
-        px: 2,
-        borderRadius: 1,
-        bgcolor: isCurrentUser ? 'action.selected' : 'transparent',
-        '&:hover': {
-          bgcolor: 'action.hover',
-        },
-      }}
+    <div
+      className={cn(
+        "flex items-center justify-between py-2 px-4 rounded-md hover:bg-muted/50 transition-colors",
+        isCurrentUser && "bg-muted/50 font-medium"
+      )}
     >
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-        <Avatar sx={{ bgcolor: 'primary.main' }}>{displayName.charAt(0).toUpperCase()}</Avatar>
-        <Box>
-          <Typography variant="body1" fontWeight={isCurrentUser ? 600 : 400}>
-            {displayName}
+      <div className="flex items-center gap-3">
+        <Avatar className="h-10 w-10">
+          <AvatarFallback className="bg-primary text-primary-foreground">
+            {displayName.charAt(0).toUpperCase()}
+          </AvatarFallback>
+        </Avatar>
+        <div>
+          <div className="flex items-center gap-2">
+            <span className={isCurrentUser ? "font-semibold" : "font-normal"}>
+              {displayName}
+            </span>
             {isCurrentUser && (
-              <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 1 }}>
-                (You)
-              </Typography>
+              <span className="text-xs text-muted-foreground">(You)</span>
             )}
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
+          </div>
+          <div className="text-xs text-muted-foreground">
             Joined {new Date(member.joined_at).toLocaleDateString()}
-          </Typography>
-        </Box>
-      </Box>
+          </div>
+        </div>
+      </div>
 
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+      <div className="flex items-center gap-2">
         {member.role === 'admin' && (
-          <Chip
-            icon={<Shield size={16} />}
-            label="Admin"
-            size="small"
-            color="primary"
-            variant="outlined"
-          />
+          <Badge variant="outline" className="gap-1 border-primary/50 text-primary">
+            <Shield size={12} />
+            Admin
+          </Badge>
         )}
         {canRemove && onRemove && (
-          <IconButton
-            size="small"
-            color="error"
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
             onClick={() => onRemove(member)}
             title="Remove member"
           >
-            <UserMinus size={20} />
-          </IconButton>
+            <UserMinus size={16} />
+          </Button>
         )}
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 }

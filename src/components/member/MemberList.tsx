@@ -1,6 +1,6 @@
 'use client';
 
-import { Box, Typography, Divider } from '@mui/material';
+import { Separator } from '@/components/ui/separator';
 import { MemberCard } from './MemberCard';
 import type { Member } from '@/types';
 
@@ -12,18 +12,6 @@ export interface MemberListProps {
   title?: string;
 }
 
-/**
- * Member list component
- *
- * @example
- * <MemberList
- *   members={members}
- *   currentUserId={user.id}
- *   isAdmin={isAdmin}
- *   onRemove={handleRemoveMember}
- *   title="Trip Members"
- * />
- */
 export function MemberList({
   members,
   currentUserId,
@@ -32,25 +20,25 @@ export function MemberList({
   title = 'Members',
 }: MemberListProps) {
   return (
-    <Box>
+    <div>
       {title && (
-        <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+        <h3 className="text-sm font-medium text-muted-foreground mb-2">
           {title} ({members.length})
-        </Typography>
+        </h3>
       )}
-      <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+      <div className="flex flex-col space-y-1">
         {members.map((member, index) => (
-          <Box key={member.id}>
+          <div key={member.id}>
             <MemberCard
               member={member}
               isCurrentUser={member.id === currentUserId}
               canRemove={isAdmin && member.id !== currentUserId && member.role !== 'admin'}
               onRemove={onRemove}
             />
-            {index < members.length - 1 && <Divider />}
-          </Box>
+            {index < members.length - 1 && <Separator className="my-1 opacity-50" />}
+          </div>
         ))}
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 }
