@@ -224,6 +224,16 @@ export default function TripSettingsPage() {
     }
   };
 
+  const handleCopyInviteLink = async (member: Member) => {
+    try {
+      const inviteUrl = `${window.location.origin}/link-virtual/${tripId}/${member.id}`;
+      await navigator.clipboard.writeText(inviteUrl);
+      setSnackbar({ open: true, message: tMember('inviteLinkCopied'), severity: 'success' });
+    } catch (err) {
+      setSnackbar({ open: true, message: tAction('copyFailed'), severity: 'error' });
+    }
+  };
+
   const isCurrentUserMember = currentUser && members.some((m) => m.id === currentUser.id);
   const isCurrentUserAdmin = members.find((m) => m.id === currentUser?.id)?.role === 'admin';
 
@@ -313,6 +323,7 @@ export default function TripSettingsPage() {
             onAddVirtualMember={() => setAddVirtualMemberDialog(true)}
             onRemoveMember={(member) => setRemoveMemberDialog({ open: true, member })}
             onToggleAdmin={(member) => setToggleAdminDialog({ open: true, member })}
+            onCopyInviteLink={handleCopyInviteLink}
             onVirtualMemberClick={(member) => {
               setSelectedVirtualMember(member);
               setRegisterVirtualDialog(true);

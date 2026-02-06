@@ -9,7 +9,7 @@ import {
     Collapse,
     Avatar,
 } from '@mui/material';
-import { ChevronDown, ChevronUp, UserPlus, Shield, UserMinus, ShieldCheck } from 'lucide-react';
+import { ChevronDown, ChevronUp, UserPlus, Shield, UserMinus, ShieldCheck, Link } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { Member, User } from '@/types';
 
@@ -20,6 +20,7 @@ interface TripMembersProps {
     onAddVirtualMember: () => void;
     onRemoveMember: (member: Member) => void;
     onToggleAdmin: (member: Member) => void;
+    onCopyInviteLink: (member: Member) => void;
     onVirtualMemberClick?: (member: Member) => void;
     expanded: boolean;
     onToggleExpand: () => void;
@@ -32,6 +33,7 @@ export default function TripMembers({
     onAddVirtualMember,
     onRemoveMember,
     onToggleAdmin,
+    onCopyInviteLink,
     onVirtualMemberClick,
     expanded,
     onToggleExpand,
@@ -117,11 +119,26 @@ export default function TripMembers({
                                                 />
                                             )}
                                             {member.is_virtual && (
-                                                <Chip
-                                                    label={tMember('role.virtual')}
-                                                    size="small"
-                                                    variant="outlined"
-                                                />
+                                                <>
+                                                    <Chip
+                                                        label={tMember('role.virtual')}
+                                                        size="small"
+                                                        variant="outlined"
+                                                    />
+                                                    {isCurrentUserAdmin && (
+                                                        <IconButton
+                                                            size="small"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                onCopyInviteLink(member);
+                                                            }}
+                                                            title={tMember('copyInviteLink')}
+                                                            sx={{ ml: 0.5 }}
+                                                        >
+                                                            <Link size={16} />
+                                                        </IconButton>
+                                                    )}
+                                                </>
                                             )}
                                         </Box>
                                         {!member.is_virtual && (

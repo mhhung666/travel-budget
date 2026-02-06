@@ -238,6 +238,8 @@
       "removed": "成员已移除",
       "roleUpdated": "角色已更新"
     },
+    "copyInviteLink": "复制邀请链接",
+    "inviteLinkCopied": "邀请链接已复制",
     "convertVirtual": {
       "clickHint": "点击注册为正式会员",
       "registerTitle": "注册为正式会员",
@@ -250,7 +252,12 @@
       "registerNew": "注册新帐号",
       "linkButton": "连结帐号",
       "error": "操作失败，请稍后再试",
-      "alreadyMember": "此帐号已经是这个旅行的成员，无法再连结虚拟成员"
+      "alreadyMember": "此帐号已经是这个旅行的成员，无法再连结虚拟成员",
+      "notFound": "找不到此虚拟成员",
+      "alreadyLinked": "此虚拟成员已被认领",
+      "linkSuccess": "成功连结虚拟成员",
+      "inviteTitle": "加入旅行「{tripName}」",
+      "inviteDescription": "认领虚拟成员「{memberName}」的身份"
     }
   },
   "settlement": {

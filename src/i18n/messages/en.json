@@ -256,6 +256,8 @@
     "addVirtualMember": "Add Virtual Member",
     "addVirtualMemberHint": "Virtual members are for travel companions who don't want to register. They can participate in expense splitting but cannot log in.",
     "virtualMemberName": "Member Name",
+    "copyInviteLink": "Copy Invite Link",
+    "inviteLinkCopied": "Invite link copied",
     "convertVirtual": {
       "clickHint": "Click to register as a member",
       "registerTitle": "Register as a Member",
@@ -268,7 +270,12 @@
       "registerNew": "Register new account",
       "linkButton": "Link Account",
       "error": "Operation failed, please try again",
-      "alreadyMember": "This account is already a member of this trip and cannot be linked to a virtual member"
+      "alreadyMember": "This account is already a member of this trip and cannot be linked to a virtual member",
+      "notFound": "Virtual member not found",
+      "alreadyLinked": "This virtual member has already been claimed",
+      "linkSuccess": "Successfully linked virtual member",
+      "inviteTitle": "Join trip \"{tripName}\"",
+      "inviteDescription": "Claim virtual member \"{memberName}\" identity"
     },
     "virtualMemberAdded": "Virtual member added",
     "promoteToAdmin": "Make Admin",

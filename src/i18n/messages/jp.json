@@ -238,6 +238,8 @@
       "removed": "メンバーを削除しました",
       "roleUpdated": "役割を更新しました"
     },
+    "copyInviteLink": "招待リンクをコピー",
+    "inviteLinkCopied": "招待リンクをコピーしました",
     "convertVirtual": {
       "clickHint": "クリックして正式メンバーとして登録",
       "registerTitle": "正式メンバーとして登録",
@@ -250,7 +252,12 @@
       "registerNew": "新規アカウント登録",
       "linkButton": "アカウントをリンク",
       "error": "操作に失敗しました。後でもう一度お試しください",
-      "alreadyMember": "このアカウントはすでにこの旅行のメンバーです。仮想メンバーにリンクできません"
+      "alreadyMember": "このアカウントはすでにこの旅行のメンバーです。仮想メンバーにリンクできません",
+      "notFound": "仮想メンバーが見つかりません",
+      "alreadyLinked": "この仮想メンバーはすでに認領されています",
+      "linkSuccess": "仮想メンバーを正常にリンクしました",
+      "inviteTitle": "旅行「{tripName}」に参加",
+      "inviteDescription": "仮想メンバー「{memberName}」の身分を認領"
     }
   },
   "settlement": {
