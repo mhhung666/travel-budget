@@ -10,22 +10,12 @@ import type { Trip, Member, Expense } from '@/types';
 import {
   TripHeader,
   TripExpenses,
-  TripMembers,
-  TripSettlement,
-  TripShare,
-  TripDangerZone,
 } from '@/components/trips/detail';
 
 // Dialogs
 import {
   ExpenseFormDialog,
   EditTripDialog,
-  DeleteTripDialog,
-  AddVirtualMemberDialog,
-  RegisterVirtualMemberDialog,
-  LinkExistingMemberDialog,
-  RemoveMemberDialog,
-  ToggleAdminDialog,
 } from '@/components/trips/detail/dialogs';
 
 import {
@@ -37,10 +27,6 @@ import {
   updateExpense,
   deleteExpense,
   updateTrip,
-  addVirtualMember,
-  deleteTrip,
-  removeMember,
-  updateMemberRole,
 } from '@/actions';
 
 import { Button } from '@/components/ui/button';
@@ -54,7 +40,6 @@ export default function TripDetailPage() {
   const t = useTranslations();
   const tCommon = useTranslations('common');
   const tExpense = useTranslations('expense');
-  const tMember = useTranslations('member');
   const tTrip = useTranslations('trip');
   const tTrips = useTranslations('trips');
   const tError = useTranslations('error');
@@ -74,22 +59,9 @@ export default function TripDetailPage() {
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [editTripDialog, setEditTripDialog] = useState(false);
 
-  // Member management dialogs
-  const [addVirtualMemberDialog, setAddVirtualMemberDialog] = useState(false);
-  const [registerVirtualDialog, setRegisterVirtualDialog] = useState(false);
-  const [linkExistingDialog, setLinkExistingDialog] = useState(false);
-  const [selectedVirtualMember, setSelectedVirtualMember] = useState<Member | null>(null);
-  const [deleteTripDialog, setDeleteTripDialog] = useState(false);
-  const [isDeletingTrip, setIsDeletingTrip] = useState(false);
-  const [removeMemberDialog, setRemoveMemberDialog] = useState(false);
-  const [selectedMemberToRemove, setSelectedMemberToRemove] = useState<Member | null>(null);
-  const [toggleAdminDialog, setToggleAdminDialog] = useState(false);
-  const [selectedMemberToToggle, setSelectedMemberToToggle] = useState<Member | null>(null);
-
   // Filter & Expand states
   const [filterMemberId, setFilterMemberId] = useState<number | 'all'>('all');
   const [expensesExpanded, setExpensesExpanded] = useState(true);
-  const [membersExpanded, setMembersExpanded] = useState(true);
 
   useEffect(() => {
     loadTripData();
@@ -187,7 +159,6 @@ export default function TripDetailPage() {
   };
 
   const handleDeleteExpense = async (expenseId: number) => {
-    // Note: Ideally confirm via a dialog, but simple confirm for now is fine or use toast undo style
     if (!confirm(tExpense('confirm.delete'))) return;
 
     try {
@@ -266,85 +237,6 @@ export default function TripDetailPage() {
     }
   };
 
-  const handleAddVirtualMember = async (name: string) => {
-    try {
-      const result = await addVirtualMember(tripId, { display_name: name.trim() });
-      if (!result.success) throw new Error(result.error);
-
-      setAddVirtualMemberDialog(false);
-      await getMembers(tripId).then(res => res.success && setMembers(res.data));
-      toast({
-        title: tMember('success.added'),
-      });
-    } catch (err: any) {
-      throw err;
-    }
-  };
-
-  const handleDeleteTrip = async () => {
-    setIsDeletingTrip(true);
-    try {
-      const result = await deleteTrip(tripId);
-      if (!result.success) throw new Error(result.error);
-
-      router.push('/trips');
-      toast({
-        title: tTrip('deleteSuccess'),
-      });
-    } catch (err: any) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: err.message,
-      });
-      setIsDeletingTrip(false);
-    }
-  };
-
-  const handleRemoveMember = async () => {
-    if (!selectedMemberToRemove) return;
-    try {
-      const result = await removeMember(tripId, selectedMemberToRemove.id);
-      if (!result.success) throw new Error(result.error);
-
-      setRemoveMemberDialog(false);
-      setSelectedMemberToRemove(null);
-      await loadTripData();
-      toast({
-        title: tMember('success.removed'),
-      });
-    } catch (err: any) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: err.message,
-      });
-    }
-  };
-
-  const handleToggleAdmin = async () => {
-    if (!selectedMemberToToggle) return;
-    try {
-      const newRole = selectedMemberToToggle.role === 'admin' ? 'member' : 'admin';
-      const result = await updateMemberRole(tripId, selectedMemberToToggle.id, newRole);
-      if (!result.success) throw new Error(result.error);
-
-      setToggleAdminDialog(false);
-      setSelectedMemberToToggle(null);
-      await loadTripData();
-      toast({
-        title: newRole === 'admin' ? tMember('success.promoted') : tMember('success.demoted'),
-      });
-    } catch (err: any) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: err.message,
-      });
-    }
-  };
-
-
   const isCurrentUserMember = currentUser && members.some((m) => m.id === currentUser.id);
   const isCurrentUserAdmin = members.find((m) => m.id === currentUser?.id)?.role === 'admin';
 
@@ -383,6 +275,7 @@ export default function TripDetailPage() {
               id: currentUser.id,
               username: currentUser.display_name,
               email: currentUser.email,
+              display_name: currentUser.display_name,
             }
             : null
         }
@@ -415,73 +308,30 @@ export default function TripDetailPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr] gap-6">
-          {/* Left Column: Sidebar (Info, Members, Settlement, Quick Actions) */}
+          {/* Left Column: Sidebar (Info, Quick Actions) */}
           <div className="space-y-6 flex flex-col h-full">
             <TripHeader
               trip={trip}
               isCurrentUserAdmin={!!isCurrentUserAdmin}
               onEdit={() => setEditTripDialog(true)}
-            />
-
-            {/* Quick Actions / Navigation */}
-            <div className="grid grid-cols-1 gap-3">
-              {/* Mobile View: Show these prominently? They act as nav buttons */}
+            >
               <Button
                 onClick={() => router.push(`/trips/${tripId}/itinerary`)}
-                className="w-full h-12 text-base font-semibold justify-start pl-4 gap-3 bg-card hover:bg-accent text-card-foreground border shadow-sm"
+                className="flex-1 bg-card hover:bg-accent text-card-foreground border shadow-sm h-10"
                 variant="outline"
               >
-                <Map className="h-5 w-5 text-primary" />
+                <Map className="mr-2 h-4 w-4 text-primary" />
                 {tTrip('viewItinerary')}
               </Button>
               <Button
                 onClick={() => router.push(`/trips/${tripId}/settlement`)}
-                className="w-full h-12 text-base font-semibold justify-start pl-4 gap-3 bg-card hover:bg-accent text-card-foreground border shadow-sm"
+                className="flex-1 bg-card hover:bg-accent text-card-foreground border shadow-sm h-10"
                 variant="outline"
               >
-                <Calculator className="h-5 w-5 text-green-600" />
+                <Calculator className="mr-2 h-4 w-4 text-green-600" />
                 {tTrip('viewSettlement')}
               </Button>
-            </div>
-
-            <TripSettlement tripId={tripId} />
-
-            <TripMembers
-              members={members}
-              currentUser={currentUser}
-              isCurrentUserAdmin={!!isCurrentUserAdmin}
-              onAddVirtualMember={() => setAddVirtualMemberDialog(true)}
-              onRemoveMember={(member) => {
-                setSelectedMemberToRemove(member);
-                setRemoveMemberDialog(true);
-              }}
-              onToggleAdmin={(member) => {
-                setSelectedMemberToToggle(member);
-                setToggleAdminDialog(true);
-              }}
-              onCopyInviteLink={(member) => {
-                // TODO: Implement copy link logic properly
-                navigator.clipboard.writeText(`${window.location.origin}/join/${trip.hash_code}?virtual=${member.id}`);
-                toast({ title: "Copied!", description: "Invite link copied to clipboard." });
-              }}
-              onVirtualMemberClick={(member) => {
-                setSelectedVirtualMember(member);
-                // Logic to determine which dialog to open? 
-                // Assuming we open a chooser or default to register
-                setRegisterVirtualDialog(true);
-              }}
-              expanded={membersExpanded}
-              onToggleExpand={() => setMembersExpanded(!membersExpanded)}
-            />
-
-            <TripShare
-              tripHashCode={trip.hash_code}
-              onCopy={() => toast({ title: "Copied!", description: tTrip('shareCodeCopied') })}
-            />
-
-            {isCurrentUserAdmin && (
-              <TripDangerZone onDelete={() => setDeleteTripDialog(true)} />
-            )}
+            </TripHeader>
           </div>
 
           {/* Right Column: Expenses (Main Content) */}
@@ -531,64 +381,6 @@ export default function TripDetailPage() {
         onSubmit={handleEditTrip}
         trip={trip}
       />
-
-      <DeleteTripDialog
-        open={deleteTripDialog}
-        onClose={() => setDeleteTripDialog(false)}
-        onConfirm={handleDeleteTrip}
-        tripName={trip.name}
-        isDeleting={isDeletingTrip}
-      />
-
-      <AddVirtualMemberDialog
-        open={addVirtualMemberDialog}
-        onClose={() => setAddVirtualMemberDialog(false)}
-        onSubmit={handleAddVirtualMember}
-      />
-
-      <RemoveMemberDialog
-        open={removeMemberDialog}
-        onClose={() => setRemoveMemberDialog(false)}
-        onConfirm={handleRemoveMember}
-        member={selectedMemberToRemove}
-      />
-
-      <ToggleAdminDialog
-        open={toggleAdminDialog}
-        onClose={() => setToggleAdminDialog(false)}
-        onConfirm={handleToggleAdmin}
-        member={selectedMemberToToggle}
-      />
-
-      {/* Virtual Member Linking Dialogs - Managing switch logic */}
-      <RegisterVirtualMemberDialog
-        open={registerVirtualDialog}
-        onClose={() => {
-          setRegisterVirtualDialog(false);
-          setSelectedVirtualMember(null);
-        }}
-        onSwitchToLink={() => {
-          setRegisterVirtualDialog(false);
-          setLinkExistingDialog(true);
-        }}
-        virtualMember={selectedVirtualMember}
-        tripId={tripId}
-      />
-
-      <LinkExistingMemberDialog
-        open={linkExistingDialog}
-        onClose={() => {
-          setLinkExistingDialog(false);
-          setSelectedVirtualMember(null);
-        }}
-        onSwitchToRegister={() => {
-          setLinkExistingDialog(false);
-          setRegisterVirtualDialog(true);
-        }}
-        virtualMember={selectedVirtualMember}
-        tripId={tripId}
-      />
-
     </div>
   );
 }
