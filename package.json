@@ -1,6 +1,6 @@
 {
   "name": "travel-budget",
-  "version": "3.2.3",
+  "version": "3.3.0",
   "description": "一個輕量化的旅行記帳與分帳應用程式,適合多人出國旅行時使用。",
   "main": "index.js",
   "type": "module",
@@ -41,7 +41,9 @@
     "next-intl": "^4.7.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
+    "react-markdown": "^10.1.0",
     "recharts": "^3.7.0",
+    "remark-gfm": "^4.0.1",
     "typescript": "^5.9.3",
     "zod": "^4.3.6"
   },

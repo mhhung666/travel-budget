@@ -10,6 +10,9 @@ export type { Expense, ExpenseSplit } from './expense';
 // Settlement
 export type { UserBalance, Transfer, SettlementData, Balance, Transaction } from './settlement';
 
+// Itinerary
+export type { ItineraryDay } from './itinerary';
+
 // Stats
 export type {
   ExpenseDetail,

@@ -154,6 +154,35 @@ export interface Database {
                     share_amount?: number
                 }
             }
+            itinerary_days: {
+                Row: {
+                    id: number
+                    trip_id: number
+                    day_number: number
+                    title: string
+                    content: string
+                    created_at: string
+                    updated_at: string
+                }
+                Insert: {
+                    id?: number
+                    trip_id: number
+                    day_number: number
+                    title: string
+                    content?: string
+                    created_at?: string
+                    updated_at?: string
+                }
+                Update: {
+                    id?: number
+                    trip_id?: number
+                    day_number?: number
+                    title?: string
+                    content?: string
+                    created_at?: string
+                    updated_at?: string
+                }
+            }
         }
         Views: {}
         Functions: {}

@@ -40,5 +40,13 @@ export {
 // Settlement actions
 export { getSettlement } from './settlement.actions';
 
+// Itinerary actions
+export {
+  getItinerary,
+  createItineraryDay,
+  updateItineraryDay,
+  deleteItineraryDay,
+} from './itinerary.actions';
+
 // Stats actions
 export { getStats } from './stats.actions';

@@ -12,13 +12,12 @@ import {
   CircularProgress,
   Snackbar,
 } from '@mui/material';
-import { ArrowLeft, Settings } from 'lucide-react';
+import { ArrowLeft, Settings, Map, Calculator } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import type { Trip, Member, Expense } from '@/types';
 import {
   TripHeader,
   TripExpenses,
-  TripSettlement,
   ExpenseFormDialog,
   EditTripDialog,
 } from '@/components/trips';
@@ -322,7 +321,7 @@ export default function TripDetailPage() {
         </Box>
 
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '3fr 7fr' }, gap: 3 }}>
-          {/* 左側：旅行資訊 & 結算功能 */}
+          {/* 左側：旅行資訊 & 操作按鈕 */}
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
             <TripHeader
               trip={trip}
@@ -330,7 +329,31 @@ export default function TripDetailPage() {
               onEdit={() => setEditTripDialog(true)}
             />
 
-            <TripSettlement tripId={tripId} />
+            {/* Action buttons */}
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              <Button
+                onClick={() => router.push(`/trips/${tripId}/itinerary`)}
+                variant="contained"
+                color="primary"
+                fullWidth
+                size="large"
+                startIcon={<Map size={20} />}
+                sx={{ py: 1.5, fontWeight: 600 }}
+              >
+                {tTrip('viewItinerary')}
+              </Button>
+              <Button
+                onClick={() => router.push(`/trips/${tripId}/settlement`)}
+                variant="contained"
+                color="success"
+                fullWidth
+                size="large"
+                startIcon={<Calculator size={20} />}
+                sx={{ py: 1.5, fontWeight: 600 }}
+              >
+                {tTrip('viewSettlement')}
+              </Button>
+            </Box>
           </Box>
 
           {/* 右側：支出紀錄 */}

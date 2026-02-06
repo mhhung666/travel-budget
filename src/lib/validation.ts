@@ -143,7 +143,21 @@ export const addVirtualMemberSchema = z.object({
   display_name: z.string().min(1, '名稱不能為空').trim(),
 });
 
+// Itinerary schemas
+export const createItineraryDaySchema = z.object({
+  title: z.string().min(1, '標題不能為空').trim(),
+  content: z.string().default(''),
+});
+
+export const updateItineraryDaySchema = z.object({
+  title: z.string().min(1, '標題不能為空').trim().optional(),
+  content: z.string().optional(),
+  day_number: z.number().int().positive().optional(),
+});
+
 // Type exports
+export type CreateItineraryDayInput = z.infer<typeof createItineraryDaySchema>;
+export type UpdateItineraryDayInput = z.infer<typeof updateItineraryDaySchema>;
 export type CreateTripInput = z.infer<typeof createTripSchema>;
 export type UpdateTripInput = z.infer<typeof updateTripSchema>;
 export type CreateExpenseInput = z.infer<typeof createExpenseSchema>;

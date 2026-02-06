@@ -2,7 +2,7 @@ export { default as TripHeader } from './TripHeader';
 export { default as TripExpenses } from './TripExpenses';
 export { default as TripMembers } from './TripMembers';
 export { default as TripShare } from './TripShare';
-export { default as TripSettlement } from './TripSettlement';
+
 export { default as TripDangerZone } from './TripDangerZone';
 export { default as ExpenseFormDialog } from './dialogs/ExpenseFormDialog';
 export { default as EditTripDialog } from './dialogs/EditTripDialog';

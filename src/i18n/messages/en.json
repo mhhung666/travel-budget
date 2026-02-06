@@ -409,6 +409,32 @@
     "notEditable": "The following fields cannot be edited:",
     "saveEdit": "Save Changes",
     "editTrip": "Edit Trip",
-    "editSuccess": "Trip information updated"
+    "editSuccess": "Trip information updated",
+    "viewItinerary": "Plan Trip",
+    "viewItineraryHint": "View and plan daily itinerary"
+  },
+  "itinerary": {
+    "title": "Trip Itinerary",
+    "addDay": "Add Day",
+    "editDay": "Edit Day",
+    "deleteDay": "Delete Day",
+    "dayTitle": "Title",
+    "dayTitlePlaceholder": "e.g., Day 1 - Arrival in Osaka",
+    "dayContent": "Content",
+    "dayContentPlaceholder": "Write your itinerary using Markdown...",
+    "preview": "Preview",
+    "write": "Edit",
+    "emptyState": "No itinerary planned yet",
+    "emptyStateHint": "Click \"Add Day\" to start planning",
+    "deleteConfirm": "Are you sure you want to delete this day?",
+    "deleteMessage": "This action cannot be undone.",
+    "success": {
+      "created": "Day added",
+      "updated": "Day updated",
+      "deleted": "Day deleted"
+    },
+    "backToTrip": "Back to Trip",
+    "lastUpdated": "Last updated",
+    "loadFailed": "Failed to load itinerary"
   }
 }

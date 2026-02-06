@@ -414,6 +414,32 @@
     "notEditable": "以下字段不可修改:",
     "saveEdit": "保存修改",
     "editTrip": "编辑旅行",
-    "editSuccess": "旅行信息已更新"
+    "editSuccess": "旅行信息已更新",
+    "viewItinerary": "规划旅程",
+    "viewItineraryHint": "查看与规划每日行程"
+  },
+  "itinerary": {
+    "title": "旅程规划",
+    "addDay": "新增天数",
+    "editDay": "编辑行程",
+    "deleteDay": "删除行程",
+    "dayTitle": "标题",
+    "dayTitlePlaceholder": "例：第一天 - 大阪抵达",
+    "dayContent": "行程内容",
+    "dayContentPlaceholder": "使用 Markdown 格式撰写行程...",
+    "preview": "预览",
+    "write": "编辑",
+    "emptyState": "尚未规划行程",
+    "emptyStateHint": "点击「新增天数」开始规划旅程",
+    "deleteConfirm": "确定要删除此天行程吗？",
+    "deleteMessage": "此操作无法恢复。",
+    "success": {
+      "created": "行程已新增",
+      "updated": "行程已更新",
+      "deleted": "行程已删除"
+    },
+    "backToTrip": "返回旅行详情",
+    "lastUpdated": "最后更新",
+    "loadFailed": "无法加载行程规划"
   }
 }

@@ -36,6 +36,7 @@ export type {
   TimeInterval,
   HistogramDataPoint,
   HistogramData,
+  ItineraryDay,
 } from './models';
 
 // ============================================

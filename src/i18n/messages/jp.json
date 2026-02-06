@@ -414,6 +414,32 @@
     "notEditable": "以下のフィールドは編集できません:",
     "saveEdit": "変更を保存",
     "editTrip": "旅行を編集",
-    "editSuccess": "旅行情報を更新しました"
+    "editSuccess": "旅行情報を更新しました",
+    "viewItinerary": "旅程を計画",
+    "viewItineraryHint": "日程の確認と計画"
+  },
+  "itinerary": {
+    "title": "旅程プラン",
+    "addDay": "日程を追加",
+    "editDay": "日程を編集",
+    "deleteDay": "日程を削除",
+    "dayTitle": "タイトル",
+    "dayTitlePlaceholder": "例：1日目 - 大阪到着",
+    "dayContent": "内容",
+    "dayContentPlaceholder": "Markdown形式で旅程を記入...",
+    "preview": "プレビュー",
+    "write": "編集",
+    "emptyState": "まだ旅程が計画されていません",
+    "emptyStateHint": "「日程を追加」をクリックして計画を始めましょう",
+    "deleteConfirm": "この日程を削除しますか？",
+    "deleteMessage": "この操作は取り消せません。",
+    "success": {
+      "created": "日程を追加しました",
+      "updated": "日程を更新しました",
+      "deleted": "日程を削除しました"
+    },
+    "backToTrip": "旅行詳細に戻る",
+    "lastUpdated": "最終更新",
+    "loadFailed": "旅程プランの読み込みに失敗しました"
   }
 }
