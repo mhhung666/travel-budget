@@ -7,6 +7,7 @@ export async function GET(
 ) {
   try {
     const { tripId, username } = await params;
+    console.log('Link virtual API called with:', { tripId, username });
 
     // Get trip info (basic info only)
     const { data: trip, error: tripError } = await supabase
@@ -16,18 +17,23 @@ export async function GET(
       .single();
 
     if (tripError || !trip) {
+      console.log('Trip not found:', tripError);
       return NextResponse.json(
         { error: 'Trip not found' },
         { status: 404 }
       );
     }
 
-    // First get the user by display_name (since virtual members use display_name in URLs)
+    console.log('Trip found:', trip.id);
+
+    // Get the user by username
     const { data: user, error: userError } = await supabase
       .from('users')
       .select('id, username, display_name, is_virtual')
-      .eq('display_name', username)
+      .eq('username', username)
       .single();
+
+    console.log('User query result:', { user, userError });
 
     if (userError || !user) {
       return NextResponse.json(
