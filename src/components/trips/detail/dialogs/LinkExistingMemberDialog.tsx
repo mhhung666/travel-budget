@@ -1,20 +1,22 @@
 'use client';
 
 import { useState } from 'react';
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
-  TextField,
-  Alert,
-  Box,
-  Typography,
-  Link,
-} from '@mui/material';
 import { useTranslations } from 'next-intl';
 import type { Member } from '@/types';
+import { Loader2 } from 'lucide-react';
+
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface LinkExistingMemberDialogProps {
   open: boolean;
@@ -40,10 +42,14 @@ export default function LinkExistingMemberDialog({
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleOpen = () => {
-    setUsername('');
-    setPassword('');
-    setError('');
+  const handleOpenChange = (isOpen: boolean) => {
+    if (!isOpen) {
+      onClose();
+    } else {
+      setUsername('');
+      setPassword('');
+      setError('');
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -81,70 +87,67 @@ export default function LinkExistingMemberDialog({
   };
 
   return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      maxWidth="sm"
-      fullWidth
-      TransitionProps={{ onEnter: handleOpen }}
-    >
-      <DialogTitle>{t('linkTitle')}</DialogTitle>
-      <form onSubmit={handleSubmit}>
-        <DialogContent>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>{t('linkTitle')}</DialogTitle>
+          <DialogDescription>
             {t('linkDescription', { name: virtualMember?.display_name || '' })}
-          </Typography>
+          </DialogDescription>
+        </DialogHeader>
 
+        <form onSubmit={handleSubmit} className="space-y-4 py-2">
           {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
+            <Alert variant="destructive">
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
 
-          <TextField
-            label={tAuth('username')}
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            fullWidth
-            required
-            sx={{ mb: 2 }}
-            autoFocus
-          />
+          <div className="space-y-2">
+            <Label htmlFor="link-username">{tAuth('username')}</Label>
+            <Input
+              id="link-username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+              autoFocus
+            />
+          </div>
 
-          <TextField
-            label={tAuth('password')}
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            fullWidth
-            required
-            sx={{ mb: 2 }}
-          />
+          <div className="space-y-2">
+            <Label htmlFor="link-password">{tAuth('password')}</Label>
+            <Input
+              id="link-password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
 
-          <Box sx={{ textAlign: 'center', mt: 1 }}>
-            <Typography variant="body2" color="text.secondary">
-              {t('noAccount')}{' '}
-              <Link
-                component="button"
-                type="button"
-                variant="body2"
-                onClick={onSwitchToRegister}
-                sx={{ cursor: 'pointer' }}
-              >
-                {t('registerNew')}
-              </Link>
-            </Typography>
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={onClose} disabled={loading}>
-            {tCommon('cancel')}
-          </Button>
-          <Button type="submit" variant="contained" disabled={loading}>
-            {loading ? tCommon('loading') : t('linkButton')}
-          </Button>
-        </DialogActions>
-      </form>
+          <div className="text-center text-sm text-muted-foreground mt-2">
+            {t('noAccount')}{' '}
+            <button
+              type="button"
+              onClick={onSwitchToRegister}
+              className="text-primary hover:underline font-medium focus:outline-none"
+            >
+              {t('registerNew')}
+            </button>
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
+              {tCommon('cancel')}
+            </Button>
+            <Button type="submit" disabled={loading}>
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t('linkButton')}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
     </Dialog>
   );
 }

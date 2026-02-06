@@ -1,6 +1,5 @@
 'use client';
 
-import { Box } from '@mui/material';
 import { useRouter } from '@/i18n/navigation';
 import type { TripWithMembers } from '@/types';
 import TripCard from './TripCard';
@@ -18,13 +17,7 @@ export default function TripList({ trips, onCopyCode }: TripListProps) {
     }
 
     return (
-        <Box
-            sx={{
-                display: 'grid',
-                gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' },
-                gap: 2,
-            }}
-        >
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {trips.map((trip) => (
                 <TripCard
                     key={trip.id}
@@ -33,6 +26,6 @@ export default function TripList({ trips, onCopyCode }: TripListProps) {
                     onCopyCode={onCopyCode}
                 />
             ))}
-        </Box>
+        </div>
     );
 }

@@ -1,4 +1,4 @@
-import { Card, CardContent, Typography } from '@mui/material';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useTranslations } from 'next-intl';
 import type { Trip, Member } from '@/types';
 
@@ -11,14 +11,16 @@ export default function InviteCard({ trip, virtualMember }: InviteCardProps) {
     const t = useTranslations('member.convertVirtual');
 
     return (
-        <Card>
-            <CardContent sx={{ py: 4 }}>
-                <Typography variant="h5" fontWeight={600} gutterBottom align="center">
+        <Card className="text-center">
+            <CardHeader className="pb-2">
+                <CardTitle className="text-xl">
                     {t('inviteTitle', { tripName: trip?.name || '' })}
-                </Typography>
-                <Typography variant="body1" color="text.secondary" align="center" sx={{ mt: 2 }}>
+                </CardTitle>
+            </CardHeader>
+            <CardContent>
+                <CardDescription className="text-base">
                     {t('inviteDescription', { memberName: virtualMember?.display_name || '' })}
-                </Typography>
+                </CardDescription>
             </CardContent>
         </Card>
     );

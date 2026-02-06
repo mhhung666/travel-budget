@@ -1,20 +1,22 @@
 'use client';
 
 import { useState } from 'react';
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
-  TextField,
-  Alert,
-  Box,
-  Typography,
-  Link,
-} from '@mui/material';
 import { useTranslations } from 'next-intl';
 import type { Member } from '@/types';
+import { Loader2 } from 'lucide-react';
+
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface RegisterVirtualMemberDialogProps {
   open: boolean;
@@ -42,12 +44,16 @@ export default function RegisterVirtualMemberDialog({
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleOpen = () => {
-    setUsername('');
-    setDisplayName(virtualMember?.display_name || '');
-    setEmail('');
-    setPassword('');
-    setError('');
+  const handleOpenChange = (isOpen: boolean) => {
+    if (!isOpen) {
+      onClose();
+    } else {
+      setUsername('');
+      setDisplayName(virtualMember?.display_name || '');
+      setEmail('');
+      setPassword('');
+      setError('');
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -87,91 +93,90 @@ export default function RegisterVirtualMemberDialog({
   };
 
   return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      maxWidth="sm"
-      fullWidth
-      TransitionProps={{ onEnter: handleOpen }}
-    >
-      <DialogTitle>{t('registerTitle')}</DialogTitle>
-      <form onSubmit={handleSubmit}>
-        <DialogContent>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>{t('registerTitle')}</DialogTitle>
+          <DialogDescription>
             {t('registerDescription', { name: virtualMember?.display_name || '' })}
-          </Typography>
+          </DialogDescription>
+        </DialogHeader>
 
+        <form onSubmit={handleSubmit} className="space-y-4 py-2">
           {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
+            <Alert variant="destructive">
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
 
-          <TextField
-            label={tAuth('username')}
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            fullWidth
-            required
-            sx={{ mb: 2 }}
-            autoFocus
-          />
+          <div className="space-y-2">
+            <Label htmlFor="reg-username">{tAuth('username')}</Label>
+            <Input
+              id="reg-username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+              autoFocus
+            />
+          </div>
 
-          <TextField
-            label={tAuth('displayName')}
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            fullWidth
-            required
-            sx={{ mb: 2 }}
-          />
+          <div className="space-y-2">
+            <Label htmlFor="reg-displayName">{tAuth('displayName')}</Label>
+            <Input
+              id="reg-displayName"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              required
+            />
+          </div>
 
-          <TextField
-            label={tAuth('email')}
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            fullWidth
-            required
-            helperText={tAuth('emailHelp')}
-            sx={{ mb: 2 }}
-          />
+          <div className="space-y-2">
+            <Label htmlFor="reg-email">{tAuth('email')}</Label>
+            <Input
+              id="reg-email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+            <p className="text-[0.8rem] text-muted-foreground">{tAuth('emailHelp')}</p>
+          </div>
 
-          <TextField
-            label={tAuth('password')}
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            fullWidth
-            required
-            helperText={tAuth('passwordHelp')}
-            sx={{ mb: 2 }}
-          />
+          <div className="space-y-2">
+            <Label htmlFor="reg-password">{tAuth('password')}</Label>
+            <Input
+              id="reg-password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+            <p className="text-[0.8rem] text-muted-foreground">{tAuth('passwordHelp')}</p>
+          </div>
 
-          <Box sx={{ textAlign: 'center', mt: 1 }}>
-            <Typography variant="body2" color="text.secondary">
-              {t('hasAccount')}{' '}
-              <Link
-                component="button"
-                type="button"
-                variant="body2"
-                onClick={onSwitchToLink}
-                sx={{ cursor: 'pointer' }}
-              >
-                {t('linkExisting')}
-              </Link>
-            </Typography>
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={onClose} disabled={loading}>
-            {tCommon('cancel')}
-          </Button>
-          <Button type="submit" variant="contained" disabled={loading}>
-            {loading ? tCommon('loading') : tAuth('registerButton')}
-          </Button>
-        </DialogActions>
-      </form>
+          <div className="text-center text-sm text-muted-foreground mt-2">
+            {t('hasAccount')}{' '}
+            <button
+              type="button"
+              onClick={onSwitchToLink}
+              className="text-primary hover:underline font-medium focus:outline-none"
+            >
+              {t('linkExisting')}
+            </button>
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
+              {tCommon('cancel')}
+            </Button>
+            <Button type="submit" disabled={loading}>
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {tAuth('registerButton')}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
     </Dialog>
   );
 }

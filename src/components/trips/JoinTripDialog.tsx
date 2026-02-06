@@ -1,17 +1,21 @@
 'use client';
 
 import { useState } from 'react';
-import {
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    TextField,
-    Button,
-    Alert,
-} from '@mui/material';
 import { useTranslations } from 'next-intl';
 import { joinTrip } from '@/actions';
+
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface JoinTripDialogProps {
     open: boolean;
@@ -55,39 +59,47 @@ export default function JoinTripDialog({ open, onClose, onSuccess }: JoinTripDia
     };
 
     return (
-        <Dialog
-            open={open}
-            onClose={handleClose}
-            maxWidth="sm"
-            fullWidth
-        >
-            <DialogTitle>{t('join.title')}</DialogTitle>
-            <form onSubmit={handleSubmit}>
-                <DialogContent>
+        <Dialog open={open} onOpenChange={(val) => !val && handleClose()}>
+            <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                    <DialogTitle>{t('join.title')}</DialogTitle>
+                    <DialogDescription>
+                        Enter the unique Trip ID or Hash Code to join an existing trip.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <form onSubmit={handleSubmit} className="space-y-4 py-4">
                     {error && (
-                        <Alert severity="error" sx={{ mb: 2 }}>
-                            {error}
+                        <Alert variant="destructive">
+                            <AlertTitle>Error</AlertTitle>
+                            <AlertDescription>{error}</AlertDescription>
                         </Alert>
                     )}
-                    <TextField
-                        fullWidth
-                        label={t('join.tripId')}
-                        value={joinTripId}
-                        onChange={(e) => setJoinTripId(e.target.value)}
-                        required
-                        placeholder={t('join.tripIdPlaceholder')}
-                        helperText={t('join.tripIdHelp')}
-                    />
-                </DialogContent>
-                <DialogActions sx={{ px: 3, pb: 2 }}>
-                    <Button onClick={handleClose}>
-                        {tCommon('cancel')}
-                    </Button>
-                    <Button type="submit" variant="contained">
-                        {t('join.joinButton')}
-                    </Button>
-                </DialogActions>
-            </form>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="tripId">{t('join.tripId')}</Label>
+                        <Input
+                            id="tripId"
+                            value={joinTripId}
+                            onChange={(e) => setJoinTripId(e.target.value)}
+                            required
+                            placeholder={t('join.tripIdPlaceholder')}
+                        />
+                        <p className="text-sm text-muted-foreground">
+                            {t('join.tripIdHelp')}
+                        </p>
+                    </div>
+
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={handleClose}>
+                            {tCommon('cancel')}
+                        </Button>
+                        <Button type="submit">
+                            {t('join.joinButton')}
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
         </Dialog>
     );
 }

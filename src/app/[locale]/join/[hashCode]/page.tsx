@@ -3,22 +3,17 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useRouter } from '@/i18n/navigation';
-import {
-  Box,
-  Container,
-  Card,
-  CardContent,
-  Typography,
-  Button,
-  CircularProgress,
-  Alert,
-  Chip,
-  Avatar,
-} from '@mui/material';
-import { UserPlus, Info, Users } from 'lucide-react';
+import { UserPlus, Info, Users, Loader2, ArrowLeft } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { TripWithMembers } from '@/types';
 import { getCurrentUser, getTripPreview, joinTrip } from '@/actions';
+
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import Navbar from '@/components/layout/Navbar';
 
 export default function QuickJoinPage() {
   const router = useRouter();
@@ -28,6 +23,7 @@ export default function QuickJoinPage() {
   const tError = useTranslations('error');
 
   const [trip, setTrip] = useState<TripWithMembers | null>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [isJoining, setIsJoining] = useState(false);
@@ -41,9 +37,12 @@ export default function QuickJoinPage() {
     try {
       const authResult = await getCurrentUser();
       if (!authResult.success || !authResult.data) {
+        // Redirect to login if not authenticated
         router.push(`/login?redirect=/join/${hashCode}`);
         return;
       }
+      
+      setCurrentUser(authResult.data);
 
       const tripResult = await getTripPreview(hashCode);
       if (!tripResult.success) {
@@ -53,9 +52,9 @@ export default function QuickJoinPage() {
           setError(t('quickJoin.loadError'));
         }
       } else if (tripResult.data.isMember) {
-        // 已經是成員，直接跳轉
+        // Already a member, redirect
         setAlreadyMember(true);
-        setTimeout(() => router.push(`/trips/${hashCode}`), 2000);
+        setTimeout(() => router.push(`/trips/${tripResult.data.id}`), 2000);
       } else {
         setTrip(tripResult.data);
       }
@@ -67,6 +66,7 @@ export default function QuickJoinPage() {
   };
 
   const handleJoin = async () => {
+    if (!trip) return;
     setIsJoining(true);
     setError('');
 
@@ -77,7 +77,7 @@ export default function QuickJoinPage() {
         throw new Error(result.error);
       }
 
-      router.push(`/trips/${hashCode}`);
+      router.push(`/trips/${trip.id}`);
     } catch (err: any) {
       setError(err.message);
       setIsJoining(false);
@@ -86,147 +86,144 @@ export default function QuickJoinPage() {
 
   if (loading) {
     return (
-      <Box
-        sx={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          bgcolor: 'background.default',
-        }}
-      >
-        <CircularProgress size={60} />
-      </Box>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+      </div>
     );
   }
 
+  // Already a member view
   if (alreadyMember) {
     return (
-      <Container maxWidth="sm" sx={{ py: 8 }}>
-        <Card elevation={3}>
-          <CardContent sx={{ textAlign: 'center', py: 4 }}>
-            <Alert severity="info" sx={{ mb: 3 }}>
-              {t('quickJoin.alreadyMember')}
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+        <Card className="max-w-md w-full">
+          <CardContent className="pt-6 text-center space-y-4">
+            <Alert className="bg-blue-50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-900">
+              <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              <AlertTitle className="text-blue-800 dark:text-blue-300">Info</AlertTitle>
+              <AlertDescription className="text-blue-700 dark:text-blue-400">
+                {t('quickJoin.alreadyMember')}
+              </AlertDescription>
             </Alert>
-            <CircularProgress />
+            <div className="flex justify-center py-4">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+            <p className="text-sm text-muted-foreground">Redirecting to trip...</p>
           </CardContent>
         </Card>
-      </Container>
+      </div>
     );
   }
 
-  if (error && !trip) {
+  // Error view (Trip not found or other errors)
+  if (!trip && error) {
     return (
-      <Container maxWidth="sm" sx={{ py: 8 }}>
-        <Card elevation={3}>
-          <CardContent sx={{ textAlign: 'center', py: 4 }}>
-            <Alert severity="error" sx={{ mb: 3 }}>
-              {error}
-            </Alert>
-            <Button variant="contained" onClick={() => router.push('/trips')}>
-              {t('detail.backToTrips')}
-            </Button>
-          </CardContent>
-        </Card>
-      </Container>
+      <div className="min-h-screen bg-background flex flex-col">
+        <Navbar user={currentUser} showUserMenu={!!currentUser} />
+        <div className="flex-1 flex items-center justify-center p-4">
+            <Card className="max-w-md w-full border-destructive/20 shadow-lg">
+            <CardHeader>
+                <CardTitle className="text-destructive flex items-center gap-2">
+                <Info className="h-5 w-5" />
+                Error
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+                </Alert>
+                <Button 
+                variant="outline" 
+                className="w-full" 
+                onClick={() => router.push('/trips')}
+                >
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                {t('detail.backToTrips')}
+                </Button>
+            </CardContent>
+            </Card>
+        </div>
+      </div>
     );
   }
 
+  // Main Join UI
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', py: 8 }}>
-      <Container maxWidth="sm">
-        <Card elevation={3}>
-          <CardContent sx={{ textAlign: 'center', py: 4 }}>
-            <Avatar
-              sx={{
-                width: 80,
-                height: 80,
-                bgcolor: 'primary.main',
-                margin: '0 auto 24px',
-                fontSize: '2rem',
-              }}
-            >
-              <UserPlus size={40} />
-            </Avatar>
+    <div className="min-h-screen bg-background flex flex-col">
+      <Navbar user={currentUser} showUserMenu={!!currentUser} />
+      
+      <div className="flex-1 flex flex-col items-center justify-center p-4 pt-20">
+        <Card className="max-w-md w-full shadow-lg border-primary/10">
+          <CardHeader className="text-center pb-2">
+            <div className="mx-auto mb-4 bg-primary/10 w-20 h-20 rounded-full flex items-center justify-center">
+                <UserPlus className="h-10 w-10 text-primary" />
+            </div>
+            <CardTitle className="text-2xl">{t('join.title')}</CardTitle>
+            <CardDescription>{t('quickJoin.joinHint')}</CardDescription>
+          </CardHeader>
 
-            <Typography variant="h4" gutterBottom fontWeight={600}>
-              {t('join.title')}
-            </Typography>
-
+          <CardContent className="space-y-6 pt-4">
             {trip && (
               <>
-                <Card
-                  variant="outlined"
-                  sx={{
-                    mt: 3,
-                    mb: 3,
-                    textAlign: 'left',
-                    bgcolor: 'primary.50',
-                    borderColor: 'primary.200',
-                  }}
-                >
-                  <CardContent>
-                    <Typography variant="h5" fontWeight={600} gutterBottom>
-                      {trip.name}
-                    </Typography>
+                <div className="bg-muted/30 rounded-lg p-6 border border-border space-y-4">
+                  <div>
+                    <h3 className="text-xl font-bold text-foreground mb-1">{trip.name}</h3>
                     {trip.description && (
-                      <Typography variant="body1" color="text.secondary" paragraph>
-                        {trip.description}
-                      </Typography>
+                      <p className="text-muted-foreground text-sm">{trip.description}</p>
                     )}
-                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 2 }}>
-                      <Chip
-                        icon={<Users size={18} />}
-                        label={`${trip.member_count} ${t('members')}`}
-                        size="small"
-                        variant="outlined"
-                      />
-                      <Chip
-                        icon={<Info size={18} />}
-                        label={`${t('idLabel')} ${trip.hash_code}`}
-                        size="small"
-                        variant="outlined"
-                      />
-                    </Box>
-                  </CardContent>
-                </Card>
+                  </div>
+                  
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant="outline" className="gap-1 px-2 py-1">
+                      <Users className="h-3 w-3" />
+                      {trip.member_count || 0} {t('members')}
+                    </Badge>
+                    <Badge variant="secondary" className="gap-1 px-2 py-1 font-mono">
+                      #{trip.hash_code}
+                    </Badge>
+                  </div>
+                </div>
 
                 {error && (
-                  <Alert severity="error" sx={{ mb: 2 }}>
-                    {error}
+                  <Alert variant="destructive">
+                    <AlertTitle>Error</AlertTitle>
+                    <AlertDescription>{error}</AlertDescription>
                   </Alert>
                 )}
 
-                <Button
-                  variant="contained"
-                  size="large"
-                  fullWidth
-                  onClick={handleJoin}
-                  disabled={isJoining}
-                  startIcon={isJoining ? <CircularProgress size={20} /> : <UserPlus />}
-                  sx={{ py: 1.5, fontWeight: 600 }}
-                >
-                  {isJoining ? t('quickJoin.joining') : t('quickJoin.joinThisTrip')}
-                </Button>
-
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  sx={{ mt: 2, display: 'block' }}
-                >
-                  {t('quickJoin.joinHint')}
-                </Typography>
+                <div className="space-y-3">
+                    <Button
+                    size="lg"
+                    className="w-full font-semibold text-lg h-12"
+                    onClick={handleJoin}
+                    disabled={isJoining}
+                    >
+                    {isJoining ? (
+                        <>
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                        {t('quickJoin.joining')}
+                        </>
+                    ) : (
+                        <>
+                        <UserPlus className="mr-2 h-5 w-5" />
+                        {t('quickJoin.joinThisTrip')}
+                        </>
+                    )}
+                    </Button>
+                    
+                    <Button 
+                        variant="ghost" 
+                        className="w-full text-muted-foreground" 
+                        onClick={() => router.push('/trips')}
+                    >
+                        {t('detail.backToTrips')}
+                    </Button>
+                </div>
               </>
             )}
           </CardContent>
         </Card>
-
-        <Box sx={{ textAlign: 'center', mt: 3 }}>
-          <Button variant="text" onClick={() => router.push('/trips')}>
-            {t('detail.backToTrips')}
-          </Button>
-        </Box>
-      </Container>
-    </Box>
+      </div>
+    </div>
   );
 }

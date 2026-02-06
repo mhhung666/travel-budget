@@ -2,22 +2,17 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from '@/i18n/navigation';
-import {
-  Box,
-  Container,
-  Paper,
-  Typography,
-  TextField,
-  Button,
-  Alert,
-  CircularProgress,
-  Divider,
-  IconButton,
-} from '@mui/material';
-import { ArrowLeft, User, Lock } from 'lucide-react';
-import Navbar from '@/components/layout/Navbar';
+import { ArrowLeft, User, Lock, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { getCurrentUser, updateProfile } from '@/actions';
+
+import Navbar from '@/components/layout/Navbar';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Separator } from '@/components/ui/separator';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -135,203 +130,161 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <Box
-        sx={{
-          minHeight: '100vh',
-          bgcolor: 'background.default',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-        }}
-      >
-        <CircularProgress />
-      </Box>
+      <div className="min-h-screen bg-background flex justify-center items-center">
+        <Loader2 className="animate-spin h-10 w-10 text-primary" />
+      </div>
     );
   }
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
+    <div className="min-h-screen bg-background">
       <Navbar user={user} title={t('title')} />
 
-      <Box sx={{ pt: { xs: 10, sm: 12 }, pb: 4 }}>
-        <Container maxWidth="md">
-          {/* 返回按鈕 */}
-          <Button
-            startIcon={<ArrowLeft />}
-            onClick={() => router.push('/trips')}
-            sx={{
-              mb: 3,
-              textTransform: 'none',
-              color: 'text.secondary',
-              '&:hover': {
-                color: 'text.primary',
-              },
-            }}
-          >
-            {t('backToTrips')}
-          </Button>
+      <div className="pt-24 pb-8 container mx-auto px-4 max-w-2xl">
+        {/* 返回按鈕 */}
+        <Button
+          variant="ghost"
+          onClick={() => router.push('/trips')}
+          className="mb-6 text-muted-foreground hover:text-foreground pl-0 hover:bg-transparent"
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          {t('backToTrips')}
+        </Button>
 
-          {/* 標題 */}
-          <Typography variant="h4" fontWeight={700} sx={{ mb: 4, color: 'text.primary' }}>
-            {t('title')}
-          </Typography>
+        {/* 標題 */}
+        <h1 className="text-3xl font-bold mb-8 text-foreground">
+          {t('title')}
+        </h1>
 
-          {/* 訊息提示 */}
-          {error && (
-            <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }} onClose={() => setError('')}>
-              {error}
-            </Alert>
-          )}
-          {success && (
-            <Alert
-              severity="success"
-              sx={{ mb: 3, borderRadius: 2 }}
-              onClose={() => setSuccess('')}
-            >
-              {success}
-            </Alert>
-          )}
+        {/* 訊息提示 */}
+        {error && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+        {success && (
+          <Alert className="mb-6 border-green-500/50 bg-green-500/10 text-green-700 dark:text-green-300">
+            <AlertTitle>Success</AlertTitle>
+            <AlertDescription>{success}</AlertDescription>
+          </Alert>
+        )}
 
-          {/* 個人資料設定 */}
-          <Paper
-            elevation={0}
-            sx={{
-              p: { xs: 3, sm: 4 },
-              mb: 3,
-              borderRadius: 2,
-              border: '1px solid',
-              borderColor: 'divider',
-            }}
-          >
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-              <Box component="span" sx={{ mr: 1, color: 'primary.main', display: 'flex' }}>
-                <User />
-              </Box>
-              <Typography variant="h6" fontWeight={600}>
-                {t('profile.title')}
-              </Typography>
-            </Box>
+        {/* 個人資料設定 */}
+        <Card className="mb-8">
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center gap-2 text-xl">
+              <User className="h-5 w-5 text-primary" />
+              {t('profile.title')}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleUpdateProfile} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="username">{t('profile.username')}</Label>
+                <Input
+                  id="username"
+                  value={user?.username || ''}
+                  disabled
+                  className="bg-muted"
+                />
+                <p className="text-xs text-muted-foreground">
+                  {t('profile.usernameHelp')}
+                </p>
+              </div>
 
-            <form onSubmit={handleUpdateProfile}>
-              <TextField
-                fullWidth
-                label={t('profile.username')}
-                value={user?.username || ''}
-                disabled
-                sx={{ mb: 3 }}
-                helperText={t('profile.usernameHelp')}
-              />
+              <div className="space-y-2">
+                <Label htmlFor="displayName">{t('profile.displayName')}</Label>
+                <Input
+                  id="displayName"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  required
+                />
+              </div>
 
-              <TextField
-                fullWidth
-                label={t('profile.displayName')}
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                required
-                sx={{ mb: 3 }}
-              />
+              <div className="space-y-2">
+                <Label htmlFor="email">{t('email.title')}</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
 
-              <TextField
-                fullWidth
-                type="email"
-                label={t('email.title')}
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                sx={{ mb: 3 }}
-              />
-
-              <Button
-                type="submit"
-                variant="contained"
-                disabled={updatingProfile || (displayName === user?.display_name && email === (user?.email || ''))}
-                sx={{
-                  px: 4,
-                  py: 1.2,
-                  fontWeight: 600,
-                }}
-              >
-                {updatingProfile ? (
-                  <CircularProgress size={24} color="inherit" />
-                ) : (
-                  t('profile.saveChanges')
-                )}
-              </Button>
+              <div className="pt-2">
+                <Button
+                  type="submit"
+                  disabled={updatingProfile || (displayName === user?.display_name && email === (user?.email || ''))}
+                  className="w-full sm:w-auto"
+                >
+                  {updatingProfile && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {t('profile.saveChanges')}
+                </Button>
+              </div>
             </form>
-          </Paper>
+          </CardContent>
+        </Card>
 
-          {/* 密碼設定 */}
-          <Paper
-            elevation={0}
-            sx={{
-              p: { xs: 3, sm: 4 },
-              borderRadius: 2,
-              border: '1px solid',
-              borderColor: 'divider',
-            }}
-          >
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-              <Box component="span" sx={{ mr: 1, color: 'primary.main', display: 'flex' }}>
-                <Lock />
-              </Box>
-              <Typography variant="h6" fontWeight={600}>
-                {t('password.title')}
-              </Typography>
-            </Box>
+        {/* 密碼設定 */}
+        <Card>
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center gap-2 text-xl">
+              <Lock className="h-5 w-5 text-primary" />
+              {t('password.title')}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleUpdatePassword} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="currentPassword">{t('password.current')}</Label>
+                <Input
+                  id="currentPassword"
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  required
+                />
+              </div>
 
-            <form onSubmit={handleUpdatePassword}>
-              <TextField
-                fullWidth
-                type="password"
-                label={t('password.current')}
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                required
-                sx={{ mb: 3 }}
-              />
+              <div className="space-y-2">
+                <Label htmlFor="newPassword">{t('password.new')}</Label>
+                <Input
+                  id="newPassword"
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  required
+                  minLength={6}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {t('password.minLength')}
+                </p>
+              </div>
 
-              <TextField
-                fullWidth
-                type="password"
-                label={t('password.new')}
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                required
-                inputProps={{ minLength: 6 }}
-                helperText={t('password.minLength')}
-                sx={{ mb: 3 }}
-              />
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">{t('password.confirm')}</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  minLength={6}
+                />
+              </div>
 
-              <TextField
-                fullWidth
-                type="password"
-                label={t('password.confirm')}
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-                inputProps={{ minLength: 6 }}
-                sx={{ mb: 3 }}
-              />
-
-              <Button
-                type="submit"
-                variant="contained"
-                disabled={updatingPassword}
-                sx={{
-                  px: 4,
-                  py: 1.2,
-                  fontWeight: 600,
-                }}
-              >
-                {updatingPassword ? (
-                  <CircularProgress size={24} color="inherit" />
-                ) : (
-                  t('password.updateButton')
-                )}
-              </Button>
+              <div className="pt-2">
+                <Button type="submit" disabled={updatingPassword} className="w-full sm:w-auto">
+                  {updatingPassword && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {t('password.updateButton')}
+                </Button>
+              </div>
             </form>
-          </Paper>
-        </Container>
-      </Box>
-    </Box>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
   );
 }

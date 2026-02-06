@@ -1,17 +1,30 @@
-import {
-    Box,
-    Card,
-    CardContent,
-    Typography,
-    Button,
-    Chip,
-    IconButton,
-    Collapse,
-    Avatar,
-} from '@mui/material';
+'use client';
+
 import { ChevronDown, ChevronUp, UserPlus, Shield, UserMinus, ShieldCheck, Link } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { Member, User } from '@/types';
+
+import {
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+    Collapsible,
+    CollapsibleContent,
+    CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import { cn } from '@/lib/utils';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface TripMembersProps {
     members: Member[];
@@ -39,154 +52,186 @@ export default function TripMembers({
     onToggleExpand,
 }: TripMembersProps) {
     const tMember = useTranslations('member');
+    const tCommon = useTranslations('common');
 
     return (
-        <Card elevation={2}>
-            <CardContent>
-                <Box
-                    sx={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        cursor: 'pointer',
-                        mb: expanded ? 2 : 0,
-                    }}
-                    onClick={onToggleExpand}
-                >
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Typography variant="h6" fontWeight={600}>
-                            {tMember('title')}
-                        </Typography>
-                        <Chip label={members.length} size="small" color="primary" />
-                    </Box>
-                    <IconButton size="small">
-                        {expanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                    </IconButton>
-                </Box>
-                <Collapse in={expanded}>
-                    {/* 新增虛擬成員按鈕 */}
-                    {isCurrentUserAdmin && (
-                        <Button
-                            variant="outlined"
-                            size="small"
-                            startIcon={<UserPlus size={20} />}
-                            onClick={onAddVirtualMember}
-                            sx={{ mb: 2 }}
-                            fullWidth
-                        >
-                            {tMember('addVirtualMember')}
-                        </Button>
-                    )}
+        <Card>
+            <Collapsible
+                open={expanded}
+                onOpenChange={onToggleExpand}
+            >
+                <CardHeader className="p-4 sm:p-6 pb-2 sm:pb-4">
+                    <CollapsibleTrigger asChild>
+                        <div className="flex justify-between items-center cursor-pointer group">
+                            <div className="flex items-center gap-2">
+                                <CardTitle className="text-xl font-semibold">
+                                    {tMember('title')}
+                                </CardTitle>
+                                <Badge variant="secondary" className="px-2 py-0.5 min-w-[1.5rem] justify-center">
+                                    {members.length}
+                                </Badge>
+                            </div>
+                            <Button variant="ghost" size="sm" className="w-9 p-0">
+                                {expanded ? (
+                                    <ChevronUp className="h-4 w-4" />
+                                ) : (
+                                    <ChevronDown className="h-4 w-4" />
+                                )}
+                            </Button>
+                        </div>
+                    </CollapsibleTrigger>
+                </CardHeader>
+                <CollapsibleContent>
+                    <CardContent className="pt-0 p-4 sm:p-6">
+                        {/* 新增虛擬成員按鈕 */}
+                        {isCurrentUserAdmin && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={onAddVirtualMember}
+                                className="w-full mb-4"
+                            >
+                                <UserPlus className="mr-2 h-4 w-4" />
+                                {tMember('addVirtualMember')}
+                            </Button>
+                        )}
 
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                        {members.map((member) => {
-                            const isClickableVirtual = !currentUser && member.is_virtual && onVirtualMemberClick;
-                            return (
-                                <Box
-                                    key={member.id}
-                                    onClick={isClickableVirtual ? () => onVirtualMemberClick(member) : undefined}
-                                    sx={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: 2,
-                                        p: 1.5,
-                                        bgcolor: member.is_virtual ? 'action.hover' : 'background.default',
-                                        borderRadius: 1,
-                                        border: member.is_virtual ? '1px dashed' : 'none',
-                                        borderColor: isClickableVirtual ? 'primary.main' : 'divider',
-                                        cursor: isClickableVirtual ? 'pointer' : 'default',
-                                        transition: 'all 0.2s',
-                                        '&:hover': isClickableVirtual ? {
-                                            bgcolor: 'action.selected',
-                                            borderColor: 'primary.main',
-                                        } : {},
-                                    }}
-                                >
-                                    <Avatar sx={{ bgcolor: member.is_virtual ? 'grey.400' : 'primary.main' }}>
-                                        {member.display_name.charAt(0)}
-                                    </Avatar>
-                                    <Box sx={{ flex: 1 }}>
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                                            <Typography variant="body1" fontWeight={500}>
-                                                {member.display_name}
-                                            </Typography>
-                                            {member.role === 'admin' && (
-                                                <Chip
-                                                    label={tMember('role.admin')}
-                                                    size="small"
-                                                    color="primary"
-                                                    icon={<Shield size={16} />}
-                                                />
-                                            )}
-                                            {member.is_virtual && (
-                                                <Chip
-                                                    label={tMember('role.virtual')}
-                                                    size="small"
-                                                    variant="outlined"
-                                                />
-                                            )}
-                                        </Box>
-                                        {!member.is_virtual && (
-                                            <Typography variant="body2" color="text.secondary">
-                                                @{member.username}
-                                            </Typography>
+                        <div className="space-y-3">
+                            {members.map((member) => {
+                                const isClickableVirtual = !currentUser && member.is_virtual && onVirtualMemberClick;
+                                return (
+                                    <div
+                                        key={member.id}
+                                        onClick={isClickableVirtual ? () => onVirtualMemberClick(member) : undefined}
+                                        className={cn(
+                                            "flex items-center gap-3 p-3 rounded-lg border transition-all",
+                                            member.is_virtual ? "bg-muted/50 border-dashed" : "bg-card border-border",
+                                            isClickableVirtual ? "cursor-pointer hover:border-primary hover:bg-muted" : ""
                                         )}
-                                        {isClickableVirtual && (
-                                            <Typography variant="caption" color="primary.main">
-                                                {tMember('convertVirtual.clickHint')}
-                                            </Typography>
-                                        )}
-                                    </Box>
-                                    {/* 管理員操作按鈕 - 僅管理員且不是自己 */}
-                                    {isCurrentUserAdmin && member.id !== currentUser?.id && (
-                                        <Box sx={{ display: 'flex', gap: 0.5 }}>
-                                            {/* 切換管理員權限 - 僅限非虛擬成員 */}
+                                    >
+                                        <Avatar className={cn(
+                                            "h-10 w-10",
+                                            member.is_virtual ? "bg-muted" : "bg-primary"
+                                        )}>
+                                            {/* <AvatarImage src={member.avatar_url || ''} /> Member type doesn't have avatar_url yet */}
+                                            <AvatarFallback className={cn(
+                                                "text-white font-medium",
+                                                member.is_virtual ? "bg-gray-400" : "bg-primary"
+                                            )}>
+                                                {member.display_name.charAt(0).toUpperCase()}
+                                            </AvatarFallback>
+                                        </Avatar>
+
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <span className="font-medium truncate">
+                                                    {member.display_name}
+                                                </span>
+                                                {member.role === 'admin' && (
+                                                    <Badge variant="default" className="gap-1 px-1.5 h-5 text-[10px]">
+                                                        <Shield className="h-3 w-3" />
+                                                        {tMember('role.admin')}
+                                                    </Badge>
+                                                )}
+                                                {member.is_virtual && (
+                                                    <Badge variant="outline" className="h-5 text-[10px]">
+                                                        {tMember('role.virtual')}
+                                                    </Badge>
+                                                )}
+                                            </div>
                                             {!member.is_virtual && (
-                                                <IconButton
-                                                    size="small"
-                                                    color={member.role === 'admin' ? 'warning' : 'primary'}
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        onToggleAdmin(member);
-                                                    }}
-                                                    title={member.role === 'admin' ? tMember('demoteFromAdmin') : tMember('promoteToAdmin')}
-                                                >
-                                                    {member.role === 'admin' ? <Shield size={20} /> : <ShieldCheck size={20} />}
-                                                </IconButton>
+                                                <p className="text-xs text-muted-foreground truncate">
+                                                    @{member.username}
+                                                </p>
                                             )}
-                                            {/* 複製邀請連結 - 僅限虛擬成員 */}
-                                            {member.is_virtual && (
-                                                <IconButton
-                                                    size="small"
-                                                    color="primary"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        onCopyInviteLink(member);
-                                                    }}
-                                                    title={tMember('copyInviteLink')}
-                                                >
-                                                    <Link size={20} />
-                                                </IconButton>
+                                            {isClickableVirtual && (
+                                                <p className="text-xs text-primary font-medium mt-0.5">
+                                                    {tMember('convertVirtual.clickHint')}
+                                                </p>
                                             )}
-                                            {/* 移除成員 */}
-                                            <IconButton
-                                                size="small"
-                                                color="error"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    onRemoveMember(member);
-                                                }}
-                                            >
-                                                <UserMinus size={20} />
-                                            </IconButton>
-                                        </Box>
-                                    )}
-                                </Box>
-                            );
-                        })}
-                    </Box>
-                </Collapse>
-            </CardContent>
+                                        </div>
+
+                                        {/* 管理員操作按鈕 - 僅管理員且不是自己 */}
+                                        {isCurrentUserAdmin && member.id !== currentUser?.id && (
+                                            <div className="flex gap-1 shrink-0">
+                                                <TooltipProvider>
+                                                    {/* 切換管理員權限 - 僅限非虛擬成員 */}
+                                                    {!member.is_virtual && (
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-8 w-8"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        onToggleAdmin(member);
+                                                                    }}
+                                                                >
+                                                                    {member.role === 'admin' ? (
+                                                                        <Shield className="h-4 w-4 text-orange-500" />
+                                                                    ) : (
+                                                                        <ShieldCheck className="h-4 w-4 text-primary" />
+                                                                    )}
+                                                                </Button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>
+                                                                <p>{member.role === 'admin' ? tMember('demoteFromAdmin') : tMember('promoteToAdmin')}</p>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    )}
+
+                                                    {/* 複製邀請連結 - 僅限虛擬成員 */}
+                                                    {member.is_virtual && (
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-8 w-8 text-primary hover:text-primary hover:bg-primary/10"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        onCopyInviteLink(member);
+                                                                    }}
+                                                                >
+                                                                    <Link className="h-4 w-4" />
+                                                                </Button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>
+                                                                <p>{tMember('copyInviteLink')}</p>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    )}
+
+                                                    {/* 移除成員 */}
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    onRemoveMember(member);
+                                                                }}
+                                                            >
+                                                                <UserMinus className="h-4 w-4" />
+                                                            </Button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            <p>{tCommon('delete')}</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </CardContent>
+                </CollapsibleContent>
+            </Collapsible>
         </Card>
     );
 }

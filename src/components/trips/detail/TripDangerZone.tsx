@@ -1,6 +1,9 @@
-import { Card, CardContent, Typography, Button } from '@mui/material';
-import { Trash2 } from 'lucide-react';
+'use client';
+
+import { Trash2, AlertTriangle } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 
 interface TripDangerZoneProps {
     onDelete: () => void;
@@ -10,31 +13,25 @@ export default function TripDangerZone({ onDelete }: TripDangerZoneProps) {
     const tTrip = useTranslations('trip');
 
     return (
-        <Card
-            elevation={2}
-            sx={{ borderColor: 'error.main', borderWidth: 1, borderStyle: 'solid' }}
-        >
-            <CardContent>
-                <Typography variant="subtitle2" color="error" gutterBottom fontWeight={600}>
+        <Card className="border-red-200 dark:border-red-900 bg-red-50/30 dark:bg-red-900/10">
+            <CardHeader className="pb-2">
+                <CardTitle className="text-red-600 dark:text-red-400 text-base font-bold flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4" />
                     {tTrip('dangerZone')}
-                </Typography>
+                </CardTitle>
+            </CardHeader>
+            <CardContent>
                 <Button
-                    variant="outlined"
-                    color="error"
-                    startIcon={<Trash2 size={20} />}
-                    fullWidth
+                    variant="destructive"
+                    className="w-full gap-2"
                     onClick={onDelete}
                 >
+                    <Trash2 className="h-4 w-4" />
                     {tTrip('deleteTrip')}
                 </Button>
-                <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    display="block"
-                    sx={{ mt: 1 }}
-                >
+                <p className="text-xs text-muted-foreground mt-2 text-center">
                     {tTrip('deleteWarning')}
-                </Typography>
+                </p>
             </CardContent>
         </Card>
     );

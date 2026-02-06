@@ -1,14 +1,24 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { MapPin, Loader2, ChevronsUpDown, Check } from 'lucide-react';
+
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 import {
-  TextField,
-  Autocomplete,
-  Box,
-  Typography,
-  CircularProgress,
-} from '@mui/material';
-import { MapPin } from 'lucide-react';
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Label } from '@/components/ui/label';
 
 // Nominatim API 回傳的地點資料
 interface NominatimPlace {
@@ -59,13 +69,14 @@ export default function LocationAutocomplete({
   error = false,
   disabled = false,
 }: LocationAutocompleteProps) {
-  const [inputValue, setInputValue] = useState('');
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
   const [options, setOptions] = useState<LocationOption[]>([]);
   const [loading, setLoading] = useState(false);
 
   // 使用 Nominatim API 搜尋地點
-  const searchLocations = async (query: string): Promise<LocationOption[]> => {
-    if (!query || query.length < 2) {
+  const searchLocations = async (searchQuery: string): Promise<LocationOption[]> => {
+    if (!searchQuery || searchQuery.length < 2) {
       return [];
     }
 
@@ -73,7 +84,7 @@ export default function LocationAutocomplete({
       const response = await fetch(
         `https://nominatim.openstreetmap.org/search?` +
         new URLSearchParams({
-          q: query,
+          q: searchQuery,
           format: 'json',
           addressdetails: '1',
           limit: '5',
@@ -116,98 +127,103 @@ export default function LocationAutocomplete({
     }
   };
 
-  // Debounced search - 使用 useRef 來追蹤 timeout
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  // 當輸入改變時搜尋（帶有 debounce）
   useEffect(() => {
-    // 清除之前的 timeout
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
-
-    if (inputValue.length >= 2) {
-      setLoading(true);
-      searchTimeoutRef.current = setTimeout(async () => {
-        const results = await searchLocations(inputValue);
+    const timer = setTimeout(async () => {
+      if (query.length >= 2) {
+        setLoading(true);
+        const results = await searchLocations(query);
         setOptions(results);
         setLoading(false);
-      }, 300);
-    } else {
-      setOptions([]);
-      setLoading(false);
-    }
-
-    // 清理
-    return () => {
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
+      } else {
+        setOptions([]);
       }
-    };
-  }, [inputValue]);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [query]);
 
   return (
-    <Autocomplete
-      value={value}
-      onChange={(_, newValue) => {
-        onChange(newValue);
-      }}
-      inputValue={inputValue}
-      onInputChange={(_, newInputValue) => {
-        setInputValue(newInputValue);
-      }}
-      options={options}
-      loading={loading}
-      disabled={disabled}
-      getOptionLabel={(option) => option.display_name}
-      isOptionEqualToValue={(option, val) =>
-        option.lat === val.lat && option.lon === val.lon
-      }
-      filterOptions={(x) => x} // 不做本地過濾，由 API 處理
-      noOptionsText={inputValue.length < 2 ? '請輸入至少 2 個字元' : '找不到地點'}
-      loadingText="搜尋中..."
-      renderInput={(params) => (
-        <TextField
-          {...params}
-          label={label}
-          placeholder={placeholder}
-          helperText={helperText}
-          error={error}
-          InputProps={{
-            ...params.InputProps,
-            endAdornment: (
-              <>
-                {loading ? <CircularProgress color="inherit" size={20} /> : null}
-                {params.InputProps.endAdornment}
-              </>
-            ),
-          }}
-        />
-      )}
-      renderOption={(props, option) => {
-        const { key, ...rest } = props;
-        return (
-          <Box
-            component="li"
-            key={`${option.lat}-${option.lon}`}
-            {...rest}
-            sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}
+    <div className="grid gap-2">
+      {label && <Label className={error ? "text-destructive" : ""}>{label}</Label>}
+
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            className={cn(
+              "w-full justify-between bg-background px-3 font-normal",
+              !value && "text-muted-foreground",
+              error && "border-destructive focus-visible:ring-destructive"
+            )}
+            disabled={disabled}
           >
-            <MapPin size={20} style={{ marginTop: 4 }} className="text-gray-500" />
-            <Box>
-              <Typography variant="body1">{option.name}</Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>
-                {option.display_name}
-              </Typography>
-              {option.country && (
-                <Typography variant="caption" color="primary">
-                  {option.country}
-                </Typography>
+            {value ? (
+              <span className="truncate">{value.name}</span>
+            ) : (
+              placeholder || "Select location..."
+            )}
+            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+          <Command shouldFilter={false}>
+            <CommandInput
+              placeholder="Search location..."
+              value={query}
+              onValueChange={setQuery}
+            />
+            <CommandList>
+              {loading && (
+                <div className="py-6 text-center text-sm text-muted-foreground flex items-center justify-center">
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Searching...
+                </div>
               )}
-            </Box>
-          </Box>
-        );
-      }}
-    />
+
+              {!loading && options.length === 0 && query.length >= 2 && (
+                <CommandEmpty>No location found.</CommandEmpty>
+              )}
+
+              {!loading && options.length === 0 && query.length < 2 && (
+                <div className="py-6 text-center text-sm text-muted-foreground">
+                  Please enter at least 2 characters.
+                </div>
+              )}
+
+              {!loading && options.map((option) => (
+                <CommandItem
+                  key={`${option.lat}-${option.lon}`}
+                  value={`${option.name} ${option.display_name}`}
+                  onSelect={() => {
+                    onChange(option);
+                    setOpen(false);
+                    setQuery(""); // Reset query? Or keep it? Usually reset.
+                  }}
+                >
+                  <MapPin className="mr-2 h-4 w-4 text-muted-foreground shrink-0 mt-0.5 self-start" />
+                  <div className="flex flex-col overflow-hidden">
+                    <span className="truncate font-medium">{option.name}</span>
+                    <span className="truncate text-xs text-muted-foreground">
+                      {option.display_name}
+                    </span>
+                  </div>
+                  {value?.lat === option.lat && value?.lon === option.lon && (
+                    <Check className="ml-auto h-4 w-4 opacity-100 shrink-0" />
+                  )}
+                </CommandItem>
+              ))}
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+
+      {helperText && (
+        <p className={cn("text-[0.8rem] text-muted-foreground", error && "text-destructive")}>
+          {helperText}
+        </p>
+      )}
+    </div>
   );
 }

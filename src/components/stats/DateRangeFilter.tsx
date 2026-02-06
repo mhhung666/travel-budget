@@ -1,19 +1,14 @@
 'use client';
 
 import {
-  Box,
-  Card,
-  CardContent,
-  Chip,
-  Stack,
-  TextField,
-  Typography,
-  useTheme,
-} from '@mui/material';
-import {
   Calendar,
   ArrowRight,
 } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
 
 interface DateRangeFilterProps {
   startDate: string;
@@ -69,11 +64,6 @@ export default function DateRangeFilter({
   onYearSelect,
   t,
 }: DateRangeFilterProps) {
-  const theme = useTheme();
-  const cardGradient = theme.palette.mode === 'dark'
-    ? 'linear-gradient(135deg, #1E293B 0%, #0F172A 100%)'
-    : 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)';
-
   const currentYear = new Date().getFullYear();
   const years = [currentYear - 2, currentYear - 1, currentYear, currentYear + 1];
   const dateRanges = getDateRanges();
@@ -92,142 +82,122 @@ export default function DateRangeFilter({
   };
 
   return (
-    <Card
-      elevation={0}
-      sx={{
-        background: cardGradient,
-        borderRadius: 4,
-        border: '1px solid',
-        borderColor: 'divider',
-        height: '100%',
-      }}
-    >
-      <CardContent sx={{ p: { xs: 3, md: 4 } }}>
-        <Stack spacing={3}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Calendar size={20} color={theme.palette.primary.main} />
-            <Typography variant="h6" fontWeight={700}>
-              {t('dateRange')}
-            </Typography>
-          </Box>
+    <Card className="h-full border-muted bg-card/50">
+      <CardContent className="p-6 sm:p-8 space-y-6">
+        <div className="flex items-center gap-2">
+          <Calendar size={20} className="text-primary" />
+          <h3 className="text-lg font-bold">
+            {t('dateRange')}
+          </h3>
+        </div>
 
-          {/* 相對時間快捷選項 */}
-          <Box>
-            <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
-              {t('quickRelative')}
-            </Typography>
-            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-              <Chip
-                label={t('last7Days')}
-                onClick={() => handleQuickSelect(dateRanges.last7Days)}
-                variant={isRangeSelected(dateRanges.last7Days) ? 'filled' : 'outlined'}
-                color={isRangeSelected(dateRanges.last7Days) ? 'primary' : 'default'}
-                size="small"
-              />
-              <Chip
-                label={t('last30Days')}
-                onClick={() => handleQuickSelect(dateRanges.last30Days)}
-                variant={isRangeSelected(dateRanges.last30Days) ? 'filled' : 'outlined'}
-                color={isRangeSelected(dateRanges.last30Days) ? 'primary' : 'default'}
-                size="small"
-              />
-              <Chip
-                label={t('last90Days')}
-                onClick={() => handleQuickSelect(dateRanges.last90Days)}
-                variant={isRangeSelected(dateRanges.last90Days) ? 'filled' : 'outlined'}
-                color={isRangeSelected(dateRanges.last90Days) ? 'primary' : 'default'}
-                size="small"
-              />
-            </Stack>
-          </Box>
+        {/* 相對時間快捷選項 */}
+        <div className="space-y-2">
+          <Label className="text-xs text-muted-foreground uppercase tracking-wider">
+            {t('quickRelative')}
+          </Label>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { label: t('last7Days'), range: dateRanges.last7Days },
+              { label: t('last30Days'), range: dateRanges.last30Days },
+              { label: t('last90Days'), range: dateRanges.last90Days },
+            ].map((item, idx) => {
+              const isSelected = isRangeSelected(item.range);
+              return (
+                <Badge
+                  key={idx}
+                  variant={isSelected ? "default" : "outline"}
+                  className={cn(
+                    "cursor-pointer px-3 py-1 hover:bg-primary/90 transition-colors",
+                    !isSelected && "hover:bg-accent hover:text-accent-foreground"
+                  )}
+                  onClick={() => handleQuickSelect(item.range)}
+                >
+                  {item.label}
+                </Badge>
+              )
+            })}
+          </div>
+        </div>
 
-          {/* 絕對時間快捷選項 */}
-          <Box>
-            <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
-              {t('quickAbsolute')}
-            </Typography>
-            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-              <Chip
-                label={t('thisMonth')}
-                onClick={() => handleQuickSelect(dateRanges.thisMonth)}
-                variant={isRangeSelected(dateRanges.thisMonth) ? 'filled' : 'outlined'}
-                color={isRangeSelected(dateRanges.thisMonth) ? 'primary' : 'default'}
-                size="small"
-              />
-              <Chip
-                label={t('lastMonth')}
-                onClick={() => handleQuickSelect(dateRanges.lastMonth)}
-                variant={isRangeSelected(dateRanges.lastMonth) ? 'filled' : 'outlined'}
-                color={isRangeSelected(dateRanges.lastMonth) ? 'primary' : 'default'}
-                size="small"
-              />
-              <Chip
-                label={t('thisQuarter')}
-                onClick={() => handleQuickSelect(dateRanges.thisQuarter)}
-                variant={isRangeSelected(dateRanges.thisQuarter) ? 'filled' : 'outlined'}
-                color={isRangeSelected(dateRanges.thisQuarter) ? 'primary' : 'default'}
-                size="small"
-              />
-              <Chip
-                label={t('lastQuarter')}
-                onClick={() => handleQuickSelect(dateRanges.lastQuarter)}
-                variant={isRangeSelected(dateRanges.lastQuarter) ? 'filled' : 'outlined'}
-                color={isRangeSelected(dateRanges.lastQuarter) ? 'primary' : 'default'}
-                size="small"
-              />
-            </Stack>
-          </Box>
+        {/* 絕對時間快捷選項 */}
+        <div className="space-y-2">
+          <Label className="text-xs text-muted-foreground uppercase tracking-wider">
+            {t('quickAbsolute')}
+          </Label>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { label: t('thisMonth'), range: dateRanges.thisMonth },
+              { label: t('lastMonth'), range: dateRanges.lastMonth },
+              { label: t('thisQuarter'), range: dateRanges.thisQuarter },
+              { label: t('lastQuarter'), range: dateRanges.lastQuarter },
+            ].map((item, idx) => {
+              const isSelected = isRangeSelected(item.range);
+              return (
+                <Badge
+                  key={idx}
+                  variant={isSelected ? "default" : "outline"}
+                  className={cn(
+                    "cursor-pointer px-3 py-1 hover:bg-primary/90 transition-colors",
+                    !isSelected && "hover:bg-accent hover:text-accent-foreground"
+                  )}
+                  onClick={() => handleQuickSelect(item.range)}
+                >
+                  {item.label}
+                </Badge>
+              )
+            })}
+          </div>
+        </div>
 
-          {/* 年度快速選擇 */}
-          <Box>
-            <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
-              {t('quickYear')}
-            </Typography>
-            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-              {years.map((year) => (
-                <Chip
+        {/* 年度快速選擇 */}
+        <div className="space-y-2">
+          <Label className="text-xs text-muted-foreground uppercase tracking-wider">
+            {t('quickYear')}
+          </Label>
+          <div className="flex flex-wrap gap-2">
+            {years.map((year) => {
+              const isSelected = isYearSelected(year);
+              return (
+                <Badge
                   key={year}
-                  label={`${year}`}
+                  variant={isSelected ? "default" : "outline"}
+                  className={cn(
+                    "cursor-pointer px-3 py-1 hover:bg-primary/90 transition-colors",
+                    !isSelected && "hover:bg-accent hover:text-accent-foreground",
+                    isSelected && "font-bold"
+                  )}
                   onClick={() => onYearSelect(year)}
-                  variant={isYearSelected(year) ? 'filled' : 'outlined'}
-                  color={isYearSelected(year) ? 'primary' : 'default'}
-                  size="small"
-                  sx={{
-                    fontWeight: isYearSelected(year) ? 700 : 500,
-                    transition: 'all 0.2s',
-                  }}
-                />
-              ))}
-            </Stack>
-          </Box>
+                >
+                  {year}
+                </Badge>
+              )
+            })}
+          </div>
+        </div>
 
-          {/* 自訂日期範圍 */}
-          <Box>
-            <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
-              {t('customRange')}
-            </Typography>
-            <Stack direction="row" spacing={2} alignItems="center">
-              <TextField
-                type="date"
-                value={startDate}
-                onChange={(e) => onStartDateChange(e.target.value)}
-                size="small"
-                sx={{ flex: 1 }}
-              />
-              <ArrowRight size={16} color={theme.palette.text.secondary} />
-              <TextField
-                type="date"
-                value={endDate}
-                onChange={(e) => onEndDateChange(e.target.value)}
-                size="small"
-                slotProps={{
-                  htmlInput: { min: startDate || undefined },
-                }}
-                sx={{ flex: 1 }}
-              />
-            </Stack>
-          </Box>
-        </Stack>
+        {/* 自訂日期範圍 */}
+        <div className="space-y-2">
+          <Label className="text-xs text-muted-foreground uppercase tracking-wider">
+            {t('customRange')}
+          </Label>
+          <div className="flex items-center gap-2">
+            <Input
+              type="date"
+              value={startDate}
+              onChange={(e) => onStartDateChange(e.target.value)}
+              className="flex-1"
+            />
+            <ArrowRight size={16} className="text-muted-foreground" />
+            <Input
+              type="date"
+              value={endDate}
+              onChange={(e) => onEndDateChange(e.target.value)}
+              min={startDate}
+              className="flex-1"
+            />
+          </div>
+        </div>
       </CardContent>
     </Card>
   );

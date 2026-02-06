@@ -1,13 +1,15 @@
-import {
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    Typography,
-    Button
-} from '@mui/material';
+'use client';
+
 import { useTranslations } from 'next-intl';
 import { Member } from '@/types';
+import {
+    Dialog,
+    DialogContent,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 
 interface ToggleAdminDialogProps {
     open: boolean;
@@ -28,33 +30,38 @@ export default function ToggleAdminDialog({
     const isPromoting = member?.role !== 'admin';
 
     return (
-        <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-            <DialogTitle>
-                {isPromoting ? tMember('promoteToAdmin') : tMember('demoteFromAdmin')}
-            </DialogTitle>
-            <DialogContent>
-                <Typography>
-                    {isPromoting
-                        ? tMember('confirm.promoteToAdmin')
-                        : tMember('confirm.demoteFromAdmin')
-                    }
-                </Typography>
-                {isPromoting && (
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                        {tMember('confirm.promoteMessage')}
-                    </Typography>
-                )}
+        <Dialog open={open} onOpenChange={(val) => !val && onClose()}>
+            <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                    <DialogTitle>
+                        {isPromoting ? tMember('promoteToAdmin') : tMember('demoteFromAdmin')}
+                    </DialogTitle>
+                </DialogHeader>
+                <div className="py-2 space-y-2">
+                    <p>
+                        {isPromoting
+                            ? tMember('confirm.promoteToAdmin')
+                            : tMember('confirm.demoteFromAdmin')
+                        }
+                    </p>
+                    {isPromoting && (
+                        <p className="text-sm text-muted-foreground">
+                            {tMember('confirm.promoteMessage')}
+                        </p>
+                    )}
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={onClose}>
+                        {tCommon('cancel')}
+                    </Button>
+                    <Button
+                        onClick={onConfirm}
+                        variant={isPromoting ? 'default' : 'destructive'}
+                    >
+                        {tCommon('confirm')}
+                    </Button>
+                </DialogFooter>
             </DialogContent>
-            <DialogActions sx={{ px: 3, pb: 2 }}>
-                <Button onClick={onClose}>{tCommon('cancel')}</Button>
-                <Button
-                    onClick={onConfirm}
-                    color={isPromoting ? 'primary' : 'warning'}
-                    variant="contained"
-                >
-                    {tCommon('confirm')}
-                </Button>
-            </DialogActions>
         </Dialog>
     );
 }

@@ -1,28 +1,39 @@
+'use client';
+
 import { useState, useEffect } from 'react';
-import {
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    Box,
-    IconButton,
-    Alert,
-    FormControl,
-    InputLabel,
-    Select,
-    MenuItem,
-    TextField,
-    Typography,
-    FormControlLabel,
-    Checkbox,
-    Button,
-    CircularProgress,
-    Tooltip
-} from '@mui/material';
-import { X, DollarSign, RefreshCw } from 'lucide-react';
+import { X, DollarSign, RefreshCw, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { CATEGORIES, DEFAULT_CATEGORY } from '@/constants/categories';
 import type { Expense, Member } from '@/types';
+import { cn } from '@/lib/utils';
+
+// UI Components
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface ExpenseFormDialogProps {
     mode: 'add' | 'edit';
@@ -143,8 +154,6 @@ export default function ExpenseFormDialog({
 
             setError('');
             setShowAdvanced(mode === 'edit');
-
-            // Fetch exchange rates when dialog opens
             fetchExchangeRates();
         }
     }, [open, mode, expense, members, currentUser]);
@@ -181,6 +190,7 @@ export default function ExpenseFormDialog({
 
         // 2. Distribute remaining amount (in original currency)
         const remainingOriginal = Math.max(0, originalAmount - manualSumOriginal);
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const manualSumTWD = manualSumOriginal * exchangeRate;
 
         // 3. Assign auto amounts (in original currency)
@@ -306,361 +316,277 @@ export default function ExpenseFormDialog({
     ];
 
     return (
-        <Dialog
-            open={open}
-            onClose={onClose}
-            maxWidth="sm"
-            fullWidth
-            PaperProps={{
-                sx: {
-                    borderRadius: 3,
-                    maxHeight: '90vh'
-                }
-            }}
-        >
-            <DialogTitle sx={{ pb: 1 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Typography variant="h6" fontWeight={700}>
+        <Dialog open={open} onOpenChange={(val) => !val && onClose()}>
+            <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                    <DialogTitle>
                         {mode === 'add' ? tExpense('add') : tExpense('edit')}
-                    </Typography>
-                    <IconButton onClick={onClose} size="small" sx={{ bgcolor: 'action.hover' }}>
-                        <X size={20} />
-                    </IconButton>
-                </Box>
-            </DialogTitle>
+                    </DialogTitle>
+                    <DialogDescription className="hidden">
+                        Expense Form
+                    </DialogDescription>
+                </DialogHeader>
 
-            <form onSubmit={handleSubmit}>
-                <DialogContent sx={{ pt: 1, pb: 2 }}>
+                <form onSubmit={handleSubmit} className="space-y-4">
                     {error && (
-                        <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
-                            {error}
+                        <Alert variant="destructive">
+                            <AlertTitle>Error</AlertTitle>
+                            <AlertDescription>{error}</AlertDescription>
                         </Alert>
                     )}
 
                     {/* Amount & Currency - Hero Section */}
-                    <Box sx={{
-                        p: 2,
-                        mb: 3,
-                        bgcolor: 'background.default',
-                        borderRadius: 3,
-                        border: '1px solid',
-                        borderColor: 'divider',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 1
-                    }}>
-                        <TextField
-                            fullWidth
-                            variant="standard"
+                    <div className="flex items-center gap-2 p-4 bg-muted/50 rounded-xl border">
+                        <Input
                             placeholder="0"
                             value={form.original_amount}
                             onChange={(e) => setForm({ ...form, original_amount: e.target.value })}
                             required
                             type="number"
-                            InputProps={{
-                                disableUnderline: true,
-                                style: { fontSize: '2.5rem', fontWeight: 600 }
-                            }}
+                            className="border-none shadow-none text-4xl font-bold h-16 bg-transparent focus-visible:ring-0 px-0"
                             autoFocus
                         />
                         <Select
                             value={form.currency}
-                            onChange={(e) => {
-                                const currency = e.target.value;
-                                const rate = currency === 'TWD' ? '1.0' : (exchangeRates[currency]?.toFixed(6) || form.exchange_rate);
+                            onValueChange={(value) => {
+                                const rate = value === 'TWD' ? '1.0' : (exchangeRates[value]?.toFixed(6) || form.exchange_rate);
                                 setForm({
                                     ...form,
-                                    currency,
+                                    currency: value,
                                     exchange_rate: rate,
                                 });
                             }}
-                            variant="standard"
-                            disableUnderline
-                            sx={{
-                                fontSize: '1.25rem',
-                                fontWeight: 500,
-                                '& .MuiSelect-select': { py: 0 }
-                            }}
                         >
-                            {currencies.map((c) => (
-                                <MenuItem key={c.code} value={c.code}>{c.label}</MenuItem>
-                            ))}
+                            <SelectTrigger className="w-[100px] border-none bg-transparent text-lg font-medium focus:ring-0">
+                                <SelectValue placeholder="Currency" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {currencies.map((c) => (
+                                    <SelectItem key={c.code} value={c.code}>{c.label}</SelectItem>
+                                ))}
+                            </SelectContent>
                         </Select>
-                    </Box>
+                    </div>
 
-                    {/* Description - Quick Input */}
-                    <TextField
-                        fullWidth
+                    {/* Description */}
+                    <Input
                         placeholder={tExpense('form.descriptionPlaceholder')}
                         value={form.description}
                         onChange={(e) => setForm({ ...form, description: e.target.value })}
                         required
-                        variant="outlined"
-                        sx={{ mb: 3 }}
-                        InputProps={{
-                            sx: { borderRadius: 2 }
-                        }}
                     />
 
-                    {/* Category - Visual Grid */}
-                    <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1.5, fontWeight: 600 }}>
-                        {tExpense('form.category')}
-                    </Typography>
-                    <Box sx={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(4, 1fr)',
-                        gap: 1,
-                        mb: 3,
-                        overflowX: 'auto',
-                        pb: 1
-                    }}>
-                        {CATEGORIES.map((cat) => {
-                            const isSelected = form.category === cat.code;
-                            return (
-                                <Box
-                                    key={cat.code}
-                                    onClick={() => handleCategorySelect(cat.code)}
-                                    sx={{
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        p: 1,
-                                        borderRadius: 2,
-                                        cursor: 'pointer',
-                                        bgcolor: isSelected ? 'primary.soft' : 'transparent',
-                                        border: '1px solid',
-                                        borderColor: isSelected ? 'primary.main' : 'transparent',
-                                        color: isSelected ? 'primary.main' : 'text.secondary',
-                                        transition: 'all 0.2s',
-                                        '&:hover': {
-                                            bgcolor: isSelected ? 'primary.soft' : 'action.hover'
-                                        }
-                                    }}
-                                >
-                                    <Box sx={{ fontSize: '1.5rem', mb: 0.5 }}>{cat.icon}</Box>
-                                    <Typography variant="caption" noWrap sx={{ maxWidth: '100%', fontWeight: isSelected ? 600 : 400 }}>
-                                        {t(cat.nameKey)}
-                                    </Typography>
-                                </Box>
-                            );
-                        })}
-                    </Box>
+                    {/* Category - Grid */}
+                    <div>
+                        <Label className="text-muted-foreground mb-2 block text-xs font-semibold uppercase tracking-wider">
+                            {tExpense('form.category')}
+                        </Label>
+                        <div className="grid grid-cols-4 gap-2">
+                            {CATEGORIES.map((cat) => {
+                                const isSelected = form.category === cat.code;
+                                return (
+                                    <div
+                                        key={cat.code}
+                                        onClick={() => handleCategorySelect(cat.code)}
+                                        className={cn(
+                                            "flex flex-col items-center justify-center p-2 rounded-lg cursor-pointer transition-all border",
+                                            isSelected
+                                                ? "bg-primary/10 border-primary text-primary"
+                                                : "bg-transparent border-transparent hover:bg-muted text-muted-foreground hover:text-foreground"
+                                        )}
+                                    >
+                                        <span className="text-2xl mb-1">{cat.icon}</span>
+                                        <span className={cn("text-xs truncate w-full text-center", isSelected && "font-semibold")}>
+                                            {t(cat.nameKey)}
+                                        </span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
 
-                    {/* Split Members - List View */}
-                    <Box sx={{ mb: 3 }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-                            <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                    {/* Split Members */}
+                    <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                            <Label className="text-muted-foreground text-xs font-semibold uppercase tracking-wider">
                                 {tExpense('form.splitWith')}
-                            </Typography>
+                            </Label>
                             <Button
-                                size="small"
+                                type="button"
+                                variant="ghost"
+                                size="sm"
                                 onClick={handleSelectAll}
-                                sx={{ fontSize: '0.75rem', textTransform: 'none', py: 0 }}
+                                className="h-6 text-xs px-2"
                             >
                                 {tCommon('toggleAll')}
                             </Button>
-                        </Box>
+                        </div>
 
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                        <div className="space-y-2">
                             {members.map((member) => {
                                 const state = splitState[member.id] || { selected: false, manualAmount: '' };
                                 const amountOriginal = calculatedSplitsOriginal[member.id] || 0;
                                 const isManual = state.manualAmount !== '';
 
                                 return (
-                                    <Box
+                                    <div
                                         key={member.id}
-                                        sx={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'space-between',
-                                            p: 1,
-                                            borderRadius: 2,
-                                            bgcolor: state.selected ? 'primary.soft' : 'transparent',
-                                            border: '1px solid',
-                                            borderColor: state.selected ? 'primary.main' : 'divider',
-                                            opacity: state.selected ? 1 : 0.6
-                                        }}
+                                        className={cn(
+                                            "flex items-center justify-between p-2 rounded-lg border transition-all",
+                                            state.selected
+                                                ? "bg-primary/5 border-primary/20"
+                                                : "bg-transparent border-border opacity-60"
+                                        )}
                                     >
-                                        <FormControlLabel
-                                            control={
-                                                <Checkbox
-                                                    checked={state.selected}
-                                                    onChange={() => handleSplitToggle(member.id)}
-                                                    size="small"
-                                                    sx={{ py: 0 }}
-                                                />
-                                            }
-                                            label={
-                                                <Typography variant="body2" fontWeight={500}>
-                                                    {member.display_name}
-                                                </Typography>
-                                            }
-                                            sx={{ m: 0, mr: 2 }}
-                                        />
+                                        <div className="flex items-center gap-2">
+                                            <Checkbox
+                                                checked={state.selected}
+                                                onCheckedChange={() => handleSplitToggle(member.id)}
+                                                id={`split-${member.id}`}
+                                            />
+                                            <Label
+                                                htmlFor={`split-${member.id}`}
+                                                className="cursor-pointer font-medium"
+                                            >
+                                                {member.display_name}
+                                            </Label>
+                                        </div>
 
                                         {state.selected ? (
-                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                                <Typography variant="caption" color="text.secondary" sx={{ minWidth: '35px', textAlign: 'right' }}>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xs text-muted-foreground w-8 text-right">
                                                     {form.currency}
-                                                </Typography>
-                                                <TextField
-                                                    variant="standard"
+                                                </span>
+                                                <Input
+                                                    // variant="ghost" removed
                                                     placeholder={amountOriginal.toFixed(form.currency === 'JPY' ? 0 : 2)}
                                                     value={state.manualAmount}
                                                     onChange={(e) => handleManualAmountChange(member.id, e.target.value)}
                                                     type="number"
-                                                    InputProps={{
-                                                        disableUnderline: true,
-                                                        sx: {
-                                                            fontSize: '0.9rem',
-                                                            fontWeight: isManual ? 700 : 400,
-                                                            color: isManual ? 'primary.main' : 'text.primary',
-                                                            textAlign: 'right',
-                                                            width: '80px',
-                                                            bgcolor: 'background.paper',
-                                                            borderRadius: 1,
-                                                            px: 1
-                                                        },
-                                                        inputProps: {
-                                                            style: { textAlign: 'right' },
-                                                            step: form.currency === 'JPY' ? '1' : '0.01'
-                                                        }
-                                                    }}
+                                                    className={cn(
+                                                        "h-8 w-24 text-right pr-2 border-none shadow-none focus-visible:ring-0",
+                                                        isManual ? "font-bold text-primary bg-background shadow-sm" : "bg-transparent"
+                                                    )}
                                                 />
-                                            </Box>
+                                            </div>
                                         ) : (
-                                            <Typography variant="caption" color="text.secondary">--</Typography>
+                                            <span className="text-xs text-muted-foreground pr-2">--</span>
                                         )}
-                                    </Box>
+                                    </div>
                                 );
                             })}
-                        </Box>
+                        </div>
 
                         {splitWarning && (
-                            <Alert severity="warning" sx={{ mt: 2, borderRadius: 2 }} icon={<DollarSign size={16} />}>
-                                {splitWarning}
+                            <Alert className="bg-yellow-50 dark:bg-yellow-900/10 border-yellow-200 dark:border-yellow-900">
+                                <DollarSign className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+                                <AlertTitle className="text-yellow-800 dark:text-yellow-300">Warning</AlertTitle>
+                                <AlertDescription className="text-yellow-700 dark:text-yellow-400">
+                                    {splitWarning}
+                                </AlertDescription>
                             </Alert>
                         )}
-                    </Box>
+                    </div>
 
-                    {/* Advanced Options (Payer, Date, Exchange Rate) */}
+                    {/* Advanced Options Toggle */}
                     <Button
-                        fullWidth
-                        variant="text"
+                        type="button"
+                        variant="ghost"
+                        className="w-full justify-start text-muted-foreground h-9 font-normal"
                         onClick={() => setShowAdvanced(!showAdvanced)}
-                        sx={{
-                            justifyContent: 'flex-start',
-                            color: 'text.secondary',
-                            textTransform: 'none',
-                            mb: 1
-                        }}
                     >
                         {showAdvanced ? tCommon('hideDetails') : tCommon('moreDetails')}
                     </Button>
 
+                    {/* Advanced Options Content */}
                     {showAdvanced && (
-                        <Box sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 2, animation: 'fadeIn 0.3s' }}>
-                            <FormControl fullWidth sx={{ mb: 2 }}>
-                                <InputLabel>{tExpense('form.payer')}</InputLabel>
+                        <div className="space-y-4 p-4 bg-muted/30 rounded-lg animate-in fade-in slide-in-from-top-2">
+                            <div className="space-y-2">
+                                <Label>{tExpense('form.payer')}</Label>
                                 <Select
-                                    value={form.payer_id}
-                                    onChange={(e) => setForm({ ...form, payer_id: Number(e.target.value) })}
-                                    label={tExpense('form.payer')}
-                                    size="small"
+                                    value={form.payer_id.toString()}
+                                    onValueChange={(val) => setForm({ ...form, payer_id: Number(val) })}
                                 >
-                                    {members.map((member) => (
-                                        <MenuItem key={member.id} value={member.id}>
-                                            {member.display_name}
-                                        </MenuItem>
-                                    ))}
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select Payer" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {members.map((member) => (
+                                            <SelectItem key={member.id} value={member.id.toString()}>
+                                                {member.display_name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
                                 </Select>
-                            </FormControl>
+                            </div>
 
-                            <TextField
-                                fullWidth
-                                type="date"
-                                label={tExpense('form.date')}
-                                value={form.date}
-                                onChange={(e) => setForm({ ...form, date: e.target.value })}
-                                size="small"
-                                sx={{ mb: 2 }}
-                                InputLabelProps={{ shrink: true }}
-                            />
+                            <div className="space-y-2">
+                                <Label>{tExpense('form.date')}</Label>
+                                <Input
+                                    type="date"
+                                    value={form.date}
+                                    onChange={(e) => setForm({ ...form, date: e.target.value })}
+                                />
+                            </div>
 
                             {form.currency !== 'TWD' && (
-                                <Box>
-                                    <TextField
-                                        fullWidth
-                                        type="number"
-                                        label={tExpense('form.exchangeRate')}
-                                        value={form.exchange_rate}
-                                        onChange={(e) => setForm({ ...form, exchange_rate: e.target.value })}
-                                        size="small"
-                                        inputProps={{ step: '0.000001' }}
-                                        helperText={`1 ${form.currency} = ${form.exchange_rate} TWD`}
-                                        InputProps={{
-                                            endAdornment: (
-                                                <Tooltip title="重新獲取匯率">
-                                                    <IconButton
-                                                        size="small"
+                                <div className="space-y-2">
+                                    <Label>{tExpense('form.exchangeRate')}</Label>
+                                    <div className="flex gap-2">
+                                        <Input
+                                            type="number"
+                                            value={form.exchange_rate}
+                                            onChange={(e) => setForm({ ...form, exchange_rate: e.target.value })}
+                                            step="0.000001"
+                                        />
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="icon"
                                                         onClick={fetchExchangeRates}
                                                         disabled={loadingRates}
-                                                        sx={{ mr: -1 }}
+                                                        className="shrink-0"
                                                     >
                                                         {loadingRates ? (
-                                                            <CircularProgress size={16} />
+                                                            <Loader2 className="h-4 w-4 animate-spin" />
                                                         ) : (
-                                                            <RefreshCw size={16} />
+                                                            <RefreshCw className="h-4 w-4" />
                                                         )}
-                                                    </IconButton>
-                                                </Tooltip>
-                                            )
-                                        }}
-                                    />
-                                    {exchangeRates[form.currency] && (
-                                        <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-                                            參考匯率: 1 {form.currency} ≈ {exchangeRates[form.currency].toFixed(4)} TWD
-                                        </Typography>
-                                    )}
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>Refresh Exchange Rate</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">
+                                        1 {form.currency} = {parseFloat(form.exchange_rate).toFixed(4)} TWD
+                                    </p>
                                     {ratesError && (
-                                        <Typography variant="caption" color="error" sx={{ mt: 0.5, display: 'block' }}>
-                                            {ratesError}（使用預設值）
-                                        </Typography>
+                                        <p className="text-xs text-destructive">{ratesError}</p>
                                     )}
-                                </Box>
+                                </div>
                             )}
-                        </Box>
+                        </div>
                     )}
 
-                </DialogContent>
-                <DialogActions sx={{ px: 3, pb: 2, pt: 0 }}>
-                    <Button onClick={onClose} sx={{ color: 'text.secondary', borderRadius: 2 }}>
-                        {tCommon('cancel')}
-                    </Button>
-                    <Button
-                        type="submit"
-                        variant="contained"
-                        disabled={!isValidSplit || !form.original_amount}
-                        sx={{
-                            px: 4,
-                            borderRadius: 2,
-                            fontWeight: 600,
-                            boxShadow: 'none',
-                            '&:hover': { boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }
-                        }}
-                    >
-                        {mode === 'add' ? tExpense('add') : tCommon('save')}
-                    </Button>
-                </DialogActions>
-            </form>
-            <style jsx global>{`
-                @keyframes fadeIn {
-                    from { opacity: 0; transform: translateY(-10px); }
-                    to { opacity: 1; transform: translateY(0); }
-                }
-            `}</style>
+                    <DialogFooter className="gap-2 sm:gap-0">
+                        <Button type="button" variant="outline" onClick={onClose}>
+                            {tCommon('cancel')}
+                        </Button>
+                        <Button
+                            type="submit"
+                            disabled={!isValidSplit || !form.original_amount}
+                        >
+                            {mode === 'add' ? tExpense('add') : tCommon('save')}
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
         </Dialog>
     );
 }

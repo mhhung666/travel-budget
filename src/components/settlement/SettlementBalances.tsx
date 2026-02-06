@@ -1,15 +1,18 @@
-import {
-    Box,
-    Card,
-    CardContent,
-    Typography,
-    Avatar,
-    Chip,
-    Divider,
-} from '@mui/material';
+'use client';
+
 import { TrendingUp, TrendingDown, CheckCircle } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { Balance } from '@/types';
+import {
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
 
 interface SettlementBalancesProps {
     balances: Balance[];
@@ -19,102 +22,85 @@ export default function SettlementBalances({ balances }: SettlementBalancesProps
     const t = useTranslations('settlement');
 
     return (
-        <Card elevation={2}>
+        <Card>
+            <CardHeader>
+                <CardTitle>{t('perPerson')}</CardTitle>
+            </CardHeader>
             <CardContent>
-                <Typography variant="h6" fontWeight={600} gutterBottom>
-                    {t('perPerson')}
-                </Typography>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <div className="flex flex-col gap-4">
                     {balances.map((balance) => (
                         <Card
                             key={balance.userId}
-                            elevation={0}
-                            sx={{ border: '1px solid', borderColor: 'divider' }}
+                            className="shadow-sm border-muted"
                         >
-                            <CardContent>
-                                <Box
-                                    sx={{
-                                        display: 'flex',
-                                        justifyContent: 'space-between',
-                                        alignItems: 'flex-start',
-                                        mb: 1,
-                                    }}
-                                >
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                        <Avatar sx={{ bgcolor: 'primary.main', width: 32, height: 32 }}>
-                                            {balance.username.charAt(0)}
+                            <CardContent className="p-4">
+                                <div className="flex justify-between items-start mb-2">
+                                    <div className="flex items-center gap-2">
+                                        <Avatar className="h-8 w-8 bg-primary">
+                                            <AvatarFallback className="text-primary-foreground bg-primary">
+                                                {balance.username.charAt(0).toUpperCase()}
+                                            </AvatarFallback>
                                         </Avatar>
-                                        <Typography variant="subtitle1" fontWeight={600}>
+                                        <span className="font-semibold text-base">
                                             {balance.username}
-                                        </Typography>
-                                    </Box>
-                                    <Chip
-                                        icon={
-                                            balance.balance > 0 ? (
-                                                <TrendingUp size={18} />
-                                            ) : balance.balance < 0 ? (
-                                                <TrendingDown size={18} />
-                                            ) : (
-                                                <CheckCircle size={18} />
-                                            )
-                                        }
-                                        label={`${balance.balance >= 0 ? '+' : ''}$${balance.balance.toFixed(0)}`}
-                                        color={
+                                        </span>
+                                    </div>
+                                    <Badge
+                                        variant="outline"
+                                        className={cn(
+                                            "gap-1 font-bold px-2 py-1 text-sm border-0",
                                             balance.balance > 0
-                                                ? 'success'
+                                                ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
                                                 : balance.balance < 0
-                                                    ? 'error'
-                                                    : 'default'
-                                        }
-                                        sx={{ fontWeight: 700 }}
-                                    />
-                                </Box>
-                                <Divider sx={{ my: 1.5 }} />
-                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                                        <Typography variant="body2" color="text.secondary">
-                                            {t('totalPaid')}
-                                        </Typography>
-                                        <Typography variant="body2" fontWeight={500}>
-                                            ${balance.totalPaid.toLocaleString()}
-                                        </Typography>
-                                    </Box>
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                                        <Typography variant="body2" color="text.secondary">
-                                            {t('totalOwed')}
-                                        </Typography>
-                                        <Typography variant="body2" fontWeight={500}>
-                                            ${balance.totalOwed.toLocaleString()}
-                                        </Typography>
-                                    </Box>
-                                    <Divider sx={{ my: 0.5 }} />
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                                        <Typography variant="body2" fontWeight={600}>
-                                            {t('status')}
-                                        </Typography>
-                                        <Typography
-                                            variant="body2"
-                                            fontWeight={600}
-                                            color={
-                                                balance.balance > 0
-                                                    ? 'success.main'
-                                                    : balance.balance < 0
-                                                        ? 'error.main'
-                                                        : 'text.secondary'
-                                            }
-                                        >
+                                                    ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                                                    : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400"
+                                        )}
+                                    >
+                                        {balance.balance > 0 ? (
+                                            <TrendingUp className="h-4 w-4" />
+                                        ) : balance.balance < 0 ? (
+                                            <TrendingDown className="h-4 w-4" />
+                                        ) : (
+                                            <CheckCircle className="h-4 w-4" />
+                                        )}
+                                        {balance.balance >= 0 ? '+' : ''}${balance.balance.toFixed(0)}
+                                    </Badge>
+                                </div>
+
+                                <Separator className="my-3" />
+
+                                <div className="space-y-1.5 text-sm">
+                                    <div className="flex justify-between">
+                                        <span className="text-muted-foreground">{t('totalPaid')}</span>
+                                        <span className="font-medium">${balance.totalPaid.toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-muted-foreground">{t('totalOwed')}</span>
+                                        <span className="font-medium">${balance.totalOwed.toLocaleString()}</span>
+                                    </div>
+                                    <Separator className="my-1.5" />
+                                    <div className="flex justify-between items-center">
+                                        <span className="font-semibold">{t('status')}</span>
+                                        <span className={cn(
+                                            "font-semibold",
+                                            balance.balance > 0
+                                                ? "text-green-600 dark:text-green-400"
+                                                : balance.balance < 0
+                                                    ? "text-red-600 dark:text-red-400"
+                                                    : "text-muted-foreground"
+                                        )}>
                                             {balance.balance > 0
                                                 ? t('shouldReceive')
                                                 : balance.balance < 0
                                                     ? t('shouldPay')
                                                     : t('settled')}
-                                        </Typography>
-                                    </Box>
-                                </Box>
+                                        </span>
+                                    </div>
+                                </div>
                             </CardContent>
                         </Card>
                     ))}
-                </Box>
+                </div>
             </CardContent>
         </Card>
     );

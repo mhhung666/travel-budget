@@ -1,16 +1,6 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import {
-  Box,
-  Card,
-  CardContent,
-  ToggleButtonGroup,
-  ToggleButton,
-  Typography,
-  useTheme,
-  alpha,
-} from '@mui/material';
 import { BarChart3 } from 'lucide-react';
 import {
   BarChart,
@@ -24,6 +14,9 @@ import {
 } from 'recharts';
 import { aggregateExpensesByInterval, suggestInterval } from '@/lib/histogram';
 import type { CategoryStat, TimeInterval } from '@/types';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 interface ExpenseHistogramProps {
   categoryStats: CategoryStat[];
@@ -40,12 +33,9 @@ export default function ExpenseHistogram({
   startDate,
   endDate,
   formatCurrency,
-  cardGradient,
   t,
   locale,
 }: ExpenseHistogramProps) {
-  const theme = useTheme();
-
   // 計算日期範圍天數
   const daysDiff = useMemo(() => {
     if (!startDate || !endDate) return 0;
@@ -102,174 +92,131 @@ export default function ExpenseHistogram({
     );
   }, [categoryStats, interval, startDate, endDate, locale]);
 
-  // 格式化日期範圍顯示
-  const formatDateRange = (startDate: string, endDate: string) => {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    const dateFormat = locale === 'zh' ? 'zh-TW' : locale === 'jp' ? 'ja-JP' : locale === 'zh-CN' ? 'zh-CN' : 'en-US';
-
-    if (startDate === endDate) {
-      // 同一天
-      return new Intl.DateTimeFormat(dateFormat, {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-      }).format(start);
-    } else if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
-      // 同一個月
-      return `${new Intl.DateTimeFormat(dateFormat, { month: 'short', day: 'numeric' }).format(start)} - ${end.getDate()}`;
-    } else if (start.getFullYear() === end.getFullYear()) {
-      // 同一年
-      return `${new Intl.DateTimeFormat(dateFormat, { month: 'short', day: 'numeric' }).format(start)} - ${new Intl.DateTimeFormat(dateFormat, { month: 'short', day: 'numeric' }).format(end)}`;
-    } else {
-      // 跨年
-      return `${new Intl.DateTimeFormat(dateFormat, { year: 'numeric', month: 'short', day: 'numeric' }).format(start)} - ${new Intl.DateTimeFormat(dateFormat, { year: 'numeric', month: 'short', day: 'numeric' }).format(end)}`;
-    }
-  };
-
   // 自定義 Tooltip
   const CustomTooltip = ({ active, payload }: any) => {
     if (!active || !payload?.[0]) return null;
     const data = payload[0].payload;
+    const dateFormat = locale === 'zh' ? 'zh-TW' : locale === 'jp' ? 'ja-JP' : locale === 'zh-CN' ? 'zh-CN' : 'en-US';
+
+    const formatDateRange = (startDate: string, endDate: string) => {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+
+      if (startDate === endDate) {
+        return new Intl.DateTimeFormat(dateFormat, {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+        }).format(start);
+      } else if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
+        return `${new Intl.DateTimeFormat(dateFormat, { month: 'short', day: 'numeric' }).format(start)} - ${end.getDate()}`;
+      } else if (start.getFullYear() === end.getFullYear()) {
+        return `${new Intl.DateTimeFormat(dateFormat, { month: 'short', day: 'numeric' }).format(start)} - ${new Intl.DateTimeFormat(dateFormat, { month: 'short', day: 'numeric' }).format(end)}`;
+      } else {
+        return `${new Intl.DateTimeFormat(dateFormat, { year: 'numeric', month: 'short', day: 'numeric' }).format(start)} - ${new Intl.DateTimeFormat(dateFormat, { year: 'numeric', month: 'short', day: 'numeric' }).format(end)}`;
+      }
+    };
 
     return (
-      <Box
-        sx={{
-          bgcolor: alpha(theme.palette.background.paper, 0.95),
-          backdropFilter: 'blur(10px)',
-          border: `1px solid ${theme.palette.divider}`,
-          borderRadius: 2,
-          p: 1.5,
-          boxShadow: 3,
-        }}
-      >
-        <Typography variant="caption" fontWeight={600} display="block" sx={{ mb: 0.5 }}>
+      <div className="bg-background/95 backdrop-blur border border-border rounded-lg p-3 shadow-lg">
+        <span className="block text-xs font-semibold mb-1">
           {formatDateRange(data.startDate, data.endDate)}
-        </Typography>
-        <Typography variant="h6" color="primary.main" fontWeight={700}>
+        </span>
+        <span className="text-lg font-bold text-primary block">
           {formatCurrency(data.amount)}
-        </Typography>
-        <Typography variant="caption" color="text.secondary">
+        </span>
+        <span className="text-xs text-muted-foreground">
           {data.count} {t('expenses')}
-        </Typography>
-      </Box>
+        </span>
+      </div>
     );
   };
 
   return (
-    <Card
-      elevation={0}
-      sx={{
-        background: cardGradient,
-        borderRadius: 4,
-        border: '1px solid',
-        borderColor: 'divider',
-        mb: 4,
-      }}
-    >
-      <CardContent sx={{ p: { xs: 2, md: 3 } }}>
-        {/* Header */}
-        <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <Box
-              sx={{
-                p: 1,
-                borderRadius: 2,
-                bgcolor: 'primary.main',
-                color: 'primary.contrastText',
-                display: 'flex',
-                boxShadow: '0 4px 6px -1px rgba(99, 102, 241, 0.4)',
-              }}
+    <Card className="border-none shadow-none mb-4 bg-transparent">
+      {/* Header */}
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-primary text-primary-foreground shadow-sm">
+            <BarChart3 size={20} />
+          </div>
+          <h2 className="text-xl font-bold">
+            {t('expenseHistogram')}
+          </h2>
+        </div>
+
+        {/* 時間區間選擇器 */}
+        <div className="flex items-center p-1 bg-muted rounded-lg w-fit">
+          {[
+            { value: 'day', label: t('intervalDay') },
+            { value: 'week', label: t('intervalWeek') },
+            { value: 'month', label: t('intervalMonth') },
+          ].map((option) => (
+            <button
+              key={option.value}
+              onClick={() => setInterval(option.value as TimeInterval)}
+              disabled={!availableIntervals.includes(option.value as TimeInterval)}
+              className={cn(
+                "px-3 py-1.5 text-sm font-medium rounded-md transition-all",
+                "disabled:opacity-50 disabled:cursor-not-allowed",
+                interval === option.value
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:bg-background/50 hover:text-foreground"
+              )}
             >
-              <BarChart3 size={20} />
-            </Box>
-            <Typography variant="h5" fontWeight={700}>
-              {t('expenseHistogram')}
-            </Typography>
-          </Box>
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
-          {/* 時間區間選擇器 */}
-          <ToggleButtonGroup
-            value={interval}
-            exclusive
-            onChange={(_, newInterval) => {
-              if (newInterval) setInterval(newInterval);
-            }}
-            size="small"
-            sx={{
-              '& .MuiToggleButton-root': {
-                px: 2,
-                py: 0.5,
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                border: `1px solid ${theme.palette.divider}`,
-                '&.Mui-selected': {
-                  bgcolor: 'primary.main',
-                  color: 'primary.contrastText',
-                  '&:hover': {
-                    bgcolor: 'primary.dark',
-                  },
-                },
-                '&.Mui-disabled': {
-                  opacity: 0.4,
-                },
-              },
-            }}
-          >
-            <ToggleButton value="day" disabled={!availableIntervals.includes('day')}>
-              {t('intervalDay')}
-            </ToggleButton>
-            <ToggleButton value="week" disabled={!availableIntervals.includes('week')}>
-              {t('intervalWeek')}
-            </ToggleButton>
-            <ToggleButton value="month" disabled={!availableIntervals.includes('month')}>
-              {t('intervalMonth')}
-            </ToggleButton>
-          </ToggleButtonGroup>
-        </Box>
-
+      <CardContent className="p-0">
         {/* Chart */}
         {histogramData && histogramData.dataPoints.length > 0 ? (
-          <Box sx={{ width: '100%', height: 350 }}>
+          <div className="w-full h-[350px]">
             <ResponsiveContainer>
               <BarChart data={histogramData.dataPoints} margin={{ top: 10, right: 10, left: 10, bottom: 30 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                 <XAxis
                   dataKey="period"
-                  stroke={theme.palette.text.secondary}
+                  stroke="hsl(var(--muted-foreground))"
                   tick={{ fontSize: 12 }}
                   angle={-45}
                   textAnchor="end"
                   height={60}
+                  tickLine={false}
+                  axisLine={false}
                 />
                 <YAxis
-                  stroke={theme.palette.text.secondary}
+                  stroke="hsl(var(--muted-foreground))"
                   tick={{ fontSize: 12 }}
                   tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                  tickLine={false}
+                  axisLine={false}
                 />
-                <Tooltip content={<CustomTooltip />} cursor={{ fill: alpha(theme.palette.primary.main, 0.1) }} />
-                <Bar dataKey="amount" radius={[8, 8, 0, 0]}>
+                <Tooltip content={<CustomTooltip />} cursor={{ fill: "hsl(var(--muted)/0.2)" }} />
+                <Bar dataKey="amount" radius={[4, 4, 0, 0]}>
                   {histogramData.dataPoints.map((entry, index) => (
                     <Cell
                       key={`cell-${index}`}
                       fill={
                         entry.amount > 0
-                          ? theme.palette.primary.main
-                          : alpha(theme.palette.text.disabled, 0.3)
+                          ? "hsl(var(--primary))"
+                          : "hsl(var(--muted))"
                       }
                     />
                   ))}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
-          </Box>
+          </div>
         ) : (
-          <Box sx={{ textAlign: 'center', py: 8 }}>
-            <BarChart3 size={48} strokeWidth={1} style={{ opacity: 0.3, marginBottom: 16 }} />
-            <Typography variant="body1" color="text.secondary">
+          <div className="text-center py-12">
+            <BarChart3 size={48} strokeWidth={1} className="opacity-30 mb-4 mx-auto" />
+            <p className="text-muted-foreground">
               {t('noData')}
-            </Typography>
-          </Box>
+            </p>
+          </div>
         )}
       </CardContent>
     </Card>

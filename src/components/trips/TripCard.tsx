@@ -1,16 +1,10 @@
 'use client';
 
-import {
-  Card,
-  CardContent,
-  CardActionArea,
-  Typography,
-  Box,
-  Chip,
-} from '@mui/material';
-import { Copy, Users, Calendar, MapPin, CalendarRange } from 'lucide-react';
+import { Copy, Users, CalendarRange, MapPin } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import type { TripWithMembers } from '@/types';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 export interface TripCardProps {
   trip: TripWithMembers;
@@ -29,61 +23,37 @@ export default function TripCard({ trip, onClick, onCopyCode }: TripCardProps) {
 
   return (
     <Card
-      elevation={0}
-      sx={{
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        border: '1px solid',
-        borderColor: 'divider',
-        transition: 'all 0.3s',
-        '&:hover': {
-          boxShadow: 4,
-          transform: 'translateY(-4px)',
-        },
-      }}
+      onClick={onClick}
+      className="h-full cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border-border/50 bg-card"
     >
-      <CardActionArea
-        onClick={onClick}
-        sx={{
-          height: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'stretch',
-          justifyContent: 'flex-start',
-          textAlign: 'left'
-        }}
-      >
-        <CardContent>
-          <Typography variant="h6" fontWeight={600} gutterBottom>
-            {trip.name}
-          </Typography>
-          {trip.description && (
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              {trip.description}
-            </Typography>
-          )}
+      <CardContent className="p-6 flex flex-col h-full items-start text-left">
+        <h3 className="text-xl font-semibold mb-2 text-foreground line-clamp-1">
+          {trip.name}
+        </h3>
 
+        {trip.description && (
+          <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
+            {trip.description}
+          </p>
+        )}
+
+        <div className="mt-auto space-y-2 w-full">
           {/* Location */}
           {trip.location && (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1 }}>
-              <Box component="span" sx={{ color: 'action.active', display: 'flex' }}>
-                <MapPin size={16} />
-              </Box>
-              <Typography variant="body2" color="text.secondary">
+            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <MapPin size={14} className="text-muted-foreground" />
+              <span className="truncate">
                 {trip.location.name}
                 {trip.location.country && `, ${trip.location.country}`}
-              </Typography>
-            </Box>
+              </span>
+            </div>
           )}
 
           {/* Dates */}
           {(trip.start_date || trip.end_date) && (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1 }}>
-              <Box component="span" sx={{ color: 'action.active', display: 'flex' }}>
-                <CalendarRange size={16} />
-              </Box>
-              <Typography variant="body2" color="text.secondary">
+            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <CalendarRange size={14} className="text-muted-foreground" />
+              <span>
                 {trip.start_date
                   ? new Date(trip.start_date).toLocaleDateString(
                     locale === 'zh' ? 'zh-TW' : locale === 'jp' ? 'ja-JP' : 'en-US'
@@ -95,40 +65,27 @@ export default function TripCard({ trip, onClick, onCopyCode }: TripCardProps) {
                     locale === 'zh' ? 'zh-TW' : locale === 'jp' ? 'ja-JP' : 'en-US'
                   )
                   : ''}
-              </Typography>
-            </Box>
+              </span>
+            </div>
           )}
 
-          <Box
-            sx={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              gap: 1,
-              mb: 1,
-            }}
-          >
-            <Chip
-              icon={<Users size={16} />}
-              label={`${trip.member_count} ${t('members')}`}
-              size="small"
-              variant="outlined"
-            />
+          <div className="flex items-center justify-between gap-2 mt-4 pt-2 w-full">
+            <Badge variant="outline" className="flex items-center gap-1 font-normal">
+              <Users size={12} />
+              {trip.member_count} {t('members')}
+            </Badge>
 
-          </Box>
-          <Chip
-            label={`${t('idLabel')} ${trip.hash_code}`}
-            size="small"
-            onClick={handleCopyClick}
-            icon={<Copy size={16} />}
-            sx={{
-              cursor: 'pointer',
-              '&:hover': { bgcolor: 'primary.50' },
-            }}
-          />
-        </CardContent>
-      </CardActionArea>
+            <Badge
+              variant="secondary"
+              className="flex items-center gap-1 cursor-pointer hover:bg-secondary/80 font-normal"
+              onClick={handleCopyClick}
+            >
+              <Copy size={12} />
+              {t('idLabel')} {trip.hash_code}
+            </Badge>
+          </div>
+        </div>
+      </CardContent>
     </Card>
   );
 }

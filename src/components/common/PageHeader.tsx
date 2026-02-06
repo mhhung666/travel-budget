@@ -1,8 +1,8 @@
 'use client';
 
-import { Box, Typography, Button, IconButton } from '@mui/material';
 import { ArrowLeft } from 'lucide-react';
 import { ReactNode } from 'react';
+import { Button } from '@/components/ui/button';
 
 export interface PageHeaderProps {
   title: string;
@@ -23,7 +23,8 @@ export interface PageHeaderProps {
  *   backButton
  *   onBack={() => router.push('/trips')}
  *   actions={
- *     <Button variant="contained" startIcon={<Add />}>
+ *     <Button variant="default" className="gap-2">
+*       <Plus size={16} />
  *       Add Expense
  *     </Button>
  *   }
@@ -38,44 +39,34 @@ export function PageHeader({
   actions,
 }: PageHeaderProps) {
   return (
-    <Box sx={{ mb: 3 }}>
+    <div className="mb-8">
       {backButton && onBack && (
         <Button
-          startIcon={<ArrowLeft size={20} />}
+          variant="ghost"
           onClick={onBack}
-          sx={{
-            mb: 2,
-            textTransform: 'none',
-            color: 'text.secondary',
-            '&:hover': {
-              color: 'text.primary',
-            },
-          }}
+          className="mb-4 text-muted-foreground hover:text-foreground pl-0 hover:bg-transparent"
         >
+          <ArrowLeft size={20} className="mr-2" />
           {backButtonLabel}
         </Button>
       )}
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          flexWrap: 'wrap',
-          gap: 2,
-        }}
-      >
-        <Box>
-          <Typography variant="h4" fontWeight={700} gutterBottom={!!subtitle}>
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground mb-1">
             {title}
-          </Typography>
+          </h1>
           {subtitle && (
-            <Typography variant="body1" color="text.secondary">
+            <p className="text-muted-foreground">
               {subtitle}
-            </Typography>
+            </p>
           )}
-        </Box>
-        {actions && <Box sx={{ display: 'flex', gap: 1 }}>{actions}</Box>}
-      </Box>
-    </Box>
+        </div>
+        {actions && (
+          <div className="flex items-center gap-2">
+            {actions}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

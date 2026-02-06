@@ -4,23 +4,20 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
-import {
-  Box,
-  Container,
-  Button,
-  Alert,
-  CircularProgress,
-  Snackbar,
-} from '@mui/material';
-import { ArrowLeft, Settings, Map, Calculator } from 'lucide-react';
+import { ArrowLeft, Settings, Map, Calculator, Loader2 } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import type { Trip, Member, Expense } from '@/types';
 import {
   TripHeader,
   TripExpenses,
+} from '@/components/trips/detail';
+
+// Dialogs
+import {
   ExpenseFormDialog,
   EditTripDialog,
-} from '@/components/trips';
+} from '@/components/trips/detail/dialogs';
+
 import {
   getCurrentUser,
   getTrip,
@@ -32,6 +29,10 @@ import {
   updateTrip,
 } from '@/actions';
 
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+
 export default function TripDetailPage() {
   const router = useRouter();
   const params = useParams();
@@ -39,11 +40,11 @@ export default function TripDetailPage() {
   const t = useTranslations();
   const tCommon = useTranslations('common');
   const tExpense = useTranslations('expense');
-  const tMember = useTranslations('member');
   const tTrip = useTranslations('trip');
   const tTrips = useTranslations('trips');
   const tError = useTranslations('error');
-  const tAction = useTranslations('action');
+
+  const { toast } = useToast();
 
   const [trip, setTrip] = useState<Trip | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
@@ -57,12 +58,6 @@ export default function TripDetailPage() {
   const [editExpenseDialog, setEditExpenseDialog] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [editTripDialog, setEditTripDialog] = useState(false);
-
-  const [snackbar, setSnackbar] = useState({
-    open: false,
-    message: '',
-    severity: 'success' as 'success' | 'error' | 'info',
-  });
 
   // Filter & Expand states
   const [filterMemberId, setFilterMemberId] = useState<number | 'all'>('all');
@@ -154,6 +149,10 @@ export default function TripDetailPage() {
 
       setShowAddExpense(false);
       await loadTripData();
+      toast({
+        title: tExpense('success.added'),
+        description: tExpense('success.addedMessage'),
+      });
     } catch (err: any) {
       throw err; // Let dialog handle error display
     }
@@ -170,8 +169,16 @@ export default function TripDetailPage() {
       }
 
       await loadTripData();
+      toast({
+        title: "Deleted",
+        description: tExpense('success.deleted'),
+      });
     } catch (err: any) {
-      alert(err.message);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: err.message,
+      });
     }
   };
 
@@ -194,10 +201,12 @@ export default function TripDetailPage() {
         throw new Error(result.error);
       }
 
-      setSnackbar({ open: true, message: tExpense('success.updated'), severity: 'success' });
       setEditExpenseDialog(false);
       setEditingExpense(null);
       await loadTripData();
+      toast({
+        title: tExpense('success.updated'),
+      });
     } catch (err: any) {
       throw err;
     }
@@ -218,60 +227,47 @@ export default function TripDetailPage() {
         throw new Error(result.error);
       }
 
-      setSnackbar({ open: true, message: tTrip('editSuccess'), severity: 'success' });
       setEditTripDialog(false);
       await loadTripData();
+      toast({
+        title: tTrip('editSuccess'),
+      });
     } catch (err: any) {
       throw err;
     }
   };
-
 
   const isCurrentUserMember = currentUser && members.some((m) => m.id === currentUser.id);
   const isCurrentUserAdmin = members.find((m) => m.id === currentUser?.id)?.role === 'admin';
 
   if (loading) {
     return (
-      <Box
-        sx={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          bgcolor: 'background.default',
-        }}
-      >
-        <CircularProgress size={60} />
-      </Box>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+      </div>
     );
   }
 
   if (error) {
     return (
-      <Box
-        sx={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Box sx={{ textAlign: 'center' }}>
-          <Alert severity="error" sx={{ mb: 3 }}>
-            {error}
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <div className="text-center max-w-md w-full">
+          <Alert variant="destructive" className="mb-6">
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
           </Alert>
-          <Button onClick={() => router.push('/trips')} variant="contained" size="large">
+          <Button onClick={() => router.push('/trips')} size="lg">
             {tTrips('detail.backToTrips')}
           </Button>
-        </Box>
-      </Box>
+        </div>
+      </div>
     );
   }
 
   if (!trip) return null;
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
+    <div className="min-h-screen bg-background pb-12">
       <Navbar
         user={
           currentUser
@@ -279,6 +275,7 @@ export default function TripDetailPage() {
               id: currentUser.id,
               username: currentUser.display_name,
               email: currentUser.email,
+              display_name: currentUser.display_name,
             }
             : null
         }
@@ -286,78 +283,59 @@ export default function TripDetailPage() {
         title={trip.name}
       />
 
-      <Container maxWidth="lg" sx={{ pt: { xs: 10, sm: 12 }, pb: 4 }}>
-        {/* 返回按鈕 & 設定按鈕 */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+      <div className="container mx-auto max-w-6xl pt-24 px-4 sm:px-6">
+        {/* Navigation & Header Actions */}
+        <div className="flex justify-between items-center mb-6">
           <Button
-            startIcon={<ArrowLeft />}
+            variant="ghost"
+            className="text-muted-foreground hover:text-foreground -ml-2"
             onClick={() => router.push('/trips')}
-            sx={{
-              textTransform: 'none',
-              color: 'text.secondary',
-              '&:hover': {
-                color: 'text.primary',
-              },
-            }}
           >
+            <ArrowLeft className="mr-2 h-4 w-4" />
             {tTrips('detail.backToTrips')}
           </Button>
 
           {isCurrentUserMember && (
             <Button
-              startIcon={<Settings />}
+              variant="outline"
               onClick={() => router.push(`/trips/${tripId}/settings`)}
-              sx={{
-                textTransform: 'none',
-                color: 'text.secondary',
-                '&:hover': {
-                  color: 'text.primary',
-                },
-              }}
+              className="gap-2"
             >
-              {tTrip('settings')}
+              <Settings className="h-4 w-4" />
+              <span className="hidden sm:inline">{tTrip('settings')}</span>
             </Button>
           )}
-        </Box>
+        </div>
 
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '3fr 7fr' }, gap: 3 }}>
-          {/* 左側：旅行資訊 & 操作按鈕 */}
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr] gap-6">
+          {/* Left Column: Sidebar (Info, Quick Actions) */}
+          <div className="space-y-6 flex flex-col h-full">
             <TripHeader
               trip={trip}
               isCurrentUserAdmin={!!isCurrentUserAdmin}
               onEdit={() => setEditTripDialog(true)}
-            />
-
-            {/* Action buttons */}
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+            >
               <Button
                 onClick={() => router.push(`/trips/${tripId}/itinerary`)}
-                variant="contained"
-                color="primary"
-                fullWidth
-                size="large"
-                startIcon={<Map size={20} />}
-                sx={{ py: 1.5, fontWeight: 600 }}
+                className="flex-1 bg-card hover:bg-accent text-card-foreground border shadow-sm h-10"
+                variant="outline"
               >
+                <Map className="mr-2 h-4 w-4 text-primary" />
                 {tTrip('viewItinerary')}
               </Button>
               <Button
                 onClick={() => router.push(`/trips/${tripId}/settlement`)}
-                variant="contained"
-                color="success"
-                fullWidth
-                size="large"
-                startIcon={<Calculator size={20} />}
-                sx={{ py: 1.5, fontWeight: 600 }}
+                className="flex-1 bg-card hover:bg-accent text-card-foreground border shadow-sm h-10"
+                variant="outline"
               >
+                <Calculator className="mr-2 h-4 w-4 text-green-600" />
                 {tTrip('viewSettlement')}
               </Button>
-            </Box>
-          </Box>
+            </TripHeader>
+          </div>
 
-          {/* 右側：支出紀錄 */}
-          <Box>
+          {/* Right Column: Expenses (Main Content) */}
+          <div className="min-w-0">
             <TripExpenses
               expenses={expenses}
               members={members}
@@ -373,9 +351,9 @@ export default function TripDetailPage() {
               expanded={expensesExpanded}
               onToggleExpand={() => setExpensesExpanded(!expensesExpanded)}
             />
-          </Box>
-        </Box>
-      </Container>
+          </div>
+        </div>
+      </div>
 
       {/* Dialogs */}
       <ExpenseFormDialog
@@ -403,23 +381,6 @@ export default function TripDetailPage() {
         onSubmit={handleEditTrip}
         trip={trip}
       />
-
-
-      {/* Snackbar */}
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={3000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert
-          onClose={() => setSnackbar({ ...snackbar, open: false })}
-          severity={snackbar.severity}
-          sx={{ width: '100%' }}
-        >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
-    </Box>
+    </div>
   );
 }

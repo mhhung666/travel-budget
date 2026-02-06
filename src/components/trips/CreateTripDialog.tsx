@@ -1,19 +1,23 @@
 'use client';
 
 import { useState } from 'react';
-import {
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    TextField,
-    Button,
-    Box,
-    Alert,
-} from '@mui/material';
 import { useTranslations } from 'next-intl';
 import LocationAutocomplete, { LocationOption } from '@/components/location/LocationAutocomplete';
 import { createTrip } from '@/actions';
+
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface CreateTripDialogProps {
     open: boolean;
@@ -69,81 +73,88 @@ export default function CreateTripDialog({ open, onClose, onSuccess }: CreateTri
     };
 
     return (
-        <Dialog
-            open={open}
-            onClose={handleClose}
-            maxWidth="sm"
-            fullWidth
-        >
-            <DialogTitle>{t('create.title')}</DialogTitle>
-            <form onSubmit={handleSubmit}>
-                <DialogContent>
+        <Dialog open={open} onOpenChange={(val) => !val && handleClose()}>
+            <DialogContent className="sm:max-w-[500px]">
+                <DialogHeader>
+                    <DialogTitle>{t('create.title')}</DialogTitle>
+                    <DialogDescription>
+                        Fill in the details to create a new trip budget.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <form onSubmit={handleSubmit} className="space-y-4 py-4">
                     {error && (
-                        <Alert severity="error" sx={{ mb: 2 }}>
-                            {error}
+                        <Alert variant="destructive">
+                            <AlertTitle>Error</AlertTitle>
+                            <AlertDescription>{error}</AlertDescription>
                         </Alert>
                     )}
-                    <TextField
-                        fullWidth
-                        label={t('create.name')}
-                        value={formData.name}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        required
-                        sx={{ mb: 2 }}
-                    />
-                    <TextField
-                        fullWidth
-                        label={t('create.description')}
-                        value={formData.description}
-                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                        multiline
-                        rows={3}
-                        sx={{ mb: 2 }}
-                    />
+
+                    <div className="space-y-2">
+                        <Label htmlFor="name">{t('create.name')}</Label>
+                        <Input
+                            id="name"
+                            value={formData.name}
+                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                            required
+                        />
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="description">{t('create.description')}</Label>
+                        <Textarea
+                            id="description"
+                            value={formData.description}
+                            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                            rows={3}
+                        />
+                    </div>
 
                     {/* 旅遊地點 */}
-                    <LocationAutocomplete
-                        value={selectedLocation}
-                        onChange={setSelectedLocation}
-                        label={t('create.location')}
-                        placeholder={t('create.locationPlaceholder')}
-                        helperText={t('create.locationHelp')}
-                    />
+                    <div className="space-y-2">
+                        {/* LocationAutocomplete handles its own Label if passed, but for consistency let's pass it a label prop */}
+                        <LocationAutocomplete
+                            value={selectedLocation}
+                            onChange={setSelectedLocation}
+                            label={t('create.location')}
+                            placeholder={t('create.locationPlaceholder')}
+                            helperText={t('create.locationHelp')}
+                        />
+                    </div>
 
                     {/* 旅遊時間區間 */}
-                    <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
-                        <TextField
-                            fullWidth
-                            label={t('create.startDate')}
-                            type="date"
-                            value={formData.start_date}
-                            onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                            slotProps={{
-                                inputLabel: { shrink: true },
-                            }}
-                        />
-                        <TextField
-                            fullWidth
-                            label={t('create.endDate')}
-                            type="date"
-                            value={formData.end_date}
-                            onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
-                            slotProps={{
-                                inputLabel: { shrink: true },
-                                htmlInput: { min: formData.start_date || undefined },
-                            }}
-                        />
-                    </Box>
-                </DialogContent>
-                <DialogActions sx={{ px: 3, pb: 2 }}>
-                    <Button onClick={handleClose}>
-                        {tCommon('cancel')}
-                    </Button>
-                    <Button type="submit" variant="contained">
-                        {tCommon('create')}
-                    </Button>
-                </DialogActions>
-            </form>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="start_date">{t('create.startDate')}</Label>
+                            <Input
+                                id="start_date"
+                                type="date"
+                                value={formData.start_date}
+                                onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="end_date">{t('create.endDate')}</Label>
+                            <Input
+                                id="end_date"
+                                type="date"
+                                value={formData.end_date}
+                                onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+                                min={formData.start_date}
+                            />
+                        </div>
+                    </div>
+
+                    <DialogFooter className="mt-4">
+                        <Button type="button" variant="outline" onClick={handleClose}>
+                            {tCommon('cancel')}
+                        </Button>
+                        <Button type="submit">
+                            {tCommon('create')}
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
         </Dialog>
     );
 }

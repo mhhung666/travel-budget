@@ -4,29 +4,25 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
-import {
-  Box,
-  Container,
-  Button,
-  Alert,
-  CircularProgress,
-  Snackbar,
-  Typography,
-} from '@mui/material';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import type { Trip, Member } from '@/types';
 import {
   TripMembers,
   TripShare,
   TripDangerZone,
+} from '@/components/trips/detail';
+
+// Dialogs
+import {
   AddVirtualMemberDialog,
   DeleteTripDialog,
   RemoveMemberDialog,
   ToggleAdminDialog,
   RegisterVirtualMemberDialog,
   LinkExistingMemberDialog,
-} from '@/components/trips';
+} from '@/components/trips/detail/dialogs';
+
 import {
   getCurrentUser,
   getTrip,
@@ -36,6 +32,10 @@ import {
   removeMember,
   updateMemberRole,
 } from '@/actions';
+
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export default function TripSettingsPage() {
   const router = useRouter();
@@ -47,6 +47,8 @@ export default function TripSettingsPage() {
   const tTrips = useTranslations('trips');
   const tError = useTranslations('error');
   const tAction = useTranslations('action');
+
+  const { toast } = useToast();
 
   const [trip, setTrip] = useState<Trip | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
@@ -70,12 +72,6 @@ export default function TripSettingsPage() {
   const [registerVirtualDialog, setRegisterVirtualDialog] = useState(false);
   const [linkVirtualDialog, setLinkVirtualDialog] = useState(false);
   const [selectedVirtualMember, setSelectedVirtualMember] = useState<Member | null>(null);
-
-  const [snackbar, setSnackbar] = useState({
-    open: false,
-    message: '',
-    severity: 'success' as 'success' | 'error' | 'info',
-  });
 
   const [isDeleting, setIsDeleting] = useState(false);
   const [membersExpanded, setMembersExpanded] = useState(true);
@@ -123,9 +119,15 @@ export default function TripSettingsPage() {
     try {
       const shareUrl = `${window.location.origin}/join/${trip?.hash_code || ''}`;
       await navigator.clipboard.writeText(shareUrl);
-      setSnackbar({ open: true, message: tAction('copySuccess'), severity: 'success' });
+      toast({
+        title: tAction('copySuccess'),
+      });
     } catch (err) {
-      setSnackbar({ open: true, message: tAction('copyFailed'), severity: 'error' });
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: tAction('copyFailed'),
+      });
     }
   };
 
@@ -138,10 +140,16 @@ export default function TripSettingsPage() {
         throw new Error(result.error);
       }
 
-      setSnackbar({ open: true, message: tTrip('deleted'), severity: 'success' });
+      toast({
+        title: tTrip('deleted'),
+      });
       setTimeout(() => router.push('/trips'), 1000);
     } catch (err: any) {
-      setSnackbar({ open: true, message: err.message, severity: 'error' });
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: err.message,
+      });
     } finally {
       setIsDeleting(false);
       setDeleteDialogOpen(false);
@@ -157,11 +165,17 @@ export default function TripSettingsPage() {
         throw new Error(result.error);
       }
 
-      setSnackbar({ open: true, message: tMember('success.removed'), severity: 'success' });
+      toast({
+        title: tMember('success.removed'),
+      });
       setRemoveMemberDialog({ open: false, member: null });
       await loadData();
     } catch (err: any) {
-      setSnackbar({ open: true, message: err.message, severity: 'error' });
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: err.message,
+      });
     }
   };
 
@@ -175,11 +189,17 @@ export default function TripSettingsPage() {
         throw new Error(result.error);
       }
 
-      setSnackbar({ open: true, message: tMember('success.roleUpdated'), severity: 'success' });
+      toast({
+        title: tMember('success.roleUpdated'),
+      });
       setToggleAdminDialog({ open: false, member: null });
       await loadData();
     } catch (err: any) {
-      setSnackbar({ open: true, message: err.message, severity: 'error' });
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: err.message,
+      });
     }
   };
 
@@ -193,7 +213,9 @@ export default function TripSettingsPage() {
         throw new Error(result.error);
       }
 
-      setSnackbar({ open: true, message: tMember('virtualMemberAdded'), severity: 'success' });
+      toast({
+        title: tMember('virtualMemberAdded'),
+      });
       setAddVirtualMemberDialog(false);
       await loadData();
     } catch (err: any) {
@@ -205,9 +227,15 @@ export default function TripSettingsPage() {
     try {
       const inviteUrl = `${window.location.origin}/link-virtual/${tripId}/${member.username}`;
       await navigator.clipboard.writeText(inviteUrl);
-      setSnackbar({ open: true, message: tMember('inviteLinkCopied'), severity: 'success' });
+      toast({
+        title: tMember('inviteLinkCopied'),
+      });
     } catch (err) {
-      setSnackbar({ open: true, message: tAction('copyFailed'), severity: 'error' });
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: tAction('copyFailed'),
+      });
     }
   };
 
@@ -216,46 +244,32 @@ export default function TripSettingsPage() {
 
   if (loading) {
     return (
-      <Box
-        sx={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          bgcolor: 'background.default',
-        }}
-      >
-        <CircularProgress size={60} />
-      </Box>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+      </div>
     );
   }
 
   if (error) {
     return (
-      <Box
-        sx={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Box sx={{ textAlign: 'center' }}>
-          <Alert severity="error" sx={{ mb: 3 }}>
-            {error}
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <div className="text-center max-w-md w-full">
+          <Alert variant="destructive" className="mb-6">
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
           </Alert>
-          <Button onClick={() => router.push(`/trips/${tripId}`)} variant="contained" size="large">
+          <Button onClick={() => router.push(`/trips/${tripId}`)} size="lg">
             {tTrips('detail.backToTrip')}
           </Button>
-        </Box>
-      </Box>
+        </div>
+      </div>
     );
   }
 
   if (!trip) return null;
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
+    <div className="min-h-screen bg-background pb-12">
       <Navbar
         user={
           currentUser
@@ -270,28 +284,22 @@ export default function TripSettingsPage() {
         title={`${tTrip('settings')}`}
       />
 
-      <Container maxWidth="md" sx={{ pt: { xs: 10, sm: 12 }, pb: 4 }}>
+      <div className="container mx-auto max-w-4xl pt-24 px-4 sm:px-6">
         {/* 返回按钮 */}
         <Button
-          startIcon={<ArrowLeft />}
+          variant="ghost"
+          className="text-muted-foreground hover:text-foreground mb-6 -ml-2"
           onClick={() => router.push(`/trips/${tripId}`)}
-          sx={{
-            mb: 3,
-            textTransform: 'none',
-            color: 'text.secondary',
-            '&:hover': {
-              color: 'text.primary',
-            },
-          }}
         >
+          <ArrowLeft className="mr-2 h-4 w-4" />
           {tTrips('detail.backToTrip')}
         </Button>
 
-        <Typography variant="h4" fontWeight={700} gutterBottom>
+        <h1 className="text-3xl font-bold mb-8 text-foreground">
           {tTrip('settings')}
-        </Typography>
+        </h1>
 
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, mt: 3 }}>
+        <div className="flex flex-col gap-8">
           {/* 成员管理 */}
           <TripMembers
             members={members}
@@ -319,8 +327,8 @@ export default function TripSettingsPage() {
           {isCurrentUserAdmin && (
             <TripDangerZone onDelete={() => setDeleteDialogOpen(true)} />
           )}
-        </Box>
-      </Container>
+        </div>
+      </div>
 
       {/* Dialogs */}
       <AddVirtualMemberDialog
@@ -378,22 +386,6 @@ export default function TripSettingsPage() {
         virtualMember={selectedVirtualMember}
         tripId={tripId}
       />
-
-      {/* Snackbar */}
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={3000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert
-          onClose={() => setSnackbar({ ...snackbar, open: false })}
-          severity={snackbar.severity}
-          sx={{ width: '100%' }}
-        >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
-    </Box>
+    </div>
   );
 }

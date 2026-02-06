@@ -1,4 +1,5 @@
-import { Card, CardContent } from '@mui/material';
+'use client';
+
 import { useTranslations } from 'next-intl';
 import { ShareCode } from '../ShareCode';
 

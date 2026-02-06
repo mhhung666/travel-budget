@@ -1,19 +1,18 @@
 'use client';
 
-import { Box, Typography } from '@mui/material';
 import { useTranslations } from 'next-intl';
 
 export default function EmptyTripsState() {
     const t = useTranslations('trips');
 
     return (
-        <Box sx={{ textAlign: 'center', py: 8 }}>
-            <Typography variant="body1" color="text.secondary" gutterBottom>
+        <div className="text-center py-16">
+            <p className="text-lg text-muted-foreground mb-2">
                 {t('noTrips')}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
+            </p>
+            <p className="text-sm text-muted-foreground">
                 {t('noTripsDescription')}
-            </Typography>
-        </Box>
+            </p>
+        </div>
     );
 }

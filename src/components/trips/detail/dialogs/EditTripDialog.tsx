@@ -1,18 +1,23 @@
+'use client';
+
 import { useState, useEffect } from 'react';
-import {
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    Box,
-    Alert,
-    TextField,
-    Button,
-    CircularProgress
-} from '@mui/material';
 import { useTranslations } from 'next-intl';
+import { Loader2 } from 'lucide-react';
 import LocationAutocomplete, { LocationOption } from '@/components/location/LocationAutocomplete';
 import { Trip } from '@/types';
+
+import {
+    Dialog,
+    DialogContent,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface EditTripDialogProps {
     open: boolean;
@@ -46,8 +51,8 @@ export default function EditTripDialog({
             setForm({
                 name: trip.name,
                 description: trip.description || '',
-                start_date: trip.start_date || '',
-                end_date: trip.end_date || '',
+                start_date: trip.start_date ? new Date(trip.start_date).toISOString().split('T')[0] : '',
+                end_date: trip.end_date ? new Date(trip.end_date).toISOString().split('T')[0] : '',
             });
             setLocation(trip.location ? {
                 name: trip.location.name,
@@ -77,83 +82,86 @@ export default function EditTripDialog({
     };
 
     return (
-        <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-            <form onSubmit={handleSubmit}>
-                <DialogTitle>{tTrip('editTrip')}</DialogTitle>
-                <DialogContent>
+        <Dialog open={open} onOpenChange={(val) => !val && onClose()}>
+            <DialogContent className="sm:max-w-[500px]">
+                <DialogHeader>
+                    <DialogTitle>{tTrip('editTrip')}</DialogTitle>
+                </DialogHeader>
+
+                <form onSubmit={handleSubmit} className="space-y-4 py-4">
                     {error && (
-                        <Alert severity="error" sx={{ mb: 2 }}>
-                            {error}
+                        <Alert variant="destructive">
+                            <AlertTitle>Error</AlertTitle>
+                            <AlertDescription>{error}</AlertDescription>
                         </Alert>
                     )}
 
-                    <TextField
-                        fullWidth
-                        label={tTrips('create.name')}
-                        value={form.name}
-                        onChange={(e) => setForm({ ...form, name: e.target.value })}
-                        required
-                        sx={{ mt: 1, mb: 2 }}
-                    />
-
-                    <TextField
-                        fullWidth
-                        label={tTrips('create.description')}
-                        value={form.description}
-                        onChange={(e) => setForm({ ...form, description: e.target.value })}
-                        multiline
-                        rows={3}
-                        sx={{ mb: 2 }}
-                    />
-
-                    {/* 旅遊地點 */}
-                    <LocationAutocomplete
-                        value={location}
-                        onChange={setLocation}
-                        label={tTrips('create.location')}
-                        placeholder={tTrips('create.locationPlaceholder')}
-                        helperText={tTrips('create.locationHelp')}
-                    />
-
-                    {/* 旅遊時間區間 */}
-                    <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
-                        <TextField
-                            fullWidth
-                            label={tTrips('create.startDate')}
-                            type="date"
-                            value={form.start_date}
-                            onChange={(e) => setForm({ ...form, start_date: e.target.value })}
-                            slotProps={{
-                                inputLabel: { shrink: true },
-                            }}
+                    <div className="space-y-2">
+                        <Label htmlFor="name">{tTrips('create.name')}</Label>
+                        <Input
+                            id="name"
+                            value={form.name}
+                            onChange={(e) => setForm({ ...form, name: e.target.value })}
+                            required
                         />
-                        <TextField
-                            fullWidth
-                            label={tTrips('create.endDate')}
-                            type="date"
-                            value={form.end_date}
-                            onChange={(e) => setForm({ ...form, end_date: e.target.value })}
-                            slotProps={{
-                                inputLabel: { shrink: true },
-                                htmlInput: { min: form.start_date || undefined },
-                            }}
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="description">{tTrips('create.description')}</Label>
+                        <Textarea
+                            id="description"
+                            value={form.description}
+                            onChange={(e) => setForm({ ...form, description: e.target.value })}
+                            rows={3}
                         />
-                    </Box>
-                </DialogContent>
-                <DialogActions sx={{ px: 3, pb: 2 }}>
-                    <Button onClick={onClose}>
-                        {tCommon('cancel')}
-                    </Button>
-                    <Button
-                        type="submit"
-                        variant="contained"
-                        disabled={isSaving || !form.name.trim()}
-                        startIcon={isSaving ? <CircularProgress size={16} /> : null}
-                    >
-                        {tTrip('saveEdit')}
-                    </Button>
-                </DialogActions>
-            </form>
+                    </div>
+
+                    <div className="space-y-2">
+                        <LocationAutocomplete
+                            value={location}
+                            onChange={setLocation}
+                            label={tTrips('create.location')}
+                            placeholder={tTrips('create.locationPlaceholder')}
+                            helperText={tTrips('create.locationHelp')}
+                        />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="start_date">{tTrips('create.startDate')}</Label>
+                            <Input
+                                id="start_date"
+                                type="date"
+                                value={form.start_date}
+                                onChange={(e) => setForm({ ...form, start_date: e.target.value })}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="end_date">{tTrips('create.endDate')}</Label>
+                            <Input
+                                id="end_date"
+                                type="date"
+                                value={form.end_date}
+                                onChange={(e) => setForm({ ...form, end_date: e.target.value })}
+                                min={form.start_date}
+                            />
+                        </div>
+                    </div>
+
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={onClose}>
+                            {tCommon('cancel')}
+                        </Button>
+                        <Button
+                            type="submit"
+                            disabled={isSaving || !form.name.trim()}
+                        >
+                            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            {tTrip('saveEdit')}
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
         </Dialog>
     );
 }

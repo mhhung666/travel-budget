@@ -1,10 +1,12 @@
 'use client';
 
-import { Card, CardContent, Box, Typography, IconButton, Chip } from '@mui/material';
 import { Edit2, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { ItineraryDay } from '@/types';
 import MarkdownRenderer from './MarkdownRenderer';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
 interface ItineraryDayCardProps {
   day: ItineraryDay;
@@ -17,46 +19,52 @@ export default function ItineraryDayCard({ day, isAdmin, onEdit, onDelete }: Iti
   const tItinerary = useTranslations('itinerary');
 
   return (
-    <Card elevation={2}>
-      <CardContent>
-        {/* Header */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <Chip
-              label={`Day ${day.day_number}`}
-              color="primary"
-              size="small"
-              sx={{ fontWeight: 600 }}
-            />
-            <Typography variant="h6" fontWeight={600}>
+    <Card className="shadow-sm hover:shadow-md transition-shadow">
+      <CardHeader className="p-4 sm:p-6 pb-2 sm:pb-4">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <Badge variant="default" className="text-sm font-semibold h-7 px-3">
+              Day {day.day_number}
+            </Badge>
+            <h3 className="text-xl font-semibold leading-none tracking-tight">
               {day.title}
-            </Typography>
-          </Box>
+            </h3>
+          </div>
           {isAdmin && (
-            <Box sx={{ display: 'flex', gap: 0.5 }}>
-              <IconButton size="small" onClick={() => onEdit(day)} title={tItinerary('editDay')}>
-                <Edit2 size={16} />
-              </IconButton>
-              <IconButton
-                size="small"
+            <div className="flex gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => onEdit(day)}
+                title={tItinerary('editDay')}
+              >
+                <Edit2 className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
                 onClick={() => onDelete(day.id)}
-                color="error"
                 title={tItinerary('deleteDay')}
               >
-                <Trash2 size={16} />
-              </IconButton>
-            </Box>
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
           )}
-        </Box>
+        </div>
+      </CardHeader>
 
-        {/* Markdown Content */}
-        {day.content ? (
-          <MarkdownRenderer content={day.content} />
-        ) : (
-          <Typography variant="body2" color="text.secondary" fontStyle="italic">
-            {tItinerary('dayContentPlaceholder')}
-          </Typography>
-        )}
+      <CardContent className="p-4 sm:p-6 pt-0">
+        <div className="mt-2 text-sm text-foreground/90">
+          {day.content ? (
+            <MarkdownRenderer content={day.content} />
+          ) : (
+            <p className="text-muted-foreground italic">
+              {tItinerary('dayContentPlaceholder')}
+            </p>
+          )}
+        </div>
       </CardContent>
     </Card>
   );
