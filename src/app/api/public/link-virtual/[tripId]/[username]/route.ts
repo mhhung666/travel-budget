@@ -7,24 +7,41 @@ export async function GET(
 ) {
   try {
     const { tripId, username } = await params;
-    console.log('Link virtual API called with:', { tripId, username });
 
     // Get trip info (basic info only)
-    const { data: trip, error: tripError } = await supabase
+    // Try hash_code first, then numeric ID
+    let trip = null;
+    let tripError = null;
+
+    // First try hash_code
+    const hashResult = await supabase
       .from('trips')
       .select('id, name, hash_code')
-      .or(`id.eq.${tripId},hash_code.eq.${tripId}`)
+      .eq('hash_code', tripId)
       .single();
 
+    if (hashResult.data) {
+      trip = hashResult.data;
+    } else if (/^\d+$/.test(tripId)) {
+      // If hash_code not found and tripId is numeric, try ID
+      const idResult = await supabase
+        .from('trips')
+        .select('id, name, hash_code')
+        .eq('id', parseInt(tripId, 10))
+        .single();
+
+      trip = idResult.data;
+      tripError = idResult.error;
+    } else {
+      tripError = hashResult.error;
+    }
+
     if (tripError || !trip) {
-      console.log('Trip not found:', tripError);
       return NextResponse.json(
         { error: 'Trip not found' },
         { status: 404 }
       );
     }
-
-    console.log('Trip found:', trip.id);
 
     // Get the user by username
     const { data: user, error: userError } = await supabase
@@ -32,8 +49,6 @@ export async function GET(
       .select('id, username, display_name, is_virtual')
       .eq('username', username)
       .single();
-
-    console.log('User query result:', { user, userError });
 
     if (userError || !user) {
       return NextResponse.json(
