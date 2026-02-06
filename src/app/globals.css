@@ -31,7 +31,7 @@
     --chart-5: 27 87% 67%;
   }
 
-  [data-theme='dark'] {
+  .dark {
     --background: 240 10% 3.9%;
     --foreground: 0 0% 98%;
     --card: 240 10% 3.9%;
@@ -77,7 +77,7 @@
   --selection-color: white;
 }
 
-[data-theme='dark'] {
+.dark {
   --scrollbar-track: #1e293b;
   --scrollbar-thumb: #475569;
   --scrollbar-thumb-hover: #64748b;
