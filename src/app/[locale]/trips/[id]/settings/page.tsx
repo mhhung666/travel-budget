@@ -80,6 +80,7 @@ export default function TripSettingsPage() {
 
   const loadData = async () => {
     try {
+      // Try to check authentication (not required for viewing)
       let user = null;
       const userResult = await getCurrentUser();
       if (userResult.success && userResult.data) {
@@ -87,6 +88,7 @@ export default function TripSettingsPage() {
         setCurrentUser(user);
       }
 
+      // If logged in, use Server Actions
       if (user) {
         const [tripResult, membersResult] = await Promise.all([
           getTrip(tripId),
@@ -94,8 +96,9 @@ export default function TripSettingsPage() {
         ]);
 
         if (!tripResult.success) {
+          // If not a member, try public API
           if (tripResult.code === 'FORBIDDEN') {
-            setError(tError('forbidden'));
+            await loadPublicData();
             return;
           }
           setError(tError('loadTripFailed'));
@@ -105,13 +108,32 @@ export default function TripSettingsPage() {
         setTrip(tripResult.data);
         setMembers(membersResult.success ? membersResult.data : []);
       } else {
-        setError(tError('unauthorized'));
+        // Not logged in, use public API
+        await loadPublicData();
       }
     } catch (err) {
       setError(tError('loadFailed'));
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadPublicData = async () => {
+    const [tripResponse, membersResponse] = await Promise.all([
+      fetch(`/api/public/trips/${tripId}`),
+      fetch(`/api/public/trips/${tripId}/members`),
+    ]);
+
+    if (!tripResponse.ok) {
+      setError(tError('loadTripFailed'));
+      return;
+    }
+
+    const tripData = await tripResponse.json();
+    const membersData = await membersResponse.json();
+
+    setTrip(tripData.trip || null);
+    setMembers(membersData.members || []);
   };
 
   const copyHashCode = async () => {
