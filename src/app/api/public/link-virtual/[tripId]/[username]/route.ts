@@ -3,11 +3,10 @@ import { supabase } from '@/lib/supabase';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { tripId: string; username: string } }
+  { params }: { params: Promise<{ tripId: string; username: string }> }
 ) {
   try {
-    const tripId = params.tripId;
-    const username = params.username;
+    const { tripId, username } = await params;
 
     // Get trip info (basic info only)
     const { data: trip, error: tripError } = await supabase
