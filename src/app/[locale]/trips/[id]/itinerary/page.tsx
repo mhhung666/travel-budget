@@ -59,32 +59,60 @@ export default function ItineraryPage() {
 
   const loadData = async () => {
     try {
+      // 嘗試檢查認證（不強制要求登入）
+      let user = null;
       const userResult = await getCurrentUser();
       if (userResult.success && userResult.data) {
-        setCurrentUser(userResult.data);
+        user = userResult.data;
+        setCurrentUser(user);
       }
 
-      const [itineraryResult, membersResult] = await Promise.all([
-        getItinerary(tripId),
-        getMembers(tripId),
-      ]);
+      // 如果已登入，使用 Server Actions
+      if (user) {
+        const [itineraryResult, membersResult] = await Promise.all([
+          getItinerary(tripId),
+          getMembers(tripId),
+        ]);
 
-      if (!itineraryResult.success) {
-        if (itineraryResult.code === 'FORBIDDEN') {
-          setError(tError('notMember'));
+        if (!itineraryResult.success) {
+          // 如果不是成員，嘗試使用公開 API
+          if (itineraryResult.code === 'FORBIDDEN') {
+            await loadPublicData();
+            return;
+          }
+          setError(tItinerary('loadFailed'));
           return;
         }
-        setError(tItinerary('loadFailed'));
-        return;
-      }
 
-      setDays(itineraryResult.data);
-      setMembers(membersResult.success ? membersResult.data : []);
+        setDays(itineraryResult.data);
+        setMembers(membersResult.success ? membersResult.data : []);
+      } else {
+        // 未登入，使用公開 API
+        await loadPublicData();
+      }
     } catch {
       setError(tItinerary('loadFailed'));
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadPublicData = async () => {
+    const [itineraryResponse, membersResponse] = await Promise.all([
+      fetch(`/api/public/trips/${tripId}/itinerary`),
+      fetch(`/api/public/trips/${tripId}/members`),
+    ]);
+
+    if (!itineraryResponse.ok) {
+      setError(tItinerary('loadFailed'));
+      return;
+    }
+
+    const itineraryData = await itineraryResponse.json();
+    const membersData = await membersResponse.json();
+
+    setDays(itineraryData.itinerary || []);
+    setMembers(membersData.members || []);
   };
 
   const handleAddDay = () => {
