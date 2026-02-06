@@ -22,11 +22,11 @@ export async function GET(
       );
     }
 
-    // First get the user by username
+    // First get the user by display_name (since virtual members use display_name in URLs)
     const { data: user, error: userError } = await supabase
       .from('users')
       .select('id, username, display_name, is_virtual')
-      .eq('username', username)
+      .eq('display_name', username)
       .single();
 
     if (userError || !user) {
