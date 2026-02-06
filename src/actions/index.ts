@@ -35,6 +35,7 @@ export {
   getMembers,
   addVirtualMember,
   removeMember,
+  updateMemberRole,
 } from './member.actions';
 
 // Settlement actions

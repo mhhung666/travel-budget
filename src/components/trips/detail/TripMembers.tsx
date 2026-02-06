@@ -9,7 +9,7 @@ import {
     Collapse,
     Avatar,
 } from '@mui/material';
-import { ChevronDown, ChevronUp, UserPlus, Shield, UserMinus } from 'lucide-react';
+import { ChevronDown, ChevronUp, UserPlus, Shield, UserMinus, ShieldCheck } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { Member, User } from '@/types';
 
@@ -19,6 +19,7 @@ interface TripMembersProps {
     isCurrentUserAdmin: boolean;
     onAddVirtualMember: () => void;
     onRemoveMember: (member: Member) => void;
+    onToggleAdmin: (member: Member) => void;
     onVirtualMemberClick?: (member: Member) => void;
     expanded: boolean;
     onToggleExpand: () => void;
@@ -30,6 +31,7 @@ export default function TripMembers({
     isCurrentUserAdmin,
     onAddVirtualMember,
     onRemoveMember,
+    onToggleAdmin,
     onVirtualMemberClick,
     expanded,
     onToggleExpand,
@@ -133,18 +135,33 @@ export default function TripMembers({
                                             </Typography>
                                         )}
                                     </Box>
-                                    {/* 移除按鈕 - 僅管理員且不是自己 */}
+                                    {/* 管理員操作按鈕 - 僅管理員且不是自己 */}
                                     {isCurrentUserAdmin && member.id !== currentUser?.id && (
-                                        <IconButton
-                                            size="small"
-                                            color="error"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                onRemoveMember(member);
-                                            }}
-                                        >
-                                            <UserMinus size={20} />
-                                        </IconButton>
+                                        <Box sx={{ display: 'flex', gap: 0.5 }}>
+                                            {/* 切換管理員權限 */}
+                                            <IconButton
+                                                size="small"
+                                                color={member.role === 'admin' ? 'warning' : 'primary'}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    onToggleAdmin(member);
+                                                }}
+                                                title={member.role === 'admin' ? tMember('demoteFromAdmin') : tMember('promoteToAdmin')}
+                                            >
+                                                {member.role === 'admin' ? <Shield size={20} /> : <ShieldCheck size={20} />}
+                                            </IconButton>
+                                            {/* 移除成員 */}
+                                            <IconButton
+                                                size="small"
+                                                color="error"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    onRemoveMember(member);
+                                                }}
+                                            >
+                                                <UserMinus size={20} />
+                                            </IconButton>
+                                        </Box>
                                     )}
                                 </Box>
                             );

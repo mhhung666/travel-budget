@@ -23,6 +23,7 @@ import {
   AddVirtualMemberDialog,
   DeleteTripDialog,
   RemoveMemberDialog,
+  ToggleAdminDialog,
   RegisterVirtualMemberDialog,
   LinkExistingMemberDialog,
 } from '@/components/trips';
@@ -33,6 +34,7 @@ import {
   deleteTrip,
   addVirtualMember,
   removeMember,
+  updateMemberRole,
 } from '@/actions';
 
 export default function TripSettingsPage() {
@@ -56,6 +58,10 @@ export default function TripSettingsPage() {
   const [addVirtualMemberDialog, setAddVirtualMemberDialog] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [removeMemberDialog, setRemoveMemberDialog] = useState<{
+    open: boolean;
+    member: Member | null;
+  }>({ open: false, member: null });
+  const [toggleAdminDialog, setToggleAdminDialog] = useState<{
     open: boolean;
     member: Member | null;
   }>({ open: false, member: null });
@@ -182,6 +188,24 @@ export default function TripSettingsPage() {
     }
   };
 
+  const handleToggleAdmin = async () => {
+    if (!toggleAdminDialog.member) return;
+    try {
+      const newRole = toggleAdminDialog.member.role === 'admin' ? 'member' : 'admin';
+      const result = await updateMemberRole(tripId, toggleAdminDialog.member.id, newRole);
+
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+
+      setSnackbar({ open: true, message: tMember('success.roleUpdated'), severity: 'success' });
+      setToggleAdminDialog({ open: false, member: null });
+      await loadData();
+    } catch (err: any) {
+      setSnackbar({ open: true, message: err.message, severity: 'error' });
+    }
+  };
+
   const handleAddVirtualMember = async (name: string) => {
     try {
       const result = await addVirtualMember(tripId, {
@@ -288,6 +312,7 @@ export default function TripSettingsPage() {
             isCurrentUserAdmin={!!isCurrentUserAdmin}
             onAddVirtualMember={() => setAddVirtualMemberDialog(true)}
             onRemoveMember={(member) => setRemoveMemberDialog({ open: true, member })}
+            onToggleAdmin={(member) => setToggleAdminDialog({ open: true, member })}
             onVirtualMemberClick={(member) => {
               setSelectedVirtualMember(member);
               setRegisterVirtualDialog(true);
@@ -329,6 +354,13 @@ export default function TripSettingsPage() {
         onClose={() => setRemoveMemberDialog({ open: false, member: null })}
         onConfirm={handleRemoveMember}
         member={removeMemberDialog.member}
+      />
+
+      <ToggleAdminDialog
+        open={toggleAdminDialog.open}
+        onClose={() => setToggleAdminDialog({ open: false, member: null })}
+        onConfirm={handleToggleAdmin}
+        member={toggleAdminDialog.member}
       />
 
       <RegisterVirtualMemberDialog

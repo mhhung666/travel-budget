@@ -224,13 +224,19 @@
     "addVirtualMemberHint": "仮想メンバーはアカウント登録したくない旅行仲間向けです。割り勘に参加できますが、ログインはできません。",
     "virtualMemberName": "メンバー名",
     "virtualMemberAdded": "仮想メンバーを追加しました",
+    "promoteToAdmin": "管理者に設定",
+    "demoteFromAdmin": "管理者を解除",
     "confirm": {
       "remove": "このメンバーを削除しますか？",
       "removeMessage": "削除すると、このメンバーは旅行を閲覧できなくなります。",
-      "expenseNote": "このメンバーの支出記録は保持されます"
+      "expenseNote": "このメンバーの支出記録は保持されます",
+      "promoteToAdmin": "このメンバーを管理者に設定しますか？",
+      "promoteMessage": "管理者はメンバーの追加/削除、旅行の削除などの重要な操作を実行できます。",
+      "demoteFromAdmin": "このメンバーの管理者権限を解除しますか？"
     },
     "success": {
-      "removed": "メンバーを削除しました"
+      "removed": "メンバーを削除しました",
+      "roleUpdated": "役割を更新しました"
     },
     "convertVirtual": {
       "clickHint": "クリックして正式メンバーとして登録",

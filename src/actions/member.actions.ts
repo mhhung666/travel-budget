@@ -180,6 +180,69 @@ export async function addVirtualMember(
 }
 
 /**
+ * Update member role (admin only)
+ */
+export async function updateMemberRole(
+  tripIdOrCode: string,
+  targetUserId: number,
+  newRole: 'admin' | 'member'
+): Promise<ActionResult<{ message: string }>> {
+  try {
+    const session = await getSession();
+    if (!session) {
+      return { success: false, error: '未登入', code: 'UNAUTHORIZED' };
+    }
+
+    const tripId = await getTripId(tripIdOrCode);
+    if (!tripId) {
+      return { success: false, error: '旅行不存在', code: 'NOT_FOUND' };
+    }
+
+    // Check admin permission
+    try {
+      await requireAdmin(session.userId, tripId);
+    } catch {
+      return { success: false, error: '只有管理員可以變更成員角色', code: 'FORBIDDEN' };
+    }
+
+    // Prevent admin from changing their own role
+    if (session.userId === targetUserId) {
+      return { success: false, error: '不能變更自己的角色', code: 'VALIDATION_ERROR' };
+    }
+
+    // Check if target is a member
+    const { data: memberCheck } = await supabase
+      .from('trip_members')
+      .select('role')
+      .eq('trip_id', tripId)
+      .eq('user_id', targetUserId)
+      .single();
+
+    if (!memberCheck) {
+      return { success: false, error: '該用戶不是此旅行的成員', code: 'NOT_FOUND' };
+    }
+
+    // Update role
+    const { error: updateError } = await supabase
+      .from('trip_members')
+      .update({ role: newRole })
+      .eq('trip_id', tripId)
+      .eq('user_id', targetUserId);
+
+    if (updateError) throw updateError;
+
+    revalidatePath(`/trips/${tripIdOrCode}`);
+    return {
+      success: true,
+      data: { message: '角色已更新' },
+    };
+  } catch (error) {
+    console.error('Update member role error:', error);
+    return { success: false, error: '更新角色失敗', code: 'INTERNAL_ERROR' };
+  }
+}
+
+/**
  * Remove a member from trip (admin only)
  */
 export async function removeMember(

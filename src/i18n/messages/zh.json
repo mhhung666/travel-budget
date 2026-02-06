@@ -224,13 +224,19 @@
     "addVirtualMemberHint": "虛擬成員適用於不想註冊帳號的旅伴，可參與分帳但無法登入。",
     "virtualMemberName": "成員名稱",
     "virtualMemberAdded": "虛擬成員已新增",
+    "promoteToAdmin": "設為管理員",
+    "demoteFromAdmin": "取消管理員",
     "confirm": {
       "remove": "確定要移除此成員嗎？",
       "removeMessage": "移除後，該成員將無法再查看此旅行。",
-      "expenseNote": "該成員的支出記錄將會保留"
+      "expenseNote": "該成員的支出記錄將會保留",
+      "promoteToAdmin": "確定要將此成員設為管理員嗎？",
+      "promoteMessage": "管理員可以新增/移除成員、刪除旅行等重要操作。",
+      "demoteFromAdmin": "確定要取消此成員的管理員權限嗎？"
     },
     "success": {
-      "removed": "成員已移除"
+      "removed": "成員已移除",
+      "roleUpdated": "角色已更新"
     },
     "convertVirtual": {
       "clickHint": "點擊註冊為正式會員",

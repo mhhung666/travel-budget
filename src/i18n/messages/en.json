@@ -271,13 +271,19 @@
       "alreadyMember": "This account is already a member of this trip and cannot be linked to a virtual member"
     },
     "virtualMemberAdded": "Virtual member added",
+    "promoteToAdmin": "Make Admin",
+    "demoteFromAdmin": "Remove Admin",
     "confirm": {
       "remove": "Are you sure you want to remove this member?",
       "removeMessage": "After removal, this member will no longer be able to view this trip.",
-      "expenseNote": "This member's expense records will be kept."
+      "expenseNote": "This member's expense records will be kept.",
+      "promoteToAdmin": "Are you sure you want to make this member an admin?",
+      "promoteMessage": "Admins can add/remove members, delete trips, and perform other important operations.",
+      "demoteFromAdmin": "Are you sure you want to remove this member's admin privileges?"
     },
     "success": {
-      "removed": "Member removed"
+      "removed": "Member removed",
+      "roleUpdated": "Role updated"
     }
   },
   "settlement": {
