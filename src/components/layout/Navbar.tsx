@@ -1,27 +1,13 @@
 'use client';
 
-import {
-  AppBar,
-  Toolbar,
-  Typography,
-  Button,
-  Box,
-  IconButton,
-  Avatar,
-  Menu,
-  MenuItem,
-  Container,
-} from '@mui/material';
-import { LogOut, Compass, Settings, BarChart3, Menu as MenuIcon } from 'lucide-react';
+import { LogOut, Compass, Settings, BarChart3, Menu as MenuIcon, Sun, Moon } from 'lucide-react';
 import { useRouter } from '@/i18n/navigation';
-import { useState } from 'react';
-import { useThemeContext } from '@/app/[locale]/context/ThemeContext';
-import { MoonIcon, SunIcon } from './ThemeIcons';
+import { useTheme } from 'next-themes';
 import LanguageSwitcher from './LanguageSwitcher';
 import { useTranslations } from 'next-intl';
 import { logout } from '@/actions';
 
-import { Button as ShadcnButton } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,8 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Avatar as ShadcnAvatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 interface NavbarProps {
   user?: {
@@ -46,7 +31,7 @@ interface NavbarProps {
 export default function Navbar({ user, showUserMenu = true, title }: NavbarProps) {
   const router = useRouter();
   const t = useTranslations('nav');
-  const { mode, toggleTheme } = useThemeContext();
+  const { theme, setTheme } = useTheme();
   const displayTitle = title || t('home');
 
   const handleLogout = async () => {
@@ -77,7 +62,7 @@ export default function Navbar({ user, showUserMenu = true, title }: NavbarProps
         {showUserMenu && user && (
           <div className="hidden md:flex absolute left-1/2 transform -translate-x-1/2 gap-1">
             {navLinks.map((link) => (
-              <ShadcnButton
+              <Button
                 key={link.label}
                 variant="ghost"
                 onClick={link.onClick}
@@ -85,7 +70,7 @@ export default function Navbar({ user, showUserMenu = true, title }: NavbarProps
               >
                 <link.icon size={20} />
                 {link.label}
-              </ShadcnButton>
+              </Button>
             ))}
           </div>
         )}
@@ -96,14 +81,16 @@ export default function Navbar({ user, showUserMenu = true, title }: NavbarProps
           <LanguageSwitcher />
 
           {/* 主題切換按鈕 */}
-          <ShadcnButton
+          <Button
             variant="ghost"
             size="icon"
-            onClick={toggleTheme}
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
             className="text-foreground"
           >
-            {mode === 'dark' ? <SunIcon /> : <MoonIcon />}
-          </ShadcnButton>
+            <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+            <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+            <span className="sr-only">Toggle theme</span>
+          </Button>
 
           {showUserMenu && user ? (
             <>
@@ -111,9 +98,9 @@ export default function Navbar({ user, showUserMenu = true, title }: NavbarProps
               <div className="md:hidden">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <ShadcnButton variant="ghost" size="icon">
+                    <Button variant="ghost" size="icon">
                       <MenuIcon size={24} />
-                    </ShadcnButton>
+                    </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onClick={() => router.push('/trips')}>
@@ -145,14 +132,14 @@ export default function Navbar({ user, showUserMenu = true, title }: NavbarProps
 
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <ShadcnButton variant="ghost" size="icon" className="rounded-full">
-                      <ShadcnAvatar className="h-8 w-8">
+                    <Button variant="ghost" size="icon" className="rounded-full">
+                      <Avatar className="h-8 w-8">
                         <AvatarImage src="" />
                         <AvatarFallback className="bg-primary text-primary-foreground">
                           {(user.display_name || user.username).charAt(0).toUpperCase()}
                         </AvatarFallback>
-                      </ShadcnAvatar>
-                    </ShadcnButton>
+                      </Avatar>
+                    </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onClick={() => router.push('/settings')}>
