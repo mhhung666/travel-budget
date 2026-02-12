@@ -126,7 +126,7 @@ export default function ItineraryDayDialog({
             </div>
           </Tabs>
 
-          <DialogFooter>
+          <DialogFooter className="relative z-10">
             <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
               {tCommon('cancel')}
             </Button>
