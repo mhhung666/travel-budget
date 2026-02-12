@@ -263,6 +263,7 @@ export default function ItineraryPage() {
         onClose={() => setDialogOpen(false)}
         onSubmit={handleDialogSubmit}
         day={editingDay}
+        dayNumber={dialogMode === 'edit' ? editingDay?.day_number : days.length + 1}
       />
     </div>
   );

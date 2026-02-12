@@ -429,7 +429,9 @@
   "itinerary": {
     "title": "Trip Itinerary",
     "addDay": "Add Day",
+    "addDayN": "Add Day {dayNumber}",
     "editDay": "Edit Day",
+    "editDayN": "Edit Day {dayNumber}",
     "deleteDay": "Delete Day",
     "dayTitle": "Title",
     "dayTitlePlaceholder": "e.g., Day 1 - Arrival in Osaka",

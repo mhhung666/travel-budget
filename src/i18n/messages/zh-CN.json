@@ -434,7 +434,9 @@
   "itinerary": {
     "title": "旅程规划",
     "addDay": "新增天数",
+    "addDayN": "新增第 {dayNumber} 天",
     "editDay": "编辑行程",
+    "editDayN": "编辑第 {dayNumber} 天",
     "deleteDay": "删除行程",
     "dayTitle": "标题",
     "dayTitlePlaceholder": "例：第一天 - 大阪抵达",

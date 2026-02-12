@@ -25,6 +25,7 @@ interface ItineraryDayDialogProps {
   onClose: () => void;
   onSubmit: (data: { title: string; content: string }) => Promise<void>;
   day?: ItineraryDay | null;
+  dayNumber?: number;
 }
 
 export default function ItineraryDayDialog({
@@ -33,6 +34,7 @@ export default function ItineraryDayDialog({
   onClose,
   onSubmit,
   day,
+  dayNumber,
 }: ItineraryDayDialogProps) {
   const tItinerary = useTranslations('itinerary');
   const tCommon = useTranslations('common');
@@ -75,7 +77,9 @@ export default function ItineraryDayDialog({
       <DialogContent className="sm:max-w-[800px] max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>
-            {mode === 'add' ? tItinerary('addDay') : tItinerary('editDay')}
+            {mode === 'add'
+              ? (dayNumber ? tItinerary('addDayN', { dayNumber }) : tItinerary('addDay'))
+              : (dayNumber ? tItinerary('editDayN', { dayNumber }) : tItinerary('editDay'))}
           </DialogTitle>
         </DialogHeader>
 

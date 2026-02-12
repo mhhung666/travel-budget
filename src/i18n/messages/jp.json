@@ -434,7 +434,9 @@
   "itinerary": {
     "title": "旅程プラン",
     "addDay": "日程を追加",
+    "addDayN": "第{dayNumber}日を追加",
     "editDay": "日程を編集",
+    "editDayN": "第{dayNumber}日を編集",
     "deleteDay": "日程を削除",
     "dayTitle": "タイトル",
     "dayTitlePlaceholder": "例：1日目 - 大阪到着",
