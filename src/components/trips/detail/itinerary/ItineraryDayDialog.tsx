@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Eye, Pencil, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { ItineraryDay } from '@/types';
@@ -44,6 +44,14 @@ export default function ItineraryDayDialog({
   const [content, setContent] = useState('');
   const [viewMode, setViewMode] = useState<'write' | 'preview'>('write');
   const [loading, setLoading] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const autoResize = useCallback(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    textarea.style.height = 'auto';
+    textarea.style.height = `${Math.max(200, textarea.scrollHeight)}px`;
+  }, []);
 
   useEffect(() => {
     if (open) {
@@ -55,8 +63,15 @@ export default function ItineraryDayDialog({
         setContent('');
       }
       setViewMode('write');
+      requestAnimationFrame(autoResize);
     }
-  }, [open, mode, day]);
+  }, [open, mode, day, autoResize]);
+
+  useEffect(() => {
+    if (viewMode === 'write') {
+      requestAnimationFrame(autoResize);
+    }
+  }, [viewMode, autoResize]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,7 +111,7 @@ export default function ItineraryDayDialog({
             />
           </div>
 
-          <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'write' | 'preview')} className="flex-1 flex flex-col min-h-0">
+          <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'write' | 'preview')}>
             <div className="flex justify-end mb-2">
               <TabsList className="grid w-[200px] grid-cols-2">
                 <TabsTrigger value="write" className="gap-2">
@@ -110,25 +125,27 @@ export default function ItineraryDayDialog({
               </TabsList>
             </div>
 
-            <div className="flex-1 min-h-[300px] border rounded-md relative overflow-hidden">
-              <TabsContent value="write" className="absolute inset-0 m-0 border-0 p-0 h-full">
-                <Textarea
-                  className="h-full w-full resize-none border-0 focus-visible:ring-0 rounded-none p-4"
-                  placeholder={tItinerary('dayContentPlaceholder')}
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                />
-              </TabsContent>
-              <TabsContent value="preview" className="absolute inset-0 m-0 border-0 p-4 h-full overflow-y-auto bg-muted/20">
-                {content ? (
-                  <MarkdownRenderer content={content} />
-                ) : (
-                  <div className="h-full flex items-center justify-center text-muted-foreground italic">
-                    {tItinerary('dayContentPlaceholder')}
-                  </div>
-                )}
-              </TabsContent>
-            </div>
+            <TabsContent value="write" className="m-0 border rounded-md">
+              <Textarea
+                ref={textareaRef}
+                className="min-h-[200px] w-full resize-none border-0 focus-visible:ring-0 rounded-md p-4"
+                placeholder={tItinerary('dayContentPlaceholder')}
+                value={content}
+                onChange={(e) => {
+                  setContent(e.target.value);
+                  autoResize();
+                }}
+              />
+            </TabsContent>
+            <TabsContent value="preview" className="m-0 border rounded-md p-4 min-h-[200px] bg-muted/20">
+              {content ? (
+                <MarkdownRenderer content={content} />
+              ) : (
+                <div className="min-h-[200px] flex items-center justify-center text-muted-foreground italic">
+                  {tItinerary('dayContentPlaceholder')}
+                </div>
+              )}
+            </TabsContent>
           </Tabs>
         </form>
 

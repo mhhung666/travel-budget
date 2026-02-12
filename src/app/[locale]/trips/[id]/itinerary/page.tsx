@@ -129,12 +129,13 @@ export default function ItineraryPage() {
       return;
     }
 
+    const deletedDay = days.find((d) => d.id === dayId);
     try {
       const result = await deleteItineraryDay(tripId, dayId);
       if (!result.success) throw new Error(result.error);
 
       toast({
-        title: tItinerary('success.deleted'),
+        title: tItinerary('success.deleted', { dayNumber: deletedDay?.day_number ?? '?' }),
       });
       setDeleteConfirmId(null);
       await loadData();
@@ -149,16 +150,17 @@ export default function ItineraryPage() {
 
   const handleDialogSubmit = async (data: { title: string; content: string }) => {
     if (dialogMode === 'add') {
+      const newDayNumber = days.length + 1;
       const result = await createItineraryDay(tripId, data);
       if (!result.success) throw new Error(result.error);
       toast({
-        title: tItinerary('success.created'),
+        title: tItinerary('success.created', { dayNumber: newDayNumber }),
       });
     } else if (editingDay) {
       const result = await updateItineraryDay(tripId, editingDay.id, data);
       if (!result.success) throw new Error(result.error);
       toast({
-        title: tItinerary('success.updated'),
+        title: tItinerary('success.updated', { dayNumber: editingDay.day_number }),
       });
     }
     await loadData();

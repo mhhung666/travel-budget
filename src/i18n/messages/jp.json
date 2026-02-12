@@ -449,9 +449,9 @@
     "deleteConfirm": "この日程を削除しますか？",
     "deleteMessage": "この操作は取り消せません。",
     "success": {
-      "created": "日程を追加しました",
-      "updated": "日程を更新しました",
-      "deleted": "日程を削除しました"
+      "created": "第{dayNumber}日を追加しました",
+      "updated": "第{dayNumber}日を更新しました",
+      "deleted": "第{dayNumber}日を削除しました"
     },
     "backToTrip": "旅行詳細に戻る",
     "lastUpdated": "最終更新",

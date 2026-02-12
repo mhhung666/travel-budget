@@ -444,9 +444,9 @@
     "deleteConfirm": "Are you sure you want to delete this day?",
     "deleteMessage": "This action cannot be undone.",
     "success": {
-      "created": "Day added",
-      "updated": "Day updated",
-      "deleted": "Day deleted"
+      "created": "Day {dayNumber} added",
+      "updated": "Day {dayNumber} updated",
+      "deleted": "Day {dayNumber} deleted"
     },
     "backToTrip": "Back to Trip",
     "lastUpdated": "Last updated",

@@ -449,9 +449,9 @@
     "deleteConfirm": "確定要刪除此天行程嗎？",
     "deleteMessage": "此操作無法復原。",
     "success": {
-      "created": "行程已新增",
-      "updated": "行程已更新",
-      "deleted": "行程已刪除"
+      "created": "第 {dayNumber} 天已新增",
+      "updated": "第 {dayNumber} 天已更新",
+      "deleted": "第 {dayNumber} 天已刪除"
     },
     "backToTrip": "返回旅行詳情",
     "lastUpdated": "最後更新",
