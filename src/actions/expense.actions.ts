@@ -62,7 +62,6 @@ export async function getExpenses(tripIdOrCode: string): Promise<ActionResult<Ex
 
     if (expensesError) throw expensesError;
 
-    // Get splits for each expense
     type ExpenseQuery = {
       id: number;
       amount: number;
@@ -76,57 +75,74 @@ export async function getExpenses(tripIdOrCode: string): Promise<ActionResult<Ex
       payer: { id: number; username: string; display_name: string } | { id: number; username: string; display_name: string }[] | null;
     };
 
-    const expensesWithSplits = await Promise.all(
-      (expenses as unknown as ExpenseQuery[])?.map(async (expense) => {
-        const { data: splits } = await supabase
-          .from('expense_splits')
-          .select(
-            `
-            user_id,
-            share_amount,
-            users!expense_splits_user_id_fkey (
-              username,
-              display_name
-            )
+    const typedExpenses = expenses as unknown as ExpenseQuery[];
+    const expenseIds = typedExpenses?.map((e) => e.id) || [];
+
+    // Batch fetch all splits in a single query instead of N+1
+    type SplitQuery = {
+      expense_id: number;
+      user_id: number;
+      share_amount: number;
+      users: { username: string; display_name: string } | { username: string; display_name: string }[] | null;
+    };
+
+    let allSplits: SplitQuery[] = [];
+    if (expenseIds.length > 0) {
+      const { data: splitsData } = await supabase
+        .from('expense_splits')
+        .select(
           `
+          expense_id,
+          user_id,
+          share_amount,
+          users!expense_splits_user_id_fkey (
+            username,
+            display_name
           )
-          .eq('expense_id', expense.id);
+        `
+        )
+        .in('expense_id', expenseIds);
 
-        type SplitQuery = {
-          user_id: number;
-          share_amount: number;
-          users: { username: string; display_name: string } | { username: string; display_name: string }[] | null;
-        };
+      allSplits = (splitsData as unknown as SplitQuery[]) || [];
+    }
 
-        const formattedSplits =
-          (splits as unknown as SplitQuery[])?.map((split) => {
-            const user = Array.isArray(split.users) ? split.users[0] : split.users;
-            return {
-              user_id: split.user_id,
-              share_amount: split.share_amount,
-              username: user?.username || 'Unknown',
-              display_name: user?.display_name || 'Unknown',
-            };
-          }) || [];
+    // Group splits by expense_id in memory
+    const splitsByExpenseId = new Map<number, SplitQuery[]>();
+    for (const split of allSplits) {
+      const existing = splitsByExpenseId.get(split.expense_id) || [];
+      existing.push(split);
+      splitsByExpenseId.set(split.expense_id, existing);
+    }
 
-        const payer = Array.isArray(expense.payer) ? expense.payer[0] : expense.payer;
+    const expensesWithSplits = typedExpenses?.map((expense) => {
+      const splits = splitsByExpenseId.get(expense.id) || [];
+      const formattedSplits = splits.map((split) => {
+        const user = Array.isArray(split.users) ? split.users[0] : split.users;
         return {
-          id: expense.id,
-          trip_id: tripId,
-          amount: expense.amount,
-          original_amount: expense.original_amount,
-          currency: expense.currency,
-          exchange_rate: expense.exchange_rate,
-          description: expense.description,
-          category: expense.category || 'other',
-          date: expense.date,
-          created_at: expense.created_at,
-          payer_id: payer?.id as number,
-          payer_name: payer?.display_name || 'Unknown',
-          splits: formattedSplits,
+          user_id: split.user_id,
+          share_amount: split.share_amount,
+          username: user?.username || 'Unknown',
+          display_name: user?.display_name || 'Unknown',
         };
-      })
-    );
+      });
+
+      const payer = Array.isArray(expense.payer) ? expense.payer[0] : expense.payer;
+      return {
+        id: expense.id,
+        trip_id: tripId,
+        amount: expense.amount,
+        original_amount: expense.original_amount,
+        currency: expense.currency,
+        exchange_rate: expense.exchange_rate,
+        description: expense.description,
+        category: expense.category || 'other',
+        date: expense.date,
+        created_at: expense.created_at,
+        payer_id: payer?.id as number,
+        payer_name: payer?.display_name || 'Unknown',
+        splits: formattedSplits,
+      };
+    });
 
     return { success: true, data: expensesWithSplits };
   } catch (error) {

@@ -5,6 +5,7 @@ import { useRouter } from '@/i18n/navigation';
 import { ArrowLeft, User, Lock, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { getCurrentUser, updateProfile } from '@/actions';
+import type { AuthUserWithCreatedAt } from '@/actions';
 
 import Navbar from '@/components/layout/Navbar';
 import { Button } from '@/components/ui/button';
@@ -18,7 +19,7 @@ export default function SettingsPage() {
   const router = useRouter();
   const t = useTranslations('settings');
   const tCommon = useTranslations('common');
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<AuthUserWithCreatedAt | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -80,9 +81,11 @@ export default function SettingsPage() {
       } else {
         setSuccess(t('profile.updateSuccess'));
       }
-      setUser({ ...user, display_name: displayName, email });
-    } catch (err: any) {
-      setError(err.message);
+      if (user) {
+        setUser({ ...user, display_name: displayName, email });
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setUpdatingProfile(false);
     }

@@ -7,13 +7,14 @@ import Navbar from '@/components/layout/Navbar';
 import { StatsDashboard } from '@/components/stats';
 import type { StatsData } from '@/types';
 import { getCurrentUser, getStats } from '@/actions';
+import type { AuthUserWithCreatedAt } from '@/actions';
 import { Loader2 } from 'lucide-react';
 
 export default function StatsPage() {
   const router = useRouter();
   const t = useTranslations('stats');
 
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<AuthUserWithCreatedAt | null>(null);
   const [stats, setStats] = useState<StatsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

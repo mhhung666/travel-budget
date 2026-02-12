@@ -32,6 +32,7 @@ import {
   removeMember,
   updateMemberRole,
 } from '@/actions';
+import type { AuthUserWithCreatedAt } from '@/actions';
 
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -52,7 +53,7 @@ export default function TripSettingsPage() {
 
   const [trip, setTrip] = useState<Trip | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<AuthUserWithCreatedAt | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -144,11 +145,11 @@ export default function TripSettingsPage() {
         title: tTrip('deleted'),
       });
       setTimeout(() => router.push('/trips'), 1000);
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: err.message,
+        description: err instanceof Error ? err.message : String(err),
       });
     } finally {
       setIsDeleting(false);
@@ -170,11 +171,11 @@ export default function TripSettingsPage() {
       });
       setRemoveMemberDialog({ open: false, member: null });
       await loadData();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: err.message,
+        description: err instanceof Error ? err.message : String(err),
       });
     }
   };
@@ -194,11 +195,11 @@ export default function TripSettingsPage() {
       });
       setToggleAdminDialog({ open: false, member: null });
       await loadData();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: err.message,
+        description: err instanceof Error ? err.message : String(err),
       });
     }
   };
@@ -218,7 +219,7 @@ export default function TripSettingsPage() {
       });
       setAddVirtualMemberDialog(false);
       await loadData();
-    } catch (err: any) {
+    } catch (err: unknown) {
       throw err;
     }
   };

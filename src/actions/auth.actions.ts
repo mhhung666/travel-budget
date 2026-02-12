@@ -16,8 +16,8 @@ import {
 import type { ActionResult } from './types';
 import type { User } from '@/types';
 
-type AuthUser = Pick<User, 'id' | 'username' | 'display_name'>;
-type AuthUserWithCreatedAt = AuthUser & { created_at: string; email?: string };
+export type AuthUser = Pick<User, 'id' | 'username' | 'display_name'>;
+export type AuthUserWithCreatedAt = AuthUser & { created_at: string; email: string };
 
 /**
  * Get current authenticated user

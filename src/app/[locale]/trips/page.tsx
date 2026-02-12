@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Plus, UserPlus, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { getCurrentUser, getTrips } from '@/actions';
+import type { AuthUserWithCreatedAt } from '@/actions';
 import type { TripWithMembers } from '@/types';
 import Navbar from '@/components/layout/Navbar';
 import CreateTripDialog from '@/components/trips/CreateTripDialog';
@@ -20,7 +21,7 @@ export default function TripsPage() {
   const tNav = useTranslations('nav');
   const { toast } = useToast();
 
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<AuthUserWithCreatedAt | null>(null);
   const [trips, setTrips] = useState<TripWithMembers[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);

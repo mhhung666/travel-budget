@@ -16,6 +16,7 @@ import {
   updateItineraryDay,
   deleteItineraryDay,
 } from '@/actions';
+import type { AuthUserWithCreatedAt } from '@/actions';
 
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -32,7 +33,7 @@ export default function ItineraryPage() {
 
   const [days, setDays] = useState<ItineraryDay[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<AuthUserWithCreatedAt | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -139,10 +140,10 @@ export default function ItineraryPage() {
       });
       setDeleteConfirmId(null);
       await loadData();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: "Error",
-        description: err.message,
+        description: err instanceof Error ? err.message : String(err),
         variant: "destructive"
       });
     }

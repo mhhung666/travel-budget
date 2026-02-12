@@ -8,6 +8,7 @@ import { ArrowLeft, Loader2 } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import type { Balance, Transaction } from '@/types';
 import { getCurrentUser, getSettlement } from '@/actions';
+import type { AuthUserWithCreatedAt } from '@/actions';
 import {
   SettlementSummary,
   SettlementBalances,
@@ -26,7 +27,7 @@ export default function SettlementPage() {
   const [balances, setBalances] = useState<Balance[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [totalExpenses, setTotalExpenses] = useState(0);
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<AuthUserWithCreatedAt | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [exchangeRates, setExchangeRates] = useState<Record<string, number>>({ TWD: 1 });
@@ -88,8 +89,8 @@ export default function SettlementPage() {
       setBalances(data.balances);
       setTransactions(data.transactions);
       setTotalExpenses(data.totalExpenses);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }

@@ -7,6 +7,7 @@ import { UserPlus, Info, Users, Loader2, ArrowLeft } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { TripWithMembers } from '@/types';
 import { getCurrentUser, getTripPreview, joinTrip } from '@/actions';
+import type { AuthUserWithCreatedAt } from '@/actions';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -23,7 +24,7 @@ export default function QuickJoinPage() {
   const tError = useTranslations('error');
 
   const [trip, setTrip] = useState<TripWithMembers | null>(null);
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<AuthUserWithCreatedAt | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [isJoining, setIsJoining] = useState(false);

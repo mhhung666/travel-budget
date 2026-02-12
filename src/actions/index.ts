@@ -10,6 +10,7 @@ export {
   updateProfile,
   resetPassword,
 } from './auth.actions';
+export type { AuthUser, AuthUserWithCreatedAt } from './auth.actions';
 
 // Trip actions
 export {

@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl';
 import { ArrowLeft, Settings, Map, Calculator, Loader2 } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import type { Trip, Member, Expense } from '@/types';
+import type { AuthUserWithCreatedAt } from '@/actions';
 import {
   TripHeader,
   TripExpenses,
@@ -17,6 +18,7 @@ import {
   ExpenseFormDialog,
   EditTripDialog,
 } from '@/components/trips/detail/dialogs';
+import type { ExpenseDialogData, EditTripFormData } from '@/components/trips/detail/dialogs';
 
 import {
   getCurrentUser,
@@ -49,7 +51,7 @@ export default function TripDetailPage() {
   const [trip, setTrip] = useState<Trip | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<AuthUserWithCreatedAt | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -130,32 +132,28 @@ export default function TripDetailPage() {
     setExpenses(expensesData.expenses || []);
   };
 
-  const handleAddExpense = async (data: any) => {
-    try {
-      const result = await createExpense(tripId, {
-        payer_id: data.payer_id,
-        original_amount: parseFloat(data.original_amount),
-        currency: data.currency,
-        exchange_rate: parseFloat(data.exchange_rate),
-        description: data.description,
-        category: data.category,
-        date: data.date,
-        splits: data.splits,
-      });
+  const handleAddExpense = async (data: ExpenseDialogData) => {
+    const result = await createExpense(tripId, {
+      payer_id: data.payer_id,
+      original_amount: parseFloat(data.original_amount),
+      currency: data.currency,
+      exchange_rate: parseFloat(data.exchange_rate),
+      description: data.description,
+      category: data.category,
+      date: data.date,
+      splits: data.splits,
+    });
 
-      if (!result.success) {
-        throw new Error(result.error);
-      }
-
-      setShowAddExpense(false);
-      await loadTripData();
-      toast({
-        title: tExpense('success.added'),
-        description: tExpense('success.addedMessage'),
-      });
-    } catch (err: any) {
-      throw err; // Let dialog handle error display
+    if (!result.success) {
+      throw new Error(result.error);
     }
+
+    setShowAddExpense(false);
+    await loadTripData();
+    toast({
+      title: tExpense('success.added'),
+      description: tExpense('success.addedMessage'),
+    });
   };
 
   const handleDeleteExpense = async (expenseId: number) => {
@@ -173,68 +171,59 @@ export default function TripDetailPage() {
         title: "Deleted",
         description: tExpense('success.deleted'),
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: err.message,
+        description: err instanceof Error ? err.message : String(err),
       });
     }
   };
 
-  const handleEditExpense = async (data: any) => {
+  const handleEditExpense = async (data: ExpenseDialogData) => {
     if (!editingExpense) return;
 
-    try {
-      const result = await updateExpense(tripId, editingExpense.id, {
-        payer_id: data.payer_id,
-        original_amount: parseFloat(data.original_amount),
-        currency: data.currency,
-        exchange_rate: parseFloat(data.exchange_rate),
-        description: data.description.trim(),
-        category: data.category,
-        date: data.date,
-        splits: data.splits,
-      });
+    const result = await updateExpense(tripId, editingExpense.id, {
+      payer_id: data.payer_id,
+      original_amount: parseFloat(data.original_amount),
+      currency: data.currency,
+      exchange_rate: parseFloat(data.exchange_rate),
+      description: data.description.trim(),
+      category: data.category,
+      date: data.date,
+      splits: data.splits,
+    });
 
-      if (!result.success) {
-        throw new Error(result.error);
-      }
-
-      setEditExpenseDialog(false);
-      setEditingExpense(null);
-      await loadTripData();
-      toast({
-        title: tExpense('success.updated'),
-      });
-    } catch (err: any) {
-      throw err;
+    if (!result.success) {
+      throw new Error(result.error);
     }
+
+    setEditExpenseDialog(false);
+    setEditingExpense(null);
+    await loadTripData();
+    toast({
+      title: tExpense('success.updated'),
+    });
   };
 
+  const handleEditTrip = async (data: EditTripFormData) => {
+    const result = await updateTrip(tripId, {
+      name: data.name.trim(),
+      description: data.description?.trim() || null,
+      start_date: data.start_date || null,
+      end_date: data.end_date || null,
+      location: data.location || null,
+    });
 
-  const handleEditTrip = async (data: any) => {
-    try {
-      const result = await updateTrip(tripId, {
-        name: data.name.trim(),
-        description: data.description?.trim() || null,
-        start_date: data.start_date || null,
-        end_date: data.end_date || null,
-        location: data.location || null,
-      });
-
-      if (!result.success) {
-        throw new Error(result.error);
-      }
-
-      setEditTripDialog(false);
-      await loadTripData();
-      toast({
-        title: tTrip('editSuccess'),
-      });
-    } catch (err: any) {
-      throw err;
+    if (!result.success) {
+      throw new Error(result.error);
     }
+
+    setEditTripDialog(false);
+    await loadTripData();
+    toast({
+      title: tTrip('editSuccess'),
+    });
   };
 
   const isCurrentUserMember = currentUser && members.some((m) => m.id === currentUser.id);

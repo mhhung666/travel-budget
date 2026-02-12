@@ -35,13 +35,24 @@ import {
     TooltipTrigger,
 } from '@/components/ui/tooltip';
 
+export interface ExpenseDialogData {
+    payer_id: number;
+    original_amount: string;
+    currency: string;
+    exchange_rate: string;
+    description: string;
+    category: string;
+    date: string;
+    splits: { user_id: number; share_amount: number }[];
+}
+
 interface ExpenseFormDialogProps {
     mode: 'add' | 'edit';
     open: boolean;
     onClose: () => void;
-    onSubmit: (data: any) => Promise<void>;
+    onSubmit: (data: ExpenseDialogData) => Promise<void>;
     members: Member[];
-    currentUser: any;
+    currentUser: { id: number } | null;
     expense?: Expense | null; // Required for edit mode
 }
 

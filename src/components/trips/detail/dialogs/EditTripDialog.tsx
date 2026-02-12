@@ -19,10 +19,18 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
+export interface EditTripFormData {
+    name: string;
+    description: string;
+    start_date: string;
+    end_date: string;
+    location: LocationOption | null;
+}
+
 interface EditTripDialogProps {
     open: boolean;
     onClose: () => void;
-    onSubmit: (data: any) => Promise<void>;
+    onSubmit: (data: EditTripFormData) => Promise<void>;
     trip: Trip | null;
 }
 
@@ -74,8 +82,8 @@ export default function EditTripDialog({
 
         try {
             await onSubmit({ ...form, location });
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : String(err));
         } finally {
             setIsSaving(false);
         }

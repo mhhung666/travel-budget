@@ -10,6 +10,7 @@ import {
   LinkExistingMemberDialog,
 } from '@/components/trips/detail/dialogs';
 import { getCurrentUser, getMembers } from '@/actions';
+import type { AuthUserWithCreatedAt } from '@/actions';
 import type { Trip, Member } from '@/types';
 import { InviteCard, ErrorView } from '@/components/link-virtual';
 
@@ -24,7 +25,7 @@ export default function LinkVirtualMemberPage() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<AuthUserWithCreatedAt | null>(null);
   const [trip, setTrip] = useState<Trip | null>(null);
   const [virtualMember, setVirtualMember] = useState<Member | null>(null);
   const [showRegisterDialog, setShowRegisterDialog] = useState(false);
