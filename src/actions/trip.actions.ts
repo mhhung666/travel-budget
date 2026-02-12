@@ -22,7 +22,7 @@ export async function getTrips(): Promise<ActionResult<TripWithMembers[]>> {
   try {
     const session = await getSession();
     if (!session) {
-      return { success: false, error: '未登入', code: 'UNAUTHORIZED' };
+      return { success: false, error: 'UNAUTHORIZED', code: 'UNAUTHORIZED' };
     }
 
     const { data: tripMembers, error: tmError } = await supabase
@@ -74,7 +74,7 @@ export async function getTrips(): Promise<ActionResult<TripWithMembers[]>> {
     return { success: true, data: formattedTrips };
   } catch (error) {
     console.error('Get trips error:', error);
-    return { success: false, error: '獲取旅行列表失敗', code: 'INTERNAL_ERROR' };
+    return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
   }
 }
 
@@ -85,12 +85,12 @@ export async function getTrip(id: string): Promise<ActionResult<Trip>> {
   try {
     const session = await getSession();
     if (!session) {
-      return { success: false, error: '未登入', code: 'UNAUTHORIZED' };
+      return { success: false, error: 'UNAUTHORIZED', code: 'UNAUTHORIZED' };
     }
 
     const tripId = await getTripId(id);
     if (!tripId) {
-      return { success: false, error: '旅行不存在', code: 'NOT_FOUND' };
+      return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     }
 
     // Check membership
@@ -102,7 +102,7 @@ export async function getTrip(id: string): Promise<ActionResult<Trip>> {
       .single();
 
     if (memberError || !isMember) {
-      return { success: false, error: '您不是此旅行的成員', code: 'FORBIDDEN' };
+      return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
     }
 
     const { data: trip, error: tripError } = await supabase
@@ -112,13 +112,13 @@ export async function getTrip(id: string): Promise<ActionResult<Trip>> {
       .single();
 
     if (tripError || !trip) {
-      return { success: false, error: '旅行不存在', code: 'NOT_FOUND' };
+      return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     }
 
     return { success: true, data: trip };
   } catch (error) {
     console.error('Get trip error:', error);
-    return { success: false, error: '獲取旅行詳情失敗', code: 'INTERNAL_ERROR' };
+    return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
   }
 }
 
@@ -132,12 +132,12 @@ export async function getTripPreview(
   try {
     const session = await getSession();
     if (!session) {
-      return { success: false, error: '未登入', code: 'UNAUTHORIZED' };
+      return { success: false, error: 'UNAUTHORIZED', code: 'UNAUTHORIZED' };
     }
 
     const tripId = await getTripId(hashCode);
     if (!tripId) {
-      return { success: false, error: '旅行不存在', code: 'NOT_FOUND' };
+      return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     }
 
     const { data: trip, error: tripError } = await supabase
@@ -147,7 +147,7 @@ export async function getTripPreview(
       .single();
 
     if (tripError || !trip) {
-      return { success: false, error: '旅行不存在', code: 'NOT_FOUND' };
+      return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     }
 
     const { count } = await supabase
@@ -172,7 +172,7 @@ export async function getTripPreview(
     };
   } catch (error) {
     console.error('Get trip preview error:', error);
-    return { success: false, error: '獲取旅行預覽失敗', code: 'INTERNAL_ERROR' };
+    return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
   }
 }
 
@@ -183,7 +183,7 @@ export async function createTrip(input: CreateTripInput): Promise<ActionResult<T
   try {
     const session = await getSession();
     if (!session) {
-      return { success: false, error: '未登入', code: 'UNAUTHORIZED' };
+      return { success: false, error: 'UNAUTHORIZED', code: 'UNAUTHORIZED' };
     }
 
     const validation = createTripSchema.safeParse(input);
@@ -236,7 +236,7 @@ export async function createTrip(input: CreateTripInput): Promise<ActionResult<T
     return { success: true, data: trip };
   } catch (error) {
     console.error('Create trip error:', error);
-    return { success: false, error: '創建旅行失敗', code: 'INTERNAL_ERROR' };
+    return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
   }
 }
 
@@ -247,19 +247,19 @@ export async function updateTrip(id: string, input: UpdateTripInput): Promise<Ac
   try {
     const session = await getSession();
     if (!session) {
-      return { success: false, error: '未登入', code: 'UNAUTHORIZED' };
+      return { success: false, error: 'UNAUTHORIZED', code: 'UNAUTHORIZED' };
     }
 
     const tripId = await getTripId(id);
     if (!tripId) {
-      return { success: false, error: '旅行不存在', code: 'NOT_FOUND' };
+      return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     }
 
     // Check admin permission
     try {
       await requireAdmin(session.userId, tripId);
     } catch {
-      return { success: false, error: '只有管理員可以編輯旅行', code: 'FORBIDDEN' };
+      return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
     }
 
     const validation = updateTripSchema.safeParse(input);
@@ -294,7 +294,7 @@ export async function updateTrip(id: string, input: UpdateTripInput): Promise<Ac
     return { success: true, data: trip };
   } catch (error) {
     console.error('Update trip error:', error);
-    return { success: false, error: '更新旅行失敗', code: 'INTERNAL_ERROR' };
+    return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
   }
 }
 
@@ -305,18 +305,18 @@ export async function deleteTrip(id: string): Promise<ActionResult<{ message: st
   try {
     const session = await getSession();
     if (!session) {
-      return { success: false, error: '未登入', code: 'UNAUTHORIZED' };
+      return { success: false, error: 'UNAUTHORIZED', code: 'UNAUTHORIZED' };
     }
 
     const tripId = await getTripId(id);
     if (!tripId) {
-      return { success: false, error: '旅行不存在', code: 'NOT_FOUND' };
+      return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     }
 
     try {
       await requireAdmin(session.userId, tripId);
     } catch {
-      return { success: false, error: '只有管理員可以刪除旅行', code: 'FORBIDDEN' };
+      return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
     }
 
     const { error: deleteError } = await supabase.from('trips').delete().eq('id', tripId);
@@ -327,7 +327,7 @@ export async function deleteTrip(id: string): Promise<ActionResult<{ message: st
     return { success: true, data: { message: '旅行已刪除' } };
   } catch (error) {
     console.error('Delete trip error:', error);
-    return { success: false, error: '刪除旅行失敗', code: 'INTERNAL_ERROR' };
+    return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
   }
 }
 
@@ -338,16 +338,16 @@ export async function joinTrip(tripIdOrCode: string): Promise<ActionResult<Trip>
   try {
     const session = await getSession();
     if (!session) {
-      return { success: false, error: '未登入', code: 'UNAUTHORIZED' };
+      return { success: false, error: 'UNAUTHORIZED', code: 'UNAUTHORIZED' };
     }
 
     if (!tripIdOrCode) {
-      return { success: false, error: '請提供旅行 ID 或 hash code', code: 'VALIDATION_ERROR' };
+      return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
     }
 
     const tripId = await getTripId(tripIdOrCode);
     if (!tripId) {
-      return { success: false, error: '旅行不存在', code: 'NOT_FOUND' };
+      return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     }
 
     // Check if already a member
@@ -359,7 +359,7 @@ export async function joinTrip(tripIdOrCode: string): Promise<ActionResult<Trip>
       .single();
 
     if (existingMember) {
-      return { success: false, error: '您已經是此旅行的成員', code: 'CONFLICT' };
+      return { success: false, error: 'CONFLICT', code: 'CONFLICT' };
     }
 
     // Join as member
@@ -381,6 +381,6 @@ export async function joinTrip(tripIdOrCode: string): Promise<ActionResult<Trip>
     return { success: true, data: trip! };
   } catch (error) {
     console.error('Join trip error:', error);
-    return { success: false, error: '加入旅行失敗', code: 'INTERNAL_ERROR' };
+    return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
   }
 }

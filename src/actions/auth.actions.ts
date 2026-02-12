@@ -42,7 +42,7 @@ export async function getCurrentUser(): Promise<ActionResult<AuthUserWithCreated
     return { success: true, data: user };
   } catch (error) {
     console.error('Get current user error:', error);
-    return { success: false, error: '獲取用戶信息失敗', code: 'INTERNAL_ERROR' };
+    return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
   }
 }
 
@@ -69,12 +69,12 @@ export async function login(input: LoginInput): Promise<ActionResult<AuthUser>> 
       .single();
 
     if (error || !user) {
-      return { success: false, error: '用戶名或密碼錯誤', code: 'UNAUTHORIZED' };
+      return { success: false, error: 'UNAUTHORIZED', code: 'UNAUTHORIZED' };
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      return { success: false, error: '用戶名或密碼錯誤', code: 'UNAUTHORIZED' };
+      return { success: false, error: 'UNAUTHORIZED', code: 'UNAUTHORIZED' };
     }
 
     await createSession(user.id, user.username);
@@ -89,7 +89,7 @@ export async function login(input: LoginInput): Promise<ActionResult<AuthUser>> 
     };
   } catch (error) {
     console.error('Login error:', error);
-    return { success: false, error: '登入失敗,請稍後再試', code: 'INTERNAL_ERROR' };
+    return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
   }
 }
 
@@ -117,7 +117,7 @@ export async function register(input: RegisterInput): Promise<ActionResult<AuthU
       .single();
 
     if (existingUsername) {
-      return { success: false, error: '用戶名已被使用', code: 'CONFLICT' };
+      return { success: false, error: 'CONFLICT', code: 'CONFLICT' };
     }
 
     // Check if email exists (case-insensitive)
@@ -128,7 +128,7 @@ export async function register(input: RegisterInput): Promise<ActionResult<AuthU
       .single();
 
     if (existingEmail) {
-      return { success: false, error: '此電子郵件已被使用', code: 'CONFLICT' };
+      return { success: false, error: 'CONFLICT', code: 'CONFLICT' };
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -153,7 +153,7 @@ export async function register(input: RegisterInput): Promise<ActionResult<AuthU
     };
   } catch (error) {
     console.error('Registration error:', error);
-    return { success: false, error: '註冊失敗,請稍後再試', code: 'INTERNAL_ERROR' };
+    return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
   }
 }
 
@@ -166,7 +166,7 @@ export async function logout(): Promise<ActionResult<{ message: string }>> {
     return { success: true, data: { message: '登出成功' } };
   } catch (error) {
     console.error('Logout error:', error);
-    return { success: false, error: '登出失敗', code: 'INTERNAL_ERROR' };
+    return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
   }
 }
 
@@ -179,7 +179,7 @@ export async function updateProfile(
   try {
     const session = await getSession();
     if (!session) {
-      return { success: false, error: '未登入', code: 'UNAUTHORIZED' };
+      return { success: false, error: 'UNAUTHORIZED', code: 'UNAUTHORIZED' };
     }
 
     const validation = updateProfileSchema.safeParse(input);
@@ -211,7 +211,7 @@ export async function updateProfile(
           .single();
 
         if (existingEmail) {
-          return { success: false, error: '此電子郵件已被使用', code: 'CONFLICT' };
+          return { success: false, error: 'CONFLICT', code: 'CONFLICT' };
         }
 
         updateData.email = new_email.toLowerCase().trim();
@@ -236,12 +236,12 @@ export async function updateProfile(
         .single();
 
       if (fetchError || !user) {
-        return { success: false, error: '用戶不存在', code: 'NOT_FOUND' };
+        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
       }
 
       const isPasswordValid = await bcrypt.compare(current_password, user.password);
       if (!isPasswordValid) {
-        return { success: false, error: '目前密碼錯誤', code: 'VALIDATION_ERROR' };
+        return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
       }
 
       const hashedPassword = await bcrypt.hash(new_password, 10);
@@ -256,10 +256,10 @@ export async function updateProfile(
       return { success: true, data: { message: '密碼已更新' } };
     }
 
-    return { success: false, error: '請提供要更新的資料', code: 'VALIDATION_ERROR' };
+    return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
   } catch (error) {
     console.error('Update user error:', error);
-    return { success: false, error: '更新失敗,請稍後再試', code: 'INTERNAL_ERROR' };
+    return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
   }
 }
 
@@ -289,12 +289,12 @@ export async function resetPassword(
       .single();
 
     if (fetchError || !user) {
-      return { success: false, error: '找不到此用戶', code: 'NOT_FOUND' };
+      return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     }
 
     // Verify email matches
     if (!user.email || user.email.toLowerCase() !== email.toLowerCase()) {
-      return { success: false, error: '帳戶與電子郵件不符', code: 'VALIDATION_ERROR' };
+      return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
     }
 
     // Update password
@@ -310,6 +310,6 @@ export async function resetPassword(
     return { success: true, data: { message: '密碼已重設成功' } };
   } catch (error) {
     console.error('Reset password error:', error);
-    return { success: false, error: '重設密碼失敗,請稍後再試', code: 'INTERNAL_ERROR' };
+    return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
   }
 }

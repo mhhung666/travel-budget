@@ -16,19 +16,19 @@ export async function getMembers(tripIdOrCode: string): Promise<ActionResult<Mem
   try {
     const session = await getSession();
     if (!session) {
-      return { success: false, error: '未登入', code: 'UNAUTHORIZED' };
+      return { success: false, error: 'UNAUTHORIZED', code: 'UNAUTHORIZED' };
     }
 
     const tripId = await getTripId(tripIdOrCode);
     if (!tripId) {
-      return { success: false, error: '旅行不存在', code: 'NOT_FOUND' };
+      return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     }
 
     // Check membership
     try {
       await requireMember(session.userId, tripId);
     } catch {
-      return { success: false, error: '您不是此旅行的成員', code: 'FORBIDDEN' };
+      return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
     }
 
     const { data: members, error: membersError } = await supabase
@@ -82,7 +82,7 @@ export async function getMembers(tripIdOrCode: string): Promise<ActionResult<Mem
     return { success: true, data: formattedMembers };
   } catch (error) {
     console.error('Get trip members error:', error);
-    return { success: false, error: '獲取成員列表失敗', code: 'INTERNAL_ERROR' };
+    return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
   }
 }
 
@@ -96,19 +96,19 @@ export async function addVirtualMember(
   try {
     const session = await getSession();
     if (!session) {
-      return { success: false, error: '未登入', code: 'UNAUTHORIZED' };
+      return { success: false, error: 'UNAUTHORIZED', code: 'UNAUTHORIZED' };
     }
 
     const tripId = await getTripId(tripIdOrCode);
     if (!tripId) {
-      return { success: false, error: '旅行不存在', code: 'NOT_FOUND' };
+      return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     }
 
     // Check admin permission
     try {
       await requireAdmin(session.userId, tripId);
     } catch {
-      return { success: false, error: '只有管理員可以新增虛擬成員', code: 'FORBIDDEN' };
+      return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
     }
 
     const validation = addVirtualMemberSchema.safeParse(input);
@@ -175,7 +175,7 @@ export async function addVirtualMember(
     return { success: true, data: member };
   } catch (error) {
     console.error('Create virtual member error:', error);
-    return { success: false, error: '新增虛擬成員失敗', code: 'INTERNAL_ERROR' };
+    return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
   }
 }
 
@@ -190,24 +190,24 @@ export async function updateMemberRole(
   try {
     const session = await getSession();
     if (!session) {
-      return { success: false, error: '未登入', code: 'UNAUTHORIZED' };
+      return { success: false, error: 'UNAUTHORIZED', code: 'UNAUTHORIZED' };
     }
 
     const tripId = await getTripId(tripIdOrCode);
     if (!tripId) {
-      return { success: false, error: '旅行不存在', code: 'NOT_FOUND' };
+      return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     }
 
     // Check admin permission
     try {
       await requireAdmin(session.userId, tripId);
     } catch {
-      return { success: false, error: '只有管理員可以變更成員角色', code: 'FORBIDDEN' };
+      return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
     }
 
     // Prevent admin from changing their own role
     if (session.userId === targetUserId) {
-      return { success: false, error: '不能變更自己的角色', code: 'VALIDATION_ERROR' };
+      return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
     }
 
     // Check if target is a member
@@ -219,7 +219,7 @@ export async function updateMemberRole(
       .single();
 
     if (!memberCheck) {
-      return { success: false, error: '該用戶不是此旅行的成員', code: 'NOT_FOUND' };
+      return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     }
 
     // Update role
@@ -238,7 +238,7 @@ export async function updateMemberRole(
     };
   } catch (error) {
     console.error('Update member role error:', error);
-    return { success: false, error: '更新角色失敗', code: 'INTERNAL_ERROR' };
+    return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
   }
 }
 
@@ -252,24 +252,24 @@ export async function removeMember(
   try {
     const session = await getSession();
     if (!session) {
-      return { success: false, error: '未登入', code: 'UNAUTHORIZED' };
+      return { success: false, error: 'UNAUTHORIZED', code: 'UNAUTHORIZED' };
     }
 
     const tripId = await getTripId(tripIdOrCode);
     if (!tripId) {
-      return { success: false, error: '旅行不存在', code: 'NOT_FOUND' };
+      return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     }
 
     // Check admin permission
     try {
       await requireAdmin(session.userId, tripId);
     } catch {
-      return { success: false, error: '只有管理員可以移除成員', code: 'FORBIDDEN' };
+      return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
     }
 
     // Prevent admin from removing themselves
     if (session.userId === targetUserId) {
-      return { success: false, error: '管理員不能移除自己', code: 'VALIDATION_ERROR' };
+      return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
     }
 
     // Check if target is a member
@@ -281,7 +281,7 @@ export async function removeMember(
       .single();
 
     if (!memberCheck) {
-      return { success: false, error: '該用戶不是此旅行的成員', code: 'NOT_FOUND' };
+      return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     }
 
     // Check if member has expenses
@@ -341,6 +341,6 @@ export async function removeMember(
     };
   } catch (error) {
     console.error('Remove member error:', error);
-    return { success: false, error: '移除成員失敗', code: 'INTERNAL_ERROR' };
+    return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
   }
 }

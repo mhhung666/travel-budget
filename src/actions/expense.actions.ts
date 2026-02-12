@@ -20,19 +20,19 @@ export async function getExpenses(tripIdOrCode: string): Promise<ActionResult<Ex
   try {
     const session = await getSession();
     if (!session) {
-      return { success: false, error: '未登入', code: 'UNAUTHORIZED' };
+      return { success: false, error: 'UNAUTHORIZED', code: 'UNAUTHORIZED' };
     }
 
     const tripId = await getTripId(tripIdOrCode);
     if (!tripId) {
-      return { success: false, error: '旅行不存在', code: 'NOT_FOUND' };
+      return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     }
 
     // Check membership
     try {
       await requireMember(session.userId, tripId);
     } catch {
-      return { success: false, error: '您不是此旅行的成員', code: 'FORBIDDEN' };
+      return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
     }
 
     // Get all expenses with splits
@@ -147,7 +147,7 @@ export async function getExpenses(tripIdOrCode: string): Promise<ActionResult<Ex
     return { success: true, data: expensesWithSplits };
   } catch (error) {
     console.error('Get expenses error:', error);
-    return { success: false, error: '獲取支出列表失敗', code: 'INTERNAL_ERROR' };
+    return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
   }
 }
 
@@ -161,19 +161,19 @@ export async function createExpense(
   try {
     const session = await getSession();
     if (!session) {
-      return { success: false, error: '未登入', code: 'UNAUTHORIZED' };
+      return { success: false, error: 'UNAUTHORIZED', code: 'UNAUTHORIZED' };
     }
 
     const tripId = await getTripId(tripIdOrCode);
     if (!tripId) {
-      return { success: false, error: '旅行不存在', code: 'NOT_FOUND' };
+      return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     }
 
     // Check membership
     try {
       await requireMember(session.userId, tripId);
     } catch {
-      return { success: false, error: '您不是此旅行的成員', code: 'FORBIDDEN' };
+      return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
     }
 
     const validation = createExpenseSchema.safeParse(input);
@@ -200,12 +200,12 @@ export async function createExpense(
     const memberIds = members?.map((m) => m.user_id) || [];
 
     if (!memberIds.includes(payer_id)) {
-      return { success: false, error: '付款人不是旅行成員', code: 'VALIDATION_ERROR' };
+      return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
     }
 
     for (const split of splits) {
       if (!memberIds.includes(split.user_id)) {
-        return { success: false, error: '分帳對象必須都是旅行成員', code: 'VALIDATION_ERROR' };
+        return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
       }
     }
 
@@ -284,7 +284,7 @@ export async function createExpense(
     return { success: true, data: formattedExpense };
   } catch (error) {
     console.error('Create expense error:', error);
-    return { success: false, error: '新增支出失敗', code: 'INTERNAL_ERROR' };
+    return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
   }
 }
 
@@ -299,19 +299,19 @@ export async function updateExpense(
   try {
     const session = await getSession();
     if (!session) {
-      return { success: false, error: '未登入', code: 'UNAUTHORIZED' };
+      return { success: false, error: 'UNAUTHORIZED', code: 'UNAUTHORIZED' };
     }
 
     const tripId = await getTripId(tripIdOrCode);
     if (!tripId) {
-      return { success: false, error: '旅行不存在', code: 'NOT_FOUND' };
+      return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     }
 
     // Check membership
     try {
       await requireMember(session.userId, tripId);
     } catch {
-      return { success: false, error: '您不是此旅行的成員', code: 'FORBIDDEN' };
+      return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
     }
 
     // Check expense exists
@@ -323,7 +323,7 @@ export async function updateExpense(
       .single();
 
     if (expenseError || !expense) {
-      return { success: false, error: '支出不存在', code: 'NOT_FOUND' };
+      return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     }
 
     const validation = updateExpenseSchema.safeParse(input);
@@ -407,7 +407,7 @@ export async function updateExpense(
     return { success: true, data: { message: '支出已更新' } };
   } catch (error) {
     console.error('Update expense error:', error);
-    return { success: false, error: '更新支出失敗', code: 'INTERNAL_ERROR' };
+    return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
   }
 }
 
@@ -421,19 +421,19 @@ export async function deleteExpense(
   try {
     const session = await getSession();
     if (!session) {
-      return { success: false, error: '未登入', code: 'UNAUTHORIZED' };
+      return { success: false, error: 'UNAUTHORIZED', code: 'UNAUTHORIZED' };
     }
 
     const tripId = await getTripId(tripIdOrCode);
     if (!tripId) {
-      return { success: false, error: '旅行不存在', code: 'NOT_FOUND' };
+      return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     }
 
     // Check membership
     try {
       await requireMember(session.userId, tripId);
     } catch {
-      return { success: false, error: '您不是此旅行的成員', code: 'FORBIDDEN' };
+      return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
     }
 
     // Check expense exists
@@ -445,7 +445,7 @@ export async function deleteExpense(
       .single();
 
     if (expenseError || !expense) {
-      return { success: false, error: '支出不存在', code: 'NOT_FOUND' };
+      return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     }
 
     // Delete expense (splits will cascade)
@@ -457,6 +457,6 @@ export async function deleteExpense(
     return { success: true, data: { message: '支出已刪除' } };
   } catch (error) {
     console.error('Delete expense error:', error);
-    return { success: false, error: '刪除支出失敗', code: 'INTERNAL_ERROR' };
+    return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
   }
 }

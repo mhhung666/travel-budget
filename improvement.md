@@ -347,16 +347,16 @@ export const env = envSchema.parse(process.env);
 ## 改善路線圖建議
 
 ```
-Phase 1 (立即)
-  ├── 修復 Supabase client 重複建立 (#1)
-  ├── 修復 N+1 查詢 (#3)
-  └── 修復 any 類型 (#5)
+Phase 1 (立即) ✅ 已完成
+  ├── ✅ 修復 Supabase client 重複建立 (#1)
+  ├── ✅ 修復 N+1 查詢 (#3)
+  └── ✅ 修復 any 類型 (#5)
 
-Phase 2 (短期)
-  ├── 抽取資料載入 hook (#4)
-  ├── Server Action auth wrapper (#6)
-  ├── 錯誤訊息改用 error code (#7)
-  └── 補寫核心測試 (#14)
+Phase 2 (短期) ✅ 已完成
+  ├── ✅ 抽取資料載入 hook (#4) — src/hooks/useTripData.ts
+  ├── ✅ Server Action auth wrapper (#6) — src/actions/withAuth.ts
+  ├── ✅ 錯誤訊息改用 error code (#7) — 6 個 action 檔案已遷移
+  └── ✅ 補寫核心測試 (#14) — 63 個新測試 (settlement, validation, hashcode)
 
 Phase 3 (中期)
   ├── 引入 React Query (#10)

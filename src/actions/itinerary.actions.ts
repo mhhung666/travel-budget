@@ -1,7 +1,6 @@
 'use server';
 
 import { supabase } from '@/lib/supabase';
-import { getSession } from '@/lib/auth';
 import { getTripId, requireMember, requireAdmin } from '@/lib/permissions';
 import {
   createItineraryDaySchema,
@@ -9,26 +8,22 @@ import {
 } from '@/lib/validation';
 import type { ActionResult } from './types';
 import type { ItineraryDay } from '@/types';
+import { withAuth } from './withAuth';
 
 /**
  * Get all itinerary days for a trip
  */
-export async function getItinerary(tripIdOrCode: string): Promise<ActionResult<ItineraryDay[]>> {
+export const getItinerary = withAuth(async (session, tripIdOrCode: string): Promise<ActionResult<ItineraryDay[]>> => {
   try {
-    const session = await getSession();
-    if (!session) {
-      return { success: false, error: '未登入', code: 'UNAUTHORIZED' };
-    }
-
     const tripId = await getTripId(tripIdOrCode);
     if (!tripId) {
-      return { success: false, error: '旅行不存在', code: 'NOT_FOUND' };
+      return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     }
 
     try {
       await requireMember(session.userId, tripId);
     } catch {
-      return { success: false, error: '您不是此旅行的成員', code: 'FORBIDDEN' };
+      return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
     }
 
     const { data, error } = await supabase
@@ -42,32 +37,28 @@ export async function getItinerary(tripIdOrCode: string): Promise<ActionResult<I
     return { success: true, data: (data || []) as ItineraryDay[] };
   } catch (error) {
     console.error('Get itinerary error:', error);
-    return { success: false, error: '獲取行程規劃失敗', code: 'INTERNAL_ERROR' };
+    return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
   }
-}
+});
 
 /**
  * Create a new itinerary day
  */
-export async function createItineraryDay(
+export const createItineraryDay = withAuth(async (
+  session,
   tripIdOrCode: string,
   input: { title: string; content?: string }
-): Promise<ActionResult<ItineraryDay>> {
+): Promise<ActionResult<ItineraryDay>> => {
   try {
-    const session = await getSession();
-    if (!session) {
-      return { success: false, error: '未登入', code: 'UNAUTHORIZED' };
-    }
-
     const tripId = await getTripId(tripIdOrCode);
     if (!tripId) {
-      return { success: false, error: '旅行不存在', code: 'NOT_FOUND' };
+      return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     }
 
     try {
       await requireAdmin(session.userId, tripId);
     } catch {
-      return { success: false, error: '需要管理員權限', code: 'FORBIDDEN' };
+      return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
     }
 
     const validated = createItineraryDaySchema.parse(input);
@@ -98,33 +89,29 @@ export async function createItineraryDay(
     return { success: true, data: data as ItineraryDay };
   } catch (error) {
     console.error('Create itinerary day error:', error);
-    return { success: false, error: '新增行程失敗', code: 'INTERNAL_ERROR' };
+    return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
   }
-}
+});
 
 /**
  * Update an itinerary day
  */
-export async function updateItineraryDay(
+export const updateItineraryDay = withAuth(async (
+  session,
   tripIdOrCode: string,
   dayId: number,
   input: { title?: string; content?: string; day_number?: number }
-): Promise<ActionResult<ItineraryDay>> {
+): Promise<ActionResult<ItineraryDay>> => {
   try {
-    const session = await getSession();
-    if (!session) {
-      return { success: false, error: '未登入', code: 'UNAUTHORIZED' };
-    }
-
     const tripId = await getTripId(tripIdOrCode);
     if (!tripId) {
-      return { success: false, error: '旅行不存在', code: 'NOT_FOUND' };
+      return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     }
 
     try {
       await requireAdmin(session.userId, tripId);
     } catch {
-      return { success: false, error: '需要管理員權限', code: 'FORBIDDEN' };
+      return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
     }
 
     const validated = updateItineraryDaySchema.parse(input);
@@ -149,32 +136,28 @@ export async function updateItineraryDay(
     return { success: true, data: data as ItineraryDay };
   } catch (error) {
     console.error('Update itinerary day error:', error);
-    return { success: false, error: '更新行程失敗', code: 'INTERNAL_ERROR' };
+    return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
   }
-}
+});
 
 /**
  * Delete an itinerary day and renumber remaining days
  */
-export async function deleteItineraryDay(
+export const deleteItineraryDay = withAuth(async (
+  session,
   tripIdOrCode: string,
   dayId: number
-): Promise<ActionResult<{ message: string }>> {
+): Promise<ActionResult<{ message: string }>> => {
   try {
-    const session = await getSession();
-    if (!session) {
-      return { success: false, error: '未登入', code: 'UNAUTHORIZED' };
-    }
-
     const tripId = await getTripId(tripIdOrCode);
     if (!tripId) {
-      return { success: false, error: '旅行不存在', code: 'NOT_FOUND' };
+      return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     }
 
     try {
       await requireAdmin(session.userId, tripId);
     } catch {
-      return { success: false, error: '需要管理員權限', code: 'FORBIDDEN' };
+      return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
     }
 
     // Get the day being deleted
@@ -186,7 +169,7 @@ export async function deleteItineraryDay(
       .single();
 
     if (!dayToDelete) {
-      return { success: false, error: '行程不存在', code: 'NOT_FOUND' };
+      return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     }
 
     // Delete the day
@@ -216,9 +199,9 @@ export async function deleteItineraryDay(
       }
     }
 
-    return { success: true, data: { message: '行程已刪除' } };
+    return { success: true, data: { message: 'DELETED' } };
   } catch (error) {
     console.error('Delete itinerary day error:', error);
-    return { success: false, error: '刪除行程失敗', code: 'INTERNAL_ERROR' };
+    return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
   }
-}
+});

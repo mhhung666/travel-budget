@@ -13,3 +13,6 @@ export type { UseDialogReturn } from './useDialog';
 // Async Operations
 export { useAsyncAction, useMutation } from './useAsyncAction';
 export type { UseAsyncActionState, UseAsyncActionReturn } from './useAsyncAction';
+
+// Trip Data Loading
+export { useTripData } from './useTripData';

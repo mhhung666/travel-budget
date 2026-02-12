@@ -1,22 +1,20 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 import { ArrowLeft, Plus, Loader2 } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import { ItineraryDayCard, ItineraryDayDialog } from '@/components/trips/detail/itinerary';
-import type { ItineraryDay, Member } from '@/types';
+import type { ItineraryDay } from '@/types';
 import {
-  getCurrentUser,
   getItinerary,
-  getMembers,
   createItineraryDay,
   updateItineraryDay,
   deleteItineraryDay,
 } from '@/actions';
-import type { AuthUserWithCreatedAt } from '@/actions';
+import { useTripData } from '@/hooks/useTripData';
 
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -27,85 +25,28 @@ export default function ItineraryPage() {
   const params = useParams();
   const tripId = params.id as string;
   const tItinerary = useTranslations('itinerary');
-  const tError = useTranslations('error');
 
   const { toast } = useToast();
 
-  const [days, setDays] = useState<ItineraryDay[]>([]);
-  const [members, setMembers] = useState<Member[]>([]);
-  const [currentUser, setCurrentUser] = useState<AuthUserWithCreatedAt | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const {
+    data: days,
+    members,
+    currentUser,
+    loading,
+    error,
+    reload,
+    isAdmin,
+  } = useTripData<ItineraryDay[]>(tripId, {
+    serverAction: getItinerary,
+    publicEndpoint: { path: 'itinerary', responseKey: 'itinerary' },
+    defaultValue: [],
+  }, tItinerary('loadFailed'));
 
   // Dialog states
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<'add' | 'edit'>('add');
   const [editingDay, setEditingDay] = useState<ItineraryDay | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
-
-  const isCurrentUserAdmin = members.find((m) => m.id === currentUser?.id)?.role === 'admin';
-
-  useEffect(() => {
-    loadData();
-  }, [tripId]);
-
-  const loadData = async () => {
-    try {
-      // 嘗試檢查認證（不強制要求登入）
-      let user = null;
-      const userResult = await getCurrentUser();
-      if (userResult.success && userResult.data) {
-        user = userResult.data;
-        setCurrentUser(user);
-      }
-
-      // 如果已登入，使用 Server Actions
-      if (user) {
-        const [itineraryResult, membersResult] = await Promise.all([
-          getItinerary(tripId),
-          getMembers(tripId),
-        ]);
-
-        if (!itineraryResult.success) {
-          // 如果不是成員，嘗試使用公開 API
-          if (itineraryResult.code === 'FORBIDDEN') {
-            await loadPublicData();
-            return;
-          }
-          setError(tItinerary('loadFailed'));
-          return;
-        }
-
-        setDays(itineraryResult.data);
-        setMembers(membersResult.success ? membersResult.data : []);
-      } else {
-        // 未登入，使用公開 API
-        await loadPublicData();
-      }
-    } catch {
-      setError(tItinerary('loadFailed'));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadPublicData = async () => {
-    const [itineraryResponse, membersResponse] = await Promise.all([
-      fetch(`/api/public/trips/${tripId}/itinerary`),
-      fetch(`/api/public/trips/${tripId}/members`),
-    ]);
-
-    if (!itineraryResponse.ok) {
-      setError(tItinerary('loadFailed'));
-      return;
-    }
-
-    const itineraryData = await itineraryResponse.json();
-    const membersData = await membersResponse.json();
-
-    setDays(itineraryData.itinerary || []);
-    setMembers(membersData.members || []);
-  };
 
   const handleAddDay = () => {
     setDialogMode('add');
@@ -139,7 +80,7 @@ export default function ItineraryPage() {
         title: tItinerary('success.deleted', { dayNumber: deletedDay?.day_number ?? '?' }),
       });
       setDeleteConfirmId(null);
-      await loadData();
+      await reload();
     } catch (err: unknown) {
       toast({
         title: "Error",
@@ -164,7 +105,7 @@ export default function ItineraryPage() {
         title: tItinerary('success.updated', { dayNumber: editingDay.day_number }),
       });
     }
-    await loadData();
+    await reload();
   };
 
   if (loading) {
@@ -223,7 +164,7 @@ export default function ItineraryPage() {
           <h1 className="text-3xl font-bold">
             {tItinerary('title')}
           </h1>
-          {isCurrentUserAdmin && (
+          {isAdmin && (
             <Button
               onClick={handleAddDay}
               className="gap-2"
@@ -250,7 +191,7 @@ export default function ItineraryPage() {
               <ItineraryDayCard
                 key={day.id}
                 day={day}
-                isAdmin={!!isCurrentUserAdmin}
+                isAdmin={isAdmin}
                 onEdit={handleEditDay}
                 onDelete={handleDeleteDay}
               />

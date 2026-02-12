@@ -20,19 +20,19 @@ export async function getSettlement(tripIdOrCode: string): Promise<ActionResult<
   try {
     const session = await getSession();
     if (!session) {
-      return { success: false, error: '未登入', code: 'UNAUTHORIZED' };
+      return { success: false, error: 'UNAUTHORIZED', code: 'UNAUTHORIZED' };
     }
 
     const tripId = await getTripId(tripIdOrCode);
     if (!tripId) {
-      return { success: false, error: '旅行不存在', code: 'NOT_FOUND' };
+      return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     }
 
     // Check membership
     try {
       await requireMember(session.userId, tripId);
     } catch {
-      return { success: false, error: '您不是此旅行的成員', code: 'FORBIDDEN' };
+      return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
     }
 
     // Get all members
@@ -109,6 +109,6 @@ export async function getSettlement(tripIdOrCode: string): Promise<ActionResult<
     };
   } catch (error) {
     console.error('Get settlement error:', error);
-    return { success: false, error: '獲取結算信息失敗', code: 'INTERNAL_ERROR' };
+    return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
   }
 }

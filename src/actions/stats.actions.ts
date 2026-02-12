@@ -17,7 +17,7 @@ export async function getStats(options: GetStatsOptions = {}): Promise<ActionRes
   try {
     const session = await getSession();
     if (!session) {
-      return { success: false, error: '未登入', code: 'UNAUTHORIZED' };
+      return { success: false, error: 'UNAUTHORIZED', code: 'UNAUTHORIZED' };
     }
 
     const { startDate, endDate } = options;
@@ -199,6 +199,6 @@ export async function getStats(options: GetStatsOptions = {}): Promise<ActionRes
     };
   } catch (error) {
     console.error('Get stats error:', error);
-    return { success: false, error: '獲取統計資料失敗', code: 'INTERNAL_ERROR' };
+    return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
   }
 }
