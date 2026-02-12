@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 interface ItineraryDayDialogProps {
@@ -83,7 +84,7 @@ export default function ItineraryDayDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4 flex-1 overflow-y-auto p-1">
+        <form id="itinerary-day-form" onSubmit={handleSubmit} className="flex flex-col gap-4 flex-1 min-h-0 overflow-y-auto p-1">
           <div className="space-y-2">
             <Label htmlFor="day-title">{tItinerary('dayTitle')}</Label>
             <Input
@@ -129,17 +130,18 @@ export default function ItineraryDayDialog({
               </TabsContent>
             </div>
           </Tabs>
-
-          <DialogFooter className="relative z-10">
-            <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
-              {tCommon('cancel')}
-            </Button>
-            <Button type="submit" disabled={loading || !title.trim()}>
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {tCommon('save')}
-            </Button>
-          </DialogFooter>
         </form>
+
+        <Separator />
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
+            {tCommon('cancel')}
+          </Button>
+          <Button type="submit" form="itinerary-day-form" disabled={loading || !title.trim()}>
+            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {tCommon('save')}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
