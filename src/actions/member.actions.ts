@@ -26,7 +26,7 @@ export async function getMembers(tripIdOrCode: string): Promise<ActionResult<Mem
 
     // Check membership
     try {
-      await requireMember(session.userId, tripId);
+      await requireMember(session.userId, tripIdOrCode, tripId);
     } catch {
       return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
     }
@@ -106,7 +106,7 @@ export async function addVirtualMember(
 
     // Check admin permission
     try {
-      await requireAdmin(session.userId, tripId);
+      await requireAdmin(session.userId, tripIdOrCode, tripId);
     } catch {
       return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
     }
@@ -200,7 +200,7 @@ export async function updateMemberRole(
 
     // Check admin permission
     try {
-      await requireAdmin(session.userId, tripId);
+      await requireAdmin(session.userId, tripIdOrCode, tripId);
     } catch {
       return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
     }
@@ -262,7 +262,7 @@ export async function removeMember(
 
     // Check admin permission
     try {
-      await requireAdmin(session.userId, tripId);
+      await requireAdmin(session.userId, tripIdOrCode, tripId);
     } catch {
       return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
     }

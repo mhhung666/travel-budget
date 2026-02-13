@@ -257,7 +257,7 @@ export async function updateTrip(id: string, input: UpdateTripInput): Promise<Ac
 
     // Check admin permission
     try {
-      await requireAdmin(session.userId, tripId);
+      await requireAdmin(session.userId, id, tripId);
     } catch {
       return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
     }
@@ -314,7 +314,7 @@ export async function deleteTrip(id: string): Promise<ActionResult<{ message: st
     }
 
     try {
-      await requireAdmin(session.userId, tripId);
+      await requireAdmin(session.userId, id, tripId);
     } catch {
       return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
     }

@@ -21,7 +21,7 @@ export const getItinerary = withAuth(async (session, tripIdOrCode: string): Prom
     }
 
     try {
-      await requireMember(session.userId, tripId);
+      await requireMember(session.userId, tripIdOrCode, tripId);
     } catch {
       return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
     }
@@ -56,7 +56,7 @@ export const createItineraryDay = withAuth(async (
     }
 
     try {
-      await requireAdmin(session.userId, tripId);
+      await requireAdmin(session.userId, tripIdOrCode, tripId);
     } catch {
       return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
     }
@@ -109,7 +109,7 @@ export const updateItineraryDay = withAuth(async (
     }
 
     try {
-      await requireAdmin(session.userId, tripId);
+      await requireAdmin(session.userId, tripIdOrCode, tripId);
     } catch {
       return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
     }
@@ -155,7 +155,7 @@ export const deleteItineraryDay = withAuth(async (
     }
 
     try {
-      await requireAdmin(session.userId, tripId);
+      await requireAdmin(session.userId, tripIdOrCode, tripId);
     } catch {
       return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
     }
@@ -181,7 +181,7 @@ export const deleteItineraryDay = withAuth(async (
 
     if (error) throw error;
 
-    // Renumber remaining days
+    // Renumber remaining days in parallel
     const { data: remaining } = await supabase
       .from('itinerary_days')
       .select('id, day_number')
@@ -189,13 +189,17 @@ export const deleteItineraryDay = withAuth(async (
       .order('day_number', { ascending: true });
 
     if (remaining) {
-      for (let i = 0; i < remaining.length; i++) {
-        if (remaining[i].day_number !== i + 1) {
-          await supabase
+      const updates = remaining
+        .map((day, i) => ({ day, correctNumber: i + 1 }))
+        .filter(({ day, correctNumber }) => day.day_number !== correctNumber)
+        .map(({ day, correctNumber }) =>
+          supabase
             .from('itinerary_days')
-            .update({ day_number: i + 1 })
-            .eq('id', remaining[i].id);
-        }
+            .update({ day_number: correctNumber })
+            .eq('id', day.id)
+        );
+      if (updates.length > 0) {
+        await Promise.all(updates);
       }
     }
 

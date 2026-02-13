@@ -30,7 +30,7 @@ export async function getExpenses(tripIdOrCode: string): Promise<ActionResult<Ex
 
     // Check membership
     try {
-      await requireMember(session.userId, tripId);
+      await requireMember(session.userId, tripIdOrCode, tripId);
     } catch {
       return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
     }
@@ -171,7 +171,7 @@ export async function createExpense(
 
     // Check membership
     try {
-      await requireMember(session.userId, tripId);
+      await requireMember(session.userId, tripIdOrCode, tripId);
     } catch {
       return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
     }
@@ -309,7 +309,7 @@ export async function updateExpense(
 
     // Check membership
     try {
-      await requireMember(session.userId, tripId);
+      await requireMember(session.userId, tripIdOrCode, tripId);
     } catch {
       return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
     }
@@ -431,7 +431,7 @@ export async function deleteExpense(
 
     // Check membership
     try {
-      await requireMember(session.userId, tripId);
+      await requireMember(session.userId, tripIdOrCode, tripId);
     } catch {
       return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
     }

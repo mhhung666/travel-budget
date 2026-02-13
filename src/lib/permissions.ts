@@ -13,10 +13,10 @@ export type TripRole = 'admin' | 'member';
  * @param tripId 旅行 ID (可以是數字 ID 或 hash_code)
  * @returns 是否為管理員
  */
-export async function isAdmin(userId: number, tripId: number | string): Promise<boolean> {
+export async function isAdmin(userId: number, tripId: number | string, resolvedTripId?: number): Promise<boolean> {
   try {
-    // 先取得旅行的實際 ID
-    const actualTripId = await getTripId(tripId);
+    // 使用已解析的 tripId，或自行解析
+    const actualTripId = resolvedTripId ?? await getTripId(tripId);
     if (!actualTripId) {
       return false;
     }
@@ -46,9 +46,9 @@ export async function isAdmin(userId: number, tripId: number | string): Promise<
  * @param tripId 旅行 ID (可以是數字 ID 或 hash_code)
  * @returns 是否為成員
  */
-export async function isMember(userId: number, tripId: number | string): Promise<boolean> {
+export async function isMember(userId: number, tripId: number | string, resolvedTripId?: number): Promise<boolean> {
   try {
-    const actualTripId = await getTripId(tripId);
+    const actualTripId = resolvedTripId ?? await getTripId(tripId);
     if (!actualTripId) {
       return false;
     }
@@ -166,8 +166,8 @@ export async function getTripHashCode(tripId: number): Promise<string | null> {
  * @param tripId 旅行 ID
  * @throws 如果用戶不是管理員
  */
-export async function requireAdmin(userId: number, tripId: number | string): Promise<void> {
-  const isUserAdmin = await isAdmin(userId, tripId);
+export async function requireAdmin(userId: number, tripId: number | string, resolvedTripId?: number): Promise<void> {
+  const isUserAdmin = await isAdmin(userId, tripId, resolvedTripId);
   if (!isUserAdmin) {
     throw new Error('Forbidden: Admin role required');
   }
@@ -179,8 +179,8 @@ export async function requireAdmin(userId: number, tripId: number | string): Pro
  * @param tripId 旅行 ID
  * @throws 如果用戶不是成員
  */
-export async function requireMember(userId: number, tripId: number | string): Promise<void> {
-  const isUserMember = await isMember(userId, tripId);
+export async function requireMember(userId: number, tripId: number | string, resolvedTripId?: number): Promise<void> {
+  const isUserMember = await isMember(userId, tripId, resolvedTripId);
   if (!isUserMember) {
     throw new Error('Forbidden: Trip member required');
   }

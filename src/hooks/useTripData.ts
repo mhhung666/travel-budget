@@ -73,6 +73,27 @@ export function useTripData<T>(
     setMembers(membersJson.members || []);
   }, [tripId, options.publicEndpoint.path, options.publicEndpoint.responseKey, options.defaultValue, errorMessage]);
 
+  // Light reload: only refetch primary data (skip user & members)
+  const reloadData = useCallback(async () => {
+    try {
+      if (currentUser) {
+        const dataResult = await options.serverAction(tripId);
+        if (dataResult.success) {
+          setData(dataResult.data);
+        }
+      } else {
+        const dataResponse = await fetch(`/api/public/trips/${tripId}/${options.publicEndpoint.path}`);
+        if (dataResponse.ok) {
+          const dataJson = await dataResponse.json();
+          setData(dataJson[options.publicEndpoint.responseKey] ?? options.defaultValue);
+        }
+      }
+    } catch {
+      // silent fail on reload — initial data remains
+    }
+  }, [tripId, currentUser, options.serverAction, options.publicEndpoint.path, options.publicEndpoint.responseKey, options.defaultValue]);
+
+  // Full initial load: fetch user, members, and data
   const loadData = useCallback(async () => {
     try {
       // Check authentication (optional)
@@ -127,7 +148,7 @@ export function useTripData<T>(
     currentUser,
     loading,
     error,
-    reload: loadData,
+    reload: reloadData,
     isMember,
     isAdmin,
   };

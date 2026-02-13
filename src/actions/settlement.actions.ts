@@ -30,7 +30,7 @@ export async function getSettlement(tripIdOrCode: string): Promise<ActionResult<
 
     // Check membership
     try {
-      await requireMember(session.userId, tripId);
+      await requireMember(session.userId, tripIdOrCode, tripId);
     } catch {
       return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
     }
