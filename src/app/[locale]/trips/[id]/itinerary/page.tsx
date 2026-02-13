@@ -87,7 +87,8 @@ export default function ItineraryPage() {
         title: tItinerary('success.deleted', { dayNumber: deletingDay.day_number }),
       });
       setDeletingDay(null);
-      await reload();
+      // Don't await — reload in background after dialog closes
+      reload();
     } catch (err: unknown) {
       toast({
         title: "Error",
@@ -112,7 +113,8 @@ export default function ItineraryPage() {
         title: tItinerary('success.updated', { dayNumber: editingDay.day_number }),
       });
     }
-    await reload();
+    // Don't await — let dialog close immediately, reload in background
+    reload();
   };
 
   if (loading) {

@@ -103,16 +103,21 @@ export const updateItineraryDay = withAuth(async (
   input: { title?: string; content?: string; day_number?: number }
 ): Promise<ActionResult<ItineraryDay>> => {
   try {
+    const t0 = Date.now();
+
     const tripId = await getTripId(tripIdOrCode);
+    console.log(`[perf] getTripId: ${Date.now() - t0}ms`);
     if (!tripId) {
       return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     }
 
+    const t1 = Date.now();
     try {
       await requireAdmin(session.userId, tripIdOrCode, tripId);
     } catch {
       return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
     }
+    console.log(`[perf] requireAdmin: ${Date.now() - t1}ms`);
 
     const validated = updateItineraryDaySchema.parse(input);
 
@@ -123,6 +128,7 @@ export const updateItineraryDay = withAuth(async (
     if (validated.content !== undefined) updateData.content = validated.content;
     if (validated.day_number !== undefined) updateData.day_number = validated.day_number;
 
+    const t2 = Date.now();
     const { data, error } = await supabase
       .from('itinerary_days')
       .update(updateData)
@@ -130,6 +136,8 @@ export const updateItineraryDay = withAuth(async (
       .eq('trip_id', tripId)
       .select()
       .single();
+    console.log(`[perf] supabase update: ${Date.now() - t2}ms`);
+    console.log(`[perf] total: ${Date.now() - t0}ms`);
 
     if (error) throw error;
 
