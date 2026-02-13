@@ -93,40 +93,33 @@ export function useTripData<T>(
     }
   }, [tripId, currentUser, options.serverAction, options.publicEndpoint.path, options.publicEndpoint.responseKey, options.defaultValue]);
 
-  // Full initial load: fetch user, members, and data
+  // Full initial load: fetch user, members, and data in parallel
   const loadData = useCallback(async () => {
     try {
-      // Check authentication (optional)
-      let user: AuthUserWithCreatedAt | null = null;
-      const userResult = await getCurrentUser();
-      if (userResult.success && userResult.data) {
-        user = userResult.data;
+      // Fire all requests in parallel — don't wait for getCurrentUser before fetching data
+      const [userResult, dataResult, membersResult] = await Promise.all([
+        getCurrentUser(),
+        options.serverAction(tripId),
+        getMembers(tripId),
+      ]);
+
+      const user = (userResult.success && userResult.data) ? userResult.data : null;
+      if (user) {
         setCurrentUser(user);
       }
 
-      if (user) {
-        // Authenticated: use Server Actions
-        const [dataResult, membersResult] = await Promise.all([
-          options.serverAction(tripId),
-          getMembers(tripId),
-        ]);
-
-        if (!dataResult.success) {
-          // If not a member, fall back to public API
-          if (dataResult.code === 'FORBIDDEN') {
-            await loadPublicData();
-            return;
-          }
-          setError(errorMessage);
+      if (!dataResult.success) {
+        if (dataResult.code === 'FORBIDDEN' || dataResult.code === 'UNAUTHORIZED') {
+          // Not authenticated or not a member — fall back to public API
+          await loadPublicData();
           return;
         }
-
-        setData(dataResult.data);
-        setMembers(membersResult.success ? membersResult.data : []);
-      } else {
-        // Not authenticated: use public API
-        await loadPublicData();
+        setError(errorMessage);
+        return;
       }
+
+      setData(dataResult.data);
+      setMembers(membersResult.success ? membersResult.data : []);
     } catch {
       setError(errorMessage);
     } finally {

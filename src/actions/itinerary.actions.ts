@@ -181,7 +181,7 @@ export const deleteItineraryDay = withAuth(async (
 
     if (error) throw error;
 
-    // Renumber remaining days in parallel
+    // Renumber remaining days sequentially (must be ordered to avoid unique constraint conflicts)
     const { data: remaining } = await supabase
       .from('itinerary_days')
       .select('id, day_number')
@@ -189,17 +189,13 @@ export const deleteItineraryDay = withAuth(async (
       .order('day_number', { ascending: true });
 
     if (remaining) {
-      const updates = remaining
-        .map((day, i) => ({ day, correctNumber: i + 1 }))
-        .filter(({ day, correctNumber }) => day.day_number !== correctNumber)
-        .map(({ day, correctNumber }) =>
-          supabase
+      for (let i = 0; i < remaining.length; i++) {
+        if (remaining[i].day_number !== i + 1) {
+          await supabase
             .from('itinerary_days')
-            .update({ day_number: correctNumber })
-            .eq('id', day.id)
-        );
-      if (updates.length > 0) {
-        await Promise.all(updates);
+            .update({ day_number: i + 1 })
+            .eq('id', remaining[i].id);
+        }
       }
     }
 

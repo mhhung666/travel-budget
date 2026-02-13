@@ -18,6 +18,16 @@ import { useTripData } from '@/hooks/useTripData';
 
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 
 export default function ItineraryPage() {
@@ -46,7 +56,9 @@ export default function ItineraryPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<'add' | 'edit'>('add');
   const [editingDay, setEditingDay] = useState<ItineraryDay | null>(null);
-  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const [deletingDay, setDeletingDay] = useState<ItineraryDay | null>(null);
+
+  const tCommon = useTranslations('common');
 
   const handleAddDay = () => {
     setDialogMode('add');
@@ -60,26 +72,21 @@ export default function ItineraryPage() {
     setDialogOpen(true);
   };
 
-  const handleDeleteDay = async (dayId: number) => {
-    if (deleteConfirmId !== dayId) {
-      setDeleteConfirmId(dayId);
-      toast({
-        title: "Confirm Delete",
-        description: "Click trash icon again to confirm deletion.",
-        variant: "destructive"
-      });
-      return;
-    }
+  const handleDeleteDay = (dayId: number) => {
+    const day = days.find((d) => d.id === dayId);
+    if (day) setDeletingDay(day);
+  };
 
-    const deletedDay = days.find((d) => d.id === dayId);
+  const confirmDelete = async () => {
+    if (!deletingDay) return;
     try {
-      const result = await deleteItineraryDay(tripId, dayId);
+      const result = await deleteItineraryDay(tripId, deletingDay.id);
       if (!result.success) throw new Error(result.error);
 
       toast({
-        title: tItinerary('success.deleted', { dayNumber: deletedDay?.day_number ?? '?' }),
+        title: tItinerary('success.deleted', { dayNumber: deletingDay.day_number }),
       });
-      setDeleteConfirmId(null);
+      setDeletingDay(null);
       await reload();
     } catch (err: unknown) {
       toast({
@@ -209,6 +216,25 @@ export default function ItineraryPage() {
         day={editingDay}
         dayNumber={dialogMode === 'edit' ? editingDay?.day_number : days.length + 1}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deletingDay} onOpenChange={(open) => !open && setDeletingDay(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{tItinerary('deleteConfirm')}</AlertDialogTitle>
+            <AlertDialogDescription>{tItinerary('deleteMessage')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {tCommon('confirm')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
