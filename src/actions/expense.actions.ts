@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { supabase } from '@/lib/supabase';
 import { getSession } from '@/lib/auth';
-import { getTripId, requireMember } from '@/lib/permissions';
+import { getTripMembership } from '@/lib/permissions';
 import {
   createExpenseSchema,
   updateExpenseSchema,
@@ -23,19 +23,15 @@ export async function getExpenses(tripIdOrCode: string): Promise<ActionResult<Ex
       return { success: false, error: 'UNAUTHORIZED', code: 'UNAUTHORIZED' };
     }
 
-    const tripId = await getTripId(tripIdOrCode);
-    if (!tripId) {
+    // getTripId + requireMember 合併為一次查詢
+    const membership = await getTripMembership(session.userId, tripIdOrCode);
+    if (!membership) {
       return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     }
 
-    // Check membership
-    try {
-      await requireMember(session.userId, tripIdOrCode, tripId);
-    } catch {
-      return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
-    }
+    const { tripId } = membership;
 
-    // Get all expenses with splits
+    // Get all expenses with payer info
     const { data: expenses, error: expensesError } = await supabase
       .from('expenses')
       .select(
@@ -164,17 +160,13 @@ export async function createExpense(
       return { success: false, error: 'UNAUTHORIZED', code: 'UNAUTHORIZED' };
     }
 
-    const tripId = await getTripId(tripIdOrCode);
-    if (!tripId) {
+    // getTripId + requireMember 合併為一次查詢
+    const membership = await getTripMembership(session.userId, tripIdOrCode);
+    if (!membership) {
       return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     }
 
-    // Check membership
-    try {
-      await requireMember(session.userId, tripIdOrCode, tripId);
-    } catch {
-      return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
-    }
+    const { tripId } = membership;
 
     const validation = createExpenseSchema.safeParse(input);
     if (!validation.success) {
@@ -302,29 +294,13 @@ export async function updateExpense(
       return { success: false, error: 'UNAUTHORIZED', code: 'UNAUTHORIZED' };
     }
 
-    const tripId = await getTripId(tripIdOrCode);
-    if (!tripId) {
+    // getTripId + requireMember 合併為一次查詢
+    const membership = await getTripMembership(session.userId, tripIdOrCode);
+    if (!membership) {
       return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     }
 
-    // Check membership
-    try {
-      await requireMember(session.userId, tripIdOrCode, tripId);
-    } catch {
-      return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
-    }
-
-    // Check expense exists
-    const { data: expense, error: expenseError } = await supabase
-      .from('expenses')
-      .select('id, original_amount, exchange_rate')
-      .eq('id', expenseId)
-      .eq('trip_id', tripId)
-      .single();
-
-    if (expenseError || !expense) {
-      return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
-    }
+    const { tripId } = membership;
 
     const validation = updateExpenseSchema.safeParse(input);
     if (!validation.success) {
@@ -349,18 +325,37 @@ export async function updateExpense(
 
     // Recalculate TWD amount if needed
     if (original_amount !== undefined || exchange_rate !== undefined) {
-      const newOriginalAmount = original_amount ?? expense.original_amount;
-      const newExchangeRate = exchange_rate ?? expense.exchange_rate;
-      updateData.amount = newOriginalAmount * newExchangeRate;
+      // Need current values only if one of the two is missing
+      if (original_amount === undefined || exchange_rate === undefined) {
+        const { data: current } = await supabase
+          .from('expenses')
+          .select('original_amount, exchange_rate')
+          .eq('id', expenseId)
+          .eq('trip_id', tripId)
+          .single();
+        if (!current) {
+          return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+        }
+        const newOriginalAmount = original_amount ?? current.original_amount;
+        const newExchangeRate = exchange_rate ?? current.exchange_rate;
+        updateData.amount = newOriginalAmount * newExchangeRate;
+      } else {
+        updateData.amount = original_amount * exchange_rate;
+      }
     }
 
-    // Update expense
-    const { error: updateError } = await supabase
+    // Update expense — .select().single() 同時作為 existence check（不存在時回傳 null）
+    const { data: updatedExpense, error: updateError } = await supabase
       .from('expenses')
       .update(updateData)
-      .eq('id', expenseId);
+      .eq('id', expenseId)
+      .eq('trip_id', tripId)
+      .select('id, original_amount, exchange_rate, amount')
+      .single();
 
-    if (updateError) throw updateError;
+    if (updateError || !updatedExpense) {
+      return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+    }
 
     // Update splits if provided or if amount changed
     if (splits !== undefined) {
@@ -424,32 +419,20 @@ export async function deleteExpense(
       return { success: false, error: 'UNAUTHORIZED', code: 'UNAUTHORIZED' };
     }
 
-    const tripId = await getTripId(tripIdOrCode);
-    if (!tripId) {
+    // getTripId + requireMember 合併為一次查詢
+    const membership = await getTripMembership(session.userId, tripIdOrCode);
+    if (!membership) {
       return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     }
 
-    // Check membership
-    try {
-      await requireMember(session.userId, tripIdOrCode, tripId);
-    } catch {
-      return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
-    }
-
-    // Check expense exists
-    const { data: expense, error: expenseError } = await supabase
-      .from('expenses')
-      .select('id')
-      .eq('id', expenseId)
-      .eq('trip_id', tripId)
-      .single();
-
-    if (expenseError || !expense) {
-      return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
-    }
+    const { tripId } = membership;
 
     // Delete expense (splits will cascade)
-    const { error: deleteError } = await supabase.from('expenses').delete().eq('id', expenseId);
+    const { error: deleteError } = await supabase
+      .from('expenses')
+      .delete()
+      .eq('id', expenseId)
+      .eq('trip_id', tripId);
 
     if (deleteError) throw deleteError;
 

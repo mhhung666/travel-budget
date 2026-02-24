@@ -5,6 +5,45 @@
 
 import { supabase } from '@/lib/supabase';
 
+export type MembershipResult = {
+  tripId: number;
+  role: TripRole;
+};
+
+/**
+ * 將 getTripId + isMember/isAdmin 合併為一次 DB 查詢。
+ * hash_code 情況下省掉一個 round trip。
+ */
+export async function getTripMembership(
+  userId: number,
+  tripIdOrCode: string
+): Promise<MembershipResult | null> {
+  // 純數字 — trip_id 已知，直接查 trip_members
+  if (/^\d+$/.test(tripIdOrCode)) {
+    const tripId = parseInt(tripIdOrCode, 10);
+    const { data, error } = await supabase
+      .from('trip_members')
+      .select('role')
+      .eq('trip_id', tripId)
+      .eq('user_id', userId)
+      .single();
+    if (error || !data) return null;
+    return { tripId, role: data.role as TripRole };
+  }
+
+  // hash_code — 用 inner join 一次同時解析 ID 並驗證身份
+  const { data, error } = await supabase
+    .from('trip_members')
+    .select('role, trips!inner(id)')
+    .eq('trips.hash_code', tripIdOrCode)
+    .eq('user_id', userId)
+    .single();
+  if (error || !data) return null;
+  const tripsData = data as unknown as { role: string; trips: { id: number } | { id: number }[] };
+  const trips = Array.isArray(tripsData.trips) ? tripsData.trips[0] : tripsData.trips;
+  return { tripId: trips.id, role: tripsData.role as TripRole };
+}
+
 export type TripRole = 'admin' | 'member';
 
 /**

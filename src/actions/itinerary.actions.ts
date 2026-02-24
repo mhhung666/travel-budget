@@ -1,7 +1,7 @@
 'use server';
 
 import { supabase } from '@/lib/supabase';
-import { getTripId, requireMember, requireAdmin } from '@/lib/permissions';
+import { getTripMembership } from '@/lib/permissions';
 import {
   createItineraryDaySchema,
   updateItineraryDaySchema,
@@ -15,21 +15,15 @@ import { withAuth } from './withAuth';
  */
 export const getItinerary = withAuth(async (session, tripIdOrCode: string): Promise<ActionResult<ItineraryDay[]>> => {
   try {
-    const tripId = await getTripId(tripIdOrCode);
-    if (!tripId) {
+    const membership = await getTripMembership(session.userId, tripIdOrCode);
+    if (!membership) {
       return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
-    }
-
-    try {
-      await requireMember(session.userId, tripIdOrCode, tripId);
-    } catch {
-      return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
     }
 
     const { data, error } = await supabase
       .from('itinerary_days')
       .select('*')
-      .eq('trip_id', tripId)
+      .eq('trip_id', membership.tripId)
       .order('day_number', { ascending: true });
 
     if (error) throw error;
@@ -50,14 +44,11 @@ export const createItineraryDay = withAuth(async (
   input: { title: string; content?: string }
 ): Promise<ActionResult<ItineraryDay>> => {
   try {
-    const tripId = await getTripId(tripIdOrCode);
-    if (!tripId) {
+    const membership = await getTripMembership(session.userId, tripIdOrCode);
+    if (!membership) {
       return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     }
-
-    try {
-      await requireAdmin(session.userId, tripIdOrCode, tripId);
-    } catch {
+    if (membership.role !== 'admin') {
       return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
     }
 
@@ -67,7 +58,7 @@ export const createItineraryDay = withAuth(async (
     const { data: maxData } = await supabase
       .from('itinerary_days')
       .select('day_number')
-      .eq('trip_id', tripId)
+      .eq('trip_id', membership.tripId)
       .order('day_number', { ascending: false })
       .limit(1);
 
@@ -76,7 +67,7 @@ export const createItineraryDay = withAuth(async (
     const { data, error } = await supabase
       .from('itinerary_days')
       .insert({
-        trip_id: tripId,
+        trip_id: membership.tripId,
         day_number: nextDayNumber,
         title: validated.title,
         content: validated.content || '',
@@ -103,21 +94,14 @@ export const updateItineraryDay = withAuth(async (
   input: { title?: string; content?: string; day_number?: number }
 ): Promise<ActionResult<ItineraryDay>> => {
   try {
-    const t0 = Date.now();
-
-    const tripId = await getTripId(tripIdOrCode);
-    console.log(`[perf] getTripId: ${Date.now() - t0}ms`);
-    if (!tripId) {
+    // getTripId + requireAdmin 合併為一次查詢
+    const membership = await getTripMembership(session.userId, tripIdOrCode);
+    if (!membership) {
       return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     }
-
-    const t1 = Date.now();
-    try {
-      await requireAdmin(session.userId, tripIdOrCode, tripId);
-    } catch {
+    if (membership.role !== 'admin') {
       return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
     }
-    console.log(`[perf] requireAdmin: ${Date.now() - t1}ms`);
 
     const validated = updateItineraryDaySchema.parse(input);
 
@@ -128,18 +112,16 @@ export const updateItineraryDay = withAuth(async (
     if (validated.content !== undefined) updateData.content = validated.content;
     if (validated.day_number !== undefined) updateData.day_number = validated.day_number;
 
-    const t2 = Date.now();
     const { data, error } = await supabase
       .from('itinerary_days')
       .update(updateData)
       .eq('id', dayId)
-      .eq('trip_id', tripId)
+      .eq('trip_id', membership.tripId)
       .select()
       .single();
-    console.log(`[perf] supabase update: ${Date.now() - t2}ms`);
-    console.log(`[perf] total: ${Date.now() - t0}ms`);
 
     if (error) throw error;
+    if (!data) return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
 
     return { success: true, data: data as ItineraryDay };
   } catch (error) {
@@ -149,7 +131,8 @@ export const updateItineraryDay = withAuth(async (
 });
 
 /**
- * Delete an itinerary day and renumber remaining days
+ * Delete an itinerary day and renumber remaining days.
+ * Uses a single DB function call instead of N sequential updates.
  */
 export const deleteItineraryDay = withAuth(async (
   session,
@@ -157,55 +140,21 @@ export const deleteItineraryDay = withAuth(async (
   dayId: number
 ): Promise<ActionResult<{ message: string }>> => {
   try {
-    const tripId = await getTripId(tripIdOrCode);
-    if (!tripId) {
+    const membership = await getTripMembership(session.userId, tripIdOrCode);
+    if (!membership) {
       return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     }
-
-    try {
-      await requireAdmin(session.userId, tripIdOrCode, tripId);
-    } catch {
+    if (membership.role !== 'admin') {
       return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
     }
 
-    // Get the day being deleted
-    const { data: dayToDelete } = await supabase
-      .from('itinerary_days')
-      .select('day_number')
-      .eq('id', dayId)
-      .eq('trip_id', tripId)
-      .single();
-
-    if (!dayToDelete) {
-      return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
-    }
-
-    // Delete the day
-    const { error } = await supabase
-      .from('itinerary_days')
-      .delete()
-      .eq('id', dayId)
-      .eq('trip_id', tripId);
+    // 一個 RPC call 完成刪除 + 重新編號（原本是 N 個序列 UPDATE）
+    const { error } = await supabase.rpc('delete_and_renumber_itinerary_day', {
+      p_day_id:  dayId,
+      p_trip_id: membership.tripId,
+    });
 
     if (error) throw error;
-
-    // Renumber remaining days sequentially (must be ordered to avoid unique constraint conflicts)
-    const { data: remaining } = await supabase
-      .from('itinerary_days')
-      .select('id, day_number')
-      .eq('trip_id', tripId)
-      .order('day_number', { ascending: true });
-
-    if (remaining) {
-      for (let i = 0; i < remaining.length; i++) {
-        if (remaining[i].day_number !== i + 1) {
-          await supabase
-            .from('itinerary_days')
-            .update({ day_number: i + 1 })
-            .eq('id', remaining[i].id);
-        }
-      }
-    }
 
     return { success: true, data: { message: 'DELETED' } };
   } catch (error) {

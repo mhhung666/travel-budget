@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { supabase } from '@/lib/supabase';
 import { getSession } from '@/lib/auth';
-import { getTripId, requireAdmin } from '@/lib/permissions';
+import { getTripMembership } from '@/lib/permissions';
 import { generateUniqueHashCode } from '@/lib/hashcode';
 import {
   createTripSchema,
@@ -88,27 +88,16 @@ export async function getTrip(id: string): Promise<ActionResult<Trip>> {
       return { success: false, error: 'UNAUTHORIZED', code: 'UNAUTHORIZED' };
     }
 
-    const tripId = await getTripId(id);
-    if (!tripId) {
+    // getTripId + membership check 合併為一次查詢
+    const membership = await getTripMembership(session.userId, id);
+    if (!membership) {
       return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
-    }
-
-    // Check membership
-    const { data: isMember, error: memberError } = await supabase
-      .from('trip_members')
-      .select('id')
-      .eq('trip_id', tripId)
-      .eq('user_id', session.userId)
-      .single();
-
-    if (memberError || !isMember) {
-      return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
     }
 
     const { data: trip, error: tripError } = await supabase
       .from('trips')
       .select('id, name, description, start_date, end_date, location, created_at, hash_code')
-      .eq('id', tripId)
+      .eq('id', membership.tripId)
       .single();
 
     if (tripError || !trip) {
@@ -135,37 +124,34 @@ export async function getTripPreview(
       return { success: false, error: 'UNAUTHORIZED', code: 'UNAUTHORIZED' };
     }
 
-    const tripId = await getTripId(hashCode);
-    if (!tripId) {
-      return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
-    }
-
-    const { data: trip, error: tripError } = await supabase
+    const { data: tripRow, error: tripError } = await supabase
       .from('trips')
       .select('id, name, description, start_date, end_date, location, created_at, hash_code')
-      .eq('id', tripId)
+      .eq('hash_code', hashCode)
       .single();
 
-    if (tripError || !trip) {
+    if (tripError || !tripRow) {
       return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     }
 
-    const { count } = await supabase
-      .from('trip_members')
-      .select('id', { count: 'exact', head: true })
-      .eq('trip_id', tripId);
-
-    const { data: membership } = await supabase
-      .from('trip_members')
-      .select('id')
-      .eq('trip_id', tripId)
-      .eq('user_id', session.userId)
-      .single();
+    // Run member count + membership check in parallel
+    const [{ count }, { data: membership }] = await Promise.all([
+      supabase
+        .from('trip_members')
+        .select('id', { count: 'exact', head: true })
+        .eq('trip_id', tripRow.id),
+      supabase
+        .from('trip_members')
+        .select('id')
+        .eq('trip_id', tripRow.id)
+        .eq('user_id', session.userId)
+        .single(),
+    ]);
 
     return {
       success: true,
       data: {
-        ...trip,
+        ...tripRow,
         member_count: count ?? 0,
         isMember: !!membership,
       } as TripWithMembers & { isMember: boolean },
@@ -212,7 +198,7 @@ export async function createTrip(input: CreateTripInput): Promise<ActionResult<T
           description: description?.trim() || null,
           start_date: start_date || null,
           end_date: end_date || null,
-          location: (location || null) as any, // Cast to any/Json to satisfy Supabase Json type
+          location: (location || null) as any,
           hash_code: hashCode,
         },
       ] satisfies Database['public']['Tables']['trips']['Insert'][])
@@ -250,15 +236,12 @@ export async function updateTrip(id: string, input: UpdateTripInput): Promise<Ac
       return { success: false, error: 'UNAUTHORIZED', code: 'UNAUTHORIZED' };
     }
 
-    const tripId = await getTripId(id);
-    if (!tripId) {
+    // getTripId + requireAdmin 合併為一次查詢
+    const membership = await getTripMembership(session.userId, id);
+    if (!membership) {
       return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     }
-
-    // Check admin permission
-    try {
-      await requireAdmin(session.userId, id, tripId);
-    } catch {
+    if (membership.role !== 'admin') {
       return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
     }
 
@@ -273,7 +256,6 @@ export async function updateTrip(id: string, input: UpdateTripInput): Promise<Ac
 
     const { name, description, start_date, end_date, location } = validation.data;
 
-    // Build update object
     const updateData: Record<string, unknown> = {};
     if (name !== undefined) updateData.name = name.trim();
     if (description !== undefined) updateData.description = description?.trim() || null;
@@ -284,7 +266,7 @@ export async function updateTrip(id: string, input: UpdateTripInput): Promise<Ac
     const { data: trip, error: updateError } = await supabase
       .from('trips')
       .update(updateData)
-      .eq('id', tripId)
+      .eq('id', membership.tripId)
       .select('id, name, description, start_date, end_date, location, created_at, hash_code')
       .single();
 
@@ -308,18 +290,16 @@ export async function deleteTrip(id: string): Promise<ActionResult<{ message: st
       return { success: false, error: 'UNAUTHORIZED', code: 'UNAUTHORIZED' };
     }
 
-    const tripId = await getTripId(id);
-    if (!tripId) {
+    // getTripId + requireAdmin 合併為一次查詢
+    const membership = await getTripMembership(session.userId, id);
+    if (!membership) {
       return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     }
-
-    try {
-      await requireAdmin(session.userId, id, tripId);
-    } catch {
+    if (membership.role !== 'admin') {
       return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
     }
 
-    const { error: deleteError } = await supabase.from('trips').delete().eq('id', tripId);
+    const { error: deleteError } = await supabase.from('trips').delete().eq('id', membership.tripId);
 
     if (deleteError) throw deleteError;
 
@@ -345,8 +325,13 @@ export async function joinTrip(tripIdOrCode: string): Promise<ActionResult<Trip>
       return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
     }
 
-    const tripId = await getTripId(tripIdOrCode);
-    if (!tripId) {
+    const { data: tripRow, error: tripError } = await supabase
+      .from('trips')
+      .select('id, name, hash_code, description, start_date, end_date, location, created_at')
+      .eq(/^\d+$/.test(tripIdOrCode) ? 'id' : 'hash_code', /^\d+$/.test(tripIdOrCode) ? parseInt(tripIdOrCode, 10) : tripIdOrCode)
+      .single();
+
+    if (tripError || !tripRow) {
       return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     }
 
@@ -354,7 +339,7 @@ export async function joinTrip(tripIdOrCode: string): Promise<ActionResult<Trip>
     const { data: existingMember } = await supabase
       .from('trip_members')
       .select('id')
-      .eq('trip_id', tripId)
+      .eq('trip_id', tripRow.id)
       .eq('user_id', session.userId)
       .single();
 
@@ -364,21 +349,15 @@ export async function joinTrip(tripIdOrCode: string): Promise<ActionResult<Trip>
 
     // Join as member
     const { error: insertError } = await supabase.from('trip_members').insert({
-      trip_id: tripId,
+      trip_id: tripRow.id,
       user_id: session.userId,
       role: 'member',
     });
 
     if (insertError) throw insertError;
 
-    const { data: trip } = await supabase
-      .from('trips')
-      .select('id, name, hash_code, description, start_date, end_date, location, created_at')
-      .eq('id', tripId)
-      .single();
-
     revalidatePath('/trips');
-    return { success: true, data: trip! };
+    return { success: true, data: tripRow };
   } catch (error) {
     console.error('Join trip error:', error);
     return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };

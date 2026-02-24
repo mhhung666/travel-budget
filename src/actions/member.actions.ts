@@ -4,7 +4,7 @@ import { randomUUID } from 'crypto';
 import { revalidatePath } from 'next/cache';
 import { supabase } from '@/lib/supabase';
 import { getSession } from '@/lib/auth';
-import { getTripId, requireAdmin, requireMember } from '@/lib/permissions';
+import { getTripMembership } from '@/lib/permissions';
 import { addVirtualMemberSchema, type AddVirtualMemberInput } from '@/lib/validation';
 import type { ActionResult } from './types';
 import type { Member } from '@/types';
@@ -19,16 +19,10 @@ export async function getMembers(tripIdOrCode: string): Promise<ActionResult<Mem
       return { success: false, error: 'UNAUTHORIZED', code: 'UNAUTHORIZED' };
     }
 
-    const tripId = await getTripId(tripIdOrCode);
-    if (!tripId) {
+    // getTripId + requireMember 合併為一次查詢
+    const membership = await getTripMembership(session.userId, tripIdOrCode);
+    if (!membership) {
       return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
-    }
-
-    // Check membership
-    try {
-      await requireMember(session.userId, tripIdOrCode, tripId);
-    } catch {
-      return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
     }
 
     const { data: members, error: membersError } = await supabase
@@ -45,7 +39,7 @@ export async function getMembers(tripIdOrCode: string): Promise<ActionResult<Mem
         )
       `
       )
-      .eq('trip_id', tripId)
+      .eq('trip_id', membership.tripId)
       .order('joined_at', { ascending: true });
 
     if (membersError) throw membersError;
@@ -99,15 +93,12 @@ export async function addVirtualMember(
       return { success: false, error: 'UNAUTHORIZED', code: 'UNAUTHORIZED' };
     }
 
-    const tripId = await getTripId(tripIdOrCode);
-    if (!tripId) {
+    // getTripId + requireAdmin 合併為一次查詢
+    const membership = await getTripMembership(session.userId, tripIdOrCode);
+    if (!membership) {
       return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     }
-
-    // Check admin permission
-    try {
-      await requireAdmin(session.userId, tripIdOrCode, tripId);
-    } catch {
+    if (membership.role !== 'admin') {
       return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
     }
 
@@ -148,7 +139,7 @@ export async function addVirtualMember(
       .from('trip_members')
       .insert([
         {
-          trip_id: tripId,
+          trip_id: membership.tripId,
           user_id: newUser.id,
           role: 'member',
         },
@@ -193,15 +184,12 @@ export async function updateMemberRole(
       return { success: false, error: 'UNAUTHORIZED', code: 'UNAUTHORIZED' };
     }
 
-    const tripId = await getTripId(tripIdOrCode);
-    if (!tripId) {
+    // getTripId + requireAdmin 合併為一次查詢
+    const membership = await getTripMembership(session.userId, tripIdOrCode);
+    if (!membership) {
       return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     }
-
-    // Check admin permission
-    try {
-      await requireAdmin(session.userId, tripIdOrCode, tripId);
-    } catch {
+    if (membership.role !== 'admin') {
       return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
     }
 
@@ -210,26 +198,18 @@ export async function updateMemberRole(
       return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
     }
 
-    // Check if target is a member
-    const { data: memberCheck } = await supabase
-      .from('trip_members')
-      .select('role')
-      .eq('trip_id', tripId)
-      .eq('user_id', targetUserId)
-      .single();
-
-    if (!memberCheck) {
-      return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
-    }
-
-    // Update role
-    const { error: updateError } = await supabase
+    // Update role — .select().single() 同時作為 existence check
+    const { data: updated, error: updateError } = await supabase
       .from('trip_members')
       .update({ role: newRole })
-      .eq('trip_id', tripId)
-      .eq('user_id', targetUserId);
+      .eq('trip_id', membership.tripId)
+      .eq('user_id', targetUserId)
+      .select('role')
+      .single();
 
-    if (updateError) throw updateError;
+    if (updateError || !updated) {
+      return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+    }
 
     revalidatePath(`/trips/${tripIdOrCode}`);
     return {
@@ -255,15 +235,12 @@ export async function removeMember(
       return { success: false, error: 'UNAUTHORIZED', code: 'UNAUTHORIZED' };
     }
 
-    const tripId = await getTripId(tripIdOrCode);
-    if (!tripId) {
+    // getTripId + requireAdmin 合併為一次查詢
+    const membership = await getTripMembership(session.userId, tripIdOrCode);
+    if (!membership) {
       return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     }
-
-    // Check admin permission
-    try {
-      await requireAdmin(session.userId, tripIdOrCode, tripId);
-    } catch {
+    if (membership.role !== 'admin') {
       return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
     }
 
@@ -272,48 +249,46 @@ export async function removeMember(
       return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
     }
 
-    // Check if target is a member
-    const { data: memberCheck } = await supabase
-      .from('trip_members')
-      .select('id')
-      .eq('trip_id', tripId)
-      .eq('user_id', targetUserId)
-      .single();
+    // 4 個獨立查詢並行執行，節省 3 個 round trip 的等待時間
+    const [memberResult, expensesResult, splitsResult, userResult] = await Promise.all([
+      supabase
+        .from('trip_members')
+        .select('id')
+        .eq('trip_id', membership.tripId)
+        .eq('user_id', targetUserId)
+        .maybeSingle(),
+      supabase
+        .from('expenses')
+        .select('id')
+        .eq('trip_id', membership.tripId)
+        .eq('payer_id', targetUserId)
+        .limit(1),
+      supabase
+        .from('expense_splits')
+        .select('expense_id')
+        .eq('user_id', targetUserId)
+        .limit(1),
+      supabase
+        .from('users')
+        .select('is_virtual')
+        .eq('id', targetUserId)
+        .maybeSingle(),
+    ]);
 
-    if (!memberCheck) {
+    if (!memberResult.data) {
       return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     }
 
-    // Check if member has expenses
-    const { data: expenses } = await supabase
-      .from('expenses')
-      .select('id')
-      .eq('trip_id', tripId)
-      .eq('payer_id', targetUserId)
-      .limit(1);
-
-    const { data: splits } = await supabase
-      .from('expense_splits')
-      .select('expense_id')
-      .eq('user_id', targetUserId)
-      .limit(1);
-
-    const hasExpenses = (expenses && expenses.length > 0) || (splits && splits.length > 0);
-
-    // Check if virtual member
-    const { data: targetUser } = await supabase
-      .from('users')
-      .select('is_virtual')
-      .eq('id', targetUserId)
-      .single();
-
-    const isVirtualMember = targetUser?.is_virtual || false;
+    const hasExpenses =
+      (expensesResult.data && expensesResult.data.length > 0) ||
+      (splitsResult.data && splitsResult.data.length > 0);
+    const isVirtualMember = userResult.data?.is_virtual || false;
 
     // Remove member
     const { error: deleteError } = await supabase
       .from('trip_members')
       .delete()
-      .eq('trip_id', tripId)
+      .eq('trip_id', membership.tripId)
       .eq('user_id', targetUserId);
 
     if (deleteError) throw deleteError;
