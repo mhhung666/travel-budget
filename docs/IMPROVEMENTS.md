@@ -17,7 +17,7 @@
 | 錯誤訊息改用 error code | ✅ | actions 已無硬編碼中文錯誤字串，改回傳 `code` |
 | 核心測試 | ✅ | settlement / validation / hashcode 測試 |
 | 資料載入 hook | ✅ | `src/hooks/useTripData.ts` 封裝登入/public 雙路徑 |
-| Server Action auth wrapper | 🟡 | `withAuth` 已建立，但只有 `itinerary.actions.ts` 採用；其餘 6 個仍手寫 `getSession()` |
+| Server Action auth wrapper | ✅ | `withAuth` 全面採用：所有需登入的 action（trip/expense/member/settlement/stats/itinerary + auth 的 updateProfile）統一以 `withAuth` 包裝 |
 | 減少 `any` | 🟡 | `src/app` 與 `src/components` 仍約 9 處 `: any` |
 
 ---
@@ -35,8 +35,8 @@
 
 ## P1 — 架構改善（提升維護性）
 
-### 2. 🟡 全面採用 `withAuth` 包裝 Server Action
-6 個 action 檔仍各自重複手寫登入檢查。將 `trip / expense / member / settlement / stats / auth` 逐步改用 `withAuth`，消除 boilerplate 並統一未登入行為。
+### 2. ✅ 全面採用 `withAuth` 包裝 Server Action
+**修復（已完成）**：`trip / expense / member / settlement / stats` 全部需登入的 action 改用 `withAuth`，移除重複的 `getSession()` boilerplate，統一回傳 `UNAUTHORIZED`。`auth.actions.ts` 的 `updateProfile` 亦改用；`getCurrentUser` 維持原狀（未登入回傳 `data: null` 而非錯誤，語義不同），`login/register/logout/resetPassword` 本就不需登入。
 
 ### 3. 🟡 用 Mongoose migration 管理 schema 變更
 目前 schema 在 [src/models/](../src/models/)，index 於連線時建立——對小專案足夠。若日後需要可重現的結構變更與資料 backfill，可引入 `migrate-mongo` 之類工具管理 migration。
