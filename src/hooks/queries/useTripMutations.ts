@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { updateTrip } from '@/actions';
+import { updateTrip, deleteTrip, regenerateHashCode } from '@/actions';
 import type { ActionResult } from '@/actions';
 import type { UpdateTripInput } from '@/lib/validation';
 import type { Trip } from '@/types';
@@ -25,8 +25,27 @@ export function useTripMutations(tripId: string) {
     onSuccess: (trip: Trip) => {
       queryClient.setQueryData(tripKeys.detail(tripId), trip);
       queryClient.invalidateQueries({ queryKey: tripKeys.detail(tripId) });
+      queryClient.invalidateQueries({ queryKey: tripKeys.list });
     },
   });
 
-  return { update };
+  // Regenerating the hash_code invalidates every old share/public link. The
+  // caller is responsible for navigating to the new hash_code URL afterwards.
+  const regenerate = useMutation({
+    mutationFn: () => unwrap(regenerateHashCode(tripId)),
+    onSuccess: (trip: Trip) => {
+      queryClient.setQueryData(tripKeys.detail(tripId), trip);
+      queryClient.invalidateQueries({ queryKey: tripKeys.list });
+    },
+  });
+
+  const remove = useMutation({
+    mutationFn: () => unwrap(deleteTrip(tripId)),
+    onSuccess: () => {
+      queryClient.removeQueries({ queryKey: tripKeys.all(tripId) });
+      queryClient.invalidateQueries({ queryKey: tripKeys.list });
+    },
+  });
+
+  return { update, regenerate, remove };
 }

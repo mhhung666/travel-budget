@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
-import type { Trip, Member } from '@/types';
+import type { Member } from '@/types';
 import {
   TripMembers,
   TripShare,
@@ -25,16 +25,12 @@ import {
 } from '@/components/trips/detail/dialogs';
 
 import {
-  getCurrentUser,
-  getTrip,
-  getMembers,
-  deleteTrip,
-  regenerateHashCode,
-  addVirtualMember,
-  removeMember,
-  updateMemberRole,
-} from '@/actions';
-import type { AuthUserWithCreatedAt } from '@/actions';
+  useCurrentUser,
+  useTrip,
+  useTripMembership,
+  useMemberMutations,
+  useTripMutations,
+} from '@/hooks/queries';
 
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -53,11 +49,21 @@ export default function TripSettingsPage() {
 
   const { toast } = useToast();
 
-  const [trip, setTrip] = useState<Trip | null>(null);
-  const [members, setMembers] = useState<Member[]>([]);
-  const [currentUser, setCurrentUser] = useState<AuthUserWithCreatedAt | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const { isSuccess: userResolved } = useCurrentUser();
+  const { data: trip, isLoading: tripLoading } = useTrip(tripId);
+  const { currentUser, members, isMember: isCurrentUserMember, isAdmin: isCurrentUserAdmin } =
+    useTripMembership(tripId);
+  const memberMutations = useMemberMutations(tripId);
+  const tripMutations = useTripMutations(tripId);
+
+  const loading = tripLoading;
+  // Settings strictly requires membership: surface unauthorized/forbidden rather
+  // than falling back to the public (read-only) view that useTrip would allow.
+  const error = userResolved && !currentUser
+    ? tError('unauthorized')
+    : !loading && trip && !isCurrentUserMember
+      ? tError('forbidden')
+      : '';
 
   // Dialog states
   const [addVirtualMemberDialog, setAddVirtualMemberDialog] = useState(false);
@@ -83,45 +89,6 @@ export default function TripSettingsPage() {
   const [regenerateDialogOpen, setRegenerateDialogOpen] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
 
-  useEffect(() => {
-    loadData();
-  }, [tripId]);
-
-  const loadData = async () => {
-    try {
-      // Check authentication - required for settings page
-      const userResult = await getCurrentUser();
-      if (!userResult.success || !userResult.data) {
-        setError(tError('unauthorized'));
-        return;
-      }
-
-      setCurrentUser(userResult.data);
-
-      // Get trip and members data
-      const [tripResult, membersResult] = await Promise.all([
-        getTrip(tripId),
-        getMembers(tripId),
-      ]);
-
-      if (!tripResult.success) {
-        if (tripResult.code === 'FORBIDDEN') {
-          setError(tError('forbidden'));
-        } else {
-          setError(tError('loadTripFailed'));
-        }
-        return;
-      }
-
-      setTrip(tripResult.data);
-      setMembers(membersResult.success ? membersResult.data : []);
-    } catch (err) {
-      setError(tError('loadFailed'));
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const copyHashCode = async () => {
     try {
       const shareUrl = `${window.location.origin}/join/${trip?.hash_code || ''}`;
@@ -141,17 +108,13 @@ export default function TripSettingsPage() {
   const handleRegenerateShareCode = async () => {
     setIsRegenerating(true);
     try {
-      const result = await regenerateHashCode(tripId);
-      if (!result.success) {
-        throw new Error(result.error);
-      }
-      setTrip(result.data);
+      const trip = await tripMutations.regenerate.mutateAsync();
       toast({
         title: tTrip('regenerateSuccess'),
       });
       setRegenerateDialogOpen(false);
       // 目前 URL 仍是已失效的舊 hash_code；換成新碼，頁面後續操作（依 hash_code 解析）才不會 NOT_FOUND
-      router.replace(`/trips/${result.data.hash_code}/settings`);
+      router.replace(`/trips/${trip.hash_code}/settings`);
     } catch (err: unknown) {
       toast({
         variant: "destructive",
@@ -166,12 +129,7 @@ export default function TripSettingsPage() {
   const handleDeleteTrip = async () => {
     setIsDeleting(true);
     try {
-      const result = await deleteTrip(tripId);
-
-      if (!result.success) {
-        throw new Error(result.error);
-      }
-
+      await tripMutations.remove.mutateAsync();
       toast({
         title: tTrip('deleted'),
       });
@@ -191,17 +149,11 @@ export default function TripSettingsPage() {
   const handleRemoveMember = async () => {
     if (!removeMemberDialog.member) return;
     try {
-      const result = await removeMember(tripId, removeMemberDialog.member.id);
-
-      if (!result.success) {
-        throw new Error(result.error);
-      }
-
+      await memberMutations.remove.mutateAsync(removeMemberDialog.member.id);
       toast({
         title: tMember('success.removed'),
       });
       setRemoveMemberDialog({ open: false, member: null });
-      await loadData();
     } catch (err: unknown) {
       toast({
         variant: "destructive",
@@ -215,17 +167,14 @@ export default function TripSettingsPage() {
     if (!toggleAdminDialog.member) return;
     try {
       const newRole = toggleAdminDialog.member.role === 'admin' ? 'member' : 'admin';
-      const result = await updateMemberRole(tripId, toggleAdminDialog.member.id, newRole);
-
-      if (!result.success) {
-        throw new Error(result.error);
-      }
-
+      await memberMutations.toggleRole.mutateAsync({
+        memberId: toggleAdminDialog.member.id,
+        role: newRole,
+      });
       toast({
         title: tMember('success.roleUpdated'),
       });
       setToggleAdminDialog({ open: false, member: null });
-      await loadData();
     } catch (err: unknown) {
       toast({
         variant: "destructive",
@@ -236,23 +185,11 @@ export default function TripSettingsPage() {
   };
 
   const handleAddVirtualMember = async (name: string) => {
-    try {
-      const result = await addVirtualMember(tripId, {
-        display_name: name.trim(),
-      });
-
-      if (!result.success) {
-        throw new Error(result.error);
-      }
-
-      toast({
-        title: tMember('virtualMemberAdded'),
-      });
-      setAddVirtualMemberDialog(false);
-      await loadData();
-    } catch (err: unknown) {
-      throw err;
-    }
+    await memberMutations.addVirtual.mutateAsync(name);
+    toast({
+      title: tMember('virtualMemberAdded'),
+    });
+    setAddVirtualMemberDialog(false);
   };
 
   const handleCopyInviteLink = async (member: Member) => {
@@ -270,9 +207,6 @@ export default function TripSettingsPage() {
       });
     }
   };
-
-  const isCurrentUserMember = currentUser && members.some((m) => m.id === currentUser.id);
-  const isCurrentUserAdmin = members.find((m) => m.id === currentUser?.id)?.role === 'admin';
 
   if (loading) {
     return (
