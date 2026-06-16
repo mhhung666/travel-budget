@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-Travel Budget Planner (旅行記帳) — a multi-user trip expense tracking and bill-splitting app. Next.js 16 (App Router) + React 19 + TypeScript, backed by Supabase (PostgreSQL). UI uses Shadcn UI (Radix) + Tailwind. Internationalized with next-intl.
+Travel Budget Planner (旅行記帳) — a multi-user trip expense tracking and bill-splitting app. Next.js 16 (App Router) + React 19 + TypeScript, backed by MongoDB (Mongoose ODM). UI uses Shadcn UI (Radix) + Tailwind. Internationalized with next-intl.
 
 ## Commands
 
@@ -33,18 +33,27 @@ The `/api` REST routes are a separate, narrower surface:
 - [src/app/api/public/](src/app/api/public/) — **intentionally unauthenticated** read-only share endpoints (view a trip via its `hash_code` without logging in). Do not add session checks here; that is by design.
 - [src/app/api/exchange-rates/](src/app/api/exchange-rates/) — currency rate proxy.
 
-### Auth is application-layer, not Supabase RLS
-Supabase is accessed via a single **anon-key client** ([src/lib/supabase.ts](src/lib/supabase.ts)) that has no per-row security. **All authorization happens in app code** — there is no RLS to fall back on, so every action that touches trip data must verify membership itself before querying.
+### Database: MongoDB via Mongoose
+Connection goes through [src/lib/mongodb.ts](src/lib/mongodb.ts) `dbConnect()`, which caches the Mongoose connection on `globalThis` — **critical for serverless** (avoids exhausting connections across Vercel cold starts / HMR). Any code that touches the DB must `await dbConnect()` first; in practice most actions get this for free because `getTripMembership` calls it.
 
-- Sessions: custom JWT (`jose`) stored in an httpOnly `session` cookie. See [src/lib/auth.ts](src/lib/auth.ts) (`getSession`, `createSession`, `getSessionFromRequest`). Passwords hashed with `bcryptjs`.
+Models live in [src/models/](src/models/) and use **embedded documents** to collapse the old relational tables:
+- `User`
+- `Trip` — **embeds `members[]`** (`{ user, role, joinedAt }`), replacing the old `trip_members` table; indexed on `members.user`
+- `Expense` — **embeds `splits[]`** (`{ user, shareAmount }`), replacing `expense_splits` (so loading expenses never N+1s)
+- `ItineraryDay` — compound unique index on `(trip, dayNumber)`
+
+`MONGODB_URI` has **no** `NEXT_PUBLIC_` prefix; it is never exposed to the client. There is no RLS — **all authorization is application-layer**, so every action that touches trip data must verify membership itself. MongoDB has **no FK cascade**: deleting a trip must manually delete its expenses + itinerary days (see `deleteTrip`).
+
+### Auth
+- Sessions: custom JWT (`jose`) stored in an httpOnly `session` cookie; `SessionPayload.userId` is the user's ObjectId **as a string**. See [src/lib/auth.ts](src/lib/auth.ts) (`getSession`, `createSession`, `getSessionFromRequest`). Passwords hashed with `bcryptjs`.
 - Wrap actions with `withAuth(...)` ([src/actions/withAuth.ts](src/actions/withAuth.ts)) to inject a guaranteed-valid `session`, or call `getSession()` and early-return `UNAUTHORIZED`.
-- Authorize trip access with `getTripMembership(userId, tripIdOrCode)` ([src/lib/permissions.ts](src/lib/permissions.ts)) — it resolves ID + checks membership + returns role in one DB round trip. Prefer it over the older `getTripId` + `isMember`/`isAdmin` helpers (kept for API routes).
+- Authorize trip access with `getTripMembership(userId, tripIdOrCode)` ([src/lib/permissions.ts](src/lib/permissions.ts)) — one `Trip.findOne` against the embedded `members` resolves ID + membership + role together. Prefer it over the `getTripId` / `isMember` / `isAdmin` helpers (kept for the public API routes).
 
 ### `tripIdOrCode` convention
-Trip identifiers throughout the codebase may be either a **numeric DB id** or a public **`hash_code`** string. Resolution helpers (`getTripId`, `getTripMembership`) branch on `/^\d+$/`. Preserve this dual-acceptance when adding endpoints.
+Trip identifiers throughout the codebase may be either an **ObjectId string** or a public **`hash_code`** string (`[a-z0-9]{6,8}`). Resolution helpers (`getTripId`, `getTripMembership`) branch on `isValidObjectId(x)` — a 24-hex ObjectId vs the short hash code, no ambiguity. Preserve this dual-acceptance when adding endpoints.
 
-### Database schema lives in code, applied manually
-There are **no migration files**. The canonical schema is the `INIT_SQL` string in [src/lib/supabase.ts](src/lib/supabase.ts); Postgres RPCs are in [supabase/rpc_functions.sql](supabase/rpc_functions.sql). Both must be run by hand in the Supabase SQL Editor. If you change a table or add an RPC, update these files — they are the source of truth. Core tables: `users` (real or `is_virtual`), `trips`, `trip_members` (role `admin`/`member`), `expenses`, `expense_splits`, `itinerary_days`.
+### Schema changes
+Schemas are defined in [src/models/](src/models/); indexes are created by Mongoose on connect. There are no SQL migration files. Changing a field or index = editing the model. ID-shaped fields are ObjectId strings end-to-end (JWT, DTOs, frontend props).
 
 ### Settlement
 [src/lib/settlement.ts](src/lib/settlement.ts) — greedy creditor/debtor matching to minimize transfer count. Uses a `0.01` epsilon for float comparison. Covered by [src/__tests__/settlement.test.ts](src/__tests__/settlement.test.ts).
@@ -57,5 +66,5 @@ next-intl with `[locale]` route segment. Locales: `en`, `zh`, `zh-CN`, `jp`; def
 - Path aliases: `@/*` → `src/*` (plus `@/components`, `@/hooks`, `@/lib`, `@/types`, `@/constants`, `@/services`).
 - Validation: Zod schemas in [src/lib/validation.ts](src/lib/validation.ts) — validate action inputs there.
 - Routes and API paths: use the builders in [src/constants/routes.ts](src/constants/routes.ts) instead of hardcoding strings.
-- Performance note (see recent commits): actions are deliberately written to batch queries and avoid N+1 / extra round trips (e.g. fetch all `expense_splits` in one query, fold ID resolution into the membership check). Keep new DB access in the same spirit.
+- Performance note: actions are deliberately written to avoid N+1 / extra round trips — splits/members are embedded (one `populate` instead of per-row queries), and ID resolution is folded into the membership check. Keep new DB access in the same spirit.
 - Tests: Vitest + jsdom + Testing Library, `globals: true` (no need to import `describe`/`it`). Setup in [vitest.setup.ts](vitest.setup.ts).
