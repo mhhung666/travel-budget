@@ -34,7 +34,9 @@
       "Bash(npx next lint:*)",
       "Bash(./node_modules/.bin/tsc:*)",
       "WebFetch(domain:next-intl.dev)",
-      "Bash(node -e:*)"
+      "Bash(node -e:*)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }
