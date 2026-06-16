@@ -5,65 +5,33 @@ import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 import Navbar from '@/components/layout/Navbar';
 import { StatsDashboard } from '@/components/stats';
-import type { StatsData } from '@/types';
-import { getCurrentUser, getStats } from '@/actions';
-import type { AuthUserWithCreatedAt } from '@/actions';
+import { useCurrentUser, useStats } from '@/hooks/queries';
 import { Loader2 } from 'lucide-react';
 
 export default function StatsPage() {
   const router = useRouter();
   const t = useTranslations('stats');
 
-  const [user, setUser] = useState<AuthUserWithCreatedAt | null>(null);
-  const [stats, setStats] = useState<StatsData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
-  useEffect(() => {
-    loadUser();
-  }, []);
+  const { data: user, isSuccess: userResolved } = useCurrentUser();
 
+  // Redirect to login once we know there is no authenticated user.
   useEffect(() => {
-    if (user) {
-      loadStatsData();
-    }
-  }, [user, startDate, endDate]);
-
-  const loadUser = async () => {
-    try {
-      const result = await getCurrentUser();
-      if (result.success && result.data) {
-        setUser(result.data);
-      } else {
-        router.push('/login');
-      }
-    } catch (error) {
-      console.error('Load user error:', error);
+    if (userResolved && !user) {
       router.push('/login');
     }
-  };
+  }, [userResolved, user, router]);
 
-  const loadStatsData = async () => {
-    try {
-      setLoading(true);
-      const result = await getStats({
-        startDate: startDate || undefined,
-        endDate: endDate || undefined,
-      });
+  const {
+    data: stats = null,
+    isFetching: loading,
+    isError,
+    error: statsError,
+  } = useStats({ startDate, endDate }, !!user);
 
-      if (!result.success) {
-        throw new Error(result.error);
-      }
-
-      setStats(result.data);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setLoading(false);
-    }
-  };
+  const error = isError ? (statsError instanceof Error ? statsError.message : String(statsError)) : '';
 
   const handleYearSelect = (year: number) => {
     setStartDate(`${year}-01-01`);

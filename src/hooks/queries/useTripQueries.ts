@@ -3,6 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import {
   getCurrentUser,
+  getTrips,
   getTrip,
   getMembers,
   getExpenses,
@@ -10,7 +11,7 @@ import {
   getItinerary,
 } from '@/actions';
 import type { AuthUserWithCreatedAt } from '@/actions';
-import type { Balance, Transaction } from '@/types';
+import type { Balance, Transaction, TripWithMembers } from '@/types';
 import { tripKeys } from './keys';
 import { fetchWithPublicFallback } from './fetcher';
 
@@ -32,6 +33,17 @@ export function useCurrentUser() {
       return res.success && res.data ? res.data : null;
     },
     staleTime: 5 * 60_000,
+  });
+}
+
+/** The current user's trips (authenticated; empty list when logged out). */
+export function useTrips() {
+  return useQuery({
+    queryKey: tripKeys.list,
+    queryFn: async (): Promise<TripWithMembers[]> => {
+      const res = await getTrips();
+      return res.success ? res.data : [];
+    },
   });
 }
 
