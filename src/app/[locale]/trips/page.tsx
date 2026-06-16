@@ -1,11 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Plus, UserPlus, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { getCurrentUser, getTrips } from '@/actions';
-import type { AuthUserWithCreatedAt } from '@/actions';
-import type { TripWithMembers } from '@/types';
+import { useQueryClient } from '@tanstack/react-query';
+import { useCurrentUser, useTrips, tripKeys } from '@/hooks/queries';
 import Navbar from '@/components/layout/Navbar';
 import CreateTripDialog from '@/components/trips/CreateTripDialog';
 import JoinTripDialog from '@/components/trips/JoinTripDialog';
@@ -20,41 +19,14 @@ export default function TripsPage() {
   const t = useTranslations('trips');
   const tNav = useTranslations('nav');
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-  const [user, setUser] = useState<AuthUserWithCreatedAt | null>(null);
-  const [trips, setTrips] = useState<TripWithMembers[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: user } = useCurrentUser();
+  const { data: trips = [], isLoading: loading } = useTrips();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
 
-  useEffect(() => {
-    loadUserAndTrips();
-  }, []);
-
-  const loadUserAndTrips = async () => {
-    try {
-      const userResult = await getCurrentUser();
-      if (userResult.success && userResult.data) {
-        setUser(userResult.data);
-      }
-      await loadTrips();
-    } catch (error) {
-      console.error('Load user error:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadTrips = async () => {
-    try {
-      const result = await getTrips();
-      if (result.success) {
-        setTrips(result.data);
-      }
-    } catch (error) {
-      console.error('Load trips error:', error);
-    }
-  };
+  const reloadTrips = () => queryClient.invalidateQueries({ queryKey: tripKeys.list });
 
   const copyHashCode = async (hashCode: string) => {
     try {
@@ -135,7 +107,7 @@ export default function TripsPage() {
       <CreateTripDialog
         open={showCreateModal}
         onClose={() => setShowCreateModal(false)}
-        onSuccess={loadTrips}
+        onSuccess={reloadTrips}
       />
 
       {/* Join Trip Dialog */}
@@ -147,7 +119,7 @@ export default function TripsPage() {
             description: t('join.success'),
             className: "bg-green-500 text-white border-green-600",
           });
-          loadTrips();
+          reloadTrips();
         }}
       />
     </div>

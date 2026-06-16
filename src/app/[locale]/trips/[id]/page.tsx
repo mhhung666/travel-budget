@@ -1,13 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 import { ArrowLeft, Settings, Map, Calculator, Loader2 } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
-import type { Trip, Member, Expense } from '@/types';
-import type { AuthUserWithCreatedAt } from '@/actions';
+import type { Expense } from '@/types';
 import {
   TripHeader,
   TripExpenses,
@@ -21,15 +20,12 @@ import {
 import type { ExpenseDialogData, EditTripFormData } from '@/components/trips/detail/dialogs';
 
 import {
-  getCurrentUser,
-  getTrip,
-  getMembers,
-  getExpenses,
-  createExpense,
-  updateExpense,
-  deleteExpense,
-  updateTrip,
-} from '@/actions';
+  useTrip,
+  useExpenses,
+  useTripMembership,
+  useExpenseMutations,
+  useTripMutations,
+} from '@/hooks/queries';
 
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -39,8 +35,6 @@ export default function TripDetailPage() {
   const router = useRouter();
   const params = useParams();
   const tripId = params.id as string;
-  const t = useTranslations();
-  const tCommon = useTranslations('common');
   const tExpense = useTranslations('expense');
   const tTrip = useTranslations('trip');
   const tTrips = useTranslations('trips');
@@ -48,12 +42,15 @@ export default function TripDetailPage() {
 
   const { toast } = useToast();
 
-  const [trip, setTrip] = useState<Trip | null>(null);
-  const [members, setMembers] = useState<Member[]>([]);
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [currentUser, setCurrentUser] = useState<AuthUserWithCreatedAt | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const { data: trip, isLoading: tripLoading, isError } = useTrip(tripId);
+  const { data: expenses = [] } = useExpenses(tripId);
+  const { currentUser, members, isMember: isCurrentUserMember, isAdmin: isCurrentUserAdmin } =
+    useTripMembership(tripId);
+  const expenseMutations = useExpenseMutations(tripId);
+  const tripMutations = useTripMutations(tripId);
+
+  const loading = tripLoading;
+  const error = isError ? tError('loadTripFailed') : '';
 
   // Dialog visibility states
   const [showAddExpense, setShowAddExpense] = useState(false);
@@ -65,75 +62,8 @@ export default function TripDetailPage() {
   const [filterMemberId, setFilterMemberId] = useState<string | 'all'>('all');
   const [expensesExpanded, setExpensesExpanded] = useState(true);
 
-  useEffect(() => {
-    loadTripData();
-  }, [tripId]);
-
-  const loadTripData = async () => {
-    try {
-      // 嘗試檢查認證（不強制要求登入）
-      let user = null;
-      const userResult = await getCurrentUser();
-      if (userResult.success && userResult.data) {
-        user = userResult.data;
-        setCurrentUser(user);
-      }
-
-      // 如果已登入，使用 Server Actions
-      if (user) {
-        const [tripResult, membersResult, expensesResult] = await Promise.all([
-          getTrip(tripId),
-          getMembers(tripId),
-          getExpenses(tripId),
-        ]);
-
-        if (!tripResult.success) {
-          // 如果不是成員，嘗試使用公開 API
-          if (tripResult.code === 'FORBIDDEN') {
-            await loadPublicTripData();
-            return;
-          }
-          setError(tError('loadTripFailed'));
-          return;
-        }
-
-        setTrip(tripResult.data);
-        setMembers(membersResult.success ? membersResult.data : []);
-        setExpenses(expensesResult.success ? expensesResult.data : []);
-      } else {
-        // 未登入，使用公開 API
-        await loadPublicTripData();
-      }
-    } catch (err) {
-      setError(tError('loadFailed'));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadPublicTripData = async () => {
-    const [tripResponse, membersResponse, expensesResponse] = await Promise.all([
-      fetch(`/api/public/trips/${tripId}`),
-      fetch(`/api/public/trips/${tripId}/members`),
-      fetch(`/api/public/trips/${tripId}/expenses`),
-    ]);
-
-    if (!tripResponse.ok) {
-      setError(tError('loadTripFailed'));
-      return;
-    }
-
-    const tripData = await tripResponse.json();
-    const membersData = await membersResponse.json();
-    const expensesData = await expensesResponse.json();
-
-    setTrip(tripData.trip);
-    setMembers(membersData.members || []);
-    setExpenses(expensesData.expenses || []);
-  };
-
   const handleAddExpense = async (data: ExpenseDialogData) => {
-    const result = await createExpense(tripId, {
+    await expenseMutations.create.mutateAsync({
       payer_id: data.payer_id,
       original_amount: parseFloat(data.original_amount),
       currency: data.currency,
@@ -144,12 +74,7 @@ export default function TripDetailPage() {
       splits: data.splits,
     });
 
-    if (!result.success) {
-      throw new Error(result.error);
-    }
-
     setShowAddExpense(false);
-    await loadTripData();
     toast({
       title: tExpense('success.added'),
       description: tExpense('success.addedMessage'),
@@ -160,13 +85,7 @@ export default function TripDetailPage() {
     if (!confirm(tExpense('confirm.delete'))) return;
 
     try {
-      const result = await deleteExpense(tripId, expenseId);
-
-      if (!result.success) {
-        throw new Error(result.error);
-      }
-
-      await loadTripData();
+      await expenseMutations.remove.mutateAsync(expenseId);
       toast({
         title: "Deleted",
         description: tExpense('success.deleted'),
@@ -183,31 +102,29 @@ export default function TripDetailPage() {
   const handleEditExpense = async (data: ExpenseDialogData) => {
     if (!editingExpense) return;
 
-    const result = await updateExpense(tripId, editingExpense.id, {
-      payer_id: data.payer_id,
-      original_amount: parseFloat(data.original_amount),
-      currency: data.currency,
-      exchange_rate: parseFloat(data.exchange_rate),
-      description: data.description.trim(),
-      category: data.category,
-      date: data.date,
-      splits: data.splits,
+    await expenseMutations.update.mutateAsync({
+      expenseId: editingExpense.id,
+      input: {
+        payer_id: data.payer_id,
+        original_amount: parseFloat(data.original_amount),
+        currency: data.currency,
+        exchange_rate: parseFloat(data.exchange_rate),
+        description: data.description.trim(),
+        category: data.category,
+        date: data.date,
+        splits: data.splits,
+      },
     });
-
-    if (!result.success) {
-      throw new Error(result.error);
-    }
 
     setEditExpenseDialog(false);
     setEditingExpense(null);
-    await loadTripData();
     toast({
       title: tExpense('success.updated'),
     });
   };
 
   const handleEditTrip = async (data: EditTripFormData) => {
-    const result = await updateTrip(tripId, {
+    await tripMutations.update.mutateAsync({
       name: data.name.trim(),
       description: data.description?.trim() || null,
       start_date: data.start_date || null,
@@ -215,19 +132,11 @@ export default function TripDetailPage() {
       location: data.location || null,
     });
 
-    if (!result.success) {
-      throw new Error(result.error);
-    }
-
     setEditTripDialog(false);
-    await loadTripData();
     toast({
       title: tTrip('editSuccess'),
     });
   };
-
-  const isCurrentUserMember = currentUser && members.some((m) => m.id === currentUser.id);
-  const isCurrentUserAdmin = members.find((m) => m.id === currentUser?.id)?.role === 'admin';
 
   if (loading) {
     return (

@@ -65,8 +65,13 @@
 - *讀取端點需登入* — 與設計衝突。`/api/public/*` 本就是「未登入也能用 `hash_code` 檢視分享」的核心功能（見 [CLAUDE.md](../CLAUDE.md)），不在此加 session 檢查。
 - *Rate limiting* — 需基礎設施決策。Serverless（Vercel）下記憶體式限流形同虛設（各 instance 各自計數），須改用 Upstash / Vercel KV 等外部儲存；待確認方案後再做。
 
-### 7. ⚠️ 引入 Client 端資料快取（React Query / SWR）
-目前每次操作後 `await reload()` 重撈全部資料，無 cache、無 optimistic update。導入 TanStack Query 可獲得背景重新驗證、樂觀更新、去重與 retry。
+### 7. ✅ 引入 Client 端資料快取（TanStack Query）
+**修復（已完成）**：導入 `@tanstack/react-query`，於 locale layout 加 [QueryProvider](../src/components/providers/QueryProvider.tsx)（staleTime 30s、gcTime 5min、retry 1、不在 focus 時 refetch）。新增 [src/hooks/queries/](../src/hooks/queries/) 查詢層：
+- `keys.ts` 集中 query key 工廠（`['trip', tripId, ...]`），`fetcher.ts` 封裝「先試 Server Action，遇 UNAUTHORIZED/FORBIDDEN 再 fallback 公開 `/api/public`」的雙路徑 queryFn。
+- 查詢：`useCurrentUser / useTrips / useTrip / useMembers / useExpenses / useSettlement / useItinerary / useStats / useExchangeRates`，與 `useTripMembership`（衍生 isMember/isAdmin）。
+- mutation：`useExpenseMutations / useMemberMutations / useTripMutations / useItineraryMutations`，成功後 **invalidate 相關 query**（如改支出 → expenses + settlement + stats；改成員 → members + detail + expenses + settlement + list），以背景重新驗證取代過去的 `reload()` / `loadData()` 全量重撈。
+- 六個頁面（trips 列表、trip 詳情、settlement、itinerary、settings、stats）全面改用上述 hooks；移除已無用的 `useTripData`。跨頁切換 tab 現可命中快取、自動去重。
+**備註**：尚未導入 per-item 樂觀更新（目前以 invalidate 後背景 refetch 為主，足夠且最不易出錯）；公開「認領虛擬成員」流程因會改變登入 session，仍刻意保留 `window.location.reload()`。
 
 ### 8. 🟡 頁面元件職責過重
 `trips/[id]/page.tsx` 同時承擔資料載入、多個 dialog 狀態、handler、權限判斷與渲染。建議拆為 container / presentational，搭配 `useTripData` 等 hook。
