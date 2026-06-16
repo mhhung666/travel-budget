@@ -38,8 +38,8 @@
 ### 2. ✅ 全面採用 `withAuth` 包裝 Server Action
 **修復（已完成）**：`trip / expense / member / settlement / stats` 全部需登入的 action 改用 `withAuth`，移除重複的 `getSession()` boilerplate，統一回傳 `UNAUTHORIZED`。`auth.actions.ts` 的 `updateProfile` 亦改用；`getCurrentUser` 維持原狀（未登入回傳 `data: null` 而非錯誤，語義不同），`login/register/logout/resetPassword` 本就不需登入。
 
-### 3. 🟡 用 Mongoose migration 管理 schema 變更
-目前 schema 在 [src/models/](../src/models/)，index 於連線時建立——對小專案足夠。若日後需要可重現的結構變更與資料 backfill，可引入 `migrate-mongo` 之類工具管理 migration。
+### 3. ✅ 用 Mongoose migration 管理 schema 變更
+**修復（已完成）**：引入 `migrate-mongo`。設定見 [migrate-mongo-config.js](../migrate-mongo-config.js)（ESM、連線取自 `MONGODB_URI`），遷移放 [migrations/](../migrations/)，npm scripts `migrate:status/up/down/create`，並補上 baseline 遷移明文化現有索引。用法與慣例見 [MIGRATIONS.md](./MIGRATIONS.md)。`autoIndex` 維持開啟，工具與既有行為並存。
 
 ### 4. ✅ 缺少環境變數啟動驗證
 **修復（已完成）**：新增 [src/lib/env.ts](../src/lib/env.ts)，用 Zod 驗證 `MONGODB_URI`、`JWT_SECRET`（min 32），缺漏即報清楚錯誤；`auth.ts` / `mongodb.ts` 改用 `getEnv()`。

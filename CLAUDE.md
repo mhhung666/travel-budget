@@ -53,7 +53,9 @@ Models live in [src/models/](src/models/) and use **embedded documents** to coll
 Trip identifiers throughout the codebase may be either an **ObjectId string** or a public **`hash_code`** string (`[a-z0-9]{6,8}`). Resolution helpers (`getTripId`, `getTripMembership`) branch on `isValidObjectId(x)` — a 24-hex ObjectId vs the short hash code, no ambiguity. Preserve this dual-acceptance when adding endpoints.
 
 ### Schema changes
-Schemas are defined in [src/models/](src/models/); indexes are created by Mongoose on connect. There are no SQL migration files. Changing a field or index = editing the model. ID-shaped fields are ObjectId strings end-to-end (JWT, DTOs, frontend props).
+Schemas are defined in [src/models/](src/models/); indexes are created by Mongoose on connect (`autoIndex`). Changing a field or index = editing the model. ID-shaped fields are ObjectId strings end-to-end (JWT, DTOs, frontend props).
+
+For **reproducible** index/structure changes and data backfills there is also `migrate-mongo`: config in [migrate-mongo-config.js](migrate-mongo-config.js) (ESM, reads `MONGODB_URI`), scripts in [migrations/](migrations/), run via `npm run migrate:status|up|down|create`. `autoIndex` stays on; migrations coexist with it (idempotent, index names aligned). See [docs/MIGRATIONS.md](docs/MIGRATIONS.md). There are no SQL migration files.
 
 ### Settlement
 [src/lib/settlement.ts](src/lib/settlement.ts) — greedy creditor/debtor matching to minimize transfer count. Uses a `0.01` epsilon for float comparison. Covered by [src/__tests__/settlement.test.ts](src/__tests__/settlement.test.ts).
