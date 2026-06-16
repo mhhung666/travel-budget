@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Expense } from '@/models';
-import { getTripId } from '@/lib/permissions';
+import { getTripIdByHashCode } from '@/lib/permissions';
 
 type PopulatedRef = { _id: { toString(): string }; username: string; displayName: string } | null;
 
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const { id } = await params;
 
     // 支援 hash_code 或 ObjectId
-    const tripId = await getTripId(id);
+    const tripId = await getTripIdByHashCode(id);
     if (!tripId) {
       return NextResponse.json({ error: '旅行不存在' }, { status: 404 });
     }

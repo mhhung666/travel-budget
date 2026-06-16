@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ItineraryDay } from '@/models';
-import { getTripId } from '@/lib/permissions';
+import { getTripIdByHashCode } from '@/lib/permissions';
 
 type LeanDay = {
   _id: { toString(): string };
@@ -19,7 +19,7 @@ type LeanDay = {
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const tripId = await getTripId(id);
+    const tripId = await getTripIdByHashCode(id);
 
     if (!tripId) {
       return NextResponse.json({ error: 'Trip not found' }, { status: 404 });

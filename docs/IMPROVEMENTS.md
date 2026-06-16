@@ -55,9 +55,12 @@
 
 ## P2 — 擴充性（為未來鋪路）
 
-### 6. ⚠️ 評估 Public API 的安全性
-`/api/public/*` 完全無認證，知道 trip 的 ObjectId 或 `hash_code` 即可讀取費用、成員、結算等資料。
-**修復**：分享端點只接受 `hash_code`（拒絕直接以 ObjectId 存取）；敏感資料考慮需登入；加上 rate limiting。
+### 6. 🟡 評估 Public API 的安全性
+**問題**：`/api/public/*` 是「知道分享資訊即可檢視」的端點，原本同時接受 ObjectId 與 `hash_code`，等於開了一條繞過 `hash_code` 的旁路（ObjectId 含可預測的時間戳前綴，且會出現在各種回應的 `id` 欄位中）。
+**修復（已完成）**：新增 [`getTripIdByHashCode`](../src/lib/permissions.ts)，所有公開端點改為**僅接受 `hash_code`、明確拒絕 ObjectId**（8 條路由：trip / expenses / settlement / members / itinerary / convert-member / link-member / link-virtual）。「分享能力 == 知道 hash_code」。以 [permissions.test.ts](../src/__tests__/permissions.test.ts) 鎖定拒絕 ObjectId 的行為。
+**刻意未做**：
+- *讀取端點需登入* — 與設計衝突。`/api/public/*` 本就是「未登入也能用 `hash_code` 檢視分享」的核心功能（見 [CLAUDE.md](../CLAUDE.md)），不在此加 session 檢查。
+- *Rate limiting* — 需基礎設施決策。Serverless（Vercel）下記憶體式限流形同虛設（各 instance 各自計數），須改用 Upstash / Vercel KV 等外部儲存；待確認方案後再做。
 
 ### 7. ⚠️ 引入 Client 端資料快取（React Query / SWR）
 目前每次操作後 `await reload()` 重撈全部資料，無 cache、無 optimistic update。導入 TanStack Query 可獲得背景重新驗證、樂觀更新、去重與 retry。
