@@ -20,6 +20,7 @@ export {
   createTrip,
   updateTrip,
   deleteTrip,
+  regenerateHashCode,
   joinTrip,
 } from './trip.actions';
 

@@ -60,6 +60,7 @@
 **修復（已完成）**：
 - 新增 [`getTripIdByHashCode`](../src/lib/permissions.ts)，所有公開端點改為**僅接受 `hash_code`、明確拒絕 ObjectId**（8 條路由：trip / expenses / settlement / members / itinerary / convert-member / link-member / link-virtual）。「分享能力 == 知道 hash_code」。以 [permissions.test.ts](../src/__tests__/permissions.test.ts) 鎖定拒絕 ObjectId 的行為。
 - **新 trip 的 hash_code 預設由 6 碼增為 8 碼**（碰撞 fallback 10 碼），枚舉難度 ×1300（36⁶→36⁸）。長度刻意維持 `< 12`，避免被誤判為 ObjectId。既有 6 碼舊資料仍相容（`isValidHashCode` 放寬為 `{6,10}`）。
+- **可撤銷分享連結**：新增 admin-only 的 [`regenerateHashCode`](../src/actions/trip.actions.ts) action —— 重新產生 `hash_code`，使所有舊 `/join` 與 `/api/public` 連結立即失效（成員不受影響，他們依成員身分而非 hash_code 解析）。UI 在旅行設定頁的分享區，附二次確認對話框（[RegenerateShareCodeDialog](../src/components/trips/detail/dialogs/RegenerateShareCodeDialog.tsx)），四語系字串齊備。重產生後會把目前 URL 換成新碼以維持頁面可用。
 **刻意未做**：
 - *讀取端點需登入* — 與設計衝突。`/api/public/*` 本就是「未登入也能用 `hash_code` 檢視分享」的核心功能（見 [CLAUDE.md](../CLAUDE.md)），不在此加 session 檢查。
 - *Rate limiting* — 需基礎設施決策。Serverless（Vercel）下記憶體式限流形同虛設（各 instance 各自計數），須改用 Upstash / Vercel KV 等外部儲存；待確認方案後再做。
