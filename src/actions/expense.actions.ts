@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { supabase } from '@/lib/supabase';
+import { Expense, Trip, EXPENSE_CATEGORIES } from '@/models';
 import { getSession } from '@/lib/auth';
 import { getTripMembership } from '@/lib/permissions';
 import {
@@ -11,19 +11,61 @@ import {
   type UpdateExpenseInput,
 } from '@/lib/validation';
 import type { ActionResult } from './types';
-import type { Expense } from '@/types';
+import type { Expense as ExpenseDto } from '@/types';
+
+type PopulatedRef = { _id: { toString(): string }; username: string; displayName: string } | null;
+
+type LeanExpense = {
+  _id: { toString(): string };
+  amount: number;
+  originalAmount: number;
+  currency: string;
+  exchangeRate: number;
+  description: string;
+  category: string | null;
+  date: Date;
+  createdAt: Date;
+  payer: PopulatedRef;
+  splits: { user: PopulatedRef; shareAmount: number }[];
+};
+
+function toDateStr(d: Date | string): string {
+  return d instanceof Date ? d.toISOString().slice(0, 10) : d;
+}
+
+function toExpenseDto(e: LeanExpense, tripId: string): ExpenseDto {
+  return {
+    id: e._id.toString(),
+    trip_id: tripId,
+    amount: e.amount,
+    original_amount: e.originalAmount,
+    currency: e.currency,
+    exchange_rate: e.exchangeRate,
+    description: e.description,
+    category: e.category || 'other',
+    date: toDateStr(e.date),
+    created_at: e.createdAt.toISOString(),
+    payer_id: e.payer?._id.toString() || '',
+    payer_name: e.payer?.displayName || 'Unknown',
+    splits: (e.splits || []).map((s) => ({
+      user_id: s.user?._id.toString() || '',
+      share_amount: s.shareAmount,
+      username: s.user?.username || 'Unknown',
+      display_name: s.user?.displayName || 'Unknown',
+    })),
+  };
+}
 
 /**
  * Get all expenses for a trip
  */
-export async function getExpenses(tripIdOrCode: string): Promise<ActionResult<Expense[]>> {
+export async function getExpenses(tripIdOrCode: string): Promise<ActionResult<ExpenseDto[]>> {
   try {
     const session = await getSession();
     if (!session) {
       return { success: false, error: 'UNAUTHORIZED', code: 'UNAUTHORIZED' };
     }
 
-    // getTripId + requireMember 合併為一次查詢
     const membership = await getTripMembership(session.userId, tripIdOrCode);
     if (!membership) {
       return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
@@ -31,116 +73,15 @@ export async function getExpenses(tripIdOrCode: string): Promise<ActionResult<Ex
 
     const { tripId } = membership;
 
-    // Get all expenses with payer info
-    const { data: expenses, error: expensesError } = await supabase
-      .from('expenses')
-      .select(
-        `
-        id,
-        amount,
-        original_amount,
-        currency,
-        exchange_rate,
-        description,
-        category,
-        date,
-        created_at,
-        payer:users!expenses_payer_id_fkey (
-          id,
-          username,
-          display_name
-        )
-      `
-      )
-      .eq('trip_id', tripId)
-      .order('date', { ascending: false })
-      .order('created_at', { ascending: false });
+    // splits 已內嵌，payer 與 splits.user 一次 populate，徹底消除原本的 N+1
+    const expenses = await Expense.find({ trip: tripId })
+      .sort({ date: -1, createdAt: -1 })
+      .populate('payer', 'username displayName')
+      .populate('splits.user', 'username displayName')
+      .lean<LeanExpense[]>();
 
-    if (expensesError) throw expensesError;
-
-    type ExpenseQuery = {
-      id: number;
-      amount: number;
-      original_amount: number;
-      currency: string;
-      exchange_rate: number;
-      description: string;
-      category: 'accommodation' | 'transportation' | 'food' | 'shopping' | 'entertainment' | 'tickets' | 'other' | null;
-      date: string;
-      created_at: string;
-      payer: { id: number; username: string; display_name: string } | { id: number; username: string; display_name: string }[] | null;
-    };
-
-    const typedExpenses = expenses as unknown as ExpenseQuery[];
-    const expenseIds = typedExpenses?.map((e) => e.id) || [];
-
-    // Batch fetch all splits in a single query instead of N+1
-    type SplitQuery = {
-      expense_id: number;
-      user_id: number;
-      share_amount: number;
-      users: { username: string; display_name: string } | { username: string; display_name: string }[] | null;
-    };
-
-    let allSplits: SplitQuery[] = [];
-    if (expenseIds.length > 0) {
-      const { data: splitsData } = await supabase
-        .from('expense_splits')
-        .select(
-          `
-          expense_id,
-          user_id,
-          share_amount,
-          users!expense_splits_user_id_fkey (
-            username,
-            display_name
-          )
-        `
-        )
-        .in('expense_id', expenseIds);
-
-      allSplits = (splitsData as unknown as SplitQuery[]) || [];
-    }
-
-    // Group splits by expense_id in memory
-    const splitsByExpenseId = new Map<number, SplitQuery[]>();
-    for (const split of allSplits) {
-      const existing = splitsByExpenseId.get(split.expense_id) || [];
-      existing.push(split);
-      splitsByExpenseId.set(split.expense_id, existing);
-    }
-
-    const expensesWithSplits = typedExpenses?.map((expense) => {
-      const splits = splitsByExpenseId.get(expense.id) || [];
-      const formattedSplits = splits.map((split) => {
-        const user = Array.isArray(split.users) ? split.users[0] : split.users;
-        return {
-          user_id: split.user_id,
-          share_amount: split.share_amount,
-          username: user?.username || 'Unknown',
-          display_name: user?.display_name || 'Unknown',
-        };
-      });
-
-      const payer = Array.isArray(expense.payer) ? expense.payer[0] : expense.payer;
-      return {
-        id: expense.id,
-        trip_id: tripId,
-        amount: expense.amount,
-        original_amount: expense.original_amount,
-        currency: expense.currency,
-        exchange_rate: expense.exchange_rate,
-        description: expense.description,
-        category: expense.category || 'other',
-        date: expense.date,
-        created_at: expense.created_at,
-        payer_id: payer?.id as number,
-        payer_name: payer?.display_name || 'Unknown',
-        splits: formattedSplits,
-      };
-    });
-
-    return { success: true, data: expensesWithSplits };
+    const data = expenses.map((e) => toExpenseDto(e, tripId));
+    return { success: true, data };
   } catch (error) {
     console.error('Get expenses error:', error);
     return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
@@ -153,14 +94,13 @@ export async function getExpenses(tripIdOrCode: string): Promise<ActionResult<Ex
 export async function createExpense(
   tripIdOrCode: string,
   input: CreateExpenseInput
-): Promise<ActionResult<Expense>> {
+): Promise<ActionResult<ExpenseDto>> {
   try {
     const session = await getSession();
     if (!session) {
       return { success: false, error: 'UNAUTHORIZED', code: 'UNAUTHORIZED' };
     }
 
-    // getTripId + requireMember 合併為一次查詢
     const membership = await getTripMembership(session.userId, tripIdOrCode);
     if (!membership) {
       return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
@@ -180,100 +120,43 @@ export async function createExpense(
     const { payer_id, original_amount, currency, exchange_rate, description, category, date, splits } =
       validation.data;
 
-    // Calculate TWD amount
     const amount = original_amount * exchange_rate;
 
     // Validate payer and split members are trip members
-    const { data: members } = await supabase
-      .from('trip_members')
-      .select('user_id')
-      .eq('trip_id', tripId);
+    const trip = await Trip.findById(tripId).select('members').lean<{
+      members: { user: { toString(): string } }[];
+    }>();
+    const memberIds = new Set((trip?.members || []).map((m) => m.user.toString()));
 
-    const memberIds = members?.map((m) => m.user_id) || [];
-
-    if (!memberIds.includes(payer_id)) {
+    if (!memberIds.has(payer_id)) {
       return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
     }
-
     for (const split of splits) {
-      if (!memberIds.includes(split.user_id)) {
+      if (!memberIds.has(split.user_id)) {
         return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
       }
     }
 
-    // Create expense
-    const { data: expenseData, error: expenseError } = await supabase
-      .from('expenses')
-      .insert({
-        trip_id: tripId,
-        payer_id,
-        amount,
-        original_amount,
-        currency,
-        exchange_rate,
-        description,
-        category,
-        date,
-      })
-      .select()
-      .single();
+    const created = await Expense.create({
+      trip: tripId,
+      payer: payer_id,
+      amount,
+      originalAmount: original_amount,
+      currency,
+      exchangeRate: exchange_rate,
+      description,
+      category: category as (typeof EXPENSE_CATEGORIES)[number],
+      date: new Date(date),
+      splits: splits.map((s) => ({ user: s.user_id, shareAmount: s.share_amount })),
+    });
 
-    if (expenseError || !expenseData) throw expenseError;
-
-    // Create splits
-    const splitsToInsert = splits.map((split) => ({
-      expense_id: expenseData.id,
-      user_id: split.user_id,
-      share_amount: split.share_amount,
-    }));
-
-    const { error: splitsError } = await supabase.from('expense_splits').insert(splitsToInsert);
-
-    if (splitsError) throw splitsError;
-
-    // Get complete expense info
-    const { data: expense } = await supabase
-      .from('expenses')
-      .select(
-        `
-        id,
-        amount,
-        original_amount,
-        currency,
-        exchange_rate,
-        description,
-        category,
-        date,
-        created_at,
-        payer:users!expenses_payer_id_fkey (
-          id,
-          username,
-          display_name
-        )
-      `
-      )
-      .eq('id', expenseData.id)
-      .single();
-
-    const payer = Array.isArray(expense?.payer) ? expense.payer[0] : expense?.payer;
-    const formattedExpense: Expense = {
-      id: expense?.id,
-      trip_id: tripId,
-      amount: expense?.amount,
-      original_amount: expense?.original_amount,
-      currency: expense?.currency,
-      exchange_rate: expense?.exchange_rate,
-      description: expense?.description,
-      category: expense?.category || 'other',
-      date: expense?.date,
-      created_at: expense?.created_at,
-      payer_id: payer?.id,
-      payer_name: payer?.display_name,
-      splits: [],
-    };
+    await created.populate([
+      { path: 'payer', select: 'username displayName' },
+      { path: 'splits.user', select: 'username displayName' },
+    ]);
 
     revalidatePath(`/trips/${tripIdOrCode}`);
-    return { success: true, data: formattedExpense };
+    return { success: true, data: toExpenseDto(created.toObject() as unknown as LeanExpense, tripId) };
   } catch (error) {
     console.error('Create expense error:', error);
     return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
@@ -285,7 +168,7 @@ export async function createExpense(
  */
 export async function updateExpense(
   tripIdOrCode: string,
-  expenseId: number,
+  expenseId: string,
   input: UpdateExpenseInput
 ): Promise<ActionResult<{ message: string }>> {
   try {
@@ -294,7 +177,6 @@ export async function updateExpense(
       return { success: false, error: 'UNAUTHORIZED', code: 'UNAUTHORIZED' };
     }
 
-    // getTripId + requireMember 合併為一次查詢
     const membership = await getTripMembership(session.userId, tripIdOrCode);
     if (!membership) {
       return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
@@ -311,92 +193,49 @@ export async function updateExpense(
       };
     }
 
-    const { original_amount, currency, exchange_rate, description, category, payer_id, date, splits } = validation.data;
+    const { original_amount, currency, exchange_rate, description, category, payer_id, date, splits } =
+      validation.data;
 
-    // Build update data
-    const updateData: Record<string, unknown> = {};
-    if (description !== undefined) updateData.description = description.trim();
-    if (original_amount !== undefined) updateData.original_amount = original_amount;
-    if (currency !== undefined) updateData.currency = currency;
-    if (exchange_rate !== undefined) updateData.exchange_rate = exchange_rate;
-    if (category !== undefined) updateData.category = category;
-    if (payer_id !== undefined) updateData.payer_id = payer_id;
-    if (date !== undefined) updateData.date = date;
+    // 讀取目前值（同時作為 existence check）
+    const current = await Expense.findOne({ _id: expenseId, trip: tripId })
+      .select('originalAmount exchangeRate splits')
+      .lean<{
+        originalAmount: number;
+        exchangeRate: number;
+        splits: { user: { toString(): string }; shareAmount: number }[];
+      }>();
 
-    // Recalculate TWD amount if needed
-    if (original_amount !== undefined || exchange_rate !== undefined) {
-      // Need current values only if one of the two is missing
-      if (original_amount === undefined || exchange_rate === undefined) {
-        const { data: current } = await supabase
-          .from('expenses')
-          .select('original_amount, exchange_rate')
-          .eq('id', expenseId)
-          .eq('trip_id', tripId)
-          .single();
-        if (!current) {
-          return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
-        }
-        const newOriginalAmount = original_amount ?? current.original_amount;
-        const newExchangeRate = exchange_rate ?? current.exchange_rate;
-        updateData.amount = newOriginalAmount * newExchangeRate;
-      } else {
-        updateData.amount = original_amount * exchange_rate;
-      }
-    }
-
-    // Update expense — .select().single() 同時作為 existence check（不存在時回傳 null）
-    const { data: updatedExpense, error: updateError } = await supabase
-      .from('expenses')
-      .update(updateData)
-      .eq('id', expenseId)
-      .eq('trip_id', tripId)
-      .select('id, original_amount, exchange_rate, amount')
-      .single();
-
-    if (updateError || !updatedExpense) {
+    if (!current) {
       return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     }
 
-    // Update splits if provided or if amount changed
-    if (splits !== undefined) {
-      // Delete existing splits
-      const { error: deleteSplitsError } = await supabase
-        .from('expense_splits')
-        .delete()
-        .eq('expense_id', expenseId);
+    const set: Record<string, unknown> = {};
+    if (description !== undefined) set.description = description.trim();
+    if (original_amount !== undefined) set.originalAmount = original_amount;
+    if (currency !== undefined) set.currency = currency;
+    if (exchange_rate !== undefined) set.exchangeRate = exchange_rate;
+    if (category !== undefined) set.category = category;
+    if (payer_id !== undefined) set.payer = payer_id;
+    if (date !== undefined) set.date = new Date(date);
 
-      if (deleteSplitsError) throw deleteSplitsError;
-
-      // Insert new splits
-      const newSplits = splits.map((split) => ({
-        expense_id: expenseId,
-        user_id: split.user_id,
-        share_amount: split.share_amount,
-      }));
-
-      const { error: insertSplitsError } = await supabase
-        .from('expense_splits')
-        .insert(newSplits);
-
-      if (insertSplitsError) throw insertSplitsError;
-    } else if (updateData.amount !== undefined) {
-      // If splits not provided but amount changed, update existing splits proportionally
-      const { data: existingSplits } = await supabase
-        .from('expense_splits')
-        .select('id')
-        .eq('expense_id', expenseId);
-
-      if (existingSplits && existingSplits.length > 0) {
-        const shareAmount = (updateData.amount as number) / existingSplits.length;
-
-        const { error: updateSplitsError } = await supabase
-          .from('expense_splits')
-          .update({ share_amount: shareAmount })
-          .eq('expense_id', expenseId);
-
-        if (updateSplitsError) throw updateSplitsError;
-      }
+    // Recalculate TWD amount if needed
+    let newAmount: number | undefined;
+    if (original_amount !== undefined || exchange_rate !== undefined) {
+      const oa = original_amount ?? current.originalAmount;
+      const er = exchange_rate ?? current.exchangeRate;
+      newAmount = oa * er;
+      set.amount = newAmount;
     }
+
+    if (splits !== undefined) {
+      set.splits = splits.map((s) => ({ user: s.user_id, shareAmount: s.share_amount }));
+    } else if (newAmount !== undefined && current.splits.length > 0) {
+      // 金額改變但未提供 splits：依人數平均重算
+      const share = newAmount / current.splits.length;
+      set.splits = current.splits.map((s) => ({ user: s.user, shareAmount: share }));
+    }
+
+    await Expense.updateOne({ _id: expenseId, trip: tripId }, { $set: set });
 
     revalidatePath(`/trips/${tripIdOrCode}`);
     return { success: true, data: { message: '支出已更新' } };
@@ -411,7 +250,7 @@ export async function updateExpense(
  */
 export async function deleteExpense(
   tripIdOrCode: string,
-  expenseId: number
+  expenseId: string
 ): Promise<ActionResult<{ message: string }>> {
   try {
     const session = await getSession();
@@ -419,22 +258,13 @@ export async function deleteExpense(
       return { success: false, error: 'UNAUTHORIZED', code: 'UNAUTHORIZED' };
     }
 
-    // getTripId + requireMember 合併為一次查詢
     const membership = await getTripMembership(session.userId, tripIdOrCode);
     if (!membership) {
       return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     }
 
-    const { tripId } = membership;
-
-    // Delete expense (splits will cascade)
-    const { error: deleteError } = await supabase
-      .from('expenses')
-      .delete()
-      .eq('id', expenseId)
-      .eq('trip_id', tripId);
-
-    if (deleteError) throw deleteError;
+    // splits 內嵌於 expense 文件，刪除 expense 即一併移除
+    await Expense.deleteOne({ _id: expenseId, trip: membership.tripId });
 
     revalidatePath(`/trips/${tripIdOrCode}`);
     return { success: true, data: { message: '支出已刪除' } };

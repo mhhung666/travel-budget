@@ -20,7 +20,7 @@ import type { Expense } from '@/types';
 
 export interface ExpenseCardProps {
   expense: Expense;
-  currentUserId?: number;
+  currentUserId?: string;
   onEdit?: (expense: Expense) => void;
   onDelete?: (expense: Expense) => void;
   showActions?: boolean;

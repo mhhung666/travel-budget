@@ -1,8 +1,9 @@
 'use server';
 
-import { supabase } from '@/lib/supabase';
+import { dbConnect } from '@/lib/mongodb';
+import { Trip, Expense } from '@/models';
 import { getSession } from '@/lib/auth';
-import { getTripId, requireMember } from '@/lib/permissions';
+import { getTripMembership } from '@/lib/permissions';
 import { calculateSettlement } from '@/lib/settlement';
 import type { ActionResult } from './types';
 import type { Balance, Transaction } from '@/types';
@@ -12,6 +13,16 @@ interface SettlementResult {
   transactions: Transaction[];
   totalExpenses: number;
 }
+
+type PopulatedMember = {
+  user: { _id: { toString(): string }; username: string; displayName: string } | null;
+};
+
+type LeanExpenseForSettlement = {
+  payer: { toString(): string };
+  amount: number;
+  splits: { user: { toString(): string }; shareAmount: number }[];
+};
 
 /**
  * Get settlement for a trip
@@ -23,81 +34,57 @@ export async function getSettlement(tripIdOrCode: string): Promise<ActionResult<
       return { success: false, error: 'UNAUTHORIZED', code: 'UNAUTHORIZED' };
     }
 
-    const tripId = await getTripId(tripIdOrCode);
-    if (!tripId) {
+    const membership = await getTripMembership(session.userId, tripIdOrCode);
+    if (!membership) {
       return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     }
 
-    // Check membership
-    try {
-      await requireMember(session.userId, tripIdOrCode, tripId);
-    } catch {
-      return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
+    const tripId = membership.tripId;
+
+    await dbConnect();
+
+    // 一次取出成員 + 該行程全部支出（含內嵌 splits），其餘在記憶體計算
+    const [trip, expenses] = await Promise.all([
+      Trip.findById(tripId)
+        .populate('members.user', 'username displayName')
+        .select('members')
+        .lean<{ members: PopulatedMember[] } | null>(),
+      Expense.find({ trip: tripId })
+        .select('payer amount splits')
+        .lean<LeanExpenseForSettlement[]>(),
+    ]);
+
+    const members = (trip?.members || []).map((m) => m.user).filter((u) => u !== null);
+
+    const paidByUser = new Map<string, number>();
+    const owedByUser = new Map<string, number>();
+    let totalExpenses = 0;
+
+    for (const e of expenses) {
+      totalExpenses += e.amount || 0;
+      const payerId = e.payer.toString();
+      paidByUser.set(payerId, (paidByUser.get(payerId) || 0) + (e.amount || 0));
+      for (const s of e.splits || []) {
+        const uid = s.user.toString();
+        owedByUser.set(uid, (owedByUser.get(uid) || 0) + (s.shareAmount || 0));
+      }
     }
 
-    // Get all members
-    const { data: membersData } = await supabase
-      .from('trip_members')
-      .select(
-        `
-        users!inner (
-          id,
-          username,
-          display_name
-        )
-      `
-      )
-      .eq('trip_id', tripId);
+    const balances: Balance[] = members.map((member) => {
+      const id = member!._id.toString();
+      const totalPaid = paidByUser.get(id) || 0;
+      const totalOwed = owedByUser.get(id) || 0;
+      return {
+        userId: id,
+        username: member!.displayName,
+        totalPaid,
+        totalOwed,
+        balance: totalPaid - totalOwed,
+      };
+    });
 
-    type MemberQuery = {
-      users: { id: number; username: string; display_name: string } | { id: number; username: string; display_name: string }[];
-    };
-    const members = (membersData as unknown as MemberQuery[])?.map((m) => Array.isArray(m.users) ? m.users[0] : m.users) || [];
-
-    // Calculate balances for each member
-    const balances = await Promise.all(
-      members.map(async (member) => {
-        // Total paid
-        const { data: paidData } = await supabase
-          .from('expenses')
-          .select('amount')
-          .eq('payer_id', member.id)
-          .eq('trip_id', tripId);
-
-        const totalPaid = paidData?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0;
-
-        // Total owed
-        const { data: owedData } = await supabase
-          .from('expense_splits')
-          .select('share_amount, expenses!inner(trip_id)')
-          .eq('user_id', member.id)
-          .eq('expenses.trip_id', tripId);
-
-        const totalOwed = owedData?.reduce((sum, s) => sum + (s.share_amount || 0), 0) || 0;
-
-        const balance = totalPaid - totalOwed;
-
-        return {
-          userId: member.id,
-          username: member.display_name,
-          totalPaid,
-          totalOwed,
-          balance,
-        };
-      })
-    );
-
-    // Calculate transactions using settlement algorithm
-    const balancesForCalculation = balances.map((b) => ({ ...b }));
-    const transactions = calculateSettlement(balancesForCalculation);
-
-    // Calculate total expenses
-    const { data: expensesData } = await supabase
-      .from('expenses')
-      .select('amount')
-      .eq('trip_id', tripId);
-
-    const totalExpenses = expensesData?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0;
+    // Calculate transactions using settlement algorithm（傳入副本避免被改動）
+    const transactions = calculateSettlement(balances.map((b) => ({ ...b })));
 
     return {
       success: true,

@@ -62,7 +62,7 @@ export default function TripDetailPage() {
   const [editTripDialog, setEditTripDialog] = useState(false);
 
   // Filter & Expand states
-  const [filterMemberId, setFilterMemberId] = useState<number | 'all'>('all');
+  const [filterMemberId, setFilterMemberId] = useState<string | 'all'>('all');
   const [expensesExpanded, setExpensesExpanded] = useState(true);
 
   useEffect(() => {
@@ -156,7 +156,7 @@ export default function TripDetailPage() {
     });
   };
 
-  const handleDeleteExpense = async (expenseId: number) => {
+  const handleDeleteExpense = async (expenseId: string) => {
     if (!confirm(tExpense('confirm.delete'))) return;
 
     try {

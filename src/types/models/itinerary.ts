@@ -1,6 +1,6 @@
 export interface ItineraryDay {
-  id: number;
-  trip_id: number;
+  id: string;
+  trip_id: string;
   day_number: number;
   title: string;
   content: string;

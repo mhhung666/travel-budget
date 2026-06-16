@@ -32,11 +32,11 @@ interface TripExpensesProps {
     expenses: Expense[];
     members: Member[];
     isCurrentUserMember: boolean;
-    filterMemberId: number | 'all';
-    onFilterChange: (id: number | 'all') => void;
+    filterMemberId: string | 'all';
+    onFilterChange: (id: string | 'all') => void;
     onAdd: (e: React.MouseEvent) => void;
     onEdit: (expense: Expense) => void;
-    onDelete: (id: number) => void;
+    onDelete: (id: string) => void;
     expanded: boolean;
     onToggleExpand: () => void;
 }
@@ -92,7 +92,7 @@ export default function TripExpenses({
                                 </Label>
                                 <Select
                                     value={filterMemberId.toString()}
-                                    onValueChange={(value) => onFilterChange(value === 'all' ? 'all' : Number(value))}
+                                    onValueChange={(value) => onFilterChange(value === 'all' ? 'all' : value)}
                                 >
                                     <SelectTrigger id="member-filter">
                                         <SelectValue placeholder={tExpense('filter')} />

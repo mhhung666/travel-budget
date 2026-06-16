@@ -36,14 +36,14 @@ import {
 } from '@/components/ui/tooltip';
 
 export interface ExpenseDialogData {
-    payer_id: number;
+    payer_id: string;
     original_amount: string;
     currency: string;
     exchange_rate: string;
     description: string;
     category: string;
     date: string;
-    splits: { user_id: number; share_amount: number }[];
+    splits: { user_id: string; share_amount: number }[];
 }
 
 interface ExpenseFormDialogProps {
@@ -52,7 +52,7 @@ interface ExpenseFormDialogProps {
     onClose: () => void;
     onSubmit: (data: ExpenseDialogData) => Promise<void>;
     members: Member[];
-    currentUser: { id: number } | null;
+    currentUser: { id: string } | null;
     expense?: Expense | null; // Required for edit mode
 }
 
@@ -71,7 +71,7 @@ export default function ExpenseFormDialog({
 
     const [error, setError] = useState('');
     const [form, setForm] = useState({
-        payer_id: 0,
+        payer_id: '' as string,
         original_amount: '',
         currency: 'TWD',
         exchange_rate: '1.0',
@@ -80,7 +80,7 @@ export default function ExpenseFormDialog({
         date: new Date().toISOString().split('T')[0],
     });
 
-    const [splitState, setSplitState] = useState<Record<number, { selected: boolean; manualAmount: string }>>({});
+    const [splitState, setSplitState] = useState<Record<string, { selected: boolean; manualAmount: string }>>({});
     const [showAdvanced, setShowAdvanced] = useState(mode === 'edit'); // Default expanded for edit
 
     // Exchange rate states
@@ -126,7 +126,7 @@ export default function ExpenseFormDialog({
                 });
 
                 // Initialize split state from existing splits
-                const initialSplits: Record<number, { selected: boolean; manualAmount: string }> = {};
+                const initialSplits: Record<string, { selected: boolean; manualAmount: string }> = {};
                 const exchangeRate = parseFloat(expense.exchange_rate.toString());
 
                 members.forEach(m => {
@@ -146,7 +146,7 @@ export default function ExpenseFormDialog({
             } else {
                 // Add mode: Initialize with defaults
                 setForm({
-                    payer_id: currentUser?.id || members[0]?.id || 0,
+                    payer_id: currentUser?.id || members[0]?.id || '',
                     original_amount: '',
                     currency: 'TWD',
                     exchange_rate: '1.0',
@@ -156,7 +156,7 @@ export default function ExpenseFormDialog({
                 });
 
                 // Init splits: All selected, no manual amounts (equal split)
-                const initialSplits: Record<number, { selected: boolean; manualAmount: string }> = {};
+                const initialSplits: Record<string, { selected: boolean; manualAmount: string }> = {};
                 members.forEach(m => {
                     initialSplits[m.id] = { selected: true, manualAmount: '' };
                 });
@@ -177,8 +177,8 @@ export default function ExpenseFormDialog({
 
         let manualSumOriginal = 0;
         let autoCheckCount = 0;
-        const resultOriginal: Record<number, number> = {};
-        const resultTWD: Record<number, number> = {};
+        const resultOriginal: Record<string, number> = {};
+        const resultTWD: Record<string, number> = {};
 
         // 1. First pass: Sum manual amounts (in original currency) and count auto-selected
         members.forEach(m => {
@@ -280,7 +280,7 @@ export default function ExpenseFormDialog({
         }
     };
 
-    const handleSplitToggle = (userId: number) => {
+    const handleSplitToggle = (userId: string) => {
         setSplitState(prev => ({
             ...prev,
             [userId]: {
@@ -291,7 +291,7 @@ export default function ExpenseFormDialog({
         }));
     };
 
-    const handleManualAmountChange = (userId: number, value: string) => {
+    const handleManualAmountChange = (userId: string, value: string) => {
         setSplitState(prev => ({
             ...prev,
             [userId]: {
@@ -304,7 +304,7 @@ export default function ExpenseFormDialog({
 
     const handleSelectAll = () => {
         const allSelected = members.every(m => splitState[m.id]?.selected);
-        const newState: Record<number, any> = {};
+        const newState: Record<string, { selected: boolean; manualAmount: string }> = {};
         members.forEach(m => {
             newState[m.id] = {
                 selected: !allSelected,
@@ -516,7 +516,7 @@ export default function ExpenseFormDialog({
                                 <Label>{tExpense('form.payer')}</Label>
                                 <Select
                                     value={form.payer_id.toString()}
-                                    onValueChange={(val) => setForm({ ...form, payer_id: Number(val) })}
+                                    onValueChange={(val) => setForm({ ...form, payer_id: val })}
                                 >
                                     <SelectTrigger>
                                         <SelectValue placeholder="Select Payer" />

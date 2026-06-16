@@ -72,7 +72,7 @@ export default function ItineraryPage() {
     setDialogOpen(true);
   };
 
-  const handleDeleteDay = (dayId: number) => {
+  const handleDeleteDay = (dayId: string) => {
     const day = days.find((d) => d.id === dayId);
     if (day) setDeletingDay(day);
   };

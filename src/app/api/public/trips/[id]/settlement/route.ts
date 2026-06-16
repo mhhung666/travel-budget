@@ -57,7 +57,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         const balance = totalPaid - totalOwed;
 
         return {
-          userId: member.id,
+          userId: String(member.id),
           username: member.display_name,
           totalPaid,
           totalOwed,

@@ -26,21 +26,21 @@ import { CATEGORIES, DEFAULT_CATEGORY } from '@/constants/categories';
 import type { Member, Expense, CreateExpenseDto, UpdateExpenseDto } from '@/types';
 
 export interface ExpenseFormData {
-  payer_id: number;
+  payer_id: string;
   original_amount: string;
   currency: string;
   exchange_rate: string;
   description: string;
   category: string;
   date: string;
-  split_with: number[];
+  split_with: string[];
 }
 
 export interface ExpenseFormProps {
   open: boolean;
   mode: 'create' | 'edit';
   members: Member[];
-  currentUserId?: number;
+  currentUserId?: string;
   initialData?: Partial<ExpenseFormData>;
   editingExpense?: Expense | null;
   loading?: boolean;
@@ -50,7 +50,7 @@ export interface ExpenseFormProps {
 }
 
 const defaultFormData: ExpenseFormData = {
-  payer_id: 0,
+  payer_id: '',
   original_amount: '',
   currency: 'TWD',
   exchange_rate: '1.0',
@@ -74,7 +74,7 @@ export function ExpenseForm({
 }: ExpenseFormProps) {
   const [form, setForm] = useState<ExpenseFormData>(() => ({
     ...defaultFormData,
-    payer_id: currentUserId || 0,
+    payer_id: currentUserId || '',
     ...initialData,
   }));
 
@@ -95,7 +95,7 @@ export function ExpenseForm({
       } else {
         setForm({
           ...defaultFormData,
-          payer_id: currentUserId || 0,
+          payer_id: currentUserId || '',
           ...initialData,
         });
       }
@@ -113,10 +113,10 @@ export function ExpenseForm({
   };
 
   const handlePayerChange = (value: string) => {
-    setForm((prev) => ({ ...prev, payer_id: Number(value) }));
+    setForm((prev) => ({ ...prev, payer_id: value }));
   };
 
-  const toggleSplitMember = (userId: number) => {
+  const toggleSplitMember = (userId: string) => {
     setForm((prev) => ({
       ...prev,
       split_with: prev.split_with.includes(userId)
@@ -168,7 +168,7 @@ export function ExpenseForm({
   const isValid =
     form.description.trim() &&
     parseFloat(form.original_amount) > 0 &&
-    (mode === 'edit' || (form.payer_id > 0 && form.split_with.length > 0));
+    (mode === 'edit' || (form.payer_id !== '' && form.split_with.length > 0));
 
   return (
     <Dialog open={open} onOpenChange={(val) => !val && !loading && onClose()}>

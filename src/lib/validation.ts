@@ -16,6 +16,9 @@ export const CATEGORIES = [
 ] as const;
 export type ExpenseCategory = (typeof CATEGORIES)[number];
 
+// MongoDB ObjectId（24 碼十六進位字串）。不 import mongoose 以避免污染 client bundle。
+export const objectIdSchema = z.string().regex(/^[0-9a-fA-F]{24}$/, '無效的 ID 格式');
+
 // Location schema
 export const locationSchema = z.object({
   name: z.string(),
@@ -65,7 +68,7 @@ export const updateTripSchema = z
 
 // Expense schemas
 export const createExpenseSchema = z.object({
-  payer_id: z.number().int().positive('付款人 ID 必須為正整數'),
+  payer_id: objectIdSchema,
   original_amount: z.number().positive('金額必須大於 0'),
   currency: z.enum(CURRENCIES as unknown as [string, ...string[]]),
   exchange_rate: z.number().positive('匯率必須大於 0').default(1.0),
@@ -75,7 +78,7 @@ export const createExpenseSchema = z.object({
   splits: z
     .array(
       z.object({
-        user_id: z.number().int().positive(),
+        user_id: objectIdSchema,
         share_amount: z.number().min(0),
       })
     )
@@ -83,7 +86,7 @@ export const createExpenseSchema = z.object({
 });
 
 export const updateExpenseSchema = z.object({
-  payer_id: z.number().int().positive().optional(),
+  payer_id: objectIdSchema.optional(),
   original_amount: z.number().positive('金額必須大於 0').optional(),
   currency: z.enum(CURRENCIES as unknown as [string, ...string[]]).optional(),
   exchange_rate: z.number().positive('匯率必須大於 0').optional(),
@@ -93,7 +96,7 @@ export const updateExpenseSchema = z.object({
   splits: z
     .array(
       z.object({
-        user_id: z.number().int().positive(),
+        user_id: objectIdSchema,
         share_amount: z.number().min(0),
       })
     )

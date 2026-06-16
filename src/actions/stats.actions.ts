@@ -1,6 +1,8 @@
 'use server';
 
-import { supabase } from '@/lib/supabase';
+import { Types } from 'mongoose';
+import { dbConnect } from '@/lib/mongodb';
+import { Trip, Expense } from '@/models';
 import { getSession } from '@/lib/auth';
 import type { ActionResult } from './types';
 import type { StatsData, CategoryStat, CountryStat, ExpenseDetail, Location } from '@/types';
@@ -9,6 +11,15 @@ interface GetStatsOptions {
   startDate?: string;
   endDate?: string;
 }
+
+type LeanStatExpense = {
+  _id: { toString(): string };
+  category: string | null;
+  date: Date;
+  description: string;
+  splits: { user: { toString(): string }; shareAmount: number }[];
+  trip: { name: string } | null;
+};
 
 /**
  * Get personal statistics
@@ -22,180 +33,115 @@ export async function getStats(options: GetStatsOptions = {}): Promise<ActionRes
 
     const { startDate, endDate } = options;
 
+    await dbConnect();
+
     // 1. Get all trips the user is part of
-    const { data: tripMembers, error: tripError } = await supabase
-      .from('trip_members')
-      .select('trip_id')
-      .eq('user_id', session.userId);
+    const userTrips = await Trip.find({ 'members.user': session.userId })
+      .select('_id location')
+      .lean<{ _id: Types.ObjectId; location: Location | null }[]>();
 
-    if (tripError) throw tripError;
-
-    const tripIds = tripMembers?.map((tm) => tm.trip_id) || [];
-
-    if (tripIds.length === 0) {
+    if (userTrips.length === 0) {
       return {
         success: true,
-        data: {
-          categoryStats: [],
-          countries: [],
-          totalAmount: 0,
-          totalExpenses: 0,
-        },
+        data: { categoryStats: [], countries: [], totalAmount: 0, totalExpenses: 0 },
       };
     }
 
-    // 2. Get expense splits with details
-    let expenseSplitsQuery = supabase
-      .from('expense_splits')
-      .select(
-        `
-        share_amount,
-        expenses!inner (
-          id,
-          category,
-          date,
-          description,
-          trip_id,
-          trips!inner (
-            name
-          )
-        )
-      `
-      )
-      .eq('user_id', session.userId)
-      .in('expenses.trip_id', tripIds);
+    const tripIds = userTrips.map((t) => t._id);
 
-    if (startDate) {
-      expenseSplitsQuery = expenseSplitsQuery.gte('expenses.date', startDate);
-    }
-    if (endDate) {
-      expenseSplitsQuery = expenseSplitsQuery.lte('expenses.date', endDate);
-    }
+    // 2. Get expenses where the user is in the splits（含內嵌 splits）
+    const dateFilter: Record<string, Date> = {};
+    if (startDate) dateFilter.$gte = new Date(startDate);
+    if (endDate) dateFilter.$lte = new Date(`${endDate}T23:59:59.999Z`);
 
-    const { data: expenseSplits, error: splitsError } = await expenseSplitsQuery;
+    const expenses = await Expense.find({
+      trip: { $in: tripIds },
+      'splits.user': session.userId,
+      ...(startDate || endDate ? { date: dateFilter } : {}),
+    })
+      .select('category date description splits trip')
+      .populate('trip', 'name')
+      .lean<LeanStatExpense[]>();
 
-    if (splitsError) throw splitsError;
-
-    // 3. Calculate category statistics
+    // 3. Calculate category statistics（只計算自己分攤的金額）
     const categoryMap = new Map<
       string,
       { total: number; count: number; details: ExpenseDetail[] }
     >();
 
-    type ExpenseSplitQuery = {
-      share_amount: number;
-      expenses: {
-        id: number;
-        category: 'accommodation' | 'transportation' | 'food' | 'shopping' | 'entertainment' | 'tickets' | 'other' | null;
-        date: string;
-        description: string;
-        trip_id: number;
-        trips: { name: string } | null;
-      };
-    };
-
-    (expenseSplits as unknown as ExpenseSplitQuery[])?.forEach((split) => {
-      const category = split.expenses.category || 'other';
+    for (const e of expenses) {
+      const mySplit = e.splits.find((s) => s.user.toString() === session.userId);
+      const share = mySplit?.shareAmount || 0;
+      const category = e.category || 'other';
       const current = categoryMap.get(category) || { total: 0, count: 0, details: [] };
 
       const detail: ExpenseDetail = {
-        id: split.expenses.id,
-        date: split.expenses.date,
-        description: split.expenses.description || '',
-        amount: Math.round(split.share_amount || 0),
-        tripName: split.expenses.trips?.name || '',
+        id: e._id.toString(),
+        date: e.date instanceof Date ? e.date.toISOString().slice(0, 10) : e.date,
+        description: e.description || '',
+        amount: Math.round(share),
+        tripName: e.trip?.name || '',
       };
 
       categoryMap.set(category, {
-        total: current.total + (split.share_amount || 0),
+        total: current.total + share,
         count: current.count + 1,
         details: [...current.details, detail],
       });
-    });
+    }
 
-    const categoryStats: CategoryStat[] = Array.from(categoryMap.entries()).map(
-      ([category, stats]) => ({
+    const categoryStats: CategoryStat[] = Array.from(categoryMap.entries())
+      .map(([category, stats]) => ({
         category,
         total: Math.round(stats.total),
         count: stats.count,
         details: stats.details.sort(
           (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
         ),
-      })
-    );
+      }))
+      .sort((a, b) => b.total - a.total);
 
-    categoryStats.sort((a, b) => b.total - a.total);
-
-    // 4. Get trip locations for country stats
-    let tripsQuery = supabase.from('trips').select('id, location').in('id', tripIds);
-
-    if (startDate) {
-      tripsQuery = tripsQuery.or(`start_date.gte.${startDate},end_date.gte.${startDate}`);
-    }
-    if (endDate) {
-      tripsQuery = tripsQuery.or(`start_date.lte.${endDate},end_date.lte.${endDate}`);
-    }
-
-    const { data: trips, error: tripsError } = await tripsQuery;
-
-    if (tripsError) throw tripsError;
-
-    // 5. Calculate country statistics
+    // 4. Calculate country statistics from trip locations
     const countryMap = new Map<
       string,
       { country_code: string; regions: Map<string, number>; tripCount: number }
     >();
 
-    type TripQuery = {
-      id: number;
-      location: Location;
-    };
-
-    (trips as unknown as TripQuery[])?.forEach((trip) => {
-      if (trip.location && trip.location.country) {
-        const country = trip.location.country;
-        const countryCode = trip.location.country_code || '';
-        const regionName = trip.location.name || '未知';
+    for (const trip of userTrips) {
+      const location = trip.location;
+      if (location && location.country) {
+        const country = location.country;
+        const countryCode = location.country_code || '';
+        const regionName = location.name || '未知';
 
         if (!countryMap.has(country)) {
-          countryMap.set(country, {
-            country_code: countryCode,
-            regions: new Map(),
-            tripCount: 0,
-          });
+          countryMap.set(country, { country_code: countryCode, regions: new Map(), tripCount: 0 });
         }
 
         const countryData = countryMap.get(country)!;
         countryData.tripCount += 1;
-
-        const currentRegionCount = countryData.regions.get(regionName) || 0;
-        countryData.regions.set(regionName, currentRegionCount + 1);
+        countryData.regions.set(regionName, (countryData.regions.get(regionName) || 0) + 1);
       }
-    });
+    }
 
-    const countries: CountryStat[] = Array.from(countryMap.entries()).map(([country, data]) => ({
-      country,
-      country_code: data.country_code,
-      tripCount: data.tripCount,
-      regions: Array.from(data.regions.entries())
-        .map(([name, tripCount]) => ({ name, tripCount }))
-        .sort((a, b) => b.tripCount - a.tripCount),
-    }));
+    const countries: CountryStat[] = Array.from(countryMap.entries())
+      .map(([country, data]) => ({
+        country,
+        country_code: data.country_code,
+        tripCount: data.tripCount,
+        regions: Array.from(data.regions.entries())
+          .map(([name, tripCount]) => ({ name, tripCount }))
+          .sort((a, b) => b.tripCount - a.tripCount),
+      }))
+      .sort((a, b) => b.tripCount - a.tripCount);
 
-    countries.sort((a, b) => b.tripCount - a.tripCount);
-
-    // 6. Calculate totals
+    // 5. Totals
     const totalAmount = categoryStats.reduce((sum, cat) => sum + cat.total, 0);
     const totalExpenses = categoryStats.reduce((sum, cat) => sum + cat.count, 0);
 
     return {
       success: true,
-      data: {
-        categoryStats,
-        countries,
-        totalAmount,
-        totalExpenses,
-      },
+      data: { categoryStats, countries, totalAmount, totalExpenses },
     };
   } catch (error) {
     console.error('Get stats error:', error);

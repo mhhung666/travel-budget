@@ -2,7 +2,7 @@
  * 用戶餘額狀態
  */
 export interface UserBalance {
-  user_id: number;
+  user_id: string;
   username: string;
   display_name: string;
   /** 總共支付金額 */
@@ -17,9 +17,9 @@ export interface UserBalance {
  * 轉帳建議
  */
 export interface Transfer {
-  from_id: number;
+  from_id: string;
   from_name: string;
-  to_id: number;
+  to_id: string;
   to_name: string;
   amount: number;
 }
@@ -37,7 +37,7 @@ export interface SettlementData {
  * 用戶餘額（客戶端顯示用，camelCase）
  */
 export interface Balance {
-  userId: number;
+  userId: string;
   username: string;
   totalPaid: number;
   totalOwed: number;

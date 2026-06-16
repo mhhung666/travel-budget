@@ -8,7 +8,7 @@ import type { Expense } from '@/types';
 
 export interface ExpenseListProps {
   expenses: Expense[];
-  currentUserId?: number;
+  currentUserId?: string;
   onEdit?: (expense: Expense) => void;
   onDelete?: (expense: Expense) => void;
   onAdd?: () => void;

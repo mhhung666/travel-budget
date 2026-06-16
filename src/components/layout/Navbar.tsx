@@ -19,7 +19,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 interface NavbarProps {
   user?: {
-    id: number;
+    id: string;
     username: string;
     email: string;
     display_name?: string;

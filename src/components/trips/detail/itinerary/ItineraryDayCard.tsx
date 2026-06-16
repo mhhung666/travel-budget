@@ -12,7 +12,7 @@ interface ItineraryDayCardProps {
   day: ItineraryDay;
   isAdmin: boolean;
   onEdit: (day: ItineraryDay) => void;
-  onDelete: (dayId: number) => void;
+  onDelete: (dayId: string) => void;
 }
 
 export default function ItineraryDayCard({ day, isAdmin, onEdit, onDelete }: ItineraryDayCardProps) {

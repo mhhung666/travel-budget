@@ -1,5 +1,5 @@
 interface Balance {
-  userId: number;
+  userId: string;
   username: string;
   balance: number; // 正數表示應收,負數表示應付
 }

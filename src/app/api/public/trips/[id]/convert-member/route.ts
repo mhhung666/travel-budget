@@ -104,7 +104,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (updateError) throw updateError;
 
     // 自動登入
-    await createSession(virtualUserId, validation.data.username);
+    await createSession(String(virtualUserId), validation.data.username);
 
     return NextResponse.json({ success: true, message: '註冊成功' });
   } catch (error) {

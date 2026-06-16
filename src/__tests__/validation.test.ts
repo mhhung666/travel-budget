@@ -61,14 +61,17 @@ describe('createTripSchema', () => {
 
 describe('createExpenseSchema', () => {
   const validExpense = {
-    payer_id: 1,
+    payer_id: '507f1f77bcf86cd799439011',
     original_amount: 100,
     currency: 'TWD',
     exchange_rate: 1.0,
     description: 'Lunch',
     category: 'food',
     date: '2024-03-01',
-    splits: [{ user_id: 1, share_amount: 50 }, { user_id: 2, share_amount: 50 }],
+    splits: [
+      { user_id: '507f1f77bcf86cd799439011', share_amount: 50 },
+      { user_id: '507f1f77bcf86cd799439012', share_amount: 50 },
+    ],
   };
 
   it('should accept valid expense', () => {

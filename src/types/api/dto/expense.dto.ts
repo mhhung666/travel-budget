@@ -2,7 +2,7 @@
  * 建立消費請求
  */
 export interface CreateExpenseDto {
-  payer_id: number;
+  payer_id: string;
   original_amount: number;
   currency: string;
   exchange_rate: number;
@@ -10,7 +10,7 @@ export interface CreateExpenseDto {
   category: string;
   date: string;
   /** 分攤人員 ID 列表 */
-  split_with: number[];
+  split_with: string[];
 }
 
 /**

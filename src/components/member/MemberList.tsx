@@ -6,7 +6,7 @@ import type { Member } from '@/types';
 
 export interface MemberListProps {
   members: Member[];
-  currentUserId?: number;
+  currentUserId?: string;
   isAdmin?: boolean;
   onRemove?: (member: Member) => void;
   title?: string;

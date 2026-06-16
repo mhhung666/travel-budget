@@ -6,7 +6,7 @@ const SECRET_KEY = process.env.JWT_SECRET || 'your-secret-key-change-in-producti
 const key = new TextEncoder().encode(SECRET_KEY);
 
 export interface SessionPayload {
-  userId: number;
+  userId: string;
   username: string;
   expiresAt: Date;
 }
@@ -30,7 +30,7 @@ export async function decrypt(token: string): Promise<SessionPayload | null> {
   }
 }
 
-export async function createSession(userId: number, username: string) {
+export async function createSession(userId: string, username: string) {
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
   const session = await encrypt({ userId, username, expiresAt });
 

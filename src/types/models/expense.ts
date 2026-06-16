@@ -2,7 +2,7 @@
  * 消費分攤資訊
  */
 export interface ExpenseSplit {
-  user_id: number;
+  user_id: string;
   username: string;
   display_name: string;
   share_amount: number;
@@ -12,9 +12,9 @@ export interface ExpenseSplit {
  * 消費記錄
  */
 export interface Expense {
-  id: number;
-  trip_id: number;
-  payer_id: number;
+  id: string;
+  trip_id: string;
+  payer_id: string;
   payer_name: string;
   /** TWD 換算金額（用於結算計算） */
   amount: number;

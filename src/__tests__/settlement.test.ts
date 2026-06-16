@@ -8,16 +8,16 @@ describe('calculateSettlement', () => {
 
   it('should return empty array when all balances are zero', () => {
     const balances = [
-      { userId: 1, username: 'Alice', balance: 0 },
-      { userId: 2, username: 'Bob', balance: 0 },
+      { userId: '1', username: 'Alice', balance: 0 },
+      { userId: '2', username: 'Bob', balance: 0 },
     ];
     expect(calculateSettlement(balances)).toEqual([]);
   });
 
   it('should handle simple two-person settlement', () => {
     const balances = [
-      { userId: 1, username: 'Alice', balance: 100 },  // Alice is owed 100
-      { userId: 2, username: 'Bob', balance: -100 },    // Bob owes 100
+      { userId: '1', username: 'Alice', balance: 100 },  // Alice is owed 100
+      { userId: '2', username: 'Bob', balance: -100 },    // Bob owes 100
     ];
     const result = calculateSettlement(balances);
 
@@ -35,9 +35,9 @@ describe('calculateSettlement', () => {
     // Bob balance: 0 - 100 = -100 (owes 100)
     // Charlie balance: 0 - 100 = -100 (owes 100)
     const balances = [
-      { userId: 1, username: 'Alice', balance: 200 },
-      { userId: 2, username: 'Bob', balance: -100 },
-      { userId: 3, username: 'Charlie', balance: -100 },
+      { userId: '1', username: 'Alice', balance: 200 },
+      { userId: '2', username: 'Bob', balance: -100 },
+      { userId: '3', username: 'Charlie', balance: -100 },
     ];
     const result = calculateSettlement(balances);
 
@@ -52,10 +52,10 @@ describe('calculateSettlement', () => {
   it('should minimize number of transactions', () => {
     // 4 people, but can be settled in 3 transactions
     const balances = [
-      { userId: 1, username: 'Alice', balance: 150 },
-      { userId: 2, username: 'Bob', balance: -50 },
-      { userId: 3, username: 'Charlie', balance: -50 },
-      { userId: 4, username: 'Dave', balance: -50 },
+      { userId: '1', username: 'Alice', balance: 150 },
+      { userId: '2', username: 'Bob', balance: -50 },
+      { userId: '3', username: 'Charlie', balance: -50 },
+      { userId: '4', username: 'Dave', balance: -50 },
     ];
     const result = calculateSettlement(balances);
 
@@ -66,16 +66,16 @@ describe('calculateSettlement', () => {
 
   it('should ignore negligible balances (< 0.01)', () => {
     const balances = [
-      { userId: 1, username: 'Alice', balance: 0.005 },
-      { userId: 2, username: 'Bob', balance: -0.005 },
+      { userId: '1', username: 'Alice', balance: 0.005 },
+      { userId: '2', username: 'Bob', balance: -0.005 },
     ];
     expect(calculateSettlement(balances)).toEqual([]);
   });
 
   it('should round amounts to 2 decimal places', () => {
     const balances = [
-      { userId: 1, username: 'Alice', balance: 100.555 },
-      { userId: 2, username: 'Bob', balance: -100.555 },
+      { userId: '1', username: 'Alice', balance: 100.555 },
+      { userId: '2', username: 'Bob', balance: -100.555 },
     ];
     const result = calculateSettlement(balances);
 
@@ -85,10 +85,10 @@ describe('calculateSettlement', () => {
 
   it('should handle complex multi-party settlement', () => {
     const balances = [
-      { userId: 1, username: 'Alice', balance: 300 },
-      { userId: 2, username: 'Bob', balance: -200 },
-      { userId: 3, username: 'Charlie', balance: 100 },
-      { userId: 4, username: 'Dave', balance: -200 },
+      { userId: '1', username: 'Alice', balance: 300 },
+      { userId: '2', username: 'Bob', balance: -200 },
+      { userId: '3', username: 'Charlie', balance: 100 },
+      { userId: '4', username: 'Dave', balance: -200 },
     ];
     const result = calculateSettlement(balances);
 
@@ -109,9 +109,9 @@ describe('calculateSettlement', () => {
 
   it('should handle single person with zero balance among others', () => {
     const balances = [
-      { userId: 1, username: 'Alice', balance: 50 },
-      { userId: 2, username: 'Bob', balance: 0 },
-      { userId: 3, username: 'Charlie', balance: -50 },
+      { userId: '1', username: 'Alice', balance: 50 },
+      { userId: '2', username: 'Bob', balance: 0 },
+      { userId: '3', username: 'Charlie', balance: -50 },
     ];
     const result = calculateSettlement(balances);
 
