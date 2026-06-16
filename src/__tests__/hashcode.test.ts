@@ -7,9 +7,9 @@ import {
 } from '@/lib/hashcode';
 
 describe('generateHashCode', () => {
-  it('should generate code with default length of 6', () => {
+  it('should generate code with default length of 8', () => {
     const code = generateHashCode();
-    expect(code).toHaveLength(6);
+    expect(code).toHaveLength(8);
   });
 
   it('should generate code with custom length', () => {
@@ -51,8 +51,17 @@ describe('isValidHashCode', () => {
     expect(isValidHashCode('abc12')).toBe(false);
   });
 
-  it('should reject too long codes (> 8)', () => {
-    expect(isValidHashCode('abc123456')).toBe(false);
+  it('should accept valid 9 and 10-char codes', () => {
+    expect(isValidHashCode('abc123456')).toBe(true);
+    expect(isValidHashCode('abc1234567')).toBe(true);
+  });
+
+  it('should reject too long codes (> 10)', () => {
+    expect(isValidHashCode('abc12345678')).toBe(false); // 11
+  });
+
+  it('should reject 12-char codes (would collide with ObjectId detection)', () => {
+    expect(isValidHashCode('abcdef123456')).toBe(false);
   });
 
   it('should reject uppercase letters', () => {
@@ -72,7 +81,7 @@ describe('isValidHashCode', () => {
 describe('generateUniqueHashCode', () => {
   it('should return first code when no conflicts', async () => {
     const code = await generateUniqueHashCode(async () => false);
-    expect(code).toHaveLength(6);
+    expect(code).toHaveLength(8);
     expect(isValidHashCode(code)).toBe(true);
   });
 
@@ -82,7 +91,7 @@ describe('generateUniqueHashCode', () => {
       attempts++;
       return attempts < 3; // First 2 attempts conflict
     });
-    expect(code).toHaveLength(6);
+    expect(code).toHaveLength(8);
     expect(attempts).toBe(3);
   });
 
@@ -90,9 +99,9 @@ describe('generateUniqueHashCode', () => {
     let attempts = 0;
     const code = await generateUniqueHashCode(async () => {
       attempts++;
-      return attempts <= 10; // All 6-char attempts fail
+      return attempts <= 10; // All 8-char attempts fail
     });
-    expect(code).toHaveLength(8); // Falls back to 8-char
+    expect(code).toHaveLength(10); // Falls back to 10-char
     expect(attempts).toBe(11);
   });
 

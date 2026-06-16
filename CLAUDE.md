@@ -50,7 +50,7 @@ Models live in [src/models/](src/models/) and use **embedded documents** to coll
 - Authorize trip access with `getTripMembership(userId, tripIdOrCode)` ([src/lib/permissions.ts](src/lib/permissions.ts)) — one `Trip.findOne` against the embedded `members` resolves ID + membership + role together. Prefer it over the `getTripId` / `isMember` / `isAdmin` helpers (kept for the public API routes).
 
 ### `tripIdOrCode` convention
-Trip identifiers throughout the codebase may be either an **ObjectId string** or a public **`hash_code`** string (`[a-z0-9]{6,8}`). Resolution helpers (`getTripId`, `getTripMembership`) branch on `isValidObjectId(x)` — a 24-hex ObjectId vs the short hash code, no ambiguity. Preserve this dual-acceptance when adding endpoints.
+Trip identifiers throughout the codebase may be either an **ObjectId string** or a public **`hash_code`** string (`[a-z0-9]{6,10}`; new trips generate 8, collision-fallback 10 — kept `< 12` so a hash_code is never mistaken for a 12-byte ObjectId). Resolution helpers (`getTripId`, `getTripMembership`) branch on `isValidObjectId(x)` — a 12-byte/24-hex ObjectId vs the short hash code, no ambiguity. Preserve this dual-acceptance when adding endpoints — **except** the public share routes under `/api/public/*`, which deliberately resolve **hash_code only** via `getTripIdByHashCode` (rejecting ObjectId closes a bypass around the share capability).
 
 ### Schema changes
 Schemas are defined in [src/models/](src/models/); indexes are created by Mongoose on connect (`autoIndex`). Changing a field or index = editing the model. ID-shaped fields are ObjectId strings end-to-end (JWT, DTOs, frontend props).

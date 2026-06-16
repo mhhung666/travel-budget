@@ -5,10 +5,10 @@
 
 /**
  * 生成隨機短 hash code
- * @param length hash code 長度 (預設 6)
- * @returns 隨機生成的 hash code (例如: a7x9k2)
+ * @param length hash code 長度 (預設 8)
+ * @returns 隨機生成的 hash code (例如: a7x9k2b3)
  */
-export function generateHashCode(length: number = 6): string {
+export function generateHashCode(length: number = 8): string {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
   let result = '';
 
@@ -26,8 +26,11 @@ export function generateHashCode(length: number = 6): string {
  * @returns 是否為有效格式
  */
 export function isValidHashCode(hashCode: string): boolean {
-  // hash code 應為 6-8 位小寫字母或數字
-  const regex = /^[a-z0-9]{6,8}$/;
+  // hash code 應為 6-10 位小寫字母或數字。
+  // 上限刻意 < 12：長度 12 的字串會被 mongoose isValidObjectId 誤判為 12-byte ObjectId，
+  // 而 hash_code 與 ObjectId 的分流（見 lib/permissions.ts）正是靠「hash_code 永遠不是合法 ObjectId」。
+  // 下限維持 6 以相容既有的 6 碼舊資料。
+  const regex = /^[a-z0-9]{6,10}$/;
   return regex.test(hashCode);
 }
 
@@ -53,9 +56,9 @@ export async function generateUniqueHashCode(
     }
   }
 
-  // 如果嘗試多次仍碰撞,增加長度重試
+  // 如果嘗試多次仍碰撞,增加長度重試（10 < 12，仍不會與 ObjectId 分流衝突）
   for (let i = 0; i < maxAttempts; i++) {
-    const hashCode = generateHashCode(8); // 使用更長的 hash code
+    const hashCode = generateHashCode(10); // 使用更長的 hash code
     const exists = await checkExists(hashCode);
 
     if (!exists) {

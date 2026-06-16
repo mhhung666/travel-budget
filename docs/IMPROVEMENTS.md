@@ -57,7 +57,9 @@
 
 ### 6. 🟡 評估 Public API 的安全性
 **問題**：`/api/public/*` 是「知道分享資訊即可檢視」的端點，原本同時接受 ObjectId 與 `hash_code`，等於開了一條繞過 `hash_code` 的旁路（ObjectId 含可預測的時間戳前綴，且會出現在各種回應的 `id` 欄位中）。
-**修復（已完成）**：新增 [`getTripIdByHashCode`](../src/lib/permissions.ts)，所有公開端點改為**僅接受 `hash_code`、明確拒絕 ObjectId**（8 條路由：trip / expenses / settlement / members / itinerary / convert-member / link-member / link-virtual）。「分享能力 == 知道 hash_code」。以 [permissions.test.ts](../src/__tests__/permissions.test.ts) 鎖定拒絕 ObjectId 的行為。
+**修復（已完成）**：
+- 新增 [`getTripIdByHashCode`](../src/lib/permissions.ts)，所有公開端點改為**僅接受 `hash_code`、明確拒絕 ObjectId**（8 條路由：trip / expenses / settlement / members / itinerary / convert-member / link-member / link-virtual）。「分享能力 == 知道 hash_code」。以 [permissions.test.ts](../src/__tests__/permissions.test.ts) 鎖定拒絕 ObjectId 的行為。
+- **新 trip 的 hash_code 預設由 6 碼增為 8 碼**（碰撞 fallback 10 碼），枚舉難度 ×1300（36⁶→36⁸）。長度刻意維持 `< 12`，避免被誤判為 ObjectId。既有 6 碼舊資料仍相容（`isValidHashCode` 放寬為 `{6,10}`）。
 **刻意未做**：
 - *讀取端點需登入* — 與設計衝突。`/api/public/*` 本就是「未登入也能用 `hash_code` 檢視分享」的核心功能（見 [CLAUDE.md](../CLAUDE.md)），不在此加 session 檢查。
 - *Rate limiting* — 需基礎設施決策。Serverless（Vercel）下記憶體式限流形同虛設（各 instance 各自計數），須改用 Upstash / Vercel KV 等外部儲存；待確認方案後再做。

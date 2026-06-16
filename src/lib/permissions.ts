@@ -16,7 +16,7 @@ export type MembershipResult = {
 
 /**
  * 依 tripId（ObjectId）或 hash_code 建立查詢條件。
- * hash_code 為 6-8 碼小寫英數，永遠不會是合法的 24 碼 ObjectId，分流無歧義。
+ * hash_code 為 6-10 碼小寫英數，永遠不會是合法的 12-byte / 24-hex ObjectId，分流無歧義。
  */
 function tripQuery(tripIdOrCode: string) {
   return isValidObjectId(tripIdOrCode) ? { _id: tripIdOrCode } : { hashCode: tripIdOrCode };
@@ -86,7 +86,7 @@ export async function getTripId(tripIdOrCode: string): Promise<string | null> {
  * 會出現在各種回應的 `id` 欄位中。若公開端點也接受 ObjectId，等於開了一條繞過
  * hash_code 的旁路。此函式確保「分享能力 == 知道 hash_code」。
  *
- * hash_code 為 6-8 碼小寫英數，永遠不是合法的 24 碼 ObjectId，故以 `isValidObjectId`
+ * hash_code 為 6-10 碼小寫英數，永遠不是合法的 12-byte / 24-hex ObjectId，故以 `isValidObjectId`
  * 即可明確分流並拒絕 ObjectId 形式的輸入。
  *
  * @returns trip _id 字串；輸入為 ObjectId 形式或查無此 hash_code 時回傳 null
