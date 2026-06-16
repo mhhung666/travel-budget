@@ -47,13 +47,9 @@
 ### 7. 🟡 清除殘餘 `any`
 為頁面 handler 的 `data` 參數與 `currentUser` state 補上明確型別（`User | null` 等），約 9 處。
 
-### 8. ⚠️ 引入 Next.js Middleware 集中路由保護
-目前無 `src/middleware.ts`，受保護路由的導向散落各頁。建議在 middleware 統一處理：未登入存取 `/trips`、`/settings`、`/stats` 時導向 `/login`。
-
----
-
-### 5. ⚠️ 導入 Next.js Middleware 集中路由保護
-目前無 `src/middleware.ts`，受保護路由的導向散落各頁。建議在 middleware 統一處理：未登入存取 `/trips`、`/settings`、`/stats` 時導向 `/login`。
+### 5 & 8. ✅ Next.js Middleware 集中路由保護
+**現況**：已有 [src/proxy.ts](../src/proxy.ts)（Next.js 16 將 `middleware` 改名為 `proxy`）統一處理：未登入存取受保護頁面導向 `/login`、已登入存取 `/login` 導向 `/trips`，並整合 next-intl 的 locale 路由。
+**修復（已完成）**：`protectedRoutes` 原本漏了 `/stats`，已補上（現為 `/trips`、`/settings`、`/stats`）。`/trips/[id]` 維持不攔截，以支援未登入者用 `hash_code` 檢視分享。
 
 ---
 
