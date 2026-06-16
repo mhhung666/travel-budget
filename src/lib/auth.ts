@@ -1,21 +1,15 @@
 import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 import { NextRequest } from 'next/server';
+import { getEnv } from './env';
 
 let cachedKey: Uint8Array | null = null;
 
 function getKey(): Uint8Array {
   if (cachedKey) return cachedKey;
 
-  const secret = process.env.JWT_SECRET;
-  if (!secret || secret.length < 32) {
-    throw new Error(
-      'JWT_SECRET is missing or too short (must be at least 32 characters). ' +
-        'Set a strong secret in the environment; no insecure fallback is allowed.'
-    );
-  }
-
-  cachedKey = new TextEncoder().encode(secret);
+  // getEnv() 已驗證 JWT_SECRET 存在且 >= 32 字元，否則拋錯（無不安全 fallback）。
+  cachedKey = new TextEncoder().encode(getEnv().JWT_SECRET);
   return cachedKey;
 }
 
