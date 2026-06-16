@@ -10,4 +10,6 @@ export {
   useTripMembership,
 } from './useTripQueries';
 export { useItineraryMutations } from './useItineraryMutations';
+export { useExpenseMutations } from './useExpenseMutations';
+export { useTripMutations } from './useTripMutations';
 export { useExchangeRates } from './useExchangeRates';
