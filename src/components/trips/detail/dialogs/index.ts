@@ -5,6 +5,7 @@ export type { EditTripFormData } from './EditTripDialog';
 export { default as ExpenseFormDialog } from './ExpenseFormDialog';
 export type { ExpenseDialogData } from './ExpenseFormDialog';
 export { default as LinkExistingMemberDialog } from './LinkExistingMemberDialog';
+export { default as RegenerateShareCodeDialog } from './RegenerateShareCodeDialog';
 export { default as RegisterVirtualMemberDialog } from './RegisterVirtualMemberDialog';
 export { default as RemoveMemberDialog } from './RemoveMemberDialog';
 export { default as ToggleAdminDialog } from './ToggleAdminDialog';

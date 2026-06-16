@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Trip, User } from '@/models';
-import { getTripId } from '@/lib/permissions';
+import { getTripIdByHashCode } from '@/lib/permissions';
 
 type LeanTrip = {
   _id: { toString(): string };
@@ -24,7 +24,7 @@ export async function GET(
     const { tripId, username } = await params;
 
     // 支援 hash_code 或 ObjectId
-    const resolvedTripId = await getTripId(tripId);
+    const resolvedTripId = await getTripIdByHashCode(tripId);
     if (!resolvedTripId) {
       return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
     }

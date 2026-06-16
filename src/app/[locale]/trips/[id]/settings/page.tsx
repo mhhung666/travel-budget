@@ -21,6 +21,7 @@ import {
   ToggleAdminDialog,
   RegisterVirtualMemberDialog,
   LinkExistingMemberDialog,
+  RegenerateShareCodeDialog,
 } from '@/components/trips/detail/dialogs';
 
 import {
@@ -28,6 +29,7 @@ import {
   getTrip,
   getMembers,
   deleteTrip,
+  regenerateHashCode,
   addVirtualMember,
   removeMember,
   updateMemberRole,
@@ -76,6 +78,10 @@ export default function TripSettingsPage() {
 
   const [isDeleting, setIsDeleting] = useState(false);
   const [membersExpanded, setMembersExpanded] = useState(true);
+
+  // Regenerate share link
+  const [regenerateDialogOpen, setRegenerateDialogOpen] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -129,6 +135,31 @@ export default function TripSettingsPage() {
         title: "Error",
         description: tAction('copyFailed'),
       });
+    }
+  };
+
+  const handleRegenerateShareCode = async () => {
+    setIsRegenerating(true);
+    try {
+      const result = await regenerateHashCode(tripId);
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      setTrip(result.data);
+      toast({
+        title: tTrip('regenerateSuccess'),
+      });
+      setRegenerateDialogOpen(false);
+      // 目前 URL 仍是已失效的舊 hash_code；換成新碼，頁面後續操作（依 hash_code 解析）才不會 NOT_FOUND
+      router.replace(`/trips/${result.data.hash_code}/settings`);
+    } catch (err: unknown) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: err instanceof Error ? err.message : String(err),
+      });
+    } finally {
+      setIsRegenerating(false);
     }
   };
 
@@ -322,6 +353,9 @@ export default function TripSettingsPage() {
           <TripShare
             tripHashCode={trip.hash_code}
             onCopy={copyHashCode}
+            canRegenerate={!!isCurrentUserAdmin}
+            onRegenerate={() => setRegenerateDialogOpen(true)}
+            isRegenerating={isRegenerating}
           />
 
           {/* 危险操作区 */}
@@ -336,6 +370,13 @@ export default function TripSettingsPage() {
         open={addVirtualMemberDialog}
         onClose={() => setAddVirtualMemberDialog(false)}
         onSubmit={handleAddVirtualMember}
+      />
+
+      <RegenerateShareCodeDialog
+        open={regenerateDialogOpen}
+        onClose={() => setRegenerateDialogOpen(false)}
+        onConfirm={handleRegenerateShareCode}
+        isRegenerating={isRegenerating}
       />
 
       <DeleteTripDialog

@@ -13,7 +13,7 @@ import {
   Cell,
 } from 'recharts';
 import { aggregateExpensesByInterval, suggestInterval } from '@/lib/histogram';
-import type { CategoryStat, TimeInterval } from '@/types';
+import type { CategoryStat, TimeInterval, HistogramDataPoint } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -92,8 +92,14 @@ export default function ExpenseHistogram({
     );
   }, [categoryStats, interval, startDate, endDate, locale]);
 
-  // 自定義 Tooltip
-  const CustomTooltip = ({ active, payload }: any) => {
+  // 自定義 Tooltip（recharts 會傳入 active 與 payload）
+  const CustomTooltip = ({
+    active,
+    payload,
+  }: {
+    active?: boolean;
+    payload?: { payload: HistogramDataPoint }[];
+  }) => {
     if (!active || !payload?.[0]) return null;
     const data = payload[0].payload;
     const dateFormat = locale === 'zh' ? 'zh-TW' : locale === 'jp' ? 'ja-JP' : locale === 'zh-CN' ? 'zh-CN' : 'en-US';

@@ -14,7 +14,11 @@
     "format:check": "prettier --check \"src/**/*.{ts,tsx,json,css}\"",
     "test": "vitest",
     "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "migrate:status": "migrate-mongo status",
+    "migrate:up": "migrate-mongo up",
+    "migrate:down": "migrate-mongo down",
+    "migrate:create": "migrate-mongo create"
   },
   "keywords": [
     "travel",
@@ -81,6 +85,7 @@
     "eslint-config-next": "^15.3.2",
     "eslint-config-prettier": "^10.1.5",
     "jsdom": "^26.1.0",
+    "migrate-mongo": "^14.0.7",
     "postcss": "^8.5.6",
     "prettier": "^3.5.3",
     "tailwindcss": "^3.4.17",

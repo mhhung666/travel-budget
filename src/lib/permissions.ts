@@ -16,7 +16,7 @@ export type MembershipResult = {
 
 /**
  * 依 tripId（ObjectId）或 hash_code 建立查詢條件。
- * hash_code 為 6-8 碼小寫英數，永遠不會是合法的 24 碼 ObjectId，分流無歧義。
+ * hash_code 為 6-10 碼小寫英數，永遠不會是合法的 12-byte / 24-hex ObjectId，分流無歧義。
  */
 function tripQuery(tripIdOrCode: string) {
   return isValidObjectId(tripIdOrCode) ? { _id: tripIdOrCode } : { hashCode: tripIdOrCode };
@@ -75,6 +75,29 @@ export async function getTripId(tripIdOrCode: string): Promise<string | null> {
   await dbConnect();
 
   const trip = await Trip.findOne(tripQuery(tripIdOrCode)).select('_id').lean();
+  return trip ? trip._id.toString() : null;
+}
+
+/**
+ * 公開分享端點專用：僅以 hash_code 解析旅程，**拒絕 ObjectId**。
+ *
+ * 為什麼？`/api/public/*` 是「知道 hash_code 即可檢視」的分享面。hash_code 是
+ * 設計上的能力憑證（不可預測的隨機短碼）；ObjectId 則含可預測的時間戳前綴、且
+ * 會出現在各種回應的 `id` 欄位中。若公開端點也接受 ObjectId，等於開了一條繞過
+ * hash_code 的旁路。此函式確保「分享能力 == 知道 hash_code」。
+ *
+ * hash_code 為 6-10 碼小寫英數，永遠不是合法的 12-byte / 24-hex ObjectId，故以 `isValidObjectId`
+ * 即可明確分流並拒絕 ObjectId 形式的輸入。
+ *
+ * @returns trip _id 字串；輸入為 ObjectId 形式或查無此 hash_code 時回傳 null
+ */
+export async function getTripIdByHashCode(hashCode: string): Promise<string | null> {
+  await dbConnect();
+
+  // 明確拒絕 ObjectId：公開端點只認 hash_code。
+  if (isValidObjectId(hashCode)) return null;
+
+  const trip = await Trip.findOne({ hashCode }).select('_id').lean();
   return trip ? trip._id.toString() : null;
 }
 

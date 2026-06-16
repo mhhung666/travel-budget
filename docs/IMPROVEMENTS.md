@@ -18,7 +18,7 @@
 | 核心測試 | ✅ | settlement / validation / hashcode 測試 |
 | 資料載入 hook | ✅ | `src/hooks/useTripData.ts` 封裝登入/public 雙路徑 |
 | Server Action auth wrapper | ✅ | `withAuth` 全面採用：所有需登入的 action（trip/expense/member/settlement/stats/itinerary + auth 的 updateProfile）統一以 `withAuth` 包裝 |
-| 減少 `any` | 🟡 | `src/app` 與 `src/components` 仍約 9 處 `: any` |
+| 減少 `any` | ✅ | `src/app` 與 `src/components` 的顯式 `any` 已清除（ESLint `no-explicit-any` 為 0） |
 
 ---
 
@@ -38,14 +38,14 @@
 ### 2. ✅ 全面採用 `withAuth` 包裝 Server Action
 **修復（已完成）**：`trip / expense / member / settlement / stats` 全部需登入的 action 改用 `withAuth`，移除重複的 `getSession()` boilerplate，統一回傳 `UNAUTHORIZED`。`auth.actions.ts` 的 `updateProfile` 亦改用；`getCurrentUser` 維持原狀（未登入回傳 `data: null` 而非錯誤，語義不同），`login/register/logout/resetPassword` 本就不需登入。
 
-### 3. 🟡 用 Mongoose migration 管理 schema 變更
-目前 schema 在 [src/models/](../src/models/)，index 於連線時建立——對小專案足夠。若日後需要可重現的結構變更與資料 backfill，可引入 `migrate-mongo` 之類工具管理 migration。
+### 3. ✅ 用 Mongoose migration 管理 schema 變更
+**修復（已完成）**：引入 `migrate-mongo`。設定見 [migrate-mongo-config.js](../migrate-mongo-config.js)（ESM、連線取自 `MONGODB_URI`），遷移放 [migrations/](../migrations/)，npm scripts `migrate:status/up/down/create`，並補上 baseline 遷移明文化現有索引。用法與慣例見 [MIGRATIONS.md](./MIGRATIONS.md)。`autoIndex` 維持開啟，工具與既有行為並存。
 
-### 4. ⚠️ 缺少環境變數啟動驗證
-**修復**：新增 `src/lib/env.ts`，用 Zod 驗證 `MONGODB_URI`、`JWT_SECRET`（min 32），缺漏即報清楚錯誤。
+### 4. ✅ 缺少環境變數啟動驗證
+**修復（已完成）**：新增 [src/lib/env.ts](../src/lib/env.ts)，用 Zod 驗證 `MONGODB_URI`、`JWT_SECRET`（min 32），缺漏即報清楚錯誤；`auth.ts` / `mongodb.ts` 改用 `getEnv()`。
 
-### 7. 🟡 清除殘餘 `any`
-為頁面 handler 的 `data` 參數與 `currentUser` state 補上明確型別（`User | null` 等），約 9 處。
+### 7. ✅ 清除殘餘 `any`
+**修復（已完成）**：`src/app` 與 `src/components` 的 5 處顯式 `any` 已清除——4 個 `catch (err: any)` 改為 `err: unknown` + `instanceof Error` 取訊息；`ExpenseHistogram` 的 tooltip props 以 `HistogramDataPoint` 明確標型。ESLint `no-explicit-any` 於這兩個目錄為 0。
 
 ### 5 & 8. ✅ Next.js Middleware 集中路由保護
 **現況**：已有 [src/proxy.ts](../src/proxy.ts)（Next.js 16 將 `middleware` 改名為 `proxy`）統一處理：未登入存取受保護頁面導向 `/login`、已登入存取 `/login` 導向 `/trips`，並整合 next-intl 的 locale 路由。
@@ -55,9 +55,15 @@
 
 ## P2 — 擴充性（為未來鋪路）
 
-### 6. ⚠️ 評估 Public API 的安全性
-`/api/public/*` 完全無認證，知道 trip 的 ObjectId 或 `hash_code` 即可讀取費用、成員、結算等資料。
-**修復**：分享端點只接受 `hash_code`（拒絕直接以 ObjectId 存取）；敏感資料考慮需登入；加上 rate limiting。
+### 6. 🟡 評估 Public API 的安全性
+**問題**：`/api/public/*` 是「知道分享資訊即可檢視」的端點，原本同時接受 ObjectId 與 `hash_code`，等於開了一條繞過 `hash_code` 的旁路（ObjectId 含可預測的時間戳前綴，且會出現在各種回應的 `id` 欄位中）。
+**修復（已完成）**：
+- 新增 [`getTripIdByHashCode`](../src/lib/permissions.ts)，所有公開端點改為**僅接受 `hash_code`、明確拒絕 ObjectId**（8 條路由：trip / expenses / settlement / members / itinerary / convert-member / link-member / link-virtual）。「分享能力 == 知道 hash_code」。以 [permissions.test.ts](../src/__tests__/permissions.test.ts) 鎖定拒絕 ObjectId 的行為。
+- **新 trip 的 hash_code 預設由 6 碼增為 8 碼**（碰撞 fallback 10 碼），枚舉難度 ×1300（36⁶→36⁸）。長度刻意維持 `< 12`，避免被誤判為 ObjectId。既有 6 碼舊資料仍相容（`isValidHashCode` 放寬為 `{6,10}`）。
+- **可撤銷分享連結**：新增 admin-only 的 [`regenerateHashCode`](../src/actions/trip.actions.ts) action —— 重新產生 `hash_code`，使所有舊 `/join` 與 `/api/public` 連結立即失效（成員不受影響，他們依成員身分而非 hash_code 解析）。UI 在旅行設定頁的分享區，附二次確認對話框（[RegenerateShareCodeDialog](../src/components/trips/detail/dialogs/RegenerateShareCodeDialog.tsx)），四語系字串齊備。重產生後會把目前 URL 換成新碼以維持頁面可用。
+**刻意未做**：
+- *讀取端點需登入* — 與設計衝突。`/api/public/*` 本就是「未登入也能用 `hash_code` 檢視分享」的核心功能（見 [CLAUDE.md](../CLAUDE.md)），不在此加 session 檢查。
+- *Rate limiting* — 需基礎設施決策。Serverless（Vercel）下記憶體式限流形同虛設（各 instance 各自計數），須改用 Upstash / Vercel KV 等外部儲存；待確認方案後再做。
 
 ### 7. ⚠️ 引入 Client 端資料快取（React Query / SWR）
 目前每次操作後 `await reload()` 重撈全部資料，無 cache、無 optimistic update。導入 TanStack Query 可獲得背景重新驗證、樂觀更新、去重與 retry。

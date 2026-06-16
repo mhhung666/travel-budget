@@ -238,6 +238,50 @@ export const deleteTrip = withAuth(
 );
 
 /**
+ * Regenerate a trip's share hash_code (admin only).
+ *
+ * This is the "revoke share link" capability: it replaces the trip's hash_code
+ * with a fresh unique one, so every existing /join and /api/public link stops
+ * resolving immediately. Use when a share link has leaked or should no longer
+ * grant access. Members are unaffected (they resolve trips by membership, not
+ * by hash_code).
+ */
+export const regenerateHashCode = withAuth(
+  async (session, id: string): Promise<ActionResult<Trip>> => {
+    try {
+      const membership = await getTripMembership(session.userId, id);
+      if (!membership) {
+        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+      }
+      if (membership.role !== 'admin') {
+        return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
+      }
+
+      const hashCode = await generateUniqueHashCode(async (code) => {
+        return (await TripModel.exists({ hashCode: code })) !== null;
+      });
+
+      const trip = await TripModel.findByIdAndUpdate(
+        membership.tripId,
+        { $set: { hashCode } },
+        { new: true }
+      ).lean<LeanTrip>();
+
+      if (!trip) {
+        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+      }
+
+      revalidatePath('/trips');
+      revalidatePath(`/trips/${membership.tripId}`);
+      return { success: true, data: toTripDto(trip) };
+    } catch (error) {
+      console.error('Regenerate hash code error:', error);
+      return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
+    }
+  }
+);
+
+/**
  * Join a trip using trip ID or hash code
  */
 export const joinTrip = withAuth(

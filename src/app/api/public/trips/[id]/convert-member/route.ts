@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { isValidObjectId } from 'mongoose';
 import { Trip, User } from '@/models';
-import { getTripId } from '@/lib/permissions';
+import { getTripIdByHashCode } from '@/lib/permissions';
 import { createSession } from '@/lib/auth';
 import { registerSchema } from '@/lib/validation';
 
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const { virtualUserId, username, display_name, email, password } = body;
 
     // 驗證 trip 存在
-    const tripId = await getTripId(id);
+    const tripId = await getTripIdByHashCode(id);
     if (!tripId) {
       return NextResponse.json({ error: '旅行不存在' }, { status: 404 });
     }
