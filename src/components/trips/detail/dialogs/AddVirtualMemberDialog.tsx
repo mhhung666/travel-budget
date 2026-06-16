@@ -50,8 +50,8 @@ export default function AddVirtualMemberDialog({
 
         try {
             await onSubmit(name);
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : String(err));
         } finally {
             setIsAdding(false);
         }

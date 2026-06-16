@@ -18,7 +18,7 @@
 | 核心測試 | ✅ | settlement / validation / hashcode 測試 |
 | 資料載入 hook | ✅ | `src/hooks/useTripData.ts` 封裝登入/public 雙路徑 |
 | Server Action auth wrapper | ✅ | `withAuth` 全面採用：所有需登入的 action（trip/expense/member/settlement/stats/itinerary + auth 的 updateProfile）統一以 `withAuth` 包裝 |
-| 減少 `any` | 🟡 | `src/app` 與 `src/components` 仍約 9 處 `: any` |
+| 減少 `any` | ✅ | `src/app` 與 `src/components` 的顯式 `any` 已清除（ESLint `no-explicit-any` 為 0） |
 
 ---
 
@@ -41,11 +41,11 @@
 ### 3. 🟡 用 Mongoose migration 管理 schema 變更
 目前 schema 在 [src/models/](../src/models/)，index 於連線時建立——對小專案足夠。若日後需要可重現的結構變更與資料 backfill，可引入 `migrate-mongo` 之類工具管理 migration。
 
-### 4. ⚠️ 缺少環境變數啟動驗證
-**修復**：新增 `src/lib/env.ts`，用 Zod 驗證 `MONGODB_URI`、`JWT_SECRET`（min 32），缺漏即報清楚錯誤。
+### 4. ✅ 缺少環境變數啟動驗證
+**修復（已完成）**：新增 [src/lib/env.ts](../src/lib/env.ts)，用 Zod 驗證 `MONGODB_URI`、`JWT_SECRET`（min 32），缺漏即報清楚錯誤；`auth.ts` / `mongodb.ts` 改用 `getEnv()`。
 
-### 7. 🟡 清除殘餘 `any`
-為頁面 handler 的 `data` 參數與 `currentUser` state 補上明確型別（`User | null` 等），約 9 處。
+### 7. ✅ 清除殘餘 `any`
+**修復（已完成）**：`src/app` 與 `src/components` 的 5 處顯式 `any` 已清除——4 個 `catch (err: any)` 改為 `err: unknown` + `instanceof Error` 取訊息；`ExpenseHistogram` 的 tooltip props 以 `HistogramDataPoint` 明確標型。ESLint `no-explicit-any` 於這兩個目錄為 0。
 
 ### 5 & 8. ✅ Next.js Middleware 集中路由保護
 **現況**：已有 [src/proxy.ts](../src/proxy.ts)（Next.js 16 將 `middleware` 改名為 `proxy`）統一處理：未登入存取受保護頁面導向 `/login`、已登入存取 `/login` 導向 `/trips`，並整合 next-intl 的 locale 路由。

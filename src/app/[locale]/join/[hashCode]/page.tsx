@@ -79,8 +79,8 @@ export default function QuickJoinPage() {
       }
 
       router.push(`/trips/${trip.id}`);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
       setIsJoining(false);
     }
   };
