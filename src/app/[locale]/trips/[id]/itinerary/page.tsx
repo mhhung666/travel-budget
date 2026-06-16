@@ -8,13 +8,7 @@ import { ArrowLeft, Plus, Loader2 } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import { ItineraryDayCard, ItineraryDayDialog } from '@/components/trips/detail/itinerary';
 import type { ItineraryDay } from '@/types';
-import {
-  getItinerary,
-  createItineraryDay,
-  updateItineraryDay,
-  deleteItineraryDay,
-} from '@/actions';
-import { useTripData } from '@/hooks/useTripData';
+import { useItinerary, useTripMembership, useItineraryMutations } from '@/hooks/queries';
 
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -38,19 +32,11 @@ export default function ItineraryPage() {
 
   const { toast } = useToast();
 
-  const {
-    data: days,
-    members,
-    currentUser,
-    loading,
-    error,
-    reload,
-    isAdmin,
-  } = useTripData<ItineraryDay[]>(tripId, {
-    serverAction: getItinerary,
-    publicEndpoint: { path: 'itinerary', responseKey: 'itinerary' },
-    defaultValue: [],
-  }, tItinerary('loadFailed'));
+  const { data: days = [], isLoading: loading, isError } = useItinerary(tripId);
+  const { currentUser, isAdmin } = useTripMembership(tripId);
+  const { create, update, remove } = useItineraryMutations(tripId);
+
+  const error = isError ? tItinerary('loadFailed') : '';
 
   // Dialog states
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -79,16 +65,13 @@ export default function ItineraryPage() {
 
   const confirmDelete = async () => {
     if (!deletingDay) return;
+    const dayNumber = deletingDay.day_number;
     try {
-      const result = await deleteItineraryDay(tripId, deletingDay.id);
-      if (!result.success) throw new Error(result.error);
-
+      await remove.mutateAsync(deletingDay.id);
       toast({
-        title: tItinerary('success.deleted', { dayNumber: deletingDay.day_number }),
+        title: tItinerary('success.deleted', { dayNumber }),
       });
       setDeletingDay(null);
-      // Don't await — reload in background after dialog closes
-      reload();
     } catch (err: unknown) {
       toast({
         title: "Error",
@@ -101,20 +84,16 @@ export default function ItineraryPage() {
   const handleDialogSubmit = async (data: { title: string; content: string }) => {
     if (dialogMode === 'add') {
       const newDayNumber = days.length + 1;
-      const result = await createItineraryDay(tripId, data);
-      if (!result.success) throw new Error(result.error);
+      await create.mutateAsync(data);
       toast({
         title: tItinerary('success.created', { dayNumber: newDayNumber }),
       });
     } else if (editingDay) {
-      const result = await updateItineraryDay(tripId, editingDay.id, data);
-      if (!result.success) throw new Error(result.error);
+      await update.mutateAsync({ dayId: editingDay.id, data });
       toast({
         title: tItinerary('success.updated', { dayNumber: editingDay.day_number }),
       });
     }
-    // Don't await — let dialog close immediately, reload in background
-    reload();
   };
 
   if (loading) {
