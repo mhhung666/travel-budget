@@ -24,20 +24,10 @@ export {
 } from './trip.actions';
 
 // Expense actions
-export {
-  getExpenses,
-  createExpense,
-  updateExpense,
-  deleteExpense,
-} from './expense.actions';
+export { getExpenses, createExpense, updateExpense, deleteExpense } from './expense.actions';
 
 // Member actions
-export {
-  getMembers,
-  addVirtualMember,
-  removeMember,
-  updateMemberRole,
-} from './member.actions';
+export { getMembers, addVirtualMember, removeMember, updateMemberRole } from './member.actions';
 
 // Settlement actions
 export { getSettlement } from './settlement.actions';

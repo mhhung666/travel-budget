@@ -8,7 +8,7 @@ import { routing, locales, defaultLocale } from './i18n/routing';
 const i18nMiddleware = createMiddleware(routing);
 
 // 定義需要認證的路由（不包含 locale 前綴）
-const protectedRoutes = ['/trips', '/settings'];
+const protectedRoutes = ['/trips', '/settings', '/stats'];
 
 // 定義已登入用戶不應訪問的路由（如登入頁）
 const authRoutes = ['/login'];

@@ -14,6 +14,7 @@ import {
   type ResetPasswordInput,
   type UpdateProfileInput,
 } from '@/lib/validation';
+import { withAuth } from './withAuth';
 import type { ActionResult } from './types';
 import type { User } from '@/types';
 
@@ -173,82 +174,77 @@ export async function logout(): Promise<ActionResult<{ message: string }>> {
 /**
  * Update user profile
  */
-export async function updateProfile(
-  input: UpdateProfileInput
-): Promise<ActionResult<{ message: string }>> {
-  try {
-    const session = await getSession();
-    if (!session) {
-      return { success: false, error: 'UNAUTHORIZED', code: 'UNAUTHORIZED' };
-    }
-
-    const validation = updateProfileSchema.safeParse(input);
-    if (!validation.success) {
-      return {
-        success: false,
-        error: validation.error.issues[0].message,
-        code: 'VALIDATION_ERROR',
-      };
-    }
-
-    const { display_name, new_email, current_password, new_password } = validation.data;
-
-    await dbConnect();
-
-    // Update display name and/or email
-    if (display_name !== undefined || new_email !== undefined) {
-      const updateData: Record<string, string> = {};
-
-      if (display_name !== undefined) {
-        updateData.displayName = display_name.trim();
+export const updateProfile = withAuth(
+  async (session, input: UpdateProfileInput): Promise<ActionResult<{ message: string }>> => {
+    try {
+      const validation = updateProfileSchema.safeParse(input);
+      if (!validation.success) {
+        return {
+          success: false,
+          error: validation.error.issues[0].message,
+          code: 'VALIDATION_ERROR',
+        };
       }
 
-      if (new_email !== undefined) {
-        // Check if email is already taken (case-insensitive), excluding self
-        const existingEmail = await UserModel.findOne({
-          email: new_email,
-          _id: { $ne: session.userId },
-        })
-          .collation(CI)
-          .select('_id');
+      const { display_name, new_email, current_password, new_password } = validation.data;
 
-        if (existingEmail) {
-          return { success: false, error: 'CONFLICT', code: 'CONFLICT' };
+      await dbConnect();
+
+      // Update display name and/or email
+      if (display_name !== undefined || new_email !== undefined) {
+        const updateData: Record<string, string> = {};
+
+        if (display_name !== undefined) {
+          updateData.displayName = display_name.trim();
         }
 
-        updateData.email = new_email.toLowerCase().trim();
+        if (new_email !== undefined) {
+          // Check if email is already taken (case-insensitive), excluding self
+          const existingEmail = await UserModel.findOne({
+            email: new_email,
+            _id: { $ne: session.userId },
+          })
+            .collation(CI)
+            .select('_id');
+
+          if (existingEmail) {
+            return { success: false, error: 'CONFLICT', code: 'CONFLICT' };
+          }
+
+          updateData.email = new_email.toLowerCase().trim();
+        }
+
+        await UserModel.updateOne({ _id: session.userId }, { $set: updateData });
+
+        return { success: true, data: { message: '個人資料已更新' } };
       }
 
-      await UserModel.updateOne({ _id: session.userId }, { $set: updateData });
+      // Update password
+      if (current_password && new_password) {
+        const user = await UserModel.findById(session.userId).select('password');
 
-      return { success: true, data: { message: '個人資料已更新' } };
+        if (!user) {
+          return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+        }
+
+        const isPasswordValid = await bcrypt.compare(current_password, user.password);
+        if (!isPasswordValid) {
+          return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
+        }
+
+        const hashedPassword = await bcrypt.hash(new_password, 10);
+        await UserModel.updateOne({ _id: session.userId }, { $set: { password: hashedPassword } });
+
+        return { success: true, data: { message: '密碼已更新' } };
+      }
+
+      return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
+    } catch (error) {
+      console.error('Update user error:', error);
+      return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
-
-    // Update password
-    if (current_password && new_password) {
-      const user = await UserModel.findById(session.userId).select('password');
-
-      if (!user) {
-        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
-      }
-
-      const isPasswordValid = await bcrypt.compare(current_password, user.password);
-      if (!isPasswordValid) {
-        return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
-      }
-
-      const hashedPassword = await bcrypt.hash(new_password, 10);
-      await UserModel.updateOne({ _id: session.userId }, { $set: { password: hashedPassword } });
-
-      return { success: true, data: { message: '密碼已更新' } };
-    }
-
-    return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
-  } catch (error) {
-    console.error('Update user error:', error);
-    return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
   }
-}
+);
 
 /**
  * Reset password (for forgot password)

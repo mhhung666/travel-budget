@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { getEnv } from './env';
 
 /**
  * Serverless 連線快取
@@ -31,10 +32,7 @@ export async function dbConnect(): Promise<typeof mongoose> {
     return cached.conn;
   }
 
-  const MONGODB_URI = process.env.MONGODB_URI;
-  if (!MONGODB_URI) {
-    throw new Error('Missing MONGODB_URI environment variable');
-  }
+  const { MONGODB_URI } = getEnv();
 
   if (!cached.promise) {
     cached.promise = mongoose.connect(MONGODB_URI, {

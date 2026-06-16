@@ -17,16 +17,16 @@
 | 錯誤訊息改用 error code | ✅ | actions 已無硬編碼中文錯誤字串，改回傳 `code` |
 | 核心測試 | ✅ | settlement / validation / hashcode 測試 |
 | 資料載入 hook | ✅ | `src/hooks/useTripData.ts` 封裝登入/public 雙路徑 |
-| Server Action auth wrapper | 🟡 | `withAuth` 已建立，但只有 `itinerary.actions.ts` 採用；其餘 6 個仍手寫 `getSession()` |
+| Server Action auth wrapper | ✅ | `withAuth` 全面採用：所有需登入的 action（trip/expense/member/settlement/stats/itinerary + auth 的 updateProfile）統一以 `withAuth` 包裝 |
 | 減少 `any` | 🟡 | `src/app` 與 `src/components` 仍約 9 處 `: any` |
 
 ---
 
 ## P0 — 重大問題（優先修復）
 
-### 1. ⚠️ JWT_SECRET 有不安全的預設 fallback
+### 1. ✅ JWT_SECRET 有不安全的預設 fallback
 **問題**：[src/lib/auth.ts](../src/lib/auth.ts) 在 `JWT_SECRET` 未設定時 fallback 到硬編碼字串，正式環境若漏設將以已知密鑰簽發 token。
-**修復**：缺少或過短時直接拋錯，禁止 fallback（搭配 P1 #4 的 env 驗證）。
+**修復（已完成）**：移除硬編碼 fallback，改為 lazy `getKey()`；`JWT_SECRET` 缺少或 `< 32` 字元時直接拋錯。`.env.example` 占位符清空並附產生指令（`openssl rand -base64 48`）。
 
 > 註：原 P0「anon key / 無 RLS」「Public API N+1」已隨 MongoDB 遷移解決，移至上方「已完成」。
 > 授權仍全在應用層（MongoDB 無 RLS 等價物），務必維持每個 action 的成員檢查。
@@ -35,8 +35,8 @@
 
 ## P1 — 架構改善（提升維護性）
 
-### 2. 🟡 全面採用 `withAuth` 包裝 Server Action
-6 個 action 檔仍各自重複手寫登入檢查。將 `trip / expense / member / settlement / stats / auth` 逐步改用 `withAuth`，消除 boilerplate 並統一未登入行為。
+### 2. ✅ 全面採用 `withAuth` 包裝 Server Action
+**修復（已完成）**：`trip / expense / member / settlement / stats` 全部需登入的 action 改用 `withAuth`，移除重複的 `getSession()` boilerplate，統一回傳 `UNAUTHORIZED`。`auth.actions.ts` 的 `updateProfile` 亦改用；`getCurrentUser` 維持原狀（未登入回傳 `data: null` 而非錯誤，語義不同），`login/register/logout/resetPassword` 本就不需登入。
 
 ### 3. 🟡 用 Mongoose migration 管理 schema 變更
 目前 schema 在 [src/models/](../src/models/)，index 於連線時建立——對小專案足夠。若日後需要可重現的結構變更與資料 backfill，可引入 `migrate-mongo` 之類工具管理 migration。
@@ -47,13 +47,9 @@
 ### 7. 🟡 清除殘餘 `any`
 為頁面 handler 的 `data` 參數與 `currentUser` state 補上明確型別（`User | null` 等），約 9 處。
 
-### 8. ⚠️ 引入 Next.js Middleware 集中路由保護
-目前無 `src/middleware.ts`，受保護路由的導向散落各頁。建議在 middleware 統一處理：未登入存取 `/trips`、`/settings`、`/stats` 時導向 `/login`。
-
----
-
-### 5. ⚠️ 導入 Next.js Middleware 集中路由保護
-目前無 `src/middleware.ts`，受保護路由的導向散落各頁。建議在 middleware 統一處理：未登入存取 `/trips`、`/settings`、`/stats` 時導向 `/login`。
+### 5 & 8. ✅ Next.js Middleware 集中路由保護
+**現況**：已有 [src/proxy.ts](../src/proxy.ts)（Next.js 16 將 `middleware` 改名為 `proxy`）統一處理：未登入存取受保護頁面導向 `/login`、已登入存取 `/login` 導向 `/trips`，並整合 next-intl 的 locale 路由。
+**修復（已完成）**：`protectedRoutes` 原本漏了 `/stats`，已補上（現為 `/trips`、`/settings`、`/stats`）。`/trips/[id]` 維持不攔截，以支援未登入者用 `hash_code` 檢視分享。
 
 ---
 
