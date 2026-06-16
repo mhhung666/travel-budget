@@ -1,5 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { Trip, User } from '@/models';
+import { getTripId } from '@/lib/permissions';
+
+type LeanTrip = {
+  _id: { toString(): string };
+  name: string;
+  hashCode: string;
+  members: { user: { toString(): string } }[];
+};
+
+type LeanUser = {
+  _id: { toString(): string };
+  username: string;
+  displayName: string;
+  isVirtual?: boolean | null;
+};
 
 export async function GET(
   request: NextRequest,
@@ -8,97 +23,51 @@ export async function GET(
   try {
     const { tripId, username } = await params;
 
-    // Get trip info (basic info only)
-    // Try hash_code first, then numeric ID
-    let trip = null;
-    let tripError = null;
-
-    // First try hash_code
-    const hashResult = await supabase
-      .from('trips')
-      .select('id, name, hash_code')
-      .eq('hash_code', tripId)
-      .single();
-
-    if (hashResult.data) {
-      trip = hashResult.data;
-    } else if (/^\d+$/.test(tripId)) {
-      // If hash_code not found and tripId is numeric, try ID
-      const idResult = await supabase
-        .from('trips')
-        .select('id, name, hash_code')
-        .eq('id', parseInt(tripId, 10))
-        .single();
-
-      trip = idResult.data;
-      tripError = idResult.error;
-    } else {
-      tripError = hashResult.error;
+    // 支援 hash_code 或 ObjectId
+    const resolvedTripId = await getTripId(tripId);
+    if (!resolvedTripId) {
+      return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
     }
 
-    if (tripError || !trip) {
-      return NextResponse.json(
-        { error: 'Trip not found' },
-        { status: 404 }
-      );
+    const [trip, user] = await Promise.all([
+      Trip.findById(resolvedTripId).select('name hashCode members').lean<LeanTrip>(),
+      User.findOne({ username }).select('username displayName isVirtual').lean<LeanUser>(),
+    ]);
+
+    if (!trip) {
+      return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
     }
 
-    // Get the user by username
-    const { data: user, error: userError } = await supabase
-      .from('users')
-      .select('id, username, display_name, is_virtual')
-      .eq('username', username)
-      .single();
-
-    if (userError || !user) {
-      return NextResponse.json(
-        { error: 'Member not found' },
-        { status: 404 }
-      );
+    if (!user) {
+      return NextResponse.json({ error: 'Member not found' }, { status: 404 });
     }
 
     // Check if it's a virtual member
-    if (!user.is_virtual) {
-      return NextResponse.json(
-        { error: 'Member is not virtual' },
-        { status: 400 }
-      );
+    if (!user.isVirtual) {
+      return NextResponse.json({ error: 'Member is not virtual' }, { status: 400 });
     }
 
     // Check if this user is a member of this trip
-    const { data: memberData, error: memberError } = await supabase
-      .from('trip_members')
-      .select('joined_at, role')
-      .eq('trip_id', trip.id)
-      .eq('user_id', user.id)
-      .single();
-
-    if (memberError || !memberData) {
-      return NextResponse.json(
-        { error: 'Member not found in this trip' },
-        { status: 404 }
-      );
+    const isMember = trip.members.some((m) => m.user.toString() === user._id.toString());
+    if (!isMember) {
+      return NextResponse.json({ error: 'Member not found in this trip' }, { status: 404 });
     }
 
-    // Return limited info
     return NextResponse.json({
       trip: {
-        id: trip.id,
+        id: trip._id.toString(),
         name: trip.name,
-        hash_code: trip.hash_code,
+        hash_code: trip.hashCode,
       },
       member: {
-        id: user.id,
+        id: user._id.toString(),
         username: user.username,
-        display_name: user.display_name,
-        is_virtual: user.is_virtual,
+        display_name: user.displayName,
+        is_virtual: user.isVirtual,
       },
     });
   } catch (error) {
     console.error('Link virtual member API error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

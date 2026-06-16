@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import { supabase } from '@/lib/supabase';
+import { isValidObjectId } from 'mongoose';
+import { Trip, User, Expense } from '@/models';
 import { getTripId } from '@/lib/permissions';
 import { createSession } from '@/lib/auth';
 import { loginSchema } from '@/lib/validation';
+
+// 不分大小寫的精確比對（取代 Postgres ilike）
+const CI = { locale: 'en', strength: 2 } as const;
 
 /**
  * 將虛擬成員連結到已存在的會員（登入後遷移資料）
@@ -22,34 +26,25 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: '旅行不存在' }, { status: 404 });
     }
 
-    // 驗證 virtualUserId
-    if (!virtualUserId || typeof virtualUserId !== 'number') {
+    // 驗證 virtualUserId（ObjectId 字串）
+    if (!virtualUserId || typeof virtualUserId !== 'string' || !isValidObjectId(virtualUserId)) {
       return NextResponse.json({ error: '無效的虛擬成員 ID' }, { status: 400 });
     }
 
     // 驗證目標用戶是虛擬成員
-    const { data: virtualUser, error: vuError } = await supabase
-      .from('users')
-      .select('id, is_virtual')
-      .eq('id', virtualUserId)
-      .single();
+    const virtualUser = await User.findById(virtualUserId).select('isVirtual').lean<{
+      isVirtual?: boolean | null;
+    } | null>();
 
-    if (vuError || !virtualUser) {
+    if (!virtualUser) {
       return NextResponse.json({ error: '找不到此用戶' }, { status: 404 });
     }
-
-    if (!virtualUser.is_virtual) {
+    if (!virtualUser.isVirtual) {
       return NextResponse.json({ error: '此用戶不是虛擬成員' }, { status: 400 });
     }
 
     // 驗證該虛擬成員屬於此 trip
-    const { data: memberCheck } = await supabase
-      .from('trip_members')
-      .select('id')
-      .eq('trip_id', tripId)
-      .eq('user_id', virtualUserId)
-      .single();
-
+    const memberCheck = await Trip.exists({ _id: tripId, 'members.user': virtualUserId });
     if (!memberCheck) {
       return NextResponse.json({ error: '此虛擬成員不屬於此旅行' }, { status: 400 });
     }
@@ -57,24 +52,18 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     // 驗證登入資料
     const validation = loginSchema.safeParse({ username, password });
     if (!validation.success) {
-      return NextResponse.json(
-        { error: validation.error.issues[0].message },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: validation.error.issues[0].message }, { status: 400 });
     }
 
     // 查找目標真實用戶
-    const { data: realUser, error: ruError } = await supabase
-      .from('users')
-      .select('id, username, password, is_virtual')
-      .ilike('username', validation.data.username)
-      .single();
+    const realUser = await User.findOne({ username: validation.data.username })
+      .collation(CI)
+      .select('username password isVirtual');
 
-    if (ruError || !realUser) {
+    if (!realUser) {
       return NextResponse.json({ error: '用戶名或密碼錯誤' }, { status: 401 });
     }
-
-    if (realUser.is_virtual) {
+    if (realUser.isVirtual) {
       return NextResponse.json({ error: '無法連結到另一個虛擬成員' }, { status: 400 });
     }
 
@@ -84,16 +73,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: '用戶名或密碼錯誤' }, { status: 401 });
     }
 
-    const realUserId = realUser.id;
+    const realUserId = realUser._id.toString();
 
     // 檢查真實用戶是否已是此 trip 的成員
-    const { data: existingMember } = await supabase
-      .from('trip_members')
-      .select('id')
-      .eq('trip_id', tripId)
-      .eq('user_id', realUserId)
-      .single();
-
+    const existingMember = await Trip.exists({ _id: tripId, 'members.user': realUserId });
     if (existingMember) {
       return NextResponse.json(
         { error: '此帳號已經是這個旅行的成員，無法再連結虛擬成員' },
@@ -103,69 +86,34 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     // === 遷移資料 ===
 
-    // 1. 遷移 expenses.payer_id
-    const { error: expenseError } = await supabase
-      .from('expenses')
-      .update({ payer_id: realUserId })
-      .eq('payer_id', virtualUserId)
-      .eq('trip_id', tripId);
+    // 1. 遷移此 trip 內 expenses 的 payer
+    await Expense.updateMany(
+      { trip: tripId, payer: virtualUserId },
+      { $set: { payer: realUserId } }
+    );
 
-    if (expenseError) throw expenseError;
+    // 2. 遷移此 trip 內 expenses 的內嵌 splits.user（用 arrayFilters 跨多筆更新）
+    await Expense.updateMany(
+      { trip: tripId, 'splits.user': virtualUserId },
+      { $set: { 'splits.$[elem].user': realUserId } },
+      { arrayFilters: [{ 'elem.user': virtualUserId }] }
+    );
 
-    // 2. 遷移 expense_splits.user_id（需要先取得此 trip 的 expense IDs）
-    const { data: tripExpenses } = await supabase
-      .from('expenses')
-      .select('id')
-      .eq('trip_id', tripId);
+    // 3. 將虛擬成員的 trip member 轉移給真實用戶
+    await Trip.updateOne(
+      { _id: tripId, 'members.user': virtualUserId },
+      { $set: { 'members.$.user': realUserId } }
+    );
 
-    if (tripExpenses && tripExpenses.length > 0) {
-      const expenseIds = tripExpenses.map((e: any) => e.id);
+    // 4. 清理虛擬用戶（若已無任何 trip / expense / split 引用）
+    const [otherTrip, otherPayer, otherSplit] = await Promise.all([
+      Trip.exists({ 'members.user': virtualUserId }),
+      Expense.exists({ payer: virtualUserId }),
+      Expense.exists({ 'splits.user': virtualUserId }),
+    ]);
 
-      const { error: splitError } = await supabase
-        .from('expense_splits')
-        .update({ user_id: realUserId })
-        .eq('user_id', virtualUserId)
-        .in('expense_id', expenseIds);
-
-      if (splitError) throw splitError;
-    }
-
-    // 3. 將虛擬成員的 trip_member 轉移給真實用戶
-    const { error: updateMemberError } = await supabase
-      .from('trip_members')
-      .update({ user_id: realUserId })
-      .eq('trip_id', tripId)
-      .eq('user_id', virtualUserId);
-
-    if (updateMemberError) throw updateMemberError;
-
-    // 4. 清理虛擬用戶（若無其他 trip 引用）
-    const { data: otherTrips } = await supabase
-      .from('trip_members')
-      .select('id')
-      .eq('user_id', virtualUserId)
-      .limit(1);
-
-    if (!otherTrips || otherTrips.length === 0) {
-      // 也檢查是否還有其他 trip 的 expense 引用
-      const { data: otherExpenses } = await supabase
-        .from('expenses')
-        .select('id')
-        .eq('payer_id', virtualUserId)
-        .limit(1);
-
-      const { data: otherSplits } = await supabase
-        .from('expense_splits')
-        .select('id')
-        .eq('user_id', virtualUserId)
-        .limit(1);
-
-      if (
-        (!otherExpenses || otherExpenses.length === 0) &&
-        (!otherSplits || otherSplits.length === 0)
-      ) {
-        await supabase.from('users').delete().eq('id', virtualUserId);
-      }
+    if (!otherTrip && !otherPayer && !otherSplit) {
+      await User.deleteOne({ _id: virtualUserId });
     }
 
     // 自動登入為真實用戶
