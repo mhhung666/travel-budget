@@ -24,9 +24,9 @@
 
 ## P0 — 重大問題（優先修復）
 
-### 1. ⚠️ JWT_SECRET 有不安全的預設 fallback
+### 1. ✅ JWT_SECRET 有不安全的預設 fallback
 **問題**：[src/lib/auth.ts](../src/lib/auth.ts) 在 `JWT_SECRET` 未設定時 fallback 到硬編碼字串，正式環境若漏設將以已知密鑰簽發 token。
-**修復**：缺少或過短時直接拋錯，禁止 fallback（搭配 P1 #4 的 env 驗證）。
+**修復（已完成）**：移除硬編碼 fallback，改為 lazy `getKey()`；`JWT_SECRET` 缺少或 `< 32` 字元時直接拋錯。`.env.example` 占位符清空並附產生指令（`openssl rand -base64 48`）。
 
 > 註：原 P0「anon key / 無 RLS」「Public API N+1」已隨 MongoDB 遷移解決，移至上方「已完成」。
 > 授權仍全在應用層（MongoDB 無 RLS 等價物），務必維持每個 action 的成員檢查。
