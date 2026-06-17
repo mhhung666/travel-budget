@@ -23,9 +23,9 @@
 
 ## 新發現
 
-### C. ⚠️ 缺少 CI（lint / test / build 未在 PR 把關）
+### C. ✅ 缺少 CI（lint / test / build 未在 PR 把關）
 **問題**：`.github/workflows/` 不存在；專案以 PR 流程協作（見 git 歷史的 merge commit），但 lint、`test:run`、`build`、`format:check` 全靠手動，迴歸容易溜進 master。
-**建議**：新增 GitHub Actions workflow，於 PR 與 push 觸發 `pnpm install --frozen-lockfile` → `lint` → `format:check` → `test:run` → `build`。可加 `migrate:status` 的 dry-check。這是目前投報率最高的一項。
+**修復（已完成）**：新增 [.github/workflows/ci.yml](../.github/workflows/ci.yml)，於 PR 與 push 到 master 觸發 `pnpm install --frozen-lockfile` → `lint` → `format:check` → `test:run` → `build`（build 帶 dummy `MONGODB_URI`/`JWT_SECRET` 以通過 env 驗證，建置期不連 DB）。同 ref 重複觸發以 `concurrency` 自動取消舊跑。前置工作：先以 `pnpm format` 一次性格式化全庫（107 檔），讓 `format:check` 能納入把關。
 
 ### D. ⚠️ Public API 錯誤訊息硬編碼且中英混雜
 **問題**：主 actions 早已改回傳 error `code`，但 `/api/public/*` 仍直接回傳**明文字串**，且中英文混用（`'旅行不存在'`、`'Trip not found'`、`'獲取支出列表失敗'`、`'Member is not virtual'` 並存）。前端無法據此 i18n，且風格不一致。
@@ -53,7 +53,7 @@
 
 ```
 高（低成本、高效益）
-  ├── C  CI workflow（lint/test/build 把關）
+  ├── C  CI workflow（lint/test/build 把關）  ✅
   ├── D  Public API 錯誤碼統一
   └── H  安全標頭
 
