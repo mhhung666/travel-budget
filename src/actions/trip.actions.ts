@@ -15,28 +15,10 @@ import { withAuth } from './withAuth';
 import type { ActionResult } from './types';
 import type { Trip, TripWithMembers } from '@/types';
 import { logger } from '@/lib/logger';
+import { toTripDto } from '@/lib/dto';
 
 /** 將 Mongoose Trip 文件映射為對外 DTO（維持 snake_case 以相容前端） */
 type LeanTrip = TripDoc & { _id: { toString(): string }; createdAt: Date };
-
-/**
- * @param viewerId 當前使用者 id；封存是「個別」的，故 archived_at 取該使用者
- *   自己那筆 member 的 archivedAt。傳 undefined（如公開分享情境）則一律視為未封存。
- */
-function toTripDto(t: LeanTrip, viewerId?: string): Trip {
-  const self = viewerId ? t.members.find((m) => m.user.toString() === viewerId) : undefined;
-  return {
-    id: t._id.toString(),
-    name: t.name,
-    description: t.description ?? null,
-    start_date: t.startDate ? t.startDate.toISOString().slice(0, 10) : null,
-    end_date: t.endDate ? t.endDate.toISOString().slice(0, 10) : null,
-    location: (t.location ?? null) as Trip['location'],
-    hash_code: t.hashCode,
-    created_at: t.createdAt.toISOString(),
-    archived_at: self?.archivedAt ? new Date(self.archivedAt).toISOString() : null,
-  };
-}
 
 /**
  * Get all trips for the current user

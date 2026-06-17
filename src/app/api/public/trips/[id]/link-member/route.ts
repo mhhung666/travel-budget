@@ -1,12 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { isValidObjectId } from 'mongoose';
 import { Trip, User, Expense } from '@/models';
-import { getTripIdByHashCode } from '@/lib/permissions';
 import { createSession } from '@/lib/auth';
 import { loginSchema } from '@/lib/validation';
-import { logger } from '@/lib/logger';
 import { PublicApiError, apiError } from '@/lib/publicApiError';
+import { withPublicTrip } from '@/lib/withPublicTrip';
 
 // 不分大小寫的精確比對（取代 Postgres ilike）
 const CI = { locale: 'en', strength: 2 } as const;
@@ -16,17 +15,10 @@ const CI = { locale: 'en', strength: 2 } as const;
  * POST /api/public/trips/[id]/link-member
  * Body: { virtualUserId, username, password }
  */
-export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  try {
-    const { id } = await params;
+export const POST = withPublicTrip(
+  async ({ request, tripId }) => {
     const body = await request.json();
     const { virtualUserId, username, password } = body;
-
-    // 驗證 trip 存在
-    const tripId = await getTripIdByHashCode(id);
-    if (!tripId) {
-      return apiError(PublicApiError.NOT_FOUND, 404);
-    }
 
     // 驗證 virtualUserId（ObjectId 字串）
     if (!virtualUserId || typeof virtualUserId !== 'string' || !isValidObjectId(virtualUserId)) {
@@ -119,8 +111,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     await createSession(realUserId, realUser.username);
 
     return NextResponse.json({ success: true, message: '連結成功' });
-  } catch (error) {
-    logger.error('Link virtual member error', error);
-    return apiError(PublicApiError.INTERNAL_ERROR, 500);
-  }
-}
+  },
+  { logLabel: 'Link virtual member error' }
+);

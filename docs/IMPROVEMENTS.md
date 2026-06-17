@@ -32,9 +32,11 @@
 **修復（已完成）**：新增 [src/lib/publicApiError.ts](../src/lib/publicApiError.ts)，定義公開 API 專用的結構化錯誤碼 `PublicApiError`（較 actions 的 6 個通用 `ErrorCodes` 更細，涵蓋 link/convert 虛擬成員流程：`INVALID_CREDENTIALS`、`USERNAME_TAKEN`、`ALREADY_MEMBER` 等）與 `apiError(code, status)` helper。全部 8 條公開路由改回傳 `{ error: <code> }`。消費端：GET 路由的 [fetcher.ts](../src/hooks/queries/fetcher.ts) 只看狀態碼不受影響；link/convert 兩個 dialog 與 link-virtual 頁面改以錯誤碼對應 i18n 文案，新增 `member.convertVirtual.errors.*` 至四語系 catalog。
 **備註**：樣板收斂（重複的 `try/catch` + 404 + DTO 映射）見項目 E，未在本次處理。
 
-### E. ⚠️ Public API 路由樣板重複
+### E. ✅ Public API 路由樣板重複
 **問題**：8 條公開路由各自重複「`await params` → `getTripIdByHashCode` → 404 → `try/catch` → 手寫 DTO 映射」。GET 端點的 DTO 映射（snake_case 化）也與 actions 的 `toExpenseDto` 等邏輯平行維護，易漂移。
-**建議**：抽一個 `withPublicTrip(handler)` 包裝（解析 hash_code、統一 404 / 500、注入 `tripId`），DTO 映射共用 actions 既有的轉換函式，消除平行實作。
+**修復（已完成）**：
+1. **樣板包裝**：新增 [src/lib/withPublicTrip.ts](../src/lib/withPublicTrip.ts)——`withPublicTrip(handler, { tripParam?, logLabel? })`，統一 `await params`、以 `getTripIdByHashCode` 解析 hash_code（仍只認 hash_code、拒 ObjectId）、查無回 `NOT_FOUND` 404、攔截例外記錄並回 `INTERNAL_ERROR` 500，再把解析好的 `tripId` 注入 handler。全部 8 條路由（含 `tripParam: 'tripId'` 的 link-virtual 與兩條 POST link/convert）改用之。測試見 [withPublicTrip.test.ts](../src/__tests__/withPublicTrip.test.ts)。
+2. **DTO 共用**：新增 [src/lib/dto.ts](../src/lib/dto.ts)，把 `toExpenseDto` / `toTripDto`（含結構化 input 型別）從 `'use server'` 的 [expense.actions.ts](../src/actions/expense.actions.ts) / [trip.actions.ts](../src/actions/trip.actions.ts) 抽出，actions 與公開 expenses / trip 路由共用同一映射，消除平行實作。順帶修正公開 expenses 原本漏帶 `trip_id`（前端本就以 `Expense` 型別消費）、移除無人讀取的 `payer_username`。測試見 [dto.test.ts](../src/__tests__/dto.test.ts)。
 
 ### F. ✅ 結構化日誌（取代裸 `console.*`）
 **問題**：全專案約 43 處 `console.error/​log`，無層級、無結構、Serverless 上難以查詢；生產環境也可能噴出未脫敏資訊。
@@ -60,7 +62,7 @@
 
 中
   ├── B  actions/* 測試
-  ├── E  Public API 樣板收斂
+  ├── E  Public API 樣板收斂  ✅
   └── F  結構化 logger  ✅
 
 待基礎設施 / 視資料量

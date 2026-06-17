@@ -1,8 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { Trip } from '@/models';
-import { getTripIdByHashCode } from '@/lib/permissions';
-import { logger } from '@/lib/logger';
-import { PublicApiError, apiError } from '@/lib/publicApiError';
+import { withPublicTrip } from '@/lib/withPublicTrip';
 
 type PopulatedMember = {
   user: {
@@ -16,16 +14,8 @@ type PopulatedMember = {
 };
 
 // 公開獲取旅行成員列表（不需登入）
-export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  try {
-    const { id } = await params;
-
-    // 支援 hash_code 或 ObjectId
-    const tripId = await getTripIdByHashCode(id);
-    if (!tripId) {
-      return apiError(PublicApiError.NOT_FOUND, 404);
-    }
-
+export const GET = withPublicTrip(
+  async ({ tripId }) => {
     const trip = await Trip.findById(tripId)
       .populate('members.user', 'username displayName isVirtual')
       .select('members')
@@ -44,8 +34,6 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       .sort((a, b) => a.joined_at.localeCompare(b.joined_at));
 
     return NextResponse.json({ members: formattedMembers });
-  } catch (error) {
-    logger.error('Get public trip members error', error);
-    return apiError(PublicApiError.INTERNAL_ERROR, 500);
-  }
-}
+  },
+  { logLabel: 'Get public trip members error' }
+);

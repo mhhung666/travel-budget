@@ -1,8 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { Trip, User } from '@/models';
-import { getTripIdByHashCode } from '@/lib/permissions';
-import { logger } from '@/lib/logger';
 import { PublicApiError, apiError } from '@/lib/publicApiError';
+import { withPublicTrip } from '@/lib/withPublicTrip';
 
 type LeanTrip = {
   _id: { toString(): string };
@@ -18,21 +17,10 @@ type LeanUser = {
   isVirtual?: boolean | null;
 };
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ tripId: string; username: string }> }
-) {
-  try {
-    const { tripId, username } = await params;
-
-    // 支援 hash_code 或 ObjectId
-    const resolvedTripId = await getTripIdByHashCode(tripId);
-    if (!resolvedTripId) {
-      return apiError(PublicApiError.NOT_FOUND, 404);
-    }
-
+export const GET = withPublicTrip<{ tripId: string; username: string }>(
+  async ({ tripId, params: { username } }) => {
     const [trip, user] = await Promise.all([
-      Trip.findById(resolvedTripId).select('name hashCode members').lean<LeanTrip>(),
+      Trip.findById(tripId).select('name hashCode members').lean<LeanTrip>(),
       User.findOne({ username }).select('username displayName isVirtual').lean<LeanUser>(),
     ]);
 
@@ -68,8 +56,6 @@ export async function GET(
         is_virtual: user.isVirtual,
       },
     });
-  } catch (error) {
-    logger.error('Link virtual member API error', error);
-    return apiError(PublicApiError.INTERNAL_ERROR, 500);
-  }
-}
+  },
+  { tripParam: 'tripId', logLabel: 'Link virtual member API error' }
+);

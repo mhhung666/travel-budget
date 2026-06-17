@@ -13,49 +13,9 @@ import { withAuth } from './withAuth';
 import type { ActionResult } from './types';
 import type { Expense as ExpenseDto } from '@/types';
 import { logger } from '@/lib/logger';
+import { toExpenseDto, type ExpenseDtoInput } from '@/lib/dto';
 
-type PopulatedRef = { _id: { toString(): string }; username: string; displayName: string } | null;
-
-type LeanExpense = {
-  _id: { toString(): string };
-  amount: number;
-  originalAmount: number;
-  currency: string;
-  exchangeRate: number;
-  description: string;
-  category: string | null;
-  date: Date;
-  createdAt: Date;
-  payer: PopulatedRef;
-  splits: { user: PopulatedRef; shareAmount: number }[];
-};
-
-function toDateStr(d: Date | string): string {
-  return d instanceof Date ? d.toISOString().slice(0, 10) : d;
-}
-
-function toExpenseDto(e: LeanExpense, tripId: string): ExpenseDto {
-  return {
-    id: e._id.toString(),
-    trip_id: tripId,
-    amount: e.amount,
-    original_amount: e.originalAmount,
-    currency: e.currency,
-    exchange_rate: e.exchangeRate,
-    description: e.description,
-    category: e.category || 'other',
-    date: toDateStr(e.date),
-    created_at: e.createdAt.toISOString(),
-    payer_id: e.payer?._id.toString() || '',
-    payer_name: e.payer?.displayName || 'Unknown',
-    splits: (e.splits || []).map((s) => ({
-      user_id: s.user?._id.toString() || '',
-      share_amount: s.shareAmount,
-      username: s.user?.username || 'Unknown',
-      display_name: s.user?.displayName || 'Unknown',
-    })),
-  };
-}
+type LeanExpense = ExpenseDtoInput & { date: Date };
 
 /**
  * Get all expenses for a trip

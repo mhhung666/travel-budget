@@ -1,8 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { ItineraryDay } from '@/models';
-import { getTripIdByHashCode } from '@/lib/permissions';
-import { logger } from '@/lib/logger';
-import { PublicApiError, apiError } from '@/lib/publicApiError';
+import { withPublicTrip } from '@/lib/withPublicTrip';
 
 type LeanDay = {
   _id: { toString(): string };
@@ -18,15 +16,8 @@ type LeanDay = {
  * Public API to get itinerary for a trip
  * Anyone can view the itinerary (no auth required)
  */
-export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  try {
-    const { id } = await params;
-    const tripId = await getTripIdByHashCode(id);
-
-    if (!tripId) {
-      return apiError(PublicApiError.NOT_FOUND, 404);
-    }
-
+export const GET = withPublicTrip(
+  async ({ tripId }) => {
     const days = await ItineraryDay.find({ trip: tripId }).sort({ dayNumber: 1 }).lean<LeanDay[]>();
 
     const itinerary = days.map((d) => ({
@@ -40,8 +31,6 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }));
 
     return NextResponse.json({ itinerary });
-  } catch (error) {
-    logger.error('Get public itinerary error', error);
-    return apiError(PublicApiError.INTERNAL_ERROR, 500);
-  }
-}
+  },
+  { logLabel: 'Get public itinerary error' }
+);

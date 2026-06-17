@@ -1,9 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { Trip, Expense } from '@/models';
 import { calculateSettlement } from '@/lib/settlement';
-import { getTripIdByHashCode } from '@/lib/permissions';
-import { logger } from '@/lib/logger';
-import { PublicApiError, apiError } from '@/lib/publicApiError';
+import { withPublicTrip } from '@/lib/withPublicTrip';
 
 type PopulatedMember = {
   user: { _id: { toString(): string }; username: string; displayName: string } | null;
@@ -16,16 +14,8 @@ type LeanExpenseForSettlement = {
 };
 
 // 公開獲取旅行結算（不需登入）
-export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  try {
-    const { id } = await params;
-
-    // 支援 hash_code 或 ObjectId
-    const tripId = await getTripIdByHashCode(id);
-    if (!tripId) {
-      return apiError(PublicApiError.NOT_FOUND, 404);
-    }
-
+export const GET = withPublicTrip(
+  async ({ tripId }) => {
     // 一次取出成員 + 全部支出（含內嵌 splits），其餘記憶體計算
     const [trip, expenses] = await Promise.all([
       Trip.findById(tripId)
@@ -69,8 +59,6 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const transactions = calculateSettlement(balances.map((b) => ({ ...b })));
 
     return NextResponse.json({ balances, transactions, totalExpenses });
-  } catch (error) {
-    logger.error('Get public settlement error', error);
-    return apiError(PublicApiError.INTERNAL_ERROR, 500);
-  }
-}
+  },
+  { logLabel: 'Get public settlement error' }
+);
