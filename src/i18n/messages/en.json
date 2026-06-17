@@ -40,7 +40,8 @@
     "settings": "Settings",
     "login": "Login",
     "logout": "Logout",
-    "register": "Register"
+    "register": "Register",
+    "map": "Map"
   },
   "home": {
     "title": "Travel Budget",
@@ -532,5 +533,11 @@
       "colOwed": "Owed",
       "colBalance": "Balance"
     }
+  },
+  "map": {
+    "title": "Travel Map",
+    "timelineTitle": "{count} places",
+    "empty": "No trips with a location yet. Add a location to a trip and it will show up on the map.",
+    "noDate": "No date set"
   }
 }
