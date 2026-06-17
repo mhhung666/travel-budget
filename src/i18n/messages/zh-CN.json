@@ -40,7 +40,8 @@
     "settings": "个人设置",
     "login": "登录",
     "logout": "退出",
-    "register": "注册"
+    "register": "注册",
+    "map": "旅行地图"
   },
   "home": {
     "title": "旅行记账",
@@ -537,5 +538,11 @@
       "colOwed": "应分摊",
       "colBalance": "结余"
     }
+  },
+  "map": {
+    "title": "旅行地图",
+    "timelineTitle": "共 {count} 个地点",
+    "empty": "还没有任何含地点的旅行。创建旅行并设置地点后，就会显示在地图上。",
+    "noDate": "未设置日期"
   }
 }

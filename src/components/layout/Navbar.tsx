@@ -1,6 +1,15 @@
 'use client';
 
-import { LogOut, Compass, Settings, BarChart3, Menu as MenuIcon, Sun, Moon } from 'lucide-react';
+import {
+  LogOut,
+  Compass,
+  Settings,
+  BarChart3,
+  Map as MapIcon,
+  Menu as MenuIcon,
+  Sun,
+  Moon,
+} from 'lucide-react';
 import { useRouter } from '@/i18n/navigation';
 import { useTheme } from 'next-themes';
 import LanguageSwitcher from './LanguageSwitcher';
@@ -46,6 +55,7 @@ export default function Navbar({ user, showUserMenu = true, title }: NavbarProps
 
   const navLinks = [
     { label: t('trips'), icon: Compass, onClick: () => router.push('/trips') },
+    { label: t('map'), icon: MapIcon, onClick: () => router.push('/map') },
     { label: t('stats'), icon: BarChart3, onClick: () => router.push('/stats') },
   ];
 
@@ -100,6 +110,10 @@ export default function Navbar({ user, showUserMenu = true, title }: NavbarProps
                     <DropdownMenuItem onClick={() => router.push('/trips')}>
                       <Compass className="mr-2 h-4 w-4" />
                       <span>{t('trips')}</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => router.push('/map')}>
+                      <MapIcon className="mr-2 h-4 w-4" />
+                      <span>{t('map')}</span>
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => router.push('/stats')}>
                       <BarChart3 className="mr-2 h-4 w-4" />

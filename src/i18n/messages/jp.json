@@ -40,7 +40,8 @@
     "settings": "設定",
     "login": "ログイン",
     "logout": "ログアウト",
-    "register": "新規登録"
+    "register": "新規登録",
+    "map": "地図"
   },
   "home": {
     "title": "旅行家計簿",
@@ -537,5 +538,11 @@
       "colOwed": "負担額",
       "colBalance": "収支"
     }
+  },
+  "map": {
+    "title": "旅行マップ",
+    "timelineTitle": "{count} 件の場所",
+    "empty": "場所が設定された旅行がまだありません。旅行に場所を設定すると地図に表示されます。",
+    "noDate": "日付未設定"
   }
 }

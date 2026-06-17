@@ -40,7 +40,8 @@
     "settings": "個人設定",
     "login": "登入",
     "logout": "登出",
-    "register": "註冊"
+    "register": "註冊",
+    "map": "旅行地圖"
   },
   "home": {
     "title": "旅行記帳",
@@ -537,5 +538,11 @@
       "colOwed": "應分攤",
       "colBalance": "結餘"
     }
+  },
+  "map": {
+    "title": "旅行地圖",
+    "timelineTitle": "共 {count} 個地點",
+    "empty": "還沒有任何含地點的旅行。建立旅行並設定地點後，就會顯示在地圖上。",
+    "noDate": "未設定日期"
   }
 }
