@@ -169,7 +169,15 @@
       "title": "確定要刪除這個旅行嗎？",
       "message": "此操作無法撤銷。所有支出記錄和成員資料都將被永久刪除。",
       "success": "旅行已刪除"
-    }
+    },
+    "archive": "封存",
+    "unarchive": "恢復",
+    "archiveSuccess": "已封存,移至「已封存」頁籤",
+    "unarchiveSuccess": "已恢復此旅行",
+    "archiveFailed": "操作失敗,請稍後再試",
+    "tabActive": "進行中",
+    "tabArchived": "已封存",
+    "noActiveTrips": "沒有進行中的旅行"
   },
   "expense": {
     "title": "支出記錄",
@@ -438,7 +446,13 @@
     "editTrip": "編輯旅行",
     "editSuccess": "旅行資訊已更新",
     "viewItinerary": "規劃旅程",
-    "viewItineraryHint": "查看與規劃每日行程"
+    "viewItineraryHint": "查看與規劃每日行程",
+    "archive": "封存旅行",
+    "unarchive": "恢復旅行",
+    "archiveHint": "封存後會從你的旅行列表收起（只影響你自己）。旅程內容仍可存取，隨時可恢復。",
+    "archivedNote": "此旅行已封存（僅你看到）。",
+    "archiveSuccess": "已封存,移至「已封存」頁籤",
+    "unarchiveSuccess": "已恢復此旅行"
   },
   "itinerary": {
     "title": "旅程規劃",

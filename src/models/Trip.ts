@@ -9,6 +9,9 @@ const TripMemberSchema = new Schema(
     user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     role: { type: String, enum: ['admin', 'member'], default: 'member' },
     joinedAt: { type: Date, default: Date.now },
+    // 個別（軟性）封存：非 null 代表「這名成員」把此旅程從自己的列表收起，
+    // 其他成員不受影響。旅程內容仍可正常讀寫。
+    archivedAt: { type: Date, default: null },
   },
   { _id: false }
 );

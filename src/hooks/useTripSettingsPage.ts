@@ -10,6 +10,7 @@ import {
   useTripMembership,
   useMemberMutations,
   useTripMutations,
+  useTripArchiveMutations,
 } from '@/hooks/queries';
 
 /**
@@ -35,6 +36,7 @@ export function useTripSettingsPage(tripId: string) {
   const { currentUser, members, isMember, isAdmin } = useTripMembership(tripId);
   const memberMutations = useMemberMutations(tripId);
   const tripMutations = useTripMutations(tripId);
+  const archiveMutations = useTripArchiveMutations();
 
   const loading = tripLoading;
   // Settings strictly requires membership: surface unauthorized/forbidden rather
@@ -61,7 +63,10 @@ export function useTripSettingsPage(tripId: string) {
 
   const [isDeleting, setIsDeleting] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [isArchiving, setIsArchiving] = useState(false);
   const [membersExpanded, setMembersExpanded] = useState(true);
+
+  const isArchived = trip?.archived_at != null;
 
   const toastError = (err: unknown) => {
     toast({
@@ -121,6 +126,23 @@ export function useTripSettingsPage(tripId: string) {
     } finally {
       setIsDeleting(false);
       deleteDialog.closeDialog();
+    }
+  };
+
+  const handleToggleArchive = async () => {
+    setIsArchiving(true);
+    try {
+      if (isArchived) {
+        await archiveMutations.unarchive.mutateAsync(tripId);
+        toast({ title: tTrip('unarchiveSuccess') });
+      } else {
+        await archiveMutations.archive.mutateAsync(tripId);
+        toast({ title: tTrip('archiveSuccess') });
+      }
+    } catch (err: unknown) {
+      toastError(err);
+    } finally {
+      setIsArchiving(false);
     }
   };
 
@@ -206,11 +228,14 @@ export function useTripSettingsPage(tripId: string) {
     // flags
     isDeleting,
     isRegenerating,
+    isArchived,
+    isArchiving,
     // expand
     membersExpanded,
     toggleMembersExpanded: () => setMembersExpanded((v) => !v),
     // handlers
     handleRegenerateShareCode,
+    handleToggleArchive,
     handleDeleteTrip,
     handleRemoveMember,
     handleToggleAdmin,

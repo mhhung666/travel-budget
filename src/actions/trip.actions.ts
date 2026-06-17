@@ -18,7 +18,12 @@ import type { Trip, TripWithMembers } from '@/types';
 /** 將 Mongoose Trip 文件映射為對外 DTO（維持 snake_case 以相容前端） */
 type LeanTrip = TripDoc & { _id: { toString(): string }; createdAt: Date };
 
-function toTripDto(t: LeanTrip): Trip {
+/**
+ * @param viewerId 當前使用者 id；封存是「個別」的，故 archived_at 取該使用者
+ *   自己那筆 member 的 archivedAt。傳 undefined（如公開分享情境）則一律視為未封存。
+ */
+function toTripDto(t: LeanTrip, viewerId?: string): Trip {
+  const self = viewerId ? t.members.find((m) => m.user.toString() === viewerId) : undefined;
   return {
     id: t._id.toString(),
     name: t.name,
@@ -28,6 +33,7 @@ function toTripDto(t: LeanTrip): Trip {
     location: (t.location ?? null) as Trip['location'],
     hash_code: t.hashCode,
     created_at: t.createdAt.toISOString(),
+    archived_at: self?.archivedAt ? new Date(self.archivedAt).toISOString() : null,
   };
 }
 
@@ -42,7 +48,7 @@ export const getTrips = withAuth(async (session): Promise<ActionResult<TripWithM
       .lean<LeanTrip[]>();
 
     const formattedTrips: TripWithMembers[] = trips.map((trip) => ({
-      ...toTripDto(trip),
+      ...toTripDto(trip, session.userId),
       member_count: trip.members.length,
     }));
 
@@ -68,7 +74,7 @@ export const getTrip = withAuth(async (session, id: string): Promise<ActionResul
       return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     }
 
-    return { success: true, data: toTripDto(trip) };
+    return { success: true, data: toTripDto(trip, session.userId) };
   } catch (error) {
     console.error('Get trip error:', error);
     return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
@@ -96,7 +102,7 @@ export const getTripPreview = withAuth(
       return {
         success: true,
         data: {
-          ...toTripDto(trip),
+          ...toTripDto(trip, session.userId),
           member_count: trip.members.length,
           isMember,
         },
@@ -144,7 +150,7 @@ export const createTrip = withAuth(
       });
 
       revalidatePath('/trips');
-      return { success: true, data: toTripDto(trip.toObject() as LeanTrip) };
+      return { success: true, data: toTripDto(trip.toObject() as LeanTrip, session.userId) };
     } catch (error) {
       console.error('Create trip error:', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
@@ -197,7 +203,7 @@ export const updateTrip = withAuth(
       }
 
       revalidatePath(`/trips/${id}`);
-      return { success: true, data: toTripDto(trip) };
+      return { success: true, data: toTripDto(trip, session.userId) };
     } catch (error) {
       console.error('Update trip error:', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
@@ -273,13 +279,64 @@ export const regenerateHashCode = withAuth(
 
       revalidatePath('/trips');
       revalidatePath(`/trips/${membership.tripId}`);
-      return { success: true, data: toTripDto(trip) };
+      return { success: true, data: toTripDto(trip, session.userId) };
     } catch (error) {
       console.error('Regenerate hash code error:', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
   }
 );
+
+/**
+ * Archive / unarchive a trip for the current user only (soft, per-member).
+ *
+ * Archiving is personal list-management: it sets `archivedAt` on the caller's own
+ * embedded member entry, so the trip moves to their "archived" tab without
+ * affecting how anyone else sees it. Any member may do this (not admin-only); the
+ * trip's data stays fully readable/writable. Unarchiving clears it back to null.
+ */
+async function setArchivedAt(
+  session: { userId: string },
+  id: string,
+  archivedAt: Date | null
+): Promise<ActionResult<Trip>> {
+  const membership = await getTripMembership(session.userId, id);
+  if (!membership) {
+    return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+  }
+
+  // 定位到當前使用者那筆 member，只改自己的 archivedAt（positional `$`）
+  const trip = await TripModel.findOneAndUpdate(
+    { _id: membership.tripId, 'members.user': session.userId },
+    { $set: { 'members.$.archivedAt': archivedAt } },
+    { new: true }
+  ).lean<LeanTrip>();
+
+  if (!trip) {
+    return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+  }
+
+  revalidatePath('/trips');
+  return { success: true, data: toTripDto(trip, session.userId) };
+}
+
+export const archiveTrip = withAuth(async (session, id: string): Promise<ActionResult<Trip>> => {
+  try {
+    return await setArchivedAt(session, id, new Date());
+  } catch (error) {
+    console.error('Archive trip error:', error);
+    return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
+  }
+});
+
+export const unarchiveTrip = withAuth(async (session, id: string): Promise<ActionResult<Trip>> => {
+  try {
+    return await setArchivedAt(session, id, null);
+  } catch (error) {
+    console.error('Unarchive trip error:', error);
+    return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
+  }
+});
 
 /**
  * Join a trip using trip ID or hash code
@@ -316,7 +373,7 @@ export const joinTrip = withAuth(
       }
 
       revalidatePath('/trips');
-      return { success: true, data: toTripDto(trip) };
+      return { success: true, data: toTripDto(trip, session.userId) };
     } catch (error) {
       console.error('Join trip error:', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };

@@ -13,6 +13,6 @@ export {
 export { useItineraryMutations } from './useItineraryMutations';
 export { useExpenseMutations } from './useExpenseMutations';
 export { useMemberMutations } from './useMemberMutations';
-export { useTripMutations } from './useTripMutations';
+export { useTripMutations, useTripArchiveMutations } from './useTripMutations';
 export { useExchangeRates } from './useExchangeRates';
 export { useStats } from './useStats';

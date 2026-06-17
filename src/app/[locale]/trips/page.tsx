@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Plus, UserPlus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useQueryClient } from '@tanstack/react-query';
-import { useCurrentUser, useTrips, tripKeys } from '@/hooks/queries';
+import { useCurrentUser, useTrips, useTripArchiveMutations, tripKeys } from '@/hooks/queries';
 import Navbar from '@/components/layout/Navbar';
 import CreateTripDialog from '@/components/trips/CreateTripDialog';
 import JoinTripDialog from '@/components/trips/JoinTripDialog';
@@ -14,7 +14,9 @@ import { TripsPageSkeleton } from '@/components/skeletons';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
+import type { TripWithMembers } from '@/types';
 
 export default function TripsPage() {
   const t = useTranslations('trips');
@@ -24,10 +26,37 @@ export default function TripsPage() {
 
   const { data: user } = useCurrentUser();
   const { data: trips = [], isLoading: loading } = useTrips();
+  const { archive, unarchive } = useTripArchiveMutations();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
 
+  const { activeTrips, archivedTrips } = useMemo(
+    () => ({
+      activeTrips: trips.filter((trip) => trip.archived_at == null),
+      archivedTrips: trips.filter((trip) => trip.archived_at != null),
+    }),
+    [trips]
+  );
+
   const reloadTrips = () => queryClient.invalidateQueries({ queryKey: tripKeys.list });
+
+  const toggleArchive = async (trip: TripWithMembers) => {
+    const isArchived = trip.archived_at != null;
+    try {
+      if (isArchived) {
+        await unarchive.mutateAsync(trip.id);
+        toast({
+          description: t('unarchiveSuccess'),
+          className: 'bg-green-500 text-white border-green-600',
+        });
+      } else {
+        await archive.mutateAsync(trip.id);
+        toast({ description: t('archiveSuccess') });
+      }
+    } catch {
+      toast({ variant: 'destructive', description: t('archiveFailed') });
+    }
+  };
 
   const copyHashCode = async (hashCode: string) => {
     try {
@@ -84,8 +113,44 @@ export default function TripsPage() {
           <CardContent className="px-0 sm:px-6">
             {trips.length === 0 ? (
               <EmptyTripsState />
+            ) : archivedTrips.length === 0 ? (
+              // 沒有任何封存時維持單一列表，不顯示分頁籤
+              <TripList
+                trips={activeTrips}
+                onCopyCode={copyHashCode}
+                onToggleArchive={toggleArchive}
+              />
             ) : (
-              <TripList trips={trips} onCopyCode={copyHashCode} />
+              <Tabs defaultValue="active">
+                <TabsList className="mb-6">
+                  <TabsTrigger value="active">
+                    {t('tabActive')} ({activeTrips.length})
+                  </TabsTrigger>
+                  <TabsTrigger value="archived">
+                    {t('tabArchived')} ({archivedTrips.length})
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="active">
+                  {activeTrips.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-12">{t('noActiveTrips')}</p>
+                  ) : (
+                    <TripList
+                      trips={activeTrips}
+                      onCopyCode={copyHashCode}
+                      onToggleArchive={toggleArchive}
+                    />
+                  )}
+                </TabsContent>
+
+                <TabsContent value="archived">
+                  <TripList
+                    trips={archivedTrips}
+                    onCopyCode={copyHashCode}
+                    onToggleArchive={toggleArchive}
+                  />
+                </TabsContent>
+              </Tabs>
             )}
           </CardContent>
         </Card>

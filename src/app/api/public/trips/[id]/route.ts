@@ -42,6 +42,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         location: trip.location ?? null,
         hash_code: trip.hashCode,
         created_at: trip.createdAt.toISOString(),
+        // 公開（唯讀分享）情境無個別封存概念，固定為 null
+        archived_at: null,
       },
     });
   } catch (error) {

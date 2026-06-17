@@ -169,7 +169,15 @@
       "title": "この旅行を削除しますか？",
       "message": "この操作は取り消せません。すべての支出記録とメンバー情報が永久に削除されます。",
       "success": "旅行を削除しました"
-    }
+    },
+    "archive": "アーカイブ",
+    "unarchive": "復元",
+    "archiveSuccess": "アーカイブしました（「アーカイブ」タブに移動）",
+    "unarchiveSuccess": "旅行を復元しました",
+    "archiveFailed": "操作に失敗しました。もう一度お試しください",
+    "tabActive": "進行中",
+    "tabArchived": "アーカイブ済み",
+    "noActiveTrips": "進行中の旅行はありません"
   },
   "expense": {
     "title": "支出記録",
@@ -438,7 +446,13 @@
     "editTrip": "旅行を編集",
     "editSuccess": "旅行情報を更新しました",
     "viewItinerary": "旅程を計画",
-    "viewItineraryHint": "日程の確認と計画"
+    "viewItineraryHint": "日程の確認と計画",
+    "archive": "旅行をアーカイブ",
+    "unarchive": "旅行を復元",
+    "archiveHint": "アーカイブすると、あなたのリストからのみ非表示になります（他のメンバーには影響しません）。内容はそのまま参照でき、いつでも復元できます。",
+    "archivedNote": "この旅行はアーカイブ済みです（あなたにのみ表示）。",
+    "archiveSuccess": "アーカイブしました（「アーカイブ」タブに移動）",
+    "unarchiveSuccess": "旅行を復元しました"
   },
   "itinerary": {
     "title": "旅程プラン",
