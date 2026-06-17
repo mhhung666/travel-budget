@@ -36,9 +36,9 @@
 **問題**：8 條公開路由各自重複「`await params` → `getTripIdByHashCode` → 404 → `try/catch` → 手寫 DTO 映射」。GET 端點的 DTO 映射（snake_case 化）也與 actions 的 `toExpenseDto` 等邏輯平行維護，易漂移。
 **建議**：抽一個 `withPublicTrip(handler)` 包裝（解析 hash_code、統一 404 / 500、注入 `tripId`），DTO 映射共用 actions 既有的轉換函式，消除平行實作。
 
-### F. 🟡 結構化日誌（取代裸 `console.*`）
+### F. ✅ 結構化日誌（取代裸 `console.*`）
 **問題**：全專案約 43 處 `console.error/​log`，無層級、無結構、Serverless 上難以查詢；生產環境也可能噴出未脫敏資訊。
-**建議**：包一層極簡 logger（`src/lib/logger.ts`），統一格式並可依 `NODE_ENV` 調整輸出；之後若接 Sentry / Axiom 只改一處。屬低風險清理。
+**修復（已完成）**：新增 [src/lib/logger.ts](../src/lib/logger.ts)——極簡 isomorphic logger（`debug/info/warn/error`），依 `NODE_ENV` 切換輸出：production 每筆一行 JSON（`{ level, time, message, meta }`，方便日誌平台解析、debug 不輸出），其餘環境為人類可讀單行。Error 會攤平成可序列化物件。將全庫 45 處 `console.error` 改為 `logger.error`，是唯一直接呼叫 `console` 的地方（呼應既有的 `no-console` 規則，只放行 warn/error）。之後若接 Sentry / Axiom 只需改 logger 一處。測試見 [logger.test.ts](../src/__tests__/logger.test.ts)。
 
 ### G. 🟡 支出列表無上限（潛在效能）
 **問題**：`getExpenses`（[expense.actions.ts](../src/actions/expense.actions.ts)）與公開 expenses 路由皆 `Expense.find({ trip })` 全量載入 + 雙 `populate`。一般旅行筆數有限尚可，但長期 / 大型旅行無分頁保護。
@@ -61,7 +61,7 @@
 中
   ├── B  actions/* 測試
   ├── E  Public API 樣板收斂
-  └── F  結構化 logger
+  └── F  結構化 logger  ✅
 
 待基礎設施 / 視資料量
   ├── A  Public API 限流（需 Upstash 等外部儲存）

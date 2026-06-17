@@ -6,6 +6,7 @@ import { Trip, Expense } from '@/models';
 import { withAuth } from './withAuth';
 import type { ActionResult } from './types';
 import type { StatsData, CategoryStat, CountryStat, ExpenseDetail, Location } from '@/types';
+import { logger } from '@/lib/logger';
 
 interface GetStatsOptions {
   startDate?: string;
@@ -144,7 +145,7 @@ export const getStats = withAuth(
         data: { categoryStats, countries, totalAmount, totalExpenses },
       };
     } catch (error) {
-      console.error('Get stats error:', error);
+      logger.error('Get stats error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
   }

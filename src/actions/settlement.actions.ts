@@ -7,6 +7,7 @@ import { calculateSettlement } from '@/lib/settlement';
 import { withAuth } from './withAuth';
 import type { ActionResult } from './types';
 import type { Balance, Transaction } from '@/types';
+import { logger } from '@/lib/logger';
 
 interface SettlementResult {
   balances: Balance[];
@@ -91,7 +92,7 @@ export const getSettlement = withAuth(
         },
       };
     } catch (error) {
-      console.error('Get settlement error:', error);
+      logger.error('Get settlement error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
   }

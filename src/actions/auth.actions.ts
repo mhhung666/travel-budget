@@ -17,6 +17,7 @@ import {
 import { withAuth } from './withAuth';
 import type { ActionResult } from './types';
 import type { User } from '@/types';
+import { logger } from '@/lib/logger';
 
 export type AuthUser = Pick<User, 'id' | 'username' | 'display_name'>;
 export type AuthUserWithCreatedAt = AuthUser & { created_at: string; email: string };
@@ -54,7 +55,7 @@ export async function getCurrentUser(): Promise<ActionResult<AuthUserWithCreated
       },
     };
   } catch (error) {
-    console.error('Get current user error:', error);
+    logger.error('Get current user error', error);
     return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
   }
 }
@@ -98,7 +99,7 @@ export async function login(input: LoginInput): Promise<ActionResult<AuthUser>> 
       },
     };
   } catch (error) {
-    console.error('Login error:', error);
+    logger.error('Login error', error);
     return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
   }
 }
@@ -153,7 +154,7 @@ export async function register(input: RegisterInput): Promise<ActionResult<AuthU
       },
     };
   } catch (error) {
-    console.error('Registration error:', error);
+    logger.error('Registration error', error);
     return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
   }
 }
@@ -166,7 +167,7 @@ export async function logout(): Promise<ActionResult<{ message: string }>> {
     await deleteSession();
     return { success: true, data: { message: '登出成功' } };
   } catch (error) {
-    console.error('Logout error:', error);
+    logger.error('Logout error', error);
     return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
   }
 }
@@ -240,7 +241,7 @@ export const updateProfile = withAuth(
 
       return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
     } catch (error) {
-      console.error('Update user error:', error);
+      logger.error('Update user error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
   }
@@ -284,7 +285,7 @@ export async function resetPassword(
 
     return { success: true, data: { message: '密碼已重設成功' } };
   } catch (error) {
-    console.error('Reset password error:', error);
+    logger.error('Reset password error', error);
     return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
   }
 }

@@ -12,6 +12,7 @@ import {
 import { withAuth } from './withAuth';
 import type { ActionResult } from './types';
 import type { Expense as ExpenseDto } from '@/types';
+import { logger } from '@/lib/logger';
 
 type PopulatedRef = { _id: { toString(): string }; username: string; displayName: string } | null;
 
@@ -79,7 +80,7 @@ export const getExpenses = withAuth(
       const data = expenses.map((e) => toExpenseDto(e, tripId));
       return { success: true, data };
     } catch (error) {
-      console.error('Get expenses error:', error);
+      logger.error('Get expenses error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
   }
@@ -163,7 +164,7 @@ export const createExpense = withAuth(
         data: toExpenseDto(created.toObject() as unknown as LeanExpense, tripId),
       };
     } catch (error) {
-      console.error('Create expense error:', error);
+      logger.error('Create expense error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
   }
@@ -251,7 +252,7 @@ export const updateExpense = withAuth(
       revalidatePath(`/trips/${tripIdOrCode}`);
       return { success: true, data: { message: '支出已更新' } };
     } catch (error) {
-      console.error('Update expense error:', error);
+      logger.error('Update expense error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
   }
@@ -278,7 +279,7 @@ export const deleteExpense = withAuth(
       revalidatePath(`/trips/${tripIdOrCode}`);
       return { success: true, data: { message: '支出已刪除' } };
     } catch (error) {
-      console.error('Delete expense error:', error);
+      logger.error('Delete expense error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
   }

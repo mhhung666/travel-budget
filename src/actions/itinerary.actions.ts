@@ -7,6 +7,7 @@ import { createItineraryDaySchema, updateItineraryDaySchema } from '@/lib/valida
 import type { ActionResult } from './types';
 import type { ItineraryDay as ItineraryDayDto } from '@/types';
 import { withAuth } from './withAuth';
+import { logger } from '@/lib/logger';
 
 type LeanDay = {
   _id: { toString(): string };
@@ -47,7 +48,7 @@ export const getItinerary = withAuth(
 
       return { success: true, data: days.map(toDayDto) };
     } catch (error) {
-      console.error('Get itinerary error:', error);
+      logger.error('Get itinerary error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
   }
@@ -89,7 +90,7 @@ export const createItineraryDay = withAuth(
 
       return { success: true, data: toDayDto(created.toObject() as unknown as LeanDay) };
     } catch (error) {
-      console.error('Create itinerary day error:', error);
+      logger.error('Create itinerary day error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
   }
@@ -133,7 +134,7 @@ export const updateItineraryDay = withAuth(
 
       return { success: true, data: toDayDto(updated) };
     } catch (error) {
-      console.error('Update itinerary day error:', error);
+      logger.error('Update itinerary day error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
   }
@@ -184,7 +185,7 @@ export const deleteItineraryDay = withAuth(
 
       return { success: true, data: { message: 'DELETED' } };
     } catch (error) {
-      console.error('Delete itinerary day error:', error);
+      logger.error('Delete itinerary day error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
   }

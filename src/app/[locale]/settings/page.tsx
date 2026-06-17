@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AccountSettingsSkeleton } from '@/components/skeletons';
+import { logger } from '@/lib/logger';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -43,7 +44,7 @@ export default function SettingsPage() {
         setEmail(result.data.email || '');
       }
     } catch (error) {
-      console.error('獲取用戶資料失敗:', error);
+      logger.error('獲取用戶資料失敗', error);
     } finally {
       setLoading(false);
     }

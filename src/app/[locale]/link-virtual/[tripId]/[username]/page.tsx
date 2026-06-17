@@ -13,6 +13,7 @@ import { getCurrentUser, getMembers } from '@/actions';
 import type { AuthUserWithCreatedAt } from '@/actions';
 import type { Trip, Member } from '@/types';
 import { InviteCard, ErrorView } from '@/components/link-virtual';
+import { logger } from '@/lib/logger';
 
 export default function LinkVirtualMemberPage() {
   const router = useRouter();
@@ -91,7 +92,7 @@ export default function LinkVirtualMemberPage() {
         setShowRegisterDialog(true);
       }
     } catch (err) {
-      console.error('Load error:', err);
+      logger.error('Load error', err);
       setError(tError('loadFailed'));
     } finally {
       setLoading(false);

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Trip, User } from '@/models';
 import { getTripIdByHashCode } from '@/lib/permissions';
+import { logger } from '@/lib/logger';
 import { PublicApiError, apiError } from '@/lib/publicApiError';
 
 type LeanTrip = {
@@ -68,7 +69,7 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error('Link virtual member API error:', error);
+    logger.error('Link virtual member API error', error);
     return apiError(PublicApiError.INTERNAL_ERROR, 500);
   }
 }

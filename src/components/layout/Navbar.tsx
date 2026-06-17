@@ -16,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { logger } from '@/lib/logger';
 
 interface NavbarProps {
   user?: {
@@ -39,7 +40,7 @@ export default function Navbar({ user, showUserMenu = true, title }: NavbarProps
       await logout();
       router.push('/login');
     } catch (error) {
-      console.error('登出失敗:', error);
+      logger.error('登出失敗', error);
     }
   };
 

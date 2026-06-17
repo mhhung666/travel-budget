@@ -14,6 +14,7 @@ import {
 import { withAuth } from './withAuth';
 import type { ActionResult } from './types';
 import type { Trip, TripWithMembers } from '@/types';
+import { logger } from '@/lib/logger';
 
 /** 將 Mongoose Trip 文件映射為對外 DTO（維持 snake_case 以相容前端） */
 type LeanTrip = TripDoc & { _id: { toString(): string }; createdAt: Date };
@@ -54,7 +55,7 @@ export const getTrips = withAuth(async (session): Promise<ActionResult<TripWithM
 
     return { success: true, data: formattedTrips };
   } catch (error) {
-    console.error('Get trips error:', error);
+    logger.error('Get trips error', error);
     return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
   }
 });
@@ -76,7 +77,7 @@ export const getTrip = withAuth(async (session, id: string): Promise<ActionResul
 
     return { success: true, data: toTripDto(trip, session.userId) };
   } catch (error) {
-    console.error('Get trip error:', error);
+    logger.error('Get trip error', error);
     return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
   }
 });
@@ -108,7 +109,7 @@ export const getTripPreview = withAuth(
         },
       };
     } catch (error) {
-      console.error('Get trip preview error:', error);
+      logger.error('Get trip preview error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
   }
@@ -152,7 +153,7 @@ export const createTrip = withAuth(
       revalidatePath('/trips');
       return { success: true, data: toTripDto(trip.toObject() as LeanTrip, session.userId) };
     } catch (error) {
-      console.error('Create trip error:', error);
+      logger.error('Create trip error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
   }
@@ -205,7 +206,7 @@ export const updateTrip = withAuth(
       revalidatePath(`/trips/${id}`);
       return { success: true, data: toTripDto(trip, session.userId) };
     } catch (error) {
-      console.error('Update trip error:', error);
+      logger.error('Update trip error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
   }
@@ -237,7 +238,7 @@ export const deleteTrip = withAuth(
       revalidatePath('/trips');
       return { success: true, data: { message: '旅行已刪除' } };
     } catch (error) {
-      console.error('Delete trip error:', error);
+      logger.error('Delete trip error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
   }
@@ -281,7 +282,7 @@ export const regenerateHashCode = withAuth(
       revalidatePath(`/trips/${membership.tripId}`);
       return { success: true, data: toTripDto(trip, session.userId) };
     } catch (error) {
-      console.error('Regenerate hash code error:', error);
+      logger.error('Regenerate hash code error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
   }
@@ -324,7 +325,7 @@ export const archiveTrip = withAuth(async (session, id: string): Promise<ActionR
   try {
     return await setArchivedAt(session, id, new Date());
   } catch (error) {
-    console.error('Archive trip error:', error);
+    logger.error('Archive trip error', error);
     return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
   }
 });
@@ -333,7 +334,7 @@ export const unarchiveTrip = withAuth(async (session, id: string): Promise<Actio
   try {
     return await setArchivedAt(session, id, null);
   } catch (error) {
-    console.error('Unarchive trip error:', error);
+    logger.error('Unarchive trip error', error);
     return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
   }
 });
@@ -375,7 +376,7 @@ export const joinTrip = withAuth(
       revalidatePath('/trips');
       return { success: true, data: toTripDto(trip, session.userId) };
     } catch (error) {
-      console.error('Join trip error:', error);
+      logger.error('Join trip error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
   }

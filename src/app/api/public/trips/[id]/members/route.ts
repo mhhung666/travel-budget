@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Trip } from '@/models';
 import { getTripIdByHashCode } from '@/lib/permissions';
+import { logger } from '@/lib/logger';
 import { PublicApiError, apiError } from '@/lib/publicApiError';
 
 type PopulatedMember = {
@@ -44,7 +45,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     return NextResponse.json({ members: formattedMembers });
   } catch (error) {
-    console.error('Get public trip members error:', error);
+    logger.error('Get public trip members error', error);
     return apiError(PublicApiError.INTERNAL_ERROR, 500);
   }
 }

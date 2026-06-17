@@ -5,6 +5,7 @@ import { Trip, User } from '@/models';
 import { getTripIdByHashCode } from '@/lib/permissions';
 import { createSession } from '@/lib/auth';
 import { registerSchema } from '@/lib/validation';
+import { logger } from '@/lib/logger';
 import { PublicApiError, apiError } from '@/lib/publicApiError';
 
 // 不分大小寫的精確比對（取代 Postgres ilike）
@@ -93,7 +94,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     return NextResponse.json({ success: true, message: '註冊成功' });
   } catch (error) {
-    console.error('Convert virtual member error:', error);
+    logger.error('Convert virtual member error', error);
     return apiError(PublicApiError.INTERNAL_ERROR, 500);
   }
 }

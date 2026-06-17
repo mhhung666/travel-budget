@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Expense } from '@/models';
 import { getTripIdByHashCode } from '@/lib/permissions';
+import { logger } from '@/lib/logger';
 import { PublicApiError, apiError } from '@/lib/publicApiError';
 
 type PopulatedRef = { _id: { toString(): string }; username: string; displayName: string } | null;
@@ -60,7 +61,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     return NextResponse.json({ expenses: expensesWithSplits });
   } catch (error) {
-    console.error('Get public expenses error:', error);
+    logger.error('Get public expenses error', error);
     return apiError(PublicApiError.INTERNAL_ERROR, 500);
   }
 }

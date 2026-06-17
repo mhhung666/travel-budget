@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Label } from '@/components/ui/label';
+import { logger } from '@/lib/logger';
 
 // Nominatim API 回傳的地點資料
 interface NominatimPlace {
@@ -117,7 +118,7 @@ export default function LocationAutocomplete({
         };
       });
     } catch (error) {
-      console.error('Location search error:', error);
+      logger.error('Location search error', error);
       return [];
     }
   };

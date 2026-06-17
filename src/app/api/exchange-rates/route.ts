@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 // 汇率数据缓存（避免频繁请求）
 let cachedRates: { rates: Record<string, number>; timestamp: number } | null = null;
@@ -54,7 +55,7 @@ export async function GET() {
       cached: false,
     });
   } catch (error) {
-    console.error('Error fetching exchange rates:', error);
+    logger.error('Error fetching exchange rates', error);
 
     // 如果有缓存数据，即使过期也返回
     if (cachedRates) {

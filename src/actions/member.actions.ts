@@ -9,6 +9,7 @@ import { addVirtualMemberSchema, type AddVirtualMemberInput } from '@/lib/valida
 import { withAuth } from './withAuth';
 import type { ActionResult } from './types';
 import type { Member } from '@/types';
+import { logger } from '@/lib/logger';
 
 type PopulatedMember = {
   user: {
@@ -54,7 +55,7 @@ export const getMembers = withAuth(
 
       return { success: true, data: formattedMembers };
     } catch (error) {
-      console.error('Get trip members error:', error);
+      logger.error('Get trip members error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
   }
@@ -125,7 +126,7 @@ export const addVirtualMember = withAuth(
       revalidatePath(`/trips/${tripIdOrCode}`);
       return { success: true, data: member };
     } catch (error) {
-      console.error('Create virtual member error:', error);
+      logger.error('Create virtual member error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
   }
@@ -167,7 +168,7 @@ export const updateMemberRole = withAuth(
       revalidatePath(`/trips/${tripIdOrCode}`);
       return { success: true, data: { message: '角色已更新' } };
     } catch (error) {
-      console.error('Update member role error:', error);
+      logger.error('Update member role error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
   }
@@ -235,7 +236,7 @@ export const removeMember = withAuth(
         },
       };
     } catch (error) {
-      console.error('Remove member error:', error);
+      logger.error('Remove member error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
   }

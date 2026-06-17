@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import type { User } from '@/types';
+import { logger } from '@/lib/logger';
 
 export interface UseAuthReturn {
   user: User | null;
@@ -71,7 +72,7 @@ export function useAuth(): UseAuthReturn {
       setUser(null);
       router.push('/login');
     } catch (err) {
-      console.error('Logout failed:', err);
+      logger.error('Logout failed', err);
       // Still clear user state and redirect even if API fails
       setUser(null);
       router.push('/login');
