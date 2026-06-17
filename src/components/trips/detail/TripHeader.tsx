@@ -2,10 +2,12 @@
 
 import { ReactNode } from 'react';
 import { Edit2, MapPin, CalendarRange } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import type { Trip } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { pickLocalizedName } from '@/lib/utils';
+import { getLocalizedCountryName } from '@/constants/countries';
 
 interface TripHeaderProps {
   trip: Trip;
@@ -22,6 +24,7 @@ export default function TripHeader({
 }: TripHeaderProps) {
   const tTrip = useTranslations('trip');
   const tCommon = useTranslations('common');
+  const locale = useLocale();
 
   return (
     <Card className="mb-6">
@@ -36,8 +39,9 @@ export default function TripHeader({
               <div className="flex items-center gap-2 mb-2 text-sm text-muted-foreground">
                 <MapPin size={16} />
                 <span>
-                  {trip.location.name}
-                  {trip.location.country && `, ${trip.location.country}`}
+                  {pickLocalizedName(trip.location.names, locale, trip.location.name)}
+                  {trip.location.country &&
+                    `, ${getLocalizedCountryName(trip.location.country_code, locale, trip.location.country)}`}
                 </span>
               </div>
             )}

@@ -6,7 +6,8 @@ import type { TripWithMembers } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
+import { cn, pickLocalizedName } from '@/lib/utils';
+import { getLocalizedCountryName } from '@/constants/countries';
 
 export interface TripCardProps {
   trip: TripWithMembers;
@@ -67,8 +68,9 @@ export default function TripCard({ trip, onClick, onCopyCode, onToggleArchive }:
             <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
               <MapPin size={14} className="text-muted-foreground" />
               <span className="truncate">
-                {trip.location.name}
-                {trip.location.country && `, ${trip.location.country}`}
+                {pickLocalizedName(trip.location.names, locale, trip.location.name)}
+                {trip.location.country &&
+                  `, ${getLocalizedCountryName(trip.location.country_code, locale, trip.location.country)}`}
               </span>
             </div>
           )}
