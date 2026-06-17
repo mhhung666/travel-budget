@@ -34,8 +34,15 @@ export const getStats = withAuth(
 
       // 1. Get all trips the user is part of
       const userTrips = await Trip.find({ 'members.user': session.userId })
-        .select('_id location')
-        .lean<{ _id: Types.ObjectId; location: Location | null }[]>();
+        .select('_id location startDate endDate')
+        .lean<
+          {
+            _id: Types.ObjectId;
+            location: Location | null;
+            startDate?: Date | null;
+            endDate?: Date | null;
+          }[]
+        >();
 
       if (userTrips.length === 0) {
         return {
@@ -46,15 +53,19 @@ export const getStats = withAuth(
 
       const tripIds = userTrips.map((t) => t._id);
 
+      // 查詢區間（分類統計依支出 date、國家統計依旅程起訖日，共用同一組邊界）
+      const rangeStart = startDate ? new Date(startDate) : null;
+      const rangeEnd = endDate ? new Date(`${endDate}T23:59:59.999Z`) : null;
+
       // 2. Get expenses where the user is in the splits（含內嵌 splits）
       const dateFilter: Record<string, Date> = {};
-      if (startDate) dateFilter.$gte = new Date(startDate);
-      if (endDate) dateFilter.$lte = new Date(`${endDate}T23:59:59.999Z`);
+      if (rangeStart) dateFilter.$gte = rangeStart;
+      if (rangeEnd) dateFilter.$lte = rangeEnd;
 
       const expenses = await Expense.find({
         trip: { $in: tripIds },
         'splits.user': session.userId,
-        ...(startDate || endDate ? { date: dateFilter } : {}),
+        ...(rangeStart || rangeEnd ? { date: dateFilter } : {}),
       })
         .select('category date description splits trip')
         .populate('trip', 'name')
@@ -108,7 +119,20 @@ export const getStats = withAuth(
         }
       >();
 
+      // 區間篩選時，只計入起訖日與查詢區間重疊的旅程（沒有日期的旅程無法定位，排除）。
+      // 無篩選時全部計入。
+      const tripInRange = (trip: (typeof userTrips)[number]): boolean => {
+        if (!rangeStart && !rangeEnd) return true;
+        const start = trip.startDate ?? trip.endDate ?? null;
+        const end = trip.endDate ?? trip.startDate ?? null;
+        if (!start || !end) return false;
+        if (rangeEnd && start > rangeEnd) return false;
+        if (rangeStart && end < rangeStart) return false;
+        return true;
+      };
+
       for (const trip of userTrips) {
+        if (!tripInRange(trip)) continue;
         const location = trip.location;
         if (location && location.country) {
           const country = location.country;
