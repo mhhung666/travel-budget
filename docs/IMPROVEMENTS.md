@@ -73,8 +73,11 @@
 - 六個頁面（trips 列表、trip 詳情、settlement、itinerary、settings、stats）全面改用上述 hooks；移除已無用的 `useTripData`。跨頁切換 tab 現可命中快取、自動去重。
 **備註**：尚未導入 per-item 樂觀更新（目前以 invalidate 後背景 refetch 為主，足夠且最不易出錯）；公開「認領虛擬成員」流程因會改變登入 session，仍刻意保留 `window.location.reload()`。
 
-### 8. 🟡 頁面元件職責過重
-`trips/[id]/page.tsx` 同時承擔資料載入、多個 dialog 狀態、handler、權限判斷與渲染。建議拆為 container / presentational，搭配 `useTripData` 等 hook。
+### 8. ✅ 頁面元件職責過重
+**問題**：頁面元件同時承擔資料載入、多個 dialog 狀態、handler、權限判斷與渲染。
+**修復（已完成）**：把各頁的 controller 邏輯抽成專屬 hook，頁面元件回歸純粹的 presentational wiring；dialog 狀態改用既有 [useDialog](../src/hooks/useDialog.ts) 取代分散的 `useState`，重複的錯誤 toast 收斂為單一 `toastError` helper。
+- [useTripDetailPage](../src/hooks/useTripDetailPage.ts)：詳情頁的資料載入（`useTrip/useExpenses/useTripMembership`）、mutation、dialog、filter/expand 與 4 個 handler。[page.tsx](../src/app/[locale]/trips/[id]/page.tsx) 284 → 193 行。
+- [useTripSettingsPage](../src/hooks/useTripSettingsPage.ts)：設定頁的資料載入、權限導出的 error、5 個 dialog、虛擬成員轉換流程（register/link 互切）與 6 個 handler。[settings/page.tsx](../src/app/[locale]/trips/[id]/settings/page.tsx) 349 → 208 行。
 
 ### 9. 補強測試覆蓋（依序）
 `lib/permissions.ts`（安全）→ `actions/*`（核心業務）→ 關鍵元件。settlement / validation / hashcode 已覆蓋。可考慮對 Mongoose 層加整合測試（連線測試 DB）。
