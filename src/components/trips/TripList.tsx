@@ -7,9 +7,10 @@ import TripCard from './TripCard';
 interface TripListProps {
   trips: TripWithMembers[];
   onCopyCode: (code: string) => void;
+  onToggleArchive?: (trip: TripWithMembers) => void;
 }
 
-export default function TripList({ trips, onCopyCode }: TripListProps) {
+export default function TripList({ trips, onCopyCode, onToggleArchive }: TripListProps) {
   const router = useRouter();
 
   if (!trips || trips.length === 0) {
@@ -24,6 +25,7 @@ export default function TripList({ trips, onCopyCode }: TripListProps) {
           trip={trip}
           onClick={() => router.push(`/trips/${trip.hash_code}`)}
           onCopyCode={onCopyCode}
+          onToggleArchive={onToggleArchive}
         />
       ))}
     </div>

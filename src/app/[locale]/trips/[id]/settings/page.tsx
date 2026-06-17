@@ -5,7 +5,7 @@ import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 import { ArrowLeft } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
-import { TripMembers, TripShare, TripDangerZone } from '@/components/trips/detail';
+import { TripMembers, TripShare, TripArchive, TripDangerZone } from '@/components/trips/detail';
 
 // Dialogs
 import {
@@ -52,9 +52,12 @@ export default function TripSettingsPage() {
     switchToRegister,
     isDeleting,
     isRegenerating,
+    isArchived,
+    isArchiving,
     membersExpanded,
     toggleMembersExpanded,
     handleRegenerateShareCode,
+    handleToggleArchive,
     handleDeleteTrip,
     handleRemoveMember,
     handleToggleAdmin,
@@ -134,6 +137,13 @@ export default function TripSettingsPage() {
             canRegenerate={isAdmin}
             onRegenerate={() => regenerateDialog.openDialog()}
             isRegenerating={isRegenerating}
+          />
+
+          {/* 封存（個別，全體成員可用） */}
+          <TripArchive
+            isArchived={isArchived}
+            onToggle={handleToggleArchive}
+            isToggling={isArchiving}
           />
 
           {/* 危险操作区 */}

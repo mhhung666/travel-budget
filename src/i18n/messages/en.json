@@ -164,7 +164,15 @@
       "dangerZone": "Danger Zone",
       "deleteTrip": "Delete Trip",
       "deleteTripWarning": "This cannot be undone. All expense records will be deleted."
-    }
+    },
+    "archive": "Archive",
+    "unarchive": "Restore",
+    "archiveSuccess": "Archived — moved to the Archived tab",
+    "unarchiveSuccess": "Trip restored",
+    "archiveFailed": "Action failed, please try again",
+    "tabActive": "Active",
+    "tabArchived": "Archived",
+    "noActiveTrips": "No active trips"
   },
   "auth": {
     "login": {
@@ -433,7 +441,13 @@
     "editTrip": "Edit Trip",
     "editSuccess": "Trip information updated",
     "viewItinerary": "Plan Trip",
-    "viewItineraryHint": "View and plan daily itinerary"
+    "viewItineraryHint": "View and plan daily itinerary",
+    "archive": "Archive Trip",
+    "unarchive": "Restore Trip",
+    "archiveHint": "Archiving collapses this trip from your own list only (others are unaffected). The trip stays accessible and can be restored anytime.",
+    "archivedNote": "This trip is archived (only you see this).",
+    "archiveSuccess": "Archived — moved to the Archived tab",
+    "unarchiveSuccess": "Trip restored"
   },
   "itinerary": {
     "title": "Trip Itinerary",

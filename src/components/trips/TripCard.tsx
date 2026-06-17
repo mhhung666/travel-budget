@@ -1,33 +1,61 @@
 'use client';
 
-import { Copy, Users, CalendarRange, MapPin } from 'lucide-react';
+import { Copy, Users, CalendarRange, MapPin, Archive, ArchiveRestore } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import type { TripWithMembers } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 export interface TripCardProps {
   trip: TripWithMembers;
   onClick: () => void;
   onCopyCode: (code: string) => void;
+  /** Toggle this trip's archived state (per-member). Omit to hide the control. */
+  onToggleArchive?: (trip: TripWithMembers) => void;
 }
 
-export default function TripCard({ trip, onClick, onCopyCode }: TripCardProps) {
+export default function TripCard({ trip, onClick, onCopyCode, onToggleArchive }: TripCardProps) {
   const t = useTranslations('trips');
   const locale = useLocale();
+  const isArchived = trip.archived_at != null;
 
   const handleCopyClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     onCopyCode(trip.hash_code);
   };
 
+  const handleArchiveClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onToggleArchive?.(trip);
+  };
+
   return (
     <Card
       onClick={onClick}
-      className="h-full cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border-border/50 bg-card"
+      className={cn(
+        'relative h-full cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border-border/50 bg-card',
+        isArchived && 'opacity-70 hover:opacity-100'
+      )}
     >
+      {onToggleArchive && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="absolute top-2 right-2 h-8 w-8 text-muted-foreground hover:text-foreground"
+          onClick={handleArchiveClick}
+          aria-label={isArchived ? t('unarchive') : t('archive')}
+          title={isArchived ? t('unarchive') : t('archive')}
+        >
+          {isArchived ? <ArchiveRestore size={16} /> : <Archive size={16} />}
+        </Button>
+      )}
+
       <CardContent className="p-6 flex flex-col h-full items-start text-left">
-        <h3 className="text-xl font-semibold mb-2 text-foreground line-clamp-1">{trip.name}</h3>
+        <h3 className="text-xl font-semibold mb-2 text-foreground line-clamp-1 pr-8">
+          {trip.name}
+        </h3>
 
         {trip.description && (
           <p className="text-sm text-muted-foreground mb-4 line-clamp-2">{trip.description}</p>

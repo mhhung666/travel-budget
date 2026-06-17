@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { updateTrip, deleteTrip, regenerateHashCode } from '@/actions';
+import { updateTrip, deleteTrip, regenerateHashCode, archiveTrip, unarchiveTrip } from '@/actions';
 import type { ActionResult } from '@/actions';
 import type { UpdateTripInput } from '@/lib/validation';
 import type { Trip } from '@/types';
@@ -48,4 +48,32 @@ export function useTripMutations(tripId: string) {
   });
 
   return { update, regenerate, remove };
+}
+
+/**
+ * Per-member archive/unarchive, keyed by tripId at call time so the trips list
+ * (which holds many trips) can toggle any card. Archive is personal — it only
+ * moves the trip between the caller's active/archived tabs — so we just refresh
+ * the list (and the detail query if it's cached).
+ */
+export function useTripArchiveMutations() {
+  const queryClient = useQueryClient();
+
+  const onSuccess = (trip: Trip) => {
+    queryClient.setQueryData(tripKeys.detail(trip.id), trip);
+    queryClient.setQueryData(tripKeys.detail(trip.hash_code), trip);
+    queryClient.invalidateQueries({ queryKey: tripKeys.list });
+  };
+
+  const archive = useMutation({
+    mutationFn: (tripId: string) => unwrap(archiveTrip(tripId)),
+    onSuccess,
+  });
+
+  const unarchive = useMutation({
+    mutationFn: (tripId: string) => unwrap(unarchiveTrip(tripId)),
+    onSuccess,
+  });
+
+  return { archive, unarchive };
 }

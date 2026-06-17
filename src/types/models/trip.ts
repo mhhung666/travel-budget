@@ -13,6 +13,8 @@ export interface Trip {
   location: Location | null;
   hash_code: string;
   created_at: string;
+  /** 軟性封存時間；null 代表未封存 */
+  archived_at: string | null;
 }
 
 /**
