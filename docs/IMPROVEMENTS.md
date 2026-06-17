@@ -73,22 +73,35 @@
 - 六個頁面（trips 列表、trip 詳情、settlement、itinerary、settings、stats）全面改用上述 hooks；移除已無用的 `useTripData`。跨頁切換 tab 現可命中快取、自動去重。
 **備註**：尚未導入 per-item 樂觀更新（目前以 invalidate 後背景 refetch 為主，足夠且最不易出錯）；公開「認領虛擬成員」流程因會改變登入 session，仍刻意保留 `window.location.reload()`。
 
-### 8. 🟡 頁面元件職責過重
-`trips/[id]/page.tsx` 同時承擔資料載入、多個 dialog 狀態、handler、權限判斷與渲染。建議拆為 container / presentational，搭配 `useTripData` 等 hook。
+### 8. ✅ 頁面元件職責過重
+**問題**：頁面元件同時承擔資料載入、多個 dialog 狀態、handler、權限判斷與渲染。
+**修復（已完成）**：把各頁的 controller 邏輯抽成專屬 hook，頁面元件回歸純粹的 presentational wiring；dialog 狀態改用既有 [useDialog](../src/hooks/useDialog.ts) 取代分散的 `useState`，重複的錯誤 toast 收斂為單一 `toastError` helper。
+- [useTripDetailPage](../src/hooks/useTripDetailPage.ts)：詳情頁的資料載入（`useTrip/useExpenses/useTripMembership`）、mutation、dialog、filter/expand 與 4 個 handler。[page.tsx](../src/app/[locale]/trips/[id]/page.tsx) 284 → 193 行。
+- [useTripSettingsPage](../src/hooks/useTripSettingsPage.ts)：設定頁的資料載入、權限導出的 error、5 個 dialog、虛擬成員轉換流程（register/link 互切）與 6 個 handler。[settings/page.tsx](../src/app/[locale]/trips/[id]/settings/page.tsx) 349 → 208 行。
 
-### 9. 補強測試覆蓋（依序）
-`lib/permissions.ts`（安全）→ `actions/*`（核心業務）→ 關鍵元件。settlement / validation / hashcode 已覆蓋。可考慮對 Mongoose 層加整合測試（連線測試 DB）。
+### 9. 🟡 補強測試覆蓋（依序）
+`lib/permissions.ts`（安全）→ `actions/*`（核心業務）→ 關鍵元件。
+**進度**：
+- ✅ `lib/permissions.ts`（安全）全面覆蓋——`getTripMembership`（ObjectId / hash_code 分流、查無 trip、非成員）、`isAdmin / isMember / getUserRole`（admin / member / 非成員三態）、`getTripId`、`getTripHashCode`、`requireAdmin / requireMember`（放行與拋錯），加上既有的 `getTripIdByHashCode`（拒絕 ObjectId）。以 mock `@/models` Trip + `dbConnect`，不需真實 DB。見 [permissions.test.ts](../src/__tests__/permissions.test.ts)（23 tests）。
+- ✅ `lib/histogram.ts`（stats 直方圖聚合）——`suggestInterval`（day / week / month 邊界）與 `aggregateExpensesByInterval`（day/month 分桶、跨分類 flatten、範圍外排除、空時段、空輸入、start>end）。見 [histogram.test.ts](../src/__tests__/histogram.test.ts)（10 tests）。
+- ✅ settlement / validation / hashcode 已覆蓋。
+**待處理**：`actions/*`（核心業務，DB 依賴重，需較多 mock）→ 關鍵元件。可考慮對 Mongoose 層加整合測試（連線測試 DB）。
 
 ---
 
 ## P3 — 開發體驗
 
-### 10. ⚠️ 統一刪除確認 UI
-[trips/[id]/page.tsx](../src/app/[locale]/trips/[id]/page.tsx) 仍用原生 `confirm()`，與其他操作的 Dialog 風格不一致。改用統一的 `ConfirmDialog`。
+### 10. ✅ 統一刪除確認 UI
+**問題**：刪除支出原本用原生 `confirm()`，與其他操作的 Dialog 風格不一致。
+**修復（已完成）**：刪除支出改用統一的 [ConfirmDialog](../src/components/common/ConfirmDialog.tsx)（`severity="error"`、含 loading 狀態）。[useTripDetailPage](../src/hooks/useTripDetailPage.ts) 改為以 `deleteExpenseDialog`（`useDialog<string>` 存 expenseId）管理狀態，`handleDeleteExpense` 開啟對話框、`confirmDeleteExpense` 執行刪除；按鈕文字走既有 i18n（`expense.delete`／`common.delete`／`common.cancel`）。
 
-### 11. Loading Skeleton 取代單一 spinner，提升載入體感。
+### 11. ✅ Loading Skeleton 取代單一 spinner
+**問題**：各頁載入時只顯示置中的單一 spinner，與最終版面落差大、易造成 layout shift。
+**修復（已完成）**：新增 [Skeleton](../src/components/ui/skeleton.tsx) 基礎元件與 [src/components/skeletons/](../src/components/skeletons/index.tsx) 一組「版面型」骨架（含與固定 Navbar 等高的中性 faux navbar，避免登入按鈕閃爍與位移）。六個全頁 spinner 改為對應骨架：trips 列表（`TripsPageSkeleton`）、trip 詳情（`TripDetailSkeleton`）、settlement（`SettlementSkeleton`）、itinerary（`ItinerarySkeleton`）、trip 設定（`TripSettingsSkeleton`）、帳號設定（`AccountSettingsSkeleton`）；stats 移除頁層 spinner，改由 [StatsDashboard](../src/components/stats/StatsDashboard.tsx) 內部渲染 `StatsDashboardSkeleton`（Navbar 維持顯示）。按鈕內的 inline spinner（送出中）刻意保留。
 
-### 12. Toast 訊息全面走 i18n（勿硬編碼）。
+### 12. ✅ Toast 訊息全面走 i18n
+**問題**：少數 toast 仍有硬編碼英文字串（`'Error'`／`'Deleted'`／`"Code copied to clipboard!"`），未走 i18n。
+**修復（已完成）**：新增 `common.errorTitle`／`common.deleted`／`common.copied` 三組四語系字串，替換以下硬編碼：[useTripDetailPage](../src/hooks/useTripDetailPage.ts)（錯誤 toast 標題、刪除成功標題）、[useTripSettingsPage](../src/hooks/useTripSettingsPage.ts)（兩處錯誤 toast 標題）、[itinerary/page.tsx](../src/app/[locale]/trips/[id]/itinerary/page.tsx)（刪除錯誤標題）、[ShareCode](../src/components/trips/ShareCode.tsx)（複製成功訊息）。其餘 toast 早已走 `t(...)`。
 
 ---
 

@@ -4,12 +4,13 @@ import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
-import { ArrowLeft, Plus, Loader2 } from 'lucide-react';
+import { ArrowLeft, Plus } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import { ItineraryDayCard, ItineraryDayDialog } from '@/components/trips/detail/itinerary';
 import type { ItineraryDay } from '@/types';
 import { useItinerary, useTripMembership, useItineraryMutations } from '@/hooks/queries';
 
+import { ItinerarySkeleton } from '@/components/skeletons';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
@@ -74,7 +75,7 @@ export default function ItineraryPage() {
       setDeletingDay(null);
     } catch (err: unknown) {
       toast({
-        title: "Error",
+        title: tCommon('errorTitle'),
         description: err instanceof Error ? err.message : String(err),
         variant: "destructive"
       });
@@ -97,11 +98,7 @@ export default function ItineraryPage() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-10 w-10 animate-spin text-primary" />
-      </div>
-    );
+    return <ItinerarySkeleton />;
   }
 
   if (error) {

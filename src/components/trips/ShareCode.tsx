@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Copy, Check } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -30,6 +31,7 @@ export function ShareCode({
 }: ShareCodeProps) {
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
+  const tCommon = useTranslations('common');
 
   const getShareUrl = () => {
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
@@ -41,7 +43,7 @@ export function ShareCode({
       await navigator.clipboard.writeText(getShareUrl());
       setCopied(true);
       toast({
-        description: "Code copied to clipboard!",
+        description: tCommon('copied'),
       });
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {

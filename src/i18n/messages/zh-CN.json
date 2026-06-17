@@ -24,6 +24,9 @@
     "toggleAll": "全选",
     "hideDetails": "隐藏详细信息",
     "moreDetails": "显示详细信息",
+    "errorTitle": "错误",
+    "deleted": "已删除",
+    "copied": "已复制到剪贴板！",
     "error": {
       "splitExceedsTotal": "分账总额超过支出金额",
       "splitNotFullyAllocated": "剩余金额未完全分配",

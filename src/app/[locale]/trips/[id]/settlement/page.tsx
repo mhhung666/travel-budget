@@ -3,7 +3,7 @@
 import { useParams } from 'next/navigation';
 import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import {
   SettlementSummary,
@@ -11,6 +11,7 @@ import {
   SettlementPlan,
 } from '@/components/settlement';
 import { useCurrentUser, useSettlement, useExchangeRates } from '@/hooks/queries';
+import { SettlementSkeleton } from '@/components/skeletons';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
@@ -33,11 +34,7 @@ export default function SettlementPage() {
   const error = isError ? tError('loadSettlementFailed') : '';
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-10 w-10 animate-spin text-primary" />
-      </div>
-    );
+    return <SettlementSkeleton />;
   }
 
   if (error) {

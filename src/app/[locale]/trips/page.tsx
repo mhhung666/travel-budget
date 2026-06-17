@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, UserPlus, Loader2 } from 'lucide-react';
+import { Plus, UserPlus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser, useTrips, tripKeys } from '@/hooks/queries';
@@ -10,6 +10,7 @@ import CreateTripDialog from '@/components/trips/CreateTripDialog';
 import JoinTripDialog from '@/components/trips/JoinTripDialog';
 import TripList from '@/components/trips/TripList';
 import EmptyTripsState from '@/components/trips/EmptyTripsState';
+import { TripsPageSkeleton } from '@/components/skeletons';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -45,11 +46,7 @@ export default function TripsPage() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-10 w-10 animate-spin text-primary" />
-      </div>
-    );
+    return <TripsPageSkeleton />;
   }
 
   return (
