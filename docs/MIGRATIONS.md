@@ -23,10 +23,10 @@
 ## 指令
 
 ```bash
-npm run migrate:status              # 列出已套用 / 待套用的遷移
-npm run migrate:up                  # 套用所有待套用遷移
-npm run migrate:down                # 回退最近一支遷移
-npm run migrate:create <name>       # 產生新的遷移腳本（時間戳 + 名稱）
+pnpm migrate:status              # 列出已套用 / 待套用的遷移
+pnpm migrate:up                  # 套用所有待套用遷移
+pnpm migrate:down                # 回退最近一支遷移
+pnpm migrate:create <name>       # 產生新的遷移腳本（時間戳 + 名稱）
 ```
 
 執行前需在環境（或 `.env`）設好 `MONGODB_URI`。

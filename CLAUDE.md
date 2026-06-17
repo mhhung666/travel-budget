@@ -9,19 +9,19 @@ Travel Budget Planner (旅行記帳) — a multi-user trip expense tracking and 
 ## Commands
 
 ```bash
-npm run dev            # Dev server (http://localhost:3000)
-npm run build          # Production build
-npm run lint           # ESLint (next lint); lint:fix to autofix
-npm run format         # Prettier write; format:check to verify
-npm test               # Vitest (watch mode)
-npm run test:run       # Vitest single run (use this in CI / one-shot)
-npm run test:coverage  # Coverage report (v8)
+pnpm dev               # Dev server (http://localhost:3000)
+pnpm build             # Production build
+pnpm lint              # ESLint (next lint); lint:fix to autofix
+pnpm format            # Prettier write; format:check to verify
+pnpm test              # Vitest (watch mode)
+pnpm test:run          # Vitest single run (use this in CI / one-shot)
+pnpm test:coverage     # Coverage report (v8)
 ```
 
 Run a single test file or test:
 ```bash
-npx vitest run src/__tests__/settlement.test.ts
-npx vitest run -t "test name substring"
+pnpm vitest run src/__tests__/settlement.test.ts
+pnpm vitest run -t "test name substring"
 ```
 
 ## Architecture
@@ -55,7 +55,7 @@ Trip identifiers throughout the codebase may be either an **ObjectId string** or
 ### Schema changes
 Schemas are defined in [src/models/](src/models/); indexes are created by Mongoose on connect (`autoIndex`). Changing a field or index = editing the model. ID-shaped fields are ObjectId strings end-to-end (JWT, DTOs, frontend props).
 
-For **reproducible** index/structure changes and data backfills there is also `migrate-mongo`: config in [migrate-mongo-config.js](migrate-mongo-config.js) (ESM, reads `MONGODB_URI`), scripts in [migrations/](migrations/), run via `npm run migrate:status|up|down|create`. `autoIndex` stays on; migrations coexist with it (idempotent, index names aligned). See [docs/MIGRATIONS.md](docs/MIGRATIONS.md). There are no SQL migration files.
+For **reproducible** index/structure changes and data backfills there is also `migrate-mongo`: config in [migrate-mongo-config.js](migrate-mongo-config.js) (ESM, reads `MONGODB_URI`), scripts in [migrations/](migrations/), run via `pnpm migrate:status|up|down|create`. `autoIndex` stays on; migrations coexist with it (idempotent, index names aligned). See [docs/MIGRATIONS.md](docs/MIGRATIONS.md). There are no SQL migration files.
 
 ### Settlement
 [src/lib/settlement.ts](src/lib/settlement.ts) — greedy creditor/debtor matching to minimize transfer count. Uses a `0.01` epsilon for float comparison. Covered by [src/__tests__/settlement.test.ts](src/__tests__/settlement.test.ts).

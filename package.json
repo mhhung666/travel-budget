@@ -4,6 +4,7 @@
   "description": "一個輕量化的旅行記帳與分帳應用程式,適合多人出國旅行時使用。",
   "main": "index.js",
   "type": "module",
+  "packageManager": "pnpm@11.7.0",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

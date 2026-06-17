@@ -66,7 +66,7 @@ git clone <repository-url>
 cd travel-budget
 
 # 安裝套件
-npm install
+pnpm install
 ```
 
 ### 3. 設定環境變數
@@ -86,7 +86,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 
 ### 5. 啟動開發伺服器
 ```bash
-npm run dev
+pnpm dev
 ```
 開啟瀏覽器訪問 `http://localhost:3000`。
 
@@ -94,12 +94,12 @@ npm run dev
 
 | 指令 | 說明 |
 | --- | --- |
-| `npm run dev` | 啟動開發環境 (Turbopack) |
-| `npm run build` | 建置生產版本 |
-| `npm run start` | 執行生產版本 |
-| `npm run lint` | 執行 ESLint 程式碼檢查 |
-| `npm run format` | 執行 Prettier 程式碼格式化 |
-| `npm test` | 執行單元測試 (Vitest) |
+| `pnpm dev` | 啟動開發環境 (Turbopack) |
+| `pnpm build` | 建置生產版本 |
+| `pnpm start` | 執行生產版本 |
+| `pnpm lint` | 執行 ESLint 程式碼檢查 |
+| `pnpm format` | 執行 Prettier 程式碼格式化 |
+| `pnpm test` | 執行單元測試 (Vitest) |
 
 ## 🤝 貢獻 (Contributing)
 
