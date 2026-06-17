@@ -79,8 +79,13 @@
 - [useTripDetailPage](../src/hooks/useTripDetailPage.ts)：詳情頁的資料載入（`useTrip/useExpenses/useTripMembership`）、mutation、dialog、filter/expand 與 4 個 handler。[page.tsx](../src/app/[locale]/trips/[id]/page.tsx) 284 → 193 行。
 - [useTripSettingsPage](../src/hooks/useTripSettingsPage.ts)：設定頁的資料載入、權限導出的 error、5 個 dialog、虛擬成員轉換流程（register/link 互切）與 6 個 handler。[settings/page.tsx](../src/app/[locale]/trips/[id]/settings/page.tsx) 349 → 208 行。
 
-### 9. 補強測試覆蓋（依序）
-`lib/permissions.ts`（安全）→ `actions/*`（核心業務）→ 關鍵元件。settlement / validation / hashcode 已覆蓋。可考慮對 Mongoose 層加整合測試（連線測試 DB）。
+### 9. 🟡 補強測試覆蓋（依序）
+`lib/permissions.ts`（安全）→ `actions/*`（核心業務）→ 關鍵元件。
+**進度**：
+- ✅ `lib/permissions.ts`（安全）全面覆蓋——`getTripMembership`（ObjectId / hash_code 分流、查無 trip、非成員）、`isAdmin / isMember / getUserRole`（admin / member / 非成員三態）、`getTripId`、`getTripHashCode`、`requireAdmin / requireMember`（放行與拋錯），加上既有的 `getTripIdByHashCode`（拒絕 ObjectId）。以 mock `@/models` Trip + `dbConnect`，不需真實 DB。見 [permissions.test.ts](../src/__tests__/permissions.test.ts)（23 tests）。
+- ✅ `lib/histogram.ts`（stats 直方圖聚合）——`suggestInterval`（day / week / month 邊界）與 `aggregateExpensesByInterval`（day/month 分桶、跨分類 flatten、範圍外排除、空時段、空輸入、start>end）。見 [histogram.test.ts](../src/__tests__/histogram.test.ts)（10 tests）。
+- ✅ settlement / validation / hashcode 已覆蓋。
+**待處理**：`actions/*`（核心業務，DB 依賴重，需較多 mock）→ 關鍵元件。可考慮對 Mongoose 層加整合測試（連線測試 DB）。
 
 ---
 
