@@ -115,6 +115,7 @@ export default function ExpenseFormDialog({
         if (open) {
             if (mode === 'edit' && expense) {
                 // Edit mode: Load existing expense data
+                // eslint-disable-next-line react-hooks/set-state-in-effect -- 開啟對話框時帶入支出資料，為刻意的同步
                 setForm({
                     payer_id: expense.payer_id,
                     original_amount: expense.original_amount.toString(),

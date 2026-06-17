@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { BarChart3 } from 'lucide-react';
 import {
   BarChart,
@@ -25,6 +25,53 @@ interface ExpenseHistogramProps {
   cardGradient: string;
   t: (key: string) => string;
   locale: string;
+}
+
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: { payload: HistogramDataPoint }[];
+  locale: string;
+  formatCurrency: (amount: number) => string;
+  t: (key: string) => string;
+}
+
+// 自定義 Tooltip（recharts 會傳入 active 與 payload）
+function CustomTooltip({ active, payload, locale, formatCurrency, t }: CustomTooltipProps) {
+  if (!active || !payload?.[0]) return null;
+  const data = payload[0].payload;
+  const dateFormat =
+    locale === 'zh' ? 'zh-TW' : locale === 'jp' ? 'ja-JP' : locale === 'zh-CN' ? 'zh-CN' : 'en-US';
+
+  const formatDateRange = (startDate: string, endDate: string) => {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    if (startDate === endDate) {
+      return new Intl.DateTimeFormat(dateFormat, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      }).format(start);
+    } else if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
+      return `${new Intl.DateTimeFormat(dateFormat, { month: 'short', day: 'numeric' }).format(start)} - ${end.getDate()}`;
+    } else if (start.getFullYear() === end.getFullYear()) {
+      return `${new Intl.DateTimeFormat(dateFormat, { month: 'short', day: 'numeric' }).format(start)} - ${new Intl.DateTimeFormat(dateFormat, { month: 'short', day: 'numeric' }).format(end)}`;
+    } else {
+      return `${new Intl.DateTimeFormat(dateFormat, { year: 'numeric', month: 'short', day: 'numeric' }).format(start)} - ${new Intl.DateTimeFormat(dateFormat, { year: 'numeric', month: 'short', day: 'numeric' }).format(end)}`;
+    }
+  };
+
+  return (
+    <div className="bg-background/95 backdrop-blur border border-border rounded-lg p-3 shadow-lg">
+      <span className="block text-xs font-semibold mb-1">
+        {formatDateRange(data.startDate, data.endDate)}
+      </span>
+      <span className="text-lg font-bold text-primary block">{formatCurrency(data.amount)}</span>
+      <span className="text-xs text-muted-foreground">
+        {data.count} {t('expenses')}
+      </span>
+    </div>
+  );
 }
 
 export default function ExpenseHistogram({
@@ -71,71 +118,17 @@ export default function ExpenseHistogram({
     return intervals;
   }, [daysDiff]);
 
-  // 當可用區間改變時，確保當前選擇的區間仍然可用
-  useEffect(() => {
-    if (!availableIntervals.includes(interval)) {
-      // 如果當前區間不可用，切換到第一個可用的區間
-      setInterval(availableIntervals[0] || 'day');
-    }
-  }, [availableIntervals, interval]);
+  // 當可用區間改變時，確保當前選擇的區間仍然可用。
+  // 在 render 期間調整衍生 state 是 React 建議的做法（避免用 effect 造成連鎖渲染）。
+  if (!availableIntervals.includes(interval)) {
+    setInterval(availableIntervals[0] || 'day');
+  }
 
   // 聚合數據
   const histogramData = useMemo(() => {
     if (!startDate || !endDate) return null;
-    return aggregateExpensesByInterval(
-      categoryStats,
-      interval,
-      startDate,
-      endDate,
-      locale
-    );
+    return aggregateExpensesByInterval(categoryStats, interval, startDate, endDate, locale);
   }, [categoryStats, interval, startDate, endDate, locale]);
-
-  // 自定義 Tooltip（recharts 會傳入 active 與 payload）
-  const CustomTooltip = ({
-    active,
-    payload,
-  }: {
-    active?: boolean;
-    payload?: { payload: HistogramDataPoint }[];
-  }) => {
-    if (!active || !payload?.[0]) return null;
-    const data = payload[0].payload;
-    const dateFormat = locale === 'zh' ? 'zh-TW' : locale === 'jp' ? 'ja-JP' : locale === 'zh-CN' ? 'zh-CN' : 'en-US';
-
-    const formatDateRange = (startDate: string, endDate: string) => {
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-
-      if (startDate === endDate) {
-        return new Intl.DateTimeFormat(dateFormat, {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric',
-        }).format(start);
-      } else if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
-        return `${new Intl.DateTimeFormat(dateFormat, { month: 'short', day: 'numeric' }).format(start)} - ${end.getDate()}`;
-      } else if (start.getFullYear() === end.getFullYear()) {
-        return `${new Intl.DateTimeFormat(dateFormat, { month: 'short', day: 'numeric' }).format(start)} - ${new Intl.DateTimeFormat(dateFormat, { month: 'short', day: 'numeric' }).format(end)}`;
-      } else {
-        return `${new Intl.DateTimeFormat(dateFormat, { year: 'numeric', month: 'short', day: 'numeric' }).format(start)} - ${new Intl.DateTimeFormat(dateFormat, { year: 'numeric', month: 'short', day: 'numeric' }).format(end)}`;
-      }
-    };
-
-    return (
-      <div className="bg-background/95 backdrop-blur border border-border rounded-lg p-3 shadow-lg">
-        <span className="block text-xs font-semibold mb-1">
-          {formatDateRange(data.startDate, data.endDate)}
-        </span>
-        <span className="text-lg font-bold text-primary block">
-          {formatCurrency(data.amount)}
-        </span>
-        <span className="text-xs text-muted-foreground">
-          {data.count} {t('expenses')}
-        </span>
-      </div>
-    );
-  };
 
   return (
     <Card className="border-none shadow-none mb-4 bg-transparent">
@@ -145,9 +138,7 @@ export default function ExpenseHistogram({
           <div className="p-2 rounded-lg bg-primary text-primary-foreground shadow-sm">
             <BarChart3 size={20} />
           </div>
-          <h2 className="text-xl font-bold">
-            {t('expenseHistogram')}
-          </h2>
+          <h2 className="text-xl font-bold">{t('expenseHistogram')}</h2>
         </div>
 
         {/* 時間區間選擇器 */}
@@ -162,11 +153,11 @@ export default function ExpenseHistogram({
               onClick={() => setInterval(option.value as TimeInterval)}
               disabled={!availableIntervals.includes(option.value as TimeInterval)}
               className={cn(
-                "px-3 py-1.5 text-sm font-medium rounded-md transition-all",
-                "disabled:opacity-50 disabled:cursor-not-allowed",
+                'px-3 py-1.5 text-sm font-medium rounded-md transition-all',
+                'disabled:opacity-50 disabled:cursor-not-allowed',
                 interval === option.value
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:bg-background/50 hover:text-foreground"
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:bg-background/50 hover:text-foreground'
               )}
             >
               {option.label}
@@ -180,7 +171,10 @@ export default function ExpenseHistogram({
         {histogramData && histogramData.dataPoints.length > 0 ? (
           <div className="w-full h-[350px]">
             <ResponsiveContainer>
-              <BarChart data={histogramData.dataPoints} margin={{ top: 10, right: 10, left: 10, bottom: 30 }}>
+              <BarChart
+                data={histogramData.dataPoints}
+                margin={{ top: 10, right: 10, left: 10, bottom: 30 }}
+              >
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                 <XAxis
                   dataKey="period"
@@ -199,16 +193,15 @@ export default function ExpenseHistogram({
                   tickLine={false}
                   axisLine={false}
                 />
-                <Tooltip content={<CustomTooltip />} cursor={{ fill: "hsl(var(--muted)/0.2)" }} />
+                <Tooltip
+                  content={<CustomTooltip locale={locale} formatCurrency={formatCurrency} t={t} />}
+                  cursor={{ fill: 'hsl(var(--muted)/0.2)' }}
+                />
                 <Bar dataKey="amount" radius={[4, 4, 0, 0]}>
                   {histogramData.dataPoints.map((entry, index) => (
                     <Cell
                       key={`cell-${index}`}
-                      fill={
-                        entry.amount > 0
-                          ? "hsl(var(--primary))"
-                          : "hsl(var(--muted))"
-                      }
+                      fill={entry.amount > 0 ? 'hsl(var(--primary))' : 'hsl(var(--muted))'}
                     />
                   ))}
                 </Bar>
@@ -218,9 +211,7 @@ export default function ExpenseHistogram({
         ) : (
           <div className="text-center py-12">
             <BarChart3 size={48} strokeWidth={1} className="opacity-30 mb-4 mx-auto" />
-            <p className="text-muted-foreground">
-              {t('noData')}
-            </p>
+            <p className="text-muted-foreground">{t('noData')}</p>
           </div>
         )}
       </CardContent>

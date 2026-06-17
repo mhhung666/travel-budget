@@ -42,7 +42,11 @@
       "Read(//tmp/**)",
       "Bash(git push *)",
       "Bash(command -v gh)",
-      "Bash(gh auth *)"
+      "Bash(gh auth *)",
+      "Bash(git config *)",
+      "Bash(git remote *)",
+      "Bash(echo \"exit:$?\")",
+      "Bash(echo \"lint exit: $?\")"
     ]
   }
 }

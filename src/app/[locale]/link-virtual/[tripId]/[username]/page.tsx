@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
@@ -31,11 +31,7 @@ export default function LinkVirtualMemberPage() {
   const [showRegisterDialog, setShowRegisterDialog] = useState(false);
   const [showLinkDialog, setShowLinkDialog] = useState(false);
 
-  useEffect(() => {
-    loadData();
-  }, [tripId, username]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       setError('');
@@ -102,7 +98,12 @@ export default function LinkVirtualMemberPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [tripId, username, t, tError]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 掛載時載入資料，為刻意的初始化副作用
+    loadData();
+  }, [loadData]);
 
   const handleDialogClose = () => {
     setShowRegisterDialog(false);

@@ -56,6 +56,7 @@ export default function ItineraryDayDialog({
   useEffect(() => {
     if (open) {
       if (mode === 'edit' && day) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- 開啟對話框時帶入當日資料，為刻意的同步
         setTitle(day.title);
         setContent(day.content);
       } else {

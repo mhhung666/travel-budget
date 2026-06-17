@@ -22,13 +22,6 @@ const eslintConfig = [
       'react/display-name': 'off',
       'react/no-unescaped-entities': 'off',
 
-      // React Hooks — new opinionated rules in eslint-plugin-react-hooks@7
-      // (bundled with eslint-config-next 16). Kept as warnings to match the
-      // pre-migration enforcement level; can be promoted to errors later.
-      'react-hooks/set-state-in-effect': 'warn',
-      'react-hooks/immutability': 'warn',
-      'react-hooks/static-components': 'warn',
-
       // General
       'no-console': ['warn', { allow: ['warn', 'error'] }],
       'prefer-const': 'error',
