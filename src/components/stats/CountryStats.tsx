@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Globe, MapPin } from 'lucide-react';
 import { useLocale } from 'next-intl';
 import { getCountryFlag, getLocalizedCountryName } from '@/constants/countries';
+import { pickLocalizedName } from '@/lib/utils';
 import type { CountryStat } from '@/types';
 
 interface CountryStatsProps {
@@ -70,7 +71,9 @@ export default function CountryStats({ countries, t }: CountryStatsProps) {
                       >
                         <div className="flex items-center gap-2">
                           <MapPin size={18} className="text-muted-foreground" />
-                          <span className="font-medium text-sm">{region.name}</span>
+                          <span className="font-medium text-sm">
+                            {pickLocalizedName(region.names, locale, region.name)}
+                          </span>
                         </div>
                         <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-muted text-muted-foreground text-xs font-medium">
                           <span className="font-bold text-foreground">{region.tripCount}</span>

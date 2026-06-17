@@ -101,7 +101,11 @@ export const getStats = withAuth(
       // 4. Calculate country statistics from trip locations
       const countryMap = new Map<
         string,
-        { country_code: string; regions: Map<string, number>; tripCount: number }
+        {
+          country_code: string;
+          regions: Map<string, { tripCount: number; names?: Record<string, string> }>;
+          tripCount: number;
+        }
       >();
 
       for (const trip of userTrips) {
@@ -121,7 +125,13 @@ export const getStats = withAuth(
 
           const countryData = countryMap.get(country)!;
           countryData.tripCount += 1;
-          countryData.regions.set(regionName, (countryData.regions.get(regionName) || 0) + 1);
+          const region = countryData.regions.get(regionName);
+          if (region) {
+            region.tripCount += 1;
+          } else {
+            // 第一次見到此地區時記下其多語名（建立旅行時存的 location.names）
+            countryData.regions.set(regionName, { tripCount: 1, names: location.names });
+          }
         }
       }
 
@@ -131,7 +141,11 @@ export const getStats = withAuth(
           country_code: data.country_code,
           tripCount: data.tripCount,
           regions: Array.from(data.regions.entries())
-            .map(([name, tripCount]) => ({ name, tripCount }))
+            .map(([name, region]) => ({
+              name,
+              names: region.names,
+              tripCount: region.tripCount,
+            }))
             .sort((a, b) => b.tripCount - a.tripCount),
         }))
         .sort((a, b) => b.tripCount - a.tripCount);

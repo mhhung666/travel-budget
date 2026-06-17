@@ -15,6 +15,8 @@ export interface CategoryStat {
 
 export interface RegionStat {
   name: string;
+  /** 各語言在地化地名（建立時抓存，顯示時依 locale 挑） */
+  names?: Record<string, string>;
   tripCount: number;
 }
 

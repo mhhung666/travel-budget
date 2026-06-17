@@ -22,6 +22,7 @@ export const objectIdSchema = z.string().regex(/^[0-9a-fA-F]{24}$/, '無效的 I
 // Location schema
 export const locationSchema = z.object({
   name: z.string(),
+  names: z.record(z.string(), z.string()).optional(),
   display_name: z.string(),
   lat: z.number(),
   lon: z.number(),

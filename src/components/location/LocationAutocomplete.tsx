@@ -34,17 +34,39 @@ interface NominatimPlace {
     country?: string;
     country_code?: string;
   };
+  // namedetails=1 回傳的各語言 OSM name 標籤，如 name:en / name:ja / name:zh-Hant
+  namedetails?: Record<string, string>;
   boundingbox: string[];
 }
 
 // 組件內部使用的地點格式
 export interface LocationOption {
   name: string;
+  names?: Record<string, string>;
   display_name: string;
   lat: number;
   lon: number;
   country?: string;
   country_code?: string;
+}
+
+// 從 Nominatim namedetails 抓出各 app locale 的在地化地名。
+// OSM 的中文標籤不一定齊全，繁/簡缺值時退回通用的 name:zh。
+// 缺的語言不放進表，顯示端再 fallback 到 name 本身。
+function buildLocalizedNames(
+  namedetails: Record<string, string> | undefined
+): Record<string, string> | undefined {
+  if (!namedetails) return undefined;
+  const names: Record<string, string> = {};
+  const en = namedetails['name:en'];
+  const ja = namedetails['name:ja'];
+  const zhHant = namedetails['name:zh-Hant'] ?? namedetails['name:zh'];
+  const zhHans = namedetails['name:zh-Hans'] ?? namedetails['name:zh'];
+  if (en) names.en = en;
+  if (ja) names.jp = ja;
+  if (zhHant) names.zh = zhHant;
+  if (zhHans) names['zh-CN'] = zhHans;
+  return Object.keys(names).length > 0 ? names : undefined;
 }
 
 // 將 app 的 next-intl locale 對應到 Nominatim 的 accept-language。
@@ -100,6 +122,7 @@ export default function LocationAutocomplete({
             q: searchQuery,
             format: 'json',
             addressdetails: '1',
+            namedetails: '1', // 一併取得各語言地名，建立時存下供之後在地化顯示
             limit: '5',
             'accept-language': acceptLanguageFor(locale), // 跟著 app 當前語言
           }),
@@ -127,6 +150,7 @@ export default function LocationAutocomplete({
 
         return {
           name,
+          names: buildLocalizedNames(place.namedetails),
           display_name: place.display_name,
           lat: parseFloat(place.lat),
           lon: parseFloat(place.lon),
