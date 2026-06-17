@@ -34,7 +34,12 @@
       "Bash(git checkout:*)",
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
-      "WebFetch(domain:next-intl.dev)"
+      "WebFetch(domain:next-intl.dev)",
+      "Bash(pnpm ls *)",
+      "Bash(pnpm exec *)",
+      "Bash(pnpm lint *)",
+      "Bash(echo \"exit code: $?\")",
+      "Read(//tmp/**)"
     ]
   }
 }
