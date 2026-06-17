@@ -151,9 +151,7 @@ export default function SettingsPage() {
         </Button>
 
         {/* 標題 */}
-        <h1 className="text-3xl font-bold mb-8 text-foreground">
-          {t('title')}
-        </h1>
+        <h1 className="text-3xl font-bold mb-8 text-foreground">{t('title')}</h1>
 
         {/* 訊息提示 */}
         {error && (
@@ -181,15 +179,8 @@ export default function SettingsPage() {
             <form onSubmit={handleUpdateProfile} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="username">{t('profile.username')}</Label>
-                <Input
-                  id="username"
-                  value={user?.username || ''}
-                  disabled
-                  className="bg-muted"
-                />
-                <p className="text-xs text-muted-foreground">
-                  {t('profile.usernameHelp')}
-                </p>
+                <Input id="username" value={user?.username || ''} disabled className="bg-muted" />
+                <p className="text-xs text-muted-foreground">{t('profile.usernameHelp')}</p>
               </div>
 
               <div className="space-y-2">
@@ -215,7 +206,10 @@ export default function SettingsPage() {
               <div className="pt-2">
                 <Button
                   type="submit"
-                  disabled={updatingProfile || (displayName === user?.display_name && email === (user?.email || ''))}
+                  disabled={
+                    updatingProfile ||
+                    (displayName === user?.display_name && email === (user?.email || ''))
+                  }
                   className="w-full sm:w-auto"
                 >
                   {updatingProfile && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -257,9 +251,7 @@ export default function SettingsPage() {
                   required
                   minLength={6}
                 />
-                <p className="text-xs text-muted-foreground">
-                  {t('password.minLength')}
-                </p>
+                <p className="text-xs text-muted-foreground">{t('password.minLength')}</p>
               </div>
 
               <div className="space-y-2">

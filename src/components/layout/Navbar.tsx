@@ -53,21 +53,14 @@ export default function Navbar({ user, showUserMenu = true, title }: NavbarProps
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         {/* 左側：Logo 和標題 */}
         <div className="flex items-center cursor-pointer" onClick={() => router.push('/')}>
-          <span className="text-xl font-semibold text-foreground">
-            {displayTitle}
-          </span>
+          <span className="text-xl font-semibold text-foreground">{displayTitle}</span>
         </div>
 
         {/* 中間：導航按鈕 (Desktop) */}
         {showUserMenu && user && (
           <div className="hidden md:flex absolute left-1/2 transform -translate-x-1/2 gap-1">
             {navLinks.map((link) => (
-              <Button
-                key={link.label}
-                variant="ghost"
-                onClick={link.onClick}
-                className="gap-2"
-              >
+              <Button key={link.label} variant="ghost" onClick={link.onClick} className="gap-2">
                 <link.icon size={20} />
                 {link.label}
               </Button>

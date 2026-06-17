@@ -78,9 +78,7 @@ export default function ForgotPasswordModal({ open, onClose }: ForgotPasswordMod
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>{t('forgotPassword.title')}</DialogTitle>
-          <DialogDescription>
-            {t('forgotPassword.description')}
-          </DialogDescription>
+          <DialogDescription>{t('forgotPassword.description')}</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
@@ -137,7 +135,11 @@ export default function ForgotPasswordModal({ open, onClose }: ForgotPasswordMod
               {tCommon('cancel')}
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : t('forgotPassword.submit')}
+              {loading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                t('forgotPassword.submit')
+              )}
             </Button>
           </DialogFooter>
         </form>

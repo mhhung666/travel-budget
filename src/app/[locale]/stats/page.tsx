@@ -30,7 +30,11 @@ export default function StatsPage() {
     error: statsError,
   } = useStats({ startDate, endDate }, !!user);
 
-  const error = isError ? (statsError instanceof Error ? statsError.message : String(statsError)) : '';
+  const error = isError
+    ? statsError instanceof Error
+      ? statsError.message
+      : String(statsError)
+    : '';
 
   const handleYearSelect = (year: number) => {
     setStartDate(`${year}-01-01`);
@@ -43,10 +47,10 @@ export default function StatsPage() {
         user={
           user
             ? {
-              id: user.id,
-              username: user.display_name || user.username,
-              email: user.email,
-            }
+                id: user.id,
+                username: user.display_name || user.username,
+                email: user.email,
+              }
             : null
         }
         showUserMenu={true}

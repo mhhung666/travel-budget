@@ -5,11 +5,7 @@ import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 import { ArrowLeft } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
-import {
-  TripMembers,
-  TripShare,
-  TripDangerZone,
-} from '@/components/trips/detail';
+import { TripMembers, TripShare, TripDangerZone } from '@/components/trips/detail';
 
 // Dialogs
 import {
@@ -94,10 +90,10 @@ export default function TripSettingsPage() {
         user={
           currentUser
             ? {
-              id: currentUser.id,
-              username: currentUser.display_name,
-              email: currentUser.email,
-            }
+                id: currentUser.id,
+                username: currentUser.display_name,
+                email: currentUser.email,
+              }
             : null
         }
         showUserMenu={true}
@@ -115,9 +111,7 @@ export default function TripSettingsPage() {
           {tTrips('detail.backToTrip')}
         </Button>
 
-        <h1 className="text-3xl font-bold mb-8 text-foreground">
-          {tTrip('settings')}
-        </h1>
+        <h1 className="text-3xl font-bold mb-8 text-foreground">{tTrip('settings')}</h1>
 
         <div className="flex flex-col gap-8">
           {/* 成员管理 */}
@@ -143,9 +137,7 @@ export default function TripSettingsPage() {
           />
 
           {/* 危险操作区 */}
-          {isAdmin && (
-            <TripDangerZone onDelete={() => deleteDialog.openDialog()} />
-          )}
+          {isAdmin && <TripDangerZone onDelete={() => deleteDialog.openDialog()} />}
         </div>
       </div>
 

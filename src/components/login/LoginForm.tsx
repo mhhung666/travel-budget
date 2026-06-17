@@ -44,11 +44,11 @@ export default function LoginForm({ hideBackToHome = false }: LoginFormProps) {
       const result = isLogin
         ? await login({ username: formData.username, password: formData.password })
         : await register({
-          username: formData.username,
-          display_name: formData.display_name,
-          email: formData.email,
-          password: formData.password,
-        });
+            username: formData.username,
+            display_name: formData.display_name,
+            email: formData.email,
+            password: formData.password,
+          });
 
       if (!result.success) {
         throw new Error(result.error || (isLogin ? t('login.error') : t('register.error')));
@@ -191,11 +191,7 @@ export default function LoginForm({ hideBackToHome = false }: LoginFormProps) {
         {/* 返回首頁 */}
         {!hideBackToHome && (
           <div className="mt-6 text-center">
-            <Button
-              variant="ghost"
-              asChild
-              className="text-muted-foreground hover:text-foreground"
-            >
+            <Button variant="ghost" asChild className="text-muted-foreground hover:text-foreground">
               <Link href="/">
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 {t('login.backToHome')}
@@ -205,10 +201,7 @@ export default function LoginForm({ hideBackToHome = false }: LoginFormProps) {
         )}
       </div>
 
-      <ForgotPasswordModal
-        open={forgotPasswordOpen}
-        onClose={() => setForgotPasswordOpen(false)}
-      />
+      <ForgotPasswordModal open={forgotPasswordOpen} onClose={() => setForgotPasswordOpen(false)} />
     </>
   );
 }

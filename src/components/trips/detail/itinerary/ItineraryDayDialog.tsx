@@ -95,12 +95,20 @@ export default function ItineraryDayDialog({
         <DialogHeader>
           <DialogTitle>
             {mode === 'add'
-              ? (dayNumber ? tItinerary('addDayN', { dayNumber }) : tItinerary('addDay'))
-              : (dayNumber ? tItinerary('editDayN', { dayNumber }) : tItinerary('editDay'))}
+              ? dayNumber
+                ? tItinerary('addDayN', { dayNumber })
+                : tItinerary('addDay')
+              : dayNumber
+                ? tItinerary('editDayN', { dayNumber })
+                : tItinerary('editDay')}
           </DialogTitle>
         </DialogHeader>
 
-        <form id="itinerary-day-form" onSubmit={handleSubmit} className="flex flex-col gap-4 flex-1 min-h-0 overflow-y-auto p-1">
+        <form
+          id="itinerary-day-form"
+          onSubmit={handleSubmit}
+          className="flex flex-col gap-4 flex-1 min-h-0 overflow-y-auto p-1"
+        >
           <div className="space-y-2">
             <Label htmlFor="day-title">{tItinerary('dayTitle')}</Label>
             <Input
@@ -138,7 +146,10 @@ export default function ItineraryDayDialog({
                 }}
               />
             </TabsContent>
-            <TabsContent value="preview" className="m-0 border rounded-md p-4 min-h-[200px] bg-muted/20">
+            <TabsContent
+              value="preview"
+              className="m-0 border rounded-md p-4 min-h-[200px] bg-muted/20"
+            >
               {content ? (
                 <MarkdownRenderer content={content} />
               ) : (

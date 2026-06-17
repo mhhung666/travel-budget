@@ -54,22 +54,14 @@ export function ShareCode({
   return (
     <Card className="bg-blue-50/50 border-blue-200 dark:bg-blue-900/10 dark:border-blue-800">
       <CardContent className="p-4">
-        <h4 className="font-semibold text-sm mb-2 text-foreground">
-          {title}
-        </h4>
+        <h4 className="font-semibold text-sm mb-2 text-foreground">{title}</h4>
         <div className="flex gap-2 items-center">
-          <Input
-            value={getShareUrl()}
-            readOnly
-            className="flex-1 bg-background h-9"
-          />
+          <Input value={getShareUrl()} readOnly className="flex-1 bg-background h-9" />
           <Button variant="outline" size="icon" onClick={handleCopy} className="h-9 w-9 shrink-0">
             {copied ? <Check size={16} className="text-green-500" /> : <Copy size={16} />}
           </Button>
         </div>
-        <p className="text-xs text-muted-foreground mt-2">
-          {description}
-        </p>
+        <p className="text-xs text-muted-foreground mt-2">{description}</p>
       </CardContent>
     </Card>
   );

@@ -27,14 +27,10 @@ export default function TripCard({ trip, onClick, onCopyCode }: TripCardProps) {
       className="h-full cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border-border/50 bg-card"
     >
       <CardContent className="p-6 flex flex-col h-full items-start text-left">
-        <h3 className="text-xl font-semibold mb-2 text-foreground line-clamp-1">
-          {trip.name}
-        </h3>
+        <h3 className="text-xl font-semibold mb-2 text-foreground line-clamp-1">{trip.name}</h3>
 
         {trip.description && (
-          <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
-            {trip.description}
-          </p>
+          <p className="text-sm text-muted-foreground mb-4 line-clamp-2">{trip.description}</p>
         )}
 
         <div className="mt-auto space-y-2 w-full">
@@ -56,14 +52,14 @@ export default function TripCard({ trip, onClick, onCopyCode }: TripCardProps) {
               <span>
                 {trip.start_date
                   ? new Date(trip.start_date).toLocaleDateString(
-                    locale === 'zh' ? 'zh-TW' : locale === 'jp' ? 'ja-JP' : 'en-US'
-                  )
+                      locale === 'zh' ? 'zh-TW' : locale === 'jp' ? 'ja-JP' : 'en-US'
+                    )
                   : ''}
                 {trip.start_date && trip.end_date && ' ~ '}
                 {trip.end_date
                   ? new Date(trip.end_date).toLocaleDateString(
-                    locale === 'zh' ? 'zh-TW' : locale === 'jp' ? 'ja-JP' : 'en-US'
-                  )
+                      locale === 'zh' ? 'zh-TW' : locale === 'jp' ? 'ja-JP' : 'en-US'
+                    )
                   : ''}
               </span>
             </div>

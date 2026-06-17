@@ -37,7 +37,7 @@ export default function QuickJoinPage() {
         router.push(`/login?redirect=/join/${hashCode}`);
         return;
       }
-      
+
       setCurrentUser(authResult.data);
 
       const tripResult = await getTripPreview(hashCode);
@@ -122,27 +122,23 @@ export default function QuickJoinPage() {
       <div className="min-h-screen bg-background flex flex-col">
         <Navbar user={currentUser} showUserMenu={!!currentUser} />
         <div className="flex-1 flex items-center justify-center p-4">
-            <Card className="max-w-md w-full border-destructive/20 shadow-lg">
+          <Card className="max-w-md w-full border-destructive/20 shadow-lg">
             <CardHeader>
-                <CardTitle className="text-destructive flex items-center gap-2">
+              <CardTitle className="text-destructive flex items-center gap-2">
                 <Info className="h-5 w-5" />
                 Error
-                </CardTitle>
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-                <Alert variant="destructive">
+              <Alert variant="destructive">
                 <AlertDescription>{error}</AlertDescription>
-                </Alert>
-                <Button 
-                variant="outline" 
-                className="w-full" 
-                onClick={() => router.push('/trips')}
-                >
+              </Alert>
+              <Button variant="outline" className="w-full" onClick={() => router.push('/trips')}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 {t('detail.backToTrips')}
-                </Button>
+              </Button>
             </CardContent>
-            </Card>
+          </Card>
         </div>
       </div>
     );
@@ -152,12 +148,12 @@ export default function QuickJoinPage() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Navbar user={currentUser} showUserMenu={!!currentUser} />
-      
+
       <div className="flex-1 flex flex-col items-center justify-center p-4 pt-20">
         <Card className="max-w-md w-full shadow-lg border-primary/10">
           <CardHeader className="text-center pb-2">
             <div className="mx-auto mb-4 bg-primary/10 w-20 h-20 rounded-full flex items-center justify-center">
-                <UserPlus className="h-10 w-10 text-primary" />
+              <UserPlus className="h-10 w-10 text-primary" />
             </div>
             <CardTitle className="text-2xl">{t('join.title')}</CardTitle>
             <CardDescription>{t('quickJoin.joinHint')}</CardDescription>
@@ -173,7 +169,7 @@ export default function QuickJoinPage() {
                       <p className="text-muted-foreground text-sm">{trip.description}</p>
                     )}
                   </div>
-                  
+
                   <div className="flex flex-wrap gap-2">
                     <Badge variant="outline" className="gap-1 px-2 py-1">
                       <Users className="h-3 w-3" />
@@ -193,32 +189,32 @@ export default function QuickJoinPage() {
                 )}
 
                 <div className="space-y-3">
-                    <Button
+                  <Button
                     size="lg"
                     className="w-full font-semibold text-lg h-12"
                     onClick={handleJoin}
                     disabled={isJoining}
-                    >
+                  >
                     {isJoining ? (
-                        <>
+                      <>
                         <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                         {t('quickJoin.joining')}
-                        </>
+                      </>
                     ) : (
-                        <>
+                      <>
                         <UserPlus className="mr-2 h-5 w-5" />
                         {t('quickJoin.joinThisTrip')}
-                        </>
+                      </>
                     )}
-                    </Button>
-                    
-                    <Button 
-                        variant="ghost" 
-                        className="w-full text-muted-foreground" 
-                        onClick={() => router.push('/trips')}
-                    >
-                        {t('detail.backToTrips')}
-                    </Button>
+                  </Button>
+
+                  <Button
+                    variant="ghost"
+                    className="w-full text-muted-foreground"
+                    onClick={() => router.push('/trips')}
+                  >
+                    {t('detail.backToTrips')}
+                  </Button>
                 </div>
               </>
             )}

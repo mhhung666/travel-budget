@@ -30,17 +30,11 @@ export function LoadingState({ message, size = 60, fullScreen = false }: Loading
     <div
       className={cn(
         'flex flex-col items-center justify-center gap-4',
-        fullScreen
-          ? 'fixed inset-0 z-[9999] min-h-screen bg-background'
-          : 'py-16'
+        fullScreen ? 'fixed inset-0 z-[9999] min-h-screen bg-background' : 'py-16'
       )}
     >
       <Loader2 className="animate-spin text-primary" size={size} />
-      {message && (
-        <p className="text-sm text-muted-foreground">
-          {message}
-        </p>
-      )}
+      {message && <p className="text-sm text-muted-foreground">{message}</p>}
     </div>
   );
 }

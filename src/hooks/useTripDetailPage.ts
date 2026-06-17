@@ -3,10 +3,7 @@ import { useTranslations } from 'next-intl';
 import type { Expense } from '@/types';
 import { useDialog } from '@/hooks/useDialog';
 import { useToast } from '@/hooks/use-toast';
-import type {
-  ExpenseDialogData,
-  EditTripFormData,
-} from '@/components/trips/detail/dialogs';
+import type { ExpenseDialogData, EditTripFormData } from '@/components/trips/detail/dialogs';
 import {
   useTrip,
   useExpenses,

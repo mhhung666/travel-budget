@@ -49,7 +49,11 @@
       "Bash(echo \"lint exit: $?\")",
       "Bash(echo \"remote: $\\(git remote get-url origin\\)\")",
       "Bash(git commit *)",
-      "Bash(grep -E \"['\\\\\"][A-Za-z ]{2,}['\\\\\"]\")"
+      "Bash(grep -E \"['\\\\\"][A-Za-z ]{2,}['\\\\\"]\")",
+      "Bash(pnpm -v)",
+      "Bash(MONGODB_URI=\"mongodb://localhost:27017/ci\" JWT_SECRET=\"ci_dummy_secret_at_least_32_chars_long_xxxx\" pnpm build)",
+      "Bash(pnpm format:check)",
+      "Bash(pnpm format *)"
     ]
   }
 }

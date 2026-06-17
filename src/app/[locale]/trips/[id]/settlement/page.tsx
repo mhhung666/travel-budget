@@ -5,11 +5,7 @@ import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 import { ArrowLeft } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
-import {
-  SettlementSummary,
-  SettlementBalances,
-  SettlementPlan,
-} from '@/components/settlement';
+import { SettlementSummary, SettlementBalances, SettlementPlan } from '@/components/settlement';
 import { useCurrentUser, useSettlement, useExchangeRates } from '@/hooks/queries';
 import { SettlementSkeleton } from '@/components/skeletons';
 import { Button } from '@/components/ui/button';
@@ -59,10 +55,10 @@ export default function SettlementPage() {
         user={
           currentUser
             ? {
-              id: currentUser.id,
-              username: currentUser.display_name,
-              email: currentUser.email,
-            }
+                id: currentUser.id,
+                username: currentUser.display_name,
+                email: currentUser.email,
+              }
             : null
         }
         showUserMenu={true}

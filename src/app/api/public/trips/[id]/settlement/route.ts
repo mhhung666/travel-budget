@@ -30,7 +30,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         .populate('members.user', 'username displayName')
         .select('members')
         .lean<{ members: PopulatedMember[] } | null>(),
-      Expense.find({ trip: tripId }).select('payer amount splits').lean<LeanExpenseForSettlement[]>(),
+      Expense.find({ trip: tripId })
+        .select('payer amount splits')
+        .lean<LeanExpenseForSettlement[]>(),
     ]);
 
     const members = (trip?.members || []).map((m) => m.user).filter((u) => u !== null);

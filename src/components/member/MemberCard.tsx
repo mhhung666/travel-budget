@@ -20,8 +20,8 @@ export function MemberCard({ member, isCurrentUser, canRemove, onRemove }: Membe
   return (
     <div
       className={cn(
-        "flex items-center justify-between py-2 px-4 rounded-md hover:bg-muted/50 transition-colors",
-        isCurrentUser && "bg-muted/50 font-medium"
+        'flex items-center justify-between py-2 px-4 rounded-md hover:bg-muted/50 transition-colors',
+        isCurrentUser && 'bg-muted/50 font-medium'
       )}
     >
       <div className="flex items-center gap-3">
@@ -32,12 +32,8 @@ export function MemberCard({ member, isCurrentUser, canRemove, onRemove }: Membe
         </Avatar>
         <div>
           <div className="flex items-center gap-2">
-            <span className={isCurrentUser ? "font-semibold" : "font-normal"}>
-              {displayName}
-            </span>
-            {isCurrentUser && (
-              <span className="text-xs text-muted-foreground">(You)</span>
-            )}
+            <span className={isCurrentUser ? 'font-semibold' : 'font-normal'}>{displayName}</span>
+            {isCurrentUser && <span className="text-xs text-muted-foreground">(You)</span>}
           </div>
           <div className="text-xs text-muted-foreground">
             Joined {new Date(member.joined_at).toLocaleDateString()}

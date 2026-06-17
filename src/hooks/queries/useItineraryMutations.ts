@@ -1,11 +1,7 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  createItineraryDay,
-  updateItineraryDay,
-  deleteItineraryDay,
-} from '@/actions';
+import { createItineraryDay, updateItineraryDay, deleteItineraryDay } from '@/actions';
 import type { ActionResult } from '@/actions';
 import { tripKeys } from './keys';
 
@@ -28,8 +24,7 @@ interface DayInput {
  */
 export function useItineraryMutations(tripId: string) {
   const queryClient = useQueryClient();
-  const invalidate = () =>
-    queryClient.invalidateQueries({ queryKey: tripKeys.itinerary(tripId) });
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: tripKeys.itinerary(tripId) });
 
   const create = useMutation({
     mutationFn: (data: DayInput) => unwrap(createItineraryDay(tripId, data)),

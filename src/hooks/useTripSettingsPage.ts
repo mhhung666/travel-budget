@@ -39,11 +39,12 @@ export function useTripSettingsPage(tripId: string) {
   const loading = tripLoading;
   // Settings strictly requires membership: surface unauthorized/forbidden rather
   // than falling back to the public (read-only) view that useTrip would allow.
-  const error = userResolved && !currentUser
-    ? tError('unauthorized')
-    : !loading && trip && !isMember
-      ? tError('forbidden')
-      : '';
+  const error =
+    userResolved && !currentUser
+      ? tError('unauthorized')
+      : !loading && trip && !isMember
+        ? tError('forbidden')
+        : '';
 
   // --- Dialog state ---
   const addVirtualMemberDialog = useDialog();

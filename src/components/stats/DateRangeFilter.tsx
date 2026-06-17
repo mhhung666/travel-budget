@@ -1,9 +1,6 @@
 'use client';
 
-import {
-  Calendar,
-  ArrowRight,
-} from 'lucide-react';
+import { Calendar, ArrowRight } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -86,9 +83,7 @@ export default function DateRangeFilter({
       <CardContent className="p-6 sm:p-8 space-y-6">
         <div className="flex items-center gap-2">
           <Calendar size={20} className="text-primary" />
-          <h3 className="text-lg font-bold">
-            {t('dateRange')}
-          </h3>
+          <h3 className="text-lg font-bold">{t('dateRange')}</h3>
         </div>
 
         {/* 相對時間快捷選項 */}
@@ -106,16 +101,16 @@ export default function DateRangeFilter({
               return (
                 <Badge
                   key={idx}
-                  variant={isSelected ? "default" : "outline"}
+                  variant={isSelected ? 'default' : 'outline'}
                   className={cn(
-                    "cursor-pointer px-3 py-1 hover:bg-primary/90 transition-colors",
-                    !isSelected && "hover:bg-accent hover:text-accent-foreground"
+                    'cursor-pointer px-3 py-1 hover:bg-primary/90 transition-colors',
+                    !isSelected && 'hover:bg-accent hover:text-accent-foreground'
                   )}
                   onClick={() => handleQuickSelect(item.range)}
                 >
                   {item.label}
                 </Badge>
-              )
+              );
             })}
           </div>
         </div>
@@ -136,16 +131,16 @@ export default function DateRangeFilter({
               return (
                 <Badge
                   key={idx}
-                  variant={isSelected ? "default" : "outline"}
+                  variant={isSelected ? 'default' : 'outline'}
                   className={cn(
-                    "cursor-pointer px-3 py-1 hover:bg-primary/90 transition-colors",
-                    !isSelected && "hover:bg-accent hover:text-accent-foreground"
+                    'cursor-pointer px-3 py-1 hover:bg-primary/90 transition-colors',
+                    !isSelected && 'hover:bg-accent hover:text-accent-foreground'
                   )}
                   onClick={() => handleQuickSelect(item.range)}
                 >
                   {item.label}
                 </Badge>
-              )
+              );
             })}
           </div>
         </div>
@@ -161,17 +156,17 @@ export default function DateRangeFilter({
               return (
                 <Badge
                   key={year}
-                  variant={isSelected ? "default" : "outline"}
+                  variant={isSelected ? 'default' : 'outline'}
                   className={cn(
-                    "cursor-pointer px-3 py-1 hover:bg-primary/90 transition-colors",
-                    !isSelected && "hover:bg-accent hover:text-accent-foreground",
-                    isSelected && "font-bold"
+                    'cursor-pointer px-3 py-1 hover:bg-primary/90 transition-colors',
+                    !isSelected && 'hover:bg-accent hover:text-accent-foreground',
+                    isSelected && 'font-bold'
                   )}
                   onClick={() => onYearSelect(year)}
                 >
                   {year}
                 </Badge>
-              )
+              );
             })}
           </div>
         </div>

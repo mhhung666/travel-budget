@@ -35,11 +35,11 @@ export default function TripsPage() {
       await navigator.clipboard.writeText(shareUrl);
       toast({
         description: t('idCopied'),
-        className: "bg-green-500 text-white border-green-600",
+        className: 'bg-green-500 text-white border-green-600',
       });
     } catch {
       toast({
-        variant: "destructive",
+        variant: 'destructive',
         description: t('copyFailed'),
       });
     }
@@ -55,10 +55,10 @@ export default function TripsPage() {
         user={
           user
             ? {
-              id: user.id,
-              username: user.display_name,
-              email: user.email,
-            }
+                id: user.id,
+                username: user.display_name,
+                email: user.email,
+              }
             : null
         }
         showUserMenu={true}
@@ -68,22 +68,13 @@ export default function TripsPage() {
       <div className="container mx-auto px-4 pt-24 pb-8 max-w-6xl">
         <Card className="border-none shadow-none bg-transparent sm:bg-card sm:border sm:shadow-sm">
           <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 px-0 sm:px-6">
-            <CardTitle className="text-2xl font-bold">
-              {t('list')}
-            </CardTitle>
+            <CardTitle className="text-2xl font-bold">{t('list')}</CardTitle>
             <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-              <Button
-                onClick={() => setShowJoinModal(true)}
-                variant="outline"
-                className="gap-2"
-              >
+              <Button onClick={() => setShowJoinModal(true)} variant="outline" className="gap-2">
                 <UserPlus size={16} />
                 {t('joinTrip')}
               </Button>
-              <Button
-                onClick={() => setShowCreateModal(true)}
-                className="gap-2"
-              >
+              <Button onClick={() => setShowCreateModal(true)} className="gap-2">
                 <Plus size={16} />
                 {t('createTrip')}
               </Button>
@@ -114,7 +105,7 @@ export default function TripsPage() {
         onSuccess={() => {
           toast({
             description: t('join.success'),
-            className: "bg-green-500 text-white border-green-600",
+            className: 'bg-green-500 text-white border-green-600',
           });
           reloadTrips();
         }}

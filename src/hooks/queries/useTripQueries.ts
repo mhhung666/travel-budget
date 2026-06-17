@@ -73,14 +73,17 @@ export function useExpenses(tripId: string) {
         tripId,
         getExpenses,
         { path: 'expenses', responseKey: 'expenses' },
-        [],
+        []
       ),
     enabled: !!tripId,
   });
 }
 
-const EMPTY_SETTLEMENT: { balances: Balance[]; transactions: Transaction[]; totalExpenses: number } =
-  { balances: [], transactions: [], totalExpenses: 0 };
+const EMPTY_SETTLEMENT: {
+  balances: Balance[];
+  transactions: Transaction[];
+  totalExpenses: number;
+} = { balances: [], transactions: [], totalExpenses: 0 };
 
 export function useSettlement(tripId: string) {
   return useQuery({
@@ -100,7 +103,7 @@ export function useItinerary(tripId: string) {
         tripId,
         getItinerary,
         { path: 'itinerary', responseKey: 'itinerary' },
-        [],
+        []
       ),
     enabled: !!tripId,
   });

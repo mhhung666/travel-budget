@@ -28,7 +28,7 @@ export async function fetchWithPublicFallback<T>(
   tripId: string,
   serverAction: (tripId: string) => Promise<ActionResult<T>>,
   publicEndpoint: PublicEndpoint,
-  defaultValue: T,
+  defaultValue: T
 ): Promise<T> {
   const result = await serverAction(tripId);
 

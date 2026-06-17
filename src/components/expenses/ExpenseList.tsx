@@ -30,7 +30,10 @@ export function ExpenseList({
   if (expenses.length === 0) {
     return (
       <div className="text-center py-8">
-        <Alert variant="default" className="mb-4 w-fit mx-auto border-blue-200 bg-blue-50 text-blue-900 dark:bg-blue-900/10 dark:text-blue-200 dark:border-blue-900">
+        <Alert
+          variant="default"
+          className="mb-4 w-fit mx-auto border-blue-200 bg-blue-50 text-blue-900 dark:bg-blue-900/10 dark:text-blue-200 dark:border-blue-900"
+        >
           <AlertDescription>{emptyMessage}</AlertDescription>
         </Alert>
         {showAddButton && onAdd && (

@@ -22,7 +22,7 @@ export async function GET() {
     // 获取最新汇率
     // 使用 ExchangeRate-API 免费服务
     const response = await fetch('https://api.exchangerate-api.com/v4/latest/TWD', {
-      next: { revalidate: 3600 } // Next.js 缓存 1 小时
+      next: { revalidate: 3600 }, // Next.js 缓存 1 小时
     });
 
     if (!response.ok) {
@@ -67,18 +67,21 @@ export async function GET() {
     }
 
     // 返回默认汇率（作为后备方案）
-    return NextResponse.json({
-      success: false,
-      error: 'Failed to fetch exchange rates',
-      rates: {
-        TWD: 1,
-        JPY: 0.22, // 大约的默认值
-        USD: 31.5,
-        EUR: 34.5,
-        HKD: 4.0,
-        THB: 0.9,
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Failed to fetch exchange rates',
+        rates: {
+          TWD: 1,
+          JPY: 0.22, // 大约的默认值
+          USD: 31.5,
+          EUR: 34.5,
+          HKD: 4.0,
+          THB: 0.9,
+        },
+        fallback: true,
       },
-      fallback: true,
-    }, { status: 500 });
+      { status: 500 }
+    );
   }
 }

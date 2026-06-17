@@ -15,7 +15,12 @@ interface ItineraryDayCardProps {
   onDelete: (dayId: string) => void;
 }
 
-export default function ItineraryDayCard({ day, isAdmin, onEdit, onDelete }: ItineraryDayCardProps) {
+export default function ItineraryDayCard({
+  day,
+  isAdmin,
+  onEdit,
+  onDelete,
+}: ItineraryDayCardProps) {
   const tItinerary = useTranslations('itinerary');
 
   return (
@@ -26,9 +31,7 @@ export default function ItineraryDayCard({ day, isAdmin, onEdit, onDelete }: Iti
             <Badge variant="default" className="text-sm font-semibold h-7 px-3">
               Day {day.day_number}
             </Badge>
-            <h3 className="text-xl font-semibold leading-none tracking-tight">
-              {day.title}
-            </h3>
+            <h3 className="text-xl font-semibold leading-none tracking-tight">{day.title}</h3>
           </div>
           {isAdmin && (
             <div className="flex gap-1">
@@ -60,9 +63,7 @@ export default function ItineraryDayCard({ day, isAdmin, onEdit, onDelete }: Iti
           {day.content ? (
             <MarkdownRenderer content={day.content} />
           ) : (
-            <p className="text-muted-foreground italic">
-              {tItinerary('dayContentPlaceholder')}
-            </p>
+            <p className="text-muted-foreground italic">{tItinerary('dayContentPlaceholder')}</p>
           )}
         </div>
       </CardContent>

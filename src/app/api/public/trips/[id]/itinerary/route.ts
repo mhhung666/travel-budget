@@ -25,9 +25,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
     }
 
-    const days = await ItineraryDay.find({ trip: tripId })
-      .sort({ dayNumber: 1 })
-      .lean<LeanDay[]>();
+    const days = await ItineraryDay.find({ trip: tripId }).sort({ dayNumber: 1 }).lean<LeanDay[]>();
 
     const itinerary = days.map((d) => ({
       id: d._id.toString(),

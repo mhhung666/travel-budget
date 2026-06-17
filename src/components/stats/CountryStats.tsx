@@ -17,20 +17,14 @@ interface CountryStatsProps {
   t: (key: string) => string;
 }
 
-export default function CountryStats({
-  countries,
-  t,
-}: CountryStatsProps) {
-
+export default function CountryStats({ countries, t }: CountryStatsProps) {
   return (
     <>
       <div className="mb-4 flex items-center gap-3">
         <div className="p-2 rounded-lg bg-secondary text-secondary-foreground shadow-sm">
           <Globe size={20} />
         </div>
-        <h2 className="text-xl font-bold">
-          {t('countryStats')}
-        </h2>
+        <h2 className="text-xl font-bold">{t('countryStats')}</h2>
         {countries.length > 0 && (
           <Badge variant="secondary" className="text-sm font-bold px-2 py-0.5 rounded-md">
             {countries.length}
@@ -54,9 +48,7 @@ export default function CountryStats({
                         {getCountryFlag(country.country_code)}
                       </div>
                       <div className="text-left">
-                        <span className="font-semibold text-base">
-                          {country.country}
-                        </span>
+                        <span className="font-semibold text-base">{country.country}</span>
                       </div>
                     </div>
                     <Badge variant="outline" className="font-semibold px-2 py-1 rounded-lg">
@@ -90,9 +82,7 @@ export default function CountryStats({
         ) : (
           <div className="text-center py-12 opacity-60 flex flex-col items-center">
             <Globe size={48} strokeWidth={1} className="mb-4 text-muted-foreground" />
-            <p className="text-muted-foreground">
-              {t('noData')}
-            </p>
+            <p className="text-muted-foreground">{t('noData')}</p>
           </div>
         )}
       </div>

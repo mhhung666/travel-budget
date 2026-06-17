@@ -11,15 +11,15 @@ export function aggregateExpensesByInterval(
   locale: string
 ): HistogramData {
   // 1. 提取所有 expense details
-  const allExpenses = categoryStats.flatMap(cat => cat.details);
+  const allExpenses = categoryStats.flatMap((cat) => cat.details);
 
   // 2. 根據區間生成時段列表
   const periods = generatePeriods(interval, startDate, endDate);
 
   // 3. 將 expenses 分配到各時段
-  const dataPoints: HistogramDataPoint[] = periods.map(period => {
-    const periodExpenses = allExpenses.filter(exp =>
-      exp.date >= period.startDate && exp.date <= period.endDate
+  const dataPoints: HistogramDataPoint[] = periods.map((period) => {
+    const periodExpenses = allExpenses.filter(
+      (exp) => exp.date >= period.startDate && exp.date <= period.endDate
     );
 
     return {
@@ -121,7 +121,8 @@ function formatPeriodLabel(
 ): string {
   const startDate = new Date(period.startDate);
   const endDate = new Date(period.endDate);
-  const intlLocale = locale === 'zh' ? 'zh-TW' : locale === 'jp' ? 'ja-JP' : locale === 'zh-CN' ? 'zh-CN' : 'en-US';
+  const intlLocale =
+    locale === 'zh' ? 'zh-TW' : locale === 'jp' ? 'ja-JP' : locale === 'zh-CN' ? 'zh-CN' : 'en-US';
 
   switch (interval) {
     case 'month':
@@ -164,7 +165,7 @@ export function suggestInterval(startDate: string, endDate: string): TimeInterva
   const end = new Date(endDate);
   const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
 
-  if (days > 90) return 'month';      // > 3個月 → 按月統計
-  if (days > 2) return 'week';        // > 2天 → 按週統計
-  return 'day';                       // <= 2天 → 按日統計
+  if (days > 90) return 'month'; // > 3個月 → 按月統計
+  if (days > 2) return 'week'; // > 2天 → 按週統計
+  return 'day'; // <= 2天 → 按日統計
 }

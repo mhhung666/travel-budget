@@ -24,7 +24,7 @@ export interface PageHeaderProps {
  *   onBack={() => router.push('/trips')}
  *   actions={
  *     <Button variant="default" className="gap-2">
-*       <Plus size={16} />
+ *       <Plus size={16} />
  *       Add Expense
  *     </Button>
  *   }
@@ -52,20 +52,10 @@ export function PageHeader({
       )}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground mb-1">
-            {title}
-          </h1>
-          {subtitle && (
-            <p className="text-muted-foreground">
-              {subtitle}
-            </p>
-          )}
+          <h1 className="text-3xl font-bold tracking-tight text-foreground mb-1">{title}</h1>
+          {subtitle && <p className="text-muted-foreground">{subtitle}</p>}
         </div>
-        {actions && (
-          <div className="flex items-center gap-2">
-            {actions}
-          </div>
-        )}
+        {actions && <div className="flex items-center gap-2">{actions}</div>}
       </div>
     </div>
   );

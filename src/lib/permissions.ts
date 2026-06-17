@@ -59,10 +59,7 @@ export async function isMember(userId: string, tripIdOrCode: string): Promise<bo
 /**
  * 取得用戶在旅行中的角色
  */
-export async function getUserRole(
-  userId: string,
-  tripIdOrCode: string
-): Promise<TripRole | null> {
+export async function getUserRole(userId: string, tripIdOrCode: string): Promise<TripRole | null> {
   const membership = await getTripMembership(userId, tripIdOrCode);
   return membership?.role ?? null;
 }

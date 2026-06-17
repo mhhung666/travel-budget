@@ -12,11 +12,7 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Label } from '@/components/ui/label';
 
 // Nominatim API 回傳的地點資料
@@ -82,13 +78,13 @@ export default function LocationAutocomplete({
     try {
       const response = await fetch(
         `https://nominatim.openstreetmap.org/search?` +
-        new URLSearchParams({
-          q: searchQuery,
-          format: 'json',
-          addressdetails: '1',
-          limit: '5',
-          'accept-language': 'zh-TW,en', // 優先使用繁體中文
-        }),
+          new URLSearchParams({
+            q: searchQuery,
+            format: 'json',
+            addressdetails: '1',
+            limit: '5',
+            'accept-language': 'zh-TW,en', // 優先使用繁體中文
+          }),
         {
           headers: {
             'User-Agent': 'TravelBudget/1.0', // Nominatim 要求提供 User-Agent
@@ -143,7 +139,7 @@ export default function LocationAutocomplete({
 
   return (
     <div className="grid gap-2">
-      {label && <Label className={error ? "text-destructive" : ""}>{label}</Label>}
+      {label && <Label className={error ? 'text-destructive' : ''}>{label}</Label>}
 
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
@@ -152,27 +148,23 @@ export default function LocationAutocomplete({
             role="combobox"
             aria-expanded={open}
             className={cn(
-              "w-full justify-between bg-background px-3 font-normal",
-              !value && "text-muted-foreground",
-              error && "border-destructive focus-visible:ring-destructive"
+              'w-full justify-between bg-background px-3 font-normal',
+              !value && 'text-muted-foreground',
+              error && 'border-destructive focus-visible:ring-destructive'
             )}
             disabled={disabled}
           >
             {value ? (
               <span className="truncate">{value.name}</span>
             ) : (
-              placeholder || "Select location..."
+              placeholder || 'Select location...'
             )}
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
           <Command shouldFilter={false}>
-            <CommandInput
-              placeholder="Search location..."
-              value={query}
-              onValueChange={setQuery}
-            />
+            <CommandInput placeholder="Search location..." value={query} onValueChange={setQuery} />
             <CommandList>
               {loading && (
                 <div className="py-6 text-center text-sm text-muted-foreground flex items-center justify-center">
@@ -191,35 +183,36 @@ export default function LocationAutocomplete({
                 </div>
               )}
 
-              {!loading && options.map((option) => (
-                <CommandItem
-                  key={`${option.lat}-${option.lon}`}
-                  value={`${option.name} ${option.display_name}`}
-                  onSelect={() => {
-                    onChange(option);
-                    setOpen(false);
-                    setQuery(""); // Reset query? Or keep it? Usually reset.
-                  }}
-                >
-                  <MapPin className="mr-2 h-4 w-4 text-muted-foreground shrink-0 mt-0.5 self-start" />
-                  <div className="flex flex-col overflow-hidden">
-                    <span className="truncate font-medium">{option.name}</span>
-                    <span className="truncate text-xs text-muted-foreground">
-                      {option.display_name}
-                    </span>
-                  </div>
-                  {value?.lat === option.lat && value?.lon === option.lon && (
-                    <Check className="ml-auto h-4 w-4 opacity-100 shrink-0" />
-                  )}
-                </CommandItem>
-              ))}
+              {!loading &&
+                options.map((option) => (
+                  <CommandItem
+                    key={`${option.lat}-${option.lon}`}
+                    value={`${option.name} ${option.display_name}`}
+                    onSelect={() => {
+                      onChange(option);
+                      setOpen(false);
+                      setQuery(''); // Reset query? Or keep it? Usually reset.
+                    }}
+                  >
+                    <MapPin className="mr-2 h-4 w-4 text-muted-foreground shrink-0 mt-0.5 self-start" />
+                    <div className="flex flex-col overflow-hidden">
+                      <span className="truncate font-medium">{option.name}</span>
+                      <span className="truncate text-xs text-muted-foreground">
+                        {option.display_name}
+                      </span>
+                    </div>
+                    {value?.lat === option.lat && value?.lon === option.lon && (
+                      <Check className="ml-auto h-4 w-4 opacity-100 shrink-0" />
+                    )}
+                  </CommandItem>
+                ))}
             </CommandList>
           </Command>
         </PopoverContent>
       </Popover>
 
       {helperText && (
-        <p className={cn("text-[0.8rem] text-muted-foreground", error && "text-destructive")}>
+        <p className={cn('text-[0.8rem] text-muted-foreground', error && 'text-destructive')}>
           {helperText}
         </p>
       )}

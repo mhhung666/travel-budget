@@ -104,10 +104,9 @@ export function ExpenseForm({
   }, [open, mode, editingExpense, currentUserId, initialData]);
 
   const handleChange =
-    (field: keyof ExpenseFormData) =>
-      (e: React.ChangeEvent<HTMLInputElement>) => {
-        setForm((prev) => ({ ...prev, [field]: e.target.value }));
-      };
+    (field: keyof ExpenseFormData) => (e: React.ChangeEvent<HTMLInputElement>) => {
+      setForm((prev) => ({ ...prev, [field]: e.target.value }));
+    };
 
   const handleSelectChange = (field: keyof ExpenseFormData, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -354,10 +353,7 @@ export function ExpenseForm({
             <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
               Cancel
             </Button>
-            <Button
-              type="submit"
-              disabled={loading || !isValid}
-            >
+            <Button type="submit" disabled={loading || !isValid}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {mode === 'create' ? 'Add' : 'Save'}
             </Button>

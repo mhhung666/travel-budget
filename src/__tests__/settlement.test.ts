@@ -16,8 +16,8 @@ describe('calculateSettlement', () => {
 
   it('should handle simple two-person settlement', () => {
     const balances = [
-      { userId: '1', username: 'Alice', balance: 100 },  // Alice is owed 100
-      { userId: '2', username: 'Bob', balance: -100 },    // Bob owes 100
+      { userId: '1', username: 'Alice', balance: 100 }, // Alice is owed 100
+      { userId: '2', username: 'Bob', balance: -100 }, // Bob owes 100
     ];
     const result = calculateSettlement(balances);
 
@@ -44,7 +44,7 @@ describe('calculateSettlement', () => {
     expect(result).toHaveLength(2);
 
     const totalPaidToAlice = result
-      .filter(t => t.to === 'Alice')
+      .filter((t) => t.to === 'Alice')
       .reduce((sum, t) => sum + t.amount, 0);
     expect(totalPaidToAlice).toBe(200);
   });
@@ -96,10 +96,10 @@ describe('calculateSettlement', () => {
     const totalFrom = result.reduce((sum, t) => sum + t.amount, 0);
     // Each creditor should receive what they're owed
     const aliceReceives = result
-      .filter(t => t.to === 'Alice')
+      .filter((t) => t.to === 'Alice')
       .reduce((sum, t) => sum + t.amount, 0);
     const charlieReceives = result
-      .filter(t => t.to === 'Charlie')
+      .filter((t) => t.to === 'Charlie')
       .reduce((sum, t) => sum + t.amount, 0);
 
     expect(aliceReceives).toBe(300);

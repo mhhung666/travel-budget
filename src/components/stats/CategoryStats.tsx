@@ -26,16 +26,13 @@ export default function CategoryStats({
   t,
   tCategory,
 }: CategoryStatsProps) {
-
   return (
     <>
       <div className="mb-4 flex items-center gap-3">
         <div className="p-2 rounded-lg bg-primary text-primary-foreground shadow-sm">
           <Grid2X2 size={20} />
         </div>
-        <h2 className="text-xl font-bold">
-          {t('categoryStats')}
-        </h2>
+        <h2 className="text-xl font-bold">{t('categoryStats')}</h2>
       </div>
 
       <div className="flex flex-col gap-3">
@@ -86,9 +83,7 @@ export default function CategoryStats({
                             <span className="truncate">{detail.tripName}</span>
                           </div>
                         </div>
-                        <div className="font-bold text-sm">
-                          {formatCurrency(detail.amount)}
-                        </div>
+                        <div className="font-bold text-sm">{formatCurrency(detail.amount)}</div>
                       </div>
                     ))}
                   </div>
@@ -99,9 +94,7 @@ export default function CategoryStats({
         ) : (
           <div className="text-center py-12 opacity-60 flex flex-col items-center">
             <Receipt size={48} strokeWidth={1} className="mb-4 text-muted-foreground" />
-            <p className="text-muted-foreground">
-              {t('noData')}
-            </p>
+            <p className="text-muted-foreground">{t('noData')}</p>
           </div>
         )}
       </div>

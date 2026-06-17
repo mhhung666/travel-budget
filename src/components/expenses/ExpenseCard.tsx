@@ -1,17 +1,10 @@
 'use client';
 
-import {
-  Card,
-  CardContent,
-} from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Edit2, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { useState } from 'react';
 import { formatCurrency, getCurrencySymbol } from '@/constants/currencies';
@@ -54,9 +47,7 @@ export function ExpenseCard({
                     {expense.payer_name.charAt(0).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
-                <div className="text-xs text-muted-foreground">
-                  {expense.payer_name}
-                </div>
+                <div className="text-xs text-muted-foreground">{expense.payer_name}</div>
                 <div className="text-[10px] text-muted-foreground">
                   {new Date(expense.date).toLocaleDateString()}
                 </div>
@@ -67,12 +58,8 @@ export function ExpenseCard({
                   {getCategoryIcon(expense.category || 'other')}
                 </Badge>
               </div>
-              <div className="font-medium text-sm">
-                {expense.description}
-              </div>
-              <div className="text-base font-semibold text-primary">
-                {displayAmount}
-              </div>
+              <div className="font-medium text-sm">{expense.description}</div>
+              <div className="text-base font-semibold text-primary">{displayAmount}</div>
             </div>
 
             <div className="flex items-center gap-1">
@@ -113,12 +100,9 @@ export function ExpenseCard({
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {expense.splits.map((split) => (
-                  <Badge
-                    key={split.user_id}
-                    variant="outline"
-                    className="text-xs font-normal"
-                  >
-                    {split.display_name || split.username}: {formatCurrency(split.share_amount, 'TWD')}
+                  <Badge key={split.user_id} variant="outline" className="text-xs font-normal">
+                    {split.display_name || split.username}:{' '}
+                    {formatCurrency(split.share_amount, 'TWD')}
                   </Badge>
                 ))}
               </div>

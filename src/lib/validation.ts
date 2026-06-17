@@ -92,7 +92,10 @@ export const updateExpenseSchema = z.object({
   exchange_rate: z.number().positive('匯率必須大於 0').optional(),
   description: z.string().min(1, '描述不能為空').optional(),
   category: z.enum(CATEGORIES as unknown as [string, ...string[]]).optional(),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '日期格式錯誤').optional(),
+  date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, '日期格式錯誤')
+    .optional(),
   splits: z
     .array(
       z.object({

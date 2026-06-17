@@ -5,16 +5,10 @@ import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 import { ArrowLeft, Settings, Map, Calculator } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
-import {
-  TripHeader,
-  TripExpenses,
-} from '@/components/trips/detail';
+import { TripHeader, TripExpenses } from '@/components/trips/detail';
 
 // Dialogs
-import {
-  ExpenseFormDialog,
-  EditTripDialog,
-} from '@/components/trips/detail/dialogs';
+import { ExpenseFormDialog, EditTripDialog } from '@/components/trips/detail/dialogs';
 
 import { useTripDetailPage } from '@/hooks/useTripDetailPage';
 
@@ -85,11 +79,11 @@ export default function TripDetailPage() {
         user={
           currentUser
             ? {
-              id: currentUser.id,
-              username: currentUser.display_name,
-              email: currentUser.email,
-              display_name: currentUser.display_name,
-            }
+                id: currentUser.id,
+                username: currentUser.display_name,
+                email: currentUser.email,
+                display_name: currentUser.display_name,
+              }
             : null
         }
         showUserMenu={true}

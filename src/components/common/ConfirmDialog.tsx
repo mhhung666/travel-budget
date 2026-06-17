@@ -77,7 +77,7 @@ export function ConfirmDialog({
     if (!openState && !loading) {
       onCancel();
     }
-  }
+  };
 
   return (
     <AlertDialog open={open} onOpenChange={handleOpenChange}>
@@ -87,12 +87,12 @@ export function ConfirmDialog({
             <Icon className={config.iconColor} size={24} />
             {title}
           </AlertDialogTitle>
-          <AlertDialogDescription>
-            {message}
-          </AlertDialogDescription>
+          <AlertDialogDescription>{message}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={loading} onClick={onCancel}>{cancelText}</AlertDialogCancel>
+          <AlertDialogCancel disabled={loading} onClick={onCancel}>
+            {cancelText}
+          </AlertDialogCancel>
           <Button
             variant={config.variant}
             onClick={(e) => {

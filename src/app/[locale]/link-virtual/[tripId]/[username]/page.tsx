@@ -76,9 +76,7 @@ export default function LinkVirtualMemberPage() {
         // If it fails (FORBIDDEN), user is not a member
         const membersResult = await getMembers(tripId);
         if (membersResult.success) {
-          const isAlreadyMember = membersResult.data.some(
-            (m) => m.id === userId
-          );
+          const isAlreadyMember = membersResult.data.some((m) => m.id === userId);
           if (isAlreadyMember) {
             setError(t('alreadyMember'));
             return;
@@ -146,10 +144,10 @@ export default function LinkVirtualMemberPage() {
         user={
           currentUser
             ? {
-              id: currentUser.id,
-              username: currentUser.display_name,
-              email: currentUser.email,
-            }
+                id: currentUser.id,
+                username: currentUser.display_name,
+                email: currentUser.email,
+              }
             : null
         }
         showUserMenu={!!currentUser}

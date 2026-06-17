@@ -77,7 +77,7 @@ export default function ItineraryPage() {
       toast({
         title: tCommon('errorTitle'),
         description: err instanceof Error ? err.message : String(err),
-        variant: "destructive"
+        variant: 'destructive',
       });
     }
   };
@@ -123,10 +123,10 @@ export default function ItineraryPage() {
         user={
           currentUser
             ? {
-              id: currentUser.id,
-              username: currentUser.display_name,
-              email: currentUser.email,
-            }
+                id: currentUser.id,
+                username: currentUser.display_name,
+                email: currentUser.email,
+              }
             : null
         }
         showUserMenu={true}
@@ -146,14 +146,9 @@ export default function ItineraryPage() {
 
         {/* Header with Add button */}
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold">
-            {tItinerary('title')}
-          </h1>
+          <h1 className="text-3xl font-bold">{tItinerary('title')}</h1>
           {isAdmin && (
-            <Button
-              onClick={handleAddDay}
-              className="gap-2"
-            >
+            <Button onClick={handleAddDay} className="gap-2">
               <Plus className="h-4 w-4" />
               {tItinerary('addDay')}
             </Button>
@@ -163,12 +158,8 @@ export default function ItineraryPage() {
         {/* Day cards */}
         {days.length === 0 ? (
           <div className="text-center py-12 border-2 border-dashed rounded-lg bg-muted/30">
-            <h3 className="text-xl font-semibold mb-2">
-              {tItinerary('emptyState')}
-            </h3>
-            <p className="text-muted-foreground">
-              {tItinerary('emptyStateHint')}
-            </p>
+            <h3 className="text-xl font-semibold mb-2">{tItinerary('emptyState')}</h3>
+            <p className="text-muted-foreground">{tItinerary('emptyStateHint')}</p>
           </div>
         ) : (
           <div className="flex flex-col gap-6">

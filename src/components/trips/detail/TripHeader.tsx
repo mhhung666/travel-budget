@@ -14,7 +14,12 @@ interface TripHeaderProps {
   children?: ReactNode;
 }
 
-export default function TripHeader({ trip, isCurrentUserAdmin, onEdit, children }: TripHeaderProps) {
+export default function TripHeader({
+  trip,
+  isCurrentUserAdmin,
+  onEdit,
+  children,
+}: TripHeaderProps) {
   const tTrip = useTranslations('trip');
   const tCommon = useTranslations('common');
 
@@ -23,21 +28,16 @@ export default function TripHeader({ trip, isCurrentUserAdmin, onEdit, children 
       <CardContent className="pt-6">
         <div className="flex justify-between items-start mb-4">
           <div>
-            <h2 className="text-xl font-semibold mb-2">
-              {tTrip('info')}
-            </h2>
-            {trip.description && (
-              <p className="text-muted-foreground mb-4">
-                {trip.description}
-              </p>
-            )}
+            <h2 className="text-xl font-semibold mb-2">{tTrip('info')}</h2>
+            {trip.description && <p className="text-muted-foreground mb-4">{trip.description}</p>}
 
             {/* 地點顯示 */}
             {trip.location && (
               <div className="flex items-center gap-2 mb-2 text-sm text-muted-foreground">
                 <MapPin size={16} />
                 <span>
-                  {trip.location.name}{trip.location.country && `, ${trip.location.country}`}
+                  {trip.location.name}
+                  {trip.location.country && `, ${trip.location.country}`}
                 </span>
               </div>
             )}
@@ -56,12 +56,7 @@ export default function TripHeader({ trip, isCurrentUserAdmin, onEdit, children 
           </div>
 
           {isCurrentUserAdmin && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={onEdit}
-              className="gap-2"
-            >
+            <Button size="sm" variant="outline" onClick={onEdit} className="gap-2">
               <Edit2 size={16} />
               {tCommon('edit')}
             </Button>
@@ -69,9 +64,7 @@ export default function TripHeader({ trip, isCurrentUserAdmin, onEdit, children 
         </div>
 
         {children && (
-          <div className="mt-6 pt-6 border-t flex flex-col sm:flex-row gap-3">
-            {children}
-          </div>
+          <div className="mt-6 pt-6 border-t flex flex-col sm:flex-row gap-3">{children}</div>
         )}
       </CardContent>
     </Card>

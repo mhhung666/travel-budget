@@ -137,7 +137,15 @@ describe('createExpenseSchema', () => {
   });
 
   it('should accept all valid categories', () => {
-    const categories = ['accommodation', 'transportation', 'food', 'shopping', 'entertainment', 'tickets', 'other'];
+    const categories = [
+      'accommodation',
+      'transportation',
+      'food',
+      'shopping',
+      'entertainment',
+      'tickets',
+      'other',
+    ];
     for (const category of categories) {
       const result = createExpenseSchema.safeParse({
         ...validExpense,
