@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+# Cancel superseded runs on the same ref (e.g. rapid pushes to a PR).
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Lint, format, test, build
+    runs-on: ubuntu-latest
+
+    # Build-time only. next build does not connect to the DB (all routes are
+    # dynamic / server-rendered on demand), but env validation (src/lib/env.ts)
+    # requires these to be present and JWT_SECRET to be >= 32 chars.
+    env:
+      MONGODB_URI: mongodb://localhost:27017/ci
+      JWT_SECRET: ci_dummy_secret_at_least_32_characters_long
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Check formatting
+        run: pnpm format:check
+
+      - name: Test
+        run: pnpm test:run
+
+      - name: Build
+        run: pnpm build
