@@ -8,7 +8,8 @@ import {
 } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
 import { Globe, MapPin } from 'lucide-react';
-import { getCountryFlag } from '@/constants/countries';
+import { useLocale } from 'next-intl';
+import { getCountryFlag, getLocalizedCountryName } from '@/constants/countries';
 import type { CountryStat } from '@/types';
 
 interface CountryStatsProps {
@@ -18,6 +19,7 @@ interface CountryStatsProps {
 }
 
 export default function CountryStats({ countries, t }: CountryStatsProps) {
+  const locale = useLocale();
   return (
     <>
       <div className="mb-4 flex items-center gap-3">
@@ -48,7 +50,9 @@ export default function CountryStats({ countries, t }: CountryStatsProps) {
                         {getCountryFlag(country.country_code)}
                       </div>
                       <div className="text-left">
-                        <span className="font-semibold text-base">{country.country}</span>
+                        <span className="font-semibold text-base">
+                          {getLocalizedCountryName(country.country_code, locale, country.country)}
+                        </span>
                       </div>
                     </div>
                     <Badge variant="outline" className="font-semibold px-2 py-1 rounded-lg">
