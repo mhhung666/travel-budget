@@ -1,16 +1,24 @@
 'use client';
 
 import { useEffect } from 'react';
-import { MapContainer, TileLayer, CircleMarker, Tooltip, useMap } from 'react-leaflet';
-import { LatLngBounds } from 'leaflet';
+import { MapContainer, TileLayer, Marker, Polyline, Tooltip, useMap } from 'react-leaflet';
+import { LatLngBounds, divIcon } from 'leaflet';
+import { useTheme } from 'next-themes';
 import 'leaflet/dist/leaflet.css';
 import type { TripPoint } from './types';
+import { countryCodeToFlag, countryColor } from './country';
 
 interface TripMapCanvasProps {
   points: TripPoint[];
   selectedId: string | null;
   onSelect: (id: string) => void;
 }
+
+// 主題感應底圖：淺色用 CartoDB Positron、深色用 Dark Matter。
+const BASEMAPS = {
+  light: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+  dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+};
 
 /** 初次載入時把視野框到所有點；點數變動時重框。 */
 function FitBounds({ points }: { points: TripPoint[] }) {
@@ -40,7 +48,33 @@ function FlyToSelected({ points, selectedId }: { points: TripPoint[]; selectedId
   return null;
 }
 
+/** 帶編號的圓形圖釘（DivIcon，免外部圖檔），顏色依國家。 */
+function numberedIcon(num: number, color: string, active: boolean) {
+  const size = active ? 34 : 28;
+  return divIcon({
+    className: 'trip-map-pin',
+    html: `<div style="
+      width:${size}px;height:${size}px;
+      background:${color};
+      border:2px solid #fff;
+      border-radius:50%;
+      box-shadow:0 1px 4px rgba(0,0,0,.4);
+      color:#fff;font-weight:600;font-size:13px;
+      display:flex;align-items:center;justify-content:center;
+      ${active ? 'outline:3px solid rgba(37,99,235,.5);' : ''}
+    ">${num}</div>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+  });
+}
+
 export default function TripMapCanvas({ points, selectedId, onSelect }: TripMapCanvasProps) {
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
+
+  // 依時間順序串成路線（points 已由呼叫端排序）。
+  const path = points.map((p) => [p.lat, p.lon] as [number, number]);
+
   return (
     <MapContainer
       center={[20, 0]}
@@ -50,32 +84,37 @@ export default function TripMapCanvas({ points, selectedId, onSelect }: TripMapC
       worldCopyJump
     >
       <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        key={isDark ? 'dark' : 'light'}
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+        url={isDark ? BASEMAPS.dark : BASEMAPS.light}
       />
       <FitBounds points={points} />
       <FlyToSelected points={points} selectedId={selectedId} />
-      {points.map((p) => {
-        const active = p.id === selectedId;
-        return (
-          <CircleMarker
-            key={p.id}
-            center={[p.lat, p.lon]}
-            radius={active ? 11 : 8}
-            pathOptions={{
-              color: active ? '#2563eb' : '#3b82f6',
-              fillColor: active ? '#2563eb' : '#60a5fa',
-              fillOpacity: active ? 0.95 : 0.7,
-              weight: active ? 3 : 2,
-            }}
-            eventHandlers={{ click: () => onSelect(p.id) }}
-          >
-            <Tooltip direction="top" offset={[0, -6]}>
-              {p.name}
-            </Tooltip>
-          </CircleMarker>
-        );
-      })}
+
+      {path.length >= 2 && (
+        <Polyline
+          positions={path}
+          pathOptions={{
+            color: isDark ? '#93c5fd' : '#2563eb',
+            weight: 2,
+            opacity: 0.6,
+            dashArray: '6 6',
+          }}
+        />
+      )}
+
+      {points.map((p, i) => (
+        <Marker
+          key={p.id}
+          position={[p.lat, p.lon]}
+          icon={numberedIcon(i + 1, countryColor(p.countryCode), p.id === selectedId)}
+          eventHandlers={{ click: () => onSelect(p.id) }}
+        >
+          <Tooltip direction="top" offset={[0, -16]}>
+            {countryCodeToFlag(p.countryCode)} {p.name}
+          </Tooltip>
+        </Marker>
+      ))}
     </MapContainer>
   );
 }

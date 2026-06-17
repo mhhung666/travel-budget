@@ -8,4 +8,6 @@ export interface TripPoint {
   lon: number;
   startDate: string | null;
   endDate: string | null;
+  /** ISO 3166-1 alpha-2 國家代碼（用於國旗與配色） */
+  countryCode?: string;
 }
