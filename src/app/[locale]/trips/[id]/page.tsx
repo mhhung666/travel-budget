@@ -146,6 +146,7 @@ export default function TripDetailPage() {
             <TripExpenses
               expenses={expenses}
               members={members}
+              tripName={trip.name}
               isCurrentUserMember={isMember}
               filterMemberId={filterMemberId}
               onFilterChange={setFilterMemberId}

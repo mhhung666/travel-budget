@@ -500,5 +500,42 @@
     "backToTrip": "返回旅行詳情",
     "lastUpdated": "最後更新",
     "loadFailed": "無法載入行程規劃"
+  },
+  "export": {
+    "label": "匯出",
+    "markdown": "Markdown (.md)",
+    "csv": "CSV (.csv)",
+    "json": "JSON (.json)",
+    "itinerary": {
+      "heading": "旅程規劃",
+      "day": "第 {n} 天",
+      "colDay": "天數",
+      "colTitle": "標題",
+      "colContent": "內容"
+    },
+    "expense": {
+      "heading": "支出明細",
+      "total": "合計",
+      "colDate": "日期",
+      "colDescription": "說明",
+      "colCategory": "類別",
+      "colPayer": "付款人",
+      "colAmountTwd": "金額 (TWD)",
+      "colOriginalAmount": "原始金額",
+      "colCurrency": "幣別",
+      "colRate": "匯率",
+      "colSplits": "分攤明細"
+    },
+    "settlement": {
+      "heading": "結算",
+      "totalExpenses": "總支出",
+      "balancesHeading": "每人結餘",
+      "transfersHeading": "轉帳建議",
+      "noTransfers": "已結清，無需轉帳",
+      "colMember": "成員",
+      "colPaid": "已付",
+      "colOwed": "應分攤",
+      "colBalance": "結餘"
+    }
   }
 }

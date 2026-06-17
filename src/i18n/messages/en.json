@@ -495,5 +495,42 @@
     "backToTrip": "Back to Trip",
     "lastUpdated": "Last updated",
     "loadFailed": "Failed to load itinerary"
+  },
+  "export": {
+    "label": "Export",
+    "markdown": "Markdown (.md)",
+    "csv": "CSV (.csv)",
+    "json": "JSON (.json)",
+    "itinerary": {
+      "heading": "Itinerary",
+      "day": "Day {n}",
+      "colDay": "Day",
+      "colTitle": "Title",
+      "colContent": "Content"
+    },
+    "expense": {
+      "heading": "Expenses",
+      "total": "Total",
+      "colDate": "Date",
+      "colDescription": "Description",
+      "colCategory": "Category",
+      "colPayer": "Payer",
+      "colAmountTwd": "Amount (TWD)",
+      "colOriginalAmount": "Original Amount",
+      "colCurrency": "Currency",
+      "colRate": "Rate",
+      "colSplits": "Splits"
+    },
+    "settlement": {
+      "heading": "Settlement",
+      "totalExpenses": "Total Expenses",
+      "balancesHeading": "Balances",
+      "transfersHeading": "Transfers",
+      "noTransfers": "All settled, no transfers needed",
+      "colMember": "Member",
+      "colPaid": "Paid",
+      "colOwed": "Owed",
+      "colBalance": "Balance"
+    }
   }
 }

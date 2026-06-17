@@ -7,8 +7,10 @@ import { useTranslations } from 'next-intl';
 import { ArrowLeft, Plus } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import { ItineraryDayCard, ItineraryDayDialog } from '@/components/trips/detail/itinerary';
+import { ExportMenu } from '@/components/export';
 import type { ItineraryDay } from '@/types';
-import { useItinerary, useTripMembership, useItineraryMutations } from '@/hooks/queries';
+import { useItinerary, useTrip, useTripMembership, useItineraryMutations } from '@/hooks/queries';
+import { exportItinerary, type ExportFormat } from '@/lib/exporters';
 
 import { ItinerarySkeleton } from '@/components/skeletons';
 import { Button } from '@/components/ui/button';
@@ -34,10 +36,23 @@ export default function ItineraryPage() {
   const { toast } = useToast();
 
   const { data: days = [], isLoading: loading, isError } = useItinerary(tripId);
+  const { data: trip } = useTrip(tripId);
   const { currentUser, isAdmin } = useTripMembership(tripId);
   const { create, update, remove } = useItineraryMutations(tripId);
+  const tExport = useTranslations('export');
 
   const error = isError ? tItinerary('loadFailed') : '';
+
+  const buildExport = (format: ExportFormat) =>
+    exportItinerary(days, format, {
+      heading: tExport('itinerary.heading'),
+      day: (n) => tExport('itinerary.day', { n }),
+      columns: {
+        day: tExport('itinerary.colDay'),
+        title: tExport('itinerary.colTitle'),
+        content: tExport('itinerary.colContent'),
+      },
+    });
 
   // Dialog states
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -147,12 +162,19 @@ export default function ItineraryPage() {
         {/* Header with Add button */}
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold">{tItinerary('title')}</h1>
-          {isAdmin && (
-            <Button onClick={handleAddDay} className="gap-2">
-              <Plus className="h-4 w-4" />
-              {tItinerary('addDay')}
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            <ExportMenu
+              build={buildExport}
+              fileBaseName={`${trip?.name ?? 'trip'}-${tExport('itinerary.heading')}`}
+              disabled={days.length === 0}
+            />
+            {isAdmin && (
+              <Button onClick={handleAddDay} className="gap-2">
+                <Plus className="h-4 w-4" />
+                {tItinerary('addDay')}
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Day cards */}

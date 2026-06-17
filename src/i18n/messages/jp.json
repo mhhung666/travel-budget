@@ -500,5 +500,42 @@
     "backToTrip": "旅行詳細に戻る",
     "lastUpdated": "最終更新",
     "loadFailed": "旅程プランの読み込みに失敗しました"
+  },
+  "export": {
+    "label": "エクスポート",
+    "markdown": "Markdown (.md)",
+    "csv": "CSV (.csv)",
+    "json": "JSON (.json)",
+    "itinerary": {
+      "heading": "旅程プラン",
+      "day": "{n}日目",
+      "colDay": "日数",
+      "colTitle": "タイトル",
+      "colContent": "内容"
+    },
+    "expense": {
+      "heading": "支出明細",
+      "total": "合計",
+      "colDate": "日付",
+      "colDescription": "説明",
+      "colCategory": "カテゴリ",
+      "colPayer": "支払者",
+      "colAmountTwd": "金額 (TWD)",
+      "colOriginalAmount": "元の金額",
+      "colCurrency": "通貨",
+      "colRate": "レート",
+      "colSplits": "割り勘明細"
+    },
+    "settlement": {
+      "heading": "精算",
+      "totalExpenses": "総支出",
+      "balancesHeading": "各自の収支",
+      "transfersHeading": "送金提案",
+      "noTransfers": "精算済み、送金不要",
+      "colMember": "メンバー",
+      "colPaid": "支払済",
+      "colOwed": "負担額",
+      "colBalance": "収支"
+    }
   }
 }

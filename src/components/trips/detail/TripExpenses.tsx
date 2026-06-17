@@ -2,8 +2,10 @@
 
 import { ChevronDown, ChevronUp, Plus, Edit2, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { getCategoryIcon } from '@/constants/categories';
+import { getCategoryIcon, CATEGORY_CODES } from '@/constants/categories';
 import type { Expense, Member } from '@/types';
+import { ExportMenu } from '@/components/export';
+import { exportExpenses, type ExportFormat } from '@/lib/exporters';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -22,6 +24,7 @@ import { Label } from '@/components/ui/label';
 interface TripExpensesProps {
   expenses: Expense[];
   members: Member[];
+  tripName?: string;
   isCurrentUserMember: boolean;
   filterMemberId: string | 'all';
   onFilterChange: (id: string | 'all') => void;
@@ -35,6 +38,7 @@ interface TripExpensesProps {
 export default function TripExpenses({
   expenses,
   members,
+  tripName,
   isCurrentUserMember,
   filterMemberId,
   onFilterChange,
@@ -45,6 +49,26 @@ export default function TripExpenses({
   onToggleExpand,
 }: TripExpensesProps) {
   const tExpense = useTranslations('expense');
+  const tExport = useTranslations('export');
+  const tCategory = useTranslations('category');
+
+  const buildExport = (format: ExportFormat) =>
+    exportExpenses(expenses, format, {
+      heading: tExport('expense.heading'),
+      total: tExport('expense.total'),
+      columns: {
+        date: tExport('expense.colDate'),
+        description: tExport('expense.colDescription'),
+        category: tExport('expense.colCategory'),
+        payer: tExport('expense.colPayer'),
+        amountTwd: tExport('expense.colAmountTwd'),
+        originalAmount: tExport('expense.colOriginalAmount'),
+        currency: tExport('expense.colCurrency'),
+        rate: tExport('expense.colRate'),
+        splits: tExport('expense.colSplits'),
+      },
+      category: (key) => (CATEGORY_CODES.includes(key) ? tCategory(key) : key),
+    });
 
   return (
     <Card>
@@ -89,18 +113,26 @@ export default function TripExpenses({
                 </Select>
               </div>
 
-              {isCurrentUserMember && (
-                <Button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onAdd(e);
-                  }}
-                  className="w-full sm:w-auto"
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  {tExpense('add')}
-                </Button>
-              )}
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <ExportMenu
+                  build={buildExport}
+                  fileBaseName={`${tripName ?? 'trip'}-${tExport('expense.heading')}`}
+                  disabled={expenses.length === 0}
+                  size="default"
+                />
+                {isCurrentUserMember && (
+                  <Button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onAdd(e);
+                    }}
+                    className="w-full sm:w-auto"
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    {tExpense('add')}
+                  </Button>
+                )}
+              </div>
             </div>
 
             {(() => {
