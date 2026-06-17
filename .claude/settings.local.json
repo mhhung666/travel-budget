@@ -39,7 +39,10 @@
       "Bash(pnpm exec *)",
       "Bash(pnpm lint *)",
       "Bash(echo \"exit code: $?\")",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Bash(git push *)",
+      "Bash(command -v gh)",
+      "Bash(gh auth *)"
     ]
   }
 }

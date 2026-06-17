@@ -1,4 +1,4 @@
-import { SignJWT, jwtVerify } from 'jose';
+import { SignJWT, jwtVerify, type JWTPayload } from 'jose';
 import { cookies } from 'next/headers';
 import { NextRequest } from 'next/server';
 import { getEnv } from './env';
@@ -20,7 +20,7 @@ export interface SessionPayload {
 }
 
 export async function encrypt(payload: SessionPayload) {
-  return await new SignJWT(payload as any)
+  return await new SignJWT(payload as unknown as JWTPayload)
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime('7d')
@@ -32,8 +32,8 @@ export async function decrypt(token: string): Promise<SessionPayload | null> {
     const { payload } = await jwtVerify(token, getKey(), {
       algorithms: ['HS256'],
     });
-    return payload as any;
-  } catch (error) {
+    return payload as unknown as SessionPayload;
+  } catch {
     return null;
   }
 }

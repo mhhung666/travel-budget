@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { MapPin, Loader2, ChevronsUpDown, Check } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button';
 import {
   Command,
   CommandEmpty,
-  CommandGroup,
   CommandInput,
   CommandItem,
   CommandList,

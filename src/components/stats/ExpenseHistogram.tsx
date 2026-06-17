@@ -15,7 +15,6 @@ import {
 import { aggregateExpensesByInterval, suggestInterval } from '@/lib/histogram';
 import type { CategoryStat, TimeInterval, HistogramDataPoint } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 interface ExpenseHistogramProps {

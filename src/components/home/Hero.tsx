@@ -1,11 +1,9 @@
 'use client';
 
 import Image from 'next/image';
-import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 
 export default function Hero() {
-    const router = useRouter();
     const t = useTranslations('home');
 
     return (

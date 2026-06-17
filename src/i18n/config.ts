@@ -1,5 +1,5 @@
 import { getRequestConfig } from 'next-intl/server';
-import { routing, locales, defaultLocale } from './routing';
+import { locales, defaultLocale } from './routing';
 import type { Locale } from './routing';
 
 // 重新導出供其他模組使用

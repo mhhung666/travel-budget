@@ -13,7 +13,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import Navbar from '@/components/layout/Navbar';
 
 export default function QuickJoinPage() {
@@ -59,7 +58,7 @@ export default function QuickJoinPage() {
       } else {
         setTrip(tripResult.data);
       }
-    } catch (err) {
+    } catch {
       setError(tError('loadFailed'));
     } finally {
       setLoading(false);

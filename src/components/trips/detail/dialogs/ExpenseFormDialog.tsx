@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, DollarSign, RefreshCw, Loader2 } from 'lucide-react';
+import { DollarSign, RefreshCw, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { CATEGORIES, DEFAULT_CATEGORY } from '@/constants/categories';
 import type { Expense, Member } from '@/types';
@@ -104,7 +104,7 @@ export default function ExpenseFormDialog({
                     setExchangeRates(data.rates);
                 }
             }
-        } catch (err) {
+        } catch {
             setRatesError('獲取匯率失敗');
         } finally {
             setLoadingRates(false);

@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
   createTripSchema,
-  updateTripSchema,
   createExpenseSchema,
   updateExpenseSchema,
   loginSchema,

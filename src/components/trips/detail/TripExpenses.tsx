@@ -54,7 +54,6 @@ export default function TripExpenses({
     onToggleExpand,
 }: TripExpensesProps) {
     const tExpense = useTranslations('expense');
-    const tCommon = useTranslations('common');
 
     return (
         <Card>

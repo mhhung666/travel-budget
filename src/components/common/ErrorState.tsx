@@ -2,7 +2,7 @@
 
 import { RefreshCcw, ArrowLeft, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 
 export interface ErrorStateProps {

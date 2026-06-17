@@ -36,7 +36,7 @@ export default function TripsPage() {
         description: t('idCopied'),
         className: "bg-green-500 text-white border-green-600",
       });
-    } catch (err) {
+    } catch {
       toast({
         variant: "destructive",
         description: t('copyFailed'),

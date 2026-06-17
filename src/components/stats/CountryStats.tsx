@@ -7,11 +7,9 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
-import { Card } from '@/components/ui/card';
-import { Globe, MapPin, ChevronDown } from 'lucide-react';
+import { Globe, MapPin } from 'lucide-react';
 import { getCountryFlag } from '@/constants/countries';
 import type { CountryStat } from '@/types';
-import { cn } from '@/lib/utils';
 
 interface CountryStatsProps {
   countries: CountryStat[];
@@ -43,7 +41,7 @@ export default function CountryStats({
       <div className="flex flex-col gap-3">
         {countries.length > 0 ? (
           <Accordion type="single" collapsible className="space-y-3">
-            {countries.map((country, index) => (
+            {countries.map((country) => (
               <AccordionItem
                 key={country.country}
                 value={country.country}
