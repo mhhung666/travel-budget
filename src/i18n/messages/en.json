@@ -24,6 +24,9 @@
     "toggleAll": "Select All",
     "hideDetails": "Hide Details",
     "moreDetails": "More Details",
+    "errorTitle": "Error",
+    "deleted": "Deleted",
+    "copied": "Copied to clipboard!",
     "error": {
       "splitExceedsTotal": "Total split amount exceeds expense amount",
       "splitNotFullyAllocated": "Remaining amount not fully allocated",

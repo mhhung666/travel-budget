@@ -99,7 +99,9 @@
 **問題**：各頁載入時只顯示置中的單一 spinner，與最終版面落差大、易造成 layout shift。
 **修復（已完成）**：新增 [Skeleton](../src/components/ui/skeleton.tsx) 基礎元件與 [src/components/skeletons/](../src/components/skeletons/index.tsx) 一組「版面型」骨架（含與固定 Navbar 等高的中性 faux navbar，避免登入按鈕閃爍與位移）。六個全頁 spinner 改為對應骨架：trips 列表（`TripsPageSkeleton`）、trip 詳情（`TripDetailSkeleton`）、settlement（`SettlementSkeleton`）、itinerary（`ItinerarySkeleton`）、trip 設定（`TripSettingsSkeleton`）、帳號設定（`AccountSettingsSkeleton`）；stats 移除頁層 spinner，改由 [StatsDashboard](../src/components/stats/StatsDashboard.tsx) 內部渲染 `StatsDashboardSkeleton`（Navbar 維持顯示）。按鈕內的 inline spinner（送出中）刻意保留。
 
-### 12. Toast 訊息全面走 i18n（勿硬編碼）。
+### 12. ✅ Toast 訊息全面走 i18n
+**問題**：少數 toast 仍有硬編碼英文字串（`'Error'`／`'Deleted'`／`"Code copied to clipboard!"`），未走 i18n。
+**修復（已完成）**：新增 `common.errorTitle`／`common.deleted`／`common.copied` 三組四語系字串，替換以下硬編碼：[useTripDetailPage](../src/hooks/useTripDetailPage.ts)（錯誤 toast 標題、刪除成功標題）、[useTripSettingsPage](../src/hooks/useTripSettingsPage.ts)（兩處錯誤 toast 標題）、[itinerary/page.tsx](../src/app/[locale]/trips/[id]/itinerary/page.tsx)（刪除錯誤標題）、[ShareCode](../src/components/trips/ShareCode.tsx)（複製成功訊息）。其餘 toast 早已走 `t(...)`。
 
 ---
 

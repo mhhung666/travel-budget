@@ -26,6 +26,7 @@ export function useTripDetailPage(tripId: string) {
   const tExpense = useTranslations('expense');
   const tTrip = useTranslations('trip');
   const tError = useTranslations('error');
+  const tCommon = useTranslations('common');
 
   const { toast } = useToast();
 
@@ -53,7 +54,7 @@ export function useTripDetailPage(tripId: string) {
   const toastError = (err: unknown) => {
     toast({
       variant: 'destructive',
-      title: 'Error',
+      title: tCommon('errorTitle'),
       description: err instanceof Error ? err.message : String(err),
     });
   };
@@ -114,7 +115,7 @@ export function useTripDetailPage(tripId: string) {
       await expenseMutations.remove.mutateAsync(expenseId);
       deleteExpenseDialog.closeDialog();
       toast({
-        title: 'Deleted',
+        title: tCommon('deleted'),
         description: tExpense('success.deleted'),
       });
     } catch (err: unknown) {

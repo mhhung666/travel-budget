@@ -75,7 +75,7 @@ export default function ItineraryPage() {
       setDeletingDay(null);
     } catch (err: unknown) {
       toast({
-        title: "Error",
+        title: tCommon('errorTitle'),
         description: err instanceof Error ? err.message : String(err),
         variant: "destructive"
       });

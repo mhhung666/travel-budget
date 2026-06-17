@@ -25,6 +25,7 @@ export function useTripSettingsPage(tripId: string) {
   const tTrip = useTranslations('trip');
   const tError = useTranslations('error');
   const tAction = useTranslations('action');
+  const tCommon = useTranslations('common');
 
   const { toast } = useToast();
 
@@ -64,7 +65,7 @@ export function useTripSettingsPage(tripId: string) {
   const toastError = (err: unknown) => {
     toast({
       variant: 'destructive',
-      title: 'Error',
+      title: tCommon('errorTitle'),
       description: err instanceof Error ? err.message : String(err),
     });
   };
@@ -172,7 +173,7 @@ export function useTripSettingsPage(tripId: string) {
     } catch {
       toast({
         variant: 'destructive',
-        title: 'Error',
+        title: tCommon('errorTitle'),
         description: tAction('copyFailed'),
       });
     }

@@ -24,6 +24,9 @@
     "toggleAll": "すべて選択",
     "hideDetails": "詳細を隠す",
     "moreDetails": "詳細を表示",
+    "errorTitle": "エラー",
+    "deleted": "削除しました",
+    "copied": "クリップボードにコピーしました！",
     "error": {
       "splitExceedsTotal": "割り勘の合計が支出額を超えています",
       "splitNotFullyAllocated": "残額が完全に割り当てられていません",
