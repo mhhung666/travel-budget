@@ -9,6 +9,7 @@ export const ROUTES = {
 
   // Protected routes
   TRIPS: '/trips',
+  MAP: '/map',
   TRIP_DETAIL: (id: string | number) => `/trips/${id}`,
   TRIP_SETTLEMENT: (id: string | number) => `/trips/${id}/settlement`,
   TRIP_ITINERARY: (id: string | number) => `/trips/${id}/itinerary`,
@@ -42,7 +43,7 @@ export const ROUTES = {
 /**
  * Routes that require authentication
  */
-export const PROTECTED_ROUTES = ['/trips', '/settings'];
+export const PROTECTED_ROUTES = ['/trips', '/map', '/settings'];
 
 /**
  * Routes that should redirect to /trips if already authenticated
