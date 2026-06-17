@@ -9,6 +9,7 @@ export const CURRENCIES: Currency[] = [
   { code: 'USD', symbol: '$', nameKey: 'currency.USD' },
   { code: 'EUR', symbol: '€', nameKey: 'currency.EUR' },
   { code: 'HKD', symbol: 'HK$', nameKey: 'currency.HKD' },
+  { code: 'THB', symbol: '฿', nameKey: 'currency.THB' },
 ] as const;
 
 /**

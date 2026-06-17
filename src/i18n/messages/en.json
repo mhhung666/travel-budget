@@ -327,11 +327,13 @@
     "USD": "USD",
     "EUR": "EUR",
     "HKD": "HKD",
+    "THB": "THB",
     "TWD_full": "TWD - Taiwan Dollar",
     "JPY_full": "JPY - Japanese Yen",
     "USD_full": "USD - US Dollar",
     "EUR_full": "EUR - Euro",
-    "HKD_full": "HKD - Hong Kong Dollar"
+    "HKD_full": "HKD - Hong Kong Dollar",
+    "THB_full": "THB - Thai Baht"
   },
   "category": {
     "accommodation": "Accommodation",

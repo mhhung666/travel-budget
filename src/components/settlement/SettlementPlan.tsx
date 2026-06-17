@@ -76,6 +76,7 @@ export default function SettlementPlan({
                             <SelectItem value="USD">USD</SelectItem>
                             <SelectItem value="EUR">EUR</SelectItem>
                             <SelectItem value="HKD">HKD</SelectItem>
+                            <SelectItem value="THB">THB</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>

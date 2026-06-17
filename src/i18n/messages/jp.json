@@ -294,11 +294,13 @@
     "USD": "米ドル",
     "EUR": "ユーロ",
     "HKD": "香港ドル",
+    "THB": "タイバーツ",
     "TWD_full": "TWD - 台湾ドル",
     "JPY_full": "JPY - 日本円",
     "USD_full": "USD - 米ドル",
     "EUR_full": "EUR - ユーロ",
-    "HKD_full": "HKD - 香港ドル"
+    "HKD_full": "HKD - 香港ドル",
+    "THB_full": "THB - タイバーツ"
   },
   "category": {
     "accommodation": "宿泊",

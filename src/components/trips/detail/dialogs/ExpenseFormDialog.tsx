@@ -325,6 +325,7 @@ export default function ExpenseFormDialog({
         { code: 'USD', label: 'USD' },
         { code: 'EUR', label: 'EUR' },
         { code: 'HKD', label: 'HKD' },
+        { code: 'THB', label: 'THB' },
     ];
 
     return (

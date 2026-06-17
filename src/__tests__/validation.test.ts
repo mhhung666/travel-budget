@@ -127,7 +127,7 @@ describe('createExpenseSchema', () => {
   });
 
   it('should accept all valid currencies', () => {
-    for (const currency of ['TWD', 'JPY', 'USD', 'EUR', 'HKD']) {
+    for (const currency of ['TWD', 'JPY', 'USD', 'EUR', 'HKD', 'THB']) {
       const result = createExpenseSchema.safeParse({
         ...validExpense,
         currency,

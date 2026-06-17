@@ -46,7 +46,8 @@
       "Bash(git config *)",
       "Bash(git remote *)",
       "Bash(echo \"exit:$?\")",
-      "Bash(echo \"lint exit: $?\")"
+      "Bash(echo \"lint exit: $?\")",
+      "Bash(echo \"remote: $\\(git remote get-url origin\\)\")"
     ]
   }
 }
