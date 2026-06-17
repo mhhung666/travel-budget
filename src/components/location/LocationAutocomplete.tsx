@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
 import { MapPin, Loader2, ChevronsUpDown, Check } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -46,6 +47,20 @@ export interface LocationOption {
   country_code?: string;
 }
 
+// 將 app 的 next-intl locale 對應到 Nominatim 的 accept-language。
+// 帶上 fallback 鏈：偏好的書寫系統優先，缺值時逐步退化到 en，
+// 避免 OSM 沒有對應標籤時直接掉成空白。
+const LOCALE_TO_ACCEPT_LANGUAGE: Record<string, string> = {
+  zh: 'zh-Hant,zh-TW,zh,en', // 繁體優先
+  'zh-CN': 'zh-Hans,zh-CN,zh,en', // 簡體優先
+  jp: 'ja,en',
+  en: 'en',
+};
+
+function acceptLanguageFor(locale: string): string {
+  return LOCALE_TO_ACCEPT_LANGUAGE[locale] ?? 'en';
+}
+
 interface LocationAutocompleteProps {
   value: LocationOption | null;
   onChange: (location: LocationOption | null) => void;
@@ -65,6 +80,8 @@ export default function LocationAutocomplete({
   error = false,
   disabled = false,
 }: LocationAutocompleteProps) {
+  const locale = useLocale();
+  const t = useTranslations('location');
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [options, setOptions] = useState<LocationOption[]>([]);
@@ -84,7 +101,7 @@ export default function LocationAutocomplete({
             format: 'json',
             addressdetails: '1',
             limit: '5',
-            'accept-language': 'zh-TW,en', // 優先使用繁體中文
+            'accept-language': acceptLanguageFor(locale), // 跟著 app 當前語言
           }),
         {
           headers: {
@@ -136,7 +153,9 @@ export default function LocationAutocomplete({
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [query]);
+    // 包含 locale：切換語言時用新語言重新搜尋
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, locale]);
 
   return (
     <div className="grid gap-2">
@@ -158,29 +177,33 @@ export default function LocationAutocomplete({
             {value ? (
               <span className="truncate">{value.name}</span>
             ) : (
-              placeholder || 'Select location...'
+              placeholder || t('selectPlaceholder')
             )}
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
           <Command shouldFilter={false}>
-            <CommandInput placeholder="Search location..." value={query} onValueChange={setQuery} />
+            <CommandInput
+              placeholder={t('searchPlaceholder')}
+              value={query}
+              onValueChange={setQuery}
+            />
             <CommandList>
               {loading && (
                 <div className="py-6 text-center text-sm text-muted-foreground flex items-center justify-center">
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Searching...
+                  {t('searching')}
                 </div>
               )}
 
               {!loading && options.length === 0 && query.length >= 2 && (
-                <CommandEmpty>No location found.</CommandEmpty>
+                <CommandEmpty>{t('noResults')}</CommandEmpty>
               )}
 
               {!loading && options.length === 0 && query.length < 2 && (
                 <div className="py-6 text-center text-sm text-muted-foreground">
-                  Please enter at least 2 characters.
+                  {t('minChars')}
                 </div>
               )}
 

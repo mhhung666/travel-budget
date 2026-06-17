@@ -102,6 +102,13 @@
       "updateFailed": "Update failed"
     }
   },
+  "location": {
+    "searchPlaceholder": "Search location...",
+    "searching": "Searching...",
+    "noResults": "No location found.",
+    "minChars": "Please enter at least 2 characters.",
+    "selectPlaceholder": "Select location..."
+  },
   "trips": {
     "title": "My Trips",
     "list": "Trip List",

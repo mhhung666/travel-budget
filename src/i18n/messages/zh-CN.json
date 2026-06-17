@@ -102,6 +102,13 @@
       "updateFailed": "更新失败"
     }
   },
+  "location": {
+    "searchPlaceholder": "搜索地点...",
+    "searching": "搜索中...",
+    "noResults": "找不到地点",
+    "minChars": "请至少输入 2 个字符",
+    "selectPlaceholder": "选择地点..."
+  },
   "trips": {
     "title": "我的旅行",
     "list": "旅行列表",

@@ -102,6 +102,13 @@
       "updateFailed": "更新に失敗しました"
     }
   },
+  "location": {
+    "searchPlaceholder": "場所を検索...",
+    "searching": "検索中...",
+    "noResults": "場所が見つかりません",
+    "minChars": "2文字以上入力してください",
+    "selectPlaceholder": "場所を選択..."
+  },
   "trips": {
     "title": "旅行一覧",
     "list": "旅行リスト",
