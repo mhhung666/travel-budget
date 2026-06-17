@@ -6,7 +6,6 @@ import { useTranslations } from 'next-intl';
 import Navbar from '@/components/layout/Navbar';
 import { StatsDashboard } from '@/components/stats';
 import { useCurrentUser, useStats } from '@/hooks/queries';
-import { Loader2 } from 'lucide-react';
 
 export default function StatsPage() {
   const router = useRouter();
@@ -37,14 +36,6 @@ export default function StatsPage() {
     setStartDate(`${year}-01-01`);
     setEndDate(`${year}-12-31`);
   };
-
-  if (loading && !stats) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="w-16 h-16 animate-spin text-primary" />
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-background pb-16">

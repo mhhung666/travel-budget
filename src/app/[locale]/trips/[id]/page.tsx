@@ -3,7 +3,7 @@
 import { useParams } from 'next/navigation';
 import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
-import { ArrowLeft, Settings, Map, Calculator, Loader2 } from 'lucide-react';
+import { ArrowLeft, Settings, Map, Calculator } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import {
   TripHeader,
@@ -19,6 +19,7 @@ import {
 import { useTripDetailPage } from '@/hooks/useTripDetailPage';
 
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
+import { TripDetailSkeleton } from '@/components/skeletons';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
@@ -57,11 +58,7 @@ export default function TripDetailPage() {
   } = useTripDetailPage(tripId);
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-10 w-10 animate-spin text-primary" />
-      </div>
-    );
+    return <TripDetailSkeleton />;
   }
 
   if (error) {

@@ -7,7 +7,7 @@ import CategoryStats from './CategoryStats';
 import CountryStats from './CountryStats';
 import ExpenseHistogram from './ExpenseHistogram';
 import type { StatsData } from '@/types';
-import { Loader2 } from 'lucide-react';
+import { StatsDashboardSkeleton } from '@/components/skeletons';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface StatsDashboardProps {
@@ -51,11 +51,7 @@ export default function StatsDashboard({
     };
 
     if (loading && !stats) {
-        return (
-            <div className="min-h-[60vh] flex items-center justify-center">
-                <Loader2 className="w-12 h-12 animate-spin text-primary" />
-            </div>
-        );
+        return <StatsDashboardSkeleton />;
     }
 
     return (

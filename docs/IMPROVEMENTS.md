@@ -95,7 +95,9 @@
 **問題**：刪除支出原本用原生 `confirm()`，與其他操作的 Dialog 風格不一致。
 **修復（已完成）**：刪除支出改用統一的 [ConfirmDialog](../src/components/common/ConfirmDialog.tsx)（`severity="error"`、含 loading 狀態）。[useTripDetailPage](../src/hooks/useTripDetailPage.ts) 改為以 `deleteExpenseDialog`（`useDialog<string>` 存 expenseId）管理狀態，`handleDeleteExpense` 開啟對話框、`confirmDeleteExpense` 執行刪除；按鈕文字走既有 i18n（`expense.delete`／`common.delete`／`common.cancel`）。
 
-### 11. Loading Skeleton 取代單一 spinner，提升載入體感。
+### 11. ✅ Loading Skeleton 取代單一 spinner
+**問題**：各頁載入時只顯示置中的單一 spinner，與最終版面落差大、易造成 layout shift。
+**修復（已完成）**：新增 [Skeleton](../src/components/ui/skeleton.tsx) 基礎元件與 [src/components/skeletons/](../src/components/skeletons/index.tsx) 一組「版面型」骨架（含與固定 Navbar 等高的中性 faux navbar，避免登入按鈕閃爍與位移）。六個全頁 spinner 改為對應骨架：trips 列表（`TripsPageSkeleton`）、trip 詳情（`TripDetailSkeleton`）、settlement（`SettlementSkeleton`）、itinerary（`ItinerarySkeleton`）、trip 設定（`TripSettingsSkeleton`）、帳號設定（`AccountSettingsSkeleton`）；stats 移除頁層 spinner，改由 [StatsDashboard](../src/components/stats/StatsDashboard.tsx) 內部渲染 `StatsDashboardSkeleton`（Navbar 維持顯示）。按鈕內的 inline spinner（送出中）刻意保留。
 
 ### 12. Toast 訊息全面走 i18n（勿硬編碼）。
 
