@@ -91,8 +91,9 @@
 
 ## P3 — 開發體驗
 
-### 10. ⚠️ 統一刪除確認 UI
-[trips/[id]/page.tsx](../src/app/[locale]/trips/[id]/page.tsx) 仍用原生 `confirm()`，與其他操作的 Dialog 風格不一致。改用統一的 `ConfirmDialog`。
+### 10. ✅ 統一刪除確認 UI
+**問題**：刪除支出原本用原生 `confirm()`，與其他操作的 Dialog 風格不一致。
+**修復（已完成）**：刪除支出改用統一的 [ConfirmDialog](../src/components/common/ConfirmDialog.tsx)（`severity="error"`、含 loading 狀態）。[useTripDetailPage](../src/hooks/useTripDetailPage.ts) 改為以 `deleteExpenseDialog`（`useDialog<string>` 存 expenseId）管理狀態，`handleDeleteExpense` 開啟對話框、`confirmDeleteExpense` 執行刪除；按鈕文字走既有 i18n（`expense.delete`／`common.delete`／`common.cancel`）。
 
 ### 11. Loading Skeleton 取代單一 spinner，提升載入體感。
 

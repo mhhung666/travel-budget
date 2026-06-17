@@ -43,6 +43,7 @@ export function useTripDetailPage(tripId: string) {
   // --- Dialog state ---
   const addExpenseDialog = useDialog();
   const editExpenseDialog = useDialog<Expense>();
+  const deleteExpenseDialog = useDialog<string>();
   const editTripDialog = useDialog();
 
   // --- Filter & expand state ---
@@ -101,11 +102,17 @@ export function useTripDetailPage(tripId: string) {
     });
   };
 
-  const handleDeleteExpense = async (expenseId: string) => {
-    if (!confirm(tExpense('confirm.delete'))) return;
+  const handleDeleteExpense = (expenseId: string) => {
+    deleteExpenseDialog.openDialog(expenseId);
+  };
+
+  const confirmDeleteExpense = async () => {
+    const expenseId = deleteExpenseDialog.data;
+    if (!expenseId) return;
 
     try {
       await expenseMutations.remove.mutateAsync(expenseId);
+      deleteExpenseDialog.closeDialog();
       toast({
         title: 'Deleted',
         description: tExpense('success.deleted'),
@@ -144,7 +151,9 @@ export function useTripDetailPage(tripId: string) {
     // dialogs
     addExpenseDialog,
     editExpenseDialog,
+    deleteExpenseDialog,
     editTripDialog,
+    isDeletingExpense: expenseMutations.remove.isPending,
     // filter & expand
     filterMemberId,
     setFilterMemberId,
@@ -154,6 +163,7 @@ export function useTripDetailPage(tripId: string) {
     handleAddExpense,
     handleEditExpense,
     handleDeleteExpense,
+    confirmDeleteExpense,
     handleEditTrip,
   };
 }

@@ -18,6 +18,7 @@ import {
 
 import { useTripDetailPage } from '@/hooks/useTripDetailPage';
 
+import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
@@ -27,6 +28,8 @@ export default function TripDetailPage() {
   const tripId = params.id as string;
   const tTrip = useTranslations('trip');
   const tTrips = useTranslations('trips');
+  const tExpense = useTranslations('expense');
+  const tCommon = useTranslations('common');
 
   const {
     trip,
@@ -39,7 +42,9 @@ export default function TripDetailPage() {
     error,
     addExpenseDialog,
     editExpenseDialog,
+    deleteExpenseDialog,
     editTripDialog,
+    isDeletingExpense,
     filterMemberId,
     setFilterMemberId,
     expensesExpanded,
@@ -47,6 +52,7 @@ export default function TripDetailPage() {
     handleAddExpense,
     handleEditExpense,
     handleDeleteExpense,
+    confirmDeleteExpense,
     handleEditTrip,
   } = useTripDetailPage(tripId);
 
@@ -187,6 +193,18 @@ export default function TripDetailPage() {
         onClose={editTripDialog.closeDialog}
         onSubmit={handleEditTrip}
         trip={trip}
+      />
+
+      <ConfirmDialog
+        open={deleteExpenseDialog.open}
+        title={tExpense('delete')}
+        message={`${tExpense('confirm.delete')} ${tExpense('confirm.deleteMessage')}`}
+        severity="error"
+        confirmText={tCommon('delete')}
+        cancelText={tCommon('cancel')}
+        loading={isDeletingExpense}
+        onConfirm={confirmDeleteExpense}
+        onCancel={deleteExpenseDialog.closeDialog}
       />
     </div>
   );
