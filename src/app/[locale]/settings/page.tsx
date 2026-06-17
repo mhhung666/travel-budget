@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from '@/i18n/navigation';
 import { ArrowLeft, User, Lock, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -11,14 +11,12 @@ import Navbar from '@/components/layout/Navbar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Separator } from '@/components/ui/separator';
 
 export default function SettingsPage() {
   const router = useRouter();
   const t = useTranslations('settings');
-  const tCommon = useTranslations('common');
   const [user, setUser] = useState<AuthUserWithCreatedAt | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -35,11 +33,7 @@ export default function SettingsPage() {
   const [updatingProfile, setUpdatingProfile] = useState(false);
   const [updatingPassword, setUpdatingPassword] = useState(false);
 
-  useEffect(() => {
-    fetchUser();
-  }, []);
-
-  const fetchUser = async () => {
+  const fetchUser = useCallback(async () => {
     try {
       const result = await getCurrentUser();
       if (result.success && result.data) {
@@ -52,7 +46,12 @@ export default function SettingsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 掛載時抓取使用者資料，為刻意的初始化副作用
+    fetchUser();
+  }, [fetchUser]);
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();

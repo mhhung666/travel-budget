@@ -39,6 +39,7 @@ export async function GET() {
       USD: 1 / (data.rates.USD || 1),
       EUR: 1 / (data.rates.EUR || 1),
       HKD: 1 / (data.rates.HKD || 1),
+      THB: 1 / (data.rates.THB || 1),
     };
 
     // 更新缓存
@@ -75,6 +76,7 @@ export async function GET() {
         USD: 31.5,
         EUR: 34.5,
         HKD: 4.0,
+        THB: 0.9,
       },
       fallback: true,
     }, { status: 500 });

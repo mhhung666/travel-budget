@@ -56,6 +56,7 @@ export default function EditTripDialog({
 
     useEffect(() => {
         if (open && trip) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- 開啟對話框時用 trip 帶入表單，為刻意的同步
             setForm({
                 name: trip.name,
                 description: trip.description || '',

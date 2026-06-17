@@ -5,7 +5,6 @@ import { Member } from '@/types';
 import {
     Dialog,
     DialogContent,
-    DialogDescription,
     DialogFooter,
     DialogHeader,
     DialogTitle,

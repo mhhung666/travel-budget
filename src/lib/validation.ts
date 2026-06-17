@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 // Currency codes
-export const CURRENCIES = ['TWD', 'JPY', 'USD', 'EUR', 'HKD'] as const;
+export const CURRENCIES = ['TWD', 'JPY', 'USD', 'EUR', 'HKD', 'THB'] as const;
 export type CurrencyCode = (typeof CURRENCIES)[number];
 
 // Expense categories

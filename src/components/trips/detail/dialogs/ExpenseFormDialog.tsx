@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, DollarSign, RefreshCw, Loader2 } from 'lucide-react';
+import { DollarSign, RefreshCw, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { CATEGORIES, DEFAULT_CATEGORY } from '@/constants/categories';
 import type { Expense, Member } from '@/types';
@@ -104,7 +104,7 @@ export default function ExpenseFormDialog({
                     setExchangeRates(data.rates);
                 }
             }
-        } catch (err) {
+        } catch {
             setRatesError('獲取匯率失敗');
         } finally {
             setLoadingRates(false);
@@ -115,6 +115,7 @@ export default function ExpenseFormDialog({
         if (open) {
             if (mode === 'edit' && expense) {
                 // Edit mode: Load existing expense data
+                // eslint-disable-next-line react-hooks/set-state-in-effect -- 開啟對話框時帶入支出資料，為刻意的同步
                 setForm({
                     payer_id: expense.payer_id,
                     original_amount: expense.original_amount.toString(),
@@ -324,6 +325,7 @@ export default function ExpenseFormDialog({
         { code: 'USD', label: 'USD' },
         { code: 'EUR', label: 'EUR' },
         { code: 'HKD', label: 'HKD' },
+        { code: 'THB', label: 'THB' },
     ];
 
     return (

@@ -40,7 +40,6 @@ export default function TripSettingsPage() {
   const router = useRouter();
   const params = useParams();
   const tripId = params.id as string;
-  const t = useTranslations();
   const tMember = useTranslations('member');
   const tTrip = useTranslations('trip');
   const tTrips = useTranslations('trips');
@@ -88,22 +87,6 @@ export default function TripSettingsPage() {
   // Regenerate share link
   const [regenerateDialogOpen, setRegenerateDialogOpen] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
-
-  const copyHashCode = async () => {
-    try {
-      const shareUrl = `${window.location.origin}/join/${trip?.hash_code || ''}`;
-      await navigator.clipboard.writeText(shareUrl);
-      toast({
-        title: tAction('copySuccess'),
-      });
-    } catch (err) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: tAction('copyFailed'),
-      });
-    }
-  };
 
   const handleRegenerateShareCode = async () => {
     setIsRegenerating(true);
@@ -199,7 +182,7 @@ export default function TripSettingsPage() {
       toast({
         title: tMember('inviteLinkCopied'),
       });
-    } catch (err) {
+    } catch {
       toast({
         variant: "destructive",
         title: "Error",
@@ -286,7 +269,6 @@ export default function TripSettingsPage() {
           {/* 分享功能 */}
           <TripShare
             tripHashCode={trip.hash_code}
-            onCopy={copyHashCode}
             canRegenerate={!!isCurrentUserAdmin}
             onRegenerate={() => setRegenerateDialogOpen(true)}
             isRegenerating={isRegenerating}

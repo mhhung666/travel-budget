@@ -4,12 +4,13 @@
   "description": "一個輕量化的旅行記帳與分帳應用程式,適合多人出國旅行時使用。",
   "main": "index.js",
   "type": "module",
+  "packageManager": "pnpm@11.7.0",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "lint:fix": "next lint --fix",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx,json,css}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,json,css}\"",
     "test": "vitest",
@@ -72,7 +73,6 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3.2.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",
@@ -83,7 +83,7 @@
     "@vitejs/plugin-react": "^4.5.2",
     "autoprefixer": "^10.4.24",
     "eslint": "^9.28.0",
-    "eslint-config-next": "^15.3.2",
+    "eslint-config-next": "^16.1.1",
     "eslint-config-prettier": "^10.1.5",
     "jsdom": "^26.1.0",
     "migrate-mongo": "^14.0.7",

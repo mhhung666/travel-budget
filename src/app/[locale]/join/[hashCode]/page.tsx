@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useRouter } from '@/i18n/navigation';
 import { UserPlus, Info, Users, Loader2, ArrowLeft } from 'lucide-react';
@@ -13,7 +13,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import Navbar from '@/components/layout/Navbar';
 
 export default function QuickJoinPage() {
@@ -30,11 +29,7 @@ export default function QuickJoinPage() {
   const [isJoining, setIsJoining] = useState(false);
   const [alreadyMember, setAlreadyMember] = useState(false);
 
-  useEffect(() => {
-    checkAuthAndLoadTrip();
-  }, []);
-
-  const checkAuthAndLoadTrip = async () => {
+  const checkAuthAndLoadTrip = useCallback(async () => {
     try {
       const authResult = await getCurrentUser();
       if (!authResult.success || !authResult.data) {
@@ -59,12 +54,17 @@ export default function QuickJoinPage() {
       } else {
         setTrip(tripResult.data);
       }
-    } catch (err) {
+    } catch {
       setError(tError('loadFailed'));
     } finally {
       setLoading(false);
     }
-  };
+  }, [hashCode, router, t, tError]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 掛載時載入行程資料，為刻意的初始化副作用
+    checkAuthAndLoadTrip();
+  }, [checkAuthAndLoadTrip]);
 
   const handleJoin = async () => {
     if (!trip) return;

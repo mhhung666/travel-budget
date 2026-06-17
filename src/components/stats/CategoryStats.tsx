@@ -6,11 +6,9 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { Card } from '@/components/ui/card';
-import { ChevronDown, Grid2X2, Receipt, Calendar } from 'lucide-react';
+import { Grid2X2, Receipt, Calendar } from 'lucide-react';
 import { getCategoryIcon } from '@/constants/categories';
 import type { CategoryStat } from '@/types';
-import { cn } from '@/lib/utils';
 
 interface CategoryStatsProps {
   categoryStats: CategoryStat[];
@@ -43,7 +41,7 @@ export default function CategoryStats({
       <div className="flex flex-col gap-3">
         {categoryStats.length > 0 ? (
           <Accordion type="single" collapsible className="space-y-3">
-            {categoryStats.map((cat, index) => (
+            {categoryStats.map((cat) => (
               <AccordionItem
                 key={cat.category}
                 value={cat.category}

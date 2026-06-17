@@ -80,6 +80,7 @@ export function useAuth(): UseAuthReturn {
 
   // Check auth on mount
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 掛載時抓取登入狀態，為刻意的初始化副作用
     checkAuth();
   }, [checkAuth]);
 

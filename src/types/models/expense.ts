@@ -20,7 +20,7 @@ export interface Expense {
   amount: number;
   /** 原始幣別金額 */
   original_amount: number;
-  /** 幣別代碼 (TWD, JPY, USD, EUR, HKD) */
+  /** 幣別代碼 (TWD, JPY, USD, EUR, HKD, THB) */
   currency: string;
   /** 對 TWD 的匯率 */
   exchange_rate: number;

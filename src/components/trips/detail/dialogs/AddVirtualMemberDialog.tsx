@@ -37,6 +37,7 @@ export default function AddVirtualMemberDialog({
 
     useEffect(() => {
         if (open) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- 開啟對話框時重設表單，為刻意的同步
             setName('');
             setError('');
         }

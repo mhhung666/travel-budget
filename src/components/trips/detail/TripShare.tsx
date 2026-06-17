@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 
 interface TripShareProps {
     tripHashCode: string;
-    onCopy: () => void;
     /** Admin-only: show the "regenerate share link" control (revokes the old link). */
     canRegenerate?: boolean;
     onRegenerate?: () => void;
@@ -16,7 +15,6 @@ interface TripShareProps {
 
 export default function TripShare({
     tripHashCode,
-    onCopy,
     canRegenerate = false,
     onRegenerate,
     isRegenerating = false,

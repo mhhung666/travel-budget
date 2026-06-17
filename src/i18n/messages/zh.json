@@ -294,11 +294,13 @@
     "USD": "美元",
     "EUR": "歐元",
     "HKD": "港幣",
+    "THB": "泰銖",
     "TWD_full": "TWD - 新台幣",
     "JPY_full": "JPY - 日圓",
     "USD_full": "USD - 美元",
     "EUR_full": "EUR - 歐元",
-    "HKD_full": "HKD - 港幣"
+    "HKD_full": "HKD - 港幣",
+    "THB_full": "THB - 泰銖"
   },
   "category": {
     "accommodation": "住宿",
