@@ -47,7 +47,9 @@
       "Bash(git remote *)",
       "Bash(echo \"exit:$?\")",
       "Bash(echo \"lint exit: $?\")",
-      "Bash(echo \"remote: $\\(git remote get-url origin\\)\")"
+      "Bash(echo \"remote: $\\(git remote get-url origin\\)\")",
+      "Bash(git commit *)",
+      "Bash(grep -E \"['\\\\\"][A-Za-z ]{2,}['\\\\\"]\")"
     ]
   }
 }
