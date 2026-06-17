@@ -27,9 +27,10 @@
 **問題**：`.github/workflows/` 不存在；專案以 PR 流程協作（見 git 歷史的 merge commit），但 lint、`test:run`、`build`、`format:check` 全靠手動，迴歸容易溜進 master。
 **修復（已完成）**：新增 [.github/workflows/ci.yml](../.github/workflows/ci.yml)，於 PR 與 push 到 master 觸發 `pnpm install --frozen-lockfile` → `lint` → `format:check` → `test:run` → `build`（build 帶 dummy `MONGODB_URI`/`JWT_SECRET` 以通過 env 驗證，建置期不連 DB）。同 ref 重複觸發以 `concurrency` 自動取消舊跑。前置工作：先以 `pnpm format` 一次性格式化全庫（107 檔），讓 `format:check` 能納入把關。
 
-### D. ⚠️ Public API 錯誤訊息硬編碼且中英混雜
+### D. ✅ Public API 錯誤訊息硬編碼且中英混雜
 **問題**：主 actions 早已改回傳 error `code`，但 `/api/public/*` 仍直接回傳**明文字串**，且中英文混用（`'旅行不存在'`、`'Trip not found'`、`'獲取支出列表失敗'`、`'Member is not virtual'` 並存）。前端無法據此 i18n，且風格不一致。
-**建議**：公開路由統一改回傳結構化 `{ error: <code> }`（沿用 `ErrorCodes`），由前端 fetcher / 元件對應 i18n 文案；或至少統一語言。順帶把各路由重複的 `try/catch` + 404 樣板收斂。
+**修復（已完成）**：新增 [src/lib/publicApiError.ts](../src/lib/publicApiError.ts)，定義公開 API 專用的結構化錯誤碼 `PublicApiError`（較 actions 的 6 個通用 `ErrorCodes` 更細，涵蓋 link/convert 虛擬成員流程：`INVALID_CREDENTIALS`、`USERNAME_TAKEN`、`ALREADY_MEMBER` 等）與 `apiError(code, status)` helper。全部 8 條公開路由改回傳 `{ error: <code> }`。消費端：GET 路由的 [fetcher.ts](../src/hooks/queries/fetcher.ts) 只看狀態碼不受影響；link/convert 兩個 dialog 與 link-virtual 頁面改以錯誤碼對應 i18n 文案，新增 `member.convertVirtual.errors.*` 至四語系 catalog。
+**備註**：樣板收斂（重複的 `try/catch` + 404 + DTO 映射）見項目 E，未在本次處理。
 
 ### E. ⚠️ Public API 路由樣板重複
 **問題**：8 條公開路由各自重複「`await params` → `getTripIdByHashCode` → 404 → `try/catch` → 手寫 DTO 映射」。GET 端點的 DTO 映射（snake_case 化）也與 actions 的 `toExpenseDto` 等邏輯平行維護，易漂移。
@@ -54,7 +55,7 @@
 ```
 高（低成本、高效益）
   ├── C  CI workflow（lint/test/build 把關）  ✅
-  ├── D  Public API 錯誤碼統一
+  ├── D  Public API 錯誤碼統一  ✅
   └── H  安全標頭
 
 中

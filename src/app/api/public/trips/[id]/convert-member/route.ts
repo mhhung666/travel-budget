@@ -5,6 +5,7 @@ import { Trip, User } from '@/models';
 import { getTripIdByHashCode } from '@/lib/permissions';
 import { createSession } from '@/lib/auth';
 import { registerSchema } from '@/lib/validation';
+import { PublicApiError, apiError } from '@/lib/publicApiError';
 
 // 不分大小寫的精確比對（取代 Postgres ilike）
 const CI = { locale: 'en', strength: 2 } as const;
@@ -23,12 +24,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     // 驗證 trip 存在
     const tripId = await getTripIdByHashCode(id);
     if (!tripId) {
-      return NextResponse.json({ error: '旅行不存在' }, { status: 404 });
+      return apiError(PublicApiError.NOT_FOUND, 404);
     }
 
     // 驗證 virtualUserId（ObjectId 字串）
     if (!virtualUserId || typeof virtualUserId !== 'string' || !isValidObjectId(virtualUserId)) {
-      return NextResponse.json({ error: '無效的虛擬成員 ID' }, { status: 400 });
+      return apiError(PublicApiError.INVALID_VIRTUAL_ID, 400);
     }
 
     // 驗證目標用戶是虛擬成員
@@ -37,22 +38,22 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     } | null>();
 
     if (!virtualUser) {
-      return NextResponse.json({ error: '找不到此用戶' }, { status: 404 });
+      return apiError(PublicApiError.USER_NOT_FOUND, 404);
     }
     if (!virtualUser.isVirtual) {
-      return NextResponse.json({ error: '此用戶不是虛擬成員' }, { status: 400 });
+      return apiError(PublicApiError.NOT_VIRTUAL, 400);
     }
 
     // 驗證該虛擬成員屬於此 trip
     const memberCheck = await Trip.exists({ _id: tripId, 'members.user': virtualUserId });
     if (!memberCheck) {
-      return NextResponse.json({ error: '此虛擬成員不屬於此旅行' }, { status: 400 });
+      return apiError(PublicApiError.NOT_TRIP_MEMBER, 400);
     }
 
     // 驗證註冊資料
     const validation = registerSchema.safeParse({ username, display_name, email, password });
     if (!validation.success) {
-      return NextResponse.json({ error: validation.error.issues[0].message }, { status: 400 });
+      return apiError(PublicApiError.VALIDATION_ERROR, 400);
     }
 
     // 檢查 username 唯一性（排除自身）
@@ -60,7 +61,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       .collation(CI)
       .select('_id');
     if (existingUsername) {
-      return NextResponse.json({ error: '用戶名已被使用' }, { status: 409 });
+      return apiError(PublicApiError.USERNAME_TAKEN, 409);
     }
 
     // 檢查 email 唯一性（排除自身）
@@ -68,7 +69,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       .collation(CI)
       .select('_id');
     if (existingEmail) {
-      return NextResponse.json({ error: '此電子郵件已被使用' }, { status: 409 });
+      return apiError(PublicApiError.EMAIL_TAKEN, 409);
     }
 
     // 更新虛擬用戶為正式會員
@@ -93,6 +94,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ success: true, message: '註冊成功' });
   } catch (error) {
     console.error('Convert virtual member error:', error);
-    return NextResponse.json({ error: '轉換虛擬成員失敗' }, { status: 500 });
+    return apiError(PublicApiError.INTERNAL_ERROR, 500);
   }
 }

@@ -286,7 +286,21 @@
       "alreadyLinked": "This virtual member has already been claimed",
       "linkSuccess": "Successfully linked virtual member",
       "inviteTitle": "Join trip \"{tripName}\"",
-      "inviteDescription": "Claim virtual member \"{memberName}\" identity"
+      "inviteDescription": "Claim virtual member \"{memberName}\" identity",
+      "errors": {
+        "NOT_FOUND": "Trip not found",
+        "USER_NOT_FOUND": "User not found",
+        "NOT_VIRTUAL": "This user is not a virtual member",
+        "NOT_TRIP_MEMBER": "This virtual member does not belong to this trip",
+        "INVALID_VIRTUAL_ID": "Invalid virtual member ID",
+        "VALIDATION_ERROR": "Please check the information you entered",
+        "INVALID_CREDENTIALS": "Incorrect username or password",
+        "CANNOT_LINK_VIRTUAL": "Cannot link to another virtual member",
+        "ALREADY_MEMBER": "This account is already a member of this trip and cannot be linked to a virtual member",
+        "USERNAME_TAKEN": "Username is already taken",
+        "EMAIL_TAKEN": "This email is already in use",
+        "INTERNAL_ERROR": "Operation failed, please try again"
+      }
     },
     "virtualMemberAdded": "Virtual member added",
     "promoteToAdmin": "Make Admin",

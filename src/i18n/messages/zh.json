@@ -268,7 +268,21 @@
       "alreadyLinked": "此虛擬成員已被認領",
       "linkSuccess": "成功連結虛擬成員",
       "inviteTitle": "加入旅行「{tripName}」",
-      "inviteDescription": "認領虛擬成員「{memberName}」的身份"
+      "inviteDescription": "認領虛擬成員「{memberName}」的身份",
+      "errors": {
+        "NOT_FOUND": "找不到旅行",
+        "USER_NOT_FOUND": "找不到此用戶",
+        "NOT_VIRTUAL": "此用戶不是虛擬成員",
+        "NOT_TRIP_MEMBER": "此虛擬成員不屬於此旅行",
+        "INVALID_VIRTUAL_ID": "無效的虛擬成員 ID",
+        "VALIDATION_ERROR": "請檢查輸入的資料",
+        "INVALID_CREDENTIALS": "用戶名或密碼錯誤",
+        "CANNOT_LINK_VIRTUAL": "無法連結到另一個虛擬成員",
+        "ALREADY_MEMBER": "此帳號已經是這個旅行的成員，無法再連結虛擬成員",
+        "USERNAME_TAKEN": "用戶名已被使用",
+        "EMAIL_TAKEN": "此電子郵件已被使用",
+        "INTERNAL_ERROR": "操作失敗，請稍後再試"
+      }
     }
   },
   "settlement": {

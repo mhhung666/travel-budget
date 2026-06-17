@@ -268,7 +268,21 @@
       "alreadyLinked": "この仮想メンバーはすでに認領されています",
       "linkSuccess": "仮想メンバーを正常にリンクしました",
       "inviteTitle": "旅行「{tripName}」に参加",
-      "inviteDescription": "仮想メンバー「{memberName}」の身分を認領"
+      "inviteDescription": "仮想メンバー「{memberName}」の身分を認領",
+      "errors": {
+        "NOT_FOUND": "旅行が見つかりません",
+        "USER_NOT_FOUND": "ユーザーが見つかりません",
+        "NOT_VIRTUAL": "このユーザーは仮想メンバーではありません",
+        "NOT_TRIP_MEMBER": "この仮想メンバーはこの旅行に属していません",
+        "INVALID_VIRTUAL_ID": "無効な仮想メンバー ID です",
+        "VALIDATION_ERROR": "入力内容をご確認ください",
+        "INVALID_CREDENTIALS": "ユーザー名またはパスワードが正しくありません",
+        "CANNOT_LINK_VIRTUAL": "別の仮想メンバーにはリンクできません",
+        "ALREADY_MEMBER": "このアカウントはすでにこの旅行のメンバーです。仮想メンバーにリンクできません",
+        "USERNAME_TAKEN": "このユーザー名はすでに使用されています",
+        "EMAIL_TAKEN": "このメールアドレスはすでに使用されています",
+        "INTERNAL_ERROR": "操作に失敗しました。後でもう一度お試しください"
+      }
     }
   },
   "settlement": {

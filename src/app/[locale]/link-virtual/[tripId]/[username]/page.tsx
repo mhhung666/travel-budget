@@ -49,7 +49,7 @@ export default function LinkVirtualMemberPage() {
         const errorData = await response.json();
         if (response.status === 404) {
           setError(t('notFound'));
-        } else if (response.status === 400 && errorData.error === 'Member is not virtual') {
+        } else if (response.status === 400 && errorData.error === 'NOT_VIRTUAL') {
           setError(t('alreadyLinked'));
         } else {
           setError(tError('loadFailed'));

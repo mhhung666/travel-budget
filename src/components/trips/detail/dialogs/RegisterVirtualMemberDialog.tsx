@@ -34,6 +34,7 @@ export default function RegisterVirtualMemberDialog({
   tripId,
 }: RegisterVirtualMemberDialogProps) {
   const t = useTranslations('member.convertVirtual');
+  const tErr = useTranslations('member.convertVirtual.errors');
   const tAuth = useTranslations('auth.register');
   const tCommon = useTranslations('common');
 
@@ -79,7 +80,9 @@ export default function RegisterVirtualMemberDialog({
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.error || t('error'));
+        // Public API returns a structured error code; map it to localized copy.
+        const code = data.error as string | undefined;
+        setError(code && tErr.has(code) ? tErr(code) : t('error'));
         return;
       }
 
