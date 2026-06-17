@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Trip, User } from '@/models';
 import { getTripIdByHashCode } from '@/lib/permissions';
+import { PublicApiError, apiError } from '@/lib/publicApiError';
 
 type LeanTrip = {
   _id: { toString(): string };
@@ -26,7 +27,7 @@ export async function GET(
     // 支援 hash_code 或 ObjectId
     const resolvedTripId = await getTripIdByHashCode(tripId);
     if (!resolvedTripId) {
-      return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
+      return apiError(PublicApiError.NOT_FOUND, 404);
     }
 
     const [trip, user] = await Promise.all([
@@ -35,22 +36,22 @@ export async function GET(
     ]);
 
     if (!trip) {
-      return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
+      return apiError(PublicApiError.NOT_FOUND, 404);
     }
 
     if (!user) {
-      return NextResponse.json({ error: 'Member not found' }, { status: 404 });
+      return apiError(PublicApiError.USER_NOT_FOUND, 404);
     }
 
     // Check if it's a virtual member
     if (!user.isVirtual) {
-      return NextResponse.json({ error: 'Member is not virtual' }, { status: 400 });
+      return apiError(PublicApiError.NOT_VIRTUAL, 400);
     }
 
     // Check if this user is a member of this trip
     const isMember = trip.members.some((m) => m.user.toString() === user._id.toString());
     if (!isMember) {
-      return NextResponse.json({ error: 'Member not found in this trip' }, { status: 404 });
+      return apiError(PublicApiError.NOT_TRIP_MEMBER, 404);
     }
 
     return NextResponse.json({
@@ -68,6 +69,6 @@ export async function GET(
     });
   } catch (error) {
     console.error('Link virtual member API error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return apiError(PublicApiError.INTERNAL_ERROR, 500);
   }
 }

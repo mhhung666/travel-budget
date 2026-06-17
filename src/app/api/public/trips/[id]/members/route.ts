@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Trip } from '@/models';
 import { getTripIdByHashCode } from '@/lib/permissions';
+import { PublicApiError, apiError } from '@/lib/publicApiError';
 
 type PopulatedMember = {
   user: {
@@ -21,7 +22,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     // 支援 hash_code 或 ObjectId
     const tripId = await getTripIdByHashCode(id);
     if (!tripId) {
-      return NextResponse.json({ error: '旅行不存在' }, { status: 404 });
+      return apiError(PublicApiError.NOT_FOUND, 404);
     }
 
     const trip = await Trip.findById(tripId)
@@ -44,6 +45,6 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ members: formattedMembers });
   } catch (error) {
     console.error('Get public trip members error:', error);
-    return NextResponse.json({ error: '獲取成員列表失敗' }, { status: 500 });
+    return apiError(PublicApiError.INTERNAL_ERROR, 500);
   }
 }

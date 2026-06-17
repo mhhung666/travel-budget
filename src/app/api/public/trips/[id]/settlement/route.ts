@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Trip, Expense } from '@/models';
 import { calculateSettlement } from '@/lib/settlement';
 import { getTripIdByHashCode } from '@/lib/permissions';
+import { PublicApiError, apiError } from '@/lib/publicApiError';
 
 type PopulatedMember = {
   user: { _id: { toString(): string }; username: string; displayName: string } | null;
@@ -21,7 +22,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     // 支援 hash_code 或 ObjectId
     const tripId = await getTripIdByHashCode(id);
     if (!tripId) {
-      return NextResponse.json({ error: '旅行不存在' }, { status: 404 });
+      return apiError(PublicApiError.NOT_FOUND, 404);
     }
 
     // 一次取出成員 + 全部支出（含內嵌 splits），其餘記憶體計算
@@ -69,6 +70,6 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ balances, transactions, totalExpenses });
   } catch (error) {
     console.error('Get public settlement error:', error);
-    return NextResponse.json({ error: '獲取結算信息失敗' }, { status: 500 });
+    return apiError(PublicApiError.INTERNAL_ERROR, 500);
   }
 }
