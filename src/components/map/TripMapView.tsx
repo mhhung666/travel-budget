@@ -44,8 +44,8 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [mode, setMode] = useState<MapMode>('routes');
 
-  // 熱點資料只在切到熱點模式時才查。
-  const { data: visited = [] } = useVisitedPlaces(mode === 'heat');
+  // 熱點資料只在切到熱點模式時才查；年份篩選與航線連動。
+  const { data: visited = [] } = useVisitedPlaces(mode === 'heat', selectedYear);
   const heatPoints = useMemo<HeatPoint[]>(
     () =>
       visited.map((p) => ({
@@ -156,7 +156,8 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
     // 桌機：佔滿視窗高度的 flex 欄，避免地圖高度硬算（會多出一點點 scrollbar）；
     // 列表在自己的欄內捲動。手機維持一般文件流捲動。
     <div className="container mx-auto px-4 pt-20 pb-8 lg:flex lg:h-screen lg:flex-col lg:overflow-hidden lg:pb-4">
-      <div className="mb-4 flex items-center justify-between gap-2 lg:shrink-0">
+      {/* 工具列：模式切換 + 年份篩選（同時作用於航線與熱點）+ 分享 */}
+      <div className="mb-4 flex flex-wrap items-center gap-2 lg:shrink-0">
         {/* 模式切換：航線 / 熱點 */}
         <div className="inline-flex rounded-lg border border-border p-0.5">
           <Button
@@ -176,7 +177,35 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
             {t('modeHeat')}
           </Button>
         </div>
-        <MapShareDialog />
+
+        {/* 年份快速篩選 */}
+        {years.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Button
+              variant={selectedYear === null ? 'secondary' : 'ghost'}
+              size="sm"
+              className="h-7 px-3 text-xs"
+              onClick={() => setSelectedYear(null)}
+            >
+              {t('filterAll')}
+            </Button>
+            {years.map((y) => (
+              <Button
+                key={y}
+                variant={selectedYear === y ? 'secondary' : 'ghost'}
+                size="sm"
+                className="h-7 px-3 text-xs"
+                onClick={() => setSelectedYear(y)}
+              >
+                {y}
+              </Button>
+            ))}
+          </div>
+        )}
+
+        <div className="ml-auto">
+          <MapShareDialog />
+        </div>
       </div>
       <div className="grid gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-[320px_1fr]">
         {/* 時間軸列表 */}
@@ -209,36 +238,6 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
             </>
           ) : (
             <>
-              {/* 年份快速篩選（取代不好用的日期選擇器） */}
-              {years.length > 0 && (
-                <div className="mb-3 space-y-2 rounded-lg border border-border p-3">
-                  <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    {t('filterLabel')}
-                  </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    <Button
-                      variant={selectedYear === null ? 'default' : 'outline'}
-                      size="sm"
-                      className="h-7 px-3 text-xs"
-                      onClick={() => setSelectedYear(null)}
-                    >
-                      {t('filterAll')}
-                    </Button>
-                    {years.map((y) => (
-                      <Button
-                        key={y}
-                        variant={selectedYear === y ? 'default' : 'outline'}
-                        size="sm"
-                        className="h-7 px-3 text-xs"
-                        onClick={() => setSelectedYear(y)}
-                      >
-                        {y}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               <h2 className="mb-3 px-1 text-sm font-medium text-muted-foreground">
                 {t('timelineTitle', { count: routes.length })}
               </h2>
