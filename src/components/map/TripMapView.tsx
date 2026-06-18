@@ -3,13 +3,12 @@
 import { useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useLocale, useTranslations } from 'next-intl';
-import { MapPin, Loader2, ArrowRight, X } from 'lucide-react';
+import { MapPin, Loader2, ArrowRight } from 'lucide-react';
 import { useRouter } from '@/i18n/navigation';
 import { ROUTES } from '@/constants/routes';
 import { pickLocalizedName } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { tripOverlapsRange } from '@/lib/dateRange';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import MapShareDialog from './MapShareDialog';
 import type { Location } from '@/types';
@@ -38,9 +37,8 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
   const locale = useLocale();
   const router = useRouter();
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [rangeStart, setRangeStart] = useState('');
-  const [rangeEnd, setRangeEnd] = useState('');
-  const hasFilter = rangeStart !== '' || rangeEnd !== '';
+  // null = 全部年份；否則只看與該年（1/1–12/31）重疊的旅程。
+  const [selectedYear, setSelectedYear] = useState<number | null>(null);
 
   // 把每趟旅行投影成「出發地 → 目的地」；至少要有目的地座標才上圖。
   const projected = useMemo<TripRoute[]>(() => {
@@ -76,12 +74,22 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
     );
   }, [trips, locale]);
 
-  // 依日期區間過濾：保留起訖與區間重疊的旅行；有篩選時，無日期者排除。
-  // 重疊判斷與 stats 共用（src/lib/dateRange.ts）。
+  // 旅程涉及的年份（依起訖日），新到舊；當作快速篩選的選項。
+  const years = useMemo<number[]>(() => {
+    const set = new Set<number>();
+    for (const r of projected) {
+      if (r.startDate) set.add(new Date(r.startDate).getFullYear());
+      if (r.endDate) set.add(new Date(r.endDate).getFullYear());
+    }
+    return Array.from(set).sort((a, b) => b - a);
+  }, [projected]);
+
+  // 依選定年份過濾：保留起訖與該年重疊的旅程（跨年旅程會同時出現在兩年）。
+  // 重疊判斷與 stats 共用（src/lib/dateRange.ts）；無日期者在選定年份時排除。
   const routes = useMemo<TripRoute[]>(() => {
-    if (!hasFilter) return projected;
-    const lo = rangeStart ? new Date(rangeStart) : null;
-    const hi = rangeEnd ? new Date(`${rangeEnd}T23:59:59.999`) : null;
+    if (selectedYear === null) return projected;
+    const lo = new Date(selectedYear, 0, 1);
+    const hi = new Date(selectedYear, 11, 31, 23, 59, 59, 999);
     return projected.filter((r) =>
       tripOverlapsRange(
         r.startDate ? new Date(r.startDate) : null,
@@ -90,12 +98,7 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
         hi
       )
     );
-  }, [projected, hasFilter, rangeStart, rangeEnd]);
-
-  const clearFilter = () => {
-    setRangeStart('');
-    setRangeEnd('');
-  };
+  }, [projected, selectedYear]);
 
   const formatRange = (start: string | null, end: string | null) => {
     const fmt = (d: string) => new Date(d).toLocaleDateString(locale);
@@ -134,41 +137,35 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
       <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
         {/* 時間軸列表 */}
         <aside className="order-2 lg:order-1">
-          {/* 日期區間篩選 */}
-          <div className="mb-3 space-y-2 rounded-lg border border-border p-3">
-            <div className="flex items-center justify-between">
+          {/* 年份快速篩選（取代不好用的日期選擇器） */}
+          {years.length > 0 && (
+            <div className="mb-3 space-y-2 rounded-lg border border-border p-3">
               <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 {t('filterLabel')}
               </span>
-              {hasFilter && (
+              <div className="flex flex-wrap gap-1.5">
                 <Button
-                  variant="ghost"
+                  variant={selectedYear === null ? 'default' : 'outline'}
                   size="sm"
-                  className="h-6 gap-1 px-2 text-xs text-muted-foreground"
-                  onClick={clearFilter}
+                  className="h-7 px-3 text-xs"
+                  onClick={() => setSelectedYear(null)}
                 >
-                  <X className="h-3 w-3" />
-                  {t('filterClear')}
+                  {t('filterAll')}
                 </Button>
-              )}
+                {years.map((y) => (
+                  <Button
+                    key={y}
+                    variant={selectedYear === y ? 'default' : 'outline'}
+                    size="sm"
+                    className="h-7 px-3 text-xs"
+                    onClick={() => setSelectedYear(y)}
+                  >
+                    {y}
+                  </Button>
+                ))}
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Input
-                type="date"
-                value={rangeStart}
-                onChange={(e) => setRangeStart(e.target.value)}
-                className="h-8 flex-1 text-xs"
-              />
-              <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-              <Input
-                type="date"
-                value={rangeEnd}
-                min={rangeStart}
-                onChange={(e) => setRangeEnd(e.target.value)}
-                className="h-8 flex-1 text-xs"
-              />
-            </div>
-          </div>
+          )}
 
           <h2 className="mb-3 px-1 text-sm font-medium text-muted-foreground">
             {t('timelineTitle', { count: routes.length })}

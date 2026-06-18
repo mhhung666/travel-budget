@@ -542,8 +542,8 @@
     "timelineTitle": "{count} trips",
     "empty": "No trips with a location yet. Add a location to a trip and it will show up on the map.",
     "noDate": "No date set",
-    "filterLabel": "Date range",
-    "filterClear": "Clear",
+    "filterLabel": "Year",
+    "filterAll": "All",
     "noResults": "No trips in this range",
     "share": {
       "button": "Share map",

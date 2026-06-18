@@ -547,8 +547,8 @@
     "timelineTitle": "{count} 件の旅行",
     "empty": "場所が設定された旅行がまだありません。旅行に場所を設定すると地図に表示されます。",
     "noDate": "日付未設定",
-    "filterLabel": "期間",
-    "filterClear": "クリア",
+    "filterLabel": "年",
+    "filterAll": "すべて",
     "noResults": "この期間の旅行はありません",
     "share": {
       "button": "マップを共有",

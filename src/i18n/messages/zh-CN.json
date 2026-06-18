@@ -547,8 +547,8 @@
     "timelineTitle": "共 {count} 趟旅行",
     "empty": "还没有任何含地点的旅行。创建旅行并设置地点后，就会显示在地图上。",
     "noDate": "未设置日期",
-    "filterLabel": "日期区间",
-    "filterClear": "清除",
+    "filterLabel": "年份",
+    "filterAll": "全部",
     "noResults": "此区间没有旅行",
     "share": {
       "button": "分享地图",
