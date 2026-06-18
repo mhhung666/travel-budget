@@ -22,8 +22,9 @@ const TripSchema = new Schema(
     description: { type: String, default: '' },
     startDate: { type: Date },
     endDate: { type: Date },
-    // 原 PostgreSQL JSONB 欄位
-    location: { type: Schema.Types.Mixed },
+    // 出發地 / 目的地（取代舊單一 location 欄位，見 migration move-location-to-destination）。
+    departureLocation: { type: Schema.Types.Mixed },
+    destinationLocation: { type: Schema.Types.Mixed },
     hashCode: { type: String, required: true, unique: true },
     members: { type: [TripMemberSchema], default: [] },
   },

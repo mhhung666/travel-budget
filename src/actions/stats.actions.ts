@@ -34,11 +34,11 @@ export const getStats = withAuth(
 
       // 1. Get all trips the user is part of
       const userTrips = await Trip.find({ 'members.user': session.userId })
-        .select('_id location startDate endDate')
+        .select('_id destinationLocation startDate endDate')
         .lean<
           {
             _id: Types.ObjectId;
-            location: Location | null;
+            destinationLocation?: Location | null;
             startDate?: Date | null;
             endDate?: Date | null;
           }[]
@@ -133,7 +133,8 @@ export const getStats = withAuth(
 
       for (const trip of userTrips) {
         if (!tripInRange(trip)) continue;
-        const location = trip.location;
+        // 國家統計以目的地為準。
+        const location = trip.destinationLocation;
         if (location && location.country) {
           const country = location.country;
           const countryCode = location.country_code || '';

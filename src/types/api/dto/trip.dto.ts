@@ -8,7 +8,8 @@ export interface CreateTripDto {
   description?: string;
   start_date?: string;
   end_date?: string;
-  location?: Location;
+  departure_location?: Location;
+  destination_location?: Location;
 }
 
 /**
@@ -19,5 +20,6 @@ export interface UpdateTripDto {
   description?: string | null;
   start_date?: string | null;
   end_date?: string | null;
-  location?: Location | null;
+  departure_location?: Location | null;
+  destination_location?: Location | null;
 }

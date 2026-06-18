@@ -24,7 +24,8 @@ export interface EditTripFormData {
   description: string;
   start_date: string;
   end_date: string;
-  location: LocationOption | null;
+  departure_location: LocationOption | null;
+  destination_location: LocationOption | null;
 }
 
 interface EditTripDialogProps {
@@ -47,7 +48,8 @@ export default function EditTripDialog({ open, onClose, onSubmit, trip }: EditTr
     start_date: '',
     end_date: '',
   });
-  const [location, setLocation] = useState<LocationOption | null>(null);
+  const [departureLocation, setDepartureLocation] = useState<LocationOption | null>(null);
+  const [destinationLocation, setDestinationLocation] = useState<LocationOption | null>(null);
 
   useEffect(() => {
     if (open && trip) {
@@ -58,18 +60,20 @@ export default function EditTripDialog({ open, onClose, onSubmit, trip }: EditTr
         start_date: trip.start_date ? new Date(trip.start_date).toISOString().split('T')[0] : '',
         end_date: trip.end_date ? new Date(trip.end_date).toISOString().split('T')[0] : '',
       });
-      setLocation(
-        trip.location
+      const toOption = (loc: Trip['departure_location']): LocationOption | null =>
+        loc
           ? {
-              name: trip.location.name,
-              display_name: trip.location.display_name,
-              lat: trip.location.lat,
-              lon: trip.location.lon,
-              country: trip.location.country,
-              country_code: trip.location.country_code,
+              name: loc.name,
+              names: loc.names,
+              display_name: loc.display_name,
+              lat: loc.lat,
+              lon: loc.lon,
+              country: loc.country,
+              country_code: loc.country_code,
             }
-          : null
-      );
+          : null;
+      setDepartureLocation(toOption(trip.departure_location));
+      setDestinationLocation(toOption(trip.destination_location));
       setError('');
     }
   }, [open, trip]);
@@ -81,7 +85,11 @@ export default function EditTripDialog({ open, onClose, onSubmit, trip }: EditTr
     setError('');
 
     try {
-      await onSubmit({ ...form, location });
+      await onSubmit({
+        ...form,
+        departure_location: departureLocation,
+        destination_location: destinationLocation,
+      });
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -126,11 +134,21 @@ export default function EditTripDialog({ open, onClose, onSubmit, trip }: EditTr
 
           <div className="space-y-2">
             <LocationAutocomplete
-              value={location}
-              onChange={setLocation}
-              label={tTrips('create.location')}
-              placeholder={tTrips('create.locationPlaceholder')}
-              helperText={tTrips('create.locationHelp')}
+              value={departureLocation}
+              onChange={setDepartureLocation}
+              label={tTrips('create.departure')}
+              placeholder={tTrips('create.departurePlaceholder')}
+              helperText={tTrips('create.departureHelp')}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <LocationAutocomplete
+              value={destinationLocation}
+              onChange={setDestinationLocation}
+              label={tTrips('create.destination')}
+              placeholder={tTrips('create.destinationPlaceholder')}
+              helperText={tTrips('create.destinationHelp')}
             />
           </div>
 

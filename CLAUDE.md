@@ -57,6 +57,8 @@ Schemas are defined in [src/models/](src/models/); indexes are created by Mongoo
 
 For **reproducible** index/structure changes and data backfills there is also `migrate-mongo`: config in [migrate-mongo-config.js](migrate-mongo-config.js) (ESM, reads `MONGODB_URI`), scripts in [migrations/](migrations/), run via `pnpm migrate:status|up|down|create`. `autoIndex` stays on; migrations coexist with it (idempotent, index names aligned). See [docs/MIGRATIONS.md](docs/MIGRATIONS.md). There are no SQL migration files.
 
+**Renaming/reshaping a stored field: write a migration first, don't lean on read-side fallbacks.** When a field changes shape (e.g. splitting `location` into `departureLocation` + `destinationLocation`), prefer a `migrate-mongo` script that backfills existing documents over scattering `newField ?? legacyField` fallbacks through the read paths (DTO mappers, actions, `.select(...)`). Make the migration idempotent (only touch docs not already migrated) and ship `down`. Once the data is normalized, delete the legacy field from the model and remove any temporary fallback so there is a single source of truth. Any fallback that must exist transitionally should be short-lived and removed in the same PR as the migration. Remember migrations only run where invoked — flag that other environments need `pnpm migrate:up` before deploying code that drops the fallback.
+
 ### Settlement
 [src/lib/settlement.ts](src/lib/settlement.ts) — greedy creditor/debtor matching to minimize transfer count. Uses a `0.01` epsilon for float comparison. Covered by [src/__tests__/settlement.test.ts](src/__tests__/settlement.test.ts).
 
