@@ -130,13 +130,15 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
   }
 
   return (
-    <div className="container mx-auto px-4 pt-20 pb-8">
-      <div className="mb-4 flex items-center justify-end">
+    // 桌機：佔滿視窗高度的 flex 欄，避免地圖高度硬算（會多出一點點 scrollbar）；
+    // 列表在自己的欄內捲動。手機維持一般文件流捲動。
+    <div className="container mx-auto px-4 pt-20 pb-8 lg:flex lg:h-screen lg:flex-col lg:overflow-hidden lg:pb-4">
+      <div className="mb-4 flex items-center justify-end lg:shrink-0">
         <MapShareDialog />
       </div>
-      <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
+      <div className="grid gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-[320px_1fr]">
         {/* 時間軸列表 */}
-        <aside className="order-2 lg:order-1">
+        <aside className="order-2 lg:order-1 lg:overflow-y-auto lg:pr-1">
           {/* 年份快速篩選（取代不好用的日期選擇器） */}
           {years.length > 0 && (
             <div className="mb-3 space-y-2 rounded-lg border border-border p-3">
@@ -223,7 +225,7 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
         </aside>
 
         {/* 地圖 */}
-        <div className="order-1 h-[50vh] lg:order-2 lg:h-[calc(100vh-8rem)]">
+        <div className="order-1 h-[50vh] lg:order-2 lg:h-full">
           <TripMapCanvas routes={routes} selectedId={selectedId} onSelect={setSelectedId} />
         </div>
       </div>

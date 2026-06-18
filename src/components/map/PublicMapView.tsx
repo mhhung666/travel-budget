@@ -121,8 +121,9 @@ export default function PublicMapView({ code }: PublicMapViewProps) {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <header className="border-b border-border px-4 py-3">
+    // 佔滿視窗高度、地圖以 flex 填滿剩餘空間，避免硬算高度而多出 scrollbar。
+    <div className="flex h-screen flex-col overflow-hidden bg-background">
+      <header className="shrink-0 border-b border-border px-4 py-3">
         <div className="container mx-auto flex items-baseline justify-between gap-3">
           <h1 className="text-lg font-semibold">{t('public.title')}</h1>
           <span className="text-sm text-muted-foreground">
@@ -131,14 +132,14 @@ export default function PublicMapView({ code }: PublicMapViewProps) {
         </div>
       </header>
 
-      <div className="container mx-auto flex-1 px-4 py-4">
+      <div className="container mx-auto flex min-h-0 flex-1 flex-col px-4 py-4">
         {mapRoutes.length === 0 ? (
-          <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 text-center text-muted-foreground">
+          <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center text-muted-foreground">
             <MapPin className="h-10 w-10" />
             <p>{t('public.empty')}</p>
           </div>
         ) : (
-          <div className="h-[calc(100vh-8rem)]">
+          <div className="min-h-0 flex-1">
             <TripMapCanvas routes={mapRoutes} selectedId={selectedId} onSelect={setSelectedId} />
           </div>
         )}
