@@ -544,8 +544,11 @@
   },
   "map": {
     "title": "旅行マップ",
-    "timelineTitle": "{count} 件の場所",
+    "timelineTitle": "{count} 件の旅行",
     "empty": "場所が設定された旅行がまだありません。旅行に場所を設定すると地図に表示されます。",
-    "noDate": "日付未設定"
+    "noDate": "日付未設定",
+    "filterLabel": "期間",
+    "filterClear": "クリア",
+    "noResults": "この期間の旅行はありません"
   }
 }

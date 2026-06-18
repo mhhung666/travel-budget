@@ -132,24 +132,25 @@ export default function EditTripDialog({ open, onClose, onSubmit, trip }: EditTr
             />
           </div>
 
-          <div className="space-y-2">
-            <LocationAutocomplete
-              value={departureLocation}
-              onChange={setDepartureLocation}
-              label={tTrips('create.departure')}
-              placeholder={tTrips('create.departurePlaceholder')}
-              helperText={tTrips('create.departureHelp')}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <LocationAutocomplete
-              value={destinationLocation}
-              onChange={setDestinationLocation}
-              label={tTrips('create.destination')}
-              placeholder={tTrips('create.destinationPlaceholder')}
-              helperText={tTrips('create.destinationHelp')}
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <LocationAutocomplete
+                value={departureLocation}
+                onChange={setDepartureLocation}
+                label={tTrips('create.departure')}
+                placeholder={tTrips('create.departurePlaceholder')}
+                helperText={tTrips('create.departureHelp')}
+              />
+            </div>
+            <div className="space-y-2">
+              <LocationAutocomplete
+                value={destinationLocation}
+                onChange={setDestinationLocation}
+                label={tTrips('create.destination')}
+                placeholder={tTrips('create.destinationPlaceholder')}
+                helperText={tTrips('create.destinationHelp')}
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

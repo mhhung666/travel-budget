@@ -544,8 +544,11 @@
   },
   "map": {
     "title": "旅行地图",
-    "timelineTitle": "共 {count} 个地点",
+    "timelineTitle": "共 {count} 趟旅行",
     "empty": "还没有任何含地点的旅行。创建旅行并设置地点后，就会显示在地图上。",
-    "noDate": "未设置日期"
+    "noDate": "未设置日期",
+    "filterLabel": "日期区间",
+    "filterClear": "清除",
+    "noResults": "此区间没有旅行"
   }
 }

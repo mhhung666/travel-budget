@@ -539,8 +539,11 @@
   },
   "map": {
     "title": "Travel Map",
-    "timelineTitle": "{count} places",
+    "timelineTitle": "{count} trips",
     "empty": "No trips with a location yet. Add a location to a trip and it will show up on the map.",
-    "noDate": "No date set"
+    "noDate": "No date set",
+    "filterLabel": "Date range",
+    "filterClear": "Clear",
+    "noResults": "No trips in this range"
   }
 }

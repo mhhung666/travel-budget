@@ -2,11 +2,13 @@
 
 import { Fragment, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Polyline, Tooltip, useMap } from 'react-leaflet';
+import MarkerClusterGroup from 'react-leaflet-cluster';
 import { LatLngBounds, divIcon } from 'leaflet';
 import { useTheme } from 'next-themes';
 import 'leaflet/dist/leaflet.css';
 import type { TripRoute } from './types';
 import { countryCodeToFlag, countryColor } from './country';
+import { greatCirclePositions, routeHeading } from './arc';
 
 interface TripMapCanvasProps {
   routes: TripRoute[];
@@ -58,9 +60,9 @@ function FlyToSelected({ routes, selectedId }: { routes: TripRoute[]; selectedId
   return null;
 }
 
-/** 帶編號的圓形圖釘（目的地，DivIcon 免外部圖檔），顏色依國家。 */
-function numberedIcon(num: number, color: string, active: boolean) {
-  const size = active ? 34 : 28;
+/** 目的地圖釘：依國家上色的圓點 + 國旗，不帶數字（順序交給時間軸與箭頭）。 */
+function destinationIcon(color: string, flag: string, active: boolean) {
+  const size = active ? 30 : 22;
   return divIcon({
     className: 'trip-map-pin',
     html: `<div style="
@@ -69,10 +71,10 @@ function numberedIcon(num: number, color: string, active: boolean) {
       border:2px solid #fff;
       border-radius:50%;
       box-shadow:0 1px 4px rgba(0,0,0,.4);
-      color:#fff;font-weight:600;font-size:13px;
       display:flex;align-items:center;justify-content:center;
+      font-size:${active ? 15 : 12}px;line-height:1;
       ${active ? 'outline:3px solid rgba(37,99,235,.5);' : ''}
-    ">${num}</div>`,
+    ">${flag}</div>`,
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
   });
@@ -80,7 +82,7 @@ function numberedIcon(num: number, color: string, active: boolean) {
 
 /** 出發地用的小型空心圓點。 */
 function departureIcon(color: string) {
-  const size = 14;
+  const size = 12;
   return divIcon({
     className: 'trip-map-pin',
     html: `<div style="
@@ -92,6 +94,21 @@ function departureIcon(color: string) {
     "></div>`,
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
+  });
+}
+
+/** 航線中段的小飛機（機頭朝右的圖示，依航向角旋轉）。 */
+function planeIcon(color: string, angle: number) {
+  return divIcon({
+    className: 'trip-map-plane',
+    html: `<div style="transform:rotate(${angle}deg);width:18px;height:18px;">
+      <svg width="18" height="18" viewBox="0 0 24 24">
+        <path fill="${color}" stroke="#fff" stroke-width="1" stroke-linejoin="round"
+          d="M2 5 L22 12 L2 19 L6 12 Z" />
+      </svg>
+    </div>`,
+    iconSize: [18, 18],
+    iconAnchor: [9, 9],
   });
 }
 
@@ -116,55 +133,65 @@ export default function TripMapCanvas({ routes, selectedId, onSelect }: TripMapC
       <FitBounds routes={routes} />
       <FlyToSelected routes={routes} selectedId={selectedId} />
 
-      {routes.map((r, i) => {
-        if (!r.destination) return null;
+      {/* 弧線、箭頭與出發地點（不進群聚，屬輔助圖層） */}
+      {routes.map((r) => {
+        if (!r.destination || !r.departure) return null;
         const active = r.id === selectedId;
         const color = countryColor(r.destination.countryCode);
+        const positions = greatCirclePositions(
+          [r.departure.lat, r.departure.lon],
+          [r.destination.lat, r.destination.lon]
+        );
+        const heading = routeHeading(positions);
         return (
-          <Fragment key={r.id}>
-            {/* 出發地 → 目的地 連線 */}
-            {r.departure && (
-              <Polyline
-                positions={[
-                  [r.departure.lat, r.departure.lon],
-                  [r.destination.lat, r.destination.lon],
-                ]}
-                pathOptions={{
-                  color: lineColor,
-                  weight: active ? 3 : 2,
-                  opacity: active ? 0.9 : 0.6,
-                  dashArray: '6 6',
-                }}
-                eventHandlers={{ click: () => onSelect(r.id) }}
-              />
-            )}
-
-            {/* 出發地圖釘 */}
-            {r.departure && (
-              <Marker
-                position={[r.departure.lat, r.departure.lon]}
-                icon={departureIcon(color)}
-                eventHandlers={{ click: () => onSelect(r.id) }}
-              >
-                <Tooltip direction="top" offset={[0, -8]}>
-                  {countryCodeToFlag(r.departure.countryCode)} {r.departure.name}
-                </Tooltip>
-              </Marker>
-            )}
-
-            {/* 目的地圖釘（帶編號） */}
+          <Fragment key={`arc-${r.id}`}>
+            <Polyline
+              positions={positions}
+              pathOptions={{
+                color: lineColor,
+                weight: active ? 3 : 2,
+                opacity: active ? 0.9 : 0.55,
+              }}
+              eventHandlers={{ click: () => onSelect(r.id) }}
+            />
             <Marker
-              position={[r.destination.lat, r.destination.lon]}
-              icon={numberedIcon(i + 1, color, active)}
+              position={heading.position}
+              icon={planeIcon(lineColor, heading.angle)}
+              interactive={false}
+            />
+            <Marker
+              position={[r.departure.lat, r.departure.lon]}
+              icon={departureIcon(color)}
               eventHandlers={{ click: () => onSelect(r.id) }}
             >
-              <Tooltip direction="top" offset={[0, -16]}>
-                {countryCodeToFlag(r.destination.countryCode)} {r.destination.name}
+              <Tooltip direction="top" offset={[0, -8]}>
+                {countryCodeToFlag(r.departure.countryCode)} {r.departure.name}
               </Tooltip>
             </Marker>
           </Fragment>
         );
       })}
+
+      {/* 目的地圖釘：群聚以避免重疊看不見，縮小時聚合成數量氣泡、放大或點擊展開 */}
+      <MarkerClusterGroup chunkedLoading showCoverageOnHover={false} maxClusterRadius={40}>
+        {routes.map((r) => {
+          if (!r.destination) return null;
+          const active = r.id === selectedId;
+          const color = countryColor(r.destination.countryCode);
+          return (
+            <Marker
+              key={`dest-${r.id}`}
+              position={[r.destination.lat, r.destination.lon]}
+              icon={destinationIcon(color, countryCodeToFlag(r.destination.countryCode), active)}
+              eventHandlers={{ click: () => onSelect(r.id) }}
+            >
+              <Tooltip direction="top" offset={[0, -14]}>
+                {r.name} — {countryCodeToFlag(r.destination.countryCode)} {r.destination.name}
+              </Tooltip>
+            </Marker>
+          );
+        })}
+      </MarkerClusterGroup>
     </MapContainer>
   );
 }

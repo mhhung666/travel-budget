@@ -111,26 +111,26 @@ export default function CreateTripDialog({ open, onClose, onSuccess }: CreateTri
             />
           </div>
 
-          {/* 出發地 */}
-          <div className="space-y-2">
-            <LocationAutocomplete
-              value={departureLocation}
-              onChange={setDepartureLocation}
-              label={t('create.departure')}
-              placeholder={t('create.departurePlaceholder')}
-              helperText={t('create.departureHelp')}
-            />
-          </div>
-
-          {/* 目的地 */}
-          <div className="space-y-2">
-            <LocationAutocomplete
-              value={destinationLocation}
-              onChange={setDestinationLocation}
-              label={t('create.destination')}
-              placeholder={t('create.destinationPlaceholder')}
-              helperText={t('create.destinationHelp')}
-            />
+          {/* 出發地 / 目的地 */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <LocationAutocomplete
+                value={departureLocation}
+                onChange={setDepartureLocation}
+                label={t('create.departure')}
+                placeholder={t('create.departurePlaceholder')}
+                helperText={t('create.departureHelp')}
+              />
+            </div>
+            <div className="space-y-2">
+              <LocationAutocomplete
+                value={destinationLocation}
+                onChange={setDestinationLocation}
+                label={t('create.destination')}
+                placeholder={t('create.destinationPlaceholder')}
+                helperText={t('create.destinationHelp')}
+              />
+            </div>
           </div>
 
           {/* 旅遊時間區間 */}

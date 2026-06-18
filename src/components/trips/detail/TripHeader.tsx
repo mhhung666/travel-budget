@@ -1,12 +1,12 @@
 'use client';
 
 import { ReactNode } from 'react';
-import { Edit2, MapPin, CalendarRange } from 'lucide-react';
-import { useLocale, useTranslations } from 'next-intl';
+import { Edit2, CalendarRange } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import type { Trip } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { pickLocalizedName } from '@/lib/utils';
+import TripRoute from '@/components/trips/TripRoute';
 
 interface TripHeaderProps {
   trip: Trip;
@@ -23,7 +23,6 @@ export default function TripHeader({
 }: TripHeaderProps) {
   const tTrip = useTranslations('trip');
   const tCommon = useTranslations('common');
-  const locale = useLocale();
 
   return (
     <Card className="mb-6">
@@ -34,17 +33,12 @@ export default function TripHeader({
             {trip.description && <p className="text-muted-foreground mb-4">{trip.description}</p>}
 
             {/* 出發地 → 目的地 */}
-            {(trip.departure_location || trip.destination_location) && (
-              <div className="flex items-center gap-2 mb-2 text-sm text-muted-foreground">
-                <MapPin size={16} />
-                <span>
-                  {[trip.departure_location, trip.destination_location]
-                    .filter(Boolean)
-                    .map((loc) => pickLocalizedName(loc!.names, locale, loc!.name))
-                    .join(' → ')}
-                </span>
-              </div>
-            )}
+            <TripRoute
+              departure={trip.departure_location}
+              destination={trip.destination_location}
+              iconSize={16}
+              className="gap-2 mb-2"
+            />
 
             {/* 日期顯示 */}
             {(trip.start_date || trip.end_date) && (
