@@ -572,6 +572,15 @@
       "subtitle": "{trips} 趟旅行 · {countries} 个国家",
       "notFound": "此分享地图无法使用。",
       "empty": "这份地图目前没有可显示的旅行。"
-    }
+    },
+    "modeCountries": "国家",
+    "statTrips": "旅行",
+    "statCountries": "国家",
+    "statCities": "城市",
+    "statDistance": "总里程",
+    "countryTitle": "共 {count} 个国家",
+    "countryCities": "{count} 个城市",
+    "playRoute": "播放足迹",
+    "playStop": "停止"
   }
 }

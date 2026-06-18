@@ -61,6 +61,21 @@ export function greatCirclePositions(
 }
 
 /**
+ * 兩座標點間的大圓距離（公里）。haversine 公式，地球半徑取 6371km。
+ * 用於旅程數據儀表板的「總里程」累計。
+ */
+export function haversineKm(from: [number, number], to: [number, number]): number {
+  const R = 6371;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(to[0] - from[0]);
+  const dLon = toRad(to[1] - from[1]);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(from[0])) * Math.cos(toRad(to[0])) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+/**
  * 航線中段的座標與螢幕航向角（度），給飛機圖示用。
  * 螢幕座標：x=經度（東為正），y=緯度（北為正、但螢幕向下），故 y 取負。
  * 角度 0 = 朝右（東），與「機頭朝右」的圖示對齊。

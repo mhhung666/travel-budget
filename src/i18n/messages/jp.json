@@ -572,6 +572,15 @@
       "subtitle": "{trips} 件の旅行 · {countries} か国",
       "notFound": "この共有マップは利用できません。",
       "empty": "このマップに表示できる旅行はまだありません。"
-    }
+    },
+    "modeCountries": "国",
+    "statTrips": "旅行",
+    "statCountries": "国",
+    "statCities": "都市",
+    "statDistance": "総距離",
+    "countryTitle": "{count} か国",
+    "countryCities": "{count} 都市",
+    "playRoute": "ルート再生",
+    "playStop": "停止"
   }
 }

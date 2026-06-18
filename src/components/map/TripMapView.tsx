@@ -1,9 +1,9 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useLocale, useTranslations } from 'next-intl';
-import { MapPin, Loader2, ArrowRight } from 'lucide-react';
+import { MapPin, Loader2, ArrowRight, Play, Square } from 'lucide-react';
 import { useRouter } from '@/i18n/navigation';
 import { ROUTES } from '@/constants/routes';
 import { pickLocalizedName } from '@/lib/utils';
@@ -13,6 +13,8 @@ import { useVisitedPlaces } from '@/hooks/queries';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import MapShareDialog from './MapShareDialog';
+import MapStatsBar from './MapStatsBar';
+import { computeMapStats, visitedCountrySet } from './stats';
 import type { Location } from '@/types';
 import type { TripWithMembers } from '@/types';
 import type { GeoPoint, TripRoute, HeatPoint } from './types';
@@ -44,8 +46,8 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [mode, setMode] = useState<MapMode>('routes');
 
-  // 熱點資料只在切到熱點模式時才查；年份篩選與航線連動。
-  const { data: visited = [] } = useVisitedPlaces(mode === 'heat', selectedYear);
+  // 行程日地點：供熱點、儀表板「城市數」、國家點亮一起用，故一律查；年份篩選連動。
+  const { data: visited = [] } = useVisitedPlaces(true, selectedYear);
   const heatPoints = useMemo<HeatPoint[]>(
     () =>
       visited.map((p) => ({
@@ -123,6 +125,71 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
     );
   }, [projected, selectedYear]);
 
+  // 儀表板數字與國家點亮，都跟著年份篩選後的 routes / heatPoints 走。
+  const stats = useMemo(() => computeMapStats(routes, heatPoints), [routes, heatPoints]);
+  const visitedCountries = useMemo(
+    () => visitedCountrySet(routes, heatPoints),
+    [routes, heatPoints]
+  );
+
+  // 國家模式側欄：依造訪城市次數排序的國家清單。
+  const rankedCountries = useMemo(() => {
+    const map = new Map<string, { code: string; cities: number; visits: number }>();
+    for (const p of heatPoints) {
+      const code = p.countryCode?.toUpperCase();
+      if (!code) continue;
+      const e = map.get(code) ?? { code, cities: 0, visits: 0 };
+      e.cities += 1;
+      e.visits += p.weight;
+      map.set(code, e);
+    }
+    for (const r of routes) {
+      for (const c of [r.departure?.countryCode, r.destination?.countryCode]) {
+        const code = c?.toUpperCase();
+        if (code && !map.has(code)) map.set(code, { code, cities: 0, visits: 0 });
+      }
+    }
+    return [...map.values()].sort((a, b) => b.visits - a.visits || b.cities - a.cities);
+  }, [heatPoints, routes]);
+
+  // 足跡回放：依時間逐條揭露路線並飛向當前目的地。
+  // revealCount = undefined 代表沒在播放（顯示全部）。
+  const [playing, setPlaying] = useState(false);
+  const [revealCount, setRevealCount] = useState<number | undefined>(undefined);
+  const stepRef = useRef(0);
+
+  const stopPlay = () => {
+    setPlaying(false);
+    setRevealCount(undefined);
+  };
+  const startPlay = () => {
+    if (routes.length === 0) return;
+    stepRef.current = 0;
+    setSelectedId(routes[0]?.id ?? null);
+    setRevealCount(1);
+    setPlaying(true);
+  };
+
+  // 播放時每 1.3s 揭露下一條；播完停留約 1.2s 後收尾（回到全部顯示）。
+  // setState 都在 interval/timeout 回呼中，不在 effect 主體同步呼叫。
+  useEffect(() => {
+    if (!playing) return;
+    const timer = setInterval(() => {
+      stepRef.current += 1;
+      if (stepRef.current >= routes.length) {
+        clearInterval(timer);
+        setTimeout(() => {
+          setPlaying(false);
+          setRevealCount(undefined);
+        }, 1200);
+        return;
+      }
+      setSelectedId(routes[stepRef.current]?.id ?? null);
+      setRevealCount(stepRef.current + 1);
+    }, 1300);
+    return () => clearInterval(timer);
+  }, [playing, routes]);
+
   const formatRange = (start: string | null, end: string | null) => {
     const fmt = (d: string) => new Date(d).toLocaleDateString(locale);
     if (start && end) return `${fmt(start)} – ${fmt(end)}`;
@@ -158,7 +225,7 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
     <div className="container mx-auto px-4 pt-20 pb-8 lg:flex lg:h-screen lg:flex-col lg:overflow-hidden lg:pb-4">
       {/* 工具列：模式切換 + 年份篩選（同時作用於航線與熱點）+ 分享 */}
       <div className="mb-4 flex flex-wrap items-center gap-2 lg:shrink-0">
-        {/* 模式切換：航線 / 熱點 */}
+        {/* 模式切換：航線 / 熱點 / 國家 */}
         <div className="inline-flex rounded-lg border border-border p-0.5">
           <Button
             variant={mode === 'routes' ? 'default' : 'ghost'}
@@ -172,11 +239,38 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
             variant={mode === 'heat' ? 'default' : 'ghost'}
             size="sm"
             className="h-7 px-3 text-xs"
-            onClick={() => setMode('heat')}
+            onClick={() => {
+              stopPlay();
+              setMode('heat');
+            }}
           >
             {t('modeHeat')}
           </Button>
+          <Button
+            variant={mode === 'countries' ? 'default' : 'ghost'}
+            size="sm"
+            className="h-7 px-3 text-xs"
+            onClick={() => {
+              stopPlay();
+              setMode('countries');
+            }}
+          >
+            {t('modeCountries')}
+          </Button>
         </div>
+
+        {/* 足跡回放：只在航線模式且有路線時提供 */}
+        {mode === 'routes' && routes.length > 0 && (
+          <Button
+            variant={playing ? 'secondary' : 'outline'}
+            size="sm"
+            className="h-7 gap-1 px-3 text-xs"
+            onClick={playing ? stopPlay : startPlay}
+          >
+            {playing ? <Square className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+            {playing ? t('playStop') : t('playRoute')}
+          </Button>
+        )}
 
         {/* 年份快速篩選 */}
         {years.length > 0 && (
@@ -185,7 +279,10 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
               variant={selectedYear === null ? 'secondary' : 'ghost'}
               size="sm"
               className="h-7 px-3 text-xs"
-              onClick={() => setSelectedYear(null)}
+              onClick={() => {
+                stopPlay();
+                setSelectedYear(null);
+              }}
             >
               {t('filterAll')}
             </Button>
@@ -195,7 +292,10 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
                 variant={selectedYear === y ? 'secondary' : 'ghost'}
                 size="sm"
                 className="h-7 px-3 text-xs"
-                onClick={() => setSelectedYear(y)}
+                onClick={() => {
+                  stopPlay();
+                  setSelectedYear(y);
+                }}
               >
                 {y}
               </Button>
@@ -207,6 +307,12 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
           <MapShareDialog />
         </div>
       </div>
+
+      {/* 旅程數據儀表板 */}
+      <div className="mb-4 lg:shrink-0">
+        <MapStatsBar stats={stats} />
+      </div>
+
       <div className="grid gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-[320px_1fr]">
         {/* 時間軸列表 */}
         <aside className="order-2 lg:order-1 lg:overflow-y-auto lg:pr-1">
@@ -231,6 +337,34 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
                       <Badge variant="secondary" className="shrink-0">
                         {t('heatVisits', { count: p.weight })}
                       </Badge>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </>
+          ) : mode === 'countries' ? (
+            <>
+              <h2 className="mb-3 px-1 text-sm font-medium text-muted-foreground">
+                {t('countryTitle', { count: rankedCountries.length })}
+              </h2>
+              {rankedCountries.length === 0 ? (
+                <p className="px-1 text-sm text-muted-foreground">{t('heatEmpty')}</p>
+              ) : (
+                <ol className="space-y-1.5">
+                  {rankedCountries.map((c) => (
+                    <li
+                      key={c.code}
+                      className="flex items-center justify-between gap-2 rounded-lg border border-border p-2.5"
+                    >
+                      <span className="flex min-w-0 items-center gap-2 text-sm">
+                        <span className="shrink-0 text-lg">{countryCodeToFlag(c.code)}</span>
+                        <span className="truncate font-medium">{c.code}</span>
+                      </span>
+                      {c.cities > 0 && (
+                        <Badge variant="secondary" className="shrink-0">
+                          {t('countryCities', { count: c.cities })}
+                        </Badge>
+                      )}
                     </li>
                   ))}
                 </ol>
@@ -301,6 +435,8 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
             mode={mode}
             routes={routes}
             heatPoints={heatPoints}
+            visitedCountries={visitedCountries}
+            revealCount={revealCount}
             selectedId={selectedId}
             onSelect={setSelectedId}
           />
