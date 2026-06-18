@@ -7,6 +7,7 @@ import { MapPin, Loader2, Play, Square } from 'lucide-react';
 import { pickLocalizedName } from '@/lib/utils';
 import { ROUTES } from '@/constants/routes';
 import { Button } from '@/components/ui/button';
+import LanguageSwitcher from '@/components/layout/LanguageSwitcher';
 import MapStatsBar from './MapStatsBar';
 import { computeMapStats, visitedCountrySet } from './stats';
 import type { LocalizedNames } from '@/types';
@@ -203,9 +204,13 @@ export default function PublicMapView({ code }: PublicMapViewProps) {
         <div className="container mx-auto flex flex-col gap-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h1 className="text-lg font-semibold">{t('public.title')}</h1>
-            <span className="text-sm text-muted-foreground">
-              {t('public.subtitle', { trips: mapRoutes.length, countries: stats.countries })}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">
+                {t('public.subtitle', { trips: mapRoutes.length, countries: stats.countries })}
+              </span>
+              {/* 公開頁沒有主導覽列，語言切換放這裡（next-intl 會保留路徑只換 locale）。 */}
+              <LanguageSwitcher />
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
