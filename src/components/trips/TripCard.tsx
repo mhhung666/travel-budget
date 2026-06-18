@@ -1,12 +1,13 @@
 'use client';
 
-import { Copy, Users, CalendarRange, MapPin, Archive, ArchiveRestore } from 'lucide-react';
+import { Copy, Users, CalendarRange, Archive, ArchiveRestore } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import type { TripWithMembers } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { cn, pickLocalizedName } from '@/lib/utils';
+import { cn } from '@/lib/utils';
+import TripRoute from './TripRoute';
 
 export interface TripCardProps {
   trip: TripWithMembers;
@@ -63,17 +64,11 @@ export default function TripCard({ trip, onClick, onCopyCode, onToggleArchive }:
 
         <div className="mt-auto space-y-2 w-full">
           {/* 出發地 → 目的地 */}
-          {(trip.departure_location || trip.destination_location) && (
-            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-              <MapPin size={14} className="text-muted-foreground" />
-              <span className="truncate">
-                {[trip.departure_location, trip.destination_location]
-                  .filter(Boolean)
-                  .map((loc) => pickLocalizedName(loc!.names, locale, loc!.name))
-                  .join(' → ')}
-              </span>
-            </div>
-          )}
+          <TripRoute
+            departure={trip.departure_location}
+            destination={trip.destination_location}
+            truncate
+          />
 
           {/* Dates */}
           {(trip.start_date || trip.end_date) && (

@@ -1,42 +1,71 @@
 /**
- * 把兩點之間畫成拋物線狀的弧（航線感），而非直線。
+ * 把兩點之間畫成「大圓航線」（great-circle）——地球表面的最短路徑，
+ * 也就是飛機實際飛的路線。在 Web Mercator 地圖上會自然往極地方向凸出彎曲，
+ * 視覺上就是常見的航線弧。
  *
- * 做法：取弦的中點往「垂直於弦」的方向偏移一個控制點，用二次貝茲曲線插值出
- * 一串座標丟給 Leaflet 的 Polyline。緯/經度在小範圍內當平面座標處理，視覺上
- * 足夠；偏移方向固定（同一側），讓所有航線彎曲方向一致、不互相打架。
+ * 用球面線性插值（slerp）沿大圓取點，再丟給 Leaflet 的 Polyline。
+ * 跨換日線（±180° 經線）時對經度做 unwrap，讓線走最短側、不會橫跨整張地圖。
  */
-export function arcPositions(
+export function greatCirclePositions(
   from: [number, number],
   to: [number, number],
-  bend = 0.18,
-  segments = 64
+  segments = 72
 ): [number, number][] {
-  const [lat1, lon1] = from;
-  const [lat2, lon2] = to;
-  const midLat = (lat1 + lat2) / 2;
-  const midLon = (lon1 + lon2) / 2;
-  // 弦向量 (Δlat, Δlon)；其垂直向量取 (-Δlon, Δlat)，控制點沿此偏移，弧高與弦長成比例。
-  const dLat = lat2 - lat1;
-  const dLon = lon2 - lon1;
-  const ctrlLat = midLat - dLon * bend;
-  const ctrlLon = midLon + dLat * bend;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const toDeg = (r: number) => (r * 180) / Math.PI;
+
+  const lat1 = toRad(from[0]);
+  const lon1 = toRad(from[1]);
+  const lat2 = toRad(to[0]);
+  const lon2 = toRad(to[1]);
+
+  // 兩點間的角距離（haversine）。
+  const d =
+    2 *
+    Math.asin(
+      Math.sqrt(
+        Math.sin((lat2 - lat1) / 2) ** 2 +
+          Math.cos(lat1) * Math.cos(lat2) * Math.sin((lon2 - lon1) / 2) ** 2
+      )
+    );
+
+  if (d === 0 || Number.isNaN(d)) return [from, to];
 
   const pts: [number, number][] = [];
   for (let i = 0; i <= segments; i++) {
-    const t = i / segments;
-    const mt = 1 - t;
-    const lat = mt * mt * lat1 + 2 * mt * t * ctrlLat + t * t * lat2;
-    const lon = mt * mt * lon1 + 2 * mt * t * ctrlLon + t * t * lon2;
-    pts.push([lat, lon]);
+    const f = i / segments;
+    const a = Math.sin((1 - f) * d) / Math.sin(d);
+    const b = Math.sin(f * d) / Math.sin(d);
+    const x = a * Math.cos(lat1) * Math.cos(lon1) + b * Math.cos(lat2) * Math.cos(lon2);
+    const y = a * Math.cos(lat1) * Math.sin(lon1) + b * Math.cos(lat2) * Math.sin(lon2);
+    const z = a * Math.sin(lat1) + b * Math.sin(lat2);
+    const lat = Math.atan2(z, Math.sqrt(x * x + y * y));
+    const lon = Math.atan2(y, x);
+    pts.push([toDeg(lat), toDeg(lon)]);
   }
+
+  // 經度 unwrap：相鄰點若跳超過 180°，補 ±360° 使線連續（跨換日線走最短側）。
+  for (let i = 1; i < pts.length; i++) {
+    let delta = pts[i][1] - pts[i - 1][1];
+    while (delta > 180) {
+      pts[i][1] -= 360;
+      delta = pts[i][1] - pts[i - 1][1];
+    }
+    while (delta < -180) {
+      pts[i][1] += 360;
+      delta = pts[i][1] - pts[i - 1][1];
+    }
+  }
+
   return pts;
 }
 
 /**
- * 弧線中段的座標與螢幕旋轉角（度），給方向箭頭用。
+ * 航線中段的座標與螢幕航向角（度），給飛機圖示用。
  * 螢幕座標：x=經度（東為正），y=緯度（北為正、但螢幕向下），故 y 取負。
+ * 角度 0 = 朝右（東），與「機頭朝右」的圖示對齊。
  */
-export function arcArrow(positions: [number, number][]): {
+export function routeHeading(positions: [number, number][]): {
   position: [number, number];
   angle: number;
 } {

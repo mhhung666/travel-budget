@@ -7,6 +7,7 @@ import { withAuth } from './withAuth';
 import type { ActionResult } from './types';
 import type { StatsData, CategoryStat, CountryStat, ExpenseDetail, Location } from '@/types';
 import { logger } from '@/lib/logger';
+import { tripOverlapsRange } from '@/lib/dateRange';
 
 interface GetStatsOptions {
   startDate?: string;
@@ -119,20 +120,10 @@ export const getStats = withAuth(
         }
       >();
 
-      // 區間篩選時，只計入起訖日與查詢區間重疊的旅程（沒有日期的旅程無法定位，排除）。
-      // 無篩選時全部計入。
-      const tripInRange = (trip: (typeof userTrips)[number]): boolean => {
-        if (!rangeStart && !rangeEnd) return true;
-        const start = trip.startDate ?? trip.endDate ?? null;
-        const end = trip.endDate ?? trip.startDate ?? null;
-        if (!start || !end) return false;
-        if (rangeEnd && start > rangeEnd) return false;
-        if (rangeStart && end < rangeStart) return false;
-        return true;
-      };
-
+      // 區間篩選時，只計入起訖日與查詢區間重疊的旅程（沒有日期的旅程無法定位，排除）；
+      // 無篩選時全部計入。判斷邏輯與旅行地圖共用（src/lib/dateRange.ts）。
       for (const trip of userTrips) {
-        if (!tripInRange(trip)) continue;
+        if (!tripOverlapsRange(trip.startDate, trip.endDate, rangeStart, rangeEnd)) continue;
         // 國家統計以目的地為準。
         const location = trip.destinationLocation;
         if (location && location.country) {

@@ -8,6 +8,7 @@ import { useRouter } from '@/i18n/navigation';
 import { ROUTES } from '@/constants/routes';
 import { pickLocalizedName } from '@/lib/utils';
 import { cn } from '@/lib/utils';
+import { tripOverlapsRange } from '@/lib/dateRange';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import type { Location } from '@/types';
@@ -75,20 +76,19 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
   }, [trips, locale]);
 
   // 依日期區間過濾：保留起訖與區間重疊的旅行；有篩選時，無日期者排除。
+  // 重疊判斷與 stats 共用（src/lib/dateRange.ts）。
   const routes = useMemo<TripRoute[]>(() => {
     if (!hasFilter) return projected;
     const lo = rangeStart ? new Date(rangeStart) : null;
     const hi = rangeEnd ? new Date(`${rangeEnd}T23:59:59.999`) : null;
-    return projected.filter((r) => {
-      const start = r.startDate ?? r.endDate;
-      const end = r.endDate ?? r.startDate;
-      if (!start || !end) return false;
-      const s = new Date(start);
-      const e = new Date(end);
-      if (hi && s > hi) return false;
-      if (lo && e < lo) return false;
-      return true;
-    });
+    return projected.filter((r) =>
+      tripOverlapsRange(
+        r.startDate ? new Date(r.startDate) : null,
+        r.endDate ? new Date(r.endDate) : null,
+        lo,
+        hi
+      )
+    );
   }, [projected, hasFilter, rangeStart, rangeEnd]);
 
   const clearFilter = () => {

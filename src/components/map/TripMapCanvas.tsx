@@ -8,7 +8,7 @@ import { useTheme } from 'next-themes';
 import 'leaflet/dist/leaflet.css';
 import type { TripRoute } from './types';
 import { countryCodeToFlag, countryColor } from './country';
-import { arcPositions, arcArrow } from './arc';
+import { greatCirclePositions, routeHeading } from './arc';
 
 interface TripMapCanvasProps {
   routes: TripRoute[];
@@ -97,17 +97,18 @@ function departureIcon(color: string) {
   });
 }
 
-/** 弧線中段的方向箭頭（▶ 預設指東，依切線角度旋轉）。 */
-function arrowIcon(color: string, angle: number) {
+/** 航線中段的小飛機（機頭朝右的圖示，依航向角旋轉）。 */
+function planeIcon(color: string, angle: number) {
   return divIcon({
-    className: 'trip-map-arrow',
-    html: `<div style="
-      color:${color};font-size:14px;line-height:1;
-      text-shadow:0 0 2px rgba(255,255,255,.9);
-      transform:rotate(${angle}deg);
-    ">▶</div>`,
-    iconSize: [14, 14],
-    iconAnchor: [7, 7],
+    className: 'trip-map-plane',
+    html: `<div style="transform:rotate(${angle}deg);width:18px;height:18px;">
+      <svg width="18" height="18" viewBox="0 0 24 24">
+        <path fill="${color}" stroke="#fff" stroke-width="1" stroke-linejoin="round"
+          d="M2 5 L22 12 L2 19 L6 12 Z" />
+      </svg>
+    </div>`,
+    iconSize: [18, 18],
+    iconAnchor: [9, 9],
   });
 }
 
@@ -137,11 +138,11 @@ export default function TripMapCanvas({ routes, selectedId, onSelect }: TripMapC
         if (!r.destination || !r.departure) return null;
         const active = r.id === selectedId;
         const color = countryColor(r.destination.countryCode);
-        const positions = arcPositions(
+        const positions = greatCirclePositions(
           [r.departure.lat, r.departure.lon],
           [r.destination.lat, r.destination.lon]
         );
-        const arrow = arcArrow(positions);
+        const heading = routeHeading(positions);
         return (
           <Fragment key={`arc-${r.id}`}>
             <Polyline
@@ -154,8 +155,8 @@ export default function TripMapCanvas({ routes, selectedId, onSelect }: TripMapC
               eventHandlers={{ click: () => onSelect(r.id) }}
             />
             <Marker
-              position={arrow.position}
-              icon={arrowIcon(lineColor, arrow.angle)}
+              position={heading.position}
+              icon={planeIcon(lineColor, heading.angle)}
               interactive={false}
             />
             <Marker
