@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl';
 import { ArrowLeft, Plus } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import { ItineraryDayCard, ItineraryDayDialog } from '@/components/trips/detail/itinerary';
+import type { LocationOption } from '@/components/location/LocationAutocomplete';
 import { ExportMenu } from '@/components/export';
 import type { ItineraryDay } from '@/types';
 import { useItinerary, useTrip, useTripMembership, useItineraryMutations } from '@/hooks/queries';
@@ -97,7 +98,11 @@ export default function ItineraryPage() {
     }
   };
 
-  const handleDialogSubmit = async (data: { title: string; content: string }) => {
+  const handleDialogSubmit = async (data: {
+    title: string;
+    content: string;
+    location: LocationOption | null;
+  }) => {
     if (dialogMode === 'add') {
       const newDayNumber = days.length + 1;
       await create.mutateAsync(data);

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { ItineraryDay } from '@/models';
 import { withPublicTrip } from '@/lib/withPublicTrip';
+import type { Location } from '@/types';
 
 type LeanDay = {
   _id: { toString(): string };
@@ -8,6 +9,7 @@ type LeanDay = {
   dayNumber: number;
   title: string;
   content: string;
+  location?: Location | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -26,6 +28,7 @@ export const GET = withPublicTrip(
       day_number: d.dayNumber,
       title: d.title,
       content: d.content,
+      location: d.location ?? null,
       created_at: d.createdAt.toISOString(),
       updated_at: d.updatedAt.toISOString(),
     }));

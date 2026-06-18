@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createItineraryDay, updateItineraryDay, deleteItineraryDay } from '@/actions';
 import type { ActionResult } from '@/actions';
 import { tripKeys } from './keys';
+import type { Location } from '@/types';
 
 /** Unwraps an ActionResult, throwing on failure so React Query's onError fires. */
 async function unwrap<T>(p: Promise<ActionResult<T>>): Promise<T> {
@@ -15,6 +16,7 @@ async function unwrap<T>(p: Promise<ActionResult<T>>): Promise<T> {
 interface DayInput {
   title: string;
   content: string;
+  location?: Location | null;
 }
 
 /**

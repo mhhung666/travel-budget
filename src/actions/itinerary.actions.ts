@@ -5,7 +5,7 @@ import { ItineraryDay } from '@/models';
 import { getTripMembership } from '@/lib/permissions';
 import { createItineraryDaySchema, updateItineraryDaySchema } from '@/lib/validation';
 import type { ActionResult } from './types';
-import type { ItineraryDay as ItineraryDayDto } from '@/types';
+import type { ItineraryDay as ItineraryDayDto, Location } from '@/types';
 import { withAuth } from './withAuth';
 import { logger } from '@/lib/logger';
 
@@ -15,6 +15,7 @@ type LeanDay = {
   dayNumber: number;
   title: string;
   content: string;
+  location?: Location | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -26,6 +27,7 @@ function toDayDto(d: LeanDay): ItineraryDayDto {
     day_number: d.dayNumber,
     title: d.title,
     content: d.content,
+    location: d.location ?? null,
     created_at: d.createdAt.toISOString(),
     updated_at: d.updatedAt.toISOString(),
   };
@@ -61,7 +63,7 @@ export const createItineraryDay = withAuth(
   async (
     session,
     tripIdOrCode: string,
-    input: { title: string; content?: string }
+    input: { title: string; content?: string; location?: Location | null }
   ): Promise<ActionResult<ItineraryDayDto>> => {
     try {
       const membership = await getTripMembership(session.userId, tripIdOrCode);
@@ -86,6 +88,7 @@ export const createItineraryDay = withAuth(
         dayNumber: nextDayNumber,
         title: validated.title,
         content: validated.content || '',
+        location: validated.location ?? null,
       });
 
       return { success: true, data: toDayDto(created.toObject() as unknown as LeanDay) };
@@ -104,7 +107,7 @@ export const updateItineraryDay = withAuth(
     session,
     tripIdOrCode: string,
     dayId: string,
-    input: { title?: string; content?: string; day_number?: number }
+    input: { title?: string; content?: string; day_number?: number; location?: Location | null }
   ): Promise<ActionResult<ItineraryDayDto>> => {
     try {
       const membership = await getTripMembership(session.userId, tripIdOrCode);
@@ -121,6 +124,8 @@ export const updateItineraryDay = withAuth(
       if (validated.title !== undefined) set.title = validated.title;
       if (validated.content !== undefined) set.content = validated.content;
       if (validated.day_number !== undefined) set.dayNumber = validated.day_number;
+      // location 可被設為 null 以清除；故只要欄位有出現（!== undefined）就寫入。
+      if (validated.location !== undefined) set.location = validated.location;
 
       const updated = await ItineraryDay.findOneAndUpdate(
         { _id: dayId, trip: membership.tripId },

@@ -53,3 +53,6 @@ export {
   disableMapShare,
   type MapShareStatus,
 } from './mapShare.actions';
+
+// Map data actions
+export { getVisitedPlaces, type VisitedPlace } from './map.actions';

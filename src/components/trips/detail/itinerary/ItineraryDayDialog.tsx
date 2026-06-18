@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Eye, Pencil, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { ItineraryDay } from '@/types';
+import LocationAutocomplete, { LocationOption } from '@/components/location/LocationAutocomplete';
 import MarkdownRenderer from './MarkdownRenderer';
 
 import {
@@ -24,7 +25,11 @@ interface ItineraryDayDialogProps {
   mode: 'add' | 'edit';
   open: boolean;
   onClose: () => void;
-  onSubmit: (data: { title: string; content: string }) => Promise<void>;
+  onSubmit: (data: {
+    title: string;
+    content: string;
+    location: LocationOption | null;
+  }) => Promise<void>;
   day?: ItineraryDay | null;
   dayNumber?: number;
 }
@@ -42,6 +47,7 @@ export default function ItineraryDayDialog({
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
+  const [location, setLocation] = useState<LocationOption | null>(null);
   const [viewMode, setViewMode] = useState<'write' | 'preview'>('write');
   const [loading, setLoading] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -59,9 +65,23 @@ export default function ItineraryDayDialog({
         // eslint-disable-next-line react-hooks/set-state-in-effect -- 開啟對話框時帶入當日資料，為刻意的同步
         setTitle(day.title);
         setContent(day.content);
+        setLocation(
+          day.location
+            ? {
+                name: day.location.name,
+                names: day.location.names,
+                display_name: day.location.display_name,
+                lat: day.location.lat,
+                lon: day.location.lon,
+                country: day.location.country,
+                country_code: day.location.country_code,
+              }
+            : null
+        );
       } else {
         setTitle('');
         setContent('');
+        setLocation(null);
       }
       setViewMode('write');
       requestAnimationFrame(autoResize);
@@ -80,7 +100,7 @@ export default function ItineraryDayDialog({
 
     setLoading(true);
     try {
-      await onSubmit({ title: title.trim(), content });
+      await onSubmit({ title: title.trim(), content, location });
       onClose();
     } catch {
       // Error handled by parent
@@ -117,6 +137,16 @@ export default function ItineraryDayDialog({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <LocationAutocomplete
+              value={location}
+              onChange={setLocation}
+              label={tItinerary('dayLocation')}
+              placeholder={tItinerary('dayLocationPlaceholder')}
+              helperText={tItinerary('dayLocationHelp')}
             />
           </div>
 

@@ -156,12 +156,14 @@ export const addVirtualMemberSchema = z.object({
 export const createItineraryDaySchema = z.object({
   title: z.string().min(1, '標題不能為空').trim(),
   content: z.string().default(''),
+  location: locationSchema.nullable().optional(),
 });
 
 export const updateItineraryDaySchema = z.object({
   title: z.string().min(1, '標題不能為空').trim().optional(),
   content: z.string().optional(),
   day_number: z.number().int().positive().optional(),
+  location: locationSchema.nullable().optional(),
 });
 
 // Type exports
