@@ -62,6 +62,13 @@ For **reproducible** index/structure changes and data backfills there is also `m
 ### Settlement
 [src/lib/settlement.ts](src/lib/settlement.ts) — greedy creditor/debtor matching to minimize transfer count. Uses a `0.01` epsilon for float comparison. Covered by [src/__tests__/settlement.test.ts](src/__tests__/settlement.test.ts).
 
+### Travel map & sharing
+The travel map ([src/app/[locale]/map/](src/app/%5Blocale%5D/map/), components in [src/components/map/](src/components/map/)) has three modes — routes (great-circle arcs), heat (leaflet.heat over itinerary-day `location`s), and countries (choropleth). Notes that aren't obvious from the code:
+- **Leaflet is client-only**: always load the canvas via `dynamic(..., { ssr: false })`, and keep `.leaflet-container { isolation: isolate; }` in [globals.css](src/app/globals.css) — Leaflet's panes/controls use z-index 200–1000 and otherwise escape the root stacking context (dialogs/dropdowns get covered).
+- **`User.mapShareCode`** is the per-user analog of a trip's `hash_code`: opt-in, sparse-unique, powers the public map share. Same hash format/validation (`isValidHashCode`), so `/map/share/*` is public (not in `proxy.ts` `protectedRoutes`).
+- **Public map API ([/api/public/map/[code]](src/app/api/public/map/%5Bcode%5D/route.ts)) is de-identified by contract**: it exposes coordinates, localized place names, and **year only** — never trip names, ids, or full dates. Year is the deliberate exception (needed for the year filter); do not start returning dates. Heat is aggregated to rounded coords so individual days aren't recoverable.
+- **`public/geo/countries.geojson` is a generated asset, not hand-edited**: a trimmed Natural Earth 110m admin-0 set (props reduced to `iso_a2` + localized names, coords rounded to 2 dp). Regenerate from `nvkelso/natural-earth-vector` if country borders/names need updating. It's fetched lazily (only in countries mode) and module-cached in [CountriesLayer.tsx](src/components/map/CountriesLayer.tsx).
+
 ### Internationalization
 next-intl with `[locale]` route segment. Locales: `en`, `zh`, `zh-CN`, `jp`; default `zh`; `localePrefix: 'as-needed'` (default locale has no prefix). Config in [src/i18n/](src/i18n/), message catalogs in [src/i18n/messages/](src/i18n/messages/). Add new user-facing strings to **all four** catalogs. Use the navigation helpers from [src/i18n/navigation.ts](src/i18n/navigation.ts) for locale-aware links.
 
