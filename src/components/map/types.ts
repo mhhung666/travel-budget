@@ -1,3 +1,15 @@
+/**
+ * 熱力圖的一個點：座標 + 權重（造訪次數）。
+ * name/countryCode 可選——公開分享頁去識別化時只有座標與權重。
+ */
+export interface HeatPoint {
+  lat: number;
+  lon: number;
+  weight: number;
+  name?: string;
+  countryCode?: string;
+}
+
 /** 地圖上的一個座標點（出發地或目的地）。 */
 export interface GeoPoint {
   /** 已依當前語系挑好的顯示地名 */

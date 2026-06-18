@@ -6,12 +6,18 @@ import MarkerClusterGroup from 'react-leaflet-cluster';
 import { LatLngBounds, divIcon } from 'leaflet';
 import { useTheme } from 'next-themes';
 import 'leaflet/dist/leaflet.css';
-import type { TripRoute } from './types';
+import type { TripRoute, HeatPoint } from './types';
 import { countryCodeToFlag, countryColor } from './country';
 import { greatCirclePositions, routeHeading } from './arc';
+import HeatLayer from './HeatLayer';
+
+export type MapMode = 'routes' | 'heat';
 
 interface TripMapCanvasProps {
+  mode?: MapMode;
   routes: TripRoute[];
+  /** 熱點資料（mode === 'heat' 時使用）。 */
+  heatPoints?: HeatPoint[];
   selectedId: string | null;
   onSelect: (id: string) => void;
 }
@@ -32,18 +38,20 @@ function allCoords(routes: TripRoute[]): [number, number][] {
   return coords;
 }
 
-/** 初次載入時把視野框到所有點；點數變動時重框。 */
-function FitBounds({ routes }: { routes: TripRoute[] }) {
+/** 初次載入時把視野框到所有點；座標變動時重框。 */
+function FitBounds({ coords }: { coords: [number, number][] }) {
   const map = useMap();
+  // 以座標字串為依賴，避免每次 render 都重框。
+  const key = coords.map((c) => c.join(',')).join('|');
   useEffect(() => {
-    const coords = allCoords(routes);
     if (coords.length === 0) return;
     if (coords.length === 1) {
       map.setView(coords[0], 6);
       return;
     }
     map.fitBounds(new LatLngBounds(coords), { padding: [48, 48] });
-  }, [map, routes]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, key]);
   return null;
 }
 
@@ -112,10 +120,23 @@ function planeIcon(color: string, angle: number) {
   });
 }
 
-export default function TripMapCanvas({ routes, selectedId, onSelect }: TripMapCanvasProps) {
+export default function TripMapCanvas({
+  mode = 'routes',
+  routes,
+  heatPoints = [],
+  selectedId,
+  onSelect,
+}: TripMapCanvasProps) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
   const lineColor = isDark ? '#93c5fd' : '#2563eb';
+
+  const isHeat = mode === 'heat';
+  const fitCoords: [number, number][] = isHeat
+    ? heatPoints.map((p) => [p.lat, p.lon])
+    : allCoords(routes);
+  const maxWeight = heatPoints.reduce((m, p) => Math.max(m, p.weight), 0);
+  const heatTuples = heatPoints.map((p) => [p.lat, p.lon, p.weight] as [number, number, number]);
 
   return (
     <MapContainer
@@ -130,70 +151,76 @@ export default function TripMapCanvas({ routes, selectedId, onSelect }: TripMapC
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
         url={isDark ? BASEMAPS.dark : BASEMAPS.light}
       />
-      <FitBounds routes={routes} />
-      <FlyToSelected routes={routes} selectedId={selectedId} />
+      <FitBounds coords={fitCoords} />
+
+      {isHeat && <HeatLayer points={heatTuples} max={maxWeight} />}
+
+      {!isHeat && <FlyToSelected routes={routes} selectedId={selectedId} />}
 
       {/* 弧線、箭頭與出發地點（不進群聚，屬輔助圖層） */}
-      {routes.map((r) => {
-        if (!r.destination || !r.departure) return null;
-        const active = r.id === selectedId;
-        const color = countryColor(r.destination.countryCode);
-        const positions = greatCirclePositions(
-          [r.departure.lat, r.departure.lon],
-          [r.destination.lat, r.destination.lon]
-        );
-        const heading = routeHeading(positions);
-        return (
-          <Fragment key={`arc-${r.id}`}>
-            <Polyline
-              positions={positions}
-              pathOptions={{
-                color: lineColor,
-                weight: active ? 3 : 2,
-                opacity: active ? 0.9 : 0.55,
-              }}
-              eventHandlers={{ click: () => onSelect(r.id) }}
-            />
-            <Marker
-              position={heading.position}
-              icon={planeIcon(lineColor, heading.angle)}
-              interactive={false}
-            />
-            <Marker
-              position={[r.departure.lat, r.departure.lon]}
-              icon={departureIcon(color)}
-              eventHandlers={{ click: () => onSelect(r.id) }}
-            >
-              <Tooltip direction="top" offset={[0, -8]}>
-                {countryCodeToFlag(r.departure.countryCode)} {r.departure.name}
-              </Tooltip>
-            </Marker>
-          </Fragment>
-        );
-      })}
-
-      {/* 目的地圖釘：群聚以避免重疊看不見，縮小時聚合成數量氣泡、放大或點擊展開 */}
-      <MarkerClusterGroup chunkedLoading showCoverageOnHover={false} maxClusterRadius={40}>
-        {routes.map((r) => {
-          if (!r.destination) return null;
+      {!isHeat &&
+        routes.map((r) => {
+          if (!r.destination || !r.departure) return null;
           const active = r.id === selectedId;
           const color = countryColor(r.destination.countryCode);
+          const positions = greatCirclePositions(
+            [r.departure.lat, r.departure.lon],
+            [r.destination.lat, r.destination.lon]
+          );
+          const heading = routeHeading(positions);
           return (
-            <Marker
-              key={`dest-${r.id}`}
-              position={[r.destination.lat, r.destination.lon]}
-              icon={destinationIcon(color, countryCodeToFlag(r.destination.countryCode), active)}
-              eventHandlers={{ click: () => onSelect(r.id) }}
-            >
-              <Tooltip direction="top" offset={[0, -14]}>
-                {/* 去識別化分享情境沒有旅行名稱，只顯示地點。 */}
-                {r.name ? `${r.name} — ` : ''}
-                {countryCodeToFlag(r.destination.countryCode)} {r.destination.name}
-              </Tooltip>
-            </Marker>
+            <Fragment key={`arc-${r.id}`}>
+              <Polyline
+                positions={positions}
+                pathOptions={{
+                  color: lineColor,
+                  weight: active ? 3 : 2,
+                  opacity: active ? 0.9 : 0.55,
+                }}
+                eventHandlers={{ click: () => onSelect(r.id) }}
+              />
+              <Marker
+                position={heading.position}
+                icon={planeIcon(lineColor, heading.angle)}
+                interactive={false}
+              />
+              <Marker
+                position={[r.departure.lat, r.departure.lon]}
+                icon={departureIcon(color)}
+                eventHandlers={{ click: () => onSelect(r.id) }}
+              >
+                <Tooltip direction="top" offset={[0, -8]}>
+                  {countryCodeToFlag(r.departure.countryCode)} {r.departure.name}
+                </Tooltip>
+              </Marker>
+            </Fragment>
           );
         })}
-      </MarkerClusterGroup>
+
+      {/* 目的地圖釘：群聚以避免重疊看不見，縮小時聚合成數量氣泡、放大或點擊展開 */}
+      {!isHeat && (
+        <MarkerClusterGroup chunkedLoading showCoverageOnHover={false} maxClusterRadius={40}>
+          {routes.map((r) => {
+            if (!r.destination) return null;
+            const active = r.id === selectedId;
+            const color = countryColor(r.destination.countryCode);
+            return (
+              <Marker
+                key={`dest-${r.id}`}
+                position={[r.destination.lat, r.destination.lon]}
+                icon={destinationIcon(color, countryCodeToFlag(r.destination.countryCode), active)}
+                eventHandlers={{ click: () => onSelect(r.id) }}
+              >
+                <Tooltip direction="top" offset={[0, -14]}>
+                  {/* 去識別化分享情境沒有旅行名稱，只顯示地點。 */}
+                  {r.name ? `${r.name} — ` : ''}
+                  {countryCodeToFlag(r.destination.countryCode)} {r.destination.name}
+                </Tooltip>
+              </Marker>
+            );
+          })}
+        </MarkerClusterGroup>
+      )}
     </MapContainer>
   );
 }

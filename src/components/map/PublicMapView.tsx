@@ -6,8 +6,10 @@ import { useLocale, useTranslations } from 'next-intl';
 import { MapPin, Loader2 } from 'lucide-react';
 import { pickLocalizedName } from '@/lib/utils';
 import { ROUTES } from '@/constants/routes';
+import { Button } from '@/components/ui/button';
 import type { LocalizedNames } from '@/types';
-import type { GeoPoint, TripRoute } from './types';
+import type { GeoPoint, TripRoute, HeatPoint } from './types';
+import type { MapMode } from './TripMapCanvas';
 
 // Leaflet 依賴 window，必須關閉 SSR。
 const TripMapCanvas = dynamic(() => import('./TripMapCanvas'), {
@@ -34,6 +36,13 @@ interface PublicRoute {
   destination: PublicGeoPoint;
 }
 
+/** 去識別化熱點：只有座標與權重。 */
+interface PublicHeatPoint {
+  lat: number;
+  lon: number;
+  weight: number;
+}
+
 interface PublicMapViewProps {
   code: string;
 }
@@ -42,8 +51,10 @@ export default function PublicMapView({ code }: PublicMapViewProps) {
   const t = useTranslations('map');
   const locale = useLocale();
   const [routes, setRoutes] = useState<PublicRoute[] | null>(null);
+  const [heat, setHeat] = useState<PublicHeatPoint[]>([]);
   const [status, setStatus] = useState<'loading' | 'ok' | 'notFound' | 'error'>('loading');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [mode, setMode] = useState<MapMode>('routes');
 
   useEffect(() => {
     let cancelled = false;
@@ -59,9 +70,10 @@ export default function PublicMapView({ code }: PublicMapViewProps) {
           setStatus('error');
           return;
         }
-        const data: { routes: PublicRoute[] } = await res.json();
+        const data: { routes: PublicRoute[]; heat?: PublicHeatPoint[] } = await res.json();
         if (cancelled) return;
         setRoutes(data.routes);
+        setHeat(data.heat ?? []);
         setStatus('ok');
       } catch {
         if (!cancelled) setStatus('error');
@@ -95,6 +107,11 @@ export default function PublicMapView({ code }: PublicMapViewProps) {
     }));
   }, [routes, locale]);
 
+  const heatPoints = useMemo<HeatPoint[]>(
+    () => heat.map((h) => ({ lat: h.lat, lon: h.lon, weight: h.weight })),
+    [heat]
+  );
+
   const countryCount = useMemo(() => {
     const set = new Set<string>();
     for (const r of mapRoutes) {
@@ -102,6 +119,8 @@ export default function PublicMapView({ code }: PublicMapViewProps) {
     }
     return set.size;
   }, [mapRoutes]);
+
+  const hasHeat = heatPoints.length > 0;
 
   if (status === 'loading') {
     return (
@@ -121,25 +140,55 @@ export default function PublicMapView({ code }: PublicMapViewProps) {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <header className="border-b border-border px-4 py-3">
-        <div className="container mx-auto flex items-baseline justify-between gap-3">
+    // 佔滿視窗高度、地圖以 flex 填滿剩餘空間，避免硬算高度而多出 scrollbar。
+    <div className="flex h-screen flex-col overflow-hidden bg-background">
+      <header className="shrink-0 border-b border-border px-4 py-3">
+        <div className="container mx-auto flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-lg font-semibold">{t('public.title')}</h1>
-          <span className="text-sm text-muted-foreground">
-            {t('public.subtitle', { trips: mapRoutes.length, countries: countryCount })}
-          </span>
+          <div className="flex items-center gap-3">
+            {/* 只有在有熱點資料時才顯示切換 */}
+            {hasHeat && (
+              <div className="inline-flex rounded-lg border border-border p-0.5">
+                <Button
+                  variant={mode === 'routes' ? 'default' : 'ghost'}
+                  size="sm"
+                  className="h-7 px-3 text-xs"
+                  onClick={() => setMode('routes')}
+                >
+                  {t('modeRoutes')}
+                </Button>
+                <Button
+                  variant={mode === 'heat' ? 'default' : 'ghost'}
+                  size="sm"
+                  className="h-7 px-3 text-xs"
+                  onClick={() => setMode('heat')}
+                >
+                  {t('modeHeat')}
+                </Button>
+              </div>
+            )}
+            <span className="text-sm text-muted-foreground">
+              {t('public.subtitle', { trips: mapRoutes.length, countries: countryCount })}
+            </span>
+          </div>
         </div>
       </header>
 
-      <div className="container mx-auto flex-1 px-4 py-4">
+      <div className="container mx-auto flex min-h-0 flex-1 flex-col px-4 py-4">
         {mapRoutes.length === 0 ? (
-          <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 text-center text-muted-foreground">
+          <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center text-muted-foreground">
             <MapPin className="h-10 w-10" />
             <p>{t('public.empty')}</p>
           </div>
         ) : (
-          <div className="h-[calc(100vh-8rem)]">
-            <TripMapCanvas routes={mapRoutes} selectedId={selectedId} onSelect={setSelectedId} />
+          <div className="min-h-0 flex-1">
+            <TripMapCanvas
+              mode={mode}
+              routes={mapRoutes}
+              heatPoints={heatPoints}
+              selectedId={selectedId}
+              onSelect={setSelectedId}
+            />
           </div>
         )}
       </div>

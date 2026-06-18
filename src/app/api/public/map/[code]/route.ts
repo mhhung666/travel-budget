@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { Types } from 'mongoose';
 import { dbConnect } from '@/lib/mongodb';
-import { User, Trip } from '@/models';
+import { User, Trip, ItineraryDay } from '@/models';
 import { isValidHashCode } from '@/lib/hashcode';
 import { PublicApiError, apiError } from '@/lib/publicApiError';
 import { logger } from '@/lib/logger';
@@ -69,8 +69,8 @@ export async function GET(_request: Request, context: { params: Promise<{ code: 
     }
 
     const trips = await Trip.find({ 'members.user': user._id })
-      .select('departureLocation destinationLocation startDate endDate')
-      .lean<LeanTrip[]>();
+      .select('_id departureLocation destinationLocation startDate endDate')
+      .lean<(LeanTrip & { _id: Types.ObjectId })[]>();
 
     const routes: PublicRoute[] = trips
       .map((trip) => ({
@@ -90,7 +90,29 @@ export async function GET(_request: Request, context: { params: Promise<{ code: 
       .sort((a, b) => a._sort - b._sort)
       .map((r, i) => ({ id: `r${i}`, departure: r.departure, destination: r.destination }));
 
-    return NextResponse.json({ routes });
+    // 去識別化熱點：行程日地點依座標彙整，只回傳座標與權重（無地名）。
+    const tripIds = trips.map((t) => t._id);
+    const heatRows = await ItineraryDay.aggregate<{ lat: number; lon: number; weight: number }>([
+      {
+        $match: {
+          trip: { $in: tripIds },
+          'location.lat': { $type: 'number' },
+          'location.lon': { $type: 'number' },
+        },
+      },
+      {
+        $group: {
+          _id: { lat: { $round: ['$location.lat', 2] }, lon: { $round: ['$location.lon', 2] } },
+          weight: { $sum: 1 },
+          lat: { $first: '$location.lat' },
+          lon: { $first: '$location.lon' },
+        },
+      },
+      { $project: { _id: 0 } },
+    ]);
+    const heat = heatRows.map((h) => ({ lat: h.lat, lon: h.lon, weight: h.weight }));
+
+    return NextResponse.json({ routes, heat });
   } catch (error) {
     logger.error('Get public map error', error);
     return apiError(PublicApiError.INTERNAL_ERROR, 500);

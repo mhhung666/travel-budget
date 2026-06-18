@@ -6,6 +6,8 @@ const ItineraryDaySchema = new Schema(
     dayNumber: { type: Number, required: true },
     title: { type: String, required: true },
     content: { type: String, default: '' },
+    // 當日地點（城市等較小範圍），用於旅行地圖的熱點圖；舊資料無此欄位即不計入。
+    location: { type: Schema.Types.Mixed },
   },
   {
     timestamps: true,
