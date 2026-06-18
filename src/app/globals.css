@@ -114,3 +114,13 @@ html {
   background-color: var(--selection-bg);
   color: var(--selection-color);
 }
+
+/*
+ * Leaflet 的 pane / 控制項帶有 z-index 200~1000，若地圖容器未自成堆疊脈絡，
+ * 這些 z-index 會洩漏到根脈絡，蓋過 Radix 的 Dialog / Dropdown（z-50），
+ * 造成分享對話框、語言切換選單被地圖蓋住。用 isolation 讓地圖自成一個
+ * 堆疊脈絡，把內部 z-index 關在容器內，外層彈窗即可正常疊在地圖之上。
+ */
+.leaflet-container {
+  isolation: isolate;
+}
