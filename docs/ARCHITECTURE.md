@@ -106,6 +106,13 @@ src/
 - 路由經 `[locale]` 區段；訊息檔在 [src/i18n/messages/](../src/i18n/messages/)，共 `en` / `zh` / `zh-CN` / `jp` 四個。
 - Server Action 錯誤回傳 **error code**（非寫死文字），前端依 code 對應 i18n 訊息。
 
+### 4.6 旅遊地圖與分享（[src/components/map/](../src/components/map/)）
+- 三種模式:**航線**（great-circle 弧線）、**熱點**（leaflet.heat，權重=行程日 `location` 出現次數）、**國家**（choropleth 點亮造訪國）。
+- Leaflet 依賴 `window`,畫布一律以 `dynamic(..., { ssr: false })` 載入;並在 [globals.css](../src/app/globals.css) 保留 `.leaflet-container { isolation: isolate; }`,否則其 pane/control 的高 z-index 會蓋住 dialog/dropdown。
+- **分享為使用者層級**:`User.mapShareCode`（opt-in、sparse-unique）是 trip `hashCode` 的對應物,格式/驗證相同。`/map/share/*` 為公開頁(不在 `proxy.ts` 的 `protectedRoutes`)。
+- **公開 API [/api/public/map/[code]](../src/app/api/public/map/%5Bcode%5D/route.ts) 依約去識別化**:只露座標、在地化地名與**年份**,絕不露旅行名稱、id 或完整日期(年份是為了年份篩選的刻意例外)。熱點彙整到四捨五入座標,避免回推單日行程。
+- **`public/geo/countries.geojson` 是產生的資產,勿手改**:Natural Earth 110m admin-0 瘦身版(屬性只留 `iso_a2` + 多語名、座標降到小數兩位),需更新國界/國名時自 `nvkelso/natural-earth-vector` 重新產生。只在國家模式才抓並做模組層級快取。
+
 ---
 
 ## 5. 資料模型
