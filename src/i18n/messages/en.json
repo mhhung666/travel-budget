@@ -544,6 +544,22 @@
     "noDate": "No date set",
     "filterLabel": "Date range",
     "filterClear": "Clear",
-    "noResults": "No trips in this range"
+    "noResults": "No trips in this range",
+    "share": {
+      "button": "Share map",
+      "title": "Share your travel map",
+      "description": "Anyone with the link can view your travel routes on a map. Trip names and dates are never shown.",
+      "generate": "Generate link",
+      "regenerate": "Regenerate link",
+      "revoke": "Disable sharing",
+      "enabledHint": "Sharing is on. Anyone with this link can see your de-identified map.",
+      "disabledHint": "Sharing is off. Generate a link to share your map publicly."
+    },
+    "public": {
+      "title": "Travel Map",
+      "subtitle": "{trips} trips · {countries} countries",
+      "notFound": "This shared map is not available.",
+      "empty": "This map has no trips to show yet."
+    }
   }
 }

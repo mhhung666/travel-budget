@@ -549,6 +549,22 @@
     "noDate": "日付未設定",
     "filterLabel": "期間",
     "filterClear": "クリア",
-    "noResults": "この期間の旅行はありません"
+    "noResults": "この期間の旅行はありません",
+    "share": {
+      "button": "マップを共有",
+      "title": "旅行マップを共有",
+      "description": "リンクを知っている人は誰でも地図上であなたの旅行ルートを見られます。旅行名や日付は表示されません。",
+      "generate": "リンクを生成",
+      "regenerate": "リンクを再生成",
+      "revoke": "共有を停止",
+      "enabledHint": "共有はオンです。このリンクを持つ人は匿名化された地図を見られます。",
+      "disabledHint": "共有はオフです。リンクを生成すると地図を公開できます。"
+    },
+    "public": {
+      "title": "旅行マップ",
+      "subtitle": "{trips} 件の旅行 · {countries} か国",
+      "notFound": "この共有マップは利用できません。",
+      "empty": "このマップに表示できる旅行はまだありません。"
+    }
   }
 }

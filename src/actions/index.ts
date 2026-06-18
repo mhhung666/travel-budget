@@ -45,3 +45,11 @@ export {
 
 // Stats actions
 export { getStats } from './stats.actions';
+
+// Map share actions
+export {
+  getMapShareStatus,
+  enableMapShare,
+  disableMapShare,
+  type MapShareStatus,
+} from './mapShare.actions';

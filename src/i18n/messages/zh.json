@@ -549,6 +549,22 @@
     "noDate": "未設定日期",
     "filterLabel": "日期區間",
     "filterClear": "清除",
-    "noResults": "此區間沒有旅行"
+    "noResults": "此區間沒有旅行",
+    "share": {
+      "button": "分享地圖",
+      "title": "分享你的旅行地圖",
+      "description": "任何人只要有連結就能在地圖上看到你的旅行路線。不會顯示旅行名稱與日期。",
+      "generate": "產生連結",
+      "regenerate": "重新產生連結",
+      "revoke": "關閉分享",
+      "enabledHint": "分享已開啟。任何持有此連結的人都能看到你去識別化後的地圖。",
+      "disabledHint": "分享已關閉。產生連結即可公開分享你的地圖。"
+    },
+    "public": {
+      "title": "旅行地圖",
+      "subtitle": "{trips} 趟旅行 · {countries} 個國家",
+      "notFound": "此分享地圖無法使用。",
+      "empty": "這份地圖目前沒有可顯示的旅行。"
+    }
   }
 }

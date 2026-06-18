@@ -42,7 +42,7 @@ export type {
 // ============================================
 // Common - 通用類型
 // ============================================
-export type { Location, Currency } from './common';
+export type { Location, LocalizedNames, Currency } from './common';
 
 // ============================================
 // API - DTO 類型
