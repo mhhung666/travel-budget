@@ -10,14 +10,22 @@ import type { TripRoute, HeatPoint } from './types';
 import { countryCodeToFlag, countryColor } from './country';
 import { greatCirclePositions, routeHeading } from './arc';
 import HeatLayer from './HeatLayer';
+import CountriesLayer from './CountriesLayer';
 
-export type MapMode = 'routes' | 'heat';
+export type MapMode = 'routes' | 'heat' | 'countries';
 
 interface TripMapCanvasProps {
   mode?: MapMode;
   routes: TripRoute[];
   /** 熱點資料（mode === 'heat' 時使用）。 */
   heatPoints?: HeatPoint[];
+  /** 已造訪國家 alpha-2 集合（mode === 'countries' 時上色用）。 */
+  visitedCountries?: Set<string>;
+  /**
+   * 時間軸回放：只顯示前 N 條路線（依時間排序）。undefined = 顯示全部。
+   * 播放時逐條揭露，營造足跡展開的動畫。
+   */
+  revealCount?: number;
   selectedId: string | null;
   onSelect: (id: string) => void;
 }
@@ -124,6 +132,8 @@ export default function TripMapCanvas({
   mode = 'routes',
   routes,
   heatPoints = [],
+  visitedCountries,
+  revealCount,
   selectedId,
   onSelect,
 }: TripMapCanvasProps) {
@@ -132,6 +142,10 @@ export default function TripMapCanvas({
   const lineColor = isDark ? '#93c5fd' : '#2563eb';
 
   const isHeat = mode === 'heat';
+  const isCountries = mode === 'countries';
+  // 回放時只畫前 N 條；其餘模式畫全部。
+  const visibleRoutes = revealCount === undefined ? routes : routes.slice(0, revealCount);
+  const isRoutes = !isHeat && !isCountries;
   const fitCoords: [number, number][] = isHeat
     ? heatPoints.map((p) => [p.lat, p.lon])
     : allCoords(routes);
@@ -155,11 +169,13 @@ export default function TripMapCanvas({
 
       {isHeat && <HeatLayer points={heatTuples} max={maxWeight} />}
 
-      {!isHeat && <FlyToSelected routes={routes} selectedId={selectedId} />}
+      {isCountries && <CountriesLayer visited={visitedCountries ?? new Set()} isDark={isDark} />}
+
+      {isRoutes && <FlyToSelected routes={visibleRoutes} selectedId={selectedId} />}
 
       {/* 弧線、箭頭與出發地點（不進群聚，屬輔助圖層） */}
-      {!isHeat &&
-        routes.map((r) => {
+      {isRoutes &&
+        visibleRoutes.map((r) => {
           if (!r.destination || !r.departure) return null;
           const active = r.id === selectedId;
           const color = countryColor(r.destination.countryCode);
@@ -198,9 +214,9 @@ export default function TripMapCanvas({
         })}
 
       {/* 目的地圖釘：群聚以避免重疊看不見，縮小時聚合成數量氣泡、放大或點擊展開 */}
-      {!isHeat && (
+      {isRoutes && (
         <MarkerClusterGroup chunkedLoading showCoverageOnHover={false} maxClusterRadius={40}>
-          {routes.map((r) => {
+          {visibleRoutes.map((r) => {
             if (!r.destination) return null;
             const active = r.id === selectedId;
             const color = countryColor(r.destination.countryCode);

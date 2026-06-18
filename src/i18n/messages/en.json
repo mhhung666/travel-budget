@@ -567,6 +567,15 @@
       "subtitle": "{trips} trips · {countries} countries",
       "notFound": "This shared map is not available.",
       "empty": "This map has no trips to show yet."
-    }
+    },
+    "modeCountries": "Countries",
+    "statTrips": "Trips",
+    "statCountries": "Countries",
+    "statCities": "Cities",
+    "statDistance": "Distance",
+    "countryTitle": "{count} countries",
+    "countryCities": "{count} cities",
+    "playRoute": "Play route",
+    "playStop": "Stop"
   }
 }

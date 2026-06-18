@@ -31,6 +31,26 @@ interface PublicRoute {
   id: string;
   departure: PublicGeoPoint | null;
   destination: PublicGeoPoint;
+  /** 此旅程涵蓋的年份（供年份篩選）。只露「年」、不露完整日期，仍維持去識別化。 */
+  years: number[];
+}
+
+/** 去識別化熱點：座標 + 權重 + 年份（year=null 代表行程所屬旅程無日期）。 */
+interface PublicHeatPoint {
+  lat: number;
+  lon: number;
+  weight: number;
+  year: number | null;
+}
+
+/** 一段起訖日所涵蓋的整年清單（含跨年）。無日期回空陣列。 */
+function yearsSpanned(start?: Date | null, end?: Date | null): number[] {
+  if (!start && !end) return [];
+  const s = (start ? new Date(start) : new Date(end as Date)).getFullYear();
+  const e = (end ? new Date(end) : new Date(start as Date)).getFullYear();
+  const out: number[] = [];
+  for (let y = Math.min(s, e); y <= Math.max(s, e); y++) out.push(y);
+  return out;
 }
 
 type LeanTrip = {
@@ -76,6 +96,7 @@ export async function GET(_request: Request, context: { params: Promise<{ code: 
       .map((trip) => ({
         departure: toPoint(trip.departureLocation),
         destination: toPoint(trip.destinationLocation),
+        years: yearsSpanned(trip.startDate, trip.endDate),
         // 僅供伺服器端排序，不外流。
         _sort: trip.startDate ? new Date(trip.startDate).getTime() : Infinity,
       }))
@@ -83,16 +104,35 @@ export async function GET(_request: Request, context: { params: Promise<{ code: 
       .filter(
         (
           r
-        ): r is { departure: PublicGeoPoint | null; destination: PublicGeoPoint; _sort: number } =>
-          r.destination !== null
+        ): r is {
+          departure: PublicGeoPoint | null;
+          destination: PublicGeoPoint;
+          years: number[];
+          _sort: number;
+        } => r.destination !== null
       )
       // 依出發日正序，讓箭頭讀作旅程先後順序；日期不外流（去識別化）。
       .sort((a, b) => a._sort - b._sort)
-      .map((r, i) => ({ id: `r${i}`, departure: r.departure, destination: r.destination }));
+      .map((r, i) => ({
+        id: `r${i}`,
+        departure: r.departure,
+        destination: r.destination,
+        years: r.years,
+      }));
 
-    // 去識別化熱點：行程日地點依座標彙整，只回傳座標與權重（無地名）。
+    // 每趟旅程涵蓋的年份（行程日本身無日期，年份篩選借用所屬旅程的年份）。
+    const tripYears = new Map<string, number[]>();
+    for (const t of trips) tripYears.set(String(t._id), yearsSpanned(t.startDate, t.endDate));
+
+    // 去識別化熱點：行程日地點依「旅程 + 座標」彙整，再依旅程年份展開成 (座標, 年份) 列。
+    // 跨年旅程的行程日會計入每個涵蓋年份（與航線/主地圖的年份判斷一致）。
     const tripIds = trips.map((t) => t._id);
-    const heatRows = await ItineraryDay.aggregate<{ lat: number; lon: number; weight: number }>([
+    const dayRows = await ItineraryDay.aggregate<{
+      trip: Types.ObjectId;
+      lat: number;
+      lon: number;
+      weight: number;
+    }>([
       {
         $match: {
           trip: { $in: tripIds },
@@ -102,17 +142,41 @@ export async function GET(_request: Request, context: { params: Promise<{ code: 
       },
       {
         $group: {
-          _id: { lat: { $round: ['$location.lat', 2] }, lon: { $round: ['$location.lon', 2] } },
+          _id: {
+            trip: '$trip',
+            lat: { $round: ['$location.lat', 2] },
+            lon: { $round: ['$location.lon', 2] },
+          },
           weight: { $sum: 1 },
+          trip: { $first: '$trip' },
           lat: { $first: '$location.lat' },
           lon: { $first: '$location.lon' },
         },
       },
       { $project: { _id: 0 } },
     ]);
-    const heat = heatRows.map((h) => ({ lat: h.lat, lon: h.lon, weight: h.weight }));
 
-    return NextResponse.json({ routes, heat });
+    // 依 (座標, 年份) 彙總權重；無日期旅程歸到 year=null。
+    const heatMap = new Map<string, PublicHeatPoint>();
+    for (const row of dayRows) {
+      const years = tripYears.get(String(row.trip)) ?? [];
+      const buckets: (number | null)[] = years.length > 0 ? years : [null];
+      for (const year of buckets) {
+        const key = `${row.lat},${row.lon},${year}`;
+        const existing = heatMap.get(key);
+        if (existing) existing.weight += row.weight;
+        else heatMap.set(key, { lat: row.lat, lon: row.lon, weight: row.weight, year });
+      }
+    }
+    const heat = [...heatMap.values()];
+
+    // 可篩選的年份清單（路線 + 熱點的聯集），新到舊。
+    const yearSet = new Set<number>();
+    for (const r of routes) for (const y of r.years) yearSet.add(y);
+    for (const h of heat) if (h.year !== null) yearSet.add(h.year);
+    const years = [...yearSet].sort((a, b) => b - a);
+
+    return NextResponse.json({ routes, heat, years });
   } catch (error) {
     logger.error('Get public map error', error);
     return apiError(PublicApiError.INTERNAL_ERROR, 500);
