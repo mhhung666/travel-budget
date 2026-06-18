@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { tripOverlapsRange } from '@/lib/dateRange';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import MapShareDialog from './MapShareDialog';
 import type { Location } from '@/types';
 import type { TripWithMembers } from '@/types';
 import type { GeoPoint, TripRoute } from './types';
@@ -127,6 +128,9 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
 
   return (
     <div className="container mx-auto px-4 pt-20 pb-8">
+      <div className="mb-4 flex items-center justify-end">
+        <MapShareDialog />
+      </div>
       <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
         {/* 時間軸列表 */}
         <aside className="order-2 lg:order-1">

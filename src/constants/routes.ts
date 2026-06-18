@@ -10,6 +10,8 @@ export const ROUTES = {
   // Protected routes
   TRIPS: '/trips',
   MAP: '/map',
+  // 旅行地圖公開分享頁（去識別化、唯讀，不需登入）
+  MAP_SHARE: (code: string) => `/map/share/${code}`,
   TRIP_DETAIL: (id: string | number) => `/trips/${id}`,
   TRIP_SETTLEMENT: (id: string | number) => `/trips/${id}/settlement`,
   TRIP_ITINERARY: (id: string | number) => `/trips/${id}/itinerary`,
@@ -37,6 +39,8 @@ export const ROUTES = {
       `/api/trips/${tripId}/members/${userId}`,
     TRIP_SETTLEMENT: (id: string | number) => `/api/trips/${id}/settlement`,
     JOIN_TRIP: '/api/trips/join',
+    // 公開（不需登入）旅行地圖分享資料
+    PUBLIC_MAP: (code: string) => `/api/public/map/${code}`,
   },
 } as const;
 

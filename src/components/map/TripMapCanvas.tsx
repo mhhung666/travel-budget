@@ -186,7 +186,9 @@ export default function TripMapCanvas({ routes, selectedId, onSelect }: TripMapC
               eventHandlers={{ click: () => onSelect(r.id) }}
             >
               <Tooltip direction="top" offset={[0, -14]}>
-                {r.name} — {countryCodeToFlag(r.destination.countryCode)} {r.destination.name}
+                {/* 去識別化分享情境沒有旅行名稱，只顯示地點。 */}
+                {r.name ? `${r.name} — ` : ''}
+                {countryCodeToFlag(r.destination.countryCode)} {r.destination.name}
               </Tooltip>
             </Marker>
           );
