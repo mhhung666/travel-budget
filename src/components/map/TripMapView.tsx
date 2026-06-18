@@ -3,11 +3,13 @@
 import { useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useLocale, useTranslations } from 'next-intl';
-import { MapPin, Loader2, ArrowRight } from 'lucide-react';
+import { MapPin, Loader2, ArrowRight, X } from 'lucide-react';
 import { useRouter } from '@/i18n/navigation';
 import { ROUTES } from '@/constants/routes';
 import { pickLocalizedName } from '@/lib/utils';
 import { cn } from '@/lib/utils';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import type { Location } from '@/types';
 import type { TripWithMembers } from '@/types';
 import type { GeoPoint, TripRoute } from './types';
@@ -34,9 +36,12 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
   const locale = useLocale();
   const router = useRouter();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [rangeStart, setRangeStart] = useState('');
+  const [rangeEnd, setRangeEnd] = useState('');
+  const hasFilter = rangeStart !== '' || rangeEnd !== '';
 
   // 把每趟旅行投影成「出發地 → 目的地」；至少要有目的地座標才上圖。
-  const routes = useMemo<TripRoute[]>(() => {
+  const projected = useMemo<TripRoute[]>(() => {
     const toPoint = (loc: Location | null | undefined, fallbackName: string): GeoPoint | null => {
       if (!loc || !Number.isFinite(loc.lat) || !Number.isFinite(loc.lon)) return null;
       return {
@@ -69,6 +74,28 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
     );
   }, [trips, locale]);
 
+  // 依日期區間過濾：保留起訖與區間重疊的旅行；有篩選時，無日期者排除。
+  const routes = useMemo<TripRoute[]>(() => {
+    if (!hasFilter) return projected;
+    const lo = rangeStart ? new Date(rangeStart) : null;
+    const hi = rangeEnd ? new Date(`${rangeEnd}T23:59:59.999`) : null;
+    return projected.filter((r) => {
+      const start = r.startDate ?? r.endDate;
+      const end = r.endDate ?? r.startDate;
+      if (!start || !end) return false;
+      const s = new Date(start);
+      const e = new Date(end);
+      if (hi && s > hi) return false;
+      if (lo && e < lo) return false;
+      return true;
+    });
+  }, [projected, hasFilter, rangeStart, rangeEnd]);
+
+  const clearFilter = () => {
+    setRangeStart('');
+    setRangeEnd('');
+  };
+
   const formatRange = (start: string | null, end: string | null) => {
     const fmt = (d: string) => new Date(d).toLocaleDateString(locale);
     if (start && end) return `${fmt(start)} – ${fmt(end)}`;
@@ -89,7 +116,7 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
     return <div className="container mx-auto px-4 pt-24 text-center text-destructive">{error}</div>;
   }
 
-  if (routes.length === 0) {
+  if (projected.length === 0) {
     return (
       <div className="container mx-auto flex min-h-[60vh] flex-col items-center justify-center gap-3 px-4 pt-20 text-center text-muted-foreground">
         <MapPin className="h-10 w-10" />
@@ -103,55 +130,95 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
       <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
         {/* 時間軸列表 */}
         <aside className="order-2 lg:order-1">
+          {/* 日期區間篩選 */}
+          <div className="mb-3 space-y-2 rounded-lg border border-border p-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                {t('filterLabel')}
+              </span>
+              {hasFilter && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 gap-1 px-2 text-xs text-muted-foreground"
+                  onClick={clearFilter}
+                >
+                  <X className="h-3 w-3" />
+                  {t('filterClear')}
+                </Button>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Input
+                type="date"
+                value={rangeStart}
+                onChange={(e) => setRangeStart(e.target.value)}
+                className="h-8 flex-1 text-xs"
+              />
+              <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <Input
+                type="date"
+                value={rangeEnd}
+                min={rangeStart}
+                onChange={(e) => setRangeEnd(e.target.value)}
+                className="h-8 flex-1 text-xs"
+              />
+            </div>
+          </div>
+
           <h2 className="mb-3 px-1 text-sm font-medium text-muted-foreground">
             {t('timelineTitle', { count: routes.length })}
           </h2>
-          <ol className="space-y-2">
-            {routes.map((r, i) => (
-              <li key={r.id}>
-                <button
-                  type="button"
-                  onClick={() => setSelectedId(r.id)}
-                  onDoubleClick={() => router.push(ROUTES.TRIP_DETAIL(r.hashCode))}
-                  className={cn(
-                    'flex w-full items-start gap-3 rounded-lg border p-3 text-left transition-colors',
-                    selectedId === r.id
-                      ? 'border-primary bg-primary/5'
-                      : 'border-border hover:bg-muted/50'
-                  )}
-                >
-                  <span
+          {routes.length === 0 ? (
+            <p className="px-1 text-sm text-muted-foreground">{t('noResults')}</p>
+          ) : (
+            <ol className="space-y-2">
+              {routes.map((r, i) => (
+                <li key={r.id}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedId(r.id)}
+                    onDoubleClick={() => router.push(ROUTES.TRIP_DETAIL(r.hashCode))}
                     className={cn(
-                      'mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white',
-                      selectedId === r.id && 'ring-2 ring-primary ring-offset-1'
+                      'flex w-full items-start gap-3 rounded-lg border p-3 text-left transition-colors',
+                      selectedId === r.id
+                        ? 'border-primary bg-primary/5'
+                        : 'border-border hover:bg-muted/50'
                     )}
-                    style={{ backgroundColor: countryColor(r.destination?.countryCode) }}
                   >
-                    {i + 1}
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block truncate font-medium">{r.name}</span>
-                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                      {r.departure && (
-                        <>
-                          <span className="truncate">
-                            {countryCodeToFlag(r.departure.countryCode)} {r.departure.name}
-                          </span>
-                          <ArrowRight className="h-3 w-3 shrink-0" />
-                        </>
+                    <span
+                      className={cn(
+                        'mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white',
+                        selectedId === r.id && 'ring-2 ring-primary ring-offset-1'
                       )}
-                      <span className="truncate">
-                        {countryCodeToFlag(r.destination?.countryCode)} {r.destination?.name}
+                      style={{ backgroundColor: countryColor(r.destination?.countryCode) }}
+                    >
+                      {i + 1}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate font-medium">{r.name}</span>
+                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                        {r.departure && (
+                          <>
+                            <span className="truncate">
+                              {countryCodeToFlag(r.departure.countryCode)} {r.departure.name}
+                            </span>
+                            <ArrowRight className="h-3 w-3 shrink-0" />
+                          </>
+                        )}
+                        <span className="truncate">
+                          {countryCodeToFlag(r.destination?.countryCode)} {r.destination?.name}
+                        </span>
+                      </span>
+                      <span className="block text-xs text-muted-foreground">
+                        {formatRange(r.startDate, r.endDate)}
                       </span>
                     </span>
-                    <span className="block text-xs text-muted-foreground">
-                      {formatRange(r.startDate, r.endDate)}
-                    </span>
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ol>
+                  </button>
+                </li>
+              ))}
+            </ol>
+          )}
         </aside>
 
         {/* 地圖 */}
