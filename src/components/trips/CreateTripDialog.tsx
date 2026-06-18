@@ -35,13 +35,15 @@ export default function CreateTripDialog({ open, onClose, onSuccess }: CreateTri
     start_date: '',
     end_date: '',
   });
-  const [selectedLocation, setSelectedLocation] = useState<LocationOption | null>(null);
+  const [departureLocation, setDepartureLocation] = useState<LocationOption | null>(null);
+  const [destinationLocation, setDestinationLocation] = useState<LocationOption | null>(null);
   const [error, setError] = useState('');
 
   const handleClose = () => {
     setError('');
     setFormData({ name: '', description: '', start_date: '', end_date: '' });
-    setSelectedLocation(null);
+    setDepartureLocation(null);
+    setDestinationLocation(null);
     onClose();
   };
 
@@ -54,7 +56,8 @@ export default function CreateTripDialog({ open, onClose, onSuccess }: CreateTri
         ...formData,
         start_date: formData.start_date || null,
         end_date: formData.end_date || null,
-        location: selectedLocation || null,
+        departure_location: departureLocation || null,
+        destination_location: destinationLocation || null,
       });
 
       if (!result.success) {
@@ -108,15 +111,25 @@ export default function CreateTripDialog({ open, onClose, onSuccess }: CreateTri
             />
           </div>
 
-          {/* 旅遊地點 */}
+          {/* 出發地 */}
           <div className="space-y-2">
-            {/* LocationAutocomplete handles its own Label if passed, but for consistency let's pass it a label prop */}
             <LocationAutocomplete
-              value={selectedLocation}
-              onChange={setSelectedLocation}
-              label={t('create.location')}
-              placeholder={t('create.locationPlaceholder')}
-              helperText={t('create.locationHelp')}
+              value={departureLocation}
+              onChange={setDepartureLocation}
+              label={t('create.departure')}
+              placeholder={t('create.departurePlaceholder')}
+              helperText={t('create.departureHelp')}
+            />
+          </div>
+
+          {/* 目的地 */}
+          <div className="space-y-2">
+            <LocationAutocomplete
+              value={destinationLocation}
+              onChange={setDestinationLocation}
+              label={t('create.destination')}
+              placeholder={t('create.destinationPlaceholder')}
+              helperText={t('create.destinationHelp')}
             />
           </div>
 

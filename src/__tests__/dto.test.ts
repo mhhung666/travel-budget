@@ -70,7 +70,8 @@ describe('toTripDto', () => {
     description: 'spring',
     startDate: new Date('2026-04-01T00:00:00Z'),
     endDate: new Date('2026-04-10T00:00:00Z'),
-    location: { lat: 1, lng: 2 },
+    departureLocation: { lat: 0, lng: 0 },
+    destinationLocation: { lat: 1, lng: 2 },
     hashCode: 'abc123',
     createdAt: new Date('2026-01-01T00:00:00Z'),
     members: [
@@ -86,7 +87,8 @@ describe('toTripDto', () => {
       description: 'spring',
       start_date: '2026-04-01',
       end_date: '2026-04-10',
-      location: { lat: 1, lng: 2 },
+      departure_location: { lat: 0, lng: 0 },
+      destination_location: { lat: 1, lng: 2 },
       hash_code: 'abc123',
       created_at: '2026-01-01T00:00:00.000Z',
       archived_at: '2026-05-01T00:00:00.000Z',
@@ -98,7 +100,7 @@ describe('toTripDto', () => {
     expect(dto.archived_at).toBeNull();
   });
 
-  it('returns null dates/description/location when absent', () => {
+  it('returns null dates/description/locations when absent', () => {
     const dto = toTripDto({
       _id: { toString: () => 'trip2' },
       name: 'Minimal',
@@ -108,6 +110,7 @@ describe('toTripDto', () => {
     expect(dto.start_date).toBeNull();
     expect(dto.end_date).toBeNull();
     expect(dto.description).toBeNull();
-    expect(dto.location).toBeNull();
+    expect(dto.departure_location).toBeNull();
+    expect(dto.destination_location).toBeNull();
   });
 });

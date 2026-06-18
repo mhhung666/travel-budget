@@ -1,2 +1,2 @@
 export { default as TripMapView } from './TripMapView';
-export type { TripPoint } from './types';
+export type { GeoPoint, TripRoute } from './types';

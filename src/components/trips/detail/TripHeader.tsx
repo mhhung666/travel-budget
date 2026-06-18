@@ -7,7 +7,6 @@ import type { Trip } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { pickLocalizedName } from '@/lib/utils';
-import { getLocalizedCountryName } from '@/constants/countries';
 
 interface TripHeaderProps {
   trip: Trip;
@@ -34,14 +33,15 @@ export default function TripHeader({
             <h2 className="text-xl font-semibold mb-2">{tTrip('info')}</h2>
             {trip.description && <p className="text-muted-foreground mb-4">{trip.description}</p>}
 
-            {/* 地點顯示 */}
-            {trip.location && (
+            {/* 出發地 → 目的地 */}
+            {(trip.departure_location || trip.destination_location) && (
               <div className="flex items-center gap-2 mb-2 text-sm text-muted-foreground">
                 <MapPin size={16} />
                 <span>
-                  {pickLocalizedName(trip.location.names, locale, trip.location.name)}
-                  {trip.location.country &&
-                    `, ${getLocalizedCountryName(trip.location.country_code, locale, trip.location.country)}`}
+                  {[trip.departure_location, trip.destination_location]
+                    .filter(Boolean)
+                    .map((loc) => pickLocalizedName(loc!.names, locale, loc!.name))
+                    .join(' → ')}
                 </span>
               </div>
             )}

@@ -112,7 +112,8 @@ export const createTrip = withAuth(
         };
       }
 
-      const { name, description, start_date, end_date, location } = validation.data;
+      const { name, description, start_date, end_date, departure_location, destination_location } =
+        validation.data;
 
       await dbConnect();
 
@@ -127,7 +128,8 @@ export const createTrip = withAuth(
         description: description?.trim() || '',
         startDate: start_date ? new Date(start_date) : undefined,
         endDate: end_date ? new Date(end_date) : undefined,
-        location: location ?? undefined,
+        departureLocation: departure_location ?? undefined,
+        destinationLocation: destination_location ?? undefined,
         hashCode,
         members: [{ user: session.userId, role: 'admin' }],
       });
@@ -164,14 +166,18 @@ export const updateTrip = withAuth(
         };
       }
 
-      const { name, description, start_date, end_date, location } = validation.data;
+      const { name, description, start_date, end_date, departure_location, destination_location } =
+        validation.data;
 
       const updateData: Record<string, unknown> = {};
       if (name !== undefined) updateData.name = name.trim();
       if (description !== undefined) updateData.description = description?.trim() || '';
       if (start_date !== undefined) updateData.startDate = start_date ? new Date(start_date) : null;
       if (end_date !== undefined) updateData.endDate = end_date ? new Date(end_date) : null;
-      if (location !== undefined) updateData.location = location ?? null;
+      if (departure_location !== undefined)
+        updateData.departureLocation = departure_location ?? null;
+      if (destination_location !== undefined)
+        updateData.destinationLocation = destination_location ?? null;
 
       const trip = await TripModel.findByIdAndUpdate(
         membership.tripId,

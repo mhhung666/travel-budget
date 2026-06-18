@@ -41,7 +41,8 @@ function leanTrip(archivedAt: Date | null) {
     description: '',
     startDate: null,
     endDate: null,
-    location: null,
+    departureLocation: null,
+    destinationLocation: null,
     hashCode: 'abcd1234',
     createdAt: new Date('2024-01-01T00:00:00.000Z'),
     members: [

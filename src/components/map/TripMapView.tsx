@@ -3,13 +3,14 @@
 import { useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useLocale, useTranslations } from 'next-intl';
-import { MapPin, Loader2 } from 'lucide-react';
+import { MapPin, Loader2, ArrowRight } from 'lucide-react';
 import { useRouter } from '@/i18n/navigation';
 import { ROUTES } from '@/constants/routes';
 import { pickLocalizedName } from '@/lib/utils';
 import { cn } from '@/lib/utils';
+import type { Location } from '@/types';
 import type { TripWithMembers } from '@/types';
-import type { TripPoint } from './types';
+import type { GeoPoint, TripRoute } from './types';
 import { countryCodeToFlag, countryColor } from './country';
 
 // Leaflet 依賴 window，必須關閉 SSR。
@@ -34,25 +35,32 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
   const router = useRouter();
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  // 只取有座標的旅程，並依出發日排序（排序規則見下方 .sort）。
-  const points = useMemo<TripPoint[]>(() => {
+  // 把每趟旅行投影成「出發地 → 目的地」；至少要有目的地座標才上圖。
+  const routes = useMemo<TripRoute[]>(() => {
+    const toPoint = (loc: Location | null | undefined, fallbackName: string): GeoPoint | null => {
+      if (!loc || !Number.isFinite(loc.lat) || !Number.isFinite(loc.lon)) return null;
+      return {
+        name: pickLocalizedName(loc.names, locale, loc.name || fallbackName),
+        lat: loc.lat,
+        lon: loc.lon,
+        countryCode: loc.country_code,
+      };
+    };
+
     return (
       trips
-        .filter(
-          (tr): tr is TripWithMembers & { location: NonNullable<TripWithMembers['location']> } =>
-            !!tr.location && Number.isFinite(tr.location.lat) && Number.isFinite(tr.location.lon)
-        )
         .map((tr) => ({
           id: tr.id,
           hashCode: tr.hash_code,
-          name: pickLocalizedName(tr.location.names, locale, tr.location.name || tr.name),
-          lat: tr.location.lat,
-          lon: tr.location.lon,
+          name: tr.name,
           startDate: tr.start_date,
           endDate: tr.end_date,
-          countryCode: tr.location.country_code,
+          departure: toPoint(tr.departure_location, tr.name),
+          destination: toPoint(tr.destination_location, tr.name),
         }))
-        // 依出發日正序，讓編號與路線都讀作 1→2→3 的旅行軌跡；未設日期者排最後。
+        // 目的地座標是上圖的必要條件。
+        .filter((r): r is TripRoute => r.destination !== null)
+        // 依出發日正序，讓編號讀作 1→2→3 的旅行順序；未設日期者排最後。
         .sort((a, b) => {
           const ta = a.startDate ? new Date(a.startDate).getTime() : Infinity;
           const tb = b.startDate ? new Date(b.startDate).getTime() : Infinity;
@@ -81,7 +89,7 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
     return <div className="container mx-auto px-4 pt-24 text-center text-destructive">{error}</div>;
   }
 
-  if (points.length === 0) {
+  if (routes.length === 0) {
     return (
       <div className="container mx-auto flex min-h-[60vh] flex-col items-center justify-center gap-3 px-4 pt-20 text-center text-muted-foreground">
         <MapPin className="h-10 w-10" />
@@ -96,18 +104,18 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
         {/* 時間軸列表 */}
         <aside className="order-2 lg:order-1">
           <h2 className="mb-3 px-1 text-sm font-medium text-muted-foreground">
-            {t('timelineTitle', { count: points.length })}
+            {t('timelineTitle', { count: routes.length })}
           </h2>
           <ol className="space-y-2">
-            {points.map((p, i) => (
-              <li key={p.id}>
+            {routes.map((r, i) => (
+              <li key={r.id}>
                 <button
                   type="button"
-                  onClick={() => setSelectedId(p.id)}
-                  onDoubleClick={() => router.push(ROUTES.TRIP_DETAIL(p.hashCode))}
+                  onClick={() => setSelectedId(r.id)}
+                  onDoubleClick={() => router.push(ROUTES.TRIP_DETAIL(r.hashCode))}
                   className={cn(
                     'flex w-full items-start gap-3 rounded-lg border p-3 text-left transition-colors',
-                    selectedId === p.id
+                    selectedId === r.id
                       ? 'border-primary bg-primary/5'
                       : 'border-border hover:bg-muted/50'
                   )}
@@ -115,18 +123,29 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
                   <span
                     className={cn(
                       'mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white',
-                      selectedId === p.id && 'ring-2 ring-primary ring-offset-1'
+                      selectedId === r.id && 'ring-2 ring-primary ring-offset-1'
                     )}
-                    style={{ backgroundColor: countryColor(p.countryCode) }}
+                    style={{ backgroundColor: countryColor(r.destination?.countryCode) }}
                   >
                     {i + 1}
                   </span>
                   <span className="min-w-0">
-                    <span className="block truncate font-medium">
-                      {countryCodeToFlag(p.countryCode)} {p.name}
+                    <span className="block truncate font-medium">{r.name}</span>
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                      {r.departure && (
+                        <>
+                          <span className="truncate">
+                            {countryCodeToFlag(r.departure.countryCode)} {r.departure.name}
+                          </span>
+                          <ArrowRight className="h-3 w-3 shrink-0" />
+                        </>
+                      )}
+                      <span className="truncate">
+                        {countryCodeToFlag(r.destination?.countryCode)} {r.destination?.name}
+                      </span>
                     </span>
                     <span className="block text-xs text-muted-foreground">
-                      {formatRange(p.startDate, p.endDate)}
+                      {formatRange(r.startDate, r.endDate)}
                     </span>
                   </span>
                 </button>
@@ -137,7 +156,7 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
 
         {/* 地圖 */}
         <div className="order-1 h-[50vh] lg:order-2 lg:h-[calc(100vh-8rem)]">
-          <TripMapCanvas points={points} selectedId={selectedId} onSelect={setSelectedId} />
+          <TripMapCanvas routes={routes} selectedId={selectedId} onSelect={setSelectedId} />
         </div>
       </div>
     </div>

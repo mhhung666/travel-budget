@@ -126,7 +126,8 @@ export function useTripDetailPage(tripId: string) {
       description: data.description?.trim() || null,
       start_date: data.start_date || null,
       end_date: data.end_date || null,
-      location: data.location || null,
+      departure_location: data.departure_location || null,
+      destination_location: data.destination_location || null,
     });
 
     editTripDialog.closeDialog();

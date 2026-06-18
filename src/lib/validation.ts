@@ -37,7 +37,8 @@ export const createTripSchema = z
     description: z.string().optional(),
     start_date: z.string().optional().nullable(),
     end_date: z.string().optional().nullable(),
-    location: locationSchema.optional().nullable(),
+    departure_location: locationSchema.optional().nullable(),
+    destination_location: locationSchema.optional().nullable(),
   })
   .refine(
     (data) => {
@@ -55,7 +56,8 @@ export const updateTripSchema = z
     description: z.string().nullable().optional(),
     start_date: z.string().nullable().optional(),
     end_date: z.string().nullable().optional(),
-    location: locationSchema.nullable().optional(),
+    departure_location: locationSchema.nullable().optional(),
+    destination_location: locationSchema.nullable().optional(),
   })
   .refine(
     (data) => {
