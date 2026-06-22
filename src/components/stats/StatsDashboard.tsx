@@ -86,24 +86,28 @@ export default function StatsDashboard({
 
         {/* 花費趨勢與分類統計並排 */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <ExpenseHistogram
-            categoryStats={stats?.categoryStats || []}
-            startDate={startDate}
-            endDate={endDate}
-            formatCurrency={formatCurrency}
-            t={t}
-            locale={locale}
-            cardGradient="" // Ignored
-          />
+          <div>
+            <ExpenseHistogram
+              categoryStats={stats?.categoryStats || []}
+              startDate={startDate}
+              endDate={endDate}
+              formatCurrency={formatCurrency}
+              t={t}
+              locale={locale}
+              cardGradient="" // Ignored
+            />
+          </div>
 
-          <CategoryStats
-            categoryStats={stats?.categoryStats || []}
-            formatCurrency={formatCurrency}
-            formatDate={formatDate}
-            t={t}
-            tCategory={tCategory}
-            cardGradient="" // Ignored
-          />
+          <div>
+            <CategoryStats
+              categoryStats={stats?.categoryStats || []}
+              formatCurrency={formatCurrency}
+              formatDate={formatDate}
+              t={t}
+              tCategory={tCategory}
+              cardGradient="" // Ignored
+            />
+          </div>
         </div>
       </div>
     </div>

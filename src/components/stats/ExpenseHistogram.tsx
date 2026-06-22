@@ -82,18 +82,33 @@ export default function ExpenseHistogram({
   t,
   locale,
 }: ExpenseHistogramProps) {
+  // 未選查詢區間時，用資料裡最早～最晚的支出日期當範圍，避免趨勢圖整片空白
+  // （日期為 YYYY-MM-DD，字串比較即等於時間排序）。
+  const [effectiveStart, effectiveEnd] = useMemo<[string, string]>(() => {
+    if (startDate && endDate) return [startDate, endDate];
+    const dates = categoryStats.flatMap((c) => c.details.map((d) => d.date));
+    if (dates.length === 0) return [startDate, endDate];
+    let min = dates[0];
+    let max = dates[0];
+    for (const d of dates) {
+      if (d < min) min = d;
+      if (d > max) max = d;
+    }
+    return [startDate || min, endDate || max];
+  }, [categoryStats, startDate, endDate]);
+
   // 計算日期範圍天數
   const daysDiff = useMemo(() => {
-    if (!startDate || !endDate) return 0;
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+    if (!effectiveStart || !effectiveEnd) return 0;
+    const start = new Date(effectiveStart);
+    const end = new Date(effectiveEnd);
     return Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-  }, [startDate, endDate]);
+  }, [effectiveStart, effectiveEnd]);
 
   // 初始區間：智能推薦
   const defaultInterval = useMemo(
-    () => (startDate && endDate ? suggestInterval(startDate, endDate) : 'day'),
-    [startDate, endDate]
+    () => (effectiveStart && effectiveEnd ? suggestInterval(effectiveStart, effectiveEnd) : 'day'),
+    [effectiveStart, effectiveEnd]
   );
 
   const [interval, setInterval] = useState<TimeInterval>(defaultInterval);
@@ -126,9 +141,15 @@ export default function ExpenseHistogram({
 
   // 聚合數據
   const histogramData = useMemo(() => {
-    if (!startDate || !endDate) return null;
-    return aggregateExpensesByInterval(categoryStats, interval, startDate, endDate, locale);
-  }, [categoryStats, interval, startDate, endDate, locale]);
+    if (!effectiveStart || !effectiveEnd) return null;
+    return aggregateExpensesByInterval(
+      categoryStats,
+      interval,
+      effectiveStart,
+      effectiveEnd,
+      locale
+    );
+  }, [categoryStats, interval, effectiveStart, effectiveEnd, locale]);
 
   return (
     <Card className="border-none shadow-none mb-4 bg-transparent">
