@@ -19,13 +19,14 @@ function expense(date: string, amount: number): ExpenseDetail {
 }
 
 describe('suggestInterval', () => {
-  it('suggests "day" for a range of 2 days or fewer', () => {
-    expect(suggestInterval('2026-01-01', '2026-01-02')).toBe('day');
+  it('suggests "day" for ranges up to about a month', () => {
     expect(suggestInterval('2026-01-01', '2026-01-01')).toBe('day');
+    expect(suggestInterval('2026-01-01', '2026-01-05')).toBe('day');
+    expect(suggestInterval('2026-01-01', '2026-01-31')).toBe('day'); // 30 天，單月用日
   });
 
-  it('suggests "week" for ranges over 2 days up to 90 days', () => {
-    expect(suggestInterval('2026-01-01', '2026-01-05')).toBe('week');
+  it('suggests "week" for ranges over a month up to 90 days', () => {
+    expect(suggestInterval('2026-01-01', '2026-02-15')).toBe('week'); // 45 天
     expect(suggestInterval('2026-01-01', '2026-03-31')).toBe('week'); // 89 天
   });
 

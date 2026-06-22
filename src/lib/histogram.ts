@@ -165,7 +165,7 @@ export function suggestInterval(startDate: string, endDate: string): TimeInterva
   const end = new Date(endDate);
   const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
 
-  if (days > 90) return 'month'; // > 3個月 → 按月統計
-  if (days > 2) return 'week'; // > 2天 → 按週統計
-  return 'day'; // <= 2天 → 按日統計
+  if (days > 90) return 'month'; // > 3 個月 → 按月統計
+  if (days > 31) return 'week'; // 約 1~3 個月 → 按週統計
+  return 'day'; // 一個月以內 → 按日統計（避免單月被切成長短不一的週柱）
 }
