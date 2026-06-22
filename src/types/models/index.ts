@@ -17,8 +17,6 @@ export type { ItineraryDay } from './itinerary';
 export type {
   ExpenseDetail,
   CategoryStat,
-  RegionStat,
-  CountryStat,
   StatsData,
   TimeInterval,
   HistogramDataPoint,

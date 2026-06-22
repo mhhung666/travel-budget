@@ -30,8 +30,6 @@ export type {
   Transaction,
   ExpenseDetail,
   CategoryStat,
-  RegionStat,
-  CountryStat,
   StatsData,
   TimeInterval,
   HistogramDataPoint,

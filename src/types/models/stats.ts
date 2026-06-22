@@ -13,23 +13,8 @@ export interface CategoryStat {
   details: ExpenseDetail[];
 }
 
-export interface RegionStat {
-  name: string;
-  /** 各語言在地化地名（建立時抓存，顯示時依 locale 挑） */
-  names?: Record<string, string>;
-  tripCount: number;
-}
-
-export interface CountryStat {
-  country: string;
-  country_code: string;
-  tripCount: number;
-  regions: RegionStat[];
-}
-
 export interface StatsData {
   categoryStats: CategoryStat[];
-  countries: CountryStat[];
   totalAmount: number;
   totalExpenses: number;
 }

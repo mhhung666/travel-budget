@@ -4,7 +4,6 @@ import { useTranslations, useLocale } from 'next-intl';
 import StatsSummaryCard from './StatsSummaryCard';
 import DateRangeFilter from './DateRangeFilter';
 import CategoryStats from './CategoryStats';
-import CountryStats from './CountryStats';
 import ExpenseHistogram from './ExpenseHistogram';
 import type { StatsData } from '@/types';
 import { StatsDashboardSkeleton } from '@/components/skeletons';
@@ -85,7 +84,8 @@ export default function StatsDashboard({
           </div>
         </div>
 
-        <div className="mb-8">
+        {/* 花費趨勢與分類統計並排 */}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <ExpenseHistogram
             categoryStats={stats?.categoryStats || []}
             startDate={startDate}
@@ -95,27 +95,15 @@ export default function StatsDashboard({
             locale={locale}
             cardGradient="" // Ignored
           />
-        </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div>
-            <CategoryStats
-              categoryStats={stats?.categoryStats || []}
-              formatCurrency={formatCurrency}
-              formatDate={formatDate}
-              t={t}
-              tCategory={tCategory}
-              cardGradient="" // Ignored
-            />
-          </div>
-
-          <div>
-            <CountryStats
-              countries={stats?.countries || []}
-              t={t}
-              cardGradient="" // Ignored
-            />
-          </div>
+          <CategoryStats
+            categoryStats={stats?.categoryStats || []}
+            formatCurrency={formatCurrency}
+            formatDate={formatDate}
+            t={t}
+            tCategory={tCategory}
+            cardGradient="" // Ignored
+          />
         </div>
       </div>
     </div>

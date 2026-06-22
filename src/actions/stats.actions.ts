@@ -5,9 +5,8 @@ import { dbConnect } from '@/lib/mongodb';
 import { Trip, Expense } from '@/models';
 import { withAuth } from './withAuth';
 import type { ActionResult } from './types';
-import type { StatsData, CategoryStat, CountryStat, ExpenseDetail, Location } from '@/types';
+import type { StatsData, CategoryStat, ExpenseDetail } from '@/types';
 import { logger } from '@/lib/logger';
-import { tripOverlapsRange } from '@/lib/dateRange';
 
 interface GetStatsOptions {
   startDate?: string;
@@ -35,26 +34,19 @@ export const getStats = withAuth(
 
       // 1. Get all trips the user is part of
       const userTrips = await Trip.find({ 'members.user': session.userId })
-        .select('_id destinationLocation startDate endDate')
-        .lean<
-          {
-            _id: Types.ObjectId;
-            destinationLocation?: Location | null;
-            startDate?: Date | null;
-            endDate?: Date | null;
-          }[]
-        >();
+        .select('_id')
+        .lean<{ _id: Types.ObjectId }[]>();
 
       if (userTrips.length === 0) {
         return {
           success: true,
-          data: { categoryStats: [], countries: [], totalAmount: 0, totalExpenses: 0 },
+          data: { categoryStats: [], totalAmount: 0, totalExpenses: 0 },
         };
       }
 
       const tripIds = userTrips.map((t) => t._id);
 
-      // 查詢區間（分類統計依支出 date、國家統計依旅程起訖日，共用同一組邊界）
+      // 查詢區間（分類統計依支出 date）
       const rangeStart = startDate ? new Date(startDate) : null;
       const rangeEnd = endDate ? new Date(`${endDate}T23:59:59.999Z`) : null;
 
@@ -110,69 +102,13 @@ export const getStats = withAuth(
         }))
         .sort((a, b) => b.total - a.total);
 
-      // 4. Calculate country statistics from trip locations
-      const countryMap = new Map<
-        string,
-        {
-          country_code: string;
-          regions: Map<string, { tripCount: number; names?: Record<string, string> }>;
-          tripCount: number;
-        }
-      >();
-
-      // 區間篩選時，只計入起訖日與查詢區間重疊的旅程（沒有日期的旅程無法定位，排除）；
-      // 無篩選時全部計入。判斷邏輯與旅行地圖共用（src/lib/dateRange.ts）。
-      for (const trip of userTrips) {
-        if (!tripOverlapsRange(trip.startDate, trip.endDate, rangeStart, rangeEnd)) continue;
-        // 國家統計以目的地為準。
-        const location = trip.destinationLocation;
-        if (location && location.country) {
-          const country = location.country;
-          const countryCode = location.country_code || '';
-          const regionName = location.name || '未知';
-
-          if (!countryMap.has(country)) {
-            countryMap.set(country, {
-              country_code: countryCode,
-              regions: new Map(),
-              tripCount: 0,
-            });
-          }
-
-          const countryData = countryMap.get(country)!;
-          countryData.tripCount += 1;
-          const region = countryData.regions.get(regionName);
-          if (region) {
-            region.tripCount += 1;
-          } else {
-            // 第一次見到此地區時記下其多語名（建立旅行時存的 location.names）
-            countryData.regions.set(regionName, { tripCount: 1, names: location.names });
-          }
-        }
-      }
-
-      const countries: CountryStat[] = Array.from(countryMap.entries())
-        .map(([country, data]) => ({
-          country,
-          country_code: data.country_code,
-          tripCount: data.tripCount,
-          regions: Array.from(data.regions.entries())
-            .map(([name, region]) => ({
-              name,
-              names: region.names,
-              tripCount: region.tripCount,
-            }))
-            .sort((a, b) => b.tripCount - a.tripCount),
-        }))
-        .sort((a, b) => b.tripCount - a.tripCount);
-
-      // 5. Totals
+      // 4. Totals
       const totalAmount = categoryStats.reduce((sum, cat) => sum + cat.total, 0);
       const totalExpenses = categoryStats.reduce((sum, cat) => sum + cat.count, 0);
 
       return {
         success: true,
-        data: { categoryStats, countries, totalAmount, totalExpenses },
+        data: { categoryStats, totalAmount, totalExpenses },
       };
     } catch (error) {
       logger.error('Get stats error', error);
