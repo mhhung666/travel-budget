@@ -63,8 +63,11 @@ export default function Navbar({ user, showUserMenu = true, title }: NavbarProps
     <nav className="fixed top-0 left-0 right-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         {/* 左側：Logo 和標題 */}
-        <div className="flex items-center cursor-pointer" onClick={() => router.push('/')}>
-          <span className="text-xl font-semibold text-foreground">{displayTitle}</span>
+        <div
+          className="flex min-w-0 items-center cursor-pointer"
+          onClick={() => router.push('/')}
+        >
+          <span className="truncate text-xl font-semibold text-foreground">{displayTitle}</span>
         </div>
 
         {/* 中間：導航按鈕 (Desktop) */}
@@ -80,7 +83,7 @@ export default function Navbar({ user, showUserMenu = true, title }: NavbarProps
         )}
 
         {/* 右側：功能區 */}
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           {/* 語言切換 */}
           <LanguageSwitcher />
 
