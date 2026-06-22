@@ -188,7 +188,8 @@
     "archiveFailed": "操作失敗,請稍後再試",
     "tabActive": "進行中",
     "tabArchived": "已封存",
-    "noActiveTrips": "沒有進行中的旅行"
+    "noActiveTrips": "沒有進行中的旅行",
+    "noDateGroup": "未排定日期"
   },
   "expense": {
     "title": "支出記錄",

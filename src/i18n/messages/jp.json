@@ -188,7 +188,8 @@
     "archiveFailed": "操作に失敗しました。もう一度お試しください",
     "tabActive": "進行中",
     "tabArchived": "アーカイブ済み",
-    "noActiveTrips": "進行中の旅行はありません"
+    "noActiveTrips": "進行中の旅行はありません",
+    "noDateGroup": "日付未定"
   },
   "expense": {
     "title": "支出記録",

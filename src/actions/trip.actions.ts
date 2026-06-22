@@ -30,6 +30,17 @@ export const getTrips = withAuth(async (session): Promise<ActionResult<TripWithM
       .sort({ createdAt: -1 })
       .lean<LeanTrip[]>();
 
+    // 依旅行日期（startDate）新到舊排序，沒有日期的旅程放最後。
+    // DB 已先按 createdAt 由新到舊，stable sort 讓同日期 / 皆無日期者維持此序。
+    trips.sort((a, b) => {
+      const ta = a.startDate ? new Date(a.startDate).getTime() : null;
+      const tb = b.startDate ? new Date(b.startDate).getTime() : null;
+      if (ta === null && tb === null) return 0;
+      if (ta === null) return 1; // a 無日期 → 排後面
+      if (tb === null) return -1; // b 無日期 → 排後面
+      return tb - ta; // 新到舊
+    });
+
     const formattedTrips: TripWithMembers[] = trips.map((trip) => ({
       ...toTripDto(trip, session.userId),
       member_count: trip.members.length,

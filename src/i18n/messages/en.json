@@ -183,7 +183,8 @@
     "archiveFailed": "Action failed, please try again",
     "tabActive": "Active",
     "tabArchived": "Archived",
-    "noActiveTrips": "No active trips"
+    "noActiveTrips": "No active trips",
+    "noDateGroup": "No date"
   },
   "auth": {
     "login": {
