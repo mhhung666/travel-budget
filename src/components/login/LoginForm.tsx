@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter, Link } from '@/i18n/navigation';
-import { Compass, ArrowLeft, Loader2, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Loader2, AlertCircle } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { login, register } from '@/actions';
 import ForgotPasswordModal from './ForgotPasswordModal';
@@ -73,14 +73,9 @@ export default function LoginForm({ hideBackToHome = false }: LoginFormProps) {
 
   return (
     <>
-      <div className="bg-card text-card-foreground shadow-sm border border-border rounded-lg p-6 sm:p-10">
-        {/* Icon */}
-        <div className="flex items-center justify-center w-14 h-14 rounded-xl bg-primary mx-auto mb-6">
-          <Compass size={32} className="text-primary-foreground" />
-        </div>
-
+      <div className="rounded-2xl border border-border bg-card/70 p-6 text-card-foreground shadow-xl shadow-black/[0.03] backdrop-blur-sm sm:p-10 dark:shadow-black/20">
         {/* 標題 */}
-        <h1 className="text-3xl sm:text-4xl font-bold text-center mb-2 text-foreground">
+        <h1 className="mb-2 text-center text-3xl font-bold text-foreground sm:text-4xl">
           {isLogin ? t('login.title') : t('register.title')}
         </h1>
         <p className="text-center text-muted-foreground mb-8 text-sm sm:text-base">
