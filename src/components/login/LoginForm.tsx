@@ -75,7 +75,7 @@ export default function LoginForm({ hideBackToHome = false }: LoginFormProps) {
     <>
       <div className="rounded-2xl border border-border bg-card/70 p-6 text-card-foreground shadow-xl shadow-black/[0.03] backdrop-blur-sm sm:p-10 dark:shadow-black/20">
         {/* 標題 */}
-        <h1 className="mb-2 text-center text-3xl font-bold text-foreground sm:text-4xl">
+        <h1 className="mb-2 text-center text-2xl font-bold text-foreground sm:text-3xl">
           {isLogin ? t('login.title') : t('register.title')}
         </h1>
         <p className="text-center text-muted-foreground mb-8 text-sm sm:text-base">
