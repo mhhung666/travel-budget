@@ -45,11 +45,7 @@ export default function TripList({ trips, onCopyCode, onToggleArchive }: TripLis
     <div className="space-y-8">
       {groups.map((group) => (
         <section key={group.key}>
-          <div className="mb-4 flex items-center gap-3">
-            <h3 className="text-lg font-semibold text-foreground">{group.label}</h3>
-            <span className="text-sm text-muted-foreground">{group.trips.length}</span>
-            <div className="h-px flex-1 bg-border" />
-          </div>
+          <h3 className="mb-4 text-lg font-semibold text-foreground">{group.label}</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {group.trips.map((trip) => (
               <TripCard
