@@ -64,8 +64,8 @@ export default function StatsDashboard({
         )}
 
         {/* 總支出和查詢區間卡片 */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 mb-8">
-          <div className="md:col-span-5 h-full">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-6">
+          <div className="md:col-span-4 h-full">
             <StatsSummaryCard
               totalAmount={stats?.totalAmount || 0}
               totalExpenses={stats?.totalExpenses || 0}
@@ -73,7 +73,7 @@ export default function StatsDashboard({
               t={t}
             />
           </div>
-          <div className="md:col-span-7 h-full">
+          <div className="md:col-span-8 h-full">
             <DateRangeFilter
               startDate={startDate}
               endDate={endDate}
