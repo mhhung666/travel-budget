@@ -8,10 +8,11 @@ import {
   getMembers,
   getExpenses,
   getSettlement,
+  getTripStats,
   getItinerary,
 } from '@/actions';
 import type { AuthUserWithCreatedAt } from '@/actions';
-import type { Settlement, TripWithMembers } from '@/types';
+import type { Settlement, TripStatsData, TripWithMembers } from '@/types';
 import { tripKeys } from './keys';
 import { fetchWithPublicFallback } from './fetcher';
 
@@ -92,6 +93,30 @@ export function useSettlement(tripId: string) {
     // Settlement's public endpoint returns the body directly (no wrapper key).
     queryFn: () =>
       fetchWithPublicFallback(tripId, getSettlement, { path: 'settlement' }, EMPTY_SETTLEMENT),
+    enabled: !!tripId,
+  });
+}
+
+const EMPTY_TRIP_STATS: TripStatsData = {
+  categoryStats: [],
+  totalAmount: 0,
+  totalExpenses: 0,
+  memberSpends: [],
+  memberCount: 0,
+  dayCount: 0,
+  avgPerPersonPerDay: 0,
+};
+
+/**
+ * Group (whole-trip) statistics. Shares {@link tripKeys.stats} — already
+ * invalidated by expense mutations — so it refetches when expenses change.
+ * Public endpoint returns the body directly (no wrapper key), like settlement.
+ */
+export function useTripStats(tripId: string) {
+  return useQuery({
+    queryKey: tripKeys.stats(tripId),
+    queryFn: () =>
+      fetchWithPublicFallback(tripId, getTripStats, { path: 'stats' }, EMPTY_TRIP_STATS),
     enabled: !!tripId,
   });
 }

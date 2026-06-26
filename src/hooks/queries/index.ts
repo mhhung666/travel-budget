@@ -7,6 +7,7 @@ export {
   useMembers,
   useExpenses,
   useSettlement,
+  useTripStats,
   useItinerary,
   useTripMembership,
 } from './useTripQueries';

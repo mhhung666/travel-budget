@@ -50,7 +50,7 @@ export {
 } from './itinerary.actions';
 
 // Stats actions
-export { getStats } from './stats.actions';
+export { getStats, getTripStats } from './stats.actions';
 
 // Map share actions
 export {

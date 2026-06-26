@@ -485,7 +485,13 @@
     "intervalDay": "按日",
     "intervalWeek": "按週",
     "intervalBiweekly": "按雙週",
-    "intervalMonth": "按月"
+    "intervalMonth": "按月",
+    "tripStats": "群組統計",
+    "memberSpending": "付款排行",
+    "shareTotal": "分攤",
+    "members": "成員",
+    "days": "天數",
+    "avgPerPersonPerDay": "平均每人每日"
   },
   "trip": {
     "info": "旅行資訊",
@@ -527,7 +533,8 @@
     "archiveHint": "封存後會從你的旅行列表收起（只影響你自己）。旅程內容仍可存取，隨時可恢復。",
     "archivedNote": "此旅行已封存（僅你看到）。",
     "archiveSuccess": "已封存,移至「已封存」頁籤",
-    "unarchiveSuccess": "已恢復此旅行"
+    "unarchiveSuccess": "已恢復此旅行",
+    "viewStats": "群組統計"
   },
   "itinerary": {
     "title": "旅程規劃",

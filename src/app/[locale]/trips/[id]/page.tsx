@@ -3,7 +3,7 @@
 import { useParams } from 'next/navigation';
 import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
-import { ArrowLeft, Settings, Map, Calculator } from 'lucide-react';
+import { ArrowLeft, Settings, Map, Calculator, BarChart3 } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import { TripHeader, TripExpenses, TripBudget } from '@/components/trips/detail';
 
@@ -139,6 +139,14 @@ export default function TripDetailPage() {
               >
                 <Calculator className="mr-2 h-4 w-4 text-green-600" />
                 {tTrip('viewSettlement')}
+              </Button>
+              <Button
+                onClick={() => router.push(`/trips/${tripId}/stats`)}
+                className="flex-1 bg-card hover:bg-accent text-card-foreground border shadow-sm h-10"
+                variant="outline"
+              >
+                <BarChart3 className="mr-2 h-4 w-4 text-violet-600" />
+                {tTrip('viewStats')}
               </Button>
             </TripHeader>
 

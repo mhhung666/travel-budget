@@ -3,10 +3,13 @@
 import { Types } from 'mongoose';
 import { dbConnect } from '@/lib/mongodb';
 import { Trip, Expense } from '@/models';
+import { getTripMembership } from '@/lib/permissions';
+import { computeTripStats } from '@/lib/tripStats';
 import { withAuth } from './withAuth';
 import type { ActionResult } from './types';
-import type { StatsData, CategoryStat, ExpenseDetail } from '@/types';
+import type { StatsData, CategoryStat, ExpenseDetail, TripStatsData } from '@/types';
 import { logger } from '@/lib/logger';
+import { toTripStatsInputs, type TripStatExpenseInput, type TripStatsTripInput } from '@/lib/dto';
 
 interface GetStatsOptions {
   startDate?: string;
@@ -112,6 +115,42 @@ export const getStats = withAuth(
       };
     } catch (error) {
       logger.error('Get stats error', error);
+      return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
+    }
+  }
+);
+
+/**
+ * Group (whole-trip) statistics — unlike getStats this is per-trip and NOT
+ * filtered by splits.user: amounts are the full expense, plus a payer/share
+ * ranking and average-per-person-per-day. Heavy lifting is the pure
+ * computeTripStats; this only authorizes + loads (one trip + its expenses).
+ */
+export const getTripStats = withAuth(
+  async (session, tripIdOrCode: string): Promise<ActionResult<TripStatsData>> => {
+    try {
+      const membership = await getTripMembership(session.userId, tripIdOrCode);
+      if (!membership) {
+        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+      }
+
+      const { tripId } = membership;
+
+      const [trip, expenses] = await Promise.all([
+        Trip.findById(tripId)
+          .populate('members.user', 'displayName')
+          .select('members startDate endDate')
+          .lean<TripStatsTripInput>(),
+        Expense.find({ trip: tripId })
+          .select('category date description amount payer splits')
+          .populate('payer', 'displayName')
+          .lean<TripStatExpenseInput[]>(),
+      ]);
+
+      const { members, expenses: mapped, range } = toTripStatsInputs(trip, expenses);
+      return { success: true, data: computeTripStats(mapped, members, range) };
+    } catch (error) {
+      logger.error('Get trip stats error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
   }

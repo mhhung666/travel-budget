@@ -485,7 +485,13 @@
     "intervalDay": "按日",
     "intervalWeek": "按周",
     "intervalBiweekly": "按双周",
-    "intervalMonth": "按月"
+    "intervalMonth": "按月",
+    "tripStats": "群组统计",
+    "memberSpending": "付款排行",
+    "shareTotal": "分摊",
+    "members": "成员",
+    "days": "天数",
+    "avgPerPersonPerDay": "平均每人每日"
   },
   "trip": {
     "info": "旅行信息",
@@ -527,7 +533,8 @@
     "archiveHint": "归档后会从你的旅行列表收起（只影响你自己）。旅程内容仍可访问，随时可恢复。",
     "archivedNote": "此旅行已归档（仅你看到）。",
     "archiveSuccess": "已归档,移至「已归档」标签",
-    "unarchiveSuccess": "已恢复此旅行"
+    "unarchiveSuccess": "已恢复此旅行",
+    "viewStats": "群组统计"
   },
   "itinerary": {
     "title": "旅程规划",

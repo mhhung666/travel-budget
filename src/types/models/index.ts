@@ -29,6 +29,8 @@ export type {
   ExpenseDetail,
   CategoryStat,
   StatsData,
+  MemberSpend,
+  TripStatsData,
   TimeInterval,
   HistogramDataPoint,
   HistogramData,

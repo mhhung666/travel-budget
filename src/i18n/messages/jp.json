@@ -485,7 +485,13 @@
     "intervalDay": "日別",
     "intervalWeek": "週別",
     "intervalBiweekly": "隔週",
-    "intervalMonth": "月別"
+    "intervalMonth": "月別",
+    "tripStats": "グループ統計",
+    "memberSpending": "支払いランキング",
+    "shareTotal": "負担",
+    "members": "メンバー",
+    "days": "日数",
+    "avgPerPersonPerDay": "1人1日あたり平均"
   },
   "trip": {
     "info": "旅行情報",
@@ -527,7 +533,8 @@
     "archiveHint": "アーカイブすると、あなたのリストからのみ非表示になります（他のメンバーには影響しません）。内容はそのまま参照でき、いつでも復元できます。",
     "archivedNote": "この旅行はアーカイブ済みです（あなたにのみ表示）。",
     "archiveSuccess": "アーカイブしました（「アーカイブ」タブに移動）",
-    "unarchiveSuccess": "旅行を復元しました"
+    "unarchiveSuccess": "旅行を復元しました",
+    "viewStats": "グループ統計"
   },
   "itinerary": {
     "title": "旅程プラン",

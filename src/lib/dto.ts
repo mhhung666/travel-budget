@@ -1,4 +1,5 @@
 import type { Expense as ExpenseDto, Trip as TripDto, PaymentRecord } from '@/types';
+import type { TripStatsExpense, TripStatsMember } from '@/lib/tripStats';
 
 /**
  * Shared model → public DTO mappers.
@@ -96,6 +97,66 @@ export function toTripDto(t: TripDtoInput, viewerId?: string): TripDto {
           })),
         }
       : null,
+  };
+}
+
+/** Minimal lean Expense shape the group-stats mapper needs (payer populated). */
+export type TripStatExpenseInput = {
+  _id: { toString(): string };
+  category: string | null;
+  date: Date | string;
+  description: string;
+  amount: number;
+  payer: PopulatedRef;
+  splits: { user: { toString(): string }; shareAmount: number }[];
+};
+
+/** Minimal lean Trip shape the group-stats mapper needs (members populated + dates). */
+export type TripStatsTripInput = {
+  members: { user: { _id: { toString(): string }; displayName: string } | null }[];
+  startDate?: Date | null;
+  endDate?: Date | null;
+} | null;
+
+/**
+ * Lean Trip + Expense docs → `computeTripStats` inputs. Shared by the
+ * authenticated `getTripStats` action and the public stats route so the two
+ * surfaces map identically (same drift-prevention rationale as the DTO mappers).
+ */
+export function toTripStatsInputs(
+  trip: TripStatsTripInput,
+  expenses: TripStatExpenseInput[]
+): {
+  members: TripStatsMember[];
+  expenses: TripStatsExpense[];
+  range: { startDate: string | null; endDate: string | null };
+} {
+  const members: TripStatsMember[] = (trip?.members || [])
+    .map((m) => m.user)
+    .filter((u): u is NonNullable<typeof u> => u !== null)
+    .map((u) => ({ userId: u._id.toString(), name: u.displayName }));
+
+  const mapped: TripStatsExpense[] = expenses.map((e) => ({
+    id: e._id.toString(),
+    category: e.category,
+    date: toDateStr(e.date),
+    description: e.description || '',
+    amount: e.amount || 0,
+    payerId: e.payer?._id.toString() || '',
+    payerName: e.payer?.displayName || 'Unknown',
+    splits: (e.splits || []).map((s) => ({
+      userId: s.user.toString(),
+      shareAmount: s.shareAmount || 0,
+    })),
+  }));
+
+  return {
+    members,
+    expenses: mapped,
+    range: {
+      startDate: trip?.startDate ? toDateStr(trip.startDate) : null,
+      endDate: trip?.endDate ? toDateStr(trip.endDate) : null,
+    },
   };
 }
 

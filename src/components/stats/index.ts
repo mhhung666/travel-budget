@@ -3,3 +3,5 @@ export { default as DateRangeFilter } from './DateRangeFilter';
 export { default as StatsSummaryCard } from './StatsSummaryCard';
 export { default as ExpenseHistogram } from './ExpenseHistogram';
 export { default as StatsDashboard } from './StatsDashboard';
+export { default as MemberSpendRanking } from './MemberSpendRanking';
+export { default as TripStatsView } from './TripStatsView';

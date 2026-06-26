@@ -480,7 +480,13 @@
     "intervalDay": "Daily",
     "intervalWeek": "Weekly",
     "intervalBiweekly": "Biweekly",
-    "intervalMonth": "Monthly"
+    "intervalMonth": "Monthly",
+    "tripStats": "Group stats",
+    "memberSpending": "Member payments",
+    "shareTotal": "Share",
+    "members": "Members",
+    "days": "Days",
+    "avgPerPersonPerDay": "Avg / person / day"
   },
   "trip": {
     "info": "Trip Info",
@@ -522,7 +528,8 @@
     "archiveHint": "Archiving collapses this trip from your own list only (others are unaffected). The trip stays accessible and can be restored anytime.",
     "archivedNote": "This trip is archived (only you see this).",
     "archiveSuccess": "Archived — moved to the Archived tab",
-    "unarchiveSuccess": "Trip restored"
+    "unarchiveSuccess": "Trip restored",
+    "viewStats": "Group stats"
   },
   "itinerary": {
     "title": "Trip Itinerary",
