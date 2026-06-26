@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { CATEGORIES, DEFAULT_CATEGORY } from '@/constants/categories';
 import type { Expense, Member } from '@/types';
 import { cn } from '@/lib/utils';
+import { computeSplits, type SplitMode } from '@/lib/expenseSplit';
 
 // UI Components
 import {
@@ -27,6 +28,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -75,8 +77,9 @@ export default function ExpenseFormDialog({
     date: new Date().toISOString().split('T')[0],
   });
 
+  const [splitMode, setSplitMode] = useState<SplitMode>('equal');
   const [splitState, setSplitState] = useState<
-    Record<string, { selected: boolean; manualAmount: string }>
+    Record<string, { selected: boolean; value: string }>
   >({});
   const [showAdvanced, setShowAdvanced] = useState(mode === 'edit'); // Default expanded for edit
 
@@ -123,21 +126,31 @@ export default function ExpenseFormDialog({
           date: new Date(expense.date).toISOString().split('T')[0],
         });
 
-        // Initialize split state from existing splits
-        const initialSplits: Record<string, { selected: boolean; manualAmount: string }> = {};
-        const exchangeRate = parseFloat(expense.exchange_rate.toString());
+        // Reconstruct split inputs from stored TWD shares. We don't persist the
+        // split mode, so infer it: all-equal shares → 'equal' (blank inputs),
+        // otherwise → 'amount' with each member's reconstructed original amount.
+        const exchangeRate = parseFloat(expense.exchange_rate.toString()) || 1;
+        const originalShares = expense.splits.map((s) => s.share_amount / exchangeRate);
+        const allEqual =
+          originalShares.length > 0 &&
+          originalShares.every((v) => Math.abs(v - originalShares[0]) < 0.01);
+        const inferredMode: SplitMode = allEqual ? 'equal' : 'amount';
+        setSplitMode(inferredMode);
 
+        const initialSplits: Record<string, { selected: boolean; value: string }> = {};
         members.forEach((m) => {
           const existingSplit = expense.splits.find((s) => s.user_id === m.id);
           if (existingSplit) {
-            // Convert TWD back to original currency for display
             const originalAmount = existingSplit.share_amount / exchangeRate;
             initialSplits[m.id] = {
               selected: true,
-              manualAmount: originalAmount.toFixed(expense.currency === 'JPY' ? 0 : 2),
+              value:
+                inferredMode === 'equal'
+                  ? ''
+                  : originalAmount.toFixed(expense.currency === 'JPY' ? 0 : 2),
             };
           } else {
-            initialSplits[m.id] = { selected: false, manualAmount: '' };
+            initialSplits[m.id] = { selected: false, value: '' };
           }
         });
         setSplitState(initialSplits);
@@ -153,10 +166,11 @@ export default function ExpenseFormDialog({
           date: new Date().toISOString().split('T')[0],
         });
 
-        // Init splits: All selected, no manual amounts (equal split)
-        const initialSplits: Record<string, { selected: boolean; manualAmount: string }> = {};
+        // Init splits: everyone selected, equal split (no manual values)
+        setSplitMode('equal');
+        const initialSplits: Record<string, { selected: boolean; value: string }> = {};
         members.forEach((m) => {
-          initialSplits[m.id] = { selected: true, manualAmount: '' };
+          initialSplits[m.id] = { selected: true, value: '' };
         });
         setSplitState(initialSplits);
       }
@@ -167,79 +181,40 @@ export default function ExpenseFormDialog({
     }
   }, [open, mode, expense, members, currentUser]);
 
-  // Calculate Splits Logic (in original currency)
-  const { calculatedSplitsOriginal, calculatedSplitsTWD, isValidSplit, splitWarning } = (() => {
-    const originalAmount = parseFloat(form.original_amount) || 0;
-    const exchangeRate = parseFloat(form.exchange_rate) || 1;
-    const totalAmountTWD = originalAmount * exchangeRate;
+  // Split calculation is delegated to the pure helper (lib/expenseSplit, unit
+  // tested). Inputs are in the original currency; shares are converted to TWD
+  // for storage in Expense.splits[].shareAmount.
+  const originalAmount = parseFloat(form.original_amount) || 0;
+  const exchangeRate = parseFloat(form.exchange_rate) || 1;
+  const totalAmountTWD = originalAmount * exchangeRate;
+  const anySelected = members.some((m) => splitState[m.id]?.selected);
 
-    let manualSumOriginal = 0;
-    let autoCheckCount = 0;
-    const resultOriginal: Record<string, number> = {};
-    const resultTWD: Record<string, number> = {};
+  const split = computeSplits(
+    splitMode,
+    members.map((m) => ({
+      id: m.id,
+      selected: splitState[m.id]?.selected ?? false,
+      value: splitState[m.id]?.value ?? '',
+    })),
+    originalAmount,
+    exchangeRate
+  );
+  const isValidSplit = split.balanced;
 
-    // 1. First pass: Sum manual amounts (in original currency) and count auto-selected
-    members.forEach((m) => {
-      const state = splitState[m.id];
-      if (!state?.selected) {
-        resultOriginal[m.id] = 0;
-        resultTWD[m.id] = 0;
-        return;
-      }
-
-      if (state.manualAmount !== '') {
-        const valOriginal = parseFloat(state.manualAmount) || 0;
-        manualSumOriginal += valOriginal;
-        resultOriginal[m.id] = valOriginal;
-        resultTWD[m.id] = valOriginal * exchangeRate;
-      } else {
-        autoCheckCount++;
-      }
-    });
-
-    // 2. Distribute remaining amount (in original currency)
-    const remainingOriginal = Math.max(0, originalAmount - manualSumOriginal);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const manualSumTWD = manualSumOriginal * exchangeRate;
-
-    // 3. Assign auto amounts (in original currency)
-    if (autoCheckCount > 0) {
-      const perPersonOriginal = remainingOriginal / autoCheckCount;
-      const perPersonTWD = perPersonOriginal * exchangeRate;
-      members.forEach((m) => {
-        const state = splitState[m.id];
-        if (state?.selected && state.manualAmount === '') {
-          resultOriginal[m.id] = perPersonOriginal;
-          resultTWD[m.id] = perPersonTWD;
-        }
-      });
-    }
-
-    // Calculate total TWD splits for validation
-    let totalSplitsTWD = 0;
-    members.forEach((m) => {
-      if (splitState[m.id]?.selected) {
-        totalSplitsTWD += resultTWD[m.id] || 0;
-      }
-    });
-
-    // Warning if manual exceeds total or splits don't match (with tolerance for floating point errors)
-    let warning = '';
-    const tolerance = Math.max(1, totalAmountTWD * 0.0001); // 0.01% tolerance or 1 TWD minimum
-
-    if (totalSplitsTWD > totalAmountTWD + tolerance) {
-      warning = tCommon('error.splitExceedsTotal');
-    } else if (Math.abs(totalSplitsTWD - totalAmountTWD) > tolerance) {
-      warning = tCommon('error.splitNotFullyAllocated');
-    }
-
-    return {
-      calculatedSplitsOriginal: resultOriginal,
-      calculatedSplitsTWD: resultTWD,
-      isValidSplit: !warning,
-      splitWarning: warning,
-    };
-  })();
+  let splitWarning = '';
+  if (!anySelected) {
+    splitWarning = tExpense('error.noMembersSelected');
+  } else if (split.imbalance === 'over') {
+    splitWarning =
+      splitMode === 'percent'
+        ? tExpense('split.percentExceeds')
+        : tCommon('error.splitExceedsTotal');
+  } else if (split.imbalance === 'under') {
+    splitWarning =
+      splitMode === 'percent'
+        ? tExpense('split.percentShort')
+        : tCommon('error.splitNotFullyAllocated');
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -256,7 +231,7 @@ export default function ExpenseFormDialog({
         .filter((m) => splitState[m.id]?.selected)
         .map((m) => ({
           user_id: m.id,
-          share_amount: calculatedSplitsTWD[m.id], // Use the calculated TWD amount
+          share_amount: split.twd[m.id], // converted TWD share
         }));
 
       if (finalSplits.length === 0) {
@@ -278,36 +253,48 @@ export default function ExpenseFormDialog({
     }
   };
 
+  // Switching split mode clears per-member inputs (a value means different
+  // things across modes) but keeps who's selected. ToggleGroup emits '' when
+  // the active item is re-clicked — ignore that so a mode stays chosen.
+  const handleModeChange = (next: string) => {
+    if (!next) return;
+    setSplitMode(next as SplitMode);
+    setSplitState((prev) => {
+      const cleared: Record<string, { selected: boolean; value: string }> = {};
+      for (const id of Object.keys(prev)) {
+        cleared[id] = { selected: prev[id].selected, value: '' };
+      }
+      return cleared;
+    });
+  };
+
   const handleSplitToggle = (userId: string) => {
     setSplitState((prev) => ({
       ...prev,
       [userId]: {
         ...prev[userId],
         selected: !prev[userId]?.selected,
-        manualAmount: '', // Reset manual if toggled
+        value: '', // reset the per-member input when toggling
       },
     }));
   };
 
-  const handleManualAmountChange = (userId: string, value: string) => {
+  const handleValueChange = (userId: string, value: string) => {
     setSplitState((prev) => ({
       ...prev,
       [userId]: {
         ...prev[userId],
         selected: true,
-        manualAmount: value,
+        value,
       },
     }));
   };
 
   const handleSelectAll = () => {
     const allSelected = members.every((m) => splitState[m.id]?.selected);
-    const newState: Record<string, { selected: boolean; manualAmount: string }> = {};
+    const newState: Record<string, { selected: boolean; value: string }> = {};
     members.forEach((m) => {
-      newState[m.id] = {
-        selected: !allSelected,
-        manualAmount: '',
-      };
+      newState[m.id] = { selected: !allSelected, value: '' };
     });
     setSplitState(newState);
   };
@@ -436,11 +423,34 @@ export default function ExpenseFormDialog({
               </Button>
             </div>
 
+            {/* Split mode selector */}
+            <ToggleGroup
+              type="single"
+              value={splitMode}
+              onValueChange={handleModeChange}
+              className="grid grid-cols-4 gap-1"
+            >
+              {(['equal', 'amount', 'percent', 'shares'] as SplitMode[]).map((m) => (
+                <ToggleGroupItem
+                  key={m}
+                  value={m}
+                  className="h-8 text-xs data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+                >
+                  {tExpense(`split.${m}`)}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+
             <div className="space-y-2">
               {members.map((member) => {
-                const state = splitState[member.id] || { selected: false, manualAmount: '' };
-                const amountOriginal = calculatedSplitsOriginal[member.id] || 0;
-                const isManual = state.manualAmount !== '';
+                const state = splitState[member.id] || { selected: false, value: '' };
+                const twdShare = split.twd[member.id] || 0;
+                const unit =
+                  splitMode === 'percent'
+                    ? '%'
+                    : splitMode === 'shares'
+                      ? tExpense('split.shareUnit')
+                      : form.currency;
 
                 return (
                   <div
@@ -465,22 +475,23 @@ export default function ExpenseFormDialog({
 
                     {state.selected ? (
                       <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground w-8 text-right">
-                          {form.currency}
+                        {/* converted TWD share */}
+                        <span className="text-xs text-muted-foreground tabular-nums">
+                          ${Math.round(twdShare).toLocaleString()}
                         </span>
-                        <Input
-                          // variant="ghost" removed
-                          placeholder={amountOriginal.toFixed(form.currency === 'JPY' ? 0 : 2)}
-                          value={state.manualAmount}
-                          onChange={(e) => handleManualAmountChange(member.id, e.target.value)}
-                          type="number"
-                          className={cn(
-                            'h-8 w-24 text-right pr-2 border-none shadow-none focus-visible:ring-0',
-                            isManual
-                              ? 'font-bold text-primary bg-background shadow-sm'
-                              : 'bg-transparent'
-                          )}
-                        />
+                        {splitMode !== 'equal' && (
+                          <div className="flex items-center gap-1">
+                            <Input
+                              placeholder={splitMode === 'shares' ? '1' : '0'}
+                              value={state.value}
+                              onChange={(e) => handleValueChange(member.id, e.target.value)}
+                              type="number"
+                              min="0"
+                              className="h-8 w-20 text-right pr-1 bg-background shadow-sm focus-visible:ring-1"
+                            />
+                            <span className="w-8 text-xs text-muted-foreground">{unit}</span>
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <span className="text-xs text-muted-foreground pr-2">--</span>
@@ -489,6 +500,16 @@ export default function ExpenseFormDialog({
                 );
               })}
             </div>
+
+            {/* Allocation summary (TWD) */}
+            {anySelected && originalAmount > 0 && (
+              <p className="px-1 text-xs text-muted-foreground tabular-nums">
+                {tExpense('split.allocated', {
+                  allocated: `$${Math.round(split.allocatedTWD).toLocaleString()}`,
+                  total: `$${Math.round(totalAmountTWD).toLocaleString()}`,
+                })}
+              </p>
+            )}
 
             {splitWarning && (
               <Alert className="bg-yellow-50 dark:bg-yellow-900/10 border-yellow-200 dark:border-yellow-900">

@@ -229,6 +229,16 @@
     "perPerson": "每人分摊:",
     "selected": "已选",
     "clickToAdd": "点击「新增支出」开始记录!",
+    "split": {
+      "equal": "均分",
+      "amount": "金额",
+      "percent": "百分比",
+      "shares": "份数",
+      "shareUnit": "份",
+      "allocated": "已分配 {allocated} / {total}",
+      "percentExceeds": "百分比合计超过 100%",
+      "percentShort": "百分比合计不足 100%"
+    },
     "error": {
       "noMembersSelected": "请至少选择一位分账对象"
     }

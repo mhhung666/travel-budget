@@ -262,6 +262,16 @@
     "perPerson": "Per person:",
     "selected": "selected",
     "clickToAdd": "Click \"Add Expense\" to start!",
+    "split": {
+      "equal": "Equal",
+      "amount": "Amount",
+      "percent": "Percent",
+      "shares": "Shares",
+      "shareUnit": "x",
+      "allocated": "Allocated {allocated} / {total}",
+      "percentExceeds": "Percentages add up to more than 100%",
+      "percentShort": "Percentages add up to less than 100%"
+    },
     "error": {
       "noMembersSelected": "Please select at least one member to split with"
     }

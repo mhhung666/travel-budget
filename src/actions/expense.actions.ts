@@ -18,6 +18,16 @@ import { toExpenseDto, type ExpenseDtoInput } from '@/lib/dto';
 type LeanExpense = ExpenseDtoInput & { date: Date };
 
 /**
+ * Whether split shares (TWD) add up to the expense amount, within a generous
+ * tolerance (1 TWD or 1%). The client form balances splits exactly; this guard
+ * only rejects a grossly malformed payload (e.g. a buggy/tampered client).
+ */
+function splitsMatchAmount(splits: { share_amount: number }[], amount: number): boolean {
+  const sum = splits.reduce((acc, sp) => acc + sp.share_amount, 0);
+  return Math.abs(sum - amount) <= Math.max(1, amount * 0.01);
+}
+
+/**
  * Get all expenses for a trip
  */
 export const getExpenses = withAuth(
@@ -98,6 +108,13 @@ export const createExpense = withAuth(
         if (!memberIds.has(split.user_id)) {
           return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
         }
+      }
+
+      // Defence-in-depth: split shares (TWD) must add up to the expense amount.
+      // The form already balances them; this only rejects a grossly malformed
+      // client payload (tolerance is generous to never trip on float rounding).
+      if (!splitsMatchAmount(splits, amount)) {
+        return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
       }
 
       const created = await Expense.create({
@@ -200,6 +217,12 @@ export const updateExpense = withAuth(
       }
 
       if (splits !== undefined) {
+        // Validate against the effective amount (recomputed if amount/rate changed,
+        // otherwise the expense's current amount). See splitsMatchAmount.
+        const effectiveAmount = newAmount ?? current.originalAmount * current.exchangeRate;
+        if (!splitsMatchAmount(splits, effectiveAmount)) {
+          return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
+        }
         set.splits = splits.map((s) => ({ user: s.user_id, shareAmount: s.share_amount }));
       } else if (newAmount !== undefined && current.splits.length > 0) {
         // 金額改變但未提供 splits：依人數平均重算

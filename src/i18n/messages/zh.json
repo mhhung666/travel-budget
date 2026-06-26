@@ -229,6 +229,16 @@
     "perPerson": "每人分擔:",
     "selected": "已選",
     "clickToAdd": "點擊「新增支出」開始記錄!",
+    "split": {
+      "equal": "均分",
+      "amount": "金額",
+      "percent": "百分比",
+      "shares": "份數",
+      "shareUnit": "份",
+      "allocated": "已分配 {allocated} / {total}",
+      "percentExceeds": "百分比合計超過 100%",
+      "percentShort": "百分比合計不足 100%"
+    },
     "error": {
       "noMembersSelected": "請至少選擇一位分帳對象"
     }
