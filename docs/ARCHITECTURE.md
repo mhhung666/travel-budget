@@ -1,6 +1,6 @@
 # 架構說明（Architecture）
 
-> 更新日期：2026-06-26（新增旅程預算、彈性分帳、結算「標記已付」與群組統計）
+> 更新日期：2026-06-26（新增旅程預算、彈性分帳、結算「標記已付」、群組統計與打包清單）
 > 對應版本：v3.4.3
 > 本文件依**實際程式碼**撰寫，為架構的權威來源。改善建議請見 [IMPROVEMENTS.md](./IMPROVEMENTS.md)；遷移過程見 [MIGRATION_MONGODB.md](./MIGRATION_MONGODB.md)。
 
@@ -71,7 +71,7 @@ src/
 ├── hooks/            # useTripData / useAuth / useAsyncAction / useDialog / use-toast...
 ├── i18n/             # routing + config + messages（四語系）
 ├── lib/              # 核心邏輯：auth / permissions / settlement / validation / mongodb...
-├── models/           # Mongoose models：User / Trip / Expense / ItineraryDay
+├── models/           # Mongoose models：User / Trip / Expense / Payment / ItineraryDay / Checklist
 ├── constants/        # categories / countries / currencies / routes
 └── types/            # models(DTO) / api(dto) / common
 ```
@@ -120,11 +120,16 @@ src/
 - **群組（單一旅程、全團）**：`/trips/[id]/stats` 子頁，[getTripStats](../src/actions/stats.actions.ts) **不過濾** `splits.user`、金額取整筆，回傳分類彙總 + 付款排行（誰出錢最多）+ 各人分攤 + 平均每人每日。純計算在 [lib/tripStats.ts](../src/lib/tripStats.ts) `computeTripStats`；有[公開分享路由](../src/app/api/public/trips/%5Bid%5D/stats/route.ts)。
 - 兩者 `categoryStats` 形狀相同，故 `ExpenseHistogram` / `CategoryStats` 元件兩邊共用。群組查詢重用 `tripKeys.stats`（已被支出 mutation invalidate）。
 
+### 4.8 打包清單 / 待辦
+- `/trips/[id]/checklists` 子頁，採**獨立 [Checklist](../src/models/Checklist.ts) 集合**（非內嵌在 Trip）：比照 `ItineraryDay` 為旅程子集合，避免每次載入 Trip 都帶清單、也避免勾選一個項目就改寫整份 Trip；清單項目 `items[]` 仍內嵌（數量有界、整批編輯，同 `Expense.splits`）。
+- 權限採**成員信任模型**（任何成員可建立/編輯/勾選/刪除，同 expense/payment），非行程那種 admin-only——清單本質是協作工具。7 個 action（[checklist.actions.ts](../src/actions/checklist.actions.ts)：清單 CRUD + 項目 add/update/remove，項目更新以 `arrayFilters` 定位、避免改寫整個陣列），共用 `toChecklistDto` mapper，有[公開唯讀分享路由](../src/app/api/public/trips/%5Bid%5D/checklists/route.ts)。
+- 項目可指派給成員（`assignee`）；成員被移除時 `removeMember` 會清掉其 item 指派（避免孤兒參照）。
+
 ---
 
 ## 5. 資料模型
 
-Schema 定義在 [src/models/](../src/models/) 的 Mongoose model，index 於連線時自動建立（無 SQL migration）。原本 6 張關聯表收斂為 **5 個 collection**，用內嵌消除大部分 join 與 N+1：
+Schema 定義在 [src/models/](../src/models/) 的 Mongoose model，index 於連線時自動建立（無 SQL migration）。原本 6 張關聯表收斂為 **6 個 collection**，用內嵌消除大部分 join 與 N+1：
 
 ```
 User
@@ -132,6 +137,7 @@ Trip          ── 內嵌 members[]（取代 trip_members）
 Expense       ── 內嵌 splits[]（取代 expense_splits）；trip / payer 為 ref
 Payment       ── ref trip / from / to（結算還款，標記已付）
 ItineraryDay  ── ref trip
+Checklist     ── ref trip；內嵌 items[]（打包/待辦清單）
 ```
 
 | Collection | 重點欄位 |
@@ -141,8 +147,9 @@ ItineraryDay  ── ref trip
 | `Expense` | `trip`(ref,index), `payer`(ref), `amount`/`originalAmount`/`currency`/`exchangeRate`, `category`(enum), `date`；**`splits[]`**=`{ user(ref), shareAmount }`（前端依均分/金額/百分比/份數模式換算後寫入） |
 | `Payment` | `trip`(ref,index), `from`(ref), `to`(ref), `amount`（基準幣 TWD）, `note`, `createdBy`(ref)；結算還款紀錄，`getSettlement` 以 `applyPayments` 淨額抵銷餘額 |
 | `ItineraryDay` | `trip`(ref), `(trip,dayNumber)` 複合唯一索引；刪除日程後以 ordered `bulkWrite` 重新編號 |
+| `Checklist` | `trip`(ref,index), `title`, `createdBy`(ref)；**`items[]`**=`{ text, done, assignee(ref,可 null) }`（打包/待辦清單，成員信任模型、可指派成員） |
 
-> ⚠️ MongoDB 無外鍵 cascade：刪除 trip 時 `deleteTrip` 會手動一併刪除該 trip 的 expenses、payments 與 itinerary days；`removeMember` 也會檢查還款參照避免孤兒。
+> ⚠️ MongoDB 無外鍵 cascade：刪除 trip 時 `deleteTrip` 會手動一併刪除該 trip 的 expenses、payments、itinerary days 與 checklists；`removeMember` 也會檢查還款參照避免孤兒，並清掉清單項目對該成員的指派。
 > ID 一律為 ObjectId 字串，從 JWT、DTO 到前端 props 一致。
 
 ---

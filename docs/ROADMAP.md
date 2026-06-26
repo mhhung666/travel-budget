@@ -8,7 +8,7 @@
 圖例：💎 旗艦（高價值、定義產品）　⭐ 高價值　🔹 加值/驚喜　｜　✅ 已完成
 成本：S（數天）／M（一兩週）／L（需基礎設施或大改）
 
-> **進度**：Tier 1 全數完成 — **#1 預算**、**#2 結算「標記已付」**、**#3 彈性分帳**；外加 **#13 群組統計**（全團視角）。下一步建議導入 blob 儲存解鎖 #4 收據／#11 頭像，或做 #6 行程強化。
+> **進度**：Tier 1 全數完成 — **#1 預算**、**#2 結算「標記已付」**、**#3 彈性分帳**；外加 **#13 群組統計**（全團視角）與 **#7 打包清單／待辦**。下一步建議導入 blob 儲存解鎖 #4 收據／#11 頭像，或做 #6 行程強化。
 
 ---
 
@@ -103,8 +103,11 @@
 - **訂位/票券**：航班、住宿的確認碼、入住/退房時間、附件（連動 #4）。
 - **行程↔支出連結**：`Expense.itineraryDayId?`，讓「第 3 天晚餐」可回溯，地圖/統計都能按天聚合。
 
-### 7. 🔹 打包清單 / 待辦 (Packing & checklist) — S
+### 7. ✅ 🔹 打包清單 / 待辦 (Packing & checklist) — S〔已完成 2026-06-26〕
 **為什麼**：低成本、高頻使用的旅行小工具，黏著度高。
+
+> **已實作**：採**獨立 [Checklist](../src/models/Checklist.ts) 集合**（非草圖的 `Trip.checklists` 內嵌）——比照 [ItineraryDay](../src/models/ItineraryDay.ts) 為旅程子集合，避免每次載入 Trip 都帶清單、也避免勾選一個項目就改寫整份 Trip；清單項目 `items[]` 仍內嵌（數量有界、整批編輯，同 `Expense.splits`）。權限採**成員信任模型**（任何成員可建立/編輯/勾選/刪除，同 expense/payment），而非行程那種 admin-only——清單本質是協作。7 個 action（[checklist.actions.ts](../src/actions/checklist.actions.ts)：清單 CRUD + 項目 add/update/remove，項目更新以 `arrayFilters` 定位、避免改寫整個陣列）+ [公開唯讀分享路由](../src/app/api/public/trips/%5Bid%5D/checklists/route.ts) + [useChecklists / useChecklistMutations](../src/hooks/queries/)（共用 `toChecklistDto` mapper）。可**指派項目給成員**（assignee）；資料完整性：`deleteTrip` cascade、`removeMember` 時清掉該成員的 item 指派（避免孤兒參照）。UI：旅程詳情頁新增「清單」入口 + 獨立子頁，清單卡含進度條、勾選、指派下拉、即時新增/刪除。**清單範本複用尚未做。**
+
 **做法**：`Trip.checklists: [{ title, items: [{ text, done, assignee? }] }]`，可指派給成員、可作範本複用。
 
 ---
@@ -198,7 +201,8 @@
   └── 15 年度回顧（傳播）
 
 隨手可做（S，穿插填空）
-  └── 7 清單 ・ 12 旅伴 ・ 17 搜尋篩選 ・ 18 標籤 ・ 16 地圖統計
+  ├── 7  清單              ✅ 已完成（獨立 Checklist 集合、成員協作、可指派）
+  └── 12 旅伴 ・ 17 搜尋篩選 ・ 18 標籤 ・ 16 地圖統計
 ```
 
 **Tier 1 已全數完成**（#1 預算、#2 結算閉環、#3 彈性分帳），第二波也已先完成 **#13 群組統計**。下一步建議一次性導入 **blob 儲存** 解鎖 **#4 收據／#11 頭像**，或做無新基礎設施的 **#6 行程強化**。#9 通知可接續 #2 做「結算提醒」。
