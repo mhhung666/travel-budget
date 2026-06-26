@@ -110,6 +110,19 @@ export const updateExpenseSchema = z.object({
     .optional(),
 });
 
+// Budget schemas（金額一律基準幣 TWD）
+export const setBudgetSchema = z.object({
+  total: z.number().min(0, '預算不能為負').nullable().optional(),
+  categories: z
+    .array(
+      z.object({
+        category: z.enum(CATEGORIES as unknown as [string, ...string[]]),
+        amount: z.number().min(0, '預算不能為負'),
+      })
+    )
+    .optional(),
+});
+
 // Auth schemas
 export const loginSchema = z.object({
   username: z.string().min(1, '請輸入用戶名'),
@@ -171,6 +184,7 @@ export type CreateItineraryDayInput = z.infer<typeof createItineraryDaySchema>;
 export type UpdateItineraryDayInput = z.infer<typeof updateItineraryDaySchema>;
 export type CreateTripInput = z.infer<typeof createTripSchema>;
 export type UpdateTripInput = z.infer<typeof updateTripSchema>;
+export type SetBudgetInput = z.infer<typeof setBudgetSchema>;
 export type CreateExpenseInput = z.infer<typeof createExpenseSchema>;
 export type UpdateExpenseInput = z.infer<typeof updateExpenseSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;

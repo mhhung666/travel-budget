@@ -4,6 +4,9 @@ export type { User, TripRole, Member } from './user';
 // Trip
 export type { Trip, TripWithMembers, TripMember } from './trip';
 
+// Budget
+export type { Budget, BudgetCategory, CategoryBudgetProgress, BudgetProgress } from './budget';
+
 // Expense
 export type { Expense, ExpenseSplit } from './expense';
 

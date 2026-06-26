@@ -16,6 +16,30 @@ const TripMemberSchema = new Schema(
   { _id: false }
 );
 
+/**
+ * 單一分類的預算（內嵌於 Trip.budget）。金額一律以基準幣（TWD）計，
+ * 與 Expense.amount 同單位，才能直接比對「預算 vs 實際」。
+ */
+const BudgetCategorySchema = new Schema(
+  {
+    category: { type: String, required: true },
+    amount: { type: Number, required: true },
+  },
+  { _id: false }
+);
+
+/**
+ * 旅程預算（內嵌於 Trip）。total 為總預算，categories 為各分類預算；
+ * 皆以基準幣（TWD）計。整個 budget 為 null 代表「尚未設定預算」。
+ */
+const BudgetSchema = new Schema(
+  {
+    total: { type: Number, default: null },
+    categories: { type: [BudgetCategorySchema], default: [] },
+  },
+  { _id: false }
+);
+
 const TripSchema = new Schema(
   {
     name: { type: String, required: true },
@@ -27,6 +51,8 @@ const TripSchema = new Schema(
     destinationLocation: { type: Schema.Types.Mixed },
     hashCode: { type: String, required: true, unique: true },
     members: { type: [TripMemberSchema], default: [] },
+    // 旅程預算；null 代表未設定（舊資料無此欄位即視為未設定）。
+    budget: { type: BudgetSchema, default: null },
   },
   {
     timestamps: { createdAt: true, updatedAt: false },

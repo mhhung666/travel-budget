@@ -348,6 +348,29 @@
     "tickets": "票券",
     "other": "其他"
   },
+  "budget": {
+    "title": "預算",
+    "edit": "編輯",
+    "total": "總預算",
+    "totalSpent": "總花費",
+    "remaining": "剩餘",
+    "overBudget": "超支",
+    "byCategory": "分類預算",
+    "success": "預算已更新",
+    "empty": {
+      "description": "設定預算，隨時掌握這趟還能花多少",
+      "cta": "設定預算"
+    },
+    "dialog": {
+      "title": "設定預算",
+      "description": "預算以新台幣（基準幣）計算，與支出換算後的金額比較。",
+      "totalLabel": "總預算",
+      "totalPlaceholder": "例如 30000",
+      "categoriesLabel": "各分類預算（選填）",
+      "hint": "留空表示不設限；全部留空則會清除預算。",
+      "save": "儲存預算"
+    }
+  },
   "error": {
     "network": "網路錯誤，請稍後重試",
     "unauthorized": "請先登入",

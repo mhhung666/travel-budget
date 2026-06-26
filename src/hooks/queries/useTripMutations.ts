@@ -1,9 +1,16 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { updateTrip, deleteTrip, regenerateHashCode, archiveTrip, unarchiveTrip } from '@/actions';
+import {
+  updateTrip,
+  deleteTrip,
+  regenerateHashCode,
+  archiveTrip,
+  unarchiveTrip,
+  setTripBudget,
+} from '@/actions';
 import type { ActionResult } from '@/actions';
-import type { UpdateTripInput } from '@/lib/validation';
+import type { UpdateTripInput, SetBudgetInput } from '@/lib/validation';
 import type { Trip } from '@/types';
 import { tripKeys } from './keys';
 
@@ -29,6 +36,17 @@ export function useTripMutations(tripId: string) {
     },
   });
 
+  // Budget lives on the trip document, so setting it just refreshes the trip
+  // detail query (which carries `budget`); progress is derived client-side from
+  // trip.budget + the already-loaded expenses, so nothing else needs invalidating.
+  const setBudget = useMutation({
+    mutationFn: (input: SetBudgetInput) => unwrap(setTripBudget(tripId, input)),
+    onSuccess: (trip: Trip) => {
+      queryClient.setQueryData(tripKeys.detail(tripId), trip);
+      queryClient.invalidateQueries({ queryKey: tripKeys.detail(tripId) });
+    },
+  });
+
   // Regenerating the hash_code invalidates every old share/public link. The
   // caller is responsible for navigating to the new hash_code URL afterwards.
   const regenerate = useMutation({
@@ -47,7 +65,7 @@ export function useTripMutations(tripId: string) {
     },
   });
 
-  return { update, regenerate, remove };
+  return { update, regenerate, remove, setBudget };
 }
 
 /**

@@ -348,6 +348,29 @@
     "tickets": "票券",
     "other": "其他"
   },
+  "budget": {
+    "title": "预算",
+    "edit": "编辑",
+    "total": "总预算",
+    "totalSpent": "总花费",
+    "remaining": "剩余",
+    "overBudget": "超支",
+    "byCategory": "分类预算",
+    "success": "预算已更新",
+    "empty": {
+      "description": "设定预算，随时掌握这趟还能花多少",
+      "cta": "设定预算"
+    },
+    "dialog": {
+      "title": "设定预算",
+      "description": "预算以新台币（基准货币）计算，与支出换算后的金额比较。",
+      "totalLabel": "总预算",
+      "totalPlaceholder": "例如 30000",
+      "categoriesLabel": "各分类预算（选填）",
+      "hint": "留空表示不设限；全部留空则会清除预算。",
+      "save": "保存预算"
+    }
+  },
   "error": {
     "network": "网络错误，请稍后重试",
     "unauthorized": "请先登录",

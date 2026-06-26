@@ -29,6 +29,9 @@ export {
 // Expense actions
 export { getExpenses, createExpense, updateExpense, deleteExpense } from './expense.actions';
 
+// Budget actions
+export { setTripBudget } from './budget.actions';
+
 // Member actions
 export { getMembers, addVirtualMember, removeMember, updateMemberRole } from './member.actions';
 

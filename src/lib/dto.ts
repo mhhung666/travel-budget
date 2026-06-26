@@ -67,6 +67,7 @@ export type TripDtoInput = {
   hashCode: string;
   createdAt: Date;
   members?: { user: { toString(): string }; archivedAt?: Date | string | null }[];
+  budget?: { total?: number | null; categories?: { category: string; amount: number }[] } | null;
 };
 
 /**
@@ -86,5 +87,14 @@ export function toTripDto(t: TripDtoInput, viewerId?: string): TripDto {
     hash_code: t.hashCode,
     created_at: t.createdAt.toISOString(),
     archived_at: self?.archivedAt ? new Date(self.archivedAt).toISOString() : null,
+    budget: t.budget
+      ? {
+          total: t.budget.total ?? null,
+          categories: (t.budget.categories ?? []).map((c) => ({
+            category: c.category,
+            amount: c.amount,
+          })),
+        }
+      : null,
   };
 }

@@ -348,6 +348,29 @@
     "tickets": "チケット",
     "other": "その他"
   },
+  "budget": {
+    "title": "予算",
+    "edit": "編集",
+    "total": "総予算",
+    "totalSpent": "総支出",
+    "remaining": "残り",
+    "overBudget": "超過",
+    "byCategory": "カテゴリ別予算",
+    "success": "予算を更新しました",
+    "empty": {
+      "description": "予算を設定して、この旅行であといくら使えるかを把握しましょう",
+      "cta": "予算を設定"
+    },
+    "dialog": {
+      "title": "予算を設定",
+      "description": "予算は基準通貨（TWD）で、換算後の支出額と比較されます。",
+      "totalLabel": "総予算",
+      "totalPlaceholder": "例：30000",
+      "categoriesLabel": "カテゴリ別予算（任意）",
+      "hint": "空欄は上限なし。すべて空にすると予算が削除されます。",
+      "save": "予算を保存"
+    }
+  },
   "error": {
     "network": "ネットワークエラー、後でもう一度お試しください",
     "unauthorized": "ログインしてください",

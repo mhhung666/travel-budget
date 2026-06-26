@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { Expense } from '@/types';
+import type { SetBudgetInput } from '@/lib/validation';
 import { useDialog } from '@/hooks/useDialog';
 import { useToast } from '@/hooks/use-toast';
 import type { ExpenseDialogData, EditTripFormData } from '@/components/trips/detail/dialogs';
@@ -22,6 +23,7 @@ import {
 export function useTripDetailPage(tripId: string) {
   const tExpense = useTranslations('expense');
   const tTrip = useTranslations('trip');
+  const tBudget = useTranslations('budget');
   const tError = useTranslations('error');
   const tCommon = useTranslations('common');
 
@@ -43,6 +45,7 @@ export function useTripDetailPage(tripId: string) {
   const editExpenseDialog = useDialog<Expense>();
   const deleteExpenseDialog = useDialog<string>();
   const editTripDialog = useDialog();
+  const budgetDialog = useDialog();
 
   // --- Filter & expand state ---
   const [filterMemberId, setFilterMemberId] = useState<string | 'all'>('all');
@@ -136,6 +139,14 @@ export function useTripDetailPage(tripId: string) {
     });
   };
 
+  const handleSetBudget = async (input: SetBudgetInput) => {
+    await tripMutations.setBudget.mutateAsync(input);
+    budgetDialog.closeDialog();
+    toast({
+      title: tBudget('success'),
+    });
+  };
+
   return {
     // data
     trip,
@@ -152,6 +163,7 @@ export function useTripDetailPage(tripId: string) {
     editExpenseDialog,
     deleteExpenseDialog,
     editTripDialog,
+    budgetDialog,
     isDeletingExpense: expenseMutations.remove.isPending,
     // filter & expand
     filterMemberId,
@@ -164,5 +176,6 @@ export function useTripDetailPage(tripId: string) {
     handleDeleteExpense,
     confirmDeleteExpense,
     handleEditTrip,
+    handleSetBudget,
   };
 }

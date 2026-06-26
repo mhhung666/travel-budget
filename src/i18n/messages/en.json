@@ -381,6 +381,29 @@
     "tickets": "Tickets",
     "other": "Other"
   },
+  "budget": {
+    "title": "Budget",
+    "edit": "Edit",
+    "total": "Total budget",
+    "totalSpent": "Total spent",
+    "remaining": "Left",
+    "overBudget": "Over by",
+    "byCategory": "By category",
+    "success": "Budget updated",
+    "empty": {
+      "description": "Set a budget to track how much you can still spend on this trip",
+      "cta": "Set budget"
+    },
+    "dialog": {
+      "title": "Set budget",
+      "description": "Budgets are in TWD (base currency) and compared against converted expense amounts.",
+      "totalLabel": "Total budget",
+      "totalPlaceholder": "e.g. 30000",
+      "categoriesLabel": "Per-category budgets (optional)",
+      "hint": "Leave blank for no limit; clearing everything removes the budget.",
+      "save": "Save budget"
+    }
+  },
   "error": {
     "network": "Network error, please try again later",
     "unauthorized": "Please login first",

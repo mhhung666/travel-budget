@@ -5,10 +5,10 @@ import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 import { ArrowLeft, Settings, Map, Calculator } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
-import { TripHeader, TripExpenses } from '@/components/trips/detail';
+import { TripHeader, TripExpenses, TripBudget } from '@/components/trips/detail';
 
 // Dialogs
-import { ExpenseFormDialog, EditTripDialog } from '@/components/trips/detail/dialogs';
+import { ExpenseFormDialog, EditTripDialog, BudgetDialog } from '@/components/trips/detail/dialogs';
 
 import { useTripDetailPage } from '@/hooks/useTripDetailPage';
 
@@ -39,6 +39,7 @@ export default function TripDetailPage() {
     editExpenseDialog,
     deleteExpenseDialog,
     editTripDialog,
+    budgetDialog,
     isDeletingExpense,
     filterMemberId,
     setFilterMemberId,
@@ -49,6 +50,7 @@ export default function TripDetailPage() {
     handleDeleteExpense,
     confirmDeleteExpense,
     handleEditTrip,
+    handleSetBudget,
   } = useTripDetailPage(tripId);
 
   if (loading) {
@@ -139,6 +141,15 @@ export default function TripDetailPage() {
                 {tTrip('viewSettlement')}
               </Button>
             </TripHeader>
+
+            {isMember && (
+              <TripBudget
+                budget={trip.budget}
+                expenses={expenses}
+                isCurrentUserAdmin={isAdmin}
+                onEdit={() => budgetDialog.openDialog()}
+              />
+            )}
           </div>
 
           {/* Right Column: Expenses (Main Content) */}
@@ -185,6 +196,13 @@ export default function TripDetailPage() {
         onClose={editTripDialog.closeDialog}
         onSubmit={handleEditTrip}
         trip={trip}
+      />
+
+      <BudgetDialog
+        open={budgetDialog.open}
+        onClose={budgetDialog.closeDialog}
+        onSubmit={handleSetBudget}
+        budget={trip.budget}
       />
 
       <ConfirmDialog

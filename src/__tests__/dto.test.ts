@@ -92,6 +92,7 @@ describe('toTripDto', () => {
       hash_code: 'abc123',
       created_at: '2026-01-01T00:00:00.000Z',
       archived_at: '2026-05-01T00:00:00.000Z',
+      budget: null,
     });
   });
 
@@ -112,5 +113,17 @@ describe('toTripDto', () => {
     expect(dto.description).toBeNull();
     expect(dto.departure_location).toBeNull();
     expect(dto.destination_location).toBeNull();
+    expect(dto.budget).toBeNull();
+  });
+
+  it('maps budget (total + categories) when present', () => {
+    const dto = toTripDto({
+      ...base,
+      budget: { total: 30000, categories: [{ category: 'food', amount: 8000 }] },
+    });
+    expect(dto.budget).toEqual({
+      total: 30000,
+      categories: [{ category: 'food', amount: 8000 }],
+    });
   });
 });
