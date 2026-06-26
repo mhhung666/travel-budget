@@ -50,7 +50,20 @@ describe('toExpenseDto', () => {
         { user_id: 'u1', share_amount: 150, username: 'alice', display_name: 'Alice' },
         { user_id: 'u2', share_amount: 150, username: 'bob', display_name: 'Bob' },
       ],
+      attachments: [],
     });
+  });
+
+  it('maps attachments by default and omits them when attachments:false (public share)', () => {
+    const withReceipts: ExpenseDtoInput = {
+      ...base,
+      attachments: [{ key: 'receipts/trip9/abc.webp', contentType: 'image/webp', size: 1234 }],
+    };
+    expect(toExpenseDto(withReceipts, 'trip9').attachments).toEqual([
+      { key: 'receipts/trip9/abc.webp', content_type: 'image/webp', size: 1234 },
+    ]);
+    // 公開分享路由傳 { attachments: false }：收據不外洩到未登入分享頁
+    expect(toExpenseDto(withReceipts, 'trip9', { attachments: false }).attachments).toEqual([]);
   });
 
   it('falls back to "other" category and tolerates a missing payer/split user', () => {

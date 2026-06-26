@@ -27,7 +27,13 @@ export {
 } from './trip.actions';
 
 // Expense actions
-export { getExpenses, createExpense, updateExpense, deleteExpense } from './expense.actions';
+export {
+  getExpenses,
+  createExpense,
+  updateExpense,
+  deleteExpense,
+  getReceiptUrl,
+} from './expense.actions';
 
 // Upload actions（R2 blob 上傳簽名）
 export { createReceiptUploadUrl, createAvatarUploadUrl, type UploadTicket } from './upload.actions';

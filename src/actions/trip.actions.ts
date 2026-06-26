@@ -12,6 +12,8 @@ import {
 } from '@/models';
 import { getTripMembership } from '@/lib/permissions';
 import { generateUniqueHashCode } from '@/lib/hashcode';
+import { deleteByPrefix } from '@/lib/storage';
+import { receiptKeyPrefix } from '@/lib/uploads';
 import {
   createTripSchema,
   updateTripSchema,
@@ -242,6 +244,11 @@ export const deleteTrip = withAuth(
         Checklist.deleteMany({ trip: tripId }),
       ]);
       await TripModel.deleteOne({ _id: tripId });
+
+      // R2 也無 cascade：清掉此 trip 的所有收據物件（best-effort，刪不掉不該擋住刪除）
+      await deleteByPrefix('receipts', receiptKeyPrefix(tripId)).catch((e) =>
+        logger.error('Delete trip: receipt cleanup failed', e)
+      );
 
       revalidatePath('/trips');
       return { success: true, data: { message: '旅行已刪除' } };

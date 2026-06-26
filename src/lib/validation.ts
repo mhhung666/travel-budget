@@ -69,6 +69,14 @@ export const updateTripSchema = z
     { message: '開始日期不能晚於結束日期' }
   );
 
+// 收據附件輸入（key 由 createReceiptUploadUrl 簽發；content_type/size 僅供前端顯示，
+// 寫入前伺服器端會以 headObject 重新驗證後才採用）
+export const attachmentInputSchema = z.object({
+  key: z.string().min(1),
+  content_type: z.string().min(1),
+  size: z.number().int().positive(),
+});
+
 // Expense schemas
 export const createExpenseSchema = z.object({
   payer_id: objectIdSchema,
@@ -86,6 +94,7 @@ export const createExpenseSchema = z.object({
       })
     )
     .min(1, '至少需要一位分帳對象'),
+  attachments: z.array(attachmentInputSchema).max(10, '收據數量過多').optional(),
 });
 
 export const updateExpenseSchema = z.object({
@@ -108,6 +117,7 @@ export const updateExpenseSchema = z.object({
     )
     .min(1, '至少需要一位分帳對象')
     .optional(),
+  attachments: z.array(attachmentInputSchema).max(10, '收據數量過多').optional(),
 });
 
 // Budget schemas（金額一律基準幣 TWD）
@@ -228,6 +238,7 @@ export type CreateTripInput = z.infer<typeof createTripSchema>;
 export type UpdateTripInput = z.infer<typeof updateTripSchema>;
 export type SetBudgetInput = z.infer<typeof setBudgetSchema>;
 export type RecordPaymentInput = z.infer<typeof recordPaymentSchema>;
+export type AttachmentInput = z.infer<typeof attachmentInputSchema>;
 export type CreateExpenseInput = z.infer<typeof createExpenseSchema>;
 export type UpdateExpenseInput = z.infer<typeof updateExpenseSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;

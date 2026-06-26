@@ -27,13 +27,21 @@ export type ExpenseDtoInput = {
   createdAt: Date;
   payer: PopulatedRef;
   splits: { user: PopulatedRef; shareAmount: number }[];
+  attachments?: { key: string; contentType: string; size: number }[];
 };
 
 function toDateStr(d: Date | string): string {
   return d instanceof Date ? d.toISOString().slice(0, 10) : d;
 }
 
-export function toExpenseDto(e: ExpenseDtoInput, tripId: string): ExpenseDto {
+export function toExpenseDto(
+  e: ExpenseDtoInput,
+  tripId: string,
+  opts?: { attachments?: boolean }
+): ExpenseDto {
+  // 收據預設帶出（已登入情境）；公開分享路由傳 { attachments: false }，避免把收據
+  // 外洩到未登入的分享頁（隱私決策：收據常含卡號/地址）。
+  const includeAttachments = opts?.attachments ?? true;
   return {
     id: e._id.toString(),
     trip_id: tripId,
@@ -53,6 +61,13 @@ export function toExpenseDto(e: ExpenseDtoInput, tripId: string): ExpenseDto {
       username: s.user?.username || 'Unknown',
       display_name: s.user?.displayName || 'Unknown',
     })),
+    attachments: includeAttachments
+      ? (e.attachments || []).map((a) => ({
+          key: a.key,
+          content_type: a.contentType,
+          size: a.size,
+        }))
+      : [],
   };
 }
 

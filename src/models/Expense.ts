@@ -22,6 +22,23 @@ const SplitSchema = new Schema(
   { _id: false }
 );
 
+/**
+ * 收據附件（內嵌於 Expense）。實際檔案存於 R2 私有 receipts bucket，此處只存物件
+ * key + 中繼資料；檢視時由 getReceiptUrl 驗成員後簽發短效 URL（不存可直接存取的 URL）。
+ * key 命名空間為 receipts/<tripId>/<uuid>.<ext>（見 lib/uploads.ts）；size/contentType
+ * 以伺服器端 headObject 驗證後的值為準（非 client 宣稱值）。
+ */
+const AttachmentSchema = new Schema(
+  {
+    key: { type: String, required: true },
+    contentType: { type: String, required: true },
+    size: { type: Number, required: true },
+    uploadedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    uploadedAt: { type: Date, default: Date.now },
+  },
+  { _id: false }
+);
+
 const ExpenseSchema = new Schema(
   {
     trip: { type: Schema.Types.ObjectId, ref: 'Trip', required: true, index: true },
@@ -34,6 +51,7 @@ const ExpenseSchema = new Schema(
     category: { type: String, enum: EXPENSE_CATEGORIES, default: 'other' },
     date: { type: Date, required: true },
     splits: { type: [SplitSchema], default: [] },
+    attachments: { type: [AttachmentSchema], default: [] },
   },
   {
     timestamps: { createdAt: true, updatedAt: false },

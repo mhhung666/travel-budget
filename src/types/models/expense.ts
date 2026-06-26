@@ -9,6 +9,17 @@ export interface ExpenseSplit {
 }
 
 /**
+ * 收據附件（前端 DTO）。實際檔案在 R2 私有 bucket，這裡只帶 key + 中繼資料，不含
+ * 可直接存取的 URL；要檢視時呼叫 getReceiptUrl 取得短效簽名 URL。
+ */
+export interface ExpenseAttachment {
+  /** R2 物件 key，同時作為前端識別此附件的 id。 */
+  key: string;
+  content_type: string;
+  size: number;
+}
+
+/**
  * 消費記錄
  */
 export interface Expense {
@@ -30,4 +41,5 @@ export interface Expense {
   date: string;
   created_at: string;
   splits: ExpenseSplit[];
+  attachments: ExpenseAttachment[];
 }
