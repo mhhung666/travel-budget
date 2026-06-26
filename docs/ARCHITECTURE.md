@@ -1,6 +1,6 @@
 # 架構說明（Architecture）
 
-> 更新日期：2026-06-26（新增旅程預算、彈性分帳與結算「標記已付」）
+> 更新日期：2026-06-26（新增旅程預算、彈性分帳、結算「標記已付」與群組統計）
 > 對應版本：v3.4.3
 > 本文件依**實際程式碼**撰寫，為架構的權威來源。改善建議請見 [IMPROVEMENTS.md](./IMPROVEMENTS.md)；遷移過程見 [MIGRATION_MONGODB.md](./MIGRATION_MONGODB.md)。
 
@@ -96,7 +96,7 @@ src/
 - 貪心法：將債權人（balance > 0）與債務人（balance < 0）各自排序後配對，**最小化轉帳次數**。
 - 使用 `0.01` epsilon 處理浮點誤差；金額四捨五入到小數點兩位。
 - 已有測試覆蓋（[settlement.test.ts](../src/__tests__/settlement.test.ts)）。
-- 同屬「純函式 + 單元測試」的計算邏輯還有 [lib/budget.ts](../src/lib/budget.ts)（`computeBudgetProgress`：預算 vs 實際，於旅程頁前端即時計算，免後端往返）與 [lib/expenseSplit.ts](../src/lib/expenseSplit.ts)（`computeSplits`：均分/金額/百分比/份數四種分帳，於支出表單換算成 `splits` 的 TWD 金額；後端 `createExpense`/`updateExpense` 另有寬鬆的總和防呆）。
+- 同屬「純函式 + 單元測試」的計算邏輯還有 [lib/budget.ts](../src/lib/budget.ts)（`computeBudgetProgress`：預算 vs 實際，於旅程頁前端即時計算，免後端往返）、[lib/expenseSplit.ts](../src/lib/expenseSplit.ts)（`computeSplits`：均分/金額/百分比/份數四種分帳，於支出表單換算成 `splits` 的 TWD 金額；後端 `createExpense`/`updateExpense` 另有寬鬆的總和防呆）與 [lib/tripStats.ts](../src/lib/tripStats.ts)（`computeTripStats`：全團群組統計，見 §4.7）。
 - **結算閉環「標記已付」**：[Payment](../src/models/Payment.ts) model 記錄實際還款（`{ from, to, amount }`，基準幣 TWD）。純函式 `applyPayments`（同 [settlement.ts](../src/lib/settlement.ts)）把還款淨額抵銷進「以支出算出的餘額」（只調整 `balance`，保留 totalPaid/totalOwed 供顯示），再交給 `calculateSettlement`。`getSettlement` 與[公開分享路由](../src/app/api/public/trips/%5Bid%5D/settlement/route.ts)都載入並回傳還款（共用 `toPaymentRecord` mapper）；登記/刪除走 [recordPayment / deletePayment](../src/actions/payment.actions.ts)，任何成員皆可（同 `deleteExpense` 信任模型）。
 
 ### 4.4 多幣別與匯率
@@ -114,6 +114,11 @@ src/
 - **分享為使用者層級**:`User.mapShareCode`（opt-in、sparse-unique）是 trip `hashCode` 的對應物,格式/驗證相同。`/map/share/*` 為公開頁(不在 `proxy.ts` 的 `protectedRoutes`)。
 - **公開 API [/api/public/map/[code]](../src/app/api/public/map/%5Bcode%5D/route.ts) 依約去識別化**:只露座標、在地化地名與**年份**,絕不露旅行名稱、id 或完整日期(年份是為了年份篩選的刻意例外)。熱點彙整到四捨五入座標,避免回推單日行程。
 - **`public/geo/countries.geojson` 是產生的資產,勿手改**:Natural Earth 110m admin-0 瘦身版(屬性只留 `iso_a2` + 多語名、座標降到小數兩位),需更新國界/國名時自 `nvkelso/natural-earth-vector` 重新產生。只在國家模式才抓並做模組層級快取。
+
+### 4.7 統計：個人 vs 群組
+- **個人（跨旅程）**：`/stats` 頁，[getStats](../src/actions/stats.actions.ts) 彙總「我」在所有旅程的**分攤**（過濾 `splits.user = 我`），可依日期區間篩選。
+- **群組（單一旅程、全團）**：`/trips/[id]/stats` 子頁，[getTripStats](../src/actions/stats.actions.ts) **不過濾** `splits.user`、金額取整筆，回傳分類彙總 + 付款排行（誰出錢最多）+ 各人分攤 + 平均每人每日。純計算在 [lib/tripStats.ts](../src/lib/tripStats.ts) `computeTripStats`；有[公開分享路由](../src/app/api/public/trips/%5Bid%5D/stats/route.ts)。
+- 兩者 `categoryStats` 形狀相同，故 `ExpenseHistogram` / `CategoryStats` 元件兩邊共用。群組查詢重用 `tripKeys.stats`（已被支出 mutation invalidate）。
 
 ---
 
