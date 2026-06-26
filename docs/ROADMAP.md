@@ -1,12 +1,14 @@
 # 功能藍圖（Feature Roadmap）
 
-> 建立日期：2026-06-26
+> 建立日期：2026-06-26（最後更新：2026-06-26）
 > 對應版本：v3.4.3
-> 性質：**腦力激盪 / 規劃草稿，尚未動工。** 本文件盤點現有功能、列出可新增的功能構想，並給出優先序與落地草圖（schema / actions / UI 影響）。
+> 性質：產品功能藍圖。盤點現有功能、列出可新增的功能構想，並給出優先序與落地草圖（schema / actions / UI 影響）。
 > 相關文件：架構見 [ARCHITECTURE.md](./ARCHITECTURE.md)；程式碼/基礎設施層級的改善見 [IMPROVEMENTS.md](./IMPROVEMENTS.md)（本文件聚焦**產品功能**，與之互補）。
 
-圖例：💎 旗艦（高價值、定義產品）　⭐ 高價值　🔹 加值/驚喜
+圖例：💎 旗艦（高價值、定義產品）　⭐ 高價值　🔹 加值/驚喜　｜　✅ 已完成
 成本：S（數天）／M（一兩週）／L（需基礎設施或大改）
+
+> **進度**：Tier 1 的 **#1 預算**、**#3 彈性分帳**已實作並合併；Tier 1 僅剩 **#2 結算「標記已付」** 這個核心缺口。
 
 ---
 
@@ -29,16 +31,18 @@
 
 **三個最刺眼的產品缺口**（下方 Tier 1 對應）：
 
-1. App 叫「**Budget** Planner（旅行記帳）」，卻**沒有任何預算/編列**功能——只能事後記帳，不能事前控管。
-2. 結算只「**算出**」誰該付誰多少，但**沒有「標記已付清」**——核心流程沒有閉環。
-3. 分帳**只能均分**，然而 `Expense.splits[].shareAmount`（[src/models/Expense.ts](../src/models/Expense.ts)）早已是「每人一個金額」的結構——**彈性分帳是後端已備、只缺 UI/驗證**。
+1. ✅ ~~App 叫「Budget Planner」卻沒有預算/編列功能~~ → 已補上預算編列與「預算 vs 實際」（見 #1）。
+2. 結算只「**算出**」誰該付誰多少，但**沒有「標記已付清」**——核心流程仍缺閉環（見 #2，**待處理**）。
+3. ✅ ~~分帳只能均分~~ → 已支援均分／金額／百分比／份數四種分帳（見 #3）。
 
 ---
 
 ## Tier 1 — 補完核心、立刻有感（建議先做）
 
-### 1. 💎 預算編列與「預算 vs 實際」(Budgeting) — M
+### 1. ✅ 💎 預算編列與「預算 vs 實際」(Budgeting) — M〔已完成 2026-06-26〕
 **為什麼**：直接兌現產品名稱。目前只能記錄已花的錢，無法回答「這趟還能花多少」。這是與「純分帳工具（如 Splitwise）」最大的差異化。
+
+> **已實作**：`Trip.budget`＝`{ total, categories: [{ category, amount }] }`（基準幣 TWD，無 currency 欄位，null=未設）。預算進度由 [lib/budget.ts](../src/lib/budget.ts) `computeBudgetProgress` **前端即時計算**（旅程詳情頁本就載入 trip + 全部支出，省一次往返），故未做 `getBudgetProgress` action，只新增 [setTripBudget](../src/actions/budget.actions.ts)（admin）寫入。UI：旅程詳情頁的預算卡（總額 + 各分類進度條、超支標紅）＋ 編輯對話框。**進階（每日步調、每人預算）尚未做。**
 
 **做法**
 - `Trip` 加 `budget`：`{ total?: number, currency: string, categories?: { category: string, amount: number }[] }`（沿用基準幣 TWD）。
@@ -64,8 +68,10 @@
 
 ---
 
-### 3. ⭐ 彈性分帳（不均分）(Flexible splits) — M
-**為什麼**：真實旅行不會永遠均分（有人沒吃那餐、有人請客、按比例）。**schema 已支援任意 `shareAmount`**，目前 [ExpenseForm.tsx](../src/components/expenses/ExpenseForm.tsx) 卻只送 `split_with: string[]`（清單→均分）。這是「補完既有設計」而非新建。
+### 3. ✅ ⭐ 彈性分帳（不均分）(Flexible splits) — M〔已完成 2026-06-26〕
+**為什麼**：真實旅行不會永遠均分（有人沒吃那餐、有人請客、按比例）。**schema 已支援任意 `shareAmount`**，是缺明確的 UI。這是「補完既有設計」而非新建。
+
+> **已實作**：四種模式 **均分 / 金額 / 百分比 / 份數** 的明確選單（ToggleGroup）。計算抽成純函式 [lib/expenseSplit.ts](../src/lib/expenseSplit.ts) `computeSplits`（14 個單元測試）；輸入用原幣、即時換算成 TWD 寫入 `splits[].shareAmount`；`createExpense`/`updateExpense` 加寬鬆的「總和 ≈ 金額」防呆。實際改的是 [ExpenseFormDialog.tsx](../src/components/trips/detail/dialogs/ExpenseFormDialog.tsx)（**原草圖誤指 `ExpenseForm.tsx`，該檔為未使用的舊元件**）。「我請客」用金額模式即可達成；**「逐項分帳」仍未做。**
 
 **做法**
 - 支出表單加分帳模式切換：**均分 / 指定金額 / 百分比 / 份數（權重）/ 我請客**。
@@ -170,9 +176,9 @@
 
 ```
 第一波（補完核心、無新基礎設施）
-  ├── 1  預算 vs 實際        💎 兌現產品名稱
-  ├── 2  結算「標記已付」     💎 閉環核心流程
-  └── 3  彈性分帳            ⭐ 後端已備、補 UI
+  ├── 1  預算 vs 實際        ✅ 已完成
+  ├── 3  彈性分帳            ✅ 已完成
+  └── 2  結算「標記已付」     💎 下一個（閉環核心流程）
 
 第二波（旅行情境 + 一次性基礎設施）
   ├── 4  收據照片  ┐ 一起導入 blob 儲存
@@ -190,7 +196,7 @@
   └── 7 清單 ・ 12 旅伴 ・ 17 搜尋篩選 ・ 18 標籤 ・ 16 地圖統計
 ```
 
-**若只能挑一個起手**：做 **#1 預算**。它最能定義「這是預算 App 不是記帳 App」，零破壞性遷移，且能立刻在現有旅程頁看到成效。
+**下一個核心項目**：**#2 結算「標記已付」**。預算（#1）與彈性分帳（#3）已完成，結算閉環是 Tier 1 僅剩的核心缺口——記錄「誰真的還錢了」、讓餘額能歸零，並為日後 #9 通知（結算提醒）鋪路。
 
 ---
 
