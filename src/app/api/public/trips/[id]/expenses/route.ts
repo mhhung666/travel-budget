@@ -13,8 +13,9 @@ export const GET = withPublicTrip(
       .populate('splits.user', 'username displayName')
       .lean<ExpenseDtoInput[]>();
 
-    // 與 actions 的 getExpenses 共用同一個映射，避免 snake_case DTO 平行漂移
-    const data = expenses.map((e) => toExpenseDto(e, tripId));
+    // 與 actions 的 getExpenses 共用同一個映射，避免 snake_case DTO 平行漂移。
+    // 收據刻意不外洩到公開分享頁（attachments: false）。
+    const data = expenses.map((e) => toExpenseDto(e, tripId, { attachments: false }));
 
     return NextResponse.json({ expenses: data });
   },

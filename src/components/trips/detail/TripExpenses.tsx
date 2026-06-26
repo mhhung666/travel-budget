@@ -6,6 +6,7 @@ import { getCategoryIcon, CATEGORY_CODES } from '@/constants/categories';
 import type { Expense, Member } from '@/types';
 import { ExportMenu } from '@/components/export';
 import { exportExpenses, type ExportFormat } from '@/lib/exporters';
+import { ReceiptThumb } from '@/components/trips/detail/ReceiptAttachments';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -22,6 +23,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Label } from '@/components/ui/label';
 
 interface TripExpensesProps {
+  tripId: string;
   expenses: Expense[];
   members: Member[];
   tripName?: string;
@@ -36,6 +38,7 @@ interface TripExpensesProps {
 }
 
 export default function TripExpenses({
+  tripId,
   expenses,
   members,
   tripName,
@@ -245,6 +248,14 @@ export default function TripExpenses({
                             ))}
                           </div>
                         </div>
+
+                        {expense.attachments && expense.attachments.length > 0 && (
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {expense.attachments.map((a) => (
+                              <ReceiptThumb key={a.key} tripId={tripId} attachment={a} />
+                            ))}
+                          </div>
+                        )}
                       </CardContent>
                     </Card>
                   ))}

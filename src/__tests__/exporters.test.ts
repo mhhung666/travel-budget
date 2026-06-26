@@ -120,6 +120,7 @@ const expenses: Expense[] = [
       { user_id: 'u1', username: 'alice', display_name: 'Alice', share_amount: 150 },
       { user_id: 'u2', username: 'bob', display_name: 'Bob', share_amount: 150 },
     ],
+    attachments: [],
   },
 ];
 

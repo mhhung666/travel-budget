@@ -1,6 +1,6 @@
 # 功能藍圖（Feature Roadmap）
 
-> 建立日期：2026-06-26（最後更新：2026-06-26）
+> 建立日期：2026-06-26（最後更新：2026-06-27）
 > 對應版本：v3.4.3
 > 性質：產品功能藍圖。盤點現有功能、列出可新增的功能構想，並給出優先序與落地草圖（schema / actions / UI 影響）。
 > 相關文件：架構見 [ARCHITECTURE.md](./ARCHITECTURE.md)；程式碼/基礎設施層級的改善見 [IMPROVEMENTS.md](./IMPROVEMENTS.md)（本文件聚焦**產品功能**，與之互補）。
@@ -8,7 +8,7 @@
 圖例：💎 旗艦（高價值、定義產品）　⭐ 高價值　🔹 加值/驚喜　｜　✅ 已完成
 成本：S（數天）／M（一兩週）／L（需基礎設施或大改）
 
-> **進度**：Tier 1 全數完成 — **#1 預算**、**#2 結算「標記已付」**、**#3 彈性分帳**；外加 **#13 群組統計**（全團視角）與 **#7 打包清單／待辦**。下一步建議導入 blob 儲存解鎖 #4 收據／#11 頭像，或做 #6 行程強化。
+> **進度**：Tier 1 全數完成 — **#1 預算**、**#2 結算「標記已付」**、**#3 彈性分帳**；外加 **#13 群組統計**（全團視角）與 **#7 打包清單／待辦**。第二波已導入 **Cloudflare R2 blob 儲存**，完成 **#4 收據附件** 與 **#11 頭像**（分支 `feat/blob-storage-r2`，尚未合併）。下一步建議做無新基礎設施的 **#6 行程強化**，或接 **#9 通知**（結算提醒，續 #2）。
 
 ---
 
@@ -18,13 +18,14 @@
 
 | 範疇 | 已有 |
 | --- | --- |
-| 帳號 | 註冊 / 登入 / 登出（JWT + httpOnly cookie）、改個資、重設密碼 |
+| 帳號 | 註冊 / 登入 / 登出（JWT + httpOnly cookie）、改個資、重設密碼、**頭像**（R2） |
 | 旅程 | CRUD、`hashCode` 公開分享 + 加入、個別軟封存、出發地/目的地、起迄日 |
 | 成員 | admin/member 兩級、**虛擬成員**（未註冊也能分帳）、虛擬↔真人連結/轉換 |
-| 支出 | CRUD、多幣別 + 匯率、7 種分類、付款人、**僅均分**分帳 |
-| 結算 | 貪心法最小化轉帳次數、餘額表 + 轉帳清單（**只計算、不記錄已付**） |
+| 支出 | CRUD、多幣別 + 匯率、7 種分類、付款人、四種分帳（均分/金額/百分比/份數）、**收據附件**（R2 私有 bucket） |
+| 結算 | 貪心法最小化轉帳次數、餘額表 + 轉帳清單、**還款登記 + 淨額結算閉環** |
 | 行程 | 逐日（日序 + 標題 + Markdown 內容 + 地點），刪除後自動重編號 |
-| 統計 | **個人**分類統計、日期區間篩選、趨勢直方圖 |
+| 清單 | 打包清單 / 待辦，可指派成員、進度條（獨立 Checklist 集合） |
+| 統計 | 個人 + **全團**分類統計、付款排行、日期區間篩選、趨勢直方圖 |
 | 地圖 | 航線 / 熱點 / 國家三模式、使用者層級公開分享（`mapShareCode`） |
 | 匯出 | CSV（支出 / 行程 / 結算） |
 | 其他 | 四語系 i18n、深色模式、PWA manifest、公開唯讀分享頁 |
@@ -87,9 +88,12 @@
 
 ## Tier 2 — 讓它成為「旅行」App（旅行情境深化）
 
-### 4. ⭐ 收據照片 / 附件 (Receipt photos) — L（需儲存基礎設施）
+### 4. ✅ ⭐ 收據照片 / 附件 (Receipt photos) — L（需儲存基礎設施）〔已完成 2026-06-27〕
 **為什麼**：對帳、報帳的剛需，也是信任來源（「這筆是真的」）。
-**做法**：導入 blob 儲存（**Vercel Blob** 最貼合現有 Vercel 部署，或 S3 / Cloudflare R2）。`Expense` 加 `attachments: [{ url, type, uploadedBy }]`。上傳走簽名 URL，避免大檔過 server action。
+
+> **已實作**：導入 **Cloudflare R2**（S3 相容、無流量出口費）而非草圖預設的 Vercel Blob。基礎層 [lib/storage.ts](../src/lib/storage.ts)（server-only R2 client：`presignPut` / `presignGet` / `headObject` / `deleteObjects` / `deleteByPrefix`）+ [lib/uploads.ts](../src/lib/uploads.ts)（純函式：content-type 白名單、大小上限、`receipts/<tripId>/` 命名空間化 key —— owner 段由**伺服器**帶入，防跨 trip 寫入）+ [lib/imageCompress.ts](../src/lib/imageCompress.ts)（client 上傳前壓成 WebP，省流量）。收據存 **R2 私有 bucket**，內嵌 `Expense.attachments[]`＝`{ key, contentType, size, uploadedBy, uploadedAt }`（**存 key、不存 url**）；上傳走 presigned PUT 直傳 R2，存參照前以 **headObject** 重新驗證大小/型別（防 client 謊報）。檢視走 [getReceiptUrl](../src/actions/expense.actions.ts)（驗成員 + key 須屬本 trip → 短效簽名 GET）。`toExpenseDto` 加 `{ attachments }` 選項，**公開分享路由傳 `false`**（收據不外洩到未登入分享頁）。清理：`deleteExpense` / `deleteTrip` / 換附件皆 best-effort 刪 R2 物件。`R2_*` 六個 env 為 optional + `getR2Config()` 延遲檢查（未設定也能 boot / CI build）。UI：[ReceiptAttachments.tsx](../src/components/trips/detail/ReceiptAttachments.tsx)（上傳器 + 縮圖檢視）接進支出表單與支出卡。**逐項分帳、地圖相片釘點（#16）尚未做。**
+
+**做法（原始草圖）**：導入 blob 儲存（**Vercel Blob** 最貼合現有 Vercel 部署，或 S3 / Cloudflare R2）。`Expense` 加 `attachments: [{ url, type, uploadedBy }]`。上傳走簽名 URL，避免大檔過 server action。
 **注意**：這層基礎設施一旦建好，可同時解鎖 #11 頭像、#19 地圖照片。建議與它們一起規劃。
 
 ### 5. ⭐ 離線優先 (Offline-first PWA) — L
@@ -126,7 +130,10 @@
 **為什麼**：對某筆支出有疑問時，就地討論勝過群組訊息。
 **做法**：`Comment`（`{ trip, expenseId?, author, body, at }`），支出卡片展開可留言。
 
-### 11. 🔹 頭像 + 第三方登入 (Avatar & OAuth) — M
+### 11. 🔹 頭像 + 第三方登入 (Avatar & OAuth) — M〔頭像 ✅ 2026-06-27；OAuth 未做〕
+
+> **已實作（頭像部分）**：`User.avatarUrl`（存 R2 **公開** avatars bucket 的穩定 URL）。新增 [setAvatar / removeAvatar](../src/actions/avatar.actions.ts)（key 須屬 `avatars/<userId>/`、headObject 驗證後寫入；換/移除時 best-effort 刪舊物件），共用 #4 的上傳基礎（presigned PUT + 壓縮）。`getCurrentUser` 與 `getMembers` 帶出 `avatar_url`。UI：設定頁 [AvatarUploader](../src/components/AvatarUploader.tsx)（壓成 512px WebP 上傳）、Navbar 與成員清單顯示頭像（無則退回首字母）。頭像走**公開 bucket**（穩定 URL、免每次簽名），與收據的私有 bucket 分流。**OAuth（Google）仍未做。**
+
 **做法**：頭像連動 #4 的 blob 儲存；OAuth（Google）可用 Auth.js 或自建，與現有自製 JWT 並存。
 
 ### 12. 🔹 常用旅伴 (Travel companions) — S
@@ -171,7 +178,7 @@
 
 | 基礎設施 | 解鎖的功能 | 候選 |
 | --- | --- | --- |
-| **Blob 儲存** | #4 收據、#11 頭像、#16 相片釘點 | Vercel Blob / S3 / R2 |
+| **Blob 儲存** ✅ | #4 收據、#11 頭像（已解鎖）、#16 相片釘點 | **Cloudflare R2**（已採用，私有收據 + 公開頭像兩 bucket） |
 | **即時 / 推播** | #8 動態牆即時化、#9 通知 | SSE、Pusher / Ably、Web Push |
 | **Email / 排程** | #9 結算提醒、邀請信 | Resend + Vercel Cron |
 | **Redis（外部狀態）** | 公開 API 限流（IMPROVEMENTS A） | Upstash |
@@ -188,11 +195,11 @@
   ├── 3  彈性分帳            ✅ 已完成
   └── 2  結算「標記已付」     ✅ 已完成（閉環核心流程）
 
-第二波（旅行情境 + 一次性基礎設施）← 下一波
+第二波（旅行情境 + 一次性基礎設施）
   ├── 13 群組統計           ✅ 已完成（純查詢層、無新基礎設施）
-  ├── 4  收據照片  ┐ 一起導入 blob 儲存
-  ├── 11 頭像/OAuth┘
-  └── 6  行程強化（時段/訂位/連結支出）
+  ├── 4  收據照片  ┐ ✅ 已導入 Cloudflare R2 blob 儲存
+  ├── 11 頭像      ┘ ✅ 已完成（OAuth 未做）
+  └── 6  行程強化（時段/訂位/連結支出）  ← 下一波
 
 第三波（協作與留存）
   ├── 8  活動紀錄  ┐ 一起做通知管線
@@ -205,7 +212,7 @@
   └── 12 旅伴 ・ 17 搜尋篩選 ・ 18 標籤 ・ 16 地圖統計
 ```
 
-**Tier 1 已全數完成**（#1 預算、#2 結算閉環、#3 彈性分帳），第二波也已先完成 **#13 群組統計**。下一步建議一次性導入 **blob 儲存** 解鎖 **#4 收據／#11 頭像**，或做無新基礎設施的 **#6 行程強化**。#9 通知可接續 #2 做「結算提醒」。
+**Tier 1 已全數完成**（#1 預算、#2 結算閉環、#3 彈性分帳）；第二波已完成 **#13 群組統計**，並導入 **Cloudflare R2 blob 儲存**解鎖 **#4 收據** 與 **#11 頭像**（分支 `feat/blob-storage-r2`，待合併）。下一步建議做無新基礎設施的 **#6 行程強化**（其「支出↔行程連結」能放大 #4 收據與 #13 統計），或接 **#9 通知**（結算提醒，續 #2）。
 
 ---
 

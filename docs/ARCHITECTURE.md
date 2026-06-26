@@ -125,6 +125,14 @@ src/
 - 權限採**成員信任模型**（任何成員可建立/編輯/勾選/刪除，同 expense/payment），非行程那種 admin-only——清單本質是協作工具。7 個 action（[checklist.actions.ts](../src/actions/checklist.actions.ts)：清單 CRUD + 項目 add/update/remove，項目更新以 `arrayFilters` 定位、避免改寫整個陣列），共用 `toChecklistDto` mapper，有[公開唯讀分享路由](../src/app/api/public/trips/%5Bid%5D/checklists/route.ts)。
 - 項目可指派給成員（`assignee`）；成員被移除時 `removeMember` 會清掉其 item 指派（避免孤兒參照）。
 
+### 4.9 Blob 儲存 / 上傳（Cloudflare R2）
+- 收據（#4）與頭像（#11）的檔案存於 **Cloudflare R2**（S3 相容、無流量出口費）。[lib/storage.ts](../src/lib/storage.ts) 為 **server-only** 的 R2 client 包裝（`presignPut` / `presignGet` / `headObject` / `deleteObjects` / `deleteByPrefix` / `avatarPublicUrl`）；純邏輯（content-type 白名單、大小上限、key 命名空間）抽在 [lib/uploads.ts](../src/lib/uploads.ts)（可單元測試、client-safe）。
+- **兩個 bucket**：私有 `receipts`（上傳走 presigned PUT、檢視走成員驗證後的短效 presigned GET）＋ 公開 `avatars`（上傳走 presigned PUT、對外以穩定公開 URL 顯示，免每次簽名）。
+- **上傳流程**：瀏覽器先用 [lib/imageCompress.ts](../src/lib/imageCompress.ts) 壓成 WebP → 向 server action（`createReceiptUploadUrl` / `createAvatarUploadUrl`）要 presigned PUT → **直傳 R2**（大檔不過 server action）→ 回存參照（收據併入 `createExpense`/`updateExpense`，頭像走 `setAvatar`）。**owner 段（`receipts/<tripId>/`、`avatars/<userId>/`）由伺服器帶入**、client 無法指定，防跨 trip/user 寫入；存參照前以 **`headObject`** 重新驗證大小/型別（presigned PUT 無法限制 client 真正送出的內容）。
+- **隱私**：收據為私有，`toExpenseDto` 的 `{ attachments }` 選項對**公開分享路由關閉**（收據不外洩到未登入分享頁）；頭像為低敏感、走公開 bucket。
+- **環境變數**：六個 `R2_*` 在 [lib/env.ts](../src/lib/env.ts) 設為 **optional**，`getR2Config()` 於實際用到時才嚴格檢查 → 未設定 R2 也能 boot / CI build。
+- **清理（無 cascade）**：`deleteExpense` / `deleteTrip` 刪收據物件、`setAvatar` / `removeAvatar` 刪舊頭像，皆 **best-effort**（刪不掉的孤兒不擋住使用者操作，只記 log）。
+
 ---
 
 ## 5. 資料模型
@@ -142,14 +150,14 @@ Checklist     ── ref trip；內嵌 items[]（打包/待辦清單）
 
 | Collection | 重點欄位 |
 | --- | --- |
-| `User` | `username`(uniq), `email`(uniq), `password`, `isVirtual`（虛擬成員，可不註冊參與分帳） |
+| `User` | `username`(uniq), `email`(uniq), `password`, `isVirtual`（虛擬成員，可不註冊參與分帳）, `avatarUrl`（R2 公開頭像 URL，null=未設） |
 | `Trip` | `hashCode`(uniq，分享用), `location`(Mixed), 日期, `budget`（`{ total, categories[] }`，基準幣 TWD，null=未設）；**`members[]`**=`{ user(ref), role(admin/member), joinedAt }`，並對 `members.user` 建 index |
-| `Expense` | `trip`(ref,index), `payer`(ref), `amount`/`originalAmount`/`currency`/`exchangeRate`, `category`(enum), `date`；**`splits[]`**=`{ user(ref), shareAmount }`（前端依均分/金額/百分比/份數模式換算後寫入） |
+| `Expense` | `trip`(ref,index), `payer`(ref), `amount`/`originalAmount`/`currency`/`exchangeRate`, `category`(enum), `date`；**`splits[]`**=`{ user(ref), shareAmount }`（前端依均分/金額/百分比/份數模式換算後寫入）；**`attachments[]`**=`{ key, contentType, size, uploadedBy(ref), uploadedAt }`（R2 收據物件 key + 中繼，不存 url） |
 | `Payment` | `trip`(ref,index), `from`(ref), `to`(ref), `amount`（基準幣 TWD）, `note`, `createdBy`(ref)；結算還款紀錄，`getSettlement` 以 `applyPayments` 淨額抵銷餘額 |
 | `ItineraryDay` | `trip`(ref), `(trip,dayNumber)` 複合唯一索引；刪除日程後以 ordered `bulkWrite` 重新編號 |
 | `Checklist` | `trip`(ref,index), `title`, `createdBy`(ref)；**`items[]`**=`{ text, done, assignee(ref,可 null) }`（打包/待辦清單，成員信任模型、可指派成員） |
 
-> ⚠️ MongoDB 無外鍵 cascade：刪除 trip 時 `deleteTrip` 會手動一併刪除該 trip 的 expenses、payments、itinerary days 與 checklists；`removeMember` 也會檢查還款參照避免孤兒，並清掉清單項目對該成員的指派。
+> ⚠️ MongoDB 無外鍵 cascade：刪除 trip 時 `deleteTrip` 會手動一併刪除該 trip 的 expenses、payments、itinerary days 與 checklists，並 best-effort 刪除該 trip 在 R2 的收據物件；`removeMember` 也會檢查還款參照避免孤兒，並清掉清單項目對該成員的指派。
 > ID 一律為 ObjectId 字串，從 JWT、DTO 到前端 props 一致。
 
 ---

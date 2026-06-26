@@ -4,9 +4,10 @@ import { useState, useEffect } from 'react';
 import { DollarSign, RefreshCw, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { CATEGORIES, DEFAULT_CATEGORY } from '@/constants/categories';
-import type { Expense, Member } from '@/types';
+import type { Expense, ExpenseAttachment, Member } from '@/types';
 import { cn } from '@/lib/utils';
 import { computeSplits, type SplitMode } from '@/lib/expenseSplit';
+import { ReceiptUploader } from '@/components/trips/detail/ReceiptAttachments';
 
 // UI Components
 import {
@@ -41,10 +42,12 @@ export interface ExpenseDialogData {
   category: string;
   date: string;
   splits: { user_id: string; share_amount: number }[];
+  attachments: ExpenseAttachment[];
 }
 
 interface ExpenseFormDialogProps {
   mode: 'add' | 'edit';
+  tripId: string;
   open: boolean;
   onClose: () => void;
   onSubmit: (data: ExpenseDialogData) => Promise<void>;
@@ -55,6 +58,7 @@ interface ExpenseFormDialogProps {
 
 export default function ExpenseFormDialog({
   mode,
+  tripId,
   open,
   onClose,
   onSubmit,
@@ -82,6 +86,7 @@ export default function ExpenseFormDialog({
     Record<string, { selected: boolean; value: string }>
   >({});
   const [showAdvanced, setShowAdvanced] = useState(mode === 'edit'); // Default expanded for edit
+  const [attachments, setAttachments] = useState<ExpenseAttachment[]>([]);
 
   // Exchange rate states
   const [exchangeRates, setExchangeRates] = useState<Record<string, number>>({});
@@ -154,6 +159,7 @@ export default function ExpenseFormDialog({
           }
         });
         setSplitState(initialSplits);
+        setAttachments(expense.attachments ?? []);
       } else {
         // Add mode: Initialize with defaults
         setForm({
@@ -173,6 +179,7 @@ export default function ExpenseFormDialog({
           initialSplits[m.id] = { selected: true, value: '' };
         });
         setSplitState(initialSplits);
+        setAttachments([]);
       }
 
       setError('');
@@ -242,6 +249,7 @@ export default function ExpenseFormDialog({
       await onSubmit({
         ...form,
         splits: finalSplits,
+        attachments,
       });
       // Parent handles close
     } catch (err: unknown) {
@@ -605,6 +613,11 @@ export default function ExpenseFormDialog({
               )}
             </div>
           )}
+
+          <div className="space-y-2">
+            <Label>{tExpense('receipts.label')}</Label>
+            <ReceiptUploader tripId={tripId} value={attachments} onChange={setAttachments} />
+          </div>
 
           <DialogFooter className="gap-2 sm:gap-0">
             <Button type="button" variant="outline" onClick={onClose}>

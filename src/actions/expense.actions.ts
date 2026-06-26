@@ -14,6 +14,8 @@ import type { ActionResult } from './types';
 import type { Expense as ExpenseDto } from '@/types';
 import { logger } from '@/lib/logger';
 import { toExpenseDto, type ExpenseDtoInput } from '@/lib/dto';
+import { isReceiptKeyForTrip, RECEIPT_CONTENT_TYPES, MAX_RECEIPT_BYTES } from '@/lib/uploads';
+import { headObject, deleteObjects, presignGet } from '@/lib/storage';
 
 type LeanExpense = ExpenseDtoInput & { date: Date };
 
@@ -25,6 +27,45 @@ type LeanExpense = ExpenseDtoInput & { date: Date };
 function splitsMatchAmount(splits: { share_amount: number }[], amount: number): boolean {
   const sum = splits.reduce((acc, sp) => acc + sp.share_amount, 0);
   return Math.abs(sum - amount) <= Math.max(1, amount * 0.01);
+}
+
+type AttachmentDoc = {
+  key: string;
+  contentType: string;
+  size: number;
+  uploadedBy: string;
+  uploadedAt: Date;
+};
+
+/**
+ * Verify client-supplied receipt references and turn them into embedded
+ * attachment docs. Each key must live under this trip's receipt prefix and the
+ * object must actually exist in R2; size/contentType come from the verified
+ * HeadObject (not the client-declared values) and are re-checked against the
+ * caps/allowlist. Returns null if any reference is invalid (caller maps that to
+ * VALIDATION_ERROR).
+ */
+async function resolveAttachments(
+  tripId: string,
+  uploaderId: string,
+  inputs: { key: string }[]
+): Promise<AttachmentDoc[] | null> {
+  const docs: AttachmentDoc[] = [];
+  for (const input of inputs) {
+    if (!isReceiptKeyForTrip(tripId, input.key)) return null;
+    const head = await headObject('receipts', input.key);
+    if (!head) return null;
+    if (head.size > MAX_RECEIPT_BYTES) return null;
+    if (!(RECEIPT_CONTENT_TYPES as readonly string[]).includes(head.contentType)) return null;
+    docs.push({
+      key: input.key,
+      contentType: head.contentType,
+      size: head.size,
+      uploadedBy: uploaderId,
+      uploadedAt: new Date(),
+    });
+  }
+  return docs;
 }
 
 /**
@@ -91,6 +132,7 @@ export const createExpense = withAuth(
         category,
         date,
         splits,
+        attachments,
       } = validation.data;
 
       const amount = original_amount * exchange_rate;
@@ -117,6 +159,16 @@ export const createExpense = withAuth(
         return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
       }
 
+      // 驗證並轉換收據附件（key 須屬本 trip、物件須存在、size/type 以 headObject 為準）
+      let attachmentDocs: AttachmentDoc[] = [];
+      if (attachments && attachments.length > 0) {
+        const resolved = await resolveAttachments(tripId, session.userId, attachments);
+        if (!resolved) {
+          return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
+        }
+        attachmentDocs = resolved;
+      }
+
       const created = await Expense.create({
         trip: tripId,
         payer: payer_id,
@@ -128,6 +180,7 @@ export const createExpense = withAuth(
         category: category as (typeof EXPENSE_CATEGORIES)[number],
         date: new Date(date),
         splits: splits.map((s) => ({ user: s.user_id, shareAmount: s.share_amount })),
+        attachments: attachmentDocs,
       });
 
       await created.populate([
@@ -183,15 +236,23 @@ export const updateExpense = withAuth(
         payer_id,
         date,
         splits,
+        attachments,
       } = validation.data;
 
       // 讀取目前值（同時作為 existence check）
       const current = await Expense.findOne({ _id: expenseId, trip: tripId })
-        .select('originalAmount exchangeRate splits')
+        .select('originalAmount exchangeRate splits attachments')
         .lean<{
           originalAmount: number;
           exchangeRate: number;
           splits: { user: { toString(): string }; shareAmount: number }[];
+          attachments?: {
+            key: string;
+            contentType: string;
+            size: number;
+            uploadedBy: { toString(): string };
+            uploadedAt: Date;
+          }[];
         }>();
 
       if (!current) {
@@ -230,6 +291,30 @@ export const updateExpense = withAuth(
         set.splits = current.splits.map((s) => ({ user: s.user, shareAmount: share }));
       }
 
+      // 收據附件：保留既有（含 uploadedBy/At）、只驗證並附加新的、移除被拿掉的
+      if (attachments !== undefined) {
+        const currentByKey = new Map((current.attachments ?? []).map((a) => [a.key, a]));
+        const nextKeys = new Set(attachments.map((a) => a.key));
+        const removed = [...currentByKey.keys()].filter((k) => !nextKeys.has(k));
+        const newInputs = attachments.filter((a) => !currentByKey.has(a.key));
+
+        const resolvedNew = await resolveAttachments(tripId, session.userId, newInputs);
+        if (!resolvedNew) {
+          return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
+        }
+        const kept = attachments
+          .filter((a) => currentByKey.has(a.key))
+          .map((a) => currentByKey.get(a.key)!);
+        set.attachments = [...kept, ...resolvedNew];
+
+        if (removed.length > 0) {
+          // best-effort：刪不掉孤兒物件不該擋住使用者更新
+          await deleteObjects('receipts', removed).catch((e) =>
+            logger.error('Update expense: receipt cleanup failed', e)
+          );
+        }
+      }
+
       await Expense.updateOne({ _id: expenseId, trip: tripId }, { $set: set });
 
       revalidatePath(`/trips/${tripIdOrCode}`);
@@ -256,13 +341,49 @@ export const deleteExpense = withAuth(
         return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
       }
 
-      // splits 內嵌於 expense 文件，刪除 expense 即一併移除
+      // 先讀附件 key 以便刪 R2 物件（splits/attachments 內嵌，隨文件一併移除）
+      const doc = await Expense.findOne({ _id: expenseId, trip: membership.tripId })
+        .select('attachments')
+        .lean<{ attachments?: { key: string }[] }>();
+
       await Expense.deleteOne({ _id: expenseId, trip: membership.tripId });
+
+      const keys = (doc?.attachments ?? []).map((a) => a.key);
+      if (keys.length > 0) {
+        // best-effort：孤兒收據刪不掉不該擋住刪除支出
+        await deleteObjects('receipts', keys).catch((e) =>
+          logger.error('Delete expense: receipt cleanup failed', e)
+        );
+      }
 
       revalidatePath(`/trips/${tripIdOrCode}`);
       return { success: true, data: { message: '支出已刪除' } };
     } catch (error) {
       logger.error('Delete expense error', error);
+      return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
+    }
+  }
+);
+
+/**
+ * Sign a short-lived GET URL for a receipt. Membership-gated, and the key must
+ * belong to this trip — so a member of one trip can't sign another trip's
+ * receipt even if they learn its key.
+ */
+export const getReceiptUrl = withAuth(
+  async (session, tripIdOrCode: string, key: string): Promise<ActionResult<{ url: string }>> => {
+    try {
+      const membership = await getTripMembership(session.userId, tripIdOrCode);
+      if (!membership) {
+        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+      }
+      if (!isReceiptKeyForTrip(membership.tripId, key)) {
+        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+      }
+      const url = await presignGet('receipts', key);
+      return { success: true, data: { url } };
+    } catch (error) {
+      logger.error('getReceiptUrl error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
   }

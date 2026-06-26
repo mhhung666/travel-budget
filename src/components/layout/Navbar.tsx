@@ -33,6 +33,7 @@ interface NavbarProps {
     username: string;
     email: string;
     display_name?: string;
+    avatar_url?: string | null;
   } | null;
   showUserMenu?: boolean;
   title?: string;
@@ -146,7 +147,10 @@ export default function Navbar({ user, showUserMenu = true, title }: NavbarProps
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" className="rounded-full">
                       <Avatar className="h-8 w-8">
-                        <AvatarImage src="" />
+                        <AvatarImage
+                          src={user.avatar_url ?? ''}
+                          alt={user.display_name || user.username}
+                        />
                         <AvatarFallback className="bg-primary text-primary-foreground">
                           {(user.display_name || user.username).charAt(0).toUpperCase()}
                         </AvatarFallback>

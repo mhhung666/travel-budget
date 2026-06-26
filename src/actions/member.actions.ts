@@ -16,6 +16,7 @@ type PopulatedMember = {
     _id: { toString(): string };
     username: string;
     displayName: string;
+    avatarUrl?: string | null;
     isVirtual?: boolean | null;
   } | null;
   role: 'admin' | 'member' | null;
@@ -34,7 +35,7 @@ export const getMembers = withAuth(
       }
 
       const trip = await Trip.findById(membership.tripId)
-        .populate('members.user', 'username displayName isVirtual')
+        .populate('members.user', 'username displayName isVirtual avatarUrl')
         .lean<{ members: PopulatedMember[] } | null>();
 
       if (!trip) {
@@ -47,6 +48,7 @@ export const getMembers = withAuth(
           id: m.user!._id.toString(),
           username: m.user!.username,
           display_name: m.user!.displayName,
+          avatar_url: m.user!.avatarUrl ?? null,
           is_virtual: m.user!.isVirtual || false,
           joined_at: m.joinedAt.toISOString(),
           role: m.role || 'member',

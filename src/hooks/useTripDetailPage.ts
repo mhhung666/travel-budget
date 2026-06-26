@@ -70,6 +70,7 @@ export function useTripDetailPage(tripId: string) {
       category: data.category,
       date: data.date,
       splits: data.splits,
+      attachments: data.attachments,
     });
 
     addExpenseDialog.closeDialog();
@@ -94,6 +95,7 @@ export function useTripDetailPage(tripId: string) {
         category: data.category,
         date: data.date,
         splits: data.splits,
+        attachments: data.attachments,
       },
     });
 

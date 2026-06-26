@@ -15,7 +15,7 @@ import type { Member, User } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -98,7 +98,7 @@ export default function TripMembers({
                     <Avatar
                       className={cn('h-10 w-10', member.is_virtual ? 'bg-muted' : 'bg-primary')}
                     >
-                      {/* <AvatarImage src={member.avatar_url || ''} /> Member type doesn't have avatar_url yet */}
+                      <AvatarImage src={member.avatar_url || ''} alt={member.display_name} />
                       <AvatarFallback
                         className={cn(
                           'text-white font-medium',

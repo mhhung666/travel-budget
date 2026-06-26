@@ -171,6 +171,7 @@ export default function TripDetailPage() {
           {/* Right Column: Expenses (Main Content) */}
           <div className="min-w-0">
             <TripExpenses
+              tripId={tripId}
               expenses={expenses}
               members={members}
               tripName={trip.name}
@@ -190,6 +191,7 @@ export default function TripDetailPage() {
       {/* Dialogs */}
       <ExpenseFormDialog
         mode="add"
+        tripId={tripId}
         open={addExpenseDialog.open}
         onClose={addExpenseDialog.closeDialog}
         onSubmit={handleAddExpense}
@@ -199,6 +201,7 @@ export default function TripDetailPage() {
 
       <ExpenseFormDialog
         mode="edit"
+        tripId={tripId}
         open={editExpenseDialog.open}
         onClose={editExpenseDialog.closeDialog}
         onSubmit={handleEditExpense}

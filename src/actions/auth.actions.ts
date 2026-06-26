@@ -20,7 +20,11 @@ import type { User } from '@/types';
 import { logger } from '@/lib/logger';
 
 export type AuthUser = Pick<User, 'id' | 'username' | 'display_name'>;
-export type AuthUserWithCreatedAt = AuthUser & { created_at: string; email: string };
+export type AuthUserWithCreatedAt = AuthUser & {
+  created_at: string;
+  email: string;
+  avatar_url: string | null;
+};
 
 // 不分大小寫的精確比對（取代 Postgres ilike）
 const CI = { locale: 'en', strength: 2 } as const;
@@ -37,7 +41,7 @@ export async function getCurrentUser(): Promise<ActionResult<AuthUserWithCreated
 
     await dbConnect();
     const user = await UserModel.findById(session.userId)
-      .select('username displayName email createdAt')
+      .select('username displayName email createdAt avatarUrl')
       .lean();
 
     if (!user) {
@@ -52,6 +56,7 @@ export async function getCurrentUser(): Promise<ActionResult<AuthUserWithCreated
         display_name: user.displayName,
         email: user.email,
         created_at: user.createdAt.toISOString(),
+        avatar_url: user.avatarUrl ?? null,
       },
     };
   } catch (error) {

@@ -10,6 +10,8 @@ const UserSchema = new Schema(
     // 旅行地圖公開分享碼：opt-in，產生時才寫入。null/缺值代表未分享。
     // 解析方式與 Trip.hashCode 相同（短 hash code），見 actions/mapShare.actions.ts。
     mapShareCode: { type: String },
+    // 頭像公開 URL（R2 公開 avatars bucket 的穩定網址）。null/缺值＝未設定。
+    avatarUrl: { type: String },
   },
   {
     timestamps: { createdAt: true, updatedAt: false },
