@@ -1,6 +1,6 @@
 # 架構說明（Architecture）
 
-> 更新日期：2026-06-26（新增旅程預算與彈性分帳）
+> 更新日期：2026-06-26（新增旅程預算、彈性分帳與結算「標記已付」）
 > 對應版本：v3.4.3
 > 本文件依**實際程式碼**撰寫，為架構的權威來源。改善建議請見 [IMPROVEMENTS.md](./IMPROVEMENTS.md)；遷移過程見 [MIGRATION_MONGODB.md](./MIGRATION_MONGODB.md)。
 
@@ -97,6 +97,7 @@ src/
 - 使用 `0.01` epsilon 處理浮點誤差；金額四捨五入到小數點兩位。
 - 已有測試覆蓋（[settlement.test.ts](../src/__tests__/settlement.test.ts)）。
 - 同屬「純函式 + 單元測試」的計算邏輯還有 [lib/budget.ts](../src/lib/budget.ts)（`computeBudgetProgress`：預算 vs 實際，於旅程頁前端即時計算，免後端往返）與 [lib/expenseSplit.ts](../src/lib/expenseSplit.ts)（`computeSplits`：均分/金額/百分比/份數四種分帳，於支出表單換算成 `splits` 的 TWD 金額；後端 `createExpense`/`updateExpense` 另有寬鬆的總和防呆）。
+- **結算閉環「標記已付」**：[Payment](../src/models/Payment.ts) model 記錄實際還款（`{ from, to, amount }`，基準幣 TWD）。純函式 `applyPayments`（同 [settlement.ts](../src/lib/settlement.ts)）把還款淨額抵銷進「以支出算出的餘額」（只調整 `balance`，保留 totalPaid/totalOwed 供顯示），再交給 `calculateSettlement`。`getSettlement` 與[公開分享路由](../src/app/api/public/trips/%5Bid%5D/settlement/route.ts)都載入並回傳還款（共用 `toPaymentRecord` mapper）；登記/刪除走 [recordPayment / deletePayment](../src/actions/payment.actions.ts)，任何成員皆可（同 `deleteExpense` 信任模型）。
 
 ### 4.4 多幣別與匯率
 - 支出存 `original_amount`/`currency`/`exchange_rate`，並換算為基準貨幣（TWD）存於 `amount`。
@@ -118,12 +119,13 @@ src/
 
 ## 5. 資料模型
 
-Schema 定義在 [src/models/](../src/models/) 的 Mongoose model，index 於連線時自動建立（無 SQL migration）。原本 6 張關聯表收斂為 **4 個 collection**，用內嵌消除大部分 join 與 N+1：
+Schema 定義在 [src/models/](../src/models/) 的 Mongoose model，index 於連線時自動建立（無 SQL migration）。原本 6 張關聯表收斂為 **5 個 collection**，用內嵌消除大部分 join 與 N+1：
 
 ```
 User
 Trip          ── 內嵌 members[]（取代 trip_members）
 Expense       ── 內嵌 splits[]（取代 expense_splits）；trip / payer 為 ref
+Payment       ── ref trip / from / to（結算還款，標記已付）
 ItineraryDay  ── ref trip
 ```
 
@@ -132,9 +134,10 @@ ItineraryDay  ── ref trip
 | `User` | `username`(uniq), `email`(uniq), `password`, `isVirtual`（虛擬成員，可不註冊參與分帳） |
 | `Trip` | `hashCode`(uniq，分享用), `location`(Mixed), 日期, `budget`（`{ total, categories[] }`，基準幣 TWD，null=未設）；**`members[]`**=`{ user(ref), role(admin/member), joinedAt }`，並對 `members.user` 建 index |
 | `Expense` | `trip`(ref,index), `payer`(ref), `amount`/`originalAmount`/`currency`/`exchangeRate`, `category`(enum), `date`；**`splits[]`**=`{ user(ref), shareAmount }`（前端依均分/金額/百分比/份數模式換算後寫入） |
+| `Payment` | `trip`(ref,index), `from`(ref), `to`(ref), `amount`（基準幣 TWD）, `note`, `createdBy`(ref)；結算還款紀錄，`getSettlement` 以 `applyPayments` 淨額抵銷餘額 |
 | `ItineraryDay` | `trip`(ref), `(trip,dayNumber)` 複合唯一索引；刪除日程後以 ordered `bulkWrite` 重新編號 |
 
-> ⚠️ MongoDB 無外鍵 cascade：刪除 trip 時 `deleteTrip` 會手動一併刪除該 trip 的 expenses 與 itinerary days。
+> ⚠️ MongoDB 無外鍵 cascade：刪除 trip 時 `deleteTrip` 會手動一併刪除該 trip 的 expenses、payments 與 itinerary days；`removeMember` 也會檢查還款參照避免孤兒。
 > ID 一律為 ObjectId 字串，從 JWT、DTO 到前端 props 一致。
 
 ---
