@@ -225,6 +225,13 @@
     }
   },
   "expense": {
+    "receipts": {
+      "label": "Receipts",
+      "add": "Add receipt",
+      "view": "View",
+      "remove": "Remove",
+      "uploadFailed": "Upload failed"
+    },
     "title": "Expenses",
     "add": "Add Expense",
     "edit": "Edit Expense",

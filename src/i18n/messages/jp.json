@@ -192,6 +192,13 @@
     "noDateGroup": "日付未定"
   },
   "expense": {
+    "receipts": {
+      "label": "レシート",
+      "add": "レシートを追加",
+      "view": "表示",
+      "remove": "削除",
+      "uploadFailed": "アップロードに失敗しました"
+    },
     "title": "支出記録",
     "add": "支出を追加",
     "edit": "支出を編集",

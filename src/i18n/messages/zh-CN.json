@@ -192,6 +192,13 @@
     "noDateGroup": "未排定日期"
   },
   "expense": {
+    "receipts": {
+      "label": "收据",
+      "add": "添加收据",
+      "view": "查看",
+      "remove": "移除",
+      "uploadFailed": "上传失败"
+    },
     "title": "支出记录",
     "add": "新增支出",
     "edit": "编辑支出",

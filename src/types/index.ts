@@ -26,6 +26,7 @@ export type {
   CategoryBudgetProgress,
   BudgetProgress,
   Expense,
+  ExpenseAttachment,
   ExpenseSplit,
   UserBalance,
   Transfer,

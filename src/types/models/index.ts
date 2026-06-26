@@ -8,7 +8,7 @@ export type { Trip, TripWithMembers, TripMember } from './trip';
 export type { Budget, BudgetCategory, CategoryBudgetProgress, BudgetProgress } from './budget';
 
 // Expense
-export type { Expense, ExpenseSplit } from './expense';
+export type { Expense, ExpenseAttachment, ExpenseSplit } from './expense';
 
 // Settlement
 export type {
