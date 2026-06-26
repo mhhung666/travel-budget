@@ -38,6 +38,9 @@ export {
 // Upload actions（R2 blob 上傳簽名）
 export { createReceiptUploadUrl, createAvatarUploadUrl, type UploadTicket } from './upload.actions';
 
+// Avatar actions（R2 頭像）
+export { setAvatar, removeAvatar } from './avatar.actions';
+
 // Budget actions
 export { setTripBudget } from './budget.actions';
 

@@ -20,6 +20,7 @@ export interface Member {
   id: string;
   username: string;
   display_name: string;
+  avatar_url?: string | null;
   joined_at: string;
   role: TripRole;
   /** 是否為虛擬成員（代付用） */

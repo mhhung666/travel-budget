@@ -5,6 +5,8 @@ import {
   buildObjectKey,
   receiptKeyPrefix,
   isReceiptKeyForTrip,
+  avatarKeyPrefix,
+  isAvatarKeyForUser,
   MAX_RECEIPT_BYTES,
   MAX_AVATAR_BYTES,
 } from '@/lib/uploads';
@@ -87,5 +89,18 @@ describe('receipt key helpers', () => {
     expect(isReceiptKeyForTrip('trip123', 'receipts/other/abc.webp')).toBe(false);
     expect(isReceiptKeyForTrip('trip123', 'avatars/trip123/abc.webp')).toBe(false);
     expect(isReceiptKeyForTrip('', 'receipts//abc.webp')).toBe(false);
+  });
+});
+
+describe('avatar key helpers', () => {
+  it('builds the user-namespaced prefix', () => {
+    expect(avatarKeyPrefix('user1')).toBe('avatars/user1/');
+  });
+
+  it('accepts a key under the user prefix and rejects others', () => {
+    expect(isAvatarKeyForUser('user1', 'avatars/user1/a.webp')).toBe(true);
+    expect(isAvatarKeyForUser('user1', 'avatars/user2/a.webp')).toBe(false);
+    expect(isAvatarKeyForUser('user1', 'receipts/user1/a.webp')).toBe(false);
+    expect(isAvatarKeyForUser('', 'avatars//a.webp')).toBe(false);
   });
 });

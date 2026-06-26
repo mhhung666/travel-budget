@@ -80,3 +80,13 @@ export function receiptKeyPrefix(tripId: string): string {
 export function isReceiptKeyForTrip(tripId: string, key: string): boolean {
   return tripId.length > 0 && key.startsWith(receiptKeyPrefix(tripId));
 }
+
+/** 頭像物件 key 的命名空間前綴：avatars/<userId>/。 */
+export function avatarKeyPrefix(userId: string): string {
+  return `avatars/${userId}/`;
+}
+
+/** 該 key 是否屬於此 user 的頭像空間（擋掉設定別人上傳的物件為自己頭像）。 */
+export function isAvatarKeyForUser(userId: string, key: string): boolean {
+  return userId.length > 0 && key.startsWith(avatarKeyPrefix(userId));
+}

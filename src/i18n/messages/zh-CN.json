@@ -101,6 +101,11 @@
     "errors": {
       "fetchUser": "获取用户资料失败",
       "updateFailed": "更新失败"
+    },
+    "avatar": {
+      "change": "更换头像",
+      "remove": "移除",
+      "uploadFailed": "上传失败"
     }
   },
   "location": {

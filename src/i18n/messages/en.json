@@ -101,6 +101,11 @@
     "errors": {
       "fetchUser": "Failed to fetch user data",
       "updateFailed": "Update failed"
+    },
+    "avatar": {
+      "change": "Change avatar",
+      "remove": "Remove",
+      "uploadFailed": "Upload failed"
     }
   },
   "location": {

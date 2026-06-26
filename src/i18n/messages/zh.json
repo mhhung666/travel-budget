@@ -101,6 +101,11 @@
     "errors": {
       "fetchUser": "獲取用戶資料失敗",
       "updateFailed": "更新失敗"
+    },
+    "avatar": {
+      "change": "更換頭像",
+      "remove": "移除",
+      "uploadFailed": "上傳失敗"
     }
   },
   "location": {

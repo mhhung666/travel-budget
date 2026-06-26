@@ -109,3 +109,9 @@ export async function deleteByPrefix(bucket: R2Bucket, prefix: string): Promise<
 export function avatarPublicUrl(key: string): string {
   return `${getR2Config().avatarsPublicUrl}/${key}`;
 }
+
+/** 反推頭像物件 key（替換/移除頭像時刪舊物件用）。非本 bucket 公開網址回 null。 */
+export function avatarKeyFromUrl(url: string): string | null {
+  const base = `${getR2Config().avatarsPublicUrl}/`;
+  return url.startsWith(base) ? url.slice(base.length) : null;
+}

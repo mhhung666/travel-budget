@@ -101,6 +101,11 @@
     "errors": {
       "fetchUser": "ユーザー情報の取得に失敗しました",
       "updateFailed": "更新に失敗しました"
+    },
+    "avatar": {
+      "change": "アバターを変更",
+      "remove": "削除",
+      "uploadFailed": "アップロードに失敗しました"
     }
   },
   "location": {

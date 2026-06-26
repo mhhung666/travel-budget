@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AccountSettingsSkeleton } from '@/components/skeletons';
+import AvatarUploader from '@/components/AvatarUploader';
 import { logger } from '@/lib/logger';
 
 export default function SettingsPage() {
@@ -177,6 +178,13 @@ export default function SettingsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
+            <div className="mb-6">
+              <AvatarUploader
+                displayName={user?.display_name || user?.username || ''}
+                avatarUrl={user?.avatar_url ?? null}
+                onChange={(url) => setUser((u) => (u ? { ...u, avatar_url: url } : u))}
+              />
+            </div>
             <form onSubmit={handleUpdateProfile} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="username">{t('profile.username')}</Label>
