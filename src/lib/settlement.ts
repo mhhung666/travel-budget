@@ -58,6 +58,32 @@ export function calculateSettlement(balances: Balance[]): Transaction[] {
   return transactions;
 }
 
+interface SettlementPayment {
+  from: string; // 付款人 userId
+  to: string; // 收款人 userId
+  amount: number;
+}
+
+/**
+ * 把已登記的還款淨額抵銷進「以支出算出的餘額」。
+ *
+ * 一筆 from→to 的還款代表 `from` 已付給 `to`：使 from 的負債變小（balance += amount），
+ * 使 to 的債權變小（balance -= amount）。只調整 `balance`，刻意不動 totalPaid/totalOwed
+ * （那兩個是給使用者看的「支出」累計，不應混入結算還款）。回傳新陣列，不變動輸入。
+ */
+export function applyPayments<T extends { userId: string; balance: number }>(
+  balances: T[],
+  payments: SettlementPayment[]
+): T[] {
+  const delta = new Map<string, number>();
+  for (const p of payments) {
+    if (!(p.amount > 0)) continue;
+    delta.set(p.from, (delta.get(p.from) ?? 0) + p.amount);
+    delta.set(p.to, (delta.get(p.to) ?? 0) - p.amount);
+  }
+  return balances.map((b) => ({ ...b, balance: b.balance + (delta.get(b.userId) ?? 0) }));
+}
+
 /**
  * 格式化金額顯示
  */

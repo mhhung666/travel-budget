@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculateSettlement, formatAmount } from '@/lib/settlement';
+import { calculateSettlement, applyPayments, formatAmount } from '@/lib/settlement';
 
 describe('calculateSettlement', () => {
   it('should return empty array when no balances', () => {
@@ -121,6 +121,90 @@ describe('calculateSettlement', () => {
       to: 'Alice',
       amount: 50,
     });
+  });
+});
+
+describe('applyPayments', () => {
+  it('returns balances unchanged when there are no payments', () => {
+    const balances = [
+      { userId: '1', username: 'Alice', balance: 100 },
+      { userId: '2', username: 'Bob', balance: -100 },
+    ];
+    expect(applyPayments(balances, [])).toEqual(balances);
+  });
+
+  it('a full repayment from debtor to creditor zeroes both balances', () => {
+    // Bob owes Alice 100; Bob pays Alice 100 → both settle to 0.
+    const balances = [
+      { userId: '1', username: 'Alice', balance: 100 },
+      { userId: '2', username: 'Bob', balance: -100 },
+    ];
+    const result = applyPayments(balances, [{ from: '2', to: '1', amount: 100 }]);
+    expect(result.find((b) => b.userId === '1')!.balance).toBe(0);
+    expect(result.find((b) => b.userId === '2')!.balance).toBe(0);
+    expect(calculateSettlement(result.map((b) => ({ ...b })))).toEqual([]);
+  });
+
+  it('a partial repayment reduces the outstanding balance', () => {
+    const balances = [
+      { userId: '1', username: 'Alice', balance: 100 },
+      { userId: '2', username: 'Bob', balance: -100 },
+    ];
+    const result = applyPayments(balances, [{ from: '2', to: '1', amount: 60 }]);
+    expect(result.find((b) => b.userId === '1')!.balance).toBe(40);
+    expect(result.find((b) => b.userId === '2')!.balance).toBe(-40);
+  });
+
+  it('accumulates multiple payments per user', () => {
+    const balances = [
+      { userId: '1', username: 'Alice', balance: 200 },
+      { userId: '2', username: 'Bob', balance: -100 },
+      { userId: '3', username: 'Charlie', balance: -100 },
+    ];
+    const result = applyPayments(balances, [
+      { from: '2', to: '1', amount: 100 },
+      { from: '3', to: '1', amount: 100 },
+    ]);
+    expect(result.find((b) => b.userId === '1')!.balance).toBe(0);
+    expect(result.find((b) => b.userId === '2')!.balance).toBe(0);
+    expect(result.find((b) => b.userId === '3')!.balance).toBe(0);
+  });
+
+  it('ignores non-positive payment amounts', () => {
+    const balances = [
+      { userId: '1', username: 'Alice', balance: 100 },
+      { userId: '2', username: 'Bob', balance: -100 },
+    ];
+    const result = applyPayments(balances, [
+      { from: '2', to: '1', amount: 0 },
+      { from: '2', to: '1', amount: -50 },
+    ]);
+    expect(result).toEqual(balances);
+  });
+
+  it('does not mutate the input and preserves extra fields', () => {
+    const balances = [
+      { userId: '1', username: 'Alice', balance: 100, totalPaid: 100, totalOwed: 0 },
+      { userId: '2', username: 'Bob', balance: -100, totalPaid: 0, totalOwed: 100 },
+    ];
+    const result = applyPayments(balances, [{ from: '2', to: '1', amount: 100 }]);
+    // input untouched
+    expect(balances[0].balance).toBe(100);
+    expect(balances[1].balance).toBe(-100);
+    // expense totals carried through (only `balance` is netted)
+    expect(result[0]).toMatchObject({ totalPaid: 100, totalOwed: 0, balance: 0 });
+    expect(result[1]).toMatchObject({ totalPaid: 0, totalOwed: 100, balance: 0 });
+  });
+
+  it('can overshoot a balance (overpayment flips the sign)', () => {
+    const balances = [
+      { userId: '1', username: 'Alice', balance: 50 },
+      { userId: '2', username: 'Bob', balance: -50 },
+    ];
+    const result = applyPayments(balances, [{ from: '2', to: '1', amount: 80 }]);
+    // Bob overpaid by 30: now Alice owes Bob 30.
+    expect(result.find((b) => b.userId === '1')!.balance).toBe(-30);
+    expect(result.find((b) => b.userId === '2')!.balance).toBe(30);
   });
 });
 

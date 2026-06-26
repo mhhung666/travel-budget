@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { Trip, Expense } from '@/models';
-import { calculateSettlement } from '@/lib/settlement';
+import { Trip, Expense, Payment } from '@/models';
+import { calculateSettlement, applyPayments } from '@/lib/settlement';
+import { toPaymentRecord, type PaymentDtoInput } from '@/lib/dto';
 import { withPublicTrip } from '@/lib/withPublicTrip';
 
 type PopulatedMember = {
@@ -16,8 +17,8 @@ type LeanExpenseForSettlement = {
 // 公開獲取旅行結算（不需登入）
 export const GET = withPublicTrip(
   async ({ tripId }) => {
-    // 一次取出成員 + 全部支出（含內嵌 splits），其餘記憶體計算
-    const [trip, expenses] = await Promise.all([
+    // 一次取出成員 + 全部支出（含內嵌 splits）+ 已登記還款，其餘記憶體計算
+    const [trip, expenses, paymentDocs] = await Promise.all([
       Trip.findById(tripId)
         .populate('members.user', 'username displayName')
         .select('members')
@@ -25,6 +26,12 @@ export const GET = withPublicTrip(
       Expense.find({ trip: tripId })
         .select('payer amount splits')
         .lean<LeanExpenseForSettlement[]>(),
+      Payment.find({ trip: tripId })
+        .sort({ createdAt: -1 })
+        .populate('from', 'username displayName')
+        .populate('to', 'username displayName')
+        .select('from to amount note createdAt')
+        .lean<PaymentDtoInput[]>(),
     ]);
 
     const members = (trip?.members || []).map((m) => m.user).filter((u) => u !== null);
@@ -43,7 +50,7 @@ export const GET = withPublicTrip(
       }
     }
 
-    const balances = members.map((member) => {
+    const expenseBalances = members.map((member) => {
       const userId = member!._id.toString();
       const totalPaid = paidByUser.get(userId) || 0;
       const totalOwed = owedByUser.get(userId) || 0;
@@ -56,9 +63,14 @@ export const GET = withPublicTrip(
       };
     });
 
+    const payments = paymentDocs.map(toPaymentRecord);
+    const balances = applyPayments(
+      expenseBalances,
+      payments.map((p) => ({ from: p.fromId, to: p.toId, amount: p.amount }))
+    );
     const transactions = calculateSettlement(balances.map((b) => ({ ...b })));
 
-    return NextResponse.json({ balances, transactions, totalExpenses });
+    return NextResponse.json({ balances, transactions, payments, totalExpenses });
   },
   { logLabel: 'Get public settlement error' }
 );

@@ -123,6 +123,19 @@ export const setBudgetSchema = z.object({
     .optional(),
 });
 
+// Payment schemas（結算還款；金額一律基準幣 TWD）
+export const recordPaymentSchema = z
+  .object({
+    from_id: objectIdSchema,
+    to_id: objectIdSchema,
+    amount: z.number().positive('金額必須大於 0'),
+    note: z.string().trim().max(200, '備註過長').optional(),
+  })
+  .refine((d) => d.from_id !== d.to_id, {
+    message: '付款人與收款人不能相同',
+    path: ['to_id'],
+  });
+
 // Auth schemas
 export const loginSchema = z.object({
   username: z.string().min(1, '請輸入用戶名'),
@@ -185,6 +198,7 @@ export type UpdateItineraryDayInput = z.infer<typeof updateItineraryDaySchema>;
 export type CreateTripInput = z.infer<typeof createTripSchema>;
 export type UpdateTripInput = z.infer<typeof updateTripSchema>;
 export type SetBudgetInput = z.infer<typeof setBudgetSchema>;
+export type RecordPaymentInput = z.infer<typeof recordPaymentSchema>;
 export type CreateExpenseInput = z.infer<typeof createExpenseSchema>;
 export type UpdateExpenseInput = z.infer<typeof updateExpenseSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;

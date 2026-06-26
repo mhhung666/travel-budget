@@ -11,7 +11,15 @@ export type { Budget, BudgetCategory, CategoryBudgetProgress, BudgetProgress } f
 export type { Expense, ExpenseSplit } from './expense';
 
 // Settlement
-export type { UserBalance, Transfer, SettlementData, Balance, Transaction } from './settlement';
+export type {
+  UserBalance,
+  Transfer,
+  SettlementData,
+  Balance,
+  Transaction,
+  PaymentRecord,
+  Settlement,
+} from './settlement';
 
 // Itinerary
 export type { ItineraryDay } from './itinerary';

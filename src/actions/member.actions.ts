@@ -3,7 +3,7 @@
 import { randomUUID } from 'crypto';
 import { revalidatePath } from 'next/cache';
 import { dbConnect } from '@/lib/mongodb';
-import { Trip, User, Expense } from '@/models';
+import { Trip, User, Expense, Payment } from '@/models';
 import { getTripMembership } from '@/lib/permissions';
 import { addVirtualMemberSchema, type AddVirtualMemberInput } from '@/lib/validation';
 import { withAuth } from './withAuth';
@@ -199,11 +199,12 @@ export const removeMember = withAuth(
 
       const tripId = membership.tripId;
 
-      // 並行：確認成員存在、是否有支出（付款人或分帳）、是否虛擬成員
-      const [trip, payerExpense, splitExpense, user] = await Promise.all([
+      // 並行：確認成員存在、是否有支出（付款人或分帳）或結算還款、是否虛擬成員
+      const [trip, payerExpense, splitExpense, payment, user] = await Promise.all([
         Trip.findOne({ _id: tripId, 'members.user': targetUserId }).select('_id').lean(),
         Expense.exists({ trip: tripId, payer: targetUserId }),
         Expense.exists({ trip: tripId, 'splits.user': targetUserId }),
+        Payment.exists({ trip: tripId, $or: [{ from: targetUserId }, { to: targetUserId }] }),
         User.findById(targetUserId)
           .select('isVirtual')
           .lean<{ isVirtual?: boolean | null } | null>(),
@@ -213,7 +214,8 @@ export const removeMember = withAuth(
         return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
       }
 
-      const hasExpenses = payerExpense !== null || splitExpense !== null;
+      // 有任何財務紀錄（支出或還款）就保留 User，避免孤兒參照
+      const hasExpenses = payerExpense !== null || splitExpense !== null || payment !== null;
       const isVirtualMember = user?.isVirtual || false;
 
       // Remove member from embedded array

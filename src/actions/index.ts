@@ -38,6 +38,9 @@ export { getMembers, addVirtualMember, removeMember, updateMemberRole } from './
 // Settlement actions
 export { getSettlement } from './settlement.actions';
 
+// Payment actions（結算還款 / 標記已付）
+export { recordPayment, deletePayment } from './payment.actions';
+
 // Itinerary actions
 export {
   getItinerary,

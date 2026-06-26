@@ -11,7 +11,7 @@ import {
   getItinerary,
 } from '@/actions';
 import type { AuthUserWithCreatedAt } from '@/actions';
-import type { Balance, Transaction, TripWithMembers } from '@/types';
+import type { Settlement, TripWithMembers } from '@/types';
 import { tripKeys } from './keys';
 import { fetchWithPublicFallback } from './fetcher';
 
@@ -79,11 +79,12 @@ export function useExpenses(tripId: string) {
   });
 }
 
-const EMPTY_SETTLEMENT: {
-  balances: Balance[];
-  transactions: Transaction[];
-  totalExpenses: number;
-} = { balances: [], transactions: [], totalExpenses: 0 };
+const EMPTY_SETTLEMENT: Settlement = {
+  balances: [],
+  transactions: [],
+  payments: [],
+  totalExpenses: 0,
+};
 
 export function useSettlement(tripId: string) {
   return useQuery({

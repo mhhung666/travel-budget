@@ -32,6 +32,8 @@ export type {
   SettlementData,
   Balance,
   Transaction,
+  PaymentRecord,
+  Settlement,
   ExpenseDetail,
   CategoryStat,
   StatsData,

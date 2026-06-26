@@ -1,17 +1,19 @@
 'use server';
 
 import { dbConnect } from '@/lib/mongodb';
-import { Trip, Expense } from '@/models';
+import { Trip, Expense, Payment } from '@/models';
 import { getTripMembership } from '@/lib/permissions';
-import { calculateSettlement } from '@/lib/settlement';
+import { calculateSettlement, applyPayments } from '@/lib/settlement';
 import { withAuth } from './withAuth';
 import type { ActionResult } from './types';
-import type { Balance, Transaction } from '@/types';
+import type { Balance, Transaction, PaymentRecord } from '@/types';
 import { logger } from '@/lib/logger';
+import { toPaymentRecord, type PaymentDtoInput } from '@/lib/dto';
 
 interface SettlementResult {
   balances: Balance[];
   transactions: Transaction[];
+  payments: PaymentRecord[];
   totalExpenses: number;
 }
 
@@ -40,8 +42,8 @@ export const getSettlement = withAuth(
 
       await dbConnect();
 
-      // 一次取出成員 + 該行程全部支出（含內嵌 splits），其餘在記憶體計算
-      const [trip, expenses] = await Promise.all([
+      // 一次取出成員 + 全部支出（含內嵌 splits）+ 已登記還款，其餘在記憶體計算
+      const [trip, expenses, paymentDocs] = await Promise.all([
         Trip.findById(tripId)
           .populate('members.user', 'username displayName')
           .select('members')
@@ -49,6 +51,12 @@ export const getSettlement = withAuth(
         Expense.find({ trip: tripId })
           .select('payer amount splits')
           .lean<LeanExpenseForSettlement[]>(),
+        Payment.find({ trip: tripId })
+          .sort({ createdAt: -1 })
+          .populate('from', 'username displayName')
+          .populate('to', 'username displayName')
+          .select('from to amount note createdAt')
+          .lean<PaymentDtoInput[]>(),
       ]);
 
       const members = (trip?.members || []).map((m) => m.user).filter((u) => u !== null);
@@ -67,7 +75,7 @@ export const getSettlement = withAuth(
         }
       }
 
-      const balances: Balance[] = members.map((member) => {
+      const expenseBalances: Balance[] = members.map((member) => {
         const id = member!._id.toString();
         const totalPaid = paidByUser.get(id) || 0;
         const totalOwed = owedByUser.get(id) || 0;
@@ -80,7 +88,13 @@ export const getSettlement = withAuth(
         };
       });
 
-      // Calculate transactions using settlement algorithm（傳入副本避免被改動）
+      const payments = paymentDocs.map(toPaymentRecord);
+
+      // 把已登記還款淨額抵銷進餘額，再算最少轉帳（totalPaid/totalOwed 維持支出原值供顯示）
+      const balances = applyPayments(
+        expenseBalances,
+        payments.map((p) => ({ from: p.fromId, to: p.toId, amount: p.amount }))
+      );
       const transactions = calculateSettlement(balances.map((b) => ({ ...b })));
 
       return {
@@ -88,6 +102,7 @@ export const getSettlement = withAuth(
         data: {
           balances,
           transactions,
+          payments,
           totalExpenses,
         },
       };

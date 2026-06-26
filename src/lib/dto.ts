@@ -1,4 +1,4 @@
-import type { Expense as ExpenseDto, Trip as TripDto } from '@/types';
+import type { Expense as ExpenseDto, Trip as TripDto, PaymentRecord } from '@/types';
 
 /**
  * Shared model → public DTO mappers.
@@ -96,5 +96,34 @@ export function toTripDto(t: TripDtoInput, viewerId?: string): TripDto {
           })),
         }
       : null,
+  };
+}
+
+/** Minimal lean Payment shape `toPaymentRecord` needs (from + to populated). */
+export type PaymentDtoInput = {
+  _id: { toString(): string };
+  from: PopulatedRef;
+  to: PopulatedRef;
+  amount: number;
+  note?: string | null;
+  createdAt: Date;
+};
+
+/**
+ * Lean Payment doc → settlement-display record. Note this returns the **camelCase**
+ * shape the settlement subsystem uses (like `Balance`/`Transaction`), not the
+ * snake_case DTO shape of `toExpenseDto`/`toTripDto`. Shared by the settlement
+ * action and the public settlement route so the two surfaces don't drift.
+ */
+export function toPaymentRecord(p: PaymentDtoInput): PaymentRecord {
+  return {
+    id: p._id.toString(),
+    fromId: p.from?._id.toString() || '',
+    fromName: p.from?.displayName || 'Unknown',
+    toId: p.to?._id.toString() || '',
+    toName: p.to?.displayName || 'Unknown',
+    amount: p.amount,
+    note: p.note ?? null,
+    createdAt: p.createdAt.toISOString(),
   };
 }

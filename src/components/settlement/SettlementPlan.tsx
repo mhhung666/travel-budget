@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { ArrowRight, ArrowDown, Lightbulb } from 'lucide-react';
+import { ArrowRight, ArrowDown, Lightbulb, Check } from 'lucide-react';
 import type { Transaction } from '@/types';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,18 +15,22 @@ import {
 } from '@/components/ui/select';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 
 interface SettlementPlanProps {
   transactions: Transaction[];
   exchangeRates: Record<string, number>;
   loadingRates: boolean;
+  /** 成員專屬：點擊建議轉帳的「標記已付」時觸發（登記一筆還款）。未傳即唯讀。 */
+  onMarkPaid?: (transaction: Transaction) => void;
 }
 
 export default function SettlementPlan({
   transactions,
   exchangeRates,
   loadingRates,
+  onMarkPaid,
 }: SettlementPlanProps) {
   const t = useTranslations('settlement');
   const [selectedCurrency, setSelectedCurrency] = useState('TWD');
@@ -133,6 +137,20 @@ export default function SettlementPlan({
                       </Avatar>
                     </div>
                   </div>
+
+                  {onMarkPaid && (
+                    <div className="mt-3 flex justify-center border-t border-orange-100 pt-3 dark:border-orange-900/50">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5 border-green-300 text-green-700 hover:bg-green-50 hover:text-green-800 dark:border-green-800 dark:text-green-400 dark:hover:bg-green-950/30"
+                        onClick={() => onMarkPaid(transaction)}
+                      >
+                        <Check className="h-4 w-4" />
+                        {t('markPaid')}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

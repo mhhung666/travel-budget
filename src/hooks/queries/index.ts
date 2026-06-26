@@ -12,6 +12,7 @@ export {
 } from './useTripQueries';
 export { useItineraryMutations } from './useItineraryMutations';
 export { useExpenseMutations } from './useExpenseMutations';
+export { usePaymentMutations } from './usePaymentMutations';
 export { useMemberMutations } from './useMemberMutations';
 export { useTripMutations, useTripArchiveMutations } from './useTripMutations';
 export { useExchangeRates } from './useExchangeRates';

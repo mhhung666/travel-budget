@@ -52,3 +52,28 @@ export interface Transaction {
   to: string;
   amount: number;
 }
+
+/**
+ * 已登記的還款紀錄（客戶端顯示用）。
+ * 金額一律基準幣 TWD，與 balances / transactions 同單位，結算時淨額抵銷。
+ */
+export interface PaymentRecord {
+  id: string;
+  fromId: string;
+  fromName: string;
+  toId: string;
+  toName: string;
+  amount: number;
+  note: string | null;
+  createdAt: string;
+}
+
+/**
+ * 結算結果（含淨額後的餘額、建議轉帳、已登記還款）。
+ */
+export interface Settlement {
+  balances: Balance[];
+  transactions: Transaction[];
+  payments: PaymentRecord[];
+  totalExpenses: number;
+}

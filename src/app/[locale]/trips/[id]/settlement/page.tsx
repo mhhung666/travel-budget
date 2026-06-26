@@ -1,14 +1,34 @@
 'use client';
 
+import { useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 import { ArrowLeft } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
-import { SettlementSummary, SettlementBalances, SettlementPlan } from '@/components/settlement';
+import {
+  SettlementSummary,
+  SettlementBalances,
+  SettlementPlan,
+  PaymentHistory,
+  RecordPaymentDialog,
+  type PaymentMemberOption,
+} from '@/components/settlement';
 import { ExportMenu } from '@/components/export';
-import { useCurrentUser, useSettlement, useExchangeRates, useTrip } from '@/hooks/queries';
+import {
+  useCurrentUser,
+  useSettlement,
+  useExchangeRates,
+  useTrip,
+  useTripMembership,
+  usePaymentMutations,
+} from '@/hooks/queries';
+import { useDialog } from '@/hooks/useDialog';
+import { useToast } from '@/hooks/use-toast';
+import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { exportSettlement, type ExportFormat } from '@/lib/exporters';
+import type { Transaction } from '@/types';
+import type { RecordPaymentInput } from '@/lib/validation';
 import { SettlementSkeleton } from '@/components/skeletons';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -20,18 +40,71 @@ export default function SettlementPage() {
   const tSettlement = useTranslations('settlement');
   const tError = useTranslations('error');
   const tExport = useTranslations('export');
+  const tCommon = useTranslations('common');
+  const { toast } = useToast();
 
   const { data: currentUser } = useCurrentUser();
   const { data: trip } = useTrip(tripId);
   const {
-    data: settlement = { balances: [], transactions: [], totalExpenses: 0 },
+    data: settlement = { balances: [], transactions: [], payments: [], totalExpenses: 0 },
     isLoading: loading,
     isError,
   } = useSettlement(tripId);
   const { data: exchangeRates = { TWD: 1 }, isFetching: loadingRates } = useExchangeRates();
+  const { isMember } = useTripMembership(tripId);
+  const paymentMutations = usePaymentMutations(tripId);
 
-  const { balances, transactions, totalExpenses } = settlement;
+  const recordDialog = useDialog<{ fromId: string; toId: string; amount: number }>();
+  const deletePaymentDialog = useDialog<string>();
+
+  const { balances, transactions, payments, totalExpenses } = settlement;
   const error = isError ? tError('loadSettlementFailed') : '';
+
+  // 建議轉帳只帶名字（calculateSettlement 不回 id）；用餘額表把名字對回 id 以預填登記表單。
+  const memberOptions = useMemo<PaymentMemberOption[]>(
+    () => balances.map((b) => ({ id: b.userId, name: b.username })),
+    [balances]
+  );
+  const nameToId = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const b of balances) map.set(b.username, b.userId);
+    return map;
+  }, [balances]);
+
+  const handleMarkPaid = (tx: Transaction) =>
+    recordDialog.openDialog({
+      fromId: nameToId.get(tx.from) ?? '',
+      toId: nameToId.get(tx.to) ?? '',
+      amount: tx.amount,
+    });
+
+  const openBlankRecord = () => {
+    recordDialog.setData(null);
+    recordDialog.openDialog();
+  };
+
+  const handleRecordSubmit = async (input: RecordPaymentInput) => {
+    await paymentMutations.record.mutateAsync(input);
+    toast({ title: tSettlement('paymentRecorded') });
+  };
+
+  const handleDeletePayment = (id: string) => deletePaymentDialog.openDialog(id);
+
+  const confirmDeletePayment = async () => {
+    const id = deletePaymentDialog.data;
+    if (!id) return;
+    try {
+      await paymentMutations.remove.mutateAsync(id);
+      deletePaymentDialog.closeDialog();
+      toast({ title: tCommon('deleted') });
+    } catch (err: unknown) {
+      toast({
+        variant: 'destructive',
+        title: tCommon('errorTitle'),
+        description: err instanceof Error ? err.message : String(err),
+      });
+    }
+  };
 
   const buildExport = (format: ExportFormat) =>
     exportSettlement({ balances, transactions, totalExpenses }, format, {
@@ -114,9 +187,40 @@ export default function SettlementPage() {
             transactions={transactions}
             exchangeRates={exchangeRates}
             loadingRates={loadingRates}
+            onMarkPaid={isMember ? handleMarkPaid : undefined}
+          />
+        </div>
+
+        {/* 已結清紀錄 */}
+        <div className="mt-6">
+          <PaymentHistory
+            payments={payments}
+            canManage={isMember}
+            onRecord={openBlankRecord}
+            onDelete={handleDeletePayment}
           />
         </div>
       </div>
+
+      <RecordPaymentDialog
+        open={recordDialog.open}
+        onClose={recordDialog.closeDialog}
+        members={memberOptions}
+        initial={recordDialog.data}
+        onSubmit={handleRecordSubmit}
+      />
+
+      <ConfirmDialog
+        open={deletePaymentDialog.open}
+        title={tSettlement('deletePayment')}
+        message={tSettlement('deletePaymentConfirm')}
+        severity="error"
+        confirmText={tCommon('delete')}
+        cancelText={tCommon('cancel')}
+        loading={paymentMutations.remove.isPending}
+        onConfirm={confirmDeletePayment}
+        onCancel={deletePaymentDialog.closeDialog}
+      />
     </div>
   );
 }
