@@ -529,7 +529,26 @@
     "archivedNote": "This trip is archived (only you see this).",
     "archiveSuccess": "Archived — moved to the Archived tab",
     "unarchiveSuccess": "Trip restored",
-    "viewStats": "Group stats"
+    "viewStats": "Group stats",
+    "viewChecklist": "Checklist"
+  },
+  "checklist": {
+    "title": "Checklists",
+    "backToTrip": "Back to Trip",
+    "addList": "Add list",
+    "listTitlePlaceholder": "New list name (e.g. Packing)",
+    "renameList": "Rename list",
+    "deleteList": "Delete list",
+    "deleteListConfirm": "Delete this checklist?",
+    "deleteListMessage": "This deletes the list and all its items. This cannot be undone.",
+    "addItem": "Add item",
+    "itemPlaceholder": "Add an item…",
+    "emptyState": "No checklists yet",
+    "emptyStateHint": "Create a packing or to-do list for this trip",
+    "emptyItems": "No items yet",
+    "unassigned": "Unassigned",
+    "removeItem": "Remove item",
+    "loadFailed": "Failed to load checklists"
   },
   "itinerary": {
     "title": "Trip Itinerary",

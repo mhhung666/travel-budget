@@ -534,7 +534,26 @@
     "archivedNote": "此旅行已归档（仅你看到）。",
     "archiveSuccess": "已归档,移至「已归档」标签",
     "unarchiveSuccess": "已恢复此旅行",
-    "viewStats": "群组统计"
+    "viewStats": "群组统计",
+    "viewChecklist": "清单"
+  },
+  "checklist": {
+    "title": "清单",
+    "backToTrip": "返回旅程",
+    "addList": "添加清单",
+    "listTitlePlaceholder": "新清单名称（例如：行李打包）",
+    "renameList": "重命名清单",
+    "deleteList": "删除清单",
+    "deleteListConfirm": "确定删除这份清单？",
+    "deleteListMessage": "将删除整份清单及所有项目，此操作无法撤销。",
+    "addItem": "添加项目",
+    "itemPlaceholder": "添加项目…",
+    "emptyState": "暂无清单",
+    "emptyStateHint": "为这趟旅程创建打包清单或待办清单",
+    "emptyItems": "暂无项目",
+    "unassigned": "未指派",
+    "removeItem": "删除项目",
+    "loadFailed": "加载清单失败"
   },
   "itinerary": {
     "title": "旅程规划",

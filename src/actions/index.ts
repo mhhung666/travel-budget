@@ -49,6 +49,17 @@ export {
   deleteItineraryDay,
 } from './itinerary.actions';
 
+// Checklist actions（打包清單 / 待辦）
+export {
+  getChecklists,
+  createChecklist,
+  updateChecklist,
+  deleteChecklist,
+  addChecklistItem,
+  updateChecklistItem,
+  removeChecklistItem,
+} from './checklist.actions';
+
 // Stats actions
 export { getStats, getTripStats } from './stats.actions';
 

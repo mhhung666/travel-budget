@@ -534,7 +534,26 @@
     "archivedNote": "此旅行已封存（僅你看到）。",
     "archiveSuccess": "已封存,移至「已封存」頁籤",
     "unarchiveSuccess": "已恢復此旅行",
-    "viewStats": "群組統計"
+    "viewStats": "群組統計",
+    "viewChecklist": "清單"
+  },
+  "checklist": {
+    "title": "清單",
+    "backToTrip": "返回旅程",
+    "addList": "新增清單",
+    "listTitlePlaceholder": "新清單名稱（例如：行李打包）",
+    "renameList": "重新命名清單",
+    "deleteList": "刪除清單",
+    "deleteListConfirm": "確定刪除這份清單？",
+    "deleteListMessage": "將刪除整份清單及所有項目，此操作無法復原。",
+    "addItem": "新增項目",
+    "itemPlaceholder": "新增項目…",
+    "emptyState": "尚無清單",
+    "emptyStateHint": "為這趟旅程建立打包清單或待辦清單",
+    "emptyItems": "尚無項目",
+    "unassigned": "未指派",
+    "removeItem": "刪除項目",
+    "loadFailed": "載入清單失敗"
   },
   "itinerary": {
     "title": "旅程規劃",

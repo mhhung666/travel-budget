@@ -1,4 +1,4 @@
-import type { Expense as ExpenseDto, Trip as TripDto, PaymentRecord } from '@/types';
+import type { Expense as ExpenseDto, Trip as TripDto, PaymentRecord, Checklist } from '@/types';
 import type { TripStatsExpense, TripStatsMember } from '@/lib/tripStats';
 
 /**
@@ -157,6 +157,39 @@ export function toTripStatsInputs(
       startDate: trip?.startDate ? toDateStr(trip.startDate) : null,
       endDate: trip?.endDate ? toDateStr(trip.endDate) : null,
     },
+  };
+}
+
+/** Minimal lean Checklist shape `toChecklistDto` needs (items.assignee populated). */
+export type ChecklistDtoInput = {
+  _id: { toString(): string };
+  trip: { toString(): string };
+  title: string;
+  items: { _id: { toString(): string }; text: string; done: boolean; assignee: PopulatedRef }[];
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+/**
+ * Lean Checklist doc → snake_case DTO (like `toExpenseDto`/`toDayDto`, not the
+ * camelCase settlement shape). Each item's `assignee` must be populated; an
+ * unassigned item or a dangling ref (assignee user deleted) both map to null.
+ * Shared by the authenticated checklist actions and the public checklist route.
+ */
+export function toChecklistDto(c: ChecklistDtoInput): Checklist {
+  return {
+    id: c._id.toString(),
+    trip_id: c.trip.toString(),
+    title: c.title,
+    items: (c.items || []).map((i) => ({
+      id: i._id.toString(),
+      text: i.text,
+      done: !!i.done,
+      assignee_id: i.assignee?._id.toString() ?? null,
+      assignee_name: i.assignee?.displayName ?? null,
+    })),
+    created_at: c.createdAt.toISOString(),
+    updated_at: c.updatedAt.toISOString(),
   };
 }
 

@@ -534,7 +534,26 @@
     "archivedNote": "この旅行はアーカイブ済みです（あなたにのみ表示）。",
     "archiveSuccess": "アーカイブしました（「アーカイブ」タブに移動）",
     "unarchiveSuccess": "旅行を復元しました",
-    "viewStats": "グループ統計"
+    "viewStats": "グループ統計",
+    "viewChecklist": "チェックリスト"
+  },
+  "checklist": {
+    "title": "チェックリスト",
+    "backToTrip": "旅行に戻る",
+    "addList": "リストを追加",
+    "listTitlePlaceholder": "新しいリスト名（例：持ち物）",
+    "renameList": "リスト名を変更",
+    "deleteList": "リストを削除",
+    "deleteListConfirm": "このチェックリストを削除しますか？",
+    "deleteListMessage": "リストとすべての項目を削除します。この操作は取り消せません。",
+    "addItem": "項目を追加",
+    "itemPlaceholder": "項目を追加…",
+    "emptyState": "チェックリストがありません",
+    "emptyStateHint": "この旅行の持ち物リストやToDoリストを作成しましょう",
+    "emptyItems": "項目がありません",
+    "unassigned": "未割り当て",
+    "removeItem": "項目を削除",
+    "loadFailed": "チェックリストの読み込みに失敗しました"
   },
   "itinerary": {
     "title": "旅程プラン",

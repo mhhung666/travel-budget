@@ -62,7 +62,7 @@ export default function TripHeader({
         </div>
 
         {children && (
-          <div className="mt-6 pt-6 border-t flex flex-col sm:flex-row gap-3">{children}</div>
+          <div className="mt-6 pt-6 border-t grid grid-cols-1 sm:grid-cols-2 gap-3">{children}</div>
         )}
       </CardContent>
     </Card>

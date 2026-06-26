@@ -2,7 +2,14 @@
 
 import { revalidatePath } from 'next/cache';
 import { dbConnect } from '@/lib/mongodb';
-import { Trip as TripModel, Expense, ItineraryDay, Payment, type TripDoc } from '@/models';
+import {
+  Trip as TripModel,
+  Expense,
+  ItineraryDay,
+  Payment,
+  Checklist,
+  type TripDoc,
+} from '@/models';
 import { getTripMembership } from '@/lib/permissions';
 import { generateUniqueHashCode } from '@/lib/hashcode';
 import {
@@ -227,11 +234,12 @@ export const deleteTrip = withAuth(
 
       const tripId = membership.tripId;
 
-      // MongoDB 無外鍵 cascade，需手動清除關聯資料（支出、行程日、結算還款）
+      // MongoDB 無外鍵 cascade，需手動清除關聯資料（支出、行程日、結算還款、清單）
       await Promise.all([
         Expense.deleteMany({ trip: tripId }),
         ItineraryDay.deleteMany({ trip: tripId }),
         Payment.deleteMany({ trip: tripId }),
+        Checklist.deleteMany({ trip: tripId }),
       ]);
       await TripModel.deleteOne({ _id: tripId });
 

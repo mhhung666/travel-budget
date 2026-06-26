@@ -24,6 +24,9 @@ export type {
 // Itinerary
 export type { ItineraryDay } from './itinerary';
 
+// Checklist
+export type { Checklist, ChecklistItem } from './checklist';
+
 // Stats
 export type {
   ExpenseDetail,

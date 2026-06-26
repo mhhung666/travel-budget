@@ -9,9 +9,11 @@ export {
   useSettlement,
   useTripStats,
   useItinerary,
+  useChecklists,
   useTripMembership,
 } from './useTripQueries';
 export { useItineraryMutations } from './useItineraryMutations';
+export { useChecklistMutations } from './useChecklistMutations';
 export { useExpenseMutations } from './useExpenseMutations';
 export { usePaymentMutations } from './usePaymentMutations';
 export { useMemberMutations } from './useMemberMutations';

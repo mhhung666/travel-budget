@@ -10,9 +10,10 @@ import {
   getSettlement,
   getTripStats,
   getItinerary,
+  getChecklists,
 } from '@/actions';
 import type { AuthUserWithCreatedAt } from '@/actions';
-import type { Settlement, TripStatsData, TripWithMembers } from '@/types';
+import type { Checklist, Settlement, TripStatsData, TripWithMembers } from '@/types';
 import { tripKeys } from './keys';
 import { fetchWithPublicFallback } from './fetcher';
 
@@ -130,6 +131,21 @@ export function useItinerary(tripId: string) {
         getItinerary,
         { path: 'itinerary', responseKey: 'itinerary' },
         []
+      ),
+    enabled: !!tripId,
+  });
+}
+
+/** Trip checklists (packing / to-do). Read-only via the public share fallback. */
+export function useChecklists(tripId: string) {
+  return useQuery({
+    queryKey: tripKeys.checklists(tripId),
+    queryFn: () =>
+      fetchWithPublicFallback(
+        tripId,
+        getChecklists,
+        { path: 'checklists', responseKey: 'checklists' },
+        [] as Checklist[]
       ),
     enabled: !!tripId,
   });

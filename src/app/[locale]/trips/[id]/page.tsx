@@ -3,7 +3,7 @@
 import { useParams } from 'next/navigation';
 import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
-import { ArrowLeft, Settings, Map, Calculator, BarChart3 } from 'lucide-react';
+import { ArrowLeft, Settings, Map, Calculator, BarChart3, ListChecks } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import { TripHeader, TripExpenses, TripBudget } from '@/components/trips/detail';
 
@@ -147,6 +147,14 @@ export default function TripDetailPage() {
               >
                 <BarChart3 className="mr-2 h-4 w-4 text-violet-600" />
                 {tTrip('viewStats')}
+              </Button>
+              <Button
+                onClick={() => router.push(`/trips/${tripId}/checklists`)}
+                className="flex-1 bg-card hover:bg-accent text-card-foreground border shadow-sm h-10"
+                variant="outline"
+              >
+                <ListChecks className="mr-2 h-4 w-4 text-amber-600" />
+                {tTrip('viewChecklist')}
               </Button>
             </TripHeader>
 

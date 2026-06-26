@@ -43,6 +43,8 @@ export type {
   HistogramDataPoint,
   HistogramData,
   ItineraryDay,
+  Checklist,
+  ChecklistItem,
 } from './models';
 
 // ============================================

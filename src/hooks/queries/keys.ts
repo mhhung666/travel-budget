@@ -18,5 +18,6 @@ export const tripKeys = {
   expenses: (tripId: string) => ['trip', tripId, 'expenses'] as const,
   settlement: (tripId: string) => ['trip', tripId, 'settlement'] as const,
   itinerary: (tripId: string) => ['trip', tripId, 'itinerary'] as const,
+  checklists: (tripId: string) => ['trip', tripId, 'checklists'] as const,
   stats: (tripId: string) => ['trip', tripId, 'stats'] as const,
 } as const;

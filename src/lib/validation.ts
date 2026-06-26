@@ -192,7 +192,36 @@ export const updateItineraryDaySchema = z.object({
   location: locationSchema.nullable().optional(),
 });
 
+// Checklist schemas（打包清單 / 待辦；任何成員皆可編輯）
+export const createChecklistSchema = z.object({
+  title: z.string().min(1, '清單名稱不能為空').trim(),
+});
+
+export const updateChecklistSchema = z.object({
+  title: z.string().min(1, '清單名稱不能為空').trim(),
+});
+
+export const addChecklistItemSchema = z.object({
+  text: z.string().min(1, '項目內容不能為空').trim(),
+  assignee_id: objectIdSchema.nullable().optional(),
+});
+
+export const updateChecklistItemSchema = z
+  .object({
+    text: z.string().min(1, '項目內容不能為空').trim().optional(),
+    done: z.boolean().optional(),
+    // assignee_id 可被設為 null 以清除指派；故只要欄位有出現就寫入。
+    assignee_id: objectIdSchema.nullable().optional(),
+  })
+  .refine((d) => d.text !== undefined || d.done !== undefined || d.assignee_id !== undefined, {
+    message: '沒有可更新的欄位',
+  });
+
 // Type exports
+export type CreateChecklistInput = z.infer<typeof createChecklistSchema>;
+export type UpdateChecklistInput = z.infer<typeof updateChecklistSchema>;
+export type AddChecklistItemInput = z.infer<typeof addChecklistItemSchema>;
+export type UpdateChecklistItemInput = z.infer<typeof updateChecklistItemSchema>;
 export type CreateItineraryDayInput = z.infer<typeof createItineraryDaySchema>;
 export type UpdateItineraryDayInput = z.infer<typeof updateItineraryDaySchema>;
 export type CreateTripInput = z.infer<typeof createTripSchema>;

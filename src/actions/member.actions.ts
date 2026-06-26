@@ -3,7 +3,7 @@
 import { randomUUID } from 'crypto';
 import { revalidatePath } from 'next/cache';
 import { dbConnect } from '@/lib/mongodb';
-import { Trip, User, Expense, Payment } from '@/models';
+import { Trip, User, Expense, Payment, Checklist } from '@/models';
 import { getTripMembership } from '@/lib/permissions';
 import { addVirtualMemberSchema, type AddVirtualMemberInput } from '@/lib/validation';
 import { withAuth } from './withAuth';
@@ -220,6 +220,13 @@ export const removeMember = withAuth(
 
       // Remove member from embedded array
       await Trip.updateOne({ _id: tripId }, { $pull: { members: { user: targetUserId } } });
+
+      // 清掉清單項目對該成員的指派（指派不算財務紀錄、不阻擋移除，僅避免孤兒參照）
+      await Checklist.updateMany(
+        { trip: tripId, 'items.assignee': targetUserId },
+        { $set: { 'items.$[el].assignee': null } },
+        { arrayFilters: [{ 'el.assignee': targetUserId }] }
+      );
 
       // Cleanup virtual member if it has no expenses and belongs to no other trip
       if (isVirtualMember && !hasExpenses) {

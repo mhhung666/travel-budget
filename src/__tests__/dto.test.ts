@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { toExpenseDto, toTripDto, type ExpenseDtoInput, type TripDtoInput } from '@/lib/dto';
+import {
+  toExpenseDto,
+  toTripDto,
+  toChecklistDto,
+  type ExpenseDtoInput,
+  type TripDtoInput,
+  type ChecklistDtoInput,
+} from '@/lib/dto';
 
 const ref = (id: string, username: string, displayName: string) => ({
   _id: { toString: () => id },
@@ -125,5 +132,55 @@ describe('toTripDto', () => {
       total: 30000,
       categories: [{ category: 'food', amount: 8000 }],
     });
+  });
+});
+
+describe('toChecklistDto', () => {
+  const base: ChecklistDtoInput = {
+    _id: { toString: () => 'cl1' },
+    trip: { toString: () => 'trip9' },
+    title: 'Packing',
+    items: [
+      {
+        _id: { toString: () => 'i1' },
+        text: 'Passport',
+        done: true,
+        assignee: ref('u1', 'alice', 'Alice'),
+      },
+      { _id: { toString: () => 'i2' }, text: 'Charger', done: false, assignee: null },
+    ],
+    createdAt: new Date('2026-06-01T00:00:00Z'),
+    updatedAt: new Date('2026-06-02T00:00:00Z'),
+  };
+
+  it('maps a checklist with assigned + unassigned items to the snake_case DTO', () => {
+    expect(toChecklistDto(base)).toEqual({
+      id: 'cl1',
+      trip_id: 'trip9',
+      title: 'Packing',
+      items: [
+        { id: 'i1', text: 'Passport', done: true, assignee_id: 'u1', assignee_name: 'Alice' },
+        { id: 'i2', text: 'Charger', done: false, assignee_id: null, assignee_name: null },
+      ],
+      created_at: '2026-06-01T00:00:00.000Z',
+      updated_at: '2026-06-02T00:00:00.000Z',
+    });
+  });
+
+  it('coerces done to boolean and tolerates a dangling assignee (deleted user → null)', () => {
+    const dto = toChecklistDto({
+      ...base,
+      items: [
+        {
+          _id: { toString: () => 'i3' },
+          text: 'Map',
+          done: undefined as unknown as boolean,
+          assignee: null,
+        },
+      ],
+    });
+    expect(dto.items[0].done).toBe(false);
+    expect(dto.items[0].assignee_id).toBeNull();
+    expect(dto.items[0].assignee_name).toBeNull();
   });
 });
