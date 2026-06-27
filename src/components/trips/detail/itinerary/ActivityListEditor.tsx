@@ -1,9 +1,10 @@
 'use client';
 
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, ArrowDownUp } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { Activity, ActivityType, ExpenseAttachment } from '@/types';
 import type { ActivityPayload } from '@/hooks/queries/useItineraryMutations';
+import { sortActivities } from '@/lib/itineraryActivities';
 import LocationAutocomplete, {
   type LocationOption,
 } from '@/components/location/LocationAutocomplete';
@@ -113,15 +114,31 @@ export default function ActivityListEditor({
     onChange(activities.map((a) => (a.key === key ? { ...a, ...fields } : a)));
   const remove = (key: string) => onChange(activities.filter((a) => a.key !== key));
   const add = () => onChange([...activities, makeEmptyActivity()]);
+  // 依時間手動排序（有時間者升冪、無時間殿後）。刻意不在輸入時自動排序，避免列在打字時跳動。
+  const sortByTime = () => onChange(sortActivities(activities));
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <Label>{t('heading')}</Label>
-        <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={add}>
-          <Plus className="h-3.5 w-3.5" />
-          {t('add')}
-        </Button>
+        <div className="flex gap-1.5">
+          {activities.length > 1 && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={sortByTime}
+            >
+              <ArrowDownUp className="h-3.5 w-3.5" />
+              {t('sortByTime')}
+            </Button>
+          )}
+          <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={add}>
+            <Plus className="h-3.5 w-3.5" />
+            {t('add')}
+          </Button>
+        </div>
       </div>
 
       {activities.length === 0 ? (

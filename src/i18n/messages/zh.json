@@ -623,7 +623,8 @@
         "activity": "活動",
         "other": "其他"
       },
-      "tickets": "票券附件"
+      "tickets": "票券附件",
+      "sortByTime": "依時間排序"
     }
   },
   "export": {

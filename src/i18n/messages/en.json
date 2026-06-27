@@ -618,7 +618,8 @@
         "activity": "Activity",
         "other": "Other"
       },
-      "tickets": "Tickets"
+      "tickets": "Tickets",
+      "sortByTime": "Sort by time"
     }
   },
   "export": {

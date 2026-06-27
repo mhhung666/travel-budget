@@ -69,6 +69,8 @@ export default function ItineraryPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<'add' | 'edit'>('add');
   const [editingDay, setEditingDay] = useState<ItineraryDay | null>(null);
+  // 從卡片「新增活動」開啟時為 true：對話框會自動展開活動區、補一列空白活動並捲動到位。
+  const [autoAddActivity, setAutoAddActivity] = useState(false);
   const [deletingDay, setDeletingDay] = useState<ItineraryDay | null>(null);
 
   const tCommon = useTranslations('common');
@@ -76,12 +78,22 @@ export default function ItineraryPage() {
   const handleAddDay = () => {
     setDialogMode('add');
     setEditingDay(null);
+    setAutoAddActivity(false);
     setDialogOpen(true);
   };
 
   const handleEditDay = (day: ItineraryDay) => {
     setDialogMode('edit');
     setEditingDay(day);
+    setAutoAddActivity(false);
+    setDialogOpen(true);
+  };
+
+  // 卡片上的「新增活動」捷徑：直接開編輯對話框並補一列空白活動。
+  const handleAddActivity = (day: ItineraryDay) => {
+    setDialogMode('edit');
+    setEditingDay(day);
+    setAutoAddActivity(true);
     setDialogOpen(true);
   };
 
@@ -209,6 +221,7 @@ export default function ItineraryPage() {
                 tripId={tripId}
                 isAdmin={isAdmin}
                 onEdit={handleEditDay}
+                onAddActivity={handleAddActivity}
                 onDelete={handleDeleteDay}
               />
             ))}
@@ -225,6 +238,7 @@ export default function ItineraryPage() {
         tripId={tripId}
         day={editingDay}
         dayNumber={dialogMode === 'edit' ? editingDay?.day_number : days.length + 1}
+        autoAddActivity={autoAddActivity}
       />
 
       {/* Delete Confirmation Dialog */}

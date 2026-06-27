@@ -623,7 +623,8 @@
         "activity": "アクティビティ",
         "other": "その他"
       },
-      "tickets": "チケット"
+      "tickets": "チケット",
+      "sortByTime": "時間順に並べ替え"
     }
   },
   "export": {

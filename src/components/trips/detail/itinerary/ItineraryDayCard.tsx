@@ -1,6 +1,6 @@
 'use client';
 
-import { Edit2, Trash2, MapPin, Ticket } from 'lucide-react';
+import { Edit2, Trash2, MapPin, Ticket, CalendarPlus } from 'lucide-react';
 import { useTranslations, useLocale } from 'next-intl';
 import type { ItineraryDay } from '@/types';
 import { pickLocalizedName } from '@/lib/utils';
@@ -19,6 +19,8 @@ interface ItineraryDayCardProps {
   tripId: string;
   isAdmin: boolean;
   onEdit: (day: ItineraryDay) => void;
+  /** 卡片上的「新增活動」捷徑：開編輯對話框並直接補一列空白活動。 */
+  onAddActivity: (day: ItineraryDay) => void;
   onDelete: (dayId: string) => void;
 }
 
@@ -27,6 +29,7 @@ export default function ItineraryDayCard({
   tripId,
   isAdmin,
   onEdit,
+  onAddActivity,
   onDelete,
 }: ItineraryDayCardProps) {
   const tItinerary = useTranslations('itinerary');
@@ -60,6 +63,15 @@ export default function ItineraryDayCard({
           </div>
           {isAdmin && (
             <div className="flex gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => onAddActivity(day)}
+                title={tAct('add')}
+              >
+                <CalendarPlus className="h-4 w-4" />
+              </Button>
               <Button
                 variant="ghost"
                 size="icon"
