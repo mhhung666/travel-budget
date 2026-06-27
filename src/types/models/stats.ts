@@ -31,6 +31,23 @@ export interface MemberSpend {
 }
 
 /**
+ * 單一行程日的花費彙總（按天聚合）。total/ count 為關聯到此行程日的支出總和。
+ * dayId 為 null 代表「未關聯行程日」的支出彙總（恆排在最後）。
+ */
+export interface DailySpend {
+  /** 行程日 id；null＝未關聯行程日的彙總桶。 */
+  dayId: string | null;
+  /** 行程日序號；未關聯桶為 null。 */
+  dayNumber: number | null;
+  /** 行程日標題；未關聯桶為空字串。 */
+  title: string;
+  /** 此行程日的支出總額（基準幣 TWD，整筆）。 */
+  total: number;
+  /** 此行程日的支出筆數。 */
+  count: number;
+}
+
+/**
  * 群組（全團）統計資料 — 不以 splits.user 過濾，金額為整筆支出而非個人分攤。
  * categoryStats / totalAmount / totalExpenses 與個人 StatsData 同形狀，故可直接餵給
  * 既有的 ExpenseHistogram / CategoryStats 元件。
@@ -43,6 +60,8 @@ export interface TripStatsData {
   memberCount: number;
   dayCount: number;
   avgPerPersonPerDay: number;
+  /** 按行程日聚合的花費（行程日序升冪，未關聯桶在最後）。無任何行程日時為空陣列。 */
+  dailySpend: DailySpend[];
 }
 
 // 時間區間類型

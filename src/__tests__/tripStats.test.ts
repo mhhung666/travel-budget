@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { computeTripStats, type TripStatsExpense, type TripStatsMember } from '@/lib/tripStats';
+import {
+  computeTripStats,
+  type TripStatsDay,
+  type TripStatsExpense,
+  type TripStatsMember,
+} from '@/lib/tripStats';
 
 const members: TripStatsMember[] = [
   { userId: 'a', name: 'Alice' },
@@ -115,6 +120,44 @@ describe('computeTripStats', () => {
     const r = computeTripStats(expenses, [], { startDate: '2026-06-01', endDate: '2026-06-05' });
     expect(r.memberCount).toBe(0);
     expect(r.avgPerPersonPerDay).toBe(0);
+  });
+
+  it('returns an empty dailySpend when no itinerary days are provided', () => {
+    const r = computeTripStats(expenses, members, {});
+    expect(r.dailySpend).toEqual([]);
+  });
+
+  it('aggregates spend per itinerary day in day-number order, zeros included', () => {
+    const days: TripStatsDay[] = [
+      { id: 'd2', dayNumber: 2, title: 'Day Two' },
+      { id: 'd1', dayNumber: 1, title: 'Day One' },
+      { id: 'd3', dayNumber: 3, title: 'Day Three' },
+    ];
+    const linked: TripStatsExpense[] = [
+      { ...expenses[0], itineraryDayId: 'd1' }, // 300 → day 1
+      { ...expenses[1], itineraryDayId: 'd1' }, // 200 → day 1
+      { ...expenses[2], itineraryDayId: 'd2' }, // 60  → day 2
+    ];
+    const r = computeTripStats(linked, members, {}, days);
+    expect(r.dailySpend).toEqual([
+      { dayId: 'd1', dayNumber: 1, title: 'Day One', total: 500, count: 2 },
+      { dayId: 'd2', dayNumber: 2, title: 'Day Two', total: 60, count: 1 },
+      { dayId: 'd3', dayNumber: 3, title: 'Day Three', total: 0, count: 0 },
+    ]);
+  });
+
+  it('puts unlinked expenses in a trailing null bucket', () => {
+    const days: TripStatsDay[] = [{ id: 'd1', dayNumber: 1, title: 'Day One' }];
+    const mixed: TripStatsExpense[] = [
+      { ...expenses[0], itineraryDayId: 'd1' }, // 300 → day 1
+      { ...expenses[1], itineraryDayId: null }, // 200 → unlinked
+      { ...expenses[2] }, // 60 → unlinked (undefined)
+    ];
+    const r = computeTripStats(mixed, members, {}, days);
+    expect(r.dailySpend).toEqual([
+      { dayId: 'd1', dayNumber: 1, title: 'Day One', total: 300, count: 1 },
+      { dayId: null, dayNumber: null, title: '', total: 260, count: 2 },
+    ]);
   });
 
   it('buckets uncategorized expenses under "other"', () => {

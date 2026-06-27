@@ -37,6 +37,8 @@ interface ItineraryDayDialogProps {
     location: LocationOption | null;
     activities: ActivityPayload[];
   }) => Promise<void>;
+  /** 票券附件上傳/檢視需要 trip 識別碼。 */
+  tripId: string;
   day?: ItineraryDay | null;
   dayNumber?: number;
 }
@@ -46,6 +48,7 @@ export default function ItineraryDayDialog({
   open,
   onClose,
   onSubmit,
+  tripId,
   day,
   dayNumber,
 }: ItineraryDayDialogProps) {
@@ -207,7 +210,7 @@ export default function ItineraryDayDialog({
 
           <Separator />
 
-          <ActivityListEditor activities={activities} onChange={setActivities} />
+          <ActivityListEditor tripId={tripId} activities={activities} onChange={setActivities} />
         </form>
 
         <Separator />

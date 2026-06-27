@@ -10,6 +10,7 @@ import { pickLocalizedName } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { tripOverlapsRange } from '@/lib/dateRange';
 import { useVisitedPlaces } from '@/hooks/queries';
+import type { HeatWeightBy } from '@/actions';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import MapShareDialog from './MapShareDialog';
@@ -45,25 +46,53 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
   // null = 全部年份；否則只看與該年（1/1–12/31）重疊的旅程。
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [mode, setMode] = useState<MapMode>('routes');
+  // 熱點權重依據：造訪次數（預設）或花費總額。只在熱點模式有意義。
+  const [heatWeight, setHeatWeight] = useState<HeatWeightBy>('visits');
 
-  // 行程日地點：供熱點、儀表板「城市數」、國家點亮一起用，故一律查；年份篩選連動。
+  // 行程日地點（造訪次數權重）：供儀表板「城市數」、國家點亮、預設熱點一起用，故一律查。
+  // 年份篩選連動。城市數/國家點亮恆以此（visits）為準，不受花費權重切換影響。
   const { data: visited = [] } = useVisitedPlaces(true, selectedYear);
+  // 花費權重的熱點：只在熱點模式且選了花費權重時才查（含關聯支出的 $lookup，較重）。
+  const { data: visitedSpend = [] } = useVisitedPlaces(
+    mode === 'heat' && heatWeight === 'spend',
+    selectedYear,
+    'spend'
+  );
+  const heatSource = heatWeight === 'spend' ? visitedSpend : visited;
   const heatPoints = useMemo<HeatPoint[]>(
     () =>
-      visited.map((p) => ({
+      heatSource.map((p) => ({
         lat: p.lat,
         lon: p.lon,
         weight: p.weight,
         name: pickLocalizedName(p.names, locale, p.name),
         countryCode: p.countryCode,
       })),
-    [visited, locale]
+    [heatSource, locale]
   );
-  // 熱點側欄：依造訪次數排序的地點清單。
+  // 熱點側欄：依權重（造訪次數或花費）排序的地點清單。
   const rankedPlaces = useMemo(
     () => [...heatPoints].sort((a, b) => b.weight - a.weight),
     [heatPoints]
   );
+
+  // 花費權重的金額格式化（基準幣 TWD，無小數）。app locale 'jp' 非合法 BCP-47，需轉成 'ja-JP'。
+  const formatSpend = useMemo(() => {
+    const intlLocale =
+      locale === 'jp'
+        ? 'ja-JP'
+        : locale === 'zh'
+          ? 'zh-TW'
+          : locale === 'zh-CN'
+            ? 'zh-CN'
+            : 'en-US';
+    return new Intl.NumberFormat(intlLocale, {
+      style: 'currency',
+      currency: 'TWD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    });
+  }, [locale]);
 
   // 把每趟旅行投影成「出發地 → 目的地」；至少要有目的地座標才上圖。
   const projected = useMemo<TripRoute[]>(() => {
@@ -125,17 +154,31 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
     );
   }, [projected, selectedYear]);
 
-  // 儀表板數字與國家點亮，都跟著年份篩選後的 routes / heatPoints 走。
-  const stats = useMemo(() => computeMapStats(routes, heatPoints), [routes, heatPoints]);
+  // 城市數 / 國家點亮 / 國家排行恆以「造訪次數」地點集為準（不受花費權重切換影響，
+  // 否則切到花費權重時，沒記帳的城市與國家會從儀表板與國家圖消失）。
+  const visitsPoints = useMemo<HeatPoint[]>(
+    () =>
+      visited.map((p) => ({
+        lat: p.lat,
+        lon: p.lon,
+        weight: p.weight,
+        name: pickLocalizedName(p.names, locale, p.name),
+        countryCode: p.countryCode,
+      })),
+    [visited, locale]
+  );
+
+  // 儀表板數字與國家點亮，都跟著年份篩選後的 routes / visitsPoints 走。
+  const stats = useMemo(() => computeMapStats(routes, visitsPoints), [routes, visitsPoints]);
   const visitedCountries = useMemo(
-    () => visitedCountrySet(routes, heatPoints),
-    [routes, heatPoints]
+    () => visitedCountrySet(routes, visitsPoints),
+    [routes, visitsPoints]
   );
 
   // 國家模式側欄：依造訪城市次數排序的國家清單。
   const rankedCountries = useMemo(() => {
     const map = new Map<string, { code: string; cities: number; visits: number }>();
-    for (const p of heatPoints) {
+    for (const p of visitsPoints) {
       const code = p.countryCode?.toUpperCase();
       if (!code) continue;
       const e = map.get(code) ?? { code, cities: 0, visits: 0 };
@@ -150,7 +193,7 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
       }
     }
     return [...map.values()].sort((a, b) => b.visits - a.visits || b.cities - a.cities);
-  }, [heatPoints, routes]);
+  }, [visitsPoints, routes]);
 
   // 足跡回放：依時間逐條揭露路線並飛向當前目的地。
   // revealCount = undefined 代表沒在播放（顯示全部）。
@@ -259,6 +302,28 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
           </Button>
         </div>
 
+        {/* 熱點權重切換：造訪次數 / 花費總額（只在熱點模式提供） */}
+        {mode === 'heat' && (
+          <div className="inline-flex rounded-lg border border-border p-0.5">
+            <Button
+              variant={heatWeight === 'visits' ? 'default' : 'ghost'}
+              size="sm"
+              className="h-7 px-3 text-xs"
+              onClick={() => setHeatWeight('visits')}
+            >
+              {t('heatByVisits')}
+            </Button>
+            <Button
+              variant={heatWeight === 'spend' ? 'default' : 'ghost'}
+              size="sm"
+              className="h-7 px-3 text-xs"
+              onClick={() => setHeatWeight('spend')}
+            >
+              {t('heatBySpend')}
+            </Button>
+          </div>
+        )}
+
         {/* 足跡回放：只在航線模式且有路線時提供 */}
         {mode === 'routes' && routes.length > 0 && (
           <Button
@@ -335,7 +400,9 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
                         <span className="truncate">{p.name}</span>
                       </span>
                       <Badge variant="secondary" className="shrink-0">
-                        {t('heatVisits', { count: p.weight })}
+                        {heatWeight === 'spend'
+                          ? formatSpend.format(p.weight)
+                          : t('heatVisits', { count: p.weight })}
                       </Badge>
                     </li>
                   ))}

@@ -1,4 +1,4 @@
-import type { CategoryStat, ExpenseDetail, MemberSpend, TripStatsData } from '@/types';
+import type { CategoryStat, DailySpend, ExpenseDetail, MemberSpend, TripStatsData } from '@/types';
 
 export interface TripStatsMember {
   userId: string;
@@ -14,6 +14,15 @@ export interface TripStatsExpense {
   payerId: string;
   payerName: string;
   splits: { userId: string; shareAmount: number }[];
+  /** 關聯的行程日 id；null/undefined＝未關聯（歸入未關聯桶）。 */
+  itineraryDayId?: string | null;
+}
+
+/** 按天聚合所需的行程日中繼資料（序號 + 標題）。 */
+export interface TripStatsDay {
+  id: string;
+  dayNumber: number;
+  title: string;
 }
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
@@ -42,13 +51,16 @@ function inclusiveDayCount(
 export function computeTripStats(
   expenses: TripStatsExpense[],
   members: TripStatsMember[],
-  range: { startDate?: string | null; endDate?: string | null }
+  range: { startDate?: string | null; endDate?: string | null },
+  days: TripStatsDay[] = []
 ): TripStatsData {
   // 分類彙總（金額為整筆）
   const categoryMap = new Map<string, { total: number; count: number; details: ExpenseDetail[] }>();
   // 成員付款／分攤
   const paidByUser = new Map<string, number>();
   const shareByUser = new Map<string, number>();
+  // 按行程日聚合（dayId → { total, count }）；未關聯支出歸入 null 桶。
+  const spendByDay = new Map<string | null, { total: number; count: number }>();
 
   let minDate: string | null = null;
   let maxDate: string | null = null;
@@ -74,6 +86,10 @@ export function computeTripStats(
     for (const s of e.splits || []) {
       shareByUser.set(s.userId, (shareByUser.get(s.userId) || 0) + (s.shareAmount || 0));
     }
+
+    const dayKey = e.itineraryDayId ?? null;
+    const dayAgg = spendByDay.get(dayKey) || { total: 0, count: 0 };
+    spendByDay.set(dayKey, { total: dayAgg.total + amount, count: dayAgg.count + 1 });
 
     if (e.date) {
       if (minDate === null || e.date < minDate) minDate = e.date;
@@ -108,6 +124,31 @@ export function computeTripStats(
   const avgPerPersonPerDay =
     memberCount > 0 && dayCount > 0 ? Math.round(totalAmount / (memberCount * dayCount)) : 0;
 
+  // 按行程日聚合：依 days 順序（dayNumber 升冪）列出每天總額，最後補上「未關聯」桶（若有）。
+  // 沒有任何花費的行程日 total=0、count=0 仍會列出，讓使用者看到「這天還沒記帳」。
+  // 完全沒有行程日時回空陣列——此時唯一的「未關聯」桶等於總額，毫無資訊量（前端不渲染卡片）。
+  const orderedDays = [...days].sort((a, b) => a.dayNumber - b.dayNumber);
+  const dailySpend: DailySpend[] = orderedDays.map((d) => {
+    const agg = spendByDay.get(d.id) || { total: 0, count: 0 };
+    return {
+      dayId: d.id,
+      dayNumber: d.dayNumber,
+      title: d.title,
+      total: Math.round(agg.total),
+      count: agg.count,
+    };
+  });
+  const unlinked = spendByDay.get(null);
+  if (orderedDays.length > 0 && unlinked && unlinked.count > 0) {
+    dailySpend.push({
+      dayId: null,
+      dayNumber: null,
+      title: '',
+      total: Math.round(unlinked.total),
+      count: unlinked.count,
+    });
+  }
+
   return {
     categoryStats,
     totalAmount,
@@ -116,5 +157,6 @@ export function computeTripStats(
     memberCount,
     dayCount,
     avgPerPersonPerDay,
+    dailySpend,
   };
 }

@@ -13,7 +13,7 @@ import {
 import { getTripMembership } from '@/lib/permissions';
 import { generateUniqueHashCode } from '@/lib/hashcode';
 import { deleteByPrefix } from '@/lib/storage';
-import { receiptKeyPrefix } from '@/lib/uploads';
+import { receiptKeyPrefix, itineraryKeyPrefix } from '@/lib/uploads';
 import {
   createTripSchema,
   updateTripSchema,
@@ -245,10 +245,12 @@ export const deleteTrip = withAuth(
       ]);
       await TripModel.deleteOne({ _id: tripId });
 
-      // R2 也無 cascade：清掉此 trip 的所有收據物件（best-effort，刪不掉不該擋住刪除）
-      await deleteByPrefix('receipts', receiptKeyPrefix(tripId)).catch((e) =>
-        logger.error('Delete trip: receipt cleanup failed', e)
-      );
+      // R2 也無 cascade：清掉此 trip 的所有收據與票券物件（同屬私有 receipts bucket，
+      // 前綴不同）。best-effort——刪不掉不該擋住刪除。
+      await Promise.all([
+        deleteByPrefix('receipts', receiptKeyPrefix(tripId)),
+        deleteByPrefix('receipts', itineraryKeyPrefix(tripId)),
+      ]).catch((e) => logger.error('Delete trip: blob cleanup failed', e));
 
       revalidatePath('/trips');
       return { success: true, data: { message: '旅行已刪除' } };

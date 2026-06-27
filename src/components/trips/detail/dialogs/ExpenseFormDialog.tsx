@@ -588,9 +588,7 @@ export default function ExpenseFormDialog({
                   <Label>{tExpense('form.itineraryDay')}</Label>
                   <Select
                     value={itineraryDayId || NO_ITINERARY_DAY}
-                    onValueChange={(val) =>
-                      setItineraryDayId(val === NO_ITINERARY_DAY ? '' : val)
-                    }
+                    onValueChange={(val) => setItineraryDayId(val === NO_ITINERARY_DAY ? '' : val)}
                   >
                     <SelectTrigger>
                       <SelectValue />

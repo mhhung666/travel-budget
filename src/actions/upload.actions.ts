@@ -46,6 +46,39 @@ export const createReceiptUploadUrl = withAuth(
   }
 );
 
+/**
+ * 票券附件上傳簽名（行程活動用）。owner 區段為 tripId，與收據共用私有 receipts bucket，
+ * 只是 key 前綴為 `itinerary/`（見 buildObjectKey）。存參照那一步（updateItineraryDay）
+ * 會再以 headObject 核對 size/type。
+ */
+export const createItineraryUploadUrl = withAuth(
+  async (
+    session,
+    tripIdOrCode: string,
+    contentType: string,
+    size: number
+  ): Promise<ActionResult<UploadTicket>> => {
+    try {
+      const membership = await getTripMembership(session.userId, tripIdOrCode);
+      if (!membership) {
+        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+      }
+
+      const v = validateUpload('itinerary', contentType, size);
+      if (!v.ok) {
+        return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
+      }
+
+      const key = buildObjectKey('itinerary', membership.tripId, contentType);
+      const uploadUrl = await presignPut('receipts', key, contentType);
+      return { success: true, data: { uploadUrl, key } };
+    } catch (error) {
+      logger.error('createItineraryUploadUrl error', error);
+      return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
+    }
+  }
+);
+
 export const createAvatarUploadUrl = withAuth(
   async (session, contentType: string, size: number): Promise<ActionResult<UploadTicket>> => {
     try {

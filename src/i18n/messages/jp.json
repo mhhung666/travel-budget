@@ -505,7 +505,11 @@
     "shareTotal": "負担",
     "members": "メンバー",
     "days": "日数",
-    "avgPerPersonPerDay": "1人1日あたり平均"
+    "avgPerPersonPerDay": "1人1日あたり平均",
+    "dailySpend": "日別支出",
+    "unlinkedDay": "行程日なし",
+    "dayLabel": "{dayNumber}日目",
+    "expenseCount": "{count}件"
   },
   "trip": {
     "info": "旅行情報",
@@ -618,7 +622,8 @@
         "accommodation": "宿泊",
         "activity": "アクティビティ",
         "other": "その他"
-      }
+      },
+      "tickets": "チケット"
     }
   },
   "export": {
@@ -694,6 +699,8 @@
     "countryTitle": "{count} か国",
     "countryCities": "{count} 都市",
     "playRoute": "ルート再生",
-    "playStop": "停止"
+    "playStop": "停止",
+    "heatByVisits": "訪問回数",
+    "heatBySpend": "支出"
   }
 }

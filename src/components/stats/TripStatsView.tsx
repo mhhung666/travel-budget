@@ -8,6 +8,7 @@ import StatsSummaryCard from './StatsSummaryCard';
 import CategoryStats from './CategoryStats';
 import ExpenseHistogram from './ExpenseHistogram';
 import MemberSpendRanking from './MemberSpendRanking';
+import DailySpendCard from './DailySpendCard';
 import { Card, CardContent } from '@/components/ui/card';
 
 interface TripStatsViewProps {
@@ -88,9 +89,12 @@ export default function TripStatsView({ stats }: TripStatsViewProps) {
         </div>
       </div>
 
-      {/* 付款排行 */}
-      <div className="mb-6">
+      {/* 付款排行 + 每日花費（按行程日聚合；無行程日時 DailySpendCard 不渲染） */}
+      <div
+        className={`mb-6 grid grid-cols-1 gap-6 ${stats.dailySpend.length > 0 ? 'lg:grid-cols-2' : ''}`}
+      >
         <MemberSpendRanking memberSpends={stats.memberSpends} formatCurrency={formatCurrency} />
+        <DailySpendCard dailySpend={stats.dailySpend} formatCurrency={formatCurrency} />
       </div>
 
       {/* 趨勢圖 + 分類統計並排 */}

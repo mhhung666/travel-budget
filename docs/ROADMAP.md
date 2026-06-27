@@ -8,7 +8,7 @@
 圖例：💎 旗艦（高價值、定義產品）　⭐ 高價值　🔹 加值/驚喜　｜　✅ 已完成
 成本：S（數天）／M（一兩週）／L（需基礎設施或大改）
 
-> **進度**：Tier 1 全數完成 — **#1 預算**、**#2 結算「標記已付」**、**#3 彈性分帳**；外加 **#13 群組統計**（全團視角）與 **#7 打包清單／待辦**。第二波導入 **Cloudflare R2 blob 儲存**，完成 **#4 收據附件** 與 **#11 頭像**（已併入 master）。**#6 行程強化** 已完成 **Phase 1（活動時間軸）** 與 **Phase 2（支出↔行程連結）**（分支 `feat/itinerary-activities`），剩 **Phase 3**（票券附件、地圖/統計按天聚合）。下一步建議接 **#9 通知**（結算提醒，續 #2），或補完 **#6 Phase 3**。
+> **進度**：Tier 1 全數完成 — **#1 預算**、**#2 結算「標記已付」**、**#3 彈性分帳**；外加 **#13 群組統計**（全團視角）與 **#7 打包清單／待辦**。第二波導入 **Cloudflare R2 blob 儲存**，完成 **#4 收據附件** 與 **#11 頭像**（已併入 master）。**#6 行程強化** 已 **全 3 個 Phase 完成** — Phase 1（活動時間軸）、Phase 2（支出↔行程連結）、**Phase 3（票券附件 + 統計/地圖按天聚合）**（分支 `feat/itinerary-phase3`）。下一步建議接 **#9 通知**（結算提醒，續 #2，需新基礎設施）。
 
 ---
 
@@ -100,7 +100,7 @@
 **為什麼**：出國當下常常**沒網路 / 漫遊昂貴**，卻正是要記帳的時刻。已有 manifest，但無 service worker / 離線快取。
 **做法**：加 service worker（`next-pwa` 或自寫 Workbox），支出建立採**樂觀 UI + 佇列**，連線恢復後同步。需處理離線時匯率（用最近一次快取值，回線再校正）。技術較深但對旅行 App 是殺手級體驗。
 
-### 6. ⭐ 行程強化：時段、預訂、與支出連結 (Richer itinerary) — M〔Phase 1–2 已完成 2026-06-27；Phase 3 未做〕
+### 6. ✅ ⭐ 行程強化：時段、預訂、與支出連結 (Richer itinerary) — M〔Phase 1–3 全數完成；Phase 3 於 2026-06-27〕
 **為什麼**：目前行程只有「第幾天 + 標題 + 內容」。旅行者要的是**時間軸**與**訂房/機票**。
 
 > **已實作（Phase 1 — 活動時間軸）**：`ItineraryDay` 內嵌 `activities[]`＝`{ time?, endTime?, title, type, location?, note?, confirmationCode? }`（比照 [Checklist](../src/models/Checklist.ts) `items` 內嵌、每項自動 `_id`；additive、`default []`，**無遷移**）。`type`＝景點/餐飲/交通/住宿/活動/其他（獨立列舉，非 EXPENSE_CATEGORIES）。整個陣列由 `updateItineraryDay` **覆寫**（同 `splits` 取捨，未開逐項 action）；[activitySchema](../src/lib/validation.ts) 以 `HH:mm` 正則驗證、空字串/省略統一轉 null。輕量版**訂位/票券**（確認碼 + 起迄時間）已收進來；**票券附件留 Phase 3**。純函式 [sortActivities](../src/lib/itineraryActivities.ts)（有時間者升冪、無時間殿後）+ 單元測試。UI：[ItineraryDayCard](../src/components/trips/detail/itinerary/ItineraryDayCard.tsx) 時間軸 + [ActivityListEditor](../src/components/trips/detail/itinerary/ActivityListEditor.tsx) 編輯器接進對話框。**隱私決策**：[公開分享路由](../src/app/api/public/trips/%5Bid%5D/itinerary/route.ts) 回傳活動但**抹掉 `confirmationCode`**（訂位碼敏感，比照收據不外洩到公開頁）。markdown export 帶出活動清單。四語系。
@@ -112,7 +112,12 @@
 - **訂位/票券**：航班、住宿的確認碼、入住/退房時間、附件（連動 #4）。
 - **行程↔支出連結**：`Expense.itineraryDayId?`，讓「第 3 天晚餐」可回溯，地圖/統計都能按天聚合。
 
-**Phase 3（未做）**：① 活動**票券附件**——擴 [uploads.ts](../src/lib/uploads.ts) 命名空間到 `itinerary/<tripId>/`，重用 #4 的 presigned PUT + `headObject` 驗證；② 地圖熱點 / 統計**按天聚合**——用 Phase 2 的 `Expense.itineraryDay` 連結把支出與地點按行程日匯總（連動 #13、#16）。
+> **已實作（Phase 3 — 票券附件 + 按天聚合）**：
+> ① **活動票券附件**：`Activity.attachments[]`（內嵌，形狀同 `Expense.attachments`＝`{ key, contentType, size, uploadedBy, uploadedAt }`，additive 無遷移）。檔案存 **R2 私有 receipts bucket** 的新命名空間 `itinerary/<tripId>/`（與收據共用 bucket、前綴不同）——擴 [uploads.ts](../src/lib/uploads.ts)（`UploadKind` 加 `'itinerary'`、`itineraryKeyPrefix` / `isItineraryKeyForTrip`，沿用收據的型別白名單與 8MB 上限）。上傳走新 [createItineraryUploadUrl](../src/actions/upload.actions.ts) 的 presigned PUT，存參照前以 **headObject** 重新驗證 size/type（防 client 謊報）。檢視走 [getItineraryAttachmentUrl](../src/actions/itinerary.actions.ts)（驗成員 + key 須屬本 trip 票券前綴 → 短效簽名 GET）。**覆寫式 diff**：activities 整批覆寫（同 splits 取捨），故附件以 R2 `key` 為穩定身分跨整天 diff——新 key 驗證、舊 key 沿用（保留 uploadedBy/At）、被移除的 key 在 `updateItineraryDay` / `deleteItineraryDay` best-effort 刪 R2；`deleteTrip` cascade 也 `deleteByPrefix('itinerary/<tripId>/')`。**漏洩防護**：公開 itinerary 路由不回傳 attachments（比照 confirmationCode）。UI：[ReceiptAttachments.tsx](../src/components/trips/detail/ReceiptAttachments.tsx) 抽出通用 `AttachmentThumb` / `AttachmentUploader`（吃 `getUrl` + `createUploadUrl` 回呼），收據 / 票券各為薄包裝；票券上傳器接進 [ActivityListEditor](../src/components/trips/detail/itinerary/ActivityListEditor.tsx) 每列、縮圖顯示於 [ItineraryDayCard](../src/components/trips/detail/itinerary/ItineraryDayCard.tsx)。
+> ② **統計按天聚合**：[computeTripStats](../src/lib/tripStats.ts) 用 Phase 2 的 `Expense.itineraryDay` 連結加出 `dailySpend`（每行程日 total/count，依 dayNumber 升冪，未關聯支出歸入最後的 null 桶；完全無行程日時為空陣列，前端不渲染卡片）+ 單元測試。[getTripStats](../src/actions/stats.actions.ts) 與公開 stats 路由多載一次行程日（共用 [toTripStatsInputs](../src/lib/dto.ts) mapper），UI 新增 [DailySpendCard](../src/components/stats/DailySpendCard.tsx) 與付款排行並排。
+> ③ **地圖按天聚合**：[getVisitedPlaces](../src/actions/map.actions.ts) 加 `weightBy: 'visits' | 'spend'`——'spend' 時以 `$lookup` 關聯支出、加總金額作為熱點權重。地圖熱點模式加「造訪次數 / 花費」切換（[TripMapView](../src/components/map/TripMapView.tsx)）；**花費權重恆為登入限定**（公開地圖去識別化契約不外洩金額），且城市數 / 國家點亮仍以造訪次數集為準，不受切換影響。
+
+**Phase 3（原始草圖）**：① 活動**票券附件**——擴 [uploads.ts](../src/lib/uploads.ts) 命名空間到 `itinerary/<tripId>/`，重用 #4 的 presigned PUT + `headObject` 驗證；② 地圖熱點 / 統計**按天聚合**——用 Phase 2 的 `Expense.itineraryDay` 連結把支出與地點按行程日匯總（連動 #13、#16）。
 
 ### 7. ✅ 🔹 打包清單 / 待辦 (Packing & checklist) — S〔已完成 2026-06-26〕
 **為什麼**：低成本、高頻使用的旅行小工具，黏著度高。
@@ -206,7 +211,7 @@
   ├── 13 群組統計           ✅ 已完成（純查詢層、無新基礎設施）
   ├── 4  收據照片  ┐ ✅ 已導入 Cloudflare R2 blob 儲存（已併入 master）
   ├── 11 頭像      ┘ ✅ 已完成（OAuth 未做）
-  └── 6  行程強化   ✅ Phase 1 活動時間軸 ・ Phase 2 支出↔行程連結（Phase 3 票券附件/按天聚合未做）
+  └── 6  行程強化   ✅ Phase 1 活動時間軸 ・ Phase 2 支出↔行程連結 ・ Phase 3 票券附件 + 統計/地圖按天聚合（全數完成）
 
 第三波（協作與留存）
   ├── 8  活動紀錄  ┐ 一起做通知管線
@@ -219,7 +224,7 @@
   └── 12 旅伴 ・ 17 搜尋篩選 ・ 18 標籤 ・ 16 地圖統計
 ```
 
-**Tier 1 已全數完成**（#1 預算、#2 結算閉環、#3 彈性分帳）；第二波已完成 **#13 群組統計**、導入 **Cloudflare R2 blob 儲存**解鎖 **#4 收據** 與 **#11 頭像**（已併入 master），並完成 **#6 行程強化** 的 **Phase 1（活動時間軸）** 與 **Phase 2（支出↔行程連結）**（分支 `feat/itinerary-activities`）。下一步建議接 **#9 通知**（結算提醒，續 #2），或補完 **#6 Phase 3**（票券附件 + 地圖/統計按天聚合，後者能放大 #13 統計與 #16 地圖）。
+**Tier 1 已全數完成**（#1 預算、#2 結算閉環、#3 彈性分帳）；第二波已完成 **#13 群組統計**、導入 **Cloudflare R2 blob 儲存**解鎖 **#4 收據** 與 **#11 頭像**（已併入 master），並 **完成 #6 行程強化全 3 Phase** — Phase 1（活動時間軸）、Phase 2（支出↔行程連結）、Phase 3（票券附件 + 統計/地圖按天聚合，後者放大了 #13 統計與 #16 地圖）（分支 `feat/itinerary-phase3`）。下一步建議接 **#9 通知**（站內通知 → Email → Web Push；結算提醒續 #2，與 #8 動態牆共用通知管線，屬第三波）。
 
 ---
 

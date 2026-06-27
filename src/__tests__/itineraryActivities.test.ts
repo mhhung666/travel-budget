@@ -19,11 +19,7 @@ describe('sortActivities', () => {
       { time: '10:00', title: 'timed' },
       { time: null, title: 'untimed-2' },
     ];
-    expect(sortActivities(input).map((a) => a.title)).toEqual([
-      'timed',
-      'untimed-1',
-      'untimed-2',
-    ]);
+    expect(sortActivities(input).map((a) => a.title)).toEqual(['timed', 'untimed-1', 'untimed-2']);
   });
 
   it('keeps stable order for equal times', () => {

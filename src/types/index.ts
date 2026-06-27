@@ -39,6 +39,7 @@ export type {
   CategoryStat,
   StatsData,
   MemberSpend,
+  DailySpend,
   TripStatsData,
   TimeInterval,
   HistogramDataPoint,

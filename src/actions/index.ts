@@ -36,7 +36,12 @@ export {
 } from './expense.actions';
 
 // Upload actions（R2 blob 上傳簽名）
-export { createReceiptUploadUrl, createAvatarUploadUrl, type UploadTicket } from './upload.actions';
+export {
+  createReceiptUploadUrl,
+  createItineraryUploadUrl,
+  createAvatarUploadUrl,
+  type UploadTicket,
+} from './upload.actions';
 
 // Avatar actions（R2 頭像）
 export { setAvatar, removeAvatar } from './avatar.actions';
@@ -59,6 +64,7 @@ export {
   createItineraryDay,
   updateItineraryDay,
   deleteItineraryDay,
+  getItineraryAttachmentUrl,
 } from './itinerary.actions';
 
 // Checklist actions（打包清單 / 待辦）
@@ -84,4 +90,4 @@ export {
 } from './mapShare.actions';
 
 // Map data actions
-export { getVisitedPlaces, type VisitedPlace } from './map.actions';
+export { getVisitedPlaces, type VisitedPlace, type HeatWeightBy } from './map.actions';

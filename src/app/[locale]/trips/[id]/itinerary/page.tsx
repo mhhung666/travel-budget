@@ -206,6 +206,7 @@ export default function ItineraryPage() {
               <ItineraryDayCard
                 key={day.id}
                 day={day}
+                tripId={tripId}
                 isAdmin={isAdmin}
                 onEdit={handleEditDay}
                 onDelete={handleDeleteDay}
@@ -221,6 +222,7 @@ export default function ItineraryPage() {
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
         onSubmit={handleDialogSubmit}
+        tripId={tripId}
         day={editingDay}
         dayNumber={dialogMode === 'edit' ? editingDay?.day_number : days.length + 1}
       />
