@@ -2,9 +2,12 @@
 
 import { Plus, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import type { Activity, ActivityType } from '@/types';
+import type { Activity, ActivityType, ExpenseAttachment } from '@/types';
 import type { ActivityPayload } from '@/hooks/queries/useItineraryMutations';
-import LocationAutocomplete, { type LocationOption } from '@/components/location/LocationAutocomplete';
+import LocationAutocomplete, {
+  type LocationOption,
+} from '@/components/location/LocationAutocomplete';
+import { TicketUploader } from '@/components/trips/detail/ReceiptAttachments';
 import { ACTIVITY_TYPE_ORDER, ACTIVITY_TYPE_ICON } from './activityMeta';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,6 +30,8 @@ export interface ActivityDraft {
   location: LocationOption | null;
   note: string;
   confirmationCode: string;
+  /** 票券附件（已上傳至 R2，含 key + 中繼資料）。 */
+  attachments: ExpenseAttachment[];
 }
 
 function uid(): string {
@@ -45,6 +50,7 @@ export function makeEmptyActivity(): ActivityDraft {
     location: null,
     note: '',
     confirmationCode: '',
+    attachments: [],
   };
 }
 
@@ -69,6 +75,7 @@ export function dayActivitiesToDrafts(activities: Activity[]): ActivityDraft[] {
       : null,
     note: a.note ?? '',
     confirmationCode: a.confirmation_code ?? '',
+    attachments: a.attachments ?? [],
   }));
 }
 
@@ -84,15 +91,22 @@ export function draftsToPayload(drafts: ActivityDraft[]): ActivityPayload[] {
       location: d.location,
       note: d.note.trim(),
       confirmation_code: d.confirmationCode.trim(),
+      attachments: d.attachments,
     }));
 }
 
 interface ActivityListEditorProps {
+  /** 票券附件上傳/檢視需要 trip 識別碼。 */
+  tripId: string;
   activities: ActivityDraft[];
   onChange: (next: ActivityDraft[]) => void;
 }
 
-export default function ActivityListEditor({ activities, onChange }: ActivityListEditorProps) {
+export default function ActivityListEditor({
+  tripId,
+  activities,
+  onChange,
+}: ActivityListEditorProps) {
   const t = useTranslations('itinerary.activities');
 
   const patch = (key: string, fields: Partial<ActivityDraft>) =>
@@ -195,6 +209,15 @@ export default function ActivityListEditor({ activities, onChange }: ActivityLis
                   placeholder={t('notePlaceholder')}
                   value={activity.note}
                   onChange={(e) => patch(activity.key, { note: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">{t('tickets')}</Label>
+                <TicketUploader
+                  tripId={tripId}
+                  value={activity.attachments}
+                  onChange={(next) => patch(activity.key, { attachments: next })}
                 />
               </div>
             </div>

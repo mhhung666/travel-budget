@@ -41,7 +41,8 @@ export const GET = withPublicTrip(
       title: d.title,
       content: d.content,
       location: d.location ?? null,
-      // confirmationCode（訂位/票券碼）為敏感資訊，刻意不外洩到公開分享頁（比照收據不外洩）。
+      // confirmationCode（訂位/票券碼）與 attachments（票券附件）皆為敏感資訊，
+      // 刻意不外洩到公開分享頁（比照收據不外洩）。
       activities: (d.activities ?? []).map((a) => ({
         id: a._id.toString(),
         time: a.time ?? null,
@@ -51,6 +52,7 @@ export const GET = withPublicTrip(
         location: a.location ?? null,
         note: a.note ?? '',
         confirmation_code: '',
+        attachments: [],
       })),
       created_at: d.createdAt.toISOString(),
       updated_at: d.updatedAt.toISOString(),

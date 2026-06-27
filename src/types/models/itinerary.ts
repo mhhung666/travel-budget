@@ -1,4 +1,5 @@
 import type { Location } from '../common/location';
+import type { ExpenseAttachment } from './expense';
 
 /** 活動類型（景點 / 餐飲 / 交通 / 住宿 / 活動 / 其他）。對應 model 的 ACTIVITY_TYPES。 */
 export type ActivityType =
@@ -24,6 +25,11 @@ export interface Activity {
   note: string;
   /** 訂位/票券確認碼；公開分享頁不會帶出此欄位（為空字串）。 */
   confirmation_code: string;
+  /**
+   * 票券附件（訂房單 / 機票…）。同收據：存於 R2 私有 bucket，這裡只帶 key + 中繼資料；
+   * 要檢視時呼叫 getItineraryAttachmentUrl 取短效簽名 URL。公開分享頁不會帶出（為空陣列）。
+   */
+  attachments: ExpenseAttachment[];
 }
 
 export interface ItineraryDay {

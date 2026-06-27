@@ -2,14 +2,19 @@
 
 import { Types } from 'mongoose';
 import { dbConnect } from '@/lib/mongodb';
-import { Trip, Expense } from '@/models';
+import { Trip, Expense, ItineraryDay } from '@/models';
 import { getTripMembership } from '@/lib/permissions';
 import { computeTripStats } from '@/lib/tripStats';
 import { withAuth } from './withAuth';
 import type { ActionResult } from './types';
 import type { StatsData, CategoryStat, ExpenseDetail, TripStatsData } from '@/types';
 import { logger } from '@/lib/logger';
-import { toTripStatsInputs, type TripStatExpenseInput, type TripStatsTripInput } from '@/lib/dto';
+import {
+  toTripStatsInputs,
+  type TripStatExpenseInput,
+  type TripStatsTripInput,
+  type TripStatsDayInput,
+} from '@/lib/dto';
 
 interface GetStatsOptions {
   startDate?: string;
@@ -136,19 +141,28 @@ export const getTripStats = withAuth(
 
       const { tripId } = membership;
 
-      const [trip, expenses] = await Promise.all([
+      const [trip, expenses, days] = await Promise.all([
         Trip.findById(tripId)
           .populate('members.user', 'displayName')
           .select('members startDate endDate')
           .lean<TripStatsTripInput>(),
         Expense.find({ trip: tripId })
-          .select('category date description amount payer splits')
+          .select('category date description amount payer splits itineraryDay')
           .populate('payer', 'displayName')
           .lean<TripStatExpenseInput[]>(),
+        ItineraryDay.find({ trip: tripId })
+          .select('dayNumber title')
+          .sort({ dayNumber: 1 })
+          .lean<TripStatsDayInput[]>(),
       ]);
 
-      const { members, expenses: mapped, range } = toTripStatsInputs(trip, expenses);
-      return { success: true, data: computeTripStats(mapped, members, range) };
+      const {
+        members,
+        expenses: mapped,
+        range,
+        days: mappedDays,
+      } = toTripStatsInputs(trip, expenses, days);
+      return { success: true, data: computeTripStats(mapped, members, range, mappedDays) };
     } catch (error) {
       logger.error('Get trip stats error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };

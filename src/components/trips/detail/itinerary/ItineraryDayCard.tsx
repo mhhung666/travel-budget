@@ -8,12 +8,15 @@ import { countryCodeToFlag } from '@/components/map/country';
 import { sortActivities } from '@/lib/itineraryActivities';
 import { ACTIVITY_TYPE_ICON } from './activityMeta';
 import MarkdownRenderer from './MarkdownRenderer';
+import { TicketThumb } from '@/components/trips/detail/ReceiptAttachments';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
 interface ItineraryDayCardProps {
   day: ItineraryDay;
+  /** 票券附件檢視需要 trip 識別碼。 */
+  tripId: string;
   isAdmin: boolean;
   onEdit: (day: ItineraryDay) => void;
   onDelete: (dayId: string) => void;
@@ -21,6 +24,7 @@ interface ItineraryDayCardProps {
 
 export default function ItineraryDayCard({
   day,
+  tripId,
   isAdmin,
   onEdit,
   onDelete,
@@ -134,6 +138,13 @@ export default function ItineraryDayCard({
                         <span className="font-mono">{activity.confirmation_code}</span>
                         <span className="sr-only">{tAct('confirmationCode')}</span>
                       </span>
+                    )}
+                    {activity.attachments.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {activity.attachments.map((att) => (
+                          <TicketThumb key={att.key} tripId={tripId} attachment={att} />
+                        ))}
+                      </div>
                     )}
                   </div>
                 </div>

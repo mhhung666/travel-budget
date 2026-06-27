@@ -100,6 +100,7 @@ describe('exportItinerary', () => {
             location: null,
             note: '',
             confirmation_code: '',
+            attachments: [],
           },
           {
             id: 'a1',
@@ -110,6 +111,7 @@ describe('exportItinerary', () => {
             location: null,
             note: '',
             confirmation_code: '',
+            attachments: [],
           },
         ],
       },

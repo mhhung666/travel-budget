@@ -1,5 +1,5 @@
 import type { Expense as ExpenseDto, Trip as TripDto, PaymentRecord, Checklist } from '@/types';
-import type { TripStatsExpense, TripStatsMember } from '@/lib/tripStats';
+import type { TripStatsDay, TripStatsExpense, TripStatsMember } from '@/lib/tripStats';
 
 /**
  * Shared model → public DTO mappers.
@@ -126,6 +126,7 @@ export type TripStatExpenseInput = {
   amount: number;
   payer: PopulatedRef;
   splits: { user: { toString(): string }; shareAmount: number }[];
+  itineraryDay?: { toString(): string } | null;
 };
 
 /** Minimal lean Trip shape the group-stats mapper needs (members populated + dates). */
@@ -135,6 +136,13 @@ export type TripStatsTripInput = {
   endDate?: Date | null;
 } | null;
 
+/** Minimal lean ItineraryDay shape the per-day aggregation needs. */
+export type TripStatsDayInput = {
+  _id: { toString(): string };
+  dayNumber: number;
+  title: string;
+};
+
 /**
  * Lean Trip + Expense docs → `computeTripStats` inputs. Shared by the
  * authenticated `getTripStats` action and the public stats route so the two
@@ -142,11 +150,13 @@ export type TripStatsTripInput = {
  */
 export function toTripStatsInputs(
   trip: TripStatsTripInput,
-  expenses: TripStatExpenseInput[]
+  expenses: TripStatExpenseInput[],
+  days: TripStatsDayInput[] = []
 ): {
   members: TripStatsMember[];
   expenses: TripStatsExpense[];
   range: { startDate: string | null; endDate: string | null };
+  days: TripStatsDay[];
 } {
   const members: TripStatsMember[] = (trip?.members || [])
     .map((m) => m.user)
@@ -165,6 +175,13 @@ export function toTripStatsInputs(
       userId: s.user.toString(),
       shareAmount: s.shareAmount || 0,
     })),
+    itineraryDayId: e.itineraryDay?.toString() ?? null,
+  }));
+
+  const mappedDays: TripStatsDay[] = days.map((d) => ({
+    id: d._id.toString(),
+    dayNumber: d.dayNumber,
+    title: d.title,
   }));
 
   return {
@@ -174,6 +191,7 @@ export function toTripStatsInputs(
       startDate: trip?.startDate ? toDateStr(trip.startDate) : null,
       endDate: trip?.endDate ? toDateStr(trip.endDate) : null,
     },
+    days: mappedDays,
   };
 }
 

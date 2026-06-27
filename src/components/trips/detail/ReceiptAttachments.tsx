@@ -3,26 +3,42 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Upload, X, FileText, Loader2 } from 'lucide-react';
-import { createReceiptUploadUrl, getReceiptUrl } from '@/actions';
+import {
+  createReceiptUploadUrl,
+  getReceiptUrl,
+  createItineraryUploadUrl,
+  getItineraryAttachmentUrl,
+} from '@/actions';
+import type { ActionResult } from '@/actions';
 import { compressImage } from '@/lib/imageCompress';
 import type { ExpenseAttachment } from '@/types';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 
 const ACCEPT = 'image/jpeg,image/png,image/webp,application/pdf';
 
+/** 取短效檢視 URL 的 server fn 形狀（getReceiptUrl / getItineraryAttachmentUrl）。 */
+type GetUrlFn = (tripId: string, key: string) => Promise<ActionResult<{ url: string }>>;
+/** 取上傳簽名的 server fn 形狀（createReceiptUploadUrl / createItineraryUploadUrl）。 */
+type CreateUploadUrlFn = (
+  tripId: string,
+  contentType: string,
+  size: number
+) => Promise<ActionResult<{ uploadUrl: string; key: string }>>;
+
 /**
- * 收據縮圖。收據存於 R2 私有 bucket，故顯示時向 getReceiptUrl 取短效簽名 URL：
- * 圖片直接 <img>，PDF 顯示檔案圖示。點擊在 **app 內嵌的 lightbox 對話框**檢視（圖片放大、
- * PDF 用 iframe 內嵌），開啟時重新簽一張新 URL 避免縮圖載入後過期。給 onRemove 時右上角
- * 顯示移除鈕（編輯表單用）。
+ * 附件縮圖（收據 / 票券通用）。檔案存於 R2 私有 bucket，故顯示時向 getUrl 取短效簽名 URL：
+ * 圖片直接 <img>，PDF 顯示檔案圖示。點擊在 app 內嵌 lightbox 對話框檢視（圖片放大、PDF 用
+ * iframe 內嵌），開啟時重新簽一張新 URL 避免縮圖載入後過期。給 onRemove 時右上角顯示移除鈕。
  */
-export function ReceiptThumb({
+export function AttachmentThumb({
   tripId,
   attachment,
+  getUrl,
   onRemove,
 }: {
   tripId: string;
   attachment: ExpenseAttachment;
+  getUrl: GetUrlFn;
   onRemove?: () => void;
 }) {
   const t = useTranslations('expense.receipts');
@@ -34,17 +50,17 @@ export function ReceiptThumb({
   useEffect(() => {
     let alive = true;
     if (!isPdf) {
-      getReceiptUrl(tripId, attachment.key).then((r) => {
+      getUrl(tripId, attachment.key).then((r) => {
         if (alive && r.success) setUrl(r.data.url);
       });
     }
     return () => {
       alive = false;
     };
-  }, [tripId, attachment.key, isPdf]);
+  }, [tripId, attachment.key, isPdf, getUrl]);
 
   const openViewer = async () => {
-    const r = await getReceiptUrl(tripId, attachment.key);
+    const r = await getUrl(tripId, attachment.key);
     if (r.success) {
       setViewerUrl(r.data.url);
       setOpen(true);
@@ -102,18 +118,24 @@ export function ReceiptThumb({
 }
 
 /**
- * 收據上傳器（支出表單用）。選檔 → client 壓縮（imageCompress）→ 向 server 取
- * presigned PUT → 瀏覽器直傳 R2 → 把 { key, content_type, size } 加進 value。
- * 表單送出時這些 attachments 會併入 create/update，server 端再以 headObject 驗證。
+ * 附件上傳器（收據 / 票券通用）。選檔 → client 壓縮（imageCompress）→ 向 server 取
+ * presigned PUT（createUploadUrl）→ 瀏覽器直傳 R2 → 把 { key, content_type, size } 加進 value。
+ * 表單送出時這些 attachments 會併入對應的 create/update，server 端再以 headObject 驗證。
  */
-export function ReceiptUploader({
+export function AttachmentUploader({
   tripId,
   value,
   onChange,
+  getUrl,
+  createUploadUrl,
+  compressKind = 'receipt',
 }: {
   tripId: string;
   value: ExpenseAttachment[];
   onChange: (next: ExpenseAttachment[]) => void;
+  getUrl: GetUrlFn;
+  createUploadUrl: CreateUploadUrlFn;
+  compressKind?: 'receipt';
 }) {
   const t = useTranslations('expense.receipts');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -128,8 +150,8 @@ export function ReceiptUploader({
       const picked = Array.from(files);
       const results = await Promise.all(
         picked.map(async (original): Promise<ExpenseAttachment | null> => {
-          const file = await compressImage(original, 'receipt');
-          const ticket = await createReceiptUploadUrl(tripId, file.type, file.size);
+          const file = await compressImage(original, compressKind);
+          const ticket = await createUploadUrl(tripId, file.type, file.size);
           if (!ticket.success) return null;
           const put = await fetch(ticket.data.uploadUrl, {
             method: 'PUT',
@@ -157,7 +179,13 @@ export function ReceiptUploader({
     <div className="space-y-2">
       <div className="flex flex-wrap gap-2">
         {value.map((a) => (
-          <ReceiptThumb key={a.key} tripId={tripId} attachment={a} onRemove={() => remove(a.key)} />
+          <AttachmentThumb
+            key={a.key}
+            tripId={tripId}
+            attachment={a}
+            getUrl={getUrl}
+            onRemove={() => remove(a.key)}
+          />
         ))}
         <button
           type="button"
@@ -183,5 +211,87 @@ export function ReceiptUploader({
       />
       {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
+  );
+}
+
+/** 收據縮圖（支出用）：AttachmentThumb 綁定 getReceiptUrl。 */
+export function ReceiptThumb({
+  tripId,
+  attachment,
+  onRemove,
+}: {
+  tripId: string;
+  attachment: ExpenseAttachment;
+  onRemove?: () => void;
+}) {
+  return (
+    <AttachmentThumb
+      tripId={tripId}
+      attachment={attachment}
+      getUrl={getReceiptUrl}
+      onRemove={onRemove}
+    />
+  );
+}
+
+/** 收據上傳器（支出表單用）：AttachmentUploader 綁定收據的 server fns。 */
+export function ReceiptUploader({
+  tripId,
+  value,
+  onChange,
+}: {
+  tripId: string;
+  value: ExpenseAttachment[];
+  onChange: (next: ExpenseAttachment[]) => void;
+}) {
+  return (
+    <AttachmentUploader
+      tripId={tripId}
+      value={value}
+      onChange={onChange}
+      getUrl={getReceiptUrl}
+      createUploadUrl={createReceiptUploadUrl}
+    />
+  );
+}
+
+/** 票券縮圖（行程活動用）：AttachmentThumb 綁定 getItineraryAttachmentUrl。 */
+export function TicketThumb({
+  tripId,
+  attachment,
+  onRemove,
+}: {
+  tripId: string;
+  attachment: ExpenseAttachment;
+  onRemove?: () => void;
+}) {
+  return (
+    <AttachmentThumb
+      tripId={tripId}
+      attachment={attachment}
+      getUrl={getItineraryAttachmentUrl}
+      onRemove={onRemove}
+    />
+  );
+}
+
+/** 票券上傳器（行程活動編輯器用）：AttachmentUploader 綁定票券的 server fns。 */
+export function TicketUploader({
+  tripId,
+  value,
+  onChange,
+}: {
+  tripId: string;
+  value: ExpenseAttachment[];
+  onChange: (next: ExpenseAttachment[]) => void;
+}) {
+  return (
+    <AttachmentUploader
+      tripId={tripId}
+      value={value}
+      onChange={onChange}
+      getUrl={getItineraryAttachmentUrl}
+      createUploadUrl={createItineraryUploadUrl}
+    />
   );
 }

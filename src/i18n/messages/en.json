@@ -500,7 +500,11 @@
     "shareTotal": "Share",
     "members": "Members",
     "days": "Days",
-    "avgPerPersonPerDay": "Avg / person / day"
+    "avgPerPersonPerDay": "Avg / person / day",
+    "dailySpend": "Daily spend",
+    "unlinkedDay": "Unlinked",
+    "dayLabel": "Day {dayNumber}",
+    "expenseCount": "{count} expenses"
   },
   "trip": {
     "info": "Trip Info",
@@ -613,7 +617,8 @@
         "accommodation": "Stay",
         "activity": "Activity",
         "other": "Other"
-      }
+      },
+      "tickets": "Tickets"
     }
   },
   "export": {
@@ -689,6 +694,8 @@
     "countryTitle": "{count} countries",
     "countryCities": "{count} cities",
     "playRoute": "Play route",
-    "playStop": "Stop"
+    "playStop": "Stop",
+    "heatByVisits": "Visits",
+    "heatBySpend": "Spend"
   }
 }

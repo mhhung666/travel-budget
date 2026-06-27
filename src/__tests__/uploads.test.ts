@@ -5,10 +5,13 @@ import {
   buildObjectKey,
   receiptKeyPrefix,
   isReceiptKeyForTrip,
+  itineraryKeyPrefix,
+  isItineraryKeyForTrip,
   avatarKeyPrefix,
   isAvatarKeyForUser,
   MAX_RECEIPT_BYTES,
   MAX_AVATAR_BYTES,
+  MAX_ITINERARY_BYTES,
 } from '@/lib/uploads';
 
 describe('validateUpload', () => {
@@ -21,6 +24,16 @@ describe('validateUpload', () => {
     expect(validateUpload('avatar', 'application/pdf', 1_000)).toEqual({
       ok: false,
       reason: 'type',
+    });
+  });
+
+  it('treats itinerary tickets like receipts (images + PDF, same cap)', () => {
+    expect(validateUpload('itinerary', 'application/pdf', 1_000)).toEqual({ ok: true });
+    expect(validateUpload('itinerary', 'image/webp', 500_000)).toEqual({ ok: true });
+    expect(validateUpload('itinerary', 'image/gif', 1_000)).toEqual({ ok: false, reason: 'type' });
+    expect(validateUpload('itinerary', 'image/png', MAX_ITINERARY_BYTES + 1)).toEqual({
+      ok: false,
+      reason: 'size',
     });
   });
 
@@ -66,6 +79,12 @@ describe('buildObjectKey', () => {
     );
   });
 
+  it('namespaces itinerary tickets by tripId under the itinerary/ prefix', () => {
+    const key = buildObjectKey('itinerary', 'trip123', 'application/pdf');
+    expect(key).toMatch(/^itinerary\/trip123\//);
+    expect(key.endsWith('.pdf')).toBe(true);
+  });
+
   it('namespaces avatars by userId', () => {
     const key = buildObjectKey('avatar', 'user456', 'image/jpeg');
     expect(key).toMatch(/^avatars\/user456\//);
@@ -89,6 +108,21 @@ describe('receipt key helpers', () => {
     expect(isReceiptKeyForTrip('trip123', 'receipts/other/abc.webp')).toBe(false);
     expect(isReceiptKeyForTrip('trip123', 'avatars/trip123/abc.webp')).toBe(false);
     expect(isReceiptKeyForTrip('', 'receipts//abc.webp')).toBe(false);
+  });
+});
+
+describe('itinerary key helpers', () => {
+  it('builds the trip-namespaced prefix', () => {
+    expect(itineraryKeyPrefix('trip123')).toBe('itinerary/trip123/');
+  });
+
+  it('accepts a key under the trip prefix and rejects others', () => {
+    expect(isItineraryKeyForTrip('trip123', 'itinerary/trip123/abc.pdf')).toBe(true);
+    expect(isItineraryKeyForTrip('trip123', 'itinerary/other/abc.pdf')).toBe(false);
+    // 收據與票券共用 bucket，但前綴不同：收據 key 不可當票券用，反之亦然。
+    expect(isItineraryKeyForTrip('trip123', 'receipts/trip123/abc.pdf')).toBe(false);
+    expect(isReceiptKeyForTrip('trip123', 'itinerary/trip123/abc.pdf')).toBe(false);
+    expect(isItineraryKeyForTrip('', 'itinerary//abc.pdf')).toBe(false);
   });
 });
 

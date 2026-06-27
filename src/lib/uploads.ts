@@ -8,11 +8,14 @@ import { randomUUID } from 'crypto';
  * 前端會先壓縮（見 imageCompress.ts），但壓縮只是優化、非安全邊界，故此處仍硬擋。
  */
 
-export type UploadKind = 'receipt' | 'avatar';
+// 行程活動的票券附件（訂房單 / 機票 / 入場券）。與收據同性質（私有、可為 PDF），
+// 故沿用相同的型別白名單與大小上限——只是命名空間（key 前綴）不同。
+export type UploadKind = 'receipt' | 'avatar' | 'itinerary';
 
 // 硬性上限。前端壓縮後通常遠小於此；這裡只擋住惡意/異常的大檔。
 export const MAX_RECEIPT_BYTES = 8 * 1024 * 1024; // 8MB（收據可為未壓縮 PDF）
 export const MAX_AVATAR_BYTES = 4 * 1024 * 1024; // 4MB
+export const MAX_ITINERARY_BYTES = MAX_RECEIPT_BYTES; // 票券同收據（可為 PDF）
 
 export const RECEIPT_CONTENT_TYPES = [
   'image/jpeg',
@@ -21,6 +24,7 @@ export const RECEIPT_CONTENT_TYPES = [
   'application/pdf',
 ] as const;
 export const AVATAR_CONTENT_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
+export const ITINERARY_CONTENT_TYPES = RECEIPT_CONTENT_TYPES;
 
 const EXT_BY_TYPE: Record<string, string> = {
   'image/jpeg': 'jpg',
@@ -33,9 +37,14 @@ export function uploadConstraints(kind: UploadKind): {
   types: readonly string[];
   maxBytes: number;
 } {
-  return kind === 'receipt'
-    ? { types: RECEIPT_CONTENT_TYPES, maxBytes: MAX_RECEIPT_BYTES }
-    : { types: AVATAR_CONTENT_TYPES, maxBytes: MAX_AVATAR_BYTES };
+  switch (kind) {
+    case 'receipt':
+      return { types: RECEIPT_CONTENT_TYPES, maxBytes: MAX_RECEIPT_BYTES };
+    case 'itinerary':
+      return { types: ITINERARY_CONTENT_TYPES, maxBytes: MAX_ITINERARY_BYTES };
+    case 'avatar':
+      return { types: AVATAR_CONTENT_TYPES, maxBytes: MAX_AVATAR_BYTES };
+  }
 }
 
 export type UploadValidation = { ok: true } | { ok: false; reason: 'type' | 'size' };
@@ -60,11 +69,12 @@ export function extForContentType(contentType: string): string {
  * 帶入（非 client 可控），因此一張簽名 URL 不可能寫到別人的空間，也讓 cascade 刪除
  * 能以 prefix 批次清理。UUID 檔名讓 key 不可猜。
  *
- *   receipt → receipts/<tripId>/<uuid>.<ext>
- *   avatar  → avatars/<userId>/<uuid>.<ext>
+ *   receipt   → receipts/<tripId>/<uuid>.<ext>
+ *   itinerary → itinerary/<tripId>/<uuid>.<ext>  （與收據共用私有 bucket，前綴不同）
+ *   avatar    → avatars/<userId>/<uuid>.<ext>
  */
 export function buildObjectKey(kind: UploadKind, ownerId: string, contentType: string): string {
-  const prefix = kind === 'receipt' ? 'receipts' : 'avatars';
+  const prefix = kind === 'receipt' ? 'receipts' : kind === 'itinerary' ? 'itinerary' : 'avatars';
   return `${prefix}/${ownerId}/${randomUUID()}.${extForContentType(contentType)}`;
 }
 
@@ -79,6 +89,19 @@ export function receiptKeyPrefix(tripId: string): string {
  */
 export function isReceiptKeyForTrip(tripId: string, key: string): boolean {
   return tripId.length > 0 && key.startsWith(receiptKeyPrefix(tripId));
+}
+
+/** 票券附件物件 key 的命名空間前綴：itinerary/<tripId>/（與收據共用私有 bucket）。 */
+export function itineraryKeyPrefix(tripId: string): string {
+  return `itinerary/${tripId}/`;
+}
+
+/**
+ * 該 key 是否屬於此 trip 的票券空間。同 isReceiptKeyForTrip——擋掉引用別團 / 別人物件的
+ * key，成員只能把屬於本 trip 前綴的物件掛成活動附件，或簽發本 trip 的票券檢視 URL。
+ */
+export function isItineraryKeyForTrip(tripId: string, key: string): boolean {
+  return tripId.length > 0 && key.startsWith(itineraryKeyPrefix(tripId));
 }
 
 /** 頭像物件 key 的命名空間前綴：avatars/<userId>/。 */

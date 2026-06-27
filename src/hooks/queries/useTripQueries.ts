@@ -106,6 +106,7 @@ const EMPTY_TRIP_STATS: TripStatsData = {
   memberCount: 0,
   dayCount: 0,
   avgPerPersonPerDay: 0,
+  dailySpend: [],
 };
 
 /**

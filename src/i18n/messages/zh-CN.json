@@ -505,7 +505,11 @@
     "shareTotal": "分摊",
     "members": "成员",
     "days": "天数",
-    "avgPerPersonPerDay": "平均每人每日"
+    "avgPerPersonPerDay": "平均每人每日",
+    "dailySpend": "每日花费",
+    "unlinkedDay": "未关联行程",
+    "dayLabel": "第 {dayNumber} 天",
+    "expenseCount": "{count} 笔"
   },
   "trip": {
     "info": "旅行信息",
@@ -618,7 +622,8 @@
         "accommodation": "住宿",
         "activity": "活动",
         "other": "其他"
-      }
+      },
+      "tickets": "票券附件"
     }
   },
   "export": {
@@ -694,6 +699,8 @@
     "countryTitle": "共 {count} 个国家",
     "countryCities": "{count} 个城市",
     "playRoute": "播放足迹",
-    "playStop": "停止"
+    "playStop": "停止",
+    "heatByVisits": "造访次数",
+    "heatBySpend": "花费"
   }
 }
