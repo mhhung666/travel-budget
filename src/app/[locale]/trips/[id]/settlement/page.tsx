@@ -17,6 +17,7 @@ import {
 import { ExportMenu } from '@/components/export';
 import {
   useCurrentUser,
+  useMembers,
   useSettlement,
   useExchangeRates,
   useTrip,
@@ -53,6 +54,7 @@ export default function SettlementPage() {
   const { data: exchangeRates = { TWD: 1 }, isFetching: loadingRates } = useExchangeRates();
   const { isMember } = useTripMembership(tripId);
   const paymentMutations = usePaymentMutations(tripId);
+  const { data: members = [] } = useMembers(tripId);
 
   const recordDialog = useDialog<{ fromId: string; toId: string; amount: number }>();
   const deletePaymentDialog = useDialog<string>();
@@ -70,6 +72,16 @@ export default function SettlementPage() {
     for (const b of balances) map.set(b.username, b.userId);
     return map;
   }, [balances]);
+
+  // 成員頭像查表：每人統計用 userId；結算方案只帶名字，故另備 name → 頭像。
+  const avatarById = useMemo(
+    () => Object.fromEntries(members.map((m) => [m.id, m.avatar_url ?? null])),
+    [members]
+  );
+  const avatarByName = useMemo(
+    () => Object.fromEntries(balances.map((b) => [b.username, avatarById[b.userId] ?? null])),
+    [balances, avatarById]
+  );
 
   const handleMarkPaid = (tx: Transaction) =>
     recordDialog.openDialog({
@@ -181,7 +193,7 @@ export default function SettlementPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* 每人統計 */}
-          <SettlementBalances balances={balances} />
+          <SettlementBalances balances={balances} avatarUrlById={avatarById} />
 
           {/* 結算方案 */}
           <SettlementPlan
@@ -189,6 +201,7 @@ export default function SettlementPage() {
             exchangeRates={exchangeRates}
             loadingRates={loadingRates}
             onMarkPaid={isMember ? handleMarkPaid : undefined}
+            avatarUrlByName={avatarByName}
           />
         </div>
 

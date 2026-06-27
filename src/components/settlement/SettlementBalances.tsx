@@ -4,16 +4,17 @@ import { TrendingUp, TrendingDown, CheckCircle } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { Balance } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 
 interface SettlementBalancesProps {
   balances: Balance[];
+  avatarUrlById?: Record<string, string | null>;
 }
 
-export default function SettlementBalances({ balances }: SettlementBalancesProps) {
+export default function SettlementBalances({ balances, avatarUrlById }: SettlementBalancesProps) {
   const t = useTranslations('settlement');
 
   return (
@@ -29,6 +30,10 @@ export default function SettlementBalances({ balances }: SettlementBalancesProps
                 <div className="flex justify-between items-start mb-2">
                   <div className="flex items-center gap-2">
                     <Avatar className="h-8 w-8 bg-primary">
+                      <AvatarImage
+                        src={avatarUrlById?.[balance.userId] ?? ''}
+                        alt={balance.username}
+                      />
                       <AvatarFallback className="text-primary-foreground bg-primary">
                         {balance.username.charAt(0).toUpperCase()}
                       </AvatarFallback>
