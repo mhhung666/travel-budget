@@ -219,6 +219,8 @@
       "category": "消費類別",
       "date": "日期",
       "payer": "付款人",
+      "itineraryDay": "關聯行程日",
+      "itineraryDayNone": "不關聯",
       "splitWith": "分帳對象",
       "convertedAmount": "換算金額"
     },

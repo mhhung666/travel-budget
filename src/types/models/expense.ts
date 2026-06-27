@@ -42,4 +42,6 @@ export interface Expense {
   created_at: string;
   splits: ExpenseSplit[];
   attachments: ExpenseAttachment[];
+  /** 關聯的行程日 id（同 trip 下的 ItineraryDay）；未關聯時為 null。 */
+  itinerary_day_id: string | null;
 }

@@ -1,7 +1,7 @@
 'use server';
 
 import { dbConnect } from '@/lib/mongodb';
-import { ItineraryDay } from '@/models';
+import { Expense, ItineraryDay } from '@/models';
 import { getTripMembership } from '@/lib/permissions';
 import {
   createItineraryDaySchema,
@@ -225,6 +225,12 @@ export const deleteItineraryDay = withAuth(
       await dbConnect();
 
       await ItineraryDay.deleteOne({ _id: dayId, trip: membership.tripId });
+
+      // 清掉支出對此行程日的關聯（避免孤兒參照；比照 removeMember 清 checklist 指派）。
+      await Expense.updateMany(
+        { trip: membership.tripId, itineraryDay: dayId },
+        { $set: { itineraryDay: null } }
+      );
 
       // 重新編號剩餘行程日為連續 1..n（遞增處理，數字只會變小，不會撞到唯一索引）
       const remaining = await ItineraryDay.find({ trip: membership.tripId })

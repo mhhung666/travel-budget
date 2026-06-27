@@ -95,6 +95,8 @@ export const createExpenseSchema = z.object({
     )
     .min(1, '至少需要一位分帳對象'),
   attachments: z.array(attachmentInputSchema).max(10, '收據數量過多').optional(),
+  // 可選的關聯行程日；null＝不關聯。歸屬（須屬本 trip）由 action 驗證。
+  itinerary_day_id: objectIdSchema.nullable().optional(),
 });
 
 export const updateExpenseSchema = z.object({
@@ -118,6 +120,8 @@ export const updateExpenseSchema = z.object({
     .min(1, '至少需要一位分帳對象')
     .optional(),
   attachments: z.array(attachmentInputSchema).max(10, '收據數量過多').optional(),
+  // 可選的關聯行程日；傳 null 可清除關聯。歸屬由 action 驗證。
+  itinerary_day_id: objectIdSchema.nullable().optional(),
 });
 
 // Budget schemas（金額一律基準幣 TWD）

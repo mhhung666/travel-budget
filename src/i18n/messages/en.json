@@ -252,6 +252,8 @@
       "category": "Category",
       "date": "Date",
       "payer": "Payer",
+      "itineraryDay": "Linked day",
+      "itineraryDayNone": "None",
       "splitWith": "Split With",
       "convertedAmount": "Converted Amount"
     },

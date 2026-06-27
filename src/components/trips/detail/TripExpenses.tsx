@@ -1,9 +1,9 @@
 'use client';
 
-import { ChevronDown, ChevronUp, Plus, Edit2, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, Edit2, Trash2, CalendarDays } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { getCategoryIcon, CATEGORY_CODES } from '@/constants/categories';
-import type { Expense, Member } from '@/types';
+import type { Expense, Member, ItineraryDay } from '@/types';
 import { ExportMenu } from '@/components/export';
 import { exportExpenses, type ExportFormat } from '@/lib/exporters';
 import { ReceiptThumb } from '@/components/trips/detail/ReceiptAttachments';
@@ -26,6 +26,7 @@ interface TripExpensesProps {
   tripId: string;
   expenses: Expense[];
   members: Member[];
+  itineraryDays?: ItineraryDay[];
   tripName?: string;
   isCurrentUserMember: boolean;
   filterMemberId: string | 'all';
@@ -41,6 +42,7 @@ export default function TripExpenses({
   tripId,
   expenses,
   members,
+  itineraryDays = [],
   tripName,
   isCurrentUserMember,
   filterMemberId,
@@ -54,6 +56,9 @@ export default function TripExpenses({
   const tExpense = useTranslations('expense');
   const tExport = useTranslations('export');
   const tCategory = useTranslations('category');
+
+  // 行程日 id → 日序，供支出卡顯示「Day N」標籤。
+  const dayNumberById = new Map(itineraryDays.map((d) => [d.id, d.day_number]));
 
   const buildExport = (format: ExportFormat) =>
     exportExpenses(expenses, format, {
@@ -190,6 +195,16 @@ export default function TripExpenses({
                               {expense.payer_name} {tExpense('paidBy')} •{' '}
                               {new Date(expense.date).toLocaleDateString()}
                             </p>
+                            {expense.itinerary_day_id &&
+                              dayNumberById.has(expense.itinerary_day_id) && (
+                                <Badge
+                                  variant="secondary"
+                                  className="gap-1 font-normal text-muted-foreground"
+                                >
+                                  <CalendarDays className="h-3 w-3" />
+                                  Day {dayNumberById.get(expense.itinerary_day_id)}
+                                </Badge>
+                              )}
                           </div>
 
                           <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto gap-4 sm:gap-1">

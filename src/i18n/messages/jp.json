@@ -219,6 +219,8 @@
       "category": "カテゴリ",
       "date": "日付",
       "payer": "支払者",
+      "itineraryDay": "関連する日程",
+      "itineraryDayNone": "なし",
       "splitWith": "割り勘対象",
       "convertedAmount": "換算金額"
     },

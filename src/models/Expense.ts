@@ -52,6 +52,9 @@ const ExpenseSchema = new Schema(
     date: { type: Date, required: true },
     splits: { type: [SplitSchema], default: [] },
     attachments: { type: [AttachmentSchema], default: [] },
+    // 可選的關聯行程日（同 trip 下的 ItineraryDay）；null＝未關聯。
+    // 行程日被刪除時於 deleteItineraryDay 清為 null（避免孤兒參照）。
+    itineraryDay: { type: Schema.Types.ObjectId, ref: 'ItineraryDay', default: null },
   },
   {
     timestamps: { createdAt: true, updatedAt: false },
