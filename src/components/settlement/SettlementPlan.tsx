@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -24,6 +24,8 @@ interface SettlementPlanProps {
   loadingRates: boolean;
   /** 成員專屬：點擊建議轉帳的「標記已付」時觸發（登記一筆還款）。未傳即唯讀。 */
   onMarkPaid?: (transaction: Transaction) => void;
+  /** name → 頭像 URL（結算方案只帶名字，故以名字對應）。 */
+  avatarUrlByName?: Record<string, string | null>;
 }
 
 export default function SettlementPlan({
@@ -31,6 +33,7 @@ export default function SettlementPlan({
   exchangeRates,
   loadingRates,
   onMarkPaid,
+  avatarUrlByName,
 }: SettlementPlanProps) {
   const t = useTranslations('settlement');
   const [selectedCurrency, setSelectedCurrency] = useState('TWD');
@@ -98,6 +101,10 @@ export default function SettlementPlan({
                     {/* Payer */}
                     <div className="flex items-center gap-3 w-full sm:w-auto justify-center sm:justify-start">
                       <Avatar className="h-10 w-10 border-2 border-red-200 bg-red-100">
+                        <AvatarImage
+                          src={avatarUrlByName?.[transaction.from] ?? ''}
+                          alt={transaction.from}
+                        />
                         <AvatarFallback className="text-red-700 font-bold bg-transparent">
                           {transaction.from.charAt(0).toUpperCase()}
                         </AvatarFallback>
@@ -131,6 +138,10 @@ export default function SettlementPlan({
                         <p className="font-semibold text-foreground">{transaction.to}</p>
                       </div>
                       <Avatar className="h-10 w-10 border-2 border-green-200 bg-green-100">
+                        <AvatarImage
+                          src={avatarUrlByName?.[transaction.to] ?? ''}
+                          alt={transaction.to}
+                        />
                         <AvatarFallback className="text-green-700 font-bold bg-transparent">
                           {transaction.to.charAt(0).toUpperCase()}
                         </AvatarFallback>

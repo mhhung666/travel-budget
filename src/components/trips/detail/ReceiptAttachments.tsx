@@ -6,13 +6,15 @@ import { Upload, X, FileText, Loader2 } from 'lucide-react';
 import { createReceiptUploadUrl, getReceiptUrl } from '@/actions';
 import { compressImage } from '@/lib/imageCompress';
 import type { ExpenseAttachment } from '@/types';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 
 const ACCEPT = 'image/jpeg,image/png,image/webp,application/pdf';
 
 /**
  * 收據縮圖。收據存於 R2 私有 bucket，故顯示時向 getReceiptUrl 取短效簽名 URL：
- * 圖片直接 <img>，PDF 顯示檔案圖示。點擊一律重新簽一張新 URL 再開新分頁（避免縮圖
- * 載入後 URL 過期）。給 onRemove 時右上角顯示移除鈕（編輯表單用）。
+ * 圖片直接 <img>，PDF 顯示檔案圖示。點擊在 **app 內嵌的 lightbox 對話框**檢視（圖片放大、
+ * PDF 用 iframe 內嵌），開啟時重新簽一張新 URL 避免縮圖載入後過期。給 onRemove 時右上角
+ * 顯示移除鈕（編輯表單用）。
  */
 export function ReceiptThumb({
   tripId,
@@ -26,6 +28,8 @@ export function ReceiptThumb({
   const t = useTranslations('expense.receipts');
   const isPdf = attachment.content_type === 'application/pdf';
   const [url, setUrl] = useState<string | null>(null);
+  const [viewerUrl, setViewerUrl] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -39,39 +43,61 @@ export function ReceiptThumb({
     };
   }, [tripId, attachment.key, isPdf]);
 
-  const open = async () => {
+  const openViewer = async () => {
     const r = await getReceiptUrl(tripId, attachment.key);
-    if (r.success) window.open(r.data.url, '_blank', 'noopener');
+    if (r.success) {
+      setViewerUrl(r.data.url);
+      setOpen(true);
+    }
   };
 
   return (
-    <div className="relative h-16 w-16 shrink-0">
-      <button
-        type="button"
-        onClick={open}
-        title={t('view')}
-        className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-md border bg-muted"
-      >
-        {isPdf ? (
-          <FileText className="h-6 w-6 text-muted-foreground" />
-        ) : url ? (
-          // eslint-disable-next-line @next/next/no-img-element -- 簽名 URL 為動態短效，不走 next/image 遠端設定
-          <img src={url} alt={t('label')} className="h-full w-full object-cover" />
-        ) : (
-          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-        )}
-      </button>
-      {onRemove && (
+    <>
+      <div className="relative h-16 w-16 shrink-0">
         <button
           type="button"
-          onClick={onRemove}
-          aria-label={t('remove')}
-          className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-destructive-foreground opacity-90 hover:opacity-100"
+          onClick={openViewer}
+          title={t('view')}
+          className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-md border bg-muted"
         >
-          <X className="h-3 w-3" />
+          {isPdf ? (
+            <FileText className="h-6 w-6 text-muted-foreground" />
+          ) : url ? (
+            // eslint-disable-next-line @next/next/no-img-element -- 簽名 URL 為動態短效，不走 next/image 遠端設定
+            <img src={url} alt={t('label')} className="h-full w-full object-cover" />
+          ) : (
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          )}
         </button>
-      )}
-    </div>
+        {onRemove && (
+          <button
+            type="button"
+            onClick={onRemove}
+            aria-label={t('remove')}
+            className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-destructive-foreground opacity-90 hover:opacity-100"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        )}
+      </div>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-3xl overflow-hidden p-0">
+          <DialogTitle className="sr-only">{t('label')}</DialogTitle>
+          {viewerUrl &&
+            (isPdf ? (
+              <iframe src={viewerUrl} title={t('label')} className="h-[80vh] w-full" />
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element -- 簽名 URL 為動態短效，不走 next/image 遠端設定
+              <img
+                src={viewerUrl}
+                alt={t('label')}
+                className="max-h-[85vh] w-full bg-black object-contain"
+              />
+            ))}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 

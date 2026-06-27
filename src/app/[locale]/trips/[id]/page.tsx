@@ -84,6 +84,7 @@ export default function TripDetailPage() {
                 id: currentUser.id,
                 username: currentUser.display_name,
                 email: currentUser.email,
+                avatar_url: currentUser.avatar_url,
                 display_name: currentUser.display_name,
               }
             : null
