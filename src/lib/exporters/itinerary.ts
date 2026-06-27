@@ -1,4 +1,5 @@
-import type { ItineraryDay } from '@/types';
+import type { Activity, ItineraryDay } from '@/types';
+import { sortActivities } from '@/lib/itineraryActivities';
 import type { ExportFile, ExportFormat } from './types';
 import { FORMAT_META } from './types';
 import { toCsv } from './csv';
@@ -11,6 +12,26 @@ export interface ItineraryLabels {
   day: (n: number) => string;
   /** CSV 表頭 */
   columns: { day: string; title: string; content: string };
+  /** 活動類型在地化標籤（選填；缺時退回原始 type 字串）。 */
+  activityTypes?: Record<string, string>;
+}
+
+/** 把單一活動序列化成一行 markdown 清單項目。 */
+function activityLine(activity: Activity, labels: ItineraryLabels): string {
+  const time =
+    activity.time && activity.end_time
+      ? `${activity.time}–${activity.end_time}`
+      : (activity.time ?? activity.end_time ?? '');
+  const typeLabel = labels.activityTypes?.[activity.type] ?? activity.type;
+  const segments = [
+    time,
+    `**${activity.title}**`,
+    `(${typeLabel})`,
+    activity.location?.name,
+    activity.note || undefined,
+    activity.confirmation_code || undefined,
+  ].filter(Boolean);
+  return `- ${segments.join(' · ')}`;
 }
 
 function toMarkdown(days: ItineraryDay[], labels: ItineraryLabels): string {
@@ -19,6 +40,9 @@ function toMarkdown(days: ItineraryDay[], labels: ItineraryLabels): string {
     parts.push(`## ${labels.day(d.day_number)} — ${d.title}`);
     if (d.content.trim()) {
       parts.push('', d.content.trim());
+    }
+    if (d.activities.length > 0) {
+      parts.push('', ...sortActivities(d.activities).map((a) => activityLine(a, labels)));
     }
     parts.push('');
   }

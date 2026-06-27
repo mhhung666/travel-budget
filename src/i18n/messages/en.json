@@ -589,7 +589,30 @@
     },
     "backToTrip": "Back to Trip",
     "lastUpdated": "Last updated",
-    "loadFailed": "Failed to load itinerary"
+    "loadFailed": "Failed to load itinerary",
+    "activities": {
+      "heading": "Activities",
+      "add": "Add activity",
+      "remove": "Remove",
+      "empty": "No activities yet",
+      "typeLabel": "Type",
+      "titlePlaceholder": "What's the plan?",
+      "time": "Start",
+      "endTime": "End",
+      "note": "Note",
+      "notePlaceholder": "Optional details",
+      "confirmationCode": "Booking ref",
+      "confirmationCodePlaceholder": "Confirmation / PNR",
+      "locationPlaceholder": "Add a place (optional)",
+      "types": {
+        "sightseeing": "Sightseeing",
+        "food": "Food",
+        "transport": "Transport",
+        "accommodation": "Stay",
+        "activity": "Activity",
+        "other": "Other"
+      }
+    }
   },
   "export": {
     "label": "Export",

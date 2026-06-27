@@ -3,11 +3,26 @@
 import { dbConnect } from '@/lib/mongodb';
 import { ItineraryDay } from '@/models';
 import { getTripMembership } from '@/lib/permissions';
-import { createItineraryDaySchema, updateItineraryDaySchema } from '@/lib/validation';
+import {
+  createItineraryDaySchema,
+  updateItineraryDaySchema,
+  type ActivityInput,
+} from '@/lib/validation';
 import type { ActionResult } from './types';
-import type { ItineraryDay as ItineraryDayDto, Location } from '@/types';
+import type { Activity as ActivityDto, ItineraryDay as ItineraryDayDto, Location } from '@/types';
 import { withAuth } from './withAuth';
 import { logger } from '@/lib/logger';
+
+type LeanActivity = {
+  _id: { toString(): string };
+  time?: string | null;
+  endTime?: string | null;
+  title: string;
+  type: ActivityDto['type'];
+  location?: Location | null;
+  note?: string;
+  confirmationCode?: string;
+};
 
 type LeanDay = {
   _id: { toString(): string };
@@ -16,9 +31,36 @@ type LeanDay = {
   title: string;
   content: string;
   location?: Location | null;
+  activities?: LeanActivity[];
   createdAt: Date;
   updatedAt: Date;
 };
+
+function toActivityDto(a: LeanActivity): ActivityDto {
+  return {
+    id: a._id.toString(),
+    time: a.time ?? null,
+    end_time: a.endTime ?? null,
+    title: a.title,
+    type: a.type,
+    location: a.location ?? null,
+    note: a.note ?? '',
+    confirmation_code: a.confirmationCode ?? '',
+  };
+}
+
+/** 把驗證後的活動輸入（snake_case）轉成 model 儲存形狀（camelCase）。 */
+function toActivityStorage(a: ActivityInput) {
+  return {
+    time: a.time ?? null,
+    endTime: a.end_time ?? null,
+    title: a.title,
+    type: a.type,
+    location: a.location ?? null,
+    note: a.note ?? '',
+    confirmationCode: a.confirmation_code ?? '',
+  };
+}
 
 function toDayDto(d: LeanDay): ItineraryDayDto {
   return {
@@ -28,6 +70,7 @@ function toDayDto(d: LeanDay): ItineraryDayDto {
     title: d.title,
     content: d.content,
     location: d.location ?? null,
+    activities: (d.activities ?? []).map(toActivityDto),
     created_at: d.createdAt.toISOString(),
     updated_at: d.updatedAt.toISOString(),
   };
@@ -63,7 +106,12 @@ export const createItineraryDay = withAuth(
   async (
     session,
     tripIdOrCode: string,
-    input: { title: string; content?: string; location?: Location | null }
+    input: {
+      title: string;
+      content?: string;
+      location?: Location | null;
+      activities?: ActivityInput[];
+    }
   ): Promise<ActionResult<ItineraryDayDto>> => {
     try {
       const membership = await getTripMembership(session.userId, tripIdOrCode);
@@ -89,6 +137,7 @@ export const createItineraryDay = withAuth(
         title: validated.title,
         content: validated.content || '',
         location: validated.location ?? null,
+        activities: (validated.activities ?? []).map(toActivityStorage),
       });
 
       return { success: true, data: toDayDto(created.toObject() as unknown as LeanDay) };
@@ -107,7 +156,13 @@ export const updateItineraryDay = withAuth(
     session,
     tripIdOrCode: string,
     dayId: string,
-    input: { title?: string; content?: string; day_number?: number; location?: Location | null }
+    input: {
+      title?: string;
+      content?: string;
+      day_number?: number;
+      location?: Location | null;
+      activities?: ActivityInput[];
+    }
   ): Promise<ActionResult<ItineraryDayDto>> => {
     try {
       const membership = await getTripMembership(session.userId, tripIdOrCode);
@@ -126,6 +181,9 @@ export const updateItineraryDay = withAuth(
       if (validated.day_number !== undefined) set.dayNumber = validated.day_number;
       // location 可被設為 null 以清除；故只要欄位有出現（!== undefined）就寫入。
       if (validated.location !== undefined) set.location = validated.location;
+      // activities 整陣列覆寫（同 splits 的取捨）；子文件 _id 由 Mongoose 重新產生。
+      if (validated.activities !== undefined)
+        set.activities = validated.activities.map(toActivityStorage);
 
       const updated = await ItineraryDay.findOneAndUpdate(
         { _id: dayId, trip: membership.tripId },

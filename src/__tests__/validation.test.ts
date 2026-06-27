@@ -8,6 +8,7 @@ import {
   resetPasswordSchema,
   addVirtualMemberSchema,
   createItineraryDaySchema,
+  activitySchema,
 } from '@/lib/validation';
 
 describe('createTripSchema', () => {
@@ -298,5 +299,45 @@ describe('createItineraryDaySchema', () => {
     if (result.success) {
       expect(result.data.content).toBe('');
     }
+  });
+
+  it('should accept an activities array', () => {
+    const result = createItineraryDaySchema.safeParse({
+      title: 'Day 1',
+      activities: [{ title: 'Castle', time: '09:00', type: 'sightseeing' }],
+    });
+    expect(result.success).toBe(true);
+  });
+});
+
+describe('activitySchema', () => {
+  it('should accept a valid activity and apply defaults', () => {
+    const result = activitySchema.safeParse({ title: 'Lunch', time: '12:30' });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.time).toBe('12:30');
+      expect(result.data.end_time).toBeNull();
+      expect(result.data.type).toBe('other');
+      expect(result.data.note).toBe('');
+      expect(result.data.confirmation_code).toBe('');
+    }
+  });
+
+  it('should treat empty-string and omitted time as null', () => {
+    const empty = activitySchema.safeParse({ title: 'x', time: '' });
+    const omitted = activitySchema.safeParse({ title: 'x' });
+    expect(empty.success && empty.data.time).toBeNull();
+    expect(omitted.success && omitted.data.time).toBeNull();
+  });
+
+  it('should reject malformed times', () => {
+    expect(activitySchema.safeParse({ title: 'x', time: '25:00' }).success).toBe(false);
+    expect(activitySchema.safeParse({ title: 'x', time: '9:00' }).success).toBe(false);
+    expect(activitySchema.safeParse({ title: 'x', end_time: 'noon' }).success).toBe(false);
+  });
+
+  it('should reject empty title and unknown type', () => {
+    expect(activitySchema.safeParse({ title: '' }).success).toBe(false);
+    expect(activitySchema.safeParse({ title: 'x', type: 'party' }).success).toBe(false);
   });
 });

@@ -4,7 +4,13 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Eye, Pencil, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { ItineraryDay } from '@/types';
+import type { ActivityPayload } from '@/hooks/queries/useItineraryMutations';
 import LocationAutocomplete, { LocationOption } from '@/components/location/LocationAutocomplete';
+import ActivityListEditor, {
+  type ActivityDraft,
+  dayActivitiesToDrafts,
+  draftsToPayload,
+} from './ActivityListEditor';
 import MarkdownRenderer from './MarkdownRenderer';
 
 import {
@@ -29,6 +35,7 @@ interface ItineraryDayDialogProps {
     title: string;
     content: string;
     location: LocationOption | null;
+    activities: ActivityPayload[];
   }) => Promise<void>;
   day?: ItineraryDay | null;
   dayNumber?: number;
@@ -48,6 +55,7 @@ export default function ItineraryDayDialog({
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [location, setLocation] = useState<LocationOption | null>(null);
+  const [activities, setActivities] = useState<ActivityDraft[]>([]);
   const [viewMode, setViewMode] = useState<'write' | 'preview'>('write');
   const [loading, setLoading] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -78,10 +86,12 @@ export default function ItineraryDayDialog({
               }
             : null
         );
+        setActivities(dayActivitiesToDrafts(day.activities));
       } else {
         setTitle('');
         setContent('');
         setLocation(null);
+        setActivities([]);
       }
       setViewMode('write');
       requestAnimationFrame(autoResize);
@@ -100,7 +110,12 @@ export default function ItineraryDayDialog({
 
     setLoading(true);
     try {
-      await onSubmit({ title: title.trim(), content, location });
+      await onSubmit({
+        title: title.trim(),
+        content,
+        location,
+        activities: draftsToPayload(activities),
+      });
       onClose();
     } catch {
       // Error handled by parent
@@ -189,6 +204,10 @@ export default function ItineraryDayDialog({
               )}
             </TabsContent>
           </Tabs>
+
+          <Separator />
+
+          <ActivityListEditor activities={activities} onChange={setActivities} />
         </form>
 
         <Separator />

@@ -22,7 +22,7 @@ export type {
 } from './settlement';
 
 // Itinerary
-export type { ItineraryDay } from './itinerary';
+export type { ItineraryDay, Activity, ActivityType } from './itinerary';
 
 // Checklist
 export type { Checklist, ChecklistItem } from './checklist';
