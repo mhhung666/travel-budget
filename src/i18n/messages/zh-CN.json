@@ -624,7 +624,9 @@
         "other": "其他"
       },
       "tickets": "票券附件",
-      "sortByTime": "按时间排序"
+      "sortByTime": "按时间排序",
+      "addToDay": "新增活动 · 第 {dayNumber} 天",
+      "addedToDay": "已新增活动到第 {dayNumber} 天"
     }
   },
   "export": {

@@ -33,6 +33,9 @@ interface DayInput {
   activities?: ActivityPayload[];
 }
 
+/** 更新時各欄位皆可省略（只送有改的；action 對 undefined 欄位不動），例如只追加一筆活動。 */
+type UpdateDayInput = Partial<DayInput>;
+
 /**
  * Itinerary create/update/delete mutations for a trip.
  * Each invalidates the trip's itinerary query on success, triggering a
@@ -48,7 +51,7 @@ export function useItineraryMutations(tripId: string) {
   });
 
   const update = useMutation({
-    mutationFn: ({ dayId, data }: { dayId: string; data: DayInput }) =>
+    mutationFn: ({ dayId, data }: { dayId: string; data: UpdateDayInput }) =>
       unwrap(updateItineraryDay(tripId, dayId, data)),
     onSuccess: invalidate,
   });

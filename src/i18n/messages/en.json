@@ -619,7 +619,9 @@
         "other": "Other"
       },
       "tickets": "Tickets",
-      "sortByTime": "Sort by time"
+      "sortByTime": "Sort by time",
+      "addToDay": "Add activity · Day {dayNumber}",
+      "addedToDay": "Activity added to Day {dayNumber}"
     }
   },
   "export": {

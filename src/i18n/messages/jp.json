@@ -624,7 +624,9 @@
         "other": "その他"
       },
       "tickets": "チケット",
-      "sortByTime": "時間順に並べ替え"
+      "sortByTime": "時間順に並べ替え",
+      "addToDay": "活動を追加 · {dayNumber}日目",
+      "addedToDay": "{dayNumber}日目に活動を追加しました"
     }
   },
   "export": {

@@ -6,7 +6,15 @@ import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 import { ArrowLeft, Plus } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
-import { ItineraryDayCard, ItineraryDayDialog } from '@/components/trips/detail/itinerary';
+import {
+  ItineraryDayCard,
+  ItineraryDayDialog,
+  ActivityFormDialog,
+} from '@/components/trips/detail/itinerary';
+import {
+  dayActivitiesToDrafts,
+  draftsToPayload,
+} from '@/components/trips/detail/itinerary/ActivityListEditor';
 import type { LocationOption } from '@/components/location/LocationAutocomplete';
 import { ExportMenu } from '@/components/export';
 import type { ItineraryDay } from '@/types';
@@ -69,8 +77,8 @@ export default function ItineraryPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<'add' | 'edit'>('add');
   const [editingDay, setEditingDay] = useState<ItineraryDay | null>(null);
-  // 從卡片「新增活動」開啟時為 true：對話框會自動展開活動區、補一列空白活動並捲動到位。
-  const [autoAddActivity, setAutoAddActivity] = useState(false);
+  // 卡片「新增活動」捷徑開啟的輕量單一活動對話框；null＝關閉。
+  const [addActivityDay, setAddActivityDay] = useState<ItineraryDay | null>(null);
   const [deletingDay, setDeletingDay] = useState<ItineraryDay | null>(null);
 
   const tCommon = useTranslations('common');
@@ -78,23 +86,32 @@ export default function ItineraryPage() {
   const handleAddDay = () => {
     setDialogMode('add');
     setEditingDay(null);
-    setAutoAddActivity(false);
     setDialogOpen(true);
   };
 
   const handleEditDay = (day: ItineraryDay) => {
     setDialogMode('edit');
     setEditingDay(day);
-    setAutoAddActivity(false);
     setDialogOpen(true);
   };
 
-  // 卡片上的「新增活動」捷徑：直接開編輯對話框並補一列空白活動。
+  // 卡片上的「新增活動」捷徑：開輕量單一活動對話框（不開整天編輯）。
   const handleAddActivity = (day: ItineraryDay) => {
-    setDialogMode('edit');
-    setEditingDay(day);
-    setAutoAddActivity(true);
-    setDialogOpen(true);
+    setAddActivityDay(day);
+  };
+
+  // 單一活動送出：併入該天既有活動後整批覆寫（updateItineraryDay 只傳 activities，
+  // 其餘欄位 undefined 不動）。
+  const handleActivitySubmit = async (activity: ActivityPayload) => {
+    if (!addActivityDay) return;
+    const existing = draftsToPayload(dayActivitiesToDrafts(addActivityDay.activities));
+    await update.mutateAsync({
+      dayId: addActivityDay.id,
+      data: { activities: [...existing, activity] },
+    });
+    toast({
+      title: tAct('addedToDay', { dayNumber: addActivityDay.day_number }),
+    });
   };
 
   const handleDeleteDay = (dayId: string) => {
@@ -238,7 +255,15 @@ export default function ItineraryPage() {
         tripId={tripId}
         day={editingDay}
         dayNumber={dialogMode === 'edit' ? editingDay?.day_number : days.length + 1}
-        autoAddActivity={autoAddActivity}
+      />
+
+      {/* 卡片捷徑：手機友善的單一活動新增（不開整天編輯） */}
+      <ActivityFormDialog
+        open={!!addActivityDay}
+        onClose={() => setAddActivityDay(null)}
+        onSubmit={handleActivitySubmit}
+        tripId={tripId}
+        dayNumber={addActivityDay?.day_number}
       />
 
       {/* Delete Confirmation Dialog */}

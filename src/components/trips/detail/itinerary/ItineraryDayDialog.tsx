@@ -10,7 +10,6 @@ import ActivityListEditor, {
   type ActivityDraft,
   dayActivitiesToDrafts,
   draftsToPayload,
-  makeEmptyActivity,
 } from './ActivityListEditor';
 import { sortActivities } from '@/lib/itineraryActivities';
 import MarkdownRenderer from './MarkdownRenderer';
@@ -43,8 +42,6 @@ interface ItineraryDayDialogProps {
   tripId: string;
   day?: ItineraryDay | null;
   dayNumber?: number;
-  /** 從卡片「新增活動」捷徑開啟：自動補一列空白活動並捲動到活動區。 */
-  autoAddActivity?: boolean;
 }
 
 export default function ItineraryDayDialog({
@@ -55,7 +52,6 @@ export default function ItineraryDayDialog({
   tripId,
   day,
   dayNumber,
-  autoAddActivity = false,
 }: ItineraryDayDialogProps) {
   const tItinerary = useTranslations('itinerary');
   const tCommon = useTranslations('common');
@@ -67,7 +63,6 @@ export default function ItineraryDayDialog({
   const [viewMode, setViewMode] = useState<'write' | 'preview'>('write');
   const [loading, setLoading] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const activitiesRef = useRef<HTMLDivElement>(null);
 
   const autoResize = useCallback(() => {
     const textarea = textareaRef.current;
@@ -95,9 +90,8 @@ export default function ItineraryDayDialog({
               }
             : null
         );
-        // 開啟時依時間排序，避免編輯器看起來雜亂；從卡片捷徑進來時再補一列空白活動。
-        const drafts = sortActivities(dayActivitiesToDrafts(day.activities));
-        setActivities(autoAddActivity ? [...drafts, makeEmptyActivity()] : drafts);
+        // 開啟時依時間排序，避免編輯器看起來雜亂。
+        setActivities(sortActivities(dayActivitiesToDrafts(day.activities)));
       } else {
         setTitle('');
         setContent('');
@@ -106,14 +100,8 @@ export default function ItineraryDayDialog({
       }
       setViewMode('write');
       requestAnimationFrame(autoResize);
-      // 捷徑新增活動：捲動到活動區，讓使用者直接看到要填的空白列。
-      if (mode === 'edit' && autoAddActivity) {
-        requestAnimationFrame(() =>
-          activitiesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
-        );
-      }
     }
-  }, [open, mode, day, autoResize, autoAddActivity]);
+  }, [open, mode, day, autoResize]);
 
   useEffect(() => {
     if (viewMode === 'write') {
@@ -224,9 +212,7 @@ export default function ItineraryDayDialog({
 
           <Separator />
 
-          <div ref={activitiesRef}>
-            <ActivityListEditor tripId={tripId} activities={activities} onChange={setActivities} />
-          </div>
+          <ActivityListEditor tripId={tripId} activities={activities} onChange={setActivities} />
         </form>
 
         <Separator />

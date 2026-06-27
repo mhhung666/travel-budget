@@ -96,6 +96,117 @@ export function draftsToPayload(drafts: ActivityDraft[]): ActivityPayload[] {
     }));
 }
 
+/**
+ * 單一活動的編輯卡（時間 / 標題 / 類型 / 地點 / 確認碼 / 備註 / 票券）。抽出共用，
+ * 供 ActivityListEditor（整天多列）與 ActivityFormDialog（手機友善的單一新增）共用。
+ * 給 onRemove 時右上角顯示刪除鈕（清單情境）；不給則隱藏（單一新增情境）。
+ */
+export function ActivityCard({
+  tripId,
+  activity,
+  onChange,
+  onRemove,
+}: {
+  tripId: string;
+  activity: ActivityDraft;
+  onChange: (fields: Partial<ActivityDraft>) => void;
+  onRemove?: () => void;
+}) {
+  const t = useTranslations('itinerary.activities');
+
+  return (
+    <div className="space-y-2 rounded-lg border bg-muted/20 p-3">
+      <div className="flex items-center gap-2">
+        <Input
+          type="time"
+          aria-label={t('time')}
+          className="w-[7.5rem]"
+          value={activity.time}
+          onChange={(e) => onChange({ time: e.target.value })}
+        />
+        <span className="text-muted-foreground">–</span>
+        <Input
+          type="time"
+          aria-label={t('endTime')}
+          className="w-[7.5rem]"
+          value={activity.endTime}
+          onChange={(e) => onChange({ endTime: e.target.value })}
+        />
+        <div className="flex-1" />
+        {onRemove && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+            onClick={onRemove}
+            title={t('remove')}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <Input
+          className="flex-1"
+          placeholder={t('titlePlaceholder')}
+          value={activity.title}
+          onChange={(e) => onChange({ title: e.target.value })}
+        />
+        <Select value={activity.type} onValueChange={(v) => onChange({ type: v as ActivityType })}>
+          <SelectTrigger className="sm:w-40" aria-label={t('typeLabel')}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {ACTIVITY_TYPE_ORDER.map((type) => {
+              const Icon = ACTIVITY_TYPE_ICON[type];
+              return (
+                <SelectItem key={type} value={type}>
+                  <span className="flex items-center gap-2">
+                    <Icon className="h-3.5 w-3.5" />
+                    {t(`types.${type}`)}
+                  </span>
+                </SelectItem>
+              );
+            })}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <LocationAutocomplete
+        value={activity.location}
+        onChange={(loc) => onChange({ location: loc })}
+        placeholder={t('locationPlaceholder')}
+      />
+
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <Input
+          className="sm:w-48"
+          placeholder={t('confirmationCodePlaceholder')}
+          value={activity.confirmationCode}
+          onChange={(e) => onChange({ confirmationCode: e.target.value })}
+        />
+        <Input
+          className="flex-1"
+          placeholder={t('notePlaceholder')}
+          value={activity.note}
+          onChange={(e) => onChange({ note: e.target.value })}
+        />
+      </div>
+
+      <div className="space-y-1.5">
+        <Label className="text-xs text-muted-foreground">{t('tickets')}</Label>
+        <TicketUploader
+          tripId={tripId}
+          value={activity.attachments}
+          onChange={(next) => onChange({ attachments: next })}
+        />
+      </div>
+    </div>
+  );
+}
+
 interface ActivityListEditorProps {
   /** 票券附件上傳/檢視需要 trip 識別碼。 */
   tripId: string;
@@ -148,96 +259,13 @@ export default function ActivityListEditor({
       ) : (
         <div className="space-y-3">
           {activities.map((activity) => (
-            <div key={activity.key} className="space-y-2 rounded-lg border bg-muted/20 p-3">
-              <div className="flex items-center gap-2">
-                <Input
-                  type="time"
-                  aria-label={t('time')}
-                  className="w-[7.5rem]"
-                  value={activity.time}
-                  onChange={(e) => patch(activity.key, { time: e.target.value })}
-                />
-                <span className="text-muted-foreground">–</span>
-                <Input
-                  type="time"
-                  aria-label={t('endTime')}
-                  className="w-[7.5rem]"
-                  value={activity.endTime}
-                  onChange={(e) => patch(activity.key, { endTime: e.target.value })}
-                />
-                <div className="flex-1" />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                  onClick={() => remove(activity.key)}
-                  title={t('remove')}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <Input
-                  className="flex-1"
-                  placeholder={t('titlePlaceholder')}
-                  value={activity.title}
-                  onChange={(e) => patch(activity.key, { title: e.target.value })}
-                />
-                <Select
-                  value={activity.type}
-                  onValueChange={(v) => patch(activity.key, { type: v as ActivityType })}
-                >
-                  <SelectTrigger className="sm:w-40" aria-label={t('typeLabel')}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ACTIVITY_TYPE_ORDER.map((type) => {
-                      const Icon = ACTIVITY_TYPE_ICON[type];
-                      return (
-                        <SelectItem key={type} value={type}>
-                          <span className="flex items-center gap-2">
-                            <Icon className="h-3.5 w-3.5" />
-                            {t(`types.${type}`)}
-                          </span>
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <LocationAutocomplete
-                value={activity.location}
-                onChange={(loc) => patch(activity.key, { location: loc })}
-                placeholder={t('locationPlaceholder')}
-              />
-
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <Input
-                  className="sm:w-48"
-                  placeholder={t('confirmationCodePlaceholder')}
-                  value={activity.confirmationCode}
-                  onChange={(e) => patch(activity.key, { confirmationCode: e.target.value })}
-                />
-                <Input
-                  className="flex-1"
-                  placeholder={t('notePlaceholder')}
-                  value={activity.note}
-                  onChange={(e) => patch(activity.key, { note: e.target.value })}
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">{t('tickets')}</Label>
-                <TicketUploader
-                  tripId={tripId}
-                  value={activity.attachments}
-                  onChange={(next) => patch(activity.key, { attachments: next })}
-                />
-              </div>
-            </div>
+            <ActivityCard
+              key={activity.key}
+              tripId={tripId}
+              activity={activity}
+              onChange={(fields) => patch(activity.key, fields)}
+              onRemove={() => remove(activity.key)}
+            />
           ))}
         </div>
       )}
