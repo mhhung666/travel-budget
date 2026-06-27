@@ -46,9 +46,9 @@
 **問題**：`getExpenses`（[expense.actions.ts](../src/actions/expense.actions.ts)）與公開 expenses 路由皆 `Expense.find({ trip })` 全量載入 + 雙 `populate`。一般旅行筆數有限尚可，但長期 / 大型旅行無分頁保護。
 **建議**：先觀察實際資料量再決定。若需要，加上 `limit` + 游標分頁（以 `date`/`_id`），前端配合無限捲動；屬「為未來鋪路」，非當前痛點。
 
-### H. ⚠️ 安全標頭（Security headers）
+### H. ✅ 安全標頭（Security headers）
 **問題**：[next.config.ts](../next.config.ts) 與 [proxy.ts](../src/proxy.ts) 都未設置安全標頭（CSP、`X-Frame-Options` / frame-ancestors、`Referrer-Policy`、`X-Content-Type-Options` 等）。
-**建議**：在 `next.config.ts` 的 `headers()` 加上基本安全標頭。CSP 需配合 next-intl / 內嵌樣式測試，可先上較寬鬆版本再收緊。
+**修復（已完成）**：在 [next.config.ts](../next.config.ts) 的 `headers()` 對所有路由加上 `X-Content-Type-Options: nosniff`、`X-Frame-Options: DENY`、`Referrer-Policy: strict-origin-when-cross-origin`、`X-DNS-Prefetch-Control: on`，以及 `Content-Security-Policy: frame-ancestors 'none'`（防點擊劫持，與 `X-Frame-Options` 互補）；`Strict-Transport-Security`（HSTS，2 年 + includeSubDomains）只在 production 送出。**完整 CSP（`default-src`/`script-src`…）刻意未上**——需配合 Leaflet 圖磚、R2 圖片/PDF、next-themes 內嵌腳本與 Radix 內嵌樣式實測，列為後續；目前的 CSP 僅含 `frame-ancestors`，不限制其他資源故不會誤擋既有功能。
 
 ---
 
@@ -58,7 +58,7 @@
 高（低成本、高效益）
   ├── C  CI workflow（lint/test/build 把關）  ✅
   ├── D  Public API 錯誤碼統一  ✅
-  └── H  安全標頭
+  └── H  安全標頭  ✅
 
 中
   ├── B  actions/* 測試
