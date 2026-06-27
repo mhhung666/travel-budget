@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { Expense } from '@/types';
 import type { SetBudgetInput } from '@/lib/validation';
+import { EMPTY_EXPENSE_FILTERS, type ExpenseFilters } from '@/lib/expenseFilters';
 import { useDialog } from '@/hooks/useDialog';
 import { useToast } from '@/hooks/use-toast';
 import type { ExpenseDialogData, EditTripFormData } from '@/components/trips/detail/dialogs';
@@ -51,7 +52,7 @@ export function useTripDetailPage(tripId: string) {
   const budgetDialog = useDialog();
 
   // --- Filter & expand state ---
-  const [filterMemberId, setFilterMemberId] = useState<string | 'all'>('all');
+  const [filters, setFilters] = useState<ExpenseFilters>(EMPTY_EXPENSE_FILTERS);
   const [expensesExpanded, setExpensesExpanded] = useState(true);
 
   const toastError = (err: unknown) => {
@@ -174,8 +175,8 @@ export function useTripDetailPage(tripId: string) {
     budgetDialog,
     isDeletingExpense: expenseMutations.remove.isPending,
     // filter & expand
-    filterMemberId,
-    setFilterMemberId,
+    filters,
+    setFilters,
     expensesExpanded,
     toggleExpensesExpanded: () => setExpensesExpanded((v) => !v),
     // handlers

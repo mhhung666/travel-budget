@@ -42,8 +42,8 @@ export default function TripDetailPage() {
     editTripDialog,
     budgetDialog,
     isDeletingExpense,
-    filterMemberId,
-    setFilterMemberId,
+    filters,
+    setFilters,
     expensesExpanded,
     toggleExpensesExpanded,
     handleAddExpense,
@@ -179,8 +179,8 @@ export default function TripDetailPage() {
               itineraryDays={itineraryDays}
               tripName={trip.name}
               isCurrentUserMember={isMember}
-              filterMemberId={filterMemberId}
-              onFilterChange={setFilterMemberId}
+              filters={filters}
+              onFiltersChange={setFilters}
               onAdd={() => addExpenseDialog.openDialog()}
               onEdit={(expense) => editExpenseDialog.openDialog(expense)}
               onDelete={handleDeleteExpense}
