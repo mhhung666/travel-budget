@@ -150,6 +150,7 @@ export default function SettlementPage() {
                 id: currentUser.id,
                 username: currentUser.display_name,
                 email: currentUser.email,
+                avatar_url: currentUser.avatar_url,
               }
             : null
         }

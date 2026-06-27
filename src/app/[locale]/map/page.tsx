@@ -37,6 +37,7 @@ export default function MapPage() {
                 id: user.id,
                 username: user.display_name || user.username,
                 email: user.email,
+                avatar_url: user.avatar_url,
               }
             : null
         }

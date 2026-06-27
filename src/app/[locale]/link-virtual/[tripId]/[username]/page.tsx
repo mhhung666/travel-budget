@@ -148,6 +148,7 @@ export default function LinkVirtualMemberPage() {
                 id: currentUser.id,
                 username: currentUser.display_name,
                 email: currentUser.email,
+                avatar_url: currentUser.avatar_url,
               }
             : null
         }
