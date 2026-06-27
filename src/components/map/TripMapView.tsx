@@ -315,7 +315,7 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
 
       <div className="grid gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-[320px_1fr]">
         {/* 時間軸列表 */}
-        <aside className="order-2 lg:order-1 lg:overflow-y-auto lg:pr-1">
+        <aside className="order-2 min-w-0 lg:order-1 lg:overflow-y-auto lg:pr-1">
           {mode === 'heat' ? (
             <>
               <h2 className="mb-3 px-1 text-sm font-medium text-muted-foreground">
@@ -430,7 +430,7 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
         </aside>
 
         {/* 地圖 */}
-        <div className="order-1 h-[50vh] lg:order-2 lg:h-full">
+        <div className="order-1 h-[50vh] min-w-0 overflow-hidden rounded-lg lg:order-2 lg:h-full">
           <TripMapCanvas
             mode={mode}
             routes={routes}
