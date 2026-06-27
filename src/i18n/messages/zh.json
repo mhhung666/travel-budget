@@ -219,6 +219,8 @@
       "category": "消費類別",
       "date": "日期",
       "payer": "付款人",
+      "itineraryDay": "關聯行程日",
+      "itineraryDayNone": "不關聯",
       "splitWith": "分帳對象",
       "convertedAmount": "換算金額"
     },
@@ -594,7 +596,30 @@
     },
     "backToTrip": "返回旅行詳情",
     "lastUpdated": "最後更新",
-    "loadFailed": "無法載入行程規劃"
+    "loadFailed": "無法載入行程規劃",
+    "activities": {
+      "heading": "當日活動",
+      "add": "新增活動",
+      "remove": "移除",
+      "empty": "尚無活動",
+      "typeLabel": "類型",
+      "titlePlaceholder": "要做什麼？",
+      "time": "開始",
+      "endTime": "結束",
+      "note": "備註",
+      "notePlaceholder": "選填說明",
+      "confirmationCode": "訂位代號",
+      "confirmationCodePlaceholder": "確認碼 / PNR",
+      "locationPlaceholder": "加上地點（選填）",
+      "types": {
+        "sightseeing": "景點",
+        "food": "餐飲",
+        "transport": "交通",
+        "accommodation": "住宿",
+        "activity": "活動",
+        "other": "其他"
+      }
+    }
   },
   "export": {
     "label": "匯出",

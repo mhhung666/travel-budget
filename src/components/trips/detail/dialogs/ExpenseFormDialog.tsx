@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { DollarSign, RefreshCw, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { CATEGORIES, DEFAULT_CATEGORY } from '@/constants/categories';
-import type { Expense, ExpenseAttachment, Member } from '@/types';
+import type { Expense, ExpenseAttachment, Member, ItineraryDay } from '@/types';
 import { cn } from '@/lib/utils';
 import { computeSplits, type SplitMode } from '@/lib/expenseSplit';
 import { ReceiptUploader } from '@/components/trips/detail/ReceiptAttachments';
@@ -43,6 +43,8 @@ export interface ExpenseDialogData {
   date: string;
   splits: { user_id: string; share_amount: number }[];
   attachments: ExpenseAttachment[];
+  /** 關聯的行程日 id；不關聯時為 null。 */
+  itinerary_day_id: string | null;
 }
 
 interface ExpenseFormDialogProps {
@@ -54,7 +56,12 @@ interface ExpenseFormDialogProps {
   members: Member[];
   currentUser: { id: string } | null;
   expense?: Expense | null; // Required for edit mode
+  /** 本 trip 的行程日（供「關聯行程日」下拉）；無則不顯示該欄位。 */
+  itineraryDays?: ItineraryDay[];
 }
+
+// Radix Select 不接受空字串值，故以此 sentinel 代表「不關聯」。
+const NO_ITINERARY_DAY = '__none__';
 
 export default function ExpenseFormDialog({
   mode,
@@ -65,6 +72,7 @@ export default function ExpenseFormDialog({
   members,
   currentUser,
   expense,
+  itineraryDays = [],
 }: ExpenseFormDialogProps) {
   const tExpense = useTranslations('expense');
   const tCommon = useTranslations('common');
@@ -87,6 +95,7 @@ export default function ExpenseFormDialog({
   >({});
   const [showAdvanced, setShowAdvanced] = useState(mode === 'edit'); // Default expanded for edit
   const [attachments, setAttachments] = useState<ExpenseAttachment[]>([]);
+  const [itineraryDayId, setItineraryDayId] = useState<string>('');
 
   // Exchange rate states
   const [exchangeRates, setExchangeRates] = useState<Record<string, number>>({});
@@ -160,6 +169,7 @@ export default function ExpenseFormDialog({
         });
         setSplitState(initialSplits);
         setAttachments(expense.attachments ?? []);
+        setItineraryDayId(expense.itinerary_day_id ?? '');
       } else {
         // Add mode: Initialize with defaults
         setForm({
@@ -180,6 +190,7 @@ export default function ExpenseFormDialog({
         });
         setSplitState(initialSplits);
         setAttachments([]);
+        setItineraryDayId('');
       }
 
       setError('');
@@ -250,6 +261,7 @@ export default function ExpenseFormDialog({
         ...form,
         splits: finalSplits,
         attachments,
+        itinerary_day_id: itineraryDayId || null,
       });
       // Parent handles close
     } catch (err: unknown) {
@@ -570,6 +582,32 @@ export default function ExpenseFormDialog({
                   onChange={(e) => setForm({ ...form, date: e.target.value })}
                 />
               </div>
+
+              {itineraryDays.length > 0 && (
+                <div className="space-y-2">
+                  <Label>{tExpense('form.itineraryDay')}</Label>
+                  <Select
+                    value={itineraryDayId || NO_ITINERARY_DAY}
+                    onValueChange={(val) =>
+                      setItineraryDayId(val === NO_ITINERARY_DAY ? '' : val)
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NO_ITINERARY_DAY}>
+                        {tExpense('form.itineraryDayNone')}
+                      </SelectItem>
+                      {itineraryDays.map((day) => (
+                        <SelectItem key={day.id} value={day.id}>
+                          Day {day.day_number} · {day.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               {form.currency !== 'TWD' && (
                 <div className="space-y-2">

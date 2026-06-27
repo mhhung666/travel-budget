@@ -30,6 +30,7 @@ export default function TripDetailPage() {
     trip,
     expenses,
     members,
+    itineraryDays,
     currentUser,
     isMember,
     isAdmin,
@@ -175,6 +176,7 @@ export default function TripDetailPage() {
               tripId={tripId}
               expenses={expenses}
               members={members}
+              itineraryDays={itineraryDays}
               tripName={trip.name}
               isCurrentUserMember={isMember}
               filterMemberId={filterMemberId}
@@ -198,6 +200,7 @@ export default function TripDetailPage() {
         onSubmit={handleAddExpense}
         members={members}
         currentUser={currentUser}
+        itineraryDays={itineraryDays}
       />
 
       <ExpenseFormDialog
@@ -209,6 +212,7 @@ export default function TripDetailPage() {
         expense={editExpenseDialog.data}
         members={members}
         currentUser={currentUser}
+        itineraryDays={itineraryDays}
       />
 
       <EditTripDialog

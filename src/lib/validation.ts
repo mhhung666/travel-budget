@@ -95,6 +95,8 @@ export const createExpenseSchema = z.object({
     )
     .min(1, '至少需要一位分帳對象'),
   attachments: z.array(attachmentInputSchema).max(10, '收據數量過多').optional(),
+  // 可選的關聯行程日；null＝不關聯。歸屬（須屬本 trip）由 action 驗證。
+  itinerary_day_id: objectIdSchema.nullable().optional(),
 });
 
 export const updateExpenseSchema = z.object({
@@ -118,6 +120,8 @@ export const updateExpenseSchema = z.object({
     .min(1, '至少需要一位分帳對象')
     .optional(),
   attachments: z.array(attachmentInputSchema).max(10, '收據數量過多').optional(),
+  // 可選的關聯行程日；傳 null 可清除關聯。歸屬由 action 驗證。
+  itinerary_day_id: objectIdSchema.nullable().optional(),
 });
 
 // Budget schemas（金額一律基準幣 TWD）
@@ -189,10 +193,33 @@ export const addVirtualMemberSchema = z.object({
 });
 
 // Itinerary schemas
+// "HH:mm" 24 小時制；空字串 / null / 省略皆視為未指定（統一轉成 null）。
+const timeOfDaySchema = z
+  .string()
+  .regex(/^([01]\d|2[0-3]):[0-5]\d$/, '時間格式需為 HH:mm')
+  .or(z.literal(''))
+  .nullable()
+  .optional()
+  .transform((v) => v || null);
+
+// 單一活動。不含 id：整個 activities 陣列由 updateItineraryDay 覆寫，子文件 _id 由 Mongoose 重新產生。
+export const activitySchema = z.object({
+  time: timeOfDaySchema,
+  end_time: timeOfDaySchema,
+  title: z.string().min(1, '活動標題不能為空').trim(),
+  type: z
+    .enum(['sightseeing', 'food', 'transport', 'accommodation', 'activity', 'other'])
+    .default('other'),
+  location: locationSchema.nullable().optional(),
+  note: z.string().default(''),
+  confirmation_code: z.string().default(''),
+});
+
 export const createItineraryDaySchema = z.object({
   title: z.string().min(1, '標題不能為空').trim(),
   content: z.string().default(''),
   location: locationSchema.nullable().optional(),
+  activities: z.array(activitySchema).optional(),
 });
 
 export const updateItineraryDaySchema = z.object({
@@ -200,6 +227,7 @@ export const updateItineraryDaySchema = z.object({
   content: z.string().optional(),
   day_number: z.number().int().positive().optional(),
   location: locationSchema.nullable().optional(),
+  activities: z.array(activitySchema).optional(),
 });
 
 // Checklist schemas（打包清單 / 待辦；任何成員皆可編輯）
@@ -232,6 +260,7 @@ export type CreateChecklistInput = z.infer<typeof createChecklistSchema>;
 export type UpdateChecklistInput = z.infer<typeof updateChecklistSchema>;
 export type AddChecklistItemInput = z.infer<typeof addChecklistItemSchema>;
 export type UpdateChecklistItemInput = z.infer<typeof updateChecklistItemSchema>;
+export type ActivityInput = z.infer<typeof activitySchema>;
 export type CreateItineraryDayInput = z.infer<typeof createItineraryDaySchema>;
 export type UpdateItineraryDayInput = z.infer<typeof updateItineraryDaySchema>;
 export type CreateTripInput = z.infer<typeof createTripSchema>;

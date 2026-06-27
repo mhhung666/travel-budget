@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createItineraryDay, updateItineraryDay, deleteItineraryDay } from '@/actions';
 import type { ActionResult } from '@/actions';
 import { tripKeys } from './keys';
-import type { Location } from '@/types';
+import type { ActivityType, Location } from '@/types';
 
 /** Unwraps an ActionResult, throwing on failure so React Query's onError fires. */
 async function unwrap<T>(p: Promise<ActionResult<T>>): Promise<T> {
@@ -13,10 +13,22 @@ async function unwrap<T>(p: Promise<ActionResult<T>>): Promise<T> {
   return result.data;
 }
 
+/** 送往 createItineraryDay / updateItineraryDay 的單一活動 payload（snake_case，對應 activitySchema）。 */
+export interface ActivityPayload {
+  time: string | null;
+  end_time: string | null;
+  title: string;
+  type: ActivityType;
+  location?: Location | null;
+  note: string;
+  confirmation_code: string;
+}
+
 interface DayInput {
   title: string;
   content: string;
   location?: Location | null;
+  activities?: ActivityPayload[];
 }
 
 /**

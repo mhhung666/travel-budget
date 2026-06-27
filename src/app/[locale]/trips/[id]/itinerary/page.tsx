@@ -11,6 +11,7 @@ import type { LocationOption } from '@/components/location/LocationAutocomplete'
 import { ExportMenu } from '@/components/export';
 import type { ItineraryDay } from '@/types';
 import { useItinerary, useTrip, useTripMembership, useItineraryMutations } from '@/hooks/queries';
+import type { ActivityPayload } from '@/hooks/queries/useItineraryMutations';
 import { exportItinerary, type ExportFormat } from '@/lib/exporters';
 
 import { ItinerarySkeleton } from '@/components/skeletons';
@@ -33,6 +34,7 @@ export default function ItineraryPage() {
   const params = useParams();
   const tripId = params.id as string;
   const tItinerary = useTranslations('itinerary');
+  const tAct = useTranslations('itinerary.activities');
 
   const { toast } = useToast();
 
@@ -52,6 +54,14 @@ export default function ItineraryPage() {
         day: tExport('itinerary.colDay'),
         title: tExport('itinerary.colTitle'),
         content: tExport('itinerary.colContent'),
+      },
+      activityTypes: {
+        sightseeing: tAct('types.sightseeing'),
+        food: tAct('types.food'),
+        transport: tAct('types.transport'),
+        accommodation: tAct('types.accommodation'),
+        activity: tAct('types.activity'),
+        other: tAct('types.other'),
       },
     });
 
@@ -102,6 +112,7 @@ export default function ItineraryPage() {
     title: string;
     content: string;
     location: LocationOption | null;
+    activities: ActivityPayload[];
   }) => {
     if (dialogMode === 'add') {
       const newDayNumber = days.length + 1;

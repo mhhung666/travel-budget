@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { Expense, Trip, EXPENSE_CATEGORIES } from '@/models';
+import { Expense, Trip, ItineraryDay, EXPENSE_CATEGORIES } from '@/models';
 import { getTripMembership } from '@/lib/permissions';
 import {
   createExpenseSchema,
@@ -27,6 +27,18 @@ type LeanExpense = ExpenseDtoInput & { date: Date };
 function splitsMatchAmount(splits: { share_amount: number }[], amount: number): boolean {
   const sum = splits.reduce((acc, sp) => acc + sp.share_amount, 0);
   return Math.abs(sum - amount) <= Math.max(1, amount * 0.01);
+}
+
+/**
+ * 驗證關聯行程日（若有）屬於本 trip——比照 payer/split 須為本 trip 成員的歸屬檢查，
+ * 防止把支出指向別團的行程日。null/undefined（不關聯）一律通過。
+ */
+async function itineraryDayBelongsToTrip(
+  tripId: string,
+  dayId: string | null | undefined
+): Promise<boolean> {
+  if (!dayId) return true;
+  return (await ItineraryDay.exists({ _id: dayId, trip: tripId })) !== null;
 }
 
 type AttachmentDoc = {
@@ -133,6 +145,7 @@ export const createExpense = withAuth(
         date,
         splits,
         attachments,
+        itinerary_day_id,
       } = validation.data;
 
       const amount = original_amount * exchange_rate;
@@ -159,6 +172,11 @@ export const createExpense = withAuth(
         return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
       }
 
+      // 關聯行程日（若有）須屬本 trip
+      if (!(await itineraryDayBelongsToTrip(tripId, itinerary_day_id))) {
+        return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
+      }
+
       // 驗證並轉換收據附件（key 須屬本 trip、物件須存在、size/type 以 headObject 為準）
       let attachmentDocs: AttachmentDoc[] = [];
       if (attachments && attachments.length > 0) {
@@ -181,6 +199,7 @@ export const createExpense = withAuth(
         date: new Date(date),
         splits: splits.map((s) => ({ user: s.user_id, shareAmount: s.share_amount })),
         attachments: attachmentDocs,
+        itineraryDay: itinerary_day_id ?? null,
       });
 
       await created.populate([
@@ -237,6 +256,7 @@ export const updateExpense = withAuth(
         date,
         splits,
         attachments,
+        itinerary_day_id,
       } = validation.data;
 
       // 讀取目前值（同時作為 existence check）
@@ -267,6 +287,14 @@ export const updateExpense = withAuth(
       if (category !== undefined) set.category = category;
       if (payer_id !== undefined) set.payer = payer_id;
       if (date !== undefined) set.date = new Date(date);
+
+      // 關聯行程日：欄位出現才處理；傳 null 可清除關聯，傳 id 須屬本 trip。
+      if (itinerary_day_id !== undefined) {
+        if (!(await itineraryDayBelongsToTrip(tripId, itinerary_day_id))) {
+          return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
+        }
+        set.itineraryDay = itinerary_day_id ?? null;
+      }
 
       // Recalculate TWD amount if needed
       let newAmount: number | undefined;

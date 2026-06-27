@@ -45,6 +45,7 @@ const days: ItineraryDay[] = [
     title: 'Osaka',
     content: 'Arrive\nCheck in',
     location: null,
+    activities: [],
     created_at: '',
     updated_at: '',
   },
@@ -55,6 +56,7 @@ const days: ItineraryDay[] = [
     title: 'Kyoto',
     content: '',
     location: null,
+    activities: [],
     created_at: '',
     updated_at: '',
   },
@@ -82,6 +84,44 @@ describe('exportItinerary', () => {
   it('renders json round-trippable to the original data', () => {
     const { content } = exportItinerary(days, 'json', itineraryLabels);
     expect(JSON.parse(content)).toEqual(days);
+  });
+
+  it('renders activities as markdown list items, ordered by time', () => {
+    const withActivities: ItineraryDay[] = [
+      {
+        ...days[0],
+        activities: [
+          {
+            id: 'a2',
+            time: '12:30',
+            end_time: null,
+            title: 'Lunch',
+            type: 'food',
+            location: null,
+            note: '',
+            confirmation_code: '',
+          },
+          {
+            id: 'a1',
+            time: '09:00',
+            end_time: null,
+            title: 'Castle',
+            type: 'sightseeing',
+            location: null,
+            note: '',
+            confirmation_code: '',
+          },
+        ],
+      },
+    ];
+    const { content } = exportItinerary(withActivities, 'markdown', {
+      ...itineraryLabels,
+      activityTypes: { food: 'Food', sightseeing: 'Sightseeing' },
+    });
+    expect(content).toContain('- 09:00 · **Castle** · (Sightseeing)');
+    expect(content).toContain('- 12:30 · **Lunch** · (Food)');
+    // 09:00 activity must come before 12:30
+    expect(content.indexOf('Castle')).toBeLessThan(content.indexOf('Lunch'));
   });
 });
 
@@ -121,6 +161,7 @@ const expenses: Expense[] = [
       { user_id: 'u2', username: 'bob', display_name: 'Bob', share_amount: 150 },
     ],
     attachments: [],
+    itinerary_day_id: null,
   },
 ];
 

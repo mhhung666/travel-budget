@@ -219,6 +219,8 @@
       "category": "消费类别",
       "date": "日期",
       "payer": "付款人",
+      "itineraryDay": "关联行程日",
+      "itineraryDayNone": "不关联",
       "splitWith": "分账对象",
       "convertedAmount": "换算金额"
     },
@@ -594,7 +596,30 @@
     },
     "backToTrip": "返回旅行详情",
     "lastUpdated": "最后更新",
-    "loadFailed": "无法加载行程规划"
+    "loadFailed": "无法加载行程规划",
+    "activities": {
+      "heading": "当日活动",
+      "add": "新增活动",
+      "remove": "移除",
+      "empty": "尚无活动",
+      "typeLabel": "类型",
+      "titlePlaceholder": "要做什么？",
+      "time": "开始",
+      "endTime": "结束",
+      "note": "备注",
+      "notePlaceholder": "选填说明",
+      "confirmationCode": "订位代号",
+      "confirmationCodePlaceholder": "确认码 / PNR",
+      "locationPlaceholder": "加上地点（选填）",
+      "types": {
+        "sightseeing": "景点",
+        "food": "餐饮",
+        "transport": "交通",
+        "accommodation": "住宿",
+        "activity": "活动",
+        "other": "其他"
+      }
+    }
   },
   "export": {
     "label": "导出",

@@ -219,6 +219,8 @@
       "category": "カテゴリ",
       "date": "日付",
       "payer": "支払者",
+      "itineraryDay": "関連する日程",
+      "itineraryDayNone": "なし",
       "splitWith": "割り勘対象",
       "convertedAmount": "換算金額"
     },
@@ -594,7 +596,30 @@
     },
     "backToTrip": "旅行詳細に戻る",
     "lastUpdated": "最終更新",
-    "loadFailed": "旅程プランの読み込みに失敗しました"
+    "loadFailed": "旅程プランの読み込みに失敗しました",
+    "activities": {
+      "heading": "アクティビティ",
+      "add": "追加",
+      "remove": "削除",
+      "empty": "アクティビティはまだありません",
+      "typeLabel": "種類",
+      "titlePlaceholder": "予定は？",
+      "time": "開始",
+      "endTime": "終了",
+      "note": "メモ",
+      "notePlaceholder": "任意のメモ",
+      "confirmationCode": "予約番号",
+      "confirmationCodePlaceholder": "確認番号 / PNR",
+      "locationPlaceholder": "場所を追加（任意）",
+      "types": {
+        "sightseeing": "観光",
+        "food": "食事",
+        "transport": "移動",
+        "accommodation": "宿泊",
+        "activity": "アクティビティ",
+        "other": "その他"
+      }
+    }
   },
   "export": {
     "label": "エクスポート",

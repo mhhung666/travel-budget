@@ -8,6 +8,7 @@ import type { ExpenseDialogData, EditTripFormData } from '@/components/trips/det
 import {
   useTrip,
   useExpenses,
+  useItinerary,
   useTripMembership,
   useExpenseMutations,
   useTripMutations,
@@ -32,6 +33,8 @@ export function useTripDetailPage(tripId: string) {
   // --- Data ---
   const { data: trip, isLoading: tripLoading, isError } = useTrip(tripId);
   const { data: expenses = [] } = useExpenses(tripId);
+  // 行程日供支出表單「關聯行程日」下拉與支出卡的 Day 標籤使用（React Query 快取，與行程頁共用）。
+  const { data: itineraryDays = [] } = useItinerary(tripId);
   const { currentUser, members, isMember, isAdmin } = useTripMembership(tripId);
 
   const expenseMutations = useExpenseMutations(tripId);
@@ -71,6 +74,7 @@ export function useTripDetailPage(tripId: string) {
       date: data.date,
       splits: data.splits,
       attachments: data.attachments,
+      itinerary_day_id: data.itinerary_day_id || null,
     });
 
     addExpenseDialog.closeDialog();
@@ -96,6 +100,7 @@ export function useTripDetailPage(tripId: string) {
         date: data.date,
         splits: data.splits,
         attachments: data.attachments,
+        itinerary_day_id: data.itinerary_day_id || null,
       },
     });
 
@@ -154,6 +159,7 @@ export function useTripDetailPage(tripId: string) {
     trip,
     expenses,
     members,
+    itineraryDays,
     currentUser,
     isMember: !!isMember,
     isAdmin: !!isAdmin,

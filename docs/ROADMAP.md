@@ -8,7 +8,7 @@
 圖例：💎 旗艦（高價值、定義產品）　⭐ 高價值　🔹 加值/驚喜　｜　✅ 已完成
 成本：S（數天）／M（一兩週）／L（需基礎設施或大改）
 
-> **進度**：Tier 1 全數完成 — **#1 預算**、**#2 結算「標記已付」**、**#3 彈性分帳**；外加 **#13 群組統計**（全團視角）與 **#7 打包清單／待辦**。第二波已導入 **Cloudflare R2 blob 儲存**，完成 **#4 收據附件** 與 **#11 頭像**（分支 `feat/blob-storage-r2`，尚未合併）。下一步建議做無新基礎設施的 **#6 行程強化**，或接 **#9 通知**（結算提醒，續 #2）。
+> **進度**：Tier 1 全數完成 — **#1 預算**、**#2 結算「標記已付」**、**#3 彈性分帳**；外加 **#13 群組統計**（全團視角）與 **#7 打包清單／待辦**。第二波導入 **Cloudflare R2 blob 儲存**，完成 **#4 收據附件** 與 **#11 頭像**（已併入 master）。**#6 行程強化** 已完成 **Phase 1（活動時間軸）** 與 **Phase 2（支出↔行程連結）**（分支 `feat/itinerary-activities`），剩 **Phase 3**（票券附件、地圖/統計按天聚合）。下一步建議接 **#9 通知**（結算提醒，續 #2），或補完 **#6 Phase 3**。
 
 ---
 
@@ -100,12 +100,19 @@
 **為什麼**：出國當下常常**沒網路 / 漫遊昂貴**，卻正是要記帳的時刻。已有 manifest，但無 service worker / 離線快取。
 **做法**：加 service worker（`next-pwa` 或自寫 Workbox），支出建立採**樂觀 UI + 佇列**，連線恢復後同步。需處理離線時匯率（用最近一次快取值，回線再校正）。技術較深但對旅行 App 是殺手級體驗。
 
-### 6. ⭐ 行程強化：時段、預訂、與支出連結 (Richer itinerary) — M
+### 6. ⭐ 行程強化：時段、預訂、與支出連結 (Richer itinerary) — M〔Phase 1–2 已完成 2026-06-27；Phase 3 未做〕
 **為什麼**：目前行程只有「第幾天 + 標題 + 內容」。旅行者要的是**時間軸**與**訂房/機票**。
-**做法**
+
+> **已實作（Phase 1 — 活動時間軸）**：`ItineraryDay` 內嵌 `activities[]`＝`{ time?, endTime?, title, type, location?, note?, confirmationCode? }`（比照 [Checklist](../src/models/Checklist.ts) `items` 內嵌、每項自動 `_id`；additive、`default []`，**無遷移**）。`type`＝景點/餐飲/交通/住宿/活動/其他（獨立列舉，非 EXPENSE_CATEGORIES）。整個陣列由 `updateItineraryDay` **覆寫**（同 `splits` 取捨，未開逐項 action）；[activitySchema](../src/lib/validation.ts) 以 `HH:mm` 正則驗證、空字串/省略統一轉 null。輕量版**訂位/票券**（確認碼 + 起迄時間）已收進來；**票券附件留 Phase 3**。純函式 [sortActivities](../src/lib/itineraryActivities.ts)（有時間者升冪、無時間殿後）+ 單元測試。UI：[ItineraryDayCard](../src/components/trips/detail/itinerary/ItineraryDayCard.tsx) 時間軸 + [ActivityListEditor](../src/components/trips/detail/itinerary/ActivityListEditor.tsx) 編輯器接進對話框。**隱私決策**：[公開分享路由](../src/app/api/public/trips/%5Bid%5D/itinerary/route.ts) 回傳活動但**抹掉 `confirmationCode`**（訂位碼敏感，比照收據不外洩到公開頁）。markdown export 帶出活動清單。四語系。
+>
+> **已實作（Phase 2 — 支出↔行程連結）**：`Expense.itineraryDay`（nullable ref，additive 無遷移）。[create/updateExpense](../src/actions/expense.actions.ts) 接受 `itinerary_day_id` 並驗證該行程日**屬同一 trip**（比照 payer/split 的成員歸屬檢查，防跨團指向）。共用 [toExpenseDto](../src/lib/dto.ts) mapper 帶出 `itinerary_day_id`。**孤兒防護**：`deleteItineraryDay` 把參照此日的支出 `itineraryDay` 清為 null（比照 `removeMember` 清 checklist 指派；重編號不動 `_id`，故僅刪除需清）。UI：支出表單「關聯行程日」下拉（行程日經 React Query 與行程頁共用快取載入，省一次往返）+ 支出卡 `Day N` 標籤。四語系 + dto 測試。
+
+**做法（原始草圖）**
 - `ItineraryDay` 下加 `activities: [{ time?, title, location?, type }]`（景點/餐廳/交通…），或獨立 `Activity` model。
 - **訂位/票券**：航班、住宿的確認碼、入住/退房時間、附件（連動 #4）。
 - **行程↔支出連結**：`Expense.itineraryDayId?`，讓「第 3 天晚餐」可回溯，地圖/統計都能按天聚合。
+
+**Phase 3（未做）**：① 活動**票券附件**——擴 [uploads.ts](../src/lib/uploads.ts) 命名空間到 `itinerary/<tripId>/`，重用 #4 的 presigned PUT + `headObject` 驗證；② 地圖熱點 / 統計**按天聚合**——用 Phase 2 的 `Expense.itineraryDay` 連結把支出與地點按行程日匯總（連動 #13、#16）。
 
 ### 7. ✅ 🔹 打包清單 / 待辦 (Packing & checklist) — S〔已完成 2026-06-26〕
 **為什麼**：低成本、高頻使用的旅行小工具，黏著度高。
@@ -197,9 +204,9 @@
 
 第二波（旅行情境 + 一次性基礎設施）
   ├── 13 群組統計           ✅ 已完成（純查詢層、無新基礎設施）
-  ├── 4  收據照片  ┐ ✅ 已導入 Cloudflare R2 blob 儲存
+  ├── 4  收據照片  ┐ ✅ 已導入 Cloudflare R2 blob 儲存（已併入 master）
   ├── 11 頭像      ┘ ✅ 已完成（OAuth 未做）
-  └── 6  行程強化（時段/訂位/連結支出）  ← 下一波
+  └── 6  行程強化   ✅ Phase 1 活動時間軸 ・ Phase 2 支出↔行程連結（Phase 3 票券附件/按天聚合未做）
 
 第三波（協作與留存）
   ├── 8  活動紀錄  ┐ 一起做通知管線
@@ -212,7 +219,7 @@
   └── 12 旅伴 ・ 17 搜尋篩選 ・ 18 標籤 ・ 16 地圖統計
 ```
 
-**Tier 1 已全數完成**（#1 預算、#2 結算閉環、#3 彈性分帳）；第二波已完成 **#13 群組統計**，並導入 **Cloudflare R2 blob 儲存**解鎖 **#4 收據** 與 **#11 頭像**（分支 `feat/blob-storage-r2`，待合併）。下一步建議做無新基礎設施的 **#6 行程強化**（其「支出↔行程連結」能放大 #4 收據與 #13 統計），或接 **#9 通知**（結算提醒，續 #2）。
+**Tier 1 已全數完成**（#1 預算、#2 結算閉環、#3 彈性分帳）；第二波已完成 **#13 群組統計**、導入 **Cloudflare R2 blob 儲存**解鎖 **#4 收據** 與 **#11 頭像**（已併入 master），並完成 **#6 行程強化** 的 **Phase 1（活動時間軸）** 與 **Phase 2（支出↔行程連結）**（分支 `feat/itinerary-activities`）。下一步建議接 **#9 通知**（結算提醒，續 #2），或補完 **#6 Phase 3**（票券附件 + 地圖/統計按天聚合，後者能放大 #13 統計與 #16 地圖）。
 
 ---
 

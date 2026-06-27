@@ -28,6 +28,7 @@ export type ExpenseDtoInput = {
   payer: PopulatedRef;
   splits: { user: PopulatedRef; shareAmount: number }[];
   attachments?: { key: string; contentType: string; size: number }[];
+  itineraryDay?: { toString(): string } | null;
 };
 
 function toDateStr(d: Date | string): string {
@@ -68,6 +69,7 @@ export function toExpenseDto(
           size: a.size,
         }))
       : [],
+    itinerary_day_id: e.itineraryDay?.toString() ?? null,
   };
 }
 
