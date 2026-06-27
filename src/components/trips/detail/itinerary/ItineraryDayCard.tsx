@@ -98,22 +98,17 @@ export default function ItineraryDayCard({
               const Icon = ACTIVITY_TYPE_ICON[activity.type] ?? MapPin;
               return (
                 <div key={activity.id} className="flex items-start gap-3">
-                  <span className="w-11 shrink-0 pt-1 text-right text-xs font-medium tabular-nums text-muted-foreground">
-                    {activity.time ?? ''}
-                  </span>
+                  <div className="flex w-11 shrink-0 flex-col items-end pt-1 text-xs font-medium leading-tight tabular-nums text-muted-foreground">
+                    {activity.time && <span>{activity.time}</span>}
+                    {activity.end_time && (
+                      <span className="text-muted-foreground/70">{activity.end_time}</span>
+                    )}
+                  </div>
                   <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
                     <Icon className="h-3.5 w-3.5" />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-baseline gap-x-2">
-                      <span className="font-medium text-foreground">{activity.title}</span>
-                      {activity.end_time && (
-                        <span className="text-xs text-muted-foreground">
-                          {activity.time ? '– ' : ''}
-                          {activity.end_time}
-                        </span>
-                      )}
-                    </div>
+                    <span className="font-medium text-foreground">{activity.title}</span>
                     {activity.location && (
                       <span className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
                         <MapPin className="h-3 w-3 shrink-0" />
