@@ -202,6 +202,7 @@ export const createExpense = withAuth(
         splits: splits.map((s) => ({ user: s.user_id, shareAmount: s.share_amount })),
         attachments: attachmentDocs,
         itineraryDay: itinerary_day_id ?? null,
+        createdBy: session.userId,
       });
 
       await created.populate([

@@ -41,6 +41,13 @@ export function selectNotificationRecipients(
   return recipients;
 }
 
+/**
+ * 走「每日彙整 Email」而非即時寄信的通知類型。站內通知（鈴鐺）仍即時建立，只有
+ * 「即時 Email」被略過——改由每日 cron（/api/cron/expense-digest）彙整寄出，避免
+ * 每筆支出都寄一封過於頻繁。還款 / 成員加入屬低頻事件，維持即時 Email。
+ */
+const EMAIL_DIGESTED_TYPES: ReadonlySet<NotificationType> = new Set(['expense_added']);
+
 interface NotifyInput {
   tripId: string;
   /** 觸發此事件的使用者（不會收到自己的通知）。 */
@@ -151,6 +158,7 @@ async function sendNotificationEmails({
   actorName: string;
   meta: NotificationMeta;
 }): Promise<void> {
+  if (EMAIL_DIGESTED_TYPES.has(type)) return; // 改走每日彙整，不即時寄信
   const config = getResendConfig();
   if (!config) return; // 未配置 Resend → 不寄 Email
 

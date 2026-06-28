@@ -7,7 +7,11 @@ vi.mock('next-intl', async (importOriginal) => {
   return actual;
 });
 
-import { buildNotificationEmail, buildSettlementReminderEmail } from '@/lib/emailTemplates';
+import {
+  buildNotificationEmail,
+  buildSettlementReminderEmail,
+  buildExpenseDigestEmail,
+} from '@/lib/emailTemplates';
 
 const base = {
   actorName: 'Alice',
@@ -132,5 +136,56 @@ describe('buildSettlementReminderEmail', () => {
     const zh = await buildSettlementReminderEmail({ locale: 'zh', appUrl: null, trips });
     expect(en.subject).not.toEqual(zh.subject);
     expect(zh.subject).toContain('未結清');
+  });
+});
+
+describe('buildExpenseDigestEmail', () => {
+  const trips = [
+    {
+      tripId: 't1',
+      tripName: 'Tokyo',
+      expenses: [
+        { description: 'Lunch', amount: 1234, payerName: 'Alice' },
+        { description: 'Taxi', amount: 500, payerName: 'Bob' },
+      ],
+    },
+  ];
+
+  it('groups expenses under each trip with detail and a trip link', async () => {
+    const email = await buildExpenseDigestEmail({
+      locale: 'en',
+      appUrl: 'https://app.example.com',
+      trips,
+    });
+    expect(email.html).toContain('https://app.example.com/trips/t1');
+    expect(email.html).not.toContain('/settlement'); // 連到旅程詳情，非結算頁
+    expect(email.html).toContain('Tokyo');
+    expect(email.html).toContain('Lunch');
+    expect(email.html).toContain('Taxi');
+    expect(email.html).toContain('Alice');
+    expect(email.html).toContain('1234'); // 金額取整
+  });
+
+  it('localizes the subject', async () => {
+    const en = await buildExpenseDigestEmail({ locale: 'en', appUrl: null, trips });
+    const zh = await buildExpenseDigestEmail({ locale: 'zh', appUrl: null, trips });
+    expect(en.subject).not.toEqual(zh.subject);
+    expect(zh.subject).toContain('支出');
+  });
+
+  it('escapes HTML in expense descriptions', async () => {
+    const email = await buildExpenseDigestEmail({
+      locale: 'en',
+      appUrl: null,
+      trips: [
+        {
+          tripId: 't1',
+          tripName: 'T',
+          expenses: [{ description: '<b>x</b>', amount: 1, payerName: 'P' }],
+        },
+      ],
+    });
+    expect(email.html).not.toContain('<b>x</b>');
+    expect(email.html).toContain('&lt;b&gt;');
   });
 });

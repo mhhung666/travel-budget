@@ -199,3 +199,78 @@ export async function buildSettlementReminderEmail(
 
   return { subject, html, text };
 }
+
+/** 每日支出摘要 Email 的單筆旅程（含當日新支出清單）。 */
+export interface DigestTripLine {
+  tripId: string;
+  tripName: string;
+  expenses: { description: string; amount: number; payerName: string }[];
+}
+
+interface BuildDigestInput {
+  locale: string;
+  appUrl: string | null;
+  /** 該收件者當日有新支出的旅程（至少一筆，且都已排除其本人新增的）。 */
+  trips: DigestTripLine[];
+}
+
+/**
+ * 產生「今日支出摘要」彙整 Email（一位使用者一封，按旅程分組列出當日新支出）。
+ * 依收件者語系本地化；每個旅程標題連到該旅程詳情頁。
+ */
+export async function buildExpenseDigestEmail(input: BuildDigestInput): Promise<EmailContent> {
+  const locale = normalizeLocale(input.locale);
+  const messages = await loadMessages(locale);
+  const t = createTranslator({ locale, messages, namespace: 'email' }) as unknown as (
+    key: string,
+    values?: Record<string, string | number>
+  ) => string;
+
+  const settingsUrl = toAbsoluteUrl(input.appUrl, ROUTES.SETTINGS);
+  const subject = t('expenseDigest.subject');
+  const intro = t('expenseDigest.intro');
+
+  // 純文字版：每旅程一段 + 其下各支出一行
+  const textParts: string[] = [intro, ''];
+  for (const tr of input.trips) {
+    const url = toAbsoluteUrl(input.appUrl, ROUTES.TRIP_DETAIL(tr.tripId));
+    textParts.push(`${tr.tripName}　${url}`);
+    for (const e of tr.expenses) {
+      textParts.push(`  • ${e.description} — NT$${Math.round(e.amount)}（${e.payerName}）`);
+    }
+    textParts.push('');
+  }
+  textParts.push(t('footer'));
+  const text = textParts.join('\n');
+
+  // HTML 版：每旅程一個標題（連結）+ 其下支出清單
+  const sectionsHtml = input.trips
+    .map((tr) => {
+      const url = toAbsoluteUrl(input.appUrl, ROUTES.TRIP_DETAIL(tr.tripId));
+      const items = tr.expenses
+        .map(
+          (e) => `<li style="margin: 0 0 6px; line-height: 1.5;">
+          ${escapeHtml(e.description)}
+          <span style="color: #6b7280;"> — NT$${Math.round(e.amount)}（${escapeHtml(e.payerName)}）</span>
+        </li>`
+        )
+        .join('\n');
+      return `<div style="margin: 0 0 20px;">
+        <a href="${url}" style="color: #0f172a; font-weight: 600; font-size: 16px; text-decoration: none;">${escapeHtml(
+          tr.tripName
+        )}</a>
+        <ul style="font-size: 15px; padding-left: 20px; margin: 8px 0 0;">${items}</ul>
+      </div>`;
+    })
+    .join('\n');
+
+  const html = wrapEmailHtml(
+    `<p style="font-size: 16px; line-height: 1.6; margin: 0 0 16px;">${escapeHtml(intro)}</p>
+    ${sectionsHtml}`,
+    t('footer'),
+    t('footerLink'),
+    settingsUrl
+  );
+
+  return { subject, html, text };
+}
