@@ -9,8 +9,8 @@ Travel Budget Planner (旅行記帳) — a multi-user trip expense tracking and 
 ## Commands
 
 ```bash
-pnpm dev               # Dev server (http://localhost:3000)
-pnpm build             # Production build
+pnpm dev               # Dev server (http://localhost:3000), Turbopack
+pnpm build             # Production build — runs `next build --webpack` (see PWA note below)
 pnpm lint              # ESLint (next lint); lint:fix to autofix
 pnpm format            # Prettier write; format:check to verify
 pnpm test              # Vitest (watch mode)
@@ -69,6 +69,13 @@ Receipt attachments (`Expense.attachments[]`) and user avatars (`User.avatarUrl`
 - **Receipts are private by contract**: `toExpenseDto` takes an `{ attachments }` option; the public expenses route passes `false` so receipts never reach the unauthenticated share page. Don't start returning them there.
 - **`R2_*` env vars are optional** in [src/lib/env.ts](src/lib/env.ts); `getR2Config()` asserts them lazily (only when a blob feature runs) so boot / CI build work without R2 configured.
 - **No storage cascade**: `deleteExpense`/`deleteTrip` delete receipt objects and `setAvatar`/`removeAvatar` delete the previous object, all **best-effort** (a failed blob delete logs but never fails the user action). Mirror this when adding paths that drop attachment/avatar references.
+
+### Offline-first PWA (Serwist + TanStack Query persistence)
+Offline support (ROADMAP #5) is split across two layers because **reads/writes go through Server Actions (POST RPC), which can't run or be cached offline**:
+- **Service worker** via [Serwist](https://serwist.pages.dev) (`@serwist/next`): source in [src/sw.ts](src/sw.ts), compiled to `public/sw.js` (**gitignored + ESLint-ignored build artifact** — never hand-edit or lint it). Caches the app shell / static assets / Leaflet tiles / R2 images, NetworkFirst navigations falling back to static [public/offline.html](public/offline.html). It **must not** cache server-action POSTs or `/api/*` mutations.
+- **Offline reads**: the TanStack Query cache is persisted to IndexedDB via [QueryProvider](src/components/providers/QueryProvider.tsx) (`PersistQueryClientProvider` + [src/lib/queryPersister.ts](src/lib/queryPersister.ts), `idb-keyval`). Previously-viewed trips render with no network. Bump `PERSIST_BUSTER` when the cached shape/keys change. Queries default to `networkMode: 'offlineFirst'`.
+- **Offline writes** are scoped to **expense creation only** (edit/delete are online-only, guarded by `onlineManager.isOnline()`). The create mutation does an optimistic `onMutate` insert ([src/lib/optimisticExpense.ts](src/lib/optimisticExpense.ts), `optimistic_<uuid>` ids), pauses when offline, and replays on reconnect. Surviving a **reload** needs the mutationFn re-registered globally via `setMutationDefaults` ([src/lib/offlineMutations.ts](src/lib/offlineMutations.ts) `registerOfflineMutationDefaults`) because only the mutation key + variables are serialized — so create-mutation **variables must carry `tripId`**. `resumePausedMutations()` runs from the provider's restore `onSuccess`.
+- **Build/dev gotcha**: Serwist runs on a webpack plugin and **Next 16's default Turbopack build silently skips it** (no error, no `sw.js`). Hence `pnpm build` is `next build --webpack`; don't revert it. The SW is disabled in dev, so test the PWA with `pnpm build && pnpm start`, not `pnpm dev`.
 
 ### Travel map & sharing
 The travel map ([src/app/[locale]/map/](src/app/%5Blocale%5D/map/), components in [src/components/map/](src/components/map/)) has three modes — routes (great-circle arcs), heat (leaflet.heat over itinerary-day `location`s), and countries (choropleth). Notes that aren't obvious from the code:
