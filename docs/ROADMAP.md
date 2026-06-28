@@ -10,7 +10,7 @@
 
 慣例：**已完成項目只保留「已實作」筆記**（內含與原草圖的偏離、以及尚未做的部分）；**未完成項目保留「做法」草圖**。原始草圖如需回顧，查本檔 git 歷史即可。
 
-> **進度**：Tier 1 全數完成 — **#1 預算**、**#2 結算「標記已付」**、**#3 彈性分帳**；另完成 **#13 群組統計**、**#7 清單／待辦**、**#17 支出搜尋/篩選**。第二波導入 **Cloudflare R2 blob 儲存**，解鎖 **#4 收據附件** 與 **#11 頭像**。**#6 行程強化** 全 3 Phase 完成（活動時間軸 → 支出↔行程連結 → 票券附件 + 統計/地圖按天聚合）。第三波 **#9 通知 Phase 1（站內通知 + 鈴鐺）** 與 **#8 動態牆（per-trip 共享活動時間軸）** 完成。以上皆已併入 `master`。**下一步**：#9 Phase 2/3（Email Resend + 排程結算提醒、Web Push）、#5 離線優先 PWA、#15 年度回顧，或穿插 S 級填空。
+> **進度**：Tier 1 全數完成 — **#1 預算**、**#2 結算「標記已付」**、**#3 彈性分帳**；另完成 **#13 群組統計**、**#7 清單／待辦**、**#17 支出搜尋/篩選**。第二波導入 **Cloudflare R2 blob 儲存**，解鎖 **#4 收據附件** 與 **#11 頭像**。**#6 行程強化** 全 3 Phase 完成（活動時間軸 → 支出↔行程連結 → 票券附件 + 統計/地圖按天聚合）。第三波 **#9 通知 Phase 1（站內通知 + 鈴鐺）**、**#8 動態牆（per-trip 共享活動時間軸）** 與 **#9 Phase 2a（Email 通知，Resend）+ 2b（Vercel Cron 排程結算提醒）** 完成。以上皆已併入 `master`（Phase 2b 於 `feat/email-notifications` 分支）。**下一步**：#9 Phase 3（Web Push）、#5 離線優先 PWA、#15 年度回顧，或穿插 S 級填空。
 
 ---
 
@@ -30,7 +30,7 @@
 | 統計 | 個人 + **全團**分類統計、付款排行、**按行程日花費**、日期區間篩選、趨勢直方圖 |
 | 地圖 | 航線 / 熱點（造訪 / 花費權重）/ 國家三模式、使用者層級公開分享（`mapShareCode`） |
 | 匯出 | CSV（支出 / 行程 / 結算） |
-| 通知 | **站內通知**（鈴鐺 + 未讀數）：新增支出 / 登記還款 / 成員加入；per-user 收件匣（Email / Web Push 待做） |
+| 通知 | **站內通知**（鈴鐺 + 未讀數）+ **Email**（Resend）：新增支出（每日彙整）/ 登記還款 / 成員加入；**Vercel Cron** 每週結算提醒 + 每日支出摘要；per-user 收件匣（Web Push 待做） |
 | 動態牆 | **活動紀錄**（per-trip 共享時間軸）：支出新增/編輯/刪除、登記還款、成員加入；旅程子頁、稽核基礎 |
 | 其他 | 四語系 i18n、深色模式、PWA manifest、公開唯讀分享頁 |
 
@@ -102,12 +102,18 @@
 
 > **已實作**：新 collection [ActivityLog](../src/models/ActivityLog.ts)＝`{ trip, actor, actorName, type, meta }`（timestamps 只 createdAt）。與 #9 通知的**對照取捨**：通知是 **per-user fan-out 收件匣**，動態牆是 **per-trip 單筆共享**——一個事件存一筆、全體成員共看同一份時間軸、走 getTripMembership 授權（非個人收件匣）；且**包含觸發者本人**（「誰改了什麼」當然含你自己，通知才排除自己）。`actorName` 去正規化（事件當下快照、讀取免 populate），`meta` 為型別相依結構化資料、文案在前端依**檢視者語系**即時組出（i18n `activity` 命名空間）。寫入工具 [lib/activity.ts](../src/lib/activity.ts) `logActivity()`＝**best-effort**（失敗只記 log、不 throw 進主 action，比照 notify / R2 清理）。**五個觸發點**：`createExpense`(expense_added)、`updateExpense`(expense_updated)、`deleteExpense`(expense_deleted)、`recordPayment`(payment_recorded)、`joinTrip`(member_joined)——前三者是 #9 沒有的「誰改了什麼」稽核值（與 #9 共用的三點之外再擴 update/delete）。Action [getActivityLog](../src/actions/activity.actions.ts)（成員可檢視全團、上限 50 筆、不分頁），共用 [toActivityLogDto](../src/lib/dto.ts) mapper。**型別命名**：行程子系統已有不同概念的 `ActivityType`/`Activity`（景點/餐飲…），故動態牆型別一律 `ActivityLog*` 避免衝突。**資料完整性**：`deleteTrip` cascade `ActivityLog.deleteMany`；`removeMember` 刻意**不清**動態牆（稽核性質、actorName 已快照故顯示無虞）。UI：獨立子頁 [/trips/[id]/activity](../src/app/%5Blocale%5D/trips/%5Bid%5D/activity/page.tsx)（比照 settlement/stats）+ [ActivityFeed](../src/components/activity/ActivityFeed.tsx) 時間軸 + 旅程詳情頁導覽按鈕；相對時間格式化抽出共用 [lib/relativeTime.ts](../src/lib/relativeTime.ts)（鈴鐺與動態牆共用）。React Query 掛 `tripKeys.activity`，支出/還款 mutation 一併 invalidate。四語系 + dto 測試。
 
-### 9. ⭐ 通知 (Notifications) — L（需基礎設施）〔Phase 1 站內通知 ✅ 2026-06-28；Email / Web Push 待做〕
+### 9. ⭐ 通知 (Notifications) — L（需基礎設施）〔Phase 1 站內通知 ✅ ・ Phase 2a Email ✅ ・ Phase 2b 排程結算提醒 ✅（皆 2026-06-28）；Web Push 待做〕
 **為什麼**：「有人新增支出」「該還錢了」「行程更新」需要被動推送。
 
 > **已實作（Phase 1 — 站內通知）**：新 collection [Notification](../src/models/Notification.ts)＝`{ user(收件者), trip, tripName, type, actor, actorName, meta, read }`——**per-user 收件匣**（跨旅程的個人視角，比照 getStats，不走 getTripMembership），**去正規化顯示欄位**（tripName/actorName 為事件當下快照、讀取免 populate）+ `meta` 為型別相依結構化資料；additive 無遷移。fan-out 寫入工具 [lib/notify.ts](../src/lib/notify.ts) `notify()`＝**best-effort**（失敗只記 log、絕不 throw 進主 action，比照 R2 清理取捨）；純函式 `selectNotificationRecipients`（排除觸發者本人/虛擬成員/去重）抽出 + 8 個單元測試。三個觸發點：`createExpense`（`expense_added` → 通知其他成員）、`recordPayment`（`payment_recorded` → 通知還款雙方）、`joinTrip`（`member_joined` → 通知既有成員）。Actions [notification.actions.ts](../src/actions/notification.actions.ts)：getNotifications / getUnreadNotificationCount / markNotificationRead / markAllNotificationsRead（皆限定 `user: session.userId`，無法讀寫他人通知）。**訊息文案在前端依收件者語系即時組出**（i18n `notifications` 命名空間 + meta），後端不存預先算好的字串。UI：navbar 鈴鐺 [NotificationBell](../src/components/notifications/NotificationBell.tsx)——未讀 badge（[useUnreadNotificationCount](../src/hooks/queries/useNotifications.ts) 輪詢 60s + 視窗 focus 重抓）、Popover 清單（開啟才載入）、點擊標記已讀並導向旅程/結算頁、「全部已讀」。資料完整性：`deleteTrip` cascade、`removeMember` 清該成員在此 trip 的通知。四語系。**與 #8 動態牆共用這 3 個觸發點**（未來 ActivityLog 可掛同處）。
 >
-> **做法（Phase 2 / 3 待做）**：Email（Resend）+ 排程結算提醒（Vercel Cron 每週彙整未結清）、Web Push（VAPID）。皆需外部基礎設施（見下方「橫向基礎設施」）。輪詢式 badge 屆時可換成 SSE / Web Push 即時推送。
+> **已實作（Phase 2a — Email 基礎層）**：導入 **Resend**。env 加 optional `RESEND_API_KEY` / `RESEND_FROM` / `APP_URL` + `getResendConfig()` 延遲檢查（**比照 R2 模式**：未設定也能 boot / CI build，回 null 時整個 Email fan-out 靜默跳過）。寄信封裝 [lib/email.ts](../src/lib/email.ts) `sendEmail()`＝**best-effort 永不 throw**（比照 notify / R2 清理）。模板 [lib/emailTemplates.ts](../src/lib/emailTemplates.ts) `buildNotificationEmail()`：**站內通知靠前端依檢視者語系渲染，但 Email 由伺服端寄出**，故須在伺服端用收件者語系以 next-intl `createTranslator` 算出文案（新 `email` i18n 命名空間，四語系；後端不存預先算好的字串）——為此 `User` 新增 `notifyByEmail`（opt-out，預設開）+ `locale`（寄信語系，預設 app 預設、設定頁存檔時帶入當前 UI 語系）兩欄（additive + 讀取端 default，**無遷移**）。接進 [notify.ts](../src/lib/notify.ts)：站內通知寫入後，對 `notifyByEmail !== false` 且有信箱的收件者並行寄信（沿用既有 3 觸發點，零新觸發；**其中 `expense_added` 後於 Phase 2b 改為每日彙整、不再即時寄信**，見下）。設定頁加「通知設定」卡（Email 開關、樂觀更新）+ [updateNotificationPrefs](../src/actions/auth.actions.ts) action。連結用 `APP_URL` 組絕對 URL（payment 導向結算頁、其餘導向旅程頁），HTML 模板對使用者字串做 escape。**簡化**：採全域開關（未做 per-type 偏好）；收件者 locale 靠設定頁帶入（未在註冊/登入時自動擷取）。單元測試：email 模板渲染（各 type × 語系、連結、escape）。
+>
+> **已實作（Phase 2b — 排程結算提醒）**：受保護的 cron route [/api/cron/settlement-reminder](../src/app/api/cron/settlement-reminder/route.ts)（GET，以 `CRON_SECRET` 驗 `Authorization: Bearer`——Vercel 觸發 cron 時自動帶；**未設定 secret 一律拒絕**，避免公開觸發）+ [vercel.json](../vercel.json) 每週一 01:00 UTC（台灣 09:00）排程。純函式聚合 [lib/settlementReminder.ts](../src/lib/settlementReminder.ts) `computeSettlementDigests`（重用 [settlement.ts](../src/lib/settlement.ts) `applyPayments` 抵銷已登記還款，把每趟未結清淨額**彙整成每位使用者跨旅程的待結清清單**；**個別軟封存**（member.archivedAt 非 null）的旅程不提醒該成員；< epsilon 視為已結清；5 個單元測試）。新模板 [buildSettlementReminderEmail](../src/lib/emailTemplates.ts)（依收件者語系列出各旅程 + 應收/應付標籤 + 結算頁連結；新 `email.settlementReminder` i18n 四語系）。route 批次撈全部 trip/expense/payment 記憶體分組計算（規模大可改游標分頁），對**真人 + 有信箱 + `notifyByEmail !== false`** 的收件者各寄一封（沿用 [email.ts](../src/lib/email.ts) best-effort + env-gated，Resend 未設定則整支跳過）；回傳 `{ usersNotified, emailsSent }` 供觀測。**簡化**：只寄 Email（未做對應站內通知類型）、提醒含應收方（非僅債務人）。
+>
+> **已實作（Phase 2b — 每日新增支出摘要 + 即時/彙整分流）**：`expense_added` 的**即時 Email 太頻繁**，改為每日彙整——[notify.ts](../src/lib/notify.ts) 加 `EMAIL_DIGESTED_TYPES`（目前＝`expense_added`）：**站內鈴鐺通知仍即時**，只略過即時 Email；`recordPayment` / `joinTrip` 屬低頻事件，維持即時 Email。新每日 cron [/api/cron/expense-digest](../src/app/api/cron/expense-digest/route.ts)（GET，同 CRON_SECRET 驗證；過去 24h 新支出，與每日排程對齊無重疊）+ [vercel.json](../vercel.json) 每天 13:00 UTC（台灣 21:00）。為「排除收件者自己加的」於 `Expense` 加 `createdBy`（≠ payer：可代付；additive、舊資料視為非本人、無遷移），`createExpense` 寫入。純函式 [lib/expenseDigest.ts](../src/lib/expenseDigest.ts) `computeExpenseDigests`（排除自己新增 + 已封存旅程 + 空摘要；5 個單元測試）+ 模板 [buildExpenseDigestEmail](../src/lib/emailTemplates.ts)（按旅程分組列當日新支出 + 付款人 + 旅程連結；新 `email.expenseDigest` i18n 四語系；抽出共用 `wrapEmailHtml` 外殼）。**Vercel Hobby cron 上限 2 個 job**：結算提醒（每週）+ 支出摘要（每日）剛好用滿。
+>
+> **做法（Phase 3 待做）**：Web Push（VAPID + `PushSubscription` model + service worker，建議與 #5 離線優先共用 SW）。輪詢式 badge 屆時可換成 SSE / Web Push 即時推送。
 
 ### 10. 🔹 支出留言 / 旅程聊天 (Comments) — M
 **為什麼**：對某筆支出有疑問時，就地討論勝過群組訊息。
@@ -164,7 +170,7 @@
 | --- | --- | --- |
 | **Blob 儲存** ✅ | #4 收據、#11 頭像、#6 票券附件（已解鎖）、#16 相片釘點 | **Cloudflare R2**（已採用，私有收據 + 公開頭像兩 bucket） |
 | **即時 / 推播** | #8 動態牆即時化、#9 通知 | SSE、Pusher / Ably、Web Push |
-| **Email / 排程** | #9 結算提醒、邀請信 | Resend + Vercel Cron |
+| **Email / 排程** | #9 Email 通知 + 排程結算提醒（已解鎖）、邀請信 | **Resend**（已採用，env-gated）+ **Vercel Cron**（已採用，每週結算提醒） |
 | **Redis（外部狀態）** | 公開 API 限流（IMPROVEMENTS A） | Upstash |
 
 > 都遵守現有約定：DB 存取走 Mongoose + `dbConnect()`，業務邏輯走 server actions 回傳 `ActionResult<T>`，新使用者字串**四語系都要補**，新識別碼沿用 `hashCode` 格式（見 [hashcode.ts](../src/lib/hashcode.ts)）。
@@ -186,7 +192,7 @@
   └── 6  行程強化   ✅ Phase 1 活動時間軸 ・ Phase 2 支出↔行程連結 ・ Phase 3 票券附件 + 統計/地圖按天聚合
 
 第三波（協作與留存）← 進行中
-  ├── 9  通知      ✅ Phase 1 站內通知 + 鈴鐺　｜　Phase 2/3 Email・Web Push 待做
+  ├── 9  通知      ✅ Phase 1 站內通知 + 鈴鐺 ・ Phase 2a Email（Resend）・ Phase 2b 排程結算提醒（Vercel Cron）　｜　Phase 3 Web Push 待做
   ├── 8  活動紀錄  ✅ 動態牆（per-trip 共享時間軸、5 觸發點、稽核基礎）
   ├── 5  離線優先（旅行殺手級體驗）
   └── 15 年度回顧（傳播）
@@ -197,7 +203,7 @@
   └── 12 旅伴 ・ 18 標籤 ・ 16 地圖統計
 ```
 
-**下一步建議**：#9 通知 Phase 1 與 #8 動態牆皆已完成。接續可（a）做 **#9 Phase 2/3**（Email Resend + Vercel Cron 排程結算提醒、Web Push）——需引入外部基礎設施；或（b）做 **#5 離線優先 PWA**（旅行殺手級體驗）或 **#15 年度回顧**（傳播）；期間可穿插 S 級填空（#12 旅伴、#16 地圖統計、#18 標籤）。
+**下一步建議**：#9 Phase 2a（Email）與 2b（Vercel Cron 排程結算提醒）皆完成。接續可（a）做 **#9 Phase 3 Web Push**（建議與 #5 共用 service worker）；或（b）做 **#5 離線優先 PWA**（旅行殺手級體驗）或 **#15 年度回顧**（傳播）；期間可穿插 S 級填空（#12 旅伴、#16 地圖統計、#18 標籤）。
 
 ---
 

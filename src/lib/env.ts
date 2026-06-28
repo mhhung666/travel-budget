@@ -23,6 +23,16 @@ const envSchema = z.object({
   R2_RECEIPTS_BUCKET: z.string().optional(),
   R2_AVATARS_BUCKET: z.string().optional(),
   R2_AVATARS_PUBLIC_URL: z.string().optional(),
+  // Resend（Email 通知）。比照 R2 一律 optional：未設定 Email 的環境（含 CI build、
+  // 本機未配置）仍能正常 boot；只有實際要寄信時才透過 getResendConfig() 嚴格檢查。
+  // 詳見 lib/email.ts。
+  RESEND_API_KEY: z.string().optional(),
+  RESEND_FROM: z.string().optional(),
+  // Email 內連結用的對外站台基底 URL（如 https://travel.example.com），結尾斜線會去除。
+  APP_URL: z.string().optional(),
+  // 排程任務（Vercel Cron）的共享密鑰。Vercel 觸發 cron 時會自動帶
+  // `Authorization: Bearer <CRON_SECRET>`；未設定時 cron route 一律拒絕（防止公開觸發）。
+  CRON_SECRET: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -97,4 +107,37 @@ export function getR2Config(): R2Config {
     endpoint: `https://${required.R2_ACCOUNT_ID!}.r2.cloudflarestorage.com`,
   };
   return cachedR2;
+}
+
+/**
+ * 已驗證的 Resend（Email）設定。比照 {@link getR2Config}：envSchema 設 optional
+ * 讓未啟用 Email 的環境正常啟動，但一旦呼叫此函式（代表正要寄信），就要求 API key
+ * 與寄件者齊全，否則丟出指出缺漏項目的明確錯誤。`appUrl` 為 optional（Email 內連結
+ * 用；缺值時模板退回相對路徑），故不納入必填檢查。
+ */
+export type ResendConfig = {
+  apiKey: string;
+  from: string;
+  /** Email 內連結的對外基底 URL，結尾斜線已去除；未設定時為 null。 */
+  appUrl: string | null;
+};
+
+let cachedResend: ResendConfig | null = null;
+
+/**
+ * 取得已驗證的 Resend 設定。未設定（無 API key / 寄件者）時回傳 null —— 呼叫端
+ * （lib/email.ts）據此**靜默跳過**寄信，使 Email 成為純加值、不阻斷主流程。
+ */
+export function getResendConfig(): ResendConfig | null {
+  if (cachedResend) return cachedResend;
+
+  const env = getEnv();
+  if (!env.RESEND_API_KEY || !env.RESEND_FROM) return null;
+
+  cachedResend = {
+    apiKey: env.RESEND_API_KEY,
+    from: env.RESEND_FROM,
+    appUrl: env.APP_URL ? env.APP_URL.replace(/\/+$/, '') : null,
+  };
+  return cachedResend;
 }

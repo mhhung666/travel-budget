@@ -55,6 +55,9 @@ const ExpenseSchema = new Schema(
     // 可選的關聯行程日（同 trip 下的 ItineraryDay）；null＝未關聯。
     // 行程日被刪除時於 deleteItineraryDay 清為 null（避免孤兒參照）。
     itineraryDay: { type: Schema.Types.ObjectId, ref: 'ItineraryDay', default: null },
+    // 新增此筆支出的使用者（≠ payer：可代他人付款的人記帳）。供每日支出摘要 Email
+    // 排除「收件者自己加的」。additive、舊資料無此欄位（視為非本人），無遷移。
+    createdBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
   },
   {
     timestamps: { createdAt: true, updatedAt: false },

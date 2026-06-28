@@ -106,6 +106,12 @@
       "change": "更換頭像",
       "remove": "移除",
       "uploadFailed": "上傳失敗"
+    },
+    "notifications": {
+      "title": "通知設定",
+      "emailLabel": "Email 通知",
+      "emailHelp": "有人新增支出、登記還款或加入旅程時，寄 Email 通知你。",
+      "updateSuccess": "通知設定已更新"
     }
   },
   "location": {
@@ -738,5 +744,32 @@
     "expenseDeleted": "{actor} 刪除了支出「{description}」",
     "paymentRecorded": "{actor} 登記了一筆還款",
     "memberJoined": "{actor} 加入了旅程"
+  },
+  "email": {
+    "viewButton": "查看",
+    "footer": "你收到這封信是因為開啟了 Email 通知。",
+    "footerLink": "管理通知設定",
+    "expense_added": {
+      "subject": "{actor} 在「{tripName}」新增了一筆支出",
+      "body": "{actor} 在「{tripName}」新增了一筆支出：{description}（NT${amount}）。"
+    },
+    "payment_recorded": {
+      "subject": "「{tripName}」有一筆還款紀錄",
+      "body": "{actor} 在「{tripName}」登記了一筆與你有關的還款。"
+    },
+    "member_joined": {
+      "subject": "{actor} 加入了「{tripName}」",
+      "body": "{actor} 加入了旅程「{tripName}」。"
+    },
+    "settlementReminder": {
+      "subject": "你有尚未結清的款項",
+      "intro": "以下旅程還有未結清的款項，記得結算一下：",
+      "owe": "你還需支付",
+      "owed": "尚有人欠你"
+    },
+    "expenseDigest": {
+      "subject": "今日支出摘要",
+      "intro": "以下是今天各旅程新增的支出："
+    }
   }
 }

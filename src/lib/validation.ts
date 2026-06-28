@@ -187,6 +187,12 @@ export const updateProfileSchema = z
     { message: '修改密碼需要輸入目前密碼', path: ['current_password'] }
   );
 
+// 通知偏好（Email 開關 + 寄信語系）。locale 收斂為支援語系，無效值由 action 端忽略。
+export const notificationPrefsSchema = z.object({
+  notify_by_email: z.boolean(),
+  locale: z.enum(['en', 'zh', 'zh-CN', 'jp']).optional(),
+});
+
 // Member schemas
 export const addVirtualMemberSchema = z.object({
   display_name: z.string().min(1, '名稱不能為空').trim(),

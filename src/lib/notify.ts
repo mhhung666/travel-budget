@@ -1,5 +1,9 @@
 import { Trip, User, Notification, type NotificationType } from '@/models';
 import { logger } from './logger';
+import { getResendConfig } from './env';
+import { sendEmail } from './email';
+import { buildNotificationEmail } from './emailTemplates';
+import type { NotificationMeta } from '@/types';
 
 /**
  * 站內通知的 fan-out 寫入工具。**server-only**：直接觸碰 Mongoose models，
@@ -37,6 +41,13 @@ export function selectNotificationRecipients(
   return recipients;
 }
 
+/**
+ * 走「每日彙整 Email」而非即時寄信的通知類型。站內通知（鈴鐺）仍即時建立，只有
+ * 「即時 Email」被略過——改由每日 cron（/api/cron/expense-digest）彙整寄出，避免
+ * 每筆支出都寄一封過於頻繁。還款 / 成員加入屬低頻事件，維持即時 Email。
+ */
+const EMAIL_DIGESTED_TYPES: ReadonlySet<NotificationType> = new Set(['expense_added']);
+
 interface NotifyInput {
   tripId: string;
   /** 觸發此事件的使用者（不會收到自己的通知）。 */
@@ -72,10 +83,20 @@ export async function notify({
     const uniqueIds = [...new Set(candidateIds.filter((id) => id !== actorId))];
     if (uniqueIds.length === 0) return;
 
-    // 一次撈出候選人 + 觸發者：取 displayName（觸發者名）與 isVirtual（過濾收件者）
+    // 一次撈出候選人 + 觸發者：取 displayName（觸發者名）+ isVirtual（過濾收件者），
+    // 以及 Email fan-out 需要的 email / notifyByEmail / locale。
     const users = await User.find({ _id: { $in: [...uniqueIds, actorId] } })
-      .select('displayName isVirtual')
-      .lean<{ _id: { toString(): string }; displayName: string; isVirtual?: boolean | null }[]>();
+      .select('displayName isVirtual email notifyByEmail locale')
+      .lean<
+        {
+          _id: { toString(): string };
+          displayName: string;
+          isVirtual?: boolean | null;
+          email?: string | null;
+          notifyByEmail?: boolean | null;
+          locale?: string | null;
+        }[]
+      >();
 
     const byId = new Map(users.map((u) => [u._id.toString(), u]));
     const actorName = byId.get(actorId)?.displayName ?? '';
@@ -98,8 +119,70 @@ export async function notify({
         read: false,
       }))
     );
+
+    // Email fan-out（best-effort、加值）：站內通知寫入後，對開啟 Email 通知且有信箱
+    // 的收件者寄信。未配置 Resend 時整段跳過，省去無謂的模板/查詢工作。
+    await sendNotificationEmails({
+      recipients,
+      byId,
+      type,
+      tripId,
+      tripName: trip.name,
+      actorName,
+      meta: meta as NotificationMeta,
+    });
   } catch (error) {
     // 次要副作用：失敗只記 log，不影響主 action
     logger.error('notify failed', error);
   }
+}
+
+/** notify() 內部的 Email fan-out。永不 throw（呼叫端已在 try/catch 內，這裡再自保一層）。 */
+async function sendNotificationEmails({
+  recipients,
+  byId,
+  type,
+  tripId,
+  tripName,
+  actorName,
+  meta,
+}: {
+  recipients: string[];
+  byId: Map<
+    string,
+    { email?: string | null; notifyByEmail?: boolean | null; locale?: string | null }
+  >;
+  type: NotificationType;
+  tripId: string;
+  tripName: string;
+  actorName: string;
+  meta: NotificationMeta;
+}): Promise<void> {
+  if (EMAIL_DIGESTED_TYPES.has(type)) return; // 改走每日彙整，不即時寄信
+  const config = getResendConfig();
+  if (!config) return; // 未配置 Resend → 不寄 Email
+
+  // notifyByEmail 預設開（缺值＝舊資料視為開啟）；須有有效信箱。
+  const targets = recipients
+    .map((id) => byId.get(id))
+    .filter((u): u is NonNullable<typeof u> => !!u && u.notifyByEmail !== false && !!u.email);
+
+  await Promise.all(
+    targets.map(async (u) => {
+      try {
+        const content = await buildNotificationEmail({
+          type,
+          locale: u.locale ?? 'zh',
+          actorName,
+          tripId,
+          tripName,
+          meta,
+          appUrl: config.appUrl,
+        });
+        await sendEmail({ to: u.email!, content });
+      } catch (error) {
+        logger.error('notification email failed', error);
+      }
+    })
+  );
 }

@@ -6,6 +6,7 @@ import { User as UserModel } from '@/models';
 import { createSession, deleteSession, getSession } from '@/lib/auth';
 import {
   loginSchema,
+  notificationPrefsSchema,
   registerSchema,
   resetPasswordSchema,
   updateProfileSchema,
@@ -24,6 +25,7 @@ export type AuthUserWithCreatedAt = AuthUser & {
   created_at: string;
   email: string;
   avatar_url: string | null;
+  notify_by_email: boolean;
 };
 
 // 不分大小寫的精確比對（取代 Postgres ilike）
@@ -41,7 +43,7 @@ export async function getCurrentUser(): Promise<ActionResult<AuthUserWithCreated
 
     await dbConnect();
     const user = await UserModel.findById(session.userId)
-      .select('username displayName email createdAt avatarUrl')
+      .select('username displayName email createdAt avatarUrl notifyByEmail')
       .lean();
 
     if (!user) {
@@ -57,6 +59,8 @@ export async function getCurrentUser(): Promise<ActionResult<AuthUserWithCreated
         email: user.email,
         created_at: user.createdAt.toISOString(),
         avatar_url: user.avatarUrl ?? null,
+        // 缺值（舊資料）視為開啟，與 notify() 的 `!== false` 判定一致。
+        notify_by_email: user.notifyByEmail !== false,
       },
     };
   } catch (error) {
@@ -247,6 +251,40 @@ export const updateProfile = withAuth(
       return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
     } catch (error) {
       logger.error('Update user error', error);
+      return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
+    }
+  }
+);
+
+/**
+ * 更新通知偏好（目前：Email 通知開關 + 寄信語系）。
+ * 站內通知一律保留（不可關），Email 為 opt-out。`locale` 由設定頁帶入當前 UI 語系，
+ * 供 notify() 的 Email fan-out 決定寄信語系（站內通知仍靠前端依檢視者語系渲染）。
+ */
+export const updateNotificationPrefs = withAuth(
+  async (
+    session,
+    input: { notify_by_email: boolean; locale?: string }
+  ): Promise<ActionResult<{ message: string }>> => {
+    try {
+      const validation = notificationPrefsSchema.safeParse(input);
+      if (!validation.success) {
+        return {
+          success: false,
+          error: validation.error.issues[0].message,
+          code: 'VALIDATION_ERROR',
+        };
+      }
+
+      const { notify_by_email, locale } = validation.data;
+      const updateData: Record<string, unknown> = { notifyByEmail: notify_by_email };
+      if (locale !== undefined) updateData.locale = locale;
+
+      await dbConnect();
+      await UserModel.updateOne({ _id: session.userId }, { $set: updateData });
+      return { success: true, data: { message: 'OK' } };
+    } catch (error) {
+      logger.error('Update notification prefs error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
   }
