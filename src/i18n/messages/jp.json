@@ -564,7 +564,8 @@
     "archiveSuccess": "アーカイブしました（「アーカイブ」タブに移動）",
     "unarchiveSuccess": "旅行を復元しました",
     "viewStats": "グループ統計",
-    "viewChecklist": "チェックリスト"
+    "viewChecklist": "チェックリスト",
+    "viewActivity": "アクティビティ"
   },
   "checklist": {
     "title": "チェックリスト",
@@ -724,6 +725,17 @@
     "markAllRead": "すべて既読にする",
     "someone": "誰か",
     "expenseAdded": "{actor} が支出を追加しました：{description}",
+    "paymentRecorded": "{actor} が支払いを記録しました",
+    "memberJoined": "{actor} が旅行に参加しました"
+  },
+  "activity": {
+    "title": "アクティビティ",
+    "empty": "まだアクティビティはありません",
+    "loading": "読み込み中…",
+    "someone": "誰か",
+    "expenseAdded": "{actor} が支出「{description}」を追加しました",
+    "expenseUpdated": "{actor} が支出「{description}」を編集しました",
+    "expenseDeleted": "{actor} が支出「{description}」を削除しました",
     "paymentRecorded": "{actor} が支払いを記録しました",
     "memberJoined": "{actor} が旅行に参加しました"
   }

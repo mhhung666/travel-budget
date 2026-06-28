@@ -52,6 +52,9 @@ export type {
   NotificationItem,
   NotificationType,
   NotificationMeta,
+  ActivityLogItem,
+  ActivityLogType,
+  ActivityLogMeta,
 } from './models';
 
 // ============================================

@@ -21,7 +21,10 @@ async function unwrap<T>(p: Promise<ActionResult<T>>): Promise<T> {
  */
 export function usePaymentMutations(tripId: string) {
   const queryClient = useQueryClient();
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: tripKeys.settlement(tripId) });
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: tripKeys.settlement(tripId) });
+    queryClient.invalidateQueries({ queryKey: tripKeys.activity(tripId) });
+  };
 
   const record = useMutation({
     mutationFn: (input: RecordPaymentInput) => unwrap(recordPayment(tripId, input)),

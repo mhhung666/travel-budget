@@ -17,6 +17,7 @@ import { toExpenseDto, type ExpenseDtoInput } from '@/lib/dto';
 import { isReceiptKeyForTrip, RECEIPT_CONTENT_TYPES, MAX_RECEIPT_BYTES } from '@/lib/uploads';
 import { headObject, deleteObjects, presignGet } from '@/lib/storage';
 import { notify } from '@/lib/notify';
+import { logActivity } from '@/lib/activity';
 
 type LeanExpense = ExpenseDtoInput & { date: Date };
 
@@ -215,6 +216,13 @@ export const createExpense = withAuth(
         type: 'expense_added',
         meta: { expense_id: created._id.toString(), description, amount },
       });
+      // 動態牆紀錄（含觸發者本人；best-effort）
+      await logActivity({
+        tripId,
+        actorId: session.userId,
+        type: 'expense_added',
+        meta: { expense_id: created._id.toString(), description, amount },
+      });
 
       revalidatePath(`/trips/${tripIdOrCode}`);
       return {
@@ -270,10 +278,11 @@ export const updateExpense = withAuth(
 
       // 讀取目前值（同時作為 existence check）
       const current = await Expense.findOne({ _id: expenseId, trip: tripId })
-        .select('originalAmount exchangeRate splits attachments')
+        .select('originalAmount exchangeRate description splits attachments')
         .lean<{
           originalAmount: number;
           exchangeRate: number;
+          description: string;
           splits: { user: { toString(): string }; shareAmount: number }[];
           attachments?: {
             key: string;
@@ -354,6 +363,17 @@ export const updateExpense = withAuth(
 
       await Expense.updateOne({ _id: expenseId, trip: tripId }, { $set: set });
 
+      // 動態牆紀錄（描述取更新後的有效值；best-effort）
+      await logActivity({
+        tripId,
+        actorId: session.userId,
+        type: 'expense_updated',
+        meta: {
+          expense_id: expenseId,
+          description: description !== undefined ? description.trim() : current.description,
+        },
+      });
+
       revalidatePath(`/trips/${tripIdOrCode}`);
       return { success: true, data: { message: '支出已更新' } };
     } catch (error) {
@@ -378,10 +398,10 @@ export const deleteExpense = withAuth(
         return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
       }
 
-      // 先讀附件 key 以便刪 R2 物件（splits/attachments 內嵌，隨文件一併移除）
+      // 先讀附件 key（刪 R2 物件用）+ 描述（動態牆顯示用）
       const doc = await Expense.findOne({ _id: expenseId, trip: membership.tripId })
-        .select('attachments')
-        .lean<{ attachments?: { key: string }[] }>();
+        .select('attachments description')
+        .lean<{ attachments?: { key: string }[]; description?: string }>();
 
       await Expense.deleteOne({ _id: expenseId, trip: membership.tripId });
 
@@ -392,6 +412,14 @@ export const deleteExpense = withAuth(
           logger.error('Delete expense: receipt cleanup failed', e)
         );
       }
+
+      // 動態牆紀錄（支出已刪，描述取自刪除前的快照；best-effort）
+      await logActivity({
+        tripId: membership.tripId,
+        actorId: session.userId,
+        type: 'expense_deleted',
+        meta: { description: doc?.description ?? '' },
+      });
 
       revalidatePath(`/trips/${tripIdOrCode}`);
       return { success: true, data: { message: '支出已刪除' } };

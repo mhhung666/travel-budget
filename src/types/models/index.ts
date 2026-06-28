@@ -30,6 +30,9 @@ export type { Checklist, ChecklistItem } from './checklist';
 // Notification
 export type { NotificationItem, NotificationType, NotificationMeta } from './notification';
 
+// Activity feed (動態牆)
+export type { ActivityLogItem, ActivityLogType, ActivityLogMeta } from './activity';
+
 // Stats
 export type {
   ExpenseDetail,

@@ -564,7 +564,8 @@
     "archiveSuccess": "已归档,移至「已归档」标签",
     "unarchiveSuccess": "已恢复此旅行",
     "viewStats": "群组统计",
-    "viewChecklist": "清单"
+    "viewChecklist": "清单",
+    "viewActivity": "动态墙"
   },
   "checklist": {
     "title": "清单",
@@ -724,6 +725,17 @@
     "markAllRead": "全部已读",
     "someone": "有人",
     "expenseAdded": "{actor} 新增了一笔支出：{description}",
+    "paymentRecorded": "{actor} 登记了一笔还款",
+    "memberJoined": "{actor} 加入了行程"
+  },
+  "activity": {
+    "title": "动态墙",
+    "empty": "暂无任何动态",
+    "loading": "加载中…",
+    "someone": "有人",
+    "expenseAdded": "{actor} 新增了支出“{description}”",
+    "expenseUpdated": "{actor} 编辑了支出“{description}”",
+    "expenseDeleted": "{actor} 删除了支出“{description}”",
     "paymentRecorded": "{actor} 登记了一笔还款",
     "memberJoined": "{actor} 加入了行程"
   }

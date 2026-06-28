@@ -20,6 +20,7 @@ export const tripKeys = {
   itinerary: (tripId: string) => ['trip', tripId, 'itinerary'] as const,
   checklists: (tripId: string) => ['trip', tripId, 'checklists'] as const,
   stats: (tripId: string) => ['trip', tripId, 'stats'] as const,
+  activity: (tripId: string) => ['trip', tripId, 'activity'] as const,
 } as const;
 
 /**

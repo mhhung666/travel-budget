@@ -559,7 +559,8 @@
     "archiveSuccess": "Archived — moved to the Archived tab",
     "unarchiveSuccess": "Trip restored",
     "viewStats": "Group stats",
-    "viewChecklist": "Checklist"
+    "viewChecklist": "Checklist",
+    "viewActivity": "Activity"
   },
   "checklist": {
     "title": "Checklists",
@@ -719,6 +720,17 @@
     "markAllRead": "Mark all read",
     "someone": "Someone",
     "expenseAdded": "{actor} added an expense: {description}",
+    "paymentRecorded": "{actor} recorded a payment",
+    "memberJoined": "{actor} joined the trip"
+  },
+  "activity": {
+    "title": "Activity",
+    "empty": "No activity yet",
+    "loading": "Loading…",
+    "someone": "Someone",
+    "expenseAdded": "{actor} added the expense “{description}”",
+    "expenseUpdated": "{actor} edited the expense “{description}”",
+    "expenseDeleted": "{actor} deleted the expense “{description}”",
     "paymentRecorded": "{actor} recorded a payment",
     "memberJoined": "{actor} joined the trip"
   }

@@ -9,6 +9,7 @@ import {
   Payment,
   Checklist,
   Notification,
+  ActivityLog,
   type TripDoc,
 } from '@/models';
 import { getTripMembership } from '@/lib/permissions';
@@ -27,6 +28,7 @@ import type { Trip, TripWithMembers } from '@/types';
 import { logger } from '@/lib/logger';
 import { toTripDto } from '@/lib/dto';
 import { notify } from '@/lib/notify';
+import { logActivity } from '@/lib/activity';
 
 /** 將 Mongoose Trip 文件映射為對外 DTO（維持 snake_case 以相容前端） */
 type LeanTrip = TripDoc & { _id: { toString(): string }; createdAt: Date };
@@ -238,13 +240,14 @@ export const deleteTrip = withAuth(
 
       const tripId = membership.tripId;
 
-      // MongoDB 無外鍵 cascade，需手動清除關聯資料（支出、行程日、結算還款、清單、通知）
+      // MongoDB 無外鍵 cascade，需手動清除關聯資料（支出、行程日、結算還款、清單、通知、動態牆）
       await Promise.all([
         Expense.deleteMany({ trip: tripId }),
         ItineraryDay.deleteMany({ trip: tripId }),
         Payment.deleteMany({ trip: tripId }),
         Checklist.deleteMany({ trip: tripId }),
         Notification.deleteMany({ trip: tripId }),
+        ActivityLog.deleteMany({ trip: tripId }),
       ]);
       await TripModel.deleteOne({ _id: tripId });
 
@@ -395,6 +398,12 @@ export const joinTrip = withAuth(
 
       // 通知既有成員「有新成員加入」（觸發者＝加入者，fan-out 預設排除自己）
       await notify({
+        tripId: trip._id.toString(),
+        actorId: session.userId,
+        type: 'member_joined',
+      });
+      // 動態牆紀錄（觸發者＝加入者本人，動態牆會顯示）
+      await logActivity({
         tripId: trip._id.toString(),
         actorId: session.userId,
         type: 'member_joined',

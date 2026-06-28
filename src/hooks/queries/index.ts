@@ -26,3 +26,4 @@ export {
   useNotificationList,
   useNotificationMutations,
 } from './useNotifications';
+export { useActivityLog } from './useActivityLog';

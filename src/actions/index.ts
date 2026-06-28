@@ -99,3 +99,6 @@ export {
   markNotificationRead,
   markAllNotificationsRead,
 } from './notification.actions';
+
+// Activity feed actions（動態牆）
+export { getActivityLog } from './activity.actions';

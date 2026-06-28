@@ -6,6 +6,9 @@ import type {
   NotificationItem,
   NotificationType,
   NotificationMeta,
+  ActivityLogItem,
+  ActivityLogType,
+  ActivityLogMeta,
 } from '@/types';
 import type { TripStatsDay, TripStatsExpense, TripStatsMember } from '@/lib/tripStats';
 
@@ -293,5 +296,31 @@ export function toNotificationDto(n: NotificationDtoInput): NotificationItem {
     meta: n.meta ?? {},
     read: n.read,
     created_at: n.createdAt.toISOString(),
+  };
+}
+
+/** Minimal lean ActivityLog shape `toActivityLogDto` needs (actorName denormalized). */
+export type ActivityLogDtoInput = {
+  _id: { toString(): string };
+  type: ActivityLogType;
+  actorName?: string | null;
+  meta?: ActivityLogMeta | null;
+  createdAt: Date;
+};
+
+/**
+ * Lean ActivityLog doc → frontend DTO. `actor_name` is already denormalized on
+ * the doc, so this needs no populate. The localized message is rendered
+ * client-side from `type` + `meta` (the viewer's locale), so we pass the
+ * structured data through untouched. Trip-scoped (no per-recipient `read`
+ * state), unlike `toNotificationDto`.
+ */
+export function toActivityLogDto(a: ActivityLogDtoInput): ActivityLogItem {
+  return {
+    id: a._id.toString(),
+    type: a.type,
+    actor_name: a.actorName ?? '',
+    meta: a.meta ?? {},
+    created_at: a.createdAt.toISOString(),
   };
 }

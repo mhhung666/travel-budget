@@ -3,9 +3,11 @@ import {
   toExpenseDto,
   toTripDto,
   toChecklistDto,
+  toActivityLogDto,
   type ExpenseDtoInput,
   type TripDtoInput,
   type ChecklistDtoInput,
+  type ActivityLogDtoInput,
 } from '@/lib/dto';
 
 const ref = (id: string, username: string, displayName: string) => ({
@@ -201,5 +203,36 @@ describe('toChecklistDto', () => {
     expect(dto.items[0].done).toBe(false);
     expect(dto.items[0].assignee_id).toBeNull();
     expect(dto.items[0].assignee_name).toBeNull();
+  });
+});
+
+describe('toActivityLogDto', () => {
+  it('maps a lean activity doc to the frontend DTO (denormalized actor, untouched meta)', () => {
+    const input: ActivityLogDtoInput = {
+      _id: { toString: () => 'a1' },
+      type: 'expense_added',
+      actorName: 'Alice',
+      meta: { description: 'Dinner', amount: 300, expense_id: 'e1' },
+      createdAt: new Date('2026-06-28T10:00:00Z'),
+    };
+    expect(toActivityLogDto(input)).toEqual({
+      id: 'a1',
+      type: 'expense_added',
+      actor_name: 'Alice',
+      meta: { description: 'Dinner', amount: 300, expense_id: 'e1' },
+      created_at: '2026-06-28T10:00:00.000Z',
+    });
+  });
+
+  it('defaults a missing actorName/meta (e.g. removed member) to empty values', () => {
+    const dto = toActivityLogDto({
+      _id: { toString: () => 'a2' },
+      type: 'member_joined',
+      actorName: null,
+      meta: null,
+      createdAt: new Date('2026-06-28T11:00:00Z'),
+    });
+    expect(dto.actor_name).toBe('');
+    expect(dto.meta).toEqual({});
   });
 });

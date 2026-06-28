@@ -10,7 +10,7 @@
 
 慣例：**已完成項目只保留「已實作」筆記**（內含與原草圖的偏離、以及尚未做的部分）；**未完成項目保留「做法」草圖**。原始草圖如需回顧，查本檔 git 歷史即可。
 
-> **進度**：Tier 1 全數完成 — **#1 預算**、**#2 結算「標記已付」**、**#3 彈性分帳**；另完成 **#13 群組統計**、**#7 清單／待辦**、**#17 支出搜尋/篩選**。第二波導入 **Cloudflare R2 blob 儲存**，解鎖 **#4 收據附件** 與 **#11 頭像**。**#6 行程強化** 全 3 Phase 完成（活動時間軸 → 支出↔行程連結 → 票券附件 + 統計/地圖按天聚合）。第三波啟動 **#9 通知 Phase 1（站內通知 + 鈴鐺）**。以上皆已併入 `master`。**下一步**：#9 Phase 2/3（Email Resend + 排程結算提醒、Web Push），或穿插 S 級填空。
+> **進度**：Tier 1 全數完成 — **#1 預算**、**#2 結算「標記已付」**、**#3 彈性分帳**；另完成 **#13 群組統計**、**#7 清單／待辦**、**#17 支出搜尋/篩選**。第二波導入 **Cloudflare R2 blob 儲存**，解鎖 **#4 收據附件** 與 **#11 頭像**。**#6 行程強化** 全 3 Phase 完成（活動時間軸 → 支出↔行程連結 → 票券附件 + 統計/地圖按天聚合）。第三波 **#9 通知 Phase 1（站內通知 + 鈴鐺）** 與 **#8 動態牆（per-trip 共享活動時間軸）** 完成。以上皆已併入 `master`。**下一步**：#9 Phase 2/3（Email Resend + 排程結算提醒、Web Push）、#5 離線優先 PWA、#15 年度回顧，或穿插 S 級填空。
 
 ---
 
@@ -31,6 +31,7 @@
 | 地圖 | 航線 / 熱點（造訪 / 花費權重）/ 國家三模式、使用者層級公開分享（`mapShareCode`） |
 | 匯出 | CSV（支出 / 行程 / 結算） |
 | 通知 | **站內通知**（鈴鐺 + 未讀數）：新增支出 / 登記還款 / 成員加入；per-user 收件匣（Email / Web Push 待做） |
+| 動態牆 | **活動紀錄**（per-trip 共享時間軸）：支出新增/編輯/刪除、登記還款、成員加入；旅程子頁、稽核基礎 |
 | 其他 | 四語系 i18n、深色模式、PWA manifest、公開唯讀分享頁 |
 
 **三個最刺眼的產品缺口**（皆已於 Tier 1 補上）：
@@ -96,9 +97,10 @@
 
 ## Tier 3 — 協作與社交（多人旅行的黏著度）
 
-### 8. ⭐ 活動紀錄 / 動態牆 (Activity feed) — M
+### 8. ✅ ⭐ 活動紀錄 / 動態牆 (Activity feed) — M〔已完成 2026-06-28〕
 **為什麼**：多人共編時「誰改了什麼」目前不可見。也是稽核基礎。
-**做法**：輕量 `ActivityLog`（`{ trip, actor, verb, target, meta, at }`），在各 mutation action 寫入；旅程頁時間軸呈現。
+
+> **已實作**：新 collection [ActivityLog](../src/models/ActivityLog.ts)＝`{ trip, actor, actorName, type, meta }`（timestamps 只 createdAt）。與 #9 通知的**對照取捨**：通知是 **per-user fan-out 收件匣**，動態牆是 **per-trip 單筆共享**——一個事件存一筆、全體成員共看同一份時間軸、走 getTripMembership 授權（非個人收件匣）；且**包含觸發者本人**（「誰改了什麼」當然含你自己，通知才排除自己）。`actorName` 去正規化（事件當下快照、讀取免 populate），`meta` 為型別相依結構化資料、文案在前端依**檢視者語系**即時組出（i18n `activity` 命名空間）。寫入工具 [lib/activity.ts](../src/lib/activity.ts) `logActivity()`＝**best-effort**（失敗只記 log、不 throw 進主 action，比照 notify / R2 清理）。**五個觸發點**：`createExpense`(expense_added)、`updateExpense`(expense_updated)、`deleteExpense`(expense_deleted)、`recordPayment`(payment_recorded)、`joinTrip`(member_joined)——前三者是 #9 沒有的「誰改了什麼」稽核值（與 #9 共用的三點之外再擴 update/delete）。Action [getActivityLog](../src/actions/activity.actions.ts)（成員可檢視全團、上限 50 筆、不分頁），共用 [toActivityLogDto](../src/lib/dto.ts) mapper。**型別命名**：行程子系統已有不同概念的 `ActivityType`/`Activity`（景點/餐飲…），故動態牆型別一律 `ActivityLog*` 避免衝突。**資料完整性**：`deleteTrip` cascade `ActivityLog.deleteMany`；`removeMember` 刻意**不清**動態牆（稽核性質、actorName 已快照故顯示無虞）。UI：獨立子頁 [/trips/[id]/activity](../src/app/%5Blocale%5D/trips/%5Bid%5D/activity/page.tsx)（比照 settlement/stats）+ [ActivityFeed](../src/components/activity/ActivityFeed.tsx) 時間軸 + 旅程詳情頁導覽按鈕；相對時間格式化抽出共用 [lib/relativeTime.ts](../src/lib/relativeTime.ts)（鈴鐺與動態牆共用）。React Query 掛 `tripKeys.activity`，支出/還款 mutation 一併 invalidate。四語系 + dto 測試。
 
 ### 9. ⭐ 通知 (Notifications) — L（需基礎設施）〔Phase 1 站內通知 ✅ 2026-06-28；Email / Web Push 待做〕
 **為什麼**：「有人新增支出」「該還錢了」「行程更新」需要被動推送。
@@ -185,7 +187,7 @@
 
 第三波（協作與留存）← 進行中
   ├── 9  通知      ✅ Phase 1 站內通知 + 鈴鐺　｜　Phase 2/3 Email・Web Push 待做
-  ├── 8  活動紀錄  （與 #9 共用 createExpense/recordPayment/joinTrip 觸發點）
+  ├── 8  活動紀錄  ✅ 動態牆（per-trip 共享時間軸、5 觸發點、稽核基礎）
   ├── 5  離線優先（旅行殺手級體驗）
   └── 15 年度回顧（傳播）
 
@@ -195,7 +197,7 @@
   └── 12 旅伴 ・ 18 標籤 ・ 16 地圖統計
 ```
 
-**下一步建議**：#9 通知 Phase 1（站內通知 + 鈴鐺）已完成。接續可（a）做 **#9 Phase 2/3**（Email Resend + Vercel Cron 排程結算提醒、Web Push）——需引入外部基礎設施；或（b）做 **#8 動態牆**——已有 `createExpense`/`recordPayment`/`joinTrip` 三個觸發點可直接掛 ActivityLog；期間可穿插 S 級填空（#12 旅伴、#16 地圖統計、#18 標籤）。
+**下一步建議**：#9 通知 Phase 1 與 #8 動態牆皆已完成。接續可（a）做 **#9 Phase 2/3**（Email Resend + Vercel Cron 排程結算提醒、Web Push）——需引入外部基礎設施；或（b）做 **#5 離線優先 PWA**（旅行殺手級體驗）或 **#15 年度回顧**（傳播）；期間可穿插 S 級填空（#12 旅伴、#16 地圖統計、#18 標籤）。
 
 ---
 

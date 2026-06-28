@@ -232,6 +232,8 @@ export const removeMember = withAuth(
 
       // 清掉此成員在本旅程的通知（已不是成員，通知點進去也無權檢視）
       await Notification.deleteMany({ trip: tripId, user: targetUserId });
+      // 動態牆（ActivityLog）刻意**不清**：它是稽核性質的歷史紀錄，且 actorName 已去
+      // 正規化（事件當下快照），即使該成員被移除，過往動態仍能正確顯示。
 
       // Cleanup virtual member if it has no expenses and belongs to no other trip
       if (isVirtualMember && !hasExpenses) {

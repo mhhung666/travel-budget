@@ -26,6 +26,7 @@ export function useExpenseMutations(tripId: string) {
     queryClient.invalidateQueries({ queryKey: tripKeys.expenses(tripId) });
     queryClient.invalidateQueries({ queryKey: tripKeys.settlement(tripId) });
     queryClient.invalidateQueries({ queryKey: tripKeys.stats(tripId) });
+    queryClient.invalidateQueries({ queryKey: tripKeys.activity(tripId) });
   };
 
   const create = useMutation({
