@@ -107,24 +107,77 @@ export async function buildNotificationEmail(input: BuildEmailInput): Promise<Em
   return { subject, html, text };
 }
 
-/** 共用的 Email HTML 外殼（內容 + footer）。 */
+/**
+ * 共用的 Email HTML 外殼（內容 + footer）。footerLink/settingsUrl 省略時只渲染
+ * footer 文字（transactional 信件如重設密碼無「通知設定」語境）。
+ */
 function wrapEmailHtml(
   contentHtml: string,
   footer: string,
-  footerLink: string,
-  settingsUrl: string
+  footerLink?: string,
+  settingsUrl?: string
 ): string {
+  const linkHtml =
+    footerLink && settingsUrl
+      ? ` <a href="${settingsUrl}" style="color: #6b7280;">${escapeHtml(footerLink)}</a>`
+      : '';
   return `<!DOCTYPE html>
 <html>
   <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1a1a1a; max-width: 480px; margin: 0 auto; padding: 24px;">
     ${contentHtml}
     <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 0 0 16px;" />
     <p style="font-size: 12px; color: #6b7280; line-height: 1.5; margin: 0;">
-      ${escapeHtml(footer)}
-      <a href="${settingsUrl}" style="color: #6b7280;">${escapeHtml(footerLink)}</a>
+      ${escapeHtml(footer)}${linkHtml}
     </p>
   </body>
 </html>`;
+}
+
+interface BuildPasswordResetInput {
+  locale: string;
+  /** 6 位數驗證碼（明碼，只在此封信中出現）。 */
+  code: string;
+  /** 驗證碼有效分鐘數（顯示於信中）。 */
+  expiresMinutes: number;
+}
+
+/**
+ * 產生「重設密碼驗證碼」Email（transactional：不受 notifyByEmail 開關影響，一律寄）。
+ * 依收件者語系本地化；信中不含任何連結，只給驗證碼與有效時間。
+ */
+export async function buildPasswordResetEmail(
+  input: BuildPasswordResetInput
+): Promise<EmailContent> {
+  const locale = normalizeLocale(input.locale);
+  const messages = await loadMessages(locale);
+  const t = createTranslator({ locale, messages, namespace: 'email' }) as unknown as (
+    key: string,
+    values?: Record<string, string | number>
+  ) => string;
+
+  const subject = t('passwordReset.subject');
+  const intro = t('passwordReset.intro');
+  const expiry = t('passwordReset.expiry', { minutes: input.expiresMinutes });
+  const ignore = t('passwordReset.ignore');
+
+  const footer = t('passwordReset.footer');
+  const text = [intro, '', input.code, '', expiry, '', ignore, '', footer].join('\n');
+
+  const html = wrapEmailHtml(
+    `<p style="font-size: 16px; line-height: 1.6; margin: 0 0 16px;">${escapeHtml(intro)}</p>
+    <p style="font-size: 32px; font-weight: 700; letter-spacing: 8px; text-align: center; margin: 0 0 16px; font-family: 'SFMono-Regular', Consolas, monospace;">${escapeHtml(
+      input.code
+    )}</p>
+    <p style="font-size: 14px; color: #6b7280; line-height: 1.6; margin: 0 0 8px;">${escapeHtml(
+      expiry
+    )}</p>
+    <p style="font-size: 14px; color: #6b7280; line-height: 1.6; margin: 0 0 32px;">${escapeHtml(
+      ignore
+    )}</p>`,
+    footer
+  );
+
+  return { subject, html, text };
 }
 
 /** 排程結算提醒 Email 的單筆未結清項目。 */

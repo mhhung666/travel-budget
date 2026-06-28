@@ -9,6 +9,7 @@ export {
   logout,
   updateProfile,
   updateNotificationPrefs,
+  requestPasswordReset,
   resetPassword,
 } from './auth.actions';
 export type { AuthUser, AuthUserWithCreatedAt } from './auth.actions';

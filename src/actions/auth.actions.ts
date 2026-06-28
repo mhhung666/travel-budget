@@ -1,17 +1,22 @@
 'use server';
 
+import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import { dbConnect } from '@/lib/mongodb';
-import { User as UserModel } from '@/models';
+import { User as UserModel, PasswordResetCode } from '@/models';
 import { createSession, deleteSession, getSession } from '@/lib/auth';
+import { sendEmail } from '@/lib/email';
+import { buildPasswordResetEmail } from '@/lib/emailTemplates';
 import {
   loginSchema,
   notificationPrefsSchema,
   registerSchema,
+  requestPasswordResetSchema,
   resetPasswordSchema,
   updateProfileSchema,
   type LoginInput,
   type RegisterInput,
+  type RequestPasswordResetInput,
   type ResetPasswordInput,
   type UpdateProfileInput,
 } from '@/lib/validation';
@@ -19,6 +24,21 @@ import { withAuth } from './withAuth';
 import type { ActionResult } from './types';
 import type { User } from '@/types';
 import { logger } from '@/lib/logger';
+
+// 忘記密碼驗證碼：6 位數、15 分鐘有效、最多 5 次驗證嘗試。
+const RESET_CODE_TTL_MS = 15 * 60 * 1000;
+const RESET_CODE_EXPIRES_MINUTES = 15;
+const RESET_CODE_MAX_ATTEMPTS = 5;
+
+/** 產生 6 位數驗證碼（含前導零）。 */
+function generateResetCode(): string {
+  return crypto.randomInt(0, 1_000_000).toString().padStart(6, '0');
+}
+
+/** 驗證碼雜湊（不存明碼）。短效 + 次數上限已足以防暴力，sha256 即可、無 bcrypt 成本。 */
+function hashResetCode(code: string): string {
+  return crypto.createHash('sha256').update(code).digest('hex');
+}
 
 export type AuthUser = Pick<User, 'id' | 'username' | 'display_name'>;
 export type AuthUserWithCreatedAt = AuthUser & {
@@ -291,7 +311,68 @@ export const updateNotificationPrefs = withAuth(
 );
 
 /**
- * Reset password (for forgot password)
+ * 忘記密碼 — 步驟一：以 Email 索取驗證碼。
+ *
+ * 安全性：**不洩漏 Email 是否存在** —— 無論帳號是否存在皆回傳相同的成功結果（信箱
+ * 存在時才實際寄碼）。每位使用者最多一筆有效碼（upsert 覆寫，重新索取即作廢前一組）。
+ * 寄信為 best-effort：未配置 Resend 時，非 production 會把碼寫進 log 以便本機測試。
+ */
+export async function requestPasswordReset(
+  input: RequestPasswordResetInput
+): Promise<ActionResult<{ message: string }>> {
+  try {
+    const validation = requestPasswordResetSchema.safeParse(input);
+    if (!validation.success) {
+      return {
+        success: false,
+        error: validation.error.issues[0].message,
+        code: 'VALIDATION_ERROR',
+      };
+    }
+
+    const { email, locale } = validation.data;
+
+    await dbConnect();
+    const user = await UserModel.findOne({ email }).collation(CI).select('email locale');
+
+    // 帳號存在才產碼寄信；不存在則靜默（回傳一致成功，避免列舉信箱）。
+    if (user?.email) {
+      const code = generateResetCode();
+      await PasswordResetCode.findOneAndUpdate(
+        { user: user._id },
+        {
+          codeHash: hashResetCode(code),
+          expiresAt: new Date(Date.now() + RESET_CODE_TTL_MS),
+          attempts: 0,
+        },
+        { upsert: true }
+      );
+
+      const content = await buildPasswordResetEmail({
+        code,
+        locale: locale ?? user.locale ?? 'zh',
+        expiresMinutes: RESET_CODE_EXPIRES_MINUTES,
+      });
+      const sent = await sendEmail({ to: user.email, content });
+      if (!sent && process.env.NODE_ENV !== 'production') {
+        // 本機 / 未配置 Resend：把碼印到 log 方便測試（production 不印）。
+        logger.info(`[dev] password reset code for ${user.email}: ${code}`);
+      }
+    }
+
+    return { success: true, data: { message: 'OK' } };
+  } catch (error) {
+    logger.error('Request password reset error', error);
+    return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
+  }
+}
+
+/**
+ * 忘記密碼 — 步驟二：以 Email + 驗證碼重設密碼。
+ *
+ * 失敗一律回傳 VALIDATION_ERROR 並以穩定的 error token（INVALID_CODE / CODE_EXPIRED /
+ * TOO_MANY_ATTEMPTS）讓前端對應本地化訊息——同樣不區分「信箱不存在」與「碼錯誤」以免列舉。
+ * 成功後刪除該驗證碼（一次性）。
  */
 export async function resetPassword(
   input: ResetPasswordInput
@@ -306,25 +387,36 @@ export async function resetPassword(
       };
     }
 
-    const { username, email, new_password } = validation.data;
+    const { email, code, new_password } = validation.data;
 
     await dbConnect();
+    const user = await UserModel.findOne({ email }).collation(CI).select('_id');
+    const record = user ? await PasswordResetCode.findOne({ user: user._id }) : null;
 
-    // Find user by username (case-insensitive)
-    const user = await UserModel.findOne({ username }).collation(CI).select('email');
-
-    if (!user) {
-      return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+    // 信箱不存在或無有效碼：一律當成「碼無效」回應（不洩漏信箱是否存在）。
+    if (!user || !record) {
+      return { success: false, error: 'INVALID_CODE', code: 'VALIDATION_ERROR' };
     }
 
-    // Verify email matches
-    if (!user.email || user.email.toLowerCase() !== email.toLowerCase()) {
-      return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
+    if (record.expiresAt.getTime() < Date.now()) {
+      await PasswordResetCode.deleteOne({ _id: record._id });
+      return { success: false, error: 'CODE_EXPIRED', code: 'VALIDATION_ERROR' };
     }
 
-    // Update password
+    if ((record.attempts ?? 0) >= RESET_CODE_MAX_ATTEMPTS) {
+      await PasswordResetCode.deleteOne({ _id: record._id });
+      return { success: false, error: 'TOO_MANY_ATTEMPTS', code: 'VALIDATION_ERROR' };
+    }
+
+    if (record.codeHash !== hashResetCode(code)) {
+      await PasswordResetCode.updateOne({ _id: record._id }, { $inc: { attempts: 1 } });
+      return { success: false, error: 'INVALID_CODE', code: 'VALIDATION_ERROR' };
+    }
+
+    // 驗證通過：更新密碼並作廢驗證碼（一次性）。
     const hashedPassword = await bcrypt.hash(new_password, 10);
     await UserModel.updateOne({ _id: user._id }, { $set: { password: hashedPassword } });
+    await PasswordResetCode.deleteOne({ _id: record._id });
 
     return { success: true, data: { message: '密碼已重設成功' } };
   } catch (error) {

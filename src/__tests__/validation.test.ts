@@ -242,8 +242,8 @@ describe('registerSchema', () => {
 describe('resetPasswordSchema', () => {
   it('should accept valid reset data', () => {
     const result = resetPasswordSchema.safeParse({
-      username: 'testuser',
       email: 'test@example.com',
+      code: '123456',
       new_password: 'newpassword123',
     });
     expect(result.success).toBe(true);
@@ -251,11 +251,22 @@ describe('resetPasswordSchema', () => {
 
   it('should reject short new password', () => {
     const result = resetPasswordSchema.safeParse({
-      username: 'testuser',
       email: 'test@example.com',
+      code: '123456',
       new_password: '12345',
     });
     expect(result.success).toBe(false);
+  });
+
+  it('should reject a non 6-digit code', () => {
+    for (const code of ['12345', '1234567', 'abcdef', '']) {
+      const result = resetPasswordSchema.safeParse({
+        email: 'test@example.com',
+        code,
+        new_password: 'newpassword123',
+      });
+      expect(result.success).toBe(false);
+    }
   });
 });
 

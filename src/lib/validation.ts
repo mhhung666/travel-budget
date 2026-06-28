@@ -163,9 +163,16 @@ export const registerSchema = z.object({
   password: z.string().min(6, '密碼至少需要 6 個字元'),
 });
 
-export const resetPasswordSchema = z.object({
-  username: z.string().min(1, '請輸入用戶名'),
+// 忘記密碼步驟一：以 Email 索取驗證碼。locale 帶入當前 UI 語系，供寄信決定語系。
+export const requestPasswordResetSchema = z.object({
   email: z.string().email('請輸入有效的電子郵件'),
+  locale: z.enum(['en', 'zh', 'zh-CN', 'jp']).optional(),
+});
+
+// 忘記密碼步驟二：以 Email + 6 位數驗證碼重設密碼。
+export const resetPasswordSchema = z.object({
+  email: z.string().email('請輸入有效的電子郵件'),
+  code: z.string().regex(/^\d{6}$/, '驗證碼為 6 位數字'),
   new_password: z.string().min(6, '新密碼至少需要 6 個字元'),
 });
 
@@ -280,6 +287,7 @@ export type CreateExpenseInput = z.infer<typeof createExpenseSchema>;
 export type UpdateExpenseInput = z.infer<typeof updateExpenseSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
+export type RequestPasswordResetInput = z.infer<typeof requestPasswordResetSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type AddVirtualMemberInput = z.infer<typeof addVirtualMemberSchema>;

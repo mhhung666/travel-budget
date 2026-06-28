@@ -481,11 +481,22 @@
     "forgotPassword": {
       "link": "忘記密碼？",
       "title": "重設密碼",
-      "description": "請輸入您的帳戶和電子郵件來重設密碼",
+      "step1Description": "輸入註冊時使用的電子郵件，我們會寄送 6 位數驗證碼給你。",
+      "step2Description": "請輸入寄到 {email} 的驗證碼並設定新密碼。",
+      "email": "電子郵件",
+      "sendCode": "寄送驗證碼",
+      "codeSent": "若該信箱已註冊，驗證碼已寄出，請查收（含垃圾信匣）。",
+      "code": "驗證碼",
+      "codeHelp": "6 位數，15 分鐘內有效",
       "newPassword": "新密碼",
       "submit": "重設密碼",
+      "resend": "重新寄送",
+      "back": "返回",
       "success": "密碼已重設成功！",
-      "error": "重設密碼失敗"
+      "error": "操作失敗，請稍後再試",
+      "invalidCode": "驗證碼錯誤",
+      "codeExpired": "驗證碼已過期，請重新索取",
+      "tooManyAttempts": "嘗試次數過多，請重新索取驗證碼"
     }
   },
   "stats": {
@@ -770,6 +781,13 @@
     "expenseDigest": {
       "subject": "今日支出摘要",
       "intro": "以下是今天各旅程新增的支出："
+    },
+    "passwordReset": {
+      "subject": "重設密碼驗證碼",
+      "intro": "請使用以下驗證碼重設您的密碼：",
+      "expiry": "驗證碼將於 {minutes} 分鐘後失效。",
+      "ignore": "若您未申請重設密碼，請忽略這封信，您的密碼不會變更。",
+      "footer": "你收到這封信是因為有人為此 Email 申請重設密碼。"
     }
   }
 }
