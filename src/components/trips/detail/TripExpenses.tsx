@@ -153,12 +153,12 @@ export default function TripExpenses({
                     onChange={(e) => updateFilters({ keyword: e.target.value })}
                   />
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="grid grid-cols-3 gap-2 sm:flex sm:items-center">
                   <Button
                     type="button"
                     variant={showFilters ? 'secondary' : 'outline'}
                     onClick={() => setShowFilters((v) => !v)}
-                    className="gap-2"
+                    className="w-full gap-2 sm:w-auto"
                   >
                     <SlidersHorizontal className="h-4 w-4" />
                     {tExpense('filters')}
@@ -176,6 +176,7 @@ export default function TripExpenses({
                     fileBaseName={`${tripName ?? 'trip'}-${tExport('expense.heading')}`}
                     disabled={expenses.length === 0}
                     size="default"
+                    className="w-full sm:w-auto"
                   />
                   {isCurrentUserMember && (
                     <Button
@@ -183,7 +184,7 @@ export default function TripExpenses({
                         e.stopPropagation();
                         onAdd(e);
                       }}
-                      className="whitespace-nowrap"
+                      className="w-full whitespace-nowrap sm:w-auto"
                     >
                       <Plus className="mr-2 h-4 w-4" />
                       {tExpense('add')}

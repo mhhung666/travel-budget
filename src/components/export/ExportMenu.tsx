@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { downloadFile } from '@/lib/download';
+import { cn } from '@/lib/utils';
 import type { ExportFile, ExportFormat } from '@/lib/exporters';
 
 interface ExportMenuProps {
@@ -23,6 +24,7 @@ interface ExportMenuProps {
   variant?: ButtonProps['variant'];
   size?: ButtonProps['size'];
   align?: 'start' | 'center' | 'end';
+  className?: string;
 }
 
 const DEFAULT_FORMATS: ExportFormat[] = ['markdown', 'csv', 'json'];
@@ -35,6 +37,7 @@ export default function ExportMenu({
   variant = 'outline',
   size = 'sm',
   align = 'end',
+  className,
 }: ExportMenuProps) {
   const t = useTranslations('export');
 
@@ -45,7 +48,12 @@ export default function ExportMenu({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant={variant} size={size} disabled={disabled} className="gap-2">
+        <Button
+          variant={variant}
+          size={size}
+          disabled={disabled}
+          className={cn('gap-2', className)}
+        >
           <Download className="h-4 w-4" />
           {t('label')}
         </Button>
