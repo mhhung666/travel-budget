@@ -784,5 +784,10 @@
       "ignore": "If you did not request a password reset, you can safely ignore this email — your password will not change.",
       "footer": "You received this email because a password reset was requested for this address."
     }
+  },
+  "offline": {
+    "banner": "Offline — showing cached data",
+    "updateAvailable": "A new version is available",
+    "reload": "Reload"
   }
 }

@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>離線 · Offline — Travel Budget</title>
+    <link rel="icon" href="/take-my-money.png" />
+    <style>
+      :root {
+        color-scheme: light dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        font-family:
+          ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+          'Helvetica Neue', Arial, 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+        background: #ffffff;
+        color: #0f172a;
+      }
+      @media (prefers-color-scheme: dark) {
+        body {
+          background: #0f172a;
+          color: #e2e8f0;
+        }
+      }
+      .card {
+        max-width: 360px;
+        text-align: center;
+      }
+      img {
+        width: 96px;
+        height: 96px;
+        object-fit: contain;
+        margin-bottom: 20px;
+        opacity: 0.9;
+      }
+      h1 {
+        font-size: 1.25rem;
+        margin: 0 0 8px;
+      }
+      p {
+        font-size: 0.95rem;
+        line-height: 1.6;
+        margin: 0 0 4px;
+        opacity: 0.85;
+      }
+      .sub {
+        font-size: 0.8rem;
+        opacity: 0.6;
+        margin-top: 12px;
+      }
+      button {
+        margin-top: 24px;
+        padding: 10px 24px;
+        font-size: 0.9rem;
+        border: none;
+        border-radius: 9999px;
+        background: #2563eb;
+        color: #fff;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #1d4ed8;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <img src="/take-my-money.png" alt="Travel Budget" />
+      <h1>目前離線 · You're offline</h1>
+      <p>這個頁面尚未被快取，請恢復連線後再試。</p>
+      <p>This page isn't cached yet. Reconnect and try again.</p>
+      <p class="sub">先前開啟過的旅程仍可離線檢視。<br />Previously opened trips remain available offline.</p>
+      <button onclick="location.reload()">重新整理 · Retry</button>
+    </div>
+  </body>
+</html>

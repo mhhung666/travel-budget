@@ -1,7 +1,20 @@
 import type { NextConfig } from 'next';
 import createNextIntlPlugin from 'next-intl/plugin';
+import withSerwistInit from '@serwist/next';
 
 const withNextIntl = createNextIntlPlugin('./src/i18n/config.ts');
+
+/**
+ * Serwist service worker (PWA offline-first, ROADMAP #5 Phase 1).
+ * - `swSrc` compiled to `public/sw.js` (gitignored build artifact).
+ * - Disabled in dev: Serwist doesn't support Turbopack, so local PWA testing
+ *   needs `pnpm dev --webpack`. Production build is unaffected.
+ */
+const withSerwist = withSerwistInit({
+  swSrc: 'src/sw.ts',
+  swDest: 'public/sw.js',
+  disable: process.env.NODE_ENV === 'development',
+});
 
 /**
  * 基本安全標頭（IMPROVEMENTS H），套用於所有路由：
@@ -33,4 +46,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withNextIntl(nextConfig);
+export default withSerwist(withNextIntl(nextConfig));

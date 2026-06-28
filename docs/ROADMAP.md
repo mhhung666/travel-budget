@@ -10,7 +10,7 @@
 
 慣例：**已完成項目只保留「已實作」筆記**（內含與原草圖的偏離、以及尚未做的部分）；**未完成項目保留「做法」草圖**。原始草圖如需回顧，查本檔 git 歷史即可。
 
-> **進度**：Tier 1 全數完成 — **#1 預算**、**#2 結算「標記已付」**、**#3 彈性分帳**；另完成 **#13 群組統計**、**#7 清單／待辦**、**#17 支出搜尋/篩選**。第二波導入 **Cloudflare R2 blob 儲存**，解鎖 **#4 收據附件** 與 **#11 頭像**。**#6 行程強化** 全 3 Phase 完成（活動時間軸 → 支出↔行程連結 → 票券附件 + 統計/地圖按天聚合）。第三波 **#9 通知 Phase 1（站內通知 + 鈴鐺）**、**#8 動態牆（per-trip 共享活動時間軸）** 與 **#9 Phase 2a（Email 通知，Resend）+ 2b（Vercel Cron 排程結算提醒）** 完成。以上皆已併入 `master`（Phase 2b 於 `feat/email-notifications` 分支）。**下一步**：#9 Phase 3（Web Push）、#5 離線優先 PWA、#15 年度回顧，或穿插 S 級填空。
+> **進度**：Tier 1 全數完成 — **#1 預算**、**#2 結算「標記已付」**、**#3 彈性分帳**；另完成 **#13 群組統計**、**#7 清單／待辦**、**#17 支出搜尋/篩選**。第二波導入 **Cloudflare R2 blob 儲存**，解鎖 **#4 收據附件** 與 **#11 頭像**。**#6 行程強化** 全 3 Phase 完成（活動時間軸 → 支出↔行程連結 → 票券附件 + 統計/地圖按天聚合）。第三波 **#9 通知 Phase 1（站內通知 + 鈴鐺）**、**#8 動態牆（per-trip 共享活動時間軸）** 與 **#9 Phase 2a（Email 通知，Resend）+ 2b（Vercel Cron 排程結算提醒）** 完成。以上皆已併入 `master`（Phase 2b 於 `feat/email-notifications` 分支）。第三波另完成 **#5 離線優先 Phase 1**（Serwist service worker + 可安裝 PWA + TanStack Query IndexedDB 持久化離線讀取）。**下一步**：#5 Phase 2（離線寫入佇列）、#9 Phase 3（Web Push，建議與 #5 共用 SW）、#15 年度回顧，或穿插 S 級填空。
 
 ---
 
@@ -72,9 +72,14 @@
 
 > **已實作**：導入 **Cloudflare R2**（S3 相容、無流量出口費）而非草圖預設的 Vercel Blob。基礎層 [lib/storage.ts](../src/lib/storage.ts)（server-only R2 client：`presignPut` / `presignGet` / `headObject` / `deleteObjects` / `deleteByPrefix`）+ [lib/uploads.ts](../src/lib/uploads.ts)（純函式：content-type 白名單、大小上限、`receipts/<tripId>/` 命名空間化 key —— owner 段由**伺服器**帶入，防跨 trip 寫入）+ [lib/imageCompress.ts](../src/lib/imageCompress.ts)（client 上傳前壓成 WebP，省流量）。收據存 **R2 私有 bucket**，內嵌 `Expense.attachments[]`＝`{ key, contentType, size, uploadedBy, uploadedAt }`（**存 key、不存 url**）；上傳走 presigned PUT 直傳 R2，存參照前以 **headObject** 重新驗證大小/型別（防 client 謊報）。檢視走 [getReceiptUrl](../src/actions/expense.actions.ts)（驗成員 + key 須屬本 trip → 短效簽名 GET）。`toExpenseDto` 加 `{ attachments }` 選項，**公開分享路由傳 `false`**（收據不外洩到未登入分享頁）。清理：`deleteExpense` / `deleteTrip` / 換附件皆 best-effort 刪 R2 物件。`R2_*` 六個 env 為 optional + `getR2Config()` 延遲檢查（未設定也能 boot / CI build）。UI：[ReceiptAttachments.tsx](../src/components/trips/detail/ReceiptAttachments.tsx)（上傳器 + 縮圖檢視）接進支出表單與支出卡。
 
-### 5. ⭐ 離線優先 (Offline-first PWA) — L
+### 5. ⭐ 離線優先 (Offline-first PWA) — L〔Phase 1 離線讀取 + 可安裝 ✅ 2026-06-28；Phase 2 離線寫入待做〕
 **為什麼**：出國當下常常**沒網路 / 漫遊昂貴**，卻正是要記帳的時刻。已有 manifest，但無 service worker / 離線快取。
-**做法**：加 service worker（`next-pwa` 或自寫 Workbox），支出建立採**樂觀 UI + 佇列**，連線恢復後同步。需處理離線時匯率（用最近一次快取值，回線再校正）。技術較深但對旅行 App 是殺手級體驗。
+
+> **已實作（Phase 1 — 離線讀取 + 可安裝 app shell）**：導入 **Serwist**（`@serwist/next`，Next.js 官方 PWA 文件推薦的 next-pwa 後繼者）。**架構取捨**：讀取全走 server actions（POST RPC，**離線無法執行也無法被 SW 正常快取**），故離線讀取**不靠 SW 快取資料**，改把 **TanStack Query 快取持久化到 IndexedDB**——先前看過的旅程/支出/結算/統計/行程/清單斷網重開仍渲染。兩條腿：① SW（[src/sw.ts](../src/sw.ts) → 建置產出 `public/sw.js`，gitignore）以 `defaultCache` 為底 + 補 **Leaflet 圖磚 CacheFirst**（離線看底圖）、**R2 圖片 CacheFirst**（avatars/收據），導覽 NetworkFirst、雙語靜態 [public/offline.html](../public/offline.html) fallback（避開 next-intl `[locale]` 路由複雜度）；**明確不快取 server-action POST / `/api/*` 變更**。② [src/lib/queryPersister.ts](../src/lib/queryPersister.ts)（`idb-keyval` async persister，`maxAge` 7 天、`PERSIST_BUSTER` 版本碼升版即失效）接進 [QueryProvider](../src/components/providers/QueryProvider.tsx)（`QueryClientProvider` → `PersistQueryClientProvider`，query defaults 加 `networkMode:'offlineFirst'` 讓離線吃快取、不噴錯不空轉重試）。UI：[useOnlineStatus](../src/hooks/useOnlineStatus.ts) + [OfflineBanner](../src/components/OfflineBanner.tsx)（離線細條 banner，掛進 layout）。manifest 補 192/512 icon（`sips` 由 272 源生成，`purpose:any`——logo 無 maskable 安全區故不宣告 maskable）。匯率沿用既有 `placeholderData:{TWD:1}` 降級，零改。四語系新增 `offline` 命名空間。**關鍵踩雷**：Serwist 用 webpack plugin，**Next 16 預設 Turbopack 不會觸發它**（build 無錯但不產 `sw.js`）→ `build` script 改 **`next build --webpack`**（**production build 因此退出 Turbopack**，本機 PWA 測試走 `pnpm build && pnpm start`，dev 仍 Turbopack）。
+>
+> **做法（Phase 2 待做 — 離線寫入）**：[useExpenseMutations](../src/hooks/queries/useExpenseMutations.ts) 加 `onMutate` 樂觀更新 + `queryClient.setMutationDefaults`（reload 後可續傳）+ 持久化暫停的 mutation + 連線恢復 `resumePausedMutations()` 重放；佇列/同步指示 UI、重放失敗與衝突處理。建議與 **#9 Phase 3 Web Push 共用同一個 service worker**。
+
+**原做法草圖**：加 service worker（`next-pwa` 或自寫 Workbox），支出建立採**樂觀 UI + 佇列**，連線恢復後同步。需處理離線時匯率（用最近一次快取值，回線再校正）。技術較深但對旅行 App 是殺手級體驗。
 
 ### 6. ✅ ⭐ 行程強化：時段、預訂、與支出連結 (Richer itinerary) — M〔Phase 1–3 全數完成；最後更新 2026-06-27〕
 **為什麼**：原本行程只有「第幾天 + 標題 + 內容」。旅行者要的是**時間軸**與**訂房/機票**，以及讓支出能回溯到「第幾天」。
@@ -194,7 +199,7 @@
 第三波（協作與留存）← 進行中
   ├── 9  通知      ✅ Phase 1 站內通知 + 鈴鐺 ・ Phase 2a Email（Resend）・ Phase 2b 排程結算提醒（Vercel Cron）　｜　Phase 3 Web Push 待做
   ├── 8  活動紀錄  ✅ 動態牆（per-trip 共享時間軸、5 觸發點、稽核基礎）
-  ├── 5  離線優先（旅行殺手級體驗）
+  ├── 5  離線優先   ✅ Phase 1 可安裝 + 離線讀取（Serwist SW + RQ 持久化）　｜　Phase 2 離線寫入待做
   └── 15 年度回顧（傳播）
 
 隨手可做（S，穿插填空）
@@ -203,7 +208,7 @@
   └── 12 旅伴 ・ 18 標籤 ・ 16 地圖統計
 ```
 
-**下一步建議**：#9 Phase 2a（Email）與 2b（Vercel Cron 排程結算提醒）皆完成。接續可（a）做 **#9 Phase 3 Web Push**（建議與 #5 共用 service worker）；或（b）做 **#5 離線優先 PWA**（旅行殺手級體驗）或 **#15 年度回顧**（傳播）；期間可穿插 S 級填空（#12 旅伴、#16 地圖統計、#18 標籤）。
+**下一步建議**：**#5 離線優先 Phase 1**（Serwist SW + 可安裝 + RQ 持久化離線讀取）已完成。接續可（a）做 **#5 Phase 2 離線寫入**（樂觀 UI + 暫停 mutation 佇列重放）；或（b）**#9 Phase 3 Web Push**（建議與 #5 共用 service worker，故與 a 一併規劃較省事）；或（c）**#15 年度回顧**（傳播）；期間可穿插 S 級填空（#12 旅伴、#16 地圖統計、#18 標籤）。
 
 ---
 

@@ -22,6 +22,21 @@ export default function manifest(): MetadataRoute.Manifest {
         sizes: 'any',
         type: 'image/png',
       },
+      // Explicit 192/512 raster sizes so Android treats the app as installable.
+      // `purpose: any` only — the logo isn't designed with a maskable safe zone,
+      // so declaring it maskable would let the launcher crop it badly.
+      {
+        src: '/icon-192.png',
+        sizes: '192x192',
+        type: 'image/png',
+        purpose: 'any',
+      },
+      {
+        src: '/icon-512.png',
+        sizes: '512x512',
+        type: 'image/png',
+        purpose: 'any',
+      },
     ],
   };
 }

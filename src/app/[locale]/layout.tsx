@@ -10,6 +10,7 @@ import { Inter } from 'next/font/google';
 import { ThemeProvider } from '@/components/theme-provider';
 import { QueryProvider } from '@/components/providers/QueryProvider';
 import { Toaster } from '@/components/ui/toaster';
+import { OfflineBanner } from '@/components/OfflineBanner';
 import '../globals.css';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
@@ -67,6 +68,7 @@ export default async function LocaleLayout({
               enableSystem
               disableTransitionOnChange
             >
+              <OfflineBanner />
               {children}
               <Toaster />
             </ThemeProvider>
