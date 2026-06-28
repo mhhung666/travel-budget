@@ -30,6 +30,9 @@ const envSchema = z.object({
   RESEND_FROM: z.string().optional(),
   // Email 內連結用的對外站台基底 URL（如 https://travel.example.com），結尾斜線會去除。
   APP_URL: z.string().optional(),
+  // 排程任務（Vercel Cron）的共享密鑰。Vercel 觸發 cron 時會自動帶
+  // `Authorization: Bearer <CRON_SECRET>`；未設定時 cron route 一律拒絕（防止公開觸發）。
+  CRON_SECRET: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

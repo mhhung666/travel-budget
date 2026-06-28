@@ -760,6 +760,12 @@
     "member_joined": {
       "subject": "{actor} さんが「{tripName}」に参加しました",
       "body": "{actor} さんが旅行「{tripName}」に参加しました。"
+    },
+    "settlementReminder": {
+      "subject": "未精算の金額があります",
+      "intro": "以下の旅行にまだ精算していない金額があります：",
+      "owe": "あなたの支払い",
+      "owed": "あなたへの未払い"
     }
   }
 }

@@ -760,6 +760,12 @@
     "member_joined": {
       "subject": "{actor} 加入了「{tripName}」",
       "body": "{actor} 加入了行程「{tripName}」。"
+    },
+    "settlementReminder": {
+      "subject": "你有尚未结清的款项",
+      "intro": "以下行程还有未结清的款项，记得结算一下：",
+      "owe": "你还需支付",
+      "owed": "尚有人欠你"
     }
   }
 }

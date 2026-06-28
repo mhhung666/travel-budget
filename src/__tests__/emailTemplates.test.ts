@@ -7,7 +7,7 @@ vi.mock('next-intl', async (importOriginal) => {
   return actual;
 });
 
-import { buildNotificationEmail } from '@/lib/emailTemplates';
+import { buildNotificationEmail, buildSettlementReminderEmail } from '@/lib/emailTemplates';
 
 const base = {
   actorName: 'Alice',
@@ -97,5 +97,40 @@ describe('buildNotificationEmail', () => {
     expect(email.html).not.toContain('<script>x</script>');
     expect(email.html).not.toContain('<b>bold</b>');
     expect(email.html).toContain('&lt;script&gt;');
+  });
+});
+
+describe('buildSettlementReminderEmail', () => {
+  const trips = [
+    { tripId: 't1', tripName: 'Tokyo', balance: -1200 }, // 你欠人
+    { tripId: 't2', tripName: 'Osaka', balance: 800 }, // 別人欠你
+  ];
+
+  it('lists each unsettled trip with a settlement link and rounded amount', async () => {
+    const email = await buildSettlementReminderEmail({
+      locale: 'en',
+      appUrl: 'https://app.example.com',
+      trips,
+    });
+    expect(email.html).toContain('https://app.example.com/trips/t1/settlement');
+    expect(email.html).toContain('https://app.example.com/trips/t2/settlement');
+    expect(email.html).toContain('Tokyo');
+    expect(email.html).toContain('Osaka');
+    // 金額取絕對值整數
+    expect(email.html).toContain('1200');
+    expect(email.html).toContain('800');
+  });
+
+  it('uses owe vs owed labels per balance sign', async () => {
+    const en = await buildSettlementReminderEmail({ locale: 'en', appUrl: null, trips });
+    expect(en.text).toContain('You still owe');
+    expect(en.text).toContain("You're still owed");
+  });
+
+  it('localizes the subject', async () => {
+    const en = await buildSettlementReminderEmail({ locale: 'en', appUrl: null, trips });
+    const zh = await buildSettlementReminderEmail({ locale: 'zh', appUrl: null, trips });
+    expect(en.subject).not.toEqual(zh.subject);
+    expect(zh.subject).toContain('未結清');
   });
 });

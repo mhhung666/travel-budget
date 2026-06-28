@@ -92,22 +92,110 @@ export async function buildNotificationEmail(input: BuildEmailInput): Promise<Em
 
   const text = [body, '', `${t('viewButton')}: ${url}`, '', t('footer')].join('\n');
 
-  const html = `<!DOCTYPE html>
-<html>
-  <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1a1a1a; max-width: 480px; margin: 0 auto; padding: 24px;">
-    <p style="font-size: 16px; line-height: 1.6; margin: 0 0 24px;">${escapeHtml(body)}</p>
+  const html = wrapEmailHtml(
+    `<p style="font-size: 16px; line-height: 1.6; margin: 0 0 24px;">${escapeHtml(body)}</p>
     <p style="margin: 0 0 32px;">
       <a href="${url}" style="display: inline-block; background: #0f172a; color: #fff; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 14px;">${escapeHtml(
         t('viewButton')
       )}</a>
-    </p>
+    </p>`,
+    t('footer'),
+    t('footerLink'),
+    settingsUrl
+  );
+
+  return { subject, html, text };
+}
+
+/** 共用的 Email HTML 外殼（內容 + footer）。 */
+function wrapEmailHtml(
+  contentHtml: string,
+  footer: string,
+  footerLink: string,
+  settingsUrl: string
+): string {
+  return `<!DOCTYPE html>
+<html>
+  <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1a1a1a; max-width: 480px; margin: 0 auto; padding: 24px;">
+    ${contentHtml}
     <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 0 0 16px;" />
     <p style="font-size: 12px; color: #6b7280; line-height: 1.5; margin: 0;">
-      ${escapeHtml(t('footer'))}
-      <a href="${settingsUrl}" style="color: #6b7280;">${escapeHtml(t('footerLink'))}</a>
+      ${escapeHtml(footer)}
+      <a href="${settingsUrl}" style="color: #6b7280;">${escapeHtml(footerLink)}</a>
     </p>
   </body>
 </html>`;
+}
+
+/** 排程結算提醒 Email 的單筆未結清項目。 */
+export interface ReminderTripLine {
+  tripId: string;
+  tripName: string;
+  /** 淨額（TWD）：>0 別人欠你、<0 你欠人。 */
+  balance: number;
+}
+
+interface BuildReminderInput {
+  locale: string;
+  appUrl: string | null;
+  /** 該收件者所有未結清的旅程（至少一筆）。 */
+  trips: ReminderTripLine[];
+}
+
+/**
+ * 產生「未結清結算提醒」的彙整 Email（一位使用者一封，列出其所有未結清旅程）。
+ * 依收件者語系本地化；每筆旅程連到該旅程的結算頁。
+ */
+export async function buildSettlementReminderEmail(
+  input: BuildReminderInput
+): Promise<EmailContent> {
+  const locale = normalizeLocale(input.locale);
+  const messages = await loadMessages(locale);
+  const t = createTranslator({ locale, messages, namespace: 'email' }) as unknown as (
+    key: string,
+    values?: Record<string, string | number>
+  ) => string;
+
+  const settingsUrl = toAbsoluteUrl(input.appUrl, ROUTES.SETTINGS);
+  const subject = t('settlementReminder.subject');
+  const intro = t('settlementReminder.intro');
+
+  // 每筆旅程：金額（取整、絕對值）+ 應收/應付標籤 + 結算頁連結。
+  const lines = input.trips.map((tr) => {
+    const url = toAbsoluteUrl(input.appUrl, ROUTES.TRIP_SETTLEMENT(tr.tripId));
+    const amount = Math.round(Math.abs(tr.balance));
+    const label = tr.balance < 0 ? t('settlementReminder.owe') : t('settlementReminder.owed');
+    return { name: tr.tripName, url, amount, label };
+  });
+
+  const text = [
+    intro,
+    '',
+    ...lines.map((l) => `• ${l.name} — ${l.label} NT$${l.amount}　${l.url}`),
+    '',
+    t('footer'),
+  ].join('\n');
+
+  const itemsHtml = lines
+    .map(
+      (l) => `<li style="margin: 0 0 10px; line-height: 1.5;">
+        <a href="${l.url}" style="color: #0f172a; font-weight: 600; text-decoration: none;">${escapeHtml(
+          l.name
+        )}</a>
+        <span style="color: #6b7280;"> — ${escapeHtml(l.label)} NT$${l.amount}</span>
+      </li>`
+    )
+    .join('\n');
+
+  const html = wrapEmailHtml(
+    `<p style="font-size: 16px; line-height: 1.6; margin: 0 0 16px;">${escapeHtml(intro)}</p>
+    <ul style="font-size: 15px; padding-left: 20px; margin: 0 0 32px;">
+      ${itemsHtml}
+    </ul>`,
+    t('footer'),
+    t('footerLink'),
+    settingsUrl
+  );
 
   return { subject, html, text };
 }

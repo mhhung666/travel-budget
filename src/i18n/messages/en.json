@@ -755,6 +755,12 @@
     "member_joined": {
       "subject": "{actor} joined “{tripName}”",
       "body": "{actor} joined the trip “{tripName}”."
+    },
+    "settlementReminder": {
+      "subject": "You have unsettled balances",
+      "intro": "These trips still have balances to settle:",
+      "owe": "You still owe",
+      "owed": "You're still owed"
     }
   }
 }
