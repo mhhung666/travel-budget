@@ -793,6 +793,11 @@
   "offline": {
     "banner": "オフライン — キャッシュされたデータを表示しています",
     "updateAvailable": "新しいバージョンがあります",
-    "reload": "再読み込み"
+    "reload": "再読み込み",
+    "pending": "同期待ち",
+    "queuedTitle": "支出を一時保存しました",
+    "queuedMessage": "現在オフラインです。この支出は再接続後に自動的に同期されます。",
+    "writeUnavailableTitle": "オフラインでは編集できません",
+    "writeUnavailableMessage": "編集と削除には接続が必要です。再接続後にもう一度お試しください。"
   }
 }

@@ -793,6 +793,11 @@
   "offline": {
     "banner": "離線模式 — 顯示的是已快取的資料",
     "updateAvailable": "有新版本可用",
-    "reload": "重新整理"
+    "reload": "重新整理",
+    "pending": "待同步",
+    "queuedTitle": "已暫存支出",
+    "queuedMessage": "目前離線，這筆支出會在恢復連線後自動同步。",
+    "writeUnavailableTitle": "離線時無法編輯",
+    "writeUnavailableMessage": "編輯與刪除需要網路連線，請恢復連線後再試。"
   }
 }

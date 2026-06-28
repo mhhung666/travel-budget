@@ -8,6 +8,7 @@ import {
   Edit2,
   Trash2,
   CalendarDays,
+  CloudOff,
   Search,
   SlidersHorizontal,
   X,
@@ -24,6 +25,7 @@ import {
   EMPTY_EXPENSE_FILTERS,
   type ExpenseFilters,
 } from '@/lib/expenseFilters';
+import { isOptimisticId } from '@/lib/optimisticExpense';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -77,6 +79,7 @@ export default function TripExpenses({
   const tExpense = useTranslations('expense');
   const tExport = useTranslations('export');
   const tCategory = useTranslations('category');
+  const tOffline = useTranslations('offline');
 
   const [showFilters, setShowFilters] = useState(false);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -319,105 +322,124 @@ export default function TripExpenses({
                   </p>
                 )}
                 <div className="space-y-4">
-                  {visible.map((expense) => (
-                    <Card
-                      key={expense.id}
-                      className="shadow-sm hover:shadow-md transition-shadow border-muted"
-                    >
-                      <CardContent className="p-4">
-                        <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-2">
-                          <div className="flex-1 space-y-1">
-                            <div className="flex items-center gap-2">
-                              <span className="text-lg" role="img" aria-label="category">
-                                {getCategoryIcon(expense.category)}
-                              </span>
-                              <h4 className="font-semibold text-base line-clamp-1">
-                                {expense.description}
-                              </h4>
+                  {visible.map((expense) => {
+                    const pending = isOptimisticId(expense.id);
+                    return (
+                      <Card
+                        key={expense.id}
+                        className="shadow-sm hover:shadow-md transition-shadow border-muted"
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-2">
+                            <div className="flex-1 space-y-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-lg" role="img" aria-label="category">
+                                  {getCategoryIcon(expense.category)}
+                                </span>
+                                <h4 className="font-semibold text-base line-clamp-1">
+                                  {expense.description}
+                                </h4>
+                                {pending && (
+                                  <Badge
+                                    variant="outline"
+                                    className="gap-1 font-normal text-amber-600 border-amber-300"
+                                  >
+                                    <CloudOff className="h-3 w-3" />
+                                    {tOffline('pending')}
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className="text-sm text-muted-foreground">
+                                {expense.payer_name} {tExpense('paidBy')} •{' '}
+                                {new Date(expense.date).toLocaleDateString()}
+                              </p>
+                              {expense.itinerary_day_id &&
+                                dayNumberById.has(expense.itinerary_day_id) && (
+                                  <Badge
+                                    variant="secondary"
+                                    className="gap-1 font-normal text-muted-foreground"
+                                  >
+                                    <CalendarDays className="h-3 w-3" />
+                                    Day {dayNumberById.get(expense.itinerary_day_id)}
+                                  </Badge>
+                                )}
                             </div>
-                            <p className="text-sm text-muted-foreground">
-                              {expense.payer_name} {tExpense('paidBy')} •{' '}
-                              {new Date(expense.date).toLocaleDateString()}
-                            </p>
-                            {expense.itinerary_day_id &&
-                              dayNumberById.has(expense.itinerary_day_id) && (
-                                <Badge
-                                  variant="secondary"
-                                  className="gap-1 font-normal text-muted-foreground"
-                                >
-                                  <CalendarDays className="h-3 w-3" />
-                                  Day {dayNumberById.get(expense.itinerary_day_id)}
-                                </Badge>
-                              )}
-                          </div>
 
-                          <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto gap-4 sm:gap-1">
-                            <div className="text-right">
-                              {expense.currency !== 'TWD' ? (
-                                <>
-                                  <div className="text-xs text-muted-foreground">
-                                    {Number(expense.original_amount).toLocaleString()}{' '}
-                                    {expense.currency} ({tExpense('rate')} {expense.exchange_rate})
-                                  </div>
+                            <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto gap-4 sm:gap-1">
+                              <div className="text-right">
+                                {expense.currency !== 'TWD' ? (
+                                  <>
+                                    <div className="text-xs text-muted-foreground">
+                                      {Number(expense.original_amount).toLocaleString()}{' '}
+                                      {expense.currency} ({tExpense('rate')} {expense.exchange_rate}
+                                      )
+                                    </div>
+                                    <div className="text-lg font-bold text-primary">
+                                      NT${expense.amount.toLocaleString()}
+                                    </div>
+                                  </>
+                                ) : (
                                   <div className="text-lg font-bold text-primary">
                                     NT${expense.amount.toLocaleString()}
                                   </div>
-                                </>
-                              ) : (
-                                <div className="text-lg font-bold text-primary">
-                                  NT${expense.amount.toLocaleString()}
+                                )}
+                              </div>
+
+                              {/* Optimistic (not-yet-synced) rows have no server
+                                id, so hide edit/delete until the create lands. */}
+                              {isCurrentUserMember && !pending && (
+                                <div className="flex gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={() => onEdit(expense)}
+                                  >
+                                    <Edit2 className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                    onClick={() => onDelete(expense.id)}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
                                 </div>
                               )}
                             </div>
+                          </div>
 
-                            {isCurrentUserMember && (
-                              <div className="flex gap-2">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8"
-                                  onClick={() => onEdit(expense)}
+                          <Separator className="my-3" />
+
+                          <div className="space-y-2">
+                            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+                              {tExpense('splitMembers')}
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                              {expense.splits.map((split) => (
+                                <Badge
+                                  key={split.user_id}
+                                  variant="outline"
+                                  className="font-normal"
                                 >
-                                  <Edit2 className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                  onClick={() => onDelete(expense.id)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            )}
+                                  {split.display_name}: ${split.share_amount.toFixed(0)}
+                                </Badge>
+                              ))}
+                            </div>
                           </div>
-                        </div>
 
-                        <Separator className="my-3" />
-
-                        <div className="space-y-2">
-                          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
-                            {tExpense('splitMembers')}
-                          </p>
-                          <div className="flex flex-wrap gap-2">
-                            {expense.splits.map((split) => (
-                              <Badge key={split.user_id} variant="outline" className="font-normal">
-                                {split.display_name}: ${split.share_amount.toFixed(0)}
-                              </Badge>
-                            ))}
-                          </div>
-                        </div>
-
-                        {expense.attachments && expense.attachments.length > 0 && (
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            {expense.attachments.map((a) => (
-                              <ReceiptThumb key={a.key} tripId={tripId} attachment={a} />
-                            ))}
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  ))}
+                          {expense.attachments && expense.attachments.length > 0 && (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {expense.attachments.map((a) => (
+                                <ReceiptThumb key={a.key} tripId={tripId} attachment={a} />
+                              ))}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
                 </div>
 
                 {filtered.length > visibleCount && (

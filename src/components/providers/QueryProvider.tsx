@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { QueryClient } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { createQueryPersister, PERSIST_BUSTER, PERSIST_MAX_AGE } from '@/lib/queryPersister';
+import { registerOfflineMutationDefaults } from '@/lib/offlineMutations';
 
 /**
  * Client-side TanStack Query provider with offline persistence (ROADMAP #5).
@@ -20,20 +21,23 @@ import { createQueryPersister, PERSIST_BUSTER, PERSIST_MAX_AGE } from '@/lib/que
  * trips render with no network.
  */
 export function QueryProvider({ children }: { children: React.ReactNode }) {
-  const [queryClient] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: {
-            staleTime: 30_000,
-            gcTime: 5 * 60_000,
-            retry: 1,
-            refetchOnWindowFocus: false,
-            networkMode: 'offlineFirst',
-          },
+  const [queryClient] = useState(() => {
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: {
+          staleTime: 30_000,
+          gcTime: 5 * 60_000,
+          retry: 1,
+          refetchOnWindowFocus: false,
+          networkMode: 'offlineFirst',
         },
-      })
-  );
+      },
+    });
+    // Re-supply the create-expense mutationFn so paused mutations restored from
+    // IndexedDB after a reload can be resumed (ROADMAP #5 Phase 2).
+    registerOfflineMutationDefaults(client);
+    return client;
+  });
 
   const [persister] = useState(() => createQueryPersister());
 
@@ -41,6 +45,12 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
     <PersistQueryClientProvider
       client={queryClient}
       persistOptions={{ persister, maxAge: PERSIST_MAX_AGE, buster: PERSIST_BUSTER }}
+      // After the persisted cache + paused mutations are restored, replay any
+      // queued offline writes. If still offline they stay paused and TanStack
+      // auto-resumes them on reconnect.
+      onSuccess={() => {
+        queryClient.resumePausedMutations();
+      }}
     >
       {children}
     </PersistQueryClientProvider>

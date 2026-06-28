@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { onlineManager } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import type { Expense } from '@/types';
 import type { SetBudgetInput } from '@/lib/validation';
@@ -28,6 +29,7 @@ export function useTripDetailPage(tripId: string) {
   const tBudget = useTranslations('budget');
   const tError = useTranslations('error');
   const tCommon = useTranslations('common');
+  const tOffline = useTranslations('offline');
 
   const { toast } = useToast();
 
@@ -64,30 +66,51 @@ export function useTripDetailPage(tripId: string) {
   };
 
   // --- Handlers ---
+  // Offline-capable: fire-and-forget so the dialog closes immediately. The
+  // optimistic insert (mutation onMutate) shows the row at once; when offline
+  // the mutation pauses and replays on reconnect (ROADMAP #5 Phase 2).
   const handleAddExpense = async (data: ExpenseDialogData) => {
-    await expenseMutations.create.mutateAsync({
-      payer_id: data.payer_id,
-      original_amount: parseFloat(data.original_amount),
-      currency: data.currency,
-      exchange_rate: parseFloat(data.exchange_rate),
-      description: data.description,
-      category: data.category,
-      date: data.date,
-      splits: data.splits,
-      attachments: data.attachments,
-      itinerary_day_id: data.itinerary_day_id || null,
-    });
+    const online = onlineManager.isOnline();
+    expenseMutations.create.mutate(
+      {
+        tripId,
+        input: {
+          payer_id: data.payer_id,
+          original_amount: parseFloat(data.original_amount),
+          currency: data.currency,
+          exchange_rate: parseFloat(data.exchange_rate),
+          description: data.description,
+          category: data.category,
+          date: data.date,
+          splits: data.splits,
+          attachments: data.attachments,
+          itinerary_day_id: data.itinerary_day_id || null,
+        },
+      },
+      { onError: toastError }
+    );
 
     addExpenseDialog.closeDialog();
-    toast({
-      title: tExpense('success.added'),
-      description: tExpense('success.addedMessage'),
-    });
+    toast(
+      online
+        ? { title: tExpense('success.added'), description: tExpense('success.addedMessage') }
+        : { title: tOffline('queuedTitle'), description: tOffline('queuedMessage') }
+    );
   };
 
+  // Edit/delete stay online-only — guard so they don't hang while paused offline.
   const handleEditExpense = async (data: ExpenseDialogData) => {
     const editingExpense = editExpenseDialog.data;
     if (!editingExpense) return;
+
+    if (!onlineManager.isOnline()) {
+      toast({
+        variant: 'destructive',
+        title: tOffline('writeUnavailableTitle'),
+        description: tOffline('writeUnavailableMessage'),
+      });
+      return;
+    }
 
     await expenseMutations.update.mutateAsync({
       expenseId: editingExpense.id,
@@ -118,6 +141,16 @@ export function useTripDetailPage(tripId: string) {
   const confirmDeleteExpense = async () => {
     const expenseId = deleteExpenseDialog.data;
     if (!expenseId) return;
+
+    if (!onlineManager.isOnline()) {
+      deleteExpenseDialog.closeDialog();
+      toast({
+        variant: 'destructive',
+        title: tOffline('writeUnavailableTitle'),
+        description: tOffline('writeUnavailableMessage'),
+      });
+      return;
+    }
 
     try {
       await expenseMutations.remove.mutateAsync(expenseId);

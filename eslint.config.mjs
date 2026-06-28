@@ -28,7 +28,17 @@ const eslintConfig = [
     },
   },
   {
-    ignores: ['out/', 'dist/', 'build/', 'docs/archive/', 'scripts/'],
+    // `public/sw*.js` are Serwist build artifacts (generated, minified) — never lint them.
+    ignores: [
+      'out/',
+      'dist/',
+      'build/',
+      'docs/archive/',
+      'scripts/',
+      'public/sw.js',
+      'public/sw.js.map',
+      'public/swe-worker-*.js',
+    ],
   },
 ];
 

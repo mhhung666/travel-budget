@@ -793,6 +793,11 @@
   "offline": {
     "banner": "离线模式 — 显示的是已缓存的数据",
     "updateAvailable": "有新版本可用",
-    "reload": "刷新"
+    "reload": "刷新",
+    "pending": "待同步",
+    "queuedTitle": "已暂存支出",
+    "queuedMessage": "当前离线，这笔支出会在恢复连接后自动同步。",
+    "writeUnavailableTitle": "离线时无法编辑",
+    "writeUnavailableMessage": "编辑与删除需要网络连接，请恢复连接后再试。"
   }
 }

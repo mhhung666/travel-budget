@@ -788,6 +788,11 @@
   "offline": {
     "banner": "Offline — showing cached data",
     "updateAvailable": "A new version is available",
-    "reload": "Reload"
+    "reload": "Reload",
+    "pending": "Pending sync",
+    "queuedTitle": "Expense saved offline",
+    "queuedMessage": "You're offline — this expense will sync automatically once you're back online.",
+    "writeUnavailableTitle": "Unavailable offline",
+    "writeUnavailableMessage": "Editing and deleting need a connection. Please try again once you're back online."
   }
 }
