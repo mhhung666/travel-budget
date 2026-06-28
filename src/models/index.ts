@@ -10,9 +10,4 @@ export {
   type NotificationDoc,
   type NotificationType,
 } from './Notification';
-export {
-  ActivityLog,
-  ACTIVITY_TYPES,
-  type ActivityLogDoc,
-  type ActivityType,
-} from './ActivityLog';
+export { ActivityLog, ACTIVITY_TYPES, type ActivityLogDoc, type ActivityType } from './ActivityLog';

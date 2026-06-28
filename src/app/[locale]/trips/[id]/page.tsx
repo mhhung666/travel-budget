@@ -3,7 +3,15 @@
 import { useParams } from 'next/navigation';
 import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
-import { ArrowLeft, Settings, Map, Calculator, BarChart3, ListChecks, Activity } from 'lucide-react';
+import {
+  ArrowLeft,
+  Settings,
+  Map,
+  Calculator,
+  BarChart3,
+  ListChecks,
+  Activity,
+} from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import { TripHeader, TripExpenses, TripBudget } from '@/components/trips/detail';
 
