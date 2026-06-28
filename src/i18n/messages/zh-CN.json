@@ -716,5 +716,15 @@
     "playStop": "停止",
     "heatByVisits": "造访次数",
     "heatBySpend": "花费"
+  },
+  "notifications": {
+    "title": "通知",
+    "empty": "暂无通知",
+    "loading": "加载中…",
+    "markAllRead": "全部已读",
+    "someone": "有人",
+    "expenseAdded": "{actor} 新增了一笔支出：{description}",
+    "paymentRecorded": "{actor} 登记了一笔还款",
+    "memberJoined": "{actor} 加入了行程"
   }
 }

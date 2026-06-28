@@ -21,3 +21,13 @@ export const tripKeys = {
   checklists: (tripId: string) => ['trip', tripId, 'checklists'] as const,
   stats: (tripId: string) => ['trip', tripId, 'stats'] as const,
 } as const;
+
+/**
+ * Notification query keys. Per-user (not trip-scoped), so they live outside the
+ * trip key tree: the bell's unread-count badge polls independently of any trip.
+ */
+export const notificationKeys = {
+  all: ['notifications'] as const,
+  list: ['notifications', 'list'] as const,
+  unreadCount: ['notifications', 'unreadCount'] as const,
+} as const;

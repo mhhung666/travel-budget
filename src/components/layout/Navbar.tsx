@@ -25,6 +25,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { logger } from '@/lib/logger';
 
 interface NavbarProps {
@@ -100,6 +101,9 @@ export default function Navbar({ user, showUserMenu = true, title }: NavbarProps
             <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
             <span className="sr-only">Toggle theme</span>
           </Button>
+
+          {/* 通知鈴鐺（登入後顯示，手機/桌機共用） */}
+          {showUserMenu && user && <NotificationBell />}
 
           {showUserMenu && user ? (
             <>

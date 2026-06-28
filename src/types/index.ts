@@ -49,6 +49,9 @@ export type {
   ActivityType,
   Checklist,
   ChecklistItem,
+  NotificationItem,
+  NotificationType,
+  NotificationMeta,
 } from './models';
 
 // ============================================

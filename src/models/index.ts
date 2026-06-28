@@ -4,3 +4,9 @@ export { Expense, EXPENSE_CATEGORIES, type ExpenseDoc, type ExpenseSplit } from 
 export { Payment, type PaymentDoc } from './Payment';
 export { ItineraryDay, type ItineraryDayDoc } from './ItineraryDay';
 export { Checklist, type ChecklistDoc } from './Checklist';
+export {
+  Notification,
+  NOTIFICATION_TYPES,
+  type NotificationDoc,
+  type NotificationType,
+} from './Notification';

@@ -1,4 +1,12 @@
-import type { Expense as ExpenseDto, Trip as TripDto, PaymentRecord, Checklist } from '@/types';
+import type {
+  Expense as ExpenseDto,
+  Trip as TripDto,
+  PaymentRecord,
+  Checklist,
+  NotificationItem,
+  NotificationType,
+  NotificationMeta,
+} from '@/types';
 import type { TripStatsDay, TripStatsExpense, TripStatsMember } from '@/lib/tripStats';
 
 /**
@@ -254,5 +262,36 @@ export function toPaymentRecord(p: PaymentDtoInput): PaymentRecord {
     amount: p.amount,
     note: p.note ?? null,
     createdAt: p.createdAt.toISOString(),
+  };
+}
+
+/** Minimal lean Notification shape `toNotificationDto` needs (display fields denormalized). */
+export type NotificationDtoInput = {
+  _id: { toString(): string };
+  type: NotificationType;
+  trip: { toString(): string };
+  tripName?: string | null;
+  actorName?: string | null;
+  meta?: NotificationMeta | null;
+  read: boolean;
+  createdAt: Date;
+};
+
+/**
+ * Lean Notification doc → frontend DTO. Display fields (trip/actor name) are
+ * already denormalized on the doc, so this needs no populate. The localized
+ * message is rendered client-side from `type` + `meta` (the recipient's locale,
+ * not the writer's), so we pass the structured data through untouched.
+ */
+export function toNotificationDto(n: NotificationDtoInput): NotificationItem {
+  return {
+    id: n._id.toString(),
+    type: n.type,
+    trip_id: n.trip.toString(),
+    trip_name: n.tripName ?? '',
+    actor_name: n.actorName ?? '',
+    meta: n.meta ?? {},
+    read: n.read,
+    created_at: n.createdAt.toISOString(),
   };
 }

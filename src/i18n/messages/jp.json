@@ -716,5 +716,15 @@
     "playStop": "停止",
     "heatByVisits": "訪問回数",
     "heatBySpend": "支出"
+  },
+  "notifications": {
+    "title": "通知",
+    "empty": "通知はありません",
+    "loading": "読み込み中…",
+    "markAllRead": "すべて既読にする",
+    "someone": "誰か",
+    "expenseAdded": "{actor} が支出を追加しました：{description}",
+    "paymentRecorded": "{actor} が支払いを記録しました",
+    "memberJoined": "{actor} が旅行に参加しました"
   }
 }

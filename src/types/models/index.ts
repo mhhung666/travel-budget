@@ -27,6 +27,9 @@ export type { ItineraryDay, Activity, ActivityType } from './itinerary';
 // Checklist
 export type { Checklist, ChecklistItem } from './checklist';
 
+// Notification
+export type { NotificationItem, NotificationType, NotificationMeta } from './notification';
+
 // Stats
 export type {
   ExpenseDetail,

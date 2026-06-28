@@ -16,6 +16,7 @@ import { logger } from '@/lib/logger';
 import { toExpenseDto, type ExpenseDtoInput } from '@/lib/dto';
 import { isReceiptKeyForTrip, RECEIPT_CONTENT_TYPES, MAX_RECEIPT_BYTES } from '@/lib/uploads';
 import { headObject, deleteObjects, presignGet } from '@/lib/storage';
+import { notify } from '@/lib/notify';
 
 type LeanExpense = ExpenseDtoInput & { date: Date };
 
@@ -206,6 +207,14 @@ export const createExpense = withAuth(
         { path: 'payer', select: 'username displayName' },
         { path: 'splits.user', select: 'username displayName' },
       ]);
+
+      // 通知其他成員「有人新增支出」（best-effort，失敗不影響建立）
+      await notify({
+        tripId,
+        actorId: session.userId,
+        type: 'expense_added',
+        meta: { expense_id: created._id.toString(), description, amount },
+      });
 
       revalidatePath(`/trips/${tripIdOrCode}`);
       return {

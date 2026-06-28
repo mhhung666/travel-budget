@@ -3,7 +3,7 @@
 import { randomUUID } from 'crypto';
 import { revalidatePath } from 'next/cache';
 import { dbConnect } from '@/lib/mongodb';
-import { Trip, User, Expense, Payment, Checklist } from '@/models';
+import { Trip, User, Expense, Payment, Checklist, Notification } from '@/models';
 import { getTripMembership } from '@/lib/permissions';
 import { addVirtualMemberSchema, type AddVirtualMemberInput } from '@/lib/validation';
 import { withAuth } from './withAuth';
@@ -229,6 +229,9 @@ export const removeMember = withAuth(
         { $set: { 'items.$[el].assignee': null } },
         { arrayFilters: [{ 'el.assignee': targetUserId }] }
       );
+
+      // 清掉此成員在本旅程的通知（已不是成員，通知點進去也無權檢視）
+      await Notification.deleteMany({ trip: tripId, user: targetUserId });
 
       // Cleanup virtual member if it has no expenses and belongs to no other trip
       if (isVirtualMember && !hasExpenses) {

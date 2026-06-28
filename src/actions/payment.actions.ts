@@ -9,6 +9,7 @@ import type { ActionResult } from './types';
 import type { PaymentRecord } from '@/types';
 import { logger } from '@/lib/logger';
 import { toPaymentRecord, type PaymentDtoInput } from '@/lib/dto';
+import { notify } from '@/lib/notify';
 
 /**
  * 登記一筆還款（標記「已付清」）。任何成員皆可登記，與支出同樣的協作信任模型。
@@ -60,6 +61,15 @@ export const recordPayment = withAuth(
         { path: 'from', select: 'username displayName' },
         { path: 'to', select: 'username displayName' },
       ]);
+
+      // 通知還款雙方（除觸發者外）「有人登記了與你有關的還款」
+      await notify({
+        tripId,
+        actorId: session.userId,
+        type: 'payment_recorded',
+        meta: { payment_id: created._id.toString(), amount },
+        recipientIds: [from_id, to_id],
+      });
 
       revalidatePath(`/trips/${tripIdOrCode}/settlement`);
       return {
