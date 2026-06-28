@@ -139,7 +139,7 @@ export default function TripExpenses({
           <CardContent className="pt-0 p-4 sm:p-6">
             {/* Toolbar: search + filter toggle + export + add */}
             <div className="mb-4 space-y-3">
-              <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+              <div className="flex items-center gap-2">
                 <div className="relative flex-1">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Label htmlFor="expense-search" className="sr-only">
@@ -153,15 +153,16 @@ export default function TripExpenses({
                     onChange={(e) => updateFilters({ keyword: e.target.value })}
                   />
                 </div>
-                <div className="grid grid-cols-3 gap-2 sm:flex sm:items-center">
+                <div className="flex shrink-0 items-center gap-2">
                   <Button
                     type="button"
                     variant={showFilters ? 'secondary' : 'outline'}
                     onClick={() => setShowFilters((v) => !v)}
-                    className="w-full gap-2 sm:w-auto"
+                    className="gap-2 px-3 sm:px-4"
+                    aria-label={tExpense('filters')}
                   >
                     <SlidersHorizontal className="h-4 w-4" />
-                    {tExpense('filters')}
+                    <span className="hidden sm:inline">{tExpense('filters')}</span>
                     {activeCount > 0 && (
                       <Badge
                         variant="default"
@@ -176,7 +177,8 @@ export default function TripExpenses({
                     fileBaseName={`${tripName ?? 'trip'}-${tExport('expense.heading')}`}
                     disabled={expenses.length === 0}
                     size="default"
-                    className="w-full sm:w-auto"
+                    className="px-3 sm:px-4"
+                    labelClassName="hidden sm:inline"
                   />
                   {isCurrentUserMember && (
                     <Button
@@ -184,10 +186,11 @@ export default function TripExpenses({
                         e.stopPropagation();
                         onAdd(e);
                       }}
-                      className="w-full whitespace-nowrap sm:w-auto"
+                      className="gap-2 px-3 whitespace-nowrap sm:px-4"
+                      aria-label={tExpense('add')}
                     >
-                      <Plus className="mr-2 h-4 w-4" />
-                      {tExpense('add')}
+                      <Plus className="h-4 w-4" />
+                      <span className="hidden sm:inline">{tExpense('add')}</span>
                     </Button>
                   )}
                 </div>

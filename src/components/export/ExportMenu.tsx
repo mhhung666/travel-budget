@@ -25,6 +25,8 @@ interface ExportMenuProps {
   size?: ButtonProps['size'];
   align?: 'start' | 'center' | 'end';
   className?: string;
+  /** 套用在文字標籤上的 class（例如手機版隱藏文字：`hidden sm:inline`） */
+  labelClassName?: string;
 }
 
 const DEFAULT_FORMATS: ExportFormat[] = ['markdown', 'csv', 'json'];
@@ -38,6 +40,7 @@ export default function ExportMenu({
   size = 'sm',
   align = 'end',
   className,
+  labelClassName,
 }: ExportMenuProps) {
   const t = useTranslations('export');
 
@@ -55,7 +58,7 @@ export default function ExportMenu({
           className={cn('gap-2', className)}
         >
           <Download className="h-4 w-4" />
-          {t('label')}
+          <span className={labelClassName}>{t('label')}</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align={align}>
