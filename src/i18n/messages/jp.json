@@ -106,6 +106,12 @@
       "change": "アバターを変更",
       "remove": "削除",
       "uploadFailed": "アップロードに失敗しました"
+    },
+    "notifications": {
+      "title": "通知設定",
+      "emailLabel": "メール通知",
+      "emailHelp": "支出の追加、返済の記録、旅行への参加があったときにメールでお知らせします。",
+      "updateSuccess": "通知設定を更新しました"
     }
   },
   "location": {
@@ -738,5 +744,22 @@
     "expenseDeleted": "{actor} が支出「{description}」を削除しました",
     "paymentRecorded": "{actor} が支払いを記録しました",
     "memberJoined": "{actor} が旅行に参加しました"
+  },
+  "email": {
+    "viewButton": "表示",
+    "footer": "メール通知がオンになっているため、このメールが届いています。",
+    "footerLink": "通知設定を管理",
+    "expense_added": {
+      "subject": "{actor} さんが「{tripName}」に支出を追加しました",
+      "body": "{actor} さんが「{tripName}」に支出を追加しました：{description}（NT${amount}）。"
+    },
+    "payment_recorded": {
+      "subject": "「{tripName}」に返済が記録されました",
+      "body": "{actor} さんが「{tripName}」であなたに関する返済を記録しました。"
+    },
+    "member_joined": {
+      "subject": "{actor} さんが「{tripName}」に参加しました",
+      "body": "{actor} さんが旅行「{tripName}」に参加しました。"
+    }
   }
 }

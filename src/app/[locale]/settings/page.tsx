@@ -2,15 +2,16 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from '@/i18n/navigation';
-import { ArrowLeft, User, Lock, Loader2 } from 'lucide-react';
-import { useTranslations } from 'next-intl';
-import { getCurrentUser, updateProfile } from '@/actions';
+import { ArrowLeft, User, Lock, Bell, Loader2 } from 'lucide-react';
+import { useTranslations, useLocale } from 'next-intl';
+import { getCurrentUser, updateProfile, updateNotificationPrefs } from '@/actions';
 import type { AuthUserWithCreatedAt } from '@/actions';
 
 import Navbar from '@/components/layout/Navbar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AccountSettingsSkeleton } from '@/components/skeletons';
@@ -20,6 +21,7 @@ import { logger } from '@/lib/logger';
 export default function SettingsPage() {
   const router = useRouter();
   const t = useTranslations('settings');
+  const locale = useLocale();
   const [user, setUser] = useState<AuthUserWithCreatedAt | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -31,10 +33,12 @@ export default function SettingsPage() {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [notifyByEmail, setNotifyByEmail] = useState(true);
 
   // 提交狀態
   const [updatingProfile, setUpdatingProfile] = useState(false);
   const [updatingPassword, setUpdatingPassword] = useState(false);
+  const [updatingNotifications, setUpdatingNotifications] = useState(false);
 
   const fetchUser = useCallback(async () => {
     try {
@@ -43,6 +47,7 @@ export default function SettingsPage() {
         setUser(result.data);
         setDisplayName(result.data.display_name);
         setEmail(result.data.email || '');
+        setNotifyByEmail(result.data.notify_by_email);
       }
     } catch (error) {
       logger.error('獲取用戶資料失敗', error);
@@ -130,6 +135,28 @@ export default function SettingsPage() {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setUpdatingPassword(false);
+    }
+  };
+
+  const handleSaveNotifications = async (next: boolean) => {
+    setError('');
+    setSuccess('');
+    setUpdatingNotifications(true);
+    // 樂觀更新；失敗時回復
+    const prev = notifyByEmail;
+    setNotifyByEmail(next);
+    try {
+      // 存檔時帶入當前 UI 語系，供伺服端 Email 寄送決定語系
+      const result = await updateNotificationPrefs({ notify_by_email: next, locale });
+      if (!result.success) {
+        throw new Error(result.error || t('errors.updateFailed'));
+      }
+      setSuccess(t('notifications.updateSuccess'));
+    } catch (err: unknown) {
+      setNotifyByEmail(prev);
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setUpdatingNotifications(false);
     }
   };
 
@@ -226,6 +253,34 @@ export default function SettingsPage() {
                 </Button>
               </div>
             </form>
+          </CardContent>
+        </Card>
+
+        {/* 通知偏好 */}
+        <Card className="mb-8">
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center gap-2 text-xl">
+              <Bell className="h-5 w-5 text-primary" />
+              {t('notifications.title')}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <label className="flex items-start gap-3 cursor-pointer">
+              <Checkbox
+                checked={notifyByEmail}
+                disabled={updatingNotifications}
+                onCheckedChange={(checked) => handleSaveNotifications(checked === true)}
+                className="mt-0.5"
+              />
+              <span className="space-y-1">
+                <span className="block text-sm font-medium text-foreground">
+                  {t('notifications.emailLabel')}
+                </span>
+                <span className="block text-xs text-muted-foreground">
+                  {t('notifications.emailHelp')}
+                </span>
+              </span>
+            </label>
           </CardContent>
         </Card>
 

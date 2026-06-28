@@ -106,6 +106,12 @@
       "change": "Change avatar",
       "remove": "Remove",
       "uploadFailed": "Upload failed"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "emailLabel": "Email notifications",
+      "emailHelp": "Get an email when someone adds an expense, records a payment, or joins a trip.",
+      "updateSuccess": "Notification settings updated"
     }
   },
   "location": {
@@ -733,5 +739,22 @@
     "expenseDeleted": "{actor} deleted the expense “{description}”",
     "paymentRecorded": "{actor} recorded a payment",
     "memberJoined": "{actor} joined the trip"
+  },
+  "email": {
+    "viewButton": "View",
+    "footer": "You're receiving this because email notifications are on.",
+    "footerLink": "Manage notification settings",
+    "expense_added": {
+      "subject": "{actor} added an expense in “{tripName}”",
+      "body": "{actor} added an expense in “{tripName}”: {description} (NT${amount})."
+    },
+    "payment_recorded": {
+      "subject": "A payment was recorded in “{tripName}”",
+      "body": "{actor} recorded a payment involving you in “{tripName}”."
+    },
+    "member_joined": {
+      "subject": "{actor} joined “{tripName}”",
+      "body": "{actor} joined the trip “{tripName}”."
+    }
   }
 }
