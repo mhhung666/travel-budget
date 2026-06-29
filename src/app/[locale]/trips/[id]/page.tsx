@@ -11,9 +11,10 @@ import {
   BarChart3,
   ListChecks,
   History,
+  Wallet,
 } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
-import { TripHeader, TripExpenses, TripBudget } from '@/components/trips/detail';
+import { TripHeader, TripExpenses } from '@/components/trips/detail';
 
 // Dialogs
 import { ExpenseFormDialog, EditTripDialog, BudgetDialog } from '@/components/trips/detail/dialogs';
@@ -33,6 +34,7 @@ export default function TripDetailPage() {
   const tTrips = useTranslations('trips');
   const tExpense = useTranslations('expense');
   const tCommon = useTranslations('common');
+  const tBudget = useTranslations('budget');
 
   const {
     trip,
@@ -115,6 +117,17 @@ export default function TripDetailPage() {
           </Button>
 
           <div className="flex items-center gap-2">
+            {isMember && (
+              <Button
+                variant="outline"
+                onClick={() => budgetDialog.openDialog()}
+                className="gap-2"
+              >
+                <Wallet className="h-4 w-4 text-primary" />
+                <span className="hidden sm:inline">{tBudget('title')}</span>
+              </Button>
+            )}
+
             <Button
               variant="outline"
               onClick={() => router.push(`/trips/${tripId}/activity`)}
@@ -178,15 +191,6 @@ export default function TripDetailPage() {
                 {tTrip('viewChecklist')}
               </Button>
             </TripHeader>
-
-            {isMember && (
-              <TripBudget
-                budget={trip.budget}
-                expenses={expenses}
-                isCurrentUserAdmin={isAdmin}
-                onEdit={() => budgetDialog.openDialog()}
-              />
-            )}
           </div>
 
           {/* Right Column: Expenses (Main Content) */}
