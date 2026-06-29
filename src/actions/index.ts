@@ -11,6 +11,8 @@ export {
   updateNotificationPrefs,
   requestPasswordReset,
   resetPassword,
+  requestEmailChange,
+  confirmEmailChange,
 } from './auth.actions';
 export type { AuthUser, AuthUserWithCreatedAt } from './auth.actions';
 

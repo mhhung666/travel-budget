@@ -176,10 +176,11 @@ export const resetPasswordSchema = z.object({
   new_password: z.string().min(6, '新密碼至少需要 6 個字元'),
 });
 
+// 個人資料 / 密碼更新。Email 變更不走這裡——改用「寄碼驗證新信箱」的兩步流程
+// （requestEmailChange / confirmEmailChange），故此處不再接受 new_email。
 export const updateProfileSchema = z
   .object({
     display_name: z.string().min(1, '顯示名稱不能為空').optional(),
-    new_email: z.string().email('請輸入有效的電子郵件').optional(),
     current_password: z.string().optional(),
     new_password: z.string().min(6, '新密碼至少需要 6 個字元').optional(),
   })
@@ -193,6 +194,17 @@ export const updateProfileSchema = z
     },
     { message: '修改密碼需要輸入目前密碼', path: ['current_password'] }
   );
+
+// 變更 Email 步驟一：以目前登入身分索取「新信箱」驗證碼。locale 帶入當前 UI 語系，供寄信決定語系。
+export const requestEmailChangeSchema = z.object({
+  new_email: z.string().email('請輸入有效的電子郵件'),
+  locale: z.enum(['en', 'zh', 'zh-CN', 'jp']).optional(),
+});
+
+// 變更 Email 步驟二：輸入寄到新信箱的 6 位數驗證碼以套用變更。
+export const confirmEmailChangeSchema = z.object({
+  code: z.string().regex(/^\d{6}$/, '驗證碼為 6 位數字'),
+});
 
 // 通知偏好（Email 開關 + 寄信語系）。locale 收斂為支援語系，無效值由 action 端忽略。
 export const notificationPrefsSchema = z.object({
@@ -300,5 +312,6 @@ export type RegisterInput = z.infer<typeof registerSchema>;
 export type RequestPasswordResetInput = z.infer<typeof requestPasswordResetSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
+export type ConfirmEmailChangeInput = z.infer<typeof confirmEmailChangeSchema>;
 export type AddVirtualMemberInput = z.infer<typeof addVirtualMemberSchema>;
 export type LocationInput = z.infer<typeof locationSchema>;

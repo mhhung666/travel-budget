@@ -14,6 +14,7 @@
 | --- | --- |
 | 註冊 / 登入 / 登出 | 自製 JWT（`jose`）+ httpOnly cookie，密碼以 `bcryptjs` 雜湊 |
 | 修改個資 / 重設密碼 | 設定頁；重設碼存於 [PasswordResetCode](../src/models/PasswordResetCode.ts) |
+| 變更 Email（寄碼驗證） | 設定頁兩步驟：`requestEmailChange` 寄 6 位數碼到**新信箱** → `confirmEmailChange` 驗碼通過才套用；待驗證碼存於 [EmailChangeCode](../src/models/EmailChangeCode.ts)（含 `newEmail`），與重設密碼共用驗證碼機制 |
 | 頭像 | `User.avatarUrl`，存 R2 **公開** avatars bucket 的穩定 URL（見 §7） |
 | 虛擬成員 | `User.isVirtual`：未註冊者也能參與分帳；可與真人帳號連結 / 轉換 |
 | 通知偏好 | `User.notifyByEmail`（Email opt-out）、`User.locale`（寄信語系） |

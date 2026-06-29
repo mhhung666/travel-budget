@@ -85,7 +85,23 @@
       "currentHelp": "這是您目前的電子郵件地址",
       "new": "新電子郵件",
       "updateButton": "更新電子郵件",
-      "updateSuccess": "電子郵件已更新"
+      "updateSuccess": "電子郵件已更新",
+      "sendCode": "寄送驗證碼",
+      "sending": "寄送中…",
+      "codeSent": "驗證碼已寄至 {email}，請查收信箱（含垃圾信件匣）。",
+      "code": "驗證碼",
+      "codeHelp": "6 位數字，15 分鐘內有效",
+      "step2Description": "請輸入寄至 {email} 的驗證碼以確認變更。",
+      "verifyButton": "確認變更",
+      "verifying": "驗證中…",
+      "cancel": "取消",
+      "resend": "重新寄送",
+      "invalidCode": "驗證碼不正確",
+      "codeExpired": "驗證碼已過期，請重新索取。",
+      "tooManyAttempts": "嘗試次數過多，請重新索取驗證碼。",
+      "conflict": "此電子郵件已被其他帳號使用。",
+      "sameEmail": "這已經是您目前的電子郵件。",
+      "error": "發生錯誤，請稍後再試。"
     },
     "password": {
       "title": "修改密碼",
@@ -797,6 +813,13 @@
       "expiry": "驗證碼將於 {minutes} 分鐘後失效。",
       "ignore": "若您未申請重設密碼，請忽略這封信，您的密碼不會變更。",
       "footer": "你收到這封信是因為有人為此 Email 申請重設密碼。"
+    },
+    "emailChange": {
+      "subject": "確認您的新電子郵件",
+      "intro": "請使用以下驗證碼確認您的新電子郵件地址：",
+      "expiry": "驗證碼將於 {minutes} 分鐘後失效。",
+      "ignore": "若您未申請變更電子郵件，請忽略這封信，您的電子郵件不會變更。",
+      "footer": "你收到這封信是因為有人申請將帳號的電子郵件改為此地址。"
     }
   },
   "offline": {

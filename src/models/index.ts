@@ -1,5 +1,6 @@
 export { User, type UserDoc } from './User';
 export { PasswordResetCode, type PasswordResetCodeDoc } from './PasswordResetCode';
+export { EmailChangeCode, type EmailChangeCodeDoc } from './EmailChangeCode';
 export { Trip, type TripDoc, type TripMember } from './Trip';
 export { Expense, EXPENSE_CATEGORIES, type ExpenseDoc, type ExpenseSplit } from './Expense';
 export { Payment, type PaymentDoc } from './Payment';

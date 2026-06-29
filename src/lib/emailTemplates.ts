@@ -184,6 +184,51 @@ export async function buildPasswordResetEmail(
   return { subject, html, text };
 }
 
+interface BuildEmailChangeInput {
+  locale: string;
+  /** 6 位數驗證碼（明碼，只在此封信中出現）。 */
+  code: string;
+  /** 驗證碼有效分鐘數（顯示於信中）。 */
+  expiresMinutes: number;
+}
+
+/**
+ * 產生「變更 Email 驗證碼」Email（transactional：一律寄，寄往使用者填入的「新信箱」）。
+ * 依收件者語系本地化；信中不含任何連結，只給驗證碼與有效時間。
+ */
+export async function buildEmailChangeEmail(input: BuildEmailChangeInput): Promise<EmailContent> {
+  const locale = normalizeLocale(input.locale);
+  const messages = await loadMessages(locale);
+  const t = createTranslator({ locale, messages, namespace: 'email' }) as unknown as (
+    key: string,
+    values?: Record<string, string | number>
+  ) => string;
+
+  const subject = t('emailChange.subject');
+  const intro = t('emailChange.intro');
+  const expiry = t('emailChange.expiry', { minutes: input.expiresMinutes });
+  const ignore = t('emailChange.ignore');
+
+  const footer = t('emailChange.footer');
+  const text = [intro, '', input.code, '', expiry, '', ignore, '', footer].join('\n');
+
+  const html = wrapEmailHtml(
+    `<p style="font-size: 16px; line-height: 1.6; margin: 0 0 16px;">${escapeHtml(intro)}</p>
+    <p style="font-size: 32px; font-weight: 700; letter-spacing: 8px; text-align: center; margin: 0 0 16px; font-family: 'SFMono-Regular', Consolas, monospace;">${escapeHtml(
+      input.code
+    )}</p>
+    <p style="font-size: 14px; color: #6b7280; line-height: 1.6; margin: 0 0 8px;">${escapeHtml(
+      expiry
+    )}</p>
+    <p style="font-size: 14px; color: #6b7280; line-height: 1.6; margin: 0 0 32px;">${escapeHtml(
+      ignore
+    )}</p>`,
+    footer
+  );
+
+  return { subject, html, text };
+}
+
 /** 排程結算提醒 Email 的單筆未結清項目。 */
 export interface ReminderTripLine {
   /** 旅程公開 hashCode（連結用，見 BuildEmailInput）。 */

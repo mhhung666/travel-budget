@@ -94,6 +94,7 @@ src/
 - `getSession()` 於 Server Action 解析 cookie；`getSessionFromRequest()` 供 API route 使用。
 - 密碼以 `bcryptjs` 雜湊後存於 `users.password`。
 - **JWT_SECRET 未設定時會 fallback 到硬編碼預設值**（見改善建議 P0）。
+- **變更 Email 須寄碼驗證**：`requestEmailChange` 把 6 位數碼寄到使用者填的**新信箱**（先擋掉與現用相同 / 已被他人占用），`confirmEmailChange` 驗碼通過（套用前再查一次競態）才更新 `User.email`；待驗證狀態（含 `newEmail`）存於 [EmailChangeCode](../src/models/EmailChangeCode.ts)，與重設密碼共用驗證碼基礎（6 位數 / 15 分鐘 / 5 次嘗試上限 / 只存 sha256 雜湊 / TTL 自動清除）。`updateProfile` 不再直接改 email。
 
 ### 4.2 權限（[src/lib/permissions.ts](../src/lib/permissions.ts)）
 - 權限層級僅 `admin` / `member`（存於內嵌的 `Trip.members[].role`）。
@@ -177,11 +178,12 @@ src/
 
 ## 5. 資料模型
 
-Schema 定義在 [src/models/](../src/models/) 的 Mongoose model，index 於連線時自動建立（`autoIndex`；可重現的結構 / 資料變更另走 migrate-mongo，見 [MIGRATIONS.md](./MIGRATIONS.md)）。原本的關聯表收斂為 **10 個 collection**，用內嵌消除大部分 join 與 N+1：
+Schema 定義在 [src/models/](../src/models/) 的 Mongoose model，index 於連線時自動建立（`autoIndex`；可重現的結構 / 資料變更另走 migrate-mongo，見 [MIGRATIONS.md](./MIGRATIONS.md)）。原本的關聯表收斂為 **11 個 collection**，用內嵌消除大部分 join 與 N+1：
 
 ```
 User              ── 帳號 / 虛擬成員 / 頭像 / 通知偏好 / mapShareCode
 PasswordResetCode ── 重設密碼驗證碼
+EmailChangeCode   ── 變更 Email 的新信箱驗證碼（含 newEmail）
 Trip              ── 內嵌 members[]（取代 trip_members）；budget
 Expense           ── 內嵌 splits[] + attachments[]；trip / payer / itineraryDay 為 ref
 Payment           ── ref trip / from / to（結算還款，標記已付）
@@ -196,6 +198,7 @@ PushSubscription  ── ref user；Web Push 訂閱（endpoint uniq）
 | --- | --- |
 | `User` | `username`(uniq), `email`(uniq), `password`, `isVirtual`（虛擬成員，可不註冊參與分帳）, `avatarUrl`（R2 公開頭像 URL）, `notifyByEmail`（Email opt-out，預設開）, `locale`（寄信語系）, `mapShareCode`（sparse-uniq，公開地圖 / 回顧分享碼） |
 | `PasswordResetCode` | 重設密碼用的一次性驗證碼 |
+| `EmailChangeCode` | 變更 Email 用的一次性驗證碼（`user`(uniq), `newEmail`, `codeHash`, `expiresAt`(TTL), `attempts`） |
 | `Trip` | `hashCode`(uniq，分享用), `location`(Mixed), 日期, `budget`（`{ total, categories[] }`，基準幣 TWD，null=未設）；**`members[]`**=`{ user(ref), role(admin/member), joinedAt, archivedAt? }`，並對 `members.user` 建 index |
 | `Expense` | `trip`(ref,index), `payer`(ref), `createdBy`(ref，≠payer，供摘要排除自己), `itineraryDay`(ref,可 null), `amount`/`originalAmount`/`currency`/`exchangeRate`, `category`(enum), `date`；**`splits[]`**=`{ user(ref), shareAmount }`；**`attachments[]`**=`{ key, contentType, size, uploadedBy(ref), uploadedAt }`（R2 物件 key，不存 url） |
 | `Payment` | `trip`(ref,index), `from`(ref), `to`(ref), `amount`（基準幣 TWD）, `note`, `createdBy`(ref)；結算還款紀錄，`getSettlement` 以 `applyPayments` 淨額抵銷餘額 |

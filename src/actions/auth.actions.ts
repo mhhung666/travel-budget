@@ -3,10 +3,10 @@
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import { dbConnect } from '@/lib/mongodb';
-import { User as UserModel, PasswordResetCode } from '@/models';
+import { User as UserModel, PasswordResetCode, EmailChangeCode } from '@/models';
 import { createSession, deleteSession, getSession } from '@/lib/auth';
 import { sendEmail } from '@/lib/email';
-import { buildPasswordResetEmail } from '@/lib/emailTemplates';
+import { buildPasswordResetEmail, buildEmailChangeEmail } from '@/lib/emailTemplates';
 import {
   loginSchema,
   notificationPrefsSchema,
@@ -14,29 +14,32 @@ import {
   requestPasswordResetSchema,
   resetPasswordSchema,
   updateProfileSchema,
+  requestEmailChangeSchema,
+  confirmEmailChangeSchema,
   type LoginInput,
   type RegisterInput,
   type RequestPasswordResetInput,
   type ResetPasswordInput,
   type UpdateProfileInput,
+  type ConfirmEmailChangeInput,
 } from '@/lib/validation';
 import { withAuth } from './withAuth';
 import type { ActionResult } from './types';
 import type { User } from '@/types';
 import { logger } from '@/lib/logger';
 
-// 忘記密碼驗證碼：6 位數、15 分鐘有效、最多 5 次驗證嘗試。
-const RESET_CODE_TTL_MS = 15 * 60 * 1000;
-const RESET_CODE_EXPIRES_MINUTES = 15;
-const RESET_CODE_MAX_ATTEMPTS = 5;
+// Email 驗證碼（忘記密碼 + 變更 Email 共用）：6 位數、15 分鐘有效、最多 5 次驗證嘗試。
+const CODE_TTL_MS = 15 * 60 * 1000;
+const CODE_EXPIRES_MINUTES = 15;
+const CODE_MAX_ATTEMPTS = 5;
 
 /** 產生 6 位數驗證碼（含前導零）。 */
-function generateResetCode(): string {
+function generateVerificationCode(): string {
   return crypto.randomInt(0, 1_000_000).toString().padStart(6, '0');
 }
 
 /** 驗證碼雜湊（不存明碼）。短效 + 次數上限已足以防暴力，sha256 即可、無 bcrypt 成本。 */
-function hashResetCode(code: string): string {
+function hashVerificationCode(code: string): string {
   return crypto.createHash('sha256').update(code).digest('hex');
 }
 
@@ -216,35 +219,16 @@ export const updateProfile = withAuth(
         };
       }
 
-      const { display_name, new_email, current_password, new_password } = validation.data;
+      const { display_name, current_password, new_password } = validation.data;
 
       await dbConnect();
 
-      // Update display name and/or email
-      if (display_name !== undefined || new_email !== undefined) {
-        const updateData: Record<string, string> = {};
-
-        if (display_name !== undefined) {
-          updateData.displayName = display_name.trim();
-        }
-
-        if (new_email !== undefined) {
-          // Check if email is already taken (case-insensitive), excluding self
-          const existingEmail = await UserModel.findOne({
-            email: new_email,
-            _id: { $ne: session.userId },
-          })
-            .collation(CI)
-            .select('_id');
-
-          if (existingEmail) {
-            return { success: false, error: 'CONFLICT', code: 'CONFLICT' };
-          }
-
-          updateData.email = new_email.toLowerCase().trim();
-        }
-
-        await UserModel.updateOne({ _id: session.userId }, { $set: updateData });
+      // Update display name（Email 變更改走 requestEmailChange / confirmEmailChange 寄碼驗證流程）
+      if (display_name !== undefined) {
+        await UserModel.updateOne(
+          { _id: session.userId },
+          { $set: { displayName: display_name.trim() } }
+        );
 
         return { success: true, data: { message: '個人資料已更新' } };
       }
@@ -337,12 +321,12 @@ export async function requestPasswordReset(
 
     // 帳號存在才產碼寄信；不存在則靜默（回傳一致成功，避免列舉信箱）。
     if (user?.email) {
-      const code = generateResetCode();
+      const code = generateVerificationCode();
       await PasswordResetCode.findOneAndUpdate(
         { user: user._id },
         {
-          codeHash: hashResetCode(code),
-          expiresAt: new Date(Date.now() + RESET_CODE_TTL_MS),
+          codeHash: hashVerificationCode(code),
+          expiresAt: new Date(Date.now() + CODE_TTL_MS),
           attempts: 0,
         },
         { upsert: true }
@@ -351,7 +335,7 @@ export async function requestPasswordReset(
       const content = await buildPasswordResetEmail({
         code,
         locale: locale ?? user.locale ?? 'zh',
-        expiresMinutes: RESET_CODE_EXPIRES_MINUTES,
+        expiresMinutes: CODE_EXPIRES_MINUTES,
       });
       const sent = await sendEmail({ to: user.email, content });
       if (!sent && process.env.NODE_ENV !== 'production') {
@@ -403,12 +387,12 @@ export async function resetPassword(
       return { success: false, error: 'CODE_EXPIRED', code: 'VALIDATION_ERROR' };
     }
 
-    if ((record.attempts ?? 0) >= RESET_CODE_MAX_ATTEMPTS) {
+    if ((record.attempts ?? 0) >= CODE_MAX_ATTEMPTS) {
       await PasswordResetCode.deleteOne({ _id: record._id });
       return { success: false, error: 'TOO_MANY_ATTEMPTS', code: 'VALIDATION_ERROR' };
     }
 
-    if (record.codeHash !== hashResetCode(code)) {
+    if (record.codeHash !== hashVerificationCode(code)) {
       await PasswordResetCode.updateOne({ _id: record._id }, { $inc: { attempts: 1 } });
       return { success: false, error: 'INVALID_CODE', code: 'VALIDATION_ERROR' };
     }
@@ -424,3 +408,149 @@ export async function resetPassword(
     return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
   }
 }
+
+/**
+ * 變更 Email — 步驟一：寄驗證碼到「新信箱」以確認其屬本人。
+ *
+ * 與忘記密碼不同，這裡使用者已登入、操作的是自己的帳號，故會直接回報「信箱已被占用 /
+ * 與現用相同」等狀態（無列舉風險——本就是登入者主動變更自己的信箱）。每位使用者最多一筆
+ * 待驗證變更（user 唯一 + upsert 覆寫），重新索取即作廢前一組碼，可換不同新信箱。
+ * 寄信為 best-effort：未配置 Resend 時，非 production 會把碼寫進 log 以便本機測試。
+ */
+export const requestEmailChange = withAuth(
+  async (
+    session,
+    input: { new_email: string; locale?: string }
+  ): Promise<ActionResult<{ message: string }>> => {
+    try {
+      const validation = requestEmailChangeSchema.safeParse(input);
+      if (!validation.success) {
+        return {
+          success: false,
+          error: validation.error.issues[0].message,
+          code: 'VALIDATION_ERROR',
+        };
+      }
+
+      const { new_email, locale } = validation.data;
+      const normalizedEmail = new_email.toLowerCase().trim();
+
+      await dbConnect();
+
+      const me = await UserModel.findById(session.userId).select('email locale');
+      if (!me) {
+        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+      }
+
+      // 與目前信箱相同：無需變更。
+      if (me.email && me.email.toLowerCase() === normalizedEmail) {
+        return { success: false, error: 'SAME_EMAIL', code: 'VALIDATION_ERROR' };
+      }
+
+      // 已被其他帳號占用（不分大小寫，排除自己）。
+      const existingEmail = await UserModel.findOne({
+        email: normalizedEmail,
+        _id: { $ne: session.userId },
+      })
+        .collation(CI)
+        .select('_id');
+      if (existingEmail) {
+        return { success: false, error: 'CONFLICT', code: 'CONFLICT' };
+      }
+
+      const code = generateVerificationCode();
+      await EmailChangeCode.findOneAndUpdate(
+        { user: session.userId },
+        {
+          newEmail: normalizedEmail,
+          codeHash: hashVerificationCode(code),
+          expiresAt: new Date(Date.now() + CODE_TTL_MS),
+          attempts: 0,
+        },
+        { upsert: true }
+      );
+
+      const content = await buildEmailChangeEmail({
+        code,
+        locale: locale ?? me.locale ?? 'zh',
+        expiresMinutes: CODE_EXPIRES_MINUTES,
+      });
+      const sent = await sendEmail({ to: normalizedEmail, content });
+      if (!sent && process.env.NODE_ENV !== 'production') {
+        // 本機 / 未配置 Resend：把碼印到 log 方便測試（production 不印）。
+        logger.info(`[dev] email change code for ${normalizedEmail}: ${code}`);
+      }
+
+      return { success: true, data: { message: 'OK' } };
+    } catch (error) {
+      logger.error('Request email change error', error);
+      return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
+    }
+  }
+);
+
+/**
+ * 變更 Email — 步驟二：以寄到新信箱的 6 位數驗證碼套用變更。
+ *
+ * 失敗以穩定的 error token（INVALID_CODE / CODE_EXPIRED / TOO_MANY_ATTEMPTS）讓前端對應
+ * 本地化訊息。套用前再查一次新信箱是否在這段期間被別人占用（避免競態）；成功後刪除驗證碼
+ * （一次性）。
+ */
+export const confirmEmailChange = withAuth(
+  async (session, input: ConfirmEmailChangeInput): Promise<ActionResult<{ message: string }>> => {
+    try {
+      const validation = confirmEmailChangeSchema.safeParse(input);
+      if (!validation.success) {
+        return {
+          success: false,
+          error: validation.error.issues[0].message,
+          code: 'VALIDATION_ERROR',
+        };
+      }
+
+      const { code } = validation.data;
+
+      await dbConnect();
+      const record = await EmailChangeCode.findOne({ user: session.userId });
+      if (!record) {
+        return { success: false, error: 'INVALID_CODE', code: 'VALIDATION_ERROR' };
+      }
+
+      if (record.expiresAt.getTime() < Date.now()) {
+        await EmailChangeCode.deleteOne({ _id: record._id });
+        return { success: false, error: 'CODE_EXPIRED', code: 'VALIDATION_ERROR' };
+      }
+
+      if ((record.attempts ?? 0) >= CODE_MAX_ATTEMPTS) {
+        await EmailChangeCode.deleteOne({ _id: record._id });
+        return { success: false, error: 'TOO_MANY_ATTEMPTS', code: 'VALIDATION_ERROR' };
+      }
+
+      if (record.codeHash !== hashVerificationCode(code)) {
+        await EmailChangeCode.updateOne({ _id: record._id }, { $inc: { attempts: 1 } });
+        return { success: false, error: 'INVALID_CODE', code: 'VALIDATION_ERROR' };
+      }
+
+      // 套用前再確認新信箱未在期間內被別人占用（競態保護）。
+      const existingEmail = await UserModel.findOne({
+        email: record.newEmail,
+        _id: { $ne: session.userId },
+      })
+        .collation(CI)
+        .select('_id');
+      if (existingEmail) {
+        await EmailChangeCode.deleteOne({ _id: record._id });
+        return { success: false, error: 'CONFLICT', code: 'CONFLICT' };
+      }
+
+      // 驗證通過：套用新信箱並作廢驗證碼（一次性）。
+      await UserModel.updateOne({ _id: session.userId }, { $set: { email: record.newEmail } });
+      await EmailChangeCode.deleteOne({ _id: record._id });
+
+      return { success: true, data: { message: 'Email 已更新' } };
+    } catch (error) {
+      logger.error('Confirm email change error', error);
+      return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
+    }
+  }
+);

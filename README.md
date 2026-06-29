@@ -56,7 +56,7 @@ src/
 ├── hooks/            # Custom hooks（+ queries/：React Query 查詢 / 失效層）
 ├── i18n/             # 國際化設定與四語系訊息檔
 ├── lib/              # 核心邏輯（auth / permissions / settlement / storage / notify...）
-├── models/           # Mongoose models（10 個 collection）
+├── models/           # Mongoose models（11 個 collection）
 ├── sw.ts             # Serwist service worker（離線快取 + Web Push）
 ├── constants/        # categories / countries / currencies / routes
 └── types/            # TypeScript 型別與 DTO
