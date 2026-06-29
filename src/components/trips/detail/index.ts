@@ -1,6 +1,5 @@
 export { default as TripHeader } from './TripHeader';
 export { default as TripExpenses } from './TripExpenses';
-export { default as TripBudget } from './TripBudget';
 export { default as TripMembers } from './TripMembers';
 export { default as TripSettlement } from './TripSettlement';
 export { default as TripShare } from './TripShare';
