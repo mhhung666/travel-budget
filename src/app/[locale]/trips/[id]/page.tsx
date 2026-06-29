@@ -114,16 +114,27 @@ export default function TripDetailPage() {
             {tTrips('detail.backToTrips')}
           </Button>
 
-          {isMember && (
+          <div className="flex items-center gap-2">
             <Button
               variant="outline"
-              onClick={() => router.push(`/trips/${tripId}/settings`)}
+              onClick={() => router.push(`/trips/${tripId}/activity`)}
               className="gap-2"
             >
-              <Settings className="h-4 w-4" />
-              <span className="hidden sm:inline">{tTrip('settings')}</span>
+              <Activity className="h-4 w-4 text-rose-600" />
+              <span className="hidden sm:inline">{tTrip('viewActivity')}</span>
             </Button>
-          )}
+
+            {isMember && (
+              <Button
+                variant="outline"
+                onClick={() => router.push(`/trips/${tripId}/settings`)}
+                className="gap-2"
+              >
+                <Settings className="h-4 w-4" />
+                <span className="hidden sm:inline">{tTrip('settings')}</span>
+              </Button>
+            )}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr] gap-6">
@@ -165,14 +176,6 @@ export default function TripDetailPage() {
               >
                 <ListChecks className="mr-2 h-4 w-4 text-amber-600" />
                 {tTrip('viewChecklist')}
-              </Button>
-              <Button
-                onClick={() => router.push(`/trips/${tripId}/activity`)}
-                className="flex-1 bg-card hover:bg-accent text-card-foreground border shadow-sm h-10"
-                variant="outline"
-              >
-                <Activity className="mr-2 h-4 w-4 text-rose-600" />
-                {tTrip('viewActivity')}
               </Button>
             </TripHeader>
 

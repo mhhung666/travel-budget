@@ -607,7 +607,7 @@
     "unarchiveSuccess": "Trip restored",
     "viewStats": "Group stats",
     "viewChecklist": "Checklist",
-    "viewActivity": "Activity"
+    "viewActivity": "History"
   },
   "checklist": {
     "title": "Checklists",
