@@ -118,7 +118,12 @@
       "pushBlocked": "Push permission is blocked. Enable it in your browser settings.",
       "pushEnabled": "Push notifications enabled",
       "pushDisabled": "Push notifications disabled",
-      "pushFailed": "Couldn’t enable push notifications"
+      "pushFailed": "Couldn’t enable push notifications",
+      "pushInstallHint": "On iPhone / iPad, add this site to your Home Screen first to enable push notifications.",
+      "pushDevices": "Subscribed devices",
+      "pushThisDevice": "This device",
+      "pushRemoveDevice": "Remove this device",
+      "unknownDevice": "Unknown device"
     }
   },
   "location": {

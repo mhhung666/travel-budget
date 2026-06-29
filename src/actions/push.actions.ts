@@ -21,6 +21,47 @@ interface PushSubscriptionInput {
   keys: { p256dh: string; auth: string };
 }
 
+/** 已訂閱裝置（前端 DTO）；`endpoint` 供前端比對「目前裝置」。 */
+export interface PushDeviceItem {
+  id: string;
+  endpoint: string;
+  user_agent: string | null;
+  created_at: string;
+}
+
+/**
+ * 取得當前使用者的所有裝置訂閱（設定頁「已訂閱裝置列表」用，新到舊）。
+ */
+export const getPushSubscriptions = withAuth(
+  async (session): Promise<ActionResult<PushDeviceItem[]>> => {
+    try {
+      await dbConnect();
+      const docs = await PushSubscription.find({ user: session.userId })
+        .sort({ createdAt: -1 })
+        .lean<
+          {
+            _id: { toString(): string };
+            endpoint: string;
+            userAgent?: string | null;
+            createdAt: Date;
+          }[]
+        >();
+      return {
+        success: true,
+        data: docs.map((d) => ({
+          id: d._id.toString(),
+          endpoint: d.endpoint,
+          user_agent: d.userAgent ?? null,
+          created_at: d.createdAt.toISOString(),
+        })),
+      };
+    } catch (error) {
+      logger.error('Get push subscriptions error', error);
+      return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
+    }
+  }
+);
+
 /**
  * 建立 / 更新當前使用者的一筆裝置推播訂閱（以 endpoint upsert 去重）。
  */

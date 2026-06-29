@@ -34,6 +34,13 @@ export interface UsePushNotifications {
   permission: NotificationPermission;
   /** 此裝置目前是否已訂閱推播。 */
   subscribed: boolean;
+  /** 此裝置目前訂閱的 endpoint（供設定頁標記「目前裝置」）；未訂閱為 null。 */
+  currentEndpoint: string | null;
+  /**
+   * iOS Safari 需先把網站「加入主畫面」（standalone）才支援推播。此旗標為 true 時，
+   * UI 應提示使用者先安裝 PWA，而非只是停用開關。
+   */
+  needsInstall: boolean;
   /** 訂閱/取消進行中。 */
   busy: boolean;
   /** 訂閱推播（請求權限 + 註冊 + 存後端）。回傳是否成功。 */
@@ -45,6 +52,8 @@ export interface UsePushNotifications {
 export function usePushNotifications(): UsePushNotifications {
   const [supported, setSupported] = useState(false);
   const [subscribed, setSubscribed] = useState(false);
+  const [currentEndpoint, setCurrentEndpoint] = useState<string | null>(null);
+  const [needsInstall, setNeedsInstall] = useState(false);
   const [permission, setPermission] = useState<NotificationPermission>('default');
   const [busy, setBusy] = useState(false);
 
@@ -56,10 +65,17 @@ export function usePushNotifications(): UsePushNotifications {
       'serviceWorker' in navigator &&
       'PushManager' in window &&
       'Notification' in window;
+    // iOS Safari 未安裝（非 standalone）時 PushManager 不存在 → 提示「先加入主畫面」。
+    const isIOS = typeof navigator !== 'undefined' && /iphone|ipad|ipod/i.test(navigator.userAgent);
+    const isStandalone =
+      typeof window !== 'undefined' &&
+      (window.matchMedia?.('(display-mode: standalone)').matches ||
+        (navigator as Navigator & { standalone?: boolean }).standalone === true);
     /* eslint-disable react-hooks/set-state-in-effect --
        掛載時偵測瀏覽器能力（window/Notification 僅 client 可得），為刻意的初始化副作用；
        必須在 mount 後執行以避免 SSR 水合不一致（比照 settings 頁掛載抓取使用者資料）。 */
     setSupported(ok);
+    setNeedsInstall(isIOS && !isStandalone && !ok);
     if (!ok) return;
     setPermission(Notification.permission);
     /* eslint-enable react-hooks/set-state-in-effect */
@@ -67,7 +83,10 @@ export function usePushNotifications(): UsePushNotifications {
     // 讀取此裝置目前的訂閱狀態（SW ready 後）。此為非同步 callback，不在 effect body 同步呼叫。
     navigator.serviceWorker.ready
       .then((reg) => reg.pushManager.getSubscription())
-      .then((sub) => setSubscribed(!!sub))
+      .then((sub) => {
+        setSubscribed(!!sub);
+        setCurrentEndpoint(sub?.endpoint ?? null);
+      })
       .catch(() => {
         // SW 尚未就緒（如 dev 停用）— 視為未訂閱。
       });
@@ -99,6 +118,7 @@ export function usePushNotifications(): UsePushNotifications {
       if (!result.success) return false;
 
       setSubscribed(true);
+      setCurrentEndpoint(json.endpoint);
       return true;
     } catch {
       return false;
@@ -119,6 +139,7 @@ export function usePushNotifications(): UsePushNotifications {
         await deletePushSubscription(endpoint);
       }
       setSubscribed(false);
+      setCurrentEndpoint(null);
     } catch {
       // best-effort：失敗就維持原狀
     } finally {
@@ -126,5 +147,15 @@ export function usePushNotifications(): UsePushNotifications {
     }
   }, [supported]);
 
-  return { supported, configured, permission, subscribed, busy, subscribe, unsubscribe };
+  return {
+    supported,
+    configured,
+    permission,
+    subscribed,
+    currentEndpoint,
+    needsInstall,
+    busy,
+    subscribe,
+    unsubscribe,
+  };
 }

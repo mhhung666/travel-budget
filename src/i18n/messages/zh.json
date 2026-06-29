@@ -118,7 +118,12 @@
       "pushBlocked": "推播權限已被封鎖，請至瀏覽器設定開啟。",
       "pushEnabled": "已開啟推播通知",
       "pushDisabled": "已關閉推播通知",
-      "pushFailed": "無法開啟推播通知"
+      "pushFailed": "無法開啟推播通知",
+      "pushInstallHint": "iPhone / iPad 需先把本網站「加入主畫面」，才能開啟推播通知。",
+      "pushDevices": "已訂閱的裝置",
+      "pushThisDevice": "目前裝置",
+      "pushRemoveDevice": "移除此裝置",
+      "unknownDevice": "未知裝置"
     }
   },
   "location": {

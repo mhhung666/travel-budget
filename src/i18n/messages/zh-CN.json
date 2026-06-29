@@ -118,7 +118,12 @@
       "pushBlocked": "推送权限已被屏蔽，请到浏览器设置中开启。",
       "pushEnabled": "已开启推送通知",
       "pushDisabled": "已关闭推送通知",
-      "pushFailed": "无法开启推送通知"
+      "pushFailed": "无法开启推送通知",
+      "pushInstallHint": "iPhone / iPad 需先把本网站「添加到主屏幕」，才能开启推送通知。",
+      "pushDevices": "已订阅的设备",
+      "pushThisDevice": "当前设备",
+      "pushRemoveDevice": "移除此设备",
+      "unknownDevice": "未知设备"
     }
   },
   "location": {
