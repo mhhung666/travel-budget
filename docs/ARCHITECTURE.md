@@ -1,8 +1,8 @@
 # 架構說明（Architecture）
 
-> 更新日期：2026-06-26（新增旅程預算、彈性分帳、結算「標記已付」、群組統計與打包清單）
+> 更新日期：2026-06-29（補上通知 / Email / 排程 / Web Push、離線優先 PWA、動態牆、年度回顧）
 > 對應版本：v3.4.3
-> 本文件依**實際程式碼**撰寫，為架構的權威來源。改善建議請見 [IMPROVEMENTS.md](./IMPROVEMENTS.md)；遷移過程見 [MIGRATION_MONGODB.md](./MIGRATION_MONGODB.md)。
+> 本文件依**實際程式碼**撰寫，為架構的權威來源。**已實作功能的完整盤點**見 [FEATURES.md](./FEATURES.md)；改善建議請見 [IMPROVEMENTS.md](./IMPROVEMENTS.md)；遷移過程見 [MIGRATION_MONGODB.md](./MIGRATION_MONGODB.md)。
 
 ---
 
@@ -18,8 +18,12 @@
 | 資料庫 | MongoDB，透過 Mongoose ODM（連線在 `src/lib/mongodb.ts`） |
 | 認證 | 自製 JWT（`jose`）+ httpOnly Cookie；密碼以 `bcryptjs` 雜湊 |
 | 驗證 | Zod |
-| 測試 | Vitest + Testing Library + jsdom |
-| 部署 | Vercel |
+| 檔案儲存 | Cloudflare R2（S3 相容，`@aws-sdk/client-s3`）——收據 / 票券（私有）+ 頭像（公開） |
+| 通知 | 站內（MongoDB 收件匣）+ Email（Resend）+ 排程（Vercel Cron）+ Web Push（VAPID `web-push`） |
+| 離線 / PWA | Serwist（`@serwist/next`）service worker + TanStack Query 持久化（`idb-keyval`） |
+| 資料查詢層 | TanStack React Query（查詢 / 失效 / 離線持久化） |
+| 測試 | Vitest + Testing Library + jsdom（純函式邏輯，約 300 個 test case） |
+| 部署 | Vercel（`next build --webpack`，見 §4.13 PWA 構建注意） |
 
 ---
 
@@ -61,17 +65,22 @@ ActionResult<T>  ── { success:true, data } | { success:false, error, code }
 src/
 ├── actions/          # Server Actions（業務邏輯層）⭐
 │   ├── auth / trip / expense / member / settlement / stats / itinerary
+│   ├── budget / payment / checklist / activity / notification / push
+│   ├── avatar / upload / map / mapShare / wrapped
 │   ├── index.ts      # 統一 re-export
 │   ├── types.ts      # ActionResult<T> 與 ErrorCodes
 │   └── withAuth.ts   # 認證 HOC（注入已驗證 session）
 ├── app/
-│   ├── [locale]/     # 國際化路由頁面
-│   └── api/          # exchange-rates + public（分享）API
-├── components/       # 依功能分組（trips / expenses / settlement / stats / member / ui...）
-├── hooks/            # useTripData / useAuth / useAsyncAction / useDialog / use-toast...
+│   ├── [locale]/     # 國際化路由頁面（trips / stats / map / wrapped / settings...）
+│   └── api/          # exchange-rates + public（分享）API + cron（排程）
+├── components/       # 依功能分組（trips / expenses / settlement / stats / map / activity / notifications / wrapped / ui...）
+├── hooks/            # useTripDetailPage / useAuth / useOnlineStatus / usePushNotifications...
+│   └── queries/      # React Query 查詢 / 失效層（keys / fetcher + 各 use*Mutations）
 ├── i18n/             # routing + config + messages（四語系）
-├── lib/              # 核心邏輯：auth / permissions / settlement / validation / mongodb...
-├── models/           # Mongoose models：User / Trip / Expense / Payment / ItineraryDay / Checklist
+├── lib/              # 核心邏輯：auth / permissions / settlement / validation / mongodb /
+│                     #   storage / uploads / notify / email / webpush / queryPersister...
+├── models/           # Mongoose models（10 個，見 §5）
+├── sw.ts             # Serwist service worker 源碼（離線快取 + Web Push handler）
 ├── constants/        # categories / countries / currencies / routes
 └── types/            # models(DTO) / api(dto) / common
 ```
@@ -109,7 +118,7 @@ src/
 - Server Action 錯誤回傳 **error code**（非寫死文字），前端依 code 對應 i18n 訊息。
 
 ### 4.6 旅遊地圖與分享（[src/components/map/](../src/components/map/)）
-- 三種模式:**航線**（great-circle 弧線）、**熱點**（leaflet.heat，權重=行程日 `location` 出現次數）、**國家**（choropleth 點亮造訪國）。
+- 三種模式:**航線**（great-circle 弧線）、**熱點**（leaflet.heat，權重=造訪次數 **或** 花費——`getVisitedPlaces` 的 `weightBy`，花費權重以 `$lookup` 關聯支出且**恆為登入限定**）、**國家**（choropleth 點亮造訪國）。
 - Leaflet 依賴 `window`,畫布一律以 `dynamic(..., { ssr: false })` 載入;並在 [globals.css](../src/app/globals.css) 保留 `.leaflet-container { isolation: isolate; }`,否則其 pane/control 的高 z-index 會蓋住 dialog/dropdown。
 - **分享為使用者層級**:`User.mapShareCode`（opt-in、sparse-unique）是 trip `hashCode` 的對應物,格式/驗證相同。`/map/share/*` 為公開頁(不在 `proxy.ts` 的 `protectedRoutes`)。
 - **公開 API [/api/public/map/[code]](../src/app/api/public/map/%5Bcode%5D/route.ts) 依約去識別化**:只露座標、在地化地名與**年份**,絕不露旅行名稱、id 或完整日期(年份是為了年份篩選的刻意例外)。熱點彙整到四捨五入座標,避免回推單日行程。
@@ -133,31 +142,70 @@ src/
 - **環境變數**：六個 `R2_*` 在 [lib/env.ts](../src/lib/env.ts) 設為 **optional**，`getR2Config()` 於實際用到時才嚴格檢查 → 未設定 R2 也能 boot / CI build。
 - **清理（無 cascade）**：`deleteExpense` / `deleteTrip` 刪收據物件、`setAvatar` / `removeAvatar` 刪舊頭像，皆 **best-effort**（刪不掉的孤兒不擋住使用者操作，只記 log）。
 
+> 完整附件 / 上傳細節（票券附件 `itinerary/` 命名空間、通用 UI 元件）見 [FEATURES.md §7](./FEATURES.md)。
+
+### 4.10 通知系統（站內 / Email / 排程 / Web Push）
+
+四種通道共用同一套 fan-out（[lib/notify.ts](../src/lib/notify.ts) `notify()`，**best-effort 永不 throw 進主 action**）與三個觸發點（`createExpense` / `recordPayment` / `joinTrip`）。所有對外文案皆**依收件者語系在伺服端 / 前端在地化**（不存預先算好的字串）。
+
+- **站內**（[Notification](../src/models/Notification.ts) model）：per-user 收件匣 + navbar 鈴鐺未讀數（去正規化 tripName/actorName，讀取免 populate）。純函式 `selectNotificationRecipients`（排除觸發者 / 虛擬成員 / 去重）有單元測試。
+- **Email**（Resend，env-gated）：[lib/email.ts](../src/lib/email.ts) `sendEmail()` best-effort；模板 [lib/emailTemplates.ts](../src/lib/emailTemplates.ts) 以 next-intl `createTranslator` 用收件者 `User.locale` 算文案。`expense_added` 改**每日彙整**（站內仍即時），`recordPayment` / `joinTrip` 即時。
+- **排程**（Vercel Cron，受 `CRON_SECRET` 保護）：[/api/cron/settlement-reminder](../src/app/api/cron/settlement-reminder/route.ts)（每週）+ [/api/cron/expense-digest](../src/app/api/cron/expense-digest/route.ts)（每日）。聚合純函式 [lib/settlementReminder.ts](../src/lib/settlementReminder.ts) / [lib/expenseDigest.ts](../src/lib/expenseDigest.ts) 各有單元測試。**Vercel Hobby cron 上限 2 個 job**，剛好用滿。
+- **Web Push**（VAPID，env-gated）：[PushSubscription](../src/models/PushSubscription.ts) model（**訂閱本身即 opt-in**）。[lib/webpush.ts](../src/lib/webpush.ts) `sendPush` best-effort、回 404/410 就地刪失效訂閱。**與離線 PWA 共用同一個 service worker**（§4.12）。推播一律即時、不看 `notifyByEmail`。
+
+> 全部 env（`RESEND_*` / `CRON_SECRET` / `VAPID_*`）皆 optional，比照 R2 模式——未設定則該通道靜默跳過，不影響其他通道與 CI build。詳見 [FEATURES.md §8](./FEATURES.md)。
+
+### 4.11 動態牆（活動紀錄）
+
+[ActivityLog](../src/models/ActivityLog.ts) model = `{ trip, actor, actorName, type, meta }`。**與通知的取捨**：通知是 per-user fan-out 收件匣；動態牆是 **per-trip 單筆共享**（一個事件存一筆、全體共看、走 `getTripMembership` 授權、**包含觸發者本人**）。五個觸發點（expense add/update/delete + payment_recorded + member_joined）比通知多了「誰改了什麼」的稽核值。寫入 [lib/activity.ts](../src/lib/activity.ts) `logActivity()` best-effort。`deleteTrip` cascade；`removeMember` 刻意不清（稽核性質、actorName 已快照）。
+
+### 4.12 離線優先 PWA（Serwist + React Query 持久化）
+
+因讀寫都走 Server Actions（POST RPC，**離線無法執行也無法被 SW 正常快取**），離線支援拆兩層：
+
+- **Service worker**（[src/sw.ts](../src/sw.ts) → 建置產出 `public/sw.js`，gitignore）：`defaultCache` + Leaflet 圖磚 / R2 圖片 CacheFirst、導覽 NetworkFirst、靜態 [offline.html](../public/offline.html) fallback；**明確不快取 server-action POST / `/api/*` 變更**。同時承載 §4.10 Web Push 的 `push` / `notificationclick` handler。
+- **離線讀取**：TanStack Query 快取持久化到 IndexedDB（[lib/queryPersister.ts](../src/lib/queryPersister.ts) + [QueryProvider](../src/components/providers/QueryProvider.tsx)，query defaults `networkMode:'offlineFirst'`，`PERSIST_BUSTER` 版本碼）。
+- **離線寫入**（僅支出建立，編輯 / 刪除維持線上限定）：樂觀 UI（[lib/optimisticExpense.ts](../src/lib/optimisticExpense.ts)）+ 暫停 mutation 佇列重放（[lib/offlineMutations.ts](../src/lib/offlineMutations.ts) `setMutationDefaults` 全域重註冊 `mutationFn`，故 reload 後仍能重放；create mutation **變數須帶 `tripId`**）。
+
+> **構建注意**：Serwist 用 webpack plugin，Next 16 預設 Turbopack **不會觸發它**（不產 `sw.js`）→ `build` script 為 `next build --webpack`，**勿改回**。SW 在 dev 停用，PWA 測試走 `pnpm build && pnpm start`。
+
+### 4.13 年度回顧（Travel Wrapped）
+
+純彙整、**無新 model**。純函式 [lib/yearInReview.ts](../src/lib/yearInReview.ts) `computeYearInReview`（地理 / 花費兩種年份口徑，12 個單元測試）+ [getYearInReview](../src/actions/wrapped.actions.ts)。UI 圖卡以 html-to-image 匯出 PNG。**分享串接既有 `mapShareCode`**，公開路由 [/api/public/wrapped/[code]/[year]](../src/app/api/public/wrapped/%5Bcode%5D/%5Byear%5D/route.ts) **只露地理 + 年份、不含金額**（守住 mapShareCode 去識別化契約）。
+
 ---
 
 ## 5. 資料模型
 
-Schema 定義在 [src/models/](../src/models/) 的 Mongoose model，index 於連線時自動建立（無 SQL migration）。原本 6 張關聯表收斂為 **6 個 collection**，用內嵌消除大部分 join 與 N+1：
+Schema 定義在 [src/models/](../src/models/) 的 Mongoose model，index 於連線時自動建立（`autoIndex`；可重現的結構 / 資料變更另走 migrate-mongo，見 [MIGRATIONS.md](./MIGRATIONS.md)）。原本的關聯表收斂為 **10 個 collection**，用內嵌消除大部分 join 與 N+1：
 
 ```
-User
-Trip          ── 內嵌 members[]（取代 trip_members）
-Expense       ── 內嵌 splits[]（取代 expense_splits）；trip / payer 為 ref
-Payment       ── ref trip / from / to（結算還款，標記已付）
-ItineraryDay  ── ref trip
-Checklist     ── ref trip；內嵌 items[]（打包/待辦清單）
+User              ── 帳號 / 虛擬成員 / 頭像 / 通知偏好 / mapShareCode
+PasswordResetCode ── 重設密碼驗證碼
+Trip              ── 內嵌 members[]（取代 trip_members）；budget
+Expense           ── 內嵌 splits[] + attachments[]；trip / payer / itineraryDay 為 ref
+Payment           ── ref trip / from / to（結算還款，標記已付）
+ItineraryDay      ── ref trip；內嵌 activities[]（含票券 attachments[]）
+Checklist         ── ref trip；內嵌 items[]（打包 / 待辦清單）
+Notification      ── ref user（收件者）；per-user 通知收件匣
+ActivityLog       ── ref trip；per-trip 共享動態牆
+PushSubscription  ── ref user；Web Push 訂閱（endpoint uniq）
 ```
 
 | Collection | 重點欄位 |
 | --- | --- |
-| `User` | `username`(uniq), `email`(uniq), `password`, `isVirtual`（虛擬成員，可不註冊參與分帳）, `avatarUrl`（R2 公開頭像 URL，null=未設） |
-| `Trip` | `hashCode`(uniq，分享用), `location`(Mixed), 日期, `budget`（`{ total, categories[] }`，基準幣 TWD，null=未設）；**`members[]`**=`{ user(ref), role(admin/member), joinedAt }`，並對 `members.user` 建 index |
-| `Expense` | `trip`(ref,index), `payer`(ref), `amount`/`originalAmount`/`currency`/`exchangeRate`, `category`(enum), `date`；**`splits[]`**=`{ user(ref), shareAmount }`（前端依均分/金額/百分比/份數模式換算後寫入）；**`attachments[]`**=`{ key, contentType, size, uploadedBy(ref), uploadedAt }`（R2 收據物件 key + 中繼，不存 url） |
+| `User` | `username`(uniq), `email`(uniq), `password`, `isVirtual`（虛擬成員，可不註冊參與分帳）, `avatarUrl`（R2 公開頭像 URL）, `notifyByEmail`（Email opt-out，預設開）, `locale`（寄信語系）, `mapShareCode`（sparse-uniq，公開地圖 / 回顧分享碼） |
+| `PasswordResetCode` | 重設密碼用的一次性驗證碼 |
+| `Trip` | `hashCode`(uniq，分享用), `location`(Mixed), 日期, `budget`（`{ total, categories[] }`，基準幣 TWD，null=未設）；**`members[]`**=`{ user(ref), role(admin/member), joinedAt, archivedAt? }`，並對 `members.user` 建 index |
+| `Expense` | `trip`(ref,index), `payer`(ref), `createdBy`(ref，≠payer，供摘要排除自己), `itineraryDay`(ref,可 null), `amount`/`originalAmount`/`currency`/`exchangeRate`, `category`(enum), `date`；**`splits[]`**=`{ user(ref), shareAmount }`；**`attachments[]`**=`{ key, contentType, size, uploadedBy(ref), uploadedAt }`（R2 物件 key，不存 url） |
 | `Payment` | `trip`(ref,index), `from`(ref), `to`(ref), `amount`（基準幣 TWD）, `note`, `createdBy`(ref)；結算還款紀錄，`getSettlement` 以 `applyPayments` 淨額抵銷餘額 |
-| `ItineraryDay` | `trip`(ref), `(trip,dayNumber)` 複合唯一索引；刪除日程後以 ordered `bulkWrite` 重新編號 |
-| `Checklist` | `trip`(ref,index), `title`, `createdBy`(ref)；**`items[]`**=`{ text, done, assignee(ref,可 null) }`（打包/待辦清單，成員信任模型、可指派成員） |
+| `ItineraryDay` | `trip`(ref), `(trip,dayNumber)` 複合唯一索引；**`activities[]`**=`{ time?, endTime?, title, type, location?, note?, confirmationCode?, attachments[] }`；刪除日程後以 ordered `bulkWrite` 重新編號 |
+| `Checklist` | `trip`(ref,index), `title`, `createdBy`(ref)；**`items[]`**=`{ text, done, assignee(ref,可 null) }`（成員信任模型、可指派成員） |
+| `Notification` | `user`(收件者,ref,index), `trip`, `tripName`/`actorName`（去正規化快照）, `type`, `actor`, `meta`, `read`；per-user 收件匣 |
+| `ActivityLog` | `trip`(ref,index), `actor`, `actorName`（快照）, `type`, `meta`；per-trip 共享動態牆（只 createdAt） |
+| `PushSubscription` | `user`(ref), `endpoint`(uniq), `keys`, `userAgent`；Web Push 訂閱（訂閱本身即 opt-in） |
 
-> ⚠️ MongoDB 無外鍵 cascade：刪除 trip 時 `deleteTrip` 會手動一併刪除該 trip 的 expenses、payments、itinerary days 與 checklists，並 best-effort 刪除該 trip 在 R2 的收據物件；`removeMember` 也會檢查還款參照避免孤兒，並清掉清單項目對該成員的指派。
+> ⚠️ MongoDB 無外鍵 cascade：刪除 trip 時 `deleteTrip` 會手動一併刪除該 trip 的 expenses、payments、itinerary days、checklists、notifications、activity logs，並 best-effort 刪除該 trip 在 R2 的收據 / 票券物件；`removeMember` 也會檢查還款參照避免孤兒，並清掉清單項目對該成員的指派與其在此 trip 的通知。
 > ID 一律為 ObjectId 字串，從 JWT、DTO 到前端 props 一致。
 
 ---
