@@ -113,7 +113,7 @@ export default function CreateTripDialog({ open, onClose, onSuccess }: CreateTri
 
           {/* 出發地 / 目的地 */}
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
+            <div className="min-w-0 space-y-2">
               <LocationAutocomplete
                 value={departureLocation}
                 onChange={setDepartureLocation}
@@ -122,7 +122,7 @@ export default function CreateTripDialog({ open, onClose, onSuccess }: CreateTri
                 helperText={t('create.departureHelp')}
               />
             </div>
-            <div className="space-y-2">
+            <div className="min-w-0 space-y-2">
               <LocationAutocomplete
                 value={destinationLocation}
                 onChange={setDestinationLocation}
@@ -135,7 +135,7 @@ export default function CreateTripDialog({ open, onClose, onSuccess }: CreateTri
 
           {/* 旅遊時間區間 */}
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
+            <div className="min-w-0 space-y-2">
               <Label htmlFor="start_date">{t('create.startDate')}</Label>
               <Input
                 id="start_date"
@@ -144,7 +144,7 @@ export default function CreateTripDialog({ open, onClose, onSuccess }: CreateTri
                 onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
               />
             </div>
-            <div className="space-y-2">
+            <div className="min-w-0 space-y-2">
               <Label htmlFor="end_date">{t('create.endDate')}</Label>
               <Input
                 id="end_date"

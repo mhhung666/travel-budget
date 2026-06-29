@@ -133,7 +133,7 @@ export default function EditTripDialog({ open, onClose, onSubmit, trip }: EditTr
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
+            <div className="min-w-0 space-y-2">
               <LocationAutocomplete
                 value={departureLocation}
                 onChange={setDepartureLocation}
@@ -142,7 +142,7 @@ export default function EditTripDialog({ open, onClose, onSubmit, trip }: EditTr
                 helperText={tTrips('create.departureHelp')}
               />
             </div>
-            <div className="space-y-2">
+            <div className="min-w-0 space-y-2">
               <LocationAutocomplete
                 value={destinationLocation}
                 onChange={setDestinationLocation}
@@ -154,7 +154,7 @@ export default function EditTripDialog({ open, onClose, onSubmit, trip }: EditTr
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
+            <div className="min-w-0 space-y-2">
               <Label htmlFor="start_date">{tTrips('create.startDate')}</Label>
               <Input
                 id="start_date"
@@ -163,7 +163,7 @@ export default function EditTripDialog({ open, onClose, onSubmit, trip }: EditTr
                 onChange={(e) => setForm({ ...form, start_date: e.target.value })}
               />
             </div>
-            <div className="space-y-2">
+            <div className="min-w-0 space-y-2">
               <Label htmlFor="end_date">{tTrips('create.endDate')}</Label>
               <Input
                 id="end_date"

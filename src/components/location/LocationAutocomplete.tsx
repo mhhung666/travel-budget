@@ -198,11 +198,9 @@ export default function LocationAutocomplete({
             )}
             disabled={disabled}
           >
-            {value ? (
-              <span className="truncate">{value.name}</span>
-            ) : (
-              placeholder || t('selectPlaceholder')
-            )}
+            <span className="truncate">
+              {value ? value.name : placeholder || t('selectPlaceholder')}
+            </span>
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
