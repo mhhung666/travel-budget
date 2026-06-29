@@ -200,11 +200,6 @@
       "deleteTrip": "删除旅行",
       "deleteTripWarning": "删除后将无法恢复，所有支出记录也会被删除"
     },
-    "deleteConfirm": {
-      "title": "确定要删除这个旅行吗？",
-      "message": "此操作无法撤销。所有支出记录和成员资料都将被永久删除。",
-      "success": "旅行已删除"
-    },
     "archive": "归档",
     "unarchive": "恢复",
     "archiveSuccess": "已归档,移至「已归档」标签",

@@ -200,11 +200,6 @@
       "deleteTrip": "旅行を削除",
       "deleteTripWarning": "削除すると元に戻せません。すべての支出記録も削除されます"
     },
-    "deleteConfirm": {
-      "title": "この旅行を削除しますか？",
-      "message": "この操作は取り消せません。すべての支出記録とメンバー情報が永久に削除されます。",
-      "success": "旅行を削除しました"
-    },
     "archive": "アーカイブ",
     "unarchive": "復元",
     "archiveSuccess": "アーカイブしました（「アーカイブ」タブに移動）",

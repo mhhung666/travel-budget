@@ -200,11 +200,6 @@
       "deleteTrip": "刪除旅行",
       "deleteTripWarning": "刪除後將無法復原，所有支出記錄也會被刪除"
     },
-    "deleteConfirm": {
-      "title": "確定要刪除這個旅行嗎？",
-      "message": "此操作無法撤銷。所有支出記錄和成員資料都將被永久刪除。",
-      "success": "旅行已刪除"
-    },
     "archive": "封存",
     "unarchive": "恢復",
     "archiveSuccess": "已封存,移至「已封存」頁籤",
