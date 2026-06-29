@@ -41,7 +41,8 @@
     "login": "ログイン",
     "logout": "ログアウト",
     "register": "新規登録",
-    "map": "地図"
+    "map": "地図",
+    "wrapped": "年間まとめ"
   },
   "home": {
     "title": "旅行家計簿",
@@ -811,5 +812,50 @@
     "queuedMessage": "現在オフラインです。この支出は再接続後に自動的に同期されます。",
     "writeUnavailableTitle": "オフラインでは編集できません",
     "writeUnavailableMessage": "編集と削除には接続が必要です。再接続後にもう一度お試しください。"
+  },
+  "wrapped": {
+    "title": "年間まとめ",
+    "heading": "{year}年 旅の振り返り",
+    "subtitle": "あなたの一年を、旅の数字で",
+    "empty": "今年はまだ振り返る旅がありません。次の旅のあとにまた見にきてね！",
+    "loading": "あなたの一年をまとめています…",
+    "yearLabel": "年",
+    "stat": {
+      "trips": "回の旅行",
+      "countries": "か国",
+      "cities": "都市",
+      "distance": "総距離",
+      "spend": "総支出",
+      "expenses": "件の支出",
+      "companions": "人の旅仲間",
+      "longestTrip": "最長の旅"
+    },
+    "days": "{count} 日",
+    "topCategory": "最も使ったカテゴリ",
+    "topCategoryNone": "支出なし",
+    "monthlyTitle": "月別の支出",
+    "busiestMonthLabel": "最も使った月",
+    "download": "画像を保存",
+    "downloading": "画像を作成中…",
+    "downloadError": "画像を作成できませんでした。もう一度お試しください。",
+    "shareImageTitle": "私の年間まとめ",
+    "share": {
+      "button": "共有",
+      "title": "年間まとめを共有",
+      "description": "リンクを知っている人は誰でも {year}年 の旅の足あとを見られます。旅行マップと同じ共有コードを使い、金額は一切表示しません。",
+      "sameAsMap": "「旅行マップ」と同じ共有スイッチを使います。",
+      "generate": "リンクを作成",
+      "regenerate": "リンクを再作成",
+      "revoke": "共有をオフ",
+      "enabledHint": "共有はオンです。リンクを持つ人は匿名化された年間まとめ（金額なし）を見られます。",
+      "disabledHint": "共有はオフです。リンクを作成すると年間まとめを公開できます。"
+    },
+    "public": {
+      "title": "旅の年間まとめ",
+      "subtitle": "{year}年 · {trips} 回の旅行",
+      "notFound": "この共有まとめは利用できません。",
+      "empty": "今年は表示できる旅行がありません。",
+      "cta": "自分のまとめを作る"
+    }
   }
 }

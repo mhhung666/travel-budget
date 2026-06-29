@@ -41,7 +41,8 @@
     "login": "登录",
     "logout": "退出",
     "register": "注册",
-    "map": "旅行地图"
+    "map": "旅行地图",
+    "wrapped": "年度回顾"
   },
   "home": {
     "title": "旅行记账",
@@ -811,5 +812,50 @@
     "queuedMessage": "当前离线，这笔支出会在恢复连接后自动同步。",
     "writeUnavailableTitle": "离线时无法编辑",
     "writeUnavailableMessage": "编辑与删除需要网络连接，请恢复连接后再试。"
+  },
+  "wrapped": {
+    "title": "年度回顾",
+    "heading": "{year} 年旅行回顾",
+    "subtitle": "你的这一年，化成旅行的数字",
+    "empty": "这一年还没有旅行可以回顾。出发后再回来看看吧！",
+    "loading": "正在整理你的这一年…",
+    "yearLabel": "年份",
+    "stat": {
+      "trips": "趟旅行",
+      "countries": "个国家",
+      "cities": "座城市",
+      "distance": "总里程",
+      "spend": "总花费",
+      "expenses": "笔支出",
+      "companions": "位旅伴",
+      "longestTrip": "最长旅程"
+    },
+    "days": "{count} 天",
+    "topCategory": "最常花费",
+    "topCategoryNone": "尚无花费",
+    "monthlyTitle": "每月花费",
+    "busiestMonthLabel": "最常花费的月份",
+    "download": "下载图片",
+    "downloading": "生成图片中…",
+    "downloadError": "图片生成失败，请再试一次。",
+    "shareImageTitle": "我的年度旅行回顾",
+    "share": {
+      "button": "分享回顾",
+      "title": "分享你的年度回顾",
+      "description": "任何人只要有链接就能看到你 {year} 年的旅行足迹。沿用旅行地图的同一个分享码，且不会显示任何金额。",
+      "sameAsMap": "与“旅行地图”共用同一个分享开关。",
+      "generate": "生成链接",
+      "regenerate": "重新生成链接",
+      "revoke": "关闭分享",
+      "enabledHint": "分享已开启。持有链接者可看到你去标识化后的年度回顾（不含金额）。",
+      "disabledHint": "分享已关闭。生成链接即可公开分享你的年度回顾。"
+    },
+    "public": {
+      "title": "年度旅行回顾",
+      "subtitle": "{year} 年 · {trips} 趟旅行",
+      "notFound": "此分享回顾无法使用。",
+      "empty": "这一年没有可显示的旅行。",
+      "cta": "制作我的年度回顾"
+    }
   }
 }

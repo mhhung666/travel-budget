@@ -7,8 +7,10 @@ import { routing, locales, defaultLocale } from './i18n/routing';
 // 建立 i18n middleware（使用統一的 routing 配置）
 const i18nMiddleware = createMiddleware(routing);
 
-// 定義需要認證的路由（不包含 locale 前綴）
-const protectedRoutes = ['/trips', '/settings', '/stats'];
+// 定義需要認證的路由（不包含 locale 前綴）。比對為「完整路徑精確相符」，故 '/wrapped'
+// 只保護登入頁本身，'/wrapped/share/[code]/[year]' 多了路徑段不相符 → 維持公開
+// （與 '/map' vs '/map/share' 同樣的切分）。
+const protectedRoutes = ['/trips', '/settings', '/stats', '/wrapped'];
 
 // 定義已登入用戶不應訪問的路由（如登入頁）
 const authRoutes = ['/login'];

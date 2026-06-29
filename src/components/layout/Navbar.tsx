@@ -6,6 +6,7 @@ import {
   Settings,
   BarChart3,
   Map as MapIcon,
+  Sparkles,
   Menu as MenuIcon,
   Sun,
   Moon,
@@ -59,6 +60,7 @@ export default function Navbar({ user, showUserMenu = true, title }: NavbarProps
     { label: t('trips'), icon: Compass, onClick: () => router.push('/trips') },
     { label: t('map'), icon: MapIcon, onClick: () => router.push('/map') },
     { label: t('stats'), icon: BarChart3, onClick: () => router.push('/stats') },
+    { label: t('wrapped'), icon: Sparkles, onClick: () => router.push('/wrapped') },
   ];
 
   return (
@@ -127,6 +129,10 @@ export default function Navbar({ user, showUserMenu = true, title }: NavbarProps
                     <DropdownMenuItem onClick={() => router.push('/stats')}>
                       <BarChart3 className="mr-2 h-4 w-4" />
                       <span>{t('stats')}</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => router.push('/wrapped')}>
+                      <Sparkles className="mr-2 h-4 w-4" />
+                      <span>{t('wrapped')}</span>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => router.push('/settings')}>
