@@ -75,13 +75,11 @@ export async function notify({
 }: NotifyInput): Promise<void> {
   try {
     // 取旅程名稱（去正規化存進通知）+ 必要時取成員清單
-    const trip = await Trip.findById(tripId)
-      .select('name members hashCode')
-      .lean<{
-        name: string;
-        hashCode: string;
-        members: { user: { toString(): string } }[];
-      } | null>();
+    const trip = await Trip.findById(tripId).select('name members hashCode').lean<{
+      name: string;
+      hashCode: string;
+      members: { user: { toString(): string } }[];
+    } | null>();
     if (!trip) return;
 
     const candidateIds = recipientIds ?? trip.members.map((m) => m.user.toString());
