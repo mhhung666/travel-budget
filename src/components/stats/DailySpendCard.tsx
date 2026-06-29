@@ -11,8 +11,9 @@ interface DailySpendCardProps {
 }
 
 /**
- * 按行程日聚合的花費（連動 Phase 2 的 Expense.itineraryDay）。每列一個行程日，條長以
- * 最高花費日為滿格；未關聯行程日的支出彙整在最後一列。無任何行程日時不渲染（回 null）。
+ * 按行程日聚合的花費（連動 Expense.itineraryDays；關聯多天的支出金額平均分攤到各天）。
+ * 每列一個行程日，條長以最高花費日為滿格；未關聯行程日的支出彙整在最後一列。
+ * 無任何行程日時不渲染（回 null）。
  */
 export default function DailySpendCard({ dailySpend, formatCurrency }: DailySpendCardProps) {
   const t = useTranslations('stats');

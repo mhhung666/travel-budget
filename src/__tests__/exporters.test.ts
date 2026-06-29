@@ -163,7 +163,7 @@ const expenses: Expense[] = [
       { user_id: 'u2', username: 'bob', display_name: 'Bob', share_amount: 150 },
     ],
     attachments: [],
-    itinerary_day_id: null,
+    itinerary_day_ids: [],
   },
 ];
 

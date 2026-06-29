@@ -14,8 +14,12 @@ export interface TripStatsExpense {
   payerId: string;
   payerName: string;
   splits: { userId: string; shareAmount: number }[];
-  /** 關聯的行程日 id；null/undefined＝未關聯（歸入未關聯桶）。 */
-  itineraryDayId?: string | null;
+  /**
+   * 關聯的行程日 id（可複選）；空/undefined＝未關聯（歸入未關聯桶）。每日花費聚合時
+   * 把整筆金額「平均分攤」到所列的每一天（如跨夜飯店分散到各晚），故每天花費總和才
+   * 不會超過實際支出。
+   */
+  itineraryDayIds?: string[] | null;
 }
 
 /** 按天聚合所需的行程日中繼資料（序號 + 標題）。 */
@@ -87,9 +91,14 @@ export function computeTripStats(
       shareByUser.set(s.userId, (shareByUser.get(s.userId) || 0) + (s.shareAmount || 0));
     }
 
-    const dayKey = e.itineraryDayId ?? null;
-    const dayAgg = spendByDay.get(dayKey) || { total: 0, count: 0 };
-    spendByDay.set(dayKey, { total: dayAgg.total + amount, count: dayAgg.count + 1 });
+    // 關聯多個行程日時把金額平均分攤到每一天（跨夜飯店分散到各晚）；未關聯歸入 null 桶。
+    // count 對每個關聯日各 +1（這筆支出確實「涉及」那天），故跨日支出會在多天各列一筆。
+    const dayKeys = e.itineraryDayIds && e.itineraryDayIds.length > 0 ? e.itineraryDayIds : [null];
+    const perDay = amount / dayKeys.length;
+    for (const dayKey of dayKeys) {
+      const dayAgg = spendByDay.get(dayKey) || { total: 0, count: 0 };
+      spendByDay.set(dayKey, { total: dayAgg.total + perDay, count: dayAgg.count + 1 });
+    }
 
     if (e.date) {
       if (minDate === null || e.date < minDate) minDate = e.date;

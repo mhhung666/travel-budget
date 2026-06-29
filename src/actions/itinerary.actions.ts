@@ -382,10 +382,11 @@ export const deleteItineraryDay = withAuth(
         );
       }
 
-      // 清掉支出對此行程日的關聯（避免孤兒參照；比照 removeMember 清 checklist 指派）。
+      // 清掉支出對此行程日的關聯（從可複選的陣列 $pull 掉；避免孤兒參照，比照 removeMember
+      // 清 checklist 指派）。其他關聯日保留。
       await Expense.updateMany(
-        { trip: membership.tripId, itineraryDay: dayId },
-        { $set: { itineraryDay: null } }
+        { trip: membership.tripId, itineraryDays: dayId },
+        { $pull: { itineraryDays: dayId } }
       );
 
       // 重新編號剩餘行程日為連續 1..n（遞增處理，數字只會變小，不會撞到唯一索引）

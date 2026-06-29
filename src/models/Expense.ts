@@ -52,9 +52,10 @@ const ExpenseSchema = new Schema(
     date: { type: Date, required: true },
     splits: { type: [SplitSchema], default: [] },
     attachments: { type: [AttachmentSchema], default: [] },
-    // 可選的關聯行程日（同 trip 下的 ItineraryDay）；null＝未關聯。
-    // 行程日被刪除時於 deleteItineraryDay 清為 null（避免孤兒參照）。
-    itineraryDay: { type: Schema.Types.ObjectId, ref: 'ItineraryDay', default: null },
+    // 可選的關聯行程日（同 trip 下的 ItineraryDay）；空陣列＝未關聯。可複選——例如
+    // 跨夜飯店可同時關聯多天，每日花費聚合時把金額平均分攤到所選天數（見 lib/tripStats）。
+    // 行程日被刪除時於 deleteItineraryDay 從陣列 $pull 掉（避免孤兒參照）。
+    itineraryDays: { type: [Schema.Types.ObjectId], ref: 'ItineraryDay', default: [] },
     // 新增此筆支出的使用者（≠ payer：可代他人付款的人記帳）。供每日支出摘要 Email
     // 排除「收件者自己加的」。additive、舊資料無此欄位（視為非本人），無遷移。
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },

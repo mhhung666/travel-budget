@@ -32,15 +32,18 @@ function splitsMatchAmount(splits: { share_amount: number }[], amount: number): 
 }
 
 /**
- * 驗證關聯行程日（若有）屬於本 trip——比照 payer/split 須為本 trip 成員的歸屬檢查，
- * 防止把支出指向別團的行程日。null/undefined（不關聯）一律通過。
+ * 驗證關聯行程日（可複選）全部屬於本 trip——比照 payer/split 須為本 trip 成員的歸屬
+ * 檢查，防止把支出指向別團的行程日。空/undefined（不關聯）一律通過。去重後以單一
+ * countDocuments 比對數量，避免逐筆查詢。
  */
-async function itineraryDayBelongsToTrip(
+async function itineraryDaysBelongToTrip(
   tripId: string,
-  dayId: string | null | undefined
+  dayIds: string[] | null | undefined
 ): Promise<boolean> {
-  if (!dayId) return true;
-  return (await ItineraryDay.exists({ _id: dayId, trip: tripId })) !== null;
+  const unique = [...new Set(dayIds ?? [])];
+  if (unique.length === 0) return true;
+  const count = await ItineraryDay.countDocuments({ _id: { $in: unique }, trip: tripId });
+  return count === unique.length;
 }
 
 type AttachmentDoc = {
@@ -147,7 +150,7 @@ export const createExpense = withAuth(
         date,
         splits,
         attachments,
-        itinerary_day_id,
+        itinerary_day_ids,
       } = validation.data;
 
       const amount = original_amount * exchange_rate;
@@ -174,8 +177,8 @@ export const createExpense = withAuth(
         return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
       }
 
-      // 關聯行程日（若有）須屬本 trip
-      if (!(await itineraryDayBelongsToTrip(tripId, itinerary_day_id))) {
+      // 關聯行程日（可複選，若有）須全部屬本 trip
+      if (!(await itineraryDaysBelongToTrip(tripId, itinerary_day_ids))) {
         return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
       }
 
@@ -201,7 +204,7 @@ export const createExpense = withAuth(
         date: new Date(date),
         splits: splits.map((s) => ({ user: s.user_id, shareAmount: s.share_amount })),
         attachments: attachmentDocs,
-        itineraryDay: itinerary_day_id ?? null,
+        itineraryDays: [...new Set(itinerary_day_ids ?? [])],
         createdBy: session.userId,
       });
 
@@ -274,7 +277,7 @@ export const updateExpense = withAuth(
         date,
         splits,
         attachments,
-        itinerary_day_id,
+        itinerary_day_ids,
       } = validation.data;
 
       // 讀取目前值（同時作為 existence check）
@@ -307,12 +310,12 @@ export const updateExpense = withAuth(
       if (payer_id !== undefined) set.payer = payer_id;
       if (date !== undefined) set.date = new Date(date);
 
-      // 關聯行程日：欄位出現才處理；傳 null 可清除關聯，傳 id 須屬本 trip。
-      if (itinerary_day_id !== undefined) {
-        if (!(await itineraryDayBelongsToTrip(tripId, itinerary_day_id))) {
+      // 關聯行程日（可複選）：欄位出現才處理；傳空陣列可清除關聯，傳的 id 須全屬本 trip。
+      if (itinerary_day_ids !== undefined) {
+        if (!(await itineraryDaysBelongToTrip(tripId, itinerary_day_ids))) {
           return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
         }
-        set.itineraryDay = itinerary_day_id ?? null;
+        set.itineraryDays = [...new Set(itinerary_day_ids)];
       }
 
       // Recalculate TWD amount if needed

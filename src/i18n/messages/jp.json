@@ -250,7 +250,8 @@
       "date": "日付",
       "payer": "支払者",
       "itineraryDay": "関連する日程",
-      "itineraryDayNone": "なし",
+      "itineraryDaysHint": "複数選択可。連泊などの支出は選んだ日数で1日の支出に均等配分されます",
+      "itineraryDaysAveraged": "{count}日を選択中。金額は1日の支出に均等配分されます",
       "splitWith": "割り勘対象",
       "convertedAmount": "換算金額"
     },

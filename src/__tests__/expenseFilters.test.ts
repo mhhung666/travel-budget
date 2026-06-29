@@ -23,7 +23,7 @@ function mk(partial: Partial<Expense> & { id: string }): Expense {
     created_at: '2026-06-10T00:00:00.000Z',
     splits: [{ user_id: 'a', username: 'alice', display_name: 'Alice', share_amount: 100 }],
     attachments: [],
-    itinerary_day_id: null,
+    itinerary_day_ids: [],
     ...partial,
   };
 }

@@ -353,16 +353,25 @@ export default function TripExpenses({
                                 {expense.payer_name} {tExpense('paidBy')} •{' '}
                                 {new Date(expense.date).toLocaleDateString()}
                               </p>
-                              {expense.itinerary_day_id &&
-                                dayNumberById.has(expense.itinerary_day_id) && (
-                                  <Badge
-                                    variant="secondary"
-                                    className="gap-1 font-normal text-muted-foreground"
-                                  >
-                                    <CalendarDays className="h-3 w-3" />
-                                    Day {dayNumberById.get(expense.itinerary_day_id)}
-                                  </Badge>
-                                )}
+                              {expense.itinerary_day_ids.filter((id) => dayNumberById.has(id))
+                                .length > 0 && (
+                                <div className="flex flex-wrap gap-1">
+                                  {expense.itinerary_day_ids
+                                    .filter((id) => dayNumberById.has(id))
+                                    .map((id) => dayNumberById.get(id)!)
+                                    .sort((a, b) => a - b)
+                                    .map((dayNumber) => (
+                                      <Badge
+                                        key={dayNumber}
+                                        variant="secondary"
+                                        className="gap-1 font-normal text-muted-foreground"
+                                      >
+                                        <CalendarDays className="h-3 w-3" />
+                                        Day {dayNumber}
+                                      </Badge>
+                                    ))}
+                                </div>
+                              )}
                             </div>
 
                             <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto gap-4 sm:gap-1">

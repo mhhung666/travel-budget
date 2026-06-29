@@ -43,8 +43,8 @@ export interface ExpenseDialogData {
   date: string;
   splits: { user_id: string; share_amount: number }[];
   attachments: ExpenseAttachment[];
-  /** 關聯的行程日 id；不關聯時為 null。 */
-  itinerary_day_id: string | null;
+  /** 關聯的行程日 id（可複選）；不關聯時為空陣列。 */
+  itinerary_day_ids: string[];
 }
 
 interface ExpenseFormDialogProps {
@@ -59,9 +59,6 @@ interface ExpenseFormDialogProps {
   /** 本 trip 的行程日（供「關聯行程日」下拉）；無則不顯示該欄位。 */
   itineraryDays?: ItineraryDay[];
 }
-
-// Radix Select 不接受空字串值，故以此 sentinel 代表「不關聯」。
-const NO_ITINERARY_DAY = '__none__';
 
 export default function ExpenseFormDialog({
   mode,
@@ -95,7 +92,7 @@ export default function ExpenseFormDialog({
   >({});
   const [showAdvanced, setShowAdvanced] = useState(mode === 'edit'); // Default expanded for edit
   const [attachments, setAttachments] = useState<ExpenseAttachment[]>([]);
-  const [itineraryDayId, setItineraryDayId] = useState<string>('');
+  const [itineraryDayIds, setItineraryDayIds] = useState<string[]>([]);
 
   // Exchange rate states
   const [exchangeRates, setExchangeRates] = useState<Record<string, number>>({});
@@ -169,7 +166,7 @@ export default function ExpenseFormDialog({
         });
         setSplitState(initialSplits);
         setAttachments(expense.attachments ?? []);
-        setItineraryDayId(expense.itinerary_day_id ?? '');
+        setItineraryDayIds(expense.itinerary_day_ids ?? []);
       } else {
         // Add mode: Initialize with defaults
         setForm({
@@ -190,7 +187,7 @@ export default function ExpenseFormDialog({
         });
         setSplitState(initialSplits);
         setAttachments([]);
-        setItineraryDayId('');
+        setItineraryDayIds([]);
       }
 
       setError('');
@@ -261,7 +258,7 @@ export default function ExpenseFormDialog({
         ...form,
         splits: finalSplits,
         attachments,
-        itinerary_day_id: itineraryDayId || null,
+        itinerary_day_ids: itineraryDayIds,
       });
       // Parent handles close
     } catch (err: unknown) {
@@ -321,6 +318,13 @@ export default function ExpenseFormDialog({
 
   const handleCategorySelect = (categoryCode: string) => {
     setForm((prev) => ({ ...prev, category: categoryCode }));
+  };
+
+  // 關聯行程日可複選：勾選加入、取消移除。多天時金額於每日花費平均分攤（見 lib/tripStats）。
+  const handleItineraryDayToggle = (dayId: string) => {
+    setItineraryDayIds((prev) =>
+      prev.includes(dayId) ? prev.filter((id) => id !== dayId) : [...prev, dayId]
+    );
   };
 
   const currencies = [
@@ -586,24 +590,31 @@ export default function ExpenseFormDialog({
               {itineraryDays.length > 0 && (
                 <div className="space-y-2">
                   <Label>{tExpense('form.itineraryDay')}</Label>
-                  <Select
-                    value={itineraryDayId || NO_ITINERARY_DAY}
-                    onValueChange={(val) => setItineraryDayId(val === NO_ITINERARY_DAY ? '' : val)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={NO_ITINERARY_DAY}>
-                        {tExpense('form.itineraryDayNone')}
-                      </SelectItem>
-                      {itineraryDays.map((day) => (
-                        <SelectItem key={day.id} value={day.id}>
-                          Day {day.day_number} · {day.title}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="space-y-2 rounded-lg border bg-background p-2">
+                    {itineraryDays.map((day) => {
+                      const checked = itineraryDayIds.includes(day.id);
+                      return (
+                        <div key={day.id} className="flex items-center gap-2">
+                          <Checkbox
+                            id={`itinerary-day-${day.id}`}
+                            checked={checked}
+                            onCheckedChange={() => handleItineraryDayToggle(day.id)}
+                          />
+                          <Label
+                            htmlFor={`itinerary-day-${day.id}`}
+                            className="cursor-pointer font-normal"
+                          >
+                            Day {day.day_number} · {day.title}
+                          </Label>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {itineraryDayIds.length > 1
+                      ? tExpense('form.itineraryDaysAveraged', { count: itineraryDayIds.length })
+                      : tExpense('form.itineraryDaysHint')}
+                  </p>
                 </div>
               )}
 

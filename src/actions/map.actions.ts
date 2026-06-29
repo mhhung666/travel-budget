@@ -12,7 +12,8 @@ import { logger } from '@/lib/logger';
 /**
  * 旅行地圖熱點的一個地點：座標 + 權重。多語地名保留，供前端依語系顯示 tooltip。
  * weight 的語意依查詢的 weightBy 而定：'visits'＝該座標的行程日數量；
- * 'spend'＝關聯到這些行程日的支出總額（基準幣 TWD，連動 Phase 2 的 Expense.itineraryDay）。
+ * 'spend'＝關聯到這些行程日的支出總額（基準幣 TWD，連動 Phase 2 的 Expense.itineraryDays；
+ * 跨多日的支出平均分攤到各天）。
  */
 export interface VisitedPlace {
   lat: number;
@@ -94,11 +95,25 @@ export const getVisitedPlaces = withAuth(
             $lookup: {
               from: 'expenses',
               localField: '_id',
-              foreignField: 'itineraryDay',
+              foreignField: 'itineraryDays',
               as: '_exp',
             },
           },
-          { $addFields: { _spend: { $sum: '$_exp.amount' } } }
+          // 支出可關聯多個行程日；金額平均分攤到各天（比照每日花費聚合），避免跨日支出
+          // 在每個關聯地點重複計入全額。
+          {
+            $addFields: {
+              _spend: {
+                $sum: {
+                  $map: {
+                    input: '$_exp',
+                    as: 'e',
+                    in: { $divide: ['$$e.amount', { $max: [{ $size: '$$e.itineraryDays' }, 1] }] },
+                  },
+                },
+              },
+            },
+          }
         );
       }
       pipeline.push(

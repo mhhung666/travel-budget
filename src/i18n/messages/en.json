@@ -299,7 +299,8 @@
       "date": "Date",
       "payer": "Payer",
       "itineraryDay": "Linked day",
-      "itineraryDayNone": "None",
+      "itineraryDaysHint": "Pick one or more; multi-day expenses are split evenly across daily spend",
+      "itineraryDaysAveraged": "Split evenly across {count} days in daily spend",
       "splitWith": "Split With",
       "convertedAmount": "Converted Amount"
     },

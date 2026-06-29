@@ -147,7 +147,7 @@ export const getTripStats = withAuth(
           .select('members startDate endDate')
           .lean<TripStatsTripInput>(),
         Expense.find({ trip: tripId })
-          .select('category date description amount payer splits itineraryDay')
+          .select('category date description amount payer splits itineraryDays')
           .populate('payer', 'displayName')
           .lean<TripStatExpenseInput[]>(),
         ItineraryDay.find({ trip: tripId })

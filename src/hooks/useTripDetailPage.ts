@@ -84,7 +84,7 @@ export function useTripDetailPage(tripId: string) {
           date: data.date,
           splits: data.splits,
           attachments: data.attachments,
-          itinerary_day_id: data.itinerary_day_id || null,
+          itinerary_day_ids: data.itinerary_day_ids,
         },
       },
       { onError: toastError }
@@ -124,7 +124,7 @@ export function useTripDetailPage(tripId: string) {
         date: data.date,
         splits: data.splits,
         attachments: data.attachments,
-        itinerary_day_id: data.itinerary_day_id || null,
+        itinerary_day_ids: data.itinerary_day_ids,
       },
     });
 

@@ -134,9 +134,9 @@ describe('computeTripStats', () => {
       { id: 'd3', dayNumber: 3, title: 'Day Three' },
     ];
     const linked: TripStatsExpense[] = [
-      { ...expenses[0], itineraryDayId: 'd1' }, // 300 → day 1
-      { ...expenses[1], itineraryDayId: 'd1' }, // 200 → day 1
-      { ...expenses[2], itineraryDayId: 'd2' }, // 60  → day 2
+      { ...expenses[0], itineraryDayIds: ['d1'] }, // 300 → day 1
+      { ...expenses[1], itineraryDayIds: ['d1'] }, // 200 → day 1
+      { ...expenses[2], itineraryDayIds: ['d2'] }, // 60  → day 2
     ];
     const r = computeTripStats(linked, members, {}, days);
     expect(r.dailySpend).toEqual([
@@ -146,11 +146,29 @@ describe('computeTripStats', () => {
     ]);
   });
 
+  it('averages a multi-day expense across its linked days', () => {
+    const days: TripStatsDay[] = [
+      { id: 'd1', dayNumber: 1, title: 'Day One' },
+      { id: 'd2', dayNumber: 2, title: 'Day Two' },
+      { id: 'd3', dayNumber: 3, title: 'Day Three' },
+    ];
+    const linked: TripStatsExpense[] = [
+      { ...expenses[0], itineraryDayIds: ['d1', 'd2', 'd3'] }, // 300 → 100/day
+      { ...expenses[2], itineraryDayIds: ['d1'] }, // 60 → day 1
+    ];
+    const r = computeTripStats(linked, members, {}, days);
+    expect(r.dailySpend).toEqual([
+      { dayId: 'd1', dayNumber: 1, title: 'Day One', total: 160, count: 2 },
+      { dayId: 'd2', dayNumber: 2, title: 'Day Two', total: 100, count: 1 },
+      { dayId: 'd3', dayNumber: 3, title: 'Day Three', total: 100, count: 1 },
+    ]);
+  });
+
   it('puts unlinked expenses in a trailing null bucket', () => {
     const days: TripStatsDay[] = [{ id: 'd1', dayNumber: 1, title: 'Day One' }];
     const mixed: TripStatsExpense[] = [
-      { ...expenses[0], itineraryDayId: 'd1' }, // 300 → day 1
-      { ...expenses[1], itineraryDayId: null }, // 200 → unlinked
+      { ...expenses[0], itineraryDayIds: ['d1'] }, // 300 → day 1
+      { ...expenses[1], itineraryDayIds: null }, // 200 → unlinked
       { ...expenses[2] }, // 60 → unlinked (undefined)
     ];
     const r = computeTripStats(mixed, members, {}, days);

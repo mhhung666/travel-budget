@@ -250,7 +250,8 @@
       "date": "日期",
       "payer": "付款人",
       "itineraryDay": "关联行程日",
-      "itineraryDayNone": "不关联",
+      "itineraryDaysHint": "可多选；跨夜的支出选多天会自动平均分摊到每日花费",
+      "itineraryDaysAveraged": "已选 {count} 天，金额将在每日花费平均分摊",
       "splitWith": "分账对象",
       "convertedAmount": "换算金额"
     },

@@ -53,13 +53,16 @@ describe('toExpenseDto', () => {
         { user_id: 'u2', share_amount: 150, username: 'bob', display_name: 'Bob' },
       ],
       attachments: [],
-      itinerary_day_id: null,
+      itinerary_day_ids: [],
     });
   });
 
-  it('maps a linked itinerary day to itinerary_day_id', () => {
-    const linked: ExpenseDtoInput = { ...base, itineraryDay: { toString: () => 'day5' } };
-    expect(toExpenseDto(linked, 'trip9').itinerary_day_id).toBe('day5');
+  it('maps linked itinerary days to itinerary_day_ids', () => {
+    const linked: ExpenseDtoInput = {
+      ...base,
+      itineraryDays: [{ toString: () => 'day5' }, { toString: () => 'day6' }],
+    };
+    expect(toExpenseDto(linked, 'trip9').itinerary_day_ids).toEqual(['day5', 'day6']);
   });
 
   it('maps attachments by default and omits them when attachments:false (public share)', () => {

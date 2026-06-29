@@ -70,24 +70,24 @@ describe('buildOptimisticExpense', () => {
     expect(e.payer_name).toBe('');
   });
 
-  it('defaults attachments and itinerary_day_id when omitted', () => {
+  it('defaults attachments and itinerary_day_ids when omitted', () => {
     const e = buildOptimisticExpense(baseInput, ctx);
     expect(e.attachments).toEqual([]);
-    expect(e.itinerary_day_id).toBeNull();
+    expect(e.itinerary_day_ids).toEqual([]);
   });
 
-  it('maps attachments and itinerary link when provided', () => {
+  it('maps attachments and itinerary links when provided', () => {
     const e = buildOptimisticExpense(
       {
         ...baseInput,
         attachments: [{ key: 'receipts/t1/x.webp', content_type: 'image/webp', size: 1234 }],
-        itinerary_day_id: 'day1',
+        itinerary_day_ids: ['day1', 'day2'],
       },
       ctx
     );
     expect(e.attachments).toEqual([
       { key: 'receipts/t1/x.webp', content_type: 'image/webp', size: 1234 },
     ]);
-    expect(e.itinerary_day_id).toBe('day1');
+    expect(e.itinerary_day_ids).toEqual(['day1', 'day2']);
   });
 });
