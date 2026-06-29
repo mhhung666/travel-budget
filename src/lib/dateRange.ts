@@ -25,3 +25,19 @@ export function tripOverlapsRange(
   if (rangeStart && end < rangeStart) return false;
   return true;
 }
+
+/**
+ * 一段起訖日所涵蓋的整年清單（含跨年，升冪）。任一端缺值時以另一端補；兩端皆空回空陣列。
+ *
+ * 供「只露年份、不露完整日期」的去識別化場景共用：公開地圖路由、公開年度回顧路由，
+ * 以及年度回顧的可選年份清單（[lib/yearInReview.ts]）。
+ */
+export function yearsSpanned(start?: Date | string | null, end?: Date | string | null): number[] {
+  if (!start && !end) return [];
+  const s = new Date((start ?? end) as Date | string).getFullYear();
+  const e = new Date((end ?? start) as Date | string).getFullYear();
+  if (Number.isNaN(s) || Number.isNaN(e)) return [];
+  const out: number[] = [];
+  for (let y = Math.min(s, e); y <= Math.max(s, e); y++) out.push(y);
+  return out;
+}

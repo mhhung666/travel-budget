@@ -10,7 +10,7 @@
 
 慣例：**已完成項目只保留「已實作」筆記**（內含與原草圖的偏離、以及尚未做的部分）；**未完成項目保留「做法」草圖**。原始草圖如需回顧，查本檔 git 歷史即可。
 
-> **進度**：Tier 1 全數完成 — **#1 預算**、**#2 結算「標記已付」**、**#3 彈性分帳**；另完成 **#13 群組統計**、**#7 清單／待辦**、**#17 支出搜尋/篩選**。第二波導入 **Cloudflare R2 blob 儲存**，解鎖 **#4 收據附件** 與 **#11 頭像**。**#6 行程強化** 全 3 Phase 完成（活動時間軸 → 支出↔行程連結 → 票券附件 + 統計/地圖按天聚合）。第三波 **#9 通知 Phase 1（站內通知 + 鈴鐺）**、**#8 動態牆（per-trip 共享活動時間軸）** 與 **#9 Phase 2a（Email 通知，Resend）+ 2b（Vercel Cron 排程結算提醒）** 完成。以上皆已併入 `master`（Phase 2b 於 `feat/email-notifications` 分支）。第三波另完成 **#5 離線優先 Phase 1 + Phase 2**（Serwist service worker + 可安裝 PWA + TanStack Query IndexedDB 持久化離線讀取 + 支出建立離線樂觀 UI 與暫停 mutation 佇列重放）。第三波再完成 **#9 Phase 3（Web Push）**：VAPID + `PushSubscription` model + **與 #5 共用同一個 service worker**（push / notificationclick handler）+ 接進 `notify()` fan-out（同 3 觸發點、payload 依收件者語系在伺服端在地化）+ 設定頁訂閱開關（iOS 加主畫面引導 + 已訂閱裝置列表）+ 鈴鐺未讀數由 SW postMessage 即時催更（輪詢保留為 fallback）。**下一步**：#15 年度回顧（傳播），或穿插 S 級填空（#12 旅伴、#16 地圖統計、#18 標籤）。
+> **進度**：Tier 1 全數完成 — **#1 預算**、**#2 結算「標記已付」**、**#3 彈性分帳**；另完成 **#13 群組統計**、**#7 清單／待辦**、**#17 支出搜尋/篩選**。第二波導入 **Cloudflare R2 blob 儲存**，解鎖 **#4 收據附件** 與 **#11 頭像**。**#6 行程強化** 全 3 Phase 完成（活動時間軸 → 支出↔行程連結 → 票券附件 + 統計/地圖按天聚合）。第三波 **#9 通知 Phase 1（站內通知 + 鈴鐺）**、**#8 動態牆（per-trip 共享活動時間軸）** 與 **#9 Phase 2a（Email 通知，Resend）+ 2b（Vercel Cron 排程結算提醒）** 完成。以上皆已併入 `master`（Phase 2b 於 `feat/email-notifications` 分支）。第三波另完成 **#5 離線優先 Phase 1 + Phase 2**（Serwist service worker + 可安裝 PWA + TanStack Query IndexedDB 持久化離線讀取 + 支出建立離線樂觀 UI 與暫停 mutation 佇列重放）。第三波再完成 **#9 Phase 3（Web Push）**：VAPID + `PushSubscription` model + **與 #5 共用同一個 service worker**（push / notificationclick handler）+ 接進 `notify()` fan-out（同 3 觸發點、payload 依收件者語系在伺服端在地化）+ 設定頁訂閱開關（iOS 加主畫面引導 + 已訂閱裝置列表）+ 鈴鐺未讀數由 SW postMessage 即時催更（輪詢保留為 fallback）。第三波再完成 **#15 年度回顧（Travel Wrapped）**：純彙整（無新 model）+ 純函式計算層（地理/花費兩種年份口徑、單元測試）+ 登入頁漸層圖卡（html-to-image 匯出 PNG / Web Share）+ **串接既有 mapShareCode 公開分享**，公開連結**去識別化只露地理 + 年份、不含金額**（守住 mapShareCode「永不外洩金額」契約）。至此**第三波協作與留存全數完成**。**下一步**：穿插 S 級填空（#12 旅伴、#16 地圖統計、#18 標籤），或 #10 支出留言、#14 PDF 報告。
 
 ---
 
@@ -148,9 +148,10 @@
 **為什麼**：目前只有 CSV。一份漂亮的「旅程結算單 / 行程手冊」PDF 很適合分享與報帳。
 **做法**：既有 [src/lib/exporters/](../src/lib/exporters/) 已抽象化，新增 PDF exporter（`@react-pdf/renderer` 或伺服端 puppeteer）。
 
-### 15. 🔹 年度旅行回顧 (Travel Wrapped) — M
+### 15. ✅ 🔹 年度旅行回顧 (Travel Wrapped) — M〔已完成 2026-06-29〕
 **為什麼**：年底「我的旅行回顧」（幾國/幾城/總里程/總花費/最常吃的分類）是高傳播性的留存功能，且資料（地圖 + 支出）都已具備。
-**做法**：彙整既有資料成可分享圖卡，串接既有 `mapShareCode` 公開分享機制。
+
+> **已實作**：純彙整、**無新 model / 無遷移**。計算抽成純函式 [lib/yearInReview.ts](../src/lib/yearInReview.ts) `computeYearInReview`（**兩種年份口徑**：地理＝「起訖與該年重疊」的旅程＝趟數/國家/城市/里程/最長天數/旅伴；花費＝「支出日期落在該年」的個人分攤＝總額/分類/月份；12 個單元測試）+ `availableReviewYears`。**小重構**：抽出共用 [lib/geo.ts](../src/lib/geo.ts) `haversineKm`（原在 [map/arc.ts](../src/components/map/arc.ts)，re-export 維持原 import）與 [dateRange.ts](../src/lib/dateRange.ts) `yearsSpanned`（原內聯於公開地圖路由，兩處共用）。Action [getYearInReview](../src/actions/wrapped.actions.ts)（個人跨旅程視角，比照 getStats；`year` 省略時取最近一個有資料年份）+ [useYearInReview](../src/hooks/queries/useYearInReview.ts)（`keepPreviousData` 讓年份切換不閃整頁）。UI：登入頁 [/wrapped](../src/app/%5Blocale%5D/wrapped/page.tsx)（年份切換 + 漸層圖卡 [WrappedCard](../src/components/wrapped/WrappedCard.tsx) + 每月花費長條 + 下載/分享）；圖卡以 **html-to-image** 動態匯出 PNG（手機走 Web Share 檔案分享、桌機退回下載；卡內**不放遠端圖片**避免擷取 CORS）。**分享串接既有 `mapShareCode`**（[WrappedShareDialog](../src/components/wrapped/WrappedShareDialog.tsx) 沿用 enable/disableMapShare，文案標示與地圖**同一把分享碼**）。**公開分享去識別化**：新路由 [/api/public/wrapped/[code]/[year]](../src/app/api/public/wrapped/%5Bcode%5D/%5Byear%5D/route.ts) 解析 mapShareCode（同公開地圖契約），**只回傳地理 + 年份，不含任何金額/分類/旅伴/名稱/完整日期**——金額只在登入檢視與本人下載的圖卡呈現，**不回頭破壞 mapShareCode「永不外洩金額」的保證**。公開頁 [/wrapped/share/[code]/[year]](../src/app/%5Blocale%5D/wrapped/share/%5Bcode%5D/%5Byear%5D/page.tsx)（proxy `protectedRoutes` 為**精確比對**，`'/wrapped'` 不涵蓋此多段路徑故維持公開，與 `/map` vs `/map/share` 同切分）。四語系 `wrapped` 命名空間。**未做**：topCountry / 最愛目的地（需國碼→在地化國名查表）；公開圖卡下載；逐 story 翻頁式動畫。
 
 ### 16. 🔹 地圖強化 (Map enhancements) — S~M
 **為什麼**：地圖已有三模式，但缺彙總洞察與相片情境。
@@ -200,7 +201,7 @@
   ├── 9  通知      ✅ Phase 1 站內通知 + 鈴鐺 ・ Phase 2a Email（Resend）・ Phase 2b 排程結算提醒（Vercel Cron）・ Phase 3 Web Push（共用離線 SW、即時催更鈴鐺）
   ├── 8  活動紀錄  ✅ 動態牆（per-trip 共享時間軸、5 觸發點、稽核基礎）
   ├── 5  離線優先   ✅ Phase 1 可安裝 + 離線讀取（Serwist SW + RQ 持久化）・ Phase 2 離線寫入（支出建立樂觀 UI + 暫停 mutation 佇列重放）
-  └── 15 年度回顧（傳播）
+  └── 15 年度回顧   ✅ Travel Wrapped（純彙整圖卡、html-to-image 匯出、串接 mapShareCode 去識別化公開分享）
 
 隨手可做（S，穿插填空）
   ├── 7  清單              ✅（獨立 Checklist 集合、成員協作、可指派）
@@ -208,7 +209,7 @@
   └── 12 旅伴 ・ 18 標籤 ・ 16 地圖統計
 ```
 
-**下一步建議**：**#9 Phase 3 Web Push**（與 #5 共用 service worker、即時催更鈴鐺）已完成——至此 **#9 通知全 3 Phase（站內 + Email + 排程 + 推播）閉環**。接續可（a）**#15 年度回顧**（傳播、資料現成）；或（b）擴大 #5 Phase 2 範圍（離線編輯/刪除、結算離線重算）；或（c）#10 支出留言；期間可穿插 S 級填空（#12 旅伴、#16 地圖統計、#18 標籤）。
+**下一步建議**：**#15 年度回顧（Travel Wrapped）**已完成——至此**第三波協作與留存（#9 通知 + #8 動態牆 + #5 離線 + #15 回顧）全數完成**。接續可（a）穿插 S 級填空（#12 旅伴、#16 地圖統計、#18 標籤）；或（b）擴大 #5 Phase 2 範圍（離線編輯/刪除、結算離線重算）；或（c）#10 支出留言；或（d）#14 PDF 報告。
 
 ---
 

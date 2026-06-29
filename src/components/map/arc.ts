@@ -60,20 +60,9 @@ export function greatCirclePositions(
   return pts;
 }
 
-/**
- * 兩座標點間的大圓距離（公里）。haversine 公式，地球半徑取 6371km。
- * 用於旅程數據儀表板的「總里程」累計。
- */
-export function haversineKm(from: [number, number], to: [number, number]): number {
-  const R = 6371;
-  const toRad = (d: number) => (d * Math.PI) / 180;
-  const dLat = toRad(to[0] - from[0]);
-  const dLon = toRad(to[1] - from[1]);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(from[0])) * Math.cos(toRad(to[0])) * Math.sin(dLon / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(a));
-}
+// `haversineKm` 已抽到 lib 層（[lib/geo.ts]，讓非元件程式碼也能用）；此處 re-export
+// 維持既有 import 路徑（components/map/stats.ts 等）不變。
+export { haversineKm } from '@/lib/geo';
 
 /**
  * 航線中段的座標與螢幕航向角（度），給飛機圖示用。

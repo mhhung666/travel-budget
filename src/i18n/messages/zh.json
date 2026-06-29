@@ -41,7 +41,8 @@
     "login": "登入",
     "logout": "登出",
     "register": "註冊",
-    "map": "旅行地圖"
+    "map": "旅行地圖",
+    "wrapped": "年度回顧"
   },
   "home": {
     "title": "旅行記帳",
@@ -811,5 +812,50 @@
     "queuedMessage": "目前離線，這筆支出會在恢復連線後自動同步。",
     "writeUnavailableTitle": "離線時無法編輯",
     "writeUnavailableMessage": "編輯與刪除需要網路連線，請恢復連線後再試。"
+  },
+  "wrapped": {
+    "title": "年度回顧",
+    "heading": "{year} 年旅行回顧",
+    "subtitle": "你的這一年，化成旅行的數字",
+    "empty": "這一年還沒有旅行可以回顧。出發後再回來看看吧！",
+    "loading": "正在整理你的這一年…",
+    "yearLabel": "年份",
+    "stat": {
+      "trips": "趟旅行",
+      "countries": "個國家",
+      "cities": "座城市",
+      "distance": "總里程",
+      "spend": "總花費",
+      "expenses": "筆支出",
+      "companions": "位旅伴",
+      "longestTrip": "最長旅程"
+    },
+    "days": "{count} 天",
+    "topCategory": "最常花費",
+    "topCategoryNone": "尚無花費",
+    "monthlyTitle": "每月花費",
+    "busiestMonthLabel": "最常花費的月份",
+    "download": "下載圖片",
+    "downloading": "產生圖片中…",
+    "downloadError": "圖片產生失敗，請再試一次。",
+    "shareImageTitle": "我的年度旅行回顧",
+    "share": {
+      "button": "分享回顧",
+      "title": "分享你的年度回顧",
+      "description": "任何人只要有連結就能看到你 {year} 年的旅行足跡。沿用旅行地圖的同一把分享碼，且不會顯示任何金額。",
+      "sameAsMap": "與「旅行地圖」共用同一個分享開關。",
+      "generate": "產生連結",
+      "regenerate": "重新產生連結",
+      "revoke": "關閉分享",
+      "enabledHint": "分享已開啟。持有連結者可看到你去識別化後的年度回顧（不含金額）。",
+      "disabledHint": "分享已關閉。產生連結即可公開分享你的年度回顧。"
+    },
+    "public": {
+      "title": "年度旅行回顧",
+      "subtitle": "{year} 年 · {trips} 趟旅行",
+      "notFound": "此分享回顧無法使用。",
+      "empty": "這一年沒有可顯示的旅行。",
+      "cta": "製作我的年度回顧"
+    }
   }
 }

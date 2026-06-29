@@ -10,8 +10,11 @@ export const ROUTES = {
   // Protected routes
   TRIPS: '/trips',
   MAP: '/map',
+  WRAPPED: '/wrapped',
   // 旅行地圖公開分享頁（去識別化、唯讀，不需登入）
   MAP_SHARE: (code: string) => `/map/share/${code}`,
+  // 年度回顧公開分享頁（去識別化、唯讀，不需登入）
+  WRAPPED_SHARE: (code: string, year: string | number) => `/wrapped/share/${code}/${year}`,
   TRIP_DETAIL: (id: string | number) => `/trips/${id}`,
   TRIP_SETTLEMENT: (id: string | number) => `/trips/${id}/settlement`,
   TRIP_ITINERARY: (id: string | number) => `/trips/${id}/itinerary`,
@@ -43,13 +46,15 @@ export const ROUTES = {
     JOIN_TRIP: '/api/trips/join',
     // 公開（不需登入）旅行地圖分享資料
     PUBLIC_MAP: (code: string) => `/api/public/map/${code}`,
+    // 公開（不需登入）年度回顧分享資料（去識別化、僅地理 + 年份）
+    PUBLIC_WRAPPED: (code: string, year: string | number) => `/api/public/wrapped/${code}/${year}`,
   },
 } as const;
 
 /**
  * Routes that require authentication
  */
-export const PROTECTED_ROUTES = ['/trips', '/map', '/settings'];
+export const PROTECTED_ROUTES = ['/trips', '/map', '/wrapped', '/settings'];
 
 /**
  * Routes that should redirect to /trips if already authenticated

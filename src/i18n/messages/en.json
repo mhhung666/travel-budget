@@ -41,7 +41,8 @@
     "login": "Login",
     "logout": "Logout",
     "register": "Register",
-    "map": "Map"
+    "map": "Map",
+    "wrapped": "Wrapped"
   },
   "home": {
     "title": "Travel Budget",
@@ -806,5 +807,50 @@
     "queuedMessage": "You're offline — this expense will sync automatically once you're back online.",
     "writeUnavailableTitle": "Unavailable offline",
     "writeUnavailableMessage": "Editing and deleting need a connection. Please try again once you're back online."
+  },
+  "wrapped": {
+    "title": "Year in Review",
+    "heading": "{year} Travel Wrapped",
+    "subtitle": "Your year, told in trips",
+    "empty": "No trips to look back on for this year yet. Come back after your next adventure!",
+    "loading": "Wrapping up your year…",
+    "yearLabel": "Year",
+    "stat": {
+      "trips": "trips",
+      "countries": "countries",
+      "cities": "cities",
+      "distance": "total distance",
+      "spend": "total spend",
+      "expenses": "expenses",
+      "companions": "travel buddies",
+      "longestTrip": "longest trip"
+    },
+    "days": "{count} days",
+    "topCategory": "Top category",
+    "topCategoryNone": "No spending",
+    "monthlyTitle": "Monthly spend",
+    "busiestMonthLabel": "Your biggest month",
+    "download": "Download image",
+    "downloading": "Creating image…",
+    "downloadError": "Couldn't create the image. Please try again.",
+    "shareImageTitle": "My Travel Wrapped",
+    "share": {
+      "button": "Share",
+      "title": "Share your year in review",
+      "description": "Anyone with the link can see your {year} travel footprint. It reuses the same share code as your travel map, and never shows any amounts.",
+      "sameAsMap": "Uses the same share toggle as your Travel Map.",
+      "generate": "Create link",
+      "regenerate": "Regenerate link",
+      "revoke": "Turn off sharing",
+      "enabledHint": "Sharing is on. Anyone with the link can see your de-identified year in review (no amounts).",
+      "disabledHint": "Sharing is off. Create a link to share your year in review."
+    },
+    "public": {
+      "title": "Travel Wrapped",
+      "subtitle": "{year} · {trips} trips",
+      "notFound": "This shared review isn't available.",
+      "empty": "No trips to show for this year.",
+      "cta": "Make my own"
+    }
   }
 }

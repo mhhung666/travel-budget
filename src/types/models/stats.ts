@@ -64,6 +64,39 @@ export interface TripStatsData {
   dailySpend: DailySpend[];
 }
 
+/** 年度回顧的單一分類花費（個人分攤，基準幣 TWD）。 */
+export interface YearInReviewCategory {
+  category: string;
+  total: number;
+}
+
+/**
+ * 年度旅行回顧（Travel Wrapped）：把某一年的旅行彙整成可分享的數字。
+ *
+ * 兩種口徑（與 [lib/yearInReview.ts] 一致）：**地理**（趟數/國家/城市/里程/最長天數/
+ * 旅伴）取「起訖與該年重疊的旅程」；**花費**（個人分攤）取「支出日期落在該年」者。
+ * 金額僅於登入檢視與本人下載的圖卡呈現；公開分享連結為去識別化、不含任何金額欄位。
+ */
+export interface YearInReviewData {
+  year: number;
+  // 地理
+  tripCount: number;
+  countryCount: number;
+  cityCount: number;
+  distanceKm: number;
+  longestTripDays: number;
+  companionCount: number;
+  // 花費（個人分攤，基準幣 TWD）
+  totalSpend: number;
+  expenseCount: number;
+  topCategory: YearInReviewCategory | null;
+  categoryBreakdown: YearInReviewCategory[];
+  /** 各月花費，長度 12（索引 0＝一月）。 */
+  monthlySpend: number[];
+  /** 花費最高的月份（0–11）；該年完全無花費時為 null。 */
+  busiestMonth: number | null;
+}
+
 // 時間區間類型
 export type TimeInterval = 'day' | 'week' | 'month';
 

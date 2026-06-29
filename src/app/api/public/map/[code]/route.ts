@@ -3,6 +3,7 @@ import { Types } from 'mongoose';
 import { dbConnect } from '@/lib/mongodb';
 import { User, Trip, ItineraryDay } from '@/models';
 import { isValidHashCode } from '@/lib/hashcode';
+import { yearsSpanned } from '@/lib/dateRange';
 import { PublicApiError, apiError } from '@/lib/publicApiError';
 import { logger } from '@/lib/logger';
 import type { Location, LocalizedNames } from '@/types';
@@ -41,16 +42,6 @@ interface PublicHeatPoint {
   lon: number;
   weight: number;
   year: number | null;
-}
-
-/** 一段起訖日所涵蓋的整年清單（含跨年）。無日期回空陣列。 */
-function yearsSpanned(start?: Date | null, end?: Date | null): number[] {
-  if (!start && !end) return [];
-  const s = (start ? new Date(start) : new Date(end as Date)).getFullYear();
-  const e = (end ? new Date(end) : new Date(start as Date)).getFullYear();
-  const out: number[] = [];
-  for (let y = Math.min(s, e); y <= Math.max(s, e); y++) out.push(y);
-  return out;
 }
 
 type LeanTrip = {
