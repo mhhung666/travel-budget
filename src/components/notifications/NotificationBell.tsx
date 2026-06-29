@@ -12,6 +12,7 @@ import {
   useUnreadNotificationCount,
   useNotificationList,
   useNotificationMutations,
+  useNotificationPushSync,
 } from '@/hooks/queries';
 import type { NotificationItem, NotificationType } from '@/types';
 import { cn } from '@/lib/utils';
@@ -31,8 +32,9 @@ function targetRoute(n: NotificationItem): string {
 
 /**
  * 站內通知鈴鐺（#9 Phase 1）。未讀數以輪詢（見 useUnreadNotificationCount）維持
- * 概略即時；清單在面板開啟時才載入。訊息文案在此依**收件者語系** + meta 即時組出，
- * 故後端只存結構化資料、不存預先算好的字串。
+ * 概略即時，並由 Web Push 即時催更（useNotificationPushSync，#9 Phase 3）；清單在
+ * 面板開啟時才載入。訊息文案在此依**收件者語系** + meta 即時組出，故後端只存結構化
+ * 資料、不存預先算好的字串。
  */
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
@@ -43,6 +45,8 @@ export function NotificationBell() {
   const { data: unreadCount = 0 } = useUnreadNotificationCount();
   const { data: notifications = [], isLoading } = useNotificationList(open);
   const { markRead, markAllRead } = useNotificationMutations();
+  // 收到 Web Push 時即時 invalidate 未讀數/清單（SW → client 訊息橋接）。
+  useNotificationPushSync();
 
   const renderMessage = (n: NotificationItem): string => {
     const actor = n.actor_name || t('someone');

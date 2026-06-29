@@ -102,13 +102,24 @@ self.addEventListener('push', (event) => {
 
   const title = payload?.title || 'Travel Budget';
   event.waitUntil(
-    self.registration.showNotification(title, {
-      body: payload?.body ?? '',
-      icon: '/icon-192.png',
-      badge: '/icon-192.png',
-      // Carried to `notificationclick` for deep-linking.
-      data: { url: payload?.url || '/' },
-    })
+    (async () => {
+      await self.registration.showNotification(title, {
+        body: payload?.body ?? '',
+        icon: '/icon-192.png',
+        badge: '/icon-192.png',
+        // Carried to `notificationclick` for deep-linking.
+        data: { url: payload?.url || '/' },
+      });
+      // Nudge any open tab to refresh the in-app bell badge immediately,
+      // instead of waiting for the 60s poll (ROADMAP #9 Phase 3).
+      const clients = await self.clients.matchAll({
+        type: 'window',
+        includeUncontrolled: true,
+      });
+      for (const client of clients) {
+        client.postMessage({ type: 'notification-received' });
+      }
+    })()
   );
 });
 
