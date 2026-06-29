@@ -111,7 +111,14 @@
       "title": "通知設定",
       "emailLabel": "Email 通知",
       "emailHelp": "有人新增支出、登記還款或加入旅程時，寄 Email 通知你。",
-      "updateSuccess": "通知設定已更新"
+      "updateSuccess": "通知設定已更新",
+      "pushLabel": "瀏覽器推播通知",
+      "pushHelp": "在這個裝置上接收即時推播（即使沒開著分頁）。",
+      "pushUnsupported": "此瀏覽器或裝置不支援推播通知。",
+      "pushBlocked": "推播權限已被封鎖，請至瀏覽器設定開啟。",
+      "pushEnabled": "已開啟推播通知",
+      "pushDisabled": "已關閉推播通知",
+      "pushFailed": "無法開啟推播通知"
     }
   },
   "location": {

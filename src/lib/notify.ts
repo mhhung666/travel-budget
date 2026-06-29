@@ -3,6 +3,7 @@ import { logger } from './logger';
 import { getResendConfig } from './env';
 import { sendEmail } from './email';
 import { buildNotificationEmail } from './emailTemplates';
+import { sendPush } from './webpush';
 import type { NotificationMeta } from '@/types';
 
 /**
@@ -123,6 +124,20 @@ export async function notify({
     // Email fan-out（best-effort、加值）：站內通知寫入後，對開啟 Email 通知且有信箱
     // 的收件者寄信。未配置 Resend 時整段跳過，省去無謂的模板/查詢工作。
     await sendNotificationEmails({
+      recipients,
+      byId,
+      type,
+      tripId,
+      tripName: trip.name,
+      actorName,
+      meta: meta as NotificationMeta,
+    });
+
+    // Web Push fan-out（best-effort、加值）：對有裝置訂閱的收件者送即時推播。未配置
+    // VAPID 或無訂閱時靜默跳過。**推播一律即時**（不分即時/每日彙整）——彙整只針對
+    // Email 過於頻繁的問題，推播是使用者主動訂閱的即時管道。push 自帶 opt-in（有沒有
+    // 訂閱），故不看 notifyByEmail（那是 Email 專屬的 opt-out）。
+    await sendPush({
       recipients,
       byId,
       type,

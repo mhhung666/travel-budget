@@ -111,7 +111,14 @@
       "title": "通知设置",
       "emailLabel": "邮件通知",
       "emailHelp": "有人新增支出、登记还款或加入行程时，发邮件通知你。",
-      "updateSuccess": "通知设置已更新"
+      "updateSuccess": "通知设置已更新",
+      "pushLabel": "浏览器推送通知",
+      "pushHelp": "在此设备上接收实时推送（即使没有打开标签页）。",
+      "pushUnsupported": "此浏览器或设备不支持推送通知。",
+      "pushBlocked": "推送权限已被屏蔽，请到浏览器设置中开启。",
+      "pushEnabled": "已开启推送通知",
+      "pushDisabled": "已关闭推送通知",
+      "pushFailed": "无法开启推送通知"
     }
   },
   "location": {

@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AccountSettingsSkeleton } from '@/components/skeletons';
 import AvatarUploader from '@/components/AvatarUploader';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { logger } from '@/lib/logger';
 
 export default function SettingsPage() {
@@ -34,6 +35,9 @@ export default function SettingsPage() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [notifyByEmail, setNotifyByEmail] = useState(true);
+
+  // Web Push 訂閱（瀏覽器推播；opt-in 即「有沒有訂閱」，不存 User 層開關）
+  const push = usePushNotifications();
 
   // 提交狀態
   const [updatingProfile, setUpdatingProfile] = useState(false);
@@ -160,6 +164,20 @@ export default function SettingsPage() {
     }
   };
 
+  const handleTogglePush = async (next: boolean) => {
+    setError('');
+    setSuccess('');
+    if (next) {
+      const ok = await push.subscribe();
+      if (ok) setSuccess(t('notifications.pushEnabled'));
+      else if (push.permission === 'denied') setError(t('notifications.pushBlocked'));
+      else setError(t('notifications.pushFailed'));
+    } else {
+      await push.unsubscribe();
+      setSuccess(t('notifications.pushDisabled'));
+    }
+  };
+
   if (loading) {
     return <AccountSettingsSkeleton />;
   }
@@ -264,7 +282,7 @@ export default function SettingsPage() {
               {t('notifications.title')}
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <label className="flex items-start gap-3 cursor-pointer">
               <Checkbox
                 checked={notifyByEmail}
@@ -278,6 +296,32 @@ export default function SettingsPage() {
                 </span>
                 <span className="block text-xs text-muted-foreground">
                   {t('notifications.emailHelp')}
+                </span>
+              </span>
+            </label>
+
+            {/* Web Push（瀏覽器推播）。不支援/未配置時停用並提示。 */}
+            <label className="flex items-start gap-3 cursor-pointer">
+              <Checkbox
+                checked={push.subscribed}
+                disabled={
+                  !push.supported || !push.configured || push.busy || push.permission === 'denied'
+                }
+                onCheckedChange={(checked) => handleTogglePush(checked === true)}
+                className="mt-0.5"
+              />
+              <span className="space-y-1">
+                <span className="block text-sm font-medium text-foreground">
+                  {t('notifications.pushLabel')}
+                </span>
+                <span className="block text-xs text-muted-foreground">
+                  {!push.supported
+                    ? t('notifications.pushUnsupported')
+                    : !push.configured
+                      ? t('notifications.pushUnsupported')
+                      : push.permission === 'denied'
+                        ? t('notifications.pushBlocked')
+                        : t('notifications.pushHelp')}
                 </span>
               </span>
             </label>
