@@ -1,12 +1,12 @@
 'use client';
 
 import { useLocale, useTranslations } from 'next-intl';
-import { Activity, Coins, FilePenLine, Receipt, Trash2, UserPlus } from 'lucide-react';
+import { History, Coins, FilePenLine, Receipt, Trash2, UserPlus } from 'lucide-react';
 import { useActivityLog } from '@/hooks/queries';
 import type { ActivityLogItem, ActivityLogType } from '@/types';
 import { formatRelativeTime } from '@/lib/relativeTime';
 
-const TYPE_ICON: Record<ActivityLogType, typeof Activity> = {
+const TYPE_ICON: Record<ActivityLogType, typeof History> = {
   expense_added: Receipt,
   expense_updated: FilePenLine,
   expense_deleted: Trash2,
@@ -49,7 +49,7 @@ export function ActivityFeed({ tripId }: { tripId: string }) {
   if (items.length === 0) {
     return (
       <div className="flex flex-col items-center gap-3 py-16 text-center">
-        <Activity className="h-10 w-10 text-muted-foreground/40" />
+        <History className="h-10 w-10 text-muted-foreground/40" />
         <p className="text-sm text-muted-foreground">{t('empty')}</p>
       </div>
     );
@@ -58,7 +58,7 @@ export function ActivityFeed({ tripId }: { tripId: string }) {
   return (
     <ul className="space-y-1">
       {items.map((a) => {
-        const Icon = TYPE_ICON[a.type] ?? Activity;
+        const Icon = TYPE_ICON[a.type] ?? History;
         return (
           <li key={a.id} className="flex items-start gap-3 rounded-lg px-3 py-3 hover:bg-accent/50">
             <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">

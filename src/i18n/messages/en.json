@@ -772,7 +772,7 @@
     "memberJoined": "{actor} joined the trip"
   },
   "activity": {
-    "title": "Activity",
+    "title": "History",
     "empty": "No activity yet",
     "loading": "Loading…",
     "someone": "Someone",

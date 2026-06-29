@@ -772,7 +772,7 @@
     "memberJoined": "{actor} 加入了旅程"
   },
   "activity": {
-    "title": "動態牆",
+    "title": "歷史紀錄",
     "empty": "目前還沒有任何動態",
     "loading": "載入中…",
     "someone": "有人",

@@ -772,7 +772,7 @@
     "memberJoined": "{actor} 加入了行程"
   },
   "activity": {
-    "title": "动态墙",
+    "title": "历史记录",
     "empty": "暂无任何动态",
     "loading": "加载中…",
     "someone": "有人",

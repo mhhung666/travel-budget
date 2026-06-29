@@ -10,7 +10,7 @@ import {
   Calculator,
   BarChart3,
   ListChecks,
-  Activity,
+  History,
 } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import { TripHeader, TripExpenses, TripBudget } from '@/components/trips/detail';
@@ -120,7 +120,7 @@ export default function TripDetailPage() {
               onClick={() => router.push(`/trips/${tripId}/activity`)}
               className="gap-2"
             >
-              <Activity className="h-4 w-4 text-rose-600" />
+              <History className="h-4 w-4 text-rose-600" />
               <span className="hidden sm:inline">{tTrip('viewActivity')}</span>
             </Button>
 
