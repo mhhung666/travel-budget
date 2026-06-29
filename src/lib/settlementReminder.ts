@@ -11,7 +11,8 @@ import { applyPayments } from './settlement';
 
 /** 結算所需的單筆旅程原始資料（已從 DB 撈出、依 trip 分組）。 */
 export interface TripSettlementInput {
-  tripId: string;
+  /** 旅程公開 hashCode（提醒信連結用，見 emailTemplates BuildEmailInput）。 */
+  tripHashCode: string;
   tripName: string;
   /** 成員（含個別軟封存時間；archivedAt 非 null 代表該成員已把此旅程收起，不提醒）。 */
   members: { userId: string; archivedAt?: Date | null }[];
@@ -22,7 +23,8 @@ export interface TripSettlementInput {
 
 /** 某使用者在某趟旅程的未結清淨額。 */
 export interface UserTripBalance {
-  tripId: string;
+  /** 旅程公開 hashCode（提醒信連結用，見 emailTemplates BuildEmailInput）。 */
+  tripHashCode: string;
   tripName: string;
   /** 淨額（TWD）：>0 別人欠你、<0 你欠人。 */
   balance: number;
@@ -68,7 +70,7 @@ export function computeSettlementDigests(
       if (Math.abs(b.balance) <= epsilon) continue; // 已結清
       if (archivedBy.has(b.userId)) continue; // 該成員已封存此旅程
       const list = result.get(b.userId) ?? [];
-      list.push({ tripId: trip.tripId, tripName: trip.tripName, balance: b.balance });
+      list.push({ tripHashCode: trip.tripHashCode, tripName: trip.tripName, balance: b.balance });
       result.set(b.userId, list);
     }
   }

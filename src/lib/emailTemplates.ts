@@ -25,7 +25,11 @@ interface BuildEmailInput {
   locale: string;
   /** 觸發者顯示名（事件當下快照）。 */
   actorName: string;
-  tripId: string;
+  /**
+   * 旅程的公開 `hashCode`（**非** ObjectId）——信中連結一律用它，未登入收件者點進去時
+   * 才能走 `/api/public/*` 分享路由（hash_code only；ObjectId 會被拒）的 fallback。
+   */
+  tripHashCode: string;
   tripName: string;
   meta?: NotificationMeta;
   /** 對外站台基底 URL（結尾無斜線）；null 時連結退回相對路徑。 */
@@ -47,10 +51,10 @@ function toAbsoluteUrl(appUrl: string | null, path: string): string {
   return appUrl ? `${appUrl}${path}` : path;
 }
 
-/** 各通知類型對應要導向的頁面路徑。 */
-function linkPathFor(type: NotificationType, tripId: string): string {
+/** 各通知類型對應要導向的頁面路徑（`linkId` 為旅程公開 hashCode，見 BuildEmailInput）。 */
+function linkPathFor(type: NotificationType, linkId: string): string {
   // 還款相關導向結算頁，其餘導向旅程詳情頁（比照站內通知鈴鐺的導向）。
-  return type === 'payment_recorded' ? ROUTES.TRIP_SETTLEMENT(tripId) : ROUTES.TRIP_DETAIL(tripId);
+  return type === 'payment_recorded' ? ROUTES.TRIP_SETTLEMENT(linkId) : ROUTES.TRIP_DETAIL(linkId);
 }
 
 /** 極簡 HTML escape（模板只插入少量使用者字串）。 */
@@ -75,8 +79,8 @@ export async function buildNotificationEmail(input: BuildEmailInput): Promise<Em
     values?: Record<string, string | number>
   ) => string;
 
-  const { type, actorName, tripId, tripName, meta = {}, appUrl } = input;
-  const url = toAbsoluteUrl(appUrl, linkPathFor(type, tripId));
+  const { type, actorName, tripHashCode, tripName, meta = {}, appUrl } = input;
+  const url = toAbsoluteUrl(appUrl, linkPathFor(type, tripHashCode));
   const settingsUrl = toAbsoluteUrl(appUrl, ROUTES.SETTINGS);
 
   const vars = {
@@ -182,7 +186,8 @@ export async function buildPasswordResetEmail(
 
 /** 排程結算提醒 Email 的單筆未結清項目。 */
 export interface ReminderTripLine {
-  tripId: string;
+  /** 旅程公開 hashCode（連結用，見 BuildEmailInput）。 */
+  tripHashCode: string;
   tripName: string;
   /** 淨額（TWD）：>0 別人欠你、<0 你欠人。 */
   balance: number;
@@ -215,7 +220,7 @@ export async function buildSettlementReminderEmail(
 
   // 每筆旅程：金額（取整、絕對值）+ 應收/應付標籤 + 結算頁連結。
   const lines = input.trips.map((tr) => {
-    const url = toAbsoluteUrl(input.appUrl, ROUTES.TRIP_SETTLEMENT(tr.tripId));
+    const url = toAbsoluteUrl(input.appUrl, ROUTES.TRIP_SETTLEMENT(tr.tripHashCode));
     const amount = Math.round(Math.abs(tr.balance));
     const label = tr.balance < 0 ? t('settlementReminder.owe') : t('settlementReminder.owed');
     return { name: tr.tripName, url, amount, label };
@@ -255,7 +260,8 @@ export async function buildSettlementReminderEmail(
 
 /** 每日支出摘要 Email 的單筆旅程（含當日新支出清單）。 */
 export interface DigestTripLine {
-  tripId: string;
+  /** 旅程公開 hashCode（連結用，見 BuildEmailInput）。 */
+  tripHashCode: string;
   tripName: string;
   expenses: { description: string; amount: number; payerName: string }[];
 }
@@ -286,7 +292,7 @@ export async function buildExpenseDigestEmail(input: BuildDigestInput): Promise<
   // 純文字版：每旅程一段 + 其下各支出一行
   const textParts: string[] = [intro, ''];
   for (const tr of input.trips) {
-    const url = toAbsoluteUrl(input.appUrl, ROUTES.TRIP_DETAIL(tr.tripId));
+    const url = toAbsoluteUrl(input.appUrl, ROUTES.TRIP_DETAIL(tr.tripHashCode));
     textParts.push(`${tr.tripName}　${url}`);
     for (const e of tr.expenses) {
       textParts.push(`  • ${e.description} — NT$${Math.round(e.amount)}（${e.payerName}）`);
@@ -299,7 +305,7 @@ export async function buildExpenseDigestEmail(input: BuildDigestInput): Promise<
   // HTML 版：每旅程一個標題（連結）+ 其下支出清單
   const sectionsHtml = input.trips
     .map((tr) => {
-      const url = toAbsoluteUrl(input.appUrl, ROUTES.TRIP_DETAIL(tr.tripId));
+      const url = toAbsoluteUrl(input.appUrl, ROUTES.TRIP_DETAIL(tr.tripHashCode));
       const items = tr.expenses
         .map(
           (e) => `<li style="margin: 0 0 6px; line-height: 1.5;">

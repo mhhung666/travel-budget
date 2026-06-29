@@ -3,7 +3,7 @@ import { computeSettlementDigests, type TripSettlementInput } from '@/lib/settle
 
 function trip(overrides: Partial<TripSettlementInput>): TripSettlementInput {
   return {
-    tripId: 't1',
+    tripHashCode: 't1',
     tripName: 'Trip 1',
     members: [{ userId: 'A' }, { userId: 'B' }],
     expenses: [],
@@ -28,8 +28,8 @@ describe('computeSettlementDigests', () => {
         ],
       }),
     ]);
-    expect(d.get('A')).toEqual([{ tripId: 't1', tripName: 'Trip 1', balance: 50 }]);
-    expect(d.get('B')).toEqual([{ tripId: 't1', tripName: 'Trip 1', balance: -50 }]);
+    expect(d.get('A')).toEqual([{ tripHashCode: 't1', tripName: 'Trip 1', balance: 50 }]);
+    expect(d.get('B')).toEqual([{ tripHashCode: 't1', tripName: 'Trip 1', balance: -50 }]);
   });
 
   it('omits users whose balance is settled by registered payments', () => {
@@ -75,19 +75,19 @@ describe('computeSettlementDigests', () => {
   it('aggregates a user across multiple unsettled trips', () => {
     const d = computeSettlementDigests([
       trip({
-        tripId: 't1',
+        tripHashCode: 't1',
         tripName: 'Tokyo',
         expenses: [{ payer: 'A', amount: 100, splits: [{ user: 'B', shareAmount: 100 }] }],
       }),
       trip({
-        tripId: 't2',
+        tripHashCode: 't2',
         tripName: 'Osaka',
         expenses: [{ payer: 'A', amount: 60, splits: [{ user: 'B', shareAmount: 60 }] }],
       }),
     ]);
     expect(d.get('B')).toEqual([
-      { tripId: 't1', tripName: 'Tokyo', balance: -100 },
-      { tripId: 't2', tripName: 'Osaka', balance: -60 },
+      { tripHashCode: 't1', tripName: 'Tokyo', balance: -100 },
+      { tripHashCode: 't2', tripName: 'Osaka', balance: -60 },
     ]);
   });
 

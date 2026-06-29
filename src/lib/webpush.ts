@@ -36,7 +36,11 @@ interface BuildPushPayloadInput {
   locale: string;
   /** 觸發者顯示名（事件當下快照）；空字串時退回在地化的「有人」。 */
   actorName: string;
-  tripId: string;
+  /**
+   * 旅程公開 `hashCode`（**非** ObjectId）——推播深連結一律用它，未登入時才能走
+   * `/api/public/*`（hash_code only）的 fallback（比照 Email，見 emailTemplates）。
+   */
+  tripHashCode: string;
   tripName: string;
   meta?: NotificationMeta;
   /** 對外站台基底 URL（結尾無斜線）；null 時連結退回相對路徑。 */
@@ -65,9 +69,9 @@ function toAbsoluteUrl(appUrl: string | null, path: string): string {
   return appUrl ? `${appUrl}${path}` : path;
 }
 
-/** 各通知類型對應要導向的頁面路徑（比照站內鈴鐺/Email 的導向）。 */
-function linkPathFor(type: NotificationType, tripId: string): string {
-  return type === 'payment_recorded' ? ROUTES.TRIP_SETTLEMENT(tripId) : ROUTES.TRIP_DETAIL(tripId);
+/** 各通知類型對應要導向的頁面路徑（`linkId` 為旅程公開 hashCode，比照站內鈴鐺/Email）。 */
+function linkPathFor(type: NotificationType, linkId: string): string {
+  return type === 'payment_recorded' ? ROUTES.TRIP_SETTLEMENT(linkId) : ROUTES.TRIP_DETAIL(linkId);
 }
 
 /**
@@ -83,14 +87,14 @@ export async function buildPushPayload(input: BuildPushPayloadInput): Promise<Pu
     values?: Record<string, string | number>
   ) => string;
 
-  const { type, actorName, tripId, tripName, meta = {}, appUrl } = input;
+  const { type, actorName, tripHashCode, tripName, meta = {}, appUrl } = input;
   const actor = actorName || t('someone');
   const body = t(MESSAGE_KEY[type], { actor, description: meta.description ?? '' });
 
   return {
     title: tripName,
     body,
-    url: toAbsoluteUrl(appUrl, linkPathFor(type, tripId)),
+    url: toAbsoluteUrl(appUrl, linkPathFor(type, tripHashCode)),
   };
 }
 
@@ -108,7 +112,8 @@ interface SendPushInput {
   /** 收件者顯示資料（取 locale 決定推播語系）。 */
   byId: Map<string, { locale?: string | null }>;
   type: NotificationType;
-  tripId: string;
+  /** 旅程公開 hashCode（深連結用，見 BuildPushPayloadInput）。 */
+  tripHashCode: string;
   tripName: string;
   actorName: string;
   meta: NotificationMeta;
@@ -122,7 +127,7 @@ export async function sendPush({
   recipients,
   byId,
   type,
-  tripId,
+  tripHashCode,
   tripName,
   actorName,
   meta,
@@ -159,7 +164,7 @@ export async function sendPush({
             type,
             locale: owner?.locale ?? defaultLocale,
             actorName,
-            tripId,
+            tripHashCode,
             tripName,
             meta,
             appUrl,

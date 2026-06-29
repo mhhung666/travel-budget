@@ -25,6 +25,7 @@ export const dynamic = 'force-dynamic';
 type LeanTrip = {
   _id: { toString(): string };
   name: string;
+  hashCode: string;
   members: { user: { toString(): string }; archivedAt?: Date | null }[];
 };
 type LeanExpense = {
@@ -71,7 +72,7 @@ export async function GET(req: NextRequest) {
 
     // 3. 批次撈出所有旅程 / 支出 / 還款，記憶體中依 trip 分組
     const [trips, expenses, payments] = await Promise.all([
-      Trip.find().select('name members').lean<LeanTrip[]>(),
+      Trip.find().select('name members hashCode').lean<LeanTrip[]>(),
       Expense.find().select('trip payer amount splits').lean<LeanExpense[]>(),
       Payment.find().select('trip from to amount').lean<LeanPayment[]>(),
     ]);
@@ -102,7 +103,7 @@ export async function GET(req: NextRequest) {
     const tripInputs: TripSettlementInput[] = trips.map((t) => {
       const id = t._id.toString();
       return {
-        tripId: id,
+        tripHashCode: t.hashCode,
         tripName: t.name,
         members: (t.members || []).map((m) => ({
           userId: m.user.toString(),

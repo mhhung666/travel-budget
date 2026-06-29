@@ -76,8 +76,12 @@ export async function notify({
   try {
     // 取旅程名稱（去正規化存進通知）+ 必要時取成員清單
     const trip = await Trip.findById(tripId)
-      .select('name members')
-      .lean<{ name: string; members: { user: { toString(): string } }[] } | null>();
+      .select('name members hashCode')
+      .lean<{
+        name: string;
+        hashCode: string;
+        members: { user: { toString(): string } }[];
+      } | null>();
     if (!trip) return;
 
     const candidateIds = recipientIds ?? trip.members.map((m) => m.user.toString());
@@ -127,7 +131,7 @@ export async function notify({
       recipients,
       byId,
       type,
-      tripId,
+      tripHashCode: trip.hashCode,
       tripName: trip.name,
       actorName,
       meta: meta as NotificationMeta,
@@ -141,7 +145,7 @@ export async function notify({
       recipients,
       byId,
       type,
-      tripId,
+      tripHashCode: trip.hashCode,
       tripName: trip.name,
       actorName,
       meta: meta as NotificationMeta,
@@ -157,7 +161,7 @@ async function sendNotificationEmails({
   recipients,
   byId,
   type,
-  tripId,
+  tripHashCode,
   tripName,
   actorName,
   meta,
@@ -168,7 +172,8 @@ async function sendNotificationEmails({
     { email?: string | null; notifyByEmail?: boolean | null; locale?: string | null }
   >;
   type: NotificationType;
-  tripId: string;
+  /** 旅程公開 hashCode（信中連結用，見 emailTemplates BuildEmailInput）。 */
+  tripHashCode: string;
   tripName: string;
   actorName: string;
   meta: NotificationMeta;
@@ -192,7 +197,7 @@ async function sendNotificationEmails({
             type,
             locale: u.locale ?? 'zh',
             actorName,
-            tripId,
+            tripHashCode,
             tripName,
             meta,
             appUrl: config.appUrl,

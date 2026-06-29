@@ -31,6 +31,7 @@ type LeanExpense = {
 type LeanTrip = {
   _id: { toString(): string };
   name: string;
+  hashCode: string;
   members: { user: { toString(): string }; archivedAt?: Date | null }[];
 };
 type LeanUser = {
@@ -86,13 +87,13 @@ export async function GET(req: NextRequest) {
 
     // 3. 載入相關旅程（取成員 + 名稱）
     const trips = await Trip.find({ _id: { $in: [...expByTrip.keys()] } })
-      .select('name members')
+      .select('name members hashCode')
       .lean<LeanTrip[]>();
 
     const tripInputs: TripExpenseDigestInput[] = trips.map((t) => {
       const id = t._id.toString();
       return {
-        tripId: id,
+        tripHashCode: t.hashCode,
         tripName: t.name,
         members: (t.members || []).map((m) => ({
           userId: m.user.toString(),

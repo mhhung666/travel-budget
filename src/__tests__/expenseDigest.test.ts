@@ -3,7 +3,7 @@ import { computeExpenseDigests, type TripExpenseDigestInput } from '@/lib/expens
 
 function trip(overrides: Partial<TripExpenseDigestInput>): TripExpenseDigestInput {
   return {
-    tripId: 't1',
+    tripHashCode: 't1',
     tripName: 'Trip 1',
     members: [{ userId: 'A' }, { userId: 'B' }],
     expenses: [],
@@ -25,7 +25,7 @@ describe('computeExpenseDigests', () => {
     expect(d.has('A')).toBe(false);
     expect(d.get('B')).toEqual([
       {
-        tripId: 't1',
+        tripHashCode: 't1',
         tripName: 'Trip 1',
         expenses: [{ description: 'lunch', amount: 200, payerName: 'Alice' }],
       },
@@ -52,13 +52,13 @@ describe('computeExpenseDigests', () => {
   it('aggregates a user across multiple trips', () => {
     const d = computeExpenseDigests([
       trip({
-        tripId: 't1',
+        tripHashCode: 't1',
         tripName: 'Tokyo',
         members: [{ userId: 'A' }, { userId: 'B' }],
         expenses: [exp('A')],
       }),
       trip({
-        tripId: 't2',
+        tripHashCode: 't2',
         tripName: 'Osaka',
         members: [{ userId: 'A' }, { userId: 'B' }],
         expenses: [exp('A')],

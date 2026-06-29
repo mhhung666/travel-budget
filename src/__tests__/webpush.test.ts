@@ -11,7 +11,7 @@ import { buildPushPayload, isExpiredSubscriptionError } from '@/lib/webpush';
 
 const base = {
   actorName: 'Alice',
-  tripId: 'trip123',
+  tripHashCode: 'trip123',
   tripName: 'Tokyo 2026',
   appUrl: 'https://app.example.com',
 };

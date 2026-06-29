@@ -15,7 +15,7 @@ import {
 
 const base = {
   actorName: 'Alice',
-  tripId: 'trip123',
+  tripHashCode: 'trip123',
   tripName: 'Tokyo 2026',
   appUrl: 'https://app.example.com',
 };
@@ -106,8 +106,8 @@ describe('buildNotificationEmail', () => {
 
 describe('buildSettlementReminderEmail', () => {
   const trips = [
-    { tripId: 't1', tripName: 'Tokyo', balance: -1200 }, // 你欠人
-    { tripId: 't2', tripName: 'Osaka', balance: 800 }, // 別人欠你
+    { tripHashCode: 't1', tripName: 'Tokyo', balance: -1200 }, // 你欠人
+    { tripHashCode: 't2', tripName: 'Osaka', balance: 800 }, // 別人欠你
   ];
 
   it('lists each unsettled trip with a settlement link and rounded amount', async () => {
@@ -142,7 +142,7 @@ describe('buildSettlementReminderEmail', () => {
 describe('buildExpenseDigestEmail', () => {
   const trips = [
     {
-      tripId: 't1',
+      tripHashCode: 't1',
       tripName: 'Tokyo',
       expenses: [
         { description: 'Lunch', amount: 1234, payerName: 'Alice' },
@@ -179,7 +179,7 @@ describe('buildExpenseDigestEmail', () => {
       appUrl: null,
       trips: [
         {
-          tripId: 't1',
+          tripHashCode: 't1',
           tripName: 'T',
           expenses: [{ description: '<b>x</b>', amount: 1, payerName: 'P' }],
         },

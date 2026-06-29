@@ -19,7 +19,8 @@ export interface DigestExpense {
 
 /** 結算所需的單筆旅程原始資料（已依 trip 分組）。 */
 export interface TripExpenseDigestInput {
-  tripId: string;
+  /** 旅程公開 hashCode（摘要信連結用，見 emailTemplates BuildEmailInput）。 */
+  tripHashCode: string;
   tripName: string;
   members: { userId: string; archivedAt?: Date | null }[];
   expenses: DigestExpense[];
@@ -27,7 +28,8 @@ export interface TripExpenseDigestInput {
 
 /** 某使用者在某旅程當日的新支出摘要（已排除自己新增的）。 */
 export interface UserTripDigest {
-  tripId: string;
+  /** 旅程公開 hashCode（摘要信連結用，見 emailTemplates BuildEmailInput）。 */
+  tripHashCode: string;
   tripName: string;
   expenses: { description: string; amount: number; payerName: string }[];
 }
@@ -58,7 +60,7 @@ export function computeExpenseDigests(
       if (forUser.length === 0) continue;
 
       const list = result.get(member.userId) ?? [];
-      list.push({ tripId: trip.tripId, tripName: trip.tripName, expenses: forUser });
+      list.push({ tripHashCode: trip.tripHashCode, tripName: trip.tripName, expenses: forUser });
       result.set(member.userId, list);
     }
   }
