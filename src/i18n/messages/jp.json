@@ -243,9 +243,10 @@
       "deleteMessage": "この操作は取り消せません。"
     },
     "success": {
-      "created": "支出を追加しました",
       "updated": "支出を更新しました",
-      "deleted": "支出を削除しました"
+      "deleted": "支出を削除しました",
+      "added": "支出を追加しました",
+      "addedMessage": "支出が正常に記録されました。"
     },
     "filter": "フィルター",
     "filterAll": "すべて",

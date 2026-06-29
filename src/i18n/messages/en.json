@@ -292,9 +292,10 @@
       "deleteMessage": "This action cannot be undone."
     },
     "success": {
-      "created": "Expense added",
       "updated": "Expense updated",
-      "deleted": "Expense deleted"
+      "deleted": "Expense deleted",
+      "added": "Expense added",
+      "addedMessage": "Your expense has been recorded successfully."
     },
     "filter": "Filter by",
     "filterAll": "All",

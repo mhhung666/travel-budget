@@ -243,9 +243,10 @@
       "deleteMessage": "此操作无法撤销。"
     },
     "success": {
-      "created": "支出已新增",
       "updated": "支出已更新",
-      "deleted": "支出已删除"
+      "deleted": "支出已删除",
+      "added": "支出已新增",
+      "addedMessage": "您的支出已成功记录。"
     },
     "filter": "筛选对象",
     "filterAll": "全部",
