@@ -26,6 +26,16 @@ interface SendEmailInput {
   content: EmailContent;
 }
 
+/** Resend 單次 batch 上限（每呼叫最多 100 封）。 */
+const BATCH_SIZE = 100;
+/**
+ * batch 呼叫間的最小間隔（ms）。Resend 限制 2 req/s，故 ≥500ms 即安全；取 600ms 留餘裕。
+ * 只有收件者 > 100（需分塊）時才會用到。
+ */
+const BATCH_INTERVAL_MS = 600;
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 /**
  * 寄出一封 Email。回傳是否實際送出（false＝未配置或失敗，已記 log）。永不 throw。
  */
@@ -51,4 +61,45 @@ export async function sendEmail({ to, content }: SendEmailInput): Promise<boolea
     logger.error('sendEmail threw', error);
     return false;
   }
+}
+
+/**
+ * 批次寄出多封 Email，回傳實際送出的封數。永不 throw（best-effort，比照 sendEmail）。
+ *
+ * 為什麼需要：fan-out（notify / cron 摘要）原本用 `Promise.all(map(sendEmail))` 併發
+ * 寄信，瞬間 N 個請求會撞上 Resend 的 2 req/s 限制 → 多出的被 429 擋掉、信件靜默遺失。
+ * 改用 Resend Batch API：一次 HTTP request 送最多 100 封（每封各自 to/subject/html，
+ * 逐人在地化照舊），N 封信 → ceil(N/100) 個請求。> 100 才分塊並在塊間節流，避免再次撞限。
+ */
+export async function sendEmailBatch(messages: SendEmailInput[]): Promise<number> {
+  if (messages.length === 0) return 0;
+  const config = getResendConfig();
+  if (!config) return 0; // 未配置 Resend → 靜默跳過
+
+  const client = getClient(config.apiKey);
+  let sent = 0;
+
+  for (let i = 0; i < messages.length; i += BATCH_SIZE) {
+    const chunk = messages.slice(i, i + BATCH_SIZE);
+    if (i > 0) await sleep(BATCH_INTERVAL_MS); // 第二塊起節流，守住 2 req/s
+    try {
+      const { error } = await client.batch.send(
+        chunk.map((m) => ({
+          from: config.from,
+          to: m.to,
+          subject: m.content.subject,
+          html: m.content.html,
+          text: m.content.text,
+        }))
+      );
+      if (error) {
+        logger.error('sendEmailBatch chunk failed', error);
+        continue; // 單一塊失敗不影響其餘塊
+      }
+      sent += chunk.length;
+    } catch (error) {
+      logger.error('sendEmailBatch threw', error);
+    }
+  }
+  return sent;
 }

@@ -4,7 +4,7 @@ import { Trip, Expense, Payment, User } from '@/models';
 import { getEnv, getResendConfig } from '@/lib/env';
 import { computeSettlementDigests, type TripSettlementInput } from '@/lib/settlementReminder';
 import { buildSettlementReminderEmail } from '@/lib/emailTemplates';
-import { sendEmail } from '@/lib/email';
+import { sendEmailBatch } from '@/lib/email';
 import { logger } from '@/lib/logger';
 
 /**
@@ -124,23 +124,28 @@ export async function GET(req: NextRequest) {
       .lean<LeanUser[]>();
     const byId = new Map(users.map((u) => [u._id.toString(), u]));
 
-    let emailsSent = 0;
-    await Promise.all(
-      [...digests.entries()].map(async ([userId, tripsList]) => {
-        const u = byId.get(userId);
-        if (!u || u.isVirtual || !u.email || u.notifyByEmail === false) return;
-        try {
-          const content = await buildSettlementReminderEmail({
-            locale: u.locale ?? 'zh',
-            appUrl: resend.appUrl,
-            trips: tripsList,
-          });
-          if (await sendEmail({ to: u.email, content })) emailsSent++;
-        } catch (error) {
-          logger.error('settlement reminder email failed', error);
-        }
-      })
-    );
+    // 逐人組出在地化提醒內容後，一次 batch 寄出（避免併發撞上 Resend 2 req/s 限制）。
+    const messages = (
+      await Promise.all(
+        [...digests.entries()].map(async ([userId, tripsList]) => {
+          const u = byId.get(userId);
+          if (!u || u.isVirtual || !u.email || u.notifyByEmail === false) return null;
+          try {
+            const content = await buildSettlementReminderEmail({
+              locale: u.locale ?? 'zh',
+              appUrl: resend.appUrl,
+              trips: tripsList,
+            });
+            return { to: u.email, content };
+          } catch (error) {
+            logger.error('settlement reminder email failed', error);
+            return null;
+          }
+        })
+      )
+    ).filter((m): m is NonNullable<typeof m> => m !== null);
+
+    const emailsSent = await sendEmailBatch(messages);
 
     return NextResponse.json({ success: true, usersNotified: digests.size, emailsSent });
   } catch (error) {

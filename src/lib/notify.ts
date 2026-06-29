@@ -1,7 +1,7 @@
 import { Trip, User, Notification, type NotificationType } from '@/models';
 import { logger } from './logger';
 import { getResendConfig } from './env';
-import { sendEmail } from './email';
+import { sendEmailBatch } from './email';
 import { buildNotificationEmail } from './emailTemplates';
 import { sendPush } from './webpush';
 import type { NotificationMeta } from '@/types';
@@ -182,22 +182,29 @@ async function sendNotificationEmails({
     .map((id) => byId.get(id))
     .filter((u): u is NonNullable<typeof u> => !!u && u.notifyByEmail !== false && !!u.email);
 
-  await Promise.all(
-    targets.map(async (u) => {
-      try {
-        const content = await buildNotificationEmail({
-          type,
-          locale: u.locale ?? 'zh',
-          actorName,
-          tripId,
-          tripName,
-          meta,
-          appUrl: config.appUrl,
-        });
-        await sendEmail({ to: u.email!, content });
-      } catch (error) {
-        logger.error('notification email failed', error);
-      }
-    })
-  );
+  // 先逐人組出在地化內容（模板組裝為純記憶體運算），再一次 batch 寄出——避免併發
+  // 寄信撞上 Resend 的 2 req/s 限制（見 lib/email.ts sendEmailBatch）。
+  const messages = (
+    await Promise.all(
+      targets.map(async (u) => {
+        try {
+          const content = await buildNotificationEmail({
+            type,
+            locale: u.locale ?? 'zh',
+            actorName,
+            tripId,
+            tripName,
+            meta,
+            appUrl: config.appUrl,
+          });
+          return { to: u.email!, content };
+        } catch (error) {
+          logger.error('notification email failed', error);
+          return null;
+        }
+      })
+    )
+  ).filter((m): m is NonNullable<typeof m> => m !== null);
+
+  await sendEmailBatch(messages);
 }
