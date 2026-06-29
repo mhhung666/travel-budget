@@ -99,23 +99,27 @@ export default function TripStatsView({ stats }: TripStatsViewProps) {
 
       {/* 趨勢圖 + 分類統計並排 */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <ExpenseHistogram
-          categoryStats={stats.categoryStats}
-          startDate=""
-          endDate=""
-          formatCurrency={formatCurrency}
-          t={t}
-          locale={locale}
-          cardGradient=""
-        />
-        <CategoryStats
-          categoryStats={stats.categoryStats}
-          formatCurrency={formatCurrency}
-          formatDate={formatDate}
-          t={t}
-          tCategory={tCategory}
-          cardGradient=""
-        />
+        <div>
+          <ExpenseHistogram
+            categoryStats={stats.categoryStats}
+            startDate=""
+            endDate=""
+            formatCurrency={formatCurrency}
+            t={t}
+            locale={locale}
+            cardGradient=""
+          />
+        </div>
+        <div>
+          <CategoryStats
+            categoryStats={stats.categoryStats}
+            formatCurrency={formatCurrency}
+            formatDate={formatDate}
+            t={t}
+            tCategory={tCategory}
+            cardGradient=""
+          />
+        </div>
       </div>
     </div>
   );
