@@ -25,5 +25,6 @@ export {
   useUnreadNotificationCount,
   useNotificationList,
   useNotificationMutations,
+  useNotificationPushSync,
 } from './useNotifications';
 export { useActivityLog } from './useActivityLog';

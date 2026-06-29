@@ -111,7 +111,19 @@
       "title": "Notifications",
       "emailLabel": "Email notifications",
       "emailHelp": "Get an email when someone adds an expense, records a payment, or joins a trip.",
-      "updateSuccess": "Notification settings updated"
+      "updateSuccess": "Notification settings updated",
+      "pushLabel": "Browser push notifications",
+      "pushHelp": "Get real-time push on this device, even when no tab is open.",
+      "pushUnsupported": "Push notifications aren’t supported on this browser or device.",
+      "pushBlocked": "Push permission is blocked. Enable it in your browser settings.",
+      "pushEnabled": "Push notifications enabled",
+      "pushDisabled": "Push notifications disabled",
+      "pushFailed": "Couldn’t enable push notifications",
+      "pushInstallHint": "On iPhone / iPad, add this site to your Home Screen first to enable push notifications.",
+      "pushDevices": "Subscribed devices",
+      "pushThisDevice": "This device",
+      "pushRemoveDevice": "Remove this device",
+      "unknownDevice": "Unknown device"
     }
   },
   "location": {

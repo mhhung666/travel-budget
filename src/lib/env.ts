@@ -33,6 +33,14 @@ const envSchema = z.object({
   // 排程任務（Vercel Cron）的共享密鑰。Vercel 觸發 cron 時會自動帶
   // `Authorization: Bearer <CRON_SECRET>`；未設定時 cron route 一律拒絕（防止公開觸發）。
   CRON_SECRET: z.string().optional(),
+  // Web Push（瀏覽器推播通知，ROADMAP #9 Phase 3）。比照 R2 / Resend 一律 optional：
+  // 未設定的環境（含 CI build、本機未配置）仍能正常 boot；只有實際要送推播時才透過
+  // getWebPushConfig() 嚴格檢查。**VAPID 公鑰刻意以 NEXT_PUBLIC_ 暴露給前端**——
+  // pushManager.subscribe() 需要它，且公鑰本就非機密（私鑰才需保密、維持 server-only）。
+  NEXT_PUBLIC_VAPID_PUBLIC_KEY: z.string().optional(),
+  VAPID_PRIVATE_KEY: z.string().optional(),
+  // web-push 的 VAPID 聯絡識別（mailto: 或 https URL）；推播服務據此聯絡寄件方。
+  VAPID_SUBJECT: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -140,4 +148,35 @@ export function getResendConfig(): ResendConfig | null {
     appUrl: env.APP_URL ? env.APP_URL.replace(/\/+$/, '') : null,
   };
   return cachedResend;
+}
+
+/**
+ * 已驗證的 Web Push（VAPID）設定。比照 {@link getResendConfig}：envSchema 設 optional
+ * 讓未啟用推播的環境正常啟動，但一旦呼叫此函式（代表正要送推播），就要求公鑰 + 私鑰
+ * 齊全；缺任一即回 null —— 呼叫端（lib/webpush.ts）據此**靜默跳過**送推播，使 Web Push
+ * 成為純加值、不阻斷主流程。`subject` 缺值時退回預設 mailto。
+ */
+export type WebPushConfig = {
+  /** VAPID 公鑰（非機密，亦以 NEXT_PUBLIC_ 暴露給前端訂閱用）。 */
+  publicKey: string;
+  /** VAPID 私鑰（機密，server-only）。 */
+  privateKey: string;
+  /** 聯絡識別（mailto: 或 https URL）。 */
+  subject: string;
+};
+
+let cachedWebPush: WebPushConfig | null = null;
+
+export function getWebPushConfig(): WebPushConfig | null {
+  if (cachedWebPush) return cachedWebPush;
+
+  const env = getEnv();
+  if (!env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY) return null;
+
+  cachedWebPush = {
+    publicKey: env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+    privateKey: env.VAPID_PRIVATE_KEY,
+    subject: env.VAPID_SUBJECT || 'mailto:noreply@travel-budget.app',
+  };
+  return cachedWebPush;
 }

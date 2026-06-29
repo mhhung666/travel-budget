@@ -111,7 +111,19 @@
       "title": "通知設定",
       "emailLabel": "メール通知",
       "emailHelp": "支出の追加、返済の記録、旅行への参加があったときにメールでお知らせします。",
-      "updateSuccess": "通知設定を更新しました"
+      "updateSuccess": "通知設定を更新しました",
+      "pushLabel": "ブラウザのプッシュ通知",
+      "pushHelp": "タブを開いていなくても、この端末でリアルタイムに通知を受け取ります。",
+      "pushUnsupported": "このブラウザまたは端末はプッシュ通知に対応していません。",
+      "pushBlocked": "プッシュ通知がブロックされています。ブラウザの設定で許可してください。",
+      "pushEnabled": "プッシュ通知を有効にしました",
+      "pushDisabled": "プッシュ通知を無効にしました",
+      "pushFailed": "プッシュ通知を有効にできませんでした",
+      "pushInstallHint": "iPhone / iPad では、まず本サイトを「ホーム画面に追加」するとプッシュ通知を有効にできます。",
+      "pushDevices": "登録済みの端末",
+      "pushThisDevice": "この端末",
+      "pushRemoveDevice": "この端末を削除",
+      "unknownDevice": "不明な端末"
     }
   },
   "location": {

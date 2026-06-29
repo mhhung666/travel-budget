@@ -12,3 +12,4 @@ export {
   type NotificationType,
 } from './Notification';
 export { ActivityLog, ACTIVITY_TYPES, type ActivityLogDoc, type ActivityType } from './ActivityLog';
+export { PushSubscription, type PushSubscriptionDoc } from './PushSubscription';

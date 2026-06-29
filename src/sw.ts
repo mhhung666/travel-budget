@@ -14,6 +14,11 @@
  * deliberately do NOT cache here — offline reads are served from the
  * persisted TanStack Query cache (see src/lib/queryPersister.ts), and offline
  * writes are out of scope for Phase 1.
+ *
+ * This same SW also hosts **Web Push** (ROADMAP #9 Phase 3): a `push` handler
+ * shows a notification from the server-built payload, and `notificationclick`
+ * focuses an existing tab or opens the deep link. The payload is built +
+ * localized server-side (see src/lib/webpush.ts) — the SW only renders it.
  */
 import { defaultCache } from '@serwist/next/worker';
 import type { PrecacheEntry, RuntimeCaching, SerwistGlobalConfig } from 'serwist';
@@ -78,3 +83,67 @@ const serwist = new Serwist({
 });
 
 serwist.addEventListeners();
+
+// --- Web Push (ROADMAP #9 Phase 3) -----------------------------------------
+// Payload shape produced by src/lib/webpush.ts `buildPushPayload`.
+interface PushPayload {
+  title: string;
+  body: string;
+  url: string;
+}
+
+self.addEventListener('push', (event) => {
+  let payload: PushPayload | undefined;
+  try {
+    payload = event.data?.json() as PushPayload | undefined;
+  } catch {
+    // Non-JSON / empty push — fall back to a generic notification below.
+  }
+
+  const title = payload?.title || 'Travel Budget';
+  event.waitUntil(
+    (async () => {
+      await self.registration.showNotification(title, {
+        body: payload?.body ?? '',
+        icon: '/icon-192.png',
+        badge: '/icon-192.png',
+        // Carried to `notificationclick` for deep-linking.
+        data: { url: payload?.url || '/' },
+      });
+      // Nudge any open tab to refresh the in-app bell badge immediately,
+      // instead of waiting for the 60s poll (ROADMAP #9 Phase 3).
+      const clients = await self.clients.matchAll({
+        type: 'window',
+        includeUncontrolled: true,
+      });
+      for (const client of clients) {
+        client.postMessage({ type: 'notification-received' });
+      }
+    })()
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = (event.notification.data as { url?: string } | undefined)?.url || '/';
+
+  event.waitUntil(
+    (async () => {
+      const clientList = await self.clients.matchAll({
+        type: 'window',
+        includeUncontrolled: true,
+      });
+      // Reuse an already-open tab when possible, otherwise open a new window.
+      for (const client of clientList) {
+        await client.focus();
+        try {
+          await client.navigate(url);
+        } catch {
+          // Cross-origin / unsupported navigate — focusing the tab is enough.
+        }
+        return;
+      }
+      await self.clients.openWindow(url);
+    })()
+  );
+});

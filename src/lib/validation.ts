@@ -200,6 +200,16 @@ export const notificationPrefsSchema = z.object({
   locale: z.enum(['en', 'zh', 'zh-CN', 'jp']).optional(),
 });
 
+// Web Push 訂閱（W3C PushSubscriptionJSON 的子集，ROADMAP #9 Phase 3）。前端傳入
+// subscription.toJSON()，只取送推播必要的 endpoint + keys；expirationTime 不存。
+export const pushSubscriptionSchema = z.object({
+  endpoint: z.string().url('無效的訂閱端點'),
+  keys: z.object({
+    p256dh: z.string().min(1),
+    auth: z.string().min(1),
+  }),
+});
+
 // Member schemas
 export const addVirtualMemberSchema = z.object({
   display_name: z.string().min(1, '名稱不能為空').trim(),
