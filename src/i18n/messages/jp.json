@@ -406,7 +406,12 @@
     "deletePaymentConfirm": "この返済記録を削除しますか？残高にこの金額が再び計上されます。",
     "errorSelectMembers": "支払う人と受け取る人を選択してください",
     "errorSamePerson": "支払う人と受け取る人を同じにはできません",
-    "errorAmount": "0 より大きい金額を入力してください"
+    "errorAmount": "0 より大きい金額を入力してください",
+    "remind": "返済を催促",
+    "reminderSent": "返済リマインドを送信しました",
+    "remindFailedNoEmail": "相手はメール未設定、またはメール通知をオフにしています",
+    "remindFailedNotOwed": "相手は現在あなたへの借りがありません",
+    "remindFailed": "リマインドの送信に失敗しました。後でもう一度お試しください"
   },
   "currency": {
     "TWD": "台湾ドル",
@@ -798,12 +803,6 @@
       "subject": "{actor} さんが「{tripName}」に参加しました",
       "body": "{actor} さんが旅行「{tripName}」に参加しました。"
     },
-    "settlementReminder": {
-      "subject": "未精算の金額があります",
-      "intro": "以下の旅行にまだ精算していない金額があります：",
-      "owe": "あなたの支払い",
-      "owed": "あなたへの未払い"
-    },
     "expenseDigest": {
       "subject": "本日の支出まとめ",
       "intro": "本日、各旅行に追加された支出です："
@@ -821,6 +820,10 @@
       "expiry": "このコードは {minutes} 分後に失効します。",
       "ignore": "メールアドレスの変更を申請していない場合は、このメールを無視してください。メールアドレスは変更されません。",
       "footer": "このアドレスをアカウントに使用するリクエストがあったため、このメールをお送りしています。"
+    },
+    "paymentReminder": {
+      "subject": "{actor} さんから返済のお願い",
+      "body": "{actor} さんからのお願い：「{tripName}」でまだ NT${amount} の未精算があります。お時間のあるときに精算してください。"
     }
   },
   "offline": {

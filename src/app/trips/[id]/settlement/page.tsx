@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
@@ -89,6 +89,28 @@ export default function SettlementPage() {
       toId: nameToId.get(tx.to) ?? '',
       amount: tx.amount,
     });
+
+  // 提醒還款：當事人對欠他款的成員寄出提醒 Email。以 `${from}__${to}` 標記寄送中的列。
+  const [remindingKey, setRemindingKey] = useState<string | null>(null);
+  const handleRemind = async (tx: Transaction) => {
+    const debtorId = nameToId.get(tx.from);
+    if (!debtorId) return;
+    setRemindingKey(`${tx.from}__${tx.to}`);
+    try {
+      await paymentMutations.remind.mutateAsync(debtorId);
+      toast({ title: tSettlement('reminderSent') });
+    } catch (err: unknown) {
+      const code = err instanceof Error ? err.message : '';
+      const known = ['remindFailedNoEmail', 'remindFailedNotOwed', 'remindFailed'];
+      toast({
+        variant: 'destructive',
+        title: tCommon('errorTitle'),
+        description: tSettlement(known.includes(code) ? code : 'remindFailed'),
+      });
+    } finally {
+      setRemindingKey(null);
+    }
+  };
 
   const openBlankRecord = () => {
     recordDialog.setData(null);
@@ -202,6 +224,9 @@ export default function SettlementPage() {
             loadingRates={loadingRates}
             onMarkPaid={isMember ? handleMarkPaid : undefined}
             avatarUrlByName={avatarByName}
+            onRemind={isMember ? handleRemind : undefined}
+            currentUserName={currentUser?.display_name}
+            remindingKey={remindingKey}
           />
         </div>
 

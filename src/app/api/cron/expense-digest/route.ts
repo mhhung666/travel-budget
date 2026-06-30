@@ -12,7 +12,7 @@ import { logger } from '@/lib/logger';
  * 彙整過去 24 小時各旅程的新支出，按收件者寄一封摘要 Email——**取代逐筆即時寄信**
  * （站內鈴鐺通知仍即時，見 lib/notify.ts EMAIL_DIGESTED_TYPES）。
  *
- * 安全與設計同 settlement-reminder：CRON_SECRET 驗證、Resend env-gated、批次撈後在
+ * 安全與設計：CRON_SECRET 驗證、Resend env-gated、批次撈後在
  * 記憶體分組（純函式 computeExpenseDigests，排除收件者自己新增的支出 + 已封存旅程）。
  */
 

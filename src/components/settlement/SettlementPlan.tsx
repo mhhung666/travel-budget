@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { ArrowRight, ArrowDown, Lightbulb, Check } from 'lucide-react';
+import { ArrowRight, ArrowDown, Lightbulb, Check, BellRing, Loader2 } from 'lucide-react';
 import type { Transaction } from '@/types';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,6 +26,12 @@ interface SettlementPlanProps {
   onMarkPaid?: (transaction: Transaction) => void;
   /** name → 頭像 URL（結算方案只帶名字，故以名字對應）。 */
   avatarUrlByName?: Record<string, string | null>;
+  /** 當事人（被欠款者）按下「提醒還款」時觸發，對該筆轉帳的付款人寄出提醒。未傳即不顯示。 */
+  onRemind?: (transaction: Transaction) => void;
+  /** 目前登入者顯示名——只有當其為某筆轉帳的「收款人」時才顯示提醒按鈕。 */
+  currentUserName?: string;
+  /** 正在寄送提醒的轉帳鍵（`${from}__${to}`），用於該列按鈕的 loading 狀態。 */
+  remindingKey?: string | null;
 }
 
 export default function SettlementPlan({
@@ -34,6 +40,9 @@ export default function SettlementPlan({
   loadingRates,
   onMarkPaid,
   avatarUrlByName,
+  onRemind,
+  currentUserName,
+  remindingKey,
 }: SettlementPlanProps) {
   const t = useTranslations('settlement');
   const [selectedCurrency, setSelectedCurrency] = useState('TWD');
@@ -149,19 +158,44 @@ export default function SettlementPlan({
                     </div>
                   </div>
 
-                  {onMarkPaid && (
-                    <div className="mt-3 flex justify-center border-t border-orange-100 pt-3 dark:border-orange-900/50">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="gap-1.5 border-green-300 text-green-700 hover:bg-green-50 hover:text-green-800 dark:border-green-800 dark:text-green-400 dark:hover:bg-green-950/30"
-                        onClick={() => onMarkPaid(transaction)}
-                      >
-                        <Check className="h-4 w-4" />
-                        {t('markPaid')}
-                      </Button>
-                    </div>
-                  )}
+                  {(() => {
+                    // 當事人（被欠款者）才看得到提醒按鈕：自己是這筆轉帳的收款人時。
+                    const canRemind =
+                      !!onRemind && !!currentUserName && transaction.to === currentUserName;
+                    const reminding = remindingKey === `${transaction.from}__${transaction.to}`;
+                    if (!onMarkPaid && !canRemind) return null;
+                    return (
+                      <div className="mt-3 flex flex-wrap justify-center gap-2 border-t border-orange-100 pt-3 dark:border-orange-900/50">
+                        {onMarkPaid && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-1.5 border-green-300 text-green-700 hover:bg-green-50 hover:text-green-800 dark:border-green-800 dark:text-green-400 dark:hover:bg-green-950/30"
+                            onClick={() => onMarkPaid(transaction)}
+                          >
+                            <Check className="h-4 w-4" />
+                            {t('markPaid')}
+                          </Button>
+                        )}
+                        {canRemind && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={reminding}
+                            className="gap-1.5 border-orange-300 text-orange-700 hover:bg-orange-50 hover:text-orange-800 dark:border-orange-800 dark:text-orange-400 dark:hover:bg-orange-950/30"
+                            onClick={() => onRemind!(transaction)}
+                          >
+                            {reminding ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <BellRing className="h-4 w-4" />
+                            )}
+                            {t('remind')}
+                          </Button>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               ))}
             </div>

@@ -455,7 +455,12 @@
     "deletePaymentConfirm": "Delete this payment record? Balances will count this amount again.",
     "errorSelectMembers": "Please select both the payer and the payee",
     "errorSamePerson": "Payer and payee cannot be the same",
-    "errorAmount": "Please enter an amount greater than 0"
+    "errorAmount": "Please enter an amount greater than 0",
+    "remind": "Send reminder",
+    "reminderSent": "Payment reminder sent",
+    "remindFailedNoEmail": "They have no email set or have turned off email notifications",
+    "remindFailedNotOwed": "They don't currently owe you anything",
+    "remindFailed": "Failed to send reminder, please try again later"
   },
   "currency": {
     "TWD": "TWD",
@@ -798,12 +803,6 @@
       "subject": "{actor} joined “{tripName}”",
       "body": "{actor} joined the trip “{tripName}”."
     },
-    "settlementReminder": {
-      "subject": "You have unsettled balances",
-      "intro": "These trips still have balances to settle:",
-      "owe": "You still owe",
-      "owed": "You're still owed"
-    },
     "expenseDigest": {
       "subject": "Today's expense summary",
       "intro": "New expenses added to your trips today:"
@@ -821,6 +820,10 @@
       "expiry": "This code expires in {minutes} minutes.",
       "ignore": "If you did not request an email change, you can safely ignore this email — your email will not change.",
       "footer": "You received this email because someone requested to use this address for an account."
+    },
+    "paymentReminder": {
+      "subject": "{actor} is reminding you to pay up",
+      "body": "{actor} is reminding you: you still owe NT${amount} in “{tripName}”. Please settle up when you get a chance."
     }
   },
   "offline": {

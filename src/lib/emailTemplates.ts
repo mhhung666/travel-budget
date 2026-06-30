@@ -229,28 +229,24 @@ export async function buildEmailChangeEmail(input: BuildEmailChangeInput): Promi
   return { subject, html, text };
 }
 
-/** 排程結算提醒 Email 的單筆未結清項目。 */
-export interface ReminderTripLine {
+interface BuildPaymentReminderInput {
+  locale: string;
+  appUrl: string | null;
+  /** 發出提醒的人（債權人）的顯示名。 */
+  actorName: string;
   /** 旅程公開 hashCode（連結用，見 BuildEmailInput）。 */
   tripHashCode: string;
   tripName: string;
-  /** 淨額（TWD）：>0 別人欠你、<0 你欠人。 */
-  balance: number;
-}
-
-interface BuildReminderInput {
-  locale: string;
-  appUrl: string | null;
-  /** 該收件者所有未結清的旅程（至少一筆）。 */
-  trips: ReminderTripLine[];
+  /** 待還款金額（TWD，取整顯示）。 */
+  amount: number;
 }
 
 /**
- * 產生「未結清結算提醒」的彙整 Email（一位使用者一封，列出其所有未結清旅程）。
- * 依收件者語系本地化；每筆旅程連到該旅程的結算頁。
+ * 產生「請對方還款」提醒 Email（由結算頁的「提醒還款」按鈕觸發，債權人 → 債務人，
+ * 一對一即時寄出，非彙整、非排程）。依收件者語系本地化，連到該旅程的結算頁。
  */
-export async function buildSettlementReminderEmail(
-  input: BuildReminderInput
+export async function buildPaymentReminderEmail(
+  input: BuildPaymentReminderInput
 ): Promise<EmailContent> {
   const locale = normalizeLocale(input.locale);
   const messages = await loadMessages(locale);
@@ -259,42 +255,26 @@ export async function buildSettlementReminderEmail(
     values?: Record<string, string | number>
   ) => string;
 
+  const url = toAbsoluteUrl(input.appUrl, ROUTES.TRIP_SETTLEMENT(input.tripHashCode));
   const settingsUrl = toAbsoluteUrl(input.appUrl, ROUTES.SETTINGS);
-  const subject = t('settlementReminder.subject');
-  const intro = t('settlementReminder.intro');
+  const vars = {
+    actor: input.actorName,
+    tripName: input.tripName,
+    amount: Math.round(input.amount),
+  };
 
-  // 每筆旅程：金額（取整、絕對值）+ 應收/應付標籤 + 結算頁連結。
-  const lines = input.trips.map((tr) => {
-    const url = toAbsoluteUrl(input.appUrl, ROUTES.TRIP_SETTLEMENT(tr.tripHashCode));
-    const amount = Math.round(Math.abs(tr.balance));
-    const label = tr.balance < 0 ? t('settlementReminder.owe') : t('settlementReminder.owed');
-    return { name: tr.tripName, url, amount, label };
-  });
+  const subject = t('paymentReminder.subject', vars);
+  const body = t('paymentReminder.body', vars);
 
-  const text = [
-    intro,
-    '',
-    ...lines.map((l) => `• ${l.name} — ${l.label} NT$${l.amount}　${l.url}`),
-    '',
-    t('footer'),
-  ].join('\n');
-
-  const itemsHtml = lines
-    .map(
-      (l) => `<li style="margin: 0 0 10px; line-height: 1.5;">
-        <a href="${l.url}" style="color: #0f172a; font-weight: 600; text-decoration: none;">${escapeHtml(
-          l.name
-        )}</a>
-        <span style="color: #6b7280;"> — ${escapeHtml(l.label)} NT$${l.amount}</span>
-      </li>`
-    )
-    .join('\n');
+  const text = [body, '', `${t('viewButton')}: ${url}`, '', t('footer')].join('\n');
 
   const html = wrapEmailHtml(
-    `<p style="font-size: 16px; line-height: 1.6; margin: 0 0 16px;">${escapeHtml(intro)}</p>
-    <ul style="font-size: 15px; padding-left: 20px; margin: 0 0 32px;">
-      ${itemsHtml}
-    </ul>`,
+    `<p style="font-size: 16px; line-height: 1.6; margin: 0 0 24px;">${escapeHtml(body)}</p>
+    <p style="margin: 0 0 32px;">
+      <a href="${url}" style="display: inline-block; background: #0f172a; color: #fff; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 14px;">${escapeHtml(
+        t('viewButton')
+      )}</a>
+    </p>`,
     t('footer'),
     t('footerLink'),
     settingsUrl
