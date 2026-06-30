@@ -118,11 +118,7 @@ export default function TripDetailPage() {
 
           <div className="flex items-center gap-2">
             {isMember && (
-              <Button
-                variant="outline"
-                onClick={() => budgetDialog.openDialog()}
-                className="gap-2"
-              >
+              <Button variant="outline" onClick={() => budgetDialog.openDialog()} className="gap-2">
                 <Wallet className="h-4 w-4 text-primary" />
                 <span className="hidden sm:inline">{tBudget('title')}</span>
               </Button>

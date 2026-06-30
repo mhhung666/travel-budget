@@ -1,17 +1,14 @@
 import type { Metadata, Viewport } from 'next';
 import { NextIntlClientProvider } from 'next-intl';
-import { getMessages } from 'next-intl/server';
-import { notFound } from 'next/navigation';
+import { getMessages, getLocale } from 'next-intl/server';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { Analytics } from '@vercel/analytics/next';
-import { locales } from '@/i18n/config';
-import type { Locale } from '@/i18n/config';
 import { Inter } from 'next/font/google';
 import { ThemeProvider } from '@/components/theme-provider';
 import { QueryProvider } from '@/components/providers/QueryProvider';
 import { Toaster } from '@/components/ui/toaster';
 import { OfflineBanner } from '@/components/OfflineBanner';
-import '../globals.css';
+import './globals.css';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
@@ -40,21 +37,9 @@ export const viewport: Viewport = {
   ],
 };
 
-export default async function LocaleLayout({
-  children,
-  params,
-}: {
-  children: React.ReactNode;
-  params: Promise<{ locale: string }>;
-}) {
-  const { locale } = await params;
-
-  // 验证 locale
-  if (!locales.includes(locale as Locale)) {
-    notFound();
-  }
-
-  // 获取翻译消息
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // UI 語系由 NEXT_LOCALE cookie 決定（見 i18n/config.ts），網址不再帶語言前綴。
+  const locale = await getLocale();
   const messages = await getMessages();
 
   return (

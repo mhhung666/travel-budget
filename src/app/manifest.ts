@@ -8,10 +8,7 @@ export default function manifest(): MetadataRoute.Manifest {
     // 安裝身分與起始頁固定在原點。
     id: '/',
     start_url: '/',
-    // 明確宣告 scope 涵蓋整個來源網域：localePrefix 'as-needed' 下切換到非預設語言
-    // 會導向 /en/... 等帶前綴路徑，若 scope 缺省，iOS 會以 manifest 所在路徑
-    // （/zh/manifest.webmanifest）推斷出 /zh/ 作用域，導致切語言時被踢出 standalone
-    // 到 Safari in-app 瀏覽器。設為 '/' 讓所有語言路徑都留在 PWA 內。
+    // scope 固定為來源網域根目錄，PWA 安裝後所有路徑都留在 standalone。
     scope: '/',
     display: 'standalone',
     background_color: '#fff',

@@ -1,58 +1,34 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getSessionFromRequest } from './lib/auth';
-import createMiddleware from 'next-intl/middleware';
-import { routing, locales, defaultLocale } from './i18n/routing';
 
-// 建立 i18n middleware（使用統一的 routing 配置）
-const i18nMiddleware = createMiddleware(routing);
-
-// 定義需要認證的路由（不包含 locale 前綴）。比對為「完整路徑精確相符」，故 '/wrapped'
-// 只保護登入頁本身，'/wrapped/share/[code]/[year]' 多了路徑段不相符 → 維持公開
+// 定義需要認證的路由。比對為「完整路徑精確相符」，故 '/wrapped' 只保護回顧頁本身，
+// '/wrapped/share/[code]/[year]' 多了路徑段不相符 → 維持公開
 // （與 '/map' vs '/map/share' 同樣的切分）。
 const protectedRoutes = ['/trips', '/settings', '/stats', '/wrapped'];
 
 // 定義已登入用戶不應訪問的路由（如登入頁）
 const authRoutes = ['/login'];
 
+// 網址不再帶語言前綴（UI 語系改由 NEXT_LOCALE cookie 決定，見 i18n/config.ts），
+// 因此中介層不再掛 next-intl i18n middleware，只負責認證導向。
 export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-
-  // 首先運行 i18n middleware
-  const i18nResponse = i18nMiddleware(request);
-
-  // 獲取處理後的 pathname（移除 locale 前綴）並記錄當前 locale
-  let pathWithoutLocale = pathname;
-  let currentLocale: string = defaultLocale;
-
-  for (const locale of locales) {
-    if (pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`) {
-      currentLocale = locale;
-      pathWithoutLocale = pathname.slice(locale.length + 1) || '/';
-      break;
-    }
-  }
-
-  // 構建帶有 locale 的路徑（預設語言不需要前綴）
-  const getLocalizedPath = (path: string) => {
-    return currentLocale === defaultLocale ? path : `/${currentLocale}${path}`;
-  };
 
   // 獲取當前用戶的 session
   const session = await getSessionFromRequest(request);
 
-  // 情況 1: 已登入用戶訪問登入頁面 → 重定向到 /trips（保留語言設定）
-  if (session && authRoutes.includes(pathWithoutLocale)) {
-    return NextResponse.redirect(new URL(getLocalizedPath('/trips'), request.url));
+  // 情況 1: 已登入用戶訪問登入頁面 → 重定向到 /trips
+  if (session && authRoutes.includes(pathname)) {
+    return NextResponse.redirect(new URL('/trips', request.url));
   }
 
-  // 情況 2: 未登入用戶訪問受保護頁面 → 重定向到 /login（保留語言設定）
-  if (!session && protectedRoutes.includes(pathWithoutLocale)) {
-    return NextResponse.redirect(new URL(getLocalizedPath('/login'), request.url));
+  // 情況 2: 未登入用戶訪問受保護頁面 → 重定向到 /login
+  if (!session && protectedRoutes.includes(pathname)) {
+    return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  // 返回 i18n middleware 的響應
-  return i18nResponse;
+  return NextResponse.next();
 }
 
 // 配置 middleware 要匹配的路徑

@@ -117,3 +117,6 @@ export {
   getPushSubscriptions,
   type PushDeviceItem,
 } from './push.actions';
+
+// Locale action（UI 語系 cookie；見 i18n/config.ts 的「無 i18n 路由」設定）
+export { setLocale } from './locale.actions';
