@@ -81,7 +81,17 @@ export default function WrappedView() {
     setDownloading(true);
     try {
       const { toPng } = await import('html-to-image');
-      const dataUrl = await toPng(cardRef.current, { pixelRatio: 2, cacheBust: true });
+      const node = cardRef.current;
+      // 卡片用 mx-auto（margin: auto）置中；html-to-image 無法正確處理 auto margin，
+      // 桌機上外層比卡片寬時會被算進左側偏移，導致擷取位置右移、右半邊被裁掉（破圖）。
+      // 手機因卡片寬度≒視窗、auto margin≒0 故正常。擷取時清掉 margin 並釘住實際寬高。
+      const dataUrl = await toPng(node, {
+        pixelRatio: 2,
+        cacheBust: true,
+        width: node.offsetWidth,
+        height: node.offsetHeight,
+        style: { margin: '0' },
+      });
       const fileName = `travel-wrapped-${review.year}.png`;
       const blob = await (await fetch(dataUrl)).blob();
       const file = new File([blob], fileName, { type: 'image/png' });
