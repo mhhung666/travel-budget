@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { recordPayment, deletePayment } from '@/actions';
+import { recordPayment, deletePayment, remindPayment } from '@/actions';
 import type { ActionResult } from '@/actions';
 import type { RecordPaymentInput } from '@/lib/validation';
 import { tripKeys } from './keys';
@@ -36,5 +36,10 @@ export function usePaymentMutations(tripId: string) {
     onSuccess: invalidate,
   });
 
-  return { record, remove };
+  // 提醒還款：對欠款的成員寄出提醒 Email。不改動結算資料，故不需 invalidate。
+  const remind = useMutation({
+    mutationFn: (debtorId: string) => unwrap(remindPayment(tripId, debtorId)),
+  });
+
+  return { record, remove, remind };
 }

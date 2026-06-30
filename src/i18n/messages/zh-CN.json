@@ -406,7 +406,12 @@
     "deletePaymentConfirm": "确定要删除这笔还款记录吗？删除后余额会重新计入这笔款项。",
     "errorSelectMembers": "请选择付款人与收款人",
     "errorSamePerson": "付款人与收款人不能相同",
-    "errorAmount": "请输入大于 0 的金额"
+    "errorAmount": "请输入大于 0 的金额",
+    "remind": "提醒还款",
+    "reminderSent": "已发送还款提醒",
+    "remindFailedNoEmail": "对方未设置 Email 或已关闭 Email 通知，无法提醒",
+    "remindFailedNotOwed": "对方目前没有欠你款项",
+    "remindFailed": "发送提醒失败，请稍后再试"
   },
   "currency": {
     "TWD": "新台币",
@@ -798,12 +803,6 @@
       "subject": "{actor} 加入了「{tripName}」",
       "body": "{actor} 加入了行程「{tripName}」。"
     },
-    "settlementReminder": {
-      "subject": "你有尚未结清的款项",
-      "intro": "以下行程还有未结清的款项，记得结算一下：",
-      "owe": "你还需支付",
-      "owed": "尚有人欠你"
-    },
     "expenseDigest": {
       "subject": "今日支出摘要",
       "intro": "以下是今天各行程新增的支出："
@@ -821,6 +820,10 @@
       "expiry": "验证码将于 {minutes} 分钟后失效。",
       "ignore": "若您未申请更改电子邮件，请忽略此邮件，您的电子邮件不会更改。",
       "footer": "您收到此邮件是因为有人申请将账号的电子邮件改为此地址。"
+    },
+    "paymentReminder": {
+      "subject": "{actor} 提醒你还款",
+      "body": "{actor} 提醒你：你在「{tripName}」还有 NT${amount} 尚未结清，记得找时间还款哦。"
     }
   },
   "offline": {

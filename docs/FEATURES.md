@@ -128,11 +128,10 @@
 
 **Email（Resend）**：env-gated（`RESEND_API_KEY` / `RESEND_FROM` / `APP_URL` optional，`getResendConfig()` 回 null 則整支靜默跳過）。[lib/email.ts](../src/lib/email.ts) `sendEmail()` = best-effort 永不 throw。模板 [lib/emailTemplates.ts](../src/lib/emailTemplates.ts) 在伺服端用收件者語系以 next-intl `createTranslator` 算文案（`email` i18n 命名空間，四語系）。為此 `User` 加 `notifyByEmail`（opt-out，預設開）+ `locale`（寄信語系）。連結用 `APP_URL` 組絕對 URL，HTML 模板對使用者字串做 escape。
 
-**排程（Vercel Cron）**：兩支受 `CRON_SECRET` 保護的 route（驗 `Authorization: Bearer`，未設 secret 一律拒絕）——
-- [/api/cron/settlement-reminder](../src/app/api/cron/settlement-reminder/route.ts)（每週一 01:00 UTC）：純函式 [lib/settlementReminder.ts](../src/lib/settlementReminder.ts) `computeSettlementDigests`（重用 `applyPayments` 抵銷已登記還款，彙整每位使用者跨旅程的待結清清單；軟封存的旅程不提醒、5 個單元測試）。
-- [/api/cron/expense-digest](../src/app/api/cron/expense-digest/route.ts)（每天 13:00 UTC）：`expense_added` 即時 Email 太頻繁，改每日彙整（站內鈴鐺仍即時，只略過即時 Email）。為「排除收件者自己加的」於 `Expense` 加 `createdBy`。純函式 [lib/expenseDigest.ts](../src/lib/expenseDigest.ts) `computeExpenseDigests`（5 個單元測試）。
+**提醒還款（手動）**：結算頁 [SettlementPlan](../src/components/settlement/SettlementPlan.tsx) 上，當事人（某筆建議轉帳的收款人 / 被欠款者）可按「提醒還款」，由 [remindPayment](../src/actions/payment.actions.ts) action 對欠款的成員即時寄出提醒 Email（模板 `buildPaymentReminderEmail`）。action **伺服端重算結算**確認「債務人 → 觸發者」確有一筆建議轉帳才寄（不信任前端帶的對象 / 金額），債務人為虛擬成員 / 無信箱 / 關閉 Email 通知則回對應錯誤。**取代了原本的每週結算提醒 cron**——改由使用者主動催款。
 
-> **Vercel Hobby cron 上限 2 個 job**：結算提醒（每週）+ 支出摘要（每日）剛好用滿（見 [vercel.json](../vercel.json)）。
+**排程（Vercel Cron）**：受 `CRON_SECRET` 保護的 route（驗 `Authorization: Bearer`，未設 secret 一律拒絕）——
+- [/api/cron/expense-digest](../src/app/api/cron/expense-digest/route.ts)（每天 13:00 UTC）：`expense_added` 即時 Email 太頻繁，改每日彙整（站內鈴鐺仍即時，只略過即時 Email）。為「排除收件者自己加的」於 `Expense` 加 `createdBy`。純函式 [lib/expenseDigest.ts](../src/lib/expenseDigest.ts) `computeExpenseDigests`（5 個單元測試）。
 
 **Web Push（VAPID）**：env-gated（`VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` + `NEXT_PUBLIC_VAPID_PUBLIC_KEY`，`getWebPushConfig()` 回 null 則跳過）。公鑰是**唯一帶 `NEXT_PUBLIC_` 的 env**（瀏覽器 `pushManager.subscribe` 需要、非機密）。model [PushSubscription](../src/models/PushSubscription.ts) = `{ user, endpoint(unique), keys, userAgent }`——**訂閱本身即 opt-in**（無 User 層開關）。[lib/webpush.ts](../src/lib/webpush.ts)：`buildPushPayload`（依收件者語系在地化、**重用 `notifications` 命名空間**）+ `sendPush`（best-effort、回 404/410 就地刪失效訂閱）。接進 `notify()` fan-out（沿用 3 觸發點；**推播一律即時、不看 `notifyByEmail`**——推播的 opt-in 是有沒有訂閱）。**與離線 PWA 共用同一個 service worker**（[src/sw.ts](../src/sw.ts) 的 `push` / `notificationclick` handler）。訂閱管理 [push.actions.ts](../src/actions/push.actions.ts) + [usePushNotifications](../src/hooks/usePushNotifications.ts) + 設定頁通知卡（iOS 加主畫面引導 `needsInstall` + 已訂閱裝置列表）。**鈴鐺即時化**：每次推播後 SW `postMessage` 開啟分頁 → [useNotificationPushSync](../src/hooks/queries/useNotifications.ts) invalidate（60s 輪詢保留為無推播使用者的 fallback）。**iOS Safari 須先「加入主畫面」（standalone）才支援推播**。
 

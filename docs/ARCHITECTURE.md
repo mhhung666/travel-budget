@@ -151,7 +151,8 @@ src/
 
 - **站內**（[Notification](../src/models/Notification.ts) model）：per-user 收件匣 + navbar 鈴鐺未讀數（去正規化 tripName/actorName，讀取免 populate）。純函式 `selectNotificationRecipients`（排除觸發者 / 虛擬成員 / 去重）有單元測試。
 - **Email**（Resend，env-gated）：[lib/email.ts](../src/lib/email.ts) `sendEmail()` best-effort；模板 [lib/emailTemplates.ts](../src/lib/emailTemplates.ts) 以 next-intl `createTranslator` 用收件者 `User.locale` 算文案。`expense_added` 改**每日彙整**（站內仍即時），`recordPayment` / `joinTrip` 即時。
-- **排程**（Vercel Cron，受 `CRON_SECRET` 保護）：[/api/cron/settlement-reminder](../src/app/api/cron/settlement-reminder/route.ts)（每週）+ [/api/cron/expense-digest](../src/app/api/cron/expense-digest/route.ts)（每日）。聚合純函式 [lib/settlementReminder.ts](../src/lib/settlementReminder.ts) / [lib/expenseDigest.ts](../src/lib/expenseDigest.ts) 各有單元測試。**Vercel Hobby cron 上限 2 個 job**，剛好用滿。
+- **提醒還款（手動）**：結算頁的被欠款者可按「提醒還款」，[remindPayment](../src/actions/payment.actions.ts) action 伺服端重算結算確認對方確有欠款後，即時寄出提醒 Email（取代原本的每週結算提醒 cron）。
+- **排程**（Vercel Cron，受 `CRON_SECRET` 保護）：[/api/cron/expense-digest](../src/app/api/cron/expense-digest/route.ts)（每日）。聚合純函式 [lib/expenseDigest.ts](../src/lib/expenseDigest.ts) 有單元測試。
 - **Web Push**（VAPID，env-gated）：[PushSubscription](../src/models/PushSubscription.ts) model（**訂閱本身即 opt-in**）。[lib/webpush.ts](../src/lib/webpush.ts) `sendPush` best-effort、回 404/410 就地刪失效訂閱。**與離線 PWA 共用同一個 service worker**（§4.12）。推播一律即時、不看 `notifyByEmail`。
 
 > 全部 env（`RESEND_*` / `CRON_SECRET` / `VAPID_*`）皆 optional，比照 R2 模式——未設定則該通道靜默跳過，不影響其他通道與 CI build。詳見 [FEATURES.md §8](./FEATURES.md)。
