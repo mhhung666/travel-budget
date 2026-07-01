@@ -29,3 +29,4 @@ export {
   useNotificationPushSync,
 } from './useNotifications';
 export { useActivityLog } from './useActivityLog';
+export { useCommentCounts, useExpenseComments, useCommentMutations } from './useComments';

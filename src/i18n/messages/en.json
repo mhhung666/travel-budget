@@ -774,7 +774,8 @@
     "someone": "Someone",
     "expenseAdded": "{actor} added an expense: {description}",
     "paymentRecorded": "{actor} recorded a payment",
-    "memberJoined": "{actor} joined the trip"
+    "memberJoined": "{actor} joined the trip",
+    "expenseCommentAdded": "{actor} commented on an expense: {description}"
   },
   "activity": {
     "title": "History",
@@ -786,6 +787,21 @@
     "expenseDeleted": "{actor} deleted the expense “{description}”",
     "paymentRecorded": "{actor} recorded a payment",
     "memberJoined": "{actor} joined the trip"
+  },
+  "comments": {
+    "title": "Comments",
+    "empty": "No comments yet",
+    "loading": "Loading…",
+    "placeholder": "Write a comment…",
+    "post": "Post comment",
+    "delete": "Delete",
+    "deleteConfirmTitle": "Delete comment",
+    "deleteConfirmMessage": "Are you sure you want to delete this comment? This action cannot be undone.",
+    "count": "Comments ({count})",
+    "success": {
+      "posted": "Comment posted",
+      "deleted": "Comment deleted"
+    }
   },
   "email": {
     "viewButton": "View",
@@ -802,6 +818,10 @@
     "member_joined": {
       "subject": "{actor} joined “{tripName}”",
       "body": "{actor} joined the trip “{tripName}”."
+    },
+    "expense_comment_added": {
+      "subject": "{actor} commented on an expense in “{tripName}”",
+      "body": "{actor} commented on an expense in “{tripName}”: {description}"
     },
     "expenseDigest": {
       "subject": "Today's expense summary",

@@ -57,6 +57,7 @@ export type {
   ActivityLogItem,
   ActivityLogType,
   ActivityLogMeta,
+  CommentDto,
 } from './models';
 
 // ============================================

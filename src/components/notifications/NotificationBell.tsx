@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Bell, CheckCheck, Coins, Receipt, UserPlus } from 'lucide-react';
+import { Bell, CheckCheck, Coins, MessageSquare, Receipt, UserPlus } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import { Button } from '@/components/ui/button';
@@ -22,6 +22,7 @@ const TYPE_ICON: Record<NotificationType, typeof Bell> = {
   expense_added: Receipt,
   payment_recorded: Coins,
   member_joined: UserPlus,
+  expense_comment_added: MessageSquare,
 };
 
 /** 點通知後該去哪：還款 → 結算頁，其餘 → 旅程詳情。 */
@@ -57,6 +58,8 @@ export function NotificationBell() {
         return t('paymentRecorded', { actor });
       case 'member_joined':
         return t('memberJoined', { actor });
+      case 'expense_comment_added':
+        return t('expenseCommentAdded', { actor, description: n.meta.description ?? '' });
       default:
         return actor;
     }

@@ -292,6 +292,10 @@ export const updateChecklistItemSchema = z
     message: '沒有可更新的欄位',
   });
 
+export const createCommentSchema = z.object({
+  body: z.string().trim().min(1, '留言不能為空').max(1000, '留言過長（上限 1000 字）'),
+});
+
 // Type exports
 export type CreateChecklistInput = z.infer<typeof createChecklistSchema>;
 export type UpdateChecklistInput = z.infer<typeof updateChecklistSchema>;
@@ -315,3 +319,4 @@ export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type ConfirmEmailChangeInput = z.infer<typeof confirmEmailChangeSchema>;
 export type AddVirtualMemberInput = z.infer<typeof addVirtualMemberSchema>;
 export type LocationInput = z.infer<typeof locationSchema>;
+export type CreateCommentInput = z.infer<typeof createCommentSchema>;

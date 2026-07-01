@@ -774,7 +774,8 @@
     "someone": "誰か",
     "expenseAdded": "{actor} が支出を追加しました：{description}",
     "paymentRecorded": "{actor} が支払いを記録しました",
-    "memberJoined": "{actor} が旅行に参加しました"
+    "memberJoined": "{actor} が旅行に参加しました",
+    "expenseCommentAdded": "{actor} が支出にコメントしました：{description}"
   },
   "activity": {
     "title": "履歴",
@@ -786,6 +787,21 @@
     "expenseDeleted": "{actor} が支出「{description}」を削除しました",
     "paymentRecorded": "{actor} が支払いを記録しました",
     "memberJoined": "{actor} が旅行に参加しました"
+  },
+  "comments": {
+    "title": "コメント",
+    "empty": "まだコメントはありません",
+    "loading": "読み込み中…",
+    "placeholder": "コメントを入力…",
+    "post": "コメントを送信",
+    "delete": "削除",
+    "deleteConfirmTitle": "コメントを削除",
+    "deleteConfirmMessage": "このコメントを削除してもよろしいですか？この操作は元に戻せません。",
+    "count": "コメント ({count})",
+    "success": {
+      "posted": "コメントを送信しました",
+      "deleted": "コメントを削除しました"
+    }
   },
   "email": {
     "viewButton": "表示",
@@ -802,6 +818,10 @@
     "member_joined": {
       "subject": "{actor} さんが「{tripName}」に参加しました",
       "body": "{actor} さんが旅行「{tripName}」に参加しました。"
+    },
+    "expense_comment_added": {
+      "subject": "{actor} さんが「{tripName}」の支出にコメントしました",
+      "body": "{actor} さんが「{tripName}」の支出「{description}」にコメントしました。"
     },
     "expenseDigest": {
       "subject": "本日の支出まとめ",

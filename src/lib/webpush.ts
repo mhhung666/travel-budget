@@ -52,6 +52,7 @@ const MESSAGE_KEY: Record<NotificationType, string> = {
   expense_added: 'expenseAdded',
   payment_recorded: 'paymentRecorded',
   member_joined: 'memberJoined',
+  expense_comment_added: 'expenseCommentAdded',
 };
 
 /** 將任意字串收斂為支援的 Locale，否則退回預設語系。 */

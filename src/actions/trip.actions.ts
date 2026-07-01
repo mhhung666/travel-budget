@@ -10,6 +10,7 @@ import {
   Checklist,
   Notification,
   ActivityLog,
+  Comment,
   type TripDoc,
 } from '@/models';
 import { getTripMembership } from '@/lib/permissions';
@@ -240,7 +241,7 @@ export const deleteTrip = withAuth(
 
       const tripId = membership.tripId;
 
-      // MongoDB 無外鍵 cascade，需手動清除關聯資料（支出、行程日、結算還款、清單、通知、動態牆）
+      // MongoDB 無外鍵 cascade，需手動清除關聯資料（支出、行程日、結算還款、清單、通知、動態牆、留言）
       await Promise.all([
         Expense.deleteMany({ trip: tripId }),
         ItineraryDay.deleteMany({ trip: tripId }),
@@ -248,6 +249,7 @@ export const deleteTrip = withAuth(
         Checklist.deleteMany({ trip: tripId }),
         Notification.deleteMany({ trip: tripId }),
         ActivityLog.deleteMany({ trip: tripId }),
+        Comment.deleteMany({ trip: tripId }),
       ]);
       await TripModel.deleteOne({ _id: tripId });
 

@@ -1,6 +1,6 @@
 # 功能總覽（Features）
 
-> 更新日期：2026-06-29
+> 更新日期：2026-07-01
 > 本文件盤點**已實作**的所有產品功能，並附上各功能的關鍵實作筆記（schema / actions / UI / 取捨）。
 > 規劃中、尚未動工的構想見 [ROADMAP.md](./ROADMAP.md)；系統架構見 [ARCHITECTURE.md](./ARCHITECTURE.md)。
 
@@ -49,10 +49,13 @@
 | 收據附件 | R2 私有 bucket（見 §7） |
 | 支出 ↔ 行程日連結 | `Expense.itineraryDay`（見 §5） |
 | 搜尋 / 篩選 | 關鍵字 / 分類 / 付款人 / 分帳對象 / 日期區間 |
+| 留言 | 支出下的討論串，作者本人或旅程 admin 可刪除 |
 
 **彈性分帳**：四種模式的明確選單（ToggleGroup）。計算抽成純函式 [lib/expenseSplit.ts](../src/lib/expenseSplit.ts) `computeSplits`（14 個單元測試）；輸入用原幣、即時換算成 TWD 寫入 `splits[].shareAmount`；`createExpense` / `updateExpense` 加寬鬆的「總和 ≈ 金額」防呆。實作於 [ExpenseFormDialog.tsx](../src/components/trips/detail/dialogs/ExpenseFormDialog.tsx)。「我請客」用金額模式即可達成；*「逐項分帳」尚未做。*
 
 **搜尋 / 篩選**：純前端篩選——純函式 [lib/expenseFilters.ts](../src/lib/expenseFilters.ts) `filterExpenses` / `countActiveFilters`（關鍵字 + 分類 + 付款人 + 分帳對象 + 日期區間，AND 結合；19 個單元測試）。[TripExpenses.tsx](../src/components/trips/detail/TripExpenses.tsx) 加搜尋框 + 可收合的進階篩選面板（含啟用條件數 badge 與「清除」、結果筆數提示）。長列表採**純前端漸進渲染**（預設 20 筆 +「顯示更多」）——**伺服端游標分頁刻意延後**（見 [IMPROVEMENTS.md](./IMPROVEMENTS.md) G）。
+
+**留言**：獨立 collection [Comment](../src/models/Comment.ts) = `{ trip, expense, author, authorName, body }`（比照 `ActivityLog` 去正規化 `authorName`、trip-scoped 獨立集合，非內嵌於 `Expense`）。Actions [comment.actions.ts](../src/actions/comment.actions.ts)：`getComments`（單筆支出的留言串，舊到新）、`getCommentCounts`（全 trip 一次 aggregate 算各支出留言數，供列表 badge 免逐筆查詢的 N+1）、`createComment`（best-effort 通知其他成員，見 §8 `expense_comment_added`）、`deleteComment`（**僅留言作者本人或旅程 admin** 可刪——比其餘 data-level 刪除〔`deleteExpense` / `deletePayment` / `removeChecklistItem`〕更嚴格的信任模型，因留言的個人語意更接近聊天訊息）。UI：[TripExpenses.tsx](../src/components/trips/detail/TripExpenses.tsx) 支出卡片下的「留言 (N)」toggle + [ExpenseComments](../src/components/expenses/ExpenseComments.tsx)（懶載入，展開該筆支出才查詢留言串）。資料完整性：`deleteExpense` / `deleteTrip` cascade 清除留言。
 
 ---
 
@@ -119,12 +122,12 @@
 
 | 通道 | 觸發 | 說明 |
 | --- | --- | --- |
-| 站內通知（鈴鐺） | 新增支出 / 登記還款 / 成員加入 | per-user 收件匣 + 未讀數 |
-| Email（Resend） | 同上 | 新增支出改**每日彙整**；還款 / 加入即時 |
+| 站內通知（鈴鐺） | 新增支出 / 登記還款 / 成員加入 / 支出留言 | per-user 收件匣 + 未讀數 |
+| Email（Resend） | 同上 | 新增支出改**每日彙整**；還款 / 加入 / 留言即時 |
 | 排程提醒（Vercel Cron） | 每週結算提醒 + 每日支出摘要 | best-effort、env-gated |
-| Web Push | 同站內三觸發點 | 瀏覽器推播、共用離線 SW |
+| Web Push | 同站內四觸發點 | 瀏覽器推播、共用離線 SW |
 
-**站內通知**：collection [Notification](../src/models/Notification.ts) = `{ user(收件者), trip, tripName, type, actor, actorName, meta, read }`——**per-user 收件匣**（去正規化顯示欄位、讀取免 populate）。fan-out 工具 [lib/notify.ts](../src/lib/notify.ts) `notify()` = **best-effort**（失敗只記 log、絕不 throw 進主 action）；純函式 `selectNotificationRecipients`（排除觸發者本人 / 虛擬成員 / 去重，8 個單元測試）。三觸發點：`createExpense` / `recordPayment` / `joinTrip`。Actions [notification.actions.ts](../src/actions/notification.actions.ts) 皆限定 `user: session.userId`。**文案在前端依收件者語系即時組出**（i18n `notifications` 命名空間 + meta）。UI：navbar 鈴鐺 [NotificationBell](../src/components/notifications/NotificationBell.tsx)（未讀 badge 輪詢 60s + 視窗 focus 重抓、Popover 清單、點擊標記已讀並導向）。資料完整性：`deleteTrip` cascade、`removeMember` 清該成員通知。
+**站內通知**：collection [Notification](../src/models/Notification.ts) = `{ user(收件者), trip, tripName, type, actor, actorName, meta, read }`——**per-user 收件匣**（去正規化顯示欄位、讀取免 populate）。fan-out 工具 [lib/notify.ts](../src/lib/notify.ts) `notify()` = **best-effort**（失敗只記 log、絕不 throw 進主 action）；純函式 `selectNotificationRecipients`（排除觸發者本人 / 虛擬成員 / 去重，8 個單元測試）。四觸發點：`createExpense` / `recordPayment` / `joinTrip` / `createComment`。Actions [notification.actions.ts](../src/actions/notification.actions.ts) 皆限定 `user: session.userId`。**文案在前端依收件者語系即時組出**（i18n `notifications` 命名空間 + meta）。UI：navbar 鈴鐺 [NotificationBell](../src/components/notifications/NotificationBell.tsx)（未讀 badge 輪詢 60s + 視窗 focus 重抓、Popover 清單、點擊標記已讀並導向）。資料完整性：`deleteTrip` cascade、`removeMember` 清該成員通知。
 
 **Email（Resend）**：env-gated（`RESEND_API_KEY` / `RESEND_FROM` / `APP_URL` optional，`getResendConfig()` 回 null 則整支靜默跳過）。[lib/email.ts](../src/lib/email.ts) `sendEmail()` = best-effort 永不 throw。模板 [lib/emailTemplates.ts](../src/lib/emailTemplates.ts) 在伺服端用收件者語系以 next-intl `createTranslator` 算文案（`email` i18n 命名空間，四語系）。為此 `User` 加 `notifyByEmail`（opt-out，預設開）+ `locale`（寄信語系）。連結用 `APP_URL` 組絕對 URL，HTML 模板對使用者字串做 escape。
 
@@ -133,7 +136,7 @@
 **排程（Vercel Cron）**：受 `CRON_SECRET` 保護的 route（驗 `Authorization: Bearer`，未設 secret 一律拒絕）——
 - [/api/cron/expense-digest](../src/app/api/cron/expense-digest/route.ts)（每天 13:00 UTC）：`expense_added` 即時 Email 太頻繁，改每日彙整（站內鈴鐺仍即時，只略過即時 Email）。為「排除收件者自己加的」於 `Expense` 加 `createdBy`。純函式 [lib/expenseDigest.ts](../src/lib/expenseDigest.ts) `computeExpenseDigests`（5 個單元測試）。
 
-**Web Push（VAPID）**：env-gated（`VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` + `NEXT_PUBLIC_VAPID_PUBLIC_KEY`，`getWebPushConfig()` 回 null 則跳過）。公鑰是**唯一帶 `NEXT_PUBLIC_` 的 env**（瀏覽器 `pushManager.subscribe` 需要、非機密）。model [PushSubscription](../src/models/PushSubscription.ts) = `{ user, endpoint(unique), keys, userAgent }`——**訂閱本身即 opt-in**（無 User 層開關）。[lib/webpush.ts](../src/lib/webpush.ts)：`buildPushPayload`（依收件者語系在地化、**重用 `notifications` 命名空間**）+ `sendPush`（best-effort、回 404/410 就地刪失效訂閱）。接進 `notify()` fan-out（沿用 3 觸發點；**推播一律即時、不看 `notifyByEmail`**——推播的 opt-in 是有沒有訂閱）。**與離線 PWA 共用同一個 service worker**（[src/sw.ts](../src/sw.ts) 的 `push` / `notificationclick` handler）。訂閱管理 [push.actions.ts](../src/actions/push.actions.ts) + [usePushNotifications](../src/hooks/usePushNotifications.ts) + 設定頁通知卡（iOS 加主畫面引導 `needsInstall` + 已訂閱裝置列表）。**鈴鐺即時化**：每次推播後 SW `postMessage` 開啟分頁 → [useNotificationPushSync](../src/hooks/queries/useNotifications.ts) invalidate（60s 輪詢保留為無推播使用者的 fallback）。**iOS Safari 須先「加入主畫面」（standalone）才支援推播**。
+**Web Push（VAPID）**：env-gated（`VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` + `NEXT_PUBLIC_VAPID_PUBLIC_KEY`，`getWebPushConfig()` 回 null 則跳過）。公鑰是**唯一帶 `NEXT_PUBLIC_` 的 env**（瀏覽器 `pushManager.subscribe` 需要、非機密）。model [PushSubscription](../src/models/PushSubscription.ts) = `{ user, endpoint(unique), keys, userAgent }`——**訂閱本身即 opt-in**（無 User 層開關）。[lib/webpush.ts](../src/lib/webpush.ts)：`buildPushPayload`（依收件者語系在地化、**重用 `notifications` 命名空間**）+ `sendPush`（best-effort、回 404/410 就地刪失效訂閱）。接進 `notify()` fan-out（沿用 4 觸發點；**推播一律即時、不看 `notifyByEmail`**——推播的 opt-in 是有沒有訂閱）。**與離線 PWA 共用同一個 service worker**（[src/sw.ts](../src/sw.ts) 的 `push` / `notificationclick` handler）。訂閱管理 [push.actions.ts](../src/actions/push.actions.ts) + [usePushNotifications](../src/hooks/usePushNotifications.ts) + 設定頁通知卡（iOS 加主畫面引導 `needsInstall` + 已訂閱裝置列表）。**鈴鐺即時化**：每次推播後 SW `postMessage` 開啟分頁 → [useNotificationPushSync](../src/hooks/queries/useNotifications.ts) invalidate（60s 輪詢保留為無推播使用者的 fallback）。**iOS Safari 須先「加入主畫面」（standalone）才支援推播**。
 
 ---
 

@@ -9,6 +9,7 @@ import type {
   ActivityLogItem,
   ActivityLogType,
   ActivityLogMeta,
+  CommentDto,
 } from '@/types';
 import type { TripStatsDay, TripStatsExpense, TripStatsMember } from '@/lib/tripStats';
 
@@ -322,5 +323,30 @@ export function toActivityLogDto(a: ActivityLogDtoInput): ActivityLogItem {
     actor_name: a.actorName ?? '',
     meta: a.meta ?? {},
     created_at: a.createdAt.toISOString(),
+  };
+}
+
+/** Minimal lean Comment shape `toCommentDto` needs (authorName denormalized). */
+export type CommentDtoInput = {
+  _id: { toString(): string };
+  expense: { toString(): string };
+  author: { toString(): string };
+  authorName?: string | null;
+  body: string;
+  createdAt: Date;
+};
+
+/**
+ * Lean Comment doc → frontend DTO. `author_name` is already denormalized on
+ * the doc, so this needs no populate (avoids N+1 across a thread of comments).
+ */
+export function toCommentDto(c: CommentDtoInput): CommentDto {
+  return {
+    id: c._id.toString(),
+    expense_id: c.expense.toString(),
+    author_id: c.author.toString(),
+    author_name: c.authorName ?? '',
+    body: c.body,
+    created_at: c.createdAt.toISOString(),
   };
 }

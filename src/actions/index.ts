@@ -110,6 +110,9 @@ export {
 // Activity feed actions（動態牆）
 export { getActivityLog } from './activity.actions';
 
+// Comment actions（支出留言）
+export { getComments, getCommentCounts, createComment, deleteComment } from './comment.actions';
+
 // Push subscription actions（Web Push 訂閱）
 export {
   savePushSubscription,

@@ -19,6 +19,8 @@ import type { Expense, Member, ItineraryDay } from '@/types';
 import { ExportMenu } from '@/components/export';
 import { exportExpenses, type ExportFormat } from '@/lib/exporters';
 import { ReceiptThumb } from '@/components/trips/detail/ReceiptAttachments';
+import { ExpenseComments, ExpenseCommentsToggle } from '@/components/expenses';
+import { useCommentCounts } from '@/hooks/queries';
 import {
   filterExpenses,
   countActiveFilters,
@@ -52,6 +54,8 @@ interface TripExpensesProps {
   itineraryDays?: ItineraryDay[];
   tripName?: string;
   isCurrentUserMember: boolean;
+  currentUserId?: string;
+  isCurrentUserAdmin: boolean;
   filters: ExpenseFilters;
   onFiltersChange: (filters: ExpenseFilters) => void;
   onAdd: (e: React.MouseEvent) => void;
@@ -68,6 +72,8 @@ export default function TripExpenses({
   itineraryDays = [],
   tripName,
   isCurrentUserMember,
+  currentUserId,
+  isCurrentUserAdmin,
   filters,
   onFiltersChange,
   onAdd,
@@ -83,6 +89,16 @@ export default function TripExpenses({
 
   const [showFilters, setShowFilters] = useState(false);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [openComments, setOpenComments] = useState<Set<string>>(new Set());
+  const { data: commentCounts = {} } = useCommentCounts(tripId);
+
+  const toggleComments = (expenseId: string) =>
+    setOpenComments((prev) => {
+      const next = new Set(prev);
+      if (next.has(expenseId)) next.delete(expenseId);
+      else next.add(expenseId);
+      return next;
+    });
 
   // 行程日 id → 日序，供支出卡顯示「Day N」標籤。
   const dayNumberById = new Map(itineraryDays.map((d) => [d.id, d.day_number]));
@@ -444,6 +460,26 @@ export default function TripExpenses({
                                 <ReceiptThumb key={a.key} tripId={tripId} attachment={a} />
                               ))}
                             </div>
+                          )}
+
+                          {!pending && (
+                            <>
+                              <div className="mt-2">
+                                <ExpenseCommentsToggle
+                                  count={commentCounts[expense.id] ?? 0}
+                                  open={openComments.has(expense.id)}
+                                  onToggle={() => toggleComments(expense.id)}
+                                />
+                              </div>
+                              {openComments.has(expense.id) && (
+                                <ExpenseComments
+                                  tripId={tripId}
+                                  expenseId={expense.id}
+                                  currentUserId={currentUserId}
+                                  isAdmin={isCurrentUserAdmin}
+                                />
+                              )}
+                            </>
                           )}
                         </CardContent>
                       </Card>

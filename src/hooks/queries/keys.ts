@@ -21,6 +21,9 @@ export const tripKeys = {
   checklists: (tripId: string) => ['trip', tripId, 'checklists'] as const,
   stats: (tripId: string) => ['trip', tripId, 'stats'] as const,
   activity: (tripId: string) => ['trip', tripId, 'activity'] as const,
+  commentCounts: (tripId: string) => ['trip', tripId, 'commentCounts'] as const,
+  comments: (tripId: string, expenseId: string) =>
+    ['trip', tripId, 'expense', expenseId, 'comments'] as const,
 } as const;
 
 /**

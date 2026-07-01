@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { Expense, Trip, ItineraryDay, EXPENSE_CATEGORIES } from '@/models';
+import { Expense, Trip, ItineraryDay, Comment, EXPENSE_CATEGORIES } from '@/models';
 import { getTripMembership } from '@/lib/permissions';
 import {
   createExpenseSchema,
@@ -416,6 +416,11 @@ export const deleteExpense = withAuth(
           logger.error('Delete expense: receipt cleanup failed', e)
         );
       }
+
+      // MongoDB 無 FK cascade：手動清掉此支出下的留言（best-effort）
+      await Comment.deleteMany({ expense: expenseId }).catch((e) =>
+        logger.error('Delete expense: comment cleanup failed', e)
+      );
 
       // 動態牆紀錄（支出已刪，描述取自刪除前的快照；best-effort）
       await logActivity({

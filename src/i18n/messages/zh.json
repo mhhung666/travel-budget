@@ -774,7 +774,8 @@
     "someone": "有人",
     "expenseAdded": "{actor} 新增了一筆支出：{description}",
     "paymentRecorded": "{actor} 登記了一筆還款",
-    "memberJoined": "{actor} 加入了旅程"
+    "memberJoined": "{actor} 加入了旅程",
+    "expenseCommentAdded": "{actor} 在支出下留言：{description}"
   },
   "activity": {
     "title": "歷史紀錄",
@@ -786,6 +787,21 @@
     "expenseDeleted": "{actor} 刪除了支出「{description}」",
     "paymentRecorded": "{actor} 登記了一筆還款",
     "memberJoined": "{actor} 加入了旅程"
+  },
+  "comments": {
+    "title": "留言",
+    "empty": "目前還沒有留言",
+    "loading": "載入中…",
+    "placeholder": "輸入留言…",
+    "post": "送出留言",
+    "delete": "刪除",
+    "deleteConfirmTitle": "刪除留言",
+    "deleteConfirmMessage": "確定要刪除這則留言嗎？此動作無法復原。",
+    "count": "留言 ({count})",
+    "success": {
+      "posted": "留言已送出",
+      "deleted": "留言已刪除"
+    }
   },
   "email": {
     "viewButton": "查看",
@@ -802,6 +818,10 @@
     "member_joined": {
       "subject": "{actor} 加入了「{tripName}」",
       "body": "{actor} 加入了旅程「{tripName}」。"
+    },
+    "expense_comment_added": {
+      "subject": "{actor} 在「{tripName}」留言了一筆支出",
+      "body": "{actor} 在「{tripName}」的支出「{description}」下留言了。"
     },
     "expenseDigest": {
       "subject": "今日支出摘要",

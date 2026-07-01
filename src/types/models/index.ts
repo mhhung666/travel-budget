@@ -33,6 +33,9 @@ export type { NotificationItem, NotificationType, NotificationMeta } from './not
 // Activity feed (動態牆)
 export type { ActivityLogItem, ActivityLogType, ActivityLogMeta } from './activity';
 
+// Comments (支出留言)
+export type { CommentDto } from './comment';
+
 // Stats
 export type {
   ExpenseDetail,

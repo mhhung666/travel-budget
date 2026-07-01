@@ -198,6 +198,8 @@ export default function TripDetailPage() {
               itineraryDays={itineraryDays}
               tripName={trip.name}
               isCurrentUserMember={isMember}
+              currentUserId={currentUser?.id}
+              isCurrentUserAdmin={isAdmin}
               filters={filters}
               onFiltersChange={setFilters}
               onAdd={() => addExpenseDialog.openDialog()}

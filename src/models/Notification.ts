@@ -8,6 +8,7 @@ export const NOTIFICATION_TYPES = [
   'expense_added', // 有人新增支出
   'payment_recorded', // 有人登記了與你有關的還款
   'member_joined', // 有新成員加入旅程
+  'expense_comment_added', // 有人在支出下留言
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
