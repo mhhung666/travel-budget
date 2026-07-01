@@ -4,6 +4,7 @@ import { useTranslations, useLocale } from 'next-intl';
 import StatsSummaryCard from './StatsSummaryCard';
 import DateRangeFilter from './DateRangeFilter';
 import CategoryStats from './CategoryStats';
+import TagStats from './TagStats';
 import ExpenseHistogram from './ExpenseHistogram';
 import type { StatsData } from '@/types';
 import { StatsDashboardSkeleton } from '@/components/skeletons';
@@ -109,6 +110,15 @@ export default function StatsDashboard({
             />
           </div>
         </div>
+
+        {stats && stats.tagStats.length > 0 && (
+          <TagStats
+            tagStats={stats.tagStats}
+            formatCurrency={formatCurrency}
+            formatDate={formatDate}
+            t={t}
+          />
+        )}
       </div>
     </div>
   );

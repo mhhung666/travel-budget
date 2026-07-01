@@ -24,6 +24,7 @@ function mk(partial: Partial<Expense> & { id: string }): Expense {
     splits: [{ user_id: 'a', username: 'alice', display_name: 'Alice', share_amount: 100 }],
     attachments: [],
     itinerary_day_ids: [],
+    tags: [],
     ...partial,
   };
 }
@@ -40,6 +41,7 @@ const expenses: Expense[] = [
       { user_id: 'a', username: 'alice', display_name: 'Alice', share_amount: 50 },
       { user_id: 'b', username: 'bob', display_name: 'Bob', share_amount: 50 },
     ],
+    tags: ['fancy'],
   }),
   mk({
     id: 'e2',
@@ -61,6 +63,7 @@ const expenses: Expense[] = [
       { user_id: 'a', username: 'alice', display_name: 'Alice', share_amount: 60 },
       { user_id: 'c', username: 'carol', display_name: 'Carol', share_amount: 40 },
     ],
+    tags: ['fancy', 'visa'],
   }),
 ];
 
@@ -98,6 +101,22 @@ describe('filterExpenses', () => {
     it('returns nothing when no description or payer matches', () => {
       expect(filterExpenses(expenses, { ...EMPTY_EXPENSE_FILTERS, keyword: 'zzz' })).toEqual([]);
     });
+
+    it('matches a tag', () => {
+      expect(ids(filterExpenses(expenses, { ...EMPTY_EXPENSE_FILTERS, keyword: 'visa' }))).toEqual([
+        'e3',
+      ]);
+    });
+  });
+
+  it('filters by tag', () => {
+    expect(ids(filterExpenses(expenses, { ...EMPTY_EXPENSE_FILTERS, tag: 'visa' }))).toEqual([
+      'e3',
+    ]);
+    expect(ids(filterExpenses(expenses, { ...EMPTY_EXPENSE_FILTERS, tag: 'fancy' }))).toEqual([
+      'e1',
+      'e3',
+    ]);
   });
 
   it('filters by category', () => {
@@ -202,9 +221,10 @@ describe('countActiveFilters', () => {
         category: 'food',
         payerId: 'a',
         participantId: 'b',
+        tag: 'fancy',
         dateFrom: '2026-06-01',
         dateTo: '',
       })
-    ).toBe(5);
+    ).toBe(6);
   });
 });

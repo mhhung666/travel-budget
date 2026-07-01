@@ -18,6 +18,7 @@ export interface ExpenseLabels {
     currency: string;
     rate: string;
     splits: string;
+    tags: string;
   };
   /** 類別 key → 在地化名稱 */
   category: (key: string) => string;
@@ -42,7 +43,7 @@ function mdCell(value: unknown): string {
 
 function toMarkdown(expenses: Expense[], labels: ExpenseLabels): string {
   const { columns: c } = labels;
-  const head = [c.date, c.description, c.category, c.payer, c.amountTwd, c.splits];
+  const head = [c.date, c.description, c.category, c.payer, c.amountTwd, c.splits, c.tags];
   const rows = expenses.map((e) => [
     isoDate(e.date),
     mdCell(e.description),
@@ -50,6 +51,7 @@ function toMarkdown(expenses: Expense[], labels: ExpenseLabels): string {
     mdCell(e.payer_name),
     e.amount,
     mdCell(splitsText(e)),
+    mdCell(e.tags.join(', ')),
   ]);
   const total = expenses.reduce((sum, e) => sum + e.amount, 0);
 
@@ -79,6 +81,7 @@ function toExpenseCsv(expenses: Expense[], labels: ExpenseLabels): string {
       c.currency,
       c.rate,
       c.splits,
+      c.tags,
     ],
     expenses.map((e) => [
       isoDate(e.date),
@@ -90,6 +93,7 @@ function toExpenseCsv(expenses: Expense[], labels: ExpenseLabels): string {
       e.currency,
       e.exchange_rate,
       splitsText(e),
+      e.tags.join(', '),
     ])
   );
 }

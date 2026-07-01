@@ -253,7 +253,9 @@
       "itineraryDaysHint": "可多选；跨夜的支出选多天会自动平均分摊到每日花费",
       "itineraryDaysAveraged": "已选 {count} 天，金额将在每日花费平均分摊",
       "splitWith": "分账对象",
-      "convertedAmount": "换算金额"
+      "convertedAmount": "换算金额",
+      "tags": "标签",
+      "tagsPlaceholder": "输入后按 Enter 或逗号新增"
     },
     "confirm": {
       "delete": "确定要删除这笔支出吗？",
@@ -274,6 +276,7 @@
     "filterCategory": "分类",
     "filterPayer": "付款人",
     "filterParticipant": "分账对象",
+    "filterTag": "标签",
     "dateFrom": "起始日",
     "dateTo": "结束日",
     "resultCount": "符合 {count} 笔",
@@ -538,6 +541,7 @@
     "totalSpent": "总支出",
     "expenses": "笔",
     "categoryStats": "分类统计",
+    "tagStats": "标签统计",
     "countryStats": "国家统计",
     "countries": "个国家",
     "trips": "趟旅行",
@@ -712,7 +716,8 @@
       "colOriginalAmount": "原始金额",
       "colCurrency": "币种",
       "colRate": "汇率",
-      "colSplits": "分摊明细"
+      "colSplits": "分摊明细",
+      "colTags": "标签"
     },
     "settlement": {
       "heading": "结算",

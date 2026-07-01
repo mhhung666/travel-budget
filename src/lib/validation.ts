@@ -69,6 +69,9 @@ export const updateTripSchema = z
     { message: '開始日期不能晚於結束日期' }
   );
 
+// 自訂標籤（自由文字，見 ROADMAP.md #18）：單一標籤 1–30 字元，trim 後不可為空。
+const tagSchema = z.string().trim().min(1).max(30);
+
 // 收據附件輸入（key 由 createReceiptUploadUrl 簽發；content_type/size 僅供前端顯示，
 // 寫入前伺服器端會以 headObject 重新驗證後才採用）
 export const attachmentInputSchema = z.object({
@@ -97,6 +100,8 @@ export const createExpenseSchema = z.object({
   attachments: z.array(attachmentInputSchema).max(10, '收據數量過多').optional(),
   // 可選的關聯行程日（可複選）；空陣列/省略＝不關聯。歸屬（須屬本 trip）由 action 驗證。
   itinerary_day_ids: z.array(objectIdSchema).max(60, '關聯行程日過多').optional(),
+  // 自訂標籤（可複選，自由文字）；空陣列/省略＝無標籤。
+  tags: z.array(tagSchema).max(20, '標籤數量過多').optional(),
 });
 
 export const updateExpenseSchema = z.object({
@@ -122,6 +127,8 @@ export const updateExpenseSchema = z.object({
   attachments: z.array(attachmentInputSchema).max(10, '收據數量過多').optional(),
   // 可選的關聯行程日（可複選）；傳空陣列可清除關聯。欄位出現才更新。歸屬由 action 驗證。
   itinerary_day_ids: z.array(objectIdSchema).max(60, '關聯行程日過多').optional(),
+  // 自訂標籤（可複選，自由文字）；傳空陣列可清除標籤。欄位出現才更新。
+  tags: z.array(tagSchema).max(20, '標籤數量過多').optional(),
 });
 
 // Budget schemas（金額一律基準幣 TWD）

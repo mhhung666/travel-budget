@@ -41,6 +41,7 @@ export default function TripDetailPage() {
     expenses,
     members,
     itineraryDays,
+    existingTags,
     currentUser,
     isMember,
     isAdmin,
@@ -222,6 +223,7 @@ export default function TripDetailPage() {
         members={members}
         currentUser={currentUser}
         itineraryDays={itineraryDays}
+        existingTags={existingTags}
       />
 
       <ExpenseFormDialog
@@ -234,6 +236,7 @@ export default function TripDetailPage() {
         members={members}
         currentUser={currentUser}
         itineraryDays={itineraryDays}
+        existingTags={existingTags}
       />
 
       <EditTripDialog

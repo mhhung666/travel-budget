@@ -6,6 +6,7 @@ import type { LucideIcon } from 'lucide-react';
 import type { TripStatsData } from '@/types';
 import StatsSummaryCard from './StatsSummaryCard';
 import CategoryStats from './CategoryStats';
+import TagStats from './TagStats';
 import ExpenseHistogram from './ExpenseHistogram';
 import MemberSpendRanking from './MemberSpendRanking';
 import DailySpendCard from './DailySpendCard';
@@ -121,6 +122,15 @@ export default function TripStatsView({ stats }: TripStatsViewProps) {
           />
         </div>
       </div>
+
+      {stats.tagStats.length > 0 && (
+        <TagStats
+          tagStats={stats.tagStats}
+          formatCurrency={formatCurrency}
+          formatDate={formatDate}
+          t={t}
+        />
+      )}
     </div>
   );
 }

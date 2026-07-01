@@ -40,6 +40,7 @@ export type { CommentDto } from './comment';
 export type {
   ExpenseDetail,
   CategoryStat,
+  TagStat,
   StatsData,
   MemberSpend,
   DailySpend,

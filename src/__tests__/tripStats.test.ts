@@ -197,4 +197,27 @@ describe('computeTripStats', () => {
     );
     expect(r.categoryStats[0].category).toBe('other');
   });
+
+  it('returns an empty tagStats when no expense has tags', () => {
+    const r = computeTripStats(expenses, members, {});
+    expect(r.tagStats).toEqual([]);
+  });
+
+  it('aggregates tag totals, counting the full amount under every tag on a multi-tag expense', () => {
+    const tagged: TripStatsExpense[] = [
+      { ...expenses[0], tags: ['fancy', 'business'] }, // 300 → both buckets
+      { ...expenses[1], tags: ['business'] }, // 200 → business
+      { ...expenses[2] }, // 60 → no tags
+    ];
+    const r = computeTripStats(tagged, members, {});
+    const fancy = r.tagStats.find((t) => t.tag === 'fancy')!;
+    const business = r.tagStats.find((t) => t.tag === 'business')!;
+    expect(fancy.total).toBe(300);
+    expect(fancy.count).toBe(1);
+    expect(business.total).toBe(500); // 300 + 200, counted fully under this tag too
+    expect(business.count).toBe(2);
+    expect(r.tagStats.map((t) => t.tag)).toEqual(['business', 'fancy']); // sorted by total desc
+    // Multi-tag double counting must not leak into the overall total.
+    expect(r.totalAmount).toBe(560);
+  });
 });

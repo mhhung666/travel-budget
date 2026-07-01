@@ -140,6 +140,7 @@ const expenseLabels: ExpenseLabels = {
     currency: 'Currency',
     rate: 'Rate',
     splits: 'Splits',
+    tags: 'Tags',
   },
   category: (key) => key.toUpperCase(),
 };
@@ -164,6 +165,7 @@ const expenses: Expense[] = [
     ],
     attachments: [],
     itinerary_day_ids: [],
+    tags: [],
   },
 ];
 

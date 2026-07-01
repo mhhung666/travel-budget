@@ -253,7 +253,9 @@
       "itineraryDaysHint": "複数選択可。連泊などの支出は選んだ日数で1日の支出に均等配分されます",
       "itineraryDaysAveraged": "{count}日を選択中。金額は1日の支出に均等配分されます",
       "splitWith": "割り勘対象",
-      "convertedAmount": "換算金額"
+      "convertedAmount": "換算金額",
+      "tags": "タグ",
+      "tagsPlaceholder": "入力後 Enter またはカンマで追加"
     },
     "confirm": {
       "delete": "この支出を削除しますか？",
@@ -274,6 +276,7 @@
     "filterCategory": "カテゴリ",
     "filterPayer": "支払者",
     "filterParticipant": "分担メンバー",
+    "filterTag": "タグ",
     "dateFrom": "開始日",
     "dateTo": "終了日",
     "resultCount": "{count} 件該当",
@@ -538,6 +541,7 @@
     "totalSpent": "総支出",
     "expenses": "件",
     "categoryStats": "カテゴリ別統計",
+    "tagStats": "タグ別統計",
     "countryStats": "国別統計",
     "countries": "か国",
     "trips": "回の旅行",
@@ -712,7 +716,8 @@
       "colOriginalAmount": "元の金額",
       "colCurrency": "通貨",
       "colRate": "レート",
-      "colSplits": "割り勘明細"
+      "colSplits": "割り勘明細",
+      "colTags": "タグ"
     },
     "settlement": {
       "heading": "精算",

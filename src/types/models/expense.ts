@@ -44,4 +44,6 @@ export interface Expense {
   attachments: ExpenseAttachment[];
   /** 關聯的行程日 id（同 trip 下的 ItineraryDay）；可複選，未關聯時為空陣列。 */
   itinerary_day_ids: string[];
+  /** 自訂標籤（自由文字，可複選，與 category 正交）；無標籤時為空陣列。 */
+  tags: string[];
 }

@@ -41,6 +41,7 @@ export type ExpenseDtoInput = {
   splits: { user: PopulatedRef; shareAmount: number }[];
   attachments?: { key: string; contentType: string; size: number }[];
   itineraryDays?: { toString(): string }[] | null;
+  tags?: string[] | null;
 };
 
 function toDateStr(d: Date | string): string {
@@ -82,6 +83,7 @@ export function toExpenseDto(
         }))
       : [],
     itinerary_day_ids: (e.itineraryDays ?? []).map((d) => d.toString()),
+    tags: e.tags ?? [],
   };
 }
 
@@ -139,6 +141,7 @@ export type TripStatExpenseInput = {
   payer: PopulatedRef;
   splits: { user: { toString(): string }; shareAmount: number }[];
   itineraryDays?: { toString(): string }[] | null;
+  tags?: string[] | null;
 };
 
 /** Minimal lean Trip shape the group-stats mapper needs (members populated + dates). */
@@ -188,6 +191,7 @@ export function toTripStatsInputs(
       shareAmount: s.shareAmount || 0,
     })),
     itineraryDayIds: (e.itineraryDays ?? []).map((d) => d.toString()),
+    tags: e.tags ?? [],
   }));
 
   const mappedDays: TripStatsDay[] = days.map((d) => ({

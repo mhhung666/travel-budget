@@ -59,6 +59,9 @@ const ExpenseSchema = new Schema(
     // 新增此筆支出的使用者（≠ payer：可代他人付款的人記帳）。供每日支出摘要 Email
     // 排除「收件者自己加的」。additive、舊資料無此欄位（視為非本人），無遷移。
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
+    // 自訂標籤（自由文字、可複選），與 category 正交——category 維持固定 7 類（供預算比對），
+    // tags 供使用者自訂分組（簽證、保險、紀念品…），統計依 tag 各自加總（ROADMAP #18）。
+    tags: { type: [String], default: [] },
   },
   {
     timestamps: { createdAt: true, updatedAt: false },

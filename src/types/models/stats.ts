@@ -13,8 +13,20 @@ export interface CategoryStat {
   details: ExpenseDetail[];
 }
 
+/**
+ * 單一自訂標籤的花費彙總（ROADMAP #18）。與 CategoryStat 同形狀，但 key 為自由文字
+ * 的 tag 而非固定分類；一筆支出可有多個 tag，故金額會分別計入每個 tag 的桶（非分攤）。
+ */
+export interface TagStat {
+  tag: string;
+  total: number;
+  count: number;
+  details: ExpenseDetail[];
+}
+
 export interface StatsData {
   categoryStats: CategoryStat[];
+  tagStats: TagStat[];
   totalAmount: number;
   totalExpenses: number;
 }
@@ -54,6 +66,7 @@ export interface DailySpend {
  */
 export interface TripStatsData {
   categoryStats: CategoryStat[];
+  tagStats: TagStat[];
   totalAmount: number;
   totalExpenses: number;
   memberSpends: MemberSpend[];

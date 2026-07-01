@@ -76,5 +76,6 @@ export function buildOptimisticExpense(input: CreateExpenseInput, ctx: Optimisti
       size: a.size,
     })),
     itinerary_day_ids: input.itinerary_day_ids ?? [],
+    tags: input.tags ?? [],
   };
 }

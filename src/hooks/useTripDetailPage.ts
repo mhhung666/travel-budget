@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { onlineManager } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import type { Expense } from '@/types';
@@ -57,6 +57,12 @@ export function useTripDetailPage(tripId: string) {
   const [filters, setFilters] = useState<ExpenseFilters>(EMPTY_EXPENSE_FILTERS);
   const [expensesExpanded, setExpensesExpanded] = useState(true);
 
+  // 本 trip 內已用過的標籤（供支出表單的標籤自動完成建議）。
+  const existingTags = useMemo(
+    () => [...new Set(expenses.flatMap((e) => e.tags))].sort(),
+    [expenses]
+  );
+
   const toastError = (err: unknown) => {
     toast({
       variant: 'destructive',
@@ -85,6 +91,7 @@ export function useTripDetailPage(tripId: string) {
           splits: data.splits,
           attachments: data.attachments,
           itinerary_day_ids: data.itinerary_day_ids,
+          tags: data.tags,
         },
       },
       { onError: toastError }
@@ -125,6 +132,7 @@ export function useTripDetailPage(tripId: string) {
         splits: data.splits,
         attachments: data.attachments,
         itinerary_day_ids: data.itinerary_day_ids,
+        tags: data.tags,
       },
     });
 
@@ -194,6 +202,7 @@ export function useTripDetailPage(tripId: string) {
     expenses,
     members,
     itineraryDays,
+    existingTags,
     currentUser,
     isMember: !!isMember,
     isAdmin: !!isAdmin,

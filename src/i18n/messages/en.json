@@ -302,7 +302,9 @@
       "itineraryDaysHint": "Pick one or more; multi-day expenses are split evenly across daily spend",
       "itineraryDaysAveraged": "Split evenly across {count} days in daily spend",
       "splitWith": "Split With",
-      "convertedAmount": "Converted Amount"
+      "convertedAmount": "Converted Amount",
+      "tags": "Tags",
+      "tagsPlaceholder": "Type and press Enter or comma to add"
     },
     "confirm": {
       "delete": "Are you sure you want to delete this expense?",
@@ -323,6 +325,7 @@
     "filterCategory": "Category",
     "filterPayer": "Payer",
     "filterParticipant": "Split with",
+    "filterTag": "Tag",
     "dateFrom": "From",
     "dateTo": "To",
     "resultCount": "{count} matching",
@@ -538,6 +541,7 @@
     "totalSpent": "Total Spent",
     "expenses": "expenses",
     "categoryStats": "Category Stats",
+    "tagStats": "Tag Stats",
     "countryStats": "Country Stats",
     "countries": "countries",
     "trips": "trips",
@@ -712,7 +716,8 @@
       "colOriginalAmount": "Original Amount",
       "colCurrency": "Currency",
       "colRate": "Rate",
-      "colSplits": "Splits"
+      "colSplits": "Splits",
+      "colTags": "Tags"
     },
     "settlement": {
       "heading": "Settlement",

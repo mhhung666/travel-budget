@@ -18,7 +18,7 @@ export const GET = withPublicTrip(
         .select('members startDate endDate')
         .lean<TripStatsTripInput>(),
       Expense.find({ trip: tripId })
-        .select('category date description amount payer splits itineraryDays')
+        .select('category date description amount payer splits itineraryDays tags')
         .populate('payer', 'displayName')
         .lean<TripStatExpenseInput[]>(),
       ItineraryDay.find({ trip: tripId })

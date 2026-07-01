@@ -48,12 +48,15 @@
 | 四種分帳 | 均分 / 金額 / 百分比 / 份數 |
 | 收據附件 | R2 私有 bucket（見 §7） |
 | 支出 ↔ 行程日連結 | `Expense.itineraryDay`（見 §5） |
-| 搜尋 / 篩選 | 關鍵字 / 分類 / 付款人 / 分帳對象 / 日期區間 |
+| 搜尋 / 篩選 | 關鍵字 / 分類 / 付款人 / 分帳對象 / 標籤 / 日期區間 |
 | 留言 | 支出下的討論串，作者本人或旅程 admin 可刪除 |
+| 自訂標籤 | 自由文字、可複選，與固定 7 類 `category` 正交，統計可依標籤加總 |
 
 **彈性分帳**：四種模式的明確選單（ToggleGroup）。計算抽成純函式 [lib/expenseSplit.ts](../src/lib/expenseSplit.ts) `computeSplits`（14 個單元測試）；輸入用原幣、即時換算成 TWD 寫入 `splits[].shareAmount`；`createExpense` / `updateExpense` 加寬鬆的「總和 ≈ 金額」防呆。實作於 [ExpenseFormDialog.tsx](../src/components/trips/detail/dialogs/ExpenseFormDialog.tsx)。「我請客」用金額模式即可達成；*「逐項分帳」尚未做。*
 
-**搜尋 / 篩選**：純前端篩選——純函式 [lib/expenseFilters.ts](../src/lib/expenseFilters.ts) `filterExpenses` / `countActiveFilters`（關鍵字 + 分類 + 付款人 + 分帳對象 + 日期區間，AND 結合；19 個單元測試）。[TripExpenses.tsx](../src/components/trips/detail/TripExpenses.tsx) 加搜尋框 + 可收合的進階篩選面板（含啟用條件數 badge 與「清除」、結果筆數提示）。長列表採**純前端漸進渲染**（預設 20 筆 +「顯示更多」）——**伺服端游標分頁刻意延後**（見 [IMPROVEMENTS.md](./IMPROVEMENTS.md) G）。
+**搜尋 / 篩選**：純前端篩選——純函式 [lib/expenseFilters.ts](../src/lib/expenseFilters.ts) `filterExpenses` / `countActiveFilters`（關鍵字 + 分類 + 付款人 + 分帳對象 + 標籤 + 日期區間，AND 結合；21 個單元測試）。[TripExpenses.tsx](../src/components/trips/detail/TripExpenses.tsx) 加搜尋框 + 可收合的進階篩選面板（含啟用條件數 badge 與「清除」、結果筆數提示）。長列表採**純前端漸進渲染**（預設 20 筆 +「顯示更多」）——**伺服端游標分頁刻意延後**（見 [IMPROVEMENTS.md](./IMPROVEMENTS.md) G）。
+
+**自訂標籤**：`Expense.tags: string[]`，與固定 7 類的 `category` 正交——`category` 維持封閉集合供預算比對，`tags` 為開放、可複選的自由文字（Zod 限制單一標籤 ≤30 字、至多 20 個）。輸入用新元件 [tag-input.tsx](../src/components/ui/tag-input.tsx)（chip 輸入 + 同 trip 內既有標籤自動完成），置於 [ExpenseFormDialog.tsx](../src/components/trips/detail/dialogs/ExpenseFormDialog.tsx) 的進階選項區。統計依標籤加總比照分類統計（見 §9 `TagStat`），公開分享頁與 `category` 同等級公開（無 gating）。
 
 **留言**：獨立 collection [Comment](../src/models/Comment.ts) = `{ trip, expense, author, authorName, body }`（比照 `ActivityLog` 去正規化 `authorName`、trip-scoped 獨立集合，非內嵌於 `Expense`）。Actions [comment.actions.ts](../src/actions/comment.actions.ts)：`getComments`（單筆支出的留言串，舊到新）、`getCommentCounts`（全 trip 一次 aggregate 算各支出留言數，供列表 badge 免逐筆查詢的 N+1）、`createComment`（best-effort 通知其他成員，見 §8 `expense_comment_added`）、`deleteComment`（**僅留言作者本人或旅程 admin** 可刪——比其餘 data-level 刪除〔`deleteExpense` / `deletePayment` / `removeChecklistItem`〕更嚴格的信任模型，因留言的個人語意更接近聊天訊息）。UI：[TripExpenses.tsx](../src/components/trips/detail/TripExpenses.tsx) 支出卡片下的「留言 (N)」toggle + [ExpenseComments](../src/components/expenses/ExpenseComments.tsx)（懶載入，展開該筆支出才查詢留言串）。資料完整性：`deleteExpense` / `deleteTrip` cascade 清除留言。
 
@@ -146,10 +149,13 @@
 | --- | --- |
 | 個人（跨旅程） | `/stats`，彙總「我」在所有旅程的分攤，可依日期區間篩選 |
 | 群組（單一旅程、全團） | `/trips/[id]/stats`，全團分類佔比、付款排行、平均每人每日 |
+| 標籤統計 | 依自訂標籤加總（個人 + 群組），無標籤時不顯示該區塊 |
 | 按行程日花費 | `dailySpend`（每行程日 total/count） |
 | 趨勢直方圖 | `ExpenseHistogram` |
 
 **個人**：[getStats](../src/actions/stats.actions.ts) 過濾 `splits.user = 我`。**群組**：[getTripStats](../src/actions/stats.actions.ts) **不過濾** `splits.user`、金額取整筆，純計算在 [lib/tripStats.ts](../src/lib/tripStats.ts) `computeTripStats`（9 個單元測試）+ [公開分享路由](../src/app/api/public/trips/%5Bid%5D/stats/route.ts)。兩者 `categoryStats` 形狀相同，`ExpenseHistogram` / `CategoryStats` 元件兩邊共用；群組查詢重用 `tripKeys.stats`。**按天花費**：`dailySpend` 用 §5 的 `Expense.itineraryDay` 連結加總（未關聯支出歸入最後的 null 桶），UI [DailySpendCard](../src/components/stats/DailySpendCard.tsx)。
+
+**標籤統計**：`tagStats: TagStat[]`，與 `categoryStats` 同一套 `Map<key, {total,count,details}>` 聚合手法，個人版本（`getStats`）計自己分攤的份額、群組版本（`computeTripStats`）計整筆金額——差異與 `categoryStats` 完全一致。一筆支出可有多個標籤，故金額會**分別**計入每個標籤的桶（非分攤），不影響 `totalAmount`。UI [TagStats.tsx](../src/components/stats/TagStats.tsx)（結構同 `CategoryStats.tsx`），無標籤資料時整區塊不渲染。
 
 ---
 

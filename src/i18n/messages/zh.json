@@ -253,7 +253,9 @@
       "itineraryDaysHint": "可複選；跨夜的支出選多天會自動平均分攤到每日花費",
       "itineraryDaysAveraged": "已選 {count} 天，金額將在每日花費平均分攤",
       "splitWith": "分帳對象",
-      "convertedAmount": "換算金額"
+      "convertedAmount": "換算金額",
+      "tags": "標籤",
+      "tagsPlaceholder": "輸入後按 Enter 或逗號新增"
     },
     "confirm": {
       "delete": "確定要刪除這筆支出嗎？",
@@ -274,6 +276,7 @@
     "filterCategory": "分類",
     "filterPayer": "付款人",
     "filterParticipant": "分帳對象",
+    "filterTag": "標籤",
     "dateFrom": "起始日",
     "dateTo": "結束日",
     "resultCount": "符合 {count} 筆",
@@ -538,6 +541,7 @@
     "totalSpent": "總支出",
     "expenses": "筆",
     "categoryStats": "分類統計",
+    "tagStats": "標籤統計",
     "countryStats": "國家統計",
     "countries": "個國家",
     "trips": "趟旅行",
@@ -712,7 +716,8 @@
       "colOriginalAmount": "原始金額",
       "colCurrency": "幣別",
       "colRate": "匯率",
-      "colSplits": "分攤明細"
+      "colSplits": "分攤明細",
+      "colTags": "標籤"
     },
     "settlement": {
       "heading": "結算",

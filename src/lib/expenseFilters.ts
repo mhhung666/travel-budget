@@ -15,6 +15,8 @@ export interface ExpenseFilters {
   payerId: string;
   /** 分帳對象 user id（須出現在 splits 中）；'all'＝不過濾。 */
   participantId: string;
+  /** 自訂標籤；'all'＝不過濾。 */
+  tag: string;
   /** 起始日（含），'YYYY-MM-DD'；''＝不限。 */
   dateFrom: string;
   /** 結束日（含），'YYYY-MM-DD'；''＝不限。 */
@@ -26,6 +28,7 @@ export const EMPTY_EXPENSE_FILTERS: ExpenseFilters = {
   category: 'all',
   payerId: 'all',
   participantId: 'all',
+  tag: 'all',
   dateFrom: '',
   dateTo: '',
 };
@@ -45,7 +48,8 @@ export function filterExpenses(expenses: Expense[], filters: ExpenseFilters): Ex
 
   return expenses.filter((expense) => {
     if (keyword) {
-      const haystack = `${expense.description} ${expense.payer_name}`.toLowerCase();
+      const haystack =
+        `${expense.description} ${expense.payer_name} ${expense.tags.join(' ')}`.toLowerCase();
       if (!haystack.includes(keyword)) return false;
     }
 
@@ -59,6 +63,8 @@ export function filterExpenses(expenses: Expense[], filters: ExpenseFilters): Ex
     ) {
       return false;
     }
+
+    if (filters.tag !== 'all' && !expense.tags.includes(filters.tag)) return false;
 
     if (filters.dateFrom || filters.dateTo) {
       const day = toDateKey(expense.date);
@@ -79,6 +85,7 @@ export function countActiveFilters(filters: ExpenseFilters): number {
   if (filters.category !== 'all') count++;
   if (filters.payerId !== 'all') count++;
   if (filters.participantId !== 'all') count++;
+  if (filters.tag !== 'all') count++;
   if (filters.dateFrom || filters.dateTo) count++;
   return count;
 }

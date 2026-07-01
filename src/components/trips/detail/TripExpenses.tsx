@@ -103,6 +103,12 @@ export default function TripExpenses({
   // 行程日 id → 日序，供支出卡顯示「Day N」標籤。
   const dayNumberById = new Map(itineraryDays.map((d) => [d.id, d.day_number]));
 
+  // 本 trip 內出現過的所有標籤（供標籤篩選下拉）。
+  const allTags = useMemo(
+    () => [...new Set(expenses.flatMap((e) => e.tags))].sort(),
+    [expenses]
+  );
+
   const activeCount = countActiveFilters(filters);
   const filtered = useMemo(() => filterExpenses(expenses, filters), [expenses, filters]);
   const visible = filtered.slice(0, visibleCount);
@@ -132,6 +138,7 @@ export default function TripExpenses({
         currency: tExport('expense.colCurrency'),
         rate: tExport('expense.colRate'),
         splits: tExport('expense.colSplits'),
+        tags: tExport('expense.colTags'),
       },
       category: (key) => (CATEGORY_CODES.includes(key) ? tCategory(key) : key),
     });
@@ -218,7 +225,7 @@ export default function TripExpenses({
               {/* Advanced filter panel */}
               {showFilters && (
                 <div className="rounded-lg border bg-muted/30 p-3 sm:p-4 space-y-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                     <div className="space-y-1.5">
                       <Label htmlFor="filter-category">{tExpense('filterCategory')}</Label>
                       <Select
@@ -273,6 +280,26 @@ export default function TripExpenses({
                           {members.map((member) => (
                             <SelectItem key={member.id} value={member.id.toString()}>
                               {member.display_name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor="filter-tag">{tExpense('filterTag')}</Label>
+                      <Select
+                        value={filters.tag}
+                        onValueChange={(value) => updateFilters({ tag: value })}
+                      >
+                        <SelectTrigger id="filter-tag">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">{tExpense('filterAll')}</SelectItem>
+                          {allTags.map((tag) => (
+                            <SelectItem key={tag} value={tag}>
+                              {tag}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -386,6 +413,15 @@ export default function TripExpenses({
                                         Day {dayNumber}
                                       </Badge>
                                     ))}
+                                </div>
+                              )}
+                              {expense.tags.length > 0 && (
+                                <div className="flex flex-wrap gap-1">
+                                  {expense.tags.map((tag) => (
+                                    <Badge key={tag} variant="outline" className="font-normal">
+                                      {tag}
+                                    </Badge>
+                                  ))}
                                 </div>
                               )}
                             </div>

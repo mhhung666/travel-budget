@@ -7,7 +7,7 @@ import { getTripMembership } from '@/lib/permissions';
 import { computeTripStats } from '@/lib/tripStats';
 import { withAuth } from './withAuth';
 import type { ActionResult } from './types';
-import type { StatsData, CategoryStat, ExpenseDetail, TripStatsData } from '@/types';
+import type { StatsData, CategoryStat, TagStat, ExpenseDetail, TripStatsData } from '@/types';
 import { logger } from '@/lib/logger';
 import {
   toTripStatsInputs,
@@ -28,6 +28,7 @@ type LeanStatExpense = {
   description: string;
   splits: { user: { toString(): string }; shareAmount: number }[];
   trip: { name: string } | null;
+  tags?: string[] | null;
 };
 
 /**
@@ -48,7 +49,7 @@ export const getStats = withAuth(
       if (userTrips.length === 0) {
         return {
           success: true,
-          data: { categoryStats: [], totalAmount: 0, totalExpenses: 0 },
+          data: { categoryStats: [], tagStats: [], totalAmount: 0, totalExpenses: 0 },
         };
       }
 
@@ -68,15 +69,16 @@ export const getStats = withAuth(
         'splits.user': session.userId,
         ...(rangeStart || rangeEnd ? { date: dateFilter } : {}),
       })
-        .select('category date description splits trip')
+        .select('category date description splits trip tags')
         .populate('trip', 'name')
         .lean<LeanStatExpense[]>();
 
-      // 3. Calculate category statistics（只計算自己分攤的金額）
+      // 3. Calculate category / tag statistics（只計算自己分攤的金額）
       const categoryMap = new Map<
         string,
         { total: number; count: number; details: ExpenseDetail[] }
       >();
+      const tagMap = new Map<string, { total: number; count: number; details: ExpenseDetail[] }>();
 
       for (const e of expenses) {
         const mySplit = e.splits.find((s) => s.user.toString() === session.userId);
@@ -97,11 +99,31 @@ export const getStats = withAuth(
           count: current.count + 1,
           details: [...current.details, detail],
         });
+
+        for (const tag of e.tags ?? []) {
+          const currentTag = tagMap.get(tag) || { total: 0, count: 0, details: [] };
+          tagMap.set(tag, {
+            total: currentTag.total + share,
+            count: currentTag.count + 1,
+            details: [...currentTag.details, detail],
+          });
+        }
       }
 
       const categoryStats: CategoryStat[] = Array.from(categoryMap.entries())
         .map(([category, stats]) => ({
           category,
+          total: Math.round(stats.total),
+          count: stats.count,
+          details: stats.details.sort(
+            (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+          ),
+        }))
+        .sort((a, b) => b.total - a.total);
+
+      const tagStats: TagStat[] = Array.from(tagMap.entries())
+        .map(([tag, stats]) => ({
+          tag,
           total: Math.round(stats.total),
           count: stats.count,
           details: stats.details.sort(
@@ -116,7 +138,7 @@ export const getStats = withAuth(
 
       return {
         success: true,
-        data: { categoryStats, totalAmount, totalExpenses },
+        data: { categoryStats, tagStats, totalAmount, totalExpenses },
       };
     } catch (error) {
       logger.error('Get stats error', error);
@@ -147,7 +169,7 @@ export const getTripStats = withAuth(
           .select('members startDate endDate')
           .lean<TripStatsTripInput>(),
         Expense.find({ trip: tripId })
-          .select('category date description amount payer splits itineraryDays')
+          .select('category date description amount payer splits itineraryDays tags')
           .populate('payer', 'displayName')
           .lean<TripStatExpenseInput[]>(),
         ItineraryDay.find({ trip: tripId })

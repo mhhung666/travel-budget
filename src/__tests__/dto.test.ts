@@ -54,7 +54,14 @@ describe('toExpenseDto', () => {
       ],
       attachments: [],
       itinerary_day_ids: [],
+      tags: [],
     });
+  });
+
+  it('defaults tags to [] when absent and passes them through when present', () => {
+    expect(toExpenseDto(base, 'trip9').tags).toEqual([]);
+    const tagged: ExpenseDtoInput = { ...base, tags: ['visa', 'insurance'] };
+    expect(toExpenseDto(tagged, 'trip9').tags).toEqual(['visa', 'insurance']);
   });
 
   it('maps linked itinerary days to itinerary_day_ids', () => {

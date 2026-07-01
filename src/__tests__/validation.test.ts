@@ -155,6 +155,38 @@ describe('createExpenseSchema', () => {
       expect(result.success).toBe(true);
     }
   });
+
+  it('should accept a valid tags array', () => {
+    const result = createExpenseSchema.safeParse({
+      ...validExpense,
+      tags: ['visa', 'insurance'],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('should reject a tag that is too long', () => {
+    const result = createExpenseSchema.safeParse({
+      ...validExpense,
+      tags: ['a'.repeat(31)],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject an empty-string tag', () => {
+    const result = createExpenseSchema.safeParse({
+      ...validExpense,
+      tags: [''],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject more than 20 tags', () => {
+    const result = createExpenseSchema.safeParse({
+      ...validExpense,
+      tags: Array.from({ length: 21 }, (_, i) => `tag${i}`),
+    });
+    expect(result.success).toBe(false);
+  });
 });
 
 describe('updateExpenseSchema', () => {

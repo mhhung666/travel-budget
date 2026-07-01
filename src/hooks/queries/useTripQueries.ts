@@ -100,6 +100,7 @@ export function useSettlement(tripId: string) {
 
 const EMPTY_TRIP_STATS: TripStatsData = {
   categoryStats: [],
+  tagStats: [],
   totalAmount: 0,
   totalExpenses: 0,
   memberSpends: [],

@@ -1,4 +1,11 @@
-import type { CategoryStat, DailySpend, ExpenseDetail, MemberSpend, TripStatsData } from '@/types';
+import type {
+  CategoryStat,
+  DailySpend,
+  ExpenseDetail,
+  MemberSpend,
+  TagStat,
+  TripStatsData,
+} from '@/types';
 
 export interface TripStatsMember {
   userId: string;
@@ -20,6 +27,8 @@ export interface TripStatsExpense {
    * 不會超過實際支出。
    */
   itineraryDayIds?: string[] | null;
+  /** 自訂標籤（可複選）；空/undefined＝無標籤。 */
+  tags?: string[] | null;
 }
 
 /** 按天聚合所需的行程日中繼資料（序號 + 標題）。 */
@@ -60,6 +69,8 @@ export function computeTripStats(
 ): TripStatsData {
   // 分類彙總（金額為整筆）
   const categoryMap = new Map<string, { total: number; count: number; details: ExpenseDetail[] }>();
+  // 自訂標籤彙總（金額為整筆；一筆支出可有多個 tag，故分別計入每個 tag 的桶，非分攤）
+  const tagMap = new Map<string, { total: number; count: number; details: ExpenseDetail[] }>();
   // 成員付款／分攤
   const paidByUser = new Map<string, number>();
   const shareByUser = new Map<string, number>();
@@ -86,6 +97,15 @@ export function computeTripStats(
       details: [...current.details, detail],
     });
 
+    for (const tag of e.tags ?? []) {
+      const currentTag = tagMap.get(tag) || { total: 0, count: 0, details: [] };
+      tagMap.set(tag, {
+        total: currentTag.total + amount,
+        count: currentTag.count + 1,
+        details: [...currentTag.details, detail],
+      });
+    }
+
     if (e.payerId) paidByUser.set(e.payerId, (paidByUser.get(e.payerId) || 0) + amount);
     for (const s of e.splits || []) {
       shareByUser.set(s.userId, (shareByUser.get(s.userId) || 0) + (s.shareAmount || 0));
@@ -109,6 +129,15 @@ export function computeTripStats(
   const categoryStats: CategoryStat[] = Array.from(categoryMap.entries())
     .map(([category, s]) => ({
       category,
+      total: Math.round(s.total),
+      count: s.count,
+      details: s.details.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)),
+    }))
+    .sort((a, b) => b.total - a.total);
+
+  const tagStats: TagStat[] = Array.from(tagMap.entries())
+    .map(([tag, s]) => ({
+      tag,
       total: Math.round(s.total),
       count: s.count,
       details: s.details.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)),
@@ -160,6 +189,7 @@ export function computeTripStats(
 
   return {
     categoryStats,
+    tagStats,
     totalAmount,
     totalExpenses,
     memberSpends,

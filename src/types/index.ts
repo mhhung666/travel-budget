@@ -37,6 +37,7 @@ export type {
   Settlement,
   ExpenseDetail,
   CategoryStat,
+  TagStat,
   StatsData,
   MemberSpend,
   DailySpend,

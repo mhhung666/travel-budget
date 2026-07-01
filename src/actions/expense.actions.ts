@@ -151,6 +151,7 @@ export const createExpense = withAuth(
         splits,
         attachments,
         itinerary_day_ids,
+        tags,
       } = validation.data;
 
       const amount = original_amount * exchange_rate;
@@ -206,6 +207,7 @@ export const createExpense = withAuth(
         attachments: attachmentDocs,
         itineraryDays: [...new Set(itinerary_day_ids ?? [])],
         createdBy: session.userId,
+        tags: [...new Set(tags ?? [])],
       });
 
       await created.populate([
@@ -278,6 +280,7 @@ export const updateExpense = withAuth(
         splits,
         attachments,
         itinerary_day_ids,
+        tags,
       } = validation.data;
 
       // 讀取目前值（同時作為 existence check）
@@ -316,6 +319,11 @@ export const updateExpense = withAuth(
           return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
         }
         set.itineraryDays = [...new Set(itinerary_day_ids)];
+      }
+
+      // 自訂標籤：欄位出現才處理；傳空陣列可清除標籤。
+      if (tags !== undefined) {
+        set.tags = [...new Set(tags)];
       }
 
       // Recalculate TWD amount if needed

@@ -29,6 +29,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { TagInput } from '@/components/ui/tag-input';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -45,6 +46,8 @@ export interface ExpenseDialogData {
   attachments: ExpenseAttachment[];
   /** 關聯的行程日 id（可複選）；不關聯時為空陣列。 */
   itinerary_day_ids: string[];
+  /** 自訂標籤（可複選，自由文字）；無標籤時為空陣列。 */
+  tags: string[];
 }
 
 interface ExpenseFormDialogProps {
@@ -58,6 +61,8 @@ interface ExpenseFormDialogProps {
   expense?: Expense | null; // Required for edit mode
   /** 本 trip 的行程日（供「關聯行程日」下拉）；無則不顯示該欄位。 */
   itineraryDays?: ItineraryDay[];
+  /** 本 trip 內其他支出已用過的標籤（供標籤輸入的自動完成建議）。 */
+  existingTags?: string[];
 }
 
 export default function ExpenseFormDialog({
@@ -70,6 +75,7 @@ export default function ExpenseFormDialog({
   currentUser,
   expense,
   itineraryDays = [],
+  existingTags = [],
 }: ExpenseFormDialogProps) {
   const tExpense = useTranslations('expense');
   const tCommon = useTranslations('common');
@@ -93,6 +99,7 @@ export default function ExpenseFormDialog({
   const [showAdvanced, setShowAdvanced] = useState(mode === 'edit'); // Default expanded for edit
   const [attachments, setAttachments] = useState<ExpenseAttachment[]>([]);
   const [itineraryDayIds, setItineraryDayIds] = useState<string[]>([]);
+  const [tags, setTags] = useState<string[]>([]);
 
   // Exchange rate states
   const [exchangeRates, setExchangeRates] = useState<Record<string, number>>({});
@@ -167,6 +174,7 @@ export default function ExpenseFormDialog({
         setSplitState(initialSplits);
         setAttachments(expense.attachments ?? []);
         setItineraryDayIds(expense.itinerary_day_ids ?? []);
+        setTags(expense.tags ?? []);
       } else {
         // Add mode: Initialize with defaults
         setForm({
@@ -188,6 +196,7 @@ export default function ExpenseFormDialog({
         setSplitState(initialSplits);
         setAttachments([]);
         setItineraryDayIds([]);
+        setTags([]);
       }
 
       setError('');
@@ -259,6 +268,7 @@ export default function ExpenseFormDialog({
         splits: finalSplits,
         attachments,
         itinerary_day_ids: itineraryDayIds,
+        tags,
       });
       // Parent handles close
     } catch (err: unknown) {
@@ -617,6 +627,16 @@ export default function ExpenseFormDialog({
                   </p>
                 </div>
               )}
+
+              <div className="space-y-2">
+                <Label>{tExpense('form.tags')}</Label>
+                <TagInput
+                  value={tags}
+                  onChange={setTags}
+                  suggestions={existingTags}
+                  placeholder={tExpense('form.tagsPlaceholder')}
+                />
+              </div>
 
               {form.currency !== 'TWD' && (
                 <div className="space-y-2">
