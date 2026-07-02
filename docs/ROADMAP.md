@@ -3,7 +3,7 @@
 > 建立日期：2026-06-26（最後更新：2026-07-01）
 > 對應版本：v3.4.3
 > 性質：產品功能藍圖——聚焦**尚未動工**的功能構想，附優先序與落地草圖（schema / actions / UI 影響）。
-> 相關文件：**已完成功能的完整盤點**見 [FEATURES.md](./FEATURES.md)；架構見 [ARCHITECTURE.md](./ARCHITECTURE.md)；程式碼 / 基礎設施層級的改善見 [IMPROVEMENTS.md](./IMPROVEMENTS.md)。
+> 相關文件：**已完成功能的完整盤點**見 [FEATURES.md](./FEATURES.md)；架構見 [ARCHITECTURE.md](./ARCHITECTURE.md)；程式碼 / 基礎設施層級的改善見 [IMPROVEMENTS.md](./IMPROVEMENTS.md)；**UI/UX 重構計畫（Phase 0–4）**見 [UI_UX_REDESIGN.md](./UI_UX_REDESIGN.md)。
 
 圖例：💎 旗艦（高價值、定義產品）　⭐ 高價值　🔹 加值 / 驚喜
 成本：S（數天）／M（一兩週）／L（需基礎設施或大改）

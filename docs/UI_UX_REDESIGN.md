@@ -1,7 +1,8 @@
 # UI/UX 評估與前端重新設計提案
 
-> 撰寫日期:2026-07-02
+> 撰寫日期:2026-07-02(最後更新:2026-07-02)
 > 範圍:整個前端(頁面結構、導覽、元件系統、視覺設計、PWA 體驗)
+> 進度:**Phase 0 已完成**(2026-07-02,`refactor/ui-ux-phase-0`);Phase 1–4 待動工
 > 結論先講:功能面已經很完整,但前端是「功能逐一疊加」長出來的 —— 沒有共用的 App Shell、沒有品牌設計語言、行動端仍是「桌機版縮小」而非 PWA 原生體驗。建議以「**App Shell + 底部導覽 + 行程分頁化 + 設計 Token 化**」四件事為主軸重構,可分四個階段落地,不需要一次全部重寫。
 
 ---
@@ -242,10 +243,12 @@ Toast 收斂成三種變體 `success | error | default`,在 [toast.tsx](../src/c
 
 每個 Phase 可獨立出 PR、獨立上線,順序刻意讓「殼」先行,後面的頁面改造都變便宜。
 
-### Phase 0|止血與清理(小,1–2 天)
-- 刪除死碼 `ExpenseCard.tsx`;修 i18n 漏網(`Error` 標題、`Split with`、`Day N`、NT$ 硬編碼)。
-- Toast 三變體收斂;`theme_color` 與背景 token 對齊;manifest 名稱/描述中文化 + `shortcuts`。
-- 觸控目標拉到 44px。
+### Phase 0|止血與清理(小,1–2 天)✅ 已完成(2026-07-02)
+- ✅ 刪除死碼:`ExpenseCard.tsx` 之外,`ExpenseList.tsx`、`ExpenseForm.tsx` 也確認無人引用一併刪除(−584 行)。
+- ✅ i18n 漏網:16 處硬編碼 `<AlertTitle>Error</AlertTitle>` 改用 `common.errorTitle`;`Day N` 改用既有 `itinerary.dayLabel`;NT$ 金額改走 `formatCurrency`(並讓整數金額不再強制補 `.00`,統計頁與列表顯示一致)。
+- ✅ Toast 新增 `success` 變體(含深色),取代 3 處硬編碼綠色 className。
+- ✅ 深色 `theme-color` 對齊背景 token(`#0f172a` → `#09090b`);manifest 中文化 + shortcuts(我的行程/旅行地圖/消費統計;「記一筆」深連結需 quick-add 路由,留待 Phase 4 表單重製時一併做)。
+- ✅ 支出卡編輯/刪除按鈕行動端觸控目標拉到 44px(`h-11 md:h-8`)並補 `aria-label`;其餘元件的觸控目標隨 Phase 2 改版處理。
 
 ### Phase 1|App Shell + 導覽(中,3–5 天)★ 投資報酬率最高
 - 建立 `(app)/(auth)/(public)` route groups 與 `AppShell`(頂列 + 桌機導覽 + 行動 BottomTabBar + safe-area)。
@@ -280,16 +283,20 @@ Toast 收斂成三種變體 `success | error | default`,在 [toast.tsx](../src/c
 
 ## 附錄:本次評估中定位到的具體修改點速查
 
-| 檔案 | 問題 |
-|---|---|
-| [src/components/layout/Navbar.tsx](../src/components/layout/Navbar.tsx) | 手機導覽藏漢堡選單;頂列擁擠;每頁重複掛載 |
-| [src/app/trips/[id]/page.tsx](../src/app/trips/%5Bid%5D/page.tsx) | 7 入口 hub;錯誤畫面硬編碼 "Error";user props 映射 |
-| [src/components/trips/detail/TripExpenses.tsx](../src/components/trips/detail/TripExpenses.tsx) | 544 行;主內容 Collapsible;NT$/Day N 硬編碼;內嵌第二套支出卡 |
-| [src/components/expenses/ExpenseCard.tsx](../src/components/expenses/ExpenseCard.tsx) | 死碼 + 硬編碼英文 |
-| [src/components/common/PageHeader.tsx](../src/components/common/PageHeader.tsx) | 已存在但全站未使用 |
-| [src/components/trips/detail/dialogs/ExpenseFormDialog.tsx](../src/components/trips/detail/dialogs/ExpenseFormDialog.tsx) | 701 行;行動端不適用置中 Dialog |
-| [src/app/settings/page.tsx](../src/app/settings/page.tsx) | 588 行單頁平鋪 |
-| [src/app/trips/page.tsx](../src/app/trips/page.tsx) | toast 硬編碼綠色 ×3;假 Card 版型 |
-| [src/app/globals.css](../src/app/globals.css) | shadcn 預設灰階,無品牌 token、無語意色 |
-| [src/app/manifest.ts](../src/app/manifest.ts) | 英文名稱、白色 theme_color、無 shortcuts/screenshots |
-| [src/app/layout.tsx](../src/app/layout.tsx) | 深色 theme-color 與背景 token 不一致;未建立 route group 殼 |
+狀態:✅ 已於 Phase 0 修復/🟡 部分修復/⚠️ 待後續 Phase。
+
+| 檔案 | 問題 | 狀態 |
+|---|---|---|
+| [src/components/layout/Navbar.tsx](../src/components/layout/Navbar.tsx) | 手機導覽藏漢堡選單;頂列擁擠;每頁重複掛載 | ⚠️ Phase 1 |
+| [src/app/trips/[id]/page.tsx](../src/app/trips/%5Bid%5D/page.tsx) | 7 入口 hub;錯誤畫面硬編碼 "Error";user props 映射 | 🟡 "Error" 已修;hub 與 user props 待 Phase 1/2 |
+| [src/components/trips/detail/TripExpenses.tsx](../src/components/trips/detail/TripExpenses.tsx) | 544 行;主內容 Collapsible;NT$/Day N 硬編碼;內嵌第二套支出卡 | 🟡 NT$/Day N/觸控目標已修;拆解與去 Collapsible 待 Phase 2 |
+| ~~src/components/expenses/ExpenseCard.tsx~~ | 死碼 + 硬編碼英文 | ✅ 已刪除(連同 ExpenseList/ExpenseForm) |
+| [src/components/common/PageHeader.tsx](../src/components/common/PageHeader.tsx) | 已存在但全站未使用 | ⚠️ Phase 1 導入 |
+| [src/components/trips/detail/dialogs/ExpenseFormDialog.tsx](../src/components/trips/detail/dialogs/ExpenseFormDialog.tsx) | 701 行;行動端不適用置中 Dialog | ⚠️ Phase 4 |
+| [src/app/settings/page.tsx](../src/app/settings/page.tsx) | 588 行單頁平鋪 | ⚠️ Phase 4 |
+| [src/app/trips/page.tsx](../src/app/trips/page.tsx) | toast 硬編碼綠色 ×3;假 Card 版型 | 🟡 toast 已修;版型待 Phase 2 |
+| [src/app/globals.css](../src/app/globals.css) | shadcn 預設灰階,無品牌 token、無語意色 | ⚠️ Phase 3 |
+| [src/app/manifest.ts](../src/app/manifest.ts) | 英文名稱、白色 theme_color、無 shortcuts/screenshots | 🟡 名稱/shortcuts 已修;screenshots 待補素材 |
+| [src/app/layout.tsx](../src/app/layout.tsx) | 深色 theme-color 與背景 token 不一致;未建立 route group 殼 | 🟡 theme-color 已修;route group 殼待 Phase 1 |
+
+> Phase 0 過程中的題外發現:[src/constants/routes.ts](../src/constants/routes.ts) 的 `PROTECTED_ROUTES` 全站無人引用,且內容已與 [src/proxy.ts](../src/proxy.ts) 實際使用的 `protectedRoutes` 漂移(前者含 `/map` 缺 `/stats`,後者相反)—— 死碼 + 雙重來源,已記入 [IMPROVEMENTS.md](./IMPROVEMENTS.md)。

@@ -1,6 +1,6 @@
 # 改善建議（Improvements）
 
-> 更新日期：2026-06-17
+> 更新日期：2026-07-02
 > 本文件已對照**實際程式碼**逐項驗證。架構說明見 [ARCHITECTURE.md](./ARCHITECTURE.md)。
 > 先前的 P0–P3（#1–#12，含 Supabase→MongoDB 遷移、`withAuth`、migration、env 驗證、proxy 路由保護、Public API hash_code 強化、React Query、頁面拆分、刪除確認 / Skeleton / i18n toast）皆已完成並合併，紀錄見 git 歷史。本文件只保留**尚未處理**與**新發現**的項目。
 
@@ -50,6 +50,10 @@
 **問題**：[next.config.ts](../next.config.ts) 與 [proxy.ts](../src/proxy.ts) 都未設置安全標頭（CSP、`X-Frame-Options` / frame-ancestors、`Referrer-Policy`、`X-Content-Type-Options` 等）。
 **修復（已完成）**：在 [next.config.ts](../next.config.ts) 的 `headers()` 對所有路由加上 `X-Content-Type-Options: nosniff`、`X-Frame-Options: DENY`、`Referrer-Policy: strict-origin-when-cross-origin`、`X-DNS-Prefetch-Control: on`，以及 `Content-Security-Policy: frame-ancestors 'none'`（防點擊劫持，與 `X-Frame-Options` 互補）；`Strict-Transport-Security`（HSTS，2 年 + includeSubDomains）只在 production 送出。**完整 CSP（`default-src`/`script-src`…）刻意未上**——需配合 Leaflet 圖磚、R2 圖片/PDF、next-themes 內嵌腳本與 Radix 內嵌樣式實測，列為後續；目前的 CSP 僅含 `frame-ancestors`，不限制其他資源故不會誤擋既有功能。
 
+### I. ⚠️ 路由保護清單雙重來源且已漂移
+**問題**：[src/constants/routes.ts](../src/constants/routes.ts) 匯出的 `PROTECTED_ROUTES = ['/trips', '/map', '/wrapped', '/settings']` **全站無人引用**；實際生效的是 [src/proxy.ts](../src/proxy.ts) 內自帶的 `protectedRoutes = ['/trips', '/settings', '/stats', '/wrapped']`。兩份清單已漂移（前者含 `/map` 缺 `/stats`，後者相反），死碼容易誤導後續開發（UI/UX 重構 Phase 0 時即因此誤判過一次）。
+**建議**：單一來源化——讓 `proxy.ts` 改 import `routes.ts` 的清單（純字串常數，middleware 可安全引用），並把內容修成與現行 proxy 行為一致；或直接刪除 `routes.ts` 中未使用的 `PROTECTED_ROUTES` / `AUTH_ROUTES`。順帶確認 `/map` 是否應納入保護（目前未登入可直開 `/map`，由頁面自行處理未登入狀態）。
+
 ---
 
 ## 建議優先序
@@ -58,7 +62,8 @@
 高（低成本、高效益）
   ├── C  CI workflow（lint/test/build 把關）  ✅
   ├── D  Public API 錯誤碼統一  ✅
-  └── H  安全標頭  ✅
+  ├── H  安全標頭  ✅
+  └── I  路由保護清單單一來源化
 
 中
   ├── B  actions/* 測試
