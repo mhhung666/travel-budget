@@ -22,7 +22,7 @@ const languages: Record<Locale, string> = {
   jp: '日本語',
 };
 
-export default function LanguageSwitcher() {
+export default function LanguageSwitcher({ showLabel = false }: { showLabel?: boolean }) {
   const locale = useLocale();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -40,15 +40,23 @@ export default function LanguageSwitcher() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          disabled={isPending}
-          className="text-muted-foreground hover:text-foreground"
-        >
-          <Globe className="h-5 w-5" />
-          <span className="sr-only">Change language</span>
-        </Button>
+        {showLabel ? (
+          // 設定頁使用：顯示目前語言名稱的外框按鈕（icon 版留給精簡頂列）。
+          <Button variant="outline" disabled={isPending} className="gap-2">
+            <Globe className="h-4 w-4" />
+            {languages[locale as Locale] ?? locale}
+          </Button>
+        ) : (
+          <Button
+            variant="ghost"
+            size="icon"
+            disabled={isPending}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <Globe className="h-5 w-5" />
+            <span className="sr-only">Change language</span>
+          </Button>
+        )}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         {(Object.entries(languages) as [Locale, string][]).map(([code, name]) => (

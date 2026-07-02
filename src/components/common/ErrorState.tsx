@@ -1,6 +1,7 @@
 'use client';
 
 import { RefreshCcw, ArrowLeft, AlertCircle } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
@@ -36,10 +37,13 @@ export function ErrorState({
   title,
   onRetry,
   onBack,
-  retryText = 'Retry',
-  backText = 'Go Back',
+  retryText,
+  backText,
   fullScreen = false,
 }: ErrorStateProps) {
+  const t = useTranslations('common');
+  retryText ??= t('retry');
+  backText ??= t('goBack');
   return (
     <div
       className={cn(

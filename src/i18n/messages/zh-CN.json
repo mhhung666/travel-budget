@@ -31,7 +31,8 @@
       "splitExceedsTotal": "分账总额超过支出金额",
       "splitNotFullyAllocated": "剩余金额未完全分配",
       "unknown": "发生未知错误"
-    }
+    },
+    "successTitle": "成功"
   },
   "nav": {
     "home": "旅行记账",
@@ -42,7 +43,9 @@
     "logout": "退出",
     "register": "注册",
     "map": "旅行地图",
-    "wrapped": "年度回顾"
+    "wrapped": "年度回顾",
+    "me": "我的",
+    "bottomNav": "主要导航"
   },
   "home": {
     "title": "旅行记账",
@@ -141,6 +144,14 @@
       "pushThisDevice": "当前设备",
       "pushRemoveDevice": "移除此设备",
       "unknownDevice": "未知设备"
+    },
+    "appearance": {
+      "title": "外观",
+      "theme": "主题",
+      "light": "浅色",
+      "dark": "深色",
+      "system": "系统",
+      "language": "语言"
     }
   },
   "location": {

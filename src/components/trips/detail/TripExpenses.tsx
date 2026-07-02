@@ -106,10 +106,7 @@ export default function TripExpenses({
   const dayNumberById = new Map(itineraryDays.map((d) => [d.id, d.day_number]));
 
   // 本 trip 內出現過的所有標籤（供標籤篩選下拉）。
-  const allTags = useMemo(
-    () => [...new Set(expenses.flatMap((e) => e.tags))].sort(),
-    [expenses]
-  );
+  const allTags = useMemo(() => [...new Set(expenses.flatMap((e) => e.tags))].sort(), [expenses]);
 
   const activeCount = countActiveFilters(filters);
   const filtered = useMemo(() => filterExpenses(expenses, filters), [expenses, filters]);

@@ -31,7 +31,8 @@
       "splitExceedsTotal": "割り勘の合計が支出額を超えています",
       "splitNotFullyAllocated": "残額が完全に割り当てられていません",
       "unknown": "不明なエラーが発生しました"
-    }
+    },
+    "successTitle": "成功"
   },
   "nav": {
     "home": "旅行家計簿",
@@ -42,7 +43,9 @@
     "logout": "ログアウト",
     "register": "新規登録",
     "map": "地図",
-    "wrapped": "年間まとめ"
+    "wrapped": "年間まとめ",
+    "me": "マイページ",
+    "bottomNav": "メインナビゲーション"
   },
   "home": {
     "title": "旅行家計簿",
@@ -141,6 +144,14 @@
       "pushThisDevice": "この端末",
       "pushRemoveDevice": "この端末を削除",
       "unknownDevice": "不明な端末"
+    },
+    "appearance": {
+      "title": "外観",
+      "theme": "テーマ",
+      "light": "ライト",
+      "dark": "ダーク",
+      "system": "システム",
+      "language": "言語"
     }
   },
   "location": {

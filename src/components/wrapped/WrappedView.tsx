@@ -117,7 +117,7 @@ export default function WrappedView() {
 
   if (isLoading && !data) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center pt-16">
+      <div className="flex min-h-[60vh] items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
@@ -126,7 +126,7 @@ export default function WrappedView() {
   // 完全沒有可回顧的年份（無任何旅行/支出）。
   if (availableYears.length === 0) {
     return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 px-4 pt-16 text-center text-muted-foreground">
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 px-4 text-center text-muted-foreground">
         <Sparkles className="h-10 w-10" />
         <p>{t('empty')}</p>
       </div>
@@ -134,7 +134,7 @@ export default function WrappedView() {
   }
 
   return (
-    <main className="container mx-auto max-w-2xl px-4 pt-24 pb-12 sm:pt-28">
+    <main className="container mx-auto max-w-2xl px-4 py-6 pb-12">
       {/* 年份切換 */}
       <div className="mb-5 flex flex-wrap items-center gap-1.5">
         {availableYears.map((y) => (
