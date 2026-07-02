@@ -12,10 +12,22 @@ import { cn } from '@/lib/utils';
 interface SettlementBalancesProps {
   balances: Balance[];
   avatarUrlById?: Record<string, string | null>;
+  /** 目前登入者的 userId；有值時「我」的卡片排最前並加標記（5.4 以我為中心）。 */
+  currentUserId?: string;
 }
 
-export default function SettlementBalances({ balances, avatarUrlById }: SettlementBalancesProps) {
+export default function SettlementBalances({
+  balances,
+  avatarUrlById,
+  currentUserId,
+}: SettlementBalancesProps) {
   const t = useTranslations('settlement');
+
+  const ordered = currentUserId
+    ? [...balances].sort(
+        (a, b) => Number(b.userId === currentUserId) - Number(a.userId === currentUserId)
+      )
+    : balances;
 
   return (
     <Card>
@@ -24,7 +36,7 @@ export default function SettlementBalances({ balances, avatarUrlById }: Settleme
       </CardHeader>
       <CardContent>
         <div className="flex flex-col gap-4">
-          {balances.map((balance) => (
+          {ordered.map((balance) => (
             <Card key={balance.userId} className="shadow-sm border-muted">
               <CardContent className="p-4">
                 <div className="flex justify-between items-start mb-2">
@@ -39,6 +51,11 @@ export default function SettlementBalances({ balances, avatarUrlById }: Settleme
                       </AvatarFallback>
                     </Avatar>
                     <span className="font-semibold text-base">{balance.username}</span>
+                    {balance.userId === currentUserId && (
+                      <Badge variant="secondary" className="px-1.5 py-0 text-[10px] font-medium">
+                        {t('you')}
+                      </Badge>
+                    )}
                   </div>
                   <Badge
                     variant="outline"

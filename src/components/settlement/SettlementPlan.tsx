@@ -128,7 +128,14 @@ export default function SettlementPlan({
                       </Avatar>
                       <div>
                         <p className="text-xs text-muted-foreground">{t('payer')}</p>
-                        <p className="font-semibold text-foreground">{transaction.from}</p>
+                        <p className="font-semibold text-foreground">
+                          {transaction.from}
+                          {currentUserName && transaction.from === currentUserName && (
+                            <span className="ml-1 text-xs font-normal text-muted-foreground">
+                              ({t('you')})
+                            </span>
+                          )}
+                        </p>
                       </div>
                     </div>
 
@@ -152,7 +159,14 @@ export default function SettlementPlan({
                     <div className="flex items-center gap-3 w-full sm:w-auto justify-center sm:justify-end">
                       <div className="text-right">
                         <p className="text-xs text-muted-foreground">{t('payee')}</p>
-                        <p className="font-semibold text-foreground">{transaction.to}</p>
+                        <p className="font-semibold text-foreground">
+                          {transaction.to}
+                          {currentUserName && transaction.to === currentUserName && (
+                            <span className="ml-1 text-xs font-normal text-muted-foreground">
+                              ({t('you')})
+                            </span>
+                          )}
+                        </p>
                       </div>
                       <Avatar className="h-10 w-10 border-2 border-success/30 bg-success/10">
                         <AvatarImage

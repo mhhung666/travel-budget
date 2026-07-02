@@ -238,7 +238,9 @@
     "tabActive": "进行中",
     "tabArchived": "已归档",
     "noActiveTrips": "没有进行中的旅行",
-    "noDateGroup": "未排定日期"
+    "noDateGroup": "未排定日期",
+    "ongoingBadge": "旅行中 · Day {day}",
+    "ongoingGroup": "正在旅行"
   },
   "expense": {
     "receipts": {
@@ -428,7 +430,11 @@
     "reminderSent": "已发送还款提醒",
     "remindFailedNoEmail": "对方未设置 Email 或已关闭 Email 通知，无法提醒",
     "remindFailedNotOwed": "对方目前没有欠你款项",
-    "remindFailed": "发送提醒失败，请稍后再试"
+    "remindFailed": "发送提醒失败，请稍后再试",
+    "you": "我",
+    "youReceive": "你应收",
+    "youPay": "你应付",
+    "youSettled": "你已结清"
   },
   "currency": {
     "TWD": "新台币",
@@ -714,7 +720,8 @@
       "sortByTime": "按时间排序",
       "addToDay": "新增活动 · 第 {dayNumber} 天",
       "addedToDay": "已新增活动到第 {dayNumber} 天"
-    }
+    },
+    "dayLabel": "第 {dayNumber} 天"
   },
   "export": {
     "label": "导出",
@@ -928,5 +935,10 @@
       "empty": "这一年没有可显示的旅行。",
       "cta": "制作我的年度回顾"
     }
+  },
+  "pwa": {
+    "updateTitle": "有新版本可用",
+    "updateDescription": "更新后即可使用最新功能与修正。",
+    "updateAction": "更新"
   }
 }

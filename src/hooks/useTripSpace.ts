@@ -5,7 +5,7 @@ import type { SetBudgetInput } from '@/lib/validation';
 import { computeBudgetProgress } from '@/lib/budget';
 import { useDialog } from '@/hooks/useDialog';
 import { useToast } from '@/hooks/use-toast';
-import type { ExpenseDialogData } from '@/components/trips/detail/dialogs';
+import type { ExpenseFormData } from '@/components/trips/detail/expense-form';
 import {
   useTrip,
   useExpenses,
@@ -58,7 +58,7 @@ export function useTripSpace(tripId: string) {
   // Offline-capable: fire-and-forget so the dialog closes immediately. The
   // optimistic insert (mutation onMutate) shows the row at once; when offline
   // the mutation pauses and replays on reconnect (ROADMAP #5 Phase 2).
-  const handleAddExpense = async (data: ExpenseDialogData) => {
+  const handleAddExpense = async (data: ExpenseFormData) => {
     const online = onlineManager.isOnline();
     expenseMutations.create.mutate(
       {

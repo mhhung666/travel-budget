@@ -2,7 +2,7 @@
 
 > 撰寫日期:2026-07-02(最後更新:2026-07-02)
 > 範圍:整個前端(頁面結構、導覽、元件系統、視覺設計、PWA 體驗)
-> 進度:**Phase 0–3 已完成**(2026-07-02);Phase 4 待動工
+> 進度:**Phase 0–4 全部完成**(2026-07-02)
 > 結論先講:功能面已經很完整,但前端是「功能逐一疊加」長出來的 —— 沒有共用的 App Shell、沒有品牌設計語言、行動端仍是「桌機版縮小」而非 PWA 原生體驗。建議以「**App Shell + 底部導覽 + 行程分頁化 + 設計 Token 化**」四件事為主軸重構,可分四個階段落地,不需要一次全部重寫。
 
 ---
@@ -277,9 +277,15 @@ Toast 收斂成三種變體 `success | error | default`,在 [toast.tsx](../src/c
 - ✅ 順手修:`PageHeader` 依 Phase 2 決議**刪除**(全站 0 使用);`TripSettlement.tsx` 死碼刪除(Phase 2 分頁化後無人引用);硬編碼英文 `Warning`/`Info`/`Redirecting to trip...`/`Error`(join 頁卡片標題)i18n 化(新增 `common.warningTitle`/`common.infoTitle`/`trips.quickJoin.redirecting` 四語);PaymentHistory 的 `NT$` 硬編碼改走 `formatCurrency`;頭像 fallback `text-white` 改 `text-primary-foreground`(深色亮 primary 下對比不足)。
 - 📝 遺留:`/trips` 假 Card 版型與封面卡升級(5.1)順延 Phase 4;manifest `screenshots` 仍待素材。
 
-### Phase 4|高頻流程重製(中大,4–6 天)
-- `ResponsiveFormSheet` + 新增支出表單重排(金額優先、三步完成)、701 行表單拆解。
-- 結算頁「以我為中心」重排;`/settings` 拆分;SW 更新提示。
+### Phase 4|高頻流程重製(中大,4–6 天)✅ 已完成(2026-07-02)
+- ✅ [ResponsiveFormSheet](../src/components/common/ResponsiveFormSheet.tsx):表單容器雙形態(md+ 置中 Dialog、行動端**全螢幕 Sheet 由下滑入**),header/捲動內容/sticky footer 三段式 —— 鍵盤彈出時 100dvh 收縮、送出鍵不再被蓋掉;搭配新 [useMediaQuery](../src/hooks/useMediaQuery.ts)。
+- ✅ 支出表單重排 + 701 行拆解:`ExpenseFormDialog.tsx` 刪除,拆為 [expense-form/](../src/components/trips/detail/expense-form/)(`useExpenseForm` 狀態邏輯 + `AmountField`/`CategoryPicker`/`SplitSection`/`AdvancedFields` + `ExpenseFormSheet` 組裝)。欄位按輸入頻率:**金額(大字、自動聚焦、`inputMode=decimal`)→ 描述 → 分類 → 送出**;付款人/日期/**分帳**/行程日/標籤/匯率/**收據**全部收進「進階」折疊(預設:今天、目前使用者付款、平分全員;折疊時顯示預設摘要列,分帳警告固定在折疊區外以免送出鍵被停用卻看不到原因)。**幣別刻意留在金額旁**而非入進階(5.3 原案)——旅途記外幣是核心場景,一鍵可及。順手修:表單「Day N」硬編碼改用 `itinerary.dayLabel`,並發現該 key 四語 catalog 皆缺(ExpenseListItem 既有引用實為 missing key)→ 一併補上。
+- ✅ 結算頁「以我為中心」(5.4):[SettlementSummary](../src/components/settlement/SettlementSummary.tsx) 改為「你應收/你應付/你已結清 🎉」hero(附我的已付/分攤;訪客唯讀檢視退回總支出版);每人統計「我」置頂 + 徽章;轉帳方案與我有關的排最前、名字標「(我)」。
+- ✅ `/settings` 拆分(5.5):588 行單頁改為**列表式選單**(頭像+名稱 → 個人資料/修改密碼/通知設定/外觀/年度回顧/登出),子頁 `/settings/{account,security,notifications,appearance}`(`PROTECTED_ROUTES` 同步新增;BottomTabBar/頂列以 startsWith 比對自動涵蓋);section 元件拆至 [components/settings/](../src/components/settings/),個資異動後 invalidate `useCurrentUser` 快取讓選單頁頭像/名稱即時同步。
+- ✅ SW 更新提示(§6):[sw.ts](../src/sw.ts) 改 `skipWaiting: false` + `SKIP_WAITING` message handler;[SwUpdateToast](../src/components/pwa/SwUpdateToast.tsx)(root layout 掛載)偵測 waiting SW → 常駐 toast「有新版本」→ 點「更新」→ `controllerchange` 後 reload。dev 環境 SW 停用自然 no-op。
+- ✅ `/trips` 版型(5.1,Phase 3 順延):假 Card 包裝移除,行程卡直接鋪頁面;行動端「建立行程」改 FAB(加入行程保留次要按鈕);**進行中行程置頂**為「正在旅行」分組、卡片加「旅行中 · Day N」徽章([lib/tripStatus](../src/lib/tripStatus.ts) 純函式 + 單元測試)。
+- ✅ 「記一筆」捷徑(Phase 0 遺留):manifest shortcut → `/quick-add`(server 端挑 進行中 → 最近未封存 行程,redirect `?add=expense`;[TripSpaceShell](../src/components/trips/space/TripSpaceShell.tsx) 讀參數開啟新增支出表單並剝掉參數)。
+- 📝 遺留:manifest `screenshots` 仍待素材;5.1 封面卡的「成員頭像堆疊/預算進度條」需要行程列表 API 附帶更多資料(違反本輪「不動 Server Actions/資料層」的風險控制),留待後續。
 
 > 風險控制:所有 Phase 都不動 Server Actions / 資料層 / route URL(深連結、通知 email 內的連結全部不受影響)。Phase 1、2 動到頁面骨架,建議搭配 `pnpm build && pnpm start` 實測 PWA(SW 在 dev 不啟用,見 CLAUDE.md)。
 
@@ -306,11 +312,11 @@ Toast 收斂成三種變體 `success | error | default`,在 [toast.tsx](../src/c
 | [src/components/trips/detail/TripExpenses.tsx](../src/components/trips/detail/TripExpenses.tsx) | 544 行;主內容 Collapsible;NT$/Day N 硬編碼;內嵌第二套支出卡 | ✅ Phase 2 重構完成(日期分組、卡片抽出為 [ExpenseListItem](../src/components/trips/detail/ExpenseListItem.tsx)、Collapsible 移除) |
 | ~~src/components/expenses/ExpenseCard.tsx~~ | 死碼 + 硬編碼英文 | ✅ 已刪除(連同 ExpenseList/ExpenseForm) |
 | ~~src/components/common/PageHeader.tsx~~ | 已存在但全站未使用 | ✅ Phase 3 已刪除(分頁殼與各頁頁首重排後確定無處可用);`ErrorState`/`LoadingState` 已於 Phase 1 全站導入,Phase 3 再加入通用 [EmptyState](../src/components/common/EmptyState.tsx) |
-| [src/components/trips/detail/dialogs/ExpenseFormDialog.tsx](../src/components/trips/detail/dialogs/ExpenseFormDialog.tsx) | 701 行;行動端不適用置中 Dialog | ⚠️ Phase 4 |
-| [src/app/settings/page.tsx](../src/app/settings/page.tsx) | 588 行單頁平鋪 | ⚠️ Phase 4 |
-| [src/app/(app)/trips/page.tsx](../src/app/%28app%29/trips/page.tsx) | toast 硬編碼綠色 ×3;假 Card 版型 | 🟡 toast 已修;版型與封面卡(5.1)順延 Phase 4 |
+| ~~src/components/trips/detail/dialogs/ExpenseFormDialog.tsx~~ | 701 行;行動端不適用置中 Dialog | ✅ Phase 4 拆解為 [expense-form/](../src/components/trips/detail/expense-form/) + [ResponsiveFormSheet](../src/components/common/ResponsiveFormSheet.tsx)(行動端全螢幕 Sheet) |
+| [src/app/(app)/settings/page.tsx](../src/app/%28app%29/settings/page.tsx) | 588 行單頁平鋪 | ✅ Phase 4 拆為列表選單 + 4 子頁([components/settings/](../src/components/settings/)) |
+| [src/app/(app)/trips/page.tsx](../src/app/%28app%29/trips/page.tsx) | toast 硬編碼綠色 ×3;假 Card 版型 | ✅ toast(Phase 0)、假 Card 移除 + 進行中置頂 + FAB(Phase 4);封面卡的頭像堆疊/預算進度需資料層支援,未做 |
 | [src/app/globals.css](../src/app/globals.css) | shadcn 預設灰階,無品牌 token、無語意色 | ✅ Phase 3:teal 品牌色 + success/warning/info 語意色 + 品牌漸層 token,ESLint 禁調色盤 class |
-| [src/app/manifest.ts](../src/app/manifest.ts) | 英文名稱、白色 theme_color、無 shortcuts/screenshots | 🟡 名稱/shortcuts 已修;screenshots 待補素材 |
+| [src/app/manifest.ts](../src/app/manifest.ts) | 英文名稱、白色 theme_color、無 shortcuts/screenshots | 🟡 名稱/shortcuts 已修,「記一筆」quick-add 捷徑已補(Phase 4);screenshots 待補素材 |
 | [src/app/layout.tsx](../src/app/layout.tsx) | 深色 theme-color 與背景 token 不一致;未建立 route group 殼 | ✅ theme-color(Phase 0)、route group 殼 + viewport-fit=cover(Phase 1)已完成 |
 
 > Phase 0 過程中的題外發現:[src/constants/routes.ts](../src/constants/routes.ts) 的 `PROTECTED_ROUTES` 全站無人引用,且內容已與 [src/proxy.ts](../src/proxy.ts) 實際使用的 `protectedRoutes` 漂移(前者含 `/map` 缺 `/stats`,後者相反)—— 死碼 + 雙重來源,已記入 [IMPROVEMENTS.md](./IMPROVEMENTS.md)。

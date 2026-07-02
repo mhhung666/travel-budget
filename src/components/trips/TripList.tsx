@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import type { TripWithMembers } from '@/types';
+import { ongoingDayNumber } from '@/lib/tripStatus';
 import TripCard from './TripCard';
 
 interface TripListProps {
@@ -18,9 +19,23 @@ export default function TripList({ trips, onCopyCode, onToggleArchive }: TripLis
 
   // 依年份分組（年份取自 start_date）。trips 已按 start_date 新到舊排序、無日期者墊底，
   // 故順序掃描即可得到 2026 → 2025 → … → 未排定 的分組。
+  // 進行中的行程（今天落在日期區間內，5.1）抽出置頂為獨立分組。
   const groups = useMemo(() => {
-    const result: { key: string; label: string; trips: TripWithMembers[] }[] = [];
+    const ongoing: TripWithMembers[] = [];
+    const rest: TripWithMembers[] = [];
     for (const trip of trips) {
+      if (trip.archived_at == null && ongoingDayNumber(trip.start_date, trip.end_date) !== null) {
+        ongoing.push(trip);
+      } else {
+        rest.push(trip);
+      }
+    }
+
+    const result: { key: string; label: string; trips: TripWithMembers[] }[] = [];
+    if (ongoing.length > 0) {
+      result.push({ key: 'ongoing', label: t('ongoingGroup'), trips: ongoing });
+    }
+    for (const trip of rest) {
       const year = trip.start_date ? new Date(trip.start_date).getFullYear() : null;
       const key = year === null ? 'no-date' : String(year);
       const last = result[result.length - 1];

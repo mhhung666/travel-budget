@@ -7,7 +7,8 @@ import { TripHeader, TripExpenses } from '@/components/trips/detail';
 import { useTripSpaceActions } from '@/components/trips/space/TripSpaceContext';
 
 // Dialogs（新增支出與預算已上移到行程空間殼）
-import { ExpenseFormDialog, EditTripDialog } from '@/components/trips/detail/dialogs';
+import { EditTripDialog } from '@/components/trips/detail/dialogs';
+import { ExpenseFormSheet } from '@/components/trips/detail/expense-form';
 
 import { useTripDetailPage } from '@/hooks/useTripDetailPage';
 
@@ -93,7 +94,7 @@ export default function TripDetailPage() {
       />
 
       {/* Dialogs */}
-      <ExpenseFormDialog
+      <ExpenseFormSheet
         mode="edit"
         tripId={tripId}
         open={editExpenseDialog.open}

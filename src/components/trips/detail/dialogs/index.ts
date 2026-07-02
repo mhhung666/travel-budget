@@ -3,8 +3,6 @@ export { default as BudgetDialog } from './BudgetDialog';
 export { default as DeleteTripDialog } from './DeleteTripDialog';
 export { default as EditTripDialog } from './EditTripDialog';
 export type { EditTripFormData } from './EditTripDialog';
-export { default as ExpenseFormDialog } from './ExpenseFormDialog';
-export type { ExpenseDialogData } from './ExpenseFormDialog';
 export { default as LinkExistingMemberDialog } from './LinkExistingMemberDialog';
 export { default as RegenerateShareCodeDialog } from './RegenerateShareCodeDialog';
 export { default as RegisterVirtualMemberDialog } from './RegisterVirtualMemberDialog';

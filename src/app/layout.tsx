@@ -8,6 +8,7 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { QueryProvider } from '@/components/providers/QueryProvider';
 import { Toaster } from '@/components/ui/toaster';
 import { OfflineBanner } from '@/components/OfflineBanner';
+import { SwUpdateToast } from '@/components/pwa/SwUpdateToast';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
@@ -58,6 +59,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               disableTransitionOnChange
             >
               <OfflineBanner />
+              <SwUpdateToast />
               {children}
               <Toaster />
             </ThemeProvider>

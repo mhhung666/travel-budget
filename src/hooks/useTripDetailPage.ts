@@ -5,7 +5,8 @@ import type { Expense } from '@/types';
 import { EMPTY_EXPENSE_FILTERS, type ExpenseFilters } from '@/lib/expenseFilters';
 import { useDialog } from '@/hooks/useDialog';
 import { useToast } from '@/hooks/use-toast';
-import type { ExpenseDialogData, EditTripFormData } from '@/components/trips/detail/dialogs';
+import type { EditTripFormData } from '@/components/trips/detail/dialogs';
+import type { ExpenseFormData } from '@/components/trips/detail/expense-form';
 import {
   useTrip,
   useExpenses,
@@ -68,7 +69,7 @@ export function useTripDetailPage(tripId: string) {
 
   // --- Handlers ---
   // Edit/delete stay online-only — guard so they don't hang while paused offline.
-  const handleEditExpense = async (data: ExpenseDialogData) => {
+  const handleEditExpense = async (data: ExpenseFormData) => {
     const editingExpense = editExpenseDialog.data;
     if (!editingExpense) return;
 

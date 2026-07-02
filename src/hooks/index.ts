@@ -10,6 +10,8 @@ export type { SnackbarSeverity, SnackbarState, UseSnackbarReturn } from './useSn
 export { useDialog, useConfirmDialog } from './useDialog';
 export type { UseDialogReturn } from './useDialog';
 
+export { useMediaQuery } from './useMediaQuery';
+
 // Async Operations
 export { useAsyncAction, useMutation } from './useAsyncAction';
 export type { UseAsyncActionState, UseAsyncActionReturn } from './useAsyncAction';

@@ -9,3 +9,6 @@ export type { ErrorStateProps } from './ErrorState';
 
 export { EmptyState } from './EmptyState';
 export type { EmptyStateProps } from './EmptyState';
+
+export { ResponsiveFormSheet } from './ResponsiveFormSheet';
+export type { ResponsiveFormSheetProps } from './ResponsiveFormSheet';

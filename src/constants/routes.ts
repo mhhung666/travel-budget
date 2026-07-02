@@ -24,6 +24,13 @@ export const ROUTES = {
   TRIP_ACTIVITY: (id: string | number) => `/trips/${id}/activity`,
   TRIP_SETTINGS: (id: string | number) => `/trips/${id}/settings`,
   SETTINGS: '/settings',
+  // 「我的」子頁（settings 由單頁拆成列表選單＋子頁，UI/UX 重設計 5.5）
+  SETTINGS_ACCOUNT: '/settings/account',
+  SETTINGS_SECURITY: '/settings/security',
+  SETTINGS_NOTIFICATIONS: '/settings/notifications',
+  SETTINGS_APPEARANCE: '/settings/appearance',
+  // PWA「記一筆」捷徑：導向最近行程並開啟新增支出（manifest shortcut 用）
+  QUICK_ADD: '/quick-add',
 
   // Join route
   JOIN: (hashCode: string) => `/join/${hashCode}`,
@@ -60,7 +67,17 @@ export const ROUTES = {
  * （'/map' vs '/map/share' 同理）。'/map' 本頁刻意不列入——未登入可直開，由頁面自行處理未登入狀態。
  * 此清單為單一來源，由 proxy.ts 直接引用。
  */
-export const PROTECTED_ROUTES = ['/trips', '/settings', '/stats', '/wrapped'];
+export const PROTECTED_ROUTES = [
+  '/trips',
+  '/settings',
+  '/settings/account',
+  '/settings/security',
+  '/settings/notifications',
+  '/settings/appearance',
+  '/stats',
+  '/wrapped',
+  '/quick-add',
+];
 
 /**
  * 已登入用戶不應訪問的路由（如登入頁）→ 導向 /trips。proxy.ts 引用。

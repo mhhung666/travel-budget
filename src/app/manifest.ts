@@ -17,6 +17,12 @@ export default function manifest(): MetadataRoute.Manifest {
     // 長按 App 圖示的快速捷徑(Android / 部分桌面平台)。
     shortcuts: [
       {
+        // 記帳 PWA 最有價值的捷徑：直達最近行程的新增支出(Phase 4)。
+        name: '記一筆',
+        url: ROUTES.QUICK_ADD,
+        icons: [{ src: '/icon-192.png', sizes: '192x192', type: 'image/png' }],
+      },
+      {
         name: '我的行程',
         url: ROUTES.TRIPS,
         icons: [{ src: '/icon-192.png', sizes: '192x192', type: 'image/png' }],

@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { ongoingDayNumber } from '@/lib/tripStatus';
 import TripRoute from './TripRoute';
 
 export interface TripCardProps {
@@ -21,6 +22,8 @@ export default function TripCard({ trip, onClick, onCopyCode, onToggleArchive }:
   const t = useTranslations('trips');
   const locale = useLocale();
   const isArchived = trip.archived_at != null;
+  // 進行中標記（5.1）：今天落在行程日期區間內時顯示「旅行中 · Day N」。
+  const ongoingDay = isArchived ? null : ongoingDayNumber(trip.start_date, trip.end_date);
 
   const handleCopyClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -54,6 +57,11 @@ export default function TripCard({ trip, onClick, onCopyCode, onToggleArchive }:
       )}
 
       <CardContent className="p-6 flex flex-col h-full items-start text-left">
+        {ongoingDay !== null && (
+          <Badge className="mb-2 bg-primary text-primary-foreground hover:bg-primary">
+            {t('ongoingBadge', { day: ongoingDay })}
+          </Badge>
+        )}
         <h3 className="text-lg font-semibold mb-2 text-foreground line-clamp-1 pr-8">
           {trip.name}
         </h3>

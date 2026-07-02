@@ -68,7 +68,10 @@ const runtimeCaching: RuntimeCaching[] = [
 
 const serwist = new Serwist({
   precacheEntries: self.__SW_MANIFEST,
-  skipWaiting: true,
+  // 更新流程改為使用者主導（UI/UX 重設計 Phase 4）：新 SW 安裝後停在 waiting，
+  // 由 SwUpdateToast 顯示「有新版本」並在點擊時送 SKIP_WAITING（見下方 message
+  // handler）→ controllerchange 後 reload。避免舊分頁在使用中被新資產默默接管。
+  skipWaiting: false,
   clientsClaim: true,
   navigationPreload: true,
   runtimeCaching,
@@ -83,6 +86,13 @@ const serwist = new Serwist({
 });
 
 serwist.addEventListeners();
+
+// 使用者在更新提示（SwUpdateToast）按下「更新」→ 讓 waiting 的新 SW 立即接管。
+self.addEventListener('message', (event) => {
+  if ((event.data as { type?: string } | undefined)?.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
 
 // --- Web Push (ROADMAP #9 Phase 3) -----------------------------------------
 // Payload shape produced by src/lib/webpush.ts `buildPushPayload`.

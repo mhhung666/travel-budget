@@ -63,6 +63,20 @@ export default function SettlementPage() {
     () => balances.map((b) => ({ id: b.userId, name: b.username })),
     [balances]
   );
+
+  // 以我為中心（5.4）：頁首摘要講「我」的應收應付；與我有關的轉帳排最前。
+  const myBalance = useMemo(
+    () => (currentUser ? (balances.find((b) => b.userId === currentUser.id) ?? null) : null),
+    [balances, currentUser]
+  );
+  const orderedTransactions = useMemo(() => {
+    const myName = currentUser?.display_name;
+    if (!myName) return transactions;
+    return [...transactions].sort(
+      (a, b) =>
+        Number(b.from === myName || b.to === myName) - Number(a.from === myName || a.to === myName)
+    );
+  }, [transactions, currentUser?.display_name]);
   const nameToId = useMemo(() => {
     const map = new Map<string, string>();
     for (const b of balances) map.set(b.username, b.userId);
@@ -176,16 +190,20 @@ export default function SettlementPage() {
         />
       </div>
 
-      {/* 總支出 */}
-      <SettlementSummary totalExpenses={totalExpenses} />
+      {/* 摘要：先講「我」的應收應付，總支出次之（訪客檢視退回總支出） */}
+      <SettlementSummary totalExpenses={totalExpenses} myBalance={myBalance} />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* 每人統計 */}
-        <SettlementBalances balances={balances} avatarUrlById={avatarById} />
+        {/* 每人統計（我排最前） */}
+        <SettlementBalances
+          balances={balances}
+          avatarUrlById={avatarById}
+          currentUserId={currentUser?.id}
+        />
 
-        {/* 結算方案 */}
+        {/* 結算方案（與我有關的轉帳排最前） */}
         <SettlementPlan
-          transactions={transactions}
+          transactions={orderedTransactions}
           exchangeRates={exchangeRates}
           loadingRates={loadingRates}
           onMarkPaid={isMember ? handleMarkPaid : undefined}

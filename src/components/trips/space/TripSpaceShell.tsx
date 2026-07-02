@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { ArrowLeft, History, MoreHorizontal, Plus, Settings, Wallet } from 'lucide-react';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
@@ -18,7 +18,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
-import { ExpenseFormDialog, BudgetDialog } from '@/components/trips/detail/dialogs';
+import { BudgetDialog } from '@/components/trips/detail/dialogs';
+import { ExpenseFormSheet } from '@/components/trips/detail/expense-form';
 import { TripSpaceProvider } from './TripSpaceContext';
 
 /**
@@ -83,6 +84,20 @@ export function TripSpaceShell({
     () => ({ openAddExpense: () => openAddExpense() }),
     [openAddExpense]
   );
+
+  // PWA「記一筆」捷徑（/quick-add → /trips/[id]?add=expense）：成員身分確認後
+  // 直接開新增支出，並把參數自網址剝掉避免重整/分享時重複觸發。
+  // 用 window.location 而非 useSearchParams，免去 Suspense 邊界需求。
+  const isMemberReady = isMember;
+  useEffect(() => {
+    if (!isMemberReady) return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('add') === 'expense') {
+      url.searchParams.delete('add');
+      window.history.replaceState(null, '', url);
+      openAddExpense();
+    }
+  }, [isMemberReady, openAddExpense]);
 
   const { total, totalSpent } = budgetProgress;
   const overBudget = total !== null && totalSpent > total;
@@ -243,7 +258,7 @@ export function TripSpaceShell({
         )}
 
         {/* 空間層級 Dialogs：新增支出（FAB／工具列共用）、預算 */}
-        <ExpenseFormDialog
+        <ExpenseFormSheet
           mode="add"
           tripId={tripId}
           open={addExpenseDialog.open}

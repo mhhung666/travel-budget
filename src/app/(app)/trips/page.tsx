@@ -12,7 +12,6 @@ import EmptyTripsState from '@/components/trips/EmptyTripsState';
 import { TripsPageSkeleton } from '@/components/skeletons';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import type { TripWithMembers } from '@/types';
@@ -77,65 +76,68 @@ export default function TripsPage() {
 
   return (
     <div className="container mx-auto max-w-6xl px-4 py-6">
-      <Card className="border-none shadow-none bg-transparent sm:bg-card sm:border sm:shadow-sm">
-        <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 px-0 sm:px-6">
-          <CardTitle className="text-2xl font-bold">{t('list')}</CardTitle>
-          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-            <Button onClick={() => setShowJoinModal(true)} variant="outline" className="gap-2">
-              <UserPlus size={16} />
-              {t('joinTrip')}
-            </Button>
-            <Button onClick={() => setShowCreateModal(true)} className="gap-2">
-              <Plus size={16} />
-              {t('createTrip')}
-            </Button>
-          </div>
-        </CardHeader>
+      {/* 5.1：假 Card 版型移除，行程卡直接鋪在頁面上 */}
+      <div className="mb-6 flex items-center justify-between gap-4">
+        <h1 className="text-2xl font-bold">{t('list')}</h1>
+        <div className="flex gap-2">
+          <Button onClick={() => setShowJoinModal(true)} variant="outline" className="gap-2">
+            <UserPlus size={16} />
+            {t('joinTrip')}
+          </Button>
+          {/* 行動端「建立行程」由 FAB 承擔（見下） */}
+          <Button onClick={() => setShowCreateModal(true)} className="gap-2 max-md:hidden">
+            <Plus size={16} />
+            {t('createTrip')}
+          </Button>
+        </div>
+      </div>
 
-        <CardContent className="px-0 sm:px-6">
-          {trips.length === 0 ? (
-            <EmptyTripsState />
-          ) : archivedTrips.length === 0 ? (
-            // 沒有任何封存時維持單一列表，不顯示分頁籤
+      {trips.length === 0 ? (
+        <EmptyTripsState />
+      ) : archivedTrips.length === 0 ? (
+        // 沒有任何封存時維持單一列表，不顯示分頁籤
+        <TripList trips={activeTrips} onCopyCode={copyHashCode} onToggleArchive={toggleArchive} />
+      ) : (
+        <Tabs defaultValue="active">
+          <TabsList className="mb-6">
+            <TabsTrigger value="active">
+              {t('tabActive')} ({activeTrips.length})
+            </TabsTrigger>
+            <TabsTrigger value="archived">
+              {t('tabArchived')} ({archivedTrips.length})
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="active">
+            {activeTrips.length === 0 ? (
+              <p className="text-center text-muted-foreground py-12">{t('noActiveTrips')}</p>
+            ) : (
+              <TripList
+                trips={activeTrips}
+                onCopyCode={copyHashCode}
+                onToggleArchive={toggleArchive}
+              />
+            )}
+          </TabsContent>
+
+          <TabsContent value="archived">
             <TripList
-              trips={activeTrips}
+              trips={archivedTrips}
               onCopyCode={copyHashCode}
               onToggleArchive={toggleArchive}
             />
-          ) : (
-            <Tabs defaultValue="active">
-              <TabsList className="mb-6">
-                <TabsTrigger value="active">
-                  {t('tabActive')} ({activeTrips.length})
-                </TabsTrigger>
-                <TabsTrigger value="archived">
-                  {t('tabArchived')} ({archivedTrips.length})
-                </TabsTrigger>
-              </TabsList>
+          </TabsContent>
+        </Tabs>
+      )}
 
-              <TabsContent value="active">
-                {activeTrips.length === 0 ? (
-                  <p className="text-center text-muted-foreground py-12">{t('noActiveTrips')}</p>
-                ) : (
-                  <TripList
-                    trips={activeTrips}
-                    onCopyCode={copyHashCode}
-                    onToggleArchive={toggleArchive}
-                  />
-                )}
-              </TabsContent>
-
-              <TabsContent value="archived">
-                <TripList
-                  trips={archivedTrips}
-                  onCopyCode={copyHashCode}
-                  onToggleArchive={toggleArchive}
-                />
-              </TabsContent>
-            </Tabs>
-          )}
-        </CardContent>
-      </Card>
+      {/* FAB：建立行程（行動端；桌機用頁首按鈕） */}
+      <Button
+        onClick={() => setShowCreateModal(true)}
+        aria-label={t('createTrip')}
+        className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-4 z-40 h-14 w-14 rounded-full shadow-lg md:hidden [&_svg]:size-6"
+      >
+        <Plus />
+      </Button>
 
       {/* Create Trip Dialog */}
       <CreateTripDialog

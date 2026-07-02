@@ -238,7 +238,9 @@
     "tabActive": "進行中",
     "tabArchived": "アーカイブ済み",
     "noActiveTrips": "進行中の旅行はありません",
-    "noDateGroup": "日付未定"
+    "noDateGroup": "日付未定",
+    "ongoingBadge": "旅行中 · {day}日目",
+    "ongoingGroup": "旅行中"
   },
   "expense": {
     "receipts": {
@@ -428,7 +430,11 @@
     "reminderSent": "返済リマインドを送信しました",
     "remindFailedNoEmail": "相手はメール未設定、またはメール通知をオフにしています",
     "remindFailedNotOwed": "相手は現在あなたへの借りがありません",
-    "remindFailed": "リマインドの送信に失敗しました。後でもう一度お試しください"
+    "remindFailed": "リマインドの送信に失敗しました。後でもう一度お試しください",
+    "you": "自分",
+    "youReceive": "受け取る金額",
+    "youPay": "支払う金額",
+    "youSettled": "精算済みです"
   },
   "currency": {
     "TWD": "台湾ドル",
@@ -714,7 +720,8 @@
       "sortByTime": "時間順に並べ替え",
       "addToDay": "活動を追加 · {dayNumber}日目",
       "addedToDay": "{dayNumber}日目に活動を追加しました"
-    }
+    },
+    "dayLabel": "{dayNumber}日目"
   },
   "export": {
     "label": "エクスポート",
@@ -928,5 +935,10 @@
       "empty": "今年は表示できる旅行がありません。",
       "cta": "自分のまとめを作る"
     }
+  },
+  "pwa": {
+    "updateTitle": "新しいバージョンがあります",
+    "updateDescription": "更新すると最新の機能と修正が利用できます。",
+    "updateAction": "更新"
   }
 }

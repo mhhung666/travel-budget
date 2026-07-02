@@ -238,7 +238,9 @@
     "tabActive": "Active",
     "tabArchived": "Archived",
     "noActiveTrips": "No active trips",
-    "noDateGroup": "No date"
+    "noDateGroup": "No date",
+    "ongoingBadge": "On trip · Day {day}",
+    "ongoingGroup": "Traveling now"
   },
   "auth": {
     "login": {
@@ -477,7 +479,11 @@
     "reminderSent": "Payment reminder sent",
     "remindFailedNoEmail": "They have no email set or have turned off email notifications",
     "remindFailedNotOwed": "They don't currently owe you anything",
-    "remindFailed": "Failed to send reminder, please try again later"
+    "remindFailed": "Failed to send reminder, please try again later",
+    "you": "You",
+    "youReceive": "You are owed",
+    "youPay": "You owe",
+    "youSettled": "You're all settled"
   },
   "currency": {
     "TWD": "TWD",
@@ -714,7 +720,8 @@
       "sortByTime": "Sort by time",
       "addToDay": "Add activity · Day {dayNumber}",
       "addedToDay": "Activity added to Day {dayNumber}"
-    }
+    },
+    "dayLabel": "Day {dayNumber}"
   },
   "export": {
     "label": "Export",
@@ -928,5 +935,10 @@
       "empty": "No trips to show for this year.",
       "cta": "Make my own"
     }
+  },
+  "pwa": {
+    "updateTitle": "Update available",
+    "updateDescription": "Reload to get the latest features and fixes.",
+    "updateAction": "Update"
   }
 }
