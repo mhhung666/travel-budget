@@ -208,6 +208,9 @@
       "joining": "Joining...",
       "joinThisTrip": "Join this trip",
       "joinHint": "After joining, you can view and add expense records",
+      "loginHint": "Joining requires an account — you'll come back here after logging in",
+      "loginToJoin": "Log in to join",
+      "viewAsGuest": "View as guest",
       "redirecting": "Redirecting to trip…"
     },
     "detail": {

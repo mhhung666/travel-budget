@@ -20,7 +20,6 @@ export type { AuthUser, AuthUserWithCreatedAt } from './auth.actions';
 export {
   getTrips,
   getTrip,
-  getTripPreview,
   createTrip,
   updateTrip,
   deleteTrip,

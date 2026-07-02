@@ -1,66 +1,50 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from '@/i18n/navigation';
-import { UserPlus, Info, Users, Loader2, ArrowLeft } from 'lucide-react';
+import { UserPlus, Info, Users, Loader2, ArrowLeft, LogIn, Eye } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import type { TripWithMembers } from '@/types';
-import { getCurrentUser, getTripPreview, joinTrip } from '@/actions';
+import { joinTrip } from '@/actions';
+import { tripKeys, useCurrentUser, useTrip, useMembers } from '@/hooks/queries';
+import { ROUTES } from '@/constants/routes';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 
+/**
+ * 加入行程頁。未登入也能看到行程預覽（useTrip/useMembers 內建公開 API 回退），
+ * 「加入」需要帳號 → 導向首頁登入表單並帶 ?redirect= 回到本頁；
+ * 也可選擇以訪客身分唯讀檢視（/trips/[hash_code] 本就支援未登入）。
+ */
 export default function QuickJoinPage() {
   const router = useRouter();
   const params = useParams();
+  const queryClient = useQueryClient();
   const hashCode = params.hashCode as string;
   const t = useTranslations('trips');
-  const tError = useTranslations('error');
   const tCommon = useTranslations('common');
 
-  const [trip, setTrip] = useState<TripWithMembers | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: currentUser, isLoading: userLoading } = useCurrentUser();
+  const { data: trip, isLoading: tripLoading, error: tripError } = useTrip(hashCode);
+  const { data: members = [], isLoading: membersLoading } = useMembers(hashCode);
+
   const [error, setError] = useState('');
   const [isJoining, setIsJoining] = useState(false);
-  const [alreadyMember, setAlreadyMember] = useState(false);
 
-  const checkAuthAndLoadTrip = useCallback(async () => {
-    try {
-      const authResult = await getCurrentUser();
-      if (!authResult.success || !authResult.data) {
-        // Redirect to login if not authenticated
-        router.push(`/login?redirect=/join/${hashCode}`);
-        return;
-      }
+  const loading = userLoading || tripLoading || membersLoading;
+  const isLoggedIn = !!currentUser;
+  const alreadyMember = isLoggedIn && members.some((m) => m.id === currentUser.id);
 
-      const tripResult = await getTripPreview(hashCode);
-      if (!tripResult.success) {
-        if (tripResult.code === 'NOT_FOUND') {
-          setError(t('quickJoin.notFound'));
-        } else {
-          setError(t('quickJoin.loadError'));
-        }
-      } else if (tripResult.data.isMember) {
-        // Already a member, redirect
-        setAlreadyMember(true);
-        setTimeout(() => router.push(`/trips/${tripResult.data.id}`), 2000);
-      } else {
-        setTrip(tripResult.data);
-      }
-    } catch {
-      setError(tError('loadFailed'));
-    } finally {
-      setLoading(false);
-    }
-  }, [hashCode, router, t, tError]);
-
+  // 已是成員 → 短暫提示後導向行程頁
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- 掛載時載入行程資料，為刻意的初始化副作用
-    checkAuthAndLoadTrip();
-  }, [checkAuthAndLoadTrip]);
+    if (!alreadyMember || !trip) return;
+    const timer = setTimeout(() => router.push(ROUTES.TRIP_DETAIL(trip.id)), 2000);
+    return () => clearTimeout(timer);
+  }, [alreadyMember, trip, router]);
 
   const handleJoin = async () => {
     if (!trip) return;
@@ -74,11 +58,17 @@ export default function QuickJoinPage() {
         throw new Error(result.error);
       }
 
-      router.push(`/trips/${trip.id}`);
+      // 讓以 hash_code 為鍵的公開快取（成員/行程）失效，避免加入後仍顯示訪客資料
+      await queryClient.invalidateQueries({ queryKey: tripKeys.all(hashCode) });
+      router.push(ROUTES.TRIP_DETAIL(trip.id));
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
       setIsJoining(false);
     }
+  };
+
+  const handleLoginToJoin = () => {
+    router.push(`/?redirect=${encodeURIComponent(ROUTES.JOIN(hashCode))}`);
   };
 
   if (loading) {
@@ -111,7 +101,10 @@ export default function QuickJoinPage() {
   }
 
   // Error view (Trip not found or other errors)
-  if (!trip && error) {
+  if (!trip) {
+    const message = tripError?.message.includes('404')
+      ? t('quickJoin.notFound')
+      : t('quickJoin.loadError');
     return (
       <div className="flex min-h-[60vh] flex-col">
         <div className="flex-1 flex items-center justify-center p-4">
@@ -124,7 +117,7 @@ export default function QuickJoinPage() {
             </CardHeader>
             <CardContent className="space-y-6">
               <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
+                <AlertDescription>{message}</AlertDescription>
               </Alert>
               <Button variant="outline" className="w-full" onClick={() => router.push('/trips')}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
@@ -147,67 +140,87 @@ export default function QuickJoinPage() {
               <UserPlus className="h-10 w-10 text-primary" />
             </div>
             <CardTitle className="text-2xl">{t('join.title')}</CardTitle>
-            <CardDescription>{t('quickJoin.joinHint')}</CardDescription>
+            <CardDescription>
+              {isLoggedIn ? t('quickJoin.joinHint') : t('quickJoin.loginHint')}
+            </CardDescription>
           </CardHeader>
 
           <CardContent className="space-y-6 pt-4">
-            {trip && (
-              <>
-                <div className="bg-muted/30 rounded-lg p-6 border border-border space-y-4">
-                  <div>
-                    <h3 className="text-lg font-semibold text-foreground mb-1">{trip.name}</h3>
-                    {trip.description && (
-                      <p className="text-muted-foreground text-sm">{trip.description}</p>
-                    )}
-                  </div>
-
-                  <div className="flex flex-wrap gap-2">
-                    <Badge variant="outline" className="gap-1 px-2 py-1">
-                      <Users className="h-3 w-3" />
-                      {trip.member_count || 0} {t('members')}
-                    </Badge>
-                    <Badge variant="secondary" className="gap-1 px-2 py-1 font-mono">
-                      #{trip.hash_code}
-                    </Badge>
-                  </div>
-                </div>
-
-                {error && (
-                  <Alert variant="destructive">
-                    <AlertTitle>{tCommon('errorTitle')}</AlertTitle>
-                    <AlertDescription>{error}</AlertDescription>
-                  </Alert>
+            <div className="bg-muted/30 rounded-lg p-6 border border-border space-y-4">
+              <div>
+                <h3 className="text-lg font-semibold text-foreground mb-1">{trip.name}</h3>
+                {trip.description && (
+                  <p className="text-muted-foreground text-sm">{trip.description}</p>
                 )}
+              </div>
 
-                <div className="space-y-3">
-                  <Button
-                    size="lg"
-                    className="w-full font-semibold text-lg h-12"
-                    onClick={handleJoin}
-                    disabled={isJoining}
-                  >
-                    {isJoining ? (
-                      <>
-                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                        {t('quickJoin.joining')}
-                      </>
-                    ) : (
-                      <>
-                        <UserPlus className="mr-2 h-5 w-5" />
-                        {t('quickJoin.joinThisTrip')}
-                      </>
-                    )}
-                  </Button>
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="outline" className="gap-1 px-2 py-1">
+                  <Users className="h-3 w-3" />
+                  {members.length} {t('members')}
+                </Badge>
+                <Badge variant="secondary" className="gap-1 px-2 py-1 font-mono">
+                  #{trip.hash_code}
+                </Badge>
+              </div>
+            </div>
 
-                  <Button
-                    variant="ghost"
-                    className="w-full text-muted-foreground"
-                    onClick={() => router.push('/trips')}
-                  >
-                    {t('detail.backToTrips')}
-                  </Button>
-                </div>
-              </>
+            {error && (
+              <Alert variant="destructive">
+                <AlertTitle>{tCommon('errorTitle')}</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            {isLoggedIn ? (
+              <div className="space-y-3">
+                <Button
+                  size="lg"
+                  className="w-full font-semibold text-lg h-12"
+                  onClick={handleJoin}
+                  disabled={isJoining}
+                >
+                  {isJoining ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      {t('quickJoin.joining')}
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus className="mr-2 h-5 w-5" />
+                      {t('quickJoin.joinThisTrip')}
+                    </>
+                  )}
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  className="w-full text-muted-foreground"
+                  onClick={() => router.push('/trips')}
+                >
+                  {t('detail.backToTrips')}
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <Button
+                  size="lg"
+                  className="w-full font-semibold text-lg h-12"
+                  onClick={handleLoginToJoin}
+                >
+                  <LogIn className="mr-2 h-5 w-5" />
+                  {t('quickJoin.loginToJoin')}
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  className="w-full text-muted-foreground"
+                  onClick={() => router.push(ROUTES.TRIP_DETAIL(hashCode))}
+                >
+                  <Eye className="mr-2 h-4 w-4" />
+                  {t('quickJoin.viewAsGuest')}
+                </Button>
+              </div>
             )}
           </CardContent>
         </Card>

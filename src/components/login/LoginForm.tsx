@@ -15,9 +15,11 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface LoginFormProps {
   hideBackToHome?: boolean;
+  /** 登入/註冊成功後的站內導向目標（已在伺服端驗證過），預設 /trips */
+  redirectTo?: string;
 }
 
-export default function LoginForm({ hideBackToHome = false }: LoginFormProps) {
+export default function LoginForm({ hideBackToHome = false, redirectTo }: LoginFormProps) {
   const router = useRouter();
   const t = useTranslations('auth');
 
@@ -54,7 +56,7 @@ export default function LoginForm({ hideBackToHome = false }: LoginFormProps) {
         throw new Error(result.error || (isLogin ? t('login.error') : t('register.error')));
       }
 
-      router.push('/trips');
+      router.push(redirectTo ?? '/trips');
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);

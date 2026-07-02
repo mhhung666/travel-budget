@@ -208,6 +208,9 @@
       "joining": "加入中...",
       "joinThisTrip": "加入此旅行",
       "joinHint": "加入后，您可以查看和新增支出记录",
+      "loginHint": "加入旅行需要账号，登录或注册后会自动回到此页",
+      "loginToJoin": "登录后加入",
+      "viewAsGuest": "以访客身份查看",
       "redirecting": "正在前往行程页…"
     },
     "detail": {

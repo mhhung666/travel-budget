@@ -208,6 +208,9 @@
       "joining": "参加中...",
       "joinThisTrip": "この旅行に参加",
       "joinHint": "参加すると、支出記録の閲覧・追加ができます",
+      "loginHint": "参加にはアカウントが必要です。ログイン後にこのページへ戻ります",
+      "loginToJoin": "ログインして参加",
+      "viewAsGuest": "ゲストとして閲覧",
       "redirecting": "旅程ページへ移動しています…"
     },
     "detail": {

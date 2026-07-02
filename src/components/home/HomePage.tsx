@@ -10,7 +10,7 @@ import { ThemeToggle } from '@/components/layout/ThemeToggle';
 
 const FEATURE_KEYS = ['easyTracking', 'smartSplit', 'quickSettlement'] as const;
 
-export default function HomePage() {
+export default function HomePage({ redirectTo }: { redirectTo?: string }) {
   const t = useTranslations('home');
   const tNav = useTranslations('nav');
 
@@ -41,7 +41,7 @@ export default function HomePage() {
       <main className="container mx-auto flex min-h-[calc(100vh-3.5rem)] flex-col items-center justify-center px-4 pb-24 pt-6">
         <div className="w-full max-w-md">
           <Hero />
-          <LoginForm hideBackToHome />
+          <LoginForm hideBackToHome redirectTo={redirectTo} />
 
           {/* Minimal feature strip */}
           <div className="mt-6 flex items-center justify-center gap-3 text-xs text-muted-foreground">

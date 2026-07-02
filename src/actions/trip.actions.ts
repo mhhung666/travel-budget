@@ -90,39 +90,6 @@ export const getTrip = withAuth(async (session, id: string): Promise<ActionResul
 });
 
 /**
- * Get trip preview info for join page (no membership required)
- * Returns basic trip info + member count + whether current user is already a member
- */
-export const getTripPreview = withAuth(
-  async (
-    session,
-    hashCode: string
-  ): Promise<ActionResult<TripWithMembers & { isMember: boolean }>> => {
-    try {
-      await dbConnect();
-      const trip = await TripModel.findOne({ hashCode }).lean<LeanTrip>();
-      if (!trip) {
-        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
-      }
-
-      const isMember = trip.members.some((m) => m.user.toString() === session.userId);
-
-      return {
-        success: true,
-        data: {
-          ...toTripDto(trip, session.userId),
-          member_count: trip.members.length,
-          isMember,
-        },
-      };
-    } catch (error) {
-      logger.error('Get trip preview error', error);
-      return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
-    }
-  }
-);
-
-/**
  * Create a new trip
  */
 export const createTrip = withAuth(
