@@ -3,7 +3,6 @@
 import { useParams } from 'next/navigation';
 import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
-import { ArrowLeft } from 'lucide-react';
 import { TripMembers, TripShare, TripArchive, TripDangerZone } from '@/components/trips/detail';
 
 // Dialogs
@@ -21,7 +20,6 @@ import { useTripSettingsPage } from '@/hooks/useTripSettingsPage';
 
 import { TripSettingsSkeleton } from '@/components/skeletons';
 import { ErrorState } from '@/components/common';
-import { Button } from '@/components/ui/button';
 
 export default function TripSettingsPage() {
   const router = useRouter();
@@ -53,8 +51,6 @@ export default function TripSettingsPage() {
     isRegenerating,
     isArchived,
     isArchiving,
-    membersExpanded,
-    toggleMembersExpanded,
     handleRegenerateShareCode,
     handleToggleArchive,
     handleDeleteTrip,
@@ -80,19 +76,10 @@ export default function TripSettingsPage() {
 
   if (!trip) return null;
 
+  // 返回鍵由行程空間殼提供（「更多」頁返回行程空間）
   return (
-    <div className="container mx-auto max-w-4xl py-6 px-4 sm:px-6">
-      {/* 返回按钮 */}
-      <Button
-        variant="ghost"
-        className="text-muted-foreground hover:text-foreground mb-6 -ml-2"
-        onClick={() => router.push(`/trips/${tripId}`)}
-      >
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        {tTrips('detail.backToTrip')}
-      </Button>
-
-      <h1 className="text-3xl font-bold mb-8 text-foreground">{tTrip('settings')}</h1>
+    <div className="container mx-auto max-w-4xl py-4 px-4 sm:px-6">
+      <h2 className="mb-6 text-lg font-semibold text-foreground">{tTrip('settings')}</h2>
 
       <div className="flex flex-col gap-8">
         {/* 成员管理 */}
@@ -105,8 +92,6 @@ export default function TripSettingsPage() {
           onToggleAdmin={(member) => toggleAdminDialog.openDialog(member)}
           onCopyInviteLink={handleCopyInviteLink}
           onVirtualMemberClick={openVirtualConvert}
-          expanded={membersExpanded}
-          onToggleExpand={toggleMembersExpanded}
         />
 
         {/* 分享功能 */}

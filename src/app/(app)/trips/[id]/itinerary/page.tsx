@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
-import { ArrowLeft, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import {
   ItineraryDayCard,
   ItineraryDayDialog,
@@ -171,33 +171,20 @@ export default function ItineraryPage() {
   }
 
   return (
-    <div className="container mx-auto max-w-4xl py-6 px-4 sm:px-6">
-      {/* Back button */}
-      <Button
-        variant="ghost"
-        className="text-muted-foreground hover:text-foreground mb-6 -ml-2"
-        onClick={() => router.push(`/trips/${tripId}`)}
-      >
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        {tItinerary('backToTrip')}
-      </Button>
-
-      {/* Header with Add button */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">{tItinerary('title')}</h1>
-        <div className="flex items-center gap-2">
-          <ExportMenu
-            build={buildExport}
-            fileBaseName={`${trip?.name ?? 'trip'}-${tExport('itinerary.heading')}`}
-            disabled={days.length === 0}
-          />
-          {isAdmin && (
-            <Button onClick={handleAddDay} className="gap-2">
-              <Plus className="h-4 w-4" />
-              {tItinerary('addDay')}
-            </Button>
-          )}
-        </div>
+    <div className="container mx-auto max-w-4xl py-4 px-4 sm:px-6">
+      {/* 頁首由行程空間殼提供（分頁列已標示所在位置），此列只放動作 */}
+      <div className="mb-4 flex items-center justify-end gap-2">
+        <ExportMenu
+          build={buildExport}
+          fileBaseName={`${trip?.name ?? 'trip'}-${tExport('itinerary.heading')}`}
+          disabled={days.length === 0}
+        />
+        {isAdmin && (
+          <Button onClick={handleAddDay} className="gap-2">
+            <Plus className="h-4 w-4" />
+            {tItinerary('addDay')}
+          </Button>
+        )}
       </div>
 
       {/* Day cards */}

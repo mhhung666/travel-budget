@@ -4,7 +4,6 @@ import { useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
-import { ArrowLeft } from 'lucide-react';
 import {
   SettlementSummary,
   SettlementBalances,
@@ -30,7 +29,6 @@ import { exportSettlement, type ExportFormat } from '@/lib/exporters';
 import type { Transaction } from '@/types';
 import type { RecordPaymentInput } from '@/lib/validation';
 import { SettlementSkeleton } from '@/components/skeletons';
-import { Button } from '@/components/ui/button';
 
 export default function SettlementPage() {
   const router = useRouter();
@@ -168,17 +166,9 @@ export default function SettlementPage() {
   }
 
   return (
-    <div className="container mx-auto max-w-6xl py-6 px-4 sm:px-6">
-      {/* 返回按鈕 + 匯出 */}
-      <div className="flex justify-between items-center mb-6">
-        <Button
-          variant="ghost"
-          className="text-muted-foreground hover:text-foreground -ml-2"
-          onClick={() => router.push(`/trips/${tripId}`)}
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          {tSettlement('backToTrip')}
-        </Button>
+    <div className="container mx-auto max-w-6xl py-4 px-4 sm:px-6">
+      {/* 頁首由行程空間殼提供，此列只放匯出 */}
+      <div className="mb-4 flex items-center justify-end">
         <ExportMenu
           build={buildExport}
           fileBaseName={`${trip?.name ?? 'trip'}-${tExport('settlement.heading')}`}

@@ -1,26 +1,14 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import {
-  ChevronDown,
-  ChevronUp,
-  Plus,
-  Edit2,
-  Trash2,
-  CalendarDays,
-  CloudOff,
-  Search,
-  SlidersHorizontal,
-  X,
-} from 'lucide-react';
+import { Plus, Search, SlidersHorizontal, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { getCategoryIcon, CATEGORY_CODES } from '@/constants/categories';
 import { formatCurrency } from '@/constants/currencies';
 import type { Expense, Member, ItineraryDay } from '@/types';
 import { ExportMenu } from '@/components/export';
 import { exportExpenses, type ExportFormat } from '@/lib/exporters';
-import { ReceiptThumb } from '@/components/trips/detail/ReceiptAttachments';
-import { ExpenseComments, ExpenseCommentsToggle } from '@/components/expenses';
+import ExpenseListItem from '@/components/trips/detail/ExpenseListItem';
 import { useCommentCounts } from '@/hooks/queries';
 import {
   filterExpenses,
@@ -28,9 +16,7 @@ import {
   EMPTY_EXPENSE_FILTERS,
   type ExpenseFilters,
 } from '@/lib/expenseFilters';
-import { isOptimisticId } from '@/lib/optimisticExpense';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -41,8 +27,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Label } from '@/components/ui/label';
 
 /** 列表初次顯示的筆數，以及每次「顯示更多」的增量（純前端漸進渲染，避免長列表一次塞滿 DOM）。 */
@@ -59,13 +43,26 @@ interface TripExpensesProps {
   isCurrentUserAdmin: boolean;
   filters: ExpenseFilters;
   onFiltersChange: (filters: ExpenseFilters) => void;
-  onAdd: (e: React.MouseEvent) => void;
+  onAdd: () => void;
   onEdit: (expense: Expense) => void;
   onDelete: (id: string) => void;
-  expanded: boolean;
-  onToggleExpand: () => void;
 }
 
+/** 依日期（當地時區的同一天）分組後的一段支出。 */
+interface ExpenseDayGroup {
+  /** 穩定 key（該日第一筆的 toDateString）。 */
+  key: string;
+  label: string;
+  total: number;
+  expenses: Expense[];
+}
+
+/**
+ * 支出分頁的內容：工具列（搜尋／篩選／匯出／新增）+ 依日期分組的支出列表。
+ * 旅途中的心智模型是「今天花了什麼」，故以日期為段落、每段顯示當日小計；
+ * 每筆為單行摘要，點擊展開詳情（ExpenseListItem）。不再包 Card／Collapsible —
+ * 這就是頁面的主內容。
+ */
 export default function TripExpenses({
   tripId,
   expenses,
@@ -80,30 +77,29 @@ export default function TripExpenses({
   onAdd,
   onEdit,
   onDelete,
-  expanded,
-  onToggleExpand,
 }: TripExpensesProps) {
   const tExpense = useTranslations('expense');
   const tExport = useTranslations('export');
   const tCategory = useTranslations('category');
-  const tOffline = useTranslations('offline');
-  const tItinerary = useTranslations('itinerary');
 
   const [showFilters, setShowFilters] = useState(false);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-  const [openComments, setOpenComments] = useState<Set<string>>(new Set());
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const { data: commentCounts = {} } = useCommentCounts(tripId);
 
-  const toggleComments = (expenseId: string) =>
-    setOpenComments((prev) => {
+  const toggleExpanded = (expenseId: string) =>
+    setExpandedIds((prev) => {
       const next = new Set(prev);
       if (next.has(expenseId)) next.delete(expenseId);
       else next.add(expenseId);
       return next;
     });
 
-  // 行程日 id → 日序，供支出卡顯示「Day N」標籤。
-  const dayNumberById = new Map(itineraryDays.map((d) => [d.id, d.day_number]));
+  // 行程日 id → 日序，供支出項顯示「Day N」標籤。
+  const dayNumberById = useMemo(
+    () => new Map(itineraryDays.map((d) => [d.id, d.day_number])),
+    [itineraryDays]
+  );
 
   // 本 trip 內出現過的所有標籤（供標籤篩選下拉）。
   const allTags = useMemo(() => [...new Set(expenses.flatMap((e) => e.tags))].sort(), [expenses]);
@@ -111,6 +107,33 @@ export default function TripExpenses({
   const activeCount = countActiveFilters(filters);
   const filtered = useMemo(() => filterExpenses(expenses, filters), [expenses, filters]);
   const visible = filtered.slice(0, visibleCount);
+
+  // 依日期分組（沿用伺服器的日期排序；同一天以當地時區歸組）。
+  const groups = useMemo<ExpenseDayGroup[]>(() => {
+    const byDay = new Map<string, ExpenseDayGroup>();
+    for (const expense of visible) {
+      const day = new Date(expense.date);
+      const key = day.toDateString();
+      let group = byDay.get(key);
+      if (!group) {
+        group = {
+          key,
+          label: day.toLocaleDateString(undefined, {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            weekday: 'short',
+          }),
+          total: 0,
+          expenses: [],
+        };
+        byDay.set(key, group);
+      }
+      group.total += expense.amount;
+      group.expenses.push(expense);
+    }
+    return [...byDay.values()];
+  }, [visible]);
 
   // 篩選條件變動時，把漸進渲染的計數重設回第一頁。
   useEffect(() => {
@@ -143,405 +166,249 @@ export default function TripExpenses({
     });
 
   return (
-    <Card>
-      <Collapsible open={expanded} onOpenChange={onToggleExpand}>
-        <CardHeader className="p-4 sm:p-6 pb-2 sm:pb-4">
-          <CollapsibleTrigger asChild>
-            <div className="flex justify-between items-center cursor-pointer group">
-              <div className="flex items-center gap-2">
-                <CardTitle className="text-xl font-semibold">{tExpense('title')}</CardTitle>
-                <Badge variant="secondary" className="px-2 py-0.5 min-w-[1.5rem] justify-center">
-                  {expenses.length}
+    <section aria-label={tExpense('title')}>
+      {/* Toolbar: search + filter toggle + export + add（行動端的新增走空間 FAB） */}
+      <div className="mb-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Label htmlFor="expense-search" className="sr-only">
+              {tExpense('search')}
+            </Label>
+            <Input
+              id="expense-search"
+              className="pl-9"
+              placeholder={tExpense('searchPlaceholder')}
+              value={filters.keyword}
+              onChange={(e) => updateFilters({ keyword: e.target.value })}
+            />
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <Button
+              type="button"
+              variant={showFilters ? 'secondary' : 'outline'}
+              onClick={() => setShowFilters((v) => !v)}
+              className="gap-2 px-3 sm:px-4"
+              aria-label={tExpense('filters')}
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+              <span className="hidden sm:inline">{tExpense('filters')}</span>
+              {activeCount > 0 && (
+                <Badge variant="default" className="ml-1 h-5 min-w-[1.25rem] justify-center px-1.5">
+                  {activeCount}
                 </Badge>
+              )}
+            </Button>
+            <ExportMenu
+              build={buildExport}
+              fileBaseName={`${tripName ?? 'trip'}-${tExport('expense.heading')}`}
+              disabled={expenses.length === 0}
+              size="default"
+              className="px-3 sm:px-4"
+              labelClassName="hidden sm:inline"
+            />
+            {isCurrentUserMember && (
+              <Button
+                onClick={onAdd}
+                className="hidden gap-2 whitespace-nowrap px-3 sm:px-4 md:inline-flex"
+                aria-label={tExpense('add')}
+              >
+                <Plus className="h-4 w-4" />
+                <span>{tExpense('add')}</span>
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Advanced filter panel */}
+        {showFilters && (
+          <div className="space-y-3 rounded-lg border bg-muted/30 p-3 sm:p-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="filter-category">{tExpense('filterCategory')}</Label>
+                <Select
+                  value={filters.category}
+                  onValueChange={(value) => updateFilters({ category: value })}
+                >
+                  <SelectTrigger id="filter-category">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{tExpense('filterAll')}</SelectItem>
+                    {CATEGORY_CODES.map((code) => (
+                      <SelectItem key={code} value={code}>
+                        {getCategoryIcon(code)} {tCategory(code)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <Button variant="ghost" size="sm" className="w-9 p-0">
-                {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+
+              <div className="space-y-1.5">
+                <Label htmlFor="filter-payer">{tExpense('filterPayer')}</Label>
+                <Select
+                  value={filters.payerId}
+                  onValueChange={(value) => updateFilters({ payerId: value })}
+                >
+                  <SelectTrigger id="filter-payer">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{tExpense('filterAll')}</SelectItem>
+                    {members.map((member) => (
+                      <SelectItem key={member.id} value={member.id.toString()}>
+                        {member.display_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="filter-participant">{tExpense('filterParticipant')}</Label>
+                <Select
+                  value={filters.participantId}
+                  onValueChange={(value) => updateFilters({ participantId: value })}
+                >
+                  <SelectTrigger id="filter-participant">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{tExpense('filterAll')}</SelectItem>
+                    {members.map((member) => (
+                      <SelectItem key={member.id} value={member.id.toString()}>
+                        {member.display_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="filter-tag">{tExpense('filterTag')}</Label>
+                <Select
+                  value={filters.tag}
+                  onValueChange={(value) => updateFilters({ tag: value })}
+                >
+                  <SelectTrigger id="filter-tag">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{tExpense('filterAll')}</SelectItem>
+                    {allTags.map((tag) => (
+                      <SelectItem key={tag} value={tag}>
+                        {tag}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+              <div className="grid flex-1 grid-cols-2 gap-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="filter-date-from">{tExpense('dateFrom')}</Label>
+                  <Input
+                    id="filter-date-from"
+                    type="date"
+                    value={filters.dateFrom}
+                    max={filters.dateTo || undefined}
+                    onChange={(e) => updateFilters({ dateFrom: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="filter-date-to">{tExpense('dateTo')}</Label>
+                  <Input
+                    id="filter-date-to"
+                    type="date"
+                    value={filters.dateTo}
+                    min={filters.dateFrom || undefined}
+                    onChange={(e) => updateFilters({ dateTo: e.target.value })}
+                  />
+                </div>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={clearFilters}
+                disabled={activeCount === 0}
+                className="gap-2 text-muted-foreground"
+              >
+                <X className="h-4 w-4" />
+                {tExpense('filterClear')}
               </Button>
             </div>
-          </CollapsibleTrigger>
-        </CardHeader>
-        <CollapsibleContent>
-          <CardContent className="pt-0 p-4 sm:p-6">
-            {/* Toolbar: search + filter toggle + export + add */}
-            <div className="mb-4 space-y-3">
-              <div className="flex items-center gap-2">
-                <div className="relative flex-1">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Label htmlFor="expense-search" className="sr-only">
-                    {tExpense('search')}
-                  </Label>
-                  <Input
-                    id="expense-search"
-                    className="pl-9"
-                    placeholder={tExpense('searchPlaceholder')}
-                    value={filters.keyword}
-                    onChange={(e) => updateFilters({ keyword: e.target.value })}
-                  />
+          </div>
+        )}
+      </div>
+
+      {expenses.length === 0 ? (
+        <div className="py-12 text-center">
+          <p className="mb-1 text-muted-foreground">{tExpense('noExpenses')}</p>
+          {isCurrentUserMember && (
+            <p className="text-sm text-muted-foreground">{tExpense('clickToAdd')}</p>
+          )}
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="py-12 text-center">
+          <p className="mb-1 text-muted-foreground">{tExpense('noFilterResults')}</p>
+          <p className="text-sm text-muted-foreground">{tExpense('noFilterResultsHint')}</p>
+        </div>
+      ) : (
+        <>
+          {activeCount > 0 && (
+            <p className="mb-3 text-sm text-muted-foreground">
+              {tExpense('resultCount', { count: filtered.length })}
+            </p>
+          )}
+          <div className="space-y-5">
+            {groups.map((group) => (
+              <div key={group.key} className="space-y-2">
+                <div className="flex items-baseline justify-between px-1">
+                  <h3 className="text-sm font-medium text-muted-foreground">{group.label}</h3>
+                  <span className="text-xs tabular-nums text-muted-foreground">
+                    {formatCurrency(Math.round(group.total), 'TWD')}
+                  </span>
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <Button
-                    type="button"
-                    variant={showFilters ? 'secondary' : 'outline'}
-                    onClick={() => setShowFilters((v) => !v)}
-                    className="gap-2 px-3 sm:px-4"
-                    aria-label={tExpense('filters')}
-                  >
-                    <SlidersHorizontal className="h-4 w-4" />
-                    <span className="hidden sm:inline">{tExpense('filters')}</span>
-                    {activeCount > 0 && (
-                      <Badge
-                        variant="default"
-                        className="ml-1 h-5 min-w-[1.25rem] justify-center px-1.5"
-                      >
-                        {activeCount}
-                      </Badge>
-                    )}
-                  </Button>
-                  <ExportMenu
-                    build={buildExport}
-                    fileBaseName={`${tripName ?? 'trip'}-${tExport('expense.heading')}`}
-                    disabled={expenses.length === 0}
-                    size="default"
-                    className="px-3 sm:px-4"
-                    labelClassName="hidden sm:inline"
-                  />
-                  {isCurrentUserMember && (
-                    <Button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onAdd(e);
-                      }}
-                      className="gap-2 px-3 whitespace-nowrap sm:px-4"
-                      aria-label={tExpense('add')}
-                    >
-                      <Plus className="h-4 w-4" />
-                      <span className="hidden sm:inline">{tExpense('add')}</span>
-                    </Button>
-                  )}
+                <div className="space-y-2">
+                  {group.expenses.map((expense) => (
+                    <ExpenseListItem
+                      key={expense.id}
+                      expense={expense}
+                      tripId={tripId}
+                      dayNumbers={expense.itinerary_day_ids
+                        .filter((id) => dayNumberById.has(id))
+                        .map((id) => dayNumberById.get(id)!)
+                        .sort((a, b) => a - b)}
+                      commentCount={commentCounts[expense.id] ?? 0}
+                      isCurrentUserMember={isCurrentUserMember}
+                      currentUserId={currentUserId}
+                      isCurrentUserAdmin={isCurrentUserAdmin}
+                      expanded={expandedIds.has(expense.id)}
+                      onToggle={() => toggleExpanded(expense.id)}
+                      onEdit={onEdit}
+                      onDelete={onDelete}
+                    />
+                  ))}
                 </div>
               </div>
+            ))}
+          </div>
 
-              {/* Advanced filter panel */}
-              {showFilters && (
-                <div className="rounded-lg border bg-muted/30 p-3 sm:p-4 space-y-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="filter-category">{tExpense('filterCategory')}</Label>
-                      <Select
-                        value={filters.category}
-                        onValueChange={(value) => updateFilters({ category: value })}
-                      >
-                        <SelectTrigger id="filter-category">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">{tExpense('filterAll')}</SelectItem>
-                          {CATEGORY_CODES.map((code) => (
-                            <SelectItem key={code} value={code}>
-                              {getCategoryIcon(code)} {tCategory(code)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <Label htmlFor="filter-payer">{tExpense('filterPayer')}</Label>
-                      <Select
-                        value={filters.payerId}
-                        onValueChange={(value) => updateFilters({ payerId: value })}
-                      >
-                        <SelectTrigger id="filter-payer">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">{tExpense('filterAll')}</SelectItem>
-                          {members.map((member) => (
-                            <SelectItem key={member.id} value={member.id.toString()}>
-                              {member.display_name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <Label htmlFor="filter-participant">{tExpense('filterParticipant')}</Label>
-                      <Select
-                        value={filters.participantId}
-                        onValueChange={(value) => updateFilters({ participantId: value })}
-                      >
-                        <SelectTrigger id="filter-participant">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">{tExpense('filterAll')}</SelectItem>
-                          {members.map((member) => (
-                            <SelectItem key={member.id} value={member.id.toString()}>
-                              {member.display_name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <Label htmlFor="filter-tag">{tExpense('filterTag')}</Label>
-                      <Select
-                        value={filters.tag}
-                        onValueChange={(value) => updateFilters({ tag: value })}
-                      >
-                        <SelectTrigger id="filter-tag">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">{tExpense('filterAll')}</SelectItem>
-                          {allTags.map((tag) => (
-                            <SelectItem key={tag} value={tag}>
-                              {tag}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
-                    <div className="grid grid-cols-2 gap-2 flex-1">
-                      <div className="space-y-1.5">
-                        <Label htmlFor="filter-date-from">{tExpense('dateFrom')}</Label>
-                        <Input
-                          id="filter-date-from"
-                          type="date"
-                          value={filters.dateFrom}
-                          max={filters.dateTo || undefined}
-                          onChange={(e) => updateFilters({ dateFrom: e.target.value })}
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label htmlFor="filter-date-to">{tExpense('dateTo')}</Label>
-                        <Input
-                          id="filter-date-to"
-                          type="date"
-                          value={filters.dateTo}
-                          min={filters.dateFrom || undefined}
-                          onChange={(e) => updateFilters({ dateTo: e.target.value })}
-                        />
-                      </div>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      onClick={clearFilters}
-                      disabled={activeCount === 0}
-                      className="gap-2 text-muted-foreground"
-                    >
-                      <X className="h-4 w-4" />
-                      {tExpense('filterClear')}
-                    </Button>
-                  </div>
-                </div>
-              )}
+          {filtered.length > visibleCount && (
+            <div className="mt-6 flex justify-center">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+              >
+                {tExpense('showMore', { count: filtered.length - visibleCount })}
+              </Button>
             </div>
-
-            {expenses.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-muted-foreground mb-1">{tExpense('noExpenses')}</p>
-                {isCurrentUserMember && (
-                  <p className="text-sm text-muted-foreground">{tExpense('clickToAdd')}</p>
-                )}
-              </div>
-            ) : filtered.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-muted-foreground mb-1">{tExpense('noFilterResults')}</p>
-                <p className="text-sm text-muted-foreground">{tExpense('noFilterResultsHint')}</p>
-              </div>
-            ) : (
-              <>
-                {activeCount > 0 && (
-                  <p className="mb-3 text-sm text-muted-foreground">
-                    {tExpense('resultCount', { count: filtered.length })}
-                  </p>
-                )}
-                <div className="space-y-4">
-                  {visible.map((expense) => {
-                    const pending = isOptimisticId(expense.id);
-                    return (
-                      <Card
-                        key={expense.id}
-                        className="shadow-sm hover:shadow-md transition-shadow border-muted"
-                      >
-                        <CardContent className="p-4">
-                          <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-2">
-                            <div className="flex-1 space-y-1">
-                              <div className="flex items-center gap-2">
-                                <span className="text-lg" role="img" aria-label="category">
-                                  {getCategoryIcon(expense.category)}
-                                </span>
-                                <h4 className="font-semibold text-base line-clamp-1">
-                                  {expense.description}
-                                </h4>
-                                {pending && (
-                                  <Badge
-                                    variant="outline"
-                                    className="gap-1 font-normal text-amber-600 border-amber-300"
-                                  >
-                                    <CloudOff className="h-3 w-3" />
-                                    {tOffline('pending')}
-                                  </Badge>
-                                )}
-                              </div>
-                              <p className="text-sm text-muted-foreground">
-                                {expense.payer_name} {tExpense('paidBy')} •{' '}
-                                {new Date(expense.date).toLocaleDateString()}
-                              </p>
-                              {expense.itinerary_day_ids.filter((id) => dayNumberById.has(id))
-                                .length > 0 && (
-                                <div className="flex flex-wrap gap-1">
-                                  {expense.itinerary_day_ids
-                                    .filter((id) => dayNumberById.has(id))
-                                    .map((id) => dayNumberById.get(id)!)
-                                    .sort((a, b) => a - b)
-                                    .map((dayNumber) => (
-                                      <Badge
-                                        key={dayNumber}
-                                        variant="secondary"
-                                        className="gap-1 font-normal text-muted-foreground"
-                                      >
-                                        <CalendarDays className="h-3 w-3" />
-                                        {tItinerary('dayLabel', { dayNumber })}
-                                      </Badge>
-                                    ))}
-                                </div>
-                              )}
-                              {expense.tags.length > 0 && (
-                                <div className="flex flex-wrap gap-1">
-                                  {expense.tags.map((tag) => (
-                                    <Badge key={tag} variant="outline" className="font-normal">
-                                      {tag}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-
-                            <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto gap-4 sm:gap-1">
-                              <div className="text-right">
-                                {expense.currency !== 'TWD' ? (
-                                  <>
-                                    <div className="text-xs text-muted-foreground">
-                                      {Number(expense.original_amount).toLocaleString()}{' '}
-                                      {expense.currency} ({tExpense('rate')} {expense.exchange_rate}
-                                      )
-                                    </div>
-                                    <div className="text-lg font-bold text-primary">
-                                      {formatCurrency(expense.amount, 'TWD')}
-                                    </div>
-                                  </>
-                                ) : (
-                                  <div className="text-lg font-bold text-primary">
-                                    {formatCurrency(expense.amount, 'TWD')}
-                                  </div>
-                                )}
-                              </div>
-
-                              {/* Optimistic (not-yet-synced) rows have no server
-                                id, so hide edit/delete until the create lands. */}
-                              {isCurrentUserMember && !pending && (
-                                <div className="flex gap-2">
-                                  {/* 觸控目標:行動端至少 44px,桌機維持精簡 */}
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-11 w-11 md:h-8 md:w-8"
-                                    aria-label={tExpense('edit')}
-                                    onClick={() => onEdit(expense)}
-                                  >
-                                    <Edit2 className="h-4 w-4" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-11 w-11 md:h-8 md:w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                    aria-label={tExpense('delete')}
-                                    onClick={() => onDelete(expense.id)}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-
-                          <Separator className="my-3" />
-
-                          <div className="space-y-2">
-                            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
-                              {tExpense('splitMembers')}
-                            </p>
-                            <div className="flex flex-wrap gap-2">
-                              {expense.splits.map((split) => (
-                                <Badge
-                                  key={split.user_id}
-                                  variant="outline"
-                                  className="font-normal"
-                                >
-                                  {split.display_name}:{' '}
-                                  {formatCurrency(Math.round(split.share_amount), 'TWD')}
-                                </Badge>
-                              ))}
-                            </div>
-                          </div>
-
-                          {expense.attachments && expense.attachments.length > 0 && (
-                            <div className="mt-3 flex flex-wrap gap-2">
-                              {expense.attachments.map((a) => (
-                                <ReceiptThumb key={a.key} tripId={tripId} attachment={a} />
-                              ))}
-                            </div>
-                          )}
-
-                          {!pending && (
-                            <>
-                              <div className="mt-2">
-                                <ExpenseCommentsToggle
-                                  count={commentCounts[expense.id] ?? 0}
-                                  open={openComments.has(expense.id)}
-                                  onToggle={() => toggleComments(expense.id)}
-                                />
-                              </div>
-                              {openComments.has(expense.id) && (
-                                <ExpenseComments
-                                  tripId={tripId}
-                                  expenseId={expense.id}
-                                  currentUserId={currentUserId}
-                                  isAdmin={isCurrentUserAdmin}
-                                />
-                              )}
-                            </>
-                          )}
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
-
-                {filtered.length > visibleCount && (
-                  <div className="mt-6 flex justify-center">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
-                    >
-                      {tExpense('showMore', { count: filtered.length - visibleCount })}
-                    </Button>
-                  </div>
-                )}
-              </>
-            )}
-          </CardContent>
-        </CollapsibleContent>
-      </Collapsible>
-    </Card>
+          )}
+        </>
+      )}
+    </section>
   );
 }

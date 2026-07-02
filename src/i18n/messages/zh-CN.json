@@ -628,7 +628,16 @@
     "unarchiveSuccess": "已恢复此旅行",
     "viewStats": "群组统计",
     "viewChecklist": "清单",
-    "viewActivity": "历史记录"
+    "viewActivity": "历史记录",
+    "more": "更多",
+    "tabs": {
+      "label": "行程分页",
+      "expenses": "支出",
+      "itinerary": "行程",
+      "settlement": "结算",
+      "stats": "统计",
+      "checklists": "清单"
+    }
   },
   "checklist": {
     "title": "清单",

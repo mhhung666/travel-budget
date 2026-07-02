@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import { onlineManager } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import type { Expense } from '@/types';
-import type { SetBudgetInput } from '@/lib/validation';
 import { EMPTY_EXPENSE_FILTERS, type ExpenseFilters } from '@/lib/expenseFilters';
 import { useDialog } from '@/hooks/useDialog';
 import { useToast } from '@/hooks/use-toast';
@@ -17,16 +16,15 @@ import {
 } from '@/hooks/queries';
 
 /**
- * Controller hook for the trip detail page.
+ * Controller hook for the trip expenses tab (trips/[id]/page.tsx).
  *
- * Owns the page's data loading, dialog state, filter/expand UI state and the
- * action handlers, so the page component itself only wires the returned values
- * into presentational components (see IMPROVEMENTS.md #8 — page over-responsibility).
+ * Owns the tab's data loading, edit/delete dialog state, filter state and the
+ * action handlers. The add-expense flow and budget dialog moved up to the
+ * trip-space shell (useTripSpace) so they are reachable from every tab.
  */
 export function useTripDetailPage(tripId: string) {
   const tExpense = useTranslations('expense');
   const tTrip = useTranslations('trip');
-  const tBudget = useTranslations('budget');
   const tError = useTranslations('error');
   const tCommon = useTranslations('common');
   const tOffline = useTranslations('offline');
@@ -47,17 +45,14 @@ export function useTripDetailPage(tripId: string) {
   const error = isError ? tError('loadTripFailed') : '';
 
   // --- Dialog state ---
-  const addExpenseDialog = useDialog();
   const editExpenseDialog = useDialog<Expense>();
   const deleteExpenseDialog = useDialog<string>();
   const editTripDialog = useDialog();
-  const budgetDialog = useDialog();
 
-  // --- Filter & expand state ---
+  // --- Filter state ---
   const [filters, setFilters] = useState<ExpenseFilters>(EMPTY_EXPENSE_FILTERS);
-  const [expensesExpanded, setExpensesExpanded] = useState(true);
 
-  // 本 trip 內已用過的標籤（供支出表單的標籤自動完成建議）。
+  // 本 trip 內已用過的標籤（供編輯支出表單的標籤自動完成建議）。
   const existingTags = useMemo(
     () => [...new Set(expenses.flatMap((e) => e.tags))].sort(),
     [expenses]
@@ -72,39 +67,6 @@ export function useTripDetailPage(tripId: string) {
   };
 
   // --- Handlers ---
-  // Offline-capable: fire-and-forget so the dialog closes immediately. The
-  // optimistic insert (mutation onMutate) shows the row at once; when offline
-  // the mutation pauses and replays on reconnect (ROADMAP #5 Phase 2).
-  const handleAddExpense = async (data: ExpenseDialogData) => {
-    const online = onlineManager.isOnline();
-    expenseMutations.create.mutate(
-      {
-        tripId,
-        input: {
-          payer_id: data.payer_id,
-          original_amount: parseFloat(data.original_amount),
-          currency: data.currency,
-          exchange_rate: parseFloat(data.exchange_rate),
-          description: data.description,
-          category: data.category,
-          date: data.date,
-          splits: data.splits,
-          attachments: data.attachments,
-          itinerary_day_ids: data.itinerary_day_ids,
-          tags: data.tags,
-        },
-      },
-      { onError: toastError }
-    );
-
-    addExpenseDialog.closeDialog();
-    toast(
-      online
-        ? { title: tExpense('success.added'), description: tExpense('success.addedMessage') }
-        : { title: tOffline('queuedTitle'), description: tOffline('queuedMessage') }
-    );
-  };
-
   // Edit/delete stay online-only — guard so they don't hang while paused offline.
   const handleEditExpense = async (data: ExpenseDialogData) => {
     const editingExpense = editExpenseDialog.data;
@@ -188,14 +150,6 @@ export function useTripDetailPage(tripId: string) {
     });
   };
 
-  const handleSetBudget = async (input: SetBudgetInput) => {
-    await tripMutations.setBudget.mutateAsync(input);
-    budgetDialog.closeDialog();
-    toast({
-      title: tBudget('success'),
-    });
-  };
-
   return {
     // data
     trip,
@@ -210,23 +164,17 @@ export function useTripDetailPage(tripId: string) {
     loading,
     error,
     // dialogs
-    addExpenseDialog,
     editExpenseDialog,
     deleteExpenseDialog,
     editTripDialog,
-    budgetDialog,
     isDeletingExpense: expenseMutations.remove.isPending,
-    // filter & expand
+    // filter
     filters,
     setFilters,
-    expensesExpanded,
-    toggleExpensesExpanded: () => setExpensesExpanded((v) => !v),
     // handlers
-    handleAddExpense,
     handleEditExpense,
     handleDeleteExpense,
     confirmDeleteExpense,
     handleEditTrip,
-    handleSetBudget,
   };
 }

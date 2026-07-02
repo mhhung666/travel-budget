@@ -628,7 +628,16 @@
     "unarchiveSuccess": "Trip restored",
     "viewStats": "Group stats",
     "viewChecklist": "Checklist",
-    "viewActivity": "History"
+    "viewActivity": "History",
+    "more": "More",
+    "tabs": {
+      "label": "Trip sections",
+      "expenses": "Expenses",
+      "itinerary": "Itinerary",
+      "settlement": "Settle up",
+      "stats": "Stats",
+      "checklists": "Lists"
+    }
   },
   "checklist": {
     "title": "Checklists",

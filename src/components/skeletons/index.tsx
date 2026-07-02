@@ -63,43 +63,34 @@ export function TripsPageSkeleton() {
   );
 }
 
+/** 支出分頁（行程空間預設落點）：行程資訊卡 + 工具列 + 支出列表。殼（頁首/分頁列/摘要條）由 layout 供應。 */
 export function TripDetailSkeleton() {
   return (
-    <div className="container mx-auto max-w-6xl py-6 px-4 sm:px-6">
-      <div className="flex justify-between items-center mb-6">
-        <Skeleton className="h-9 w-28" />
-        <Skeleton className="h-9 w-24" />
+    <div className="container mx-auto max-w-3xl py-4 px-4 sm:px-6">
+      {/* Trip info card */}
+      <Card className="mb-6">
+        <CardHeader className="space-y-3">
+          <Skeleton className="h-6 w-3/4" />
+          <Skeleton className="h-4 w-1/2" />
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-2/3" />
+        </CardContent>
+      </Card>
+
+      {/* Toolbar */}
+      <div className="mb-4 flex items-center gap-2">
+        <Skeleton className="h-10 flex-1" />
+        <Skeleton className="h-10 w-24" />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr] gap-6">
-        {/* Left: trip info */}
-        <Card>
-          <CardHeader className="space-y-3">
-            <Skeleton className="h-6 w-3/4" />
-            <Skeleton className="h-4 w-1/2" />
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-2/3" />
-            <div className="flex gap-2 pt-2">
-              <Skeleton className="h-10 flex-1" />
-              <Skeleton className="h-10 flex-1" />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Right: expenses */}
-        <Card className="min-w-0">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <Skeleton className="h-6 w-32" />
-            <Skeleton className="h-9 w-24" />
-          </CardHeader>
-          <CardContent>
-            {Array.from({ length: 5 }).map((_, i) => (
-              <ExpenseRowSkeleton key={i} />
-            ))}
-          </CardContent>
-        </Card>
+      {/* Expense rows */}
+      <div className="space-y-2">
+        <Skeleton className="h-4 w-32" />
+        {Array.from({ length: 5 }).map((_, i) => (
+          <ExpenseRowSkeleton key={i} />
+        ))}
       </div>
     </div>
   );
@@ -107,9 +98,7 @@ export function TripDetailSkeleton() {
 
 export function SettlementSkeleton() {
   return (
-    <div className="container mx-auto max-w-6xl py-6 px-4 sm:px-6">
-      <Skeleton className="h-9 w-28 mb-6" />
-
+    <div className="container mx-auto max-w-6xl py-4 px-4 sm:px-6">
       {/* Summary */}
       <Card className="mb-6">
         <CardContent className="py-6 flex flex-col items-center gap-3">
@@ -144,9 +133,8 @@ export function SettlementSkeleton() {
 
 export function ItinerarySkeleton() {
   return (
-    <div className="container mx-auto max-w-4xl py-6 px-4 sm:px-6">
-      <div className="flex justify-between items-center mb-6">
-        <Skeleton className="h-9 w-28" />
+    <div className="container mx-auto max-w-4xl py-4 px-4 sm:px-6">
+      <div className="mb-4 flex items-center justify-end">
         <Skeleton className="h-9 w-24" />
       </div>
 
@@ -171,8 +159,8 @@ export function ItinerarySkeleton() {
 
 export function TripSettingsSkeleton() {
   return (
-    <div className="container mx-auto max-w-3xl py-6 px-4 sm:px-6">
-      <Skeleton className="h-9 w-28 mb-6" />
+    <div className="container mx-auto max-w-3xl py-4 px-4 sm:px-6">
+      <Skeleton className="h-6 w-24 mb-6" />
       <div className="space-y-6">
         {Array.from({ length: 3 }).map((_, i) => (
           <Card key={i}>

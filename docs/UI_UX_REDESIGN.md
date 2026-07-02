@@ -2,7 +2,7 @@
 
 > 撰寫日期:2026-07-02(最後更新:2026-07-02)
 > 範圍:整個前端(頁面結構、導覽、元件系統、視覺設計、PWA 體驗)
-> 進度:**Phase 0、Phase 1 已完成**(2026-07-02);Phase 2–4 待動工
+> 進度:**Phase 0、Phase 1、Phase 2 已完成**(2026-07-02);Phase 3–4 待動工
 > 結論先講:功能面已經很完整,但前端是「功能逐一疊加」長出來的 —— 沒有共用的 App Shell、沒有品牌設計語言、行動端仍是「桌機版縮小」而非 PWA 原生體驗。建議以「**App Shell + 底部導覽 + 行程分頁化 + 設計 Token 化**」四件事為主軸重構,可分四個階段落地,不需要一次全部重寫。
 
 ---
@@ -259,9 +259,14 @@ Toast 收斂成三種變體 `success | error | default`,在 [toast.tsx](../src/c
 - ✅ `Navbar.tsx` 刪除;`ThemeToggle` 抽出共用;map/stats/wrapped 頁的客戶端登入導向 useEffect 刪除(守衛上移 layout)。
 - 📝 遺留:行動端頂列「情境性返回鍵」與 `PageHeader` 導入**刻意延後到 Phase 2**(行程空間分頁殼會重排各頁頁首,現在頁內返回鍵照舊、避免雙返回鍵);`start_url`/manifest 不動。
 
-### Phase 2|行程空間分頁化(中大,4–6 天)
-- `trips/[id]/layout.tsx` 分頁殼 + 常駐摘要條 + 行程內 FAB;七顆入口按鈕與散裝色移除。
-- 支出列表:日期分組、卡片精簡、篩選收納;移除主內容 Collapsible。
+### Phase 2|行程空間分頁化(中大,4–6 天)✅ 已完成(2026-07-02)
+- ✅ `trips/[id]/layout.tsx` 分頁殼:[TripSpaceShell](../src/components/trips/space/TripSpaceShell.tsx)(client,layout 掛載一次、換分頁不重繪)+ [useTripSpace](../src/hooks/useTripSpace.ts)(殼層資料與動作,與各分頁共用 React Query 快取、零額外請求)。頁首列 = 返回鍵 + 行程名 + 鈴鐺(行動端)+「更多」選單(預算/活動紀錄/行程設定);分頁列 = 支出/行程/結算/統計/清單(可橫向滑動、`aria-current`、44px 觸控);**所有子頁 URL 不變**。七顆入口按鈕與其散裝色(rose/green/violet/amber)全數移除。
+- ✅ 常駐摘要條:總支出 +(有預算時)預算/剩餘/超支 + 進度條(`role="progressbar"`),重建自 Phase 0 刪除的 TripBudget 概念,改為跨分頁常駐;管理員未設預算時給「設定預算」輕量 CTA。
+- ✅ 行程內 FAB(行動端,成員限定):新增支出 dialog 上移到殼層,FAB 與支出分頁工具列按鈕(桌機)共用一個 dialog([TripSpaceContext](../src/components/trips/space/TripSpaceContext.tsx) 提供 `openAddExpense`);離線 optimistic 建立流程原樣保留(邏輯自 useTripDetailPage 移入 useTripSpace)。
+- ✅ 支出列表重構:依日期分組(段首 = 日期 + 當日小計)、每筆精簡為單行摘要([ExpenseListItem](../src/components/trips/detail/ExpenseListItem.tsx),整列可點 ≥44px)、點擊展開詳情(匯率/Day/標籤/分帳/收據/留言/編輯刪除);主內容 Collapsible 移除(TripExpenses 與 TripMembers 皆是);篩選面板維持收納於 icon、漸進渲染保留。
+- ✅ 各分頁去重複頁首:itinerary/settlement/stats/checklists 刪除自帶返回鍵與大標題(殼已標示位置),activity/trip settings(「更多」頁)保留小標題、返回鍵由殼提供(返回行程空間;分頁間返回 = 離開空間回 /trips);skeletons 同步改為新版型。
+- ✅ [AppShell](../src/components/layout/AppShell.tsx):行動端在行程空間內隱藏全域頂列(殼的頁首取代,鈴鐺移入殼;桌機頂列不變、殼 sticky 貼於其下)——一併解掉 Phase 1 遺留的「行動端情境性返回鍵」。
+- 📝 遺留:`PageHeader` 經此輪重排後行程空間各頁已不需要(殼取代頁首),全站仍 0 使用 → Phase 3 決定導入他頁或刪除;`/trips` 假 Card 版型與封面卡升級(5.1)不在本 Phase 範圍,順延 Phase 3/4;離線 pending badge 的 amber 散裝色隨 Phase 3 token 化處理。
 
 ### Phase 3|設計 Token 與品牌(中,2–4 天)
 - 導入品牌色/語意色 token(4.1),全站替換 28 處散裝色;加 lint 規則防再犯。
@@ -292,13 +297,13 @@ Toast 收斂成三種變體 `success | error | default`,在 [toast.tsx](../src/c
 | 檔案 | 問題 | 狀態 |
 |---|---|---|
 | ~~src/components/layout/Navbar.tsx~~ | 手機導覽藏漢堡選單;頂列擁擠;每頁重複掛載 | ✅ Phase 1 已刪除,改為 layout 掛載一次的 [AppShell](../src/components/layout/AppShell.tsx) + [BottomTabBar](../src/components/layout/BottomTabBar.tsx) |
-| [src/app/(app)/trips/[id]/page.tsx](../src/app/%28app%29/trips/%5Bid%5D/page.tsx) | 7 入口 hub;錯誤畫面硬編碼 "Error";user props 映射 | 🟡 "Error"、user props 已修;hub 分頁化待 Phase 2 |
-| [src/components/trips/detail/TripExpenses.tsx](../src/components/trips/detail/TripExpenses.tsx) | 544 行;主內容 Collapsible;NT$/Day N 硬編碼;內嵌第二套支出卡 | 🟡 NT$/Day N/觸控目標已修;拆解與去 Collapsible 待 Phase 2 |
+| [src/app/(app)/trips/[id]/page.tsx](../src/app/%28app%29/trips/%5Bid%5D/page.tsx) | 7 入口 hub;錯誤畫面硬編碼 "Error";user props 映射 | ✅ Phase 2 分頁化完成(hub 按鈕移除,改 [TripSpaceShell](../src/components/trips/space/TripSpaceShell.tsx) 分頁殼) |
+| [src/components/trips/detail/TripExpenses.tsx](../src/components/trips/detail/TripExpenses.tsx) | 544 行;主內容 Collapsible;NT$/Day N 硬編碼;內嵌第二套支出卡 | ✅ Phase 2 重構完成(日期分組、卡片抽出為 [ExpenseListItem](../src/components/trips/detail/ExpenseListItem.tsx)、Collapsible 移除) |
 | ~~src/components/expenses/ExpenseCard.tsx~~ | 死碼 + 硬編碼英文 | ✅ 已刪除(連同 ExpenseList/ExpenseForm) |
-| [src/components/common/PageHeader.tsx](../src/components/common/PageHeader.tsx) | 已存在但全站未使用 | 🟡 `ErrorState`/`LoadingState` 已於 Phase 1 全站導入;`PageHeader` 隨 Phase 2 頁首重排導入 |
+| [src/components/common/PageHeader.tsx](../src/components/common/PageHeader.tsx) | 已存在但全站未使用 | 🟡 `ErrorState`/`LoadingState` 已於 Phase 1 全站導入;Phase 2 後行程空間頁首由分頁殼取代,`PageHeader` 仍 0 使用 → Phase 3 導入他頁或刪除 |
 | [src/components/trips/detail/dialogs/ExpenseFormDialog.tsx](../src/components/trips/detail/dialogs/ExpenseFormDialog.tsx) | 701 行;行動端不適用置中 Dialog | ⚠️ Phase 4 |
 | [src/app/settings/page.tsx](../src/app/settings/page.tsx) | 588 行單頁平鋪 | ⚠️ Phase 4 |
-| [src/app/(app)/trips/page.tsx](../src/app/%28app%29/trips/page.tsx) | toast 硬編碼綠色 ×3;假 Card 版型 | 🟡 toast 已修;版型待 Phase 2 |
+| [src/app/(app)/trips/page.tsx](../src/app/%28app%29/trips/page.tsx) | toast 硬編碼綠色 ×3;假 Card 版型 | 🟡 toast 已修;版型與封面卡(5.1)順延 Phase 3/4 |
 | [src/app/globals.css](../src/app/globals.css) | shadcn 預設灰階,無品牌 token、無語意色 | ⚠️ Phase 3 |
 | [src/app/manifest.ts](../src/app/manifest.ts) | 英文名稱、白色 theme_color、無 shortcuts/screenshots | 🟡 名稱/shortcuts 已修;screenshots 待補素材 |
 | [src/app/layout.tsx](../src/app/layout.tsx) | 深色 theme-color 與背景 token 不一致;未建立 route group 殼 | ✅ theme-color(Phase 0)、route group 殼 + viewport-fit=cover(Phase 1)已完成 |

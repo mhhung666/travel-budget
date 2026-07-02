@@ -64,7 +64,6 @@ export function useTripSettingsPage(tripId: string) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [isArchiving, setIsArchiving] = useState(false);
-  const [membersExpanded, setMembersExpanded] = useState(true);
 
   const isArchived = trip?.archived_at != null;
 
@@ -231,8 +230,6 @@ export function useTripSettingsPage(tripId: string) {
     isArchived,
     isArchiving,
     // expand
-    membersExpanded,
-    toggleMembersExpanded: () => setMembersExpanded((v) => !v),
     // handlers
     handleRegenerateShareCode,
     handleToggleArchive,

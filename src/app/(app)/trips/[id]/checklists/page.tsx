@@ -4,10 +4,10 @@ import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
-import { ArrowLeft, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { ChecklistCard } from '@/components/trips/detail/checklist';
 import type { Checklist } from '@/types';
-import { useChecklists, useTrip, useTripMembership, useChecklistMutations } from '@/hooks/queries';
+import { useChecklists, useTripMembership, useChecklistMutations } from '@/hooks/queries';
 import { ItinerarySkeleton } from '@/components/skeletons';
 import { ErrorState } from '@/components/common';
 import { Button } from '@/components/ui/button';
@@ -33,7 +33,6 @@ export default function ChecklistsPage() {
   const { toast } = useToast();
 
   const { data: checklists = [], isLoading: loading, isError } = useChecklists(tripId);
-  const { data: trip } = useTrip(tripId);
   const { members, isMember } = useTripMembership(tripId);
   const m = useChecklistMutations(tripId);
 
@@ -83,19 +82,9 @@ export default function ChecklistsPage() {
     );
   }
 
+  // 頁首由行程空間殼提供（分頁列已標示所在位置）
   return (
-    <div className="container mx-auto max-w-3xl py-6 px-4 sm:px-6">
-      <Button
-        variant="ghost"
-        className="text-muted-foreground hover:text-foreground mb-6 -ml-2"
-        onClick={() => router.push(`/trips/${tripId}`)}
-      >
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        {trip?.name || t('backToTrip')}
-      </Button>
-
-      <h1 className="mb-6 text-3xl font-bold">{t('title')}</h1>
-
+    <div className="container mx-auto max-w-3xl py-4 px-4 sm:px-6">
       {/* Add new list */}
       {canEdit && (
         <div className="mb-6 flex items-center gap-2">

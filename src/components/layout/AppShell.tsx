@@ -57,6 +57,10 @@ export function AppShell({ user, children }: { user: ShellUser; children: React.
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
+  // 行程空間（/trips/[id]/*）在行動端由 TripSpaceShell 的頁首取代全域頂列
+  // （返回鍵 + 行程名 + 鈴鐺 + 更多選單），避免雙頂列吃掉可視高度。
+  const inTripSpace = /^\/trips\/[^/]+/.test(pathname);
+
   // 行動端頂列標題：目前所在分頁（行程空間內的行程名稱標題屬 Phase 2 分頁殼）。
   const mobileTitle = (() => {
     if (isActive('/map')) return t('map');
@@ -71,7 +75,12 @@ export function AppShell({ user, children }: { user: ShellUser; children: React.
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <header className="sticky top-0 z-50 border-b bg-background/95 pt-[env(safe-area-inset-top)] backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header
+        className={cn(
+          'sticky top-0 z-50 border-b bg-background/95 pt-[env(safe-area-inset-top)] backdrop-blur supports-[backdrop-filter]:bg-background/60',
+          inTripSpace && 'hidden md:block'
+        )}
+      >
         <div className="container mx-auto flex h-14 items-center justify-between gap-2 px-4 md:h-16">
           {/* 左側：桌機 logo / 行動端目前位置標題 */}
           <Link href="/trips" className="flex min-w-0 items-center gap-2">

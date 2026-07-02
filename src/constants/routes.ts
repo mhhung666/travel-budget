@@ -20,7 +20,9 @@ export const ROUTES = {
   TRIP_SETTLEMENT: (id: string | number) => `/trips/${id}/settlement`,
   TRIP_ITINERARY: (id: string | number) => `/trips/${id}/itinerary`,
   TRIP_CHECKLISTS: (id: string | number) => `/trips/${id}/checklists`,
+  TRIP_STATS: (id: string | number) => `/trips/${id}/stats`,
   TRIP_ACTIVITY: (id: string | number) => `/trips/${id}/activity`,
+  TRIP_SETTINGS: (id: string | number) => `/trips/${id}/settings`,
   SETTINGS: '/settings',
 
   // Join route

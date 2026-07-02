@@ -628,7 +628,16 @@
     "unarchiveSuccess": "旅行を復元しました",
     "viewStats": "グループ統計",
     "viewChecklist": "チェックリスト",
-    "viewActivity": "履歴"
+    "viewActivity": "履歴",
+    "more": "その他",
+    "tabs": {
+      "label": "旅行タブ",
+      "expenses": "支出",
+      "itinerary": "旅程",
+      "settlement": "精算",
+      "stats": "統計",
+      "checklists": "リスト"
+    }
   },
   "checklist": {
     "title": "チェックリスト",
