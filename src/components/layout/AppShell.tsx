@@ -34,7 +34,13 @@ export interface ShellUser {
  *   語言/主題切換移入「我的」（/settings），漢堡選單刪除。
  * - 頂列 sticky（非 fixed），內容不再需要 pt-24 魔術數字。
  */
-export function AppShell({ user, children }: { user: ShellUser; children: React.ReactNode }) {
+export function AppShell({
+  user,
+  children,
+}: {
+  user: ShellUser | null;
+  children: React.ReactNode;
+}) {
   const t = useTranslations('nav');
   const router = useRouter();
   const pathname = usePathname();
@@ -71,7 +77,7 @@ export function AppShell({ user, children }: { user: ShellUser; children: React.
     return t('home');
   })();
 
-  const displayName = user.display_name || user.username;
+  const displayName = user ? user.display_name || user.username : '';
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -91,10 +97,10 @@ export function AppShell({ user, children }: { user: ShellUser; children: React.
             </span>
           </Link>
 
-          {/* 中間：主導覽（桌機） */}
+          {/* 中間：主導覽（桌機）。訪客（未登入）不顯示——連結皆指向需登入頁。 */}
           <nav
             aria-label={t('home')}
-            className="absolute left-1/2 hidden -translate-x-1/2 gap-1 md:flex"
+            className={cn('absolute left-1/2 hidden -translate-x-1/2 gap-1', user && 'md:flex')}
           >
             {navLinks.map((link) => (
               <Button
@@ -111,36 +117,44 @@ export function AppShell({ user, children }: { user: ShellUser; children: React.
             ))}
           </nav>
 
-          {/* 右側：鈴鐺（手機/桌機共用）+ 使用者選單（桌機） */}
+          {/* 右側：鈴鐺（手機/桌機共用）+ 使用者選單（桌機）。訪客改顯示登入按鈕。 */}
           <div className="flex shrink-0 items-center gap-2">
-            <NotificationBell />
+            {!user ? (
+              <Button asChild size="sm">
+                <Link href="/login">{t('login')}</Link>
+              </Button>
+            ) : (
+              <>
+                <NotificationBell />
 
-            <div className="hidden items-center gap-2 md:flex">
-              <span className="mr-1 text-sm text-muted-foreground">{displayName}</span>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="rounded-full">
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={user.avatar_url ?? ''} alt={displayName} />
-                      <AvatarFallback className="bg-primary text-primary-foreground">
-                        {displayName.charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => router.push('/settings')}>
-                    <Settings className="mr-2 h-4 w-4" />
-                    <span>{t('settings')}</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout}>
-                    <LogOut className="mr-2 h-4 w-4" />
-                    <span>{t('logout')}</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+                <div className="hidden items-center gap-2 md:flex">
+                  <span className="mr-1 text-sm text-muted-foreground">{displayName}</span>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="rounded-full">
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={user.avatar_url ?? ''} alt={displayName} />
+                          <AvatarFallback className="bg-primary text-primary-foreground">
+                            {displayName.charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => router.push('/settings')}>
+                        <Settings className="mr-2 h-4 w-4" />
+                        <span>{t('settings')}</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={handleLogout}>
+                        <LogOut className="mr-2 h-4 w-4" />
+                        <span>{t('logout')}</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -148,7 +162,8 @@ export function AppShell({ user, children }: { user: ShellUser; children: React.
       {/* 內容區：底部預留 TabBar 高度 + safe-area（桌機無 TabBar） */}
       <main className="flex-1 pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-8">{children}</main>
 
-      <BottomTabBar />
+      {/* 底部分頁列的分頁皆需登入，訪客不顯示。 */}
+      {user && <BottomTabBar />}
     </div>
   );
 }
