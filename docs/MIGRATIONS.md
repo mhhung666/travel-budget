@@ -1,6 +1,6 @@
 # 資料庫遷移（migrate-mongo）
 
-> 對應 [IMPROVEMENTS.md](./IMPROVEMENTS.md) P1 #3。為「可重現的 schema / index 變更與資料 backfill」而引入。
+> 為「可重現的 schema / index 變更與資料 backfill」而引入。當前資料模型見 [ARCHITECTURE.md](./ARCHITECTURE.md) §5。
 
 ## 為什麼需要
 

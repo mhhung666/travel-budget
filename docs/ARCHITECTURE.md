@@ -2,7 +2,7 @@
 
 > 更新日期：2026-06-29（補上通知 / Email / 排程 / Web Push、離線優先 PWA、動態牆、年度回顧）
 > 對應版本：v3.4.3
-> 本文件依**實際程式碼**撰寫，為架構的權威來源。**已實作功能的完整盤點**見 [FEATURES.md](./FEATURES.md)；改善建議請見 [IMPROVEMENTS.md](./IMPROVEMENTS.md)；遷移過程見 [MIGRATION_MONGODB.md](./MIGRATION_MONGODB.md)。
+> 本文件依**實際程式碼**撰寫，為架構的權威來源。**已實作功能的完整盤點**見 [FEATURES.md](./FEATURES.md)；改善建議請見 [IMPROVEMENTS.md](./IMPROVEMENTS.md)；已完成工作（含 Supabase→MongoDB 遷移）的紀錄見 [CHANGELOG.md](./CHANGELOG.md)。
 
 ---
 
