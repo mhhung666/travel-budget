@@ -31,7 +31,8 @@
       "splitExceedsTotal": "Total split amount exceeds expense amount",
       "splitNotFullyAllocated": "Remaining amount not fully allocated",
       "unknown": "Unknown error occurred"
-    }
+    },
+    "successTitle": "Success"
   },
   "nav": {
     "home": "Travel Budget",
@@ -42,7 +43,9 @@
     "logout": "Logout",
     "register": "Register",
     "map": "Map",
-    "wrapped": "Wrapped"
+    "wrapped": "Wrapped",
+    "me": "Me",
+    "bottomNav": "Primary navigation"
   },
   "home": {
     "title": "Travel Budget",
@@ -141,6 +144,14 @@
       "pushThisDevice": "This device",
       "pushRemoveDevice": "Remove this device",
       "unknownDevice": "Unknown device"
+    },
+    "appearance": {
+      "title": "Appearance",
+      "theme": "Theme",
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System",
+      "language": "Language"
     }
   },
   "location": {

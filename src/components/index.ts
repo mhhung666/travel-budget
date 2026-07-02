@@ -2,7 +2,10 @@
 export * from './common';
 
 // Layout components
-export { default as Navbar } from './layout/Navbar';
+export { AppShell } from './layout/AppShell';
+export { BottomTabBar } from './layout/BottomTabBar';
+export { PublicShell } from './layout/PublicShell';
+export { ThemeToggle } from './layout/ThemeToggle';
 export { default as LanguageSwitcher } from './layout/LanguageSwitcher';
 
 // Trip components

@@ -36,6 +36,9 @@ export const viewport: Viewport = {
     // 與 globals.css 深色 --background(hsl(240 10% 3.9%))同色,避免狀態列與內容色差。
     { media: '(prefers-color-scheme: dark)', color: '#09090b' },
   ],
+  // standalone PWA 需要 viewport-fit=cover,safe-area-inset-* 才有值
+  // (App Shell 頂列 / BottomTabBar 依賴 env(safe-area-inset-*))。
+  viewportFit: 'cover',
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

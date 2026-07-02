@@ -31,7 +31,8 @@
       "splitExceedsTotal": "分帳總額超過支出金額",
       "splitNotFullyAllocated": "剩餘金額未完全分配",
       "unknown": "發生未知錯誤"
-    }
+    },
+    "successTitle": "成功"
   },
   "nav": {
     "home": "旅行記帳",
@@ -42,7 +43,9 @@
     "logout": "登出",
     "register": "註冊",
     "map": "旅行地圖",
-    "wrapped": "年度回顧"
+    "wrapped": "年度回顧",
+    "me": "我的",
+    "bottomNav": "主要導覽"
   },
   "home": {
     "title": "旅行記帳",
@@ -141,6 +144,14 @@
       "pushThisDevice": "目前裝置",
       "pushRemoveDevice": "移除此裝置",
       "unknownDevice": "未知裝置"
+    },
+    "appearance": {
+      "title": "外觀",
+      "theme": "主題",
+      "light": "淺色",
+      "dark": "深色",
+      "system": "系統",
+      "language": "語言"
     }
   },
   "location": {

@@ -243,19 +243,19 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
 
   if (loading) {
     return (
-      <div className="container mx-auto flex min-h-[60vh] items-center justify-center px-4 pt-20">
+      <div className="container mx-auto flex min-h-[60vh] items-center justify-center px-4">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
   if (error) {
-    return <div className="container mx-auto px-4 pt-24 text-center text-destructive">{error}</div>;
+    return <div className="container mx-auto px-4 py-10 text-center text-destructive">{error}</div>;
   }
 
   if (projected.length === 0) {
     return (
-      <div className="container mx-auto flex min-h-[60vh] flex-col items-center justify-center gap-3 px-4 pt-20 text-center text-muted-foreground">
+      <div className="container mx-auto flex min-h-[60vh] flex-col items-center justify-center gap-3 px-4 text-center text-muted-foreground">
         <MapPin className="h-10 w-10" />
         <p>{t('empty')}</p>
       </div>
@@ -263,9 +263,9 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
   }
 
   return (
-    // 桌機：佔滿視窗高度的 flex 欄，避免地圖高度硬算（會多出一點點 scrollbar）；
-    // 列表在自己的欄內捲動。手機維持一般文件流捲動。
-    <div className="container mx-auto px-4 pt-20 pb-8 lg:flex lg:h-screen lg:flex-col lg:overflow-hidden lg:pb-4">
+    // 桌機：扣掉 sticky 頂列（4rem）與 main 底部 padding（2rem）後佔滿視窗高度的 flex 欄，
+    // 避免地圖高度硬算（會多出一點點 scrollbar）；列表在自己的欄內捲動。手機維持一般文件流捲動。
+    <div className="container mx-auto px-4 pt-4 pb-8 lg:flex lg:h-[calc(100vh-6rem)] lg:flex-col lg:overflow-hidden lg:pb-4">
       {/* 工具列：模式切換 + 年份篩選（同時作用於航線與熱點）+ 分享 */}
       <div className="mb-4 flex flex-wrap items-center gap-2 lg:shrink-0">
         {/* 模式切換：航線 / 熱點 / 國家 */}

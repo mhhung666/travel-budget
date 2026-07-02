@@ -55,7 +55,7 @@ export default function StatsDashboard({
   }
 
   return (
-    <div className="container mx-auto px-4 pt-24 sm:pt-28 pb-12 max-w-7xl">
+    <div className="container mx-auto px-4 py-6 pb-12 max-w-7xl">
       <div className="animate-in fade-in slide-in-from-bottom-5 duration-500">
         {error && (
           <Alert variant="destructive" className="mb-8 rounded-xl">
