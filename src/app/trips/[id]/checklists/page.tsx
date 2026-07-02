@@ -79,7 +79,7 @@ export default function ChecklistsPage() {
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <div className="text-center max-w-md w-full">
           <Alert variant="destructive" className="mb-6">
-            <AlertTitle>Error</AlertTitle>
+            <AlertTitle>{tCommon('errorTitle')}</AlertTitle>
             <AlertDescription>{t('loadFailed')}</AlertDescription>
           </Alert>
           <Button onClick={() => router.push(`/trips/${tripId}`)} size="lg">

@@ -47,7 +47,7 @@ export default function TripsPage() {
         await unarchive.mutateAsync(trip.id);
         toast({
           description: t('unarchiveSuccess'),
-          className: 'bg-green-500 text-white border-green-600',
+          variant: 'success',
         });
       } else {
         await archive.mutateAsync(trip.id);
@@ -64,7 +64,7 @@ export default function TripsPage() {
       await navigator.clipboard.writeText(shareUrl);
       toast({
         description: t('idCopied'),
-        className: 'bg-green-500 text-white border-green-600',
+        variant: 'success',
       });
     } catch {
       toast({
@@ -171,7 +171,7 @@ export default function TripsPage() {
         onSuccess={() => {
           toast({
             description: t('join.success'),
-            className: 'bg-green-500 text-white border-green-600',
+            variant: 'success',
           });
           reloadTrips();
         }}

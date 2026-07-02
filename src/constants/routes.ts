@@ -10,6 +10,7 @@ export const ROUTES = {
   // Protected routes
   TRIPS: '/trips',
   MAP: '/map',
+  STATS: '/stats',
   WRAPPED: '/wrapped',
   // 旅行地圖公開分享頁（去識別化、唯讀，不需登入）
   MAP_SHARE: (code: string) => `/map/share/${code}`,

@@ -32,6 +32,7 @@ import { logger } from '@/lib/logger';
 export default function SettingsPage() {
   const router = useRouter();
   const t = useTranslations('settings');
+  const tCommon = useTranslations('common');
   const locale = useLocale();
   const [user, setUser] = useState<AuthUserWithCreatedAt | null>(null);
   const [loading, setLoading] = useState(true);
@@ -297,7 +298,7 @@ export default function SettingsPage() {
         {/* 訊息提示 */}
         {error && (
           <Alert variant="destructive" className="mb-6">
-            <AlertTitle>Error</AlertTitle>
+            <AlertTitle>{tCommon('errorTitle')}</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}

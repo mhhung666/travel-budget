@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { getCategoryIcon, CATEGORY_CODES } from '@/constants/categories';
+import { formatCurrency } from '@/constants/currencies';
 import type { Expense, Member, ItineraryDay } from '@/types';
 import { ExportMenu } from '@/components/export';
 import { exportExpenses, type ExportFormat } from '@/lib/exporters';
@@ -86,6 +87,7 @@ export default function TripExpenses({
   const tExport = useTranslations('export');
   const tCategory = useTranslations('category');
   const tOffline = useTranslations('offline');
+  const tItinerary = useTranslations('itinerary');
 
   const [showFilters, setShowFilters] = useState(false);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -410,7 +412,7 @@ export default function TripExpenses({
                                         className="gap-1 font-normal text-muted-foreground"
                                       >
                                         <CalendarDays className="h-3 w-3" />
-                                        Day {dayNumber}
+                                        {tItinerary('dayLabel', { dayNumber })}
                                       </Badge>
                                     ))}
                                 </div>
@@ -436,12 +438,12 @@ export default function TripExpenses({
                                       )
                                     </div>
                                     <div className="text-lg font-bold text-primary">
-                                      NT${expense.amount.toLocaleString()}
+                                      {formatCurrency(expense.amount, 'TWD')}
                                     </div>
                                   </>
                                 ) : (
                                   <div className="text-lg font-bold text-primary">
-                                    NT${expense.amount.toLocaleString()}
+                                    {formatCurrency(expense.amount, 'TWD')}
                                   </div>
                                 )}
                               </div>
@@ -450,10 +452,12 @@ export default function TripExpenses({
                                 id, so hide edit/delete until the create lands. */}
                               {isCurrentUserMember && !pending && (
                                 <div className="flex gap-2">
+                                  {/* 觸控目標:行動端至少 44px,桌機維持精簡 */}
                                   <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-8 w-8"
+                                    className="h-11 w-11 md:h-8 md:w-8"
+                                    aria-label={tExpense('edit')}
                                     onClick={() => onEdit(expense)}
                                   >
                                     <Edit2 className="h-4 w-4" />
@@ -461,7 +465,8 @@ export default function TripExpenses({
                                   <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                    className="h-11 w-11 md:h-8 md:w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                    aria-label={tExpense('delete')}
                                     onClick={() => onDelete(expense.id)}
                                   >
                                     <Trash2 className="h-4 w-4" />
@@ -484,7 +489,8 @@ export default function TripExpenses({
                                   variant="outline"
                                   className="font-normal"
                                 >
-                                  {split.display_name}: ${split.share_amount.toFixed(0)}
+                                  {split.display_name}:{' '}
+                                  {formatCurrency(Math.round(split.share_amount), 'TWD')}
                                 </Badge>
                               ))}
                             </div>

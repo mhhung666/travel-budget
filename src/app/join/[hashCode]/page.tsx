@@ -21,6 +21,7 @@ export default function QuickJoinPage() {
   const hashCode = params.hashCode as string;
   const t = useTranslations('trips');
   const tError = useTranslations('error');
+  const tCommon = useTranslations('common');
 
   const [trip, setTrip] = useState<TripWithMembers | null>(null);
   const [currentUser, setCurrentUser] = useState<AuthUserWithCreatedAt | null>(null);
@@ -183,7 +184,7 @@ export default function QuickJoinPage() {
 
                 {error && (
                   <Alert variant="destructive">
-                    <AlertTitle>Error</AlertTitle>
+                    <AlertTitle>{tCommon('errorTitle')}</AlertTitle>
                     <AlertDescription>{error}</AlertDescription>
                   </Alert>
                 )}

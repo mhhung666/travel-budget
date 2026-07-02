@@ -30,6 +30,7 @@ export default function TripSettingsPage() {
   const tripId = params.id as string;
   const tTrip = useTranslations('trip');
   const tTrips = useTranslations('trips');
+  const tCommon = useTranslations('common');
 
   const {
     trip,
@@ -74,7 +75,7 @@ export default function TripSettingsPage() {
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <div className="text-center max-w-md w-full">
           <Alert variant="destructive" className="mb-6">
-            <AlertTitle>Error</AlertTitle>
+            <AlertTitle>{tCommon('errorTitle')}</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>
           <Button onClick={() => router.push(`/trips/${tripId}`)} size="lg">

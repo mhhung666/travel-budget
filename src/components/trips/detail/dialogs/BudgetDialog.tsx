@@ -89,7 +89,7 @@ export default function BudgetDialog({ open, onClose, onSubmit, budget }: Budget
         <form onSubmit={handleSubmit} className="space-y-4 py-2">
           {error && (
             <Alert variant="destructive">
-              <AlertTitle>Error</AlertTitle>
+              <AlertTitle>{tCommon('errorTitle')}</AlertTitle>
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}

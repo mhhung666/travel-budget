@@ -33,7 +33,8 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: '#ffffff' },
-    { media: '(prefers-color-scheme: dark)', color: '#0f172a' },
+    // 與 globals.css 深色 --background(hsl(240 10% 3.9%))同色,避免狀態列與內容色差。
+    { media: '(prefers-color-scheme: dark)', color: '#09090b' },
   ],
 };
 

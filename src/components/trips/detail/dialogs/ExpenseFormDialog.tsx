@@ -357,7 +357,7 @@ export default function ExpenseFormDialog({
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
             <Alert variant="destructive">
-              <AlertTitle>Error</AlertTitle>
+              <AlertTitle>{tCommon('errorTitle')}</AlertTitle>
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}

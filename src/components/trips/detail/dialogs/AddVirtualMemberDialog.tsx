@@ -69,7 +69,7 @@ export default function AddVirtualMemberDialog({
         <form onSubmit={handleSubmit} className="space-y-4 py-2">
           {error && (
             <Alert variant="destructive">
-              <AlertTitle>Error</AlertTitle>
+              <AlertTitle>{tCommon('errorTitle')}</AlertTitle>
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}

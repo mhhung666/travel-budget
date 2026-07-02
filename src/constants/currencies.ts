@@ -41,8 +41,9 @@ export function getCurrencySymbol(code: string): string {
  */
 export function formatCurrency(amount: number, currencyCode: string): string {
   const symbol = getCurrencySymbol(currencyCode);
+  // 整數金額不補 .00(TWD 實務上不顯示分位),非整數最多兩位小數。
   const formatted = amount.toLocaleString('zh-TW', {
-    minimumFractionDigits: currencyCode === 'JPY' ? 0 : 2,
+    minimumFractionDigits: 0,
     maximumFractionDigits: currencyCode === 'JPY' ? 0 : 2,
   });
   return `${symbol}${formatted}`;
