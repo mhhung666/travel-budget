@@ -286,6 +286,7 @@ Toast 收斂成三種變體 `success | error | default`,在 [toast.tsx](../src/c
 - ✅ `/trips` 版型(5.1,Phase 3 順延):假 Card 包裝移除,行程卡直接鋪頁面;行動端「建立行程」改 FAB(加入行程保留次要按鈕);**進行中行程置頂**為「正在旅行」分組、卡片加「旅行中 · Day N」徽章([lib/tripStatus](../src/lib/tripStatus.ts) 純函式 + 單元測試)。
 - ✅ 「記一筆」捷徑(Phase 0 遺留):manifest shortcut → `/quick-add`(server 端挑 進行中 → 最近未封存 行程,redirect `?add=expense`;[TripSpaceShell](../src/components/trips/space/TripSpaceShell.tsx) 讀參數開啟新增支出表單並剝掉參數)。
 - 📝 遺留:manifest `screenshots` 仍待素材;5.1 封面卡的「成員頭像堆疊/預算進度條」需要行程列表 API 附帶更多資料(違反本輪「不動 Server Actions/資料層」的風險控制),留待後續。
+- 📝 後續補完(2026-07-02):[CreateTripDialog](../src/components/trips/CreateTripDialog.tsx) 已改用 `ResponsiveFormSheet`(行動端全螢幕 Sheet),一併修:寫死英文副標 i18n 化(`trips.create.formDescription` 四語)、出發地/目的地行動端改直排、移除與 placeholder 重複的 helper 文字、iOS Safari `<input type="date">` 空值顯示異常([globals.css](../src/app/globals.css) 全域修正,`appearance: none` + 值靠左,全站日期欄位受益)。**待處理**:[EditTripDialog](../src/components/trips/detail/dialogs/EditTripDialog.tsx) 與 [JoinTripDialog](../src/components/trips/JoinTripDialog.tsx) 仍為舊置中 Dialog,行動端有同樣問題,待用同一套改法處理(`trips/detail/dialogs/` 下其餘確認框欄位少、可暫維持 Dialog)。驗證:純 UI 改動不涉及 SW,`pnpm dev` + 手機模擬器即可,無需 production build。
 
 > 風險控制:所有 Phase 都不動 Server Actions / 資料層 / route URL(深連結、通知 email 內的連結全部不受影響)。Phase 1、2 動到頁面骨架,建議搭配 `pnpm build && pnpm start` 實測 PWA(SW 在 dev 不啟用,見 CLAUDE.md)。
 
