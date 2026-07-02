@@ -4,12 +4,12 @@ import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
-import { Plus } from 'lucide-react';
+import { ListChecks, Plus } from 'lucide-react';
 import { ChecklistCard } from '@/components/trips/detail/checklist';
 import type { Checklist } from '@/types';
 import { useChecklists, useTripMembership, useChecklistMutations } from '@/hooks/queries';
 import { ItinerarySkeleton } from '@/components/skeletons';
-import { ErrorState } from '@/components/common';
+import { EmptyState, ErrorState } from '@/components/common';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -111,10 +111,7 @@ export default function ChecklistsPage() {
       )}
 
       {checklists.length === 0 ? (
-        <div className="text-center py-12 border-2 border-dashed rounded-lg bg-muted/30">
-          <h3 className="text-xl font-semibold mb-2">{t('emptyState')}</h3>
-          <p className="text-muted-foreground">{t('emptyStateHint')}</p>
-        </div>
+        <EmptyState icon={ListChecks} title={t('emptyState')} description={t('emptyStateHint')} />
       ) : (
         <div className="flex flex-col gap-4">
           {checklists.map((list) => (

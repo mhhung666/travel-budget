@@ -148,8 +148,8 @@ export default function ForgotPasswordModal({ open, onClose }: ForgotPasswordMod
         )}
 
         {success && (
-          <Alert variant="default" className="border-green-500 text-green-500">
-            <CheckCircle2 className="h-4 w-4 text-green-500" />
+          <Alert variant="success">
+            <CheckCircle2 className="h-4 w-4" />
             <AlertDescription>{success}</AlertDescription>
           </Alert>
         )}

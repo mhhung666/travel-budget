@@ -79,7 +79,7 @@ export default function ExpenseListItem({
             {pending && (
               <Badge
                 variant="outline"
-                className="gap-1 border-amber-300 px-1.5 font-normal text-amber-600"
+                className="gap-1 border-warning/50 px-1.5 font-normal text-warning"
               >
                 <CloudOff className="h-3 w-3" />
                 {tOffline('pending')}

@@ -32,7 +32,7 @@ export default function CategoryStats({
         <div className="p-2 rounded-lg bg-primary text-primary-foreground shadow-sm">
           <Grid2X2 size={20} />
         </div>
-        <h2 className="text-xl font-bold">{t('categoryStats')}</h2>
+        <h2 className="text-lg font-semibold">{t('categoryStats')}</h2>
       </div>
 
       <div className="flex flex-col gap-3">

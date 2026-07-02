@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
-import { Plus } from 'lucide-react';
+import { CalendarDays, Plus } from 'lucide-react';
 import {
   ItineraryDayCard,
   ItineraryDayDialog,
@@ -22,7 +22,7 @@ import type { ActivityPayload } from '@/hooks/queries/useItineraryMutations';
 import { exportItinerary, type ExportFormat } from '@/lib/exporters';
 
 import { ItinerarySkeleton } from '@/components/skeletons';
-import { ErrorState } from '@/components/common';
+import { EmptyState, ErrorState } from '@/components/common';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -189,10 +189,11 @@ export default function ItineraryPage() {
 
       {/* Day cards */}
       {days.length === 0 ? (
-        <div className="text-center py-12 border-2 border-dashed rounded-lg bg-muted/30">
-          <h3 className="text-xl font-semibold mb-2">{tItinerary('emptyState')}</h3>
-          <p className="text-muted-foreground">{tItinerary('emptyStateHint')}</p>
-        </div>
+        <EmptyState
+          icon={CalendarDays}
+          title={tItinerary('emptyState')}
+          description={tItinerary('emptyStateHint')}
+        />
       ) : (
         <div className="flex flex-col gap-6">
           {days.map((day) => (

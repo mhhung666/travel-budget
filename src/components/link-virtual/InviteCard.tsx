@@ -13,7 +13,7 @@ export default function InviteCard({ trip, virtualMember }: InviteCardProps) {
   return (
     <Card className="text-center">
       <CardHeader className="pb-2">
-        <CardTitle className="text-xl">
+        <CardTitle className="text-lg">
           {t('inviteTitle', { tripName: trip?.name || '' })}
         </CardTitle>
       </CardHeader>

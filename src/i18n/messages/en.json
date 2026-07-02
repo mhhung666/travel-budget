@@ -32,7 +32,9 @@
       "splitNotFullyAllocated": "Remaining amount not fully allocated",
       "unknown": "Unknown error occurred"
     },
-    "successTitle": "Success"
+    "successTitle": "Success",
+    "warningTitle": "Warning",
+    "infoTitle": "Info"
   },
   "nav": {
     "home": "Travel Budget",
@@ -205,7 +207,8 @@
       "alreadyMember": "You are already a member of this trip! Redirecting...",
       "joining": "Joining...",
       "joinThisTrip": "Join this trip",
-      "joinHint": "After joining, you can view and add expense records"
+      "joinHint": "After joining, you can view and add expense records",
+      "redirecting": "Redirecting to trip…"
     },
     "detail": {
       "backToTrips": "Back to Trips",

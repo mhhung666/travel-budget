@@ -39,7 +39,7 @@ export default function TripMembers({
     <Card>
       <CardHeader className="p-4 sm:p-6 pb-2 sm:pb-4">
         <div className="flex items-center gap-2">
-          <CardTitle className="text-xl font-semibold">{tMember('title')}</CardTitle>
+          <CardTitle className="text-lg font-semibold">{tMember('title')}</CardTitle>
           <Badge variant="secondary" className="px-2 py-0.5 min-w-[1.5rem] justify-center">
             {members.length}
           </Badge>
@@ -71,8 +71,10 @@ export default function TripMembers({
                   <AvatarImage src={member.avatar_url || ''} alt={member.display_name} />
                   <AvatarFallback
                     className={cn(
-                      'text-white font-medium',
-                      member.is_virtual ? 'bg-gray-400' : 'bg-primary'
+                      'font-medium',
+                      member.is_virtual
+                        ? 'bg-muted-foreground text-background'
+                        : 'bg-primary text-primary-foreground'
                     )}
                   >
                     {member.display_name.charAt(0).toUpperCase()}
@@ -122,7 +124,7 @@ export default function TripMembers({
                               }}
                             >
                               {member.role === 'admin' ? (
-                                <Shield className="h-4 w-4 text-orange-500" />
+                                <Shield className="h-4 w-4 text-warning" />
                               ) : (
                                 <ShieldCheck className="h-4 w-4 text-primary" />
                               )}

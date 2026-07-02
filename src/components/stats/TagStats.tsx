@@ -29,7 +29,7 @@ export default function TagStats({ tagStats, formatCurrency, formatDate, t }: Ta
         <div className="p-2 rounded-lg bg-primary text-primary-foreground shadow-sm">
           <Tag size={20} />
         </div>
-        <h2 className="text-xl font-bold">{t('tagStats')}</h2>
+        <h2 className="text-lg font-semibold">{t('tagStats')}</h2>
       </div>
 
       <div className="flex flex-col gap-3">

@@ -47,7 +47,7 @@ export default function ItineraryDayCard({
               Day {day.day_number}
             </Badge>
             <div className="min-w-0">
-              <h3 className="truncate text-xl font-semibold leading-none tracking-tight">
+              <h3 className="truncate text-lg font-semibold leading-none tracking-tight">
                 {day.title}
               </h3>
               {day.location && (

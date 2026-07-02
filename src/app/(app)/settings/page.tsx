@@ -294,7 +294,7 @@ export default function SettingsPage() {
   return (
     <div className="py-6 pb-8 container mx-auto px-4 max-w-2xl">
       {/* 標題（返回鍵移除：本頁已是底部 TabBar 的一級分頁） */}
-      <h1 className="text-3xl font-bold mb-8 text-foreground">{t('title')}</h1>
+      <h1 className="text-2xl font-bold mb-8 text-foreground">{t('title')}</h1>
 
       {/* 訊息提示 */}
       {error && (
@@ -304,7 +304,7 @@ export default function SettingsPage() {
         </Alert>
       )}
       {success && (
-        <Alert className="mb-6 border-green-500/50 bg-green-500/10 text-green-700 dark:text-green-300">
+        <Alert variant="success" className="mb-6">
           <AlertTitle>{tCommon('successTitle')}</AlertTitle>
           <AlertDescription>{success}</AlertDescription>
         </Alert>
@@ -313,7 +313,7 @@ export default function SettingsPage() {
       {/* 個人資料設定 */}
       <Card className="mb-8">
         <CardHeader className="pb-4">
-          <CardTitle className="flex items-center gap-2 text-xl">
+          <CardTitle className="flex items-center gap-2 text-lg">
             <User className="h-5 w-5 text-primary" />
             {t('profile.title')}
           </CardTitle>
@@ -430,7 +430,7 @@ export default function SettingsPage() {
       {/* 通知偏好 */}
       <Card className="mb-8">
         <CardHeader className="pb-4">
-          <CardTitle className="flex items-center gap-2 text-xl">
+          <CardTitle className="flex items-center gap-2 text-lg">
             <Bell className="h-5 w-5 text-primary" />
             {t('notifications.title')}
           </CardTitle>
@@ -532,7 +532,7 @@ export default function SettingsPage() {
       {/* 外觀：主題與語言（自舊頂列移入「我的」，騰出行動端頂列空間） */}
       <Card className="mb-8">
         <CardHeader className="pb-4">
-          <CardTitle className="flex items-center gap-2 text-xl">
+          <CardTitle className="flex items-center gap-2 text-lg">
             <Palette className="h-5 w-5 text-primary" />
             {t('appearance.title')}
           </CardTitle>
@@ -565,7 +565,7 @@ export default function SettingsPage() {
       {/* 密碼設定 */}
       <Card>
         <CardHeader className="pb-4">
-          <CardTitle className="flex items-center gap-2 text-xl">
+          <CardTitle className="flex items-center gap-2 text-lg">
             <Lock className="h-5 w-5 text-primary" />
             {t('password.title')}
           </CardTitle>

@@ -3,6 +3,14 @@
 @tailwind utilities;
 
 @layer base {
+  /*
+   * 設計 token(UI_UX_REDESIGN.md §4.1):
+   * - 品牌主色 teal(旅行/地圖/天空),輔助 --accent-warm 珊瑚(情感強調)。
+   * - 語意色 success/warning/info 是元件唯一允許的「彩色」來源;
+   *   src/app、src/components 內禁用 Tailwind 調色盤 class(ESLint 強制)。
+   * - 深淺模式提供同名 token:淺色為深值配白字,深色為亮值配深字。
+   * - --background 若改動,layout.tsx 的 <meta name="theme-color"> 需同步。
+   */
   :root {
     --background: 0 0% 100%;
     --foreground: 240 10% 3.9%;
@@ -10,25 +18,36 @@
     --card-foreground: 240 10% 3.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 3.9%;
-    --primary: 240 5.9% 10%;
-    --primary-foreground: 0 0% 98%;
+    --primary: 174 65% 30%;
+    --primary-foreground: 0 0% 100%;
     --secondary: 240 4.8% 95.9%;
     --secondary-foreground: 240 5.9% 10%;
     --muted: 240 4.8% 95.9%;
     --muted-foreground: 240 3.8% 46.1%;
     --accent: 240 4.8% 95.9%;
     --accent-foreground: 240 5.9% 10%;
+    --accent-warm: 16 85% 55%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
+    --success: 152 60% 30%;
+    --success-foreground: 0 0% 100%;
+    --warning: 32 85% 38%;
+    --warning-foreground: 0 0% 100%;
+    --info: 217 85% 45%;
+    --info-foreground: 0 0% 100%;
     --border: 240 5.9% 90%;
     --input: 240 5.9% 90%;
-    --ring: 240 10% 3.9%;
+    --ring: 174 65% 30%;
     --radius: 0.5rem;
     --chart-1: 12 76% 61%;
     --chart-2: 173 58% 39%;
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
+    /* 品牌漸層(teal→藍,「海→天」),摘要/Wrapped 等情感面板唯一的多色來源 */
+    --brand-gradient-from: 174 65% 30%;
+    --brand-gradient-via: 197 75% 36%;
+    --brand-gradient-to: 217 75% 45%;
   }
 
   .dark {
@@ -38,24 +57,34 @@
     --card-foreground: 0 0% 98%;
     --popover: 240 10% 3.9%;
     --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 240 5.9% 10%;
+    --primary: 172 55% 48%;
+    --primary-foreground: 174 85% 8%;
     --secondary: 240 3.7% 15.9%;
     --secondary-foreground: 0 0% 98%;
     --muted: 240 3.7% 15.9%;
     --muted-foreground: 240 5% 64.9%;
     --accent: 240 3.7% 15.9%;
     --accent-foreground: 0 0% 98%;
+    --accent-warm: 16 90% 62%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
+    --success: 150 50% 52%;
+    --success-foreground: 152 85% 8%;
+    --warning: 38 92% 55%;
+    --warning-foreground: 28 85% 10%;
+    --info: 215 90% 66%;
+    --info-foreground: 220 60% 10%;
     --border: 240 3.7% 15.9%;
     --input: 240 3.7% 15.9%;
-    --ring: 240 4.9% 83.9%;
+    --ring: 172 55% 48%;
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
+    --brand-gradient-from: 174 60% 24%;
+    --brand-gradient-via: 199 70% 30%;
+    --brand-gradient-to: 221 65% 36%;
   }
 }
 
@@ -68,12 +97,25 @@
   }
 }
 
+@layer utilities {
+  /* 品牌漸層:統計/結算摘要卡與 Wrapped 卡共用,不在元件內散裝漸層色 */
+  .bg-brand-gradient {
+    background-image: linear-gradient(
+      135deg,
+      hsl(var(--brand-gradient-from)),
+      hsl(var(--brand-gradient-via)),
+      hsl(var(--brand-gradient-to))
+    );
+  }
+}
+
 /* Original Scrollbar Styles (Preserved & Updated) */
 :root {
   --scrollbar-track: #f1f5f9;
   --scrollbar-thumb: #cbd5e1;
   --scrollbar-thumb-hover: #94a3b8;
-  --selection-bg: #3b82f6;
+  /* 文字選取色跟品牌主色(--primary)同源 */
+  --selection-bg: #1b8074;
   --selection-color: white;
 }
 
@@ -81,8 +123,8 @@
   --scrollbar-track: #1e293b;
   --scrollbar-thumb: #475569;
   --scrollbar-thumb-hover: #64748b;
-  --selection-bg: #90caf9;
-  --selection-color: #0f172a;
+  --selection-bg: #3fbcae;
+  --selection-color: #05201d;
 }
 
 /* 自定義滾動條 - 淺色模式 */

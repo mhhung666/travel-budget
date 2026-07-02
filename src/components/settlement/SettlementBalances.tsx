@@ -43,12 +43,12 @@ export default function SettlementBalances({ balances, avatarUrlById }: Settleme
                   <Badge
                     variant="outline"
                     className={cn(
-                      'gap-1 font-bold px-2 py-1 text-sm border-0',
+                      'gap-1 font-bold px-2 py-1 text-sm border-0 tabular-nums',
                       balance.balance > 0
-                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                        ? 'bg-success/15 text-success'
                         : balance.balance < 0
-                          ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                          : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400'
+                          ? 'bg-destructive/15 text-destructive'
+                          : 'bg-muted text-muted-foreground'
                     )}
                   >
                     {balance.balance > 0 ? (
@@ -67,11 +67,15 @@ export default function SettlementBalances({ balances, avatarUrlById }: Settleme
                 <div className="space-y-1.5 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">{t('totalPaid')}</span>
-                    <span className="font-medium">${balance.totalPaid.toLocaleString()}</span>
+                    <span className="font-medium tabular-nums">
+                      ${balance.totalPaid.toLocaleString()}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">{t('totalOwed')}</span>
-                    <span className="font-medium">${balance.totalOwed.toLocaleString()}</span>
+                    <span className="font-medium tabular-nums">
+                      ${balance.totalOwed.toLocaleString()}
+                    </span>
                   </div>
                   <Separator className="my-1.5" />
                   <div className="flex justify-between items-center">
@@ -80,9 +84,9 @@ export default function SettlementBalances({ balances, avatarUrlById }: Settleme
                       className={cn(
                         'font-semibold',
                         balance.balance > 0
-                          ? 'text-green-600 dark:text-green-400'
+                          ? 'text-success'
                           : balance.balance < 0
-                            ? 'text-red-600 dark:text-red-400'
+                            ? 'text-destructive'
                             : 'text-muted-foreground'
                       )}
                     >

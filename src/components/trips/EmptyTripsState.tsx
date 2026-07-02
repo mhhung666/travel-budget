@@ -1,14 +1,11 @@
 'use client';
 
+import { Luggage } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { EmptyState } from '@/components/common';
 
 export default function EmptyTripsState() {
   const t = useTranslations('trips');
 
-  return (
-    <div className="text-center py-16">
-      <p className="text-lg text-muted-foreground mb-2">{t('noTrips')}</p>
-      <p className="text-sm text-muted-foreground">{t('noTripsDescription')}</p>
-    </div>
-  );
+  return <EmptyState icon={Luggage} title={t('noTrips')} description={t('noTripsDescription')} />;
 }

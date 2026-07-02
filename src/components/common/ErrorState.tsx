@@ -52,7 +52,7 @@ export function ErrorState({
       )}
     >
       <div className="text-center max-w-md w-full px-4">
-        {title && <h2 className="text-xl font-semibold mb-4">{title}</h2>}
+        {title && <h2 className="text-lg font-semibold mb-4">{title}</h2>}
 
         <Alert variant="destructive" className="mb-6 flex flex-col items-center text-center">
           <AlertCircle className="h-5 w-5 mb-2" />

@@ -38,15 +38,10 @@ export default function DeleteTripDialog({
         </DialogHeader>
 
         <div className="py-4 space-y-4">
-          <Alert
-            variant="destructive"
-            className="bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-900"
-          >
-            <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400" />
-            <AlertTitle className="text-red-800 dark:text-red-300">Warning</AlertTitle>
-            <AlertDescription className="text-red-700 dark:text-red-400">
-              {tTrip('deleteConfirmWarning')}
-            </AlertDescription>
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>{tCommon('warningTitle')}</AlertTitle>
+            <AlertDescription>{tTrip('deleteConfirmWarning')}</AlertDescription>
           </Alert>
 
           <p>{tTrip('deleteConfirmMessage', { name: tripName || '' })}</p>

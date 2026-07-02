@@ -24,7 +24,7 @@ export default function MemberSpendRanking({
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-xl font-semibold flex items-center gap-2">
+        <CardTitle className="text-lg font-semibold flex items-center gap-2">
           <Users className="h-5 w-5 text-muted-foreground" />
           {t('memberSpending')}
         </CardTitle>
@@ -39,7 +39,7 @@ export default function MemberSpendRanking({
                 <div className="mb-1 flex items-center justify-between gap-2">
                   <span className="flex min-w-0 items-center gap-1.5 text-sm font-medium">
                     {i === 0 && m.paid > 0 && (
-                      <Trophy className="h-3.5 w-3.5 shrink-0 text-amber-500" />
+                      <Trophy className="h-3.5 w-3.5 shrink-0 text-warning" />
                     )}
                     <span className="truncate">{m.name}</span>
                   </span>

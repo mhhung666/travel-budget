@@ -95,17 +95,15 @@ export default function QuickJoinPage() {
       <div className="flex min-h-[60vh] flex-col items-center justify-center p-4">
         <Card className="max-w-md w-full">
           <CardContent className="pt-6 text-center space-y-4">
-            <Alert className="bg-blue-50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-900">
-              <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-              <AlertTitle className="text-blue-800 dark:text-blue-300">Info</AlertTitle>
-              <AlertDescription className="text-blue-700 dark:text-blue-400">
-                {t('quickJoin.alreadyMember')}
-              </AlertDescription>
+            <Alert variant="info">
+              <Info className="h-4 w-4" />
+              <AlertTitle>{tCommon('infoTitle')}</AlertTitle>
+              <AlertDescription>{t('quickJoin.alreadyMember')}</AlertDescription>
             </Alert>
             <div className="flex justify-center py-4">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
-            <p className="text-sm text-muted-foreground">Redirecting to trip...</p>
+            <p className="text-sm text-muted-foreground">{t('quickJoin.redirecting')}</p>
           </CardContent>
         </Card>
       </div>
@@ -121,7 +119,7 @@ export default function QuickJoinPage() {
             <CardHeader>
               <CardTitle className="text-destructive flex items-center gap-2">
                 <Info className="h-5 w-5" />
-                Error
+                {tCommon('errorTitle')}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -157,7 +155,7 @@ export default function QuickJoinPage() {
               <>
                 <div className="bg-muted/30 rounded-lg p-6 border border-border space-y-4">
                   <div>
-                    <h3 className="text-xl font-bold text-foreground mb-1">{trip.name}</h3>
+                    <h3 className="text-lg font-semibold text-foreground mb-1">{trip.name}</h3>
                     {trip.description && (
                       <p className="text-muted-foreground text-sm">{trip.description}</p>
                     )}

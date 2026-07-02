@@ -17,7 +17,7 @@ export default function StatsSummaryCard({
   t,
 }: StatsSummaryCardProps) {
   return (
-    <Card className="relative h-full overflow-hidden rounded-2xl border-none bg-gradient-to-br from-indigo-500 to-violet-500 text-white shadow-lg">
+    <Card className="relative h-full overflow-hidden rounded-2xl border-none bg-brand-gradient text-white shadow-lg">
       {/* 裝飾性背景圖形 */}
       <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
 
@@ -27,7 +27,7 @@ export default function StatsSummaryCard({
           <span className="text-sm font-medium">{t('totalSpent')}</span>
         </div>
         <div className="flex flex-wrap items-baseline gap-x-2">
-          <span className="text-3xl font-extrabold tracking-tight sm:text-4xl">
+          <span className="text-3xl font-extrabold tracking-tight tabular-nums sm:text-4xl">
             {formatCurrency(totalAmount)}
           </span>
           <span className="text-sm font-medium opacity-90">

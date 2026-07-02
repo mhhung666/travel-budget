@@ -13,9 +13,9 @@ export default function TripDangerZone({ onDelete }: TripDangerZoneProps) {
   const tTrip = useTranslations('trip');
 
   return (
-    <Card className="border-red-200 dark:border-red-900 bg-red-50/30 dark:bg-red-900/10">
+    <Card className="border-destructive/30 bg-destructive/5">
       <CardHeader className="pb-2">
-        <CardTitle className="text-red-600 dark:text-red-400 text-base font-bold flex items-center gap-2">
+        <CardTitle className="text-destructive text-base font-semibold flex items-center gap-2">
           <AlertTriangle className="h-4 w-4" />
           {tTrip('dangerZone')}
         </CardTitle>

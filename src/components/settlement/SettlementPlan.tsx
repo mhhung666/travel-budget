@@ -2,7 +2,15 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { ArrowRight, ArrowDown, Lightbulb, Check, BellRing, Loader2 } from 'lucide-react';
+import {
+  ArrowRight,
+  ArrowDown,
+  Lightbulb,
+  Check,
+  BellRing,
+  Loader2,
+  PartyPopper,
+} from 'lucide-react';
 import type { Transaction } from '@/types';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,6 +25,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { EmptyState } from '@/components/common';
 
 interface SettlementPlanProps {
   transactions: Transaction[];
@@ -62,7 +71,7 @@ export default function SettlementPlan({
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
         <div className="flex flex-col">
-          <CardTitle className="text-xl font-semibold flex items-center gap-2">
+          <CardTitle className="text-lg font-semibold flex items-center gap-2">
             {t('plan')}
             {transactions.length > 0 && (
               <span className="text-sm font-normal text-muted-foreground">
@@ -94,27 +103,26 @@ export default function SettlementPlan({
       </CardHeader>
       <CardContent>
         {transactions.length === 0 ? (
-          <div className="text-center py-8">
-            <h4 className="text-xl font-semibold mb-2">🎉 {t('great')}</h4>
-            <p className="text-muted-foreground">{t('noTransfers')}</p>
-          </div>
+          <EmptyState
+            icon={PartyPopper}
+            title={t('great')}
+            description={t('noTransfers')}
+            className="border-0 bg-transparent py-8"
+          />
         ) : (
           <div className="space-y-4">
             <div className="flex flex-col gap-3">
               {transactions.map((transaction, index) => (
-                <div
-                  key={index}
-                  className="rounded-xl border-2 border-orange-100 bg-gradient-to-br from-orange-50 to-red-50 dark:from-orange-950/20 dark:to-red-950/20 dark:border-orange-900/50 p-4"
-                >
+                <div key={index} className="rounded-xl border border-warning/30 bg-warning/5 p-4">
                   <div className="flex flex-col sm:flex-row items-center justify-between gap-4 w-full">
                     {/* Payer */}
                     <div className="flex items-center gap-3 w-full sm:w-auto justify-center sm:justify-start">
-                      <Avatar className="h-10 w-10 border-2 border-red-200 bg-red-100">
+                      <Avatar className="h-10 w-10 border-2 border-destructive/30 bg-destructive/10">
                         <AvatarImage
                           src={avatarUrlByName?.[transaction.from] ?? ''}
                           alt={transaction.from}
                         />
-                        <AvatarFallback className="text-red-700 font-bold bg-transparent">
+                        <AvatarFallback className="text-destructive font-bold bg-transparent">
                           {transaction.from.charAt(0).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
@@ -126,7 +134,7 @@ export default function SettlementPlan({
 
                     {/* Amount & Arrow */}
                     <div className="text-center my-2 sm:my-0 flex-1">
-                      <p className="text-lg font-bold text-orange-600 dark:text-orange-400">
+                      <p className="text-lg font-bold tabular-nums text-warning">
                         {selectedCurrency} {formatAmount(transaction.amount)}
                       </p>
                       {selectedCurrency !== 'TWD' && (
@@ -146,12 +154,12 @@ export default function SettlementPlan({
                         <p className="text-xs text-muted-foreground">{t('payee')}</p>
                         <p className="font-semibold text-foreground">{transaction.to}</p>
                       </div>
-                      <Avatar className="h-10 w-10 border-2 border-green-200 bg-green-100">
+                      <Avatar className="h-10 w-10 border-2 border-success/30 bg-success/10">
                         <AvatarImage
                           src={avatarUrlByName?.[transaction.to] ?? ''}
                           alt={transaction.to}
                         />
-                        <AvatarFallback className="text-green-700 font-bold bg-transparent">
+                        <AvatarFallback className="text-success font-bold bg-transparent">
                           {transaction.to.charAt(0).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
@@ -165,12 +173,12 @@ export default function SettlementPlan({
                     const reminding = remindingKey === `${transaction.from}__${transaction.to}`;
                     if (!onMarkPaid && !canRemind) return null;
                     return (
-                      <div className="mt-3 flex flex-wrap justify-center gap-2 border-t border-orange-100 pt-3 dark:border-orange-900/50">
+                      <div className="mt-3 flex flex-wrap justify-center gap-2 border-t border-warning/20 pt-3">
                         {onMarkPaid && (
                           <Button
                             size="sm"
                             variant="outline"
-                            className="gap-1.5 border-green-300 text-green-700 hover:bg-green-50 hover:text-green-800 dark:border-green-800 dark:text-green-400 dark:hover:bg-green-950/30"
+                            className="gap-1.5 border-success/40 text-success hover:bg-success/10 hover:text-success"
                             onClick={() => onMarkPaid(transaction)}
                           >
                             <Check className="h-4 w-4" />
@@ -182,7 +190,7 @@ export default function SettlementPlan({
                             size="sm"
                             variant="outline"
                             disabled={reminding}
-                            className="gap-1.5 border-orange-300 text-orange-700 hover:bg-orange-50 hover:text-orange-800 dark:border-orange-800 dark:text-orange-400 dark:hover:bg-orange-950/30"
+                            className="gap-1.5 border-warning/40 text-warning hover:bg-warning/10 hover:text-warning"
                             onClick={() => onRemind!(transaction)}
                           >
                             {reminding ? (
@@ -200,9 +208,9 @@ export default function SettlementPlan({
               ))}
             </div>
 
-            <Alert className="mt-4 bg-blue-50/50 text-blue-900 border-blue-200 dark:bg-blue-900/10 dark:text-blue-200 dark:border-blue-900">
-              <Lightbulb className="h-4 w-4 stroke-blue-600 dark:stroke-blue-400" />
-              <AlertTitle className="text-blue-700 dark:text-blue-300 ml-2">{t('tip')}</AlertTitle>
+            <Alert variant="info" className="mt-4">
+              <Lightbulb className="h-4 w-4" />
+              <AlertTitle className="ml-2">{t('tip')}</AlertTitle>
               <AlertDescription className="ml-2 mt-1 opacity-90">
                 {t('tipContent')}
               </AlertDescription>

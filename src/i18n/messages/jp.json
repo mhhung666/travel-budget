@@ -32,7 +32,9 @@
       "splitNotFullyAllocated": "残額が完全に割り当てられていません",
       "unknown": "不明なエラーが発生しました"
     },
-    "successTitle": "成功"
+    "successTitle": "成功",
+    "warningTitle": "警告",
+    "infoTitle": "お知らせ"
   },
   "nav": {
     "home": "旅行家計簿",
@@ -205,7 +207,8 @@
       "alreadyMember": "すでにこの旅行のメンバーです！リダイレクト中...",
       "joining": "参加中...",
       "joinThisTrip": "この旅行に参加",
-      "joinHint": "参加すると、支出記録の閲覧・追加ができます"
+      "joinHint": "参加すると、支出記録の閲覧・追加ができます",
+      "redirecting": "旅程ページへ移動しています…"
     },
     "detail": {
       "backToTrips": "旅行一覧に戻る",

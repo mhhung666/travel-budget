@@ -2,7 +2,7 @@
 
 > 撰寫日期:2026-07-02(最後更新:2026-07-02)
 > 範圍:整個前端(頁面結構、導覽、元件系統、視覺設計、PWA 體驗)
-> 進度:**Phase 0、Phase 1、Phase 2 已完成**(2026-07-02);Phase 3–4 待動工
+> 進度:**Phase 0–3 已完成**(2026-07-02);Phase 4 待動工
 > 結論先講:功能面已經很完整,但前端是「功能逐一疊加」長出來的 —— 沒有共用的 App Shell、沒有品牌設計語言、行動端仍是「桌機版縮小」而非 PWA 原生體驗。建議以「**App Shell + 底部導覽 + 行程分頁化 + 設計 Token 化**」四件事為主軸重構,可分四個階段落地,不需要一次全部重寫。
 
 ---
@@ -268,9 +268,14 @@ Toast 收斂成三種變體 `success | error | default`,在 [toast.tsx](../src/c
 - ✅ [AppShell](../src/components/layout/AppShell.tsx):行動端在行程空間內隱藏全域頂列(殼的頁首取代,鈴鐺移入殼;桌機頂列不變、殼 sticky 貼於其下)——一併解掉 Phase 1 遺留的「行動端情境性返回鍵」。
 - 📝 遺留:`PageHeader` 經此輪重排後行程空間各頁已不需要(殼取代頁首),全站仍 0 使用 → Phase 3 決定導入他頁或刪除;`/trips` 假 Card 版型與封面卡升級(5.1)不在本 Phase 範圍,順延 Phase 3/4;離線 pending badge 的 amber 散裝色隨 Phase 3 token 化處理。
 
-### Phase 3|設計 Token 與品牌(中,2–4 天)
-- 導入品牌色/語意色 token(4.1),全站替換 28 處散裝色;加 lint 規則防再犯。
-- 字級三級制、金額 `tabular-nums`;空狀態統一 `EmptyState`。
+### Phase 3|設計 Token 與品牌(中,2–4 天)✅ 已完成(2026-07-02)
+- ✅ 品牌 token([globals.css](../src/app/globals.css)):`--primary` 改 teal(淺色 `174 65% 30%` 配白字、深色亮 teal 配深字,`--ring` 同步)、`--accent-warm` 珊瑚;語意色 `--success/--warning/--info`(+`-foreground`,雙模式:淺色深值白字、深色亮值深字);品牌漸層 `--brand-gradient-*` + `.bg-brand-gradient` utility(統計摘要卡/結算摘要卡/Wrapped 卡三處 indigo/violet/fuchsia 漸層全數改用);文字選取色與品牌同源。Tailwind config 映射 `success/warning/info/accent-warm`。
+- ✅ 全站散裝調色盤色歸零(30+ 處):Alert 新增 `success/warning/info` 語意變體(destructive 一併改 soft 樣式),settings/join/ForgotPassword/DeleteTrip/ExpenseForm/SettlementPlan 的自帶色 Alert 全改 variant;結算(餘額徽章、轉帳卡、標記已付/提醒按鈕)、OfflineBanner、離線 pending 徽章(Phase 2 遺留)、ConfirmDialog、TripDangerZone、TripMembers、排行榜獎盃、分享複製勾勾等改用語意 token。`git grep` 調色盤 class 於 `src/app`+`src/components` = **0**。
+- ✅ Lint 防再犯:[eslint.config.mjs](../eslint.config.mjs) `no-restricted-syntax` 禁止 UI 層字串出現 `{text,bg,border,…}-{palette}-{n}`(已驗證會攔截)。
+- ✅ 字級三級制:頁 `text-2xl/bold`、區塊 `text-lg/semibold`、卡片 `text-base/medium`——settings、settlement、stats、trip 卡片等十餘處 `text-xl`/`text-3xl` 收斂;金額補齊 `tabular-nums`(結算餘額/轉帳/摘要、統計數值、Wrapped);**Inter 字型接上 `font-sans`**(先前 `--font-inter` 有載入但 Tailwind 未映射,等於沒用到)。
+- ✅ 空狀態統一:新增 [EmptyState](../src/components/common/EmptyState.tsx)(icon+標題+說明+CTA),導入 支出列表(無資料/無篩選結果)、行程規劃、清單、結算方案(🎉 無需轉帳)、我的行程。
+- ✅ 順手修:`PageHeader` 依 Phase 2 決議**刪除**(全站 0 使用);`TripSettlement.tsx` 死碼刪除(Phase 2 分頁化後無人引用);硬編碼英文 `Warning`/`Info`/`Redirecting to trip...`/`Error`(join 頁卡片標題)i18n 化(新增 `common.warningTitle`/`common.infoTitle`/`trips.quickJoin.redirecting` 四語);PaymentHistory 的 `NT$` 硬編碼改走 `formatCurrency`;頭像 fallback `text-white` 改 `text-primary-foreground`(深色亮 primary 下對比不足)。
+- 📝 遺留:`/trips` 假 Card 版型與封面卡升級(5.1)順延 Phase 4;manifest `screenshots` 仍待素材。
 
 ### Phase 4|高頻流程重製(中大,4–6 天)
 - `ResponsiveFormSheet` + 新增支出表單重排(金額優先、三步完成)、701 行表單拆解。
@@ -300,11 +305,11 @@ Toast 收斂成三種變體 `success | error | default`,在 [toast.tsx](../src/c
 | [src/app/(app)/trips/[id]/page.tsx](../src/app/%28app%29/trips/%5Bid%5D/page.tsx) | 7 入口 hub;錯誤畫面硬編碼 "Error";user props 映射 | ✅ Phase 2 分頁化完成(hub 按鈕移除,改 [TripSpaceShell](../src/components/trips/space/TripSpaceShell.tsx) 分頁殼) |
 | [src/components/trips/detail/TripExpenses.tsx](../src/components/trips/detail/TripExpenses.tsx) | 544 行;主內容 Collapsible;NT$/Day N 硬編碼;內嵌第二套支出卡 | ✅ Phase 2 重構完成(日期分組、卡片抽出為 [ExpenseListItem](../src/components/trips/detail/ExpenseListItem.tsx)、Collapsible 移除) |
 | ~~src/components/expenses/ExpenseCard.tsx~~ | 死碼 + 硬編碼英文 | ✅ 已刪除(連同 ExpenseList/ExpenseForm) |
-| [src/components/common/PageHeader.tsx](../src/components/common/PageHeader.tsx) | 已存在但全站未使用 | 🟡 `ErrorState`/`LoadingState` 已於 Phase 1 全站導入;Phase 2 後行程空間頁首由分頁殼取代,`PageHeader` 仍 0 使用 → Phase 3 導入他頁或刪除 |
+| ~~src/components/common/PageHeader.tsx~~ | 已存在但全站未使用 | ✅ Phase 3 已刪除(分頁殼與各頁頁首重排後確定無處可用);`ErrorState`/`LoadingState` 已於 Phase 1 全站導入,Phase 3 再加入通用 [EmptyState](../src/components/common/EmptyState.tsx) |
 | [src/components/trips/detail/dialogs/ExpenseFormDialog.tsx](../src/components/trips/detail/dialogs/ExpenseFormDialog.tsx) | 701 行;行動端不適用置中 Dialog | ⚠️ Phase 4 |
 | [src/app/settings/page.tsx](../src/app/settings/page.tsx) | 588 行單頁平鋪 | ⚠️ Phase 4 |
-| [src/app/(app)/trips/page.tsx](../src/app/%28app%29/trips/page.tsx) | toast 硬編碼綠色 ×3;假 Card 版型 | 🟡 toast 已修;版型與封面卡(5.1)順延 Phase 3/4 |
-| [src/app/globals.css](../src/app/globals.css) | shadcn 預設灰階,無品牌 token、無語意色 | ⚠️ Phase 3 |
+| [src/app/(app)/trips/page.tsx](../src/app/%28app%29/trips/page.tsx) | toast 硬編碼綠色 ×3;假 Card 版型 | 🟡 toast 已修;版型與封面卡(5.1)順延 Phase 4 |
+| [src/app/globals.css](../src/app/globals.css) | shadcn 預設灰階,無品牌 token、無語意色 | ✅ Phase 3:teal 品牌色 + success/warning/info 語意色 + 品牌漸層 token,ESLint 禁調色盤 class |
 | [src/app/manifest.ts](../src/app/manifest.ts) | 英文名稱、白色 theme_color、無 shortcuts/screenshots | 🟡 名稱/shortcuts 已修;screenshots 待補素材 |
 | [src/app/layout.tsx](../src/app/layout.tsx) | 深色 theme-color 與背景 token 不一致;未建立 route group 殼 | ✅ theme-color(Phase 0)、route group 殼 + viewport-fit=cover(Phase 1)已完成 |
 

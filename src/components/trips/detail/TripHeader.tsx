@@ -29,7 +29,7 @@ export default function TripHeader({
       <CardContent className="pt-6">
         <div className="flex justify-between items-start mb-4">
           <div>
-            <h2 className="text-xl font-semibold mb-2">{tTrip('info')}</h2>
+            <h2 className="text-lg font-semibold mb-2">{tTrip('info')}</h2>
             {trip.description && <p className="text-muted-foreground mb-4">{trip.description}</p>}
 
             {/* 出發地 → 目的地 */}

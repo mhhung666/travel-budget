@@ -546,12 +546,10 @@ export default function ExpenseFormDialog({
             )}
 
             {splitWarning && (
-              <Alert className="bg-yellow-50 dark:bg-yellow-900/10 border-yellow-200 dark:border-yellow-900">
-                <DollarSign className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
-                <AlertTitle className="text-yellow-800 dark:text-yellow-300">Warning</AlertTitle>
-                <AlertDescription className="text-yellow-700 dark:text-yellow-400">
-                  {splitWarning}
-                </AlertDescription>
+              <Alert variant="warning">
+                <DollarSign className="h-4 w-4" />
+                <AlertTitle>{tCommon('warningTitle')}</AlertTitle>
+                <AlertDescription>{splitWarning}</AlertDescription>
               </Alert>
             )}
           </div>

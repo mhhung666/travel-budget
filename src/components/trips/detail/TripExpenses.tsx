@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, Search, SlidersHorizontal, X } from 'lucide-react';
+import { Plus, ReceiptText, Search, SearchX, SlidersHorizontal, X } from 'lucide-react';
+import { EmptyState } from '@/components/common';
 import { useTranslations } from 'next-intl';
 import { getCategoryIcon, CATEGORY_CODES } from '@/constants/categories';
 import { formatCurrency } from '@/constants/currencies';
@@ -344,17 +345,17 @@ export default function TripExpenses({
       </div>
 
       {expenses.length === 0 ? (
-        <div className="py-12 text-center">
-          <p className="mb-1 text-muted-foreground">{tExpense('noExpenses')}</p>
-          {isCurrentUserMember && (
-            <p className="text-sm text-muted-foreground">{tExpense('clickToAdd')}</p>
-          )}
-        </div>
+        <EmptyState
+          icon={ReceiptText}
+          title={tExpense('noExpenses')}
+          description={isCurrentUserMember ? tExpense('clickToAdd') : undefined}
+        />
       ) : filtered.length === 0 ? (
-        <div className="py-12 text-center">
-          <p className="mb-1 text-muted-foreground">{tExpense('noFilterResults')}</p>
-          <p className="text-sm text-muted-foreground">{tExpense('noFilterResultsHint')}</p>
-        </div>
+        <EmptyState
+          icon={SearchX}
+          title={tExpense('noFilterResults')}
+          description={tExpense('noFilterResultsHint')}
+        />
       ) : (
         <>
           {activeCount > 0 && (

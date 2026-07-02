@@ -3,6 +3,7 @@
 import { useLocale, useTranslations } from 'next-intl';
 import { ArrowRight, Plus, Trash2, ReceiptText } from 'lucide-react';
 import type { PaymentRecord } from '@/types';
+import { formatCurrency } from '@/constants/currencies';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
@@ -31,7 +32,7 @@ export default function PaymentHistory({
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-        <CardTitle className="text-xl font-semibold flex items-center gap-2">
+        <CardTitle className="text-lg font-semibold flex items-center gap-2">
           <ReceiptText className="h-5 w-5 text-muted-foreground" />
           {t('paymentHistory')}
           {payments.length > 0 && (
@@ -69,8 +70,8 @@ export default function PaymentHistory({
                   </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <span className="font-semibold text-green-600 dark:text-green-400">
-                    NT${p.amount.toLocaleString()}
+                  <span className="font-semibold tabular-nums text-success">
+                    {formatCurrency(p.amount, 'TWD')}
                   </span>
                   {canManage && (
                     <Button

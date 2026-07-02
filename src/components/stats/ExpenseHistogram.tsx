@@ -159,7 +159,7 @@ export default function ExpenseHistogram({
           <div className="p-2 rounded-lg bg-primary text-primary-foreground shadow-sm">
             <BarChart3 size={20} />
           </div>
-          <h2 className="text-xl font-bold">{t('expenseHistogram')}</h2>
+          <h2 className="text-lg font-semibold">{t('expenseHistogram')}</h2>
         </div>
 
         {/* 時間區間選擇器 */}

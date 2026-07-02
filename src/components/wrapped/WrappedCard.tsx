@@ -39,7 +39,7 @@ function StatTile({
   return (
     <div className="flex flex-col gap-1 rounded-2xl bg-white/10 p-4 backdrop-blur-sm">
       <Icon className="h-5 w-5 text-white/80" />
-      <div className="text-2xl font-extrabold leading-none tracking-tight sm:text-3xl">
+      <div className="text-2xl font-extrabold leading-none tracking-tight tabular-nums sm:text-3xl">
         {value}
         {suffix && <span className="ml-0.5 text-sm font-semibold text-white/70">{suffix}</span>}
       </div>
@@ -70,11 +70,11 @@ export const WrappedCard = forwardRef<HTMLDivElement, WrappedCardProps>(function
   return (
     <div
       ref={ref}
-      className="relative mx-auto flex w-full max-w-md flex-col gap-5 overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-600 p-6 text-white shadow-xl sm:p-8"
+      className="relative mx-auto flex w-full max-w-md flex-col gap-5 overflow-hidden rounded-3xl bg-brand-gradient p-6 text-white shadow-xl sm:p-8"
     >
       {/* 裝飾光暈 */}
       <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-white/15 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-20 -left-10 h-44 w-44 rounded-full bg-fuchsia-300/20 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-20 -left-10 h-44 w-44 rounded-full bg-accent-warm/20 blur-3xl" />
 
       {/* 標題 */}
       <div className="relative z-10">
@@ -104,7 +104,7 @@ export const WrappedCard = forwardRef<HTMLDivElement, WrappedCardProps>(function
             {t('stat.spend')}
           </div>
           <div className="mt-1 flex flex-wrap items-baseline gap-x-2">
-            <span className="text-3xl font-extrabold tracking-tight sm:text-4xl">
+            <span className="text-3xl font-extrabold tracking-tight tabular-nums sm:text-4xl">
               {money(review.totalSpend)}
             </span>
             <span className="text-xs font-medium text-white/70">

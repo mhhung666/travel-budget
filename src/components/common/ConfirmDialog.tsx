@@ -28,7 +28,7 @@ const severityConfig = {
   warning: {
     icon: AlertTriangle,
     variant: 'default' as const, // shadcn doesn't have warning button variant by default, use default or create one
-    iconColor: 'text-yellow-500',
+    iconColor: 'text-warning',
   },
   error: {
     icon: AlertCircle,
@@ -38,7 +38,7 @@ const severityConfig = {
   info: {
     icon: Info,
     variant: 'default' as const,
-    iconColor: 'text-blue-500',
+    iconColor: 'text-info',
   },
 };
 

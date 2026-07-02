@@ -54,7 +54,7 @@ export default function TripCard({ trip, onClick, onCopyCode, onToggleArchive }:
       )}
 
       <CardContent className="p-6 flex flex-col h-full items-start text-left">
-        <h3 className="text-xl font-semibold mb-2 text-foreground line-clamp-1 pr-8">
+        <h3 className="text-lg font-semibold mb-2 text-foreground line-clamp-1 pr-8">
           {trip.name}
         </h3>
 

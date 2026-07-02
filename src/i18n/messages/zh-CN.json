@@ -32,7 +32,9 @@
       "splitNotFullyAllocated": "剩余金额未完全分配",
       "unknown": "发生未知错误"
     },
-    "successTitle": "成功"
+    "successTitle": "成功",
+    "warningTitle": "警告",
+    "infoTitle": "提示"
   },
   "nav": {
     "home": "旅行记账",
@@ -205,7 +207,8 @@
       "alreadyMember": "您已经是此旅行的成员了！正在跳转旅行页面...",
       "joining": "加入中...",
       "joinThisTrip": "加入此旅行",
-      "joinHint": "加入后，您可以查看和新增支出记录"
+      "joinHint": "加入后，您可以查看和新增支出记录",
+      "redirecting": "正在前往行程页…"
     },
     "detail": {
       "backToTrips": "返回旅行列表",

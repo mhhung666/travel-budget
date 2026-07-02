@@ -25,7 +25,7 @@ export default function DailySpendCard({ dailySpend, formatCurrency }: DailySpen
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-xl font-semibold flex items-center gap-2">
+        <CardTitle className="text-lg font-semibold flex items-center gap-2">
           <CalendarRange className="h-5 w-5 text-muted-foreground" />
           {t('dailySpend')}
         </CardTitle>

@@ -42,7 +42,7 @@ function MetricTile({
           <Icon size={14} />
           {label}
         </div>
-        <div className="text-2xl font-bold tracking-tight">{value}</div>
+        <div className="text-2xl font-bold tracking-tight tabular-nums">{value}</div>
       </CardContent>
     </Card>
   );
