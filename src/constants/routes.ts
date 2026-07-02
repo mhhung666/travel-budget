@@ -55,11 +55,14 @@ export const ROUTES = {
 } as const;
 
 /**
- * Routes that require authentication
+ * 需要登入的路由。proxy.ts 以「完整路徑精確相符」比對，故只保護頁面本身：
+ * 例如 '/wrapped' 保護回顧頁，但 '/wrapped/share/[code]/[year]' 因多路徑段不相符而維持公開
+ * （'/map' vs '/map/share' 同理）。'/map' 本頁刻意不列入——未登入可直開，由頁面自行處理未登入狀態。
+ * 此清單為單一來源，由 proxy.ts 直接引用。
  */
-export const PROTECTED_ROUTES = ['/trips', '/map', '/wrapped', '/settings'];
+export const PROTECTED_ROUTES = ['/trips', '/settings', '/stats', '/wrapped'];
 
 /**
- * Routes that should redirect to /trips if already authenticated
+ * 已登入用戶不應訪問的路由（如登入頁）→ 導向 /trips。proxy.ts 引用。
  */
 export const AUTH_ROUTES = ['/login'];

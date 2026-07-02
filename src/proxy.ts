@@ -1,14 +1,12 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getSessionFromRequest } from './lib/auth';
+import { PROTECTED_ROUTES, AUTH_ROUTES } from './constants/routes';
 
-// 定義需要認證的路由。比對為「完整路徑精確相符」，故 '/wrapped' 只保護回顧頁本身，
+// 需認證 / 登入導向的路由清單單一來源見 constants/routes.ts。
+// 比對為「完整路徑精確相符」，故 '/wrapped' 只保護回顧頁本身，
 // '/wrapped/share/[code]/[year]' 多了路徑段不相符 → 維持公開
 // （與 '/map' vs '/map/share' 同樣的切分）。
-const protectedRoutes = ['/trips', '/settings', '/stats', '/wrapped'];
-
-// 定義已登入用戶不應訪問的路由（如登入頁）
-const authRoutes = ['/login'];
 
 // 網址不再帶語言前綴（UI 語系改由 NEXT_LOCALE cookie 決定，見 i18n/config.ts），
 // 因此中介層不再掛 next-intl i18n middleware，只負責認證導向。
@@ -19,12 +17,12 @@ export default async function proxy(request: NextRequest) {
   const session = await getSessionFromRequest(request);
 
   // 情況 1: 已登入用戶訪問登入頁面 → 重定向到 /trips
-  if (session && authRoutes.includes(pathname)) {
+  if (session && AUTH_ROUTES.includes(pathname)) {
     return NextResponse.redirect(new URL('/trips', request.url));
   }
 
   // 情況 2: 未登入用戶訪問受保護頁面 → 重定向到 /login
-  if (!session && protectedRoutes.includes(pathname)) {
+  if (!session && PROTECTED_ROUTES.includes(pathname)) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
