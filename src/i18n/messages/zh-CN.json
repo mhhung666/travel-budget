@@ -177,6 +177,7 @@
     "copyFailed": "复制失败",
     "create": {
       "title": "创建新旅行",
+      "formDescription": "填写旅行信息以创建新的旅行账本",
       "name": "旅行名称",
       "namePlaceholder": "例：日本关西之旅",
       "description": "描述 (可选)",

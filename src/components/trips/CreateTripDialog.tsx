@@ -2,17 +2,11 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { Loader2 } from 'lucide-react';
 import LocationAutocomplete, { LocationOption } from '@/components/location/LocationAutocomplete';
 import { createTrip } from '@/actions';
 
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { ResponsiveFormSheet } from '@/components/common';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,6 +18,8 @@ interface CreateTripDialogProps {
   onClose: () => void;
   onSuccess: () => void;
 }
+
+const FORM_ID = 'create-trip-form';
 
 export default function CreateTripDialog({ open, onClose, onSuccess }: CreateTripDialogProps) {
   const t = useTranslations('trips');
@@ -38,6 +34,7 @@ export default function CreateTripDialog({ open, onClose, onSuccess }: CreateTri
   const [departureLocation, setDepartureLocation] = useState<LocationOption | null>(null);
   const [destinationLocation, setDestinationLocation] = useState<LocationOption | null>(null);
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const handleClose = () => {
     setError('');
@@ -50,6 +47,7 @@ export default function CreateTripDialog({ open, onClose, onSuccess }: CreateTri
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSubmitting(true);
 
     try {
       const result = await createTrip({
@@ -72,98 +70,107 @@ export default function CreateTripDialog({ open, onClose, onSuccess }: CreateTri
       } else {
         setError(tCommon('error.unknown'));
       }
+    } finally {
+      setSubmitting(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={(val) => !val && handleClose()}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle>{t('create.title')}</DialogTitle>
-          <DialogDescription>Fill in the details to create a new trip budget.</DialogDescription>
-        </DialogHeader>
+    <ResponsiveFormSheet
+      open={open}
+      onOpenChange={(val) => !val && handleClose()}
+      title={t('create.title')}
+      description={t('create.formDescription')}
+      footer={
+        <>
+          <Button type="button" variant="outline" onClick={handleClose} className="max-md:hidden">
+            {tCommon('cancel')}
+          </Button>
+          <Button
+            type="submit"
+            form={FORM_ID}
+            disabled={submitting}
+            className="max-md:h-12 max-md:w-full max-md:text-base"
+          >
+            {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {tCommon('create')}
+          </Button>
+        </>
+      }
+    >
+      <form id={FORM_ID} onSubmit={handleSubmit} className="space-y-4">
+        {error && (
+          <Alert variant="destructive">
+            <AlertTitle>{tCommon('errorTitle')}</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
 
-        <form onSubmit={handleSubmit} className="space-y-4 py-4">
-          {error && (
-            <Alert variant="destructive">
-              <AlertTitle>{tCommon('errorTitle')}</AlertTitle>
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
+        <div className="space-y-2">
+          <Label htmlFor="name">{t('create.name')}</Label>
+          <Input
+            id="name"
+            value={formData.name}
+            placeholder={t('create.namePlaceholder')}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            required
+          />
+        </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="name">{t('create.name')}</Label>
+        <div className="space-y-2">
+          <Label htmlFor="description">{t('create.description')}</Label>
+          <Textarea
+            id="description"
+            value={formData.description}
+            placeholder={t('create.descriptionPlaceholder')}
+            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            rows={2}
+          />
+        </div>
+
+        {/* 出發地 / 目的地 —— 手機空間不足以並排放下地名，改為直排 */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="min-w-0 space-y-2">
+            <LocationAutocomplete
+              value={departureLocation}
+              onChange={setDepartureLocation}
+              label={t('create.departure')}
+              placeholder={t('create.departurePlaceholder')}
+            />
+          </div>
+          <div className="min-w-0 space-y-2">
+            <LocationAutocomplete
+              value={destinationLocation}
+              onChange={setDestinationLocation}
+              label={t('create.destination')}
+              placeholder={t('create.destinationPlaceholder')}
+            />
+          </div>
+        </div>
+
+        {/* 旅遊時間區間 */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="min-w-0 space-y-2">
+            <Label htmlFor="start_date">{t('create.startDate')}</Label>
             <Input
-              id="name"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              required
+              id="start_date"
+              type="date"
+              value={formData.start_date}
+              onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
             />
           </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="description">{t('create.description')}</Label>
-            <Textarea
-              id="description"
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              rows={3}
+          <div className="min-w-0 space-y-2">
+            <Label htmlFor="end_date">{t('create.endDate')}</Label>
+            <Input
+              id="end_date"
+              type="date"
+              value={formData.end_date}
+              onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+              min={formData.start_date}
             />
           </div>
-
-          {/* 出發地 / 目的地 */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="min-w-0 space-y-2">
-              <LocationAutocomplete
-                value={departureLocation}
-                onChange={setDepartureLocation}
-                label={t('create.departure')}
-                placeholder={t('create.departurePlaceholder')}
-                helperText={t('create.departureHelp')}
-              />
-            </div>
-            <div className="min-w-0 space-y-2">
-              <LocationAutocomplete
-                value={destinationLocation}
-                onChange={setDestinationLocation}
-                label={t('create.destination')}
-                placeholder={t('create.destinationPlaceholder')}
-                helperText={t('create.destinationHelp')}
-              />
-            </div>
-          </div>
-
-          {/* 旅遊時間區間 */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="min-w-0 space-y-2">
-              <Label htmlFor="start_date">{t('create.startDate')}</Label>
-              <Input
-                id="start_date"
-                type="date"
-                value={formData.start_date}
-                onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-              />
-            </div>
-            <div className="min-w-0 space-y-2">
-              <Label htmlFor="end_date">{t('create.endDate')}</Label>
-              <Input
-                id="end_date"
-                type="date"
-                value={formData.end_date}
-                onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
-                min={formData.start_date}
-              />
-            </div>
-          </div>
-
-          <DialogFooter className="mt-4">
-            <Button type="button" variant="outline" onClick={handleClose}>
-              {tCommon('cancel')}
-            </Button>
-            <Button type="submit">{tCommon('create')}</Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+        </div>
+      </form>
+    </ResponsiveFormSheet>
   );
 }

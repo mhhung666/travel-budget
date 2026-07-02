@@ -177,6 +177,7 @@
     "copyFailed": "Copy failed",
     "create": {
       "title": "Create New Trip",
+      "formDescription": "Fill in the details to create a new trip budget",
       "name": "Trip Name",
       "namePlaceholder": "e.g., Japan Kansai Trip",
       "description": "Description (Optional)",

@@ -166,3 +166,17 @@ html {
 .leaflet-container {
   isolation: isolate;
 }
+
+/*
+ * iOS Safari 的 <input type="date"> 走原生外觀：內容置中、寬度依內容收縮，
+ * 空值時整格顯示為空白，在表單裡看起來像壞掉的欄位。關掉原生外觀並把
+ * 值靠左，讓它跟其他文字輸入框的高度、對齊一致。
+ */
+input[type='date'] {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+input[type='date']::-webkit-date-and-time-value {
+  text-align: left;
+}

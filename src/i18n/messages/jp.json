@@ -177,6 +177,7 @@
     "copyFailed": "コピーに失敗しました",
     "create": {
       "title": "新しい旅行を作成",
+      "formDescription": "旅行の情報を入力して新しい旅行を作成します",
       "name": "旅行名",
       "namePlaceholder": "例：関西旅行",
       "description": "説明（任意）",
