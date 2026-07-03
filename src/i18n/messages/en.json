@@ -927,7 +927,9 @@
     "expenseAdded": "{actor} added an expense: {description}",
     "paymentRecorded": "{actor} recorded a payment",
     "memberJoined": "{actor} joined the trip",
-    "expenseCommentAdded": "{actor} commented on an expense: {description}"
+    "expenseCommentAdded": "{actor} commented on an expense: {description}",
+    "friendRequest": "{actor} sent you a friend request",
+    "friendAccepted": "{actor} accepted your friend request"
   },
   "activity": {
     "title": "History",
@@ -974,6 +976,14 @@
     "expense_comment_added": {
       "subject": "{actor} commented on an expense in “{tripName}”",
       "body": "{actor} commented on an expense in “{tripName}”: {description}"
+    },
+    "friend_request": {
+      "subject": "{actor} sent you a friend request",
+      "body": "{actor} sent you a friend request. Head to your friends page to respond."
+    },
+    "friend_accepted": {
+      "subject": "{actor} accepted your friend request",
+      "body": "{actor} accepted your friend request. You are now friends."
     },
     "expenseDigest": {
       "subject": "Today's expense summary",

@@ -1,7 +1,16 @@
 'use client';
 
 import { useState } from 'react';
-import { Bell, CheckCheck, Coins, MessageSquare, Receipt, UserPlus } from 'lucide-react';
+import {
+  Bell,
+  CheckCheck,
+  Coins,
+  MessageSquare,
+  Receipt,
+  UserCheck,
+  UserPlus,
+  Users,
+} from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import { Button } from '@/components/ui/button';
@@ -23,10 +32,13 @@ const TYPE_ICON: Record<NotificationType, typeof Bell> = {
   payment_recorded: Coins,
   member_joined: UserPlus,
   expense_comment_added: MessageSquare,
+  friend_request: Users,
+  friend_accepted: UserCheck,
 };
 
-/** 點通知後該去哪：還款 → 結算頁，其餘 → 旅程詳情。 */
+/** 點通知後該去哪：好友 → 設定好友卡片，還款 → 結算頁，其餘 → 旅程詳情。 */
 function targetRoute(n: NotificationItem): string {
+  if (n.type === 'friend_request' || n.type === 'friend_accepted') return ROUTES.SETTINGS_FRIENDS;
   if (n.type === 'payment_recorded') return ROUTES.TRIP_SETTLEMENT(n.trip_id);
   return ROUTES.TRIP_DETAIL(n.trip_id);
 }
@@ -60,6 +72,10 @@ export function NotificationBell() {
         return t('memberJoined', { actor });
       case 'expense_comment_added':
         return t('expenseCommentAdded', { actor, description: n.meta.description ?? '' });
+      case 'friend_request':
+        return t('friendRequest', { actor });
+      case 'friend_accepted':
+        return t('friendAccepted', { actor });
       default:
         return actor;
     }
@@ -130,7 +146,9 @@ export function NotificationBell() {
                       <span className="min-w-0 flex-1">
                         <span className="block text-sm leading-snug">{renderMessage(n)}</span>
                         <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-                          {n.trip_name} · {formatRelativeTime(n.created_at, locale)}
+                          {n.trip_name
+                            ? `${n.trip_name} · ${formatRelativeTime(n.created_at, locale)}`
+                            : formatRelativeTime(n.created_at, locale)}
                         </span>
                       </span>
                       {!n.read && (

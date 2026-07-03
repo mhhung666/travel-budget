@@ -920,7 +920,9 @@
     "expenseAdded": "{actor} が支出を追加しました：{description}",
     "paymentRecorded": "{actor} が支払いを記録しました",
     "memberJoined": "{actor} が旅行に参加しました",
-    "expenseCommentAdded": "{actor} が支出にコメントしました：{description}"
+    "expenseCommentAdded": "{actor} が支出にコメントしました：{description}",
+    "friendRequest": "{actor} さんから友達申請が届きました",
+    "friendAccepted": "{actor} さんが友達申請を承認しました"
   },
   "activity": {
     "title": "履歴",
@@ -967,6 +969,14 @@
     "expense_comment_added": {
       "subject": "{actor} さんが「{tripName}」の支出にコメントしました",
       "body": "{actor} さんが「{tripName}」の支出「{description}」にコメントしました。"
+    },
+    "friend_request": {
+      "subject": "{actor} さんから友達申請が届きました",
+      "body": "{actor} さんから友達申請が届きました。友達ページで確認してください。"
+    },
+    "friend_accepted": {
+      "subject": "{actor} さんが友達申請を承認しました",
+      "body": "{actor} さんがあなたの友達申請を承認しました。これで友達になりました。"
     },
     "expenseDigest": {
       "subject": "本日の支出まとめ",

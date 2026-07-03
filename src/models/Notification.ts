@@ -9,6 +9,8 @@ export const NOTIFICATION_TYPES = [
   'payment_recorded', // 有人登記了與你有關的還款
   'member_joined', // 有新成員加入旅程
   'expense_comment_added', // 有人在支出下留言
+  'friend_request', // 有人送出好友邀請（不屬於任何旅程）
+  'friend_accepted', // 對方接受了你的好友邀請
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
@@ -30,7 +32,8 @@ export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 const NotificationSchema = new Schema(
   {
     user: { type: Schema.Types.ObjectId, ref: 'User', required: true }, // 收件者
-    trip: { type: Schema.Types.ObjectId, ref: 'Trip', required: true },
+    // 好友邀請等「非旅程」通知沒有 trip；舊資料全帶 trip，無需遷移。
+    trip: { type: Schema.Types.ObjectId, ref: 'Trip', required: false },
     tripName: { type: String, default: '' },
     type: { type: String, enum: NOTIFICATION_TYPES, required: true },
     actor: { type: Schema.Types.ObjectId, ref: 'User', required: true }, // 觸發者

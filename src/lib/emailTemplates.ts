@@ -53,6 +53,8 @@ function toAbsoluteUrl(appUrl: string | null, path: string): string {
 
 /** 各通知類型對應要導向的頁面路徑（`linkId` 為旅程公開 hashCode，見 BuildEmailInput）。 */
 function linkPathFor(type: NotificationType, linkId: string): string {
+  // 好友通知不屬於旅程，導向設定頁的好友卡片。
+  if (type === 'friend_request' || type === 'friend_accepted') return ROUTES.SETTINGS_FRIENDS;
   // 還款相關導向結算頁，其餘導向旅程詳情頁（比照站內通知鈴鐺的導向）。
   return type === 'payment_recorded' ? ROUTES.TRIP_SETTLEMENT(linkId) : ROUTES.TRIP_DETAIL(linkId);
 }

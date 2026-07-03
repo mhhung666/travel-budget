@@ -7,6 +7,7 @@ import { withAuth } from './withAuth';
 import type { ActionResult } from './types';
 import type { FriendItem, FriendsData, FriendshipStatus } from '@/types';
 import { logger } from '@/lib/logger';
+import { notify } from '@/lib/notify';
 
 type PopulatedFriendUser = {
   _id: { toString(): string };
@@ -120,6 +121,12 @@ export const sendFriendRequest = withAuth(
           { pairKey, status: 'pending', recipient: session.userId },
           { $set: { status: 'accepted' } }
         );
+        // 通知原邀請者：他的邀請被接受了
+        await notify({
+          actorId: session.userId,
+          type: 'friend_accepted',
+          recipientIds: [existing.requester.toString()],
+        });
         return { success: true, data: { status: 'accepted' } };
       }
 
@@ -132,6 +139,13 @@ export const sendFriendRequest = withAuth(
         }
         throw createError;
       }
+
+      // 通知收件者：收到一則好友邀請
+      await notify({
+        actorId: session.userId,
+        type: 'friend_request',
+        recipientIds: [targetUserId],
+      });
 
       return { success: true, data: { status: 'pending' } };
     } catch (error) {
@@ -153,13 +167,24 @@ export const acceptFriendRequest = withAuth(
 
       await dbConnect();
 
-      const result = await Friendship.updateOne(
+      // 原子接受並取回 requester（通知用）：filter 同時帶我方 recipient 角色 + pending 狀態。
+      const updated = await Friendship.findOneAndUpdate(
         { _id: friendshipId, recipient: session.userId, status: 'pending' },
-        { $set: { status: 'accepted' } }
-      );
-      if (result.matchedCount === 0) {
+        { $set: { status: 'accepted' } },
+        { new: true }
+      )
+        .select('requester')
+        .lean<{ requester: { toString(): string } } | null>();
+      if (!updated) {
         return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
       }
+
+      // 通知原邀請者：他的邀請被接受了
+      await notify({
+        actorId: session.userId,
+        type: 'friend_accepted',
+        recipientIds: [updated.requester.toString()],
+      });
 
       return { success: true, data: { status: 'accepted' } };
     } catch (error) {

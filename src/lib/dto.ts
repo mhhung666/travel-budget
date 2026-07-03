@@ -278,7 +278,8 @@ export function toPaymentRecord(p: PaymentDtoInput): PaymentRecord {
 export type NotificationDtoInput = {
   _id: { toString(): string };
   type: NotificationType;
-  trip: { toString(): string };
+  // 好友邀請等非旅程通知沒有 trip；DTO 以空字串表示。
+  trip?: { toString(): string } | null;
   tripName?: string | null;
   actorName?: string | null;
   meta?: NotificationMeta | null;
@@ -296,7 +297,7 @@ export function toNotificationDto(n: NotificationDtoInput): NotificationItem {
   return {
     id: n._id.toString(),
     type: n.type,
-    trip_id: n.trip.toString(),
+    trip_id: n.trip ? n.trip.toString() : '',
     trip_name: n.tripName ?? '',
     actor_name: n.actorName ?? '',
     meta: n.meta ?? {},

@@ -5,7 +5,9 @@ export type NotificationType =
   | 'expense_added'
   | 'payment_recorded'
   | 'member_joined'
-  | 'expense_comment_added';
+  | 'expense_comment_added'
+  | 'friend_request'
+  | 'friend_accepted';
 
 /**
  * 通知的型別相依結構化資料。各類型只用到其中部分欄位；訊息文案由前端依

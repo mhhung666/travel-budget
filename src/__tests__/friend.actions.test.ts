@@ -7,8 +7,10 @@ const friendshipFind = vi.fn();
 const friendshipFindOne = vi.fn();
 const friendshipCreate = vi.fn();
 const friendshipUpdateOne = vi.fn();
+const friendshipFindOneAndUpdate = vi.fn();
 const friendshipDeleteOne = vi.fn();
 const userFindById = vi.fn();
+const notify = vi.fn();
 
 vi.mock('@/lib/auth', () => ({
   getSession: () => getSession(),
@@ -18,12 +20,18 @@ vi.mock('@/lib/mongodb', () => ({
   dbConnect: () => Promise.resolve(),
 }));
 
+// 好友通知是次要副作用（notify best-effort）；stub 掉，專注驗狀態機。
+vi.mock('@/lib/notify', () => ({
+  notify: (...args: unknown[]) => notify(...args),
+}));
+
 vi.mock('@/models', () => ({
   Friendship: {
     find: (...args: unknown[]) => friendshipFind(...args),
     findOne: (...args: unknown[]) => friendshipFindOne(...args),
     create: (...args: unknown[]) => friendshipCreate(...args),
     updateOne: (...args: unknown[]) => friendshipUpdateOne(...args),
+    findOneAndUpdate: (...args: unknown[]) => friendshipFindOneAndUpdate(...args),
     deleteOne: (...args: unknown[]) => friendshipDeleteOne(...args),
   },
   User: {
@@ -252,6 +260,12 @@ describe('sendFriendRequest', () => {
       { $set: { status: 'accepted' } }
     );
     expect(friendshipCreate).not.toHaveBeenCalled();
+    // 反向接受 → 通知原邀請者
+    expect(notify).toHaveBeenCalledWith({
+      actorId: ME,
+      type: 'friend_accepted',
+      recipientIds: [OTHER],
+    });
   });
 
   it('creates a pending friendship when there is no existing relation', async () => {
@@ -263,6 +277,12 @@ describe('sendFriendRequest', () => {
 
     expect(result).toEqual({ success: true, data: { status: 'pending' } });
     expect(friendshipCreate).toHaveBeenCalledWith({ requester: ME, recipient: OTHER });
+    // 新邀請 → 通知收件者
+    expect(notify).toHaveBeenCalledWith({
+      actorId: ME,
+      type: 'friend_request',
+      recipientIds: [OTHER],
+    });
   });
 
   it('maps a duplicate-key race on create to REQUEST_PENDING', async () => {
@@ -285,23 +305,33 @@ describe('acceptFriendRequest', () => {
   });
 
   it('returns NOT_FOUND when I am not the pending recipient', async () => {
-    friendshipUpdateOne.mockResolvedValue({ matchedCount: 0 });
+    friendshipFindOneAndUpdate.mockReturnValue(chainSelectLean(null));
 
     const result = await acceptFriendRequest(FRIENDSHIP_ID);
 
     expect(result).toEqual({ success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' });
+    expect(notify).not.toHaveBeenCalled();
   });
 
-  it('atomically flips pending → accepted for the recipient', async () => {
-    friendshipUpdateOne.mockResolvedValue({ matchedCount: 1 });
+  it('atomically flips pending → accepted for the recipient and notifies the requester', async () => {
+    friendshipFindOneAndUpdate.mockReturnValue(
+      chainSelectLean({ requester: { toString: () => OTHER } })
+    );
 
     const result = await acceptFriendRequest(FRIENDSHIP_ID);
 
     expect(result).toEqual({ success: true, data: { status: 'accepted' } });
-    expect(friendshipUpdateOne).toHaveBeenCalledWith(
+    expect(friendshipFindOneAndUpdate).toHaveBeenCalledWith(
       { _id: FRIENDSHIP_ID, recipient: ME, status: 'pending' },
-      { $set: { status: 'accepted' } }
+      { $set: { status: 'accepted' } },
+      { new: true }
     );
+    // 通知原邀請者他的邀請被接受
+    expect(notify).toHaveBeenCalledWith({
+      actorId: ME,
+      type: 'friend_accepted',
+      recipientIds: [OTHER],
+    });
   });
 });
 

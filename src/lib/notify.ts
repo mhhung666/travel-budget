@@ -50,15 +50,19 @@ export function selectNotificationRecipients(
 const EMAIL_DIGESTED_TYPES: ReadonlySet<NotificationType> = new Set(['expense_added']);
 
 interface NotifyInput {
-  tripId: string;
+  /**
+   * 事件所屬旅程。**非旅程通知**（如好友邀請）省略——此時跳過 Trip 查詢、`tripName`
+   * 留空，且 `recipientIds` 必填（無旅程成員可 fan-out）。
+   */
+  tripId?: string;
   /** 觸發此事件的使用者（不會收到自己的通知）。 */
   actorId: string;
   type: NotificationType;
   /** 型別相依的結構化資料（金額、描述、關聯 id…）；訊息文案在前端依語系組出。 */
   meta?: Record<string, unknown>;
   /**
-   * 明確指定收件者（真人 user id）。省略時 fan-out 給「全體旅程成員」。
-   * 仍會再過濾掉觸發者與虛擬成員。
+   * 明確指定收件者（真人 user id）。有 tripId 時省略＝fan-out 給「全體旅程成員」；
+   * 無 tripId 時必填。仍會再過濾掉觸發者與虛擬成員。
    */
   recipientIds?: string[];
 }
@@ -74,15 +78,26 @@ export async function notify({
   recipientIds,
 }: NotifyInput): Promise<void> {
   try {
-    // 取旅程名稱（去正規化存進通知）+ 必要時取成員清單
-    const trip = await Trip.findById(tripId).select('name members hashCode').lean<{
-      name: string;
-      hashCode: string;
-      members: { user: { toString(): string } }[];
-    } | null>();
-    if (!trip) return;
+    // 旅程通知：取旅程名稱（去正規化存進通知）+ 必要時取成員清單。
+    // 非旅程通知（好友邀請等）沒有 tripId：跳過查詢，tripName / hashCode 留空，
+    // 收件者只能來自 recipientIds。
+    let tripName = '';
+    let tripHashCode = '';
+    let memberIds: string[] | null = null;
+    if (tripId) {
+      const trip = await Trip.findById(tripId).select('name members hashCode').lean<{
+        name: string;
+        hashCode: string;
+        members: { user: { toString(): string } }[];
+      } | null>();
+      if (!trip) return;
+      tripName = trip.name;
+      tripHashCode = trip.hashCode;
+      memberIds = trip.members.map((m) => m.user.toString());
+    }
 
-    const candidateIds = recipientIds ?? trip.members.map((m) => m.user.toString());
+    const candidateIds = recipientIds ?? memberIds;
+    if (!candidateIds) return; // 非旅程通知必須明確指定收件者
     const uniqueIds = [...new Set(candidateIds.filter((id) => id !== actorId))];
     if (uniqueIds.length === 0) return;
 
@@ -113,8 +128,9 @@ export async function notify({
     await Notification.insertMany(
       recipients.map((uid) => ({
         user: uid,
-        trip: tripId,
-        tripName: trip.name,
+        // 非旅程通知 trip 為 undefined，Mongoose 會省略此欄位（schema 已設 optional）。
+        ...(tripId ? { trip: tripId } : {}),
+        tripName,
         type,
         actor: actorId,
         actorName,
@@ -129,8 +145,8 @@ export async function notify({
       recipients,
       byId,
       type,
-      tripHashCode: trip.hashCode,
-      tripName: trip.name,
+      tripHashCode,
+      tripName,
       actorName,
       meta: meta as NotificationMeta,
     });
@@ -143,8 +159,8 @@ export async function notify({
       recipients,
       byId,
       type,
-      tripHashCode: trip.hashCode,
-      tripName: trip.name,
+      tripHashCode,
+      tripName,
       actorName,
       meta: meta as NotificationMeta,
     });

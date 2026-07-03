@@ -82,6 +82,40 @@ describe('buildPushPayload', () => {
     });
     expect(p.url).toBe('/trips/trip123');
   });
+
+  it('links friend notifications to the settings friends card', async () => {
+    const req = await buildPushPayload({
+      ...base,
+      type: 'friend_request',
+      tripName: '',
+      tripHashCode: '',
+      locale: 'zh',
+    });
+    expect(req.url).toBe('https://app.example.com/settings/friends');
+
+    const acc = await buildPushPayload({
+      ...base,
+      type: 'friend_accepted',
+      tripName: '',
+      tripHashCode: '',
+      locale: 'zh',
+    });
+    expect(acc.url).toBe('https://app.example.com/settings/friends');
+  });
+
+  it('falls back to a generic title when a friend notification has no trip name', async () => {
+    const p = await buildPushPayload({
+      ...base,
+      type: 'friend_request',
+      tripName: '',
+      tripHashCode: '',
+      locale: 'zh',
+    });
+    // 沒有旅程名 → 退回泛用「通知」標題（非空、非旅程名）
+    expect(p.title.length).toBeGreaterThan(0);
+    expect(p.title).not.toBe('Tokyo 2026');
+    expect(p.body).toContain('Alice');
+  });
 });
 
 describe('isExpiredSubscriptionError', () => {

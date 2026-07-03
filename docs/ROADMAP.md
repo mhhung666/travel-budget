@@ -22,7 +22,8 @@
 
 **分四個 phase 落地**（每個 phase 獨立可出貨、各自是一個閉環）：
 
-**Phase 1 — 好友核心（model + actions + 管理 UI）**
+**Phase 1 — 好友核心（model + actions + 管理 UI）** ✅ 已完成
+> 註：本專案目前無「刪帳號」流程，故 `Friendship` 清理路徑暫無掛載點。
 - **Schema**：獨立 `Friendship` collection（`requester` / `recipient` / `status: pending|accepted`），排序後的 user pair 建 unique compound index 防重複與反向重複。不要塞 `User.friends[]` 陣列——好友是「關係 + 狀態機」，單一文件讓「接受好友」是一次原子更新（Mongo 無 cascade，雙陣列會有不一致風險），也預留未來 `blocked` 狀態。虛擬成員（`isVirtual`）排除在外。
 - **Actions**：邀請 / 接受 / 拒絕 / 刪除 / 列表（好友清單 + 收到與送出的 pending）。
 - **入口（首選）**：旅程成員頁「加好友」按鈕（已同遊過，零隱私疑慮，且 userId 現成）；虛擬成員不顯示。
@@ -30,7 +31,7 @@
 - 刪帳號 / 相關清理路徑手動刪 `Friendship`（無 cascade）、四語系、狀態機單元測試。
 - **驗收閉環**：A 在成員頁對 B 發邀請 → B 在設定頁接受 → 雙方好友列表互見。
 
-**Phase 2 — 通知整合**
+**Phase 2 — 通知整合** ✅ 已完成
 - `Notification.trip` 改 **optional**（好友邀請不屬於旅程；舊資料全有 trip，免遷移）。
 - 新類型 `friend_request`（建議同時加 `friend_accepted`，發起者才知道結果）。
 - `notify()` 的 `recipientIds` 指定收件人變體**已存在**，缺的是「無 `tripId`」路徑：跳過 Trip 查詢、`tripName` 留空，Email / Push 模板與鈴鐺點擊改深連結到設定頁好友卡片。

@@ -53,6 +53,8 @@ const MESSAGE_KEY: Record<NotificationType, string> = {
   payment_recorded: 'paymentRecorded',
   member_joined: 'memberJoined',
   expense_comment_added: 'expenseCommentAdded',
+  friend_request: 'friendRequest',
+  friend_accepted: 'friendAccepted',
 };
 
 /** 將任意字串收斂為支援的 Locale，否則退回預設語系。 */
@@ -72,6 +74,8 @@ function toAbsoluteUrl(appUrl: string | null, path: string): string {
 
 /** 各通知類型對應要導向的頁面路徑（`linkId` 為旅程公開 hashCode，比照站內鈴鐺/Email）。 */
 function linkPathFor(type: NotificationType, linkId: string): string {
+  // 好友通知不屬於旅程，導向設定頁的好友卡片。
+  if (type === 'friend_request' || type === 'friend_accepted') return ROUTES.SETTINGS_FRIENDS;
   return type === 'payment_recorded' ? ROUTES.TRIP_SETTLEMENT(linkId) : ROUTES.TRIP_DETAIL(linkId);
 }
 
@@ -93,7 +97,8 @@ export async function buildPushPayload(input: BuildPushPayloadInput): Promise<Pu
   const body = t(MESSAGE_KEY[type], { actor, description: meta.description ?? '' });
 
   return {
-    title: tripName,
+    // 非旅程通知（好友邀請等）沒有旅程名，退回泛用的「通知」標題。
+    title: tripName || t('title'),
     body,
     url: toAbsoluteUrl(appUrl, linkPathFor(type, tripHashCode)),
   };

@@ -78,6 +78,29 @@ describe('buildNotificationEmail', () => {
     expect(expense.text).not.toContain('/settlement');
   });
 
+  it('links friend notifications to the settings friends card (no trip)', async () => {
+    const req = await buildNotificationEmail({
+      ...base,
+      type: 'friend_request',
+      tripName: '',
+      tripHashCode: '',
+      locale: 'zh',
+    });
+    expect(req.text).toContain('https://app.example.com/settings/friends');
+    expect(req.text).not.toContain('/trips/');
+    expect(req.subject).toContain('Alice');
+
+    const acc = await buildNotificationEmail({
+      ...base,
+      type: 'friend_accepted',
+      tripName: '',
+      tripHashCode: '',
+      locale: 'en',
+    });
+    expect(acc.html).toContain('/settings/friends');
+    expect(acc.subject).toContain('accepted');
+  });
+
   it('uses relative paths when appUrl is null', async () => {
     const email = await buildNotificationEmail({
       ...base,
