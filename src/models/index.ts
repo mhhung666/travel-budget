@@ -15,3 +15,4 @@ export {
 export { ActivityLog, ACTIVITY_TYPES, type ActivityLogDoc, type ActivityType } from './ActivityLog';
 export { PushSubscription, type PushSubscriptionDoc } from './PushSubscription';
 export { Comment, type CommentDoc } from './Comment';
+export { Note, type NoteDoc } from './Note';

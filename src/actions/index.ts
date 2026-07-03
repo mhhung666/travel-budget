@@ -81,6 +81,9 @@ export {
   removeChecklistItem,
 } from './checklist.actions';
 
+// Note actions（隨手記）
+export { getNotes, createNote, updateNote, deleteNote, planNote } from './note.actions';
+
 // Stats actions
 export { getStats, getTripStats } from './stats.actions';
 

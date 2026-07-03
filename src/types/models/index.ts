@@ -36,6 +36,9 @@ export type { ActivityLogItem, ActivityLogType, ActivityLogMeta } from './activi
 // Comments (支出留言)
 export type { CommentDto } from './comment';
 
+// Notes (隨手記)
+export type { TripNote } from './note';
+
 // Stats
 export type {
   ExpenseDetail,

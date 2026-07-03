@@ -10,6 +10,7 @@ import type {
   ActivityLogType,
   ActivityLogMeta,
   CommentDto,
+  TripNote,
 } from '@/types';
 import type { TripStatsDay, TripStatsExpense, TripStatsMember } from '@/lib/tripStats';
 
@@ -352,5 +353,38 @@ export function toCommentDto(c: CommentDtoInput): CommentDto {
     author_name: c.authorName ?? '',
     body: c.body,
     created_at: c.createdAt.toISOString(),
+  };
+}
+
+/** Minimal lean Note shape `toTripNoteDto` needs (authorName denormalized). */
+export type TripNoteDtoInput = {
+  _id: { toString(): string };
+  trip: { toString(): string };
+  text: string;
+  createdBy: { toString(): string };
+  authorName?: string | null;
+  pinned?: boolean | null;
+  plannedAt?: Date | null;
+  plannedDayNumber?: number | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+/**
+ * Lean Note doc → frontend DTO. `author_name` is denormalized at create time
+ * (same as comments), so no populate is needed across a list of notes.
+ */
+export function toTripNoteDto(n: TripNoteDtoInput): TripNote {
+  return {
+    id: n._id.toString(),
+    trip_id: n.trip.toString(),
+    text: n.text,
+    author_id: n.createdBy.toString(),
+    author_name: n.authorName ?? '',
+    pinned: n.pinned ?? false,
+    planned_at: n.plannedAt ? n.plannedAt.toISOString() : null,
+    planned_day_number: n.plannedDayNumber ?? null,
+    created_at: n.createdAt.toISOString(),
+    updated_at: n.updatedAt.toISOString(),
   };
 }

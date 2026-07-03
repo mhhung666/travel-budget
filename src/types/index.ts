@@ -59,6 +59,7 @@ export type {
   ActivityLogType,
   ActivityLogMeta,
   CommentDto,
+  TripNote,
 } from './models';
 
 // ============================================

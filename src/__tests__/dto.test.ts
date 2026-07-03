@@ -4,10 +4,12 @@ import {
   toTripDto,
   toChecklistDto,
   toActivityLogDto,
+  toTripNoteDto,
   type ExpenseDtoInput,
   type TripDtoInput,
   type ChecklistDtoInput,
   type ActivityLogDtoInput,
+  type TripNoteDtoInput,
 } from '@/lib/dto';
 
 const ref = (id: string, username: string, displayName: string) => ({
@@ -213,6 +215,60 @@ describe('toChecklistDto', () => {
     expect(dto.items[0].done).toBe(false);
     expect(dto.items[0].assignee_id).toBeNull();
     expect(dto.items[0].assignee_name).toBeNull();
+  });
+});
+
+describe('toTripNoteDto', () => {
+  const base: TripNoteDtoInput = {
+    _id: { toString: () => 'n1' },
+    trip: { toString: () => 'trip9' },
+    text: '想去藍瓶咖啡',
+    createdBy: { toString: () => 'u1' },
+    authorName: 'Alice',
+    pinned: true,
+    plannedAt: null,
+    plannedDayNumber: null,
+    createdAt: new Date('2026-06-01T00:00:00Z'),
+    updatedAt: new Date('2026-06-02T00:00:00Z'),
+  };
+
+  it('maps an unplanned note to the snake_case DTO (planned fields null)', () => {
+    expect(toTripNoteDto(base)).toEqual({
+      id: 'n1',
+      trip_id: 'trip9',
+      text: '想去藍瓶咖啡',
+      author_id: 'u1',
+      author_name: 'Alice',
+      pinned: true,
+      planned_at: null,
+      planned_day_number: null,
+      created_at: '2026-06-01T00:00:00.000Z',
+      updated_at: '2026-06-02T00:00:00.000Z',
+    });
+  });
+
+  it('serializes plannedAt to ISO and keeps the day snapshot', () => {
+    const dto = toTripNoteDto({
+      ...base,
+      plannedAt: new Date('2026-06-03T12:00:00Z'),
+      plannedDayNumber: 3,
+    });
+    expect(dto.planned_at).toBe('2026-06-03T12:00:00.000Z');
+    expect(dto.planned_day_number).toBe(3);
+  });
+
+  it('defaults missing optional fields (legacy docs) to safe values', () => {
+    const dto = toTripNoteDto({
+      ...base,
+      authorName: undefined,
+      pinned: undefined,
+      plannedAt: undefined,
+      plannedDayNumber: undefined,
+    });
+    expect(dto.author_name).toBe('');
+    expect(dto.pinned).toBe(false);
+    expect(dto.planned_at).toBeNull();
+    expect(dto.planned_day_number).toBeNull();
   });
 });
 

@@ -19,6 +19,7 @@ export const ROUTES = {
   TRIP_DETAIL: (id: string | number) => `/trips/${id}`,
   TRIP_SETTLEMENT: (id: string | number) => `/trips/${id}/settlement`,
   TRIP_ITINERARY: (id: string | number) => `/trips/${id}/itinerary`,
+  TRIP_NOTES: (id: string | number) => `/trips/${id}/notes`,
   TRIP_CHECKLISTS: (id: string | number) => `/trips/${id}/checklists`,
   TRIP_STATS: (id: string | number) => `/trips/${id}/stats`,
   TRIP_ACTIVITY: (id: string | number) => `/trips/${id}/activity`,

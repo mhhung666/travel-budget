@@ -9,6 +9,9 @@ import {
   addVirtualMemberSchema,
   createItineraryDaySchema,
   activitySchema,
+  createNoteSchema,
+  updateNoteSchema,
+  planNoteSchema,
 } from '@/lib/validation';
 
 describe('createTripSchema', () => {
@@ -382,5 +385,47 @@ describe('activitySchema', () => {
   it('should reject empty title and unknown type', () => {
     expect(activitySchema.safeParse({ title: '' }).success).toBe(false);
     expect(activitySchema.safeParse({ title: 'x', type: 'party' }).success).toBe(false);
+  });
+});
+
+describe('createNoteSchema', () => {
+  it('should trim and accept a valid note', () => {
+    const result = createNoteSchema.safeParse({ text: '  想去藍瓶咖啡  ' });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.text).toBe('想去藍瓶咖啡');
+  });
+
+  it('should reject empty / whitespace-only text', () => {
+    expect(createNoteSchema.safeParse({ text: '' }).success).toBe(false);
+    expect(createNoteSchema.safeParse({ text: '   ' }).success).toBe(false);
+  });
+
+  it('should reject text over 500 chars', () => {
+    expect(createNoteSchema.safeParse({ text: 'a'.repeat(501) }).success).toBe(false);
+    expect(createNoteSchema.safeParse({ text: 'a'.repeat(500) }).success).toBe(true);
+  });
+});
+
+describe('updateNoteSchema', () => {
+  it('should accept text-only, pinned-only, or both', () => {
+    expect(updateNoteSchema.safeParse({ text: 'x' }).success).toBe(true);
+    expect(updateNoteSchema.safeParse({ pinned: true }).success).toBe(true);
+    expect(updateNoteSchema.safeParse({ text: 'x', pinned: false }).success).toBe(true);
+  });
+
+  it('should reject an empty update (no fields)', () => {
+    expect(updateNoteSchema.safeParse({}).success).toBe(false);
+  });
+
+  it('should reject empty text even when pinned is present', () => {
+    expect(updateNoteSchema.safeParse({ text: '  ', pinned: true }).success).toBe(false);
+  });
+});
+
+describe('planNoteSchema', () => {
+  it('should require a valid ObjectId day_id', () => {
+    expect(planNoteSchema.safeParse({ day_id: '507f1f77bcf86cd799439011' }).success).toBe(true);
+    expect(planNoteSchema.safeParse({ day_id: 'day-1' }).success).toBe(false);
+    expect(planNoteSchema.safeParse({}).success).toBe(false);
   });
 });

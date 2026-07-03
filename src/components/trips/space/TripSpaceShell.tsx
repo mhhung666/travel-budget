@@ -61,16 +61,18 @@ export function TripSpaceShell({
     handleSetBudget,
   } = useTripSpace(tripId);
 
-  const tabs = [
+  // 隨手記為成員限定（無公開分享路由），分享連結訪客不顯示該分頁
+  const tabs: { href: string; label: string; exact?: boolean }[] = [
     { href: ROUTES.TRIP_DETAIL(tripId), label: tTrip('tabs.expenses'), exact: true },
+    ...(isMember ? [{ href: ROUTES.TRIP_NOTES(tripId), label: tTrip('tabs.notes') }] : []),
     { href: ROUTES.TRIP_ITINERARY(tripId), label: tTrip('tabs.itinerary') },
     { href: ROUTES.TRIP_SETTLEMENT(tripId), label: tTrip('tabs.settlement') },
     { href: ROUTES.TRIP_STATS(tripId), label: tTrip('tabs.stats') },
     { href: ROUTES.TRIP_CHECKLISTS(tripId), label: tTrip('tabs.checklists') },
-  ] as const;
+  ];
 
   const isTabActive = (tab: (typeof tabs)[number]) =>
-    'exact' in tab && tab.exact ? pathname === tab.href : pathname.startsWith(tab.href);
+    tab.exact ? pathname === tab.href : pathname.startsWith(tab.href);
 
   // 「更多」頁（活動紀錄／行程設定）不在分頁列上，返回鍵先回行程空間；
   // 分頁本身互為同層，返回鍵離開空間回行程列表。

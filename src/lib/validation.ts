@@ -303,6 +303,26 @@ export const createCommentSchema = z.object({
   body: z.string().trim().min(1, '留言不能為空').max(1000, '留言過長（上限 1000 字）'),
 });
 
+// Note schemas（隨手記；任何成員皆可編輯，比照 Checklist 的成員信任模型）
+const noteTextSchema = z.string().trim().min(1, '內容不能為空').max(500, '內容過長（上限 500 字）');
+
+export const createNoteSchema = z.object({
+  text: noteTextSchema,
+});
+
+export const updateNoteSchema = z
+  .object({
+    text: noteTextSchema.optional(),
+    pinned: z.boolean().optional(),
+  })
+  .refine((d) => d.text !== undefined || d.pinned !== undefined, {
+    message: '沒有可更新的欄位',
+  });
+
+export const planNoteSchema = z.object({
+  day_id: objectIdSchema,
+});
+
 // Type exports
 export type CreateChecklistInput = z.infer<typeof createChecklistSchema>;
 export type UpdateChecklistInput = z.infer<typeof updateChecklistSchema>;
@@ -327,3 +347,6 @@ export type ConfirmEmailChangeInput = z.infer<typeof confirmEmailChangeSchema>;
 export type AddVirtualMemberInput = z.infer<typeof addVirtualMemberSchema>;
 export type LocationInput = z.infer<typeof locationSchema>;
 export type CreateCommentInput = z.infer<typeof createCommentSchema>;
+export type CreateNoteInput = z.infer<typeof createNoteSchema>;
+export type UpdateNoteInput = z.infer<typeof updateNoteSchema>;
+export type PlanNoteInput = z.infer<typeof planNoteSchema>;

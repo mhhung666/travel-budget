@@ -30,3 +30,4 @@ export {
 } from './useNotifications';
 export { useActivityLog } from './useActivityLog';
 export { useCommentCounts, useExpenseComments, useCommentMutations } from './useComments';
+export { useNotes, useNoteMutations } from './useNotes';
