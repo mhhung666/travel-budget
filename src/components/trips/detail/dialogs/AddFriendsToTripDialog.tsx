@@ -129,7 +129,11 @@ export default function AddFriendsToTripDialog({
           <Button type="button" variant="outline" onClick={onClose}>
             {tCommon('cancel')}
           </Button>
-          <Button type="button" onClick={handleSubmit} disabled={isSubmitting || selected.size === 0}>
+          <Button
+            type="button"
+            onClick={handleSubmit}
+            disabled={isSubmitting || selected.size === 0}
+          >
             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {selected.size > 0 ? t('addSelectedCount', { count: selected.size }) : tCommon('add')}
           </Button>
