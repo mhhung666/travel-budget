@@ -125,12 +125,12 @@
 
 | 通道 | 觸發 | 說明 |
 | --- | --- | --- |
-| 站內通知（鈴鐺） | 新增支出 / 登記還款 / 成員加入 / 支出留言 | per-user 收件匣 + 未讀數 |
+| 站內通知（鈴鐺） | 新增支出 / 登記還款 / 成員加入 / 支出留言 / 好友邀請 / 好友接受 | per-user 收件匣 + 未讀數 |
 | Email（Resend） | 同上 | 新增支出改**每日彙整**；還款 / 加入 / 留言即時 |
 | 排程提醒（Vercel Cron） | 每週結算提醒 + 每日支出摘要 | best-effort、env-gated |
 | Web Push | 同站內四觸發點 | 瀏覽器推播、共用離線 SW |
 
-**站內通知**：collection [Notification](../src/models/Notification.ts) = `{ user(收件者), trip, tripName, type, actor, actorName, meta, read }`——**per-user 收件匣**（去正規化顯示欄位、讀取免 populate）。fan-out 工具 [lib/notify.ts](../src/lib/notify.ts) `notify()` = **best-effort**（失敗只記 log、絕不 throw 進主 action）；純函式 `selectNotificationRecipients`（排除觸發者本人 / 虛擬成員 / 去重，8 個單元測試）。四觸發點：`createExpense` / `recordPayment` / `joinTrip` / `createComment`。Actions [notification.actions.ts](../src/actions/notification.actions.ts) 皆限定 `user: session.userId`。**文案在前端依收件者語系即時組出**（i18n `notifications` 命名空間 + meta）。UI：navbar 鈴鐺 [NotificationBell](../src/components/notifications/NotificationBell.tsx)（未讀 badge 輪詢 60s + 視窗 focus 重抓、Popover 清單、點擊標記已讀並導向）。資料完整性：`deleteTrip` cascade、`removeMember` 清該成員通知。
+**站內通知**：collection [Notification](../src/models/Notification.ts) = `{ user(收件者), trip(**optional**), tripName, type, actor, actorName, meta, read }`——**per-user 收件匣**（去正規化顯示欄位、讀取免 populate）。fan-out 工具 [lib/notify.ts](../src/lib/notify.ts) `notify()` = **best-effort**（失敗只記 log、絕不 throw 進主 action）；純函式 `selectNotificationRecipients`（排除觸發者本人 / 虛擬成員 / 去重，8 個單元測試）。觸發點：`createExpense` / `recordPayment` / `joinTrip` / `createComment` + 好友邀請 / 接受（`sendFriendRequest` / `acceptFriendRequest`）+ 匯入旅程（`addFriendsToTrip`）。**好友通知不屬於任何旅程**，走 `notify()` 的**無 `tripId` 路徑**（跳過 Trip 查詢、`tripName` 留空、必帶 `recipientIds`），鈴鐺 / Email / Push 一律深連結到設定頁好友卡片（詳見 §15）。Actions [notification.actions.ts](../src/actions/notification.actions.ts) 皆限定 `user: session.userId`。**文案在前端依收件者語系即時組出**（i18n `notifications` 命名空間 + meta）。UI：navbar 鈴鐺 [NotificationBell](../src/components/notifications/NotificationBell.tsx)（未讀 badge 輪詢 60s + 視窗 focus 重抓、Popover 清單、點擊標記已讀並導向）。資料完整性：`deleteTrip` cascade、`removeMember` 清該成員通知。
 
 **Email（Resend）**：env-gated（`RESEND_API_KEY` / `RESEND_FROM` / `APP_URL` optional，`getResendConfig()` 回 null 則整支靜默跳過）。[lib/email.ts](../src/lib/email.ts) `sendEmail()` = best-effort 永不 throw。模板 [lib/emailTemplates.ts](../src/lib/emailTemplates.ts) 在伺服端用收件者語系以 next-intl `createTranslator` 算文案（`email` i18n 命名空間，四語系）。為此 `User` 加 `notifyByEmail`（opt-out，預設開）+ `locale`（寄信語系）。連結用 `APP_URL` 組絕對 URL，HTML 模板對使用者字串做 escape。
 
@@ -228,7 +228,30 @@ UI：登入頁 [/wrapped](../src/app/%5Blocale%5D/wrapped/page.tsx)（年份切�
 
 ---
 
-## 15. 其他
+## 15. 好友系統（Friends）
+
+雙向好友關係——常和同一群人出遊時，不必每趟重加；也是未來社交功能（好友回顧 / 地圖疊層 / 足跡排行）的共用地基。
+
+| 功能 | 說明 |
+| --- | --- |
+| 好友關係 | 邀請 / 接受 / 拒絕（收回）/ 刪除 / 列表（好友 + 收到 / 送出的 pending） |
+| 入口 | 旅程成員頁「加好友」按鈕（已同遊過、userId 現成）+ 設定頁好友管理卡片 |
+| 好友通知 | `friend_request` / `friend_accepted`（站內 + Email + Push，深連結設定頁；見 §8） |
+| 匯入旅程 | 建旅程 / 成員頁「從好友加入」多選，直接加入成員 |
+
+**Schema**：獨立 collection [Friendship](../src/models/Friendship.ts) = `{ requester, recipient, status: pending\|accepted, pairKey }`——**一段關係一份文件**（非 `User.friends[]` 雙陣列），讓「接受」是一次原子更新（Mongo 無 cascade，雙陣列有不一致風險），也預留未來 `blocked`。`pairKey` = 排序後的 `<小id>:<大id>`（`pre('validate')` 自動算），建 **unique index** 同時防重複邀請與反向重複（A→B 存在時 B→A 撞鍵）。虛擬成員（`isVirtual`）由 actions 層擋下、不參與。
+
+**Actions**（[friend.actions.ts](../src/actions/friend.actions.ts)，只驗 session、不走 `getTripMembership`，各自 `dbConnect()`）：`getFriends` / `sendFriendRequest`（對方已先邀請我則直接原子接受，避免互按卡死）/ `acceptFriendRequest`（`findOneAndUpdate` 取回 requester 供通知）/ `declineFriendRequest`（拒絕或收回 → 刪文件）/ `removeFriend`。狀態機全用「條件式原子更新 / 刪除」（filter 帶 `_id` + 我方角色 + 當前狀態），不做讀改寫。21 個單元測試（[friend.actions.test.ts](../src/__tests__/friend.actions.test.ts)）。
+
+**通知整合**：新增 `friend_request` / `friend_accepted` 類型，`Notification.trip` 改 optional，`notify()` 走無 `tripId` 路徑（見 §8）。UI 深連結一律到設定頁好友卡片。
+
+**匯入旅程（原始痛點兌現）**：[addFriendsToTrip](../src/actions/member.actions.ts)（**成員層級**，非僅管理員——好友即同意、且分享邀請連結加入本就無審核，權限面不變寬）只收 **accepted 好友**（排序 `pairKey` 一次查回）、排除已是成員與自己，逐一 `Trip.updateOne(members.user $ne)` 防併發 push，每位被加入者發 `member_joined` 通知（fan-out 排除操作者本人）+ 動態牆。兩個入口：成員頁 [AddFriendsToTripDialog](../src/components/trips/detail/dialogs/AddFriendsToTripDialog.tsx) 多選、建旅程 [CreateTripDialog](../src/components/trips/CreateTripDialog.tsx) 內建「邀請好友一起」勾選（`createTrip` 成功後 best-effort 呼叫同一 action，失敗不擋建立）。8 個測試（[member.actions.test.ts](../src/__tests__/member.actions.test.ts)）。UI：設定頁 [FriendsSection](../src/components/friends/FriendsSection.tsx)（好友列表 + pending 收件匣）、成員頁 [AddFriendButton](../src/components/friends/AddFriendButton.tsx)（四態渲染），資料共用 [useFriends](../src/hooks/queries/useFriends.ts) 快取。
+
+*未做（評估後認為現階段非必要）：好友邀請連結（`User.friendInviteCode`）、帳號搜尋（username/email 完全比對）。* 本專案目前無「刪帳號」流程，故 `Friendship` 清理路徑暫無掛載點。
+
+---
+
+## 16. 其他
 
 | 功能 | 說明 |
 | --- | --- |
@@ -236,5 +259,3 @@ UI：登入頁 [/wrapped](../src/app/%5Blocale%5D/wrapped/page.tsx)（年份切�
 | 深色模式 | `next-themes` |
 | CSV 匯出 | 支出 / 行程 / 結算（[src/lib/exporters/](../src/lib/exporters/)） |
 | 公開唯讀分享頁 | 旅程 / 統計 / 結算 / 行程 / 清單 / 地圖 / 回顧 |
-</content>
-</invoke>
