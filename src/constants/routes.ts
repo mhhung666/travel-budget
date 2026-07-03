@@ -30,6 +30,7 @@ export const ROUTES = {
   SETTINGS_SECURITY: '/settings/security',
   SETTINGS_NOTIFICATIONS: '/settings/notifications',
   SETTINGS_APPEARANCE: '/settings/appearance',
+  SETTINGS_FRIENDS: '/settings/friends',
   // PWA「記一筆」捷徑：導向最近行程並開啟新增支出（manifest shortcut 用）
   QUICK_ADD: '/quick-add',
 
@@ -75,6 +76,7 @@ export const PROTECTED_ROUTES = [
   '/settings/security',
   '/settings/notifications',
   '/settings/appearance',
+  '/settings/friends',
   '/stats',
   '/wrapped',
   '/quick-add',

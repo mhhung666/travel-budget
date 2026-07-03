@@ -1,6 +1,6 @@
 'use client';
 
-import { Bell, ChevronRight, Lock, LogOut, Palette, Sparkles, User } from 'lucide-react';
+import { Bell, ChevronRight, Lock, LogOut, Palette, Sparkles, User, Users } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
@@ -24,6 +24,7 @@ export default function SettingsPage() {
   const router = useRouter();
   const t = useTranslations('settings');
   const tNav = useTranslations('nav');
+  const tFriends = useTranslations('friends');
 
   const { data: user, isLoading } = useCurrentUser();
 
@@ -38,6 +39,7 @@ export default function SettingsPage() {
 
   const items: { icon: LucideIcon; label: string; href: string }[] = [
     { icon: User, label: t('profile.title'), href: ROUTES.SETTINGS_ACCOUNT },
+    { icon: Users, label: tFriends('title'), href: ROUTES.SETTINGS_FRIENDS },
     { icon: Lock, label: t('password.title'), href: ROUTES.SETTINGS_SECURITY },
     { icon: Bell, label: t('notifications.title'), href: ROUTES.SETTINGS_NOTIFICATIONS },
     { icon: Palette, label: t('appearance.title'), href: ROUTES.SETTINGS_APPEARANCE },

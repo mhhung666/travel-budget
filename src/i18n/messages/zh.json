@@ -387,6 +387,39 @@
       }
     }
   },
+  "friends": {
+    "title": "好友",
+    "addFriend": "加好友",
+    "requestSent": "好友邀請已送出",
+    "requestPending": "邀請待回覆",
+    "acceptRequest": "接受好友邀請",
+    "alreadyFriends": "已是好友",
+    "incomingTitle": "收到的邀請",
+    "outgoingTitle": "送出的邀請",
+    "listTitle": "我的好友",
+    "empty": "還沒有好友。到旅程成員列表對旅伴按「加好友」吧！",
+    "accept": "接受",
+    "decline": "拒絕",
+    "cancel": "收回",
+    "remove": "刪除好友",
+    "accepted": "已成為好友",
+    "declined": "已拒絕邀請",
+    "canceled": "已收回邀請",
+    "removed": "已刪除好友",
+    "confirmRemove": {
+      "title": "刪除好友",
+      "message": "確定要刪除好友「{name}」嗎？",
+      "cancel": "取消"
+    },
+    "errors": {
+      "ALREADY_FRIENDS": "你們已經是好友",
+      "REQUEST_PENDING": "已有待回覆的邀請",
+      "NOT_FOUND": "找不到這筆好友邀請",
+      "VALIDATION_ERROR": "無法對此使用者發送好友邀請",
+      "UNAUTHORIZED": "請先登入",
+      "INTERNAL_ERROR": "操作失敗，請稍後再試"
+    }
+  },
   "settlement": {
     "title": "結算",
     "summary": "結算總覽",

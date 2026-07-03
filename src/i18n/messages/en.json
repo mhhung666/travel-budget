@@ -436,6 +436,39 @@
       "roleUpdated": "Role updated"
     }
   },
+  "friends": {
+    "title": "Friends",
+    "addFriend": "Add friend",
+    "requestSent": "Friend request sent",
+    "requestPending": "Request pending",
+    "acceptRequest": "Accept friend request",
+    "alreadyFriends": "Already friends",
+    "incomingTitle": "Requests received",
+    "outgoingTitle": "Requests sent",
+    "listTitle": "My friends",
+    "empty": "No friends yet. Tap \"Add friend\" next to a travel buddy in a trip's member list!",
+    "accept": "Accept",
+    "decline": "Decline",
+    "cancel": "Withdraw",
+    "remove": "Remove friend",
+    "accepted": "You are now friends",
+    "declined": "Request declined",
+    "canceled": "Request withdrawn",
+    "removed": "Friend removed",
+    "confirmRemove": {
+      "title": "Remove friend",
+      "message": "Remove {name} from your friends?",
+      "cancel": "Cancel"
+    },
+    "errors": {
+      "ALREADY_FRIENDS": "You are already friends",
+      "REQUEST_PENDING": "A request is already pending",
+      "NOT_FOUND": "Friend request not found",
+      "VALIDATION_ERROR": "Cannot send a friend request to this user",
+      "UNAUTHORIZED": "Please log in first",
+      "INTERNAL_ERROR": "Something went wrong. Please try again later."
+    }
+  },
   "settlement": {
     "title": "Settlement",
     "summary": "Settlement Summary",

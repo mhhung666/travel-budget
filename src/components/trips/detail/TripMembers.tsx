@@ -4,6 +4,7 @@ import { UserPlus, Shield, UserMinus, ShieldCheck, Link } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { Member, User } from '@/types';
 
+import { AddFriendButton } from '@/components/friends';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -105,6 +106,13 @@ export default function TripMembers({
                     </p>
                   )}
                 </div>
+
+                {/* 加好友（ROADMAP #12）- 已登入、非虛擬成員、不是自己 */}
+                {currentUser && !member.is_virtual && member.id !== currentUser.id && (
+                  <div className="shrink-0">
+                    <AddFriendButton targetUserId={member.id} />
+                  </div>
+                )}
 
                 {/* 管理員操作按鈕 - 僅管理員且不是自己 */}
                 {isCurrentUserAdmin && member.id !== currentUser?.id && (

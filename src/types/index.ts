@@ -60,6 +60,9 @@ export type {
   ActivityLogMeta,
   CommentDto,
   TripNote,
+  FriendshipStatus,
+  FriendItem,
+  FriendsData,
 } from './models';
 
 // ============================================

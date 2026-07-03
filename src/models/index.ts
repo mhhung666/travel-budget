@@ -15,4 +15,5 @@ export {
 export { ActivityLog, ACTIVITY_TYPES, type ActivityLogDoc, type ActivityType } from './ActivityLog';
 export { PushSubscription, type PushSubscriptionDoc } from './PushSubscription';
 export { Comment, type CommentDoc } from './Comment';
+export { Friendship, friendshipPairKey, type FriendshipDoc } from './Friendship';
 export { Note, type NoteDoc } from './Note';

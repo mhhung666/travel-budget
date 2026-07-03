@@ -30,6 +30,14 @@ export const tripKeys = {
 } as const;
 
 /**
+ * Friend query keys. Per-user (not trip-scoped) — the friends list is shared by
+ * the settings friends card and the trip-members add-friend buttons.
+ */
+export const friendKeys = {
+  all: ['friends'] as const,
+} as const;
+
+/**
  * Notification query keys. Per-user (not trip-scoped), so they live outside the
  * trip key tree: the bell's unread-count badge polls independently of any trip.
  */

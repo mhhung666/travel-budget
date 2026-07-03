@@ -140,5 +140,14 @@ export {
   type PushDeviceItem,
 } from './push.actions';
 
+// Friend actions（好友系統）
+export {
+  getFriends,
+  sendFriendRequest,
+  acceptFriendRequest,
+  declineFriendRequest,
+  removeFriend,
+} from './friend.actions';
+
 // Locale action（UI 語系 cookie；見 i18n/config.ts 的「無 i18n 路由」設定）
 export { setLocale } from './locale.actions';

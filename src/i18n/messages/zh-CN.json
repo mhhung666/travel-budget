@@ -387,6 +387,39 @@
       }
     }
   },
+  "friends": {
+    "title": "好友",
+    "addFriend": "加好友",
+    "requestSent": "好友邀请已发送",
+    "requestPending": "邀请待回复",
+    "acceptRequest": "接受好友邀请",
+    "alreadyFriends": "已是好友",
+    "incomingTitle": "收到的邀请",
+    "outgoingTitle": "发出的邀请",
+    "listTitle": "我的好友",
+    "empty": "还没有好友。到旅程成员列表对旅伴点“加好友”吧！",
+    "accept": "接受",
+    "decline": "拒绝",
+    "cancel": "撤回",
+    "remove": "删除好友",
+    "accepted": "已成为好友",
+    "declined": "已拒绝邀请",
+    "canceled": "已撤回邀请",
+    "removed": "已删除好友",
+    "confirmRemove": {
+      "title": "删除好友",
+      "message": "确定要删除好友“{name}”吗？",
+      "cancel": "取消"
+    },
+    "errors": {
+      "ALREADY_FRIENDS": "你们已经是好友",
+      "REQUEST_PENDING": "已有待回复的邀请",
+      "NOT_FOUND": "找不到这条好友邀请",
+      "VALIDATION_ERROR": "无法向此用户发送好友邀请",
+      "UNAUTHORIZED": "请先登录",
+      "INTERNAL_ERROR": "操作失败，请稍后再试"
+    }
+  },
   "settlement": {
     "title": "结算",
     "summary": "结算总览",

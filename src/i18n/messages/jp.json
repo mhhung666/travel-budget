@@ -387,6 +387,39 @@
       }
     }
   },
+  "friends": {
+    "title": "フレンド",
+    "addFriend": "フレンド追加",
+    "requestSent": "フレンド申請を送信しました",
+    "requestPending": "申請の返事待ち",
+    "acceptRequest": "フレンド申請を承認",
+    "alreadyFriends": "すでにフレンドです",
+    "incomingTitle": "受け取った申請",
+    "outgoingTitle": "送った申請",
+    "listTitle": "マイフレンド",
+    "empty": "まだフレンドがいません。旅のメンバー一覧で「フレンド追加」を押してみましょう！",
+    "accept": "承認",
+    "decline": "拒否",
+    "cancel": "取り消す",
+    "remove": "フレンド削除",
+    "accepted": "フレンドになりました",
+    "declined": "申請を拒否しました",
+    "canceled": "申請を取り消しました",
+    "removed": "フレンドを削除しました",
+    "confirmRemove": {
+      "title": "フレンド削除",
+      "message": "「{name}」をフレンドから削除しますか？",
+      "cancel": "キャンセル"
+    },
+    "errors": {
+      "ALREADY_FRIENDS": "すでにフレンドです",
+      "REQUEST_PENDING": "返事待ちの申請があります",
+      "NOT_FOUND": "フレンド申請が見つかりません",
+      "VALIDATION_ERROR": "このユーザーにはフレンド申請を送れません",
+      "UNAUTHORIZED": "ログインしてください",
+      "INTERNAL_ERROR": "エラーが発生しました。しばらくしてからもう一度お試しください。"
+    }
+  },
   "settlement": {
     "title": "清算",
     "summary": "清算サマリー",

@@ -1,4 +1,4 @@
-export { tripKeys, notificationKeys } from './keys';
+export { tripKeys, notificationKeys, friendKeys } from './keys';
 export { fetchWithPublicFallback } from './fetcher';
 export {
   useCurrentUser,
@@ -33,3 +33,4 @@ export {
 export { useActivityLog } from './useActivityLog';
 export { useCommentCounts, useExpenseComments, useCommentMutations } from './useComments';
 export { useNotes, useNoteMutations } from './useNotes';
+export { useFriends, useFriendMutations } from './useFriends';
