@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
 import LocationAutocomplete, { LocationOption } from '@/components/location/LocationAutocomplete';
-import { createTrip } from '@/actions';
+import { createTrip, addFriendsToTrip } from '@/actions';
+import { useFriends } from '@/hooks/queries';
 
 import { ResponsiveFormSheet } from '@/components/common';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 interface CreateTripDialogProps {
   open: boolean;
@@ -33,14 +37,29 @@ export default function CreateTripDialog({ open, onClose, onSuccess }: CreateTri
   });
   const [departureLocation, setDepartureLocation] = useState<LocationOption | null>(null);
   const [destinationLocation, setDestinationLocation] = useState<LocationOption | null>(null);
+  const [selectedFriends, setSelectedFriends] = useState<Set<string>>(new Set());
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // 建立當下即可挑好友一起加入（ROADMAP #12 Phase 3）。好友資料共用 useFriends 快取。
+  const { data: friendsData } = useFriends(open);
+  const friends = friendsData?.friends ?? [];
+
+  const toggleFriend = (id: string) => {
+    setSelectedFriends((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   const handleClose = () => {
     setError('');
     setFormData({ name: '', description: '', start_date: '', end_date: '' });
     setDepartureLocation(null);
     setDestinationLocation(null);
+    setSelectedFriends(new Set());
     onClose();
   };
 
@@ -60,6 +79,12 @@ export default function CreateTripDialog({ open, onClose, onSuccess }: CreateTri
 
       if (!result.success) {
         throw new Error(result.error);
+      }
+
+      // 建立成功後，把勾選的好友直接加入新旅程（best-effort：即使失敗旅程仍已建立，
+      // 使用者可事後在成員頁補加，故不因此擋下流程）。
+      if (selectedFriends.size > 0) {
+        await addFriendsToTrip(result.data.id, { friend_ids: [...selectedFriends] });
       }
 
       handleClose();
@@ -170,6 +195,35 @@ export default function CreateTripDialog({ open, onClose, onSuccess }: CreateTri
             />
           </div>
         </div>
+
+        {/* 從好友挑選一起加入（有好友時才顯示） */}
+        {friends.length > 0 && (
+          <div className="space-y-2">
+            <Label>{t('create.inviteFriends')}</Label>
+            <ScrollArea className="max-h-40 rounded-md border">
+              <div className="space-y-1 p-2">
+                {friends.map((f) => (
+                  <label
+                    key={f.user.id}
+                    className="flex cursor-pointer items-center gap-3 rounded-md p-2 transition-colors hover:bg-accent"
+                  >
+                    <Checkbox
+                      checked={selectedFriends.has(f.user.id)}
+                      onCheckedChange={() => toggleFriend(f.user.id)}
+                    />
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={f.user.avatar_url ?? ''} alt={f.user.display_name} />
+                      <AvatarFallback className="bg-primary text-xs font-medium text-primary-foreground">
+                        {f.user.display_name.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="min-w-0 flex-1 truncate text-sm">{f.user.display_name}</span>
+                  </label>
+                ))}
+              </div>
+            </ScrollArea>
+          </div>
+        )}
       </form>
     </ResponsiveFormSheet>
   );

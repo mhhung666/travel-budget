@@ -190,6 +190,7 @@
       "destinationHelp": "輸入目的地的城市或國家名稱",
       "startDate": "開始日期",
       "endDate": "結束日期",
+      "inviteFriends": "邀請好友一起（可選）",
       "createButton": "建立",
       "success": "旅行建立成功！"
     },

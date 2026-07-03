@@ -190,6 +190,7 @@
       "destinationHelp": "Enter the destination city or country name",
       "startDate": "Start Date",
       "endDate": "End Date",
+      "inviteFriends": "Invite friends (optional)",
       "createButton": "Create",
       "success": "Trip created successfully!"
     },

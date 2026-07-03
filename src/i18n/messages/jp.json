@@ -190,6 +190,7 @@
       "destinationHelp": "目的地の都市名または国名を入力",
       "startDate": "開始日",
       "endDate": "終了日",
+      "inviteFriends": "友達を招待（任意）",
       "createButton": "作成",
       "success": "旅行を作成しました！"
     },
