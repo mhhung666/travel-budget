@@ -234,6 +234,11 @@ export const addVirtualMemberSchema = z.object({
   display_name: z.string().min(1, '名稱不能為空').trim(),
 });
 
+// 從好友一次挑選多人加入旅程（ROADMAP #12 Phase 3）。上限與 UI 一次可選人數對齊。
+export const addFriendsToTripSchema = z.object({
+  friend_ids: z.array(objectIdSchema).min(1, '請至少選擇一位好友').max(50, '一次最多加入 50 人'),
+});
+
 // Itinerary schemas
 // "HH:mm" 24 小時制；空字串 / null / 省略皆視為未指定（統一轉成 null）。
 const timeOfDaySchema = z
@@ -356,6 +361,7 @@ export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type ConfirmEmailChangeInput = z.infer<typeof confirmEmailChangeSchema>;
 export type AddVirtualMemberInput = z.infer<typeof addVirtualMemberSchema>;
+export type AddFriendsToTripInput = z.infer<typeof addFriendsToTripSchema>;
 export type LocationInput = z.infer<typeof locationSchema>;
 export type CreateCommentInput = z.infer<typeof createCommentSchema>;
 export type CreateNoteInput = z.infer<typeof createNoteSchema>;

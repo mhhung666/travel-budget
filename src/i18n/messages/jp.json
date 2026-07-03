@@ -337,6 +337,11 @@
     "addVirtualMemberHint": "仮想メンバーはアカウント登録したくない旅行仲間向けです。割り勘に参加できますが、ログインはできません。",
     "virtualMemberName": "メンバー名",
     "virtualMemberAdded": "仮想メンバーを追加しました",
+    "addFriends": "友達から追加",
+    "addFriendsHint": "友達を選んで、この旅行に直接追加します。",
+    "noFriendsToAdd": "追加できる友達がいません（全員すでに参加済みか、友達がいません）。",
+    "addSelectedCount": "{count} 人を追加",
+    "friendsAdded": "{count, plural, =0 {新しいメンバーは追加されませんでした} other {# 人の友達を追加しました}}",
     "promoteToAdmin": "管理者に設定",
     "demoteFromAdmin": "管理者を解除",
     "confirm": {

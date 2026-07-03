@@ -50,6 +50,7 @@ export function useTripSettingsPage(tripId: string) {
 
   // --- Dialog state ---
   const addVirtualMemberDialog = useDialog();
+  const addFriendsDialog = useDialog();
   const deleteDialog = useDialog();
   const regenerateDialog = useDialog();
   const removeMemberDialog = useDialog<Member>();
@@ -185,6 +186,16 @@ export function useTripSettingsPage(tripId: string) {
     addVirtualMemberDialog.closeDialog();
   };
 
+  const handleAddFriends = async (friendIds: string[]) => {
+    try {
+      const { added } = await memberMutations.addFriends.mutateAsync(friendIds);
+      toast({ title: tMember('friendsAdded', { count: added }) });
+      addFriendsDialog.closeDialog();
+    } catch (err: unknown) {
+      toastError(err);
+    }
+  };
+
   const handleCopyInviteLink = async (member: Member) => {
     try {
       const inviteUrl = `${window.location.origin}/link-virtual/${tripId}/${member.username}`;
@@ -212,6 +223,7 @@ export function useTripSettingsPage(tripId: string) {
     error,
     // dialogs
     addVirtualMemberDialog,
+    addFriendsDialog,
     deleteDialog,
     regenerateDialog,
     removeMemberDialog,
@@ -237,6 +249,7 @@ export function useTripSettingsPage(tripId: string) {
     handleRemoveMember,
     handleToggleAdmin,
     handleAddVirtualMember,
+    handleAddFriends,
     handleCopyInviteLink,
   };
 }

@@ -54,7 +54,13 @@ export { setAvatar, removeAvatar } from './avatar.actions';
 export { setTripBudget } from './budget.actions';
 
 // Member actions
-export { getMembers, addVirtualMember, removeMember, updateMemberRole } from './member.actions';
+export {
+  getMembers,
+  addVirtualMember,
+  addFriendsToTrip,
+  removeMember,
+  updateMemberRole,
+} from './member.actions';
 
 // Settlement actions
 export { getSettlement } from './settlement.actions';

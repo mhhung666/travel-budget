@@ -1,4 +1,5 @@
 export { default as AddVirtualMemberDialog } from './AddVirtualMemberDialog';
+export { default as AddFriendsToTripDialog } from './AddFriendsToTripDialog';
 export { default as BudgetDialog } from './BudgetDialog';
 export { default as DeleteTripDialog } from './DeleteTripDialog';
 export { default as EditTripDialog } from './EditTripDialog';

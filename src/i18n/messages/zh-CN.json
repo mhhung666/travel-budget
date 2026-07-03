@@ -337,6 +337,11 @@
     "addVirtualMemberHint": "虚拟成员适用于不想注册帐号的旅伴，可参与分账但无法登录。",
     "virtualMemberName": "成员名称",
     "virtualMemberAdded": "虚拟成员已新增",
+    "addFriends": "从好友加入",
+    "addFriendsHint": "从你的好友中挑选，直接加入这趟旅程。",
+    "noFriendsToAdd": "没有可加入的好友（好友都已在旅程中，或还没有好友）。",
+    "addSelectedCount": "加入 {count} 人",
+    "friendsAdded": "{count, plural, =0 {没有新成员加入} other {已加入 # 位好友}}",
     "promoteToAdmin": "设为管理员",
     "demoteFromAdmin": "取消管理员",
     "confirm": {

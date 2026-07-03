@@ -37,9 +37,10 @@
 - `notify()` 的 `recipientIds` 指定收件人變體**已存在**，缺的是「無 `tripId`」路徑：跳過 Trip 查詢、`tripName` 留空，Email / Push 模板與鈴鐺點擊改深連結到設定頁好友卡片。
 - 四語系（`notifications.<type>`）補齊。
 
-**Phase 3 — 匯入旅程（原始痛點兌現）**
-- 建旅程 / 成員頁「從好友挑選」多選，**直接加入**成員（好友關係即同意；分享連結加入本就無審核，權限面不變寬）+ 發 `member_joined` 通知。
-- 排除已是成員者；i18n、測試。
+**Phase 3 — 匯入旅程（原始痛點兌現）** ✅ 已完成（成員頁入口）
+- 成員頁（設定）「從好友加入」多選對話框，**直接加入**成員（好友關係即同意；分享連結加入本就無審核，權限面不變寬）+ 每位被加入者發 `member_joined` 通知與動態牆。`addFriendsToTrip` action 成員層級（非僅管理員）、只收 accepted 好友、排除已是成員者、去重排除自己。
+- 排除已是成員者、i18n（四語）、測試（`member.actions.test.ts`）皆完成。
+> 待辦（可選）：建旅程表單「建立當下即挑好友」的 inline 入口尚未做——目前流程是建好旅程 → 成員頁一次加入，已閉環；create-time inline 為純 UX 加值。
 
 **Phase 4 — 加好友入口擴充（可選加值）**
 - **好友邀請連結**：`User.friendInviteCode`（沿用 hashCode 慣例，比照 `User.mapShareCode` 的 opt-in sparse-unique），落地頁登入後一鍵發邀請。

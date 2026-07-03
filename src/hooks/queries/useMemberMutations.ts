@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { addVirtualMember, removeMember, updateMemberRole } from '@/actions';
+import { addVirtualMember, addFriendsToTrip, removeMember, updateMemberRole } from '@/actions';
 import type { ActionResult } from '@/actions';
 import { tripKeys } from './keys';
 
@@ -35,6 +35,13 @@ export function useMemberMutations(tripId: string) {
     onSuccess: invalidate,
   });
 
+  // 從好友一次挑選多人加入（ROADMAP #12 Phase 3）
+  const addFriends = useMutation({
+    mutationFn: (friendIds: string[]) =>
+      unwrap(addFriendsToTrip(tripId, { friend_ids: friendIds })),
+    onSuccess: invalidate,
+  });
+
   const remove = useMutation({
     mutationFn: (memberId: string) => unwrap(removeMember(tripId, memberId)),
     onSuccess: invalidate,
@@ -46,5 +53,5 @@ export function useMemberMutations(tripId: string) {
     onSuccess: invalidate,
   });
 
-  return { addVirtual, remove, toggleRole };
+  return { addVirtual, addFriends, remove, toggleRole };
 }

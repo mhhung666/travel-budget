@@ -1,6 +1,6 @@
 'use client';
 
-import { UserPlus, Shield, UserMinus, ShieldCheck, Link } from 'lucide-react';
+import { UserPlus, Users, Shield, UserMinus, ShieldCheck, Link } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { Member, User } from '@/types';
 
@@ -17,6 +17,7 @@ interface TripMembersProps {
   currentUser: User | null;
   isCurrentUserAdmin: boolean;
   onAddVirtualMember: () => void;
+  onAddFriends?: () => void;
   onRemoveMember: (member: Member) => void;
   onToggleAdmin: (member: Member) => void;
   onCopyInviteLink: (member: Member) => void;
@@ -28,6 +29,7 @@ export default function TripMembers({
   currentUser,
   isCurrentUserAdmin,
   onAddVirtualMember,
+  onAddFriends,
   onRemoveMember,
   onToggleAdmin,
   onCopyInviteLink,
@@ -47,6 +49,14 @@ export default function TripMembers({
         </div>
       </CardHeader>
       <CardContent className="pt-0 p-4 sm:p-6">
+        {/* 從好友挑選加入（任何成員皆可，等同分享邀請連結） */}
+        {currentUser && onAddFriends && (
+          <Button variant="outline" size="sm" onClick={onAddFriends} className="w-full mb-2">
+            <Users className="mr-2 h-4 w-4" />
+            {tMember('addFriends')}
+          </Button>
+        )}
+
         {/* 新增虛擬成員按鈕 */}
         {isCurrentUserAdmin && (
           <Button variant="outline" size="sm" onClick={onAddVirtualMember} className="w-full mb-4">

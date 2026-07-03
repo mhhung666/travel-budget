@@ -8,6 +8,7 @@ import { TripMembers, TripShare, TripArchive, TripDangerZone } from '@/component
 // Dialogs
 import {
   AddVirtualMemberDialog,
+  AddFriendsToTripDialog,
   DeleteTripDialog,
   RemoveMemberDialog,
   ToggleAdminDialog,
@@ -36,6 +37,7 @@ export default function TripSettingsPage() {
     loading,
     error,
     addVirtualMemberDialog,
+    addFriendsDialog,
     deleteDialog,
     regenerateDialog,
     removeMemberDialog,
@@ -57,6 +59,7 @@ export default function TripSettingsPage() {
     handleRemoveMember,
     handleToggleAdmin,
     handleAddVirtualMember,
+    handleAddFriends,
     handleCopyInviteLink,
   } = useTripSettingsPage(tripId);
 
@@ -88,6 +91,7 @@ export default function TripSettingsPage() {
           currentUser={currentUser}
           isCurrentUserAdmin={isAdmin}
           onAddVirtualMember={() => addVirtualMemberDialog.openDialog()}
+          onAddFriends={() => addFriendsDialog.openDialog()}
           onRemoveMember={(member) => removeMemberDialog.openDialog(member)}
           onToggleAdmin={(member) => toggleAdminDialog.openDialog(member)}
           onCopyInviteLink={handleCopyInviteLink}
@@ -118,6 +122,13 @@ export default function TripSettingsPage() {
         open={addVirtualMemberDialog.open}
         onClose={addVirtualMemberDialog.closeDialog}
         onSubmit={handleAddVirtualMember}
+      />
+
+      <AddFriendsToTripDialog
+        open={addFriendsDialog.open}
+        onClose={addFriendsDialog.closeDialog}
+        existingMemberIds={members.map((m) => m.id)}
+        onSubmit={handleAddFriends}
       />
 
       <RegenerateShareCodeDialog

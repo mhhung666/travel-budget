@@ -421,6 +421,11 @@
       }
     },
     "virtualMemberAdded": "Virtual member added",
+    "addFriends": "Add from friends",
+    "addFriendsHint": "Pick from your friends to add them straight to this trip.",
+    "noFriendsToAdd": "No friends to add (they're all already in the trip, or you have no friends yet).",
+    "addSelectedCount": "Add {count}",
+    "friendsAdded": "{count, plural, =0 {No new members added} one {Added # friend} other {Added # friends}}",
     "promoteToAdmin": "Make Admin",
     "demoteFromAdmin": "Remove Admin",
     "confirm": {
