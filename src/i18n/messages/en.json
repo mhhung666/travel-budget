@@ -754,7 +754,14 @@
       }
     },
     "itemActions": "Item actions",
-    "assignTo": "Assign to"
+    "assignTo": "Assign to",
+    "kinds": {
+      "todo": "To-do",
+      "packing": "Packing",
+      "shopping": "Shopping"
+    },
+    "myProgress": "My progress",
+    "packedByCount": "{count} packed"
   },
   "notes": {
     "title": "Notes",

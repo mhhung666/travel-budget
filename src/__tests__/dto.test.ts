@@ -172,15 +172,16 @@ describe('toChecklistDto', () => {
   const base: ChecklistDtoInput = {
     _id: { toString: () => 'cl1' },
     trip: { toString: () => 'trip9' },
+    kind: 'todo',
     title: 'Packing',
     items: [
       {
         _id: { toString: () => 'i1' },
         text: 'Passport',
-        done: true,
+        doneBy: [{ toString: () => 'u1' }],
         assignee: ref('u1', 'alice', 'Alice'),
       },
-      { _id: { toString: () => 'i2' }, text: 'Charger', done: false, assignee: null },
+      { _id: { toString: () => 'i2' }, text: 'Charger', doneBy: [], assignee: null },
     ],
     createdAt: new Date('2026-06-01T00:00:00Z'),
     updatedAt: new Date('2026-06-02T00:00:00Z'),
@@ -190,31 +191,67 @@ describe('toChecklistDto', () => {
     expect(toChecklistDto(base)).toEqual({
       id: 'cl1',
       trip_id: 'trip9',
+      kind: 'todo',
       title: 'Packing',
       items: [
-        { id: 'i1', text: 'Passport', done: true, assignee_id: 'u1', assignee_name: 'Alice' },
-        { id: 'i2', text: 'Charger', done: false, assignee_id: null, assignee_name: null },
+        {
+          id: 'i1',
+          text: 'Passport',
+          done: true,
+          done_by: ['u1'],
+          assignee_id: 'u1',
+          assignee_name: 'Alice',
+        },
+        {
+          id: 'i2',
+          text: 'Charger',
+          done: false,
+          done_by: [],
+          assignee_id: null,
+          assignee_name: null,
+        },
       ],
       created_at: '2026-06-01T00:00:00.000Z',
       updated_at: '2026-06-02T00:00:00.000Z',
     });
   });
 
-  it('coerces done to boolean and tolerates a dangling assignee (deleted user → null)', () => {
+  it('defaults kind to todo, derives done from doneBy, tolerates a dangling assignee', () => {
     const dto = toChecklistDto({
       ...base,
+      kind: undefined,
       items: [
         {
           _id: { toString: () => 'i3' },
           text: 'Map',
-          done: undefined as unknown as boolean,
+          doneBy: undefined,
           assignee: null,
         },
       ],
     });
+    expect(dto.kind).toBe('todo');
     expect(dto.items[0].done).toBe(false);
+    expect(dto.items[0].done_by).toEqual([]);
     expect(dto.items[0].assignee_id).toBeNull();
     expect(dto.items[0].assignee_name).toBeNull();
+  });
+
+  it('reflects per-member doneBy for a packing list (done = doneBy non-empty)', () => {
+    const dto = toChecklistDto({
+      ...base,
+      kind: 'packing',
+      items: [
+        {
+          _id: { toString: () => 'i4' },
+          text: 'Toothbrush',
+          doneBy: [{ toString: () => 'u1' }, { toString: () => 'u2' }],
+          assignee: null,
+        },
+      ],
+    });
+    expect(dto.kind).toBe('packing');
+    expect(dto.items[0].done).toBe(true);
+    expect(dto.items[0].done_by).toEqual(['u1', 'u2']);
   });
 });
 

@@ -11,6 +11,7 @@ import {
   removeChecklistItem,
 } from '@/actions';
 import type { ActionResult } from '@/actions';
+import type { ChecklistKind } from '@/types';
 import { tripKeys } from './keys';
 
 /** Unwraps an ActionResult, throwing on failure so React Query's onError fires. */
@@ -46,8 +47,8 @@ export function useChecklistMutations(tripId: string) {
   });
 
   const createListWithItems = useMutation({
-    mutationFn: ({ title, items }: { title: string; items: string[] }) =>
-      unwrap(createChecklistWithItems(tripId, { title, items })),
+    mutationFn: ({ title, kind, items }: { title: string; kind: ChecklistKind; items: string[] }) =>
+      unwrap(createChecklistWithItems(tripId, { title, kind, items })),
     onSuccess: invalidate,
   });
 

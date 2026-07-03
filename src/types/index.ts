@@ -52,6 +52,7 @@ export type {
   ActivityType,
   Checklist,
   ChecklistItem,
+  ChecklistKind,
   NotificationItem,
   NotificationType,
   NotificationMeta,

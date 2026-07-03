@@ -149,10 +149,12 @@
 | 3 | N2 linkify + N4/N5 卡片版面 | NoteCard、`lib/linkify.ts` + 測試 | — | S | ✅ 已完成 |
 | 4 | C1 範本選擇器（含跨旅程複製） | 新常數 + sheet 元件、checklist.actions、i18n ×4 | — | M | ✅ 已完成 |
 | 5 | C3/C2 指派 UI 重做（頭像 chip + ⋯ 選單） | ChecklistItemRow | — | S | ✅ 已完成 |
-| 6 | C2 `kind` + C4 per-member 勾選 | Checklist model、actions、DTO、公開路由、`removeMember` | ✅ backfill `kind` / `done→doneBy` | M–L | ⏳ 待做（需 migration，獨立 PR） |
+| 6 | C2 `kind` + C4 per-member 勾選 | Checklist model、actions、DTO、公開路由、`removeMember` | ✅ backfill `kind` / `done→doneBy` | M–L | ✅ 已完成 |
 | 7 | P1 群（記支出捷徑、note→item、備註、貼上即傳、提醒） | 各自獨立 | — | 各 S–M | ⏳ 待做（貼上即傳已隨項目 2 附帶完成） |
 
-> **2026-07-03 實作進度**：順位 1–5 已於 master 完成（不動資料層），`pnpm lint` / `tsc` / `test:run`（385 passed，含新增 linkify、relativeTime 測試）皆綠。順位 6 動 schema 需 `migrate-mongo`，建議獨立 PR；順位 7 之「貼上即傳」已順手做進 NoteComposer。
+> **2026-07-03 實作進度**：順位 1–5 已於 master 完成（不動資料層），`pnpm lint` / `tsc` / `test:run`（385 passed，含新增 linkify、relativeTime 測試）皆綠。順位 7 之「貼上即傳」已順手做進 NoteComposer。
+>
+> **2026-07-03 順位 6 完成**（尚未 commit）：`Checklist` 加 `kind: 'todo'|'packing'|'shopping'`（範本自帶類型：行前待辦/藥品證件＝todo、行李打包＝packing、購物＝shopping），item 的 `done: Boolean` 改為 `doneBy: ObjectId[]`。**勾選語意隨 kind**：packing 逐人各自勾（`$addToSet`/`$pull` 自己）、todo/shopping 共享（`$set doneBy=[標記者]`/`[]`）；DTO 對外仍導出 `done`（= doneBy 非空）維持相容，另加 `done_by: string[]` 供 per-member 渲染。UI：ChecklistCard 顯示類型標籤、packing 顯示「我的進度」與逐人勾選狀態、隱藏 packing/shopping 的指派；ChecklistItemRow packing 顯示「N 人已備」。`removeMember` 一併 `$pull` doneBy。**migration** [20260703133143-checklist-kind-and-per-member-done.js](../migrations/20260703133143-checklist-kind-and-per-member-done.js)（backfill `kind='todo'`、`done→doneBy`，idempotent + down；aggregation-pipeline $map）。新增 `checklist.actions.test.ts`（5）+ 擴充 `dto.test.ts`，全 423 passed、lint 綠。**部署前各環境先 `pnpm migrate:up`。**
 
 備註：
 

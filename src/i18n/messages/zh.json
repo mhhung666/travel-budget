@@ -747,7 +747,14 @@
       }
     },
     "itemActions": "項目操作",
-    "assignTo": "指派給"
+    "assignTo": "指派給",
+    "kinds": {
+      "todo": "待辦",
+      "packing": "行李打包",
+      "shopping": "購物"
+    },
+    "myProgress": "我的進度",
+    "packedByCount": "{count} 人已備"
   },
   "notes": {
     "title": "隨手記",

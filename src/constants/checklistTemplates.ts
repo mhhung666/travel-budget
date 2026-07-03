@@ -4,16 +4,20 @@
  * 四語系各自維護，選取後由 `createChecklistWithItems` 一次寫入。
  */
 
+import type { ChecklistKind } from '@/types';
+
 export interface ChecklistTemplate {
   /** i18n key 與識別碼；對應 messages 的 `checklist.templates.<id>`。 */
   id: string;
   /** 選單前綴的 emoji。 */
   emoji: string;
+  /** 建立時帶入的清單類型（決定勾選語意）。 */
+  kind: ChecklistKind;
 }
 
 export const CHECKLIST_TEMPLATES: ChecklistTemplate[] = [
-  { id: 'preTrip', emoji: '✈️' },
-  { id: 'packing', emoji: '🎒' },
-  { id: 'shopping', emoji: '🛍️' },
-  { id: 'documents', emoji: '💊' },
+  { id: 'preTrip', emoji: '✈️', kind: 'todo' },
+  { id: 'packing', emoji: '🎒', kind: 'packing' },
+  { id: 'shopping', emoji: '🛍️', kind: 'shopping' },
+  { id: 'documents', emoji: '💊', kind: 'todo' },
 ];

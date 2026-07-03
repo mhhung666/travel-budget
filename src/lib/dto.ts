@@ -1,3 +1,4 @@
+import type { ChecklistKind } from '@/types';
 import type {
   Expense as ExpenseDto,
   Trip as TripDto,
@@ -216,8 +217,15 @@ export function toTripStatsInputs(
 export type ChecklistDtoInput = {
   _id: { toString(): string };
   trip: { toString(): string };
+  kind?: ChecklistKind | null;
   title: string;
-  items: { _id: { toString(): string }; text: string; done: boolean; assignee: PopulatedRef }[];
+  items: {
+    _id: { toString(): string };
+    text: string;
+    // doneBy 只帶 id（不 populate），是勾選者的 ObjectId 陣列。
+    doneBy?: { toString(): string }[] | null;
+    assignee: PopulatedRef;
+  }[];
   createdAt: Date;
   updatedAt: Date;
 };
@@ -226,20 +234,27 @@ export type ChecklistDtoInput = {
  * Lean Checklist doc → snake_case DTO (like `toExpenseDto`/`toDayDto`, not the
  * camelCase settlement shape). Each item's `assignee` must be populated; an
  * unassigned item or a dangling ref (assignee user deleted) both map to null.
+ * `done` is the shared-semantics completion flag (= doneBy 非空); `done_by`
+ * carries the raw勾選者 ids so packing lists can render per-member state.
  * Shared by the authenticated checklist actions and the public checklist route.
  */
 export function toChecklistDto(c: ChecklistDtoInput): Checklist {
   return {
     id: c._id.toString(),
     trip_id: c.trip.toString(),
+    kind: c.kind ?? 'todo',
     title: c.title,
-    items: (c.items || []).map((i) => ({
-      id: i._id.toString(),
-      text: i.text,
-      done: !!i.done,
-      assignee_id: i.assignee?._id.toString() ?? null,
-      assignee_name: i.assignee?.displayName ?? null,
-    })),
+    items: (c.items || []).map((i) => {
+      const doneBy = (i.doneBy || []).map((u) => u.toString());
+      return {
+        id: i._id.toString(),
+        text: i.text,
+        done: doneBy.length > 0,
+        done_by: doneBy,
+        assignee_id: i.assignee?._id.toString() ?? null,
+        assignee_name: i.assignee?.displayName ?? null,
+      };
+    }),
     created_at: c.createdAt.toISOString(),
     updated_at: c.updatedAt.toISOString(),
   };

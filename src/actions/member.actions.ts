@@ -334,6 +334,11 @@ export const removeMember = withAuth(
         { $set: { 'items.$[el].assignee': null } },
         { arrayFilters: [{ 'el.assignee': targetUserId }] }
       );
+      // 同理把該成員從各項目的勾選名單（doneBy，含 packing 逐人勾選）移除，避免孤兒參照
+      await Checklist.updateMany(
+        { trip: tripId, 'items.doneBy': targetUserId },
+        { $pull: { 'items.$[].doneBy': targetUserId } }
+      );
 
       // 清掉此成員在本旅程的通知（已不是成員，通知點進去也無權檢視）
       await Notification.deleteMany({ trip: tripId, user: targetUserId });

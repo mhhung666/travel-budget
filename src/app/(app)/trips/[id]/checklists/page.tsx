@@ -6,7 +6,7 @@ import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 import { ListChecks, Plus } from 'lucide-react';
 import { ChecklistCard, NewChecklistSheet } from '@/components/trips/detail/checklist';
-import type { Checklist } from '@/types';
+import type { Checklist, ChecklistKind } from '@/types';
 import { useChecklists, useTripMembership, useChecklistMutations } from '@/hooks/queries';
 import { ItinerarySkeleton } from '@/components/skeletons';
 import { EmptyState, ErrorState } from '@/components/common';
@@ -32,7 +32,7 @@ export default function ChecklistsPage() {
   const { toast } = useToast();
 
   const { data: checklists = [], isLoading: loading, isError } = useChecklists(tripId);
-  const { members, isMember } = useTripMembership(tripId);
+  const { currentUser, members, isMember } = useTripMembership(tripId);
   const m = useChecklistMutations(tripId);
 
   const [newSheetOpen, setNewSheetOpen] = useState(false);
@@ -53,9 +53,9 @@ export default function ChecklistsPage() {
     }
   };
 
-  const handleCreateList = (title: string, items: string[]) => {
+  const handleCreateList = (title: string, kind: ChecklistKind, items: string[]) => {
     setNewSheetOpen(false);
-    guard(m.createListWithItems.mutateAsync({ title, items }));
+    guard(m.createListWithItems.mutateAsync({ title, kind, items }));
   };
 
   const confirmDeleteList = () => {
@@ -113,6 +113,7 @@ export default function ChecklistsPage() {
               key={list.id}
               checklist={list}
               members={members}
+              currentUserId={currentUser?.id ?? null}
               canEdit={canEdit}
               onAddItem={(text) =>
                 guard(m.addItem.mutateAsync({ checklistId: list.id, data: { text } }))

@@ -137,8 +137,9 @@ export const createChecklistWithItems = withAuth(
 
       const created = await Checklist.create({
         trip: membership.tripId,
+        kind: validation.data.kind,
         title: validation.data.title,
-        items: validation.data.items.map((text) => ({ text, done: false, assignee: null })),
+        items: validation.data.items.map((text) => ({ text, doneBy: [], assignee: null })),
         createdBy: session.userId,
       });
 
@@ -318,7 +319,7 @@ export const addChecklistItem = withAuth(
 
       const res = await Checklist.updateOne(
         { _id: checklistId, trip: membership.tripId },
-        { $push: { items: { text, done: false, assignee: assignee_id ?? null } } }
+        { $push: { items: { text, doneBy: [], assignee: assignee_id ?? null } } }
       );
       if (res.matchedCount === 0) {
         return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
@@ -365,17 +366,35 @@ export const updateChecklistItem = withAuth(
         return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
       }
 
+      // 勾選語意隨清單類型不同（見 model）：需先知道 kind 才能決定 doneBy 的寫法。
+      const checklist = await Checklist.findOne({ _id: checklistId, trip: membership.tripId })
+        .select('kind')
+        .lean<{ kind?: 'todo' | 'packing' | 'shopping' } | null>();
+      if (!checklist) {
+        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+      }
+
       const set: Record<string, unknown> = {};
       if (text !== undefined) set['items.$[el].text'] = text;
-      if (done !== undefined) set['items.$[el].done'] = done;
       // assignee_id 可被設為 null 以清除指派；只要欄位有出現就寫入。
       if (assignee_id !== undefined) set['items.$[el].assignee'] = assignee_id;
 
-      const res = await Checklist.updateOne(
-        { _id: checklistId, trip: membership.tripId },
-        { $set: set },
-        { arrayFilters: [{ 'el._id': itemId }] }
-      );
+      const update: Record<string, Record<string, unknown>> = {};
+      if (done !== undefined) {
+        if (checklist.kind === 'packing') {
+          // 逐人各自勾：勾＝把自己加進 doneBy、取消＝把自己移除。
+          if (done) update.$addToSet = { 'items.$[el].doneBy': session.userId };
+          else update.$pull = { 'items.$[el].doneBy': session.userId };
+        } else {
+          // 共享清單：任一人勾即完成，doneBy 存標記者 id；取消＝清空。
+          set['items.$[el].doneBy'] = done ? [session.userId] : [];
+        }
+      }
+      if (Object.keys(set).length > 0) update.$set = set;
+
+      const res = await Checklist.updateOne({ _id: checklistId, trip: membership.tripId }, update, {
+        arrayFilters: [{ 'el._id': itemId }],
+      });
       if (res.matchedCount === 0) {
         return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
       }

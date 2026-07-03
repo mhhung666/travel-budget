@@ -12,6 +12,8 @@ import ChecklistItemRow from './ChecklistItemRow';
 interface ChecklistCardProps {
   checklist: Checklist;
   members: Member[];
+  /** 目前使用者 id，用來算 packing 清單的「我的進度」與勾選狀態；未登入為 null。 */
+  currentUserId: string | null;
   canEdit: boolean;
   onAddItem: (text: string) => void;
   onToggleItem: (itemId: string, done: boolean) => void;
@@ -21,10 +23,18 @@ interface ChecklistCardProps {
   onDelete: () => void;
 }
 
+/** 各清單類型的前綴 emoji（與範本選單一致）。 */
+const KIND_EMOJI: Record<Checklist['kind'], string> = {
+  todo: '📋',
+  packing: '🎒',
+  shopping: '🛍️',
+};
+
 /** One checklist: editable title, progress bar, item rows, and an add-item row. */
 export default function ChecklistCard({
   checklist,
   members,
+  currentUserId,
   canEdit,
   onAddItem,
   onToggleItem,
@@ -38,8 +48,13 @@ export default function ChecklistCard({
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(checklist.title);
 
+  const isPacking = checklist.kind === 'packing';
+  // packing＝每人各自勾，進度看「我」勾了幾項；其他類型＝共享的 done。
+  const isItemDone = (i: Checklist['items'][number]) =>
+    isPacking ? currentUserId != null && i.done_by.includes(currentUserId) : i.done;
+
   const total = checklist.items.length;
-  const done = checklist.items.filter((i) => i.done).length;
+  const done = checklist.items.filter(isItemDone).length;
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
 
   const submitItem = () => {
@@ -89,7 +104,14 @@ export default function ChecklistCard({
               </Button>
             </div>
           ) : (
-            <h3 className="flex-1 break-words text-lg font-semibold">{checklist.title}</h3>
+            <div className="flex flex-1 flex-col gap-0.5">
+              <h3 className="break-words text-lg font-semibold">{checklist.title}</h3>
+              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                <span>{KIND_EMOJI[checklist.kind]}</span>
+                {t(`kinds.${checklist.kind}`)}
+                {isPacking && <span>· {t('myProgress')}</span>}
+              </span>
+            </div>
           )}
           <div className="flex shrink-0 items-center gap-1">
             <span className="text-sm tabular-nums text-muted-foreground">
@@ -138,7 +160,9 @@ export default function ChecklistCard({
               <ChecklistItemRow
                 key={item.id}
                 item={item}
+                kind={checklist.kind}
                 members={members}
+                checked={isItemDone(item)}
                 canEdit={canEdit}
                 onToggle={(d) => onToggleItem(item.id, d)}
                 onAssign={(a) => onAssignItem(item.id, a)}

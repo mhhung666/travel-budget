@@ -6,13 +6,17 @@ import { ChevronLeft, ChevronRight, Copy, FilePlus2, Loader2, Luggage } from 'lu
 import { CHECKLIST_TEMPLATES } from '@/constants/checklistTemplates';
 import { useCopyableChecklists } from '@/hooks/queries';
 import { ResponsiveFormSheet, EmptyState } from '@/components/common';
+import type { ChecklistKind } from '@/types';
 
 export interface NewChecklistSheetProps {
   tripId: string;
   open: boolean;
   pending: boolean;
-  /** 建立一份清單（title + 項目文字，空陣列＝空白清單）。呼叫端負責 mutation + 關閉。 */
-  onCreate: (title: string, items: string[]) => void;
+  /**
+   * 建立一份清單（title + 類型 + 項目文字，空陣列＝空白清單）。呼叫端負責 mutation + 關閉。
+   * 空白清單與「從其他旅程複製」皆以 'todo' 建立（複製只搬項目文字，不搬類型）。
+   */
+  onCreate: (title: string, kind: ChecklistKind, items: string[]) => void;
   onOpenChange: (open: boolean) => void;
 }
 
@@ -57,7 +61,7 @@ export function NewChecklistSheet({
                 key={tpl.id}
                 type="button"
                 disabled={pending}
-                onClick={() => onCreate(t(`templates.${tpl.id}.title`), items)}
+                onClick={() => onCreate(t(`templates.${tpl.id}.title`), tpl.kind, items)}
                 className={rowClass}
               >
                 <span className="shrink-0 text-2xl leading-none">{tpl.emoji}</span>
@@ -78,7 +82,7 @@ export function NewChecklistSheet({
           <button
             type="button"
             disabled={pending}
-            onClick={() => onCreate(t('blankListTitle'), [])}
+            onClick={() => onCreate(t('blankListTitle'), 'todo', [])}
             className={rowClass}
           >
             <FilePlus2 className="h-5 w-5 shrink-0 text-muted-foreground" />
@@ -127,7 +131,7 @@ export function NewChecklistSheet({
                     key={`${src.trip_id}-${i}`}
                     type="button"
                     disabled={pending}
-                    onClick={() => onCreate(list.title, list.items)}
+                    onClick={() => onCreate(list.title, 'todo', list.items)}
                     className={rowClass}
                   >
                     <span className="min-w-0 flex-1">

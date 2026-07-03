@@ -747,7 +747,14 @@
       }
     },
     "itemActions": "項目の操作",
-    "assignTo": "担当者"
+    "assignTo": "担当者",
+    "kinds": {
+      "todo": "やること",
+      "packing": "荷造り",
+      "shopping": "買い物"
+    },
+    "myProgress": "自分の進捗",
+    "packedByCount": "{count}人が準備済み"
   },
   "notes": {
     "title": "メモ",
