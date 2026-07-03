@@ -210,7 +210,25 @@ UI：登入頁 [/wrapped](../src/app/%5Blocale%5D/wrapped/page.tsx)（年份切�
 
 ---
 
-## 14. 其他
+## 14. 隨手記（Trip notes）
+
+旅程成員共享的速記——想到但尚未排入行程的點子先丟這裡，之後可**一鍵轉成行程活動**。
+
+| 功能 | 說明 |
+| --- | --- |
+| 速記 | 純文字（≤500 字），釘選置頂 |
+| 照片附件 | 每則最多 6 張圖片，R2 私有存放、僅成員可見 |
+| 轉行程 | 把筆記轉成某一行程日的活動，筆記標記「已規劃」保留在摺疊區 |
+
+採**獨立 Note 集合**（`ref trip`，比照 §6 清單為旅程子集合，非內嵌在 Trip）；`authorName` 為建立當下快照（比照留言，讀取免 populate）。權限採**成員信任模型**（任何成員可建立 / 編輯 / 刪除 / 轉行程）——隨手記定位是最低摩擦的協作速記，卡權限反而失去「隨手」的意義。**僅成員可讀，不設公開分享路由**（分享頁看不到）。6 個 action（[note.actions.ts](../src/actions/note.actions.ts)）：`getNotes`（釘選優先、新到舊）、`createNote` / `updateNote` / `deleteNote`、`planNote`、`getNoteAttachmentUrl`。列表以 `pinned:-1, createdAt:-1` 排序。資料完整性：`deleteTrip` cascade（連同 R2 照片）。
+
+- **轉行程活動（`planNote`）**：把筆記 `$push` 成該行程日的活動（`type: 'other'`），**首行截斷為活動標題**（≤100 字），截斷或多行時全文放進活動備註避免遺失；成功後於筆記寫入 `plannedAt` + `plannedDayNumber`（轉換當下的日編號快照，供 Badge 顯示），**已規劃者不可再次轉換**。權限是**產品決定**：行程日建立 / 編輯本身為 admin-only，但轉行程開放全體成員——隨手記的路徑就是「人人先丟點子、順手推進行程」。非交易式（本 codebase 無多文件交易慣例）：先加活動再標記筆記，中途失敗筆記維持未規劃，重試至多產生可手動刪的重複活動，不反向遺失資料。
+- **照片附件**：**只收圖片**（`NOTE_CONTENT_TYPES` = jpeg / png / webp，無 PDF；上限 `MAX_NOTE_BYTES` 4MB，沿用頭像上限），每則至多 6 張。沿用 §7 的 R2 私有附件模式——與收據 / 票券共用 `receipts` bucket、前綴 `notes/<tripId>/` 區隔；presigned PUT 直傳（[createNoteUploadUrl](../src/actions/upload.actions.ts)），**存參照前以 `headObject` 重新驗證 size / type**（防 client 謊報）。內嵌 `Note.attachments[]` = `{ key, contentType, size, uploadedBy, uploadedAt }`（**存 key、不存 url**，同收據形狀）；更新以 key 為穩定身分**整批覆寫**（新 key 走 `headObject`、舊 key 沿用、被移除的 key best-effort 刪 R2），刪筆記 / 刪旅程亦 best-effort 清理孤兒。檢視走短效簽名 GET（[getNoteAttachmentUrl](../src/actions/note.actions.ts)，驗成員 + key 須屬本 trip 筆記前綴），UI 沿用 §7 的 `AttachmentThumb` / `AttachmentUploader`（[ReceiptAttachments.tsx](../src/components/trips/detail/ReceiptAttachments.tsx)）。
+- **UI**：頁面 [/trips/[id]/notes](../src/app/%28app%29/trips/%5Bid%5D/notes/page.tsx) + [NoteComposer](../src/components/trips/detail/notes/NoteComposer.tsx) / [NoteCard](../src/components/trips/detail/notes/NoteCard.tsx) / [NoteEditDialog](../src/components/trips/detail/notes/NoteEditDialog.tsx) / [PlanNoteSheet](../src/components/trips/detail/notes/PlanNoteSheet.tsx)；資料走 [useNotes](../src/hooks/queries/useNotes.ts)（`tripKeys.notes`）。測試涵蓋 note.actions（含附件 headObject 驗證 / 覆寫清理）、`toTripNoteDto`、uploads 白名單。
+
+---
+
+## 15. 其他
 
 | 功能 | 說明 |
 | --- | --- |
