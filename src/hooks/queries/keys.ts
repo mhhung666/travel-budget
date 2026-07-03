@@ -12,6 +12,7 @@ export const tripKeys = {
   currentUser: ['currentUser'] as const,
   list: ['trips'] as const,
   visitedPlaces: ['visitedPlaces'] as const,
+  mapPhotos: ['mapPhotos'] as const,
   all: (tripId: string) => ['trip', tripId] as const,
   detail: (tripId: string) => ['trip', tripId, 'detail'] as const,
   members: (tripId: string) => ['trip', tripId, 'members'] as const,

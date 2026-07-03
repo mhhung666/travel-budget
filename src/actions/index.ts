@@ -107,7 +107,13 @@ export {
 } from './mapShare.actions';
 
 // Map data actions
-export { getVisitedPlaces, type VisitedPlace, type HeatWeightBy } from './map.actions';
+export {
+  getVisitedPlaces,
+  getMapPhotos,
+  type VisitedPlace,
+  type HeatWeightBy,
+  type MapPhoto,
+} from './map.actions';
 
 // Notification actions（站內通知）
 export {

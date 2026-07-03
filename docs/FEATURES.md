@@ -161,18 +161,20 @@
 
 ## 10. 旅遊地圖與分享
 
-三種模式 + 使用者層級公開分享：
+四種模式 + 使用者層級公開分享：
 
 | 模式 | 說明 |
 | --- | --- |
 | 航線 | great-circle 弧線 |
 | 熱點 | leaflet.heat，權重 = 造訪次數 **或** 花費（登入限定） |
 | 國家 | choropleth 點亮造訪國 |
+| 相片 | 支出收據圖片依關聯行程日座標釘點，點擊看 gallery（登入限定） |
 
 - **Leaflet 為 client-only**：畫布一律 `dynamic(..., { ssr: false })`，並在 [globals.css](../src/app/globals.css) 保留 `.leaflet-container { isolation: isolate; }`。
 - **分享為使用者層級**：`User.mapShareCode`（opt-in、sparse-unique，同 trip `hashCode` 格式 / 驗證）。`/map/share/*` 為公開頁。
 - **公開 API [/api/public/map/[code]](../src/app/api/public/map/%5Bcode%5D/route.ts) 依約去識別化**：只露座標、在地化地名與**年份**，絕不露旅行名稱 / id / 完整日期。熱點彙整到四捨五入座標。
 - **花費權重熱點**（[getVisitedPlaces](../src/actions/map.actions.ts) `weightBy: 'visits' | 'spend'`）以 `$lookup` 關聯支出加總；**花費權重恆為登入限定**（公開地圖去識別化契約不外洩金額）。
+- **相片釘點（ROADMAP #16）**（[getMapPhotos](../src/actions/map.actions.ts)）以 `$lookup` 把支出的圖片附件關聯到 `Expense.itineraryDays → ItineraryDay.location` 取座標，依四捨五入座標分群成釘點（純函式 [groupPhotoPins](../src/components/map/photos.ts)，4 單元測試）。**收據仍私有**：action 只回物件 key，前端逐張經 `getReceiptUrl` 驗成員後取短效簽名 URL（沿用 [AttachmentThumb](../src/components/trips/detail/ReceiptAttachments.tsx)），**不外洩到公開分享路由**。只收 `image/*`（PDF 收據不上圖）。
 - **`public/geo/countries.geojson` 是產生的資產**（Natural Earth 110m admin-0 瘦身版），需更新時自 `nvkelso/natural-earth-vector` 重新產生。
 
 ---

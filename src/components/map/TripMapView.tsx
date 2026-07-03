@@ -3,19 +3,21 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useLocale, useTranslations } from 'next-intl';
-import { MapPin, Loader2, ArrowRight, Play, Square } from 'lucide-react';
+import { MapPin, Loader2, ArrowRight, Play, Square, Camera } from 'lucide-react';
 import { useRouter } from '@/i18n/navigation';
 import { ROUTES } from '@/constants/routes';
 import { pickLocalizedName } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { tripOverlapsRange } from '@/lib/dateRange';
-import { useVisitedPlaces } from '@/hooks/queries';
+import { useVisitedPlaces, useMapPhotos } from '@/hooks/queries';
 import type { HeatWeightBy } from '@/actions';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import MapShareDialog from './MapShareDialog';
 import MapStatsBar from './MapStatsBar';
+import PhotoPinDialog from './PhotoPinDialog';
 import { computeMapStats, visitedCountrySet } from './stats';
+import { groupPhotoPins, type PhotoPin } from './photos';
 import type { Location } from '@/types';
 import type { TripWithMembers } from '@/types';
 import type { GeoPoint, TripRoute, HeatPoint } from './types';
@@ -58,6 +60,18 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
     selectedYear,
     'spend'
   );
+  // 相片釘點：只在相片模式才查（含 $lookup 關聯行程日，較重）。年份篩選連動。
+  const { data: mapPhotos = [] } = useMapPhotos(mode === 'photos', selectedYear);
+  // 開啟中的相片釘點（gallery 對話框）。
+  const [activePin, setActivePin] = useState<PhotoPin | null>(null);
+  const photoPins = useMemo<PhotoPin[]>(
+    () =>
+      groupPhotoPins(
+        mapPhotos.map((p) => ({ ...p, name: pickLocalizedName(p.names, locale, p.name) }))
+      ),
+    [mapPhotos, locale]
+  );
+
   const heatSource = heatWeight === 'spend' ? visitedSpend : visited;
   const heatPoints = useMemo<HeatPoint[]>(
     () =>
@@ -300,6 +314,17 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
           >
             {t('modeCountries')}
           </Button>
+          <Button
+            variant={mode === 'photos' ? 'default' : 'ghost'}
+            size="sm"
+            className="h-7 px-3 text-xs"
+            onClick={() => {
+              stopPlay();
+              setMode('photos');
+            }}
+          >
+            {t('modePhotos')}
+          </Button>
         </div>
 
         {/* 熱點權重切換：造訪次數 / 花費總額（只在熱點模式提供） */}
@@ -437,6 +462,36 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
                 </ol>
               )}
             </>
+          ) : mode === 'photos' ? (
+            <>
+              <h2 className="mb-3 px-1 text-sm font-medium text-muted-foreground">
+                {t('photoTitle', { count: photoPins.length })}
+              </h2>
+              {photoPins.length === 0 ? (
+                <p className="px-1 text-sm text-muted-foreground">{t('photoEmpty')}</p>
+              ) : (
+                <ol className="space-y-1.5">
+                  {photoPins.map((pin) => (
+                    <li key={pin.id}>
+                      <button
+                        type="button"
+                        onClick={() => setActivePin(pin)}
+                        className="flex w-full items-center justify-between gap-2 rounded-lg border border-border p-2.5 text-left transition-colors hover:bg-muted/50"
+                      >
+                        <span className="flex min-w-0 items-center gap-1.5 text-sm">
+                          <span className="shrink-0">{countryCodeToFlag(pin.countryCode)}</span>
+                          <span className="truncate">{pin.name}</span>
+                        </span>
+                        <Badge variant="secondary" className="shrink-0 gap-1">
+                          <Camera className="h-3 w-3" />
+                          {pin.photos.length}
+                        </Badge>
+                      </button>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </>
           ) : (
             <>
               <h2 className="mb-3 px-1 text-sm font-medium text-muted-foreground">
@@ -503,12 +558,16 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
             routes={routes}
             heatPoints={heatPoints}
             visitedCountries={visitedCountries}
+            photoPins={photoPins}
+            onPhotoPinSelect={setActivePin}
             revealCount={revealCount}
             selectedId={selectedId}
             onSelect={setSelectedId}
           />
         </div>
       </div>
+
+      <PhotoPinDialog pin={activePin} onOpenChange={(open) => !open && setActivePin(null)} />
     </div>
   );
 }

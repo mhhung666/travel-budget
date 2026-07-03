@@ -833,7 +833,11 @@
     "playRoute": "播放足跡",
     "playStop": "停止",
     "heatByVisits": "造訪次數",
-    "heatBySpend": "花費"
+    "heatBySpend": "花費",
+    "modePhotos": "相片",
+    "photoTitle": "共 {count} 個相片地點",
+    "photoEmpty": "還沒有相片。把照片附加到支出收據、並將該支出關聯到有地點的行程日，就會釘上地圖。",
+    "photoCount": "{count} 張相片"
   },
   "notifications": {
     "title": "通知",

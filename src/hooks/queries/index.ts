@@ -22,6 +22,7 @@ export { useExchangeRates } from './useExchangeRates';
 export { useStats } from './useStats';
 export { useYearInReview } from './useYearInReview';
 export { useVisitedPlaces } from './useVisitedPlaces';
+export { useMapPhotos } from './useMapPhotos';
 export {
   useUnreadNotificationCount,
   useNotificationList,

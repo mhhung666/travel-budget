@@ -2,12 +2,16 @@
 
 import type { PipelineStage } from 'mongoose';
 import { dbConnect } from '@/lib/mongodb';
-import { Trip, ItineraryDay } from '@/models';
+import { Trip, ItineraryDay, Expense } from '@/models';
 import { withAuth } from './withAuth';
 import type { ActionResult } from './types';
 import type { LocalizedNames } from '@/types';
 import { tripOverlapsRange } from '@/lib/dateRange';
+import { RECEIPT_CONTENT_TYPES } from '@/lib/uploads';
 import { logger } from '@/lib/logger';
+
+/** 相片釘點只收圖片附件（PDF 收據不上圖）。 */
+const IMAGE_CONTENT_TYPES = RECEIPT_CONTENT_TYPES.filter((t) => t.startsWith('image/'));
 
 /**
  * 旅行地圖熱點的一個地點：座標 + 權重。多語地名保留，供前端依語系顯示 tooltip。
@@ -151,6 +155,157 @@ export const getVisitedPlaces = withAuth(
       return { success: true, data: places };
     } catch (error) {
       logger.error('Get visited places error', error);
+      return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
+    }
+  }
+);
+
+/**
+ * 地圖相片釘點的一張相片（ROADMAP #16）：支出收據的圖片附件，經由該支出所關聯的
+ * 行程日（Expense.itineraryDays → ItineraryDay.location）取得座標後釘上地圖。
+ *
+ * 只帶物件 key（不含可直接存取的 URL）——檢視時前端逐張呼叫 getReceiptUrl 驗成員後
+ * 取短效簽名 URL，維持收據「私有」契約（不把簽名 URL 一次全簽發、也不外洩到公開分享）。
+ * tripHashCode 供前端連回旅程；name/names 供依語系顯示地名。
+ */
+export interface MapPhoto {
+  /** R2 物件 key（同時作為前端識別 id）。 */
+  key: string;
+  contentType: string;
+  /** 所屬旅程 ObjectId 字串，供 getReceiptUrl 驗成員。 */
+  tripId: string;
+  tripHashCode: string;
+  /** 支出描述，作為相片說明。 */
+  description: string;
+  /** 支出日期（ISO 字串）。 */
+  date: string;
+  lat: number;
+  lon: number;
+  name: string;
+  names?: LocalizedNames;
+  countryCode?: string;
+}
+
+type PhotoAggRow = {
+  key: string;
+  contentType: string;
+  trip: unknown;
+  description?: string;
+  date?: Date | null;
+  lat: number;
+  lon: number;
+  name?: string;
+  names?: LocalizedNames;
+  countryCode?: string;
+};
+
+/**
+ * 匯總目前使用者所有旅程中「有圖片附件、且關聯到含座標行程日」的支出收據，投影成可釘上
+ * 地圖的相片點。位置取自關聯行程日的 location；支出關聯多天時，於每個不同座標各釘一次
+ * （同 key 同座標去重，避免同一張相片在同地點重複）。年份篩選同熱點/航線（旅程起訖與該年重疊）。
+ *
+ * 一次 aggregate 完成（$lookup 關聯行程日 → 展開附件），不 N+1。收據仍私有：此處只回 key，
+ * 不簽 URL，也不供公開分享路由使用。
+ */
+export const getMapPhotos = withAuth(
+  async (session, options?: { year?: number | null }): Promise<ActionResult<MapPhoto[]>> => {
+    try {
+      await dbConnect();
+
+      const year = options?.year ?? null;
+      const trips = await Trip.find({ 'members.user': session.userId })
+        .select('_id hashCode startDate endDate')
+        .lean<
+          { _id: unknown; hashCode?: string; startDate?: Date | null; endDate?: Date | null }[]
+        >();
+      if (trips.length === 0) return { success: true, data: [] };
+
+      const selected =
+        year === null
+          ? trips
+          : trips.filter((t) =>
+              tripOverlapsRange(
+                t.startDate ?? null,
+                t.endDate ?? null,
+                new Date(year, 0, 1),
+                new Date(year, 11, 31, 23, 59, 59, 999)
+              )
+            );
+      if (selected.length === 0) return { success: true, data: [] };
+
+      const hashByTrip = new Map<string, string>(
+        selected.map((t) => [String(t._id), t.hashCode ?? ''])
+      );
+      const tripIds = selected.map((t) => t._id);
+
+      const rows = await Expense.aggregate<PhotoAggRow>([
+        {
+          $match: {
+            trip: { $in: tripIds },
+            'attachments.0': { $exists: true },
+            'itineraryDays.0': { $exists: true },
+          },
+        },
+        // 關聯行程日以取得座標（同 getVisitedPlaces：ItineraryDay 集合名為小寫複數）。
+        {
+          $lookup: {
+            from: 'itinerarydays',
+            localField: 'itineraryDays',
+            foreignField: '_id',
+            as: '_days',
+          },
+        },
+        { $unwind: '$_days' },
+        {
+          $match: {
+            '_days.location.lat': { $type: 'number' },
+            '_days.location.lon': { $type: 'number' },
+          },
+        },
+        { $unwind: '$attachments' },
+        { $match: { 'attachments.contentType': { $in: IMAGE_CONTENT_TYPES } } },
+        {
+          $project: {
+            _id: 0,
+            key: '$attachments.key',
+            contentType: '$attachments.contentType',
+            trip: '$trip',
+            description: '$description',
+            date: '$date',
+            lat: '$_days.location.lat',
+            lon: '$_days.location.lon',
+            name: '$_days.location.name',
+            names: '$_days.location.names',
+            countryCode: '$_days.location.country_code',
+          },
+        },
+      ]);
+
+      // 同 key 同座標（四捨五入到 ~1km）去重：跨多天但落在同地點的同一張相片只留一份。
+      const seen = new Set<string>();
+      const photos: MapPhoto[] = [];
+      for (const r of rows) {
+        const dedupe = `${r.key}@${r.lat.toFixed(2)},${r.lon.toFixed(2)}`;
+        if (seen.has(dedupe)) continue;
+        seen.add(dedupe);
+        photos.push({
+          key: r.key,
+          contentType: r.contentType,
+          tripId: String(r.trip),
+          tripHashCode: hashByTrip.get(String(r.trip)) ?? '',
+          description: r.description ?? '',
+          date: r.date ? new Date(r.date).toISOString() : '',
+          lat: r.lat,
+          lon: r.lon,
+          name: r.name || '',
+          names: r.names,
+          countryCode: r.countryCode,
+        });
+      }
+
+      return { success: true, data: photos };
+    } catch (error) {
+      logger.error('Get map photos error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
   }

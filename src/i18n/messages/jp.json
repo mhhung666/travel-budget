@@ -833,7 +833,11 @@
     "playRoute": "ルート再生",
     "playStop": "停止",
     "heatByVisits": "訪問回数",
-    "heatBySpend": "支出"
+    "heatBySpend": "支出",
+    "modePhotos": "写真",
+    "photoTitle": "写真スポット {count} 件",
+    "photoEmpty": "まだ写真がありません。支出のレシートに写真を添付し、その支出を場所付きの旅程日に紐付けると地図に表示されます。",
+    "photoCount": "写真 {count} 枚"
   },
   "notifications": {
     "title": "通知",

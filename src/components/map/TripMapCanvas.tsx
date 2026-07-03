@@ -7,12 +7,13 @@ import { LatLngBounds, divIcon } from 'leaflet';
 import { useTheme } from 'next-themes';
 import 'leaflet/dist/leaflet.css';
 import type { TripRoute, HeatPoint } from './types';
+import type { PhotoPin } from './photos';
 import { countryCodeToFlag, countryColor } from './country';
 import { greatCirclePositions, routeHeading } from './arc';
 import HeatLayer from './HeatLayer';
 import CountriesLayer from './CountriesLayer';
 
-export type MapMode = 'routes' | 'heat' | 'countries';
+export type MapMode = 'routes' | 'heat' | 'countries' | 'photos';
 
 interface TripMapCanvasProps {
   mode?: MapMode;
@@ -21,6 +22,10 @@ interface TripMapCanvasProps {
   heatPoints?: HeatPoint[];
   /** 已造訪國家 alpha-2 集合（mode === 'countries' 時上色用）。 */
   visitedCountries?: Set<string>;
+  /** 相片釘點（mode === 'photos' 時使用）。 */
+  photoPins?: PhotoPin[];
+  /** 點擊相片釘點（開啟該點的相片 gallery）。 */
+  onPhotoPinSelect?: (pin: PhotoPin) => void;
   /**
    * 時間軸回放：只顯示前 N 條路線（依時間排序）。undefined = 顯示全部。
    * 播放時逐條揭露，營造足跡展開的動畫。
@@ -128,11 +133,46 @@ function planeIcon(color: string, angle: number) {
   });
 }
 
+/** 相片釘點：相機圖示 + 相片數量氣泡。 */
+function photoIcon(color: string, count: number) {
+  const size = 30;
+  return divIcon({
+    className: 'trip-map-photo-pin',
+    html: `<div style="
+      position:relative;
+      width:${size}px;height:${size}px;
+      background:${color};
+      border:2px solid #fff;
+      border-radius:50%;
+      box-shadow:0 1px 4px rgba(0,0,0,.4);
+      display:flex;align-items:center;justify-content:center;
+    ">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3Z"/>
+        <circle cx="12" cy="13" r="3"/>
+      </svg>
+      ${
+        count > 1
+          ? `<span style="
+        position:absolute;top:-6px;right:-6px;min-width:16px;height:16px;padding:0 3px;
+        background:#111;color:#fff;border:1.5px solid #fff;border-radius:8px;
+        font-size:10px;line-height:13px;font-weight:600;text-align:center;">${count}</span>`
+          : ''
+      }
+    </div>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+  });
+}
+
 export default function TripMapCanvas({
   mode = 'routes',
   routes,
   heatPoints = [],
   visitedCountries,
+  photoPins = [],
+  onPhotoPinSelect,
   revealCount,
   selectedId,
   onSelect,
@@ -143,12 +183,15 @@ export default function TripMapCanvas({
 
   const isHeat = mode === 'heat';
   const isCountries = mode === 'countries';
+  const isPhotos = mode === 'photos';
   // 回放時只畫前 N 條；其餘模式畫全部。
   const visibleRoutes = revealCount === undefined ? routes : routes.slice(0, revealCount);
-  const isRoutes = !isHeat && !isCountries;
+  const isRoutes = !isHeat && !isCountries && !isPhotos;
   const fitCoords: [number, number][] = isHeat
     ? heatPoints.map((p) => [p.lat, p.lon])
-    : allCoords(routes);
+    : isPhotos
+      ? photoPins.map((p) => [p.lat, p.lon])
+      : allCoords(routes);
   const maxWeight = heatPoints.reduce((m, p) => Math.max(m, p.weight), 0);
   const heatTuples = heatPoints.map((p) => [p.lat, p.lon, p.weight] as [number, number, number]);
 
@@ -170,6 +213,24 @@ export default function TripMapCanvas({
       {isHeat && <HeatLayer points={heatTuples} max={maxWeight} />}
 
       {isCountries && <CountriesLayer visited={visitedCountries ?? new Set()} isDark={isDark} />}
+
+      {/* 相片釘點：群聚避免重疊，點擊開啟該點相片 gallery。 */}
+      {isPhotos && (
+        <MarkerClusterGroup chunkedLoading showCoverageOnHover={false} maxClusterRadius={40}>
+          {photoPins.map((pin) => (
+            <Marker
+              key={`photo-${pin.id}`}
+              position={[pin.lat, pin.lon]}
+              icon={photoIcon(countryColor(pin.countryCode), pin.photos.length)}
+              eventHandlers={{ click: () => onPhotoPinSelect?.(pin) }}
+            >
+              <Tooltip direction="top" offset={[0, -16]}>
+                {countryCodeToFlag(pin.countryCode)} {pin.name}
+              </Tooltip>
+            </Marker>
+          ))}
+        </MarkerClusterGroup>
+      )}
 
       {isRoutes && <FlyToSelected routes={visibleRoutes} selectedId={selectedId} />}
 
