@@ -10,8 +10,17 @@ const noteCreate = vi.fn();
 const noteDeleteOne = vi.fn();
 const itineraryDayFindOneAndUpdate = vi.fn();
 const userFindById = vi.fn();
+const headObject = vi.fn();
+const deleteObjects = vi.fn();
+const presignGet = vi.fn();
 
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
+
+vi.mock('@/lib/storage', () => ({
+  headObject: (...args: unknown[]) => headObject(...args),
+  deleteObjects: (...args: unknown[]) => deleteObjects(...args),
+  presignGet: (...args: unknown[]) => presignGet(...args),
+}));
 
 vi.mock('@/lib/auth', () => ({
   getSession: () => getSession(),
@@ -37,7 +46,14 @@ vi.mock('@/models', () => ({
   },
 }));
 
-import { getNotes, createNote, updateNote, deleteNote, planNote } from '@/actions/note.actions';
+import {
+  getNotes,
+  createNote,
+  updateNote,
+  deleteNote,
+  planNote,
+  getNoteAttachmentUrl,
+} from '@/actions/note.actions';
 
 const VIEWER = '507f191e810c19729de860ea';
 const TRIP_ID = '507f1f77bcf86cd799439011';
@@ -115,6 +131,7 @@ describe('getNotes', () => {
         text: '想去藍瓶咖啡',
         author_id: VIEWER,
         author_name: 'Alice',
+        attachments: [],
         pinned: false,
         planned_at: null,
         planned_day_number: null,
@@ -199,14 +216,155 @@ describe('updateNote', () => {
   });
 });
 
+describe('createNote with attachments', () => {
+  const NOTE_KEY = `notes/${TRIP_ID}/photo.webp`;
+
+  it('verifies a new attachment key via headObject and persists it', async () => {
+    userFindById.mockReturnValue(chainSelectLean({ displayName: 'Alice' }));
+    headObject.mockResolvedValue({ size: 2048, contentType: 'image/webp' });
+    noteCreate.mockResolvedValue({
+      toObject: () =>
+        leanNote({ attachments: [{ key: NOTE_KEY, contentType: 'image/webp', size: 2048 }] }),
+    });
+
+    const result = await createNote(TRIP_ID, {
+      text: '想去藍瓶咖啡',
+      attachments: [{ key: NOTE_KEY, content_type: 'image/webp', size: 2048 }],
+    });
+
+    expect(result.success).toBe(true);
+    if (!result.success) throw new Error('expected success');
+    expect(headObject).toHaveBeenCalledWith('receipts', NOTE_KEY);
+    expect(noteCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        attachments: [
+          expect.objectContaining({ key: NOTE_KEY, contentType: 'image/webp', size: 2048 }),
+        ],
+      })
+    );
+    expect(result.data.attachments).toEqual([
+      { key: NOTE_KEY, content_type: 'image/webp', size: 2048 },
+    ]);
+  });
+
+  it('rejects an attachment key that belongs to another trip', async () => {
+    userFindById.mockReturnValue(chainSelectLean({ displayName: 'Alice' }));
+
+    const result = await createNote(TRIP_ID, {
+      text: '想去藍瓶咖啡',
+      attachments: [{ key: 'notes/otherTrip/photo.webp', content_type: 'image/webp', size: 2048 }],
+    });
+
+    expect(result.success).toBe(false);
+    if (result.success) throw new Error('expected failure');
+    expect(result.code).toBe('VALIDATION_ERROR');
+    expect(headObject).not.toHaveBeenCalled();
+    expect(noteCreate).not.toHaveBeenCalled();
+  });
+
+  it('rejects when the uploaded object is larger than the cap', async () => {
+    userFindById.mockReturnValue(chainSelectLean({ displayName: 'Alice' }));
+    headObject.mockResolvedValue({ size: 99 * 1024 * 1024, contentType: 'image/webp' });
+
+    const result = await createNote(TRIP_ID, {
+      text: '想去藍瓶咖啡',
+      attachments: [{ key: NOTE_KEY, content_type: 'image/webp', size: 2048 }],
+    });
+
+    expect(result.success).toBe(false);
+    if (result.success) throw new Error('expected failure');
+    expect(result.code).toBe('VALIDATION_ERROR');
+    expect(noteCreate).not.toHaveBeenCalled();
+  });
+});
+
+describe('updateNote attachments', () => {
+  const OLD_KEY = `notes/${TRIP_ID}/old.webp`;
+  const NEW_KEY = `notes/${TRIP_ID}/new.webp`;
+
+  it('keeps existing keys, verifies new ones, and deletes removed orphans', async () => {
+    // 現有筆記帶一張舊照片；更新為「保留舊 + 新增一張」外加移除另一張孤兒。
+    noteFindOne.mockReturnValue(
+      chainSelectLean({
+        attachments: [
+          {
+            key: OLD_KEY,
+            contentType: 'image/webp',
+            size: 100,
+            uploadedBy: VIEWER,
+            uploadedAt: new Date(),
+          },
+          {
+            key: `notes/${TRIP_ID}/gone.webp`,
+            contentType: 'image/webp',
+            size: 50,
+            uploadedBy: VIEWER,
+            uploadedAt: new Date(),
+          },
+        ],
+      })
+    );
+    headObject.mockResolvedValue({ size: 200, contentType: 'image/webp' });
+    deleteObjects.mockResolvedValue(undefined);
+    noteFindOneAndUpdate.mockReturnValue(chainLean(leanNote()));
+
+    const result = await updateNote(TRIP_ID, NOTE_ID, {
+      attachments: [
+        { key: OLD_KEY, content_type: 'image/webp', size: 100 },
+        { key: NEW_KEY, content_type: 'image/webp', size: 200 },
+      ],
+    });
+
+    expect(result.success).toBe(true);
+    // 只對新 key 打 headObject（舊 key 沿用）
+    expect(headObject).toHaveBeenCalledTimes(1);
+    expect(headObject).toHaveBeenCalledWith('receipts', NEW_KEY);
+    // 被移除的孤兒照片走 best-effort 刪除
+    expect(deleteObjects).toHaveBeenCalledWith('receipts', [`notes/${TRIP_ID}/gone.webp`]);
+  });
+});
+
 describe('deleteNote', () => {
   it('scopes the delete to the trip', async () => {
+    noteFindOne.mockReturnValue(chainSelectLean(leanNote()));
     noteDeleteOne.mockResolvedValue({ deletedCount: 1 });
 
     const result = await deleteNote(TRIP_ID, NOTE_ID);
 
     expect(result.success).toBe(true);
     expect(noteDeleteOne).toHaveBeenCalledWith({ _id: NOTE_ID, trip: TRIP_ID });
+  });
+
+  it('best-effort deletes attachment objects from R2', async () => {
+    const key = `notes/${TRIP_ID}/photo.webp`;
+    noteFindOne.mockReturnValue(chainSelectLean({ attachments: [{ key }] }));
+    noteDeleteOne.mockResolvedValue({ deletedCount: 1 });
+    deleteObjects.mockResolvedValue(undefined);
+
+    const result = await deleteNote(TRIP_ID, NOTE_ID);
+
+    expect(result.success).toBe(true);
+    expect(deleteObjects).toHaveBeenCalledWith('receipts', [key]);
+  });
+});
+
+describe('getNoteAttachmentUrl', () => {
+  it('signs a short-lived GET for a key in this trip', async () => {
+    presignGet.mockResolvedValue('https://signed.example/notes');
+
+    const result = await getNoteAttachmentUrl(TRIP_ID, `notes/${TRIP_ID}/photo.webp`);
+
+    expect(result.success).toBe(true);
+    if (!result.success) throw new Error('expected success');
+    expect(result.data.url).toBe('https://signed.example/notes');
+    expect(presignGet).toHaveBeenCalledWith('receipts', `notes/${TRIP_ID}/photo.webp`);
+  });
+
+  it('rejects a key from another trip without signing', async () => {
+    const result = await getNoteAttachmentUrl(TRIP_ID, 'notes/otherTrip/photo.webp');
+
+    expect(result.success).toBe(false);
+    expect(presignGet).not.toHaveBeenCalled();
   });
 });
 

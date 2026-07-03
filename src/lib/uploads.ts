@@ -10,12 +10,13 @@ import { randomUUID } from 'crypto';
 
 // 行程活動的票券附件（訂房單 / 機票 / 入場券）。與收據同性質（私有、可為 PDF），
 // 故沿用相同的型別白名單與大小上限——只是命名空間（key 前綴）不同。
-export type UploadKind = 'receipt' | 'avatar' | 'itinerary';
+export type UploadKind = 'receipt' | 'avatar' | 'itinerary' | 'note';
 
 // 硬性上限。前端壓縮後通常遠小於此；這裡只擋住惡意/異常的大檔。
 export const MAX_RECEIPT_BYTES = 8 * 1024 * 1024; // 8MB（收據可為未壓縮 PDF）
 export const MAX_AVATAR_BYTES = 4 * 1024 * 1024; // 4MB
 export const MAX_ITINERARY_BYTES = MAX_RECEIPT_BYTES; // 票券同收據（可為 PDF）
+export const MAX_NOTE_BYTES = MAX_AVATAR_BYTES; // 隨手記僅圖片（無 PDF），沿用頭像上限
 
 export const RECEIPT_CONTENT_TYPES = [
   'image/jpeg',
@@ -25,6 +26,8 @@ export const RECEIPT_CONTENT_TYPES = [
 ] as const;
 export const AVATAR_CONTENT_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
 export const ITINERARY_CONTENT_TYPES = RECEIPT_CONTENT_TYPES;
+// 隨手記只收圖片（速記照片，無 PDF 需求），故沿用頭像的圖片白名單。
+export const NOTE_CONTENT_TYPES = AVATAR_CONTENT_TYPES;
 
 const EXT_BY_TYPE: Record<string, string> = {
   'image/jpeg': 'jpg',
@@ -42,6 +45,8 @@ export function uploadConstraints(kind: UploadKind): {
       return { types: RECEIPT_CONTENT_TYPES, maxBytes: MAX_RECEIPT_BYTES };
     case 'itinerary':
       return { types: ITINERARY_CONTENT_TYPES, maxBytes: MAX_ITINERARY_BYTES };
+    case 'note':
+      return { types: NOTE_CONTENT_TYPES, maxBytes: MAX_NOTE_BYTES };
     case 'avatar':
       return { types: AVATAR_CONTENT_TYPES, maxBytes: MAX_AVATAR_BYTES };
   }
@@ -71,11 +76,18 @@ export function extForContentType(contentType: string): string {
  *
  *   receipt   → receipts/<tripId>/<uuid>.<ext>
  *   itinerary → itinerary/<tripId>/<uuid>.<ext>  （與收據共用私有 bucket，前綴不同）
+ *   note      → notes/<tripId>/<uuid>.<ext>      （同上，隨手記照片）
  *   avatar    → avatars/<userId>/<uuid>.<ext>
  */
+const KEY_PREFIX_BY_KIND: Record<UploadKind, string> = {
+  receipt: 'receipts',
+  itinerary: 'itinerary',
+  note: 'notes',
+  avatar: 'avatars',
+};
+
 export function buildObjectKey(kind: UploadKind, ownerId: string, contentType: string): string {
-  const prefix = kind === 'receipt' ? 'receipts' : kind === 'itinerary' ? 'itinerary' : 'avatars';
-  return `${prefix}/${ownerId}/${randomUUID()}.${extForContentType(contentType)}`;
+  return `${KEY_PREFIX_BY_KIND[kind]}/${ownerId}/${randomUUID()}.${extForContentType(contentType)}`;
 }
 
 /** 收據物件 key 的命名空間前綴：receipts/<tripId>/。 */
@@ -102,6 +114,19 @@ export function itineraryKeyPrefix(tripId: string): string {
  */
 export function isItineraryKeyForTrip(tripId: string, key: string): boolean {
   return tripId.length > 0 && key.startsWith(itineraryKeyPrefix(tripId));
+}
+
+/** 隨手記照片物件 key 的命名空間前綴：notes/<tripId>/（與收據共用私有 bucket）。 */
+export function noteKeyPrefix(tripId: string): string {
+  return `notes/${tripId}/`;
+}
+
+/**
+ * 該 key 是否屬於此 trip 的隨手記照片空間。同 isReceiptKeyForTrip / isItineraryKeyForTrip——
+ * 成員只能把屬於本 trip 前綴的物件掛成筆記照片，或簽發本 trip 的筆記照片檢視 URL。
+ */
+export function isNoteKeyForTrip(tripId: string, key: string): boolean {
+  return tripId.length > 0 && key.startsWith(noteKeyPrefix(tripId));
 }
 
 /** 頭像物件 key 的命名空間前綴：avatars/<userId>/。 */

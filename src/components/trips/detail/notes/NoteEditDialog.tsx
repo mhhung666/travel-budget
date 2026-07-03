@@ -2,23 +2,26 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import type { TripNote } from '@/types';
+import type { TripNote, ExpenseAttachment } from '@/types';
 import { ResponsiveFormSheet } from '@/components/common';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { NoteImageUploader } from '@/components/trips/detail/ReceiptAttachments';
 
 export interface NoteEditDialogProps {
+  tripId: string;
   note: TripNote | null;
   saving: boolean;
-  onSave: (text: string) => void;
+  onSave: (text: string, attachments: ExpenseAttachment[]) => void;
   onClose: () => void;
 }
 
-/** 編輯隨手記內容（桌機 Dialog／行動端全螢幕 Sheet）。 */
-export function NoteEditDialog({ note, saving, onSave, onClose }: NoteEditDialogProps) {
+/** 編輯隨手記內容與照片（桌機 Dialog／行動端全螢幕 Sheet）。 */
+export function NoteEditDialog({ tripId, note, saving, onSave, onClose }: NoteEditDialogProps) {
   const t = useTranslations('notes');
   const tCommon = useTranslations('common');
   const [draft, setDraft] = useState('');
+  const [attachments, setAttachments] = useState<ExpenseAttachment[]>([]);
   const [lastNoteId, setLastNoteId] = useState<string | null>(null);
 
   // 開啟／換一則筆記時於 render 期間重灌草稿（adjusting state when props change 模式，
@@ -26,6 +29,7 @@ export function NoteEditDialog({ note, saving, onSave, onClose }: NoteEditDialog
   if (note && note.id !== lastNoteId) {
     setLastNoteId(note.id);
     setDraft(note.text);
+    setAttachments(note.attachments);
   } else if (!note && lastNoteId !== null) {
     setLastNoteId(null);
   }
@@ -34,7 +38,7 @@ export function NoteEditDialog({ note, saving, onSave, onClose }: NoteEditDialog
     e.preventDefault();
     const text = draft.trim();
     if (!text) return;
-    onSave(text);
+    onSave(text, attachments);
   };
 
   return (
@@ -49,7 +53,7 @@ export function NoteEditDialog({ note, saving, onSave, onClose }: NoteEditDialog
         </Button>
       }
     >
-      <form id="note-edit-form" onSubmit={submit}>
+      <form id="note-edit-form" onSubmit={submit} className="space-y-3">
         <Textarea
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
@@ -58,6 +62,7 @@ export function NoteEditDialog({ note, saving, onSave, onClose }: NoteEditDialog
           autoFocus
           className="resize-none"
         />
+        <NoteImageUploader tripId={tripId} value={attachments} onChange={setAttachments} />
       </form>
     </ResponsiveFormSheet>
   );

@@ -239,12 +239,23 @@ describe('toTripNoteDto', () => {
       text: '想去藍瓶咖啡',
       author_id: 'u1',
       author_name: 'Alice',
+      attachments: [],
       pinned: true,
       planned_at: null,
       planned_day_number: null,
       created_at: '2026-06-01T00:00:00.000Z',
       updated_at: '2026-06-02T00:00:00.000Z',
     });
+  });
+
+  it('maps embedded attachments to key + metadata (no URL)', () => {
+    const dto = toTripNoteDto({
+      ...base,
+      attachments: [{ key: 'notes/trip9/abc.webp', contentType: 'image/webp', size: 2048 }],
+    });
+    expect(dto.attachments).toEqual([
+      { key: 'notes/trip9/abc.webp', content_type: 'image/webp', size: 2048 },
+    ]);
   });
 
   it('serializes plannedAt to ISO and keeps the day snapshot', () => {

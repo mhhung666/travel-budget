@@ -15,8 +15,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { NoteThumb } from '@/components/trips/detail/ReceiptAttachments';
 
 export interface NoteCardProps {
+  tripId: string;
   note: TripNote;
   canEdit: boolean;
   onEdit: () => void;
@@ -30,7 +32,15 @@ export interface NoteCardProps {
  * 已規劃（planned_at 非 null）的卡片降透明度、掛「已規劃 · Day N」Badge，
  * 選單只剩刪除（內容已進行程，不再編輯/轉換）。
  */
-export function NoteCard({ note, canEdit, onEdit, onTogglePin, onPlan, onDelete }: NoteCardProps) {
+export function NoteCard({
+  tripId,
+  note,
+  canEdit,
+  onEdit,
+  onTogglePin,
+  onPlan,
+  onDelete,
+}: NoteCardProps) {
   const t = useTranslations('notes');
   const locale = useLocale();
   const planned = note.planned_at !== null;
@@ -58,6 +68,13 @@ export function NoteCard({ note, canEdit, onEdit, onTogglePin, onPlan, onDelete 
             >
               {note.text}
             </p>
+            {note.attachments.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {note.attachments.map((a) => (
+                  <NoteThumb key={a.key} tripId={tripId} attachment={a} />
+                ))}
+              </div>
+            )}
             <div className="mt-2 flex items-center gap-1.5">
               <Avatar className="h-5 w-5 text-[9px]">
                 <AvatarFallback className="bg-muted text-muted-foreground">

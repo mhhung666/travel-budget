@@ -676,6 +676,8 @@
     "backToTrip": "Back to Trip",
     "placeholder": "Jot something down…",
     "send": "Send",
+    "addImage": "Add photo",
+    "imageLabel": "Photo",
     "actions": "More actions",
     "edit": "Edit",
     "editTitle": "Edit note",

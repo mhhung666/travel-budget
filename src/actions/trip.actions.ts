@@ -17,7 +17,7 @@ import {
 import { getTripMembership } from '@/lib/permissions';
 import { generateUniqueHashCode } from '@/lib/hashcode';
 import { deleteByPrefix } from '@/lib/storage';
-import { receiptKeyPrefix, itineraryKeyPrefix } from '@/lib/uploads';
+import { receiptKeyPrefix, itineraryKeyPrefix, noteKeyPrefix } from '@/lib/uploads';
 import {
   createTripSchema,
   updateTripSchema,
@@ -227,6 +227,7 @@ export const deleteTrip = withAuth(
       await Promise.all([
         deleteByPrefix('receipts', receiptKeyPrefix(tripId)),
         deleteByPrefix('receipts', itineraryKeyPrefix(tripId)),
+        deleteByPrefix('receipts', noteKeyPrefix(tripId)),
       ]).catch((e) => logger.error('Delete trip: blob cleanup failed', e));
 
       revalidatePath('/trips');

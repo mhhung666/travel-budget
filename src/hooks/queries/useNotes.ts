@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getNotes, createNote, updateNote, deleteNote, planNote } from '@/actions';
 import type { ActionResult } from '@/actions';
-import type { TripNote } from '@/types';
+import type { TripNote, ExpenseAttachment } from '@/types';
 import { tripKeys } from './keys';
 
 /** Unwraps an ActionResult, throwing on failure so React Query's onError fires. */
@@ -29,9 +29,15 @@ export function useNotes(tripId: string) {
   });
 }
 
+interface CreateNoteData {
+  text: string;
+  attachments?: ExpenseAttachment[];
+}
+
 interface UpdateNoteData {
   text?: string;
   pinned?: boolean;
+  attachments?: ExpenseAttachment[];
 }
 
 /**
@@ -44,7 +50,8 @@ export function useNoteMutations(tripId: string) {
   const invalidate = () => queryClient.invalidateQueries({ queryKey: tripKeys.notes(tripId) });
 
   const create = useMutation({
-    mutationFn: (text: string) => unwrap(createNote(tripId, { text })),
+    mutationFn: ({ text, attachments }: CreateNoteData) =>
+      unwrap(createNote(tripId, { text, attachments })),
     onSuccess: invalidate,
   });
 

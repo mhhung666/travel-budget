@@ -8,6 +8,8 @@ import {
   getReceiptUrl,
   createItineraryUploadUrl,
   getItineraryAttachmentUrl,
+  createNoteUploadUrl,
+  getNoteAttachmentUrl,
 } from '@/actions';
 import type { ActionResult } from '@/actions';
 import { compressImage } from '@/lib/imageCompress';
@@ -15,6 +17,7 @@ import type { ExpenseAttachment } from '@/types';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 
 const ACCEPT = 'image/jpeg,image/png,image/webp,application/pdf';
+const ACCEPT_IMAGE = 'image/jpeg,image/png,image/webp';
 
 /** 取短效檢視 URL 的 server fn 形狀（getReceiptUrl / getItineraryAttachmentUrl）。 */
 type GetUrlFn = (tripId: string, key: string) => Promise<ActionResult<{ url: string }>>;
@@ -35,13 +38,17 @@ export function AttachmentThumb({
   attachment,
   getUrl,
   onRemove,
+  itemLabel,
 }: {
   tripId: string;
   attachment: ExpenseAttachment;
   getUrl: GetUrlFn;
   onRemove?: () => void;
+  /** 覆寫縮圖 alt / 檢視對話框標題（預設「收據」；筆記照片傳自己的標籤）。 */
+  itemLabel?: string;
 }) {
   const t = useTranslations('expense.receipts');
+  const label = itemLabel ?? t('label');
   const isPdf = attachment.content_type === 'application/pdf';
   const [url, setUrl] = useState<string | null>(null);
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
@@ -80,7 +87,7 @@ export function AttachmentThumb({
             <FileText className="h-6 w-6 text-muted-foreground" />
           ) : url ? (
             // eslint-disable-next-line @next/next/no-img-element -- 簽名 URL 為動態短效，不走 next/image 遠端設定
-            <img src={url} alt={t('label')} className="h-full w-full object-cover" />
+            <img src={url} alt={label} className="h-full w-full object-cover" />
           ) : (
             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
           )}
@@ -99,15 +106,15 @@ export function AttachmentThumb({
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-3xl overflow-hidden p-0">
-          <DialogTitle className="sr-only">{t('label')}</DialogTitle>
+          <DialogTitle className="sr-only">{label}</DialogTitle>
           {viewerUrl &&
             (isPdf ? (
-              <iframe src={viewerUrl} title={t('label')} className="h-[80vh] w-full" />
+              <iframe src={viewerUrl} title={label} className="h-[80vh] w-full" />
             ) : (
               // eslint-disable-next-line @next/next/no-img-element -- 簽名 URL 為動態短效，不走 next/image 遠端設定
               <img
                 src={viewerUrl}
-                alt={t('label')}
+                alt={label}
                 className="max-h-[85vh] w-full bg-black object-contain"
               />
             ))}
@@ -129,6 +136,9 @@ export function AttachmentUploader({
   getUrl,
   createUploadUrl,
   compressKind = 'receipt',
+  accept = ACCEPT,
+  addLabel,
+  itemLabel,
 }: {
   tripId: string;
   value: ExpenseAttachment[];
@@ -136,6 +146,11 @@ export function AttachmentUploader({
   getUrl: GetUrlFn;
   createUploadUrl: CreateUploadUrlFn;
   compressKind?: 'receipt';
+  accept?: string;
+  /** 覆寫「新增」按鈕 title（預設「新增收據」）。 */
+  addLabel?: string;
+  /** 覆寫縮圖 alt / 檢視標題（預設「收據」）。 */
+  itemLabel?: string;
 }) {
   const t = useTranslations('expense.receipts');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -185,13 +200,14 @@ export function AttachmentUploader({
             attachment={a}
             getUrl={getUrl}
             onRemove={() => remove(a.key)}
+            itemLabel={itemLabel}
           />
         ))}
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={uploading}
-          title={t('add')}
+          title={addLabel ?? t('add')}
           className="flex h-16 w-16 shrink-0 items-center justify-center rounded-md border border-dashed text-muted-foreground hover:bg-muted disabled:opacity-50"
         >
           {uploading ? (
@@ -204,7 +220,7 @@ export function AttachmentUploader({
       <input
         ref={inputRef}
         type="file"
-        accept={ACCEPT}
+        accept={accept}
         multiple
         className="hidden"
         onChange={(e) => handleFiles(e.target.files)}
@@ -292,6 +308,53 @@ export function TicketUploader({
       onChange={onChange}
       getUrl={getItineraryAttachmentUrl}
       createUploadUrl={createItineraryUploadUrl}
+    />
+  );
+}
+
+/** 隨手記照片縮圖：AttachmentThumb 綁定 getNoteAttachmentUrl。 */
+export function NoteThumb({
+  tripId,
+  attachment,
+  onRemove,
+}: {
+  tripId: string;
+  attachment: ExpenseAttachment;
+  onRemove?: () => void;
+}) {
+  const t = useTranslations('notes');
+  return (
+    <AttachmentThumb
+      tripId={tripId}
+      attachment={attachment}
+      getUrl={getNoteAttachmentUrl}
+      onRemove={onRemove}
+      itemLabel={t('imageLabel')}
+    />
+  );
+}
+
+/** 隨手記照片上傳器：AttachmentUploader 綁定筆記的 server fns（僅收圖片）。 */
+export function NoteImageUploader({
+  tripId,
+  value,
+  onChange,
+}: {
+  tripId: string;
+  value: ExpenseAttachment[];
+  onChange: (next: ExpenseAttachment[]) => void;
+}) {
+  const t = useTranslations('notes');
+  return (
+    <AttachmentUploader
+      tripId={tripId}
+      value={value}
+      onChange={onChange}
+      getUrl={getNoteAttachmentUrl}
+      createUploadUrl={createNoteUploadUrl}
+      accept={ACCEPT_IMAGE}
+      addLabel={t('addImage')}
+      itemLabel={t('imageLabel')}
     />
   );
 }

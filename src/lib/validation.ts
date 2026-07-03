@@ -305,17 +305,21 @@ export const createCommentSchema = z.object({
 
 // Note schemas（隨手記；任何成員皆可編輯，比照 Checklist 的成員信任模型）
 const noteTextSchema = z.string().trim().min(1, '內容不能為空').max(500, '內容過長（上限 500 字）');
+// 照片附件沿用收據的 attachmentInputSchema（只帶 key，size/type 由 action 以 headObject 驗證）。
+const noteAttachmentsSchema = z.array(attachmentInputSchema).max(6, '照片數量過多');
 
 export const createNoteSchema = z.object({
   text: noteTextSchema,
+  attachments: noteAttachmentsSchema.optional(),
 });
 
 export const updateNoteSchema = z
   .object({
     text: noteTextSchema.optional(),
+    attachments: noteAttachmentsSchema.optional(),
     pinned: z.boolean().optional(),
   })
-  .refine((d) => d.text !== undefined || d.pinned !== undefined, {
+  .refine((d) => d.text !== undefined || d.attachments !== undefined || d.pinned !== undefined, {
     message: '沒有可更新的欄位',
   });
 

@@ -676,6 +676,8 @@
     "backToTrip": "旅行に戻る",
     "placeholder": "メモを書く…",
     "send": "送信",
+    "addImage": "写真を追加",
+    "imageLabel": "写真",
     "actions": "その他の操作",
     "edit": "編集",
     "editTitle": "メモを編集",

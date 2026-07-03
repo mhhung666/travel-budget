@@ -7,11 +7,14 @@ import {
   isReceiptKeyForTrip,
   itineraryKeyPrefix,
   isItineraryKeyForTrip,
+  noteKeyPrefix,
+  isNoteKeyForTrip,
   avatarKeyPrefix,
   isAvatarKeyForUser,
   MAX_RECEIPT_BYTES,
   MAX_AVATAR_BYTES,
   MAX_ITINERARY_BYTES,
+  MAX_NOTE_BYTES,
 } from '@/lib/uploads';
 
 describe('validateUpload', () => {
@@ -85,6 +88,12 @@ describe('buildObjectKey', () => {
     expect(key.endsWith('.pdf')).toBe(true);
   });
 
+  it('namespaces note photos by tripId under the notes/ prefix', () => {
+    const key = buildObjectKey('note', 'trip123', 'image/webp');
+    expect(key).toMatch(/^notes\/trip123\//);
+    expect(key.endsWith('.webp')).toBe(true);
+  });
+
   it('namespaces avatars by userId', () => {
     const key = buildObjectKey('avatar', 'user456', 'image/jpeg');
     expect(key).toMatch(/^avatars\/user456\//);
@@ -123,6 +132,32 @@ describe('itinerary key helpers', () => {
     expect(isItineraryKeyForTrip('trip123', 'receipts/trip123/abc.pdf')).toBe(false);
     expect(isReceiptKeyForTrip('trip123', 'itinerary/trip123/abc.pdf')).toBe(false);
     expect(isItineraryKeyForTrip('', 'itinerary//abc.pdf')).toBe(false);
+  });
+});
+
+describe('note key helpers', () => {
+  it('builds the trip-namespaced prefix', () => {
+    expect(noteKeyPrefix('trip123')).toBe('notes/trip123/');
+  });
+
+  it('accepts a key under the trip prefix and rejects others', () => {
+    expect(isNoteKeyForTrip('trip123', 'notes/trip123/abc.webp')).toBe(true);
+    expect(isNoteKeyForTrip('trip123', 'notes/other/abc.webp')).toBe(false);
+    // 與收據/票券共用 bucket，但前綴不同，彼此不可互用。
+    expect(isNoteKeyForTrip('trip123', 'receipts/trip123/abc.webp')).toBe(false);
+    expect(isReceiptKeyForTrip('trip123', 'notes/trip123/abc.webp')).toBe(false);
+    expect(isNoteKeyForTrip('', 'notes//abc.webp')).toBe(false);
+  });
+});
+
+describe('note upload constraints', () => {
+  it('accepts images and rejects PDF / oversize', () => {
+    expect(validateUpload('note', 'image/webp', 500_000)).toEqual({ ok: true });
+    expect(validateUpload('note', 'application/pdf', 1_000)).toEqual({ ok: false, reason: 'type' });
+    expect(validateUpload('note', 'image/png', MAX_NOTE_BYTES + 1)).toEqual({
+      ok: false,
+      reason: 'size',
+    });
   });
 });
 

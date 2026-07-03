@@ -42,6 +42,7 @@ export {
 export {
   createReceiptUploadUrl,
   createItineraryUploadUrl,
+  createNoteUploadUrl,
   createAvatarUploadUrl,
   type UploadTicket,
 } from './upload.actions';
@@ -82,7 +83,14 @@ export {
 } from './checklist.actions';
 
 // Note actions（隨手記）
-export { getNotes, createNote, updateNote, deleteNote, planNote } from './note.actions';
+export {
+  getNotes,
+  createNote,
+  updateNote,
+  deleteNote,
+  planNote,
+  getNoteAttachmentUrl,
+} from './note.actions';
 
 // Stats actions
 export { getStats, getTripStats } from './stats.actions';

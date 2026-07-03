@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 import { ChevronDown, StickyNote } from 'lucide-react';
-import type { TripNote } from '@/types';
+import type { TripNote, ExpenseAttachment } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import { useNotes, useNoteMutations, useTripMembership } from '@/hooks/queries';
 import { useToast } from '@/hooks/use-toast';
@@ -63,10 +63,10 @@ export default function NotesPage() {
     }
   };
 
-  const handleSaveEdit = async (text: string) => {
+  const handleSaveEdit = async (text: string, attachments: ExpenseAttachment[]) => {
     if (!editingNote) return;
     const noteId = editingNote.id;
-    await guard(m.update.mutateAsync({ noteId, data: { text } }));
+    await guard(m.update.mutateAsync({ noteId, data: { text, attachments } }));
     setEditingNote(null);
   };
 
@@ -108,7 +108,8 @@ export default function NotesPage() {
       {canEdit && (
         <div className="mb-4">
           <NoteComposer
-            onSubmit={(text) => guard(m.create.mutateAsync(text))}
+            tripId={tripId}
+            onSubmit={(text, attachments) => guard(m.create.mutateAsync({ text, attachments }))}
             pending={m.create.isPending}
           />
         </div>
@@ -122,6 +123,7 @@ export default function NotesPage() {
             {active.map((note) => (
               <NoteCard
                 key={note.id}
+                tripId={tripId}
                 note={note}
                 canEdit={canEdit}
                 onEdit={() => setEditingNote(note)}
@@ -156,6 +158,7 @@ export default function NotesPage() {
                   {planned.map((note) => (
                     <NoteCard
                       key={note.id}
+                      tripId={tripId}
                       note={note}
                       canEdit={canEdit}
                       onEdit={() => setEditingNote(note)}
@@ -172,6 +175,7 @@ export default function NotesPage() {
       )}
 
       <NoteEditDialog
+        tripId={tripId}
         note={editingNote}
         saving={m.update.isPending}
         onSave={handleSaveEdit}

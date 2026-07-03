@@ -363,6 +363,7 @@ export type TripNoteDtoInput = {
   text: string;
   createdBy: { toString(): string };
   authorName?: string | null;
+  attachments?: { key: string; contentType: string; size: number }[] | null;
   pinned?: boolean | null;
   plannedAt?: Date | null;
   plannedDayNumber?: number | null;
@@ -373,6 +374,7 @@ export type TripNoteDtoInput = {
 /**
  * Lean Note doc → frontend DTO. `author_name` is denormalized at create time
  * (same as comments), so no populate is needed across a list of notes.
+ * Attachments carry only key + metadata (no URL); viewing signs a short-lived GET.
  */
 export function toTripNoteDto(n: TripNoteDtoInput): TripNote {
   return {
@@ -381,6 +383,11 @@ export function toTripNoteDto(n: TripNoteDtoInput): TripNote {
     text: n.text,
     author_id: n.createdBy.toString(),
     author_name: n.authorName ?? '',
+    attachments: (n.attachments ?? []).map((a) => ({
+      key: a.key,
+      content_type: a.contentType,
+      size: a.size,
+    })),
     pinned: n.pinned ?? false,
     planned_at: n.plannedAt ? n.plannedAt.toISOString() : null,
     planned_day_number: n.plannedDayNumber ?? null,
