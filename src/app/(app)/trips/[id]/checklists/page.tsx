@@ -6,6 +6,7 @@ import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 import { ListChecks, Plus } from 'lucide-react';
 import { ChecklistCard, NewChecklistSheet } from '@/components/trips/detail/checklist';
+import { useTripSpaceActions } from '@/components/trips/space/TripSpaceContext';
 import type { Checklist, ChecklistKind } from '@/types';
 import { useChecklists, useTripMembership, useChecklistMutations } from '@/hooks/queries';
 import { ItinerarySkeleton } from '@/components/skeletons';
@@ -33,6 +34,7 @@ export default function ChecklistsPage() {
 
   const { data: checklists = [], isLoading: loading, isError } = useChecklists(tripId);
   const { currentUser, members, isMember } = useTripMembership(tripId);
+  const { openAddExpense } = useTripSpaceActions();
   const m = useChecklistMutations(tripId);
 
   const [newSheetOpen, setNewSheetOpen] = useState(false);
@@ -137,6 +139,7 @@ export default function ChecklistsPage() {
               }
               onRename={(title) => guard(m.renameList.mutateAsync({ checklistId: list.id, title }))}
               onDelete={() => setDeletingList(list)}
+              onLogExpense={(text) => openAddExpense({ description: text })}
             />
           ))}
         </div>

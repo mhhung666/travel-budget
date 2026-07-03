@@ -754,7 +754,8 @@
       "shopping": "購物"
     },
     "myProgress": "我的進度",
-    "packedByCount": "{count} 人已備"
+    "packedByCount": "{count} 人已備",
+    "logExpense": "記一筆"
   },
   "notes": {
     "title": "隨手記",

@@ -6,6 +6,7 @@ import { computeBudgetProgress } from '@/lib/budget';
 import { useDialog } from '@/hooks/useDialog';
 import { useToast } from '@/hooks/use-toast';
 import type { ExpenseFormData } from '@/components/trips/detail/expense-form';
+import type { AddExpensePrefill } from '@/components/trips/space/TripSpaceContext';
 import {
   useTrip,
   useExpenses,
@@ -40,7 +41,8 @@ export function useTripSpace(tripId: string) {
   const expenseMutations = useExpenseMutations(tripId);
   const tripMutations = useTripMutations(tripId);
 
-  const addExpenseDialog = useDialog();
+  // 新增支出可帶預填（如清單購物項的品名）；dialog.data 存這份 prefill。
+  const addExpenseDialog = useDialog<AddExpensePrefill>();
   const budgetDialog = useDialog();
 
   // 常駐摘要條：總支出（＋已設定時的預算進度），由已載入的 trip + expenses 即時計算。

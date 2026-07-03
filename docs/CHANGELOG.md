@@ -51,6 +51,15 @@
 
 ---
 
+## 清單 & 隨手記 重新設計（2026-07-03）
+
+回應使用者回饋（清單「不實用、指派意義不明」、隨手記「排版醜」）。實作細節見 [FEATURES.md](./FEATURES.md) §6 / §14。
+
+- **清單**：從「通用多清單」變成「旅行情境清單」——加類型 `kind`（待辦 / 行李 / 購物，行為隨類型走）、範本選擇器 + 跨旅程複製解冷啟動、行李清單改 **per-member 勾選**（`doneBy[]`）、指派改頭像 chip 收進 ⋯ 選單（僅待辦顯示）、購物項勾完浮出「**記一筆**」帶品名開支出、完成項自動沉底。附 [migration 20260703133143](../migrations/20260703133143-checklist-kind-and-per-member-done.js)（`kind` + `done→doneBy` backfill，部署前各環境先 `pnpm migrate:up`）。
+- **隨手記**：composer 收成單一卡片（上傳器不再常駐 + 貼上即傳）、內文 URL `linkify`、卡片版面 / 縮圖放大、修 `intlLocale` `zh→zh-TW`（全站相對時間繁中不再顯示簡體）。**不動資料層**。
+
+---
+
 ## 程式碼 / 基礎設施改善
 
 早期 P0–P3（#1–#12，含 `withAuth`、env 驗證、proxy 路由保護、Public API hash_code 強化、React Query、頁面拆分、刪除確認 / Skeleton / i18n toast）皆已完成，紀錄見 git 歷史。以下為後續驗證過的項目：

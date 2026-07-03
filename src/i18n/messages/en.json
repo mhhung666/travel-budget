@@ -761,7 +761,8 @@
       "shopping": "Shopping"
     },
     "myProgress": "My progress",
-    "packedByCount": "{count} packed"
+    "packedByCount": "{count} packed",
+    "logExpense": "Log expense"
   },
   "notes": {
     "title": "Notes",

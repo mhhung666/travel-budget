@@ -97,10 +97,22 @@
 
 | 功能 | 說明 |
 | --- | --- |
-| 打包清單 / 待辦 | 獨立 [Checklist](../src/models/Checklist.ts) 集合、進度條 |
-| 指派成員 | 每個項目可指派 assignee |
+| 三種清單類型 | `kind`＝待辦 / 行李 / 購物，勾選語意隨類型 |
+| 範本 / 跨旅程複製 | 冷啟動給行前待辦 / 行李 / 購物 / 藥品證件範本，或從其他旅程搬 |
+| per-member 勾選 | 行李清單每人各自勾（`doneBy[]`），顯示「我的進度」 |
+| 指派成員 | 僅待辦類型可指派 assignee |
+| 勾完購物 → 記一筆 | 購物項勾選後浮出「記一筆」，帶品名開支出表單 |
 
-採**獨立 Checklist 集合**（非內嵌在 Trip）：比照 ItineraryDay 為旅程子集合，避免每次載入 Trip 都帶清單、也避免勾一個項目就改寫整份 Trip；項目 `items[]` 仍內嵌（數量有界、整批編輯）。權限採**成員信任模型**（任何成員可建立 / 編輯 / 勾選 / 刪除）。7 個 action（[checklist.actions.ts](../src/actions/checklist.actions.ts)，項目更新以 `arrayFilters` 定位）+ [公開唯讀分享路由](../src/app/api/public/trips/%5Bid%5D/checklists/route.ts)。資料完整性：`deleteTrip` cascade、`removeMember` 清掉該成員的 item 指派。*清單範本複用尚未做。*
+採**獨立 Checklist 集合**（非內嵌在 Trip）：比照 ItineraryDay 為旅程子集合，避免每次載入 Trip 都帶清單、也避免勾一個項目就改寫整份 Trip；項目 `items[]` 仍內嵌（數量有界、整批編輯）。權限採**成員信任模型**（任何成員可建立 / 編輯 / 勾選 / 刪除）。9 個 action（[checklist.actions.ts](../src/actions/checklist.actions.ts)，項目更新以 `arrayFilters` 定位）+ [公開唯讀分享路由](../src/app/api/public/trips/%5Bid%5D/checklists/route.ts)。資料完整性：`deleteTrip` cascade、`removeMember` 清掉該成員的 item 指派**與 `doneBy`**。
+
+**清單類型（`kind`）決定行為**（2026-07 重新設計，把「通用多清單工具」變成「旅行情境清單」）：
+- **`todo` 行前待辦**：共享勾選（任一人勾即完成）、**可指派** assignee（分工用，僅此類型顯示指派 UI）。
+- **`packing` 行李打包**：**per-member 勾選**——item 的完成狀態是 `doneBy: ObjectId[]`（誰帶了誰打勾，`$addToSet` / `$pull` 自己），卡片顯示「我的進度」與「N 人已備」；不顯示指派。
+- **`shopping` 購物**：共享勾選；勾掉（買到了）後列上浮出「**記一筆**」捷徑，帶品名直接開支出表單——把清單接上記帳核心。走既有 [TripSpaceShell](../src/components/trips/space/TripSpaceShell.tsx) 的 shell 層 add-expense 表單（清單分頁就在此 provider 內，免跨頁導航）：`TripSpaceActions.openAddExpense({ description })` → `ExpenseFormSheet` / `useExpenseForm` 的 `initialDescription`（僅 add mode）。
+
+**資料模型細節**：item 的完成狀態統一存 `doneBy: ObjectId[]`（取代舊的單一 `done` boolean）——共享清單即「非空＝完成、存標記者 id」，DTO 對外仍導出 `done`（= `doneBy` 非空）維持相容，另帶 `done_by` 供 per-member 渲染。schema 遷移見 [migration 20260703133143](../migrations/20260703133143-checklist-kind-and-per-member-done.js)（回填 `kind='todo'`、`done→doneBy`，idempotent + down）。
+
+**建立流程**：範本 = 前端常數 [checklistTemplates.ts](../src/constants/checklistTemplates.ts)（id + emoji + kind，文字走 i18n 四語系），選取由 `createChecklistWithItems` 一次寫入；`getCopyableChecklists` 列出使用者其他旅程的非空清單供「從其他旅程複製」（只搬項目文字、以 `todo` 建立）。UI：[NewChecklistSheet](../src/components/trips/detail/checklist/NewChecklistSheet.tsx) 範本選擇器解冷啟動、[ChecklistItemRow](../src/components/trips/detail/checklist/ChecklistItemRow.tsx) 指派收進列尾 ⋯ 選單（未指派無雜訊）、[ChecklistCard](../src/components/trips/detail/checklist/ChecklistCard.tsx) 完成項自動沉底（純前端穩定排序）。
 
 ---
 
@@ -224,7 +236,8 @@ UI：登入頁 [/wrapped](../src/app/%5Blocale%5D/wrapped/page.tsx)（年份切�
 
 - **轉行程活動（`planNote`）**：把筆記 `$push` 成該行程日的活動（`type: 'other'`），**首行截斷為活動標題**（≤100 字），截斷或多行時全文放進活動備註避免遺失；成功後於筆記寫入 `plannedAt` + `plannedDayNumber`（轉換當下的日編號快照，供 Badge 顯示），**已規劃者不可再次轉換**。權限是**產品決定**：行程日建立 / 編輯本身為 admin-only，但轉行程開放全體成員——隨手記的路徑就是「人人先丟點子、順手推進行程」。非交易式（本 codebase 無多文件交易慣例）：先加活動再標記筆記，中途失敗筆記維持未規劃，重試至多產生可手動刪的重複活動，不反向遺失資料。
 - **照片附件**：**只收圖片**（`NOTE_CONTENT_TYPES` = jpeg / png / webp，無 PDF；上限 `MAX_NOTE_BYTES` 4MB，沿用頭像上限），每則至多 6 張。沿用 §7 的 R2 私有附件模式——與收據 / 票券共用 `receipts` bucket、前綴 `notes/<tripId>/` 區隔；presigned PUT 直傳（[createNoteUploadUrl](../src/actions/upload.actions.ts)），**存參照前以 `headObject` 重新驗證 size / type**（防 client 謊報）。內嵌 `Note.attachments[]` = `{ key, contentType, size, uploadedBy, uploadedAt }`（**存 key、不存 url**，同收據形狀）；更新以 key 為穩定身分**整批覆寫**（新 key 走 `headObject`、舊 key 沿用、被移除的 key best-effort 刪 R2），刪筆記 / 刪旅程亦 best-effort 清理孤兒。檢視走短效簽名 GET（[getNoteAttachmentUrl](../src/actions/note.actions.ts)，驗成員 + key 須屬本 trip 筆記前綴），UI 沿用 §7 的 `AttachmentThumb` / `AttachmentUploader`（[ReceiptAttachments.tsx](../src/components/trips/detail/ReceiptAttachments.tsx)）。
-- **UI**：頁面 [/trips/[id]/notes](../src/app/%28app%29/trips/%5Bid%5D/notes/page.tsx) + [NoteComposer](../src/components/trips/detail/notes/NoteComposer.tsx) / [NoteCard](../src/components/trips/detail/notes/NoteCard.tsx) / [NoteEditDialog](../src/components/trips/detail/notes/NoteEditDialog.tsx) / [PlanNoteSheet](../src/components/trips/detail/notes/PlanNoteSheet.tsx)；資料走 [useNotes](../src/hooks/queries/useNotes.ts)（`tripKeys.notes`）。測試涵蓋 note.actions（含附件 headObject 驗證 / 覆寫清理）、`toTripNoteDto`、uploads 白名單。
+- **UI**：頁面 [/trips/[id]/notes](../src/app/%28app%29/trips/%5Bid%5D/notes/page.tsx) + [NoteComposer](../src/components/trips/detail/notes/NoteComposer.tsx) / [NoteCard](../src/components/trips/detail/notes/NoteCard.tsx) / [NoteEditDialog](../src/components/trips/detail/notes/NoteEditDialog.tsx) / [PlanNoteSheet](../src/components/trips/detail/notes/PlanNoteSheet.tsx)；資料走 [useNotes](../src/hooks/queries/useNotes.ts)（`tripKeys.notes`）。測試涵蓋 note.actions（含附件 headObject 驗證 / 覆寫清理）、`toTripNoteDto`、uploads 白名單、`linkifyText`、`relativeTime`。
+- **版面重新設計（2026-07）**：composer 收成單一卡片——上傳器不再常駐（原本永遠掛一顆孤兒虛線方塊），圖片入口收成工具列 icon、縮圖只在有附件時出現，並支援 **`onPaste` 貼上即傳**（截圖直接貼）。內文以純函式 [linkifyText](../src/lib/linkify.ts)（`src/lib/linkify.ts`，單元測試涵蓋多 URL / 行首行尾 / 非 http 不轉）把 URL 轉可點連結並顯示截短，非 URL 段維持 `whitespace-pre-wrap`。卡片：pin / 「已規劃 Day N」badge 併入 meta 列（移除無條件渲染的空列），單張附件放大顯示、多張走方格。相對時間修 [relativeTime.ts](../src/lib/relativeTime.ts) 的 `intlLocale` `zh → zh-TW`（原本在繁中介面顯示簡體「4小时前」，**全站鈴鐺 / 動態牆同受益**）。
 
 ---
 

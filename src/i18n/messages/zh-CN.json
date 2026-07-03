@@ -754,7 +754,8 @@
       "shopping": "购物"
     },
     "myProgress": "我的进度",
-    "packedByCount": "{count} 人已备"
+    "packedByCount": "{count} 人已备",
+    "logExpense": "记一笔"
   },
   "notes": {
     "title": "随手记",

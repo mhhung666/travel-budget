@@ -20,7 +20,7 @@ import {
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { BudgetDialog } from '@/components/trips/detail/dialogs';
 import { ExpenseFormSheet } from '@/components/trips/detail/expense-form';
-import { TripSpaceProvider } from './TripSpaceContext';
+import { TripSpaceProvider, type AddExpensePrefill } from './TripSpaceContext';
 
 /**
  * 行程空間殼（trips/[id]/layout.tsx 掛載，換分頁不重繪）：
@@ -83,7 +83,7 @@ export function TripSpaceShell({
 
   const openAddExpense = addExpenseDialog.openDialog;
   const contextValue = useMemo(
-    () => ({ openAddExpense: () => openAddExpense() }),
+    () => ({ openAddExpense: (prefill?: AddExpensePrefill) => openAddExpense(prefill) }),
     [openAddExpense]
   );
 
@@ -270,6 +270,7 @@ export function TripSpaceShell({
           currentUser={currentUser}
           itineraryDays={itineraryDays}
           existingTags={existingTags}
+          initialDescription={addExpenseDialog.data?.description}
         />
 
         <BudgetDialog

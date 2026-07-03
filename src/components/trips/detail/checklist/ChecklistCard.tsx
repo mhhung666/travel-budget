@@ -21,6 +21,8 @@ interface ChecklistCardProps {
   onRemoveItem: (itemId: string) => void;
   onRename: (title: string) => void;
   onDelete: () => void;
+  /** shopping 清單：勾選後「記一筆」帶品名開支出表單（帶品名字串）。 */
+  onLogExpense?: (text: string) => void;
 }
 
 /** 各清單類型的前綴 emoji（與範本選單一致）。 */
@@ -42,6 +44,7 @@ export default function ChecklistCard({
   onRemoveItem,
   onRename,
   onDelete,
+  onLogExpense,
 }: ChecklistCardProps) {
   const t = useTranslations('checklist');
   const [newItem, setNewItem] = useState('');
@@ -56,6 +59,12 @@ export default function ChecklistCard({
   const total = checklist.items.length;
   const done = checklist.items.filter(isItemDone).length;
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+
+  // 已完成項目沉底（純前端、穩定排序）：未完成在上、完成在下，進度一目了然。
+  // packing 依「我」的完成狀態排，其他依共享 done。
+  const sortedItems = [...checklist.items].sort(
+    (a, b) => Number(isItemDone(a)) - Number(isItemDone(b))
+  );
 
   const submitItem = () => {
     const text = newItem.trim();
@@ -156,7 +165,7 @@ export default function ChecklistCard({
           <p className="py-2 text-sm text-muted-foreground">{t('emptyItems')}</p>
         ) : (
           <div className="divide-y divide-border/60">
-            {checklist.items.map((item) => (
+            {sortedItems.map((item) => (
               <ChecklistItemRow
                 key={item.id}
                 item={item}
@@ -167,6 +176,7 @@ export default function ChecklistCard({
                 onToggle={(d) => onToggleItem(item.id, d)}
                 onAssign={(a) => onAssignItem(item.id, a)}
                 onRemove={() => onRemoveItem(item.id)}
+                onLogExpense={onLogExpense ? () => onLogExpense(item.text) : undefined}
               />
             ))}
           </div>

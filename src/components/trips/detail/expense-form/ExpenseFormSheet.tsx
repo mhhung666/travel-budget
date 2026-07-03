@@ -31,6 +31,8 @@ interface ExpenseFormSheetProps {
   itineraryDays?: ItineraryDay[];
   /** 本 trip 內其他支出已用過的標籤（供標籤輸入的自動完成建議）。 */
   existingTags?: string[];
+  /** 新增模式的預填描述（如清單購物項的品名）；編輯模式忽略。 */
+  initialDescription?: string;
 }
 
 const FORM_ID = 'expense-form';
@@ -53,6 +55,7 @@ export default function ExpenseFormSheet({
   expense,
   itineraryDays = [],
   existingTags = [],
+  initialDescription,
 }: ExpenseFormSheetProps) {
   const tExpense = useTranslations('expense');
   const tCommon = useTranslations('common');
@@ -89,7 +92,7 @@ export default function ExpenseFormSheet({
     handleValueChange,
     handleSelectAll,
     handleItineraryDayToggle,
-  } = useExpenseForm({ mode, open, members, currentUser, expense });
+  } = useExpenseForm({ mode, open, members, currentUser, expense, initialDescription });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

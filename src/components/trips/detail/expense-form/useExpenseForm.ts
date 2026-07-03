@@ -30,6 +30,8 @@ interface UseExpenseFormArgs {
   members: Member[];
   currentUser: { id: string } | null;
   expense?: Expense | null;
+  /** 新增模式的預填描述（如清單購物項品名）；編輯模式忽略。 */
+  initialDescription?: string;
 }
 
 /**
@@ -37,7 +39,14 @@ interface UseExpenseFormArgs {
  * 分帳計算委派給純函式 lib/expenseSplit（有單元測試）：輸入為原幣，
  * 儲存時換算成 TWD 寫入 Expense.splits[].shareAmount。
  */
-export function useExpenseForm({ mode, open, members, currentUser, expense }: UseExpenseFormArgs) {
+export function useExpenseForm({
+  mode,
+  open,
+  members,
+  currentUser,
+  expense,
+  initialDescription,
+}: UseExpenseFormArgs) {
   const tExpense = useTranslations('expense');
   const tCommon = useTranslations('common');
 
@@ -135,13 +144,14 @@ export function useExpenseForm({ mode, open, members, currentUser, expense }: Us
         setItineraryDayIds(expense.itinerary_day_ids ?? []);
         setTags(expense.tags ?? []);
       } else {
-        // Add mode: Initialize with defaults（今天、TWD、平分全員）
+        // Add mode: Initialize with defaults（今天、TWD、平分全員）；
+        // 描述可由呼叫端預填（如清單購物項的品名，「勾完→記一筆」）。
         setForm({
           payer_id: currentUser?.id || members[0]?.id || '',
           original_amount: '',
           currency: 'TWD',
           exchange_rate: '1.0',
-          description: '',
+          description: initialDescription ?? '',
           category: DEFAULT_CATEGORY,
           date: new Date().toISOString().split('T')[0],
         });
@@ -161,7 +171,7 @@ export function useExpenseForm({ mode, open, members, currentUser, expense }: Us
       setShowAdvanced(mode === 'edit');
       fetchExchangeRates();
     }
-  }, [open, mode, expense, members, currentUser]);
+  }, [open, mode, expense, members, currentUser, initialDescription]);
 
   const originalAmount = parseFloat(form.original_amount) || 0;
   const exchangeRate = parseFloat(form.exchange_rate) || 1;

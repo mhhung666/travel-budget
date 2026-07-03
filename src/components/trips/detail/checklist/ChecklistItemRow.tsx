@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { Check, MoreVertical, Trash2, UserPlus } from 'lucide-react';
+import { Check, DollarSign, MoreVertical, Trash2, UserPlus } from 'lucide-react';
 import type { ChecklistItem, ChecklistKind, Member } from '@/types';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
@@ -28,6 +28,8 @@ interface ChecklistItemRowProps {
   onToggle: (done: boolean) => void;
   onAssign: (assigneeId: string | null) => void;
   onRemove: () => void;
+  /** shopping 清單專用：勾選後浮出「記一筆」，帶品名開支出表單（無則不顯示）。 */
+  onLogExpense?: () => void;
 }
 
 /**
@@ -46,12 +48,15 @@ export default function ChecklistItemRow({
   onToggle,
   onAssign,
   onRemove,
+  onLogExpense,
 }: ChecklistItemRowProps) {
   const t = useTranslations('checklist');
 
   const initial = (item.assignee_name || '?').charAt(0).toUpperCase();
   const showAssign = kind === 'todo';
   const packedCount = item.done_by.length;
+  // 購物清單勾選（買到了）後浮出「記一筆」——把清單接上記帳。
+  const showLogExpense = kind === 'shopping' && checked && !!onLogExpense;
 
   return (
     <div className="flex items-center gap-2 py-1.5">
@@ -69,6 +74,20 @@ export default function ChecklistItemRow({
       >
         {item.text}
       </span>
+
+      {/* shopping：勾選後浮出「記一筆」，帶品名開支出表單 */}
+      {showLogExpense && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 shrink-0 gap-1 px-2 text-xs text-primary hover:text-primary"
+          onClick={onLogExpense}
+          disabled={busy}
+        >
+          <DollarSign className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline">{t('logExpense')}</span>
+        </Button>
+      )}
 
       {/* packing：顯示已備人數（共享進度），不顯示指派 */}
       {kind === 'packing' && packedCount > 0 && (

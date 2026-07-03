@@ -754,7 +754,8 @@
       "shopping": "買い物"
     },
     "myProgress": "自分の進捗",
-    "packedByCount": "{count}人が準備済み"
+    "packedByCount": "{count}人が準備済み",
+    "logExpense": "記録する"
   },
   "notes": {
     "title": "メモ",
