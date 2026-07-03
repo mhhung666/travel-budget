@@ -669,7 +669,53 @@
     "emptyItems": "No items yet",
     "unassigned": "Unassigned",
     "removeItem": "Remove item",
-    "loadFailed": "Failed to load checklists"
+    "loadFailed": "Failed to load checklists",
+    "newListTitle": "New checklist",
+    "copyFromTripTitle": "Copy from a trip",
+    "blankList": "Blank list",
+    "blankListTitle": "New list",
+    "copyFromTrip": "Copy from another trip…",
+    "back": "Back",
+    "itemCount": "{count, plural, one {# item} other {# items}}",
+    "loadingCopySources": "Loading…",
+    "noCopySources": "No lists to copy",
+    "noCopySourcesHint": "Your other trips have no checklists yet",
+    "templates": {
+      "preTrip": {
+        "title": "Pre-trip to-do",
+        "items": [
+          "Confirm accommodation",
+          "Confirm flights",
+          "Exchange currency",
+          "Travel insurance",
+          "SIM / roaming",
+          "Plan itinerary"
+        ]
+      },
+      "packing": {
+        "title": "Packing list",
+        "items": [
+          "Passport",
+          "Wallet",
+          "Phone charger",
+          "Power bank",
+          "Travel adapter",
+          "Change of clothes",
+          "Toiletries",
+          "Medications"
+        ]
+      },
+      "shopping": {
+        "title": "Shopping list",
+        "items": ["Souvenirs", "Local specialties", "Shopping requests"]
+      },
+      "documents": {
+        "title": "Meds & documents",
+        "items": ["Medications", "Passport copy", "ID photos", "Insurance proof"]
+      }
+    },
+    "itemActions": "Item actions",
+    "assignTo": "Assign to"
   },
   "notes": {
     "title": "Notes",

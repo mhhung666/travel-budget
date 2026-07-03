@@ -2,9 +2,16 @@
  * 本地化相對時間格式化，供站內通知（鈴鐺）與動態牆共用。
  */
 
-/** Intl 不認得本專案的 `jp`（日語標準碼為 `ja`）；其餘 locale 直接沿用。 */
+/**
+ * 把本專案的 locale 代碼對映成 Intl 認得的 BCP-47 標籤：
+ * - `jp`：本專案自用碼，日語標準碼為 `ja`。
+ * - `zh`：本專案用來代表**繁體中文**，但 Intl 的 `zh` 會解析成簡體（輸出「4小时前」），
+ *   故明確對映 `zh-TW`；`zh-CN` 本就是簡中，維持原樣。
+ */
 export function intlLocale(locale: string): string {
-  return locale === 'jp' ? 'ja' : locale;
+  if (locale === 'jp') return 'ja';
+  if (locale === 'zh') return 'zh-TW';
+  return locale;
 }
 
 /** 將 ISO 時間轉成本地化相對時間（「3 分鐘前」）。 */

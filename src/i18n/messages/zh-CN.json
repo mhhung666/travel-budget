@@ -669,7 +669,46 @@
     "emptyItems": "暂无项目",
     "unassigned": "未指派",
     "removeItem": "删除项目",
-    "loadFailed": "加载清单失败"
+    "loadFailed": "加载清单失败",
+    "newListTitle": "新增清单",
+    "copyFromTripTitle": "从其他旅程复制",
+    "blankList": "空白清单",
+    "blankListTitle": "新清单",
+    "copyFromTrip": "从其他旅程复制…",
+    "back": "返回",
+    "itemCount": "{count} 项",
+    "loadingCopySources": "加载中…",
+    "noCopySources": "没有可复制的清单",
+    "noCopySourcesHint": "你其他旅程还没有任何清单",
+    "templates": {
+      "preTrip": {
+        "title": "行前待办",
+        "items": ["确认住宿", "确认机票", "换汇", "旅游保险", "网卡／漫游", "行程规划"]
+      },
+      "packing": {
+        "title": "行李打包",
+        "items": [
+          "护照",
+          "钱包",
+          "手机充电器",
+          "充电宝",
+          "转接插头",
+          "换洗衣物",
+          "洗漱用品",
+          "常备药品"
+        ]
+      },
+      "shopping": {
+        "title": "购物清单",
+        "items": ["伴手礼", "名产", "代购"]
+      },
+      "documents": {
+        "title": "药品／证件",
+        "items": ["常备药", "护照复印件", "证件照", "保险证明"]
+      }
+    },
+    "itemActions": "项目操作",
+    "assignTo": "指派给"
   },
   "notes": {
     "title": "随手记",

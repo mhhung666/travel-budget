@@ -3,6 +3,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   createChecklist,
+  createChecklistWithItems,
   updateChecklist,
   deleteChecklist,
   addChecklistItem,
@@ -44,6 +45,12 @@ export function useChecklistMutations(tripId: string) {
     onSuccess: invalidate,
   });
 
+  const createListWithItems = useMutation({
+    mutationFn: ({ title, items }: { title: string; items: string[] }) =>
+      unwrap(createChecklistWithItems(tripId, { title, items })),
+    onSuccess: invalidate,
+  });
+
   const renameList = useMutation({
     mutationFn: ({ checklistId, title }: { checklistId: string; title: string }) =>
       unwrap(updateChecklist(tripId, checklistId, { title })),
@@ -80,5 +87,13 @@ export function useChecklistMutations(tripId: string) {
     onSuccess: invalidate,
   });
 
-  return { createList, renameList, removeList, addItem, updateItem, removeItem };
+  return {
+    createList,
+    createListWithItems,
+    renameList,
+    removeList,
+    addItem,
+    updateItem,
+    removeItem,
+  };
 }

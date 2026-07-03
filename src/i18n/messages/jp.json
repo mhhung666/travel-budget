@@ -669,7 +669,46 @@
     "emptyItems": "項目がありません",
     "unassigned": "未割り当て",
     "removeItem": "項目を削除",
-    "loadFailed": "チェックリストの読み込みに失敗しました"
+    "loadFailed": "チェックリストの読み込みに失敗しました",
+    "newListTitle": "チェックリストを追加",
+    "copyFromTripTitle": "他の旅行から複製",
+    "blankList": "空のリスト",
+    "blankListTitle": "新しいリスト",
+    "copyFromTrip": "他の旅行から複製…",
+    "back": "戻る",
+    "itemCount": "{count} 件",
+    "loadingCopySources": "読み込み中…",
+    "noCopySources": "複製できるリストがありません",
+    "noCopySourcesHint": "他の旅行にはまだチェックリストがありません",
+    "templates": {
+      "preTrip": {
+        "title": "出発前のTo-Do",
+        "items": ["宿泊の確認", "航空券の確認", "両替", "旅行保険", "SIM／ローミング", "旅程の計画"]
+      },
+      "packing": {
+        "title": "パッキングリスト",
+        "items": [
+          "パスポート",
+          "財布",
+          "スマホ充電器",
+          "モバイルバッテリー",
+          "変換プラグ",
+          "着替え",
+          "洗面用具",
+          "常備薬"
+        ]
+      },
+      "shopping": {
+        "title": "買い物リスト",
+        "items": ["お土産", "名産品", "買い物リクエスト"]
+      },
+      "documents": {
+        "title": "薬・書類",
+        "items": ["常備薬", "パスポートのコピー", "証明写真", "保険証明"]
+      }
+    },
+    "itemActions": "項目の操作",
+    "assignTo": "担当者"
   },
   "notes": {
     "title": "メモ",

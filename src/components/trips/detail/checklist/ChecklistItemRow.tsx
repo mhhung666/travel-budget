@@ -1,21 +1,20 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { X, User as UserIcon } from 'lucide-react';
+import { Check, MoreVertical, Trash2, UserPlus } from 'lucide-react';
 import type { ChecklistItem, Member } from '@/types';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
-
-/** Radix Select reserves '' for clear/placeholder, so use a sentinel for "unassigned". */
-const UNASSIGNED = '__none__';
 
 interface ChecklistItemRowProps {
   item: ChecklistItem;
@@ -27,7 +26,11 @@ interface ChecklistItemRowProps {
   onRemove: () => void;
 }
 
-/** A single checklist item: checkbox + text + assignee (editable) + remove. */
+/**
+ * 一列清單項目：checkbox + 文字 + 指派頭像 chip（僅已指派時顯示）+ ⋯ 選單（指派 / 刪除）。
+ * 相較舊版每列常駐一個成員下拉（「指派意義不明」的噪音源），未指派時完全不顯示任何指派 UI；
+ * 指派/清除/刪除都收進列尾的 ⋯ 選單，行動端也點得到（取代舊版 hover 才浮現的 X）。
+ */
 export default function ChecklistItemRow({
   item,
   members,
@@ -39,8 +42,10 @@ export default function ChecklistItemRow({
 }: ChecklistItemRowProps) {
   const t = useTranslations('checklist');
 
+  const initial = (item.assignee_name || '?').charAt(0).toUpperCase();
+
   return (
-    <div className="group flex items-center gap-2 py-1.5">
+    <div className="flex items-center gap-2 py-1.5">
       <Checkbox
         checked={item.done}
         disabled={!canEdit || busy}
@@ -56,44 +61,64 @@ export default function ChecklistItemRow({
         {item.text}
       </span>
 
-      {canEdit ? (
-        <Select
-          value={item.assignee_id ?? UNASSIGNED}
-          onValueChange={(v) => onAssign(v === UNASSIGNED ? null : v)}
-          disabled={busy}
+      {/* 已指派才顯示頭像 chip；未指派無雜訊 */}
+      {item.assignee_id && (
+        <span
+          className="flex items-center gap-1 whitespace-nowrap text-xs text-muted-foreground"
+          title={item.assignee_name ?? undefined}
         >
-          <SelectTrigger className="h-7 w-auto gap-1 border-none bg-transparent px-2 text-xs text-muted-foreground shadow-none hover:bg-accent">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={UNASSIGNED}>{t('unassigned')}</SelectItem>
-            {members.map((m) => (
-              <SelectItem key={m.id} value={m.id}>
-                {m.display_name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      ) : (
-        item.assignee_name && (
-          <span className="flex items-center gap-1 whitespace-nowrap text-xs text-muted-foreground">
-            <UserIcon className="h-3 w-3" />
-            {item.assignee_name}
-          </span>
-        )
+          <Avatar className="h-5 w-5 text-[9px]">
+            <AvatarFallback className="bg-primary/10 text-primary">{initial}</AvatarFallback>
+          </Avatar>
+          <span className="hidden max-w-24 truncate sm:inline">{item.assignee_name}</span>
+        </span>
       )}
 
       {canEdit && (
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7 shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
-          onClick={onRemove}
-          disabled={busy}
-          aria-label={t('removeItem')}
-        >
-          <X className="h-4 w-4" />
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 shrink-0 text-muted-foreground"
+              disabled={busy}
+              aria-label={t('itemActions')}
+            >
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel className="flex items-center gap-2 text-xs font-normal text-muted-foreground">
+              <UserPlus className="h-3.5 w-3.5" />
+              {t('assignTo')}
+            </DropdownMenuLabel>
+            <DropdownMenuItem onClick={() => onAssign(null)}>
+              <Check
+                className={cn('mr-2 h-4 w-4', item.assignee_id ? 'opacity-0' : 'opacity-100')}
+              />
+              {t('unassigned')}
+            </DropdownMenuItem>
+            {members.map((mem) => (
+              <DropdownMenuItem key={mem.id} onClick={() => onAssign(mem.id)}>
+                <Check
+                  className={cn(
+                    'mr-2 h-4 w-4',
+                    item.assignee_id === mem.id ? 'opacity-100' : 'opacity-0'
+                  )}
+                />
+                {mem.display_name}
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={onRemove}
+              className="text-destructive focus:text-destructive"
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              {t('removeItem')}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       )}
     </div>
   );

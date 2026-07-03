@@ -5,10 +5,12 @@ import { Checklist, Trip } from '@/models';
 import { getTripMembership } from '@/lib/permissions';
 import {
   createChecklistSchema,
+  createChecklistWithItemsSchema,
   updateChecklistSchema,
   addChecklistItemSchema,
   updateChecklistItemSchema,
   type CreateChecklistInput,
+  type CreateChecklistWithItemsInput,
   type UpdateChecklistInput,
   type AddChecklistItemInput,
   type UpdateChecklistItemInput,
@@ -103,6 +105,117 @@ export const createChecklist = withAuth(
       };
     } catch (error) {
       logger.error('Create checklist error', error);
+      return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
+    }
+  }
+);
+
+/**
+ * 一次帶項目建立清單（範本 / 從其他旅程複製）。只寫入項目文字，勾選一律 false、不帶指派
+ * （指派是本旅程成員專屬，跨旅程複製不搬）。單一 create 寫入，比逐項 addChecklistItem 省來回。
+ */
+export const createChecklistWithItems = withAuth(
+  async (
+    session,
+    tripIdOrCode: string,
+    input: CreateChecklistWithItemsInput
+  ): Promise<ActionResult<ChecklistDto>> => {
+    try {
+      const membership = await getTripMembership(session.userId, tripIdOrCode);
+      if (!membership) {
+        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+      }
+
+      const validation = createChecklistWithItemsSchema.safeParse(input);
+      if (!validation.success) {
+        return {
+          success: false,
+          error: validation.error.issues[0].message,
+          code: 'VALIDATION_ERROR',
+        };
+      }
+
+      const created = await Checklist.create({
+        trip: membership.tripId,
+        title: validation.data.title,
+        items: validation.data.items.map((text) => ({ text, done: false, assignee: null })),
+        createdBy: session.userId,
+      });
+
+      revalidatePath(`/trips/${tripIdOrCode}/checklists`);
+      return {
+        success: true,
+        data: toChecklistDto(created.toObject() as unknown as ChecklistDtoInput),
+      };
+    } catch (error) {
+      logger.error('Create checklist with items error', error);
+      return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
+    }
+  }
+);
+
+/** 「從其他旅程複製」的可選來源：使用者其他旅程裡非空的清單（只回標題 + 項目文字）。 */
+export interface CopyableChecklistSource {
+  trip_id: string;
+  trip_name: string;
+  lists: { title: string; items: string[] }[];
+}
+
+/**
+ * 列出可複製的清單來源：使用者參與、且**排除目前這趟**的旅程中，所有非空清單。
+ * 供新增清單面板的「從其他旅程複製」用，回傳項目文字讓前端直接預覽數量並複製。
+ */
+export const getCopyableChecklists = withAuth(
+  async (session, tripIdOrCode: string): Promise<ActionResult<CopyableChecklistSource[]>> => {
+    try {
+      const membership = await getTripMembership(session.userId, tripIdOrCode);
+      if (!membership) {
+        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+      }
+
+      // 使用者參與的其他旅程（排除目前這趟）。
+      const trips = await Trip.find({
+        'members.user': session.userId,
+        _id: { $ne: membership.tripId },
+      })
+        .select('name')
+        .sort({ updatedAt: -1 })
+        .lean<{ _id: { toString(): string }; name: string }[]>();
+
+      if (trips.length === 0) return { success: true, data: [] };
+
+      const tripIds = trips.map((tr) => tr._id.toString());
+      const lists = await Checklist.find({ trip: { $in: tripIds } })
+        .select('trip title items.text')
+        .lean<
+          {
+            trip: { toString(): string };
+            title: string;
+            items: { text: string }[];
+          }[]
+        >();
+
+      const byTrip = new Map<string, CopyableChecklistSource['lists']>();
+      for (const l of lists) {
+        const items = (l.items || []).map((i) => i.text).filter(Boolean);
+        if (items.length === 0) continue; // 空清單不值得複製
+        const key = l.trip.toString();
+        const arr = byTrip.get(key) ?? [];
+        arr.push({ title: l.title, items });
+        byTrip.set(key, arr);
+      }
+
+      const data: CopyableChecklistSource[] = trips
+        .map((tr) => ({
+          trip_id: tr._id.toString(),
+          trip_name: tr.name,
+          lists: byTrip.get(tr._id.toString()) ?? [],
+        }))
+        .filter((t) => t.lists.length > 0);
+
+      return { success: true, data };
+    } catch (error) {
+      logger.error('Get copyable checklists error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
   }

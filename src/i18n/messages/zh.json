@@ -669,7 +669,46 @@
     "emptyItems": "尚無項目",
     "unassigned": "未指派",
     "removeItem": "刪除項目",
-    "loadFailed": "載入清單失敗"
+    "loadFailed": "載入清單失敗",
+    "newListTitle": "新增清單",
+    "copyFromTripTitle": "從其他旅程複製",
+    "blankList": "空白清單",
+    "blankListTitle": "新清單",
+    "copyFromTrip": "從其他旅程複製…",
+    "back": "返回",
+    "itemCount": "{count} 項",
+    "loadingCopySources": "載入中…",
+    "noCopySources": "沒有可複製的清單",
+    "noCopySourcesHint": "你其他旅程還沒有任何清單",
+    "templates": {
+      "preTrip": {
+        "title": "行前待辦",
+        "items": ["訂房確認", "機票確認", "換匯", "旅遊保險", "網卡／漫遊", "行程規劃"]
+      },
+      "packing": {
+        "title": "行李打包",
+        "items": [
+          "護照",
+          "錢包",
+          "手機充電器",
+          "行動電源",
+          "轉接插頭",
+          "換洗衣物",
+          "盥洗用品",
+          "常備藥品"
+        ]
+      },
+      "shopping": {
+        "title": "購物清單",
+        "items": ["伴手禮", "名產", "代購"]
+      },
+      "documents": {
+        "title": "藥品／證件",
+        "items": ["常備藥", "護照影本", "證件照", "保險證明"]
+      }
+    },
+    "itemActions": "項目操作",
+    "assignTo": "指派給"
   },
   "notes": {
     "title": "隨手記",

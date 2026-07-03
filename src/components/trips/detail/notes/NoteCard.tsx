@@ -5,6 +5,7 @@ import { CalendarPlus, MoreVertical, Pencil, Pin, PinOff, Trash2 } from 'lucide-
 import type { TripNote } from '@/types';
 import { cn } from '@/lib/utils';
 import { formatRelativeTime } from '@/lib/relativeTime';
+import { linkify } from '@/lib/linkify';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -44,38 +45,52 @@ export function NoteCard({
   const t = useTranslations('notes');
   const locale = useLocale();
   const planned = note.planned_at !== null;
+  const single = note.attachments.length === 1;
 
   return (
     <Card className={cn(planned && 'opacity-60')}>
       <CardContent className="p-3">
         <div className="flex items-start gap-2">
           <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-1.5">
+            <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
+              {linkify(note.text).map((seg, i) =>
+                seg.type === 'link' ? (
+                  <a
+                    key={i}
+                    href={seg.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="break-all text-primary underline underline-offset-2 hover:opacity-80"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {seg.display}
+                  </a>
+                ) : (
+                  <span key={i}>{seg.value}</span>
+                )
+              )}
+            </p>
+            {note.attachments.length > 0 && (
+              <div className={cn('mt-2 gap-2', single ? 'flex' : 'grid grid-cols-3')}>
+                {note.attachments.map((a) => (
+                  <NoteThumb
+                    key={a.key}
+                    tripId={tripId}
+                    attachment={a}
+                    thumbClassName={single ? 'h-44 w-full max-w-xs' : 'h-24 w-full'}
+                  />
+                ))}
+              </div>
+            )}
+            <div className="mt-2 flex items-center gap-1.5">
               {note.pinned && !planned && (
-                <Pin className="h-3.5 w-3.5 shrink-0 fill-current text-primary" />
+                <Pin className="h-3 w-3 shrink-0 fill-current text-primary" />
               )}
               {planned && note.planned_day_number !== null && (
                 <Badge variant="secondary" className="shrink-0">
                   {t('plannedBadge', { day: note.planned_day_number })}
                 </Badge>
               )}
-            </div>
-            <p
-              className={cn(
-                'whitespace-pre-wrap break-words text-sm leading-relaxed',
-                (note.pinned && !planned) || planned ? 'mt-1' : ''
-              )}
-            >
-              {note.text}
-            </p>
-            {note.attachments.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-2">
-                {note.attachments.map((a) => (
-                  <NoteThumb key={a.key} tripId={tripId} attachment={a} />
-                ))}
-              </div>
-            )}
-            <div className="mt-2 flex items-center gap-1.5">
               <Avatar className="h-5 w-5 text-[9px]">
                 <AvatarFallback className="bg-muted text-muted-foreground">
                   {(note.author_name || '?').charAt(0).toUpperCase()}

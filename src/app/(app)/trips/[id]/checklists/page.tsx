@@ -5,13 +5,12 @@ import { useParams } from 'next/navigation';
 import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 import { ListChecks, Plus } from 'lucide-react';
-import { ChecklistCard } from '@/components/trips/detail/checklist';
+import { ChecklistCard, NewChecklistSheet } from '@/components/trips/detail/checklist';
 import type { Checklist } from '@/types';
 import { useChecklists, useTripMembership, useChecklistMutations } from '@/hooks/queries';
 import { ItinerarySkeleton } from '@/components/skeletons';
 import { EmptyState, ErrorState } from '@/components/common';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,7 +35,7 @@ export default function ChecklistsPage() {
   const { members, isMember } = useTripMembership(tripId);
   const m = useChecklistMutations(tripId);
 
-  const [newListTitle, setNewListTitle] = useState('');
+  const [newSheetOpen, setNewSheetOpen] = useState(false);
   const [deletingList, setDeletingList] = useState<Checklist | null>(null);
 
   const canEdit = isMember;
@@ -54,11 +53,9 @@ export default function ChecklistsPage() {
     }
   };
 
-  const handleAddList = () => {
-    const title = newListTitle.trim();
-    if (!title) return;
-    setNewListTitle('');
-    guard(m.createList.mutateAsync(title));
+  const handleCreateList = (title: string, items: string[]) => {
+    setNewSheetOpen(false);
+    guard(m.createListWithItems.mutateAsync({ title, items }));
   };
 
   const confirmDeleteList = () => {
@@ -87,23 +84,8 @@ export default function ChecklistsPage() {
     <div className="container mx-auto max-w-3xl py-4 px-4 sm:px-6">
       {/* Add new list */}
       {canEdit && (
-        <div className="mb-6 flex items-center gap-2">
-          <Input
-            value={newListTitle}
-            onChange={(e) => setNewListTitle(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                handleAddList();
-              }
-            }}
-            placeholder={t('listTitlePlaceholder')}
-          />
-          <Button
-            onClick={handleAddList}
-            disabled={!newListTitle.trim()}
-            className="shrink-0 gap-2"
-          >
+        <div className="mb-6 flex justify-end">
+          <Button onClick={() => setNewSheetOpen(true)} className="gap-2">
             <Plus className="h-4 w-4" />
             {t('addList')}
           </Button>
@@ -111,7 +93,19 @@ export default function ChecklistsPage() {
       )}
 
       {checklists.length === 0 ? (
-        <EmptyState icon={ListChecks} title={t('emptyState')} description={t('emptyStateHint')} />
+        <EmptyState
+          icon={ListChecks}
+          title={t('emptyState')}
+          description={t('emptyStateHint')}
+          action={
+            canEdit ? (
+              <Button onClick={() => setNewSheetOpen(true)} className="gap-2">
+                <Plus className="h-4 w-4" />
+                {t('addList')}
+              </Button>
+            ) : undefined
+          }
+        />
       ) : (
         <div className="flex flex-col gap-4">
           {checklists.map((list) => (
@@ -145,6 +139,17 @@ export default function ChecklistsPage() {
             />
           ))}
         </div>
+      )}
+
+      {/* New checklist (template picker / copy from another trip) */}
+      {canEdit && (
+        <NewChecklistSheet
+          tripId={tripId}
+          open={newSheetOpen}
+          pending={m.createListWithItems.isPending}
+          onCreate={handleCreateList}
+          onOpenChange={setNewSheetOpen}
+        />
       )}
 
       {/* Delete list confirmation */}

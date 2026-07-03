@@ -283,6 +283,12 @@ export const updateChecklistSchema = z.object({
   title: z.string().min(1, '清單名稱不能為空').trim(),
 });
 
+// 一次帶項目建立清單（範本 / 從其他旅程複製）；只帶項目文字，勾選一律 false、不帶指派。
+export const createChecklistWithItemsSchema = z.object({
+  title: z.string().min(1, '清單名稱不能為空').trim(),
+  items: z.array(z.string().min(1).trim()).max(100, '項目過多（上限 100 項）').default([]),
+});
+
 export const addChecklistItemSchema = z.object({
   text: z.string().min(1, '項目內容不能為空').trim(),
   assignee_id: objectIdSchema.nullable().optional(),
@@ -329,6 +335,7 @@ export const planNoteSchema = z.object({
 
 // Type exports
 export type CreateChecklistInput = z.infer<typeof createChecklistSchema>;
+export type CreateChecklistWithItemsInput = z.infer<typeof createChecklistWithItemsSchema>;
 export type UpdateChecklistInput = z.infer<typeof updateChecklistSchema>;
 export type AddChecklistItemInput = z.infer<typeof addChecklistItemSchema>;
 export type UpdateChecklistItemInput = z.infer<typeof updateChecklistItemSchema>;

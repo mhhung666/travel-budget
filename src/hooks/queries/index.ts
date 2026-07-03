@@ -10,6 +10,7 @@ export {
   useTripStats,
   useItinerary,
   useChecklists,
+  useCopyableChecklists,
   useTripMembership,
 } from './useTripQueries';
 export { useItineraryMutations } from './useItineraryMutations';

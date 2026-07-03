@@ -75,12 +75,15 @@ export {
 export {
   getChecklists,
   createChecklist,
+  createChecklistWithItems,
+  getCopyableChecklists,
   updateChecklist,
   deleteChecklist,
   addChecklistItem,
   updateChecklistItem,
   removeChecklistItem,
 } from './checklist.actions';
+export type { CopyableChecklistSource } from './checklist.actions';
 
 // Note actions（隨手記）
 export {

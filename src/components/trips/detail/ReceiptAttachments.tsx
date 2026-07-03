@@ -12,9 +12,10 @@ import {
   getNoteAttachmentUrl,
 } from '@/actions';
 import type { ActionResult } from '@/actions';
-import { compressImage } from '@/lib/imageCompress';
+import { uploadAttachmentFiles } from '@/lib/attachmentUpload';
 import type { ExpenseAttachment } from '@/types';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { cn } from '@/lib/utils';
 
 const ACCEPT = 'image/jpeg,image/png,image/webp,application/pdf';
 const ACCEPT_IMAGE = 'image/jpeg,image/png,image/webp';
@@ -39,6 +40,7 @@ export function AttachmentThumb({
   getUrl,
   onRemove,
   itemLabel,
+  thumbClassName,
 }: {
   tripId: string;
   attachment: ExpenseAttachment;
@@ -46,6 +48,8 @@ export function AttachmentThumb({
   onRemove?: () => void;
   /** 覆寫縮圖 alt / 檢視對話框標題（預設「收據」；筆記照片傳自己的標籤）。 */
   itemLabel?: string;
+  /** 覆寫縮圖外框尺寸（預設 h-16 w-16；隨手記傳大尺寸讓照片變成內容）。 */
+  thumbClassName?: string;
 }) {
   const t = useTranslations('expense.receipts');
   const label = itemLabel ?? t('label');
@@ -76,12 +80,12 @@ export function AttachmentThumb({
 
   return (
     <>
-      <div className="relative h-16 w-16 shrink-0">
+      <div className={cn('relative h-16 w-16 shrink-0', thumbClassName)}>
         <button
           type="button"
           onClick={openViewer}
           title={t('view')}
-          className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-md border bg-muted"
+          className="flex h-full w-full items-center justify-center overflow-hidden rounded-md border bg-muted"
         >
           {isPdf ? (
             <FileText className="h-6 w-6 text-muted-foreground" />
@@ -162,23 +166,12 @@ export function AttachmentUploader({
     setError('');
     setUploading(true);
     try {
-      const picked = Array.from(files);
-      const results = await Promise.all(
-        picked.map(async (original): Promise<ExpenseAttachment | null> => {
-          const file = await compressImage(original, compressKind);
-          const ticket = await createUploadUrl(tripId, file.type, file.size);
-          if (!ticket.success) return null;
-          const put = await fetch(ticket.data.uploadUrl, {
-            method: 'PUT',
-            headers: { 'content-type': file.type },
-            body: file,
-          });
-          if (!put.ok) return null;
-          return { key: ticket.data.key, content_type: file.type, size: file.size };
-        })
-      );
-      const added = results.filter((a): a is ExpenseAttachment => a !== null);
-      if (added.length < picked.length) setError(t('uploadFailed'));
+      const { added, failed } = await uploadAttachmentFiles(Array.from(files), {
+        tripId,
+        createUploadUrl,
+        compressKind,
+      });
+      if (failed) setError(t('uploadFailed'));
       if (added.length > 0) onChange([...value, ...added]);
     } catch {
       setError(t('uploadFailed'));
@@ -317,10 +310,12 @@ export function NoteThumb({
   tripId,
   attachment,
   onRemove,
+  thumbClassName,
 }: {
   tripId: string;
   attachment: ExpenseAttachment;
   onRemove?: () => void;
+  thumbClassName?: string;
 }) {
   const t = useTranslations('notes');
   return (
@@ -330,6 +325,7 @@ export function NoteThumb({
       getUrl={getNoteAttachmentUrl}
       onRemove={onRemove}
       itemLabel={t('imageLabel')}
+      thumbClassName={thumbClassName}
     />
   );
 }

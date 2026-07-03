@@ -11,8 +11,9 @@ import {
   getTripStats,
   getItinerary,
   getChecklists,
+  getCopyableChecklists,
 } from '@/actions';
-import type { AuthUserWithCreatedAt } from '@/actions';
+import type { AuthUserWithCreatedAt, CopyableChecklistSource } from '@/actions';
 import type { Checklist, Settlement, TripStatsData, TripWithMembers } from '@/types';
 import { tripKeys } from './keys';
 import { fetchWithPublicFallback } from './fetcher';
@@ -150,6 +151,23 @@ export function useChecklists(tripId: string) {
         [] as Checklist[]
       ),
     enabled: !!tripId,
+  });
+}
+
+/**
+ * Checklists in the user's other trips that can be copied into this one. Loaded
+ * lazily (only when the new-checklist sheet's "copy from trip" tab opens) — pass
+ * `enabled` to gate the fetch.
+ */
+export function useCopyableChecklists(tripId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: tripKeys.copyableChecklists(tripId),
+    queryFn: async (): Promise<CopyableChecklistSource[]> => {
+      const res = await getCopyableChecklists(tripId);
+      return res.success ? res.data : [];
+    },
+    enabled: !!tripId && enabled,
+    staleTime: 60_000,
   });
 }
 
