@@ -100,7 +100,7 @@ src/
 - 權限層級僅 `admin` / `member`（存於內嵌的 `Trip.members[].role`）。
 - **`getTripMembership(userId, tripIdOrCode)`** 是首選：一次 `Trip.findOne` 同時「解析旅程 ID + 驗證成員身分 + 取得角色」（members 已內嵌）。
 - 舊版 `getTripId` / `isMember` / `isAdmin` / `requireAdmin` 仍保留供 public API route 使用。
-- **`tripIdOrCode` 慣例**：旅程識別字可以是 ObjectId 字串或公開的 `hash_code`（`[a-z0-9]{6,8}`），靠 `isValidObjectId()` 分流（24 碼 hex vs 短 hash，無歧義）。
+- **`tripIdOrCode` 慣例**：旅程識別字可以是 ObjectId 字串或公開的 `hash_code`（`[a-z0-9]{6,10}`，新旅程生成 8 碼、碰撞後備 10 碼），靠 `isValidObjectId()` 分流（24 碼 hex vs 短 hash，無歧義）。
 
 ### 4.3 結算演算法（[src/lib/settlement.ts](../src/lib/settlement.ts)）
 - 貪心法：將債權人（balance > 0）與債務人（balance < 0）各自排序後配對，**最小化轉帳次數**。
@@ -114,12 +114,13 @@ src/
 - 匯率經 [src/app/api/exchange-rates/](../src/app/api/exchange-rates/) 取得。
 
 ### 4.5 國際化
-- next-intl，`localePrefix: 'as-needed'`（預設語系無前綴）。
-- 路由經 `[locale]` 區段；訊息檔在 [src/i18n/messages/](../src/i18n/messages/)，共 `en` / `zh` / `zh-CN` / `jp` 四個。
+- next-intl「without i18n routing」模式：**URL 不帶語系前綴、無 `[locale]` 路由段**；UI 語系由伺服器端讀 `NEXT_LOCALE` cookie 決定（[src/i18n/config.ts](../src/i18n/config.ts)），切換走 `setLocale` server action。
+- 訊息檔在 [src/i18n/messages/](../src/i18n/messages/)，共 `en` / `zh` / `zh-CN` / `jp` 四個，新增字串四份都要加。
+- `User.locale`（Mongo）與 UI cookie 分離：它是 Email / Web Push 背景發送用的語系（背景寄送讀不到 cookie），`setLocale` 會同步它。
 - Server Action 錯誤回傳 **error code**（非寫死文字），前端依 code 對應 i18n 訊息。
 
 ### 4.6 旅遊地圖與分享（[src/components/map/](../src/components/map/)）
-- 三種模式:**航線**（great-circle 弧線）、**熱點**（leaflet.heat，權重=造訪次數 **或** 花費——`getVisitedPlaces` 的 `weightBy`，花費權重以 `$lookup` 關聯支出且**恆為登入限定**）、**國家**（choropleth 點亮造訪國）。
+- 四種模式:**航線**（great-circle 弧線）、**熱點**（leaflet.heat，權重=造訪次數 **或** 花費——`getVisitedPlaces` 的 `weightBy`，花費權重以 `$lookup` 關聯支出且**恆為登入限定**）、**國家**（choropleth 點亮造訪國）、**照片**（收據照釘在關聯行程日座標，恆為登入限定）。
 - Leaflet 依賴 `window`,畫布一律以 `dynamic(..., { ssr: false })` 載入;並在 [globals.css](../src/app/globals.css) 保留 `.leaflet-container { isolation: isolate; }`,否則其 pane/control 的高 z-index 會蓋住 dialog/dropdown。
 - **分享為使用者層級**:`User.mapShareCode`（opt-in、sparse-unique）是 trip `hashCode` 的對應物,格式/驗證相同。`/map/share/*` 為公開頁(不在 `proxy.ts` 的 `protectedRoutes`)。
 - **公開 API [/api/public/map/[code]](../src/app/api/public/map/%5Bcode%5D/route.ts) 依約去識別化**:只露座標、在地化地名與**年份**,絕不露旅行名稱、id 或完整日期(年份是為了年份篩選的刻意例外)。熱點彙整到四捨五入座標,避免回推單日行程。
