@@ -32,16 +32,14 @@ export async function GET() {
 
     const data = await response.json();
 
-    // 我们需要的是其他货币对 TWD 的汇率
-    // API 返回的是 TWD 对其他货币的汇率，需要取倒数
-    const rates: Record<string, number> = {
-      TWD: 1,
-      JPY: 1 / (data.rates.JPY || 1),
-      USD: 1 / (data.rates.USD || 1),
-      EUR: 1 / (data.rates.EUR || 1),
-      HKD: 1 / (data.rates.HKD || 1),
-      THB: 1 / (data.rates.THB || 1),
-    };
+    // API 以 TWD 為基準回傳「1 TWD = ? 外幣」；我們要的是「1 外幣 = ? TWD」故取倒數。
+    // 回傳全部幣別（不再只挑 6 種），支援任意 ISO 4217 幣別的即時匯率。
+    const rates: Record<string, number> = { TWD: 1 };
+    for (const [code, value] of Object.entries((data.rates ?? {}) as Record<string, number>)) {
+      const r = Number(value);
+      if (Number.isFinite(r) && r > 0) rates[code] = 1 / r;
+    }
+    rates.TWD = 1;
 
     // 更新缓存
     cachedRates = {

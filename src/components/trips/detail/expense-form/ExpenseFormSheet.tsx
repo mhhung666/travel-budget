@@ -3,7 +3,7 @@
 import { ChevronDown, ChevronUp, DollarSign, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { getPinnedRate, getTripCurrencyOptions } from '@/lib/tripCurrency';
+import { getPinnedRate, getTripExpenseCurrencies } from '@/lib/tripCurrency';
 import type { Expense, ItineraryDay, Member, TripCurrencySettings } from '@/types';
 
 import { ResponsiveFormSheet } from '@/components/common';
@@ -192,7 +192,7 @@ export default function ExpenseFormSheet({
           currency={form.currency}
           onAmountChange={(value) => setForm({ ...form, original_amount: value })}
           onCurrencyChange={handleCurrencyChange}
-          currencyOptions={getTripCurrencyOptions(currencySettings)}
+          currencyOptions={getTripExpenseCurrencies(currencySettings, form.currency)}
         />
 
         {/* 2. 描述 */}

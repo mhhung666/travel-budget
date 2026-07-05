@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   resolveTripRates,
-  getTripCurrencyOptions,
+  getTripExpenseCurrencies,
+  getTripDisplayCurrencies,
   getTripDefaultCurrency,
   getPinnedRate,
 } from '@/lib/tripCurrency';
@@ -44,17 +45,20 @@ describe('resolveTripRates', () => {
   });
 });
 
-describe('getTripCurrencyOptions', () => {
-  it('常用幣別依設定順序排前，其餘照預設順序接後、不重複', () => {
-    const options = getTripCurrencyOptions(settings);
-    expect(options.slice(0, 2)).toEqual(['JPY', 'USD']);
-    expect(new Set(options).size).toBe(options.length);
-    expect(options).toContain('TWD');
-    expect(options).toContain('EUR');
+describe('getTripExpenseCurrencies', () => {
+  it('僅限設定選定的常用幣別（依設定順序）', () => {
+    expect(getTripExpenseCurrencies(settings)).toEqual(['JPY', 'USD']);
   });
 
-  it('未設定 → 完整預設清單', () => {
-    expect(getTripCurrencyOptions(null)).toEqual(['TWD', 'JPY', 'USD', 'EUR', 'HKD', 'THB']);
+  it('未設定 → 僅 TWD', () => {
+    expect(getTripExpenseCurrencies(null)).toEqual(['TWD']);
+    expect(getTripExpenseCurrencies({ default_currency: null, currencies: [] })).toEqual(['TWD']);
+  });
+
+  it('編輯模式：原幣不在清單時補進來（避免下拉值對不到選項）', () => {
+    expect(getTripExpenseCurrencies(settings, 'EUR')).toEqual(['JPY', 'USD', 'EUR']);
+    // 已在清單則不重複
+    expect(getTripExpenseCurrencies(settings, 'JPY')).toEqual(['JPY', 'USD']);
   });
 
   it('過濾不支援的幣別代碼（防禦舊資料）', () => {
@@ -62,7 +66,28 @@ describe('getTripCurrencyOptions', () => {
       default_currency: null,
       currencies: [{ code: 'XYZ', rate: null }],
     };
-    expect(getTripCurrencyOptions(weird)).toEqual(['TWD', 'JPY', 'USD', 'EUR', 'HKD', 'THB']);
+    expect(getTripExpenseCurrencies(weird)).toEqual(['TWD']);
+  });
+});
+
+describe('getTripDisplayCurrencies', () => {
+  it('TWD 永遠在，加上選定的常用幣別（去重）', () => {
+    expect(getTripDisplayCurrencies(settings)).toEqual(['TWD', 'JPY', 'USD']);
+  });
+
+  it('選定清單已含 TWD 時不重複', () => {
+    const withTwd: TripCurrencySettings = {
+      default_currency: null,
+      currencies: [
+        { code: 'TWD', rate: null },
+        { code: 'JPY', rate: 0.22 },
+      ],
+    };
+    expect(getTripDisplayCurrencies(withTwd)).toEqual(['TWD', 'JPY']);
+  });
+
+  it('未設定 → 僅 TWD', () => {
+    expect(getTripDisplayCurrencies(null)).toEqual(['TWD']);
   });
 });
 

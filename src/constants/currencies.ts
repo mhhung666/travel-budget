@@ -48,3 +48,69 @@ export function formatCurrency(amount: number, currencyCode: string): string {
   });
   return `${symbol}${formatted}`;
 }
+
+// ---------------------------------------------------------------------------
+// 完整幣別清單（ISO 4217，經 Intl 動態取得，不限上方精選 6 種）
+// ---------------------------------------------------------------------------
+
+/** 常用幣別：於完整清單與搜尋結果中優先排在前面。 */
+const COMMON_CURRENCY_CODES = [
+  'TWD',
+  'JPY',
+  'USD',
+  'EUR',
+  'HKD',
+  'THB',
+  'KRW',
+  'CNY',
+  'GBP',
+  'SGD',
+  'AUD',
+  'MYR',
+  'VND',
+  'PHP',
+  'IDR',
+];
+
+/** app locale → Intl BCP47 locale（幣別名稱本地化用）。 */
+function toIntlLocale(locale: string): string {
+  return locale === 'zh' ? 'zh-TW' : locale === 'jp' ? 'ja' : locale === 'zh-CN' ? 'zh-CN' : 'en';
+}
+
+/**
+ * 全部支援的 ISO 4217 幣別代碼（常用排前、其餘照 Intl 的字母序）。
+ * Intl.supportedValuesOf 不可用時退回精選 6 種。
+ */
+export function getAllCurrencyCodes(): string[] {
+  let all: string[];
+  try {
+    all = Intl.supportedValuesOf('currency');
+  } catch {
+    return [...CURRENCY_CODES];
+  }
+  const set = new Set(all);
+  const common = COMMON_CURRENCY_CODES.filter((c) => set.has(c));
+  const commonSet = new Set(common);
+  const rest = all.filter((c) => !commonSet.has(c));
+  return [...common, ...rest];
+}
+
+/** 供驗證用：可接受的幣別代碼集合。 */
+export const SUPPORTED_CURRENCY_CODES: ReadonlySet<string> = new Set(getAllCurrencyCodes());
+
+export function isSupportedCurrency(code: string): boolean {
+  return SUPPORTED_CURRENCY_CODES.has(code);
+}
+
+/**
+ * 幣別的本地化名稱（如 'JPY' → '日圓' / 'Japanese Yen'）。
+ * Intl.DisplayNames 不可用或查無時退回代碼本身。
+ */
+export function getCurrencyLabel(code: string, locale: string): string {
+  try {
+    const dn = new Intl.DisplayNames([toIntlLocale(locale)], { type: 'currency' });
+    return dn.of(code) ?? code;
+  } catch {
+    return code;
+  }
+}

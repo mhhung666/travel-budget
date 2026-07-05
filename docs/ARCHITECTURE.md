@@ -111,10 +111,14 @@ src/
 
 ### 4.4 多幣別與匯率
 - 支出存 `original_amount`/`currency`/`exchange_rate`，並換算為基準貨幣（TWD）存於 `amount`。
-- 匯率經 [src/app/api/exchange-rates/](../src/app/api/exchange-rates/) 取得。
+- 幣別支援完整 ISO 4217（`Intl.supportedValuesOf('currency')`，非精選 6 種；名稱以 `Intl.DisplayNames`
+  本地化，見 [src/constants/currencies.ts](../src/constants/currencies.ts)）。Zod 以開放式 `currencyCodeSchema`
+  比對支援集合驗證（[src/lib/validation.ts](../src/lib/validation.ts)）。
+- 即時匯率經 [src/app/api/exchange-rates/](../src/app/api/exchange-rates/) 取得（回傳全部幣別對 TWD 的匯率）。
 - **旅程幣別設定** `Trip.currencySettings`（常用幣別 / 自訂匯率 / 新增支出預設幣別；null = 未設定）：
-  支出表單預填與結算 / trip 統計的顯示幣別皆吃此設定，合併邏輯在純函式
-  [src/lib/tripCurrency.ts](../src/lib/tripCurrency.ts)（自訂匯率蓋過即時匯率、TWD 恆 1、常用幣別排前）。
+  合併邏輯在純函式 [src/lib/tripCurrency.ts](../src/lib/tripCurrency.ts)（`resolveTripRates` 自訂匯率蓋過即時匯率、
+  TWD 恆 1；`getTripExpenseCurrencies` 支出表單**僅限**選定幣別；`getTripDisplayCurrencies` 結算/統計顯示 = TWD +
+  選定）。設定頁以可搜尋下拉 [CurrencyCombobox](../src/components/trips/detail/CurrencyCombobox.tsx) 加入幣別。
   改設定**不追溯**既有支出（各筆保留寫入當下的 `exchange_rate`）。
 
 ### 4.5 國際化

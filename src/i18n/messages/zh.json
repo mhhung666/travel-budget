@@ -700,7 +700,12 @@
       "defaultCurrencyLabel": "新增支出的預設幣別",
       "hint": "自訂匯率留空代表使用即時匯率。變更只影響之後新增的支出，既有支出保留當時的匯率。",
       "save": "儲存幣別設定",
-      "saved": "幣別設定已更新"
+      "saved": "幣別設定已更新",
+      "addCurrency": "新增幣別",
+      "searchPlaceholder": "搜尋幣別（代碼或名稱）",
+      "noMatch": "找不到符合的幣別",
+      "empty": "尚未加入幣別——新增支出會使用新台幣。",
+      "remove": "移除"
     }
   },
   "checklist": {

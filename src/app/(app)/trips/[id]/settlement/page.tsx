@@ -26,7 +26,7 @@ import { useDialog } from '@/hooks/useDialog';
 import { useToast } from '@/hooks/use-toast';
 import { ConfirmDialog, ErrorState } from '@/components/common';
 import { exportSettlement, type ExportFormat } from '@/lib/exporters';
-import { resolveTripRates, getTripCurrencyOptions } from '@/lib/tripCurrency';
+import { resolveTripRates, getTripDisplayCurrencies } from '@/lib/tripCurrency';
 import type { Transaction } from '@/types';
 import type { RecordPaymentInput } from '@/lib/validation';
 import { SettlementSkeleton } from '@/components/skeletons';
@@ -65,7 +65,7 @@ export default function SettlementPage() {
     [trip?.currency_settings, exchangeRates]
   );
   const currencyOptions = useMemo(
-    () => getTripCurrencyOptions(trip?.currency_settings),
+    () => getTripDisplayCurrencies(trip?.currency_settings),
     [trip?.currency_settings]
   );
 

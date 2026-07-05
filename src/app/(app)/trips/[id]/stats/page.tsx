@@ -7,7 +7,7 @@ import { TripStatsView } from '@/components/stats';
 import { useTrip, useTripStats, useExchangeRates } from '@/hooks/queries';
 import { StatsDashboardSkeleton } from '@/components/skeletons';
 import { ErrorState } from '@/components/common';
-import { resolveTripRates, getTripCurrencyOptions } from '@/lib/tripCurrency';
+import { resolveTripRates, getTripDisplayCurrencies } from '@/lib/tripCurrency';
 
 export default function TripStatsPage() {
   const router = useRouter();
@@ -35,7 +35,7 @@ export default function TripStatsPage() {
       {stats && (
         <TripStatsView
           stats={stats}
-          currencyOptions={getTripCurrencyOptions(trip?.currency_settings)}
+          currencyOptions={getTripDisplayCurrencies(trip?.currency_settings)}
           displayRates={resolveTripRates(trip?.currency_settings, exchangeRates)}
         />
       )}

@@ -700,7 +700,12 @@
       "defaultCurrencyLabel": "Default currency for new expenses",
       "hint": "Leave a rate blank to use the live rate. Changes only affect future expenses; existing ones keep the rate they were saved with.",
       "save": "Save currency settings",
-      "saved": "Currency settings updated"
+      "saved": "Currency settings updated",
+      "addCurrency": "Add currency",
+      "searchPlaceholder": "Search currency (code or name)",
+      "noMatch": "No matching currency",
+      "empty": "No currencies added yet — new expenses will use TWD.",
+      "remove": "Remove"
     }
   },
   "checklist": {

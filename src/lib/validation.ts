@@ -1,8 +1,15 @@
 import { z } from 'zod';
+import { SUPPORTED_CURRENCY_CODES } from '@/constants/currencies';
 
 // Currency codes
+// 精選常用 6 種（保留供既有引用）；實際可接受的幣別為完整 ISO 4217 集合（見下方 schema）。
 export const CURRENCIES = ['TWD', 'JPY', 'USD', 'EUR', 'HKD', 'THB'] as const;
 export type CurrencyCode = (typeof CURRENCIES)[number];
+
+// 幣別代碼驗證：接受任何 ISO 4217 幣別（不再限於精選 6 種）。
+export const currencyCodeSchema = z
+  .string()
+  .refine((c) => SUPPORTED_CURRENCY_CODES.has(c), '不支援的幣別');
 
 // Expense categories
 export const CATEGORIES = [
@@ -84,7 +91,7 @@ export const attachmentInputSchema = z.object({
 export const createExpenseSchema = z.object({
   payer_id: objectIdSchema,
   original_amount: z.number().positive('金額必須大於 0'),
-  currency: z.enum(CURRENCIES as unknown as [string, ...string[]]),
+  currency: currencyCodeSchema,
   exchange_rate: z.number().positive('匯率必須大於 0').default(1.0),
   description: z.string().min(1, '描述不能為空'),
   category: z.enum(CATEGORIES as unknown as [string, ...string[]]).default('other'),
@@ -107,7 +114,7 @@ export const createExpenseSchema = z.object({
 export const updateExpenseSchema = z.object({
   payer_id: objectIdSchema.optional(),
   original_amount: z.number().positive('金額必須大於 0').optional(),
-  currency: z.enum(CURRENCIES as unknown as [string, ...string[]]).optional(),
+  currency: currencyCodeSchema.optional(),
   exchange_rate: z.number().positive('匯率必須大於 0').optional(),
   description: z.string().min(1, '描述不能為空').optional(),
   category: z.enum(CATEGORIES as unknown as [string, ...string[]]).optional(),
@@ -147,18 +154,15 @@ export const setBudgetSchema = z.object({
 // 旅程幣別設定：常用幣別清單（rate 為自訂匯率 1 外幣 = ? TWD，null = 用即時匯率）
 // 與新增支出的預設幣別。兩者皆空 → action 會把整個 currencySettings 清為 null。
 export const setCurrencySettingsSchema = z.object({
-  default_currency: z
-    .enum(CURRENCIES as unknown as [string, ...string[]])
-    .nullable()
-    .optional(),
+  default_currency: currencyCodeSchema.nullable().optional(),
   currencies: z
     .array(
       z.object({
-        code: z.enum(CURRENCIES as unknown as [string, ...string[]]),
+        code: currencyCodeSchema,
         rate: z.number().positive('匯率必須大於 0').nullable().optional(),
       })
     )
-    .max(CURRENCIES.length, '常用幣別過多')
+    .max(30, '常用幣別過多')
     .optional(),
 });
 
