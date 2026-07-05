@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { Users, CalendarDays, TrendingUp } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -11,9 +12,21 @@ import ExpenseHistogram from './ExpenseHistogram';
 import MemberSpendRanking from './MemberSpendRanking';
 import DailySpendCard from './DailySpendCard';
 import { Card, CardContent } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface TripStatsViewProps {
   stats: TripStatsData;
+  /** 顯示幣別選項（旅程常用幣別排前）；未傳則不顯示幣別切換（一律 TWD）。 */
+  currencyOptions?: string[];
+  /** 顯示換算用匯率表（1 外幣 = ? TWD；自訂匯率已蓋過即時匯率）。 */
+  displayRates?: Record<string, number>;
 }
 
 function intlLocale(locale: string): string {
@@ -52,23 +65,49 @@ function MetricTile({
  * 群組統計呈現層（全團）：總額 + 成員/天數/平均每人每日，付款排行，及重用既有的
  * 趨勢圖（ExpenseHistogram）與分類統計（CategoryStats）。資料來自 computeTripStats。
  */
-export default function TripStatsView({ stats }: TripStatsViewProps) {
+export default function TripStatsView({
+  stats,
+  currencyOptions,
+  displayRates,
+}: TripStatsViewProps) {
   const t = useTranslations('stats');
   const tCategory = useTranslations('category');
   const locale = useLocale();
 
+  // 顯示幣別切換：金額本體是 TWD（記帳當下已換算入庫），這裡只做「顯示」換算，
+  // 不追溯改寫任何支出的匯率。
+  const [displayCurrency, setDisplayCurrency] = useState('TWD');
+  const rate = displayCurrency === 'TWD' ? 1 : (displayRates?.[displayCurrency] ?? 1);
+
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat(intlLocale(locale), {
       style: 'currency',
-      currency: 'TWD',
+      currency: displayCurrency,
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
-    }).format(amount);
+    }).format(amount / rate);
 
   const formatDate = (date: string) => new Date(date).toLocaleDateString(intlLocale(locale));
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-5 duration-500">
+      {currencyOptions && currencyOptions.length > 1 && (
+        <div className="mb-4 flex items-center justify-end gap-2">
+          <Label className="text-xs text-muted-foreground">{t('displayCurrency')}</Label>
+          <Select value={displayCurrency} onValueChange={setDisplayCurrency}>
+            <SelectTrigger className="h-8 w-[110px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {currencyOptions.map((code) => (
+                <SelectItem key={code} value={code}>
+                  {code}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
       {/* 總額 + 成員/天數/平均每人每日 */}
       <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-12">
         <div className="md:col-span-5">

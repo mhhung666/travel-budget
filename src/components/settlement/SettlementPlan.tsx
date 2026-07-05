@@ -29,8 +29,11 @@ import { EmptyState } from '@/components/common';
 
 interface SettlementPlanProps {
   transactions: Transaction[];
+  /** 顯示換算用匯率表（呼叫端已把旅程自訂匯率蓋過即時匯率，見 lib/tripCurrency）。 */
   exchangeRates: Record<string, number>;
   loadingRates: boolean;
+  /** 顯示幣別選項（旅程常用幣別排前）；未傳則用預設順序。 */
+  currencyOptions?: string[];
   /** 成員專屬：點擊建議轉帳的「標記已付」時觸發（登記一筆還款）。未傳即唯讀。 */
   onMarkPaid?: (transaction: Transaction) => void;
   /** name → 頭像 URL（結算方案只帶名字，故以名字對應）。 */
@@ -47,6 +50,7 @@ export default function SettlementPlan({
   transactions,
   exchangeRates,
   loadingRates,
+  currencyOptions,
   onMarkPaid,
   avatarUrlByName,
   onRemind,
@@ -55,6 +59,7 @@ export default function SettlementPlan({
 }: SettlementPlanProps) {
   const t = useTranslations('settlement');
   const [selectedCurrency, setSelectedCurrency] = useState('TWD');
+  const options = currencyOptions ?? ['TWD', 'JPY', 'USD', 'EUR', 'HKD', 'THB'];
 
   const convertAmount = (amount: number): number => {
     if (selectedCurrency === 'TWD') return amount;
@@ -91,12 +96,11 @@ export default function SettlementPlan({
               <SelectValue placeholder={t('currency')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="TWD">TWD</SelectItem>
-              <SelectItem value="JPY">JPY</SelectItem>
-              <SelectItem value="USD">USD</SelectItem>
-              <SelectItem value="EUR">EUR</SelectItem>
-              <SelectItem value="HKD">HKD</SelectItem>
-              <SelectItem value="THB">THB</SelectItem>
+              {options.map((code) => (
+                <SelectItem key={code} value={code}>
+                  {code}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>

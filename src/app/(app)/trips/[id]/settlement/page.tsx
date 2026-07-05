@@ -26,6 +26,7 @@ import { useDialog } from '@/hooks/useDialog';
 import { useToast } from '@/hooks/use-toast';
 import { ConfirmDialog, ErrorState } from '@/components/common';
 import { exportSettlement, type ExportFormat } from '@/lib/exporters';
+import { resolveTripRates, getTripCurrencyOptions } from '@/lib/tripCurrency';
 import type { Transaction } from '@/types';
 import type { RecordPaymentInput } from '@/lib/validation';
 import { SettlementSkeleton } from '@/components/skeletons';
@@ -57,6 +58,16 @@ export default function SettlementPage() {
 
   const { balances, transactions, payments, totalExpenses } = settlement;
   const error = isError ? tError('loadSettlementFailed') : '';
+
+  // 顯示換算：旅程自訂匯率優先於即時匯率；幣別選項常用排前（見 lib/tripCurrency）
+  const displayRates = useMemo(
+    () => resolveTripRates(trip?.currency_settings, exchangeRates),
+    [trip?.currency_settings, exchangeRates]
+  );
+  const currencyOptions = useMemo(
+    () => getTripCurrencyOptions(trip?.currency_settings),
+    [trip?.currency_settings]
+  );
 
   // 建議轉帳只帶名字（calculateSettlement 不回 id）；用餘額表把名字對回 id 以預填登記表單。
   const memberOptions = useMemo<PaymentMemberOption[]>(
@@ -204,8 +215,9 @@ export default function SettlementPage() {
         {/* 結算方案（與我有關的轉帳排最前） */}
         <SettlementPlan
           transactions={orderedTransactions}
-          exchangeRates={exchangeRates}
+          exchangeRates={displayRates}
           loadingRates={loadingRates}
+          currencyOptions={currencyOptions}
           onMarkPaid={isMember ? handleMarkPaid : undefined}
           avatarUrlByName={avatarByName}
           onRemind={isMember ? handleRemind : undefined}

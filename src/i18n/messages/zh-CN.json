@@ -635,7 +635,8 @@
     "dailySpend": "每日花费",
     "unlinkedDay": "未关联行程",
     "dayLabel": "第 {dayNumber} 天",
-    "expenseCount": "{count} 笔"
+    "expenseCount": "{count} 笔",
+    "displayCurrency": "显示币种"
   },
   "trip": {
     "info": "旅行信息",
@@ -690,6 +691,16 @@
       "settlement": "结算",
       "stats": "统计",
       "checklists": "清单"
+    },
+    "currencySettings": {
+      "title": "常用币种与汇率",
+      "description": "设置这趟旅程常用的币种，并可为外币锁定自定义汇率（例如换现金的实际汇率）。",
+      "baseCurrency": "基准货币，固定为 1",
+      "ratePlaceholder": "实时汇率 {rate}",
+      "defaultCurrencyLabel": "新增支出的默认币种",
+      "hint": "自定义汇率留空代表使用实时汇率。变更只影响之后新增的支出，已有支出保留当时的汇率。",
+      "save": "保存币种设置",
+      "saved": "币种设置已更新"
     }
   },
   "checklist": {

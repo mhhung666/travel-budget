@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { DEFAULT_CATEGORY } from '@/constants/categories';
 import { computeSplits, type SplitMode } from '@/lib/expenseSplit';
-import type { Expense, ExpenseAttachment, Member } from '@/types';
+import { getPinnedRate, getTripDefaultCurrency } from '@/lib/tripCurrency';
+import type { Expense, ExpenseAttachment, Member, TripCurrencySettings } from '@/types';
 
 export interface ExpenseFormData {
   payer_id: string;
@@ -32,6 +33,8 @@ interface UseExpenseFormArgs {
   expense?: Expense | null;
   /** 新增模式的預填描述（如清單購物項品名）；編輯模式忽略。 */
   initialDescription?: string;
+  /** 旅程幣別設定（預設幣別／自訂匯率）；null/未傳 = 未設定（預設 TWD、即時匯率）。 */
+  currencySettings?: TripCurrencySettings | null;
 }
 
 /**
@@ -46,6 +49,7 @@ export function useExpenseForm({
   currentUser,
   expense,
   initialDescription,
+  currencySettings,
 }: UseExpenseFormArgs) {
   const tExpense = useTranslations('expense');
   const tCommon = useTranslations('common');
@@ -75,7 +79,7 @@ export function useExpenseForm({
   const [loadingRates, setLoadingRates] = useState(false);
   const [ratesError, setRatesError] = useState('');
 
-  const fetchExchangeRates = async () => {
+  const fetchExchangeRates = async (): Promise<Record<string, number> | null> => {
     setLoadingRates(true);
     setRatesError('');
     try {
@@ -84,14 +88,17 @@ export function useExpenseForm({
 
       if (data.success) {
         setExchangeRates(data.rates);
-      } else {
-        setRatesError('無法獲取匯率');
-        if (data.rates) {
-          setExchangeRates(data.rates);
-        }
+        return data.rates;
       }
+      setRatesError('無法獲取匯率');
+      if (data.rates) {
+        setExchangeRates(data.rates);
+        return data.rates;
+      }
+      return null;
     } catch {
       setRatesError('獲取匯率失敗');
+      return null;
     } finally {
       setLoadingRates(false);
     }
@@ -144,13 +151,16 @@ export function useExpenseForm({
         setItineraryDayIds(expense.itinerary_day_ids ?? []);
         setTags(expense.tags ?? []);
       } else {
-        // Add mode: Initialize with defaults（今天、TWD、平分全員）；
+        // Add mode: Initialize with defaults（今天、旅程預設幣別（未設定則 TWD）、平分全員）；
         // 描述可由呼叫端預填（如清單購物項的品名，「勾完→記一筆」）。
+        // 匯率預填順序：旅程自訂匯率 → 即時匯率（fetch 回來後補）→ 1.0。
+        const defaultCurrency = getTripDefaultCurrency(currencySettings);
+        const pinnedRate = getPinnedRate(currencySettings, defaultCurrency);
         setForm({
           payer_id: currentUser?.id || members[0]?.id || '',
           original_amount: '',
-          currency: 'TWD',
-          exchange_rate: '1.0',
+          currency: defaultCurrency,
+          exchange_rate: pinnedRate != null ? String(pinnedRate) : '1.0',
           description: initialDescription ?? '',
           category: DEFAULT_CATEGORY,
           date: new Date().toISOString().split('T')[0],
@@ -169,8 +179,23 @@ export function useExpenseForm({
 
       setError('');
       setShowAdvanced(mode === 'edit');
-      fetchExchangeRates();
+      // 新增模式且預設幣別是外幣又沒自訂匯率時，即時匯率回來後補進表單；
+      // 只在匯率仍是初始 1.0（使用者沒動過）時補，避免蓋掉手動輸入。
+      fetchExchangeRates().then((rates) => {
+        if (mode !== 'add' || !rates) return;
+        const defaultCurrency = getTripDefaultCurrency(currencySettings);
+        if (defaultCurrency === 'TWD') return;
+        if (getPinnedRate(currencySettings, defaultCurrency) != null) return;
+        const live = rates[defaultCurrency];
+        if (!live) return;
+        setForm((prev) =>
+          prev.currency === defaultCurrency && prev.exchange_rate === '1.0'
+            ? { ...prev, exchange_rate: live.toFixed(6) }
+            : prev
+        );
+      });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- currencySettings 只影響開啟當下的預設值，開著時變動不重置表單
   }, [open, mode, expense, members, currentUser, initialDescription]);
 
   const originalAmount = parseFloat(form.original_amount) || 0;

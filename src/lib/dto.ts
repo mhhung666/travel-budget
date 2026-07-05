@@ -102,6 +102,10 @@ export type TripDtoInput = {
   createdAt: Date;
   members?: { user: { toString(): string }; archivedAt?: Date | string | null }[];
   budget?: { total?: number | null; categories?: { category: string; amount: number }[] } | null;
+  currencySettings?: {
+    defaultCurrency?: string | null;
+    currencies?: { code: string; rate?: number | null }[];
+  } | null;
 };
 
 /**
@@ -127,6 +131,15 @@ export function toTripDto(t: TripDtoInput, viewerId?: string): TripDto {
           categories: (t.budget.categories ?? []).map((c) => ({
             category: c.category,
             amount: c.amount,
+          })),
+        }
+      : null,
+    currency_settings: t.currencySettings
+      ? {
+          default_currency: t.currencySettings.defaultCurrency ?? null,
+          currencies: (t.currencySettings.currencies ?? []).map((c) => ({
+            code: c.code,
+            rate: c.rate ?? null,
           })),
         }
       : null,

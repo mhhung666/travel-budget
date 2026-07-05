@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 import type { Member } from '@/types';
+import type { SetCurrencySettingsInput } from '@/lib/validation';
 import { useDialog } from '@/hooks/useDialog';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -196,6 +197,11 @@ export function useTripSettingsPage(tripId: string) {
     }
   };
 
+  const handleSaveCurrencySettings = async (input: SetCurrencySettingsInput) => {
+    await tripMutations.setCurrencySettings.mutateAsync(input);
+    toast({ title: tTrip('currencySettings.saved') });
+  };
+
   const handleCopyInviteLink = async (member: Member) => {
     try {
       const inviteUrl = `${window.location.origin}/link-virtual/${tripId}/${member.username}`;
@@ -251,5 +257,6 @@ export function useTripSettingsPage(tripId: string) {
     handleAddVirtualMember,
     handleAddFriends,
     handleCopyInviteLink,
+    handleSaveCurrencySettings,
   };
 }

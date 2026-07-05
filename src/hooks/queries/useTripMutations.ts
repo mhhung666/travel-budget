@@ -8,9 +8,10 @@ import {
   archiveTrip,
   unarchiveTrip,
   setTripBudget,
+  setTripCurrencySettings,
 } from '@/actions';
 import type { ActionResult } from '@/actions';
-import type { UpdateTripInput, SetBudgetInput } from '@/lib/validation';
+import type { UpdateTripInput, SetBudgetInput, SetCurrencySettingsInput } from '@/lib/validation';
 import type { Trip } from '@/types';
 import { tripKeys } from './keys';
 
@@ -47,6 +48,17 @@ export function useTripMutations(tripId: string) {
     },
   });
 
+  // Currency settings live on the trip document (same as budget) — refresh the
+  // trip detail query and the consumers (expense form / settlement / stats)
+  // derive everything client-side from trip.currency_settings.
+  const setCurrencySettings = useMutation({
+    mutationFn: (input: SetCurrencySettingsInput) => unwrap(setTripCurrencySettings(tripId, input)),
+    onSuccess: (trip: Trip) => {
+      queryClient.setQueryData(tripKeys.detail(tripId), trip);
+      queryClient.invalidateQueries({ queryKey: tripKeys.detail(tripId) });
+    },
+  });
+
   // Regenerating the hash_code invalidates every old share/public link. The
   // caller is responsible for navigating to the new hash_code URL afterwards.
   const regenerate = useMutation({
@@ -65,7 +77,7 @@ export function useTripMutations(tripId: string) {
     },
   });
 
-  return { update, regenerate, remove, setBudget };
+  return { update, regenerate, remove, setBudget, setCurrencySettings };
 }
 
 /**

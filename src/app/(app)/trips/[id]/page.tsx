@@ -105,6 +105,7 @@ export default function TripDetailPage() {
         currentUser={currentUser}
         itineraryDays={itineraryDays}
         existingTags={existingTags}
+        currencySettings={trip.currency_settings}
       />
 
       <EditTripDialog

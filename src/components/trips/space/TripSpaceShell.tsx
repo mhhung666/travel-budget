@@ -271,6 +271,7 @@ export function TripSpaceShell({
           itineraryDays={itineraryDays}
           existingTags={existingTags}
           initialDescription={addExpenseDialog.data?.description}
+          currencySettings={trip?.currency_settings ?? null}
         />
 
         <BudgetDialog

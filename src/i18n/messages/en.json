@@ -635,7 +635,8 @@
     "dailySpend": "Daily spend",
     "unlinkedDay": "Unlinked",
     "dayLabel": "Day {dayNumber}",
-    "expenseCount": "{count} expenses"
+    "expenseCount": "{count} expenses",
+    "displayCurrency": "Display currency"
   },
   "trip": {
     "info": "Trip Info",
@@ -690,6 +691,16 @@
       "settlement": "Settle up",
       "stats": "Stats",
       "checklists": "Lists"
+    },
+    "currencySettings": {
+      "title": "Frequent currencies & rates",
+      "description": "Choose the currencies this trip uses, and optionally pin a custom rate for foreign currencies (e.g. the rate you exchanged cash at).",
+      "baseCurrency": "Base currency, always 1",
+      "ratePlaceholder": "Live rate {rate}",
+      "defaultCurrencyLabel": "Default currency for new expenses",
+      "hint": "Leave a rate blank to use the live rate. Changes only affect future expenses; existing ones keep the rate they were saved with.",
+      "save": "Save currency settings",
+      "saved": "Currency settings updated"
     }
   },
   "checklist": {

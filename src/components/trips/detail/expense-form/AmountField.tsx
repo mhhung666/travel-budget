@@ -15,6 +15,8 @@ interface AmountFieldProps {
   currency: string;
   onAmountChange: (value: string) => void;
   onCurrencyChange: (currency: string) => void;
+  /** 幣別選項（旅程常用幣別排前）；未傳則用預設順序。 */
+  currencyOptions?: string[];
 }
 
 /**
@@ -26,7 +28,9 @@ export function AmountField({
   currency,
   onAmountChange,
   onCurrencyChange,
+  currencyOptions,
 }: AmountFieldProps) {
+  const options = currencyOptions ?? CURRENCY_OPTIONS.map((c) => c.code);
   return (
     <div className="flex items-center gap-2 rounded-xl border bg-muted/50 p-4">
       <Input
@@ -44,9 +48,9 @@ export function AmountField({
           <SelectValue placeholder="Currency" />
         </SelectTrigger>
         <SelectContent>
-          {CURRENCY_OPTIONS.map((c) => (
-            <SelectItem key={c.code} value={c.code}>
-              {c.label}
+          {options.map((code) => (
+            <SelectItem key={code} value={code}>
+              {code}
             </SelectItem>
           ))}
         </SelectContent>

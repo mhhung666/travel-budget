@@ -53,6 +53,9 @@ export { setAvatar, removeAvatar } from './avatar.actions';
 // Budget actions
 export { setTripBudget } from './budget.actions';
 
+// Currency settings actions
+export { setTripCurrencySettings } from './currency.actions';
+
 // Member actions
 export {
   getMembers,

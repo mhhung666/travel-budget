@@ -2,7 +2,7 @@
 export type { User, TripRole, Member } from './user';
 
 // Trip
-export type { Trip, TripWithMembers, TripMember } from './trip';
+export type { Trip, TripWithMembers, TripMember, TripCurrency, TripCurrencySettings } from './trip';
 
 // Budget
 export type { Budget, BudgetCategory, CategoryBudgetProgress, BudgetProgress } from './budget';

@@ -40,6 +40,32 @@ const BudgetSchema = new Schema(
   { _id: false }
 );
 
+/**
+ * 單一常用幣別（內嵌於 Trip.currencySettings）。rate 為自訂匯率
+ * （1 單位外幣 = ? TWD）；null 代表「用即時匯率」。TWD 為基準幣，rate 恆為 null。
+ */
+const TripCurrencySchema = new Schema(
+  {
+    code: { type: String, required: true },
+    rate: { type: Number, default: null },
+  },
+  { _id: false }
+);
+
+/**
+ * 旅程幣別設定（內嵌於 Trip）。defaultCurrency 為新增支出的預設幣別；
+ * currencies 為常用幣別清單（含可選的自訂匯率）。整個欄位為 null 代表
+ * 「尚未設定」，行為同未有此功能前（預設 TWD、即時匯率）。
+ * 注意：改設定不追溯既有支出——每筆支出保留寫入當下的 exchangeRate。
+ */
+const CurrencySettingsSchema = new Schema(
+  {
+    defaultCurrency: { type: String, default: null },
+    currencies: { type: [TripCurrencySchema], default: [] },
+  },
+  { _id: false }
+);
+
 const TripSchema = new Schema(
   {
     name: { type: String, required: true },
@@ -53,6 +79,8 @@ const TripSchema = new Schema(
     members: { type: [TripMemberSchema], default: [] },
     // 旅程預算；null 代表未設定（舊資料無此欄位即視為未設定）。
     budget: { type: BudgetSchema, default: null },
+    // 幣別設定；null 代表未設定（舊資料無此欄位即視為未設定）。
+    currencySettings: { type: CurrencySettingsSchema, default: null },
   },
   {
     timestamps: { createdAt: true, updatedAt: false },

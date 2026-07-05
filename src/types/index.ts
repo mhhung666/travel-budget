@@ -21,6 +21,8 @@ export type {
   Trip,
   TripWithMembers,
   TripMember,
+  TripCurrency,
+  TripCurrencySettings,
   Budget,
   BudgetCategory,
   CategoryBudgetProgress,

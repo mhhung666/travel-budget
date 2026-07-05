@@ -133,6 +133,7 @@ describe('toTripDto', () => {
       created_at: '2026-01-01T00:00:00.000Z',
       archived_at: '2026-05-01T00:00:00.000Z',
       budget: null,
+      currency_settings: null,
     });
   });
 
@@ -154,6 +155,7 @@ describe('toTripDto', () => {
     expect(dto.departure_location).toBeNull();
     expect(dto.destination_location).toBeNull();
     expect(dto.budget).toBeNull();
+    expect(dto.currency_settings).toBeNull();
   });
 
   it('maps budget (total + categories) when present', () => {
@@ -164,6 +166,26 @@ describe('toTripDto', () => {
     expect(dto.budget).toEqual({
       total: 30000,
       categories: [{ category: 'food', amount: 8000 }],
+    });
+  });
+
+  it('maps currency settings (default currency + currencies with optional pinned rate)', () => {
+    const dto = toTripDto({
+      ...base,
+      currencySettings: {
+        defaultCurrency: 'JPY',
+        currencies: [
+          { code: 'JPY', rate: 0.22 },
+          { code: 'USD', rate: null },
+        ],
+      },
+    });
+    expect(dto.currency_settings).toEqual({
+      default_currency: 'JPY',
+      currencies: [
+        { code: 'JPY', rate: 0.22 },
+        { code: 'USD', rate: null },
+      ],
     });
   });
 });

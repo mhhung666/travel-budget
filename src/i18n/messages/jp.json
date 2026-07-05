@@ -635,7 +635,8 @@
     "dailySpend": "日別支出",
     "unlinkedDay": "行程日なし",
     "dayLabel": "{dayNumber}日目",
-    "expenseCount": "{count}件"
+    "expenseCount": "{count}件",
+    "displayCurrency": "表示通貨"
   },
   "trip": {
     "info": "旅行情報",
@@ -690,6 +691,16 @@
       "settlement": "精算",
       "stats": "統計",
       "checklists": "リスト"
+    },
+    "currencySettings": {
+      "title": "よく使う通貨とレート",
+      "description": "この旅行でよく使う通貨を選び、外貨には任意の固定レート（例：現金両替時の実際のレート）を設定できます。",
+      "baseCurrency": "基準通貨（常に 1）",
+      "ratePlaceholder": "リアルタイムレート {rate}",
+      "defaultCurrencyLabel": "支出追加時のデフォルト通貨",
+      "hint": "レートを空欄にするとリアルタイムレートを使用します。変更は今後の支出にのみ適用され、既存の支出は登録時のレートを保持します。",
+      "save": "通貨設定を保存",
+      "saved": "通貨設定を更新しました"
     }
   },
   "checklist": {

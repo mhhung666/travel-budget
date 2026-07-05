@@ -144,6 +144,24 @@ export const setBudgetSchema = z.object({
     .optional(),
 });
 
+// 旅程幣別設定：常用幣別清單（rate 為自訂匯率 1 外幣 = ? TWD，null = 用即時匯率）
+// 與新增支出的預設幣別。兩者皆空 → action 會把整個 currencySettings 清為 null。
+export const setCurrencySettingsSchema = z.object({
+  default_currency: z
+    .enum(CURRENCIES as unknown as [string, ...string[]])
+    .nullable()
+    .optional(),
+  currencies: z
+    .array(
+      z.object({
+        code: z.enum(CURRENCIES as unknown as [string, ...string[]]),
+        rate: z.number().positive('匯率必須大於 0').nullable().optional(),
+      })
+    )
+    .max(CURRENCIES.length, '常用幣別過多')
+    .optional(),
+});
+
 // Payment schemas（結算還款；金額一律基準幣 TWD）
 export const recordPaymentSchema = z
   .object({
@@ -353,6 +371,7 @@ export type UpdateItineraryDayInput = z.infer<typeof updateItineraryDaySchema>;
 export type CreateTripInput = z.infer<typeof createTripSchema>;
 export type UpdateTripInput = z.infer<typeof updateTripSchema>;
 export type SetBudgetInput = z.infer<typeof setBudgetSchema>;
+export type SetCurrencySettingsInput = z.infer<typeof setCurrencySettingsSchema>;
 export type RecordPaymentInput = z.infer<typeof recordPaymentSchema>;
 export type AttachmentInput = z.infer<typeof attachmentInputSchema>;
 export type CreateExpenseInput = z.infer<typeof createExpenseSchema>;

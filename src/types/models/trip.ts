@@ -3,6 +3,24 @@ import type { TripRole } from './user';
 import type { Budget } from './budget';
 
 /**
+ * 旅程常用幣別（含可選的自訂匯率）。
+ * rate：1 單位外幣 = ? TWD；null 代表用即時匯率。TWD 為基準幣，rate 恆為 null。
+ */
+export interface TripCurrency {
+  code: string;
+  rate: number | null;
+}
+
+/**
+ * 旅程幣別設定。default_currency 為新增支出的預設幣別（null = TWD）；
+ * currencies 為常用幣別清單。改設定不追溯既有支出。
+ */
+export interface TripCurrencySettings {
+  default_currency: string | null;
+  currencies: TripCurrency[];
+}
+
+/**
  * 旅程基本資訊
  */
 export interface Trip {
@@ -19,6 +37,8 @@ export interface Trip {
   archived_at: string | null;
   /** 旅程預算（基準幣 TWD）；null 代表尚未設定 */
   budget: Budget | null;
+  /** 旅程幣別設定（常用幣別／自訂匯率／預設幣別）；null 代表尚未設定 */
+  currency_settings: TripCurrencySettings | null;
 }
 
 /**

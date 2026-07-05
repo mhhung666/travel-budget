@@ -3,7 +3,13 @@
 import { useParams } from 'next/navigation';
 import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
-import { TripMembers, TripShare, TripArchive, TripDangerZone } from '@/components/trips/detail';
+import {
+  TripMembers,
+  TripShare,
+  TripArchive,
+  TripCurrencySettings,
+  TripDangerZone,
+} from '@/components/trips/detail';
 
 // Dialogs
 import {
@@ -61,6 +67,7 @@ export default function TripSettingsPage() {
     handleAddVirtualMember,
     handleAddFriends,
     handleCopyInviteLink,
+    handleSaveCurrencySettings,
   } = useTripSettingsPage(tripId);
 
   if (loading) {
@@ -104,6 +111,13 @@ export default function TripSettingsPage() {
           canRegenerate={isAdmin}
           onRegenerate={() => regenerateDialog.openDialog()}
           isRegenerating={isRegenerating}
+        />
+
+        {/* 幣別設定（常用幣別／自訂匯率／預設幣別；admin 可改） */}
+        <TripCurrencySettings
+          settings={trip.currency_settings}
+          canEdit={isAdmin}
+          onSave={handleSaveCurrencySettings}
         />
 
         {/* 封存（個別，全體成員可用） */}

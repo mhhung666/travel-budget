@@ -3,7 +3,8 @@
 import { ChevronDown, ChevronUp, DollarSign, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import type { Expense, ItineraryDay, Member } from '@/types';
+import { getPinnedRate, getTripCurrencyOptions } from '@/lib/tripCurrency';
+import type { Expense, ItineraryDay, Member, TripCurrencySettings } from '@/types';
 
 import { ResponsiveFormSheet } from '@/components/common';
 import { ReceiptUploader } from '@/components/trips/detail/ReceiptAttachments';
@@ -33,6 +34,8 @@ interface ExpenseFormSheetProps {
   existingTags?: string[];
   /** 新增模式的預填描述（如清單購物項的品名）；編輯模式忽略。 */
   initialDescription?: string;
+  /** 旅程幣別設定（預設幣別／常用排序／自訂匯率）；null/未傳 = 未設定。 */
+  currencySettings?: TripCurrencySettings | null;
 }
 
 const FORM_ID = 'expense-form';
@@ -56,6 +59,7 @@ export default function ExpenseFormSheet({
   itineraryDays = [],
   existingTags = [],
   initialDescription,
+  currencySettings = null,
 }: ExpenseFormSheetProps) {
   const tExpense = useTranslations('expense');
   const tCommon = useTranslations('common');
@@ -92,7 +96,15 @@ export default function ExpenseFormSheet({
     handleValueChange,
     handleSelectAll,
     handleItineraryDayToggle,
-  } = useExpenseForm({ mode, open, members, currentUser, expense, initialDescription });
+  } = useExpenseForm({
+    mode,
+    open,
+    members,
+    currentUser,
+    expense,
+    initialDescription,
+    currencySettings,
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,8 +129,15 @@ export default function ExpenseFormSheet({
     }
   };
 
+  // 匯率帶入順序：TWD 固定 1 → 旅程自訂匯率 → 即時匯率 → 保留原值
   const handleCurrencyChange = (value: string) => {
-    const rate = value === 'TWD' ? '1.0' : exchangeRates[value]?.toFixed(6) || form.exchange_rate;
+    const pinned = getPinnedRate(currencySettings, value);
+    const rate =
+      value === 'TWD'
+        ? '1.0'
+        : pinned != null
+          ? String(pinned)
+          : exchangeRates[value]?.toFixed(6) || form.exchange_rate;
     setForm({ ...form, currency: value, exchange_rate: rate });
   };
 
@@ -173,6 +192,7 @@ export default function ExpenseFormSheet({
           currency={form.currency}
           onAmountChange={(value) => setForm({ ...form, original_amount: value })}
           onCurrencyChange={handleCurrencyChange}
+          currencyOptions={getTripCurrencyOptions(currencySettings)}
         />
 
         {/* 2. 描述 */}
