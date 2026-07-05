@@ -44,7 +44,7 @@
 | 功能 | 說明 |
 | --- | --- |
 | 支出 CRUD | 付款人、日期、7 種分類、備註 |
-| 多幣別 + 匯率 | 存原幣 + 匯率，換算 TWD 寫入 `amount` |
+| 多幣別 + 匯率 | 存原幣 + 匯率，換算 TWD 寫入 `amount`；旅程可設常用幣別 / 自訂匯率 / 預設幣別 |
 | 四種分帳 | 均分 / 金額 / 百分比 / 份數 |
 | 收據附件 | R2 私有 bucket（見 §7） |
 | 支出 ↔ 行程日連結 | `Expense.itineraryDay`（見 §5） |
@@ -57,6 +57,8 @@
 **搜尋 / 篩選**：純前端篩選——純函式 [lib/expenseFilters.ts](../src/lib/expenseFilters.ts) `filterExpenses` / `countActiveFilters`（關鍵字 + 分類 + 付款人 + 分帳對象 + 標籤 + 日期區間，AND 結合；21 個單元測試）。[TripExpenses.tsx](../src/components/trips/detail/TripExpenses.tsx) 加搜尋框 + 可收合的進階篩選面板（含啟用條件數 badge 與「清除」、結果筆數提示）。長列表採**純前端漸進渲染**（預設 20 筆 +「顯示更多」）——**伺服端游標分頁刻意延後**（見 [IMPROVEMENTS.md](./IMPROVEMENTS.md) G）。
 
 **自訂標籤**：`Expense.tags: string[]`，與固定 7 類的 `category` 正交——`category` 維持封閉集合供預算比對，`tags` 為開放、可複選的自由文字（Zod 限制單一標籤 ≤30 字、至多 20 個）。輸入用新元件 [tag-input.tsx](../src/components/ui/tag-input.tsx)（chip 輸入 + 同 trip 內既有標籤自動完成），置於 [ExpenseFormDialog.tsx](../src/components/trips/detail/dialogs/ExpenseFormDialog.tsx) 的進階選項區。統計依標籤加總比照分類統計（見 §9 `TagStat`），公開分享頁與 `category` 同等級公開（無 gating）。
+
+**旅程幣別設定**：`Trip.currencySettings` = `{ defaultCurrency, currencies: [{ code, rate }] }`（null = 未設定，行為同舊版：預設 TWD、即時匯率；仿 `budget` 先例的內嵌可空欄位，免 migration）。`rate` 為自訂匯率（1 外幣 = ? TWD；null = 用即時匯率），可鎖定如換現金的實際匯率。寫入走 [setTripCurrencySettings](../src/actions/currency.actions.ts)（admin only），UI 為設定頁的 [TripCurrencySettings](../src/components/trips/detail/TripCurrencySettings.tsx) 卡片。三個消費端共用純函式 [lib/tripCurrency.ts](../src/lib/tripCurrency.ts)（12 個單元測試；`resolveTripRates` 自訂匯率蓋過即時匯率、`getTripCurrencyOptions` 常用排前但不隱藏其餘幣別）：支出表單（預設幣別 + 匯率預填順序＝自訂 → 即時）、結算與 trip 統計的顯示幣別切換。**不追溯**：改設定只影響之後新增的支出，既有支出保留寫入當下的 `exchange_rate`。
 
 **留言**：獨立 collection [Comment](../src/models/Comment.ts) = `{ trip, expense, author, authorName, body }`（比照 `ActivityLog` 去正規化 `authorName`、trip-scoped 獨立集合，非內嵌於 `Expense`）。Actions [comment.actions.ts](../src/actions/comment.actions.ts)：`getComments`（單筆支出的留言串，舊到新）、`getCommentCounts`（全 trip 一次 aggregate 算各支出留言數，供列表 badge 免逐筆查詢的 N+1）、`createComment`（best-effort 通知其他成員，見 §8 `expense_comment_added`）、`deleteComment`（**僅留言作者本人或旅程 admin** 可刪——比其餘 data-level 刪除〔`deleteExpense` / `deletePayment` / `removeChecklistItem`〕更嚴格的信任模型，因留言的個人語意更接近聊天訊息）。UI：[TripExpenses.tsx](../src/components/trips/detail/TripExpenses.tsx) 支出卡片下的「留言 (N)」toggle + [ExpenseComments](../src/components/expenses/ExpenseComments.tsx)（懶載入，展開該筆支出才查詢留言串）。資料完整性：`deleteExpense` / `deleteTrip` cascade 清除留言。
 

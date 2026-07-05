@@ -112,6 +112,10 @@ src/
 ### 4.4 多幣別與匯率
 - 支出存 `original_amount`/`currency`/`exchange_rate`，並換算為基準貨幣（TWD）存於 `amount`。
 - 匯率經 [src/app/api/exchange-rates/](../src/app/api/exchange-rates/) 取得。
+- **旅程幣別設定** `Trip.currencySettings`（常用幣別 / 自訂匯率 / 新增支出預設幣別；null = 未設定）：
+  支出表單預填與結算 / trip 統計的顯示幣別皆吃此設定，合併邏輯在純函式
+  [src/lib/tripCurrency.ts](../src/lib/tripCurrency.ts)（自訂匯率蓋過即時匯率、TWD 恆 1、常用幣別排前）。
+  改設定**不追溯**既有支出（各筆保留寫入當下的 `exchange_rate`）。
 
 ### 4.5 國際化
 - next-intl「without i18n routing」模式：**URL 不帶語系前綴、無 `[locale]` 路由段**；UI 語系由伺服器端讀 `NEXT_LOCALE` cookie 決定（[src/i18n/config.ts](../src/i18n/config.ts)），切換走 `setLocale` server action。
@@ -201,7 +205,7 @@ PushSubscription  ── ref user；Web Push 訂閱（endpoint uniq）
 | `User` | `username`(uniq), `email`(uniq), `password`, `isVirtual`（虛擬成員，可不註冊參與分帳）, `avatarUrl`（R2 公開頭像 URL）, `notifyByEmail`（Email opt-out，預設開）, `locale`（寄信語系）, `mapShareCode`（sparse-uniq，公開地圖 / 回顧分享碼） |
 | `PasswordResetCode` | 重設密碼用的一次性驗證碼 |
 | `EmailChangeCode` | 變更 Email 用的一次性驗證碼（`user`(uniq), `newEmail`, `codeHash`, `expiresAt`(TTL), `attempts`） |
-| `Trip` | `hashCode`(uniq，分享用), `location`(Mixed), 日期, `budget`（`{ total, categories[] }`，基準幣 TWD，null=未設）；**`members[]`**=`{ user(ref), role(admin/member), joinedAt, archivedAt? }`，並對 `members.user` 建 index |
+| `Trip` | `hashCode`(uniq，分享用), `location`(Mixed), 日期, `budget`（`{ total, categories[] }`，基準幣 TWD，null=未設）, `currencySettings`（`{ defaultCurrency, currencies[{code,rate}] }`，null=未設）；**`members[]`**=`{ user(ref), role(admin/member), joinedAt, archivedAt? }`，並對 `members.user` 建 index |
 | `Expense` | `trip`(ref,index), `payer`(ref), `createdBy`(ref，≠payer，供摘要排除自己), `itineraryDay`(ref,可 null), `amount`/`originalAmount`/`currency`/`exchangeRate`, `category`(enum), `date`；**`splits[]`**=`{ user(ref), shareAmount }`；**`attachments[]`**=`{ key, contentType, size, uploadedBy(ref), uploadedAt }`（R2 物件 key，不存 url） |
 | `Payment` | `trip`(ref,index), `from`(ref), `to`(ref), `amount`（基準幣 TWD）, `note`, `createdBy`(ref)；結算還款紀錄，`getSettlement` 以 `applyPayments` 淨額抵銷餘額 |
 | `ItineraryDay` | `trip`(ref), `(trip,dayNumber)` 複合唯一索引；**`activities[]`**=`{ time?, endTime?, title, type, location?, note?, confirmationCode?, attachments[] }`；刪除日程後以 ordered `bulkWrite` 重新編號 |
