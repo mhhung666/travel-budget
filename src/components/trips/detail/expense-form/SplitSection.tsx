@@ -106,6 +106,8 @@ export function SplitSection({
                   checked={state.selected}
                   onCheckedChange={() => onToggle(member.id)}
                   id={`split-${member.id}`}
+                  // 未選時用淡色邊框，別留 primary(綠)邊——深色主題下綠邊會被誤讀成「已選」
+                  className="data-[state=unchecked]:border-muted-foreground/40"
                 />
                 <Label htmlFor={`split-${member.id}`} className="cursor-pointer font-medium">
                   {member.display_name}
