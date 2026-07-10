@@ -818,6 +818,8 @@
     "dayContentPlaceholder": "使用 Markdown 格式撰写行程...",
     "preview": "预览",
     "write": "编辑",
+    "readMode": "阅读",
+    "editMode": "编辑",
     "emptyState": "尚未规划行程",
     "emptyStateHint": "点击「新增天数」开始规划旅程",
     "deleteConfirm": "确定要删除此天行程吗？",
@@ -855,7 +857,11 @@
       "tickets": "票券附件",
       "sortByTime": "按时间排序",
       "addToDay": "新增活动 · 第 {dayNumber} 天",
-      "addedToDay": "已新增活动到第 {dayNumber} 天"
+      "addedToDay": "已新增活动到第 {dayNumber} 天",
+      "edit": "编辑活动",
+      "editInDay": "编辑活动 · 第 {dayNumber} 天",
+      "updatedInDay": "已更新第 {dayNumber} 天的活动",
+      "removedFromDay": "已从第 {dayNumber} 天移除活动"
     },
     "dayLabel": "第 {dayNumber} 天"
   },

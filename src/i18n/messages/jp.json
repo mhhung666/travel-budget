@@ -818,6 +818,8 @@
     "dayContentPlaceholder": "Markdown形式で旅程を記入...",
     "preview": "プレビュー",
     "write": "編集",
+    "readMode": "閲覧",
+    "editMode": "編集",
     "emptyState": "まだ旅程が計画されていません",
     "emptyStateHint": "「日程を追加」をクリックして計画を始めましょう",
     "deleteConfirm": "この日程を削除しますか？",
@@ -855,7 +857,11 @@
       "tickets": "チケット",
       "sortByTime": "時間順に並べ替え",
       "addToDay": "活動を追加 · {dayNumber}日目",
-      "addedToDay": "{dayNumber}日目に活動を追加しました"
+      "addedToDay": "{dayNumber}日目に活動を追加しました",
+      "edit": "活動を編集",
+      "editInDay": "活動を編集 · {dayNumber}日目",
+      "updatedInDay": "{dayNumber}日目の活動を更新しました",
+      "removedFromDay": "{dayNumber}日目の活動を削除しました"
     },
     "dayLabel": "{dayNumber}日目"
   },

@@ -2,7 +2,7 @@
 
 import { Edit2, Trash2, MapPin, Ticket, CalendarPlus } from 'lucide-react';
 import { useTranslations, useLocale } from 'next-intl';
-import type { ItineraryDay } from '@/types';
+import type { Activity, ItineraryDay } from '@/types';
 import { pickLocalizedName } from '@/lib/utils';
 import { countryCodeToFlag } from '@/components/map/country';
 import { sortActivities } from '@/lib/itineraryActivities';
@@ -17,20 +17,26 @@ interface ItineraryDayCardProps {
   day: ItineraryDay;
   /** 票券附件檢視需要 trip 識別碼。 */
   tripId: string;
-  isAdmin: boolean;
+  /** 頁面處於編輯模式且使用者為 admin 時顯示天/活動的編輯動作；閱讀模式為純檢視。 */
+  editable: boolean;
   onEdit: (day: ItineraryDay) => void;
-  /** 卡片上的「新增活動」捷徑：開編輯對話框並直接補一列空白活動。 */
+  /** 卡片上的「新增活動」捷徑：開輕量單一活動對話框。 */
   onAddActivity: (day: ItineraryDay) => void;
   onDelete: (dayId: string) => void;
+  /** 活動列右側的編輯捷徑：開單一活動對話框（預填該筆）。 */
+  onEditActivity: (day: ItineraryDay, activity: Activity) => void;
+  onDeleteActivity: (day: ItineraryDay, activity: Activity) => void;
 }
 
 export default function ItineraryDayCard({
   day,
   tripId,
-  isAdmin,
+  editable,
   onEdit,
   onAddActivity,
   onDelete,
+  onEditActivity,
+  onDeleteActivity,
 }: ItineraryDayCardProps) {
   const tItinerary = useTranslations('itinerary');
   const tAct = useTranslations('itinerary.activities');
@@ -61,7 +67,7 @@ export default function ItineraryDayCard({
               )}
             </div>
           </div>
-          {isAdmin && (
+          {editable && (
             <div className="flex gap-1">
               <Button
                 variant="ghost"
@@ -154,6 +160,28 @@ export default function ItineraryDayCard({
                       </div>
                     )}
                   </div>
+                  {editable && (
+                    <div className="flex shrink-0 gap-0.5">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => onEditActivity(day, activity)}
+                        title={tAct('edit')}
+                      >
+                        <Edit2 className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => onDeleteActivity(day, activity)}
+                        title={tAct('remove')}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
               );
             })}
