@@ -4,14 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Eye, Pencil, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { ItineraryDay } from '@/types';
-import type { ActivityPayload } from '@/hooks/queries/useItineraryMutations';
 import LocationAutocomplete, { LocationOption } from '@/components/location/LocationAutocomplete';
-import ActivityListEditor, {
-  type ActivityDraft,
-  dayActivitiesToDrafts,
-  draftsToPayload,
-} from './ActivityListEditor';
-import { sortActivities } from '@/lib/itineraryActivities';
 import MarkdownRenderer from './MarkdownRenderer';
 
 import {
@@ -32,14 +25,12 @@ interface ItineraryDayDialogProps {
   mode: 'add' | 'edit';
   open: boolean;
   onClose: () => void;
+  /** 只送整天欄位（標題/地點/Markdown）；activities 不在此編輯（走活動列的就地編輯），不傳＝不動。 */
   onSubmit: (data: {
     title: string;
     content: string;
     location: LocationOption | null;
-    activities: ActivityPayload[];
   }) => Promise<void>;
-  /** 票券附件上傳/檢視需要 trip 識別碼。 */
-  tripId: string;
   day?: ItineraryDay | null;
   dayNumber?: number;
 }
@@ -49,7 +40,6 @@ export default function ItineraryDayDialog({
   open,
   onClose,
   onSubmit,
-  tripId,
   day,
   dayNumber,
 }: ItineraryDayDialogProps) {
@@ -59,7 +49,6 @@ export default function ItineraryDayDialog({
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [location, setLocation] = useState<LocationOption | null>(null);
-  const [activities, setActivities] = useState<ActivityDraft[]>([]);
   const [viewMode, setViewMode] = useState<'write' | 'preview'>('write');
   const [loading, setLoading] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -90,13 +79,10 @@ export default function ItineraryDayDialog({
               }
             : null
         );
-        // 開啟時依時間排序，避免編輯器看起來雜亂。
-        setActivities(sortActivities(dayActivitiesToDrafts(day.activities)));
       } else {
         setTitle('');
         setContent('');
         setLocation(null);
-        setActivities([]);
       }
       setViewMode('write');
       requestAnimationFrame(autoResize);
@@ -119,7 +105,6 @@ export default function ItineraryDayDialog({
         title: title.trim(),
         content,
         location,
-        activities: draftsToPayload(activities),
       });
       onClose();
     } catch {
@@ -131,7 +116,7 @@ export default function ItineraryDayDialog({
 
   return (
     <Dialog open={open} onOpenChange={(val) => !val && onClose()}>
-      <DialogContent className="sm:max-w-[800px] max-h-[90vh] flex flex-col">
+      <DialogContent className="sm:max-w-[640px] max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>
             {mode === 'add'
@@ -209,10 +194,6 @@ export default function ItineraryDayDialog({
               )}
             </TabsContent>
           </Tabs>
-
-          <Separator />
-
-          <ActivityListEditor tripId={tripId} activities={activities} onChange={setActivities} />
         </form>
 
         <Separator />

@@ -173,7 +173,6 @@ export default function ItineraryPage() {
     title: string;
     content: string;
     location: LocationOption | null;
-    activities: ActivityPayload[];
   }) => {
     if (dialogMode === 'add') {
       const newDayNumber = days.length + 1;
@@ -270,7 +269,6 @@ export default function ItineraryPage() {
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
         onSubmit={handleDialogSubmit}
-        tripId={tripId}
         day={editingDay}
         dayNumber={dialogMode === 'edit' ? editingDay?.day_number : days.length + 1}
       />
