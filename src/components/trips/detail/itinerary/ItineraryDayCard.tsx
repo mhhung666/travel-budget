@@ -17,8 +17,7 @@ interface ItineraryDayCardProps {
   day: ItineraryDay;
   /** 票券附件檢視需要 trip 識別碼。 */
   tripId: string;
-  /** 頁面處於編輯模式且使用者為 admin 時顯示天/活動的編輯動作；閱讀模式為純檢視。 */
-  editable: boolean;
+  isAdmin: boolean;
   onEdit: (day: ItineraryDay) => void;
   /** 卡片上的「新增活動」捷徑：開輕量單一活動對話框。 */
   onAddActivity: (day: ItineraryDay) => void;
@@ -31,7 +30,7 @@ interface ItineraryDayCardProps {
 export default function ItineraryDayCard({
   day,
   tripId,
-  editable,
+  isAdmin,
   onEdit,
   onAddActivity,
   onDelete,
@@ -67,7 +66,7 @@ export default function ItineraryDayCard({
               )}
             </div>
           </div>
-          {editable && (
+          {isAdmin && (
             <div className="flex gap-1">
               <Button
                 variant="ghost"
@@ -160,7 +159,7 @@ export default function ItineraryDayCard({
                       </div>
                     )}
                   </div>
-                  {editable && (
+                  {isAdmin && (
                     <div className="flex shrink-0 gap-0.5">
                       <Button
                         variant="ghost"

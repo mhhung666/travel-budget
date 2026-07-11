@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
-import { CalendarDays, Eye, Pencil, Plus } from 'lucide-react';
+import { CalendarDays, Plus } from 'lucide-react';
 import {
   ItineraryDayCard,
   ItineraryDayDialog,
@@ -24,7 +24,6 @@ import { exportItinerary, type ExportFormat } from '@/lib/exporters';
 import { ItinerarySkeleton } from '@/components/skeletons';
 import { EmptyState, ErrorState } from '@/components/common';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -73,10 +72,6 @@ export default function ItineraryPage() {
       },
     });
 
-  // 閱讀/編輯模式：預設閱讀（乾淨檢視）；只有 admin 能切到編輯模式看到編輯動作。
-  const [pageMode, setPageMode] = useState<'read' | 'edit'>('read');
-  const editable = isAdmin && pageMode === 'edit';
-
   // Dialog states
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<'add' | 'edit'>('add');
@@ -87,6 +82,11 @@ export default function ItineraryPage() {
     activity?: Activity;
   } | null>(null);
   const [deletingDay, setDeletingDay] = useState<ItineraryDay | null>(null);
+  // 待確認刪除的單筆活動；null＝關閉確認框。
+  const [deletingActivity, setDeletingActivity] = useState<{
+    day: ItineraryDay;
+    activity: Activity;
+  } | null>(null);
 
   const tCommon = useTranslations('common');
 
@@ -129,14 +129,21 @@ export default function ItineraryPage() {
     });
   };
 
-  // 活動列上的「刪除」：單筆活動可立即重加、誤刪成本低，直接刪＋toast，不跳確認框。
-  const handleDeleteActivity = async (day: ItineraryDay, activity: Activity) => {
+  // 活動列上的「刪除」：先開確認框避免誤按，確認後才真的移除。
+  const handleDeleteActivity = (day: ItineraryDay, activity: Activity) => {
+    setDeletingActivity({ day, activity });
+  };
+
+  const confirmDeleteActivity = async () => {
+    if (!deletingActivity) return;
+    const { day, activity } = deletingActivity;
     const remaining = draftsToPayload(
       dayActivitiesToDrafts(day.activities.filter((a) => a.id !== activity.id))
     );
     try {
       await update.mutateAsync({ dayId: day.id, data: { activities: remaining } });
       toast({ title: tAct('removedFromDay', { dayNumber: day.day_number }) });
+      setDeletingActivity(null);
     } catch (err: unknown) {
       toast({
         title: tCommon('errorTitle'),
@@ -205,37 +212,18 @@ export default function ItineraryPage() {
   return (
     <div className="container mx-auto max-w-4xl py-4 px-4 sm:px-6">
       {/* 頁首由行程空間殼提供（分頁列已標示所在位置），此列只放動作 */}
-      <div className="mb-4 flex items-center justify-between gap-2">
-        {/* 閱讀/編輯切換：僅 admin；非 admin 恆為閱讀模式 */}
-        {isAdmin ? (
-          <Tabs value={pageMode} onValueChange={(v) => setPageMode(v as 'read' | 'edit')}>
-            <TabsList className="grid w-[180px] grid-cols-2">
-              <TabsTrigger value="read" className="gap-1.5">
-                <Eye size={14} />
-                {tItinerary('readMode')}
-              </TabsTrigger>
-              <TabsTrigger value="edit" className="gap-1.5">
-                <Pencil size={14} />
-                {tItinerary('editMode')}
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-        ) : (
-          <div />
+      <div className="mb-4 flex items-center justify-end gap-2">
+        <ExportMenu
+          build={buildExport}
+          fileBaseName={`${trip?.name ?? 'trip'}-${tExport('itinerary.heading')}`}
+          disabled={days.length === 0}
+        />
+        {isAdmin && (
+          <Button onClick={handleAddDay} className="gap-2">
+            <Plus className="h-4 w-4" />
+            {tItinerary('addDay')}
+          </Button>
         )}
-        <div className="flex items-center gap-2">
-          <ExportMenu
-            build={buildExport}
-            fileBaseName={`${trip?.name ?? 'trip'}-${tExport('itinerary.heading')}`}
-            disabled={days.length === 0}
-          />
-          {editable && (
-            <Button onClick={handleAddDay} className="gap-2">
-              <Plus className="h-4 w-4" />
-              {tItinerary('addDay')}
-            </Button>
-          )}
-        </div>
       </div>
 
       {/* Day cards */}
@@ -252,7 +240,7 @@ export default function ItineraryPage() {
               key={day.id}
               day={day}
               tripId={tripId}
-              editable={editable}
+              isAdmin={isAdmin}
               onEdit={handleEditDay}
               onAddActivity={handleAddActivity}
               onDelete={handleDeleteDay}
@@ -282,6 +270,34 @@ export default function ItineraryPage() {
         dayNumber={activityDialog?.day.day_number}
         activity={activityDialog?.activity ?? null}
       />
+
+      {/* 單筆活動刪除確認 */}
+      <AlertDialog
+        open={!!deletingActivity}
+        onOpenChange={(open) => !open && setDeletingActivity(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{tAct('removeConfirm')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deletingActivity &&
+                tAct('removeConfirmMessage', {
+                  title: deletingActivity.activity.title,
+                  dayNumber: deletingActivity.day.day_number,
+                })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteActivity}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {tCommon('confirm')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!deletingDay} onOpenChange={(open) => !open && setDeletingDay(null)}>

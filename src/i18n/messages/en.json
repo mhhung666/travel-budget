@@ -825,8 +825,6 @@
     "dayContentPlaceholder": "Write your itinerary using Markdown...",
     "preview": "Preview",
     "write": "Edit",
-    "readMode": "Read",
-    "editMode": "Edit",
     "emptyState": "No itinerary planned yet",
     "emptyStateHint": "Click \"Add Day\" to start planning",
     "deleteConfirm": "Are you sure you want to delete this day?",
@@ -868,7 +866,9 @@
       "edit": "Edit activity",
       "editInDay": "Edit activity · Day {dayNumber}",
       "updatedInDay": "Activity updated in Day {dayNumber}",
-      "removedFromDay": "Activity removed from Day {dayNumber}"
+      "removedFromDay": "Activity removed from Day {dayNumber}",
+      "removeConfirm": "Remove this activity?",
+      "removeConfirmMessage": "This will remove \"{title}\" from Day {dayNumber}."
     },
     "dayLabel": "Day {dayNumber}"
   },
