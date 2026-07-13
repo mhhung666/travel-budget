@@ -12,6 +12,8 @@ import {
   Users,
   CalendarDays,
   Compass,
+  Medal,
+  Hotel,
 } from 'lucide-react';
 import type { YearInReviewData } from '@/types';
 
@@ -117,6 +119,45 @@ export const WrappedCard = forwardRef<HTMLDivElement, WrappedCardProps>(function
               {t('topCategory')}：{tc(review.topCategory.category)}
             </div>
           )}
+        </div>
+      )}
+
+      {/* 旅行成就（FEATURES §16）：該年航班/住宿與新解鎖。欄位 optional——
+          公開分享 payload 不含（去識別化），此區塊自動隱藏。 */}
+      {((review.flightCount ?? 0) > 0 || (review.stayCount ?? 0) > 0) && (
+        <div className="relative z-10 rounded-2xl bg-white/10 p-4 backdrop-blur-sm">
+          <div className="flex items-center gap-2 text-xs font-medium text-white/70">
+            <Medal className="h-4 w-4" />
+            {t('stat.collections')}
+          </div>
+          <div className="mt-2 space-y-1.5 text-sm">
+            {(review.flightCount ?? 0) > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="flex items-center gap-1.5 font-medium">
+                  <Plane className="h-3.5 w-3.5 text-white/80" />
+                  {t('stat.flightsCount', { count: review.flightCount ?? 0 })}
+                </span>
+                {(review.newAirlineCount ?? 0) > 0 && (
+                  <span className="rounded-full bg-white/15 px-2 py-0.5 text-xs">
+                    {t('stat.newAirlines', { count: review.newAirlineCount ?? 0 })}
+                  </span>
+                )}
+              </div>
+            )}
+            {(review.stayCount ?? 0) > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="flex items-center gap-1.5 font-medium">
+                  <Hotel className="h-3.5 w-3.5 text-white/80" />
+                  {t('stat.staysCount', { count: review.stayCount ?? 0 })}
+                </span>
+                {(review.newBrandCount ?? 0) > 0 && (
+                  <span className="rounded-full bg-white/15 px-2 py-0.5 text-xs">
+                    {t('stat.newBrands', { count: review.newBrandCount ?? 0 })}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       )}
 

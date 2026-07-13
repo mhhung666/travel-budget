@@ -13,6 +13,8 @@ const StayRecordSchema = new Schema(
   {
     user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     trip: { type: Schema.Types.ObjectId, ref: 'Trip', default: null },
+    // 來源行程活動 id（同 FlightRecord.sourceActivity：帶入防重複用，手動補登為 null）
+    sourceActivity: { type: Schema.Types.ObjectId, default: null },
     checkIn: { type: Date, required: true },
     datePrecision: { type: String, enum: DATE_PRECISIONS, default: 'day' },
     // 住幾晚；null = 未填（歷史回填常見）

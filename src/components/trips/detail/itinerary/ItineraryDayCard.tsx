@@ -1,9 +1,10 @@
 'use client';
 
-import { Edit2, Trash2, MapPin, Ticket, CalendarPlus } from 'lucide-react';
+import { Edit2, Trash2, MapPin, Ticket, CalendarPlus, Medal } from 'lucide-react';
 import { useTranslations, useLocale } from 'next-intl';
 import type { Activity, ItineraryDay } from '@/types';
-import { pickLocalizedName } from '@/lib/utils';
+import { pickLocalizedName, cn } from '@/lib/utils';
+import { activityImportKind } from '@/lib/collectionImport';
 import { countryCodeToFlag } from '@/components/map/country';
 import { sortActivities } from '@/lib/itineraryActivities';
 import { ACTIVITY_TYPE_ICON } from './activityMeta';
@@ -25,6 +26,13 @@ interface ItineraryDayCardProps {
   /** 活動列右側的編輯捷徑：開單一活動對話框（預填該筆）。 */
   onEditActivity: (day: ItineraryDay, activity: Activity) => void;
   onDeleteActivity: (day: ItineraryDay, activity: Activity) => void;
+  /**
+   * 交通/住宿活動「帶入旅行成就」（開預填的補登對話框）。個人紀錄——
+   * 任何成員都可帶入自己的成就，不受 isAdmin 限制。
+   */
+  onImportActivity: (day: ItineraryDay, activity: Activity) => void;
+  /** 我已帶入成就的活動 id 集合（顯示已帶入、防重複）。 */
+  importedActivityIds: Set<string>;
 }
 
 export default function ItineraryDayCard({
@@ -36,6 +44,8 @@ export default function ItineraryDayCard({
   onDelete,
   onEditActivity,
   onDeleteActivity,
+  onImportActivity,
+  importedActivityIds,
 }: ItineraryDayCardProps) {
   const tItinerary = useTranslations('itinerary');
   const tAct = useTranslations('itinerary.activities');
@@ -158,6 +168,28 @@ export default function ItineraryDayCard({
                         ))}
                       </div>
                     )}
+                  </div>
+                  <div className="flex shrink-0 gap-0.5">
+                    {activityImportKind(activity.type) !== null &&
+                      (importedActivityIds.has(activity.id) ? (
+                        <span
+                          className="flex h-7 w-7 items-center justify-center text-primary"
+                          title={tAct('imported')}
+                        >
+                          <Medal className="h-3.5 w-3.5" />
+                          <span className="sr-only">{tAct('imported')}</span>
+                        </span>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className={cn('h-7 w-7 text-muted-foreground hover:text-primary')}
+                          onClick={() => onImportActivity(day, activity)}
+                          title={tAct('importToCollections')}
+                        >
+                          <Medal className="h-3.5 w-3.5" />
+                        </Button>
+                      ))}
                   </div>
                   {isAdmin && (
                     <div className="flex shrink-0 gap-0.5">

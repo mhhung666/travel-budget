@@ -45,10 +45,29 @@ export interface YearInReviewExpense {
   shareAmount: number;
 }
 
+/** 旅行成就的飛行紀錄投影（date 為 YYYY-MM-DD）。 */
+export interface YearInReviewFlight {
+  airline: string;
+  date: string;
+}
+
+/** 旅行成就的住宿紀錄投影（brand 為目錄 id；null＝獨立旅宿，不計入品牌解鎖）。 */
+export interface YearInReviewStay {
+  brand: string | null;
+  checkIn: string;
+}
+
 export interface YearInReviewInputs {
   trips: YearInReviewTrip[];
   itinerary: YearInReviewPlace[];
   expenses: YearInReviewExpense[];
+  /**
+   * 旅行成就紀錄（**全部歷史**，非單一年份）：計算該年航班/住宿數，以及
+   * 「新解鎖」航空/品牌（首次出現落在該年——首次與否必須看全歷史才判得出）。
+   * 可省略（＝無成就資料，相關欄位回 0）。
+   */
+  flights?: YearInReviewFlight[];
+  stays?: YearInReviewStay[];
   /** 目前使用者 id，用於把自己排除在「旅伴」計數之外。 */
   selfUserId: string;
 }
@@ -140,6 +159,32 @@ export function computeYearInReview(inputs: YearInReviewInputs, year: number): Y
     }
   });
 
+  // 成就：該年的航班/住宿數＋「新解鎖」航空/品牌（首次出現落在該年）。
+  let flightCount = 0;
+  const airlineFirstDate = new Map<string, string>();
+  for (const f of inputs.flights ?? []) {
+    if (f.date.slice(0, 4) === yearPrefix) flightCount += 1;
+    const cur = airlineFirstDate.get(f.airline);
+    if (!cur || f.date < cur) airlineFirstDate.set(f.airline, f.date);
+  }
+  let newAirlineCount = 0;
+  for (const first of airlineFirstDate.values()) {
+    if (first.slice(0, 4) === yearPrefix) newAirlineCount += 1;
+  }
+
+  let stayCount = 0;
+  const brandFirstDate = new Map<string, string>();
+  for (const s of inputs.stays ?? []) {
+    if (s.checkIn.slice(0, 4) === yearPrefix) stayCount += 1;
+    if (!s.brand) continue; // 獨立旅宿不算品牌解鎖
+    const cur = brandFirstDate.get(s.brand);
+    if (!cur || s.checkIn < cur) brandFirstDate.set(s.brand, s.checkIn);
+  }
+  let newBrandCount = 0;
+  for (const first of brandFirstDate.values()) {
+    if (first.slice(0, 4) === yearPrefix) newBrandCount += 1;
+  }
+
   return {
     year,
     tripCount: yearTrips.length,
@@ -154,6 +199,10 @@ export function computeYearInReview(inputs: YearInReviewInputs, year: number): Y
     categoryBreakdown,
     monthlySpend: monthlySpend.map((v) => Math.round(v)),
     busiestMonth,
+    flightCount,
+    newAirlineCount,
+    stayCount,
+    newBrandCount,
   };
 }
 

@@ -161,6 +161,7 @@ export {
 // Collection actions（旅行成就：飛行/住宿終身紀錄＋造訪國家）
 export {
   getCollections,
+  getTripCollectionLinks,
   createFlightRecord,
   updateFlightRecord,
   deleteFlightRecord,

@@ -10,6 +10,8 @@ export interface FlightRecordItem {
   id: string;
   /** 連結的旅程；null＝手動補登（或旅程已刪除、連結已解除）。 */
   trip_id: string | null;
+  /** 來源行程活動 id（一鍵帶入）；null＝手動補登。 */
+  source_activity_id: string | null;
   /** YYYY-MM-DD；依 date_precision 只取有效部分顯示。 */
   date: string;
   date_precision: DatePrecision;
@@ -28,6 +30,8 @@ export interface FlightRecordItem {
 export interface StayRecordItem {
   id: string;
   trip_id: string | null;
+  /** 來源行程活動 id（一鍵帶入）；null＝手動補登。 */
+  source_activity_id: string | null;
   /** 入住日 YYYY-MM-DD；依 date_precision 只取有效部分顯示。 */
   check_in: string;
   date_precision: DatePrecision;
@@ -55,4 +59,13 @@ export interface CollectionsData {
   flights: FlightRecordItem[];
   stays: StayRecordItem[];
   countries: VisitedCountryItem[];
+}
+
+/**
+ * 某旅程中「我已帶入成就」的行程活動 id 集合（行程頁顯示已帶入狀態、防重複帶入）。
+ * per-user：只包含目前使用者自己的紀錄。
+ */
+export interface TripCollectionLinks {
+  flight_activity_ids: string[];
+  stay_activity_ids: string[];
 }

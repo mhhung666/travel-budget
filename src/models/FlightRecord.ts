@@ -21,6 +21,9 @@ const FlightRecordSchema = new Schema(
   {
     user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     trip: { type: Schema.Types.ObjectId, ref: 'Trip', default: null },
+    // 來源行程活動（ItineraryDay.activities[]._id）：從行程「一鍵帶入」時記錄，
+    // 供行程頁顯示「已帶入」防重複；手動補登為 null。不設 ref（活動是內嵌子文件）。
+    sourceActivity: { type: Schema.Types.ObjectId, default: null },
     date: { type: Date, required: true },
     datePrecision: { type: String, enum: DATE_PRECISIONS, default: 'day' },
     // IATA 航空公司代碼（如 BR / JL / 9C）

@@ -20,6 +20,7 @@ import type {
   CollectionsData,
   FlightRecordItem,
   StayRecordItem,
+  TripCollectionLinks,
   VisitedCountryItem,
   Location,
 } from '@/types';
@@ -34,7 +35,12 @@ import { logger } from '@/lib/logger';
  * 隱私比照收據：本檔所有資料不進任何公開分享路由。
  */
 
-type LeanRecordBase = { _id: Types.ObjectId; trip: Types.ObjectId | null; createdAt: Date };
+type LeanRecordBase = {
+  _id: Types.ObjectId;
+  trip: Types.ObjectId | null;
+  sourceActivity?: Types.ObjectId | null;
+  createdAt: Date;
+};
 type LeanFlight = LeanRecordBase & Omit<FlightRecordDoc, 'user' | 'trip'>;
 type LeanStay = LeanRecordBase & Omit<StayRecordDoc, 'user' | 'trip'>;
 
@@ -44,6 +50,7 @@ function toFlightRecordItem(doc: LeanFlight): FlightRecordItem {
   return {
     id: doc._id.toString(),
     trip_id: doc.trip ? doc.trip.toString() : null,
+    source_activity_id: doc.sourceActivity ? doc.sourceActivity.toString() : null,
     date: toYmd(doc.date),
     date_precision: doc.datePrecision ?? 'day',
     airline: doc.airline,
@@ -60,6 +67,7 @@ function toStayRecordItem(doc: LeanStay): StayRecordItem {
   return {
     id: doc._id.toString(),
     trip_id: doc.trip ? doc.trip.toString() : null,
+    source_activity_id: doc.sourceActivity ? doc.sourceActivity.toString() : null,
     check_in: toYmd(doc.checkIn),
     date_precision: doc.datePrecision ?? 'day',
     nights: doc.nights ?? null,
@@ -83,6 +91,20 @@ async function resolveTripLink(
   if (!tripIdOrCode) return null;
   const membership = await getTripMembership(userId, tripIdOrCode);
   return membership ? membership.tripId : undefined;
+}
+
+/**
+ * 驗證「來源行程活動」歸屬（一鍵帶入防偽造）：有帶 source_activity_id 時必須同時連結旅程，
+ * 且該活動確實存在於該旅程的行程日中。回傳 false 表示驗證不過。
+ */
+async function validateSourceActivity(
+  tripId: string | null,
+  sourceActivityId: string | null | undefined
+): Promise<boolean> {
+  if (!sourceActivityId) return true;
+  if (!tripId) return false;
+  const exists = await ItineraryDay.exists({ trip: tripId, 'activities._id': sourceActivityId });
+  return exists !== null;
 }
 
 /**
@@ -151,11 +173,49 @@ export const getCollections = withAuth(async (session): Promise<ActionResult<Col
   }
 });
 
+/**
+ * 某旅程中「我已帶入成就」的活動 id 集合（行程頁顯示已帶入、防重複帶入）。
+ * per-user：只查目前使用者自己的紀錄；tripIdOrCode 雙重接受。
+ */
+export const getTripCollectionLinks = withAuth(
+  async (session, tripIdOrCode: string): Promise<ActionResult<TripCollectionLinks>> => {
+    try {
+      const membership = await getTripMembership(session.userId, tripIdOrCode);
+      if (!membership) {
+        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+      }
+
+      type LeanLink = { sourceActivity: Types.ObjectId | null };
+      const filter = {
+        user: session.userId,
+        trip: membership.tripId,
+        sourceActivity: { $ne: null },
+      };
+      const [flights, stays] = await Promise.all([
+        FlightRecord.find(filter).select('sourceActivity').lean<LeanLink[]>(),
+        StayRecord.find(filter).select('sourceActivity').lean<LeanLink[]>(),
+      ]);
+
+      return {
+        success: true,
+        data: {
+          flight_activity_ids: flights.map((f) => f.sourceActivity!.toString()),
+          stay_activity_ids: stays.map((s) => s.sourceActivity!.toString()),
+        },
+      };
+    } catch (error) {
+      logger.error('Get trip collection links error', error);
+      return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
+    }
+  }
+);
+
 // ── 飛行紀錄 CRUD ────────────────────────────────────────────────────
 
 function flightFields(input: CreateFlightRecordInput, tripId: string | null) {
   return {
     trip: tripId,
+    sourceActivity: input.source_activity_id ?? null,
     date: new Date(input.date),
     datePrecision: input.date_precision,
     airline: input.airline,
@@ -180,6 +240,9 @@ export const createFlightRecord = withAuth(
       const tripId = await resolveTripLink(session.userId, parsed.data.trip_id);
       if (tripId === undefined) {
         return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+      }
+      if (!(await validateSourceActivity(tripId, parsed.data.source_activity_id))) {
+        return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
       }
 
       const doc = await FlightRecord.create({
@@ -215,6 +278,9 @@ export const updateFlightRecord = withAuth(
       const tripId = await resolveTripLink(session.userId, parsed.data.trip_id);
       if (tripId === undefined) {
         return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+      }
+      if (!(await validateSourceActivity(tripId, parsed.data.source_activity_id))) {
+        return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
       }
 
       // 原子更新：filter 同時帶 _id + 本人（比照好友系統，不做讀改寫）
@@ -262,6 +328,7 @@ export const deleteFlightRecord = withAuth(
 function stayFields(input: CreateStayRecordInput, tripId: string | null) {
   return {
     trip: tripId,
+    sourceActivity: input.source_activity_id ?? null,
     checkIn: new Date(input.check_in),
     datePrecision: input.date_precision,
     nights: input.nights ?? null,
@@ -291,6 +358,9 @@ export const createStayRecord = withAuth(
       const tripId = await resolveTripLink(session.userId, parsed.data.trip_id);
       if (tripId === undefined) {
         return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+      }
+      if (!(await validateSourceActivity(tripId, parsed.data.source_activity_id))) {
+        return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
       }
 
       const doc = await StayRecord.create({
@@ -326,6 +396,9 @@ export const updateStayRecord = withAuth(
       const tripId = await resolveTripLink(session.userId, parsed.data.trip_id);
       if (tripId === undefined) {
         return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+      }
+      if (!(await validateSourceActivity(tripId, parsed.data.source_activity_id))) {
+        return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
       }
 
       const updated = await StayRecord.findOneAndUpdate(

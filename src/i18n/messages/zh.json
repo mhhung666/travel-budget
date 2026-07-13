@@ -862,7 +862,10 @@
       "updatedInDay": "已更新第 {dayNumber} 天的活動",
       "removedFromDay": "已從第 {dayNumber} 天移除活動",
       "removeConfirm": "確定要移除此活動嗎？",
-      "removeConfirmMessage": "將從第 {dayNumber} 天移除「{title}」。"
+      "removeConfirmMessage": "將從第 {dayNumber} 天移除「{title}」。",
+      "importToCollections": "帶入旅行成就",
+      "imported": "已帶入旅行成就",
+      "importedSuccess": "已帶入旅行成就"
     },
     "dayLabel": "第 {dayNumber} 天"
   },
@@ -946,7 +949,10 @@
     "modePhotos": "相片",
     "photoTitle": "共 {count} 個相片地點",
     "photoEmpty": "還沒有相片。把照片附加到支出收據、並將該支出關聯到有地點的行程日，就會釘上地圖。",
-    "photoCount": "{count} 張相片"
+    "photoCount": "{count} 張相片",
+    "modeFlights": "飛行",
+    "flightTitle": "{count} 條航段",
+    "flightEmpty": "還沒有可畫的航線——到「旅行成就」補登含出發／抵達機場的飛行紀錄"
   },
   "notifications": {
     "title": "通知",
@@ -1063,7 +1069,12 @@
       "spend": "總花費",
       "expenses": "筆支出",
       "companions": "位旅伴",
-      "longestTrip": "最長旅程"
+      "longestTrip": "最長旅程",
+      "collections": "旅行成就",
+      "flightsCount": "{count} 個航班",
+      "newAirlines": "新解鎖 {count} 家航空",
+      "staysCount": "{count} 次住宿",
+      "newBrands": "新解鎖 {count} 個品牌"
     },
     "days": "{count} 天",
     "topCategory": "最常花費",

@@ -869,7 +869,10 @@
       "updatedInDay": "Activity updated in Day {dayNumber}",
       "removedFromDay": "Activity removed from Day {dayNumber}",
       "removeConfirm": "Remove this activity?",
-      "removeConfirmMessage": "This will remove \"{title}\" from Day {dayNumber}."
+      "removeConfirmMessage": "This will remove \"{title}\" from Day {dayNumber}.",
+      "importToCollections": "Add to achievements",
+      "imported": "Added to achievements",
+      "importedSuccess": "Added to achievements"
     },
     "dayLabel": "Day {dayNumber}"
   },
@@ -953,7 +956,10 @@
     "modePhotos": "Photos",
     "photoTitle": "{count} photo locations",
     "photoEmpty": "No photos yet. Attach a photo to an expense receipt and link that expense to an itinerary day with a location to pin it on the map.",
-    "photoCount": "{count} photos"
+    "photoCount": "{count} photos",
+    "modeFlights": "Flights",
+    "flightTitle": "{count, plural, one {# segment} other {# segments}}",
+    "flightEmpty": "No routes to draw yet — log flights with departure/arrival airports in Achievements"
   },
   "notifications": {
     "title": "Notifications",
@@ -1070,7 +1076,12 @@
       "spend": "total spend",
       "expenses": "expenses",
       "companions": "travel buddies",
-      "longestTrip": "longest trip"
+      "longestTrip": "longest trip",
+      "collections": "Achievements",
+      "flightsCount": "{count, plural, one {# flight} other {# flights}}",
+      "newAirlines": "{count, plural, one {# new airline} other {# new airlines}}",
+      "staysCount": "{count, plural, one {# stay} other {# stays}}",
+      "newBrands": "{count, plural, one {# new brand} other {# new brands}}"
     },
     "days": "{count} days",
     "topCategory": "Top category",

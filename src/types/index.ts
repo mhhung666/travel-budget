@@ -72,6 +72,7 @@ export type {
   StayRecordItem,
   VisitedCountryItem,
   CollectionsData,
+  TripCollectionLinks,
 } from './models';
 
 // ============================================

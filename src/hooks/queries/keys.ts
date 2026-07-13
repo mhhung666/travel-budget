@@ -45,6 +45,9 @@ export const collectionKeys = {
   all: ['collections'] as const,
   airlines: ['catalog', 'airlines'] as const,
   airports: ['catalog', 'airports'] as const,
+  // 行程頁「已帶入成就」的活動 id 集合（per-user × per-trip）
+  tripLinksAll: ['collectionLinks'] as const,
+  tripLinks: (tripId: string) => ['collectionLinks', tripId] as const,
 } as const;
 
 /**

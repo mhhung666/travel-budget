@@ -20,6 +20,30 @@ export interface GeoPoint {
   countryCode?: string;
 }
 
+/** 飛行航線圖的機場端點（自 airports.json 目錄解析出座標）。 */
+export interface AirportPoint {
+  iata: string;
+  /** 顯示名（城市優先，退回機場名）。 */
+  name: string;
+  lat: number;
+  lon: number;
+  /** ISO 3166-1 alpha-2。 */
+  country?: string | null;
+}
+
+/**
+ * 飛行航段（旅行成就 FlightRecord 依「出發→抵達」聚合）。
+ * 登入限定——飛行紀錄是個人資料，公開分享地圖不含此圖層。
+ */
+export interface FlightSegment {
+  /** `${fromIata}-${toIata}`（方向性）。 */
+  key: string;
+  from: AirportPoint;
+  to: AirportPoint;
+  /** 此航段的飛行次數（線寬權重）。 */
+  count: number;
+}
+
 /**
  * 地圖上的一趟旅行（由 TripWithMembers 投影而來）。
  * 每趟旅行畫一條「出發地 → 目的地」的線；舊資料可能只有目的地。

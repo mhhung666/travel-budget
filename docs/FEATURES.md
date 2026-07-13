@@ -298,7 +298,23 @@ UI：登入頁 [/wrapped](../src/app/%5Blocale%5D/wrapped/page.tsx)（年份切�
 （`summarizeAirlines` / `summarizeBrands` / `formatByPrecision`，10 個單元測試）。
 航班號輸入自動帶出航空公司（前兩碼比對目錄）。
 
-**待做（見 ROADMAP #19）**：P2 行程活動一鍵帶入＋地圖航線弧＋wrapped 圖卡；P3 里程碑徽章＋去識別化公開分享卡。
+**P2（行程整合＋地圖＋wrapped，2026-07-13）**：
+- **行程一鍵帶入**：行程頁交通/住宿活動列的 Medal 按鈕（**任何成員可用**，個人紀錄不受 isAdmin 限制）
+  → 開預填的補登對話框。預填為啟發式（[lib/collectionImport.ts](../src/lib/collectionImport.ts)，9 個測試）：
+  日期＝旅程出發日推第 N 天、航班號/航空自標題文字比對、品牌自標題比對目錄（取最長命中）、
+  猜錯在對話框改掉即可。紀錄帶 `sourceActivity`（活動子文件 _id，action 以 `ItineraryDay.exists`
+  驗證歸屬防偽造）；[getTripCollectionLinks](../src/actions/collection.actions.ts) 回「我已帶入」的活動 id
+  集合供顯示已帶入/防重複。編輯紀錄時 `source_activity_id` 沿用原值（改掉連結旅程才清除）。
+- **地圖「飛行」模式**：第五個模式（routes/flights/heat/countries/photos）。FlightRecord 依
+  「出發→抵達」聚合成航段（線寬＝次數、great-circle 弧＋機場點），座標自 airports.json 解析，
+  **純 client 組裝、登入限定**——公開分享地圖（PublicMapView）不含此圖層。年份篩選連動，
+  並把飛行紀錄年份併入年份選項（回填可早於任何旅程）。
+- **wrapped 成就區塊**：`computeYearInReview` 新增（該年航班/住宿數＋「新解鎖」航空/品牌——
+  首次出現以**全歷史**判定，3 個新測試）。`YearInReviewData` 新欄位為 **optional**：公開分享
+  payload（[public wrapped 路由](../src/app/api/public/wrapped/%5Bcode%5D/%5Byear%5D/route.ts)自建白名單）
+  不含它們 → 公開圖卡自動隱藏此區塊，去識別化契約不變。
+
+**待做（見 ROADMAP #19）**：P3 里程碑徽章＋去識別化公開分享卡。
 
 ---
 

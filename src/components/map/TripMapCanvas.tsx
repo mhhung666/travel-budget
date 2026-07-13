@@ -6,18 +6,20 @@ import MarkerClusterGroup from 'react-leaflet-cluster';
 import { LatLngBounds, divIcon } from 'leaflet';
 import { useTheme } from 'next-themes';
 import 'leaflet/dist/leaflet.css';
-import type { TripRoute, HeatPoint } from './types';
+import type { TripRoute, HeatPoint, FlightSegment } from './types';
 import type { PhotoPin } from './photos';
 import { countryCodeToFlag, countryColor } from './country';
 import { greatCirclePositions, routeHeading } from './arc';
 import HeatLayer from './HeatLayer';
 import CountriesLayer from './CountriesLayer';
 
-export type MapMode = 'routes' | 'heat' | 'countries' | 'photos';
+export type MapMode = 'routes' | 'flights' | 'heat' | 'countries' | 'photos';
 
 interface TripMapCanvasProps {
   mode?: MapMode;
   routes: TripRoute[];
+  /** 飛行航段（mode === 'flights' 時使用；登入限定、不進公開分享）。 */
+  flightSegments?: FlightSegment[];
   /** 熱點資料（mode === 'heat' 時使用）。 */
   heatPoints?: HeatPoint[];
   /** 已造訪國家 alpha-2 集合（mode === 'countries' 時上色用）。 */
@@ -133,6 +135,23 @@ function planeIcon(color: string, angle: number) {
   });
 }
 
+/** 飛行航線圖的機場點：實心小圓（用主線色），tooltip 顯示 IATA + 城市。 */
+function airportIcon(color: string) {
+  const size = 10;
+  return divIcon({
+    className: 'trip-map-pin',
+    html: `<div style="
+      width:${size}px;height:${size}px;
+      background:${color};
+      border:2px solid #fff;
+      border-radius:50%;
+      box-shadow:0 1px 3px rgba(0,0,0,.3);
+    "></div>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+  });
+}
+
 /** 相片釘點：相機圖示 + 相片數量氣泡。 */
 function photoIcon(color: string, count: number) {
   const size = 30;
@@ -169,6 +188,7 @@ function photoIcon(color: string, count: number) {
 export default function TripMapCanvas({
   mode = 'routes',
   routes,
+  flightSegments = [],
   heatPoints = [],
   visitedCountries,
   photoPins = [],
@@ -184,14 +204,27 @@ export default function TripMapCanvas({
   const isHeat = mode === 'heat';
   const isCountries = mode === 'countries';
   const isPhotos = mode === 'photos';
+  const isFlights = mode === 'flights';
   // 回放時只畫前 N 條；其餘模式畫全部。
   const visibleRoutes = revealCount === undefined ? routes : routes.slice(0, revealCount);
-  const isRoutes = !isHeat && !isCountries && !isPhotos;
+  const isRoutes = !isHeat && !isCountries && !isPhotos && !isFlights;
+  // 飛行模式的機場點（去重；tooltip / fit 視野用）。
+  const flightAirports = (() => {
+    if (!isFlights) return [];
+    const map = new Map<string, FlightSegment['from']>();
+    for (const s of flightSegments) {
+      map.set(s.from.iata, s.from);
+      map.set(s.to.iata, s.to);
+    }
+    return [...map.values()];
+  })();
   const fitCoords: [number, number][] = isHeat
     ? heatPoints.map((p) => [p.lat, p.lon])
     : isPhotos
       ? photoPins.map((p) => [p.lat, p.lon])
-      : allCoords(routes);
+      : isFlights
+        ? flightAirports.map((a) => [a.lat, a.lon])
+        : allCoords(routes);
   const maxWeight = heatPoints.reduce((m, p) => Math.max(m, p.weight), 0);
   const heatTuples = heatPoints.map((p) => [p.lat, p.lon, p.weight] as [number, number, number]);
 
@@ -231,6 +264,38 @@ export default function TripMapCanvas({
           ))}
         </MarkerClusterGroup>
       )}
+
+      {/* 飛行航段（旅行成就 FlightRecord 聚合）：弧線粗細依飛行次數，機場為小圓點 */}
+      {isFlights &&
+        flightSegments.map((s) => {
+          const positions = greatCirclePositions([s.from.lat, s.from.lon], [s.to.lat, s.to.lon]);
+          const heading = routeHeading(positions);
+          return (
+            <Fragment key={`flight-${s.key}`}>
+              <Polyline
+                positions={positions}
+                pathOptions={{
+                  color: lineColor,
+                  weight: Math.min(1.5 + s.count, 5),
+                  opacity: 0.65,
+                }}
+              />
+              <Marker
+                position={heading.position}
+                icon={planeIcon(lineColor, heading.angle)}
+                interactive={false}
+              />
+            </Fragment>
+          );
+        })}
+      {isFlights &&
+        flightAirports.map((a) => (
+          <Marker key={`airport-${a.iata}`} position={[a.lat, a.lon]} icon={airportIcon(lineColor)}>
+            <Tooltip direction="top" offset={[0, -8]}>
+              <span className="font-mono">{a.iata}</span> · {a.name}
+            </Tooltip>
+          </Marker>
+        ))}
 
       {isRoutes && <FlyToSelected routes={visibleRoutes} selectedId={selectedId} />}
 

@@ -16,10 +16,24 @@ import {
 } from '@/components/trips/detail/itinerary/ActivityListEditor';
 import type { LocationOption } from '@/components/location/LocationAutocomplete';
 import { ExportMenu } from '@/components/export';
+import { FlightRecordDialog, StayRecordDialog } from '@/components/collections';
 import type { Activity, ItineraryDay } from '@/types';
-import { useItinerary, useTrip, useTripMembership, useItineraryMutations } from '@/hooks/queries';
+import type { CreateFlightRecordInput, CreateStayRecordInput } from '@/lib/validation';
+import {
+  useItinerary,
+  useTrip,
+  useTripMembership,
+  useItineraryMutations,
+  useTripCollectionLinks,
+} from '@/hooks/queries';
 import type { ActivityPayload } from '@/hooks/queries/useItineraryMutations';
 import { exportItinerary, type ExportFormat } from '@/lib/exporters';
+import {
+  activityImportKind,
+  dayDateFromTrip,
+  matchHotelBrand,
+  parseFlightNo,
+} from '@/lib/collectionImport';
 
 import { ItinerarySkeleton } from '@/components/skeletons';
 import { EmptyState, ErrorState } from '@/components/common';
@@ -87,6 +101,61 @@ export default function ItineraryPage() {
     day: ItineraryDay;
     activity: Activity;
   } | null>(null);
+  // 「帶入旅行成就」對話框（交通→飛行 / 住宿→住宿，預填自活動）；null＝關閉。
+  const [importing, setImporting] = useState<{
+    kind: 'flight' | 'stay';
+    flightDefaults?: Partial<CreateFlightRecordInput>;
+    stayDefaults?: Partial<CreateStayRecordInput>;
+  } | null>(null);
+
+  // 我已帶入成就的活動 id（顯示已帶入、防重複）；頁面有交通/住宿活動才需要查。
+  const hasImportable = days.some((d) =>
+    d.activities.some((a) => activityImportKind(a.type) !== null)
+  );
+  const { data: links } = useTripCollectionLinks(tripId, hasImportable);
+  const importedActivityIds = new Set([
+    ...(links?.flight_activity_ids ?? []),
+    ...(links?.stay_activity_ids ?? []),
+  ]);
+
+  // 帶入＝開預填的補登對話框：日期由旅程出發日推第 N 天，其餘從活動文字啟發式帶出，
+  // 猜錯在對話框裡改掉即可；trip 與來源活動 id 一併連結（後端驗證歸屬）。
+  const handleImportActivity = (day: ItineraryDay, activity: Activity) => {
+    const kind = activityImportKind(activity.type);
+    if (!kind) return;
+    const date = dayDateFromTrip(trip?.start_date, day.day_number);
+    const base = {
+      trip_id: tripId,
+      source_activity_id: activity.id,
+      ...(date ? { date, check_in: date } : {}),
+    };
+    if (kind === 'flight') {
+      const parsed = parseFlightNo(`${activity.title} ${activity.note}`);
+      setImporting({
+        kind,
+        flightDefaults: {
+          trip_id: base.trip_id,
+          source_activity_id: base.source_activity_id,
+          ...(date ? { date } : {}),
+          ...(parsed ? { airline: parsed.airline, flight_no: parsed.flightNo } : {}),
+        },
+      });
+    } else {
+      const brand = matchHotelBrand(activity.title);
+      const city = activity.location?.name ?? day.location?.name ?? '';
+      setImporting({
+        kind,
+        stayDefaults: {
+          trip_id: base.trip_id,
+          source_activity_id: base.source_activity_id,
+          ...(date ? { check_in: date } : {}),
+          hotel_name: activity.title,
+          ...(brand ? { brand } : {}),
+          ...(city ? { city } : {}),
+        },
+      });
+    }
+  };
 
   const tCommon = useTranslations('common');
 
@@ -246,6 +315,8 @@ export default function ItineraryPage() {
               onDelete={handleDeleteDay}
               onEditActivity={handleEditActivity}
               onDeleteActivity={handleDeleteActivity}
+              onImportActivity={handleImportActivity}
+              importedActivityIds={importedActivityIds}
             />
           ))}
         </div>
@@ -269,6 +340,22 @@ export default function ItineraryPage() {
         tripId={tripId}
         dayNumber={activityDialog?.day.day_number}
         activity={activityDialog?.activity ?? null}
+      />
+
+      {/* 交通/住宿活動「帶入旅行成就」：預填的補登對話框（個人紀錄，任何成員可用） */}
+      <FlightRecordDialog
+        open={importing?.kind === 'flight'}
+        onOpenChange={(open) => !open && setImporting(null)}
+        editing={null}
+        defaults={importing?.flightDefaults ?? null}
+        onSaved={() => toast({ title: tAct('importedSuccess') })}
+      />
+      <StayRecordDialog
+        open={importing?.kind === 'stay'}
+        onOpenChange={(open) => !open && setImporting(null)}
+        editing={null}
+        defaults={importing?.stayDefaults ?? null}
+        onSaved={() => toast({ title: tAct('importedSuccess') })}
       />
 
       {/* 單筆活動刪除確認 */}

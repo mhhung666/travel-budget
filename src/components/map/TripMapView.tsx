@@ -3,13 +3,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useLocale, useTranslations } from 'next-intl';
-import { MapPin, Loader2, ArrowRight, Play, Square, Camera } from 'lucide-react';
+import { MapPin, Loader2, ArrowRight, Play, Square, Camera, Plane } from 'lucide-react';
 import { useRouter } from '@/i18n/navigation';
 import { ROUTES } from '@/constants/routes';
 import { pickLocalizedName } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { tripOverlapsRange } from '@/lib/dateRange';
-import { useVisitedPlaces, useMapPhotos } from '@/hooks/queries';
+import { useVisitedPlaces, useMapPhotos, useCollections, useAirports } from '@/hooks/queries';
 import type { HeatWeightBy } from '@/actions';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -20,7 +20,7 @@ import { computeMapStats, visitedCountrySet } from './stats';
 import { groupPhotoPins, type PhotoPin } from './photos';
 import type { Location } from '@/types';
 import type { TripWithMembers } from '@/types';
-import type { GeoPoint, TripRoute, HeatPoint } from './types';
+import type { GeoPoint, TripRoute, HeatPoint, FlightSegment } from './types';
 import type { MapMode } from './TripMapCanvas';
 import { countryCodeToFlag, countryColor } from './country';
 
@@ -62,6 +62,9 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
   );
   // 相片釘點：只在相片模式才查（含 $lookup 關聯行程日，較重）。年份篩選連動。
   const { data: mapPhotos = [] } = useMapPhotos(mode === 'photos', selectedYear);
+  // 飛行航線（旅行成就）：紀錄＋機場目錄都只在飛行模式才抓；登入限定、不進公開分享。
+  const { data: collections } = useCollections(mode === 'flights');
+  const { data: airports } = useAirports(mode === 'flights');
   // 開啟中的相片釘點（gallery 對話框）。
   const [activePin, setActivePin] = useState<PhotoPin | null>(null);
   const photoPins = useMemo<PhotoPin[]>(
@@ -142,15 +145,48 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
     );
   }, [trips, locale]);
 
+  // 飛行航段：FlightRecord 依「出發→抵達」聚合，座標自機場目錄解析；年份篩選連動。
+  const flightSegments = useMemo<FlightSegment[]>(() => {
+    if (!collections || !airports) return [];
+    const byIata = new Map(airports.map((a) => [a.iata, a]));
+    const toPoint = (iata: string) => {
+      const a = byIata.get(iata);
+      return a
+        ? { iata, name: a.city ?? a.name, lat: a.lat, lon: a.lon, country: a.country }
+        : null;
+    };
+    const map = new Map<string, FlightSegment>();
+    for (const f of collections.flights) {
+      if (!f.from_airport || !f.to_airport) continue;
+      if (selectedYear !== null && f.date.slice(0, 4) !== String(selectedYear)) continue;
+      const key = `${f.from_airport}-${f.to_airport}`;
+      const cur = map.get(key);
+      if (cur) {
+        cur.count += 1;
+        continue;
+      }
+      const from = toPoint(f.from_airport);
+      const to = toPoint(f.to_airport);
+      if (!from || !to) continue;
+      map.set(key, { key, from, to, count: 1 });
+    }
+    return [...map.values()].sort((a, b) => b.count - a.count);
+  }, [collections, airports, selectedYear]);
+
   // 旅程涉及的年份（依起訖日），新到舊；當作快速篩選的選項。
+  // 飛行模式載入成就資料後，把飛行紀錄的年份也併入（歷史回填可能早於任何旅程）。
   const years = useMemo<number[]>(() => {
     const set = new Set<number>();
     for (const r of projected) {
       if (r.startDate) set.add(new Date(r.startDate).getFullYear());
       if (r.endDate) set.add(new Date(r.endDate).getFullYear());
     }
+    for (const f of collections?.flights ?? []) {
+      const y = Number(f.date.slice(0, 4));
+      if (Number.isFinite(y) && y > 0) set.add(y);
+    }
     return Array.from(set).sort((a, b) => b - a);
-  }, [projected]);
+  }, [projected, collections]);
 
   // 依選定年份過濾：保留起訖與該年重疊的旅程（跨年旅程會同時出現在兩年）。
   // 重疊判斷與 stats 共用（src/lib/dateRange.ts）；無日期者在選定年份時排除。
@@ -291,6 +327,17 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
             onClick={() => setMode('routes')}
           >
             {t('modeRoutes')}
+          </Button>
+          <Button
+            variant={mode === 'flights' ? 'default' : 'ghost'}
+            size="sm"
+            className="h-7 px-3 text-xs"
+            onClick={() => {
+              stopPlay();
+              setMode('flights');
+            }}
+          >
+            {t('modeFlights')}
           </Button>
           <Button
             variant={mode === 'heat' ? 'default' : 'ghost'}
@@ -462,6 +509,39 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
                 </ol>
               )}
             </>
+          ) : mode === 'flights' ? (
+            <>
+              <h2 className="mb-3 px-1 text-sm font-medium text-muted-foreground">
+                {t('flightTitle', { count: flightSegments.length })}
+              </h2>
+              {flightSegments.length === 0 ? (
+                <p className="px-1 text-sm text-muted-foreground">{t('flightEmpty')}</p>
+              ) : (
+                <ol className="space-y-1.5">
+                  {flightSegments.map((s) => (
+                    <li
+                      key={s.key}
+                      className="flex items-center justify-between gap-2 rounded-lg border border-border p-2.5"
+                    >
+                      <span className="flex min-w-0 items-center gap-1.5 text-sm">
+                        <Plane className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                        <span className="truncate">
+                          <span className="font-mono font-medium">{s.from.iata}</span>
+                          <ArrowRight className="mx-1 inline h-3 w-3" />
+                          <span className="font-mono font-medium">{s.to.iata}</span>
+                          <span className="ml-1.5 text-xs text-muted-foreground">
+                            {s.from.name} → {s.to.name}
+                          </span>
+                        </span>
+                      </span>
+                      <Badge variant="secondary" className="shrink-0">
+                        ×{s.count}
+                      </Badge>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </>
           ) : mode === 'photos' ? (
             <>
               <h2 className="mb-3 px-1 text-sm font-medium text-muted-foreground">
@@ -556,6 +636,7 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
           <TripMapCanvas
             mode={mode}
             routes={routes}
+            flightSegments={flightSegments}
             heatPoints={heatPoints}
             visitedCountries={visitedCountries}
             photoPins={photoPins}

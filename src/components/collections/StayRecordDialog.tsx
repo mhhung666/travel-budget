@@ -28,6 +28,10 @@ interface StayRecordDialogProps {
   onOpenChange: (open: boolean) => void;
   /** null＝新增；有值＝編輯該筆。 */
   editing: StayRecordItem | null;
+  /** 新增時的預填值（行程「一鍵帶入」用；編輯時忽略）。 */
+  defaults?: Partial<CreateStayRecordInput> | null;
+  /** 儲存成功後回呼（帶入情境顯示 toast 用）。 */
+  onSaved?: () => void;
 }
 
 const NO_STARS = 'none';
@@ -38,7 +42,13 @@ const today = () => new Date().toISOString().slice(0, 10);
  * 住宿紀錄補登/編輯表單。必填只有入住日＋飯店名稱；品牌選不到就留空
  * （獨立旅宿——品牌目錄缺漏不擋輸入），星級為自報、可不填。
  */
-export function StayRecordDialog({ open, onOpenChange, editing }: StayRecordDialogProps) {
+export function StayRecordDialog({
+  open,
+  onOpenChange,
+  editing,
+  defaults,
+  onSaved,
+}: StayRecordDialogProps) {
   const t = useTranslations('collections');
   const { toast } = useToast();
   const { createStay, updateStay } = useCollectionMutations();
@@ -53,20 +63,26 @@ export function StayRecordDialog({ open, onOpenChange, editing }: StayRecordDial
   const [tripId, setTripId] = useState<string | null>(null);
   const [note, setNote] = useState('');
 
-  // 開啟時以編輯目標（或空白）初始化表單
+  // 開啟時初始化表單：編輯＝帶入該筆；新增＝套用預填（行程帶入）或空白
   useEffect(() => {
     if (!open) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- 開啟對話框時帶入編輯目標，為刻意的同步
-    setCheckIn(editing?.check_in ?? today());
-    setPrecision(editing?.date_precision ?? 'day');
-    setNights(editing?.nights != null ? String(editing.nights) : '');
-    setBrand(editing?.brand ?? null);
-    setHotelName(editing?.hotel_name ?? '');
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 開啟對話框時帶入編輯目標/預填，為刻意的同步
+    setCheckIn(editing?.check_in ?? defaults?.check_in ?? today());
+    setPrecision(editing?.date_precision ?? defaults?.date_precision ?? 'day');
+    setNights(
+      editing?.nights != null
+        ? String(editing.nights)
+        : defaults?.nights != null
+          ? String(defaults.nights)
+          : ''
+    );
+    setBrand(editing?.brand ?? defaults?.brand ?? null);
+    setHotelName(editing?.hotel_name ?? defaults?.hotel_name ?? '');
     setStars(editing?.stars != null ? String(editing.stars) : NO_STARS);
-    setCity(editing?.city ?? '');
-    setTripId(editing?.trip_id ?? null);
-    setNote(editing?.note ?? '');
-  }, [open, editing]);
+    setCity(editing?.city ?? defaults?.city ?? '');
+    setTripId(editing?.trip_id ?? defaults?.trip_id ?? null);
+    setNote(editing?.note ?? defaults?.note ?? '');
+  }, [open, editing, defaults]);
 
   const pending = createStay.isPending || updateStay.isPending;
   const canSubmit = Boolean(checkIn && hotelName.trim());
@@ -78,6 +94,11 @@ export function StayRecordDialog({ open, onOpenChange, editing }: StayRecordDial
     const parsedNights = Number.parseInt(nights, 10);
     const input: CreateStayRecordInput = {
       trip_id: tripId,
+      // 帶入來源標記：新增取預填、編輯沿用原值；改掉連結旅程時一併清除（同 FlightRecordDialog）。
+      source_activity_id:
+        tripId === (editing?.trip_id ?? defaults?.trip_id ?? null)
+          ? (editing?.source_activity_id ?? defaults?.source_activity_id ?? null)
+          : null,
       check_in: checkIn,
       date_precision: precision,
       nights: Number.isFinite(parsedNights) && parsedNights > 0 ? parsedNights : null,
@@ -95,6 +116,7 @@ export function StayRecordDialog({ open, onOpenChange, editing }: StayRecordDial
         await createStay.mutateAsync(input);
       }
       onOpenChange(false);
+      onSaved?.();
     } catch (error) {
       const key = error instanceof Error ? error.message : 'INTERNAL_ERROR';
       toast({ title: t(`errors.${key}` as Parameters<typeof t>[0]), variant: 'destructive' });

@@ -29,6 +29,10 @@ interface FlightRecordDialogProps {
   onOpenChange: (open: boolean) => void;
   /** null＝新增；有值＝編輯該筆。 */
   editing: FlightRecordItem | null;
+  /** 新增時的預填值（行程「一鍵帶入」用；編輯時忽略）。 */
+  defaults?: Partial<CreateFlightRecordInput> | null;
+  /** 儲存成功後回呼（帶入情境顯示 toast 用）。 */
+  onSaved?: () => void;
 }
 
 const CABINS: CabinClass[] = ['economy', 'premium_economy', 'business', 'first'];
@@ -41,7 +45,13 @@ const today = () => new Date().toISOString().slice(0, 10);
  * 其餘（航班號/航段/艙等/旅程連結）全部可留空。
  * 航班號輸入會自動帶出航空公司（前兩碼比對目錄）。
  */
-export function FlightRecordDialog({ open, onOpenChange, editing }: FlightRecordDialogProps) {
+export function FlightRecordDialog({
+  open,
+  onOpenChange,
+  editing,
+  defaults,
+  onSaved,
+}: FlightRecordDialogProps) {
   const t = useTranslations('collections');
   const { toast } = useToast();
   const { createFlight, updateFlight } = useCollectionMutations();
@@ -57,20 +67,20 @@ export function FlightRecordDialog({ open, onOpenChange, editing }: FlightRecord
   const [tripId, setTripId] = useState<string | null>(null);
   const [note, setNote] = useState('');
 
-  // 開啟時以編輯目標（或空白）初始化表單
+  // 開啟時初始化表單：編輯＝帶入該筆；新增＝套用預填（行程帶入）或空白
   useEffect(() => {
     if (!open) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- 開啟對話框時帶入編輯目標，為刻意的同步
-    setDate(editing?.date ?? today());
-    setPrecision(editing?.date_precision ?? 'day');
-    setAirline(editing?.airline ?? null);
-    setFlightNo(editing?.flight_no ?? '');
-    setFromAirport(editing?.from_airport ?? null);
-    setToAirport(editing?.to_airport ?? null);
-    setCabin(editing?.cabin ?? NO_CABIN);
-    setTripId(editing?.trip_id ?? null);
-    setNote(editing?.note ?? '');
-  }, [open, editing]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 開啟對話框時帶入編輯目標/預填，為刻意的同步
+    setDate(editing?.date ?? defaults?.date ?? today());
+    setPrecision(editing?.date_precision ?? defaults?.date_precision ?? 'day');
+    setAirline(editing?.airline ?? defaults?.airline ?? null);
+    setFlightNo(editing?.flight_no ?? defaults?.flight_no ?? '');
+    setFromAirport(editing?.from_airport ?? defaults?.from_airport ?? null);
+    setToAirport(editing?.to_airport ?? defaults?.to_airport ?? null);
+    setCabin(editing?.cabin ?? defaults?.cabin ?? NO_CABIN);
+    setTripId(editing?.trip_id ?? defaults?.trip_id ?? null);
+    setNote(editing?.note ?? defaults?.note ?? '');
+  }, [open, editing, defaults]);
 
   const handleFlightNo = (raw: string) => {
     const value = raw.toUpperCase();
@@ -96,6 +106,12 @@ export function FlightRecordDialog({ open, onOpenChange, editing }: FlightRecord
 
     const input: CreateFlightRecordInput = {
       trip_id: tripId,
+      // 帶入來源標記：新增取預填、編輯沿用原值（避免更新把「已帶入」洗掉）。
+      // 使用者若改掉連結旅程，來源活動已不屬於該旅程 → 一併清除。
+      source_activity_id:
+        tripId === (editing?.trip_id ?? defaults?.trip_id ?? null)
+          ? (editing?.source_activity_id ?? defaults?.source_activity_id ?? null)
+          : null,
       date,
       date_precision: precision,
       airline,
@@ -113,6 +129,7 @@ export function FlightRecordDialog({ open, onOpenChange, editing }: FlightRecord
         await createFlight.mutateAsync(input);
       }
       onOpenChange(false);
+      onSaved?.();
     } catch (error) {
       const key = error instanceof Error ? error.message : 'INTERNAL_ERROR';
       toast({ title: t(`errors.${key}` as Parameters<typeof t>[0]), variant: 'destructive' });

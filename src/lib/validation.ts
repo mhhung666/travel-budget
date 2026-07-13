@@ -374,6 +374,8 @@ const tripIdOrCodeSchema = z
 
 export const createFlightRecordSchema = z.object({
   trip_id: tripIdOrCodeSchema.nullable().optional(),
+  // 來源行程活動 id（一鍵帶入防重複）：有值時必須同時帶 trip_id，歸屬由 action 驗證
+  source_activity_id: objectIdSchema.nullable().optional(),
   date: ymdSchema,
   date_precision: datePrecisionSchema,
   // IATA 航空公司代碼；只驗格式，目錄比對在前端（見 FlightRecord model 註解）
@@ -406,6 +408,8 @@ export const updateFlightRecordSchema = createFlightRecordSchema;
 
 export const createStayRecordSchema = z.object({
   trip_id: tripIdOrCodeSchema.nullable().optional(),
+  // 同 createFlightRecordSchema.source_activity_id
+  source_activity_id: objectIdSchema.nullable().optional(),
   check_in: ymdSchema,
   date_precision: datePrecisionSchema,
   nights: z.number().int().min(1, '晚數至少 1').max(365, '晚數過大').nullable().optional(),

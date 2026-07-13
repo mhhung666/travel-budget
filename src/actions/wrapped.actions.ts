@@ -2,7 +2,7 @@
 
 import { Types } from 'mongoose';
 import { dbConnect } from '@/lib/mongodb';
-import { Trip, Expense, ItineraryDay } from '@/models';
+import { Trip, Expense, ItineraryDay, FlightRecord, StayRecord } from '@/models';
 import { withAuth } from './withAuth';
 import type { ActionResult } from './types';
 import type { YearInReviewData, Location } from '@/types';
@@ -12,6 +12,8 @@ import {
   type YearInReviewTrip,
   type YearInReviewPlace,
   type YearInReviewExpense,
+  type YearInReviewFlight,
+  type YearInReviewStay,
 } from '@/lib/yearInReview';
 import { logger } from '@/lib/logger';
 
@@ -72,13 +74,18 @@ export const getYearInReview = withAuth(
 
       const tripIds = trips.map((t) => t._id);
 
-      const [expenses, days] = await Promise.all([
+      type LeanFlightRec = { airline: string; date: Date };
+      type LeanStayRec = { brand?: string | null; checkIn: Date };
+      const [expenses, days, flightRecs, stayRecs] = await Promise.all([
         Expense.find({ trip: { $in: tripIds }, 'splits.user': session.userId })
           .select('date category splits')
           .lean<LeanExpense[]>(),
         ItineraryDay.find({ trip: { $in: tripIds } })
           .select('trip location')
           .lean<LeanDay[]>(),
+        // 旅行成就（user-level，不限這些 trips）：全歷史撈——「新解鎖」要看首次出現年份
+        FlightRecord.find({ user: session.userId }).select('airline date').lean<LeanFlightRec[]>(),
+        StayRecord.find({ user: session.userId }).select('brand checkIn').lean<LeanStayRec[]>(),
       ]);
 
       // 投影成純函式輸入。
@@ -105,6 +112,15 @@ export const getYearInReview = withAuth(
         if (p) reviewPlaces.push({ tripId: d.trip.toString(), ...p });
       }
 
+      const reviewFlights: YearInReviewFlight[] = flightRecs.map((f) => ({
+        airline: f.airline,
+        date: toYmd(f.date) ?? '',
+      }));
+      const reviewStays: YearInReviewStay[] = stayRecs.map((s) => ({
+        brand: s.brand ?? null,
+        checkIn: toYmd(s.checkIn) ?? '',
+      }));
+
       const availableYears = availableReviewYears(reviewTrips, reviewExpenses);
       const targetYear = year ?? availableYears[0] ?? new Date().getFullYear();
       const review = computeYearInReview(
@@ -112,6 +128,8 @@ export const getYearInReview = withAuth(
           trips: reviewTrips,
           itinerary: reviewPlaces,
           expenses: reviewExpenses,
+          flights: reviewFlights,
+          stays: reviewStays,
           selfUserId: session.userId,
         },
         targetYear

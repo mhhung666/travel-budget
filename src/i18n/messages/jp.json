@@ -862,7 +862,10 @@
       "updatedInDay": "{dayNumber}日目の活動を更新しました",
       "removedFromDay": "{dayNumber}日目の活動を削除しました",
       "removeConfirm": "この活動を削除しますか？",
-      "removeConfirmMessage": "{dayNumber}日目から「{title}」を削除します。"
+      "removeConfirmMessage": "{dayNumber}日目から「{title}」を削除します。",
+      "importToCollections": "旅の実績に追加",
+      "imported": "実績に追加済み",
+      "importedSuccess": "旅の実績に追加しました"
     },
     "dayLabel": "{dayNumber}日目"
   },
@@ -946,7 +949,10 @@
     "modePhotos": "写真",
     "photoTitle": "写真スポット {count} 件",
     "photoEmpty": "まだ写真がありません。支出のレシートに写真を添付し、その支出を場所付きの旅程日に紐付けると地図に表示されます。",
-    "photoCount": "写真 {count} 枚"
+    "photoCount": "写真 {count} 枚",
+    "modeFlights": "フライト",
+    "flightTitle": "{count} 路線",
+    "flightEmpty": "描ける航路がまだありません——「旅の実績」で出発／到着空港つきのフライトを記録しましょう"
   },
   "notifications": {
     "title": "通知",
@@ -1063,7 +1069,12 @@
       "spend": "総支出",
       "expenses": "件の支出",
       "companions": "人の旅仲間",
-      "longestTrip": "最長の旅"
+      "longestTrip": "最長の旅",
+      "collections": "旅の実績",
+      "flightsCount": "{count} フライト",
+      "newAirlines": "新規 {count} 社の航空会社",
+      "staysCount": "宿泊 {count} 回",
+      "newBrands": "新規 {count} ブランド"
     },
     "days": "{count} 日",
     "topCategory": "最も使ったカテゴリ",

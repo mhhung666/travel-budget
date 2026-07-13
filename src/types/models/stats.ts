@@ -108,6 +108,12 @@ export interface YearInReviewData {
   monthlySpend: number[];
   /** 花費最高的月份（0–11）；該年完全無花費時為 null。 */
   busiestMonth: number | null;
+  // 旅行成就（FEATURES §16）：該年航班/住宿數與「新解鎖」航空/品牌數。
+  // optional——公開分享 payload（去識別化）不含這些欄位，僅登入檢視有。
+  flightCount?: number;
+  newAirlineCount?: number;
+  stayCount?: number;
+  newBrandCount?: number;
 }
 
 // 時間區間類型

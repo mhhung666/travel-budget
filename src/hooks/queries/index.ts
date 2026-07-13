@@ -34,7 +34,7 @@ export { useActivityLog } from './useActivityLog';
 export { useCommentCounts, useExpenseComments, useCommentMutations } from './useComments';
 export { useNotes, useNoteMutations } from './useNotes';
 export { useFriends, useFriendMutations } from './useFriends';
-export { useCollections, useCollectionMutations } from './useCollections';
+export { useCollections, useCollectionMutations, useTripCollectionLinks } from './useCollections';
 export {
   useAirlines,
   useAirports,

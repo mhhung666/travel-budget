@@ -184,3 +184,36 @@ describe('availableReviewYears', () => {
     expect(availableReviewYears([], [])).toEqual([]);
   });
 });
+
+describe('computeYearInReview — 旅行成就（航班/住宿/新解鎖）', () => {
+  it('該年航班數與新解鎖航空：首次出現以全歷史判定', () => {
+    const flights = [
+      { airline: 'BR', date: '2024-03-01' }, // BR 首次在 2024
+      { airline: 'BR', date: '2025-05-01' },
+      { airline: 'JX', date: '2025-06-01' }, // JX 首次在 2025 → 新解鎖
+    ];
+    const r = computeYearInReview(inputs({ flights }), 2025);
+    expect(r.flightCount).toBe(2);
+    expect(r.newAirlineCount).toBe(1); // 只有 JX
+  });
+
+  it('住宿與品牌解鎖：獨立旅宿（brand null）計次數但不算解鎖', () => {
+    const stays = [
+      { brand: 'mandarin-oriental-hotels', checkIn: '2025-02-01' }, // 首次 → 解鎖
+      { brand: 'toyoko-inn-hotels', checkIn: '2023-01-01' }, // 首次在 2023
+      { brand: 'toyoko-inn-hotels', checkIn: '2025-03-01' },
+      { brand: null, checkIn: '2025-04-01' }, // 獨立旅宿
+    ];
+    const r = computeYearInReview(inputs({ stays }), 2025);
+    expect(r.stayCount).toBe(3);
+    expect(r.newBrandCount).toBe(1); // 只有文華東方
+  });
+
+  it('未提供成就資料時相關欄位為 0（向後相容）', () => {
+    const r = computeYearInReview(inputs({}), 2025);
+    expect(r.flightCount).toBe(0);
+    expect(r.newAirlineCount).toBe(0);
+    expect(r.stayCount).toBe(0);
+    expect(r.newBrandCount).toBe(0);
+  });
+});
