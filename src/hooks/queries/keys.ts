@@ -38,6 +38,16 @@ export const friendKeys = {
 } as const;
 
 /**
+ * Collection query keys（旅行成就）. Per-user 終身紀錄 + 靜態目錄：
+ * 目錄（airlines / airports）是 public/data 下的生成資產，內容只隨部署改變 → staleTime Infinity。
+ */
+export const collectionKeys = {
+  all: ['collections'] as const,
+  airlines: ['catalog', 'airlines'] as const,
+  airports: ['catalog', 'airports'] as const,
+} as const;
+
+/**
  * Notification query keys. Per-user (not trip-scoped), so they live outside the
  * trip key tree: the bell's unread-count badge polls independently of any trip.
  */

@@ -17,3 +17,12 @@ export { PushSubscription, type PushSubscriptionDoc } from './PushSubscription';
 export { Comment, type CommentDoc } from './Comment';
 export { Friendship, friendshipPairKey, type FriendshipDoc } from './Friendship';
 export { Note, type NoteDoc } from './Note';
+export {
+  FlightRecord,
+  CABIN_CLASSES,
+  DATE_PRECISIONS,
+  type FlightRecordDoc,
+  type CabinClass,
+  type DatePrecision,
+} from './FlightRecord';
+export { StayRecord, type StayRecordDoc } from './StayRecord';

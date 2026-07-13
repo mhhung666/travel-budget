@@ -66,6 +66,12 @@ export type {
   FriendshipStatus,
   FriendItem,
   FriendsData,
+  DatePrecision,
+  CabinClass,
+  FlightRecordItem,
+  StayRecordItem,
+  VisitedCountryItem,
+  CollectionsData,
 } from './models';
 
 // ============================================

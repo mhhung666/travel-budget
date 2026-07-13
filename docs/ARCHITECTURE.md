@@ -188,7 +188,7 @@ src/
 
 ## 5. 資料模型
 
-Schema 定義在 [src/models/](../src/models/) 的 Mongoose model，index 於連線時自動建立（`autoIndex`；可重現的結構 / 資料變更另走 migrate-mongo，見 [MIGRATIONS.md](./MIGRATIONS.md)）。原本的關聯表收斂為 **11 個 collection**，用內嵌消除大部分 join 與 N+1：
+Schema 定義在 [src/models/](../src/models/) 的 Mongoose model，index 於連線時自動建立（`autoIndex`；可重現的結構 / 資料變更另走 migrate-mongo，見 [MIGRATIONS.md](./MIGRATIONS.md)）。原本的關聯表收斂為 **16 個 collection**，用內嵌消除大部分 join 與 N+1：
 
 ```
 User              ── 帳號 / 虛擬成員 / 頭像 / 通知偏好 / mapShareCode
@@ -202,6 +202,11 @@ Checklist         ── ref trip；內嵌 items[]（打包 / 待辦清單）
 Notification      ── ref user（收件者）；per-user 通知收件匣
 ActivityLog       ── ref trip；per-trip 共享動態牆
 PushSubscription  ── ref user；Web Push 訂閱（endpoint uniq）
+Comment           ── ref trip / expense；支出留言
+Friendship        ── requester/recipient + pairKey(uniq)；雙向好友關係
+Note              ── ref trip；隨手記（內嵌照片 attachments[]）
+FlightRecord      ── ref user；飛行終身紀錄（旅行成就，trip 可 null）
+StayRecord        ── ref user；住宿終身紀錄（旅行成就，trip 可 null）
 ```
 
 | Collection | 重點欄位 |
@@ -217,8 +222,13 @@ PushSubscription  ── ref user；Web Push 訂閱（endpoint uniq）
 | `Notification` | `user`(收件者,ref,index), `trip`, `tripName`/`actorName`（去正規化快照）, `type`, `actor`, `meta`, `read`；per-user 收件匣 |
 | `ActivityLog` | `trip`(ref,index), `actor`, `actorName`（快照）, `type`, `meta`；per-trip 共享動態牆（只 createdAt） |
 | `PushSubscription` | `user`(ref), `endpoint`(uniq), `keys`, `userAgent`；Web Push 訂閱（訂閱本身即 opt-in） |
+| `Comment` | `trip`(ref), `expense`(ref,index), `author`, `authorName`（快照）, `body`；支出留言 |
+| `Friendship` | `requester`/`recipient`(ref), `status`(pending/accepted), `pairKey`(uniq，排序後 user pair)；雙向好友 |
+| `Note` | `trip`(ref,index), `text`, `attachments[]`, `pinned`, `plannedAt`；隨手記（成員信任模型） |
+| `FlightRecord` | `user`(ref,index), `trip`(ref,**可 null**), `date`+`datePrecision`(day/month/year), `airline`(IATA), `flightNo`, `fromAirport`/`toAirport`, `cabin`；**user-level 終身紀錄**（旅行成就，FEATURES §16） |
+| `StayRecord` | `user`(ref,index), `trip`(ref,**可 null**), `checkIn`+精度, `nights`, `brand`（[hotelBrands.ts](../src/constants/hotelBrands.ts) 目錄 id，可 null）, `hotelName`, `stars`, `city`；同上 |
 
-> ⚠️ MongoDB 無外鍵 cascade：刪除 trip 時 `deleteTrip` 會手動一併刪除該 trip 的 expenses、payments、itinerary days、checklists、notifications、activity logs，並 best-effort 刪除該 trip 在 R2 的收據 / 票券物件；`removeMember` 也會檢查還款參照避免孤兒，並清掉清單項目對該成員的指派與其在此 trip 的通知。
+> ⚠️ MongoDB 無外鍵 cascade：刪除 trip 時 `deleteTrip` 會手動一併刪除該 trip 的 expenses、payments、itinerary days、checklists、notifications、activity logs、comments、notes，並 best-effort 刪除該 trip 在 R2 的收據 / 票券物件；**FlightRecord / StayRecord 例外**——它們是 user-level 終身紀錄，只解除連結（`trip` 置 null）不刪除；`removeMember` 也會檢查還款參照避免孤兒，並清掉清單項目對該成員的指派與其在此 trip 的通知。
 > ID 一律為 ObjectId 字串，從 JWT、DTO 到前端 props 一致。
 
 ---

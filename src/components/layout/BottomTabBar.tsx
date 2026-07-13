@@ -18,7 +18,12 @@ export function BottomTabBar() {
     { href: '/trips', label: t('trips'), icon: Compass, match: ['/trips'] },
     { href: '/map', label: t('map'), icon: MapIcon, match: ['/map'] },
     { href: '/stats', label: t('stats'), icon: BarChart3, match: ['/stats'] },
-    { href: '/settings', label: t('me'), icon: UserRound, match: ['/settings', '/wrapped'] },
+    {
+      href: '/settings',
+      label: t('me'),
+      icon: UserRound,
+      match: ['/settings', '/wrapped', '/collections'],
+    },
   ] as const;
 
   const isActive = (match: readonly string[]) =>

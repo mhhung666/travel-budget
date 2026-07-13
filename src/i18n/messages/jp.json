@@ -46,6 +46,7 @@
     "register": "新規登録",
     "map": "地図",
     "wrapped": "年間まとめ",
+    "collections": "旅の実績",
     "me": "マイページ",
     "bottomNav": "メインナビゲーション"
   },
@@ -1090,6 +1091,124 @@
       "notFound": "この共有まとめは利用できません。",
       "empty": "今年は表示できる旅行がありません。",
       "cta": "自分のまとめを作る"
+    }
+  },
+  "collections": {
+    "title": "旅の実績",
+    "subtitle": "フライト・宿泊・足あとのコレクション",
+    "tabs": {
+      "flights": "フライト",
+      "stays": "宿泊",
+      "countries": "国"
+    },
+    "common": {
+      "records": "すべての記録",
+      "save": "保存",
+      "cancel": "キャンセル",
+      "edit": "編集",
+      "delete": "削除",
+      "date": "日付",
+      "note": "メモ",
+      "linkTrip": "旅行にリンク",
+      "noTrip": "リンクしない",
+      "unset": "未設定",
+      "clear": "選択を解除",
+      "noMatch": "該当なし",
+      "precision": {
+        "day": "日付",
+        "month": "月",
+        "year": "年"
+      }
+    },
+    "flights": {
+      "empty": "フライト記録がありません",
+      "emptyDesc": "搭乗したフライトを記録して、航空会社とアライアンスを集めよう",
+      "addFlight": "フライトを追加",
+      "editFlight": "フライトを編集",
+      "formDescription": "搭乗したフライトを記録",
+      "airline": "航空会社",
+      "flightNo": "便名",
+      "from": "出発空港",
+      "to": "到着空港",
+      "fromPlaceholder": "例: TPE",
+      "toPlaceholder": "例: HND",
+      "cabin": "座席クラス",
+      "cabins": {
+        "economy": "エコノミー",
+        "premium_economy": "プレミアムエコノミー",
+        "business": "ビジネス",
+        "first": "ファースト"
+      },
+      "alliance": {
+        "star": "スターアライアンス",
+        "oneworld": "ワンワールド",
+        "skyteam": "スカイチーム"
+      },
+      "searchAirline": "航空会社を検索…",
+      "searchAirport": "コードまたは都市で検索…",
+      "searchAirportHint": "空港コード・名称・都市を入力",
+      "defunct": "運航終了",
+      "timesFlown": "搭乗 {count} 回",
+      "airlineWall": "搭乗した航空会社",
+      "stats": {
+        "flights": "フライト",
+        "airlines": "航空会社",
+        "alliances": "アライアンス"
+      },
+      "deleteTitle": "フライト記録を削除",
+      "deleteMessage": "このフライト記録を削除しますか？この操作は取り消せません。"
+    },
+    "stays": {
+      "empty": "宿泊記録がありません",
+      "emptyDesc": "泊まったホテルを記録して、ブランドコレクションを点灯させよう",
+      "addStay": "宿泊を追加",
+      "editStay": "宿泊を編集",
+      "formDescription": "宿泊したホテルを記録",
+      "hotelName": "ホテル名",
+      "hotelNamePlaceholder": "例: マンダリン オリエンタル 東京",
+      "brand": "ブランド",
+      "brandHint": "ブランドが見つからない場合は空欄でOK（独立系ホテル）",
+      "noBrand": "ブランドなし（独立系）",
+      "searchBrand": "ブランドを検索…",
+      "checkIn": "チェックイン",
+      "nights": "泊数",
+      "stars": "星",
+      "city": "都市",
+      "staysCount": "宿泊 {count} 回",
+      "nightsCount": "{count} 泊",
+      "independent": "独立系ホテル",
+      "brandWall": "ブランドコレクション",
+      "showUncollected": "未収集を表示",
+      "hideUncollected": "未収集を隠す",
+      "tiers": {
+        "luxury": "ラグジュアリー",
+        "upscale": "アップスケール",
+        "midscale": "ミッドスケール",
+        "budget": "エコノミー",
+        "hostel": "ホステル"
+      },
+      "stats": {
+        "stays": "宿泊",
+        "brands": "ブランド",
+        "nights": "泊数"
+      },
+      "deleteTitle": "宿泊記録を削除",
+      "deleteMessage": "この宿泊記録を削除しますか？この操作は取り消せません。"
+    },
+    "countries": {
+      "empty": "足あとがありません",
+      "emptyDesc": "地点を設定した旅行を作ると、訪れた国が自動で点灯します",
+      "stats": {
+        "countries": "訪問国"
+      },
+      "tripsCount": "{count} 回の旅行",
+      "autoNote": "旅行の出発地・目的地・旅程の地点から自動計算"
+    },
+    "errors": {
+      "UNAUTHORIZED": "ログインしてください",
+      "VALIDATION_ERROR": "入力内容に誤りがあります",
+      "NOT_FOUND": "記録が見つかりません",
+      "INTERNAL_ERROR": "エラーが発生しました。しばらくしてからお試しください"
     }
   },
   "pwa": {

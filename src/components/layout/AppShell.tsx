@@ -1,6 +1,14 @@
 'use client';
 
-import { LogOut, Compass, Settings, BarChart3, Map as MapIcon, Sparkles } from 'lucide-react';
+import {
+  LogOut,
+  Compass,
+  Settings,
+  BarChart3,
+  Map as MapIcon,
+  Sparkles,
+  Medal,
+} from 'lucide-react';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 import { logout } from '@/actions';
@@ -58,6 +66,7 @@ export function AppShell({
     { href: '/trips', label: t('trips'), icon: Compass },
     { href: '/map', label: t('map'), icon: MapIcon },
     { href: '/stats', label: t('stats'), icon: BarChart3 },
+    { href: '/collections', label: t('collections'), icon: Medal },
     { href: '/wrapped', label: t('wrapped'), icon: Sparkles },
   ] as const;
 
@@ -71,6 +80,7 @@ export function AppShell({
   const mobileTitle = (() => {
     if (isActive('/map')) return t('map');
     if (isActive('/stats')) return t('stats');
+    if (isActive('/collections')) return t('collections');
     if (isActive('/wrapped')) return t('wrapped');
     if (isActive('/settings')) return t('me');
     if (isActive('/trips')) return t('trips');

@@ -19,7 +19,8 @@
     "migrate:status": "migrate-mongo status",
     "migrate:up": "migrate-mongo up",
     "migrate:down": "migrate-mongo down",
-    "migrate:create": "migrate-mongo create"
+    "migrate:create": "migrate-mongo create",
+    "generate:catalogs": "node scripts/generate-catalogs.mjs"
   },
   "keywords": [
     "travel",

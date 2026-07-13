@@ -12,6 +12,8 @@ import {
   ActivityLog,
   Comment,
   Note,
+  FlightRecord,
+  StayRecord,
   type TripDoc,
 } from '@/models';
 import { getTripMembership } from '@/lib/permissions';
@@ -219,6 +221,10 @@ export const deleteTrip = withAuth(
         ActivityLog.deleteMany({ trip: tripId }),
         Comment.deleteMany({ trip: tripId }),
         Note.deleteMany({ trip: tripId }),
+        // 旅行成就的飛行/住宿是 user-level 終身紀錄：解除連結（trip 置 null）而非刪除
+        //（刻意偏離級聯刪除慣例，見 ROADMAP #19 / FlightRecord model 註解）
+        FlightRecord.updateMany({ trip: tripId }, { $set: { trip: null } }),
+        StayRecord.updateMany({ trip: tripId }, { $set: { trip: null } }),
       ]);
       await TripModel.deleteOne({ _id: tripId });
 

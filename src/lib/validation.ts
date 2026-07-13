@@ -363,6 +363,62 @@ export const planNoteSchema = z.object({
   day_id: objectIdSchema,
 });
 
+// ── 旅行成就（Collections，ROADMAP #19）──────────────────────────────
+// user-level 終身紀錄的補登/編輯。trip_id 沿用 tripIdOrCode 雙重接受
+// （ObjectId 或 hash_code，由 action 以 getTripMembership 解析＋驗證成員身分）。
+const datePrecisionSchema = z.enum(['day', 'month', 'year']).default('day');
+const ymdSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '日期格式錯誤');
+const tripIdOrCodeSchema = z
+  .string()
+  .regex(/^([0-9a-fA-F]{24}|[a-z0-9]{6,10})$/, '無效的旅程識別碼');
+
+export const createFlightRecordSchema = z.object({
+  trip_id: tripIdOrCodeSchema.nullable().optional(),
+  date: ymdSchema,
+  date_precision: datePrecisionSchema,
+  // IATA 航空公司代碼；只驗格式，目錄比對在前端（見 FlightRecord model 註解）
+  airline: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z0-9]{2}$/, '航空公司代碼格式錯誤'),
+  flight_no: z.string().trim().toUpperCase().max(8, '航班號過長').default(''),
+  from_airport: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z]{3}$/, '機場代碼格式錯誤')
+    .nullable()
+    .optional(),
+  to_airport: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z]{3}$/, '機場代碼格式錯誤')
+    .nullable()
+    .optional(),
+  cabin: z.enum(['economy', 'premium_economy', 'business', 'first']).nullable().optional(),
+  note: z.string().trim().max(500, '備註過長').default(''),
+});
+
+// 表單一律整筆送出（欄位少），更新沿用建立的完整 schema（整筆覆寫語意）。
+export const updateFlightRecordSchema = createFlightRecordSchema;
+
+export const createStayRecordSchema = z.object({
+  trip_id: tripIdOrCodeSchema.nullable().optional(),
+  check_in: ymdSchema,
+  date_precision: datePrecisionSchema,
+  nights: z.number().int().min(1, '晚數至少 1').max(365, '晚數過大').nullable().optional(),
+  // 品牌目錄 id 的存在性由 action 以 HOTEL_BRAND_IDS 驗證（避免 schema 與目錄的 import 循環）
+  brand: z.string().max(60).nullable().optional(),
+  hotel_name: z.string().trim().min(1, '飯店名稱不能為空').max(120, '飯店名稱過長'),
+  stars: z.number().int().min(1).max(5).nullable().optional(),
+  city: z.string().trim().max(80, '城市名過長').default(''),
+  note: z.string().trim().max(500, '備註過長').default(''),
+});
+
+export const updateStayRecordSchema = createStayRecordSchema;
+
 // Type exports
 export type CreateChecklistInput = z.infer<typeof createChecklistSchema>;
 export type CreateChecklistWithItemsInput = z.infer<typeof createChecklistWithItemsSchema>;
@@ -393,3 +449,5 @@ export type CreateCommentInput = z.infer<typeof createCommentSchema>;
 export type CreateNoteInput = z.infer<typeof createNoteSchema>;
 export type UpdateNoteInput = z.infer<typeof updateNoteSchema>;
 export type PlanNoteInput = z.infer<typeof planNoteSchema>;
+export type CreateFlightRecordInput = z.infer<typeof createFlightRecordSchema>;
+export type CreateStayRecordInput = z.infer<typeof createStayRecordSchema>;

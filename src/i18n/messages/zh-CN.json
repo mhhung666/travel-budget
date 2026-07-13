@@ -46,6 +46,7 @@
     "register": "注册",
     "map": "旅行地图",
     "wrapped": "年度回顾",
+    "collections": "旅行成就",
     "me": "我的",
     "bottomNav": "主要导航"
   },
@@ -1090,6 +1091,124 @@
       "notFound": "此分享回顾无法使用。",
       "empty": "这一年没有可显示的旅行。",
       "cta": "制作我的年度回顾"
+    }
+  },
+  "collections": {
+    "title": "旅行成就",
+    "subtitle": "你的飞行、住宿与足迹收藏",
+    "tabs": {
+      "flights": "航空",
+      "stays": "住宿",
+      "countries": "国家"
+    },
+    "common": {
+      "records": "全部记录",
+      "save": "保存",
+      "cancel": "取消",
+      "edit": "编辑",
+      "delete": "删除",
+      "date": "日期",
+      "note": "备注",
+      "linkTrip": "关联行程",
+      "noTrip": "不关联行程",
+      "unset": "未指定",
+      "clear": "清除选择",
+      "noMatch": "找不到匹配的项目",
+      "precision": {
+        "day": "日期",
+        "month": "月份",
+        "year": "年份"
+      }
+    },
+    "flights": {
+      "empty": "还没有飞行记录",
+      "emptyDesc": "补录你坐过的航班，收集航空公司与联盟",
+      "addFlight": "新增飞行记录",
+      "editFlight": "编辑飞行记录",
+      "formDescription": "补录乘坐过的航班",
+      "airline": "航空公司",
+      "flightNo": "航班号",
+      "from": "出发机场",
+      "to": "到达机场",
+      "fromPlaceholder": "如 TPE",
+      "toPlaceholder": "如 HND",
+      "cabin": "舱位",
+      "cabins": {
+        "economy": "经济舱",
+        "premium_economy": "超级经济舱",
+        "business": "商务舱",
+        "first": "头等舱"
+      },
+      "alliance": {
+        "star": "星空联盟",
+        "oneworld": "寰宇一家",
+        "skyteam": "天合联盟"
+      },
+      "searchAirline": "搜索航空公司…",
+      "searchAirport": "输入代码或城市搜索…",
+      "searchAirportHint": "输入机场代码、名称或城市",
+      "defunct": "已停业",
+      "timesFlown": "乘坐 {count} 次",
+      "airlineWall": "坐过的航空公司",
+      "stats": {
+        "flights": "航班",
+        "airlines": "航空公司",
+        "alliances": "联盟收集"
+      },
+      "deleteTitle": "删除飞行记录",
+      "deleteMessage": "确定要删除这条飞行记录吗？此操作无法撤销。"
+    },
+    "stays": {
+      "empty": "还没有住宿记录",
+      "emptyDesc": "补录你住过的酒店，点亮品牌收藏墙",
+      "addStay": "新增住宿记录",
+      "editStay": "编辑住宿记录",
+      "formDescription": "补录住过的酒店",
+      "hotelName": "酒店名称",
+      "hotelNamePlaceholder": "如 文华东方 东京",
+      "brand": "品牌",
+      "brandHint": "找不到品牌？留空即可（独立酒店）",
+      "noBrand": "无品牌（独立酒店）",
+      "searchBrand": "搜索品牌…",
+      "checkIn": "入住日",
+      "nights": "晚数",
+      "stars": "星级",
+      "city": "城市",
+      "staysCount": "住过 {count} 次",
+      "nightsCount": "{count} 晚",
+      "independent": "独立酒店",
+      "brandWall": "品牌收藏墙",
+      "showUncollected": "显示未收集",
+      "hideUncollected": "隐藏未收集",
+      "tiers": {
+        "luxury": "奢华",
+        "upscale": "高端",
+        "midscale": "中端",
+        "budget": "经济",
+        "hostel": "青年旅舍"
+      },
+      "stats": {
+        "stays": "住宿次数",
+        "brands": "品牌",
+        "nights": "总晚数"
+      },
+      "deleteTitle": "删除住宿记录",
+      "deleteMessage": "确定要删除这条住宿记录吗？此操作无法撤销。"
+    },
+    "countries": {
+      "empty": "还没有足迹",
+      "emptyDesc": "创建行程并设置地点后，这里会自动点亮到访过的国家",
+      "stats": {
+        "countries": "到访国家"
+      },
+      "tripsCount": "{count} 次旅行",
+      "autoNote": "由行程的出发地、目的地与日程地点自动计算"
+    },
+    "errors": {
+      "UNAUTHORIZED": "请先登录",
+      "VALIDATION_ERROR": "输入数据有误，请检查后重试",
+      "NOT_FOUND": "找不到该条记录",
+      "INTERNAL_ERROR": "发生错误，请稍后再试"
     }
   },
   "pwa": {

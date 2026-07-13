@@ -1,4 +1,4 @@
-export { tripKeys, notificationKeys, friendKeys } from './keys';
+export { tripKeys, notificationKeys, friendKeys, collectionKeys } from './keys';
 export { fetchWithPublicFallback } from './fetcher';
 export {
   useCurrentUser,
@@ -34,3 +34,11 @@ export { useActivityLog } from './useActivityLog';
 export { useCommentCounts, useExpenseComments, useCommentMutations } from './useComments';
 export { useNotes, useNoteMutations } from './useNotes';
 export { useFriends, useFriendMutations } from './useFriends';
+export { useCollections, useCollectionMutations } from './useCollections';
+export {
+  useAirlines,
+  useAirports,
+  getAirlineName,
+  type AirlineEntry,
+  type AirportEntry,
+} from './useCatalogs';

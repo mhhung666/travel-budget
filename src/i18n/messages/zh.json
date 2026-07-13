@@ -46,6 +46,7 @@
     "register": "註冊",
     "map": "旅行地圖",
     "wrapped": "年度回顧",
+    "collections": "旅行成就",
     "me": "我的",
     "bottomNav": "主要導覽"
   },
@@ -1090,6 +1091,124 @@
       "notFound": "此分享回顧無法使用。",
       "empty": "這一年沒有可顯示的旅行。",
       "cta": "製作我的年度回顧"
+    }
+  },
+  "collections": {
+    "title": "旅行成就",
+    "subtitle": "你的飛行、住宿與足跡收藏",
+    "tabs": {
+      "flights": "航空",
+      "stays": "住宿",
+      "countries": "國家"
+    },
+    "common": {
+      "records": "全部紀錄",
+      "save": "儲存",
+      "cancel": "取消",
+      "edit": "編輯",
+      "delete": "刪除",
+      "date": "日期",
+      "note": "備註",
+      "linkTrip": "連結旅程",
+      "noTrip": "不連結旅程",
+      "unset": "未指定",
+      "clear": "清除選擇",
+      "noMatch": "找不到符合的項目",
+      "precision": {
+        "day": "日期",
+        "month": "月份",
+        "year": "年份"
+      }
+    },
+    "flights": {
+      "empty": "還沒有飛行紀錄",
+      "emptyDesc": "補登你搭過的航班，收集航空公司與聯盟",
+      "addFlight": "新增飛行紀錄",
+      "editFlight": "編輯飛行紀錄",
+      "formDescription": "補登搭乘過的航班",
+      "airline": "航空公司",
+      "flightNo": "航班號",
+      "from": "出發機場",
+      "to": "抵達機場",
+      "fromPlaceholder": "如 TPE",
+      "toPlaceholder": "如 HND",
+      "cabin": "艙等",
+      "cabins": {
+        "economy": "經濟艙",
+        "premium_economy": "豪華經濟艙",
+        "business": "商務艙",
+        "first": "頭等艙"
+      },
+      "alliance": {
+        "star": "星空聯盟",
+        "oneworld": "寰宇一家",
+        "skyteam": "天合聯盟"
+      },
+      "searchAirline": "搜尋航空公司…",
+      "searchAirport": "輸入代碼或城市搜尋…",
+      "searchAirportHint": "輸入機場代碼、名稱或城市",
+      "defunct": "已停業",
+      "timesFlown": "搭乘 {count} 次",
+      "airlineWall": "搭過的航空公司",
+      "stats": {
+        "flights": "航班",
+        "airlines": "航空公司",
+        "alliances": "聯盟收集"
+      },
+      "deleteTitle": "刪除飛行紀錄",
+      "deleteMessage": "確定要刪除這筆飛行紀錄嗎？此操作無法復原。"
+    },
+    "stays": {
+      "empty": "還沒有住宿紀錄",
+      "emptyDesc": "補登你住過的飯店，點亮品牌收藏牆",
+      "addStay": "新增住宿紀錄",
+      "editStay": "編輯住宿紀錄",
+      "formDescription": "補登住過的飯店",
+      "hotelName": "飯店名稱",
+      "hotelNamePlaceholder": "如 文華東方 東京",
+      "brand": "品牌",
+      "brandHint": "選不到品牌？留空即可（獨立旅宿）",
+      "noBrand": "無品牌（獨立旅宿）",
+      "searchBrand": "搜尋品牌…",
+      "checkIn": "入住日",
+      "nights": "晚數",
+      "stars": "星級",
+      "city": "城市",
+      "staysCount": "住過 {count} 次",
+      "nightsCount": "{count} 晚",
+      "independent": "獨立旅宿",
+      "brandWall": "品牌收藏牆",
+      "showUncollected": "顯示未收集",
+      "hideUncollected": "隱藏未收集",
+      "tiers": {
+        "luxury": "奢華",
+        "upscale": "高端",
+        "midscale": "中端",
+        "budget": "平價",
+        "hostel": "青年旅舍"
+      },
+      "stats": {
+        "stays": "住宿次數",
+        "brands": "品牌",
+        "nights": "總晚數"
+      },
+      "deleteTitle": "刪除住宿紀錄",
+      "deleteMessage": "確定要刪除這筆住宿紀錄嗎？此操作無法復原。"
+    },
+    "countries": {
+      "empty": "還沒有足跡",
+      "emptyDesc": "建立旅程並設定地點後，這裡會自動點亮造訪過的國家",
+      "stats": {
+        "countries": "造訪國家"
+      },
+      "tripsCount": "{count} 趟旅程",
+      "autoNote": "由旅程的出發地、目的地與行程日地點自動計算"
+    },
+    "errors": {
+      "UNAUTHORIZED": "請先登入",
+      "VALIDATION_ERROR": "輸入資料有誤，請檢查後再試",
+      "NOT_FOUND": "找不到該筆紀錄",
+      "INTERNAL_ERROR": "發生錯誤，請稍後再試"
     }
   },
   "pwa": {

@@ -57,3 +57,11 @@ export type {
   HistogramDataPoint,
   HistogramData,
 } from './stats';
+export type {
+  DatePrecision,
+  CabinClass,
+  FlightRecordItem,
+  StayRecordItem,
+  VisitedCountryItem,
+  CollectionsData,
+} from './collection';

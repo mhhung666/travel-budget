@@ -1,6 +1,16 @@
 'use client';
 
-import { Bell, ChevronRight, Lock, LogOut, Palette, Sparkles, User, Users } from 'lucide-react';
+import {
+  Bell,
+  ChevronRight,
+  Lock,
+  LogOut,
+  Medal,
+  Palette,
+  Sparkles,
+  User,
+  Users,
+} from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
@@ -102,9 +112,17 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* 年度回顧 + 登出（自舊漢堡選單移入「我的」） */}
+      {/* 旅行成就 + 年度回顧 + 登出（行動端無頂列導覽，這裡是主要進場點） */}
       <Card className="mt-6">
         <CardContent className="space-y-1 p-2">
+          <Button
+            variant="ghost"
+            className="h-12 w-full justify-start gap-3 px-3"
+            onClick={() => router.push(ROUTES.COLLECTIONS)}
+          >
+            <Medal className="h-4 w-4 text-primary" />
+            {tNav('collections')}
+          </Button>
           <Button
             variant="ghost"
             className="h-12 w-full justify-start gap-3 px-3"

@@ -266,7 +266,43 @@ UI：登入頁 [/wrapped](../src/app/%5Blocale%5D/wrapped/page.tsx)（年份切�
 
 ---
 
-## 16. 其他
+## 16. 旅行成就（Travel Collections，ROADMAP #19 P1）
+
+「旅行人生紀錄」：搭過哪些航空（幾次、哪個航班）、住過哪些品牌飯店（文華東方式的品牌收藏牆）、
+去過哪些國家。**user-level 終身紀錄**——可回填 app 出現之前的旅行史，也不因旅程刪除而消失。
+
+| 功能 | 說明 |
+| --- | --- |
+| `/collections` 頁 | user-level（比照 /stats /wrapped），三 Tab＝航空／住宿／國家；桌機頂列＋「我的」選單入口 |
+| 航空 tab | 統計磚（航班/航空公司/聯盟 x/3）＋航空徽章牆（IATA 圓章＋聯盟 badge＋次數）＋逐筆紀錄 CRUD |
+| 住宿 tab | 統計磚＋**品牌收藏牆**（monogram 圓章＋tier 語意色環；不用商標圖）＋「顯示未收集」圖鑑切換＋逐筆 CRUD |
+| 國家 tab | 由旅程出發/目的地＋行程日地點自動推導（與地圖/回顧同口徑），零手動輸入 |
+| 歷史回填 | `datePrecision: day/month/year`——只記得年份的舊旅行也能補登（表單必填欄位極少） |
+| 旅程連結 | 紀錄可選連結 trip（`getTripMembership` 驗證、雙重接受 id/hashCode）；P2 行程整合的地基 |
+
+**固定目錄（核心取捨）**：航空/機場＝封閉集合 → 生成資產 [public/data/airlines.json + airports.json](../scripts/generate-catalogs.mjs)
+（OpenFlights + OurAirports，`pnpm generate:catalogs` 重新產生、**勿手改**，比照 countries.geojson；
+腳本內含三大聯盟標記、常用航空繁中名、以及修正 OpenFlights 停更後被新航空接手的代碼——JX 星宇、IT 台虎、TR 酷航等）。
+兩份 JSON 不進 bundle，前端 [useCatalogs](../src/hooks/queries/useCatalogs.ts) 延遲 fetch＋`staleTime: Infinity`。
+飯店＝開放集合 → **不做**單店目錄，人工精選**品牌**目錄 [hotelBrands.ts](../src/constants/hotelBrands.ts)
+（~140 品牌/60 集團，`id` 為穩定識別碼勿改），`brand` 可為 null（獨立旅宿），目錄缺漏不擋輸入。
+
+**Schema**：[FlightRecord](../src/models/FlightRecord.ts) / [StayRecord](../src/models/StayRecord.ts)，
+`user`(index) + `trip`(可 null)。**刻意偏離級聯刪除慣例**：`deleteTrip` 對這兩個 collection 是
+`updateMany({ trip }, { trip: null })` 解除連結而非刪除（終身紀錄）。隱私比照收據：不進任何公開分享路由。
+
+**Actions**（[collection.actions.ts](../src/actions/collection.actions.ts)，比照好友系統只驗 session）：
+`getCollections`（紀錄＋visited countries 一次回）＋兩組 CRUD（條件式原子更新/刪除 `{ _id, user }`，不做讀改寫）；
+輸入過 Zod（[validation.ts](../src/lib/validation.ts) `create/updateFlightRecordSchema` 等），brand 存在性對
+`HOTEL_BRAND_IDS` 驗證。彙總純函式 [lib/collections.ts](../src/lib/collections.ts)
+（`summarizeAirlines` / `summarizeBrands` / `formatByPrecision`，10 個單元測試）。
+航班號輸入自動帶出航空公司（前兩碼比對目錄）。
+
+**待做（見 ROADMAP #19）**：P2 行程活動一鍵帶入＋地圖航線弧＋wrapped 圖卡；P3 里程碑徽章＋去識別化公開分享卡。
+
+---
+
+## 17. 其他
 
 | 功能 | 說明 |
 | --- | --- |

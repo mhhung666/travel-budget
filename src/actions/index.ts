@@ -158,5 +158,16 @@ export {
   removeFriend,
 } from './friend.actions';
 
+// Collection actions（旅行成就：飛行/住宿終身紀錄＋造訪國家）
+export {
+  getCollections,
+  createFlightRecord,
+  updateFlightRecord,
+  deleteFlightRecord,
+  createStayRecord,
+  updateStayRecord,
+  deleteStayRecord,
+} from './collection.actions';
+
 // Locale action（UI 語系 cookie；見 i18n/config.ts 的「無 i18n 路由」設定）
 export { setLocale } from './locale.actions';

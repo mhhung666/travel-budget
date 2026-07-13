@@ -46,6 +46,7 @@
     "register": "Register",
     "map": "Map",
     "wrapped": "Wrapped",
+    "collections": "Achievements",
     "me": "Me",
     "bottomNav": "Primary navigation"
   },
@@ -1097,6 +1098,124 @@
       "notFound": "This shared review isn't available.",
       "empty": "No trips to show for this year.",
       "cta": "Make my own"
+    }
+  },
+  "collections": {
+    "title": "Travel Achievements",
+    "subtitle": "Your collection of flights, stays and footprints",
+    "tabs": {
+      "flights": "Flights",
+      "stays": "Stays",
+      "countries": "Countries"
+    },
+    "common": {
+      "records": "All records",
+      "save": "Save",
+      "cancel": "Cancel",
+      "edit": "Edit",
+      "delete": "Delete",
+      "date": "Date",
+      "note": "Note",
+      "linkTrip": "Link to trip",
+      "noTrip": "No trip",
+      "unset": "Not set",
+      "clear": "Clear selection",
+      "noMatch": "No matches",
+      "precision": {
+        "day": "Date",
+        "month": "Month",
+        "year": "Year"
+      }
+    },
+    "flights": {
+      "empty": "No flights yet",
+      "emptyDesc": "Log past flights to collect airlines and alliances",
+      "addFlight": "Add flight",
+      "editFlight": "Edit flight",
+      "formDescription": "Log a flight you've taken",
+      "airline": "Airline",
+      "flightNo": "Flight number",
+      "from": "From",
+      "to": "To",
+      "fromPlaceholder": "e.g. TPE",
+      "toPlaceholder": "e.g. HND",
+      "cabin": "Cabin",
+      "cabins": {
+        "economy": "Economy",
+        "premium_economy": "Premium economy",
+        "business": "Business",
+        "first": "First"
+      },
+      "alliance": {
+        "star": "Star Alliance",
+        "oneworld": "oneworld",
+        "skyteam": "SkyTeam"
+      },
+      "searchAirline": "Search airlines…",
+      "searchAirport": "Search by code or city…",
+      "searchAirportHint": "Type an airport code, name or city",
+      "defunct": "Defunct",
+      "timesFlown": "{count, plural, one {# flight} other {# flights}}",
+      "airlineWall": "Airlines flown",
+      "stats": {
+        "flights": "Flights",
+        "airlines": "Airlines",
+        "alliances": "Alliances"
+      },
+      "deleteTitle": "Delete flight record",
+      "deleteMessage": "Delete this flight record? This cannot be undone."
+    },
+    "stays": {
+      "empty": "No stays yet",
+      "emptyDesc": "Log past hotel stays to light up your brand collection",
+      "addStay": "Add stay",
+      "editStay": "Edit stay",
+      "formDescription": "Log a hotel stay",
+      "hotelName": "Hotel name",
+      "hotelNamePlaceholder": "e.g. Mandarin Oriental Tokyo",
+      "brand": "Brand",
+      "brandHint": "Can't find the brand? Leave it empty (independent hotel)",
+      "noBrand": "No brand (independent)",
+      "searchBrand": "Search brands…",
+      "checkIn": "Check-in",
+      "nights": "Nights",
+      "stars": "Stars",
+      "city": "City",
+      "staysCount": "{count, plural, one {# stay} other {# stays}}",
+      "nightsCount": "{count, plural, one {# night} other {# nights}}",
+      "independent": "Independent hotels",
+      "brandWall": "Brand collection",
+      "showUncollected": "Show uncollected",
+      "hideUncollected": "Hide uncollected",
+      "tiers": {
+        "luxury": "Luxury",
+        "upscale": "Upscale",
+        "midscale": "Midscale",
+        "budget": "Budget",
+        "hostel": "Hostel"
+      },
+      "stats": {
+        "stays": "Stays",
+        "brands": "Brands",
+        "nights": "Nights"
+      },
+      "deleteTitle": "Delete stay record",
+      "deleteMessage": "Delete this stay record? This cannot be undone."
+    },
+    "countries": {
+      "empty": "No footprints yet",
+      "emptyDesc": "Create trips with locations and visited countries will light up automatically",
+      "stats": {
+        "countries": "Countries"
+      },
+      "tripsCount": "{count, plural, one {# trip} other {# trips}}",
+      "autoNote": "Computed automatically from trip origins, destinations and itinerary locations"
+    },
+    "errors": {
+      "UNAUTHORIZED": "Please sign in",
+      "VALIDATION_ERROR": "Invalid input, please check and try again",
+      "NOT_FOUND": "Record not found",
+      "INTERNAL_ERROR": "Something went wrong, please try again later"
     }
   },
   "pwa": {
