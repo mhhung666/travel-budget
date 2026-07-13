@@ -13,7 +13,7 @@
  * 兩份皆於前端以 fetch 延遲載入（見 src/hooks/queries/useCatalogs.ts），不進 JS bundle。
  */
 
-import { writeFile, mkdir } from 'node:fs/promises';
+import { writeFile, mkdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -23,12 +23,13 @@ const OUT_DIR = path.join(ROOT, 'public', 'data');
 const AIRLINES_URL = 'https://raw.githubusercontent.com/jpatokal/openflights/master/data/airlines.dat';
 const AIRPORTS_URL = 'https://davidmegginson.github.io/ourairports-data/airports.csv';
 
-/** 三大航空聯盟成員（IATA → alliance）。人工維護：聯盟異動極少（一年 0–2 家）。2026-07 現況。 */
-const ALLIANCES = {
-  star: ['A3', 'AC', 'CA', 'AI', 'NZ', 'NH', 'OZ', 'OS', 'AV', 'SN', 'CM', 'MS', 'ET', 'BR', 'LO', 'LH', 'ZH', 'SQ', 'SA', 'LX', 'TP', 'TG', 'TK', 'UA'],
-  oneworld: ['AS', 'AA', 'BA', 'CX', 'FJ', 'AY', 'IB', 'JL', 'MH', 'WY', 'QF', 'QR', 'AT', 'RJ', 'UL'],
-  skyteam: ['AR', 'AM', 'UX', 'AF', 'CI', 'MU', 'DL', 'GA', 'KQ', 'KL', 'KE', 'ME', 'SV', 'SK', 'RO', 'VN', 'VS', 'MF'],
-};
+/**
+ * 三大航空聯盟成員（IATA → alliance）。單一來源在 src/constants/alliances.json
+ * （伺服端徽章計算與本腳本共用；人工維護，聯盟異動極少）。改 JSON 後重跑本腳本。
+ */
+const ALLIANCES = JSON.parse(
+  await readFile(path.join(ROOT, 'src', 'constants', 'alliances.json'), 'utf8')
+);
 
 /** 常用航空的繁中名 overlay（顯示 / 搜尋用；未列者顯示英文名）。 */
 const NAME_ZH = {

@@ -1117,7 +1117,8 @@
     "tabs": {
       "flights": "Flights",
       "stays": "Stays",
-      "countries": "Countries"
+      "countries": "Countries",
+      "badges": "Badges"
     },
     "common": {
       "records": "All records",
@@ -1227,6 +1228,57 @@
       "VALIDATION_ERROR": "Invalid input, please check and try again",
       "NOT_FOUND": "Record not found",
       "INTERNAL_ERROR": "Something went wrong, please try again later"
+    },
+    "badges": {
+      "wall": "Milestone badges",
+      "stats": {
+        "earned": "Badges earned",
+        "countries": "Countries visited"
+      },
+      "names": {
+        "flights-1": "First Flight",
+        "flights-10": "Frequent Flyer",
+        "flights-50": "Jet Setter",
+        "flights-100": "Century Flyer",
+        "airlines-5": "Airline Collector",
+        "airlines-15": "Airline Connoisseur",
+        "alliances-3": "Alliance Grand Slam",
+        "stays-10": "Hotel Regular",
+        "stays-50": "Globetrotting Guest",
+        "brands-5": "Brand Collector",
+        "brands-15": "Brand Connoisseur",
+        "luxury-5": "Luxury Collector",
+        "countries-5": "Explorer",
+        "countries-10": "World Traveler",
+        "countries-30": "Citizen of the World"
+      },
+      "metrics": {
+        "flights": "Take {target} flights in total",
+        "airlines": "Fly with {target} airlines",
+        "alliances": "Collect all three airline alliances",
+        "stays": "Complete {target} hotel stays",
+        "brands": "Stay with {target} hotel brands",
+        "luxuryBrands": "Stay with {target} luxury brands",
+        "countries": "Visit {target} countries"
+      }
+    },
+    "share": {
+      "button": "Share badges",
+      "title": "Share your achievement badges",
+      "description": "Anyone with the link can see your badges and summary counts. It reuses the same share code as your travel map, and never shows dates, flight numbers, airlines, hotel names or any other details.",
+      "sameAsMap": "Uses the same share toggle as your Travel Map.",
+      "generate": "Create link",
+      "regenerate": "Regenerate link",
+      "revoke": "Turn off sharing",
+      "enabledHint": "Sharing is on. Anyone with the link sees only badges and summary counts (no individual records).",
+      "disabledHint": "Sharing is off. Create a link to share your achievement badges."
+    },
+    "public": {
+      "title": "Travel Badges",
+      "subtitle": "{earned}/{total} badges earned",
+      "notFound": "This shared page isn't available.",
+      "empty": "No achievements to show yet.",
+      "cta": "Start my own collection"
     }
   },
   "pwa": {

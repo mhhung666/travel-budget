@@ -18,6 +18,8 @@ export const ROUTES = {
   MAP_SHARE: (code: string) => `/map/share/${code}`,
   // 年度回顧公開分享頁（去識別化、唯讀，不需登入）
   WRAPPED_SHARE: (code: string, year: string | number) => `/wrapped/share/${code}/${year}`,
+  // 成就徽章公開分享卡（去識別化：只露徽章與彙總數量，不需登入）
+  COLLECTIONS_SHARE: (code: string) => `/collections/share/${code}`,
   TRIP_DETAIL: (id: string | number) => `/trips/${id}`,
   TRIP_SETTLEMENT: (id: string | number) => `/trips/${id}/settlement`,
   TRIP_ITINERARY: (id: string | number) => `/trips/${id}/itinerary`,
@@ -62,6 +64,8 @@ export const ROUTES = {
     PUBLIC_MAP: (code: string) => `/api/public/map/${code}`,
     // 公開（不需登入）年度回顧分享資料（去識別化、僅地理 + 年份）
     PUBLIC_WRAPPED: (code: string, year: string | number) => `/api/public/wrapped/${code}/${year}`,
+    // 公開（不需登入）成就徽章分享資料（去識別化、僅彙總數量）
+    PUBLIC_COLLECTIONS: (code: string) => `/api/public/collections/${code}`,
   },
 } as const;
 

@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { ArrowRight, Pencil, Plane, Plus, Trash2 } from 'lucide-react';
 
 import { summarizeAirlines, formatByPrecision } from '@/lib/collections';
+import { ALLIANCE_COUNT } from '@/constants/alliances';
 import { useAirlines, useCollectionMutations, getAirlineName } from '@/hooks/queries';
 import { useToast } from '@/hooks/use-toast';
 import type { FlightRecordItem } from '@/types';
@@ -14,8 +15,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { ConfirmDialog, EmptyState } from '@/components/common';
 import { FlightRecordDialog } from './FlightRecordDialog';
 import { StatTiles } from './RecordFormFields';
-
-const ALLIANCE_COUNT = 3;
 
 /**
  * 航空收藏 tab：統計磚＋「搭過的航空公司」徽章牆＋逐筆飛行紀錄（可編輯/刪除）。

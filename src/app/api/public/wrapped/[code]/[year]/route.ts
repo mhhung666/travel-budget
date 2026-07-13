@@ -112,6 +112,8 @@ export async function GET(
       countryCount: review.countryCount,
       cityCount: review.cityCount,
       distanceKm: review.distanceKm,
+      // 刻意不帶成就紀錄年份（第三參數）：公開 payload 白名單不含成就區塊，
+      // 只有回填紀錄的年份在公開頁會是整張白卡（P3 評估結論：登入版才納入）。
       availableYears: availableReviewYears(reviewTrips, []),
     };
     return NextResponse.json(payload);

@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { Globe2, Hotel, Plane } from 'lucide-react';
+import { Award, Globe2, Hotel, Plane } from 'lucide-react';
 
 import { useCollections } from '@/hooks/queries';
 import { LoadingState } from '@/components/common';
@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FlightsTab } from './FlightsTab';
 import { StaysTab } from './StaysTab';
 import { CountriesTab } from './CountriesTab';
+import { BadgesTab } from './BadgesTab';
 
 /**
  * 旅行成就頁（/collections，ROADMAP #19 P1）：
@@ -28,7 +29,7 @@ export function CollectionsView() {
       <p className="mb-6 text-sm text-muted-foreground">{t('subtitle')}</p>
 
       <Tabs defaultValue="flights">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="flights" className="gap-1.5">
             <Plane className="h-4 w-4" aria-hidden />
             {t('tabs.flights')}
@@ -41,6 +42,10 @@ export function CollectionsView() {
             <Globe2 className="h-4 w-4" aria-hidden />
             {t('tabs.countries')}
           </TabsTrigger>
+          <TabsTrigger value="badges" className="gap-1.5">
+            <Award className="h-4 w-4" aria-hidden />
+            {t('tabs.badges')}
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="flights" className="mt-6">
           <FlightsTab flights={data.flights} />
@@ -50,6 +55,9 @@ export function CollectionsView() {
         </TabsContent>
         <TabsContent value="countries" className="mt-6">
           <CountriesTab countries={data.countries} />
+        </TabsContent>
+        <TabsContent value="badges" className="mt-6">
+          <BadgesTab flights={data.flights} stays={data.stays} countries={data.countries} />
         </TabsContent>
       </Tabs>
     </div>

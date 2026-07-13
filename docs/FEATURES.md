@@ -266,7 +266,7 @@ UI：登入頁 [/wrapped](../src/app/%5Blocale%5D/wrapped/page.tsx)（年份切�
 
 ---
 
-## 16. 旅行成就（Travel Collections，ROADMAP #19 P1）
+## 16. 旅行成就（Travel Collections，ROADMAP #19）
 
 「旅行人生紀錄」：搭過哪些航空（幾次、哪個航班）、住過哪些品牌飯店（文華東方式的品牌收藏牆）、
 去過哪些國家。**user-level 終身紀錄**——可回填 app 出現之前的旅行史，也不因旅程刪除而消失。
@@ -314,7 +314,21 @@ UI：登入頁 [/wrapped](../src/app/%5Blocale%5D/wrapped/page.tsx)（年份切�
   payload（[public wrapped 路由](../src/app/api/public/wrapped/%5Bcode%5D/%5Byear%5D/route.ts)自建白名單）
   不含它們 → 公開圖卡自動隱藏此區塊，去識別化契約不變。
 
-**待做（見 ROADMAP #19）**：P3 里程碑徽章＋去識別化公開分享卡。
+**P3（里程碑徽章＋公開分享卡，2026-07-13，#19 至此全部完成）**：
+- **里程碑徽章**：純函式 [lib/badges.ts](../src/lib/badges.ts)——15 枚（航班數/航空數/三大聯盟/
+  住宿數/品牌數/奢華品牌×5/國家數），**輸入只有彙總數字 `BadgeCounts`**，`id` 一經釋出即凍結
+  （i18n key 與公開卡依賴）。聯盟對照抽成單一來源 [constants/alliances.json](../src/constants/alliances.json)
+  （generate-catalogs.mjs 與伺服端共用；異動後需 `pnpm generate:catalogs` 重產目錄）。
+  `/collections` 第四個 tab「徽章」＝解鎖統計磚＋[BadgeWall](../src/components/collections/BadgeWall.tsx)
+  （未解鎖灰階＋進度條）＋分享入口。
+- **公開分享卡**：串同一把 `mapShareCode`（地圖/回顧/徽章三處共用同一個開關，文案有標示）。
+  [/api/public/collections/[code]](../src/app/api/public/collections/%5Bcode%5D/route.ts) **只回
+  BadgeCounts 彙總數字**——無日期、航班號、航線、飯店名、航空/品牌明細（逐筆紀錄維持
+  「比照收據不進公開路由」的契約）；徽章由公開頁（/collections/share/[code]）以同一份
+  lib/badges.ts 在前端推導。
+- **wrapped `availableYears` 補遺**：登入版納入飛行/住宿紀錄年份（`availableReviewYears`
+  第三參數；只有回填紀錄、沒有任何旅程的使用者也有年份可切，該年僅成就區塊有數字）。
+  公開 wrapped 路由**刻意不納**：公開 payload 白名單不含成就區塊，納了只會多出整張白卡的年份。
 
 ---
 

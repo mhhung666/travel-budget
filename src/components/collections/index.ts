@@ -4,3 +4,7 @@ export { StaysTab } from './StaysTab';
 export { CountriesTab } from './CountriesTab';
 export { FlightRecordDialog } from './FlightRecordDialog';
 export { StayRecordDialog } from './StayRecordDialog';
+export { BadgesTab } from './BadgesTab';
+export { BadgeWall } from './BadgeWall';
+export { CollectionsShareDialog } from './CollectionsShareDialog';
+export { PublicCollectionsView } from './PublicCollectionsView';

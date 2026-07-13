@@ -1110,7 +1110,8 @@
     "tabs": {
       "flights": "航空",
       "stays": "住宿",
-      "countries": "国家"
+      "countries": "国家",
+      "badges": "徽章"
     },
     "common": {
       "records": "全部记录",
@@ -1220,6 +1221,57 @@
       "VALIDATION_ERROR": "输入数据有误，请检查后重试",
       "NOT_FOUND": "找不到该条记录",
       "INTERNAL_ERROR": "发生错误，请稍后再试"
+    },
+    "badges": {
+      "wall": "里程碑徽章",
+      "stats": {
+        "earned": "已解锁徽章",
+        "countries": "到访国家"
+      },
+      "names": {
+        "flights-1": "首航",
+        "flights-10": "飞行常客",
+        "flights-50": "空中飞人",
+        "flights-100": "百次航程",
+        "airlines-5": "航空收藏家",
+        "airlines-15": "航空鉴赏家",
+        "alliances-3": "三大联盟制霸",
+        "stays-10": "旅宿常客",
+        "stays-50": "环球旅宿家",
+        "brands-5": "品牌收藏家",
+        "brands-15": "品牌鉴赏家",
+        "luxury-5": "奢华收藏家",
+        "countries-5": "启程探索",
+        "countries-10": "环游世界中",
+        "countries-30": "世界公民"
+      },
+      "metrics": {
+        "flights": "累计搭乘 {target} 次航班",
+        "airlines": "坐过 {target} 家航空公司",
+        "alliances": "集满三大航空联盟",
+        "stays": "累计入住 {target} 次",
+        "brands": "住过 {target} 个酒店品牌",
+        "luxuryBrands": "住过 {target} 个奢华品牌",
+        "countries": "到访 {target} 个国家"
+      }
+    },
+    "share": {
+      "button": "分享徽章",
+      "title": "分享你的成就徽章",
+      "description": "任何人只要有链接就能看到你的徽章与汇总数字。沿用旅行地图的同一个分享码，不会显示日期、航班号、航空公司或酒店名称等任何细节。",
+      "sameAsMap": "与“旅行地图”共用同一个分享开关。",
+      "generate": "生成链接",
+      "regenerate": "重新生成链接",
+      "revoke": "关闭分享",
+      "enabledHint": "分享已开启。持有链接者只会看到徽章与汇总数字（不含任何逐条记录）。",
+      "disabledHint": "分享已关闭。生成链接即可公开分享你的成就徽章。"
+    },
+    "public": {
+      "title": "旅行成就徽章",
+      "subtitle": "已解锁 {earned}/{total} 枚徽章",
+      "notFound": "此分享页无法使用。",
+      "empty": "还没有可显示的成就。",
+      "cta": "收集我的旅行成就"
     }
   },
   "pwa": {

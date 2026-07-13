@@ -183,6 +183,15 @@ describe('availableReviewYears', () => {
   it('無資料回空陣列', () => {
     expect(availableReviewYears([], [])).toEqual([]);
   });
+
+  it('成就紀錄年份（第三參數）併入——回填可早於任何旅程（P3）', () => {
+    const trips = [{ startDate: '2025-03-01', endDate: '2025-03-05' }];
+    expect(availableReviewYears(trips, [], ['2010-06-15', '2025-07-01'])).toEqual([2025, 2010]);
+  });
+
+  it('只有成就紀錄（無旅程/支出）也有年份', () => {
+    expect(availableReviewYears([], [], ['2018-01-02'])).toEqual([2018]);
+  });
 });
 
 describe('computeYearInReview — 旅行成就（航班/住宿/新解鎖）', () => {

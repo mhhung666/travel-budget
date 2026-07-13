@@ -65,28 +65,34 @@ export const getYearInReview = withAuth(
         .populate('members.user', 'isVirtual')
         .lean<LeanTrip[]>();
 
-      if (trips.length === 0) {
+      const tripIds = trips.map((t) => t._id);
+      const hasTrips = tripIds.length > 0;
+
+      type LeanFlightRec = { airline: string; date: Date };
+      type LeanStayRec = { brand?: string | null; checkIn: Date };
+      const [expenses, days, flightRecs, stayRecs] = await Promise.all([
+        hasTrips
+          ? Expense.find({ trip: { $in: tripIds }, 'splits.user': session.userId })
+              .select('date category splits')
+              .lean<LeanExpense[]>()
+          : Promise.resolve<LeanExpense[]>([]),
+        hasTrips
+          ? ItineraryDay.find({ trip: { $in: tripIds } })
+              .select('trip location')
+              .lean<LeanDay[]>()
+          : Promise.resolve<LeanDay[]>([]),
+        // 旅行成就（user-level，不限這些 trips、無旅程也可能有回填）：全歷史撈——
+        // 「新解鎖」要看首次出現年份，availableYears 也要納入回填年份（P3）
+        FlightRecord.find({ user: session.userId }).select('airline date').lean<LeanFlightRec[]>(),
+        StayRecord.find({ user: session.userId }).select('brand checkIn').lean<LeanStayRec[]>(),
+      ]);
+
+      if (trips.length === 0 && flightRecs.length === 0 && stayRecs.length === 0) {
         return {
           success: true,
           data: { review: emptyReview(year ?? new Date().getFullYear()), availableYears: [] },
         };
       }
-
-      const tripIds = trips.map((t) => t._id);
-
-      type LeanFlightRec = { airline: string; date: Date };
-      type LeanStayRec = { brand?: string | null; checkIn: Date };
-      const [expenses, days, flightRecs, stayRecs] = await Promise.all([
-        Expense.find({ trip: { $in: tripIds }, 'splits.user': session.userId })
-          .select('date category splits')
-          .lean<LeanExpense[]>(),
-        ItineraryDay.find({ trip: { $in: tripIds } })
-          .select('trip location')
-          .lean<LeanDay[]>(),
-        // 旅行成就（user-level，不限這些 trips）：全歷史撈——「新解鎖」要看首次出現年份
-        FlightRecord.find({ user: session.userId }).select('airline date').lean<LeanFlightRec[]>(),
-        StayRecord.find({ user: session.userId }).select('brand checkIn').lean<LeanStayRec[]>(),
-      ]);
 
       // 投影成純函式輸入。
       const reviewTrips: YearInReviewTrip[] = trips.map((t) => ({
@@ -121,7 +127,11 @@ export const getYearInReview = withAuth(
         checkIn: toYmd(s.checkIn) ?? '',
       }));
 
-      const availableYears = availableReviewYears(reviewTrips, reviewExpenses);
+      // 年份切換納入成就紀錄年份（回填可早於任何旅程；該年其餘數字為零、成就區塊有值）
+      const availableYears = availableReviewYears(reviewTrips, reviewExpenses, [
+        ...reviewFlights.map((f) => f.date),
+        ...reviewStays.map((s) => s.checkIn),
+      ]);
       const targetYear = year ?? availableYears[0] ?? new Date().getFullYear();
       const review = computeYearInReview(
         {

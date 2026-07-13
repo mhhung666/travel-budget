@@ -1110,7 +1110,8 @@
     "tabs": {
       "flights": "フライト",
       "stays": "宿泊",
-      "countries": "国"
+      "countries": "国",
+      "badges": "バッジ"
     },
     "common": {
       "records": "すべての記録",
@@ -1220,6 +1221,57 @@
       "VALIDATION_ERROR": "入力内容に誤りがあります",
       "NOT_FOUND": "記録が見つかりません",
       "INTERNAL_ERROR": "エラーが発生しました。しばらくしてからお試しください"
+    },
+    "badges": {
+      "wall": "マイルストーンバッジ",
+      "stats": {
+        "earned": "獲得バッジ",
+        "countries": "訪問国"
+      },
+      "names": {
+        "flights-1": "初フライト",
+        "flights-10": "フリークエントフライヤー",
+        "flights-50": "ジェットセッター",
+        "flights-100": "100フライト達成",
+        "airlines-5": "エアラインコレクター",
+        "airlines-15": "エアライン通",
+        "alliances-3": "三大アライアンス制覇",
+        "stays-10": "ホテル常連",
+        "stays-50": "世界のゲスト",
+        "brands-5": "ブランドコレクター",
+        "brands-15": "ブランド通",
+        "luxury-5": "ラグジュアリーコレクター",
+        "countries-5": "旅のはじまり",
+        "countries-10": "世界を旅する人",
+        "countries-30": "世界市民"
+      },
+      "metrics": {
+        "flights": "累計 {target} 回のフライト",
+        "airlines": "{target} 社の航空会社に搭乗",
+        "alliances": "三大アライアンスをコンプリート",
+        "stays": "累計 {target} 回の宿泊",
+        "brands": "{target} のホテルブランドに宿泊",
+        "luxuryBrands": "{target} のラグジュアリーブランドに宿泊",
+        "countries": "{target} か国を訪問"
+      }
+    },
+    "share": {
+      "button": "バッジを共有",
+      "title": "達成バッジを共有",
+      "description": "リンクを知っている人は誰でもバッジと集計数字を見られます。旅行マップと同じ共有コードを使い、日付・便名・航空会社・ホテル名などの詳細は一切表示しません。",
+      "sameAsMap": "「旅行マップ」と同じ共有スイッチを使います。",
+      "generate": "リンクを作成",
+      "regenerate": "リンクを再作成",
+      "revoke": "共有をオフ",
+      "enabledHint": "共有はオンです。リンクを持つ人はバッジと集計数字のみ見られます（個別の記録は含まれません）。",
+      "disabledHint": "共有はオフです。リンクを作成すると達成バッジを公開できます。"
+    },
+    "public": {
+      "title": "旅の達成バッジ",
+      "subtitle": "{earned}/{total} 個のバッジを獲得",
+      "notFound": "この共有ページは利用できません。",
+      "empty": "まだ表示できる達成はありません。",
+      "cta": "自分のコレクションを始める"
     }
   },
   "pwa": {

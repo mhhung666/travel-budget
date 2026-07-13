@@ -207,18 +207,25 @@ export function computeYearInReview(inputs: YearInReviewInputs, year: number): Y
 }
 
 /**
- * 有資料可回顧的年份清單（新到舊）：旅程涵蓋年份 ∪ 支出日期年份。
- * 供年度回顧頁的年份切換；空陣列代表此使用者尚無任何旅行/支出。
+ * 有資料可回顧的年份清單（新到舊）：旅程涵蓋年份 ∪ 支出日期年份 ∪ 成就紀錄年份。
+ * 供年度回顧頁的年份切換；空陣列代表此使用者尚無任何旅行/支出/成就紀錄。
+ *
+ * `recordDates`＝飛行/住宿紀錄的日期（YYYY-MM-DD；ROADMAP #19 P3）：回填的終身紀錄
+ * 可早於任何旅程，這些年份也要能切換（該年只有成就區塊有數字，其餘為零）。
+ * 公開分享路由**刻意不帶**此參數——公開 payload 白名單不含成就，空年份只會是白卡。
  */
 export function availableReviewYears(
   trips: Pick<YearInReviewTrip, 'startDate' | 'endDate'>[],
-  expenses: Pick<YearInReviewExpense, 'date'>[]
+  expenses: Pick<YearInReviewExpense, 'date'>[],
+  recordDates: string[] = []
 ): number[] {
   const years = new Set<number>();
-  for (const t of trips) for (const y of yearsSpanned(t.startDate, t.endDate)) years.add(y);
-  for (const e of expenses) {
-    const y = Number(e.date.slice(0, 4));
+  const addDateYear = (date: string) => {
+    const y = Number(date.slice(0, 4));
     if (Number.isFinite(y) && y > 0) years.add(y);
-  }
+  };
+  for (const t of trips) for (const y of yearsSpanned(t.startDate, t.endDate)) years.add(y);
+  for (const e of expenses) addDateYear(e.date);
+  for (const d of recordDates) addDateYear(d);
   return [...years].sort((a, b) => b - a);
 }
