@@ -1,3 +1,4 @@
+import { describe, expect, it } from 'vitest';
 import { sanitizeInternalPath } from '@/lib/redirects';
 
 describe('sanitizeInternalPath', () => {
