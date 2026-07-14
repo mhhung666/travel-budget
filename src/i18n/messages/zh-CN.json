@@ -804,6 +804,7 @@
     "loadFailed": "加载笔记失败",
     "showAll": "显示全部",
     "collapse": "收起",
+    "edited": "已编辑",
     "editorTab": "编辑",
     "previewTab": "预览",
     "markdownHint": "支持 Markdown：# 标题、- 列表、- [ ] 待办、**粗体**",

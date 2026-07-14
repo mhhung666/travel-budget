@@ -804,6 +804,7 @@
     "loadFailed": "メモの読み込みに失敗しました",
     "showAll": "すべて表示",
     "collapse": "折りたたむ",
+    "edited": "編集済み",
     "editorTab": "編集",
     "previewTab": "プレビュー",
     "markdownHint": "Markdown 対応：# 見出し、- リスト、- [ ] タスク、**太字**",

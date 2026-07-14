@@ -62,6 +62,9 @@ export function NoteCard({
   const t = useTranslations('notes');
   const locale = useLocale();
   const planned = note.planned_at !== null;
+  // 更新過才顯示「已編輯」時間戳：createNote 會同時寫入 created/updated，兩者僅差
+  // 亞秒級，故以 1 秒為門檻濾掉建立當下的微差（含 pin/附件/task 打勾等任何寫入）。
+  const edited = new Date(note.updated_at).getTime() - new Date(note.created_at).getTime() > 1000;
   const single = note.attachments.length === 1;
   const tasksEnabled = canEdit && !planned;
 
@@ -162,7 +165,10 @@ export function NoteCard({
                 </AvatarFallback>
               </Avatar>
               <span className="text-xs text-muted-foreground">
-                {note.author_name} · {formatRelativeTime(note.created_at, locale)}
+                {note.author_name} ·{' '}
+                {edited
+                  ? `${formatRelativeTime(note.updated_at, locale)} (${t('edited')})`
+                  : formatRelativeTime(note.created_at, locale)}
               </span>
             </div>
           </div>

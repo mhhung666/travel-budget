@@ -804,6 +804,7 @@
     "loadFailed": "載入筆記失敗",
     "showAll": "顯示全部",
     "collapse": "收合",
+    "edited": "已編輯",
     "editorTab": "編輯",
     "previewTab": "預覽",
     "markdownHint": "支援 Markdown：# 標題、- 清單、- [ ] 待辦、**粗體**",

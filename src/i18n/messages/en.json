@@ -811,6 +811,7 @@
     "loadFailed": "Failed to load notes",
     "showAll": "Show all",
     "collapse": "Collapse",
+    "edited": "edited",
     "editorTab": "Write",
     "previewTab": "Preview",
     "markdownHint": "Markdown supported: # heading, - list, - [ ] task, **bold**",
