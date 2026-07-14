@@ -6,6 +6,8 @@
 ## 1. 背景與定位
 
 使用者想追蹤航空會籍的升等／保級進度（先做國泰，未來擴及華航、長榮）與里數累積。
+**更遠期會加入飯店會籍**（Marriott Bonvoy／Hilton Honors 等，夜數制）並呈現在**同一個「會籍」頁**——
+因此本規劃的命名與資料形狀一律不綁「航空」（model 叫 Loyalty* 而非 Airline*、tab 叫「會籍」）。
 
 **核心定位：這是「積分記帳」，不是「積分計算器」。**
 精確計算一段航班賺多少積分需要訂位艙等字母（fare class）、各家年年變動的計算表、
@@ -41,7 +43,8 @@
 
 **設計上重要的觀察**：
 1. 規則形狀只有兩種——「積分制」（CX、CI）與「哩程＋航段制」（BR）。抽象只需涵蓋這兩種，
-   不要做通用規則引擎。
+   不要做通用規則引擎。（遠期的飯店會籍是第三種「夜數制」，屆時在 `ProgramRules`
+   union 加一個 `kind: 'nights'` 即可，見 §8。）
 2. 規則**年年變**（CX 2025/8 改表、2027 改制；CI 2026 改制）→ 門檻做成集中常數檔、
    標註查證日期，不散落在元件裡。
 3. CI 的「50% 來自自家航班」與 BR 的「航段須自家」→ ledger entry 需要 `ownAirline` 旗標，
@@ -62,7 +65,8 @@
 ```ts
 {
   user: ObjectId,                  // ref User
-  program: 'CX' | 'CI' | 'BR',     // MVP 只開放 'CX'，enum 先全列
+  program: string,                 // program key（MVP 只開放 'CX'；enum 集中在 constants/loyalty.ts，
+                                   // 未來直接加 'CI'|'BR'|'MARRIOTT'|'HILTON'…，不綁航空）
   currentTier: string,             // program 專屬 tier key（如 'green'|'silver'|'gold'|'diamond'）
   tierExpiresAt: Date | null,      // 卡籍效期（BR 兩年制用；CX 曆年制可 null）
   memberNo: string,                // 會員號（選填，僅顯示用）
@@ -78,9 +82,9 @@
 ```ts
 {
   user: ObjectId,
-  program: 'CX' | 'CI' | 'BR',
+  program: string,                 // 同 LoyaltyAccount.program
   date: Date,
-  type: 'flight' | 'hotel' | 'card' | 'dining' | 'promo' | 'adjust' | 'other',
+  type: 'flight' | 'stay' | 'card' | 'dining' | 'promo' | 'adjust' | 'other',
   statusPoints: number,            // 會籍積分（CX/CI）；可負（adjust）
   qualifyingMiles: number,         // 卡籍哩程（BR）；積分制 program 恆 0
   awardMiles: number,              // 可花里數變動；可負（兌換、過期沖銷）
@@ -98,6 +102,10 @@
 UI 以此判斷「已帶入」防重複（同 FlightRecord ↔ `sourceActivity` 的既有模式）。
 
 BR 的「航段數」不另設欄位：= 該 program 內 `type === 'flight' && ownAirline` 的 entry 數。
+
+**飯店會籍預留**：屆時對 entry **加欄位不改欄位**——`qualifyingNights: number`（合格夜數）與
+`stayRecord: ObjectId | null`（連結既有 [StayRecord](../src/models/StayRecord.ts)，
+「從住宿紀錄帶入」與飛行帶入同一模式）。純新增選填欄位，不需 migration。
 
 ### Program 規則常數 — `src/constants/loyalty.ts`
 
@@ -166,6 +174,7 @@ i18n：新字串**四語系全補**（含各 program 的 tier 名稱 key，如
 | **1（MVP）** | CX only：兩個 model＋actions＋`lib/loyalty.ts`＋會籍 tab＋飛行帶入＋i18n＋測試 | M |
 | **2** | CI／BR：補規則常數（動工時重新查證門檻）、program 切換 UI、CI 自家占比警示、BR 哩程＋航段雙軌進度 | S |
 | **3（可選）** | 積分「預估」輔助：填航班時依機場大圓距離（[airports.json](../public/data/airports.json) 已有 lat/lon）× 客艙給 SP **區間**預估，帶生效日期的規則表；明示為預估、可改 | M |
+| 之後再議 | **飯店會籍**（Marriott／Hilton／IHG…夜數制）：`ProgramRules` 加 `kind: 'nights'`、entry 加 `qualifyingNights`＋`stayRecord` ref、同一「會籍」tab 多幾張 program 卡——架構不變，純加法 | — |
 | 之後再議 | 里數效期提醒（各家效期規則需查證）、awardMiles 兌換紀錄分類統計 | — |
 
 Phase 1 的 schema 已含 Phase 2 所需欄位（`program` enum、`qualifyingMiles`、`ownAirline`），
