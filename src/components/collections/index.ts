@@ -5,7 +5,6 @@ export { CountriesTab } from './CountriesTab';
 export { FlightRecordDialog } from './FlightRecordDialog';
 export { StayRecordDialog } from './StayRecordDialog';
 export { BadgesTab } from './BadgesTab';
-export { LoyaltyTab } from './LoyaltyTab';
 export { LoyaltyAccountDialog } from './LoyaltyAccountDialog';
 export { LoyaltyEntryDialog } from './LoyaltyEntryDialog';
 export { BadgeWall } from './BadgeWall';

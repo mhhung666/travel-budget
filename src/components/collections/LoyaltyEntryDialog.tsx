@@ -6,6 +6,7 @@ import { Loader2 } from 'lucide-react';
 
 import {
   LOYALTY_ENTRY_TYPES,
+  PROGRAM_RULES,
   type LoyaltyProgram,
   type LoyaltyEntryType,
 } from '@/constants/loyalty';
@@ -15,6 +16,7 @@ import type { LoyaltyEntryItem } from '@/types';
 import type { CreateLoyaltyEntryInput } from '@/lib/validation';
 import { ResponsiveFormSheet } from '@/components/common';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -63,10 +65,15 @@ export function LoyaltyEntryDialog({
   const { toast } = useToast();
   const { createEntry, updateEntry } = useLoyaltyMutations();
 
+  // 哩程＋航段制（BR）記卡籍哩程＋自家航段；積分制（CX）記會籍積分
+  const kind = PROGRAM_RULES[program].kind;
+
   const [date, setDate] = useState(today());
   const [type, setType] = useState<LoyaltyEntryType>('flight');
   const [statusPoints, setStatusPoints] = useState('');
+  const [qualifyingMiles, setQualifyingMiles] = useState('');
   const [awardMiles, setAwardMiles] = useState('');
+  const [ownAirline, setOwnAirline] = useState(false);
   const [note, setNote] = useState('');
 
   useEffect(() => {
@@ -75,7 +82,9 @@ export function LoyaltyEntryDialog({
     setDate(editing?.date ?? defaults?.date ?? today());
     setType(editing?.type ?? defaults?.type ?? 'other');
     setStatusPoints(editing ? String(editing.status_points) : '');
+    setQualifyingMiles(editing ? String(editing.qualifying_miles) : '');
     setAwardMiles(editing ? String(editing.award_miles) : '');
+    setOwnAirline(editing?.own_airline ?? defaults?.own_airline ?? false);
     setNote(editing?.note ?? defaults?.note ?? '');
   }, [open, editing, defaults]);
 
@@ -88,10 +97,11 @@ export function LoyaltyEntryDialog({
       program,
       date,
       type,
-      status_points: toInt(statusPoints),
-      qualifying_miles: 0,
+      status_points: kind === 'points' ? toInt(statusPoints) : 0,
+      qualifying_miles: kind === 'milesAndSegments' ? toInt(qualifyingMiles) : 0,
       award_miles: toInt(awardMiles),
-      own_airline: editing?.own_airline ?? defaults?.own_airline ?? false,
+      // 積分制無自家航段概念；哩程制以此判定國際航段
+      own_airline: kind === 'milesAndSegments' ? ownAirline : (editing?.own_airline ?? false),
       // 帶入來源標記：新增取預填、編輯沿用原值（避免更新把「已帶入」洗掉）
       flight_record_id: editing?.flight_record_id ?? defaults?.flight_record_id ?? null,
       note: note.trim(),
@@ -149,12 +159,18 @@ export function LoyaltyEntryDialog({
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label>{t('loyalty.statusPoints')}</Label>
+            <Label>
+              {t(kind === 'points' ? 'loyalty.statusPoints' : 'loyalty.qualifyingMiles')}
+            </Label>
             <Input
               type="number"
               inputMode="numeric"
-              value={statusPoints}
-              onChange={(e) => setStatusPoints(e.target.value)}
+              value={kind === 'points' ? statusPoints : qualifyingMiles}
+              onChange={(e) =>
+                kind === 'points'
+                  ? setStatusPoints(e.target.value)
+                  : setQualifyingMiles(e.target.value)
+              }
               placeholder="0"
             />
           </div>
@@ -169,6 +185,24 @@ export function LoyaltyEntryDialog({
             />
           </div>
         </div>
+
+        {kind === 'milesAndSegments' && (
+          <label className="flex items-start gap-3 rounded-lg border p-3">
+            <Checkbox
+              checked={ownAirline}
+              onCheckedChange={(v) => setOwnAirline(v === true)}
+              className="mt-0.5"
+            />
+            <span className="min-w-0">
+              <span className="block text-sm font-medium text-foreground">
+                {t('loyalty.ownAirlineFlight')}
+              </span>
+              <span className="block text-xs text-muted-foreground">
+                {t('loyalty.ownAirlineFlightHint')}
+              </span>
+            </span>
+          </label>
+        )}
 
         <div className="space-y-2">
           <Label>{t('common.note')}</Label>

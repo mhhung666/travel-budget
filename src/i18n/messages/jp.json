@@ -1292,7 +1292,8 @@
       "accountFormDescription": "現在のステータスを自己申告し、ポイント・マイルは後から記帳",
       "program": "プログラム",
       "programs": {
-        "CX": "キャセイパシフィック航空"
+        "CX": "キャセイパシフィック航空",
+        "BR": "エバー航空"
       },
       "tierLabel": "現在のステータス",
       "memberNo": "会員番号",
@@ -1303,12 +1304,20 @@
           "gold": "ゴールド",
           "diamond": "ダイヤモンド",
           "diamond_plus": "ダイヤモンド・エグゼクティブ"
+        },
+        "BR": {
+          "green": "グリーン",
+          "silver": "シルバー",
+          "gold": "ゴールド",
+          "diamond": "ダイヤモンド"
         }
       },
       "stats": {
         "yearPoints": "{year}年のポイント",
         "milesBalance": "マイル残高",
-        "carryOver": "繰越見込み"
+        "carryOver": "繰越見込み",
+        "windowMiles": "資格マイル",
+        "segments": "国際区間"
       },
       "progressToNext": "{tier}まであと{points}ポイント",
       "maxTier": "最上位ステータス達成",
@@ -1339,7 +1348,15 @@
       "deleteEntryMessage": "この記録を削除しますか？",
       "importFlight": "会員ポイントに記帳",
       "imported": "記帳済み",
-      "importedToast": "会員ポイントに記帳しました"
+      "importedToast": "会員ポイントに記帳しました",
+      "milesToNextTier": "{tier}まで残り{miles}マイル",
+      "segmentsToNextTier": "{tier}まで残り{segments}区間",
+      "progressPathHint": "マイルか区間のいずれか達成で昇格（直近12ヶ月）",
+      "renewalNote": "カード有効期間は2年、継続基準は別途（公式をご確認ください）",
+      "qualifyingMiles": "資格マイル",
+      "ownAirlineFlight": "エバー／ユニー国際線区間",
+      "ownAirlineFlightHint": "区間数に加算されます",
+      "qualifyingAmount": "資格 {miles} マイル"
     }
   },
   "pwa": {

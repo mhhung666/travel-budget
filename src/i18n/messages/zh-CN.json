@@ -1292,7 +1292,8 @@
       "accountFormDescription": "等级自行申报，积分与里数之后逐笔补登",
       "program": "会籍计划",
       "programs": {
-        "CX": "国泰航空"
+        "CX": "国泰航空",
+        "BR": "长荣航空"
       },
       "tierLabel": "当前等级",
       "memberNo": "会员号",
@@ -1303,12 +1304,20 @@
           "gold": "金卡",
           "diamond": "钻石卡",
           "diamond_plus": "钻石行政卡"
+        },
+        "BR": {
+          "green": "绿卡",
+          "silver": "银卡",
+          "gold": "金卡",
+          "diamond": "钻石卡"
         }
       },
       "stats": {
         "yearPoints": "{year} 年积分",
         "milesBalance": "里数余额",
-        "carryOver": "结转估算"
+        "carryOver": "结转估算",
+        "windowMiles": "卡籍哩程",
+        "segments": "国际航段"
       },
       "progressToNext": "距{tier}还差 {points} 分",
       "maxTier": "已达最高等级",
@@ -1339,7 +1348,15 @@
       "deleteEntryMessage": "确定要删除这条积分记录吗？",
       "importFlight": "记入会籍积分",
       "imported": "已记入会籍",
-      "importedToast": "已记入会籍积分"
+      "importedToast": "已记入会籍积分",
+      "milesToNextTier": "距{tier}还差 {miles} 哩",
+      "segmentsToNextTier": "距{tier}还差 {segments} 段",
+      "progressPathHint": "哩程或航段满足其一即可升等（近 12 个月）",
+      "renewalNote": "卡籍有效期两年，续卡门槛另计（以官方为准）",
+      "qualifyingMiles": "卡籍哩程",
+      "ownAirlineFlight": "长荣／立荣国际线航段",
+      "ownAirlineFlightHint": "计入航段数",
+      "qualifyingAmount": "卡籍 {miles} 哩"
     }
   },
   "pwa": {

@@ -1292,7 +1292,8 @@
       "accountFormDescription": "等級自行申報，積分與里數之後逐筆補登",
       "program": "會籍計畫",
       "programs": {
-        "CX": "國泰航空"
+        "CX": "國泰航空",
+        "BR": "長榮航空"
       },
       "tierLabel": "目前等級",
       "memberNo": "會員號",
@@ -1303,12 +1304,20 @@
           "gold": "金卡",
           "diamond": "鑽石卡",
           "diamond_plus": "鑽石行政卡"
+        },
+        "BR": {
+          "green": "綠卡",
+          "silver": "銀卡",
+          "gold": "金卡",
+          "diamond": "鑽石卡"
         }
       },
       "stats": {
         "yearPoints": "{year} 年積分",
         "milesBalance": "里數餘額",
-        "carryOver": "結轉估算"
+        "carryOver": "結轉估算",
+        "windowMiles": "卡籍哩程",
+        "segments": "國際航段"
       },
       "progressToNext": "距{tier}還差 {points} 分",
       "maxTier": "已達最高等級",
@@ -1339,7 +1348,15 @@
       "deleteEntryMessage": "確定要刪除這筆積分紀錄嗎？",
       "importFlight": "記入會籍積分",
       "imported": "已記入會籍",
-      "importedToast": "已記入會籍積分"
+      "importedToast": "已記入會籍積分",
+      "milesToNextTier": "距{tier}還差 {miles} 哩",
+      "segmentsToNextTier": "距{tier}還差 {segments} 段",
+      "progressPathHint": "哩程或航段擇一達標即升等（近 12 個月）",
+      "renewalNote": "卡籍效期兩年，續卡門檻另計（以官方為準）",
+      "qualifyingMiles": "卡籍哩程",
+      "ownAirlineFlight": "長榮／立榮國際線航段",
+      "ownAirlineFlightHint": "計入航段數",
+      "qualifyingAmount": "卡籍 {miles} 哩"
     }
   },
   "pwa": {

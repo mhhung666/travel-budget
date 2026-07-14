@@ -1,8 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { computeLoyaltyProgress } from '@/lib/loyalty';
-import { PROGRAM_RULES, programTierKeys } from '@/constants/loyalty';
+import { computeLoyaltyProgress, computeMilesSegmentsProgress } from '@/lib/loyalty';
+import {
+  PROGRAM_RULES,
+  programTierKeys,
+  type MilesSegmentsProgramRules,
+  type PointsProgramRules,
+} from '@/constants/loyalty';
 
-const CX = PROGRAM_RULES.CX;
+const CX = PROGRAM_RULES.CX as PointsProgramRules;
+const BR = PROGRAM_RULES.BR as MilesSegmentsProgramRules;
 
 type Entry = Parameters<typeof computeLoyaltyProgress>[0][number];
 
@@ -121,8 +127,122 @@ describe('computeLoyaltyProgress（CX 積分制）', () => {
   });
 });
 
+type BrEntry = Parameters<typeof computeMilesSegmentsProgress>[0][number];
+
+const brEntry = (over: Partial<BrEntry> = {}): BrEntry => ({
+  date: '2026-03-10',
+  type: 'flight',
+  qualifying_miles: 0,
+  award_miles: 0,
+  own_airline: false,
+  ...over,
+});
+
+describe('computeMilesSegmentsProgress（BR 哩程＋航段制）', () => {
+  it('空輸入 → 綠卡、距銀卡 30,000 哩 / 26 段', () => {
+    const p = computeMilesSegmentsProgress([], BR, null, '2026-06-01');
+    expect(p.windowStart).toBe('2025-06-01');
+    expect(p.windowMiles).toBe(0);
+    expect(p.windowSegments).toBe(0);
+    expect(p.achievedTier.key).toBe('green');
+    expect(p.nextTier?.key).toBe('silver');
+    expect(p.milesToNext).toBe(30000);
+    expect(p.segmentsToNext).toBe(26);
+    expect(p.awardMilesBalance).toBe(0);
+  });
+
+  it('滾動 12 個月窗口：窗口外哩程不計，里數餘額不限窗口', () => {
+    const p = computeMilesSegmentsProgress(
+      [
+        brEntry({ date: '2025-05-31', qualifying_miles: 40000, award_miles: 1000 }), // 窗口外
+        brEntry({ date: '2025-06-01', qualifying_miles: 20000, award_miles: 2000 }), // 窗口起日（含）
+        brEntry({ date: '2026-06-01', qualifying_miles: 5000, award_miles: -500 }), // asOf（含）
+      ],
+      BR,
+      null,
+      '2026-06-01'
+    );
+    expect(p.windowMiles).toBe(25000);
+    expect(p.awardMilesBalance).toBe(2500);
+  });
+
+  it('航段路徑：26 段自家國際線 → 銀卡（哩程為 0）', () => {
+    const entries = Array.from({ length: 26 }, () =>
+      brEntry({ type: 'flight', own_airline: true })
+    );
+    const p = computeMilesSegmentsProgress(entries, BR, null, '2026-06-01');
+    expect(p.windowSegments).toBe(26);
+    expect(p.achievedTier.key).toBe('silver');
+  });
+
+  it('哩程路徑需附加 4 段：30,000 哩＋4 段 → 銀卡；只差 1 段 → 仍綠卡', () => {
+    const seg = (n: number) =>
+      Array.from({ length: n }, () => brEntry({ type: 'flight', own_airline: true }));
+
+    const met = computeMilesSegmentsProgress(
+      [brEntry({ qualifying_miles: 30000, own_airline: false, type: 'card' }), ...seg(4)],
+      BR,
+      null,
+      '2026-06-01'
+    );
+    expect(met.achievedTier.key).toBe('silver');
+
+    const notYet = computeMilesSegmentsProgress(
+      [brEntry({ qualifying_miles: 30000, own_airline: false, type: 'card' }), ...seg(3)],
+      BR,
+      null,
+      '2026-06-01'
+    );
+    expect(notYet.achievedTier.key).toBe('green');
+  });
+
+  it('純哩程路徑可跳級：50,000 哩、0 段 → 金卡（銀卡因缺附加航段未達）', () => {
+    const p = computeMilesSegmentsProgress(
+      [brEntry({ qualifying_miles: 50000, type: 'card', own_airline: false })],
+      BR,
+      null,
+      '2026-06-01'
+    );
+    expect(p.achievedTier.key).toBe('gold');
+    expect(p.nextTier?.key).toBe('diamond');
+    expect(p.milesToNext).toBe(70000);
+    expect(p.segmentsToNext).toBe(100);
+  });
+
+  it('非 flight 或非自家航班不計航段', () => {
+    const p = computeMilesSegmentsProgress(
+      [
+        brEntry({ type: 'flight', own_airline: false }), // 他航
+        brEntry({ type: 'stay', own_airline: true }), // 非飛行
+        brEntry({ type: 'flight', own_airline: true }), // 計 1 段
+      ],
+      BR,
+      null,
+      '2026-06-01'
+    );
+    expect(p.windowSegments).toBe(1);
+  });
+
+  it('最高級（鑽石）達標後無下一級', () => {
+    const p = computeMilesSegmentsProgress(
+      [brEntry({ qualifying_miles: 120000, type: 'card' })],
+      BR,
+      null,
+      '2026-06-01'
+    );
+    expect(p.achievedTier.key).toBe('diamond');
+    expect(p.nextTier).toBeNull();
+    expect(p.milesToNext).toBeNull();
+    expect(p.segmentsToNext).toBeNull();
+  });
+});
+
 describe('programTierKeys', () => {
   it('CX 五級由低到高', () => {
     expect(programTierKeys('CX')).toEqual(['green', 'silver', 'gold', 'diamond', 'diamond_plus']);
+  });
+
+  it('BR 四級由低到高', () => {
+    expect(programTierKeys('BR')).toEqual(['green', 'silver', 'gold', 'diamond']);
   });
 });

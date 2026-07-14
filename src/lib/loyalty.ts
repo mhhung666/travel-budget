@@ -1,4 +1,9 @@
-import type { PointsProgramRules, PointsTier } from '@/constants/loyalty';
+import type {
+  MilesSegmentsProgramRules,
+  MilesSegmentsTier,
+  PointsProgramRules,
+  PointsTier,
+} from '@/constants/loyalty';
 import type { LoyaltyEntryItem } from '@/types';
 
 /**
@@ -6,8 +11,9 @@ import type { LoyaltyEntryItem } from '@/types';
  * 與 badges.ts 同風格的純函式：無 IO、輸入輸出皆 plain object，方便單元測試。
  * 日期一律以 YYYY-MM-DD 字串比較（entries DTO 即此格式），避免時區歧義。
  *
- * 只實作積分制（CX；CI 同形狀）。哩程＋航段制（BR）、夜數制（飯店）待
- * ProgramRules union 擴充後依 kind 分流。
+ * 積分制（CX；CI 同形狀）＝computeLoyaltyProgress；哩程＋航段制（BR）＝
+ * computeMilesSegmentsProgress。UI 依 rules.kind 分流呼叫。夜數制（飯店）待
+ * ProgramRules union 再擴充。
  */
 
 export interface LoyaltyProgress {
@@ -93,6 +99,86 @@ export function computeLoyaltyProgress(
     renewal,
     carryOverEstimate,
     ownAirlineRatio: positivePoints > 0 ? ownAirlinePoints / positivePoints : null,
+    awardMilesBalance,
+  };
+}
+
+export interface MilesSegmentsProgress {
+  /** 滾動窗口起日（YYYY-MM-DD，asOf 往前推一年）。 */
+  windowStart: string;
+  /** 本窗口卡籍哩程總計。 */
+  windowMiles: number;
+  /** 本窗口自家國際線航段數（own_airline 的 flight entry 計數）。 */
+  windowSegments: number;
+  /** 本窗口哩程／航段對照達到的最高等級（與使用者自設 currentTier 無關）。 */
+  achievedTier: MilesSegmentsTier;
+  /** 下一級；null＝已達最高級。 */
+  nextTier: MilesSegmentsTier | null;
+  /** 距下一級的卡籍哩程（哩程路徑）；nextTier 為 null 時為 null。 */
+  milesToNext: number | null;
+  /** 距下一級的自家國際航段（航段路徑）；nextTier 為 null 時為 null。 */
+  segmentsToNext: number | null;
+  /** 可花里數餘額（全期間 award_miles 加總，不限窗口）。 */
+  awardMilesBalance: number;
+}
+
+/** 某 tier 是否達標：航段路徑（純自家航段）或哩程路徑（哩程＋最低附加航段）滿足其一。 */
+function milesSegmentsTierMet(tier: MilesSegmentsTier, miles: number, segments: number): boolean {
+  const bySegments = tier.segments > 0 && segments >= tier.segments;
+  const byMiles = miles >= tier.miles && segments >= (tier.minSegmentsWithMiles ?? 0);
+  // green（門檻皆 0）恆達標
+  return tier.miles === 0 && tier.segments === 0 ? true : bySegments || byMiles;
+}
+
+/**
+ * 哩程＋航段制升等進度（BR，docs/PLAN-LOYALTY.md §5）。
+ * 「航段」＝窗口內 `type === 'flight' && own_airline` 的 entry 數（自家國際線實際搭乘）。
+ *
+ * @param entries 該 program 的全部 entries（窗口過濾在本函式內做）
+ * @param currentTier 使用者自設等級 key（此 MVP 未用於升等進度，保留簽名一致）
+ * @param asOf 進度基準日（YYYY-MM-DD），預設今天——往前推一年為窗口起點
+ */
+export function computeMilesSegmentsProgress(
+  entries: Pick<
+    LoyaltyEntryItem,
+    'date' | 'type' | 'qualifying_miles' | 'award_miles' | 'own_airline'
+  >[],
+  rules: MilesSegmentsProgramRules,
+  _currentTier: string | null,
+  asOf: string = new Date().toISOString().slice(0, 10)
+): MilesSegmentsProgress {
+  // 字串日期比較避免時區/曆法歧義（同 computeLoyaltyProgress 慣例）。
+  // 起日採「同月日、年份 -1」：即使是 02-29 這種不存在的日期，字串比較仍正確。
+  const [y, m, d] = asOf.split('-');
+  const windowStart = `${Number(y) - 1}-${m}-${d}`;
+
+  let windowMiles = 0;
+  let windowSegments = 0;
+  let awardMilesBalance = 0;
+  for (const e of entries) {
+    awardMilesBalance += e.award_miles;
+    if (e.date < windowStart || e.date > asOf) continue;
+    windowMiles += e.qualifying_miles;
+    if (e.type === 'flight' && e.own_airline) windowSegments += 1;
+  }
+
+  // tiers 由低到高；achieved＝獨立檢查（金卡純哩程路徑可跳過銀卡）取最高達標者
+  const tiers = rules.tiers;
+  let achievedIndex = 0;
+  tiers.forEach((tier, i) => {
+    if (milesSegmentsTierMet(tier, windowMiles, windowSegments)) achievedIndex = i;
+  });
+  const achievedTier = tiers[achievedIndex];
+  const nextTier = achievedIndex + 1 < tiers.length ? tiers[achievedIndex + 1] : null;
+
+  return {
+    windowStart,
+    windowMiles,
+    windowSegments,
+    achievedTier,
+    nextTier,
+    milesToNext: nextTier ? Math.max(0, nextTier.miles - windowMiles) : null,
+    segmentsToNext: nextTier ? Math.max(0, nextTier.segments - windowSegments) : null,
     awardMilesBalance,
   };
 }

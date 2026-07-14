@@ -1299,7 +1299,8 @@
       "accountFormDescription": "Declare your current tier; log points and miles as entries later",
       "program": "Program",
       "programs": {
-        "CX": "Cathay Pacific"
+        "CX": "Cathay Pacific",
+        "BR": "EVA Air"
       },
       "tierLabel": "Current tier",
       "memberNo": "Member number",
@@ -1310,12 +1311,20 @@
           "gold": "Gold",
           "diamond": "Diamond",
           "diamond_plus": "Diamond Executive"
+        },
+        "BR": {
+          "green": "Green",
+          "silver": "Silver",
+          "gold": "Gold",
+          "diamond": "Diamond"
         }
       },
       "stats": {
         "yearPoints": "{year} points",
         "milesBalance": "Miles balance",
-        "carryOver": "Est. carry-over"
+        "carryOver": "Est. carry-over",
+        "windowMiles": "Qualifying miles",
+        "segments": "Intl segments"
       },
       "progressToNext": "{points} points to {tier}",
       "maxTier": "Top tier reached",
@@ -1346,7 +1355,15 @@
       "deleteEntryMessage": "Delete this entry?",
       "importFlight": "Log to membership",
       "imported": "Logged to membership",
-      "importedToast": "Logged to membership"
+      "importedToast": "Logged to membership",
+      "milesToNextTier": "{miles} miles to {tier}",
+      "segmentsToNextTier": "{segments} segments to {tier}",
+      "progressPathHint": "Upgrade by miles or segments — whichever comes first",
+      "renewalNote": "Card valid for 2 years; renewal uses different thresholds (see EVA Air)",
+      "qualifyingMiles": "Qualifying miles",
+      "ownAirlineFlight": "EVA / UNI intl segment",
+      "ownAirlineFlightHint": "Counts toward your segment total",
+      "qualifyingAmount": "{miles} qual. mi"
     }
   },
   "pwa": {

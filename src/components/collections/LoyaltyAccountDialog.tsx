@@ -27,42 +27,57 @@ interface LoyaltyAccountDialogProps {
   program: LoyaltyProgram;
   /** null＝首次設定；有值＝編輯（等級/會員號/備註）。 */
   editing: LoyaltyAccountItem | null;
+  /** 新增時可選的計畫清單（尚未設定者）；提供且 >1 時顯示計畫選單。編輯時忽略。 */
+  availablePrograms?: LoyaltyProgram[];
 }
 
 /**
  * 會籍帳戶設定表單：等級由使用者自行申報（app 不自動判級，見 PLAN-LOYALTY.md），
- * 會員號/備註選填。program 於 MVP 固定為國泰，Phase 2 起由外部選擇後傳入。
+ * 會員號/備註選填。新增時可挑選航空計畫（國泰／長榮…）；編輯時計畫固定。
  */
 export function LoyaltyAccountDialog({
   open,
   onOpenChange,
   program,
   editing,
+  availablePrograms,
 }: LoyaltyAccountDialogProps) {
   const t = useTranslations('collections');
   const { toast } = useToast();
   const { upsertAccount } = useLoyaltyMutations();
 
-  const tiers = PROGRAM_RULES[program].tiers;
+  // 新增時可切換計畫；編輯時鎖定該帳戶的計畫
+  const [selectedProgram, setSelectedProgram] = useState<LoyaltyProgram>(program);
+  const tiers = PROGRAM_RULES[selectedProgram].tiers;
   const [tier, setTier] = useState(tiers[0].key);
   const [memberNo, setMemberNo] = useState('');
   const [note, setNote] = useState('');
 
+  const showProgramPicker = !editing && (availablePrograms?.length ?? 0) > 1;
+
   useEffect(() => {
     if (!open) return;
+    const initialProgram = editing?.program ?? program;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- 開啟對話框時帶入編輯目標，為刻意的同步
-    setTier(editing?.current_tier ?? tiers[0].key);
+    setSelectedProgram(initialProgram);
+    setTier(editing?.current_tier ?? PROGRAM_RULES[initialProgram].tiers[0].key);
     setMemberNo(editing?.member_no ?? '');
     setNote(editing?.note ?? '');
-  }, [open, editing, tiers]);
+  }, [open, editing, program]);
 
   const pending = upsertAccount.isPending;
+
+  const handleProgramChange = (value: string) => {
+    const next = value as LoyaltyProgram;
+    setSelectedProgram(next);
+    setTier(PROGRAM_RULES[next].tiers[0].key);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       await upsertAccount.mutateAsync({
-        program,
+        program: selectedProgram,
         current_tier: tier,
         member_no: memberNo.trim(),
         note: note.trim(),
@@ -90,7 +105,26 @@ export function LoyaltyAccountDialog({
       <form id="loyalty-account-form" onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
           <Label>{t('loyalty.program')}</Label>
-          <Input value={t(`loyalty.programs.${program}`)} disabled readOnly />
+          {showProgramPicker ? (
+            <Select value={selectedProgram} onValueChange={handleProgramChange}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {availablePrograms!.map((p) => (
+                  <SelectItem key={p} value={p}>
+                    {t(`loyalty.programs.${p}` as Parameters<typeof t>[0])}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <Input
+              value={t(`loyalty.programs.${selectedProgram}` as Parameters<typeof t>[0])}
+              disabled
+              readOnly
+            />
+          )}
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -103,7 +137,9 @@ export function LoyaltyAccountDialog({
               <SelectContent>
                 {tiers.map((tierRule) => (
                   <SelectItem key={tierRule.key} value={tierRule.key}>
-                    {t(`loyalty.tiers.${program}.${tierRule.key}` as Parameters<typeof t>[0])}
+                    {t(
+                      `loyalty.tiers.${selectedProgram}.${tierRule.key}` as Parameters<typeof t>[0]
+                    )}
                   </SelectItem>
                 ))}
               </SelectContent>
