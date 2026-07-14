@@ -1115,6 +1115,8 @@
     },
     "common": {
       "records": "全部记录",
+      "recordsCount": "{count} 条",
+      "undated": "未记日期",
       "save": "保存",
       "cancel": "取消",
       "edit": "编辑",

@@ -1115,6 +1115,8 @@
     },
     "common": {
       "records": "すべての記録",
+      "recordsCount": "{count} 件",
+      "undated": "日付不明",
       "save": "保存",
       "cancel": "キャンセル",
       "edit": "編集",

@@ -11,9 +11,9 @@ import { useToast } from '@/hooks/use-toast';
 import type { FlightRecordItem } from '@/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { ConfirmDialog, EmptyState } from '@/components/common';
 import { FlightRecordDialog } from './FlightRecordDialog';
+import { RecordYearGroups } from './RecordYearGroups';
 import { StatTiles } from './RecordFormFields';
 
 /**
@@ -138,62 +138,62 @@ export function FlightsTab({ flights }: { flights: FlightRecordItem[] }) {
             {t('flights.addFlight')}
           </Button>
         </div>
-        <Card>
-          <CardContent className="divide-y p-0">
-            {flights.map((f) => (
-              <div key={f.id} className="flex items-center gap-3 px-4 py-3">
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                    <span className="text-sm font-medium text-foreground">
-                      {airlineLabel(f.airline)}
-                    </span>
-                    {f.flight_no && (
-                      <span className="font-mono text-xs text-muted-foreground">{f.flight_no}</span>
-                    )}
-                    {f.cabin && (
-                      <Badge variant="secondary" className="text-xs">
-                        {t(`flights.cabins.${f.cabin}`)}
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
-                    <span>{formatByPrecision(f.date, f.date_precision)}</span>
-                    {f.from_airport && f.to_airport && (
-                      <span className="flex items-center gap-1 font-mono">
-                        {f.from_airport}
-                        <ArrowRight className="h-3 w-3" />
-                        {f.to_airport}
-                      </span>
-                    )}
-                  </div>
+        <RecordYearGroups
+          items={flights}
+          getDate={(f) => f.date}
+          renderRow={(f) => (
+            <div key={f.id} className="flex items-center gap-3 px-4 py-3">
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                  <span className="text-sm font-medium text-foreground">
+                    {airlineLabel(f.airline)}
+                  </span>
+                  {f.flight_no && (
+                    <span className="font-mono text-xs text-muted-foreground">{f.flight_no}</span>
+                  )}
+                  {f.cabin && (
+                    <Badge variant="secondary" className="text-xs">
+                      {t(`flights.cabins.${f.cabin}`)}
+                    </Badge>
+                  )}
                 </div>
-                <div className="flex shrink-0 gap-1">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    aria-label={t('common.edit')}
-                    onClick={() => {
-                      setEditing(f);
-                      setDialogOpen(true);
-                    }}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-destructive hover:text-destructive"
-                    aria-label={t('common.delete')}
-                    onClick={() => setDeleting(f)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
+                  <span>{formatByPrecision(f.date, f.date_precision)}</span>
+                  {f.from_airport && f.to_airport && (
+                    <span className="flex items-center gap-1 font-mono">
+                      {f.from_airport}
+                      <ArrowRight className="h-3 w-3" />
+                      {f.to_airport}
+                    </span>
+                  )}
                 </div>
               </div>
-            ))}
-          </CardContent>
-        </Card>
+              <div className="flex shrink-0 gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  aria-label={t('common.edit')}
+                  onClick={() => {
+                    setEditing(f);
+                    setDialogOpen(true);
+                  }}
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-destructive hover:text-destructive"
+                  aria-label={t('common.delete')}
+                  onClick={() => setDeleting(f)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+        />
       </section>
 
       <FlightRecordDialog open={dialogOpen} onOpenChange={setDialogOpen} editing={editing} />

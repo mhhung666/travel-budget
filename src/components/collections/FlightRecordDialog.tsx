@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/select';
 import { AirlineCombobox } from './AirlineCombobox';
 import { AirportCombobox } from './AirportCombobox';
-import { DatePrecisionInput, TripLinkSelect } from './RecordFormFields';
+import { DatePrecisionInput, LockedTripField, TripLinkSelect } from './RecordFormFields';
 
 interface FlightRecordDialogProps {
   open: boolean;
@@ -31,6 +31,11 @@ interface FlightRecordDialogProps {
   editing: FlightRecordItem | null;
   /** 新增時的預填值（行程「一鍵帶入」用；編輯時忽略）。 */
   defaults?: Partial<CreateFlightRecordInput> | null;
+  /**
+   * 鎖定的連結旅程（行程一鍵帶入用）：帶入時旅程即當下旅程，改以唯讀欄位呈現、
+   * 不給下拉改選；只在新增時生效（編輯忽略）。
+   */
+  lockedTrip?: { id: string; name: string } | null;
   /** 儲存成功後回呼（帶入情境顯示 toast 用）。 */
   onSaved?: () => void;
 }
@@ -50,6 +55,7 @@ export function FlightRecordDialog({
   onOpenChange,
   editing,
   defaults,
+  lockedTrip,
   onSaved,
 }: FlightRecordDialogProps) {
   const t = useTranslations('collections');
@@ -67,6 +73,9 @@ export function FlightRecordDialog({
   const [tripId, setTripId] = useState<string | null>(null);
   const [note, setNote] = useState('');
 
+  // 帶入時鎖定旅程＝當下旅程（唯讀）；編輯情境不套用鎖定。
+  const locked = editing ? null : (lockedTrip ?? null);
+
   // 開啟時初始化表單：編輯＝帶入該筆；新增＝套用預填（行程帶入）或空白
   useEffect(() => {
     if (!open) return;
@@ -78,9 +87,9 @@ export function FlightRecordDialog({
     setFromAirport(editing?.from_airport ?? defaults?.from_airport ?? null);
     setToAirport(editing?.to_airport ?? defaults?.to_airport ?? null);
     setCabin(editing?.cabin ?? defaults?.cabin ?? NO_CABIN);
-    setTripId(editing?.trip_id ?? defaults?.trip_id ?? null);
+    setTripId(locked?.id ?? editing?.trip_id ?? defaults?.trip_id ?? null);
     setNote(editing?.note ?? defaults?.note ?? '');
-  }, [open, editing, defaults]);
+  }, [open, editing, defaults, locked]);
 
   const handleFlightNo = (raw: string) => {
     const value = raw.toUpperCase();
@@ -107,9 +116,10 @@ export function FlightRecordDialog({
     const input: CreateFlightRecordInput = {
       trip_id: tripId,
       // 帶入來源標記：新增取預填、編輯沿用原值（避免更新把「已帶入」洗掉）。
-      // 使用者若改掉連結旅程，來源活動已不屬於該旅程 → 一併清除。
-      source_activity_id:
-        tripId === (editing?.trip_id ?? defaults?.trip_id ?? null)
+      // 鎖定旅程時不可改選 → 一律保留來源活動；否則使用者改掉連結旅程即清除。
+      source_activity_id: locked
+        ? (defaults?.source_activity_id ?? null)
+        : tripId === (editing?.trip_id ?? defaults?.trip_id ?? null)
           ? (editing?.source_activity_id ?? defaults?.source_activity_id ?? null)
           : null,
       date,
@@ -217,7 +227,11 @@ export function FlightRecordDialog({
           </div>
           <div className="space-y-2">
             <Label>{t('common.linkTrip')}</Label>
-            <TripLinkSelect value={tripId} onChange={setTripId} />
+            {locked ? (
+              <LockedTripField name={locked.name} />
+            ) : (
+              <TripLinkSelect value={tripId} onChange={setTripId} />
+            )}
           </div>
         </div>
 

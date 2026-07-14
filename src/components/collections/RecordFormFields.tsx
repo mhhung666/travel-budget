@@ -1,6 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import { Link2 } from 'lucide-react';
 
 import { useTrips } from '@/hooks/queries';
 import type { DatePrecision } from '@/types';
@@ -100,6 +101,19 @@ export function TripLinkSelect({
         ))}
       </SelectContent>
     </Select>
+  );
+}
+
+/**
+ * 唯讀的「已連結旅程」欄位（行程一鍵帶入用）：帶入情境旅程已確定＝當下旅程，
+ * 不再給下拉選（避免 hash_code/ObjectId 值不一致而顯示成「未連結」，也省去多餘操作）。
+ */
+export function LockedTripField({ name }: { name: string }) {
+  return (
+    <div className="flex h-10 items-center gap-2 rounded-md border border-input bg-muted/50 px-3 text-sm">
+      <Link2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+      <span className="truncate text-foreground">{name}</span>
+    </div>
   );
 }
 

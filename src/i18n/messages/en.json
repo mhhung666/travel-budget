@@ -1122,6 +1122,8 @@
     },
     "common": {
       "records": "All records",
+      "recordsCount": "{count, plural, one {# record} other {# records}}",
+      "undated": "Undated",
       "save": "Save",
       "cancel": "Cancel",
       "edit": "Edit",

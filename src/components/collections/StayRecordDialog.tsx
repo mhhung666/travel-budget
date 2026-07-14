@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { BrandCombobox } from './BrandCombobox';
-import { DatePrecisionInput, TripLinkSelect } from './RecordFormFields';
+import { DatePrecisionInput, LockedTripField, TripLinkSelect } from './RecordFormFields';
 
 interface StayRecordDialogProps {
   open: boolean;
@@ -30,6 +30,11 @@ interface StayRecordDialogProps {
   editing: StayRecordItem | null;
   /** 新增時的預填值（行程「一鍵帶入」用；編輯時忽略）。 */
   defaults?: Partial<CreateStayRecordInput> | null;
+  /**
+   * 鎖定的連結旅程（行程一鍵帶入用）：帶入時旅程即當下旅程，改以唯讀欄位呈現、
+   * 不給下拉改選；只在新增時生效（編輯忽略）。
+   */
+  lockedTrip?: { id: string; name: string } | null;
   /** 儲存成功後回呼（帶入情境顯示 toast 用）。 */
   onSaved?: () => void;
 }
@@ -47,6 +52,7 @@ export function StayRecordDialog({
   onOpenChange,
   editing,
   defaults,
+  lockedTrip,
   onSaved,
 }: StayRecordDialogProps) {
   const t = useTranslations('collections');
@@ -62,6 +68,9 @@ export function StayRecordDialog({
   const [city, setCity] = useState('');
   const [tripId, setTripId] = useState<string | null>(null);
   const [note, setNote] = useState('');
+
+  // 帶入時鎖定旅程＝當下旅程（唯讀）；編輯情境不套用鎖定。
+  const locked = editing ? null : (lockedTrip ?? null);
 
   // 開啟時初始化表單：編輯＝帶入該筆；新增＝套用預填（行程帶入）或空白
   useEffect(() => {
@@ -80,9 +89,9 @@ export function StayRecordDialog({
     setHotelName(editing?.hotel_name ?? defaults?.hotel_name ?? '');
     setStars(editing?.stars != null ? String(editing.stars) : NO_STARS);
     setCity(editing?.city ?? defaults?.city ?? '');
-    setTripId(editing?.trip_id ?? defaults?.trip_id ?? null);
+    setTripId(locked?.id ?? editing?.trip_id ?? defaults?.trip_id ?? null);
     setNote(editing?.note ?? defaults?.note ?? '');
-  }, [open, editing, defaults]);
+  }, [open, editing, defaults, locked]);
 
   const pending = createStay.isPending || updateStay.isPending;
   const canSubmit = Boolean(checkIn && hotelName.trim());
@@ -94,9 +103,10 @@ export function StayRecordDialog({
     const parsedNights = Number.parseInt(nights, 10);
     const input: CreateStayRecordInput = {
       trip_id: tripId,
-      // 帶入來源標記：新增取預填、編輯沿用原值；改掉連結旅程時一併清除（同 FlightRecordDialog）。
-      source_activity_id:
-        tripId === (editing?.trip_id ?? defaults?.trip_id ?? null)
+      // 帶入來源標記：新增取預填、編輯沿用原值；鎖定旅程時一律保留、否則改掉連結旅程即清除（同 FlightRecordDialog）。
+      source_activity_id: locked
+        ? (defaults?.source_activity_id ?? null)
+        : tripId === (editing?.trip_id ?? defaults?.trip_id ?? null)
           ? (editing?.source_activity_id ?? defaults?.source_activity_id ?? null)
           : null,
       check_in: checkIn,
@@ -207,7 +217,11 @@ export function StayRecordDialog({
           </div>
           <div className="space-y-2">
             <Label>{t('common.linkTrip')}</Label>
-            <TripLinkSelect value={tripId} onChange={setTripId} />
+            {locked ? (
+              <LockedTripField name={locked.name} />
+            ) : (
+              <TripLinkSelect value={tripId} onChange={setTripId} />
+            )}
           </div>
         </div>
 

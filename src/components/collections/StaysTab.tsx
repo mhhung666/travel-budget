@@ -18,10 +18,10 @@ import { useToast } from '@/hooks/use-toast';
 import type { StayRecordItem } from '@/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { ConfirmDialog, EmptyState } from '@/components/common';
 import { StayRecordDialog } from './StayRecordDialog';
+import { RecordYearGroups } from './RecordYearGroups';
 import { StatTiles } from './RecordFormFields';
 
 /** tier → 徽章圓環色（品牌牆的「等級」視覺語彙；不用商標圖，用 monogram＋語意 token 色環）。 */
@@ -247,68 +247,66 @@ export function StaysTab({ stays }: { stays: StayRecordItem[] }) {
             {t('stays.addStay')}
           </Button>
         </div>
-        <Card>
-          <CardContent className="divide-y p-0">
-            {stays.map((s) => {
-              const brand = getHotelBrand(s.brand);
-              return (
-                <div key={s.id} className="flex items-center gap-3 px-4 py-3">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                      <span className="text-sm font-medium text-foreground">{s.hotel_name}</span>
-                      {brand && (
-                        <Badge variant="secondary" className="text-xs">
-                          {getHotelBrandName(brand, locale)}
-                        </Badge>
-                      )}
-                      {s.stars != null && (
-                        <span className="flex items-center gap-0.5 text-xs text-warning">
-                          {s.stars}
-                          <Star className="h-3 w-3 fill-current" />
-                        </span>
-                      )}
-                    </div>
-                    <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
-                      <span>{formatByPrecision(s.check_in, s.date_precision)}</span>
-                      {s.nights != null && (
-                        <span>{t('stays.nightsCount', { count: s.nights })}</span>
-                      )}
-                      {s.city && (
-                        <span className="flex items-center gap-0.5">
-                          <MapPin className="h-3 w-3" />
-                          {s.city}
-                        </span>
-                      )}
-                    </div>
+        <RecordYearGroups
+          items={stays}
+          getDate={(s) => s.check_in}
+          renderRow={(s) => {
+            const brand = getHotelBrand(s.brand);
+            return (
+              <div key={s.id} className="flex items-center gap-3 px-4 py-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                    <span className="text-sm font-medium text-foreground">{s.hotel_name}</span>
+                    {brand && (
+                      <Badge variant="secondary" className="text-xs">
+                        {getHotelBrandName(brand, locale)}
+                      </Badge>
+                    )}
+                    {s.stars != null && (
+                      <span className="flex items-center gap-0.5 text-xs text-warning">
+                        {s.stars}
+                        <Star className="h-3 w-3 fill-current" />
+                      </span>
+                    )}
                   </div>
-                  <div className="flex shrink-0 gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      aria-label={t('common.edit')}
-                      onClick={() => {
-                        setEditing(s);
-                        setDialogOpen(true);
-                      }}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-destructive hover:text-destructive"
-                      aria-label={t('common.delete')}
-                      onClick={() => setDeleting(s)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+                    <span>{formatByPrecision(s.check_in, s.date_precision)}</span>
+                    {s.nights != null && <span>{t('stays.nightsCount', { count: s.nights })}</span>}
+                    {s.city && (
+                      <span className="flex items-center gap-0.5">
+                        <MapPin className="h-3 w-3" />
+                        {s.city}
+                      </span>
+                    )}
                   </div>
                 </div>
-              );
-            })}
-          </CardContent>
-        </Card>
+                <div className="flex shrink-0 gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    aria-label={t('common.edit')}
+                    onClick={() => {
+                      setEditing(s);
+                      setDialogOpen(true);
+                    }}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-destructive hover:text-destructive"
+                    aria-label={t('common.delete')}
+                    onClick={() => setDeleting(s)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            );
+          }}
+        />
       </section>
 
       <StayRecordDialog open={dialogOpen} onOpenChange={setDialogOpen} editing={editing} />

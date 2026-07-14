@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
@@ -113,6 +113,8 @@ export default function ItineraryPage() {
     d.activities.some((a) => activityImportKind(a.type) !== null)
   );
   const { data: links } = useTripCollectionLinks(tripId, hasImportable);
+  // 帶入時鎖定的連結旅程＝當下旅程（用解析後的 ObjectId，避免與 hash_code 網址不一致）。
+  const lockedTrip = useMemo(() => (trip ? { id: trip.id, name: trip.name } : null), [trip]);
   const importedActivityIds = new Set([
     ...(links?.flight_activity_ids ?? []),
     ...(links?.stay_activity_ids ?? []),
@@ -348,6 +350,7 @@ export default function ItineraryPage() {
         onOpenChange={(open) => !open && setImporting(null)}
         editing={null}
         defaults={importing?.flightDefaults ?? null}
+        lockedTrip={lockedTrip}
         onSaved={() => toast({ title: tAct('importedSuccess') })}
       />
       <StayRecordDialog
@@ -355,6 +358,7 @@ export default function ItineraryPage() {
         onOpenChange={(open) => !open && setImporting(null)}
         editing={null}
         defaults={importing?.stayDefaults ?? null}
+        lockedTrip={lockedTrip}
         onSaved={() => toast({ title: tAct('importedSuccess') })}
       />
 

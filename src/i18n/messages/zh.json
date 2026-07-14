@@ -1115,6 +1115,8 @@
     },
     "common": {
       "records": "全部紀錄",
+      "recordsCount": "{count} 筆",
+      "undated": "未記日期",
       "save": "儲存",
       "cancel": "取消",
       "edit": "編輯",
