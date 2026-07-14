@@ -26,6 +26,12 @@ export interface HotelBrand {
   /** 所屬集團（HOTEL_GROUPS.id）。 */
   group: string;
   tier: HotelTier;
+  /**
+   * 帶入啟發式（matchHotelBrand）額外比對的別名——用於「集團旗艦」品牌的裸集團關鍵字：
+   * 物業常寫「城市 + Marriott + 物業名」（如 "Bangkok Marriott Marquis"），全名 "Marriott Hotels"
+   * 卻對不上。只放旗艦品牌、只放裸關鍵字；更具體的子品牌（JW Marriott…）靠最長命中勝出，不受影響。
+   */
+  aliases?: string[];
 }
 
 export const HOTEL_GROUPS: HotelGroup[] = [
@@ -119,6 +125,7 @@ export const HOTEL_BRANDS: HotelBrand[] = [
     nameZh: '萬豪',
     group: 'marriott',
     tier: 'upscale',
+    aliases: ['Marriott'],
   },
   { id: 'sheraton', name: 'Sheraton', nameZh: '喜來登', group: 'marriott', tier: 'upscale' },
   { id: 'westin', name: 'Westin', nameZh: '威斯汀', group: 'marriott', tier: 'upscale' },
@@ -178,6 +185,7 @@ export const HOTEL_BRANDS: HotelBrand[] = [
     nameZh: '希爾頓',
     group: 'hilton',
     tier: 'upscale',
+    aliases: ['Hilton'],
   },
   { id: 'curio', name: 'Curio Collection', nameZh: '格芮精選', group: 'hilton', tier: 'upscale' },
   { id: 'canopy', name: 'Canopy by Hilton', nameZh: '嘉悅里', group: 'hilton', tier: 'upscale' },
@@ -224,7 +232,14 @@ export const HOTEL_BRANDS: HotelBrand[] = [
   { id: 'alila', name: 'Alila', nameZh: '阿麗拉', group: 'hyatt', tier: 'luxury' },
   { id: 'andaz', name: 'Andaz', nameZh: '安達仕', group: 'hyatt', tier: 'luxury' },
   { id: 'thompson', name: 'Thompson Hotels', group: 'hyatt', tier: 'upscale' },
-  { id: 'hyatt-regency', name: 'Hyatt Regency', nameZh: '凱悅', group: 'hyatt', tier: 'upscale' },
+  {
+    id: 'hyatt-regency',
+    name: 'Hyatt Regency',
+    nameZh: '凱悅',
+    group: 'hyatt',
+    tier: 'upscale',
+    aliases: ['Hyatt'],
+  },
   {
     id: 'hyatt-centric',
     name: 'Hyatt Centric',

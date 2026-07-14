@@ -45,17 +45,33 @@ export function parseAirports(text: string): { from: string; to: string } | null
  */
 export function matchHotelBrand(title: string): string | null {
   const lower = title.toLowerCase();
-  let best: { id: string; len: number } | null = null;
+  let bestId: string | null = null;
+  let bestLen = 0;
   for (const b of HOTEL_BRANDS) {
-    if (b.nameZh && title.includes(b.nameZh) && (!best || b.nameZh.length > best.len)) {
-      best = { id: b.id, len: b.nameZh.length };
-    }
-    const en = b.name.toLowerCase();
-    if (lower.includes(en) && (!best || en.length > best.len)) {
-      best = { id: b.id, len: en.length };
+    // 每個品牌的比對詞：繁中名、英文名，加旗艦品牌的裸集團關鍵字別名
+    // （"Bangkok Marriott Marquis" 這種）。別名比全名短，具體子品牌命中時靠最長命中勝出。
+    const needles = [b.nameZh, b.name, ...(b.aliases ?? [])];
+    for (const needle of needles) {
+      if (!needle) continue;
+      const n = needle.toLowerCase();
+      if (lower.includes(n) && n.length > bestLen) {
+        bestId = b.id;
+        bestLen = n.length;
+      }
     }
   }
-  return best?.id ?? null;
+  return bestId;
+}
+
+/**
+ * 從活動標題/備註猜住宿晚數：阿拉伯數字 + 晚/泊/night(s)。例："3晚"、"2泊3日"、"3 nights"。
+ * 1–60 之外視為誤判回 null；猜不到回 null。
+ */
+export function parseNights(text: string): number | null {
+  const m = text.match(/(\d{1,2})\s*(?:晚|泊|nights?)/i);
+  if (!m) return null;
+  const n = Number(m[1]);
+  return n >= 1 && n <= 60 ? n : null;
 }
 
 /**

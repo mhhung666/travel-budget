@@ -34,6 +34,7 @@ import {
   matchHotelBrand,
   parseAirports,
   parseFlightNo,
+  parseNights,
 } from '@/lib/collectionImport';
 
 import { ItinerarySkeleton } from '@/components/skeletons';
@@ -149,6 +150,7 @@ export default function ItineraryPage() {
     } else {
       const brand = matchHotelBrand(activity.title);
       const city = activity.location?.name ?? day.location?.name ?? '';
+      const nights = parseNights(`${activity.title} ${activity.note}`);
       setImporting({
         kind,
         stayDefaults: {
@@ -158,6 +160,7 @@ export default function ItineraryPage() {
           hotel_name: activity.title,
           ...(brand ? { brand } : {}),
           ...(city ? { city } : {}),
+          ...(nights ? { nights } : {}),
         },
       });
     }

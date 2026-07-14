@@ -300,10 +300,12 @@ UI：登入頁 [/wrapped](../src/app/%5Blocale%5D/wrapped/page.tsx)（年份切�
 
 **P2（行程整合＋地圖＋wrapped，2026-07-13）**：
 - **行程一鍵帶入**：行程頁交通/住宿活動列的 Medal 按鈕（**任何成員可用**，個人紀錄不受 isAdmin 限制）
-  → 開預填的補登對話框。預填為啟發式（[lib/collectionImport.ts](../src/lib/collectionImport.ts)，11 個測試）：
+  → 開預填的補登對話框。預填為啟發式（[lib/collectionImport.ts](../src/lib/collectionImport.ts)，15 個測試）：
   日期＝旅程出發日推第 N 天、航班號/航空自標題文字比對、出發/抵達機場自標題文字抓一組
   大寫 IATA 三碼（`parseAirports`，容忍箭頭/連字號/斜線/`to`/「往至到飛去」等方向記號；
-  只認大寫免把小寫字誤判）、品牌自標題比對目錄（取最長命中）、猜錯在對話框改掉即可。紀錄帶 `sourceActivity`（活動子文件 _id，action 以 `ItineraryDay.exists`
+  只認大寫免把小寫字誤判）、飯店品牌自標題比對目錄（取最長命中；旗艦品牌另掛裸集團關鍵字
+  `aliases`，讓 "Bangkok Marriott Marquis" 這類「城市＋集團＋物業名」也命中）、住宿晚數自
+  標題/備註抓 `晚/泊/night(s)`（`parseNights`）、猜錯在對話框改掉即可。紀錄帶 `sourceActivity`（活動子文件 _id，action 以 `ItineraryDay.exists`
   驗證歸屬防偽造）；[getTripCollectionLinks](../src/actions/collection.actions.ts) 回「我已帶入」的活動 id
   集合供顯示已帶入/防重複。編輯紀錄時 `source_activity_id` 沿用原值（改掉連結旅程才清除）。
 - **地圖「飛行」模式**：第五個模式（routes/flights/heat/countries/photos）。FlightRecord 依

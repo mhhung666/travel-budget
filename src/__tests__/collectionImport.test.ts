@@ -5,6 +5,7 @@ import {
   matchHotelBrand,
   parseAirports,
   parseFlightNo,
+  parseNights,
 } from '@/lib/collectionImport';
 
 describe('activityImportKind', () => {
@@ -61,8 +62,35 @@ describe('matchHotelBrand', () => {
     expect(matchHotelBrand('Hilton Garden Inn Osaka')).toBe('hilton-garden-inn');
   });
 
+  it('裸集團關鍵字別名：City + 集團 + 物業名 命中旗艦品牌', () => {
+    // 全名 "Marriott Hotels" 對不上，靠別名 "Marriott" 命中旗艦
+    expect(matchHotelBrand("Bangkok Marriott Marquis Queen's Park")).toBe('marriott-hotels');
+    expect(matchHotelBrand('Hilton Tokyo Odaiba')).toBe('hilton-hotels');
+    expect(matchHotelBrand('Hyatt Bangkok')).toBe('hyatt-regency');
+  });
+
+  it('別名不搶具體子品牌（最長命中）', () => {
+    expect(matchHotelBrand('JW Marriott Hotel Bangkok')).toBe('jw-marriott');
+    expect(matchHotelBrand('Grand Hyatt Taipei')).toBe('grand-hyatt');
+    expect(matchHotelBrand('Courtyard by Marriott Bangkok')).toBe('courtyard');
+  });
+
   it('比不到品牌回 null（獨立旅宿）', () => {
     expect(matchHotelBrand('某某民宿')).toBeNull();
+  });
+});
+
+describe('parseNights', () => {
+  it('中日英寫法：晚 / 泊 / night(s)', () => {
+    expect(parseNights('入住 3晚')).toBe(3);
+    expect(parseNights('2泊3日')).toBe(2);
+    expect(parseNights('Stay 3 nights')).toBe(3);
+    expect(parseNights('1 Night')).toBe(1);
+  });
+
+  it('沒有晚數樣式或超出範圍回 null', () => {
+    expect(parseNights('入住飯店')).toBeNull();
+    expect(parseNights('99晚')).toBeNull(); // >60 視為誤判
   });
 });
 
