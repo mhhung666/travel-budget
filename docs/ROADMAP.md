@@ -1,6 +1,6 @@
 # 功能藍圖（Feature Roadmap）
 
-> 建立日期：2026-06-26（最後更新：2026-07-03）
+> 建立日期：2026-06-26（最後更新：2026-07-14）
 > 性質：產品功能藍圖——只列**尚未動工**的功能構想，附優先序與落地草圖（schema / actions / UI 影響）。
 > 相關文件：**已完成功能**的紀錄見 [CHANGELOG.md](./CHANGELOG.md)、實作細節見 [FEATURES.md](./FEATURES.md)；架構見 [ARCHITECTURE.md](./ARCHITECTURE.md)；程式碼 / 基礎設施層級的改善見 [IMPROVEMENTS.md](./IMPROVEMENTS.md)。
 
@@ -16,6 +16,12 @@
 ### 11b. 🔹 第三方登入 (OAuth) — M〔頭像已完成，OAuth 待做〕
 **為什麼**：降低註冊摩擦。
 **做法**：Google 登入可用 Auth.js 或自建，與現有自製 JWT 並存。
+
+### 20. ⭐ 航空會籍積分與里程紀錄 (Loyalty ledger) — M〔已完成詳細規劃〕
+**為什麼**：追蹤會籍升等／保級進度與里數，與「記帳」DNA 一致；掛在收藏牆（user-level）。
+**做法**：定位是「積分記帳」而非「自動計算」——數字手動記、app 算門檻進度。
+MVP 只做國泰（2027 新制），schema 預留華航／長榮。
+**完整規劃（制度查證、資料模型、分期）見 [PLAN-LOYALTY.md](./PLAN-LOYALTY.md)。**
 
 ### 14. 🔹 PDF 行程 / 結算報告 (PDF reports) — M
 **為什麼**：目前只有 CSV。一份漂亮的「旅程結算單 / 行程手冊」PDF 很適合分享與報帳。
@@ -37,6 +43,7 @@
 
 ```
 中等（M）
+  ├── 20 會籍積分與里程紀錄（規劃已完成 → PLAN-LOYALTY.md）
   ├── 14 PDF 報告
   └── 11b OAuth 登入
 ```
