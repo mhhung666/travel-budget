@@ -350,8 +350,11 @@ UI：登入頁 [/wrapped](../src/app/%5Blocale%5D/wrapped/page.tsx)（年份切�
   標 `verifiedAt`，UI 帶「以官方為準」——改規則＝改常數不動 schema。
 - **進度計算**：[lib/loyalty.ts](../src/lib/loyalty.ts) 純函式（曆年窗口、跨級、結轉估算、
   續會門檻、自家占比、里數餘額），測試在 [loyalty.test.ts](../src/__tests__/loyalty.test.ts)。
-- **UI**：`/collections` 第五個 tab「會籍」＝帳戶卡（等級 badge＋統計磚＋升等進度條＋續會狀態）
-  ＋逐筆 ledger（RecordYearGroups 年份分組）。航空 tab 每筆飛行紀錄加「記入會籍積分」
+- **UI**：獨立頁 `/memberships`（會籍）＝航空區塊帳戶卡（等級 badge＋統計磚＋升等進度條＋
+  續會狀態）＋逐筆 ledger（RecordYearGroups 年份分組），下方保留飯店區塊 placeholder（Phase 2）。
+  組件仍複用 [components/collections/LoyaltyTab](../src/components/collections/LoyaltyTab.tsx)、字串仍在
+  `collections.loyalty.*` 命名空間。`/collections`（旅行成就）已回到 4 個 tab（航空／住宿／國家／徽章）。
+  航空 tab 每筆飛行紀錄加「記入會籍積分」
   （Medal 鈕，需先設帳戶）；已帶入者停用防重複（entry 存 `flightRecord` ref，action 驗證
   歸屬＋重複回 `CONFLICT`，同 sourceActivity 模式）。刪 FlightRecord 時 entry 解除連結但保留
   （積分仍是賺到的）；刪帳戶連帶刪該 program 全部 entries（手動級聯）。

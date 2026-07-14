@@ -1126,8 +1126,7 @@
       "flights": "Flights",
       "stays": "Stays",
       "countries": "Countries",
-      "badges": "Badges",
-      "loyalty": "Status"
+      "badges": "Badges"
     },
     "common": {
       "records": "All records",

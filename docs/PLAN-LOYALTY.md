@@ -155,7 +155,8 @@ Checklist（JUDGMENT §2）：`'use server'`、`withAuth`、Zod schema 進
 
 ## 7. UI
 
-掛在收藏牆（旅行人生紀錄）頁，與航空／住宿／徽章同層新增「**會籍**」tab：
+獨立頁 **`/memberships`（會籍）**（As-built：MVP 曾掛在收藏牆 tab，後獨立成專頁——
+組件 `LoyaltyTab` 原地複用、字串仍在 `collections.loyalty.*`；頁下保留飯店區塊 placeholder 待 Phase 2）：
 
 - **Program 卡**（MVP 一張 CX 卡）：目前等級、升等進度條（本窗口積分／下一級門檻）、
   續會狀態、CX 結轉試算、里數餘額、「規則查證於 YYYY-MM，實際以官方為準」disclaimer。
