@@ -336,7 +336,7 @@ UI：登入頁 [/wrapped](../src/app/%5Blocale%5D/wrapped/page.tsx)（年份切�
   第三參數；只有回填紀錄、沒有任何旅程的使用者也有年份可切，該年僅成就區塊有數字）。
   公開 wrapped 路由**刻意不納**：公開 payload 白名單不含成就區塊，納了只會多出整張白卡的年份。
 
-### 會籍積分與里程紀錄（Loyalty，ROADMAP #20 Phase 1，2026-07-14）
+### 會籍積分與里程紀錄（Loyalty，ROADMAP #20 Phase 1，2026-07-14；長榮 BR 2026-07-15）
 
 規劃見 [PLAN-LOYALTY.md](./PLAN-LOYALTY.md)。定位是「**積分記帳**，不是計算器」——積分/里數由
 使用者從航空 app 手抄（LoyaltyEntry ledger），app 只對照門檻常數算升等/續會進度，不自動判級。
@@ -345,20 +345,28 @@ UI：登入頁 [/wrapped](../src/app/%5Blocale%5D/wrapped/page.tsx)（年份切�
   unique；等級自行申報）＋ [LoyaltyEntry](../src/models/LoyaltyEntry.ts)（唯一加總來源；
   `ownAirline`/`qualifyingMiles` 已為 CI/BR 預留）。隱私比照 FlightRecord：**不進任何公開路由**，
   連彙總數字都不進公開收藏牆。
-- **規則常數**：[constants/loyalty.ts](../src/constants/loyalty.ts) 集中全部門檻（CX 2027 新制：
-  綠 0／銀 300／金 600／鑽 1,200／鑽石行政 2,400，金以上續會減半＋超額 50% 結轉），每 program
-  標 `verifiedAt`，UI 帶「以官方為準」——改規則＝改常數不動 schema。
-- **進度計算**：[lib/loyalty.ts](../src/lib/loyalty.ts) 純函式（曆年窗口、跨級、結轉估算、
-  續會門檻、自家占比、里數餘額），測試在 [loyalty.test.ts](../src/__tests__/loyalty.test.ts)。
-- **UI**：獨立頁 `/memberships`（會籍）＝航空區塊帳戶卡（等級 badge＋統計磚＋升等進度條＋
-  續會狀態）＋逐筆 ledger（RecordYearGroups 年份分組），下方保留飯店區塊 placeholder（Phase 2）。
-  組件仍複用 [components/collections/LoyaltyTab](../src/components/collections/LoyaltyTab.tsx)、字串仍在
-  `collections.loyalty.*` 命名空間。`/collections`（旅行成就）已回到 4 個 tab（航空／住宿／國家／徽章）。
-  航空 tab 每筆飛行紀錄加「記入會籍積分」
-  （Medal 鈕，需先設帳戶）；已帶入者停用防重複（entry 存 `flightRecord` ref，action 驗證
-  歸屬＋重複回 `CONFLICT`，同 sourceActivity 模式）。刪 FlightRecord 時 entry 解除連結但保留
-  （積分仍是賺到的）；刪帳戶連帶刪該 program 全部 entries（手動級聯）。
-- **Phase 2/3 待做**：華航/長榮 program、積分區間預估——見 PLAN-LOYALTY.md §8。
+- **規則常數**：[constants/loyalty.ts](../src/constants/loyalty.ts) 集中全部門檻，`ProgramRules`
+  為 discriminated union 依 `kind` 分兩制——**積分制**（`points`，CX 2027 新制：綠 0／銀 300／
+  金 600／鑽 1,200／鑽石行政 2,400，金以上續會減半＋超額 50% 結轉）與 **哩程＋航段制**
+  （`milesAndSegments`，長榮 BR 近 12 月：銀 30k哩+4段／26段、金 50k／50段、鑽 120k／100段，
+  哩程或航段擇一達標）。每 program 標 `verifiedAt`，UI 帶「以官方為準」——改規則＝改常數不動 schema。
+- **進度計算**：[lib/loyalty.ts](../src/lib/loyalty.ts) 純函式，依 kind 分流——`computeLoyaltyProgress`
+  （積分制：曆年窗口、跨級、結轉估算、續會門檻、自家占比）＋`computeMilesSegmentsProgress`
+  （哩程制：滾動 12 月窗口、哩程／航段雙路徑達標、自家國際航段計數，純哩程可跳級）。
+  測試在 [loyalty.test.ts](../src/__tests__/loyalty.test.ts)。
+- **UI**：獨立頁 `/memberships`（會籍）＝**航空／飯店兩個 tab**（比照旅行成就分頁；飯店為
+  夜數制 placeholder，Phase 2 後續）。航空 tab **多 program 編排**
+  （[AirlineMemberships](../src/components/memberships/AirlineMemberships.tsx)）：每個計畫一張
+  [ProgramProgressCard](../src/components/memberships/ProgramProgressCard.tsx)（依 kind 呈現——
+  CX 積分進度條／BR 哩程＋航段雙進度條）＋一份 [LoyaltyLedger](../src/components/memberships/LoyaltyLedger.tsx)
+  （RecordYearGroups 年份分組），新增帳戶可挑計畫、設定完隱藏。entry 表單 program-aware
+  （BR 顯示卡籍哩程＋「長榮／立榮國際線航段」勾選）。字串仍在 `collections.loyalty.*` 命名空間；
+  `/collections`（旅行成就）維持 4 個 tab（航空／住宿／國家／徽章）。航空 tab 每筆飛行紀錄加
+  「記入會籍積分」（Medal 鈕，需先設帳戶；多帳戶時記入最早設定者）；已帶入者停用防重複
+  （entry 存 `flightRecord` ref，action 驗證歸屬＋重複回 `CONFLICT`，同 sourceActivity 模式）。
+  刪 FlightRecord 時 entry 解除連結但保留（積分仍是賺到的）；刪帳戶連帶刪該 program 全部
+  entries（手動級聯）。
+- **待做**：華航 CI program、BR 續卡（24 月窗口）精算、積分區間預估——見 PLAN-LOYALTY.md §8。
 
 ---
 
