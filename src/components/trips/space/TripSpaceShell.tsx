@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useSyncExternalStore } from 'react';
 import { ArrowLeft, History, MoreHorizontal, Plus, Settings, Wallet } from 'lucide-react';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
@@ -31,6 +31,11 @@ import { TripSpaceProvider, type AddExpensePrefill } from './TripSpaceContext';
  * - 常駐摘要條：總支出（有預算時加進度條），跨分頁常駐。
  * - FAB：行動端「新增支出」，行程空間內永遠在場（成員限定）。
  */
+// mounted 判斷（server↔client hydration guard）用：外部 store 永不變化，只是藉
+// useSyncExternalStore 的 getServerSnapshot/getSnapshot 落差取得「已 hydrate」訊號，
+// 避免在 effect 內直接 setState 觸發連鎖重繪。
+const subscribeNever = () => () => {};
+
 export function TripSpaceShell({
   tripId,
   children,
@@ -84,8 +89,11 @@ export function TripSpaceShell({
   // `trip` 來自 client-only 的 React Query 快取（SSR 時永遠沒有值，rehydrate 後才可能有）。
   // 若直接依 trip/isLoading 分支，server HTML 與首次 client paint 會對不上（div↔h1、skeleton 有無）
   // 而觸發 hydration mismatch。掛載前一律走 skeleton 分支，確保首屏兩邊一致。
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const mounted = useSyncExternalStore(
+    subscribeNever,
+    () => true,
+    () => false
+  );
 
   const openAddExpense = addExpenseDialog.openDialog;
   const contextValue = useMemo(
