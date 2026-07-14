@@ -207,9 +207,7 @@ export function LoyaltyTab() {
                   })
                 : t('loyalty.renewalPending', {
                     required: numberFormat.format(progress.renewal.required),
-                    points: numberFormat.format(
-                      progress.renewal.required - progress.windowPoints
-                    ),
+                    points: numberFormat.format(progress.renewal.required - progress.windowPoints),
                   })}
             </p>
           )}

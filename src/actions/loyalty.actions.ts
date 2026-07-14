@@ -93,9 +93,7 @@ export const getLoyalty = withAuth(async (session): Promise<ActionResult<Loyalty
 
     const [accounts, entries] = await Promise.all([
       LoyaltyAccount.find({ user: session.userId }).sort({ createdAt: 1 }).lean<LeanAccount[]>(),
-      LoyaltyEntry.find({ user: session.userId })
-        .sort({ date: -1, _id: -1 })
-        .lean<LeanEntry[]>(),
+      LoyaltyEntry.find({ user: session.userId }).sort({ date: -1, _id: -1 }).lean<LeanEntry[]>(),
     ]);
 
     return {
@@ -113,7 +111,10 @@ export const upsertLoyaltyAccount = withAuth(
   async (session, input: UpsertLoyaltyAccountInput): Promise<ActionResult<LoyaltyAccountItem>> => {
     try {
       const parsed = upsertLoyaltyAccountSchema.safeParse(input);
-      if (!parsed.success || !programTierKeys(parsed.data.program).includes(parsed.data.current_tier)) {
+      if (
+        !parsed.success ||
+        !programTierKeys(parsed.data.program).includes(parsed.data.current_tier)
+      ) {
         return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
       }
 

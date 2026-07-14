@@ -196,9 +196,7 @@ export function FlightsTab({ flights }: { flights: FlightRecordItem[] }) {
                     onClick={() => setImporting(f)}
                   >
                     <Medal
-                      className={
-                        importedFlightIds.has(f.id) ? 'h-4 w-4 text-primary' : 'h-4 w-4'
-                      }
+                      className={importedFlightIds.has(f.id) ? 'h-4 w-4 text-primary' : 'h-4 w-4'}
                     />
                   </Button>
                 )}

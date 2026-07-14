@@ -44,12 +44,7 @@ describe('computeLoyaltyProgress（CX 積分制）', () => {
   });
 
   it('跨級：一年內積分直達鑽石門檻（銀直升鑽）', () => {
-    const p = computeLoyaltyProgress(
-      [entry({ status_points: 1250 })],
-      CX,
-      'silver',
-      '2027-06-01'
-    );
+    const p = computeLoyaltyProgress([entry({ status_points: 1250 })], CX, 'silver', '2027-06-01');
     expect(p.achievedTier.key).toBe('diamond');
     expect(p.nextTier?.key).toBe('diamond_plus');
     expect(p.pointsToNext).toBe(1150);
@@ -63,7 +58,12 @@ describe('computeLoyaltyProgress（CX 積分制）', () => {
   });
 
   it('續會：金卡自設等級對照續會門檻 300', () => {
-    const notYet = computeLoyaltyProgress([entry({ status_points: 299 })], CX, 'gold', '2027-06-01');
+    const notYet = computeLoyaltyProgress(
+      [entry({ status_points: 299 })],
+      CX,
+      'gold',
+      '2027-06-01'
+    );
     expect(notYet.renewal).toEqual({ required: 300, met: false });
 
     const met = computeLoyaltyProgress([entry({ status_points: 300 })], CX, 'gold', '2027-06-01');

@@ -4,7 +4,11 @@ import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
 
-import { LOYALTY_ENTRY_TYPES, type LoyaltyProgram, type LoyaltyEntryType } from '@/constants/loyalty';
+import {
+  LOYALTY_ENTRY_TYPES,
+  type LoyaltyProgram,
+  type LoyaltyEntryType,
+} from '@/constants/loyalty';
 import { useLoyaltyMutations } from '@/hooks/queries';
 import { useToast } from '@/hooks/use-toast';
 import type { LoyaltyEntryItem } from '@/types';
