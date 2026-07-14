@@ -170,5 +170,15 @@ export {
   deleteStayRecord,
 } from './collection.actions';
 
+// Loyalty actions（會籍積分與里程紀錄：帳戶＋ledger）
+export {
+  getLoyalty,
+  upsertLoyaltyAccount,
+  deleteLoyaltyAccount,
+  createLoyaltyEntry,
+  updateLoyaltyEntry,
+  deleteLoyaltyEntry,
+} from './loyalty.actions';
+
 // Locale action（UI 語系 cookie；見 i18n/config.ts 的「無 i18n 路由」設定）
 export { setLocale } from './locale.actions';

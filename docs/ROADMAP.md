@@ -17,11 +17,10 @@
 **為什麼**：降低註冊摩擦。
 **做法**：Google 登入可用 Auth.js 或自建，與現有自製 JWT 並存。
 
-### 20. ⭐ 會籍積分與里程紀錄 (Loyalty ledger) — M〔已完成詳細規劃〕
-**為什麼**：追蹤會籍升等／保級進度與里數，與「記帳」DNA 一致；掛在收藏牆（user-level）。
-**做法**：定位是「積分記帳」而非「自動計算」——數字手動記、app 算門檻進度。
-MVP 只做國泰（2027 新制），schema 預留華航／長榮，遠期同頁擴及飯店會籍（夜數制）。
-**完整規劃（制度查證、資料模型、分期）見 [PLAN-LOYALTY.md](./PLAN-LOYALTY.md)。**
+### 20. ⭐ 會籍積分與里程紀錄 (Loyalty ledger) — 餘 Phase 2/3〔Phase 1 國泰 MVP 已完成 2026-07-14〕
+**待做**：Phase 2＝華航／長榮（補規則常數＋program 切換 UI；動工時門檻需重新查證）；
+Phase 3（可選）＝積分區間預估；更遠期＝飯店會籍（夜數制）。
+**完整規劃見 [PLAN-LOYALTY.md](./PLAN-LOYALTY.md)；Phase 1 實作筆記見 [FEATURES.md](./FEATURES.md) §16。**
 
 ### 14. 🔹 PDF 行程 / 結算報告 (PDF reports) — M
 **為什麼**：目前只有 CSV。一份漂亮的「旅程結算單 / 行程手冊」PDF 很適合分享與報帳。

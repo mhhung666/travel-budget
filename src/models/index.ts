@@ -26,3 +26,5 @@ export {
   type DatePrecision,
 } from './FlightRecord';
 export { StayRecord, type StayRecordDoc } from './StayRecord';
+export { LoyaltyAccount, type LoyaltyAccountDoc } from './LoyaltyAccount';
+export { LoyaltyEntry, type LoyaltyEntryDoc } from './LoyaltyEntry';

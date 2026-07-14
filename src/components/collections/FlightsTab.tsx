@@ -2,17 +2,18 @@
 
 import { useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { ArrowRight, Pencil, Plane, Plus, Trash2 } from 'lucide-react';
+import { ArrowRight, Medal, Pencil, Plane, Plus, Trash2 } from 'lucide-react';
 
 import { summarizeAirlines, formatByPrecision } from '@/lib/collections';
 import { ALLIANCE_COUNT } from '@/constants/alliances';
-import { useAirlines, useCollectionMutations, getAirlineName } from '@/hooks/queries';
+import { useAirlines, useCollectionMutations, useLoyalty, getAirlineName } from '@/hooks/queries';
 import { useToast } from '@/hooks/use-toast';
 import type { FlightRecordItem } from '@/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog, EmptyState } from '@/components/common';
 import { FlightRecordDialog } from './FlightRecordDialog';
+import { LoyaltyEntryDialog } from './LoyaltyEntryDialog';
 import { RecordYearGroups } from './RecordYearGroups';
 import { StatTiles } from './RecordFormFields';
 
@@ -28,8 +29,22 @@ export function FlightsTab({ flights }: { flights: FlightRecordItem[] }) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<FlightRecordItem | null>(null);
   const [deleting, setDeleting] = useState<FlightRecordItem | null>(null);
+  const [importing, setImporting] = useState<FlightRecordItem | null>(null);
 
   const { data: airlines } = useAirlines(flights.length > 0);
+
+  // 「記入會籍積分」：有設定會籍帳戶才顯示按鈕；已帶入的航班依 entries 反查停用
+  const { data: loyalty } = useLoyalty(flights.length > 0);
+  const loyaltyAccount = loyalty?.accounts[0] ?? null;
+  const importedFlightIds = useMemo(
+    () =>
+      new Set(
+        (loyalty?.entries ?? [])
+          .map((e) => e.flight_record_id)
+          .filter((id): id is string => id !== null)
+      ),
+    [loyalty]
+  );
   const airlineByIata = useMemo(
     () => new Map((airlines ?? []).map((a) => [a.iata, a])),
     [airlines]
@@ -169,6 +184,24 @@ export function FlightsTab({ flights }: { flights: FlightRecordItem[] }) {
                 </div>
               </div>
               <div className="flex shrink-0 gap-1">
+                {loyaltyAccount && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    aria-label={t(
+                      importedFlightIds.has(f.id) ? 'loyalty.imported' : 'loyalty.importFlight'
+                    )}
+                    disabled={importedFlightIds.has(f.id)}
+                    onClick={() => setImporting(f)}
+                  >
+                    <Medal
+                      className={
+                        importedFlightIds.has(f.id) ? 'h-4 w-4 text-primary' : 'h-4 w-4'
+                      }
+                    />
+                  </Button>
+                )}
                 <Button
                   variant="ghost"
                   size="icon"
@@ -197,6 +230,25 @@ export function FlightsTab({ flights }: { flights: FlightRecordItem[] }) {
       </section>
 
       <FlightRecordDialog open={dialogOpen} onOpenChange={setDialogOpen} editing={editing} />
+      {loyaltyAccount && (
+        <LoyaltyEntryDialog
+          open={importing !== null}
+          onOpenChange={(next) => !next && setImporting(null)}
+          program={loyaltyAccount.program}
+          editing={null}
+          defaults={
+            importing
+              ? {
+                  type: 'flight',
+                  date: importing.date,
+                  flight_record_id: importing.id,
+                  note: importing.flight_no || airlineLabel(importing.airline),
+                }
+              : null
+          }
+          onSaved={() => toast({ title: t('loyalty.importedToast') })}
+        />
+      )}
       <ConfirmDialog
         open={deleting !== null}
         title={t('flights.deleteTitle')}

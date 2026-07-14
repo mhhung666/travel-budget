@@ -1125,7 +1125,8 @@
       "flights": "Flights",
       "stays": "Stays",
       "countries": "Countries",
-      "badges": "Badges"
+      "badges": "Badges",
+      "loyalty": "Status"
     },
     "common": {
       "records": "All records",
@@ -1236,7 +1237,8 @@
       "UNAUTHORIZED": "Please sign in",
       "VALIDATION_ERROR": "Invalid input, please check and try again",
       "NOT_FOUND": "Record not found",
-      "INTERNAL_ERROR": "Something went wrong, please try again later"
+      "INTERNAL_ERROR": "Something went wrong, please try again later",
+      "CONFLICT": "This record already exists (already logged)"
     },
     "badges": {
       "wall": "Milestone badges",
@@ -1288,6 +1290,63 @@
       "notFound": "This shared page isn't available.",
       "empty": "No achievements to show yet.",
       "cta": "Start my own collection"
+    },
+    "loyalty": {
+      "empty": "No membership set up yet",
+      "emptyDesc": "Set up your airline membership, log status points and miles by hand, and track tier progress",
+      "setupAccount": "Set up membership",
+      "editAccount": "Edit membership",
+      "accountFormDescription": "Declare your current tier; log points and miles as entries later",
+      "program": "Program",
+      "programs": {
+        "CX": "Cathay Pacific"
+      },
+      "tierLabel": "Current tier",
+      "memberNo": "Member number",
+      "tiers": {
+        "CX": {
+          "green": "Green",
+          "silver": "Silver",
+          "gold": "Gold",
+          "diamond": "Diamond",
+          "diamond_plus": "Diamond Executive"
+        }
+      },
+      "stats": {
+        "yearPoints": "{year} points",
+        "milesBalance": "Miles balance",
+        "carryOver": "Est. carry-over"
+      },
+      "progressToNext": "{points} points to {tier}",
+      "maxTier": "Top tier reached",
+      "renewalMet": "Renewal threshold met ({required} points)",
+      "renewalPending": "Renewal needs {required} points — {points} to go",
+      "disclaimer": "Thresholds verified on {date}; official figures prevail",
+      "addEntry": "Add entry",
+      "editEntry": "Edit entry",
+      "entryFormDescription": "Copy points and miles changes from the airline app",
+      "entryType": "Type",
+      "types": {
+        "flight": "Flight",
+        "stay": "Hotel",
+        "card": "Credit card",
+        "dining": "Dining & retail",
+        "promo": "Promotion",
+        "adjust": "Adjustment",
+        "other": "Other"
+      },
+      "statusPoints": "Status points",
+      "awardMiles": "Miles",
+      "pointsAmount": "{points} pts",
+      "milesAmount": "{miles} miles",
+      "entriesEmpty": "No entries yet — tap \"Add entry\" to start",
+      "deleteAccountTitle": "Delete membership",
+      "deleteAccountMessage": "This also deletes all point entries for this program. This cannot be undone. Continue?",
+      "deleteEntryTitle": "Delete entry",
+      "deleteEntryMessage": "Delete this entry?",
+      "importFlight": "Log to membership",
+      "imported": "Logged to membership",
+      "importedToast": "Logged to membership"
     }
   },
   "pwa": {

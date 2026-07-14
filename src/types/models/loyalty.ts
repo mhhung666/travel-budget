@@ -1,0 +1,43 @@
+/**
+ * 會籍積分與里程紀錄（docs/PLAN-LOYALTY.md）的前端 DTO。
+ * user-level 個人資料——不進任何公開分享路由（連彙總數字都不進）。
+ */
+
+import type { LoyaltyProgram, LoyaltyEntryType } from '@/constants/loyalty';
+
+export interface LoyaltyAccountItem {
+  id: string;
+  program: LoyaltyProgram;
+  /** program 專屬 tier key（constants/loyalty.ts；使用者自行設定，app 不自動判級）。 */
+  current_tier: string;
+  /** 會員號；'' = 未填。 */
+  member_no: string;
+  note: string;
+  created_at: string;
+}
+
+export interface LoyaltyEntryItem {
+  id: string;
+  program: LoyaltyProgram;
+  /** YYYY-MM-DD（入帳日）。 */
+  date: string;
+  type: LoyaltyEntryType;
+  /** 會籍積分；adjust/沖銷可為負。 */
+  status_points: number;
+  /** 卡籍哩程（BR 用；積分制恆 0）。 */
+  qualifying_miles: number;
+  /** 可花里數變動；兌換/過期為負。 */
+  award_miles: number;
+  /** 自家航班（CI 50% 條款、BR 航段判定用）。 */
+  own_airline: boolean;
+  /** 來源飛行紀錄 id（「從飛行紀錄帶入」）；null＝手動補登。 */
+  flight_record_id: string | null;
+  note: string;
+  created_at: string;
+}
+
+export interface LoyaltyData {
+  accounts: LoyaltyAccountItem[];
+  /** 全部 program 的 entries，date 新到舊（個人資料量小，前端自行過濾）。 */
+  entries: LoyaltyEntryItem[];
+}

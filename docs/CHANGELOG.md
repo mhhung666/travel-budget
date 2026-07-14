@@ -35,6 +35,7 @@
 | 19 | 💎 旅行成就 P3（里程碑徽章 15 枚＋去識別化公開分享卡串 mapShareCode＋wrapped 年份納入回填；#19 全部完成） | M | 2026-07-13 |
 | ＋ | 🔹 行程隨手記（成員共享速記 + 照片附件 + 一鍵轉行程活動；非 Roadmap 項） | S~M | 2026-07-03 |
 | ＋ | 🔹 旅程幣別設定（常用幣別 / 自訂匯率 / 預設幣別；支出表單、結算、統計套用；非 Roadmap 項） | S~M | 2026-07-05 |
+| #20 | ⭐ 會籍積分與里程紀錄 Phase 1（國泰 MVP：帳戶＋積分 ledger＋升等/續會進度＋飛行帶入；Phase 2/3 見 [PLAN-LOYALTY.md](./PLAN-LOYALTY.md)） | M | 2026-07-14 |
 
 **橫向基礎設施**：Blob 儲存（Cloudflare R2，私有收據 + 公開頭像）、Email / 排程（Resend + Vercel Cron）、即時 / 推播（Web Push VAPID，共用離線 SW）。
 

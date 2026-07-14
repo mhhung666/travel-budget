@@ -1118,7 +1118,8 @@
       "flights": "航空",
       "stays": "住宿",
       "countries": "国家",
-      "badges": "徽章"
+      "badges": "徽章",
+      "loyalty": "会籍"
     },
     "common": {
       "records": "全部记录",
@@ -1229,7 +1230,8 @@
       "UNAUTHORIZED": "请先登录",
       "VALIDATION_ERROR": "输入数据有误，请检查后重试",
       "NOT_FOUND": "找不到该条记录",
-      "INTERNAL_ERROR": "发生错误，请稍后再试"
+      "INTERNAL_ERROR": "发生错误，请稍后再试",
+      "CONFLICT": "这条记录已经存在（重复带入）"
     },
     "badges": {
       "wall": "里程碑徽章",
@@ -1281,6 +1283,63 @@
       "notFound": "此分享页无法使用。",
       "empty": "还没有可显示的成就。",
       "cta": "收集我的旅行成就"
+    },
+    "loyalty": {
+      "empty": "还没有设置会籍",
+      "emptyDesc": "设置航空会籍，手动补登积分与里数，追踪升级／续会进度",
+      "setupAccount": "设置会籍",
+      "editAccount": "编辑会籍",
+      "accountFormDescription": "等级自行申报，积分与里数之后逐笔补登",
+      "program": "会籍计划",
+      "programs": {
+        "CX": "国泰航空"
+      },
+      "tierLabel": "当前等级",
+      "memberNo": "会员号",
+      "tiers": {
+        "CX": {
+          "green": "绿卡",
+          "silver": "银卡",
+          "gold": "金卡",
+          "diamond": "钻石卡",
+          "diamond_plus": "钻石行政卡"
+        }
+      },
+      "stats": {
+        "yearPoints": "{year} 年积分",
+        "milesBalance": "里数余额",
+        "carryOver": "结转估算"
+      },
+      "progressToNext": "距{tier}还差 {points} 分",
+      "maxTier": "已达最高等级",
+      "renewalMet": "已达续会门槛（{required} 分）",
+      "renewalPending": "续会门槛 {required} 分，还差 {points} 分",
+      "disclaimer": "门槛规则核实于 {date}；实际积分与等级以官方公布为准",
+      "addEntry": "记一笔",
+      "editEntry": "编辑记录",
+      "entryFormDescription": "从航空公司 App 抄下积分与里数变动",
+      "entryType": "类别",
+      "types": {
+        "flight": "航班",
+        "stay": "住宿",
+        "card": "信用卡",
+        "dining": "餐饮购物",
+        "promo": "活动奖励",
+        "adjust": "调整／冲销",
+        "other": "其他"
+      },
+      "statusPoints": "会籍积分",
+      "awardMiles": "里数",
+      "pointsAmount": "{points} 分",
+      "milesAmount": "{miles} 里",
+      "entriesEmpty": "还没有积分记录，点「记一笔」开始",
+      "deleteAccountTitle": "删除会籍",
+      "deleteAccountMessage": "会连同这个计划的全部积分记录一起删除，此操作无法撤销。确定吗？",
+      "deleteEntryTitle": "删除记录",
+      "deleteEntryMessage": "确定要删除这条积分记录吗？",
+      "importFlight": "记入会籍积分",
+      "imported": "已记入会籍",
+      "importedToast": "已记入会籍积分"
     }
   },
   "pwa": {

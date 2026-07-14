@@ -336,6 +336,27 @@ UI：登入頁 [/wrapped](../src/app/%5Blocale%5D/wrapped/page.tsx)（年份切�
   第三參數；只有回填紀錄、沒有任何旅程的使用者也有年份可切，該年僅成就區塊有數字）。
   公開 wrapped 路由**刻意不納**：公開 payload 白名單不含成就區塊，納了只會多出整張白卡的年份。
 
+### 會籍積分與里程紀錄（Loyalty，ROADMAP #20 Phase 1，2026-07-14）
+
+規劃見 [PLAN-LOYALTY.md](./PLAN-LOYALTY.md)。定位是「**積分記帳**，不是計算器」——積分/里數由
+使用者從航空 app 手抄（LoyaltyEntry ledger），app 只對照門檻常數算升等/續會進度，不自動判級。
+
+- **資料**：[LoyaltyAccount](../src/models/LoyaltyAccount.ts)（一人一 program 一筆，`{user, program}`
+  unique；等級自行申報）＋ [LoyaltyEntry](../src/models/LoyaltyEntry.ts)（唯一加總來源；
+  `ownAirline`/`qualifyingMiles` 已為 CI/BR 預留）。隱私比照 FlightRecord：**不進任何公開路由**，
+  連彙總數字都不進公開收藏牆。
+- **規則常數**：[constants/loyalty.ts](../src/constants/loyalty.ts) 集中全部門檻（CX 2027 新制：
+  綠 0／銀 300／金 600／鑽 1,200／鑽石行政 2,400，金以上續會減半＋超額 50% 結轉），每 program
+  標 `verifiedAt`，UI 帶「以官方為準」——改規則＝改常數不動 schema。
+- **進度計算**：[lib/loyalty.ts](../src/lib/loyalty.ts) 純函式（曆年窗口、跨級、結轉估算、
+  續會門檻、自家占比、里數餘額），測試在 [loyalty.test.ts](../src/__tests__/loyalty.test.ts)。
+- **UI**：`/collections` 第五個 tab「會籍」＝帳戶卡（等級 badge＋統計磚＋升等進度條＋續會狀態）
+  ＋逐筆 ledger（RecordYearGroups 年份分組）。航空 tab 每筆飛行紀錄加「記入會籍積分」
+  （Medal 鈕，需先設帳戶）；已帶入者停用防重複（entry 存 `flightRecord` ref，action 驗證
+  歸屬＋重複回 `CONFLICT`，同 sourceActivity 模式）。刪 FlightRecord 時 entry 解除連結但保留
+  （積分仍是賺到的）；刪帳戶連帶刪該 program 全部 entries（手動級聯）。
+- **Phase 2/3 待做**：華航/長榮 program、積分區間預估——見 PLAN-LOYALTY.md §8。
+
 ---
 
 ## 17. 其他

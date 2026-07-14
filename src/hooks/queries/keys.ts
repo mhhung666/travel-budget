@@ -50,6 +50,11 @@ export const collectionKeys = {
   tripLinks: (tripId: string) => ['collectionLinks', tripId] as const,
 } as const;
 
+/** Loyalty query keys（會籍積分與里程）. Per-user，一支查詢餵整個會籍 tab。 */
+export const loyaltyKeys = {
+  all: ['loyalty'] as const,
+} as const;
+
 /**
  * Notification query keys. Per-user (not trip-scoped), so they live outside the
  * trip key tree: the bell's unread-count badge polls independently of any trip.

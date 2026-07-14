@@ -1,6 +1,6 @@
 # 航空會籍積分與里程紀錄（Loyalty Ledger）規劃
 
-> 建立日期：2026-07-14 · 狀態：**規劃完成、未動工**（ROADMAP #20）
+> 建立日期：2026-07-14 · 狀態：**Phase 1（國泰 MVP）已完成 2026-07-14**，餘 Phase 2/3（ROADMAP #20）
 > 完成後依 [README.md](./README.md) 慣例：實作筆記入 FEATURES.md、CHANGELOG 加一行、刪 ROADMAP 項，本檔刪除（草圖查 git 歷史）。
 
 ## 1. 背景與定位

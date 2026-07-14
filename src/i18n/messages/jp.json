@@ -1118,7 +1118,8 @@
       "flights": "フライト",
       "stays": "宿泊",
       "countries": "国",
-      "badges": "バッジ"
+      "badges": "バッジ",
+      "loyalty": "会員"
     },
     "common": {
       "records": "すべての記録",
@@ -1229,7 +1230,8 @@
       "UNAUTHORIZED": "ログインしてください",
       "VALIDATION_ERROR": "入力内容に誤りがあります",
       "NOT_FOUND": "記録が見つかりません",
-      "INTERNAL_ERROR": "エラーが発生しました。しばらくしてからお試しください"
+      "INTERNAL_ERROR": "エラーが発生しました。しばらくしてからお試しください",
+      "CONFLICT": "この記録はすでに存在します（重複）"
     },
     "badges": {
       "wall": "マイルストーンバッジ",
@@ -1281,6 +1283,63 @@
       "notFound": "この共有ページは利用できません。",
       "empty": "まだ表示できる達成はありません。",
       "cta": "自分のコレクションを始める"
+    },
+    "loyalty": {
+      "empty": "会員プログラムが未設定です",
+      "emptyDesc": "航空会社の会員プログラムを設定し、ポイントとマイルを手動で記帳してステータスの進捗を確認",
+      "setupAccount": "会員情報を設定",
+      "editAccount": "会員情報を編集",
+      "accountFormDescription": "現在のステータスを自己申告し、ポイント・マイルは後から記帳",
+      "program": "プログラム",
+      "programs": {
+        "CX": "キャセイパシフィック航空"
+      },
+      "tierLabel": "現在のステータス",
+      "memberNo": "会員番号",
+      "tiers": {
+        "CX": {
+          "green": "グリーン",
+          "silver": "シルバー",
+          "gold": "ゴールド",
+          "diamond": "ダイヤモンド",
+          "diamond_plus": "ダイヤモンド・エグゼクティブ"
+        }
+      },
+      "stats": {
+        "yearPoints": "{year}年のポイント",
+        "milesBalance": "マイル残高",
+        "carryOver": "繰越見込み"
+      },
+      "progressToNext": "{tier}まであと{points}ポイント",
+      "maxTier": "最上位ステータス達成",
+      "renewalMet": "更新基準を達成（{required}ポイント）",
+      "renewalPending": "更新基準は{required}ポイント、あと{points}ポイント",
+      "disclaimer": "基準は{date}時点の確認です。実際のポイント・ステータスは公式情報をご確認ください",
+      "addEntry": "記帳する",
+      "editEntry": "記録を編集",
+      "entryFormDescription": "航空会社アプリからポイント・マイルの増減を転記",
+      "entryType": "種類",
+      "types": {
+        "flight": "フライト",
+        "stay": "ホテル",
+        "card": "クレジットカード",
+        "dining": "飲食・買い物",
+        "promo": "キャンペーン",
+        "adjust": "調整・取消",
+        "other": "その他"
+      },
+      "statusPoints": "ステータスポイント",
+      "awardMiles": "マイル",
+      "pointsAmount": "{points}ポイント",
+      "milesAmount": "{miles}マイル",
+      "entriesEmpty": "まだ記録がありません。「記帳する」から始めましょう",
+      "deleteAccountTitle": "会員情報を削除",
+      "deleteAccountMessage": "このプログラムのポイント記録もすべて削除されます。この操作は取り消せません。よろしいですか？",
+      "deleteEntryTitle": "記録を削除",
+      "deleteEntryMessage": "この記録を削除しますか？",
+      "importFlight": "会員ポイントに記帳",
+      "imported": "記帳済み",
+      "importedToast": "会員ポイントに記帳しました"
     }
   },
   "pwa": {

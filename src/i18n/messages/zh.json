@@ -1118,7 +1118,8 @@
       "flights": "航空",
       "stays": "住宿",
       "countries": "國家",
-      "badges": "徽章"
+      "badges": "徽章",
+      "loyalty": "會籍"
     },
     "common": {
       "records": "全部紀錄",
@@ -1229,7 +1230,8 @@
       "UNAUTHORIZED": "請先登入",
       "VALIDATION_ERROR": "輸入資料有誤，請檢查後再試",
       "NOT_FOUND": "找不到該筆紀錄",
-      "INTERNAL_ERROR": "發生錯誤，請稍後再試"
+      "INTERNAL_ERROR": "發生錯誤，請稍後再試",
+      "CONFLICT": "這筆紀錄已經存在（重複帶入）"
     },
     "badges": {
       "wall": "里程碑徽章",
@@ -1281,6 +1283,63 @@
       "notFound": "此分享頁無法使用。",
       "empty": "還沒有可顯示的成就。",
       "cta": "收集我的旅行成就"
+    },
+    "loyalty": {
+      "empty": "還沒有設定會籍",
+      "emptyDesc": "設定航空會籍，手動補登積分與里數，追蹤升等／續會進度",
+      "setupAccount": "設定會籍",
+      "editAccount": "編輯會籍",
+      "accountFormDescription": "等級自行申報，積分與里數之後逐筆補登",
+      "program": "會籍計畫",
+      "programs": {
+        "CX": "國泰航空"
+      },
+      "tierLabel": "目前等級",
+      "memberNo": "會員號",
+      "tiers": {
+        "CX": {
+          "green": "綠卡",
+          "silver": "銀卡",
+          "gold": "金卡",
+          "diamond": "鑽石卡",
+          "diamond_plus": "鑽石行政卡"
+        }
+      },
+      "stats": {
+        "yearPoints": "{year} 年積分",
+        "milesBalance": "里數餘額",
+        "carryOver": "結轉估算"
+      },
+      "progressToNext": "距{tier}還差 {points} 分",
+      "maxTier": "已達最高等級",
+      "renewalMet": "已達續會門檻（{required} 分）",
+      "renewalPending": "續會門檻 {required} 分，還差 {points} 分",
+      "disclaimer": "門檻規則查證於 {date}；實際積分與等級以官方公布為準",
+      "addEntry": "記一筆",
+      "editEntry": "編輯紀錄",
+      "entryFormDescription": "從航空公司 App 抄下積分與里數變動",
+      "entryType": "類別",
+      "types": {
+        "flight": "航班",
+        "stay": "住宿",
+        "card": "信用卡",
+        "dining": "餐飲購物",
+        "promo": "活動獎勵",
+        "adjust": "調整／沖銷",
+        "other": "其他"
+      },
+      "statusPoints": "會籍積分",
+      "awardMiles": "里數",
+      "pointsAmount": "{points} 分",
+      "milesAmount": "{miles} 里",
+      "entriesEmpty": "還沒有積分紀錄，點「記一筆」開始",
+      "deleteAccountTitle": "刪除會籍",
+      "deleteAccountMessage": "會連同這個計畫的全部積分紀錄一起刪除，此操作無法復原。確定嗎？",
+      "deleteEntryTitle": "刪除紀錄",
+      "deleteEntryMessage": "確定要刪除這筆積分紀錄嗎？",
+      "importFlight": "記入會籍積分",
+      "imported": "已記入會籍",
+      "importedToast": "已記入會籍積分"
     }
   },
   "pwa": {
