@@ -48,7 +48,8 @@
     "wrapped": "年度回顧",
     "collections": "旅行成就",
     "me": "我的",
-    "bottomNav": "主要導覽"
+    "bottomNav": "主要導覽",
+    "memberships": "會籍"
   },
   "home": {
     "title": "旅行記帳",
@@ -1346,5 +1347,13 @@
     "updateTitle": "有新版本可用",
     "updateDescription": "更新後即可使用最新功能與修正。",
     "updateAction": "更新"
+  },
+  "memberships": {
+    "title": "會籍",
+    "subtitle": "手動追蹤航空與飯店會籍等級、積分與里數。",
+    "airlineHeading": "航空",
+    "hotelHeading": "飯店",
+    "hotelComingSoon": "飯店會籍即將推出",
+    "hotelComingSoonDesc": "之後將支援萬豪、希爾頓、洲際等以合格夜數計算的飯店會籍。"
   }
 }

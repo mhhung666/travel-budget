@@ -22,7 +22,7 @@ export function BottomTabBar() {
       href: '/settings',
       label: t('me'),
       icon: UserRound,
-      match: ['/settings', '/wrapped', '/collections'],
+      match: ['/settings', '/wrapped', '/collections', '/memberships'],
     },
   ] as const;
 

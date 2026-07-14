@@ -48,7 +48,8 @@
     "wrapped": "Wrapped",
     "collections": "Achievements",
     "me": "Me",
-    "bottomNav": "Primary navigation"
+    "bottomNav": "Primary navigation",
+    "memberships": "Memberships"
   },
   "home": {
     "title": "Travel Budget",
@@ -1353,5 +1354,13 @@
     "updateTitle": "Update available",
     "updateDescription": "Reload to get the latest features and fixes.",
     "updateAction": "Update"
+  },
+  "memberships": {
+    "title": "Memberships",
+    "subtitle": "Track airline and hotel loyalty tiers, points and miles by hand.",
+    "airlineHeading": "Airline",
+    "hotelHeading": "Hotel",
+    "hotelComingSoon": "Hotel memberships coming soon",
+    "hotelComingSoonDesc": "Track Marriott, Hilton, IHG and more by qualifying nights — on the way."
   }
 }

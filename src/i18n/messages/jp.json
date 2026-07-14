@@ -48,7 +48,8 @@
     "wrapped": "年間まとめ",
     "collections": "旅の実績",
     "me": "マイページ",
-    "bottomNav": "メインナビゲーション"
+    "bottomNav": "メインナビゲーション",
+    "memberships": "メンバーシップ"
   },
   "home": {
     "title": "旅行家計簿",
@@ -1346,5 +1347,13 @@
     "updateTitle": "新しいバージョンがあります",
     "updateDescription": "更新すると最新の機能と修正が利用できます。",
     "updateAction": "更新"
+  },
+  "memberships": {
+    "title": "メンバーシップ",
+    "subtitle": "航空・ホテルの会員ステータス、ポイント・マイルを手動で記録。",
+    "airlineHeading": "航空",
+    "hotelHeading": "ホテル",
+    "hotelComingSoon": "ホテル会員資格は近日対応",
+    "hotelComingSoonDesc": "マリオット、ヒルトン、IHG など宿泊数制の会員資格に順次対応予定。"
   }
 }

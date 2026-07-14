@@ -8,6 +8,7 @@ import {
   Medal,
   Palette,
   Sparkles,
+  Ticket,
   User,
   Users,
 } from 'lucide-react';
@@ -122,6 +123,14 @@ export default function SettingsPage() {
           >
             <Medal className="h-4 w-4 text-primary" />
             {tNav('collections')}
+          </Button>
+          <Button
+            variant="ghost"
+            className="h-12 w-full justify-start gap-3 px-3"
+            onClick={() => router.push(ROUTES.MEMBERSHIPS)}
+          >
+            <Ticket className="h-4 w-4 text-primary" />
+            {tNav('memberships')}
           </Button>
           <Button
             variant="ghost"

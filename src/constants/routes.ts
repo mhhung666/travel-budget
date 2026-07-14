@@ -14,6 +14,8 @@ export const ROUTES = {
   WRAPPED: '/wrapped',
   // 旅行成就（飛行/住宿終身紀錄＋造訪國家），user-level 頁
   COLLECTIONS: '/collections',
+  // 會籍（航空／飯店會籍積分與里程紀錄），user-level 頁
+  MEMBERSHIPS: '/memberships',
   // 旅行地圖公開分享頁（去識別化、唯讀，不需登入）
   MAP_SHARE: (code: string) => `/map/share/${code}`,
   // 年度回顧公開分享頁（去識別化、唯讀，不需登入）
@@ -86,6 +88,7 @@ export const PROTECTED_ROUTES = [
   '/stats',
   '/wrapped',
   '/collections',
+  '/memberships',
   '/quick-add',
 ];
 
