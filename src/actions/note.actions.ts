@@ -13,6 +13,7 @@ import {
 } from '@/lib/validation';
 import type { ActionResult } from './types';
 import type { TripNote } from '@/types';
+import { summarizeNote } from '@/lib/noteMarkdown';
 import { withAuth } from './withAuth';
 import { logger } from '@/lib/logger';
 import { toTripNoteDto, type TripNoteDtoInput } from '@/lib/dto';
@@ -318,9 +319,12 @@ export const planNote = withAuth(
         return { success: false, error: '這則筆記已加入行程', code: 'VALIDATION_ERROR' };
       }
 
-      // 首行截斷作標題；截斷或多行時全文進活動備註，避免資訊遺失
-      const firstLine = note.text.split('\n', 1)[0].trim();
-      const title = firstLine.slice(0, PLAN_TITLE_MAX);
+      // 首行去掉 Markdown 語法後截斷作標題（「# 東京美食」→「東京美食」）；
+      // strip 不出內容（如整行只有圖片語法）退回原始首行。標題有截斷/改寫或
+      // 筆記多行時，全文進活動備註，避免資訊遺失。
+      const plainTitle = summarizeNote(note.text).title;
+      const rawFirstLine = note.text.split('\n', 1)[0].trim();
+      const title = (plainTitle || rawFirstLine).slice(0, PLAN_TITLE_MAX);
       const truncated = title !== note.text.trim();
 
       const day = await ItineraryDay.findOneAndUpdate(

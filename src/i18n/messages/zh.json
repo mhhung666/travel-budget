@@ -801,7 +801,13 @@
     "goToItinerary": "前往行程分頁",
     "emptyState": "尚無筆記",
     "emptyStateHint": "想到什麼先記下來，之後再排進行程",
-    "loadFailed": "載入筆記失敗"
+    "loadFailed": "載入筆記失敗",
+    "showAll": "顯示全部",
+    "collapse": "收合",
+    "editorTab": "編輯",
+    "previewTab": "預覽",
+    "markdownHint": "支援 Markdown：# 標題、- 清單、- [ ] 待辦、**粗體**",
+    "previewEmpty": "尚無內容可預覽"
   },
   "itinerary": {
     "title": "旅程規劃",

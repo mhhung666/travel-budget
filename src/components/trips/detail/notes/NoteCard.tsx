@@ -1,11 +1,23 @@
 'use client';
 
+import { useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { CalendarPlus, MoreVertical, Pencil, Pin, PinOff, Trash2 } from 'lucide-react';
+import {
+  CalendarPlus,
+  ChevronDown,
+  ChevronUp,
+  Images,
+  MoreVertical,
+  Pencil,
+  Pin,
+  PinOff,
+  Trash2,
+} from 'lucide-react';
 import type { TripNote } from '@/types';
 import { cn } from '@/lib/utils';
 import { formatRelativeTime } from '@/lib/relativeTime';
-import { linkify } from '@/lib/linkify';
+import { shouldCollapseNote, summarizeNote, toggleNoteTask } from '@/lib/noteMarkdown';
+import MarkdownRenderer from '@/components/trips/detail/itinerary/MarkdownRenderer';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -26,12 +38,16 @@ export interface NoteCardProps {
   onTogglePin: () => void;
   onPlan: () => void;
   onDelete: () => void;
+  /** 內文 task checkbox 被點擊後的新全文（原文 `[ ]`↔`[x]` 已改寫）。 */
+  onToggleTask: (nextText: string) => void;
 }
 
 /**
- * 一則隨手記卡片：內文 + 作者/相對時間列 + ⋯ 選單（編輯／釘選／加入行程／刪除）。
+ * 一則隨手記卡片：Markdown 內文 + 作者/相對時間列 + ⋯ 選單（編輯／釘選／加入行程／刪除）。
+ * 長筆記（見 shouldCollapseNote）預設摺疊成「首行標題＋兩行純文字摘要」，點擊展開
+ * 才渲染完整 Markdown；GFM task checkbox 以事件委派打勾（DOM 順序＝原文順序）。
  * 已規劃（planned_at 非 null）的卡片降透明度、掛「已規劃 · Day N」Badge，
- * 選單只剩刪除（內容已進行程，不再編輯/轉換）。
+ * 選單只剩刪除（內容已進行程，不再編輯/轉換），checkbox 也一併唯讀。
  */
 export function NoteCard({
   tripId,
@@ -41,36 +57,85 @@ export function NoteCard({
   onTogglePin,
   onPlan,
   onDelete,
+  onToggleTask,
 }: NoteCardProps) {
   const t = useTranslations('notes');
   const locale = useLocale();
   const planned = note.planned_at !== null;
   const single = note.attachments.length === 1;
+  const tasksEnabled = canEdit && !planned;
+
+  const collapsible = shouldCollapseNote(note.text);
+  const [expanded, setExpanded] = useState(false);
+  const showFull = !collapsible || expanded;
+  const summary = useMemo(
+    () => (collapsible ? summarizeNote(note.text) : null),
+    [collapsible, note.text]
+  );
+
+  /** 委派內文裡的 checkbox 點擊：以 DOM 順序找到序號，改寫原文後交給呼叫端存回。 */
+  const handleTaskClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const target = e.target;
+    if (!(target instanceof HTMLInputElement) || target.type !== 'checkbox') return;
+    e.preventDefault();
+    if (!tasksEnabled) return;
+    const boxes = Array.from(e.currentTarget.querySelectorAll('input[type="checkbox"]'));
+    const next = toggleNoteTask(note.text, boxes.indexOf(target));
+    if (next !== null) onToggleTask(next);
+  };
 
   return (
     <Card className={cn(planned && 'opacity-60')}>
       <CardContent className="p-3">
         <div className="flex items-start gap-2">
           <div className="min-w-0 flex-1">
-            <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
-              {linkify(note.text).map((seg, i) =>
-                seg.type === 'link' ? (
-                  <a
-                    key={i}
-                    href={seg.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="break-all text-primary underline underline-offset-2 hover:opacity-80"
-                    onClick={(e) => e.stopPropagation()}
+            {showFull ? (
+              <>
+                <div className="break-words text-sm leading-relaxed" onClick={handleTaskClick}>
+                  <MarkdownRenderer
+                    content={note.text}
+                    variant="compact"
+                    interactiveTasks={tasksEnabled}
+                  />
+                </div>
+                {collapsible && (
+                  <button
+                    type="button"
+                    onClick={() => setExpanded(false)}
+                    aria-expanded
+                    className="mt-1 inline-flex items-center gap-0.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
                   >
-                    {seg.display}
-                  </a>
-                ) : (
-                  <span key={i}>{seg.value}</span>
-                )
-              )}
-            </p>
-            {note.attachments.length > 0 && (
+                    <ChevronUp className="h-3 w-3" />
+                    {t('collapse')}
+                  </button>
+                )}
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setExpanded(true)}
+                aria-expanded={false}
+                className="block w-full text-left"
+              >
+                <span className="line-clamp-1 break-all text-sm font-medium">{summary?.title}</span>
+                {summary?.excerpt && (
+                  <span className="mt-0.5 line-clamp-2 break-all text-sm text-muted-foreground">
+                    {summary.excerpt}
+                  </span>
+                )}
+                <span className="mt-1 inline-flex items-center gap-0.5 text-xs text-primary">
+                  <ChevronDown className="h-3 w-3" />
+                  {t('showAll')}
+                  {note.attachments.length > 0 && (
+                    <span className="ml-2 inline-flex items-center gap-1 text-muted-foreground">
+                      <Images className="h-3 w-3" />
+                      {note.attachments.length}
+                    </span>
+                  )}
+                </span>
+              </button>
+            )}
+            {showFull && note.attachments.length > 0 && (
               <div className={cn('mt-2 gap-2', single ? 'flex' : 'grid grid-cols-3')}>
                 {note.attachments.map((a) => (
                   <NoteThumb

@@ -132,6 +132,9 @@ export default function NotesPage() {
                 }
                 onPlan={() => setPlanningNote(note)}
                 onDelete={() => setDeletingNote(note)}
+                onToggleTask={(text) =>
+                  guard(m.update.mutateAsync({ noteId: note.id, data: { text } }))
+                }
               />
             ))}
             {active.length === 0 && (
@@ -165,6 +168,7 @@ export default function NotesPage() {
                       onTogglePin={() => {}}
                       onPlan={() => {}}
                       onDelete={() => setDeletingNote(note)}
+                      onToggleTask={() => {}}
                     />
                   ))}
                 </div>

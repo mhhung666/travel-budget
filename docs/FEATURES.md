@@ -230,16 +230,19 @@ UI：登入頁 [/wrapped](../src/app/%5Blocale%5D/wrapped/page.tsx)（年份切�
 
 | 功能 | 說明 |
 | --- | --- |
-| 速記 | 純文字（≤500 字），釘選置頂 |
+| 速記 | **Markdown**（≤10,000 字，GFM＋單換行即換行），釘選置頂 |
+| 待辦打勾 | 內文 `- [ ]` task list 直接在卡片上點擊勾選（改寫原文存回） |
+| 長筆記摺疊 | 超過 4 行或 160 字的筆記摺疊成「首行標題＋兩行摘要」，點擊展開 |
 | 照片附件 | 每則最多 6 張圖片，R2 私有存放、僅成員可見 |
 | 轉行程 | 把筆記轉成某一行程日的活動，筆記標記「已規劃」保留在摺疊區 |
 
 採**獨立 Note 集合**（`ref trip`，比照 §6 清單為旅程子集合，非內嵌在 Trip）；`authorName` 為建立當下快照（比照留言，讀取免 populate）。權限採**成員信任模型**（任何成員可建立 / 編輯 / 刪除 / 轉行程）——隨手記定位是最低摩擦的協作速記，卡權限反而失去「隨手」的意義。**僅成員可讀，不設公開分享路由**（分享頁看不到）。6 個 action（[note.actions.ts](../src/actions/note.actions.ts)）：`getNotes`（釘選優先、新到舊）、`createNote` / `updateNote` / `deleteNote`、`planNote`、`getNoteAttachmentUrl`。列表以 `pinned:-1, createdAt:-1` 排序。資料完整性：`deleteTrip` cascade（連同 R2 照片）。
 
-- **轉行程活動（`planNote`）**：把筆記 `$push` 成該行程日的活動（`type: 'other'`），**首行截斷為活動標題**（≤100 字），截斷或多行時全文放進活動備註避免遺失；成功後於筆記寫入 `plannedAt` + `plannedDayNumber`（轉換當下的日編號快照，供 Badge 顯示），**已規劃者不可再次轉換**。權限是**產品決定**：行程日建立 / 編輯本身為 admin-only，但轉行程開放全體成員——隨手記的路徑就是「人人先丟點子、順手推進行程」。非交易式（本 codebase 無多文件交易慣例）：先加活動再標記筆記，中途失敗筆記維持未規劃，重試至多產生可手動刪的重複活動，不反向遺失資料。
+- **轉行程活動（`planNote`）**：把筆記 `$push` 成該行程日的活動（`type: 'other'`），**首行去 Markdown 語法後截斷為活動標題**（≤100 字，`summarizeNote`；strip 後為空退回原始首行），標題有改寫 / 截斷或筆記多行時全文放進活動備註避免遺失；成功後於筆記寫入 `plannedAt` + `plannedDayNumber`（轉換當下的日編號快照，供 Badge 顯示），**已規劃者不可再次轉換**。權限是**產品決定**：行程日建立 / 編輯本身為 admin-only，但轉行程開放全體成員——隨手記的路徑就是「人人先丟點子、順手推進行程」。非交易式（本 codebase 無多文件交易慣例）：先加活動再標記筆記，中途失敗筆記維持未規劃，重試至多產生可手動刪的重複活動，不反向遺失資料。
 - **照片附件**：**只收圖片**（`NOTE_CONTENT_TYPES` = jpeg / png / webp，無 PDF；上限 `MAX_NOTE_BYTES` 4MB，沿用頭像上限），每則至多 6 張。沿用 §7 的 R2 私有附件模式——與收據 / 票券共用 `receipts` bucket、前綴 `notes/<tripId>/` 區隔；presigned PUT 直傳（[createNoteUploadUrl](../src/actions/upload.actions.ts)），**存參照前以 `headObject` 重新驗證 size / type**（防 client 謊報）。內嵌 `Note.attachments[]` = `{ key, contentType, size, uploadedBy, uploadedAt }`（**存 key、不存 url**，同收據形狀）；更新以 key 為穩定身分**整批覆寫**（新 key 走 `headObject`、舊 key 沿用、被移除的 key best-effort 刪 R2），刪筆記 / 刪旅程亦 best-effort 清理孤兒。檢視走短效簽名 GET（[getNoteAttachmentUrl](../src/actions/note.actions.ts)，驗成員 + key 須屬本 trip 筆記前綴），UI 沿用 §7 的 `AttachmentThumb` / `AttachmentUploader`（[ReceiptAttachments.tsx](../src/components/trips/detail/ReceiptAttachments.tsx)）。
-- **UI**：頁面 [/trips/[id]/notes](../src/app/%28app%29/trips/%5Bid%5D/notes/page.tsx) + [NoteComposer](../src/components/trips/detail/notes/NoteComposer.tsx) / [NoteCard](../src/components/trips/detail/notes/NoteCard.tsx) / [NoteEditDialog](../src/components/trips/detail/notes/NoteEditDialog.tsx) / [PlanNoteSheet](../src/components/trips/detail/notes/PlanNoteSheet.tsx)；資料走 [useNotes](../src/hooks/queries/useNotes.ts)（`tripKeys.notes`）。測試涵蓋 note.actions（含附件 headObject 驗證 / 覆寫清理）、`toTripNoteDto`、uploads 白名單、`linkifyText`、`relativeTime`。
-- **版面重新設計（2026-07）**：composer 收成單一卡片——上傳器不再常駐（原本永遠掛一顆孤兒虛線方塊），圖片入口收成工具列 icon、縮圖只在有附件時出現，並支援 **`onPaste` 貼上即傳**（截圖直接貼）。內文以純函式 [linkifyText](../src/lib/linkify.ts)（`src/lib/linkify.ts`，單元測試涵蓋多 URL / 行首行尾 / 非 http 不轉）把 URL 轉可點連結並顯示截短，非 URL 段維持 `whitespace-pre-wrap`。卡片：pin / 「已規劃 Day N」badge 併入 meta 列（移除無條件渲染的空列），單張附件放大顯示、多張走方格。相對時間修 [relativeTime.ts](../src/lib/relativeTime.ts) 的 `intlLocale` `zh → zh-TW`（原本在繁中介面顯示簡體「4小时前」，**全站鈴鐺 / 動態牆同受益**）。
+- **UI**：頁面 [/trips/[id]/notes](../src/app/%28app%29/trips/%5Bid%5D/notes/page.tsx) + [NoteComposer](../src/components/trips/detail/notes/NoteComposer.tsx) / [NoteCard](../src/components/trips/detail/notes/NoteCard.tsx) / [NoteEditDialog](../src/components/trips/detail/notes/NoteEditDialog.tsx) / [PlanNoteSheet](../src/components/trips/detail/notes/PlanNoteSheet.tsx)；資料走 [useNotes](../src/hooks/queries/useNotes.ts)（`tripKeys.notes`）。測試涵蓋 note.actions（含附件 headObject 驗證 / 覆寫清理、planNote 標題 strip）、`toTripNoteDto`、uploads 白名單、`noteMarkdown`（標題/摘要抽取、task 改寫）、`relativeTime`。
+- **版面重新設計（2026-07）**：composer 收成單一卡片——上傳器不再常駐（原本永遠掛一顆孤兒虛線方塊），圖片入口收成工具列 icon、縮圖只在有附件時出現，並支援 **`onPaste` 貼上即傳**（截圖直接貼）。卡片：pin / 「已規劃 Day N」badge 併入 meta 列（移除無條件渲染的空列），單張附件放大顯示、多張走方格。相對時間修 [relativeTime.ts](../src/lib/relativeTime.ts) 的 `intlLocale` `zh → zh-TW`（原本在繁中介面顯示簡體「4小时前」，**全站鈴鐺 / 動態牆同受益**）。
+- **Markdown 筆記化（2026-07-14）**：內文從純文字升級為 **GFM Markdown**（上限 500 → 10,000 字），渲染共用行程頁 [MarkdownRenderer](../src/components/trips/detail/itinerary/MarkdownRenderer.tsx) 新增的 **`compact` 變體**（卡片字級、`remark-breaks` 讓單換行＝換行，與純文字時代顯示相容，舊資料零遷移）；裸網址由 GFM autolink 處理（原 `linkifyText` 退役刪除）。**長筆記摺疊**：`shouldCollapseNote` 超過 4 行或 160 字 → 摺成「首行標題＋兩行純文字摘要」（[summarizeNote](../src/lib/noteMarkdown.ts) 行級啟發式 strip，不跑完整 parser），點擊展開才渲染完整 Markdown。**task checkbox 互動**：卡片內 `- [ ]` 可直接點擊，以 DOM 順序事件委派對回原文序號（`toggleNoteTask`，fenced code 內不計、與 GFM 規格同步要求 `]` 後接空白），改寫原文走 `updateNote` 存回；`useNotes.update` 改 **optimistic**（點了即勾，失敗回滾），釘選切換順帶受惠。編輯 Dialog 加「編輯 / 預覽」tabs。已規劃筆記的 checkbox 唯讀。
 
 ---
 

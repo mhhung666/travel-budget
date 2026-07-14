@@ -152,8 +152,8 @@ describe('createNote', () => {
     expect(noteCreate).not.toHaveBeenCalled();
   });
 
-  it('returns VALIDATION_ERROR when the text exceeds 500 chars', async () => {
-    const result = await createNote(TRIP_ID, { text: 'a'.repeat(501) });
+  it('returns VALIDATION_ERROR when the text exceeds the max length', async () => {
+    const result = await createNote(TRIP_ID, { text: 'a'.repeat(10001) });
 
     expect(result.success).toBe(false);
     if (result.success) throw new Error('expected failure');
@@ -461,5 +461,26 @@ describe('planNote', () => {
     };
     expect(pushArg.$push.activities.title).toBe('あ'.repeat(100));
     expect(pushArg.$push.activities.note).toBe(longText);
+  });
+
+  it('strips markdown syntax from the first line when building the title', async () => {
+    const mdText = '# **東京**美食清單\n- [ ] 一蘭拉麵';
+    noteFindOne.mockReturnValue(chainSelectLean({ text: mdText, plannedAt: null }));
+    itineraryDayFindOneAndUpdate.mockReturnValue({
+      select: () => Promise.resolve({ dayNumber: 2 }),
+    });
+    noteFindOneAndUpdate.mockReturnValue(
+      chainLean(leanNote({ plannedAt: new Date(), plannedDayNumber: 2 }))
+    );
+
+    const result = await planNote(TRIP_ID, NOTE_ID, { day_id: DAY_ID });
+
+    expect(result.success).toBe(true);
+    const pushArg = itineraryDayFindOneAndUpdate.mock.calls[0][1] as {
+      $push: { activities: { title: string; note: string } };
+    };
+    expect(pushArg.$push.activities.title).toBe('東京美食清單');
+    // 標題經過改寫 → 全文保留在活動備註
+    expect(pushArg.$push.activities.note).toBe(mdText);
   });
 });

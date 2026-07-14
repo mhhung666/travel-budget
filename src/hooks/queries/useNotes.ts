@@ -41,13 +41,16 @@ interface UpdateNoteData {
 }
 
 /**
- * 隨手記 mutations。invalidate-on-success 模式（同 useChecklistMutations）；
+ * 隨手記 mutations。create/remove/plan 為 invalidate-on-success 模式（同
+ * useChecklistMutations）；`update` 改為 optimistic——內文 task checkbox
+ * 點了要即時打勾（roundtrip 後才勾會像壞掉），釘選切換也順帶受惠。
  * `plan`（轉成行程活動）另外 invalidate 行程查詢，讓行程分頁同步出現新活動。
  * Online-only：離線時失敗由呼叫端 toast（僅支出建立有離線佇列）。
  */
 export function useNoteMutations(tripId: string) {
   const queryClient = useQueryClient();
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: tripKeys.notes(tripId) });
+  const notesKey = tripKeys.notes(tripId);
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: notesKey });
 
   const create = useMutation({
     mutationFn: ({ text, attachments }: CreateNoteData) =>
@@ -58,7 +61,28 @@ export function useNoteMutations(tripId: string) {
   const update = useMutation({
     mutationFn: ({ noteId, data }: { noteId: string; data: UpdateNoteData }) =>
       unwrap(updateNote(tripId, noteId, data)),
-    onSuccess: invalidate,
+    // Optimistic：先改快取（只 patch text/pinned；attachments 等 server 回來），
+    // 失敗回滾、結束後 invalidate 對回伺服器排序（釘選變更的重排交給 server）。
+    onMutate: async ({ noteId, data }) => {
+      await queryClient.cancelQueries({ queryKey: notesKey });
+      const previous = queryClient.getQueryData<TripNote[]>(notesKey);
+      queryClient.setQueryData<TripNote[]>(notesKey, (old) =>
+        old?.map((n) =>
+          n.id === noteId
+            ? {
+                ...n,
+                ...(data.text !== undefined && { text: data.text }),
+                ...(data.pinned !== undefined && { pinned: data.pinned }),
+              }
+            : n
+        )
+      );
+      return { previous };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) queryClient.setQueryData(notesKey, ctx.previous);
+    },
+    onSettled: invalidate,
   });
 
   const remove = useMutation({

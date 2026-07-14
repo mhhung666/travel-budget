@@ -340,7 +340,13 @@ export const createCommentSchema = z.object({
 });
 
 // Note schemas（隨手記；任何成員皆可編輯，比照 Checklist 的成員信任模型）
-const noteTextSchema = z.string().trim().min(1, '內容不能為空').max(500, '內容過長（上限 500 字）');
+// 上限是防呆而非產品限制：隨手記支援 Markdown 長筆記（前端 Composer/EditDialog 共用此常數）。
+export const NOTE_TEXT_MAX = 10000;
+const noteTextSchema = z
+  .string()
+  .trim()
+  .min(1, '內容不能為空')
+  .max(NOTE_TEXT_MAX, `內容過長（上限 ${NOTE_TEXT_MAX} 字）`);
 // 照片附件沿用收據的 attachmentInputSchema（只帶 key，size/type 由 action 以 headObject 驗證）。
 const noteAttachmentsSchema = z.array(attachmentInputSchema).max(6, '照片數量過多');
 

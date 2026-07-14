@@ -801,7 +801,13 @@
     "goToItinerary": "旅程タブへ",
     "emptyState": "メモはまだありません",
     "emptyStateHint": "思いついたことをメモして、あとで旅程に組み込みましょう",
-    "loadFailed": "メモの読み込みに失敗しました"
+    "loadFailed": "メモの読み込みに失敗しました",
+    "showAll": "すべて表示",
+    "collapse": "折りたたむ",
+    "editorTab": "編集",
+    "previewTab": "プレビュー",
+    "markdownHint": "Markdown 対応：# 見出し、- リスト、- [ ] タスク、**太字**",
+    "previewEmpty": "プレビューする内容がありません"
   },
   "itinerary": {
     "title": "旅程プラン",

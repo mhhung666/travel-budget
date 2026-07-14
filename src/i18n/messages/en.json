@@ -808,7 +808,13 @@
     "goToItinerary": "Go to itinerary",
     "emptyState": "No notes yet",
     "emptyStateHint": "Jot down ideas as they come — plan them into the itinerary later",
-    "loadFailed": "Failed to load notes"
+    "loadFailed": "Failed to load notes",
+    "showAll": "Show all",
+    "collapse": "Collapse",
+    "editorTab": "Write",
+    "previewTab": "Preview",
+    "markdownHint": "Markdown supported: # heading, - list, - [ ] task, **bold**",
+    "previewEmpty": "Nothing to preview yet"
   },
   "itinerary": {
     "title": "Trip Itinerary",

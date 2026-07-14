@@ -64,6 +64,14 @@
 
 ---
 
+## 隨手記 Markdown 筆記化（2026-07-14）
+
+回應使用者回饋（「500 字不夠當筆記」「長筆記整篇攤開太佔版面」）。實作細節見 [FEATURES.md](./FEATURES.md) §14。
+
+- 內文升級 **GFM Markdown**（上限 500 → 10,000 字）＋ `remark-breaks` 保持舊純文字顯示相容（**零遷移**）；長筆記摺疊成「首行標題＋兩行摘要」點擊展開；`- [ ]` 待辦可直接在卡片打勾存回（`updateNote` 改 optimistic）；編輯 Dialog 加編輯/預覽 tabs；`planNote` 標題自動去 Markdown 語法。`linkifyText` 退役（GFM autolink 取代）。延伸點子（#標籤、筆記搜尋、記一筆連結、複製匯出）記在 [ROADMAP.md](./ROADMAP.md)。
+
+---
+
 ## 程式碼 / 基礎設施改善
 
 早期 P0–P3（#1–#12，含 `withAuth`、env 驗證、proxy 路由保護、Public API hash_code 強化、React Query、頁面拆分、刪除確認 / Skeleton / i18n toast）皆已完成，紀錄見 git 歷史。以下為後續驗證過的項目：

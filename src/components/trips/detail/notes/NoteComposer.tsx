@@ -6,13 +6,15 @@ import { ImagePlus, Loader2, Send } from 'lucide-react';
 import type { ExpenseAttachment } from '@/types';
 import { createNoteUploadUrl } from '@/actions';
 import { uploadAttachmentFiles } from '@/lib/attachmentUpload';
+import { NOTE_TEXT_MAX } from '@/lib/validation';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { NoteThumb } from '@/components/trips/detail/ReceiptAttachments';
 
 const ACCEPT_IMAGE = 'image/jpeg,image/png,image/webp';
-const MAX_LEN = 500;
+/** 剩不到這個字數才顯示字數器（上限一萬字，平常顯示只是噪音）。 */
+const COUNTER_THRESHOLD = NOTE_TEXT_MAX - 500;
 
 export interface NoteComposerProps {
   tripId: string;
@@ -78,7 +80,7 @@ export function NoteComposer({ tripId, onSubmit, pending }: NoteComposerProps) {
         placeholder={t('placeholder')}
         className="min-h-10 resize-none border-none px-3 pt-3 shadow-none focus-visible:ring-0"
         rows={1}
-        maxLength={MAX_LEN}
+        maxLength={NOTE_TEXT_MAX}
         enterKeyHint="send"
       />
 
@@ -120,23 +122,27 @@ export function NoteComposer({ tripId, onSubmit, pending }: NoteComposerProps) {
           className="hidden"
           onChange={(e) => void upload(Array.from(e.target.files ?? []))}
         />
-        <span
-          className={cn(
-            'ml-auto text-xs tabular-nums text-muted-foreground',
-            draft.length >= MAX_LEN && 'text-destructive'
+        <div className="ml-auto flex items-center gap-2">
+          {draft.length >= COUNTER_THRESHOLD && (
+            <span
+              className={cn(
+                'text-xs tabular-nums text-muted-foreground',
+                draft.length >= NOTE_TEXT_MAX && 'text-destructive'
+              )}
+            >
+              {draft.length}/{NOTE_TEXT_MAX}
+            </span>
           )}
-        >
-          {draft.length}/{MAX_LEN}
-        </span>
-        <Button
-          size="icon"
-          className="h-8 w-8 shrink-0"
-          disabled={!draft.trim() || pending || uploading}
-          onClick={submit}
-          aria-label={t('send')}
-        >
-          {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-        </Button>
+          <Button
+            size="icon"
+            className="h-8 w-8 shrink-0"
+            disabled={!draft.trim() || pending || uploading}
+            onClick={submit}
+            aria-label={t('send')}
+          >
+            {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+          </Button>
+        </div>
       </div>
     </div>
   );

@@ -12,6 +12,7 @@ import {
   createNoteSchema,
   updateNoteSchema,
   planNoteSchema,
+  NOTE_TEXT_MAX,
 } from '@/lib/validation';
 
 describe('createTripSchema', () => {
@@ -400,9 +401,9 @@ describe('createNoteSchema', () => {
     expect(createNoteSchema.safeParse({ text: '   ' }).success).toBe(false);
   });
 
-  it('should reject text over 500 chars', () => {
-    expect(createNoteSchema.safeParse({ text: 'a'.repeat(501) }).success).toBe(false);
-    expect(createNoteSchema.safeParse({ text: 'a'.repeat(500) }).success).toBe(true);
+  it('should reject text over the max length', () => {
+    expect(createNoteSchema.safeParse({ text: 'a'.repeat(NOTE_TEXT_MAX + 1) }).success).toBe(false);
+    expect(createNoteSchema.safeParse({ text: 'a'.repeat(NOTE_TEXT_MAX) }).success).toBe(true);
   });
 });
 

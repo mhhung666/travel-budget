@@ -801,7 +801,13 @@
     "goToItinerary": "前往行程标签",
     "emptyState": "暂无笔记",
     "emptyStateHint": "想到什么先记下来，之后再排进行程",
-    "loadFailed": "加载笔记失败"
+    "loadFailed": "加载笔记失败",
+    "showAll": "显示全部",
+    "collapse": "收起",
+    "editorTab": "编辑",
+    "previewTab": "预览",
+    "markdownHint": "支持 Markdown：# 标题、- 列表、- [ ] 待办、**粗体**",
+    "previewEmpty": "暂无内容可预览"
   },
   "itinerary": {
     "title": "旅程规划",
