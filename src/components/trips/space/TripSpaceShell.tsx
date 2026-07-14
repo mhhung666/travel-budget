@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, History, MoreHorizontal, Plus, Settings, Wallet } from 'lucide-react';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
@@ -81,6 +81,12 @@ export function TripSpaceShell({
     pathname.startsWith(ROUTES.TRIP_SETTINGS(tripId));
   const backTarget = onMorePage ? ROUTES.TRIP_DETAIL(tripId) : ROUTES.TRIPS;
 
+  // `trip` 來自 client-only 的 React Query 快取（SSR 時永遠沒有值，rehydrate 後才可能有）。
+  // 若直接依 trip/isLoading 分支，server HTML 與首次 client paint 會對不上（div↔h1、skeleton 有無）
+  // 而觸發 hydration mismatch。掛載前一律走 skeleton 分支，確保首屏兩邊一致。
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   const openAddExpense = addExpenseDialog.openDialog;
   const contextValue = useMemo(
     () => ({ openAddExpense: (prefill?: AddExpensePrefill) => openAddExpense(prefill) }),
@@ -123,11 +129,11 @@ export function TripSpaceShell({
                 <ArrowLeft className="h-5 w-5" />
               </Button>
 
-              {trip ? (
+              {mounted && trip ? (
                 <h1 className="min-w-0 flex-1 truncate text-base font-semibold">{trip.name}</h1>
               ) : (
                 <div className="min-w-0 flex-1">
-                  {isLoading && <Skeleton className="h-5 w-32" />}
+                  {(!mounted || isLoading) && <Skeleton className="h-5 w-32" />}
                 </div>
               )}
 
