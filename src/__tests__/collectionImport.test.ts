@@ -3,6 +3,7 @@ import {
   activityImportKind,
   dayDateFromTrip,
   matchHotelBrand,
+  parseAirports,
   parseFlightNo,
 } from '@/lib/collectionImport';
 
@@ -29,6 +30,23 @@ describe('parseFlightNo', () => {
   it('沒有航班號樣式時回 null（純數字不誤判）', () => {
     expect(parseFlightNo('前往機場')).toBeNull();
     expect(parseFlightNo('14:00 集合')).toBeNull();
+  });
+});
+
+describe('parseAirports', () => {
+  it('各種方向記號：箭頭 / 連字號 / 斜線 / to / 中文往到', () => {
+    expect(parseAirports('BR182 TPE→NRT')).toEqual({ from: 'TPE', to: 'NRT' });
+    expect(parseAirports('TPE - NRT')).toEqual({ from: 'TPE', to: 'NRT' });
+    expect(parseAirports('TPE/HND 來回')).toEqual({ from: 'TPE', to: 'HND' });
+    expect(parseAirports('TPE to KIX')).toEqual({ from: 'TPE', to: 'KIX' });
+    expect(parseAirports('TPE 往 CTS')).toEqual({ from: 'TPE', to: 'CTS' });
+    expect(parseAirports('TPE ✈ FUK')).toEqual({ from: 'TPE', to: 'FUK' });
+  });
+
+  it('只認大寫代碼：小寫字句不誤判（the-end 不是 THE→END）', () => {
+    expect(parseAirports('the-end of trip')).toBeNull();
+    expect(parseAirports('前往機場')).toBeNull();
+    expect(parseAirports('TPE 起飛')).toBeNull(); // 只有一組代碼
   });
 });
 

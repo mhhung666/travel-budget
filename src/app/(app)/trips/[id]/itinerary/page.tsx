@@ -32,6 +32,7 @@ import {
   activityImportKind,
   dayDateFromTrip,
   matchHotelBrand,
+  parseAirports,
   parseFlightNo,
 } from '@/lib/collectionImport';
 
@@ -132,7 +133,9 @@ export default function ItineraryPage() {
       ...(date ? { date, check_in: date } : {}),
     };
     if (kind === 'flight') {
-      const parsed = parseFlightNo(`${activity.title} ${activity.note}`);
+      const text = `${activity.title} ${activity.note}`;
+      const parsed = parseFlightNo(text);
+      const airports = parseAirports(text);
       setImporting({
         kind,
         flightDefaults: {
@@ -140,6 +143,7 @@ export default function ItineraryPage() {
           source_activity_id: base.source_activity_id,
           ...(date ? { date } : {}),
           ...(parsed ? { airline: parsed.airline, flight_no: parsed.flightNo } : {}),
+          ...(airports ? { from_airport: airports.from, to_airport: airports.to } : {}),
         },
       });
     } else {

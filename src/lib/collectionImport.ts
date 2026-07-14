@@ -26,6 +26,20 @@ export function parseFlightNo(text: string): { airline: string; flightNo: string
 }
 
 /**
+ * 從活動標題/備註猜出發/抵達機場：一組大寫 IATA 三碼、中間夾方向記號
+ * （箭頭 / 連字號 / 斜線 / ✈ / "to" / 往至到飛去）。例："TPE→NRT"、"TPE - NRT"、"TPE to NRT"。
+ * 機場代碼慣以大寫書寫，故**只認大寫**以免把 "the-end" 這類小寫字誤判成代碼。
+ * 不驗證目錄（純函式）；猜錯或不在目錄由對話框的機場選擇器呈現/改掉。猜不到回 null。
+ */
+export function parseAirports(text: string): { from: string; to: string } | null {
+  const m = text.match(
+    /\b([A-Z]{3})\s*(?:→|➡|⇒|⟶|►|»|-|–|—|~|\/|✈️?|to|TO|往|至|到|飛|去)\s*([A-Z]{3})\b/
+  );
+  if (!m) return null;
+  return { from: m[1], to: m[2] };
+}
+
+/**
  * 從活動標題比對飯店品牌（目錄 nameZh / name 子字串，不分大小寫）。
  * 多個命中取**名稱最長**者（"Hilton Garden Inn" 不該被 "Hilton" 搶走）。
  */
