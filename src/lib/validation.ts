@@ -370,6 +370,112 @@ export const planNoteSchema = z.object({
   day_id: objectIdSchema,
 });
 
+// ── 旅程相簿（Album，ROADMAP #21）────────────────────────────────────
+// 成員信任模型（同隨手記）：任何成員皆可上傳／編輯／刪除。
+
+/** 說明文字上限（相片說明是一句話，不是筆記）。 */
+export const PHOTO_CAPTION_MAX = 500;
+/** 一次可送出的相片數（前端一次挑 20 張＝20 個 headObject，但只有一次 DB round trip）。 */
+export const PHOTO_BATCH_MAX = 20;
+/**
+ * 每旅程的相片軟上限：超過就擋新上傳（不動既有的，也不刪）。
+ *
+ * 放在這裡而不是 photo.actions.ts，是因為 `'use server'` 的檔案**只能 export async function**
+ * ——export 一個常數會讓 production build 失敗（`next build` 才抓得到，tsc／lint／測試都不會）。
+ */
+export const PHOTO_LIMIT_PER_TRIP = 300;
+
+/*
+ * 以下三個 EXIF 邊界是本檔與 [exif.ts](./exif.ts) 的**共用定義**——exif.ts 反過來 import
+ * 它們。刻意不各寫一份：兩邊的規則必須一致（一邊清乾淨、一邊是安全邊界），
+ * 而「靠註解提醒兩邊要同步」遲早會漂掉，用 import 讓它由結構保證。
+ */
+/** 字串型 EXIF 欄位長度上限（機身/鏡頭名稱都遠短於此；只擋異常）。 */
+export const EXIF_STRING_MAX = 100;
+/** 合理拍攝時間的下界。相機沒電/初始化失敗時常寫出 1970 或 2000-01-01 這種預設值。 */
+export const PHOTO_TAKEN_AT_MIN_MS = Date.UTC(1990, 0, 1);
+/** 拍攝時間允許超前現在的寬容量（裝置時區/時鐘誤差）。 */
+export const PHOTO_TAKEN_AT_FUTURE_TOLERANCE_MS = 24 * 60 * 60 * 1000;
+
+const photoCaptionSchema = z
+  .string()
+  .trim()
+  .max(PHOTO_CAPTION_MAX, `說明過長（上限 ${PHOTO_CAPTION_MAX} 字）`);
+
+/**
+ * EXIF 是**不可信輸入**：上傳走 presigned PUT「瀏覽器直傳 R2」，server 看不到 bytes，
+ * 因此無法自行重新推導這些值——client 送什麼就是什麼。這裡是唯一的把關點。
+ *
+ * 範圍與 lib/exif.ts 的正規化一致（共用上面的常數），但那邊是「清乾淨」、這邊才是
+ * 安全邊界：前端可以被繞過，這裡不行。
+ */
+const photoExifFieldsSchema = z.object({
+  make: z.string().max(EXIF_STRING_MAX).optional(),
+  model: z.string().max(EXIF_STRING_MAX).optional(),
+  lens: z.string().max(EXIF_STRING_MAX).optional(),
+  iso: z.number().positive().optional(),
+  f_number: z.number().positive().optional(),
+  exposure_time: z.number().positive().optional(),
+  focal_length: z.number().positive().optional(),
+  orientation: z.number().int().min(1).max(8).optional(),
+});
+
+/**
+ * 拍攝時間。**`z.string().datetime()` 只驗格式、不驗範圍**——`9999-01-01` 是合法的
+ * ISO 字串，放行的話偽造一次呼叫就能讓一張相片永遠置頂於相簿（主排序是 takenAt）。
+ * 故這裡自己夾範圍，與 exif.ts 的 client 端正規化同界。
+ */
+const photoTakenAtSchema = z
+  .string()
+  .datetime()
+  .refine((s) => {
+    const ms = Date.parse(s);
+    return (
+      Number.isFinite(ms) &&
+      ms >= PHOTO_TAKEN_AT_MIN_MS &&
+      ms <= Date.now() + PHOTO_TAKEN_AT_FUTURE_TOLERANCE_MS
+    );
+  }, '拍攝時間不在合理範圍');
+
+const photoLocationSchema = z.object({
+  lat: z.number().min(-90).max(90),
+  lon: z.number().min(-180).max(180),
+});
+
+/**
+ * 一張相片的入庫輸入。`key`／`thumb_key` 的歸屬（須屬本 trip 的 photos/ 前綴）與真實
+ * size/type 由 action 以 isPhotoKeyForTrip + headObject 覆驗——presigned PUT 管不住
+ * client 實際送出的內容，故白名單與上限在 server 端仍是硬防線。
+ */
+const photoItemSchema = z.object({
+  key: z.string().min(1),
+  thumb_key: z.string().min(1),
+  width: z.number().int().nonnegative().max(100000).optional(),
+  height: z.number().int().nonnegative().max(100000).optional(),
+  taken_at: photoTakenAtSchema.nullish(),
+  location: photoLocationSchema.nullish(),
+  exif: photoExifFieldsSchema.optional(),
+  caption: photoCaptionSchema.optional(),
+});
+
+export const addPhotosSchema = z.object({
+  items: z
+    .array(photoItemSchema)
+    .min(1, '沒有可新增的相片')
+    .max(PHOTO_BATCH_MAX, '一次上傳的相片過多'),
+});
+
+export const updatePhotoSchema = z
+  .object({
+    caption: photoCaptionSchema.optional(),
+    itinerary_day_id: objectIdSchema.nullish(),
+    location: photoLocationSchema.nullish(),
+  })
+  .refine(
+    (d) => d.caption !== undefined || d.itinerary_day_id !== undefined || d.location !== undefined,
+    { message: '沒有可更新的欄位' }
+  );
+
 // ── 旅行成就（Collections，ROADMAP #19）──────────────────────────────
 // user-level 終身紀錄的補登/編輯。trip_id 沿用 tripIdOrCode 雙重接受
 // （ObjectId 或 hash_code，由 action 以 getTripMembership 解析＋驗證成員身分）。
@@ -490,6 +596,9 @@ export type CreateCommentInput = z.infer<typeof createCommentSchema>;
 export type CreateNoteInput = z.infer<typeof createNoteSchema>;
 export type UpdateNoteInput = z.infer<typeof updateNoteSchema>;
 export type PlanNoteInput = z.infer<typeof planNoteSchema>;
+export type AddPhotosInput = z.infer<typeof addPhotosSchema>;
+export type UpdatePhotoInput = z.infer<typeof updatePhotoSchema>;
+export type PhotoItemInput = z.infer<typeof photoItemSchema>;
 export type CreateFlightRecordInput = z.infer<typeof createFlightRecordSchema>;
 export type CreateStayRecordInput = z.infer<typeof createStayRecordSchema>;
 export type UpsertLoyaltyAccountInput = z.infer<typeof upsertLoyaltyAccountSchema>;

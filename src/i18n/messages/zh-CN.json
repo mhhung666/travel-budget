@@ -689,6 +689,7 @@
       "label": "行程分页",
       "expenses": "支出",
       "notes": "随手记",
+      "album": "相册",
       "itinerary": "行程",
       "settlement": "结算",
       "stats": "统计",
@@ -810,6 +811,24 @@
     "previewTab": "预览",
     "markdownHint": "支持 Markdown：# 标题、- 列表、- [ ] 待办、**粗体**",
     "previewEmpty": "暂无内容可预览"
+  },
+  "album": {
+    "loadFailed": "加载相册失败",
+    "backToTrip": "返回行程",
+    "emptyState": "暂无照片",
+    "emptyStateHint": "上传第一张照片，开始这趟旅程的相册",
+    "upload": "上传照片",
+    "uploadTooLarge": "文件过大",
+    "uploadUnsupported": "无法识别的文件格式",
+    "uploadFailed": "上传失败",
+    "lightboxTitle": "照片查看",
+    "photoAlt": "照片",
+    "previous": "上一张",
+    "next": "下一张",
+    "download": "下载",
+    "delete": "删除",
+    "deleteConfirmTitle": "确定删除这张照片？",
+    "deleteConfirmMessage": "此操作无法撤销。"
   },
   "itinerary": {
     "title": "旅程规划",

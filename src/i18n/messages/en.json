@@ -689,6 +689,7 @@
       "label": "Trip sections",
       "expenses": "Expenses",
       "notes": "Notes",
+      "album": "Album",
       "itinerary": "Itinerary",
       "settlement": "Settle up",
       "stats": "Stats",
@@ -817,6 +818,24 @@
     "previewTab": "Preview",
     "markdownHint": "Markdown supported: # heading, - list, - [ ] task, **bold**",
     "previewEmpty": "Nothing to preview yet"
+  },
+  "album": {
+    "loadFailed": "Failed to load album",
+    "backToTrip": "Back to Trip",
+    "emptyState": "No photos yet",
+    "emptyStateHint": "Upload the first photo to start this trip's album",
+    "upload": "Upload photos",
+    "uploadTooLarge": "File is too large",
+    "uploadUnsupported": "Unsupported file format",
+    "uploadFailed": "Upload failed",
+    "lightboxTitle": "Photo viewer",
+    "photoAlt": "Photo",
+    "previous": "Previous",
+    "next": "Next",
+    "download": "Download",
+    "delete": "Delete",
+    "deleteConfirmTitle": "Delete this photo?",
+    "deleteConfirmMessage": "This cannot be undone."
   },
   "itinerary": {
     "title": "Trip Itinerary",

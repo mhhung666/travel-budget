@@ -39,6 +39,9 @@ export type { CommentDto } from './comment';
 // Notes (隨手記)
 export type { TripNote } from './note';
 
+// Album (旅程相簿)
+export type { TripPhoto, PhotoLocation, PhotoPlace, PhotoExif, PhotoLocationSource } from './photo';
+
 // Friends (好友系統)
 export type { FriendshipStatus, FriendItem, FriendsData } from './friend';
 

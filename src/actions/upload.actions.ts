@@ -3,7 +3,13 @@
 import { withAuth } from './withAuth';
 import type { ActionResult } from './types';
 import { getTripMembership } from '@/lib/permissions';
-import { validateUpload, buildObjectKey } from '@/lib/uploads';
+import {
+  validateUpload,
+  buildObjectKey,
+  buildPhotoObjectKeys,
+  PHOTO_DISPLAY_CONTENT_TYPE,
+  PHOTO_THUMB_CONTENT_TYPE,
+} from '@/lib/uploads';
 import { presignPut } from '@/lib/storage';
 import { logger } from '@/lib/logger';
 
@@ -107,6 +113,71 @@ export const createNoteUploadUrl = withAuth(
       return { success: true, data: { uploadUrl, key } };
     } catch (error) {
       logger.error('createNoteUploadUrl error', error);
+      return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
+    }
+  }
+);
+
+/** 一張相簿相片的兩張上傳簽名（顯示檔＋縮圖）。 */
+export type PhotoUploadTickets = {
+  display: UploadTicket;
+  thumb: UploadTicket;
+};
+
+/**
+ * 相簿相片上傳簽名。owner 區段為 tripId，與收據共用私有 receipts bucket，前綴為 `photos/`。
+ *
+ * **一次簽兩張**（而非呼叫兩次）是刻意的：顯示檔與縮圖的 key 必須共用同一個 uuid，
+ * 才能讓 `_t`（縮圖）與 `_p`（Phase 4 的消毒副本）從顯示檔 key 推導出來。分兩次呼叫
+ * 就會拿到兩個不相干的 uuid，那條規則就沒了（見 buildPhotoObjectKeys）。順帶少一次
+ * round trip。
+ *
+ * 型別逐顆嚴格比對：顯示檔必為 JPEG（EXIF 只在 JPEG→JPEG 存活）、縮圖必為 WebP——
+ * key 的副檔名是寫死的，型別對不上就會產生名實不符的物件。
+ *
+ * 存參照那一步（addTripPhotos）會再以 headObject 核對真實 size/type。
+ */
+export const createPhotoUploadUrls = withAuth(
+  async (
+    session,
+    tripIdOrCode: string,
+    display: { contentType: string; size: number },
+    thumb: { contentType: string; size: number }
+  ): Promise<ActionResult<PhotoUploadTickets>> => {
+    try {
+      const membership = await getTripMembership(session.userId, tripIdOrCode);
+      if (!membership) {
+        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+      }
+
+      if (
+        display.contentType !== PHOTO_DISPLAY_CONTENT_TYPE ||
+        thumb.contentType !== PHOTO_THUMB_CONTENT_TYPE
+      ) {
+        return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
+      }
+      for (const part of [display, thumb]) {
+        const v = validateUpload('photo', part.contentType, part.size);
+        if (!v.ok) {
+          return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
+        }
+      }
+
+      const { key, thumbKey } = buildPhotoObjectKeys(membership.tripId);
+      const [uploadUrl, thumbUploadUrl] = await Promise.all([
+        presignPut('receipts', key, display.contentType),
+        presignPut('receipts', thumbKey, thumb.contentType),
+      ]);
+
+      return {
+        success: true,
+        data: {
+          display: { uploadUrl, key },
+          thumb: { uploadUrl: thumbUploadUrl, key: thumbKey },
+        },
+      };
+    } catch (error) {
+      logger.error('createPhotoUploadUrls error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
   }

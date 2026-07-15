@@ -12,6 +12,9 @@ import type {
   ActivityLogMeta,
   CommentDto,
   TripNote,
+  TripPhoto,
+  PhotoExif,
+  PhotoLocationSource,
 } from '@/types';
 import type { TripStatsDay, TripStatsExpense, TripStatsMember } from '@/lib/tripStats';
 
@@ -422,5 +425,103 @@ export function toTripNoteDto(n: TripNoteDtoInput): TripNote {
     planned_day_number: n.plannedDayNumber ?? null,
     created_at: n.createdAt.toISOString(),
     updated_at: n.updatedAt.toISOString(),
+  };
+}
+
+/** Minimal lean Photo shape `toTripPhotoDto` needs. */
+export type TripPhotoDtoInput = {
+  _id: { toString(): string };
+  trip: { toString(): string };
+  contentType: string;
+  size: number;
+  width?: number | null;
+  height?: number | null;
+  takenAt?: Date | null;
+  location?: { lat: number; lon: number; source: string } | null;
+  place?: { name: string; names?: unknown; country_code?: string | null } | null;
+  exif?: {
+    make?: string | null;
+    model?: string | null;
+    lens?: string | null;
+    iso?: number | null;
+    fNumber?: number | null;
+    exposureTime?: number | null;
+    focalLength?: number | null;
+    orientation?: number | null;
+  } | null;
+  itineraryDay?: { toString(): string } | null;
+  caption?: string | null;
+  uploadedBy: { toString(): string };
+  uploadedByName?: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+/** Drop null/undefined so optional EXIF fields stay absent rather than becoming null. */
+function definedOnly<T extends object>(obj: T): T {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, v]) => v !== null && v !== undefined)
+  ) as T;
+}
+
+/**
+ * Lean Photo doc → frontend DTO. `uploaded_by_name` is denormalized at upload time
+ * (same as notes), so no populate is needed across a list of photos.
+ *
+ * Unlike note attachments (which carry a `key` and get signed on view), photos arrive
+ * with URLs **already signed** by the caller: an album renders dozens of thumbnails at
+ * once, so signing them one action-call at a time would be an N+1. The caller must sign
+ * with `presignGetStable` — see types/models/photo.ts for why stability matters.
+ *
+ * The object `key` deliberately never reaches the DTO. Nothing on the client needs it,
+ * and keeping it out means the display JPEG (which carries GPS EXIF) can only ever be
+ * reached through a URL this server chose to sign.
+ */
+export function toTripPhotoDto(
+  p: TripPhotoDtoInput,
+  urls: { url: string; thumbUrl: string }
+): TripPhoto {
+  const exif: PhotoExif = definedOnly({
+    make: p.exif?.make ?? undefined,
+    model: p.exif?.model ?? undefined,
+    lens: p.exif?.lens ?? undefined,
+    iso: p.exif?.iso ?? undefined,
+    f_number: p.exif?.fNumber ?? undefined,
+    exposure_time: p.exif?.exposureTime ?? undefined,
+    focal_length: p.exif?.focalLength ?? undefined,
+    orientation: p.exif?.orientation ?? undefined,
+  });
+
+  return {
+    id: p._id.toString(),
+    trip_id: p.trip.toString(),
+    url: urls.url,
+    thumb_url: urls.thumbUrl,
+    content_type: p.contentType,
+    size: p.size,
+    width: p.width ?? 0,
+    height: p.height ?? 0,
+    taken_at: p.takenAt ? p.takenAt.toISOString() : null,
+    location: p.location
+      ? {
+          lat: p.location.lat,
+          lon: p.location.lon,
+          source: p.location.source as PhotoLocationSource,
+        }
+      : null,
+    place: p.place
+      ? {
+          name: p.place.name,
+          names: (p.place.names as Record<string, string> | undefined) ?? {},
+          country_code: p.place.country_code ?? '',
+        }
+      : null,
+    exif,
+    itinerary_day_id: p.itineraryDay ? p.itineraryDay.toString() : null,
+    caption: p.caption ?? '',
+    uploaded_by_id: p.uploadedBy.toString(),
+    uploaded_by_name: p.uploadedByName ?? '',
+    created_at: p.createdAt.toISOString(),
+    updated_at: p.updatedAt.toISOString(),
   };
 }

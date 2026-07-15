@@ -33,6 +33,7 @@ export {
 export { useActivityLog } from './useActivityLog';
 export { useCommentCounts, useExpenseComments, useCommentMutations } from './useComments';
 export { useNotes, useNoteMutations } from './useNotes';
+export { usePhotos, usePhotoMutations } from './usePhotos';
 export { useFriends, useFriendMutations } from './useFriends';
 export { useCollections, useCollectionMutations, useTripCollectionLinks } from './useCollections';
 export { useLoyalty, useLoyaltyMutations } from './useLoyalty';

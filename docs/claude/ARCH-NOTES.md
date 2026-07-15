@@ -28,7 +28,7 @@
 - Schema 定義在 [src/models/](../../src/models/)，Mongoose `autoIndex` 連線時建索引。可重現的索引/回填走 migrate-mongo（[docs/MIGRATIONS.md](../MIGRATIONS.md)；`pnpm migrate:status|up|down|create`），與 autoIndex 並存（冪等、索引名對齊）。
 - **改欄位形狀：先寫 migration 回填，不用讀端 fallback**。migration 要冪等 + 有 `down`；過渡性 fallback 須與 migration 同一 PR 移除。migration 只在被執行的環境生效——提醒使用者其他環境部署前要 `pnpm migrate:up`。
 
-## R2 blob 儲存（收據 / 頭像）
+## R2 blob 儲存（收據 / 頭像 / 相簿）
 
 - [src/lib/storage.ts](../../src/lib/storage.ts) 是 **server-only**，絕不從 client component import。純邏輯（型別白名單、大小上限、key 命名）在 [src/lib/uploads.ts](../../src/lib/uploads.ts)。
 - **兩個 bucket 不能混**：私有 `receipts`（presigned PUT 上傳；讀取走成員限定的短效 presigned GET `getReceiptUrl`）、公開 `avatars`（穩定公開 URL）。收據不准進公開 bucket。
@@ -36,6 +36,8 @@
 - **收據隱私契約**：`toExpenseDto` 的 `{ attachments }` 選項，public expenses route 傳 `false`——收據永不出現在未登入分享頁。
 - `R2_*` env 全部 optional（[src/lib/env.ts](../../src/lib/env.ts)）；`getR2Config()` 惰性斷言，無 R2 也能 build/CI。
 - **無儲存級聯**：刪 expense/trip/換頭像時刪 blob 都是 **best-effort**（失敗只 log，不讓使用者操作失敗）。新增會丟參照的路徑要沿用此模式。
+- **相簿相片**（`photos/<tripId>/`，同私有 `receipts` bucket，ROADMAP #21 Phase 1）：每張兩顆物件、**共用一個 uuid**（`<uuid>.jpg` 顯示＋下載／`<uuid>_t.webp` 縮圖），故簽名一次簽兩張（`createPhotoUploadUrls`）——分兩次呼叫會讓 `_t`／`_p` 無法從 key 推導。**顯示檔刻意自帶 GPS EXIF**（見 [FEATURES.md](../FEATURES.md) §17），故公開路由絕不可簽它，只可簽消毒副本 `_p.jpg`（Phase 4 才產生，key 規則已定死）。
+- **相簿讀取用 `presignGetStable` 而非 `presignGet`**：簽名時間戳對齊整點窗口，窗口內同 key 產生逐字元相同的 URL，否則 SW 的 CacheFirst（快取 key＝完整 URL）永遠 miss 且無限膨脹。**收據維持 `presignGet` 的 300s 短效，不要順手改**。
 
 ## 離線 PWA（Serwist + TanStack Query 持久化）
 

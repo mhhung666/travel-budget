@@ -38,6 +38,10 @@ npx tsc --noEmit                                   # type check (no pnpm script 
 - NEVER add session checks to [src/app/api/public/](src/app/api/public/) — unauthenticated by design.
 - NEVER return receipt attachments on public routes (`toExpenseDto(..., { attachments: false })`);
   receipts live in the private bucket only, avatars in the public one.
+- Album photos (`photos/<tripId>/`): the display `<uuid>.jpg` **carries live GPS EXIF by design**
+  ([FEATURES.md](docs/FEATURES.md) §17). Any public/unauthenticated album route may sign only the
+  sanitized `<uuid>_p.jpg` (APP1 stripped) and `<uuid>_t.webp` — **never** the `.jpg`; and its DTO
+  must never carry `location`/`place`/`exif`. Members-only today (no public route yet) — keep it that way until Phase 4.
 - `MONGODB_URI` never gets `NEXT_PUBLIC_`; the only `NEXT_PUBLIC_` env is the VAPID public key.
 
 **Build & PWA**

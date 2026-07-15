@@ -61,6 +61,49 @@ export async function presignGet(bucket: R2Bucket, key: string): Promise<string>
   });
 }
 
+/** presignGetStable 的預設窗口：1 小時。 */
+export const STABLE_GET_WINDOW_SECONDS = 60 * 60;
+
+/**
+ * 計算對齊到整點窗口的簽名參數（純函式，可單元測試）。
+ *
+ * `expiresIn` 是窗口的**兩倍**，這不是隨手取的：簽名時間戳被往回對齊到窗口起點，
+ * 若 TTL 只有一個窗口長，那麼在窗口尾聲（例如 59:59）拿到的 URL 一秒後就死了。
+ * 兩倍窗口保證從窗口內任一時刻拿到的 URL 都至少還有一整個窗口的壽命。
+ */
+export function stableSigningWindow(
+  nowMs: number,
+  windowSeconds: number
+): { signingDate: Date; expiresIn: number } {
+  const windowMs = windowSeconds * 1000;
+  const windowStart = Math.floor(nowMs / windowMs) * windowMs;
+  return { signingDate: new Date(windowStart), expiresIn: windowSeconds * 2 };
+}
+
+/**
+ * 簽發**窗口內逐字元穩定**的檢視 URL（相簿相片用）。呼叫端須先驗成員身分。
+ *
+ * 為什麼要有這顆：[sw.ts](../sw.ts) 對 R2 圖片是 CacheFirst、快取 key＝完整 URL。
+ * `presignGet` 每次呼叫都產生不同的 `X-Amz-Date`／`X-Amz-Signature`，同一張相片每次
+ * 瀏覽都是新 URL → 快取永遠 miss、而且無限膨脹。收據一次看一兩張無所謂，相簿一頁
+ * 幾十張就會很明顯，離線也會看不到剛看過的相簿。
+ *
+ * 把簽名時間戳對齊到整點窗口後，同一窗口內對同一 key 產生完全相同的 URL，SW 才快取得到。
+ *
+ * **收據沿用 presignGet（300s、不對齊），不要改成這顆**——那是刻意的短效。
+ */
+export async function presignGetStable(
+  bucket: R2Bucket,
+  key: string,
+  windowSeconds: number = STABLE_GET_WINDOW_SECONDS
+): Promise<string> {
+  const { signingDate, expiresIn } = stableSigningWindow(Date.now(), windowSeconds);
+  return getSignedUrl(r2(), new GetObjectCommand({ Bucket: bucketName(bucket), Key: key }), {
+    expiresIn,
+    signingDate,
+  });
+}
+
 /**
  * 讀取物件中繼資料以驗證實際上傳結果。presigned PUT 無法限制 client 真正送出的
  * 大小/型別，故存參照前以此核對（防 client 謊報）。物件不存在回 null。

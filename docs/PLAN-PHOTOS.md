@@ -1,7 +1,30 @@
 # 旅程相簿與相片地圖（Trip Album）規劃
 
-> 建立日期：2026-07-15 · 狀態：**規劃中，尚未動工**
-> 完成後依 [README.md](./README.md) 慣例：實作筆記入 FEATURES.md、CHANGELOG 加一行、刪 ROADMAP 項，本檔刪除（草圖查 git 歷史）。
+> 建立日期：2026-07-15 · 狀態：**Phase 1 已完成（2026-07-15）**；餘 Phase 2／3／4。
+> Phase 1 實作筆記已入 [FEATURES.md](./FEATURES.md) §17。**全部階段完成後**才依
+> [README.md](./README.md) 慣例刪本檔（草圖查 git 歷史）——Phase 2–4 仍需本檔。
+>
+> ## 動工後校正（Phase 1 實作時發現，與原規劃不符之處）
+>
+> 這幾條是**實測**出來的，不是推論。Phase 2–4 動工前先讀：
+>
+> 1. **§6 的「反查地名」是全新功能，不是現成 helper**。repo **沒有任何 reverse geocode**——
+>    `ItineraryDay.location` 是使用者在前端用 Nominatim **正向搜尋**選好後整包送進 action 的，
+>    **server 端從不做地理查詢**。加上 Nominatim 政策限 1 req/sec（一次挑 20 張＝20 秒的 action），
+>    故 **Phase 1 的 `place` 一律留 `null`**，schema 形狀留好，Phase 3 地圖整合時再回頭填
+>    （屆時建議離線批次跑，不要塞進上傳流程）。
+> 2. **exifr 的選項不能照 §3 直覺寫**：`{ pick: [...], gps: true }` 會**靜靜地不回**
+>    `latitude`／`longitude`（pick 一開就不做 GPS 合成），且預設會把 `Orientation` 翻譯成
+>    `'Rotate 90 CW'` 這種**字串**。正解是明確列 block ＋ `translateValues: false`，
+>    見 [exif.ts](../src/lib/exif.ts) 的 `EXIFR_OPTIONS`（該處註解已寫明「別隨手改」）。
+> 3. **上傳簽名改成一次簽兩張**（`createPhotoUploadUrls`），非 §6 表格寫的「呼叫兩次」。
+>    因為 §4 要求 `_t`／`_p` 能從顯示檔 key 推導，兩顆物件就**必須共用同一個 uuid**；
+>    分兩次呼叫會拿到兩個不相干的 uuid，那條規則就沒了。
+> 4. **§3 的 `preserveExif` 源碼限制已核對屬實**（`browser-image-compression@2.0.2`），
+>    且與 `useWebWorker: true` **相容**（EXIF 是在 worker 回來後於主執行緒套用的）。
+> 5. **新發現的坑（尚未處理）**：SW 的 `r2-images` 快取 `maxEntries: 128` 是為收據設計的，
+>    相簿數十張縮圖會把收據擠出快取；`presignGetStable` 每小時輪替簽名又會加速消耗。
+>    已記入 [IMPROVEMENTS.md](./IMPROVEMENTS.md) §H，待實測用量後決定。
 
 ## 1. 背景與定位
 
@@ -342,7 +365,7 @@ photos/<tripId>/<uuid>_t.webp  縮圖（長邊 400，~30KB，grid 用，無 EXIF
 
 | Phase | 內容 | 成本 |
 |---|---|---|
-| **1** | `Photo` model＋`'photo'` UploadKind／preset＋**EXIF 讀取（DB）＋JPEG `preserveExif`（檔案）**＋`presignGetStable`＋相簿 grid／lightbox／下載。成員限定、私有。 | **M** |
+| ~~**1**~~ | ~~`Photo` model＋`'photo'` UploadKind／preset＋**EXIF 讀取（DB）＋JPEG `preserveExif`（檔案）**＋`presignGetStable`＋相簿 grid／lightbox／下載。成員限定、私有。~~ **✅ 完成 2026-07-15**（`place` 反查除外，見檔頭校正 1） | **M** |
 | **2** | 關聯行程日、說明編輯、批次選取／刪除、行程日頁顯示當天相片。 | S |
 | **3** | 地圖整合：相片圖層改讀 `Photo`、EXIF 精確釘點、前端 cluster，**同時刪除收據相片模式**（§7）。**排在 1／2 上線一段時間之後**，否則切換當下地圖相片會是空的。 | M |
 | **4** | 公開相簿分享（`albumShareCode`＋**消毒副本 `_p.jpg`**＋獨立的無位置公開 DTO）。純相片牌，不含地圖。 | M |

@@ -22,6 +22,7 @@ export const tripKeys = {
   checklists: (tripId: string) => ['trip', tripId, 'checklists'] as const,
   copyableChecklists: (tripId: string) => ['trip', tripId, 'copyableChecklists'] as const,
   notes: (tripId: string) => ['trip', tripId, 'notes'] as const,
+  photos: (tripId: string) => ['trip', tripId, 'photos'] as const,
   stats: (tripId: string) => ['trip', tripId, 'stats'] as const,
   activity: (tripId: string) => ['trip', tripId, 'activity'] as const,
   commentCounts: (tripId: string) => ['trip', tripId, 'commentCounts'] as const,

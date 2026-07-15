@@ -17,6 +17,7 @@ export { PushSubscription, type PushSubscriptionDoc } from './PushSubscription';
 export { Comment, type CommentDoc } from './Comment';
 export { Friendship, friendshipPairKey, type FriendshipDoc } from './Friendship';
 export { Note, type NoteDoc } from './Note';
+export { Photo, type PhotoDoc } from './Photo';
 export {
   FlightRecord,
   CABIN_CLASSES,

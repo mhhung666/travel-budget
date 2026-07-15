@@ -689,6 +689,7 @@
       "label": "旅行タブ",
       "expenses": "支出",
       "notes": "メモ",
+      "album": "アルバム",
       "itinerary": "旅程",
       "settlement": "精算",
       "stats": "統計",
@@ -810,6 +811,24 @@
     "previewTab": "プレビュー",
     "markdownHint": "Markdown 対応：# 見出し、- リスト、- [ ] タスク、**太字**",
     "previewEmpty": "プレビューする内容がありません"
+  },
+  "album": {
+    "loadFailed": "アルバムの読み込みに失敗しました",
+    "backToTrip": "旅程に戻る",
+    "emptyState": "まだ写真がありません",
+    "emptyStateHint": "最初の写真をアップロードして、この旅のアルバムを始めましょう",
+    "upload": "写真をアップロード",
+    "uploadTooLarge": "ファイルが大きすぎます",
+    "uploadUnsupported": "対応していないファイル形式です",
+    "uploadFailed": "アップロードに失敗しました",
+    "lightboxTitle": "写真ビュー",
+    "photoAlt": "写真",
+    "previous": "前の写真",
+    "next": "次の写真",
+    "download": "ダウンロード",
+    "delete": "削除",
+    "deleteConfirmTitle": "この写真を削除しますか？",
+    "deleteConfirmMessage": "この操作は取り消せません。"
   },
   "itinerary": {
     "title": "旅程プラン",

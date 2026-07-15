@@ -382,7 +382,53 @@ UI：登入頁 [/wrapped](../src/app/%5Blocale%5D/wrapped/page.tsx)（年份切�
 
 ---
 
-## 17. 其他
+## 17. 旅程相簿（Trip Album，ROADMAP #21）
+
+> Phase 1（相簿本體）已完成 2026-07-15。餘 Phase 2（行程日關聯）／3（地圖整合＋退役收據相片模式）／
+> 4（公開分享）見 [PLAN-PHOTOS.md](./PLAN-PHOTOS.md)。
+
+- **定位**：trip-scoped 共享相簿，比照隨手記／清單的**成員信任模型**（任何成員可上傳／編輯／刪除）。
+  [Photo](../src/models/Photo.ts) 為旅程下的獨立 collection；`uploadedByName` 為上傳當下快照（讀取免 populate）。
+  **Phase 1 僅成員可見**：無公開分享路由，`usePhotos` 直接呼叫 action、不走 public fallback。
+- **EXIF 保存是本功能的核心取捨**（[imageCompress.ts](../src/lib/imageCompress.ts)）：丟掉 EXIF 的**不是壓縮，
+  是 canvas 重繪**——canvas 是純像素表面，`toBlob()` 吐出的是全新的乾淨檔案。改用
+  `browser-image-compression` 的 `preserveExif`（把原檔的 APP1 segment 原封搬進輸出），
+  **但它只在「輸入 JPEG 且輸出 JPEG」時生效**（源碼實測確認；輸出 WebP 一律無 EXIF）。
+  故相簿顯示檔**輸出 JPEG 而非 WebP**，代價是同畫質大 25–30%——換來使用者存回手機時
+  Apple 照片／Google 相簿讀得到地點，**那才是本功能的驗收標準**。preset 因此新增
+  `fileType`／`preserveExif` 兩個欄位；`receipt`／`avatar` 維持 WebP 不變（它們不需要 EXIF）。
+  `preserveExif` 也順手處理 orientation（搬 EXIF 時把 Orientation 重設為 1，因為 canvas
+  已把旋轉烤進像素）——**別自己手刻 EXIF 注入**。
+- **兩份 EXIF、各司其職**：檔案裡那份給使用者帶走；[exif.ts](../src/lib/exif.ts) 另抽一份進 DB 欄位供
+  地圖釘點／排序查詢（不可能為了讀 metadata 去下載解析每顆 JPEG）。**必須在壓縮前讀原始 File**。
+  exifr 的選項是實測定出來的：**不可用 `pick`**（`{ pick, gps: true }` 會靜靜地不回 `latitude`／`longitude`），
+  且 **`translateValues: false` 必要**（否則 `Orientation` 會是 `'Rotate 90 CW'` 這種字串）。
+  `(0, 0)` 一律視為無座標（裝置定位失敗的常見假值）。**EXIF 是不可信輸入**——server 看不到 bytes、
+  無法自行推導，故入庫前一律過 Zod（`photoExifSchema`），單一欄位不合格丟該欄位而非整張拒收。
+- **HEIC 零依賴**：檔案挑選器 `accept` 刻意**不列 HEIC**（沿用收據／隨手記的白名單）——accept 不含 HEIC 時
+  **iOS 會自動把 HEIC 轉成 JPEG 才交給網頁**（EXIF 含 GPS 保留），正好落在 `preserveExif` 唯一支援的
+  JPEG→JPEG 路徑上。桌面拖放 `.heic` 不會被轉，由伺服器白名單擋下並在前端給明確訊息。
+- **儲存**（[uploads.ts](../src/lib/uploads.ts)）：沿用私有 receipts bucket，前綴 `photos/<tripId>/`。
+  每張兩顆物件、**共用同一個 uuid**（`<uuid>.jpg` 顯示＋下載／`<uuid>_t.webp` 縮圖），
+  故上傳簽名**一次簽兩張**（`createPhotoUploadUrls`）——uuid 分家就無法推導 `_t`／`_p`。
+  Phase 4 的消毒副本 `<uuid>_p.jpg` 規則現在就定死（key 命名有相片入庫後就改不動）。
+  `MAX_PHOTO_BYTES = 3MB`（伺服器硬防線，壓縮後正常 <1.2MB）；每旅程軟上限 300 張（回 `CONFLICT`）。
+  刪除同 no-cascade 契約：blob best-effort，一次 `deleteObjects` 收三顆 key（含尚未存在的 `_p`，S3 刪不存在的 key 是 no-op）。
+- **簽名 URL 必須穩定**（[storage.ts](../src/lib/storage.ts) `presignGetStable`）：SW 對 R2 圖片是 CacheFirst、
+  快取 key＝完整 URL，而 `presignGet` 每次都產生新的 `X-Amz-Date`／`X-Amz-Signature` → 相簿每次瀏覽
+  都是新 URL、快取永遠 miss 且無限膨脹。故把簽名時間戳**對齊整點窗口**（1 小時），窗口內對同一 key
+  產生逐字元相同的 URL。TTL 是窗口的**兩倍**——否則窗口尾聲拿到的 URL 一秒後就死了。
+  **收據仍用 `presignGet`（300s、不對齊），那是刻意的短效。**
+- **未做（刻意）**：`place`（反查地名）Phase 1 一律 `null`——repo 沒有 reverse geocode 能力
+  （`ItineraryDay.location` 是前端 Nominatim **正向**搜尋選好後整包送上來的，server 從不做地理查詢），
+  且 Nominatim 限 1 req/sec，塞進上傳會讓「一次挑 20 張」變成 20 秒的 action。schema 形狀先留好，
+  Phase 3 地圖整合時再回頭填（同 PLAN-LOYALTY 的 `ownAirline` 教訓：形狀留好，值可以之後才有）。
+  同理 `location.source` 目前只會是 `'exif'`（無 GPS 即 null）或 `'manual'`（手動拉釘）；
+  `'itinerary'` 要等 Phase 2 的行程日關聯才有得退。
+
+---
+
+## 18. 其他
 
 | 功能 | 說明 |
 | --- | --- |

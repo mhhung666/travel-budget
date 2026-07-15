@@ -43,8 +43,10 @@ export {
   createReceiptUploadUrl,
   createItineraryUploadUrl,
   createNoteUploadUrl,
+  createPhotoUploadUrls,
   createAvatarUploadUrl,
   type UploadTicket,
+  type PhotoUploadTickets,
 } from './upload.actions';
 
 // Avatar actions（R2 頭像）
@@ -103,6 +105,9 @@ export {
   planNote,
   getNoteAttachmentUrl,
 } from './note.actions';
+
+// Photo actions（旅程相簿，ROADMAP #21）
+export { getTripPhotos, addTripPhotos, updatePhoto, deletePhoto } from './photo.actions';
 
 // Stats actions
 export { getStats, getTripStats } from './stats.actions';

@@ -66,10 +66,11 @@ export function TripSpaceShell({
     handleSetBudget,
   } = useTripSpace(tripId);
 
-  // 隨手記為成員限定（無公開分享路由），分享連結訪客不顯示該分頁
+  // 隨手記／相簿為成員限定（無公開分享路由），分享連結訪客不顯示這兩個分頁
   const tabs: { href: string; label: string; exact?: boolean }[] = [
     { href: ROUTES.TRIP_DETAIL(tripId), label: tTrip('tabs.expenses'), exact: true },
     ...(isMember ? [{ href: ROUTES.TRIP_NOTES(tripId), label: tTrip('tabs.notes') }] : []),
+    ...(isMember ? [{ href: ROUTES.TRIP_ALBUM(tripId), label: tTrip('tabs.album') }] : []),
     { href: ROUTES.TRIP_ITINERARY(tripId), label: tTrip('tabs.itinerary') },
     { href: ROUTES.TRIP_SETTLEMENT(tripId), label: tTrip('tabs.settlement') },
     { href: ROUTES.TRIP_STATS(tripId), label: tTrip('tabs.stats') },
