@@ -6,7 +6,15 @@ import { ArrowRight, Medal, Pencil, Plane, Plus, Trash2 } from 'lucide-react';
 
 import { summarizeAirlines, formatByPrecision } from '@/lib/collections';
 import { ALLIANCE_COUNT } from '@/constants/alliances';
-import { useAirlines, useCollectionMutations, useLoyalty, getAirlineName } from '@/hooks/queries';
+import { haversineKm } from '@/lib/geo';
+import { estimateCxStatusPoints, KM_TO_MI } from '@/lib/loyalty';
+import {
+  useAirlines,
+  useAirports,
+  useCollectionMutations,
+  useLoyalty,
+  getAirlineName,
+} from '@/hooks/queries';
 import { useToast } from '@/hooks/use-toast';
 import type { FlightRecordItem } from '@/types';
 import { Badge } from '@/components/ui/badge';
@@ -49,6 +57,26 @@ export function FlightsTab({ flights }: { flights: FlightRecordItem[] }) {
     () => new Map((airlines ?? []).map((a) => [a.iata, a])),
     [airlines]
   );
+
+  // 帶入 CX 時的積分區間預估（PLAN-LOYALTY §8 Phase 3）：需航班有機場＋艙等、
+  // 機場目錄查得到座標；airports 開啟帶入時才載入，晚到就晚一拍顯示 hint
+  const { data: airports } = useAirports(importing !== null);
+  const spEstimate = useMemo(() => {
+    if (!importing || !airports || loyaltyAccount?.program !== 'CX') return null;
+    const { from_airport, to_airport, cabin } = importing;
+    if (!from_airport || !to_airport || !cabin) return null;
+    const from = airports.find((a) => a.iata === from_airport);
+    const to = airports.find((a) => a.iata === to_airport);
+    if (!from || !to) return null;
+    const distanceMi = haversineKm([from.lat, from.lon], [to.lat, to.lon]) * KM_TO_MI;
+    const { min, max } = estimateCxStatusPoints(
+      distanceMi,
+      cabin,
+      from.country ?? '',
+      to.country ?? ''
+    );
+    return { min, max };
+  }, [importing, airports, loyaltyAccount]);
 
   const summaries = useMemo(() => summarizeAirlines(flights), [flights]);
   const alliancesCollected = useMemo(() => {
@@ -234,6 +262,7 @@ export function FlightsTab({ flights }: { flights: FlightRecordItem[] }) {
           onOpenChange={(next) => !next && setImporting(null)}
           program={loyaltyAccount.program}
           editing={null}
+          spEstimate={spEstimate}
           defaults={
             importing
               ? {

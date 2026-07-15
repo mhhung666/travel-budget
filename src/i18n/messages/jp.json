@@ -1356,7 +1356,24 @@
       "qualifyingMiles": "資格マイル",
       "ownAirlineFlight": "エバー／ユニー国際線区間",
       "ownAirlineFlightHint": "区間数に加算されます",
-      "qualifyingAmount": "資格 {miles} マイル"
+      "qualifyingAmount": "資格 {miles} マイル",
+      "estimate": "試算",
+      "estimatorTitle": "ポイント試算（キャセイ）",
+      "estimatorDescription": "公式の獲得表に基づき、路線距離とキャビンクラスからステータスポイントとマイルの目安を算出します。",
+      "estimatorEmpty": "出発・到着空港を選ぶと目安が表示されます",
+      "estimateDistance": "大圏距離 約{miles}マイル・{zone}",
+      "zones": {
+        "ultraShort": "超短距離",
+        "short1": "短距離－タイプ1",
+        "short2": "短距離－タイプ2",
+        "medium": "中距離",
+        "long": "長距離",
+        "ultraLong": "超長距離"
+      },
+      "estimatePrefill": "ポイント目安（タップで入力、マイルは×100）",
+      "earnDisclaimer": "目安は2025/8/20発効の公式獲得表に基づきます（{date}確認）。同じキャビンでも運賃種別により異なります。実際は公式情報をご確認ください",
+      "summaryMiles": "{value}/{total} マイル",
+      "summarySegments": "{value}/{total} 区間"
     }
   },
   "pwa": {

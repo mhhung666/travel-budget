@@ -1,10 +1,15 @@
-import type {
-  MilesSegmentsProgramRules,
-  MilesSegmentsTier,
-  PointsProgramRules,
-  PointsTier,
+import {
+  CX_SHORT_TYPE2_COUNTRIES,
+  CX_SP_RANGES,
+  CX_ZONE_MAX_MI,
+  type CxEarnZone,
+  type MilesSegmentsProgramRules,
+  type MilesSegmentsTier,
+  type PointsProgramRules,
+  type PointsTier,
+  type SpRange,
 } from '@/constants/loyalty';
-import type { LoyaltyEntryItem } from '@/types';
+import type { CabinClass, LoyaltyEntryItem } from '@/types';
 
 /**
  * 會籍升等／保級進度計算（docs/PLAN-LOYALTY.md §5）。
@@ -181,4 +186,45 @@ export function computeMilesSegmentsProgress(
     segmentsToNext: nextTier ? Math.max(0, nextTier.segments - windowSegments) : null,
     awardMilesBalance,
   };
+}
+
+/** 大圓距離 km → statute mile（CX 距離區間以 mile 劃分）。 */
+export const KM_TO_MI = 0.621371;
+
+export interface CxSpEstimate extends SpRange {
+  zone: CxEarnZone;
+}
+
+/**
+ * CX 會籍積分預估（PLAN-LOYALTY §8 Phase 3）：距離區間 × 客艙查
+ * constants/loyalty.ts 的官方賺取表，回 SP min–max 區間。里數＝SP × 100
+ * （CX_AWARD_MILES_PER_SP），由呼叫端推導。精確值需訂位艙等字母——刻意不做，
+ * 區間僅供參考、可改（UI 恆帶 disclaimer）。
+ *
+ * @param distanceMi 兩機場大圓距離（statute mile；haversineKm × KM_TO_MI）
+ * @param fromCountry / toCountry 端點國家（ISO2，airports.json 的 country）——
+ *   751–2,750 哩時任一端在 CX_SHORT_TYPE2_COUNTRIES 即算短途-類別2
+ */
+export function estimateCxStatusPoints(
+  distanceMi: number,
+  cabin: CabinClass,
+  fromCountry: string,
+  toCountry: string
+): CxSpEstimate {
+  let zone: CxEarnZone;
+  if (distanceMi <= CX_ZONE_MAX_MI.ultraShort) {
+    zone = 'ultraShort';
+  } else if (distanceMi <= CX_ZONE_MAX_MI.short) {
+    const type2 =
+      CX_SHORT_TYPE2_COUNTRIES.includes(fromCountry) ||
+      CX_SHORT_TYPE2_COUNTRIES.includes(toCountry);
+    zone = type2 ? 'short2' : 'short1';
+  } else if (distanceMi <= CX_ZONE_MAX_MI.medium) {
+    zone = 'medium';
+  } else if (distanceMi <= CX_ZONE_MAX_MI.long) {
+    zone = 'long';
+  } else {
+    zone = 'ultraLong';
+  }
+  return { zone, ...CX_SP_RANGES[zone][cabin] };
 }

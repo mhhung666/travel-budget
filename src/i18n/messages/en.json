@@ -1363,7 +1363,24 @@
       "qualifyingMiles": "Qualifying miles",
       "ownAirlineFlight": "EVA / UNI intl segment",
       "ownAirlineFlightHint": "Counts toward your segment total",
-      "qualifyingAmount": "{miles} qual. mi"
+      "qualifyingAmount": "{miles} qual. mi",
+      "estimate": "Estimate",
+      "estimatorTitle": "Status Points estimator (Cathay)",
+      "estimatorDescription": "Estimate Status Points and Asia Miles from route distance and cabin, based on the official earn chart.",
+      "estimatorEmpty": "Pick departure and arrival airports to see an estimate",
+      "estimateDistance": "Great-circle distance ~{miles} mi · {zone}",
+      "zones": {
+        "ultraShort": "Ultra-short",
+        "short1": "Short – Type 1",
+        "short2": "Short – Type 2",
+        "medium": "Medium",
+        "long": "Long",
+        "ultraLong": "Ultra-long"
+      },
+      "estimatePrefill": "Estimated points (tap to fill; miles ×100)",
+      "earnDisclaimer": "Estimates use the official earn chart effective 20 Aug 2025 (verified {date}); actual earnings vary by fare type — official figures prevail",
+      "summaryMiles": "{value}/{total} mi",
+      "summarySegments": "{value}/{total} segs"
     }
   },
   "pwa": {

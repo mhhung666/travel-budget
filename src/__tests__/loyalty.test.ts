@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { computeLoyaltyProgress, computeMilesSegmentsProgress } from '@/lib/loyalty';
+import {
+  computeLoyaltyProgress,
+  computeMilesSegmentsProgress,
+  estimateCxStatusPoints,
+} from '@/lib/loyalty';
 import {
   PROGRAM_RULES,
   programTierKeys,
@@ -244,5 +248,60 @@ describe('programTierKeys', () => {
 
   it('BR 四級由低到高', () => {
     expect(programTierKeys('BR')).toEqual(['green', 'silver', 'gold', 'diamond']);
+  });
+});
+
+describe('estimateCxStatusPoints（CX 積分預估）', () => {
+  it('區間邊界：750/751、2750/2751、5000/5001、7500/7501', () => {
+    expect(estimateCxStatusPoints(750, 'economy', 'HK', 'TW').zone).toBe('ultraShort');
+    expect(estimateCxStatusPoints(751, 'economy', 'HK', 'CN').zone).toBe('short1');
+    expect(estimateCxStatusPoints(2750, 'economy', 'HK', 'CN').zone).toBe('short1');
+    expect(estimateCxStatusPoints(2751, 'economy', 'HK', 'AE').zone).toBe('medium');
+    expect(estimateCxStatusPoints(5000, 'economy', 'HK', 'AE').zone).toBe('medium');
+    expect(estimateCxStatusPoints(5001, 'economy', 'HK', 'GB').zone).toBe('long');
+    expect(estimateCxStatusPoints(7500, 'economy', 'HK', 'GB').zone).toBe('long');
+    expect(estimateCxStatusPoints(7501, 'economy', 'HK', 'US').zone).toBe('ultraLong');
+  });
+
+  it('短途類別2：任一端點在日本/印尼/斯里蘭卡/尼泊爾/孟加拉/印度即算', () => {
+    expect(estimateCxStatusPoints(1600, 'economy', 'HK', 'JP').zone).toBe('short2');
+    expect(estimateCxStatusPoints(1600, 'economy', 'IN', 'HK').zone).toBe('short2');
+    expect(estimateCxStatusPoints(1600, 'economy', 'HK', 'SG').zone).toBe('short1');
+    // 類別2 只影響 751–2,750 哩；超短/中途不受國家影響
+    expect(estimateCxStatusPoints(700, 'economy', 'HK', 'JP').zone).toBe('ultraShort');
+    expect(estimateCxStatusPoints(3000, 'economy', 'HK', 'IN').zone).toBe('medium');
+  });
+
+  it('各艙等取值＝官方表 min–max（長途為例）', () => {
+    // 官方 2025-08-20 表：長途經濟最低 S/N/Q/O Light 18、最高 Y/B/H/K Flex 70
+    expect(estimateCxStatusPoints(6000, 'economy', 'HK', 'GB')).toEqual({
+      zone: 'long',
+      min: 18,
+      max: 70,
+    });
+    expect(estimateCxStatusPoints(6000, 'premium_economy', 'HK', 'GB')).toEqual({
+      zone: 'long',
+      min: 65,
+      max: 80,
+    });
+    expect(estimateCxStatusPoints(6000, 'business', 'HK', 'GB')).toEqual({
+      zone: 'long',
+      min: 100,
+      max: 130,
+    });
+    // 頭等只有 F/A Flex 一種 → min === max
+    expect(estimateCxStatusPoints(6000, 'first', 'HK', 'GB')).toEqual({
+      zone: 'long',
+      min: 160,
+      max: 160,
+    });
+  });
+
+  it('超長途（如 HKG–JFK ~8,000 哩）', () => {
+    expect(estimateCxStatusPoints(8000, 'economy', 'HK', 'US')).toEqual({
+      zone: 'ultraLong',
+      min: 25,
+      max: 90,
+    });
   });
 });

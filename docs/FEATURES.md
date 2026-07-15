@@ -336,7 +336,7 @@ UI：登入頁 [/wrapped](../src/app/%5Blocale%5D/wrapped/page.tsx)（年份切�
   第三參數；只有回填紀錄、沒有任何旅程的使用者也有年份可切，該年僅成就區塊有數字）。
   公開 wrapped 路由**刻意不納**：公開 payload 白名單不含成就區塊，納了只會多出整張白卡的年份。
 
-### 會籍積分與里程紀錄（Loyalty，ROADMAP #20 Phase 1，2026-07-14；長榮 BR 2026-07-15）
+### 會籍積分與里程紀錄（Loyalty，ROADMAP #20 Phase 1，2026-07-14；長榮 BR／CX 試算＋collapse 2026-07-15）
 
 規劃見 [PLAN-LOYALTY.md](./PLAN-LOYALTY.md)。定位是「**積分記帳**，不是計算器」——積分/里數由
 使用者從航空 app 手抄（LoyaltyEntry ledger），app 只對照門檻常數算升等/續會進度，不自動判級。
@@ -356,17 +356,29 @@ UI：登入頁 [/wrapped](../src/app/%5Blocale%5D/wrapped/page.tsx)（年份切�
   測試在 [loyalty.test.ts](../src/__tests__/loyalty.test.ts)。
 - **UI**：獨立頁 `/memberships`（會籍）＝**航空／飯店兩個 tab**（比照旅行成就分頁；飯店為
   夜數制 placeholder，Phase 2 後續）。航空 tab **多 program 編排**
-  （[AirlineMemberships](../src/components/memberships/AirlineMemberships.tsx)）：每個計畫一張
-  [ProgramProgressCard](../src/components/memberships/ProgramProgressCard.tsx)（依 kind 呈現——
-  CX 積分進度條／BR 哩程＋航段雙進度條）＋一份 [LoyaltyLedger](../src/components/memberships/LoyaltyLedger.tsx)
-  （RecordYearGroups 年份分組），新增帳戶可挑計畫、設定完隱藏。entry 表單 program-aware
+  （[AirlineMemberships](../src/components/memberships/AirlineMemberships.tsx)）：每個計畫一個
+  **collapse 區塊**（[ProgramProgressCard](../src/components/memberships/ProgramProgressCard.tsx)）——
+  收合列只放計畫名＋等級 badge＋迷你進度（CX `600/1,200`；BR 取哩程/航段完成率較高的路徑），
+  點開才有 StatTiles、完整進度條（依 kind：CX 積分／BR 哩程＋航段雙路徑）、帳戶操作與該計畫的
+  [LoyaltyLedger](../src/components/memberships/LoyaltyLedger.tsx)（RecordYearGroups 年份分組）；
+  單一帳戶預設展開、多帳戶預設收合。新增帳戶可挑計畫、設定完隱藏。entry 表單 program-aware
   （BR 顯示卡籍哩程＋「長榮／立榮國際線航段」勾選）。字串仍在 `collections.loyalty.*` 命名空間；
   `/collections`（旅行成就）維持 4 個 tab（航空／住宿／國家／徽章）。航空 tab 每筆飛行紀錄加
   「記入會籍積分」（Medal 鈕，需先設帳戶；多帳戶時記入最早設定者）；已帶入者停用防重複
   （entry 存 `flightRecord` ref，action 驗證歸屬＋重複回 `CONFLICT`，同 sourceActivity 模式）。
   刪 FlightRecord 時 entry 解除連結但保留（積分仍是賺到的）；刪帳戶連帶刪該 program 全部
   entries（手動級聯）。
-- **待做**：華航 CI program、BR 續卡（24 月窗口）精算、積分區間預估——見 PLAN-LOYALTY.md §8。
+- **積分預估（CX，Phase 3，2026-07-15）**：官方 2025-08-20 生效賺取表進
+  [constants/loyalty.ts](../src/constants/loyalty.ts)（`CX_SP_RANGES`：6 距離區間 × 客艙的 SP
+  min–max——同艙等內依票價類別/訂位艙等字母差異大，FlightRecord 只存客艙 → 刻意只給**區間**；
+  短途類別2 依 `CX_SHORT_TYPE2_COUNTRIES` 端點國家判定；**Asia Miles ＝ SP × 100** 官方兩表逐格
+  恆等，`CX_AWARD_MILES_PER_SP` 推導）。[lib/loyalty.ts](../src/lib/loyalty.ts)
+  `estimateCxStatusPoints` 純函式（距離＝[lib/geo.ts](../src/lib/geo.ts) `haversineKm` × `KM_TO_MI`）。
+  兩個入口：(1) 飛行「記入會籍積分」時 entry 表單顯示預估 chip（點擊帶入積分＋里數 ×100，仍可改）；
+  (2) CX 卡展開區「試算」鈕開
+  [CxSpEstimatorDialog](../src/components/memberships/CxSpEstimatorDialog.tsx)（自選機場＋客艙，
+  純顯示不落 DB）。預估 UI 恆帶「以官方為準」disclaimer（`CX_EARN_VERIFIED_AT`）。
+- **待做**：華航 CI program、BR 續卡（24 月窗口）精算——見 PLAN-LOYALTY.md §8。
 
 ---
 

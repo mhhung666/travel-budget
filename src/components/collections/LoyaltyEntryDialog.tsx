@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
 
 import {
+  CX_AWARD_MILES_PER_SP,
   LOYALTY_ENTRY_TYPES,
   PROGRAM_RULES,
   type LoyaltyProgram,
@@ -36,6 +37,8 @@ interface LoyaltyEntryDialogProps {
   editing: LoyaltyEntryItem | null;
   /** 新增時的預填值（航空 tab「記入會籍積分」帶入用；編輯時忽略）。 */
   defaults?: Partial<CreateLoyaltyEntryInput> | null;
+  /** 帶入航班的積分區間預估（僅 CX 帶入時有值）；點數值帶入積分＋里數（×100）。 */
+  spEstimate?: { min: number; max: number } | null;
   /** 儲存成功後回呼（帶入情境顯示 toast 用）。 */
   onSaved?: () => void;
 }
@@ -59,6 +62,7 @@ export function LoyaltyEntryDialog({
   program,
   editing,
   defaults,
+  spEstimate,
   onSaved,
 }: LoyaltyEntryDialogProps) {
   const t = useTranslations('collections');
@@ -185,6 +189,27 @@ export function LoyaltyEntryDialog({
             />
           </div>
         </div>
+
+        {!editing && kind === 'points' && spEstimate && (
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed p-3">
+            <span className="text-xs text-muted-foreground">{t('loyalty.estimatePrefill')}</span>
+            {[...new Set([spEstimate.min, spEstimate.max])].map((sp) => (
+              <Button
+                key={sp}
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="h-7 px-2.5 font-mono"
+                onClick={() => {
+                  setStatusPoints(String(sp));
+                  setAwardMiles(String(sp * CX_AWARD_MILES_PER_SP));
+                }}
+              >
+                {sp}
+              </Button>
+            ))}
+          </div>
+        )}
 
         {kind === 'milesAndSegments' && (
           <label className="flex items-start gap-3 rounded-lg border p-3">

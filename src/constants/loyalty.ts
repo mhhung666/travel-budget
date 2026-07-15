@@ -9,6 +9,8 @@
  * 飯店會籍（夜數制）為未來擴充，屆時在 union 加 kind 即可。
  */
 
+import type { CabinClass } from '@/types';
+
 /** 已開放的 program（Phase 2+：'CI'、飯店計畫）。目前皆為航空計畫。 */
 export const LOYALTY_PROGRAMS = ['CX', 'BR'] as const;
 export type LoyaltyProgram = (typeof LOYALTY_PROGRAMS)[number];
@@ -120,3 +122,81 @@ export const PROGRAM_RULES: Record<LoyaltyProgram, ProgramRules> = {
 export function programTierKeys(program: LoyaltyProgram): string[] {
   return PROGRAM_RULES[program].tiers.map((t) => t.key);
 }
+
+// ---------------------------------------------------------------------------
+// CX 積分預估表（PLAN-LOYALTY §8 Phase 3）：依官方 2025-08-20 生效的賺取表，
+// 距離區間 × 客艙給 Status Points 的 min–max 區間（同艙等內依票價類別／訂位
+// 艙等字母差異很大，FlightRecord 只存客艙 → 只能給區間，明示為預估）。
+// 來源：官方全表 PDF（cathaypacific.com/content/dam/cx/membership/
+// changes-to-status-points-and-am-earnings-on-flights-full-table_tw.pdf）。
+// ---------------------------------------------------------------------------
+
+/** CX 短途-類別2 的航點國家（ISO2；任一端點在列即算類別2，其餘 751–2,750 哩為類別1）。 */
+export const CX_SHORT_TYPE2_COUNTRIES: readonly string[] = ['JP', 'ID', 'LK', 'NP', 'BD', 'IN'];
+
+export const CX_EARN_ZONES = [
+  'ultraShort',
+  'short1',
+  'short2',
+  'medium',
+  'long',
+  'ultraLong',
+] as const;
+export type CxEarnZone = (typeof CX_EARN_ZONES)[number];
+
+/** 距離區間上限（statute mile；超長途無上限）。 */
+export const CX_ZONE_MAX_MI = { ultraShort: 750, short: 2750, medium: 5000, long: 7500 } as const;
+
+export interface SpRange {
+  min: number;
+  max: number;
+}
+
+/**
+ * 各距離區間 × 客艙的 SP 區間（min＝該艙最低訂位艙等 Light、max＝最高艙等 Flex）。
+ * Asia Miles 恆等於 SP × 100（官方兩表逐格對過），預估里數用 CX_AWARD_MILES_PER_SP 推導。
+ */
+export const CX_SP_RANGES: Record<CxEarnZone, Record<CabinClass, SpRange>> = {
+  ultraShort: {
+    economy: { min: 3, max: 25 },
+    premium_economy: { min: 15, max: 25 },
+    business: { min: 25, max: 30 },
+    first: { min: 35, max: 35 },
+  },
+  short1: {
+    economy: { min: 6, max: 30 },
+    premium_economy: { min: 20, max: 30 },
+    business: { min: 35, max: 40 },
+    first: { min: 45, max: 45 },
+  },
+  short2: {
+    economy: { min: 8, max: 35 },
+    premium_economy: { min: 25, max: 35 },
+    business: { min: 45, max: 50 },
+    first: { min: 60, max: 60 },
+  },
+  medium: {
+    economy: { min: 15, max: 48 },
+    premium_economy: { min: 45, max: 60 },
+    business: { min: 75, max: 90 },
+    first: { min: 110, max: 110 },
+  },
+  long: {
+    economy: { min: 18, max: 70 },
+    premium_economy: { min: 65, max: 80 },
+    business: { min: 100, max: 130 },
+    first: { min: 160, max: 160 },
+  },
+  ultraLong: {
+    economy: { min: 25, max: 90 },
+    premium_economy: { min: 85, max: 100 },
+    business: { min: 120, max: 150 },
+    first: { min: 180, max: 180 },
+  },
+};
+
+/** Asia Miles ＝ Status Points × 100（官方 SP 表與 AM 表逐格恆等）。 */
+export const CX_AWARD_MILES_PER_SP = 100;
+
+/** 預估表查證日期（UI disclaimer 用；表為 2025-08-20 生效版）。 */
+export const CX_EARN_VERIFIED_AT = '2026-07-15';

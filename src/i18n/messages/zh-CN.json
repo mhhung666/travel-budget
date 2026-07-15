@@ -1356,7 +1356,24 @@
       "qualifyingMiles": "卡籍哩程",
       "ownAirlineFlight": "长荣／立荣国际线航段",
       "ownAirlineFlightHint": "计入航段数",
-      "qualifyingAmount": "卡籍 {miles} 哩"
+      "qualifyingAmount": "卡籍 {miles} 哩",
+      "estimate": "试算",
+      "estimatorTitle": "积分试算（国泰）",
+      "estimatorDescription": "依官方赚取表，用航线距离与客舱估算会籍积分与里数区间。",
+      "estimatorEmpty": "选择出发与到达机场后显示预估",
+      "estimateDistance": "大圆距离约 {miles} 哩・{zone}",
+      "zones": {
+        "ultraShort": "超短途",
+        "short1": "短途－类别1",
+        "short2": "短途－类别2",
+        "medium": "中途",
+        "long": "长途",
+        "ultraLong": "超长途"
+      },
+      "estimatePrefill": "预估积分（点击带入，里数 ×100）",
+      "earnDisclaimer": "预估依官方 2025/8/20 生效赚取表（{date} 核实）；同舱等因票价类别而异，实际以官方为准",
+      "summaryMiles": "{value}/{total} 哩",
+      "summarySegments": "{value}/{total} 段"
     }
   },
   "pwa": {

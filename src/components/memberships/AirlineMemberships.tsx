@@ -13,6 +13,7 @@ import { ConfirmDialog, EmptyState, LoadingState } from '@/components/common';
 import { LoyaltyAccountDialog, LoyaltyEntryDialog } from '@/components/collections';
 import { ProgramProgressCard } from './ProgramProgressCard';
 import { LoyaltyLedger } from './LoyaltyLedger';
+import { CxSpEstimatorDialog } from './CxSpEstimatorDialog';
 
 type AccountDialogState = {
   open: boolean;
@@ -48,6 +49,7 @@ export function AirlineMemberships() {
   });
   const [deletingAccount, setDeletingAccount] = useState<LoyaltyAccountItem | null>(null);
   const [deletingEntry, setDeletingEntry] = useState<LoyaltyEntryItem | null>(null);
+  const [estimatorOpen, setEstimatorOpen] = useState(false);
 
   const accounts = useMemo(() => data?.accounts ?? [], [data]);
   const entriesByProgram = useMemo(() => {
@@ -122,15 +124,17 @@ export function AirlineMemberships() {
             </div>
           )}
           {accounts.map((account) => (
-            <div key={account.id} className="space-y-6">
-              <ProgramProgressCard
-                account={account}
-                entries={entriesByProgram.get(account.program) ?? []}
-                onEdit={() =>
-                  setAccountDialog({ open: true, program: account.program, editing: account })
-                }
-                onDelete={() => setDeletingAccount(account)}
-              />
+            <ProgramProgressCard
+              key={account.id}
+              account={account}
+              entries={entriesByProgram.get(account.program) ?? []}
+              defaultOpen={accounts.length === 1}
+              onEdit={() =>
+                setAccountDialog({ open: true, program: account.program, editing: account })
+              }
+              onDelete={() => setDeletingAccount(account)}
+              onEstimate={account.program === 'CX' ? () => setEstimatorOpen(true) : undefined}
+            >
               <LoyaltyLedger
                 entries={entriesByProgram.get(account.program) ?? []}
                 onAdd={() =>
@@ -141,7 +145,7 @@ export function AirlineMemberships() {
                 }
                 onDelete={(entry) => setDeletingEntry(entry)}
               />
-            </div>
+            </ProgramProgressCard>
           ))}
         </>
       )}
@@ -159,6 +163,7 @@ export function AirlineMemberships() {
         program={entryDialog.program}
         editing={entryDialog.editing}
       />
+      <CxSpEstimatorDialog open={estimatorOpen} onOpenChange={setEstimatorOpen} />
       <ConfirmDialog
         open={deletingAccount !== null}
         title={t('loyalty.deleteAccountTitle')}

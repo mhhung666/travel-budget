@@ -1,7 +1,8 @@
 # 航空會籍積分與里程紀錄（Loyalty Ledger）規劃
 
 > 建立日期：2026-07-14 · 狀態：**Phase 1（國泰 MVP）完成 2026-07-14**；**Phase 2 長榮 BR
-> （哩程＋航段制）＋航空／飯店雙 tab 完成 2026-07-15**，餘 Phase 2 華航 CI／BR 續卡精算、Phase 3（ROADMAP #20）。
+> （哩程＋航段制）＋航空／飯店雙 tab 完成 2026-07-15**；**Phase 3（CX 積分預估：帶入預估＋獨立
+> 試算器）＋每計畫 collapse 化完成 2026-07-15**，餘 Phase 2b 華航 CI／BR 續卡精算（ROADMAP #20）。
 > 完成後依 [README.md](./README.md) 慣例：實作筆記入 FEATURES.md、CHANGELOG 加一行、刪 ROADMAP 項，本檔刪除（草圖查 git 歷史）。
 
 ## 1. 背景與定位
@@ -159,8 +160,10 @@ Checklist（JUDGMENT §2）：`'use server'`、`withAuth`、Zod schema 進
 獨立頁 **`/memberships`（會籍）**（As-built：MVP 曾掛在收藏牆 tab，後獨立成專頁——
 組件 `LoyaltyTab` 原地複用、字串仍在 `collections.loyalty.*`；頁下保留飯店區塊 placeholder 待 Phase 2）：
 
-- **Program 卡**（MVP 一張 CX 卡）：目前等級、升等進度條（本窗口積分／下一級門檻）、
-  續會狀態、CX 結轉試算、里數餘額、「規則查證於 YYYY-MM，實際以官方為準」disclaimer。
+- **Program 卡**（As-built 2026-07-15：每計畫一個 **collapse 區塊**——收合列＝計畫名＋等級
+  badge＋迷你進度，展開才有下列詳情＋該計畫 ledger；單帳戶預設展開）：目前等級、升等進度條
+  （本窗口積分／下一級門檻）、續會狀態、CX 結轉試算、里數餘額、CX「試算」鈕、
+  「規則查證於 YYYY-MM，實際以官方為準」disclaimer。
 - **Entry 列表**：新到舊、CRUD dialog（型別、日期、積分、里數、自家航班 toggle、備註）。
 - **飛行帶入**：航空 tab 的 FlightRecord 卡片選單加「記入會籍積分」→ 開 entry dialog
   預填日期／備註（航班號），已帶入者顯示標記。
@@ -176,7 +179,7 @@ i18n：新字串**四語系全補**（含各 program 的 tier 名稱 key，如
 | **1（MVP）✅** | CX only：兩個 model＋actions＋`lib/loyalty.ts`＋會籍 tab＋飛行帶入＋i18n＋測試 | M |
 | **2a（BR）✅ 2026-07-15** | `ProgramRules` 加 `milesAndSegments` kind、`computeMilesSegmentsProgress`（滾動 12 月、哩程／航段雙路徑）、多 program 編排（AirlineMemberships）＋航空／飯店雙 tab、entry program-aware（卡籍哩程＋自家航段勾選）。**BR 續卡（24 月窗口）未精算——以文案提示** | S |
 | **2b（待做）** | 華航 CI（積分制＋自家占比警示，門檻動工時重查）；BR 續卡精算 | S |
-| **3（可選）** | 積分「預估」輔助：填航班時依機場大圓距離（[airports.json](../public/data/airports.json) 已有 lat/lon）× 客艙給 SP **區間**預估，帶生效日期的規則表；明示為預估、可改 | M |
+| **3（CX）✅ 2026-07-15** | 積分「預估」輔助（CX）：官方 2025-08-20 賺取表進 `constants/loyalty.ts`（`CX_SP_RANGES` 6 距離區間 × 客艙 min–max；AM＝SP×100）＋`estimateCxStatusPoints` 純函式（機場大圓距離，短途類別2 依端點國家）；入口＝飛行帶入預估 chip＋CX 卡「試算」獨立試算器（`CxSpEstimatorDialog`）。明示為預估、可改。**同日**：每計畫 collapse 化（收合列＝名稱/等級/迷你進度，展開見詳情＋ledger） | M |
 | 之後再議 | **飯店會籍**（Marriott／Hilton／IHG…夜數制）：`ProgramRules` 加 `kind: 'nights'`、entry 加 `qualifyingNights`＋`stayRecord` ref、同一「會籍」tab 多幾張 program 卡——架構不變，純加法 | — |
 | 之後再議 | 里數效期提醒（各家效期規則需查證）、awardMiles 兌換紀錄分類統計 | — |
 

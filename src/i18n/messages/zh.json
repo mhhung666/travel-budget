@@ -1356,7 +1356,24 @@
       "qualifyingMiles": "卡籍哩程",
       "ownAirlineFlight": "長榮／立榮國際線航段",
       "ownAirlineFlightHint": "計入航段數",
-      "qualifyingAmount": "卡籍 {miles} 哩"
+      "qualifyingAmount": "卡籍 {miles} 哩",
+      "estimate": "試算",
+      "estimatorTitle": "積分試算（國泰）",
+      "estimatorDescription": "依官方賺取表，用航線距離與客艙估算會籍積分與里數區間。",
+      "estimatorEmpty": "選擇出發與到達機場後顯示預估",
+      "estimateDistance": "大圓距離約 {miles} 哩・{zone}",
+      "zones": {
+        "ultraShort": "超短途",
+        "short1": "短途－類別1",
+        "short2": "短途－類別2",
+        "medium": "中途",
+        "long": "長途",
+        "ultraLong": "超長途"
+      },
+      "estimatePrefill": "預估積分（點擊帶入，里數 ×100）",
+      "earnDisclaimer": "預估依官方 2025/8/20 生效賺取表（{date} 查證）；同艙等因票價類別而異，實際以官方為準",
+      "summaryMiles": "{value}/{total} 哩",
+      "summarySegments": "{value}/{total} 段"
     }
   },
   "pwa": {
