@@ -828,7 +828,24 @@
     "download": "ダウンロード",
     "delete": "削除",
     "deleteConfirmTitle": "この写真を削除しますか？",
-    "deleteConfirmMessage": "この操作は取り消せません。"
+    "deleteConfirmMessage": "この操作は取り消せません。",
+    "caption": "説明",
+    "captionPlaceholder": "この写真に説明を追加…",
+    "saveCaption": "保存",
+    "itineraryDay": "関連する日程",
+    "noItineraryDay": "日程に未関連",
+    "locationSource": {
+      "exif": "写真のGPS",
+      "itinerary": "日程の地点",
+      "manual": "手動設定"
+    },
+    "select": "選択",
+    "selectAll": "すべて選択",
+    "deselectAll": "選択を解除",
+    "selectPhoto": "写真を選択",
+    "selectedCount": "{count} 枚を選択中",
+    "deleteSelectedConfirmTitle": "この {count} 枚の写真を削除しますか？",
+    "dayPhotos": "この日の写真（{count}）"
   },
   "itinerary": {
     "title": "旅程プラン",

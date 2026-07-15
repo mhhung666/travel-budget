@@ -2,7 +2,7 @@
 
 import { Edit2, Trash2, MapPin, Ticket, CalendarPlus, Medal } from 'lucide-react';
 import { useTranslations, useLocale } from 'next-intl';
-import type { Activity, ItineraryDay } from '@/types';
+import type { Activity, ItineraryDay, TripPhoto } from '@/types';
 import { pickLocalizedName, cn } from '@/lib/utils';
 import { activityImportKind } from '@/lib/collectionImport';
 import { countryCodeToFlag } from '@/components/map/country';
@@ -10,6 +10,7 @@ import { sortActivities } from '@/lib/itineraryActivities';
 import { ACTIVITY_TYPE_ICON } from './activityMeta';
 import MarkdownRenderer from './MarkdownRenderer';
 import { TicketThumb } from '@/components/trips/detail/ReceiptAttachments';
+import { DayPhotoStrip } from '@/components/trips/detail/album';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -33,6 +34,10 @@ interface ItineraryDayCardProps {
   onImportActivity: (day: ItineraryDay, activity: Activity) => void;
   /** 我已帶入成就的活動 id 集合（顯示已帶入、防重複）。 */
   importedActivityIds: Set<string>;
+  /** 關聯到這天的相簿相片（成員限定；非成員為空陣列 → 不顯示相片列）。 */
+  photos: TripPhoto[];
+  /** 點縮圖：回報在 `photos` 中的 index，由頁面開 lightbox。 */
+  onSelectPhoto: (index: number) => void;
 }
 
 export default function ItineraryDayCard({
@@ -46,6 +51,8 @@ export default function ItineraryDayCard({
   onDeleteActivity,
   onImportActivity,
   importedActivityIds,
+  photos,
+  onSelectPhoto,
 }: ItineraryDayCardProps) {
   const tItinerary = useTranslations('itinerary');
   const tAct = useTranslations('itinerary.activities');
@@ -218,6 +225,9 @@ export default function ItineraryDayCard({
             })}
           </div>
         )}
+
+        {/* 當天相片（相簿裡關聯到這天的相片；沒有就整段不顯示） */}
+        <DayPhotoStrip photos={photos} onSelect={onSelectPhoto} />
       </CardContent>
     </Card>
   );

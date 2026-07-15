@@ -835,7 +835,24 @@
     "download": "Download",
     "delete": "Delete",
     "deleteConfirmTitle": "Delete this photo?",
-    "deleteConfirmMessage": "This cannot be undone."
+    "deleteConfirmMessage": "This cannot be undone.",
+    "caption": "Caption",
+    "captionPlaceholder": "Add a caption…",
+    "saveCaption": "Save",
+    "itineraryDay": "Itinerary day",
+    "noItineraryDay": "No itinerary day",
+    "locationSource": {
+      "exif": "Photo GPS",
+      "itinerary": "Itinerary day location",
+      "manual": "Set manually"
+    },
+    "select": "Select",
+    "selectAll": "Select all",
+    "deselectAll": "Deselect all",
+    "selectPhoto": "Select photo",
+    "selectedCount": "{count, plural, =0 {None selected} other {# selected}}",
+    "deleteSelectedConfirmTitle": "{count, plural, one {Delete this photo?} other {Delete these # photos?}}",
+    "dayPhotos": "{count, plural, one {# photo} other {# photos}}"
   },
   "itinerary": {
     "title": "Trip Itinerary",

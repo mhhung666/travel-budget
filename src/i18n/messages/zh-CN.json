@@ -828,7 +828,24 @@
     "download": "下载",
     "delete": "删除",
     "deleteConfirmTitle": "确定删除这张照片？",
-    "deleteConfirmMessage": "此操作无法撤销。"
+    "deleteConfirmMessage": "此操作无法撤销。",
+    "caption": "说明",
+    "captionPlaceholder": "为这张照片加上说明…",
+    "saveCaption": "保存",
+    "itineraryDay": "关联行程日",
+    "noItineraryDay": "未关联行程日",
+    "locationSource": {
+      "exif": "照片 GPS",
+      "itinerary": "行程日地点",
+      "manual": "手动标记"
+    },
+    "select": "选择",
+    "selectAll": "全选",
+    "deselectAll": "取消全选",
+    "selectPhoto": "选择照片",
+    "selectedCount": "已选 {count} 张",
+    "deleteSelectedConfirmTitle": "确定删除这 {count} 张照片？",
+    "dayPhotos": "当天照片（{count}）"
   },
   "itinerary": {
     "title": "旅程规划",

@@ -120,15 +120,19 @@ export async function headObject(
   }
 }
 
-/** 刪除指定 keys（最多 1000/次，符合一般用量）。 */
+/** DeleteObjects 的單次上限（S3/R2 協定規定）。超過就必須分批送。 */
+const DELETE_BATCH_MAX = 1000;
+
+/** 刪除指定 keys（自動分批，呼叫端不必自己算 1000 的上限）。 */
 export async function deleteObjects(bucket: R2Bucket, keys: string[]): Promise<void> {
-  if (keys.length === 0) return;
-  await r2().send(
-    new DeleteObjectsCommand({
-      Bucket: bucketName(bucket),
-      Delete: { Objects: keys.map((Key) => ({ Key })) },
-    })
-  );
+  for (let i = 0; i < keys.length; i += DELETE_BATCH_MAX) {
+    await r2().send(
+      new DeleteObjectsCommand({
+        Bucket: bucketName(bucket),
+        Delete: { Objects: keys.slice(i, i + DELETE_BATCH_MAX).map((Key) => ({ Key })) },
+      })
+    );
+  }
 }
 
 /** Best-effort 刪除某 prefix 下所有物件（cascade 清理，例如刪旅程時清掉其收據）。 */

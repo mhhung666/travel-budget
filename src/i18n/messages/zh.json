@@ -828,7 +828,24 @@
     "download": "下載",
     "delete": "刪除",
     "deleteConfirmTitle": "確定刪除這張相片？",
-    "deleteConfirmMessage": "此操作無法復原。"
+    "deleteConfirmMessage": "此操作無法復原。",
+    "caption": "說明",
+    "captionPlaceholder": "為這張相片加上說明…",
+    "saveCaption": "儲存",
+    "itineraryDay": "關聯行程日",
+    "noItineraryDay": "未關聯行程日",
+    "locationSource": {
+      "exif": "相片 GPS",
+      "itinerary": "行程日地點",
+      "manual": "手動標記"
+    },
+    "select": "選取",
+    "selectAll": "全選",
+    "deselectAll": "取消全選",
+    "selectPhoto": "選取相片",
+    "selectedCount": "已選 {count} 張",
+    "deleteSelectedConfirmTitle": "確定刪除這 {count} 張相片？",
+    "dayPhotos": "當天相片（{count}）"
   },
   "itinerary": {
     "title": "旅程規劃",

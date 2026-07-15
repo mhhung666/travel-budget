@@ -10,8 +10,8 @@ const photoFindOne = vi.fn();
 const photoFindOneAndUpdate = vi.fn();
 const photoCountDocuments = vi.fn();
 const photoInsertMany = vi.fn();
-const photoDeleteOne = vi.fn();
-const itineraryDayExists = vi.fn();
+const photoDeleteMany = vi.fn();
+const itineraryDayFindOne = vi.fn();
 const userFindById = vi.fn();
 const headObject = vi.fn();
 const deleteObjects = vi.fn();
@@ -40,17 +40,17 @@ vi.mock('@/models', () => ({
     findOneAndUpdate: (...args: unknown[]) => photoFindOneAndUpdate(...args),
     countDocuments: (...args: unknown[]) => photoCountDocuments(...args),
     insertMany: (...args: unknown[]) => photoInsertMany(...args),
-    deleteOne: (...args: unknown[]) => photoDeleteOne(...args),
+    deleteMany: (...args: unknown[]) => photoDeleteMany(...args),
   },
   ItineraryDay: {
-    exists: (...args: unknown[]) => itineraryDayExists(...args),
+    findOne: (...args: unknown[]) => itineraryDayFindOne(...args),
   },
   User: {
     findById: (...args: unknown[]) => userFindById(...args),
   },
 }));
 
-import { addTripPhotos, getTripPhotos, updatePhoto, deletePhoto } from '@/actions/photo.actions';
+import { addTripPhotos, getTripPhotos, updatePhoto, deletePhotos } from '@/actions/photo.actions';
 import {
   buildPhotoObjectKeys,
   sanitizedPhotoKey,
@@ -337,43 +337,89 @@ describe('getTripPhotos', () => {
   });
 });
 
-describe('deletePhoto', () => {
-  it('collects all three blob keys (display + thumb + sanitized copy) for best-effort deletion', async () => {
-    const key = `photos/${TRIP_ID}/abc.jpg`;
-    const thumbKey = `photos/${TRIP_ID}/abc_t.webp`;
-    photoFindOne.mockReturnValue(chainSelectLean({ key, thumbKey }));
-    photoDeleteOne.mockResolvedValue({ deletedCount: 1 });
+describe('deletePhotos', () => {
+  const PHOTO_ID_2 = '507f1f77bcf86cd799439014';
+
+  it('collects all three blob keys (display + thumb + sanitized copy) of every photo in one batch', async () => {
+    const a = { key: `photos/${TRIP_ID}/abc.jpg`, thumbKey: `photos/${TRIP_ID}/abc_t.webp` };
+    const b = { key: `photos/${TRIP_ID}/def.jpg`, thumbKey: `photos/${TRIP_ID}/def_t.webp` };
+    photoFind.mockReturnValue(chainSelectLean([a, b]));
+    photoDeleteMany.mockResolvedValue({ deletedCount: 2 });
     deleteObjects.mockResolvedValue(undefined);
 
-    const result = await deletePhoto(TRIP_ID, PHOTO_ID);
+    const result = await deletePhotos(TRIP_ID, { photo_ids: [PHOTO_ID, PHOTO_ID_2] });
 
-    expect(result.success).toBe(true);
-    expect(deleteObjects).toHaveBeenCalledWith('receipts', [key, thumbKey, sanitizedPhotoKey(key)]);
+    expect(result).toEqual({ success: true, data: { deleted: 2 } });
+    // 一次 deleteObjects 收掉全部——批次刪除不該退化成逐張呼叫
+    expect(deleteObjects).toHaveBeenCalledTimes(1);
+    expect(deleteObjects).toHaveBeenCalledWith('receipts', [
+      a.key,
+      a.thumbKey,
+      sanitizedPhotoKey(a.key),
+      b.key,
+      b.thumbKey,
+      sanitizedPhotoKey(b.key),
+    ]);
+  });
+
+  it('scopes the delete to this trip (a foreign photoId cannot be deleted)', async () => {
+    photoFind.mockReturnValue(
+      chainSelectLean([
+        { key: `photos/${TRIP_ID}/abc.jpg`, thumbKey: `photos/${TRIP_ID}/abc_t.webp` },
+      ])
+    );
+    photoDeleteMany.mockResolvedValue({ deletedCount: 1 });
+    deleteObjects.mockResolvedValue(undefined);
+
+    await deletePhotos(TRIP_ID, { photo_ids: [PHOTO_ID] });
+
+    expect(photoDeleteMany).toHaveBeenCalledWith({ _id: { $in: [PHOTO_ID] }, trip: TRIP_ID });
   });
 
   it('still returns success when the blob cleanup fails (best-effort, never blocks the user)', async () => {
-    const key = `photos/${TRIP_ID}/abc.jpg`;
-    const thumbKey = `photos/${TRIP_ID}/abc_t.webp`;
-    photoFindOne.mockReturnValue(chainSelectLean({ key, thumbKey }));
-    photoDeleteOne.mockResolvedValue({ deletedCount: 1 });
+    photoFind.mockReturnValue(
+      chainSelectLean([
+        { key: `photos/${TRIP_ID}/abc.jpg`, thumbKey: `photos/${TRIP_ID}/abc_t.webp` },
+      ])
+    );
+    photoDeleteMany.mockResolvedValue({ deletedCount: 1 });
     deleteObjects.mockRejectedValue(new Error('R2 unavailable'));
 
-    const result = await deletePhoto(TRIP_ID, PHOTO_ID);
+    const result = await deletePhotos(TRIP_ID, { photo_ids: [PHOTO_ID] });
 
     expect(result.success).toBe(true);
   });
 
-  it('returns NOT_FOUND for a photoId that does not belong to this trip', async () => {
-    photoFindOne.mockReturnValue(chainSelectLean(null));
+  it('returns NOT_FOUND when no id belongs to this trip', async () => {
+    photoFind.mockReturnValue(chainSelectLean([]));
 
-    const result = await deletePhoto(TRIP_ID, PHOTO_ID);
+    const result = await deletePhotos(TRIP_ID, { photo_ids: [PHOTO_ID] });
 
     expect(result).toEqual({ success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' });
-    expect(photoDeleteOne).not.toHaveBeenCalled();
+    expect(photoDeleteMany).not.toHaveBeenCalled();
+  });
+
+  it('rejects an empty id list', async () => {
+    const result = await deletePhotos(TRIP_ID, { photo_ids: [] });
+
+    expect(result.success).toBe(false);
+    if (result.success) throw new Error('expected failure');
+    expect(result.code).toBe('VALIDATION_ERROR');
+    expect(photoDeleteMany).not.toHaveBeenCalled();
   });
 });
 
 describe('updatePhoto', () => {
+  /** ItineraryDay.findOne(...).select('location').lean() 的回傳。 */
+  const mockDay = (location: unknown) =>
+    itineraryDayFindOne.mockReturnValue(chainSelectLean({ location }));
+  /** 這張相片現有的 location（updatePhoto 為了套用退回規則會先讀）。 */
+  const mockCurrentLocation = (location: unknown) =>
+    photoFindOne.mockReturnValue(chainSelectLean({ location }));
+
+  /** 取出送進 findOneAndUpdate 的 $set。 */
+  const setArg = () => photoFindOneAndUpdate.mock.calls[0][1].$set;
+
   it('marks a manually-pinned location as source "manual" (not disguised as exif precision)', async () => {
     photoFindOneAndUpdate.mockReturnValue(chainLean(leanPhoto()));
 
@@ -388,12 +434,151 @@ describe('updatePhoto', () => {
   });
 
   it('returns NOT_FOUND when itinerary_day_id points to a day from another trip', async () => {
-    itineraryDayExists.mockResolvedValue(null);
+    itineraryDayFindOne.mockReturnValue(chainSelectLean(null));
 
     const result = await updatePhoto(TRIP_ID, PHOTO_ID, { itinerary_day_id: DAY_ID });
 
     expect(result).toEqual({ success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' });
-    expect(itineraryDayExists).toHaveBeenCalledWith({ _id: DAY_ID, trip: TRIP_ID });
+    expect(itineraryDayFindOne).toHaveBeenCalledWith({ _id: DAY_ID, trip: TRIP_ID });
     expect(photoFindOneAndUpdate).not.toHaveBeenCalled();
+  });
+
+  it('borrows the day coordinates for a photo with no GPS, marked source "itinerary"', async () => {
+    mockDay({ lat: 35.6, lon: 139.7, name: 'Tokyo' });
+    mockCurrentLocation(null);
+    photoFindOneAndUpdate.mockReturnValue(chainLean(leanPhoto()));
+
+    const result = await updatePhoto(TRIP_ID, PHOTO_ID, { itinerary_day_id: DAY_ID });
+
+    expect(result.success).toBe(true);
+    expect(setArg()).toEqual({
+      itineraryDay: DAY_ID,
+      location: { lat: 35.6, lon: 139.7, source: 'itinerary' },
+    });
+  });
+
+  it('never overwrites the photo own GPS with the day coordinates (exif is more precise)', async () => {
+    mockDay({ lat: 35.6, lon: 139.7 });
+    mockCurrentLocation({ lat: 35.71, lon: 139.79, source: 'exif' });
+    photoFindOneAndUpdate.mockReturnValue(chainLean(leanPhoto()));
+
+    await updatePhoto(TRIP_ID, PHOTO_ID, { itinerary_day_id: DAY_ID });
+
+    expect(setArg()).toEqual({ itineraryDay: DAY_ID });
+  });
+
+  it('never overwrites a manually-pinned location with the day coordinates', async () => {
+    mockDay({ lat: 35.6, lon: 139.7 });
+    mockCurrentLocation({ lat: 35.71, lon: 139.79, source: 'manual' });
+    photoFindOneAndUpdate.mockReturnValue(chainLean(leanPhoto()));
+
+    await updatePhoto(TRIP_ID, PHOTO_ID, { itinerary_day_id: DAY_ID });
+
+    expect(setArg()).toEqual({ itineraryDay: DAY_ID });
+  });
+
+  it('re-borrows from the new day when the current coordinates came from the previous one', async () => {
+    mockDay({ lat: 48.85, lon: 2.35 });
+    mockCurrentLocation({ lat: 35.6, lon: 139.7, source: 'itinerary' });
+    photoFindOneAndUpdate.mockReturnValue(chainLean(leanPhoto()));
+
+    await updatePhoto(TRIP_ID, PHOTO_ID, { itinerary_day_id: DAY_ID });
+
+    expect(setArg()).toEqual({
+      itineraryDay: DAY_ID,
+      location: { lat: 48.85, lon: 2.35, source: 'itinerary' },
+    });
+  });
+
+  it('drops borrowed coordinates when the photo is unlinked from its day', async () => {
+    mockCurrentLocation({ lat: 35.6, lon: 139.7, source: 'itinerary' });
+    photoFindOneAndUpdate.mockReturnValue(chainLean(leanPhoto()));
+
+    await updatePhoto(TRIP_ID, PHOTO_ID, { itinerary_day_id: null });
+
+    // 借來的座標沒了來源就該消失，否則地圖上會留下無法解釋的釘子
+    expect(setArg()).toEqual({ itineraryDay: null, location: null });
+    expect(itineraryDayFindOne).not.toHaveBeenCalled();
+  });
+
+  it('keeps the exif GPS when the photo is unlinked from its day', async () => {
+    mockCurrentLocation({ lat: 35.71, lon: 139.79, source: 'exif' });
+    photoFindOneAndUpdate.mockReturnValue(chainLean(leanPhoto()));
+
+    await updatePhoto(TRIP_ID, PHOTO_ID, { itinerary_day_id: null });
+
+    expect(setArg()).toEqual({ itineraryDay: null });
+  });
+
+  it('drops borrowed coordinates when the new day has no location set', async () => {
+    mockDay(null);
+    mockCurrentLocation({ lat: 35.6, lon: 139.7, source: 'itinerary' });
+    photoFindOneAndUpdate.mockReturnValue(chainLean(leanPhoto()));
+
+    await updatePhoto(TRIP_ID, PHOTO_ID, { itinerary_day_id: DAY_ID });
+
+    expect(setArg()).toEqual({ itineraryDay: DAY_ID, location: null });
+  });
+
+  it('leaves location untouched for a GPS-less photo linked to a day with no location', async () => {
+    mockDay(null);
+    mockCurrentLocation(null);
+    photoFindOneAndUpdate.mockReturnValue(chainLean(leanPhoto()));
+
+    await updatePhoto(TRIP_ID, PHOTO_ID, { itinerary_day_id: DAY_ID });
+
+    expect(setArg()).toEqual({ itineraryDay: DAY_ID });
+  });
+
+  it('lets an explicit manual pin win over the day fallback in the same call', async () => {
+    mockDay({ lat: 35.6, lon: 139.7 });
+    photoFindOneAndUpdate.mockReturnValue(chainLean(leanPhoto()));
+
+    await updatePhoto(TRIP_ID, PHOTO_ID, {
+      itinerary_day_id: DAY_ID,
+      location: { lat: 1.29, lon: 103.85 },
+    });
+
+    expect(setArg()).toEqual({
+      itineraryDay: DAY_ID,
+      location: { lat: 1.29, lon: 103.85, source: 'manual' },
+    });
+    // 明確給了 location 就不必回頭讀現有座標
+    expect(photoFindOne).not.toHaveBeenCalled();
+  });
+
+  it('borrows the day coordinates when the same call clears the manual pin', async () => {
+    mockDay({ lat: 35.6, lon: 139.7 });
+    photoFindOneAndUpdate.mockReturnValue(chainLean(leanPhoto()));
+
+    // location: null＝把手動釘清掉。清完這張就沒座標了，正好可以借當天的——
+    // 這與「明確拉了新釘」（manual 優先）是兩回事。
+    await updatePhoto(TRIP_ID, PHOTO_ID, { itinerary_day_id: DAY_ID, location: null });
+
+    expect(setArg()).toEqual({
+      itineraryDay: DAY_ID,
+      location: { lat: 35.6, lon: 139.7, source: 'itinerary' },
+    });
+    expect(photoFindOne).not.toHaveBeenCalled();
+  });
+
+  it('returns NOT_FOUND when the photo does not belong to this trip', async () => {
+    mockDay({ lat: 35.6, lon: 139.7 });
+    mockCurrentLocation(null);
+    photoFindOne.mockReturnValue(chainSelectLean(null));
+
+    const result = await updatePhoto(TRIP_ID, PHOTO_ID, { itinerary_day_id: DAY_ID });
+
+    expect(result).toEqual({ success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' });
+    expect(photoFindOneAndUpdate).not.toHaveBeenCalled();
+  });
+
+  it('updates the caption without touching location or the day link', async () => {
+    photoFindOneAndUpdate.mockReturnValue(chainLean(leanPhoto({ caption: 'Shibuya at night' })));
+
+    const result = await updatePhoto(TRIP_ID, PHOTO_ID, { caption: 'Shibuya at night' });
+
+    expect(result.success).toBe(true);
+    expect(setArg()).toEqual({ caption: 'Shibuya at night' });
   });
 });

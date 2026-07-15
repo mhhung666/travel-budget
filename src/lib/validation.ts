@@ -476,6 +476,17 @@ export const updatePhotoSchema = z
     { message: '沒有可更新的欄位' }
   );
 
+/**
+ * 批次刪除。上限取 PHOTO_LIMIT_PER_TRIP——「全選後刪除」是刻意支援的操作，
+ * 而一個旅程的相片數本來就以它為界，再低的上限只會讓全選失敗。
+ */
+export const deletePhotosSchema = z.object({
+  photo_ids: z
+    .array(objectIdSchema)
+    .min(1, '沒有可刪除的相片')
+    .max(PHOTO_LIMIT_PER_TRIP, '一次刪除的相片過多'),
+});
+
 // ── 旅行成就（Collections，ROADMAP #19）──────────────────────────────
 // user-level 終身紀錄的補登/編輯。trip_id 沿用 tripIdOrCode 雙重接受
 // （ObjectId 或 hash_code，由 action 以 getTripMembership 解析＋驗證成員身分）。
@@ -598,6 +609,7 @@ export type UpdateNoteInput = z.infer<typeof updateNoteSchema>;
 export type PlanNoteInput = z.infer<typeof planNoteSchema>;
 export type AddPhotosInput = z.infer<typeof addPhotosSchema>;
 export type UpdatePhotoInput = z.infer<typeof updatePhotoSchema>;
+export type DeletePhotosInput = z.infer<typeof deletePhotosSchema>;
 export type PhotoItemInput = z.infer<typeof photoItemSchema>;
 export type CreateFlightRecordInput = z.infer<typeof createFlightRecordSchema>;
 export type CreateStayRecordInput = z.infer<typeof createStayRecordSchema>;

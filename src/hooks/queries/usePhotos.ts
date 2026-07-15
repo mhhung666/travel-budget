@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { getTripPhotos, addTripPhotos, updatePhoto, deletePhoto } from '@/actions';
+import { getTripPhotos, addTripPhotos, updatePhoto, deletePhotos } from '@/actions';
 import type { ActionResult } from '@/actions';
 import type { TripPhoto } from '@/types';
 import type { PhotoItemInput } from '@/lib/validation';
@@ -20,18 +20,21 @@ async function unwrap<T>(p: Promise<ActionResult<T>>): Promise<T> {
  * 相簿」的保證（Phase 4 的公開相簿會是另一條路由、另一套不含位置的 DTO）。
  * 失敗回空陣列（不擋頁面）。
  *
+ * `enabled` 供非相簿頁的呼叫端把「已知不是成員」的情形擋在前面（行程頁的公開分享訪客
+ * 就是這樣：不擋的話每次瀏覽分享頁都會多打一趟必定回 UNAUTHORIZED 的 action）。
+ *
  * 注意 DTO 裡的 `url`／`thumb_url` 是**有時效**的簽名 URL（見 storage.ts 的
  * presignGetStable）。快取久了 URL 會過期，故設 staleTime 讓它定期重取；窗口對齊
  * 保證重取回來的 URL 在同一窗口內是同一個字串，SW 快取不會因此失效。
  */
-export function usePhotos(tripId: string) {
+export function usePhotos(tripId: string, enabled = true) {
   return useQuery({
     queryKey: tripKeys.photos(tripId),
     queryFn: async (): Promise<TripPhoto[]> => {
       const res = await getTripPhotos(tripId);
       return res.success ? res.data : [];
     },
-    enabled: !!tripId,
+    enabled: !!tripId && enabled,
     staleTime: 30 * 60 * 1000,
   });
 }
@@ -66,8 +69,9 @@ export function usePhotoMutations(tripId: string) {
     onSuccess: invalidate,
   });
 
+  // 收陣列（單張＝一個元素）：批次選取刪 50 張時只打一次 action，見 deletePhotos。
   const remove = useMutation({
-    mutationFn: (photoId: string) => unwrap(deletePhoto(tripId, photoId)),
+    mutationFn: (photoIds: string[]) => unwrap(deletePhotos(tripId, { photo_ids: photoIds })),
     onSuccess: invalidate,
   });
 

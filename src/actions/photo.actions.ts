@@ -6,9 +6,11 @@ import { getTripMembership } from '@/lib/permissions';
 import {
   addPhotosSchema,
   updatePhotoSchema,
+  deletePhotosSchema,
   PHOTO_LIMIT_PER_TRIP,
   type AddPhotosInput,
   type UpdatePhotoInput,
+  type DeletePhotosInput,
   type PhotoItemInput,
 } from '@/lib/validation';
 import type { ActionResult } from './types';
@@ -211,10 +213,35 @@ export const addTripPhotos = withAuth(
 );
 
 /**
+ * 關聯／解除行程日時，這張相片的座標該變成什麼。回 `undefined`＝不要動它。
+ *
+ * 規則的核心是**精確度只能往上、不能被覆蓋**：相片自己的 GPS（`exif`）與使用者親手拉的
+ * 釘（`manual`）都比「整天共用一顆城市座標」精確，關聯行程日不該把它們蓋掉。只有
+ * 「本來就沒座標」或「座標本來就是上一個行程日借來的」才跟著換。
+ *
+ * 反向也要成立：解除關聯（或換到一個沒設地點的行程日）時，借來的座標要跟著消失，
+ * 否則地圖上會留下一顆沒有任何來源可解釋的釘子。
+ */
+function deriveItineraryLocation(
+  current: { source?: string | null } | null | undefined,
+  dayLocation: { lat?: number | null; lon?: number | null } | null | undefined
+): { lat: number; lon: number; source: 'itinerary' } | null | undefined {
+  if (current && current.source !== 'itinerary') return undefined;
+
+  const { lat, lon } = dayLocation ?? {};
+  if (typeof lat !== 'number' || typeof lon !== 'number') {
+    // 沒得借：把上一個行程日借來的座標收回（本來就沒座標則為 no-op）
+    return current ? null : undefined;
+  }
+  return { lat, lon, source: 'itinerary' };
+}
+
+/**
  * 更新一張相片（說明／關聯行程日／手動拉釘）。成員信任：不檢查上傳者，比照隨手記。
  *
  * 手動拉釘會把 `location.source` 標成 `'manual'`——source 讓「這張為什麼釘在這」
- * 可解釋，別讓手動座標偽裝成 EXIF 的精確座標。
+ * 可解釋，別讓手動座標偽裝成 EXIF 的精確座標。關聯行程日時的座標退回規則見
+ * deriveItineraryLocation；呼叫端明確給了 `location` 時以它為準（手動優先）。
  */
 export const updatePhoto = withAuth(
   async (
@@ -245,18 +272,40 @@ export const updatePhoto = withAuth(
         set.location = location ? { ...location, source: 'manual' as const } : null;
       }
       if (itinerary_day_id !== undefined) {
+        let dayLocation: { lat?: number | null; lon?: number | null } | null = null;
         if (itinerary_day_id === null) {
           set.itineraryDay = null;
         } else {
-          // 行程日必須屬於本 trip——否則成員可以把相片掛到別團的行程日上
-          const day = await ItineraryDay.exists({
+          // 行程日必須屬於本 trip——否則成員可以把相片掛到別團的行程日上。
+          // 取 location 是為了下面的座標退回（沒有 GPS 的相片借當天的城市座標）。
+          const day = await ItineraryDay.findOne({
             _id: itinerary_day_id,
             trip: membership.tripId,
-          });
+          })
+            .select('location')
+            .lean<{ location?: { lat?: number | null; lon?: number | null } | null } | null>();
           if (!day) {
             return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
           }
           set.itineraryDay = itinerary_day_id;
+          dayLocation = day.location ?? null;
+        }
+
+        // 同一次呼叫明確拉了釘就以它為準，別讓退回規則蓋掉使用者剛拉的座標。
+        // `location: null`（明確清掉手動釘）不算數——清掉後這張就沒有座標了，正好可以借當天的。
+        if (!location) {
+          // location === null 時現有座標已經要被清掉，不必回頭讀
+          const current =
+            location === null
+              ? null
+              : await Photo.findOne({ _id: photoId, trip: membership.tripId })
+                  .select('location')
+                  .lean<{ location?: { source?: string | null } | null } | null>();
+          if (location === undefined && !current) {
+            return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+          }
+          const derived = deriveItineraryLocation(current?.location, dayLocation);
+          if (derived !== undefined) set.location = derived;
         }
       }
 
@@ -279,41 +328,57 @@ export const updatePhoto = withAuth(
 );
 
 /**
- * 刪除一張相片＋其 R2 物件。同現行 no-cascade 契約：blob 是 **best-effort 刪除**
- * （失敗只 log，不讓使用者的刪除操作失敗），一次 deleteObjects 批次收掉。
+ * 刪除一批相片＋其 R2 物件。**單張刪除也走這裡**（前端傳一個元素的陣列）：批次選取
+ * 一次刪 50 張若逐張呼叫就是 50 次 action＋50 次 deleteObjects，與 repo 避免 N+1 的
+ * 慣例相悖；反過來讓單張走批次路徑則毫無代價。
  *
- * 也一併刪 `_p.jpg`（消毒副本）：Phase 1 還不會產生它，但先寫進來，免得 Phase 4
+ * 同現行 no-cascade 契約：blob 是 **best-effort 刪除**（失敗只 log，不讓使用者的刪除
+ * 操作失敗），所有 key 一次 deleteObjects 收掉。
+ *
+ * 也一併刪 `_p.jpg`（消毒副本）：Phase 1／2 還不會產生它，但先寫進來，免得 Phase 4
  * 上線後忘了補而留下永久孤兒（刪不存在的 key 對 S3/R2 是 no-op，不會失敗）。
  */
-export const deletePhoto = withAuth(
+export const deletePhotos = withAuth(
   async (
     session,
     tripIdOrCode: string,
-    photoId: string
-  ): Promise<ActionResult<{ message: string }>> => {
+    input: DeletePhotosInput
+  ): Promise<ActionResult<{ deleted: number }>> => {
     try {
       const membership = await getTripMembership(session.userId, tripIdOrCode);
       if (!membership) {
         return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
       }
 
-      const doc = await Photo.findOne({ _id: photoId, trip: membership.tripId })
+      const validation = deletePhotosSchema.safeParse(input);
+      if (!validation.success) {
+        return {
+          success: false,
+          error: validation.error.issues[0].message,
+          code: 'VALIDATION_ERROR',
+        };
+      }
+      const { photo_ids } = validation.data;
+
+      // trip 條件是歸屬把關：別團的 id 混進來只會查不到，不會被刪。
+      const docs = await Photo.find({ _id: { $in: photo_ids }, trip: membership.tripId })
         .select('key thumbKey')
-        .lean<{ key: string; thumbKey: string } | null>();
-      if (!doc) {
+        .lean<{ key: string; thumbKey: string }[]>();
+      if (docs.length === 0) {
         return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
       }
 
-      await Photo.deleteOne({ _id: photoId, trip: membership.tripId });
+      await Photo.deleteMany({ _id: { $in: photo_ids }, trip: membership.tripId });
 
-      await deleteObjects('receipts', [doc.key, doc.thumbKey, sanitizedPhotoKey(doc.key)]).catch(
-        (e) => logger.error('Delete photo: blob cleanup failed', e)
+      const keys = docs.flatMap((d) => [d.key, d.thumbKey, sanitizedPhotoKey(d.key)]);
+      await deleteObjects('receipts', keys).catch((e) =>
+        logger.error('Delete photos: blob cleanup failed', e)
       );
 
       revalidatePath(`/trips/${tripIdOrCode}/album`);
-      return { success: true, data: { message: '相片已刪除' } };
+      return { success: true, data: { deleted: docs.length } };
     } catch (error) {
-      logger.error('Delete photo error', error);
+      logger.error('Delete photos error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
   }

@@ -1,12 +1,12 @@
 # 旅程相簿與相片地圖（Trip Album）規劃
 
-> 建立日期：2026-07-15 · 狀態：**Phase 1 已完成（2026-07-15）**；餘 Phase 2／3／4。
-> Phase 1 實作筆記已入 [FEATURES.md](./FEATURES.md) §17。**全部階段完成後**才依
-> [README.md](./README.md) 慣例刪本檔（草圖查 git 歷史）——Phase 2–4 仍需本檔。
+> 建立日期：2026-07-15 · 狀態：**Phase 1／2 已完成（2026-07-15）**；餘 Phase 3／4。
+> Phase 1／2 實作筆記已入 [FEATURES.md](./FEATURES.md) §17。**全部階段完成後**才依
+> [README.md](./README.md) 慣例刪本檔（草圖查 git 歷史）——Phase 3–4 仍需本檔。
 >
-> ## 動工後校正（Phase 1 實作時發現，與原規劃不符之處）
+> ## 動工後校正（Phase 1／2 實作時發現，與原規劃不符之處）
 >
-> 這幾條是**實測**出來的，不是推論。Phase 2–4 動工前先讀：
+> 這幾條是**實測**出來的，不是推論。Phase 3–4 動工前先讀：
 >
 > 1. **§6 的「反查地名」是全新功能，不是現成 helper**。repo **沒有任何 reverse geocode**——
 >    `ItineraryDay.location` 是使用者在前端用 Nominatim **正向搜尋**選好後整包送進 action 的，
@@ -25,6 +25,18 @@
 > 5. **新發現的坑（尚未處理）**：SW 的 `r2-images` 快取 `maxEntries: 128` 是為收據設計的，
 >    相簿數十張縮圖會把收據擠出快取；`presignGetStable` 每小時輪替簽名又會加速消耗。
 >    已記入 [IMPROVEMENTS.md](./IMPROVEMENTS.md) §H，待實測用量後決定。
+> 6. **Phase 2 實作時的兩處與 §6 表格不符**（都是刻意的）：
+>    - `deletePhoto`（單張）**已改為 `deletePhotos(tripIdOrCode, { photo_ids })`**（批次）。
+>      Phase 2 要做批次選取刪除，逐張呼叫 = N 次 action + N 次 `deleteObjects`；讓單張走批次
+>      路徑則零代價，故不留兩支。
+>    - **§5 的 `place` 在 `source: 'itinerary'` 時仍留 null**：借行程日座標時「順手把當天的地名
+>      快照進去」很誘人（不需要反查、資料就在同一個 query 裡），但 `place` 的語意是**這張相片所在
+>      地點**，而不是「當天的城市」——填了會讓 Phase 3 的地圖分不出哪些 place 是真的反查來的。
+>      `place` 仍整包留給 Phase 3。
+> 7. **§5 沒寫、但 Phase 2 一做行程日關聯就冒出來的不變式**：`source: 'itinerary'` 的座標是
+>    **借**的，必須跟著來源走——所以 `deleteItineraryDay`／`updateItineraryDay` 都得回頭清／
+>    改 `Photo`（無 FK cascade）。Phase 3 的地圖若看到 `'itinerary'` 座標，可以信任它指向的行程日
+>    還活著且地點沒變。**新增任何會動到 `ItineraryDay.location` 或刪除行程日的路徑時，這條要一起維護。**
 
 ## 1. 背景與定位
 
@@ -268,8 +280,8 @@ photos/<tripId>/<uuid>_t.webp  縮圖（長邊 400，~30KB，grid 用，無 EXIF
 | `createPhotoUploadUrl(tripIdOrCode, contentType, size)` | 比照 `createNoteUploadUrl`，kind `'photo'`。一張相片呼叫兩次（顯示檔／縮圖）。 |
 | `addTripPhotos(tripIdOrCode, items[])` | 每張的**兩顆 key 都** `headObject` 覆驗真實大小/型別 → Zod 驗 EXIF → 反查地名 → 批次 insert。 |
 | `getTripPhotos(tripIdOrCode)` | 回 DTO（`thumbUrl`/`url`，用 `presignGetStable` 批次簽）。 |
-| `updatePhoto(photoId, { caption, itineraryDay, location })` | 說明／關聯／手動拉釘。 |
-| `deletePhoto(photoId)` | 刪 doc + best-effort 刪兩顆 blob（`deleteObjects` 一次批次）。 |
+| `updatePhoto(photoId, { caption, itineraryDay, location })` | 說明／關聯／手動拉釘。**關聯行程日時，沒有 GPS 的相片借當天座標**（`source: 'itinerary'`）；exif／manual 的座標不被覆蓋，解除關聯則收回借來的座標。 |
+| ~~`deletePhoto(photoId)`~~ → `deletePhotos(photoIds[])` | 刪 docs + best-effort 刪 blob（一次 `deleteObjects`）。**單張也走這裡**，見檔頭校正 6。 |
 
 **下載** = 直接給顯示檔的簽名 URL（`<a download>`）——它本身就是一張帶 EXIF 的 JPEG，
 不需要額外的「原檔下載」action。iOS Safari 長按存到「照片」／Android 下載後入相簿，
@@ -366,7 +378,7 @@ photos/<tripId>/<uuid>_t.webp  縮圖（長邊 400，~30KB，grid 用，無 EXIF
 | Phase | 內容 | 成本 |
 |---|---|---|
 | ~~**1**~~ | ~~`Photo` model＋`'photo'` UploadKind／preset＋**EXIF 讀取（DB）＋JPEG `preserveExif`（檔案）**＋`presignGetStable`＋相簿 grid／lightbox／下載。成員限定、私有。~~ **✅ 完成 2026-07-15**（`place` 反查除外，見檔頭校正 1） | **M** |
-| **2** | 關聯行程日、說明編輯、批次選取／刪除、行程日頁顯示當天相片。 | S |
+| ~~**2**~~ | ~~關聯行程日（含無 GPS 相片退回當天座標，`source: 'itinerary'`）、說明編輯、批次選取／刪除、行程日頁顯示當天相片。~~ **✅ 完成 2026-07-15**（`place` 仍留 null，見檔頭校正 6） | S |
 | **3** | 地圖整合：相片圖層改讀 `Photo`、EXIF 精確釘點、前端 cluster，**同時刪除收據相片模式**（§7）。**排在 1／2 上線一段時間之後**，否則切換當下地圖相片會是空的。 | M |
 | **4** | 公開相簿分享（`albumShareCode`＋**消毒副本 `_p.jpg`**＋獨立的無位置公開 DTO）。純相片牌，不含地圖。 | M |
 | **5**（可選） | 相簿封面、打包下載（zip）、Year in Review 整合。 | S |

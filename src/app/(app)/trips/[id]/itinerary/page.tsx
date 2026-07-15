@@ -14,13 +14,15 @@ import {
   dayActivitiesToDrafts,
   draftsToPayload,
 } from '@/components/trips/detail/itinerary/ActivityListEditor';
+import { PhotoLightbox } from '@/components/trips/detail/album';
 import type { LocationOption } from '@/components/location/LocationAutocomplete';
 import { ExportMenu } from '@/components/export';
 import { FlightRecordDialog, StayRecordDialog } from '@/components/collections';
-import type { Activity, ItineraryDay } from '@/types';
+import type { Activity, ItineraryDay, TripPhoto } from '@/types';
 import type { CreateFlightRecordInput, CreateStayRecordInput } from '@/lib/validation';
 import {
   useItinerary,
+  usePhotos,
   useTrip,
   useTripMembership,
   useItineraryMutations,
@@ -63,7 +65,10 @@ export default function ItineraryPage() {
 
   const { data: days = [], isLoading: loading, isError } = useItinerary(tripId);
   const { data: trip } = useTrip(tripId);
-  const { isAdmin } = useTripMembership(tripId);
+  const { isAdmin, isMember } = useTripMembership(tripId);
+  // 當天相片：與相簿頁共用同一份 query 快取（一趟旅程只查一次），在這裡依行程日分組。
+  // 成員限定——usePhotos 無公開 fallback；非成員（含分享頁訪客）連問都不必問，故用 isMember 擋掉。
+  const { data: photos = [] } = usePhotos(tripId, isMember);
   const { create, update, remove } = useItineraryMutations(tripId);
   const tExport = useTranslations('export');
 
@@ -87,6 +92,21 @@ export default function ItineraryPage() {
         other: tAct('types.other'),
       },
     });
+
+  const photosByDay = useMemo(() => {
+    const map = new Map<string, TripPhoto[]>();
+    for (const photo of photos) {
+      if (!photo.itinerary_day_id) continue;
+      const list = map.get(photo.itinerary_day_id);
+      if (list) list.push(photo);
+      else map.set(photo.itinerary_day_id, [photo]);
+    }
+    return map;
+  }, [photos]);
+
+  // 放大檢視當天相片：唯讀（編輯／刪除留在相簿頁一處）。dayId 決定 lightbox 拿哪一組相片。
+  const [viewingPhotos, setViewingPhotos] = useState<{ dayId: string; index: number } | null>(null);
+  const viewingDayPhotos = viewingPhotos ? (photosByDay.get(viewingPhotos.dayId) ?? []) : [];
 
   // Dialog states
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -326,10 +346,21 @@ export default function ItineraryPage() {
               onDeleteActivity={handleDeleteActivity}
               onImportActivity={handleImportActivity}
               importedActivityIds={importedActivityIds}
+              photos={photosByDay.get(day.id) ?? []}
+              onSelectPhoto={(index) => setViewingPhotos({ dayId: day.id, index })}
             />
           ))}
         </div>
       )}
+
+      {/* 當天相片的放大檢視（唯讀：編輯與刪除在相簿頁） */}
+      <PhotoLightbox
+        photos={viewingDayPhotos}
+        index={viewingPhotos?.index ?? null}
+        onIndexChange={(index) =>
+          setViewingPhotos(index === null || !viewingPhotos ? null : { ...viewingPhotos, index })
+        }
+      />
 
       {/* Add/Edit Dialog */}
       <ItineraryDayDialog

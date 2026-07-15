@@ -1,7 +1,7 @@
 'use server';
 
 import { dbConnect } from '@/lib/mongodb';
-import { Expense, ItineraryDay } from '@/models';
+import { Expense, ItineraryDay, Photo } from '@/models';
 import { getTripMembership } from '@/lib/permissions';
 import {
   createItineraryDaySchema,
@@ -336,6 +336,21 @@ export const updateItineraryDay = withAuth(
         );
       }
 
+      // 當日地點換了（或被清掉）→ 跟著更新「借」這天座標的相片。借來的座標必須跟著來源走，
+      // 否則改了地點之後相片會停在舊城市、清了地點之後相片會留著無來源的座標。
+      // 只動 source 'itinerary' 的：相片自己的 GPS 與手動釘比整天共用的城市座標精確，不可覆蓋。
+      if (validated.location !== undefined) {
+        const { lat, lon } = validated.location ?? {};
+        const borrowed =
+          typeof lat === 'number' && typeof lon === 'number'
+            ? { lat, lon, source: 'itinerary' as const }
+            : null;
+        await Photo.updateMany(
+          { trip: membership.tripId, itineraryDay: dayId, 'location.source': 'itinerary' },
+          { $set: { location: borrowed } }
+        );
+      }
+
       return { success: true, data: toDayDto(updated) };
     } catch (error) {
       logger.error('Update itinerary day error', error);
@@ -387,6 +402,19 @@ export const deleteItineraryDay = withAuth(
       await Expense.updateMany(
         { trip: membership.tripId, itineraryDays: dayId },
         { $pull: { itineraryDays: dayId } }
+      );
+
+      // 同理清掉相簿相片對此行程日的關聯。**順序有意義**：先收回「借」自這天的座標
+      // （條件靠 itineraryDay 篩），再解除關聯。相片自己的 GPS（source 'exif'）與手動釘
+      // （'manual'）不受影響——只有借來的座標會隨來源消失，否則地圖上會留下沒有任何
+      // 來源可解釋的釘子（規則見 photo.actions.ts 的 deriveItineraryLocation）。
+      await Photo.updateMany(
+        { trip: membership.tripId, itineraryDay: dayId, 'location.source': 'itinerary' },
+        { $set: { location: null } }
+      );
+      await Photo.updateMany(
+        { trip: membership.tripId, itineraryDay: dayId },
+        { $set: { itineraryDay: null } }
       );
 
       // 重新編號剩餘行程日為連續 1..n（遞增處理，數字只會變小，不會撞到唯一索引）

@@ -384,8 +384,8 @@ UI：登入頁 [/wrapped](../src/app/%5Blocale%5D/wrapped/page.tsx)（年份切�
 
 ## 17. 旅程相簿（Trip Album，ROADMAP #21）
 
-> Phase 1（相簿本體）已完成 2026-07-15。餘 Phase 2（行程日關聯）／3（地圖整合＋退役收據相片模式）／
-> 4（公開分享）見 [PLAN-PHOTOS.md](./PLAN-PHOTOS.md)。
+> Phase 1（相簿本體）／Phase 2（行程日關聯、說明、批次刪除）已完成 2026-07-15。
+> 餘 Phase 3（地圖整合＋退役收據相片模式）／4（公開分享）見 [PLAN-PHOTOS.md](./PLAN-PHOTOS.md)。
 
 - **定位**：trip-scoped 共享相簿，比照隨手記／清單的**成員信任模型**（任何成員可上傳／編輯／刪除）。
   [Photo](../src/models/Photo.ts) 為旅程下的獨立 collection；`uploadedByName` 為上傳當下快照（讀取免 populate）。
@@ -419,12 +419,28 @@ UI：登入頁 [/wrapped](../src/app/%5Blocale%5D/wrapped/page.tsx)（年份切�
   都是新 URL、快取永遠 miss 且無限膨脹。故把簽名時間戳**對齊整點窗口**（1 小時），窗口內對同一 key
   產生逐字元相同的 URL。TTL 是窗口的**兩倍**——否則窗口尾聲拿到的 URL 一秒後就死了。
   **收據仍用 `presignGet`（300s、不對齊），那是刻意的短效。**
-- **未做（刻意）**：`place`（反查地名）Phase 1 一律 `null`——repo 沒有 reverse geocode 能力
+- **行程日關聯與座標退回（Phase 2）**：lightbox 可把相片掛到某個行程日（`updatePhoto`），
+  掛上時**沒有 GPS 的相片會借當天的座標**並標 `location.source = 'itinerary'`。規則的核心是
+  **精確度只能往上、不能被覆蓋**：`'exif'`（相片自己的 GPS，街廓級）與 `'manual'`（使用者親手拉的釘）
+  都比「整天共用一顆城市座標」精確，關聯行程日不會蓋掉它們；反向也成立——解除關聯或換到沒設地點的
+  行程日時，**借來的座標要跟著消失**，否則地圖上會留下無來源可解釋的釘子（見 `deriveItineraryLocation`
+  與 [photo.actions.test.ts](../src/__tests__/photo.actions.test.ts) 的對應案例）。
+  行程頁的每張日卡片下方顯示當天相片（`DayPhotoStrip`，唯讀 lightbox；編輯／刪除留在相簿頁一處），
+  資料與相簿頁**共用同一份 query 快取**、在前端依 `itinerary_day_id` 分組，不另開 query。
+- **借來的座標必須跟著來源走**（Mongo 無 FK cascade，這種清理一律自己來，比照
+  `deleteItineraryDay` 既有的 `Expense.itineraryDays` `$pull`）：刪行程日 → 相片解除關聯＋
+  收回借來的座標；改／清行程日地點（`updateItineraryDay`）→ 借出的座標跟著移動／消失。
+  兩處都只動 `location.source === 'itinerary'` 的相片，**`'exif'`／`'manual'` 永不受影響**。
+  不變式由 [itineraryPhotoLinks.test.ts](../src/__tests__/itineraryPhotoLinks.test.ts) 守住。
+- **批次刪除（Phase 2）**：相簿頁的選取模式 → `deletePhotos(tripIdOrCode, { photo_ids })`。
+  **單張刪除也走同一支 action**（傳一個元素的陣列）：一次刪 50 張若逐張呼叫就是 50 次 action
+  ＋50 次 `deleteObjects`。`deleteObjects` 本身改為**自動分批**（S3/R2 單次上限 1000 個 key），
+  呼叫端不必自己算上限。
+- **未做（刻意）**：`place`（反查地名）Phase 1／2 一律 `null`——repo 沒有 reverse geocode 能力
   （`ItineraryDay.location` 是前端 Nominatim **正向**搜尋選好後整包送上來的，server 從不做地理查詢），
   且 Nominatim 限 1 req/sec，塞進上傳會讓「一次挑 20 張」變成 20 秒的 action。schema 形狀先留好，
   Phase 3 地圖整合時再回頭填（同 PLAN-LOYALTY 的 `ownAirline` 教訓：形狀留好，值可以之後才有）。
-  同理 `location.source` 目前只會是 `'exif'`（無 GPS 即 null）或 `'manual'`（手動拉釘）；
-  `'itinerary'` 要等 Phase 2 的行程日關聯才有得退。
+  **`'itinerary'` 座標退回不受此限**：行程日的地點是使用者當初正向搜尋選好的，借座標不需要任何反查。
 
 ---
 
