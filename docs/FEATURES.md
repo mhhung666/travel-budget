@@ -387,8 +387,8 @@ UI：登入頁 [/wrapped](../src/app/%5Blocale%5D/wrapped/page.tsx)（年份切�
 
 ## 17. 旅程相簿（Trip Album，ROADMAP #21）
 
-> Phase 1（相簿本體）／Phase 2（行程日關聯、說明、批次刪除）已完成 2026-07-15。
-> 餘 Phase 3（地圖整合＋退役收據相片模式）／4（公開分享）見 [PLAN-PHOTOS.md](./PLAN-PHOTOS.md)。
+> Phase 1（相簿本體）／Phase 2（行程日關聯、說明、批次刪除）／Phase 3（地圖整合＋退役收據相片模式）
+> 已完成 2026-07-15。餘 Phase 4（公開分享）見 [PLAN-PHOTOS.md](./PLAN-PHOTOS.md)。
 
 - **定位**：trip-scoped 共享相簿，比照隨手記／清單的**成員信任模型**（任何成員可上傳／編輯／刪除）。
   [Photo](../src/models/Photo.ts) 為旅程下的獨立 collection；`uploadedByName` 為上傳當下快照（讀取免 populate）。
@@ -439,11 +439,21 @@ UI：登入頁 [/wrapped](../src/app/%5Blocale%5D/wrapped/page.tsx)（年份切�
   **單張刪除也走同一支 action**（傳一個元素的陣列）：一次刪 50 張若逐張呼叫就是 50 次 action
   ＋50 次 `deleteObjects`。`deleteObjects` 本身改為**自動分批**（S3/R2 單次上限 1000 個 key），
   呼叫端不必自己算上限。
-- **未做（刻意）**：`place`（反查地名）Phase 1／2 一律 `null`——repo 沒有 reverse geocode 能力
+- **地圖整合＋退役收據相片模式（Phase 3）**：地圖的相片圖層改讀 `Photo` collection
+  （[getMapPhotos](../src/actions/map.actions.ts)），座標取自相片自己的 EXIF GPS（退關聯行程日 → 手動拉釘，
+  由 `location.source` 標示），**取代**了舊的收據衍生模式（收據是憑證不是回憶，座標只能借整天共用的行程日
+  中心；不做資料遷移——既有收據圖的 EXIF 早已永久消失）。`url`／`thumb_url` 由 `presignGetStable` **批次簽發**
+  隨 DTO 一起回（一次幾百張只是純 HMAC、沒有網路往返；逐張再打 action 反而 N+1），釘點對話框直接用它、
+  改綁相簿共用的 `PhotoLightbox`（不再 per-photo `getReceiptUrl`）。座標分群 bucket 從舊的 ~1km 收緊到
+  **~11m**（4dp）——EXIF 精度到街廓，~1km 會把整條街的相片誤併成一張；更近的重疊交給 marker cluster
+  在前端處理。分群邏輯與不變式由 [mapPhotos.test.ts](../src/__tests__/mapPhotos.test.ts) 守住。
+- **未做（刻意）**：`place`（相片自己的反查地名）目前仍一律 `null`——repo 沒有 reverse geocode 能力
   （`ItineraryDay.location` 是前端 Nominatim **正向**搜尋選好後整包送上來的，server 從不做地理查詢），
-  且 Nominatim 限 1 req/sec，塞進上傳會讓「一次挑 20 張」變成 20 秒的 action。schema 形狀先留好，
-  Phase 3 地圖整合時再回頭填（同 PLAN-LOYALTY 的 `ownAirline` 教訓：形狀留好，值可以之後才有）。
-  **`'itinerary'` 座標退回不受此限**：行程日的地點是使用者當初正向搜尋選好的，借座標不需要任何反查。
+  且 Nominatim 限 1 req/sec，塞進上傳會讓「一次挑 20 張」變成 20 秒的 action。schema 形狀先留好
+  （同 PLAN-LOYALTY 的 `ownAirline` 教訓：形狀留好，值可以之後才有），日後以**離線批次**回填。
+  **在此之前地圖釘點的顯示標籤沿用關聯行程日的地名**（`getMapPhotos` 撈當天 `location`）——純 EXIF、
+  未關聯行程日的相片沒有標籤（`name` 為空），座標照樣精確釘點。`'itinerary'` 座標退回同樣不需反查：
+  行程日的地點是使用者當初正向搜尋選好的，借座標不需要任何地理查詢。
 
 ---
 

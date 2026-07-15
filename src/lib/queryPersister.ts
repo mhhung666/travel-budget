@@ -17,7 +17,7 @@ import { get, set, del } from 'idb-keyval';
 const IDB_KEY = 'travel-budget-rq-cache';
 
 /** Cache-shape version. Bump to invalidate every client's persisted cache. */
-export const PERSIST_BUSTER = 'v2';
+export const PERSIST_BUSTER = 'v3';
 
 /** 7 days: long enough to cover a trip offline, short enough to self-clean. */
 export const PERSIST_MAX_AGE = 7 * 24 * 60 * 60 * 1000;

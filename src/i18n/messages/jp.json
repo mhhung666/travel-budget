@@ -993,7 +993,7 @@
     "heatBySpend": "支出",
     "modePhotos": "写真",
     "photoTitle": "写真スポット {count} 件",
-    "photoEmpty": "まだ写真がありません。支出のレシートに写真を添付し、その支出を場所付きの旅程日に紐付けると地図に表示されます。",
+    "photoEmpty": "位置情報付きの写真がまだありません。GPS 付きの写真を旅程のアルバムにアップロードするか、アルバムの写真を場所付きの旅程日に紐付けると地図に表示されます。",
     "photoCount": "写真 {count} 枚",
     "modeFlights": "フライト",
     "flightTitle": "{count} 路線",

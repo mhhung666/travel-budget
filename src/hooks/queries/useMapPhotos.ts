@@ -5,8 +5,8 @@ import { getMapPhotos, type MapPhoto } from '@/actions';
 import { tripKeys } from './keys';
 
 /**
- * 地圖相片釘點資料（所有旅程中含圖片附件、且關聯到含座標行程日的支出收據）。
- * 只在切到相片模式時才啟用（含 $lookup 關聯行程日，較重）。
+ * 地圖相片圖層資料（所有旅程中有座標的相簿相片，ROADMAP #21 Phase 3——取代舊的收據衍生模式）。
+ * 只在切到相片模式時才啟用（一次簽發全部相片的穩定 URL，較重）。
  * `year` 為 null 代表全部年份；不同年份各自快取。
  */
 export function useMapPhotos(enabled: boolean, year: number | null) {

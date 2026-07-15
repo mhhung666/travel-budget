@@ -1000,7 +1000,7 @@
     "heatBySpend": "Spend",
     "modePhotos": "Photos",
     "photoTitle": "{count} photo locations",
-    "photoEmpty": "No photos yet. Attach a photo to an expense receipt and link that expense to an itinerary day with a location to pin it on the map.",
+    "photoEmpty": "No located photos yet. Upload photos with GPS to a trip album, or link an album photo to an itinerary day with a location, to pin them on the map.",
     "photoCount": "{count} photos",
     "modeFlights": "Flights",
     "flightTitle": "{count, plural, one {# segment} other {# segments}}",

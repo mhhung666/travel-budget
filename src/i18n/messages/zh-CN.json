@@ -993,7 +993,7 @@
     "heatBySpend": "花费",
     "modePhotos": "照片",
     "photoTitle": "共 {count} 个照片地点",
-    "photoEmpty": "还没有照片。把照片附加到支出收据、并将该支出关联到有地点的行程日，就会钉上地图。",
+    "photoEmpty": "还没有带座标的照片。把含 GPS 的照片上传到行程相册，或将相册照片关联到有地点的行程日，就会钉上地图。",
     "photoCount": "{count} 张照片",
     "modeFlights": "飞行",
     "flightTitle": "{count} 条航段",

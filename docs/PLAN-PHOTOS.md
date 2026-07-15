@@ -1,8 +1,8 @@
 # 旅程相簿與相片地圖（Trip Album）規劃
 
-> 建立日期：2026-07-15 · 狀態：**Phase 1／2 已完成（2026-07-15）**；餘 Phase 3／4。
-> Phase 1／2 實作筆記已入 [FEATURES.md](./FEATURES.md) §17。**全部階段完成後**才依
-> [README.md](./README.md) 慣例刪本檔（草圖查 git 歷史）——Phase 3–4 仍需本檔。
+> 建立日期：2026-07-15 · 狀態：**Phase 1／2／3 已完成（2026-07-15）**；餘 Phase 4。
+> Phase 1–3 實作筆記已入 [FEATURES.md](./FEATURES.md) §17。**全部階段完成後**才依
+> [README.md](./README.md) 慣例刪本檔（草圖查 git 歷史）——Phase 4 仍需本檔。
 >
 > ## 動工後校正（Phase 1／2 實作時發現，與原規劃不符之處）
 >
@@ -379,7 +379,7 @@ photos/<tripId>/<uuid>_t.webp  縮圖（長邊 400，~30KB，grid 用，無 EXIF
 |---|---|---|
 | ~~**1**~~ | ~~`Photo` model＋`'photo'` UploadKind／preset＋**EXIF 讀取（DB）＋JPEG `preserveExif`（檔案）**＋`presignGetStable`＋相簿 grid／lightbox／下載。成員限定、私有。~~ **✅ 完成 2026-07-15**（`place` 反查除外，見檔頭校正 1） | **M** |
 | ~~**2**~~ | ~~關聯行程日（含無 GPS 相片退回當天座標，`source: 'itinerary'`）、說明編輯、批次選取／刪除、行程日頁顯示當天相片。~~ **✅ 完成 2026-07-15**（`place` 仍留 null，見檔頭校正 6） | S |
-| **3** | 地圖整合：相片圖層改讀 `Photo`、EXIF 精確釘點、前端 cluster，**同時刪除收據相片模式**（§7）。**排在 1／2 上線一段時間之後**，否則切換當下地圖相片會是空的。 | M |
+| ~~**3**~~ | ~~地圖整合：相片圖層改讀 `Photo`、EXIF 精確釘點、前端 cluster，**同時刪除收據相片模式**（§7）。~~ **✅ 完成 2026-07-15**（顯示標籤沿用關聯行程日地名，相片自己的反查地名 `place` 待離線批次回填，見檔頭校正 1／§7；分群 bucket 收緊到 ~11m 4dp） | M |
 | **4** | 公開相簿分享（`albumShareCode`＋**消毒副本 `_p.jpg`**＋獨立的無位置公開 DTO）。純相片牌，不含地圖。 | M |
 | **5**（可選） | 相簿封面、打包下載（zip）、Year in Review 整合。 | S |
 

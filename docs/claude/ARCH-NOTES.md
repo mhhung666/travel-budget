@@ -65,7 +65,7 @@
 - 頁面在 `src/app/(app)/map/`（登入版）與 `src/app/(share)/map/`（公開分享版），元件在 [src/components/map/](../../src/components/map/)。
 - **Leaflet 只能 client**：畫布一律 `dynamic(..., { ssr: false })`；[globals.css](../../src/app/globals.css) 的 `.leaflet-container { isolation: isolate; }` 不能拿掉（Leaflet z-index 200–1000 會蓋住 dialog/dropdown）。
 - `User.mapShareCode` 是 trip `hash_code` 的使用者層級對應（opt-in、sparse-unique、同格式驗證）；`/map/share/*` 是公開頁（不在 `proxy.ts` protectedRoutes）。
-- **公開地圖 API 去識別化契約**（[/api/public/map/[code]](../../src/app/api/public/map/%5Bcode%5D/route.ts)）：只露座標、在地化地名、**年份**（年份是刻意例外，供篩選）——絕不露旅程名稱、id、完整日期。熱點彙整到四捨五入座標。照片模式（收據照釘在行程日座標）**恆為登入限定**，靠 per-photo `getReceiptUrl`，永不進公開分享。
+- **公開地圖 API 去識別化契約**（[/api/public/map/[code]](../../src/app/api/public/map/%5Bcode%5D/route.ts)）：只露座標、在地化地名、**年份**（年份是刻意例外，供篩選）——絕不露旅程名稱、id、完整日期。熱點彙整到四捨五入座標。照片模式（相簿相片依 EXIF GPS 精確釘點，退關聯行程日座標，ROADMAP #21 Phase 3 起）**恆為登入限定**，`url`／`thumb_url` 由 `presignGetStable` 批次簽發，永不進公開分享。（舊的收據衍生照片模式已於 Phase 3 退役。）
 - `public/geo/countries.geojson` 是**生成資產**（Natural Earth 110m 裁剪），不手改；要更新從 `nvkelso/natural-earth-vector` 重新生成。
 
 ## 國際化
