@@ -13,6 +13,8 @@ const photoInsertMany = vi.fn();
 const photoDeleteMany = vi.fn();
 const itineraryDayFindOne = vi.fn();
 const userFindById = vi.fn();
+const tripFindById = vi.fn();
+const ensureSanitizedPhotoCopies = vi.fn();
 const headObject = vi.fn();
 const deleteObjects = vi.fn();
 const presignGetStable = vi.fn();
@@ -48,6 +50,15 @@ vi.mock('@/models', () => ({
   User: {
     findById: (...args: unknown[]) => userFindById(...args),
   },
+  Trip: {
+    findById: (...args: unknown[]) => tripFindById(...args),
+  },
+}));
+
+// 相簿分享的消毒副本產生：addTripPhotos 只在 trip 已分享時觸發它。這裡整支 mock 掉，
+// 讓「已分享 → 補產」的行為可獨立斷言，且不牽動未 mock 的 storage 讀寫。
+vi.mock('@/lib/photoSanitize', () => ({
+  ensureSanitizedPhotoCopies: (...args: unknown[]) => ensureSanitizedPhotoCopies(...args),
 }));
 
 import { addTripPhotos, getTripPhotos, updatePhoto, deletePhotos } from '@/actions/photo.actions';
@@ -135,6 +146,9 @@ beforeEach(() => {
   photoCountDocuments.mockResolvedValue(0);
   presignGetStable.mockResolvedValue('https://signed.example/photo');
   userFindById.mockReturnValue(chainSelectLean({ displayName: 'Alice' }));
+  // 預設：相簿未分享（albumShareCode 為 null）→ addTripPhotos 不觸發消毒副本補產。
+  tripFindById.mockReturnValue(chainSelectLean({ albumShareCode: null }));
+  ensureSanitizedPhotoCopies.mockResolvedValue(undefined);
 });
 
 describe('addTripPhotos', () => {
@@ -154,6 +168,22 @@ describe('addTripPhotos', () => {
     expect(photoInsertMany).toHaveBeenCalledTimes(1);
     // 兩張相片各打了一次顯示檔＋一次縮圖的 headObject
     expect(headObject).toHaveBeenCalledTimes(4);
+    // 相簿未分享 → 不補產消毒副本
+    expect(ensureSanitizedPhotoCopies).not.toHaveBeenCalled();
+  });
+
+  it('相簿已分享時，插入後補產消毒副本 _p.jpg', async () => {
+    tripFindById.mockReturnValue(chainSelectLean({ albumShareCode: 'abc123' }));
+    mockHeadObjectHappy();
+    const item = validItem(TRIP_ID);
+    photoInsertMany.mockResolvedValue([
+      { toObject: () => leanPhoto({ key: item.key, thumbKey: item.thumb_key }) },
+    ]);
+
+    const result = await addTripPhotos(TRIP_ID, { items: [item] });
+
+    expect(result.success).toBe(true);
+    expect(ensureSanitizedPhotoCopies).toHaveBeenCalledWith(TRIP_ID);
   });
 
   it('records exif-sourced location and leaves place null (Phase 1 未做反查地名)', async () => {

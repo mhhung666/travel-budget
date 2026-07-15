@@ -388,11 +388,12 @@ UI：登入頁 [/wrapped](../src/app/%5Blocale%5D/wrapped/page.tsx)（年份切�
 ## 17. 旅程相簿（Trip Album，ROADMAP #21）
 
 > Phase 1（相簿本體）／Phase 2（行程日關聯、說明、批次刪除）／Phase 3（地圖整合＋退役收據相片模式）
-> 已完成 2026-07-15。餘 Phase 4（公開分享）見 [PLAN-PHOTOS.md](./PLAN-PHOTOS.md)。
+> ／Phase 4（公開分享）已完成 2026-07-15。餘 Phase 5（可選：封面／打包下載／Year in Review 整合）
+> 見 [PLAN-PHOTOS.md](./PLAN-PHOTOS.md)。
 
 - **定位**：trip-scoped 共享相簿，比照隨手記／清單的**成員信任模型**（任何成員可上傳／編輯／刪除）。
   [Photo](../src/models/Photo.ts) 為旅程下的獨立 collection；`uploadedByName` 為上傳當下快照（讀取免 populate）。
-  **Phase 1 僅成員可見**：無公開分享路由，`usePhotos` 直接呼叫 action、不走 public fallback。
+  成員版 `usePhotos` 直接呼叫 action、不走 public fallback；公開分享（Phase 4）是**另一條獨立路由**（見下）。
 - **EXIF 保存是本功能的核心取捨**（[imageCompress.ts](../src/lib/imageCompress.ts)）：丟掉 EXIF 的**不是壓縮，
   是 canvas 重繪**——canvas 是純像素表面，`toBlob()` 吐出的是全新的乾淨檔案。改用
   `browser-image-compression` 的 `preserveExif`（把原檔的 APP1 segment 原封搬進輸出），
@@ -447,6 +448,17 @@ UI：登入頁 [/wrapped](../src/app/%5Blocale%5D/wrapped/page.tsx)（年份切�
   改綁相簿共用的 `PhotoLightbox`（不再 per-photo `getReceiptUrl`）。座標分群 bucket 從舊的 ~1km 收緊到
   **~11m**（4dp）——EXIF 精度到街廓，~1km 會把整條街的相片誤併成一張；更近的重疊交給 marker cluster
   在前端處理。分群邏輯與不變式由 [mapPhotos.test.ts](../src/__tests__/mapPhotos.test.ts) 守住。
+- **公開分享＝純相片牌，不帶任何位置（Phase 4）**：相簿可 opt-in 公開（`Trip.albumShareCode`，
+  sparse-unique、`hash_code` 同格式；[albumShare.actions.ts](../src/actions/albumShare.actions.ts) 產生／
+  重新產生／撤銷，trip-scoped 先驗成員）。公開頁 `/album/share/[code]`（不在 `proxy.ts` protectedRoutes）
+  只顯示**相片＋說明＋日期＋旅程名**，**沒有地圖／地名／座標／EXIF／上傳者**。位置有兩條獨立外洩路徑，
+  由兩個獨立機制同時切斷：① **檔案裡的 EXIF GPS** → 公開路由只簽剝除 APP1 的消毒副本 `_p.jpg`
+  （[jpegSanitize.ts](../src/lib/jpegSanitize.ts) `stripJpegApp1`，Vitest 以 exifr 反向驗證剝完讀不到 GPS），
+  **絕不簽**自帶 GPS 的顯示檔 `.jpg`；② **頁面上的座標** → `PublicAlbumPhoto`／`toPublicAlbumPhotoDto`
+  是**獨立型別**（非成員 DTO 加 omit），型別上根本沒有 `location`／`place`／`exif`。消毒副本由
+  [photoSanitize.ts](../src/lib/photoSanitize.ts) `ensureSanitizedPhotoCopies` **idempotent** 產生
+  （開分享時預熱、分享中新上傳補產、公開路由 self-heal；穩態＝一次 `listKeys`、零產生）。
+  收據永不進相簿分享（只簽 `photos/` 前綴、逐顆 `isPhotoKeyForTrip` 覆核）。
 - **未做（刻意）**：`place`（相片自己的反查地名）目前仍一律 `null`——repo 沒有 reverse geocode 能力
   （`ItineraryDay.location` 是前端 Nominatim **正向**搜尋選好後整包送上來的，server 從不做地理查詢），
   且 Nominatim 限 1 req/sec，塞進上傳會讓「一次挑 20 張」變成 20 秒的 action。schema 形狀先留好

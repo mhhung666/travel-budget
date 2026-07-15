@@ -853,7 +853,24 @@
     "selectPhoto": "Select photo",
     "selectedCount": "{count, plural, =0 {None selected} other {# selected}}",
     "deleteSelectedConfirmTitle": "{count, plural, one {Delete this photo?} other {Delete these # photos?}}",
-    "dayPhotos": "{count, plural, one {# photo} other {# photos}}"
+    "dayPhotos": "{count, plural, one {# photo} other {# photos}}",
+    "share": {
+      "button": "Share album",
+      "title": "Share this album",
+      "description": "Anyone with the link can view the photos, captions and dates. Location, map and camera info are never shown.",
+      "generate": "Generate link",
+      "regenerate": "Regenerate link",
+      "revoke": "Disable sharing",
+      "enabledHint": "Sharing is on. Anyone with this link can view the photos — no location is included.",
+      "disabledHint": "Sharing is off. Generate a link to share this album publicly."
+    }
+  },
+  "publicAlbum": {
+    "title": "Trip album",
+    "notFound": "This album isn't available.",
+    "empty": "No photos in this album yet.",
+    "photoCount": "{count, plural, =0 {No photos} other {# photos}}",
+    "photoAlt": "Trip photo"
   },
   "itinerary": {
     "title": "Trip Itinerary",

@@ -6,6 +6,7 @@ import {
   DeleteObjectsCommand,
   ListObjectsV2Command,
 } from '@aws-sdk/client-s3';
+import type { Readable } from 'stream';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { getR2Config } from './env';
 
@@ -150,6 +151,58 @@ export async function deleteByPrefix(bucket: R2Bucket, prefix: string): Promise<
     await deleteObjects(bucket, keys);
     token = listed.IsTruncated ? listed.NextContinuationToken : undefined;
   } while (token);
+}
+
+/** 列出某 prefix 下所有物件 key（自動分頁）。相簿消毒副本盤點用（見 photoSanitize.ts）。 */
+export async function listKeys(bucket: R2Bucket, prefix: string): Promise<string[]> {
+  const keys: string[] = [];
+  let token: string | undefined;
+  do {
+    const listed = await r2().send(
+      new ListObjectsV2Command({
+        Bucket: bucketName(bucket),
+        Prefix: prefix,
+        ContinuationToken: token,
+      })
+    );
+    for (const o of listed.Contents ?? []) if (o.Key) keys.push(o.Key);
+    token = listed.IsTruncated ? listed.NextContinuationToken : undefined;
+  } while (token);
+  return keys;
+}
+
+/** 讀取一顆物件的完整 bytes（server 端要處理內容時用，例如相簿消毒剝 EXIF）。物件不存在回 null。 */
+export async function getObjectBuffer(bucket: R2Bucket, key: string): Promise<Buffer | null> {
+  try {
+    const res = await r2().send(new GetObjectCommand({ Bucket: bucketName(bucket), Key: key }));
+    if (!res.Body) return null;
+    // @aws-sdk/client-s3 在 Node 端的 Body 是 Readable stream。
+    const stream = res.Body as Readable;
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream) {
+      chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : Buffer.from(chunk));
+    }
+    return Buffer.concat(chunks);
+  } catch {
+    return null;
+  }
+}
+
+/** 由 server 直接寫入一顆物件（非 presigned PUT）。相簿消毒副本 `_p.jpg` 用。 */
+export async function putObjectBytes(
+  bucket: R2Bucket,
+  key: string,
+  contentType: string,
+  body: Buffer
+): Promise<void> {
+  await r2().send(
+    new PutObjectCommand({
+      Bucket: bucketName(bucket),
+      Key: key,
+      Body: body,
+      ContentType: contentType,
+    })
+  );
 }
 
 /** 頭像物件的公開 URL（avatars bucket 為公開讀）。 */

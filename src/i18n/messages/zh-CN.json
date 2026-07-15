@@ -846,7 +846,24 @@
     "selectPhoto": "选择照片",
     "selectedCount": "已选 {count} 张",
     "deleteSelectedConfirmTitle": "确定删除这 {count} 张照片？",
-    "dayPhotos": "当天照片（{count}）"
+    "dayPhotos": "当天照片（{count}）",
+    "share": {
+      "button": "分享相册",
+      "title": "分享这本相册",
+      "description": "任何有链接的人都能看到照片、说明与日期。不会显示地点、地图或相机信息。",
+      "generate": "生成链接",
+      "regenerate": "重新生成链接",
+      "revoke": "关闭分享",
+      "enabledHint": "分享已开启。任何有此链接的人都能浏览照片——不含任何位置信息。",
+      "disabledHint": "分享已关闭。生成链接即可公开分享这本相册。"
+    }
+  },
+  "publicAlbum": {
+    "title": "旅程相册",
+    "notFound": "这本相册无法浏览。",
+    "empty": "这本相册还没有照片。",
+    "photoCount": "{count, plural, other {# 张照片}}",
+    "photoAlt": "旅程照片"
   },
   "itinerary": {
     "title": "旅程规划",

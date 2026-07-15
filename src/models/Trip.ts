@@ -76,6 +76,10 @@ const TripSchema = new Schema(
     departureLocation: { type: Schema.Types.Mixed },
     destinationLocation: { type: Schema.Types.Mixed },
     hashCode: { type: String, required: true, unique: true },
+    // 相簿公開分享碼（opt-in，sparse-unique，hash_code 同格式）。非 null 代表相簿已公開分享，
+    // 公開頁 /album/share/<code> 只揭露相片＋說明＋日期＋旅程名，不含位置（PLAN-PHOTOS Phase 4 §8）。
+    // 重新產生會換碼、使舊連結立即失效；null／未設代表未分享。
+    albumShareCode: { type: String },
     members: { type: [TripMemberSchema], default: [] },
     // 旅程預算；null 代表未設定（舊資料無此欄位即視為未設定）。
     budget: { type: BudgetSchema, default: null },
@@ -89,6 +93,8 @@ const TripSchema = new Schema(
 
 // 支援「某使用者參與了哪些旅程」的查詢（multikey index）
 TripSchema.index({ 'members.user': 1 });
+// 相簿公開分享碼反查（sparse：只有已分享的旅程才進索引；unique：一碼對一旅程）。
+TripSchema.index({ albumShareCode: 1 }, { unique: true, sparse: true });
 
 export type TripDoc = InferSchemaType<typeof TripSchema>;
 export type TripMember = InferSchemaType<typeof TripMemberSchema>;

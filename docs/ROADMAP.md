@@ -22,27 +22,6 @@
 Phase 3（可選）＝積分區間預估；更遠期＝飯店會籍（夜數制）。
 **完整規劃見 [PLAN-LOYALTY.md](./PLAN-LOYALTY.md)；Phase 1 實作筆記見 [FEATURES.md](./FEATURES.md) §16。**
 
-### 21. 💎 旅程相簿與相片地圖 (Trip album) — 餘 Phase 4〔Phase 1 相簿本體、Phase 2 行程日關聯、Phase 3 地圖整合已完成 2026-07-15〕
-**為什麼**：目前的「相片」只是收據的副產品——`getMapPhotos` 拿收據附件、座標**借自行程日**，
-一整天的相片全疊在同一顆點上。相簿讓相片變成旅程的第一級內容，並用相片自己的 EXIF GPS
-把旅遊地圖從「去過哪些城市」升級成「這張是在這個街角拍的」。
-**收據釘地圖是被本功能取代的對象**：Phase 3 直接退役，不留聯集、不做資料遷移（既有收據圖的
-EXIF 在當初上傳壓縮時就已永久消失，倒進相簿只會塞滿沒有 GPS 的憑證照）。
-**核心難點**：丟掉 EXIF 的不是「壓縮」而是 **canvas 重繪**（現行 pipeline 輸出 WebP）→
-改用已安裝的 `browser-image-compression` 的 **`preserveExif`（僅 JPEG→JPEG 有效）輸出 JPEG**，
-壓縮檔即自帶 GPS（另抽一份進 DB 供地圖／排序查詢），不需保留原檔。
-另有簽名 URL 打爆 SW 快取、以及**公開分享絕不可直接給帶 EXIF 的 JPEG**（需剝除 APP1 的消毒副本）兩個坑。
-公開版是純相片牌、不帶位置（故不需座標模糊化），地圖與位置為成員限定。
-**待做**：Phase 4＝公開相簿分享＋消毒副本 `_p.jpg`（M）。
-**Phase 1 已落地**：`Photo` model、`'photo'` UploadKind／preset、EXIF 讀取（DB）＋JPEG `preserveExif`（檔案）、
-`presignGetStable`、相簿 grid／lightbox／下載。成員限定、私有。
-**Phase 2 已落地**：行程日關聯（無 GPS 的相片借當天座標，`source: 'itinerary'`）、說明編輯、
-批次選取刪除（`deletePhotos`）、行程日卡片顯示當天相片。
-**Phase 3 已落地**：地圖相片圖層改讀 `Photo`（EXIF 精確釘點、~11m 分群＋前端 cluster）、
-`presignGetStable` 批次簽發、釘點對話框改綁相簿 `PhotoLightbox`，**收據衍生相片模式已退役**
-（顯示標籤暫沿用關聯行程日地名，相片自己的反查地名 `place` 待離線批次回填）。
-**完整規劃見 [PLAN-PHOTOS.md](./PLAN-PHOTOS.md)；Phase 1–3 實作筆記見 [FEATURES.md](./FEATURES.md) §17。**
-
 ### 14. 🔹 PDF 行程 / 結算報告 (PDF reports) — M
 **為什麼**：目前只有 CSV。一份漂亮的「旅程結算單 / 行程手冊」PDF 很適合分享與報帳。
 **做法**：既有 [src/lib/exporters/](../src/lib/exporters/) 已抽象化，新增 PDF exporter（`@react-pdf/renderer` 或伺服端 puppeteer）。
@@ -53,6 +32,7 @@ EXIF 在當初上傳壓縮時就已永久消失，倒進相簿只會塞滿沒有
 - **#5 離線**：擴大範圍到離線編輯 / 刪除、結算 / 統計離線重算。
 - **#7 清單**：清單範本複用。
 - **#15 回顧**：topCountry / 最愛目的地（需國碼→在地化國名查表）、公開圖卡下載、逐 story 翻頁動畫。
+- **#21 相簿（Phase 1–4 已完成 2026-07-15，見 [FEATURES.md](./FEATURES.md) §17）**：可選 Phase 5＝相簿封面、打包下載（zip）、Year in Review 整合（S，見 [PLAN-PHOTOS.md](./PLAN-PHOTOS.md)）。
 - **隨手記（FEATURES §14）**：內文 `#標籤` 自動識別＋列表 filter chips（免 schema、從 text 解析）；筆記搜尋（前端過濾即可，資料已全量在快取）；「記一筆」快速連結（首行帶入記帳表單品項欄，很多速記本來就是「XX 大概 ¥3000」）；卡片選單「複製內容」（已是 Markdown，貼哪都好看）。
 
 > 基礎設施類待辦（Public API 限流、actions 測試覆蓋、支出伺服端分頁）見 [IMPROVEMENTS.md](./IMPROVEMENTS.md)。
@@ -68,8 +48,8 @@ EXIF 在當初上傳壓縮時就已永久消失，倒進相簿只會塞滿沒有
   └── 11b OAuth 登入
 
 大（L，分階段）
-  └── 21 旅程相簿與相片地圖（Phase 1–3 已完成、餘 Phase 4 → PLAN-PHOTOS.md）
-        ~~Phase 1 相簿本體~~ → ~~2 行程日關聯~~ → 3 地圖整合（M）→ 4 公開分享（M）
+  └── 21 旅程相簿與相片地圖（Phase 1–4 全部完成 2026-07-15 → 進階深化的可選 Phase 5）
+        ~~1 相簿本體~~ → ~~2 行程日關聯~~ → ~~3 地圖整合~~ → ~~4 公開分享~~
 ```
 
 **新功能慣例**：DB 存取走 Mongoose + `dbConnect()`，業務邏輯走 server actions 回傳 `ActionResult<T>`，新使用者字串**四語系都要補**，新識別碼沿用 `hashCode` 格式（見 [hashcode.ts](../src/lib/hashcode.ts)）。實作前各項仍需獨立設計（schema 遷移、i18n、測試），再逐項開票動工。

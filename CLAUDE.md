@@ -39,9 +39,12 @@ npx tsc --noEmit                                   # type check (no pnpm script 
 - NEVER return receipt attachments on public routes (`toExpenseDto(..., { attachments: false })`);
   receipts live in the private bucket only, avatars in the public one.
 - Album photos (`photos/<tripId>/`): the display `<uuid>.jpg` **carries live GPS EXIF by design**
-  ([FEATURES.md](docs/FEATURES.md) §17). Any public/unauthenticated album route may sign only the
-  sanitized `<uuid>_p.jpg` (APP1 stripped) and `<uuid>_t.webp` — **never** the `.jpg`; and its DTO
-  must never carry `location`/`place`/`exif`. Members-only today (no public route yet) — keep it that way until Phase 4.
+  ([FEATURES.md](docs/FEATURES.md) §17). The public album route (`/api/public/album/[code]`, keyed by
+  `Trip.albumShareCode`) may sign only the sanitized `<uuid>_p.jpg` (APP1 stripped by
+  [jpegSanitize.ts](src/lib/jpegSanitize.ts), produced by [photoSanitize.ts](src/lib/photoSanitize.ts))
+  and `<uuid>_t.webp` — **never** the `.jpg`; and `PublicAlbumPhoto`/`toPublicAlbumPhotoDto` must never
+  carry `location`/`place`/`exif`/`key`/uploader/`trip_id` (it's an independent DTO type, not the member
+  DTO with `omit`). Public album page = pure photo board (photos + caption + date + trip name, no map/place).
 - `MONGODB_URI` never gets `NEXT_PUBLIC_`; the only `NEXT_PUBLIC_` env is the VAPID public key.
 
 **Build & PWA**

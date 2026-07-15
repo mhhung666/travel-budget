@@ -22,6 +22,8 @@ export const ROUTES = {
   WRAPPED_SHARE: (code: string, year: string | number) => `/wrapped/share/${code}/${year}`,
   // 成就徽章公開分享卡（去識別化：只露徽章與彙總數量，不需登入）
   COLLECTIONS_SHARE: (code: string) => `/collections/share/${code}`,
+  // 旅程相簿公開分享頁（純相片牌：相片＋說明＋日期＋旅程名，無位置，不需登入）
+  ALBUM_SHARE: (code: string) => `/album/share/${code}`,
   // 行程空間落點＝行程分頁（分頁列第一個）；支出移到 /expenses 子路由
   TRIP_DETAIL: (id: string | number) => `/trips/${id}`,
   TRIP_EXPENSES: (id: string | number) => `/trips/${id}/expenses`,
@@ -70,6 +72,8 @@ export const ROUTES = {
     PUBLIC_WRAPPED: (code: string, year: string | number) => `/api/public/wrapped/${code}/${year}`,
     // 公開（不需登入）成就徽章分享資料（去識別化、僅彙總數量）
     PUBLIC_COLLECTIONS: (code: string) => `/api/public/collections/${code}`,
+    // 公開（不需登入）相簿分享資料（純相片牌：相片＋說明＋日期＋旅程名，無位置）
+    PUBLIC_ALBUM: (code: string) => `/api/public/album/${code}`,
   },
 } as const;
 

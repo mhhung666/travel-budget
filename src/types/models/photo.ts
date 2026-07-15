@@ -60,3 +60,21 @@ export interface TripPhoto {
   created_at: string;
   updated_at: string;
 }
+
+/**
+ * 公開相簿分享（Phase 4 §8）的一張相片。**刻意是獨立型別，不是 `TripPhoto` 加 omit**——
+ * 漏一個欄位就是隱私事故，用型別讓它從根本不可能：這裡**沒有** `location`／`place`／`exif`／
+ * `key`／上傳者／`trip_id`，只有相片、說明、日期。
+ *
+ * `url` 指向剝除 APP1 的消毒副本 `_p.jpg`（無 EXIF、無 GPS），`thumb_url` 指向縮圖
+ * `_t.webp`（canvas 產生、天生無 EXIF）——公開路由**絕不簽**自帶 GPS 的顯示檔 `.jpg`。
+ */
+export interface PublicAlbumPhoto {
+  id: string;
+  url: string;
+  thumb_url: string;
+  width: number;
+  height: number;
+  taken_at: string | null;
+  caption: string;
+}

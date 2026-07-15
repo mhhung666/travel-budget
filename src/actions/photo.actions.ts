@@ -1,8 +1,9 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { ItineraryDay, Photo, User } from '@/models';
+import { ItineraryDay, Photo, Trip, User } from '@/models';
 import { getTripMembership } from '@/lib/permissions';
+import { ensureSanitizedPhotoCopies } from '@/lib/photoSanitize';
 import {
   addPhotosSchema,
   updatePhotoSchema,
@@ -192,6 +193,17 @@ export const addTripPhotos = withAuth(
       }));
 
       const created = await Photo.insertMany(docs);
+
+      // 若相簿已公開分享，補產這批新相片的消毒副本 `_p.jpg`，讓公開頁立刻能顯示它們
+      // （否則要等下一位訪客觸發 self-heal）。best-effort：失敗只 log，不擋上傳成功。
+      const trip = await Trip.findById(membership.tripId)
+        .select('albumShareCode')
+        .lean<{ albumShareCode?: string | null }>();
+      if (trip?.albumShareCode) {
+        await ensureSanitizedPhotoCopies(membership.tripId).catch((e) =>
+          logger.error('Add photos: sanitize top-up failed', e)
+        );
+      }
 
       const dtos = await Promise.all(
         created.map(async (doc) => {

@@ -846,7 +846,24 @@
     "selectPhoto": "選取相片",
     "selectedCount": "已選 {count} 張",
     "deleteSelectedConfirmTitle": "確定刪除這 {count} 張相片？",
-    "dayPhotos": "當天相片（{count}）"
+    "dayPhotos": "當天相片（{count}）",
+    "share": {
+      "button": "分享相簿",
+      "title": "分享這本相簿",
+      "description": "任何有連結的人都能看到相片、說明與日期。不會顯示地點、地圖或相機資訊。",
+      "generate": "產生連結",
+      "regenerate": "重新產生連結",
+      "revoke": "關閉分享",
+      "enabledHint": "分享已開啟。任何有此連結的人都能瀏覽相片——不含任何位置資訊。",
+      "disabledHint": "分享已關閉。產生連結即可公開分享這本相簿。"
+    }
+  },
+  "publicAlbum": {
+    "title": "旅程相簿",
+    "notFound": "這本相簿無法瀏覽。",
+    "empty": "這本相簿還沒有相片。",
+    "photoCount": "{count, plural, other {# 張相片}}",
+    "photoAlt": "旅程相片"
   },
   "itinerary": {
     "title": "旅程規劃",

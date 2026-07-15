@@ -12,7 +12,12 @@ import { useToast } from '@/hooks/use-toast';
 import { ItinerarySkeleton } from '@/components/skeletons';
 import { ConfirmDialog, EmptyState, ErrorState } from '@/components/common';
 import { Button } from '@/components/ui/button';
-import { PhotoGrid, PhotoLightbox, PhotoUploadButton } from '@/components/trips/detail/album';
+import {
+  AlbumShareDialog,
+  PhotoGrid,
+  PhotoLightbox,
+  PhotoUploadButton,
+} from '@/components/trips/detail/album';
 
 /**
  * 旅程相簿分頁：grid 瀏覽 + lightbox 放大／下載／刪除／編輯說明／關聯行程日 + 上傳
@@ -135,6 +140,7 @@ export default function AlbumPage() {
             </>
           ) : (
             <>
+              <AlbumShareDialog tripId={tripId} />
               {photos.length > 0 && (
                 <Button variant="outline" size="sm" onClick={() => setSelectionMode(true)}>
                   {t('select')}

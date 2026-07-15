@@ -36,7 +36,7 @@
 - **收據隱私契約**：`toExpenseDto` 的 `{ attachments }` 選項，public expenses route 傳 `false`——收據永不出現在未登入分享頁。
 - `R2_*` env 全部 optional（[src/lib/env.ts](../../src/lib/env.ts)）；`getR2Config()` 惰性斷言，無 R2 也能 build/CI。
 - **無儲存級聯**：刪 expense/trip/換頭像時刪 blob 都是 **best-effort**（失敗只 log，不讓使用者操作失敗）。新增會丟參照的路徑要沿用此模式。
-- **相簿相片**（`photos/<tripId>/`，同私有 `receipts` bucket，ROADMAP #21 Phase 1）：每張兩顆物件、**共用一個 uuid**（`<uuid>.jpg` 顯示＋下載／`<uuid>_t.webp` 縮圖），故簽名一次簽兩張（`createPhotoUploadUrls`）——分兩次呼叫會讓 `_t`／`_p` 無法從 key 推導。**顯示檔刻意自帶 GPS EXIF**（見 [FEATURES.md](../FEATURES.md) §17），故公開路由絕不可簽它，只可簽消毒副本 `_p.jpg`（Phase 4 才產生，key 規則已定死）。
+- **相簿相片**（`photos/<tripId>/`，同私有 `receipts` bucket，ROADMAP #21 Phase 1）：每張兩顆物件、**共用一個 uuid**（`<uuid>.jpg` 顯示＋下載／`<uuid>_t.webp` 縮圖），故簽名一次簽兩張（`createPhotoUploadUrls`）——分兩次呼叫會讓 `_t`／`_p` 無法從 key 推導。**顯示檔刻意自帶 GPS EXIF**（見 [FEATURES.md](../FEATURES.md) §17），故公開路由絕不可簽它，只可簽消毒副本 `_p.jpg`（Phase 4 起由 [photoSanitize.ts](../../src/lib/photoSanitize.ts) `ensureSanitizedPhotoCopies` idempotent 產生，key 規則已定死）。
 - **相簿讀取用 `presignGetStable` 而非 `presignGet`**：簽名時間戳對齊整點窗口，窗口內同 key 產生逐字元相同的 URL，否則 SW 的 CacheFirst（快取 key＝完整 URL）永遠 miss 且無限膨脹。**收據維持 `presignGet` 的 300s 短效，不要順手改**。
 
 ## 離線 PWA（Serwist + TanStack Query 持久化）
@@ -65,7 +65,8 @@
 - 頁面在 `src/app/(app)/map/`（登入版）與 `src/app/(share)/map/`（公開分享版），元件在 [src/components/map/](../../src/components/map/)。
 - **Leaflet 只能 client**：畫布一律 `dynamic(..., { ssr: false })`；[globals.css](../../src/app/globals.css) 的 `.leaflet-container { isolation: isolate; }` 不能拿掉（Leaflet z-index 200–1000 會蓋住 dialog/dropdown）。
 - `User.mapShareCode` 是 trip `hash_code` 的使用者層級對應（opt-in、sparse-unique、同格式驗證）；`/map/share/*` 是公開頁（不在 `proxy.ts` protectedRoutes）。
-- **公開地圖 API 去識別化契約**（[/api/public/map/[code]](../../src/app/api/public/map/%5Bcode%5D/route.ts)）：只露座標、在地化地名、**年份**（年份是刻意例外，供篩選）——絕不露旅程名稱、id、完整日期。熱點彙整到四捨五入座標。照片模式（相簿相片依 EXIF GPS 精確釘點，退關聯行程日座標，ROADMAP #21 Phase 3 起）**恆為登入限定**，`url`／`thumb_url` 由 `presignGetStable` 批次簽發，永不進公開分享。（舊的收據衍生照片模式已於 Phase 3 退役。）
+- **公開地圖 API 去識別化契約**（[/api/public/map/[code]](../../src/app/api/public/map/%5Bcode%5D/route.ts)）：只露座標、在地化地名、**年份**（年份是刻意例外，供篩選）——絕不露旅程名稱、id、完整日期。熱點彙整到四捨五入座標。地圖上的**照片圖層**（相簿相片依 EXIF GPS 精確釘點，退關聯行程日座標，ROADMAP #21 Phase 3 起）**恆為登入限定**，`url`／`thumb_url` 由 `presignGetStable` 批次簽發，永不進公開分享。（舊的收據衍生照片模式已於 Phase 3 退役。）
+- **相簿公開分享是另一條路由、另一套契約**（ROADMAP #21 Phase 4）：`Trip.albumShareCode`（opt-in、sparse-unique、同 `hash_code` 格式），公開頁 `/album/share/[code]` + API [/api/public/album/[code]](../../src/app/api/public/album/%5Bcode%5D/route.ts)。**純相片牌**：相片＋說明＋日期＋旅程名，**不含位置**——公開路由只簽剝除 APP1 的消毒副本 `_p.jpg`（[jpegSanitize.ts](../../src/lib/jpegSanitize.ts) / [photoSanitize.ts](../../src/lib/photoSanitize.ts)）與縮圖 `_t.webp`，**絕不簽自帶 GPS 的 `.jpg`**；DTO `PublicAlbumPhoto` 是**獨立型別**（非成員 DTO 加 omit），不含 `location`／`place`／`exif`。**不要把相片餵進地圖 API**，兩條路由的契約各自獨立。
 - `public/geo/countries.geojson` 是**生成資產**（Natural Earth 110m 裁剪），不手改；要更新從 `nvkelso/natural-earth-vector` 重新生成。
 
 ## 國際化

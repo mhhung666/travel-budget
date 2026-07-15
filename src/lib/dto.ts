@@ -13,6 +13,7 @@ import type {
   CommentDto,
   TripNote,
   TripPhoto,
+  PublicAlbumPhoto,
   PhotoExif,
   PhotoLocationSource,
 } from '@/types';
@@ -523,5 +524,38 @@ export function toTripPhotoDto(
     uploaded_by_name: p.uploadedByName ?? '',
     created_at: p.createdAt.toISOString(),
     updated_at: p.updatedAt.toISOString(),
+  };
+}
+
+/** `toPublicAlbumPhotoDto` 需要的最小 lean Photo 形狀。 */
+export type PublicAlbumPhotoDtoInput = {
+  _id: { toString(): string };
+  width?: number | null;
+  height?: number | null;
+  takenAt?: Date | null;
+  caption?: string | null;
+};
+
+/**
+ * Lean Photo doc → **公開分享** DTO（Phase 4 §8）。與 `toTripPhotoDto` 是**兩支獨立函式、
+ * 各自對應獨立型別**（不是加 omit）：這裡不接受、也不回傳 `location`／`place`／`exif`／`key`／
+ * 上傳者／`trip_id`——輸入形狀就沒有它們，隱私欄位不可能不慎流出。
+ *
+ * `urls` 由呼叫端（公開路由）用 `presignGetStable` 簽好：`url` 必須簽消毒副本 `_p.jpg`、
+ * `thumb_url` 簽縮圖 `_t.webp`，**絕不簽**自帶 GPS 的顯示檔 `.jpg`。DTO 這層不碰 key，
+ * 簽哪顆是呼叫端的契約（見 public/album/[code]/route.ts）。
+ */
+export function toPublicAlbumPhotoDto(
+  p: PublicAlbumPhotoDtoInput,
+  urls: { url: string; thumbUrl: string }
+): PublicAlbumPhoto {
+  return {
+    id: p._id.toString(),
+    url: urls.url,
+    thumb_url: urls.thumbUrl,
+    width: p.width ?? 0,
+    height: p.height ?? 0,
+    taken_at: p.takenAt ? p.takenAt.toISOString() : null,
+    caption: p.caption ?? '',
   };
 }

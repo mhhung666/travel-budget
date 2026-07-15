@@ -64,6 +64,7 @@ export type {
   CommentDto,
   TripNote,
   TripPhoto,
+  PublicAlbumPhoto,
   PhotoLocation,
   PhotoPlace,
   PhotoExif,

@@ -1,8 +1,8 @@
 # 旅程相簿與相片地圖（Trip Album）規劃
 
-> 建立日期：2026-07-15 · 狀態：**Phase 1／2／3 已完成（2026-07-15）**；餘 Phase 4。
-> Phase 1–3 實作筆記已入 [FEATURES.md](./FEATURES.md) §17。**全部階段完成後**才依
-> [README.md](./README.md) 慣例刪本檔（草圖查 git 歷史）——Phase 4 仍需本檔。
+> 建立日期：2026-07-15 · 狀態：**Phase 1／2／3／4 已完成（2026-07-15）**；餘 Phase 5（可選）。
+> Phase 1–4 實作筆記已入 [FEATURES.md](./FEATURES.md) §17。**全部（必做）階段完成後**才依
+> [README.md](./README.md) 慣例刪本檔（草圖查 git 歷史）——Phase 5 為可選加分項，本檔可保留至其定案。
 >
 > ## 動工後校正（Phase 1／2 實作時發現，與原規劃不符之處）
 >
@@ -37,6 +37,17 @@
 >    **借**的，必須跟著來源走——所以 `deleteItineraryDay`／`updateItineraryDay` 都得回頭清／
 >    改 `Photo`（無 FK cascade）。Phase 3 的地圖若看到 `'itinerary'` 座標，可以信任它指向的行程日
 >    還活著且地點沒變。**新增任何會動到 `ItineraryDay.location` 或刪除行程日的路徑時，這條要一起維護。**
+> 8. **Phase 4 實作時的三處決策（與 §7／§8 一致，但值得記下）**：
+>    - **公開頁顯示旅程名稱**（與使用者確認）：§8 明列公開 DTO 給「相片／說明／日期」，未列旅程名；
+>      opt-in 主動分享符合共享相簿慣例，故公開 API 額外回 `trip_name`（只有旅程**名**，仍不露 id／
+>      成員／日期範圍）。`PublicAlbumPhoto` 本身維持 §8 契約，不含 location／place／exif。
+>    - **消毒副本 `_p.jpg` 採 idempotent 三處補產**（[photoSanitize.ts](../src/lib/photoSanitize.ts)
+>      `ensureSanitizedPhotoCopies`）：開分享時預熱、分享中新上傳補產、公開路由 self-heal。穩態＝
+>      一次 `listKeys`、零產生。§8 只說「Phase 4 才產生」沒定何時，這是實作補上的答案——避免第一位
+>      訪客觸發整本相簿的即時剝除。
+>    - **APP1 剝除在 server 端做**（[jpegSanitize.ts](../src/lib/jpegSanitize.ts) `stripJpegApp1`），
+>      不是 §8 想的「`getApp1Segment` 的前端反操作」：顯示檔已在 R2，server GET 回來剝再 PUT `_p.jpg`
+>      最直接，也讓消毒邏輯有 Vitest 反向驗證（exifr 讀不到 GPS）。
 
 ## 1. 背景與定位
 
@@ -380,7 +391,7 @@ photos/<tripId>/<uuid>_t.webp  縮圖（長邊 400，~30KB，grid 用，無 EXIF
 | ~~**1**~~ | ~~`Photo` model＋`'photo'` UploadKind／preset＋**EXIF 讀取（DB）＋JPEG `preserveExif`（檔案）**＋`presignGetStable`＋相簿 grid／lightbox／下載。成員限定、私有。~~ **✅ 完成 2026-07-15**（`place` 反查除外，見檔頭校正 1） | **M** |
 | ~~**2**~~ | ~~關聯行程日（含無 GPS 相片退回當天座標，`source: 'itinerary'`）、說明編輯、批次選取／刪除、行程日頁顯示當天相片。~~ **✅ 完成 2026-07-15**（`place` 仍留 null，見檔頭校正 6） | S |
 | ~~**3**~~ | ~~地圖整合：相片圖層改讀 `Photo`、EXIF 精確釘點、前端 cluster，**同時刪除收據相片模式**（§7）。~~ **✅ 完成 2026-07-15**（顯示標籤沿用關聯行程日地名，相片自己的反查地名 `place` 待離線批次回填，見檔頭校正 1／§7；分群 bucket 收緊到 ~11m 4dp） | M |
-| **4** | 公開相簿分享（`albumShareCode`＋**消毒副本 `_p.jpg`**＋獨立的無位置公開 DTO）。純相片牌，不含地圖。 | M |
+| ~~**4**~~ | ~~公開相簿分享（`albumShareCode`＋**消毒副本 `_p.jpg`**＋獨立的無位置公開 DTO）。純相片牌，不含地圖。~~ **✅ 完成 2026-07-15**（見檔頭校正 8：公開頁**顯示旅程名稱**、消毒副本採 idempotent 三處補產） | M |
 | **5**（可選） | 相簿封面、打包下載（zip）、Year in Review 整合。 | S |
 
 **Phase 1 就要定案、否則之後要 migration 回填的**：`location.source`、`exif` 子文件形狀、

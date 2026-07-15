@@ -846,7 +846,24 @@
     "selectPhoto": "写真を選択",
     "selectedCount": "{count} 枚を選択中",
     "deleteSelectedConfirmTitle": "この {count} 枚の写真を削除しますか？",
-    "dayPhotos": "この日の写真（{count}）"
+    "dayPhotos": "この日の写真（{count}）",
+    "share": {
+      "button": "アルバムを共有",
+      "title": "このアルバムを共有",
+      "description": "リンクを知っている人は写真・説明・日付を閲覧できます。位置情報・地図・カメラ情報は表示されません。",
+      "generate": "リンクを生成",
+      "regenerate": "リンクを再生成",
+      "revoke": "共有を停止",
+      "enabledHint": "共有はオンです。リンクを知っている人は写真を閲覧できます（位置情報は含まれません）。",
+      "disabledHint": "共有はオフです。リンクを生成してアルバムを公開できます。"
+    }
+  },
+  "publicAlbum": {
+    "title": "旅のアルバム",
+    "notFound": "このアルバムは表示できません。",
+    "empty": "このアルバムにはまだ写真がありません。",
+    "photoCount": "{count, plural, other {# 枚の写真}}",
+    "photoAlt": "旅の写真"
   },
   "itinerary": {
     "title": "旅程プラン",

@@ -109,6 +109,14 @@ export {
 // Photo actions（旅程相簿，ROADMAP #21）
 export { getTripPhotos, addTripPhotos, updatePhoto, deletePhotos } from './photo.actions';
 
+// Album share actions（相簿公開分享，PLAN-PHOTOS Phase 4）
+export {
+  getAlbumShareStatus,
+  enableAlbumShare,
+  disableAlbumShare,
+  type AlbumShareStatus,
+} from './albumShare.actions';
+
 // Stats actions
 export { getStats, getTripStats } from './stats.actions';
 
