@@ -55,8 +55,11 @@ function toAbsoluteUrl(appUrl: string | null, path: string): string {
 function linkPathFor(type: NotificationType, linkId: string): string {
   // 好友通知不屬於旅程，導向設定頁的好友卡片。
   if (type === 'friend_request' || type === 'friend_accepted') return ROUTES.SETTINGS_FRIENDS;
-  // 還款相關導向結算頁，其餘導向旅程詳情頁（比照站內通知鈴鐺的導向）。
-  return type === 'payment_recorded' ? ROUTES.TRIP_SETTLEMENT(linkId) : ROUTES.TRIP_DETAIL(linkId);
+  // 還款導向結算頁、支出導向支出分頁，其餘導向旅程落點（比照站內通知鈴鐺的導向）。
+  if (type === 'payment_recorded') return ROUTES.TRIP_SETTLEMENT(linkId);
+  if (type === 'expense_added' || type === 'expense_comment_added')
+    return ROUTES.TRIP_EXPENSES(linkId);
+  return ROUTES.TRIP_DETAIL(linkId);
 }
 
 /** 極簡 HTML escape（模板只插入少量使用者字串）。 */
@@ -319,7 +322,7 @@ export async function buildExpenseDigestEmail(input: BuildDigestInput): Promise<
   // 純文字版：每旅程一段 + 其下各支出一行
   const textParts: string[] = [intro, ''];
   for (const tr of input.trips) {
-    const url = toAbsoluteUrl(input.appUrl, ROUTES.TRIP_DETAIL(tr.tripHashCode));
+    const url = toAbsoluteUrl(input.appUrl, ROUTES.TRIP_EXPENSES(tr.tripHashCode));
     textParts.push(`${tr.tripName}　${url}`);
     for (const e of tr.expenses) {
       textParts.push(`  • ${e.description} — NT$${Math.round(e.amount)}（${e.payerName}）`);
@@ -332,7 +335,7 @@ export async function buildExpenseDigestEmail(input: BuildDigestInput): Promise<
   // HTML 版：每旅程一個標題（連結）+ 其下支出清單
   const sectionsHtml = input.trips
     .map((tr) => {
-      const url = toAbsoluteUrl(input.appUrl, ROUTES.TRIP_DETAIL(tr.tripHashCode));
+      const url = toAbsoluteUrl(input.appUrl, ROUTES.TRIP_EXPENSES(tr.tripHashCode));
       const items = tr.expenses
         .map(
           (e) => `<li style="margin: 0 0 6px; line-height: 1.5;">

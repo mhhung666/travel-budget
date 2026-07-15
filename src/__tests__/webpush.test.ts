@@ -65,12 +65,15 @@ describe('buildPushPayload', () => {
     expect(en.body.startsWith(' ')).toBe(false);
   });
 
-  it('links payments to the settlement page and others to the trip page', async () => {
+  it('links payments to the settlement page, expenses to the expenses tab, others to the trip', async () => {
     const payment = await buildPushPayload({ ...base, type: 'payment_recorded', locale: 'zh' });
     expect(payment.url).toBe('https://app.example.com/trips/trip123/settlement');
 
     const expense = await buildPushPayload({ ...base, type: 'expense_added', locale: 'zh' });
-    expect(expense.url).toBe('https://app.example.com/trips/trip123');
+    expect(expense.url).toBe('https://app.example.com/trips/trip123/expenses');
+
+    const joined = await buildPushPayload({ ...base, type: 'member_joined', locale: 'zh' });
+    expect(joined.url).toBe('https://app.example.com/trips/trip123');
   });
 
   it('falls back to a relative URL when no appUrl is provided', async () => {
@@ -80,7 +83,7 @@ describe('buildPushPayload', () => {
       type: 'expense_added',
       locale: 'zh',
     });
-    expect(p.url).toBe('/trips/trip123');
+    expect(p.url).toBe('/trips/trip123/expenses');
   });
 
   it('links friend notifications to the settings friends card', async () => {

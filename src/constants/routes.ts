@@ -22,9 +22,10 @@ export const ROUTES = {
   WRAPPED_SHARE: (code: string, year: string | number) => `/wrapped/share/${code}/${year}`,
   // 成就徽章公開分享卡（去識別化：只露徽章與彙總數量，不需登入）
   COLLECTIONS_SHARE: (code: string) => `/collections/share/${code}`,
+  // 行程空間落點＝行程分頁（分頁列第一個）；支出移到 /expenses 子路由
   TRIP_DETAIL: (id: string | number) => `/trips/${id}`,
+  TRIP_EXPENSES: (id: string | number) => `/trips/${id}/expenses`,
   TRIP_SETTLEMENT: (id: string | number) => `/trips/${id}/settlement`,
-  TRIP_ITINERARY: (id: string | number) => `/trips/${id}/itinerary`,
   TRIP_NOTES: (id: string | number) => `/trips/${id}/notes`,
   TRIP_ALBUM: (id: string | number) => `/trips/${id}/album`,
   TRIP_CHECKLISTS: (id: string | number) => `/trips/${id}/checklists`,

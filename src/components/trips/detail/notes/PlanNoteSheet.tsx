@@ -41,7 +41,7 @@ export function PlanNoteSheet({ tripId, open, pending, onPickDay, onClose }: Pla
             variant="outline"
             onClick={() => {
               onClose();
-              router.push(ROUTES.TRIP_ITINERARY(tripId));
+              router.push(ROUTES.TRIP_DETAIL(tripId));
             }}
           >
             {t('goToItinerary')}

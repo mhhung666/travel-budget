@@ -34,6 +34,9 @@
 | 出發地 / 目的地 / 起迄日 | 地點欄位、行程日期區間 |
 | 個別軟封存 | 每位成員可單獨封存某趟旅程（`member.archivedAt`） |
 | 預算編列 | `Trip.budget` + 「預算 vs 實際」 |
+| 行程空間分頁 | 行程（落點）／支出／相簿／結算 + 子分頁（見下） |
+
+**行程空間分頁（2026-07-15 重排）**：主分頁收斂為 **行程／支出／相簿／結算** 四顆，隨手記與清單收進「行程」、統計收進「結算」的子分頁列；空間落點（`/trips/[id]`）＝行程分頁，支出移到 `/trips/[id]/expenses`（舊 `/itinerary` 308 轉址回落點，其餘子頁 URL 不變）。旅行資訊卡隨落點住在行程分頁，「新增支出」FAB 只在支出分頁出現。結構、路由表與深連結規則見 [ARCHITECTURE.md §4.14](./ARCHITECTURE.md)。
 
 **預算（💎 旗艦功能，兌現「Budget Planner」名稱）**：`Trip.budget` = `{ total, categories: [{ category, amount }] }`（基準幣 TWD，無 currency 欄位，null = 未設）。預算進度由純函式 [lib/budget.ts](../src/lib/budget.ts) `computeBudgetProgress` **前端即時計算**（旅程詳情頁本就載入 trip + 全部支出，省一次往返），故未做 `getBudgetProgress` action，只有 [setTripBudget](../src/actions/budget.actions.ts)（admin）寫入。UI：旅程詳情頁的預算卡（總額 + 各分類進度條、超支標紅）+ 編輯對話框。*進階（每日步調、每人預算）尚未做。*
 

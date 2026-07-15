@@ -20,5 +20,5 @@ export default async function QuickAddPage() {
   if (!target) {
     redirect(ROUTES.TRIPS);
   }
-  redirect(`${ROUTES.TRIP_DETAIL(target.hash_code)}?add=expense`);
+  redirect(`${ROUTES.TRIP_EXPENSES(target.hash_code)}?add=expense`);
 }

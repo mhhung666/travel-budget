@@ -109,7 +109,7 @@ describe('buildNotificationEmail', () => {
       appUrl: null,
       meta: { description: 'x', amount: 1 },
     });
-    expect(email.html).toContain('href="/trips/trip123"');
+    expect(email.html).toContain('href="/trips/trip123/expenses"');
     expect(email.html).not.toContain('https://');
   });
 

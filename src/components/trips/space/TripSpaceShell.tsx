@@ -26,10 +26,11 @@ import { TripSpaceProvider, type AddExpensePrefill } from './TripSpaceContext';
  * 行程空間殼（trips/[id]/layout.tsx 掛載，換分頁不重繪）：
  * - 頁首列：返回鍵 + 行程名 + 鈴鐺（行動端，AppShell 頂列在空間內隱藏）+「更多」選單
  *   （預算／活動紀錄／行程設定 — 低頻功能不佔分頁）。
- * - 分頁列：支出／行程／結算／統計／清單，取代舊的 7 顆入口按鈕；可橫向滑動、
- *   `aria-current` 標記現在位置。URL 與各子頁 route 不變，只是掛進這個殼。
+ * - 分頁列：行程／支出／相簿／結算 四顆主分頁，可橫向滑動、`aria-current` 標記現在位置。
+ *   低頻的隨手記／清單收進「行程」、統計收進「結算」的子分頁列（見 SUB_TABS），
+ *   各子頁 URL 不變，深連結與分享連結照舊。
  * - 常駐摘要條：總支出（有預算時加進度條），跨分頁常駐。
- * - FAB：行動端「新增支出」，行程空間內永遠在場（成員限定）。
+ * - FAB：行動端「新增支出」，只在支出分頁出現（其他分頁的主要動作不是記帳）。
  */
 // mounted 判斷（server↔client hydration guard）用：外部 store 永不變化，只是藉
 // useSyncExternalStore 的 getServerSnapshot/getSnapshot 落差取得「已 hydrate」訊號，
@@ -66,19 +67,42 @@ export function TripSpaceShell({
     handleSetBudget,
   } = useTripSpace(tripId);
 
-  // 隨手記／相簿為成員限定（無公開分享路由），分享連結訪客不顯示這兩個分頁
-  const tabs: { href: string; label: string; exact?: boolean }[] = [
-    { href: ROUTES.TRIP_DETAIL(tripId), label: tTrip('tabs.expenses'), exact: true },
-    ...(isMember ? [{ href: ROUTES.TRIP_NOTES(tripId), label: tTrip('tabs.notes') }] : []),
+  // 隨手記／相簿為成員限定（無公開分享路由），分享連結訪客不顯示這兩項。
+  // subs＝該主分頁的子分頁列；主分頁自己也列在 subs 第一項（第一顆子分頁＝主分頁落點）。
+  // TRIP_DETAIL 是所有子路由的前綴，故一律 exact 比對。
+  type TabLink = { href: string; label: string; exact?: boolean };
+  const tabs: (TabLink & { subs?: TabLink[] })[] = [
+    {
+      href: ROUTES.TRIP_DETAIL(tripId),
+      label: tTrip('tabs.itinerary'),
+      exact: true,
+      subs: [
+        { href: ROUTES.TRIP_DETAIL(tripId), label: tTrip('tabs.itinerary'), exact: true },
+        ...(isMember ? [{ href: ROUTES.TRIP_NOTES(tripId), label: tTrip('tabs.notes') }] : []),
+        { href: ROUTES.TRIP_CHECKLISTS(tripId), label: tTrip('tabs.checklists') },
+      ],
+    },
+    { href: ROUTES.TRIP_EXPENSES(tripId), label: tTrip('tabs.expenses') },
     ...(isMember ? [{ href: ROUTES.TRIP_ALBUM(tripId), label: tTrip('tabs.album') }] : []),
-    { href: ROUTES.TRIP_ITINERARY(tripId), label: tTrip('tabs.itinerary') },
-    { href: ROUTES.TRIP_SETTLEMENT(tripId), label: tTrip('tabs.settlement') },
-    { href: ROUTES.TRIP_STATS(tripId), label: tTrip('tabs.stats') },
-    { href: ROUTES.TRIP_CHECKLISTS(tripId), label: tTrip('tabs.checklists') },
+    {
+      href: ROUTES.TRIP_SETTLEMENT(tripId),
+      label: tTrip('tabs.settlement'),
+      subs: [
+        { href: ROUTES.TRIP_SETTLEMENT(tripId), label: tTrip('tabs.settlement') },
+        { href: ROUTES.TRIP_STATS(tripId), label: tTrip('tabs.stats') },
+      ],
+    },
   ];
 
+  const isLinkActive = (link: TabLink) =>
+    link.exact ? pathname === link.href : pathname.startsWith(link.href);
+
   const isTabActive = (tab: (typeof tabs)[number]) =>
-    tab.exact ? pathname === tab.href : pathname.startsWith(tab.href);
+    tab.subs ? tab.subs.some(isLinkActive) : isLinkActive(tab);
+
+  // 現在所在主分頁的子分頁列（只有一顆時不值得佔一排）
+  const activeSubs = tabs.find(isTabActive)?.subs;
+  const subTabs = activeSubs && activeSubs.length > 1 ? activeSubs : null;
 
   // 「更多」頁（活動紀錄／行程設定）不在分頁列上，返回鍵先回行程空間；
   // 分頁本身互為同層，返回鍵離開空間回行程列表。
@@ -208,6 +232,33 @@ export function TripSpaceShell({
                 );
               })}
             </nav>
+
+            {/* 子分頁列：低頻頁（隨手記／清單／統計）收在所屬主分頁下 */}
+            {subTabs && (
+              <nav
+                aria-label={tTrip('tabs.subLabel')}
+                className="flex gap-1 overflow-x-auto border-t py-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              >
+                {subTabs.map((sub) => {
+                  const active = isLinkActive(sub);
+                  return (
+                    <Link
+                      key={sub.href}
+                      href={sub.href}
+                      aria-current={active ? 'page' : undefined}
+                      className={cn(
+                        'shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors',
+                        active
+                          ? 'bg-primary/10 text-primary'
+                          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                      )}
+                    >
+                      {sub.label}
+                    </Link>
+                  );
+                })}
+              </nav>
+            )}
           </div>
 
           {/* 常駐摘要條：總支出 /（若有）預算進度 */}
@@ -263,8 +314,9 @@ export function TripSpaceShell({
 
         <div className="flex-1">{children}</div>
 
-        {/* FAB：新增支出（行動端；桌機用支出分頁工具列按鈕） */}
-        {isMember && (
+        {/* FAB：新增支出（行動端；桌機用支出分頁工具列按鈕）。只在支出分頁——
+            其他分頁各有自己的主要動作，浮在上面只會擋內容。 */}
+        {isMember && pathname === ROUTES.TRIP_EXPENSES(tripId) && (
           <Button
             onClick={() => addExpenseDialog.openDialog()}
             aria-label={tExpense('add')}

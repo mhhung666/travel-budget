@@ -687,6 +687,7 @@
     "more": "更多",
     "tabs": {
       "label": "行程分页",
+      "subLabel": "分页内页面",
       "expenses": "支出",
       "notes": "随手记",
       "album": "相册",

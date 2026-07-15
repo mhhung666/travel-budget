@@ -77,6 +77,7 @@ npx tsc --noEmit                                   # type check (no pnpm script 
 | Receipts, avatars, uploads (R2) | ARCH-NOTES §R2 blob 儲存 |
 | Offline / service worker / query persistence | ARCH-NOTES §離線 PWA |
 | Notifications / web push / email | ARCH-NOTES §Web Push |
+| Trip tabs / trip-space routes (`/trips/[id]` = itinerary, **not** expenses) | ARCH-NOTES §行程空間分頁 |
 | Map pages & public map share | ARCH-NOTES §旅遊地圖 |
 | i18n / locale switching | ARCH-NOTES §國際化 |
 | Settlement / payments math | ARCH-NOTES §結算 + [src/lib/settlement.ts](src/lib/settlement.ts) |

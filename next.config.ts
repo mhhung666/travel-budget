@@ -44,6 +44,14 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }];
   },
+  /**
+   * 行程分頁自 /trips/[id]/itinerary 移到行程空間落點 /trips/[id]（分頁列第一顆）。
+   * 舊連結（書籤、既有通知/Email、PWA 捷徑）仍會指過來，故保留永久轉址。
+   * 用 config 轉址而非頁面內 redirect()：後者在 App Router 會軟導向（回 200、網址不變）。
+   */
+  async redirects() {
+    return [{ source: '/trips/:id/itinerary', destination: '/trips/:id', permanent: true }];
+  },
 };
 
 export default withSerwist(withNextIntl(nextConfig));

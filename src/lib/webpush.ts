@@ -76,7 +76,11 @@ function toAbsoluteUrl(appUrl: string | null, path: string): string {
 function linkPathFor(type: NotificationType, linkId: string): string {
   // 好友通知不屬於旅程，導向設定頁的好友卡片。
   if (type === 'friend_request' || type === 'friend_accepted') return ROUTES.SETTINGS_FRIENDS;
-  return type === 'payment_recorded' ? ROUTES.TRIP_SETTLEMENT(linkId) : ROUTES.TRIP_DETAIL(linkId);
+  if (type === 'payment_recorded') return ROUTES.TRIP_SETTLEMENT(linkId);
+  // 支出相關導向支出分頁（旅程落點已改為行程分頁），其餘導向落點。
+  if (type === 'expense_added' || type === 'expense_comment_added')
+    return ROUTES.TRIP_EXPENSES(linkId);
+  return ROUTES.TRIP_DETAIL(linkId);
 }
 
 /**

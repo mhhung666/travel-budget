@@ -358,7 +358,7 @@ export const planNote = withAuth(
       }
 
       revalidatePath(`/trips/${tripIdOrCode}/notes`);
-      revalidatePath(`/trips/${tripIdOrCode}/itinerary`);
+      revalidatePath(`/trips/${tripIdOrCode}`);
       return { success: true, data: toTripNoteDto(updated) };
     } catch (error) {
       logger.error('Plan note error', error);

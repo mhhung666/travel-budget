@@ -687,6 +687,7 @@
     "more": "その他",
     "tabs": {
       "label": "旅行タブ",
+      "subLabel": "タブ内ページ",
       "expenses": "支出",
       "notes": "メモ",
       "album": "アルバム",

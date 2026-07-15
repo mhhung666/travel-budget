@@ -687,6 +687,7 @@
     "more": "More",
     "tabs": {
       "label": "Trip sections",
+      "subLabel": "Section pages",
       "expenses": "Expenses",
       "notes": "Notes",
       "album": "Album",

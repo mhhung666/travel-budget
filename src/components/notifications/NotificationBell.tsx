@@ -36,10 +36,12 @@ const TYPE_ICON: Record<NotificationType, typeof Bell> = {
   friend_accepted: UserCheck,
 };
 
-/** 點通知後該去哪：好友 → 設定好友卡片，還款 → 結算頁，其餘 → 旅程詳情。 */
+/** 點通知後該去哪：好友 → 設定好友卡片，還款 → 結算頁，支出 → 支出分頁，其餘 → 旅程落點。 */
 function targetRoute(n: NotificationItem): string {
   if (n.type === 'friend_request' || n.type === 'friend_accepted') return ROUTES.SETTINGS_FRIENDS;
   if (n.type === 'payment_recorded') return ROUTES.TRIP_SETTLEMENT(n.trip_id);
+  if (n.type === 'expense_added' || n.type === 'expense_comment_added')
+    return ROUTES.TRIP_EXPENSES(n.trip_id);
   return ROUTES.TRIP_DETAIL(n.trip_id);
 }
 

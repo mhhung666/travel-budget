@@ -5,7 +5,6 @@ import type { Expense } from '@/types';
 import { EMPTY_EXPENSE_FILTERS, type ExpenseFilters } from '@/lib/expenseFilters';
 import { useDialog } from '@/hooks/useDialog';
 import { useToast } from '@/hooks/use-toast';
-import type { EditTripFormData } from '@/components/trips/detail/dialogs';
 import type { ExpenseFormData } from '@/components/trips/detail/expense-form';
 import {
   useTrip,
@@ -13,19 +12,18 @@ import {
   useItinerary,
   useTripMembership,
   useExpenseMutations,
-  useTripMutations,
 } from '@/hooks/queries';
 
 /**
- * Controller hook for the trip expenses tab (trips/[id]/page.tsx).
+ * Controller hook for the trip expenses tab (trips/[id]/expenses/page.tsx).
  *
  * Owns the tab's data loading, edit/delete dialog state, filter state and the
  * action handlers. The add-expense flow and budget dialog moved up to the
- * trip-space shell (useTripSpace) so they are reachable from every tab.
+ * trip-space shell (useTripSpace) so they are reachable from every tab; the
+ * trip-info card and its edit dialog live on the itinerary tab (useEditTrip).
  */
 export function useTripDetailPage(tripId: string) {
   const tExpense = useTranslations('expense');
-  const tTrip = useTranslations('trip');
   const tError = useTranslations('error');
   const tCommon = useTranslations('common');
   const tOffline = useTranslations('offline');
@@ -40,7 +38,6 @@ export function useTripDetailPage(tripId: string) {
   const { currentUser, members, isMember, isAdmin } = useTripMembership(tripId);
 
   const expenseMutations = useExpenseMutations(tripId);
-  const tripMutations = useTripMutations(tripId);
 
   const loading = tripLoading;
   const error = isError ? tError('loadTripFailed') : '';
@@ -48,7 +45,6 @@ export function useTripDetailPage(tripId: string) {
   // --- Dialog state ---
   const editExpenseDialog = useDialog<Expense>();
   const deleteExpenseDialog = useDialog<string>();
-  const editTripDialog = useDialog();
 
   // --- Filter state ---
   const [filters, setFilters] = useState<ExpenseFilters>(EMPTY_EXPENSE_FILTERS);
@@ -135,22 +131,6 @@ export function useTripDetailPage(tripId: string) {
     }
   };
 
-  const handleEditTrip = async (data: EditTripFormData) => {
-    await tripMutations.update.mutateAsync({
-      name: data.name.trim(),
-      description: data.description?.trim() || null,
-      start_date: data.start_date || null,
-      end_date: data.end_date || null,
-      departure_location: data.departure_location || null,
-      destination_location: data.destination_location || null,
-    });
-
-    editTripDialog.closeDialog();
-    toast({
-      title: tTrip('editSuccess'),
-    });
-  };
-
   return {
     // data
     trip,
@@ -167,7 +147,6 @@ export function useTripDetailPage(tripId: string) {
     // dialogs
     editExpenseDialog,
     deleteExpenseDialog,
-    editTripDialog,
     isDeletingExpense: expenseMutations.remove.isPending,
     // filter
     filters,
@@ -176,6 +155,5 @@ export function useTripDetailPage(tripId: string) {
     handleEditExpense,
     handleDeleteExpense,
     confirmDeleteExpense,
-    handleEditTrip,
   };
 }

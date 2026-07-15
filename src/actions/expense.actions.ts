@@ -230,7 +230,7 @@ export const createExpense = withAuth(
         meta: { expense_id: created._id.toString(), description, amount },
       });
 
-      revalidatePath(`/trips/${tripIdOrCode}`);
+      revalidatePath(`/trips/${tripIdOrCode}/expenses`);
       return {
         success: true,
         data: toExpenseDto(created.toObject() as unknown as LeanExpense, tripId),
@@ -386,7 +386,7 @@ export const updateExpense = withAuth(
         },
       });
 
-      revalidatePath(`/trips/${tripIdOrCode}`);
+      revalidatePath(`/trips/${tripIdOrCode}/expenses`);
       return { success: true, data: { message: '支出已更新' } };
     } catch (error) {
       logger.error('Update expense error', error);
@@ -438,7 +438,7 @@ export const deleteExpense = withAuth(
         meta: { description: doc?.description ?? '' },
       });
 
-      revalidatePath(`/trips/${tripIdOrCode}`);
+      revalidatePath(`/trips/${tripIdOrCode}/expenses`);
       return { success: true, data: { message: '支出已刪除' } };
     } catch (error) {
       logger.error('Delete expense error', error);

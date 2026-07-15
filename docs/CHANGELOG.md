@@ -59,6 +59,18 @@
 
 ---
 
+## 行程空間分頁重排（2026-07-15）
+
+七顆並列分頁收斂為 **行程／支出／相簿／結算** 四顆 + 子分頁列（隨手記／清單歸「行程」，統計歸「結算」）。現況見 [ARCHITECTURE.md §4.14](./ARCHITECTURE.md)。
+
+- **落點改為行程分頁**：`/trips/[id]` = 行程，支出移到 `/trips/[id]/expenses`（**與 Phase 0–4 不同，此次動到 route URL**）。其餘子頁 URL 不變；舊 `/trips/[id]/itinerary` 由 [next.config.ts](../next.config.ts) `redirects()` 308 轉回落點（頁面內 `redirect()` 在 App Router 會軟導向、網址列不變，故不採用）。
+- **旅行資訊卡**移到行程分頁；編輯流程抽成 [useEditTrip](../src/hooks/useEditTrip.ts) 供兩處共用（原長在 `useTripDetailPage`）。
+- **「新增支出」FAB 只在支出分頁**（原本行程空間內永遠在場）。
+- **深連結對齊新落點**：支出語意的站內通知 / Web Push / Email（含支出摘要信）與 PWA quick-add 改指 `/expenses`，還款維持 `/settlement`，旅程層級維持落點；`revalidatePath` 一併對齊。
+- 驗證：`pnpm test:run`（593 passed，webpush / emailTemplates 斷言依新導向更新）+ 本機實跑逐分頁確認分頁順序、子分頁、資訊卡與 FAB 範圍。
+
+---
+
 ## 清單 & 隨手記 重新設計（2026-07-03）
 
 回應使用者回饋（清單「不實用、指派意義不明」、隨手記「排版醜」）。實作細節見 [FEATURES.md](./FEATURES.md) §6 / §14。

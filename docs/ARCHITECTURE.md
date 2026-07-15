@@ -184,6 +184,23 @@ src/
 
 純彙整、**無新 model**。純函式 [lib/yearInReview.ts](../src/lib/yearInReview.ts) `computeYearInReview`（地理 / 花費兩種年份口徑，12 個單元測試）+ [getYearInReview](../src/actions/wrapped.actions.ts)。UI 圖卡以 html-to-image 匯出 PNG。**分享串接既有 `mapShareCode`**，公開路由 [/api/public/wrapped/[code]/[year]](../src/app/api/public/wrapped/%5Bcode%5D/%5Byear%5D/route.ts) **只露地理 + 年份、不含金額**（守住 mapShareCode 去識別化契約）。
 
+### 4.14 行程空間導覽（分頁結構與路由，2026-07-15 重排）
+
+[TripSpaceShell](../src/components/trips/space/TripSpaceShell.tsx)（由 `trips/[id]/layout.tsx` 掛載一次、換分頁不重繪）擁有頁首、分頁列、常駐摘要條與 FAB。**四顆主分頁 = 行程／支出／相簿／結算**，低頻頁不佔主分頁、改收進所屬主分頁的**子分頁列**：
+
+| 主分頁 | 路由 | 子分頁 |
+| --- | --- | --- |
+| 行程（**空間落點**） | `/trips/[id]` | 行程 `/trips/[id]` · 隨手記 `/notes` · 清單 `/checklists` |
+| 支出 | `/trips/[id]/expenses` | — |
+| 相簿 | `/trips/[id]/album` | — |
+| 結算 | `/trips/[id]/settlement` | 結算 `/settlement` · 統計 `/stats` |
+
+- **落點＝行程分頁**（`/trips/[id]`），支出移到 `/trips/[id]/expenses`。子頁 URL 全部維持原樣，故深連結 / 分享連結不受影響；舊的 `/trips/[id]/itinerary` 由 [next.config.ts](../next.config.ts) `redirects()` **308 轉址**回落點。**轉址刻意寫在 config 而非頁面內 `redirect()`**——後者在 App Router 會軟導向（回 200、網址列不變）。
+- **旅行資訊卡**（[TripHeader](../src/components/trips/detail/TripHeader.tsx)）隨落點住在行程分頁；其編輯對話框與送出邏輯抽在 [useEditTrip](../src/hooks/useEditTrip.ts)（原本長在支出分頁的 controller `useTripDetailPage` 裡）。
+- **FAB「新增支出」只在支出分頁出現**（`pathname === ROUTES.TRIP_EXPENSES`）——其他分頁各有自己的主要動作，浮鈕只會擋內容。add-expense 表單本身仍在 shell 層（`TripSpaceActions.openAddExpense`），任何分頁都能程式化開啟（如清單的「記一筆」、PWA quick-add）。
+- **深連結語意**：站內通知 / Web Push / Email 中**支出語意**的連結（`expense_added` / `expense_comment_added`、支出摘要信）指向 `/expenses`，還款指向 `/settlement`，其餘旅程層級（如 `member_joined`、加入邀請）指向落點。三處導向表（[NotificationBell](../src/components/notifications/NotificationBell.tsx) / [webpush.ts](../src/lib/webpush.ts) / [emailTemplates.ts](../src/lib/emailTemplates.ts)）**必須一致**。
+- 隨手記 / 相簿為成員限定（無公開分享路由），分享連結訪客不顯示這兩項；子分頁列只有一顆時不佔一排。
+
 ---
 
 ## 5. 資料模型
