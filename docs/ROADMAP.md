@@ -1,6 +1,6 @@
 # 功能藍圖（Feature Roadmap）
 
-> 建立日期：2026-06-26（最後更新：2026-07-14）
+> 建立日期：2026-06-26（最後更新：2026-07-15）
 > 性質：產品功能藍圖——只列**尚未動工**的功能構想，附優先序與落地草圖（schema / actions / UI 影響）。
 > 相關文件：**已完成功能**的紀錄見 [CHANGELOG.md](./CHANGELOG.md)、實作細節見 [FEATURES.md](./FEATURES.md)；架構見 [ARCHITECTURE.md](./ARCHITECTURE.md)；程式碼 / 基礎設施層級的改善見 [IMPROVEMENTS.md](./IMPROVEMENTS.md)。
 
@@ -21,6 +21,19 @@
 **待做**：Phase 2＝華航／長榮（補規則常數＋program 切換 UI；動工時門檻需重新查證）；
 Phase 3（可選）＝積分區間預估；更遠期＝飯店會籍（夜數制）。
 **完整規劃見 [PLAN-LOYALTY.md](./PLAN-LOYALTY.md)；Phase 1 實作筆記見 [FEATURES.md](./FEATURES.md) §16。**
+
+### 21. 💎 旅程相簿與相片地圖 (Trip album) — L〔規劃完成 2026-07-15，未動工〕
+**為什麼**：目前的「相片」只是收據的副產品——`getMapPhotos` 拿收據附件、座標**借自行程日**，
+一整天的相片全疊在同一顆點上。相簿讓相片變成旅程的第一級內容，並用相片自己的 EXIF GPS
+把旅遊地圖從「去過哪些城市」升級成「這張是在這個街角拍的」。
+**收據釘地圖是被本功能取代的對象**：Phase 3 直接退役，不留聯集、不做資料遷移（既有收據圖的
+EXIF 在當初上傳壓縮時就已永久消失，倒進相簿只會塞滿沒有 GPS 的憑證照）。
+**核心難點**：丟掉 EXIF 的不是「壓縮」而是 **canvas 重繪**（現行 pipeline 輸出 WebP）→
+改用已安裝的 `browser-image-compression` 的 **`preserveExif`（僅 JPEG→JPEG 有效）輸出 JPEG**，
+壓縮檔即自帶 GPS（另抽一份進 DB 供地圖／排序查詢），不需保留原檔。
+另有簽名 URL 打爆 SW 快取、以及**公開分享絕不可直接給帶 EXIF 的 JPEG**（需剝除 APP1 的消毒副本）兩個坑。
+公開版是純相片牌、不帶位置（故不需座標模糊化），地圖與位置為成員限定。
+**完整規劃見 [PLAN-PHOTOS.md](./PLAN-PHOTOS.md)**（Phase 1 M：相簿本體／Phase 3 M：地圖整合／Phase 4 M：公開分享）。
 
 ### 14. 🔹 PDF 行程 / 結算報告 (PDF reports) — M
 **為什麼**：目前只有 CSV。一份漂亮的「旅程結算單 / 行程手冊」PDF 很適合分享與報帳。
@@ -45,6 +58,10 @@ Phase 3（可選）＝積分區間預估；更遠期＝飯店會籍（夜數制�
   ├── 20 會籍積分與里程紀錄（規劃已完成 → PLAN-LOYALTY.md）
   ├── 14 PDF 報告
   └── 11b OAuth 登入
+
+大（L，分階段）
+  └── 21 旅程相簿與相片地圖（規劃已完成 → PLAN-PHOTOS.md）
+        Phase 1 相簿本體（M）→ 2 行程日關聯（S）→ 3 地圖整合（M）→ 4 公開分享（M）
 ```
 
 **新功能慣例**：DB 存取走 Mongoose + `dbConnect()`，業務邏輯走 server actions 回傳 `ActionResult<T>`，新使用者字串**四語系都要補**，新識別碼沿用 `hashCode` 格式（見 [hashcode.ts](../src/lib/hashcode.ts)）。實作前各項仍需獨立設計（schema 遷移、i18n、測試），再逐項開票動工。
