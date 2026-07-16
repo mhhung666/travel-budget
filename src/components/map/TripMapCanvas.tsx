@@ -3,7 +3,7 @@
 import { Fragment, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Polyline, Tooltip, useMap } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
-import { LatLngBounds, divIcon } from 'leaflet';
+import { LatLngBounds, divIcon, type Marker as LeafletMarker } from 'leaflet';
 import { useTheme } from 'next-themes';
 import 'leaflet/dist/leaflet.css';
 import type { TripRoute, HeatPoint, FlightSegment } from './types';
@@ -152,34 +152,107 @@ function airportIcon(color: string) {
   });
 }
 
-/** 相片釘點：相機圖示 + 相片數量氣泡。 */
-function photoIcon(color: string, count: number) {
-  const size = 30;
+/** 相片卡片的尺寸（含底部尖角），tooltip offset 與 iconAnchor 共用。 */
+const PHOTO_CARD = 56;
+const PHOTO_TAIL = 8;
+
+/**
+ * 相片釘點：iPhone 相簿風格的縮圖卡片——白框圓角縮圖 + 左下相片數 + 底部尖角。
+ * 單一釘點與 cluster 聚合共用同一款，縮放合併／散開時視覺連續。
+ * 縮圖（登入限定的 presigned `_t.webp`）載入失敗時自我移除，露出底下的相機圖示墊底。
+ */
+function photoCardIcon(thumbUrl: string, count: number) {
+  const size = PHOTO_CARD;
+  const tail = PHOTO_TAIL;
+  const safeUrl = thumbUrl.replace(/"/g, '&quot;');
   return divIcon({
     className: 'trip-map-photo-pin',
+    html: `<div style="width:${size}px;height:${size + tail}px;filter:drop-shadow(0 2px 5px rgba(0,0,0,.45));">
+      <div style="
+        position:relative;
+        width:${size}px;height:${size}px;
+        background:#64748b;
+        border:2.5px solid #fff;
+        border-radius:12px;
+        overflow:hidden;
+        display:flex;align-items:center;justify-content:center;
+      ">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3Z"/>
+          <circle cx="12" cy="13" r="3"/>
+        </svg>
+        ${
+          safeUrl
+            ? `<img src="${safeUrl}" alt="" loading="lazy" draggable="false" onerror="this.remove()"
+          style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;"/>`
+            : ''
+        }
+        ${
+          count > 1
+            ? `<span style="
+          position:absolute;left:5px;bottom:4px;
+          color:#fff;font-size:12px;font-weight:700;line-height:1;
+          text-shadow:0 1px 3px rgba(0,0,0,.9);">${count}</span>`
+            : ''
+        }
+      </div>
+      <div style="
+        margin:-1px auto 0;width:0;height:0;
+        border-left:${tail}px solid transparent;
+        border-right:${tail}px solid transparent;
+        border-top:${tail}px solid #fff;"></div>
+    </div>`,
+    iconSize: [size, size + tail],
+    // 尖角尖端對準座標。
+    iconAnchor: [size / 2, size + tail],
+  });
+}
+
+/**
+ * 掛在相片 Marker options 上的自訂欄位（react-leaflet 會把多餘 props spread 進
+ * `L.Marker` 建構 options），讓 cluster 的 iconCreateFunction 直接從 child markers
+ * 彙總，不依賴會過期的外部 closure。
+ */
+interface PhotoMarkerData {
+  photoThumbUrl: string;
+  photoCount: number;
+}
+
+/**
+ * 相片聚合圖示：取群內相片數最多的釘點縮圖當代表，數字顯示相片總數。
+ * 與單點卡片同款（iPhone 相簿行為：拉遠合併成一張卡、拉近散開）。
+ * cluster 型別來自 leaflet.markercluster（無型別套件），此處以結構型別最小宣告。
+ */
+function photoClusterIcon(cluster: { getAllChildMarkers(): LeafletMarker[] }) {
+  let total = 0;
+  let bestCount = -1;
+  let thumb = '';
+  for (const m of cluster.getAllChildMarkers()) {
+    const data = m.options as Partial<PhotoMarkerData>;
+    const count = data.photoCount ?? 0;
+    total += count;
+    if (data.photoThumbUrl && count > bestCount) {
+      bestCount = count;
+      thumb = data.photoThumbUrl;
+    }
+  }
+  return photoCardIcon(thumb, total);
+}
+
+/** 目的地聚合的數量氣泡（markercluster 預設 CSS 未載入，樣式自己畫）。 */
+function routeClusterIcon(cluster: { getChildCount(): number }) {
+  const size = 34;
+  return divIcon({
+    className: 'trip-map-pin',
     html: `<div style="
-      position:relative;
       width:${size}px;height:${size}px;
-      background:${color};
+      background:#2563eb;
       border:2px solid #fff;
       border-radius:50%;
       box-shadow:0 1px 4px rgba(0,0,0,.4);
       display:flex;align-items:center;justify-content:center;
-    ">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"
-        stroke-linecap="round" stroke-linejoin="round">
-        <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3Z"/>
-        <circle cx="12" cy="13" r="3"/>
-      </svg>
-      ${
-        count > 1
-          ? `<span style="
-        position:absolute;top:-6px;right:-6px;min-width:16px;height:16px;padding:0 3px;
-        background:#111;color:#fff;border:1.5px solid #fff;border-radius:8px;
-        font-size:10px;line-height:13px;font-weight:600;text-align:center;">${count}</span>`
-          : ''
-      }
-    </div>`,
+      color:#fff;font-size:13px;font-weight:600;">${cluster.getChildCount()}</div>`,
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
   });
@@ -247,21 +320,35 @@ export default function TripMapCanvas({
 
       {isCountries && <CountriesLayer visited={visitedCountries ?? new Set()} isDark={isDark} />}
 
-      {/* 相片釘點：群聚避免重疊，點擊開啟該點相片 gallery。 */}
+      {/* 相片釘點：縮圖卡片，近點聚合成同款卡片（radius 涵蓋卡片寬避免重疊），點擊開啟 gallery。 */}
       {isPhotos && (
-        <MarkerClusterGroup chunkedLoading showCoverageOnHover={false} maxClusterRadius={40}>
-          {photoPins.map((pin) => (
-            <Marker
-              key={`photo-${pin.id}`}
-              position={[pin.lat, pin.lon]}
-              icon={photoIcon(countryColor(pin.countryCode), pin.photos.length)}
-              eventHandlers={{ click: () => onPhotoPinSelect?.(pin) }}
-            >
-              <Tooltip direction="top" offset={[0, -16]}>
-                {countryCodeToFlag(pin.countryCode)} {pin.name}
-              </Tooltip>
-            </Marker>
-          ))}
+        <MarkerClusterGroup
+          chunkedLoading
+          showCoverageOnHover={false}
+          maxClusterRadius={72}
+          iconCreateFunction={photoClusterIcon}
+        >
+          {photoPins.map((pin) => {
+            const thumb = pin.photos[0]?.thumb_url ?? '';
+            // key 含首張相片與張數：年份篩選改變群內容時強制重建 marker，
+            // 讓掛在 options 上的 PhotoMarkerData 不會過期（react-leaflet 更新時不重寫 options）。
+            return (
+              <Marker
+                key={`photo-${pin.id}-${pin.photos[0]?.id ?? ''}-${pin.photos.length}`}
+                position={[pin.lat, pin.lon]}
+                icon={photoCardIcon(thumb, pin.photos.length)}
+                eventHandlers={{ click: () => onPhotoPinSelect?.(pin) }}
+                {...({
+                  photoThumbUrl: thumb,
+                  photoCount: pin.photos.length,
+                } satisfies PhotoMarkerData)}
+              >
+                <Tooltip direction="top" offset={[0, -(PHOTO_CARD + PHOTO_TAIL + 2)]}>
+                  {countryCodeToFlag(pin.countryCode)} {pin.name}
+                </Tooltip>
+              </Marker>
+            );
+          })}
         </MarkerClusterGroup>
       )}
 
@@ -341,7 +428,12 @@ export default function TripMapCanvas({
 
       {/* 目的地圖釘：群聚以避免重疊看不見，縮小時聚合成數量氣泡、放大或點擊展開 */}
       {isRoutes && (
-        <MarkerClusterGroup chunkedLoading showCoverageOnHover={false} maxClusterRadius={40}>
+        <MarkerClusterGroup
+          chunkedLoading
+          showCoverageOnHover={false}
+          maxClusterRadius={40}
+          iconCreateFunction={routeClusterIcon}
+        >
           {visibleRoutes.map((r) => {
             if (!r.destination) return null;
             const active = r.id === selectedId;

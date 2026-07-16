@@ -551,24 +551,40 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
                 <p className="px-1 text-sm text-muted-foreground">{t('photoEmpty')}</p>
               ) : (
                 <ol className="space-y-1.5">
-                  {photoPins.map((pin) => (
-                    <li key={pin.id}>
-                      <button
-                        type="button"
-                        onClick={() => setActivePin(pin)}
-                        className="flex w-full items-center justify-between gap-2 rounded-lg border border-border p-2.5 text-left transition-colors hover:bg-muted/50"
-                      >
-                        <span className="flex min-w-0 items-center gap-1.5 text-sm">
-                          <span className="shrink-0">{countryCodeToFlag(pin.countryCode)}</span>
-                          <span className="truncate">{pin.name}</span>
-                        </span>
-                        <Badge variant="secondary" className="shrink-0 gap-1">
-                          <Camera className="h-3 w-3" />
-                          {pin.photos.length}
-                        </Badge>
-                      </button>
-                    </li>
-                  ))}
+                  {photoPins.map((pin) => {
+                    // 純 EXIF、未關聯行程日的釘點沒有地名，退最新一張的拍攝日期當標籤。
+                    const takenAt = pin.photos[0]?.taken_at;
+                    const label =
+                      pin.name || (takenAt ? new Date(takenAt).toLocaleDateString(locale) : '—');
+                    return (
+                      <li key={pin.id}>
+                        <button
+                          type="button"
+                          onClick={() => setActivePin(pin)}
+                          className="flex w-full items-center justify-between gap-2 rounded-lg border border-border p-2 text-left transition-colors hover:bg-muted/50"
+                        >
+                          <span className="flex min-w-0 items-center gap-2.5 text-sm">
+                            {/* eslint-disable-next-line @next/next/no-img-element -- presigned R2 縮圖不走 next/image */}
+                            <img
+                              src={pin.photos[0]?.thumb_url}
+                              alt=""
+                              loading="lazy"
+                              className="h-10 w-10 shrink-0 rounded-md border border-border object-cover"
+                            />
+                            <span className="min-w-0">
+                              <span className="block truncate">
+                                {countryCodeToFlag(pin.countryCode)} {label}
+                              </span>
+                            </span>
+                          </span>
+                          <Badge variant="secondary" className="shrink-0 gap-1">
+                            <Camera className="h-3 w-3" />
+                            {pin.photos.length}
+                          </Badge>
+                        </button>
+                      </li>
+                    );
+                  })}
                 </ol>
               )}
             </>
