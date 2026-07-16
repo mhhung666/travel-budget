@@ -388,8 +388,9 @@ UI：登入頁 [/wrapped](../src/app/%5Blocale%5D/wrapped/page.tsx)（年份切�
 ## 17. 旅程相簿（Trip Album，ROADMAP #21）
 
 > Phase 1（相簿本體）／Phase 2（行程日關聯、說明、批次刪除）／Phase 3（地圖整合＋退役收據相片模式）
-> ／Phase 4（公開分享）已完成 2026-07-15。餘 Phase 5（可選：封面／打包下載／Year in Review 整合）
-> 見 [PLAN-PHOTOS.md](./PLAN-PHOTOS.md)。
+> ／Phase 4（公開分享）已完成 2026-07-15；**2026-07-16 真機驗收通過並結案**（iOS 選 HEIC 自動轉
+> JPEG、下載回手機 Apple 照片讀得到地點——本功能的驗收標準）。規劃檔 PLAN-PHOTOS.md 已退役刪除
+> （草圖查 git 歷史）；可選延伸（封面／打包下載／Year in Review／`place` 回填）記在 ROADMAP #21。
 
 - **定位**：trip-scoped 共享相簿，比照隨手記／清單的**成員信任模型**（任何成員可上傳／編輯／刪除）。
   [Photo](../src/models/Photo.ts) 為旅程下的獨立 collection；`uploadedByName` 為上傳當下快照（讀取免 populate）。

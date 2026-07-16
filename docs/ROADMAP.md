@@ -32,7 +32,7 @@ Phase 3（可選）＝積分區間預估；更遠期＝飯店會籍（夜數制�
 - **#5 離線**：擴大範圍到離線編輯 / 刪除、結算 / 統計離線重算。
 - **#7 清單**：清單範本複用。
 - **#15 回顧**：topCountry / 最愛目的地（需國碼→在地化國名查表）、公開圖卡下載、逐 story 翻頁動畫。
-- **#21 相簿（Phase 1–4 已完成 2026-07-15，見 [FEATURES.md](./FEATURES.md) §17）**：可選 Phase 5＝相簿封面、打包下載（zip）、Year in Review 整合（S，見 [PLAN-PHOTOS.md](./PLAN-PHOTOS.md)）。
+- **#21 相簿（已完成並結案 2026-07-16，見 [FEATURES.md](./FEATURES.md) §17）**：相簿封面、打包下載（zip）、Year in Review 整合；相片反查地名 `place` 離線批次回填（目前一律 `null`，釘點標籤借關聯行程日地名——見 FEATURES §17「未做（刻意）」）。
 - **隨手記（FEATURES §14）**：內文 `#標籤` 自動識別＋列表 filter chips（免 schema、從 text 解析）；筆記搜尋（前端過濾即可，資料已全量在快取）；「記一筆」快速連結（首行帶入記帳表單品項欄，很多速記本來就是「XX 大概 ¥3000」）；卡片選單「複製內容」（已是 Markdown，貼哪都好看）。
 
 > 基礎設施類待辦（Public API 限流、actions 測試覆蓋、支出伺服端分頁）見 [IMPROVEMENTS.md](./IMPROVEMENTS.md)。
@@ -46,10 +46,6 @@ Phase 3（可選）＝積分區間預估；更遠期＝飯店會籍（夜數制�
   ├── 20 會籍積分與里程紀錄（規劃已完成 → PLAN-LOYALTY.md）
   ├── 14 PDF 報告
   └── 11b OAuth 登入
-
-大（L，分階段）
-  └── 21 旅程相簿與相片地圖（Phase 1–4 全部完成 2026-07-15 → 進階深化的可選 Phase 5）
-        ~~1 相簿本體~~ → ~~2 行程日關聯~~ → ~~3 地圖整合~~ → ~~4 公開分享~~
 ```
 
 **新功能慣例**：DB 存取走 Mongoose + `dbConnect()`，業務邏輯走 server actions 回傳 `ActionResult<T>`，新使用者字串**四語系都要補**，新識別碼沿用 `hashCode` 格式（見 [hashcode.ts](../src/lib/hashcode.ts)）。實作前各項仍需獨立設計（schema 遷移、i18n、測試），再逐項開票動工。
