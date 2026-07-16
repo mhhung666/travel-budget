@@ -5,14 +5,14 @@
  * 「對照門檻算進度」所需的等級表。規則各家年年變——**所有門檻集中在本檔**、
  * 每個 program 標 `verifiedAt` 查證日期，改規則＝改常數，不動 schema。
  *
- * 已開放：國泰（CX，積分制）、長榮（BR，哩程＋航段制）。華航（CI，積分制）與
+ * 已開放：國泰（CX，積分制）、華航（CI，積分制）、長榮（BR，哩程＋航段制）。
  * 飯店會籍（夜數制）為未來擴充，屆時在 union 加 kind 即可。
  */
 
 import type { CabinClass } from '@/types';
 
-/** 已開放的 program（Phase 2+：'CI'、飯店計畫）。目前皆為航空計畫。 */
-export const LOYALTY_PROGRAMS = ['CX', 'BR'] as const;
+/** 已開放的 program（Phase 2+：飯店計畫）。目前皆為航空計畫；順序即 UI 顯示順序。 */
+export const LOYALTY_PROGRAMS = ['CX', 'CI', 'BR'] as const;
 export type LoyaltyProgram = (typeof LOYALTY_PROGRAMS)[number];
 
 /** 積分／里數的來源類別（adjust＝更正/沖銷，數字可為負）。 */
@@ -45,6 +45,10 @@ export interface MilesSegmentsTier {
   minSegmentsWithMiles?: number;
   /** 航段路徑門檻：純自家國際航段數即可達標（不看哩程） */
   segments: number;
+  /** 續卡哩程門檻（term2y 窗口用）；省略＝該級無獨立續卡規則 */
+  renewalMiles?: number;
+  /** 續卡航段門檻（term2y 窗口用）；省略＝該級無獨立續卡規則 */
+  renewalSegments?: number;
 }
 
 /**
@@ -53,13 +57,19 @@ export interface MilesSegmentsTier {
  */
 export interface PointsProgramRules {
   kind: 'points';
-  /** 會籍年度：CX 2027 新制為曆年（1/1–12/31） */
-  membershipYear: 'calendar';
+  /** 升等窗口：calendar＝曆年 1/1–12/31（CX 2027 新制）；rolling12m＝滾動 12 個月（CI） */
+  window: 'calendar' | 'rolling12m';
+  /**
+   * 續會窗口：sameWindow＝續會門檻對照與升等相同窗口（CX 現行為，曆年制內結算）；
+   * term2y＝續會看「卡籍效期日往前推 2 年」的固定區間（CI 兩年一算），需帳戶填
+   * `tierExpiresAt` 才能算（見 lib/loyalty.ts）。
+   */
+  renewalWindow: 'sameWindow' | 'term2y';
   /** 由低到高排序 */
   tiers: PointsTier[];
   /** 超額積分結轉：達 `minTierKey`（含）以上等級時，超出已達最高門檻的積分 × ratio 轉入次年 */
   rollover?: { ratio: number; minTierKey: string };
-  /** 積分需 ≥ 此比例來自自家航班（CI 專用；CX 無此限制） */
+  /** 積分需 ≥ 此比例來自自家航班（升等與續卡皆適用；CX 無此限制） */
   ownAirlineMinRatio?: number;
   /** 規則查證日期（UI 顯示「規則查證於…，以官方為準」） */
   verifiedAt: string;
@@ -67,8 +77,9 @@ export interface PointsProgramRules {
 
 /**
  * 哩程＋航段制（BR）：升等看「滾動 12 個月」內累積的卡籍哩程 **或** 自家國際線
- * 航段數（滿足其一即可）。續卡另有 24 個月窗口＋不同門檻，且各家年年變——本 MVP
- * 只算升等進度，續卡以文案提示（見 PLAN-LOYALTY.md §8）。
+ * 航段數（滿足其一即可）。續卡另有固定 2 年窗口（卡籍效期日往前推 2 年）＋不同
+ * 門檻（見 tiers 的 renewalMiles/renewalSegments），續卡窗口計算需帳戶填
+ * `tierExpiresAt`（見 lib/loyalty.ts）。
  */
 export interface MilesSegmentsProgramRules {
   kind: 'milesAndSegments';
@@ -90,7 +101,8 @@ export type ProgramRules = PointsProgramRules | MilesSegmentsProgramRules;
 export const PROGRAM_RULES: Record<LoyaltyProgram, ProgramRules> = {
   CX: {
     kind: 'points',
-    membershipYear: 'calendar',
+    window: 'calendar',
+    renewalWindow: 'sameWindow',
     tiers: [
       { key: 'green', threshold: 0 },
       { key: 'silver', threshold: 300 },
@@ -101,20 +113,54 @@ export const PROGRAM_RULES: Record<LoyaltyProgram, ProgramRules> = {
     rollover: { ratio: 0.5, minTierKey: 'gold' },
     verifiedAt: '2026-07-14',
   },
-  // 長榮 無限萬哩遊（Infinity MileageLands）升等門檻（2026-07 查證，近 12 個月，
-  // 哩程或航段滿足其一即可）：銀＝30,000 哩＋4 段 或 26 段；金＝50,000 哩 或 50 段；
-  // 鑽＝120,000 哩 或 100 段。航段限長榮／立榮實際搭乘之國際線。續卡門檻與 24 個月
-  // 窗口不同，本 MVP 不精算（UI 以文案提示）。
+  // 華航 動華會（Dynasty Flyer）新制（2025/11/27 生效，2026-07-16 查證）：官網
+  // milesbringsmiles.china-airlines.com 被 Akamai 擋、以 jazztalk.tw／pokem.tw／
+  // 官方社群三來源交叉確認。升等看「滾動 12 個月」會籍積分：金卡 360／翡翠卡
+  // 720／晶鑽卡 1,400；續卡看「卡籍效期日往前推 2 年」固定區間：金卡 580／
+  // 翡翠卡 1,150／晶鑽卡 2,240。升等與續卡皆須 ≥50% 積分來自華航／華信自營航班。
+  CI: {
+    kind: 'points',
+    window: 'rolling12m',
+    renewalWindow: 'term2y',
+    tiers: [
+      { key: 'member', threshold: 0 },
+      { key: 'gold', threshold: 360, renewalThreshold: 580 },
+      { key: 'emerald', threshold: 720, renewalThreshold: 1150 },
+      { key: 'paragon', threshold: 1400, renewalThreshold: 2240 },
+    ],
+    ownAirlineMinRatio: 0.5,
+    verifiedAt: '2026-07-16',
+  },
+  // 長榮 無限萬哩遊（Infinity MileageLands）升等門檻（2026-07-16 evaair.com 一手
+  // 查證，近 12 個月，哩程或航段滿足其一即可）：銀＝30,000 哩＋4 段 或 26 段；
+  // 金＝50,000 哩 或 50 段；鑽＝120,000 哩 或 100 段。續卡窗口＝卡籍效期（晉升
+  // 生效日起 2 年至當月月底）：銀續卡 40,000 哩／42 段、金續卡 80,000 哩／80
+  // 段、鑽續卡 200,000 哩／140 段（鑽升等門檻不變仍為 120,000）。航段限長榮／
+  // 立榮實際搭乘之國際線；官方「達標日至新卡生效間的哩程保留」緩衝機制刻意不
+  // 建模（以 UI disclaimer 涵蓋）。
   BR: {
     kind: 'milesAndSegments',
     window: 'rolling12m',
     tiers: [
       { key: 'green', miles: 0, segments: 0 },
-      { key: 'silver', miles: 30000, minSegmentsWithMiles: 4, segments: 26 },
-      { key: 'gold', miles: 50000, segments: 50 },
-      { key: 'diamond', miles: 120000, segments: 100 },
+      {
+        key: 'silver',
+        miles: 30000,
+        minSegmentsWithMiles: 4,
+        segments: 26,
+        renewalMiles: 40000,
+        renewalSegments: 42,
+      },
+      { key: 'gold', miles: 50000, segments: 50, renewalMiles: 80000, renewalSegments: 80 },
+      {
+        key: 'diamond',
+        miles: 120000,
+        segments: 100,
+        renewalMiles: 200000,
+        renewalSegments: 140,
+      },
     ],
-    verifiedAt: '2026-07-14',
+    verifiedAt: '2026-07-16',
   },
 };
 
@@ -122,6 +168,17 @@ export const PROGRAM_RULES: Record<LoyaltyProgram, ProgramRules> = {
 export function programTierKeys(program: LoyaltyProgram): string[] {
   return PROGRAM_RULES[program].tiers.map((t) => t.key);
 }
+
+/**
+ * 「自家航班」判定用的 IATA 航空代碼名單（子公司併計）：CI 條款含華信（AE）、
+ * BR 條款含立榮（B7）。用於 FlightRecordDialog 開啟累積時，依所選航班的
+ * IATA 代碼預先勾選 own_airline（使用者仍可改）。
+ */
+export const OWN_AIRLINE_CODES: Record<LoyaltyProgram, readonly string[]> = {
+  CX: ['CX'],
+  CI: ['CI', 'AE'],
+  BR: ['BR', 'B7'],
+};
 
 // ---------------------------------------------------------------------------
 // CX 積分預估表（PLAN-LOYALTY §8 Phase 3）：依官方 2025-08-20 生效的賺取表，

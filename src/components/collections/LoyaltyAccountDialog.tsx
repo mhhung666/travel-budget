@@ -48,10 +48,16 @@ export function LoyaltyAccountDialog({
 
   // 新增時可切換計畫；編輯時鎖定該帳戶的計畫
   const [selectedProgram, setSelectedProgram] = useState<LoyaltyProgram>(program);
-  const tiers = PROGRAM_RULES[selectedProgram].tiers;
+  const rules = PROGRAM_RULES[selectedProgram];
+  const tiers = rules.tiers;
   const [tier, setTier] = useState(tiers[0].key);
+  const [tierExpiresAt, setTierExpiresAt] = useState('');
   const [memberNo, setMemberNo] = useState('');
   const [note, setNote] = useState('');
+
+  // 卡籍效期欄只在續卡為「固定期制」的 program 顯示：哩程＋航段制（BR）恆有卡籍效期；
+  // 積分制裡只有 renewalWindow: 'term2y'（CI）需要（CX 為 sameWindow，續會看曆年窗口本身）。
+  const showExpiry = rules.kind === 'milesAndSegments' || rules.renewalWindow === 'term2y';
 
   const showProgramPicker = !editing && (availablePrograms?.length ?? 0) > 1;
 
@@ -61,6 +67,7 @@ export function LoyaltyAccountDialog({
     // eslint-disable-next-line react-hooks/set-state-in-effect -- 開啟對話框時帶入編輯目標，為刻意的同步
     setSelectedProgram(initialProgram);
     setTier(editing?.current_tier ?? PROGRAM_RULES[initialProgram].tiers[0].key);
+    setTierExpiresAt(editing?.tier_expires_at ?? '');
     setMemberNo(editing?.member_no ?? '');
     setNote(editing?.note ?? '');
   }, [open, editing, program]);
@@ -79,6 +86,7 @@ export function LoyaltyAccountDialog({
       await upsertAccount.mutateAsync({
         program: selectedProgram,
         current_tier: tier,
+        tier_expires_at: showExpiry && tierExpiresAt ? tierExpiresAt : null,
         member_no: memberNo.trim(),
         note: note.trim(),
       });
@@ -155,6 +163,17 @@ export function LoyaltyAccountDialog({
             />
           </div>
         </div>
+
+        {showExpiry && (
+          <div className="space-y-2">
+            <Label>{t('loyalty.tierExpires')}</Label>
+            <Input
+              type="date"
+              value={tierExpiresAt}
+              onChange={(e) => setTierExpiresAt(e.target.value)}
+            />
+          </div>
+        )}
 
         <div className="space-y-2">
           <Label>{t('common.note')}</Label>

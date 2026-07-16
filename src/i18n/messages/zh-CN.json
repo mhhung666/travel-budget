@@ -1349,10 +1349,12 @@
       "program": "会籍计划",
       "programs": {
         "CX": "国泰航空",
+        "CI": "中华航空",
         "BR": "长荣航空"
       },
       "tierLabel": "当前等级",
       "memberNo": "会员号",
+      "tierExpires": "卡籍有效期至",
       "tiers": {
         "CX": {
           "green": "绿卡",
@@ -1360,6 +1362,12 @@
           "gold": "金卡",
           "diamond": "钻石卡",
           "diamond_plus": "钻石行政卡"
+        },
+        "CI": {
+          "member": "华夏卡",
+          "gold": "金卡",
+          "emerald": "翡翠卡",
+          "paragon": "晶钻卡"
         },
         "BR": {
           "green": "绿卡",
@@ -1370,6 +1378,7 @@
       },
       "stats": {
         "yearPoints": "{year} 年积分",
+        "points12m": "近 12 个月积分",
         "milesBalance": "里数余额",
         "carryOver": "结转估算",
         "windowMiles": "卡籍哩程",
@@ -1379,7 +1388,9 @@
       "maxTier": "已达最高等级",
       "renewalMet": "已达续会门槛（{required} 分）",
       "renewalPending": "续会门槛 {required} 分，还差 {points} 分",
+      "renewalNeedsExpiry": "设置卡籍有效期后可计算续卡进度",
       "disclaimer": "门槛规则核实于 {date}；实际积分与等级以官方公布为准",
+      "ownAirlineWarning": "自家航班积分仅占 {percent}%，升级／续卡须 ≥{required}%",
       "addEntry": "累积会籍",
       "editEntry": "编辑记录",
       "entryFormDescription": "从航空公司 App 抄下积分与里数变动",
@@ -1406,9 +1417,19 @@
       "segmentsToNextTier": "距{tier}还差 {segments} 段",
       "progressPathHint": "哩程或航段满足其一即可升等（近 12 个月）",
       "renewalNote": "卡籍有效期两年，续卡门槛另计（以官方为准）",
+      "renewalProgressMet": "续卡（有效期至 {date}）已达标：{miles}/{requiredMiles} 哩・{segments}/{requiredSegments} 段",
+      "renewalProgressPending": "续卡（有效期至 {date}）未达标：{miles}/{requiredMiles} 哩・{segments}/{requiredSegments} 段",
       "qualifyingMiles": "卡籍哩程",
-      "ownAirlineFlight": "长荣／立荣国际线航段",
-      "ownAirlineFlightHint": "计入航段数",
+      "ownAirline": {
+        "BR": {
+          "label": "长荣／立荣国际线航段",
+          "hint": "计入航段数"
+        },
+        "CI": {
+          "label": "华航／华信航班",
+          "hint": "计入自家积分占比"
+        }
+      },
       "qualifyingAmount": "卡籍 {miles} 哩",
       "estimate": "试算",
       "estimatorTitle": "积分试算（国泰）",

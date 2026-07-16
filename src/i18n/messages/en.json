@@ -1356,10 +1356,12 @@
       "program": "Program",
       "programs": {
         "CX": "Cathay Pacific",
+        "CI": "China Airlines",
         "BR": "EVA Air"
       },
       "tierLabel": "Current tier",
       "memberNo": "Member number",
+      "tierExpires": "Card expires on",
       "tiers": {
         "CX": {
           "green": "Green",
@@ -1367,6 +1369,12 @@
           "gold": "Gold",
           "diamond": "Diamond",
           "diamond_plus": "Diamond Executive"
+        },
+        "CI": {
+          "member": "Dynasty",
+          "gold": "Gold",
+          "emerald": "Emerald",
+          "paragon": "Paragon"
         },
         "BR": {
           "green": "Green",
@@ -1377,6 +1385,7 @@
       },
       "stats": {
         "yearPoints": "{year} points",
+        "points12m": "Points (12 mo)",
         "milesBalance": "Miles balance",
         "carryOver": "Est. carry-over",
         "windowMiles": "Qualifying miles",
@@ -1386,7 +1395,9 @@
       "maxTier": "Top tier reached",
       "renewalMet": "Renewal threshold met ({required} points)",
       "renewalPending": "Renewal needs {required} points — {points} to go",
+      "renewalNeedsExpiry": "Set the card expiry date to calculate renewal progress",
       "disclaimer": "Thresholds verified on {date}; official figures prevail",
+      "ownAirlineWarning": "Only {percent}% of points are from own-airline flights — upgrade/renewal needs ≥{required}%",
       "addEntry": "Accrue status",
       "editEntry": "Edit entry",
       "entryFormDescription": "Copy points and miles changes from the airline app",
@@ -1413,9 +1424,19 @@
       "segmentsToNextTier": "{segments} segments to {tier}",
       "progressPathHint": "Upgrade by miles or segments — whichever comes first",
       "renewalNote": "Card valid for 2 years; renewal uses different thresholds (see EVA Air)",
+      "renewalProgressMet": "Renewal (valid until {date}) met: {miles}/{requiredMiles} mi · {segments}/{requiredSegments} segs",
+      "renewalProgressPending": "Renewal (valid until {date}) not yet met: {miles}/{requiredMiles} mi · {segments}/{requiredSegments} segs",
       "qualifyingMiles": "Qualifying miles",
-      "ownAirlineFlight": "EVA / UNI intl segment",
-      "ownAirlineFlightHint": "Counts toward your segment total",
+      "ownAirline": {
+        "BR": {
+          "label": "EVA / UNI intl segment",
+          "hint": "Counts toward your segment total"
+        },
+        "CI": {
+          "label": "China Airlines / Mandarin Airlines flight",
+          "hint": "Counts toward your own-airline points ratio"
+        }
+      },
       "qualifyingAmount": "{miles} qual. mi",
       "estimate": "Estimate",
       "estimatorTitle": "Status Points estimator (Cathay)",

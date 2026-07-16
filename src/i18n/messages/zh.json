@@ -1349,10 +1349,12 @@
       "program": "會籍計畫",
       "programs": {
         "CX": "國泰航空",
+        "CI": "中華航空",
         "BR": "長榮航空"
       },
       "tierLabel": "目前等級",
       "memberNo": "會員號",
+      "tierExpires": "卡籍效期至",
       "tiers": {
         "CX": {
           "green": "綠卡",
@@ -1360,6 +1362,12 @@
           "gold": "金卡",
           "diamond": "鑽石卡",
           "diamond_plus": "鑽石行政卡"
+        },
+        "CI": {
+          "member": "華夏卡",
+          "gold": "金卡",
+          "emerald": "翡翠卡",
+          "paragon": "晶鑽卡"
         },
         "BR": {
           "green": "綠卡",
@@ -1370,6 +1378,7 @@
       },
       "stats": {
         "yearPoints": "{year} 年積分",
+        "points12m": "近 12 個月積分",
         "milesBalance": "里數餘額",
         "carryOver": "結轉估算",
         "windowMiles": "卡籍哩程",
@@ -1379,7 +1388,9 @@
       "maxTier": "已達最高等級",
       "renewalMet": "已達續會門檻（{required} 分）",
       "renewalPending": "續會門檻 {required} 分，還差 {points} 分",
+      "renewalNeedsExpiry": "設定卡籍效期後可計算續卡進度",
       "disclaimer": "門檻規則查證於 {date}；實際積分與等級以官方公布為準",
+      "ownAirlineWarning": "自家航班積分僅占 {percent}%，升等／續卡須 ≥{required}%",
       "addEntry": "累積會籍",
       "editEntry": "編輯紀錄",
       "entryFormDescription": "從航空公司 App 抄下積分與里數變動",
@@ -1406,9 +1417,19 @@
       "segmentsToNextTier": "距{tier}還差 {segments} 段",
       "progressPathHint": "哩程或航段擇一達標即升等（近 12 個月）",
       "renewalNote": "卡籍效期兩年，續卡門檻另計（以官方為準）",
+      "renewalProgressMet": "續卡（效期至 {date}）已達標：{miles}/{requiredMiles} 哩・{segments}/{requiredSegments} 段",
+      "renewalProgressPending": "續卡（效期至 {date}）未達標：{miles}/{requiredMiles} 哩・{segments}/{requiredSegments} 段",
       "qualifyingMiles": "卡籍哩程",
-      "ownAirlineFlight": "長榮／立榮國際線航段",
-      "ownAirlineFlightHint": "計入航段數",
+      "ownAirline": {
+        "BR": {
+          "label": "長榮／立榮國際線航段",
+          "hint": "計入航段數"
+        },
+        "CI": {
+          "label": "華航／華信航班",
+          "hint": "計入自家積分占比"
+        }
+      },
       "qualifyingAmount": "卡籍 {miles} 哩",
       "estimate": "試算",
       "estimatorTitle": "積分試算（國泰）",

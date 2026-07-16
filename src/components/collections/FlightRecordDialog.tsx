@@ -12,7 +12,7 @@ import {
   useLoyaltyMutations,
 } from '@/hooks/queries';
 import { useToast } from '@/hooks/use-toast';
-import { CX_AWARD_MILES_PER_SP, PROGRAM_RULES } from '@/constants/loyalty';
+import { CX_AWARD_MILES_PER_SP, OWN_AIRLINE_CODES, PROGRAM_RULES } from '@/constants/loyalty';
 import { estimateCxStatusPoints, KM_TO_MI } from '@/lib/loyalty';
 import { haversineKm } from '@/lib/geo';
 import type { CabinClass, DatePrecision, FlightRecordItem } from '@/types';
@@ -111,7 +111,17 @@ export function FlightRecordDialog({
     [loyalty, airline]
   );
   const program = matchedAccount?.program ?? null;
-  const loyaltyKind = program ? PROGRAM_RULES[program].kind : null;
+  const programRules = program ? PROGRAM_RULES[program] : null;
+  const loyaltyKind = programRules?.kind ?? null;
+  // 自家航班勾選：哩程＋航段制恆需要（航段判定）；積分制只有設 ownAirlineMinRatio 的
+  // program（CI 50% 條款）才需要——CX 無此限制，不顯示（同 LoyaltyEntryDialog 邏輯）。
+  const showOwnAirline =
+    loyaltyKind === 'milesAndSegments' ||
+    (programRules?.kind === 'points' && programRules.ownAirlineMinRatio != null);
+  // 累積開啟時 ownAirline 的預設值：所選航班 IATA 代碼是否在該 program 的自家航空名單
+  // （含子公司，如華信 AE、立榮 B7）——使用者仍可改。
+  const ownAirlineDefault =
+    program && airline ? OWN_AIRLINE_CODES[program].includes(airline) : false;
   // 編輯情境：此航班已累積過就不再顯示（防重複，比照 action 的 CONFLICT 去重）。
   const alreadyAccrued = useMemo(
     () =>
@@ -223,7 +233,7 @@ export function FlightRecordDialog({
           status_points: loyaltyKind === 'points' ? toInt(statusPoints) : 0,
           qualifying_miles: loyaltyKind === 'milesAndSegments' ? toInt(qualifyingMiles) : 0,
           award_miles: toInt(awardMiles),
-          own_airline: loyaltyKind === 'milesAndSegments' ? ownAirline : false,
+          own_airline: showOwnAirline ? ownAirline : false,
           flight_record_id: saved.id,
           note: flightNo.trim(),
         });
@@ -332,7 +342,12 @@ export function FlightRecordDialog({
             <label className="flex items-start gap-3">
               <Checkbox
                 checked={accrue}
-                onCheckedChange={(v) => setAccrue(v === true)}
+                onCheckedChange={(v) => {
+                  const next = v === true;
+                  setAccrue(next);
+                  // 累積開啟時預設自家航班勾選狀態（依所選航班 IATA 代碼判斷），使用者仍可改
+                  if (next) setOwnAirline(ownAirlineDefault);
+                }}
                 className="mt-0.5"
               />
               <span className="min-w-0">
@@ -403,7 +418,7 @@ export function FlightRecordDialog({
                   </div>
                 )}
 
-                {loyaltyKind === 'milesAndSegments' && (
+                {showOwnAirline && (
                   <label className="flex items-start gap-3 rounded-lg border p-3">
                     <Checkbox
                       checked={ownAirline}
@@ -412,10 +427,10 @@ export function FlightRecordDialog({
                     />
                     <span className="min-w-0">
                       <span className="block text-sm font-medium text-foreground">
-                        {t('loyalty.ownAirlineFlight')}
+                        {t(`loyalty.ownAirline.${program}.label` as Parameters<typeof t>[0])}
                       </span>
                       <span className="block text-xs text-muted-foreground">
-                        {t('loyalty.ownAirlineFlightHint')}
+                        {t(`loyalty.ownAirline.${program}.hint` as Parameters<typeof t>[0])}
                       </span>
                     </span>
                   </label>

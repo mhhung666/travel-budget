@@ -70,20 +70,39 @@ export function ProgramProgressCard({
   let detail: React.ReactNode;
 
   if (rules.kind === 'points') {
-    const progress = computeLoyaltyProgress(entries, rules, account.current_tier);
+    // 使用者自設等級對到的 tier 規則（term2y 未設效期時的提示要判斷有沒有續會門檻）
+    const currentTierRule = rules.tiers.find((tr) => tr.key === account.current_tier) ?? null;
+    const progress = computeLoyaltyProgress(
+      entries,
+      rules,
+      account.current_tier,
+      account.tier_expires_at
+    );
     summaryText = progress.nextTier
       ? `${nf(progress.windowPoints)}/${nf(progress.nextTier.threshold)}`
       : t('loyalty.maxTier');
     summaryPercent = progress.nextTier
       ? (progress.windowPoints / progress.nextTier.threshold) * 100
       : 100;
+    // renewalWindow: 'term2y' 需卡籍效期才能算續卡——currentTier 有門檻但沒效期時給提示
+    const needsExpiryHint =
+      rules.renewalWindow === 'term2y' &&
+      !progress.renewal &&
+      currentTierRule?.renewalThreshold != null;
+    const ownAirlineWarning =
+      rules.ownAirlineMinRatio != null &&
+      progress.ownAirlineRatio !== null &&
+      progress.ownAirlineRatio < rules.ownAirlineMinRatio;
     detail = (
       <>
         <div className="mt-3">
           <StatTiles
             tiles={[
               {
-                label: t('loyalty.stats.yearPoints', { year: progress.windowYear }),
+                label:
+                  rules.window === 'calendar'
+                    ? t('loyalty.stats.yearPoints', { year: progress.windowYear ?? 0 })
+                    : t('loyalty.stats.points12m'),
                 value: nf(progress.windowPoints),
               },
               { label: t('loyalty.stats.milesBalance'), value: nf(progress.awardMilesBalance) },
@@ -114,15 +133,33 @@ export function ProgramProgressCard({
                 ? t('loyalty.renewalMet', { required: nf(progress.renewal.required) })
                 : t('loyalty.renewalPending', {
                     required: nf(progress.renewal.required),
-                    points: nf(progress.renewal.required - progress.windowPoints),
+                    points: nf(progress.renewal.required - progress.renewal.points),
                   })}
+            </p>
+          )}
+          {needsExpiryHint && (
+            <p className="text-xs text-muted-foreground">{t('loyalty.renewalNeedsExpiry')}</p>
+          )}
+          {ownAirlineWarning && (
+            <p className="text-xs text-warning">
+              {t('loyalty.ownAirlineWarning', {
+                percent: Math.round((progress.ownAirlineRatio ?? 0) * 100),
+                required: Math.round(rules.ownAirlineMinRatio! * 100),
+              })}
             </p>
           )}
         </div>
       </>
     );
   } else {
-    const progress = computeMilesSegmentsProgress(entries, rules, account.current_tier);
+    // 使用者自設等級對到的 tier 規則（未設效期但有續卡門檻時的提示要用）
+    const currentTierRule = rules.tiers.find((tr) => tr.key === account.current_tier) ?? null;
+    const progress = computeMilesSegmentsProgress(
+      entries,
+      rules,
+      account.current_tier,
+      account.tier_expires_at
+    );
     const next = progress.nextTier;
     if (next) {
       // 哩程／航段擇一達標——收合列顯示完成率較高的路徑
@@ -190,7 +227,29 @@ export function ProgramProgressCard({
         ) : (
           <p className="mt-4 text-xs text-muted-foreground">{t('loyalty.maxTier')}</p>
         )}
-        <p className="mt-3 text-xs text-muted-foreground">{t('loyalty.renewalNote')}</p>
+        {progress.renewal ? (
+          <p className="mt-3 text-xs text-muted-foreground">
+            {t(
+              progress.renewal.met
+                ? 'loyalty.renewalProgressMet'
+                : 'loyalty.renewalProgressPending',
+              {
+                date: account.tier_expires_at ?? '',
+                miles: nf(progress.renewal.miles),
+                requiredMiles: nf(progress.renewal.requiredMiles),
+                segments: nf(progress.renewal.segments),
+                requiredSegments: nf(progress.renewal.requiredSegments),
+              }
+            )}
+          </p>
+        ) : (
+          <>
+            <p className="mt-3 text-xs text-muted-foreground">{t('loyalty.renewalNote')}</p>
+            {currentTierRule?.renewalMiles != null && (
+              <p className="text-xs text-muted-foreground">{t('loyalty.renewalNeedsExpiry')}</p>
+            )}
+          </>
+        )}
       </>
     );
   }

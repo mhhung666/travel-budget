@@ -10,6 +10,8 @@ export interface LoyaltyAccountItem {
   program: LoyaltyProgram;
   /** program 專屬 tier key（constants/loyalty.ts；使用者自行設定，app 不自動判級）。 */
   current_tier: string;
+  /** 卡籍效期（YYYY-MM-DD）；term2y 續卡窗口的計算基準（BR/CI）。null＝未設定。 */
+  tier_expires_at: string | null;
   /** 會員號；'' = 未填。 */
   member_no: string;
   note: string;

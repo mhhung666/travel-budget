@@ -17,11 +17,6 @@
 **為什麼**：降低註冊摩擦。
 **做法**：Google 登入可用 Auth.js 或自建，與現有自製 JWT 並存。
 
-### 20. ⭐ 會籍積分與里程紀錄 (Loyalty ledger) — 餘 Phase 2/3〔Phase 1 國泰 MVP 已完成 2026-07-14〕
-**待做**：Phase 2＝華航／長榮（補規則常數＋program 切換 UI；動工時門檻需重新查證）；
-Phase 3（可選）＝積分區間預估；更遠期＝飯店會籍（夜數制）。
-**完整規劃見 [PLAN-LOYALTY.md](./PLAN-LOYALTY.md)；Phase 1 實作筆記見 [FEATURES.md](./FEATURES.md) §16。**
-
 ### 14. 🔹 PDF 行程 / 結算報告 (PDF reports) — M
 **為什麼**：目前只有 CSV。一份漂亮的「旅程結算單 / 行程手冊」PDF 很適合分享與報帳。
 **做法**：既有 [src/lib/exporters/](../src/lib/exporters/) 已抽象化，新增 PDF exporter（`@react-pdf/renderer` 或伺服端 puppeteer）。
@@ -32,6 +27,7 @@ Phase 3（可選）＝積分區間預估；更遠期＝飯店會籍（夜數制�
 - **#5 離線**：擴大範圍到離線編輯 / 刪除、結算 / 統計離線重算。
 - **#7 清單**：清單範本複用。
 - **#15 回顧**：topCountry / 最愛目的地（需國碼→在地化國名查表）、公開圖卡下載、逐 story 翻頁動畫。
+- **#20 會籍（已完成並結案 2026-07-16，見 [FEATURES.md](./FEATURES.md) §16）**：飯店會籍（Marriott／Hilton…夜數制——`ProgramRules` 加 `kind: 'nights'`、entry 加 `qualifyingNights`＋`stayRecord` ref，架構不變純加法）；里數效期提醒（各家效期規則需查證）；awardMiles 兌換紀錄分類統計；CI 門檻目前僅二手來源交叉確認（官網被 Akamai 擋），日後可補官方一手核對。
 - **#21 相簿（已完成並結案 2026-07-16，見 [FEATURES.md](./FEATURES.md) §17）**：相簿封面、打包下載（zip）、Year in Review 整合；相片反查地名 `place` 離線批次回填（目前一律 `null`，釘點標籤借關聯行程日地名——見 FEATURES §17「未做（刻意）」）。
 - **隨手記（FEATURES §14）**：內文 `#標籤` 自動識別＋列表 filter chips（免 schema、從 text 解析）；筆記搜尋（前端過濾即可，資料已全量在快取）；「記一筆」快速連結（首行帶入記帳表單品項欄，很多速記本來就是「XX 大概 ¥3000」）；卡片選單「複製內容」（已是 Markdown，貼哪都好看）。
 
@@ -43,7 +39,6 @@ Phase 3（可選）＝積分區間預估；更遠期＝飯店會籍（夜數制�
 
 ```
 中等（M）
-  ├── 20 會籍積分與里程紀錄（規劃已完成 → PLAN-LOYALTY.md）
   ├── 14 PDF 報告
   └── 11b OAuth 登入
 ```

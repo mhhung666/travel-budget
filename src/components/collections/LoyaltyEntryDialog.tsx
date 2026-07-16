@@ -69,8 +69,13 @@ export function LoyaltyEntryDialog({
   const { toast } = useToast();
   const { createEntry, updateEntry } = useLoyaltyMutations();
 
-  // 哩程＋航段制（BR）記卡籍哩程＋自家航段；積分制（CX）記會籍積分
-  const kind = PROGRAM_RULES[program].kind;
+  // 哩程＋航段制（BR）記卡籍哩程＋自家航段；積分制（CX/CI）記會籍積分
+  const rules = PROGRAM_RULES[program];
+  const kind = rules.kind;
+  // 自家航班勾選：哩程＋航段制恆需要（航段判定）；積分制只有設 ownAirlineMinRatio 的
+  // program（CI 50% 條款）才需要——CX 無此限制，不顯示。
+  const showOwnAirline =
+    kind === 'milesAndSegments' || (kind === 'points' && rules.ownAirlineMinRatio != null);
 
   const [date, setDate] = useState(today());
   const [type, setType] = useState<LoyaltyEntryType>('flight');
@@ -104,8 +109,8 @@ export function LoyaltyEntryDialog({
       status_points: kind === 'points' ? toInt(statusPoints) : 0,
       qualifying_miles: kind === 'milesAndSegments' ? toInt(qualifyingMiles) : 0,
       award_miles: toInt(awardMiles),
-      // 積分制無自家航段概念；哩程制以此判定國際航段
-      own_airline: kind === 'milesAndSegments' ? ownAirline : (editing?.own_airline ?? false),
+      // 自家航班：哩程制判定國際航段、CI 判定 50% 條款；其餘 program 無此概念
+      own_airline: showOwnAirline ? ownAirline : (editing?.own_airline ?? false),
       // 帶入來源標記：新增取預填、編輯沿用原值（避免更新把「已帶入」洗掉）
       flight_record_id: editing?.flight_record_id ?? defaults?.flight_record_id ?? null,
       note: note.trim(),
@@ -211,7 +216,7 @@ export function LoyaltyEntryDialog({
           </div>
         )}
 
-        {kind === 'milesAndSegments' && (
+        {showOwnAirline && (
           <label className="flex items-start gap-3 rounded-lg border p-3">
             <Checkbox
               checked={ownAirline}
@@ -220,10 +225,10 @@ export function LoyaltyEntryDialog({
             />
             <span className="min-w-0">
               <span className="block text-sm font-medium text-foreground">
-                {t('loyalty.ownAirlineFlight')}
+                {t(`loyalty.ownAirline.${program}.label` as Parameters<typeof t>[0])}
               </span>
               <span className="block text-xs text-muted-foreground">
-                {t('loyalty.ownAirlineFlightHint')}
+                {t(`loyalty.ownAirline.${program}.hint` as Parameters<typeof t>[0])}
               </span>
             </span>
           </label>

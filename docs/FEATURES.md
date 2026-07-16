@@ -339,9 +339,9 @@ UI：登入頁 [/wrapped](../src/app/%5Blocale%5D/wrapped/page.tsx)（年份切�
   第三參數；只有回填紀錄、沒有任何旅程的使用者也有年份可切，該年僅成就區塊有數字）。
   公開 wrapped 路由**刻意不納**：公開 payload 白名單不含成就區塊，納了只會多出整張白卡的年份。
 
-### 會籍積分與里程紀錄（Loyalty，ROADMAP #20 Phase 1，2026-07-14；長榮 BR／CX 試算＋collapse 2026-07-15）
+### 會籍積分與里程紀錄（Loyalty，ROADMAP #20，2026-07-14～16 完成並結案：CX MVP → BR／CX 試算＋collapse → CI＋續卡精算）
 
-規劃見 [PLAN-LOYALTY.md](./PLAN-LOYALTY.md)。定位是「**積分記帳**，不是計算器」——積分/里數由
+規劃檔 PLAN-LOYALTY.md 已退役刪除（草圖查 git 歷史）。定位是「**積分記帳**，不是計算器」——積分/里數由
 使用者從航空 app 手抄（LoyaltyEntry ledger），app 只對照門檻常數算升等/續會進度，不自動判級。
 
 - **資料**：[LoyaltyAccount](../src/models/LoyaltyAccount.ts)（一人一 program 一筆，`{user, program}`
@@ -349,14 +349,20 @@ UI：登入頁 [/wrapped](../src/app/%5Blocale%5D/wrapped/page.tsx)（年份切�
   `ownAirline`/`qualifyingMiles` 已為 CI/BR 預留）。隱私比照 FlightRecord：**不進任何公開路由**，
   連彙總數字都不進公開收藏牆。
 - **規則常數**：[constants/loyalty.ts](../src/constants/loyalty.ts) 集中全部門檻，`ProgramRules`
-  為 discriminated union 依 `kind` 分兩制——**積分制**（`points`，CX 2027 新制：綠 0／銀 300／
-  金 600／鑽 1,200／鑽石行政 2,400，金以上續會減半＋超額 50% 結轉）與 **哩程＋航段制**
-  （`milesAndSegments`，長榮 BR 近 12 月：銀 30k哩+4段／26段、金 50k／50段、鑽 120k／100段，
-  哩程或航段擇一達標）。每 program 標 `verifiedAt`，UI 帶「以官方為準」——改規則＝改常數不動 schema。
+  為 discriminated union 依 `kind` 分兩制——**積分制**（`points`，升等窗口 `window:
+  'calendar' | 'rolling12m'`＋續會窗口 `renewalWindow: 'sameWindow' | 'term2y'`）：CX 2027 新制
+  （曆年：綠 0／銀 300／金 600／鑽 1,200／鑽石行政 2,400，金以上續會減半＋超額 50% 結轉）與
+  CI 2026 新制（滾動 12 月：華夏 0／金 360／翡翠 720／晶鑽 1,400；續卡＝2 年卡籍效期內
+  580／1,150／2,240；`ownAirlineMinRatio: 0.5`＝積分須 ≥50% 來自華航/華信，升等續卡皆適用）；
+  **哩程＋航段制**（`milesAndSegments`，長榮 BR 近 12 月：銀 30k哩+4段／26段、金 50k／50段、
+  鑽 120k／100段，哩程或航段擇一達標；續卡＝卡籍效期 2 年窗口，銀 40k／42段、金 80k／80段、
+  鑽 200k／140段）。每 program 標 `verifiedAt`，UI 帶「以官方為準」——改規則＝改常數不動 schema。
 - **進度計算**：[lib/loyalty.ts](../src/lib/loyalty.ts) 純函式，依 kind 分流——`computeLoyaltyProgress`
-  （積分制：曆年窗口、跨級、結轉估算、續會門檻、自家占比）＋`computeMilesSegmentsProgress`
-  （哩程制：滾動 12 月窗口、哩程／航段雙路徑達標、自家國際航段計數，純哩程可跳級）。
-  測試在 [loyalty.test.ts](../src/__tests__/loyalty.test.ts)。
+  （積分制：曆年／滾動 12 月窗口、跨級、結轉估算、續會門檻——`sameWindow` 同升等窗口（CX）
+  或 `term2y` 效期窗口（CI）、自家占比）＋`computeMilesSegmentsProgress`（哩程制：滾動 12 月
+  窗口、哩程／航段雙路徑達標、自家國際航段計數，純哩程可跳級；續卡＝效期窗口精算）。
+  兩制的效期窗口都取 `tier_expires_at` 往前推 2 年、字串日期比較、兩端點含。
+  測試在 [loyalty.test.ts](../src/__tests__/loyalty.test.ts)（39 個）。
 - **UI**：獨立頁 `/memberships`（會籍）＝**航空／飯店兩個 tab**（比照旅行成就分頁；飯店為
   夜數制 placeholder，Phase 2 後續）。航空 tab **多 program 編排**
   （[AirlineMemberships](../src/components/memberships/AirlineMemberships.tsx)）：每個計畫一個
@@ -381,7 +387,14 @@ UI：登入頁 [/wrapped](../src/app/%5Blocale%5D/wrapped/page.tsx)（年份切�
   (2) CX 卡展開區「試算」鈕開
   [CxSpEstimatorDialog](../src/components/memberships/CxSpEstimatorDialog.tsx)（自選機場＋客艙，
   純顯示不落 DB）。預估 UI 恆帶「以官方為準」disclaimer（`CX_EARN_VERIFIED_AT`）。
-- **待做**：華航 CI program、BR 續卡（24 月窗口）精算——見 PLAN-LOYALTY.md §8。
+- **Phase 2b（華航 CI＋BR 續卡精算，2026-07-16，#20 全部完成）**：`tier_expires_at`（卡籍效期）
+  端到端接出（Zod → action → DTO → 帳戶表單效期欄，**僅 BR/CI 顯示**、CX 曆年制不用）——兩家
+  續卡窗口都錨定它；未設效期則續卡顯示「設定效期後可計算」提示。CI 自家占比 <50% 顯示警示
+  （`text-warning` 語意色）；entry「自家航班」勾選 program-aware（BR＝航段判定、CI＝占比分子，
+  CX 無此欄），飛行帶入依 `OWN_AIRLINE_CODES`（CI/AE、BR/B7）預設勾選。BR 官方「達標日至新卡
+  生效間哩程保留」緩衝機制**刻意不建模**（disclaimer 蓋住）。查證註記（2026-07-16）：BR 續卡為
+  官網一手；CI 官網被 Akamai 擋，以 jazztalk／pokem／官方社群三來源交叉確認（constants 註解
+  有記，日後可補官方一手核對——見 ROADMAP #20 延伸）。
 
 ---
 

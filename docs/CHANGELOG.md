@@ -35,8 +35,10 @@
 | 19 | 💎 旅行成就 P3（里程碑徽章 15 枚＋去識別化公開分享卡串 mapShareCode＋wrapped 年份納入回填；#19 全部完成） | M | 2026-07-13 |
 | ＋ | 🔹 行程隨手記（成員共享速記 + 照片附件 + 一鍵轉行程活動；非 Roadmap 項） | S~M | 2026-07-03 |
 | ＋ | 🔹 旅程幣別設定（常用幣別 / 自訂匯率 / 預設幣別；支出表單、結算、統計套用；非 Roadmap 項） | S~M | 2026-07-05 |
-| #20 | ⭐ 會籍積分與里程紀錄 Phase 1（國泰 MVP：帳戶＋積分 ledger＋升等/續會進度＋飛行帶入；Phase 2/3 見 [PLAN-LOYALTY.md](./PLAN-LOYALTY.md)） | M | 2026-07-14 |
+| #20 | ⭐ 會籍積分與里程紀錄 Phase 1（國泰 MVP：帳戶＋積分 ledger＋升等/續會進度＋飛行帶入；實作筆記見 [FEATURES.md](./FEATURES.md) §16） | M | 2026-07-14 |
+| #20 | ⭐ 會籍 Phase 2a（長榮 BR：`milesAndSegments` 哩程＋航段制、滾動 12 月雙路徑升等進度、多 program 編排＋航空/飯店雙 tab；補記） | S | 2026-07-15 |
 | #20 | ⭐ 會籍 Phase 3（CX 積分預估：官方 2025/8/20 賺取表常數＋距離區間×客艙 min–max、飛行帶入預估 chip、獨立試算器）＋每計畫 collapse 化（收合列＝名稱/等級/迷你進度） | S | 2026-07-15 |
+| #20 | ⭐ 會籍 Phase 2b（華航 CI 2026 新制：滾動 12 月升等＋2 年效期續卡＋50% 自家占比警示；BR 續卡精算＝卡籍效期窗口 40k/42・80k/80・200k/140；`tier_expires_at` 端到端；**#20 全部完成**，PLAN-LOYALTY.md 退役刪除、草圖查 git 歷史） | S | 2026-07-16 |
 | #21 | 💎 旅程相簿 Phase 1（相簿本體：`Photo` collection＋成員共享 grid/lightbox/下載；**JPEG `preserveExif` 保住相片 EXIF 含 GPS**＋另抽一份進 DB；`presignGetStable` 窗口對齊簽名；實作筆記見 [FEATURES.md](./FEATURES.md) §17） | M | 2026-07-15 |
 | #21 | 💎 旅程相簿 Phase 2（行程日關聯——**無 GPS 的相片借當天座標**標 `source: 'itinerary'`，exif/manual 不被覆蓋；說明編輯；批次選取刪除（`deletePhoto` → `deletePhotos`）；行程日卡片顯示當天相片；刪／改行程日時同步清理借出的座標；實作筆記見 [FEATURES.md](./FEATURES.md) §17） | S | 2026-07-15 |
 | #21 | 💎 旅程相簿 Phase 3＋4（**地圖整合**：相片圖層改讀 `Photo`、EXIF 精確釘點、前端 cluster、**退役收據衍生相片模式**；**公開分享**：`Trip.albumShareCode`＋純相片牌公開頁 `/album/share/[code]`——只露相片／說明／日期／旅程名，**不含位置**；公開路由只簽剝除 APP1 的消毒副本 `_p.jpg`（[jpegSanitize.ts](../src/lib/jpegSanitize.ts)／[photoSanitize.ts](../src/lib/photoSanitize.ts)）與縮圖，絕不簽自帶 GPS 的顯示檔） | M | 2026-07-15 |
