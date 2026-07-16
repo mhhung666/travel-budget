@@ -185,7 +185,10 @@ function PublicPhotoLightbox({
         </button>
       </div>
 
-      <div className="flex flex-1 items-center justify-center px-2" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="flex flex-1 items-center justify-center px-2"
+        onClick={(e) => e.stopPropagation()}
+      >
         {hasPrev && (
           <button
             type="button"
