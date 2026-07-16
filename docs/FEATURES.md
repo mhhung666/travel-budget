@@ -185,13 +185,13 @@
 | 航線 | great-circle 弧線 |
 | 熱點 | leaflet.heat，權重 = 造訪次數 **或** 花費（登入限定） |
 | 國家 | choropleth 點亮造訪國 |
-| 相片 | 支出收據圖片依關聯行程日座標釘點，點擊看 gallery（登入限定） |
+| 相片 | 旅程相簿相片依 EXIF GPS 釘點（退關聯行程日座標），點擊看 gallery（登入限定，§17 Phase 3） |
 
 - **Leaflet 為 client-only**：畫布一律 `dynamic(..., { ssr: false })`，並在 [globals.css](../src/app/globals.css) 保留 `.leaflet-container { isolation: isolate; }`。
 - **分享為使用者層級**：`User.mapShareCode`（opt-in、sparse-unique，同 trip `hashCode` 格式 / 驗證）。`/map/share/*` 為公開頁。
 - **公開 API [/api/public/map/[code]](../src/app/api/public/map/%5Bcode%5D/route.ts) 依約去識別化**：只露座標、在地化地名與**年份**，絕不露旅行名稱 / id / 完整日期。熱點彙整到四捨五入座標。
 - **花費權重熱點**（[getVisitedPlaces](../src/actions/map.actions.ts) `weightBy: 'visits' | 'spend'`）以 `$lookup` 關聯支出加總；**花費權重恆為登入限定**（公開地圖去識別化契約不外洩金額）。
-- **相片釘點（ROADMAP #16）**（[getMapPhotos](../src/actions/map.actions.ts)）以 `$lookup` 把支出的圖片附件關聯到 `Expense.itineraryDays → ItineraryDay.location` 取座標，依四捨五入座標分群成釘點（純函式 [groupPhotoPins](../src/components/map/photos.ts)，4 單元測試）。**收據仍私有**：action 只回物件 key，前端逐張經 `getReceiptUrl` 驗成員後取短效簽名 URL（沿用 [AttachmentThumb](../src/components/trips/detail/ReceiptAttachments.tsx)），**不外洩到公開分享路由**。只收 `image/*`（PDF 收據不上圖）。
+- **相片釘點**：Phase 3 起改讀旅程相簿 `Photo` collection（詳見 §17；舊的 ROADMAP #16 收據衍生模式已退役，收據附件不再上地圖）。純函式 [groupPhotoPins](../src/components/map/photos.ts) 以 **50m 貪心距離分群**（質心錨定，釘點座標＝群質心）；cluster 在最大縮放被點擊時把群內釘點合併直接開整組 gallery（取代 spiderfy）。`url`／`thumb_url` 由 `presignGetStable` 批次簽發，**恆為登入限定、不外洩到公開分享路由**。
 - **`public/geo/countries.geojson` 是產生的資產**（Natural Earth 110m admin-0 瘦身版），需更新時自 `nvkelso/natural-earth-vector` 重新產生。
 
 ---
@@ -445,9 +445,12 @@ UI：登入頁 [/wrapped](../src/app/%5Blocale%5D/wrapped/page.tsx)（年份切�
   由 `location.source` 標示），**取代**了舊的收據衍生模式（收據是憑證不是回憶，座標只能借整天共用的行程日
   中心；不做資料遷移——既有收據圖的 EXIF 早已永久消失）。`url`／`thumb_url` 由 `presignGetStable` **批次簽發**
   隨 DTO 一起回（一次幾百張只是純 HMAC、沒有網路往返；逐張再打 action 反而 N+1），釘點對話框直接用它、
-  改綁相簿共用的 `PhotoLightbox`（不再 per-photo `getReceiptUrl`）。座標分群 bucket 從舊的 ~1km 收緊到
-  **~11m**（4dp）——EXIF 精度到街廓，~1km 會把整條街的相片誤併成一張；更近的重疊交給 marker cluster
-  在前端處理。分群邏輯與不變式由 [mapPhotos.test.ts](../src/__tests__/mapPhotos.test.ts) 守住。
+  改綁相簿共用的 `PhotoLightbox`（不再 per-photo `getReceiptUrl`）。座標分群歷經兩輪收斂：~1km 網格
+  （整條街誤併）→ ~11m（4dp）網格（EXIF GPS 幾乎不會全同，幾乎每張自成一釘，且網格有「差 2m 跨線就拆群」
+  的邊界問題）→ 現行 **50m 貪心距離分群**（質心錨定防鏈延，釘點座標＝群質心）。更遠釘點在低縮放的視覺
+  重疊交給 marker cluster；cluster 在**最大縮放**被點擊時（過去會 spiderfy 散開成單張卡片）改為
+  `mergePhotoPins` 合併群內釘點、直接開整組相片的 gallery（iPhone 相簿行為）。
+  分群邏輯與不變式由 [mapPhotos.test.ts](../src/__tests__/mapPhotos.test.ts) 守住。
 - **公開分享＝純相片牌，不帶任何位置（Phase 4）**：相簿可 opt-in 公開（`Trip.albumShareCode`，
   sparse-unique、`hash_code` 同格式；[albumShare.actions.ts](../src/actions/albumShare.actions.ts) 產生／
   重新產生／撤銷，trip-scoped 先驗成員）。公開頁 `/album/share/[code]`（不在 `proxy.ts` protectedRoutes）

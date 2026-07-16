@@ -3,11 +3,16 @@
 import { Fragment, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Polyline, Tooltip, useMap } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
-import { LatLngBounds, divIcon, type Marker as LeafletMarker } from 'leaflet';
+import {
+  LatLngBounds,
+  divIcon,
+  type Marker as LeafletMarker,
+  type LeafletMouseEvent,
+} from 'leaflet';
 import { useTheme } from 'next-themes';
 import 'leaflet/dist/leaflet.css';
 import type { TripRoute, HeatPoint, FlightSegment } from './types';
-import type { PhotoPin } from './photos';
+import { mergePhotoPins, type PhotoPin } from './photos';
 import { countryCodeToFlag, countryColor } from './country';
 import { greatCirclePositions, routeHeading } from './arc';
 import HeatLayer from './HeatLayer';
@@ -211,12 +216,11 @@ function photoCardIcon(thumbUrl: string, count: number) {
 
 /**
  * 掛在相片 Marker options 上的自訂欄位（react-leaflet 會把多餘 props spread 進
- * `L.Marker` 建構 options），讓 cluster 的 iconCreateFunction 直接從 child markers
- * 彙總，不依賴會過期的外部 closure。
+ * `L.Marker` 建構 options），讓 cluster 的 iconCreateFunction 與點擊處理直接從
+ * child markers 彙總，不依賴會過期的外部 closure。
  */
 interface PhotoMarkerData {
-  photoThumbUrl: string;
-  photoCount: number;
+  photoPin: PhotoPin;
 }
 
 /**
@@ -229,15 +233,71 @@ function photoClusterIcon(cluster: { getAllChildMarkers(): LeafletMarker[] }) {
   let bestCount = -1;
   let thumb = '';
   for (const m of cluster.getAllChildMarkers()) {
-    const data = m.options as Partial<PhotoMarkerData>;
-    const count = data.photoCount ?? 0;
-    total += count;
-    if (data.photoThumbUrl && count > bestCount) {
-      bestCount = count;
-      thumb = data.photoThumbUrl;
+    const pin = (m.options as Partial<PhotoMarkerData>).photoPin;
+    if (!pin) continue;
+    total += pin.photos.length;
+    const t = pin.photos[0]?.thumb_url;
+    if (t && pin.photos.length > bestCount) {
+      bestCount = pin.photos.length;
+      thumb = t;
     }
   }
   return photoCardIcon(thumb, total);
+}
+
+/**
+ * 相片模式圖層：縮圖卡片釘點 + 近點聚合（50m 內的合併已在資料層 groupPhotoPins 做掉，
+ * 這裡的 cluster 只處理更遠釘點在低縮放時的視覺重疊）。
+ * cluster 點擊：還能放大時交給預設 zoomToBounds 繼續拉近；已在最大縮放時（過去會
+ * spiderfy 散開成一堆單張卡片）改為把群內所有釘點合併成臨時釘點、直接開整組相片的
+ * gallery——iPhone 相簿的行為。獨立成元件是為了 useMap 拿縮放狀態。
+ */
+function PhotoPinsLayer({
+  pins,
+  onSelect,
+}: {
+  pins: PhotoPin[];
+  onSelect?: (pin: PhotoPin) => void;
+}) {
+  const map = useMap();
+  const onClusterClick = (e: LeafletMouseEvent) => {
+    if (map.getZoom() < map.getMaxZoom()) return; // 還能放大：交給預設 zoomToBounds
+    const cluster = e.propagatedFrom as { getAllChildMarkers(): LeafletMarker[] };
+    const memberPins = cluster
+      .getAllChildMarkers()
+      .map((m) => (m.options as Partial<PhotoMarkerData>).photoPin)
+      .filter((p): p is PhotoPin => p !== undefined);
+    if (memberPins.length > 0) onSelect?.(mergePhotoPins(memberPins));
+  };
+  return (
+    <MarkerClusterGroup
+      chunkedLoading
+      showCoverageOnHover={false}
+      maxClusterRadius={72}
+      iconCreateFunction={photoClusterIcon}
+      spiderfyOnMaxZoom={false}
+      onClick={onClusterClick}
+    >
+      {pins.map((pin) => {
+        const thumb = pin.photos[0]?.thumb_url ?? '';
+        // key 含首張相片與張數：年份篩選改變群內容時強制重建 marker，
+        // 讓掛在 options 上的 PhotoMarkerData 不會過期（react-leaflet 更新時不重寫 options）。
+        return (
+          <Marker
+            key={`photo-${pin.id}-${pin.photos[0]?.id ?? ''}-${pin.photos.length}`}
+            position={[pin.lat, pin.lon]}
+            icon={photoCardIcon(thumb, pin.photos.length)}
+            eventHandlers={{ click: () => onSelect?.(pin) }}
+            {...({ photoPin: pin } satisfies PhotoMarkerData)}
+          >
+            <Tooltip direction="top" offset={[0, -(PHOTO_CARD + PHOTO_TAIL + 2)]}>
+              {countryCodeToFlag(pin.countryCode)} {pin.name}
+            </Tooltip>
+          </Marker>
+        );
+      })}
+    </MarkerClusterGroup>
+  );
 }
 
 /** 目的地聚合的數量氣泡（markercluster 預設 CSS 未載入，樣式自己畫）。 */
@@ -321,36 +381,7 @@ export default function TripMapCanvas({
       {isCountries && <CountriesLayer visited={visitedCountries ?? new Set()} isDark={isDark} />}
 
       {/* 相片釘點：縮圖卡片，近點聚合成同款卡片（radius 涵蓋卡片寬避免重疊），點擊開啟 gallery。 */}
-      {isPhotos && (
-        <MarkerClusterGroup
-          chunkedLoading
-          showCoverageOnHover={false}
-          maxClusterRadius={72}
-          iconCreateFunction={photoClusterIcon}
-        >
-          {photoPins.map((pin) => {
-            const thumb = pin.photos[0]?.thumb_url ?? '';
-            // key 含首張相片與張數：年份篩選改變群內容時強制重建 marker，
-            // 讓掛在 options 上的 PhotoMarkerData 不會過期（react-leaflet 更新時不重寫 options）。
-            return (
-              <Marker
-                key={`photo-${pin.id}-${pin.photos[0]?.id ?? ''}-${pin.photos.length}`}
-                position={[pin.lat, pin.lon]}
-                icon={photoCardIcon(thumb, pin.photos.length)}
-                eventHandlers={{ click: () => onPhotoPinSelect?.(pin) }}
-                {...({
-                  photoThumbUrl: thumb,
-                  photoCount: pin.photos.length,
-                } satisfies PhotoMarkerData)}
-              >
-                <Tooltip direction="top" offset={[0, -(PHOTO_CARD + PHOTO_TAIL + 2)]}>
-                  {countryCodeToFlag(pin.countryCode)} {pin.name}
-                </Tooltip>
-              </Marker>
-            );
-          })}
-        </MarkerClusterGroup>
-      )}
+      {isPhotos && <PhotoPinsLayer pins={photoPins} onSelect={onPhotoPinSelect} />}
 
       {/* 飛行航段（旅行成就 FlightRecord 聚合）：弧線粗細依飛行次數，機場為小圓點 */}
       {isFlights &&
