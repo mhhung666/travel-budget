@@ -20,6 +20,14 @@ EOF
 
 R2 不設也能跑（只有上傳功能會回錯）。**驗證完把 .env.local 與 container 清掉。**
 
+**這台機器沒有 docker／mongod**：改在 scratchpad `npm i mongodb-memory-server`，
+用 `MongoMemoryServer.create({ instance: { port: 27017, ip: '127.0.0.1' } })` 起常駐腳本
+（背景跑、驗完 kill）。MONGODB_URI 用 `mongodb://127.0.0.1:27017/travel-budget`。
+
+要驗「已簽好 URL 的圖」（相簿縮圖、收據圖）時：.env.local 塞一組假 R2 env
+（`R2_ACCOUNT_ID=verifyacct` 等六項）讓 presign 能簽（純 HMAC 不打網路），再用 Playwright
+`page.route(/r2\.cloudflarestorage\.com/, …)` 攔截回本機產生的 SVG/圖片 bytes，即可端到端看到圖。
+
 ## 2. 起 dev server
 
 ```bash
@@ -41,3 +49,5 @@ pnpm dev   # localhost:3000；首次編譯每條路由 30s+，Playwright goto �
 - 隨手記 composer 的 Enter＝送出；多行內容用 `fill()` 塞。
 - **dev overlay 會擋點擊**（`<nextjs-portal>` intercepts pointer events，既有 TripSpaceShell
   hydration mismatch 觸發）：點擊前 `p.evaluate(() => document.querySelector('nextjs-portal')?.remove())`。
+- `/map` 頁在**沒有任何旅程帶目的地座標**時走空狀態（連模式切換列都不渲染）；直接種 DB 的
+  旅程要給 `destinationLocation: { name, names: {}, lat, lon, country_code }` 才看得到地圖。
