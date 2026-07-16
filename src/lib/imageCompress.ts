@@ -36,7 +36,8 @@ const PRESETS: Record<CompressPreset, PresetConfig> = {
   avatar: { maxWidthOrHeight: 512, maxSizeMB: 0.2, fileType: 'image/webp' },
   // 相簿顯示＋下載檔：輸出 JPEG 而非 WebP 是刻意的取捨——同畫質下大約 25–30%，
   // 換來壓縮檔自帶完整 EXIF（含 GPS），使用者存回手機時 Apple 照片／Google 相簿讀得到地點。
-  photo: { maxWidthOrHeight: 2560, maxSizeMB: 2, fileType: 'image/jpeg', preserveExif: true },
+  // 長邊 3264 ≈ 4:3 下 800 萬畫素；maxSizeMB 抓 4 讓畫質不被硬擠（server 線 = MAX_PHOTO_BYTES 6MB）。
+  photo: { maxWidthOrHeight: 3264, maxSizeMB: 4, fileType: 'image/jpeg', preserveExif: true },
   // 相簿 grid 縮圖：不需要 EXIF，故用壓縮率較好的 WebP（canvas 產生，天生無 metadata）。
   photoThumb: { maxWidthOrHeight: 400, maxSizeMB: 0.05, fileType: 'image/webp' },
 };

@@ -18,9 +18,9 @@ export const MAX_RECEIPT_BYTES = 8 * 1024 * 1024; // 8MB（收據可為未壓縮
 export const MAX_AVATAR_BYTES = 4 * 1024 * 1024; // 4MB
 export const MAX_ITINERARY_BYTES = MAX_RECEIPT_BYTES; // 票券同收據（可為 PDF）
 export const MAX_NOTE_BYTES = MAX_AVATAR_BYTES; // 隨手記僅圖片（無 PDF），沿用頭像上限
-// 相簿相片：前端壓縮後正常落在 1.2MB 以內（2560px JPEG q80），這條線只擋異常。
+// 相簿相片：前端壓縮後正常落在 2–3.5MB（3264px JPEG，maxSizeMB 4 + EXIF 回填），這條線只擋異常。
 // 刻意高於 receipt 的等效壓縮結果——相片保有 EXIF 且解析度較高，本來就比收據大。
-export const MAX_PHOTO_BYTES = 3 * 1024 * 1024; // 3MB
+export const MAX_PHOTO_BYTES = 6 * 1024 * 1024; // 6MB
 
 export const RECEIPT_CONTENT_TYPES = [
   'image/jpeg',
@@ -178,7 +178,7 @@ export function isPhotoKeyForTrip(tripId: string, key: string): boolean {
  * 一張相片的物件 key 組。**兩顆物件共用同一個 uuid**，這是刻意的：`_t`（縮圖）與
  * `_p`（消毒副本）都要能從顯示檔的 key 推導出來，uuid 分家就得在 DB 多存欄位。
  *
- *   photos/<tripId>/<uuid>.jpg     顯示＋下載（長邊 2560，自帶 EXIF）
+ *   photos/<tripId>/<uuid>.jpg     顯示＋下載（長邊 3264，自帶 EXIF）
  *   photos/<tripId>/<uuid>_t.webp  縮圖（長邊 400，grid 用，canvas 產生故無 EXIF）
  *   photos/<tripId>/<uuid>_p.jpg   消毒副本（剝除 APP1，Phase 4 公開分享用；Phase 1 不產生）
  *

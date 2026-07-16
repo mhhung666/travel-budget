@@ -416,7 +416,7 @@ UI：登入頁 [/wrapped](../src/app/%5Blocale%5D/wrapped/page.tsx)（年份切�
   每張兩顆物件、**共用同一個 uuid**（`<uuid>.jpg` 顯示＋下載／`<uuid>_t.webp` 縮圖），
   故上傳簽名**一次簽兩張**（`createPhotoUploadUrls`）——uuid 分家就無法推導 `_t`／`_p`。
   Phase 4 的消毒副本 `<uuid>_p.jpg` 規則現在就定死（key 命名有相片入庫後就改不動）。
-  `MAX_PHOTO_BYTES = 3MB`（伺服器硬防線，壓縮後正常 <1.2MB）；每旅程軟上限 300 張（回 `CONFLICT`）。
+  `MAX_PHOTO_BYTES = 6MB`（伺服器硬防線，壓縮後正常 2–3.5MB，長邊 3264 ≈ 8MP）；每旅程軟上限 300 張（回 `CONFLICT`）。
   刪除同 no-cascade 契約：blob best-effort，一次 `deleteObjects` 收三顆 key（含尚未存在的 `_p`，S3 刪不存在的 key 是 no-op）。
 - **簽名 URL 必須穩定**（[storage.ts](../src/lib/storage.ts) `presignGetStable`）：SW 對 R2 圖片是 CacheFirst、
   快取 key＝完整 URL，而 `presignGet` 每次都產生新的 `X-Amz-Date`／`X-Amz-Signature` → 相簿每次瀏覽

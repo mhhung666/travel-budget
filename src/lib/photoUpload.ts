@@ -15,7 +15,7 @@ import { PHOTO_BATCH_MAX, type PhotoItemInput } from '@/lib/validation';
  * 流程：
  * ```
  * 選檔 → readPhotoExif(原始 File)        ← 必須在任何 canvas 操作之前
- *      → compressImage(file, 'photo')     ← JPEG 2560 + preserveExif（壓縮檔自帶 EXIF）
+ *      → compressImage(file, 'photo')     ← JPEG 3264 + preserveExif（壓縮檔自帶 EXIF）
  *      → compressImage(file, 'photoThumb')← WebP 400（縮圖不需 EXIF）
  *      → 一次取兩張簽名 → 兩顆直傳 R2 → 回傳 addTripPhotos 的 item
  * ```
@@ -28,7 +28,7 @@ export const MAX_PHOTO_SOURCE_BYTES = 50 * 1024 * 1024;
 
 /**
  * 同時處理幾個檔案。**不要拿掉這個限制改用 `Promise.all` 一次全開**：
- * 每個檔案都要跑兩次 canvas 壓縮（一次 2560px、一次 400px）＋一次 `createImageBitmap`，
+ * 每個檔案都要跑兩次 canvas 壓縮（一次 3264px、一次 400px）＋一次 `createImageBitmap`，
  * 20 張同時解碼在桌機沒事，在 iPhone Safari 上就是整頁 OOM 重載。
  * 上傳相簿時使用者正盯著進度，慢一點無妨，掛掉不行。
  */

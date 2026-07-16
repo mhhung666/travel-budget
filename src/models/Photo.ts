@@ -7,7 +7,7 @@ import mongoose, { Schema, type InferSchemaType, type Model } from 'mongoose';
  *
  * 每張相片在 R2 有兩顆物件（私有 receipts bucket，前綴 `photos/<tripId>/`，
  * 共用同一個 uuid，見 buildPhotoObjectKeys）：
- *   - `key`      顯示＋下載（長邊 2560 的 JPEG，**自帶完整 EXIF 含 GPS**）
+ *   - `key`      顯示＋下載（長邊 3264 的 JPEG，**自帶完整 EXIF 含 GPS**）
  *   - `thumbKey` 縮圖（長邊 400 的 WebP，grid 用，canvas 產生故無 EXIF）
  *
  * 檢視走 presignGetStable 簽發的「窗口內穩定」URL（相簿一頁幾十張，簽名若每次都變
