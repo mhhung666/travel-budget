@@ -367,7 +367,8 @@ UI：登入頁 [/wrapped](../src/app/%5Blocale%5D/wrapped/page.tsx)（年份切�
   夜數制 placeholder，Phase 2 後續）。航空 tab **多 program 編排**
   （[AirlineMemberships](../src/components/memberships/AirlineMemberships.tsx)）：每個計畫一個
   **collapse 區塊**（[ProgramProgressCard](../src/components/memberships/ProgramProgressCard.tsx)）——
-  收合列只放計畫名＋等級 badge＋迷你進度（CX `600/1,200`；BR 取哩程/航段完成率較高的路徑），
+  收合列只放計畫名＋等級 badge（底色＝官方卡面近似色，`TIER_BADGE_COLORS`，規則見
+  [TIER-COLORS.md](./TIER-COLORS.md)）＋迷你進度（CX `600/1,200`；BR 取哩程/航段完成率較高的路徑），
   點開才有 StatTiles、完整進度條（依 kind：CX 積分／BR 哩程＋航段雙路徑）、帳戶操作與該計畫的
   [LoyaltyLedger](../src/components/memberships/LoyaltyLedger.tsx)（RecordYearGroups 年份分組）；
   單一帳戶預設展開、多帳戶預設收合。新增帳戶可挑計畫、設定完隱藏。entry 表單 program-aware

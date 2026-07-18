@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Calculator, ChevronDown, Pencil, Trash2 } from 'lucide-react';
 
-import { PROGRAM_RULES } from '@/constants/loyalty';
+import { PROGRAM_RULES, TIER_BADGE_COLORS } from '@/constants/loyalty';
 import { computeLoyaltyProgress, computeMilesSegmentsProgress } from '@/lib/loyalty';
 import type { LoyaltyAccountItem, LoyaltyEntryItem } from '@/types';
 import { Badge } from '@/components/ui/badge';
@@ -63,6 +63,8 @@ export function ProgramProgressCard({
   const rules = PROGRAM_RULES[account.program];
   const tierName = (key: string) =>
     t(`loyalty.tiers.${account.program}.${key}` as Parameters<typeof t>[0]);
+  // 等級 tag 底色＝官方卡面近似色（docs/TIER-COLORS.md）；查無則 fallback secondary
+  const tierColor = TIER_BADGE_COLORS[account.program]?.[account.current_tier];
 
   // 收合列的迷你進度（文字＋百分比）與展開區詳情，依規則 kind 各算一次
   let summaryText: string;
@@ -263,7 +265,17 @@ export function ProgramProgressCard({
               <h2 className="text-sm font-semibold text-foreground">
                 {t(`loyalty.programs.${account.program}`)}
               </h2>
-              <Badge variant="secondary">{tierName(account.current_tier)}</Badge>
+              {tierColor ? (
+                <Badge
+                  variant="secondary"
+                  className="border-transparent text-white"
+                  style={{ backgroundColor: tierColor }}
+                >
+                  {tierName(account.current_tier)}
+                </Badge>
+              ) : (
+                <Badge variant="secondary">{tierName(account.current_tier)}</Badge>
+              )}
             </div>
             <div className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
               <span className="font-mono">{summaryText}</span>

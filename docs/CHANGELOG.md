@@ -101,6 +101,7 @@
 - **Public API 樣板收斂**（2026-07-02）：[withPublicTrip.ts](../src/lib/withPublicTrip.ts) 統一 `await params` / hash_code 解析 / 404 / try-catch；[dto.ts](../src/lib/dto.ts) 抽出 `toExpenseDto` / `toTripDto` 供 actions 與公開路由共用（消除平行 DTO 映射）。
 - **結構化 logger**（2026-07-02）：新增 [logger.ts](../src/lib/logger.ts)（isomorphic，production 每筆一行 JSON）；全庫 45 處 `console.error` 改用之。
 - **安全標頭**（2026-07-02）：[next.config.ts](../next.config.ts) `headers()` 加 `X-Content-Type-Options` / `X-Frame-Options` / `Referrer-Policy` / `frame-ancestors 'none'`，production 才送 HSTS。（完整 `script-src` CSP 刻意未上，見 IMPROVEMENTS.md 備註）
+- **會籍等級 tag 卡面色**（2026-07-18）：`/memberships` 的 tier badge 底色改用各航官方會員卡近似色（CX/CI/BR 全計畫），色值集中 `TIER_BADGE_COLORS`（[constants/loyalty.ts](../src/constants/loyalty.ts)），取色與維護規則制定於 [TIER-COLORS.md](./TIER-COLORS.md)。
 - **路由保護清單單一來源化**（2026-07-02）：`PROTECTED_ROUTES` / `AUTH_ROUTES`（[routes.ts](../src/constants/routes.ts)）修正為與 proxy 一致並被 [proxy.ts](../src/proxy.ts) import，刪除漂移的重複清單。
 
 ---
