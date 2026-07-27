@@ -74,6 +74,12 @@
 - 分享、成員、行程、清單、收據與相簿 icon-only controls 補四語 accessible name；公開相簿 lightbox 補 dialog semantics、Tab trap、鍵盤切換與 focus return。
 - 支出金額拒絕科學記號、正負號與其他非十進位格式；新增十進位單元測試與 icon button AST 靜態無障礙測試。完整交付與未完成的人工／axe 驗證見 [UI_UX_EVALUATION.md](./UI_UX_EVALUATION.md)。
 
+### UI/UX 第二輪 Phase 2A：首次使用成功路徑（2026-07-27）
+
+- 空旅行列表提供建立／加入雙 CTA；建立表單第一屏只要求旅行名稱，其餘欄位漸進揭露，建立成功直接進入新旅行。
+- 支出、行程、清單、相簿的空狀態皆能直接執行主要動作；行程落點加入可關閉的第一筆支出／首次邀請 checklist。
+- 四語文案與 Phase 2A 回歸契約同步完成；交付範圍、驗證數據與後續使用者測試限制見 [UI_UX_EVALUATION.md](./UI_UX_EVALUATION.md)。
+
 ---
 
 ## 行程空間分頁重排（2026-07-15）
