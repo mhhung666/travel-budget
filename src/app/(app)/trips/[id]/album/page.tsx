@@ -146,12 +146,14 @@ export default function AlbumPage() {
                   {t('select')}
                 </Button>
               )}
-              <PhotoUploadButton
-                tripId={tripId}
-                pending={m.add.isPending}
-                // 回傳 promise：上傳器要等這批入庫完才傳下一批（見 uploadPhotoFilesInBatches）
-                onUploaded={(items) => guard(m.add.mutateAsync(items))}
-              />
+              {photos.length > 0 && (
+                <PhotoUploadButton
+                  tripId={tripId}
+                  pending={m.add.isPending}
+                  // 回傳 promise：上傳器要等這批入庫完才傳下一批（見 uploadPhotoFilesInBatches）
+                  onUploaded={(items) => guard(m.add.mutateAsync(items))}
+                />
+              )}
             </>
           )}
         </div>
@@ -162,6 +164,15 @@ export default function AlbumPage() {
           icon={Images}
           title={t('emptyState')}
           description={isMember ? t('emptyStateHint') : undefined}
+          action={
+            isMember ? (
+              <PhotoUploadButton
+                tripId={tripId}
+                pending={m.add.isPending}
+                onUploaded={(items) => guard(m.add.mutateAsync(items))}
+              />
+            ) : undefined
+          }
         />
       ) : (
         <PhotoGrid

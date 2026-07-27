@@ -208,7 +208,7 @@ export default function TripExpenses({
               className="px-3 sm:px-4"
               labelClassName="hidden sm:inline"
             />
-            {isCurrentUserMember && (
+            {isCurrentUserMember && expenses.length > 0 && (
               <Button
                 onClick={onAdd}
                 className="hidden gap-2 whitespace-nowrap px-3 sm:px-4 md:inline-flex"
@@ -349,6 +349,14 @@ export default function TripExpenses({
           icon={ReceiptText}
           title={tExpense('noExpenses')}
           description={isCurrentUserMember ? tExpense('clickToAdd') : undefined}
+          action={
+            isCurrentUserMember ? (
+              <Button onClick={onAdd} className="gap-2">
+                <Plus className="h-4 w-4" />
+                {tExpense('addFirst')}
+              </Button>
+            ) : undefined
+          }
         />
       ) : filtered.length === 0 ? (
         <EmptyState

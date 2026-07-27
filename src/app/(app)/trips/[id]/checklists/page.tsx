@@ -85,7 +85,7 @@ export default function ChecklistsPage() {
   return (
     <div className="container mx-auto max-w-3xl py-4 px-4 sm:px-6">
       {/* Add new list */}
-      {canEdit && (
+      {canEdit && checklists.length > 0 && (
         <div className="mb-6 flex justify-end">
           <Button onClick={() => setNewSheetOpen(true)} className="gap-2">
             <Plus className="h-4 w-4" />

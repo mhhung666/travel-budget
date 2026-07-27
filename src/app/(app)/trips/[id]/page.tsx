@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
@@ -16,7 +16,9 @@ import {
 } from '@/components/trips/detail/itinerary/ActivityListEditor';
 import { PhotoLightbox } from '@/components/trips/detail/album';
 import { TripHeader } from '@/components/trips/detail';
+import FirstStepsCard from '@/components/trips/detail/FirstStepsCard';
 import { EditTripDialog } from '@/components/trips/detail/dialogs';
+import { useTripSpaceActions } from '@/components/trips/space/TripSpaceContext';
 import type { LocationOption } from '@/components/location/LocationAutocomplete';
 import { ExportMenu } from '@/components/export';
 import { FlightRecordDialog, StayRecordDialog } from '@/components/collections';
@@ -24,6 +26,7 @@ import type { Activity, ItineraryDay, TripPhoto } from '@/types';
 import type { CreateFlightRecordInput, CreateStayRecordInput } from '@/lib/validation';
 import {
   useItinerary,
+  useExpenses,
   usePhotos,
   useTrip,
   useTripMembership,
@@ -67,12 +70,15 @@ export default function ItineraryPage() {
   const tripId = params.id as string;
   const tItinerary = useTranslations('itinerary');
   const tAct = useTranslations('itinerary.activities');
+  const tFirstSteps = useTranslations('trip.firstSteps');
 
   const { toast } = useToast();
 
   const { data: days = [], isLoading: loading, isError } = useItinerary(tripId);
   const { data: trip } = useTrip(tripId);
-  const { isAdmin, isMember } = useTripMembership(tripId);
+  const { data: expenses = [] } = useExpenses(tripId);
+  const { isAdmin, isMember, members } = useTripMembership(tripId);
+  const { openAddExpense } = useTripSpaceActions();
   // 當天相片：與相簿頁共用同一份 query 快取（一趟旅程只查一次），在這裡依行程日分組。
   // 成員限定——usePhotos 無公開 fallback；非成員（含分享頁訪客）連問都不必問，故用 isMember 擋掉。
   const { data: photos = [] } = usePhotos(tripId, isMember);
@@ -127,6 +133,8 @@ export default function ItineraryPage() {
     activity?: Activity;
   } | null>(null);
   const [deletingDay, setDeletingDay] = useState<ItineraryDay | null>(null);
+  const [inviteCopied, setInviteCopied] = useState(false);
+  const [firstStepsDismissed, setFirstStepsDismissed] = useState(false);
   // 待確認刪除的單筆活動；null＝關閉確認框。
   const [deletingActivity, setDeletingActivity] = useState<{
     day: ItineraryDay;
@@ -201,6 +209,28 @@ export default function ItineraryPage() {
     setDialogMode('add');
     setEditingDay(null);
     setDialogOpen(true);
+  };
+
+  const handleCopyInvite = async () => {
+    if (!trip) return;
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/join/${trip.hash_code}`);
+      setInviteCopied(true);
+      toast({ description: tFirstSteps('inviteCopied'), variant: 'success' });
+    } catch {
+      toast({ description: tFirstSteps('copyFailed'), variant: 'destructive' });
+    }
+  };
+
+  useEffect(() => {
+    if (!trip?.id) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage 是一次性提示的持久狀態來源
+    setFirstStepsDismissed(localStorage.getItem(`trip-first-steps:${trip.id}`) === 'dismissed');
+  }, [trip?.id]);
+
+  const dismissFirstSteps = () => {
+    if (trip?.id) localStorage.setItem(`trip-first-steps:${trip.id}`, 'dismissed');
+    setFirstStepsDismissed(true);
   };
 
   const handleEditDay = (day: ItineraryDay) => {
@@ -323,6 +353,16 @@ export default function ItineraryPage() {
         <TripHeader trip={trip} isCurrentUserAdmin={isAdmin} onEdit={editTripDialog.openDialog} />
       )}
 
+      {trip && isMember && !firstStepsDismissed && (
+        <FirstStepsCard
+          hasExpense={expenses.length > 0}
+          hasInvited={members.length > 1 || inviteCopied}
+          onAddExpense={() => openAddExpense()}
+          onCopyInvite={handleCopyInvite}
+          onDismiss={dismissFirstSteps}
+        />
+      )}
+
       {/* 頁首由行程空間殼提供（分頁列已標示所在位置），此列只放動作 */}
       <div className="mb-4 flex items-center justify-end gap-2">
         <ExportMenu
@@ -330,7 +370,7 @@ export default function ItineraryPage() {
           fileBaseName={`${trip?.name ?? 'trip'}-${tExport('itinerary.heading')}`}
           disabled={days.length === 0}
         />
-        {isAdmin && (
+        {isAdmin && days.length > 0 && (
           <Button onClick={handleAddDay} className="gap-2">
             <Plus className="h-4 w-4" />
             {tItinerary('addDay')}
@@ -344,6 +384,14 @@ export default function ItineraryPage() {
           icon={CalendarDays}
           title={tItinerary('emptyState')}
           description={tItinerary('emptyStateHint')}
+          action={
+            isAdmin ? (
+              <Button onClick={handleAddDay} className="gap-2">
+                <Plus className="h-4 w-4" />
+                {tItinerary('addDay')}
+              </Button>
+            ) : undefined
+          }
         />
       ) : (
         <div className="flex flex-col gap-6">

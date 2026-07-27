@@ -4,6 +4,8 @@ import { useMemo, useState } from 'react';
 import { Plus, UserPlus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useQueryClient } from '@tanstack/react-query';
+import { useRouter } from '@/i18n/navigation';
+import { ROUTES } from '@/constants/routes';
 import { useTrips, useTripArchiveMutations, tripKeys } from '@/hooks/queries';
 import CreateTripDialog from '@/components/trips/CreateTripDialog';
 import JoinTripDialog from '@/components/trips/JoinTripDialog';
@@ -17,6 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { TripWithMembers } from '@/types';
 
 export default function TripsPage() {
+  const router = useRouter();
   const t = useTranslations('trips');
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -79,21 +82,26 @@ export default function TripsPage() {
       {/* 5.1：假 Card 版型移除，行程卡直接鋪在頁面上 */}
       <div className="mb-6 flex items-center justify-between gap-4">
         <h1 className="text-2xl font-bold">{t('list')}</h1>
-        <div className="flex gap-2">
-          <Button onClick={() => setShowJoinModal(true)} variant="outline" className="gap-2">
-            <UserPlus size={16} />
-            {t('joinTrip')}
-          </Button>
-          {/* 行動端「建立行程」由 FAB 承擔（見下） */}
-          <Button onClick={() => setShowCreateModal(true)} className="gap-2 max-md:hidden">
-            <Plus size={16} />
-            {t('createTrip')}
-          </Button>
-        </div>
+        {trips.length > 0 && (
+          <div className="flex gap-2">
+            <Button onClick={() => setShowJoinModal(true)} variant="outline" className="gap-2">
+              <UserPlus size={16} />
+              {t('joinTrip')}
+            </Button>
+            {/* 行動端「建立行程」由 FAB 承擔（見下） */}
+            <Button onClick={() => setShowCreateModal(true)} className="gap-2 max-md:hidden">
+              <Plus size={16} />
+              {t('createTrip')}
+            </Button>
+          </div>
+        )}
       </div>
 
       {trips.length === 0 ? (
-        <EmptyTripsState />
+        <EmptyTripsState
+          onCreate={() => setShowCreateModal(true)}
+          onJoin={() => setShowJoinModal(true)}
+        />
       ) : archivedTrips.length === 0 ? (
         // 沒有任何封存時維持單一列表，不顯示分頁籤
         <TripList trips={activeTrips} onCopyCode={copyHashCode} onToggleArchive={toggleArchive} />
@@ -131,19 +139,24 @@ export default function TripsPage() {
       )}
 
       {/* FAB：建立行程（行動端；桌機用頁首按鈕） */}
-      <Button
-        onClick={() => setShowCreateModal(true)}
-        aria-label={t('createTrip')}
-        className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-4 z-40 h-14 w-14 rounded-full shadow-lg md:hidden [&_svg]:size-6"
-      >
-        <Plus />
-      </Button>
+      {trips.length > 0 && (
+        <Button
+          onClick={() => setShowCreateModal(true)}
+          aria-label={t('createTrip')}
+          className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-4 z-40 h-14 w-14 rounded-full shadow-lg md:hidden [&_svg]:size-6"
+        >
+          <Plus />
+        </Button>
+      )}
 
       {/* Create Trip Dialog */}
       <CreateTripDialog
         open={showCreateModal}
         onClose={() => setShowCreateModal(false)}
-        onSuccess={reloadTrips}
+        onSuccess={(trip) => {
+          reloadTrips();
+          router.push(ROUTES.TRIP_DETAIL(trip.hash_code));
+        }}
       />
 
       {/* Join Trip Dialog */}
