@@ -56,7 +56,8 @@
 
 - **`/trips/[id]` 是「行程」分頁、不是支出**（2026-07-15 重排）；支出在 `/trips/[id]/expenses`。要連到記帳畫面用 `ROUTES.TRIP_EXPENSES`，`ROUTES.TRIP_DETAIL` 只是空間落點。舊 `/trips/[id]/itinerary` 在 [next.config.ts](../../next.config.ts) `redirects()` 308 轉回落點——**頁面內 `redirect()` 在 App Router 會軟導向（回 200、網址列不變）**，別再改回去。
 - 主分頁只有四顆（行程／支出／相簿／結算），隨手記＋清單是「行程」的子分頁、統計是「結算」的子分頁；分頁與子分頁**都定義在 [TripSpaceShell](../../src/components/trips/space/TripSpaceShell.tsx) 的 `tabs`**，各頁自己不畫分頁列。`TRIP_DETAIL` 是所有子路由的前綴 → 比對一律 `exact`。
-- **FAB「新增支出」只在支出分頁**；但 add-expense 表單住在 shell 層，任何分頁都能 `useTripSpaceActions().openAddExpense()`（清單「記一筆」、PWA quick-add 就是這樣用）。
+- 行動端不再有 trip-scoped 支出 FAB；全域「記一筆」由 [AppShell](../../src/components/layout/AppShell.tsx) 掛載 [GlobalQuickAddFlow](../../src/components/layout/GlobalQuickAddFlow.tsx)，因此不換頁、關閉後保留原頁 state／scroll。旅行內 add-expense 表單仍住在 shell 層，頁內 CTA 可用 `useTripSpaceActions().openAddExpense()`。
+- 網頁入口與 PWA `/quick-add` 共用 [quickAdd.ts](../../src/lib/quickAdd.ts) 的決策：排除封存，進行中優先；唯一進行中／唯一 active 直開，多候選才 picker。`/quick-add` 頁本身不 redirect，由 AppShell 偵測 route 啟動同一 flow；不要再另寫一套 server 選擇邏輯。
 - 通知 / Push / Email 的導向表分散在三處（[NotificationBell](../../src/components/notifications/NotificationBell.tsx) / [webpush.ts](../../src/lib/webpush.ts) / [emailTemplates.ts](../../src/lib/emailTemplates.ts)），**改一處要三處一起改**（有測試守著）：支出語意 → `/expenses`、還款 → `/settlement`、其餘 → 落點。
 - 全貌與路由表見 [docs/ARCHITECTURE.md](../ARCHITECTURE.md) §4.14。
 

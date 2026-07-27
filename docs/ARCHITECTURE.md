@@ -186,7 +186,7 @@ src/
 
 ### 4.14 行程空間導覽（分頁結構與路由，2026-07-15 重排）
 
-[TripSpaceShell](../src/components/trips/space/TripSpaceShell.tsx)（由 `trips/[id]/layout.tsx` 掛載一次、換分頁不重繪）擁有頁首、分頁列、常駐摘要條與 FAB。**四顆主分頁 = 行程／支出／相簿／結算**，低頻頁不佔主分頁、改收進所屬主分頁的**子分頁列**：
+[TripSpaceShell](../src/components/trips/space/TripSpaceShell.tsx)（由 `trips/[id]/layout.tsx` 掛載一次、換分頁不重繪）擁有頁首、分頁列、常駐摘要條與旅行內對話框。**四顆主分頁 = 行程／支出／相簿／結算**，低頻頁不佔主分頁、改收進所屬主分頁的**子分頁列**：
 
 | 主分頁 | 路由 | 子分頁 |
 | --- | --- | --- |
@@ -197,7 +197,7 @@ src/
 
 - **落點＝行程分頁**（`/trips/[id]`），支出移到 `/trips/[id]/expenses`。子頁 URL 全部維持原樣，故深連結 / 分享連結不受影響；舊的 `/trips/[id]/itinerary` 由 [next.config.ts](../next.config.ts) `redirects()` **308 轉址**回落點。**轉址刻意寫在 config 而非頁面內 `redirect()`**——後者在 App Router 會軟導向（回 200、網址列不變）。
 - **旅行資訊卡**（[TripHeader](../src/components/trips/detail/TripHeader.tsx)）隨落點住在行程分頁；其編輯對話框與送出邏輯抽在 [useEditTrip](../src/hooks/useEditTrip.ts)（原本長在支出分頁的 controller `useTripDetailPage` 裡）。
-- **FAB「新增支出」只在支出分頁出現**（`pathname === ROUTES.TRIP_EXPENSES`）——其他分頁各有自己的主要動作，浮鈕只會擋內容。add-expense 表單本身仍在 shell 層（`TripSpaceActions.openAddExpense`），任何分頁都能程式化開啟（如清單的「記一筆」、PWA quick-add）。
+- **全域快速記帳（2026-07-27 Phase 2B）**：桌機頂列與行動底部導覽呼叫 [GlobalQuickAddFlow](../src/components/layout/GlobalQuickAddFlow.tsx)，flow 掛在不隨頁面切換卸載的 App Shell，因此關閉表單後保留原頁 state 與 scroll。選擇規則集中在 [quickAdd.ts](../src/lib/quickAdd.ts)：排除封存，依進行中／即將出發／最近結束／無日期排序；唯一進行中或唯一 active 直開，多候選才 picker。PWA `/quick-add` 只作穩定落點，由 App Shell 啟動同一 flow，不另做 server redirect。旅行內 add-expense 表單仍在 shell 層（`TripSpaceActions.openAddExpense`）供清單與空狀態等情境 CTA 使用；舊 trip-scoped 支出 FAB 已移除，避免與全域入口重複。
 - **深連結語意**：站內通知 / Web Push / Email 中**支出語意**的連結（`expense_added` / `expense_comment_added`、支出摘要信）指向 `/expenses`，還款指向 `/settlement`，其餘旅程層級（如 `member_joined`、加入邀請）指向落點。三處導向表（[NotificationBell](../src/components/notifications/NotificationBell.tsx) / [webpush.ts](../src/lib/webpush.ts) / [emailTemplates.ts](../src/lib/emailTemplates.ts)）**必須一致**。
 - 隨手記 / 相簿為成員限定（無公開分享路由），分享連結訪客不顯示這兩項；子分頁列只有一顆時不佔一排。
 
