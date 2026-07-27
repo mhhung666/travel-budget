@@ -52,7 +52,16 @@
     "collections": "旅の実績",
     "me": "マイページ",
     "bottomNav": "メインナビゲーション",
-    "memberships": "メンバーシップ"
+    "memberships": "メンバーシップ",
+    "quickAdd": "支出を記録"
+  },
+  "quickAdd": {
+    "title": "支出を記録",
+    "loading": "支出フォームを準備しています…",
+    "pickTrip": "どの旅行の支出ですか？",
+    "pickTripDescription": "旅行を選ぶと、すぐに金額を入力できます。",
+    "noTripsTitle": "まず旅行を作成",
+    "noTripsDescription": "支出は旅行に記録します。旅行を作成すると、そのまま最初の支出を追加できます。"
   },
   "home": {
     "title": "旅行家計簿",

@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  BarChart3,
   Bell,
   ChevronRight,
   Lock,
@@ -116,6 +117,14 @@ export default function SettingsPage() {
       {/* 旅行成就 + 年度回顧 + 登出（行動端無頂列導覽，這裡是主要進場點） */}
       <Card className="mt-6">
         <CardContent className="space-y-1 p-2">
+          <Button
+            variant="ghost"
+            className="h-12 w-full justify-start gap-3 px-3"
+            onClick={() => router.push(ROUTES.STATS)}
+          >
+            <BarChart3 className="h-4 w-4 text-primary" />
+            {tNav('stats')}
+          </Button>
           <Button
             variant="ghost"
             className="h-12 w-full justify-start gap-3 px-3"

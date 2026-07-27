@@ -52,7 +52,16 @@
     "collections": "旅行成就",
     "me": "我的",
     "bottomNav": "主要导航",
-    "memberships": "会籍"
+    "memberships": "会籍",
+    "quickAdd": "记一笔"
+  },
+  "quickAdd": {
+    "title": "记一笔",
+    "loading": "正在准备记账表单…",
+    "pickTrip": "这笔记在哪趟旅行？",
+    "pickTripDescription": "选择旅行后，就能直接输入金额。",
+    "noTripsTitle": "先创建一趟旅行",
+    "noTripsDescription": "支出需要记在旅行中。创建旅行后会直接接着新增第一笔支出。"
   },
   "home": {
     "title": "旅行记账",

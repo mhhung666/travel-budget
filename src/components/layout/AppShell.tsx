@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import {
   LogOut,
   Compass,
@@ -9,6 +10,7 @@ import {
   Sparkles,
   Medal,
   Ticket,
+  ReceiptText,
 } from 'lucide-react';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
@@ -26,6 +28,8 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { BottomTabBar } from './BottomTabBar';
+import { GlobalQuickAddFlow, QUICK_ADD_LAST_TRIP_KEY } from './GlobalQuickAddFlow';
+import { ROUTES } from '@/constants/routes';
 import { cn } from '@/lib/utils';
 
 export interface ShellUser {
@@ -54,6 +58,8 @@ export function AppShell({
   const tCommon = useTranslations('common');
   const router = useRouter();
   const pathname = usePathname();
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [preferredQuickAddTrip, setPreferredQuickAddTrip] = useState<string | null>(null);
 
   const handleLogout = async () => {
     try {
@@ -74,6 +80,22 @@ export function AppShell({
   ] as const;
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  const onQuickAddRoute = pathname === ROUTES.QUICK_ADD;
+  const quickAddVisible = user != null && (quickAddOpen || onQuickAddRoute);
+
+  const openQuickAdd = () => {
+    try {
+      setPreferredQuickAddTrip(localStorage.getItem(QUICK_ADD_LAST_TRIP_KEY));
+    } catch {
+      setPreferredQuickAddTrip(null);
+    }
+    setQuickAddOpen(true);
+  };
+
+  const closeQuickAdd = () => {
+    setQuickAddOpen(false);
+    if (onQuickAddRoute) router.replace(ROUTES.TRIPS);
+  };
 
   // 行程空間（/trips/[id]/*）在行動端由 TripSpaceShell 的頁首取代全域頂列
   // （返回鍵 + 行程名 + 鈴鐺 + 更多選單），避免雙頂列吃掉可視高度。
@@ -87,6 +109,7 @@ export function AppShell({
     if (isActive('/memberships')) return t('memberships');
     if (isActive('/wrapped')) return t('wrapped');
     if (isActive('/settings')) return t('me');
+    if (isActive(ROUTES.QUICK_ADD)) return t('quickAdd');
     if (isActive('/trips')) return t('trips');
     return t('home');
   })();
@@ -139,6 +162,14 @@ export function AppShell({
               </Button>
             ) : (
               <>
+                <Button
+                  onClick={openQuickAdd}
+                  aria-label={t('quickAdd')}
+                  className="hidden gap-2 md:flex"
+                >
+                  <ReceiptText className="h-4 w-4" aria-hidden />
+                  <span className="hidden xl:inline">{t('quickAdd')}</span>
+                </Button>
                 <NotificationBell />
 
                 <div className="hidden items-center gap-2 md:flex">
@@ -182,7 +213,15 @@ export function AppShell({
       <main className="flex-1 pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-8">{children}</main>
 
       {/* 底部分頁列的分頁皆需登入，訪客不顯示。 */}
-      {user && <BottomTabBar />}
+      {user && <BottomTabBar onQuickAdd={openQuickAdd} />}
+
+      {user && (
+        <GlobalQuickAddFlow
+          open={quickAddVisible}
+          preferredTripId={preferredQuickAddTrip}
+          onClose={closeQuickAdd}
+        />
+      )}
     </div>
   );
 }

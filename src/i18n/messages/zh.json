@@ -52,7 +52,16 @@
     "collections": "旅行成就",
     "me": "我的",
     "bottomNav": "主要導覽",
-    "memberships": "會籍"
+    "memberships": "會籍",
+    "quickAdd": "記一筆"
+  },
+  "quickAdd": {
+    "title": "記一筆",
+    "loading": "正在準備記帳表單…",
+    "pickTrip": "這筆記在哪趟旅行？",
+    "pickTripDescription": "選擇旅行後，就能直接輸入金額。",
+    "noTripsTitle": "先建立一趟旅行",
+    "noTripsDescription": "支出需要記在旅行中。建立旅行後會直接接著新增第一筆支出。"
   },
   "home": {
     "title": "旅行記帳",

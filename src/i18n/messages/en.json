@@ -52,7 +52,16 @@
     "collections": "Achievements",
     "me": "Me",
     "bottomNav": "Primary navigation",
-    "memberships": "Memberships"
+    "memberships": "Memberships",
+    "quickAdd": "Log expense"
+  },
+  "quickAdd": {
+    "title": "Log an expense",
+    "loading": "Preparing the expense form…",
+    "pickTrip": "Which trip is this for?",
+    "pickTripDescription": "Choose a trip, then enter the amount.",
+    "noTripsTitle": "Create a trip first",
+    "noTripsDescription": "Expenses belong to a trip. After creating one, you can immediately log its first expense."
   },
   "home": {
     "title": "Travel Budget",

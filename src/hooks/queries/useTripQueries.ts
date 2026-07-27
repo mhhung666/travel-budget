@@ -175,11 +175,17 @@ export function useCopyableChecklists(tripId: string, enabled: boolean) {
  * Derives membership/role from the current user + members list.
  */
 export function useTripMembership(tripId: string) {
-  const { data: currentUser } = useCurrentUser();
-  const { data: members = [] } = useMembers(tripId);
+  const { data: currentUser, isLoading: isCurrentUserLoading } = useCurrentUser();
+  const { data: members = [], isLoading: areMembersLoading } = useMembers(tripId);
 
   const isMember = currentUser != null && members.some((m) => m.id === currentUser.id);
   const isAdmin = members.find((m) => m.id === currentUser?.id)?.role === 'admin';
 
-  return { currentUser: currentUser ?? null, members, isMember, isAdmin };
+  return {
+    currentUser: currentUser ?? null,
+    members,
+    isMember,
+    isAdmin,
+    isLoading: isCurrentUserLoading || areMembersLoading,
+  };
 }

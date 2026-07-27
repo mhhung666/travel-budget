@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useSyncExternalStore } from 'react';
-import { ArrowLeft, History, MoreHorizontal, Plus, Settings, Wallet } from 'lucide-react';
+import { ArrowLeft, History, MoreHorizontal, Settings, Wallet } from 'lucide-react';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 import { ROUTES } from '@/constants/routes';
@@ -30,7 +30,7 @@ import { TripSpaceProvider, type AddExpensePrefill } from './TripSpaceContext';
  *   低頻的隨手記／清單收進「行程」、統計收進「結算」的子分頁列（見 SUB_TABS），
  *   各子頁 URL 不變，深連結與分享連結照舊。
  * - 常駐摘要條：總支出（有預算時加進度條），跨分頁常駐。
- * - FAB：行動端「新增支出」，只在支出分頁出現（其他分頁的主要動作不是記帳）。
+ * - 新增支出表單留在 shell 層供旅行內操作；跨頁快速記帳由 AppShell 全域入口負責。
  */
 // mounted 判斷（server↔client hydration guard）用：外部 store 永不變化，只是藉
 // useSyncExternalStore 的 getServerSnapshot/getSnapshot 落差取得「已 hydrate」訊號，
@@ -48,7 +48,6 @@ export function TripSpaceShell({
   const pathname = usePathname();
   const tTrip = useTranslations('trip');
   const tTrips = useTranslations('trips');
-  const tExpense = useTranslations('expense');
   const tBudget = useTranslations('budget');
 
   const {
@@ -314,19 +313,7 @@ export function TripSpaceShell({
 
         <div className="flex-1">{children}</div>
 
-        {/* FAB：新增支出（行動端；桌機用支出分頁工具列按鈕）。只在支出分頁——
-            其他分頁各有自己的主要動作，浮在上面只會擋內容。 */}
-        {isMember && pathname === ROUTES.TRIP_EXPENSES(tripId) && (
-          <Button
-            onClick={() => addExpenseDialog.openDialog()}
-            aria-label={tExpense('add')}
-            className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-4 z-40 h-14 w-14 rounded-full shadow-lg md:hidden [&_svg]:size-6"
-          >
-            <Plus />
-          </Button>
-        )}
-
-        {/* 空間層級 Dialogs：新增支出（FAB／工具列共用）、預算 */}
+        {/* 空間層級 Dialogs：新增支出（旅行內 CTA／工具列共用）、預算 */}
         <ExpenseFormSheet
           mode="add"
           tripId={tripId}

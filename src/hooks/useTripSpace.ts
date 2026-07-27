@@ -36,7 +36,13 @@ export function useTripSpace(tripId: string) {
   const { data: trip, isLoading } = useTrip(tripId);
   const { data: expenses = [] } = useExpenses(tripId);
   const { data: itineraryDays = [] } = useItinerary(tripId);
-  const { currentUser, members, isMember, isAdmin } = useTripMembership(tripId);
+  const {
+    currentUser,
+    members,
+    isMember,
+    isAdmin,
+    isLoading: isMembershipLoading,
+  } = useTripMembership(tripId);
 
   const expenseMutations = useExpenseMutations(tripId);
   const tripMutations = useTripMutations(tripId);
@@ -112,6 +118,7 @@ export function useTripSpace(tripId: string) {
     currentUser,
     isMember: !!isMember,
     isAdmin: !!isAdmin,
+    isMembershipLoading,
     itineraryDays,
     existingTags,
     budgetProgress,
