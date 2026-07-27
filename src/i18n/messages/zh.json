@@ -264,6 +264,7 @@
     "noExpenses": "目前還沒有支出記錄",
     "addFirst": "新增第一筆支出",
     "form": {
+      "formDescription": "輸入金額，並確認付款人與分帳方式。",
       "amount": "金額",
       "currency": "幣別",
       "exchangeRate": "匯率 (換算為 TWD)",
@@ -272,13 +273,23 @@
       "category": "消費類別",
       "date": "日期",
       "payer": "付款人",
+      "payerPlaceholder": "選擇付款人",
+      "refreshRate": "重新取得匯率",
+      "rateEquation": "1 {currency} = {rate} TWD",
       "itineraryDay": "關聯行程日",
       "itineraryDaysHint": "可複選；跨夜的支出選多天會自動平均分攤到每日花費",
       "itineraryDaysAveraged": "已選 {count} 天，金額將在每日花費平均分攤",
       "splitWith": "分帳對象",
       "convertedAmount": "換算金額",
       "tags": "標籤",
-      "tagsPlaceholder": "輸入後按 Enter 或逗號新增"
+      "tagsPlaceholder": "輸入後按 Enter 或逗號新增",
+      "summary": {
+        "payerDate": "{payer}付款 · {date}",
+        "equalSplit": "{count} 人均分 · 每人 {amount}",
+        "customSplit": "{mode} · {count} 人 · 已分配 {allocated}",
+        "converted": "{original} ≈ {converted}",
+        "loadingRate": "正在取得匯率…"
+      }
     },
     "confirm": {
       "delete": "確定要刪除這筆支出嗎？",
@@ -323,7 +334,10 @@
       "percentShort": "百分比合計不足 100%"
     },
     "error": {
-      "noMembersSelected": "請至少選擇一位分帳對象"
+      "noMembersSelected": "請至少選擇一位分帳對象",
+      "amountRequired": "請輸入大於 0 的金額",
+      "exchangeRateRequired": "請輸入或重新取得有效匯率",
+      "ratesLoadFailed": "無法載入匯率"
     }
   },
   "member": {

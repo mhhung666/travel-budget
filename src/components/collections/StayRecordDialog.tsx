@@ -6,6 +6,7 @@ import { Loader2, Star } from 'lucide-react';
 
 import { useCollectionMutations } from '@/hooks/queries';
 import { useToast } from '@/hooks/use-toast';
+import { toLocalDateInputValue } from '@/lib/dateInput';
 import type { DatePrecision, StayRecordItem } from '@/types';
 import type { CreateStayRecordInput } from '@/lib/validation';
 import { ResponsiveFormSheet } from '@/components/common';
@@ -41,7 +42,7 @@ interface StayRecordDialogProps {
 
 const NO_STARS = 'none';
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => toLocalDateInputValue();
 
 /**
  * 住宿紀錄補登/編輯表單。必填只有入住日＋飯店名稱；品牌選不到就留空

@@ -13,6 +13,7 @@ import {
 } from '@/constants/loyalty';
 import { useLoyaltyMutations } from '@/hooks/queries';
 import { useToast } from '@/hooks/use-toast';
+import { toLocalDateInputValue } from '@/lib/dateInput';
 import type { LoyaltyEntryItem } from '@/types';
 import type { CreateLoyaltyEntryInput } from '@/lib/validation';
 import { ResponsiveFormSheet } from '@/components/common';
@@ -43,7 +44,7 @@ interface LoyaltyEntryDialogProps {
   onSaved?: () => void;
 }
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => toLocalDateInputValue();
 
 /** 手抄數字的寬容解析：空字串/非數字視為 0（積分與里數皆可為負，如兌換/沖銷）。 */
 const toInt = (raw: string): number => {

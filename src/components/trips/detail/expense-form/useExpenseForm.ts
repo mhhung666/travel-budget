@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { DEFAULT_CATEGORY } from '@/constants/categories';
 import { computeSplits, type SplitMode } from '@/lib/expenseSplit';
 import { getPinnedRate, getTripDefaultCurrency } from '@/lib/tripCurrency';
+import { toDateInputValue, toLocalDateInputValue } from '@/lib/dateInput';
 import type { Expense, ExpenseAttachment, Member, TripCurrencySettings } from '@/types';
 
 export interface ExpenseFormData {
@@ -62,7 +63,7 @@ export function useExpenseForm({
     exchange_rate: '1.0',
     description: '',
     category: DEFAULT_CATEGORY,
-    date: new Date().toISOString().split('T')[0],
+    date: toLocalDateInputValue(),
   });
 
   const [splitMode, setSplitMode] = useState<SplitMode>('equal');
@@ -90,14 +91,14 @@ export function useExpenseForm({
         setExchangeRates(data.rates);
         return data.rates;
       }
-      setRatesError('無法獲取匯率');
+      setRatesError(tExpense('error.ratesLoadFailed'));
       if (data.rates) {
         setExchangeRates(data.rates);
         return data.rates;
       }
       return null;
     } catch {
-      setRatesError('獲取匯率失敗');
+      setRatesError(tExpense('error.ratesLoadFailed'));
       return null;
     } finally {
       setLoadingRates(false);
@@ -116,7 +117,7 @@ export function useExpenseForm({
           exchange_rate: expense.exchange_rate.toString(),
           description: expense.description,
           category: expense.category || DEFAULT_CATEGORY,
-          date: new Date(expense.date).toISOString().split('T')[0],
+          date: toDateInputValue(expense.date),
         });
 
         // Reconstruct split inputs from stored TWD shares. We don't persist the
@@ -160,10 +161,11 @@ export function useExpenseForm({
           payer_id: currentUser?.id || members[0]?.id || '',
           original_amount: '',
           currency: defaultCurrency,
-          exchange_rate: pinnedRate != null ? String(pinnedRate) : '1.0',
+          exchange_rate:
+            defaultCurrency === 'TWD' ? '1.0' : pinnedRate != null ? String(pinnedRate) : '',
           description: initialDescription ?? '',
           category: DEFAULT_CATEGORY,
-          date: new Date().toISOString().split('T')[0],
+          date: toLocalDateInputValue(),
         });
 
         setSplitMode('equal');
@@ -180,7 +182,7 @@ export function useExpenseForm({
       setError('');
       setShowAdvanced(mode === 'edit');
       // 新增模式且預設幣別是外幣又沒自訂匯率時，即時匯率回來後補進表單；
-      // 只在匯率仍是初始 1.0（使用者沒動過）時補，避免蓋掉手動輸入。
+      // 只在匯率仍為空值（使用者沒動過）時補，避免蓋掉手動輸入。
       fetchExchangeRates().then((rates) => {
         if (mode !== 'add' || !rates) return;
         const defaultCurrency = getTripDefaultCurrency(currencySettings);
@@ -189,7 +191,7 @@ export function useExpenseForm({
         const live = rates[defaultCurrency];
         if (!live) return;
         setForm((prev) =>
-          prev.currency === defaultCurrency && prev.exchange_rate === '1.0'
+          prev.currency === defaultCurrency && prev.exchange_rate === ''
             ? { ...prev, exchange_rate: live.toFixed(6) }
             : prev
         );
@@ -199,7 +201,11 @@ export function useExpenseForm({
   }, [open, mode, expense, members, currentUser, initialDescription]);
 
   const originalAmount = parseFloat(form.original_amount) || 0;
-  const exchangeRate = parseFloat(form.exchange_rate) || 1;
+  const hasValidAmount = Number.isFinite(originalAmount) && originalAmount > 0;
+  const parsedExchangeRate = Number(form.exchange_rate);
+  const hasValidExchangeRate =
+    form.currency === 'TWD' || (Number.isFinite(parsedExchangeRate) && parsedExchangeRate > 0);
+  const exchangeRate = form.currency === 'TWD' ? 1 : hasValidExchangeRate ? parsedExchangeRate : 0;
   const totalAmountTWD = originalAmount * exchangeRate;
   const anySelected = members.some((m) => splitState[m.id]?.selected);
 
@@ -231,6 +237,16 @@ export function useExpenseForm({
   }
 
   const buildSubmitData = (): ExpenseFormData | null => {
+    if (!hasValidAmount) {
+      setError(tExpense('error.amountRequired'));
+      return null;
+    }
+
+    if (!hasValidExchangeRate) {
+      setError(tExpense('error.exchangeRateRequired'));
+      return null;
+    }
+
     const finalSplits = members
       .filter((m) => splitState[m.id]?.selected)
       .map((m) => ({
@@ -324,7 +340,9 @@ export function useExpenseForm({
     ratesError,
     fetchExchangeRates,
     originalAmount,
+    hasValidAmount,
     totalAmountTWD,
+    hasValidExchangeRate,
     anySelected,
     split,
     isValidSplit,

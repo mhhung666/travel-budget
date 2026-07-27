@@ -3,6 +3,7 @@
 import { ChevronDown, ChevronUp, DollarSign, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
+import { formatCurrency } from '@/constants/currencies';
 import { getPinnedRate, getTripExpenseCurrencies } from '@/lib/tripCurrency';
 import type { Expense, ItineraryDay, Member, TripCurrencySettings } from '@/types';
 
@@ -85,7 +86,9 @@ export default function ExpenseFormSheet({
     ratesError,
     fetchExchangeRates,
     originalAmount,
+    hasValidAmount,
     totalAmountTWD,
+    hasValidExchangeRate,
     anySelected,
     split,
     isValidSplit,
@@ -129,7 +132,8 @@ export default function ExpenseFormSheet({
     }
   };
 
-  // 匯率帶入順序：TWD 固定 1 → 旅程自訂匯率 → 即時匯率 → 保留原值
+  // 匯率帶入順序：TWD 固定 1 → 旅程自訂匯率 → 即時匯率。
+  // 找不到新幣別的匯率時清空，不沿用前一個幣別的數字，以免靜默記錯。
   const handleCurrencyChange = (value: string) => {
     const pinned = getPinnedRate(currencySettings, value);
     const rate =
@@ -137,21 +141,62 @@ export default function ExpenseFormSheet({
         ? '1.0'
         : pinned != null
           ? String(pinned)
-          : exchangeRates[value]?.toFixed(6) || form.exchange_rate;
+          : exchangeRates[value]?.toFixed(6) || '';
     setForm({ ...form, currency: value, exchange_rate: rate });
   };
 
-  // 折疊時的預設摘要（日期 · 付款人 · 分帳模式），讓使用者不展開也知道會存什麼。
+  const handleRefreshRates = async () => {
+    const rates = await fetchExchangeRates();
+    const live = rates?.[form.currency];
+    if (live) {
+      setForm((prev) => ({ ...prev, exchange_rate: live.toFixed(6) }));
+    }
+  };
+
+  // 收合時仍顯示完整的記帳摘要，讓快速流程不以隱藏付款人／日期／分帳結果為代價。
   const payerName = members.find((m) => m.id === form.payer_id)?.display_name ?? '';
-  const defaultsSummary = [
-    new Date(`${form.date}T00:00:00`).toLocaleDateString(
-      locale === 'zh' ? 'zh-TW' : locale === 'jp' ? 'ja-JP' : locale
-    ),
-    payerName,
-    tExpense(`split.${splitMode}`),
-  ]
-    .filter(Boolean)
-    .join(' · ');
+  const intlLocale =
+    locale === 'zh' ? 'zh-TW' : locale === 'jp' ? 'ja-JP' : locale === 'zh-CN' ? 'zh-CN' : 'en-US';
+  const displayDate = form.date
+    ? new Date(`${form.date}T00:00:00`).toLocaleDateString(intlLocale)
+    : '';
+  const selectedMemberIds = members
+    .filter((member) => splitState[member.id]?.selected)
+    .map((member) => member.id);
+  const selectedCount = selectedMemberIds.length;
+  const firstSelectedShare = selectedMemberIds[0] ? (split.twd[selectedMemberIds[0]] ?? 0) : 0;
+  const firstShareLabel = hasValidExchangeRate
+    ? formatCurrency(Math.round(firstSelectedShare), 'TWD', locale)
+    : '—';
+  const allocatedLabel = hasValidExchangeRate
+    ? formatCurrency(Math.round(split.allocatedTWD), 'TWD', locale)
+    : '—';
+  const payerDateSummary = tExpense('form.summary.payerDate', {
+    payer: payerName,
+    date: displayDate,
+  });
+  const splitSummary =
+    splitMode === 'equal'
+      ? tExpense('form.summary.equalSplit', {
+          count: selectedCount,
+          amount: firstShareLabel,
+        })
+      : tExpense('form.summary.customSplit', {
+          mode: tExpense(`split.${splitMode}`),
+          count: selectedCount,
+          allocated: allocatedLabel,
+        });
+  const conversionSummary =
+    form.currency !== 'TWD' && originalAmount > 0
+      ? hasValidExchangeRate
+        ? tExpense('form.summary.converted', {
+            original: formatCurrency(originalAmount, form.currency, locale),
+            converted: formatCurrency(Math.round(totalAmountTWD), 'TWD', locale),
+          })
+        : loadingRates
+          ? tExpense('form.summary.loadingRate')
+          : tExpense('error.exchangeRateRequired')
+      : null;
 
   const submitLabel = mode === 'add' ? tExpense('add') : tCommon('save');
 
@@ -160,7 +205,7 @@ export default function ExpenseFormSheet({
       open={open}
       onOpenChange={(val) => !val && onClose()}
       title={mode === 'add' ? tExpense('add') : tExpense('edit')}
-      description="Expense Form"
+      description={tExpense('form.formDescription')}
       footer={
         <>
           <Button type="button" variant="outline" onClick={onClose} className="max-md:hidden">
@@ -169,7 +214,13 @@ export default function ExpenseFormSheet({
           <Button
             type="submit"
             form={FORM_ID}
-            disabled={submitting || !isValidSplit || !form.original_amount}
+            disabled={
+              submitting ||
+              !isValidSplit ||
+              !hasValidAmount ||
+              !hasValidExchangeRate ||
+              !form.original_amount
+            }
             className="max-md:h-12 max-md:w-full max-md:text-base"
           >
             {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -197,6 +248,8 @@ export default function ExpenseFormSheet({
 
         {/* 2. 描述 */}
         <Input
+          id="expense-description"
+          aria-label={tExpense('form.description')}
           placeholder={tExpense('form.descriptionPlaceholder')}
           value={form.description}
           onChange={(e) => setForm({ ...form, description: e.target.value })}
@@ -213,13 +266,28 @@ export default function ExpenseFormSheet({
         <Button
           type="button"
           variant="ghost"
-          className="h-auto w-full justify-between px-2 py-2 font-normal text-muted-foreground"
+          className="h-auto min-h-11 w-full justify-between rounded-lg border bg-muted/30 px-3 py-3 text-left font-normal text-muted-foreground hover:bg-muted/60"
           onClick={() => setShowAdvanced(!showAdvanced)}
           aria-expanded={showAdvanced}
         >
-          <span className="flex flex-col items-start gap-0.5">
-            <span>{showAdvanced ? tCommon('hideDetails') : tCommon('moreDetails')}</span>
-            {!showAdvanced && <span className="text-xs">{defaultsSummary}</span>}
+          <span className="flex min-w-0 flex-col items-start gap-1">
+            <span className="font-medium text-foreground">
+              {showAdvanced ? tCommon('hideDetails') : payerDateSummary}
+            </span>
+            {!showAdvanced && (
+              <>
+                <span className="text-xs">{splitSummary}</span>
+                {conversionSummary && (
+                  <span
+                    className={
+                      hasValidExchangeRate ? 'text-xs' : 'text-xs font-medium text-destructive'
+                    }
+                  >
+                    {conversionSummary}
+                  </span>
+                )}
+              </>
+            )}
           </span>
           {showAdvanced ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </Button>
@@ -244,8 +312,8 @@ export default function ExpenseFormSheet({
               onTagsChange={setTags}
               existingTags={existingTags}
               loadingRates={loadingRates}
-              ratesError={ratesError}
-              onRefreshRates={fetchExchangeRates}
+              ratesError={hasValidExchangeRate ? '' : ratesError}
+              onRefreshRates={handleRefreshRates}
             />
 
             <SplitSection

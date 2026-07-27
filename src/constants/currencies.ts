@@ -39,14 +39,17 @@ export function getCurrencySymbol(code: string): string {
 /**
  * Format amount with currency symbol
  */
-export function formatCurrency(amount: number, currencyCode: string): string {
+export function formatCurrency(amount: number, currencyCode: string, locale = 'zh'): string {
   const symbol = getCurrencySymbol(currencyCode);
+  const sign = amount < 0 ? '-' : '';
   // 整數金額不補 .00(TWD 實務上不顯示分位),非整數最多兩位小數。
-  const formatted = amount.toLocaleString('zh-TW', {
+  const formatted = Math.abs(amount).toLocaleString(toIntlLocale(locale), {
     minimumFractionDigits: 0,
     maximumFractionDigits: currencyCode === 'JPY' ? 0 : 2,
   });
-  return `${symbol}${formatted}`;
+  // 完整 ISO 清單中的非精選幣別沒有 symbol mapping，以「CODE 1,234」
+  // 顯示，避免黏成 KRW1,234。
+  return symbol === currencyCode ? `${sign}${symbol} ${formatted}` : `${sign}${symbol}${formatted}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -74,7 +77,7 @@ const COMMON_CURRENCY_CODES = [
 
 /** app locale → Intl BCP47 locale（幣別名稱本地化用）。 */
 function toIntlLocale(locale: string): string {
-  return locale === 'zh' ? 'zh-TW' : locale === 'jp' ? 'ja' : locale === 'zh-CN' ? 'zh-CN' : 'en';
+  return locale === 'zh' ? 'zh-TW' : locale === 'jp' ? 'ja' : locale === 'en' ? 'en-US' : locale;
 }
 
 /**

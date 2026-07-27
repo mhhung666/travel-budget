@@ -264,6 +264,7 @@
     "noExpenses": "支出記録がありません",
     "addFirst": "最初の支出を追加",
     "form": {
+      "formDescription": "金額を入力し、支払者と割り勘方法を確認します。",
       "amount": "金額",
       "currency": "通貨",
       "exchangeRate": "為替レート（TWD換算）",
@@ -272,13 +273,23 @@
       "category": "カテゴリ",
       "date": "日付",
       "payer": "支払者",
+      "payerPlaceholder": "支払者を選択",
+      "refreshRate": "為替レートを更新",
+      "rateEquation": "1 {currency} = {rate} TWD",
       "itineraryDay": "関連する日程",
       "itineraryDaysHint": "複数選択可。連泊などの支出は選んだ日数で1日の支出に均等配分されます",
       "itineraryDaysAveraged": "{count}日を選択中。金額は1日の支出に均等配分されます",
       "splitWith": "割り勘対象",
       "convertedAmount": "換算金額",
       "tags": "タグ",
-      "tagsPlaceholder": "入力後 Enter またはカンマで追加"
+      "tagsPlaceholder": "入力後 Enter またはカンマで追加",
+      "summary": {
+        "payerDate": "{payer}が支払い · {date}",
+        "equalSplit": "{count}人で均等 · 1人 {amount}",
+        "customSplit": "{mode} · {count}人 · {allocated} 割当済み",
+        "converted": "{original} ≈ {converted}",
+        "loadingRate": "為替レートを取得中…"
+      }
     },
     "confirm": {
       "delete": "この支出を削除しますか？",
@@ -323,7 +334,10 @@
       "percentShort": "割合の合計が 100% に達していません"
     },
     "error": {
-      "noMembersSelected": "割り勘の相手を少なくとも1人選択してください"
+      "noMembersSelected": "割り勘の相手を少なくとも1人選択してください",
+      "amountRequired": "0より大きい金額を入力してください",
+      "exchangeRateRequired": "有効な為替レートを入力または更新してください",
+      "ratesLoadFailed": "為替レートの読み込みに失敗しました"
     }
   },
   "member": {

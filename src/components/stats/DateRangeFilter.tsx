@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import { toLocalDateInputValue } from '@/lib/dateInput';
 
 interface DateRangeFilterProps {
   startDate: string;
@@ -18,7 +19,7 @@ interface DateRangeFilterProps {
 // 日期範圍計算輔助函數
 const getDateRanges = () => {
   const today = new Date();
-  const formatDate = (date: Date) => date.toISOString().split('T')[0];
+  const formatDate = (date: Date) => toLocalDateInputValue(date);
 
   return {
     last7Days: {

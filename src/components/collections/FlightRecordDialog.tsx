@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { CX_AWARD_MILES_PER_SP, OWN_AIRLINE_CODES, PROGRAM_RULES } from '@/constants/loyalty';
 import { estimateCxStatusPoints, KM_TO_MI } from '@/lib/loyalty';
 import { haversineKm } from '@/lib/geo';
+import { toLocalDateInputValue } from '@/lib/dateInput';
 import type { CabinClass, DatePrecision, FlightRecordItem } from '@/types';
 import type { CreateFlightRecordInput } from '@/lib/validation';
 import { ResponsiveFormSheet } from '@/components/common';
@@ -53,7 +54,7 @@ interface FlightRecordDialogProps {
 const CABINS: CabinClass[] = ['economy', 'premium_economy', 'business', 'first'];
 const NO_CABIN = 'none';
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => toLocalDateInputValue();
 
 /** 手抄數字的寬容解析：空字串/非數字視為 0（積分與里數皆可為負，如兌換/沖銷）。 */
 const toInt = (raw: string): number => {

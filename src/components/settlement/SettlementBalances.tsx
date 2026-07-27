@@ -1,8 +1,9 @@
 'use client';
 
 import { TrendingUp, TrendingDown, CheckCircle } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import type { Balance } from '@/types';
+import { formatCurrency } from '@/constants/currencies';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -22,6 +23,8 @@ export default function SettlementBalances({
   currentUserId,
 }: SettlementBalancesProps) {
   const t = useTranslations('settlement');
+  const locale = useLocale();
+  const money = (amount: number) => formatCurrency(amount, 'TWD', locale);
 
   const ordered = currentUserId
     ? [...balances].sort(
@@ -75,7 +78,8 @@ export default function SettlementBalances({
                     ) : (
                       <CheckCircle className="h-4 w-4" />
                     )}
-                    {balance.balance >= 0 ? '+' : ''}${balance.balance.toFixed(0)}
+                    {balance.balance >= 0 ? '+' : ''}
+                    {money(balance.balance)}
                   </Badge>
                 </div>
 
@@ -84,15 +88,11 @@ export default function SettlementBalances({
                 <div className="space-y-1.5 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">{t('totalPaid')}</span>
-                    <span className="font-medium tabular-nums">
-                      ${balance.totalPaid.toLocaleString()}
-                    </span>
+                    <span className="font-medium tabular-nums">{money(balance.totalPaid)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">{t('totalOwed')}</span>
-                    <span className="font-medium tabular-nums">
-                      ${balance.totalOwed.toLocaleString()}
-                    </span>
+                    <span className="font-medium tabular-nums">{money(balance.totalOwed)}</span>
                   </div>
                   <Separator className="my-1.5" />
                   <div className="flex justify-between items-center">

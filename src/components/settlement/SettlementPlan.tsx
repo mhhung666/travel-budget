@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import {
   ArrowRight,
   ArrowDown,
@@ -12,6 +12,7 @@ import {
   PartyPopper,
 } from 'lucide-react';
 import type { Transaction } from '@/types';
+import { formatCurrency } from '@/constants/currencies';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -58,6 +59,7 @@ export default function SettlementPlan({
   remindingKey,
 }: SettlementPlanProps) {
   const t = useTranslations('settlement');
+  const locale = useLocale();
   const [selectedCurrency, setSelectedCurrency] = useState('TWD');
   const options = currencyOptions ?? ['TWD', 'JPY', 'USD', 'EUR', 'HKD', 'THB'];
 
@@ -150,7 +152,7 @@ export default function SettlementPlan({
                       </p>
                       {selectedCurrency !== 'TWD' && (
                         <p className="text-xs text-muted-foreground">
-                          (TWD ${transaction.amount.toFixed(0)})
+                          ({formatCurrency(transaction.amount, 'TWD', locale)})
                         </p>
                       )}
                       <div className="flex justify-center mt-1 text-muted-foreground/50">

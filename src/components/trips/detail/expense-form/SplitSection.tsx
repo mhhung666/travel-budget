@@ -1,9 +1,10 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import type { Member } from '@/types';
 import type { SplitComputation, SplitMode } from '@/lib/expenseSplit';
 import { cn } from '@/lib/utils';
+import { formatCurrency } from '@/constants/currencies';
 
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -44,6 +45,7 @@ export function SplitSection({
 }: SplitSectionProps) {
   const tExpense = useTranslations('expense');
   const tCommon = useTranslations('common');
+  const locale = useLocale();
 
   return (
     <div className="space-y-3">
@@ -56,7 +58,7 @@ export function SplitSection({
           variant="ghost"
           size="sm"
           onClick={onSelectAll}
-          className="h-6 px-2 text-xs"
+          className="min-h-11 px-2 text-xs"
         >
           {tCommon('toggleAll')}
         </Button>
@@ -73,7 +75,7 @@ export function SplitSection({
           <ToggleGroupItem
             key={m}
             value={m}
-            className="h-8 text-xs data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+            className="min-h-11 text-xs data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
           >
             {tExpense(`split.${m}`)}
           </ToggleGroupItem>
@@ -95,7 +97,7 @@ export function SplitSection({
             <div
               key={member.id}
               className={cn(
-                'flex items-center justify-between rounded-lg border p-2 transition-all',
+                'flex min-h-11 items-center justify-between rounded-lg border p-2 transition-all',
                 state.selected
                   ? 'border-primary/20 bg-primary/5'
                   : 'border-border bg-transparent opacity-60'
@@ -118,7 +120,7 @@ export function SplitSection({
                 <div className="flex items-center gap-2">
                   {/* converted TWD share */}
                   <span className="text-xs tabular-nums text-muted-foreground">
-                    ${Math.round(twdShare).toLocaleString()}
+                    {formatCurrency(Math.round(twdShare), 'TWD', locale)}
                   </span>
                   {splitMode !== 'equal' && (
                     <div className="flex items-center gap-1">
@@ -128,7 +130,7 @@ export function SplitSection({
                         onChange={(e) => onValueChange(member.id, e.target.value)}
                         type="number"
                         min="0"
-                        className="h-8 w-20 bg-background pr-1 text-right shadow-sm focus-visible:ring-1"
+                        className="h-11 w-20 bg-background pr-1 text-right shadow-sm focus-visible:ring-1"
                       />
                       <span className="w-8 text-xs text-muted-foreground">{unit}</span>
                     </div>
@@ -146,8 +148,8 @@ export function SplitSection({
       {anySelected && originalAmount > 0 && (
         <p className="px-1 text-xs tabular-nums text-muted-foreground">
           {tExpense('split.allocated', {
-            allocated: `$${Math.round(split.allocatedTWD).toLocaleString()}`,
-            total: `$${Math.round(totalAmountTWD).toLocaleString()}`,
+            allocated: formatCurrency(Math.round(split.allocatedTWD), 'TWD', locale),
+            total: formatCurrency(Math.round(totalAmountTWD), 'TWD', locale),
           })}
         </p>
       )}

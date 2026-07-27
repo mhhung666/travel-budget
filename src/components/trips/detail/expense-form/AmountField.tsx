@@ -1,6 +1,8 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -30,22 +32,33 @@ export function AmountField({
   onCurrencyChange,
   currencyOptions,
 }: AmountFieldProps) {
+  const t = useTranslations('expense.form');
   const options = currencyOptions ?? CURRENCY_OPTIONS.map((c) => c.code);
   return (
     <div className="flex items-center gap-2 rounded-xl border bg-muted/50 p-4">
+      <Label htmlFor="expense-amount" className="sr-only">
+        {t('amount')}
+      </Label>
       <Input
+        id="expense-amount"
+        aria-label={t('amount')}
         placeholder="0"
         value={amount}
         onChange={(e) => onAmountChange(e.target.value)}
         required
         type="number"
         inputMode="decimal"
-        className="h-16 border-none bg-transparent px-0 text-4xl font-bold tabular-nums shadow-none focus-visible:ring-0"
+        min="0.000001"
+        step="any"
+        className="h-16 border-none bg-transparent px-0 text-4xl font-bold tabular-nums shadow-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
         autoFocus
       />
       <Select value={currency} onValueChange={onCurrencyChange}>
-        <SelectTrigger className="w-[100px] border-none bg-transparent text-lg font-medium focus:ring-0">
-          <SelectValue placeholder="Currency" />
+        <SelectTrigger
+          aria-label={t('currency')}
+          className="h-11 w-[100px] border-none bg-transparent text-lg font-medium"
+        >
+          <SelectValue placeholder={t('currency')} />
         </SelectTrigger>
         <SelectContent>
           {options.map((code) => (

@@ -264,6 +264,7 @@
     "noExpenses": "目前还没有支出记录",
     "addFirst": "新增第一笔支出",
     "form": {
+      "formDescription": "输入金额，并确认付款人与分账方式。",
       "amount": "金额",
       "currency": "币种",
       "exchangeRate": "汇率 (换算为 TWD)",
@@ -272,13 +273,23 @@
       "category": "消费类别",
       "date": "日期",
       "payer": "付款人",
+      "payerPlaceholder": "选择付款人",
+      "refreshRate": "重新获取汇率",
+      "rateEquation": "1 {currency} = {rate} TWD",
       "itineraryDay": "关联行程日",
       "itineraryDaysHint": "可多选；跨夜的支出选多天会自动平均分摊到每日花费",
       "itineraryDaysAveraged": "已选 {count} 天，金额将在每日花费平均分摊",
       "splitWith": "分账对象",
       "convertedAmount": "换算金额",
       "tags": "标签",
-      "tagsPlaceholder": "输入后按 Enter 或逗号新增"
+      "tagsPlaceholder": "输入后按 Enter 或逗号新增",
+      "summary": {
+        "payerDate": "{payer}付款 · {date}",
+        "equalSplit": "{count} 人均分 · 每人 {amount}",
+        "customSplit": "{mode} · {count} 人 · 已分配 {allocated}",
+        "converted": "{original} ≈ {converted}",
+        "loadingRate": "正在获取汇率…"
+      }
     },
     "confirm": {
       "delete": "确定要删除这笔支出吗？",
@@ -323,7 +334,10 @@
       "percentShort": "百分比合计不足 100%"
     },
     "error": {
-      "noMembersSelected": "请至少选择一位分账对象"
+      "noMembersSelected": "请至少选择一位分账对象",
+      "amountRequired": "请输入大于 0 的金额",
+      "exchangeRateRequired": "请输入或重新获取有效汇率",
+      "ratesLoadFailed": "无法加载汇率"
     }
   },
   "member": {

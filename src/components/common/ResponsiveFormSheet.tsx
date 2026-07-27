@@ -59,7 +59,9 @@ export function ResponsiveFormSheet({
         >
           <DialogHeader className="border-b px-6 py-4">
             <DialogTitle>{title}</DialogTitle>
-            {description && <DialogDescription className="hidden">{description}</DialogDescription>}
+            {description && (
+              <DialogDescription className="sr-only">{description}</DialogDescription>
+            )}
           </DialogHeader>
           <div className="flex-1 overflow-y-auto px-6 py-4">{children}</div>
           {footer && (
@@ -78,7 +80,7 @@ export function ResponsiveFormSheet({
       >
         <SheetHeader className="border-b px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] text-left">
           <SheetTitle>{title}</SheetTitle>
-          {description && <SheetDescription className="hidden">{description}</SheetDescription>}
+          {description && <SheetDescription className="sr-only">{description}</SheetDescription>}
         </SheetHeader>
         <div className="flex-1 overflow-y-auto px-4 py-4">{children}</div>
         {footer && (

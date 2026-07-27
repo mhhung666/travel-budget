@@ -66,8 +66,8 @@ export function AdvancedFields({
       <div className="space-y-2">
         <Label>{tExpense('form.payer')}</Label>
         <Select value={payerId.toString()} onValueChange={onPayerChange}>
-          <SelectTrigger>
-            <SelectValue placeholder="Select Payer" />
+          <SelectTrigger aria-label={tExpense('form.payer')}>
+            <SelectValue placeholder={tExpense('form.payerPlaceholder')} />
           </SelectTrigger>
           <SelectContent>
             {members.map((member) => (
@@ -80,8 +80,13 @@ export function AdvancedFields({
       </div>
 
       <div className="space-y-2">
-        <Label>{tExpense('form.date')}</Label>
-        <Input type="date" value={date} onChange={(e) => onDateChange(e.target.value)} />
+        <Label htmlFor="expense-date">{tExpense('form.date')}</Label>
+        <Input
+          id="expense-date"
+          type="date"
+          value={date}
+          onChange={(e) => onDateChange(e.target.value)}
+        />
       </div>
 
       {itineraryDays.length > 0 && (
@@ -124,12 +129,14 @@ export function AdvancedFields({
 
       {currency !== 'TWD' && (
         <div className="space-y-2">
-          <Label>{tExpense('form.exchangeRate')}</Label>
+          <Label htmlFor="expense-exchange-rate">{tExpense('form.exchangeRate')}</Label>
           <div className="flex gap-2">
             <Input
+              id="expense-exchange-rate"
               type="number"
               value={exchangeRate}
               onChange={(e) => onExchangeRateChange(e.target.value)}
+              min="0"
               step="0.000001"
             />
             <TooltipProvider>
@@ -141,7 +148,8 @@ export function AdvancedFields({
                     size="icon"
                     onClick={onRefreshRates}
                     disabled={loadingRates}
-                    className="shrink-0"
+                    className="h-11 w-11 shrink-0"
+                    aria-label={tExpense('form.refreshRate')}
                   >
                     {loadingRates ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -151,14 +159,19 @@ export function AdvancedFields({
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Refresh Exchange Rate</p>
+                  <p>{tExpense('form.refreshRate')}</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
           </div>
-          <p className="text-xs text-muted-foreground">
-            1 {currency} = {parseFloat(exchangeRate).toFixed(4)} TWD
-          </p>
+          {Number(exchangeRate) > 0 && (
+            <p className="text-xs text-muted-foreground">
+              {tExpense('form.rateEquation', {
+                currency,
+                rate: Number(exchangeRate).toFixed(4),
+              })}
+            </p>
+          )}
           {ratesError && <p className="text-xs text-destructive">{ratesError}</p>}
         </div>
       )}

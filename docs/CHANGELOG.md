@@ -61,6 +61,13 @@
 
 **遺留（未做）**：manifest `screenshots` 待素材；`/trips` 封面卡的成員頭像堆疊 / 預算進度需資料層支援；[EditTripDialog](../src/components/trips/detail/dialogs/EditTripDialog.tsx) 與 [JoinTripDialog](../src/components/trips/JoinTripDialog.tsx) 仍為舊置中 Dialog，待用同一套 Sheet 改法處理。
 
+### UI/UX 第二輪 Phase 1A：金額信任與日期基線（2026-07-27）
+
+- 支出表單收合時仍直接顯示「付款人／本地日期／分帳人數與每人金額／外幣換算」；外幣匯率未載入時不再用 `1.0` 或沿用前一個幣別靜默送出，需取得或手動輸入有效匯率。
+- 新增共用本地日期輸入工具，修正 UTC+ 時區凌晨的「今天」可能落到前一天；支出、統計日期區間、飛行／住宿／會籍補登共同套用。
+- 結算、分帳與摘要統一走 `formatCurrency`，TWD 顯示 `NT$`、不再使用裸 `$`；補日期／幣別單元測試。
+- 核心表單補可見 focus、表單描述、四語 accessible name 與 44px 進階操作目標。完整評估與後續 Phase 見 [UI_UX_EVALUATION.md](./UI_UX_EVALUATION.md)。
+
 ---
 
 ## 行程空間分頁重排（2026-07-15）
