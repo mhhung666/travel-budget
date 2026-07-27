@@ -13,6 +13,7 @@ import {
   useTripMembership,
   useExpenseMutations,
 } from '@/hooks/queries';
+import { getCorrectionTiming, trackProductEvent } from '@/lib/productEvents';
 
 /**
  * Controller hook for the trip expenses tab (trips/[id]/expenses/page.tsx).
@@ -44,7 +45,7 @@ export function useTripDetailPage(tripId: string) {
 
   // --- Dialog state ---
   const editExpenseDialog = useDialog<Expense>();
-  const deleteExpenseDialog = useDialog<string>();
+  const deleteExpenseDialog = useDialog<Expense>();
 
   // --- Filter state ---
   const [filters, setFilters] = useState<ExpenseFilters>(EMPTY_EXPENSE_FILTERS);
@@ -95,6 +96,10 @@ export function useTripDetailPage(tripId: string) {
       },
     });
 
+    trackProductEvent('expense_correction', {
+      action: 'edited',
+      timing: getCorrectionTiming(editingExpense.created_at),
+    });
     editExpenseDialog.closeDialog();
     toast({
       title: tExpense('success.updated'),
@@ -102,12 +107,13 @@ export function useTripDetailPage(tripId: string) {
   };
 
   const handleDeleteExpense = (expenseId: string) => {
-    deleteExpenseDialog.openDialog(expenseId);
+    const expense = expenses.find((item) => item.id === expenseId);
+    if (expense) deleteExpenseDialog.openDialog(expense);
   };
 
   const confirmDeleteExpense = async () => {
-    const expenseId = deleteExpenseDialog.data;
-    if (!expenseId) return;
+    const deletingExpense = deleteExpenseDialog.data;
+    if (!deletingExpense) return;
 
     if (!onlineManager.isOnline()) {
       deleteExpenseDialog.closeDialog();
@@ -120,7 +126,11 @@ export function useTripDetailPage(tripId: string) {
     }
 
     try {
-      await expenseMutations.remove.mutateAsync(expenseId);
+      await expenseMutations.remove.mutateAsync(deletingExpense.id);
+      trackProductEvent('expense_correction', {
+        action: 'deleted',
+        timing: getCorrectionTiming(deletingExpense.created_at),
+      });
       deleteExpenseDialog.closeDialog();
       toast({
         title: tCommon('deleted'),

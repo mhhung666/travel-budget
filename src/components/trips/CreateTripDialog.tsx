@@ -19,6 +19,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
+import { trackProductEvent } from '@/lib/productEvents';
 
 interface CreateTripDialogProps {
   open: boolean;
@@ -87,13 +88,20 @@ export default function CreateTripDialog({ open, onClose, onSuccess }: CreateTri
         throw new Error(result.error);
       }
 
+      const createdTrip = result.data;
+      trackProductEvent('activation_step', { step: 'trip_created' });
+
       // 建立成功後，把勾選的好友直接加入新旅程（best-effort：即使失敗旅程仍已建立，
       // 使用者可事後在成員頁補加，故不因此擋下流程）。
       if (selectedFriends.size > 0) {
-        await addFriendsToTrip(result.data.id, { friend_ids: [...selectedFriends] });
+        const addResult = await addFriendsToTrip(createdTrip.id, {
+          friend_ids: [...selectedFriends],
+        });
+        if (addResult.success) {
+          trackProductEvent('activation_step', { step: 'companion_added' });
+        }
       }
 
-      const createdTrip = result.data;
       handleClose();
       onSuccess(createdTrip);
     } catch (err: unknown) {

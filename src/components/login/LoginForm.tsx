@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { trackProductEvent } from '@/lib/productEvents';
 
 interface LoginFormProps {
   hideBackToHome?: boolean;
@@ -56,6 +57,9 @@ export default function LoginForm({ hideBackToHome = false, redirectTo }: LoginF
         throw new Error(result.error || (isLogin ? t('login.error') : t('register.error')));
       }
 
+      if (!isLogin) {
+        trackProductEvent('activation_step', { step: 'registered' });
+      }
       router.push(redirectTo ?? '/trips');
     } catch (err: unknown) {
       if (err instanceof Error) {

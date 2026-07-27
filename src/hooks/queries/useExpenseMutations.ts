@@ -1,6 +1,6 @@
 'use client';
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { onlineManager, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createExpense, updateExpense, deleteExpense } from '@/actions';
 import type { UpdateExpenseInput } from '@/lib/validation';
 import type { Expense, Member } from '@/types';
@@ -12,6 +12,7 @@ import {
   type CreateExpenseVars,
 } from '@/lib/offlineMutations';
 import { tripKeys } from './keys';
+import { trackProductEvent } from '@/lib/productEvents';
 
 /**
  * Expense create/update/delete mutations for a trip.
@@ -33,6 +34,10 @@ export function useExpenseMutations(tripId: string) {
     mutationKey: expenseCreateMutationKey,
     mutationFn: (vars: CreateExpenseVars) => unwrap(createExpense(vars.tripId, vars.input)),
     onMutate: async (vars: CreateExpenseVars) => {
+      const wasOffline = !onlineManager.isOnline();
+      if (wasOffline) {
+        trackProductEvent('offline_expense', { state: 'queued' });
+      }
       const key = tripKeys.expenses(vars.tripId);
       // Stop in-flight refetches from clobbering the optimistic insert.
       await queryClient.cancelQueries({ queryKey: key });
@@ -45,10 +50,19 @@ export function useExpenseMutations(tripId: string) {
         createdAt: new Date().toISOString(),
       });
       queryClient.setQueryData<Expense[]>(key, (old = []) => [optimistic, ...old]);
-      return { previous, key };
+      return { previous, key, wasOffline };
     },
     onError: (_err, _vars, ctx) => {
       if (ctx?.previous) queryClient.setQueryData(ctx.key, ctx.previous);
+      if (ctx?.wasOffline) {
+        trackProductEvent('offline_expense', { state: 'failed' });
+      }
+    },
+    onSuccess: (_data, _vars, ctx) => {
+      trackProductEvent('activation_step', { step: 'expense_created' });
+      if (ctx?.wasOffline) {
+        trackProductEvent('offline_expense', { state: 'synced' });
+      }
     },
     onSettled: (_data, _err, vars) => invalidateExpenseDerived(queryClient, vars.tripId),
   });

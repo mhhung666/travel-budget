@@ -48,6 +48,7 @@ import {
   parseNights,
 } from '@/lib/collectionImport';
 import { ongoingDayNumber } from '@/lib/tripStatus';
+import { trackProductEvent } from '@/lib/productEvents';
 
 import { ItinerarySkeleton } from '@/components/skeletons';
 import { EmptyState, ErrorState } from '@/components/common';
@@ -223,6 +224,7 @@ export default function ItineraryPage() {
     if (!trip) return;
     try {
       await navigator.clipboard.writeText(`${window.location.origin}/join/${trip.hash_code}`);
+      trackProductEvent('activation_step', { step: 'invite_shared' });
       setInviteCopied(true);
       toast({ description: tFirstSteps('inviteCopied'), variant: 'success' });
     } catch {

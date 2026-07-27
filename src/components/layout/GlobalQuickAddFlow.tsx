@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useQueryClient } from '@tanstack/react-query';
 import { CalendarRange, Loader2, Plus, ReceiptText } from 'lucide-react';
@@ -9,6 +9,7 @@ import { decideQuickAddTrip } from '@/lib/quickAdd';
 import { ongoingDayNumber } from '@/lib/tripStatus';
 import { useTrips, tripKeys } from '@/hooks/queries';
 import { useTripSpace } from '@/hooks/useTripSpace';
+import { trackProductEvent } from '@/lib/productEvents';
 
 import { ResponsiveFormSheet } from '@/components/common';
 import CreateTripDialog from '@/components/trips/CreateTripDialog';
@@ -129,10 +130,12 @@ function GlobalExpenseForm({
   tripId,
   open,
   onClose,
+  path,
 }: {
   tripId: string;
   open: boolean;
   onClose: () => void;
+  path: 'direct' | 'picker' | 'created';
 }) {
   const {
     trip,
@@ -166,6 +169,7 @@ function GlobalExpenseForm({
       onClose={onClose}
       onSubmit={async (data) => {
         await handleAddExpense(data);
+        trackProductEvent('quick_add_flow', { stage: 'expense_submitted', path });
         onClose();
       }}
       members={members}
@@ -183,7 +187,9 @@ export function GlobalQuickAddFlow({ open, preferredTripId, onClose }: GlobalQui
   const queryClient = useQueryClient();
   const { data: trips = [], isLoading } = useTrips();
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
+  const [selectedPath, setSelectedPath] = useState<'picker' | 'created'>('picker');
   const [createOpen, setCreateOpen] = useState(false);
+  const measuredStage = useRef<string | null>(null);
 
   const decision = useMemo(
     () => decideQuickAddTrip(trips, new Date(), preferredTripId),
@@ -192,19 +198,52 @@ export function GlobalQuickAddFlow({ open, preferredTripId, onClose }: GlobalQui
 
   const closeFlow = () => {
     setSelectedTripId(null);
+    setSelectedPath('picker');
     setCreateOpen(false);
     onClose();
   };
 
-  const selectTrip = (trip: Pick<Trip, 'id' | 'hash_code'>) => {
+  const selectTrip = (
+    trip: Pick<Trip, 'id' | 'hash_code'>,
+    path: 'picker' | 'created' = 'picker'
+  ) => {
     rememberTrip(trip);
+    setSelectedPath(path);
     setSelectedTripId(trip.hash_code);
   };
+
+  const stage = !open
+    ? null
+    : selectedTripId
+      ? `form_opened:${selectedPath}`
+      : isLoading
+        ? null
+        : decision.kind === 'direct'
+          ? 'form_opened:direct'
+          : decision.kind === 'pick'
+            ? 'picker_shown:picker'
+            : 'trip_creation_shown:created';
+
+  useEffect(() => {
+    if (!stage) {
+      if (!open) measuredStage.current = null;
+      return;
+    }
+    if (measuredStage.current === stage) return;
+    measuredStage.current = stage;
+    const [eventStage, path] = stage.split(':') as [
+      'picker_shown' | 'trip_creation_shown' | 'form_opened',
+      'direct' | 'picker' | 'created',
+    ];
+    trackProductEvent('quick_add_flow', { stage: eventStage, path });
+  }, [open, stage]);
 
   if (!open) return null;
 
   if (selectedTripId) {
-    return <GlobalExpenseForm tripId={selectedTripId} open onClose={closeFlow} />;
+    return (
+      <GlobalExpenseForm tripId={selectedTripId} open onClose={closeFlow} path={selectedPath} />
+    );
   }
 
   if (isLoading) {
@@ -212,7 +251,9 @@ export function GlobalQuickAddFlow({ open, preferredTripId, onClose }: GlobalQui
   }
 
   if (decision.kind === 'direct') {
-    return <GlobalExpenseForm tripId={decision.trip.hash_code} open onClose={closeFlow} />;
+    return (
+      <GlobalExpenseForm tripId={decision.trip.hash_code} open onClose={closeFlow} path="direct" />
+    );
   }
 
   if (decision.kind === 'pick') {
@@ -244,7 +285,7 @@ export function GlobalQuickAddFlow({ open, preferredTripId, onClose }: GlobalQui
         onClose={() => setCreateOpen(false)}
         onSuccess={(trip) => {
           void queryClient.invalidateQueries({ queryKey: tripKeys.list });
-          selectTrip(trip);
+          selectTrip(trip, 'created');
         }}
       />
     </>

@@ -37,6 +37,6 @@ describe('Phase 2B global quick-add contracts', () => {
     const source = readSource('components', 'layout', 'GlobalQuickAddFlow.tsx');
 
     expect(source).toContain('<CreateTripDialog');
-    expect(source).toContain('selectTrip(trip)');
+    expect(source).toContain("selectTrip(trip, 'created')");
   });
 });

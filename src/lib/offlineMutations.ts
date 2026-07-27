@@ -3,6 +3,7 @@ import { createExpense } from '@/actions';
 import type { ActionResult } from '@/actions';
 import type { CreateExpenseInput } from '@/lib/validation';
 import { tripKeys } from '@/hooks/queries/keys';
+import { trackProductEvent } from '@/lib/productEvents';
 
 /**
  * Offline-queued mutation plumbing (ROADMAP #5 Phase 2).
@@ -50,6 +51,13 @@ export function invalidateExpenseDerived(queryClient: QueryClient, tripId: strin
 export function registerOfflineMutationDefaults(queryClient: QueryClient): void {
   queryClient.setMutationDefaults(expenseCreateMutationKey, {
     mutationFn: (vars: CreateExpenseVars) => unwrap(createExpense(vars.tripId, vars.input)),
+    onSuccess: () => {
+      trackProductEvent('activation_step', { step: 'expense_created' });
+      trackProductEvent('offline_expense', { state: 'synced' });
+    },
+    onError: () => {
+      trackProductEvent('offline_expense', { state: 'failed' });
+    },
     onSettled: (_data, _error, vars) => {
       if (vars) invalidateExpenseDerived(queryClient, vars.tripId);
     },
