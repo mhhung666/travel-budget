@@ -1,7 +1,7 @@
 'use client';
 
 import { useTransition } from 'react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import { Globe } from 'lucide-react';
 import { Locale } from '@/i18n/routing';
@@ -24,6 +24,7 @@ const languages: Record<Locale, string> = {
 
 export default function LanguageSwitcher({ showLabel = false }: { showLabel?: boolean }) {
   const locale = useLocale();
+  const t = useTranslations('common');
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
@@ -52,9 +53,9 @@ export default function LanguageSwitcher({ showLabel = false }: { showLabel?: bo
             size="icon"
             disabled={isPending}
             className="text-muted-foreground hover:text-foreground"
+            aria-label={t('changeLanguage')}
           >
             <Globe className="h-5 w-5" />
-            <span className="sr-only">Change language</span>
           </Button>
         )}
       </DropdownMenuTrigger>

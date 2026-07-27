@@ -174,7 +174,7 @@ export default function ExpenseHistogram({
               onClick={() => setInterval(option.value as TimeInterval)}
               disabled={!availableIntervals.includes(option.value as TimeInterval)}
               className={cn(
-                'px-3 py-1.5 text-sm font-medium rounded-md transition-all',
+                'min-h-11 rounded-md px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                 'disabled:opacity-50 disabled:cursor-not-allowed',
                 interval === option.value
                   ? 'bg-background text-foreground shadow-sm'

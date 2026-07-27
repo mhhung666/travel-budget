@@ -91,6 +91,7 @@ export default function ItineraryDayCard({
                 className="h-8 w-8"
                 onClick={() => onAddActivity(day)}
                 title={tAct('add')}
+                aria-label={tAct('add')}
               >
                 <CalendarPlus className="h-4 w-4" />
               </Button>
@@ -100,6 +101,7 @@ export default function ItineraryDayCard({
                 className="h-8 w-8"
                 onClick={() => onEdit(day)}
                 title={tItinerary('editDay')}
+                aria-label={tItinerary('editDay')}
               >
                 <Edit2 className="h-4 w-4" />
               </Button>
@@ -109,6 +111,7 @@ export default function ItineraryDayCard({
                 className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
                 onClick={() => onDelete(day.id)}
                 title={tItinerary('deleteDay')}
+                aria-label={tItinerary('deleteDay')}
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
@@ -193,6 +196,7 @@ export default function ItineraryDayCard({
                           className={cn('h-7 w-7 text-muted-foreground hover:text-primary')}
                           onClick={() => onImportActivity(day, activity)}
                           title={tAct('importToCollections')}
+                          aria-label={tAct('importToCollections')}
                         >
                           <Medal className="h-3.5 w-3.5" />
                         </Button>
@@ -206,6 +210,7 @@ export default function ItineraryDayCard({
                         className="h-7 w-7"
                         onClick={() => onEditActivity(day, activity)}
                         title={tAct('edit')}
+                        aria-label={tAct('edit')}
                       >
                         <Edit2 className="h-3.5 w-3.5" />
                       </Button>
@@ -215,6 +220,7 @@ export default function ItineraryDayCard({
                         className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
                         onClick={() => onDeleteActivity(day, activity)}
                         title={tAct('remove')}
+                        aria-label={tAct('remove')}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>

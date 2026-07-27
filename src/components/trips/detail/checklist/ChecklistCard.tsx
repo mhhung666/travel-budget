@@ -47,6 +47,7 @@ export default function ChecklistCard({
   onLogExpense,
 }: ChecklistCardProps) {
   const t = useTranslations('checklist');
+  const tCommon = useTranslations('common');
   const [newItem, setNewItem] = useState('');
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(checklist.title);
@@ -100,7 +101,13 @@ export default function ChecklistCard({
                 }}
                 className="h-8"
               />
-              <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0" onClick={saveTitle}>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8 shrink-0"
+                onClick={saveTitle}
+                aria-label={tCommon('save')}
+              >
                 <Check className="h-4 w-4" />
               </Button>
               <Button
@@ -108,6 +115,7 @@ export default function ChecklistCard({
                 variant="ghost"
                 className="h-8 w-8 shrink-0"
                 onClick={cancelTitle}
+                aria-label={tCommon('cancel')}
               >
                 <X className="h-4 w-4" />
               </Button>

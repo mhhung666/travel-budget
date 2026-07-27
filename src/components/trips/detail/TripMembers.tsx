@@ -140,6 +140,11 @@ export default function TripMembers({
                                 e.stopPropagation();
                                 onToggleAdmin(member);
                               }}
+                              aria-label={
+                                member.role === 'admin'
+                                  ? tMember('demoteFromAdmin')
+                                  : tMember('promoteToAdmin')
+                              }
                             >
                               {member.role === 'admin' ? (
                                 <Shield className="h-4 w-4 text-warning" />
@@ -170,6 +175,7 @@ export default function TripMembers({
                                 e.stopPropagation();
                                 onCopyInviteLink(member);
                               }}
+                              aria-label={tMember('copyInviteLink')}
                             >
                               <Link className="h-4 w-4" />
                             </Button>
@@ -191,6 +197,7 @@ export default function TripMembers({
                               e.stopPropagation();
                               onRemoveMember(member);
                             }}
+                            aria-label={tMember('remove')}
                           >
                             <UserMinus className="h-4 w-4" />
                           </Button>

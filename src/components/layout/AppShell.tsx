@@ -51,6 +51,7 @@ export function AppShell({
   children: React.ReactNode;
 }) {
   const t = useTranslations('nav');
+  const tCommon = useTranslations('common');
   const router = useRouter();
   const pathname = usePathname();
 
@@ -144,7 +145,12 @@ export function AppShell({
                   <span className="mr-1 text-sm text-muted-foreground">{displayName}</span>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="rounded-full">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="rounded-full"
+                        aria-label={tCommon('openUserMenu')}
+                      >
                         <Avatar className="h-8 w-8">
                           <AvatarImage src={user.avatar_url ?? ''} alt={displayName} />
                           <AvatarFallback className="bg-primary text-primary-foreground">

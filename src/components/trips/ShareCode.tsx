@@ -58,7 +58,13 @@ export function ShareCode({
         <h4 className="font-semibold text-sm mb-2 text-foreground">{title}</h4>
         <div className="flex gap-2 items-center">
           <Input value={getShareUrl()} readOnly className="flex-1 bg-background h-9" />
-          <Button variant="outline" size="icon" onClick={handleCopy} className="h-9 w-9 shrink-0">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handleCopy}
+            className="h-9 w-9 shrink-0"
+            aria-label={tCommon('copy')}
+          >
             {copied ? <Check size={16} className="text-success" /> : <Copy size={16} />}
           </Button>
         </div>

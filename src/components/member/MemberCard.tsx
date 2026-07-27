@@ -4,8 +4,10 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Shield, UserMinus } from 'lucide-react';
+import { useLocale, useTranslations } from 'next-intl';
 import type { Member } from '@/types';
 import { cn } from '@/lib/utils';
+import { intlLocale } from '@/lib/relativeTime';
 
 export interface MemberCardProps {
   member: Member;
@@ -15,6 +17,8 @@ export interface MemberCardProps {
 }
 
 export function MemberCard({ member, isCurrentUser, canRemove, onRemove }: MemberCardProps) {
+  const t = useTranslations('member');
+  const locale = useLocale();
   const displayName = member.display_name || member.username;
 
   return (
@@ -33,10 +37,10 @@ export function MemberCard({ member, isCurrentUser, canRemove, onRemove }: Membe
         <div>
           <div className="flex items-center gap-2">
             <span className={isCurrentUser ? 'font-semibold' : 'font-normal'}>{displayName}</span>
-            {isCurrentUser && <span className="text-xs text-muted-foreground">(You)</span>}
+            {isCurrentUser && <span className="text-xs text-muted-foreground">{t('you')}</span>}
           </div>
           <div className="text-xs text-muted-foreground">
-            Joined {new Date(member.joined_at).toLocaleDateString()}
+            {t('joined')} {new Date(member.joined_at).toLocaleDateString(intlLocale(locale))}
           </div>
         </div>
       </div>
@@ -45,7 +49,7 @@ export function MemberCard({ member, isCurrentUser, canRemove, onRemove }: Membe
         {member.role === 'admin' && (
           <Badge variant="outline" className="gap-1 border-primary/50 text-primary">
             <Shield size={12} />
-            Admin
+            {t('role.admin')}
           </Badge>
         )}
         {canRemove && onRemove && (
@@ -54,7 +58,7 @@ export function MemberCard({ member, isCurrentUser, canRemove, onRemove }: Membe
             size="icon"
             className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
             onClick={() => onRemove(member)}
-            title="Remove member"
+            aria-label={t('remove')}
           >
             <UserMinus size={16} />
           </Button>

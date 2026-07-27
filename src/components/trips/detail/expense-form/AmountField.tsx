@@ -10,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { normalizeUnsignedDecimalInput } from '@/lib/decimalInput';
 import { CURRENCY_OPTIONS } from './currencies';
 
 interface AmountFieldProps {
@@ -44,12 +45,14 @@ export function AmountField({
         aria-label={t('amount')}
         placeholder="0"
         value={amount}
-        onChange={(e) => onAmountChange(e.target.value)}
+        onChange={(e) => {
+          const normalized = normalizeUnsignedDecimalInput(e.target.value);
+          if (normalized !== null) onAmountChange(normalized);
+        }}
         required
-        type="number"
+        type="text"
         inputMode="decimal"
-        min="0.000001"
-        step="any"
+        autoComplete="off"
         className="h-16 border-none bg-transparent px-0 text-4xl font-bold tabular-nums shadow-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
         autoFocus
       />

@@ -49,6 +49,7 @@ export default function PhotoPinDialog({
                   type="button"
                   onClick={() => setLightboxIndex(i)}
                   className="relative aspect-square overflow-hidden rounded-md bg-muted transition-opacity hover:opacity-80"
+                  aria-label={photo.caption || t('photoCount', { count: 1 })}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element -- 簽名 URL 為動態短效，不走 next/image 遠端設定 */}
                   <img

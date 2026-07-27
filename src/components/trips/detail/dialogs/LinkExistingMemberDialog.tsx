@@ -134,7 +134,7 @@ export default function LinkExistingMemberDialog({
             <button
               type="button"
               onClick={onSwitchToRegister}
-              className="text-primary hover:underline font-medium focus:outline-none"
+              className="min-h-11 rounded-sm px-1 font-medium text-primary ring-offset-background hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               {t('registerNew')}
             </button>

@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { Separator } from '@/components/ui/separator';
 import { MemberCard } from './MemberCard';
 import type { Member } from '@/types';
@@ -12,18 +13,15 @@ export interface MemberListProps {
   title?: string;
 }
 
-export function MemberList({
-  members,
-  currentUserId,
-  isAdmin,
-  onRemove,
-  title = 'Members',
-}: MemberListProps) {
+export function MemberList({ members, currentUserId, isAdmin, onRemove, title }: MemberListProps) {
+  const t = useTranslations('member');
+  const resolvedTitle = title ?? t('title');
+
   return (
     <div>
-      {title && (
+      {resolvedTitle && (
         <h3 className="text-sm font-medium text-muted-foreground mb-2">
-          {title} ({members.length})
+          {resolvedTitle} ({members.length})
         </h3>
       )}
       <div className="flex flex-col space-y-1">

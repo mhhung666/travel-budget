@@ -141,6 +141,7 @@ export function ActivityCard({
             className="h-8 w-8 shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
             onClick={onRemove}
             title={t('remove')}
+            aria-label={t('remove')}
           >
             <Trash2 className="h-4 w-4" />
           </Button>

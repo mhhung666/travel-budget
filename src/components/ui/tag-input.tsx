@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { X } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -33,6 +34,7 @@ export function TagInput({
   disabled = false,
   id,
 }: TagInputProps) {
+  const t = useTranslations('common');
   const [draft, setDraft] = useState('');
 
   const commit = (raw: string) => {
@@ -73,8 +75,8 @@ export function TagInput({
                 <button
                   type="button"
                   onClick={() => removeAt(index)}
-                  className="rounded-full hover:bg-muted-foreground/20"
-                  aria-label={`Remove ${tag}`}
+                  className="flex min-h-6 min-w-6 items-center justify-center rounded-full ring-offset-background hover:bg-muted-foreground/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  aria-label={`${t('delete')} ${tag}`}
                 >
                   <X className="h-3 w-3" />
                 </button>
@@ -110,7 +112,7 @@ export function TagInput({
               key={s}
               type="button"
               onClick={() => commit(s)}
-              className="rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent hover:text-accent-foreground"
+              className="min-h-11 rounded-sm px-2 py-1.5 text-left text-sm ring-offset-background hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               {s}
             </button>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Images, Loader2, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { ROUTES } from '@/constants/routes';
@@ -16,11 +16,25 @@ import LanguageSwitcher from '@/components/layout/LanguageSwitcher';
  */
 export function PublicAlbumView({ code }: { code: string }) {
   const t = useTranslations('publicAlbum');
+  const tAlbum = useTranslations('album');
+  const tCommon = useTranslations('common');
   const locale = useLocale();
   const [tripName, setTripName] = useState('');
   const [photos, setPhotos] = useState<PublicAlbumPhoto[]>([]);
   const [status, setStatus] = useState<'loading' | 'ok' | 'notFound' | 'error'>('loading');
   const [index, setIndex] = useState<number | null>(null);
+  const photoButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
+
+  const handleIndexChange = useCallback(
+    (next: number | null) => {
+      const previous = index;
+      setIndex(next);
+      if (next === null && previous !== null) {
+        requestAnimationFrame(() => photoButtonRefs.current[previous]?.focus());
+      }
+    },
+    [index]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -111,6 +125,9 @@ export function PublicAlbumView({ code }: { code: string }) {
                 key={photo.id}
                 type="button"
                 onClick={() => setIndex(i)}
+                ref={(node) => {
+                  photoButtonRefs.current[i] = node;
+                }}
                 className="relative aspect-square overflow-hidden rounded-md bg-muted"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element -- 簽名 URL 為動態短效，不走 next/image 遠端設定 */}
@@ -130,9 +147,13 @@ export function PublicAlbumView({ code }: { code: string }) {
         <PublicPhotoLightbox
           photos={photos}
           index={index}
-          onIndexChange={setIndex}
+          onIndexChange={handleIndexChange}
           formatDate={formatDate}
           altFallback={t('photoAlt')}
+          dialogLabel={tAlbum('lightboxTitle')}
+          closeLabel={tCommon('close')}
+          previousLabel={tAlbum('previous')}
+          nextLabel={tAlbum('next')}
         />
       )}
     </div>
@@ -146,16 +167,25 @@ function PublicPhotoLightbox({
   onIndexChange,
   formatDate,
   altFallback,
+  dialogLabel,
+  closeLabel,
+  previousLabel,
+  nextLabel,
 }: {
   photos: PublicAlbumPhoto[];
   index: number;
   onIndexChange: (i: number | null) => void;
   formatDate: (iso: string | null) => string;
   altFallback: string;
+  dialogLabel: string;
+  closeLabel: string;
+  previousLabel: string;
+  nextLabel: string;
 }) {
   const photo = photos[index];
   const hasPrev = index > 0;
   const hasNext = index < photos.length - 1;
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -171,15 +201,39 @@ function PublicPhotoLightbox({
 
   return (
     <div
+      ref={dialogRef}
       className="fixed inset-0 z-50 flex flex-col bg-black/90"
       onClick={() => onIndexChange(null)}
+      onKeyDown={(event) => {
+        if (event.key !== 'Tab') return;
+        const focusable = Array.from(
+          dialogRef.current?.querySelectorAll<HTMLElement>(
+            'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+          ) ?? []
+        );
+        if (focusable.length === 0) return;
+
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }}
+      role="dialog"
+      aria-modal="true"
+      aria-label={dialogLabel}
     >
       <div className="flex justify-end p-3">
         <button
           type="button"
           onClick={() => onIndexChange(null)}
-          className="rounded-full bg-white/10 p-2 text-white hover:bg-white/20"
-          aria-label="close"
+          className="flex min-h-11 min-w-11 items-center justify-center rounded-full bg-white/10 text-white ring-offset-black hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2"
+          aria-label={closeLabel}
+          autoFocus
         >
           <X className="h-5 w-5" />
         </button>
@@ -193,8 +247,8 @@ function PublicPhotoLightbox({
           <button
             type="button"
             onClick={() => onIndexChange(index - 1)}
-            className="absolute left-2 rounded-full bg-white/10 p-2 text-white hover:bg-white/20"
-            aria-label="previous"
+            className="absolute left-2 flex min-h-11 min-w-11 items-center justify-center rounded-full bg-white/10 text-white ring-offset-black hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2"
+            aria-label={previousLabel}
           >
             <ChevronLeft className="h-6 w-6" />
           </button>
@@ -209,8 +263,8 @@ function PublicPhotoLightbox({
           <button
             type="button"
             onClick={() => onIndexChange(index + 1)}
-            className="absolute right-2 rounded-full bg-white/10 p-2 text-white hover:bg-white/20"
-            aria-label="next"
+            className="absolute right-2 flex min-h-11 min-w-11 items-center justify-center rounded-full bg-white/10 text-white ring-offset-black hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2"
+            aria-label={nextLabel}
           >
             <ChevronRight className="h-6 w-6" />
           </button>

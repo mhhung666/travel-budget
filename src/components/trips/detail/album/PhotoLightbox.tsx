@@ -208,7 +208,13 @@ export function PhotoLightbox({
                   )}
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
-                  <Button variant="ghost" size="icon" asChild title={t('download')}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    asChild
+                    title={t('download')}
+                    aria-label={t('download')}
+                  >
                     {/*
                       `download` 屬性**跨來源會被忽略**，而簽名 URL 位於 R2 的網域——所以這顆
                       在桌機是「開啟原圖」而非直接下載，故加 target=_blank 免得整個相簿被導航掉。
@@ -227,6 +233,7 @@ export function PhotoLightbox({
                       size="icon"
                       className="text-destructive hover:text-destructive"
                       title={t('delete')}
+                      aria-label={t('delete')}
                       onClick={() => setConfirmingDelete(true)}
                     >
                       <Trash2 className="h-4 w-4" />

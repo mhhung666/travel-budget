@@ -85,7 +85,8 @@ export function AttachmentThumb({
           type="button"
           onClick={openViewer}
           title={t('view')}
-          className="flex h-full w-full items-center justify-center overflow-hidden rounded-md border bg-muted"
+          aria-label={t('view')}
+          className="flex h-full w-full items-center justify-center overflow-hidden rounded-md border bg-muted ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
           {isPdf ? (
             <FileText className="h-6 w-6 text-muted-foreground" />
@@ -101,9 +102,11 @@ export function AttachmentThumb({
             type="button"
             onClick={onRemove}
             aria-label={t('remove')}
-            className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-destructive-foreground opacity-90 hover:opacity-100"
+            className="absolute -right-3 -top-3 flex h-11 w-11 items-center justify-center rounded-full ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
-            <X className="h-3 w-3" />
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-destructive-foreground opacity-90 hover:opacity-100">
+              <X className="h-3 w-3" />
+            </span>
           </button>
         )}
       </div>
