@@ -10,7 +10,6 @@ export default function Hero() {
     <div className="mb-8 flex flex-col items-center text-center">
       {/* Brand image */}
       <div className="relative mb-4 h-28 w-28 sm:h-32 sm:w-32">
-        <div className="absolute inset-0 -z-10 rounded-full bg-primary/[0.06] blur-2xl" />
         <Image
           src="/icon-512.png"
           alt="Take my money!"
