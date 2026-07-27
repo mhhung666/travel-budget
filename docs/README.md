@@ -9,6 +9,8 @@
 | [ROADMAP.md](./ROADMAP.md) | **尚未動工的功能構想** + 優先序 + 落地草圖 | 想知道「接下來要做什麼」 |
 | [IMPROVEMENTS.md](./IMPROVEMENTS.md) | **尚未處理的**程式碼 / 基礎設施改善（限流、測試覆蓋、分頁…） | 想優化既有實作、補技術債 |
 | [UI_UX_EVALUATION.md](./UI_UX_EVALUATION.md) | **UI/UX 現況評估與執行追蹤**：核心流程、問題分級、Phase 狀態、驗收條件與量測 | 要改善新手啟動、記帳效率、導覽、行動操作或可及性，或查目前進度 |
+| [UI_UX_SPEC.md](./UI_UX_SPEC.md) | **UI/UX 實作規格**：資訊架構、版型、操作、金額、空狀態、離線回饋與隱私事件 | 開發或驗收新介面 |
+| [USABILITY_TEST_PHASE4.md](./USABILITY_TEST_PHASE4.md) | **Phase 4 可用性測試套件**：招募條件、7 項任務、匿名紀錄與報告模板 | 主持 5–7 人任務測試 |
 | [CHANGELOG.md](./CHANGELOG.md) | **已完成工作的紀錄簿**：功能、改善、重構、資料層遷移 | 想知道「做過什麼、何時做的」 |
 | [MIGRATIONS.md](./MIGRATIONS.md) | migrate-mongo 操作指南（可重現的 index / 資料變更） | 要改 schema / 寫資料遷移 |
 | [TIER-COLORS.md](./TIER-COLORS.md) | 會籍等級 tag 的卡面色規則 + 色表（`TIER_BADGE_COLORS`） | 要改會籍 badge 顏色 / 新增會籍計畫 |

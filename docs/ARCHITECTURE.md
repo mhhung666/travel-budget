@@ -1,6 +1,6 @@
 # 架構說明（Architecture）
 
-> 更新日期：2026-06-29（補上通知 / Email / 排程 / Web Push、離線優先 PWA、動態牆、年度回顧）
+> 更新日期：2026-07-27（補上 UI/UX Phase 4 可及性測試與隱私安全產品量測）
 > 對應版本：v3.4.3
 > 本文件依**實際程式碼**撰寫，為架構的權威來源。**已實作功能的完整盤點**見 [FEATURES.md](./FEATURES.md)；改善建議請見 [IMPROVEMENTS.md](./IMPROVEMENTS.md)；已完成工作（含 Supabase→MongoDB 遷移）的紀錄見 [CHANGELOG.md](./CHANGELOG.md)。
 
@@ -22,7 +22,7 @@
 | 通知 | 站內（MongoDB 收件匣）+ Email（Resend）+ 排程（Vercel Cron）+ Web Push（VAPID `web-push`） |
 | 離線 / PWA | Serwist（`@serwist/next`）service worker + TanStack Query 持久化（`idb-keyval`） |
 | 資料查詢層 | TanStack React Query（查詢 / 失效 / 離線持久化） |
-| 測試 | Vitest + Testing Library + jsdom（純函式邏輯，約 300 個 test case） |
+| 測試 | Vitest + Testing Library + jsdom + axe-core（單元、互動與自動化可及性） |
 | 部署 | Vercel（`next build --webpack`，見 §4.13 PWA 構建注意） |
 
 ---
@@ -202,6 +202,12 @@ src/
 - **深連結語意**：站內通知 / Web Push / Email 中**支出語意**的連結（`expense_added` / `expense_comment_added`、支出摘要信）指向 `/expenses`，還款指向 `/settlement`，其餘旅程層級（如 `member_joined`、加入邀請）指向落點。三處導向表（[NotificationBell](../src/components/notifications/NotificationBell.tsx) / [webpush.ts](../src/lib/webpush.ts) / [emailTemplates.ts](../src/lib/emailTemplates.ts)）**必須一致**。
 - **邀請加入**：[tripInvite.ts](../src/lib/tripInvite.ts) 將裸代碼或完整 `/join/{code}` URL 正規化成驗證過的 6–10 位 hash code；登入／註冊透過已 sanitize 的 `redirect` 回到公開邀請頁，`joinTrip` 成功後直接進入該旅行。旅行卡不常駐顯示代碼，複製連結收在操作選單。
 - 隨手記 / 相簿為成員限定（無公開分享路由），分享連結訪客不顯示這兩項；子分頁列只有一顆時不佔一排。
+
+### 4.15 UI/UX 驗證與產品量測
+
+- [test/axe.ts](../src/test/axe.ts) 封裝 axe-core，在 jsdom 對關鍵元件檢查 serious／critical violations；`pnpm test:a11y` 執行空旅行、首次行動、旅行資訊、行動導覽與邀請加入的 render／互動測試。jsdom 無 layout/canvas，色彩對比、200% zoom、螢幕閱讀器與真實 viewport 仍由瀏覽器／裝置矩陣驗證。
+- [productEvents.ts](../src/lib/productEvents.ts) 是產品事件的單一固定 taxonomy：activation、全域快速記帳、錯帳修正時間 bucket、離線支出 queued／synced／failed。事件屬性只接受 TypeScript union 的分類值，禁止 id、姓名、旅行名稱、描述、邀請碼、日期、位置、精確金額與自由輸入；量測為 best-effort，失效不得中斷主要任務。
+- UX 的介面規則以 [UI_UX_SPEC.md](./UI_UX_SPEC.md) 為基線；真人任務驗證使用 [USABILITY_TEST_PHASE4.md](./USABILITY_TEST_PHASE4.md)。程式測試通過不等於真人測試或正式環境指標已完成。
 
 ---
 
