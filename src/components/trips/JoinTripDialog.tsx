@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { joinTrip } from '@/actions';
+import type { Trip } from '@/types';
+import { parseTripInviteInput } from '@/lib/tripInvite';
 
 import {
   Dialog,
@@ -20,7 +22,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 interface JoinTripDialogProps {
   open: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (trip: Trip) => void;
 }
 
 export default function JoinTripDialog({ open, onClose, onSuccess }: JoinTripDialogProps) {
@@ -29,6 +31,7 @@ export default function JoinTripDialog({ open, onClose, onSuccess }: JoinTripDia
 
   const [joinTripId, setJoinTripId] = useState('');
   const [error, setError] = useState('');
+  const [isJoining, setIsJoining] = useState(false);
 
   const handleClose = () => {
     setError('');
@@ -39,22 +42,31 @@ export default function JoinTripDialog({ open, onClose, onSuccess }: JoinTripDia
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    const code = parseTripInviteInput(joinTripId);
+    if (!code) {
+      setError(t('join.invalidInvite'));
+      return;
+    }
+    setIsJoining(true);
 
     try {
-      const result = await joinTrip(joinTripId);
+      const result = await joinTrip(code);
 
       if (!result.success) {
         throw new Error(result.error);
       }
 
+      const joinedTrip = result.data;
       handleClose();
-      onSuccess();
+      onSuccess(joinedTrip);
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);
       } else {
         setError(tCommon('error.unknown'));
       }
+    } finally {
+      setIsJoining(false);
     }
   };
 
@@ -63,9 +75,7 @@ export default function JoinTripDialog({ open, onClose, onSuccess }: JoinTripDia
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>{t('join.title')}</DialogTitle>
-          <DialogDescription>
-            Enter the unique Trip ID or Hash Code to join an existing trip.
-          </DialogDescription>
+          <DialogDescription>{t('join.description')}</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
@@ -92,7 +102,9 @@ export default function JoinTripDialog({ open, onClose, onSuccess }: JoinTripDia
             <Button type="button" variant="outline" onClick={handleClose}>
               {tCommon('cancel')}
             </Button>
-            <Button type="submit">{t('join.joinButton')}</Button>
+            <Button type="submit" disabled={isJoining}>
+              {isJoining ? t('quickJoin.joining') : t('join.joinButton')}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

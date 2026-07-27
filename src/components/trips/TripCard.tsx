@@ -1,11 +1,17 @@
 'use client';
 
-import { Copy, Users, CalendarRange, Archive, ArchiveRestore } from 'lucide-react';
+import { Copy, Users, CalendarRange, Archive, ArchiveRestore, MoreHorizontal } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import type { TripWithMembers } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { ongoingDayNumber } from '@/lib/tripStatus';
 import TripRoute from './TripRoute';
@@ -43,18 +49,36 @@ export default function TripCard({ trip, onClick, onCopyCode, onToggleArchive }:
         isArchived && 'opacity-70 hover:opacity-100'
       )}
     >
-      {onToggleArchive && (
-        <Button
-          variant="ghost"
-          size="icon"
-          className="absolute top-2 right-2 h-8 w-8 text-muted-foreground hover:text-foreground"
-          onClick={handleArchiveClick}
-          aria-label={isArchived ? t('unarchive') : t('archive')}
-          title={isArchived ? t('unarchive') : t('archive')}
-        >
-          {isArchived ? <ArchiveRestore size={16} /> : <Archive size={16} />}
-        </Button>
-      )}
+      <div className="absolute right-2 top-2 z-10" onClick={(event) => event.stopPropagation()}>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-11 w-11 text-muted-foreground hover:text-foreground"
+              aria-label={t('tripActions')}
+            >
+              <MoreHorizontal size={18} />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={handleCopyClick}>
+              <Copy className="mr-2 h-4 w-4" />
+              {t('copyInviteLink')}
+            </DropdownMenuItem>
+            {onToggleArchive && (
+              <DropdownMenuItem onClick={handleArchiveClick}>
+                {isArchived ? (
+                  <ArchiveRestore className="mr-2 h-4 w-4" />
+                ) : (
+                  <Archive className="mr-2 h-4 w-4" />
+                )}
+                {isArchived ? t('unarchive') : t('archive')}
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
 
       <CardContent className="p-6 flex flex-col h-full items-start text-left">
         {ongoingDay !== null && (
@@ -98,19 +122,10 @@ export default function TripCard({ trip, onClick, onCopyCode, onToggleArchive }:
             </div>
           )}
 
-          <div className="flex items-center justify-between gap-2 mt-4 pt-2 w-full">
+          <div className="mt-4 flex w-full items-center gap-2 pt-2">
             <Badge variant="outline" className="flex items-center gap-1 font-normal">
               <Users size={12} />
               {trip.member_count} {t('members')}
-            </Badge>
-
-            <Badge
-              variant="secondary"
-              className="flex items-center gap-1 cursor-pointer hover:bg-secondary/80 font-normal"
-              onClick={handleCopyClick}
-            >
-              <Copy size={12} />
-              {t('idLabel')} {trip.hash_code}
             </Badge>
           </div>
         </div>

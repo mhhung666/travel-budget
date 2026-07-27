@@ -211,9 +211,11 @@
     },
     "join": {
       "title": "旅行に参加",
-      "tripId": "旅行ID",
-      "tripIdPlaceholder": "6〜8文字の旅行コードを入力（例: a7x9k2）",
-      "tripIdHelp": "旅行作成者から旅行コードを取得してください",
+      "description": "招待リンクを貼り付けるか、旅行コードを入力してください。",
+      "tripId": "招待リンクまたはコード",
+      "tripIdPlaceholder": "https://…/join/a7x9k2 または a7x9k2",
+      "tripIdHelp": "旅行の主催者から共有されたリンクをそのまま貼り付けられます。",
+      "invalidInvite": "有効な招待リンクまたは6〜10文字の旅行コードを入力してください。",
       "joinButton": "参加",
       "success": "旅行に参加しました！",
       "error": "参加に失敗しました"
@@ -228,7 +230,8 @@
       "loginHint": "参加にはアカウントが必要です。ログイン後にこのページへ戻ります",
       "loginToJoin": "ログインして参加",
       "viewAsGuest": "ゲストとして閲覧",
-      "redirecting": "旅程ページへ移動しています…"
+      "redirecting": "旅程ページへ移動しています…",
+      "invitedBy": "{name} さんからの招待"
     },
     "detail": {
       "backToTrips": "旅行一覧に戻る",
@@ -669,6 +672,8 @@
   },
   "trip": {
     "info": "旅行情報",
+    "tripActions": "旅行の操作",
+    "copyInviteLink": "招待リンクをコピー",
     "createdAt": "作成日:",
     "settings": "設定",
     "share": "旅行を共有",
@@ -712,6 +717,30 @@
     "viewChecklist": "チェックリスト",
     "viewActivity": "履歴",
     "more": "その他",
+    "context": {
+      "phase": {
+        "preTrip": "旅行前",
+        "ongoing": "旅行中",
+        "postTrip": "旅行後"
+      },
+      "planningTitle": "次に役立つ準備を進めましょう",
+      "preTripTitle": "出発まであと {days} 日",
+      "ongoingTitle": "Day {day} · 今日のポイント",
+      "postTripTitle": "旅行を締めくくりましょう",
+      "openTasks": "未完了の項目",
+      "taskCount": "残り {count} 件",
+      "nextPlan": "次の予定",
+      "noPlan": "予定はまだありません",
+      "viewChecklist": "リストを見る",
+      "nextActivity": "次の行程",
+      "noActivityToday": "今日の予定はありません",
+      "todaySpent": "今日の支出",
+      "quickExpense": "支出を記録",
+      "viewToday": "今日の旅程を見る",
+      "outstanding": "未精算金額",
+      "viewSettlement": "精算を確認",
+      "viewAlbum": "アルバムを見る"
+    },
     "firstSteps": {
       "title": "まずはこの2つから",
       "description": "最初の支出を記録して、旅行仲間を招待しましょう。",
@@ -731,8 +760,11 @@
       "notes": "メモ",
       "album": "アルバム",
       "itinerary": "旅程",
+      "dailyItinerary": "日別旅程",
       "settlement": "精算",
+      "settlementPlan": "精算プラン",
       "stats": "統計",
+      "groupStats": "グループ統計",
       "checklists": "リスト"
     },
     "currencySettings": {

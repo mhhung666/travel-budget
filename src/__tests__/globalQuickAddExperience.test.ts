@@ -11,7 +11,8 @@ describe('Phase 2B global quick-add contracts', () => {
 
     expect(source).toContain('<GlobalQuickAddFlow');
     expect(source).toContain('quickAddOpen');
-    expect(source).toContain('onClick={openQuickAdd}');
+    expect(source).toContain('openQuickAdd();');
+    expect(source).toContain('<BottomTabBar onQuickAdd={openQuickAdd}');
   });
 
   it('uses the high-priority mobile action instead of a stats tab', () => {

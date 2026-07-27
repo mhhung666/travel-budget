@@ -16,6 +16,7 @@ import {
 } from '@/components/trips/detail/itinerary/ActivityListEditor';
 import { PhotoLightbox } from '@/components/trips/detail/album';
 import { TripHeader } from '@/components/trips/detail';
+import TripContextOverview from '@/components/trips/detail/TripContextOverview';
 import FirstStepsCard from '@/components/trips/detail/FirstStepsCard';
 import { EditTripDialog } from '@/components/trips/detail/dialogs';
 import { useTripSpaceActions } from '@/components/trips/space/TripSpaceContext';
@@ -32,6 +33,8 @@ import {
   useTripMembership,
   useItineraryMutations,
   useTripCollectionLinks,
+  useChecklists,
+  useSettlement,
 } from '@/hooks/queries';
 import type { ActivityPayload } from '@/hooks/queries/useItineraryMutations';
 import { useEditTrip } from '@/hooks/useEditTrip';
@@ -44,6 +47,7 @@ import {
   parseFlightNo,
   parseNights,
 } from '@/lib/collectionImport';
+import { ongoingDayNumber } from '@/lib/tripStatus';
 
 import { ItinerarySkeleton } from '@/components/skeletons';
 import { EmptyState, ErrorState } from '@/components/common';
@@ -77,6 +81,9 @@ export default function ItineraryPage() {
   const { data: days = [], isLoading: loading, isError } = useItinerary(tripId);
   const { data: trip } = useTrip(tripId);
   const { data: expenses = [] } = useExpenses(tripId);
+  const { data: checklists = [] } = useChecklists(tripId);
+  const { data: settlement = { balances: [], transactions: [], payments: [], totalExpenses: 0 } } =
+    useSettlement(tripId);
   const { isAdmin, isMember, members } = useTripMembership(tripId);
   const { openAddExpense } = useTripSpaceActions();
   // 當天相片：與相簿頁共用同一份 query 快取（一趟旅程只查一次），在這裡依行程日分組。
@@ -158,6 +165,7 @@ export default function ItineraryPage() {
     ...(links?.flight_activity_ids ?? []),
     ...(links?.stay_activity_ids ?? []),
   ]);
+  const activeDayNumber = trip ? ongoingDayNumber(trip.start_date, trip.end_date) : null;
 
   // 帶入＝開預填的補登對話框：日期由旅程出發日推第 N 天，其餘從活動文字啟發式帶出，
   // 猜錯在對話框裡改掉即可；trip 與來源活動 id 一併連結（後端驗證歸屬）。
@@ -348,7 +356,19 @@ export default function ItineraryPage() {
 
   return (
     <div className="container mx-auto max-w-4xl py-4 px-4 sm:px-6">
-      {/* 行程資訊：名稱在空間頁首，這裡放描述／路線／日期與編輯入口 */}
+      {trip && (
+        <TripContextOverview
+          trip={trip}
+          days={days}
+          expenses={expenses}
+          checklists={checklists}
+          settlement={settlement}
+          isMember={isMember}
+          onAddExpense={() => openAddExpense()}
+        />
+      )}
+
+      {/* 旅行資料改為 compact cover，需要時再展開描述或進入編輯。 */}
       {trip && (
         <TripHeader trip={trip} isCurrentUserAdmin={isAdmin} onEdit={editTripDialog.openDialog} />
       )}
@@ -396,21 +416,22 @@ export default function ItineraryPage() {
       ) : (
         <div className="flex flex-col gap-6">
           {days.map((day) => (
-            <ItineraryDayCard
-              key={day.id}
-              day={day}
-              tripId={tripId}
-              isAdmin={isAdmin}
-              onEdit={handleEditDay}
-              onAddActivity={handleAddActivity}
-              onDelete={handleDeleteDay}
-              onEditActivity={handleEditActivity}
-              onDeleteActivity={handleDeleteActivity}
-              onImportActivity={handleImportActivity}
-              importedActivityIds={importedActivityIds}
-              photos={photosByDay.get(day.id) ?? []}
-              onSelectPhoto={(index) => setViewingPhotos({ dayId: day.id, index })}
-            />
+            <div key={day.id} id={day.day_number === activeDayNumber ? 'trip-today' : undefined}>
+              <ItineraryDayCard
+                day={day}
+                tripId={tripId}
+                isAdmin={isAdmin}
+                onEdit={handleEditDay}
+                onAddActivity={handleAddActivity}
+                onDelete={handleDeleteDay}
+                onEditActivity={handleEditActivity}
+                onDeleteActivity={handleDeleteActivity}
+                onImportActivity={handleImportActivity}
+                importedActivityIds={importedActivityIds}
+                photos={photosByDay.get(day.id) ?? []}
+                onSelectPhoto={(index) => setViewingPhotos({ dayId: day.id, index })}
+              />
+            </div>
           ))}
         </div>
       )}

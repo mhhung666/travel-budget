@@ -20,6 +20,7 @@ import { logout } from '@/actions';
 import { ROUTES } from '@/constants/routes';
 import { useCurrentUser } from '@/hooks/queries';
 import { logger } from '@/lib/logger';
+import { trackNavigation, type NavigationTarget } from '@/lib/navigationEvents';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -47,6 +48,11 @@ export default function SettingsPage() {
     } catch (error) {
       logger.error('登出失敗', error);
     }
+  };
+
+  const openPersonalPage = (target: NavigationTarget, href: string) => {
+    trackNavigation(target, 'me_menu');
+    router.push(href);
   };
 
   const items: { icon: LucideIcon; label: string; href: string }[] = [
@@ -120,7 +126,7 @@ export default function SettingsPage() {
           <Button
             variant="ghost"
             className="h-12 w-full justify-start gap-3 px-3"
-            onClick={() => router.push(ROUTES.STATS)}
+            onClick={() => openPersonalPage('stats', ROUTES.STATS)}
           >
             <BarChart3 className="h-4 w-4 text-primary" />
             {tNav('stats')}
@@ -128,7 +134,7 @@ export default function SettingsPage() {
           <Button
             variant="ghost"
             className="h-12 w-full justify-start gap-3 px-3"
-            onClick={() => router.push(ROUTES.COLLECTIONS)}
+            onClick={() => openPersonalPage('collections', ROUTES.COLLECTIONS)}
           >
             <Medal className="h-4 w-4 text-primary" />
             {tNav('collections')}
@@ -136,7 +142,7 @@ export default function SettingsPage() {
           <Button
             variant="ghost"
             className="h-12 w-full justify-start gap-3 px-3"
-            onClick={() => router.push(ROUTES.MEMBERSHIPS)}
+            onClick={() => openPersonalPage('memberships', ROUTES.MEMBERSHIPS)}
           >
             <Ticket className="h-4 w-4 text-primary" />
             {tNav('memberships')}
@@ -144,7 +150,7 @@ export default function SettingsPage() {
           <Button
             variant="ghost"
             className="h-12 w-full justify-start gap-3 px-3"
-            onClick={() => router.push(ROUTES.WRAPPED)}
+            onClick={() => openPersonalPage('wrapped', ROUTES.WRAPPED)}
           >
             <Sparkles className="h-4 w-4 text-primary" />
             {tNav('wrapped')}

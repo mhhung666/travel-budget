@@ -4,6 +4,7 @@ import { Compass, Map as MapIcon, ReceiptText, UserRound } from 'lucide-react';
 import { Link, usePathname } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
+import { trackNavigation, type NavigationTarget } from '@/lib/navigationEvents';
 
 /**
  * 行動端底部分頁列（< md 顯示）。
@@ -16,15 +17,28 @@ export function BottomTabBar({ onQuickAdd }: { onQuickAdd: () => void }) {
   const pathname = usePathname();
 
   const tabs = [
-    { href: '/trips', label: t('trips'), icon: Compass, match: ['/trips'] },
-    { href: '/map', label: t('map'), icon: MapIcon, match: ['/map'] },
+    {
+      href: '/trips',
+      label: t('trips'),
+      icon: Compass,
+      match: ['/trips'],
+      target: 'trips',
+    },
+    { href: '/map', label: t('map'), icon: MapIcon, match: ['/map'], target: 'map' },
     {
       href: '/settings',
       label: t('me'),
       icon: UserRound,
       match: ['/settings', '/wrapped', '/collections', '/memberships'],
+      target: 'me',
     },
-  ] as const;
+  ] satisfies {
+    href: string;
+    label: string;
+    icon: typeof Compass;
+    match: string[];
+    target: NavigationTarget;
+  }[];
 
   const isActive = (match: readonly string[]) =>
     match.some((m) => pathname === m || pathname.startsWith(`${m}/`));
@@ -41,6 +55,7 @@ export function BottomTabBar({ onQuickAdd }: { onQuickAdd: () => void }) {
             <Link
               key={tab.href}
               href={tab.href}
+              onClick={() => trackNavigation(tab.target, 'mobile_tab')}
               aria-current={active ? 'page' : undefined}
               className={cn(
                 'flex flex-col items-center justify-center gap-1 text-xs font-medium transition-colors',
@@ -54,7 +69,10 @@ export function BottomTabBar({ onQuickAdd }: { onQuickAdd: () => void }) {
         })}
         <button
           type="button"
-          onClick={onQuickAdd}
+          onClick={() => {
+            trackNavigation('quick_add', 'mobile_tab');
+            onQuickAdd();
+          }}
           className="flex min-h-11 flex-col items-center justify-center gap-1 text-xs font-semibold text-primary transition-colors hover:text-primary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
         >
           <span className="-mt-3 flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md">
@@ -68,6 +86,7 @@ export function BottomTabBar({ onQuickAdd }: { onQuickAdd: () => void }) {
             <Link
               key={tab.href}
               href={tab.href}
+              onClick={() => trackNavigation(tab.target, 'mobile_tab')}
               aria-current={active ? 'page' : undefined}
               className={cn(
                 'flex flex-col items-center justify-center gap-1 text-xs font-medium transition-colors',

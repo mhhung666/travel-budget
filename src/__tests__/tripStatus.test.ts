@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ongoingDayNumber } from '@/lib/tripStatus';
+import { getTripPhase, ongoingDayNumber } from '@/lib/tripStatus';
 
 describe('ongoingDayNumber', () => {
   const noon = (d: string) => new Date(`${d}T12:00:00`);
@@ -25,5 +25,45 @@ describe('ongoingDayNumber', () => {
     expect(ongoingDayNumber(null, '2026-07-05', noon('2026-07-03'))).toBeNull();
     expect(ongoingDayNumber('2026-07-01', null, noon('2026-07-03'))).toBeNull();
     expect(ongoingDayNumber('not-a-date', '2026-07-05', noon('2026-07-03'))).toBeNull();
+  });
+});
+
+describe('getTripPhase', () => {
+  const noon = (d: string) => new Date(`${d}T12:00:00`);
+
+  it('returns pre-trip with the number of calendar days until departure', () => {
+    expect(getTripPhase('2026-07-10', '2026-07-15', noon('2026-07-07'))).toEqual({
+      phase: 'preTrip',
+      day: null,
+      daysUntil: 3,
+    });
+  });
+
+  it('returns the active trip day during the trip', () => {
+    expect(getTripPhase('2026-07-10', '2026-07-15', noon('2026-07-12'))).toEqual({
+      phase: 'ongoing',
+      day: 3,
+      daysUntil: null,
+    });
+  });
+
+  it('returns post-trip after the end date', () => {
+    expect(getTripPhase('2026-07-10', '2026-07-15', noon('2026-07-16')).phase).toBe('postTrip');
+  });
+
+  it('treats an undated trip as planning before the trip', () => {
+    expect(getTripPhase(null, null, noon('2026-07-16'))).toEqual({
+      phase: 'preTrip',
+      day: null,
+      daysUntil: null,
+    });
+  });
+
+  it('does not normalize impossible calendar dates', () => {
+    expect(getTripPhase('2026-02-30', '2026-03-02', noon('2026-02-28'))).toEqual({
+      phase: 'preTrip',
+      day: null,
+      daysUntil: null,
+    });
   });
 });

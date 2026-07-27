@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { ArrowLeft, History, MoreHorizontal, Settings, Wallet } from 'lucide-react';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
@@ -76,7 +76,7 @@ export function TripSpaceShell({
       label: tTrip('tabs.itinerary'),
       exact: true,
       subs: [
-        { href: ROUTES.TRIP_DETAIL(tripId), label: tTrip('tabs.itinerary'), exact: true },
+        { href: ROUTES.TRIP_DETAIL(tripId), label: tTrip('tabs.dailyItinerary'), exact: true },
         ...(isMember ? [{ href: ROUTES.TRIP_NOTES(tripId), label: tTrip('tabs.notes') }] : []),
         { href: ROUTES.TRIP_CHECKLISTS(tripId), label: tTrip('tabs.checklists') },
       ],
@@ -87,8 +87,11 @@ export function TripSpaceShell({
       href: ROUTES.TRIP_SETTLEMENT(tripId),
       label: tTrip('tabs.settlement'),
       subs: [
-        { href: ROUTES.TRIP_SETTLEMENT(tripId), label: tTrip('tabs.settlement') },
-        { href: ROUTES.TRIP_STATS(tripId), label: tTrip('tabs.stats') },
+        {
+          href: ROUTES.TRIP_SETTLEMENT(tripId),
+          label: tTrip('tabs.settlementPlan'),
+        },
+        { href: ROUTES.TRIP_STATS(tripId), label: tTrip('tabs.groupStats') },
       ],
     },
   ];
@@ -109,6 +112,18 @@ export function TripSpaceShell({
     pathname.startsWith(ROUTES.TRIP_ACTIVITY(tripId)) ||
     pathname.startsWith(ROUTES.TRIP_SETTINGS(tripId));
   const backTarget = onMorePage ? ROUTES.TRIP_DETAIL(tripId) : ROUTES.TRIPS;
+  const [isCompact, setIsCompact] = useState(false);
+  const isFinancialContext =
+    pathname.startsWith(ROUTES.TRIP_EXPENSES(tripId)) ||
+    pathname.startsWith(ROUTES.TRIP_SETTLEMENT(tripId)) ||
+    pathname.startsWith(ROUTES.TRIP_STATS(tripId));
+
+  useEffect(() => {
+    const updateCompactMode = () => setIsCompact(window.scrollY > 48);
+    updateCompactMode();
+    window.addEventListener('scroll', updateCompactMode, { passive: true });
+    return () => window.removeEventListener('scroll', updateCompactMode);
+  }, []);
 
   // `trip` 來自 client-only 的 React Query 快取（SSR 時永遠沒有值，rehydrate 後才可能有）。
   // 若直接依 trip/isLoading 分支，server HTML 與首次 client paint 會對不上（div↔h1、skeleton 有無）
@@ -150,7 +165,12 @@ export function TripSpaceShell({
         <div className="sticky top-0 z-40 border-b bg-background/95 pt-[env(safe-area-inset-top)] backdrop-blur supports-[backdrop-filter]:bg-background/80 md:top-16">
           <div className="container mx-auto max-w-6xl px-2 sm:px-4">
             {/* 頁首列 */}
-            <div className="flex h-12 items-center gap-1">
+            <div
+              className={cn(
+                'flex items-center gap-1 transition-[height] duration-200',
+                isCompact ? 'h-10' : 'h-12'
+              )}
+            >
               <Button
                 variant="ghost"
                 size="icon"
@@ -261,7 +281,12 @@ export function TripSpaceShell({
           </div>
 
           {/* 常駐摘要條：總支出 /（若有）預算進度 */}
-          <div className="border-t bg-muted/40">
+          <div
+            className={cn(
+              'border-t bg-muted/40',
+              isCompact && !isFinancialContext && 'hidden md:block'
+            )}
+          >
             <div className="container mx-auto flex h-9 max-w-6xl items-center justify-between gap-3 px-4 text-sm">
               <span className="shrink-0 text-muted-foreground">
                 {tTrips('detail.totalSpent')}{' '}

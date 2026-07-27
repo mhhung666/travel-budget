@@ -31,6 +31,7 @@ import { BottomTabBar } from './BottomTabBar';
 import { GlobalQuickAddFlow, QUICK_ADD_LAST_TRIP_KEY } from './GlobalQuickAddFlow';
 import { ROUTES } from '@/constants/routes';
 import { cn } from '@/lib/utils';
+import { trackNavigation } from '@/lib/navigationEvents';
 
 export interface ShellUser {
   id: string;
@@ -42,9 +43,9 @@ export interface ShellUser {
 
 /**
  * 登入後的 App Shell：由 (app)/layout.tsx 渲染一次，換頁只換內容區。
- * - 桌機（≥ md）：頂列 = logo + 主導覽（行程/地圖/統計/回顧）+ 鈴鐺 + 使用者選單。
+ * - 桌機（≥ md）：頂列 = logo + 旅行/地圖 + 記一筆 + 鈴鐺 +「我的」選單。
  * - 行動（< md）：頂列只放 目前位置標題 + 鈴鐺；全域導覽走 BottomTabBar。
- *   語言/主題切換移入「我的」（/settings），漢堡選單刪除。
+ *   統計、成就、會籍、回顧與設定在兩種尺寸都歸入「我的」。
  * - 頂列 sticky（非 fixed），內容不再需要 pt-24 魔術數字。
  */
 export function AppShell({
@@ -70,13 +71,16 @@ export function AppShell({
     }
   };
 
-  const navLinks = [
+  const primaryNavLinks = [
     { href: '/trips', label: t('trips'), icon: Compass },
     { href: '/map', label: t('map'), icon: MapIcon },
-    { href: '/stats', label: t('stats'), icon: BarChart3 },
-    { href: '/collections', label: t('collections'), icon: Medal },
-    { href: '/memberships', label: t('memberships'), icon: Ticket },
-    { href: '/wrapped', label: t('wrapped'), icon: Sparkles },
+  ] as const;
+
+  const personalNavLinks = [
+    { href: '/stats', label: t('stats'), icon: BarChart3, target: 'stats' },
+    { href: '/collections', label: t('collections'), icon: Medal, target: 'collections' },
+    { href: '/memberships', label: t('memberships'), icon: Ticket, target: 'memberships' },
+    { href: '/wrapped', label: t('wrapped'), icon: Sparkles, target: 'wrapped' },
   ] as const;
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
@@ -139,14 +143,20 @@ export function AppShell({
             aria-label={t('home')}
             className={cn('absolute left-1/2 hidden -translate-x-1/2 gap-1', user && 'md:flex')}
           >
-            {navLinks.map((link) => (
+            {primaryNavLinks.map((link) => (
               <Button
                 key={link.href}
                 variant="ghost"
                 asChild
                 className={cn('gap-2', isActive(link.href) && 'bg-accent text-accent-foreground')}
               >
-                <Link href={link.href} aria-current={isActive(link.href) ? 'page' : undefined}>
+                <Link
+                  href={link.href}
+                  aria-current={isActive(link.href) ? 'page' : undefined}
+                  onClick={() =>
+                    trackNavigation(link.href === '/trips' ? 'trips' : 'map', 'desktop_header')
+                  }
+                >
                   <link.icon size={20} />
                   {link.label}
                 </Link>
@@ -163,7 +173,10 @@ export function AppShell({
             ) : (
               <>
                 <Button
-                  onClick={openQuickAdd}
+                  onClick={() => {
+                    trackNavigation('quick_add', 'desktop_header');
+                    openQuickAdd();
+                  }}
                   aria-label={t('quickAdd')}
                   className="hidden gap-2 md:flex"
                 >
@@ -191,7 +204,25 @@ export function AppShell({
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => router.push('/settings')}>
+                      {personalNavLinks.map((link) => (
+                        <DropdownMenuItem
+                          key={link.href}
+                          onClick={() => {
+                            trackNavigation(link.target, 'me_menu');
+                            router.push(link.href);
+                          }}
+                        >
+                          <link.icon className="mr-2 h-4 w-4" />
+                          <span>{link.label}</span>
+                        </DropdownMenuItem>
+                      ))}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={() => {
+                          trackNavigation('settings', 'me_menu');
+                          router.push('/settings');
+                        }}
+                      >
                         <Settings className="mr-2 h-4 w-4" />
                         <span>{t('settings')}</span>
                       </DropdownMenuItem>

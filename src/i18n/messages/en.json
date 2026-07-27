@@ -211,9 +211,11 @@
     },
     "join": {
       "title": "Join Trip",
-      "tripId": "Trip ID",
-      "tripIdPlaceholder": "Enter 6-8 character trip code (e.g.: a7x9k2)",
-      "tripIdHelp": "Ask the trip creator for the trip code",
+      "description": "Paste an invitation link or enter the trip code.",
+      "tripId": "Invitation link or code",
+      "tripIdPlaceholder": "https://…/join/a7x9k2 or a7x9k2",
+      "tripIdHelp": "You can paste the complete link shared by the trip organizer.",
+      "invalidInvite": "Enter a valid invitation link or 6–10 character code.",
       "joinButton": "Join",
       "success": "Successfully joined the trip!",
       "error": "Failed to join"
@@ -228,7 +230,8 @@
       "loginHint": "Joining requires an account — you'll come back here after logging in",
       "loginToJoin": "Log in to join",
       "viewAsGuest": "View as guest",
-      "redirecting": "Redirecting to trip…"
+      "redirecting": "Redirecting to trip…",
+      "invitedBy": "Invited by {name}"
     },
     "detail": {
       "backToTrips": "Back to Trips",
@@ -669,6 +672,8 @@
   },
   "trip": {
     "info": "Trip Info",
+    "tripActions": "Trip actions",
+    "copyInviteLink": "Copy invitation link",
     "createdAt": "Created:",
     "settings": "Settings",
     "share": "Share Trip",
@@ -712,6 +717,30 @@
     "viewChecklist": "Checklist",
     "viewActivity": "History",
     "more": "More",
+    "context": {
+      "phase": {
+        "preTrip": "Before the trip",
+        "ongoing": "Traveling now",
+        "postTrip": "After the trip"
+      },
+      "planningTitle": "Plan the next useful step",
+      "preTripTitle": "Departing in {days} days",
+      "ongoingTitle": "Day {day} · What matters today",
+      "postTripTitle": "Wrap up this trip",
+      "openTasks": "Open checklist items",
+      "taskCount": "{count} remaining",
+      "nextPlan": "Next planned activity",
+      "noPlan": "No activity planned yet",
+      "viewChecklist": "Open checklist",
+      "nextActivity": "Next activity",
+      "noActivityToday": "No activity planned for today",
+      "todaySpent": "Spent today",
+      "quickExpense": "Log an expense",
+      "viewToday": "View today's itinerary",
+      "outstanding": "Still to settle",
+      "viewSettlement": "Review settlement",
+      "viewAlbum": "Open album"
+    },
     "firstSteps": {
       "title": "Start with these two steps",
       "description": "Record your first expense, then invite your travel companions.",
@@ -731,8 +760,11 @@
       "notes": "Notes",
       "album": "Album",
       "itinerary": "Itinerary",
+      "dailyItinerary": "Daily itinerary",
       "settlement": "Settle up",
+      "settlementPlan": "Settlement plan",
       "stats": "Stats",
+      "groupStats": "Group stats",
       "checklists": "Lists"
     },
     "currencySettings": {

@@ -211,9 +211,11 @@
     },
     "join": {
       "title": "加入旅行",
-      "tripId": "旅行 ID",
-      "tripIdPlaceholder": "输入 6-8 位旅行代码 (例如: a7x9k2)",
-      "tripIdHelp": "向旅行创建者索取旅行代码",
+      "description": "粘贴邀请链接，或直接输入旅行代码。",
+      "tripId": "邀请链接或代码",
+      "tripIdPlaceholder": "https://…/join/a7x9k2 或 a7x9k2",
+      "tripIdHelp": "可直接粘贴旅行发起人分享的完整链接。",
+      "invalidInvite": "请输入有效的邀请链接或 6–10 位旅行代码。",
       "joinButton": "加入",
       "success": "成功加入旅行！",
       "error": "加入失败"
@@ -228,7 +230,8 @@
       "loginHint": "加入旅行需要账号，登录或注册后会自动回到此页",
       "loginToJoin": "登录后加入",
       "viewAsGuest": "以访客身份查看",
-      "redirecting": "正在前往行程页…"
+      "redirecting": "正在前往行程页…",
+      "invitedBy": "由 {name} 邀请"
     },
     "detail": {
       "backToTrips": "返回旅行列表",
@@ -669,6 +672,8 @@
   },
   "trip": {
     "info": "旅行信息",
+    "tripActions": "旅行操作",
+    "copyInviteLink": "复制邀请链接",
     "createdAt": "创建时间:",
     "settings": "设置",
     "share": "分享此旅行",
@@ -712,6 +717,30 @@
     "viewChecklist": "清单",
     "viewActivity": "历史记录",
     "more": "更多",
+    "context": {
+      "phase": {
+        "preTrip": "行前",
+        "ongoing": "旅途中",
+        "postTrip": "旅后"
+      },
+      "planningTitle": "安排下一个实用步骤",
+      "preTripTitle": "距离出发还有 {days} 天",
+      "ongoingTitle": "Day {day} · 今天先看这些",
+      "postTripTitle": "完成这趟旅行的收尾",
+      "openTasks": "未完成待办",
+      "taskCount": "还有 {count} 项",
+      "nextPlan": "下一个已排行程",
+      "noPlan": "尚未安排活动",
+      "viewChecklist": "查看清单",
+      "nextActivity": "下一个行程",
+      "noActivityToday": "今天尚未安排活动",
+      "todaySpent": "今日花费",
+      "quickExpense": "记一笔",
+      "viewToday": "查看今日行程",
+      "outstanding": "待结算金额",
+      "viewSettlement": "查看结算",
+      "viewAlbum": "打开相册"
+    },
     "firstSteps": {
       "title": "先完成这两步",
       "description": "记下第一笔支出，再把旅伴邀请进来。",
@@ -731,8 +760,11 @@
       "notes": "随手记",
       "album": "相册",
       "itinerary": "行程",
+      "dailyItinerary": "每日行程",
       "settlement": "结算",
+      "settlementPlan": "结算方案",
       "stats": "统计",
+      "groupStats": "群组统计",
       "checklists": "清单"
     },
     "currencySettings": {

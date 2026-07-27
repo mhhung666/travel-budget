@@ -163,12 +163,13 @@ export default function TripsPage() {
       <JoinTripDialog
         open={showJoinModal}
         onClose={() => setShowJoinModal(false)}
-        onSuccess={() => {
+        onSuccess={(trip) => {
           toast({
             description: t('join.success'),
             variant: 'success',
           });
           reloadTrips();
+          router.push(ROUTES.TRIP_DETAIL(trip.hash_code));
         }}
       />
     </div>

@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from '@/i18n/navigation';
-import { UserPlus, Info, Users, Loader2, ArrowLeft, LogIn, Eye } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { UserPlus, Info, Users, Loader2, ArrowLeft, LogIn, Eye, CalendarRange } from 'lucide-react';
+import { useLocale, useTranslations } from 'next-intl';
 import { joinTrip } from '@/actions';
 import { tripKeys, useCurrentUser, useTrip, useMembers } from '@/hooks/queries';
 import { ROUTES } from '@/constants/routes';
@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import TripRoute from '@/components/trips/TripRoute';
 
 /**
  * 加入行程頁。未登入也能看到行程預覽（useTrip/useMembers 內建公開 API 回退），
@@ -25,6 +26,7 @@ export default function QuickJoinPage() {
   const params = useParams();
   const queryClient = useQueryClient();
   const hashCode = params.hashCode as string;
+  const locale = useLocale();
   const t = useTranslations('trips');
   const tCommon = useTranslations('common');
 
@@ -38,6 +40,8 @@ export default function QuickJoinPage() {
   const loading = userLoading || tripLoading || membersLoading;
   const isLoggedIn = !!currentUser;
   const alreadyMember = isLoggedIn && members.some((m) => m.id === currentUser.id);
+  const inviter = members.find((member) => member.role === 'admin');
+  const dateLocale = locale === 'zh' ? 'zh-TW' : locale === 'jp' ? 'ja-JP' : locale;
 
   // 已是成員 → 短暫提示後導向行程頁
   useEffect(() => {
@@ -154,14 +158,35 @@ export default function QuickJoinPage() {
                 )}
               </div>
 
+              <TripRoute
+                departure={trip.departure_location}
+                destination={trip.destination_location}
+                className="text-sm"
+              />
+
+              {(trip.start_date || trip.end_date) && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <CalendarRange className="h-4 w-4 shrink-0" />
+                  <span>
+                    {trip.start_date
+                      ? new Date(trip.start_date).toLocaleDateString(dateLocale)
+                      : ''}
+                    {trip.start_date && trip.end_date && ' – '}
+                    {trip.end_date ? new Date(trip.end_date).toLocaleDateString(dateLocale) : ''}
+                  </span>
+                </div>
+              )}
+
               <div className="flex flex-wrap gap-2">
                 <Badge variant="outline" className="gap-1 px-2 py-1">
                   <Users className="h-3 w-3" />
                   {members.length} {t('members')}
                 </Badge>
-                <Badge variant="secondary" className="gap-1 px-2 py-1 font-mono">
-                  #{trip.hash_code}
-                </Badge>
+                {inviter && (
+                  <Badge variant="secondary">
+                    {t('quickJoin.invitedBy', { name: inviter.display_name || inviter.username })}
+                  </Badge>
+                )}
               </div>
             </div>
 
