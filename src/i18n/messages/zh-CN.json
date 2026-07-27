@@ -258,6 +258,8 @@
     "archiveSuccess": "已归档,移至「已归档」标签",
     "unarchiveSuccess": "已恢复此旅行",
     "archiveFailed": "操作失败,请稍后再试",
+    "tripActions": "旅行操作",
+    "copyInviteLink": "复制邀请链接",
     "tabActive": "进行中",
     "tabArchived": "已归档",
     "noActiveTrips": "没有进行中的旅行",

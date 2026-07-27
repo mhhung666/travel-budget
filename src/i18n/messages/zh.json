@@ -258,6 +258,8 @@
     "archiveSuccess": "已封存,移至「已封存」頁籤",
     "unarchiveSuccess": "已恢復此旅行",
     "archiveFailed": "操作失敗,請稍後再試",
+    "tripActions": "旅行操作",
+    "copyInviteLink": "複製邀請連結",
     "tabActive": "進行中",
     "tabArchived": "已封存",
     "noActiveTrips": "沒有進行中的旅行",

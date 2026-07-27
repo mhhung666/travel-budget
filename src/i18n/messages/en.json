@@ -258,6 +258,8 @@
     "archiveSuccess": "Archived — moved to the Archived tab",
     "unarchiveSuccess": "Trip restored",
     "archiveFailed": "Action failed, please try again",
+    "tripActions": "Trip actions",
+    "copyInviteLink": "Copy invitation link",
     "tabActive": "Active",
     "tabArchived": "Archived",
     "noActiveTrips": "No active trips",
