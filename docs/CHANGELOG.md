@@ -68,6 +68,12 @@
 - 結算、分帳與摘要統一走 `formatCurrency`，TWD 顯示 `NT$`、不再使用裸 `$`；補日期／幣別單元測試。
 - 核心表單補可見 focus、表單描述、四語 accessible name 與 44px 進階操作目標。完整評估與後續 Phase 見 [UI_UX_EVALUATION.md](./UI_UX_EVALUATION.md)。
 
+### UI/UX 第二輪 Phase 1B：全站可及性與操作基線（2026-07-27）
+
+- Button、Input、Select、Toggle、Tabs、Menu 與 Dialog／Sheet／Toast controls 建立 44px 觸控與 2px `focus-visible` 基線；全站加入 reduced-motion fallback。
+- 分享、成員、行程、清單、收據與相簿 icon-only controls 補四語 accessible name；公開相簿 lightbox 補 dialog semantics、Tab trap、鍵盤切換與 focus return。
+- 支出金額拒絕科學記號、正負號與其他非十進位格式；新增十進位單元測試與 icon button AST 靜態無障礙測試。完整交付與未完成的人工／axe 驗證見 [UI_UX_EVALUATION.md](./UI_UX_EVALUATION.md)。
+
 ---
 
 ## 行程空間分頁重排（2026-07-15）

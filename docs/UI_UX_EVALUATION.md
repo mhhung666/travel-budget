@@ -1,7 +1,7 @@
 # UI/UX 整體評估與改善提案
 
 > 評估日期：2026-07-27  
-> 最近更新：2026-07-27（Phase 1A 實作結果與後續 Phase）
+> 最近更新：2026-07-27（Phase 1B 實作結果與後續 Phase）
 > 評估範圍：登入／註冊、旅行列表、旅行空間、支出、結算、全域導覽、響應式、離線、i18n、可及性  
 > 評估方式：依現有程式碼、資訊架構與已實作流程進行 heuristic review；本文件不是使用者訪談、可用性測試或行為數據分析的替代品。
 
@@ -10,7 +10,7 @@
 | Phase | 狀態 | 範圍 | 對應 commit |
 | --- | --- | --- | --- |
 | 1A | ✅ 已完成 | 金額信任、匯率防呆、本地日期、核心表單可及性 | `0f249b6` |
-| 1B | ⬜ 待開始 | 全站 44px 觸控目標、icon-only 名稱、鍵盤與 reduced motion | — |
+| 1B | ✅ 已完成（code baseline） | 全站 44px 觸控目標、icon-only 名稱、鍵盤與 reduced motion | `6bc3b3f` |
 | 2A | ⬜ 待開始 | 首次使用成功路徑與可操作空狀態 | — |
 | 2B | ⬜ 待開始 | 全域「記一筆」與旅行 picker | — |
 | 3 | ⬜ 待開始 | 導覽、旅行頁首與情境首頁收斂 | — |
@@ -29,7 +29,7 @@
 2. **讓記帳在任何位置都容易開始，而且不容易記錯**：高頻任務不應先找旅行、再切到支出；日期、幣別換算、分帳人數與每人金額也應在送出前明確可見。
 3. **減少功能成長造成的導覽與頁首負擔**：桌機有 6 個頂層入口，行動端又把其中 3 個收進「我的」；旅行內同時存在頁首、主分頁、子分頁、摘要條與全域底部導覽，資訊正確但密度偏高。
 
-建議先完成本文件剩餘的 P0，不需要先改品牌色或重做所有頁面。Phase 1A 已先處理金額、匯率與日期的信任基線；下一步應完成全站可及性基線，再改善首次成功與全域快速記帳。
+建議先完成本文件剩餘的 P0，不需要先改品牌色或重做所有頁面。Phase 1A／1B 已建立金額、日期與操作可及性基線；下一步進入 Phase 2A，改善首次成功路徑，再於 Phase 2B 提供全域快速記帳。
 
 ## 2. 產品核心使用情境
 
@@ -199,7 +199,7 @@ JPY 6,000 ≈ TWD 1,260
 
 ### P0-4 建立可及性與觸控基線
 
-> 狀態：◐ Phase 1A 已完成支出核心表單第一批修正；全站盤點與自動化驗證列入 Phase 1B。
+> 狀態：✅ Phase 1B code baseline 已完成（`6bc3b3f`）；完整 axe 與登入後任務式鍵盤測試保留在 Phase 4。
 
 **評估時現況**
 
@@ -225,10 +225,11 @@ JPY 6,000 ≈ TWD 1,260
 
 **驗收條件**
 
-- [ ] 關鍵流程只用鍵盤可完成。
-- [ ] 360px 寬度與 200% zoom 下無水平溢出或被遮住的主要動作。
+- [x] 共用 Button、Input、Select、Toggle、Tabs、Menu、Dialog、Sheet 與 Toast 已有可見鍵盤 focus；公開相簿 lightbox 支援 Escape、方向鍵、Tab trap 與關閉後 focus return。
+- [ ] 登入後的旅行列表、新增支出與結算仍需以真實資料完成一次完整鍵盤任務測試。
+- [x] 360px 公開入口實際渲染無水平溢出或主要動作遮蔽；登入後頁面與瀏覽器 200% zoom 留待 Phase 4 裝置矩陣驗證。
 - [ ] 關鍵頁面無 serious／critical 自動化可及性問題。
-- [ ] 刪除、編輯、複製、關閉、上一張／下一張等 icon-only 控制都有可理解名稱。
+- [x] 刪除、編輯、複製、關閉、上一張／下一張等 icon-only 控制已補四語名稱，並有可重跑的 AST 靜態測試防止新增未命名按鈕。
 - [x] 支出金額欄位已有可見 focus；表單 description 保留在 accessibility tree。
 - [x] 支出表單的付款人、匯率更新與進階分帳控制已補四語 accessible name 與 44px 觸控目標。
 
@@ -514,21 +515,25 @@ Phase 依「先降低錯帳與操作風險，再縮短首次成功與記帳路�
 - `pnpm lint`、`npx tsc --noEmit`、`pnpm format:check`、`git diff --check` 全數通過。
 - 實作 commit：`0f249b6`。
 
-### Phase 1B：全站可及性與操作基線｜下一個 Phase
+### Phase 1B：全站可及性與操作基線｜✅ 已完成（code baseline）
 
-**範圍**
+**交付**
 
-- 盤點旅行行程、清單、成員、留言、還款、相簿等 icon-only controls。
-- 主要操作補足至少 44 × 44px 觸控區與四語 accessible name。
-- 統一 `focus-visible`，確認 Dialog／Sheet 開啟、關閉與 focus return。
-- 補 `prefers-reduced-motion`，停用非必要位移與滑入。
-- 修正金額輸入的科學記號等邊界格式。
+- 共用 Button、Input、Select、Toggle、Tabs 與選單項目建立 44px 操作基線；Dialog、Sheet、Toast 關閉鍵與收據刪除等高風險操作同步放大觸控區。
+- 分享、成員管理、行程活動、清單與相簿 icon-only controls 補四語 accessible name；Dialog／Sheet／Toast 關閉名稱不再硬編碼英文。
+- 共用 focus ring 提升至 2px 並保留 offset；公開相簿 lightbox 補 dialog semantics、Tab trap、方向鍵、Escape 與 focus return。
+- 全站加入 `prefers-reduced-motion: reduce`，關閉 smooth scroll 並將非必要 animation／transition 壓至最短。
+- 支出金額改走受控十進位輸入，拒絕負號、正號、科學記號、Infinity 與多個小數點，仍接受輸入中的空值、尾端小數點與逗號小數分隔。
+- 新增 AST 靜態測試：任何共用 `size="icon"` 按鈕若沒有 `aria-label`、`aria-labelledby`、`sr-only` 或有效頭像 alt，測試會列出檔案與行號失敗。
 
-**完成定義**
+**驗證**
 
-- 登入、旅行列表、新增支出、結算可只用鍵盤完成。
-- 360px 寬與 200% zoom 不遮住主要動作。
-- 全站 icon-only 高風險操作完成盤點；新增可重跑的檢查清單或測試。
+- `pnpm test:run`：50 files、653 tests passed。
+- `pnpm lint`、`npx tsc --noEmit`、`pnpm format:check`、`git diff --check` 全數通過。
+- Chrome 360 × 800 與高 DPI 實際渲染通過，未見水平溢出或主要動作截斷。
+- `pnpm build` 兩次皆在 webpack 編譯約 90 秒時被執行環境以 `SIGTERM`（143）終止，沒有編譯錯誤輸出；未列為通過。
+- 實作 commit：`6bc3b3f`。
+- 尚未執行的登入後完整鍵盤任務、200% browser zoom 裝置矩陣與 axe，明確保留於 Phase 4，不以 code baseline 取代。
 
 ### Phase 2A：首次使用成功路徑
 
