@@ -39,11 +39,6 @@ export default function manifest(): MetadataRoute.Manifest {
       },
     ],
     icons: [
-      {
-        src: '/take-my-money.png',
-        sizes: 'any',
-        type: 'image/png',
-      },
       // Explicit 192/512 raster sizes so Android treats the app as installable.
       // `purpose: any` only — the logo isn't designed with a maskable safe zone,
       // so declaring it maskable would let the launcher crop it badly.

@@ -12,7 +12,7 @@ export default function Hero() {
       <div className="relative mb-4 h-28 w-28 sm:h-32 sm:w-32">
         <div className="absolute inset-0 -z-10 rounded-full bg-primary/[0.06] blur-2xl" />
         <Image
-          src="/shut-up-and-take-my-money.png"
+          src="/icon-512.png"
           alt="Take my money!"
           fill
           style={{ objectFit: 'contain' }}
