@@ -190,15 +190,17 @@ src/
 
 | 主分頁 | 路由 | 子分頁 |
 | --- | --- | --- |
-| 行程（**空間落點**） | `/trips/[id]` | 行程 `/trips/[id]` · 隨手記 `/notes` · 清單 `/checklists` |
+| 行程（**空間落點**） | `/trips/[id]` | 每日行程 `/trips/[id]` · 隨手記 `/notes` · 清單 `/checklists` |
 | 支出 | `/trips/[id]/expenses` | — |
 | 相簿 | `/trips/[id]/album` | — |
-| 結算 | `/trips/[id]/settlement` | 結算 `/settlement` · 統計 `/stats` |
+| 結算 | `/trips/[id]/settlement` | 結算方案 `/settlement` · 群組統計 `/stats` |
 
 - **落點＝行程分頁**（`/trips/[id]`），支出移到 `/trips/[id]/expenses`。子頁 URL 全部維持原樣，故深連結 / 分享連結不受影響；舊的 `/trips/[id]/itinerary` 由 [next.config.ts](../next.config.ts) `redirects()` **308 轉址**回落點。**轉址刻意寫在 config 而非頁面內 `redirect()`**——後者在 App Router 會軟導向（回 200、網址列不變）。
-- **旅行資訊卡**（[TripHeader](../src/components/trips/detail/TripHeader.tsx)）隨落點住在行程分頁；其編輯對話框與送出邏輯抽在 [useEditTrip](../src/hooks/useEditTrip.ts)（原本長在支出分頁的 controller `useTripDetailPage` 裡）。
+- **旅行首頁與 compact shell（2026-07-27 Phase 3）**：[TripContextOverview](../src/components/trips/detail/TripContextOverview.tsx) 依 [tripStatus.ts](../src/lib/tripStatus.ts) 的行前／旅中／旅後判斷，分別顯示倒數與待辦、Day N 與今日活動／花費、待結算與回顧入口。[TripHeader](../src/components/trips/detail/TripHeader.tsx) 改為可展開的 compact cover；`TripSpaceShell` 捲動 48px 後縮短名稱列，非財務頁收起摘要條，支出／結算／群組統計仍保留。其編輯對話框與送出邏輯由 [useEditTrip](../src/hooks/useEditTrip.ts) 共用。
+- **全域資訊架構（2026-07-27 Phase 3）**：桌機與行動端同為旅行／地圖／記一筆／我的；統計、成就、會籍、年度回顧、設定都歸入「我的」。[navigationEvents.ts](../src/lib/navigationEvents.ts) 的 `navigation_used` 只接受固定 `target`／`surface` union，不得加入動態 id、邀請碼、名稱、描述或金額。
 - **全域快速記帳（2026-07-27 Phase 2B）**：桌機頂列與行動底部導覽呼叫 [GlobalQuickAddFlow](../src/components/layout/GlobalQuickAddFlow.tsx)，flow 掛在不隨頁面切換卸載的 App Shell，因此關閉表單後保留原頁 state 與 scroll。選擇規則集中在 [quickAdd.ts](../src/lib/quickAdd.ts)：排除封存，依進行中／即將出發／最近結束／無日期排序；唯一進行中或唯一 active 直開，多候選才 picker。PWA `/quick-add` 只作穩定落點，由 App Shell 啟動同一 flow，不另做 server redirect。旅行內 add-expense 表單仍在 shell 層（`TripSpaceActions.openAddExpense`）供清單與空狀態等情境 CTA 使用；舊 trip-scoped 支出 FAB 已移除，避免與全域入口重複。
 - **深連結語意**：站內通知 / Web Push / Email 中**支出語意**的連結（`expense_added` / `expense_comment_added`、支出摘要信）指向 `/expenses`，還款指向 `/settlement`，其餘旅程層級（如 `member_joined`、加入邀請）指向落點。三處導向表（[NotificationBell](../src/components/notifications/NotificationBell.tsx) / [webpush.ts](../src/lib/webpush.ts) / [emailTemplates.ts](../src/lib/emailTemplates.ts)）**必須一致**。
+- **邀請加入**：[tripInvite.ts](../src/lib/tripInvite.ts) 將裸代碼或完整 `/join/{code}` URL 正規化成驗證過的 6–10 位 hash code；登入／註冊透過已 sanitize 的 `redirect` 回到公開邀請頁，`joinTrip` 成功後直接進入該旅行。旅行卡不常駐顯示代碼，複製連結收在操作選單。
 - 隨手記 / 相簿為成員限定（無公開分享路由），分享連結訪客不顯示這兩項；子分頁列只有一顆時不佔一排。
 
 ---

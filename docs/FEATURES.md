@@ -36,7 +36,9 @@
 | 預算編列 | `Trip.budget` + 「預算 vs 實際」 |
 | 行程空間分頁 | 行程（落點）／支出／相簿／結算 + 子分頁（見下） |
 
-**行程空間分頁（2026-07-15 重排）**：主分頁收斂為 **行程／支出／相簿／結算** 四顆，隨手記與清單收進「行程」、統計收進「結算」的子分頁列；空間落點（`/trips/[id]`）＝行程分頁，支出移到 `/trips/[id]/expenses`（舊 `/itinerary` 308 轉址回落點，其餘子頁 URL 不變）。旅行資訊卡隨落點住在行程分頁；2026-07-27 起新增支出主動作改為 App Shell 全域「記一筆」，單一進行中旅行直開、多旅行先選擇，PWA `/quick-add` 共用流程。結構、路由表與深連結規則見 [ARCHITECTURE.md §4.14](./ARCHITECTURE.md)。
+**行程空間分頁（2026-07-15 重排；2026-07-27 Phase 3 收斂）**：主分頁為 **行程／支出／相簿／結算** 四顆，子分頁明確命名為「每日行程／隨手記／清單」與「結算方案／群組統計」；空間落點（`/trips/[id]`）＝行程分頁，支出在 `/trips/[id]/expenses`（舊 `/itinerary` 308 轉址回落點，其餘子頁 URL 不變）。旅行首頁依行前／旅中／旅後顯示倒數與待辦、Day N 與今日活動／花費、待結算與回顧入口；旅行資訊為可展開 compact cover，sticky shell 捲動後縮短並在非財務頁收起摘要。新增支出主動作由 App Shell 全域「記一筆」負責，單一進行中旅行直開、多旅行先選擇，PWA `/quick-add` 共用流程。結構、路由表與深連結規則見 [ARCHITECTURE.md §4.14](./ARCHITECTURE.md)。
+
+**加入旅行（2026-07-27 Phase 3）**：旅行列表的加入對話框可貼完整 `/join/{code}` URL 或輸入 6–10 位代碼，加入成功直接進旅行；公開邀請頁在登入前先顯示名稱、描述、路線、日期、成員數與發起人，登入／註冊後會返回原邀請頁。旅行卡不再常駐顯示邀請碼，複製邀請連結收進操作選單。
 
 **預算（💎 旗艦功能，兌現「Budget Planner」名稱）**：`Trip.budget` = `{ total, categories: [{ category, amount }] }`（基準幣 TWD，無 currency 欄位，null = 未設）。預算進度由純函式 [lib/budget.ts](../src/lib/budget.ts) `computeBudgetProgress` **前端即時計算**（旅程詳情頁本就載入 trip + 全部支出，省一次往返），故未做 `getBudgetProgress` action，只有 [setTripBudget](../src/actions/budget.actions.ts)（admin）寫入。UI：旅程詳情頁的預算卡（總額 + 各分類進度條、超支標紅）+ 編輯對話框。*進階（每日步調、每人預算）尚未做。*
 

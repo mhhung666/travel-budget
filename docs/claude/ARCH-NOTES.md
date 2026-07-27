@@ -55,9 +55,12 @@
 ## 行程空間分頁（trips/[id]）
 
 - **`/trips/[id]` 是「行程」分頁、不是支出**（2026-07-15 重排）；支出在 `/trips/[id]/expenses`。要連到記帳畫面用 `ROUTES.TRIP_EXPENSES`，`ROUTES.TRIP_DETAIL` 只是空間落點。舊 `/trips/[id]/itinerary` 在 [next.config.ts](../../next.config.ts) `redirects()` 308 轉回落點——**頁面內 `redirect()` 在 App Router 會軟導向（回 200、網址列不變）**，別再改回去。
-- 主分頁只有四顆（行程／支出／相簿／結算），隨手記＋清單是「行程」的子分頁、統計是「結算」的子分頁；分頁與子分頁**都定義在 [TripSpaceShell](../../src/components/trips/space/TripSpaceShell.tsx) 的 `tabs`**，各頁自己不畫分頁列。`TRIP_DETAIL` 是所有子路由的前綴 → 比對一律 `exact`。
+- 主分頁只有四顆（行程／支出／相簿／結算），子分頁名稱固定為「每日行程／隨手記／清單」與「結算方案／群組統計」；分頁與子分頁**都定義在 [TripSpaceShell](../../src/components/trips/space/TripSpaceShell.tsx) 的 `tabs`**，各頁自己不畫分頁列。`TRIP_DETAIL` 是所有子路由的前綴 → 比對一律 `exact`。
+- `TripSpaceShell` 捲動 48px 後進 compact mode：名稱列縮短，非財務頁收起摘要，支出／結算／群組統計保留。行程落點的 [TripContextOverview](../../src/components/trips/detail/TripContextOverview.tsx) 依 `getTripPhase` 顯示行前／旅中／旅後內容；旅行資訊 [TripHeader](../../src/components/trips/detail/TripHeader.tsx) 是可展開 cover。
 - 行動端不再有 trip-scoped 支出 FAB；全域「記一筆」由 [AppShell](../../src/components/layout/AppShell.tsx) 掛載 [GlobalQuickAddFlow](../../src/components/layout/GlobalQuickAddFlow.tsx)，因此不換頁、關閉後保留原頁 state／scroll。旅行內 add-expense 表單仍住在 shell 層，頁內 CTA 可用 `useTripSpaceActions().openAddExpense()`。
 - 網頁入口與 PWA `/quick-add` 共用 [quickAdd.ts](../../src/lib/quickAdd.ts) 的決策：排除封存，進行中優先；唯一進行中／唯一 active 直開，多候選才 picker。`/quick-add` 頁本身不 redirect，由 AppShell 偵測 route 啟動同一 flow；不要再另寫一套 server 選擇邏輯。
+- 全域導覽桌機／行動端都用旅行／地圖／記一筆／我的分組；統計、成就、會籍、回顧、設定歸「我的」。導覽事件只能經 [navigationEvents.ts](../../src/lib/navigationEvents.ts) 的固定 taxonomy，不得附 trip/user/hash code、名稱、描述或金額。
+- 加入旅行輸入先經 [tripInvite.ts](../../src/lib/tripInvite.ts) 解析裸代碼或完整 `/join/{code}` URL；登入 redirect 要保留、sanitize，成功加入後直接導向該旅行。
 - 通知 / Push / Email 的導向表分散在三處（[NotificationBell](../../src/components/notifications/NotificationBell.tsx) / [webpush.ts](../../src/lib/webpush.ts) / [emailTemplates.ts](../../src/lib/emailTemplates.ts)），**改一處要三處一起改**（有測試守著）：支出語意 → `/expenses`、還款 → `/settlement`、其餘 → 落點。
 - 全貌與路由表見 [docs/ARCHITECTURE.md](../ARCHITECTURE.md) §4.14。
 
