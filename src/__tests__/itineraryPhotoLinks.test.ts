@@ -18,6 +18,8 @@ const dayDeleteOne = vi.fn();
 const dayBulkWrite = vi.fn();
 const expenseUpdateMany = vi.fn();
 const photoUpdateMany = vi.fn();
+const tripFindById = vi.fn();
+const rebindAutoPhotosToItinerary = vi.fn();
 
 vi.mock('@/lib/mongodb', () => ({ dbConnect: vi.fn() }));
 
@@ -33,6 +35,10 @@ vi.mock('@/lib/permissions', () => ({
   getTripMembership: (...args: unknown[]) => getTripMembership(...args),
 }));
 
+vi.mock('@/lib/photoItinerary', () => ({
+  rebindAutoPhotosToItinerary: (...args: unknown[]) => rebindAutoPhotosToItinerary(...args),
+}));
+
 vi.mock('@/models', () => ({
   ItineraryDay: {
     findOne: (...args: unknown[]) => dayFindOne(...args),
@@ -46,6 +52,9 @@ vi.mock('@/models', () => ({
   },
   Photo: {
     updateMany: (...args: unknown[]) => photoUpdateMany(...args),
+  },
+  Trip: {
+    findById: (...args: unknown[]) => tripFindById(...args),
   },
 }));
 
@@ -92,6 +101,13 @@ beforeEach(() => {
   dayFind.mockReturnValue(chainSortSelectLean([]));
   expenseUpdateMany.mockResolvedValue({});
   photoUpdateMany.mockResolvedValue({});
+  tripFindById.mockReturnValue(
+    chainSelectLean({
+      startDate: new Date('2026-07-01T00:00:00.000Z'),
+      endDate: new Date('2026-07-03T00:00:00.000Z'),
+    })
+  );
+  rebindAutoPhotosToItinerary.mockResolvedValue(undefined);
 });
 
 describe('deleteItineraryDay → 相片關聯清理', () => {
@@ -112,6 +128,11 @@ describe('deleteItineraryDay → 相片關聯清理', () => {
       filter: { trip: TRIP_ID, itineraryDay: DAY_ID },
       update: { $set: { itineraryDay: null } },
     });
+    expect(rebindAutoPhotosToItinerary).toHaveBeenCalledWith(
+      TRIP_ID,
+      new Date('2026-07-01T00:00:00.000Z'),
+      new Date('2026-07-03T00:00:00.000Z')
+    );
   });
 
   it('never touches exif/manual locations (the source filter is what protects them)', async () => {
@@ -120,7 +141,12 @@ describe('deleteItineraryDay → 相片關聯清理', () => {
     const clearing = photoCalls().filter((c) => 'location' in (c.update.$set ?? {}));
     // 每一次清座標的操作都必須帶 source: 'itinerary' 條件
     for (const call of clearing) {
-      expect(call.filter['location.source']).toBe('itinerary');
+      expect(
+        call.filter['location.source'] === 'itinerary' ||
+          call.filter.$or?.some(
+            (condition: Record<string, unknown>) => condition['location.source'] === 'itinerary'
+          )
+      ).toBe(true);
     }
   });
 
@@ -151,7 +177,11 @@ describe('updateItineraryDay → 借出座標的同步', () => {
     expect(result.success).toBe(true);
     expect(photoCalls()).toEqual([
       {
-        filter: { trip: TRIP_ID, itineraryDay: DAY_ID, 'location.source': 'itinerary' },
+        filter: {
+          trip: TRIP_ID,
+          itineraryDay: DAY_ID,
+          $or: [{ 'location.source': 'itinerary' }, { location: null }],
+        },
         update: { $set: { location: { lat: 48.85, lon: 2.35, source: 'itinerary' } } },
       },
     ]);

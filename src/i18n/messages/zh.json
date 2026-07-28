@@ -906,6 +906,8 @@
     "saveCaption": "儲存",
     "itineraryDay": "關聯行程日",
     "noItineraryDay": "未關聯行程日",
+    "dayAutoAssigned": "已依照片拍攝日期自動分類",
+    "dayAutoUnmatched": "尚無符合拍攝日期的行程日",
     "locationSource": {
       "exif": "相片 GPS",
       "itinerary": "行程日地點",

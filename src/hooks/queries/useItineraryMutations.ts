@@ -43,22 +43,35 @@ type UpdateDayInput = Partial<DayInput>;
  */
 export function useItineraryMutations(tripId: string) {
   const queryClient = useQueryClient();
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: tripKeys.itinerary(tripId) });
+  const invalidateItinerary = () =>
+    queryClient.invalidateQueries({ queryKey: tripKeys.itinerary(tripId) });
+  const invalidatePhotos = () =>
+    queryClient.invalidateQueries({ queryKey: tripKeys.photos(tripId) });
 
   const create = useMutation({
     mutationFn: (data: DayInput) => unwrap(createItineraryDay(tripId, data)),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      invalidateItinerary();
+      invalidatePhotos();
+    },
   });
 
   const update = useMutation({
     mutationFn: ({ dayId, data }: { dayId: string; data: UpdateDayInput }) =>
       unwrap(updateItineraryDay(tripId, dayId, data)),
-    onSuccess: invalidate,
+    onSuccess: (_day, { data }) => {
+      invalidateItinerary();
+      // 行程日地點變動會同步借用此地點的相片座標。
+      if (data.location !== undefined) invalidatePhotos();
+    },
   });
 
   const remove = useMutation({
     mutationFn: (dayId: string) => unwrap(deleteItineraryDay(tripId, dayId)),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      invalidateItinerary();
+      invalidatePhotos();
+    },
   });
 
   return { create, update, remove };

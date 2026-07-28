@@ -27,6 +27,11 @@ import {
   PHOTO_THUMB_CONTENT_TYPE,
 } from '@/lib/uploads';
 import { headObject, deleteObjects, presignGetStable } from '@/lib/storage';
+import {
+  autoItineraryFields,
+  buildItineraryDayDateMap,
+  type PhotoItineraryDay,
+} from '@/lib/photoItinerary';
 
 /**
  * 旅程相簿 actions。比照 Note／Checklist 為旅程下的獨立子集合，採**成員信任模型**
@@ -163,42 +168,66 @@ export const addTripPhotos = withAuth(
         .select('displayName')
         .lean<{ displayName: string } | null>();
 
-      const docs = items.map((item, i) => ({
-        trip: membership.tripId,
-        key: item.key,
-        thumbKey: item.thumb_key,
-        contentType: heads[i]!.contentType,
-        size: heads[i]!.size,
-        width: item.width ?? 0,
-        height: item.height ?? 0,
-        takenAt: item.taken_at ? new Date(item.taken_at) : null,
-        // EXIF 有 GPS 就標 'exif'。沒有就是 null——Phase 1 不做「退回行程日座標」
-        // （那要等 Phase 2 的行程日關聯才有得退）。
-        location: item.location ? { ...item.location, source: 'exif' as const } : null,
-        place: null,
-        exif: {
-          make: item.exif?.make,
-          model: item.exif?.model,
-          lens: item.exif?.lens,
-          iso: item.exif?.iso,
-          fNumber: item.exif?.f_number,
-          exposureTime: item.exif?.exposure_time,
-          focalLength: item.exif?.focal_length,
-          orientation: item.exif?.orientation,
-        },
-        itineraryDay: null,
-        caption: item.caption ?? '',
-        uploadedBy: session.userId,
-        uploadedByName: uploader?.displayName ?? '',
-      }));
+      const trip = await Trip.findById(membership.tripId)
+        .select('albumShareCode startDate endDate')
+        .lean<{
+          albumShareCode?: string | null;
+          startDate?: Date | null;
+          endDate?: Date | null;
+        } | null>();
+      if (!trip) {
+        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+      }
+
+      const itineraryDays =
+        trip.startDate && items.some((item) => item.taken_local_date)
+          ? await ItineraryDay.find({ trip: membership.tripId })
+              .sort({ dayNumber: 1 })
+              .select('_id dayNumber location')
+              .lean<PhotoItineraryDay[]>()
+          : [];
+      const daysByDate = buildItineraryDayDateMap(trip.startDate, trip.endDate, itineraryDays);
+
+      const docs = items.map((item, i) => {
+        const auto = autoItineraryFields(item.taken_local_date, daysByDate);
+        return {
+          trip: membership.tripId,
+          key: item.key,
+          thumbKey: item.thumb_key,
+          contentType: heads[i]!.contentType,
+          size: heads[i]!.size,
+          width: item.width ?? 0,
+          height: item.height ?? 0,
+          takenAt: item.taken_at ? new Date(item.taken_at) : null,
+          takenLocalDate: item.taken_local_date ?? null,
+          takenDateSource: item.taken_date_source ?? null,
+          // 自己的 GPS 優先；沒有 GPS 但成功配對行程日時，借用當天的城市座標。
+          location: item.location
+            ? { ...item.location, source: 'exif' as const }
+            : auto.borrowedLocation,
+          place: null,
+          exif: {
+            make: item.exif?.make,
+            model: item.exif?.model,
+            lens: item.exif?.lens,
+            iso: item.exif?.iso,
+            fNumber: item.exif?.f_number,
+            exposureTime: item.exif?.exposure_time,
+            focalLength: item.exif?.focal_length,
+            orientation: item.exif?.orientation,
+          },
+          itineraryDay: auto.itineraryDay,
+          itineraryDaySource: auto.itineraryDaySource,
+          caption: item.caption ?? '',
+          uploadedBy: session.userId,
+          uploadedByName: uploader?.displayName ?? '',
+        };
+      });
 
       const created = await Photo.insertMany(docs);
 
       // 若相簿已公開分享，補產這批新相片的消毒副本 `_p.jpg`，讓公開頁立刻能顯示它們
       // （否則要等下一位訪客觸發 self-heal）。best-effort：失敗只 log，不擋上傳成功。
-      const trip = await Trip.findById(membership.tripId)
-        .select('albumShareCode')
-        .lean<{ albumShareCode?: string | null }>();
       if (trip?.albumShareCode) {
         await ensureSanitizedPhotoCopies(membership.tripId).catch((e) =>
           logger.error('Add photos: sanitize top-up failed', e)
@@ -284,6 +313,8 @@ export const updatePhoto = withAuth(
         set.location = location ? { ...location, source: 'manual' as const } : null;
       }
       if (itinerary_day_id !== undefined) {
+        // 使用者明確選日或選「未分類」都視為 manual，日後旅程日期改動不可覆蓋。
+        set.itineraryDaySource = 'manual';
         let dayLocation: { lat?: number | null; lon?: number | null } | null = null;
         if (itinerary_day_id === null) {
           set.itineraryDay = null;

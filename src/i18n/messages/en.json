@@ -913,6 +913,8 @@
     "saveCaption": "Save",
     "itineraryDay": "Itinerary day",
     "noItineraryDay": "No itinerary day",
+    "dayAutoAssigned": "Automatically sorted by the photo date",
+    "dayAutoUnmatched": "No itinerary day matches the photo date yet",
     "locationSource": {
       "exif": "Photo GPS",
       "itinerary": "Itinerary day location",

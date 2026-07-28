@@ -57,6 +57,13 @@ export type PhotoExifFields = {
 export type PhotoExifData = {
   /** ISO 字串；EXIF 無 DateTimeOriginal 時退回呼叫端給的 fallback（file.lastModified）。 */
   taken_at: string | null;
+  /**
+   * 拍攝當地的日曆日期。EXIF DateTimeOriginal 沒有時區，這裡刻意保留它的年月日，
+   * 不從 taken_at 的 UTC 日期反推，避免歐洲凌晨照片被分到前一天。
+   */
+  taken_local_date: string | null;
+  /** 當地日期取自相機 EXIF，或只得退回檔案修改時間。 */
+  taken_date_source: 'exif' | 'file' | null;
   /** null＝這張沒有地理資訊（截圖、關了定位、社群下載圖）。 */
   location: { lat: number; lon: number } | null;
   exif: PhotoExifFields;
@@ -100,9 +107,12 @@ export function normalizePhotoExif(
   nowMs: number
 ): PhotoExifData {
   const r = raw ?? {};
+  const taken = normalizeTakenAt(r.DateTimeOriginal, fallbackTakenAtMs, nowMs);
 
   return {
-    taken_at: normalizeTakenAt(r.DateTimeOriginal, fallbackTakenAtMs, nowMs),
+    taken_at: taken.date?.toISOString() ?? null,
+    taken_local_date: taken.date ? localCalendarDate(taken.date) : null,
+    taken_date_source: taken.source,
     location: normalizeLocation(r.latitude, r.longitude),
     exif: {
       make: cleanString(r.Make),
@@ -117,21 +127,34 @@ export function normalizePhotoExif(
   };
 }
 
-/** 拍攝時間：EXIF 優先，不合理或缺漏就退 fallback；fallback 也不合理則為 null。 */
-function normalizeTakenAt(value: unknown, fallbackTakenAtMs: number, nowMs: number): string | null {
+/** 使用 Date 的本地欄位保留 EXIF 的「牆上日期」，不可改成 toISOString().slice(0, 10)。 */
+function localCalendarDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/** 拍攝時間：EXIF 優先，不合理或缺漏就退 fallback；fallback 也不合理則無日期。 */
+function normalizeTakenAt(
+  value: unknown,
+  fallbackTakenAtMs: number,
+  nowMs: number
+): { date: Date | null; source: 'exif' | 'file' | null } {
   const max = nowMs + PHOTO_TAKEN_AT_FUTURE_TOLERANCE_MS;
   const ms = value instanceof Date ? value.getTime() : NaN;
   if (Number.isFinite(ms) && ms >= PHOTO_TAKEN_AT_MIN_MS && ms <= max) {
-    return new Date(ms).toISOString();
+    // 保留原 Date 物件：它的 local getters 才是 exifr 從無時區 EXIF 解析出的牆上時間。
+    return { date: value as Date, source: 'exif' };
   }
   if (
     Number.isFinite(fallbackTakenAtMs) &&
     fallbackTakenAtMs >= PHOTO_TAKEN_AT_MIN_MS &&
     fallbackTakenAtMs <= max
   ) {
-    return new Date(fallbackTakenAtMs).toISOString();
+    return { date: new Date(fallbackTakenAtMs), source: 'file' };
   }
-  return null;
+  return { date: null, source: null };
 }
 
 /**
@@ -175,9 +198,9 @@ const EXIFR_OPTIONS = {
  * 我們回一個 location 為 null 的結果，讓相片照樣上傳得成功。
  *
  * 已知取捨：EXIF 的 `DateTimeOriginal` **不帶時區**，exifr 會以**執行環境的時區**解讀它。
- * 也就是說在台灣上傳一張在巴黎拍的照片，taken_at 會被當成台北時間。相簿內的**排序仍正確**
- * （同一台裝置解讀方式一致），只是絕對時刻可能偏移；要修得存原始字串＋另存時區，
- * 那是 EXIF 規格本身的坑，非本階段範圍。
+ * 所以在台灣上傳巴黎照片時，taken_at 的絕對時刻仍可能偏移；但行程日分類使用的是上面
+ * 另外保存的 taken_local_date（Date 的本地年月日），不會拿 UTC 日期判斷，因此巴黎凌晨
+ * 照片仍會留在巴黎當地的同一天。相簿內同一批照片的排序也維持一致。
  */
 export async function readPhotoExif(file: File): Promise<PhotoExifData> {
   let raw: RawExifTags | null = null;

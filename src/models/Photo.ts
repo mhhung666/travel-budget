@@ -87,12 +87,17 @@ const PhotoSchema = new Schema(
 
     // EXIF DateTimeOriginal；缺則退 file.lastModified；再缺為 null（排序落到最後）
     takenAt: { type: Date, default: null },
+    // 拍攝地的日曆日期（YYYY-MM-DD），供自動關聯行程日；不可由 takenAt 的 UTC 日期反推。
+    takenLocalDate: { type: String, default: null },
+    takenDateSource: { type: String, enum: ['exif', 'file'], default: null },
     location: { type: PhotoLocationSchema, default: null },
     place: { type: PhotoPlaceSchema, default: null },
     exif: { type: PhotoExifSchema, default: () => ({}) },
 
     // 可選關聯行程日（Phase 2）
     itineraryDay: { type: Schema.Types.ObjectId, ref: 'ItineraryDay', default: null },
+    // auto 可隨旅程日期／天數重算；manual（含手動設未分類）永遠不被自動流程覆蓋。
+    itineraryDaySource: { type: String, enum: ['auto', 'manual'], default: null },
     caption: { type: String, default: '' },
     uploadedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     uploadedByName: { type: String, default: '' },

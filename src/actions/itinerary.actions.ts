@@ -1,7 +1,7 @@
 'use server';
 
 import { dbConnect } from '@/lib/mongodb';
-import { Expense, ItineraryDay, Photo } from '@/models';
+import { Expense, ItineraryDay, Photo, Trip } from '@/models';
 import { getTripMembership } from '@/lib/permissions';
 import {
   createItineraryDaySchema,
@@ -14,6 +14,7 @@ import { withAuth } from './withAuth';
 import { logger } from '@/lib/logger';
 import { isItineraryKeyForTrip, ITINERARY_CONTENT_TYPES, MAX_ITINERARY_BYTES } from '@/lib/uploads';
 import { headObject, deleteObjects, presignGet } from '@/lib/storage';
+import { rebindAutoPhotosToItinerary } from '@/lib/photoItinerary';
 
 type LeanAttachment = {
   key: string;
@@ -252,6 +253,15 @@ export const createItineraryDay = withAuth(
         activities: built.storage,
       });
 
+      const trip = await Trip.findById(membership.tripId)
+        .select('startDate endDate')
+        .lean<{ startDate?: Date | null; endDate?: Date | null } | null>();
+      if (trip) {
+        await rebindAutoPhotosToItinerary(membership.tripId, trip.startDate, trip.endDate).catch(
+          (e) => logger.error('Create itinerary day: auto photo rebind failed', e)
+        );
+      }
+
       return { success: true, data: toDayDto(created.toObject() as unknown as LeanDay) };
     } catch (error) {
       logger.error('Create itinerary day error', error);
@@ -338,7 +348,8 @@ export const updateItineraryDay = withAuth(
 
       // 當日地點換了（或被清掉）→ 跟著更新「借」這天座標的相片。借來的座標必須跟著來源走，
       // 否則改了地點之後相片會停在舊城市、清了地點之後相片會留著無來源的座標。
-      // 只動 source 'itinerary' 的：相片自己的 GPS 與手動釘比整天共用的城市座標精確，不可覆蓋。
+      // 只動 source 'itinerary' 或原本無座標的：相片自己的 GPS 與手動釘比整天共用的
+      // 城市座標精確，不可覆蓋；先前因當日沒地點而借不到座標的相片則可在這次補上。
       if (validated.location !== undefined) {
         const { lat, lon } = validated.location ?? {};
         const borrowed =
@@ -346,7 +357,15 @@ export const updateItineraryDay = withAuth(
             ? { lat, lon, source: 'itinerary' as const }
             : null;
         await Photo.updateMany(
-          { trip: membership.tripId, itineraryDay: dayId, 'location.source': 'itinerary' },
+          {
+            trip: membership.tripId,
+            itineraryDay: dayId,
+            ...(borrowed
+              ? {
+                  $or: [{ 'location.source': 'itinerary' }, { location: null }],
+                }
+              : { 'location.source': 'itinerary' }),
+          },
           { $set: { location: borrowed } }
         );
       }
@@ -435,6 +454,15 @@ export const deleteItineraryDay = withAuth(
 
       if (ops.length > 0) {
         await ItineraryDay.bulkWrite(ops, { ordered: true });
+      }
+
+      const trip = await Trip.findById(membership.tripId)
+        .select('startDate endDate')
+        .lean<{ startDate?: Date | null; endDate?: Date | null } | null>();
+      if (trip) {
+        await rebindAutoPhotosToItinerary(membership.tripId, trip.startDate, trip.endDate).catch(
+          (e) => logger.error('Delete itinerary day: auto photo rebind failed', e)
+        );
       }
 
       return { success: true, data: { message: 'DELETED' } };

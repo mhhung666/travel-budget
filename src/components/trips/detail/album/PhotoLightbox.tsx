@@ -256,27 +256,34 @@ export function PhotoLightbox({
 
                 {/* 關聯行程日：沒有行程日可關聯時整段不顯示（給空選單只會讓人困惑） */}
                 {editable && days.length > 0 && (
-                  <div className="flex items-center gap-2">
-                    <CalendarDays className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    <Select
-                      value={photo.itinerary_day_id ?? NO_DAY}
-                      disabled={saving}
-                      onValueChange={(v) =>
-                        onUpdate?.(photo, { itinerary_day_id: v === NO_DAY ? null : v })
-                      }
-                    >
-                      <SelectTrigger className="h-8 text-xs" aria-label={t('itineraryDay')}>
-                        <SelectValue placeholder={t('noItineraryDay')} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={NO_DAY}>{t('noItineraryDay')}</SelectItem>
-                        {days.map((day) => (
-                          <SelectItem key={day.id} value={day.id}>
-                            {dayLabel(day)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-2">
+                      <CalendarDays className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      <Select
+                        value={photo.itinerary_day_id ?? NO_DAY}
+                        disabled={saving}
+                        onValueChange={(v) =>
+                          onUpdate?.(photo, { itinerary_day_id: v === NO_DAY ? null : v })
+                        }
+                      >
+                        <SelectTrigger className="h-8 text-xs" aria-label={t('itineraryDay')}>
+                          <SelectValue placeholder={t('noItineraryDay')} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={NO_DAY}>{t('noItineraryDay')}</SelectItem>
+                          {days.map((day) => (
+                            <SelectItem key={day.id} value={day.id}>
+                              {dayLabel(day)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {photo.itinerary_day_source === 'auto' && (
+                      <p className="pl-6 text-xs text-muted-foreground">
+                        {photo.itinerary_day_id ? t('dayAutoAssigned') : t('dayAutoUnmatched')}
+                      </p>
+                    )}
                   </div>
                 )}
 

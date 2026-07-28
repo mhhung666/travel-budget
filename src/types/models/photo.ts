@@ -2,6 +2,8 @@ import type { LocalizedNames } from '../common/location';
 
 /** 座標來源。`exif`＝相片自己的 GPS、`itinerary`＝退回關聯行程日、`manual`＝手動拉釘。 */
 export type PhotoLocationSource = 'exif' | 'itinerary' | 'manual';
+export type PhotoTakenDateSource = 'exif' | 'file';
+export type PhotoItineraryDaySource = 'auto' | 'manual';
 
 /** 相片座標（前端 DTO）。null 表示這張沒有地理資訊。 */
 export interface PhotoLocation {
@@ -50,10 +52,13 @@ export interface TripPhoto {
   width: number;
   height: number;
   taken_at: string | null;
+  taken_local_date: string | null;
+  taken_date_source: PhotoTakenDateSource | null;
   location: PhotoLocation | null;
   place: PhotoPlace | null;
   exif: PhotoExif;
   itinerary_day_id: string | null;
+  itinerary_day_source: PhotoItineraryDaySource | null;
   caption: string;
   uploaded_by_id: string;
   uploaded_by_name: string;

@@ -906,6 +906,8 @@
     "saveCaption": "保存",
     "itineraryDay": "関連する日程",
     "noItineraryDay": "日程に未関連",
+    "dayAutoAssigned": "写真の撮影日から自動分類しました",
+    "dayAutoUnmatched": "撮影日に一致する日程がまだありません",
     "locationSource": {
       "exif": "写真のGPS",
       "itinerary": "日程の地点",

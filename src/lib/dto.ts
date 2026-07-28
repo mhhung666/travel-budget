@@ -436,6 +436,8 @@ export type TripPhotoDtoInput = {
   width?: number | null;
   height?: number | null;
   takenAt?: Date | null;
+  takenLocalDate?: string | null;
+  takenDateSource?: string | null;
   location?: { lat: number; lon: number; source: string } | null;
   place?: { name: string; names?: unknown; country_code?: string | null } | null;
   exif?: {
@@ -449,6 +451,7 @@ export type TripPhotoDtoInput = {
     orientation?: number | null;
   } | null;
   itineraryDay?: { toString(): string } | null;
+  itineraryDaySource?: string | null;
   caption?: string | null;
   uploadedBy: { toString(): string };
   uploadedByName?: string | null;
@@ -501,6 +504,9 @@ export function toTripPhotoDto(
     width: p.width ?? 0,
     height: p.height ?? 0,
     taken_at: p.takenAt ? p.takenAt.toISOString() : null,
+    taken_local_date: p.takenLocalDate ?? null,
+    taken_date_source:
+      p.takenDateSource === 'exif' || p.takenDateSource === 'file' ? p.takenDateSource : null,
     location: p.location
       ? {
           lat: p.location.lat,
@@ -517,6 +523,10 @@ export function toTripPhotoDto(
       : null,
     exif,
     itinerary_day_id: p.itineraryDay ? p.itineraryDay.toString() : null,
+    itinerary_day_source:
+      p.itineraryDaySource === 'auto' || p.itineraryDaySource === 'manual'
+        ? p.itineraryDaySource
+        : null,
     caption: p.caption ?? '',
     uploaded_by_id: p.uploadedBy.toString(),
     uploaded_by_name: p.uploadedByName ?? '',

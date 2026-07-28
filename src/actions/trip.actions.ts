@@ -35,6 +35,7 @@ import { toTripDto } from '@/lib/dto';
 import { notify } from '@/lib/notify';
 import { logActivity } from '@/lib/activity';
 import { isEffectiveTripDateRangeValid } from '@/lib/dateRange';
+import { rebindAutoPhotosToItinerary } from '@/lib/photoItinerary';
 
 /** 將 Mongoose Trip 文件映射為對外 DTO（維持 snake_case 以相容前端） */
 type LeanTrip = TripDoc & { _id: { toString(): string }; createdAt: Date };
@@ -206,6 +207,13 @@ export const updateTrip = withAuth(
 
       if (!trip) {
         return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+      }
+
+      if (start_date !== undefined || end_date !== undefined) {
+        // 相片自動關聯是可重建的衍生資料；人工選日（source manual）由 helper 保護不動。
+        await rebindAutoPhotosToItinerary(membership.tripId, trip.startDate, trip.endDate).catch(
+          (e) => logger.error('Update trip: auto photo rebind failed', e)
+        );
       }
 
       revalidatePath(`/trips/${id}`);

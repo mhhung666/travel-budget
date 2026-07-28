@@ -65,13 +65,25 @@ describe('normalizePhotoExif — 座標', () => {
 
 describe('normalizePhotoExif — 拍攝時間', () => {
   it('優先用 EXIF 的 DateTimeOriginal', () => {
-    expect(normalizePhotoExif(raw(), FALLBACK, NOW).taken_at).toBe('2026-06-20T08:30:00.000Z');
+    const out = normalizePhotoExif(raw(), FALLBACK, NOW);
+    expect(out.taken_at).toBe('2026-06-20T08:30:00.000Z');
+    expect(out.taken_local_date).toBe('2026-06-20');
+    expect(out.taken_date_source).toBe('exif');
+  });
+
+  it('保留 EXIF 牆上日期，不用 UTC 日期分類歐洲凌晨照片', () => {
+    // local constructor 模擬 exifr 將無時區的 DateTimeOriginal 解讀為裝置本地時間。
+    // 在 UTC+ 時區，這個時間轉 ISO 可能落在前一天，但 taken_local_date 必須仍是 6/20。
+    const localEarlyMorning = new Date(2026, 5, 20, 0, 30);
+    const out = normalizePhotoExif(raw({ DateTimeOriginal: localEarlyMorning }), FALLBACK, NOW);
+    expect(out.taken_local_date).toBe('2026-06-20');
+    expect(out.taken_date_source).toBe('exif');
   });
 
   it('EXIF 沒有拍攝時間時退回 fallback（file.lastModified）', () => {
-    expect(normalizePhotoExif(raw({ DateTimeOriginal: undefined }), FALLBACK, NOW).taken_at).toBe(
-      new Date(FALLBACK).toISOString()
-    );
+    const out = normalizePhotoExif(raw({ DateTimeOriginal: undefined }), FALLBACK, NOW);
+    expect(out.taken_at).toBe(new Date(FALLBACK).toISOString());
+    expect(out.taken_date_source).toBe('file');
   });
 
   it('太舊的時間視為相機時鐘沒設定，退 fallback', () => {
@@ -94,7 +106,10 @@ describe('normalizePhotoExif — 拍攝時間', () => {
   });
 
   it('EXIF 與 fallback 都不合理時為 null', () => {
-    expect(normalizePhotoExif(raw({ DateTimeOriginal: undefined }), 0, NOW).taken_at).toBeNull();
+    const out = normalizePhotoExif(raw({ DateTimeOriginal: undefined }), 0, NOW);
+    expect(out.taken_at).toBeNull();
+    expect(out.taken_local_date).toBeNull();
+    expect(out.taken_date_source).toBeNull();
   });
 
   it('非 Date 的 DateTimeOriginal（字串）不被採信', () => {

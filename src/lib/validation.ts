@@ -435,6 +435,14 @@ const photoTakenAtSchema = z
     );
   }, '拍攝時間不在合理範圍');
 
+const photoTakenLocalDateSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, '拍攝日期格式錯誤')
+  .refine((value) => {
+    const date = new Date(`${value}T00:00:00Z`);
+    return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+  }, '拍攝日期不存在');
+
 const photoLocationSchema = z.object({
   lat: z.number().min(-90).max(90),
   lon: z.number().min(-180).max(180),
@@ -445,16 +453,28 @@ const photoLocationSchema = z.object({
  * size/type 由 action 以 isPhotoKeyForTrip + headObject 覆驗——presigned PUT 管不住
  * client 實際送出的內容，故白名單與上限在 server 端仍是硬防線。
  */
-const photoItemSchema = z.object({
-  key: z.string().min(1),
-  thumb_key: z.string().min(1),
-  width: z.number().int().nonnegative().max(100000).optional(),
-  height: z.number().int().nonnegative().max(100000).optional(),
-  taken_at: photoTakenAtSchema.nullish(),
-  location: photoLocationSchema.nullish(),
-  exif: photoExifFieldsSchema.optional(),
-  caption: photoCaptionSchema.optional(),
-});
+const photoItemSchema = z
+  .object({
+    key: z.string().min(1),
+    thumb_key: z.string().min(1),
+    width: z.number().int().nonnegative().max(100000).optional(),
+    height: z.number().int().nonnegative().max(100000).optional(),
+    taken_at: photoTakenAtSchema.nullish(),
+    taken_local_date: photoTakenLocalDateSchema.nullish(),
+    taken_date_source: z.enum(['exif', 'file']).nullish(),
+    location: photoLocationSchema.nullish(),
+    exif: photoExifFieldsSchema.optional(),
+    caption: photoCaptionSchema.optional(),
+  })
+  .superRefine((item, ctx) => {
+    if (!!item.taken_local_date !== !!item.taken_date_source) {
+      ctx.addIssue({
+        code: 'custom',
+        message: '拍攝當地日期與來源必須同時提供',
+        path: ['taken_local_date'],
+      });
+    }
+  });
 
 export const addPhotosSchema = z.object({
   items: z

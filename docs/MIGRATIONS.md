@@ -64,3 +64,4 @@ export const down = async (db) => {
 | `20260629163036-expense-itinerary-days-array.js` | 將支出與行程日關聯轉為陣列形狀。 |
 | `20260701050933-expense-tags-array.js` | 建立支出 tags 陣列欄位。 |
 | `20260703133143-checklist-kind-and-per-member-done.js` | 更新清單種類與 per-member 完成狀態。 |
+| `20260728143000-photo-local-date-and-itinerary-source.js` | 保護既有相片的手動行程日關聯，供新相片依當地拍攝日期自動分類。 |

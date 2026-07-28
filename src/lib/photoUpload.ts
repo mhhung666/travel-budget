@@ -111,6 +111,8 @@ async function uploadOne(
       width,
       height,
       taken_at: exif.taken_at,
+      taken_local_date: exif.taken_local_date,
+      taken_date_source: exif.taken_date_source,
       location: exif.location,
       exif: exif.exif,
     },

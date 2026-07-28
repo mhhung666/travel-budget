@@ -30,10 +30,13 @@ export function useTripMutations(tripId: string) {
 
   const update = useMutation({
     mutationFn: (input: UpdateTripInput) => unwrap(updateTrip(tripId, input)),
-    onSuccess: (trip: Trip) => {
+    onSuccess: (trip: Trip, input: UpdateTripInput) => {
       queryClient.setQueryData(tripKeys.detail(tripId), trip);
       queryClient.invalidateQueries({ queryKey: tripKeys.detail(tripId) });
       queryClient.invalidateQueries({ queryKey: tripKeys.list });
+      if (input.start_date !== undefined || input.end_date !== undefined) {
+        queryClient.invalidateQueries({ queryKey: tripKeys.photos(tripId) });
+      }
     },
   });
 

@@ -12,6 +12,7 @@ const photoCountDocuments = vi.fn();
 const photoInsertMany = vi.fn();
 const photoDeleteMany = vi.fn();
 const itineraryDayFindOne = vi.fn();
+const itineraryDayFind = vi.fn();
 const userFindById = vi.fn();
 const tripFindById = vi.fn();
 const ensureSanitizedPhotoCopies = vi.fn();
@@ -46,6 +47,7 @@ vi.mock('@/models', () => ({
   },
   ItineraryDay: {
     findOne: (...args: unknown[]) => itineraryDayFindOne(...args),
+    find: (...args: unknown[]) => itineraryDayFind(...args),
   },
   User: {
     findById: (...args: unknown[]) => userFindById(...args),
@@ -80,6 +82,11 @@ const DAY_ID = '507f1f77bcf86cd799439013';
 /** Mongoose 的 find(...).sort(...).lean() 鏈式呼叫。 */
 function chainSortLean(returnValue: unknown) {
   return { sort: () => ({ lean: () => Promise.resolve(returnValue) }) };
+}
+
+/** Mongoose 的 find(...).sort(...).select(...).lean() 鏈式呼叫。 */
+function chainSortSelectLean(returnValue: unknown) {
+  return { sort: () => ({ select: () => ({ lean: () => Promise.resolve(returnValue) }) }) };
 }
 
 /** Mongoose 的 findOne(...).select(...).lean() 鏈式呼叫。 */
@@ -126,10 +133,13 @@ function leanPhoto(overrides: Record<string, unknown> = {}) {
     width: 2560,
     height: 1440,
     takenAt: null,
+    takenLocalDate: null,
+    takenDateSource: null,
     location: null,
     place: null,
     exif: {},
     itineraryDay: null,
+    itineraryDaySource: null,
     caption: '',
     uploadedBy: { toString: () => VIEWER },
     uploadedByName: 'Alice',
@@ -148,6 +158,7 @@ beforeEach(() => {
   userFindById.mockReturnValue(chainSelectLean({ displayName: 'Alice' }));
   // 預設：相簿未分享（albumShareCode 為 null）→ addTripPhotos 不觸發消毒副本補產。
   tripFindById.mockReturnValue(chainSelectLean({ albumShareCode: null }));
+  itineraryDayFind.mockReturnValue(chainSortSelectLean([]));
   ensureSanitizedPhotoCopies.mockResolvedValue(undefined);
 });
 
@@ -200,6 +211,47 @@ describe('addTripPhotos', () => {
       expect.objectContaining({
         location: { lat: 35.6, lon: 139.7, source: 'exif' },
         place: null,
+      }),
+    ]);
+  });
+
+  it('依拍攝當地日期自動關聯行程日，沒有 GPS 時借用當日座標', async () => {
+    tripFindById.mockReturnValue(
+      chainSelectLean({
+        albumShareCode: null,
+        startDate: new Date('2026-06-20T00:00:00.000Z'),
+        endDate: new Date('2026-06-22T00:00:00.000Z'),
+      })
+    );
+    itineraryDayFind.mockReturnValue(
+      chainSortSelectLean([
+        {
+          _id: { toString: () => DAY_ID },
+          dayNumber: 2,
+          location: { lat: 48.85, lon: 2.35 },
+        },
+      ])
+    );
+    mockHeadObjectHappy();
+    const item = validItem(TRIP_ID, {
+      taken_at: '2026-06-20T22:30:00.000Z',
+      taken_local_date: '2026-06-21',
+      taken_date_source: 'exif',
+    });
+    photoInsertMany.mockResolvedValue([
+      { toObject: () => leanPhoto({ key: item.key, thumbKey: item.thumb_key }) },
+    ]);
+
+    const result = await addTripPhotos(TRIP_ID, { items: [item] });
+
+    expect(result.success).toBe(true);
+    expect(photoInsertMany).toHaveBeenCalledWith([
+      expect.objectContaining({
+        takenLocalDate: '2026-06-21',
+        takenDateSource: 'exif',
+        itineraryDay: expect.objectContaining({ toString: expect.any(Function) }),
+        itineraryDaySource: 'auto',
+        location: { lat: 48.85, lon: 2.35, source: 'itinerary' },
       }),
     ]);
   });
@@ -483,6 +535,7 @@ describe('updatePhoto', () => {
     expect(result.success).toBe(true);
     expect(setArg()).toEqual({
       itineraryDay: DAY_ID,
+      itineraryDaySource: 'manual',
       location: { lat: 35.6, lon: 139.7, source: 'itinerary' },
     });
   });
@@ -494,7 +547,7 @@ describe('updatePhoto', () => {
 
     await updatePhoto(TRIP_ID, PHOTO_ID, { itinerary_day_id: DAY_ID });
 
-    expect(setArg()).toEqual({ itineraryDay: DAY_ID });
+    expect(setArg()).toEqual({ itineraryDay: DAY_ID, itineraryDaySource: 'manual' });
   });
 
   it('never overwrites a manually-pinned location with the day coordinates', async () => {
@@ -504,7 +557,7 @@ describe('updatePhoto', () => {
 
     await updatePhoto(TRIP_ID, PHOTO_ID, { itinerary_day_id: DAY_ID });
 
-    expect(setArg()).toEqual({ itineraryDay: DAY_ID });
+    expect(setArg()).toEqual({ itineraryDay: DAY_ID, itineraryDaySource: 'manual' });
   });
 
   it('re-borrows from the new day when the current coordinates came from the previous one', async () => {
@@ -516,6 +569,7 @@ describe('updatePhoto', () => {
 
     expect(setArg()).toEqual({
       itineraryDay: DAY_ID,
+      itineraryDaySource: 'manual',
       location: { lat: 48.85, lon: 2.35, source: 'itinerary' },
     });
   });
@@ -527,7 +581,11 @@ describe('updatePhoto', () => {
     await updatePhoto(TRIP_ID, PHOTO_ID, { itinerary_day_id: null });
 
     // 借來的座標沒了來源就該消失，否則地圖上會留下無法解釋的釘子
-    expect(setArg()).toEqual({ itineraryDay: null, location: null });
+    expect(setArg()).toEqual({
+      itineraryDay: null,
+      itineraryDaySource: 'manual',
+      location: null,
+    });
     expect(itineraryDayFindOne).not.toHaveBeenCalled();
   });
 
@@ -537,7 +595,7 @@ describe('updatePhoto', () => {
 
     await updatePhoto(TRIP_ID, PHOTO_ID, { itinerary_day_id: null });
 
-    expect(setArg()).toEqual({ itineraryDay: null });
+    expect(setArg()).toEqual({ itineraryDay: null, itineraryDaySource: 'manual' });
   });
 
   it('drops borrowed coordinates when the new day has no location set', async () => {
@@ -547,7 +605,11 @@ describe('updatePhoto', () => {
 
     await updatePhoto(TRIP_ID, PHOTO_ID, { itinerary_day_id: DAY_ID });
 
-    expect(setArg()).toEqual({ itineraryDay: DAY_ID, location: null });
+    expect(setArg()).toEqual({
+      itineraryDay: DAY_ID,
+      itineraryDaySource: 'manual',
+      location: null,
+    });
   });
 
   it('leaves location untouched for a GPS-less photo linked to a day with no location', async () => {
@@ -557,7 +619,7 @@ describe('updatePhoto', () => {
 
     await updatePhoto(TRIP_ID, PHOTO_ID, { itinerary_day_id: DAY_ID });
 
-    expect(setArg()).toEqual({ itineraryDay: DAY_ID });
+    expect(setArg()).toEqual({ itineraryDay: DAY_ID, itineraryDaySource: 'manual' });
   });
 
   it('lets an explicit manual pin win over the day fallback in the same call', async () => {
@@ -571,6 +633,7 @@ describe('updatePhoto', () => {
 
     expect(setArg()).toEqual({
       itineraryDay: DAY_ID,
+      itineraryDaySource: 'manual',
       location: { lat: 1.29, lon: 103.85, source: 'manual' },
     });
     // 明確給了 location 就不必回頭讀現有座標
@@ -587,6 +650,7 @@ describe('updatePhoto', () => {
 
     expect(setArg()).toEqual({
       itineraryDay: DAY_ID,
+      itineraryDaySource: 'manual',
       location: { lat: 35.6, lon: 139.7, source: 'itinerary' },
     });
     expect(photoFindOne).not.toHaveBeenCalled();

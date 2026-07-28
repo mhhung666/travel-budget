@@ -15,6 +15,10 @@ import { chunk } from '@/lib/photoUpload';
 import { addPhotosSchema, PHOTO_BATCH_MAX } from '@/lib/validation';
 
 const TRIP = '507f1f77bcf86cd799439011';
+const validPhotoItem = () => ({
+  key: `photos/${TRIP}/abc.jpg`,
+  thumb_key: `photos/${TRIP}/abc_t.webp`,
+});
 const OTHER_TRIP = '507f1f77bcf86cd799439012';
 
 describe('buildPhotoObjectKeys', () => {
@@ -171,13 +175,8 @@ describe('chunk（相簿分批上傳）', () => {
 });
 
 describe('photoItemSchema — taken_at 範圍（server 端硬防線）', () => {
-  const validItem = () => ({
-    key: `photos/${TRIP}/abc.jpg`,
-    thumb_key: `photos/${TRIP}/abc_t.webp`,
-  });
-
   const parse = (taken_at: string) =>
-    addPhotosSchema.safeParse({ items: [{ ...validItem(), taken_at }] });
+    addPhotosSchema.safeParse({ items: [{ ...validPhotoItem(), taken_at }] });
 
   it('擋掉未來的拍攝時間——datetime() 只驗格式，9999-01-01 是合法 ISO 字串', () => {
     // 沒有這條，偽造一次呼叫就能讓一張相片永遠置頂（相簿主排序是 takenAt 新到舊）
@@ -193,18 +192,53 @@ describe('photoItemSchema — taken_at 範圍（server 端硬防線）', () => {
   });
 
   it('taken_at 可以是 null（截圖沒有拍攝時間）', () => {
-    expect(addPhotosSchema.safeParse({ items: [{ ...validItem(), taken_at: null }] }).success).toBe(
-      true
-    );
+    expect(
+      addPhotosSchema.safeParse({ items: [{ ...validPhotoItem(), taken_at: null }] }).success
+    ).toBe(true);
   });
 
   it('一次最多 PHOTO_BATCH_MAX 張', () => {
-    const items = Array.from({ length: PHOTO_BATCH_MAX + 1 }, () => validItem());
+    const items = Array.from({ length: PHOTO_BATCH_MAX + 1 }, () => validPhotoItem());
     expect(addPhotosSchema.safeParse({ items }).success).toBe(false);
   });
 
   it('擋掉超出範圍的座標（與 exif.ts 同界，但這裡才是安全邊界）', () => {
-    const bad = { ...validItem(), location: { lat: 91, lon: 0 } };
+    const bad = { ...validPhotoItem(), location: { lat: 91, lon: 0 } };
     expect(addPhotosSchema.safeParse({ items: [bad] }).success).toBe(false);
+  });
+});
+
+describe('photoItemSchema — 拍攝當地日期', () => {
+  it('接受成對的當地日期與來源', () => {
+    expect(
+      addPhotosSchema.safeParse({
+        items: [
+          {
+            ...validPhotoItem(),
+            taken_local_date: '2026-06-20',
+            taken_date_source: 'exif',
+          },
+        ],
+      }).success
+    ).toBe(true);
+  });
+
+  it('拒絕不存在的日期或只有日期沒有來源', () => {
+    expect(
+      addPhotosSchema.safeParse({
+        items: [
+          {
+            ...validPhotoItem(),
+            taken_local_date: '2026-02-31',
+            taken_date_source: 'exif',
+          },
+        ],
+      }).success
+    ).toBe(false);
+    expect(
+      addPhotosSchema.safeParse({
+        items: [{ ...validPhotoItem(), taken_local_date: '2026-06-20' }],
+      }).success
+    ).toBe(false);
   });
 });
