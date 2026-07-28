@@ -1,6 +1,6 @@
 # 架構說明（Architecture）
 
-> 更新日期：2026-07-27（補上 UI/UX Phase 4 可及性測試與隱私安全產品量測）
+> 更新日期：2026-07-28
 > 目前軟體版本以根目錄 [package.json](../package.json) 的 `version` 欄位為準。
 > 本文件依**實際程式碼**撰寫，為架構的權威來源。**已實作功能的完整盤點**見 [FEATURES.md](./FEATURES.md)；改善建議請見 [IMPROVEMENTS.md](./IMPROVEMENTS.md)；已完成工作（含 Supabase→MongoDB 遷移）的紀錄見 [CHANGELOG.md](./CHANGELOG.md)。
 
@@ -55,7 +55,7 @@ ActionResult<T>  ── { success:true, data } | { success:false, error, code }
 | **Public REST API** | [src/app/api/public/](../src/app/api/public/) | **無認證（刻意）** | 分享連結：未登入者用 `hash_code` 唯讀檢視旅程 |
 | Exchange Rate API | [src/app/api/exchange-rates/](../src/app/api/exchange-rates/) | 無 | 匯率代理 |
 
-> 同一個旅程頁面會依「是否登入」決定走哪條路徑：登入走 Server Action，未登入（或非成員）fallback 到 public API。此邏輯封裝在 [src/hooks/useTripData.ts](../src/hooks/useTripData.ts)。
+> 同一個旅程頁面會依「是否登入」決定走哪條路徑：登入走 Server Action，未登入（或非成員）fallback 到 public API。共用 fallback 在 [src/hooks/queries/fetcher.ts](../src/hooks/queries/fetcher.ts)，各查詢由 [useTripQueries.ts](../src/hooks/queries/useTripQueries.ts) 組裝。
 
 ---
 
@@ -71,7 +71,7 @@ src/
 │   ├── types.ts      # ActionResult<T> 與 ErrorCodes
 │   └── withAuth.ts   # 認證 HOC（注入已驗證 session）
 ├── app/
-│   ├── [locale]/     # 國際化路由頁面（trips / stats / map / wrapped / settings...）
+│   ├── (app)/(auth)/(marketing)/(public)/(share)  # route groups，不改 URL
 │   └── api/          # exchange-rates + public（分享）API + cron（排程）
 ├── components/       # 依功能分組（trips / expenses / settlement / stats / map / activity / notifications / wrapped / ui...）
 ├── hooks/            # useTripDetailPage / useAuth / useOnlineStatus / usePushNotifications...
@@ -79,7 +79,7 @@ src/
 ├── i18n/             # routing + config + messages（四語系）
 ├── lib/              # 核心邏輯：auth / permissions / settlement / validation / mongodb /
 │                     #   storage / uploads / notify / email / webpush / queryPersister...
-├── models/           # Mongoose models（10 個，見 §5）
+├── models/           # Mongoose models（19 個，見 §5）
 ├── sw.ts             # Serwist service worker 源碼（離線快取 + Web Push handler）
 ├── constants/        # categories / countries / currencies / routes
 └── types/            # models(DTO) / api(dto) / common
@@ -152,7 +152,7 @@ src/
 - **環境變數**：六個 `R2_*` 在 [lib/env.ts](../src/lib/env.ts) 設為 **optional**，`getR2Config()` 於實際用到時才嚴格檢查 → 未設定 R2 也能 boot / CI build。
 - **清理（無 cascade）**：`deleteExpense` / `deleteTrip` 刪收據物件、`setAvatar` / `removeAvatar` 刪舊頭像，皆 **best-effort**（刪不掉的孤兒不擋住使用者操作，只記 log）。
 
-> 完整附件 / 上傳細節（票券附件 `itinerary/` 命名空間、通用 UI 元件）見 [FEATURES.md §7](./FEATURES.md)。
+> 使用者可見的檔案與相簿能力摘要見 [FEATURES.md](./FEATURES.md)。
 
 ### 4.10 通知系統（站內 / Email / 排程 / Web Push）
 
@@ -164,7 +164,7 @@ src/
 - **排程**（Vercel Cron，受 `CRON_SECRET` 保護）：[/api/cron/expense-digest](../src/app/api/cron/expense-digest/route.ts)（每日）。聚合純函式 [lib/expenseDigest.ts](../src/lib/expenseDigest.ts) 有單元測試。
 - **Web Push**（VAPID，env-gated）：[PushSubscription](../src/models/PushSubscription.ts) model（**訂閱本身即 opt-in**）。[lib/webpush.ts](../src/lib/webpush.ts) `sendPush` best-effort、回 404/410 就地刪失效訂閱。**與離線 PWA 共用同一個 service worker**（§4.12）。推播一律即時、不看 `notifyByEmail`。
 
-> 全部 env（`RESEND_*` / `CRON_SECRET` / `VAPID_*`）皆 optional，比照 R2 模式——未設定則該通道靜默跳過，不影響其他通道與 CI build。詳見 [FEATURES.md §8](./FEATURES.md)。
+> 全部 env（`RESEND_*` / `CRON_SECRET` / `VAPID_*`）皆 optional，比照 R2 模式——未設定則該通道靜默跳過，不影響其他通道與 CI build。
 
 ### 4.11 動態牆（活動紀錄）
 
@@ -196,12 +196,12 @@ src/
 | 結算 | `/trips/[id]/settlement` | 結算方案 `/settlement` · 群組統計 `/stats` |
 
 - **落點＝行程分頁**（`/trips/[id]`），支出移到 `/trips/[id]/expenses`。子頁 URL 全部維持原樣，故深連結 / 分享連結不受影響；舊的 `/trips/[id]/itinerary` 由 [next.config.ts](../next.config.ts) `redirects()` **308 轉址**回落點。**轉址刻意寫在 config 而非頁面內 `redirect()`**——後者在 App Router 會軟導向（回 200、網址列不變）。
-- **旅行首頁與 compact shell（2026-07-27 Phase 3）**：[TripContextOverview](../src/components/trips/detail/TripContextOverview.tsx) 依 [tripStatus.ts](../src/lib/tripStatus.ts) 的行前／旅中／旅後判斷，分別顯示倒數與待辦、Day N 與今日活動／花費、待結算與回顧入口。[TripHeader](../src/components/trips/detail/TripHeader.tsx) 改為可展開的 compact cover；`TripSpaceShell` 捲動 48px 後縮短名稱列，非財務頁收起摘要條，支出／結算／群組統計仍保留。其編輯對話框與送出邏輯由 [useEditTrip](../src/hooks/useEditTrip.ts) 共用。
-- **全域資訊架構（2026-07-27 Phase 3）**：桌機與行動端同為旅行／地圖／記一筆／我的；統計、成就、會籍、年度回顧、設定都歸入「我的」。[navigationEvents.ts](../src/lib/navigationEvents.ts) 的 `navigation_used` 只接受固定 `target`／`surface` union，不得加入動態 id、邀請碼、名稱、描述或金額。
-- **全域快速記帳（2026-07-27 Phase 2B）**：桌機頂列與行動底部導覽呼叫 [GlobalQuickAddFlow](../src/components/layout/GlobalQuickAddFlow.tsx)，flow 掛在不隨頁面切換卸載的 App Shell，因此關閉表單後保留原頁 state 與 scroll。選擇規則集中在 [quickAdd.ts](../src/lib/quickAdd.ts)：排除封存，依進行中／即將出發／最近結束／無日期排序；唯一進行中或唯一 active 直開，多候選才 picker。PWA `/quick-add` 只作穩定落點，由 App Shell 啟動同一 flow，不另做 server redirect。旅行內 add-expense 表單仍在 shell 層（`TripSpaceActions.openAddExpense`）供清單與空狀態等情境 CTA 使用；舊 trip-scoped 支出 FAB 已移除，避免與全域入口重複。
+- **旅行首頁與 compact shell**：[TripContextOverview](../src/components/trips/detail/TripContextOverview.tsx) 依 [tripStatus.ts](../src/lib/tripStatus.ts) 的行前／旅中／旅後判斷，分別顯示倒數與待辦、Day N 與今日活動／花費、待結算與回顧入口。[TripHeader](../src/components/trips/detail/TripHeader.tsx) 是可展開的 compact cover；`TripSpaceShell` 捲動 48px 後縮短名稱列，非財務頁收起摘要條，支出／結算／群組統計仍保留。其編輯對話框與送出邏輯由 [useEditTrip](../src/hooks/useEditTrip.ts) 共用。
+- **全域資訊架構**：桌機與行動端同為旅行／地圖／記一筆／我的；統計、成就、會籍、年度回顧、設定都歸入「我的」。[navigationEvents.ts](../src/lib/navigationEvents.ts) 的 `navigation_used` 只接受固定 `target`／`surface` union，不得加入動態 id、邀請碼、名稱、描述或金額。
+- **全域快速記帳**：桌機頂列與行動底部導覽呼叫 [GlobalQuickAddFlow](../src/components/layout/GlobalQuickAddFlow.tsx)，flow 掛在不隨頁面切換卸載的 App Shell，因此關閉表單後保留原頁 state 與 scroll。選擇規則集中在 [quickAdd.ts](../src/lib/quickAdd.ts)：排除封存，依進行中／即將出發／最近結束／無日期排序；唯一進行中或唯一 active 直開，多候選才 picker。PWA `/quick-add` 只作穩定落點，由 App Shell 啟動同一 flow，不另做 server redirect。旅行內 add-expense 表單仍在 shell 層（`TripSpaceActions.openAddExpense`）供清單與空狀態等情境 CTA 使用；舊 trip-scoped 支出 FAB 已移除，避免與全域入口重複。
 - **深連結語意**：站內通知 / Web Push / Email 中**支出語意**的連結（`expense_added` / `expense_comment_added`、支出摘要信）指向 `/expenses`，還款指向 `/settlement`，其餘旅程層級（如 `member_joined`、加入邀請）指向落點。三處導向表（[NotificationBell](../src/components/notifications/NotificationBell.tsx) / [webpush.ts](../src/lib/webpush.ts) / [emailTemplates.ts](../src/lib/emailTemplates.ts)）**必須一致**。
 - **邀請加入**：[tripInvite.ts](../src/lib/tripInvite.ts) 將裸代碼或完整 `/join/{code}` URL 正規化成驗證過的 6–10 位 hash code；登入／註冊透過已 sanitize 的 `redirect` 回到公開邀請頁，`joinTrip` 成功後直接進入該旅行。旅行卡不常駐顯示代碼，複製連結收在操作選單。
-- 隨手記 / 相簿為成員限定（無公開分享路由），分享連結訪客不顯示這兩項；子分頁列只有一顆時不佔一排。
+- 隨手記只限成員；相簿在旅行分享頁不顯示，但可由成員另行啟用獨立的去位置公開相簿連結。子分頁列只有一顆時不佔一排。
 
 ### 4.15 UI/UX 驗證與產品量測
 
@@ -213,7 +213,7 @@ src/
 
 ## 5. 資料模型
 
-Schema 定義在 [src/models/](../src/models/) 的 Mongoose model，index 於連線時自動建立（`autoIndex`；可重現的結構 / 資料變更另走 migrate-mongo，見 [MIGRATIONS.md](./MIGRATIONS.md)）。原本的關聯表收斂為 **16 個 collection**，用內嵌消除大部分 join 與 N+1：
+Schema 定義在 [src/models/](../src/models/) 的 Mongoose model，index 於連線時自動建立（`autoIndex`；可重現的結構 / 資料變更另走 migrate-mongo，見 [MIGRATIONS.md](./MIGRATIONS.md)）。目前共有 **19 個 collection**，用內嵌消除大部分 join 與 N+1：
 
 ```
 User              ── 帳號 / 虛擬成員 / 頭像 / 通知偏好 / mapShareCode
@@ -232,6 +232,9 @@ Friendship        ── requester/recipient + pairKey(uniq)；雙向好友關�
 Note              ── ref trip；隨手記（內嵌照片 attachments[]）
 FlightRecord      ── ref user；飛行終身紀錄（旅行成就，trip 可 null）
 StayRecord        ── ref user；住宿終身紀錄（旅行成就，trip 可 null）
+LoyaltyAccount    ── ref user；每個航空計畫的會籍帳戶
+LoyaltyEntry      ── ref user/account；積分與里程 ledger
+Photo             ── ref trip；共享相簿、EXIF 與行程日關聯
 ```
 
 | Collection | 重點欄位 |
@@ -252,6 +255,9 @@ StayRecord        ── ref user；住宿終身紀錄（旅行成就，trip 可
 | `Note` | `trip`(ref,index), `text`, `attachments[]`, `pinned`, `plannedAt`；隨手記（成員信任模型） |
 | `FlightRecord` | `user`(ref,index), `trip`(ref,**可 null**), `date`+`datePrecision`(day/month/year), `airline`(IATA), `flightNo`, `fromAirport`/`toAirport`, `cabin`；**user-level 終身紀錄**（旅行成就，FEATURES §16） |
 | `StayRecord` | `user`(ref,index), `trip`(ref,**可 null**), `checkIn`+精度, `nights`, `brand`（[hotelBrands.ts](../src/constants/hotelBrands.ts) 目錄 id，可 null）, `hotelName`, `stars`, `city`；同上 |
+| `LoyaltyAccount` | `user`(ref,index), `program`, `tier`, `tierExpiresAt`；每位使用者每個 program 一筆 |
+| `LoyaltyEntry` | `user`/`account`(ref), `program`, 日期與積分/里程/航段欄位，可連回 `FlightRecord` |
+| `Photo` | `trip`(ref,index), R2 keys, `exif`, `location`, `itineraryDay`, caption；公開分享另走去位置 DTO |
 
 > ⚠️ MongoDB 無外鍵 cascade：刪除 trip 時 `deleteTrip` 會手動一併刪除該 trip 的 expenses、payments、itinerary days、checklists、notifications、activity logs、comments、notes，並 best-effort 刪除該 trip 在 R2 的收據 / 票券物件；**FlightRecord / StayRecord 例外**——它們是 user-level 終身紀錄，只解除連結（`trip` 置 null）不刪除；`removeMember` 也會檢查還款參照避免孤兒，並清掉清單項目對該成員的指派與其在此 trip 的通知。
 > ID 一律為 ObjectId 字串，從 JWT、DTO 到前端 props 一致。

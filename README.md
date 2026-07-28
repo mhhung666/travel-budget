@@ -50,7 +50,10 @@
 src/
 ├── actions/          # Server Actions（業務邏輯層，回傳 ActionResult<T>）⭐
 ├── app/
-│   ├── [locale]/     # 國際化路由頁面
+│   ├── (app)/        # 登入後頁面（route group，不改 URL）
+│   ├── (auth)/       # 登入與註冊
+│   ├── (public)/     # 公開加入/連結流程
+│   ├── (share)/      # 公開分享頁
 │   └── api/          # 公開分享 API + 匯率代理 + cron（排程）
 ├── components/       # React 元件（依功能分組：trips / stats / map / wrapped / ui...）
 ├── hooks/            # Custom hooks（+ queries/：React Query 查詢 / 失效層）

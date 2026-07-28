@@ -1,27 +1,42 @@
-# 文件索引（docs/）
+# 文件索引
 
-旅行記帳（Travel Budget Planner）的專案文件。
+本目錄只保存目前仍會影響產品、開發或決策的資訊。歷史實作細節以 Git 為準，不在多份文件重複保存。
 
-| 文件 | 內容 | 何時看 |
-| --- | --- | --- |
-| [ARCHITECTURE.md](./ARCHITECTURE.md) | **架構權威來源**：技術棧、分層、子系統、資料模型、開發慣例 | 想了解系統怎麼運作、要動程式碼之前 |
-| [FEATURES.md](./FEATURES.md) | **已實作功能的完整盤點** + 各功能關鍵實作筆記與取捨 | 想知道「現在有哪些功能、怎麼做的」 |
-| [ROADMAP.md](./ROADMAP.md) | **尚未動工的功能構想** + 優先序 + 落地草圖 | 想知道「接下來要做什麼」 |
-| [IMPROVEMENTS.md](./IMPROVEMENTS.md) | **尚未處理的**程式碼 / 基礎設施改善（限流、測試覆蓋、分頁…） | 想優化既有實作、補技術債 |
-| [UI_UX_EVALUATION.md](./UI_UX_EVALUATION.md) | **UI/UX 現況評估與執行追蹤**：核心流程、問題分級、Phase 狀態、驗收條件與量測 | 要改善新手啟動、記帳效率、導覽、行動操作或可及性，或查目前進度 |
-| [UI_UX_SPEC.md](./UI_UX_SPEC.md) | **UI/UX 實作規格**：資訊架構、版型、操作、金額、空狀態、離線回饋與隱私事件 | 開發或驗收新介面 |
-| [USABILITY_TEST_PHASE4.md](./USABILITY_TEST_PHASE4.md) | **Phase 4 可用性測試套件**：招募條件、7 項任務、匿名紀錄與報告模板 | 主持 5–7 人任務測試 |
-| [CHANGELOG.md](./CHANGELOG.md) | **已完成工作的紀錄簿**：功能、改善、重構、資料層遷移 | 想知道「做過什麼、何時做的」 |
-| [MIGRATIONS.md](./MIGRATIONS.md) | migrate-mongo 操作指南（可重現的 index / 資料變更） | 要改 schema / 寫資料遷移 |
-| [TIER-COLORS.md](./TIER-COLORS.md) | 會籍等級 tag 的卡面色規則 + 色表（`TIER_BADGE_COLORS`） | 要改會籍 badge 顏色 / 新增會籍計畫 |
-| [claude/](./claude/) | **AI 協作制度**：模型調度、判斷 rubric、交辦範本、教訓簿（入口在根目錄 [CLAUDE.md](../CLAUDE.md)） | Claude Code 做非平凡任務前 |
+## AI agent 快速入口
 
-> 專案上手、環境變數、指令請見根目錄的 [README.md](../README.md)。
-> AI 協作指引（給 Claude Code）見根目錄的 [CLAUDE.md](../CLAUDE.md)。
+1. 先讀根目錄 [AGENTS.md](../AGENTS.md) 與 [CLAUDE.md](../CLAUDE.md)。
+2. 依任務只讀下表指定文件，不必遍歷整個 `docs/`。
+3. 文件與程式碼衝突時，以程式碼和測試為準，並在同一變更修正文檔。
 
-## 文件維護慣例
+| 任務 | 權威文件 |
+| --- | --- |
+| 系統結構、資料流、資料模型 | [ARCHITECTURE.md](./ARCHITECTURE.md) |
+| 確認目前產品能力 | [FEATURES.md](./FEATURES.md) |
+| 規劃尚未實作的功能 | [ROADMAP.md](./ROADMAP.md) |
+| 處理技術債或基礎設施風險 | [IMPROVEMENTS.md](./IMPROVEMENTS.md) |
+| 查重要交付里程碑 | [CHANGELOG.md](./CHANGELOG.md) |
+| 修改 schema、index 或回填資料 | [MIGRATIONS.md](./MIGRATIONS.md) |
+| 開發或驗收介面 | [UI_UX_SPEC.md](./UI_UX_SPEC.md) |
+| 查 UI/UX 實作與驗證狀態 | [UI_UX_EVALUATION.md](./UI_UX_EVALUATION.md) |
+| 執行真人可用性測試 | [USABILITY_TEST_PHASE4.md](./USABILITY_TEST_PHASE4.md) |
+| 修改會籍 badge 顏色 | [TIER-COLORS.md](./TIER-COLORS.md) |
+| 查非顯而易見的子系統限制 | [claude/ARCH-NOTES.md](./claude/ARCH-NOTES.md) |
+| 執行 Agent 工作流程 | [claude/WORKFLOW.md](./claude/WORKFLOW.md) |
 
-- **ARCHITECTURE.md / FEATURES.md** 依**實際程式碼**撰寫，描述**現況**，改動程式時一併更新。
-- **完成一項工作** → 在 [CHANGELOG.md](./CHANGELOG.md) 加一行紀錄；若是新功能，實作筆記同時寫進 FEATURES.md，並把該項從 ROADMAP.md（功能）或 IMPROVEMENTS.md（技術債）**刪掉**。
-- ROADMAP.md / IMPROVEMENTS.md **只保留待辦**，不堆積已完成內容。
-- 新使用者字串四語系都要補（`en` / `zh` / `zh-CN` / `jp`）。
+## 文件角色
+
+- `ARCHITECTURE.md`：只寫系統如何運作與不可破壞的技術契約。
+- `FEATURES.md`：只寫使用者現在能做什麼；實作細節連回程式碼或架構。
+- `ROADMAP.md`、`IMPROVEMENTS.md`：只保留未完成項目，每項需有狀態與完成條件。
+- `CHANGELOG.md`：只保留重要里程碑，不取代 `git log`，也不逐 commit 重抄。
+- `UI_UX_SPEC.md`：目前介面規格；`UI_UX_EVALUATION.md`：驗證狀態；兩者不重述功能清單。
+
+## 維護規則
+
+- 新功能完成：更新 `FEATURES.md`，從 `ROADMAP.md` 移除，必要時在 `CHANGELOG.md` 加一行里程碑。
+- 技術債完成：從 `IMPROVEMENTS.md` 移除；只有具架構影響時才更新 `ARCHITECTURE.md`。
+- 規劃草圖與已完成 Phase 不留全文；需要回顧時使用 Git 歷史。
+- 不在文件寫死軟體版本；版本唯一來源是 `package.json.version`。
+- 路徑、指令、環境變數與安全限制必須可由 repo 驗證，不確定就標記「待確認」。
+
+專案安裝、環境變數與常用指令見根目錄 [README.md](../README.md)。

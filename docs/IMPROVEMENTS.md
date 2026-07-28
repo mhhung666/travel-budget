@@ -1,7 +1,7 @@
 # 改善建議（Improvements）
 
-> 更新日期：2026-07-02
-> 本文件只列**尚未處理**的程式碼 / 基礎設施層級改善。已完成的項目（CI、Public API 錯誤碼 / 樣板收斂、結構化 logger、安全標頭、路由保護單一來源化，及更早的 P0–P3）紀錄見 [CHANGELOG.md](./CHANGELOG.md)。架構說明見 [ARCHITECTURE.md](./ARCHITECTURE.md)。
+> 更新日期：2026-07-28
+> 本文件只列**尚未處理**的程式碼 / 基礎設施層級改善。已完成里程碑見 [CHANGELOG.md](./CHANGELOG.md)，架構說明見 [ARCHITECTURE.md](./ARCHITECTURE.md)。
 > 慣例：處理完一項 → 移到 [CHANGELOG.md](./CHANGELOG.md)、從本檔刪除。
 
 狀態圖例：⚠️ 待處理　🟡 部分完成 / 待外部條件
@@ -23,7 +23,7 @@
 
 ### H. 🟡 SW `r2-images` 快取上限對相簿偏低
 **問題**：[sw.ts](../src/sw.ts) 的 `r2-images`（CacheFirst）`maxEntries: 128`，是為「一次看一兩張收據」設計的。
-旅程相簿（ROADMAP #21 Phase 1）一頁就有數十張縮圖、軟上限 300 張／旅程，會把收據與頭像一起擠出快取（LRU）。
+旅程相簿一頁就有數十張縮圖、軟上限 300 張／旅程，會把收據與頭像一起擠出快取（LRU）。
 另外 `presignGetStable` 的簽名每個窗口（1 小時）輪替一次，同一張相片跨窗口就是新的快取 key，會加速這個消耗。
 **建議**：把 `maxEntries` 提到 ~512，或把相簿縮圖切成獨立的 cacheName（與收據分開計數，較乾淨）。
 兩者都要以 `pnpm build && pnpm start` 實測（dev 模式 SW 停用）。**先觀察實際用量再決定**——
@@ -34,20 +34,11 @@
 物件傳完但入庫失敗時（達 300 張軟上限、離線、DB 錯誤、使用者中途關頁），那些 blob 就沒有任何 doc 指向它，
 只有「刪整個旅程」的 prefix 掃描會收掉。**已緩解**最常見的一種：一次選 >20 張不再整批被 Zod 打回
 （`uploadPhotoFilesInBatches` 自動分批，且超量的檔案連壓縮都不做）。
-**建議**：Phase 2 加一支定期任務（比照既有 Vercel Cron），列 `photos/<tripId>/` 前綴、
+**建議**：加一支定期任務（比照既有 Vercel Cron），列 `photos/<tripId>/` 前綴、
 比對 `Photo` collection 的 key，刪掉超過 N 小時仍無人指向的物件。**不要在上傳失敗當下同步清**——
 那條路徑本身就已經在出錯了，再加一個會失敗的網路呼叫只會更糟。
 
-> **備註（安全標頭延伸）**：目前 CSP 僅含 `frame-ancestors 'none'`。完整 CSP（`default-src`/`script-src`…）刻意未上——需配合 Leaflet 圖磚、R2 圖片/PDF、next-themes 內嵌腳本與 Radix 內嵌樣式實測，列為後續。
-
----
-
-## 值得保留延續的好設計
-- `ActionResult<T>` 統一回傳格式
-- Zod 集中驗證所有輸入
-- `getTripMembership` 一次 `Trip.findOne` 收斂權限檢查（members 內嵌）
-- splits/members 內嵌，載入支出不再 N+1
-- 虛擬成員（`isVirtual`）支援未註冊者參與分帳
-- 四語系 i18n 架構完善
-- 簡潔的 admin/member 兩級權限
-- React Query 查詢/失效層集中於 [src/hooks/queries/](../src/hooks/queries/)
+### J. 🟡 完整 Content Security Policy
+**現況**：目前只有 `frame-ancestors 'none'` 等基礎安全標頭。
+**完成條件**：加入 `default-src` / `script-src` 等完整 CSP，並實測 Leaflet 圖磚、R2 圖片/PDF、
+next-themes 內嵌腳本、Radix 內嵌樣式與 production build，不可造成靜默功能失效。

@@ -39,7 +39,7 @@ npx tsc --noEmit                                   # type check (no pnpm script 
 - NEVER return receipt attachments on public routes (`toExpenseDto(..., { attachments: false })`);
   receipts live in the private bucket only, avatars in the public one.
 - Album photos (`photos/<tripId>/`): the display `<uuid>.jpg` **carries live GPS EXIF by design**
-  ([FEATURES.md](docs/FEATURES.md) §17). The public album route (`/api/public/album/[code]`, keyed by
+  (see [FEATURES.md](docs/FEATURES.md)). The public album route (`/api/public/album/[code]`, keyed by
   `Trip.albumShareCode`) may sign only the sanitized `<uuid>_p.jpg` (APP1 stripped by
   [jpegSanitize.ts](src/lib/jpegSanitize.ts), produced by [photoSanitize.ts](src/lib/photoSanitize.ts))
   and `<uuid>_t.webp` — **never** the `.jpg`; and `PublicAlbumPhoto`/`toPublicAlbumPhotoDto` must never
@@ -70,8 +70,8 @@ npx tsc --noEmit                                   # type check (no pnpm script 
 - Public map API returns coords / localized place names / **year only** — never trip names, ids, full dates.
 - Reshaping a stored field → write a migrate-mongo migration (idempotent + `down`) first; no lingering
   read-side `newField ?? legacyField` fallbacks. Other environments need `pnpm migrate:up` — say so.
-- Existing code that "looks like a bug" may be deliberate — check
-  [docs/claude/DIAGNOSIS.md](docs/claude/DIAGNOSIS.md) §3 before "fixing" it.
+- Existing code that "looks like a bug" may be deliberate — check the relevant section in
+  [docs/claude/ARCH-NOTES.md](docs/claude/ARCH-NOTES.md) and Git history before "fixing" it.
 
 ## Read-before-touching map
 
@@ -90,21 +90,17 @@ npx tsc --noEmit                                   # type check (no pnpm script 
 ## Docs index
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — authoritative system structure (subsystems, data model)
-- [docs/FEATURES.md](docs/FEATURES.md) — shipped features inventory (incl. friends system §15)
+- [docs/FEATURES.md](docs/FEATURES.md) — concise shipped-features inventory
 - [docs/ROADMAP.md](docs/ROADMAP.md) — not-yet-built ideas · [docs/CHANGELOG.md](docs/CHANGELOG.md) — done log
 - [docs/IMPROVEMENTS.md](docs/IMPROVEMENTS.md) — known tech debt
 - [docs/MIGRATIONS.md](docs/MIGRATIONS.md) — migrate-mongo guide
 
 ## Working protocol (read before non-trivial tasks)
 
-- **Delegation & model choice**: [docs/claude/DISPATCH.md](docs/claude/DISPATCH.md) — main thread orchestrates;
-  repo scans, batch edits, verification go to cheap subagents with explicit `model`.
-- **Definition of done / when to ask / escalation**: [docs/claude/JUDGMENT.md](docs/claude/JUDGMENT.md) —
-  open the §2 checklist matching your task type *before* starting; verify with grep, not memory.
-- **Delegation prompt templates**: [docs/claude/PROMPTS.md](docs/claude/PROMPTS.md).
-- **Known failure modes** (token leaks, focus loss, deliberate-design traps): [docs/claude/DIAGNOSIS.md](docs/claude/DIAGNOSIS.md).
-- **Maintaining these docs + lessons log**: [docs/claude/MAINTENANCE.md](docs/claude/MAINTENANCE.md),
-  [docs/claude/LESSONS.md](docs/claude/LESSONS.md) — append a lesson after any correction from the user.
+- Follow [docs/claude/WORKFLOW.md](docs/claude/WORKFLOW.md) for scope, synchronized contracts,
+  risk-based verification, and completion reporting.
+- Read only the relevant section of [docs/claude/ARCH-NOTES.md](docs/claude/ARCH-NOTES.md).
+- Append confirmed recurring mistakes to [docs/claude/LESSONS.md](docs/claude/LESSONS.md).
 
 ## Conventions
 

@@ -59,3 +59,8 @@ export const down = async (db) => {
 | 檔案 | 內容 |
 | --- | --- |
 | `20260616075344-baseline-indexes.js` | 明文建立目前所有模型的索引（users / trips / expenses / itinerarydays），作為基準點。冪等，可安全套用於已運行的環境。 |
+| `20260618032844-move-location-to-destination.js` | 將既有旅程地點資料搬到目前欄位形狀。 |
+| `20260618122537-add-user-map-share-code.js` | 建立使用者地圖分享碼與索引。 |
+| `20260629163036-expense-itinerary-days-array.js` | 將支出與行程日關聯轉為陣列形狀。 |
+| `20260701050933-expense-tags-array.js` | 建立支出 tags 陣列欄位。 |
+| `20260703133143-checklist-kind-and-per-member-done.js` | 更新清單種類與 per-member 完成狀態。 |
