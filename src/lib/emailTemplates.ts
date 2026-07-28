@@ -20,6 +20,8 @@ export interface EmailContent {
   text: string;
 }
 
+type EmailTranslator = (key: string, values?: Record<string, string | number>) => string;
+
 interface BuildEmailInput {
   type: NotificationType;
   locale: string;
@@ -71,6 +73,58 @@ function escapeHtml(s: string): string {
     .replace(/"/g, '&quot;');
 }
 
+function formatTwd(amount: number, locale: Locale): string {
+  const numberLocale = locale === 'zh' ? 'zh-TW' : locale === 'jp' ? 'ja-JP' : locale;
+  return `NT$${new Intl.NumberFormat(numberLocale, {
+    maximumFractionDigits: 0,
+  }).format(Math.round(amount))}`;
+}
+
+function brandedSubject(t: EmailTranslator, subject: string): string {
+  return `${t('brandSubjectPrefix')} ${subject}`;
+}
+
+function detailRow(label: string, value: string, emphasize = false): string {
+  return `<tr>
+    <td style="padding: 7px 12px 7px 0; color: #64748b; font-size: 13px; line-height: 1.5; white-space: nowrap; vertical-align: top;">${escapeHtml(
+      label
+    )}</td>
+    <td style="padding: 7px 0; color: ${emphasize ? '#0f766e' : '#0f172a'}; font-size: ${
+      emphasize ? '18px' : '14px'
+    }; font-weight: ${emphasize ? '700' : '600'}; line-height: 1.5; text-align: right; word-break: break-word;">${escapeHtml(
+      value
+    )}</td>
+  </tr>`;
+}
+
+function actionBlock(t: EmailTranslator, url: string, buttonLabel = t('viewButton')): string {
+  const safeUrl = escapeHtml(url);
+  return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin: 24px 0 0;">
+    <tr>
+      <td align="center">
+        <a href="${safeUrl}" style="display: inline-block; background: #0f766e; border-radius: 10px; color: #ffffff; font-size: 15px; font-weight: 700; line-height: 1; padding: 14px 24px; text-decoration: none;">${escapeHtml(
+          buttonLabel
+        )}</a>
+      </td>
+    </tr>
+  </table>
+  <p style="color: #64748b; font-size: 12px; line-height: 1.6; margin: 18px 0 0; text-align: center;">
+    ${escapeHtml(t('linkFallback'))}<br />
+    <a href="${safeUrl}" style="color: #0f766e; overflow-wrap: anywhere; text-decoration: underline;">${safeUrl}</a>
+  </p>`;
+}
+
+interface EmailShellInput {
+  locale: Locale;
+  t: EmailTranslator;
+  preheader: string;
+  contentHtml: string;
+  footer: string;
+  footerLink?: string;
+  settingsUrl?: string;
+  securityNote?: string;
+}
+
 /**
  * 為一則通知產生 Email 內容（subject + html + text），依收件者語系本地化。
  */
@@ -79,10 +133,11 @@ export async function buildNotificationEmail(input: BuildEmailInput): Promise<Em
   const messages = await loadMessages(locale);
   // 動態 key（`${type}.subject`）用法，next-intl 的嚴格 key 型別無法靜態驗證，
   // 故給予寬鬆的呼叫簽章（key 以 type 列舉組出，runtime 必有對應字串）。
-  const t = createTranslator({ locale, messages, namespace: 'email' }) as unknown as (
-    key: string,
-    values?: Record<string, string | number>
-  ) => string;
+  const t = createTranslator({
+    locale,
+    messages,
+    namespace: 'email',
+  }) as unknown as EmailTranslator;
 
   const { type, actorName, tripHashCode, tripName, meta = {}, appUrl } = input;
   const url = toAbsoluteUrl(appUrl, linkPathFor(type, tripHashCode));
@@ -96,22 +151,60 @@ export async function buildNotificationEmail(input: BuildEmailInput): Promise<Em
   };
 
   // subject / body 每個 type 各有對應 key（email.<type>.subject / .body）。
-  const subject = t(`${type}.subject`, vars);
+  const subject = brandedSubject(t, t(`${type}.subject`, vars));
   const body = t(`${type}.body`, vars);
+  const amount = typeof meta.amount === 'number' ? formatTwd(meta.amount, locale) : undefined;
+  const details = [
+    tripName ? detailRow(t('labels.trip'), tripName) : '',
+    actorName ? detailRow(t('labels.actor'), actorName) : '',
+    meta.description ? detailRow(t('labels.expense'), meta.description) : '',
+    meta.comment_body ? detailRow(t('labels.comment'), meta.comment_body) : '',
+    amount ? detailRow(t('labels.amount'), amount, true) : '',
+  ].join('');
 
-  const text = [body, '', `${t('viewButton')}: ${url}`, '', t('footer')].join('\n');
-
-  const html = wrapEmailHtml(
-    `<p style="font-size: 16px; line-height: 1.6; margin: 0 0 24px;">${escapeHtml(body)}</p>
-    <p style="margin: 0 0 32px;">
-      <a href="${url}" style="display: inline-block; background: #0f172a; color: #fff; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 14px;">${escapeHtml(
-        t('viewButton')
-      )}</a>
-    </p>`,
+  const textDetails = [
+    tripName ? `${t('labels.trip')}: ${tripName}` : '',
+    actorName ? `${t('labels.actor')}: ${actorName}` : '',
+    meta.description ? `${t('labels.expense')}: ${meta.description}` : '',
+    meta.comment_body ? `${t('labels.comment')}: ${meta.comment_body}` : '',
+    amount ? `${t('labels.amount')}: ${amount}` : '',
+  ].filter(Boolean);
+  const text = [
+    t('brandName'),
+    '',
+    body,
+    '',
+    ...textDetails,
+    '',
+    `${t('viewButton')}: ${url}`,
+    '',
+    t('securityNotice'),
+    '',
     t('footer'),
-    t('footerLink'),
-    settingsUrl
-  );
+  ].join('\n');
+
+  const html = wrapEmailHtml({
+    locale,
+    t,
+    preheader: body,
+    contentHtml: `<p style="color: #0f766e; font-size: 12px; font-weight: 700; letter-spacing: .08em; margin: 0 0 10px; text-transform: uppercase;">${escapeHtml(
+      t('activityLabel')
+    )}</p>
+      <h1 style="color: #0f172a; font-size: 24px; line-height: 1.35; margin: 0 0 12px;">${escapeHtml(
+        t(`${type}.heading`, vars)
+      )}</h1>
+      <p style="color: #475569; font-size: 15px; line-height: 1.7; margin: 0 0 20px;">${escapeHtml(
+        body
+      )}</p>
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 16px;">
+        ${details}
+      </table>
+      ${actionBlock(t, url)}`,
+    footer: t('footer'),
+    footerLink: t('footerLink'),
+    settingsUrl,
+    securityNote: t('securityNotice'),
+  });
 
   return { subject, html, text };
 }
@@ -120,24 +213,73 @@ export async function buildNotificationEmail(input: BuildEmailInput): Promise<Em
  * 共用的 Email HTML 外殼（內容 + footer）。footerLink/settingsUrl 省略時只渲染
  * footer 文字（transactional 信件如重設密碼無「通知設定」語境）。
  */
-function wrapEmailHtml(
-  contentHtml: string,
-  footer: string,
-  footerLink?: string,
-  settingsUrl?: string
-): string {
+function wrapEmailHtml({
+  locale,
+  t,
+  preheader,
+  contentHtml,
+  footer,
+  footerLink,
+  settingsUrl,
+  securityNote,
+}: EmailShellInput): string {
+  const htmlLang = locale === 'jp' ? 'ja' : locale;
   const linkHtml =
     footerLink && settingsUrl
-      ? ` <a href="${settingsUrl}" style="color: #6b7280;">${escapeHtml(footerLink)}</a>`
+      ? `<a href="${escapeHtml(
+          settingsUrl
+        )}" style="color: #64748b; text-decoration: underline;">${escapeHtml(footerLink)}</a>`
       : '';
   return `<!DOCTYPE html>
-<html>
-  <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1a1a1a; max-width: 480px; margin: 0 auto; padding: 24px;">
-    ${contentHtml}
-    <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 0 0 16px;" />
-    <p style="font-size: 12px; color: #6b7280; line-height: 1.5; margin: 0;">
-      ${escapeHtml(footer)}${linkHtml}
-    </p>
+<html lang="${escapeHtml(htmlLang)}">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>${escapeHtml(t('brandName'))}</title>
+  </head>
+  <body style="background: #f1f5f9; color: #0f172a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0;">
+    <div style="display: none; max-height: 0; opacity: 0; overflow: hidden;">${escapeHtml(
+      preheader
+    )}</div>
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background: #f1f5f9;">
+      <tr>
+        <td align="center" style="padding: 28px 12px;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width: 600px;">
+            <tr>
+              <td style="background: #0f172a; border-radius: 16px 16px 0 0; padding: 20px 28px;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+                  <tr>
+                    <td style="background: #14b8a6; border-radius: 10px; color: #ffffff; font-size: 15px; font-weight: 800; height: 36px; text-align: center; width: 36px;">TB</td>
+                    <td style="color: #ffffff; font-size: 17px; font-weight: 700; padding-left: 12px;">${escapeHtml(
+                      t('brandName')
+                    )}</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="background: #ffffff; padding: 32px 28px;">${contentHtml}</td>
+            </tr>
+            ${
+              securityNote
+                ? `<tr>
+              <td style="background: #ecfeff; border-top: 1px solid #ccfbf1; color: #155e75; font-size: 12px; line-height: 1.65; padding: 16px 28px;">
+                <strong>${escapeHtml(t('securityLabel'))}</strong> ${escapeHtml(securityNote)}
+              </td>
+            </tr>`
+                : ''
+            }
+            <tr>
+              <td style="background: #f8fafc; border-radius: 0 0 16px 16px; border-top: 1px solid #e2e8f0; color: #64748b; font-size: 12px; line-height: 1.7; padding: 20px 28px; text-align: center;">
+                ${escapeHtml(footer)}${linkHtml ? `<br />${linkHtml}` : ''}
+                <br />${escapeHtml(t('automatedMessage'))}
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
   </body>
 </html>`;
 }
@@ -159,12 +301,13 @@ export async function buildPasswordResetEmail(
 ): Promise<EmailContent> {
   const locale = normalizeLocale(input.locale);
   const messages = await loadMessages(locale);
-  const t = createTranslator({ locale, messages, namespace: 'email' }) as unknown as (
-    key: string,
-    values?: Record<string, string | number>
-  ) => string;
+  const t = createTranslator({
+    locale,
+    messages,
+    namespace: 'email',
+  }) as unknown as EmailTranslator;
 
-  const subject = t('passwordReset.subject');
+  const subject = brandedSubject(t, t('passwordReset.subject'));
   const intro = t('passwordReset.intro');
   const expiry = t('passwordReset.expiry', { minutes: input.expiresMinutes });
   const ignore = t('passwordReset.ignore');
@@ -172,19 +315,31 @@ export async function buildPasswordResetEmail(
   const footer = t('passwordReset.footer');
   const text = [intro, '', input.code, '', expiry, '', ignore, '', footer].join('\n');
 
-  const html = wrapEmailHtml(
-    `<p style="font-size: 16px; line-height: 1.6; margin: 0 0 16px;">${escapeHtml(intro)}</p>
-    <p style="font-size: 32px; font-weight: 700; letter-spacing: 8px; text-align: center; margin: 0 0 16px; font-family: 'SFMono-Regular', Consolas, monospace;">${escapeHtml(
-      input.code
+  const html = wrapEmailHtml({
+    locale,
+    t,
+    preheader: intro,
+    contentHtml: `<p style="color: #0f766e; font-size: 12px; font-weight: 700; letter-spacing: .08em; margin: 0 0 10px; text-transform: uppercase;">${escapeHtml(
+      t('accountSecurityLabel')
     )}</p>
-    <p style="font-size: 14px; color: #6b7280; line-height: 1.6; margin: 0 0 8px;">${escapeHtml(
-      expiry
-    )}</p>
-    <p style="font-size: 14px; color: #6b7280; line-height: 1.6; margin: 0 0 32px;">${escapeHtml(
-      ignore
-    )}</p>`,
-    footer
-  );
+      <h1 style="color: #0f172a; font-size: 24px; line-height: 1.35; margin: 0 0 12px;">${escapeHtml(
+        t('passwordReset.heading')
+      )}</h1>
+      <p style="color: #475569; font-size: 15px; line-height: 1.7; margin: 0 0 20px;">${escapeHtml(
+        intro
+      )}</p>
+      <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 12px; color: #0f172a; font-family: 'SFMono-Regular', Consolas, monospace; font-size: 32px; font-weight: 800; letter-spacing: 8px; padding: 20px 10px; text-align: center;">${escapeHtml(
+        input.code
+      )}</div>
+      <p style="color: #0f766e; font-size: 13px; font-weight: 600; line-height: 1.6; margin: 12px 0 20px; text-align: center;">${escapeHtml(
+        expiry
+      )}</p>
+      <p style="background: #fff7ed; border-left: 3px solid #fb923c; color: #9a3412; font-size: 13px; line-height: 1.65; margin: 0; padding: 12px 14px;">${escapeHtml(
+        ignore
+      )}</p>`,
+    footer,
+    securityNote: t('verificationSecurityNotice'),
+  });
 
   return { subject, html, text };
 }
@@ -204,12 +359,13 @@ interface BuildEmailChangeInput {
 export async function buildEmailChangeEmail(input: BuildEmailChangeInput): Promise<EmailContent> {
   const locale = normalizeLocale(input.locale);
   const messages = await loadMessages(locale);
-  const t = createTranslator({ locale, messages, namespace: 'email' }) as unknown as (
-    key: string,
-    values?: Record<string, string | number>
-  ) => string;
+  const t = createTranslator({
+    locale,
+    messages,
+    namespace: 'email',
+  }) as unknown as EmailTranslator;
 
-  const subject = t('emailChange.subject');
+  const subject = brandedSubject(t, t('emailChange.subject'));
   const intro = t('emailChange.intro');
   const expiry = t('emailChange.expiry', { minutes: input.expiresMinutes });
   const ignore = t('emailChange.ignore');
@@ -217,19 +373,31 @@ export async function buildEmailChangeEmail(input: BuildEmailChangeInput): Promi
   const footer = t('emailChange.footer');
   const text = [intro, '', input.code, '', expiry, '', ignore, '', footer].join('\n');
 
-  const html = wrapEmailHtml(
-    `<p style="font-size: 16px; line-height: 1.6; margin: 0 0 16px;">${escapeHtml(intro)}</p>
-    <p style="font-size: 32px; font-weight: 700; letter-spacing: 8px; text-align: center; margin: 0 0 16px; font-family: 'SFMono-Regular', Consolas, monospace;">${escapeHtml(
-      input.code
+  const html = wrapEmailHtml({
+    locale,
+    t,
+    preheader: intro,
+    contentHtml: `<p style="color: #0f766e; font-size: 12px; font-weight: 700; letter-spacing: .08em; margin: 0 0 10px; text-transform: uppercase;">${escapeHtml(
+      t('accountSecurityLabel')
     )}</p>
-    <p style="font-size: 14px; color: #6b7280; line-height: 1.6; margin: 0 0 8px;">${escapeHtml(
-      expiry
-    )}</p>
-    <p style="font-size: 14px; color: #6b7280; line-height: 1.6; margin: 0 0 32px;">${escapeHtml(
-      ignore
-    )}</p>`,
-    footer
-  );
+      <h1 style="color: #0f172a; font-size: 24px; line-height: 1.35; margin: 0 0 12px;">${escapeHtml(
+        t('emailChange.heading')
+      )}</h1>
+      <p style="color: #475569; font-size: 15px; line-height: 1.7; margin: 0 0 20px;">${escapeHtml(
+        intro
+      )}</p>
+      <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 12px; color: #0f172a; font-family: 'SFMono-Regular', Consolas, monospace; font-size: 32px; font-weight: 800; letter-spacing: 8px; padding: 20px 10px; text-align: center;">${escapeHtml(
+        input.code
+      )}</div>
+      <p style="color: #0f766e; font-size: 13px; font-weight: 600; line-height: 1.6; margin: 12px 0 20px; text-align: center;">${escapeHtml(
+        expiry
+      )}</p>
+      <p style="background: #fff7ed; border-left: 3px solid #fb923c; color: #9a3412; font-size: 13px; line-height: 1.65; margin: 0; padding: 12px 14px;">${escapeHtml(
+        ignore
+      )}</p>`,
+    footer,
+    securityNote: t('verificationSecurityNotice'),
+  });
 
   return { subject, html, text };
 }
@@ -255,10 +423,11 @@ export async function buildPaymentReminderEmail(
 ): Promise<EmailContent> {
   const locale = normalizeLocale(input.locale);
   const messages = await loadMessages(locale);
-  const t = createTranslator({ locale, messages, namespace: 'email' }) as unknown as (
-    key: string,
-    values?: Record<string, string | number>
-  ) => string;
+  const t = createTranslator({
+    locale,
+    messages,
+    namespace: 'email',
+  }) as unknown as EmailTranslator;
 
   const url = toAbsoluteUrl(input.appUrl, ROUTES.TRIP_SETTLEMENT(input.tripHashCode));
   const settingsUrl = toAbsoluteUrl(input.appUrl, ROUTES.SETTINGS);
@@ -268,22 +437,50 @@ export async function buildPaymentReminderEmail(
     amount: Math.round(input.amount),
   };
 
-  const subject = t('paymentReminder.subject', vars);
+  const subject = brandedSubject(t, t('paymentReminder.subject', vars));
   const body = t('paymentReminder.body', vars);
+  const amount = formatTwd(input.amount, locale);
 
-  const text = [body, '', `${t('viewButton')}: ${url}`, '', t('footer')].join('\n');
-
-  const html = wrapEmailHtml(
-    `<p style="font-size: 16px; line-height: 1.6; margin: 0 0 24px;">${escapeHtml(body)}</p>
-    <p style="margin: 0 0 32px;">
-      <a href="${url}" style="display: inline-block; background: #0f172a; color: #fff; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 14px;">${escapeHtml(
-        t('viewButton')
-      )}</a>
-    </p>`,
+  const text = [
+    t('brandName'),
+    '',
+    body,
+    '',
+    `${t('labels.trip')}: ${input.tripName}`,
+    `${t('labels.actor')}: ${input.actorName}`,
+    `${t('labels.balance')}: ${amount}`,
+    '',
+    `${t('viewButton')}: ${url}`,
+    '',
+    t('paymentSecurityNotice'),
+    '',
     t('footer'),
-    t('footerLink'),
-    settingsUrl
-  );
+  ].join('\n');
+
+  const html = wrapEmailHtml({
+    locale,
+    t,
+    preheader: body,
+    contentHtml: `<p style="color: #0f766e; font-size: 12px; font-weight: 700; letter-spacing: .08em; margin: 0 0 10px; text-transform: uppercase;">${escapeHtml(
+      t('settlementLabel')
+    )}</p>
+      <h1 style="color: #0f172a; font-size: 24px; line-height: 1.35; margin: 0 0 12px;">${escapeHtml(
+        t('paymentReminder.heading')
+      )}</h1>
+      <p style="color: #475569; font-size: 15px; line-height: 1.7; margin: 0 0 20px;">${escapeHtml(
+        body
+      )}</p>
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 16px;">
+        ${detailRow(t('labels.trip'), input.tripName)}
+        ${detailRow(t('labels.from'), input.actorName)}
+        ${detailRow(t('labels.balance'), amount, true)}
+      </table>
+      ${actionBlock(t, url, t('viewSettlementButton'))}`,
+    footer: t('footer'),
+    footerLink: t('footerLink'),
+    settingsUrl,
+    securityNote: t('paymentSecurityNotice'),
+  });
 
   return { subject, html, text };
 }
@@ -310,13 +507,14 @@ interface BuildDigestInput {
 export async function buildExpenseDigestEmail(input: BuildDigestInput): Promise<EmailContent> {
   const locale = normalizeLocale(input.locale);
   const messages = await loadMessages(locale);
-  const t = createTranslator({ locale, messages, namespace: 'email' }) as unknown as (
-    key: string,
-    values?: Record<string, string | number>
-  ) => string;
+  const t = createTranslator({
+    locale,
+    messages,
+    namespace: 'email',
+  }) as unknown as EmailTranslator;
 
   const settingsUrl = toAbsoluteUrl(input.appUrl, ROUTES.SETTINGS);
-  const subject = t('expenseDigest.subject');
+  const subject = brandedSubject(t, t('expenseDigest.subject'));
   const intro = t('expenseDigest.intro');
 
   // 純文字版：每旅程一段 + 其下各支出一行
@@ -325,7 +523,7 @@ export async function buildExpenseDigestEmail(input: BuildDigestInput): Promise<
     const url = toAbsoluteUrl(input.appUrl, ROUTES.TRIP_EXPENSES(tr.tripHashCode));
     textParts.push(`${tr.tripName}　${url}`);
     for (const e of tr.expenses) {
-      textParts.push(`  • ${e.description} — NT$${Math.round(e.amount)}（${e.payerName}）`);
+      textParts.push(`  • ${e.description} — ${formatTwd(e.amount, locale)}（${e.payerName}）`);
     }
     textParts.push('');
   }
@@ -340,26 +538,42 @@ export async function buildExpenseDigestEmail(input: BuildDigestInput): Promise<
         .map(
           (e) => `<li style="margin: 0 0 6px; line-height: 1.5;">
           ${escapeHtml(e.description)}
-          <span style="color: #6b7280;"> — NT$${Math.round(e.amount)}（${escapeHtml(e.payerName)}）</span>
+          <span style="color: #64748b;"> — ${escapeHtml(
+            formatTwd(e.amount, locale)
+          )}（${escapeHtml(e.payerName)}）</span>
         </li>`
         )
         .join('\n');
-      return `<div style="margin: 0 0 20px;">
-        <a href="${url}" style="color: #0f172a; font-weight: 600; font-size: 16px; text-decoration: none;">${escapeHtml(
+      return `<div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; margin: 0 0 14px; padding: 16px;">
+        <a href="${escapeHtml(
+          url
+        )}" style="color: #0f766e; font-size: 16px; font-weight: 700; text-decoration: none;">${escapeHtml(
           tr.tripName
-        )}</a>
-        <ul style="font-size: 15px; padding-left: 20px; margin: 8px 0 0;">${items}</ul>
+        )} →</a>
+        <ul style="color: #0f172a; font-size: 14px; line-height: 1.6; padding-left: 20px; margin: 10px 0 0;">${items}</ul>
       </div>`;
     })
     .join('\n');
 
-  const html = wrapEmailHtml(
-    `<p style="font-size: 16px; line-height: 1.6; margin: 0 0 16px;">${escapeHtml(intro)}</p>
-    ${sectionsHtml}`,
-    t('footer'),
-    t('footerLink'),
-    settingsUrl
-  );
+  const html = wrapEmailHtml({
+    locale,
+    t,
+    preheader: intro,
+    contentHtml: `<p style="color: #0f766e; font-size: 12px; font-weight: 700; letter-spacing: .08em; margin: 0 0 10px; text-transform: uppercase;">${escapeHtml(
+      t('digestLabel')
+    )}</p>
+      <h1 style="color: #0f172a; font-size: 24px; line-height: 1.35; margin: 0 0 12px;">${escapeHtml(
+        t('expenseDigest.heading')
+      )}</h1>
+      <p style="color: #475569; font-size: 15px; line-height: 1.7; margin: 0 0 20px;">${escapeHtml(
+        intro
+      )}</p>
+      ${sectionsHtml}`,
+    footer: t('footer'),
+    footerLink: t('footerLink'),
+    settingsUrl,
+    securityNote: t('securityNotice'),
+  });
 
   return { subject, html, text };
 }

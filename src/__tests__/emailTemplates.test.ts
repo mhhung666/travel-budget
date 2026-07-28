@@ -8,7 +8,9 @@ vi.mock('next-intl', async (importOriginal) => {
 });
 
 import {
+  buildEmailChangeEmail,
   buildNotificationEmail,
+  buildPasswordResetEmail,
   buildPaymentReminderEmail,
   buildExpenseDigestEmail,
 } from '@/lib/emailTemplates';
@@ -21,6 +23,32 @@ const base = {
 };
 
 describe('buildNotificationEmail', () => {
+  it('renders every notification type in every supported locale', async () => {
+    const locales = ['zh', 'zh-CN', 'en', 'jp'];
+    const types = [
+      'expense_added',
+      'payment_recorded',
+      'member_joined',
+      'expense_comment_added',
+      'friend_request',
+      'friend_accepted',
+    ] as const;
+
+    for (const locale of locales) {
+      for (const type of types) {
+        const email = await buildNotificationEmail({
+          ...base,
+          locale,
+          type,
+          meta: { description: 'Lunch', comment_body: 'Looks good', amount: 500 },
+        });
+        expect(email.subject).not.toContain('MISSING_MESSAGE');
+        expect(email.html).not.toContain('MISSING_MESSAGE');
+        expect(email.text).not.toContain('MISSING_MESSAGE');
+      }
+    }
+  });
+
   it('localizes the subject/body per recipient locale', async () => {
     const zh = await buildNotificationEmail({
       ...base,
@@ -30,7 +58,12 @@ describe('buildNotificationEmail', () => {
     });
     expect(zh.subject).toContain('Tokyo 2026');
     expect(zh.subject).toContain('Alice');
+    expect(zh.subject).toContain('旅行記帳');
     expect(zh.text).toContain('午餐');
+    expect(zh.text).toContain('NT$500');
+    expect(zh.html).toContain('旅行記帳');
+    expect(zh.html).toContain('安全提醒');
+    expect(zh.html).toContain('支出項目');
 
     const en = await buildNotificationEmail({
       ...base,
@@ -127,6 +160,33 @@ describe('buildNotificationEmail', () => {
   });
 });
 
+describe('verification emails', () => {
+  it('uses the branded security layout for password reset codes', async () => {
+    const email = await buildPasswordResetEmail({
+      locale: 'zh',
+      code: '123456',
+      expiresMinutes: 15,
+    });
+    expect(email.subject).toContain('旅行記帳');
+    expect(email.html).toContain('帳號安全');
+    expect(email.html).toContain('123456');
+    expect(email.html).toContain('不會要求你轉寄');
+    expect(email.html).not.toContain('href=');
+  });
+
+  it('uses the branded security layout for email change codes', async () => {
+    const email = await buildEmailChangeEmail({
+      locale: 'en',
+      code: '654321',
+      expiresMinutes: 15,
+    });
+    expect(email.subject).toContain('Travel Budget');
+    expect(email.html).toContain('Account security');
+    expect(email.html).toContain('654321');
+    expect(email.html).toContain('never ask you to forward');
+  });
+});
+
 describe('buildPaymentReminderEmail', () => {
   const base = {
     actorName: 'Alice',
@@ -143,7 +203,8 @@ describe('buildPaymentReminderEmail', () => {
     });
     expect(email.html).toContain('https://app.example.com/trips/t1/settlement');
     expect(email.html).toContain('Tokyo');
-    expect(email.text).toContain('1235'); // 取整
+    expect(email.text).toContain('NT$1,235'); // 取整並依語系加上千分位
+    expect(email.html).toContain('Security note');
   });
 
   it('mentions the reminding actor in the body', async () => {
@@ -194,7 +255,8 @@ describe('buildExpenseDigestEmail', () => {
     expect(email.html).toContain('Lunch');
     expect(email.html).toContain('Taxi');
     expect(email.html).toContain('Alice');
-    expect(email.html).toContain('1234'); // 金額取整
+    expect(email.html).toContain('NT$1,234'); // 金額取整並依語系加上千分位
+    expect(email.subject).toContain('Travel Budget');
   });
 
   it('localizes the subject', async () => {

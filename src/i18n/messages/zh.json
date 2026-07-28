@@ -1129,39 +1129,69 @@
     }
   },
   "email": {
-    "viewButton": "查看",
+    "brandName": "旅行記帳",
+    "brandSubjectPrefix": "【旅行記帳】",
+    "activityLabel": "旅程動態",
+    "settlementLabel": "結算提醒",
+    "digestLabel": "每日摘要",
+    "accountSecurityLabel": "帳號安全",
+    "viewButton": "前往旅行記帳查看",
+    "viewSettlementButton": "登入並核對結算",
+    "linkFallback": "按鈕無法使用？你也可以核對並開啟以下網址：",
+    "securityLabel": "安全提醒：",
+    "securityNotice": "這是旅行記帳自動寄出的通知。請登入旅行記帳核對內容；我們不會透過通知信索取密碼、驗證碼或信用卡資料。",
+    "paymentSecurityNotice": "請先登入旅行記帳核對結算明細，再使用你信任的方式與對方處理款項。請勿直接回覆此信提供付款或帳戶資料。",
+    "verificationSecurityNotice": "旅行記帳客服不會要求你轉寄或口頭提供這組驗證碼。請只在你親自開啟的旅行記帳頁面中輸入。",
+    "automatedMessage": "此信由旅行記帳系統自動寄出，請勿直接回覆。",
     "footer": "你收到這封信是因為開啟了 Email 通知。",
     "footerLink": "管理通知設定",
+    "labels": {
+      "trip": "旅程",
+      "actor": "登記人",
+      "expense": "支出項目",
+      "comment": "留言內容",
+      "amount": "金額",
+      "balance": "待結算金額",
+      "from": "提醒人"
+    },
     "expense_added": {
       "subject": "{actor} 在「{tripName}」新增了一筆支出",
-      "body": "{actor} 在「{tripName}」新增了一筆支出：{description}（NT${amount}）。"
+      "heading": "旅程中有一筆新支出",
+      "body": "{actor} 剛在「{tripName}」登記了支出。你可以先核對下方摘要，再登入查看完整分攤明細。"
     },
     "payment_recorded": {
       "subject": "「{tripName}」有一筆還款紀錄",
+      "heading": "有一筆與你相關的還款",
       "body": "{actor} 在「{tripName}」登記了一筆與你有關的還款。"
     },
     "member_joined": {
       "subject": "{actor} 加入了「{tripName}」",
+      "heading": "旅程有新成員加入",
       "body": "{actor} 加入了旅程「{tripName}」。"
     },
     "expense_comment_added": {
       "subject": "{actor} 在「{tripName}」留言了一筆支出",
+      "heading": "支出有一則新留言",
       "body": "{actor} 在「{tripName}」的支出「{description}」下留言了。"
     },
     "friend_request": {
       "subject": "{actor} 邀請你成為好友",
-      "body": "{actor} 邀請你成為好友，到好友頁面看看吧。"
+      "heading": "你收到一則好友邀請",
+      "body": "{actor} 邀請你成為好友。請登入旅行記帳查看對方資料，再決定是否接受。"
     },
     "friend_accepted": {
       "subject": "{actor} 接受了你的好友邀請",
+      "heading": "你的好友邀請已被接受",
       "body": "{actor} 接受了你的好友邀請，你們現在是好友了。"
     },
     "expenseDigest": {
       "subject": "今日支出摘要",
+      "heading": "今天的旅程支出一覽",
       "intro": "以下是今天各旅程新增的支出："
     },
     "passwordReset": {
       "subject": "重設密碼驗證碼",
+      "heading": "重設你的密碼",
       "intro": "請使用以下驗證碼重設您的密碼：",
       "expiry": "驗證碼將於 {minutes} 分鐘後失效。",
       "ignore": "若您未申請重設密碼，請忽略這封信，您的密碼不會變更。",
@@ -1169,6 +1199,7 @@
     },
     "emailChange": {
       "subject": "確認您的新電子郵件",
+      "heading": "確認新的電子郵件地址",
       "intro": "請使用以下驗證碼確認您的新電子郵件地址：",
       "expiry": "驗證碼將於 {minutes} 分鐘後失效。",
       "ignore": "若您未申請變更電子郵件，請忽略這封信，您的電子郵件不會變更。",
@@ -1176,7 +1207,8 @@
     },
     "paymentReminder": {
       "subject": "{actor} 提醒你還款",
-      "body": "{actor} 提醒你：你在「{tripName}」還有 NT${amount} 尚未結清，記得找時間還款喔。"
+      "heading": "有一筆旅程款項待確認",
+      "body": "{actor} 透過旅行記帳提醒你，「{tripName}」目前有一筆待結算款項。請登入核對明細後，再與對方確認還款方式。"
     }
   },
   "offline": {

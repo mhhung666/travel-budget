@@ -1129,39 +1129,69 @@
     }
   },
   "email": {
-    "viewButton": "表示",
+    "brandName": "旅行家計簿",
+    "brandSubjectPrefix": "【旅行家計簿】",
+    "activityLabel": "旅行の更新",
+    "settlementLabel": "精算リマインダー",
+    "digestLabel": "デイリーまとめ",
+    "accountSecurityLabel": "アカウントセキュリティ",
+    "viewButton": "旅行家計簿で確認",
+    "viewSettlementButton": "ログインして精算を確認",
+    "linkFallback": "ボタンが使えない場合は、次のURLを確認して開いてください：",
+    "securityLabel": "セキュリティに関するお知らせ：",
+    "securityNotice": "これは旅行家計簿からの自動通知です。ログインして内容をご確認ください。通知メールでパスワード、確認コード、カード情報を求めることはありません。",
+    "paymentSecurityNotice": "支払う前に旅行家計簿へログインし、精算内容をご確認ください。信頼できる方法で相手と支払いを行い、このメールへの返信で支払い情報や口座情報を送らないでください。",
+    "verificationSecurityNotice": "旅行家計簿のサポートが、この確認コードの転送や読み上げを求めることはありません。ご自身で開いた旅行家計簿のページにのみ入力してください。",
+    "automatedMessage": "このメールは旅行家計簿から自動送信されています。返信はできません。",
     "footer": "メール通知がオンになっているため、このメールが届いています。",
     "footerLink": "通知設定を管理",
+    "labels": {
+      "trip": "旅行",
+      "actor": "登録者",
+      "expense": "支出項目",
+      "comment": "コメント",
+      "amount": "金額",
+      "balance": "未精算額",
+      "from": "リマインダー送信者"
+    },
     "expense_added": {
       "subject": "{actor} さんが「{tripName}」に支出を追加しました",
-      "body": "{actor} さんが「{tripName}」に支出を追加しました：{description}（NT${amount}）。"
+      "heading": "新しい支出が追加されました",
+      "body": "{actor} さんが「{tripName}」に支出を登録しました。以下の概要を確認し、ログインして分担の詳細をご覧ください。"
     },
     "payment_recorded": {
       "subject": "「{tripName}」に返済が記録されました",
+      "heading": "あなたに関係する返済が記録されました",
       "body": "{actor} さんが「{tripName}」であなたに関する返済を記録しました。"
     },
     "member_joined": {
       "subject": "{actor} さんが「{tripName}」に参加しました",
+      "heading": "旅行に新しいメンバーが参加しました",
       "body": "{actor} さんが旅行「{tripName}」に参加しました。"
     },
     "expense_comment_added": {
       "subject": "{actor} さんが「{tripName}」の支出にコメントしました",
+      "heading": "支出に新しいコメントがあります",
       "body": "{actor} さんが「{tripName}」の支出「{description}」にコメントしました。"
     },
     "friend_request": {
       "subject": "{actor} さんから友達申請が届きました",
-      "body": "{actor} さんから友達申請が届きました。友達ページで確認してください。"
+      "heading": "友達申請が届きました",
+      "body": "{actor} さんから友達申請が届きました。旅行家計簿にログインして相手の情報を確認してから、承認するか選んでください。"
     },
     "friend_accepted": {
       "subject": "{actor} さんが友達申請を承認しました",
+      "heading": "友達申請が承認されました",
       "body": "{actor} さんがあなたの友達申請を承認しました。これで友達になりました。"
     },
     "expenseDigest": {
       "subject": "本日の支出まとめ",
+      "heading": "本日の旅行支出一覧",
       "intro": "本日、各旅行に追加された支出です："
     },
     "passwordReset": {
       "subject": "パスワード再設定の確認コード",
+      "heading": "パスワードを再設定",
       "intro": "以下の確認コードを使用してパスワードを再設定してください：",
       "expiry": "このコードは {minutes} 分後に失効します。",
       "ignore": "パスワードの再設定を申請していない場合は、このメールを無視してください。パスワードは変更されません。",
@@ -1169,6 +1199,7 @@
     },
     "emailChange": {
       "subject": "新しいメールアドレスの確認",
+      "heading": "新しいメールアドレスを確認",
       "intro": "以下の確認コードを使用して、新しいメールアドレスを確認してください：",
       "expiry": "このコードは {minutes} 分後に失効します。",
       "ignore": "メールアドレスの変更を申請していない場合は、このメールを無視してください。メールアドレスは変更されません。",
@@ -1176,7 +1207,8 @@
     },
     "paymentReminder": {
       "subject": "{actor} さんから返済のお願い",
-      "body": "{actor} さんからのお願い：「{tripName}」でまだ NT${amount} の未精算があります。お時間のあるときに精算してください。"
+      "heading": "旅行の未精算額をご確認ください",
+      "body": "{actor} さんから「{tripName}」の未精算額について、旅行家計簿を通じてリマインダーが届きました。ログインして明細を確認し、支払い方法を相手とご確認ください。"
     }
   },
   "offline": {
