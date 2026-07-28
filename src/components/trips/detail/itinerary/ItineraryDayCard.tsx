@@ -8,6 +8,7 @@ import { activityImportKind } from '@/lib/collectionImport';
 import { countryCodeToFlag } from '@/components/map/country';
 import { sortActivities } from '@/lib/itineraryActivities';
 import { ACTIVITY_TYPE_ICON } from './activityMeta';
+import { ItineraryDayDate } from './ItineraryDayDate';
 import MarkdownRenderer from './MarkdownRenderer';
 import { TicketThumb } from '@/components/trips/detail/ReceiptAttachments';
 import { DayPhotoStrip } from '@/components/trips/detail/album';
@@ -17,6 +18,9 @@ import { Button } from '@/components/ui/button';
 
 interface ItineraryDayCardProps {
   day: ItineraryDay;
+  /** 由旅程開始日與 day number 推算，不另外存入行程日。 */
+  date?: string | null;
+  outsideTripRange?: boolean;
   /** 票券附件檢視需要 trip 識別碼。 */
   tripId: string;
   isAdmin: boolean;
@@ -42,6 +46,8 @@ interface ItineraryDayCardProps {
 
 export default function ItineraryDayCard({
   day,
+  date,
+  outsideTripRange,
   tripId,
   isAdmin,
   onEdit,
@@ -72,6 +78,11 @@ export default function ItineraryDayCard({
               <h3 className="truncate text-lg font-semibold leading-none tracking-tight">
                 {day.title}
               </h3>
+              <ItineraryDayDate
+                date={date}
+                outsideTripRange={outsideTripRange}
+                className="mt-1.5"
+              />
               {day.location && (
                 <span className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground">
                   <MapPin className="h-3 w-3 shrink-0" />

@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import type { ItineraryDay } from '@/types';
 import LocationAutocomplete, { LocationOption } from '@/components/location/LocationAutocomplete';
 import MarkdownRenderer from './MarkdownRenderer';
+import { ItineraryDayDate } from './ItineraryDayDate';
 
 import {
   Dialog,
@@ -33,6 +34,9 @@ interface ItineraryDayDialogProps {
   }) => Promise<void>;
   day?: ItineraryDay | null;
   dayNumber?: number;
+  /** 由旅程開始日與 day number 推算，不由表單編輯。 */
+  date?: string | null;
+  outsideTripRange?: boolean;
 }
 
 export default function ItineraryDayDialog({
@@ -42,6 +46,8 @@ export default function ItineraryDayDialog({
   onSubmit,
   day,
   dayNumber,
+  date,
+  outsideTripRange,
 }: ItineraryDayDialogProps) {
   const tItinerary = useTranslations('itinerary');
   const tCommon = useTranslations('common');
@@ -127,6 +133,7 @@ export default function ItineraryDayDialog({
                 ? tItinerary('editDayN', { dayNumber })
                 : tItinerary('editDay')}
           </DialogTitle>
+          <ItineraryDayDate date={date} outsideTripRange={outsideTripRange} />
         </DialogHeader>
 
         <form

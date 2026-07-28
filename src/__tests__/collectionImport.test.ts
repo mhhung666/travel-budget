@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   activityImportKind,
   dayDateFromTrip,
+  isTripDayOutsideRange,
   matchHotelBrand,
   parseAirports,
   parseFlightNo,
@@ -104,5 +105,21 @@ describe('dayDateFromTrip', () => {
   it('旅程未設日期回 null', () => {
     expect(dayDateFromTrip(null, 1)).toBeNull();
     expect(dayDateFromTrip('', 1)).toBeNull();
+    expect(dayDateFromTrip('2025-04-01', 0)).toBeNull();
+    expect(dayDateFromTrip('2025-04-01', 1.5)).toBeNull();
+  });
+});
+
+describe('isTripDayOutsideRange', () => {
+  it('只在推算日期晚於旅程結束日時回 true', () => {
+    expect(isTripDayOutsideRange('2025-04-05', '2025-04-05')).toBe(false);
+    expect(isTripDayOutsideRange('2025-04-06', '2025-04-05')).toBe(true);
+    expect(isTripDayOutsideRange('2025-04-06', '2025-04-05T00:00:00.000Z')).toBe(true);
+  });
+
+  it('缺少或格式錯誤時不顯示超出範圍警告', () => {
+    expect(isTripDayOutsideRange(null, '2025-04-05')).toBe(false);
+    expect(isTripDayOutsideRange('2025-04-06', null)).toBe(false);
+    expect(isTripDayOutsideRange('not-a-date', '2025-04-05')).toBe(false);
   });
 });

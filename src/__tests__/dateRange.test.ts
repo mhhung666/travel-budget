@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { tripOverlapsRange } from '@/lib/dateRange';
+import { isEffectiveTripDateRangeValid, tripOverlapsRange } from '@/lib/dateRange';
 
 const d = (s: string) => new Date(s);
 
@@ -41,5 +41,28 @@ describe('tripOverlapsRange', () => {
     expect(tripOverlapsRange(d('2026-06-01'), d('2026-06-10'), rangeStart, null)).toBe(true);
     expect(tripOverlapsRange(d('2026-01-01'), d('2026-01-10'), rangeStart, null)).toBe(false);
     expect(tripOverlapsRange(d('2026-01-01'), d('2026-01-10'), null, rangeEnd)).toBe(true);
+  });
+});
+
+describe('isEffectiveTripDateRangeValid', () => {
+  it('合併未修改的既有日期後驗證完整區間', () => {
+    expect(
+      isEffectiveTripDateRangeValid(d('2026-04-01'), d('2026-04-10'), '2026-04-05', undefined)
+    ).toBe(true);
+    expect(
+      isEffectiveTripDateRangeValid(d('2026-04-01'), d('2026-04-10'), '2026-04-11', undefined)
+    ).toBe(false);
+    expect(
+      isEffectiveTripDateRangeValid(d('2026-04-01'), d('2026-04-10'), undefined, '2026-03-31')
+    ).toBe(false);
+  });
+
+  it('允許明確清除任一端，拒絕無效日期', () => {
+    expect(isEffectiveTripDateRangeValid(d('2026-04-01'), d('2026-04-10'), null, undefined)).toBe(
+      true
+    );
+    expect(
+      isEffectiveTripDateRangeValid(d('2026-04-01'), d('2026-04-10'), 'not-a-date', undefined)
+    ).toBe(false);
   });
 });

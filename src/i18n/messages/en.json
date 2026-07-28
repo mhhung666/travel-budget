@@ -971,6 +971,7 @@
     "backToTrip": "Back to Trip",
     "lastUpdated": "Last updated",
     "loadFailed": "Failed to load itinerary",
+    "dateOutsideRange": "Outside trip dates",
     "activities": {
       "heading": "Activities",
       "add": "Add activity",

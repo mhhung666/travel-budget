@@ -964,6 +964,7 @@
     "backToTrip": "旅行詳細に戻る",
     "lastUpdated": "最終更新",
     "loadFailed": "旅程プランの読み込みに失敗しました",
+    "dateOutsideRange": "旅行期間外",
     "activities": {
       "heading": "アクティビティ",
       "add": "追加",

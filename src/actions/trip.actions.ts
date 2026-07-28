@@ -34,6 +34,7 @@ import { logger } from '@/lib/logger';
 import { toTripDto } from '@/lib/dto';
 import { notify } from '@/lib/notify';
 import { logActivity } from '@/lib/activity';
+import { isEffectiveTripDateRangeValid } from '@/lib/dateRange';
 
 /** 將 Mongoose Trip 文件映射為對外 DTO（維持 snake_case 以相容前端） */
 type LeanTrip = TripDoc & { _id: { toString(): string }; createdAt: Date };
@@ -161,6 +162,31 @@ export const updateTrip = withAuth(
       }
 
       const { name, description, start_date, end_date, destination_location } = validation.data;
+
+      if (start_date !== undefined || end_date !== undefined) {
+        // update schema 只能看到這次送來的欄位。先讀既有另一端合併驗證，避免例如只把
+        // start_date 改到既有 end_date 之後，形成倒置區間並讓每日行程日期提示失真。
+        const currentDates = await TripModel.findById(membership.tripId)
+          .select('startDate endDate')
+          .lean<{ startDate?: Date | null; endDate?: Date | null } | null>();
+        if (!currentDates) {
+          return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+        }
+        if (
+          !isEffectiveTripDateRangeValid(
+            currentDates.startDate,
+            currentDates.endDate,
+            start_date,
+            end_date
+          )
+        ) {
+          return {
+            success: false,
+            error: '開始日期不能晚於結束日期',
+            code: 'VALIDATION_ERROR',
+          };
+        }
+      }
 
       const updateData: Record<string, unknown> = {};
       if (name !== undefined) updateData.name = name.trim();

@@ -964,6 +964,7 @@
     "backToTrip": "返回旅行詳情",
     "lastUpdated": "最後更新",
     "loadFailed": "無法載入行程規劃",
+    "dateOutsideRange": "超出旅遊日期",
     "activities": {
       "heading": "當日活動",
       "add": "新增活動",

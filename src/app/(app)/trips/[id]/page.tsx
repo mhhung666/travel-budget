@@ -42,6 +42,7 @@ import { exportItinerary, type ExportFormat } from '@/lib/exporters';
 import {
   activityImportKind,
   dayDateFromTrip,
+  isTripDayOutsideRange,
   matchHotelBrand,
   parseAirports,
   parseFlightNo,
@@ -167,6 +168,8 @@ export default function ItineraryPage() {
     ...(links?.stay_activity_ids ?? []),
   ]);
   const activeDayNumber = trip ? ongoingDayNumber(trip.start_date, trip.end_date) : null;
+  const dialogDayNumber = dialogMode === 'edit' ? (editingDay?.day_number ?? 0) : days.length + 1;
+  const dialogDayDate = dayDateFromTrip(trip?.start_date, dialogDayNumber);
 
   // 帶入＝開預填的補登對話框：日期由旅程出發日推第 N 天，其餘從活動文字啟發式帶出，
   // 猜錯在對話框裡改掉即可；trip 與來源活動 id 一併連結（後端驗證歸屬）。
@@ -417,24 +420,29 @@ export default function ItineraryPage() {
         />
       ) : (
         <div className="flex flex-col gap-6">
-          {days.map((day) => (
-            <div key={day.id} id={day.day_number === activeDayNumber ? 'trip-today' : undefined}>
-              <ItineraryDayCard
-                day={day}
-                tripId={tripId}
-                isAdmin={isAdmin}
-                onEdit={handleEditDay}
-                onAddActivity={handleAddActivity}
-                onDelete={handleDeleteDay}
-                onEditActivity={handleEditActivity}
-                onDeleteActivity={handleDeleteActivity}
-                onImportActivity={handleImportActivity}
-                importedActivityIds={importedActivityIds}
-                photos={photosByDay.get(day.id) ?? []}
-                onSelectPhoto={(index) => setViewingPhotos({ dayId: day.id, index })}
-              />
-            </div>
-          ))}
+          {days.map((day) => {
+            const date = dayDateFromTrip(trip?.start_date, day.day_number);
+            return (
+              <div key={day.id} id={day.day_number === activeDayNumber ? 'trip-today' : undefined}>
+                <ItineraryDayCard
+                  day={day}
+                  date={date}
+                  outsideTripRange={isTripDayOutsideRange(date, trip?.end_date)}
+                  tripId={tripId}
+                  isAdmin={isAdmin}
+                  onEdit={handleEditDay}
+                  onAddActivity={handleAddActivity}
+                  onDelete={handleDeleteDay}
+                  onEditActivity={handleEditActivity}
+                  onDeleteActivity={handleDeleteActivity}
+                  onImportActivity={handleImportActivity}
+                  importedActivityIds={importedActivityIds}
+                  photos={photosByDay.get(day.id) ?? []}
+                  onSelectPhoto={(index) => setViewingPhotos({ dayId: day.id, index })}
+                />
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -461,7 +469,9 @@ export default function ItineraryPage() {
         onClose={() => setDialogOpen(false)}
         onSubmit={handleDialogSubmit}
         day={editingDay}
-        dayNumber={dialogMode === 'edit' ? editingDay?.day_number : days.length + 1}
+        dayNumber={dialogDayNumber || undefined}
+        date={dialogDayDate}
+        outsideTripRange={isTripDayOutsideRange(dialogDayDate, trip?.end_date)}
       />
 
       {/* 卡片捷徑：手機友善的單一活動新增/編輯（不開整天編輯） */}

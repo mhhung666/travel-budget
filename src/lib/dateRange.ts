@@ -27,6 +27,31 @@ export function tripOverlapsRange(
 }
 
 /**
+ * 驗證更新後的旅程日期區間。`undefined` 表示這次沒有修改該端，必須沿用資料庫既有值；
+ * `null` 則表示使用者明確清除。這能避免只更新開始日或結束日時，漏掉與另一端的交叉驗證。
+ */
+export function isEffectiveTripDateRangeValid(
+  currentStart: Date | string | null | undefined,
+  currentEnd: Date | string | null | undefined,
+  nextStart: string | null | undefined,
+  nextEnd: string | null | undefined
+): boolean {
+  const start = nextStart === undefined ? currentStart : nextStart;
+  const end = nextEnd === undefined ? currentEnd : nextEnd;
+
+  const toMs = (value: Date | string | null | undefined): number | null => {
+    if (!value) return null;
+    const ms = new Date(value).getTime();
+    return Number.isFinite(ms) ? ms : NaN;
+  };
+
+  const startMs = toMs(start);
+  const endMs = toMs(end);
+  if (Number.isNaN(startMs) || Number.isNaN(endMs)) return false;
+  return startMs === null || endMs === null || startMs <= endMs;
+}
+
+/**
  * 一段起訖日所涵蓋的整年清單（含跨年，升冪）。任一端缺值時以另一端補；兩端皆空回空陣列。
  *
  * 供「只露年份、不露完整日期」的去識別化場景共用：公開地圖路由、公開年度回顧路由，

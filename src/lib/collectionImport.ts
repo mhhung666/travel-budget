@@ -82,11 +82,24 @@ export function dayDateFromTrip(
   startDate: string | null | undefined,
   dayNumber: number
 ): string | null {
-  if (!startDate) return null;
+  if (!startDate || !Number.isInteger(dayNumber) || dayNumber < 1) return null;
   const ymd = startDate.slice(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return null;
   const d = new Date(`${ymd}T00:00:00Z`);
   if (Number.isNaN(d.getTime())) return null;
   d.setUTCDate(d.getUTCDate() + dayNumber - 1);
   return d.toISOString().slice(0, 10);
+}
+
+/** 行程日推算日期是否晚於旅程結束日；缺少任一日期時不視為超出範圍。 */
+export function isTripDayOutsideRange(
+  dayDate: string | null | undefined,
+  endDate: string | null | undefined
+): boolean {
+  if (!dayDate || !endDate) return false;
+  const endYmd = endDate.slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dayDate) || !/^\d{4}-\d{2}-\d{2}$/.test(endYmd)) {
+    return false;
+  }
+  return dayDate > endYmd;
 }
