@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { groupPhotoPins, mergePhotoPins } from '@/components/map/photos';
+import { groupPhotoAreas, groupPhotoPins, mergePhotoPins } from '@/components/map/photos';
 import type { MapPhoto } from '@/actions';
 
 function photo(over: Partial<MapPhoto>): MapPhoto {
@@ -134,5 +134,76 @@ describe('mergePhotoPins', () => {
     expect(merged.countryCode).toBe('JP');
     // 質心以相片數加權：(35.6812×2 + 35.69×1) / 3
     expect(merged.lat).toBeCloseTo((35.6812 * 2 + 35.69) / 3, 6);
+  });
+});
+
+describe('groupPhotoAreas', () => {
+  it('combines same-named spots into one sidebar area without changing photo count', () => {
+    const pins = groupPhotoPins([
+      photo({ id: 'tokyo-1' }),
+      photo({
+        id: 'tokyo-2',
+        location: { lat: 35.69, lon: 139.78, source: 'exif' },
+      }),
+      photo({
+        id: 'airport',
+        location: { lat: 35.8, lon: 140, source: 'exif' },
+        name: 'Airport',
+      }),
+    ]);
+
+    const areas = groupPhotoAreas(pins);
+    expect(areas).toHaveLength(2);
+    expect(areas.find((area) => area.name === 'Tokyo')).toMatchObject({
+      spotCount: 2,
+    });
+    expect(areas.find((area) => area.name === 'Tokyo')?.photos).toHaveLength(2);
+  });
+
+  it('keeps same-named places in different countries separate', () => {
+    const pins = groupPhotoPins([
+      photo({ id: 'a', name: 'Springfield', countryCode: 'US' }),
+      photo({
+        id: 'b',
+        name: 'Springfield',
+        countryCode: 'CA',
+        location: { lat: 45, lon: -75, source: 'exif' },
+      }),
+    ]);
+
+    expect(groupPhotoAreas(pins)).toHaveLength(2);
+  });
+
+  it('attaches an unnamed nearby GPS spot to the nearest named area', () => {
+    const pins = groupPhotoPins([
+      photo({ id: 'named' }),
+      photo({
+        id: 'nearby',
+        name: '',
+        countryCode: undefined,
+        location: { lat: 35.7, lon: 139.77, source: 'exif' },
+      }),
+    ]);
+
+    const areas = groupPhotoAreas(pins);
+    expect(areas).toHaveLength(1);
+    expect(areas[0]).toMatchObject({ name: 'Tokyo', spotCount: 2 });
+    expect(areas[0].photos).toHaveLength(2);
+  });
+
+  it('keeps a far-away unnamed GPS spot as its own area', () => {
+    const pins = groupPhotoPins([
+      photo({ id: 'named' }),
+      photo({
+        id: 'far',
+        name: '',
+        countryCode: undefined,
+        location: { lat: 34.69, lon: 135.5, source: 'exif' },
+      }),
+    ]);
+
+    const areas = groupPhotoAreas(pins);
+    expect(areas).toHaveLength(2);
+    expect(areas.find((area) => area.name === '')).toMatchObject({ spotCount: 1 });
   });
 });

@@ -13,7 +13,7 @@ import MapShareDialog from './MapShareDialog';
 import MapStatsBar from './MapStatsBar';
 import PhotoPinDialog from './PhotoPinDialog';
 import { computeMapStats, visitedCountrySet } from './stats';
-import { groupPhotoPins, type PhotoPin } from './photos';
+import { groupPhotoAreas, groupPhotoPins, type PhotoPin } from './photos';
 import type { Location } from '@/types';
 import type { TripWithMembers } from '@/types';
 import type { GeoPoint, TripDestinationPoint, HeatPoint, FlightSegment } from './types';
@@ -61,6 +61,8 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
       ),
     [mapPhotos, locale]
   );
+  // 地圖維持精細釘點；側欄另外按地名／鄰近區域彙整，避免同一城市出現許多碎片列。
+  const photoAreas = useMemo(() => groupPhotoAreas(photoPins), [photoPins]);
 
   const heatPoints = useMemo<HeatPoint[]>(
     () =>
@@ -233,8 +235,8 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
     },
     photos: {
       icon: Images,
-      title: t('photoTitle', { count: photoPins.length }),
-      description: t('photoDescription'),
+      title: t('photoTitle', { count: mapPhotos.length }),
+      description: t('photoDescription', { spots: photoPins.length }),
     },
   } satisfies Record<MapMode, { icon: typeof Plane; title: string; description: string }>;
   const activeMeta = modeMeta[mode];
@@ -473,35 +475,48 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
                   </p>
                 ) : (
                   <ol className="space-y-2">
-                    {photoPins.map((pin) => {
-                      // 純 EXIF、未關聯行程日的釘點沒有地名，退最新一張的拍攝日期當標籤。
-                      const takenAt = pin.photos[0]?.taken_at;
+                    {photoAreas.map((area) => {
+                      // 無法取得地名的地區，退最新一張的拍攝日期當辨識標籤。
+                      const takenAt = area.photos[0]?.taken_at;
                       const label =
-                        pin.name || (takenAt ? new Date(takenAt).toLocaleDateString(locale) : '—');
+                        area.name || (takenAt ? new Date(takenAt).toLocaleDateString(locale) : '—');
+                      const thumbs = area.photos.slice(0, 3);
                       return (
-                        <li key={pin.id}>
+                        <li key={area.id}>
                           <button
                             type="button"
-                            onClick={() => setActivePin(pin)}
+                            onClick={() => setActivePin(area)}
                             className="flex w-full items-center justify-between gap-3 rounded-lg bg-muted/40 p-2 text-left transition-colors hover:bg-muted"
                           >
                             <span className="flex min-w-0 items-center gap-2.5 text-sm">
-                              {/* eslint-disable-next-line @next/next/no-img-element -- presigned R2 縮圖不走 next/image */}
-                              <img
-                                src={pin.photos[0]?.thumb_url}
-                                alt=""
-                                loading="lazy"
-                                className="h-10 w-10 shrink-0 rounded-md border border-border object-cover"
-                              />
+                              <span className="relative h-11 w-[3.75rem] shrink-0">
+                                {thumbs.map((photo, index) => (
+                                  // eslint-disable-next-line @next/next/no-img-element -- presigned R2 縮圖不走 next/image
+                                  <img
+                                    key={photo.id}
+                                    src={photo.thumb_url}
+                                    alt=""
+                                    loading="lazy"
+                                    className="absolute top-0.5 h-10 w-10 rounded-md border-2 border-card object-cover shadow-sm"
+                                    style={{
+                                      left: `${index * 10}px`,
+                                      zIndex: thumbs.length - index,
+                                    }}
+                                  />
+                                ))}
+                              </span>
                               <span className="min-w-0">
-                                <span className="block truncate">
-                                  {countryCodeToFlag(pin.countryCode)} {label}
+                                <span className="block truncate font-medium">
+                                  {countryCodeToFlag(area.countryCode)} {label}
+                                </span>
+                                <span className="block text-xs text-muted-foreground">
+                                  {t('photoSpotCount', { count: area.spotCount })}
                                 </span>
                               </span>
                             </span>
                             <Badge variant="secondary" className="shrink-0 gap-1">
                               <Camera className="h-3 w-3" />
-                              {pin.photos.length}
+                              {area.photos.length}
                             </Badge>
                           </button>
                         </li>

@@ -19,8 +19,20 @@ export interface PhotoPin {
   photos: MapPhoto[];
 }
 
+/**
+ * 側欄的一個相片地區。地圖需要街廓級釘點，但清單只需要讓使用者快速理解「在哪些地方
+ * 拍過照」，所以側欄會把多顆釘點再彙整成較大的閱讀單位。
+ */
+export interface PhotoArea extends PhotoPin {
+  /** 這個地區包含的精細地圖釘點數。 */
+  spotCount: number;
+}
+
 /** 相片釘點合併半徑（公尺）：與既有釘點質心距離在此內的相片併入該釘。 */
 export const PIN_MERGE_RADIUS_M = 50;
+
+/** 無地名釘點歸入鄰近地區的半徑。這只影響側欄，完全不改變地圖上的精確釘點。 */
+export const PHOTO_AREA_RADIUS_M = 10_000;
 
 const M_PER_DEG_LAT = 111_320;
 
@@ -116,4 +128,97 @@ export function mergePhotoPins(pins: PhotoPin[]): PhotoPin {
     countryCode: ranked.find((p) => p.countryCode)?.countryCode,
     photos,
   };
+}
+
+interface WorkingArea {
+  id: string;
+  name: string;
+  countryCode?: string;
+  pins: PhotoPin[];
+}
+
+function areaCentroid(area: WorkingArea): { lat: number; lon: number } {
+  let sumLat = 0;
+  let sumLon = 0;
+  let count = 0;
+  for (const pin of area.pins) {
+    sumLat += pin.lat * pin.photos.length;
+    sumLon += pin.lon * pin.photos.length;
+    count += pin.photos.length;
+  }
+  return { lat: sumLat / count, lon: sumLon / count };
+}
+
+function finishArea(area: WorkingArea): PhotoArea {
+  const pin = mergePhotoPins(area.pins);
+  return {
+    ...pin,
+    id: area.id,
+    name: area.name,
+    countryCode: area.countryCode ?? pin.countryCode,
+    spotCount: area.pins.length,
+  };
+}
+
+/**
+ * 將精細相片釘點整理成適合側欄閱讀的地區：
+ *
+ * 1. 同國家、同地名的釘點直接合併（例如散落在曼谷各處但都標為「曼谷」）。
+ * 2. 無地名釘點若離既有命名地區 10km 內，歸入最近的地區。
+ * 3. 其餘無地名釘點彼此依 10km 質心距離分群，保留為未命名地區。
+ *
+ * 地圖仍使用原始 `PhotoPin[]`，因此這層彙整不會犧牲定位精度。
+ */
+export function groupPhotoAreas(pins: PhotoPin[]): PhotoArea[] {
+  const namedByKey = new Map<string, WorkingArea>();
+  const unnamedPins: PhotoPin[] = [];
+
+  for (const pin of pins) {
+    const name = pin.name.trim();
+    if (!name) {
+      unnamedPins.push(pin);
+      continue;
+    }
+    const countryCode = pin.countryCode?.toUpperCase();
+    const key = `${countryCode ?? ''}:${name.toLocaleLowerCase()}`;
+    const existing = namedByKey.get(key);
+    if (existing) {
+      existing.pins.push(pin);
+    } else {
+      namedByKey.set(key, {
+        id: `place:${key}`,
+        name,
+        countryCode,
+        pins: [pin],
+      });
+    }
+  }
+
+  const areas = [...namedByKey.values()];
+  for (const pin of unnamedPins) {
+    let closest: WorkingArea | null = null;
+    let closestDistance = PHOTO_AREA_RADIUS_M;
+    for (const area of areas) {
+      const centroid = areaCentroid(area);
+      const distance = distanceMeters(centroid.lat, centroid.lon, pin.lat, pin.lon);
+      if (distance <= closestDistance) {
+        closest = area;
+        closestDistance = distance;
+      }
+    }
+    if (closest) {
+      closest.pins.push(pin);
+    } else {
+      areas.push({
+        id: `near:${pin.id}`,
+        name: '',
+        countryCode: pin.countryCode?.toUpperCase(),
+        pins: [pin],
+      });
+    }
+  }
+
+  return areas
+    .map(finishArea)
+    .sort((a, b) => b.photos.length - a.photos.length || a.name.localeCompare(b.name));
 }
