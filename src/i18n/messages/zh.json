@@ -1043,8 +1043,12 @@
   "map": {
     "title": "旅行地圖",
     "filterAll": "全部",
+    "overviewTitle": "旅行總覽",
+    "overviewPeriodAll": "所有年份的旅行足跡",
+    "overviewPeriodYear": "{year} 年的旅行足跡",
     "modeHeat": "熱點",
     "heatTitle": "共 {count} 個地點",
+    "heatDescription": "依行程日地點顯示造訪密度，顏色越深代表到訪越多次。",
     "heatEmpty": "還沒有行程地點。在行程的某天加上地點，就能畫出熱點圖。",
     "heatVisits": "{count} 次",
     "share": {
@@ -1069,15 +1073,16 @@
     "statCities": "城市",
     "statDistance": "飛行里程",
     "countryTitle": "共 {count} 個國家",
+    "countryDescription": "點亮曾造訪的國家；清單統計有地點資料的城市與造訪次數。",
     "countryCities": "{count} 個城市",
-    "heatByVisits": "造訪次數",
-    "heatBySpend": "花費",
     "modePhotos": "相片",
     "photoTitle": "共 {count} 個相片地點",
+    "photoDescription": "顯示含 GPS 或已連結行程地點的相片，點一下即可瀏覽。",
     "photoEmpty": "還沒有帶座標的相片。把含 GPS 的照片上傳到旅程相簿，或將相簿相片關聯到有地點的行程日，就會釘上地圖。",
     "photoCount": "{count} 張相片",
     "modeFlights": "飛行",
     "flightTitle": "{count} 條航段",
+    "flightDescription": "依飛行紀錄彙整相同航線，飛行次數越多，地圖線條越粗。",
     "flightEmpty": "還沒有可顯示的飛行——到「旅行成就」補登含出發／抵達機場的飛行紀錄"
   },
   "notifications": {

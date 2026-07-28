@@ -1043,8 +1043,12 @@
   "map": {
     "title": "旅行マップ",
     "filterAll": "すべて",
+    "overviewTitle": "旅行の概要",
+    "overviewPeriodAll": "全期間の旅の足跡",
+    "overviewPeriodYear": "{year} 年の旅の足跡",
     "modeHeat": "ヒートマップ",
     "heatTitle": "{count} か所",
+    "heatDescription": "旅程の場所から訪問密度を表示します。色が濃いほど訪問回数が多い場所です。",
     "heatEmpty": "旅程の場所がまだありません。旅程の日に場所を追加するとヒートマップが作れます。",
     "heatVisits": "{count} 回",
     "share": {
@@ -1069,15 +1073,16 @@
     "statCities": "都市",
     "statDistance": "飛行距離",
     "countryTitle": "{count} か国",
+    "countryDescription": "訪問した国を色付けし、位置情報のある都市数と訪問回数をまとめます。",
     "countryCities": "{count} 都市",
-    "heatByVisits": "訪問回数",
-    "heatBySpend": "支出",
     "modePhotos": "写真",
     "photoTitle": "写真スポット {count} 件",
+    "photoDescription": "GPS または旅程の場所に紐づく写真を表示します。選択すると閲覧できます。",
     "photoEmpty": "位置情報付きの写真がまだありません。GPS 付きの写真を旅程のアルバムにアップロードするか、アルバムの写真を場所付きの旅程日に紐付けると地図に表示されます。",
     "photoCount": "写真 {count} 枚",
     "modeFlights": "フライト",
     "flightTitle": "{count} 路線",
+    "flightDescription": "フライト記録の同じ路線を集約します。搭乗回数が多いほど線が太くなります。",
     "flightEmpty": "表示できるフライトがありません。「旅の実績」で出発／到着空港つきのフライトを記録しましょう"
   },
   "notifications": {

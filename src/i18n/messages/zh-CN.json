@@ -1043,8 +1043,12 @@
   "map": {
     "title": "旅行地图",
     "filterAll": "全部",
+    "overviewTitle": "旅行总览",
+    "overviewPeriodAll": "所有年份的旅行足迹",
+    "overviewPeriodYear": "{year} 年的旅行足迹",
     "modeHeat": "热点",
     "heatTitle": "共 {count} 个地点",
+    "heatDescription": "依行程日地点显示造访密度，颜色越深代表到访越多次。",
     "heatEmpty": "还没有行程地点。在行程的某天加上地点，就能画出热点图。",
     "heatVisits": "{count} 次",
     "share": {
@@ -1069,15 +1073,16 @@
     "statCities": "城市",
     "statDistance": "飞行里程",
     "countryTitle": "共 {count} 个国家",
+    "countryDescription": "点亮曾造访的国家；清单统计有地点资料的城市与造访次数。",
     "countryCities": "{count} 个城市",
-    "heatByVisits": "造访次数",
-    "heatBySpend": "花费",
     "modePhotos": "照片",
     "photoTitle": "共 {count} 个照片地点",
+    "photoDescription": "显示含 GPS 或已关联行程地点的照片，点击即可浏览。",
     "photoEmpty": "还没有带座标的照片。把含 GPS 的照片上传到行程相册，或将相册照片关联到有地点的行程日，就会钉上地图。",
     "photoCount": "{count} 张照片",
     "modeFlights": "飞行",
     "flightTitle": "{count} 条航段",
+    "flightDescription": "依飞行记录汇总相同航线，飞行次数越多，地图线条越粗。",
     "flightEmpty": "还没有可显示的飞行——到「旅行成就」补录含出发／到达机场的飞行记录"
   },
   "notifications": {

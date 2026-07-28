@@ -1050,8 +1050,12 @@
   "map": {
     "title": "Travel Map",
     "filterAll": "All",
+    "overviewTitle": "Travel overview",
+    "overviewPeriodAll": "Travel footprint across all years",
+    "overviewPeriodYear": "Travel footprint in {year}",
     "modeHeat": "Heatmap",
     "heatTitle": "{count} places",
+    "heatDescription": "Shows visit density from itinerary locations. Darker areas were visited more often.",
     "heatEmpty": "No itinerary locations yet. Add a location to an itinerary day to build the heatmap.",
     "heatVisits": "{count}×",
     "share": {
@@ -1076,15 +1080,16 @@
     "statCities": "Cities",
     "statDistance": "Flight distance",
     "countryTitle": "{count} countries",
+    "countryDescription": "Highlights visited countries and summarizes cities and visits with location data.",
     "countryCities": "{count} cities",
-    "heatByVisits": "Visits",
-    "heatBySpend": "Spend",
     "modePhotos": "Photos",
     "photoTitle": "{count} photo locations",
+    "photoDescription": "Shows photos with GPS or linked itinerary locations. Select one to browse.",
     "photoEmpty": "No located photos yet. Upload photos with GPS to a trip album, or link an album photo to an itinerary day with a location, to pin them on the map.",
     "photoCount": "{count} photos",
     "modeFlights": "Flights",
     "flightTitle": "{count, plural, one {# segment} other {# segments}}",
+    "flightDescription": "Groups matching routes from your flight log. More flights produce a thicker line.",
     "flightEmpty": "No flights to show yet — log flights with departure and arrival airports in Achievements"
   },
   "notifications": {

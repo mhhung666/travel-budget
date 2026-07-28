@@ -8,13 +8,19 @@ interface MapStatsBarProps {
   stats: MapStats;
   /** 公開地圖不揭露私人 FlightRecord，因此不顯示無意義的 0 km。 */
   showDistance?: boolean;
+  /** 左側總覽面板使用無外框的緊湊樣式，避免資訊被切成許多獨立卡片。 */
+  compact?: boolean;
 }
 
 /**
  * 旅程數據儀表板：一排統計卡（旅程 / 國家 / 城市 / 飛行里程）。
  * 里程以千為單位人性化顯示（≥1000km 顯示為 1.2k km）。
  */
-export default function MapStatsBar({ stats, showDistance = true }: MapStatsBarProps) {
+export default function MapStatsBar({
+  stats,
+  showDistance = true,
+  compact = false,
+}: MapStatsBarProps) {
   const t = useTranslations('map');
 
   const distance =
@@ -38,16 +44,34 @@ export default function MapStatsBar({ stats, showDistance = true }: MapStatsBarP
 
   return (
     <div
-      className={showDistance ? 'grid grid-cols-2 gap-2 sm:grid-cols-4' : 'grid grid-cols-3 gap-2'}
+      className={
+        compact
+          ? 'grid grid-cols-2 overflow-hidden rounded-lg bg-muted/50'
+          : showDistance
+            ? 'grid grid-cols-2 gap-2 sm:grid-cols-4'
+            : 'grid grid-cols-3 gap-2'
+      }
     >
-      {items.map(({ icon: Icon, value, label, suffix }) => (
+      {items.map(({ icon: Icon, value, label, suffix }, index) => (
         <div
           key={label}
-          className="flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5"
+          className={
+            compact
+              ? `flex items-center gap-2.5 px-3 py-2.5 ${
+                  index % 2 === 0 ? 'border-r border-border/70' : ''
+                } ${index >= 2 ? 'border-t border-border/70' : ''}`
+              : 'flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5'
+          }
         >
-          <Icon className="h-5 w-5 shrink-0 text-primary" />
+          <Icon
+            className={compact ? 'h-4 w-4 shrink-0 text-primary' : 'h-5 w-5 shrink-0 text-primary'}
+          />
           <div className="min-w-0">
-            <div className="text-lg font-semibold leading-none">
+            <div
+              className={
+                compact ? 'font-semibold leading-none' : 'text-lg font-semibold leading-none'
+              }
+            >
               {value}
               {suffix && (
                 <span className="ml-0.5 text-xs font-normal text-muted-foreground">{suffix}</span>
