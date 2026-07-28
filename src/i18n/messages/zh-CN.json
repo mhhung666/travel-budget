@@ -66,24 +66,30 @@
   "home": {
     "title": "旅行记账",
     "hero": {
-      "title": "轻松管理旅行支出",
-      "subtitle": "智能计算分账，让每趟旅程都更简单",
+      "eyebrow": "规划・记账・分享",
+      "title": "旅程大小事，一个地方就搞定",
+      "subtitle": "从每日行程、多人记账到最后结算，把旅行中的每个片刻和每笔花费都整理好。",
       "getStarted": "开始使用",
       "viewTrips": "查看旅行"
     },
     "features": {
-      "title": "核心功能",
-      "easyTracking": {
-        "title": "轻松记账",
-        "description": "快速记录每笔支出，随时随地更新"
+      "title": "不只帮你算钱",
+      "subtitle": "出发前一起规划，旅途中随手记，回家后轻松结算。",
+      "plan": {
+        "title": "行程集中规划",
+        "description": "每日活动、地点与票券排成清晰时间轴。"
       },
-      "smartSplit": {
-        "title": "智能分账",
-        "description": "自动计算每个人应付的金额"
+      "track": {
+        "title": "多币种快速记账",
+        "description": "随手新增支出，没网络也能先记、上线再同步。"
       },
-      "quickSettlement": {
-        "title": "一键结算",
-        "description": "最优化的转账方案，省时又便利"
+      "split": {
+        "title": "灵活分账与结算",
+        "description": "均分、比例或指定金额，自动整理最少转账方案。"
+      },
+      "remember": {
+        "title": "共同收藏回忆",
+        "description": "共享相册、旅行地图与年度回顾，回忆不散落。"
       }
     }
   },

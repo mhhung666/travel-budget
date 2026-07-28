@@ -1,58 +1,59 @@
 'use client';
 
-import { Plus, Calculator, CreditCard } from 'lucide-react';
+import { CalendarDays, ReceiptText, UsersRound, Images } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { Card, CardContent } from '@/components/ui/card';
 
 export default function Features() {
   const t = useTranslations('home');
 
   const features = [
     {
-      icon: Plus,
-      titleKey: 'features.easyTracking.title',
-      descKey: 'features.easyTracking.description',
+      icon: CalendarDays,
+      titleKey: 'features.plan.title',
+      descKey: 'features.plan.description',
     },
     {
-      icon: Calculator,
-      titleKey: 'features.smartSplit.title',
-      descKey: 'features.smartSplit.description',
+      icon: ReceiptText,
+      titleKey: 'features.track.title',
+      descKey: 'features.track.description',
     },
     {
-      icon: CreditCard,
-      titleKey: 'features.quickSettlement.title',
-      descKey: 'features.quickSettlement.description',
+      icon: UsersRound,
+      titleKey: 'features.split.title',
+      descKey: 'features.split.description',
+    },
+    {
+      icon: Images,
+      titleKey: 'features.remember.title',
+      descKey: 'features.remember.description',
     },
   ];
 
   return (
-    <div className="py-12 sm:py-16 bg-muted/30">
-      <div className="container mx-auto px-4">
-        <h3 className="text-3xl sm:text-4xl font-bold text-center mb-10 sm:mb-14 text-foreground">
+    <section aria-labelledby="feature-heading" className="mt-10 lg:mt-12">
+      <div className="mb-5 text-center lg:text-left">
+        <h2 id="feature-heading" className="text-xl font-bold text-foreground sm:text-2xl">
           {t('features.title')}
-        </h3>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 px-2 sm:px-0">
-          {features.map((feature, index) => (
-            <Card
-              key={index}
-              className="h-full transition-all duration-300 hover:-translate-y-1 hover:shadow-lg border-border/50 bg-card"
-            >
-              <CardContent className="text-center p-6 sm:p-8 pt-8 sm:pt-10">
-                <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-primary mb-6 shadow-sm">
-                  <feature.icon size={28} className="text-primary-foreground" />
-                </div>
-                <h4 className="text-xl sm:text-2xl font-semibold mb-3 text-card-foreground">
-                  {t(feature.titleKey)}
-                </h4>
-                <p className="text-muted-foreground text-sm sm:text-base leading-relaxed">
-                  {t(feature.descKey)}
-                </p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        </h2>
+        <p className="mt-1 text-sm text-muted-foreground">{t('features.subtitle')}</p>
       </div>
-    </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:gap-4">
+        {features.map((feature) => (
+          <article
+            key={feature.titleKey}
+            className="group flex gap-4 rounded-2xl border border-border/70 bg-card/65 p-4 shadow-sm backdrop-blur-sm transition-colors hover:border-primary/30 hover:bg-card"
+          >
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <feature.icon className="h-5 w-5" aria-hidden />
+            </div>
+            <div>
+              <h3 className="font-semibold text-foreground">{t(feature.titleKey)}</h3>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">{t(feature.descKey)}</p>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
   );
 }

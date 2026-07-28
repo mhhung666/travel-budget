@@ -66,24 +66,30 @@
   "home": {
     "title": "旅行家計簿",
     "hero": {
-      "title": "旅行費用を簡単に管理",
-      "subtitle": "スマートな割り勘計算で、旅行をもっと楽しく",
+      "eyebrow": "計画・記録・共有",
+      "title": "旅のすべてを、ひとつの場所に",
+      "subtitle": "毎日の予定からグループの支出、最後の精算まで。旅の思い出とお金をすっきり整理できます。",
       "getStarted": "始める",
       "viewTrips": "旅行を見る"
     },
     "features": {
-      "title": "主な機能",
-      "easyTracking": {
-        "title": "簡単記録",
-        "description": "いつでもどこでも、すばやく支出を記録"
+      "title": "家計簿だけではありません",
+      "subtitle": "出発前の計画から旅先での記録、帰宅後の精算まで。",
+      "plan": {
+        "title": "旅程をまとめて管理",
+        "description": "毎日の予定、場所、チケットを見やすい時系列に整理。"
       },
-      "smartSplit": {
-        "title": "スマート割り勘",
-        "description": "各自の負担額を自動計算"
+      "track": {
+        "title": "多通貨ですばやく記録",
+        "description": "オフラインでも支出を追加し、接続時に同期できます。"
       },
-      "quickSettlement": {
-        "title": "かんたん清算",
-        "description": "最適化された送金プランで、手間いらず"
+      "split": {
+        "title": "柔軟な割り勘と精算",
+        "description": "均等、比率、金額指定に対応し、送金回数も最小限に。"
+      },
+      "remember": {
+        "title": "思い出をみんなで共有",
+        "description": "共有アルバム、旅行マップ、年間まとめを一か所に。"
       }
     }
   },

@@ -66,24 +66,30 @@
   "home": {
     "title": "Travel Budget",
     "hero": {
-      "title": "Shut Up and Let Me Track It!",
-      "subtitle": "No more money headaches, just awesome trips",
+      "eyebrow": "Plan · Track · Share",
+      "title": "Your whole trip, together in one place",
+      "subtitle": "Plan each day, track group spending, and settle up—while keeping every moment and expense neatly organized.",
       "getStarted": "Get Started",
       "viewTrips": "View Trips"
     },
     "features": {
-      "title": "Core Features",
-      "easyTracking": {
-        "title": "Easy Tracking",
-        "description": "Quickly record every expense, update anytime, anywhere"
+      "title": "More than expense tracking",
+      "subtitle": "Plan together before you go, capture things on the road, and settle up with ease.",
+      "plan": {
+        "title": "Plans in one timeline",
+        "description": "Keep daily activities, places, and tickets neatly organized."
       },
-      "smartSplit": {
-        "title": "Smart Splitting",
-        "description": "Automatically calculate each person's share"
+      "track": {
+        "title": "Fast multi-currency tracking",
+        "description": "Add expenses on the go—even offline—and sync when connected."
       },
-      "quickSettlement": {
-        "title": "Quick Settlement",
-        "description": "Optimized payment plan, time-saving and convenient"
+      "split": {
+        "title": "Flexible splits and settlement",
+        "description": "Split evenly, by share, or exact amount, then minimize transfers."
+      },
+      "remember": {
+        "title": "Memories shared together",
+        "description": "Keep shared albums, travel maps, and yearly recaps in one place."
       }
     }
   },

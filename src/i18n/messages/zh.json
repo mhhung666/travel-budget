@@ -66,24 +66,30 @@
   "home": {
     "title": "旅行記帳",
     "hero": {
-      "title": "把錢拿去，讓我幫你算！",
-      "subtitle": "旅行分帳不再頭痛，盡情享受旅程吧",
+      "eyebrow": "規劃・記帳・分享",
+      "title": "旅程大小事，一個地方就搞定",
+      "subtitle": "從每日行程、多人記帳到最後結算，把旅行中的每個片刻和每筆花費都整理好。",
       "getStarted": "開始使用",
       "viewTrips": "查看旅行"
     },
     "features": {
-      "title": "核心功能",
-      "easyTracking": {
-        "title": "輕鬆記帳",
-        "description": "快速記錄每筆支出，隨時隨地更新"
+      "title": "不只幫你算錢",
+      "subtitle": "出發前一起規劃，旅途中隨手記，回家後輕鬆結算。",
+      "plan": {
+        "title": "行程集中規劃",
+        "description": "每日活動、地點與票券排成清楚時間軸。"
       },
-      "smartSplit": {
-        "title": "智能分帳",
-        "description": "自動計算每個人應付的金額"
+      "track": {
+        "title": "多幣別快速記帳",
+        "description": "隨手新增支出，沒網路也能先記、上線再同步。"
       },
-      "quickSettlement": {
-        "title": "一鍵結算",
-        "description": "最優化的轉帳方案，省時又便利"
+      "split": {
+        "title": "彈性分帳與結算",
+        "description": "均分、比例或指定金額，自動整理最少轉帳方案。"
+      },
+      "remember": {
+        "title": "共同收藏回憶",
+        "description": "共享相簿、旅行地圖與年度回顧，回憶不散落。"
       }
     }
   },
