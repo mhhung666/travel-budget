@@ -28,8 +28,6 @@ interface ProgramProgressCardProps {
   /** 依已登記紀錄達到較高卡級時，確認同步官方目前等級。 */
   onConfirmTier?: (tier: string) => void;
   confirmingTier?: boolean;
-  /** 初始展開狀態（單一帳戶預設展開、多帳戶預設收合）。 */
-  defaultOpen?: boolean;
   /** 展開區尾端內容（該 program 的 ledger）。 */
   children?: React.ReactNode;
 }
@@ -61,12 +59,11 @@ export function ProgramProgressCard({
   onEstimate,
   onConfirmTier,
   confirmingTier = false,
-  defaultOpen = false,
   children,
 }: ProgramProgressCardProps) {
   const t = useTranslations('collections');
   const locale = useLocale();
-  const [open, setOpen] = useState(defaultOpen);
+  const [open, setOpen] = useState(false);
   const numberFormat = new Intl.NumberFormat(locale);
   const usdFormat = new Intl.NumberFormat(locale, {
     style: 'currency',

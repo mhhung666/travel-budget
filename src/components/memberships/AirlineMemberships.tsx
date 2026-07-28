@@ -146,7 +146,6 @@ export function AirlineMemberships() {
       key={account.id}
       account={account}
       entries={entriesByProgram.get(account.program) ?? []}
-      defaultOpen
       onEdit={() => setAccountDialog({ open: true, program: account.program, editing: account })}
       onDelete={() => setDeletingAccount(account)}
       onEstimate={account.program === 'CX' ? () => setEstimatorOpen(true) : undefined}
