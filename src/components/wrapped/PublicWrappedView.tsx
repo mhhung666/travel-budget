@@ -16,7 +16,6 @@ interface PublicPayload {
   tripCount: number;
   countryCount: number;
   cityCount: number;
-  distanceKm: number;
   availableYears: number[];
 }
 
@@ -27,7 +26,7 @@ function toReview(p: PublicPayload): YearInReviewData {
     tripCount: p.tripCount,
     countryCount: p.countryCount,
     cityCount: p.cityCount,
-    distanceKm: p.distanceKm,
+    distanceKm: 0,
     longestTripDays: 0,
     companionCount: 0,
     totalSpend: 0,
@@ -143,7 +142,7 @@ export default function PublicWrappedView({ code, year: initialYear }: PublicWra
         ) : (
           review && (
             <div className="space-y-5">
-              <WrappedCard review={review} includeMoney={false} />
+              <WrappedCard review={review} includeMoney={false} includeDistance={false} />
               <div className="flex justify-center">
                 <Button asChild variant="outline" className="gap-2">
                   <Link href={ROUTES.WRAPPED}>

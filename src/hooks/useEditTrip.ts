@@ -20,7 +20,6 @@ export function useEditTrip(tripId: string) {
       description: data.description?.trim() || null,
       start_date: data.start_date || null,
       end_date: data.end_date || null,
-      departure_location: data.departure_location || null,
       destination_location: data.destination_location || null,
     });
 

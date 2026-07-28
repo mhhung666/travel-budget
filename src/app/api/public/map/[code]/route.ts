@@ -11,8 +11,8 @@ import type { Location, LocalizedNames } from '@/types';
 /**
  * 公開（不需登入）旅行地圖分享資料。
  *
- * 以使用者的 `mapShareCode` 反查其所有旅程，回傳「去識別化」的路線：只含
- * 出發地 / 目的地的座標與多語地名，**不含旅行名稱、日期、id 或任何可連回單筆
+ * 以使用者的 `mapShareCode` 反查其所有旅程，回傳去識別化的目的地點位：
+ * 只含目的地座標與多語地名，**不含旅行名稱、日期、id 或任何可連回單筆
  * 旅行的識別資訊**。地名為地理資訊（地圖本就會揭露地點），故保留以供顯示與選色。
  *
  * 分享為 opt-in；未產生分享碼者（或碼已撤銷）一律回 404。
@@ -27,11 +27,10 @@ interface PublicGeoPoint {
   countryCode?: string;
 }
 
-interface PublicRoute {
+interface PublicDestination {
   /** 合成序號（僅供前端 React key 與選取，與真正的旅行 id 無關）。 */
   id: string;
-  departure: PublicGeoPoint | null;
-  destination: PublicGeoPoint;
+  point: PublicGeoPoint;
   /** 此旅程涵蓋的年份（供年份篩選）。只露「年」、不露完整日期，仍維持去識別化。 */
   years: number[];
 }
@@ -45,7 +44,6 @@ interface PublicHeatPoint {
 }
 
 type LeanTrip = {
-  departureLocation?: Location | null;
   destinationLocation?: Location | null;
   startDate?: Date | null;
   endDate?: Date | null;
@@ -80,13 +78,12 @@ export async function GET(_request: Request, context: { params: Promise<{ code: 
     }
 
     const trips = await Trip.find({ 'members.user': user._id })
-      .select('_id departureLocation destinationLocation startDate endDate')
+      .select('_id destinationLocation startDate endDate')
       .lean<(LeanTrip & { _id: Types.ObjectId })[]>();
 
-    const routes: PublicRoute[] = trips
+    const destinations: PublicDestination[] = trips
       .map((trip) => ({
-        departure: toPoint(trip.departureLocation),
-        destination: toPoint(trip.destinationLocation),
+        point: toPoint(trip.destinationLocation),
         years: yearsSpanned(trip.startDate, trip.endDate),
         // 僅供伺服器端排序，不外流。
         _sort: trip.startDate ? new Date(trip.startDate).getTime() : Infinity,
@@ -96,18 +93,16 @@ export async function GET(_request: Request, context: { params: Promise<{ code: 
         (
           r
         ): r is {
-          departure: PublicGeoPoint | null;
-          destination: PublicGeoPoint;
+          point: PublicGeoPoint;
           years: number[];
           _sort: number;
-        } => r.destination !== null
+        } => r.point !== null
       )
       // 依出發日正序，讓箭頭讀作旅程先後順序；日期不外流（去識別化）。
       .sort((a, b) => a._sort - b._sort)
       .map((r, i) => ({
         id: `r${i}`,
-        departure: r.departure,
-        destination: r.destination,
+        point: r.point,
         years: r.years,
       }));
 
@@ -116,7 +111,7 @@ export async function GET(_request: Request, context: { params: Promise<{ code: 
     for (const t of trips) tripYears.set(String(t._id), yearsSpanned(t.startDate, t.endDate));
 
     // 去識別化熱點：行程日地點依「旅程 + 座標」彙整，再依旅程年份展開成 (座標, 年份) 列。
-    // 跨年旅程的行程日會計入每個涵蓋年份（與航線/主地圖的年份判斷一致）。
+    // 跨年旅程的行程日會計入每個涵蓋年份（與主地圖的年份判斷一致）。
     const tripIds = trips.map((t) => t._id);
     const dayRows = await ItineraryDay.aggregate<{
       trip: Types.ObjectId;
@@ -161,13 +156,15 @@ export async function GET(_request: Request, context: { params: Promise<{ code: 
     }
     const heat = [...heatMap.values()];
 
-    // 可篩選的年份清單（路線 + 熱點的聯集），新到舊。
+    // 可篩選的年份清單（目的地 + 熱點的聯集），新到舊。
     const yearSet = new Set<number>();
-    for (const r of routes) for (const y of r.years) yearSet.add(y);
+    for (const destination of destinations) {
+      for (const year of destination.years) yearSet.add(year);
+    }
     for (const h of heat) if (h.year !== null) yearSet.add(h.year);
     const years = [...yearSet].sort((a, b) => b - a);
 
-    return NextResponse.json({ routes, heat, years });
+    return NextResponse.json({ destinations, heat, years });
   } catch (error) {
     logger.error('Get public map error', error);
     return apiError(PublicApiError.INTERNAL_ERROR, 500);

@@ -16,6 +16,7 @@ import {
   type YearInReviewStay,
 } from '@/lib/yearInReview';
 import { logger } from '@/lib/logger';
+import { airportPoint } from '@/lib/airports';
 
 /** 年度回顧 action 的回傳：選定年份的數字 + 可切換的年份清單。 */
 export interface YearInReviewResult {
@@ -29,7 +30,6 @@ type LeanTrip = {
   _id: Types.ObjectId;
   startDate?: Date | null;
   endDate?: Date | null;
-  departureLocation?: Location | null;
   destinationLocation?: Location | null;
   members: LeanMember[];
 };
@@ -61,14 +61,19 @@ export const getYearInReview = withAuth(
       await dbConnect();
 
       const trips = await Trip.find({ 'members.user': session.userId })
-        .select('startDate endDate departureLocation destinationLocation members')
+        .select('startDate endDate destinationLocation members')
         .populate('members.user', 'isVirtual')
         .lean<LeanTrip[]>();
 
       const tripIds = trips.map((t) => t._id);
       const hasTrips = tripIds.length > 0;
 
-      type LeanFlightRec = { airline: string; date: Date };
+      type LeanFlightRec = {
+        airline: string;
+        date: Date;
+        fromAirport?: string | null;
+        toAirport?: string | null;
+      };
       type LeanStayRec = { brand?: string | null; checkIn: Date };
       const [expenses, days, flightRecs, stayRecs] = await Promise.all([
         hasTrips
@@ -83,7 +88,9 @@ export const getYearInReview = withAuth(
           : Promise.resolve<LeanDay[]>([]),
         // 旅行成就（user-level，不限這些 trips、無旅程也可能有回填）：全歷史撈——
         // 「新解鎖」要看首次出現年份，availableYears 也要納入回填年份（P3）
-        FlightRecord.find({ user: session.userId }).select('airline date').lean<LeanFlightRec[]>(),
+        FlightRecord.find({ user: session.userId })
+          .select('airline date fromAirport toAirport')
+          .lean<LeanFlightRec[]>(),
         StayRecord.find({ user: session.userId }).select('brand checkIn').lean<LeanStayRec[]>(),
       ]);
 
@@ -99,7 +106,6 @@ export const getYearInReview = withAuth(
         id: t._id.toString(),
         startDate: toYmd(t.startDate),
         endDate: toYmd(t.endDate),
-        departure: toPoint(t.departureLocation),
         destination: toPoint(t.destinationLocation),
         memberIds: t.members
           .filter((m) => m.user && !m.user.isVirtual)
@@ -121,6 +127,8 @@ export const getYearInReview = withAuth(
       const reviewFlights: YearInReviewFlight[] = flightRecs.map((f) => ({
         airline: f.airline,
         date: toYmd(f.date) ?? '',
+        from: airportPoint(f.fromAirport),
+        to: airportPoint(f.toAirport),
       }));
       const reviewStays: YearInReviewStay[] = stayRecs.map((s) => ({
         brand: s.brand ?? null,

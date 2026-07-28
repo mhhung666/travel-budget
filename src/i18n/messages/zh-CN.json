@@ -195,15 +195,12 @@
       "formDescription": "填写旅行信息以创建新的旅行账本",
       "name": "旅行名称",
       "namePlaceholder": "例：日本关西之旅",
-      "moreDetails": "添加日期、地点与旅伴（选填）",
+      "moreDetails": "添加日期、描述与旅伴（选填）",
       "description": "描述 (可选)",
       "descriptionPlaceholder": "旅行的简短描述（选填）",
-      "departure": "出发地",
-      "departurePlaceholder": "搜索出发城市或国家",
-      "departureHelp": "输入出发地的城市或国家名称",
       "destination": "目的地",
       "destinationPlaceholder": "搜索目的地城市或国家",
-      "destinationHelp": "输入目的地的城市或国家名称",
+      "destinationHelp": "将用于旅行地图、国家收藏与年度回顾",
       "startDate": "开始日期",
       "endDate": "结束日期",
       "inviteFriends": "邀请好友一起（可选）",
@@ -1045,12 +1042,7 @@
   },
   "map": {
     "title": "旅行地图",
-    "timelineTitle": "共 {count} 趟旅行",
-    "empty": "还没有任何含地点的旅行。创建旅行并设置地点后，就会显示在地图上。",
-    "noDate": "未设置日期",
     "filterAll": "全部",
-    "noResults": "此区间没有旅行",
-    "modeRoutes": "航线",
     "modeHeat": "热点",
     "heatTitle": "共 {count} 个地点",
     "heatEmpty": "还没有行程地点。在行程的某天加上地点，就能画出热点图。",
@@ -1058,7 +1050,7 @@
     "share": {
       "button": "分享地图",
       "title": "分享你的旅行地图",
-      "description": "任何人只要有链接就能在地图上看到你的旅行路线。不会显示旅行名称与日期。",
+      "description": "任何人只要有链接就能看到去标识化的目的地、热点与国家。不会公开私人飞行记录、旅行名称与日期。",
       "generate": "生成链接",
       "regenerate": "重新生成链接",
       "revoke": "关闭分享",
@@ -1075,11 +1067,9 @@
     "statTrips": "旅行",
     "statCountries": "国家",
     "statCities": "城市",
-    "statDistance": "总里程",
+    "statDistance": "飞行里程",
     "countryTitle": "共 {count} 个国家",
     "countryCities": "{count} 个城市",
-    "playRoute": "播放足迹",
-    "playStop": "停止",
     "heatByVisits": "造访次数",
     "heatBySpend": "花费",
     "modePhotos": "照片",
@@ -1088,7 +1078,7 @@
     "photoCount": "{count} 张照片",
     "modeFlights": "飞行",
     "flightTitle": "{count} 条航段",
-    "flightEmpty": "还没有可画的航线——到「旅行成就」补录含出发／到达机场的飞行记录"
+    "flightEmpty": "还没有可显示的飞行——到「旅行成就」补录含出发／到达机场的飞行记录"
   },
   "notifications": {
     "title": "通知",
@@ -1277,7 +1267,7 @@
       "accrueLoyalty": "累积 {program} 会籍",
       "accrueLoyaltyHint": "把这趟航班记入会籍积分与里数（数字从航空公司 App 抄入）",
       "editFlight": "编辑飞行记录",
-      "formDescription": "补录乘坐过的航班",
+      "formDescription": "补录乘坐过的航班；起降机场会用于飞行地图与里程统计",
       "airline": "航空公司",
       "flightNo": "航班号",
       "from": "出发机场",
@@ -1354,7 +1344,7 @@
         "countries": "到访国家"
       },
       "tripsCount": "{count} 次旅行",
-      "autoNote": "由行程的出发地、目的地与日程地点自动计算"
+      "autoNote": "由旅行目的地与日程地点自动计算"
     },
     "errors": {
       "UNAUTHORIZED": "请先登录",

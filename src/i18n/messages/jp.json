@@ -195,15 +195,12 @@
       "formDescription": "旅行の情報を入力して新しい旅行を作成します",
       "name": "旅行名",
       "namePlaceholder": "例：関西旅行",
-      "moreDetails": "日程・場所・同行者を追加（任意）",
+      "moreDetails": "日程・説明・同行者を追加（任意）",
       "description": "説明（任意）",
       "descriptionPlaceholder": "旅行の簡単な説明（任意）",
-      "departure": "出発地",
-      "departurePlaceholder": "出発地の都市や国を検索",
-      "departureHelp": "出発地の都市名または国名を入力",
       "destination": "目的地",
       "destinationPlaceholder": "目的地の都市や国を検索",
-      "destinationHelp": "目的地の都市名または国名を入力",
+      "destinationHelp": "旅行マップ、国コレクション、年間レビューに使用されます",
       "startDate": "開始日",
       "endDate": "終了日",
       "inviteFriends": "友達を招待（任意）",
@@ -1045,12 +1042,7 @@
   },
   "map": {
     "title": "旅行マップ",
-    "timelineTitle": "{count} 件の旅行",
-    "empty": "場所が設定された旅行がまだありません。旅行に場所を設定すると地図に表示されます。",
-    "noDate": "日付未設定",
     "filterAll": "すべて",
-    "noResults": "この期間の旅行はありません",
-    "modeRoutes": "ルート",
     "modeHeat": "ヒートマップ",
     "heatTitle": "{count} か所",
     "heatEmpty": "旅程の場所がまだありません。旅程の日に場所を追加するとヒートマップが作れます。",
@@ -1058,7 +1050,7 @@
     "share": {
       "button": "マップを共有",
       "title": "旅行マップを共有",
-      "description": "リンクを知っている人は誰でも地図上であなたの旅行ルートを見られます。旅行名や日付は表示されません。",
+      "description": "リンクを知っている人は匿名化された目的地、ヒートマップ、訪問国を閲覧できます。個人のフライト記録、旅行名、日付は公開されません。",
       "generate": "リンクを生成",
       "regenerate": "リンクを再生成",
       "revoke": "共有を停止",
@@ -1075,11 +1067,9 @@
     "statTrips": "旅行",
     "statCountries": "国",
     "statCities": "都市",
-    "statDistance": "総距離",
+    "statDistance": "飛行距離",
     "countryTitle": "{count} か国",
     "countryCities": "{count} 都市",
-    "playRoute": "ルート再生",
-    "playStop": "停止",
     "heatByVisits": "訪問回数",
     "heatBySpend": "支出",
     "modePhotos": "写真",
@@ -1088,7 +1078,7 @@
     "photoCount": "写真 {count} 枚",
     "modeFlights": "フライト",
     "flightTitle": "{count} 路線",
-    "flightEmpty": "描ける航路がまだありません——「旅の実績」で出発／到着空港つきのフライトを記録しましょう"
+    "flightEmpty": "表示できるフライトがありません。「旅の実績」で出発／到着空港つきのフライトを記録しましょう"
   },
   "notifications": {
     "title": "通知",
@@ -1277,7 +1267,7 @@
       "accrueLoyalty": "{program} のステータスに加算",
       "accrueLoyaltyHint": "このフライトのステータスポイントとマイルを記録（数値は航空会社アプリから転記）",
       "editFlight": "フライトを編集",
-      "formDescription": "搭乗したフライトを記録",
+      "formDescription": "搭乗したフライトを記録します。空港はフライトマップと距離集計に使用されます",
       "airline": "航空会社",
       "flightNo": "便名",
       "from": "出発空港",
@@ -1354,7 +1344,7 @@
         "countries": "訪問国"
       },
       "tripsCount": "{count} 回の旅行",
-      "autoNote": "旅行の出発地・目的地・旅程の地点から自動計算"
+      "autoNote": "旅行の目的地と旅程の地点から自動計算"
     },
     "errors": {
       "UNAUTHORIZED": "ログインしてください",

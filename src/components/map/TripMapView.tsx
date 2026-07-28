@@ -1,13 +1,10 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useLocale, useTranslations } from 'next-intl';
-import { MapPin, Loader2, ArrowRight, Play, Square, Camera, Plane } from 'lucide-react';
-import { useRouter } from '@/i18n/navigation';
-import { ROUTES } from '@/constants/routes';
+import { Loader2, ArrowRight, Camera, Plane } from 'lucide-react';
 import { pickLocalizedName } from '@/lib/utils';
-import { cn } from '@/lib/utils';
 import { tripOverlapsRange } from '@/lib/dateRange';
 import { useVisitedPlaces, useMapPhotos, useCollections, useAirports } from '@/hooks/queries';
 import type { HeatWeightBy } from '@/actions';
@@ -20,9 +17,9 @@ import { computeMapStats, visitedCountrySet } from './stats';
 import { groupPhotoPins, type PhotoPin } from './photos';
 import type { Location } from '@/types';
 import type { TripWithMembers } from '@/types';
-import type { GeoPoint, TripRoute, HeatPoint, FlightSegment } from './types';
+import type { GeoPoint, TripDestinationPoint, HeatPoint, FlightSegment } from './types';
 import type { MapMode } from './TripMapCanvas';
-import { countryCodeToFlag, countryColor } from './country';
+import { countryCodeToFlag } from './country';
 
 // Leaflet 依賴 window，必須關閉 SSR。
 const TripMapCanvas = dynamic(() => import('./TripMapCanvas'), {
@@ -43,11 +40,9 @@ interface TripMapViewProps {
 export default function TripMapView({ trips, loading, error }: TripMapViewProps) {
   const t = useTranslations('map');
   const locale = useLocale();
-  const router = useRouter();
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   // null = 全部年份；否則只看與該年（1/1–12/31）重疊的旅程。
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
-  const [mode, setMode] = useState<MapMode>('routes');
+  const [mode, setMode] = useState<MapMode>('flights');
   // 熱點權重依據：造訪次數（預設）或花費總額。只在熱點模式有意義。
   const [heatWeight, setHeatWeight] = useState<HeatWeightBy>('visits');
 
@@ -111,8 +106,8 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
     });
   }, [locale]);
 
-  // 把每趟旅行投影成「出發地 → 目的地」；至少要有目的地座標才上圖。
-  const projected = useMemo<TripRoute[]>(() => {
+  // 旅行只提供主要目的地點位；實際航線一律由 FlightRecord 提供。
+  const destinations = useMemo<TripDestinationPoint[]>(() => {
     const toPoint = (loc: Location | null | undefined, fallbackName: string): GeoPoint | null => {
       if (!loc || !Number.isFinite(loc.lat) || !Number.isFinite(loc.lon)) return null;
       return {
@@ -123,26 +118,25 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
       };
     };
 
-    return (
-      trips
-        .map((tr) => ({
-          id: tr.id,
-          hashCode: tr.hash_code,
-          name: tr.name,
-          startDate: tr.start_date,
-          endDate: tr.end_date,
-          departure: toPoint(tr.departure_location, tr.name),
-          destination: toPoint(tr.destination_location, tr.name),
-        }))
-        // 目的地座標是上圖的必要條件。
-        .filter((r): r is TripRoute => r.destination !== null)
-        // 依出發日正序，讓編號讀作 1→2→3 的旅行順序；未設日期者排最後。
-        .sort((a, b) => {
-          const ta = a.startDate ? new Date(a.startDate).getTime() : Infinity;
-          const tb = b.startDate ? new Date(b.startDate).getTime() : Infinity;
-          return ta - tb;
-        })
-    );
+    return trips
+      .map((tr) => {
+        const point = toPoint(tr.destination_location, tr.name);
+        return point
+          ? {
+              ...point,
+              id: tr.id,
+              tripName: tr.name,
+              startDate: tr.start_date,
+              endDate: tr.end_date,
+            }
+          : null;
+      })
+      .filter((destination): destination is TripDestinationPoint => destination !== null)
+      .sort((a, b) => {
+        const ta = a.startDate ? new Date(a.startDate).getTime() : Infinity;
+        const tb = b.startDate ? new Date(b.startDate).getTime() : Infinity;
+        return ta - tb;
+      });
   }, [trips, locale]);
 
   // 飛行航段：FlightRecord 依「出發→抵達」聚合，座標自機場目錄解析；年份篩選連動。
@@ -177,32 +171,39 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
   // 飛行模式載入成就資料後，把飛行紀錄的年份也併入（歷史回填可能早於任何旅程）。
   const years = useMemo<number[]>(() => {
     const set = new Set<number>();
-    for (const r of projected) {
-      if (r.startDate) set.add(new Date(r.startDate).getFullYear());
-      if (r.endDate) set.add(new Date(r.endDate).getFullYear());
+    for (const trip of trips) {
+      if (trip.start_date) set.add(new Date(trip.start_date).getFullYear());
+      if (trip.end_date) set.add(new Date(trip.end_date).getFullYear());
     }
     for (const f of collections?.flights ?? []) {
       const y = Number(f.date.slice(0, 4));
       if (Number.isFinite(y) && y > 0) set.add(y);
     }
     return Array.from(set).sort((a, b) => b - a);
-  }, [projected, collections]);
+  }, [trips, collections]);
 
-  // 依選定年份過濾：保留起訖與該年重疊的旅程（跨年旅程會同時出現在兩年）。
-  // 重疊判斷與 stats 共用（src/lib/dateRange.ts）；無日期者在選定年份時排除。
-  const routes = useMemo<TripRoute[]>(() => {
-    if (selectedYear === null) return projected;
+  const filteredTrips = useMemo(() => {
+    if (selectedYear === null) return trips;
     const lo = new Date(selectedYear, 0, 1);
     const hi = new Date(selectedYear, 11, 31, 23, 59, 59, 999);
-    return projected.filter((r) =>
+    return trips.filter((trip) =>
       tripOverlapsRange(
-        r.startDate ? new Date(r.startDate) : null,
-        r.endDate ? new Date(r.endDate) : null,
+        trip.start_date ? new Date(trip.start_date) : null,
+        trip.end_date ? new Date(trip.end_date) : null,
         lo,
         hi
       )
     );
-  }, [projected, selectedYear]);
+  }, [trips, selectedYear]);
+
+  const filteredTripIds = useMemo(
+    () => new Set(filteredTrips.map((trip) => trip.id)),
+    [filteredTrips]
+  );
+  const filteredDestinations = useMemo(
+    () => destinations.filter((destination) => filteredTripIds.has(destination.id)),
+    [destinations, filteredTripIds]
+  );
 
   // 城市數 / 國家點亮 / 國家排行恆以「造訪次數」地點集為準（不受花費權重切換影響，
   // 否則切到花費權重時，沒記帳的城市與國家會從儀表板與國家圖消失）。
@@ -218,78 +219,41 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
     [visited, locale]
   );
 
-  // 儀表板數字與國家點亮，都跟著年份篩選後的 routes / visitsPoints 走。
-  const stats = useMemo(() => computeMapStats(routes, visitsPoints), [routes, visitsPoints]);
+  // 飛行里程只來自實際 FlightRecord 航段，不再以旅行目的地推測交通距離。
+  const stats = useMemo(
+    () => computeMapStats(filteredTrips.length, filteredDestinations, visitsPoints, flightSegments),
+    [filteredTrips.length, filteredDestinations, visitsPoints, flightSegments]
+  );
   const visitedCountries = useMemo(
-    () => visitedCountrySet(routes, visitsPoints),
-    [routes, visitsPoints]
+    () => visitedCountrySet(filteredDestinations, visitsPoints),
+    [filteredDestinations, visitsPoints]
   );
 
   // 國家模式側欄：依造訪城市次數排序的國家清單。
   const rankedCountries = useMemo(() => {
     const map = new Map<string, { code: string; cities: number; visits: number }>();
+    const cityKeys = new Map<string, Set<string>>();
+    const addCity = (code: string, lat: number, lon: number) => {
+      const set = cityKeys.get(code) ?? new Set<string>();
+      set.add(`${lat.toFixed(2)},${lon.toFixed(2)}`);
+      cityKeys.set(code, set);
+    };
     for (const p of visitsPoints) {
       const code = p.countryCode?.toUpperCase();
       if (!code) continue;
       const e = map.get(code) ?? { code, cities: 0, visits: 0 };
-      e.cities += 1;
       e.visits += p.weight;
       map.set(code, e);
+      addCity(code, p.lat, p.lon);
     }
-    for (const r of routes) {
-      for (const c of [r.departure?.countryCode, r.destination?.countryCode]) {
-        const code = c?.toUpperCase();
-        if (code && !map.has(code)) map.set(code, { code, cities: 0, visits: 0 });
-      }
+    for (const destination of filteredDestinations) {
+      const code = destination.countryCode?.toUpperCase();
+      if (code && !map.has(code)) map.set(code, { code, cities: 0, visits: 0 });
+      if (code) addCity(code, destination.lat, destination.lon);
     }
+    for (const [code, entry] of map) entry.cities = cityKeys.get(code)?.size ?? 0;
     return [...map.values()].sort((a, b) => b.visits - a.visits || b.cities - a.cities);
-  }, [visitsPoints, routes]);
-
-  // 足跡回放：依時間逐條揭露路線並飛向當前目的地。
-  // revealCount = undefined 代表沒在播放（顯示全部）。
-  const [playing, setPlaying] = useState(false);
-  const [revealCount, setRevealCount] = useState<number | undefined>(undefined);
-  const stepRef = useRef(0);
-
-  const stopPlay = () => {
-    setPlaying(false);
-    setRevealCount(undefined);
-  };
-  const startPlay = () => {
-    if (routes.length === 0) return;
-    stepRef.current = 0;
-    setSelectedId(routes[0]?.id ?? null);
-    setRevealCount(1);
-    setPlaying(true);
-  };
-
-  // 播放時每 1.3s 揭露下一條；播完停留約 1.2s 後收尾（回到全部顯示）。
-  // setState 都在 interval/timeout 回呼中，不在 effect 主體同步呼叫。
-  useEffect(() => {
-    if (!playing) return;
-    const timer = setInterval(() => {
-      stepRef.current += 1;
-      if (stepRef.current >= routes.length) {
-        clearInterval(timer);
-        setTimeout(() => {
-          setPlaying(false);
-          setRevealCount(undefined);
-        }, 1200);
-        return;
-      }
-      setSelectedId(routes[stepRef.current]?.id ?? null);
-      setRevealCount(stepRef.current + 1);
-    }, 1300);
-    return () => clearInterval(timer);
-  }, [playing, routes]);
-
-  const formatRange = (start: string | null, end: string | null) => {
-    const fmt = (d: string) => new Date(d).toLocaleDateString(locale);
-    if (start && end) return `${fmt(start)} – ${fmt(end)}`;
-    if (start) return fmt(start);
-    if (end) return fmt(end);
-    return t('noDate');
-  };
+  }, [visitsPoints, filteredDestinations]);
 
   if (loading) {
     return (
@@ -303,39 +267,18 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
     return <div className="container mx-auto px-4 py-10 text-center text-destructive">{error}</div>;
   }
 
-  if (projected.length === 0) {
-    return (
-      <div className="container mx-auto flex min-h-[60vh] flex-col items-center justify-center gap-3 px-4 text-center text-muted-foreground">
-        <MapPin className="h-10 w-10" />
-        <p>{t('empty')}</p>
-      </div>
-    );
-  }
-
   return (
     // 桌機：扣掉 sticky 頂列（4rem）與 main 底部 padding（2rem）後佔滿視窗高度的 flex 欄，
     // 避免地圖高度硬算（會多出一點點 scrollbar）；列表在自己的欄內捲動。手機維持一般文件流捲動。
     <div className="container mx-auto px-4 pt-4 pb-8 lg:flex lg:h-[calc(100vh-6rem)] lg:flex-col lg:overflow-hidden lg:pb-4">
-      {/* 工具列：模式切換 + 年份篩選（同時作用於航線與熱點）+ 分享 */}
+      {/* 工具列：飛行是唯一線段資料；其餘模式呈現旅行目的地與行程內容。 */}
       <div className="mb-4 flex flex-wrap items-center gap-2 lg:shrink-0">
-        {/* 模式切換：航線 / 熱點 / 國家 */}
         <div className="inline-flex rounded-lg border border-border p-0.5">
-          <Button
-            variant={mode === 'routes' ? 'default' : 'ghost'}
-            size="sm"
-            className="h-7 px-3 text-xs"
-            onClick={() => setMode('routes')}
-          >
-            {t('modeRoutes')}
-          </Button>
           <Button
             variant={mode === 'flights' ? 'default' : 'ghost'}
             size="sm"
             className="h-7 px-3 text-xs"
-            onClick={() => {
-              stopPlay();
-              setMode('flights');
-            }}
+            onClick={() => setMode('flights')}
           >
             {t('modeFlights')}
           </Button>
@@ -343,10 +286,7 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
             variant={mode === 'heat' ? 'default' : 'ghost'}
             size="sm"
             className="h-7 px-3 text-xs"
-            onClick={() => {
-              stopPlay();
-              setMode('heat');
-            }}
+            onClick={() => setMode('heat')}
           >
             {t('modeHeat')}
           </Button>
@@ -354,10 +294,7 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
             variant={mode === 'countries' ? 'default' : 'ghost'}
             size="sm"
             className="h-7 px-3 text-xs"
-            onClick={() => {
-              stopPlay();
-              setMode('countries');
-            }}
+            onClick={() => setMode('countries')}
           >
             {t('modeCountries')}
           </Button>
@@ -365,10 +302,7 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
             variant={mode === 'photos' ? 'default' : 'ghost'}
             size="sm"
             className="h-7 px-3 text-xs"
-            onClick={() => {
-              stopPlay();
-              setMode('photos');
-            }}
+            onClick={() => setMode('photos')}
           >
             {t('modePhotos')}
           </Button>
@@ -396,19 +330,6 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
           </div>
         )}
 
-        {/* 足跡回放：只在航線模式且有路線時提供 */}
-        {mode === 'routes' && routes.length > 0 && (
-          <Button
-            variant={playing ? 'secondary' : 'outline'}
-            size="sm"
-            className="h-7 gap-1 px-3 text-xs"
-            onClick={playing ? stopPlay : startPlay}
-          >
-            {playing ? <Square className="h-3 w-3" /> : <Play className="h-3 w-3" />}
-            {playing ? t('playStop') : t('playRoute')}
-          </Button>
-        )}
-
         {/* 年份快速篩選 */}
         {years.length > 0 && (
           <div className="flex flex-wrap items-center gap-1.5">
@@ -416,10 +337,7 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
               variant={selectedYear === null ? 'secondary' : 'ghost'}
               size="sm"
               className="h-7 px-3 text-xs"
-              onClick={() => {
-                stopPlay();
-                setSelectedYear(null);
-              }}
+              onClick={() => setSelectedYear(null)}
             >
               {t('filterAll')}
             </Button>
@@ -429,10 +347,7 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
                 variant={selectedYear === y ? 'secondary' : 'ghost'}
                 size="sm"
                 className="h-7 px-3 text-xs"
-                onClick={() => {
-                  stopPlay();
-                  setSelectedYear(y);
-                }}
+                onClick={() => setSelectedYear(y)}
               >
                 {y}
               </Button>
@@ -588,78 +503,19 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
                 </ol>
               )}
             </>
-          ) : (
-            <>
-              <h2 className="mb-3 px-1 text-sm font-medium text-muted-foreground">
-                {t('timelineTitle', { count: routes.length })}
-              </h2>
-              {routes.length === 0 ? (
-                <p className="px-1 text-sm text-muted-foreground">{t('noResults')}</p>
-              ) : (
-                <ol className="space-y-2">
-                  {routes.map((r, i) => (
-                    <li key={r.id}>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedId(r.id)}
-                        onDoubleClick={() => router.push(ROUTES.TRIP_DETAIL(r.hashCode))}
-                        className={cn(
-                          'flex w-full items-start gap-3 rounded-lg border p-3 text-left transition-colors',
-                          selectedId === r.id
-                            ? 'border-primary bg-primary/5'
-                            : 'border-border hover:bg-muted/50'
-                        )}
-                      >
-                        <span
-                          className={cn(
-                            'mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white',
-                            selectedId === r.id && 'ring-2 ring-primary ring-offset-1'
-                          )}
-                          style={{ backgroundColor: countryColor(r.destination?.countryCode) }}
-                        >
-                          {i + 1}
-                        </span>
-                        <span className="min-w-0">
-                          <span className="block truncate font-medium">{r.name}</span>
-                          <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                            {r.departure && (
-                              <>
-                                <span className="truncate">
-                                  {countryCodeToFlag(r.departure.countryCode)} {r.departure.name}
-                                </span>
-                                <ArrowRight className="h-3 w-3 shrink-0" />
-                              </>
-                            )}
-                            <span className="truncate">
-                              {countryCodeToFlag(r.destination?.countryCode)} {r.destination?.name}
-                            </span>
-                          </span>
-                          <span className="block text-xs text-muted-foreground">
-                            {formatRange(r.startDate, r.endDate)}
-                          </span>
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ol>
-              )}
-            </>
-          )}
+          ) : null}
         </aside>
 
         {/* 地圖 */}
         <div className="order-1 h-[50vh] min-w-0 overflow-hidden rounded-lg lg:order-2 lg:h-full">
           <TripMapCanvas
             mode={mode}
-            routes={routes}
+            destinations={filteredDestinations}
             flightSegments={flightSegments}
             heatPoints={heatPoints}
             visitedCountries={visitedCountries}
             photoPins={photoPins}
             onPhotoPinSelect={setActivePin}
-            revealCount={revealCount}
-            selectedId={selectedId}
-            onSelect={setSelectedId}
           />
         </div>
       </div>

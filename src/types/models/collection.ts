@@ -47,7 +47,7 @@ export interface StayRecordItem {
   created_at: string;
 }
 
-/** 造訪過的國家（由旅程出發/目的地與行程日地點推導，與地圖/回顧同口徑）。 */
+/** 造訪過的國家（由旅行目的地與行程日地點推導，與地圖/回顧同口徑）。 */
 export interface VisitedCountryItem {
   /** ISO 3166-1 alpha-2（大寫）。 */
   code: string;

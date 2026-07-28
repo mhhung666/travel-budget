@@ -24,7 +24,6 @@ export interface EditTripFormData {
   description: string;
   start_date: string;
   end_date: string;
-  departure_location: LocationOption | null;
   destination_location: LocationOption | null;
 }
 
@@ -48,7 +47,6 @@ export default function EditTripDialog({ open, onClose, onSubmit, trip }: EditTr
     start_date: '',
     end_date: '',
   });
-  const [departureLocation, setDepartureLocation] = useState<LocationOption | null>(null);
   const [destinationLocation, setDestinationLocation] = useState<LocationOption | null>(null);
 
   useEffect(() => {
@@ -60,7 +58,7 @@ export default function EditTripDialog({ open, onClose, onSubmit, trip }: EditTr
         start_date: trip.start_date ? new Date(trip.start_date).toISOString().split('T')[0] : '',
         end_date: trip.end_date ? new Date(trip.end_date).toISOString().split('T')[0] : '',
       });
-      const toOption = (loc: Trip['departure_location']): LocationOption | null =>
+      const toOption = (loc: Trip['destination_location']): LocationOption | null =>
         loc
           ? {
               name: loc.name,
@@ -72,7 +70,6 @@ export default function EditTripDialog({ open, onClose, onSubmit, trip }: EditTr
               country_code: loc.country_code,
             }
           : null;
-      setDepartureLocation(toOption(trip.departure_location));
       setDestinationLocation(toOption(trip.destination_location));
       setError('');
     }
@@ -87,7 +84,6 @@ export default function EditTripDialog({ open, onClose, onSubmit, trip }: EditTr
     try {
       await onSubmit({
         ...form,
-        departure_location: departureLocation,
         destination_location: destinationLocation,
       });
     } catch (err: unknown) {
@@ -132,26 +128,13 @@ export default function EditTripDialog({ open, onClose, onSubmit, trip }: EditTr
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="min-w-0 space-y-2">
-              <LocationAutocomplete
-                value={departureLocation}
-                onChange={setDepartureLocation}
-                label={tTrips('create.departure')}
-                placeholder={tTrips('create.departurePlaceholder')}
-                helperText={tTrips('create.departureHelp')}
-              />
-            </div>
-            <div className="min-w-0 space-y-2">
-              <LocationAutocomplete
-                value={destinationLocation}
-                onChange={setDestinationLocation}
-                label={tTrips('create.destination')}
-                placeholder={tTrips('create.destinationPlaceholder')}
-                helperText={tTrips('create.destinationHelp')}
-              />
-            </div>
-          </div>
+          <LocationAutocomplete
+            value={destinationLocation}
+            onChange={setDestinationLocation}
+            label={tTrips('create.destination')}
+            placeholder={tTrips('create.destinationPlaceholder')}
+            helperText={tTrips('create.destinationHelp')}
+          />
 
           <div className="grid grid-cols-2 gap-4">
             <div className="min-w-0 space-y-2">

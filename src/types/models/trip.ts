@@ -29,7 +29,6 @@ export interface Trip {
   description: string | null;
   start_date: string | null;
   end_date: string | null;
-  departure_location: Location | null;
   destination_location: Location | null;
   hash_code: string;
   created_at: string;

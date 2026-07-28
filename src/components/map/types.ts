@@ -10,7 +10,7 @@ export interface HeatPoint {
   countryCode?: string;
 }
 
-/** 地圖上的一個座標點（出發地或目的地）。 */
+/** 地圖上的一個座標點。 */
 export interface GeoPoint {
   /** 已依當前語系挑好的顯示地名 */
   name: string;
@@ -44,19 +44,10 @@ export interface FlightSegment {
   count: number;
 }
 
-/**
- * 地圖上的一趟旅行（由 TripWithMembers 投影而來）。
- * 每趟旅行畫一條「出發地 → 目的地」的線；舊資料可能只有目的地。
- */
-export interface TripRoute {
+/** 旅行的主要目的地；只畫點位，不代表實際交通航段。 */
+export interface TripDestinationPoint extends GeoPoint {
   id: string;
-  hashCode: string;
-  /** 旅行名稱（標籤用） */
-  name: string;
+  tripName: string;
   startDate: string | null;
   endDate: string | null;
-  /** 出發地座標；缺座標時為 null（舊資料或未填）。 */
-  departure: GeoPoint | null;
-  /** 目的地座標；缺座標時為 null。 */
-  destination: GeoPoint | null;
 }

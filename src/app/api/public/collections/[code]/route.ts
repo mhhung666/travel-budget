@@ -22,7 +22,6 @@ import type { Location } from '@/types';
 
 type LeanTrip = {
   _id: Types.ObjectId;
-  departureLocation?: Location | null;
   destinationLocation?: Location | null;
 };
 type LeanDay = { location?: Location | null };
@@ -46,9 +45,7 @@ export async function GET(_request: Request, context: { params: Promise<{ code: 
     const [flights, stays, trips] = await Promise.all([
       FlightRecord.find({ user: user._id }).select('airline').lean<{ airline: string }[]>(),
       StayRecord.find({ user: user._id }).select('brand').lean<{ brand?: string | null }[]>(),
-      Trip.find({ 'members.user': user._id })
-        .select('departureLocation destinationLocation')
-        .lean<LeanTrip[]>(),
+      Trip.find({ 'members.user': user._id }).select('destinationLocation').lean<LeanTrip[]>(),
     ]);
 
     const days =
@@ -64,7 +61,6 @@ export async function GET(_request: Request, context: { params: Promise<{ code: 
       if (c) countries.add(c.toUpperCase());
     };
     for (const t of trips) {
-      addCountry(t.departureLocation?.country_code);
       addCountry(t.destinationLocation?.country_code);
     }
     for (const d of days) addCountry(d.location?.country_code);

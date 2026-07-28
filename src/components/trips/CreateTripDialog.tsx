@@ -39,7 +39,6 @@ export default function CreateTripDialog({ open, onClose, onSuccess }: CreateTri
     start_date: '',
     end_date: '',
   });
-  const [departureLocation, setDepartureLocation] = useState<LocationOption | null>(null);
   const [destinationLocation, setDestinationLocation] = useState<LocationOption | null>(null);
   const [selectedFriends, setSelectedFriends] = useState<Set<string>>(new Set());
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -63,7 +62,6 @@ export default function CreateTripDialog({ open, onClose, onSuccess }: CreateTri
   const handleClose = () => {
     setError('');
     setFormData({ name: '', description: '', start_date: '', end_date: '' });
-    setDepartureLocation(null);
     setDestinationLocation(null);
     setSelectedFriends(new Set());
     setDetailsOpen(false);
@@ -80,7 +78,6 @@ export default function CreateTripDialog({ open, onClose, onSuccess }: CreateTri
         ...formData,
         start_date: formData.start_date || null,
         end_date: formData.end_date || null,
-        departure_location: departureLocation || null,
         destination_location: destinationLocation || null,
       });
 
@@ -157,6 +154,14 @@ export default function CreateTripDialog({ open, onClose, onSuccess }: CreateTri
           />
         </div>
 
+        <LocationAutocomplete
+          value={destinationLocation}
+          onChange={setDestinationLocation}
+          label={t('create.destination')}
+          placeholder={t('create.destinationPlaceholder')}
+          helperText={t('create.destinationHelp')}
+        />
+
         <Collapsible open={detailsOpen} onOpenChange={setDetailsOpen}>
           <CollapsibleTrigger asChild>
             <Button
@@ -180,26 +185,6 @@ export default function CreateTripDialog({ open, onClose, onSuccess }: CreateTri
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 rows={2}
               />
-            </div>
-
-            {/* 出發地 / 目的地 —— 手機空間不足以並排放下地名，改為直排 */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="min-w-0 space-y-2">
-                <LocationAutocomplete
-                  value={departureLocation}
-                  onChange={setDepartureLocation}
-                  label={t('create.departure')}
-                  placeholder={t('create.departurePlaceholder')}
-                />
-              </div>
-              <div className="min-w-0 space-y-2">
-                <LocationAutocomplete
-                  value={destinationLocation}
-                  onChange={setDestinationLocation}
-                  label={t('create.destination')}
-                  placeholder={t('create.destinationPlaceholder')}
-                />
-              </div>
             </div>
 
             {/* 旅遊時間區間 */}

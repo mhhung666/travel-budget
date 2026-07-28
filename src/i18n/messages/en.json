@@ -195,15 +195,12 @@
       "formDescription": "Fill in the details to create a new trip budget",
       "name": "Trip Name",
       "namePlaceholder": "e.g., Japan Kansai Trip",
-      "moreDetails": "Add dates, places, and companions (optional)",
+      "moreDetails": "Add dates, details, and companions (optional)",
       "description": "Description (Optional)",
       "descriptionPlaceholder": "Brief description of the trip (optional)",
-      "departure": "Departure",
-      "departurePlaceholder": "Search departure city or country",
-      "departureHelp": "Enter the departure city or country name",
       "destination": "Destination",
       "destinationPlaceholder": "Search destination city or country",
-      "destinationHelp": "Enter the destination city or country name",
+      "destinationHelp": "Used in your travel map, country collection, and year in review",
       "startDate": "Start Date",
       "endDate": "End Date",
       "inviteFriends": "Invite friends (optional)",
@@ -1052,12 +1049,7 @@
   },
   "map": {
     "title": "Travel Map",
-    "timelineTitle": "{count} trips",
-    "empty": "No trips with a location yet. Add a location to a trip and it will show up on the map.",
-    "noDate": "No date set",
     "filterAll": "All",
-    "noResults": "No trips in this range",
-    "modeRoutes": "Routes",
     "modeHeat": "Heatmap",
     "heatTitle": "{count} places",
     "heatEmpty": "No itinerary locations yet. Add a location to an itinerary day to build the heatmap.",
@@ -1065,7 +1057,7 @@
     "share": {
       "button": "Share map",
       "title": "Share your travel map",
-      "description": "Anyone with the link can view your travel routes on a map. Trip names and dates are never shown.",
+      "description": "Anyone with the link can view de-identified destinations, heatmaps, and countries. Private flight records, trip names, and dates are never shared.",
       "generate": "Generate link",
       "regenerate": "Regenerate link",
       "revoke": "Disable sharing",
@@ -1082,11 +1074,9 @@
     "statTrips": "Trips",
     "statCountries": "Countries",
     "statCities": "Cities",
-    "statDistance": "Distance",
+    "statDistance": "Flight distance",
     "countryTitle": "{count} countries",
     "countryCities": "{count} cities",
-    "playRoute": "Play route",
-    "playStop": "Stop",
     "heatByVisits": "Visits",
     "heatBySpend": "Spend",
     "modePhotos": "Photos",
@@ -1095,7 +1085,7 @@
     "photoCount": "{count} photos",
     "modeFlights": "Flights",
     "flightTitle": "{count, plural, one {# segment} other {# segments}}",
-    "flightEmpty": "No routes to draw yet — log flights with departure/arrival airports in Achievements"
+    "flightEmpty": "No flights to show yet — log flights with departure and arrival airports in Achievements"
   },
   "notifications": {
     "title": "Notifications",
@@ -1284,7 +1274,7 @@
       "accrueLoyalty": "Accrue {program} status",
       "accrueLoyaltyHint": "Log this flight's status points and miles (copy the numbers from the airline app)",
       "editFlight": "Edit flight",
-      "formDescription": "Log a flight you've taken",
+      "formDescription": "Log a flight; airports are used for your flight map and distance totals",
       "airline": "Airline",
       "flightNo": "Flight number",
       "from": "From",
@@ -1361,7 +1351,7 @@
         "countries": "Countries"
       },
       "tripsCount": "{count, plural, one {# trip} other {# trips}}",
-      "autoNote": "Computed automatically from trip origins, destinations and itinerary locations"
+      "autoNote": "Computed automatically from trip destinations and itinerary locations"
     },
     "errors": {
       "UNAUTHORIZED": "Please sign in",

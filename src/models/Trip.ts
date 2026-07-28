@@ -72,8 +72,10 @@ const TripSchema = new Schema(
     description: { type: String, default: '' },
     startDate: { type: Date },
     endDate: { type: Date },
-    // 出發地 / 目的地（取代舊單一 location 欄位，見 migration move-location-to-destination）。
+    // 舊版曾用 departureLocation 畫旅行航線。保留欄位只為部署相容與安全回滾；
+    // 新版不再讀寫，待相容期結束後由 migration 實體移除。
     departureLocation: { type: Schema.Types.Mixed },
+    // 旅行的主要目的地；交通方式與實際航段由 FlightRecord 等獨立紀錄負責。
     destinationLocation: { type: Schema.Types.Mixed },
     hashCode: { type: String, required: true, unique: true },
     // 相簿公開分享碼（opt-in，sparse-unique，hash_code 同格式）。非 null 代表相簿已公開分享，

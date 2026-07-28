@@ -191,7 +191,7 @@ export function FlightRecordDialog({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!airline || !date) return;
+    if (!airline || !date || !fromAirport || !toAirport) return;
 
     const input: CreateFlightRecordInput = {
       trip_id: tripId,
@@ -255,7 +255,11 @@ export function FlightRecordDialog({
       title={editing ? t('flights.editFlight') : t('flights.addFlight')}
       description={t('flights.formDescription')}
       footer={
-        <Button form="flight-record-form" type="submit" disabled={pending || !airline || !date}>
+        <Button
+          form="flight-record-form"
+          type="submit"
+          disabled={pending || !airline || !date || !fromAirport || !toAirport}
+        >
           {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           {t('common.save')}
         </Button>
@@ -293,7 +297,9 @@ export function FlightRecordDialog({
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label>{t('flights.from')}</Label>
+            <Label>
+              {t('flights.from')} <span className="text-destructive">*</span>
+            </Label>
             <AirportCombobox
               value={fromAirport}
               onChange={setFromAirport}
@@ -301,7 +307,9 @@ export function FlightRecordDialog({
             />
           </div>
           <div className="space-y-2">
-            <Label>{t('flights.to')}</Label>
+            <Label>
+              {t('flights.to')} <span className="text-destructive">*</span>
+            </Label>
             <AirportCombobox
               value={toAirport}
               onChange={setToAirport}

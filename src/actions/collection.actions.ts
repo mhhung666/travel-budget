@@ -117,7 +117,6 @@ export const getCollections = withAuth(async (session): Promise<ActionResult<Col
 
     type LeanTrip = {
       _id: Types.ObjectId;
-      departureLocation?: Location | null;
       destinationLocation?: Location | null;
     };
     type LeanDay = { trip: Types.ObjectId; location?: Location | null };
@@ -126,7 +125,7 @@ export const getCollections = withAuth(async (session): Promise<ActionResult<Col
       FlightRecord.find({ user: session.userId }).sort({ date: -1, _id: -1 }).lean<LeanFlight[]>(),
       StayRecord.find({ user: session.userId }).sort({ checkIn: -1, _id: -1 }).lean<LeanStay[]>(),
       Trip.find({ 'members.user': session.userId })
-        .select('departureLocation destinationLocation')
+        .select('destinationLocation')
         .lean<LeanTrip[]>(),
     ]);
 
@@ -148,7 +147,6 @@ export const getCollections = withAuth(async (session): Promise<ActionResult<Col
     };
     for (const t of trips) {
       const id = t._id.toString();
-      addCountry(t.departureLocation?.country_code, id);
       addCountry(t.destinationLocation?.country_code, id);
     }
     for (const d of days) {

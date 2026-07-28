@@ -100,7 +100,6 @@ export type TripDtoInput = {
   description?: string | null;
   startDate?: Date | null;
   endDate?: Date | null;
-  departureLocation?: unknown;
   destinationLocation?: unknown;
   hashCode: string;
   createdAt: Date;
@@ -124,7 +123,6 @@ export function toTripDto(t: TripDtoInput, viewerId?: string): TripDto {
     description: t.description ?? null,
     start_date: t.startDate ? t.startDate.toISOString().slice(0, 10) : null,
     end_date: t.endDate ? t.endDate.toISOString().slice(0, 10) : null,
-    departure_location: (t.departureLocation ?? null) as TripDto['departure_location'],
     destination_location: (t.destinationLocation ?? null) as TripDto['destination_location'],
     hash_code: t.hashCode,
     created_at: t.createdAt.toISOString(),

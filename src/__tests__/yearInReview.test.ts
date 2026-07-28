@@ -25,13 +25,12 @@ function inputs(partial: Partial<YearInReviewInputs>): YearInReviewInputs {
 }
 
 describe('computeYearInReview — 地理', () => {
-  it('趟數/國家/里程：只計入起訖與該年重疊的旅程', () => {
+  it('趟數/國家只依旅行目的地，里程依該年飛行紀錄', () => {
     const trips: YearInReviewTrip[] = [
       {
         id: 't1',
         startDate: '2025-04-01',
         endDate: '2025-04-05',
-        departure: TPE,
         destination: TYO,
         memberIds: [SELF, 'a'],
       },
@@ -39,15 +38,17 @@ describe('computeYearInReview — 地理', () => {
         id: 't2', // 不同年，應被排除
         startDate: '2024-01-01',
         endDate: '2024-01-03',
-        departure: TPE,
         destination: NYC,
         memberIds: [SELF, 'b'],
       },
     ];
-    const r = computeYearInReview(inputs({ trips }), 2025);
+    const flights = [
+      { airline: 'BR', date: '2025-04-01', from: TPE, to: TYO },
+      { airline: 'BR', date: '2024-01-01', from: TPE, to: NYC },
+    ];
+    const r = computeYearInReview(inputs({ trips, flights }), 2025);
     expect(r.tripCount).toBe(1);
-    // 2025 只去了日本（出發地台灣 + 目的地日本）= 2 國
-    expect(r.countryCount).toBe(2);
+    expect(r.countryCount).toBe(1);
     expect(r.distanceKm).toBeGreaterThan(2000);
     expect(r.distanceKm).toBeLessThan(2500); // 台北→東京 ~2100km
     expect(r.companionCount).toBe(1); // 'a'，排除自己
@@ -59,7 +60,6 @@ describe('computeYearInReview — 地理', () => {
         id: 't1',
         startDate: '2025-12-30',
         endDate: '2026-01-02',
-        departure: TPE,
         destination: TYO,
         memberIds: [SELF],
       },

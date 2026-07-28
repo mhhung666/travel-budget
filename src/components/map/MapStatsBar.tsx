@@ -6,13 +6,15 @@ import type { MapStats } from './stats';
 
 interface MapStatsBarProps {
   stats: MapStats;
+  /** 公開地圖不揭露私人 FlightRecord，因此不顯示無意義的 0 km。 */
+  showDistance?: boolean;
 }
 
 /**
- * 旅程數據儀表板：一排統計卡（旅程 / 國家 / 城市 / 總里程）。
+ * 旅程數據儀表板：一排統計卡（旅程 / 國家 / 城市 / 飛行里程）。
  * 里程以千為單位人性化顯示（≥1000km 顯示為 1.2k km）。
  */
-export default function MapStatsBar({ stats }: MapStatsBarProps) {
+export default function MapStatsBar({ stats, showDistance = true }: MapStatsBarProps) {
   const t = useTranslations('map');
 
   const distance =
@@ -20,15 +22,24 @@ export default function MapStatsBar({ stats }: MapStatsBarProps) {
       ? `${(stats.distanceKm / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 })}k`
       : String(stats.distanceKm);
 
-  const items = [
-    { icon: Plane, value: stats.trips, label: t('statTrips') },
-    { icon: Globe2, value: stats.countries, label: t('statCountries') },
-    { icon: Building2, value: stats.cities, label: t('statCities') },
-    { icon: Route, value: distance, label: t('statDistance'), suffix: 'km' },
+  const items: Array<{
+    icon: typeof Plane;
+    value: string;
+    label: string;
+    suffix?: string;
+  }> = [
+    { icon: Plane, value: String(stats.trips), label: t('statTrips') },
+    { icon: Globe2, value: String(stats.countries), label: t('statCountries') },
+    { icon: Building2, value: String(stats.cities), label: t('statCities') },
   ];
+  if (showDistance) {
+    items.push({ icon: Route, value: distance, label: t('statDistance'), suffix: 'km' });
+  }
 
   return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+    <div
+      className={showDistance ? 'grid grid-cols-2 gap-2 sm:grid-cols-4' : 'grid grid-cols-3 gap-2'}
+    >
       {items.map(({ icon: Icon, value, label, suffix }) => (
         <div
           key={label}

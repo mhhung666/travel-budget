@@ -40,7 +40,6 @@ const trip: Trip = {
   description: 'Trip details',
   start_date: '2026-07-01',
   end_date: '2026-07-05',
-  departure_location: null,
   destination_location: null,
   hash_code: 'abc123',
   created_at: '2026-06-01T00:00:00.000Z',

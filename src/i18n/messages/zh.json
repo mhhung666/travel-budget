@@ -195,15 +195,12 @@
       "formDescription": "填寫旅行資訊以建立新的旅行帳本",
       "name": "旅行名稱",
       "namePlaceholder": "例：日本關西之旅",
-      "moreDetails": "加入日期、地點與旅伴（選填）",
+      "moreDetails": "加入日期、描述與旅伴（選填）",
       "description": "描述 (可選)",
       "descriptionPlaceholder": "旅行的簡短描述（選填）",
-      "departure": "出發地",
-      "departurePlaceholder": "搜尋出發城市或國家",
-      "departureHelp": "輸入出發地的城市或國家名稱",
       "destination": "目的地",
       "destinationPlaceholder": "搜尋目的地城市或國家",
-      "destinationHelp": "輸入目的地的城市或國家名稱",
+      "destinationHelp": "會用於旅行地圖、國家收藏與年度回顧",
       "startDate": "開始日期",
       "endDate": "結束日期",
       "inviteFriends": "邀請好友一起（可選）",
@@ -1045,12 +1042,7 @@
   },
   "map": {
     "title": "旅行地圖",
-    "timelineTitle": "共 {count} 趟旅行",
-    "empty": "還沒有任何含地點的旅行。建立旅行並設定地點後，就會顯示在地圖上。",
-    "noDate": "未設定日期",
     "filterAll": "全部",
-    "noResults": "此區間沒有旅行",
-    "modeRoutes": "航線",
     "modeHeat": "熱點",
     "heatTitle": "共 {count} 個地點",
     "heatEmpty": "還沒有行程地點。在行程的某天加上地點，就能畫出熱點圖。",
@@ -1058,7 +1050,7 @@
     "share": {
       "button": "分享地圖",
       "title": "分享你的旅行地圖",
-      "description": "任何人只要有連結就能在地圖上看到你的旅行路線。不會顯示旅行名稱與日期。",
+      "description": "任何人只要有連結就能看到去識別化的目的地、熱點與國家。不會公開私人飛行紀錄、旅行名稱與日期。",
       "generate": "產生連結",
       "regenerate": "重新產生連結",
       "revoke": "關閉分享",
@@ -1075,11 +1067,9 @@
     "statTrips": "旅行",
     "statCountries": "國家",
     "statCities": "城市",
-    "statDistance": "總里程",
+    "statDistance": "飛行里程",
     "countryTitle": "共 {count} 個國家",
     "countryCities": "{count} 個城市",
-    "playRoute": "播放足跡",
-    "playStop": "停止",
     "heatByVisits": "造訪次數",
     "heatBySpend": "花費",
     "modePhotos": "相片",
@@ -1088,7 +1078,7 @@
     "photoCount": "{count} 張相片",
     "modeFlights": "飛行",
     "flightTitle": "{count} 條航段",
-    "flightEmpty": "還沒有可畫的航線——到「旅行成就」補登含出發／抵達機場的飛行紀錄"
+    "flightEmpty": "還沒有可顯示的飛行——到「旅行成就」補登含出發／抵達機場的飛行紀錄"
   },
   "notifications": {
     "title": "通知",
@@ -1277,7 +1267,7 @@
       "accrueLoyalty": "累積 {program} 會籍",
       "accrueLoyaltyHint": "把這趟航班記入會籍積分與里數（數字從航空公司 App 抄入）",
       "editFlight": "編輯飛行紀錄",
-      "formDescription": "補登搭乘過的航班",
+      "formDescription": "補登搭乘過的航班；起訖機場會用於飛行地圖與里程統計",
       "airline": "航空公司",
       "flightNo": "航班號",
       "from": "出發機場",
@@ -1354,7 +1344,7 @@
         "countries": "造訪國家"
       },
       "tripsCount": "{count} 趟旅程",
-      "autoNote": "由旅程的出發地、目的地與行程日地點自動計算"
+      "autoNote": "由旅行目的地與行程日地點自動計算"
     },
     "errors": {
       "UNAUTHORIZED": "請先登入",

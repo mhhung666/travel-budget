@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { ongoingDayNumber } from '@/lib/tripStatus';
-import TripRoute from './TripRoute';
+import TripDestination from './TripDestination';
 
 export interface TripCardProps {
   trip: TripWithMembers;
@@ -95,12 +95,7 @@ export default function TripCard({ trip, onClick, onCopyCode, onToggleArchive }:
         )}
 
         <div className="mt-auto space-y-2 w-full">
-          {/* 出發地 → 目的地 */}
-          <TripRoute
-            departure={trip.departure_location}
-            destination={trip.destination_location}
-            truncate
-          />
+          <TripDestination destination={trip.destination_location} truncate />
 
           {/* Dates */}
           {(trip.start_date || trip.end_date) && (

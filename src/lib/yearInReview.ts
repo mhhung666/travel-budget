@@ -14,7 +14,7 @@ import { yearsSpanned } from './dateRange';
  * 兩者各自合理：花費綁日期、地理綁旅程；於資料層各自過濾。
  */
 
-/** 一個座標點 + 國碼（出發地 / 目的地 / 行程日地點共用）。 */
+/** 一個座標點 + 國碼（旅行目的地 / 行程日地點 / 機場共用）。 */
 export interface YearInReviewPoint {
   lat: number;
   lon: number;
@@ -26,7 +26,6 @@ export interface YearInReviewTrip {
   /** YYYY-MM-DD 或 ISO；null＝未設定。 */
   startDate?: string | null;
   endDate?: string | null;
-  departure?: YearInReviewPoint | null;
   destination?: YearInReviewPoint | null;
   /** 此旅程的「真人」成員 id（虛擬成員已於資料層排除）。 */
   memberIds: string[];
@@ -49,6 +48,8 @@ export interface YearInReviewExpense {
 export interface YearInReviewFlight {
   airline: string;
   date: string;
+  from?: YearInReviewPoint | null;
+  to?: YearInReviewPoint | null;
 }
 
 /** 旅行成就的住宿紀錄投影（brand 為目錄 id；null＝獨立旅宿，不計入品牌解鎖）。 */
@@ -103,25 +104,19 @@ export function computeYearInReview(inputs: YearInReviewInputs, year: number): Y
   const yearTripIds = new Set(yearTrips.map((t) => t.id));
 
   const countrySet = new Set<string>();
+  const citySet = new Set<string>();
   const companionSet = new Set<string>();
   let distanceKm = 0;
   let longestTripDays = 0;
   for (const t of yearTrips) {
-    addCountry(countrySet, t.departure?.countryCode);
     addCountry(countrySet, t.destination?.countryCode);
-    if (t.departure && t.destination) {
-      distanceKm += haversineKm(
-        [t.departure.lat, t.departure.lon],
-        [t.destination.lat, t.destination.lon]
-      );
-    }
+    if (t.destination) citySet.add(coordKey(t.destination.lat, t.destination.lon));
     const days = inclusiveDayCount(t.startDate, t.endDate);
     if (days > longestTripDays) longestTripDays = days;
     for (const m of t.memberIds) if (m !== selfUserId) companionSet.add(m);
   }
 
-  // 城市：落在該年旅程的行程日地點，依座標去重；國碼一併計入國家集合。
-  const citySet = new Set<string>();
+  // 城市：旅行目的地與落在該年旅行的行程日地點，依座標去重。
   for (const p of itinerary) {
     if (!yearTripIds.has(p.tripId)) continue;
     citySet.add(coordKey(p.lat, p.lon));
@@ -163,7 +158,12 @@ export function computeYearInReview(inputs: YearInReviewInputs, year: number): Y
   let flightCount = 0;
   const airlineFirstDate = new Map<string, string>();
   for (const f of inputs.flights ?? []) {
-    if (f.date.slice(0, 4) === yearPrefix) flightCount += 1;
+    if (f.date.slice(0, 4) === yearPrefix) {
+      flightCount += 1;
+      if (f.from && f.to) {
+        distanceKm += haversineKm([f.from.lat, f.from.lon], [f.to.lat, f.to.lon]);
+      }
+    }
     const cur = airlineFirstDate.get(f.airline);
     if (!cur || f.date < cur) airlineFirstDate.set(f.airline, f.date);
   }

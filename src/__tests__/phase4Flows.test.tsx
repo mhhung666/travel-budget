@@ -25,7 +25,6 @@ const joinedTrip: Trip = {
   description: null,
   start_date: null,
   end_date: null,
-  departure_location: null,
   destination_location: null,
   hash_code: 'abc123',
   created_at: '2026-07-27T00:00:00.000Z',

@@ -21,6 +21,8 @@ export interface WrappedCardProps {
   review: YearInReviewData;
   /** 是否呈現金額（登入檢視/本人下載＝true；公開分享＝false，去識別化契約）。 */
   includeMoney: boolean;
+  /** 公開分享不揭露私人 FlightRecord，因此不顯示飛行里程。 */
+  includeDistance?: boolean;
   /** 顯示在頁尾的擁有者名稱（可選）。 */
   ownerName?: string;
   /** 在地化的金額格式化（僅 includeMoney 時使用）。 */
@@ -56,7 +58,7 @@ function StatTile({
  * 只用文字 + lucide 向量圖示。`includeMoney=false` 時隱藏所有金額（公開分享去識別化）。
  */
 export const WrappedCard = forwardRef<HTMLDivElement, WrappedCardProps>(function WrappedCard(
-  { review, includeMoney, ownerName, formatMoney },
+  { review, includeMoney, includeDistance = true, ownerName, formatMoney },
   ref
 ) {
   const t = useTranslations('wrapped');
@@ -95,7 +97,9 @@ export const WrappedCard = forwardRef<HTMLDivElement, WrappedCardProps>(function
         <StatTile icon={Plane} value={review.tripCount} label={t('stat.trips')} />
         <StatTile icon={Globe2} value={review.countryCount} label={t('stat.countries')} />
         <StatTile icon={Building2} value={review.cityCount} label={t('stat.cities')} />
-        <StatTile icon={Route} value={distance} label={t('stat.distance')} suffix="km" />
+        {includeDistance && (
+          <StatTile icon={Route} value={distance} label={t('stat.distance')} suffix="km" />
+        )}
       </div>
 
       {/* 花費（僅本人/登入檢視） */}

@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useLocale, useTranslations } from 'next-intl';
-import { MapPin, Loader2, Play, Square } from 'lucide-react';
+import { MapPin, Loader2 } from 'lucide-react';
 import { pickLocalizedName } from '@/lib/utils';
 import { ROUTES } from '@/constants/routes';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,7 @@ import LanguageSwitcher from '@/components/layout/LanguageSwitcher';
 import MapStatsBar from './MapStatsBar';
 import { computeMapStats, visitedCountrySet } from './stats';
 import type { LocalizedNames } from '@/types';
-import type { GeoPoint, TripRoute, HeatPoint } from './types';
+import type { TripDestinationPoint, HeatPoint } from './types';
 import type { MapMode } from './TripMapCanvas';
 
 // Leaflet 依賴 window，必須關閉 SSR。
@@ -33,10 +33,9 @@ interface PublicGeoPoint {
   countryCode?: string;
 }
 
-interface PublicRoute {
+interface PublicDestination {
   id: string;
-  departure: PublicGeoPoint | null;
-  destination: PublicGeoPoint;
+  point: PublicGeoPoint;
   years: number[];
 }
 
@@ -55,12 +54,11 @@ interface PublicMapViewProps {
 export default function PublicMapView({ code }: PublicMapViewProps) {
   const t = useTranslations('map');
   const locale = useLocale();
-  const [routes, setRoutes] = useState<PublicRoute[] | null>(null);
+  const [destinations, setDestinations] = useState<PublicDestination[] | null>(null);
   const [heat, setHeat] = useState<PublicHeatPoint[]>([]);
   const [years, setYears] = useState<number[]>([]);
   const [status, setStatus] = useState<'loading' | 'ok' | 'notFound' | 'error'>('loading');
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [mode, setMode] = useState<MapMode>('routes');
+  const [mode, setMode] = useState<MapMode>('countries');
   // null = 全部年份。
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
 
@@ -79,12 +77,12 @@ export default function PublicMapView({ code }: PublicMapViewProps) {
           return;
         }
         const data: {
-          routes: PublicRoute[];
+          destinations: PublicDestination[];
           heat?: PublicHeatPoint[];
           years?: number[];
         } = await res.json();
         if (cancelled) return;
-        setRoutes(data.routes);
+        setDestinations(data.destinations);
         setHeat(data.heat ?? []);
         setYears(data.years ?? []);
         setStatus('ok');
@@ -97,34 +95,26 @@ export default function PublicMapView({ code }: PublicMapViewProps) {
     };
   }, [code]);
 
-  // 依選定年份過濾路線（年份只到「年」，仍去識別化）。
-  const filteredRoutes = useMemo(() => {
-    if (!routes) return [];
-    if (selectedYear === null) return routes;
-    return routes.filter((r) => r.years.includes(selectedYear));
-  }, [routes, selectedYear]);
+  const filteredDestinations = useMemo(() => {
+    if (!destinations) return [];
+    if (selectedYear === null) return destinations;
+    return destinations.filter((destination) => destination.years.includes(selectedYear));
+  }, [destinations, selectedYear]);
 
-  // 投影成畫布用的 TripRoute：去識別化（無名稱、無日期），地名依當前語系挑選。
-  const mapRoutes = useMemo<TripRoute[]>(() => {
-    const toGeo = (p: PublicGeoPoint | null): GeoPoint | null =>
-      p
-        ? {
-            name: pickLocalizedName(p.names, locale, p.name),
-            lat: p.lat,
-            lon: p.lon,
-            countryCode: p.countryCode,
-          }
-        : null;
-    return filteredRoutes.map((r) => ({
-      id: r.id,
-      hashCode: '',
-      name: '',
-      startDate: null,
-      endDate: null,
-      departure: toGeo(r.departure),
-      destination: toGeo(r.destination),
-    }));
-  }, [filteredRoutes, locale]);
+  const mapDestinations = useMemo<TripDestinationPoint[]>(
+    () =>
+      filteredDestinations.map((destination) => ({
+        id: destination.id,
+        tripName: '',
+        startDate: null,
+        endDate: null,
+        name: pickLocalizedName(destination.point.names, locale, destination.point.name),
+        lat: destination.point.lat,
+        lon: destination.point.lon,
+        countryCode: destination.point.countryCode,
+      })),
+    [filteredDestinations, locale]
+  );
 
   // 依年份過濾熱點，並依座標彙總（全部年份時把各年份權重相加成單點）。
   const heatPoints = useMemo<HeatPoint[]>(() => {
@@ -139,46 +129,16 @@ export default function PublicMapView({ code }: PublicMapViewProps) {
     return [...map.values()];
   }, [heat, selectedYear]);
 
-  const stats = useMemo(() => computeMapStats(mapRoutes, heatPoints), [mapRoutes, heatPoints]);
+  const stats = useMemo(
+    () => computeMapStats(mapDestinations.length, mapDestinations, heatPoints),
+    [mapDestinations, heatPoints]
+  );
   const visitedCountries = useMemo(
-    () => visitedCountrySet(mapRoutes, heatPoints),
-    [mapRoutes, heatPoints]
+    () => visitedCountrySet(mapDestinations, heatPoints),
+    [mapDestinations, heatPoints]
   );
 
   const hasHeat = heat.length > 0;
-
-  // 足跡回放（與主地圖一致）。setState 只在回呼中觸發。
-  const [playing, setPlaying] = useState(false);
-  const [revealCount, setRevealCount] = useState<number | undefined>(undefined);
-  const stepRef = useRef(0);
-  const stopPlay = () => {
-    setPlaying(false);
-    setRevealCount(undefined);
-  };
-  const startPlay = () => {
-    if (mapRoutes.length === 0) return;
-    stepRef.current = 0;
-    setSelectedId(mapRoutes[0]?.id ?? null);
-    setRevealCount(1);
-    setPlaying(true);
-  };
-  useEffect(() => {
-    if (!playing) return;
-    const timer = setInterval(() => {
-      stepRef.current += 1;
-      if (stepRef.current >= mapRoutes.length) {
-        clearInterval(timer);
-        setTimeout(() => {
-          setPlaying(false);
-          setRevealCount(undefined);
-        }, 1200);
-        return;
-      }
-      setSelectedId(mapRoutes[stepRef.current]?.id ?? null);
-      setRevealCount(stepRef.current + 1);
-    }, 1300);
-    return () => clearInterval(timer);
-  }, [playing, mapRoutes]);
 
   if (status === 'loading') {
     return (
@@ -206,7 +166,10 @@ export default function PublicMapView({ code }: PublicMapViewProps) {
             <h1 className="text-lg font-semibold">{t('public.title')}</h1>
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">
-                {t('public.subtitle', { trips: mapRoutes.length, countries: stats.countries })}
+                {t('public.subtitle', {
+                  trips: mapDestinations.length,
+                  countries: stats.countries,
+                })}
               </span>
               {/* 公開頁沒有主導覽列，語言切換放這裡（next-intl 會保留路徑只換 locale）。 */}
               <LanguageSwitcher />
@@ -216,21 +179,12 @@ export default function PublicMapView({ code }: PublicMapViewProps) {
           <div className="flex flex-wrap items-center gap-2">
             {/* 模式切換 */}
             <div className="inline-flex rounded-lg border border-border p-0.5">
-              <Button
-                variant={mode === 'routes' ? 'default' : 'ghost'}
-                size="sm"
-                className="h-7 px-3 text-xs"
-                onClick={() => setMode('routes')}
-              >
-                {t('modeRoutes')}
-              </Button>
               {hasHeat && (
                 <Button
                   variant={mode === 'heat' ? 'default' : 'ghost'}
                   size="sm"
                   className="h-7 px-3 text-xs"
                   onClick={() => {
-                    stopPlay();
                     setMode('heat');
                   }}
                 >
@@ -242,26 +196,12 @@ export default function PublicMapView({ code }: PublicMapViewProps) {
                 size="sm"
                 className="h-7 px-3 text-xs"
                 onClick={() => {
-                  stopPlay();
                   setMode('countries');
                 }}
               >
                 {t('modeCountries')}
               </Button>
             </div>
-
-            {/* 足跡回放（航線模式） */}
-            {mode === 'routes' && mapRoutes.length > 0 && (
-              <Button
-                variant={playing ? 'secondary' : 'outline'}
-                size="sm"
-                className="h-7 gap-1 px-3 text-xs"
-                onClick={playing ? stopPlay : startPlay}
-              >
-                {playing ? <Square className="h-3 w-3" /> : <Play className="h-3 w-3" />}
-                {playing ? t('playStop') : t('playRoute')}
-              </Button>
-            )}
 
             {/* 年份快速篩選 */}
             {years.length > 0 && (
@@ -271,7 +211,6 @@ export default function PublicMapView({ code }: PublicMapViewProps) {
                   size="sm"
                   className="h-7 px-3 text-xs"
                   onClick={() => {
-                    stopPlay();
                     setSelectedYear(null);
                   }}
                 >
@@ -284,7 +223,6 @@ export default function PublicMapView({ code }: PublicMapViewProps) {
                     size="sm"
                     className="h-7 px-3 text-xs"
                     onClick={() => {
-                      stopPlay();
                       setSelectedYear(y);
                     }}
                   >
@@ -298,23 +236,20 @@ export default function PublicMapView({ code }: PublicMapViewProps) {
       </header>
 
       <div className="container mx-auto flex min-h-0 flex-1 flex-col gap-3 px-4 py-4">
-        {mapRoutes.length === 0 && heatPoints.length === 0 ? (
+        {mapDestinations.length === 0 && heatPoints.length === 0 ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center text-muted-foreground">
             <MapPin className="h-10 w-10" />
             <p>{t('public.empty')}</p>
           </div>
         ) : (
           <>
-            <MapStatsBar stats={stats} />
+            <MapStatsBar stats={stats} showDistance={false} />
             <div className="min-h-0 flex-1">
               <TripMapCanvas
                 mode={mode}
-                routes={mapRoutes}
+                destinations={mapDestinations}
                 heatPoints={heatPoints}
                 visitedCountries={visitedCountries}
-                revealCount={revealCount}
-                selectedId={selectedId}
-                onSelect={setSelectedId}
               />
             </div>
           </>

@@ -12,9 +12,8 @@ import type { Location } from '@/types';
  * 公開（不需登入）年度旅行回顧分享資料。
  *
  * 與公開地圖路由共用 `mapShareCode`，並**沿用同一套去識別化契約**：只回傳「地理」
- * 彙總數字（趟數 / 國家 / 城市 / 里程）與年份，**不含任何金額、分類、旅伴、旅行名稱、
- * id 或完整日期**。金額屬於 mapShareCode 公開契約刻意不外洩的部分，年度回顧不得回頭
- * 破壞它——花費只在登入檢視與本人下載的圖卡上呈現。
+ * 彙總數字（趟數 / 國家 / 城市）與年份，**不含私人飛行紀錄、飛行里程、任何金額、
+ * 分類、旅伴、旅行名稱、id 或完整日期**。
  *
  * 分享為 opt-in；未產生分享碼者（或碼已撤銷）、年份格式不符一律回 404。
  */
@@ -24,7 +23,6 @@ interface PublicYearInReview {
   tripCount: number;
   countryCount: number;
   cityCount: number;
-  distanceKm: number;
   /** 有資料的年份（新到舊），供公開頁年份切換。 */
   availableYears: number[];
 }
@@ -33,7 +31,6 @@ type LeanTrip = {
   _id: Types.ObjectId;
   startDate?: Date | null;
   endDate?: Date | null;
-  departureLocation?: Location | null;
   destinationLocation?: Location | null;
 };
 type LeanDay = { trip: Types.ObjectId; location?: Location | null };
@@ -71,9 +68,9 @@ export async function GET(
       return apiError(PublicApiError.NOT_FOUND, 404);
     }
 
-    // 去識別化：只撈地理（旅程起訖 + 出發/目的地 + 行程日地點），**不撈任何支出**。
+    // 去識別化：只撈地理（旅程起訖 + 目的地 + 行程日地點），**不撈任何支出**。
     const trips = await Trip.find({ 'members.user': user._id })
-      .select('startDate endDate departureLocation destinationLocation')
+      .select('startDate endDate destinationLocation')
       .lean<LeanTrip[]>();
 
     const tripIds = trips.map((t) => t._id);
@@ -89,7 +86,6 @@ export async function GET(
       id: t._id.toString(),
       startDate: toYmd(t.startDate),
       endDate: toYmd(t.endDate),
-      departure: toPoint(t.departureLocation),
       destination: toPoint(t.destinationLocation),
       memberIds: [] as string[],
     }));
@@ -111,7 +107,6 @@ export async function GET(
       tripCount: review.tripCount,
       countryCount: review.countryCount,
       cityCount: review.cityCount,
-      distanceKm: review.distanceKm,
       // 刻意不帶成就紀錄年份（第三參數）：公開 payload 白名單不含成就區塊，
       // 只有回填紀錄的年份在公開頁會是整張白卡（P3 評估結論：登入版才納入）。
       availableYears: availableReviewYears(reviewTrips, []),

@@ -7,7 +7,7 @@ import type { Trip } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import TripRoute from '@/components/trips/TripRoute';
+import TripDestination from '@/components/trips/TripDestination';
 import { cn } from '@/lib/utils';
 
 interface TripHeaderProps {
@@ -36,8 +36,7 @@ export default function TripHeader({
           <div className="flex items-start gap-3">
             <div className="min-w-0 flex-1 space-y-2">
               <h2 className="text-sm font-medium text-muted-foreground">{tTrip('info')}</h2>
-              <TripRoute
-                departure={trip.departure_location}
+              <TripDestination
                 destination={trip.destination_location}
                 iconSize={16}
                 className="gap-2"

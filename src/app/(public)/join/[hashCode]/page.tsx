@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import TripRoute from '@/components/trips/TripRoute';
+import TripDestination from '@/components/trips/TripDestination';
 
 /**
  * 加入行程頁。未登入也能看到行程預覽（useTrip/useMembers 內建公開 API 回退），
@@ -158,11 +158,7 @@ export default function QuickJoinPage() {
                 )}
               </div>
 
-              <TripRoute
-                departure={trip.departure_location}
-                destination={trip.destination_location}
-                className="text-sm"
-              />
+              <TripDestination destination={trip.destination_location} className="text-sm" />
 
               {(trip.start_date || trip.end_date) && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
