@@ -120,7 +120,7 @@ export function LockedTripField({ name }: { name: string }) {
 /** 成就頁統計磚列（沿用 stats 頁的卡片質感，數字大字＋標籤小字）。 */
 export function StatTiles({ tiles }: { tiles: { label: string; value: string | number }[] }) {
   return (
-    <div className="grid grid-cols-3 gap-3">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
       {tiles.map((tile) => (
         <div key={tile.label} className="rounded-xl border bg-card p-4 text-center">
           <div className="text-2xl font-bold text-foreground">{tile.value}</div>

@@ -73,10 +73,8 @@ export function LoyaltyEntryDialog({
   // 哩程＋航段制（BR）記卡籍哩程＋自家航段；積分制（CX/CI）記會籍積分
   const rules = PROGRAM_RULES[program];
   const kind = rules.kind;
-  // 自家航班勾選：哩程＋航段制恆需要（航段判定）；積分制只有設 ownAirlineMinRatio 的
-  // program（CI 50% 條款）才需要——CX 無此限制，不顯示。
-  const showOwnAirline =
-    kind === 'milesAndSegments' || (kind === 'points' && rules.ownAirlineMinRatio != null);
+  // 三家皆需辨識自家合資格航班：CX 看最低航段、CI 看自營國際線占比、BR 看航段數。
+  const showOwnAirline = true;
 
   const [date, setDate] = useState(today());
   const [type, setType] = useState<LoyaltyEntryType>('flight');

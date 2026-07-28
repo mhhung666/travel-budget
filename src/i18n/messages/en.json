@@ -1465,6 +1465,8 @@
         "BR": "EVA Air"
       },
       "tierLabel": "Current tier",
+      "tierStarted": "Current tier start date",
+      "tierStartedHint": "China Airlines and EVA calculate the next tier from this date; if blank, the latest 12 months are used.",
       "memberNo": "Member number",
       "tierExpires": "Card expires on",
       "tiers": {
@@ -1493,16 +1495,28 @@
         "points12m": "Points (12 mo)",
         "milesBalance": "Miles balance",
         "carryOver": "Est. carry-over",
+        "ownAirlineRatio": "Own-airline intl share",
         "windowMiles": "Qualifying miles",
         "segments": "Intl segments"
       },
       "progressToNext": "{points} points to {tier}",
+      "windowCalendar": "Period: {year}/01/01–{year}/12/31",
+      "windowRange": "Period: {start}–{end}",
       "maxTier": "Top tier reached",
       "renewalMet": "Renewal threshold met ({required} points)",
       "renewalPending": "Renewal needs {required} points — {points} to go",
       "renewalNeedsExpiry": "Set the card expiry date to calculate renewal progress",
       "disclaimer": "Thresholds verified on {date}; official figures prevail",
       "ownAirlineWarning": "Only {percent}% of points are from own-airline flights — upgrade/renewal needs ≥{required}%",
+      "renewalOwnAirlineWarning": "Only {percent}% of renewal points are from eligible self-operated international flights; ≥{required}% is required",
+      "cxSegmentsProgress": "Eligible Cathay segments {value}/{required}",
+      "estimatedTier": "Estimated {tier}",
+      "estimated2027Tier": "2027 estimate: {tier}",
+      "confirmTier": "Sync tier",
+      "tierUpdated": "Current tier updated",
+      "tierUpdatedNeedsReview": "Tier updated; add the new official expiry and retained balance",
+      "officialVsEstimated": "Official tier confirmed by you: {official}; estimate from recorded activity: {estimated}.",
+      "cxTransitionNote": "2026 points estimate your 2027 tier ({estimated}); immediate upgrades during 2026 still follow your official membership cycle.",
       "addEntry": "Accrue status",
       "editEntry": "Edit entry",
       "entryFormDescription": "Copy points and miles changes from the airline app",
@@ -1520,6 +1534,8 @@
       "awardMiles": "Miles",
       "pointsAmount": "{points} pts",
       "milesAmount": "{miles} miles",
+      "ownAirlineMarker": "Eligible own-airline flight",
+      "linkedFlightMarker": "Linked flight record",
       "entriesEmpty": "No entries yet — tap \"Accrue status\" to start",
       "deleteAccountTitle": "Delete membership",
       "deleteAccountMessage": "This also deletes all point entries for this program. This cannot be undone. Continue?",
@@ -1533,13 +1549,17 @@
       "renewalProgressPending": "Renewal (valid until {date}) not yet met: {miles}/{requiredMiles} mi · {segments}/{requiredSegments} segs",
       "qualifyingMiles": "Qualifying miles",
       "ownAirline": {
+        "CX": {
+          "label": "Eligible Cathay segment",
+          "hint": "Paid flight marketed with a CX flight number; used for the minimum-segment requirement"
+        },
         "BR": {
           "label": "EVA / UNI intl segment",
           "hint": "Counts toward your segment total"
         },
         "CI": {
-          "label": "China Airlines / Mandarin Airlines flight",
-          "hint": "Counts toward your own-airline points ratio"
+          "label": "CI/AE self-operated international flight",
+          "hint": "Counts toward the self-operated international points ratio for upgrades and renewal"
         }
       },
       "qualifyingAmount": "{miles} qual. mi",

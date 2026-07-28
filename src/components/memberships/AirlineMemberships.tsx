@@ -7,6 +7,7 @@ import { Medal, Plus } from 'lucide-react';
 import { LOYALTY_PROGRAMS, type LoyaltyProgram } from '@/constants/loyalty';
 import { useLoyalty, useLoyaltyMutations } from '@/hooks/queries';
 import { useToast } from '@/hooks/use-toast';
+import { toLocalDateInputValue } from '@/lib/dateInput';
 import type { LoyaltyAccountItem, LoyaltyEntryItem } from '@/types';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog, EmptyState, LoadingState } from '@/components/common';
@@ -28,14 +29,14 @@ type EntryDialogState = {
 
 /**
  * 航空會籍 tab（docs/PLAN-LOYALTY.md §7）：使用者可設定多個航空計畫（國泰／長榮…），
- * 每個計畫一張帳戶卡＋一份逐筆 ledger。積分／哩程數字皆使用者手記，app 只對照
- * 門檻算升等進度（見 ProgramProgressCard），不自動判級。
+ * 每個計畫一張帳戶卡＋一份逐筆 ledger。積分／哩程數字皆使用者手記；app 對照
+ * 門檻推估升等，達標後由使用者確認同步官方卡級。
  */
 export function AirlineMemberships() {
   const t = useTranslations('collections');
   const { toast } = useToast();
   const { data, isLoading } = useLoyalty();
-  const { removeAccount, removeEntry } = useLoyaltyMutations();
+  const { upsertAccount, removeAccount, removeEntry } = useLoyaltyMutations();
 
   const [accountDialog, setAccountDialog] = useState<AccountDialogState>({
     open: false,
@@ -95,6 +96,28 @@ export function AirlineMemberships() {
     }
   };
 
+  const handleConfirmTier = async (account: LoyaltyAccountItem, tier: string) => {
+    try {
+      await upsertAccount.mutateAsync({
+        program: account.program,
+        current_tier: tier,
+        tier_started_at: toLocalDateInputValue(),
+        // CI/BR 升等後官方會重新給卡籍效期，不能沿用舊卡日期。
+        tier_expires_at: account.program === 'CX' ? account.tier_expires_at : null,
+        member_no: account.member_no,
+        note: account.note,
+      });
+      toast({
+        title: t(
+          account.program === 'CX' ? 'loyalty.tierUpdated' : 'loyalty.tierUpdatedNeedsReview'
+        ),
+      });
+    } catch (error) {
+      const key = error instanceof Error ? error.message : 'INTERNAL_ERROR';
+      toast({ title: t(`errors.${key}` as Parameters<typeof t>[0]), variant: 'destructive' });
+    }
+  };
+
   if (isLoading || !data) {
     return <LoadingState />;
   }
@@ -128,12 +151,18 @@ export function AirlineMemberships() {
               key={account.id}
               account={account}
               entries={entriesByProgram.get(account.program) ?? []}
-              defaultOpen={accounts.length === 1}
+              defaultOpen
               onEdit={() =>
                 setAccountDialog({ open: true, program: account.program, editing: account })
               }
               onDelete={() => setDeletingAccount(account)}
               onEstimate={account.program === 'CX' ? () => setEstimatorOpen(true) : undefined}
+              onConfirmTier={
+                account.program === 'CX' && toLocalDateInputValue() < '2027-01-01'
+                  ? undefined
+                  : (tier) => handleConfirmTier(account, tier)
+              }
+              confirmingTier={upsertAccount.isPending}
             >
               <LoyaltyLedger
                 entries={entriesByProgram.get(account.program) ?? []}

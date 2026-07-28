@@ -57,6 +57,11 @@ export interface MilesSegmentsTier {
  */
 export interface PointsProgramRules {
   kind: 'points';
+  /**
+   * cumulative＝同一曆年用絕對門檻判級（CX 2027+）；
+   * sequential＝只依目前卡級追蹤下一級，門檻於升等後重新起算（CI）。
+   */
+  qualification: 'cumulative' | 'sequential';
   /** 升等窗口：calendar＝曆年 1/1–12/31（CX 2027 新制）；rolling12m＝滾動 12 個月（CI） */
   window: 'calendar' | 'rolling12m';
   /**
@@ -67,10 +72,15 @@ export interface PointsProgramRules {
   renewalWindow: 'sameWindow' | 'term2y';
   /** 由低到高排序 */
   tiers: PointsTier[];
-  /** 超額積分結轉：達 `minTierKey`（含）以上等級時，超出已達最高門檻的積分 × ratio 轉入次年 */
-  rollover?: { ratio: number; minTierKey: string };
+  /**
+   * 超額積分結轉：達 `minTierKey`（含）以上時，超出已達門檻的積分可全數結轉，
+   * 但上限為該門檻 × `maxRatio`。
+   */
+  rollover?: { maxRatio: number; minTierKey: string };
   /** 積分需 ≥ 此比例來自自家航班（升等與續卡皆適用；CX 無此限制） */
   ownAirlineMinRatio?: number;
+  /** 升等另需的自家合資格航段數；可指定生效日（CX 2027 新制）。 */
+  ownAirlineMinSegments?: { count: number; effectiveFrom: string };
   /** 規則查證日期（UI 顯示「規則查證於…，以官方為準」） */
   verifiedAt: string;
 }
@@ -101,16 +111,18 @@ export type ProgramRules = PointsProgramRules | MilesSegmentsProgramRules;
 export const PROGRAM_RULES: Record<LoyaltyProgram, ProgramRules> = {
   CX: {
     kind: 'points',
+    qualification: 'cumulative',
     window: 'calendar',
     renewalWindow: 'sameWindow',
     tiers: [
       { key: 'green', threshold: 0 },
-      { key: 'silver', threshold: 300 },
-      { key: 'gold', threshold: 600, renewalThreshold: 300 },
-      { key: 'diamond', threshold: 1200, renewalThreshold: 600 },
-      { key: 'diamond_plus', threshold: 2400, renewalThreshold: 1200 },
+      { key: 'silver', threshold: 300, renewalThreshold: 300 },
+      { key: 'gold', threshold: 600, renewalThreshold: 600 },
+      { key: 'diamond', threshold: 1200, renewalThreshold: 1200 },
+      { key: 'diamond_plus', threshold: 2400, renewalThreshold: 2400 },
     ],
-    rollover: { ratio: 0.5, minTierKey: 'gold' },
+    rollover: { maxRatio: 0.5, minTierKey: 'gold' },
+    ownAirlineMinSegments: { count: 2, effectiveFrom: '2027-01-01' },
     verifiedAt: '2026-07-14',
   },
   // 華航 動華會（Dynasty Flyer）新制（2025/11/27 生效，2026-07-16 查證）：官網
@@ -120,6 +132,7 @@ export const PROGRAM_RULES: Record<LoyaltyProgram, ProgramRules> = {
   // 翡翠卡 1,150／晶鑽卡 2,240。升等與續卡皆須 ≥50% 積分來自華航／華信自營航班。
   CI: {
     kind: 'points',
+    qualification: 'sequential',
     window: 'rolling12m',
     renewalWindow: 'term2y',
     tiers: [

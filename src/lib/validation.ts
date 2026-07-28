@@ -575,6 +575,8 @@ const loyaltyAmountSchema = z.number().int().min(-10_000_000).max(10_000_000);
 export const upsertLoyaltyAccountSchema = z.object({
   program: loyaltyProgramSchema,
   current_tier: z.string().trim().min(1).max(30),
+  // 目前卡級生效／升等進度起算日；未填時以各計畫預設窗口計算
+  tier_started_at: ymdSchema.nullable().default(null),
   // 卡籍效期（term2y 續卡窗口用，BR/CI）；CX 等 sameWindow program 不顯示，恆傳 null
   tier_expires_at: ymdSchema.nullable().default(null),
   member_no: z.string().trim().max(30, '會員號過長').default(''),

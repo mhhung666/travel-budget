@@ -1458,6 +1458,8 @@
         "BR": "エバー航空"
       },
       "tierLabel": "現在のステータス",
+      "tierStarted": "現在のステータス開始日",
+      "tierStartedHint": "チャイナ エアラインとエバー航空はこの日から次のステータスを計算します。未入力の場合は直近12か月を使用します。",
       "memberNo": "会員番号",
       "tierExpires": "カード有効期限",
       "tiers": {
@@ -1486,16 +1488,28 @@
         "points12m": "直近12ヶ月のポイント",
         "milesBalance": "マイル残高",
         "carryOver": "繰越見込み",
+        "ownAirlineRatio": "自社運航国際線比率",
         "windowMiles": "資格マイル",
         "segments": "国際区間"
       },
       "progressToNext": "{tier}まであと{points}ポイント",
+      "windowCalendar": "計算期間：{year}/01/01–{year}/12/31",
+      "windowRange": "計算期間：{start}–{end}",
       "maxTier": "最上位ステータス達成",
       "renewalMet": "更新基準を達成（{required}ポイント）",
       "renewalPending": "更新基準は{required}ポイント、あと{points}ポイント",
       "renewalNeedsExpiry": "カード有効期限を設定すると更新の進捗を計算できます",
       "disclaimer": "基準は{date}時点の確認です。実際のポイント・ステータスは公式情報をご確認ください",
       "ownAirlineWarning": "自社便のポイント比率は{percent}%——昇格・更新には{required}%以上が必要です",
+      "renewalOwnAirlineWarning": "更新期間の対象自社運航国際線ポイントは{percent}%です。{required}%以上が必要です",
+      "cxSegmentsProgress": "対象キャセイ便区間 {value}/{required}",
+      "estimatedTier": "推定{tier}",
+      "estimated2027Tier": "2027年推定：{tier}",
+      "confirmTier": "ステータスを同期",
+      "tierUpdated": "現在のステータスを更新しました",
+      "tierUpdatedNeedsReview": "ステータスを更新しました。公式の新しい有効期限と繰越残高を入力してください",
+      "officialVsEstimated": "確認済みの公式ステータス：{official}。記録からの推定：{estimated}。",
+      "cxTransitionNote": "2026年のポイントによる2027年ステータス予測は{estimated}です。2026年中の即時昇格は公式会員年度に従います。",
       "addEntry": "ステータスに加算",
       "editEntry": "記録を編集",
       "entryFormDescription": "航空会社アプリからポイント・マイルの増減を転記",
@@ -1513,6 +1527,8 @@
       "awardMiles": "マイル",
       "pointsAmount": "{points}ポイント",
       "milesAmount": "{miles}マイル",
+      "ownAirlineMarker": "対象自社便",
+      "linkedFlightMarker": "フライト記録に連携済み",
       "entriesEmpty": "まだ記録がありません。「ステータスに加算」から始めましょう",
       "deleteAccountTitle": "会員情報を削除",
       "deleteAccountMessage": "このプログラムのポイント記録もすべて削除されます。この操作は取り消せません。よろしいですか？",
@@ -1526,13 +1542,17 @@
       "renewalProgressPending": "更新（有効期限{date}まで）未達成：{miles}/{requiredMiles}マイル・{segments}/{requiredSegments}区間",
       "qualifyingMiles": "資格マイル",
       "ownAirline": {
+        "CX": {
+          "label": "対象キャセイ便区間",
+          "hint": "CX便名の有償航空券。昇格に必要な最低区間数の判定に使用します"
+        },
         "BR": {
           "label": "エバー／ユニー国際線区間",
           "hint": "区間数に加算されます"
         },
         "CI": {
-          "label": "チャイナエアライン／マンダリン航空便",
-          "hint": "自社便ポイント比率に加算されます"
+          "label": "CI／AE自社運航国際線",
+          "hint": "昇格・更新に必要な自社運航国際線ポイント比率に加算されます"
         }
       },
       "qualifyingAmount": "資格 {miles} マイル",

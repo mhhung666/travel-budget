@@ -1458,6 +1458,8 @@
         "BR": "长荣航空"
       },
       "tierLabel": "当前等级",
+      "tierStarted": "当前卡级生效日",
+      "tierStartedHint": "华航与长荣会从此日开始计算下一级；未填则使用最近 12 个月。",
       "memberNo": "会员号",
       "tierExpires": "卡籍有效期至",
       "tiers": {
@@ -1486,16 +1488,28 @@
         "points12m": "近 12 个月积分",
         "milesBalance": "里数余额",
         "carryOver": "结转估算",
+        "ownAirlineRatio": "自营国际线占比",
         "windowMiles": "卡籍哩程",
         "segments": "国际航段"
       },
       "progressToNext": "距{tier}还差 {points} 分",
+      "windowCalendar": "计算期间：{year}/01/01–{year}/12/31",
+      "windowRange": "计算期间：{start}–{end}",
       "maxTier": "已达最高等级",
       "renewalMet": "已达续会门槛（{required} 分）",
       "renewalPending": "续会门槛 {required} 分，还差 {points} 分",
       "renewalNeedsExpiry": "设置卡籍有效期后可计算续卡进度",
       "disclaimer": "门槛规则核实于 {date}；实际积分与等级以官方公布为准",
       "ownAirlineWarning": "自家航班积分仅占 {percent}%，升级／续卡须 ≥{required}%",
+      "renewalOwnAirlineWarning": "续卡期间自营国际线积分占 {percent}%，须 ≥{required}%",
+      "cxSegmentsProgress": "合资格国泰航段 {value}/{required}",
+      "estimatedTier": "预估已达{tier}",
+      "estimated2027Tier": "2027 预估{tier}",
+      "confirmTier": "同步等级",
+      "tierUpdated": "当前等级已更新",
+      "tierUpdatedNeedsReview": "等级已更新；请依官方账户补上新有效期与保留余额",
+      "officialVsEstimated": "官方等级由你确认：{official}；依已登记记录预估：{estimated}。",
+      "cxTransitionNote": "2026 年积分用于预估 2027 定级，目前预估为{estimated}；2026 年内的即时升级仍依官方当前会籍周期判定。",
       "addEntry": "累积会籍",
       "editEntry": "编辑记录",
       "entryFormDescription": "从航空公司 App 抄下积分与里数变动",
@@ -1513,6 +1527,8 @@
       "awardMiles": "里数",
       "pointsAmount": "{points} 分",
       "milesAmount": "{miles} 里",
+      "ownAirlineMarker": "合资格自家航班",
+      "linkedFlightMarker": "已关联飞行记录",
       "entriesEmpty": "还没有积分记录，点「累积会籍」开始",
       "deleteAccountTitle": "删除会籍",
       "deleteAccountMessage": "会连同这个计划的全部积分记录一起删除，此操作无法撤销。确定吗？",
@@ -1526,13 +1542,17 @@
       "renewalProgressPending": "续卡（有效期至 {date}）未达标：{miles}/{requiredMiles} 哩・{segments}/{requiredSegments} 段",
       "qualifyingMiles": "卡籍哩程",
       "ownAirline": {
+        "CX": {
+          "label": "合资格国泰航段",
+          "hint": "付费且航班编号以 CX 开头；用于升级最低航段判定"
+        },
         "BR": {
           "label": "长荣／立荣国际线航段",
           "hint": "计入航段数"
         },
         "CI": {
-          "label": "华航／华信航班",
-          "hint": "计入自家积分占比"
+          "label": "华航／华信自营国际线",
+          "hint": "计入升级与续卡所需的自营国际线积分占比"
         }
       },
       "qualifyingAmount": "卡籍 {miles} 哩",

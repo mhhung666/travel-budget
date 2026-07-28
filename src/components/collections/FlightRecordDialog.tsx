@@ -106,19 +106,21 @@ export function FlightRecordDialog({
   // 帶入時鎖定旅程＝當下旅程（唯讀）；編輯情境不套用鎖定。
   const locked = editing ? null : (lockedTrip ?? null);
 
-  // 選定航空公司對應的會籍帳戶（IATA 代碼即 program 代碼）；沒帳戶＝不提供累積。
+  // 選定航空公司對應的會籍帳戶；亦納入華信 AE、立榮 B7 等子公司代碼。
   const matchedAccount = useMemo(
-    () => loyalty?.accounts.find((a) => a.program === airline) ?? null,
+    () =>
+      loyalty?.accounts.find(
+        (account) =>
+          account.program === airline ||
+          (airline != null && OWN_AIRLINE_CODES[account.program].includes(airline))
+      ) ?? null,
     [loyalty, airline]
   );
   const program = matchedAccount?.program ?? null;
   const programRules = program ? PROGRAM_RULES[program] : null;
   const loyaltyKind = programRules?.kind ?? null;
-  // 自家航班勾選：哩程＋航段制恆需要（航段判定）；積分制只有設 ownAirlineMinRatio 的
-  // program（CI 50% 條款）才需要——CX 無此限制，不顯示（同 LoyaltyEntryDialog 邏輯）。
-  const showOwnAirline =
-    loyaltyKind === 'milesAndSegments' ||
-    (programRules?.kind === 'points' && programRules.ownAirlineMinRatio != null);
+  // 三家皆需辨識自家合資格航班：CX 看最低航段、CI 看自營國際線占比、BR 看航段數。
+  const showOwnAirline = program !== null;
   // 累積開啟時 ownAirline 的預設值：所選航班 IATA 代碼是否在該 program 的自家航空名單
   // （含子公司，如華信 AE、立榮 B7）——使用者仍可改。
   const ownAirlineDefault =

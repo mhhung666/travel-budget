@@ -8,8 +8,10 @@ import type { LoyaltyProgram, LoyaltyEntryType } from '@/constants/loyalty';
 export interface LoyaltyAccountItem {
   id: string;
   program: LoyaltyProgram;
-  /** program 專屬 tier key（constants/loyalty.ts；使用者自行設定，app 不自動判級）。 */
+  /** program 專屬 tier key（constants/loyalty.ts；使用者已確認的官方卡級）。 */
   current_tier: string;
+  /** 目前卡級／升等計算週期起日；逐級制只計此日後的紀錄。 */
+  tier_started_at: string | null;
   /** 卡籍效期（YYYY-MM-DD）；term2y 續卡窗口的計算基準（BR/CI）。null＝未設定。 */
   tier_expires_at: string | null;
   /** 會員號；'' = 未填。 */

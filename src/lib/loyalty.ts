@@ -28,7 +28,11 @@ export interface LoyaltyProgress {
   windowStart: string | null;
   /** 本升等窗口累積積分 */
   windowPoints: number;
-  /** 本窗口積分已達的最高等級（與使用者自設 currentTier 無關） */
+  /** 本窗口合資格自家航班航段數（CX 升等條件用）。 */
+  qualifyingSegments: number;
+  /** 本窗口適用的最低合資格自家航段數；無要求時為 null。 */
+  requiredSegments: number | null;
+  /** 推估已達等級；逐級制最多只會比 currentTier 高一級。 */
   achievedTier: PointsTier;
   /** 下一級；null＝已達最高級 */
   nextTier: PointsTier | null;
@@ -38,7 +42,12 @@ export interface LoyaltyProgress {
    * 使用者自設等級的續會狀態；該級無獨立續會門檻（或未設定等級）時為 null。
    * term2y 續會窗口還需 tierExpiresAt——未設定時亦為 null（見 rules.renewalWindow）。
    */
-  renewal: { required: number; points: number; met: boolean } | null;
+  renewal: {
+    required: number;
+    points: number;
+    ownAirlineRatio: number | null;
+    met: boolean;
+  } | null;
   /** 超額積分結轉次年的估算；不符結轉資格（等級不足/無超額/無此規則）為 0 */
   carryOverEstimate: number;
   /**
@@ -77,19 +86,26 @@ function term2yWindow(tierExpiresAt: string, asOf: string): { start: string; end
  * @param asOf 進度基準日（YYYY-MM-DD），預設今天
  */
 export function computeLoyaltyProgress(
-  entries: Pick<LoyaltyEntryItem, 'date' | 'status_points' | 'award_miles' | 'own_airline'>[],
+  entries: Pick<
+    LoyaltyEntryItem,
+    'date' | 'type' | 'status_points' | 'award_miles' | 'own_airline'
+  >[],
   rules: PointsProgramRules,
   currentTier: string | null,
   tierExpiresAt: string | null,
-  asOf: string = new Date().toISOString().slice(0, 10)
+  asOf: string = new Date().toISOString().slice(0, 10),
+  tierStartedAt: string | null = null
 ): LoyaltyProgress {
   const isCalendar = rules.window === 'calendar';
   const windowYear = isCalendar ? Number(asOf.slice(0, 4)) : null;
-  const windowStart = isCalendar ? null : rolling12mStart(asOf);
+  const rollingStart = isCalendar ? null : rolling12mStart(asOf);
+  const windowStart =
+    rollingStart && tierStartedAt && tierStartedAt > rollingStart ? tierStartedAt : rollingStart;
   const inWindow = (date: string) =>
     isCalendar ? date.startsWith(`${asOf.slice(0, 4)}-`) : date >= windowStart! && date <= asOf;
 
   let windowPoints = 0;
+  let qualifyingSegments = 0;
   let ownAirlinePoints = 0;
   let positivePoints = 0;
   let awardMilesBalance = 0;
@@ -97,20 +113,41 @@ export function computeLoyaltyProgress(
     awardMilesBalance += e.award_miles;
     if (!inWindow(e.date)) continue;
     windowPoints += e.status_points;
+    if (e.type === 'flight' && e.own_airline) qualifyingSegments += 1;
     if (e.status_points > 0) {
       positivePoints += e.status_points;
       if (e.own_airline) ownAirlinePoints += e.status_points;
     }
   }
 
-  // tiers 由低到高；achieved＝門檻 ≤ windowPoints 的最高級
+  // CX 是曆年絕對門檻，可在同年度逐級向上；CI/其他 sequential 計畫只追目前卡級的下一級。
   const tiers = rules.tiers;
-  let achievedTier = tiers[0];
-  for (const tier of tiers) {
-    if (windowPoints >= tier.threshold) achievedTier = tier;
+  const requiredSegments =
+    rules.ownAirlineMinSegments && asOf >= rules.ownAirlineMinSegments.effectiveFrom
+      ? rules.ownAirlineMinSegments.count
+      : null;
+  const currentIndex = Math.max(
+    0,
+    currentTier ? tiers.findIndex((tier) => tier.key === currentTier) : 0
+  );
+  let achievedIndex = rules.qualification === 'sequential' ? currentIndex : 0;
+  if (rules.qualification === 'cumulative') {
+    for (const [index, tier] of tiers.entries()) {
+      const segmentRequirementMet =
+        index === 0 || requiredSegments == null || qualifyingSegments >= requiredSegments;
+      if (windowPoints >= tier.threshold && segmentRequirementMet) achievedIndex = index;
+    }
+  } else if (
+    currentIndex + 1 < tiers.length &&
+    windowPoints >= tiers[currentIndex + 1].threshold &&
+    (rules.ownAirlineMinRatio == null ||
+      (positivePoints > 0 && ownAirlinePoints / positivePoints >= rules.ownAirlineMinRatio))
+  ) {
+    achievedIndex = currentIndex + 1;
   }
-  const achievedIndex = tiers.indexOf(achievedTier);
-  const nextTier = achievedIndex + 1 < tiers.length ? tiers[achievedIndex + 1] : null;
+  const achievedTier = tiers[achievedIndex];
+  const nextIndex = rules.qualification === 'sequential' ? currentIndex + 1 : achievedIndex + 1;
+  const nextTier = nextIndex < tiers.length ? tiers[nextIndex] : null;
 
   const current = currentTier ? (tiers.find((t) => t.key === currentTier) ?? null) : null;
   let renewal: LoyaltyProgress['renewal'] = null;
@@ -119,29 +156,49 @@ export function computeLoyaltyProgress(
       renewal = {
         required: current.renewalThreshold,
         points: windowPoints,
+        ownAirlineRatio:
+          rules.ownAirlineMinRatio != null && positivePoints > 0
+            ? ownAirlinePoints / positivePoints
+            : null,
         met: windowPoints >= current.renewalThreshold,
       };
     } else if (tierExpiresAt) {
       const { start: renewalStart, end: renewalEnd } = term2yWindow(tierExpiresAt, asOf);
       let renewalPoints = 0;
+      let renewalOwnPoints = 0;
+      let renewalPositivePoints = 0;
       for (const e of entries) {
-        if (e.date >= renewalStart && e.date <= renewalEnd) renewalPoints += e.status_points;
+        if (e.date < renewalStart || e.date > renewalEnd) continue;
+        renewalPoints += e.status_points;
+        if (e.status_points > 0) {
+          renewalPositivePoints += e.status_points;
+          if (e.own_airline) renewalOwnPoints += e.status_points;
+        }
       }
+      const renewalOwnRatio =
+        renewalPositivePoints > 0 ? renewalOwnPoints / renewalPositivePoints : null;
+      const renewalOwnAirlineMet =
+        rules.ownAirlineMinRatio == null ||
+        (renewalOwnRatio !== null && renewalOwnRatio >= rules.ownAirlineMinRatio);
       renewal = {
         required: current.renewalThreshold,
         points: renewalPoints,
-        met: renewalPoints >= current.renewalThreshold,
+        ownAirlineRatio: renewalOwnRatio,
+        met: renewalPoints >= current.renewalThreshold && renewalOwnAirlineMet,
       };
     }
   }
 
-  // 結轉估算：本窗口積分已達 minTierKey（含）以上時，超出「已達最高門檻」的部分 × ratio
+  // 結轉估算：超額全數結轉，但上限＝已達卡級門檻 × maxRatio。
   let carryOverEstimate = 0;
   if (rules.rollover) {
     const minIndex = tiers.findIndex((t) => t.key === rules.rollover!.minTierKey);
     const excess = windowPoints - achievedTier.threshold;
     if (minIndex !== -1 && achievedIndex >= minIndex && excess > 0) {
-      carryOverEstimate = Math.floor(excess * rules.rollover.ratio);
+      carryOverEstimate = Math.min(
+        excess,
+        Math.floor(achievedTier.threshold * rules.rollover.maxRatio)
+      );
     }
   }
 
@@ -149,9 +206,11 @@ export function computeLoyaltyProgress(
     windowYear,
     windowStart,
     windowPoints,
+    qualifyingSegments,
+    requiredSegments,
     achievedTier,
     nextTier,
-    pointsToNext: nextTier ? nextTier.threshold - windowPoints : null,
+    pointsToNext: nextTier ? Math.max(0, nextTier.threshold - windowPoints) : null,
     renewal,
     carryOverEstimate,
     ownAirlineRatio: positivePoints > 0 ? ownAirlinePoints / positivePoints : null,
@@ -166,7 +225,7 @@ export interface MilesSegmentsProgress {
   windowMiles: number;
   /** 本窗口自家國際線航段數（own_airline 的 flight entry 計數）。 */
   windowSegments: number;
-  /** 本窗口哩程／航段對照達到的最高等級（與使用者自設 currentTier 無關）。 */
+  /** 推估已達等級；最多只會比 currentTier 高一級。 */
   achievedTier: MilesSegmentsTier;
   /** 下一級；null＝已達最高級。 */
   nextTier: MilesSegmentsTier | null;
@@ -216,11 +275,13 @@ export function computeMilesSegmentsProgress(
   rules: MilesSegmentsProgramRules,
   currentTier: string | null,
   tierExpiresAt: string | null,
-  asOf: string = new Date().toISOString().slice(0, 10)
+  asOf: string = new Date().toISOString().slice(0, 10),
+  tierStartedAt: string | null = null
 ): MilesSegmentsProgress {
   // 字串日期比較避免時區/曆法歧義（同 computeLoyaltyProgress 慣例）。
   // 起日採「同月日、年份 -1」：即使是 02-29 這種不存在的日期，字串比較仍正確。
-  const windowStart = rolling12mStart(asOf);
+  const rollingStart = rolling12mStart(asOf);
+  const windowStart = tierStartedAt && tierStartedAt > rollingStart ? tierStartedAt : rollingStart;
 
   let windowMiles = 0;
   let windowSegments = 0;
@@ -232,14 +293,20 @@ export function computeMilesSegmentsProgress(
     if (e.type === 'flight' && e.own_airline) windowSegments += 1;
   }
 
-  // tiers 由低到高；achieved＝獨立檢查（金卡純哩程路徑可跳過銀卡）取最高達標者
+  // 長榮依目前卡級逐級晉升，不可由綠卡直接以金卡／鑽石門檻跨級。
   const tiers = rules.tiers;
-  let achievedIndex = 0;
-  tiers.forEach((tier, i) => {
-    if (milesSegmentsTierMet(tier, windowMiles, windowSegments)) achievedIndex = i;
-  });
+  const currentIndex = Math.max(
+    0,
+    currentTier ? tiers.findIndex((tier) => tier.key === currentTier) : 0
+  );
+  const candidateIndex = currentIndex + 1;
+  const achievedIndex =
+    candidateIndex < tiers.length &&
+    milesSegmentsTierMet(tiers[candidateIndex], windowMiles, windowSegments)
+      ? candidateIndex
+      : currentIndex;
   const achievedTier = tiers[achievedIndex];
-  const nextTier = achievedIndex + 1 < tiers.length ? tiers[achievedIndex + 1] : null;
+  const nextTier = candidateIndex < tiers.length ? tiers[candidateIndex] : null;
 
   // 續卡（term2y 固定窗口）：需卡籍效期＋currentTier 對到有 renewalMiles/renewalSegments 的 tier
   const currentTierRule = currentTier ? (tiers.find((t) => t.key === currentTier) ?? null) : null;

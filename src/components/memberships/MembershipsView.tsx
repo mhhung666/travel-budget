@@ -1,9 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { Hotel, Plane } from 'lucide-react';
-
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Hotel } from 'lucide-react';
 import { AirlineMemberships } from './AirlineMemberships';
 
 /**
@@ -19,27 +17,15 @@ export function MembershipsView() {
       <h1 className="mb-1 text-2xl font-bold text-foreground">{t('title')}</h1>
       <p className="mb-6 text-sm text-muted-foreground">{t('subtitle')}</p>
 
-      <Tabs defaultValue="airline">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="airline" className="gap-1.5">
-            <Plane className="h-4 w-4" aria-hidden />
-            {t('airlineHeading')}
-          </TabsTrigger>
-          <TabsTrigger value="hotel" className="gap-1.5">
-            <Hotel className="h-4 w-4" aria-hidden />
-            {t('hotelHeading')}
-          </TabsTrigger>
-        </TabsList>
-        <TabsContent value="airline" className="mt-6">
-          <AirlineMemberships />
-        </TabsContent>
-        <TabsContent value="hotel" className="mt-6">
-          <div className="rounded-xl border border-dashed p-6 text-center">
-            <p className="text-sm font-medium text-foreground">{t('hotelComingSoon')}</p>
-            <p className="mt-1 text-xs text-muted-foreground">{t('hotelComingSoonDesc')}</p>
-          </div>
-        </TabsContent>
-      </Tabs>
+      <AirlineMemberships />
+
+      <div className="mt-8 flex items-start gap-3 rounded-xl border border-dashed p-4">
+        <Hotel className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+        <div>
+          <p className="text-sm font-medium text-foreground">{t('hotelComingSoon')}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">{t('hotelComingSoonDesc')}</p>
+        </div>
+      </div>
     </div>
   );
 }

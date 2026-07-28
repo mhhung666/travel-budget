@@ -51,6 +51,7 @@ export function LoyaltyAccountDialog({
   const rules = PROGRAM_RULES[selectedProgram];
   const tiers = rules.tiers;
   const [tier, setTier] = useState(tiers[0].key);
+  const [tierStartedAt, setTierStartedAt] = useState('');
   const [tierExpiresAt, setTierExpiresAt] = useState('');
   const [memberNo, setMemberNo] = useState('');
   const [note, setNote] = useState('');
@@ -67,6 +68,7 @@ export function LoyaltyAccountDialog({
     // eslint-disable-next-line react-hooks/set-state-in-effect -- 開啟對話框時帶入編輯目標，為刻意的同步
     setSelectedProgram(initialProgram);
     setTier(editing?.current_tier ?? PROGRAM_RULES[initialProgram].tiers[0].key);
+    setTierStartedAt(editing?.tier_started_at ?? '');
     setTierExpiresAt(editing?.tier_expires_at ?? '');
     setMemberNo(editing?.member_no ?? '');
     setNote(editing?.note ?? '');
@@ -86,6 +88,7 @@ export function LoyaltyAccountDialog({
       await upsertAccount.mutateAsync({
         program: selectedProgram,
         current_tier: tier,
+        tier_started_at: tierStartedAt || null,
         tier_expires_at: showExpiry && tierExpiresAt ? tierExpiresAt : null,
         member_no: memberNo.trim(),
         note: note.trim(),
@@ -162,6 +165,16 @@ export function LoyaltyAccountDialog({
               className="font-mono"
             />
           </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label>{t('loyalty.tierStarted')}</Label>
+          <Input
+            type="date"
+            value={tierStartedAt}
+            onChange={(e) => setTierStartedAt(e.target.value)}
+          />
+          <p className="text-xs text-muted-foreground">{t('loyalty.tierStartedHint')}</p>
         </div>
 
         {showExpiry && (

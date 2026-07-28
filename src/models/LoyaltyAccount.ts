@@ -7,8 +7,8 @@ import { LOYALTY_PROGRAMS } from '@/constants/loyalty';
  * （actions 以 `{ user }` 過濾），**不進任何公開分享路由**（會籍屬敏感個資，
  * 連彙總數字都不進公開收藏牆）。
  *
- * `currentTier` 由使用者自行設定——app 不自動升降級（積分來源含 app 外的信用卡/
- * 酒店消費，自動判級永遠對不上官方），只依 constants/loyalty.ts 門檻顯示進度。
+ * `currentTier` 是使用者確認過的官方卡級；app 會依已登記紀錄推估是否達到下一級，
+ * 但需使用者確認後才同步，避免漏登信用卡／合作夥伴積分造成誤判。
  */
 const LoyaltyAccountSchema = new Schema(
   {
@@ -17,6 +17,8 @@ const LoyaltyAccountSchema = new Schema(
     program: { type: String, enum: LOYALTY_PROGRAMS, required: true },
     // program 專屬 tier key（合法值由 action 以 programTierKeys 驗證）
     currentTier: { type: String, required: true },
+    // 目前卡級生效／升等進度起算日；CI/BR 逐級計算時排除升等前紀錄
+    tierStartedAt: { type: Date, default: null },
     // 卡籍效期（BR 兩年制用；CX 曆年制恆 null）
     tierExpiresAt: { type: Date, default: null },
     // 會員號（僅顯示用，選填）

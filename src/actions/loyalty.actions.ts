@@ -41,6 +41,7 @@ function toAccountItem(doc: LeanAccount): LoyaltyAccountItem {
     id: doc._id.toString(),
     program: doc.program as LoyaltyProgram,
     current_tier: doc.currentTier,
+    tier_started_at: doc.tierStartedAt ? toYmd(doc.tierStartedAt) : null,
     tier_expires_at: doc.tierExpiresAt ? toYmd(doc.tierExpiresAt) : null,
     member_no: doc.memberNo ?? '',
     note: doc.note ?? '',
@@ -126,6 +127,9 @@ export const upsertLoyaltyAccount = withAuth(
         {
           $set: {
             currentTier: parsed.data.current_tier,
+            tierStartedAt: parsed.data.tier_started_at
+              ? new Date(parsed.data.tier_started_at)
+              : null,
             tierExpiresAt: parsed.data.tier_expires_at
               ? new Date(parsed.data.tier_expires_at)
               : null,

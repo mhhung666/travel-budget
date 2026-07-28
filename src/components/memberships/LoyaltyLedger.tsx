@@ -67,10 +67,16 @@ export function LoyaltyLedger({ entries, onAdd, onEdit, onDelete }: LoyaltyLedge
                     </span>
                   )}
                   {e.own_airline && e.type === 'flight' && (
-                    <Plane className="h-3.5 w-3.5 text-primary" aria-hidden />
+                    <span className="inline-flex" title={t('loyalty.ownAirlineMarker')}>
+                      <Plane className="h-3.5 w-3.5 text-primary" aria-hidden />
+                      <span className="sr-only">{t('loyalty.ownAirlineMarker')}</span>
+                    </span>
                   )}
                   {e.flight_record_id && (
-                    <Plane className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+                    <span className="inline-flex" title={t('loyalty.linkedFlightMarker')}>
+                      <Plane className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+                      <span className="sr-only">{t('loyalty.linkedFlightMarker')}</span>
+                    </span>
                   )}
                 </div>
                 <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">

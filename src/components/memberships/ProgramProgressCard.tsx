@@ -2,10 +2,11 @@
 
 import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { Calculator, ChevronDown, Pencil, Trash2 } from 'lucide-react';
+import { ArrowUp, Calculator, ChevronDown, Pencil, Trash2 } from 'lucide-react';
 
 import { PROGRAM_RULES, TIER_BADGE_COLORS } from '@/constants/loyalty';
 import { computeLoyaltyProgress, computeMilesSegmentsProgress } from '@/lib/loyalty';
+import { toLocalDateInputValue } from '@/lib/dateInput';
 import type { LoyaltyAccountItem, LoyaltyEntryItem } from '@/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -20,6 +21,9 @@ interface ProgramProgressCardProps {
   onDelete: () => void;
   /** 有提供才顯示「試算」鈕（目前僅 CX 有預估表）。 */
   onEstimate?: () => void;
+  /** 依已登記紀錄達到較高卡級時，確認同步官方目前等級。 */
+  onConfirmTier?: (tier: string) => void;
+  confirmingTier?: boolean;
   /** 初始展開狀態（單一帳戶預設展開、多帳戶預設收合）。 */
   defaultOpen?: boolean;
   /** 展開區尾端內容（該 program 的 ledger）。 */
@@ -43,7 +47,7 @@ function ProgressBar({ percent }: { percent: number }) {
  * - 積分制（CX）：本年積分／里數餘額／結轉試算＋升等進度條＋續會狀態。
  * - 哩程＋航段制（BR）：本期卡籍哩程／國際航段／里數餘額＋哩程與航段雙進度條
  *   （擇一達標即升等）；收合列取完成率較高的路徑顯示。
- * 進度純對照 constants/loyalty.ts 門檻，數字皆使用者手記（app 不判級）。
+ * 進度純對照 constants/loyalty.ts 門檻，數字皆使用者手記；推估達標後可確認同步卡級。
  */
 export function ProgramProgressCard({
   account,
@@ -51,6 +55,8 @@ export function ProgramProgressCard({
   onEdit,
   onDelete,
   onEstimate,
+  onConfirmTier,
+  confirmingTier = false,
   defaultOpen = false,
   children,
 }: ProgramProgressCardProps) {
@@ -59,6 +65,7 @@ export function ProgramProgressCard({
   const [open, setOpen] = useState(defaultOpen);
   const numberFormat = new Intl.NumberFormat(locale);
   const nf = (n: number) => numberFormat.format(n);
+  const asOf = toLocalDateInputValue();
 
   const rules = PROGRAM_RULES[account.program];
   const tierName = (key: string) =>
@@ -70,6 +77,7 @@ export function ProgramProgressCard({
   let summaryText: string;
   let summaryPercent: number;
   let detail: React.ReactNode;
+  let estimatedTierKey = account.current_tier;
 
   if (rules.kind === 'points') {
     // 使用者自設等級對到的 tier 規則（term2y 未設效期時的提示要判斷有沒有續會門檻）
@@ -78,8 +86,11 @@ export function ProgramProgressCard({
       entries,
       rules,
       account.current_tier,
-      account.tier_expires_at
+      account.tier_expires_at,
+      asOf,
+      account.tier_started_at
     );
+    estimatedTierKey = progress.achievedTier.key;
     summaryText = progress.nextTier
       ? `${nf(progress.windowPoints)}/${nf(progress.nextTier.threshold)}`
       : t('loyalty.maxTier');
@@ -95,22 +106,37 @@ export function ProgramProgressCard({
       rules.ownAirlineMinRatio != null &&
       progress.ownAirlineRatio !== null &&
       progress.ownAirlineRatio < rules.ownAirlineMinRatio;
+    const pointTiles = [
+      {
+        label:
+          rules.window === 'calendar'
+            ? t('loyalty.stats.yearPoints', { year: progress.windowYear ?? 0 })
+            : t('loyalty.stats.points12m'),
+        value: nf(progress.windowPoints),
+      },
+      { label: t('loyalty.stats.milesBalance'), value: nf(progress.awardMilesBalance) },
+      rules.rollover
+        ? { label: t('loyalty.stats.carryOver'), value: nf(progress.carryOverEstimate) }
+        : {
+            label: t('loyalty.stats.ownAirlineRatio'),
+            value:
+              progress.ownAirlineRatio == null
+                ? '—'
+                : `${Math.round(progress.ownAirlineRatio * 100)}%`,
+          },
+    ];
     detail = (
       <>
         <div className="mt-3">
-          <StatTiles
-            tiles={[
-              {
-                label:
-                  rules.window === 'calendar'
-                    ? t('loyalty.stats.yearPoints', { year: progress.windowYear ?? 0 })
-                    : t('loyalty.stats.points12m'),
-                value: nf(progress.windowPoints),
-              },
-              { label: t('loyalty.stats.milesBalance'), value: nf(progress.awardMilesBalance) },
-              { label: t('loyalty.stats.carryOver'), value: nf(progress.carryOverEstimate) },
-            ]}
-          />
+          <StatTiles tiles={pointTiles} />
+          <p className="mt-2 text-xs text-muted-foreground">
+            {rules.window === 'calendar'
+              ? t('loyalty.windowCalendar', { year: progress.windowYear ?? 0 })
+              : t('loyalty.windowRange', {
+                  start: progress.windowStart ?? '',
+                  end: asOf,
+                })}
+          </p>
         </div>
         <div className="mt-4 space-y-1.5">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
@@ -129,6 +155,20 @@ export function ProgramProgressCard({
             )}
           </div>
           <ProgressBar percent={summaryPercent} />
+          {progress.requiredSegments != null && (
+            <p
+              className={`text-xs ${
+                progress.qualifyingSegments >= progress.requiredSegments
+                  ? 'text-muted-foreground'
+                  : 'text-warning'
+              }`}
+            >
+              {t('loyalty.cxSegmentsProgress', {
+                value: nf(progress.qualifyingSegments),
+                required: nf(progress.requiredSegments),
+              })}
+            </p>
+          )}
           {progress.renewal && (
             <p className="text-xs text-muted-foreground">
               {progress.renewal.met
@@ -139,6 +179,17 @@ export function ProgramProgressCard({
                   })}
             </p>
           )}
+          {progress.renewal &&
+            rules.ownAirlineMinRatio != null &&
+            (progress.renewal.ownAirlineRatio == null ||
+              progress.renewal.ownAirlineRatio < rules.ownAirlineMinRatio) && (
+              <p className="text-xs text-warning">
+                {t('loyalty.renewalOwnAirlineWarning', {
+                  percent: Math.round((progress.renewal.ownAirlineRatio ?? 0) * 100),
+                  required: Math.round(rules.ownAirlineMinRatio * 100),
+                })}
+              </p>
+            )}
           {needsExpiryHint && (
             <p className="text-xs text-muted-foreground">{t('loyalty.renewalNeedsExpiry')}</p>
           )}
@@ -160,8 +211,11 @@ export function ProgramProgressCard({
       entries,
       rules,
       account.current_tier,
-      account.tier_expires_at
+      account.tier_expires_at,
+      asOf,
+      account.tier_started_at
     );
+    estimatedTierKey = progress.achievedTier.key;
     const next = progress.nextTier;
     if (next) {
       // 哩程／航段擇一達標——收合列顯示完成率較高的路徑
@@ -193,6 +247,9 @@ export function ProgramProgressCard({
               { label: t('loyalty.stats.milesBalance'), value: nf(progress.awardMilesBalance) },
             ]}
           />
+          <p className="mt-2 text-xs text-muted-foreground">
+            {t('loyalty.windowRange', { start: progress.windowStart, end: asOf })}
+          </p>
         </div>
         {next ? (
           <div className="mt-4 space-y-3">
@@ -256,6 +313,14 @@ export function ProgramProgressCard({
     );
   }
 
+  const currentTierIndex = rules.tiers.findIndex((tier) => tier.key === account.current_tier);
+  const estimatedTierIndex = rules.tiers.findIndex((tier) => tier.key === estimatedTierKey);
+  const upgradeSuggested = estimatedTierIndex > currentTierIndex;
+  const estimatedTierColor = TIER_BADGE_COLORS[account.program]?.[estimatedTierKey];
+  const maskedMemberNo =
+    account.member_no.length > 4 ? `•••• ${account.member_no.slice(-4)}` : account.member_no;
+  const isCxTransition = account.program === 'CX' && asOf < '2027-01-01';
+
   return (
     <section className="rounded-xl border bg-card">
       <Collapsible open={open} onOpenChange={setOpen}>
@@ -276,6 +341,22 @@ export function ProgramProgressCard({
               ) : (
                 <Badge variant="secondary">{tierName(account.current_tier)}</Badge>
               )}
+              {upgradeSuggested && (
+                <Badge
+                  variant="outline"
+                  className="gap-1"
+                  style={
+                    estimatedTierColor
+                      ? { borderColor: estimatedTierColor, color: estimatedTierColor }
+                      : undefined
+                  }
+                >
+                  <ArrowUp className="h-3 w-3" aria-hidden />
+                  {t(isCxTransition ? 'loyalty.estimated2027Tier' : 'loyalty.estimatedTier', {
+                    tier: tierName(estimatedTierKey),
+                  })}
+                </Badge>
+              )}
             </div>
             <div className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
               <span className="font-mono">{summaryText}</span>
@@ -293,9 +374,21 @@ export function ProgramProgressCard({
           <div className="border-t px-4 pb-4 pt-3">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0 font-mono text-xs text-muted-foreground">
-                {account.member_no}
+                {maskedMemberNo}
               </div>
               <div className="flex shrink-0 gap-1">
+                {upgradeSuggested && onConfirmTier && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 gap-1.5"
+                    disabled={confirmingTier}
+                    onClick={() => onConfirmTier(estimatedTierKey)}
+                  >
+                    <ArrowUp className="h-4 w-4" />
+                    {t('loyalty.confirmTier')}
+                  </Button>
+                )}
                 {onEstimate && (
                   <Button variant="ghost" size="sm" className="h-8 gap-1.5" onClick={onEstimate}>
                     <Calculator className="h-4 w-4" />
@@ -324,6 +417,15 @@ export function ProgramProgressCard({
             </div>
 
             {detail}
+
+            <p className="mt-3 text-xs text-muted-foreground">
+              {isCxTransition
+                ? t('loyalty.cxTransitionNote', { estimated: tierName(estimatedTierKey) })
+                : t('loyalty.officialVsEstimated', {
+                    official: tierName(account.current_tier),
+                    estimated: tierName(estimatedTierKey),
+                  })}
+            </p>
 
             <p className="mt-3 text-xs text-muted-foreground/70">
               {t('loyalty.disclaimer', { date: rules.verifiedAt })}

@@ -19,11 +19,14 @@ type Entry = Parameters<typeof computeLoyaltyProgress>[0][number];
 
 const entry = (over: Partial<Entry> = {}): Entry => ({
   date: '2027-03-10',
+  type: 'flight',
   status_points: 0,
   award_miles: 0,
   own_airline: false,
   ...over,
 });
+
+const cxSegments = () => [entry({ own_airline: true }), entry({ own_airline: true })];
 
 describe('computeLoyaltyProgress（CX 積分制，calendar 窗口＋sameWindow 續會，回歸）', () => {
   it('空輸入 → 綠卡、距銀卡 300、無續會資訊', () => {
@@ -58,7 +61,7 @@ describe('computeLoyaltyProgress（CX 積分制，calendar 窗口＋sameWindow �
 
   it('跨級：一年內積分直達鑽石門檻（銀直升鑽）', () => {
     const p = computeLoyaltyProgress(
-      [entry({ status_points: 1250 })],
+      [entry({ status_points: 1250 }), ...cxSegments()],
       CX,
       'silver',
       null,
@@ -71,7 +74,7 @@ describe('computeLoyaltyProgress（CX 積分制，calendar 窗口＋sameWindow �
 
   it('最高級（鑽石行政）達標後無下一級', () => {
     const p = computeLoyaltyProgress(
-      [entry({ status_points: 2400 })],
+      [entry({ status_points: 2400 }), ...cxSegments()],
       CX,
       null,
       null,
@@ -82,7 +85,29 @@ describe('computeLoyaltyProgress（CX 積分制，calendar 窗口＋sameWindow �
     expect(p.pointsToNext).toBeNull();
   });
 
-  it('續會（sameWindow）：金卡自設等級對照續會門檻 300，points＝windowPoints', () => {
+  it('2027 起達分仍需至少 2 個合資格 CX 航段', () => {
+    const oneSegment = computeLoyaltyProgress(
+      [entry({ status_points: 300, own_airline: true })],
+      CX,
+      'green',
+      null,
+      '2027-06-01'
+    );
+    expect(oneSegment.qualifyingSegments).toBe(1);
+    expect(oneSegment.requiredSegments).toBe(2);
+    expect(oneSegment.achievedTier.key).toBe('green');
+
+    const twoSegments = computeLoyaltyProgress(
+      [entry({ status_points: 300, own_airline: true }), entry({ own_airline: true })],
+      CX,
+      'green',
+      null,
+      '2027-06-01'
+    );
+    expect(twoSegments.achievedTier.key).toBe('silver');
+  });
+
+  it('續會（sameWindow）：金卡需 600 分才能保留金卡', () => {
     const notYet = computeLoyaltyProgress(
       [entry({ status_points: 299 })],
       CX,
@@ -90,19 +115,29 @@ describe('computeLoyaltyProgress（CX 積分制，calendar 窗口＋sameWindow �
       null,
       '2027-06-01'
     );
-    expect(notYet.renewal).toEqual({ required: 300, points: 299, met: false });
+    expect(notYet.renewal).toEqual({
+      required: 600,
+      points: 299,
+      ownAirlineRatio: null,
+      met: false,
+    });
 
     const met = computeLoyaltyProgress(
-      [entry({ status_points: 300 })],
+      [entry({ status_points: 600 })],
       CX,
       'gold',
       null,
       '2027-06-01'
     );
-    expect(met.renewal).toEqual({ required: 300, points: 300, met: true });
+    expect(met.renewal).toEqual({
+      required: 600,
+      points: 600,
+      ownAirlineRatio: null,
+      met: true,
+    });
   });
 
-  it('續會：銀卡無獨立續會門檻 → null', () => {
+  it('續會：銀卡需 300 分才能保留銀卡', () => {
     const p = computeLoyaltyProgress(
       [entry({ status_points: 100 })],
       CX,
@@ -110,19 +145,40 @@ describe('computeLoyaltyProgress（CX 積分制，calendar 窗口＋sameWindow �
       null,
       '2027-06-01'
     );
-    expect(p.renewal).toBeNull();
+    expect(p.renewal).toEqual({
+      required: 300,
+      points: 100,
+      ownAirlineRatio: null,
+      met: false,
+    });
   });
 
-  it('結轉：達金卡且超額 → 超出已達門檻 × 50%（無條件捨去）', () => {
-    // 750 分：達金卡（600），超額 150 → 結轉 75
-    const p = computeLoyaltyProgress([entry({ status_points: 750 })], CX, null, null, '2027-06-01');
+  it('結轉：超額全數結轉，上限為已達卡級門檻的 50%', () => {
+    // 800 分：達金卡（600），超額 200 → 結轉 200
+    const p = computeLoyaltyProgress(
+      [entry({ status_points: 800 }), ...cxSegments()],
+      CX,
+      null,
+      null,
+      '2027-06-01'
+    );
     expect(p.achievedTier.key).toBe('gold');
-    expect(p.carryOverEstimate).toBe(75);
+    expect(p.carryOverEstimate).toBe(200);
+
+    // 1,000 分：超額 400，但金卡上限為 300
+    const capped = computeLoyaltyProgress(
+      [entry({ status_points: 1000 }), ...cxSegments()],
+      CX,
+      null,
+      null,
+      '2027-06-01'
+    );
+    expect(capped.carryOverEstimate).toBe(300);
   });
 
   it('結轉：恰好達標（無超額）→ 0；未達金卡（銀卡超額）→ 0', () => {
     const exact = computeLoyaltyProgress(
-      [entry({ status_points: 600 })],
+      [entry({ status_points: 600 }), ...cxSegments()],
       CX,
       null,
       null,
@@ -132,7 +188,7 @@ describe('computeLoyaltyProgress（CX 積分制，calendar 窗口＋sameWindow �
 
     // 450 分：達銀卡（300）超額 150，但結轉資格是金卡以上
     const silver = computeLoyaltyProgress(
-      [entry({ status_points: 450 })],
+      [entry({ status_points: 450 }), ...cxSegments()],
       CX,
       null,
       null,
@@ -191,35 +247,45 @@ describe('computeLoyaltyProgress（CI 積分制，rolling12m 升等＋term2y 續
     expect(p.windowPoints).toBe(200);
   });
 
-  it('門檻跨級：360 直達金卡、720 直達翡翠卡、1400 直達晶鑽卡', () => {
+  it('逐級升等：只依目前卡級判斷下一級，且須滿足 50% 自營航班積分', () => {
     const gold = computeLoyaltyProgress(
-      [entry({ status_points: 360 })],
+      [entry({ status_points: 360, own_airline: true })],
       CI,
-      null,
+      'member',
       null,
       '2027-06-01'
     );
     expect(gold.achievedTier.key).toBe('gold');
-    expect(gold.nextTier?.key).toBe('emerald');
+    expect(gold.nextTier?.key).toBe('gold');
 
     const emerald = computeLoyaltyProgress(
-      [entry({ status_points: 720 })],
+      [entry({ status_points: 720, own_airline: true })],
       CI,
-      null,
+      'gold',
       null,
       '2027-06-01'
     );
     expect(emerald.achievedTier.key).toBe('emerald');
 
     const paragon = computeLoyaltyProgress(
-      [entry({ status_points: 1400 })],
+      [entry({ status_points: 1400, own_airline: true })],
       CI,
-      null,
+      'emerald',
       null,
       '2027-06-01'
     );
     expect(paragon.achievedTier.key).toBe('paragon');
-    expect(paragon.nextTier).toBeNull();
+  });
+
+  it('華夏卡即使有 1,400 分也只會先判定金卡，不會跨級至晶鑽', () => {
+    const p = computeLoyaltyProgress(
+      [entry({ status_points: 1400, own_airline: true })],
+      CI,
+      'member',
+      null,
+      '2027-06-01'
+    );
+    expect(p.achievedTier.key).toBe('gold');
   });
 
   it('續卡 term2y：tierExpiresAt null → renewal 恆 null（即使 currentTier 有續卡門檻）', () => {
@@ -258,18 +324,44 @@ describe('computeLoyaltyProgress（CI 積分制，rolling12m 升等＋term2y 續
       '2028-03-01',
       '2027-06-01'
     );
-    expect(p.renewal).toEqual({ required: 580, points: 400, met: false });
+    expect(p.renewal).toEqual({
+      required: 580,
+      points: 400,
+      ownAirlineRatio: 0,
+      met: false,
+    });
   });
 
   it('續卡 term2y：達標（renewal.points ≥ renewalThreshold）', () => {
     const p = computeLoyaltyProgress(
-      [entry({ date: '2027-01-01', status_points: 600 })],
+      [entry({ date: '2027-01-01', status_points: 600, own_airline: true })],
       CI,
       'gold',
       '2028-03-01',
       '2027-06-01'
     );
-    expect(p.renewal).toEqual({ required: 580, points: 600, met: true });
+    expect(p.renewal).toEqual({
+      required: 580,
+      points: 600,
+      ownAirlineRatio: 1,
+      met: true,
+    });
+  });
+
+  it('續卡總分達標但自營國際線未達 50% 時仍不算達標', () => {
+    const p = computeLoyaltyProgress(
+      [
+        entry({ date: '2027-01-01', status_points: 200, own_airline: true }),
+        entry({ date: '2027-02-01', status_points: 400, own_airline: false }),
+      ],
+      CI,
+      'gold',
+      '2028-03-01',
+      '2027-06-01'
+    );
+    expect(p.renewal?.points).toBe(600);
+    expect(p.renewal?.ownAirlineRatio).toBeCloseTo(1 / 3);
+    expect(p.renewal?.met).toBe(false);
   });
 
   it('自家航班占比警示：升等窗口占比 < 50%', () => {
@@ -285,6 +377,23 @@ describe('computeLoyaltyProgress（CI 積分制，rolling12m 升等＋term2y 續
     );
     expect(p.ownAirlineRatio).toBe(0.4);
     expect(p.ownAirlineRatio! < CI.ownAirlineMinRatio!).toBe(true);
+  });
+
+  it('目前卡級生效日前的積分不計入下一級進度', () => {
+    const p = computeLoyaltyProgress(
+      [
+        entry({ date: '2027-01-01', status_points: 500, own_airline: true }),
+        entry({ date: '2027-04-01', status_points: 200, own_airline: true }),
+      ],
+      CI,
+      'gold',
+      null,
+      '2027-06-01',
+      '2027-03-01'
+    );
+    expect(p.windowStart).toBe('2027-03-01');
+    expect(p.windowPoints).toBe(200);
+    expect(p.achievedTier.key).toBe('gold');
   });
 });
 
@@ -360,18 +469,18 @@ describe('computeMilesSegmentsProgress（BR 哩程＋航段制）', () => {
     expect(notYet.achievedTier.key).toBe('green');
   });
 
-  it('純哩程路徑可跳級：50,000 哩、0 段 → 金卡（銀卡因缺附加航段未達）', () => {
+  it('綠卡不可用金卡門檻跨級：50,000 哩但未滿 4 段仍維持綠卡', () => {
     const p = computeMilesSegmentsProgress(
       [brEntry({ qualifying_miles: 50000, type: 'card', own_airline: false })],
       BR,
-      null,
+      'green',
       null,
       '2026-06-01'
     );
-    expect(p.achievedTier.key).toBe('gold');
-    expect(p.nextTier?.key).toBe('diamond');
-    expect(p.milesToNext).toBe(70000);
-    expect(p.segmentsToNext).toBe(100);
+    expect(p.achievedTier.key).toBe('green');
+    expect(p.nextTier?.key).toBe('silver');
+    expect(p.milesToNext).toBe(0);
+    expect(p.segmentsToNext).toBe(26);
   });
 
   it('非 flight 或非自家航班不計航段', () => {
@@ -393,14 +502,15 @@ describe('computeMilesSegmentsProgress（BR 哩程＋航段制）', () => {
     const p = computeMilesSegmentsProgress(
       [brEntry({ qualifying_miles: 120000, type: 'card' })],
       BR,
-      null,
+      'gold',
       null,
       '2026-06-01'
     );
     expect(p.achievedTier.key).toBe('diamond');
-    expect(p.nextTier).toBeNull();
-    expect(p.milesToNext).toBeNull();
-    expect(p.segmentsToNext).toBeNull();
+    // 尚未同步官方卡級前，仍以目前金卡的下一級（鑽石）顯示已達標。
+    expect(p.nextTier?.key).toBe('diamond');
+    expect(p.milesToNext).toBe(0);
+    expect(p.segmentsToNext).toBe(100);
     // 未設效期 → 續卡恆 null（即便該級有續卡門檻）
     expect(p.renewal).toBeNull();
   });
