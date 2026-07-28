@@ -51,6 +51,10 @@ const toInt = (raw: string): number => {
   const n = Number.parseInt(raw, 10);
   return Number.isNaN(n) ? 0 : n;
 };
+const toNumber = (raw: string): number => {
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : 0;
+};
 
 /**
  * 積分/里數 entry 補登表單（docs/PLAN-LOYALTY.md §7）：數字由使用者從航空 app 抄過來，
@@ -74,13 +78,16 @@ export function LoyaltyEntryDialog({
   const rules = PROGRAM_RULES[program];
   const kind = rules.kind;
   // 三家皆需辨識自家合資格航班：CX 看最低航段、CI 看自營國際線占比、BR 看航段數。
-  const showOwnAirline = true;
+  const showOwnAirline = kind !== 'nights';
 
   const [date, setDate] = useState(today());
   const [type, setType] = useState<LoyaltyEntryType>('flight');
   const [statusPoints, setStatusPoints] = useState('');
   const [qualifyingMiles, setQualifyingMiles] = useState('');
   const [awardMiles, setAwardMiles] = useState('');
+  const [qualifyingNights, setQualifyingNights] = useState('');
+  const [qualifyingSpendUsd, setQualifyingSpendUsd] = useState('');
+  const [rewardPoints, setRewardPoints] = useState('');
   const [ownAirline, setOwnAirline] = useState(false);
   const [note, setNote] = useState('');
 
@@ -88,13 +95,34 @@ export function LoyaltyEntryDialog({
     if (!open) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- 開啟對話框時帶入編輯目標/預填，為刻意的同步
     setDate(editing?.date ?? defaults?.date ?? today());
-    setType(editing?.type ?? defaults?.type ?? 'other');
+    setType(editing?.type ?? defaults?.type ?? (kind === 'nights' ? 'stay' : 'other'));
     setStatusPoints(editing ? String(editing.status_points) : '');
     setQualifyingMiles(editing ? String(editing.qualifying_miles) : '');
     setAwardMiles(editing ? String(editing.award_miles) : '');
+    setQualifyingNights(
+      editing
+        ? String(editing.qualifying_nights)
+        : defaults?.qualifying_nights != null
+          ? String(defaults.qualifying_nights)
+          : ''
+    );
+    setQualifyingSpendUsd(
+      editing
+        ? String(editing.qualifying_spend_usd)
+        : defaults?.qualifying_spend_usd != null
+          ? String(defaults.qualifying_spend_usd)
+          : ''
+    );
+    setRewardPoints(
+      editing
+        ? String(editing.reward_points)
+        : defaults?.reward_points != null
+          ? String(defaults.reward_points)
+          : ''
+    );
     setOwnAirline(editing?.own_airline ?? defaults?.own_airline ?? false);
     setNote(editing?.note ?? defaults?.note ?? '');
-  }, [open, editing, defaults]);
+  }, [open, editing, defaults, kind]);
 
   const pending = createEntry.isPending || updateEntry.isPending;
 
@@ -108,10 +136,14 @@ export function LoyaltyEntryDialog({
       status_points: kind === 'points' ? toInt(statusPoints) : 0,
       qualifying_miles: kind === 'milesAndSegments' ? toInt(qualifyingMiles) : 0,
       award_miles: toInt(awardMiles),
+      qualifying_nights: kind === 'nights' ? toNumber(qualifyingNights) : 0,
+      qualifying_spend_usd: kind === 'nights' ? toNumber(qualifyingSpendUsd) : 0,
+      reward_points: kind === 'nights' ? toInt(rewardPoints) : 0,
       // 自家航班：哩程制判定國際航段、CI 判定 50% 條款；其餘 program 無此概念
       own_airline: showOwnAirline ? ownAirline : (editing?.own_airline ?? false),
       // 帶入來源標記：新增取預填、編輯沿用原值（避免更新把「已帶入」洗掉）
       flight_record_id: editing?.flight_record_id ?? defaults?.flight_record_id ?? null,
+      stay_record_id: editing?.stay_record_id ?? defaults?.stay_record_id ?? null,
       note: note.trim(),
     };
 
@@ -134,7 +166,9 @@ export function LoyaltyEntryDialog({
       open={open}
       onOpenChange={(next) => !pending && onOpenChange(next)}
       title={t(editing ? 'loyalty.editEntry' : 'loyalty.addEntry')}
-      description={t('loyalty.entryFormDescription')}
+      description={t(
+        kind === 'nights' ? 'loyalty.hotelEntryFormDescription' : 'loyalty.entryFormDescription'
+      )}
       footer={
         <Button form="loyalty-entry-form" type="submit" disabled={pending || !date}>
           {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -165,34 +199,71 @@ export function LoyaltyEntryDialog({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label>
-              {t(kind === 'points' ? 'loyalty.statusPoints' : 'loyalty.qualifyingMiles')}
-            </Label>
-            <Input
-              type="number"
-              inputMode="numeric"
-              value={kind === 'points' ? statusPoints : qualifyingMiles}
-              onChange={(e) =>
-                kind === 'points'
-                  ? setStatusPoints(e.target.value)
-                  : setQualifyingMiles(e.target.value)
-              }
-              placeholder="0"
-            />
+        {kind === 'nights' ? (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="space-y-2">
+              <Label>{t('loyalty.qualifyingNights')}</Label>
+              <Input
+                type="number"
+                inputMode="decimal"
+                step={0.5}
+                value={qualifyingNights}
+                onChange={(e) => setQualifyingNights(e.target.value)}
+                placeholder="0"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t('loyalty.qualifyingSpendUsd')}</Label>
+              <Input
+                type="number"
+                inputMode="decimal"
+                step={0.01}
+                value={qualifyingSpendUsd}
+                onChange={(e) => setQualifyingSpendUsd(e.target.value)}
+                placeholder="0"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t('loyalty.rewardPoints')}</Label>
+              <Input
+                type="number"
+                inputMode="numeric"
+                value={rewardPoints}
+                onChange={(e) => setRewardPoints(e.target.value)}
+                placeholder="0"
+              />
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label>{t('loyalty.awardMiles')}</Label>
-            <Input
-              type="number"
-              inputMode="numeric"
-              value={awardMiles}
-              onChange={(e) => setAwardMiles(e.target.value)}
-              placeholder="0"
-            />
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label>
+                {t(kind === 'points' ? 'loyalty.statusPoints' : 'loyalty.qualifyingMiles')}
+              </Label>
+              <Input
+                type="number"
+                inputMode="numeric"
+                value={kind === 'points' ? statusPoints : qualifyingMiles}
+                onChange={(e) =>
+                  kind === 'points'
+                    ? setStatusPoints(e.target.value)
+                    : setQualifyingMiles(e.target.value)
+                }
+                placeholder="0"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t('loyalty.awardMiles')}</Label>
+              <Input
+                type="number"
+                inputMode="numeric"
+                value={awardMiles}
+                onChange={(e) => setAwardMiles(e.target.value)}
+                placeholder="0"
+              />
+            </div>
           </div>
-        </div>
+        )}
 
         {!editing && kind === 'points' && spEstimate && (
           <div className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed p-3">

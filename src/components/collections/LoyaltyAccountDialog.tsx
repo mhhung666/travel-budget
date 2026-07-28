@@ -54,11 +54,18 @@ export function LoyaltyAccountDialog({
   const [tierStartedAt, setTierStartedAt] = useState('');
   const [tierExpiresAt, setTierExpiresAt] = useState('');
   const [memberNo, setMemberNo] = useState('');
+  const [lifetimeNights, setLifetimeNights] = useState('');
+  const [lifetimeSilverYears, setLifetimeSilverYears] = useState('');
+  const [lifetimeGoldYears, setLifetimeGoldYears] = useState('');
+  const [lifetimePlatinumYears, setLifetimePlatinumYears] = useState('');
   const [note, setNote] = useState('');
 
   // 卡籍效期欄只在續卡為「固定期制」的 program 顯示：哩程＋航段制（BR）恆有卡籍效期；
   // 積分制裡只有 renewalWindow: 'term2y'（CI）需要（CX 為 sameWindow，續會看曆年窗口本身）。
-  const showExpiry = rules.kind === 'milesAndSegments' || rules.renewalWindow === 'term2y';
+  const showExpiry =
+    rules.kind === 'milesAndSegments' ||
+    (rules.kind === 'points' && rules.renewalWindow === 'term2y');
+  const isHotel = rules.kind === 'nights';
 
   const showProgramPicker = !editing && (availablePrograms?.length ?? 0) > 1;
 
@@ -71,6 +78,10 @@ export function LoyaltyAccountDialog({
     setTierStartedAt(editing?.tier_started_at ?? '');
     setTierExpiresAt(editing?.tier_expires_at ?? '');
     setMemberNo(editing?.member_no ?? '');
+    setLifetimeNights(editing ? String(editing.lifetime_nights) : '');
+    setLifetimeSilverYears(editing ? String(editing.lifetime_silver_years) : '');
+    setLifetimeGoldYears(editing ? String(editing.lifetime_gold_years) : '');
+    setLifetimePlatinumYears(editing ? String(editing.lifetime_platinum_years) : '');
     setNote(editing?.note ?? '');
   }, [open, editing, program]);
 
@@ -88,9 +99,13 @@ export function LoyaltyAccountDialog({
       await upsertAccount.mutateAsync({
         program: selectedProgram,
         current_tier: tier,
-        tier_started_at: tierStartedAt || null,
+        tier_started_at: isHotel ? null : tierStartedAt || null,
         tier_expires_at: showExpiry && tierExpiresAt ? tierExpiresAt : null,
         member_no: memberNo.trim(),
+        lifetime_nights: isHotel ? Number(lifetimeNights) || 0 : 0,
+        lifetime_silver_years: isHotel ? Number.parseInt(lifetimeSilverYears, 10) || 0 : 0,
+        lifetime_gold_years: isHotel ? Number.parseInt(lifetimeGoldYears, 10) || 0 : 0,
+        lifetime_platinum_years: isHotel ? Number.parseInt(lifetimePlatinumYears, 10) || 0 : 0,
         note: note.trim(),
       });
       onOpenChange(false);
@@ -167,15 +182,17 @@ export function LoyaltyAccountDialog({
           </div>
         </div>
 
-        <div className="space-y-2">
-          <Label>{t('loyalty.tierStarted')}</Label>
-          <Input
-            type="date"
-            value={tierStartedAt}
-            onChange={(e) => setTierStartedAt(e.target.value)}
-          />
-          <p className="text-xs text-muted-foreground">{t('loyalty.tierStartedHint')}</p>
-        </div>
+        {!isHotel && (
+          <div className="space-y-2">
+            <Label>{t('loyalty.tierStarted')}</Label>
+            <Input
+              type="date"
+              value={tierStartedAt}
+              onChange={(e) => setTierStartedAt(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">{t('loyalty.tierStartedHint')}</p>
+          </div>
+        )}
 
         {showExpiry && (
           <div className="space-y-2">
@@ -185,6 +202,51 @@ export function LoyaltyAccountDialog({
               value={tierExpiresAt}
               onChange={(e) => setTierExpiresAt(e.target.value)}
             />
+          </div>
+        )}
+
+        {isHotel && (
+          <div className="space-y-3 rounded-xl border p-3">
+            <div>
+              <p className="text-sm font-medium text-foreground">{t('loyalty.lifetimeProgress')}</p>
+              <p className="text-xs text-muted-foreground">{t('loyalty.lifetimeProgressHint')}</p>
+            </div>
+            <div className="space-y-2">
+              <Label>{t('loyalty.lifetimeNights')}</Label>
+              <Input
+                type="number"
+                min={0}
+                step={0.5}
+                value={lifetimeNights}
+                onChange={(e) => setLifetimeNights(e.target.value)}
+                placeholder="0"
+              />
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              {[
+                ['silver', lifetimeSilverYears, setLifetimeSilverYears],
+                ['gold', lifetimeGoldYears, setLifetimeGoldYears],
+                ['platinum', lifetimePlatinumYears, setLifetimePlatinumYears],
+              ].map(([key, value, setter]) => (
+                <div className="space-y-2" key={key as string}>
+                  <Label>
+                    {t('loyalty.lifetimeYears', {
+                      tier: t(`loyalty.tiers.${selectedProgram}.${key}` as Parameters<typeof t>[0]),
+                    })}
+                  </Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={value as string}
+                    onChange={(e) =>
+                      (setter as React.Dispatch<React.SetStateAction<string>>)(e.target.value)
+                    }
+                    placeholder="0"
+                  />
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

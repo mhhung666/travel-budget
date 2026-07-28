@@ -4,13 +4,15 @@ import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Loader2, Star } from 'lucide-react';
 
-import { useCollectionMutations } from '@/hooks/queries';
+import { useCollectionMutations, useLoyalty, useLoyaltyMutations } from '@/hooks/queries';
 import { useToast } from '@/hooks/use-toast';
 import { toLocalDateInputValue } from '@/lib/dateInput';
+import { getHotelBrand } from '@/constants/hotelBrands';
 import type { DatePrecision, StayRecordItem } from '@/types';
 import type { CreateStayRecordInput } from '@/lib/validation';
 import { ResponsiveFormSheet } from '@/components/common';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -59,6 +61,8 @@ export function StayRecordDialog({
   const t = useTranslations('collections');
   const { toast } = useToast();
   const { createStay, updateStay } = useCollectionMutations();
+  const { createEntry } = useLoyaltyMutations();
+  const { data: loyalty } = useLoyalty(open);
 
   const [checkIn, setCheckIn] = useState(today());
   const [precision, setPrecision] = useState<DatePrecision>('day');
@@ -69,9 +73,49 @@ export function StayRecordDialog({
   const [city, setCity] = useState('');
   const [tripId, setTripId] = useState<string | null>(null);
   const [note, setNote] = useState('');
+  const [accrue, setAccrue] = useState(false);
+  const [qualifyingNights, setQualifyingNights] = useState('');
+  const [qualifyingSpendUsd, setQualifyingSpendUsd] = useState('');
+  const [rewardPoints, setRewardPoints] = useState('');
 
   // 帶入時鎖定旅程＝當下旅程（唯讀）；編輯情境不套用鎖定。
   const locked = editing ? null : (lockedTrip ?? null);
+  const hasMarriottAccount = loyalty?.accounts.some((account) => account.program === 'MB') ?? false;
+  const isMarriottBrand = getHotelBrand(brand)?.group === 'marriott';
+  const alreadyAccrued = editing
+    ? (loyalty?.entries ?? []).some((entry) => entry.stay_record_id === editing.id)
+    : false;
+  const stayNights = Number.parseInt(nights, 10);
+  const creditsByCheckInYear =
+    brand === 'city-express' ||
+    brand === 'protea' ||
+    brand === 'four-points-flex' ||
+    brand === 'series-by-marriott' ||
+    brand === 'marriott-executive';
+  const crossesCalendarYear = (() => {
+    if (creditsByCheckInYear || !checkIn || !Number.isFinite(stayNights) || stayNights <= 1) {
+      return false;
+    }
+    const lastNight = new Date(`${checkIn}T00:00:00Z`);
+    lastNight.setUTCDate(lastNight.getUTCDate() + stayNights - 1);
+    return lastNight.getUTCFullYear() !== Number(checkIn.slice(0, 4));
+  })();
+  const canAccrueBase = hasMarriottAccount && isMarriottBrand && !alreadyAccrued;
+  const canAccrue = canAccrueBase && !crossesCalendarYear;
+
+  const suggestedQualifyingNights = (() => {
+    if (!Number.isFinite(stayNights) || stayNights <= 0) return 0;
+    if (brand === 'studiores') return 0;
+    if (
+      brand === 'city-express' ||
+      brand === 'protea' ||
+      brand === 'four-points-flex' ||
+      brand === 'series-by-marriott'
+    ) {
+      return stayNights * 0.5;
+    }
+    return stayNights;
+  })();
 
   // 開啟時初始化表單：編輯＝帶入該筆；新增＝套用預填（行程帶入）或空白
   useEffect(() => {
@@ -92,9 +136,13 @@ export function StayRecordDialog({
     setCity(editing?.city ?? defaults?.city ?? '');
     setTripId(locked?.id ?? editing?.trip_id ?? defaults?.trip_id ?? null);
     setNote(editing?.note ?? defaults?.note ?? '');
+    setAccrue(false);
+    setQualifyingNights('');
+    setQualifyingSpendUsd('');
+    setRewardPoints('');
   }, [open, editing, defaults, locked]);
 
-  const pending = createStay.isPending || updateStay.isPending;
+  const pending = createStay.isPending || updateStay.isPending || createEntry.isPending;
   const canSubmit = Boolean(checkIn && hotelName.trim());
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -120,18 +168,41 @@ export function StayRecordDialog({
       note: note.trim(),
     };
 
+    let saved: StayRecordItem;
     try {
-      if (editing) {
-        await updateStay.mutateAsync({ id: editing.id, input });
-      } else {
-        await createStay.mutateAsync(input);
-      }
-      onOpenChange(false);
-      onSaved?.();
+      saved = editing
+        ? await updateStay.mutateAsync({ id: editing.id, input })
+        : await createStay.mutateAsync(input);
     } catch (error) {
       const key = error instanceof Error ? error.message : 'INTERNAL_ERROR';
       toast({ title: t(`errors.${key}` as Parameters<typeof t>[0]), variant: 'destructive' });
+      return;
     }
+
+    if (accrue && canAccrue) {
+      try {
+        await createEntry.mutateAsync({
+          program: 'MB',
+          date: checkIn,
+          type: 'stay',
+          status_points: 0,
+          qualifying_miles: 0,
+          award_miles: 0,
+          qualifying_nights: Number(qualifyingNights) || 0,
+          qualifying_spend_usd: Number(qualifyingSpendUsd) || 0,
+          reward_points: Number.parseInt(rewardPoints, 10) || 0,
+          own_airline: false,
+          flight_record_id: null,
+          stay_record_id: saved.id,
+          note: hotelName.trim(),
+        });
+      } catch (error) {
+        const key = error instanceof Error ? error.message : 'INTERNAL_ERROR';
+        toast({ title: t(`errors.${key}` as Parameters<typeof t>[0]), variant: 'destructive' });
+      }
+    }
+    onOpenChange(false);
+    onSaved?.();
   };
 
   return (
@@ -225,6 +296,71 @@ export function StayRecordDialog({
             )}
           </div>
         </div>
+
+        {canAccrue && (
+          <div className="space-y-3 rounded-xl border p-3">
+            <label className="flex items-start gap-3">
+              <Checkbox
+                checked={accrue}
+                onCheckedChange={(value) => {
+                  const checked = value === true;
+                  setAccrue(checked);
+                  if (checked && !qualifyingNights) {
+                    setQualifyingNights(String(suggestedQualifyingNights));
+                  }
+                }}
+                className="mt-0.5"
+              />
+              <span>
+                <span className="block text-sm font-medium text-foreground">
+                  {t('stays.accrueMarriott')}
+                </span>
+                <span className="block text-xs text-muted-foreground">
+                  {t('stays.accrueMarriottHint')}
+                </span>
+              </span>
+            </label>
+            {accrue && (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="space-y-2">
+                  <Label>{t('loyalty.qualifyingNights')}</Label>
+                  <Input
+                    type="number"
+                    step={0.5}
+                    value={qualifyingNights}
+                    onChange={(e) => setQualifyingNights(e.target.value)}
+                    placeholder="0"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>{t('loyalty.qualifyingSpendUsd')}</Label>
+                  <Input
+                    type="number"
+                    step={0.01}
+                    value={qualifyingSpendUsd}
+                    onChange={(e) => setQualifyingSpendUsd(e.target.value)}
+                    placeholder="0"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>{t('loyalty.rewardPoints')}</Label>
+                  <Input
+                    type="number"
+                    value={rewardPoints}
+                    onChange={(e) => setRewardPoints(e.target.value)}
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {canAccrueBase && crossesCalendarYear && (
+          <p className="rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
+            {t('stays.marriottCrossYearHint')}
+          </p>
+        )}
 
         <div className="space-y-2">
           <Label>{t('common.note')}</Label>

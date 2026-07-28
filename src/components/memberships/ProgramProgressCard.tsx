@@ -2,10 +2,14 @@
 
 import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { ArrowUp, Calculator, ChevronDown, Pencil, Trash2 } from 'lucide-react';
+import { ArrowUp, Calculator, ChevronDown, Gift, Pencil, Trash2 } from 'lucide-react';
 
 import { PROGRAM_RULES, TIER_BADGE_COLORS } from '@/constants/loyalty';
-import { computeLoyaltyProgress, computeMilesSegmentsProgress } from '@/lib/loyalty';
+import {
+  computeLoyaltyProgress,
+  computeMilesSegmentsProgress,
+  computeNightsProgress,
+} from '@/lib/loyalty';
 import { toLocalDateInputValue } from '@/lib/dateInput';
 import type { LoyaltyAccountItem, LoyaltyEntryItem } from '@/types';
 import { Badge } from '@/components/ui/badge';
@@ -64,6 +68,11 @@ export function ProgramProgressCard({
   const locale = useLocale();
   const [open, setOpen] = useState(defaultOpen);
   const numberFormat = new Intl.NumberFormat(locale);
+  const usdFormat = new Intl.NumberFormat(locale, {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 2,
+  });
   const nf = (n: number) => numberFormat.format(n);
   const asOf = toLocalDateInputValue();
 
@@ -202,6 +211,138 @@ export function ProgramProgressCard({
             </p>
           )}
         </div>
+      </>
+    );
+  } else if (rules.kind === 'nights') {
+    const progress = computeNightsProgress(entries, rules, asOf, {
+      nights: account.lifetime_nights,
+      silverYears: account.lifetime_silver_years,
+      goldYears: account.lifetime_gold_years,
+      platinumYears: account.lifetime_platinum_years,
+    });
+    estimatedTierKey = progress.achievedTier.key;
+    const next = progress.nextTier;
+    summaryText = next
+      ? t('loyalty.summaryNights', {
+          value: nf(progress.windowNights),
+          total: nf(next.nights),
+        })
+      : t('loyalty.maxTier');
+    const nightsPercent = next ? (progress.windowNights / next.nights) * 100 : 100;
+    const spendPercent =
+      next?.qualifyingSpendUsd != null
+        ? (progress.windowSpendUsd / next.qualifyingSpendUsd) * 100
+        : 100;
+    summaryPercent = Math.min(nightsPercent, spendPercent);
+
+    detail = (
+      <>
+        <div className="mt-3">
+          <StatTiles
+            tiles={[
+              {
+                label: t('loyalty.stats.yearNights', { year: progress.windowYear }),
+                value: nf(progress.windowNights),
+              },
+              {
+                label: t('loyalty.stats.qualifiedSpend'),
+                value: usdFormat.format(progress.windowSpendUsd),
+              },
+              {
+                label: t('loyalty.stats.pointsBalance'),
+                value: nf(progress.rewardPointsBalance),
+              },
+            ]}
+          />
+          <p className="mt-2 text-xs text-muted-foreground">
+            {t('loyalty.windowCalendar', { year: progress.windowYear })}
+          </p>
+        </div>
+        {next ? (
+          <div className="mt-4 space-y-2">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>
+                {t('loyalty.nightsToNextTier', {
+                  tier: tierName(next.key),
+                  nights: nf(progress.nightsToNext ?? 0),
+                })}
+              </span>
+              <span className="font-mono">
+                {nf(progress.windowNights)}/{nf(next.nights)}
+              </span>
+            </div>
+            <ProgressBar percent={nightsPercent} />
+            {next.qualifyingSpendUsd != null && (
+              <>
+                <div className="flex items-center justify-between pt-1 text-xs text-muted-foreground">
+                  <span>
+                    {t('loyalty.spendToAmbassador', {
+                      spend: usdFormat.format(progress.spendToNextUsd),
+                    })}
+                  </span>
+                  <span className="font-mono">
+                    {usdFormat.format(progress.windowSpendUsd)}/
+                    {usdFormat.format(next.qualifyingSpendUsd)}
+                  </span>
+                </div>
+                <ProgressBar percent={spendPercent} />
+              </>
+            )}
+          </div>
+        ) : (
+          <p className="mt-4 text-xs text-muted-foreground">{t('loyalty.maxTier')}</p>
+        )}
+
+        {(progress.choiceBenefitsReached.length > 0 || progress.nextChoiceBenefit != null) && (
+          <div className="mt-4 rounded-lg border border-dashed p-3 text-xs">
+            <div className="flex items-center gap-2 font-medium text-foreground">
+              <Gift className="h-4 w-4 text-primary" aria-hidden />
+              {t('loyalty.choiceBenefit')}
+            </div>
+            {progress.choiceBenefitsReached.length > 0 && (
+              <p className="mt-1 text-muted-foreground">
+                {t('loyalty.choiceBenefitReached', {
+                  nights: progress.choiceBenefitsReached.map(nf).join('、'),
+                })}
+              </p>
+            )}
+            {progress.nextChoiceBenefit != null && (
+              <p className="mt-1 text-muted-foreground">
+                {t('loyalty.choiceBenefitNext', {
+                  nights: nf(progress.nextChoiceBenefit - progress.windowNights),
+                  threshold: nf(progress.nextChoiceBenefit),
+                })}
+              </p>
+            )}
+          </div>
+        )}
+
+        <div className="mt-4">
+          <p className="text-xs font-medium text-foreground">{t('loyalty.lifetimeProgress')}</p>
+          <div className="mt-2 grid gap-2 sm:grid-cols-3">
+            {progress.lifetime.map((lifetime) => (
+              <div key={lifetime.key} className="rounded-lg bg-secondary/50 p-2.5 text-xs">
+                <p className="font-medium text-foreground">
+                  {t('loyalty.lifetimeTier', { tier: tierName(lifetime.key) })}
+                </p>
+                <p className="mt-1 text-muted-foreground">
+                  {t('loyalty.lifetimeRequirement', {
+                    nights: nf(lifetime.nights),
+                    requiredNights: nf(lifetime.requiredNights),
+                    years: nf(lifetime.years),
+                    requiredYears: nf(lifetime.requiredYears),
+                  })}
+                </p>
+                {lifetime.met && (
+                  <p className="mt-1 font-medium text-primary">{t('loyalty.requirementMet')}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+        <p className="mt-3 text-xs text-muted-foreground/80">
+          {t('loyalty.marriottNightsDisclaimer')}
+        </p>
       </>
     );
   } else {

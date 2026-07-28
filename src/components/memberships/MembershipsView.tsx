@@ -1,7 +1,6 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { Hotel } from 'lucide-react';
 import { AirlineMemberships } from './AirlineMemberships';
 
 /**
@@ -18,14 +17,6 @@ export function MembershipsView() {
       <p className="mb-6 text-sm text-muted-foreground">{t('subtitle')}</p>
 
       <AirlineMemberships />
-
-      <div className="mt-8 flex items-start gap-3 rounded-xl border border-dashed p-4">
-        <Hotel className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-        <div>
-          <p className="text-sm font-medium text-foreground">{t('hotelComingSoon')}</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">{t('hotelComingSoonDesc')}</p>
-        </div>
-      </div>
     </div>
   );
 }

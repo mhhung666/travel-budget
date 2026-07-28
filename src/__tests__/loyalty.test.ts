@@ -2,18 +2,21 @@ import { describe, expect, it } from 'vitest';
 import {
   computeLoyaltyProgress,
   computeMilesSegmentsProgress,
+  computeNightsProgress,
   estimateCxStatusPoints,
 } from '@/lib/loyalty';
 import {
   PROGRAM_RULES,
   programTierKeys,
   type MilesSegmentsProgramRules,
+  type NightsProgramRules,
   type PointsProgramRules,
 } from '@/constants/loyalty';
 
 const CX = PROGRAM_RULES.CX as PointsProgramRules;
 const CI = PROGRAM_RULES.CI as PointsProgramRules;
 const BR = PROGRAM_RULES.BR as MilesSegmentsProgramRules;
+const MB = PROGRAM_RULES.MB as NightsProgramRules;
 
 type Entry = Parameters<typeof computeLoyaltyProgress>[0][number];
 
@@ -632,6 +635,88 @@ describe('computeMilesSegmentsProgress（BR 續卡 term2y，2026-07-16 evaair.co
   });
 });
 
+type MbEntry = Parameters<typeof computeNightsProgress>[0][number];
+const mbEntry = (over: Partial<MbEntry> = {}): MbEntry => ({
+  date: '2026-03-10',
+  qualifying_nights: 0,
+  qualifying_spend_usd: 0,
+  reward_points: 0,
+  ...over,
+});
+
+describe('computeNightsProgress（Marriott Bonvoy 曆年合格房晚制）', () => {
+  it('依 10／25／50／75 晚絕對門檻跨級，房晚不因升等歸零', () => {
+    expect(
+      computeNightsProgress([mbEntry({ qualifying_nights: 10 })], MB, '2026-06-01').achievedTier.key
+    ).toBe('silver');
+    expect(
+      computeNightsProgress([mbEntry({ qualifying_nights: 52 })], MB, '2026-06-01').achievedTier.key
+    ).toBe('platinum');
+    expect(
+      computeNightsProgress([mbEntry({ qualifying_nights: 75 })], MB, '2026-06-01').achievedTier.key
+    ).toBe('titanium');
+  });
+
+  it('大使級需同時達 100 晚與 US$23,000；缺消費時維持鈦金', () => {
+    const missingSpend = computeNightsProgress(
+      [mbEntry({ qualifying_nights: 100, qualifying_spend_usd: 22000 })],
+      MB,
+      '2026-06-01'
+    );
+    expect(missingSpend.achievedTier.key).toBe('titanium');
+    expect(missingSpend.nextTier?.key).toBe('ambassador');
+    expect(missingSpend.nightsToNext).toBe(0);
+    expect(missingSpend.spendToNextUsd).toBe(1000);
+
+    const ambassador = computeNightsProgress(
+      [mbEntry({ qualifying_nights: 100, qualifying_spend_usd: 23000 })],
+      MB,
+      '2026-06-01'
+    );
+    expect(ambassador.achievedTier.key).toBe('ambassador');
+  });
+
+  it('房晚與消費只算基準年度，點數餘額則加總全部年度並支援 0.5 房晚', () => {
+    const progress = computeNightsProgress(
+      [
+        mbEntry({ date: '2025-12-31', qualifying_nights: 50, reward_points: 10000 }),
+        mbEntry({
+          date: '2026-01-01',
+          qualifying_nights: 0.5,
+          qualifying_spend_usd: 100,
+          reward_points: 500,
+        }),
+        mbEntry({ date: '2026-05-01', qualifying_nights: 9.5, reward_points: -2000 }),
+        mbEntry({ date: '2026-07-01', qualifying_nights: 99, reward_points: 300 }),
+      ],
+      MB,
+      '2026-06-01'
+    );
+    expect(progress.windowNights).toBe(10);
+    expect(progress.windowSpendUsd).toBe(100);
+    expect(progress.rewardPointsBalance).toBe(8800);
+    expect(progress.achievedTier.key).toBe('silver');
+  });
+
+  it('50／75 晚年度自選禮遇里程碑', () => {
+    const progress = computeNightsProgress([mbEntry({ qualifying_nights: 60 })], MB, '2026-06-01');
+    expect(progress.choiceBenefitsReached).toEqual([50]);
+    expect(progress.nextChoiceBenefit).toBe(75);
+  });
+
+  it('終身會籍需同時達成終身房晚與對應級別以上年資', () => {
+    const progress = computeNightsProgress([], MB, '2026-06-01', {
+      nights: 600,
+      silverYears: 8,
+      goldYears: 7,
+      platinumYears: 9,
+    });
+    expect(progress.lifetime.find((tier) => tier.key === 'silver')?.met).toBe(true);
+    expect(progress.lifetime.find((tier) => tier.key === 'gold')?.met).toBe(true);
+    expect(progress.lifetime.find((tier) => tier.key === 'platinum')?.met).toBe(false);
+  });
+});
+
 describe('programTierKeys', () => {
   it('CX 五級由低到高', () => {
     expect(programTierKeys('CX')).toEqual(['green', 'silver', 'gold', 'diamond', 'diamond_plus']);
@@ -643,6 +728,17 @@ describe('programTierKeys', () => {
 
   it('CI 四級由低到高', () => {
     expect(programTierKeys('CI')).toEqual(['member', 'gold', 'emerald', 'paragon']);
+  });
+
+  it('MB 六級由低到高', () => {
+    expect(programTierKeys('MB')).toEqual([
+      'member',
+      'silver',
+      'gold',
+      'platinum',
+      'titanium',
+      'ambassador',
+    ]);
   });
 });
 

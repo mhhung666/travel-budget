@@ -580,6 +580,10 @@ export const upsertLoyaltyAccountSchema = z.object({
   // 卡籍效期（term2y 續卡窗口用，BR/CI）；CX 等 sameWindow program 不顯示，恆傳 null
   tier_expires_at: ymdSchema.nullable().default(null),
   member_no: z.string().trim().max(30, '會員號過長').default(''),
+  lifetime_nights: z.number().multipleOf(0.5).min(0).max(1_000_000).default(0),
+  lifetime_silver_years: z.number().int().min(0).max(200).default(0),
+  lifetime_gold_years: z.number().int().min(0).max(200).default(0),
+  lifetime_platinum_years: z.number().int().min(0).max(200).default(0),
   note: z.string().trim().max(500, '備註過長').default(''),
 });
 
@@ -590,9 +594,14 @@ export const createLoyaltyEntrySchema = z.object({
   status_points: loyaltyAmountSchema.default(0),
   qualifying_miles: loyaltyAmountSchema.default(0),
   award_miles: loyaltyAmountSchema.default(0),
+  qualifying_nights: z.number().multipleOf(0.5).min(-10000).max(10000).default(0),
+  qualifying_spend_usd: z.number().min(-100_000_000).max(100_000_000).default(0),
+  reward_points: loyaltyAmountSchema.default(0),
   own_airline: z.boolean().default(false),
   // 來源飛行紀錄（「從飛行紀錄帶入」防重複）；歸屬與重複由 action 驗證
   flight_record_id: objectIdSchema.nullable().optional(),
+  // 來源住宿紀錄（「從住宿收藏帶入」防重複）；歸屬與重複由 action 驗證
+  stay_record_id: objectIdSchema.nullable().optional(),
   note: z.string().trim().max(500, '備註過長').default(''),
 });
 

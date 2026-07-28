@@ -13,7 +13,7 @@ import {
   type HotelBrand,
   type HotelTier,
 } from '@/constants/hotelBrands';
-import { useCollectionMutations } from '@/hooks/queries';
+import { useCollectionMutations, useLoyalty } from '@/hooks/queries';
 import { useToast } from '@/hooks/use-toast';
 import type { StayRecordItem } from '@/types';
 import { Badge } from '@/components/ui/badge';
@@ -62,6 +62,7 @@ export function StaysTab({ stays }: { stays: StayRecordItem[] }) {
   const locale = useLocale();
   const { toast } = useToast();
   const { removeStay } = useCollectionMutations();
+  const { data: loyalty } = useLoyalty();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<StayRecordItem | null>(null);
@@ -83,6 +84,16 @@ export function StaysTab({ stays }: { stays: StayRecordItem[] }) {
   const brandSummaries = summaries.filter((s) => s.brand !== null);
   const independent = summaries.find((s) => s.brand === null);
   const totalNights = summaries.reduce((sum, s) => sum + s.nights, 0);
+  const hasMarriottAccount = loyalty?.accounts.some((account) => account.program === 'MB') ?? false;
+  const marriottLinkedStayIds = useMemo(
+    () =>
+      new Set(
+        (loyalty?.entries ?? [])
+          .filter((entry) => entry.program === 'MB' && entry.stay_record_id)
+          .map((entry) => entry.stay_record_id!)
+      ),
+    [loyalty]
+  );
 
   const collectedIds = useMemo(
     () => new Set(brandSummaries.map((s) => s.brand as string)),
@@ -252,6 +263,9 @@ export function StaysTab({ stays }: { stays: StayRecordItem[] }) {
           getDate={(s) => s.check_in}
           renderRow={(s) => {
             const brand = getHotelBrand(s.brand);
+            const linkedToMarriott = marriottLinkedStayIds.has(s.id);
+            const canAddToMarriott =
+              hasMarriottAccount && brand?.group === 'marriott' && !linkedToMarriott;
             return (
               <div key={s.id} className="flex items-center gap-3 px-4 py-3">
                 <div className="min-w-0 flex-1">
@@ -268,6 +282,11 @@ export function StaysTab({ stays }: { stays: StayRecordItem[] }) {
                         <Star className="h-3 w-3 fill-current" />
                       </span>
                     )}
+                    {linkedToMarriott && (
+                      <Badge variant="outline" className="text-xs">
+                        Bonvoy
+                      </Badge>
+                    )}
                   </div>
                   <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
                     <span>{formatByPrecision(s.check_in, s.date_precision)}</span>
@@ -281,6 +300,21 @@ export function StaysTab({ stays }: { stays: StayRecordItem[] }) {
                   </div>
                 </div>
                 <div className="flex shrink-0 gap-1">
+                  {canAddToMarriott && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-primary"
+                      aria-label={t('stays.addToMarriott')}
+                      title={t('stays.addToMarriott')}
+                      onClick={() => {
+                        setEditing(s);
+                        setDialogOpen(true);
+                      }}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     size="icon"

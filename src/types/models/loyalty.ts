@@ -16,6 +16,11 @@ export interface LoyaltyAccountItem {
   tier_expires_at: string | null;
   /** 會員號；'' = 未填。 */
   member_no: string;
+  /** 官方帳戶顯示的終身合格房晚與各級以上年資（飯店計畫用）。 */
+  lifetime_nights: number;
+  lifetime_silver_years: number;
+  lifetime_gold_years: number;
+  lifetime_platinum_years: number;
   note: string;
   created_at: string;
 }
@@ -32,10 +37,18 @@ export interface LoyaltyEntryItem {
   qualifying_miles: number;
   /** 可花里數變動；兌換/過期為負。 */
   award_miles: number;
+  /** 飯店合格房晚；特定品牌可為 0.5。 */
+  qualifying_nights: number;
+  /** 飯店年度合格消費（USD）。 */
+  qualifying_spend_usd: number;
+  /** 飯店可用點數變動。 */
+  reward_points: number;
   /** 自家航班（CI 50% 條款、BR 航段判定用）。 */
   own_airline: boolean;
   /** 來源飛行紀錄 id（「從飛行紀錄帶入」）；null＝手動補登。 */
   flight_record_id: string | null;
+  /** 來源住宿紀錄 id（「從住宿收藏帶入」）；null＝手動補登。 */
+  stay_record_id: string | null;
   note: string;
   created_at: string;
 }

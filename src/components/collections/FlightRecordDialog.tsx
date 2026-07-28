@@ -111,12 +111,13 @@ export function FlightRecordDialog({
     () =>
       loyalty?.accounts.find(
         (account) =>
-          account.program === airline ||
-          (airline != null && OWN_AIRLINE_CODES[account.program].includes(airline))
+          account.program !== 'MB' &&
+          (account.program === airline ||
+            (airline != null && OWN_AIRLINE_CODES[account.program].includes(airline)))
       ) ?? null,
     [loyalty, airline]
   );
-  const program = matchedAccount?.program ?? null;
+  const program = matchedAccount?.program === 'MB' ? null : (matchedAccount?.program ?? null);
   const programRules = program ? PROGRAM_RULES[program] : null;
   const loyaltyKind = programRules?.kind ?? null;
   // 三家皆需辨識自家合資格航班：CX 看最低航段、CI 看自營國際線占比、BR 看航段數。
@@ -236,8 +237,12 @@ export function FlightRecordDialog({
           status_points: loyaltyKind === 'points' ? toInt(statusPoints) : 0,
           qualifying_miles: loyaltyKind === 'milesAndSegments' ? toInt(qualifyingMiles) : 0,
           award_miles: toInt(awardMiles),
+          qualifying_nights: 0,
+          qualifying_spend_usd: 0,
+          reward_points: 0,
           own_airline: showOwnAirline ? ownAirline : false,
           flight_record_id: saved.id,
+          stay_record_id: null,
           note: flightNo.trim(),
         });
       } catch (error) {

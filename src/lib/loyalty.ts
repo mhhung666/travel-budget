@@ -5,6 +5,8 @@ import {
   type CxEarnZone,
   type MilesSegmentsProgramRules,
   type MilesSegmentsTier,
+  type NightsProgramRules,
+  type NightsTier,
   type PointsProgramRules,
   type PointsTier,
   type SpRange,
@@ -247,6 +249,107 @@ export interface MilesSegmentsProgress {
   } | null;
   /** 可花里數餘額（全期間 award_miles 加總，不限窗口）。 */
   awardMilesBalance: number;
+}
+
+export interface NightsProgress {
+  windowYear: number;
+  windowNights: number;
+  windowSpendUsd: number;
+  rewardPointsBalance: number;
+  achievedTier: NightsTier;
+  nextTier: NightsTier | null;
+  nightsToNext: number | null;
+  /** 下一級另需的消費；一般等級為 0，大使級才可能大於 0。 */
+  spendToNextUsd: number;
+  /** 已達成的年度自選禮遇門檻。 */
+  choiceBenefitsReached: number[];
+  /** 尚未達成的下一個年度自選禮遇門檻。 */
+  nextChoiceBenefit: number | null;
+  lifetime: Array<{
+    key: string;
+    requiredNights: number;
+    requiredYears: number;
+    nights: number;
+    years: number;
+    met: boolean;
+  }>;
+}
+
+/**
+ * 飯店合格房晚制（MB）：每曆年以絕對門檻判級，房晚與大使合格消費需同時達標。
+ * 終身統計由官方帳戶手動同步，不從 ledger 猜測歷史年資。
+ */
+export function computeNightsProgress(
+  entries: Pick<
+    LoyaltyEntryItem,
+    'date' | 'qualifying_nights' | 'qualifying_spend_usd' | 'reward_points'
+  >[],
+  rules: NightsProgramRules,
+  asOf: string = new Date().toISOString().slice(0, 10),
+  lifetimeStats: {
+    nights: number;
+    silverYears: number;
+    goldYears: number;
+    platinumYears: number;
+  } = { nights: 0, silverYears: 0, goldYears: 0, platinumYears: 0 }
+): NightsProgress {
+  const year = Number(asOf.slice(0, 4));
+  const prefix = `${year}-`;
+  let windowNights = 0;
+  let windowSpendUsd = 0;
+  let rewardPointsBalance = 0;
+
+  for (const entry of entries) {
+    rewardPointsBalance += entry.reward_points;
+    if (!entry.date.startsWith(prefix) || entry.date > asOf) continue;
+    windowNights += entry.qualifying_nights;
+    windowSpendUsd += entry.qualifying_spend_usd;
+  }
+
+  let achievedIndex = 0;
+  for (const [index, tier] of rules.tiers.entries()) {
+    const nightsMet = windowNights >= tier.nights;
+    const spendMet = tier.qualifyingSpendUsd == null || windowSpendUsd >= tier.qualifyingSpendUsd;
+    if (nightsMet && spendMet) achievedIndex = index;
+  }
+  const achievedTier = rules.tiers[achievedIndex];
+  const nextTier = rules.tiers[achievedIndex + 1] ?? null;
+  const choiceBenefitsReached = (rules.choiceBenefitNights ?? []).filter(
+    (threshold) => windowNights >= threshold
+  );
+  const nextChoiceBenefit =
+    (rules.choiceBenefitNights ?? []).find((threshold) => windowNights < threshold) ?? null;
+  const yearsByKey: Record<string, number> = {
+    silver: lifetimeStats.silverYears,
+    gold: lifetimeStats.goldYears,
+    platinum: lifetimeStats.platinumYears,
+  };
+
+  return {
+    windowYear: year,
+    windowNights,
+    windowSpendUsd,
+    rewardPointsBalance,
+    achievedTier,
+    nextTier,
+    nightsToNext: nextTier ? Math.max(0, nextTier.nights - windowNights) : null,
+    spendToNextUsd: nextTier?.qualifyingSpendUsd
+      ? Math.max(0, nextTier.qualifyingSpendUsd - windowSpendUsd)
+      : 0,
+    choiceBenefitsReached,
+    nextChoiceBenefit,
+    lifetime: (rules.lifetimeTiers ?? []).map((tier) => {
+      const years = yearsByKey[tier.key] ?? 0;
+      return {
+        key: tier.key,
+        requiredNights: tier.nights,
+        requiredYears: tier.years,
+        nights: lifetimeStats.nights,
+        years,
+        met: lifetimeStats.nights >= tier.nights && years >= tier.years,
+      };
+    }),
+  };
 }
 
 /** 某 tier 是否達標：航段路徑（純自家航段）或哩程路徑（哩程＋最低附加航段）滿足其一。 */

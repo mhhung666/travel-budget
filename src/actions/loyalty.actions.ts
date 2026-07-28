@@ -2,7 +2,7 @@
 
 import { isValidObjectId, Types } from 'mongoose';
 import { dbConnect } from '@/lib/mongodb';
-import { LoyaltyAccount, LoyaltyEntry, FlightRecord } from '@/models';
+import { LoyaltyAccount, LoyaltyEntry, FlightRecord, StayRecord } from '@/models';
 import type { LoyaltyAccountDoc, LoyaltyEntryDoc } from '@/models';
 import {
   upsertLoyaltyAccountSchema,
@@ -11,7 +11,7 @@ import {
   type UpsertLoyaltyAccountInput,
   type CreateLoyaltyEntryInput,
 } from '@/lib/validation';
-import { programTierKeys, type LoyaltyProgram } from '@/constants/loyalty';
+import { PROGRAM_RULES, programTierKeys, type LoyaltyProgram } from '@/constants/loyalty';
 import { withAuth } from './withAuth';
 import type { ActionResult } from './types';
 import type { LoyaltyData, LoyaltyAccountItem, LoyaltyEntryItem } from '@/types';
@@ -31,8 +31,9 @@ type LeanAccount = { _id: Types.ObjectId; createdAt: Date } & Omit<LoyaltyAccoun
 type LeanEntry = {
   _id: Types.ObjectId;
   flightRecord: Types.ObjectId | null;
+  stayRecord: Types.ObjectId | null;
   createdAt: Date;
-} & Omit<LoyaltyEntryDoc, 'user' | 'flightRecord'>;
+} & Omit<LoyaltyEntryDoc, 'user' | 'flightRecord' | 'stayRecord'>;
 
 const toYmd = (d: Date): string => new Date(d).toISOString().slice(0, 10);
 
@@ -44,6 +45,10 @@ function toAccountItem(doc: LeanAccount): LoyaltyAccountItem {
     tier_started_at: doc.tierStartedAt ? toYmd(doc.tierStartedAt) : null,
     tier_expires_at: doc.tierExpiresAt ? toYmd(doc.tierExpiresAt) : null,
     member_no: doc.memberNo ?? '',
+    lifetime_nights: doc.lifetimeNights ?? 0,
+    lifetime_silver_years: doc.lifetimeSilverYears ?? 0,
+    lifetime_gold_years: doc.lifetimeGoldYears ?? 0,
+    lifetime_platinum_years: doc.lifetimePlatinumYears ?? 0,
     note: doc.note ?? '',
     created_at: doc.createdAt.toISOString(),
   };
@@ -58,8 +63,12 @@ function toEntryItem(doc: LeanEntry): LoyaltyEntryItem {
     status_points: doc.statusPoints ?? 0,
     qualifying_miles: doc.qualifyingMiles ?? 0,
     award_miles: doc.awardMiles ?? 0,
+    qualifying_nights: doc.qualifyingNights ?? 0,
+    qualifying_spend_usd: doc.qualifyingSpendUsd ?? 0,
+    reward_points: doc.rewardPoints ?? 0,
     own_airline: doc.ownAirline ?? false,
     flight_record_id: doc.flightRecord ? doc.flightRecord.toString() : null,
+    stay_record_id: doc.stayRecord ? doc.stayRecord.toString() : null,
     note: doc.note ?? '',
     created_at: doc.createdAt.toISOString(),
   };
@@ -83,6 +92,25 @@ async function validateFlightLink(
     user: userId,
     program,
     flightRecord: flightRecordId,
+    ...(excludeEntryId ? { _id: { $ne: excludeEntryId } } : {}),
+  });
+  return dup ? 'CONFLICT' : null;
+}
+
+/** 來源住宿紀錄必須屬於本人，同一住宿在同一 program 只能帶入一次。 */
+async function validateStayLink(
+  userId: string,
+  program: LoyaltyProgram,
+  stayRecordId: string | null | undefined,
+  excludeEntryId?: string
+): Promise<'NOT_FOUND' | 'CONFLICT' | null> {
+  if (!stayRecordId) return null;
+  const owned = await StayRecord.exists({ _id: stayRecordId, user: userId });
+  if (!owned) return 'NOT_FOUND';
+  const dup = await LoyaltyEntry.exists({
+    user: userId,
+    program,
+    stayRecord: stayRecordId,
     ...(excludeEntryId ? { _id: { $ne: excludeEntryId } } : {}),
   });
   return dup ? 'CONFLICT' : null;
@@ -119,6 +147,7 @@ export const upsertLoyaltyAccount = withAuth(
       ) {
         return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
       }
+      const isHotel = PROGRAM_RULES[parsed.data.program].kind === 'nights';
 
       await dbConnect();
 
@@ -134,6 +163,10 @@ export const upsertLoyaltyAccount = withAuth(
               ? new Date(parsed.data.tier_expires_at)
               : null,
             memberNo: parsed.data.member_no,
+            lifetimeNights: isHotel ? parsed.data.lifetime_nights : 0,
+            lifetimeSilverYears: isHotel ? parsed.data.lifetime_silver_years : 0,
+            lifetimeGoldYears: isHotel ? parsed.data.lifetime_gold_years : 0,
+            lifetimePlatinumYears: isHotel ? parsed.data.lifetime_platinum_years : 0,
             note: parsed.data.note,
           },
         },
@@ -176,15 +209,20 @@ export const deleteLoyaltyAccount = withAuth(
 );
 
 function entryFields(input: CreateLoyaltyEntryInput) {
+  const isHotel = PROGRAM_RULES[input.program].kind === 'nights';
   return {
     program: input.program,
     date: new Date(input.date),
     type: input.type,
-    statusPoints: input.status_points,
-    qualifyingMiles: input.qualifying_miles,
-    awardMiles: input.award_miles,
-    ownAirline: input.own_airline,
-    flightRecord: input.flight_record_id ?? null,
+    statusPoints: isHotel ? 0 : input.status_points,
+    qualifyingMiles: isHotel ? 0 : input.qualifying_miles,
+    awardMiles: isHotel ? 0 : input.award_miles,
+    qualifyingNights: isHotel ? input.qualifying_nights : 0,
+    qualifyingSpendUsd: isHotel ? input.qualifying_spend_usd : 0,
+    rewardPoints: isHotel ? input.reward_points : 0,
+    ownAirline: isHotel ? false : input.own_airline,
+    flightRecord: isHotel ? null : (input.flight_record_id ?? null),
+    stayRecord: isHotel ? (input.stay_record_id ?? null) : null,
     note: input.note,
   };
 }
@@ -194,6 +232,10 @@ export const createLoyaltyEntry = withAuth(
     try {
       const parsed = createLoyaltyEntrySchema.safeParse(input);
       if (!parsed.success) {
+        return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
+      }
+      const isHotel = PROGRAM_RULES[parsed.data.program].kind === 'nights';
+      if ((isHotel && parsed.data.flight_record_id) || (!isHotel && parsed.data.stay_record_id)) {
         return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
       }
 
@@ -215,6 +257,14 @@ export const createLoyaltyEntry = withAuth(
       );
       if (linkError) {
         return { success: false, error: linkError, code: linkError };
+      }
+      const stayLinkError = await validateStayLink(
+        session.userId,
+        parsed.data.program,
+        parsed.data.stay_record_id
+      );
+      if (stayLinkError) {
+        return { success: false, error: stayLinkError, code: stayLinkError };
       }
 
       const doc = await LoyaltyEntry.create({
@@ -244,6 +294,10 @@ export const updateLoyaltyEntry = withAuth(
       if (!parsed.success) {
         return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
       }
+      const isHotel = PROGRAM_RULES[parsed.data.program].kind === 'nights';
+      if ((isHotel && parsed.data.flight_record_id) || (!isHotel && parsed.data.stay_record_id)) {
+        return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
+      }
 
       await dbConnect();
 
@@ -255,6 +309,15 @@ export const updateLoyaltyEntry = withAuth(
       );
       if (linkError) {
         return { success: false, error: linkError, code: linkError };
+      }
+      const stayLinkError = await validateStayLink(
+        session.userId,
+        parsed.data.program,
+        parsed.data.stay_record_id,
+        entryId
+      );
+      if (stayLinkError) {
+        return { success: false, error: stayLinkError, code: stayLinkError };
       }
 
       // 原子更新：filter 同時帶 _id + 本人（比照旅行成就，不做讀改寫）。

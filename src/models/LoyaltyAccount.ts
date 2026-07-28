@@ -23,6 +23,11 @@ const LoyaltyAccountSchema = new Schema(
     tierExpiresAt: { type: Date, default: null },
     // 會員號（僅顯示用，選填）
     memberNo: { type: String, default: '', trim: true },
+    // 飯店終身會籍進度（由官方帳戶手動同步；航空計畫維持 0）
+    lifetimeNights: { type: Number, default: 0, min: 0 },
+    lifetimeSilverYears: { type: Number, default: 0, min: 0 },
+    lifetimeGoldYears: { type: Number, default: 0, min: 0 },
+    lifetimePlatinumYears: { type: Number, default: 0, min: 0 },
     note: { type: String, default: '' },
   },
   { timestamps: true }

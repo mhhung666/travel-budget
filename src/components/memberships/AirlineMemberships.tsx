@@ -2,15 +2,20 @@
 
 import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Medal, Plus } from 'lucide-react';
+import { Hotel, Plane, Plus } from 'lucide-react';
 
-import { LOYALTY_PROGRAMS, type LoyaltyProgram } from '@/constants/loyalty';
+import {
+  AIRLINE_LOYALTY_PROGRAMS,
+  HOTEL_LOYALTY_PROGRAMS,
+  LOYALTY_PROGRAMS,
+  type LoyaltyProgram,
+} from '@/constants/loyalty';
 import { useLoyalty, useLoyaltyMutations } from '@/hooks/queries';
 import { useToast } from '@/hooks/use-toast';
 import { toLocalDateInputValue } from '@/lib/dateInput';
 import type { LoyaltyAccountItem, LoyaltyEntryItem } from '@/types';
 import { Button } from '@/components/ui/button';
-import { ConfirmDialog, EmptyState, LoadingState } from '@/components/common';
+import { ConfirmDialog, LoadingState } from '@/components/common';
 import { LoyaltyAccountDialog, LoyaltyEntryDialog } from '@/components/collections';
 import { ProgramProgressCard } from './ProgramProgressCard';
 import { LoyaltyLedger } from './LoyaltyLedger';
@@ -34,6 +39,7 @@ type EntryDialogState = {
  */
 export function AirlineMemberships() {
   const t = useTranslations('collections');
+  const tm = useTranslations('memberships');
   const { toast } = useToast();
   const { data, isLoading } = useLoyalty();
   const { upsertAccount, removeAccount, removeEntry } = useLoyaltyMutations();
@@ -68,10 +74,16 @@ export function AirlineMemberships() {
     () => LOYALTY_PROGRAMS.filter((p) => !accounts.some((a) => a.program === p)),
     [accounts]
   );
+  const availableAirlines = availablePrograms.filter((program) =>
+    AIRLINE_LOYALTY_PROGRAMS.includes(program as (typeof AIRLINE_LOYALTY_PROGRAMS)[number])
+  );
+  const availableHotels = availablePrograms.filter((program) =>
+    HOTEL_LOYALTY_PROGRAMS.includes(program as (typeof HOTEL_LOYALTY_PROGRAMS)[number])
+  );
 
-  const openAddAccount = () => {
-    if (availablePrograms.length === 0) return;
-    setAccountDialog({ open: true, program: availablePrograms[0], editing: null });
+  const openAddAccount = (programs: LoyaltyProgram[]) => {
+    if (programs.length === 0) return;
+    setAccountDialog({ open: true, program: programs[0], editing: null });
   };
 
   const handleDeleteAccount = async () => {
@@ -101,15 +113,22 @@ export function AirlineMemberships() {
       await upsertAccount.mutateAsync({
         program: account.program,
         current_tier: tier,
-        tier_started_at: toLocalDateInputValue(),
+        tier_started_at: account.program === 'MB' ? null : toLocalDateInputValue(),
         // CI/BR 升等後官方會重新給卡籍效期，不能沿用舊卡日期。
-        tier_expires_at: account.program === 'CX' ? account.tier_expires_at : null,
+        tier_expires_at:
+          account.program === 'CX' || account.program === 'MB' ? account.tier_expires_at : null,
         member_no: account.member_no,
+        lifetime_nights: account.lifetime_nights,
+        lifetime_silver_years: account.lifetime_silver_years,
+        lifetime_gold_years: account.lifetime_gold_years,
+        lifetime_platinum_years: account.lifetime_platinum_years,
         note: account.note,
       });
       toast({
         title: t(
-          account.program === 'CX' ? 'loyalty.tierUpdated' : 'loyalty.tierUpdatedNeedsReview'
+          account.program === 'CI' || account.program === 'BR'
+            ? 'loyalty.tierUpdatedNeedsReview'
+            : 'loyalty.tierUpdated'
         ),
       });
     } catch (error) {
@@ -122,69 +141,87 @@ export function AirlineMemberships() {
     return <LoadingState />;
   }
 
+  const renderAccount = (account: LoyaltyAccountItem) => (
+    <ProgramProgressCard
+      key={account.id}
+      account={account}
+      entries={entriesByProgram.get(account.program) ?? []}
+      defaultOpen
+      onEdit={() => setAccountDialog({ open: true, program: account.program, editing: account })}
+      onDelete={() => setDeletingAccount(account)}
+      onEstimate={account.program === 'CX' ? () => setEstimatorOpen(true) : undefined}
+      onConfirmTier={
+        account.program === 'CX' && toLocalDateInputValue() < '2027-01-01'
+          ? undefined
+          : (tier) => handleConfirmTier(account, tier)
+      }
+      confirmingTier={upsertAccount.isPending}
+    >
+      <LoyaltyLedger
+        entries={entriesByProgram.get(account.program) ?? []}
+        onAdd={() => setEntryDialog({ open: true, program: account.program, editing: null })}
+        onEdit={(entry) => setEntryDialog({ open: true, program: entry.program, editing: entry })}
+        onDelete={(entry) => setDeletingEntry(entry)}
+      />
+    </ProgramProgressCard>
+  );
+
   return (
     <div className="space-y-8">
-      {accounts.length === 0 ? (
-        <EmptyState
-          icon={Medal}
-          title={t('loyalty.empty')}
-          description={t('loyalty.emptyDesc')}
-          action={
-            <Button onClick={openAddAccount}>
-              <Plus className="mr-2 h-4 w-4" />
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="flex items-center gap-2 text-base font-semibold">
+            <Plane className="h-4 w-4" aria-hidden />
+            {tm('airlineHeading')}
+          </h2>
+          {availableAirlines.length > 0 && (
+            <Button variant="outline" size="sm" onClick={() => openAddAccount(availableAirlines)}>
+              <Plus className="mr-1 h-4 w-4" />
               {t('loyalty.setupAccount')}
             </Button>
-          }
-        />
-      ) : (
-        <>
-          {availablePrograms.length > 0 && (
-            <div className="flex justify-end">
-              <Button variant="outline" size="sm" onClick={openAddAccount}>
-                <Plus className="mr-1 h-4 w-4" />
-                {t('loyalty.setupAccount')}
-              </Button>
-            </div>
           )}
-          {accounts.map((account) => (
-            <ProgramProgressCard
-              key={account.id}
-              account={account}
-              entries={entriesByProgram.get(account.program) ?? []}
-              defaultOpen
-              onEdit={() =>
-                setAccountDialog({ open: true, program: account.program, editing: account })
-              }
-              onDelete={() => setDeletingAccount(account)}
-              onEstimate={account.program === 'CX' ? () => setEstimatorOpen(true) : undefined}
-              onConfirmTier={
-                account.program === 'CX' && toLocalDateInputValue() < '2027-01-01'
-                  ? undefined
-                  : (tier) => handleConfirmTier(account, tier)
-              }
-              confirmingTier={upsertAccount.isPending}
-            >
-              <LoyaltyLedger
-                entries={entriesByProgram.get(account.program) ?? []}
-                onAdd={() =>
-                  setEntryDialog({ open: true, program: account.program, editing: null })
-                }
-                onEdit={(entry) =>
-                  setEntryDialog({ open: true, program: entry.program, editing: entry })
-                }
-                onDelete={(entry) => setDeletingEntry(entry)}
-              />
-            </ProgramProgressCard>
-          ))}
-        </>
-      )}
+        </div>
+        {accounts.filter((account) => account.program !== 'MB').map(renderAccount)}
+        {accounts.every((account) => account.program === 'MB') && (
+          <p className="rounded-xl border border-dashed p-5 text-center text-sm text-muted-foreground">
+            {tm('airlineEmpty')}
+          </p>
+        )}
+      </section>
+
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="flex items-center gap-2 text-base font-semibold">
+            <Hotel className="h-4 w-4" aria-hidden />
+            {tm('hotelHeading')}
+          </h2>
+          {availableHotels.length > 0 && (
+            <Button variant="outline" size="sm" onClick={() => openAddAccount(availableHotels)}>
+              <Plus className="mr-1 h-4 w-4" />
+              {t('loyalty.setupAccount')}
+            </Button>
+          )}
+        </div>
+        {accounts.filter((account) => account.program === 'MB').map(renderAccount)}
+        {accounts.every((account) => account.program !== 'MB') && (
+          <p className="rounded-xl border border-dashed p-5 text-center text-sm text-muted-foreground">
+            {tm('hotelEmpty')}
+          </p>
+        )}
+      </section>
 
       <LoyaltyAccountDialog
         open={accountDialog.open}
         onOpenChange={(next) => setAccountDialog((s) => ({ ...s, open: next }))}
         program={accountDialog.program}
         editing={accountDialog.editing}
-        availablePrograms={accountDialog.editing ? undefined : availablePrograms}
+        availablePrograms={
+          accountDialog.editing
+            ? undefined
+            : accountDialog.program === 'MB'
+              ? availableHotels
+              : availableAirlines
+        }
       />
       <LoyaltyEntryDialog
         open={entryDialog.open}

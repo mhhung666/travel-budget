@@ -1357,6 +1357,10 @@
       "nights": "晚數",
       "stars": "星級",
       "city": "城市",
+      "accrueMarriott": "同步到萬豪旅享家會籍",
+      "accrueMarriottHint": "系統只提供房晚建議；兌換住宿、0.5 房晚品牌及合格消費請依官方實際入帳確認。",
+      "addToMarriott": "加入萬豪旅享家會籍",
+      "marriottCrossYearHint": "這筆住宿跨年度；一般房晚要依實際入住日期分到不同年度，請到會籍頁分筆登記官方入帳房晚。",
       "staysCount": "住過 {count} 次",
       "nightsCount": "{count} 晚",
       "independent": "獨立旅宿",
@@ -1455,7 +1459,8 @@
       "programs": {
         "CX": "國泰航空",
         "CI": "中華航空",
-        "BR": "長榮航空"
+        "BR": "長榮航空",
+        "MB": "萬豪旅享家"
       },
       "tierLabel": "目前等級",
       "tierStarted": "目前卡級生效日",
@@ -1481,6 +1486,14 @@
           "silver": "銀卡",
           "gold": "金卡",
           "diamond": "鑽石卡"
+        },
+        "MB": {
+          "member": "會員",
+          "silver": "銀卡",
+          "gold": "金卡",
+          "platinum": "白金卡",
+          "titanium": "鈦金卡",
+          "ambassador": "大使"
         }
       },
       "stats": {
@@ -1490,7 +1503,10 @@
         "carryOver": "結轉估算",
         "ownAirlineRatio": "自營國際線占比",
         "windowMiles": "卡籍哩程",
-        "segments": "國際航段"
+        "segments": "國際航段",
+        "yearNights": "{year} 年合格房晚",
+        "qualifiedSpend": "年度合格消費",
+        "pointsBalance": "點數餘額"
       },
       "progressToNext": "距{tier}還差 {points} 分",
       "windowCalendar": "計算期間：{year}/01/01–{year}/12/31",
@@ -1513,6 +1529,7 @@
       "addEntry": "累積會籍",
       "editEntry": "編輯紀錄",
       "entryFormDescription": "從航空公司 App 抄下積分與里數變動",
+      "hotelEntryFormDescription": "從飯店 App 抄下合格房晚、合格消費與點數變動",
       "entryType": "類別",
       "types": {
         "flight": "航班",
@@ -1529,6 +1546,27 @@
       "milesAmount": "{miles} 里",
       "ownAirlineMarker": "合資格自家航班",
       "linkedFlightMarker": "已連結飛行紀錄",
+      "linkedStayMarker": "已連結住宿紀錄",
+      "qualifyingNights": "合格房晚",
+      "qualifyingSpendUsd": "合格消費（USD）",
+      "rewardPoints": "Bonvoy 點數",
+      "nightsAmount": "{nights} 晚",
+      "spendAmount": "US${spend}",
+      "rewardPointsAmount": "{points} 點",
+      "summaryNights": "{value}/{total} 晚",
+      "nightsToNextTier": "距{tier}還差 {nights} 晚",
+      "spendToAmbassador": "大使級合格消費還差 {spend}",
+      "choiceBenefit": "年度自選禮遇",
+      "choiceBenefitReached": "已達 {nights} 晚門檻，記得到官方選擇禮遇",
+      "choiceBenefitNext": "距 {threshold} 晚禮遇還差 {nights} 晚",
+      "lifetimeProgress": "終身會籍進度",
+      "lifetimeProgressHint": "依萬豪官方帳戶顯示的終身房晚與年資手動同步。",
+      "lifetimeNights": "終身合格房晚",
+      "lifetimeYears": "{tier}以上年資",
+      "lifetimeTier": "終身{tier}",
+      "lifetimeRequirement": "{nights}/{requiredNights} 晚・{years}/{requiredYears} 年",
+      "requirementMet": "條件已達成",
+      "marriottNightsDisclaimer": "合格房晚每年歸零且不結轉；兌換住宿通常可計入。特定品牌每晚僅 0.5 或不累積，實際以官方入帳為準。",
       "entriesEmpty": "還沒有積分紀錄，點「累積會籍」開始",
       "deleteAccountTitle": "刪除會籍",
       "deleteAccountMessage": "會連同這個計畫的全部積分紀錄一起刪除，此操作無法復原。確定嗎？",
@@ -1585,6 +1623,8 @@
     "subtitle": "手動追蹤航空與飯店會籍等級、積分與里數。",
     "airlineHeading": "航空",
     "hotelHeading": "飯店",
+    "airlineEmpty": "尚未設定航空會籍",
+    "hotelEmpty": "設定萬豪旅享家，開始追蹤合格房晚與升等進度",
     "hotelComingSoon": "飯店會籍即將推出",
     "hotelComingSoonDesc": "之後將支援萬豪、希爾頓、洲際等以合格夜數計算的飯店會籍。"
   }

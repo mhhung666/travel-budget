@@ -434,6 +434,11 @@ export const deleteStayRecord = withAuth(
       if (result.deletedCount === 0) {
         return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
       }
+      // 會籍 entry 解除連結但保留房晚／點數歷史。
+      await LoyaltyEntry.updateMany(
+        { user: session.userId, stayRecord: recordId },
+        { $set: { stayRecord: null } }
+      );
 
       return { success: true, data: { deleted: true } };
     } catch (error) {

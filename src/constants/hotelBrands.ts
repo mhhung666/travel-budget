@@ -169,6 +169,35 @@ export const HOTEL_BRANDS: HotelBrand[] = [
   { id: 'ac-hotels', name: 'AC Hotels', nameZh: 'AC飯店', group: 'marriott', tier: 'midscale' },
   { id: 'aloft', name: 'Aloft', nameZh: '雅樂軒', group: 'marriott', tier: 'midscale' },
   { id: 'moxy', name: 'Moxy', group: 'marriott', tier: 'budget' },
+  {
+    id: 'city-express',
+    name: 'City Express by Marriott',
+    nameZh: 'City Express',
+    group: 'marriott',
+    tier: 'budget',
+  },
+  {
+    id: 'protea',
+    name: 'Protea Hotels',
+    nameZh: 'Protea飯店',
+    group: 'marriott',
+    tier: 'midscale',
+  },
+  {
+    id: 'four-points-flex',
+    name: 'Four Points Flex by Sheraton',
+    nameZh: 'Four Points Flex',
+    group: 'marriott',
+    tier: 'budget',
+  },
+  {
+    id: 'series-by-marriott',
+    name: 'Series by Marriott',
+    nameZh: 'Series by Marriott',
+    group: 'marriott',
+    tier: 'midscale',
+  },
+  { id: 'studiores', name: 'StudioRes', group: 'marriott', tier: 'budget' },
   // ── Hilton ──
   {
     id: 'waldorf-astoria',

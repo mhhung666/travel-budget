@@ -1357,6 +1357,10 @@
       "nights": "泊数",
       "stars": "星",
       "city": "都市",
+      "accrueMarriott": "Marriott Bonvoy会員情報に追加",
+      "accrueMarriottHint": "宿泊数は候補値です。特典宿泊、0.5泊対象ブランド、対象利用額は公式反映を確認してください。",
+      "addToMarriott": "Marriott Bonvoyに追加",
+      "marriottCrossYearHint": "この宿泊は年をまたぎます。通常の宿泊実績は実際の宿泊日に応じて年別になるため、公式反映を会員ページで年ごとに分けて記録してください。",
       "staysCount": "宿泊 {count} 回",
       "nightsCount": "{count} 泊",
       "independent": "独立系ホテル",
@@ -1455,7 +1459,8 @@
       "programs": {
         "CX": "キャセイパシフィック航空",
         "CI": "チャイナエアライン",
-        "BR": "エバー航空"
+        "BR": "エバー航空",
+        "MB": "Marriott Bonvoy"
       },
       "tierLabel": "現在のステータス",
       "tierStarted": "現在のステータス開始日",
@@ -1481,6 +1486,14 @@
           "silver": "シルバー",
           "gold": "ゴールド",
           "diamond": "ダイヤモンド"
+        },
+        "MB": {
+          "member": "会員",
+          "silver": "シルバーエリート",
+          "gold": "ゴールドエリート",
+          "platinum": "プラチナエリート",
+          "titanium": "チタンエリート",
+          "ambassador": "アンバサダーエリート"
         }
       },
       "stats": {
@@ -1490,7 +1503,10 @@
         "carryOver": "繰越見込み",
         "ownAirlineRatio": "自社運航国際線比率",
         "windowMiles": "資格マイル",
-        "segments": "国際区間"
+        "segments": "国際区間",
+        "yearNights": "{year}年の対象宿泊数",
+        "qualifiedSpend": "年間対象利用額",
+        "pointsBalance": "ポイント残高"
       },
       "progressToNext": "{tier}まであと{points}ポイント",
       "windowCalendar": "計算期間：{year}/01/01–{year}/12/31",
@@ -1513,6 +1529,7 @@
       "addEntry": "ステータスに加算",
       "editEntry": "記録を編集",
       "entryFormDescription": "航空会社アプリからポイント・マイルの増減を転記",
+      "hotelEntryFormDescription": "ホテルアプリから対象宿泊数・利用額・ポイントを転記",
       "entryType": "種類",
       "types": {
         "flight": "フライト",
@@ -1529,6 +1546,27 @@
       "milesAmount": "{miles}マイル",
       "ownAirlineMarker": "対象自社便",
       "linkedFlightMarker": "フライト記録に連携済み",
+      "linkedStayMarker": "宿泊記録に連携済み",
+      "qualifyingNights": "対象宿泊数",
+      "qualifyingSpendUsd": "対象利用額（USD）",
+      "rewardPoints": "Bonvoyポイント",
+      "nightsAmount": "{nights}泊",
+      "spendAmount": "US${spend}",
+      "rewardPointsAmount": "{points}ポイント",
+      "summaryNights": "{value}/{total}泊",
+      "nightsToNextTier": "{tier}まであと{nights}泊",
+      "spendToAmbassador": "アンバサダーまで対象利用額あと{spend}",
+      "choiceBenefit": "年間チョイス特典",
+      "choiceBenefitReached": "{nights}泊の基準達成。Marriottで特典を選択してください",
+      "choiceBenefitNext": "{threshold}泊特典まであと{nights}泊",
+      "lifetimeProgress": "ライフタイムステータス",
+      "lifetimeProgressHint": "Marriott公式アカウントの累計宿泊数と対象年数を手動で同期します。",
+      "lifetimeNights": "累計対象宿泊数",
+      "lifetimeYears": "{tier}以上の年数",
+      "lifetimeTier": "ライフタイム{tier}",
+      "lifetimeRequirement": "{nights}/{requiredNights}泊・{years}/{requiredYears}年",
+      "requirementMet": "条件達成",
+      "marriottNightsDisclaimer": "対象宿泊数は毎年リセットされ繰越不可。特典宿泊も通常は対象です。一部ブランドは0.5泊または対象外のため、公式反映を優先してください。",
       "entriesEmpty": "まだ記録がありません。「ステータスに加算」から始めましょう",
       "deleteAccountTitle": "会員情報を削除",
       "deleteAccountMessage": "このプログラムのポイント記録もすべて削除されます。この操作は取り消せません。よろしいですか？",
@@ -1585,6 +1623,8 @@
     "subtitle": "航空・ホテルの会員ステータス、ポイント・マイルを手動で記録。",
     "airlineHeading": "航空",
     "hotelHeading": "ホテル",
+    "airlineEmpty": "航空会員プログラムは未設定です",
+    "hotelEmpty": "Marriott Bonvoyを設定して対象宿泊数とステータスを追跡",
     "hotelComingSoon": "ホテル会員資格は近日対応",
     "hotelComingSoonDesc": "マリオット、ヒルトン、IHG など宿泊数制の会員資格に順次対応予定。"
   }

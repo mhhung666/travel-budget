@@ -5,15 +5,19 @@
  * 「對照門檻算進度」所需的等級表。規則各家年年變——**所有門檻集中在本檔**、
  * 每個 program 標 `verifiedAt` 查證日期，改規則＝改常數，不動 schema。
  *
- * 已開放：國泰（CX，積分制）、華航（CI，積分制）、長榮（BR，哩程＋航段制）。
- * 飯店會籍（夜數制）為未來擴充，屆時在 union 加 kind 即可。
+ * 已開放：國泰（CX，積分制）、華航（CI，積分制）、長榮（BR，哩程＋航段制）、
+ * 萬豪旅享家（MB，合格房晚制）。
  */
 
 import type { CabinClass } from '@/types';
 
-/** 已開放的 program（Phase 2+：飯店計畫）。目前皆為航空計畫；順序即 UI 顯示順序。 */
-export const LOYALTY_PROGRAMS = ['CX', 'CI', 'BR'] as const;
+/** 已開放的 program；順序即 UI 顯示順序。 */
+export const AIRLINE_LOYALTY_PROGRAMS = ['CX', 'CI', 'BR'] as const;
+export const HOTEL_LOYALTY_PROGRAMS = ['MB'] as const;
+export const LOYALTY_PROGRAMS = [...AIRLINE_LOYALTY_PROGRAMS, ...HOTEL_LOYALTY_PROGRAMS] as const;
 export type LoyaltyProgram = (typeof LOYALTY_PROGRAMS)[number];
+export type AirlineLoyaltyProgram = (typeof AIRLINE_LOYALTY_PROGRAMS)[number];
+export type HotelLoyaltyProgram = (typeof HOTEL_LOYALTY_PROGRAMS)[number];
 
 /** 積分／里數的來源類別（adjust＝更正/沖銷，數字可為負）。 */
 export const LOYALTY_ENTRY_TYPES = [
@@ -49,6 +53,15 @@ export interface MilesSegmentsTier {
   renewalMiles?: number;
   /** 續卡航段門檻（term2y 窗口用）；省略＝該級無獨立續卡規則 */
   renewalSegments?: number;
+}
+
+export interface NightsTier {
+  /** tier key，i18n 於 `collections.loyalty.tiers.<program>.<key>` */
+  key: string;
+  /** 每曆年 Elite Night Credit 門檻。 */
+  nights: number;
+  /** 除房晚外的年度合格消費門檻（USD）；目前僅萬豪大使級需要。 */
+  qualifyingSpendUsd?: number;
 }
 
 /**
@@ -101,7 +114,19 @@ export interface MilesSegmentsProgramRules {
   verifiedAt: string;
 }
 
-export type ProgramRules = PointsProgramRules | MilesSegmentsProgramRules;
+/** 飯店合格房晚制：曆年累積，可跨級，1/1 歸零且不結轉。 */
+export interface NightsProgramRules {
+  kind: 'nights';
+  window: 'calendar';
+  tiers: NightsTier[];
+  /** 年度自選禮遇里程碑（萬豪 50／75 晚）。 */
+  choiceBenefitNights?: number[];
+  /** 終身會籍門檻；同時需要終身房晚與該級以上年資。 */
+  lifetimeTiers?: Array<{ key: string; nights: number; years: number }>;
+  verifiedAt: string;
+}
+
+export type ProgramRules = PointsProgramRules | MilesSegmentsProgramRules | NightsProgramRules;
 
 /**
  * 國泰 2027 新制（2026-07-14 查證，動工於過渡期——2026 年積分同時計 2026 保級與
@@ -175,6 +200,30 @@ export const PROGRAM_RULES: Record<LoyaltyProgram, ProgramRules> = {
     ],
     verifiedAt: '2026-07-16',
   },
+  // 萬豪旅享家 Marriott Bonvoy（2026-07-28 官方條款查證）：每曆年累積 Elite
+  // Night Credits，達 10／25／50／75 晚依序為銀／金／白金／鈦金；大使需 100 晚
+  // 且年度合格消費 US$23,000。房晚 1/1 歸零、不結轉；50／75 晚各有 Annual
+  // Choice Benefit。City Express、Protea、Four Points Flex 與部分 Series by
+  // Marriott 每晚僅 0.5 ENC，StudioRes 不累積，因此住宿帶入值只能作為可修改建議。
+  MB: {
+    kind: 'nights',
+    window: 'calendar',
+    tiers: [
+      { key: 'member', nights: 0 },
+      { key: 'silver', nights: 10 },
+      { key: 'gold', nights: 25 },
+      { key: 'platinum', nights: 50 },
+      { key: 'titanium', nights: 75 },
+      { key: 'ambassador', nights: 100, qualifyingSpendUsd: 23000 },
+    ],
+    choiceBenefitNights: [50, 75],
+    lifetimeTiers: [
+      { key: 'silver', nights: 250, years: 5 },
+      { key: 'gold', nights: 400, years: 7 },
+      { key: 'platinum', nights: 600, years: 10 },
+    ],
+    verifiedAt: '2026-07-28',
+  },
 };
 
 /**
@@ -203,6 +252,14 @@ export const TIER_BADGE_COLORS: Record<LoyaltyProgram, Record<string, string>> =
     gold: '#8A7423',
     diamond: '#2C2C2A',
   },
+  MB: {
+    member: '#4A4A4A',
+    silver: '#8C8C8C',
+    gold: '#8A7423',
+    platinum: '#5F6F76',
+    titanium: '#4D555B',
+    ambassador: '#1F1F1F',
+  },
 };
 
 /** program 的合法 tier key 集合（action 端驗證 current_tier 用）。 */
@@ -215,7 +272,7 @@ export function programTierKeys(program: LoyaltyProgram): string[] {
  * BR 條款含立榮（B7）。用於 FlightRecordDialog 開啟累積時，依所選航班的
  * IATA 代碼預先勾選 own_airline（使用者仍可改）。
  */
-export const OWN_AIRLINE_CODES: Record<LoyaltyProgram, readonly string[]> = {
+export const OWN_AIRLINE_CODES: Record<AirlineLoyaltyProgram, readonly string[]> = {
   CX: ['CX'],
   CI: ['CI', 'AE'],
   BR: ['BR', 'B7'],

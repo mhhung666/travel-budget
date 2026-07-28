@@ -1364,6 +1364,10 @@
       "nights": "Nights",
       "stars": "Stars",
       "city": "City",
+      "accrueMarriott": "Add to Marriott Bonvoy membership",
+      "accrueMarriottHint": "The night count is only a suggestion; confirm award stays, 0.5-credit brands and qualified spend against Marriott's posting.",
+      "addToMarriott": "Add to Marriott Bonvoy",
+      "marriottCrossYearHint": "This stay crosses calendar years. Standard night credits belong to each actual stay date, so add the officially posted nights as separate membership entries.",
       "staysCount": "{count, plural, one {# stay} other {# stays}}",
       "nightsCount": "{count, plural, one {# night} other {# nights}}",
       "independent": "Independent hotels",
@@ -1462,7 +1466,8 @@
       "programs": {
         "CX": "Cathay Pacific",
         "CI": "China Airlines",
-        "BR": "EVA Air"
+        "BR": "EVA Air",
+        "MB": "Marriott Bonvoy"
       },
       "tierLabel": "Current tier",
       "tierStarted": "Current tier start date",
@@ -1488,6 +1493,14 @@
           "silver": "Silver",
           "gold": "Gold",
           "diamond": "Diamond"
+        },
+        "MB": {
+          "member": "Member",
+          "silver": "Silver Elite",
+          "gold": "Gold Elite",
+          "platinum": "Platinum Elite",
+          "titanium": "Titanium Elite",
+          "ambassador": "Ambassador Elite"
         }
       },
       "stats": {
@@ -1497,7 +1510,10 @@
         "carryOver": "Est. carry-over",
         "ownAirlineRatio": "Own-airline intl share",
         "windowMiles": "Qualifying miles",
-        "segments": "Intl segments"
+        "segments": "Intl segments",
+        "yearNights": "{year} qualifying nights",
+        "qualifiedSpend": "Annual qualified spend",
+        "pointsBalance": "Points balance"
       },
       "progressToNext": "{points} points to {tier}",
       "windowCalendar": "Period: {year}/01/01–{year}/12/31",
@@ -1520,6 +1536,7 @@
       "addEntry": "Accrue status",
       "editEntry": "Edit entry",
       "entryFormDescription": "Copy points and miles changes from the airline app",
+      "hotelEntryFormDescription": "Copy qualifying nights, spend and points from the hotel app",
       "entryType": "Type",
       "types": {
         "flight": "Flight",
@@ -1536,6 +1553,27 @@
       "milesAmount": "{miles} miles",
       "ownAirlineMarker": "Eligible own-airline flight",
       "linkedFlightMarker": "Linked flight record",
+      "linkedStayMarker": "Linked stay record",
+      "qualifyingNights": "Qualifying nights",
+      "qualifyingSpendUsd": "Qualified spend (USD)",
+      "rewardPoints": "Bonvoy points",
+      "nightsAmount": "{nights} nights",
+      "spendAmount": "US${spend}",
+      "rewardPointsAmount": "{points} points",
+      "summaryNights": "{value}/{total} nights",
+      "nightsToNextTier": "{nights} nights to {tier}",
+      "spendToAmbassador": "{spend} qualified spend to Ambassador",
+      "choiceBenefit": "Annual Choice Benefit",
+      "choiceBenefitReached": "Reached the {nights}-night milestone — choose your benefit on Marriott",
+      "choiceBenefitNext": "{nights} nights to the {threshold}-night benefit",
+      "lifetimeProgress": "Lifetime status progress",
+      "lifetimeProgressHint": "Manually sync lifetime nights and eligible years shown by Marriott.",
+      "lifetimeNights": "Lifetime qualifying nights",
+      "lifetimeYears": "Years at {tier}+",
+      "lifetimeTier": "Lifetime {tier}",
+      "lifetimeRequirement": "{nights}/{requiredNights} nights · {years}/{requiredYears} years",
+      "requirementMet": "Requirements met",
+      "marriottNightsDisclaimer": "Qualifying nights reset annually with no rollover; award stays generally count. Some brands earn 0.5 or no night credit, so official posting prevails.",
       "entriesEmpty": "No entries yet — tap \"Accrue status\" to start",
       "deleteAccountTitle": "Delete membership",
       "deleteAccountMessage": "This also deletes all point entries for this program. This cannot be undone. Continue?",
@@ -1592,6 +1630,8 @@
     "subtitle": "Track airline and hotel loyalty tiers, points and miles by hand.",
     "airlineHeading": "Airline",
     "hotelHeading": "Hotel",
+    "airlineEmpty": "No airline membership set up",
+    "hotelEmpty": "Set up Marriott Bonvoy to track qualifying nights and tier progress",
     "hotelComingSoon": "Hotel memberships coming soon",
     "hotelComingSoonDesc": "Track Marriott, Hilton, IHG and more by qualifying nights — on the way."
   }

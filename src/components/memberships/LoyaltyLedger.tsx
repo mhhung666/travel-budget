@@ -1,7 +1,7 @@
 'use client';
 
 import { useLocale, useTranslations } from 'next-intl';
-import { Pencil, Plane, Plus, Trash2 } from 'lucide-react';
+import { Hotel, Pencil, Plane, Plus, Trash2 } from 'lucide-react';
 
 import type { LoyaltyEntryItem } from '@/types';
 import { Badge } from '@/components/ui/badge';
@@ -66,6 +66,21 @@ export function LoyaltyLedger({ entries, onAdd, onEdit, onDelete }: LoyaltyLedge
                       {t('loyalty.milesAmount', { miles: signed(e.award_miles) })}
                     </span>
                   )}
+                  {e.qualifying_nights !== 0 && (
+                    <span className="text-sm font-medium text-foreground">
+                      {t('loyalty.nightsAmount', { nights: signed(e.qualifying_nights) })}
+                    </span>
+                  )}
+                  {e.qualifying_spend_usd !== 0 && (
+                    <span className="text-sm text-muted-foreground">
+                      {t('loyalty.spendAmount', { spend: signed(e.qualifying_spend_usd) })}
+                    </span>
+                  )}
+                  {e.reward_points !== 0 && (
+                    <span className="text-sm text-muted-foreground">
+                      {t('loyalty.rewardPointsAmount', { points: signed(e.reward_points) })}
+                    </span>
+                  )}
                   {e.own_airline && e.type === 'flight' && (
                     <span className="inline-flex" title={t('loyalty.ownAirlineMarker')}>
                       <Plane className="h-3.5 w-3.5 text-primary" aria-hidden />
@@ -76,6 +91,12 @@ export function LoyaltyLedger({ entries, onAdd, onEdit, onDelete }: LoyaltyLedge
                     <span className="inline-flex" title={t('loyalty.linkedFlightMarker')}>
                       <Plane className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
                       <span className="sr-only">{t('loyalty.linkedFlightMarker')}</span>
+                    </span>
+                  )}
+                  {e.stay_record_id && (
+                    <span className="inline-flex" title={t('loyalty.linkedStayMarker')}>
+                      <Hotel className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+                      <span className="sr-only">{t('loyalty.linkedStayMarker')}</span>
                     </span>
                   )}
                 </div>
