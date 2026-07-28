@@ -9,12 +9,12 @@ export interface MapStats {
   countries: number;
   /** 造訪過的城市/地點數（旅行目的地 + 行程日地點，依座標去重）。 */
   cities: number;
-  /** 飛行里程（公里）：FlightRecord 航段的大圓距離累加。 */
+  /** 飛行里程（公里）：FlightRecord 航線距離乘上往返合計次數。 */
   distanceKm: number;
 }
 
 /**
- * 由旅行目的地、行程地點與飛行航段彙總儀表板數字。
+ * 由旅行目的地、行程地點與飛行航線彙總儀表板數字。
  */
 export function computeMapStats(
   trips: number,

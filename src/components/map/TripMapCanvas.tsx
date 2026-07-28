@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useEffect } from 'react';
+import { useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Polyline, Tooltip, useMap } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import {
@@ -14,7 +14,7 @@ import 'leaflet/dist/leaflet.css';
 import type { TripDestinationPoint, HeatPoint, FlightSegment } from './types';
 import { mergePhotoPins, type PhotoPin } from './photos';
 import { countryCodeToFlag, countryColor } from './country';
-import { greatCirclePositions, routeHeading } from './arc';
+import { greatCirclePositions } from './arc';
 import HeatLayer from './HeatLayer';
 import CountriesLayer from './CountriesLayer';
 
@@ -26,6 +26,10 @@ interface TripMapCanvasProps {
   destinations?: TripDestinationPoint[];
   /** 飛行航段（mode === 'flights' 時使用；登入限定、不進公開分享）。 */
   flightSegments?: FlightSegment[];
+  /** 目前由地圖或左側清單選取的航線。 */
+  selectedFlightKey?: string | null;
+  /** 點擊航線時同步選取狀態。 */
+  onFlightSelect?: (key: string | null) => void;
   /** 熱點資料（mode === 'heat' 時使用）。 */
   heatPoints?: HeatPoint[];
   /** 已造訪國家 alpha-2 集合（mode === 'countries' 時上色用）。 */
@@ -75,21 +79,6 @@ function destinationIcon(color: string, flag: string) {
     ">${flag}</div>`,
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
-  });
-}
-
-/** 航線中段的小飛機（機頭朝右的圖示，依航向角旋轉）。 */
-function planeIcon(color: string, angle: number) {
-  return divIcon({
-    className: 'trip-map-plane',
-    html: `<div style="transform:rotate(${angle}deg);width:18px;height:18px;">
-      <svg width="18" height="18" viewBox="0 0 24 24">
-        <path fill="${color}" stroke="#fff" stroke-width="1" stroke-linejoin="round"
-          d="M2 5 L22 12 L2 19 L6 12 Z" />
-      </svg>
-    </div>`,
-    iconSize: [18, 18],
-    iconAnchor: [9, 9],
   });
 }
 
@@ -275,6 +264,8 @@ export default function TripMapCanvas({
   mode = 'flights',
   destinations = [],
   flightSegments = [],
+  selectedFlightKey = null,
+  onFlightSelect,
   heatPoints = [],
   visitedCountries,
   photoPins = [],
@@ -330,27 +321,44 @@ export default function TripMapCanvas({
       {/* 相片釘點：縮圖卡片，近點聚合成同款卡片（radius 涵蓋卡片寬避免重疊），點擊開啟 gallery。 */}
       {isPhotos && <PhotoPinsLayer pins={photoPins} onSelect={onPhotoPinSelect} />}
 
-      {/* 飛行航段（旅行成就 FlightRecord 聚合）：弧線粗細依飛行次數，機場為小圓點 */}
+      {/* 飛行航線：預設保持低干擾，滑過或選取時才強調；往返已合併為單一路線。 */}
       {isFlights &&
         flightSegments.map((s) => {
           const positions = greatCirclePositions([s.from.lat, s.from.lon], [s.to.lat, s.to.lon]);
-          const heading = routeHeading(positions);
+          const selected = selectedFlightKey === s.key;
+          const baseWeight = Math.min(1.25 + Math.log2(s.count + 1) * 0.55, 3);
+          const baseStyle = {
+            color: lineColor,
+            weight: selected ? Math.max(baseWeight + 1.25, 3) : baseWeight,
+            opacity: selected ? 0.9 : 0.38,
+          };
           return (
-            <Fragment key={`flight-${s.key}`}>
-              <Polyline
-                positions={positions}
-                pathOptions={{
-                  color: lineColor,
-                  weight: Math.min(1.5 + s.count, 5),
-                  opacity: 0.65,
-                }}
-              />
-              <Marker
-                position={heading.position}
-                icon={planeIcon(lineColor, heading.angle)}
-                interactive={false}
-              />
-            </Fragment>
+            <Polyline
+              key={`flight-${s.key}`}
+              positions={positions}
+              pathOptions={baseStyle}
+              eventHandlers={{
+                mouseover: (event) => {
+                  event.target.setStyle({
+                    weight: Math.max(baseWeight + 1.25, 3),
+                    opacity: 0.9,
+                  });
+                  event.target.bringToFront();
+                },
+                mouseout: (event) => event.target.setStyle(baseStyle),
+                click: () => onFlightSelect?.(selected ? null : s.key),
+              }}
+            >
+              <Tooltip sticky>
+                <span className="font-mono">
+                  {s.from.iata} ⇄ {s.to.iata}
+                </span>
+                <br />
+                <span className="text-xs">
+                  {s.from.name} ⇄ {s.to.name} · ×{s.count}
+                </span>
+              </Tooltip>
+            </Polyline>
           );
         })}
       {isFlights &&

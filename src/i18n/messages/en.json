@@ -1088,8 +1088,8 @@
     "photoEmpty": "No located photos yet. Upload photos with GPS to a trip album, or link an album photo to an itinerary day with a location, to pin them on the map.",
     "photoCount": "{count} photos",
     "modeFlights": "Flights",
-    "flightTitle": "{count, plural, one {# segment} other {# segments}}",
-    "flightDescription": "Groups matching routes from your flight log. More flights produce a thicker line.",
+    "flightTitle": "{count, plural, one {# route} other {# routes}}",
+    "flightDescription": "Return flights share one route; hover or select a route to see its details.",
     "flightEmpty": "No flights to show yet — log flights with departure and arrival airports in Achievements"
   },
   "notifications": {

@@ -63,19 +63,3 @@ export function greatCirclePositions(
 // `haversineKm` 已抽到 lib 層（[lib/geo.ts]，讓非元件程式碼也能用）；此處 re-export
 // 維持既有 import 路徑（components/map/stats.ts 等）不變。
 export { haversineKm } from '@/lib/geo';
-
-/**
- * 航線中段的座標與螢幕航向角（度），給飛機圖示用。
- * 螢幕座標：x=經度（東為正），y=緯度（北為正、但螢幕向下），故 y 取負。
- * 角度 0 = 朝右（東），與「機頭朝右」的圖示對齊。
- */
-export function routeHeading(positions: [number, number][]): {
-  position: [number, number];
-  angle: number;
-} {
-  const mid = Math.floor(positions.length / 2);
-  const a = positions[Math.max(0, mid - 1)];
-  const b = positions[Math.min(positions.length - 1, mid + 1)];
-  const angle = (Math.atan2(-(b[0] - a[0]), b[1] - a[1]) * 180) / Math.PI;
-  return { position: positions[mid], angle };
-}

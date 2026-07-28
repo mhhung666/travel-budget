@@ -1081,8 +1081,8 @@
     "photoEmpty": "还没有带座标的照片。把含 GPS 的照片上传到行程相册，或将相册照片关联到有地点的行程日，就会钉上地图。",
     "photoCount": "{count} 张照片",
     "modeFlights": "飞行",
-    "flightTitle": "{count} 条航段",
-    "flightDescription": "依飞行记录汇总相同航线，飞行次数越多，地图线条越粗。",
+    "flightTitle": "{count} 条航线",
+    "flightDescription": "往返记录合并为同一条航线；悬停或选择时可查看详情。",
     "flightEmpty": "还没有可显示的飞行——到「旅行成就」补录含出发／到达机场的飞行记录"
   },
   "notifications": {

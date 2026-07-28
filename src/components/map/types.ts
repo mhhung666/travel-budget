@@ -32,15 +32,15 @@ export interface AirportPoint {
 }
 
 /**
- * 飛行航段（旅行成就 FlightRecord 依「出發→抵達」聚合）。
+ * 飛行航線（旅行成就 FlightRecord 依機場配對聚合，不區分去／回程）。
  * 登入限定——飛行紀錄是個人資料，公開分享地圖不含此圖層。
  */
 export interface FlightSegment {
-  /** `${fromIata}-${toIata}`（方向性）。 */
+  /** `${較小的 IATA}-${較大的 IATA}`（無方向性、穩定排序）。 */
   key: string;
   from: AirportPoint;
   to: AirportPoint;
-  /** 此航段的飛行次數（線寬權重）。 */
+  /** 此機場配對的總飛行次數（含兩個方向）。 */
   count: number;
 }
 

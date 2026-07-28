@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useLocale, useTranslations } from 'next-intl';
-import { Loader2, ArrowRight, Camera, Plane, Flame, Globe2, Images } from 'lucide-react';
+import { Loader2, ArrowLeftRight, Camera, Plane, Flame, Globe2, Images } from 'lucide-react';
 import { pickLocalizedName } from '@/lib/utils';
 import { tripOverlapsRange } from '@/lib/dateRange';
 import { useVisitedPlaces, useMapPhotos, useCollections, useAirports } from '@/hooks/queries';
@@ -19,6 +19,7 @@ import type { TripWithMembers } from '@/types';
 import type { GeoPoint, TripDestinationPoint, HeatPoint, FlightSegment } from './types';
 import type { MapMode } from './TripMapCanvas';
 import { countryCodeToFlag } from './country';
+import { groupFlightRoutes } from './flights';
 
 // Leaflet 依賴 window，必須關閉 SSR。
 const TripMapCanvas = dynamic(() => import('./TripMapCanvas'), {
@@ -42,6 +43,7 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
   // null = 全部年份；否則只看與該年（1/1–12/31）重疊的旅程。
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [mode, setMode] = useState<MapMode>('flights');
+  const [selectedFlightKey, setSelectedFlightKey] = useState<string | null>(null);
 
   // 行程日地點（造訪次數權重）：供儀表板「城市數」、國家點亮與熱點一起用。
   const { data: visited = [] } = useVisitedPlaces(true, selectedYear);
@@ -110,32 +112,10 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
       });
   }, [trips, locale]);
 
-  // 飛行航段：FlightRecord 依「出發→抵達」聚合，座標自機場目錄解析；年份篩選連動。
+  // 飛行航線：往返紀錄依機場配對合併，避免同一路線重疊；年份篩選連動。
   const flightSegments = useMemo<FlightSegment[]>(() => {
     if (!collections || !airports) return [];
-    const byIata = new Map(airports.map((a) => [a.iata, a]));
-    const toPoint = (iata: string) => {
-      const a = byIata.get(iata);
-      return a
-        ? { iata, name: a.city ?? a.name, lat: a.lat, lon: a.lon, country: a.country }
-        : null;
-    };
-    const map = new Map<string, FlightSegment>();
-    for (const f of collections.flights) {
-      if (!f.from_airport || !f.to_airport) continue;
-      if (selectedYear !== null && f.date.slice(0, 4) !== String(selectedYear)) continue;
-      const key = `${f.from_airport}-${f.to_airport}`;
-      const cur = map.get(key);
-      if (cur) {
-        cur.count += 1;
-        continue;
-      }
-      const from = toPoint(f.from_airport);
-      const to = toPoint(f.to_airport);
-      if (!from || !to) continue;
-      map.set(key, { key, from, to, count: 1 });
-    }
-    return [...map.values()].sort((a, b) => b.count - a.count);
+    return groupFlightRoutes(collections.flights, airports, selectedYear);
   }, [collections, airports, selectedYear]);
 
   // 旅程涉及的年份（依起訖日），新到舊；當作快速篩選的選項。
@@ -450,26 +430,36 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
                 ) : (
                   <ol className="space-y-2">
                     {flightSegments.map((s) => (
-                      <li
-                        key={s.key}
-                        className="flex items-center justify-between gap-3 rounded-lg bg-muted/40 p-2.5"
-                      >
-                        <span className="flex min-w-0 items-center gap-2.5 text-sm">
-                          <Plane className="h-4 w-4 shrink-0 text-primary" />
-                          <span className="min-w-0">
-                            <span className="block font-medium">
-                              <span className="font-mono">{s.from.iata}</span>
-                              <ArrowRight className="mx-1 inline h-3 w-3" />
-                              <span className="font-mono">{s.to.iata}</span>
-                            </span>
-                            <span className="block truncate text-xs text-muted-foreground">
-                              {s.from.name} → {s.to.name}
+                      <li key={s.key}>
+                        <button
+                          type="button"
+                          aria-pressed={selectedFlightKey === s.key}
+                          onClick={() =>
+                            setSelectedFlightKey((current) => (current === s.key ? null : s.key))
+                          }
+                          className={`flex w-full items-center justify-between gap-3 rounded-lg p-2.5 text-left transition-colors ${
+                            selectedFlightKey === s.key
+                              ? 'bg-primary/10 ring-1 ring-primary/30'
+                              : 'bg-muted/40 hover:bg-muted/70'
+                          }`}
+                        >
+                          <span className="flex min-w-0 items-center gap-2.5 text-sm">
+                            <Plane className="h-4 w-4 shrink-0 text-primary" />
+                            <span className="min-w-0">
+                              <span className="block font-medium">
+                                <span className="font-mono">{s.from.iata}</span>
+                                <ArrowLeftRight className="mx-1 inline h-3 w-3" />
+                                <span className="font-mono">{s.to.iata}</span>
+                              </span>
+                              <span className="block truncate text-xs text-muted-foreground">
+                                {s.from.name} ⇄ {s.to.name}
+                              </span>
                             </span>
                           </span>
-                        </span>
-                        <Badge variant="secondary" className="shrink-0">
-                          ×{s.count}
-                        </Badge>
+                          <Badge variant="secondary" className="shrink-0">
+                            ×{s.count}
+                          </Badge>
+                        </button>
                       </li>
                     ))}
                   </ol>
@@ -530,6 +520,8 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
             mode={mode}
             destinations={filteredDestinations}
             flightSegments={flightSegments}
+            selectedFlightKey={selectedFlightKey}
+            onFlightSelect={setSelectedFlightKey}
             heatPoints={heatPoints}
             visitedCountries={visitedCountries}
             photoPins={photoPins}

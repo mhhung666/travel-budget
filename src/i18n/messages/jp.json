@@ -1082,7 +1082,7 @@
     "photoCount": "写真 {count} 枚",
     "modeFlights": "フライト",
     "flightTitle": "{count} 路線",
-    "flightDescription": "フライト記録の同じ路線を集約します。搭乗回数が多いほど線が太くなります。",
+    "flightDescription": "往復便を同じ路線にまとめ、ホバーまたは選択時に詳細を表示します。",
     "flightEmpty": "表示できるフライトがありません。「旅の実績」で出発／到着空港つきのフライトを記録しましょう"
   },
   "notifications": {

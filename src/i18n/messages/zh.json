@@ -1081,8 +1081,8 @@
     "photoEmpty": "還沒有帶座標的相片。把含 GPS 的照片上傳到旅程相簿，或將相簿相片關聯到有地點的行程日，就會釘上地圖。",
     "photoCount": "{count} 張相片",
     "modeFlights": "飛行",
-    "flightTitle": "{count} 條航段",
-    "flightDescription": "依飛行紀錄彙整相同航線，飛行次數越多，地圖線條越粗。",
+    "flightTitle": "{count} 條航線",
+    "flightDescription": "往返紀錄合併為同一條航線；滑過或選取時可查看細節。",
     "flightEmpty": "還沒有可顯示的飛行——到「旅行成就」補登含出發／抵達機場的飛行紀錄"
   },
   "notifications": {
