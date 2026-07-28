@@ -134,6 +134,7 @@
 
 早期 P0–P3（#1–#12，含 `withAuth`、env 驗證、proxy 路由保護、Public API hash_code 強化、React Query、頁面拆分、刪除確認 / Skeleton / i18n toast）皆已完成，紀錄見 git 歷史。以下為後續驗證過的項目：
 
+- **軟體版本顯示與 Agent 升版規則**（2026-07-28）：個人設定頁顯示由 `package.json.version` 建置時注入的版本號；新增 repo-wide Agent Semantic Versioning／commit 規則，並移除架構文件的寫死版本。
 - **CI workflow**（2026-07-02）：新增 [.github/workflows/ci.yml](../.github/workflows/ci.yml)，PR / push master 觸發 `lint` → `format:check` → `test:run` → `build`（帶 dummy env、`concurrency` 取消舊跑）。前置：一次性 `pnpm format` 全庫（107 檔）。
 - **Public API 錯誤碼統一**（2026-07-02）：新增 [publicApiError.ts](../src/lib/publicApiError.ts) 結構化錯誤碼，8 條公開路由改回傳 `{ error: <code> }`；link/convert dialog 與頁面改以錯誤碼對應 i18n（新增 `member.convertVirtual.errors.*` 四語）。
 - **Public API 樣板收斂**（2026-07-02）：[withPublicTrip.ts](../src/lib/withPublicTrip.ts) 統一 `await params` / hash_code 解析 / 404 / try-catch；[dto.ts](../src/lib/dto.ts) 抽出 `toExpenseDto` / `toTripDto` 供 actions 與公開路由共用（消除平行 DTO 映射）。

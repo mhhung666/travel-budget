@@ -1,7 +1,7 @@
 # 架構說明（Architecture）
 
 > 更新日期：2026-07-27（補上 UI/UX Phase 4 可及性測試與隱私安全產品量測）
-> 對應版本：v3.4.3
+> 目前軟體版本以根目錄 [package.json](../package.json) 的 `version` 欄位為準。
 > 本文件依**實際程式碼**撰寫，為架構的權威來源。**已實作功能的完整盤點**見 [FEATURES.md](./FEATURES.md)；改善建議請見 [IMPROVEMENTS.md](./IMPROVEMENTS.md)；已完成工作（含 Supabase→MongoDB 遷移）的紀錄見 [CHANGELOG.md](./CHANGELOG.md)。
 
 ---

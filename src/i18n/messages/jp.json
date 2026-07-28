@@ -89,6 +89,7 @@
   },
   "settings": {
     "title": "設定",
+    "version": "バージョン v{version}",
     "backToTrips": "旅行一覧に戻る",
     "profile": {
       "title": "プロフィール",

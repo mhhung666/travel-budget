@@ -89,6 +89,7 @@
   },
   "settings": {
     "title": "个人设置",
+    "version": "版本 v{version}",
     "backToTrips": "返回我的旅行",
     "profile": {
       "title": "个人资料",

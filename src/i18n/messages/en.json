@@ -89,6 +89,7 @@
   },
   "settings": {
     "title": "Settings",
+    "version": "Version v{version}",
     "backToTrips": "Back to My Trips",
     "profile": {
       "title": "Profile",

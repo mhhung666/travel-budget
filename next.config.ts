@@ -1,6 +1,7 @@
 import type { NextConfig } from 'next';
 import createNextIntlPlugin from 'next-intl/plugin';
 import withSerwistInit from '@serwist/next';
+import packageJson from './package.json';
 
 const withNextIntl = createNextIntlPlugin('./src/i18n/config.ts');
 
@@ -41,6 +42,9 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 const nextConfig: NextConfig = {
+  env: {
+    APP_VERSION: packageJson.version,
+  },
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }];
   },

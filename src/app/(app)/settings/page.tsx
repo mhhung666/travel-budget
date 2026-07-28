@@ -165,6 +165,10 @@ export default function SettingsPage() {
           </Button>
         </CardContent>
       </Card>
+
+      <p className="mt-6 text-center text-xs text-muted-foreground">
+        {t('version', { version: process.env.APP_VERSION ?? 'dev' })}
+      </p>
     </div>
   );
 }

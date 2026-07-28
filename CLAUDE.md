@@ -63,6 +63,8 @@ npx tsc --noEmit                                   # type check (no pnpm script 
 
 **Misc**
 - NEVER hand-edit `public/geo/countries.geojson` (generated) or read `pnpm-lock.yaml` / catalog JSONs whole.
+- Before committing, follow the application version policy in [AGENTS.md](AGENTS.md): `package.json.version`
+  is the single source of truth; bump shipped behavior once per deliverable and never auto-tag or deploy.
 - Leaflet is client-only: `dynamic(..., { ssr: false })`; keep `.leaflet-container { isolation: isolate; }`
   in [globals.css](src/app/globals.css).
 - Public map API returns coords / localized place names / **year only** — never trip names, ids, full dates.
