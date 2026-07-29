@@ -7,6 +7,7 @@ import type { StatsData } from '@/types';
 interface StatsFilters {
   startDate?: string;
   endDate?: string;
+  compare?: boolean;
 }
 
 /**
@@ -18,13 +19,14 @@ interface StatsFilters {
  * UNAUTHORIZED fetch before auth resolves.
  */
 export function useStats(filters: StatsFilters, enabled = true) {
-  const { startDate, endDate } = filters;
+  const { startDate, endDate, compare = false } = filters;
   return useQuery({
-    queryKey: ['stats', startDate ?? null, endDate ?? null],
+    queryKey: ['stats', startDate ?? null, endDate ?? null, compare],
     queryFn: async (): Promise<StatsData> => {
       const result = await getStats({
         startDate: startDate || undefined,
         endDate: endDate || undefined,
+        compare,
       });
       if (!result.success) throw new Error(result.error);
       return result.data;

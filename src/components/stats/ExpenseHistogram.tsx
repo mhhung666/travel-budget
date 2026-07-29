@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { BarChart3 } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { BarChart3, X } from 'lucide-react';
 import {
   BarChart,
   Bar,
@@ -15,225 +15,283 @@ import {
 import { aggregateExpensesByInterval, suggestInterval } from '@/lib/histogram';
 import type { CategoryStat, TimeInterval, HistogramDataPoint } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+
+type Metric = 'amount' | 'count';
 
 interface ExpenseHistogramProps {
   categoryStats: CategoryStat[];
+  comparisonStats?: CategoryStat[];
   startDate: string;
   endDate: string;
+  comparisonStartDate?: string;
+  comparisonEndDate?: string;
   formatCurrency: (amount: number) => string;
-  cardGradient: string;
-  t: (key: string) => string;
+  t: (key: string, values?: Record<string, string | number>) => string;
   locale: string;
+  metric?: Metric;
+  onMetricChange?: (metric: Metric) => void;
+  cardGradient?: string;
+  selectedPeriod?: { startDate: string; endDate: string } | null;
+  onPeriodSelect?: (period: { startDate: string; endDate: string } | null) => void;
 }
 
-interface CustomTooltipProps {
-  active?: boolean;
-  payload?: { payload: HistogramDataPoint }[];
-  locale: string;
-  formatCurrency: (amount: number) => string;
-  t: (key: string) => string;
-}
+type ChartPoint = HistogramDataPoint & {
+  comparisonAmount?: number;
+  comparisonCount?: number;
+};
 
-// 自定義 Tooltip（recharts 會傳入 active 與 payload）
-function CustomTooltip({ active, payload, locale, formatCurrency, t }: CustomTooltipProps) {
-  if (!active || !payload?.[0]) return null;
-  const data = payload[0].payload;
-  const dateFormat =
-    locale === 'zh' ? 'zh-TW' : locale === 'jp' ? 'ja-JP' : locale === 'zh-CN' ? 'zh-CN' : 'en-US';
-
-  const formatDateRange = (startDate: string, endDate: string) => {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-
-    if (startDate === endDate) {
-      return new Intl.DateTimeFormat(dateFormat, {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-      }).format(start);
-    } else if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
-      return `${new Intl.DateTimeFormat(dateFormat, { month: 'short', day: 'numeric' }).format(start)} - ${end.getDate()}`;
-    } else if (start.getFullYear() === end.getFullYear()) {
-      return `${new Intl.DateTimeFormat(dateFormat, { month: 'short', day: 'numeric' }).format(start)} - ${new Intl.DateTimeFormat(dateFormat, { month: 'short', day: 'numeric' }).format(end)}`;
-    } else {
-      return `${new Intl.DateTimeFormat(dateFormat, { year: 'numeric', month: 'short', day: 'numeric' }).format(start)} - ${new Intl.DateTimeFormat(dateFormat, { year: 'numeric', month: 'short', day: 'numeric' }).format(end)}`;
-    }
-  };
-
-  return (
-    <div className="bg-background/95 backdrop-blur border border-border rounded-lg p-3 shadow-lg">
-      <span className="block text-xs font-semibold mb-1">
-        {formatDateRange(data.startDate, data.endDate)}
-      </span>
-      <span className="text-lg font-bold text-primary block">{formatCurrency(data.amount)}</span>
-      <span className="text-xs text-muted-foreground">
-        {data.count} {t('expenses')}
-      </span>
-    </div>
-  );
+function compactNumber(value: number, locale: string) {
+  return new Intl.NumberFormat(locale, {
+    notation: value >= 1000 ? 'compact' : 'standard',
+    maximumFractionDigits: 1,
+  }).format(value);
 }
 
 export default function ExpenseHistogram({
   categoryStats,
+  comparisonStats = [],
   startDate,
   endDate,
+  comparisonStartDate,
+  comparisonEndDate,
   formatCurrency,
   t,
   locale,
+  metric = 'amount',
+  onMetricChange = () => undefined,
+  selectedPeriod,
+  onPeriodSelect,
 }: ExpenseHistogramProps) {
-  // 未選查詢區間時，用資料裡最早～最晚的支出日期當範圍，避免趨勢圖整片空白
-  // （日期為 YYYY-MM-DD，字串比較即等於時間排序）。
   const [effectiveStart, effectiveEnd] = useMemo<[string, string]>(() => {
     if (startDate && endDate) return [startDate, endDate];
-    const dates = categoryStats.flatMap((c) => c.details.map((d) => d.date));
-    if (dates.length === 0) return [startDate, endDate];
-    let min = dates[0];
-    let max = dates[0];
-    for (const d of dates) {
-      if (d < min) min = d;
-      if (d > max) max = d;
-    }
-    return [startDate || min, endDate || max];
+    const dates = categoryStats.flatMap((category) =>
+      category.details.map((detail) => detail.date)
+    );
+    return [
+      startDate ||
+        dates.reduce((minimum, date) => (date < minimum ? date : minimum), dates[0] || ''),
+      endDate || dates.reduce((maximum, date) => (date > maximum ? date : maximum), dates[0] || ''),
+    ];
   }, [categoryStats, startDate, endDate]);
 
-  // 計算日期範圍天數
-  const daysDiff = useMemo(() => {
-    if (!effectiveStart || !effectiveEnd) return 0;
-    const start = new Date(effectiveStart);
-    const end = new Date(effectiveEnd);
-    return Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-  }, [effectiveStart, effectiveEnd]);
+  const suggestedInterval =
+    effectiveStart && effectiveEnd ? suggestInterval(effectiveStart, effectiveEnd) : 'day';
+  const rangeKey = `${effectiveStart}:${effectiveEnd}`;
+  const [intervalChoice, setIntervalChoice] = useState<{
+    rangeKey: string;
+    value: TimeInterval;
+  }>({ rangeKey, value: suggestedInterval });
+  const interval = intervalChoice.rangeKey === rangeKey ? intervalChoice.value : suggestedInterval;
 
-  // 初始區間：智能推薦
-  const defaultInterval = useMemo(
-    () => (effectiveStart && effectiveEnd ? suggestInterval(effectiveStart, effectiveEnd) : 'day'),
-    [effectiveStart, effectiveEnd]
-  );
+  const daySpan =
+    effectiveStart && effectiveEnd
+      ? Math.round(
+          (Date.parse(`${effectiveEnd}T00:00:00Z`) - Date.parse(`${effectiveStart}T00:00:00Z`)) /
+            86400000
+        ) + 1
+      : 0;
+  const availableIntervals: TimeInterval[] = [
+    'day',
+    ...(daySpan > 3 ? (['week'] as const) : []),
+    ...(daySpan > 90 ? (['month'] as const) : []),
+  ];
 
-  const [interval, setInterval] = useState<TimeInterval>(defaultInterval);
-
-  // 根據日期範圍決定可用的區間選項
-  const availableIntervals = useMemo(() => {
-    const intervals: TimeInterval[] = [];
-
-    // 按日：始終可用
-    intervals.push('day');
-
-    // 按週：> 2天時可用
-    if (daysDiff > 2) {
-      intervals.push('week');
-    }
-
-    // 按月：> 90天時可用
-    if (daysDiff > 90) {
-      intervals.push('month');
-    }
-
-    return intervals;
-  }, [daysDiff]);
-
-  // 當可用區間改變時，確保當前選擇的區間仍然可用。
-  // 在 render 期間調整衍生 state 是 React 建議的做法（避免用 effect 造成連鎖渲染）。
-  if (!availableIntervals.includes(interval)) {
-    setInterval(availableIntervals[0] || 'day');
-  }
-
-  // 聚合數據
-  const histogramData = useMemo(() => {
-    if (!effectiveStart || !effectiveEnd) return null;
-    return aggregateExpensesByInterval(
+  const points = useMemo<ChartPoint[]>(() => {
+    if (!effectiveStart || !effectiveEnd) return [];
+    const current = aggregateExpensesByInterval(
       categoryStats,
       interval,
       effectiveStart,
       effectiveEnd,
       locale
-    );
-  }, [categoryStats, interval, effectiveStart, effectiveEnd, locale]);
+    ).dataPoints;
+    if (!comparisonStartDate || !comparisonEndDate || comparisonStats.length === 0) return current;
+    const previous = aggregateExpensesByInterval(
+      comparisonStats,
+      interval,
+      comparisonStartDate,
+      comparisonEndDate,
+      locale
+    ).dataPoints;
+    return current.map((point, index) => ({
+      ...point,
+      comparisonAmount: previous[index]?.amount ?? 0,
+      comparisonCount: previous[index]?.count ?? 0,
+    }));
+  }, [
+    categoryStats,
+    comparisonStats,
+    interval,
+    effectiveStart,
+    effectiveEnd,
+    comparisonStartDate,
+    comparisonEndDate,
+    locale,
+  ]);
+
+  const selectedKey = selectedPeriod
+    ? `${selectedPeriod.startDate}:${selectedPeriod.endDate}`
+    : undefined;
+  const valueKey = metric === 'amount' ? 'amount' : 'count';
+  const comparisonKey = metric === 'amount' ? 'comparisonAmount' : 'comparisonCount';
 
   return (
-    <Card className="border-none shadow-none mb-4 bg-transparent">
-      {/* Header */}
-      <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <Card className="border-muted bg-card/60">
+      <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-primary text-primary-foreground shadow-sm">
-            <BarChart3 size={20} />
+          <div className="rounded-lg bg-primary p-2 text-primary-foreground">
+            <BarChart3 size={20} aria-hidden />
           </div>
-          <h2 className="text-lg font-semibold">{t('expenseHistogram')}</h2>
+          <div>
+            <h2 className="font-semibold">{t('expenseHistogram')}</h2>
+            <p className="text-xs text-muted-foreground">{t('chartHint')}</p>
+          </div>
         </div>
-
-        {/* 時間區間選擇器 */}
-        <div className="flex items-center p-1 bg-muted rounded-lg w-fit">
-          {[
-            { value: 'day', label: t('intervalDay') },
-            { value: 'week', label: t('intervalWeek') },
-            { value: 'month', label: t('intervalMonth') },
-          ].map((option) => (
-            <button
-              key={option.value}
-              onClick={() => setInterval(option.value as TimeInterval)}
-              disabled={!availableIntervals.includes(option.value as TimeInterval)}
-              className={cn(
-                'min-h-11 rounded-md px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-                'disabled:opacity-50 disabled:cursor-not-allowed',
-                interval === option.value
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:bg-background/50 hover:text-foreground'
-              )}
-            >
-              {option.label}
-            </button>
-          ))}
+        <div className="flex flex-wrap gap-2">
+          <div className="flex rounded-lg bg-muted p-1" aria-label={t('metric')}>
+            {(['amount', 'count'] as const).map((value) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={metric === value}
+                onClick={() => onMetricChange(value)}
+                className={cn(
+                  'min-h-11 rounded-md px-3 text-sm',
+                  metric === value && 'bg-background font-medium shadow-sm'
+                )}
+              >
+                {t(value === 'amount' ? 'amountMetric' : 'countMetric')}
+              </button>
+            ))}
+          </div>
+          <div className="flex rounded-lg bg-muted p-1" aria-label={t('interval')}>
+            {(['day', 'week', 'month'] as const).map((value) => (
+              <button
+                key={value}
+                type="button"
+                disabled={!availableIntervals.includes(value)}
+                aria-pressed={interval === value}
+                onClick={() => setIntervalChoice({ rangeKey, value })}
+                className={cn(
+                  'min-h-11 rounded-md px-3 text-sm disabled:cursor-not-allowed disabled:opacity-40',
+                  interval === value && 'bg-background font-medium shadow-sm'
+                )}
+              >
+                {t(`interval${value[0].toUpperCase()}${value.slice(1)}`)}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      <CardContent className="p-0">
-        {/* Chart */}
-        {histogramData && histogramData.dataPoints.length > 0 ? (
-          <div className="w-full h-[350px]">
-            <ResponsiveContainer>
-              <BarChart
-                data={histogramData.dataPoints}
-                margin={{ top: 10, right: 10, left: 10, bottom: 30 }}
+      <CardContent className="px-2 pb-5 sm:px-5">
+        {points.length ? (
+          <>
+            <div className="h-[320px] w-full" aria-label={t('expenseHistogram')}>
+              <ResponsiveContainer>
+                <BarChart
+                  data={points}
+                  margin={{ top: 8, right: 8, left: 0, bottom: 24 }}
+                  onClick={(state) => {
+                    const point = (
+                      state as unknown as {
+                        activePayload?: { payload?: ChartPoint }[];
+                      }
+                    )?.activePayload?.[0]?.payload;
+                    if (point)
+                      onPeriodSelect?.({ startDate: point.startDate, endDate: point.endDate });
+                  }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis
+                    dataKey="period"
+                    tick={{ fontSize: 11 }}
+                    angle={-35}
+                    textAnchor="end"
+                    height={54}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 11 }}
+                    width={48}
+                    tickFormatter={(value) => compactNumber(Number(value), locale)}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <Tooltip
+                    cursor={{ fill: 'hsl(var(--muted) / 0.35)' }}
+                    formatter={(value, name) => [
+                      metric === 'amount' ? formatCurrency(Number(value)) : Number(value),
+                      name === comparisonKey ? t('previousPeriod') : t('currentPeriod'),
+                    ]}
+                    labelFormatter={(_, payload) => {
+                      const point = payload?.[0]?.payload as ChartPoint | undefined;
+                      return point
+                        ? `${point.startDate}${point.startDate === point.endDate ? '' : ` – ${point.endDate}`}`
+                        : '';
+                    }}
+                  />
+                  {comparisonStats.length > 0 && (
+                    <Bar dataKey={comparisonKey} fill="hsl(var(--muted-foreground) / 0.3)" />
+                  )}
+                  <Bar dataKey={valueKey} radius={[5, 5, 0, 0]}>
+                    {points.map((point) => (
+                      <Cell
+                        key={`${point.startDate}:${point.endDate}`}
+                        fill={
+                          selectedKey === `${point.startDate}:${point.endDate}`
+                            ? 'hsl(var(--foreground))'
+                            : 'hsl(var(--primary))'
+                        }
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="mt-2 flex gap-2 overflow-x-auto pb-1" aria-label={t('chartData')}>
+              {points.map((point) => {
+                const selected = selectedKey === `${point.startDate}:${point.endDate}`;
+                return (
+                  <button
+                    type="button"
+                    key={`${point.startDate}:${point.endDate}`}
+                    aria-pressed={selected}
+                    onClick={() =>
+                      onPeriodSelect?.(
+                        selected ? null : { startDate: point.startDate, endDate: point.endDate }
+                      )
+                    }
+                    className={cn(
+                      'min-h-11 shrink-0 rounded-lg border px-3 text-left text-xs',
+                      selected && 'border-primary bg-primary/10'
+                    )}
+                  >
+                    <span className="block font-medium">{point.period}</span>
+                    <span className="text-muted-foreground">
+                      {metric === 'amount' ? formatCurrency(point.amount) : point.count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            {selectedPeriod && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="mt-2"
+                onClick={() => onPeriodSelect?.(null)}
               >
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                <XAxis
-                  dataKey="period"
-                  stroke="hsl(var(--muted-foreground))"
-                  tick={{ fontSize: 12 }}
-                  angle={-45}
-                  textAnchor="end"
-                  height={60}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis
-                  stroke="hsl(var(--muted-foreground))"
-                  tick={{ fontSize: 12 }}
-                  tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <Tooltip
-                  content={<CustomTooltip locale={locale} formatCurrency={formatCurrency} t={t} />}
-                  cursor={{ fill: 'hsl(var(--muted)/0.2)' }}
-                />
-                <Bar dataKey="amount" radius={[4, 4, 0, 0]}>
-                  {histogramData.dataPoints.map((entry, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={entry.amount > 0 ? 'hsl(var(--primary))' : 'hsl(var(--muted))'}
-                    />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+                <X size={16} aria-hidden />
+                {t('clearChartFilter')}
+              </Button>
+            )}
+          </>
         ) : (
-          <div className="text-center py-12">
-            <BarChart3 size={48} strokeWidth={1} className="opacity-30 mb-4 mx-auto" />
-            <p className="text-muted-foreground">{t('noData')}</p>
-          </div>
+          <div className="py-16 text-center text-muted-foreground">{t('noData')}</div>
         )}
       </CardContent>
     </Card>

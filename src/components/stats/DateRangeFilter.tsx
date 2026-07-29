@@ -13,6 +13,9 @@ interface DateRangeFilterProps {
   onStartDateChange: (value: string) => void;
   onEndDateChange: (value: string) => void;
   onYearSelect: (year: number) => void;
+  onClearDates: () => void;
+  compare: boolean;
+  onCompareChange: (compare: boolean) => void;
   t: (key: string) => string;
 }
 
@@ -65,6 +68,9 @@ export default function DateRangeFilter({
   onStartDateChange,
   onEndDateChange,
   onYearSelect,
+  onClearDates,
+  compare,
+  onCompareChange,
   t,
 }: DateRangeFilterProps) {
   const currentYear = new Date().getFullYear();
@@ -84,13 +90,12 @@ export default function DateRangeFilter({
 
   // 相對與絕對快捷合併為單一晶片列，省去多段標題佔用的高度。
   const presets = [
-    { label: t('last7Days'), range: dateRanges.last7Days },
     { label: t('last30Days'), range: dateRanges.last30Days },
-    { label: t('last90Days'), range: dateRanges.last90Days },
     { label: t('thisMonth'), range: dateRanges.thisMonth },
-    { label: t('lastMonth'), range: dateRanges.lastMonth },
-    { label: t('thisQuarter'), range: dateRanges.thisQuarter },
-    { label: t('lastQuarter'), range: dateRanges.lastQuarter },
+    {
+      label: t('thisYear'),
+      range: { start: `${currentYear}-01-01`, end: `${currentYear}-12-31` },
+    },
   ];
 
   return (
@@ -116,6 +121,13 @@ export default function DateRangeFilter({
               </Badge>
             );
           })}
+          <Badge
+            variant={!startDate && !endDate ? 'default' : 'outline'}
+            className={chipClass(!startDate && !endDate)}
+            onClick={onClearDates}
+          >
+            {t('allTime')}
+          </Badge>
         </div>
 
         {/* 年度 + 自訂範圍同一列，wrap 後在窄螢幕自動換行 */}
@@ -153,6 +165,16 @@ export default function DateRangeFilter({
             />
           </div>
         </div>
+        <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={compare}
+            disabled={!startDate || !endDate}
+            onChange={(event) => onCompareChange(event.target.checked)}
+            className="size-4 accent-primary"
+          />
+          <span>{t('comparePrevious')}</span>
+        </label>
       </CardContent>
     </Card>
   );

@@ -4,6 +4,9 @@ export interface ExpenseDetail {
   description: string;
   amount: number;
   tripName: string;
+  tripId?: string;
+  category?: string;
+  tags?: string[];
 }
 
 export interface CategoryStat {
@@ -24,11 +27,38 @@ export interface TagStat {
   details: ExpenseDetail[];
 }
 
+export interface PersonalTripStat {
+  tripId: string;
+  tripName: string;
+  total: number;
+  count: number;
+  details: ExpenseDetail[];
+}
+
+export interface StatsComparison {
+  startDate: string;
+  endDate: string;
+  totalAmount: number;
+  totalExpenses: number;
+  dailyAverage: number;
+  categoryStats: CategoryStat[];
+  tripStats: PersonalTripStat[];
+  tagStats: TagStat[];
+}
+
 export interface StatsData {
   categoryStats: CategoryStat[];
+  tripStats: PersonalTripStat[];
   tagStats: TagStat[];
   totalAmount: number;
   totalExpenses: number;
+  tripCount: number;
+  dailyAverage: number;
+  dayCount: number;
+  startDate: string | null;
+  endDate: string | null;
+  recentExpenses: ExpenseDetail[];
+  comparison: StatsComparison | null;
 }
 
 /**

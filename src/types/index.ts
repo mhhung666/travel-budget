@@ -41,6 +41,8 @@ export type {
   CategoryStat,
   TagStat,
   StatsData,
+  StatsComparison,
+  PersonalTripStat,
   MemberSpend,
   DailySpend,
   TripStatsData,
