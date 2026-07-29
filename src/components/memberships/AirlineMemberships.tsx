@@ -15,7 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { toLocalDateInputValue } from '@/lib/dateInput';
 import type { LoyaltyAccountItem, LoyaltyEntryItem } from '@/types';
 import { Button } from '@/components/ui/button';
-import { ConfirmDialog, LoadingState } from '@/components/common';
+import { ConfirmDialog, ErrorState, LoadingState } from '@/components/common';
 import { LoyaltyAccountDialog, LoyaltyEntryDialog } from '@/components/collections';
 import { ProgramProgressCard } from './ProgramProgressCard';
 import { LoyaltyLedger } from './LoyaltyLedger';
@@ -41,7 +41,7 @@ export function AirlineMemberships() {
   const t = useTranslations('collections');
   const tm = useTranslations('memberships');
   const { toast } = useToast();
-  const { data, isLoading } = useLoyalty();
+  const { data, isLoading, isError, refetch } = useLoyalty();
   const { upsertAccount, removeAccount, removeEntry } = useLoyaltyMutations();
 
   const [accountDialog, setAccountDialog] = useState<AccountDialogState>({
@@ -137,9 +137,20 @@ export function AirlineMemberships() {
     }
   };
 
+  if (isError) {
+    return <ErrorState message={tm('loadFailed')} onRetry={() => void refetch()} />;
+  }
+
   if (isLoading || !data) {
     return <LoadingState />;
   }
+
+  const airlineAccounts = accounts.filter((account) =>
+    AIRLINE_LOYALTY_PROGRAMS.includes(account.program as (typeof AIRLINE_LOYALTY_PROGRAMS)[number])
+  );
+  const hotelAccounts = accounts.filter((account) =>
+    HOTEL_LOYALTY_PROGRAMS.includes(account.program as (typeof HOTEL_LOYALTY_PROGRAMS)[number])
+  );
 
   const renderAccount = (account: LoyaltyAccountItem) => (
     <ProgramProgressCard
@@ -180,8 +191,8 @@ export function AirlineMemberships() {
             </Button>
           )}
         </div>
-        {accounts.filter((account) => account.program !== 'MB').map(renderAccount)}
-        {accounts.every((account) => account.program === 'MB') && (
+        {airlineAccounts.map(renderAccount)}
+        {airlineAccounts.length === 0 && (
           <p className="rounded-xl border border-dashed p-5 text-center text-sm text-muted-foreground">
             {tm('airlineEmpty')}
           </p>
@@ -201,8 +212,8 @@ export function AirlineMemberships() {
             </Button>
           )}
         </div>
-        {accounts.filter((account) => account.program === 'MB').map(renderAccount)}
-        {accounts.every((account) => account.program !== 'MB') && (
+        {hotelAccounts.map(renderAccount)}
+        {hotelAccounts.length === 0 && (
           <p className="rounded-xl border border-dashed p-5 text-center text-sm text-muted-foreground">
             {tm('hotelEmpty')}
           </p>

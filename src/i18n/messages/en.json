@@ -1638,6 +1638,7 @@
     "hotelHeading": "Hotel",
     "airlineEmpty": "No airline membership set up",
     "hotelEmpty": "Set up Marriott Bonvoy to track qualifying nights and tier progress",
+    "loadFailed": "Unable to load membership data. Please try again.",
     "hotelComingSoon": "Hotel memberships coming soon",
     "hotelComingSoonDesc": "Track Marriott, Hilton, IHG and more by qualifying nights — on the way."
   }

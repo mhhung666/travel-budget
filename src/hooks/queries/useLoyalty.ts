@@ -21,8 +21,6 @@ async function unwrap<T>(p: Promise<ActionResult<T>>): Promise<T> {
   return result.data;
 }
 
-const EMPTY_LOYALTY: LoyaltyData = { accounts: [], entries: [] };
-
 /**
  * 會籍總覽（我的全部會籍帳戶＋積分/里數 entries）。
  * user-level 資料（比照 collections），會籍 tab 與航空 tab 的「記入會籍」共用同一份快取。
@@ -32,7 +30,8 @@ export function useLoyalty(enabled = true) {
     queryKey: loyaltyKeys.all,
     queryFn: async (): Promise<LoyaltyData> => {
       const res = await getLoyalty();
-      return res.success ? res.data : EMPTY_LOYALTY;
+      if (!res.success) throw new Error(res.error);
+      return res.data;
     },
     enabled,
   });

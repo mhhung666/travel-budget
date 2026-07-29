@@ -1631,6 +1631,7 @@
     "hotelHeading": "ホテル",
     "airlineEmpty": "航空会員プログラムは未設定です",
     "hotelEmpty": "Marriott Bonvoyを設定して対象宿泊数とステータスを追跡",
+    "loadFailed": "会員情報を読み込めませんでした。もう一度お試しください。",
     "hotelComingSoon": "ホテル会員資格は近日対応",
     "hotelComingSoonDesc": "マリオット、ヒルトン、IHG など宿泊数制の会員資格に順次対応予定。"
   }

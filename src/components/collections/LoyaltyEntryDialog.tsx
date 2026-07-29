@@ -96,9 +96,27 @@ export function LoyaltyEntryDialog({
     // eslint-disable-next-line react-hooks/set-state-in-effect -- 開啟對話框時帶入編輯目標/預填，為刻意的同步
     setDate(editing?.date ?? defaults?.date ?? today());
     setType(editing?.type ?? defaults?.type ?? (kind === 'nights' ? 'stay' : 'other'));
-    setStatusPoints(editing ? String(editing.status_points) : '');
-    setQualifyingMiles(editing ? String(editing.qualifying_miles) : '');
-    setAwardMiles(editing ? String(editing.award_miles) : '');
+    setStatusPoints(
+      editing
+        ? String(editing.status_points)
+        : defaults?.status_points != null
+          ? String(defaults.status_points)
+          : ''
+    );
+    setQualifyingMiles(
+      editing
+        ? String(editing.qualifying_miles)
+        : defaults?.qualifying_miles != null
+          ? String(defaults.qualifying_miles)
+          : ''
+    );
+    setAwardMiles(
+      editing
+        ? String(editing.award_miles)
+        : defaults?.award_miles != null
+          ? String(defaults.award_miles)
+          : ''
+    );
     setQualifyingNights(
       editing
         ? String(editing.qualifying_nights)
