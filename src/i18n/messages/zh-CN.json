@@ -1670,7 +1670,7 @@
     "airlineHeading": "航空",
     "hotelHeading": "酒店",
     "airlineEmpty": "尚未设置航空会籍",
-    "hotelEmpty": "设置万豪旅享家，开始追踪合格间夜与升级进度",
+    "hotelEmpty": "设置酒店会籍，开始追踪合格间夜与升级进度",
     "loadFailed": "无法加载会籍数据，请稍后再试。",
     "hotelComingSoon": "酒店会籍即将推出",
     "hotelComingSoonDesc": "之后将支持万豪、希尔顿、洲际等以合格间夜计算的酒店会籍。"

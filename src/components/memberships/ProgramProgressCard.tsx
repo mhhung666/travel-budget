@@ -503,8 +503,6 @@ export function ProgramProgressCard({
   const estimatedTierIndex = rules.tiers.findIndex((tier) => tier.key === estimatedTierKey);
   const upgradeSuggested = estimatedTierIndex > currentTierIndex;
   const estimatedTierColor = TIER_BADGE_COLORS[account.program]?.[estimatedTierKey];
-  const maskedMemberNo =
-    account.member_no.length > 4 ? `•••• ${account.member_no.slice(-4)}` : account.member_no;
   const isCxTransition = account.program === 'CX' && asOf < '2027-01-01';
 
   return (
@@ -560,7 +558,7 @@ export function ProgramProgressCard({
           <div className="border-t px-4 pb-4 pt-3">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0 font-mono text-xs text-muted-foreground">
-                {maskedMemberNo}
+                {account.member_no}
               </div>
               <div className="flex shrink-0 gap-1">
                 {upgradeSuggested && onConfirmTier && (
