@@ -1,6 +1,7 @@
 'use client';
 
-import { useParams } from 'next/navigation';
+import { useEffect, useRef } from 'react';
+import { useParams, useSearchParams } from 'next/navigation';
 import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 import { TripExpenses } from '@/components/trips/detail';
@@ -22,6 +23,7 @@ import { TripDetailSkeleton } from '@/components/skeletons';
 export default function TripDetailPage() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const tripId = params.id as string;
   const tTrips = useTranslations('trips');
   const tExpense = useTranslations('expense');
@@ -49,6 +51,17 @@ export default function TripDetailPage() {
     handleDeleteExpense,
     confirmDeleteExpense,
   } = useTripDetailPage(tripId);
+  const openedExpenseId = useRef<string | null>(null);
+  const requestedExpenseId = searchParams.get('expense');
+
+  useEffect(() => {
+    if (!requestedExpenseId || openedExpenseId.current === requestedExpenseId) return;
+    const expense = expenses.find((item) => item.id === requestedExpenseId);
+    if (expense) {
+      openedExpenseId.current = requestedExpenseId;
+      editExpenseDialog.openDialog(expense);
+    }
+  }, [editExpenseDialog, expenses, requestedExpenseId]);
 
   if (loading) {
     return <TripDetailSkeleton />;

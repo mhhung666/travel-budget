@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { StatsDashboard } from '@/components/stats';
+import { useEffect, useState } from 'react';
+import { StatsDashboard, type StatsDashboardViewState } from '@/components/stats';
+import type { TimeInterval } from '@/types';
 import { useStats } from '@/hooks/queries';
 import { toLocalDateInputValue } from '@/lib/dateInput';
 
@@ -16,7 +17,13 @@ function defaultRange() {
 // 登入守衛與 user 注入由 (app)/layout.tsx 的 App Shell 處理。
 export default function StatsPage() {
   const [filters, setFilters] = useState(() => ({ ...defaultRange(), compare: true }));
-  const skipFirstUrlWrite = useRef(true);
+  const [viewState, setViewState] = useState<StatsDashboardViewState>({
+    dimension: 'category',
+    metric: 'amount',
+    interval: 'day',
+    selectedPeriod: null,
+  });
+  const [hydrated, setHydrated] = useState(false);
   const { startDate, endDate, compare } = filters;
   const setStartDate = (value: string) =>
     setFilters((current) => ({ ...current, startDate: value }));
@@ -25,28 +32,46 @@ export default function StatsPage() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    const dimension = params.get('dimension');
+    const metric = params.get('metric');
+    const interval = params.get('interval');
+    const periodStart = params.get('periodStart');
+    const periodEnd = params.get('periodEnd');
+    // URL 是首次載入的外部狀態來源，hydration 完成前不回寫網址。
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setViewState({
+      dimension:
+        dimension === 'trip' || dimension === 'tag' || dimension === 'category'
+          ? dimension
+          : 'category',
+      dimensionValue: params.get('value') || undefined,
+      metric: metric === 'count' ? 'count' : 'amount',
+      interval:
+        interval === 'week' || interval === 'month' || interval === 'day'
+          ? (interval as TimeInterval)
+          : 'day',
+      selectedPeriod:
+        periodStart && periodEnd ? { startDate: periodStart, endDate: periodEnd } : null,
+    });
     if (params.get('preset') === 'all') {
       // URL 是外部狀態來源；首次 hydration 後將它還原到 dashboard state。
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFilters({ startDate: '', endDate: '', compare: false });
-      return;
+    } else {
+      const queryStart = params.get('start');
+      const queryEnd = params.get('end');
+      if (queryStart && queryEnd) {
+        setFilters({
+          startDate: queryStart,
+          endDate: queryEnd,
+          compare: params.get('compare') !== '0',
+        });
+      }
     }
-    const queryStart = params.get('start');
-    const queryEnd = params.get('end');
-    if (queryStart && queryEnd) {
-      setFilters({
-        startDate: queryStart,
-        endDate: queryEnd,
-        compare: params.get('compare') !== '0',
-      });
-    }
+    setHydrated(true);
   }, []);
 
   useEffect(() => {
-    if (skipFirstUrlWrite.current) {
-      skipFirstUrlWrite.current = false;
-      return;
-    }
+    if (!hydrated) return;
     const params = new URLSearchParams();
     if (!startDate && !endDate) {
       params.set('preset', 'all');
@@ -55,8 +80,21 @@ export default function StatsPage() {
       params.set('end', endDate);
       params.set('compare', compare ? '1' : '0');
     }
-    window.history.replaceState(null, '', `${window.location.pathname}?${params}`);
-  }, [startDate, endDate, compare]);
+    if (viewState.dimension !== 'category') params.set('dimension', viewState.dimension);
+    if (viewState.dimensionValue) params.set('value', viewState.dimensionValue);
+    if (viewState.metric !== 'amount') params.set('metric', viewState.metric);
+    params.set('interval', viewState.interval);
+    if (viewState.selectedPeriod) {
+      params.set('periodStart', viewState.selectedPeriod.startDate);
+      params.set('periodEnd', viewState.selectedPeriod.endDate);
+    }
+    const query = params.toString();
+    window.history.replaceState(
+      null,
+      '',
+      `${window.location.pathname}${query ? `?${query}` : ''}`
+    );
+  }, [startDate, endDate, compare, viewState, hydrated]);
 
   const {
     data: stats = null,
@@ -93,6 +131,8 @@ export default function StatsPage() {
         setEndDate('');
         setCompare(false);
       }}
+      viewState={viewState}
+      onViewStateChange={setViewState}
     />
   );
 }

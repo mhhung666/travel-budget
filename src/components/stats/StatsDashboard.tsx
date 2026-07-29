@@ -15,7 +15,14 @@ import {
 import { useLocale, useTranslations } from 'next-intl';
 import DateRangeFilter from './DateRangeFilter';
 import ExpenseHistogram from './ExpenseHistogram';
-import type { CategoryStat, ExpenseDetail, PersonalTripStat, StatsData, TagStat } from '@/types';
+import type {
+  CategoryStat,
+  ExpenseDetail,
+  PersonalTripStat,
+  StatsData,
+  TagStat,
+  TimeInterval,
+} from '@/types';
 import { StatsDashboardSkeleton } from '@/components/skeletons';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -27,6 +34,14 @@ import { cn } from '@/lib/utils';
 type Dimension = 'category' | 'trip' | 'tag';
 type Metric = 'amount' | 'count';
 type Sort = 'amount' | 'count' | 'name';
+type ExpenseSort = 'dateDesc' | 'dateAsc' | 'amountDesc' | 'amountAsc';
+export interface StatsDashboardViewState {
+  dimension: Dimension;
+  dimensionValue?: string;
+  metric: Metric;
+  interval: TimeInterval;
+  selectedPeriod: { startDate: string; endDate: string } | null;
+}
 type DimensionItem = {
   id: string;
   name: string;
@@ -48,6 +63,8 @@ interface StatsDashboardProps {
   onEndDateChange: (date: string) => void;
   onYearSelect: (year: number) => void;
   onClearDates: () => void;
+  viewState: StatsDashboardViewState;
+  onViewStateChange: (state: StatsDashboardViewState) => void;
 }
 
 function comparisonPercent(current: number, previous?: number) {
@@ -101,6 +118,8 @@ export default function StatsDashboard({
   onEndDateChange,
   onYearSelect,
   onClearDates,
+  viewState,
+  onViewStateChange,
 }: StatsDashboardProps) {
   const t = useTranslations('stats');
   const tCategory = useTranslations('category');
@@ -120,14 +139,11 @@ export default function StatsDashboard({
       year: 'numeric',
     }).format(new Date(`${date}T00:00:00`));
 
-  const [dimension, setDimension] = useState<Dimension>('category');
-  const [dimensionValue, setDimensionValue] = useState<string>();
-  const [metric, setMetric] = useState<Metric>('amount');
+  const { dimension, dimensionValue, metric, interval, selectedPeriod } = viewState;
+  const updateViewState = (patch: Partial<StatsDashboardViewState>) =>
+    onViewStateChange({ ...viewState, ...patch });
   const [sort, setSort] = useState<Sort>('amount');
-  const [selectedPeriod, setSelectedPeriod] = useState<{
-    startDate: string;
-    endDate: string;
-  } | null>(null);
+  const [expenseSort, setExpenseSort] = useState<ExpenseSort>('dateDesc');
   const [showAllExpenses, setShowAllExpenses] = useState(false);
 
   const items = useMemo(() => {
@@ -158,11 +174,18 @@ export default function StatsDashboard({
   );
   const selectedItem = items.find((item) => item.id === dimensionValue);
   const baseDetails = selectedItem?.details ?? stats?.recentExpenses ?? [];
-  const filteredDetails = baseDetails.filter(
-    (detail) =>
-      !selectedPeriod ||
-      (detail.date >= selectedPeriod.startDate && detail.date <= selectedPeriod.endDate)
-  );
+  const filteredDetails = baseDetails
+    .filter(
+      (detail) =>
+        !selectedPeriod ||
+        (detail.date >= selectedPeriod.startDate && detail.date <= selectedPeriod.endDate)
+    )
+    .sort((a, b) => {
+      if (expenseSort === 'dateAsc') return a.date.localeCompare(b.date);
+      if (expenseSort === 'amountDesc') return b.amount - a.amount;
+      if (expenseSort === 'amountAsc') return a.amount - b.amount;
+      return b.date.localeCompare(a.date);
+    });
   const chartStats: CategoryStat[] = selectedItem
     ? [
         {
@@ -210,8 +233,7 @@ export default function StatsDashboard({
       value: t('tripCountValue', { count: stats?.tripCount ?? 0 }),
       icon: Plane,
       action: () => {
-        setDimension('trip');
-        setDimensionValue(undefined);
+        updateViewState({ dimension: 'trip', dimensionValue: undefined });
       },
     },
     {
@@ -242,11 +264,11 @@ export default function StatsDashboard({
           startDate={startDate}
           endDate={endDate}
           onStartDateChange={(value) => {
-            setSelectedPeriod(null);
+            updateViewState({ selectedPeriod: null });
             onStartDateChange(value);
           }}
           onEndDateChange={(value) => {
-            setSelectedPeriod(null);
+            updateViewState({ selectedPeriod: null });
             onEndDateChange(value);
           }}
           onYearSelect={onYearSelect}
@@ -316,9 +338,11 @@ export default function StatsDashboard({
           t={t}
           locale={numberLocale}
           metric={metric}
-          onMetricChange={setMetric}
+          onMetricChange={(value) => updateViewState({ metric: value })}
+          interval={interval}
+          onIntervalChange={(value) => updateViewState({ interval: value })}
           selectedPeriod={selectedPeriod}
-          onPeriodSelect={setSelectedPeriod}
+          onPeriodSelect={(value) => updateViewState({ selectedPeriod: value })}
         />
       </section>
 
@@ -341,8 +365,7 @@ export default function StatsDashboard({
                       key={value}
                       aria-pressed={dimension === value}
                       onClick={() => {
-                        setDimension(value);
-                        setDimensionValue(undefined);
+                        updateViewState({ dimension: value, dimensionValue: undefined });
                       }}
                       className={cn(
                         'flex min-h-11 items-center gap-2 rounded-md px-3 text-sm',
@@ -371,7 +394,7 @@ export default function StatsDashboard({
                 variant="secondary"
                 size="sm"
                 className="mb-4"
-                onClick={() => setDimensionValue(undefined)}
+                onClick={() => updateViewState({ dimensionValue: undefined })}
               >
                 {selectedItem?.name}
                 <X size={14} aria-hidden />
@@ -398,7 +421,9 @@ export default function StatsDashboard({
                       className="min-h-11 w-full text-left"
                       aria-pressed={dimensionValue === item.id}
                       onClick={() =>
-                        setDimensionValue(dimensionValue === item.id ? undefined : item.id)
+                        updateViewState({
+                          dimensionValue: dimensionValue === item.id ? undefined : item.id,
+                        })
                       }
                     >
                       <div className="mb-2 flex items-start justify-between gap-3">
@@ -442,25 +467,42 @@ export default function StatsDashboard({
 
         <Card className="border-muted">
           <CardContent className="p-5">
-            <div className="mb-4 flex items-center justify-between gap-3">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <ReceiptText size={18} className="text-primary" aria-hidden />
                 <h2 className="font-semibold">{t('filteredExpenses')}</h2>
               </div>
-              {filteredDetails.length > 5 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowAllExpenses(!showAllExpenses)}
+              <div className="flex items-center gap-1">
+                <select
+                  aria-label={t('expenseSort')}
+                  value={expenseSort}
+                  onChange={(event) => setExpenseSort(event.target.value as ExpenseSort)}
+                  className="min-h-11 rounded-md border bg-background px-2 text-xs"
                 >
-                  {showAllExpenses ? t('showLess') : t('viewAll')}
-                </Button>
-              )}
+                  <option value="dateDesc">{t('expenseSortNewest')}</option>
+                  <option value="dateAsc">{t('expenseSortOldest')}</option>
+                  <option value="amountDesc">{t('expenseSortHighest')}</option>
+                  <option value="amountAsc">{t('expenseSortLowest')}</option>
+                </select>
+                {filteredDetails.length > 5 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowAllExpenses(!showAllExpenses)}
+                  >
+                    {showAllExpenses ? t('showLess') : t('viewAll')}
+                  </Button>
+                )}
+              </div>
             </div>
             <div className="divide-y">
               {filteredDetails.slice(0, showAllExpenses ? undefined : 5).map((detail) => (
                 <Link
-                  href={detail.tripId ? ROUTES.TRIP_EXPENSES(detail.tripId) : ROUTES.TRIPS}
+                  href={
+                    detail.tripId
+                      ? `${ROUTES.TRIP_EXPENSES(detail.tripId)}?expense=${detail.id}`
+                      : ROUTES.TRIPS
+                  }
                   key={detail.id}
                   className="flex min-h-16 items-center justify-between gap-3 py-3"
                 >
@@ -470,6 +512,7 @@ export default function StatsDashboard({
                     </p>
                     <p className="truncate text-xs text-muted-foreground">
                       {formatDate(detail.date)} · {detail.tripName}
+                      {detail.category ? ` · ${tCategory(detail.category)}` : ''}
                     </p>
                   </div>
                   <span className="shrink-0 text-sm font-semibold">
@@ -483,8 +526,7 @@ export default function StatsDashboard({
                   <Button
                     variant="outline"
                     onClick={() => {
-                      setDimensionValue(undefined);
-                      setSelectedPeriod(null);
+                      updateViewState({ dimensionValue: undefined, selectedPeriod: null });
                     }}
                   >
                     {t('clearFilters')}

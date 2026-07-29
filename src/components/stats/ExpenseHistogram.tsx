@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { BarChart3, X } from 'lucide-react';
 import {
   BarChart,
@@ -32,6 +32,8 @@ interface ExpenseHistogramProps {
   locale: string;
   metric?: Metric;
   onMetricChange?: (metric: Metric) => void;
+  interval?: TimeInterval;
+  onIntervalChange?: (interval: TimeInterval) => void;
   cardGradient?: string;
   selectedPeriod?: { startDate: string; endDate: string } | null;
   onPeriodSelect?: (period: { startDate: string; endDate: string } | null) => void;
@@ -61,6 +63,8 @@ export default function ExpenseHistogram({
   locale,
   metric = 'amount',
   onMetricChange = () => undefined,
+  interval: requestedInterval,
+  onIntervalChange,
   selectedPeriod,
   onPeriodSelect,
 }: ExpenseHistogramProps) {
@@ -78,13 +82,6 @@ export default function ExpenseHistogram({
 
   const suggestedInterval =
     effectiveStart && effectiveEnd ? suggestInterval(effectiveStart, effectiveEnd) : 'day';
-  const rangeKey = `${effectiveStart}:${effectiveEnd}`;
-  const [intervalChoice, setIntervalChoice] = useState<{
-    rangeKey: string;
-    value: TimeInterval;
-  }>({ rangeKey, value: suggestedInterval });
-  const interval = intervalChoice.rangeKey === rangeKey ? intervalChoice.value : suggestedInterval;
-
   const daySpan =
     effectiveStart && effectiveEnd
       ? Math.round(
@@ -97,6 +94,10 @@ export default function ExpenseHistogram({
     ...(daySpan > 3 ? (['week'] as const) : []),
     ...(daySpan > 90 ? (['month'] as const) : []),
   ];
+  const interval =
+    requestedInterval && availableIntervals.includes(requestedInterval)
+      ? requestedInterval
+      : suggestedInterval;
 
   const points = useMemo<ChartPoint[]>(() => {
     if (!effectiveStart || !effectiveEnd) return [];
@@ -173,7 +174,7 @@ export default function ExpenseHistogram({
                 type="button"
                 disabled={!availableIntervals.includes(value)}
                 aria-pressed={interval === value}
-                onClick={() => setIntervalChoice({ rangeKey, value })}
+                onClick={() => onIntervalChange?.(value)}
                 className={cn(
                   'min-h-11 rounded-md px-3 text-sm disabled:cursor-not-allowed disabled:opacity-40',
                   interval === value && 'bg-background font-medium shadow-sm'
