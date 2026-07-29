@@ -206,39 +206,47 @@ export function AccountSettingsSkeleton() {
 export function StatsDashboardSkeleton() {
   return (
     <div className="container mx-auto px-4 py-6 pb-12 max-w-7xl">
-      <div className="space-y-8">
-        {/* Filter / year selector row */}
-        <div className="flex flex-wrap gap-3">
-          <Skeleton className="h-10 w-40" />
-          <Skeleton className="h-10 w-40" />
-          <Skeleton className="h-10 w-24" />
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-36" />
+          <Skeleton className="h-4 w-64 max-w-full" />
         </div>
+
+        {/* Date filter */}
+        <Card>
+          <CardContent className="space-y-3 p-5">
+            <Skeleton className="h-5 w-28" />
+            <div className="flex flex-wrap gap-2">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-11 w-20" />
+              ))}
+            </div>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Summary cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <Card key={i}>
-              <CardHeader className="space-y-2">
+              <CardContent className="space-y-4 p-4 sm:p-5">
                 <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-8 w-32" />
-              </CardHeader>
-            </Card>
-          ))}
-        </div>
-
-        {/* Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {Array.from({ length: 2 }).map((_, i) => (
-            <Card key={i}>
-              <CardHeader>
-                <Skeleton className="h-6 w-40" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-64 w-full" />
+                <Skeleton className="h-8 w-32 max-w-full" />
               </CardContent>
             </Card>
           ))}
         </div>
+
+        {/* Full-width chart */}
+        <Card>
+          <CardContent className="space-y-4 p-5">
+            <Skeleton className="h-6 w-40" />
+            <Skeleton className="h-80 w-full" />
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

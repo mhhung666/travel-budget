@@ -179,42 +179,52 @@ export default function StatsDashboard({
     [dimension, stats, tCategory]
   );
   const selectedItem = items.find((item) => item.id === dimensionValue);
-  const baseDetails = selectedItem?.details ?? stats?.recentExpenses ?? [];
-  const filteredDetails = baseDetails
-    .filter(
-      (detail) =>
-        !selectedPeriod ||
-        (detail.date >= selectedPeriod.startDate && detail.date <= selectedPeriod.endDate)
-    )
-    .sort((a, b) => {
-      if (expenseSort === 'dateAsc') return a.date.localeCompare(b.date);
-      if (expenseSort === 'amountDesc') return b.amount - a.amount;
-      if (expenseSort === 'amountAsc') return a.amount - b.amount;
-      return b.date.localeCompare(a.date);
-    });
-  const chartStats: CategoryStat[] = selectedItem
-    ? [
-        {
-          category: selectedItem.name,
-          total: selectedItem.total,
-          count: selectedItem.count,
-          details: selectedItem.details,
-        },
-      ]
-    : (stats?.categoryStats ?? []);
+  const filteredDetails = useMemo(() => {
+    const baseDetails = selectedItem?.details ?? stats?.recentExpenses ?? [];
+    return baseDetails
+      .filter(
+        (detail) =>
+          !selectedPeriod ||
+          (detail.date >= selectedPeriod.startDate && detail.date <= selectedPeriod.endDate)
+      )
+      .sort((a, b) => {
+        if (expenseSort === 'dateAsc') return a.date.localeCompare(b.date);
+        if (expenseSort === 'amountDesc') return b.amount - a.amount;
+        if (expenseSort === 'amountAsc') return a.amount - b.amount;
+        return b.date.localeCompare(a.date);
+      });
+  }, [expenseSort, selectedItem, selectedPeriod, stats?.recentExpenses]);
+  const chartStats = useMemo<CategoryStat[]>(
+    () =>
+      selectedItem
+        ? [
+            {
+              category: selectedItem.name,
+              total: selectedItem.total,
+              count: selectedItem.count,
+              details: selectedItem.details,
+            },
+          ]
+        : (stats?.categoryStats ?? []),
+    [selectedItem, stats?.categoryStats]
+  );
   const previousSelected = previousItems.find((item) => item.id === dimensionValue);
-  const comparisonChartStats: CategoryStat[] = dimensionValue
-    ? previousSelected
-      ? [
-          {
-            category: previousSelected.name,
-            total: previousSelected.total,
-            count: previousSelected.count,
-            details: previousSelected.details,
-          },
-        ]
-      : []
-    : (stats?.comparison?.categoryStats ?? []);
+  const comparisonChartStats = useMemo<CategoryStat[]>(
+    () =>
+      dimensionValue
+        ? previousSelected
+          ? [
+              {
+                category: previousSelected.name,
+                total: previousSelected.total,
+                count: previousSelected.count,
+                details: previousSelected.details,
+              },
+            ]
+          : []
+        : (stats?.comparison?.categoryStats ?? []),
+    [dimensionValue, previousSelected, stats?.comparison?.categoryStats]
+  );
 
   if (loading && !stats) return <StatsDashboardSkeleton />;
 
@@ -358,7 +368,7 @@ export default function StatsDashboard({
       ) : (
         <>
           <section
-            className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4"
+            className="mb-6 grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 lg:grid-cols-4"
             aria-label={t('insights')}
           >
             {cards.map((card) => {
@@ -433,7 +443,7 @@ export default function StatsDashboard({
             <Card className="border-muted">
               <CardContent className="p-5">
                 <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex gap-1 rounded-lg bg-muted p-1">
+                  <div className="grid w-full grid-cols-3 gap-1 rounded-lg bg-muted p-1 sm:w-auto">
                     {(
                       [
                         ['category', Layers3],
@@ -451,7 +461,7 @@ export default function StatsDashboard({
                             updateViewState({ dimension: value, dimensionValue: undefined });
                           }}
                           className={cn(
-                            'flex min-h-11 items-center gap-2 rounded-md px-3 text-sm',
+                            'flex min-h-11 min-w-0 items-center justify-center gap-1 rounded-md px-2 text-sm sm:gap-2 sm:px-3',
                             dimension === value && 'bg-background font-medium shadow-sm'
                           )}
                         >

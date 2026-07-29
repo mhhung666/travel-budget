@@ -152,7 +152,7 @@ export default function DateRangeFilter({
             })}
           </div>
 
-          <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1.5">
+          <div className="grid grid-cols-1 items-center gap-1.5 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
             <Input
               type="date"
               aria-label={t('startDate')}
@@ -160,7 +160,11 @@ export default function DateRangeFilter({
               onChange={(e) => onStartDateChange(e.target.value)}
               className="min-w-0 text-xs"
             />
-            <ArrowRight size={14} className="shrink-0 text-muted-foreground" />
+            <ArrowRight
+              size={14}
+              className="hidden shrink-0 text-muted-foreground sm:block"
+              aria-hidden
+            />
             <Input
               type="date"
               aria-label={t('endDate')}

@@ -79,6 +79,7 @@ describe('personal statistics mobile date controls', () => {
     fireEvent.change(screen.getByLabelText('endDate'), { target: { value: '2026-07-20' } });
     expect(onStartDateChange).toHaveBeenCalledWith('2026-07-05');
     expect(onEndDateChange).toHaveBeenCalledWith('2026-07-20');
+    expect(screen.getByLabelText('startDate').parentElement?.className).toContain('grid-cols-1');
 
     await user.click(screen.getByRole('checkbox', { name: 'comparePrevious' }));
     expect(onCompareChange).toHaveBeenCalledWith(false);
@@ -207,6 +208,8 @@ describe('personal statistics mobile chart controls', () => {
 
     const chartRegion = screen.getByRole('region', { name: 'expenseHistogram' });
     const dataRegion = screen.getByRole('region', { name: 'chartData' });
+    expect(screen.getByLabelText('metric').className).toContain('grid-cols-2');
+    expect(screen.getByLabelText('interval').className).toContain('grid-cols-3');
     for (const region of [chartRegion, dataRegion]) {
       expect(region.getAttribute('tabindex')).toBe('0');
       expect(region.className).toContain('touch-pan-x');

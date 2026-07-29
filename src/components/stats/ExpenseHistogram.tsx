@@ -152,8 +152,8 @@ export default function ExpenseHistogram({
             <p className="text-xs text-muted-foreground">{t('chartHint')}</p>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <div className="flex rounded-lg bg-muted p-1" aria-label={t('metric')}>
+        <div className="grid w-full gap-2 sm:flex sm:w-auto sm:flex-wrap">
+          <div className="grid grid-cols-2 rounded-lg bg-muted p-1" aria-label={t('metric')}>
             {(['amount', 'count'] as const).map((value) => (
               <button
                 key={value}
@@ -161,7 +161,7 @@ export default function ExpenseHistogram({
                 aria-pressed={metric === value}
                 onClick={() => onMetricChange(value)}
                 className={cn(
-                  'min-h-11 rounded-md px-3 text-sm',
+                  'min-h-11 rounded-md px-2 text-sm sm:px-3',
                   metric === value && 'bg-background font-medium shadow-sm'
                 )}
               >
@@ -169,7 +169,7 @@ export default function ExpenseHistogram({
               </button>
             ))}
           </div>
-          <div className="flex rounded-lg bg-muted p-1" aria-label={t('interval')}>
+          <div className="grid grid-cols-3 rounded-lg bg-muted p-1" aria-label={t('interval')}>
             {(['day', 'week', 'month'] as const).map((value) => (
               <button
                 key={value}
@@ -178,7 +178,7 @@ export default function ExpenseHistogram({
                 aria-pressed={interval === value}
                 onClick={() => onIntervalChange?.(value)}
                 className={cn(
-                  'min-h-11 rounded-md px-3 text-sm disabled:cursor-not-allowed disabled:opacity-40',
+                  'min-h-11 rounded-md px-2 text-sm disabled:cursor-not-allowed disabled:opacity-40 sm:px-3',
                   interval === value && 'bg-background font-medium shadow-sm'
                 )}
               >

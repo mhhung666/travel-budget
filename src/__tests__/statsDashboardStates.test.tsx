@@ -231,5 +231,13 @@ describe('personal statistics dashboard interactions', () => {
       .filter((link) => link.getAttribute('href')?.includes('?expense='));
     expect(expenseLinks[0].textContent).toContain('Expense 1');
     expect(expenseLinks[5].textContent).toContain('Expense 6');
+    expect(details.map((detail) => detail.id)).toEqual([
+      'expense-1',
+      'expense-2',
+      'expense-3',
+      'expense-4',
+      'expense-5',
+      'expense-6',
+    ]);
   });
 });
