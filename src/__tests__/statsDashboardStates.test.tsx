@@ -164,3 +164,72 @@ describe('personal statistics recovery states', () => {
     expect(onRetry).toHaveBeenCalledOnce();
   });
 });
+
+describe('personal statistics dashboard interactions', () => {
+  it('lets mobile users switch dimensions and select an analysis row by tap', async () => {
+    const user = userEvent.setup();
+    const onViewStateChange = vi.fn();
+
+    renderDashboard({ stats: populatedStats, onViewStateChange });
+
+    await user.click(screen.getByRole('button', { name: /tripCount/ }));
+    expect(onViewStateChange).toHaveBeenCalledWith({
+      ...viewState,
+      dimension: 'trip',
+      dimensionValue: undefined,
+    });
+
+    await user.click(screen.getByRole('button', { name: 'dimensionTrip' }));
+    expect(onViewStateChange).toHaveBeenCalledWith({
+      ...viewState,
+      dimension: 'trip',
+      dimensionValue: undefined,
+    });
+
+    await user.click(screen.getByRole('button', { name: /food/ }));
+    expect(onViewStateChange).toHaveBeenCalledWith({
+      ...viewState,
+      dimensionValue: 'food',
+    });
+  });
+
+  it('sorts expense details and expands the full list without hover', async () => {
+    const user = userEvent.setup();
+    const details = Array.from({ length: 6 }, (_, index) => ({
+      id: `expense-${index + 1}`,
+      date: `2026-07-${String(index + 1).padStart(2, '0')}`,
+      description: `Expense ${index + 1}`,
+      amount: (index + 1) * 100,
+      tripName: 'Tokyo',
+      tripId: 'trip-1',
+      category: 'food',
+    }));
+    const stats: StatsData = {
+      ...populatedStats,
+      categoryStats: [
+        {
+          category: 'food',
+          total: 2100,
+          count: details.length,
+          details,
+        },
+      ],
+      totalAmount: 2100,
+      totalExpenses: details.length,
+      recentExpenses: details,
+    };
+
+    renderDashboard({ stats });
+
+    expect(screen.queryByText('Expense 1')).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'viewAll' }));
+    expect(screen.queryByText('Expense 1')).not.toBeNull();
+
+    await user.selectOptions(screen.getByRole('combobox', { name: 'expenseSort' }), 'amountAsc');
+    const expenseLinks = screen
+      .getAllByRole('link')
+      .filter((link) => link.getAttribute('href')?.includes('?expense='));
+    expect(expenseLinks[0].textContent).toContain('Expense 1');
+    expect(expenseLinks[5].textContent).toContain('Expense 6');
+  });
+});

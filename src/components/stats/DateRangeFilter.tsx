@@ -2,7 +2,6 @@
 
 import { Calendar, ArrowRight } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { toLocalDateInputValue } from '@/lib/dateInput';
@@ -58,8 +57,11 @@ const getDateRanges = () => {
 
 const chipClass = (selected: boolean) =>
   cn(
-    'cursor-pointer px-2.5 py-1 text-xs font-normal transition-colors',
-    selected ? 'hover:bg-primary/90' : 'hover:bg-accent hover:text-accent-foreground'
+    'inline-flex min-h-11 items-center rounded-md border px-3 py-1 text-xs font-normal transition-colors',
+    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+    selected
+      ? 'border-transparent bg-primary text-primary-foreground shadow hover:bg-primary/90'
+      : 'border-input bg-background hover:bg-accent hover:text-accent-foreground'
   );
 
 export default function DateRangeFilter({
@@ -111,57 +113,61 @@ export default function DateRangeFilter({
           {presets.map((item) => {
             const selected = isRangeSelected(item.range);
             return (
-              <Badge
+              <button
+                type="button"
                 key={item.label}
-                variant={selected ? 'default' : 'outline'}
                 className={chipClass(selected)}
+                aria-pressed={selected}
                 onClick={() => handleQuickSelect(item.range)}
               >
                 {item.label}
-              </Badge>
+              </button>
             );
           })}
-          <Badge
-            variant={!startDate && !endDate ? 'default' : 'outline'}
+          <button
+            type="button"
             className={chipClass(!startDate && !endDate)}
+            aria-pressed={!startDate && !endDate}
             onClick={onClearDates}
           >
             {t('allTime')}
-          </Badge>
+          </button>
         </div>
 
-        {/* 年度 + 自訂範圍同一列，wrap 後在窄螢幕自動換行 */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="space-y-2">
           <div className="flex flex-wrap gap-1.5">
             {years.map((year) => {
               const selected = isYearSelected(year);
               return (
-                <Badge
+                <button
+                  type="button"
                   key={year}
-                  variant={selected ? 'default' : 'outline'}
                   className={cn(chipClass(selected), selected && 'font-semibold')}
+                  aria-pressed={selected}
                   onClick={() => onYearSelect(year)}
                 >
                   {year}
-                </Badge>
+                </button>
               );
             })}
           </div>
 
-          <div className="flex flex-1 items-center gap-1.5">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1.5">
             <Input
               type="date"
+              aria-label={t('startDate')}
               value={startDate}
               onChange={(e) => onStartDateChange(e.target.value)}
-              className="h-8 flex-1 text-xs"
+              className="min-w-0 text-xs"
             />
             <ArrowRight size={14} className="shrink-0 text-muted-foreground" />
             <Input
               type="date"
+              aria-label={t('endDate')}
               value={endDate}
               onChange={(e) => onEndDateChange(e.target.value)}
               min={startDate}
-              className="h-8 flex-1 text-xs"
+              className="min-w-0 text-xs"
             />
           </div>
         </div>

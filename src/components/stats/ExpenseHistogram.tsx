@@ -192,12 +192,13 @@ export default function ExpenseHistogram({
       <CardContent className="px-2 pb-5 sm:px-5">
         {points.length ? (
           <>
-            <div className="w-full overflow-x-auto pb-2">
-              <div
-                className="h-[320px]"
-                style={{ width: `max(100%, ${minimumChartWidth}px)` }}
-                aria-label={t('expenseHistogram')}
-              >
+            <div
+              className="w-full touch-pan-x overflow-x-auto overscroll-x-contain pb-2"
+              role="region"
+              aria-label={t('expenseHistogram')}
+              tabIndex={0}
+            >
+              <div className="h-[320px]" style={{ width: `max(100%, ${minimumChartWidth}px)` }}>
                 <ResponsiveContainer>
                   <BarChart
                     data={points}
@@ -267,7 +268,12 @@ export default function ExpenseHistogram({
                 </ResponsiveContainer>
               </div>
             </div>
-            <div className="mt-2 flex gap-2 overflow-x-auto pb-1" aria-label={t('chartData')}>
+            <div
+              className="mt-2 flex touch-pan-x gap-2 overflow-x-auto overscroll-x-contain pb-1"
+              role="region"
+              aria-label={t('chartData')}
+              tabIndex={0}
+            >
               {points.map((point) => {
                 const selected = selectedKey === `${point.startDate}:${point.endDate}`;
                 return (
