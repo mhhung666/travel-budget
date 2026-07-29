@@ -2,10 +2,8 @@
 
 import { useMemo, useState } from 'react';
 import {
-  ArrowDownRight,
-  ArrowUpRight,
   AlertCircle,
-  CalendarDays,
+  Calculator,
   CircleDollarSign,
   Layers3,
   Loader2,
@@ -62,20 +60,12 @@ interface StatsDashboardProps {
   onRetry: () => void;
   startDate: string;
   endDate: string;
-  compare: boolean;
-  onCompareChange: (compare: boolean) => void;
   onStartDateChange: (date: string) => void;
   onEndDateChange: (date: string) => void;
   onYearSelect: (year: number) => void;
   onClearDates: () => void;
   viewState: StatsDashboardViewState;
   onViewStateChange: (state: StatsDashboardViewState) => void;
-}
-
-function comparisonPercent(current: number, previous?: number) {
-  if (previous === undefined) return null;
-  if (previous === 0) return current === 0 ? 0 : null;
-  return Math.round(((current - previous) / previous) * 100);
 }
 
 function dimensionItems(
@@ -118,8 +108,6 @@ export default function StatsDashboard({
   onRetry,
   startDate,
   endDate,
-  compare,
-  onCompareChange,
   onStartDateChange,
   onEndDateChange,
   onYearSelect,
@@ -163,21 +151,6 @@ export default function StatsDashboard({
           : b.total - a.total
     );
   }, [dimension, stats, sort, numberLocale, tCategory]);
-  const previousItems = useMemo(
-    () =>
-      stats?.comparison
-        ? dimensionItems(
-            dimension,
-            {
-              categoryStats: stats.comparison.categoryStats,
-              tripStats: stats.comparison.tripStats,
-              tagStats: stats.comparison.tagStats,
-            },
-            (key) => tCategory(key)
-          )
-        : [],
-    [dimension, stats, tCategory]
-  );
   const selectedItem = items.find((item) => item.id === dimensionValue);
   const filteredDetails = useMemo(() => {
     const baseDetails = selectedItem?.details ?? stats?.recentExpenses ?? [];
@@ -208,24 +181,6 @@ export default function StatsDashboard({
         : (stats?.categoryStats ?? []),
     [selectedItem, stats?.categoryStats]
   );
-  const previousSelected = previousItems.find((item) => item.id === dimensionValue);
-  const comparisonChartStats = useMemo<CategoryStat[]>(
-    () =>
-      dimensionValue
-        ? previousSelected
-          ? [
-              {
-                category: previousSelected.name,
-                total: previousSelected.total,
-                count: previousSelected.count,
-                details: previousSelected.details,
-              },
-            ]
-          : []
-        : (stats?.comparison?.categoryStats ?? []),
-    [dimensionValue, previousSelected, stats?.comparison?.categoryStats]
-  );
-
   if (loading && !stats) return <StatsDashboardSkeleton />;
 
   const hasExpenses = (stats?.totalExpenses ?? 0) > 0;
@@ -235,15 +190,11 @@ export default function StatsDashboard({
       label: t('totalSpent'),
       value: formatCurrency(stats?.totalAmount ?? 0),
       icon: CircleDollarSign,
-      current: stats?.totalAmount ?? 0,
-      previous: stats?.comparison?.totalAmount,
     },
     {
-      label: t('dailyAverage'),
-      value: formatCurrency(stats?.dailyAverage ?? 0),
-      icon: CalendarDays,
-      current: stats?.dailyAverage ?? 0,
-      previous: stats?.comparison?.dailyAverage,
+      label: t('averagePerTrip'),
+      value: formatCurrency(stats?.averagePerTrip ?? 0),
+      icon: Calculator,
     },
     {
       label: t('tripCount'),
@@ -277,8 +228,6 @@ export default function StatsDashboard({
       }}
       onYearSelect={onYearSelect}
       onClearDates={onClearDates}
-      compare={compare}
-      onCompareChange={onCompareChange}
       t={t}
     />
   );
@@ -372,7 +321,6 @@ export default function StatsDashboard({
             aria-label={t('insights')}
           >
             {cards.map((card) => {
-              const change = comparisonPercent(card.current ?? 0, card.previous);
               const Icon = card.icon;
               const content = (
                 <Card
@@ -390,22 +338,6 @@ export default function StatsDashboard({
                     {card.detail && (
                       <p className="mt-1 text-xs text-muted-foreground">{card.detail}</p>
                     )}
-                    {card.previous !== undefined && (
-                      <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
-                        {change === null ? (
-                          t('noPreviousSpend')
-                        ) : (
-                          <>
-                            {change > 0 ? (
-                              <ArrowUpRight size={14} aria-hidden />
-                            ) : change < 0 ? (
-                              <ArrowDownRight size={14} aria-hidden />
-                            ) : null}
-                            {t('comparedWithPrevious', { value: Math.abs(change) })}
-                          </>
-                        )}
-                      </p>
-                    )}
                   </CardContent>
                 </Card>
               );
@@ -422,11 +354,8 @@ export default function StatsDashboard({
           <section className="mb-6">
             <ExpenseHistogram
               categoryStats={chartStats}
-              comparisonStats={comparisonChartStats}
               startDate={stats?.startDate ?? startDate}
               endDate={stats?.endDate ?? endDate}
-              comparisonStartDate={stats?.comparison?.startDate}
-              comparisonEndDate={stats?.comparison?.endDate}
               formatCurrency={formatCurrency}
               t={t}
               locale={numberLocale}
@@ -496,8 +425,6 @@ export default function StatsDashboard({
 
                 <div className="space-y-2">
                   {items.map((item) => {
-                    const previous = previousItems.find((value) => value.id === item.id);
-                    const change = comparisonPercent(item.total, previous?.total);
                     const percentage = Math.round(
                       (item.total / Math.max(stats?.totalAmount ?? 1, 1)) * 100
                     );
@@ -526,9 +453,6 @@ export default function StatsDashboard({
                               <p className="font-medium">{item.name}</p>
                               <p className="text-xs text-muted-foreground">
                                 {t('dimensionMeta', { count: item.count, percentage })}
-                                {change !== null && previous
-                                  ? ` · ${t('changePercent', { value: change })}`
-                                  : ''}
                               </p>
                             </div>
                             <span className="font-semibold">{formatCurrency(item.total)}</span>

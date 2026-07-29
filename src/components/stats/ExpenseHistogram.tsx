@@ -22,11 +22,8 @@ type Metric = 'amount' | 'count';
 
 interface ExpenseHistogramProps {
   categoryStats: CategoryStat[];
-  comparisonStats?: CategoryStat[];
   startDate: string;
   endDate: string;
-  comparisonStartDate?: string;
-  comparisonEndDate?: string;
   formatCurrency: (amount: number) => string;
   t: (key: string, values?: Record<string, string | number>) => string;
   locale: string;
@@ -39,10 +36,7 @@ interface ExpenseHistogramProps {
   onPeriodSelect?: (period: { startDate: string; endDate: string } | null) => void;
 }
 
-type ChartPoint = HistogramDataPoint & {
-  comparisonAmount?: number;
-  comparisonCount?: number;
-};
+type ChartPoint = HistogramDataPoint;
 
 function compactNumber(value: number, locale: string) {
   return new Intl.NumberFormat(locale, {
@@ -53,11 +47,8 @@ function compactNumber(value: number, locale: string) {
 
 export default function ExpenseHistogram({
   categoryStats,
-  comparisonStats = [],
   startDate,
   endDate,
-  comparisonStartDate,
-  comparisonEndDate,
   formatCurrency,
   t,
   locale,
@@ -101,43 +92,20 @@ export default function ExpenseHistogram({
 
   const points = useMemo<ChartPoint[]>(() => {
     if (!effectiveStart || !effectiveEnd) return [];
-    const current = aggregateExpensesByInterval(
+    return aggregateExpensesByInterval(
       categoryStats,
       interval,
       effectiveStart,
       effectiveEnd,
       locale
     ).dataPoints;
-    if (!comparisonStartDate || !comparisonEndDate || comparisonStats.length === 0) return current;
-    const previous = aggregateExpensesByInterval(
-      comparisonStats,
-      interval,
-      comparisonStartDate,
-      comparisonEndDate,
-      locale
-    ).dataPoints;
-    return current.map((point, index) => ({
-      ...point,
-      comparisonAmount: previous[index]?.amount ?? 0,
-      comparisonCount: previous[index]?.count ?? 0,
-    }));
-  }, [
-    categoryStats,
-    comparisonStats,
-    interval,
-    effectiveStart,
-    effectiveEnd,
-    comparisonStartDate,
-    comparisonEndDate,
-    locale,
-  ]);
+  }, [categoryStats, interval, effectiveStart, effectiveEnd, locale]);
 
   const selectedKey = selectedPeriod
     ? `${selectedPeriod.startDate}:${selectedPeriod.endDate}`
     : undefined;
   const valueKey = metric === 'amount' ? 'amount' : 'count';
-  const comparisonKey = metric === 'amount' ? 'comparisonAmount' : 'comparisonCount';
-  const chartPointWidth = comparisonStats.length > 0 ? 32 : 24;
+  const chartPointWidth = 24;
   const minimumChartWidth = points.length * chartPointWidth;
 
   return (
@@ -234,9 +202,9 @@ export default function ExpenseHistogram({
                     />
                     <Tooltip
                       cursor={{ fill: 'hsl(var(--muted) / 0.35)' }}
-                      formatter={(value, name) => [
+                      formatter={(value) => [
                         metric === 'amount' ? formatCurrency(Number(value)) : Number(value),
-                        name === comparisonKey ? t('previousPeriod') : t('currentPeriod'),
+                        t(metric === 'amount' ? 'amountMetric' : 'countMetric'),
                       ]}
                       labelFormatter={(_, payload) => {
                         const point = payload?.[0]?.payload as ChartPoint | undefined;
@@ -245,13 +213,6 @@ export default function ExpenseHistogram({
                           : '';
                       }}
                     />
-                    {comparisonStats.length > 0 && (
-                      <Bar
-                        dataKey={comparisonKey}
-                        fill="hsl(var(--muted-foreground) / 0.3)"
-                        maxBarSize={14}
-                      />
-                    )}
                     <Bar dataKey={valueKey} radius={[5, 5, 0, 0]} maxBarSize={20}>
                       {points.map((point) => (
                         <Cell

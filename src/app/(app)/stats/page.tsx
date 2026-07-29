@@ -16,7 +16,7 @@ function defaultRange() {
 
 // 登入守衛與 user 注入由 (app)/layout.tsx 的 App Shell 處理。
 export default function StatsPage() {
-  const [filters, setFilters] = useState(() => ({ ...defaultRange(), compare: true }));
+  const [filters, setFilters] = useState(defaultRange);
   const [viewState, setViewState] = useState<StatsDashboardViewState>({
     dimension: 'category',
     metric: 'amount',
@@ -24,11 +24,10 @@ export default function StatsPage() {
     selectedPeriod: null,
   });
   const [hydrated, setHydrated] = useState(false);
-  const { startDate, endDate, compare } = filters;
+  const { startDate, endDate } = filters;
   const setStartDate = (value: string) =>
     setFilters((current) => ({ ...current, startDate: value }));
   const setEndDate = (value: string) => setFilters((current) => ({ ...current, endDate: value }));
-  const setCompare = (value: boolean) => setFilters((current) => ({ ...current, compare: value }));
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -55,16 +54,12 @@ export default function StatsPage() {
     });
     if (params.get('preset') === 'all') {
       // URL 是外部狀態來源；首次 hydration 後將它還原到 dashboard state。
-      setFilters({ startDate: '', endDate: '', compare: false });
+      setFilters({ startDate: '', endDate: '' });
     } else {
       const queryStart = params.get('start');
       const queryEnd = params.get('end');
       if (queryStart && queryEnd) {
-        setFilters({
-          startDate: queryStart,
-          endDate: queryEnd,
-          compare: params.get('compare') !== '0',
-        });
+        setFilters({ startDate: queryStart, endDate: queryEnd });
       }
     }
     setHydrated(true);
@@ -78,7 +73,6 @@ export default function StatsPage() {
     } else {
       params.set('start', startDate);
       params.set('end', endDate);
-      params.set('compare', compare ? '1' : '0');
     }
     if (viewState.dimension !== 'category') params.set('dimension', viewState.dimension);
     if (viewState.dimensionValue) params.set('value', viewState.dimensionValue);
@@ -90,7 +84,7 @@ export default function StatsPage() {
     }
     const query = params.toString();
     window.history.replaceState(null, '', `${window.location.pathname}${query ? `?${query}` : ''}`);
-  }, [startDate, endDate, compare, viewState, hydrated]);
+  }, [startDate, endDate, viewState, hydrated]);
 
   const {
     data: stats = null,
@@ -98,7 +92,7 @@ export default function StatsPage() {
     isError,
     error: statsError,
     refetch,
-  } = useStats({ startDate, endDate, compare }, true);
+  } = useStats({ startDate, endDate }, true);
 
   const error = isError
     ? statsError instanceof Error
@@ -121,15 +115,12 @@ export default function StatsPage() {
       }}
       startDate={startDate}
       endDate={endDate}
-      compare={compare}
-      onCompareChange={setCompare}
       onStartDateChange={setStartDate}
       onEndDateChange={setEndDate}
       onYearSelect={handleYearSelect}
       onClearDates={() => {
         setStartDate('');
         setEndDate('');
-        setCompare(false);
       }}
       viewState={viewState}
       onViewStateChange={setViewState}

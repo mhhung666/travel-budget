@@ -43,12 +43,10 @@ const emptyStats: StatsData = {
   totalAmount: 0,
   totalExpenses: 0,
   tripCount: 0,
-  dailyAverage: 0,
-  dayCount: 0,
+  averagePerTrip: 0,
   startDate: '2026-07-01',
   endDate: '2026-07-31',
   recentExpenses: [],
-  comparison: null,
 };
 
 const populatedStats: StatsData = {
@@ -83,8 +81,7 @@ const populatedStats: StatsData = {
   totalAmount: 500,
   totalExpenses: 1,
   tripCount: 1,
-  dailyAverage: 16,
-  dayCount: 31,
+  averagePerTrip: 500,
   recentExpenses: [
     {
       id: 'expense-1',
@@ -106,8 +103,6 @@ function renderDashboard(overrides: Partial<React.ComponentProps<typeof StatsDas
     onRetry: vi.fn(),
     startDate: '2026-07-01',
     endDate: '2026-07-31',
-    compare: true,
-    onCompareChange: vi.fn(),
     onStartDateChange: vi.fn(),
     onEndDateChange: vi.fn(),
     onYearSelect: vi.fn(),
@@ -172,6 +167,7 @@ describe('personal statistics dashboard interactions', () => {
 
     renderDashboard({ stats: populatedStats, onViewStateChange });
 
+    expect(screen.queryByText('averagePerTrip')).not.toBeNull();
     await user.click(screen.getByRole('button', { name: /tripCount/ }));
     expect(onViewStateChange).toHaveBeenCalledWith({
       ...viewState,

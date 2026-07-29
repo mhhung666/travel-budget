@@ -13,7 +13,6 @@ import type {
   TagStat,
   ExpenseDetail,
   PersonalTripStat,
-  StatsComparison,
   TripStatsData,
 } from '@/types';
 import { logger } from '@/lib/logger';
@@ -27,7 +26,6 @@ import {
 interface GetStatsOptions {
   startDate?: string;
   endDate?: string;
-  compare?: boolean;
 }
 
 type LeanStatExpense = {
@@ -51,30 +49,8 @@ type StatsAggregate = Pick<
   | 'recentExpenses'
 >;
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-
 function dateOnly(date: Date) {
   return date.toISOString().slice(0, 10);
-}
-
-function inclusiveDayCount(startDate?: string, endDate?: string) {
-  if (!startDate || !endDate) return 0;
-  return Math.max(
-    1,
-    Math.round(
-      (Date.parse(`${endDate}T00:00:00.000Z`) - Date.parse(`${startDate}T00:00:00.000Z`)) / DAY_MS
-    ) + 1
-  );
-}
-
-function previousPeriod(startDate?: string, endDate?: string) {
-  if (!startDate || !endDate) return null;
-  const days = inclusiveDayCount(startDate, endDate);
-  const previousEnd = new Date(`${startDate}T00:00:00.000Z`);
-  previousEnd.setUTCDate(previousEnd.getUTCDate() - 1);
-  const previousStart = new Date(previousEnd);
-  previousStart.setUTCDate(previousStart.getUTCDate() - days + 1);
-  return { startDate: dateOnly(previousStart), endDate: dateOnly(previousEnd), days };
 }
 
 function aggregatePersonalStats(expenses: LeanStatExpense[], userId: string): StatsAggregate {
@@ -176,12 +152,10 @@ function emptyStats(startDate?: string, endDate?: string): StatsData {
     totalAmount: 0,
     totalExpenses: 0,
     tripCount: 0,
-    dailyAverage: 0,
-    dayCount: inclusiveDayCount(startDate, endDate),
+    averagePerTrip: 0,
     startDate: startDate || null,
     endDate: endDate || null,
     recentExpenses: [],
-    comparison: null,
   };
 }
 
@@ -191,7 +165,7 @@ function emptyStats(startDate?: string, endDate?: string): StatsData {
 export const getStats = withAuth(
   async (session, options: GetStatsOptions = {}): Promise<ActionResult<StatsData>> => {
     try {
-      const { startDate, endDate, compare = false } = options;
+      const { startDate, endDate } = options;
 
       await dbConnect();
 
@@ -207,12 +181,7 @@ export const getStats = withAuth(
       const tripIds = userTrips.map((t) => t._id);
 
       // 查詢區間（分類統計依支出 date）
-      const prior = compare ? previousPeriod(startDate, endDate) : null;
-      const rangeStart = prior
-        ? new Date(`${prior.startDate}T00:00:00.000Z`)
-        : startDate
-          ? new Date(`${startDate}T00:00:00.000Z`)
-          : null;
+      const rangeStart = startDate ? new Date(`${startDate}T00:00:00.000Z`) : null;
       const rangeEnd = endDate ? new Date(`${endDate}T23:59:59.999Z`) : null;
 
       // 2. Get expenses where the user is in the splits（含內嵌 splits）
@@ -234,44 +203,15 @@ export const getStats = withAuth(
         return (!startDate || value >= startDate) && (!endDate || value <= endDate);
       };
       const current = aggregatePersonalStats(expenses.filter(isCurrent), session.userId);
-      const dayCount =
-        inclusiveDayCount(startDate, endDate) ||
-        (current.recentExpenses.length
-          ? inclusiveDayCount(
-              current.recentExpenses.at(-1)?.date,
-              current.recentExpenses.at(0)?.date
-            )
-          : 0);
-      let comparison: StatsComparison | null = null;
-      if (prior) {
-        const previous = aggregatePersonalStats(
-          expenses.filter((expense) => {
-            const value = dateOnly(expense.date);
-            return value >= prior.startDate && value <= prior.endDate;
-          }),
-          session.userId
-        );
-        comparison = {
-          startDate: prior.startDate,
-          endDate: prior.endDate,
-          totalAmount: previous.totalAmount,
-          totalExpenses: previous.totalExpenses,
-          dailyAverage: prior.days ? Math.round(previous.totalAmount / prior.days) : 0,
-          categoryStats: previous.categoryStats,
-          tripStats: previous.tripStats,
-          tagStats: previous.tagStats,
-        };
-      }
-
       return {
         success: true,
         data: {
           ...current,
-          dailyAverage: dayCount ? Math.round(current.totalAmount / dayCount) : 0,
-          dayCount,
+          averagePerTrip: current.tripCount
+            ? Math.round(current.totalAmount / current.tripCount)
+            : 0,
           startDate: startDate || current.recentExpenses.at(-1)?.date || null,
           endDate: endDate || current.recentExpenses.at(0)?.date || null,
-          comparison,
         },
       };
     } catch (error) {

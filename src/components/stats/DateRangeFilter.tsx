@@ -13,8 +13,6 @@ interface DateRangeFilterProps {
   onEndDateChange: (value: string) => void;
   onYearSelect: (year: number) => void;
   onClearDates: () => void;
-  compare: boolean;
-  onCompareChange: (compare: boolean) => void;
   t: (key: string) => string;
 }
 
@@ -71,8 +69,6 @@ export default function DateRangeFilter({
   onEndDateChange,
   onYearSelect,
   onClearDates,
-  compare,
-  onCompareChange,
   t,
 }: DateRangeFilterProps) {
   const currentYear = new Date().getFullYear();
@@ -175,16 +171,6 @@ export default function DateRangeFilter({
             />
           </div>
         </div>
-        <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={compare}
-            disabled={!startDate || !endDate}
-            onChange={(event) => onCompareChange(event.target.checked)}
-            className="size-4 accent-primary"
-          />
-          <span>{t('comparePrevious')}</span>
-        </label>
       </CardContent>
     </Card>
   );

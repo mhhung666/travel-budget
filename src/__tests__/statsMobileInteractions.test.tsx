@@ -38,8 +38,6 @@ describe('personal statistics mobile date controls', () => {
         onEndDateChange={onEndDateChange}
         onYearSelect={vi.fn()}
         onClearDates={onClearDates}
-        compare
-        onCompareChange={vi.fn()}
         t={t}
       />
     );
@@ -55,11 +53,9 @@ describe('personal statistics mobile date controls', () => {
     expect(onClearDates).toHaveBeenCalledOnce();
   });
 
-  it('labels custom date inputs and keeps comparison state operable without hover', async () => {
-    const user = userEvent.setup();
+  it('labels custom date inputs and stacks them for narrow viewports', () => {
     const onStartDateChange = vi.fn();
     const onEndDateChange = vi.fn();
-    const onCompareChange = vi.fn();
 
     render(
       <DateRangeFilter
@@ -69,8 +65,6 @@ describe('personal statistics mobile date controls', () => {
         onEndDateChange={onEndDateChange}
         onYearSelect={vi.fn()}
         onClearDates={vi.fn()}
-        compare
-        onCompareChange={onCompareChange}
         t={t}
       />
     );
@@ -80,12 +74,9 @@ describe('personal statistics mobile date controls', () => {
     expect(onStartDateChange).toHaveBeenCalledWith('2026-07-05');
     expect(onEndDateChange).toHaveBeenCalledWith('2026-07-20');
     expect(screen.getByLabelText('startDate').parentElement?.className).toContain('grid-cols-1');
-
-    await user.click(screen.getByRole('checkbox', { name: 'comparePrevious' }));
-    expect(onCompareChange).toHaveBeenCalledWith(false);
   });
 
-  it('disables comparison when the selected period is incomplete', () => {
+  it('marks all time as selected when the date range is empty', () => {
     render(
       <DateRangeFilter
         startDate=""
@@ -94,15 +85,10 @@ describe('personal statistics mobile date controls', () => {
         onEndDateChange={vi.fn()}
         onYearSelect={vi.fn()}
         onClearDates={vi.fn()}
-        compare={false}
-        onCompareChange={vi.fn()}
         t={t}
       />
     );
 
-    expect(
-      (screen.getByRole('checkbox', { name: 'comparePrevious' }) as HTMLInputElement).disabled
-    ).toBe(true);
     expect(screen.getByRole('button', { name: 'allTime' }).getAttribute('aria-pressed')).toBe(
       'true'
     );
