@@ -137,6 +137,8 @@ export default function ExpenseHistogram({
     : undefined;
   const valueKey = metric === 'amount' ? 'amount' : 'count';
   const comparisonKey = metric === 'amount' ? 'comparisonAmount' : 'comparisonCount';
+  const chartPointWidth = comparisonStats.length > 0 ? 32 : 24;
+  const minimumChartWidth = points.length * chartPointWidth;
 
   return (
     <Card className="border-muted bg-card/60">
@@ -190,68 +192,80 @@ export default function ExpenseHistogram({
       <CardContent className="px-2 pb-5 sm:px-5">
         {points.length ? (
           <>
-            <div className="h-[320px] w-full" aria-label={t('expenseHistogram')}>
-              <ResponsiveContainer>
-                <BarChart
-                  data={points}
-                  margin={{ top: 8, right: 8, left: 0, bottom: 24 }}
-                  onClick={(state) => {
-                    const point = (
-                      state as unknown as {
-                        activePayload?: { payload?: ChartPoint }[];
-                      }
-                    )?.activePayload?.[0]?.payload;
-                    if (point)
-                      onPeriodSelect?.({ startDate: point.startDate, endDate: point.endDate });
-                  }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis
-                    dataKey="period"
-                    tick={{ fontSize: 11 }}
-                    angle={-35}
-                    textAnchor="end"
-                    height={54}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <YAxis
-                    tick={{ fontSize: 11 }}
-                    width={48}
-                    tickFormatter={(value) => compactNumber(Number(value), locale)}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <Tooltip
-                    cursor={{ fill: 'hsl(var(--muted) / 0.35)' }}
-                    formatter={(value, name) => [
-                      metric === 'amount' ? formatCurrency(Number(value)) : Number(value),
-                      name === comparisonKey ? t('previousPeriod') : t('currentPeriod'),
-                    ]}
-                    labelFormatter={(_, payload) => {
-                      const point = payload?.[0]?.payload as ChartPoint | undefined;
-                      return point
-                        ? `${point.startDate}${point.startDate === point.endDate ? '' : ` – ${point.endDate}`}`
-                        : '';
-                    }}
-                  />
-                  {comparisonStats.length > 0 && (
-                    <Bar dataKey={comparisonKey} fill="hsl(var(--muted-foreground) / 0.3)" />
-                  )}
-                  <Bar dataKey={valueKey} radius={[5, 5, 0, 0]}>
-                    {points.map((point) => (
-                      <Cell
-                        key={`${point.startDate}:${point.endDate}`}
-                        fill={
-                          selectedKey === `${point.startDate}:${point.endDate}`
-                            ? 'hsl(var(--foreground))'
-                            : 'hsl(var(--primary))'
+            <div className="w-full overflow-x-auto pb-2">
+              <div
+                className="h-[320px]"
+                style={{ width: `max(100%, ${minimumChartWidth}px)` }}
+                aria-label={t('expenseHistogram')}
+              >
+                <ResponsiveContainer>
+                  <BarChart
+                    data={points}
+                    barCategoryGap="20%"
+                    barGap={2}
+                    margin={{ top: 8, right: 8, left: 0, bottom: 24 }}
+                    onClick={(state) => {
+                      const point = (
+                        state as unknown as {
+                          activePayload?: { payload?: ChartPoint }[];
                         }
+                      )?.activePayload?.[0]?.payload;
+                      if (point)
+                        onPeriodSelect?.({ startDate: point.startDate, endDate: point.endDate });
+                    }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis
+                      dataKey="period"
+                      tick={{ fontSize: 11 }}
+                      angle={-35}
+                      textAnchor="end"
+                      height={54}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 11 }}
+                      width={48}
+                      tickFormatter={(value) => compactNumber(Number(value), locale)}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <Tooltip
+                      cursor={{ fill: 'hsl(var(--muted) / 0.35)' }}
+                      formatter={(value, name) => [
+                        metric === 'amount' ? formatCurrency(Number(value)) : Number(value),
+                        name === comparisonKey ? t('previousPeriod') : t('currentPeriod'),
+                      ]}
+                      labelFormatter={(_, payload) => {
+                        const point = payload?.[0]?.payload as ChartPoint | undefined;
+                        return point
+                          ? `${point.startDate}${point.startDate === point.endDate ? '' : ` – ${point.endDate}`}`
+                          : '';
+                      }}
+                    />
+                    {comparisonStats.length > 0 && (
+                      <Bar
+                        dataKey={comparisonKey}
+                        fill="hsl(var(--muted-foreground) / 0.3)"
+                        maxBarSize={14}
                       />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+                    )}
+                    <Bar dataKey={valueKey} radius={[5, 5, 0, 0]} maxBarSize={20}>
+                      {points.map((point) => (
+                        <Cell
+                          key={`${point.startDate}:${point.endDate}`}
+                          fill={
+                            selectedKey === `${point.startDate}:${point.endDate}`
+                              ? 'hsl(var(--foreground))'
+                              : 'hsl(var(--primary))'
+                          }
+                        />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </div>
             <div className="mt-2 flex gap-2 overflow-x-auto pb-1" aria-label={t('chartData')}>
               {points.map((point) => {
