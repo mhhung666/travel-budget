@@ -33,7 +33,7 @@ const viewState: StatsDashboardViewState = {
   dimension: 'category',
   metric: 'amount',
   interval: 'day',
-  selectedPeriod: null,
+  detailFilters: {},
 };
 
 const emptyStats: StatsData = {
@@ -152,8 +152,7 @@ describe('personal statistics recovery states', () => {
     expect(onClearDates).toHaveBeenCalledOnce();
     expect(onViewStateChange).toHaveBeenCalledWith({
       ...viewState,
-      dimensionValue: undefined,
-      selectedPeriod: null,
+      detailFilters: {},
     });
   });
 
@@ -186,21 +185,19 @@ describe('personal statistics dashboard interactions', () => {
     expect(onViewStateChange).toHaveBeenCalledWith({
       ...viewState,
       dimension: 'trip',
-      dimensionValue: 'trip-1',
-      selectedPeriod: null,
+      detailFilters: { tripId: 'trip-1' },
     });
 
     await user.click(screen.getByRole('button', { name: 'dimensionTrip' }));
     expect(onViewStateChange).toHaveBeenCalledWith({
       ...viewState,
       dimension: 'trip',
-      dimensionValue: undefined,
     });
 
     await user.click(screen.getByRole('button', { name: /food/ }));
     expect(onViewStateChange).toHaveBeenCalledWith({
       ...viewState,
-      dimensionValue: 'food',
+      detailFilters: { category: 'food', expenseId: undefined },
     });
   });
 
@@ -219,14 +216,13 @@ describe('personal statistics dashboard interactions', () => {
     expect(onViewStateChange).toHaveBeenCalledWith({
       ...viewState,
       dimension: 'category',
-      dimensionValue: 'food',
-      selectedPeriod: null,
+      detailFilters: { category: 'food' },
     });
 
     rerender(
       <StatsDashboard
         {...props}
-        viewState={{ ...viewState, dimensionValue: 'food' }}
+        viewState={{ ...viewState, detailFilters: { category: 'food' } }}
         onViewStateChange={onViewStateChange}
       />
     );
@@ -283,5 +279,44 @@ describe('personal statistics dashboard interactions', () => {
       'expense-5',
       'expense-6',
     ]);
+  });
+
+  it('intersects trip and category filters in expense details', () => {
+    const osakaFood = {
+      id: 'expense-2',
+      date: '2026-07-13',
+      description: 'Osaka lunch',
+      amount: 300,
+      tripName: 'Osaka',
+      tripId: 'trip-2',
+      category: 'food',
+    };
+    const tokyoTrain = {
+      id: 'expense-3',
+      date: '2026-07-14',
+      description: 'Tokyo train',
+      amount: 200,
+      tripName: 'Tokyo',
+      tripId: 'trip-1',
+      category: 'transportation',
+    };
+    const stats: StatsData = {
+      ...populatedStats,
+      totalAmount: 1000,
+      totalExpenses: 3,
+      recentExpenses: [...populatedStats.recentExpenses, osakaFood, tokyoTrain],
+    };
+
+    renderDashboard({
+      stats,
+      viewState: {
+        ...viewState,
+        detailFilters: { tripId: 'trip-1', category: 'food' },
+      },
+    });
+
+    expect(screen.queryByText('Dinner')).not.toBeNull();
+    expect(screen.queryByText('Osaka lunch')).toBeNull();
+    expect(screen.queryByText('Tokyo train')).toBeNull();
   });
 });

@@ -2,9 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { StatsDashboard, type StatsDashboardViewState } from '@/components/stats';
-import type { TimeInterval } from '@/types';
 import { useStats } from '@/hooks/queries';
 import { toLocalDateInputValue } from '@/lib/dateInput';
+import {
+  DEFAULT_STATS_VIEW_STATE,
+  parseStatsViewState,
+  writeStatsViewState,
+} from '@/lib/statsViewState';
 
 function defaultRange() {
   const today = new Date();
@@ -17,12 +21,7 @@ function defaultRange() {
 // 登入守衛與 user 注入由 (app)/layout.tsx 的 App Shell 處理。
 export default function StatsPage() {
   const [filters, setFilters] = useState(defaultRange);
-  const [viewState, setViewState] = useState<StatsDashboardViewState>({
-    dimension: 'category',
-    metric: 'amount',
-    interval: 'day',
-    selectedPeriod: null,
-  });
+  const [viewState, setViewState] = useState<StatsDashboardViewState>(DEFAULT_STATS_VIEW_STATE);
   const [hydrated, setHydrated] = useState(false);
   const { startDate, endDate } = filters;
   const setStartDate = (value: string) =>
@@ -31,27 +30,9 @@ export default function StatsPage() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const dimension = params.get('dimension');
-    const metric = params.get('metric');
-    const interval = params.get('interval');
-    const periodStart = params.get('periodStart');
-    const periodEnd = params.get('periodEnd');
     // URL 是首次載入的外部狀態來源，hydration 完成前不回寫網址。
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setViewState({
-      dimension:
-        dimension === 'trip' || dimension === 'tag' || dimension === 'category'
-          ? dimension
-          : 'category',
-      dimensionValue: params.get('value') || undefined,
-      metric: metric === 'count' ? 'count' : 'amount',
-      interval:
-        interval === 'week' || interval === 'month' || interval === 'day'
-          ? (interval as TimeInterval)
-          : 'day',
-      selectedPeriod:
-        periodStart && periodEnd ? { startDate: periodStart, endDate: periodEnd } : null,
-    });
+    setViewState(parseStatsViewState(params));
     if (params.get('preset') === 'all') {
       // URL 是外部狀態來源；首次 hydration 後將它還原到 dashboard state。
       setFilters({ startDate: '', endDate: '' });
@@ -74,14 +55,7 @@ export default function StatsPage() {
       params.set('start', startDate);
       params.set('end', endDate);
     }
-    if (viewState.dimension !== 'category') params.set('dimension', viewState.dimension);
-    if (viewState.dimensionValue) params.set('value', viewState.dimensionValue);
-    if (viewState.metric !== 'amount') params.set('metric', viewState.metric);
-    params.set('interval', viewState.interval);
-    if (viewState.selectedPeriod) {
-      params.set('periodStart', viewState.selectedPeriod.startDate);
-      params.set('periodEnd', viewState.selectedPeriod.endDate);
-    }
+    writeStatsViewState(params, viewState);
     const query = params.toString();
     window.history.replaceState(null, '', `${window.location.pathname}${query ? `?${query}` : ''}`);
   }, [startDate, endDate, viewState, hydrated]);
