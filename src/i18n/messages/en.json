@@ -1371,6 +1371,8 @@
       "stars": "Stars",
       "city": "City",
       "accrueMarriott": "Add to Marriott Bonvoy membership",
+      "accrueHotelProgram": "Add to {program} membership",
+      "accrueHotelProgramHint": "Night and point values are editable suggestions; confirm them against the official posting.",
       "accrueMarriottHint": "The night count is only a suggestion; confirm award stays, 0.5-credit brands and qualified spend against Marriott's posting.",
       "addToMarriott": "Add to Marriott Bonvoy",
       "marriottCrossYearHint": "This stay crosses calendar years. Standard night credits belong to each actual stay date, so add the officially posted nights as separate membership entries.",
@@ -1473,7 +1475,9 @@
         "CX": "Cathay Pacific",
         "CI": "China Airlines",
         "BR": "EVA Air",
-        "MB": "Marriott Bonvoy"
+        "MB": "Marriott Bonvoy",
+        "HH": "Hilton Honors",
+        "IHG": "IHG One Rewards"
       },
       "tierLabel": "Current tier",
       "tierStarted": "Current tier start date",
@@ -1507,6 +1511,20 @@
           "platinum": "Platinum Elite",
           "titanium": "Titanium Elite",
           "ambassador": "Ambassador Elite"
+        },
+        "HH": {
+          "member": "Member",
+          "silver": "Silver",
+          "gold": "Gold",
+          "diamond": "Diamond",
+          "diamond_reserve": "Diamond Reserve"
+        },
+        "IHG": {
+          "club": "Club",
+          "silver": "Silver Elite",
+          "gold": "Gold Elite",
+          "platinum": "Platinum Elite",
+          "diamond": "Diamond Elite"
         }
       },
       "stats": {
@@ -1519,7 +1537,9 @@
         "segments": "Intl segments",
         "yearNights": "{year} qualifying nights",
         "qualifiedSpend": "Annual qualified spend",
-        "pointsBalance": "Points balance"
+        "pointsBalance": "Points balance",
+        "yearStays": "Qualifying stays",
+        "eliteQualifyingPoints": "Elite qualifying points"
       },
       "progressToNext": "{points} points to {tier}",
       "windowCalendar": "Period: {year}/01/01–{year}/12/31",
@@ -1563,6 +1583,22 @@
       "qualifyingNights": "Qualifying nights",
       "qualifyingSpendUsd": "Qualified spend (USD)",
       "rewardPoints": "Bonvoy points",
+      "hotelRewardPoints": "Reward points",
+      "qualifyingStays": "Qualifying stays",
+      "eliteQualifyingPoints": "Elite qualifying points",
+      "staysAlternative": "or {value}/{total} qualifying stays",
+      "eqpAlternative": "or {value}/{total} elite qualifying points",
+      "staysAmount": "{stays} stays",
+      "eqpAmount": "{points} EQP",
+      "lifetimeDiamondYears": "Years at Diamond",
+      "lifetimeSpendUsd": "Lifetime eligible spend (USD)",
+      "rolloverNights": "Rollover nights",
+      "rolloverNightsHint": "Counts toward IHG status only, not Milestone Rewards.",
+      "hotelDisclaimer": {
+        "MB": "Qualifying nights reset annually; some brands earn half or no night credit.",
+        "HH": "No new rollover nights are earned from 2026; status can be earned by nights, stays or eligible spend.",
+        "IHG": "Excess nights at Gold or above can roll over once; rollover nights do not count toward Milestone Rewards."
+      },
       "nightsAmount": "{nights} nights",
       "spendAmount": "US${spend}",
       "rewardPointsAmount": "{points} points",
@@ -1578,6 +1614,7 @@
       "lifetimeYears": "Years at {tier}+",
       "lifetimeTier": "Lifetime {tier}",
       "lifetimeRequirement": "{nights}/{requiredNights} nights · {years}/{requiredYears} years",
+      "lifetimeHiltonRequirement": "{years}/{requiredYears} years plus {nights}/{requiredNights} nights or {spend}/{requiredSpend}",
       "requirementMet": "Requirements met",
       "marriottNightsDisclaimer": "Qualifying nights reset annually with no rollover; award stays generally count. Some brands earn 0.5 or no night credit, so official posting prevails.",
       "entriesEmpty": "No entries yet — tap \"Accrue status\" to start",

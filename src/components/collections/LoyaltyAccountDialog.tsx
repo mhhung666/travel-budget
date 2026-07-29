@@ -58,6 +58,9 @@ export function LoyaltyAccountDialog({
   const [lifetimeSilverYears, setLifetimeSilverYears] = useState('');
   const [lifetimeGoldYears, setLifetimeGoldYears] = useState('');
   const [lifetimePlatinumYears, setLifetimePlatinumYears] = useState('');
+  const [lifetimeDiamondYears, setLifetimeDiamondYears] = useState('');
+  const [lifetimeSpendUsd, setLifetimeSpendUsd] = useState('');
+  const [rolloverNights, setRolloverNights] = useState('');
   const [note, setNote] = useState('');
 
   // 卡籍效期欄只在續卡為「固定期制」的 program 顯示：哩程＋航段制（BR）恆有卡籍效期；
@@ -82,6 +85,9 @@ export function LoyaltyAccountDialog({
     setLifetimeSilverYears(editing ? String(editing.lifetime_silver_years) : '');
     setLifetimeGoldYears(editing ? String(editing.lifetime_gold_years) : '');
     setLifetimePlatinumYears(editing ? String(editing.lifetime_platinum_years) : '');
+    setLifetimeDiamondYears(editing ? String(editing.lifetime_diamond_years) : '');
+    setLifetimeSpendUsd(editing ? String(editing.lifetime_spend_usd) : '');
+    setRolloverNights(editing ? String(editing.rollover_nights) : '');
     setNote(editing?.note ?? '');
   }, [open, editing, program]);
 
@@ -102,10 +108,18 @@ export function LoyaltyAccountDialog({
         tier_started_at: isHotel ? null : tierStartedAt || null,
         tier_expires_at: showExpiry && tierExpiresAt ? tierExpiresAt : null,
         member_no: memberNo.trim(),
-        lifetime_nights: isHotel ? Number(lifetimeNights) || 0 : 0,
-        lifetime_silver_years: isHotel ? Number.parseInt(lifetimeSilverYears, 10) || 0 : 0,
-        lifetime_gold_years: isHotel ? Number.parseInt(lifetimeGoldYears, 10) || 0 : 0,
-        lifetime_platinum_years: isHotel ? Number.parseInt(lifetimePlatinumYears, 10) || 0 : 0,
+        lifetime_nights:
+          selectedProgram === 'MB' || selectedProgram === 'HH' ? Number(lifetimeNights) || 0 : 0,
+        lifetime_silver_years:
+          selectedProgram === 'MB' ? Number.parseInt(lifetimeSilverYears, 10) || 0 : 0,
+        lifetime_gold_years:
+          selectedProgram === 'MB' ? Number.parseInt(lifetimeGoldYears, 10) || 0 : 0,
+        lifetime_platinum_years:
+          selectedProgram === 'MB' ? Number.parseInt(lifetimePlatinumYears, 10) || 0 : 0,
+        lifetime_diamond_years:
+          selectedProgram === 'HH' ? Number.parseInt(lifetimeDiamondYears, 10) || 0 : 0,
+        lifetime_spend_usd: selectedProgram === 'HH' ? Number(lifetimeSpendUsd) || 0 : 0,
+        rollover_nights: selectedProgram === 'IHG' ? Number(rolloverNights) || 0 : 0,
         note: note.trim(),
       });
       onOpenChange(false);
@@ -205,7 +219,7 @@ export function LoyaltyAccountDialog({
           </div>
         )}
 
-        {isHotel && (
+        {selectedProgram === 'MB' && (
           <div className="space-y-3 rounded-xl border p-3">
             <div>
               <p className="text-sm font-medium text-foreground">{t('loyalty.lifetimeProgress')}</p>
@@ -247,6 +261,56 @@ export function LoyaltyAccountDialog({
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {selectedProgram === 'HH' && (
+          <div className="space-y-3 rounded-xl border p-3">
+            <p className="text-sm font-medium text-foreground">{t('loyalty.lifetimeProgress')}</p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="space-y-2">
+                <Label>{t('loyalty.lifetimeNights')}</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={lifetimeNights}
+                  onChange={(e) => setLifetimeNights(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>{t('loyalty.lifetimeDiamondYears')}</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={lifetimeDiamondYears}
+                  onChange={(e) => setLifetimeDiamondYears(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>{t('loyalty.lifetimeSpendUsd')}</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  value={lifetimeSpendUsd}
+                  onChange={(e) => setLifetimeSpendUsd(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {selectedProgram === 'IHG' && (
+          <div className="space-y-2">
+            <Label>{t('loyalty.rolloverNights')}</Label>
+            <Input
+              type="number"
+              min={0}
+              step={0.5}
+              value={rolloverNights}
+              onChange={(e) => setRolloverNights(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">{t('loyalty.rolloverNightsHint')}</p>
           </div>
         )}
 

@@ -12,7 +12,13 @@ import {
   useLoyaltyMutations,
 } from '@/hooks/queries';
 import { useToast } from '@/hooks/use-toast';
-import { CX_AWARD_MILES_PER_SP, OWN_AIRLINE_CODES, PROGRAM_RULES } from '@/constants/loyalty';
+import {
+  AIRLINE_LOYALTY_PROGRAMS,
+  CX_AWARD_MILES_PER_SP,
+  OWN_AIRLINE_CODES,
+  PROGRAM_RULES,
+  type AirlineLoyaltyProgram,
+} from '@/constants/loyalty';
 import { estimateCxStatusPoints, KM_TO_MI } from '@/lib/loyalty';
 import { haversineKm } from '@/lib/geo';
 import { toLocalDateInputValue } from '@/lib/dateInput';
@@ -111,13 +117,14 @@ export function FlightRecordDialog({
     () =>
       loyalty?.accounts.find(
         (account) =>
-          account.program !== 'MB' &&
+          AIRLINE_LOYALTY_PROGRAMS.includes(account.program as AirlineLoyaltyProgram) &&
           (account.program === airline ||
-            (airline != null && OWN_AIRLINE_CODES[account.program].includes(airline)))
+            (airline != null &&
+              OWN_AIRLINE_CODES[account.program as AirlineLoyaltyProgram].includes(airline)))
       ) ?? null,
     [loyalty, airline]
   );
-  const program = matchedAccount?.program === 'MB' ? null : (matchedAccount?.program ?? null);
+  const program = (matchedAccount?.program as AirlineLoyaltyProgram | undefined) ?? null;
   const programRules = program ? PROGRAM_RULES[program] : null;
   const loyaltyKind = programRules?.kind ?? null;
   // 三家皆需辨識自家合資格航班：CX 看最低航段、CI 看自營國際線占比、BR 看航段數。
@@ -238,6 +245,8 @@ export function FlightRecordDialog({
           qualifying_miles: loyaltyKind === 'milesAndSegments' ? toInt(qualifyingMiles) : 0,
           award_miles: toInt(awardMiles),
           qualifying_nights: 0,
+          qualifying_stays: 0,
+          elite_qualifying_points: 0,
           qualifying_spend_usd: 0,
           reward_points: 0,
           own_airline: showOwnAirline ? ownAirline : false,

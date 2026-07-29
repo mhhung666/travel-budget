@@ -1364,6 +1364,8 @@
       "stars": "星级",
       "city": "城市",
       "accrueMarriott": "同步到万豪旅享家会籍",
+      "accrueHotelProgram": "同步到{program}会籍",
+      "accrueHotelProgramHint": "房晚与点数为可修改建议，请按官方实际入账确认。",
       "accrueMarriottHint": "系统只提供间夜建议；兑换住宿、0.5 间夜品牌及合格消费请依官方实际入账确认。",
       "addToMarriott": "加入万豪旅享家会籍",
       "marriottCrossYearHint": "这笔住宿跨年度；一般间夜要依实际入住日期分到不同年度，请到会籍页分笔登记官方入账间夜。",
@@ -1466,7 +1468,9 @@
         "CX": "国泰航空",
         "CI": "中华航空",
         "BR": "长荣航空",
-        "MB": "万豪旅享家"
+        "MB": "万豪旅享家",
+        "HH": "希尔顿荣誉客会",
+        "IHG": "IHG 优悦会"
       },
       "tierLabel": "当前等级",
       "tierStarted": "当前卡级生效日",
@@ -1500,6 +1504,20 @@
           "platinum": "白金卡",
           "titanium": "钛金卡",
           "ambassador": "大使"
+        },
+        "HH": {
+          "member": "会员",
+          "silver": "银卡",
+          "gold": "金卡",
+          "diamond": "钻石卡",
+          "diamond_reserve": "钻石尊贵卡"
+        },
+        "IHG": {
+          "club": "俱乐部会员",
+          "silver": "银卡",
+          "gold": "金卡",
+          "platinum": "白金卡",
+          "diamond": "钻石卡"
         }
       },
       "stats": {
@@ -1512,7 +1530,9 @@
         "segments": "国际航段",
         "yearNights": "{year} 年合格间夜",
         "qualifiedSpend": "年度合格消费",
-        "pointsBalance": "点数余额"
+        "pointsBalance": "点数余额",
+        "yearStays": "年度合格住宿",
+        "eliteQualifyingPoints": "精英会籍定级积分"
       },
       "progressToNext": "距{tier}还差 {points} 分",
       "windowCalendar": "计算期间：{year}/01/01–{year}/12/31",
@@ -1556,6 +1576,22 @@
       "qualifyingNights": "合格间夜",
       "qualifyingSpendUsd": "合格消费（USD）",
       "rewardPoints": "Bonvoy 点数",
+      "hotelRewardPoints": "可用点数",
+      "qualifyingStays": "合格住宿次数",
+      "eliteQualifyingPoints": "精英会籍定级积分",
+      "staysAlternative": "或合格住宿 {value}/{total} 次",
+      "eqpAlternative": "或定级积分 {value}/{total}",
+      "staysAmount": "{stays} 次住宿",
+      "eqpAmount": "{points} 定级积分",
+      "lifetimeDiamondYears": "Diamond 年资",
+      "lifetimeSpendUsd": "终身合格消费（USD）",
+      "rolloverNights": "本年带入房晚",
+      "rolloverNightsHint": "只计入 IHG 本年会籍判定，不计里程碑奖励。",
+      "hotelDisclaimer": {
+        "MB": "合格房晚每年归零且不结转；部分品牌可能只累积 0.5 晚或不累积。",
+        "HH": "2026 年起不再产生新结转房晚；等级可按房晚、住宿次数或合格消费判定。",
+        "IHG": "Gold 以上超额房晚可带入一年；带入房晚不计里程碑奖励。"
+      },
       "nightsAmount": "{nights} 晚",
       "spendAmount": "US${spend}",
       "rewardPointsAmount": "{points} 点",
@@ -1571,6 +1607,7 @@
       "lifetimeYears": "{tier}以上年资",
       "lifetimeTier": "终身{tier}",
       "lifetimeRequirement": "{nights}/{requiredNights} 晚・{years}/{requiredYears} 年",
+      "lifetimeHiltonRequirement": "{years}/{requiredYears} 年，且 {nights}/{requiredNights} 晚或 {spend}/{requiredSpend}",
       "requirementMet": "条件已达成",
       "marriottNightsDisclaimer": "合格间夜每年归零且不结转；兑换住宿通常可计入。特定品牌每晚仅 0.5 或不累积，实际以官方入账为准。",
       "entriesEmpty": "还没有积分记录，点「累积会籍」开始",

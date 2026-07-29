@@ -71,6 +71,16 @@ export function LoyaltyLedger({ entries, onAdd, onEdit, onDelete }: LoyaltyLedge
                       {t('loyalty.nightsAmount', { nights: signed(e.qualifying_nights) })}
                     </span>
                   )}
+                  {e.qualifying_stays !== 0 && (
+                    <span className="text-sm font-medium text-foreground">
+                      {t('loyalty.staysAmount', { stays: signed(e.qualifying_stays) })}
+                    </span>
+                  )}
+                  {e.elite_qualifying_points !== 0 && (
+                    <span className="text-sm font-medium text-foreground">
+                      {t('loyalty.eqpAmount', { points: signed(e.elite_qualifying_points) })}
+                    </span>
+                  )}
                   {e.qualifying_spend_usd !== 0 && (
                     <span className="text-sm text-muted-foreground">
                       {t('loyalty.spendAmount', { spend: signed(e.qualifying_spend_usd) })}

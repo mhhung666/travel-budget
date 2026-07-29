@@ -26,6 +26,8 @@ const LoyaltyEntrySchema = new Schema(
     awardMiles: { type: Number, default: 0 },
     // 飯店合格房晚（MB；特定品牌可為 0.5，adjust 可為負）
     qualifyingNights: { type: Number, default: 0 },
+    qualifyingStays: { type: Number, default: 0 },
+    eliteQualifyingPoints: { type: Number, default: 0 },
     // 飯店年度合格消費（USD；大使級門檻用，adjust 可為負）
     qualifyingSpendUsd: { type: Number, default: 0 },
     // 飯店可用點數變動（兌換、過期沖銷為負）

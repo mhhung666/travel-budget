@@ -13,7 +13,7 @@ import type { CabinClass } from '@/types';
 
 /** 已開放的 program；順序即 UI 顯示順序。 */
 export const AIRLINE_LOYALTY_PROGRAMS = ['CX', 'CI', 'BR'] as const;
-export const HOTEL_LOYALTY_PROGRAMS = ['MB'] as const;
+export const HOTEL_LOYALTY_PROGRAMS = ['MB', 'HH', 'IHG'] as const;
 export const LOYALTY_PROGRAMS = [...AIRLINE_LOYALTY_PROGRAMS, ...HOTEL_LOYALTY_PROGRAMS] as const;
 export type LoyaltyProgram = (typeof LOYALTY_PROGRAMS)[number];
 export type AirlineLoyaltyProgram = (typeof AIRLINE_LOYALTY_PROGRAMS)[number];
@@ -60,6 +60,10 @@ export interface NightsTier {
   key: string;
   /** 每曆年 Elite Night Credit 門檻。 */
   nights: number;
+  /** 住宿次數門檻（Hilton）；與一般房晚／消費路徑為 OR。 */
+  stays?: number;
+  /** 飯店 Elite Qualifying Points 門檻（IHG）；與房晚路徑為 OR。 */
+  eliteQualifyingPoints?: number;
   /** 除房晚外的年度合格消費門檻（USD）；目前僅萬豪大使級需要。 */
   qualifyingSpendUsd?: number;
 }
@@ -121,6 +125,10 @@ export interface NightsProgramRules {
   tiers: NightsTier[];
   /** 年度自選禮遇里程碑（萬豪 50／75 晚）。 */
   choiceBenefitNights?: number[];
+  /** IHG Gold 以上的超額合格房晚可帶入下一曆年。 */
+  rolloverMinTierKey?: string;
+  /** Hilton Diamond Reserve 的房晚／住宿路徑另須同時達消費門檻。 */
+  spendRequiredWithActivity?: boolean;
   /** 終身會籍門檻；同時需要終身房晚與該級以上年資。 */
   lifetimeTiers?: Array<{ key: string; nights: number; years: number }>;
   verifiedAt: string;
@@ -224,6 +232,41 @@ export const PROGRAM_RULES: Record<LoyaltyProgram, ProgramRules> = {
     ],
     verifiedAt: '2026-07-28',
   },
+  // Hilton Honors（2026-07-29 官方條款查證）：Silver／Gold／Diamond 可由房晚、
+  // stays 或 eligible spend 任一路徑達成；Diamond Reserve 必須 80 晚或 40 stays，
+  // 且年度 eligible spend 達 US$18,000。2026 起不再產生新的 rollover nights。
+  HH: {
+    kind: 'nights',
+    window: 'calendar',
+    tiers: [
+      { key: 'member', nights: 0 },
+      { key: 'silver', nights: 10, stays: 4, qualifyingSpendUsd: 2500 },
+      { key: 'gold', nights: 25, stays: 15, qualifyingSpendUsd: 6000 },
+      { key: 'diamond', nights: 50, stays: 25, qualifyingSpendUsd: 11500 },
+      { key: 'diamond_reserve', nights: 80, stays: 40, qualifyingSpendUsd: 18000 },
+    ],
+    spendRequiredWithActivity: true,
+    choiceBenefitNights: [40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180],
+    lifetimeTiers: [{ key: 'diamond', nights: 1000, years: 10 }],
+    verifiedAt: '2026-07-29',
+  },
+  // IHG One Rewards（2026-07-29 官方條款查證）：Gold 以上由合格房晚或 EQP
+  // 任一路徑達成；20–100 晚每 10 晚有 Milestone Rewards。Gold 以上超額房晚可
+  // rollover 一年，但不計 Milestone，故由帳戶的 rollover nights 另行輸入。
+  IHG: {
+    kind: 'nights',
+    window: 'calendar',
+    tiers: [
+      { key: 'club', nights: 0 },
+      { key: 'silver', nights: 10 },
+      { key: 'gold', nights: 20, eliteQualifyingPoints: 40000 },
+      { key: 'platinum', nights: 40, eliteQualifyingPoints: 60000 },
+      { key: 'diamond', nights: 70, eliteQualifyingPoints: 120000 },
+    ],
+    choiceBenefitNights: [20, 30, 40, 50, 60, 70, 80, 90, 100],
+    rolloverMinTierKey: 'gold',
+    verifiedAt: '2026-07-29',
+  },
 };
 
 /**
@@ -259,6 +302,20 @@ export const TIER_BADGE_COLORS: Record<LoyaltyProgram, Record<string, string>> =
     platinum: '#5F6F76',
     titanium: '#4D555B',
     ambassador: '#1F1F1F',
+  },
+  HH: {
+    member: '#153B70',
+    silver: '#8C8C8C',
+    gold: '#8A7423',
+    diamond: '#315E8A',
+    diamond_reserve: '#171717',
+  },
+  IHG: {
+    club: '#405B55',
+    silver: '#8C8C8C',
+    gold: '#8A7423',
+    platinum: '#5F6F76',
+    diamond: '#2C2C2A',
   },
 };
 

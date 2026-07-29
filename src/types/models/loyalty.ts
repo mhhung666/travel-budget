@@ -21,6 +21,11 @@ export interface LoyaltyAccountItem {
   lifetime_silver_years: number;
   lifetime_gold_years: number;
   lifetime_platinum_years: number;
+  /** Hilton 終身 Diamond 年資與 eligible spend；其他計畫維持 0。 */
+  lifetime_diamond_years: number;
+  lifetime_spend_usd: number;
+  /** IHG 上一年度帶入、僅供本年判級的房晚。 */
+  rollover_nights: number;
   note: string;
   created_at: string;
 }
@@ -39,6 +44,10 @@ export interface LoyaltyEntryItem {
   award_miles: number;
   /** 飯店合格房晚；特定品牌可為 0.5。 */
   qualifying_nights: number;
+  /** Hilton 合格住宿次數變動。 */
+  qualifying_stays: number;
+  /** IHG Elite Qualifying Points 變動（與可兌換點數分開）。 */
+  elite_qualifying_points: number;
   /** 飯店年度合格消費（USD）。 */
   qualifying_spend_usd: number;
   /** 飯店可用點數變動。 */

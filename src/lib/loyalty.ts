@@ -255,6 +255,9 @@ export interface NightsProgress {
   windowYear: number;
   windowNights: number;
   windowSpendUsd: number;
+  windowStays: number;
+  windowEliteQualifyingPoints: number;
+  rolloverNights: number;
   rewardPointsBalance: number;
   achievedTier: NightsTier;
   nextTier: NightsTier | null;
@@ -269,6 +272,8 @@ export interface NightsProgress {
     key: string;
     requiredNights: number;
     requiredYears: number;
+    requiredSpendUsd?: number;
+    spendUsd?: number;
     nights: number;
     years: number;
     met: boolean;
@@ -282,7 +287,12 @@ export interface NightsProgress {
 export function computeNightsProgress(
   entries: Pick<
     LoyaltyEntryItem,
-    'date' | 'qualifying_nights' | 'qualifying_spend_usd' | 'reward_points'
+    | 'date'
+    | 'qualifying_nights'
+    | 'qualifying_stays'
+    | 'elite_qualifying_points'
+    | 'qualifying_spend_usd'
+    | 'reward_points'
   >[],
   rules: NightsProgramRules,
   asOf: string = new Date().toISOString().slice(0, 10),
@@ -291,26 +301,46 @@ export function computeNightsProgress(
     silverYears: number;
     goldYears: number;
     platinumYears: number;
+    diamondYears?: number;
+    spendUsd?: number;
+    rolloverNights?: number;
   } = { nights: 0, silverYears: 0, goldYears: 0, platinumYears: 0 }
 ): NightsProgress {
   const year = Number(asOf.slice(0, 4));
   const prefix = `${year}-`;
   let windowNights = 0;
   let windowSpendUsd = 0;
+  let windowStays = 0;
+  let windowEliteQualifyingPoints = 0;
   let rewardPointsBalance = 0;
 
   for (const entry of entries) {
     rewardPointsBalance += entry.reward_points;
     if (!entry.date.startsWith(prefix) || entry.date > asOf) continue;
     windowNights += entry.qualifying_nights;
+    windowStays += entry.qualifying_stays;
+    windowEliteQualifyingPoints += entry.elite_qualifying_points;
     windowSpendUsd += entry.qualifying_spend_usd;
   }
 
   let achievedIndex = 0;
   for (const [index, tier] of rules.tiers.entries()) {
-    const nightsMet = windowNights >= tier.nights;
-    const spendMet = tier.qualifyingSpendUsd == null || windowSpendUsd >= tier.qualifyingSpendUsd;
-    if (nightsMet && spendMet) achievedIndex = index;
+    const qualificationNights = windowNights + (lifetimeStats.rolloverNights ?? 0);
+    const activityMet =
+      qualificationNights >= tier.nights || (tier.stays != null && windowStays >= tier.stays);
+    const pointsMet =
+      tier.eliteQualifyingPoints != null &&
+      windowEliteQualifyingPoints >= tier.eliteQualifyingPoints;
+    const spendMet = tier.qualifyingSpendUsd != null && windowSpendUsd >= tier.qualifyingSpendUsd;
+    const met =
+      rules.spendRequiredWithActivity && index === rules.tiers.length - 1
+        ? activityMet && spendMet
+        : tier.stays != null
+          ? activityMet || spendMet
+          : tier.qualifyingSpendUsd != null
+            ? activityMet && spendMet
+            : activityMet || pointsMet;
+    if (met) achievedIndex = index;
   }
   const achievedTier = rules.tiers[achievedIndex];
   const nextTier = rules.tiers[achievedIndex + 1] ?? null;
@@ -329,10 +359,15 @@ export function computeNightsProgress(
     windowYear: year,
     windowNights,
     windowSpendUsd,
+    windowStays,
+    windowEliteQualifyingPoints,
+    rolloverNights: lifetimeStats.rolloverNights ?? 0,
     rewardPointsBalance,
     achievedTier,
     nextTier,
-    nightsToNext: nextTier ? Math.max(0, nextTier.nights - windowNights) : null,
+    nightsToNext: nextTier
+      ? Math.max(0, nextTier.nights - windowNights - (lifetimeStats.rolloverNights ?? 0))
+      : null,
     spendToNextUsd: nextTier?.qualifyingSpendUsd
       ? Math.max(0, nextTier.qualifyingSpendUsd - windowSpendUsd)
       : 0,
@@ -340,13 +375,21 @@ export function computeNightsProgress(
     nextChoiceBenefit,
     lifetime: (rules.lifetimeTiers ?? []).map((tier) => {
       const years = yearsByKey[tier.key] ?? 0;
+      const isHiltonDiamond = tier.key === 'diamond' && lifetimeStats.diamondYears != null;
+      const lifetimeSpendMet = isHiltonDiamond && (lifetimeStats.spendUsd ?? 0) >= 200000;
       return {
         key: tier.key,
         requiredNights: tier.nights,
         requiredYears: tier.years,
         nights: lifetimeStats.nights,
-        years,
-        met: lifetimeStats.nights >= tier.nights && years >= tier.years,
+        years: isHiltonDiamond ? (lifetimeStats.diamondYears ?? 0) : years,
+        requiredSpendUsd: isHiltonDiamond ? 200000 : undefined,
+        spendUsd: isHiltonDiamond ? (lifetimeStats.spendUsd ?? 0) : undefined,
+        met:
+          (isHiltonDiamond
+            ? lifetimeStats.nights >= tier.nights || lifetimeSpendMet
+            : lifetimeStats.nights >= tier.nights) &&
+          (isHiltonDiamond ? (lifetimeStats.diamondYears ?? 0) : years) >= tier.years,
       };
     }),
   };

@@ -86,6 +86,8 @@ export function LoyaltyEntryDialog({
   const [qualifyingMiles, setQualifyingMiles] = useState('');
   const [awardMiles, setAwardMiles] = useState('');
   const [qualifyingNights, setQualifyingNights] = useState('');
+  const [qualifyingStays, setQualifyingStays] = useState('');
+  const [eliteQualifyingPoints, setEliteQualifyingPoints] = useState('');
   const [qualifyingSpendUsd, setQualifyingSpendUsd] = useState('');
   const [rewardPoints, setRewardPoints] = useState('');
   const [ownAirline, setOwnAirline] = useState(false);
@@ -124,6 +126,20 @@ export function LoyaltyEntryDialog({
           ? String(defaults.qualifying_nights)
           : ''
     );
+    setQualifyingStays(
+      editing
+        ? String(editing.qualifying_stays)
+        : defaults?.qualifying_stays != null
+          ? String(defaults.qualifying_stays)
+          : ''
+    );
+    setEliteQualifyingPoints(
+      editing
+        ? String(editing.elite_qualifying_points)
+        : defaults?.elite_qualifying_points != null
+          ? String(defaults.elite_qualifying_points)
+          : ''
+    );
     setQualifyingSpendUsd(
       editing
         ? String(editing.qualifying_spend_usd)
@@ -155,6 +171,8 @@ export function LoyaltyEntryDialog({
       qualifying_miles: kind === 'milesAndSegments' ? toInt(qualifyingMiles) : 0,
       award_miles: toInt(awardMiles),
       qualifying_nights: kind === 'nights' ? toNumber(qualifyingNights) : 0,
+      qualifying_stays: kind === 'nights' ? toInt(qualifyingStays) : 0,
+      elite_qualifying_points: kind === 'nights' ? toInt(eliteQualifyingPoints) : 0,
       qualifying_spend_usd: kind === 'nights' ? toNumber(qualifyingSpendUsd) : 0,
       reward_points: kind === 'nights' ? toInt(rewardPoints) : 0,
       // 自家航班：哩程制判定國際航段、CI 判定 50% 條款；其餘 program 無此概念
@@ -218,7 +236,7 @@ export function LoyaltyEntryDialog({
         </div>
 
         {kind === 'nights' ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>{t('loyalty.qualifyingNights')}</Label>
               <Input
@@ -230,6 +248,30 @@ export function LoyaltyEntryDialog({
                 placeholder="0"
               />
             </div>
+            {program === 'HH' && (
+              <div className="space-y-2">
+                <Label>{t('loyalty.qualifyingStays')}</Label>
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  value={qualifyingStays}
+                  onChange={(e) => setQualifyingStays(e.target.value)}
+                  placeholder="0"
+                />
+              </div>
+            )}
+            {program === 'IHG' && (
+              <div className="space-y-2">
+                <Label>{t('loyalty.eliteQualifyingPoints')}</Label>
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  value={eliteQualifyingPoints}
+                  onChange={(e) => setEliteQualifyingPoints(e.target.value)}
+                  placeholder="0"
+                />
+              </div>
+            )}
             <div className="space-y-2">
               <Label>{t('loyalty.qualifyingSpendUsd')}</Label>
               <Input
@@ -242,7 +284,7 @@ export function LoyaltyEntryDialog({
               />
             </div>
             <div className="space-y-2">
-              <Label>{t('loyalty.rewardPoints')}</Label>
+              <Label>{t('loyalty.hotelRewardPoints')}</Label>
               <Input
                 type="number"
                 inputMode="numeric"

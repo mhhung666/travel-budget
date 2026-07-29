@@ -8,6 +8,7 @@ import { useCollectionMutations, useLoyalty, useLoyaltyMutations } from '@/hooks
 import { useToast } from '@/hooks/use-toast';
 import { toLocalDateInputValue } from '@/lib/dateInput';
 import { getHotelBrand } from '@/constants/hotelBrands';
+import type { HotelLoyaltyProgram } from '@/constants/loyalty';
 import type { DatePrecision, StayRecordItem } from '@/types';
 import type { CreateStayRecordInput } from '@/lib/validation';
 import { ResponsiveFormSheet } from '@/components/common';
@@ -80,8 +81,16 @@ export function StayRecordDialog({
 
   // 帶入時鎖定旅程＝當下旅程（唯讀）；編輯情境不套用鎖定。
   const locked = editing ? null : (lockedTrip ?? null);
-  const hasMarriottAccount = loyalty?.accounts.some((account) => account.program === 'MB') ?? false;
-  const isMarriottBrand = getHotelBrand(brand)?.group === 'marriott';
+  const groupProgram: Record<string, HotelLoyaltyProgram> = {
+    marriott: 'MB',
+    hilton: 'HH',
+    ihg: 'IHG',
+  };
+  const hotelGroup = getHotelBrand(brand)?.group ?? '';
+  const accrualProgram = groupProgram[hotelGroup] ?? null;
+  const hasMatchingAccount =
+    accrualProgram != null &&
+    (loyalty?.accounts.some((account) => account.program === accrualProgram) ?? false);
   const alreadyAccrued = editing
     ? (loyalty?.entries ?? []).some((entry) => entry.stay_record_id === editing.id)
     : false;
@@ -100,7 +109,7 @@ export function StayRecordDialog({
     lastNight.setUTCDate(lastNight.getUTCDate() + stayNights - 1);
     return lastNight.getUTCFullYear() !== Number(checkIn.slice(0, 4));
   })();
-  const canAccrueBase = hasMarriottAccount && isMarriottBrand && !alreadyAccrued;
+  const canAccrueBase = hasMatchingAccount && !alreadyAccrued;
   const canAccrue = canAccrueBase && !crossesCalendarYear;
 
   const suggestedQualifyingNights = (() => {
@@ -182,13 +191,15 @@ export function StayRecordDialog({
     if (accrue && canAccrue) {
       try {
         await createEntry.mutateAsync({
-          program: 'MB',
+          program: accrualProgram!,
           date: checkIn,
           type: 'stay',
           status_points: 0,
           qualifying_miles: 0,
           award_miles: 0,
           qualifying_nights: Number(qualifyingNights) || 0,
+          qualifying_stays: accrualProgram === 'HH' ? 1 : 0,
+          elite_qualifying_points: 0,
           qualifying_spend_usd: Number(qualifyingSpendUsd) || 0,
           reward_points: Number.parseInt(rewardPoints, 10) || 0,
           own_airline: false,
@@ -313,10 +324,12 @@ export function StayRecordDialog({
               />
               <span>
                 <span className="block text-sm font-medium text-foreground">
-                  {t('stays.accrueMarriott')}
+                  {t('stays.accrueHotelProgram', {
+                    program: t(`loyalty.programs.${accrualProgram}` as Parameters<typeof t>[0]),
+                  })}
                 </span>
                 <span className="block text-xs text-muted-foreground">
-                  {t('stays.accrueMarriottHint')}
+                  {t('stays.accrueHotelProgramHint')}
                 </span>
               </span>
             </label>
@@ -343,7 +356,7 @@ export function StayRecordDialog({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>{t('loyalty.rewardPoints')}</Label>
+                  <Label>{t('loyalty.hotelRewardPoints')}</Label>
                   <Input
                     type="number"
                     value={rewardPoints}

@@ -28,6 +28,9 @@ const LoyaltyAccountSchema = new Schema(
     lifetimeSilverYears: { type: Number, default: 0, min: 0 },
     lifetimeGoldYears: { type: Number, default: 0, min: 0 },
     lifetimePlatinumYears: { type: Number, default: 0, min: 0 },
+    lifetimeDiamondYears: { type: Number, default: 0, min: 0 },
+    lifetimeSpendUsd: { type: Number, default: 0, min: 0 },
+    rolloverNights: { type: Number, default: 0, min: 0 },
     note: { type: String, default: '' },
   },
   { timestamps: true }

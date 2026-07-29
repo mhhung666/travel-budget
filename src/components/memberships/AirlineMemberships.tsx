@@ -113,15 +113,27 @@ export function AirlineMemberships() {
       await upsertAccount.mutateAsync({
         program: account.program,
         current_tier: tier,
-        tier_started_at: account.program === 'MB' ? null : toLocalDateInputValue(),
+        tier_started_at: HOTEL_LOYALTY_PROGRAMS.includes(
+          account.program as (typeof HOTEL_LOYALTY_PROGRAMS)[number]
+        )
+          ? null
+          : toLocalDateInputValue(),
         // CI/BR 升等後官方會重新給卡籍效期，不能沿用舊卡日期。
         tier_expires_at:
-          account.program === 'CX' || account.program === 'MB' ? account.tier_expires_at : null,
+          account.program === 'CX' ||
+          HOTEL_LOYALTY_PROGRAMS.includes(
+            account.program as (typeof HOTEL_LOYALTY_PROGRAMS)[number]
+          )
+            ? account.tier_expires_at
+            : null,
         member_no: account.member_no,
         lifetime_nights: account.lifetime_nights,
         lifetime_silver_years: account.lifetime_silver_years,
         lifetime_gold_years: account.lifetime_gold_years,
         lifetime_platinum_years: account.lifetime_platinum_years,
+        lifetime_diamond_years: account.lifetime_diamond_years,
+        lifetime_spend_usd: account.lifetime_spend_usd,
+        rollover_nights: account.rollover_nights,
         note: account.note,
       });
       toast({
@@ -228,7 +240,9 @@ export function AirlineMemberships() {
         availablePrograms={
           accountDialog.editing
             ? undefined
-            : accountDialog.program === 'MB'
+            : HOTEL_LOYALTY_PROGRAMS.includes(
+                  accountDialog.program as (typeof HOTEL_LOYALTY_PROGRAMS)[number]
+                )
               ? availableHotels
               : availableAirlines
         }

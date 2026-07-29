@@ -216,6 +216,9 @@ export function ProgramProgressCard({
       silverYears: account.lifetime_silver_years,
       goldYears: account.lifetime_gold_years,
       platinumYears: account.lifetime_platinum_years,
+      diamondYears: account.lifetime_diamond_years,
+      spendUsd: account.lifetime_spend_usd,
+      rolloverNights: account.rollover_nights,
     });
     estimatedTierKey = progress.achievedTier.key;
     const next = progress.nextTier;
@@ -230,7 +233,16 @@ export function ProgramProgressCard({
       next?.qualifyingSpendUsd != null
         ? (progress.windowSpendUsd / next.qualifyingSpendUsd) * 100
         : 100;
-    summaryPercent = Math.min(nightsPercent, spendPercent);
+    const staysPercent = next?.stays != null ? (progress.windowStays / next.stays) * 100 : 0;
+    const eqpPercent =
+      next?.eliteQualifyingPoints != null
+        ? (progress.windowEliteQualifyingPoints / next.eliteQualifyingPoints) * 100
+        : 0;
+    const activityPercent = Math.max(nightsPercent, staysPercent, eqpPercent);
+    summaryPercent =
+      rules.spendRequiredWithActivity && next === rules.tiers.at(-1)
+        ? Math.min(activityPercent, spendPercent)
+        : Math.max(activityPercent, next?.qualifyingSpendUsd != null ? spendPercent : 0);
 
     detail = (
       <>
@@ -245,6 +257,17 @@ export function ProgramProgressCard({
                 label: t('loyalty.stats.qualifiedSpend'),
                 value: usdFormat.format(progress.windowSpendUsd),
               },
+              ...(account.program === 'HH'
+                ? [{ label: t('loyalty.stats.yearStays'), value: nf(progress.windowStays) }]
+                : []),
+              ...(account.program === 'IHG'
+                ? [
+                    {
+                      label: t('loyalty.stats.eliteQualifyingPoints'),
+                      value: nf(progress.windowEliteQualifyingPoints),
+                    },
+                  ]
+                : []),
               {
                 label: t('loyalty.stats.pointsBalance'),
                 value: nf(progress.rewardPointsBalance),
@@ -269,6 +292,22 @@ export function ProgramProgressCard({
               </span>
             </div>
             <ProgressBar percent={nightsPercent} />
+            {next.stays != null && (
+              <p className="text-xs text-muted-foreground">
+                {t('loyalty.staysAlternative', {
+                  value: nf(progress.windowStays),
+                  total: nf(next.stays),
+                })}
+              </p>
+            )}
+            {next.eliteQualifyingPoints != null && (
+              <p className="text-xs text-muted-foreground">
+                {t('loyalty.eqpAlternative', {
+                  value: nf(progress.windowEliteQualifyingPoints),
+                  total: nf(next.eliteQualifyingPoints),
+                })}
+              </p>
+            )}
             {next.qualifyingSpendUsd != null && (
               <>
                 <div className="flex items-center justify-between pt-1 text-xs text-muted-foreground">
@@ -323,12 +362,21 @@ export function ProgramProgressCard({
                   {t('loyalty.lifetimeTier', { tier: tierName(lifetime.key) })}
                 </p>
                 <p className="mt-1 text-muted-foreground">
-                  {t('loyalty.lifetimeRequirement', {
-                    nights: nf(lifetime.nights),
-                    requiredNights: nf(lifetime.requiredNights),
-                    years: nf(lifetime.years),
-                    requiredYears: nf(lifetime.requiredYears),
-                  })}
+                  {lifetime.requiredSpendUsd != null
+                    ? t('loyalty.lifetimeHiltonRequirement', {
+                        nights: nf(lifetime.nights),
+                        requiredNights: nf(lifetime.requiredNights),
+                        spend: usdFormat.format(lifetime.spendUsd ?? 0),
+                        requiredSpend: usdFormat.format(lifetime.requiredSpendUsd),
+                        years: nf(lifetime.years),
+                        requiredYears: nf(lifetime.requiredYears),
+                      })
+                    : t('loyalty.lifetimeRequirement', {
+                        nights: nf(lifetime.nights),
+                        requiredNights: nf(lifetime.requiredNights),
+                        years: nf(lifetime.years),
+                        requiredYears: nf(lifetime.requiredYears),
+                      })}
                 </p>
                 {lifetime.met && (
                   <p className="mt-1 font-medium text-primary">{t('loyalty.requirementMet')}</p>
@@ -338,7 +386,7 @@ export function ProgramProgressCard({
           </div>
         </div>
         <p className="mt-3 text-xs text-muted-foreground/80">
-          {t('loyalty.marriottNightsDisclaimer')}
+          {t(`loyalty.hotelDisclaimer.${account.program}` as Parameters<typeof t>[0])}
         </p>
       </>
     );

@@ -43,8 +43,8 @@ describe('LoyaltyEntryDialog', () => {
 
     await waitFor(() => {
       const inputs = screen.getAllByRole('spinbutton');
-      expect(inputs[0]).toHaveValue(25);
-      expect(inputs[1]).toHaveValue(2500);
+      expect((inputs[0] as HTMLInputElement).value).toBe('25');
+      expect((inputs[1] as HTMLInputElement).value).toBe('2500');
     });
   });
 
@@ -61,8 +61,8 @@ describe('LoyaltyEntryDialog', () => {
 
     await waitFor(() => {
       const inputs = screen.getAllByRole('spinbutton');
-      expect(inputs[0]).toHaveValue(1200);
-      expect(inputs[1]).toHaveValue(1800);
+      expect((inputs[0] as HTMLInputElement).value).toBe('1200');
+      expect((inputs[1] as HTMLInputElement).value).toBe('1800');
     });
   });
 });

@@ -1364,6 +1364,8 @@
       "stars": "星",
       "city": "都市",
       "accrueMarriott": "Marriott Bonvoy会員情報に追加",
+      "accrueHotelProgram": "{program}会員情報に追加",
+      "accrueHotelProgramHint": "宿泊数とポイントは候補値です。公式の反映を確認してください。",
       "accrueMarriottHint": "宿泊数は候補値です。特典宿泊、0.5泊対象ブランド、対象利用額は公式反映を確認してください。",
       "addToMarriott": "Marriott Bonvoyに追加",
       "marriottCrossYearHint": "この宿泊は年をまたぎます。通常の宿泊実績は実際の宿泊日に応じて年別になるため、公式反映を会員ページで年ごとに分けて記録してください。",
@@ -1466,7 +1468,9 @@
         "CX": "キャセイパシフィック航空",
         "CI": "チャイナエアライン",
         "BR": "エバー航空",
-        "MB": "Marriott Bonvoy"
+        "MB": "Marriott Bonvoy",
+        "HH": "Hilton Honors",
+        "IHG": "IHG One Rewards"
       },
       "tierLabel": "現在のステータス",
       "tierStarted": "現在のステータス開始日",
@@ -1500,6 +1504,20 @@
           "platinum": "プラチナエリート",
           "titanium": "チタンエリート",
           "ambassador": "アンバサダーエリート"
+        },
+        "HH": {
+          "member": "メンバー",
+          "silver": "シルバー",
+          "gold": "ゴールド",
+          "diamond": "ダイヤモンド",
+          "diamond_reserve": "ダイヤモンド・リザーブ"
+        },
+        "IHG": {
+          "club": "クラブ",
+          "silver": "シルバーエリート",
+          "gold": "ゴールドエリート",
+          "platinum": "プラチナエリート",
+          "diamond": "ダイヤモンドエリート"
         }
       },
       "stats": {
@@ -1512,7 +1530,9 @@
         "segments": "国際区間",
         "yearNights": "{year}年の対象宿泊数",
         "qualifiedSpend": "年間対象利用額",
-        "pointsBalance": "ポイント残高"
+        "pointsBalance": "ポイント残高",
+        "yearStays": "対象滞在数",
+        "eliteQualifyingPoints": "エリート資格対象ポイント"
       },
       "progressToNext": "{tier}まであと{points}ポイント",
       "windowCalendar": "計算期間：{year}/01/01–{year}/12/31",
@@ -1556,6 +1576,22 @@
       "qualifyingNights": "対象宿泊数",
       "qualifyingSpendUsd": "対象利用額（USD）",
       "rewardPoints": "Bonvoyポイント",
+      "hotelRewardPoints": "利用可能ポイント",
+      "qualifyingStays": "対象滞在数",
+      "eliteQualifyingPoints": "エリート資格対象ポイント",
+      "staysAlternative": "または対象滞在 {value}/{total} 回",
+      "eqpAlternative": "または資格対象ポイント {value}/{total}",
+      "staysAmount": "{stays} 滞在",
+      "eqpAmount": "{points} 資格対象ポイント",
+      "lifetimeDiamondYears": "ダイヤモンド年数",
+      "lifetimeSpendUsd": "生涯対象利用額（USD）",
+      "rolloverNights": "繰越宿泊数",
+      "rolloverNightsHint": "IHGステータス判定のみ対象で、マイルストーン特典には含まれません。",
+      "hotelDisclaimer": {
+        "MB": "対象宿泊数は毎年リセットされ、一部ブランドは0.5泊または対象外です。",
+        "HH": "2026年以降は新たな繰越宿泊はなく、宿泊数・滞在数・対象利用額で判定されます。",
+        "IHG": "ゴールド以上の超過宿泊は1年繰越可能ですが、マイルストーン特典には含まれません。"
+      },
       "nightsAmount": "{nights}泊",
       "spendAmount": "US${spend}",
       "rewardPointsAmount": "{points}ポイント",
@@ -1571,6 +1607,7 @@
       "lifetimeYears": "{tier}以上の年数",
       "lifetimeTier": "ライフタイム{tier}",
       "lifetimeRequirement": "{nights}/{requiredNights}泊・{years}/{requiredYears}年",
+      "lifetimeHiltonRequirement": "{years}/{requiredYears}年、かつ{nights}/{requiredNights}泊または{spend}/{requiredSpend}",
       "requirementMet": "条件達成",
       "marriottNightsDisclaimer": "対象宿泊数は毎年リセットされ繰越不可。特典宿泊も通常は対象です。一部ブランドは0.5泊または対象外のため、公式反映を優先してください。",
       "entriesEmpty": "まだ記録がありません。「ステータスに加算」から始めましょう",

@@ -17,6 +17,8 @@ const CX = PROGRAM_RULES.CX as PointsProgramRules;
 const CI = PROGRAM_RULES.CI as PointsProgramRules;
 const BR = PROGRAM_RULES.BR as MilesSegmentsProgramRules;
 const MB = PROGRAM_RULES.MB as NightsProgramRules;
+const HH = PROGRAM_RULES.HH as NightsProgramRules;
+const IHG = PROGRAM_RULES.IHG as NightsProgramRules;
 
 type Entry = Parameters<typeof computeLoyaltyProgress>[0][number];
 
@@ -639,9 +641,53 @@ type MbEntry = Parameters<typeof computeNightsProgress>[0][number];
 const mbEntry = (over: Partial<MbEntry> = {}): MbEntry => ({
   date: '2026-03-10',
   qualifying_nights: 0,
+  qualifying_stays: 0,
+  elite_qualifying_points: 0,
   qualifying_spend_usd: 0,
   reward_points: 0,
   ...over,
+});
+
+describe('computeNightsProgress（Hilton／IHG 多路徑）', () => {
+  it('Hilton 可由 stays 或 eligible spend 升等，Reserve 仍需活動與消費同時達標', () => {
+    expect(
+      computeNightsProgress([mbEntry({ qualifying_stays: 15 })], HH, '2026-06-01').achievedTier.key
+    ).toBe('gold');
+    expect(
+      computeNightsProgress([mbEntry({ qualifying_spend_usd: 11500 })], HH, '2026-06-01')
+        .achievedTier.key
+    ).toBe('diamond');
+    expect(
+      computeNightsProgress(
+        [mbEntry({ qualifying_nights: 80, qualifying_spend_usd: 17000 })],
+        HH,
+        '2026-06-01'
+      ).achievedTier.key
+    ).toBe('diamond');
+    expect(
+      computeNightsProgress(
+        [mbEntry({ qualifying_stays: 40, qualifying_spend_usd: 18000 })],
+        HH,
+        '2026-06-01'
+      ).achievedTier.key
+    ).toBe('diamond_reserve');
+  });
+
+  it('IHG 可由 EQP 升等，rollover 只加入判級房晚', () => {
+    expect(
+      computeNightsProgress([mbEntry({ elite_qualifying_points: 60000 })], IHG, '2026-06-01')
+        .achievedTier.key
+    ).toBe('platinum');
+    const p = computeNightsProgress([mbEntry({ qualifying_nights: 15 })], IHG, '2026-06-01', {
+      nights: 0,
+      silverYears: 0,
+      goldYears: 0,
+      platinumYears: 0,
+      rolloverNights: 5,
+    });
+    expect(p.achievedTier.key).toBe('gold');
+    expect(p.choiceBenefitsReached).toEqual([]);
+  });
 });
 
 describe('computeNightsProgress（Marriott Bonvoy 曆年合格房晚制）', () => {

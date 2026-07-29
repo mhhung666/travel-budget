@@ -584,6 +584,9 @@ export const upsertLoyaltyAccountSchema = z.object({
   lifetime_silver_years: z.number().int().min(0).max(200).default(0),
   lifetime_gold_years: z.number().int().min(0).max(200).default(0),
   lifetime_platinum_years: z.number().int().min(0).max(200).default(0),
+  lifetime_diamond_years: z.number().int().min(0).max(200).default(0),
+  lifetime_spend_usd: z.number().min(0).max(1_000_000_000).default(0),
+  rollover_nights: z.number().multipleOf(0.5).min(0).max(10000).default(0),
   note: z.string().trim().max(500, '備註過長').default(''),
 });
 
@@ -595,6 +598,8 @@ export const createLoyaltyEntrySchema = z.object({
   qualifying_miles: loyaltyAmountSchema.default(0),
   award_miles: loyaltyAmountSchema.default(0),
   qualifying_nights: z.number().multipleOf(0.5).min(-10000).max(10000).default(0),
+  qualifying_stays: z.number().int().min(-10000).max(10000).default(0),
+  elite_qualifying_points: loyaltyAmountSchema.default(0),
   qualifying_spend_usd: z.number().min(-100_000_000).max(100_000_000).default(0),
   reward_points: loyaltyAmountSchema.default(0),
   own_airline: z.boolean().default(false),
