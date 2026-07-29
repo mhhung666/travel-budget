@@ -13,6 +13,7 @@
 | 系統結構、資料流、資料模型 | [ARCHITECTURE.md](./ARCHITECTURE.md) |
 | 確認目前產品能力 | [FEATURES.md](./FEATURES.md) |
 | 規劃尚未實作的功能 | [ROADMAP.md](./ROADMAP.md) |
+| 實作個人統計儀表板改版 | [PERSONAL_STATS_DASHBOARD.md](./PERSONAL_STATS_DASHBOARD.md) |
 | 處理技術債或基礎設施風險 | [IMPROVEMENTS.md](./IMPROVEMENTS.md) |
 | 查重要交付里程碑 | [CHANGELOG.md](./CHANGELOG.md) |
 | 修改 schema、index 或回填資料 | [MIGRATIONS.md](./MIGRATIONS.md) |
