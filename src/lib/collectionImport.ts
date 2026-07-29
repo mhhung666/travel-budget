@@ -6,9 +6,9 @@
 
 import { HOTEL_BRANDS } from '@/constants/hotelBrands';
 
-/** 行程活動類型 → 帶入的成就種類；非 transport/accommodation 回 null（不提供帶入）。 */
+/** 行程活動類型 → 帶入的成就種類；只有明確的航班與住宿提供帶入。 */
 export function activityImportKind(type: string): 'flight' | 'stay' | null {
-  if (type === 'transport') return 'flight';
+  if (type === 'flight') return 'flight';
   if (type === 'accommodation') return 'stay';
   return null;
 }

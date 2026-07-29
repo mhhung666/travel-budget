@@ -10,9 +10,11 @@ import {
 } from '@/lib/collectionImport';
 
 describe('activityImportKind', () => {
-  it('transport → flight、accommodation → stay、其他 → null', () => {
-    expect(activityImportKind('transport')).toBe('flight');
+  it('flight → flight、accommodation → stay、地面及舊交通 → null', () => {
+    expect(activityImportKind('flight')).toBe('flight');
     expect(activityImportKind('accommodation')).toBe('stay');
+    expect(activityImportKind('ground_transport')).toBeNull();
+    expect(activityImportKind('transport')).toBeNull();
     expect(activityImportKind('sightseeing')).toBeNull();
     expect(activityImportKind('other')).toBeNull();
   });

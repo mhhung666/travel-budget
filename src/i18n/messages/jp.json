@@ -990,9 +990,12 @@
       "types": {
         "sightseeing": "観光",
         "food": "食事",
-        "transport": "移動",
+        "flight": "フライト",
+        "ground_transport": "地上交通",
+        "transport": "移動（旧分類）",
         "accommodation": "宿泊",
-        "activity": "アクティビティ",
+        "shopping": "ショッピング",
+        "activity": "体験・エンタメ",
         "other": "その他"
       },
       "tickets": "チケット",

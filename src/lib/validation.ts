@@ -276,7 +276,17 @@ export const activitySchema = z.object({
   end_time: timeOfDaySchema,
   title: z.string().min(1, '活動標題不能為空').trim(),
   type: z
-    .enum(['sightseeing', 'food', 'transport', 'accommodation', 'activity', 'other'])
+    .enum([
+      'sightseeing',
+      'food',
+      'flight',
+      'ground_transport',
+      'transport',
+      'accommodation',
+      'shopping',
+      'activity',
+      'other',
+    ])
     .default('other'),
   location: locationSchema.nullable().optional(),
   note: z.string().default(''),

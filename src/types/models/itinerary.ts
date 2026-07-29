@@ -1,12 +1,15 @@
 import type { Location } from '../common/location';
 import type { ExpenseAttachment } from './expense';
 
-/** 活動類型（景點 / 餐飲 / 交通 / 住宿 / 活動 / 其他）。對應 model 的 ACTIVITY_TYPES。 */
+/** 活動類型。`transport` 僅供舊資料相容，新活動改用 flight / ground_transport。 */
 export type ActivityType =
   | 'sightseeing'
   | 'food'
+  | 'flight'
+  | 'ground_transport'
   | 'transport'
   | 'accommodation'
+  | 'shopping'
   | 'activity'
   | 'other';
 

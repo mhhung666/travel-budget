@@ -1,11 +1,14 @@
 import mongoose, { Schema, type InferSchemaType, type Model } from 'mongoose';
 
-/** 當日活動的類型。與 EXPENSE_CATEGORIES 是不同概念（活動含景點等非支出項），故獨立列舉。 */
+/** 當日活動的類型。`transport` 僅保留給舊資料，新活動拆成航班與地面交通。 */
 export const ACTIVITY_TYPES = [
   'sightseeing',
   'food',
+  'flight',
+  'ground_transport',
   'transport',
   'accommodation',
+  'shopping',
   'activity',
   'other',
 ] as const;

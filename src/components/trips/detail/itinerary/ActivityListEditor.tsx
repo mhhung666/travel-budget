@@ -113,6 +113,7 @@ export function ActivityCard({
   onRemove?: () => void;
 }) {
   const t = useTranslations('itinerary.activities');
+  const LegacyTransportIcon = ACTIVITY_TYPE_ICON.transport;
 
   return (
     <div className="space-y-2 rounded-lg border bg-muted/20 p-3">
@@ -160,6 +161,14 @@ export function ActivityCard({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
+            {activity.type === 'transport' && (
+              <SelectItem value="transport">
+                <span className="flex items-center gap-2">
+                  <LegacyTransportIcon className="h-3.5 w-3.5" />
+                  {t('types.transport')}
+                </span>
+              </SelectItem>
+            )}
             {ACTIVITY_TYPE_ORDER.map((type) => {
               const Icon = ACTIVITY_TYPE_ICON[type];
               return (

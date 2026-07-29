@@ -997,9 +997,12 @@
       "types": {
         "sightseeing": "Sightseeing",
         "food": "Food",
-        "transport": "Transport",
+        "flight": "Flight",
+        "ground_transport": "Ground transport",
+        "transport": "Transport (legacy)",
         "accommodation": "Stay",
-        "activity": "Activity",
+        "shopping": "Shopping",
+        "activity": "Experience / entertainment",
         "other": "Other"
       },
       "tickets": "Tickets",

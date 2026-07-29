@@ -110,8 +110,11 @@ export default function ItineraryPage() {
       activityTypes: {
         sightseeing: tAct('types.sightseeing'),
         food: tAct('types.food'),
+        flight: tAct('types.flight'),
+        ground_transport: tAct('types.ground_transport'),
         transport: tAct('types.transport'),
         accommodation: tAct('types.accommodation'),
+        shopping: tAct('types.shopping'),
         activity: tAct('types.activity'),
         other: tAct('types.other'),
       },

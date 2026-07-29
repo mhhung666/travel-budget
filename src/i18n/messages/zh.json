@@ -990,9 +990,12 @@
       "types": {
         "sightseeing": "景點",
         "food": "餐飲",
-        "transport": "交通",
+        "flight": "航班",
+        "ground_transport": "地面交通",
+        "transport": "交通（舊分類）",
         "accommodation": "住宿",
-        "activity": "活動",
+        "shopping": "購物",
+        "activity": "體驗／娛樂",
         "other": "其他"
       },
       "tickets": "票券附件",
