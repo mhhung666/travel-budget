@@ -89,11 +89,7 @@ export default function StatsPage() {
       params.set('periodEnd', viewState.selectedPeriod.endDate);
     }
     const query = params.toString();
-    window.history.replaceState(
-      null,
-      '',
-      `${window.location.pathname}${query ? `?${query}` : ''}`
-    );
+    window.history.replaceState(null, '', `${window.location.pathname}${query ? `?${query}` : ''}`);
   }, [startDate, endDate, compare, viewState, hydrated]);
 
   const {
