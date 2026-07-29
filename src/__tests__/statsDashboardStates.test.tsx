@@ -128,6 +128,17 @@ function renderDashboard(overrides: Partial<React.ComponentProps<typeof StatsDas
 }
 
 describe('personal statistics recovery states', () => {
+  it('safely renders statistics restored from the pre-insights cache schema', () => {
+    const legacyStats = {
+      ...populatedStats,
+      insights: undefined,
+      insightRuleVersion: undefined,
+    } as unknown as StatsData;
+
+    expect(() => renderDashboard({ stats: legacyStats })).not.toThrow();
+    expect(screen.queryByText('advancedInsight.heading')).toBeNull();
+  });
+
   it('shows an actionable retry state when the initial request fails', async () => {
     const user = userEvent.setup();
     const onRetry = vi.fn();

@@ -5,7 +5,11 @@ import { ArrowRight, Calculator, Lightbulb } from 'lucide-react';
 import type { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { STATS_INSIGHT_RULES, type StatsInsight } from '@/lib/statsInsights';
+import {
+  STATS_INSIGHT_RULES,
+  STATS_INSIGHT_RULE_VERSION,
+  type StatsInsight,
+} from '@/lib/statsInsights';
 import { trackProductEvent } from '@/lib/productEvents';
 import type { StatsData } from '@/types';
 import { cn } from '@/lib/utils';
@@ -28,6 +32,8 @@ interface RuleBasedInsightsProps {
   };
   onSelect: (insight: StatsInsight) => void;
 }
+
+const EMPTY_INSIGHTS: StatsInsight[] = [];
 
 function percentage(value = 0) {
   return Math.round(value * 100);
@@ -112,7 +118,10 @@ export default function RuleBasedInsights({
   activeFilters,
   onSelect,
 }: RuleBasedInsightsProps) {
-  const insights = stats.insights;
+  // Persisted v3 query data predates server-generated insights. Keep this
+  // boundary tolerant even after the cache buster removes those old entries.
+  const insights = stats.insights ?? EMPTY_INSIGHTS;
+  const ruleVersion = stats.insightRuleVersion ?? STATS_INSIGHT_RULE_VERSION;
   useEffect(() => {
     const result =
       insights.length === 0
@@ -123,16 +132,16 @@ export default function RuleBasedInsights({
             ? 'two'
             : 'three_plus';
     trackProductEvent('stats_insight_result', {
-      ruleVersion: stats.insightRuleVersion,
+      ruleVersion,
       result,
     });
     insights.forEach((insight) => {
       trackProductEvent('stats_insight_impression', {
-        ruleVersion: stats.insightRuleVersion,
+        ruleVersion,
         insightType: insight.type,
       });
     });
-  }, [insights, stats.insightRuleVersion]);
+  }, [insights, ruleVersion]);
 
   if (!insights.length) return null;
 
