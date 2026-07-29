@@ -728,7 +728,40 @@
     "emptyAllTimeTitle": "No personal expenses yet",
     "emptyAllTimeDescription": "After you log your first trip expense, trends and insights will appear here.",
     "logExpense": "Log an expense",
-    "viewAllTime": "View all time"
+    "viewAllTime": "View all time",
+    "advancedInsight": {
+      "heading": "Worth noting",
+      "hint": "Based on spending within each trip, without comparing unrelated trips",
+      "sampleSize": "Based on {count} expenses",
+      "howCalculated": "How this was calculated",
+      "concentrationCalculation": "{amount} ÷ trip total {total} = {percentage}%, with a {threshold}% trigger.",
+      "balancedCalculation": "The largest category is {percentage}%, below the {threshold}% balanced-distribution threshold.",
+      "calculationDate": "Calculation date: {date}",
+      "tagOverlapNote": "An expense can have multiple tags, so percentages for different tags should not be added.",
+      "viewDetails": "View related expenses",
+      "viewingDetails": "Viewing expenses",
+      "viewDetailsLabel": "View expenses related to “{insight}”",
+      "single_expense_concentration": {
+        "label": "Large single expense",
+        "title": "“{expense}” is the largest expense in {trip}, at {percentage}%"
+      },
+      "spending_day_concentration": {
+        "label": "Concentrated spending day",
+        "title": "{percentage}% of {trip}'s spending occurred on {date}"
+      },
+      "trip_category_concentration": {
+        "label": "Category concentration",
+        "title": "{category} represents {percentage}% of spending in {trip}"
+      },
+      "trip_tag_concentration": {
+        "label": "Tag concentration",
+        "title": "{percentage}% of {trip}'s spending is tagged “{tag}”"
+      },
+      "balanced_category_distribution": {
+        "label": "Category distribution",
+        "title": "{trip}'s spending is spread across {count} categories"
+      }
+    }
   },
   "trip": {
     "info": "Trip Info",

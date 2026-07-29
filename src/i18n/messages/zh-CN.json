@@ -728,7 +728,40 @@
     "emptyAllTimeTitle": "还没有个人支出",
     "emptyAllTimeDescription": "记下第一笔旅行支出后，这里会开始整理你的趋势与洞察。",
     "logExpense": "记一笔",
-    "viewAllTime": "查看全部期间"
+    "viewAllTime": "查看全部期间",
+    "advancedInsight": {
+      "heading": "值得注意",
+      "hint": "根据行程内的支出分布整理，不比较不同行程的高低",
+      "sampleSize": "根据 {count} 笔支出",
+      "howCalculated": "如何计算",
+      "concentrationCalculation": "{amount} ÷ 行程总额 {total} = {percentage}%，触发门槛为 {threshold}%。",
+      "balancedCalculation": "最大分类占 {percentage}%，低于平均分布门槛 {threshold}%。",
+      "calculationDate": "计算日期：{date}",
+      "tagOverlapNote": "同一笔支出可有多个标签，因此不同标签占比不可相加。",
+      "viewDetails": "查看相关明细",
+      "viewingDetails": "正在查看",
+      "viewDetailsLabel": "查看“{insight}”的相关支出明细",
+      "single_expense_concentration": {
+        "label": "单笔支出集中",
+        "title": "“{expense}”是{trip}最大单笔支出，占 {percentage}%"
+      },
+      "spending_day_concentration": {
+        "label": "集中消费日",
+        "title": "{trip}有 {percentage}% 支出集中在 {date}"
+      },
+      "trip_category_concentration": {
+        "label": "分类集中",
+        "title": "{trip}的{category}占总支出 {percentage}%"
+      },
+      "trip_tag_concentration": {
+        "label": "标签集中",
+        "title": "{trip}有 {percentage}% 支出标记为“{tag}”"
+      },
+      "balanced_category_distribution": {
+        "label": "分类分布",
+        "title": "{trip}的支出分布在 {count} 个分类"
+      }
+    }
   },
   "trip": {
     "info": "旅行信息",

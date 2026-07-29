@@ -728,7 +728,40 @@
     "emptyAllTimeTitle": "還沒有個人支出",
     "emptyAllTimeDescription": "記下第一筆旅行支出後，這裡會開始整理你的趨勢與洞察。",
     "logExpense": "記一筆",
-    "viewAllTime": "查看全部期間"
+    "viewAllTime": "查看全部期間",
+    "advancedInsight": {
+      "heading": "值得注意",
+      "hint": "根據旅程內的支出分布整理，不比較不同旅程的高低",
+      "sampleSize": "根據 {count} 筆支出",
+      "howCalculated": "如何計算",
+      "concentrationCalculation": "{amount} ÷ 旅程總額 {total} = {percentage}%，觸發門檻為 {threshold}%。",
+      "balancedCalculation": "最大分類占 {percentage}%，低於平均分布門檻 {threshold}%。",
+      "calculationDate": "計算日期：{date}",
+      "tagOverlapNote": "同一筆支出可有多個標籤，因此不同標籤占比不可相加。",
+      "viewDetails": "查看相關明細",
+      "viewingDetails": "正在查看",
+      "viewDetailsLabel": "查看「{insight}」的相關支出明細",
+      "single_expense_concentration": {
+        "label": "單筆支出集中",
+        "title": "「{expense}」是{trip}最大單筆支出，占 {percentage}%"
+      },
+      "spending_day_concentration": {
+        "label": "集中消費日",
+        "title": "{trip}有 {percentage}% 支出集中在 {date}"
+      },
+      "trip_category_concentration": {
+        "label": "分類集中",
+        "title": "{trip}的{category}占總支出 {percentage}%"
+      },
+      "trip_tag_concentration": {
+        "label": "標籤集中",
+        "title": "{trip}有 {percentage}% 支出標記為「{tag}」"
+      },
+      "balanced_category_distribution": {
+        "label": "分類分布",
+        "title": "{trip}的支出分布在 {count} 個分類"
+      }
+    }
   },
   "trip": {
     "info": "旅行資訊",

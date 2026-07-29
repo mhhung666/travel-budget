@@ -319,4 +319,106 @@ describe('personal statistics dashboard interactions', () => {
     expect(screen.queryByText('Osaka lunch')).toBeNull();
     expect(screen.queryByText('Tokyo train')).toBeNull();
   });
+
+  it('explains advanced insights and applies their complete detail filters', async () => {
+    const user = userEvent.setup();
+    const onViewStateChange = vi.fn();
+    const details = [
+      {
+        id: 'flight',
+        date: '2026-07-01',
+        description: 'Flight',
+        amount: 600,
+        tripName: 'Tokyo',
+        tripId: 'trip-1',
+        category: 'transportation',
+      },
+      {
+        id: 'meal-1',
+        date: '2026-07-02',
+        description: 'Lunch',
+        amount: 150,
+        tripName: 'Tokyo',
+        tripId: 'trip-1',
+        category: 'food',
+      },
+      {
+        id: 'meal-2',
+        date: '2026-07-03',
+        description: 'Dinner',
+        amount: 150,
+        tripName: 'Tokyo',
+        tripId: 'trip-1',
+        category: 'food',
+      },
+      {
+        id: 'hotel',
+        date: '2026-07-04',
+        description: 'Hotel',
+        amount: 100,
+        tripName: 'Tokyo',
+        tripId: 'trip-1',
+        category: 'accommodation',
+      },
+    ];
+    const stats: StatsData = {
+      ...populatedStats,
+      tripStats: [
+        {
+          tripId: 'trip-1',
+          tripName: 'Tokyo',
+          total: 1000,
+          count: details.length,
+          details,
+        },
+      ],
+      totalAmount: 1000,
+      totalExpenses: details.length,
+      recentExpenses: details,
+    };
+
+    const { rerender, props } = renderDashboard({ stats, onViewStateChange });
+
+    expect(screen.queryByText('advancedInsight.heading')).not.toBeNull();
+    const calculationSummary = screen.getAllByText('advancedInsight.howCalculated')[0];
+    await user.click(calculationSummary);
+    expect(calculationSummary.closest('details')?.open).toBe(true);
+    expect(screen.getAllByText('advancedInsight.concentrationCalculation')).not.toHaveLength(0);
+
+    const detailButtons = screen.getAllByRole('button', {
+      name: 'advancedInsight.viewDetailsLabel',
+    });
+    await user.click(detailButtons[0]);
+    expect(onViewStateChange).toHaveBeenCalledWith({
+      ...viewState,
+      dimension: 'trip',
+      detailFilters: {
+        tripId: 'trip-1',
+        category: undefined,
+        tag: undefined,
+        periodStart: undefined,
+        periodEnd: undefined,
+        expenseId: 'flight',
+      },
+    });
+
+    rerender(
+      <StatsDashboard
+        {...props}
+        stats={stats}
+        viewState={{
+          ...viewState,
+          dimension: 'trip',
+          detailFilters: { tripId: 'trip-1', expenseId: 'flight' },
+        }}
+      />
+    );
+    expect(
+      screen
+        .getAllByRole('button', { name: 'advancedInsight.viewDetailsLabel' })[0]
+        .getAttribute('aria-pressed')
+    ).toBe('true');
+    expect(screen.queryByText('Flight')).not.toBeNull();
+    expect(screen.queryByText('Lunch')).toBeNull();
+  });
 });

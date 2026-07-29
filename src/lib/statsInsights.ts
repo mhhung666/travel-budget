@@ -40,6 +40,7 @@ export interface StatsInsight {
   tripId: string;
   tripName: string;
   amount: number;
+  totalAmount: number;
   percentage?: number;
   sampleSize: number;
   category?: string;
@@ -109,6 +110,7 @@ export function generateStatsInsights(stats: Pick<StatsData, 'tripStats'>): Stat
       tripId: trip.tripId,
       tripName: trip.tripName,
       sampleSize: details.length,
+      totalAmount: total,
     };
     const topExpense = [...details].sort(
       (a, b) => b.amount - a.amount || a.id.localeCompare(b.id)
@@ -201,6 +203,7 @@ export function generateStatsInsights(stats: Pick<StatsData, 'tripStats'>): Stat
             id: `balanced:${trip.tripId}`,
             type: 'balanced_category_distribution',
             amount: total,
+            percentage: topCategoryShare,
             categoryCount,
             filter: { tripId: trip.tripId },
           },

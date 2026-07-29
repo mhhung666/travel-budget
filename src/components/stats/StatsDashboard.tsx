@@ -17,6 +17,7 @@ import {
 import { useLocale, useTranslations } from 'next-intl';
 import DateRangeFilter from './DateRangeFilter';
 import ExpenseHistogram from './ExpenseHistogram';
+import RuleBasedInsights from './RuleBasedInsights';
 import type { CategoryStat, ExpenseDetail, PersonalTripStat, StatsData, TagStat } from '@/types';
 import { StatsDashboardSkeleton } from '@/components/skeletons';
 import { EmptyState, ErrorState } from '@/components/common';
@@ -31,6 +32,7 @@ import type {
   StatsDetailFilters,
   StatsDimension,
 } from '@/lib/statsViewState';
+import type { StatsInsight } from '@/lib/statsInsights';
 
 type Dimension = StatsDimension;
 type Sort = 'amount' | 'count' | 'name';
@@ -279,6 +281,27 @@ export default function StatsDashboard({
     });
   };
 
+  const selectAdvancedInsight = (insight: StatsInsight) => {
+    updateViewState({
+      dimension: insight.filter.category ? 'category' : insight.filter.tag ? 'tag' : 'trip',
+      detailFilters: {
+        tripId: insight.filter.tripId,
+        category: insight.filter.category,
+        tag: insight.filter.tag,
+        periodStart: insight.filter.startDate,
+        periodEnd: insight.filter.endDate,
+        expenseId: insight.filter.expenseId,
+      },
+    });
+    setShowAllExpenses(true);
+    globalThis.requestAnimationFrame?.(() => {
+      document.getElementById('stats-expense-details')?.scrollIntoView?.({
+        behavior: 'smooth',
+        block: 'start',
+      });
+    });
+  };
+
   const dateFilter = (
     <DateRangeFilter
       startDate={startDate}
@@ -458,6 +481,16 @@ export default function StatsDashboard({
               })}
             </div>
           </section>
+
+          <RuleBasedInsights
+            stats={stats!}
+            t={t}
+            categoryName={(key) => tCategory(key)}
+            formatCurrency={formatCurrency}
+            formatDate={formatDate}
+            activeFilters={detailFilters}
+            onSelect={selectAdvancedInsight}
+          />
 
           <section className="mb-6">
             <ExpenseHistogram

@@ -728,7 +728,40 @@
     "emptyAllTimeTitle": "個人の支出はまだありません",
     "emptyAllTimeDescription": "最初の旅行支出を記録すると、ここに傾向とインサイトが表示されます。",
     "logExpense": "支出を記録",
-    "viewAllTime": "全期間を表示"
+    "viewAllTime": "全期間を表示",
+    "advancedInsight": {
+      "heading": "注目ポイント",
+      "hint": "旅行内の支出分布に基づき、異なる旅行同士は比較しません",
+      "sampleSize": "{count} 件の支出に基づく",
+      "howCalculated": "計算方法",
+      "concentrationCalculation": "{amount} ÷ 旅行合計 {total} = {percentage}%（基準 {threshold}%）",
+      "balancedCalculation": "最大カテゴリは {percentage}% で、均等分布の基準 {threshold}% を下回っています。",
+      "calculationDate": "計算日：{date}",
+      "tagOverlapNote": "1件の支出に複数のタグを付けられるため、異なるタグの割合は合計できません。",
+      "viewDetails": "関連する明細を見る",
+      "viewingDetails": "明細を表示中",
+      "viewDetailsLabel": "「{insight}」に関連する支出明細を見る",
+      "single_expense_concentration": {
+        "label": "大きな単一支出",
+        "title": "「{expense}」は{trip}で最大の支出で、{percentage}%を占めます"
+      },
+      "spending_day_concentration": {
+        "label": "支出が集中した日",
+        "title": "{trip}の支出の{percentage}%が{date}に集中しています"
+      },
+      "trip_category_concentration": {
+        "label": "カテゴリ集中",
+        "title": "{trip}では{category}が総支出の{percentage}%を占めます"
+      },
+      "trip_tag_concentration": {
+        "label": "タグ集中",
+        "title": "{trip}の支出の{percentage}%に「{tag}」タグがあります"
+      },
+      "balanced_category_distribution": {
+        "label": "カテゴリ分布",
+        "title": "{trip}の支出は{count}カテゴリに分散しています"
+      }
+    }
   },
   "trip": {
     "info": "旅行情報",
