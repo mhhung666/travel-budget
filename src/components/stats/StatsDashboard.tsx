@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   AlertCircle,
   ArrowRight,
@@ -33,6 +33,7 @@ import type {
   StatsDimension,
 } from '@/lib/statsViewState';
 import type { StatsInsight } from '@/lib/statsInsights';
+import { trackProductEvent } from '@/lib/productEvents';
 
 type Dimension = StatsDimension;
 type Sort = 'amount' | 'count' | 'name';
@@ -152,6 +153,7 @@ export default function StatsDashboard({
   const [sort, setSort] = useState<Sort>('amount');
   const [expenseSort, setExpenseSort] = useState<ExpenseSort>('dateDesc');
   const [showAllExpenses, setShowAllExpenses] = useState(false);
+  const selectedAdvancedInsight = useRef<StatsInsight['type'] | null>(null);
 
   const items = useMemo(() => {
     if (!stats) return [];
@@ -282,6 +284,12 @@ export default function StatsDashboard({
   };
 
   const selectAdvancedInsight = (insight: StatsInsight) => {
+    selectedAdvancedInsight.current = insight.type;
+    trackProductEvent('stats_insight_action', {
+      ruleVersion: stats!.insightRuleVersion,
+      insightType: insight.type,
+      action: 'view_details',
+    });
     updateViewState({
       dimension: insight.filter.category ? 'category' : insight.filter.tag ? 'tag' : 'trip',
       detailFilters: {
@@ -300,6 +308,18 @@ export default function StatsDashboard({
         block: 'start',
       });
     });
+  };
+
+  const clearDetailFilters = () => {
+    if (selectedAdvancedInsight.current) {
+      trackProductEvent('stats_insight_action', {
+        ruleVersion: stats!.insightRuleVersion,
+        insightType: selectedAdvancedInsight.current,
+        action: 'clear_filters',
+      });
+      selectedAdvancedInsight.current = null;
+    }
+    updateViewState({ detailFilters: {} });
   };
 
   const dateFilter = (
@@ -605,11 +625,7 @@ export default function StatsDashboard({
                         <X size={14} aria-hidden />
                       </Button>
                     )}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => updateViewState({ detailFilters: {} })}
-                    >
+                    <Button variant="ghost" size="sm" onClick={clearDetailFilters}>
                       {t('clearFilters')}
                     </Button>
                   </div>
@@ -743,12 +759,7 @@ export default function StatsDashboard({
                       <p className="mb-3 text-sm text-muted-foreground">
                         {t('noFilteredExpenses')}
                       </p>
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          updateViewState({ detailFilters: {} });
-                        }}
-                      >
+                      <Button variant="outline" onClick={clearDetailFilters}>
                         {t('clearFilters')}
                       </Button>
                     </div>

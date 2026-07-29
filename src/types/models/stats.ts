@@ -35,6 +35,38 @@ export interface PersonalTripStat {
   details: ExpenseDetail[];
 }
 
+export type StatsInsightType =
+  | 'trip_category_concentration'
+  | 'single_expense_concentration'
+  | 'spending_day_concentration'
+  | 'balanced_category_distribution'
+  | 'trip_tag_concentration';
+export type StatsInsightRuleVersion = 'v1';
+
+export interface StatsInsight {
+  id: string;
+  type: StatsInsightType;
+  tripId: string;
+  tripName: string;
+  amount: number;
+  totalAmount: number;
+  percentage?: number;
+  sampleSize: number;
+  category?: string;
+  tag?: string;
+  date?: string;
+  expenseDescription?: string;
+  categoryCount?: number;
+  filter: {
+    tripId: string;
+    category?: string;
+    tag?: string;
+    startDate?: string;
+    endDate?: string;
+    expenseId?: string;
+  };
+}
+
 export interface StatsData {
   categoryStats: CategoryStat[];
   tripStats: PersonalTripStat[];
@@ -46,6 +78,8 @@ export interface StatsData {
   startDate: string | null;
   endDate: string | null;
   recentExpenses: ExpenseDetail[];
+  insights: StatsInsight[];
+  insightRuleVersion: StatsInsightRuleVersion;
 }
 
 /**

@@ -1,5 +1,14 @@
-import type { ExpenseDetail, StatsData } from '@/types';
+import type {
+  ExpenseDetail,
+  PersonalTripStat,
+  StatsInsight,
+  StatsInsightRuleVersion,
+  StatsInsightType,
+} from '@/types';
 
+export type { StatsInsight, StatsInsightType } from '@/types';
+
+export const STATS_INSIGHT_RULE_VERSION: StatsInsightRuleVersion = 'v1';
 export const STATS_INSIGHT_RULES = {
   maxInsights: 3,
   maxInsightsPerTrip: 2,
@@ -17,39 +26,6 @@ export const STATS_INSIGHT_RULES = {
   },
   tagConcentration: { minimumTaggedExpenses: 3, minimumShare: 0.5 },
 } as const;
-
-export type StatsInsightType =
-  | 'trip_category_concentration'
-  | 'single_expense_concentration'
-  | 'spending_day_concentration'
-  | 'balanced_category_distribution'
-  | 'trip_tag_concentration';
-
-export interface StatsInsightFilter {
-  tripId: string;
-  category?: string;
-  tag?: string;
-  startDate?: string;
-  endDate?: string;
-  expenseId?: string;
-}
-
-export interface StatsInsight {
-  id: string;
-  type: StatsInsightType;
-  tripId: string;
-  tripName: string;
-  amount: number;
-  totalAmount: number;
-  percentage?: number;
-  sampleSize: number;
-  category?: string;
-  tag?: string;
-  date?: string;
-  expenseDescription?: string;
-  categoryCount?: number;
-  filter: StatsInsightFilter;
-}
 
 type RankedInsight = StatsInsight & {
   priority: number;
@@ -98,7 +74,7 @@ function candidate(insight: StatsInsight, thresholdDelta: number): RankedInsight
   };
 }
 
-export function generateStatsInsights(stats: Pick<StatsData, 'tripStats'>): StatsInsight[] {
+export function generateStatsInsights(stats: { tripStats: PersonalTripStat[] }): StatsInsight[] {
   const candidates: RankedInsight[] = [];
 
   for (const trip of stats.tripStats) {

@@ -3,6 +3,7 @@ import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import StatsDashboard, { type StatsDashboardViewState } from '@/components/stats/StatsDashboard';
 import type { StatsData } from '@/types';
+import { generateStatsInsights, STATS_INSIGHT_RULE_VERSION } from '@/lib/statsInsights';
 
 vi.mock('@/i18n/navigation', () => ({
   Link: ({
@@ -47,6 +48,8 @@ const emptyStats: StatsData = {
   startDate: '2026-07-01',
   endDate: '2026-07-31',
   recentExpenses: [],
+  insights: [],
+  insightRuleVersion: STATS_INSIGHT_RULE_VERSION,
 };
 
 const populatedStats: StatsData = {
@@ -258,7 +261,6 @@ describe('personal statistics dashboard interactions', () => {
       totalExpenses: details.length,
       recentExpenses: details,
     };
-
     renderDashboard({ stats });
 
     expect(screen.queryByText('Expense 1')).toBeNull();
@@ -376,6 +378,7 @@ describe('personal statistics dashboard interactions', () => {
       totalExpenses: details.length,
       recentExpenses: details,
     };
+    stats.insights = generateStatsInsights({ tripStats: stats.tripStats });
 
     const { rerender, props } = renderDashboard({ stats, onViewStateChange });
 

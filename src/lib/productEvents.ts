@@ -1,6 +1,20 @@
 import { track } from '@vercel/analytics';
+import type { StatsInsightRuleVersion, StatsInsightType } from '@/types';
 
 export interface ProductEventMap {
+  stats_insight_result: {
+    ruleVersion: StatsInsightRuleVersion;
+    result: 'none' | 'one' | 'two' | 'three_plus';
+  };
+  stats_insight_impression: {
+    ruleVersion: StatsInsightRuleVersion;
+    insightType: StatsInsightType;
+  };
+  stats_insight_action: {
+    ruleVersion: StatsInsightRuleVersion;
+    insightType: StatsInsightType;
+    action: 'view_details' | 'clear_filters';
+  };
   activation_step: {
     step: 'registered' | 'trip_created' | 'expense_created' | 'companion_added' | 'invite_shared';
   };

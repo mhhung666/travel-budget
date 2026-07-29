@@ -16,6 +16,7 @@ import type {
   TripStatsData,
 } from '@/types';
 import { logger } from '@/lib/logger';
+import { generateStatsInsights, STATS_INSIGHT_RULE_VERSION } from '@/lib/statsInsights';
 import {
   toTripStatsInputs,
   type TripStatExpenseInput,
@@ -156,6 +157,8 @@ function emptyStats(startDate?: string, endDate?: string): StatsData {
     startDate: startDate || null,
     endDate: endDate || null,
     recentExpenses: [],
+    insights: [],
+    insightRuleVersion: STATS_INSIGHT_RULE_VERSION,
   };
 }
 
@@ -203,6 +206,7 @@ export const getStats = withAuth(
         return (!startDate || value >= startDate) && (!endDate || value <= endDate);
       };
       const current = aggregatePersonalStats(expenses.filter(isCurrent), session.userId);
+      const insights = generateStatsInsights({ tripStats: current.tripStats });
       return {
         success: true,
         data: {
@@ -212,6 +216,8 @@ export const getStats = withAuth(
             : 0,
           startDate: startDate || current.recentExpenses.at(-1)?.date || null,
           endDate: endDate || current.recentExpenses.at(0)?.date || null,
+          insights,
+          insightRuleVersion: STATS_INSIGHT_RULE_VERSION,
         },
       };
     } catch (error) {

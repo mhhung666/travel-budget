@@ -27,6 +27,20 @@ describe('privacy-safe product events', () => {
     });
   });
 
+  it('records insight behavior without expense content or identifiers', () => {
+    trackProductEvent('stats_insight_action', {
+      ruleVersion: 'v1',
+      insightType: 'single_expense_concentration',
+      action: 'view_details',
+    });
+
+    expect(track).toHaveBeenCalledWith('stats_insight_action', {
+      ruleVersion: 'v1',
+      insightType: 'single_expense_concentration',
+      action: 'view_details',
+    });
+  });
+
   it('never interrupts the product flow when analytics is unavailable', () => {
     track.mockImplementationOnce(() => {
       throw new Error('analytics unavailable');

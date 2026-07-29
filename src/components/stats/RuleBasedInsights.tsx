@@ -1,10 +1,12 @@
 'use client';
 
+import { useEffect } from 'react';
 import { ArrowRight, Calculator, Lightbulb } from 'lucide-react';
 import type { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { generateStatsInsights, STATS_INSIGHT_RULES, type StatsInsight } from '@/lib/statsInsights';
+import { STATS_INSIGHT_RULES, type StatsInsight } from '@/lib/statsInsights';
+import { trackProductEvent } from '@/lib/productEvents';
 import type { StatsData } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -110,7 +112,28 @@ export default function RuleBasedInsights({
   activeFilters,
   onSelect,
 }: RuleBasedInsightsProps) {
-  const insights = generateStatsInsights(stats);
+  const insights = stats.insights;
+  useEffect(() => {
+    const result =
+      insights.length === 0
+        ? 'none'
+        : insights.length === 1
+          ? 'one'
+          : insights.length === 2
+            ? 'two'
+            : 'three_plus';
+    trackProductEvent('stats_insight_result', {
+      ruleVersion: stats.insightRuleVersion,
+      result,
+    });
+    insights.forEach((insight) => {
+      trackProductEvent('stats_insight_impression', {
+        ruleVersion: stats.insightRuleVersion,
+        insightType: insight.type,
+      });
+    });
+  }, [insights, stats.insightRuleVersion]);
+
   if (!insights.length) return null;
 
   return (
