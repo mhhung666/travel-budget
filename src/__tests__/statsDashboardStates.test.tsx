@@ -75,7 +75,17 @@ const populatedStats: StatsData = {
       tripName: 'Tokyo',
       total: 500,
       count: 1,
-      details: [],
+      details: [
+        {
+          id: 'expense-1',
+          date: '2026-07-12',
+          description: 'Dinner',
+          amount: 500,
+          tripName: 'Tokyo',
+          tripId: 'trip-1',
+          category: 'food',
+        },
+      ],
     },
   ],
   totalAmount: 500,
@@ -168,11 +178,16 @@ describe('personal statistics dashboard interactions', () => {
     renderDashboard({ stats: populatedStats, onViewStateChange });
 
     expect(screen.queryByText('averagePerTrip')).not.toBeNull();
-    await user.click(screen.getByRole('button', { name: /tripCount/ }));
+    const tripInsight = screen
+      .getAllByRole('button', { name: 'filterInsight' })
+      .find((button) => button.textContent?.includes('Tokyo'));
+    expect(tripInsight).toBeDefined();
+    await user.click(tripInsight!);
     expect(onViewStateChange).toHaveBeenCalledWith({
       ...viewState,
       dimension: 'trip',
-      dimensionValue: undefined,
+      dimensionValue: 'trip-1',
+      selectedPeriod: null,
     });
 
     await user.click(screen.getByRole('button', { name: 'dimensionTrip' }));
@@ -187,6 +202,39 @@ describe('personal statistics dashboard interactions', () => {
       ...viewState,
       dimensionValue: 'food',
     });
+  });
+
+  it('uses insight cards to filter the related details and marks the active insight', async () => {
+    const user = userEvent.setup();
+    const onViewStateChange = vi.fn();
+
+    const { rerender, props } = renderDashboard({ stats: populatedStats, onViewStateChange });
+    const categoryInsight = screen
+      .getAllByRole('button', { name: 'filterInsight' })
+      .find((button) => button.textContent?.includes('food'));
+    expect(categoryInsight).toBeDefined();
+    expect(categoryInsight!.getAttribute('aria-pressed')).toBe('false');
+
+    await user.click(categoryInsight!);
+    expect(onViewStateChange).toHaveBeenCalledWith({
+      ...viewState,
+      dimension: 'category',
+      dimensionValue: 'food',
+      selectedPeriod: null,
+    });
+
+    rerender(
+      <StatsDashboard
+        {...props}
+        viewState={{ ...viewState, dimensionValue: 'food' }}
+        onViewStateChange={onViewStateChange}
+      />
+    );
+    const selectedCategoryInsight = screen
+      .getAllByRole('button', { name: 'filterInsight' })
+      .find((button) => button.textContent?.includes('food'));
+    expect(selectedCategoryInsight?.getAttribute('aria-pressed')).toBe('true');
+    expect(screen.queryByText('Dinner')).not.toBeNull();
   });
 
   it('sorts expense details and expands the full list without hover', async () => {

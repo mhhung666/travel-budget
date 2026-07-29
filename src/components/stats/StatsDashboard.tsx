@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import {
   AlertCircle,
+  ArrowRight,
   Calculator,
   CircleDollarSign,
   Layers3,
@@ -51,6 +52,13 @@ type DimensionItem = {
   count: number;
   details: ExpenseDetail[];
   href?: string;
+};
+type InsightItem = {
+  key: string;
+  label: string;
+  dimension: Dimension;
+  item: DimensionItem;
+  icon: typeof Plane;
 };
 
 interface StatsDashboardProps {
@@ -181,10 +189,39 @@ export default function StatsDashboard({
         : (stats?.categoryStats ?? []),
     [selectedItem, stats?.categoryStats]
   );
+  const insights = useMemo<InsightItem[]>(() => {
+    if (!stats) return [];
+    const topTrip = dimensionItems('trip', stats, (key) => tCategory(key))[0];
+    const topCategory = dimensionItems('category', stats, (key) => tCategory(key))[0];
+    const topTag = dimensionItems('tag', stats, (key) => tCategory(key))[0];
+
+    return [
+      topTrip && {
+        key: 'trip',
+        label: t('topSpendingTrip'),
+        dimension: 'trip' as const,
+        item: topTrip,
+        icon: Plane,
+      },
+      topCategory && {
+        key: 'category',
+        label: t('topSpendingCategory'),
+        dimension: 'category' as const,
+        item: topCategory,
+        icon: Layers3,
+      },
+      topTag && {
+        key: 'tag',
+        label: t('topSpendingTag'),
+        dimension: 'tag' as const,
+        item: topTag,
+        icon: Tag,
+      },
+    ].filter((insight): insight is InsightItem => Boolean(insight));
+  }, [stats, t, tCategory]);
   if (loading && !stats) return <StatsDashboardSkeleton />;
 
   const hasExpenses = (stats?.totalExpenses ?? 0) > 0;
-  const topCategory = stats?.categoryStats[0];
   const cards = [
     {
       label: t('totalSpent'),
@@ -200,19 +237,27 @@ export default function StatsDashboard({
       label: t('tripCount'),
       value: t('tripCountValue', { count: stats?.tripCount ?? 0 }),
       icon: Plane,
-      action: () => {
-        updateViewState({ dimension: 'trip', dimensionValue: undefined });
-      },
     },
     {
-      label: t('topCategory'),
-      value: topCategory ? tCategory(topCategory.category) : t('noData'),
-      detail: topCategory
-        ? `${formatCurrency(topCategory.total)} · ${Math.round((topCategory.total / Math.max(stats?.totalAmount ?? 1, 1)) * 100)}%`
-        : undefined,
-      icon: Layers3,
+      label: t('expenseTotal'),
+      value: t('expenseCount', { count: stats?.totalExpenses ?? 0 }),
+      icon: ReceiptText,
     },
   ];
+
+  const selectInsight = (insight: InsightItem) => {
+    updateViewState({
+      dimension: insight.dimension,
+      dimensionValue: insight.item.id,
+      selectedPeriod: null,
+    });
+    globalThis.requestAnimationFrame?.(() => {
+      document.getElementById('stats-expense-details')?.scrollIntoView?.({
+        behavior: 'smooth',
+        block: 'start',
+      });
+    });
+  };
 
   const dateFilter = (
     <DateRangeFilter
@@ -318,37 +363,75 @@ export default function StatsDashboard({
         <>
           <section
             className="mb-6 grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 lg:grid-cols-4"
-            aria-label={t('insights')}
+            aria-label={t('statsSummary')}
           >
             {cards.map((card) => {
               const Icon = card.icon;
-              const content = (
-                <Card
-                  className={cn(
-                    'h-full border-muted',
-                    card.action && 'transition hover:border-primary'
-                  )}
-                >
-                  <CardContent className="p-4 sm:p-5">
-                    <div className="mb-4 flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">{card.label}</span>
-                      <Icon size={18} className="text-primary" aria-hidden />
-                    </div>
-                    <p className="truncate text-xl font-bold sm:text-2xl">{card.value}</p>
-                    {card.detail && (
-                      <p className="mt-1 text-xs text-muted-foreground">{card.detail}</p>
-                    )}
-                  </CardContent>
-                </Card>
-              );
-              return card.action ? (
-                <button key={card.label} type="button" onClick={card.action} className="text-left">
-                  {content}
-                </button>
-              ) : (
-                <div key={card.label}>{content}</div>
+              return (
+                <div key={card.label}>
+                  <Card className="h-full border-muted">
+                    <CardContent className="p-4 sm:p-5">
+                      <div className="mb-4 flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">{card.label}</span>
+                        <Icon size={18} className="text-primary" aria-hidden />
+                      </div>
+                      <p className="truncate text-xl font-bold sm:text-2xl">{card.value}</p>
+                    </CardContent>
+                  </Card>
+                </div>
               );
             })}
+          </section>
+
+          <section className="mb-6" aria-labelledby="stats-insights-heading">
+            <div className="mb-3">
+              <h2 id="stats-insights-heading" className="font-semibold">
+                {t('travelInsights')}
+              </h2>
+              <p className="text-sm text-muted-foreground">{t('insightHint')}</p>
+            </div>
+            <div className="grid gap-3 md:grid-cols-3">
+              {insights.map((insight) => {
+                const Icon = insight.icon;
+                const selected =
+                  dimension === insight.dimension && dimensionValue === insight.item.id;
+                return (
+                  <button
+                    key={insight.key}
+                    type="button"
+                    aria-pressed={selected}
+                    aria-label={t('filterInsight', {
+                      insight: insight.label,
+                      name: insight.item.name,
+                    })}
+                    onClick={() => selectInsight(insight)}
+                    className="min-w-0 text-left"
+                  >
+                    <Card
+                      className={cn(
+                        'h-full border-muted transition hover:border-primary hover:bg-primary/[0.03]',
+                        selected && 'border-primary bg-primary/5'
+                      )}
+                    >
+                      <CardContent className="p-4">
+                        <div className="mb-3 flex items-center justify-between gap-3">
+                          <span className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Icon size={17} className="text-primary" aria-hidden />
+                            {insight.label}
+                          </span>
+                          <ArrowRight size={17} className="text-primary" aria-hidden />
+                        </div>
+                        <p className="truncate font-semibold">{insight.item.name}</p>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {formatCurrency(insight.item.total)} ·{' '}
+                          {t('expenseCount', { count: insight.item.count })}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </button>
+                );
+              })}
+            </div>
           </section>
 
           <section className="mb-6">
@@ -484,7 +567,7 @@ export default function StatsDashboard({
               </CardContent>
             </Card>
 
-            <Card className="border-muted">
+            <Card id="stats-expense-details" className="scroll-mt-4 border-muted">
               <CardContent className="p-5">
                 <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-2">
