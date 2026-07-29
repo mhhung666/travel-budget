@@ -715,7 +715,18 @@
     "showLess": "Show less",
     "noFilteredExpenses": "No expenses match these filters",
     "clearFilters": "Clear filters",
-    "updating": "Updating statistics…"
+    "updating": "Updating statistics…",
+    "loadErrorTitle": "Unable to load your statistics",
+    "loadErrorDescription": "Your statistics are temporarily unavailable. Check your connection and try again.",
+    "updateErrorTitle": "Statistics could not be updated",
+    "updateErrorDescription": "The last successfully loaded data is still shown. You can keep exploring or try again.",
+    "retry": "Retry",
+    "emptyPeriodTitle": "No expenses in this period",
+    "emptyPeriodDescription": "Try another date range, or log your first expense and return to see the trend.",
+    "emptyAllTimeTitle": "No personal expenses yet",
+    "emptyAllTimeDescription": "After you log your first trip expense, trends and insights will appear here.",
+    "logExpense": "Log an expense",
+    "viewAllTime": "View all time"
   },
   "trip": {
     "info": "Trip Info",

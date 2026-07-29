@@ -715,7 +715,18 @@
     "showLess": "收起",
     "noFilteredExpenses": "当前筛选条件下没有支出",
     "clearFilters": "清除筛选",
-    "updating": "正在更新统计…"
+    "updating": "正在更新统计…",
+    "loadErrorTitle": "无法加载个人统计",
+    "loadErrorDescription": "统计数据暂时无法获取，请检查网络连接后重试。",
+    "updateErrorTitle": "统计更新失败",
+    "updateErrorDescription": "当前仍显示上一次成功加载的数据，你可以继续浏览或重试。",
+    "retry": "重试",
+    "emptyPeriodTitle": "这段期间还没有支出",
+    "emptyPeriodDescription": "调整查询期间，或记下第一笔支出后再回来查看趋势。",
+    "emptyAllTimeTitle": "还没有个人支出",
+    "emptyAllTimeDescription": "记下第一笔旅行支出后，这里会开始整理你的趋势与洞察。",
+    "logExpense": "记一笔",
+    "viewAllTime": "查看全部期间"
   },
   "trip": {
     "info": "旅行信息",

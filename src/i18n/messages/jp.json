@@ -715,7 +715,18 @@
     "showLess": "折りたたむ",
     "noFilteredExpenses": "条件に一致する支出はありません",
     "clearFilters": "絞り込みを解除",
-    "updating": "統計を更新中…"
+    "updating": "統計を更新中…",
+    "loadErrorTitle": "統計を読み込めません",
+    "loadErrorDescription": "統計データを一時的に取得できません。接続を確認して再試行してください。",
+    "updateErrorTitle": "統計を更新できませんでした",
+    "updateErrorDescription": "前回正常に読み込んだデータを表示しています。そのまま確認するか、再試行できます。",
+    "retry": "再試行",
+    "emptyPeriodTitle": "この期間には支出がありません",
+    "emptyPeriodDescription": "期間を変更するか、最初の支出を記録してから傾向を確認してください。",
+    "emptyAllTimeTitle": "個人の支出はまだありません",
+    "emptyAllTimeDescription": "最初の旅行支出を記録すると、ここに傾向とインサイトが表示されます。",
+    "logExpense": "支出を記録",
+    "viewAllTime": "全期間を表示"
   },
   "trip": {
     "info": "旅行情報",

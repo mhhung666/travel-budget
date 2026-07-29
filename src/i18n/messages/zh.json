@@ -715,7 +715,18 @@
     "showLess": "收合",
     "noFilteredExpenses": "目前篩選條件下沒有支出",
     "clearFilters": "清除篩選",
-    "updating": "正在更新統計…"
+    "updating": "正在更新統計…",
+    "loadErrorTitle": "無法載入個人統計",
+    "loadErrorDescription": "統計資料暫時無法取得，請檢查網路連線後再試一次。",
+    "updateErrorTitle": "統計更新失敗",
+    "updateErrorDescription": "目前仍顯示上一次成功載入的資料，你可以繼續瀏覽或重新嘗試。",
+    "retry": "重試",
+    "emptyPeriodTitle": "這段期間還沒有支出",
+    "emptyPeriodDescription": "調整查詢期間，或記下第一筆支出後再回來查看趨勢。",
+    "emptyAllTimeTitle": "還沒有個人支出",
+    "emptyAllTimeDescription": "記下第一筆旅行支出後，這裡會開始整理你的趨勢與洞察。",
+    "logExpense": "記一筆",
+    "viewAllTime": "查看全部期間"
   },
   "trip": {
     "info": "旅行資訊",

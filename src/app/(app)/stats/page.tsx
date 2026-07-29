@@ -97,6 +97,7 @@ export default function StatsPage() {
     isFetching: loading,
     isError,
     error: statsError,
+    refetch,
   } = useStats({ startDate, endDate, compare }, true);
 
   const error = isError
@@ -115,6 +116,9 @@ export default function StatsPage() {
       stats={stats}
       loading={loading}
       error={error}
+      onRetry={() => {
+        void refetch();
+      }}
       startDate={startDate}
       endDate={endDate}
       compare={compare}
