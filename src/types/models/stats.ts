@@ -78,6 +78,7 @@ export interface StatsData {
   startDate: string | null;
   endDate: string | null;
   recentExpenses: ExpenseDetail[];
+  timeline: StatsTimelineData;
   insights: StatsInsight[];
   insightRuleVersion: StatsInsightRuleVersion;
 }
@@ -170,13 +171,24 @@ export interface YearInReviewData {
 // 時間區間類型
 export type TimeInterval = 'day' | 'week' | 'month';
 
+/** Server-produced timeline bucket. Labels stay client-side so they follow the active locale. */
+export interface StatsTimelineBucket {
+  amount: number;
+  count: number;
+  startDate: string;
+  endDate: string;
+}
+
+export interface StatsTimelineData {
+  interval: TimeInterval;
+  dataPoints: StatsTimelineBucket[];
+  totalAmount: number;
+  totalCount: number;
+}
+
 // 直方圖數據點
-export interface HistogramDataPoint {
+export interface HistogramDataPoint extends StatsTimelineBucket {
   period: string; // 時間標籤（例如："1月", "Week 1", "1"）
-  amount: number; // 該時段總金額
-  count: number; // 該時段支出筆數
-  startDate: string; // 該時段起始日期 YYYY-MM-DD
-  endDate: string; // 該時段結束日期 YYYY-MM-DD
 }
 
 // 直方圖數據

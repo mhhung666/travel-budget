@@ -51,6 +51,8 @@ export type {
   YearInReviewData,
   YearInReviewCategory,
   TimeInterval,
+  StatsTimelineBucket,
+  StatsTimelineData,
   HistogramDataPoint,
   HistogramData,
   ItineraryDay,

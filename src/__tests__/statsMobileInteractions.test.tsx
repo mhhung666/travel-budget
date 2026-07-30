@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import DateRangeFilter from '@/components/stats/DateRangeFilter';
 import ExpenseHistogram from '@/components/stats/ExpenseHistogram';
-import type { CategoryStat } from '@/types';
+import type { CategoryStat, StatsTimelineData } from '@/types';
 
 vi.mock('recharts', () => ({
   ResponsiveContainer: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
@@ -118,6 +118,25 @@ const categoryStats: CategoryStat[] = [
     ],
   },
 ];
+const serverTimeline: StatsTimelineData = {
+  interval: 'day',
+  dataPoints: [
+    {
+      startDate: '2026-07-01',
+      endDate: '2026-07-01',
+      amount: 100,
+      count: 1,
+    },
+    {
+      startDate: '2026-07-02',
+      endDate: '2026-07-02',
+      amount: 200,
+      count: 1,
+    },
+  ],
+  totalAmount: 300,
+  totalCount: 2,
+};
 
 describe('personal statistics mobile chart controls', () => {
   it('supports tap selection, deselection, metric changes, and interval changes', async () => {
@@ -128,7 +147,8 @@ describe('personal statistics mobile chart controls', () => {
 
     const { rerender } = render(
       <ExpenseHistogram
-        categoryStats={categoryStats}
+        categoryStats={[]}
+        timeline={serverTimeline}
         startDate="2026-07-01"
         endDate="2026-07-07"
         formatCurrency={(amount) => `$${amount}`}
@@ -159,7 +179,8 @@ describe('personal statistics mobile chart controls', () => {
 
     rerender(
       <ExpenseHistogram
-        categoryStats={categoryStats}
+        categoryStats={[]}
+        timeline={serverTimeline}
         startDate="2026-07-01"
         endDate="2026-07-07"
         formatCurrency={(amount) => `$${amount}`}

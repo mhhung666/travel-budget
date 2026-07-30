@@ -36,8 +36,19 @@
 
 仍留待後續：
 
-- Server 端 timeline 聚合、明細游標分頁及大資料量查詢效能驗證。
+- 明細游標分頁及大資料量查詢效能驗證。
 - 200% zoom、reduced motion，以及 iOS Safari／Android Chrome 真人裝置實機驗證。
+
+本輪效能準備：
+
+- `getStats` 依目前粒度及旅程／分類／標籤／指定支出條件在 server 產生 timeline，
+  個人統計圖表不再從完整 `recentExpenses` 重建時間資料桶。
+- timeline 回傳未在地化的日期邊界、金額與筆數；圖表只在 client 產生 locale label，
+  同一份聚合契約可供四語介面使用。
+- 粒度與 timeline 條件納入 TanStack Query key，切換時保留上一份資料並顯示更新狀態。
+- 日與週粒度各限制最多 366 個資料桶；更長期間自動使用可用的較粗粒度，避免多年資料
+  被靜默截斷。
+- persisted query cache schema 升級，避免舊快取缺少 `timeline` 導致部署後圖表中斷。
 
 本輪升級：
 
@@ -303,12 +314,17 @@ interface PersonalStatsData {
       percentage: number;
     } | null;
   };
-  timeline: Array<{
-    startDate: string;
-    endDate: string;
-    amount: number;
-    count: number;
-  }>;
+  timeline: {
+    interval: 'day' | 'week' | 'month';
+    dataPoints: Array<{
+      startDate: string;
+      endDate: string;
+      amount: number;
+      count: number;
+    }>;
+    totalAmount: number;
+    totalCount: number;
+  };
   categories: PersonalStatsDimension[];
   trips: PersonalStatsTripDimension[];
   tags: PersonalStatsDimension[];
@@ -374,6 +390,12 @@ interface PersonalStatsData {
 - 補四語文案與可及性。
 - 驗證查詢效能、行動裝置及大資料量。
 - 視使用結果決定是否加入自動洞察、預算與匯出。
+
+### Phase E：大資料量查詢
+
+- [x] 將個人統計 timeline 移至 server 聚合，並保留粒度與複合篩選互動。
+- [ ] 將逐筆明細改為游標分頁，避免無上限明細進入主要統計契約。
+- [ ] 以大量旅程／支出資料驗證 MongoDB 索引、查詢計畫、回傳大小與互動延遲。
 
 ## 12. MVP 驗收狀態
 

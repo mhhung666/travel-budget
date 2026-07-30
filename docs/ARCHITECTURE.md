@@ -135,7 +135,7 @@ src/
 - **`public/geo/countries.geojson` 是產生的資產,勿手改**:Natural Earth 110m admin-0 瘦身版(屬性只留 `iso_a2` + 多語名、座標降到小數兩位),需更新國界/國名時自 `nvkelso/natural-earth-vector` 重新產生。只在國家模式才抓並做模組層級快取。
 
 ### 4.7 統計：個人 vs 群組
-- **個人（跨旅程）**：`/stats` 頁，[getStats](../src/actions/stats.actions.ts) 彙總「我」在所有旅程的**分攤**（過濾 `splits.user = 我`），可依日期區間篩選。
+- **個人（跨旅程）**：`/stats` 頁，[getStats](../src/actions/stats.actions.ts) 彙總「我」在所有旅程的**分攤**（過濾 `splits.user = 我`），可依日期區間篩選；趨勢 timeline 也由 server 依粒度及複合條件聚合，client 僅產生在地化標籤與圖表。
 - **群組（單一旅程、全團）**：`/trips/[id]/stats` 子頁，[getTripStats](../src/actions/stats.actions.ts) **不過濾** `splits.user`、金額取整筆，回傳分類彙總 + 付款排行（誰出錢最多）+ 各人分攤 + 平均每人每日。純計算在 [lib/tripStats.ts](../src/lib/tripStats.ts) `computeTripStats`；有[公開分享路由](../src/app/api/public/trips/%5Bid%5D/stats/route.ts)。
 - 兩者 `categoryStats` 形狀相同，故 `ExpenseHistogram` / `CategoryStats` 元件兩邊共用。群組查詢重用 `tripKeys.stats`（已被支出 mutation invalidate）。
 

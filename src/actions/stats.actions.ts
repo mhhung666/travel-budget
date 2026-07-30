@@ -13,10 +13,12 @@ import type {
   TagStat,
   ExpenseDetail,
   PersonalTripStat,
+  TimeInterval,
   TripStatsData,
 } from '@/types';
 import { logger } from '@/lib/logger';
 import { generateStatsInsights, STATS_INSIGHT_RULE_VERSION } from '@/lib/statsInsights';
+import { aggregateTimeline, resolveTimelineInterval } from '@/lib/histogram';
 import {
   toTripStatsInputs,
   type TripStatExpenseInput,
@@ -27,6 +29,13 @@ import {
 interface GetStatsOptions {
   startDate?: string;
   endDate?: string;
+  timelineInterval?: TimeInterval;
+  timelineFilters?: {
+    tripId?: string;
+    category?: string;
+    tag?: string;
+    expenseId?: string;
+  };
 }
 
 type LeanStatExpense = {
@@ -145,7 +154,12 @@ function aggregatePersonalStats(expenses: LeanStatExpense[], userId: string): St
   };
 }
 
-function emptyStats(startDate?: string, endDate?: string): StatsData {
+function emptyStats(options: GetStatsOptions = {}): StatsData {
+  const { startDate, endDate, timelineInterval = 'day' } = options;
+  const resolvedInterval =
+    startDate && endDate
+      ? resolveTimelineInterval(startDate, endDate, timelineInterval)
+      : timelineInterval;
   return {
     categoryStats: [],
     tripStats: [],
@@ -157,6 +171,15 @@ function emptyStats(startDate?: string, endDate?: string): StatsData {
     startDate: startDate || null,
     endDate: endDate || null,
     recentExpenses: [],
+    timeline:
+      startDate && endDate
+        ? aggregateTimeline([], resolvedInterval, startDate, endDate)
+        : {
+            interval: resolvedInterval,
+            dataPoints: [],
+            totalAmount: 0,
+            totalCount: 0,
+          },
     insights: [],
     insightRuleVersion: STATS_INSIGHT_RULE_VERSION,
   };
@@ -168,7 +191,7 @@ function emptyStats(startDate?: string, endDate?: string): StatsData {
 export const getStats = withAuth(
   async (session, options: GetStatsOptions = {}): Promise<ActionResult<StatsData>> => {
     try {
-      const { startDate, endDate } = options;
+      const { startDate, endDate, timelineInterval = 'day', timelineFilters = {} } = options;
 
       await dbConnect();
 
@@ -178,7 +201,7 @@ export const getStats = withAuth(
         .lean<{ _id: Types.ObjectId }[]>();
 
       if (userTrips.length === 0) {
-        return { success: true, data: emptyStats(startDate, endDate) };
+        return { success: true, data: emptyStats(options) };
       }
 
       const tripIds = userTrips.map((t) => t._id);
@@ -207,6 +230,29 @@ export const getStats = withAuth(
       };
       const current = aggregatePersonalStats(expenses.filter(isCurrent), session.userId);
       const insights = generateStatsInsights({ tripStats: current.tripStats });
+      const effectiveStart = startDate || current.recentExpenses.at(-1)?.date || '';
+      const effectiveEnd = endDate || current.recentExpenses.at(0)?.date || '';
+      const timelineExpenses = current.recentExpenses.filter(
+        (detail) =>
+          (!timelineFilters.tripId || detail.tripId === timelineFilters.tripId) &&
+          (!timelineFilters.category || detail.category === timelineFilters.category) &&
+          (!timelineFilters.tag || detail.tags?.includes(timelineFilters.tag)) &&
+          (!timelineFilters.expenseId || detail.id === timelineFilters.expenseId)
+      );
+      const timeline =
+        effectiveStart && effectiveEnd
+          ? aggregateTimeline(
+              timelineExpenses,
+              resolveTimelineInterval(effectiveStart, effectiveEnd, timelineInterval),
+              effectiveStart,
+              effectiveEnd
+            )
+          : {
+              interval: timelineInterval,
+              dataPoints: [],
+              totalAmount: 0,
+              totalCount: 0,
+            };
       return {
         success: true,
         data: {
@@ -214,8 +260,9 @@ export const getStats = withAuth(
           averagePerTrip: current.tripCount
             ? Math.round(current.totalAmount / current.tripCount)
             : 0,
-          startDate: startDate || current.recentExpenses.at(-1)?.date || null,
-          endDate: endDate || current.recentExpenses.at(0)?.date || null,
+          startDate: effectiveStart || null,
+          endDate: effectiveEnd || null,
+          timeline,
           insights,
           insightRuleVersion: STATS_INSIGHT_RULE_VERSION,
         },

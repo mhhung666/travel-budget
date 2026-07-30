@@ -184,32 +184,6 @@ export default function StatsDashboard({
         return b.date.localeCompare(a.date);
       });
   }, [detailFilters, expenseSort, stats?.recentExpenses]);
-  const chartStats = useMemo<CategoryStat[]>(() => {
-    const details = (stats?.recentExpenses ?? []).filter(
-      (detail) =>
-        (!detailFilters.tripId || detail.tripId === detailFilters.tripId) &&
-        (!detailFilters.category || detail.category === detailFilters.category) &&
-        (!detailFilters.tag || detail.tags?.includes(detailFilters.tag)) &&
-        (!detailFilters.expenseId || detail.id === detailFilters.expenseId)
-    );
-    const grouped = new Map<string, ExpenseDetail[]>();
-    for (const detail of details) {
-      const category = detail.category || 'other';
-      grouped.set(category, [...(grouped.get(category) ?? []), detail]);
-    }
-    return Array.from(grouped, ([category, categoryDetails]) => ({
-      category,
-      total: categoryDetails.reduce((sum, detail) => sum + detail.amount, 0),
-      count: categoryDetails.length,
-      details: categoryDetails,
-    }));
-  }, [
-    detailFilters.category,
-    detailFilters.expenseId,
-    detailFilters.tag,
-    detailFilters.tripId,
-    stats?.recentExpenses,
-  ]);
   const insights = useMemo<InsightItem[]>(() => {
     if (!stats) return [];
     const topTrip = dimensionItems('trip', stats, (key) => tCategory(key))[0];
@@ -514,7 +488,7 @@ export default function StatsDashboard({
 
           <section className="mb-6">
             <ExpenseHistogram
-              categoryStats={chartStats}
+              timeline={stats!.timeline}
               startDate={stats?.startDate ?? startDate}
               endDate={stats?.endDate ?? endDate}
               formatCurrency={formatCurrency}

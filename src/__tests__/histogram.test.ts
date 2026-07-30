@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { aggregateExpensesByInterval, suggestInterval } from '@/lib/histogram';
+import {
+  aggregateExpensesByInterval,
+  aggregateTimeline,
+  localizeTimeline,
+  resolveTimelineInterval,
+  suggestInterval,
+} from '@/lib/histogram';
 import type { CategoryStat, ExpenseDetail } from '@/types';
 
 // 以單一分類包裝給定的支出明細，方便組測資
@@ -122,5 +128,59 @@ describe('aggregateExpensesByInterval', () => {
     expect(result.dataPoints).toHaveLength(2);
     expect(result.totalAmount).toBe(0);
     expect(result.totalCount).toBe(0);
+  });
+});
+
+describe('server timeline aggregation', () => {
+  it('returns locale-independent weekly buckets in one pass', () => {
+    const result = aggregateTimeline(
+      [expense('2026-01-01', 100), expense('2026-01-07', 50), expense('2026-01-08', 200)],
+      'week',
+      '2026-01-01',
+      '2026-01-14'
+    );
+
+    expect(result).toEqual({
+      interval: 'week',
+      dataPoints: [
+        {
+          startDate: '2026-01-01',
+          endDate: '2026-01-07',
+          amount: 150,
+          count: 2,
+        },
+        {
+          startDate: '2026-01-08',
+          endDate: '2026-01-14',
+          amount: 200,
+          count: 1,
+        },
+      ],
+      totalAmount: 350,
+      totalCount: 3,
+    });
+  });
+
+  it('localizes server buckets without changing their totals or boundaries', () => {
+    const timeline = aggregateTimeline(
+      [expense('2026-02-01', 100)],
+      'day',
+      '2026-02-01',
+      '2026-02-01'
+    );
+
+    const localized = localizeTimeline(timeline, 'zh-TW');
+    expect(localized.dataPoints[0]).toMatchObject({
+      period: '2/1',
+      startDate: '2026-02-01',
+      endDate: '2026-02-01',
+      amount: 100,
+      count: 1,
+    });
+  });
+
+  it('falls back to a valid interval when a URL requests an unavailable one', () => {
+    expect(resolveTimelineInterval('2026-01-01', '2026-01-03', 'month')).toBe('day');
+    expect(resolveTimelineInterval('2024-01-01', '2026-06-01', 'day')).toBe('month');
   });
 });

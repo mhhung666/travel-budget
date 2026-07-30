@@ -12,8 +12,13 @@ import {
   ResponsiveContainer,
   Cell,
 } from 'recharts';
-import { aggregateExpensesByInterval, suggestInterval } from '@/lib/histogram';
-import type { CategoryStat, TimeInterval, HistogramDataPoint } from '@/types';
+import {
+  aggregateExpensesByInterval,
+  availableTimelineIntervals,
+  localizeTimeline,
+  resolveTimelineInterval,
+} from '@/lib/histogram';
+import type { CategoryStat, TimeInterval, HistogramDataPoint, StatsTimelineData } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -21,7 +26,8 @@ import { cn } from '@/lib/utils';
 type Metric = 'amount' | 'count';
 
 interface ExpenseHistogramProps {
-  categoryStats: CategoryStat[];
+  categoryStats?: CategoryStat[];
+  timeline?: StatsTimelineData;
   startDate: string;
   endDate: string;
   formatCurrency: (amount: number) => string;
@@ -46,7 +52,8 @@ function compactNumber(value: number, locale: string) {
 }
 
 export default function ExpenseHistogram({
-  categoryStats,
+  categoryStats = [],
+  timeline,
   startDate,
   endDate,
   formatCurrency,
@@ -71,27 +78,19 @@ export default function ExpenseHistogram({
     ];
   }, [categoryStats, startDate, endDate]);
 
-  const suggestedInterval =
-    effectiveStart && effectiveEnd ? suggestInterval(effectiveStart, effectiveEnd) : 'day';
-  const daySpan =
+  const availableIntervals: TimeInterval[] =
     effectiveStart && effectiveEnd
-      ? Math.round(
-          (Date.parse(`${effectiveEnd}T00:00:00Z`) - Date.parse(`${effectiveStart}T00:00:00Z`)) /
-            86400000
-        ) + 1
-      : 0;
-  const availableIntervals: TimeInterval[] = [
-    'day',
-    ...(daySpan > 3 ? (['week'] as const) : []),
-    ...(daySpan > 90 ? (['month'] as const) : []),
-  ];
+      ? availableTimelineIntervals(effectiveStart, effectiveEnd)
+      : ['day'];
   const interval =
-    requestedInterval && availableIntervals.includes(requestedInterval)
-      ? requestedInterval
-      : suggestedInterval;
+    timeline?.interval ??
+    (effectiveStart && effectiveEnd
+      ? resolveTimelineInterval(effectiveStart, effectiveEnd, requestedInterval)
+      : 'day');
 
   const points = useMemo<ChartPoint[]>(() => {
     if (!effectiveStart || !effectiveEnd) return [];
+    if (timeline) return localizeTimeline(timeline, locale).dataPoints;
     return aggregateExpensesByInterval(
       categoryStats,
       interval,
@@ -99,7 +98,7 @@ export default function ExpenseHistogram({
       effectiveEnd,
       locale
     ).dataPoints;
-  }, [categoryStats, interval, effectiveStart, effectiveEnd, locale]);
+  }, [categoryStats, timeline, interval, effectiveStart, effectiveEnd, locale]);
 
   const selectedKey = selectedPeriod
     ? `${selectedPeriod.startDate}:${selectedPeriod.endDate}`

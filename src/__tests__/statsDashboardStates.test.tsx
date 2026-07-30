@@ -48,6 +48,12 @@ const emptyStats: StatsData = {
   startDate: '2026-07-01',
   endDate: '2026-07-31',
   recentExpenses: [],
+  timeline: {
+    interval: 'day',
+    dataPoints: [],
+    totalAmount: 0,
+    totalCount: 0,
+  },
   insights: [],
   insightRuleVersion: STATS_INSIGHT_RULE_VERSION,
 };
@@ -106,6 +112,19 @@ const populatedStats: StatsData = {
       category: 'food',
     },
   ],
+  timeline: {
+    interval: 'day',
+    dataPoints: [
+      {
+        startDate: '2026-07-12',
+        endDate: '2026-07-12',
+        amount: 500,
+        count: 1,
+      },
+    ],
+    totalAmount: 500,
+    totalCount: 1,
+  },
 };
 
 function renderDashboard(overrides: Partial<React.ComponentProps<typeof StatsDashboard>> = {}) {

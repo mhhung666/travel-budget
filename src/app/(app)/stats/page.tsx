@@ -66,7 +66,20 @@ export default function StatsPage() {
     isError,
     error: statsError,
     refetch,
-  } = useStats({ startDate, endDate }, true);
+  } = useStats(
+    {
+      startDate,
+      endDate,
+      timelineInterval: viewState.interval,
+      timelineFilters: {
+        tripId: viewState.detailFilters.tripId,
+        category: viewState.detailFilters.category,
+        tag: viewState.detailFilters.tag,
+        expenseId: viewState.detailFilters.expenseId,
+      },
+    },
+    true
+  );
 
   const error = isError
     ? statsError instanceof Error
