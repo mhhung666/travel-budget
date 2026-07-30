@@ -36,7 +36,6 @@
 
 仍留待後續：
 
-- 大資料量查詢效能與索引驗證。
 - 200% zoom、reduced motion，以及 iOS Safari／Android Chrome 真人裝置實機驗證。
 
 本輪效能準備：
@@ -378,6 +377,10 @@ interface PersonalStatsExpensePage {
   反向掃描同一索引。部署前先執行 `pnpm migrate:up`。
 - 可使用 `pnpm stats:explain -- --user <ObjectId>`（可選 `--trip <ObjectId>`）記錄索引、
   查詢階段、examined documents/keys、回傳大小與單頁延遲。
+- 可使用 `pnpm stats:benchmark` 在獨立的 `*-benchmark` 資料庫產生 500、2,000、10,000
+  筆合成支出，量測全部期間主儀表板、Server 計算及明細查詢。腳本拒絕使用正式資料庫
+  名稱，預設在完成後刪除整個 benchmark 資料庫；`--sizes 500,2000` 可自訂級距，
+  `--db <name>` 可指定另一個名稱含 `benchmark`／`bench`／`test` 的資料庫。
 - 金額排序需在 `$unwind` 取得登入者的 `splits.shareAmount` 後執行，目前預期保留
   blocking sort；若大量資料實測不符互動延遲門檻，再評估將個人分攤額正規化至獨立集合。
 - 不把無上限的跨旅程支出明細送到瀏覽器。
@@ -411,7 +414,25 @@ interface PersonalStatsExpensePage {
 - [x] 將個人統計 timeline 移至 server 聚合，並保留粒度與複合篩選互動。
 - [x] 將逐筆明細改為游標分頁，避免無上限明細進入主要統計契約。
 - [x] 建立日期明細複合索引、可重現 migration 與 explain／回傳大小／延遲診斷工具。
-- [ ] 以大量旅程／支出資料驗證 MongoDB 索引、查詢計畫、回傳大小與互動延遲。
+- [x] 以 500、2,000、10,000 筆合成支出驗證 MongoDB 索引、查詢計畫、回傳大小與延遲。
+
+### Phase E benchmark 結果
+
+2026-07-30 於與應用程式相同 MongoDB 叢集的隔離 `travel-budget-benchmark` 資料庫執行，
+每項查詢預熱一次後量測五次，結果如下。測試完成後資料庫已自動刪除。
+
+| 支出數 | 主查詢中位數 | Server 計算中位數 | 主查詢資料量 | 日期明細中位數 | 金額明細中位數 |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 500 | 21.4ms | 3.0ms | 125KB | 4.7ms | 5.1ms |
+| 2,000 | 75.0ms | 12.9ms | 500KB | 9.4ms | 10.6ms |
+| 10,000 | 257.8ms | 33.9ms | 2.45MB | 3.3ms | 33.7ms |
+
+- 所有查詢皆命中 `splits.user_1_date_-1__id_-1`，未出現 `COLLSCAN`。
+- 日期明細在所有級距只檢查 21 筆文件與索引鍵，資料量增加時維持近似固定成本。
+- 金額明細保留預期的 blocking sort，會掃描該使用者全部支出，因此呈線性成長。
+- 全部期間主查詢會讀取所有符合支出並在 Server 計算，亦呈線性成長；10,000 筆仍在此次
+  驗收範圍內，暫不增加聚合複雜度。若真實帳號接近此量級或 Server latency 持續超過產品
+  門檻，再把摘要、維度與洞察移至 MongoDB aggregation。
 
 ## 12. MVP 驗收狀態
 

@@ -22,6 +22,7 @@
     "migrate:down": "migrate-mongo down",
     "migrate:create": "migrate-mongo create",
     "stats:explain": "node scripts/explain-stats-expenses.mjs",
+    "stats:benchmark": "node scripts/benchmark-stats.mjs",
     "generate:catalogs": "node scripts/generate-catalogs.mjs"
   },
   "keywords": [
