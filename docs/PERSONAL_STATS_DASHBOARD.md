@@ -374,7 +374,12 @@ interface PersonalStatsExpensePage {
 - 日期範圍進入 query key；主要維度維持前端互動狀態。
 - 純前端排序、已載入維度切換不應重複查詢。
 - 日期快速切換可依 TanStack Query cache 重用資料。
-- MongoDB 查詢需檢查 `trip`、`splits.user`、`date` 的索引與 explain 結果。
+- 日期明細使用 `splits.user + date + _id` 複合索引；日期排序在 `$unwind` 前完成，升冪可
+  反向掃描同一索引。部署前先執行 `pnpm migrate:up`。
+- 可使用 `pnpm stats:explain -- --user <ObjectId>`（可選 `--trip <ObjectId>`）記錄索引、
+  查詢階段、examined documents/keys、回傳大小與單頁延遲。
+- 金額排序需在 `$unwind` 取得登入者的 `splits.shareAmount` 後執行，目前預期保留
+  blocking sort；若大量資料實測不符互動延遲門檻，再評估將個人分攤額正規化至獨立集合。
 - 不把無上限的跨旅程支出明細送到瀏覽器。
 - 圖表資料桶數設定合理上限；超長期間使用月粒度。
 
@@ -405,6 +410,7 @@ interface PersonalStatsExpensePage {
 
 - [x] 將個人統計 timeline 移至 server 聚合，並保留粒度與複合篩選互動。
 - [x] 將逐筆明細改為游標分頁，避免無上限明細進入主要統計契約。
+- [x] 建立日期明細複合索引、可重現 migration 與 explain／回傳大小／延遲診斷工具。
 - [ ] 以大量旅程／支出資料驗證 MongoDB 索引、查詢計畫、回傳大小與互動延遲。
 
 ## 12. MVP 驗收狀態

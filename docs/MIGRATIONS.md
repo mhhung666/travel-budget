@@ -65,3 +65,4 @@ export const down = async (db) => {
 | `20260701050933-expense-tags-array.js` | 建立支出 tags 陣列欄位。 |
 | `20260703133143-checklist-kind-and-per-member-done.js` | 更新清單種類與 per-member 完成狀態。 |
 | `20260728143000-photo-local-date-and-itinerary-source.js` | 保護既有相片的手動行程日關聯，供新相片依當地拍攝日期自動分類。 |
+| `20260730090000-add-personal-stats-expense-index.js` | 建立個人統計日期明細游標分頁使用的 `splits.user + date + _id` 複合索引。 |

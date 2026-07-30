@@ -68,6 +68,9 @@ const ExpenseSchema = new Schema(
   }
 );
 
+// 個人統計日期明細：先依 splits.user 篩選，再以 date + _id 穩定游標排序。
+ExpenseSchema.index({ 'splits.user': 1, date: -1, _id: -1 });
+
 export type ExpenseDoc = InferSchemaType<typeof ExpenseSchema>;
 export type ExpenseSplit = InferSchemaType<typeof SplitSchema>;
 

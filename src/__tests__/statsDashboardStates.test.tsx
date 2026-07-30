@@ -64,17 +64,6 @@ const populatedStats: StatsData = {
       category: 'food',
       total: 500,
       count: 1,
-      details: [
-        {
-          id: 'expense-1',
-          date: '2026-07-12',
-          description: 'Dinner',
-          amount: 500,
-          tripName: 'Tokyo',
-          tripId: 'trip-1',
-          category: 'food',
-        },
-      ],
     },
   ],
   tripStats: [
@@ -83,17 +72,6 @@ const populatedStats: StatsData = {
       tripName: 'Tokyo',
       total: 500,
       count: 1,
-      details: [
-        {
-          id: 'expense-1',
-          date: '2026-07-12',
-          description: 'Dinner',
-          amount: 500,
-          tripName: 'Tokyo',
-          tripId: 'trip-1',
-          category: 'food',
-        },
-      ],
     },
   ],
   totalAmount: 500,
@@ -285,7 +263,6 @@ describe('personal statistics dashboard interactions', () => {
           category: 'food',
           total: 2100,
           count: details.length,
-          details,
         },
       ],
       totalAmount: 2100,
@@ -379,21 +356,27 @@ describe('personal statistics dashboard interactions', () => {
         category: 'accommodation',
       },
     ];
+    const insightTripStats = [
+      {
+        tripId: 'trip-1',
+        tripName: 'Tokyo',
+        total: 1000,
+        count: details.length,
+        details,
+      },
+    ];
     const stats: StatsData = {
       ...populatedStats,
-      tripStats: [
-        {
-          tripId: 'trip-1',
-          tripName: 'Tokyo',
-          total: 1000,
-          count: details.length,
-          details,
-        },
-      ],
+      tripStats: insightTripStats.map(({ tripId, tripName, total, count }) => ({
+        tripId,
+        tripName,
+        total,
+        count,
+      })),
       totalAmount: 1000,
       totalExpenses: details.length,
     };
-    stats.insights = generateStatsInsights({ tripStats: stats.tripStats });
+    stats.insights = generateStatsInsights({ tripStats: insightTripStats });
 
     const { rerender, props } = renderDashboard({
       stats,

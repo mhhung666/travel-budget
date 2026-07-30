@@ -23,6 +23,7 @@ import { logger } from '@/lib/logger';
 import { generateStatsInsights, STATS_INSIGHT_RULE_VERSION } from '@/lib/statsInsights';
 import { aggregateTimeline, resolveTimelineInterval } from '@/lib/histogram';
 import { decodeStatsExpenseCursor, encodeStatsExpenseCursor } from '@/lib/statsExpenseCursor';
+import { buildStatsExpensePagePipeline } from '@/lib/statsExpenseQuery';
 import {
   toTripStatsInputs,
   type TripStatExpenseInput,
@@ -351,34 +352,14 @@ export const getStatsExpensePage = withAuth(
       }
 
       const amountSort = sort === 'amountAsc' || sort === 'amountDesc';
-      const direction: 1 | -1 = sort === 'dateAsc' || sort === 'amountAsc' ? 1 : -1;
-      const sortField = amountSort ? 'splits.shareAmount' : 'date';
-      const pipeline: PipelineStage[] = [
-        { $match: match },
-        { $unwind: '$splits' },
-        { $match: { 'splits.user': new Types.ObjectId(session.userId) } },
-      ];
-
-      if (cursor) {
-        const cursorValue = amountSort ? cursor.value : new Date(cursor.value as string);
-        const cursorId = new Types.ObjectId(cursor.id);
-        const comparison = direction === 1 ? '$gt' : '$lt';
-        pipeline.push({
-          $match: {
-            $or: [
-              { [sortField]: { [comparison]: cursorValue } },
-              {
-                [sortField]: cursorValue,
-                _id: { [comparison]: cursorId },
-              },
-            ],
-          },
-        });
-      }
-
+      const pipeline: PipelineStage[] = buildStatsExpensePagePipeline({
+        match,
+        userId: new Types.ObjectId(session.userId),
+        sort,
+        cursor,
+        pageSize: STATS_EXPENSE_PAGE_SIZE,
+      });
       pipeline.push(
-        { $sort: { [sortField]: direction, _id: direction } },
-        { $limit: STATS_EXPENSE_PAGE_SIZE + 1 },
         {
           $lookup: {
             from: Trip.collection.name,
