@@ -43,9 +43,9 @@ export interface ShellUser {
 
 /**
  * 登入後的 App Shell：由 (app)/layout.tsx 渲染一次，換頁只換內容區。
- * - 桌機（≥ md）：頂列 = logo + 旅行/地圖 + 記一筆 + 鈴鐺 +「我的」選單。
+ * - 桌機（≥ md）：頂列 = logo + 旅行/地圖/統計 + 記一筆 + 鈴鐺 +「我的」選單。
  * - 行動（< md）：頂列只放 目前位置標題 + 鈴鐺；全域導覽走 BottomTabBar。
- *   個人統計在底欄作為一級入口；成就、會籍、回顧與設定歸入「我的」。
+ *   個人統計在兩種尺寸皆為一級入口；成就、會籍、回顧與設定歸入「我的」。
  * - 頂列 sticky（非 fixed），內容不再需要 pt-24 魔術數字。
  */
 export function AppShell({
@@ -72,12 +72,12 @@ export function AppShell({
   };
 
   const primaryNavLinks = [
-    { href: '/trips', label: t('trips'), icon: Compass },
-    { href: '/map', label: t('map'), icon: MapIcon },
+    { href: '/trips', label: t('trips'), icon: Compass, target: 'trips' },
+    { href: '/map', label: t('map'), icon: MapIcon, target: 'map' },
+    { href: '/stats', label: t('stats'), icon: BarChart3, target: 'stats' },
   ] as const;
 
   const personalNavLinks = [
-    { href: '/stats', label: t('stats'), icon: BarChart3, target: 'stats' },
     { href: '/collections', label: t('collections'), icon: Medal, target: 'collections' },
     { href: '/memberships', label: t('memberships'), icon: Ticket, target: 'memberships' },
     { href: '/wrapped', label: t('wrapped'), icon: Sparkles, target: 'wrapped' },
@@ -153,9 +153,7 @@ export function AppShell({
                 <Link
                   href={link.href}
                   aria-current={isActive(link.href) ? 'page' : undefined}
-                  onClick={() =>
-                    trackNavigation(link.href === '/trips' ? 'trips' : 'map', 'desktop_header')
-                  }
+                  onClick={() => trackNavigation(link.target, 'desktop_header')}
                 >
                   <link.icon size={20} />
                   {link.label}

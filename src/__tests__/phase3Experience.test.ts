@@ -12,6 +12,10 @@ describe('Phase 3 information architecture contracts', () => {
 
     expect(shell).toContain('primaryNavLinks');
     expect(shell).toContain('personalNavLinks');
+    expect(shell).toContain(
+      "{ href: '/stats', label: t('stats'), icon: BarChart3, target: 'stats' }"
+    );
+    expect(shell).toContain("trackNavigation(link.target, 'desktop_header')");
     expect(mobile).toContain("target: 'trips'");
     expect(mobile).toContain("target: 'map'");
     expect(mobile).toContain("target: 'stats'");
