@@ -18,7 +18,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import DateRangeFilter from './DateRangeFilter';
 import ExpenseHistogram from './ExpenseHistogram';
 import RuleBasedInsights from './RuleBasedInsights';
-import type { CategoryStat, ExpenseDetail, PersonalTripStat, StatsData, TagStat } from '@/types';
+import type { ExpenseDetail, StatsData, StatsExpenseSort } from '@/types';
 import { StatsDashboardSkeleton } from '@/components/skeletons';
 import { EmptyState, ErrorState } from '@/components/common';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -37,14 +37,12 @@ import { trackProductEvent } from '@/lib/productEvents';
 
 type Dimension = StatsDimension;
 type Sort = 'amount' | 'count' | 'name';
-type ExpenseSort = 'dateDesc' | 'dateAsc' | 'amountDesc' | 'amountAsc';
 export type { StatsDashboardViewState, StatsDetailFilters } from '@/lib/statsViewState';
 type DimensionItem = {
   id: string;
   name: string;
   total: number;
   count: number;
-  details: ExpenseDetail[];
   href?: string;
 };
 type InsightItem = {
@@ -68,6 +66,15 @@ interface StatsDashboardProps {
   onClearDates: () => void;
   viewState: StatsDashboardViewState;
   onViewStateChange: (state: StatsDashboardViewState) => void;
+  expenseDetails?: ExpenseDetail[];
+  expenseSort?: StatsExpenseSort;
+  onExpenseSortChange?: (sort: StatsExpenseSort) => void;
+  expenseDetailsLoading?: boolean;
+  expenseDetailsFetchingNextPage?: boolean;
+  expenseDetailsHasNextPage?: boolean;
+  expenseDetailsError?: boolean;
+  onLoadMoreExpenseDetails?: () => void;
+  onRetryExpenseDetails?: () => void;
 }
 
 function dimensionItems(
@@ -76,30 +83,27 @@ function dimensionItems(
   categoryName: (key: string) => string
 ): DimensionItem[] {
   if (dimension === 'trip') {
-    return stats.tripStats.map((item: PersonalTripStat) => ({
+    return stats.tripStats.map((item) => ({
       id: item.tripId,
       name: item.tripName,
       total: item.total,
       count: item.count,
-      details: item.details,
       href: ROUTES.TRIP_EXPENSES(item.tripId),
     }));
   }
   if (dimension === 'tag') {
-    return stats.tagStats.map((item: TagStat) => ({
+    return stats.tagStats.map((item) => ({
       id: item.tag,
       name: item.tag,
       total: item.total,
       count: item.count,
-      details: item.details,
     }));
   }
-  return stats.categoryStats.map((item: CategoryStat) => ({
+  return stats.categoryStats.map((item) => ({
     id: item.category,
     name: categoryName(item.category),
     total: item.total,
     count: item.count,
-    details: item.details,
   }));
 }
 
@@ -116,6 +120,15 @@ export default function StatsDashboard({
   onClearDates,
   viewState,
   onViewStateChange,
+  expenseDetails = [],
+  expenseSort = 'dateDesc',
+  onExpenseSortChange = () => undefined,
+  expenseDetailsLoading = false,
+  expenseDetailsFetchingNextPage = false,
+  expenseDetailsHasNextPage = false,
+  expenseDetailsError = false,
+  onLoadMoreExpenseDetails = () => undefined,
+  onRetryExpenseDetails = () => undefined,
 }: StatsDashboardProps) {
   const t = useTranslations('stats');
   const tCategory = useTranslations('category');
@@ -151,8 +164,6 @@ export default function StatsDashboard({
   const updateDetailFilters = (patch: Partial<StatsDetailFilters>) =>
     updateViewState({ detailFilters: { ...detailFilters, ...patch } });
   const [sort, setSort] = useState<Sort>('amount');
-  const [expenseSort, setExpenseSort] = useState<ExpenseSort>('dateDesc');
-  const [showAllExpenses, setShowAllExpenses] = useState(false);
   const selectedAdvancedInsight = useRef<StatsInsight['type'] | null>(null);
 
   const items = useMemo(() => {
@@ -166,24 +177,6 @@ export default function StatsDashboard({
           : b.total - a.total
     );
   }, [dimension, stats, sort, numberLocale, tCategory]);
-  const filteredDetails = useMemo(() => {
-    return (stats?.recentExpenses ?? [])
-      .filter(
-        (detail) =>
-          (!detailFilters.tripId || detail.tripId === detailFilters.tripId) &&
-          (!detailFilters.category || detail.category === detailFilters.category) &&
-          (!detailFilters.tag || detail.tags?.includes(detailFilters.tag)) &&
-          (!detailFilters.expenseId || detail.id === detailFilters.expenseId) &&
-          (!detailFilters.periodStart || detail.date >= detailFilters.periodStart) &&
-          (!detailFilters.periodEnd || detail.date <= detailFilters.periodEnd)
-      )
-      .sort((a, b) => {
-        if (expenseSort === 'dateAsc') return a.date.localeCompare(b.date);
-        if (expenseSort === 'amountDesc') return b.amount - a.amount;
-        if (expenseSort === 'amountAsc') return a.amount - b.amount;
-        return b.date.localeCompare(a.date);
-      });
-  }, [detailFilters, expenseSort, stats?.recentExpenses]);
   const insights = useMemo<InsightItem[]>(() => {
     if (!stats) return [];
     const topTrip = dimensionItems('trip', stats, (key) => tCategory(key))[0];
@@ -275,7 +268,6 @@ export default function StatsDashboard({
         expenseId: insight.filter.expenseId,
       },
     });
-    setShowAllExpenses(true);
     globalThis.requestAnimationFrame?.(() => {
       document.getElementById('stats-expense-details')?.scrollIntoView?.({
         behavior: 'smooth',
@@ -684,7 +676,9 @@ export default function StatsDashboard({
                     <select
                       aria-label={t('expenseSort')}
                       value={expenseSort}
-                      onChange={(event) => setExpenseSort(event.target.value as ExpenseSort)}
+                      onChange={(event) =>
+                        onExpenseSortChange(event.target.value as StatsExpenseSort)
+                      }
                       className="min-h-11 rounded-md border bg-background px-2 text-xs"
                     >
                       <option value="dateDesc">{t('expenseSortNewest')}</option>
@@ -692,19 +686,10 @@ export default function StatsDashboard({
                       <option value="amountDesc">{t('expenseSortHighest')}</option>
                       <option value="amountAsc">{t('expenseSortLowest')}</option>
                     </select>
-                    {filteredDetails.length > 5 && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setShowAllExpenses(!showAllExpenses)}
-                      >
-                        {showAllExpenses ? t('showLess') : t('viewAll')}
-                      </Button>
-                    )}
                   </div>
                 </div>
                 <div className="divide-y">
-                  {filteredDetails.slice(0, showAllExpenses ? undefined : 5).map((detail) => (
+                  {expenseDetails.map((detail) => (
                     <Link
                       href={
                         detail.tripId
@@ -728,7 +713,25 @@ export default function StatsDashboard({
                       </span>
                     </Link>
                   ))}
-                  {!filteredDetails.length && (
+                  {expenseDetailsLoading && !expenseDetails.length && (
+                    <div
+                      role="status"
+                      className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground"
+                    >
+                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                      {t('loadingExpenses')}
+                    </div>
+                  )}
+                  {expenseDetailsError && !expenseDetails.length && (
+                    <div className="py-10 text-center">
+                      <p className="mb-3 text-sm text-muted-foreground">{t('expenseLoadError')}</p>
+                      <Button variant="outline" onClick={onRetryExpenseDetails}>
+                        <RefreshCcw className="h-4 w-4" aria-hidden />
+                        {t('retry')}
+                      </Button>
+                    </div>
+                  )}
+                  {!expenseDetails.length && !expenseDetailsLoading && !expenseDetailsError && (
                     <div className="py-10 text-center">
                       <p className="mb-3 text-sm text-muted-foreground">
                         {t('noFilteredExpenses')}
@@ -739,6 +742,28 @@ export default function StatsDashboard({
                     </div>
                   )}
                 </div>
+                {expenseDetails.length > 0 && expenseDetailsHasNextPage && (
+                  <div className="mt-4 flex justify-center">
+                    <Button
+                      variant="outline"
+                      onClick={onLoadMoreExpenseDetails}
+                      disabled={expenseDetailsFetchingNextPage}
+                    >
+                      {expenseDetailsFetchingNextPage && (
+                        <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                      )}
+                      {t('loadMoreExpenses')}
+                    </Button>
+                  </div>
+                )}
+                {expenseDetailsError && expenseDetails.length > 0 && (
+                  <div className="mt-4 flex items-center justify-center gap-3 text-sm text-muted-foreground">
+                    <span>{t('expenseLoadError')}</span>
+                    <Button variant="ghost" size="sm" onClick={onRetryExpenseDetails}>
+                      {t('retry')}
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </section>

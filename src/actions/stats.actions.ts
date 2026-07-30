@@ -1,6 +1,6 @@
 'use server';
 
-import { Types } from 'mongoose';
+import { Types, type PipelineStage } from 'mongoose';
 import { dbConnect } from '@/lib/mongodb';
 import { Trip, Expense, ItineraryDay } from '@/models';
 import { getTripMembership } from '@/lib/permissions';
@@ -13,12 +13,16 @@ import type {
   TagStat,
   ExpenseDetail,
   PersonalTripStat,
+  StatsExpenseFilters,
+  StatsExpensePage,
+  StatsExpenseSort,
   TimeInterval,
   TripStatsData,
 } from '@/types';
 import { logger } from '@/lib/logger';
 import { generateStatsInsights, STATS_INSIGHT_RULE_VERSION } from '@/lib/statsInsights';
 import { aggregateTimeline, resolveTimelineInterval } from '@/lib/histogram';
+import { decodeStatsExpenseCursor, encodeStatsExpenseCursor } from '@/lib/statsExpenseCursor';
 import {
   toTripStatsInputs,
   type TripStatExpenseInput,
@@ -48,16 +52,25 @@ type LeanStatExpense = {
   tags?: string[] | null;
 };
 
-type StatsAggregate = Pick<
-  StatsData,
-  | 'categoryStats'
-  | 'tripStats'
-  | 'tagStats'
-  | 'totalAmount'
-  | 'totalExpenses'
-  | 'tripCount'
-  | 'recentExpenses'
->;
+type StatsAggregate = {
+  categoryStats: CategoryStat[];
+  tripStats: PersonalTripStat[];
+  tagStats: TagStat[];
+  totalAmount: number;
+  totalExpenses: number;
+  tripCount: number;
+  recentExpenses: ExpenseDetail[];
+};
+
+export interface GetStatsExpensePageOptions {
+  startDate?: string;
+  endDate?: string;
+  filters?: StatsExpenseFilters;
+  sort?: StatsExpenseSort;
+  cursor?: string;
+}
+
+const STATS_EXPENSE_PAGE_SIZE = 20;
 
 function dateOnly(date: Date) {
   return date.toISOString().slice(0, 10);
@@ -170,7 +183,6 @@ function emptyStats(options: GetStatsOptions = {}): StatsData {
     averagePerTrip: 0,
     startDate: startDate || null,
     endDate: endDate || null,
-    recentExpenses: [],
     timeline:
       startDate && endDate
         ? aggregateTimeline([], resolvedInterval, startDate, endDate)
@@ -256,7 +268,12 @@ export const getStats = withAuth(
       return {
         success: true,
         data: {
-          ...current,
+          categoryStats: current.categoryStats.map(({ details: _details, ...stat }) => stat),
+          tripStats: current.tripStats.map(({ details: _details, ...stat }) => stat),
+          tagStats: current.tagStats.map(({ details: _details, ...stat }) => stat),
+          totalAmount: current.totalAmount,
+          totalExpenses: current.totalExpenses,
+          tripCount: current.tripCount,
           averagePerTrip: current.tripCount
             ? Math.round(current.totalAmount / current.tripCount)
             : 0,
@@ -269,6 +286,162 @@ export const getStats = withAuth(
       };
     } catch (error) {
       logger.error('Get stats error', error);
+      return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
+    }
+  }
+);
+
+/**
+ * Cursor-paginated personal expense details. Filtering and sorting happen in
+ * MongoDB so the statistics response never needs to carry an unbounded detail list.
+ */
+export const getStatsExpensePage = withAuth(
+  async (
+    session,
+    options: GetStatsExpensePageOptions = {}
+  ): Promise<ActionResult<StatsExpensePage>> => {
+    try {
+      const {
+        startDate,
+        endDate,
+        filters = {},
+        sort = 'dateDesc',
+        cursor: encodedCursor,
+      } = options;
+      const cursor = encodedCursor ? decodeStatsExpenseCursor(encodedCursor, sort) : null;
+      if (encodedCursor && !cursor) {
+        return { success: false, error: 'INVALID_CURSOR', code: 'VALIDATION_ERROR' };
+      }
+
+      await dbConnect();
+
+      const userTrips = await Trip.find({ 'members.user': session.userId })
+        .select('_id')
+        .lean<{ _id: Types.ObjectId }[]>();
+      if (!userTrips.length) {
+        return { success: true, data: { items: [], nextCursor: null } };
+      }
+
+      const allowedTripIds = userTrips.map((trip) => trip._id);
+      if (
+        (filters.tripId && !Types.ObjectId.isValid(filters.tripId)) ||
+        (filters.expenseId && !Types.ObjectId.isValid(filters.expenseId))
+      ) {
+        return { success: true, data: { items: [], nextCursor: null } };
+      }
+
+      const dateStart = filters.periodStart || startDate;
+      const dateEnd = filters.periodEnd || endDate;
+      const match: Record<string, unknown> = {
+        trip: filters.tripId
+          ? {
+              $in: allowedTripIds.filter((tripId) => tripId.equals(filters.tripId)),
+            }
+          : { $in: allowedTripIds },
+        'splits.user': new Types.ObjectId(session.userId),
+      };
+      if (filters.expenseId) match._id = new Types.ObjectId(filters.expenseId);
+      if (filters.category) match.category = filters.category;
+      if (filters.tag) match.tags = filters.tag;
+      if (dateStart || dateEnd) {
+        const date: Record<string, Date> = {};
+        if (dateStart) date.$gte = new Date(`${dateStart}T00:00:00.000Z`);
+        if (dateEnd) date.$lte = new Date(`${dateEnd}T23:59:59.999Z`);
+        match.date = date;
+      }
+
+      const amountSort = sort === 'amountAsc' || sort === 'amountDesc';
+      const direction: 1 | -1 = sort === 'dateAsc' || sort === 'amountAsc' ? 1 : -1;
+      const sortField = amountSort ? 'splits.shareAmount' : 'date';
+      const pipeline: PipelineStage[] = [
+        { $match: match },
+        { $unwind: '$splits' },
+        { $match: { 'splits.user': new Types.ObjectId(session.userId) } },
+      ];
+
+      if (cursor) {
+        const cursorValue = amountSort ? cursor.value : new Date(cursor.value as string);
+        const cursorId = new Types.ObjectId(cursor.id);
+        const comparison = direction === 1 ? '$gt' : '$lt';
+        pipeline.push({
+          $match: {
+            $or: [
+              { [sortField]: { [comparison]: cursorValue } },
+              {
+                [sortField]: cursorValue,
+                _id: { [comparison]: cursorId },
+              },
+            ],
+          },
+        });
+      }
+
+      pipeline.push(
+        { $sort: { [sortField]: direction, _id: direction } },
+        { $limit: STATS_EXPENSE_PAGE_SIZE + 1 },
+        {
+          $lookup: {
+            from: Trip.collection.name,
+            localField: 'trip',
+            foreignField: '_id',
+            as: 'tripDocument',
+          },
+        },
+        { $unwind: '$tripDocument' },
+        {
+          $project: {
+            date: 1,
+            description: 1,
+            category: 1,
+            tags: 1,
+            trip: 1,
+            shareAmount: '$splits.shareAmount',
+            tripName: '$tripDocument.name',
+          },
+        }
+      );
+
+      type ExpensePageRow = {
+        _id: Types.ObjectId;
+        date: Date;
+        description: string;
+        category?: string;
+        tags?: string[];
+        trip: Types.ObjectId;
+        shareAmount: number;
+        tripName: string;
+      };
+      const rows = await Expense.aggregate<ExpensePageRow>(pipeline);
+      const hasNextPage = rows.length > STATS_EXPENSE_PAGE_SIZE;
+      const pageRows = rows.slice(0, STATS_EXPENSE_PAGE_SIZE);
+      const last = pageRows.at(-1);
+      const nextCursor =
+        hasNextPage && last
+          ? encodeStatsExpenseCursor({
+              sort,
+              value: amountSort ? last.shareAmount : last.date.toISOString(),
+              id: last._id.toString(),
+            })
+          : null;
+
+      return {
+        success: true,
+        data: {
+          items: pageRows.map((row) => ({
+            id: row._id.toString(),
+            date: dateOnly(row.date),
+            description: row.description || '',
+            amount: Math.round(row.shareAmount),
+            tripName: row.tripName || '',
+            tripId: row.trip.toString(),
+            category: row.category || 'other',
+            tags: row.tags ?? [],
+          })),
+          nextCursor,
+        },
+      };
+    } catch (error) {
+      logger.error('Get stats expense page error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
   }

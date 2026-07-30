@@ -118,7 +118,8 @@ export {
 } from './albumShare.actions';
 
 // Stats actions
-export { getStats, getTripStats } from './stats.actions';
+export { getStats, getStatsExpensePage, getTripStats } from './stats.actions';
+export type { GetStatsExpensePageOptions } from './stats.actions';
 
 // Year in review actions（年度旅行回顧 / Travel Wrapped）
 export { getYearInReview, type YearInReviewResult } from './wrapped.actions';

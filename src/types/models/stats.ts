@@ -68,19 +68,34 @@ export interface StatsInsight {
 }
 
 export interface StatsData {
-  categoryStats: CategoryStat[];
-  tripStats: PersonalTripStat[];
-  tagStats: TagStat[];
+  categoryStats: Omit<CategoryStat, 'details'>[];
+  tripStats: Omit<PersonalTripStat, 'details'>[];
+  tagStats: Omit<TagStat, 'details'>[];
   totalAmount: number;
   totalExpenses: number;
   tripCount: number;
   averagePerTrip: number;
   startDate: string | null;
   endDate: string | null;
-  recentExpenses: ExpenseDetail[];
   timeline: StatsTimelineData;
   insights: StatsInsight[];
   insightRuleVersion: StatsInsightRuleVersion;
+}
+
+export type StatsExpenseSort = 'dateDesc' | 'dateAsc' | 'amountDesc' | 'amountAsc';
+
+export interface StatsExpenseFilters {
+  tripId?: string;
+  category?: string;
+  tag?: string;
+  expenseId?: string;
+  periodStart?: string;
+  periodEnd?: string;
+}
+
+export interface StatsExpensePage {
+  items: ExpenseDetail[];
+  nextCursor: string | null;
 }
 
 /**

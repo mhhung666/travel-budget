@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { StatsDashboard, type StatsDashboardViewState } from '@/components/stats';
-import { useStats } from '@/hooks/queries';
+import { useStats, useStatsExpensePages } from '@/hooks/queries';
+import type { StatsExpenseSort } from '@/types';
 import { toLocalDateInputValue } from '@/lib/dateInput';
 import {
   DEFAULT_STATS_VIEW_STATE,
@@ -22,6 +23,7 @@ function defaultRange() {
 export default function StatsPage() {
   const [filters, setFilters] = useState(defaultRange);
   const [viewState, setViewState] = useState<StatsDashboardViewState>(DEFAULT_STATS_VIEW_STATE);
+  const [expenseSort, setExpenseSort] = useState<StatsExpenseSort>('dateDesc');
   const [hydrated, setHydrated] = useState(false);
   const { startDate, endDate } = filters;
   const setStartDate = (value: string) =>
@@ -86,6 +88,16 @@ export default function StatsPage() {
       ? statsError.message
       : String(statsError)
     : '';
+  const expensePages = useStatsExpensePages(
+    {
+      startDate,
+      endDate,
+      sort: expenseSort,
+      filters: viewState.detailFilters,
+    },
+    Boolean(stats?.totalExpenses)
+  );
+  const expenseDetails = expensePages.data?.pages.flatMap((page) => page.items) ?? [];
 
   const handleYearSelect = (year: number) => {
     setStartDate(`${year}-01-01`);
@@ -111,6 +123,19 @@ export default function StatsPage() {
       }}
       viewState={viewState}
       onViewStateChange={setViewState}
+      expenseDetails={expenseDetails}
+      expenseSort={expenseSort}
+      onExpenseSortChange={setExpenseSort}
+      expenseDetailsLoading={expensePages.isPending}
+      expenseDetailsFetchingNextPage={expensePages.isFetchingNextPage}
+      expenseDetailsHasNextPage={expensePages.hasNextPage}
+      expenseDetailsError={expensePages.isError}
+      onLoadMoreExpenseDetails={() => {
+        void expensePages.fetchNextPage();
+      }}
+      onRetryExpenseDetails={() => {
+        void expensePages.refetch();
+      }}
     />
   );
 }

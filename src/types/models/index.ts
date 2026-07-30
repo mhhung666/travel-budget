@@ -70,6 +70,9 @@ export type {
   TimeInterval,
   StatsTimelineBucket,
   StatsTimelineData,
+  StatsExpenseSort,
+  StatsExpenseFilters,
+  StatsExpensePage,
   HistogramDataPoint,
   HistogramData,
 } from './stats';

@@ -47,7 +47,6 @@ const emptyStats: StatsData = {
   averagePerTrip: 0,
   startDate: '2026-07-01',
   endDate: '2026-07-31',
-  recentExpenses: [],
   timeline: {
     interval: 'day',
     dataPoints: [],
@@ -101,17 +100,6 @@ const populatedStats: StatsData = {
   totalExpenses: 1,
   tripCount: 1,
   averagePerTrip: 500,
-  recentExpenses: [
-    {
-      id: 'expense-1',
-      date: '2026-07-12',
-      description: 'Dinner',
-      amount: 500,
-      tripName: 'Tokyo',
-      tripId: 'trip-1',
-      category: 'food',
-    },
-  ],
   timeline: {
     interval: 'day',
     dataPoints: [
@@ -141,6 +129,17 @@ function renderDashboard(overrides: Partial<React.ComponentProps<typeof StatsDas
     onClearDates: vi.fn(),
     viewState,
     onViewStateChange: vi.fn(),
+    expenseDetails: [
+      {
+        id: 'expense-1',
+        date: '2026-07-12',
+        description: 'Dinner',
+        amount: 500,
+        tripName: 'Tokyo',
+        tripId: 'trip-1',
+        category: 'food',
+      },
+    ],
     ...overrides,
   };
   return { ...render(<StatsDashboard {...props} />), props };
@@ -266,8 +265,10 @@ describe('personal statistics dashboard interactions', () => {
     expect(screen.queryByText('Dinner')).not.toBeNull();
   });
 
-  it('sorts expense details and expands the full list without hover', async () => {
+  it('requests the next cursor page and sends sorting changes to the query owner', async () => {
     const user = userEvent.setup();
+    const onLoadMoreExpenseDetails = vi.fn();
+    const onExpenseSortChange = vi.fn();
     const details = Array.from({ length: 6 }, (_, index) => ({
       id: `expense-${index + 1}`,
       date: `2026-07-${String(index + 1).padStart(2, '0')}`,
@@ -289,58 +290,43 @@ describe('personal statistics dashboard interactions', () => {
       ],
       totalAmount: 2100,
       totalExpenses: details.length,
-      recentExpenses: details,
     };
-    renderDashboard({ stats });
+    renderDashboard({
+      stats,
+      expenseDetails: details,
+      expenseDetailsHasNextPage: true,
+      onLoadMoreExpenseDetails,
+      onExpenseSortChange,
+    });
 
-    expect(screen.queryByText('Expense 1')).toBeNull();
-    await user.click(screen.getByRole('button', { name: 'viewAll' }));
     expect(screen.queryByText('Expense 1')).not.toBeNull();
+    await user.click(screen.getByRole('button', { name: 'loadMoreExpenses' }));
+    expect(onLoadMoreExpenseDetails).toHaveBeenCalledOnce();
 
     await user.selectOptions(screen.getByRole('combobox', { name: 'expenseSort' }), 'amountAsc');
-    const expenseLinks = screen
-      .getAllByRole('link')
-      .filter((link) => link.getAttribute('href')?.includes('?expense='));
-    expect(expenseLinks[0].textContent).toContain('Expense 1');
-    expect(expenseLinks[5].textContent).toContain('Expense 6');
-    expect(details.map((detail) => detail.id)).toEqual([
-      'expense-1',
-      'expense-2',
-      'expense-3',
-      'expense-4',
-      'expense-5',
-      'expense-6',
-    ]);
+    expect(onExpenseSortChange).toHaveBeenCalledWith('amountAsc');
   });
 
-  it('intersects trip and category filters in expense details', () => {
-    const osakaFood = {
-      id: 'expense-2',
-      date: '2026-07-13',
-      description: 'Osaka lunch',
-      amount: 300,
-      tripName: 'Osaka',
-      tripId: 'trip-2',
-      category: 'food',
-    };
-    const tokyoTrain = {
-      id: 'expense-3',
-      date: '2026-07-14',
-      description: 'Tokyo train',
-      amount: 200,
-      tripName: 'Tokyo',
-      tripId: 'trip-1',
-      category: 'transportation',
-    };
+  it('renders the server-filtered intersection of trip and category details', () => {
     const stats: StatsData = {
       ...populatedStats,
       totalAmount: 1000,
       totalExpenses: 3,
-      recentExpenses: [...populatedStats.recentExpenses, osakaFood, tokyoTrain],
     };
 
     renderDashboard({
       stats,
+      expenseDetails: [
+        {
+          id: 'expense-1',
+          date: '2026-07-12',
+          description: 'Dinner',
+          amount: 500,
+          tripName: 'Tokyo',
+          tripId: 'trip-1',
+          category: 'food',
+        },
+      ],
       viewState: {
         ...viewState,
         detailFilters: { tripId: 'trip-1', category: 'food' },
@@ -406,11 +392,14 @@ describe('personal statistics dashboard interactions', () => {
       ],
       totalAmount: 1000,
       totalExpenses: details.length,
-      recentExpenses: details,
     };
     stats.insights = generateStatsInsights({ tripStats: stats.tripStats });
 
-    const { rerender, props } = renderDashboard({ stats, onViewStateChange });
+    const { rerender, props } = renderDashboard({
+      stats,
+      expenseDetails: details,
+      onViewStateChange,
+    });
 
     expect(screen.queryByText('advancedInsight.heading')).not.toBeNull();
     const calculationSummary = screen.getAllByText('advancedInsight.howCalculated')[0];
@@ -444,6 +433,7 @@ describe('personal statistics dashboard interactions', () => {
           dimension: 'trip',
           detailFilters: { tripId: 'trip-1', expenseId: 'flight' },
         }}
+        expenseDetails={[details[0]]}
       />
     );
     expect(

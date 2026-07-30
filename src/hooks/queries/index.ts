@@ -21,6 +21,7 @@ export { useMemberMutations } from './useMemberMutations';
 export { useTripMutations, useTripArchiveMutations } from './useTripMutations';
 export { useExchangeRates } from './useExchangeRates';
 export { useStats } from './useStats';
+export { useStatsExpensePages } from './useStatsExpensePages';
 export { useYearInReview } from './useYearInReview';
 export { useVisitedPlaces } from './useVisitedPlaces';
 export { useMapPhotos } from './useMapPhotos';

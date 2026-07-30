@@ -15,7 +15,7 @@
 - 總支出、平均每趟支出、旅程數及支出筆數四張摘要卡。
 - 金額／筆數與日／週／月趨勢切換，圖表時段可同步篩選明細。
 - 分類／旅程／標籤分析、排序、占比、active filter 與旅程支出入口。
-- 篩選後支出預覽、查看全部與清除篩選。
+- 篩選後支出游標分頁、載入更多與清除篩選。
 - 四語文案、觸控資料點、鍵盤可操作控制和響應式版面。
 
 本輪追加完成：
@@ -36,7 +36,7 @@
 
 仍留待後續：
 
-- 明細游標分頁及大資料量查詢效能驗證。
+- 大資料量查詢效能與索引驗證。
 - 200% zoom、reduced motion，以及 iOS Safari／Android Chrome 真人裝置實機驗證。
 
 本輪效能準備：
@@ -49,6 +49,10 @@
 - 日與週粒度各限制最多 366 個資料桶；更長期間自動使用可用的較粗粒度，避免多年資料
   被靜默截斷。
 - persisted query cache schema 升級，避免舊快取缺少 `timeline` 導致部署後圖表中斷。
+- 個人支出明細改由獨立 server action 每頁查詢 20 筆，使用排序值與 `_id` 的複合游標，
+  主要 `StatsData` 不再傳送 `recentExpenses` 或維度內的完整 `details`。
+- 日期／金額排序與旅程、分類、標籤、時段及指定支出條件納入明細 query key；載入下一頁
+  失敗時保留已載入內容並提供局部重試。
 
 本輪升級：
 
@@ -328,7 +332,11 @@ interface PersonalStatsData {
   categories: PersonalStatsDimension[];
   trips: PersonalStatsTripDimension[];
   tags: PersonalStatsDimension[];
-  recentExpenses: PersonalStatsExpense[];
+}
+
+interface PersonalStatsExpensePage {
+  items: PersonalStatsExpense[];
+  nextCursor: string | null;
 }
 ```
 
@@ -338,7 +346,9 @@ interface PersonalStatsData {
 - 日期以使用者本地日曆日為準，不以 UTC 字串截斷推導日期。
 - 一筆支出有多個標籤時，可分別出現在各標籤統計；標籤總額不得被解讀成互斥占比總和。
 - 百分比的分母為目前篩選總額；總額為 0 時回傳 0。
-- Server 端應限制明細筆數，完整清單使用游標分頁或既有支出查詢能力。
+- Server 端每次最多回傳 20 筆明細，以排序值與支出 `_id` 組成游標；日期、金額排序及
+  旅程／分類／標籤／期間／指定支出篩選均在 MongoDB 完成。
+- 明細頁由獨立 action 查詢，不包含在主要統計契約；切換排序或篩選時使用獨立 query key。
 - 不提供固定週期比較；旅行支出頻率不規律，跨期增減容易造成錯誤解讀。
 
 ## 8. Loading、錯誤與空狀態
@@ -394,7 +404,7 @@ interface PersonalStatsData {
 ### Phase E：大資料量查詢
 
 - [x] 將個人統計 timeline 移至 server 聚合，並保留粒度與複合篩選互動。
-- [ ] 將逐筆明細改為游標分頁，避免無上限明細進入主要統計契約。
+- [x] 將逐筆明細改為游標分頁，避免無上限明細進入主要統計契約。
 - [ ] 以大量旅程／支出資料驗證 MongoDB 索引、查詢計畫、回傳大小與互動延遲。
 
 ## 12. MVP 驗收狀態
