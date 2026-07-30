@@ -45,7 +45,7 @@ export interface ShellUser {
  * 登入後的 App Shell：由 (app)/layout.tsx 渲染一次，換頁只換內容區。
  * - 桌機（≥ md）：頂列 = logo + 旅行/地圖 + 記一筆 + 鈴鐺 +「我的」選單。
  * - 行動（< md）：頂列只放 目前位置標題 + 鈴鐺；全域導覽走 BottomTabBar。
- *   統計、成就、會籍、回顧與設定在兩種尺寸都歸入「我的」。
+ *   個人統計在底欄作為一級入口；成就、會籍、回顧與設定歸入「我的」。
  * - 頂列 sticky（非 fixed），內容不再需要 pt-24 魔術數字。
  */
 export function AppShell({

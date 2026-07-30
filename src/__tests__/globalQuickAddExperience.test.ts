@@ -15,12 +15,13 @@ describe('Phase 2B global quick-add contracts', () => {
     expect(source).toContain('<BottomTabBar onQuickAdd={openQuickAdd}');
   });
 
-  it('uses the high-priority mobile action instead of a stats tab', () => {
+  it('keeps quick add centered alongside the personal stats tab', () => {
     const source = readSource('components', 'layout', 'BottomTabBar.tsx');
 
     expect(source).toContain('onQuickAdd');
     expect(source).toContain("t('quickAdd')");
-    expect(source).not.toContain("href: '/stats'");
+    expect(source).toContain("href: '/stats'");
+    expect(source).toContain('grid-cols-5');
   });
 
   it('shares the global flow between the web UI and PWA route', () => {

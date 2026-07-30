@@ -14,6 +14,7 @@ describe('Phase 3 information architecture contracts', () => {
     expect(shell).toContain('personalNavLinks');
     expect(mobile).toContain("target: 'trips'");
     expect(mobile).toContain("target: 'map'");
+    expect(mobile).toContain("target: 'stats'");
     expect(mobile).toContain("target: 'me'");
   });
 
