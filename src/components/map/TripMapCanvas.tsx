@@ -274,6 +274,7 @@ export default function TripMapCanvas({
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
   const lineColor = isDark ? '#93c5fd' : '#2563eb';
+  const selectedLineColor = isDark ? '#fb923c' : '#ea580c';
 
   const isHeat = mode === 'heat';
   const isCountries = mode === 'countries';
@@ -328,7 +329,7 @@ export default function TripMapCanvas({
           const selected = selectedFlightKey === s.key;
           const baseWeight = Math.min(1.25 + Math.log2(s.count + 1) * 0.55, 3);
           const baseStyle = {
-            color: lineColor,
+            color: selected ? selectedLineColor : lineColor,
             weight: selected ? Math.max(baseWeight + 1.25, 3) : baseWeight,
             opacity: selected ? 0.9 : 0.38,
           };
