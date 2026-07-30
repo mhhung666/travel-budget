@@ -13,7 +13,7 @@
 | 系統結構、資料流、資料模型 | [ARCHITECTURE.md](./ARCHITECTURE.md) |
 | 確認目前產品能力 | [FEATURES.md](./FEATURES.md) |
 | 規劃尚未實作的功能 | [ROADMAP.md](./ROADMAP.md) |
-| 實作個人統計儀表板改版 | [PERSONAL_STATS_DASHBOARD.md](./PERSONAL_STATS_DASHBOARD.md) |
+| 維護個人統計的查詢、洞察與效能 | [PERSONAL_STATS_DASHBOARD.md](./PERSONAL_STATS_DASHBOARD.md) |
 | 處理技術債或基礎設施風險 | [IMPROVEMENTS.md](./IMPROVEMENTS.md) |
 | 查重要交付里程碑 | [CHANGELOG.md](./CHANGELOG.md) |
 | 修改 schema、index 或回填資料 | [MIGRATIONS.md](./MIGRATIONS.md) |
@@ -28,6 +28,7 @@
 
 - `ARCHITECTURE.md`：只寫系統如何運作與不可破壞的技術契約。
 - `FEATURES.md`：只寫使用者現在能做什麼；實作細節連回程式碼或架構。
+- `PERSONAL_STATS_DASHBOARD.md`：只保留個人統計特有的資料口徑、效能基線與觀測事項。
 - `ROADMAP.md`、`IMPROVEMENTS.md`：只保留未完成項目，每項需有狀態與完成條件。
 - `CHANGELOG.md`：只保留重要里程碑，不取代 `git log`，也不逐 commit 重抄。
 - `UI_UX_SPEC.md`：目前介面規格；`UI_UX_EVALUATION.md`：驗證狀態；兩者不重述功能清單。

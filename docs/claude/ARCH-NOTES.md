@@ -58,7 +58,7 @@
 - `TripSpaceShell` 捲動 48px 後進 compact mode：名稱列縮短，非財務頁收起摘要，支出／結算／群組統計保留。行程落點的 [TripContextOverview](../../src/components/trips/detail/TripContextOverview.tsx) 依 `getTripPhase` 顯示行前／旅中／旅後內容；旅行資訊 [TripHeader](../../src/components/trips/detail/TripHeader.tsx) 是可展開 cover。
 - 行動端不再有 trip-scoped 支出 FAB；全域「記一筆」由 [AppShell](../../src/components/layout/AppShell.tsx) 掛載 [GlobalQuickAddFlow](../../src/components/layout/GlobalQuickAddFlow.tsx)，因此不換頁、關閉後保留原頁 state／scroll。旅行內 add-expense 表單仍住在 shell 層，頁內 CTA 可用 `useTripSpaceActions().openAddExpense()`。
 - 網頁入口與 PWA `/quick-add` 共用 [quickAdd.ts](../../src/lib/quickAdd.ts) 的決策：排除封存，進行中優先；唯一進行中／唯一 active 直開，多候選才 picker。`/quick-add` 頁本身不 redirect，由 AppShell 偵測 route 啟動同一 flow；不要再另寫一套 server 選擇邏輯。
-- 全域導覽桌機／行動端都用旅行／地圖／記一筆／我的分組；統計、成就、會籍、回顧、設定歸「我的」。導覽事件只能經 [navigationEvents.ts](../../src/lib/navigationEvents.ts) 的固定 taxonomy，不得附 trip/user/hash code、名稱、描述或金額。
+- 全域導覽桌機／行動端都用旅行／地圖／統計／記一筆／我的分組；成就、會籍、回顧與設定歸「我的」。導覽事件只能經 [navigationEvents.ts](../../src/lib/navigationEvents.ts) 的固定 taxonomy，不得附 trip/user/hash code、名稱、描述或金額。
 - 加入旅行輸入先經 [tripInvite.ts](../../src/lib/tripInvite.ts) 解析裸代碼或完整 `/join/{code}` URL；登入 redirect 要保留、sanitize，成功加入後直接導向該旅行。
 - 通知 / Push / Email 的導向表分散在三處（[NotificationBell](../../src/components/notifications/NotificationBell.tsx) / [webpush.ts](../../src/lib/webpush.ts) / [emailTemplates.ts](../../src/lib/emailTemplates.ts)），**改一處要三處一起改**（有測試守著）：支出語意 → `/expenses`、還款 → `/settlement`、其餘 → 落點。
 - 全貌與路由表見 [docs/ARCHITECTURE.md](../ARCHITECTURE.md) §4.14。
