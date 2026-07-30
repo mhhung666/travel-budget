@@ -40,9 +40,8 @@ export function useTripMutations(tripId: string) {
     },
   });
 
-  // Budget lives on the trip document, so setting it just refreshes the trip
-  // detail query (which carries `budget`); progress is derived client-side from
-  // trip.budget + the already-loaded expenses, so nothing else needs invalidating.
+  // Personal budget lives on the caller's embedded trip membership. The detail DTO
+  // only carries that viewer's budget; progress is derived from their expense splits.
   const setBudget = useMutation({
     mutationFn: (input: SetBudgetInput) => unwrap(setTripBudget(tripId, input)),
     onSuccess: (trip: Trip) => {

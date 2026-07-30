@@ -51,10 +51,10 @@ export function useTripSpace(tripId: string) {
   const addExpenseDialog = useDialog<AddExpensePrefill>();
   const budgetDialog = useDialog();
 
-  // 常駐摘要條：總支出（＋已設定時的預算進度），由已載入的 trip + expenses 即時計算。
+  // 常駐摘要條：登入者的分攤支出（＋已設定時的個人預算進度）。
   const budgetProgress = useMemo(
-    () => computeBudgetProgress(trip?.budget ?? null, expenses),
-    [trip?.budget, expenses]
+    () => computeBudgetProgress(trip?.budget ?? null, expenses, currentUser?.id ?? null),
+    [trip?.budget, expenses, currentUser?.id]
   );
 
   // 本 trip 內已用過的標籤（供支出表單的標籤自動完成建議）。

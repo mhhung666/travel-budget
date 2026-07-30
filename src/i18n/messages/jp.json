@@ -541,26 +541,31 @@
     "other": "その他"
   },
   "budget": {
-    "title": "予算",
+    "title": "自分の予算",
     "edit": "編集",
-    "total": "総予算",
-    "totalSpent": "総支出",
+    "total": "予算",
+    "myTotal": "自分の予算",
+    "totalSpent": "自分の支出",
+    "mySpent": "自分の支出",
     "remaining": "残り",
     "overBudget": "超過",
     "byCategory": "カテゴリ別予算",
-    "success": "予算を更新しました",
+    "success": "自分の予算を更新しました",
     "empty": {
-      "description": "予算を設定して、この旅行であといくら使えるかを把握しましょう",
-      "cta": "予算を設定"
+      "description": "個人予算を設定して、この旅行で自分が負担する支出を把握しましょう",
+      "cta": "自分の予算を設定"
     },
     "dialog": {
-      "title": "予算を設定",
-      "description": "予算は基準通貨（TWD）で、換算後の支出額と比較されます。",
-      "totalLabel": "総予算",
+      "title": "自分の予算を設定",
+      "description": "予算はTWDで計算され、実際の支出は各支出で自分に割り当てられた金額を集計します。",
+      "totalLabel": "自分の総予算",
       "totalPlaceholder": "例：30000",
-      "categoriesLabel": "カテゴリ別予算（任意）",
+      "categoriesLabel": "自分のカテゴリ別予算（任意）",
       "hint": "空欄は上限なし。すべて空にすると予算が削除されます。",
-      "save": "予算を保存"
+      "save": "自分の予算を保存",
+      "legacyTitle": "以前のグループ予算",
+      "legacyDescription": "この旅行には以前 {amount} のグループ予算がありました。自分に合う個人予算を設定してください。",
+      "legacyCategoriesOnly": "カテゴリ別予算のみ"
     }
   },
   "error": {

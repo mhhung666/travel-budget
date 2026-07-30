@@ -34,8 +34,10 @@ export interface Trip {
   created_at: string;
   /** 軟性封存時間；null 代表未封存 */
   archived_at: string | null;
-  /** 旅程預算（基準幣 TWD）；null 代表尚未設定 */
+  /** 目前登入者在此旅程的個人預算（基準幣 TWD）；公開情境或未設定時為 null */
   budget: Budget | null;
+  /** 舊版團體預算，僅供設定個人預算時參考；公開情境不回傳 */
+  legacy_budget: Budget | null;
   /** 旅程幣別設定（常用幣別／自訂匯率／預設幣別）；null 代表尚未設定 */
   currency_settings: TripCurrencySettings | null;
 }

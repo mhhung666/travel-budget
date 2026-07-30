@@ -541,26 +541,31 @@
     "other": "其他"
   },
   "budget": {
-    "title": "預算",
+    "title": "我的預算",
     "edit": "編輯",
-    "total": "總預算",
-    "totalSpent": "總花費",
+    "total": "預算",
+    "myTotal": "我的預算",
+    "totalSpent": "我的花費",
+    "mySpent": "我的支出",
     "remaining": "剩餘",
     "overBudget": "超支",
     "byCategory": "分類預算",
-    "success": "預算已更新",
+    "success": "我的預算已更新",
     "empty": {
-      "description": "設定預算，隨時掌握這趟還能花多少",
-      "cta": "設定預算"
+      "description": "設定個人預算，掌握這趟分攤給自己的花費",
+      "cta": "設定我的預算"
     },
     "dialog": {
-      "title": "設定預算",
-      "description": "預算以新台幣（基準幣）計算，與支出換算後的金額比較。",
-      "totalLabel": "總預算",
+      "title": "設定我的預算",
+      "description": "預算以新台幣計算，實際花費依每筆支出分攤給你的金額統計。",
+      "totalLabel": "我的總預算",
       "totalPlaceholder": "例如 30000",
-      "categoriesLabel": "各分類預算（選填）",
+      "categoriesLabel": "我的分類預算（選填）",
       "hint": "留空表示不設限；全部留空則會清除預算。",
-      "save": "儲存預算"
+      "save": "儲存我的預算",
+      "legacyTitle": "舊版團體預算",
+      "legacyDescription": "這趟之前的團體預算為 {amount}，請依自己的需求設定個人預算。",
+      "legacyCategoriesOnly": "僅設定分類預算"
     }
   },
   "error": {

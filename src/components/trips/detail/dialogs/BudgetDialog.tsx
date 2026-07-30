@@ -24,6 +24,7 @@ interface BudgetDialogProps {
   onClose: () => void;
   onSubmit: (input: SetBudgetInput) => Promise<void>;
   budget: Budget | null;
+  legacyBudget?: Budget | null;
 }
 
 /** 數字輸入 → 正數則回傳，其餘（空白 / 0 / 負 / NaN）回傳 null。 */
@@ -32,7 +33,13 @@ function parseAmount(value: string): number | null {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
-export default function BudgetDialog({ open, onClose, onSubmit, budget }: BudgetDialogProps) {
+export default function BudgetDialog({
+  open,
+  onClose,
+  onSubmit,
+  budget,
+  legacyBudget = null,
+}: BudgetDialogProps) {
   const t = useTranslations('budget');
   const tCategory = useTranslations('category');
   const tCommon = useTranslations('common');
@@ -91,6 +98,24 @@ export default function BudgetDialog({ open, onClose, onSubmit, budget }: Budget
             <Alert variant="destructive">
               <AlertTitle>{tCommon('errorTitle')}</AlertTitle>
               <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          {legacyBudget && !budget && (
+            <Alert>
+              <AlertTitle>{t('dialog.legacyTitle')}</AlertTitle>
+              <AlertDescription>
+                {t('dialog.legacyDescription', {
+                  amount:
+                    legacyBudget.total != null
+                      ? new Intl.NumberFormat(undefined, {
+                          style: 'currency',
+                          currency: 'TWD',
+                          maximumFractionDigits: 0,
+                        }).format(legacyBudget.total)
+                      : t('dialog.legacyCategoriesOnly'),
+                })}
+              </AlertDescription>
             </Alert>
           )}
 

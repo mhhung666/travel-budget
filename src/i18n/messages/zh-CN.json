@@ -541,26 +541,31 @@
     "other": "其他"
   },
   "budget": {
-    "title": "预算",
+    "title": "我的预算",
     "edit": "编辑",
-    "total": "总预算",
-    "totalSpent": "总花费",
+    "total": "预算",
+    "myTotal": "我的预算",
+    "totalSpent": "我的花费",
+    "mySpent": "我的支出",
     "remaining": "剩余",
     "overBudget": "超支",
     "byCategory": "分类预算",
-    "success": "预算已更新",
+    "success": "我的预算已更新",
     "empty": {
-      "description": "设定预算，随时掌握这趟还能花多少",
-      "cta": "设定预算"
+      "description": "设定个人预算，掌握这趟分摊给自己的花费",
+      "cta": "设定我的预算"
     },
     "dialog": {
-      "title": "设定预算",
-      "description": "预算以新台币（基准货币）计算，与支出换算后的金额比较。",
-      "totalLabel": "总预算",
+      "title": "设定我的预算",
+      "description": "预算以新台币计算，实际花费依每笔支出分摊给你的金额统计。",
+      "totalLabel": "我的总预算",
       "totalPlaceholder": "例如 30000",
-      "categoriesLabel": "各分类预算（选填）",
+      "categoriesLabel": "我的分类预算（选填）",
       "hint": "留空表示不设限；全部留空则会清除预算。",
-      "save": "保存预算"
+      "save": "保存我的预算",
+      "legacyTitle": "旧版团体预算",
+      "legacyDescription": "这趟之前的团体预算为 {amount}，请依自己的需求设定个人预算。",
+      "legacyCategoriesOnly": "仅设定分类预算"
     }
   },
   "error": {

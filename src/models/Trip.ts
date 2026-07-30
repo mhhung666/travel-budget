@@ -1,23 +1,7 @@
 import mongoose, { Schema, type InferSchemaType, type Model } from 'mongoose';
 
 /**
- * 旅程成員（內嵌於 Trip）。
- * 取代原 trip_members 表，把權限檢查收斂成單一文件讀取。
- */
-const TripMemberSchema = new Schema(
-  {
-    user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-    role: { type: String, enum: ['admin', 'member'], default: 'member' },
-    joinedAt: { type: Date, default: Date.now },
-    // 個別（軟性）封存：非 null 代表「這名成員」把此旅程從自己的列表收起，
-    // 其他成員不受影響。旅程內容仍可正常讀寫。
-    archivedAt: { type: Date, default: null },
-  },
-  { _id: false }
-);
-
-/**
- * 單一分類的預算（內嵌於 Trip.budget）。金額一律以基準幣（TWD）計，
+ * 單一分類的預算（內嵌於 Trip.members[].budget）。金額一律以基準幣（TWD）計，
  * 與 Expense.amount 同單位，才能直接比對「預算 vs 實際」。
  */
 const BudgetCategorySchema = new Schema(
@@ -29,13 +13,31 @@ const BudgetCategorySchema = new Schema(
 );
 
 /**
- * 旅程預算（內嵌於 Trip）。total 為總預算，categories 為各分類預算；
+ * 個人旅程預算（內嵌於 Trip.members[]）。total 為總預算，categories 為各分類預算；
  * 皆以基準幣（TWD）計。整個 budget 為 null 代表「尚未設定預算」。
  */
 const BudgetSchema = new Schema(
   {
     total: { type: Number, default: null },
     categories: { type: [BudgetCategorySchema], default: [] },
+  },
+  { _id: false }
+);
+
+/**
+ * 旅程成員（內嵌於 Trip）。
+ * 取代原 trip_members 表，把權限檢查收斂成單一文件讀取。
+ */
+const TripMemberSchema = new Schema(
+  {
+    user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    role: { type: String, enum: ['admin', 'member'], default: 'member' },
+    joinedAt: { type: Date, default: Date.now },
+    // 個別（軟性）封存：非 null 代表「這名成員」把此旅程從自己的列表收起，
+    // 其他成員不受影響。旅程內容仍可正常讀寫。
+    archivedAt: { type: Date, default: null },
+    // 個人預算：只由本人讀寫；DTO 僅輸出 viewer 自己這筆，公開 API 永不輸出。
+    budget: { type: BudgetSchema, default: null },
   },
   { _id: false }
 );
@@ -83,8 +85,9 @@ const TripSchema = new Schema(
     // 重新產生會換碼、使舊連結立即失效；null／未設代表未分享。
     albumShareCode: { type: String },
     members: { type: [TripMemberSchema], default: [] },
-    // 旅程預算；null 代表未設定（舊資料無此欄位即視為未設定）。
-    budget: { type: BudgetSchema, default: null },
+    // 舊版全團預算，只供個人預算改版後的過渡提示，不再參與任何進度計算。
+    // migration 會將舊 budget 欄位改名至此；全新旅程維持 null。
+    legacyBudget: { type: BudgetSchema, default: null },
     // 幣別設定；null 代表未設定（舊資料無此欄位即視為未設定）。
     currencySettings: { type: CurrencySettingsSchema, default: null },
   },

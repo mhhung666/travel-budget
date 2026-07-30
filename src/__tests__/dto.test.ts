@@ -131,6 +131,7 @@ describe('toTripDto', () => {
       created_at: '2026-01-01T00:00:00.000Z',
       archived_at: '2026-05-01T00:00:00.000Z',
       budget: null,
+      legacy_budget: null,
       currency_settings: null,
     });
   });
@@ -152,18 +153,48 @@ describe('toTripDto', () => {
     expect(dto.description).toBeNull();
     expect(dto.destination_location).toBeNull();
     expect(dto.budget).toBeNull();
+    expect(dto.legacy_budget).toBeNull();
     expect(dto.currency_settings).toBeNull();
   });
 
-  it('maps budget (total + categories) when present', () => {
-    const dto = toTripDto({
-      ...base,
-      budget: { total: 30000, categories: [{ category: 'food', amount: 8000 }] },
-    });
+  it('maps only the viewer’s member budget and includes legacy group budget for reference', () => {
+    const dto = toTripDto(
+      {
+        ...base,
+        members: [
+          {
+            user: { toString: () => 'u1' },
+            budget: { total: 30000, categories: [{ category: 'food', amount: 8000 }] },
+          },
+          {
+            user: { toString: () => 'u2' },
+            budget: { total: 99999, categories: [] },
+          },
+        ],
+        legacyBudget: { total: 60000, categories: [] },
+      },
+      'u1'
+    );
     expect(dto.budget).toEqual({
       total: 30000,
       categories: [{ category: 'food', amount: 8000 }],
     });
+    expect(dto.legacy_budget).toEqual({ total: 60000, categories: [] });
+  });
+
+  it('never exposes member or legacy budgets without a viewer', () => {
+    const dto = toTripDto({
+      ...base,
+      members: [
+        {
+          user: { toString: () => 'u1' },
+          budget: { total: 30000, categories: [] },
+        },
+      ],
+      legacyBudget: { total: 60000, categories: [] },
+    });
+    expect(dto.budget).toBeNull();
+    expect(dto.legacy_budget).toBeNull();
   });
 
   it('maps currency settings (default currency + currencies with optional pinned rate)', () => {

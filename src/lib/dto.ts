@@ -103,8 +103,15 @@ export type TripDtoInput = {
   destinationLocation?: unknown;
   hashCode: string;
   createdAt: Date;
-  members?: { user: { toString(): string }; archivedAt?: Date | string | null }[];
-  budget?: { total?: number | null; categories?: { category: string; amount: number }[] } | null;
+  members?: {
+    user: { toString(): string };
+    archivedAt?: Date | string | null;
+    budget?: { total?: number | null; categories?: { category: string; amount: number }[] } | null;
+  }[];
+  legacyBudget?: {
+    total?: number | null;
+    categories?: { category: string; amount: number }[];
+  } | null;
   currencySettings?: {
     defaultCurrency?: string | null;
     currencies?: { code: string; rate?: number | null }[];
@@ -127,15 +134,25 @@ export function toTripDto(t: TripDtoInput, viewerId?: string): TripDto {
     hash_code: t.hashCode,
     created_at: t.createdAt.toISOString(),
     archived_at: self?.archivedAt ? new Date(self.archivedAt).toISOString() : null,
-    budget: t.budget
+    budget: self?.budget
       ? {
-          total: t.budget.total ?? null,
-          categories: (t.budget.categories ?? []).map((c) => ({
+          total: self.budget.total ?? null,
+          categories: (self.budget.categories ?? []).map((c) => ({
             category: c.category,
             amount: c.amount,
           })),
         }
       : null,
+    legacy_budget:
+      viewerId && t.legacyBudget
+        ? {
+            total: t.legacyBudget.total ?? null,
+            categories: (t.legacyBudget.categories ?? []).map((c) => ({
+              category: c.category,
+              amount: c.amount,
+            })),
+          }
+        : null,
     currency_settings: t.currencySettings
       ? {
           default_currency: t.currencySettings.defaultCurrency ?? null,

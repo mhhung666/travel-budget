@@ -3,8 +3,20 @@ import { computeBudgetProgress } from '@/lib/budget';
 import type { Budget } from '@/types';
 
 describe('computeBudgetProgress', () => {
+  const expense = (
+    category: string,
+    mine: number,
+    others = 0
+  ): { category: string; splits: { user_id: string; share_amount: number }[] } => ({
+    category,
+    splits: [
+      { user_id: 'me', share_amount: mine },
+      ...(others > 0 ? [{ user_id: 'other', share_amount: others }] : []),
+    ],
+  });
+
   it('reports no budget when budget is null', () => {
-    const result = computeBudgetProgress(null, []);
+    const result = computeBudgetProgress(null, [], 'me');
     expect(result).toEqual({
       total: null,
       totalSpent: 0,
@@ -14,11 +26,11 @@ describe('computeBudgetProgress', () => {
   });
 
   it('still totals spending when no budget is set', () => {
-    const result = computeBudgetProgress(null, [
-      { amount: 1000, category: 'food' },
-      { amount: 500, category: 'food' },
-      { amount: 2000, category: 'accommodation' },
-    ]);
+    const result = computeBudgetProgress(
+      null,
+      [expense('food', 1000, 2000), expense('food', 500), expense('accommodation', 2000, 4000)],
+      'me'
+    );
     expect(result.hasBudget).toBe(false);
     expect(result.total).toBeNull();
     expect(result.totalSpent).toBe(3500);
@@ -31,7 +43,7 @@ describe('computeBudgetProgress', () => {
 
   it('computes progress for an overall total budget', () => {
     const budget: Budget = { total: 10000, categories: [] };
-    const result = computeBudgetProgress(budget, [{ amount: 4000, category: 'food' }]);
+    const result = computeBudgetProgress(budget, [expense('food', 4000, 8000)], 'me');
     expect(result.hasBudget).toBe(true);
     expect(result.total).toBe(10000);
     expect(result.totalSpent).toBe(4000);
@@ -45,10 +57,14 @@ describe('computeBudgetProgress', () => {
         { category: 'accommodation', amount: 8000 },
       ],
     };
-    const result = computeBudgetProgress(budget, [
-      { amount: 4200, category: 'food' }, // over its 4000 budget
-      { amount: 5000, category: 'accommodation' },
-    ]);
+    const result = computeBudgetProgress(
+      budget,
+      [
+        expense('food', 4200, 1000), // my share is over my 4000 budget
+        expense('accommodation', 5000, 9000),
+      ],
+      'me'
+    );
     expect(result.hasBudget).toBe(true);
     expect(result.total).toBeNull();
     expect(result.totalSpent).toBe(9200);
@@ -63,7 +79,7 @@ describe('computeBudgetProgress', () => {
       total: null,
       categories: [{ category: 'food', amount: 4000 }],
     };
-    const result = computeBudgetProgress(budget, [{ amount: 300, category: 'transportation' }]);
+    const result = computeBudgetProgress(budget, [expense('transportation', 300)], 'me');
     // food (budgeted, no spend) + transportation (spent, no budget)
     expect(result.categories).toEqual([
       { category: 'transportation', budget: null, spent: 300 },
@@ -73,19 +89,38 @@ describe('computeBudgetProgress', () => {
 
   it('rounds amounts to whole numbers (base currency has no decimals)', () => {
     const budget: Budget = { total: 1000, categories: [{ category: 'food', amount: 500 }] };
-    const result = computeBudgetProgress(budget, [
-      { amount: 100.4, category: 'food' },
-      { amount: 100.4, category: 'food' },
-    ]);
+    const result = computeBudgetProgress(
+      budget,
+      [expense('food', 100.4), expense('food', 100.4)],
+      'me'
+    );
     expect(result.totalSpent).toBe(201);
     expect(result.categories[0]).toEqual({ category: 'food', budget: 500, spent: 201 });
   });
 
   it('treats missing/empty category as "other"', () => {
-    const result = computeBudgetProgress(null, [
-      { amount: 50, category: '' },
-      { amount: 50, category: 'other' },
-    ]);
+    const result = computeBudgetProgress(null, [expense('', 50), expense('other', 50)], 'me');
     expect(result.categories).toEqual([{ category: 'other', budget: null, spent: 100 }]);
+  });
+
+  it('ignores expenses not split to the current user', () => {
+    const result = computeBudgetProgress(
+      { total: 1000, categories: [] },
+      [
+        { category: 'food', splits: [{ user_id: 'other', share_amount: 900 }] },
+        expense('transportation', 100, 400),
+      ],
+      'me'
+    );
+    expect(result.totalSpent).toBe(100);
+    expect(result.categories).toEqual([
+      { category: 'transportation', budget: null, spent: 100 },
+      { category: 'food', budget: null, spent: 0 },
+    ]);
+  });
+
+  it('does not expose spending before the current user is known', () => {
+    const result = computeBudgetProgress(null, [expense('food', 500)], null);
+    expect(result.totalSpent).toBe(0);
   });
 });

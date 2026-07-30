@@ -590,26 +590,31 @@
     "other": "Other"
   },
   "budget": {
-    "title": "Budget",
+    "title": "My budget",
     "edit": "Edit",
-    "total": "Total budget",
-    "totalSpent": "Total spent",
+    "total": "Budget",
+    "myTotal": "My budget",
+    "totalSpent": "My spending",
+    "mySpent": "My spending",
     "remaining": "Left",
     "overBudget": "Over by",
     "byCategory": "By category",
-    "success": "Budget updated",
+    "success": "Your budget was updated",
     "empty": {
-      "description": "Set a budget to track how much you can still spend on this trip",
-      "cta": "Set budget"
+      "description": "Set a personal budget to track your share of this trip's expenses",
+      "cta": "Set my budget"
     },
     "dialog": {
-      "title": "Set budget",
-      "description": "Budgets are in TWD (base currency) and compared against converted expense amounts.",
-      "totalLabel": "Total budget",
+      "title": "Set my budget",
+      "description": "Budgets are in TWD. Spending is calculated from your share of each expense.",
+      "totalLabel": "My total budget",
       "totalPlaceholder": "e.g. 30000",
-      "categoriesLabel": "Per-category budgets (optional)",
+      "categoriesLabel": "My category budgets (optional)",
       "hint": "Leave blank for no limit; clearing everything removes the budget.",
-      "save": "Save budget"
+      "save": "Save my budget",
+      "legacyTitle": "Previous group budget",
+      "legacyDescription": "This trip previously had a group budget of {amount}. Set a personal budget that fits your needs.",
+      "legacyCategoriesOnly": "category budgets only"
     }
   },
   "error": {

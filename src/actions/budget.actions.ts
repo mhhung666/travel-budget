@@ -13,10 +13,10 @@ import { toTripDto } from '@/lib/dto';
 type LeanTrip = TripDoc & { _id: { toString(): string }; createdAt: Date };
 
 /**
- * 設定 / 更新旅程預算（admin only）。
+ * 設定 / 更新登入者自己的旅程預算。
  *
- * 預算進度（預算 vs 實際）刻意不在後端計算：旅程詳情頁本就載入了 trip（含 budget）
- * 與全部支出，於前端以 lib/budget.ts `computeBudgetProgress` 即時算出即可，省一次往返。
+ * 預算進度刻意不在後端計算：旅程詳情頁本就載入了登入者自己的 budget
+ * 與全部支出，於前端依登入者的 splits 即時算出即可。
  * 本 action 只負責「寫入」預算設定。
  *
  * 正規化規則：
@@ -31,10 +31,6 @@ export const setTripBudget = withAuth(
       if (!membership) {
         return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
       }
-      if (membership.role !== 'admin') {
-        return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
-      }
-
       const validation = setBudgetSchema.safeParse(input);
       if (!validation.success) {
         return {
@@ -62,9 +58,9 @@ export const setTripBudget = withAuth(
           ? null
           : { total: normalizedTotal, categories: normalizedCategories };
 
-      const trip = await TripModel.findByIdAndUpdate(
-        membership.tripId,
-        { $set: { budget } },
+      const trip = await TripModel.findOneAndUpdate(
+        { _id: membership.tripId, 'members.user': session.userId },
+        { $set: { 'members.$.budget': budget } },
         { new: true }
       ).lean<LeanTrip>();
 

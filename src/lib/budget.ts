@@ -2,20 +2,25 @@ import type { Budget, BudgetProgress, CategoryBudgetProgress } from '@/types';
 import { CATEGORY_CODES } from '@/constants/categories';
 
 /**
- * 計算「預算 vs 實際」進度（純函式，無 I/O，故可單元測試 — 比照 lib/settlement.ts）。
+ * 計算「我的預算 vs 我的分攤花費」進度。
  *
  * 進度刻意不存於 DB：旅程詳情頁本就載入了 budget（隨 trip）與全部 expenses，
- * 於前端即時計算可省去一次後端往返（呼應 CLAUDE.md 的「避免額外往返」原則）。
+ * 於前端即時計算可省去一次後端往返。
  *
  * 金額一律以基準幣（TWD）計：expense.amount 已是換算後的 TWD，budget 亦以 TWD 設定，
  * 故可直接相加比對。回傳金額四捨五入為整數（基準幣無小數）。
  *
  * @param budget  旅程預算設定；null 代表未設定
- * @param expenses 旅程全部支出（需含 amount 與 category）
+ * @param expenses 旅程全部支出（需含 category 與 splits）
+ * @param userId 目前登入者；只加總 splits 中屬於此人的 share_amount
  */
 export function computeBudgetProgress(
   budget: Budget | null,
-  expenses: { amount: number; category: string }[]
+  expenses: {
+    category: string;
+    splits: { user_id: string; share_amount: number }[];
+  }[],
+  userId: string | null
 ): BudgetProgress {
   const total = budget?.total ?? null;
 
@@ -24,12 +29,14 @@ export function computeBudgetProgress(
     categoryBudgets.set(c.category, c.amount);
   }
 
-  // 統計各分類實際花費（全團）
+  // 統計各分類分攤給目前使用者的實際花費。
   const spentByCategory = new Map<string, number>();
   let totalSpent = 0;
   for (const e of expenses) {
     const cat = e.category || 'other';
-    const amt = e.amount || 0;
+    const amt = userId
+      ? (e.splits.find((split) => split.user_id === userId)?.share_amount ?? 0)
+      : 0;
     totalSpent += amt;
     spentByCategory.set(cat, (spentByCategory.get(cat) ?? 0) + amt);
   }

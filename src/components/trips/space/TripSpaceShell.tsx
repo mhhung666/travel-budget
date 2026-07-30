@@ -29,7 +29,7 @@ import { TripSpaceProvider, type AddExpensePrefill } from './TripSpaceContext';
  * - 分頁列：行程／支出／相簿／結算 四顆主分頁，可橫向滑動、`aria-current` 標記現在位置。
  *   低頻的隨手記／清單收進「行程」、統計收進「結算」的子分頁列（見 SUB_TABS），
  *   各子頁 URL 不變，深連結與分享連結照舊。
- * - 常駐摘要條：總支出（有預算時加進度條），跨分頁常駐。
+ * - 常駐摘要條：我的分攤支出（有個人預算時加進度條），跨分頁常駐。
  * - 新增支出表單留在 shell 層供旅行內操作；跨頁快速記帳由 AppShell 全域入口負責。
  */
 // mounted 判斷（server↔client hydration guard）用：外部 store 永不變化，只是藉
@@ -56,7 +56,6 @@ export function TripSpaceShell({
     members,
     currentUser,
     isMember,
-    isAdmin,
     itineraryDays,
     existingTags,
     budgetProgress,
@@ -280,34 +279,34 @@ export function TripSpaceShell({
             )}
           </div>
 
-          {/* 常駐摘要條：總支出 /（若有）預算進度 */}
-          <div
-            className={cn(
-              'border-t bg-muted/40',
-              isCompact && !isFinancialContext && 'hidden md:block'
-            )}
-          >
-            <div className="container mx-auto flex h-9 max-w-6xl items-center justify-between gap-3 px-4 text-sm">
-              <span className="shrink-0 text-muted-foreground">
-                {tTrips('detail.totalSpent')}{' '}
-                <span className="font-semibold tabular-nums text-foreground">
-                  {formatCurrency(totalSpent, 'TWD')}
+          {/* 個人資訊不出現在公開分享：只有正式成員看到自己的分攤支出與預算。 */}
+          {isMember && (
+            <div
+              className={cn(
+                'border-t bg-muted/40',
+                isCompact && !isFinancialContext && 'hidden md:block'
+              )}
+            >
+              <div className="container mx-auto flex h-9 max-w-6xl items-center justify-between gap-3 px-4 text-sm">
+                <span className="shrink-0 text-muted-foreground">
+                  {tBudget('mySpent')}{' '}
+                  <span className="font-semibold tabular-nums text-foreground">
+                    {formatCurrency(totalSpent, 'TWD')}
+                  </span>
                 </span>
-              </span>
-              {total !== null ? (
-                <span
-                  className={cn(
-                    'truncate text-xs tabular-nums',
-                    overBudget ? 'font-medium text-destructive' : 'text-muted-foreground'
-                  )}
-                >
-                  {tBudget('total')} {formatCurrency(total, 'TWD')} ·{' '}
-                  {overBudget
-                    ? `${tBudget('overBudget')} ${formatCurrency(totalSpent - total, 'TWD')}`
-                    : `${tBudget('remaining')} ${formatCurrency(total - totalSpent, 'TWD')}`}
-                </span>
-              ) : (
-                isAdmin && (
+                {total !== null ? (
+                  <span
+                    className={cn(
+                      'truncate text-xs tabular-nums',
+                      overBudget ? 'font-medium text-destructive' : 'text-muted-foreground'
+                    )}
+                  >
+                    {tBudget('myTotal')} {formatCurrency(total, 'TWD')} ·{' '}
+                    {overBudget
+                      ? `${tBudget('overBudget')} ${formatCurrency(totalSpent - total, 'TWD')}`
+                      : `${tBudget('remaining')} ${formatCurrency(total - totalSpent, 'TWD')}`}
+                  </span>
+                ) : (
                   <button
                     type="button"
                     onClick={() => budgetDialog.openDialog()}
@@ -315,25 +314,25 @@ export function TripSpaceShell({
                   >
                     {tBudget('empty.cta')}
                   </button>
-                )
+                )}
+              </div>
+              {total !== null && (
+                <div
+                  role="progressbar"
+                  aria-label={tBudget('title')}
+                  aria-valuemin={0}
+                  aria-valuemax={total}
+                  aria-valuenow={Math.min(totalSpent, total)}
+                  className="h-1 w-full bg-muted"
+                >
+                  <div
+                    className={cn('h-full', overBudget ? 'bg-destructive' : 'bg-primary')}
+                    style={{ width: `${percent}%` }}
+                  />
+                </div>
               )}
             </div>
-            {total !== null && (
-              <div
-                role="progressbar"
-                aria-label={tBudget('title')}
-                aria-valuemin={0}
-                aria-valuemax={total}
-                aria-valuenow={Math.min(totalSpent, total)}
-                className="h-1 w-full bg-muted"
-              >
-                <div
-                  className={cn('h-full', overBudget ? 'bg-destructive' : 'bg-primary')}
-                  style={{ width: `${percent}%` }}
-                />
-              </div>
-            )}
-          </div>
+          )}
         </div>
 
         <div className="flex-1">{children}</div>
@@ -358,6 +357,7 @@ export function TripSpaceShell({
           onClose={budgetDialog.closeDialog}
           onSubmit={handleSetBudget}
           budget={trip?.budget ?? null}
+          legacyBudget={trip?.legacy_budget ?? null}
         />
       </div>
     </TripSpaceProvider>

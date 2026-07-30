@@ -106,7 +106,7 @@ src/
 - 貪心法：將債權人（balance > 0）與債務人（balance < 0）各自排序後配對，**最小化轉帳次數**。
 - 使用 `0.01` epsilon 處理浮點誤差；金額四捨五入到小數點兩位。
 - 已有測試覆蓋（[settlement.test.ts](../src/__tests__/settlement.test.ts)）。
-- 同屬「純函式 + 單元測試」的計算邏輯還有 [lib/budget.ts](../src/lib/budget.ts)（`computeBudgetProgress`：預算 vs 實際，於旅程頁前端即時計算，免後端往返）、[lib/expenseSplit.ts](../src/lib/expenseSplit.ts)（`computeSplits`：均分/金額/百分比/份數四種分帳，於支出表單換算成 `splits` 的 TWD 金額；後端 `createExpense`/`updateExpense` 另有寬鬆的總和防呆）與 [lib/tripStats.ts](../src/lib/tripStats.ts)（`computeTripStats`：全團群組統計，見 §4.7）。
+- 同屬「純函式 + 單元測試」的計算邏輯還有 [lib/budget.ts](../src/lib/budget.ts)（`computeBudgetProgress`：個人預算 vs `splits` 中本人分攤金額，於旅程頁前端即時計算，免後端往返）、[lib/expenseSplit.ts](../src/lib/expenseSplit.ts)（`computeSplits`：均分/金額/百分比/份數四種分帳，於支出表單換算成 `splits` 的 TWD 金額；後端 `createExpense`/`updateExpense` 另有寬鬆的總和防呆）與 [lib/tripStats.ts](../src/lib/tripStats.ts)（`computeTripStats`：全團群組統計，見 §4.7）。
 - **結算閉環「標記已付」**：[Payment](../src/models/Payment.ts) model 記錄實際還款（`{ from, to, amount }`，基準幣 TWD）。純函式 `applyPayments`（同 [settlement.ts](../src/lib/settlement.ts)）把還款淨額抵銷進「以支出算出的餘額」（只調整 `balance`，保留 totalPaid/totalOwed 供顯示），再交給 `calculateSettlement`。`getSettlement` 與[公開分享路由](../src/app/api/public/trips/%5Bid%5D/settlement/route.ts)都載入並回傳還款（共用 `toPaymentRecord` mapper）；登記/刪除走 [recordPayment / deletePayment](../src/actions/payment.actions.ts)，任何成員皆可（同 `deleteExpense` 信任模型）。
 
 ### 4.4 多幣別與匯率
@@ -219,7 +219,7 @@ Schema 定義在 [src/models/](../src/models/) 的 Mongoose model，index 於連
 User              ── 帳號 / 虛擬成員 / 頭像 / 通知偏好 / mapShareCode
 PasswordResetCode ── 重設密碼驗證碼
 EmailChangeCode   ── 變更 Email 的新信箱驗證碼（含 newEmail）
-Trip              ── 內嵌 members[]（取代 trip_members）；budget
+Trip              ── 內嵌 members[]（取代 trip_members，含個人 budget）；legacyBudget
 Expense           ── 內嵌 splits[] + attachments[]；trip / payer / itineraryDay 為 ref
 Payment           ── ref trip / from / to（結算還款，標記已付）
 ItineraryDay      ── ref trip；內嵌 activities[]（含票券 attachments[]）
@@ -242,7 +242,7 @@ Photo             ── ref trip；共享相簿、EXIF 與行程日關聯
 | `User` | `username`(uniq), `email`(uniq), `password`, `isVirtual`（虛擬成員，可不註冊參與分帳）, `avatarUrl`（R2 公開頭像 URL）, `notifyByEmail`（Email opt-out，預設開）, `locale`（寄信語系）, `mapShareCode`（sparse-uniq，公開地圖 / 回顧分享碼） |
 | `PasswordResetCode` | 重設密碼用的一次性驗證碼 |
 | `EmailChangeCode` | 變更 Email 用的一次性驗證碼（`user`(uniq), `newEmail`, `codeHash`, `expiresAt`(TTL), `attempts`） |
-| `Trip` | `hashCode`(uniq，分享用), `location`(Mixed), 日期, `budget`（`{ total, categories[] }`，基準幣 TWD，null=未設）, `currencySettings`（`{ defaultCurrency, currencies[{code,rate}] }`，null=未設）；**`members[]`**=`{ user(ref), role(admin/member), joinedAt, archivedAt? }`，並對 `members.user` 建 index |
+| `Trip` | `hashCode`(uniq，分享用), `location`(Mixed), 日期, `legacyBudget`（舊版團體預算，只供過渡參考）, `currencySettings`（`{ defaultCurrency, currencies[{code,rate}] }`，null=未設）；**`members[]`**=`{ user(ref), role(admin/member), joinedAt, archivedAt?, budget? }`，其中 `budget={ total, categories[] }` 為本人私有預算，DTO 只輸出 viewer 自己的值，並對 `members.user` 建 index |
 | `Expense` | `trip`(ref,index), `payer`(ref), `createdBy`(ref，≠payer，供摘要排除自己), `itineraryDay`(ref,可 null), `amount`/`originalAmount`/`currency`/`exchangeRate`, `category`(enum), `date`；**`splits[]`**=`{ user(ref), shareAmount }`；**`attachments[]`**=`{ key, contentType, size, uploadedBy(ref), uploadedAt }`（R2 物件 key，不存 url） |
 | `Payment` | `trip`(ref,index), `from`(ref), `to`(ref), `amount`（基準幣 TWD）, `note`, `createdBy`(ref)；結算還款紀錄，`getSettlement` 以 `applyPayments` 淨額抵銷餘額 |
 | `ItineraryDay` | `trip`(ref), `(trip,dayNumber)` 複合唯一索引；**`activities[]`**=`{ time?, endTime?, title, type, location?, note?, confirmationCode?, attachments[] }`；刪除日程後以 ordered `bulkWrite` 重新編號 |
