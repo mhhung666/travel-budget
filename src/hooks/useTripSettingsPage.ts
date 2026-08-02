@@ -3,6 +3,7 @@ import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 import type { Member } from '@/types';
 import type { SetCurrencySettingsInput } from '@/lib/validation';
+import { buildVirtualMemberInvitePath } from '@/lib/tripInvite';
 import { useDialog } from '@/hooks/useDialog';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -204,7 +205,11 @@ export function useTripSettingsPage(tripId: string) {
 
   const handleCopyInviteLink = async (member: Member) => {
     try {
-      const inviteUrl = `${window.location.origin}/link-virtual/${tripId}/${member.username}`;
+      if (!trip?.hash_code) throw new Error('Missing trip share code');
+      const inviteUrl = `${window.location.origin}${buildVirtualMemberInvitePath(
+        trip,
+        member.username
+      )}`;
       await navigator.clipboard.writeText(inviteUrl);
       toast({
         title: tMember('inviteLinkCopied'),

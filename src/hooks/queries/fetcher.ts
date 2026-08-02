@@ -14,12 +14,12 @@ interface PublicEndpoint {
 /**
  * Shared queryFn for trip-scoped data with the public-share fallback.
  *
- * The Server Action already encodes authorization: `withAuth` returns
- * UNAUTHORIZED when logged out and FORBIDDEN for non-members. So we try the
- * action first (covers the common logged-in member case in one round trip),
- * and only on those two codes fall back to the unauthenticated public API —
- * which lets a visitor view a shared trip via its hash_code. Any other failure
- * is a real error and is thrown so React Query surfaces it.
+ * The Server Action already encodes authorization. Depending on the action,
+ * logged-out visitors return UNAUTHORIZED while logged-in non-members return
+ * FORBIDDEN or NOT_FOUND (the latter avoids revealing that a private trip
+ * exists). We try the action first, then use the public hash-code endpoint for
+ * all three cases. The public endpoint independently validates the hash code,
+ * so an ObjectId or an unknown code still returns 404.
  *
  * Throwing (rather than returning a default) is intentional: it keeps
  * `isError` meaningful instead of silently rendering empty data.
@@ -34,7 +34,11 @@ export async function fetchWithPublicFallback<T>(
 
   if (result.success) return result.data;
 
-  if (result.code === 'FORBIDDEN' || result.code === 'UNAUTHORIZED') {
+  if (
+    result.code === 'FORBIDDEN' ||
+    result.code === 'UNAUTHORIZED' ||
+    result.code === 'NOT_FOUND'
+  ) {
     const res = await fetch(`/api/public/trips/${tripId}/${publicEndpoint.path}`);
     if (!res.ok) throw new Error(`Failed to load (${res.status})`);
     const json = await res.json();

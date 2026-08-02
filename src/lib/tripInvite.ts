@@ -1,4 +1,13 @@
 import { isValidHashCode } from './hashcode';
+import type { Trip } from '@/types';
+
+/** Build the public claim URL for a virtual member using the trip share code. */
+export function buildVirtualMemberInvitePath(
+  trip: Pick<Trip, 'hash_code'>,
+  username: string
+): string {
+  return `/link-virtual/${encodeURIComponent(trip.hash_code)}/${encodeURIComponent(username)}`;
+}
 
 /**
  * Accepts either a bare invitation code or a complete `/join/{code}` URL.
