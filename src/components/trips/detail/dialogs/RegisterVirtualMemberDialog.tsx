@@ -22,6 +22,7 @@ interface RegisterVirtualMemberDialogProps {
   open: boolean;
   onClose: () => void;
   onSwitchToLink: () => void;
+  onSuccess?: () => void;
   virtualMember: Member | null;
   tripId: string;
 }
@@ -30,6 +31,7 @@ export default function RegisterVirtualMemberDialog({
   open,
   onClose,
   onSwitchToLink,
+  onSuccess,
   virtualMember,
   tripId,
 }: RegisterVirtualMemberDialogProps) {
@@ -86,8 +88,11 @@ export default function RegisterVirtualMemberDialog({
         return;
       }
 
-      // 成功，刷新頁面
-      window.location.reload();
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        window.location.reload();
+      }
     } catch {
       setError(t('error'));
     } finally {

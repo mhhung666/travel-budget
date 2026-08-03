@@ -22,6 +22,7 @@ interface LinkExistingMemberDialogProps {
   open: boolean;
   onClose: () => void;
   onSwitchToRegister: () => void;
+  onSuccess?: () => void;
   virtualMember: Member | null;
   tripId: string;
 }
@@ -30,6 +31,7 @@ export default function LinkExistingMemberDialog({
   open,
   onClose,
   onSwitchToRegister,
+  onSuccess,
   virtualMember,
   tripId,
 }: LinkExistingMemberDialogProps) {
@@ -80,8 +82,11 @@ export default function LinkExistingMemberDialog({
         return;
       }
 
-      // 成功，刷新頁面
-      window.location.reload();
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        window.location.reload();
+      }
     } catch {
       setError(t('error'));
     } finally {
