@@ -235,7 +235,11 @@
       "loginToJoin": "登录后加入",
       "viewAsGuest": "以访客身份查看",
       "redirecting": "正在前往行程页…",
-      "invitedBy": "由 {name} 邀请"
+      "invitedBy": "由 {name} 邀请",
+      "organizer": "旅行组织者",
+      "readyTitle": "确认加入这趟旅行",
+      "loginTitle": "接受旅行邀请",
+      "invitePrivacy": "只有持有邀请链接的人可以进入此页面。"
     },
     "detail": {
       "backToTrips": "返回旅行列表",

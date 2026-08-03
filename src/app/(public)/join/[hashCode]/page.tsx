@@ -4,22 +4,33 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from '@/i18n/navigation';
-import { UserPlus, Info, Users, Loader2, ArrowLeft, LogIn, Eye, CalendarRange } from 'lucide-react';
+import {
+  ArrowLeft,
+  CalendarRange,
+  Check,
+  Eye,
+  Info,
+  Loader2,
+  LogIn,
+  ShieldCheck,
+  UserPlus,
+  Users,
+} from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { joinTrip } from '@/actions';
-import { tripKeys, useCurrentUser, useTrip, useMembers } from '@/hooks/queries';
+import { tripKeys, useCurrentUser, useMembers, useTrip } from '@/hooks/queries';
 import { ROUTES } from '@/constants/routes';
 
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import TripDestination from '@/components/trips/TripDestination';
 
 /**
- * 加入行程頁。未登入也能看到行程預覽（useTrip/useMembers 內建公開 API 回退），
- * 「加入」需要帳號 → 導向首頁登入表單並帶 ?redirect= 回到本頁；
- * 也可選擇以訪客身分唯讀檢視（/trips/[hash_code] 本就支援未登入）。
+ * 公開邀請確認頁。登入與成員查詢可以延後完成，但旅程摘要必須先解析成功，
+ * 才能顯示加入動作。登入／註冊會透過 redirect 回到同一張邀請。
  */
 export default function QuickJoinPage() {
   const router = useRouter();
@@ -30,23 +41,26 @@ export default function QuickJoinPage() {
   const t = useTranslations('trips');
   const tCommon = useTranslations('common');
 
-  const { data: currentUser, isLoading: userLoading } = useCurrentUser();
-  const { data: trip, isLoading: tripLoading, error: tripError } = useTrip(hashCode);
-  const { data: members = [], isLoading: membersLoading } = useMembers(hashCode);
+  const { data: currentUser, isPending: userPending } = useCurrentUser();
+  const {
+    data: trip,
+    isPending: tripPending,
+    isError: tripIsError,
+    error: tripError,
+  } = useTrip(hashCode);
+  const { data: members = [], isPending: membersPending } = useMembers(hashCode);
 
   const [error, setError] = useState('');
   const [isJoining, setIsJoining] = useState(false);
 
-  const loading = userLoading || tripLoading || membersLoading;
   const isLoggedIn = !!currentUser;
-  const alreadyMember = isLoggedIn && members.some((m) => m.id === currentUser.id);
+  const alreadyMember = isLoggedIn && members.some((member) => member.id === currentUser.id);
   const inviter = members.find((member) => member.role === 'admin');
   const dateLocale = locale === 'zh' ? 'zh-TW' : locale === 'jp' ? 'ja-JP' : locale;
 
-  // 已是成員 → 短暫提示後導向行程頁
   useEffect(() => {
     if (!alreadyMember || !trip) return;
-    const timer = setTimeout(() => router.push(ROUTES.TRIP_DETAIL(trip.id)), 2000);
+    const timer = setTimeout(() => router.push(ROUTES.TRIP_DETAIL(trip.id)), 1200);
     return () => clearTimeout(timer);
   }, [alreadyMember, trip, router]);
 
@@ -59,14 +73,19 @@ export default function QuickJoinPage() {
       const result = await joinTrip(hashCode);
 
       if (!result.success) {
-        throw new Error(result.error);
+        if (result.code === 'CONFLICT') {
+          router.push(ROUTES.TRIP_DETAIL(trip.id));
+          return;
+        }
+        setError(result.code === 'NOT_FOUND' ? t('quickJoin.notFound') : t('join.error'));
+        setIsJoining(false);
+        return;
       }
 
-      // 讓以 hash_code 為鍵的公開快取（成員/行程）失效，避免加入後仍顯示訪客資料
       await queryClient.invalidateQueries({ queryKey: tripKeys.all(hashCode) });
-      router.push(ROUTES.TRIP_DETAIL(trip.id));
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : String(err));
+      router.push(ROUTES.TRIP_DETAIL(result.data.id));
+    } catch {
+      setError(t('join.error'));
       setIsJoining(false);
     }
   };
@@ -75,177 +94,196 @@ export default function QuickJoinPage() {
     router.push(`/?redirect=${encodeURIComponent(ROUTES.JOIN(hashCode))}`);
   };
 
-  if (loading) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <Loader2 className="h-10 w-10 animate-spin text-primary" />
-      </div>
-    );
+  // PersistQueryClientProvider 還原 IndexedDB 時，query 是 pending + idle；
+  // isLoading 會是 false，因此這裡必須用 isPending 避免閃出錯誤畫面。
+  if (tripPending || userPending) {
+    return <JoinPageSkeleton />;
   }
 
-  // Already a member view
-  if (alreadyMember) {
-    return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center p-4">
-        <Card className="max-w-md w-full">
-          <CardContent className="pt-6 text-center space-y-4">
-            <Alert variant="info">
-              <Info className="h-4 w-4" />
-              <AlertTitle>{tCommon('infoTitle')}</AlertTitle>
-              <AlertDescription>{t('quickJoin.alreadyMember')}</AlertDescription>
-            </Alert>
-            <div className="flex justify-center py-4">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-            <p className="text-sm text-muted-foreground">{t('quickJoin.redirecting')}</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  // Error view (Trip not found or other errors)
-  if (!trip) {
+  if (tripIsError || !trip) {
     const message = tripError?.message.includes('404')
       ? t('quickJoin.notFound')
       : t('quickJoin.loadError');
+
     return (
-      <div className="flex min-h-[60vh] flex-col">
-        <div className="flex-1 flex items-center justify-center p-4">
-          <Card className="max-w-md w-full border-destructive/20 shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-destructive flex items-center gap-2">
-                <Info className="h-5 w-5" />
-                {tCommon('errorTitle')}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <Alert variant="destructive">
-                <AlertDescription>{message}</AlertDescription>
-              </Alert>
-              <Button variant="outline" className="w-full" onClick={() => router.push('/trips')}>
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                {t('detail.backToTrips')}
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+      <main className="mx-auto flex min-h-[calc(100vh-3.5rem)] max-w-lg items-center px-4 py-10">
+        <section className="w-full border-y py-10 text-center sm:border sm:p-10">
+          <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+            <Info className="h-6 w-6" />
+          </div>
+          <h1 className="text-xl font-semibold">{tCommon('errorTitle')}</h1>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">{message}</p>
+          <Button variant="outline" className="mt-7 w-full" onClick={() => router.push('/trips')}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            {t('detail.backToTrips')}
+          </Button>
+        </section>
+      </main>
     );
   }
 
-  // Main Join UI
+  if (alreadyMember) {
+    return (
+      <main className="mx-auto flex min-h-[calc(100vh-3.5rem)] max-w-lg items-center px-4 py-10">
+        <section className="w-full text-center">
+          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-success/10 text-success">
+            <Check className="h-7 w-7" />
+          </div>
+          <h1 className="text-2xl font-semibold">{trip.name}</h1>
+          <p className="mt-3 text-muted-foreground">{t('quickJoin.alreadyMember')}</p>
+          <Loader2 className="mx-auto mt-7 h-6 w-6 animate-spin text-primary" />
+          <p className="mt-2 text-sm text-muted-foreground">{t('quickJoin.redirecting')}</p>
+        </section>
+      </main>
+    );
+  }
+
   return (
-    <div className="flex min-h-[70vh] flex-col">
-      <div className="flex-1 flex flex-col items-center justify-center p-4 py-10">
-        <Card className="max-w-md w-full shadow-lg border-primary/10">
-          <CardHeader className="text-center pb-2">
-            <div className="mx-auto mb-4 bg-primary/10 w-20 h-20 rounded-full flex items-center justify-center">
-              <UserPlus className="h-10 w-10 text-primary" />
+    <main className="mx-auto grid min-h-[calc(100vh-3.5rem)] w-full max-w-5xl items-center gap-10 px-4 py-10 sm:px-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-16 lg:py-16">
+      <section className="min-w-0">
+        <div className="mb-7 flex items-center gap-3 text-sm font-medium text-primary">
+          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10">
+            <UserPlus className="h-4 w-4" />
+          </span>
+          {t('join.title')}
+        </div>
+
+        <h1 className="break-words text-3xl font-semibold leading-tight sm:text-4xl">
+          {trip.name}
+        </h1>
+        {trip.description && (
+          <p className="mt-4 max-w-2xl whitespace-pre-line text-base leading-7 text-muted-foreground">
+            {trip.description}
+          </p>
+        )}
+
+        <div className="mt-8 grid gap-4 border-y py-6 sm:grid-cols-2">
+          <TripDestination
+            destination={trip.destination_location}
+            iconSize={18}
+            className="text-base text-foreground"
+          />
+
+          {(trip.start_date || trip.end_date) && (
+            <div className="flex items-center gap-2.5 text-sm text-foreground">
+              <CalendarRange className="h-[18px] w-[18px] shrink-0 text-muted-foreground" />
+              <span>
+                {trip.start_date ? new Date(trip.start_date).toLocaleDateString(dateLocale) : ''}
+                {trip.start_date && trip.end_date && ' – '}
+                {trip.end_date ? new Date(trip.end_date).toLocaleDateString(dateLocale) : ''}
+              </span>
             </div>
-            <CardTitle className="text-2xl">{t('join.title')}</CardTitle>
-            <CardDescription>
-              {isLoggedIn ? t('quickJoin.joinHint') : t('quickJoin.loginHint')}
-            </CardDescription>
-          </CardHeader>
+          )}
 
-          <CardContent className="space-y-6 pt-4">
-            <div className="bg-muted/30 rounded-lg p-6 border border-border space-y-4">
-              <div>
-                <h3 className="text-lg font-semibold text-foreground mb-1">{trip.name}</h3>
-                {trip.description && (
-                  <p className="text-muted-foreground text-sm">{trip.description}</p>
-                )}
-              </div>
-
-              <TripDestination destination={trip.destination_location} className="text-sm" />
-
-              {(trip.start_date || trip.end_date) && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <CalendarRange className="h-4 w-4 shrink-0" />
-                  <span>
-                    {trip.start_date
-                      ? new Date(trip.start_date).toLocaleDateString(dateLocale)
-                      : ''}
-                    {trip.start_date && trip.end_date && ' – '}
-                    {trip.end_date ? new Date(trip.end_date).toLocaleDateString(dateLocale) : ''}
-                  </span>
-                </div>
-              )}
-
-              <div className="flex flex-wrap gap-2">
-                <Badge variant="outline" className="gap-1 px-2 py-1">
-                  <Users className="h-3 w-3" />
-                  {members.length} {t('members')}
-                </Badge>
-                {inviter && (
-                  <Badge variant="secondary">
-                    {t('quickJoin.invitedBy', { name: inviter.display_name || inviter.username })}
-                  </Badge>
-                )}
-              </div>
-            </div>
-
-            {error && (
-              <Alert variant="destructive">
-                <AlertTitle>{tCommon('errorTitle')}</AlertTitle>
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-
-            {isLoggedIn ? (
-              <div className="space-y-3">
-                <Button
-                  size="lg"
-                  className="w-full font-semibold text-lg h-12"
-                  onClick={handleJoin}
-                  disabled={isJoining}
-                >
-                  {isJoining ? (
-                    <>
-                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                      {t('quickJoin.joining')}
-                    </>
-                  ) : (
-                    <>
-                      <UserPlus className="mr-2 h-5 w-5" />
-                      {t('quickJoin.joinThisTrip')}
-                    </>
-                  )}
-                </Button>
-
-                <Button
-                  variant="ghost"
-                  className="w-full text-muted-foreground"
-                  onClick={() => router.push('/trips')}
-                >
-                  {t('detail.backToTrips')}
-                </Button>
-              </div>
+          <div className="flex items-center gap-2.5 text-sm">
+            <Users className="h-[18px] w-[18px] shrink-0 text-muted-foreground" />
+            {membersPending ? (
+              <Skeleton className="h-5 w-20" />
             ) : (
-              <div className="space-y-3">
-                <Button
-                  size="lg"
-                  className="w-full font-semibold text-lg h-12"
-                  onClick={handleLoginToJoin}
-                >
-                  <LogIn className="mr-2 h-5 w-5" />
-                  {t('quickJoin.loginToJoin')}
-                </Button>
-
-                <Button
-                  variant="ghost"
-                  className="w-full text-muted-foreground"
-                  onClick={() => router.push(ROUTES.TRIP_DETAIL(hashCode))}
-                >
-                  <Eye className="mr-2 h-4 w-4" />
-                  {t('quickJoin.viewAsGuest')}
-                </Button>
-              </div>
+              <span>
+                {members.length} {t('members')}
+              </span>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
+
+        {inviter && (
+          <div className="mt-6 flex items-center gap-3">
+            <Avatar className="h-9 w-9">
+              <AvatarImage src={inviter.avatar_url ?? undefined} alt="" />
+              <AvatarFallback>
+                {(inviter.display_name || inviter.username).slice(0, 1)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium">
+                {t('quickJoin.invitedBy', {
+                  name: inviter.display_name || inviter.username,
+                })}
+              </p>
+              <Badge variant="secondary" className="mt-1">
+                {t('quickJoin.organizer')}
+              </Badge>
+            </div>
+          </div>
+        )}
+      </section>
+
+      <aside className="border-t pt-8 lg:border-l lg:border-t-0 lg:pl-10 lg:pt-0">
+        <h2 className="text-lg font-semibold">
+          {isLoggedIn ? t('quickJoin.readyTitle') : t('quickJoin.loginTitle')}
+        </h2>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          {isLoggedIn ? t('quickJoin.joinHint') : t('quickJoin.loginHint')}
+        </p>
+
+        <div className="mt-5 flex items-start gap-2.5 text-sm text-muted-foreground">
+          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+          <span>{t('quickJoin.invitePrivacy')}</span>
+        </div>
+
+        {error && (
+          <Alert variant="destructive" className="mt-5">
+            <AlertTitle>{tCommon('errorTitle')}</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        <div className="mt-7 space-y-3">
+          {isLoggedIn ? (
+            <Button size="lg" className="h-12 w-full" onClick={handleJoin} disabled={isJoining}>
+              {isJoining ? (
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              ) : (
+                <UserPlus className="mr-2 h-5 w-5" />
+              )}
+              {isJoining ? t('quickJoin.joining') : t('quickJoin.joinThisTrip')}
+            </Button>
+          ) : (
+            <Button size="lg" className="h-12 w-full" onClick={handleLoginToJoin}>
+              <LogIn className="mr-2 h-5 w-5" />
+              {t('quickJoin.loginToJoin')}
+            </Button>
+          )}
+
+          <Button
+            variant="ghost"
+            className="w-full text-muted-foreground"
+            onClick={() => router.push(isLoggedIn ? '/trips' : ROUTES.TRIP_DETAIL(hashCode))}
+          >
+            {isLoggedIn ? <ArrowLeft className="mr-2 h-4 w-4" /> : <Eye className="mr-2 h-4 w-4" />}
+            {isLoggedIn ? t('detail.backToTrips') : t('quickJoin.viewAsGuest')}
+          </Button>
+        </div>
+      </aside>
+    </main>
+  );
+}
+
+function JoinPageSkeleton() {
+  return (
+    <main
+      className="mx-auto grid min-h-[calc(100vh-3.5rem)] w-full max-w-5xl items-center gap-10 px-4 py-10 sm:px-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-16"
+      aria-busy="true"
+      aria-label="Loading"
+    >
+      <div>
+        <Skeleton className="h-9 w-32" />
+        <Skeleton className="mt-7 h-11 w-3/4" />
+        <Skeleton className="mt-4 h-5 w-full max-w-xl" />
+        <Skeleton className="mt-2 h-5 w-2/3" />
+        <div className="mt-8 grid gap-4 border-y py-6 sm:grid-cols-2">
+          <Skeleton className="h-6 w-32" />
+          <Skeleton className="h-6 w-44" />
+          <Skeleton className="h-6 w-24" />
+        </div>
       </div>
-    </div>
+      <div className="border-t pt-8 lg:border-l lg:border-t-0 lg:pl-10 lg:pt-0">
+        <Skeleton className="h-7 w-40" />
+        <Skeleton className="mt-3 h-5 w-full" />
+        <Skeleton className="mt-2 h-5 w-4/5" />
+        <Skeleton className="mt-8 h-12 w-full" />
+      </div>
+    </main>
   );
 }

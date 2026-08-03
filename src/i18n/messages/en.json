@@ -235,7 +235,11 @@
       "loginToJoin": "Log in to join",
       "viewAsGuest": "View as guest",
       "redirecting": "Redirecting to trip…",
-      "invitedBy": "Invited by {name}"
+      "invitedBy": "Invited by {name}",
+      "organizer": "Trip organizer",
+      "readyTitle": "Confirm your place",
+      "loginTitle": "Accept this invitation",
+      "invitePrivacy": "Only people with this invitation link can access this page."
     },
     "detail": {
       "backToTrips": "Back to Trips",

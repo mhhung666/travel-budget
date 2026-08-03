@@ -235,7 +235,11 @@
       "loginToJoin": "ログインして参加",
       "viewAsGuest": "ゲストとして閲覧",
       "redirecting": "旅程ページへ移動しています…",
-      "invitedBy": "{name} さんからの招待"
+      "invitedBy": "{name} さんからの招待",
+      "organizer": "旅行の主催者",
+      "readyTitle": "この旅行への参加を確認",
+      "loginTitle": "旅行への招待を受ける",
+      "invitePrivacy": "この招待リンクを持つ人だけがこのページにアクセスできます。"
     },
     "detail": {
       "backToTrips": "旅行一覧に戻る",
