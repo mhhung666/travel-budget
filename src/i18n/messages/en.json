@@ -1136,7 +1136,99 @@
       "imported": "Added to achievements",
       "importedSuccess": "Added to achievements"
     },
-    "dayLabel": "Day {dayNumber}"
+    "dayLabel": "Day {dayNumber}",
+    "aiImport": {
+      "action": "AI import",
+      "title": "Import itinerary with AI",
+      "description": "Paste plain text or Markdown, then review and edit the result. Nothing is saved before confirmation.",
+      "sourceLabel": "Itinerary content",
+      "sourcePlaceholder": "Paste an itinerary prepared in ChatGPT, Claude, Gemini, or another tool…",
+      "characterCount": "{count} / {limit} characters",
+      "privacyHint": "Remove personal data you do not need to provide. Booking references are masked in the preview by default.",
+      "parse": "Parse itinerary",
+      "parseFailed": "Could not parse itinerary",
+      "backToSource": "Back to source",
+      "confirmPreview": "Finish preview review",
+      "confirmImport": "Confirm import",
+      "retryFailed": "Retry failed dates",
+      "confirmFailed": "Could not import itinerary",
+      "resultSuccessTitle": "Itinerary imported",
+      "resultPartialTitle": "Some dates could not be imported",
+      "resultSummary": "Succeeded: {days} days; added: {activities} activities; skipped: {skipped} days; failed: {failed} days.",
+      "unknownDate": "Unknown date",
+      "resultStatus": {
+        "success": "Imported",
+        "already_imported": "Already imported; no duplicate was added"
+      },
+      "confirmErrors": {
+        "UNAUTHORIZED": "Your session expired. Sign in again.",
+        "NOT_FOUND": "This trip could not be found.",
+        "FORBIDDEN": "Only trip admins can confirm an import.",
+        "TRIP_DATES_REQUIRED": "Set a trip start date before importing.",
+        "MISSING_DATE": "A date is missing. Fix it and try again.",
+        "DATE_OUTSIDE_TRIP": "The date is outside the trip range.",
+        "MISSING_DAY_TITLE": "A new date needs a day title.",
+        "ACTIVITY_LIMIT": "This date would exceed the activity limit. Remove some activities and try again.",
+        "VALIDATION_ERROR": "The import content is invalid. Fix it and try again.",
+        "INTERNAL_ERROR": "An error occurred while importing. Try again later."
+      },
+      "previewReadyTitle": "The preview passed validation",
+      "previewReadyDescription": "This is still a read-only preview. No trip data has been changed.",
+      "sourceSummary": "Source summary",
+      "dayHeading": "Date group {number}",
+      "activityHeading": "Activity {number}",
+      "date": "Date",
+      "dayTitle": "Day title",
+      "dayContent": "Day content",
+      "activities": "Activities",
+      "activityTitle": "Activity title",
+      "locationName": "Location text",
+      "excludeDay": "Exclude this day",
+      "includeDay": "Include this day again",
+      "excludeActivity": "Exclude this activity",
+      "includeActivity": "Include this activity again",
+      "showCode": "Show booking reference",
+      "hideCode": "Hide booking reference",
+      "status": {
+        "new": "New date",
+        "append": "Append to existing date",
+        "duplicate": "Possible duplicate",
+        "outside": "Outside trip dates"
+      },
+      "warnings": {
+        "UNRECOGNIZED_CONTENT": "Some source content could not be mapped to itinerary fields. Compare the preview with the original text."
+      },
+      "issues": {
+        "NO_SELECTION": "Keep at least one day",
+        "MISSING_DATE": "Enter a date",
+        "INVALID_DATE": "The date is invalid",
+        "DATE_OUTSIDE_TRIP": "The date is outside the trip; fix it or exclude this day",
+        "MISSING_DAY_TITLE": "A new date needs a day title",
+        "DAY_TITLE_TOO_LONG": "The day title is too long",
+        "DAY_CONTENT_TOO_LONG": "The day content is too long",
+        "MISSING_ACTIVITY_TITLE": "Enter an activity title",
+        "ACTIVITY_TITLE_TOO_LONG": "The activity title is too long",
+        "INVALID_TIME": "The time is invalid",
+        "END_TIME_BEFORE_START": "End time cannot be before start time",
+        "LOCATION_TOO_LONG": "The location text is too long",
+        "NOTE_TOO_LONG": "The note is too long",
+        "CONFIRMATION_CODE_TOO_LONG": "The booking reference is too long"
+      },
+      "errors": {
+        "UNAUTHENTICATED": "Your session expired. Sign in again.",
+        "TRIP_NOT_FOUND": "This trip could not be found.",
+        "FORBIDDEN": "Only trip admins can use AI import.",
+        "FEATURE_DISABLED": "AI import is not configured or this model is unavailable.",
+        "INVALID_REQUEST": "The input is invalid. Edit it and try again.",
+        "SOURCE_TOO_LONG": "The input exceeds the character limit.",
+        "USAGE_LIMITED": "Today's AI import trial allowance is used up. Try again tomorrow; your source stays available for retry.",
+        "RATE_LIMITED": "The AI service is rate limited. Try again later.",
+        "PROVIDER_TIMEOUT": "The AI service timed out. Try again.",
+        "INVALID_MODEL_OUTPUT": "The AI response could not be used safely. Edit the source and try again.",
+        "MODEL_OUTPUT_LIMIT": "The parsed result is too long. Import it in smaller batches.",
+        "INTERNAL_ERROR": "An unexpected error occurred. Try again later."
+      }
+    }
   },
   "export": {
     "label": "Export",
@@ -1244,7 +1336,8 @@
     "expenseUpdated": "{actor} edited the expense “{description}”",
     "expenseDeleted": "{actor} deleted the expense “{description}”",
     "paymentRecorded": "{actor} recorded a payment",
-    "memberJoined": "{actor} joined the trip"
+    "memberJoined": "{actor} joined the trip",
+    "itineraryImported": "{actor} imported {days} days and {activities} activities with AI"
   },
   "comments": {
     "title": "Comments",

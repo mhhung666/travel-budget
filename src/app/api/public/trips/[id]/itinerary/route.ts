@@ -10,6 +10,7 @@ type LeanActivity = {
   title: string;
   type: string;
   location?: Location | null;
+  locationName?: string;
   note?: string;
   confirmationCode?: string;
 };
@@ -50,6 +51,7 @@ export const GET = withPublicTrip(
         title: a.title,
         type: a.type,
         location: a.location ?? null,
+        location_name: a.locationName ?? '',
         note: a.note ?? '',
         confirmation_code: '',
         attachments: [],

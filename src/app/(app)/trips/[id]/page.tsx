@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
-import { CalendarDays, Plus } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { CalendarDays, Plus, Sparkles } from 'lucide-react';
 import {
   ItineraryDayCard,
   ItineraryDayDialog,
@@ -23,6 +24,7 @@ import { useTripSpaceActions } from '@/components/trips/space/TripSpaceContext';
 import type { LocationOption } from '@/components/location/LocationAutocomplete';
 import { ExportMenu } from '@/components/export';
 import { FlightRecordDialog, StayRecordDialog } from '@/components/collections';
+import { ItineraryImportDialog } from '@/components/ai-import';
 import type { Activity, ItineraryDay, TripPhoto } from '@/types';
 import type { CreateFlightRecordInput, CreateStayRecordInput } from '@/lib/validation';
 import {
@@ -37,6 +39,7 @@ import {
   useSettlement,
 } from '@/hooks/queries';
 import type { ActivityPayload } from '@/hooks/queries/useItineraryMutations';
+import { tripKeys } from '@/hooks/queries/keys';
 import { useEditTrip } from '@/hooks/useEditTrip';
 import { exportItinerary, type ExportFormat } from '@/lib/exporters';
 import {
@@ -79,8 +82,14 @@ export default function ItineraryPage() {
   const tFirstSteps = useTranslations('trip.firstSteps');
 
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-  const { data: days = [], isLoading: loading, isError } = useItinerary(tripId);
+  const {
+    data: days = [],
+    isLoading: loading,
+    isError,
+    refetch: refetchItinerary,
+  } = useItinerary(tripId);
   const { data: trip } = useTrip(tripId);
   const { data: expenses = [] } = useExpenses(tripId);
   const { data: checklists = [] } = useChecklists(tripId);
@@ -137,6 +146,7 @@ export default function ItineraryPage() {
 
   // Dialog states
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [aiImportOpen, setAiImportOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<'add' | 'edit'>('add');
   const [editingDay, setEditingDay] = useState<ItineraryDay | null>(null);
   // 輕量單一活動對話框；activity 未給＝新增、給了＝編輯該筆。null＝關閉。
@@ -398,6 +408,12 @@ export default function ItineraryPage() {
           fileBaseName={`${trip?.name ?? 'trip'}-${tExport('itinerary.heading')}`}
           disabled={days.length === 0}
         />
+        {isAdmin && (
+          <Button variant="outline" onClick={() => setAiImportOpen(true)} className="gap-2">
+            <Sparkles className="h-4 w-4" />
+            {tItinerary('aiImport.action')}
+          </Button>
+        )}
         {isAdmin && days.length > 0 && (
           <Button onClick={handleAddDay} className="gap-2">
             <Plus className="h-4 w-4" />
@@ -463,6 +479,18 @@ export default function ItineraryPage() {
         onClose={editTripDialog.closeDialog}
         onSubmit={handleEditTrip}
         trip={trip ?? null}
+      />
+
+      <ItineraryImportDialog
+        open={aiImportOpen}
+        onClose={() => setAiImportOpen(false)}
+        tripId={tripId}
+        tripStartDate={trip?.start_date}
+        tripEndDate={trip?.end_date}
+        onImported={() => {
+          void refetchItinerary();
+          void queryClient.invalidateQueries({ queryKey: tripKeys.activity(tripId) });
+        }}
       />
 
       {/* Add/Edit Dialog */}

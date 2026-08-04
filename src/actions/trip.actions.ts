@@ -15,6 +15,7 @@ import {
   Photo,
   FlightRecord,
   StayRecord,
+  AiImportUsage,
   type TripDoc,
 } from '@/models';
 import { getTripMembership } from '@/lib/permissions';
@@ -256,6 +257,7 @@ export const deleteTrip = withAuth(
         //（刻意偏離級聯刪除慣例，見 ROADMAP #19 / FlightRecord model 註解）
         FlightRecord.updateMany({ trip: tripId }, { $set: { trip: null } }),
         StayRecord.updateMany({ trip: tripId }, { $set: { trip: null } }),
+        AiImportUsage.deleteMany({ scope: 'trip', scopeKey: tripId }),
       ]);
       await TripModel.deleteOne({ _id: tripId });
 

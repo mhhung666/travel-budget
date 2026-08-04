@@ -1129,7 +1129,99 @@
       "imported": "已帶入旅行成就",
       "importedSuccess": "已帶入旅行成就"
     },
-    "dayLabel": "第 {dayNumber} 天"
+    "dayLabel": "第 {dayNumber} 天",
+    "aiImport": {
+      "action": "AI 匯入",
+      "title": "AI 匯入行程",
+      "description": "貼上純文字或 Markdown，先檢查並編輯解析結果；確認前不會寫入旅程。",
+      "sourceLabel": "行程內容",
+      "sourcePlaceholder": "貼上由 ChatGPT、Claude、Gemini 或其他工具整理的行程…",
+      "characterCount": "{count} / {limit} 字",
+      "privacyHint": "請先移除不需要提供的個人資料；訂位代碼會在預覽中預設遮罩。",
+      "parse": "解析行程",
+      "parseFailed": "無法解析行程",
+      "backToSource": "返回修改原文",
+      "confirmPreview": "完成預覽檢查",
+      "confirmImport": "確認匯入",
+      "retryFailed": "重試失敗日期",
+      "confirmFailed": "無法匯入行程",
+      "resultSuccessTitle": "行程匯入完成",
+      "resultPartialTitle": "部分日期匯入失敗",
+      "resultSummary": "成功 {days} 天、新增 {activities} 個活動、略過 {skipped} 天、失敗 {failed} 天。",
+      "unknownDate": "未知日期",
+      "resultStatus": {
+        "success": "匯入成功",
+        "already_imported": "先前已匯入，未重複新增"
+      },
+      "confirmErrors": {
+        "UNAUTHORIZED": "登入狀態已失效，請重新登入。",
+        "NOT_FOUND": "找不到此旅程。",
+        "FORBIDDEN": "只有旅程管理員可以確認匯入。",
+        "TRIP_DATES_REQUIRED": "旅程必須先設定開始日期。",
+        "MISSING_DATE": "日期缺漏，請修正後重試。",
+        "DATE_OUTSIDE_TRIP": "日期超出旅程範圍。",
+        "MISSING_DAY_TITLE": "新增日期需要當日標題。",
+        "ACTIVITY_LIMIT": "該日活動數已超過上限，請減少後重試。",
+        "VALIDATION_ERROR": "匯入內容無效，請修正後重試。",
+        "INTERNAL_ERROR": "匯入時發生錯誤，請稍後重試。"
+      },
+      "previewReadyTitle": "預覽內容已通過檢查",
+      "previewReadyDescription": "目前仍是唯讀預覽，尚未變更任何旅程資料。",
+      "sourceSummary": "來源摘要",
+      "dayHeading": "第 {number} 組日期",
+      "activityHeading": "活動 {number}",
+      "date": "日期",
+      "dayTitle": "當日標題",
+      "dayContent": "當日內容",
+      "activities": "活動",
+      "activityTitle": "活動標題",
+      "locationName": "地點文字",
+      "excludeDay": "取消這一天",
+      "includeDay": "重新加入這一天",
+      "excludeActivity": "取消這個活動",
+      "includeActivity": "重新加入這個活動",
+      "showCode": "顯示訂位代碼",
+      "hideCode": "隱藏訂位代碼",
+      "status": {
+        "new": "新增日期",
+        "append": "附加到既有日期",
+        "duplicate": "可能重複",
+        "outside": "超出旅程範圍"
+      },
+      "warnings": {
+        "UNRECOGNIZED_CONTENT": "部分來源內容無法對應到行程欄位，請對照原文檢查預覽。"
+      },
+      "issues": {
+        "NO_SELECTION": "請至少保留一天",
+        "MISSING_DATE": "請填寫日期",
+        "INVALID_DATE": "日期格式不正確",
+        "DATE_OUTSIDE_TRIP": "日期超出旅程範圍；請修正或取消這一天",
+        "MISSING_DAY_TITLE": "新增日期需要當日標題",
+        "DAY_TITLE_TOO_LONG": "當日標題過長",
+        "DAY_CONTENT_TOO_LONG": "當日內容過長",
+        "MISSING_ACTIVITY_TITLE": "請填寫活動標題",
+        "ACTIVITY_TITLE_TOO_LONG": "活動標題過長",
+        "INVALID_TIME": "時間格式不正確",
+        "END_TIME_BEFORE_START": "結束時間不可早於開始時間",
+        "LOCATION_TOO_LONG": "地點文字過長",
+        "NOTE_TOO_LONG": "備註過長",
+        "CONFIRMATION_CODE_TOO_LONG": "訂位代碼過長"
+      },
+      "errors": {
+        "UNAUTHENTICATED": "登入狀態已失效，請重新登入。",
+        "TRIP_NOT_FOUND": "找不到這趟旅程。",
+        "FORBIDDEN": "只有旅程管理員可以使用 AI 匯入。",
+        "FEATURE_DISABLED": "AI 匯入目前尚未設定或此模型無法使用。",
+        "INVALID_REQUEST": "輸入內容無效，請修改後重試。",
+        "SOURCE_TOO_LONG": "輸入超過字數上限。",
+        "USAGE_LIMITED": "今天的 AI 匯入試用額度已用完，請明天再試。原文會保留供稍後重試。",
+        "RATE_LIMITED": "AI 服務目前使用量受限，請稍後再試。",
+        "PROVIDER_TIMEOUT": "AI 服務回應逾時，請重試。",
+        "INVALID_MODEL_OUTPUT": "AI 回傳的格式無法安全使用，請調整原文後重試。",
+        "MODEL_OUTPUT_LIMIT": "解析結果過長，請分批匯入。",
+        "INTERNAL_ERROR": "發生未預期的錯誤，請稍後再試。"
+      }
+    }
   },
   "export": {
     "label": "匯出",
@@ -1237,7 +1329,8 @@
     "expenseUpdated": "{actor} 編輯了支出「{description}」",
     "expenseDeleted": "{actor} 刪除了支出「{description}」",
     "paymentRecorded": "{actor} 登記了一筆還款",
-    "memberJoined": "{actor} 加入了旅程"
+    "memberJoined": "{actor} 加入了旅程",
+    "itineraryImported": "{actor} 使用 AI 匯入了 {days} 天、{activities} 個活動"
   },
   "comments": {
     "title": "留言",

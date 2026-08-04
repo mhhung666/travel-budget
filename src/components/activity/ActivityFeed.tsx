@@ -1,7 +1,7 @@
 'use client';
 
 import { useLocale, useTranslations } from 'next-intl';
-import { History, Coins, FilePenLine, Receipt, Trash2, UserPlus } from 'lucide-react';
+import { History, Coins, FilePenLine, Receipt, Sparkles, Trash2, UserPlus } from 'lucide-react';
 import { useActivityLog } from '@/hooks/queries';
 import type { ActivityLogItem, ActivityLogType } from '@/types';
 import { formatRelativeTime } from '@/lib/relativeTime';
@@ -12,6 +12,7 @@ const TYPE_ICON: Record<ActivityLogType, typeof History> = {
   expense_deleted: Trash2,
   payment_recorded: Coins,
   member_joined: UserPlus,
+  itinerary_imported: Sparkles,
 };
 
 /**
@@ -37,6 +38,12 @@ export function ActivityFeed({ tripId }: { tripId: string }) {
         return t('paymentRecorded', { actor });
       case 'member_joined':
         return t('memberJoined', { actor });
+      case 'itinerary_imported':
+        return t('itineraryImported', {
+          actor,
+          days: a.meta.days ?? 0,
+          activities: a.meta.activities ?? 0,
+        });
       default:
         return actor;
     }

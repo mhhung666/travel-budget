@@ -157,16 +157,17 @@ export default function ItineraryDayCard({
                   </span>
                   <div className="min-w-0 flex-1">
                     <span className="font-medium text-foreground">{activity.title}</span>
-                    {activity.location && (
+                    {(activity.location || activity.location_name) && (
                       <span className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
                         <MapPin className="h-3 w-3 shrink-0" />
                         <span className="truncate">
-                          {countryCodeToFlag(activity.location.country_code)}{' '}
-                          {pickLocalizedName(
-                            activity.location.names,
-                            locale,
-                            activity.location.name
-                          )}
+                          {activity.location
+                            ? `${countryCodeToFlag(activity.location.country_code)} ${pickLocalizedName(
+                                activity.location.names,
+                                locale,
+                                activity.location.name
+                              )}`.trim()
+                            : activity.location_name}
                         </span>
                       </span>
                     )}

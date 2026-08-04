@@ -1129,7 +1129,99 @@
       "imported": "実績に追加済み",
       "importedSuccess": "旅の実績に追加しました"
     },
-    "dayLabel": "{dayNumber}日目"
+    "dayLabel": "{dayNumber}日目",
+    "aiImport": {
+      "action": "AIインポート",
+      "title": "AIで旅程をインポート",
+      "description": "プレーンテキストまたはMarkdownを貼り付け、解析結果を確認・編集します。確認前に旅程へ保存されることはありません。",
+      "sourceLabel": "旅程の内容",
+      "sourcePlaceholder": "ChatGPT、Claude、Geminiなどで作成した旅程を貼り付け…",
+      "characterCount": "{count} / {limit} 文字",
+      "privacyHint": "不要な個人情報は削除してください。予約番号はプレビューで初期状態では非表示です。",
+      "parse": "旅程を解析",
+      "parseFailed": "旅程を解析できませんでした",
+      "backToSource": "原文に戻る",
+      "confirmPreview": "プレビュー確認を完了",
+      "confirmImport": "インポートを確定",
+      "retryFailed": "失敗した日付を再試行",
+      "confirmFailed": "旅程をインポートできませんでした",
+      "resultSuccessTitle": "旅程をインポートしました",
+      "resultPartialTitle": "一部の日付をインポートできませんでした",
+      "resultSummary": "成功 {days} 日、追加 {activities} 件、スキップ {skipped} 日、失敗 {failed} 日。",
+      "unknownDate": "日付不明",
+      "resultStatus": {
+        "success": "インポート完了",
+        "already_imported": "インポート済みのため重複追加なし"
+      },
+      "confirmErrors": {
+        "UNAUTHORIZED": "セッションが切れました。再度ログインしてください。",
+        "NOT_FOUND": "この旅行が見つかりません。",
+        "FORBIDDEN": "インポートを確定できるのは旅行管理者のみです。",
+        "TRIP_DATES_REQUIRED": "先に旅行の開始日を設定してください。",
+        "MISSING_DATE": "日付がありません。修正して再試行してください。",
+        "DATE_OUTSIDE_TRIP": "日付が旅行期間外です。",
+        "MISSING_DAY_TITLE": "新しい日付にはタイトルが必要です。",
+        "ACTIVITY_LIMIT": "この日の予定数が上限を超えます。減らして再試行してください。",
+        "VALIDATION_ERROR": "インポート内容が無効です。修正して再試行してください。",
+        "INTERNAL_ERROR": "インポート中にエラーが発生しました。後でもう一度お試しください。"
+      },
+      "previewReadyTitle": "プレビューの検証が完了しました",
+      "previewReadyDescription": "現在は読み取り専用プレビューです。旅程データは変更されていません。",
+      "sourceSummary": "原文の要約",
+      "dayHeading": "日付グループ {number}",
+      "activityHeading": "予定 {number}",
+      "date": "日付",
+      "dayTitle": "日のタイトル",
+      "dayContent": "日の内容",
+      "activities": "予定",
+      "activityTitle": "予定のタイトル",
+      "locationName": "場所のテキスト",
+      "excludeDay": "この日を除外",
+      "includeDay": "この日を再度含める",
+      "excludeActivity": "この予定を除外",
+      "includeActivity": "この予定を再度含める",
+      "showCode": "予約番号を表示",
+      "hideCode": "予約番号を隠す",
+      "status": {
+        "new": "新しい日付",
+        "append": "既存の日付に追加",
+        "duplicate": "重複の可能性",
+        "outside": "旅行期間外"
+      },
+      "warnings": {
+        "UNRECOGNIZED_CONTENT": "原文の一部を旅程の項目に対応できませんでした。原文とプレビューを確認してください。"
+      },
+      "issues": {
+        "NO_SELECTION": "少なくとも1日を残してください",
+        "MISSING_DATE": "日付を入力してください",
+        "INVALID_DATE": "日付が正しくありません",
+        "DATE_OUTSIDE_TRIP": "旅行期間外です。修正するか、この日を除外してください",
+        "MISSING_DAY_TITLE": "新しい日付にはタイトルが必要です",
+        "DAY_TITLE_TOO_LONG": "日のタイトルが長すぎます",
+        "DAY_CONTENT_TOO_LONG": "日の内容が長すぎます",
+        "MISSING_ACTIVITY_TITLE": "予定のタイトルを入力してください",
+        "ACTIVITY_TITLE_TOO_LONG": "予定のタイトルが長すぎます",
+        "INVALID_TIME": "時刻が正しくありません",
+        "END_TIME_BEFORE_START": "終了時刻を開始時刻より前にはできません",
+        "LOCATION_TOO_LONG": "場所のテキストが長すぎます",
+        "NOTE_TOO_LONG": "メモが長すぎます",
+        "CONFIRMATION_CODE_TOO_LONG": "予約番号が長すぎます"
+      },
+      "errors": {
+        "UNAUTHENTICATED": "セッションが切れました。再度ログインしてください。",
+        "TRIP_NOT_FOUND": "この旅行が見つかりません。",
+        "FORBIDDEN": "AIインポートは旅行管理者のみ利用できます。",
+        "FEATURE_DISABLED": "AIインポートが未設定か、このモデルを利用できません。",
+        "INVALID_REQUEST": "入力が無効です。修正して再試行してください。",
+        "SOURCE_TOO_LONG": "入力が文字数上限を超えています。",
+        "USAGE_LIMITED": "本日のAIインポート試用上限に達しました。明日もう一度お試しください。原文は再試行用に保持されます。",
+        "RATE_LIMITED": "AIサービスは現在利用制限中です。後でもう一度お試しください。",
+        "PROVIDER_TIMEOUT": "AIサービスがタイムアウトしました。再試行してください。",
+        "INVALID_MODEL_OUTPUT": "AIの応答を安全に使用できません。原文を修正して再試行してください。",
+        "MODEL_OUTPUT_LIMIT": "解析結果が長すぎます。分割してインポートしてください。",
+        "INTERNAL_ERROR": "予期しないエラーが発生しました。後でもう一度お試しください。"
+      }
+    }
   },
   "export": {
     "label": "エクスポート",
@@ -1237,7 +1329,8 @@
     "expenseUpdated": "{actor} が支出「{description}」を編集しました",
     "expenseDeleted": "{actor} が支出「{description}」を削除しました",
     "paymentRecorded": "{actor} が支払いを記録しました",
-    "memberJoined": "{actor} が旅行に参加しました"
+    "memberJoined": "{actor} が旅行に参加しました",
+    "itineraryImported": "{actor} が AI で {days} 日・{activities} 件の予定をインポートしました"
   },
   "comments": {
     "title": "コメント",

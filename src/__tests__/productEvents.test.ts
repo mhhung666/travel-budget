@@ -41,6 +41,22 @@ describe('privacy-safe product events', () => {
     });
   });
 
+  it('records AI import funnel state with categorical data only', () => {
+    trackProductEvent('ai_itinerary_import', {
+      stage: 'confirmed',
+      result: 'partial',
+      corrected: 'yes',
+      errorCode: 'none',
+    });
+
+    expect(track).toHaveBeenCalledWith('ai_itinerary_import', {
+      stage: 'confirmed',
+      result: 'partial',
+      corrected: 'yes',
+      errorCode: 'none',
+    });
+  });
+
   it('never interrupts the product flow when analytics is unavailable', () => {
     track.mockImplementationOnce(() => {
       throw new Error('analytics unavailable');

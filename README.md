@@ -13,6 +13,7 @@
 - **多幣別 + 即時匯率**：記錄當地貨幣，自動換算為基準貨幣（TWD）。
 - **收據 / 票券附件**：支出收據與行程票券上傳（Cloudflare R2，私有儲存、成員限定檢視）。
 - **行程規劃**：逐日行程 + 活動時間軸（時段、訂房 / 機票確認碼），支出可關聯到「第幾天」。
+- **AI 行程匯入（受限試用）**：旅程 admin 可將外部文字解析成四語可編輯預覽，確認後逐日安全匯入；具持久化每日配額、成本預留、冪等重試與去識別量測。
 - **打包清單 / 待辦**：可指派成員、進度條。
 - **統計圖表**：個人（跨旅程）與全團（單一旅程）統計、付款排行、按日花費、趨勢直方圖（Recharts）。
 - **旅遊地圖**：航線 / 熱點 / 國家三種模式，支援公開分享（去識別化）。
@@ -94,6 +95,8 @@ cp .env.example .env
 | `RESEND_API_KEY` / `RESEND_FROM` / `APP_URL` | ⬜ | Email 通知。未設定則不寄信，站內通知不受影響 |
 | `CRON_SECRET` | ⬜ | 保護 `/api/cron/*` 排程路由。未設定則 cron route 一律拒絕 |
 | `NEXT_PUBLIC_VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | ⬜ | Web Push。未設定則推播停用 |
+| `AI_PROVIDER` / `AI_MODEL` / provider key | ⬜ | AI 行程匯入。未設定時只停用 AI 解析，手動行程不受影響 |
+| `AI_IMPORT_DAILY_*` / `AI_IMPORT_*_MICRO_USD*` | ⬜ | MongoDB 持久化的每日 request／成本上限；預設適合低流量試用，付費模型價格須依 provider 現值設定 |
 
 > 所有選用的外部服務皆 **env-gated**：未設定也能正常啟動與 CI build，只有對應功能停用。各變數的詳細說明見 [.env.example](.env.example)。
 
@@ -116,6 +119,7 @@ pnpm dev
 | `pnpm format` / `pnpm format:check` | Prettier 格式化 / 檢查 |
 | `pnpm test` / `pnpm test:run` | Vitest（watch / 單次） |
 | `pnpm test:coverage` | 測試覆蓋率報告 |
+| `pnpm test:ai-import-eval` | 明確啟用 live AI fixture 評估（會使用額度；可由 `AI_IMPORT_EVAL_CASE_LIMIT` 限制樣本） |
 | `pnpm migrate:status` / `:up` / `:down` / `:create` | migrate-mongo 資料遷移（見 [docs/MIGRATIONS.md](docs/MIGRATIONS.md)） |
 
 ## 🤝 貢獻 (Contributing)

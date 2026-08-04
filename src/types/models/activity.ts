@@ -9,7 +9,8 @@ export type ActivityLogType =
   | 'expense_updated'
   | 'expense_deleted'
   | 'payment_recorded'
-  | 'member_joined';
+  | 'member_joined'
+  | 'itinerary_imported';
 
 /**
  * 活動紀錄的型別相依結構化資料。各類型只用到其中部分欄位；訊息文案由前端依
@@ -22,6 +23,9 @@ export interface ActivityLogMeta {
   expense_id?: string;
   /** payment_recorded：還款金額 / 還款 id。 */
   payment_id?: string;
+  /** itinerary_imported：實際新增的日期與活動數（不含原文或活動內容）。 */
+  days?: number;
+  activities?: number;
 }
 
 /**

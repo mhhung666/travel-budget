@@ -29,3 +29,4 @@ export {
 export { StayRecord, type StayRecordDoc } from './StayRecord';
 export { LoyaltyAccount, type LoyaltyAccountDoc } from './LoyaltyAccount';
 export { LoyaltyEntry, type LoyaltyEntryDoc } from './LoyaltyEntry';
+export { AiImportUsage, AI_IMPORT_USAGE_SCOPES, type AiImportUsageDoc } from './AiImportUsage';

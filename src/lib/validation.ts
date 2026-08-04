@@ -289,6 +289,8 @@ export const activitySchema = z.object({
     ])
     .default('other'),
   location: locationSchema.nullable().optional(),
+  // AI 匯入等來源可只有地點文字；不可為了符合結構化 location 而虛構座標。
+  location_name: z.string().trim().max(300, '地點文字過長').default(''),
   note: z.string().default(''),
   confirmation_code: z.string().default(''),
   // 票券附件（重用收據的 attachmentInputSchema：只帶 key，size/type 由 action 以 headObject 驗證）。

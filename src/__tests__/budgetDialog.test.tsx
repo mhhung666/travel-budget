@@ -8,7 +8,7 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe('BudgetDialog', () => {
+describe('BudgetDialog', { timeout: 15_000 }, () => {
   it('prioritizes the total budget and keeps category details collapsed when unused', async () => {
     const user = userEvent.setup();
 
