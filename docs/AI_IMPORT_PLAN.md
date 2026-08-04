@@ -226,6 +226,8 @@ src/lib/ai/expenseImportSchema.ts
 src/lib/ai/normalizeItineraryImport.ts
 src/lib/ai/normalizeExpenseImport.ts
 src/lib/ai/importLimits.ts
+src/lib/ai/evaluateItineraryImport.ts
+src/__fixtures__/ai/itineraryImportFixtures.ts
 ```
 
 匯入 endpoint 只負責產生草稿；確認寫入應沿用既有 Server Actions，不另建一套繞過權限與通知的資料存取路徑。
@@ -287,7 +289,7 @@ Phase 必須依序通過完成條件。Phase 0 與 Phase 1 可以在同一開發
 
 | Phase | 狀態 | 可交付結果 | 是否寫入旅程資料 |
 | --- | --- | --- | --- |
-| 0 | `planned` | 固定樣本、期望輸出、限制與評分工具 | 否 |
+| 0 | `complete` | 固定樣本、期望輸出、限制與評分工具 | 否 |
 | 1 | `planned` | 具權限與限制保護的結構化解析 endpoint | 否 |
 | 2A | `planned` | 可編輯、可取消項目的匯入預覽 | 否 |
 | 2B | `planned` | 明確確認後的逐日匯入與失敗重試 | 是 |
@@ -295,6 +297,8 @@ Phase 必須依序通過完成條件。Phase 0 與 Phase 1 可以在同一開發
 | 3 | `deferred` | 自然語言支出草稿與分攤 | 是，須另行確認 |
 
 ### Phase 0：樣本、契約與驗證基線
+
+狀態：`complete`（2026-08-04）
 
 目標是先建立可重跑的品質基線，避免以少數手動範例判斷模型是否可用。
 
@@ -309,6 +313,8 @@ Phase 必須依序通過完成條件。Phase 0 與 Phase 1 可以在同一開發
 測試重點：schema 邊界、空白輸入、超長輸入、超量天數／活動數、錯誤日期、未知活動類型、confirmation code 不出現在測試輸出快照。
 
 完成條件：fixture 可在不呼叫外部模型的情況下執行；正規化與限制測試全數通過；warning/error code 足以讓 UI 對應，不需解析模型的自由文字錯誤。
+
+完成證據：31 份 fixture 均通過草稿 schema；評分工具可分別計算 schema 合法率及日期、時間、標題、類型正確率；Phase 0 的 23 項測試涵蓋輸入與輸出上限、無效日期／時間、未知欄位、日期換算、活動排序、既有活動與同批重複、敏感確認碼及評分結果。核心程式位於 `src/lib/ai/`，樣本位於 `src/__fixtures__/ai/`。
 
 ### Phase 1：只解析、不寫入
 
