@@ -133,8 +133,8 @@ async function reserveScope(input: {
     });
   }
 
-  try {
-    const result = await AiImportUsage.findOneAndUpdate(
+  const updateExistingBucket = async () =>
+    AiImportUsage.findOneAndUpdate(
       {
         scope: input.scope,
         scopeKey: input.scopeKey,
@@ -142,17 +142,31 @@ async function reserveScope(input: {
         $expr: { $and: constraints },
       },
       {
-        $setOnInsert: { expiresAt: input.expiresAt },
         $inc: { requests: 1, reservedMicroUsd: input.reserveCost },
       },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
+      { returnDocument: 'after' }
     ).lean<AiImportUsageDoc | null>();
-    return result !== null;
+
+  const existingBucket = await updateExistingBucket();
+  if (existingBucket) return true;
+  if (input.costLimit > 0 && input.reserveCost > input.costLimit) return false;
+
+  try {
+    await AiImportUsage.create({
+      scope: input.scope,
+      scopeKey: input.scopeKey,
+      periodStart: input.periodStart,
+      expiresAt: input.expiresAt,
+      requests: 1,
+      reservedMicroUsd: input.reserveCost,
+    });
+    return true;
   } catch (error) {
-    // When an existing bucket no longer matches a limit, upsert races the unique index. Treat that
-    // duplicate as a clean limit rejection rather than exposing database details.
-    if (isDuplicateKeyError(error)) return false;
-    throw error;
+    if (!isDuplicateKeyError(error)) throw error;
+
+    // Another request may have created this UTC-day bucket between our update and insert. Retry the
+    // conditional increment once; a second miss means the newly created bucket is already limited.
+    return (await updateExistingBucket()) !== null;
   }
 }
 
@@ -173,6 +187,9 @@ export async function reserveItineraryImportQuota(input: {
   now?: Date;
 }): Promise<ItineraryImportQuotaReservation> {
   await dbConnect();
+  // The compound unique index is part of the concurrency contract for create-after-update races.
+  // Model initialization is cached by Mongoose within each serverless instance.
+  await AiImportUsage.init();
   const config = resolveItineraryImportQuotaConfig();
   const { periodStart, expiresAt } = utcDay(input.now ?? new Date());
   const scopes: Array<ReservedScope & { requestLimit: number; costLimit: number }> = [
