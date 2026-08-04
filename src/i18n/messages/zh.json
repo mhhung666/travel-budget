@@ -1142,6 +1142,29 @@
       "parseFailed": "無法解析行程",
       "backToSource": "返回修改原文",
       "confirmPreview": "完成預覽檢查",
+      "confirmImport": "確認匯入",
+      "retryFailed": "重試失敗日期",
+      "confirmFailed": "無法匯入行程",
+      "resultSuccessTitle": "行程匯入完成",
+      "resultPartialTitle": "部分日期匯入失敗",
+      "resultSummary": "成功 {days} 天、新增 {activities} 個活動、略過 {skipped} 天、失敗 {failed} 天。",
+      "unknownDate": "未知日期",
+      "resultStatus": {
+        "success": "匯入成功",
+        "already_imported": "先前已匯入，未重複新增"
+      },
+      "confirmErrors": {
+        "UNAUTHORIZED": "登入狀態已失效，請重新登入。",
+        "NOT_FOUND": "找不到此旅程。",
+        "FORBIDDEN": "只有旅程管理員可以確認匯入。",
+        "TRIP_DATES_REQUIRED": "旅程必須先設定開始日期。",
+        "MISSING_DATE": "日期缺漏，請修正後重試。",
+        "DATE_OUTSIDE_TRIP": "日期超出旅程範圍。",
+        "MISSING_DAY_TITLE": "新增日期需要當日標題。",
+        "ACTIVITY_LIMIT": "該日活動數已超過上限，請減少後重試。",
+        "VALIDATION_ERROR": "匯入內容無效，請修正後重試。",
+        "INTERNAL_ERROR": "匯入時發生錯誤，請稍後重試。"
+      },
       "previewReadyTitle": "預覽內容已通過檢查",
       "previewReadyDescription": "目前仍是唯讀預覽，尚未變更任何旅程資料。",
       "sourceSummary": "來源摘要",
@@ -1305,7 +1328,8 @@
     "expenseUpdated": "{actor} 編輯了支出「{description}」",
     "expenseDeleted": "{actor} 刪除了支出「{description}」",
     "paymentRecorded": "{actor} 登記了一筆還款",
-    "memberJoined": "{actor} 加入了旅程"
+    "memberJoined": "{actor} 加入了旅程",
+    "itineraryImported": "{actor} 使用 AI 匯入了 {days} 天、{activities} 個活動"
   },
   "comments": {
     "title": "留言",

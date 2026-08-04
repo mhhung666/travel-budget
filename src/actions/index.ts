@@ -82,6 +82,12 @@ export {
   getItineraryAttachmentUrl,
 } from './itinerary.actions';
 
+export {
+  confirmItineraryImport,
+  type ItineraryImportConfirmation,
+  type ItineraryImportDayResult,
+} from './itineraryImport.actions';
+
 // Checklist actions（打包清單 / 待辦）
 export {
   getChecklists,

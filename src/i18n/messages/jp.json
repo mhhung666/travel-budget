@@ -1142,6 +1142,29 @@
       "parseFailed": "旅程を解析できませんでした",
       "backToSource": "原文に戻る",
       "confirmPreview": "プレビュー確認を完了",
+      "confirmImport": "インポートを確定",
+      "retryFailed": "失敗した日付を再試行",
+      "confirmFailed": "旅程をインポートできませんでした",
+      "resultSuccessTitle": "旅程をインポートしました",
+      "resultPartialTitle": "一部の日付をインポートできませんでした",
+      "resultSummary": "成功 {days} 日、追加 {activities} 件、スキップ {skipped} 日、失敗 {failed} 日。",
+      "unknownDate": "日付不明",
+      "resultStatus": {
+        "success": "インポート完了",
+        "already_imported": "インポート済みのため重複追加なし"
+      },
+      "confirmErrors": {
+        "UNAUTHORIZED": "セッションが切れました。再度ログインしてください。",
+        "NOT_FOUND": "この旅行が見つかりません。",
+        "FORBIDDEN": "インポートを確定できるのは旅行管理者のみです。",
+        "TRIP_DATES_REQUIRED": "先に旅行の開始日を設定してください。",
+        "MISSING_DATE": "日付がありません。修正して再試行してください。",
+        "DATE_OUTSIDE_TRIP": "日付が旅行期間外です。",
+        "MISSING_DAY_TITLE": "新しい日付にはタイトルが必要です。",
+        "ACTIVITY_LIMIT": "この日の予定数が上限を超えます。減らして再試行してください。",
+        "VALIDATION_ERROR": "インポート内容が無効です。修正して再試行してください。",
+        "INTERNAL_ERROR": "インポート中にエラーが発生しました。後でもう一度お試しください。"
+      },
       "previewReadyTitle": "プレビューの検証が完了しました",
       "previewReadyDescription": "現在は読み取り専用プレビューです。旅程データは変更されていません。",
       "sourceSummary": "原文の要約",
@@ -1305,7 +1328,8 @@
     "expenseUpdated": "{actor} が支出「{description}」を編集しました",
     "expenseDeleted": "{actor} が支出「{description}」を削除しました",
     "paymentRecorded": "{actor} が支払いを記録しました",
-    "memberJoined": "{actor} が旅行に参加しました"
+    "memberJoined": "{actor} が旅行に参加しました",
+    "itineraryImported": "{actor} が AI で {days} 日・{activities} 件の予定をインポートしました"
   },
   "comments": {
     "title": "コメント",

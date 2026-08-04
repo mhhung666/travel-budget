@@ -1149,6 +1149,29 @@
       "parseFailed": "Could not parse itinerary",
       "backToSource": "Back to source",
       "confirmPreview": "Finish preview review",
+      "confirmImport": "Confirm import",
+      "retryFailed": "Retry failed dates",
+      "confirmFailed": "Could not import itinerary",
+      "resultSuccessTitle": "Itinerary imported",
+      "resultPartialTitle": "Some dates could not be imported",
+      "resultSummary": "Succeeded: {days} days; added: {activities} activities; skipped: {skipped} days; failed: {failed} days.",
+      "unknownDate": "Unknown date",
+      "resultStatus": {
+        "success": "Imported",
+        "already_imported": "Already imported; no duplicate was added"
+      },
+      "confirmErrors": {
+        "UNAUTHORIZED": "Your session expired. Sign in again.",
+        "NOT_FOUND": "This trip could not be found.",
+        "FORBIDDEN": "Only trip admins can confirm an import.",
+        "TRIP_DATES_REQUIRED": "Set a trip start date before importing.",
+        "MISSING_DATE": "A date is missing. Fix it and try again.",
+        "DATE_OUTSIDE_TRIP": "The date is outside the trip range.",
+        "MISSING_DAY_TITLE": "A new date needs a day title.",
+        "ACTIVITY_LIMIT": "This date would exceed the activity limit. Remove some activities and try again.",
+        "VALIDATION_ERROR": "The import content is invalid. Fix it and try again.",
+        "INTERNAL_ERROR": "An error occurred while importing. Try again later."
+      },
       "previewReadyTitle": "The preview passed validation",
       "previewReadyDescription": "This is still a read-only preview. No trip data has been changed.",
       "sourceSummary": "Source summary",
@@ -1312,7 +1335,8 @@
     "expenseUpdated": "{actor} edited the expense “{description}”",
     "expenseDeleted": "{actor} deleted the expense “{description}”",
     "paymentRecorded": "{actor} recorded a payment",
-    "memberJoined": "{actor} joined the trip"
+    "memberJoined": "{actor} joined the trip",
+    "itineraryImported": "{actor} imported {days} days and {activities} activities with AI"
   },
   "comments": {
     "title": "Comments",

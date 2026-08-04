@@ -29,6 +29,7 @@ export interface ActivityDraft {
   title: string;
   type: ActivityType;
   location: LocationOption | null;
+  locationName: string;
   note: string;
   confirmationCode: string;
   /** 票券附件（已上傳至 R2，含 key + 中繼資料）。 */
@@ -49,6 +50,7 @@ export function makeEmptyActivity(): ActivityDraft {
     title: '',
     type: 'other',
     location: null,
+    locationName: '',
     note: '',
     confirmationCode: '',
     attachments: [],
@@ -74,6 +76,7 @@ export function dayActivitiesToDrafts(activities: Activity[]): ActivityDraft[] {
           country_code: a.location.country_code,
         }
       : null,
+    locationName: a.location_name ?? '',
     note: a.note ?? '',
     confirmationCode: a.confirmation_code ?? '',
     attachments: a.attachments ?? [],
@@ -90,6 +93,7 @@ export function draftsToPayload(drafts: ActivityDraft[]): ActivityPayload[] {
       title: d.title.trim(),
       type: d.type,
       location: d.location,
+      location_name: d.locationName.trim(),
       note: d.note.trim(),
       confirmation_code: d.confirmationCode.trim(),
       attachments: d.attachments,

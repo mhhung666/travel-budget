@@ -31,6 +31,7 @@ type LeanActivity = {
   title: string;
   type: ActivityDto['type'];
   location?: Location | null;
+  locationName?: string;
   note?: string;
   confirmationCode?: string;
   attachments?: LeanAttachment[];
@@ -56,6 +57,7 @@ function toActivityDto(a: LeanActivity): ActivityDto {
     title: a.title,
     type: a.type,
     location: a.location ?? null,
+    location_name: a.locationName ?? '',
     note: a.note ?? '',
     confirmation_code: a.confirmationCode ?? '',
     // 只帶 key + 中繼資料（不含 url）；檢視時走 getItineraryAttachmentUrl 簽短效 GET。
@@ -139,6 +141,7 @@ async function buildActivitiesStorage(
       title: a.title,
       type: a.type,
       location: a.location ?? null,
+      locationName: a.location_name ?? '',
       note: a.note ?? '',
       confirmationCode: a.confirmation_code ?? '',
       attachments: resolved,

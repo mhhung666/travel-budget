@@ -25,6 +25,8 @@ export interface Activity {
   type: ActivityType;
   /** 活動地點；未設為 null。 */
   location: Location | null;
+  /** 尚未 geocoding 的地點文字；不含座標。 */
+  location_name?: string;
   note: string;
   /** 訂位/票券確認碼；公開分享頁不會帶出此欄位（為空字串）。 */
   confirmation_code: string;

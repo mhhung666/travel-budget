@@ -3,6 +3,12 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ItineraryImportDialog from '@/components/ai-import/ItineraryImportDialog';
 
+const mocks = vi.hoisted(() => ({ confirmItineraryImport: vi.fn() }));
+
+vi.mock('@/actions/itineraryImport.actions', () => ({
+  confirmItineraryImport: mocks.confirmItineraryImport,
+}));
+
 function successfulResponse(title: string, overrides: Record<string, unknown> = {}) {
   return {
     ok: true,
@@ -59,7 +65,20 @@ describe('ItineraryImportDialog', () => {
 
   it('masks confirmation codes and enables review after fixing a blocking time', async () => {
     const user = userEvent.setup();
-    const onPreviewReady = vi.fn();
+    const onImported = vi.fn();
+    mocks.confirmItineraryImport.mockResolvedValue({
+      success: true,
+      data: {
+        operationId: 'operation-id',
+        days: [{ date: '2026-09-10', status: 'success', addedActivities: 1 }],
+        summary: {
+          successfulDays: 1,
+          addedActivities: 1,
+          alreadyImportedDays: 0,
+          failedDays: 0,
+        },
+      },
+    });
     vi.stubGlobal(
       'fetch',
       vi
@@ -74,13 +93,13 @@ describe('ItineraryImportDialog', () => {
         tripId="trip-1"
         tripStartDate="2026-09-01"
         tripEndDate="2026-09-30"
-        onPreviewReady={onPreviewReady}
+        onImported={onImported}
       />
     );
     await user.type(screen.getByLabelText('sourceLabel'), 'Day 1 Tokyo');
     await user.click(screen.getByRole('button', { name: 'parse' }));
 
-    const confirm = await screen.findByRole('button', { name: 'confirmPreview' });
+    const confirm = await screen.findByRole('button', { name: 'confirmImport' });
     expect(confirm).toBeDisabled();
     const code = screen.getByLabelText('confirmationCode');
     expect(code).toHaveAttribute('type', 'password');
@@ -93,8 +112,8 @@ describe('ItineraryImportDialog', () => {
     expect(confirm).toBeEnabled();
     await user.click(confirm);
 
-    expect(onPreviewReady).toHaveBeenCalledTimes(1);
-    expect(screen.getByText('previewReadyTitle')).toBeInTheDocument();
+    await waitFor(() => expect(onImported).toHaveBeenCalledTimes(1));
+    expect(screen.getByText('resultSuccessTitle')).toBeInTheDocument();
   });
 
   it('replaces the previous draft completely when parsing again', async () => {
@@ -124,5 +143,96 @@ describe('ItineraryImportDialog', () => {
         body: JSON.stringify({ tripId: 'trip-1', sourceText: 'Replacement source' }),
       })
     );
+  });
+
+  it('keeps only failed dates for retry and reuses the operation id', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          success: true,
+          draft: {
+            sourceSummary: 'summary',
+            days: [
+              {
+                date: '2026-09-10',
+                title: 'First day',
+                activities: [{ title: 'Imported activity', type: 'sightseeing' }],
+              },
+              {
+                date: '2026-09-11',
+                title: 'Second day',
+                activities: [{ title: 'Retry activity', type: 'food' }],
+              },
+            ],
+            warnings: [],
+          },
+        }),
+      })
+    );
+    mocks.confirmItineraryImport
+      .mockResolvedValueOnce({
+        success: true,
+        data: {
+          operationId: 'operation-id',
+          days: [
+            { date: '2026-09-10', status: 'success', addedActivities: 1 },
+            {
+              date: '2026-09-11',
+              status: 'failed',
+              addedActivities: 0,
+              errorCode: 'INTERNAL_ERROR',
+            },
+          ],
+          summary: {
+            successfulDays: 1,
+            addedActivities: 1,
+            alreadyImportedDays: 0,
+            failedDays: 1,
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        data: {
+          operationId: 'operation-id',
+          days: [{ date: '2026-09-11', status: 'success', addedActivities: 1 }],
+          summary: {
+            successfulDays: 1,
+            addedActivities: 1,
+            alreadyImportedDays: 0,
+            failedDays: 0,
+          },
+        },
+      });
+
+    render(
+      <ItineraryImportDialog
+        open
+        onClose={vi.fn()}
+        tripId="trip-1"
+        tripStartDate="2026-09-01"
+        tripEndDate="2026-09-30"
+      />
+    );
+    await user.type(screen.getByLabelText('sourceLabel'), 'Two days');
+    await user.click(screen.getByRole('button', { name: 'parse' }));
+    await user.click(await screen.findByRole('button', { name: 'confirmImport' }));
+
+    expect(await screen.findByText('resultPartialTitle')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByDisplayValue('Imported activity')).not.toBeInTheDocument();
+      expect(screen.getByDisplayValue('Retry activity')).toBeInTheDocument();
+    });
+    await user.click(screen.getByRole('button', { name: 'retryFailed' }));
+    await waitFor(() => expect(mocks.confirmItineraryImport).toHaveBeenCalledTimes(2));
+
+    const firstInput = mocks.confirmItineraryImport.mock.calls[0][1];
+    const retryInput = mocks.confirmItineraryImport.mock.calls[1][1];
+    expect(retryInput.operationId).toBe(firstInput.operationId);
+    expect(retryInput.draft.days).toHaveLength(1);
+    expect(retryInput.draft.days[0].date).toBe('2026-09-11');
   });
 });

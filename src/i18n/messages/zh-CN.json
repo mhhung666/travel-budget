@@ -1142,6 +1142,29 @@
       "parseFailed": "无法解析行程",
       "backToSource": "返回修改原文",
       "confirmPreview": "完成预览检查",
+      "confirmImport": "确认导入",
+      "retryFailed": "重试失败日期",
+      "confirmFailed": "无法导入行程",
+      "resultSuccessTitle": "行程导入完成",
+      "resultPartialTitle": "部分日期导入失败",
+      "resultSummary": "成功 {days} 天、新增 {activities} 个活动、跳过 {skipped} 天、失败 {failed} 天。",
+      "unknownDate": "未知日期",
+      "resultStatus": {
+        "success": "导入成功",
+        "already_imported": "此前已导入，未重复新增"
+      },
+      "confirmErrors": {
+        "UNAUTHORIZED": "登录状态已失效，请重新登录。",
+        "NOT_FOUND": "找不到此行程。",
+        "FORBIDDEN": "只有行程管理员可以确认导入。",
+        "TRIP_DATES_REQUIRED": "行程必须先设置开始日期。",
+        "MISSING_DATE": "日期缺失，请修正后重试。",
+        "DATE_OUTSIDE_TRIP": "日期超出行程范围。",
+        "MISSING_DAY_TITLE": "新增日期需要当日标题。",
+        "ACTIVITY_LIMIT": "该日活动数已超过上限，请减少后重试。",
+        "VALIDATION_ERROR": "导入内容无效，请修正后重试。",
+        "INTERNAL_ERROR": "导入时发生错误，请稍后重试。"
+      },
       "previewReadyTitle": "预览内容已通过检查",
       "previewReadyDescription": "目前仍是只读预览，尚未更改任何行程资料。",
       "sourceSummary": "来源摘要",
@@ -1305,7 +1328,8 @@
     "expenseUpdated": "{actor} 编辑了支出“{description}”",
     "expenseDeleted": "{actor} 删除了支出“{description}”",
     "paymentRecorded": "{actor} 登记了一笔还款",
-    "memberJoined": "{actor} 加入了行程"
+    "memberJoined": "{actor} 加入了行程",
+    "itineraryImported": "{actor} 使用 AI 导入了 {days} 天、{activities} 个活动"
   },
   "comments": {
     "title": "留言",

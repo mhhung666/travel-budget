@@ -20,6 +20,7 @@ export interface ActivityPayload {
   title: string;
   type: ActivityType;
   location?: Location | null;
+  location_name: string;
   note: string;
   confirmation_code: string;
   /** 票券附件（只帶 key + 中繼資料；server 端以 headObject 驗證）。 */

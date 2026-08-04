@@ -42,6 +42,8 @@ const ActivitySchema = new Schema({
   type: { type: String, enum: ACTIVITY_TYPES, default: 'other' },
   // 活動地點（城市/景點），結構同 ItineraryDay.location；null＝未設。
   location: { type: Schema.Types.Mixed, default: null },
+  // 未經 geocoding 的純文字地點（例如 AI 匯入）；不可虛構座標塞進 location。
+  locationName: { type: String, default: '' },
   note: { type: String, default: '' },
   // 訂位/票券確認碼（航班 PNR、訂房代號…）；屬敏感資訊，公開分享路由不回傳。
   confirmationCode: { type: String, default: '' },
@@ -59,6 +61,8 @@ const ItineraryDaySchema = new Schema(
     location: { type: Schema.Types.Mixed },
     // 當日活動時間軸（內嵌）；舊資料無此欄位時為空陣列。
     activities: { type: [ActivitySchema], default: [] },
+    // AI 匯入逐日冪等鍵；純伺服器欄位，不進一般／公開 DTO。
+    appliedImportKeys: { type: [String], default: [] },
   },
   {
     timestamps: true,

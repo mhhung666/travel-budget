@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
+import { useQueryClient } from '@tanstack/react-query';
 import { CalendarDays, Plus, Sparkles } from 'lucide-react';
 import {
   ItineraryDayCard,
@@ -38,6 +39,7 @@ import {
   useSettlement,
 } from '@/hooks/queries';
 import type { ActivityPayload } from '@/hooks/queries/useItineraryMutations';
+import { tripKeys } from '@/hooks/queries/keys';
 import { useEditTrip } from '@/hooks/useEditTrip';
 import { exportItinerary, type ExportFormat } from '@/lib/exporters';
 import {
@@ -80,8 +82,14 @@ export default function ItineraryPage() {
   const tFirstSteps = useTranslations('trip.firstSteps');
 
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-  const { data: days = [], isLoading: loading, isError } = useItinerary(tripId);
+  const {
+    data: days = [],
+    isLoading: loading,
+    isError,
+    refetch: refetchItinerary,
+  } = useItinerary(tripId);
   const { data: trip } = useTrip(tripId);
   const { data: expenses = [] } = useExpenses(tripId);
   const { data: checklists = [] } = useChecklists(tripId);
@@ -479,6 +487,10 @@ export default function ItineraryPage() {
         tripId={tripId}
         tripStartDate={trip?.start_date}
         tripEndDate={trip?.end_date}
+        onImported={() => {
+          void refetchItinerary();
+          void queryClient.invalidateQueries({ queryKey: tripKeys.activity(tripId) });
+        }}
       />
 
       {/* Add/Edit Dialog */}

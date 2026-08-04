@@ -52,6 +52,7 @@ describe.skipIf(!liveEvaluationEnabled)('AI itinerary import live fixture evalua
     'meets the Phase 1 schema and core-field thresholds',
     async () => {
       const cases: ItineraryImportEvaluationCase[] = [];
+      const generatedCases: ItineraryImportEvaluationCase[] = [];
       let inputTokens = 0;
       let outputTokens = 0;
       let totalLatencyMs = 0;
@@ -75,7 +76,13 @@ describe.skipIf(!liveEvaluationEnabled)('AI itinerary import live fixture evalua
           });
           inputTokens += generation.usage.inputTokens ?? 0;
           outputTokens += generation.usage.outputTokens ?? 0;
-          cases.push({ id: sample.id, expected: sample.expected, actual: generation.draft });
+          const evaluationCase = {
+            id: sample.id,
+            expected: sample.expected,
+            actual: generation.draft,
+          };
+          cases.push(evaluationCase);
+          generatedCases.push(evaluationCase);
         } catch (error) {
           const code = error instanceof ItineraryImportProviderError ? error.code : 'UNKNOWN_ERROR';
           failureCounts[code] = (failureCounts[code] ?? 0) + 1;
@@ -87,10 +94,14 @@ describe.skipIf(!liveEvaluationEnabled)('AI itinerary import live fixture evalua
       }
 
       const evaluation = evaluateItineraryImportCases(cases);
+      const generatedEvaluation = evaluateItineraryImportCases(generatedCases);
       logger.info('AI itinerary import live evaluation baseline', {
         cases: evaluation.cases,
+        providerSuccessRate: generatedCases.length / cases.length,
         validSchemaRate: evaluation.validSchemaRate,
-        coreFieldAccuracy: evaluation.coreFieldAccuracy,
+        generatedValidSchemaRate: generatedEvaluation.validSchemaRate,
+        generatedCoreFieldAccuracy: generatedEvaluation.coreFieldAccuracy,
+        generatedFieldAccuracy: generatedEvaluation.fields,
         averageLatencyMs: Math.round(totalLatencyMs / cases.length),
         inputTokens,
         outputTokens,
@@ -100,7 +111,7 @@ describe.skipIf(!liveEvaluationEnabled)('AI itinerary import live fixture evalua
         requestIntervalMs,
       });
       expect(evaluation.validSchemaRate).toBeGreaterThanOrEqual(0.9);
-      expect(evaluation.coreFieldAccuracy).toBeGreaterThanOrEqual(0.9);
+      expect(generatedEvaluation.coreFieldAccuracy).toBeGreaterThanOrEqual(0.9);
     },
     10 * 60 * 1_000
   );

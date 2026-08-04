@@ -285,14 +285,14 @@ src/__fixtures__/ai/itineraryImportFixtures.ts
 
 ## 10. 執行 Phase
 
-Phase 必須依序通過完成條件。Phase 0 與 Phase 1 可以在同一開發分支進行，但在解析基線通過前，不開始資料寫入功能。
+Phase 必須依序通過完成條件。低流量 Free tier 試用可採較小但可重跑的模型品質樣本；provider 429 視為可恢復的容量限制並在 UI 明確呈現，不與成功生成後的模型品質混為一談。擴大流量前仍須完成完整 31 筆 baseline。
 
 | Phase | 狀態 | 可交付結果 | 是否寫入旅程資料 |
 | --- | --- | --- | --- |
 | 0 | `complete` | 固定樣本、期望輸出、限制與評分工具 | 否 |
-| 1 | `implemented` | 具權限與限制保護的結構化解析 endpoint；live baseline 待可用額度 | 否 |
+| 1 | `complete-limited` | 具權限與限制保護的結構化解析 endpoint；Free tier 低流量試用 | 否 |
 | 2A | `complete` | 可編輯、可取消項目的匯入預覽 | 否 |
-| 2B | `planned` | 明確確認後的逐日匯入與失敗重試 | 是 |
+| 2B | `complete` | 明確確認後的逐日匯入與失敗重試 | 是 |
 | 2C | `planned` | i18n、行動版、觀測、整合與安全驗收 | 是 |
 | 3 | `deferred` | 自然語言支出草稿與分攤 | 是，須另行確認 |
 
@@ -318,9 +318,9 @@ Phase 必須依序通過完成條件。Phase 0 與 Phase 1 可以在同一開發
 
 ### Phase 1：只解析、不寫入
 
-狀態：`implemented`（2026-08-04）；`openai/gpt-5.6-luna` 與 `google/gemini-3.1-flash-lite` 在 Gateway Free tier 均回覆 HTTP 403，後者的 3 次 smoke request 皆未產生 token。`alibaba/qwen3.7-flash` 可生成，但需在 prompt 明列 JSON 欄位骨架並關閉 thinking；節流 11 秒的 31 筆評估仍只有 6 筆到達模型（3 筆合法、3 筆無效），其餘 25 筆被 Gateway Free tier rate limit 拒絕，初步 schema 遵循率為 50%。
+狀態：`complete-limited`（2026-08-04），僅核准低流量 Free tier 試用；`openai/gpt-5.6-luna` 與 `google/gemini-3.1-flash-lite` 在 Gateway Free tier 均回覆 HTTP 403，後者的 3 次 smoke request 皆未產生 token。`alibaba/qwen3.7-flash` 可生成，但需在 prompt 明列 JSON 欄位骨架並關閉 thinking；節流 11 秒的 31 筆評估仍只有 6 筆到達模型（3 筆合法、3 筆無效），其餘 25 筆被 Gateway Free tier rate limit 拒絕，初步 schema 遵循率為 50%。
 
-OpenAI nano 初測使用 required-nullable provider schema，再轉回既有 optional 草稿契約。`openai/gpt-4.1-nano` 單筆 smoke 為合法 schema、核心欄位 100%、約 3.3 秒、721 input／128 output tokens；5 筆小樣本有 4 筆到達模型且 4 筆皆為合法 schema，這 4 筆共 33 個核心欄位、答對 29 個，正確率約 87.9%，第 5 筆遭 Free tier 429。`openai/gpt-5-nano` 預設推理的單筆雖達 100%，但約需 21.7 秒與 2,964 output tokens；改成 minimal reasoning 後約 3.5 秒與 189 output tokens，該次核心欄位為 85.7%，後續 5 筆皆遭 Free tier 429。`openai/gpt-5-mini` 第一筆即遭 Free tier 429，尚無品質資料。依目前小樣本，開發環境暫選 `openai/gpt-4.1-nano`；它尚未達 90% 品質門檻，完整 baseline 仍需等待限流重置或使用付費額度。
+OpenAI nano 初測使用 required-nullable provider schema，再轉回既有 optional 草稿契約。`openai/gpt-4.1-nano` 單筆 smoke 為合法 schema、核心欄位 100%、約 3.3 秒、721 input／128 output tokens；5 筆小樣本有 4 筆到達模型且 4 筆皆為合法 schema，這 4 筆共 33 個核心欄位、答對 29 個，正確率約 87.9%，第 5 筆遭 Free tier 429。2026-08-04 再以 12 秒間隔跑完整 31 筆：10 筆到達模型且全數通過 schema，成功生成的 79 個核心欄位答對 78 個（約 98.7%），共使用 7,009 input／1,549 output tokens；另外 21 筆被 Gateway Free tier 429 拒絕，使全體樣本可生成率只有 32.3%。依目前網站流量很小且只使用 Free tier 的產品決策，10 筆成功樣本的品質已通過受限試用門檻；429 會保留原文並允許稍後重試，不視為錯誤草稿。`openai/gpt-5-nano` 預設推理的單筆雖達 100%，但約需 21.7 秒與 2,964 output tokens；改成 minimal reasoning 後約 3.5 秒與 189 output tokens，該次核心欄位為 85.7%，後續 5 筆皆遭 Free tier 429。`openai/gpt-5-mini` 第一筆即遭 Free tier 429，尚無品質資料。開發環境維持選用 `openai/gpt-4.1-nano`；擴大流量或正式宣告一般可用前仍須完成 31 筆 baseline。
 
 目標是讓 admin 能把文字轉成合法草稿，同時證明此路徑沒有任何資料寫入能力。
 
@@ -335,9 +335,9 @@ OpenAI nano 初測使用 required-nullable provider schema，再轉回既有 opt
 
 測試重點：未登入與非 admin 不會呼叫 provider；惡意 prompt 仍只能得到 schema 草稿；provider timeout、截斷、非 schema 輸出及超量輸出可安全失敗；route 測試不得觀察到 itinerary action 或 Mongoose 寫入。
 
-完成條件：有效回應 100% 通過 Zod；至少 90% 固定樣本可產生合法 schema，核心欄位正確率達 90%；失敗請求不寫入資料且能安全重試；成本與延遲已有可比較的基線紀錄。
+完成條件：有效回應 100% 通過 Zod且核心欄位正確率達 90%；Free tier 受限試用至少取得 10 筆成功生成樣本，429 可安全重試且不計入模型欄位品質。擴大流量前，至少 90% 的完整固定樣本須能產生合法 schema；失敗請求不得寫入資料，成本與延遲須有可比較的基線紀錄。
 
-實作證據：集中 provider、最小化 prompt、唯讀 context loader 與 route 分別位於 `src/lib/ai/` 及 `src/app/api/ai/itinerary-import/route.ts`；route/provider 自動化測試涵蓋未登入、非 admin、無效／超長輸入、功能停用、rate limit、timeout、截斷、無效模型輸出、去敏 log，以及零 itinerary action 呼叫。`pnpm test:ai-import-eval` 僅在明確啟用 live eval 時載入 `.env.local`、使用 Node 測試環境，並彙總安全的 provider 錯誤分類；可用 `AI_IMPORT_EVAL_CASE_LIMIT` 限制 smoke 樣本、用 `AI_IMPORT_EVAL_INTERVAL_MS` 對 Free tier 評估節流，而且 live eval 關閉 SDK retry，避免限流請求被重送。Alibaba 模型會明確停用 thinking，以避免簡單抽取浪費 reasoning tokens。通過全部固定樣本的 90% 門檻並記錄 latency/token baseline 後才將本 Phase 改為 `complete`。
+實作證據：集中 provider、最小化 prompt、唯讀 context loader 與 route 分別位於 `src/lib/ai/` 及 `src/app/api/ai/itinerary-import/route.ts`；route/provider 自動化測試涵蓋未登入、非 admin、無效／超長輸入、功能停用、rate limit、timeout、截斷、無效模型輸出、去敏 log，以及零 itinerary action 呼叫。`pnpm test:ai-import-eval` 僅在明確啟用 live eval 時載入 `.env.local`、使用 Node 測試環境，並分開彙總 provider 可用率、成功生成後的 schema／核心欄位品質及安全的錯誤分類；可用 `AI_IMPORT_EVAL_CASE_LIMIT` 限制 smoke 樣本、用 `AI_IMPORT_EVAL_INTERVAL_MS` 對 Free tier 評估節流，而且 live eval 關閉 SDK retry，避免限流請求被重送。Alibaba 模型會明確停用 thinking，以避免簡單抽取浪費 reasoning tokens。受限試用門檻已通過；完整 31 筆 90% 可用率改列 Phase 2C 的擴流驗收。
 
 ### Phase 2A：可編輯預覽
 
@@ -361,12 +361,23 @@ OpenAI nano 初測使用 required-nullable provider schema，再轉回既有 opt
 
 ### Phase 2B：確認匯入與逐日結果
 
+狀態：`complete`（2026-08-04）
+
 目標是只在使用者明確確認後，重用現有行程權限與驗證路徑寫入資料。
+
+實作前設計註記（Phase 1 門檻通過後才落實資料寫入）：
+
+- 預覽建立一次 `operationId`（UUID），重新解析時換新值，同一份預覽的送出、網路重送與失敗重試沿用原值。伺服器以 `tripId + operationId + date` 派生不含敏感資料的逐日 `importKey`。
+- `ItineraryDay` 增加只供伺服器使用且不進 DTO／公開分享路由的 `appliedImportKeys`。建立日會一次寫入該日所有活動與 key；附加既有日則以「尚無此 key」為條件，在同一原子更新中 `$push` 整組活動並 `$addToSet` key。相同操作重送時回報 `already_imported`，不可再新增一次；key 不放在 activity 上，避免日後手動覆寫 activities 時遺失冪等紀錄。
+- 不直接用目前的 `updateItineraryDay` 做 read-modify-write：它會覆寫整個 activities 陣列，可能蓋掉同時發生的手動編輯；目前的 `createItineraryDay` 也只能建立最後一天，無法安全表示匯入指定日期。確認服務應重用相同的 admin membership、`activitySchema`／day schema 與 DTO 轉換，但採專用的原子資料庫操作。
+- 每一天是獨立原子單位，不把整批包成單一全有或全無交易。回應保留 `success`、`already_imported`、`failed` 三種逐日結果；前端只重送 failed 日，伺服器仍能安全接受原整批重送。
+- 寫入前從旅程開始日把日期換算為 `dayNumber`；旅程沒有開始日、日期超出範圍或無法唯一換算時拒絕該日。活動數量以原子查詢條件再次檢查，避免確認後到實際寫入之間的競態超限。
+- `operationId`、逐日結果與安全錯誤碼可以記錄；來源文字、完整草稿、訂位代碼及活動備註不得進 log。`importKey` 只用於冪等判斷，不作分析識別碼。
 
 交付物：
 
 - 確認送出時再次驗證 session、admin 權限、旅程範圍、數量上限及每筆活動 payload，不信任預覽期間保留的權限或模型輸出。
-- 依日期呼叫既有 `createItineraryDay`／`updateItineraryDay`；已存在日期只附加已勾選活動，不覆蓋既有資料。
+- 依日期重用既有行程的權限、驗證與 DTO 路徑；已存在日期以專用原子操作附加已勾選活動，不覆蓋既有資料。
 - 每日回報成功或失敗。部分成功時保留失敗日供修正與重試，已成功日不得被同一次重試重複建立。
 - 成功後更新相關 query、活動紀錄與畫面；結果摘要清楚列出新增天數、活動數、跳過數及失敗數。
 - 對使用者重複點擊與網路重送提供冪等保護；具體機制在實作前以小型設計註記定案。
@@ -374,6 +385,8 @@ OpenAI nano 初測使用 required-nullable provider schema，再轉回既有 opt
 測試重點：確認前零寫入、確認時權限已被撤銷、既有日期附加、部分失敗、重試、重複送出、活動數競態超限，以及模型草稿不能繞過現有 Zod schema。
 
 完成條件：沒有明確確認就不會寫入；成功與失敗可逐日辨識；重試不重複建立已成功項目；公開 DTO 與分享頁不增加任何敏感欄位。
+
+完成證據：`confirmItineraryImport` 在送出時重新驗證登入、admin、完整草稿、旅程日期與活動上限；依日期換算 `dayNumber`，新日期建立整天，既有日期使用帶活動數競態條件的原子 `$push`，不覆蓋標題、內容或既有活動。每份預覽建立 UUID，伺服器以雜湊逐日 key 及 `appliedImportKeys` 去重；重複點擊或網路重送回報 `already_imported`。UI 顯示逐日與彙總結果，部分失敗只保留失敗日期並沿用 operation ID 重試，成功後更新 itinerary query、相片關聯及去識別的活動紀錄。純文字地點保存於獨立 `locationName`，不虛構座標；訂位代碼、原文與活動內容不進 log，冪等欄位不進一般或公開 DTO。自動化測試涵蓋權限撤銷、新日期與日期換算、文字地點、既有日期附加、循序／並行重送去重、部分失敗、上限及 UI retry。
 
 ### Phase 2C：MVP 完整驗收與發布準備
 
@@ -408,7 +421,7 @@ Phase 3 不屬於第一個行程匯入版本。開始前須依 Phase 0 的方式
 
 ## 11. MVP 驗收指標
 
-- 至少 90% 的測試樣本能產生合法 schema。
+- Free tier 低流量試用至少 10 筆成功樣本全數通過 schema；擴大流量前至少 90% 的完整測試樣本能產生合法 schema。
 - 日期、時間、活動標題與類型的欄位正確率至少 90%。
 - 不確定的日期或合併決策會顯示警告，不會靜默猜測。
 - 使用者確認前可完整查看並修改所有將寫入的資料。

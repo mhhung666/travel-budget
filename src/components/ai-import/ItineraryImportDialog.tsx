@@ -3,10 +3,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertCircle, CheckCircle2, Loader2, Sparkles } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import {
+  confirmItineraryImport,
+  type ItineraryImportConfirmation,
+} from '@/actions/itineraryImport.actions';
 import { countImportCharacters, ITINERARY_IMPORT_LIMITS } from '@/lib/ai/importLimits';
 import {
   itineraryImportDraftSchema,
-  type ItineraryImportDraft,
   type ItineraryImportErrorCode,
 } from '@/lib/ai/itineraryImportSchema';
 import {
@@ -35,12 +38,32 @@ type ItineraryImportDialogProps = {
   tripId: string;
   tripStartDate?: string | null;
   tripEndDate?: string | null;
-  onPreviewReady?: (draft: ItineraryImportDraft) => void;
+  onImported?: () => void;
 };
 
 type ImportApiResponse =
   | { success: true; draft: unknown }
   | { success: false; error?: { code?: ItineraryImportErrorCode } };
+
+function mergeConfirmations(
+  previous: ItineraryImportConfirmation | null,
+  next: ItineraryImportConfirmation
+): ItineraryImportConfirmation {
+  if (!previous || previous.operationId !== next.operationId) return next;
+  const byDate = new Map(previous.days.map((day) => [day.date, day]));
+  next.days.forEach((day) => byDate.set(day.date, day));
+  const days = [...byDate.values()];
+  return {
+    operationId: next.operationId,
+    days,
+    summary: {
+      successfulDays: days.filter((day) => day.status === 'success').length,
+      addedActivities: days.reduce((sum, day) => sum + day.addedActivities, 0),
+      alreadyImportedDays: days.filter((day) => day.status === 'already_imported').length,
+      failedDays: days.filter((day) => day.status === 'failed').length,
+    },
+  };
+}
 
 export default function ItineraryImportDialog({
   open,
@@ -48,7 +71,7 @@ export default function ItineraryImportDialog({
   tripId,
   tripStartDate,
   tripEndDate,
-  onPreviewReady,
+  onImported,
 }: ItineraryImportDialogProps) {
   const t = useTranslations('itinerary.aiImport');
   const tCommon = useTranslations('common');
@@ -57,7 +80,10 @@ export default function ItineraryImportDialog({
   const [preview, setPreview] = useState<ItineraryImportPreview | null>(null);
   const [loading, setLoading] = useState(false);
   const [errorCode, setErrorCode] = useState<ItineraryImportErrorCode | null>(null);
-  const [previewReady, setPreviewReady] = useState(false);
+  const [operationId, setOperationId] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
+  const [confirmation, setConfirmation] = useState<ItineraryImportConfirmation | null>(null);
+  const [confirmationError, setConfirmationError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -65,7 +91,9 @@ export default function ItineraryImportDialog({
     setSourceText('');
     setPreview(null);
     setErrorCode(null);
-    setPreviewReady(false);
+    setOperationId(null);
+    setConfirmation(null);
+    setConfirmationError(null);
     requestAnimationFrame(() => sourceRef.current?.focus());
   }, [open]);
 
@@ -89,7 +117,9 @@ export default function ItineraryImportDialog({
     setLoading(true);
     setErrorCode(null);
     setPreview(null);
-    setPreviewReady(false);
+    setOperationId(null);
+    setConfirmation(null);
+    setConfirmationError(null);
     try {
       const response = await fetch('/api/ai/itinerary-import', {
         method: 'POST',
@@ -107,6 +137,7 @@ export default function ItineraryImportDialog({
         return;
       }
       setPreview(createItineraryImportPreview(draft.data));
+      setOperationId(crypto.randomUUID());
     } catch {
       setErrorCode('INTERNAL_ERROR');
     } finally {
@@ -114,13 +145,43 @@ export default function ItineraryImportDialog({
     }
   };
 
-  const confirmPreview = () => {
-    if (!preview || !canConfirmPreview) return;
+  const confirmPreview = async () => {
+    if (!preview || !canConfirmPreview || !operationId || confirming) return;
     const draft = toItineraryImportDraft(preview);
     if (!draft) return;
-    setPreviewReady(true);
-    onPreviewReady?.(draft);
+    setConfirming(true);
+    setConfirmationError(null);
+    try {
+      const result = await confirmItineraryImport(tripId, { operationId, draft });
+      if (!result.success) {
+        setConfirmationError(result.code ?? 'INTERNAL_ERROR');
+        return;
+      }
+      setConfirmation((previous) => mergeConfirmations(previous, result.data));
+      if (result.data.summary.failedDays > 0) {
+        const failedDates = new Set(
+          result.data.days.filter((day) => day.status === 'failed').map((day) => day.date)
+        );
+        const retryDraft = toItineraryImportDraft({
+          ...preview,
+          days: preview.days.map((day) => ({
+            ...day,
+            included: failedDates.has(day.date),
+          })),
+        });
+        if (retryDraft) setPreview(createItineraryImportPreview(retryDraft));
+      }
+      if (result.data.summary.addedActivities > 0 || result.data.summary.successfulDays > 0) {
+        onImported?.();
+      }
+    } catch {
+      setConfirmationError('INTERNAL_ERROR');
+    } finally {
+      setConfirming(false);
+    }
   };
+
+  const importFinished = confirmation?.summary.failedDays === 0;
 
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && onClose()}>
@@ -171,11 +232,39 @@ export default function ItineraryImportDialog({
             </div>
           ) : (
             <div className="space-y-4 py-1">
-              {previewReady && (
-                <Alert variant="success">
+              {confirmation && (
+                <Alert variant={confirmation.summary.failedDays > 0 ? 'destructive' : 'success'}>
                   <CheckCircle2 className="h-4 w-4" />
-                  <AlertTitle>{t('previewReadyTitle')}</AlertTitle>
-                  <AlertDescription>{t('previewReadyDescription')}</AlertDescription>
+                  <AlertTitle>
+                    {confirmation.summary.failedDays > 0
+                      ? t('resultPartialTitle')
+                      : t('resultSuccessTitle')}
+                  </AlertTitle>
+                  <AlertDescription>
+                    {t('resultSummary', {
+                      days: confirmation.summary.successfulDays,
+                      activities: confirmation.summary.addedActivities,
+                      skipped: confirmation.summary.alreadyImportedDays,
+                      failed: confirmation.summary.failedDays,
+                    })}
+                    <ul className="mt-2 space-y-1">
+                      {confirmation.days.map((day, index) => (
+                        <li key={`${day.date}-${index}`}>
+                          {day.date || t('unknownDate')}：
+                          {day.status === 'failed'
+                            ? t(`confirmErrors.${day.errorCode ?? 'INTERNAL_ERROR'}`)
+                            : t(`resultStatus.${day.status}`)}
+                        </li>
+                      ))}
+                    </ul>
+                  </AlertDescription>
+                </Alert>
+              )}
+              {confirmationError && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>{t('confirmFailed')}</AlertTitle>
+                  <AlertDescription>{t(`confirmErrors.${confirmationError}`)}</AlertDescription>
                 </Alert>
               )}
               <ImportPreview
@@ -185,7 +274,8 @@ export default function ItineraryImportDialog({
                 tripEndDate={tripEndDate}
                 onChange={(nextPreview) => {
                   setPreview(nextPreview);
-                  setPreviewReady(false);
+                  setConfirmation(null);
+                  setConfirmationError(null);
                 }}
               />
             </div>
@@ -200,14 +290,25 @@ export default function ItineraryImportDialog({
                 variant="outline"
                 onClick={() => {
                   setPreview(null);
-                  setPreviewReady(false);
+                  setOperationId(null);
+                  setConfirmation(null);
+                  setConfirmationError(null);
                   requestAnimationFrame(() => sourceRef.current?.focus());
                 }}
               >
                 {t('backToSource')}
               </Button>
-              <Button type="button" onClick={confirmPreview} disabled={!canConfirmPreview}>
-                {t('confirmPreview')}
+              <Button
+                type="button"
+                onClick={importFinished ? onClose : confirmPreview}
+                disabled={!importFinished && (!canConfirmPreview || confirming)}
+              >
+                {confirming && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {importFinished
+                  ? tCommon('close')
+                  : confirmation
+                    ? t('retryFailed')
+                    : t('confirmImport')}
               </Button>
             </>
           ) : (

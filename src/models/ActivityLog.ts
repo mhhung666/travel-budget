@@ -10,6 +10,7 @@ export const ACTIVITY_TYPES = [
   'expense_deleted', // 刪除支出
   'payment_recorded', // 登記還款
   'member_joined', // 新成員加入
+  'itinerary_imported', // AI 匯入行程
 ] as const;
 
 export type ActivityType = (typeof ACTIVITY_TYPES)[number];
