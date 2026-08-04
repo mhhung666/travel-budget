@@ -162,7 +162,7 @@ describe('POST /api/ai/itinerary-import', () => {
 
   it('normalizes a schema-valid draft and never invokes itinerary write actions', async () => {
     const sourceText = 'Day 1 09:00 博物館，確認碼 SECRET-PNR';
-    const response = await POST(request({ tripId: 'trip-code', sourceText }));
+    const response = await POST(request({ tripId: 'trip-code', sourceText, locale: 'zh' }));
     const body = await responseBody(response);
 
     expect(response.status).toBe(200);
@@ -176,7 +176,7 @@ describe('POST /api/ai/itinerary-import', () => {
         ],
       },
     });
-    expect(mocks.parseImport).toHaveBeenCalledWith({ sourceText, context });
+    expect(mocks.parseImport).toHaveBeenCalledWith({ sourceText, context, locale: 'zh' });
     expect(mocks.reserveQuota).toHaveBeenCalledWith({ userId: 'user-1', tripId: 'trip-1' });
     expect(mocks.settleQuota).toHaveBeenCalledWith(expect.anything(), {
       success: true,

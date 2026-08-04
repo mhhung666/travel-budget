@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { locales } from '@/i18n/routing';
 import { ITINERARY_IMPORT_LIMITS, isItineraryImportSourceWithinLimit } from './importLimits';
 
 export const ITINERARY_IMPORT_ACTIVITY_TYPES = [
@@ -246,6 +247,7 @@ export function parseOpenAIItineraryImportDraft(value: unknown): ItineraryImport
 export const itineraryImportRequestSchema = z
   .object({
     tripId: z.string().trim().min(1),
+    locale: z.enum(locales).optional(),
     sourceText: z
       .string()
       .trim()

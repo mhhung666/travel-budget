@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertCircle, CheckCircle2, Loader2, Sparkles } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import {
   confirmItineraryImport,
   type ItineraryImportConfirmation,
@@ -32,6 +32,7 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import type { Locale } from '@/i18n/routing';
 
 type ItineraryImportDialogProps = {
   open: boolean;
@@ -76,6 +77,7 @@ export default function ItineraryImportDialog({
 }: ItineraryImportDialogProps) {
   const t = useTranslations('itinerary.aiImport');
   const tCommon = useTranslations('common');
+  const locale = useLocale() as Locale;
   const sourceRef = useRef<HTMLTextAreaElement>(null);
   const cancellationTrackedRef = useRef(false);
   const [sourceText, setSourceText] = useState('');
@@ -136,7 +138,7 @@ export default function ItineraryImportDialog({
       const response = await fetch('/api/ai/itinerary-import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tripId, sourceText }),
+        body: JSON.stringify({ tripId, sourceText, locale }),
       });
       const body = (await response.json()) as ImportApiResponse;
       if (!response.ok || !body.success) {

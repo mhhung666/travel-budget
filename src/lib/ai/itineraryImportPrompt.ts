@@ -1,14 +1,25 @@
 import type { NormalizeItineraryImportContext } from './normalizeItineraryImport';
+import type { Locale } from '@/i18n/routing';
 
 type PromptContext = Pick<NormalizeItineraryImportContext, 'tripStartDate' | 'tripEndDate'>;
+
+const OUTPUT_LANGUAGE: Record<Locale, string> = {
+  en: 'English',
+  zh: 'Traditional Chinese (Taiwan)',
+  'zh-CN': 'Simplified Chinese',
+  jp: 'Japanese',
+};
 
 /**
  * Keep the model context deliberately small. Existing activities, members, expenses and all other
  * trip data stay outside the prompt and are handled by deterministic post-processing instead.
  */
-export function buildItineraryImportSystemPrompt(context: PromptContext): string {
+export function buildItineraryImportSystemPrompt(context: PromptContext, locale?: Locale): string {
   const tripStart = context.tripStartDate ?? 'not provided';
   const tripEnd = context.tripEndDate ?? 'not provided';
+  const languageRule = locale
+    ? `Write sourceSummary, day title/content, activity title/note, and warning message in ${OUTPUT_LANGUAGE[locale]}. Translate those display fields when needed.`
+    : 'Preserve the source language in all human-readable display fields.';
 
   return [
     'You extract itinerary data from user-provided text into the required JSON schema.',
@@ -22,7 +33,9 @@ export function buildItineraryImportSystemPrompt(context: PromptContext): string
     'Use relativeDay only for explicit Day N labels when a full date is unavailable.',
     'If a date cannot be determined, omit date and add an appropriate warning.',
     'Keep confirmationCode only in its dedicated field and never repeat it in sourceSummary, title, content, note, warning messages, or any other field.',
-    'Return every recognizable activity, preserving the source language.',
+    languageRule,
+    'Preserve proper nouns, official venue/hotel names, locationName, addresses, flight/train numbers, and confirmation codes exactly as supplied unless the source already provides a localized form.',
+    'Return every recognizable activity.',
     `Trip start date: ${tripStart}`,
     `Trip end date: ${tripEnd}`,
   ].join('\n');

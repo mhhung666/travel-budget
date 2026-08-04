@@ -406,7 +406,7 @@ OpenAI nano 初測使用 required-nullable provider schema，再轉回既有 opt
 
 目前完成證據：
 
-- 四個 locale 均涵蓋輸入、載入、預覽、阻擋錯誤、功能未設定、應用配額用盡、provider 限流、部分成功及逐日結果。Dialog 使用窄螢幕寬度、受限高度內捲動、響應式欄位、初始焦點、`aria-busy`、live 字數與既有 Radix focus trap；confirmation code 預設遮罩。
+- 四個 locale 均涵蓋輸入、載入、預覽、阻擋錯誤、功能未設定、應用配額用盡、provider 限流、部分成功及逐日結果。解析 request 會傳入經 enum 驗證的目前介面 locale，摘要、日標題、活動標題與備註依該語言產生，地名、專有名詞、交通編號及 confirmation code 保留原文；未傳 locale 的舊呼叫維持來源語言。Dialog 使用窄螢幕寬度、受限高度內捲動、響應式欄位、初始焦點、`aria-busy`、live 字數與既有 Radix focus trap；confirmation code 預設遮罩。
 - `AiImportUsage` 以 MongoDB UTC 日 bucket 持久化 global／user／trip requests，原子保留後再呼叫 provider。全域成本以 micro-USD 最壞情況預留，成功後結算實際 input/output tokens 與設定價格；失敗若無 usage 則保守計入整筆預留。跨 scope 拒絕會補償先前保留，程序中斷則 fail closed。預設每日 5/user、10/trip、50/global，均可由 env 調整。
 - `ai_itinerary_import` 事件只記錄固定分類的 parse、preview、confirm、cancel、是否修正、部分成功及錯誤碼；不接受 id、原文、日期、地點、訂位代碼或自由文字。server log 增加 cost micro-USD，仍不記草稿內容。
 - route 測試涵蓋持久化配額在 provider 前拒絕及成功／失敗結算；quota 測試涵蓋 UTC bucket、三 scope、原子限制、補償與成本計算；action 以五天／十活動完成腳本化寫入驗收。`pnpm test:run`（859 passed、1 個 opt-in live eval skipped）、typecheck、lint、format、diff check 與 production build 均已通過；build 只有既有 authenticated page 使用 cookies 的 dynamic-render log，exit code 為 0。

@@ -13,6 +13,7 @@ import {
   buildItineraryImportUserPrompt,
 } from './itineraryImportPrompt';
 import type { NormalizeItineraryImportContext } from './normalizeItineraryImport';
+import type { Locale } from '@/i18n/routing';
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 const MAX_OUTPUT_TOKENS = 8_000;
@@ -187,6 +188,7 @@ function usesOpenAIStructuredOutput(config: ItineraryImportProviderConfig): bool
 export async function parseItineraryImport(input: {
   sourceText: string;
   context: Pick<NormalizeItineraryImportContext, 'tripStartDate' | 'tripEndDate'>;
+  locale?: Locale;
   maxRetries?: number;
 }): Promise<ItineraryImportGeneration> {
   const config = resolveItineraryImportProviderConfig();
@@ -195,7 +197,7 @@ export async function parseItineraryImport(input: {
   try {
     const generationOptions = {
       model: modelFor(config),
-      system: buildItineraryImportSystemPrompt(input.context),
+      system: buildItineraryImportSystemPrompt(input.context, input.locale),
       prompt: buildItineraryImportUserPrompt(input.sourceText),
       maxOutputTokens: MAX_OUTPUT_TOKENS,
       maxRetries: input.maxRetries ?? 1,

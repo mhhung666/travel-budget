@@ -112,6 +112,7 @@ export async function POST(request: NextRequest) {
     const generation = await parseItineraryImport({
       sourceText: requestInput.data.sourceText,
       context: contextResult.context,
+      locale: requestInput.data.locale,
     });
     const draft = normalizeItineraryImport(generation.draft, contextResult.context);
 

@@ -140,7 +140,11 @@ describe('ItineraryImportDialog', { timeout: 15_000 }, () => {
       2,
       '/api/ai/itinerary-import',
       expect.objectContaining({
-        body: JSON.stringify({ tripId: 'trip-1', sourceText: 'Replacement source' }),
+        body: JSON.stringify({
+          tripId: 'trip-1',
+          sourceText: 'Replacement source',
+          locale: 'zh',
+        }),
       })
     );
   });
