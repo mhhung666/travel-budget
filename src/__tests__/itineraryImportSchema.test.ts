@@ -5,6 +5,7 @@ import {
   ITINERARY_IMPORT_ERROR_CODES,
   itineraryImportDraftSchema,
   itineraryImportRequestSchema,
+  parseOpenAIItineraryImportDraft,
 } from '@/lib/ai/itineraryImportSchema';
 
 const validActivity = { title: '參觀博物館', type: 'sightseeing' as const };
@@ -78,6 +79,50 @@ describe('itineraryImportDraftSchema', () => {
           date: '2026-09-01',
           title: '第一天',
           activities: [{ ...validActivity, title: '參觀博物館', note: '慢慢逛' }],
+        },
+      ],
+      warnings: [],
+    });
+  });
+
+  it('converts OpenAI required nullable fields back to canonical optional fields', () => {
+    expect(
+      parseOpenAIItineraryImportDraft({
+        sourceSummary: '',
+        days: [
+          {
+            date: '2026-09-01',
+            relativeDay: null,
+            title: null,
+            content: null,
+            activities: [
+              {
+                time: '09:00',
+                endTime: null,
+                title: '抵達東京站',
+                type: 'ground_transport',
+                locationName: '東京站',
+                note: null,
+                confirmationCode: null,
+              },
+            ],
+          },
+        ],
+        warnings: [],
+      })
+    ).toEqual({
+      sourceSummary: '',
+      days: [
+        {
+          date: '2026-09-01',
+          activities: [
+            {
+              time: '09:00',
+              title: '抵達東京站',
+              type: 'ground_transport',
+              locationName: '東京站',
+            },
+          ],
         },
       ],
       warnings: [],

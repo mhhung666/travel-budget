@@ -290,7 +290,7 @@ Phase 必須依序通過完成條件。Phase 0 與 Phase 1 可以在同一開發
 | Phase | 狀態 | 可交付結果 | 是否寫入旅程資料 |
 | --- | --- | --- | --- |
 | 0 | `complete` | 固定樣本、期望輸出、限制與評分工具 | 否 |
-| 1 | `planned` | 具權限與限制保護的結構化解析 endpoint | 否 |
+| 1 | `implemented` | 具權限與限制保護的結構化解析 endpoint；live baseline 待可用額度 | 否 |
 | 2A | `planned` | 可編輯、可取消項目的匯入預覽 | 否 |
 | 2B | `planned` | 明確確認後的逐日匯入與失敗重試 | 是 |
 | 2C | `planned` | i18n、行動版、觀測、整合與安全驗收 | 是 |
@@ -318,6 +318,10 @@ Phase 必須依序通過完成條件。Phase 0 與 Phase 1 可以在同一開發
 
 ### Phase 1：只解析、不寫入
 
+狀態：`implemented`（2026-08-04）；`openai/gpt-5.6-luna` 與 `google/gemini-3.1-flash-lite` 在 Gateway Free tier 均回覆 HTTP 403，後者的 3 次 smoke request 皆未產生 token。`alibaba/qwen3.7-flash` 可生成，但需在 prompt 明列 JSON 欄位骨架並關閉 thinking；節流 11 秒的 31 筆評估仍只有 6 筆到達模型（3 筆合法、3 筆無效），其餘 25 筆被 Gateway Free tier rate limit 拒絕，初步 schema 遵循率為 50%。
+
+OpenAI nano 初測使用 required-nullable provider schema，再轉回既有 optional 草稿契約。`openai/gpt-4.1-nano` 單筆 smoke 為合法 schema、核心欄位 100%、約 3.3 秒、721 input／128 output tokens；5 筆小樣本有 4 筆到達模型且 4 筆皆為合法 schema，這 4 筆共 33 個核心欄位、答對 29 個，正確率約 87.9%，第 5 筆遭 Free tier 429。`openai/gpt-5-nano` 預設推理的單筆雖達 100%，但約需 21.7 秒與 2,964 output tokens；改成 minimal reasoning 後約 3.5 秒與 189 output tokens，該次核心欄位為 85.7%，後續 5 筆皆遭 Free tier 429。`openai/gpt-5-mini` 第一筆即遭 Free tier 429，尚無品質資料。依目前小樣本，開發環境暫選 `openai/gpt-4.1-nano`；它尚未達 90% 品質門檻，完整 baseline 仍需等待限流重置或使用付費額度。
+
 目標是讓 admin 能把文字轉成合法草稿，同時證明此路徑沒有任何資料寫入能力。
 
 交付物：
@@ -332,6 +336,8 @@ Phase 必須依序通過完成條件。Phase 0 與 Phase 1 可以在同一開發
 測試重點：未登入與非 admin 不會呼叫 provider；惡意 prompt 仍只能得到 schema 草稿；provider timeout、截斷、非 schema 輸出及超量輸出可安全失敗；route 測試不得觀察到 itinerary action 或 Mongoose 寫入。
 
 完成條件：有效回應 100% 通過 Zod；至少 90% 固定樣本可產生合法 schema，核心欄位正確率達 90%；失敗請求不寫入資料且能安全重試；成本與延遲已有可比較的基線紀錄。
+
+實作證據：集中 provider、最小化 prompt、唯讀 context loader 與 route 分別位於 `src/lib/ai/` 及 `src/app/api/ai/itinerary-import/route.ts`；route/provider 自動化測試涵蓋未登入、非 admin、無效／超長輸入、功能停用、rate limit、timeout、截斷、無效模型輸出、去敏 log，以及零 itinerary action 呼叫。`pnpm test:ai-import-eval` 僅在明確啟用 live eval 時載入 `.env.local`、使用 Node 測試環境，並彙總安全的 provider 錯誤分類；可用 `AI_IMPORT_EVAL_CASE_LIMIT` 限制 smoke 樣本、用 `AI_IMPORT_EVAL_INTERVAL_MS` 對 Free tier 評估節流，而且 live eval 關閉 SDK retry，避免限流請求被重送。Alibaba 模型會明確停用 thinking，以避免簡單抽取浪費 reasoning tokens。通過全部固定樣本的 90% 門檻並記錄 latency/token baseline 後才將本 Phase 改為 `complete`。
 
 ### Phase 2A：可編輯預覽
 

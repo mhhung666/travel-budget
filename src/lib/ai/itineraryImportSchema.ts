@@ -136,6 +136,112 @@ export const itineraryImportDraftSchema = z
     }
   });
 
+// OpenAI strict structured outputs require every declared property to be required. Fields that are
+// optional in our application contract are therefore represented as required-but-nullable at the
+// provider boundary, then converted back before the canonical draft schema is applied.
+export const openAIItineraryImportDraftSchema = z
+  .object({
+    sourceSummary: z.string().trim().max(ITINERARY_IMPORT_LIMITS.sourceSummaryCharacters),
+    days: z
+      .array(
+        z
+          .object({
+            date: calendarDateSchema.nullable(),
+            relativeDay: z.number().int().positive().max(366).nullable(),
+            title: z
+              .string()
+              .trim()
+              .min(1)
+              .max(ITINERARY_IMPORT_LIMITS.dayTitleCharacters)
+              .nullable(),
+            content: z.string().trim().max(ITINERARY_IMPORT_LIMITS.dayContentCharacters).nullable(),
+            activities: z
+              .array(
+                z
+                  .object({
+                    time: timeSchema.nullable(),
+                    endTime: timeSchema.nullable(),
+                    title: z
+                      .string()
+                      .trim()
+                      .min(1)
+                      .max(ITINERARY_IMPORT_LIMITS.activityTitleCharacters),
+                    type: z.enum(ITINERARY_IMPORT_ACTIVITY_TYPES),
+                    locationName: z
+                      .string()
+                      .trim()
+                      .min(1)
+                      .max(ITINERARY_IMPORT_LIMITS.locationNameCharacters)
+                      .nullable(),
+                    note: z
+                      .string()
+                      .trim()
+                      .max(ITINERARY_IMPORT_LIMITS.activityNoteCharacters)
+                      .nullable(),
+                    confirmationCode: z
+                      .string()
+                      .trim()
+                      .min(1)
+                      .max(ITINERARY_IMPORT_LIMITS.confirmationCodeCharacters)
+                      .nullable(),
+                  })
+                  .strict()
+              )
+              .max(ITINERARY_IMPORT_LIMITS.activitiesPerDay),
+          })
+          .strict()
+      )
+      .max(ITINERARY_IMPORT_LIMITS.days),
+    warnings: z
+      .array(
+        z
+          .object({
+            code: itineraryImportWarningCodeSchema,
+            message: z
+              .string()
+              .trim()
+              .min(1)
+              .max(ITINERARY_IMPORT_LIMITS.warningMessageCharacters)
+              .nullable(),
+            dayIndex: z.number().int().nonnegative().nullable(),
+            activityIndex: z.number().int().nonnegative().nullable(),
+          })
+          .strict()
+      )
+      .max(ITINERARY_IMPORT_LIMITS.warnings),
+  })
+  .strict();
+
+export function parseOpenAIItineraryImportDraft(value: unknown): ItineraryImportDraft {
+  const parsed = openAIItineraryImportDraftSchema.parse(value);
+  return itineraryImportDraftSchema.parse({
+    sourceSummary: parsed.sourceSummary,
+    days: parsed.days.map((day) => ({
+      ...(day.date !== null ? { date: day.date } : {}),
+      ...(day.relativeDay !== null ? { relativeDay: day.relativeDay } : {}),
+      ...(day.title !== null ? { title: day.title } : {}),
+      ...(day.content !== null ? { content: day.content } : {}),
+      activities: day.activities.map((activity) => ({
+        ...(activity.time !== null ? { time: activity.time } : {}),
+        ...(activity.endTime !== null ? { endTime: activity.endTime } : {}),
+        title: activity.title,
+        type: activity.type,
+        ...(activity.locationName !== null ? { locationName: activity.locationName } : {}),
+        ...(activity.note !== null ? { note: activity.note } : {}),
+        ...(activity.confirmationCode !== null
+          ? { confirmationCode: activity.confirmationCode }
+          : {}),
+      })),
+    })),
+    warnings: parsed.warnings.map((warning) => ({
+      code: warning.code,
+      ...(warning.message !== null ? { message: warning.message } : {}),
+      ...(warning.dayIndex !== null ? { dayIndex: warning.dayIndex } : {}),
+      ...(warning.activityIndex !== null ? { activityIndex: warning.activityIndex } : {}),
+    })),
+  });
+}
+
 export const itineraryImportRequestSchema = z
   .object({
     tripId: z.string().trim().min(1),
