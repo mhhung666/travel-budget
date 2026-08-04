@@ -265,4 +265,33 @@ describe('confirmItineraryImport', () => {
     expect(storedDays.some((day) => day.dayNumber === 1)).toBe(true);
     expect(storedDays.find((day) => day.dayNumber === 2)?.activities).toHaveLength(15);
   });
+
+  it('completes a scripted five-day itinerary acceptance flow', async () => {
+    const days = Array.from({ length: 5 }, (_, index) => ({
+      date: `2026-09-0${index + 1}`,
+      title: `Day ${index + 1}`,
+      content: `Plan ${index + 1}`,
+      activities: [
+        {
+          time: '09:00',
+          title: `Morning activity ${index + 1}`,
+          type: 'sightseeing',
+          locationName: `Location ${index + 1}`,
+        },
+        { time: '18:00', title: `Dinner ${index + 1}`, type: 'food' },
+      ],
+    }));
+
+    const result = await confirmItineraryImport(TRIP_ID, draft(days));
+
+    expect(result).toMatchObject({
+      success: true,
+      data: {
+        summary: { successfulDays: 5, addedActivities: 10, failedDays: 0 },
+      },
+    });
+    expect(storedDays).toHaveLength(5);
+    expect(storedDays.flatMap((day) => day.activities)).toHaveLength(10);
+    expect(storedDays.map((day) => day.dayNumber)).toEqual([1, 2, 3, 4, 5]);
+  });
 });

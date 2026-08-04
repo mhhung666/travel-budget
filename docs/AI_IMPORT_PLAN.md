@@ -293,7 +293,7 @@ Phase 必須依序通過完成條件。低流量 Free tier 試用可採較小但
 | 1 | `complete-limited` | 具權限與限制保護的結構化解析 endpoint；Free tier 低流量試用 | 否 |
 | 2A | `complete` | 可編輯、可取消項目的匯入預覽 | 否 |
 | 2B | `complete` | 明確確認後的逐日匯入與失敗重試 | 是 |
-| 2C | `planned` | i18n、行動版、觀測、整合與安全驗收 | 是 |
+| 2C | `in-progress` | i18n、行動版、觀測、整合與安全驗收 | 是 |
 | 3 | `deferred` | 自然語言支出草稿與分攤 | 是，須另行確認 |
 
 ### Phase 0：樣本、契約與驗證基線
@@ -390,6 +390,8 @@ OpenAI nano 初測使用 required-nullable provider schema，再轉回既有 opt
 
 ### Phase 2C：MVP 完整驗收與發布準備
 
+狀態：`in-progress`（2026-08-04）。低流量 Free Tier 發布保護與腳本化五天流程已完成；完整 31 筆 provider 可用率及真人完成時間仍是擴大流量前的未完成門檻。
+
 目標是補齊可正式開放所需的跨功能品質，而不是在 2B 寫入成功後立即視為完成。
 
 交付物：
@@ -401,6 +403,16 @@ OpenAI nano 初測使用 required-nullable provider schema，再轉回既有 opt
 - 更新環境變數範例、部署說明、`FEATURES.md`、`ARCHITECTURE.md`、`ROADMAP.md` 與必要的 `CHANGELOG.md`。
 
 完成條件：第 11 節所有行程 MVP 指標通過；未設定 AI 環境時其餘應用功能正常；可觀察成本、延遲、確認率與失敗原因；完成一次五天行程的真人或腳本化端到端驗收。
+
+目前完成證據：
+
+- 四個 locale 均涵蓋輸入、載入、預覽、阻擋錯誤、功能未設定、應用配額用盡、provider 限流、部分成功及逐日結果。Dialog 使用窄螢幕寬度、受限高度內捲動、響應式欄位、初始焦點、`aria-busy`、live 字數與既有 Radix focus trap；confirmation code 預設遮罩。
+- `AiImportUsage` 以 MongoDB UTC 日 bucket 持久化 global／user／trip requests，原子保留後再呼叫 provider。全域成本以 micro-USD 最壞情況預留，成功後結算實際 input/output tokens 與設定價格；失敗若無 usage 則保守計入整筆預留。跨 scope 拒絕會補償先前保留，程序中斷則 fail closed。預設每日 5/user、10/trip、50/global，均可由 env 調整。
+- `ai_itinerary_import` 事件只記錄固定分類的 parse、preview、confirm、cancel、是否修正、部分成功及錯誤碼；不接受 id、原文、日期、地點、訂位代碼或自由文字。server log 增加 cost micro-USD，仍不記草稿內容。
+- route 測試涵蓋持久化配額在 provider 前拒絕及成功／失敗結算；quota 測試涵蓋 UTC bucket、三 scope、原子限制、補償與成本計算；action 以五天／十活動完成腳本化寫入驗收。`pnpm test:run`（859 passed、1 個 opt-in live eval skipped）、typecheck、lint、format、diff check 與 production build 均已通過；build 只有既有 authenticated page 使用 cookies 的 dynamic-render log，exit code 為 0。
+- `.env.example`、根 README、`FEATURES.md`、`ARCHITECTURE.md`、`ROADMAP.md` 與 `CHANGELOG.md` 已記錄開關、部署值、資料流、受限試用邊界與擴流 gate。
+
+尚未通過：完整 31 fixture 至少 90% provider 可用率（目前 Free Tier 為 32.3%）以及相較手動建立至少節省 50% 的真人計時。因此 Phase 2C 不標記 complete，產品不得宣稱一般流量正式可用。
 
 ### Phase 3：自然語言記帳與分攤（MVP 後）
 

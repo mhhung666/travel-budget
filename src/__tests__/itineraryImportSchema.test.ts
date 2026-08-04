@@ -47,6 +47,7 @@ describe('itineraryImportDraftSchema', () => {
       'FEATURE_DISABLED',
       'INVALID_REQUEST',
       'SOURCE_TOO_LONG',
+      'USAGE_LIMITED',
       'RATE_LIMITED',
       'PROVIDER_TIMEOUT',
       'INVALID_MODEL_OUTPUT',

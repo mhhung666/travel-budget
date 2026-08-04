@@ -1214,6 +1214,7 @@
         "FEATURE_DISABLED": "AI 导入尚未设置或此模型无法使用。",
         "INVALID_REQUEST": "输入内容无效，请修改后重试。",
         "SOURCE_TOO_LONG": "输入超过字数上限。",
+        "USAGE_LIMITED": "今天的 AI 导入试用额度已用完，请明天再试。原文会保留以便稍后重试。",
         "RATE_LIMITED": "AI 服务目前使用量受限，请稍后重试。",
         "PROVIDER_TIMEOUT": "AI 服务响应超时，请重试。",
         "INVALID_MODEL_OUTPUT": "AI 返回的格式无法安全使用，请调整原文后重试。",

@@ -1221,6 +1221,7 @@
         "FEATURE_DISABLED": "AI import is not configured or this model is unavailable.",
         "INVALID_REQUEST": "The input is invalid. Edit it and try again.",
         "SOURCE_TOO_LONG": "The input exceeds the character limit.",
+        "USAGE_LIMITED": "Today's AI import trial allowance is used up. Try again tomorrow; your source stays available for retry.",
         "RATE_LIMITED": "The AI service is rate limited. Try again later.",
         "PROVIDER_TIMEOUT": "The AI service timed out. Try again.",
         "INVALID_MODEL_OUTPUT": "The AI response could not be used safely. Edit the source and try again.",

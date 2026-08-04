@@ -12,6 +12,12 @@ import {
   parseItineraryImport,
 } from '@/lib/ai/itineraryImportProvider';
 import { normalizeItineraryImport } from '@/lib/ai/normalizeItineraryImport';
+import {
+  ItineraryImportQuotaError,
+  reserveItineraryImportQuota,
+  settleItineraryImportQuota,
+  type ItineraryImportQuotaReservation,
+} from '@/lib/ai/itineraryImportQuota';
 import { logger } from '@/lib/logger';
 
 export const runtime = 'nodejs';
@@ -27,6 +33,7 @@ const ERROR_STATUS: Record<ItineraryImportErrorCode, number> = {
   FEATURE_DISABLED: 503,
   INVALID_REQUEST: 400,
   SOURCE_TOO_LONG: 413,
+  USAGE_LIMITED: 429,
   RATE_LIMITED: 429,
   PROVIDER_TIMEOUT: 504,
   INVALID_MODEL_OUTPUT: 502,
@@ -85,12 +92,46 @@ export async function POST(request: NextRequest) {
   if (contextResult.status === 'forbidden') return errorResponse('FORBIDDEN');
   if (contextResult.status === 'not_found') return errorResponse('TRIP_NOT_FOUND');
 
+  let quotaReservation: ItineraryImportQuotaReservation;
+  try {
+    quotaReservation = await reserveItineraryImportQuota({
+      userId: session.userId,
+      tripId: contextResult.tripId,
+    });
+  } catch (error) {
+    const code = error instanceof ItineraryImportQuotaError ? error.code : 'INTERNAL_ERROR';
+    logger.warn('AI itinerary import quota rejected', {
+      latencyMs: Date.now() - startedAt,
+      status: 'error',
+      errorCode: code,
+    });
+    return errorResponse(code);
+  }
+
   try {
     const generation = await parseItineraryImport({
       sourceText: requestInput.data.sourceText,
       context: contextResult.context,
     });
     const draft = normalizeItineraryImport(generation.draft, contextResult.context);
+
+    let costMicroUsd: number | undefined;
+    try {
+      costMicroUsd = (
+        await settleItineraryImportQuota(quotaReservation, {
+          success: true,
+          usage: generation.usage,
+        })
+      ).costMicroUsd;
+    } catch {
+      // The reservation remains consumed, which fails closed for future requests. A metering write
+      // failure must not discard an otherwise valid draft after provider cost has already occurred.
+      logger.warn('AI itinerary import metering failed', {
+        latencyMs: Date.now() - startedAt,
+        status: 'error',
+        errorCode: 'INTERNAL_ERROR',
+      });
+    }
 
     logger.info('AI itinerary import parsed', {
       provider: generation.provider,
@@ -99,6 +140,7 @@ export async function POST(request: NextRequest) {
       inputTokens: generation.usage.inputTokens,
       outputTokens: generation.usage.outputTokens,
       totalTokens: generation.usage.totalTokens,
+      costMicroUsd,
       status: 'success',
     });
 
@@ -110,6 +152,7 @@ export async function POST(request: NextRequest) {
         : error instanceof ZodError
           ? 'INVALID_MODEL_OUTPUT'
           : 'INTERNAL_ERROR';
+    await settleItineraryImportQuota(quotaReservation, { success: false }).catch(() => undefined);
     logger.warn('AI itinerary import failed', {
       latencyMs: Date.now() - startedAt,
       status: 'error',

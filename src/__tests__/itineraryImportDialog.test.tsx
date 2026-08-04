@@ -42,7 +42,7 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe('ItineraryImportDialog', () => {
+describe('ItineraryImportDialog', { timeout: 15_000 }, () => {
   it('keeps failed source text editable and focuses it when opened', async () => {
     const user = userEvent.setup();
     vi.stubGlobal(

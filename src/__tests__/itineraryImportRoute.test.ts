@@ -9,6 +9,8 @@ const mocks = vi.hoisted(() => ({
   updateItineraryDay: vi.fn(),
   loggerInfo: vi.fn(),
   loggerWarn: vi.fn(),
+  reserveQuota: vi.fn(),
+  settleQuota: vi.fn(),
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: mocks.getSessionFromRequest }));
@@ -31,6 +33,18 @@ vi.mock('@/actions/itinerary.actions', () => ({
   createItineraryDay: mocks.createItineraryDay,
   updateItineraryDay: mocks.updateItineraryDay,
 }));
+vi.mock('@/lib/ai/itineraryImportQuota', () => {
+  class ItineraryImportQuotaError extends Error {
+    constructor(public readonly code: string) {
+      super(code);
+    }
+  }
+  return {
+    ItineraryImportQuotaError,
+    reserveItineraryImportQuota: mocks.reserveQuota,
+    settleItineraryImportQuota: mocks.settleQuota,
+  };
+});
 vi.mock('@/lib/logger', () => ({
   logger: {
     info: mocks.loggerInfo,
@@ -41,6 +55,7 @@ vi.mock('@/lib/logger', () => ({
 }));
 
 import { ItineraryImportProviderError } from '@/lib/ai/itineraryImportProvider';
+import { ItineraryImportQuotaError } from '@/lib/ai/itineraryImportQuota';
 import { POST } from '@/app/api/ai/itinerary-import/route';
 
 const context = {
@@ -71,6 +86,12 @@ describe('POST /api/ai/itinerary-import', () => {
     vi.clearAllMocks();
     mocks.getSessionFromRequest.mockResolvedValue({ userId: 'user-1', username: 'admin' });
     mocks.loadContext.mockResolvedValue({ status: 'ok', tripId: 'trip-1', context });
+    mocks.reserveQuota.mockResolvedValue({
+      periodStart: new Date('2026-09-01T00:00:00.000Z'),
+      reservedMicroUsd: 0,
+      scopes: [],
+    });
+    mocks.settleQuota.mockResolvedValue({ costMicroUsd: 0 });
     mocks.parseImport.mockResolvedValue({
       draft: {
         sourceSummary: '第一天參觀博物館',
@@ -156,6 +177,11 @@ describe('POST /api/ai/itinerary-import', () => {
       },
     });
     expect(mocks.parseImport).toHaveBeenCalledWith({ sourceText, context });
+    expect(mocks.reserveQuota).toHaveBeenCalledWith({ userId: 'user-1', tripId: 'trip-1' });
+    expect(mocks.settleQuota).toHaveBeenCalledWith(expect.anything(), {
+      success: true,
+      usage: { inputTokens: 100, outputTokens: 50, totalTokens: 150 },
+    });
     expect(mocks.createItineraryDay).not.toHaveBeenCalled();
     expect(mocks.updateItineraryDay).not.toHaveBeenCalled();
 
@@ -164,6 +190,16 @@ describe('POST /api/ai/itinerary-import', () => {
     expect(logged).not.toContain('SECRET-PNR');
     expect(logged).toContain('inputTokens');
     expect(logged).toContain('latencyMs');
+  });
+
+  it('rejects a persistent usage limit before calling the provider', async () => {
+    mocks.reserveQuota.mockRejectedValue(new ItineraryImportQuotaError('USAGE_LIMITED'));
+
+    const response = await POST(request({ tripId: 'trip-1', sourceText: 'Day 1 博物館' }));
+
+    expect(response.status).toBe(429);
+    expect(await responseBody(response)).toMatchObject({ error: { code: 'USAGE_LIMITED' } });
+    expect(mocks.parseImport).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -182,6 +218,7 @@ describe('POST /api/ai/itinerary-import', () => {
     expect(await responseBody(response)).toMatchObject({ success: false, error: { code } });
     expect(mocks.createItineraryDay).not.toHaveBeenCalled();
     expect(mocks.updateItineraryDay).not.toHaveBeenCalled();
+    expect(mocks.settleQuota).toHaveBeenCalledWith(expect.anything(), { success: false });
     expect(JSON.stringify(mocks.loggerWarn.mock.calls)).not.toContain('Day 1 博物館');
   });
 

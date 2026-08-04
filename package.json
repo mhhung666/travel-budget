@@ -1,6 +1,6 @@
 {
   "name": "travel-budget",
-  "version": "3.21.0",
+  "version": "4.0.0",
   "description": "一個輕量化的旅行記帳與分帳應用程式,適合多人出國旅行時使用。",
   "main": "index.js",
   "type": "module",
@@ -16,7 +16,7 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:ai-import-eval": "RUN_AI_IMPORT_EVAL=1 vitest run src/__tests__/itineraryImportLiveEvaluation.test.ts",
-    "test:a11y": "vitest run src/__tests__/phase4Accessibility.test.tsx src/__tests__/phase4Flows.test.tsx",
+    "test:a11y": "vitest run src/__tests__/phase4Accessibility.test.tsx src/__tests__/phase4Flows.test.tsx src/__tests__/itineraryImportAccessibility.test.tsx",
     "test:coverage": "vitest run --coverage",
     "migrate:status": "migrate-mongo status",
     "migrate:up": "migrate-mongo up",

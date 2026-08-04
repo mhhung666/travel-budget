@@ -8,6 +8,7 @@ import {
   type ItineraryImportConfirmation,
 } from '@/actions/itineraryImport.actions';
 import { countImportCharacters, ITINERARY_IMPORT_LIMITS } from '@/lib/ai/importLimits';
+import { trackProductEvent } from '@/lib/productEvents';
 import {
   itineraryImportDraftSchema,
   type ItineraryImportErrorCode,
@@ -76,6 +77,7 @@ export default function ItineraryImportDialog({
   const t = useTranslations('itinerary.aiImport');
   const tCommon = useTranslations('common');
   const sourceRef = useRef<HTMLTextAreaElement>(null);
+  const cancellationTrackedRef = useRef(false);
   const [sourceText, setSourceText] = useState('');
   const [preview, setPreview] = useState<ItineraryImportPreview | null>(null);
   const [loading, setLoading] = useState(false);
@@ -84,6 +86,7 @@ export default function ItineraryImportDialog({
   const [confirming, setConfirming] = useState(false);
   const [confirmation, setConfirmation] = useState<ItineraryImportConfirmation | null>(null);
   const [confirmationError, setConfirmationError] = useState<string | null>(null);
+  const [previewCorrected, setPreviewCorrected] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -94,6 +97,8 @@ export default function ItineraryImportDialog({
     setOperationId(null);
     setConfirmation(null);
     setConfirmationError(null);
+    setPreviewCorrected(false);
+    cancellationTrackedRef.current = false;
     requestAnimationFrame(() => sourceRef.current?.focus());
   }, [open]);
 
@@ -120,6 +125,13 @@ export default function ItineraryImportDialog({
     setOperationId(null);
     setConfirmation(null);
     setConfirmationError(null);
+    setPreviewCorrected(false);
+    trackProductEvent('ai_itinerary_import', {
+      stage: 'parse_started',
+      result: 'pending',
+      corrected: 'unknown',
+      errorCode: 'none',
+    });
     try {
       const response = await fetch('/api/ai/itinerary-import', {
         method: 'POST',
@@ -128,18 +140,43 @@ export default function ItineraryImportDialog({
       });
       const body = (await response.json()) as ImportApiResponse;
       if (!response.ok || !body.success) {
-        setErrorCode(body.success ? 'INTERNAL_ERROR' : (body.error?.code ?? 'INTERNAL_ERROR'));
+        const code = body.success ? 'INTERNAL_ERROR' : (body.error?.code ?? 'INTERNAL_ERROR');
+        setErrorCode(code);
+        trackProductEvent('ai_itinerary_import', {
+          stage: 'parse_failed',
+          result: 'failure',
+          corrected: 'unknown',
+          errorCode: code,
+        });
         return;
       }
       const draft = itineraryImportDraftSchema.safeParse(body.draft);
       if (!draft.success) {
         setErrorCode('INVALID_MODEL_OUTPUT');
+        trackProductEvent('ai_itinerary_import', {
+          stage: 'parse_failed',
+          result: 'failure',
+          corrected: 'unknown',
+          errorCode: 'INVALID_MODEL_OUTPUT',
+        });
         return;
       }
       setPreview(createItineraryImportPreview(draft.data));
       setOperationId(crypto.randomUUID());
+      trackProductEvent('ai_itinerary_import', {
+        stage: 'preview_shown',
+        result: 'success',
+        corrected: 'no',
+        errorCode: 'none',
+      });
     } catch {
       setErrorCode('INTERNAL_ERROR');
+      trackProductEvent('ai_itinerary_import', {
+        stage: 'parse_failed',
+        result: 'failure',
+        corrected: 'unknown',
+        errorCode: 'INTERNAL_ERROR',
+      });
     } finally {
       setLoading(false);
     }
@@ -151,10 +188,22 @@ export default function ItineraryImportDialog({
     if (!draft) return;
     setConfirming(true);
     setConfirmationError(null);
+    trackProductEvent('ai_itinerary_import', {
+      stage: 'confirm_started',
+      result: 'pending',
+      corrected: previewCorrected ? 'yes' : 'no',
+      errorCode: 'none',
+    });
     try {
       const result = await confirmItineraryImport(tripId, { operationId, draft });
       if (!result.success) {
         setConfirmationError(result.code ?? 'INTERNAL_ERROR');
+        trackProductEvent('ai_itinerary_import', {
+          stage: 'confirm_failed',
+          result: 'failure',
+          corrected: previewCorrected ? 'yes' : 'no',
+          errorCode: 'CONFIRMATION_ERROR',
+        });
         return;
       }
       setConfirmation((previous) => mergeConfirmations(previous, result.data));
@@ -174,8 +223,20 @@ export default function ItineraryImportDialog({
       if (result.data.summary.addedActivities > 0 || result.data.summary.successfulDays > 0) {
         onImported?.();
       }
+      trackProductEvent('ai_itinerary_import', {
+        stage: 'confirmed',
+        result: result.data.summary.failedDays > 0 ? 'partial' : 'success',
+        corrected: previewCorrected ? 'yes' : 'no',
+        errorCode: 'none',
+      });
     } catch {
       setConfirmationError('INTERNAL_ERROR');
+      trackProductEvent('ai_itinerary_import', {
+        stage: 'confirm_failed',
+        result: 'failure',
+        corrected: previewCorrected ? 'yes' : 'no',
+        errorCode: 'CONFIRMATION_ERROR',
+      });
     } finally {
       setConfirming(false);
     }
@@ -183,9 +244,25 @@ export default function ItineraryImportDialog({
 
   const importFinished = confirmation?.summary.failedDays === 0;
 
+  const closeDialog = () => {
+    if (!cancellationTrackedRef.current && !importFinished && (sourceText.trim() || preview)) {
+      cancellationTrackedRef.current = true;
+      trackProductEvent('ai_itinerary_import', {
+        stage: 'cancelled',
+        result: 'cancelled',
+        corrected: preview ? (previewCorrected ? 'yes' : 'no') : 'unknown',
+        errorCode: 'none',
+      });
+    }
+    onClose();
+  };
+
   return (
-    <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && onClose()}>
-      <DialogContent className="flex max-h-[94vh] w-[calc(100vw-1rem)] max-w-4xl flex-col p-4 sm:p-6">
+    <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && closeDialog()}>
+      <DialogContent
+        className="flex max-h-[94vh] w-[calc(100vw-1rem)] max-w-4xl flex-col p-4 sm:p-6"
+        aria-busy={loading || confirming}
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 pr-8">
             <Sparkles className="h-5 w-5" />
@@ -274,6 +351,7 @@ export default function ItineraryImportDialog({
                 tripEndDate={tripEndDate}
                 onChange={(nextPreview) => {
                   setPreview(nextPreview);
+                  setPreviewCorrected(true);
                   setConfirmation(null);
                   setConfirmationError(null);
                 }}
@@ -300,7 +378,7 @@ export default function ItineraryImportDialog({
               </Button>
               <Button
                 type="button"
-                onClick={importFinished ? onClose : confirmPreview}
+                onClick={importFinished ? closeDialog : confirmPreview}
                 disabled={!importFinished && (!canConfirmPreview || confirming)}
               >
                 {confirming && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -313,7 +391,7 @@ export default function ItineraryImportDialog({
             </>
           ) : (
             <>
-              <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
+              <Button type="button" variant="outline" onClick={closeDialog} disabled={loading}>
                 {tCommon('cancel')}
               </Button>
               <Button

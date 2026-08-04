@@ -1,5 +1,6 @@
 import { track } from '@vercel/analytics';
 import type { StatsInsightRuleVersion, StatsInsightType } from '@/types';
+import type { ItineraryImportErrorCode } from '@/lib/ai/itineraryImportSchema';
 
 export interface ProductEventMap {
   stats_insight_result: {
@@ -28,6 +29,19 @@ export interface ProductEventMap {
   };
   offline_expense: {
     state: 'queued' | 'synced' | 'failed';
+  };
+  ai_itinerary_import: {
+    stage:
+      | 'parse_started'
+      | 'preview_shown'
+      | 'parse_failed'
+      | 'confirm_started'
+      | 'confirmed'
+      | 'confirm_failed'
+      | 'cancelled';
+    result: 'pending' | 'success' | 'partial' | 'failure' | 'cancelled';
+    corrected: 'yes' | 'no' | 'unknown';
+    errorCode: ItineraryImportErrorCode | 'CONFIRMATION_ERROR' | 'none';
   };
 }
 

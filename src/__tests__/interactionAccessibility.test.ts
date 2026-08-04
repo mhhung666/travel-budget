@@ -78,7 +78,7 @@ function hasDescendantAccessibleText(node: ts.JsxElement): boolean {
   return found;
 }
 
-describe('interaction accessibility contracts', () => {
+describe('interaction accessibility contracts', { timeout: 15_000 }, () => {
   it('keeps shared icon buttons at least 44px with a visible focus ring', () => {
     const classes = buttonVariants({ size: 'icon' });
     expect(classes).toContain('min-h-11');

@@ -209,11 +209,21 @@ src/
 - [productEvents.ts](../src/lib/productEvents.ts) 是產品事件的單一固定 taxonomy：activation、全域快速記帳、錯帳修正時間 bucket、離線支出 queued／synced／failed。事件屬性只接受 TypeScript union 的分類值，禁止 id、姓名、旅行名稱、描述、邀請碼、日期、位置、精確金額與自由輸入；量測為 best-effort，失效不得中斷主要任務。
 - UX 的介面規則以 [UI_UX_SPEC.md](./UI_UX_SPEC.md) 為基線；真人任務驗證使用 [USABILITY_TEST_PHASE4.md](./USABILITY_TEST_PHASE4.md)。程式測試通過不等於真人測試或正式環境指標已完成。
 
+### 4.16 AI 行程匯入（受限試用）
+
+- [/api/ai/itinerary-import](../src/app/api/ai/itinerary-import/route.ts) 依序驗證 session、admin、輸入 schema、最小旅程 context 與持久化配額，再透過 [itineraryImportProvider.ts](../src/lib/ai/itineraryImportProvider.ts) 呼叫 Gateway 或 OpenAI。provider 未設定時回 `FEATURE_DISABLED`，不影響手動行程與其他 route。
+- 模型只產生 [itineraryImportSchema.ts](../src/lib/ai/itineraryImportSchema.ts) 的草稿；日期正規化與既有活動提示由確定性程式處理。瀏覽器預覽可編輯且確認前零寫入；[itineraryImport.actions.ts](../src/actions/itineraryImport.actions.ts) 在確認時重新驗權與驗證。
+- 確認寫入以日期為原子單位。`ItineraryDay.appliedImportKeys` 保存 server-only 冪等 key，既有日以條件式 `$push` 附加並同時檢查活動上限，避免重送重複或 read-modify-write 覆蓋。
+- [AiImportUsage](../src/models/AiImportUsage.ts) 是 UTC 每日 bucket，唯一鍵為 `(scope, scopeKey, periodStart)`，scope 為 global／user／trip。請求在 provider 前依序原子保留，後續結算 token 與 micro-USD；跨 scope 失敗會補償已保留 bucket。程序中斷時額度維持保留以 fail closed，TTL 只清理 35 天後資料。
+- 全域成本上限使用 `AI_IMPORT_DAILY_COST_LIMIT_MICRO_USD` 與每請求最壞情況預留；付費模型必須依 provider 當前價格設定 input／output micro-USD 單價，預留值不得低於可能的單次最大成本。provider 失敗若未提供 usage，會保守地將整筆預留計為已花費，避免失敗回應繞過 cap。Free Tier 可將四個成本值設 0，request 與 token 仍持久化觀測。
+- Vercel Analytics 的 `ai_itinerary_import` 事件只接受固定 stage／result／corrected／error code，禁止來源文字、草稿、日期、位置、確認碼、名稱或 id。伺服器 log 只含 provider、model、latency、token、micro-USD 與錯誤分類。
+- 正式擴流前仍須通過 [AI_IMPORT_PLAN.md](./AI_IMPORT_PLAN.md) 的完整 31 筆 provider 可用率與真人節時門檻；現況只核准低流量 Free Tier 試用。
+
 ---
 
 ## 5. 資料模型
 
-Schema 定義在 [src/models/](../src/models/) 的 Mongoose model，index 於連線時自動建立（`autoIndex`；可重現的結構 / 資料變更另走 migrate-mongo，見 [MIGRATIONS.md](./MIGRATIONS.md)）。目前共有 **19 個 collection**，用內嵌消除大部分 join 與 N+1：
+Schema 定義在 [src/models/](../src/models/) 的 Mongoose model，index 於連線時自動建立（`autoIndex`；可重現的結構 / 資料變更另走 migrate-mongo，見 [MIGRATIONS.md](./MIGRATIONS.md)）。目前共有 **20 個 collection**，用內嵌消除大部分 join 與 N+1：
 
 ```
 User              ── 帳號 / 虛擬成員 / 頭像 / 通知偏好 / mapShareCode
@@ -235,6 +245,7 @@ StayRecord        ── ref user；住宿終身紀錄（旅行成就，trip 可
 LoyaltyAccount    ── ref user；每個航空計畫的會籍帳戶
 LoyaltyEntry      ── ref user/account；積分與里程 ledger
 Photo             ── ref trip；共享相簿、EXIF 與行程日關聯
+AiImportUsage     ── AI 匯入 global/user/trip UTC 每日 request、token 與成本 bucket
 ```
 
 | Collection | 重點欄位 |
@@ -258,6 +269,7 @@ Photo             ── ref trip；共享相簿、EXIF 與行程日關聯
 | `LoyaltyAccount` | `user`(ref,index), `program`, `tier`, `tierExpiresAt`；每位使用者每個 program 一筆 |
 | `LoyaltyEntry` | `user`/`account`(ref), `program`, 日期與積分/里程/航段欄位，可連回 `FlightRecord` |
 | `Photo` | `trip`(ref,index), R2 keys, `exif`, `location`, `itineraryDay`, caption；公開分享另走去位置 DTO |
+| `AiImportUsage` | `(scope,scopeKey,periodStart)` unique；每日 requests、reserved/spent micro-USD、input/output tokens、成功／失敗數；`expiresAt` TTL |
 
 > ⚠️ MongoDB 無外鍵 cascade：刪除 trip 時 `deleteTrip` 會手動一併刪除該 trip 的 expenses、payments、itinerary days、checklists、notifications、activity logs、comments、notes，並 best-effort 刪除該 trip 在 R2 的收據 / 票券物件；**FlightRecord / StayRecord 例外**——它們是 user-level 終身紀錄，只解除連結（`trip` 置 null）不刪除；`removeMember` 也會檢查還款參照避免孤兒，並清掉清單項目對該成員的指派與其在此 trip 的通知。
 > ID 一律為 ObjectId 字串，從 JWT、DTO 到前端 props 一致。
