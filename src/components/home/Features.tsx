@@ -1,6 +1,6 @@
 'use client';
 
-import { CalendarDays, ReceiptText, UsersRound, Images } from 'lucide-react';
+import { BarChart3, MapPinned, Sparkles, UsersRound } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 export default function Features() {
@@ -8,12 +8,12 @@ export default function Features() {
 
   const features = [
     {
-      icon: CalendarDays,
+      icon: Sparkles,
       titleKey: 'features.plan.title',
       descKey: 'features.plan.description',
     },
     {
-      icon: ReceiptText,
+      icon: BarChart3,
       titleKey: 'features.track.title',
       descKey: 'features.track.description',
     },
@@ -23,7 +23,7 @@ export default function Features() {
       descKey: 'features.split.description',
     },
     {
-      icon: Images,
+      icon: MapPinned,
       titleKey: 'features.remember.title',
       descKey: 'features.remember.description',
     },

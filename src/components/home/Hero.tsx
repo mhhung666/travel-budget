@@ -1,6 +1,5 @@
 'use client';
 
-import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 
 export default function Hero() {
@@ -8,23 +7,11 @@ export default function Hero() {
 
   return (
     <div className="flex flex-col items-center text-center lg:items-start lg:text-left">
-      <div className="mb-5 flex items-center gap-3 lg:mb-7">
-        <div className="relative h-20 w-20 shrink-0 sm:h-24 sm:w-24 lg:h-28 lg:w-28">
-          <Image
-            src="/icon-512.png"
-            alt=""
-            fill
-            sizes="(min-width: 1024px) 112px, (min-width: 640px) 96px, 80px"
-            className="object-contain"
-            priority
-          />
-        </div>
-        <div className="text-left lg:hidden">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
-            {t('hero.eyebrow')}
-          </p>
-          <p className="mt-1 text-lg font-bold text-foreground">{t('title')}</p>
-        </div>
+      <div className="mb-5 text-left lg:hidden">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+          {t('hero.eyebrow')}
+        </p>
+        <p className="mt-1 text-lg font-bold text-foreground">{t('title')}</p>
       </div>
 
       <p className="mb-3 hidden text-sm font-semibold uppercase tracking-[0.2em] text-primary lg:block">

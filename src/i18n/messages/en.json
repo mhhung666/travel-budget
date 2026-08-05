@@ -66,30 +66,30 @@
   "home": {
     "title": "Travel Budget",
     "hero": {
-      "eyebrow": "Plan · Track · Share",
-      "title": "Your whole trip, together in one place",
-      "subtitle": "Plan each day, track group spending, and settle up—while keeping every moment and expense neatly organized.",
+      "eyebrow": "Plan · Track · Explore",
+      "title": "From planning to footprints—all in one place",
+      "subtitle": "Organize itineraries with AI, track and split expenses together, and keep personal budgets, travel insights, albums, maps, and loyalty progress in one place.",
       "getStarted": "Get Started",
       "viewTrips": "View Trips"
     },
     "features": {
-      "title": "More than expense tracking",
-      "subtitle": "Plan together before you go, capture things on the road, and settle up with ease.",
+      "title": "With you from planning to recap",
+      "subtitle": "Spend less time organizing and more time enjoying the trip.",
       "plan": {
-        "title": "Plans in one timeline",
-        "description": "Keep daily activities, places, and tickets neatly organized."
+        "title": "AI-powered itinerary import",
+        "description": "Paste your travel plans, review and edit them, then import a daily timeline."
       },
       "track": {
-        "title": "Fast multi-currency tracking",
-        "description": "Add expenses on the go—even offline—and sync when connected."
+        "title": "Budgets and spending, made clear",
+        "description": "Track multiple currencies offline, set personal budgets, and explore trip insights."
       },
       "split": {
-        "title": "Flexible splits and settlement",
-        "description": "Split evenly, by share, or exact amount, then minimize transfers."
+        "title": "Easier travel collaboration",
+        "description": "Share lists, notes, and albums, then split expenses and simplify settlement."
       },
       "remember": {
-        "title": "Memories shared together",
-        "description": "Keep shared albums, travel maps, and yearly recaps in one place."
+        "title": "Collect journeys and rewards",
+        "description": "Build travel maps and yearly recaps while tracking airline and hotel loyalty."
       }
     }
   },
