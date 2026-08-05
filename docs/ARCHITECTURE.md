@@ -225,7 +225,8 @@ src/
 - 收據端點只允許 `receipts/<tripId>/` 下的 JPEG、PNG、WebP；先以 `headObject` 檢查實際型別與大小、再由 server 從私有 R2 讀取 bytes，絕不把簽名 URL 交給模型。模型輸出經 [receiptDraftSchema.ts](../src/lib/ai/receiptDraftSchema.ts) 與 [normalizeReceiptDraft.ts](../src/lib/ai/normalizeReceiptDraft.ts) 驗證，歧義總額／幣別保留為 warning。
 - 文字端點的模型輸出經 [expenseTextDraftSchema.ts](../src/lib/ai/expenseTextDraftSchema.ts) 驗證，不可含資料庫 ID、匯率、基準幣金額或最後分帳。 [normalizeExpenseTextDraft.ts](../src/lib/ai/normalizeExpenseTextDraft.ts) 只在名稱唯一匹配 username 或 display name 時解析成 member ID；未提付款人預設目前使用者、未提參與者預設全員，未知或同名人一律要求修正。
 - 文字草稿已接入新增支出表單的四語輸入區；草稿只預填現有可編輯欄位，含 warning 時會展開付款人與分帳欄位，最後仍由使用者提交既有 `createExpense`。目前僅安全自動帶入無 warning 的均分對象；其他分帳模式必須人工修正。
-- 兩端點目前尚未共用行程匯入的持久化 quota／成本量測，收據也尚未接入表單；不得視為可對外擴流的 AI 功能。
+- 新增支出表單僅對已上傳的 JPEG、PNG、WebP 收據顯示掃描入口；掃描結果只帶入明確讀取的欄位，遇到遺漏或歧義時展開既有欄位讓使用者修正，且仍必須經既有 `createExpense` 明確提交。PDF 只能作一般附件。
+- 兩端點目前尚未共用行程匯入的持久化 quota／成本量測；不得視為可對外擴流的 AI 功能。
 
 ---
 

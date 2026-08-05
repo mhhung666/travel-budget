@@ -281,7 +281,13 @@
       "add": "新增收據",
       "view": "檢視",
       "remove": "移除",
-      "uploadFailed": "上傳失敗"
+      "uploadFailed": "上傳失敗",
+      "scan": "掃描收據",
+      "scanImage": "選擇要掃描的收據圖片",
+      "scanImageNumber": "收據圖片 {number}",
+      "scanApplied": "已帶入收據草稿，請確認後再儲存。",
+      "scanReview": "已帶入可辨識欄位，請先補正或確認後再儲存。",
+      "scanFailed": "無法掃描收據，仍可繼續手動輸入。"
     },
     "title": "支出記錄",
     "add": "新增支出",

@@ -330,7 +330,13 @@
       "add": "Add receipt",
       "view": "View",
       "remove": "Remove",
-      "uploadFailed": "Upload failed"
+      "uploadFailed": "Upload failed",
+      "scan": "Scan receipt",
+      "scanImage": "Choose a receipt image to scan",
+      "scanImageNumber": "Receipt image {number}",
+      "scanApplied": "Receipt draft applied. Review before saving.",
+      "scanReview": "Recognized fields were applied. Complete or review the details before saving.",
+      "scanFailed": "Unable to scan the receipt. You can continue with manual entry."
     },
     "title": "Expenses",
     "add": "Add Expense",

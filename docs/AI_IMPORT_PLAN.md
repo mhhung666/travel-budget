@@ -1,6 +1,6 @@
 # AI 智慧輸入規劃
 
-> 狀態：`in-progress`（Phase 3A／3B 已有受限的伺服器端草稿解析核心；UI 與品質基線尚未完成）
+> 狀態：`in-progress`（Phase 3A／3B 已接入新增支出表單；品質基線、配額與觀測尚未完成）
 > 更新日期：2026-08-05
 > 已完成的 AI 行程匯入 Phase 0–2 實作摘要見 [archive/AI_ITINERARY_IMPORT_PHASES_0_2.md](./archive/AI_ITINERARY_IMPORT_PHASES_0_2.md)；目前能力與技術契約分別以 [FEATURES.md](./FEATURES.md) 與 [ARCHITECTURE.md](./ARCHITECTURE.md) 為準。
 
@@ -15,7 +15,7 @@ AI 行程文字匯入已具備結構化解析、可編輯預覽、明確確認�
 
 | Phase | 狀態 | 可交付結果 |
 | --- | --- | --- |
-| 3A | `in-progress` | 單張收據圖片解析成可編輯支出草稿（API 核心完成；尚未接入表單） |
+| 3A | `in-progress` | 單張收據圖片解析成可編輯支出草稿（API 與新增表單帶入完成；尚待品質與配額） |
 | 3B | `in-progress` | 單筆自然語言記帳與分攤草稿（API、唯一名稱解析與新增支出表單預覽完成） |
 | 3C | `idea` | 文字與收據合併輸入、重複提示 |
 | 4 | `idea` | PDF、多頁、多張、品項辨識與批次能力 |
@@ -26,7 +26,8 @@ Phase 3A 可先做，無須等待 Phase 3B 的成員名稱消歧義及比例分�
 
 - `POST /api/ai/receipt-draft` 僅接受旅程成員自己的 JPEG、PNG、WebP 收據 key；會以 R2 實際 metadata 驗證 key、型別與大小後才讀取圖片。它只回傳 schema 驗證與正規化後的草稿，不會建立支出；PDF 仍只能作一般附件。
 - `POST /api/ai/expense-text-draft` 只接受旅程成員的單筆文字。未提付款人時預設目前使用者，未提分帳者時預設全員（含虛擬成員）；明示姓名只在 display name 或 username 唯一對應時才解析。未知／同名人、缺幣別等情形回傳 `requiresCorrection` 與固定 warning，不能靜默選值。新增支出表單已提供四語文字輸入與草稿帶入；有警告時展開既有欄位供修正，仍須由使用者提交既有 `createExpense` 流程。
-- 兩端點尚未具備收據端的表單預覽、3B 非均分模式的自動帶入、配額／成本量測，以及 fixture 品質評估。因此不得視為一般使用者可用或正式擴流。
+- 新增支出表單可掃描已上傳的 JPEG、PNG、WebP 收據，並只帶入可唯一確認的商家、總額、幣別、日期與分類；PDF 不顯示掃描入口。缺少／歧義總額或幣別會保留原值並要求使用者修正，掃描本身不會提交支出。
+- 兩端點尚未具備 3B 非均分模式的自動帶入、配額／成本量測，以及 fixture 品質評估。因此不得視為一般使用者可用或正式擴流。
 
 ## 2. 共通產品原則
 

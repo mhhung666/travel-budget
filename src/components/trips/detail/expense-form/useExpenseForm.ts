@@ -8,6 +8,7 @@ import { getPinnedRate, getTripDefaultCurrency } from '@/lib/tripCurrency';
 import { toDateInputValue, toLocalDateInputValue } from '@/lib/dateInput';
 import type { Expense, ExpenseAttachment, Member, TripCurrencySettings } from '@/types';
 import type { NormalizedExpenseTextDraft } from '@/lib/ai/normalizeExpenseTextDraft';
+import type { ReceiptDraft } from '@/lib/ai/receiptDraftSchema';
 
 export interface ExpenseFormData {
   payer_id: string;
@@ -345,6 +346,42 @@ export function useExpenseForm({
     setShowAdvanced(true);
   };
 
+  /** Applies only fields the receipt parser identified unambiguously. */
+  const applyReceiptDraft = (draft: ReceiptDraft) => {
+    const totals = draft.amountCandidates.filter((candidate) => candidate.kind === 'total');
+    const total = totals[0];
+    const canApplyTotal = draft.fieldStatus.total === 'read' && totals.length === 1 && total;
+    const canApplyCurrency = draft.fieldStatus.currency === 'read' && draft.currency;
+    setForm((previous) => {
+      const currency = canApplyCurrency ? draft.currency! : previous.currency;
+      const pinnedRate = getPinnedRate(currencySettings, currency);
+      const exchangeRate =
+        currency === 'TWD'
+          ? '1.0'
+          : pinnedRate != null
+            ? String(pinnedRate)
+            : (exchangeRates[currency]?.toFixed(6) ??
+              (currency === previous.currency ? previous.exchange_rate : ''));
+      return {
+        ...previous,
+        description:
+          draft.fieldStatus.merchantName === 'read' && draft.merchantName
+            ? draft.merchantName
+            : previous.description,
+        original_amount: canApplyTotal ? String(total!.amount) : previous.original_amount,
+        currency,
+        exchange_rate: exchangeRate,
+        date:
+          draft.fieldStatus.transactionDate === 'read' && draft.transactionDate
+            ? draft.transactionDate
+            : previous.date,
+        category: draft.suggestedCategory ?? previous.category,
+      };
+    });
+    setShowAdvanced(true);
+    return draft.warnings.length > 0 || !canApplyTotal || !canApplyCurrency;
+  };
+
   return {
     form,
     setForm,
@@ -378,5 +415,6 @@ export function useExpenseForm({
     handleSelectAll,
     handleItineraryDayToggle,
     applyTextDraft,
+    applyReceiptDraft,
   };
 }

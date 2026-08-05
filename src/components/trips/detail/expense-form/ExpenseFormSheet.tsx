@@ -20,6 +20,7 @@ import { AmountField } from './AmountField';
 import { CategoryPicker } from './CategoryPicker';
 import { SplitSection } from './SplitSection';
 import { AdvancedFields } from './AdvancedFields';
+import { ReceiptScanButton } from './ReceiptScanButton';
 import { useExpenseForm, type ExpenseFormData } from './useExpenseForm';
 
 interface ExpenseFormSheetProps {
@@ -105,6 +106,7 @@ export default function ExpenseFormSheet({
     handleSelectAll,
     handleItineraryDayToggle,
     applyTextDraft,
+    applyReceiptDraft,
   } = useExpenseForm({
     mode,
     open,
@@ -174,9 +176,7 @@ export default function ExpenseFormSheet({
       const draft = body.draft as NormalizedExpenseTextDraft;
       applyTextDraft(draft);
       setAiMessage(
-        draft.requiresCorrection
-          ? tExpense('form.aiDraftReview')
-          : tExpense('form.aiDraftApplied')
+        draft.requiresCorrection ? tExpense('form.aiDraftReview') : tExpense('form.aiDraftApplied')
       );
     } catch {
       setAiMessage(tExpense('form.aiDraftFailed'));
@@ -392,6 +392,13 @@ export default function ExpenseFormSheet({
             <div className="space-y-2">
               <Label>{tExpense('receipts.label')}</Label>
               <ReceiptUploader tripId={tripId} value={attachments} onChange={setAttachments} />
+              {mode === 'add' && (
+                <ReceiptScanButton
+                  tripId={tripId}
+                  attachments={attachments}
+                  onDraft={applyReceiptDraft}
+                />
+              )}
             </div>
           </div>
         )}
