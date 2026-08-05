@@ -1,454 +1,212 @@
-# AI 行程匯入與智慧輸入規劃
+# AI 智慧輸入規劃
 
-> 狀態：`ready`
-> 更新日期：2026-08-04
-> 本文件定義尚未實作的產品範圍；完成後將現況移至 [FEATURES.md](./FEATURES.md)，架構契約移至 [ARCHITECTURE.md](./ARCHITECTURE.md)。
+> 狀態：`ready`（Phase 3A 可建立基線後排程）
+> 更新日期：2026-08-05
+> 已完成的 AI 行程匯入 Phase 0–2 實作摘要見 [archive/AI_ITINERARY_IMPORT_PHASES_0_2.md](./archive/AI_ITINERARY_IMPORT_PHASES_0_2.md)；目前能力與技術契約分別以 [FEATURES.md](./FEATURES.md) 與 [ARCHITECTURE.md](./ARCHITECTURE.md) 為準。
 
-## 1. 產品定位
+## 1. 現況與下一步
 
-本功能不是旅行規劃 AI，也不嘗試取代專業的外部 AI agent。使用者先在 ChatGPT、Claude、Gemini 或其他專業 agent 完成旅行規劃，再把結果貼入本系統；本系統負責：
+AI 行程文字匯入已具備結構化解析、可編輯預覽、明確確認、逐日冪等寫入、配額與去敏觀測，目前只開放低流量受限試用。尚未通過的擴流門檻為：
 
-1. 辨識外部輸出的日期、時間、地點、活動、交通、住宿與備註。
-2. 將不同格式的內容歸納成本站既有的逐日行程結構。
-3. 找出缺漏、衝突與無法確定的欄位。
-4. 顯示可編輯的匯入預覽。
-5. 由使用者確認後，透過既有 Server Actions 寫入旅程。
+- 完整 31 筆 fixture 的 provider 可用率至少 90%；Free Tier 現有結果為 32.3%。
+- 真人計時驗證相較手動建立五天行程至少節省 50%。
 
-同一套基礎能力也用於自然語言快速記帳與分攤，例如「昨天晚餐 3,600 日圓，John 付，我們三個平分」。兩者同屬核心範圍，但分成獨立 Phase 交付，避免行程匯入與金額正確性互相阻塞。
+下一個產品階段改為智慧記帳，依風險拆開交付：
 
-## 2. 為什麼值得做
+| Phase | 狀態 | 可交付結果 |
+| --- | --- | --- |
+| 3A | `ready` | 單張收據圖片解析成可編輯支出草稿 |
+| 3B | `idea` | 單筆自然語言記帳與分攤草稿 |
+| 3C | `idea` | 文字與收據合併輸入、重複提示 |
+| 4 | `idea` | PDF、多頁、多張、品項辨識與批次能力 |
 
-- 外部 AI 已擅長長篇規劃，不需要在本站重複建造搜尋、推薦與規劃能力。
-- 使用者目前仍須把外部結果逐日、逐項複製到行程表，匯入功能能直接消除這段重複工作。
-- 本專案已有行程 schema、Zod 驗證、會員權限與 Server Actions，AI 只需負責非結構化文字到草稿的轉換。
-- 草稿確認後才寫入，可把模型錯誤限制在可恢復的預覽階段。
-- 記帳表單包含付款人、幣別、日期、分類及多人分攤，自然語言能顯著減少旅途中用手機逐欄輸入的摩擦。
-- Vercel AI SDK 可將模型供應商封裝在單一邊界，先經 Vercel AI Gateway，未來仍可改為 OpenAI API 直連。
+Phase 3A 可先做，無須等待 Phase 3B 的成員名稱消歧義及比例分攤規則；兩者共用支出草稿正規化、確認卡、AI 配額與觀測邊界。
 
-## 3. 範圍
+## 2. 共通產品原則
 
-### 3.1 第一階段：外部行程匯入 MVP
+- AI 只產生草稿，不直接建立、更新或刪除支出。
+- 使用者確認前，所有將寫入的欄位都必須可見且可編輯。
+- 模型不得產生或接收 MongoDB ID，也不得取得任何資料寫入 tool。
+- 匯率、基準幣金額、四捨五入、分攤尾差與成員歸屬全部由確定性程式處理。
+- 確認時一律重用既有 `createExpense`，不得另建繞過權限、附件驗證、通知與活動紀錄的寫入路徑。
+- AI 未設定、額度用盡、逾時或輸出無效時，手動記帳與收據附件功能必須維持可用。
+- 不保存 AI 對話記憶；不把完整輸入、收據內容或自由文字草稿寫入 log 或分析事件。
 
-支援使用者貼入純文字或 Markdown，內容可包含多天、多個活動。系統應解析：
+## 3. Phase 3A：收據圖片分析
 
-- 日期或 Day 1、Day 2 等相對日序。
-- 活動開始與結束時間。
-- 活動名稱與類型。
-- 地點的文字名稱。
-- 交通、住宿、餐飲、景點與其他活動。
-- 一般備註。
-- 航班、訂房或票券確認碼，但必須標示為敏感資料並在確認前清楚顯示。
+### 3.1 目標與 MVP 範圍
 
-第一階段只匯入新的活動。若目標日期已有行程，預覽中顯示「附加到既有日期」，不得靜默覆蓋原內容。
+使用者在新增支出時拍攝或選擇一張收據，系統分析後帶入：
 
-### 3.2 第二階段：自然語言記帳與分攤
+- 商家名稱，作為可編輯的支出描述。
+- 應付總額；若小計、稅額、服務費與總額無法唯一判定，回傳候選並阻止直接確認。
+- ISO 4217 幣別；只有符號而無法唯一判定時標記歧義。
+- 消費日期。
+- 建議支出分類。
+- 原收據附件；分析不另建一份公開檔案。
 
-使用者可用一句或一段文字建立支出草稿，系統應解析：
+MVP 不讓模型推測付款人、分帳成員、匯率或最終 TWD 金額。這些欄位沿用現有表單規則並在確認前顯示：目前使用者付款、全員平分、旅程自訂匯率優先，其次即時匯率。
 
-- 消費描述、日期、原幣金額及幣別。
-- 付款人與參與分攤的旅程成員。
-- 平均分攤、指定金額、百分比或份數比例。
-- 支出分類、標籤及可選的關聯行程日。
-- 一段文字內的多筆支出；MVP 可先限制單筆，驗證穩定後再開放批次。
+### 3.2 明確不納入 MVP
 
-例如：
+- PDF、多頁文件與一次多張收據。
+- 品項明細、逐項分帳、稅額申報或報帳格式。
+- 從卡號、簽名或收據文字推測付款人。
+- 自動選擇 subtotal、含稅總額、小費後總額等有歧義的金額。
+- 辨識成功後自動入帳。
+- 將數字信心分數視為安全判斷；模型自報 confidence 不具校準保證。
+
+目前上傳層仍可接受 PDF，Phase 3A 的「分析」入口必須另外限制為 JPEG、PNG 或 WebP；PDF 維持只能當一般附件。
+
+### 3.3 使用者流程
+
+1. 使用者開啟新增支出並選擇「掃描收據」。
+2. 瀏覽器沿用既有 receipt preset 壓縮圖片並直傳私有 R2。
+3. `receipt-draft` endpoint 驗證 session、旅程成員身分、物件 key 前綴、實際 content type、大小與配額。
+4. 伺服器從 R2 讀取 bytes，交給支援圖片輸入的模型產生結構化草稿；不把短效簽名 URL 當模型輸入。
+5. 確定性程式驗證幣別、日期、正數金額與欄位上限，並將歧義轉成固定 warning code。
+6. 現有支出表單帶入草稿與附件，使用者修正付款人、分帳、匯率及其他欄位。
+7. 使用者明確確認後才呼叫既有 `createExpense`；該 action 再次驗證成員、分帳合計及附件實體。
+
+分析失敗時保留已選圖片與目前表單內容，提供重試及「改用手動輸入」，不得卡住記帳流程。
+
+### 3.4 草稿契約
+
+模型只描述從圖片讀到的語意，不負責資料庫關聯與計算：
+
+```ts
+type ReceiptDraft = {
+  merchantName?: string;
+  transactionDate?: string; // YYYY-MM-DD；無法唯一判定時省略
+  currency?: string; // ISO 4217；無法唯一判定時省略
+  amountCandidates: Array<{
+    kind: 'total' | 'subtotal' | 'tax' | 'service' | 'tip' | 'unknown';
+    amount: number;
+  }>;
+  suggestedCategory?:
+    | 'accommodation'
+    | 'transportation'
+    | 'food'
+    | 'shopping'
+    | 'entertainment'
+    | 'tickets'
+    | 'other';
+  fieldStatus: {
+    merchantName: 'read' | 'missing' | 'ambiguous';
+    transactionDate: 'read' | 'missing' | 'ambiguous';
+    currency: 'read' | 'missing' | 'ambiguous';
+    total: 'read' | 'missing' | 'ambiguous';
+  };
+  warnings: Array<{
+    code: string;
+    field?: 'merchantName' | 'transactionDate' | 'currency' | 'total';
+  }>;
+};
+```
+
+正式實作以 Zod 定義並限制陣列與字串長度。`fieldStatus` 用於阻擋與 UI，不採用模型自報的百分比信心值。模型輸出通過 schema 後仍須經正規化，再轉成現有支出表單資料；不得直接傳給 Mongoose 或 `createExpense`。
+
+### 3.5 建議技術邊界
+
+```text
+src/app/api/ai/receipt-draft/route.ts
+src/lib/ai/receiptDraftSchema.ts
+src/lib/ai/receiptDraftPrompt.ts
+src/lib/ai/receiptDraftProvider.ts
+src/lib/ai/normalizeReceiptDraft.ts
+src/lib/ai/expenseDraftLimits.ts
+src/components/trips/detail/expense-form/ReceiptScanButton.tsx
+src/__fixtures__/ai/receiptDraftFixtures.ts
+```
+
+應抽取可共用的 AI provider 錯誤分類與 quota primitive，但不要在 Phase 3A 順便大幅重構已穩定的行程匯入。模型選擇不得寫死在文件；先用 fixture 比較支援圖片輸入的候選模型，再透過伺服器環境設定。
+
+### 3.6 安全、隱私與成本
+
+- endpoint 只要求旅程成員身分，與手動新增支出的權限一致；不可沿用行程匯入的 admin-only 規則。
+- key 必須屬於 `receipts/<tripId>/`，且以 `headObject` 驗證實際圖片型別與大小後才能讀取。
+- 對模型只傳必要圖片與抽取指令，不傳成員、其他支出、邀請碼、公開分享碼或附件 URL。
+- 收據可能含卡號末碼、地址、會員編號與簽名。上線前須確認所選 provider 的資料保留政策符合產品隱私要求。
+- 收據上的文字一律視為不可信輸入；模型只能回傳 schema，不能呼叫 tool 或改變系統指令。
+- server log 只記 provider、model、latency、token、成本與固定錯誤碼；分析事件只使用固定 stage／result／corrected 欄位。
+- 圖片請求須納入 global／user／trip 每日限制與成本預留。Free Tier 429 必須顯示為可重試的容量限制。
+
+### 3.7 Phase 0R 品質基線
+
+實作 UI 前先建立至少 40 份匿名化或合成收據 fixture，涵蓋：
+
+- 繁中、簡中、英文、日文與混合語言。
+- TWD、JPY、USD、EUR、HKD、THB，以及只有 `$` 等歧義符號。
+- 小計／稅／服務費／折扣／小費／總額同時存在。
+- 斜拍、陰影、皺摺、熱感紙淡字、低對比、小字與長條收據。
+- 缺日期、缺幣別、手寫金額、刷卡簽單及非收據圖片。
+- 含卡號末碼、地址、會員編號的測試內容必須為假資料。
+
+評分至少分開統計：合法 schema、商家、日期、幣別、正確總額、歧義攔截率、provider 可用率、延遲及每張成本。provider 失敗與成功生成後的欄位品質必須分開呈現。
+
+### 3.8 完成條件
+
+- 成功生成的 fixture 100% 通過草稿 schema。
+- 商家、日期、幣別與總額在非歧義樣本的欄位正確率各至少 95%。
+- 有多個合理總額或幣別無法唯一判定時，至少 95% 被標記為 ambiguous，且不可直接確認。
+- 所有寫入都經使用者確認及既有 `createExpense`；越權、跨旅程 key、非圖片、超限、逾時與無效輸出皆零寫入。
+- 未設定 AI 或 provider 失敗時，手動記帳與一般收據上傳不受影響。
+- 行動端從選圖到可確認草稿的中位時間目標不超過 8 秒；正式門檻以 Phase 0R 實測後定案。
+- 四語錯誤、載入、歧義、重試與手動 fallback 文案齊全，並通過鍵盤、焦點與螢幕閱讀器基本驗收。
+
+## 4. Phase 3B：自然語言記帳與分攤
+
+### 4.1 目標範圍
+
+使用者以一句話建立單筆支出草稿，例如：
 
 ```text
 昨晚計程車 1,200 日圓我先付，Amy 不用出，其他三人平分。
 ```
 
-模型只產生人類可讀的語意草稿；程式端負責把姓名解析為旅程成員 ID、取得適用匯率、計算基準幣金額與每人 `share_amount`，最後再交由既有支出 schema 驗證。AI 不負責最終金額運算。
+模型解析描述、日期、原幣金額、幣別、付款人名稱、參與者名稱、分攤語意、分類、標籤與可選行程日期。程式端負責姓名解析、匯率、基準幣換算與最終 `share_amount`。
 
-### 3.3 值得納入的相鄰能力
-
-以下能力能直接重用解析、預覽與確認流程，且比一般聊天功能更貼近旅行中的實際資料輸入：
-
-- **批次匯入與批次撤銷**：同一次確認建立的行程或支出應能辨識為同一批；若結果不符預期，可安全撤銷該批新增內容。需先設計 import batch ID、權限與活動紀錄。
-- **重複偵測**：依日期、時間、標題、金額及付款人提示可能重複，但不由 AI 自動刪除。
-- **從行程抽取待辦／清單**：把「出發前上網登機、購買車票、準備轉接頭」整理成未勾選的 checklist 草稿，確認後建立。
-- **缺漏檢查**：指出行程日期斷層、住宿未涵蓋所有夜晚、交通銜接時間不合理或支出缺少付款人；只提示，不自動改資料。
-- **來源摘要**：匯入預覽顯示來源文字的摘要與轉換警告，讓使用者知道哪些內容被忽略或無法對應；不預設長期保存完整原文。
-
-### 3.4 後續候選
-
-- 依使用者明確指示修正既有活動。
-- 活動去重、合併與重新排序。
-- 刪除行程；必須逐項確認或提供可復原機制。
-- 上傳 PDF、圖片或外部分享連結。
-- 語音輸入。
-
-### 3.5 明確不做
-
-- 長篇 AI 旅行規劃、景點推薦或網路研究。
-- 讓模型自行決定並執行不可逆操作。
-- 未經確認直接新增、覆蓋或刪除資料。
-- 將資料庫或公開 API 的寫入權限直接交給外部 agent。
-- 第一階段保存長期 AI 對話記憶。
-
-## 4. 使用者流程
-
-1. 使用者在旅程內開啟「AI 匯入行程」。
-2. 貼上外部 AI agent 的輸出。
-3. 系統取得最小必要的旅程 context：旅程起訖日期、既有行程日與使用者權限。
-4. 模型只產生符合 schema 的匯入草稿，不直接執行資料寫入。
-5. 程式端解析相對日期、檢查日期範圍、標記既有行程與可能重複項目。
-6. 預覽依日期分組，使用者可編輯、取消單項或取消整天。
-7. 若日期、時間或合併方式有歧義，系統要求使用者選擇，不自行猜測高風險欄位。
-8. 使用者按下確認後，伺服器重新驗證 session、admin 權限及每筆 payload。
-9. 系統呼叫既有 `createItineraryDay` 或 `updateItineraryDay`，回報逐日成功或失敗結果。
-
-自然語言記帳沿用相同模式：輸入文字、產生語意草稿、解析成員與匯率、以可編輯卡片預覽，確認後才呼叫既有 `createExpense`。
-
-## 5. 建議資料契約
-
-模型輸出只使用語意資料，不接收或產生 MongoDB ID：
+模型輸出不得包含 MongoDB ID 或自行算出的最終分攤金額：
 
 ```ts
-type ItineraryImportDraft = {
-  sourceSummary: string;
-  days: Array<{
-    date?: string; // YYYY-MM-DD；無法確定時省略
-    relativeDay?: number; // Day 1 = 1
-    title?: string;
-    content?: string;
-    activities: Array<{
-      time?: string; // HH:mm
-      endTime?: string;
-      title: string;
-      type:
-        | 'sightseeing'
-        | 'food'
-        | 'flight'
-        | 'ground_transport'
-        | 'accommodation'
-        | 'shopping'
-        | 'activity'
-        | 'other';
-      locationName?: string;
-      note?: string;
-      confirmationCode?: string;
-    }>;
-  }>;
-  warnings: Array<{
-    code: string;
-    message: string;
-    dayIndex?: number;
-    activityIndex?: number;
-  }>;
+type ExpenseTextDraft = {
+  description: string;
+  date?: string;
+  originalAmount: number;
+  currency?: string;
+  payerName?: string;
+  category?: string;
+  tags?: string[];
+  itineraryDate?: string;
+  split:
+    | { method: 'equal'; participantNames: string[] }
+    | { method: 'amount'; shares: Array<{ memberName: string; amount: number }> }
+    | { method: 'percentage'; shares: Array<{ memberName: string; percentage: number }> }
+    | { method: 'ratio'; shares: Array<{ memberName: string; units: number }> };
+  warnings: Array<{ code: string }>;
 };
 ```
 
-正式實作時應以 Zod 定義此契約。模型輸出通過匯入 schema 後，仍須轉換成既有 `createItineraryDaySchema`／`updateItineraryDaySchema` 並再次驗證；不可把模型輸出直接傳給 Mongoose。
+### 4.2 開始前必須定案
 
-支出草稿同樣不得包含模型自行生成的 MongoDB ID 或最終分攤金額：
+- 未提付款人時是否預設目前使用者。
+- 未提參與者時是否預設全員，以及虛擬成員是否包含在內。
+- 同名成員的消歧義 UI；同名不得靠陣列順序自動選擇。
+- 「我、我們、其他人」等代名詞的可接受規則。
+- 指定金額、百分比與份數換算的尾差歸屬。
+- 日期超出旅程範圍及幣別缺漏時的阻擋規則。
 
-```ts
-type ExpenseImportDraft = {
-  expenses: Array<{
-    description: string;
-    date?: string;
-    originalAmount: number;
-    currency?: string;
-    payerName?: string;
-    category?:
-      | 'accommodation'
-      | 'transportation'
-      | 'food'
-      | 'shopping'
-      | 'entertainment'
-      | 'tickets'
-      | 'other';
-    tags?: string[];
-    itineraryDate?: string;
-    split:
-      | { method: 'equal'; participantNames: string[] }
-      | {
-          method: 'amount';
-          shares: Array<{ memberName: string; amount: number }>;
-        }
-      | {
-          method: 'percentage';
-          shares: Array<{ memberName: string; percentage: number }>;
-        }
-      | {
-          method: 'ratio';
-          shares: Array<{ memberName: string; units: number }>;
-        };
-  }>;
-  warnings: Array<{ code: string; message: string; expenseIndex?: number }>;
-};
-```
+Phase 3B 開始前須另建至少 30 份支出文字 fixture。付款人、幣別、日期與分攤對象正確率各至少 95%；同名、分攤不符或幣別不明時必須停在預覽，不能寫入。
 
-姓名缺漏、同名、代名詞指向不明、幣別缺漏或分攤總額不一致時必須停在預覽階段。只有在產品規則有明確預設且預覽清楚標示時，才能補入目前使用者、旅程預設幣別或全部成員。
+## 5. Phase 3C 與後續候選
 
-## 6. 技術方案
+Phase 3A、3B 各自通過觀測門檻後，再評估：
 
-### 6.1 建議元件
+- 同時提供文字與收據，例如以文字補充「我付、Amy 不用分」。
+- 依日期、商家、金額、付款人提示可能重複，但不由 AI 自動刪除。
+- 一次多筆支出、批次確認與同批撤銷。
+- PDF、多頁文件、多張收據與票券輸入。
+- 品項抽取與逐項分帳；須先完成 Roadmap 的逐項分帳資料模型。
+- 語音輸入、從筆記快速形成支出草稿。
 
-```text
-使用者貼上的外部規劃
-        ↓
-Next.js AI 匯入 endpoint（驗證 session、限流、限制長度）
-        ↓
-Vercel AI SDK
-        ↓
-Vercel AI Gateway → OpenAI 模型
-        ↓
-Zod 結構化草稿
-        ↓
-程式端正規化、日期對應、衝突檢查
-        ↓
-可編輯預覽與使用者確認
-        ↓
-既有 itinerary Server Actions → MongoDB
-```
-
-Vercel AI SDK 是應用層，不與 Gateway 綁死。模型建立集中在單一 `provider` 模組，避免 UI、prompt 或匯入邏輯依賴特定供應商：
-
-```text
-AI_PROVIDER=vercel  → AI_GATEWAY_API_KEY + openai/<model>
-AI_PROVIDER=openai  → OPENAI_API_KEY + <model>
-```
-
-從 Gateway 改為 OpenAI 直連時，只更換 provider、認證與 model identifier；匯入 schema、預覽 UI、權限及寫入流程保持不變。API key 只能存在伺服器環境，不得傳至瀏覽器。
-
-### 6.2 建議檔案邊界
-
-```text
-src/app/api/ai/itinerary-import/route.ts
-src/app/api/ai/expense-draft/route.ts
-src/components/ai-import/ItineraryImportDialog.tsx
-src/components/ai-import/ImportPreview.tsx
-src/components/ai-import/ExpenseDraftCard.tsx
-src/lib/ai/provider.ts
-src/lib/ai/itineraryImportSchema.ts
-src/lib/ai/expenseImportSchema.ts
-src/lib/ai/normalizeItineraryImport.ts
-src/lib/ai/normalizeExpenseImport.ts
-src/lib/ai/importLimits.ts
-src/lib/ai/evaluateItineraryImport.ts
-src/__fixtures__/ai/itineraryImportFixtures.ts
-```
-
-匯入 endpoint 只負責產生草稿；確認寫入應沿用既有 Server Actions，不另建一套繞過權限與通知的資料存取路徑。
-
-## 7. 日期、地點與合併規則
-
-### 日期
-
-- 完整日期優先於 Day N。
-- Day N 以旅程開始日換算；旅程沒有開始日期時必須請使用者指定。
-- 月日缺少年份時，只能在旅程範圍能唯一對應時自動補齊。
-- 超出旅程範圍的日期標記警告，預設不勾選匯入。
-- 「明天、下週一」等相對日期以請求時間與旅程時區解讀；旅程尚無時區欄位，MVP 應避免自動接受無法唯一判定的相對日期。
-
-### 地點
-
-- 第一階段保留 `locationName`，不可由模型虛構經緯度。
-- 若要寫入現有 location 結構，必須由可信任的地理編碼來源取得座標，或由使用者在預覽中選擇。
-- 地理編碼失敗不應阻止活動匯入，活動可先不帶結構化 location。
-
-### 合併
-
-- 已有目標日期：預設附加新活動，不覆蓋標題、內容或既有活動。
-- 類似日期、時間與標題只標記「可能重複」，由使用者決定。
-- 同批匯入的活動依時間排序；無時間活動排在有時間活動之後。
-- 部分日期失敗時回傳逐日結果，不應把已成功寫入的日期偽裝成整批失敗。
-
-## 8. 安全、隱私與成本控制
-
-- AI endpoint 必須登入且具備目標旅程的 admin 權限。
-- 限制單次輸入字數、行程天數、每日活動數、總活動數與模型輸出 tokens。
-- 不把會員 email、邀請碼、附件 URL、支出紀錄或其他無關資料送給模型。
-- confirmation code 屬敏感資料；只在輸入確實包含時解析，不寫入 log 或分析事件。
-- prompt injection 一律視為不可信輸入；模型沒有資料寫入 tool，只能回傳 schema 草稿。
-- 設定每位使用者與每個旅程的速率限制，並記錄 request、token、latency、結果狀態與 provider，但避免保存完整原文。
-- 設定 Gateway/API 預算上限與逾額處理；模型失敗時保留使用者原文，允許重試或回到手動輸入。
-- 支出草稿的金額、匯率與分攤合計全部由程式重算；不得信任模型提供的計算結果。
-
-## 9. MVP 已決策範圍
-
-以下決策適用於 Phase 0–2；若實測顯示限制不合理，再以文件變更明確調整，不在實作中自行擴張範圍。
-
-| 項目 | MVP 決策 |
-| --- | --- |
-| 輸入 | 只接受貼上的純文字或 Markdown 文字，不接受檔案、圖片、網址或語音 |
-| 單次上限 | 最多 30,000 字、14 天、每日 15 個活動、合計 120 個活動 |
-| 寫入方式 | 只新增活動；目標日期已存在時附加，不覆蓋既有標題、內容或活動 |
-| 地點 | 只保存文字名稱，不做 geocoding，不接受模型產生的經緯度 |
-| 確認碼 | 可以解析，但預覽預設遮罩；log、分析事件與錯誤訊息不得包含原值 |
-| 重複判斷 | 使用日期、標準化時間與標題的確定性規則提示，由使用者決定是否匯入 |
-| 相對日期 | 支援 `Day N`；「明天」、「下週一」等無法唯一判定的說法必須警告並要求修正 |
-| 權限 | 只有旅程 admin 可解析與確認匯入；分享頁及公開 API 不提供此能力 |
-| AI 失敗 | 保留瀏覽器內的原始輸入供重試，不把完整原文長期存入資料庫或 log |
-| 功能邊界 | Phase 0–2 只交付行程匯入；自然語言記帳另列 Phase 3，不阻塞行程 MVP |
-
-## 10. 執行 Phase
-
-Phase 必須依序通過完成條件。低流量 Free tier 試用可採較小但可重跑的模型品質樣本；provider 429 視為可恢復的容量限制並在 UI 明確呈現，不與成功生成後的模型品質混為一談。擴大流量前仍須完成完整 31 筆 baseline。
-
-| Phase | 狀態 | 可交付結果 | 是否寫入旅程資料 |
-| --- | --- | --- | --- |
-| 0 | `complete` | 固定樣本、期望輸出、限制與評分工具 | 否 |
-| 1 | `complete-limited` | 具權限與限制保護的結構化解析 endpoint；Free tier 低流量試用 | 否 |
-| 2A | `complete` | 可編輯、可取消項目的匯入預覽 | 否 |
-| 2B | `complete` | 明確確認後的逐日匯入與失敗重試 | 是 |
-| 2C | `in-progress` | i18n、行動版、觀測、整合與安全驗收 | 是 |
-| 3 | `deferred` | 自然語言支出草稿與分攤 | 是，須另行確認 |
-
-### Phase 0：樣本、契約與驗證基線
-
-狀態：`complete`（2026-08-04）
-
-目標是先建立可重跑的品質基線，避免以少數手動範例判斷模型是否可用。
-
-交付物：
-
-- 至少 30 份匿名化行程樣本，涵蓋 Markdown 表格、條列、段落、`Day N`、完整日期、跨年日期、缺少時間、重複活動及超出旅程範圍。
-- 每份樣本的期望結構化輸出與必要 warning code；測試 fixture 不包含真實姓名、Email、邀請碼或有效確認碼。
-- `ItineraryImportDraft` 的 Zod schema、固定 warning/error code，以及不依賴模型的日期正規化與重複提示規則。
-- 可重跑的評分工具，至少統計合法 schema 比例，以及日期、時間、標題、類型的欄位正確率。
-- import limits 集中定義，伺服器與 UI 共用同一組數值。
-
-測試重點：schema 邊界、空白輸入、超長輸入、超量天數／活動數、錯誤日期、未知活動類型、confirmation code 不出現在測試輸出快照。
-
-完成條件：fixture 可在不呼叫外部模型的情況下執行；正規化與限制測試全數通過；warning/error code 足以讓 UI 對應，不需解析模型的自由文字錯誤。
-
-完成證據：31 份 fixture 均通過草稿 schema；評分工具可分別計算 schema 合法率及日期、時間、標題、類型正確率；Phase 0 的 23 項測試涵蓋輸入與輸出上限、無效日期／時間、未知欄位、日期換算、活動排序、既有活動與同批重複、敏感確認碼及評分結果。核心程式位於 `src/lib/ai/`，樣本位於 `src/__fixtures__/ai/`。
-
-### Phase 1：只解析、不寫入
-
-狀態：`complete-limited`（2026-08-04），僅核准低流量 Free tier 試用；`openai/gpt-5.6-luna` 與 `google/gemini-3.1-flash-lite` 在 Gateway Free tier 均回覆 HTTP 403，後者的 3 次 smoke request 皆未產生 token。`alibaba/qwen3.7-flash` 可生成，但需在 prompt 明列 JSON 欄位骨架並關閉 thinking；節流 11 秒的 31 筆評估仍只有 6 筆到達模型（3 筆合法、3 筆無效），其餘 25 筆被 Gateway Free tier rate limit 拒絕，初步 schema 遵循率為 50%。
-
-OpenAI nano 初測使用 required-nullable provider schema，再轉回既有 optional 草稿契約。`openai/gpt-4.1-nano` 單筆 smoke 為合法 schema、核心欄位 100%、約 3.3 秒、721 input／128 output tokens；5 筆小樣本有 4 筆到達模型且 4 筆皆為合法 schema，這 4 筆共 33 個核心欄位、答對 29 個，正確率約 87.9%，第 5 筆遭 Free tier 429。2026-08-04 再以 12 秒間隔跑完整 31 筆：10 筆到達模型且全數通過 schema，成功生成的 79 個核心欄位答對 78 個（約 98.7%），共使用 7,009 input／1,549 output tokens；另外 21 筆被 Gateway Free tier 429 拒絕，使全體樣本可生成率只有 32.3%。依目前網站流量很小且只使用 Free tier 的產品決策，10 筆成功樣本的品質已通過受限試用門檻；429 會保留原文並允許稍後重試，不視為錯誤草稿。`openai/gpt-5-nano` 預設推理的單筆雖達 100%，但約需 21.7 秒與 2,964 output tokens；改成 minimal reasoning 後約 3.5 秒與 189 output tokens，該次核心欄位為 85.7%，後續 5 筆皆遭 Free tier 429。`openai/gpt-5-mini` 第一筆即遭 Free tier 429，尚無品質資料。開發環境維持選用 `openai/gpt-4.1-nano`；擴大流量或正式宣告一般可用前仍須完成 31 筆 baseline。
-
-目標是讓 admin 能把文字轉成合法草稿，同時證明此路徑沒有任何資料寫入能力。
-
-交付物：
-
-- 集中的 AI provider abstraction；模型與 provider 由伺服器環境設定，未設定時回傳可辨識的功能停用錯誤。
-- `POST /api/ai/itinerary-import`：依序驗證 session、旅程 admin、輸入長度與使用量，再呼叫模型產生結構化輸出。
-- 系統 prompt 只提供旅程起訖日期及解析必要資訊，不提供成員 Email、邀請碼、附件、支出或其他旅程資料。
-- 模型輸出經 Zod、日期正規化、範圍檢查與數量限制後才回傳；無效、截斷或超量輸出整批拒絕。
-- 結構化錯誤狀態：未登入、非 admin、功能未設定、輸入無效、超過限制、使用量受限、模型逾時、模型輸出無效。
-- 記錄 provider、model、latency、token usage、結果狀態與錯誤分類；不記錄完整輸入、完整模型輸出或確認碼。
-
-測試重點：未登入與非 admin 不會呼叫 provider；惡意 prompt 仍只能得到 schema 草稿；provider timeout、截斷、非 schema 輸出及超量輸出可安全失敗；route 測試不得觀察到 itinerary action 或 Mongoose 寫入。
-
-完成條件：有效回應 100% 通過 Zod且核心欄位正確率達 90%；Free tier 受限試用至少取得 10 筆成功生成樣本，429 可安全重試且不計入模型欄位品質。擴大流量前，至少 90% 的完整固定樣本須能產生合法 schema；失敗請求不得寫入資料，成本與延遲須有可比較的基線紀錄。
-
-實作證據：集中 provider、最小化 prompt、唯讀 context loader 與 route 分別位於 `src/lib/ai/` 及 `src/app/api/ai/itinerary-import/route.ts`；route/provider 自動化測試涵蓋未登入、非 admin、無效／超長輸入、功能停用、rate limit、timeout、截斷、無效模型輸出、去敏 log，以及零 itinerary action 呼叫。`pnpm test:ai-import-eval` 僅在明確啟用 live eval 時載入 `.env.local`、使用 Node 測試環境，並分開彙總 provider 可用率、成功生成後的 schema／核心欄位品質及安全的錯誤分類；可用 `AI_IMPORT_EVAL_CASE_LIMIT` 限制 smoke 樣本、用 `AI_IMPORT_EVAL_INTERVAL_MS` 對 Free tier 評估節流，而且 live eval 關閉 SDK retry，避免限流請求被重送。Alibaba 模型會明確停用 thinking，以避免簡單抽取浪費 reasoning tokens。受限試用門檻已通過；完整 31 筆 90% 可用率改列 Phase 2C 的擴流驗收。
-
-### Phase 2A：可編輯預覽
-
-狀態：`complete`（2026-08-04）
-
-目標是讓使用者在任何寫入發生前，完整看見並修正結果。
-
-交付物：
-
-- 在旅程行程頁提供 admin 專用「AI 匯入」入口；非 admin 不顯示入口，伺服器仍獨立驗權。
-- 輸入畫面顯示字數與 MVP 上限，解析失敗後保留文字，使用者可修改並重試。
-- 預覽依日期分組，活動欄位可編輯，可取消單項或整天，並顯示新增、附加、可能重複、超出範圍與待修正狀態。
-- confirmation code 預設遮罩，只有明確操作才顯示；無日期、日期有歧義或欄位不合法時停用確認按鈕並定位問題。
-- 預覽使用既有行程活動的欄位與驗證規則，避免匯入 UI 形成第二套資料契約。
-
-測試重點：鍵盤操作、焦點管理、手機寬度、深色模式、取消項目、修正錯誤後恢復確認、確認碼遮罩，以及重新解析不會意外保留前一份草稿。
-
-完成條件：使用者可在單一預覽流程檢查並修改所有待寫欄位；未解決的阻擋錯誤存在時不能確認；到此 Phase 為止仍無資料寫入。
-
-完成證據：admin 的行程頁入口與輸入／預覽流程位於 `src/components/ai-import/`；輸入畫面共用伺服器字數上限，API 失敗時保留原文，重新解析會先清除舊草稿。預覽可逐日與逐項取消，提供日期、標題、內容、時間、類型、地點文字、備註及訂位代碼編輯，並標示新增、附加、可能重複與超出範圍狀態；超出範圍的日期預設不勾選，訂位代碼預設遮罩。純函式會依現有行程欄位限制重驗草稿、排除未選項目並重新編排 warning index；任何阻擋問題存在時完成檢查按鈕維持停用。Phase 2A 的 7 項測試涵蓋日期範圍、時間修正、新增日標題、取消與 warning 重排、失敗保留原文、確認碼遮罩、修正後恢復確認及重新解析隔離；此流程沒有呼叫 itinerary mutation 或其他資料寫入。
-
-### Phase 2B：確認匯入與逐日結果
-
-狀態：`complete`（2026-08-04）
-
-目標是只在使用者明確確認後，重用現有行程權限與驗證路徑寫入資料。
-
-實作前設計註記（Phase 1 門檻通過後才落實資料寫入）：
-
-- 預覽建立一次 `operationId`（UUID），重新解析時換新值，同一份預覽的送出、網路重送與失敗重試沿用原值。伺服器以 `tripId + operationId + date` 派生不含敏感資料的逐日 `importKey`。
-- `ItineraryDay` 增加只供伺服器使用且不進 DTO／公開分享路由的 `appliedImportKeys`。建立日會一次寫入該日所有活動與 key；附加既有日則以「尚無此 key」為條件，在同一原子更新中 `$push` 整組活動並 `$addToSet` key。相同操作重送時回報 `already_imported`，不可再新增一次；key 不放在 activity 上，避免日後手動覆寫 activities 時遺失冪等紀錄。
-- 不直接用目前的 `updateItineraryDay` 做 read-modify-write：它會覆寫整個 activities 陣列，可能蓋掉同時發生的手動編輯；目前的 `createItineraryDay` 也只能建立最後一天，無法安全表示匯入指定日期。確認服務應重用相同的 admin membership、`activitySchema`／day schema 與 DTO 轉換，但採專用的原子資料庫操作。
-- 每一天是獨立原子單位，不把整批包成單一全有或全無交易。回應保留 `success`、`already_imported`、`failed` 三種逐日結果；前端只重送 failed 日，伺服器仍能安全接受原整批重送。
-- 寫入前從旅程開始日把日期換算為 `dayNumber`；旅程沒有開始日、日期超出範圍或無法唯一換算時拒絕該日。活動數量以原子查詢條件再次檢查，避免確認後到實際寫入之間的競態超限。
-- `operationId`、逐日結果與安全錯誤碼可以記錄；來源文字、完整草稿、訂位代碼及活動備註不得進 log。`importKey` 只用於冪等判斷，不作分析識別碼。
-
-交付物：
-
-- 確認送出時再次驗證 session、admin 權限、旅程範圍、數量上限及每筆活動 payload，不信任預覽期間保留的權限或模型輸出。
-- 依日期重用既有行程的權限、驗證與 DTO 路徑；已存在日期以專用原子操作附加已勾選活動，不覆蓋既有資料。
-- 每日回報成功或失敗。部分成功時保留失敗日供修正與重試，已成功日不得被同一次重試重複建立。
-- 成功後更新相關 query、活動紀錄與畫面；結果摘要清楚列出新增天數、活動數、跳過數及失敗數。
-- 對使用者重複點擊與網路重送提供冪等保護；具體機制在實作前以小型設計註記定案。
-
-測試重點：確認前零寫入、確認時權限已被撤銷、既有日期附加、部分失敗、重試、重複送出、活動數競態超限，以及模型草稿不能繞過現有 Zod schema。
-
-完成條件：沒有明確確認就不會寫入；成功與失敗可逐日辨識；重試不重複建立已成功項目；公開 DTO 與分享頁不增加任何敏感欄位。
-
-完成證據：`confirmItineraryImport` 在送出時重新驗證登入、admin、完整草稿、旅程日期與活動上限；依日期換算 `dayNumber`，新日期建立整天，既有日期使用帶活動數競態條件的原子 `$push`，不覆蓋標題、內容或既有活動。每份預覽建立 UUID，伺服器以雜湊逐日 key 及 `appliedImportKeys` 去重；重複點擊或網路重送回報 `already_imported`。UI 顯示逐日與彙總結果，部分失敗只保留失敗日期並沿用 operation ID 重試，成功後更新 itinerary query、相片關聯及去識別的活動紀錄。純文字地點保存於獨立 `locationName`，不虛構座標；訂位代碼、原文與活動內容不進 log，冪等欄位不進一般或公開 DTO。自動化測試涵蓋權限撤銷、新日期與日期換算、文字地點、既有日期附加、循序／並行重送去重、部分失敗、上限及 UI retry。
-
-### Phase 2C：MVP 完整驗收與發布準備
-
-狀態：`in-progress`（2026-08-04）。低流量 Free Tier 發布保護與腳本化五天流程已完成；完整 31 筆 provider 可用率及真人完成時間仍是擴大流量前的未完成門檻。
-
-目標是補齊可正式開放所需的跨功能品質，而不是在 2B 寫入成功後立即視為完成。
-
-交付物：
-
-- 四語 i18n、響應式與無障礙檢查；載入、空白、錯誤、部分成功及功能未設定皆有對應畫面。
-- 以使用者及旅程為單位的持久化使用量限制與成本上限；Serverless 環境不得使用記憶體計數冒充全域限流。
-- 產品事件只記錄解析、預覽、確認、取消、修正率與錯誤分類等去識別資料。
-- production build、route/action 整合測試及既有行程流程回歸測試。
-- 更新環境變數範例、部署說明、`FEATURES.md`、`ARCHITECTURE.md`、`ROADMAP.md` 與必要的 `CHANGELOG.md`。
-
-完成條件：第 11 節所有行程 MVP 指標通過；未設定 AI 環境時其餘應用功能正常；可觀察成本、延遲、確認率與失敗原因；完成一次五天行程的真人或腳本化端到端驗收。
-
-目前完成證據：
-
-- 四個 locale 均涵蓋輸入、載入、預覽、阻擋錯誤、功能未設定、應用配額用盡、provider 限流、部分成功及逐日結果。解析 request 會傳入經 enum 驗證的目前介面 locale，摘要、日標題、活動標題與備註依該語言產生，地名、專有名詞、交通編號及 confirmation code 保留原文；未傳 locale 的舊呼叫維持來源語言。Dialog 使用窄螢幕寬度、受限高度內捲動、響應式欄位、初始焦點、`aria-busy`、live 字數與既有 Radix focus trap；confirmation code 預設遮罩。
-- `AiImportUsage` 以 MongoDB UTC 日 bucket 持久化 global／user／trip requests，原子保留後再呼叫 provider。全域成本以 micro-USD 最壞情況預留，成功後結算實際 input/output tokens 與設定價格；失敗若無 usage 則保守計入整筆預留。跨 scope 拒絕會補償先前保留，程序中斷則 fail closed。預設每日 5/user、10/trip、50/global，均可由 env 調整。
-- `ai_itinerary_import` 事件只記錄固定分類的 parse、preview、confirm、cancel、是否修正、部分成功及錯誤碼；不接受 id、原文、日期、地點、訂位代碼或自由文字。server log 增加 cost micro-USD，仍不記草稿內容。
-- route 測試涵蓋持久化配額在 provider 前拒絕及成功／失敗結算；quota 測試涵蓋 UTC bucket、三 scope、原子限制、補償與成本計算；action 以五天／十活動完成腳本化寫入驗收。`pnpm test:run`（859 passed、1 個 opt-in live eval skipped）、typecheck、lint、format、diff check 與 production build 均已通過；build 只有既有 authenticated page 使用 cookies 的 dynamic-render log，exit code 為 0。
-- `.env.example`、根 README、`FEATURES.md`、`ARCHITECTURE.md`、`ROADMAP.md` 與 `CHANGELOG.md` 已記錄開關、部署值、資料流、受限試用邊界與擴流 gate。
-
-尚未通過：完整 31 fixture 至少 90% provider 可用率（目前 Free Tier 為 32.3%）以及相較手動建立至少節省 50% 的真人計時。因此 Phase 2C 不標記 complete，產品不得宣稱一般流量正式可用。
-
-### Phase 3：自然語言記帳與分攤（MVP 後）
-
-Phase 3 不屬於第一個行程匯入版本。開始前須依 Phase 0 的方式另建支出樣本與驗收基線，並重新確認缺少參與者時的預設、同名成員處理及分攤尾差規則。
-
-- 建立支出草稿 schema、成員名稱解析與可編輯確認卡。
-- 先支援單筆，再依成功率決定是否開放一次多筆支出。
-- 程式端處理匯率、四捨五入與尾差，確認後重用既有 `createExpense`。
-- 平均、指定金額、百分比及份數比例都必須通過現有確定性分攤驗證。
-
-完成條件：付款人或分攤成員有歧義時不會寫入；分攤總額不符時不能確認；AI 不能繞過旅程成員、日期、幣別與正數金額限制。
-
-### Phase 4：觀測後擴充
-
-- 評估批次撤銷、進階重複偵測、缺漏檢查及 checklist 草稿，依實際使用率與修正率排序。
-- 評估既有行程修正、合併與刪除；刪除必須另立確認及復原規格。
-- 視使用情況考慮檔案、連結、圖片與語音輸入。
-
-## 11. MVP 驗收指標
-
-- Free tier 低流量試用至少 10 筆成功樣本全數通過 schema；擴大流量前至少 90% 的完整測試樣本能產生合法 schema。
-- 日期、時間、活動標題與類型的欄位正確率至少 90%。
-- 不確定的日期或合併決策會顯示警告，不會靜默猜測。
-- 使用者確認前可完整查看並修改所有將寫入的資料。
-- 任何越權、格式錯誤或超出上限的請求都不會寫入資料庫。
-- 相較逐項手動建立，同一份五天行程的完成時間至少降低 50%。
-- 追蹤每次匯入的模型成本、延遲、草稿修改率、確認率與失敗原因。
-- 解析 endpoint 的未登入、越權、格式錯誤、超限、逾時與 provider 無效輸出都有自動化測試。
-- 同一確認請求重送時不會重複建立已成功的活動。
-- 未設定 AI provider 或使用額度用盡時，其餘手動行程功能不受影響。
-
-Phase 3 開始後另加支出指標：付款人、幣別、日期與分攤對象正確率至少 95%；所有金額計算由確定性程式完成；同名成員、分攤總額不符或幣別無法判定時不能確認。
-
-## 12. 尚待實作前定案
-
-- Phase 2B 的冪等 key 與成功項目紀錄保存方式；需能處理部分成功後重試，但 MVP 不必同時提供批次撤銷。
-- 持久化使用量限制的儲存方案與初始門檻；需適用 Serverless 並可設定每位使用者、每個旅程及整體成本上限。
-- Gateway 使用的初始模型與每次匯入的成本上限，應以 Phase 0 樣本實測後決定，不在文件寫死。
-- Phase 3 的參與者預設、同名成員消歧義及百分比／份數尾差規則；不影響 Phase 0–2 開工。
+以下仍不做：讓模型自行執行不可逆操作、將資料庫寫入權限交給外部 agent、保存長期 AI 對話記憶，或把本產品擴張成通用旅行規劃聊天機器人。
