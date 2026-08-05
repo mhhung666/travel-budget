@@ -81,7 +81,7 @@ export function resolveItineraryImportProviderConfig(
 ): ItineraryImportProviderConfig {
   const provider = environment.AI_PROVIDER;
   const model = environment.AI_MODEL;
-  const timeoutMs = readTimeout(environment.AI_IMPORT_TIMEOUT_MS);
+  const timeoutMs = readTimeout(environment.AI_TIMEOUT_MS);
 
   if (provider === 'vercel') {
     const result = providerConfigSchema.safeParse({

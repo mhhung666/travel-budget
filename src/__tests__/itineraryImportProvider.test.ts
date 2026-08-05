@@ -69,7 +69,7 @@ describe('itinerary import provider', () => {
         AI_PROVIDER: 'openai',
         AI_MODEL: 'gpt-test',
         OPENAI_API_KEY: 'openai-secret',
-        AI_IMPORT_TIMEOUT_MS: '45000',
+        AI_TIMEOUT_MS: '45000',
       })
     ).toEqual({
       provider: 'openai',
