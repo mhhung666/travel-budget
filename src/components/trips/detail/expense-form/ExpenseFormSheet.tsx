@@ -13,6 +13,8 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import type { NormalizedExpenseTextDraft } from '@/lib/ai/normalizeExpenseTextDraft';
 
 import { AmountField } from './AmountField';
 import { CategoryPicker } from './CategoryPicker';
@@ -66,6 +68,9 @@ export default function ExpenseFormSheet({
   const tCommon = useTranslations('common');
   const locale = useLocale();
   const [submitting, setSubmitting] = useState(false);
+  const [aiSource, setAiSource] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiMessage, setAiMessage] = useState('');
 
   const {
     form,
@@ -99,6 +104,7 @@ export default function ExpenseFormSheet({
     handleValueChange,
     handleSelectAll,
     handleItineraryDayToggle,
+    applyTextDraft,
   } = useExpenseForm({
     mode,
     open,
@@ -150,6 +156,32 @@ export default function ExpenseFormSheet({
     const live = rates?.[form.currency];
     if (live) {
       setForm((prev) => ({ ...prev, exchange_rate: live.toFixed(6) }));
+    }
+  };
+
+  const handleTextDraft = async () => {
+    if (!aiSource.trim()) return;
+    setAiLoading(true);
+    setAiMessage('');
+    try {
+      const response = await fetch('/api/ai/expense-text-draft', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tripId, sourceText: aiSource }),
+      });
+      const body = await response.json();
+      if (!response.ok || !body.success) throw new Error();
+      const draft = body.draft as NormalizedExpenseTextDraft;
+      applyTextDraft(draft);
+      setAiMessage(
+        draft.requiresCorrection
+          ? tExpense('form.aiDraftReview')
+          : tExpense('form.aiDraftApplied')
+      );
+    } catch {
+      setAiMessage(tExpense('form.aiDraftFailed'));
+    } finally {
+      setAiLoading(false);
     }
   };
 
@@ -235,6 +267,32 @@ export default function ExpenseFormSheet({
             <AlertTitle>{tCommon('errorTitle')}</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>
+        )}
+
+        {mode === 'add' && (
+          <div className="space-y-2 rounded-lg border bg-muted/30 p-3">
+            <Label htmlFor="expense-ai-source">{tExpense('form.aiDraft')}</Label>
+            <Textarea
+              id="expense-ai-source"
+              value={aiSource}
+              onChange={(event) => setAiSource(event.target.value)}
+              placeholder={tExpense('form.descriptionPlaceholder')}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleTextDraft}
+              disabled={aiLoading || !aiSource.trim()}
+            >
+              {aiLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {tExpense('form.aiDraftCreate')}
+            </Button>
+            {aiMessage && (
+              <p role="status" className="text-sm text-muted-foreground">
+                {aiMessage}
+              </p>
+            )}
+          </div>
         )}
 
         {/* 1. 金額（Hero）＋幣別 */}

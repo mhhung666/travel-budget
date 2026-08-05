@@ -7,6 +7,7 @@ import { computeSplits, type SplitMode } from '@/lib/expenseSplit';
 import { getPinnedRate, getTripDefaultCurrency } from '@/lib/tripCurrency';
 import { toDateInputValue, toLocalDateInputValue } from '@/lib/dateInput';
 import type { Expense, ExpenseAttachment, Member, TripCurrencySettings } from '@/types';
+import type { NormalizedExpenseTextDraft } from '@/lib/ai/normalizeExpenseTextDraft';
 
 export interface ExpenseFormData {
   payer_id: string;
@@ -321,6 +322,29 @@ export function useExpenseForm({
     );
   };
 
+  const applyTextDraft = (draft: NormalizedExpenseTextDraft) => {
+    setForm((previous) => ({
+      ...previous,
+      description: draft.description,
+      original_amount: String(draft.originalAmount),
+      currency: draft.currency ?? previous.currency,
+      date: draft.date ?? previous.date,
+      category: draft.category ?? previous.category,
+      payer_id: draft.payerId ?? previous.payer_id,
+    }));
+    if (!draft.requiresCorrection && draft.split.method === 'equal') {
+      const selected = new Set(draft.participantIds);
+      setSplitMode('equal');
+      setSplitState(
+        Object.fromEntries(
+          members.map((member) => [member.id, { selected: selected.has(member.id), value: '' }])
+        )
+      );
+    }
+    if (draft.tags) setTags(draft.tags);
+    setShowAdvanced(true);
+  };
+
   return {
     form,
     setForm,
@@ -353,5 +377,6 @@ export function useExpenseForm({
     handleValueChange,
     handleSelectAll,
     handleItineraryDayToggle,
+    applyTextDraft,
   };
 }
