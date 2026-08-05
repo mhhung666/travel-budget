@@ -14,8 +14,8 @@
 | SPLIT-1 | `idea` | 逐項分帳 | 一張帳單內不同品項可由不同成員負擔 | 品項合計、整筆支出與結算結果一致，編輯與公開檢視可用 |
 | OFFLINE-1 | `research` | 擴大離線寫入 | 弱網下可編輯與刪除，不只新增 | 定義衝突策略、復原 UI 與同步測試後再實作 |
 | AI-IMPORT-1 | `in-progress` | [AI 行程匯入](./AI_IMPORT_PLAN.md) | 將外部 AI agent 的規劃結果歸納為可編輯的逐日行程 | Phase 0–2B 與 Phase 2C 實作基線已完成；現為低流量受限試用，完整 provider 可用率與真人節時門檻待驗收 |
-| AI-RECEIPT-1 | `ready` | [收據圖片分析](./AI_IMPORT_PLAN.md#3-phase-3a收據圖片分析) | 拍一張收據即可帶入商家、總額、幣別、日期與分類草稿 | 先完成 40 份圖片基線；歧義不得靜默選值；使用者確認後才重用 `createExpense`；AI 失敗不影響手動記帳 |
-| AI-EXPENSE-1 | `idea` | [AI 自然語言記帳與分攤](./AI_IMPORT_PLAN.md#4-phase-3b自然語言記帳與分攤) | 用一句話建立可確認的支出與分攤草稿 | 先定案成員預設、同名消歧義與尾差規則；付款人、幣別、成員或分攤有歧義時不得寫入 |
+| AI-RECEIPT-1 | `in-progress` | [收據圖片分析](./AI_IMPORT_PLAN.md#3-phase-3a收據圖片分析) | 拍一張收據即可帶入商家、總額、幣別、日期與分類草稿 | 私有圖片驗證與 schema 草稿 API 已完成；尚待 40 份基線、表單預覽、確認寫入串接、配額與觀測 |
+| AI-EXPENSE-1 | `in-progress` | [AI 自然語言記帳與分攤](./AI_IMPORT_PLAN.md#4-phase-3b自然語言記帳與分攤) | 用一句話建立可確認的支出與分攤草稿 | 文字草稿 API、付款人／全員預設及唯一姓名解析已完成；尚待四語預覽、分攤換算規則、fixture 與確認寫入串接 |
 
 ## 小型延伸
 
