@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Image from 'next/image';
 import {
   LogOut,
+  Compass,
   Settings,
   BarChart3,
   Map as MapIcon,
