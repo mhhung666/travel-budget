@@ -1,6 +1,6 @@
 'use client';
 
-import { Compass } from 'lucide-react';
+import Image from 'next/image';
 import { Link } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 import LanguageSwitcher from './LanguageSwitcher';
@@ -25,7 +25,14 @@ export function PublicShell({
       <header className="sticky top-0 z-50 border-b bg-background/95 pt-[env(safe-area-inset-top)] backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto flex h-14 items-center justify-between px-4">
           <Link href="/" className="flex min-w-0 items-center gap-2">
-            <Compass className="h-6 w-6 shrink-0 text-primary" />
+            <Image
+              src="/brand-mascot.png"
+              alt=""
+              width={32}
+              height={32}
+              className="h-8 w-8 shrink-0 object-contain"
+              priority
+            />
             <span className="truncate text-lg font-semibold text-foreground">{t('home')}</span>
           </Link>
           <div className="flex shrink-0 items-center gap-1">

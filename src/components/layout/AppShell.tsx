@@ -1,9 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import {
   LogOut,
-  Compass,
   Settings,
   BarChart3,
   Map as MapIcon,
@@ -131,7 +131,14 @@ export function AppShell({
         <div className="container mx-auto flex h-14 items-center justify-between gap-2 px-4 md:h-16">
           {/* 左側：桌機 logo / 行動端目前位置標題 */}
           <Link href="/trips" className="flex min-w-0 items-center gap-2">
-            <Compass className="h-6 w-6 shrink-0 text-primary" />
+            <Image
+              src="/brand-mascot.png"
+              alt=""
+              width={32}
+              height={32}
+              className="h-8 w-8 shrink-0 object-contain"
+              priority
+            />
             <span className="truncate text-lg font-semibold text-foreground md:text-xl">
               <span className="md:hidden">{mobileTitle}</span>
               <span className="hidden md:inline">{t('home')}</span>

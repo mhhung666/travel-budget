@@ -1,6 +1,6 @@
 'use client';
 
-import { Compass } from 'lucide-react';
+import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import Hero from '@/components/home/Hero';
 import Features from '@/components/home/Features';
@@ -23,7 +23,14 @@ export default function HomePage({ redirectTo }: { redirectTo?: string }) {
       <header className="relative z-50 border-b border-border/50 bg-background/75 pt-[env(safe-area-inset-top)] backdrop-blur-md">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6 lg:h-16 lg:px-8">
           <div className="flex items-center gap-2">
-            <Compass className="h-6 w-6 text-primary" />
+            <Image
+              src="/brand-mascot.png"
+              alt=""
+              width={32}
+              height={32}
+              className="h-8 w-8 object-contain"
+              priority
+            />
             <span className="text-lg font-semibold text-foreground">{tNav('home')}</span>
           </div>
           <div className="flex items-center gap-1">
