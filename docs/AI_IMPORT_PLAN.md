@@ -26,7 +26,7 @@ Phase 3A 可先做，無須等待 Phase 3B 的成員名稱消歧義及比例分�
 
 - `POST /api/ai/receipt-draft` 僅接受旅程成員自己的 JPEG、PNG、WebP 收據 key；會以 R2 實際 metadata 驗證 key、型別與大小後才讀取圖片。它只回傳 schema 驗證與正規化後的草稿，不會建立支出；PDF 仍只能作一般附件。
 - `POST /api/ai/expense-text-draft` 只接受旅程成員的單筆文字。未提付款人時預設目前使用者，未提分帳者時預設全員（含虛擬成員）；明示姓名只在 display name 或 username 唯一對應時才解析。均分、指定金額、百分比與份數只有在所有姓名唯一、成員未重複、模型未標記分帳疑義，且金額／百分比合計通過既有分帳平衡規則時，才產生 member-ID based `resolvedSplit` 並帶入表單。其他情形回傳 `requiresCorrection` 與固定 warning，不會靜默套用分帳；仍須由使用者提交既有 `createExpense` 流程。
-- 新增支出表單可掃描已上傳的 JPEG、PNG、WebP 收據，並只帶入可唯一確認的商家、總額、幣別、日期與分類；PDF 不顯示掃描入口。缺少／歧義總額或幣別會保留原值並要求使用者修正，掃描本身不會提交支出。
+- 新增支出表單以「手動／說一句話／掃描收據」統一快速記帳入口呈現；AI 回傳後先顯示欄位摘要與需要確認的標記，必須再按一次「套用到表單」才會帶入。收據只套用可唯一確認的商家、總額、幣別、日期與分類；PDF 可附加但不提供掃描。缺少／歧義欄位會保留表單原值，最終仍須由使用者提交既有新增支出流程。
 - 兩端點已共用 MongoDB 持久化 global／user／trip 每日配額、成本預留與 token 結算，並具備授權、輸入、附件、配額及 provider 失敗的 route 測試。3A 已有 40 張匿名合成圖片、確定性離線評分與 opt-in live provider evaluator；3B 已有 32 筆合成文字 fixture 與同類評估工具。兩者皆尚未取得通過門檻的完整 provider 基線，產品事件與代名詞規則亦未完成，因此不得視為一般使用者可用或正式擴流。
 
 ## 2. 共通產品原則
@@ -122,7 +122,7 @@ src/lib/ai/receiptDraftPrompt.ts
 src/lib/ai/receiptDraftProvider.ts
 src/lib/ai/normalizeReceiptDraft.ts
 src/lib/ai/expenseDraftLimits.ts
-src/components/trips/detail/expense-form/ReceiptScanButton.tsx
+src/components/trips/detail/expense-form/ExpenseAiInput.tsx
 src/__fixtures__/ai/receiptDraftFixtures.ts
 ```
 
