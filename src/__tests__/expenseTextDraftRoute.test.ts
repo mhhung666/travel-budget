@@ -114,6 +114,13 @@ describe('POST /api/ai/expense-text-draft', () => {
         description: '午餐',
         payerId: 'user-1',
         participantIds: ['user-1', 'user-2'],
+        resolvedSplit: {
+          mode: 'equal',
+          entries: [
+            { memberId: 'user-1', value: '' },
+            { memberId: 'user-2', value: '' },
+          ],
+        },
         requiresCorrection: false,
       },
     });

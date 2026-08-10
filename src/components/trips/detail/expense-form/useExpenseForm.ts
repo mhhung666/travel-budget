@@ -333,12 +333,20 @@ export function useExpenseForm({
       category: draft.category ?? previous.category,
       payer_id: draft.payerId ?? previous.payer_id,
     }));
-    if (!draft.requiresCorrection && draft.split.method === 'equal') {
-      const selected = new Set(draft.participantIds);
-      setSplitMode('equal');
+    if (draft.resolvedSplit) {
+      const entries = new Map(
+        draft.resolvedSplit.entries.map((entry) => [entry.memberId, entry.value])
+      );
+      setSplitMode(draft.resolvedSplit.mode);
       setSplitState(
         Object.fromEntries(
-          members.map((member) => [member.id, { selected: selected.has(member.id), value: '' }])
+          members.map((member) => [
+            member.id,
+            {
+              selected: entries.has(member.id),
+              value: entries.get(member.id) ?? '',
+            },
+          ])
         )
       );
     }
