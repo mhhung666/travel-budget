@@ -227,6 +227,7 @@ src/
 - 文字草稿已接入新增支出表單的四語輸入區；均分、指定金額、百分比與份數只有在成員解析完整、模型未標記分帳疑義且既有 `computeSplits` 判定平衡時，才由 server 附加 `resolvedSplit` 並預填現有可編輯欄位。其他 warning 會展開詳細欄位讓使用者修正，最後仍由使用者提交既有 `createExpense`。
 - 新增支出表單僅對已上傳的 JPEG、PNG、WebP 收據顯示掃描入口；掃描結果只帶入明確讀取的欄位，遇到遺漏或歧義時展開既有欄位讓使用者修正，且仍必須經既有 `createExpense` 明確提交。PDF 只能作一般附件。
 - 兩端點與行程匯入共用 [aiUsageQuota.ts](../src/lib/ai/aiUsageQuota.ts) 的持久化 global／user／trip request、token 與成本 bucket；provider 回應只將固定 metadata 寫入 server log，route tests 覆蓋授權、附件邊界、額度與失敗結算。
+- 收據草稿以 [receiptDraftFixtures.ts](../src/__fixtures__/ai/receiptDraftFixtures.ts) 的 40 張匿名合成圖片及 [evaluateReceiptDraft.ts](../src/lib/ai/evaluateReceiptDraft.ts) 評分。一般測試只驗 fixture、schema 與評分器；`pnpm test:ai-receipt-eval` 才逐張執行 live 評估，將 provider 成功率、成功輸出的 schema／商家／日期／幣別／總額、歧義攔截率、延遲、token 與設定後的估算成本分開記錄。完整 provider 品質基線與產品事件尚未完成。
 - 文字草稿以 [expenseTextDraftFixtures.ts](../src/__fixtures__/ai/expenseTextDraftFixtures.ts) 的 32 筆合成案例及 [evaluateExpenseTextDraft.ts](../src/lib/ai/evaluateExpenseTextDraft.ts) 評分。一般測試不呼叫 provider；`pnpm test:ai-expense-text-eval` 才逐筆執行 live 評估，將 provider 成功率與成功輸出的 schema／付款人／幣別／日期／分攤對象品質分開記錄。完整 provider 基線與產品事件尚未完成，因此不得對外擴流。
 
 ---

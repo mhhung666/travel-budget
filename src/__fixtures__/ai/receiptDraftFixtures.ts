@@ -1,0 +1,460 @@
+import type { ReceiptDraft } from '@/lib/ai/receiptDraftSchema';
+
+export type ReceiptDraftFixture = {
+  id: string;
+  tags: string[];
+  imagePath: `src/__fixtures__/ai/receipts/${string}.png`;
+  mediaType: 'image/png';
+  expected: ReceiptDraft;
+};
+
+type FixtureInput = {
+  id: string;
+  tags: string[];
+  merchantName?: string;
+  transactionDate?: string;
+  currency?: string;
+  total?: number;
+  amounts?: ReceiptDraft['amountCandidates'];
+  suggestedCategory?: ReceiptDraft['suggestedCategory'];
+  status?: Partial<ReceiptDraft['fieldStatus']>;
+};
+
+const fixture = (input: FixtureInput): ReceiptDraftFixture => {
+  const fieldStatus: ReceiptDraft['fieldStatus'] = {
+    merchantName: input.merchantName ? 'read' : 'missing',
+    transactionDate: input.transactionDate ? 'read' : 'missing',
+    currency: input.currency ? 'read' : 'missing',
+    total: input.total !== undefined ? 'read' : 'missing',
+    ...input.status,
+  };
+  const warnings: ReceiptDraft['warnings'] = [];
+  for (const field of ['merchantName', 'transactionDate', 'currency', 'total'] as const) {
+    if (fieldStatus[field] === 'ambiguous') {
+      warnings.push({
+        code: `AMBIGUOUS_${field === 'merchantName' ? 'MERCHANT' : field.toUpperCase()}`,
+        field,
+      });
+    }
+  }
+  return {
+    id: input.id,
+    tags: input.tags,
+    imagePath: `src/__fixtures__/ai/receipts/${input.id}.png`,
+    mediaType: 'image/png',
+    expected: {
+      ...(input.merchantName ? { merchantName: input.merchantName } : {}),
+      ...(input.transactionDate ? { transactionDate: input.transactionDate } : {}),
+      ...(input.currency ? { currency: input.currency } : {}),
+      amountCandidates:
+        input.amounts ??
+        (input.total !== undefined ? [{ kind: 'total', amount: input.total }] : []),
+      ...(input.suggestedCategory ? { suggestedCategory: input.suggestedCategory } : {}),
+      fieldStatus,
+      warnings,
+    },
+  };
+};
+
+/** Synthetic identities and fake payment references only; no fixture contains real customer data. */
+export const receiptDraftFixtures: ReceiptDraftFixture[] = [
+  fixture({
+    id: 'zh-tw-night-market',
+    tags: ['zh-TW', 'TWD'],
+    merchantName: '海風小吃',
+    transactionDate: '2026-06-02',
+    currency: 'TWD',
+    total: 360,
+    suggestedCategory: 'food',
+  }),
+  fixture({
+    id: 'zh-tw-service-fee',
+    tags: ['zh-TW', 'TWD', 'service'],
+    merchantName: '山嶼茶房',
+    transactionDate: '2026-06-03',
+    currency: 'TWD',
+    total: 748,
+    amounts: [
+      { kind: 'subtotal', amount: 680 },
+      { kind: 'service', amount: 68 },
+      { kind: 'total', amount: 748 },
+    ],
+    suggestedCategory: 'food',
+  }),
+  fixture({
+    id: 'zh-cn-hk-cafe',
+    tags: ['zh-CN', 'HKD'],
+    merchantName: '星港茶餐厅',
+    transactionDate: '2026-06-04',
+    currency: 'HKD',
+    total: 126,
+    suggestedCategory: 'food',
+  }),
+  fixture({
+    id: 'en-us-tax',
+    tags: ['en', 'USD', 'tax'],
+    merchantName: 'North Pier Cafe',
+    transactionDate: '2026-06-05',
+    currency: 'USD',
+    total: 18.36,
+    amounts: [
+      { kind: 'subtotal', amount: 17 },
+      { kind: 'tax', amount: 1.36 },
+      { kind: 'total', amount: 18.36 },
+    ],
+    suggestedCategory: 'food',
+  }),
+  fixture({
+    id: 'ja-tokyo-tax',
+    tags: ['ja', 'JPY', 'tax'],
+    merchantName: '青空食堂',
+    transactionDate: '2026-06-06',
+    currency: 'JPY',
+    total: 1320,
+    amounts: [
+      { kind: 'subtotal', amount: 1200 },
+      { kind: 'tax', amount: 120 },
+      { kind: 'total', amount: 1320 },
+    ],
+    suggestedCategory: 'food',
+  }),
+  fixture({
+    id: 'mixed-language-bistro',
+    tags: ['mixed-language', 'EUR'],
+    merchantName: 'Café Lumière',
+    transactionDate: '2026-06-07',
+    currency: 'EUR',
+    total: 24.5,
+    suggestedCategory: 'food',
+  }),
+  fixture({
+    id: 'eur-vat',
+    tags: ['en', 'EUR', 'tax'],
+    merchantName: 'River Table',
+    transactionDate: '2026-06-08',
+    currency: 'EUR',
+    total: 42,
+    amounts: [
+      { kind: 'subtotal', amount: 35 },
+      { kind: 'tax', amount: 7 },
+      { kind: 'total', amount: 42 },
+    ],
+    suggestedCategory: 'food',
+  }),
+  fixture({
+    id: 'hkd-shopping',
+    tags: ['zh-TW', 'HKD'],
+    merchantName: '港灣選物',
+    transactionDate: '2026-06-09',
+    currency: 'HKD',
+    total: 499,
+    suggestedCategory: 'shopping',
+  }),
+  fixture({
+    id: 'thb-food',
+    tags: ['en', 'THB'],
+    merchantName: 'Lotus Kitchen',
+    transactionDate: '2026-06-10',
+    currency: 'THB',
+    total: 285,
+    suggestedCategory: 'food',
+  }),
+  fixture({
+    id: 'ambiguous-dollar',
+    tags: ['en', 'ambiguous-currency', 'safety'],
+    merchantName: 'Corner Deli',
+    transactionDate: '2026-06-11',
+    total: 12,
+    suggestedCategory: 'food',
+    status: { currency: 'ambiguous' },
+  }),
+  fixture({
+    id: 'ambiguous-two-totals',
+    tags: ['en', 'USD', 'ambiguous-total', 'safety'],
+    merchantName: 'Harbor Grill',
+    transactionDate: '2026-06-12',
+    currency: 'USD',
+    amounts: [
+      { kind: 'total', amount: 54 },
+      { kind: 'total', amount: 64 },
+    ],
+    suggestedCategory: 'food',
+    status: { total: 'ambiguous' },
+  }),
+  fixture({
+    id: 'missing-date',
+    tags: ['en', 'USD', 'missing-date'],
+    merchantName: 'Trail Snacks',
+    currency: 'USD',
+    total: 9.75,
+    suggestedCategory: 'food',
+  }),
+  fixture({
+    id: 'missing-currency',
+    tags: ['zh-TW', 'missing-currency'],
+    merchantName: '晨光早餐',
+    transactionDate: '2026-06-14',
+    total: 95,
+    suggestedCategory: 'food',
+  }),
+  fixture({ id: 'non-receipt-note', tags: ['zh-TW', 'non-receipt', 'safety'], status: {} }),
+  fixture({
+    id: 'handwritten-total',
+    tags: ['en', 'USD', 'handwritten'],
+    merchantName: 'Garden Stall',
+    transactionDate: '2026-06-16',
+    currency: 'USD',
+    total: 7.5,
+    suggestedCategory: 'shopping',
+  }),
+  fixture({
+    id: 'fake-card-slip',
+    tags: ['en', 'USD', 'card-slip', 'fake-private-data'],
+    merchantName: 'Metro Coffee',
+    transactionDate: '2026-06-17',
+    currency: 'USD',
+    total: 11.2,
+    suggestedCategory: 'food',
+  }),
+  fixture({
+    id: 'long-receipt',
+    tags: ['en', 'USD', 'long'],
+    merchantName: 'Long Road Market',
+    transactionDate: '2026-06-18',
+    currency: 'USD',
+    total: 73.42,
+    suggestedCategory: 'shopping',
+  }),
+  fixture({
+    id: 'low-contrast',
+    tags: ['zh-TW', 'TWD', 'low-contrast'],
+    merchantName: '午後書店',
+    transactionDate: '2026-06-19',
+    currency: 'TWD',
+    total: 520,
+    suggestedCategory: 'shopping',
+  }),
+  fixture({
+    id: 'hard-shadow',
+    tags: ['en', 'EUR', 'shadow'],
+    merchantName: 'Olive Room',
+    transactionDate: '2026-06-20',
+    currency: 'EUR',
+    total: 31.8,
+    suggestedCategory: 'food',
+  }),
+  fixture({
+    id: 'rotated-receipt',
+    tags: ['ja', 'JPY', 'rotated'],
+    merchantName: '旅路売店',
+    transactionDate: '2026-06-21',
+    currency: 'JPY',
+    total: 880,
+    suggestedCategory: 'shopping',
+  }),
+  fixture({
+    id: 'wrinkled-paper',
+    tags: ['en', 'THB', 'wrinkled'],
+    merchantName: 'Palm Cafe',
+    transactionDate: '2026-06-22',
+    currency: 'THB',
+    total: 190,
+    suggestedCategory: 'food',
+  }),
+  fixture({
+    id: 'tiny-print',
+    tags: ['en', 'HKD', 'small-text'],
+    merchantName: 'Peak Mini Mart',
+    transactionDate: '2026-06-23',
+    currency: 'HKD',
+    total: 68.5,
+    suggestedCategory: 'shopping',
+  }),
+  fixture({
+    id: 'discount-total',
+    tags: ['en', 'USD', 'discount'],
+    merchantName: 'Maple Outlet',
+    transactionDate: '2026-06-24',
+    currency: 'USD',
+    total: 72,
+    amounts: [
+      { kind: 'subtotal', amount: 90 },
+      { kind: 'unknown', amount: 18 },
+      { kind: 'total', amount: 72 },
+    ],
+    suggestedCategory: 'shopping',
+  }),
+  fixture({
+    id: 'tip-total',
+    tags: ['en', 'USD', 'tip'],
+    merchantName: 'Seaside Diner',
+    transactionDate: '2026-06-25',
+    currency: 'USD',
+    total: 34.5,
+    amounts: [
+      { kind: 'subtotal', amount: 30 },
+      { kind: 'tip', amount: 4.5 },
+      { kind: 'total', amount: 34.5 },
+    ],
+    suggestedCategory: 'food',
+  }),
+  fixture({
+    id: 'thb-service',
+    tags: ['en', 'THB', 'service'],
+    merchantName: 'Golden Bowl',
+    transactionDate: '2026-06-26',
+    currency: 'THB',
+    total: 550,
+    amounts: [
+      { kind: 'subtotal', amount: 500 },
+      { kind: 'service', amount: 50 },
+      { kind: 'total', amount: 550 },
+    ],
+    suggestedCategory: 'food',
+  }),
+  fixture({
+    id: 'twd-tax-service',
+    tags: ['zh-TW', 'TWD', 'tax', 'service'],
+    merchantName: '雲端餐桌',
+    transactionDate: '2026-06-27',
+    currency: 'TWD',
+    total: 1155,
+    amounts: [
+      { kind: 'subtotal', amount: 1000 },
+      { kind: 'tax', amount: 50 },
+      { kind: 'service', amount: 105 },
+      { kind: 'total', amount: 1155 },
+    ],
+    suggestedCategory: 'food',
+  }),
+  fixture({
+    id: 'missing-merchant',
+    tags: ['en', 'EUR', 'missing-merchant'],
+    transactionDate: '2026-06-28',
+    currency: 'EUR',
+    total: 16.4,
+    suggestedCategory: 'other',
+  }),
+  fixture({
+    id: 'ambiguous-date',
+    tags: ['en', 'USD', 'ambiguous-date', 'safety'],
+    merchantName: 'Date Corner',
+    currency: 'USD',
+    total: 21,
+    suggestedCategory: 'food',
+    status: { transactionDate: 'ambiguous' },
+  }),
+  fixture({
+    id: 'explicit-usd-symbol',
+    tags: ['en', 'USD'],
+    merchantName: 'Union Cafe',
+    transactionDate: '2026-06-30',
+    currency: 'USD',
+    total: 14.25,
+    suggestedCategory: 'food',
+  }),
+  fixture({
+    id: 'euro-symbol',
+    tags: ['en', 'EUR'],
+    merchantName: 'Petit Marché',
+    transactionDate: '2026-07-01',
+    currency: 'EUR',
+    total: 27.6,
+    suggestedCategory: 'shopping',
+  }),
+  fixture({
+    id: 'jpy-symbol',
+    tags: ['ja', 'JPY'],
+    merchantName: '森の駅',
+    transactionDate: '2026-07-02',
+    currency: 'JPY',
+    total: 1450,
+    suggestedCategory: 'food',
+  }),
+  fixture({
+    id: 'twd-symbol',
+    tags: ['zh-TW', 'TWD'],
+    merchantName: '海角咖啡',
+    transactionDate: '2026-07-03',
+    currency: 'TWD',
+    total: 230,
+    suggestedCategory: 'food',
+  }),
+  fixture({
+    id: 'hkd-symbol',
+    tags: ['zh-CN', 'HKD'],
+    merchantName: '维港书店',
+    transactionDate: '2026-07-04',
+    currency: 'HKD',
+    total: 188,
+    suggestedCategory: 'shopping',
+  }),
+  fixture({
+    id: 'thai-baht-code',
+    tags: ['mixed-language', 'THB'],
+    merchantName: 'Blue Mango',
+    transactionDate: '2026-07-05',
+    currency: 'THB',
+    total: 420,
+    suggestedCategory: 'food',
+  }),
+  fixture({
+    id: 'mixed-ja-en',
+    tags: ['ja', 'mixed-language', 'JPY'],
+    merchantName: 'MORI CAFE',
+    transactionDate: '2026-07-18',
+    currency: 'JPY',
+    total: 1210,
+    amounts: [
+      { kind: 'subtotal', amount: 1100 },
+      { kind: 'tax', amount: 110 },
+      { kind: 'total', amount: 1210 },
+    ],
+    suggestedCategory: 'food',
+  }),
+  fixture({
+    id: 'souvenir-shop',
+    tags: ['en', 'USD', 'category-shopping'],
+    merchantName: 'Sunny Souvenirs',
+    transactionDate: '2026-07-07',
+    currency: 'USD',
+    total: 46,
+    suggestedCategory: 'shopping',
+  }),
+  fixture({
+    id: 'airport-train',
+    tags: ['en', 'JPY', 'category-transportation'],
+    merchantName: 'Airport Rail',
+    transactionDate: '2026-07-08',
+    currency: 'JPY',
+    total: 2600,
+    suggestedCategory: 'transportation',
+  }),
+  fixture({
+    id: 'fictional-hotel',
+    tags: ['en', 'EUR', 'category-accommodation'],
+    merchantName: 'Hotel Aurora',
+    transactionDate: '2026-07-09',
+    currency: 'EUR',
+    total: 184.2,
+    suggestedCategory: 'accommodation',
+  }),
+  fixture({
+    id: 'city-museum',
+    tags: ['en', 'USD', 'category-entertainment'],
+    merchantName: 'City Museum',
+    transactionDate: '2026-07-10',
+    currency: 'USD',
+    total: 32,
+    suggestedCategory: 'entertainment',
+  }),
+  fixture({
+    id: 'ferry-ticket',
+    tags: ['en', 'HKD', 'category-tickets'],
+    merchantName: 'Island Ferry',
+    transactionDate: '2026-07-11',
+    currency: 'HKD',
+    total: 44,
+    suggestedCategory: 'tickets',
+  }),
+];

@@ -122,7 +122,7 @@ describe('AI expense draft providers', () => {
         prompt: [
           {
             role: 'user',
-            content: [{ type: 'image', image: expect.any(Buffer), mediaType: 'image/webp' }],
+            content: [{ type: 'file', data: expect.any(Buffer), mediaType: 'image/webp' }],
           },
         ],
       })

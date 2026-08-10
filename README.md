@@ -121,6 +121,8 @@ pnpm dev
 | `pnpm test` / `pnpm test:run` | Vitest（watch / 單次） |
 | `pnpm test:coverage` | 測試覆蓋率報告 |
 | `pnpm test:ai-import-eval` | 明確啟用 live AI fixture 評估（會使用額度；可由 `AI_IMPORT_EVAL_CASE_LIMIT` 限制樣本） |
+| `pnpm test:ai-expense-text-eval` | 明確啟用自然語言記帳 live 評估（會使用額度；可限制案例數與間隔） |
+| `pnpm test:ai-receipt-eval` | 明確啟用收據圖片 live 評估（會使用圖片模型額度；可由 `AI_RECEIPT_EVAL_CASE_LIMIT` 限制樣本） |
 | `pnpm migrate:status` / `:up` / `:down` / `:create` | migrate-mongo 資料遷移（見 [docs/MIGRATIONS.md](docs/MIGRATIONS.md)） |
 
 ## 🤝 貢獻 (Contributing)

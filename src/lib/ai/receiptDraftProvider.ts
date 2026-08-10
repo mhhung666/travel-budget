@@ -81,7 +81,7 @@ export async function parseReceiptDraft(
     const result = await generateText({
       model: modelFor(config),
       system: receiptDraftPrompt,
-      prompt: [{ role: 'user', content: [{ type: 'image', image, mediaType }] }],
+      prompt: [{ role: 'user', content: [{ type: 'file', data: image, mediaType }] }],
       output: Output.object({
         schema: receiptDraftSchema,
         name: 'receipt_draft',
