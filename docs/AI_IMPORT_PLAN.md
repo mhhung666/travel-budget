@@ -126,7 +126,7 @@ src/components/trips/detail/expense-form/ReceiptScanButton.tsx
 src/__fixtures__/ai/receiptDraftFixtures.ts
 ```
 
-應抽取可共用的 AI provider 錯誤分類與 quota primitive，但不要在 Phase 3A 順便大幅重構已穩定的行程匯入。模型選擇不得寫死在文件；先用 fixture 比較支援圖片輸入的候選模型，再透過伺服器環境設定。
+收據草稿已與行程匯入、文字記帳共用 `AI_PROVIDER` 與 provider credential；可透過 `AI_RECEIPT_MODEL` 選擇 Vercel AI Gateway 上支援圖片輸入的模型，舊 OpenAI 直連部署仍相容。應抽取可共用的 AI provider 錯誤分類與 quota primitive，但不要在 Phase 3A 順便大幅重構已穩定的行程匯入。模型選擇不得寫死在文件；先用 fixture 比較支援圖片輸入的候選模型，再透過伺服器環境設定。
 
 ### 3.6 安全、隱私與成本
 

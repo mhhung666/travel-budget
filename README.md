@@ -95,8 +95,8 @@ cp .env.example .env
 | `RESEND_API_KEY` / `RESEND_FROM` / `APP_URL` | ⬜ | Email 通知。未設定則不寄信，站內通知不受影響 |
 | `CRON_SECRET` | ⬜ | 保護 `/api/cron/*` 排程路由。未設定則 cron route 一律拒絕 |
 | `NEXT_PUBLIC_VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | ⬜ | Web Push。未設定則推播停用 |
-| `AI_PROVIDER` / `AI_MODEL` / provider key | ⬜ | AI 行程匯入與文字記帳；支援 Vercel AI Gateway 或 OpenAI 直連。未設定時只停用 AI 解析 |
-| `AI_RECEIPT_MODEL` / `AI_EXPENSE_TEXT_MODEL` | ⬜ | 個別覆寫收據／文字記帳模型；收據目前仍使用 OpenAI 直連 |
+| `AI_PROVIDER` / `AI_MODEL` / provider key | ⬜ | AI 行程匯入、收據與文字記帳；支援 Vercel AI Gateway 或 OpenAI 直連。未設定時只停用 AI 解析 |
+| `AI_RECEIPT_MODEL` / `AI_EXPENSE_TEXT_MODEL` | ⬜ | 個別覆寫收據／文字記帳模型；收據模型必須支援圖片輸入 |
 | `AI_DAILY_*` / `AI_*_MICRO_USD*` | ⬜ | 所有 AI 草稿共用的 MongoDB 持久化每日 request／成本上限；預設適合低流量試用，舊 `AI_IMPORT_*` 名稱仍相容 |
 
 > 所有選用的外部服務皆 **env-gated**：未設定也能正常啟動與 CI build，只有對應功能停用。各變數的詳細說明見 [.env.example](.env.example)。

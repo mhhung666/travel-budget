@@ -87,8 +87,8 @@ describe('POST /api/ai/receipt-draft', () => {
     mocks.settleQuota.mockResolvedValue({ costMicroUsd: 12 });
     mocks.parseDraft.mockResolvedValue({
       draft: validDraft,
-      provider: 'openai',
-      model: 'gpt-test',
+      provider: 'vercel',
+      model: 'alibaba/qwen-vision',
       usage: { inputTokens: 100, outputTokens: 20, totalTokens: 120 },
     });
   });

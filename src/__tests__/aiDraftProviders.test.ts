@@ -53,13 +53,14 @@ afterEach(() => {
 });
 
 describe('AI expense draft providers', () => {
-  it('treats missing OpenAI configuration as a disabled feature', async () => {
+  it('treats missing AI provider configuration as a disabled feature', async () => {
     delete process.env.OPENAI_API_KEY;
     delete process.env.AI_MODEL;
     delete process.env.AI_RECEIPT_MODEL;
     delete process.env.AI_EXPENSE_TEXT_MODEL;
     delete process.env.AI_PROVIDER;
     delete process.env.AI_GATEWAY_API_KEY;
+    delete process.env.VERCEL_OIDC_TOKEN;
 
     await expect(parseReceiptDraft(Buffer.from('image'), 'image/webp')).rejects.toMatchObject({
       code: 'FEATURE_DISABLED',
@@ -71,6 +72,7 @@ describe('AI expense draft providers', () => {
   });
 
   it('returns receipt draft usage without exposing image content in metadata', async () => {
+    process.env.AI_PROVIDER = 'openai';
     process.env.OPENAI_API_KEY = 'secret';
     process.env.AI_RECEIPT_MODEL = 'openai/gpt-receipt';
     mocks.openAIModel.mockReturnValue('language-model');
@@ -89,6 +91,42 @@ describe('AI expense draft providers', () => {
       model: 'openai/gpt-receipt',
       usage: { inputTokens: 100, outputTokens: 20, totalTokens: 120 },
     });
+  });
+
+  it('uses the configured Vercel AI Gateway vision model for receipt drafts', async () => {
+    process.env.AI_PROVIDER = 'vercel';
+    process.env.AI_GATEWAY_API_KEY = 'gateway-secret';
+    process.env.AI_RECEIPT_MODEL = 'alibaba/qwen-vision';
+    delete process.env.OPENAI_API_KEY;
+    mocks.gatewayModel.mockReturnValue('gateway-vision-model');
+    mocks.generateText.mockResolvedValue({
+      output: receiptDraft,
+      finishReason: 'stop',
+      usage: { inputTokens: 110, outputTokens: 18, totalTokens: 128 },
+    });
+
+    await expect(parseReceiptDraft(Buffer.from('private-image'), 'image/webp')).resolves.toEqual({
+      draft: receiptDraft,
+      provider: 'vercel',
+      model: 'alibaba/qwen-vision',
+      usage: { inputTokens: 110, outputTokens: 18, totalTokens: 128 },
+    });
+    expect(mocks.createGateway).toHaveBeenCalledWith({ apiKey: 'gateway-secret' });
+    expect(mocks.gatewayModel).toHaveBeenCalledWith('alibaba/qwen-vision');
+    expect(mocks.createOpenAI).not.toHaveBeenCalled();
+    expect(mocks.generateText).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: 'gateway-vision-model',
+        providerOptions: { alibaba: { enableThinking: false } },
+        system: expect.stringContaining('return only JSON'),
+        prompt: [
+          {
+            role: 'user',
+            content: [{ type: 'image', image: expect.any(Buffer), mediaType: 'image/webp' }],
+          },
+        ],
+      })
+    );
   });
 
   it('returns text draft usage and maps provider timeouts to a stable code', async () => {
@@ -146,6 +184,7 @@ describe('AI expense draft providers', () => {
   });
 
   it('maps truncated structured drafts to an output-limit error', async () => {
+    process.env.AI_PROVIDER = 'openai';
     process.env.OPENAI_API_KEY = 'secret';
     process.env.AI_RECEIPT_MODEL = 'gpt-receipt';
     mocks.generateText.mockResolvedValue({
