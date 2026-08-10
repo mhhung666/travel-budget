@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   generateText: vi.fn(),
+  createGateway: vi.fn(),
+  gatewayModel: vi.fn(),
   createOpenAI: vi.fn(),
   openAIModel: vi.fn(),
 }));
@@ -14,6 +16,9 @@ vi.mock('ai', () => ({
 }));
 vi.mock('@ai-sdk/openai', () => ({
   createOpenAI: mocks.createOpenAI.mockReturnValue(mocks.openAIModel),
+}));
+vi.mock('@ai-sdk/gateway', () => ({
+  createGateway: mocks.createGateway.mockReturnValue(mocks.gatewayModel),
 }));
 
 import { parseExpenseTextDraft } from '@/lib/ai/expenseTextDraftProvider';
@@ -44,6 +49,7 @@ afterEach(() => {
   process.env = { ...originalEnvironment };
   vi.clearAllMocks();
   mocks.createOpenAI.mockReturnValue(mocks.openAIModel);
+  mocks.createGateway.mockReturnValue(mocks.gatewayModel);
 });
 
 describe('AI expense draft providers', () => {
@@ -52,6 +58,8 @@ describe('AI expense draft providers', () => {
     delete process.env.AI_MODEL;
     delete process.env.AI_RECEIPT_MODEL;
     delete process.env.AI_EXPENSE_TEXT_MODEL;
+    delete process.env.AI_PROVIDER;
+    delete process.env.AI_GATEWAY_API_KEY;
 
     await expect(parseReceiptDraft(Buffer.from('image'), 'image/webp')).rejects.toMatchObject({
       code: 'FEATURE_DISABLED',
@@ -84,6 +92,7 @@ describe('AI expense draft providers', () => {
   });
 
   it('returns text draft usage and maps provider timeouts to a stable code', async () => {
+    process.env.AI_PROVIDER = 'openai';
     process.env.OPENAI_API_KEY = 'secret';
     process.env.AI_EXPENSE_TEXT_MODEL = 'gpt-text';
     mocks.openAIModel.mockReturnValue('language-model');
@@ -106,6 +115,34 @@ describe('AI expense draft providers', () => {
     await expect(parseExpenseTextDraft('Lunch 180 TWD')).rejects.toMatchObject({
       code: 'PROVIDER_TIMEOUT',
     });
+  });
+
+  it('uses the configured Vercel AI Gateway model for text drafts', async () => {
+    process.env.AI_PROVIDER = 'vercel';
+    process.env.AI_GATEWAY_API_KEY = 'gateway-secret';
+    process.env.AI_EXPENSE_TEXT_MODEL = 'alibaba/qwen3.7-flash';
+    delete process.env.OPENAI_API_KEY;
+    mocks.gatewayModel.mockReturnValue('gateway-language-model');
+    mocks.generateText.mockResolvedValue({
+      output: textDraft,
+      finishReason: 'stop',
+      usage: { inputTokens: 24, outputTokens: 8, totalTokens: 32 },
+    });
+
+    await expect(parseExpenseTextDraft('Lunch 180 TWD')).resolves.toMatchObject({
+      draft: textDraft,
+      provider: 'vercel',
+      model: 'alibaba/qwen3.7-flash',
+    });
+    expect(mocks.createGateway).toHaveBeenCalledWith({ apiKey: 'gateway-secret' });
+    expect(mocks.gatewayModel).toHaveBeenCalledWith('alibaba/qwen3.7-flash');
+    expect(mocks.generateText).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: 'gateway-language-model',
+        providerOptions: { alibaba: { enableThinking: false } },
+        system: expect.stringContaining('originalAmount'),
+      })
+    );
   });
 
   it('maps truncated structured drafts to an output-limit error', async () => {

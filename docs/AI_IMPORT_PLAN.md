@@ -1,6 +1,6 @@
 # AI 智慧輸入規劃
 
-> 狀態：`in-progress`（Phase 3A／3B 已接入新增支出表單與共用持久化配額；品質基線與產品觀測尚未完成）
+> 狀態：`in-progress`（Phase 3A／3B 已接入新增支出表單與共用持久化配額；3B fixture 與 evaluator 已建立，provider 品質基線與產品觀測尚未完成）
 > 更新日期：2026-08-10
 > 已完成的 AI 行程匯入 Phase 0–2 實作摘要見 [archive/AI_ITINERARY_IMPORT_PHASES_0_2.md](./archive/AI_ITINERARY_IMPORT_PHASES_0_2.md)；目前能力與技術契約分別以 [FEATURES.md](./FEATURES.md) 與 [ARCHITECTURE.md](./ARCHITECTURE.md) 為準。
 
@@ -16,7 +16,7 @@ AI 行程文字匯入已具備結構化解析、可編輯預覽、明確確認�
 | Phase | 狀態 | 可交付結果 |
 | --- | --- | --- |
 | 3A | `in-progress` | 單張收據圖片解析成可編輯支出草稿（API、表單帶入、配額與 route 安全測試完成；尚待品質與產品觀測） |
-| 3B | `in-progress` | 單筆自然語言記帳與分攤草稿（API、唯一名稱解析、四種分帳表單帶入完成；尚待 fixture 與品質驗收） |
+| 3B | `in-progress` | 單筆自然語言記帳與分攤草稿（API、唯一名稱解析、四種分帳表單帶入、32 筆 fixture 與 evaluator 完成；尚待 provider 品質驗收） |
 | 3C | `idea` | 文字與收據合併輸入、重複提示 |
 | 4 | `idea` | PDF、多頁、多張、品項辨識與批次能力 |
 
@@ -27,7 +27,7 @@ Phase 3A 可先做，無須等待 Phase 3B 的成員名稱消歧義及比例分�
 - `POST /api/ai/receipt-draft` 僅接受旅程成員自己的 JPEG、PNG、WebP 收據 key；會以 R2 實際 metadata 驗證 key、型別與大小後才讀取圖片。它只回傳 schema 驗證與正規化後的草稿，不會建立支出；PDF 仍只能作一般附件。
 - `POST /api/ai/expense-text-draft` 只接受旅程成員的單筆文字。未提付款人時預設目前使用者，未提分帳者時預設全員（含虛擬成員）；明示姓名只在 display name 或 username 唯一對應時才解析。均分、指定金額、百分比與份數只有在所有姓名唯一、成員未重複、模型未標記分帳疑義，且金額／百分比合計通過既有分帳平衡規則時，才產生 member-ID based `resolvedSplit` 並帶入表單。其他情形回傳 `requiresCorrection` 與固定 warning，不會靜默套用分帳；仍須由使用者提交既有 `createExpense` 流程。
 - 新增支出表單可掃描已上傳的 JPEG、PNG、WebP 收據，並只帶入可唯一確認的商家、總額、幣別、日期與分類；PDF 不顯示掃描入口。缺少／歧義總額或幣別會保留原值並要求使用者修正，掃描本身不會提交支出。
-- 兩端點已共用 MongoDB 持久化 global／user／trip 每日配額、成本預留與 token 結算，並具備授權、輸入、附件、配額及 provider 失敗的 route 測試。3B 的四種分帳表單帶入已有確定性測試；產品事件、代名詞規則與 fixture 品質評估仍未完成，因此不得視為一般使用者可用或正式擴流。
+- 兩端點已共用 MongoDB 持久化 global／user／trip 每日配額、成本預留與 token 結算，並具備授權、輸入、附件、配額及 provider 失敗的 route 測試。3B 已有 32 筆合成文字 fixture、確定性離線評分與 opt-in live provider evaluator；尚未取得通過門檻的完整 provider 基線，產品事件與代名詞規則亦未完成，因此不得視為一般使用者可用或正式擴流。
 
 ## 2. 共通產品原則
 
@@ -203,7 +203,13 @@ type ExpenseTextDraft = {
 - 「我、我們、其他人」等代名詞的可接受規則。
 - 日期超出旅程範圍、幣別缺漏、分攤不符時必須提供修正選項，不能直接寫入。
 
-Phase 3B 開始前須另建至少 30 份支出文字 fixture。付款人、幣別、日期與分攤對象正確率各至少 95%；同名、分攤不符或幣別不明時必須停在預覽，不能寫入。
+Phase 3B 已建立 32 份合成支出文字 fixture，涵蓋繁中、簡中、英文、日文與混合語言、多幣別、四種分帳、預設參與者，以及幣別不明、同名、未知／重複成員與分攤不平衡等安全案例。離線 evaluator 將 schema 合法率與付款人、幣別、日期、分攤對象各自評分，參與者比較不受順序及 Unicode／大小寫差異影響。
+
+`pnpm test:ai-expense-text-eval` 才會呼叫 live provider；一般測試只用本地 fixture，不產生成本。可用 `AI_EXPENSE_TEXT_EVAL_CASE_LIMIT` 限制樣本數、`AI_EXPENSE_TEXT_EVAL_INTERVAL_MS` 控制逐筆間隔；後者預設 10 秒以降低突發流量，但 Vercel 未公布可依賴的 Free Tier 精確限制，不能保證完整測試不被限流。Free Tier 適合用 `AI_EXPENSE_TEXT_EVAL_CASE_LIMIT=1` 做 smoke test；完整品質基線應使用 paid Gateway credits 或 OpenAI 直連。
+
+2026-08-10 的 `alibaba/qwen3.7-flash` Gateway smoke test 為 1／1 成功，schema 與四個核心欄位皆正確；同日 32 筆 Free Tier 執行只有 1 筆成功、31 筆 `RATE_LIMITED`，provider 成功率 3.1%，未通過擴流門檻。單一成功樣本的欄位 100% 不構成品質基線，需在不受 Free Tier 節流的環境重跑完整集合。
+
+驗收門檻維持：provider 成功率至少 90%，成功生成的 fixture 100% 通過 schema，付款人、幣別、日期與分攤對象正確率各至少 95%；同名、分攤不符或幣別不明時必須停在預覽，不能寫入。
 
 ## 5. Phase 3C 與後續候選
 
