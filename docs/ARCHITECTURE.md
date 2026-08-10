@@ -214,19 +214,19 @@ src/
 - [/api/ai/itinerary-import](../src/app/api/ai/itinerary-import/route.ts) 依序驗證 session、admin、輸入 schema、最小旅程 context 與持久化配額，再透過 [itineraryImportProvider.ts](../src/lib/ai/itineraryImportProvider.ts) 呼叫 Gateway 或 OpenAI。provider 未設定時回 `FEATURE_DISABLED`，不影響手動行程與其他 route。
 - 模型只產生 [itineraryImportSchema.ts](../src/lib/ai/itineraryImportSchema.ts) 的草稿；日期正規化與既有活動提示由確定性程式處理。瀏覽器預覽可編輯且確認前零寫入；[itineraryImport.actions.ts](../src/actions/itineraryImport.actions.ts) 在確認時重新驗權與驗證。
 - 確認寫入以日期為原子單位。`ItineraryDay.appliedImportKeys` 保存 server-only 冪等 key，既有日以條件式 `$push` 附加並同時檢查活動上限，避免重送重複或 read-modify-write 覆蓋。
-- [AiImportUsage](../src/models/AiImportUsage.ts) 是 UTC 每日 bucket，唯一鍵為 `(scope, scopeKey, periodStart)`，scope 為 global／user／trip。請求在 provider 前依序原子保留，後續結算 token 與 micro-USD；跨 scope 失敗會補償已保留 bucket。程序中斷時額度維持保留以 fail closed，TTL 只清理 35 天後資料。
-- 全域成本上限使用 `AI_IMPORT_DAILY_COST_LIMIT_MICRO_USD` 與每請求最壞情況預留；付費模型必須依 provider 當前價格設定 input／output micro-USD 單價，預留值不得低於可能的單次最大成本。provider 失敗若未提供 usage，會保守地將整筆預留計為已花費，避免失敗回應繞過 cap。Free Tier 可將四個成本值設 0，request 與 token 仍持久化觀測。
+- [AiImportUsage](../src/models/AiImportUsage.ts) 是所有 AI 草稿端點共用的 UTC 每日 bucket（保留歷史 model 名稱以免搬移資料），唯一鍵為 `(scope, scopeKey, periodStart)`，scope 為 global／user／trip。請求在 provider 前依序原子保留，後續結算 token 與 micro-USD；跨 scope 失敗會補償已保留 bucket。程序中斷時額度維持保留以 fail closed，TTL 只清理 35 天後資料。
+- 全域成本上限使用 `AI_DAILY_COST_LIMIT_MICRO_USD` 與每請求最壞情況預留；舊 `AI_IMPORT_*` 名稱仍相容。付費模型必須依 provider 當前價格設定 input／output micro-USD 單價，預留值不得低於可能的單次最大成本。provider 失敗若未提供 usage，會保守地將整筆預留計為已花費，避免失敗回應繞過 cap。Free Tier 可將四個成本值設 0，request 與 token 仍持久化觀測。
 - Vercel Analytics 的 `ai_itinerary_import` 事件只接受固定 stage／result／corrected／error code，禁止來源文字、草稿、日期、位置、確認碼、名稱或 id。伺服器 log 只含 provider、model、latency、token、micro-USD 與錯誤分類。
 - 正式擴流前仍須通過 [AI_IMPORT_PLAN.md](./AI_IMPORT_PLAN.md) 的完整 31 筆 provider 可用率與真人節時門檻；現況只核准低流量 Free Tier 試用。
 
-### 4.17 AI 記帳草稿（開發中，尚未接入 UI）
+### 4.17 AI 記帳草稿（受限試用）
 
 - [/api/ai/receipt-draft](../src/app/api/ai/receipt-draft/route.ts) 與 [/api/ai/expense-text-draft](../src/app/api/ai/expense-text-draft/route.ts) 都先驗 session 與旅程成員身分；兩者只回傳草稿，沒有資料寫入路徑。未設定 `OPENAI_API_KEY` 或對應模型時回 `FEATURE_DISABLED`，手動記帳不受影響。
 - 收據端點只允許 `receipts/<tripId>/` 下的 JPEG、PNG、WebP；先以 `headObject` 檢查實際型別與大小、再由 server 從私有 R2 讀取 bytes，絕不把簽名 URL 交給模型。模型輸出經 [receiptDraftSchema.ts](../src/lib/ai/receiptDraftSchema.ts) 與 [normalizeReceiptDraft.ts](../src/lib/ai/normalizeReceiptDraft.ts) 驗證，歧義總額／幣別保留為 warning。
 - 文字端點的模型輸出經 [expenseTextDraftSchema.ts](../src/lib/ai/expenseTextDraftSchema.ts) 驗證，不可含資料庫 ID、匯率、基準幣金額或最後分帳。 [normalizeExpenseTextDraft.ts](../src/lib/ai/normalizeExpenseTextDraft.ts) 只在名稱唯一匹配 username 或 display name 時解析成 member ID；未提付款人預設目前使用者、未提參與者預設全員，未知或同名人一律要求修正。
 - 文字草稿已接入新增支出表單的四語輸入區；草稿只預填現有可編輯欄位，含 warning 時會展開付款人與分帳欄位，最後仍由使用者提交既有 `createExpense`。目前僅安全自動帶入無 warning 的均分對象；其他分帳模式必須人工修正。
 - 新增支出表單僅對已上傳的 JPEG、PNG、WebP 收據顯示掃描入口；掃描結果只帶入明確讀取的欄位，遇到遺漏或歧義時展開既有欄位讓使用者修正，且仍必須經既有 `createExpense` 明確提交。PDF 只能作一般附件。
-- 兩端點目前尚未共用行程匯入的持久化 quota／成本量測；不得視為可對外擴流的 AI 功能。
+- 兩端點與行程匯入共用 [aiUsageQuota.ts](../src/lib/ai/aiUsageQuota.ts) 的持久化 global／user／trip request、token 與成本 bucket；provider 回應只將固定 metadata 寫入 server log，route tests 覆蓋授權、附件邊界、額度與失敗結算。fixture 品質與產品事件尚未完成，因此不得對外擴流。
 
 ---
 

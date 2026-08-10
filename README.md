@@ -96,7 +96,7 @@ cp .env.example .env
 | `CRON_SECRET` | ⬜ | 保護 `/api/cron/*` 排程路由。未設定則 cron route 一律拒絕 |
 | `NEXT_PUBLIC_VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | ⬜ | Web Push。未設定則推播停用 |
 | `AI_PROVIDER` / `AI_MODEL` / provider key | ⬜ | AI 行程匯入。未設定時只停用 AI 解析，手動行程不受影響 |
-| `AI_IMPORT_DAILY_*` / `AI_IMPORT_*_MICRO_USD*` | ⬜ | MongoDB 持久化的每日 request／成本上限；預設適合低流量試用，付費模型價格須依 provider 現值設定 |
+| `AI_DAILY_*` / `AI_*_MICRO_USD*` | ⬜ | 所有 AI 草稿共用的 MongoDB 持久化每日 request／成本上限；預設適合低流量試用，舊 `AI_IMPORT_*` 名稱仍相容 |
 
 > 所有選用的外部服務皆 **env-gated**：未設定也能正常啟動與 CI build，只有對應功能停用。各變數的詳細說明見 [.env.example](.env.example)。
 

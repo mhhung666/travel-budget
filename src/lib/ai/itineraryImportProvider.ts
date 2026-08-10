@@ -1,6 +1,6 @@
 import { createGateway } from '@ai-sdk/gateway';
 import { createOpenAI } from '@ai-sdk/openai';
-import { generateText, NoObjectGeneratedError, Output, RetryError } from 'ai';
+import { generateText, Output } from 'ai';
 import { z } from 'zod';
 import {
   itineraryImportDraftSchema,
@@ -14,6 +14,10 @@ import {
 } from './itineraryImportPrompt';
 import type { NormalizeItineraryImportContext } from './normalizeItineraryImport';
 import type { Locale } from '@/i18n/routing';
+import { AiProviderError, classifyAiProviderFailure, type AiProviderUsage } from './aiProvider';
+
+export { AiProviderError as ItineraryImportProviderError } from './aiProvider';
+export type { AiProviderErrorCode as ItineraryImportProviderErrorCode } from './aiProvider';
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 const MAX_OUTPUT_TOKENS = 8_000;
@@ -36,11 +40,7 @@ const providerConfigSchema = z.discriminatedUnion('provider', [
 export type ItineraryImportProviderConfig = z.infer<typeof providerConfigSchema>;
 export type ItineraryImportProviderName = ItineraryImportProviderConfig['provider'];
 
-export type ItineraryImportUsage = {
-  inputTokens?: number;
-  outputTokens?: number;
-  totalTokens?: number;
-};
+export type ItineraryImportUsage = AiProviderUsage;
 
 export type ItineraryImportGeneration = {
   draft: ItineraryImportDraft;
@@ -48,24 +48,6 @@ export type ItineraryImportGeneration = {
   model: string;
   usage: ItineraryImportUsage;
 };
-
-export type ItineraryImportProviderErrorCode =
-  | 'FEATURE_DISABLED'
-  | 'RATE_LIMITED'
-  | 'PROVIDER_TIMEOUT'
-  | 'INVALID_MODEL_OUTPUT'
-  | 'MODEL_OUTPUT_LIMIT'
-  | 'INTERNAL_ERROR';
-
-export class ItineraryImportProviderError extends Error {
-  constructor(
-    public readonly code: ItineraryImportProviderErrorCode,
-    options?: { cause?: unknown }
-  ) {
-    super(code, options);
-    this.name = 'ItineraryImportProviderError';
-  }
-}
 
 type ProviderEnvironment = Record<string, string | undefined>;
 
@@ -91,7 +73,7 @@ export function resolveItineraryImportProviderConfig(
       timeoutMs,
     });
     if (result.success) return result.data;
-    throw new ItineraryImportProviderError('FEATURE_DISABLED');
+    throw new AiProviderError('FEATURE_DISABLED');
   }
 
   if (provider === 'openai') {
@@ -102,54 +84,10 @@ export function resolveItineraryImportProviderConfig(
       timeoutMs,
     });
     if (result.success) return result.data;
-    throw new ItineraryImportProviderError('FEATURE_DISABLED');
+    throw new AiProviderError('FEATURE_DISABLED');
   }
 
-  throw new ItineraryImportProviderError('FEATURE_DISABLED');
-}
-
-function numericProperty(value: unknown, key: string): number | undefined {
-  if (!value || typeof value !== 'object') return undefined;
-  const property = Reflect.get(value, key);
-  return typeof property === 'number' ? property : undefined;
-}
-
-function stringProperty(value: unknown, key: string): string | undefined {
-  if (!value || typeof value !== 'object') return undefined;
-  const property = Reflect.get(value, key);
-  return typeof property === 'string' ? property : undefined;
-}
-
-function classifyProviderFailure(
-  error: unknown,
-  visited: Set<unknown> = new Set()
-): ItineraryImportProviderErrorCode {
-  if (visited.has(error)) return 'INTERNAL_ERROR';
-  visited.add(error);
-
-  if (error instanceof ItineraryImportProviderError) return error.code;
-  if (error instanceof z.ZodError) return 'INVALID_MODEL_OUTPUT';
-  if (NoObjectGeneratedError.isInstance(error)) {
-    const finishReason = stringProperty(error.cause, 'finishReason');
-    return finishReason === 'length' ? 'MODEL_OUTPUT_LIMIT' : 'INVALID_MODEL_OUTPUT';
-  }
-
-  if (RetryError.isInstance(error)) {
-    if (error.reason === 'abort') return 'PROVIDER_TIMEOUT';
-    return classifyProviderFailure(error.lastError, visited);
-  }
-
-  const statusCode = numericProperty(error, 'statusCode') ?? numericProperty(error, 'status');
-  const name = stringProperty(error, 'name') ?? '';
-  if (statusCode === 401 || statusCode === 403) return 'FEATURE_DISABLED';
-  if (statusCode === 429 || /RateLimit/i.test(name)) return 'RATE_LIMITED';
-  if (/Abort|Timeout/i.test(name)) return 'PROVIDER_TIMEOUT';
-
-  if (error && typeof error === 'object') {
-    const cause = Reflect.get(error, 'cause');
-    if (cause) return classifyProviderFailure(cause, visited);
-  }
-  return 'INTERNAL_ERROR';
+  throw new AiProviderError('FEATURE_DISABLED');
 }
 
 function modelFor(config: ItineraryImportProviderConfig) {
@@ -220,7 +158,7 @@ export async function parseItineraryImport(input: {
         });
 
     if (result.finishReason === 'length') {
-      throw new ItineraryImportProviderError('MODEL_OUTPUT_LIMIT');
+      throw new AiProviderError('MODEL_OUTPUT_LIMIT');
     }
 
     // AI SDK validates structured output; parse once more at our boundary so this contract remains
@@ -239,6 +177,6 @@ export async function parseItineraryImport(input: {
       },
     };
   } catch (error) {
-    throw new ItineraryImportProviderError(classifyProviderFailure(error), { cause: error });
+    throw new AiProviderError(classifyAiProviderFailure(error), { cause: error });
   }
 }

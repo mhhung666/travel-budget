@@ -59,6 +59,16 @@ describe('persistent itinerary import quota', () => {
     ).toThrow(ItineraryImportQuotaError);
   });
 
+  it('prefers shared AI environment names while accepting legacy import names', () => {
+    expect(
+      resolveItineraryImportQuotaConfig({
+        AI_DAILY_USER_REQUESTS: '7',
+        AI_IMPORT_DAILY_USER_REQUESTS: '9',
+        AI_IMPORT_DAILY_TRIP_REQUESTS: '11',
+      })
+    ).toMatchObject({ userRequests: 7, tripRequests: 11 });
+  });
+
   it('atomically reserves global, user, and trip UTC-day buckets', async () => {
     const reservation = await reserveItineraryImportQuota({
       userId: 'user-1',

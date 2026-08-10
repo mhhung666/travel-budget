@@ -19,8 +19,8 @@ const AiImportUsageSchema = new Schema(
   { timestamps: true }
 );
 
-// One persistent UTC-day bucket per scope. The TTL is cleanup only; periodStart always participates
-// in reads, so delayed TTL deletion can never leak usage between days.
+// One shared AI UTC-day bucket per scope. The historical model/collection name is retained to
+// avoid a data migration. The TTL is cleanup only; periodStart always participates in reads.
 AiImportUsageSchema.index({ scope: 1, scopeKey: 1, periodStart: 1 }, { unique: true });
 AiImportUsageSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
