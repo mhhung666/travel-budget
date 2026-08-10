@@ -16,6 +16,9 @@ export {
 } from './auth.actions';
 export type { AuthUser, AuthUserWithCreatedAt } from './auth.actions';
 
+// AI usage allowance
+export { getAiUsageSummary, type AiUsageSummary } from './aiUsage.actions';
+
 // Trip actions
 export {
   getTrips,

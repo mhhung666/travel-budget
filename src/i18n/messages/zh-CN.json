@@ -105,6 +105,17 @@
       "saveChanges": "保存更改",
       "updateSuccess": "显示名称已更新"
     },
+    "aiUsage": {
+      "title": "今日 AI 使用额度",
+      "usage": "{used} / {limit} 次",
+      "remaining": "剩余 {count} 次",
+      "resetsAt": "{time} 重置",
+      "description": "文字记账、收据识别与行程导入共用此额度；每次提交 AI 解析都会计入。",
+      "progressLabel": "今日 AI 额度使用进度",
+      "loadFailed": "目前无法加载额度。",
+      "retry": "重试",
+      "loading": "加载中…"
+    },
     "email": {
       "title": "修改电子邮件",
       "current": "当前电子邮件",

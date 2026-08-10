@@ -27,6 +27,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AiUsageCard } from '@/components/settings';
 
 /**
  * 「我的」（UI/UX 重設計 5.5）：由 588 行單頁平鋪改為列表式選單，
@@ -100,6 +101,8 @@ export default function SettingsPage() {
           </>
         )}
       </Link>
+
+      <AiUsageCard />
 
       {/* 設定選單 */}
       <Card>

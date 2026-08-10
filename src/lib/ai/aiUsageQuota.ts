@@ -30,6 +30,14 @@ export type AiUsageQuotaReservation = {
   scopes: ReservedScope[];
 };
 
+export type AiUsageQuotaSummary = {
+  usedRequests: number;
+  requestLimit: number;
+  remainingRequests: number;
+  periodStart: Date;
+  resetsAt: Date;
+};
+
 export class AiUsageQuotaError extends Error {
   constructor(public readonly code: 'USAGE_LIMITED' | 'INTERNAL_ERROR') {
     super(code);
@@ -99,6 +107,35 @@ function utcDay(now: Date): { periodStart: Date; expiresAt: Date } {
   const expiresAt = new Date(periodStart);
   expiresAt.setUTCDate(expiresAt.getUTCDate() + RETENTION_DAYS);
   return { periodStart, expiresAt };
+}
+
+/** Read the authenticated user's shared AI allowance without reserving a request. */
+export async function getAiUsageQuotaSummary(input: {
+  userId: string;
+  now?: Date;
+}): Promise<AiUsageQuotaSummary> {
+  const config = resolveAiUsageQuotaConfig();
+  const { periodStart } = utcDay(input.now ?? new Date());
+  const resetsAt = new Date(periodStart);
+  resetsAt.setUTCDate(resetsAt.getUTCDate() + 1);
+
+  await dbConnect();
+  const bucket = await AiImportUsage.findOne({
+    scope: 'user',
+    scopeKey: input.userId,
+    periodStart,
+  })
+    .select('requests')
+    .lean<Pick<AiImportUsageDoc, 'requests'> | null>();
+  const usedRequests = Math.max(0, bucket?.requests ?? 0);
+
+  return {
+    usedRequests,
+    requestLimit: config.userRequests,
+    remainingRequests: Math.max(0, config.userRequests - usedRequests),
+    periodStart,
+    resetsAt,
+  };
 }
 
 function isDuplicateKeyError(error: unknown): boolean {

@@ -105,6 +105,17 @@
       "saveChanges": "Save Changes",
       "updateSuccess": "Display name updated"
     },
+    "aiUsage": {
+      "title": "Today's AI allowance",
+      "usage": "{used} / {limit}",
+      "remaining": "{count} remaining",
+      "resetsAt": "Resets {time}",
+      "description": "AI expense text, receipt scanning, and itinerary import share this allowance. Each AI parsing request counts toward it.",
+      "progressLabel": "Today's AI allowance usage",
+      "loadFailed": "Your allowance could not be loaded.",
+      "retry": "Retry",
+      "loading": "Loading…"
+    },
     "email": {
       "title": "Change Email",
       "current": "Current Email",

@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   findOneAndUpdate: vi.fn(),
   create: vi.fn(),
   updateOne: vi.fn(),
+  findOne: vi.fn(),
 }));
 
 vi.mock('@/lib/mongodb', () => ({ dbConnect: mocks.dbConnect }));
@@ -15,6 +16,7 @@ vi.mock('@/models', () => ({
     findOneAndUpdate: mocks.findOneAndUpdate,
     create: mocks.create,
     updateOne: mocks.updateOne,
+    findOne: mocks.findOne,
   },
 }));
 
@@ -25,6 +27,7 @@ import {
   resolveItineraryImportQuotaConfig,
   settleItineraryImportQuota,
 } from '@/lib/ai/itineraryImportQuota';
+import { getAiUsageQuotaSummary } from '@/lib/ai/aiUsageQuota';
 
 function successfulQuery() {
   return { lean: vi.fn().mockResolvedValue({ _id: 'usage' }) };
@@ -42,6 +45,9 @@ describe('persistent itinerary import quota', () => {
     mocks.findOneAndUpdate.mockImplementation(() => successfulQuery());
     mocks.create.mockResolvedValue({ _id: 'usage' });
     mocks.updateOne.mockResolvedValue({ acknowledged: true });
+    mocks.findOne.mockReturnValue({
+      select: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue(null) }),
+    });
   });
 
   it('uses conservative low-traffic request defaults and validates cost reservation', () => {
@@ -67,6 +73,33 @@ describe('persistent itinerary import quota', () => {
         AI_IMPORT_DAILY_TRIP_REQUESTS: '11',
       })
     ).toMatchObject({ userRequests: 7, tripRequests: 11 });
+  });
+
+  it('reports the current user bucket and next UTC reset without reserving usage', async () => {
+    const lean = vi.fn().mockResolvedValue({ requests: 3 });
+    const select = vi.fn().mockReturnValue({ lean });
+    mocks.findOne.mockReturnValue({ select });
+
+    const summary = await getAiUsageQuotaSummary({
+      userId: 'user-1',
+      now: new Date('2026-09-10T23:59:00.000Z'),
+    });
+
+    expect(mocks.findOne).toHaveBeenCalledWith({
+      scope: 'user',
+      scopeKey: 'user-1',
+      periodStart: new Date('2026-09-10T00:00:00.000Z'),
+    });
+    expect(select).toHaveBeenCalledWith('requests');
+    expect(summary).toEqual({
+      usedRequests: 3,
+      requestLimit: 5,
+      remainingRequests: 2,
+      periodStart: new Date('2026-09-10T00:00:00.000Z'),
+      resetsAt: new Date('2026-09-11T00:00:00.000Z'),
+    });
+    expect(mocks.findOneAndUpdate).not.toHaveBeenCalled();
+    expect(mocks.create).not.toHaveBeenCalled();
   });
 
   it('atomically reserves global, user, and trip UTC-day buckets', async () => {
