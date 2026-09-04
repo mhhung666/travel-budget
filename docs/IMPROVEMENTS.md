@@ -1,6 +1,6 @@
 # 改善建議（Improvements）
 
-> 更新日期：2026-07-28
+> 更新日期：2026-09-04
 > 本文件只列**尚未處理**的程式碼 / 基礎設施層級改善。已完成里程碑見 [CHANGELOG.md](./CHANGELOG.md)，架構說明見 [ARCHITECTURE.md](./ARCHITECTURE.md)。
 > 慣例：處理完一項 → 移到 [CHANGELOG.md](./CHANGELOG.md)、從本檔刪除。
 
@@ -12,10 +12,6 @@
 **問題**：`/api/public/*` 是「知道 `hash_code` 即可檢視」的未登入端點，目前無任何速率限制，易被枚舉 / 爬取。
 **現況**：刻意未做——Serverless（Vercel）下記憶體式限流形同虛設（各 instance 各自計數），須外部儲存。
 **建議**：導入 Upstash Redis（`@upstash/ratelimit` + `@upstash/redis`）以 IP（或 `hash_code`）為 key 做滑動視窗限流，套在 8 條公開路由與 `/api/exchange-rates`。屬基礎設施決策，待確認方案後再做。
-
-### B. ⚠️ 補強 `actions/*` 測試覆蓋
-**現況**：`lib/`（settlement / validation / hashcode / permissions / histogram…）已覆蓋；`actions/*`（核心業務）尚未測。
-**建議**：對 `expense / member / settlement / trip` actions 加測試。因 DB 依賴重，兩條路可選：(1) mock `@/models` 與 `dbConnect`（如 permissions.test.ts 的作法）；(2) 用 `mongodb-memory-server` 做整合測試，能順帶驗證 Mongoose schema / index 行為。建議優先涵蓋授權分支（非成員 / 非 admin 被拒）與分帳金額計算。
 
 ### G. 🟡 支出列表無上限（潛在效能）
 **問題**：`getExpenses`（[expense.actions.ts](../src/actions/expense.actions.ts)）與公開 expenses 路由皆 `Expense.find({ trip })` 全量載入 + 雙 `populate`。一般旅行筆數有限尚可，但長期 / 大型旅行無分頁保護。

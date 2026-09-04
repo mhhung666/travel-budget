@@ -304,6 +304,22 @@ export const updateExpense = withAuth(
         return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
       }
 
+      // Updates must preserve the same trip-member boundary as creation. Without
+      // this check, a client that knows an outside user id could replace the payer
+      // or a split participant after the expense was created.
+      if (payer_id !== undefined || splits !== undefined) {
+        const trip = await Trip.findById(tripId).select('members').lean<{
+          members: { user: { toString(): string } }[];
+        }>();
+        const memberIds = new Set((trip?.members ?? []).map((member) => member.user.toString()));
+        if (
+          (payer_id !== undefined && !memberIds.has(payer_id)) ||
+          splits?.some((split) => !memberIds.has(split.user_id))
+        ) {
+          return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
+        }
+      }
+
       const set: Record<string, unknown> = {};
       if (description !== undefined) set.description = description.trim();
       if (original_amount !== undefined) set.originalAmount = original_amount;
