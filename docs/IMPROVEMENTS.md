@@ -13,29 +13,20 @@
 
 | 順序 | 項目 | 主要價值 | 建議批次 |
 | ---: | --- | --- | --- |
-| 1 | M. 輕量 Trip Shell 與按需載入 | 直接減少旅程頁首屏請求、MongoDB 讀取與下載量 | P1，核心效能批次 |
-| 2 | N. 會員授權與公開資料流去重 | 消除重複 Trip 查詢及公開頁雙重請求 | P1，接續 M |
-| 3 | O. MongoDB 查詢基線與索引 | 降低排序、每日掃描及資料成長後的退化風險 | P1，先量測再 migration |
-| 4 | P. 支出寫入 critical path 瘦身 | 縮短新增支出的實際回應時間，隔離外部通知失敗 | P1，需決定背景工作方案 |
-| 5 | Q. 查詢錯誤狀態與前端延遲載入 | 避免把錯誤顯示成空資料，改善互動流暢度 | P1/P2，逐頁落地 |
-| 6 | R. 原子更新與跨 collection 一致性 | 降低多人編輯覆蓋及部分寫入 | P2，依使用頻率安排 |
+| 1 | N. 會員授權與公開資料流去重 | 消除重複 Trip 查詢及公開頁雙重請求 | P1，接續 M |
+| 2 | O. MongoDB 查詢基線與索引 | 降低排序、每日掃描及資料成長後的退化風險 | P1，先量測再 migration |
+| 3 | P. 支出寫入 critical path 瘦身 | 縮短新增支出的實際回應時間，隔離外部通知失敗 | P1，需決定背景工作方案 |
+| 4 | Q. 查詢錯誤狀態與前端延遲載入 | 避免把錯誤顯示成空資料，改善互動流暢度 | P1/P2，逐頁落地 |
+| 5 | R. 原子更新與跨 collection 一致性 | 降低多人編輯覆蓋及部分寫入 | P2，依使用頻率安排 |
+| 6 | M. production-like 效能追蹤 | 補齊實際 bytes、MongoDB profiler 與 TTI 數據 | 🟡 需測試環境與帳號 |
 
-### M. 🔴 輕量 Trip Shell 與按需載入（P1）
+### M. 🟡 輕量 Trip Shell 的 production-like 效能追蹤
 
-**問題**：[useTripSpace.ts](../src/hooks/useTripSpace.ts) 目前在所有 `/trips/[id]/*` 分頁取得 trip、完整
-expenses、完整 itinerary 與 membership。即使使用者位於設定、相簿或清單頁，也會因共用 Shell 及常駐的
-新增支出表單下載不需要的資料。旅程首頁另會同時要求清單、結算、會員與照片，結算還會再讀一次 expenses。
-
-**處理方向**：
-
-- 建立輕量 Trip Shell DTO，只包含標題、日期、幣別、目前角色／預算、會員摘要及 aggregate 支出合計。
-- expenses、itinerary、photos、settlement 只由需要它們的分頁取得。
-- 新增支出視窗開啟後，才載入 itinerary 選項與標籤建議；大型表單元件採 dynamic import。
-- 旅程首頁以 trip + itinerary 為首屏，其餘摘要延後或獨立載入，不用次要 query 阻塞主要內容。
-- 保留既有 optimistic cache 更新，避免瘦身後讓 mutation 體感倒退。
-
-**完成條件**：非支出分頁不請求完整 expense list；非行程分頁不請求完整 itinerary；未開啟新增支出時
-不下載表單專用資料。記錄優化前後 request 數、回傳 bytes、MongoDB query 數及首屏可互動時間。
+程式拆分與 production build 已完成：非支出分頁不再由共用 Shell 取得完整 expenses，表單關閉時不查
+members／itinerary／tags，首頁摘要也改用 aggregate 欄位。靜態基線與待補實測項目見
+[TRIP_SHELL_PERFORMANCE.md](./TRIP_SHELL_PERFORMANCE.md)。目前本機沒有 MongoDB 連線與可登入測試帳號，仍需在
+production-like 資料量下補 Network bytes、MongoDB profiler/explain 與瀏覽器 TTI，確認實際收益及是否要調整
+aggregate／索引；完成後即可從本檔移除。
 
 ### N. 🔴 會員授權與公開資料流去重（P1）
 

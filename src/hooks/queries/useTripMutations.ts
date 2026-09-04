@@ -33,6 +33,7 @@ export function useTripMutations(tripId: string) {
     onSuccess: (trip: Trip, input: UpdateTripInput) => {
       queryClient.setQueryData(tripKeys.detail(tripId), trip);
       queryClient.invalidateQueries({ queryKey: tripKeys.detail(tripId) });
+      queryClient.invalidateQueries({ queryKey: tripKeys.shell(tripId) });
       queryClient.invalidateQueries({ queryKey: tripKeys.list });
       if (input.start_date !== undefined || input.end_date !== undefined) {
         queryClient.invalidateQueries({ queryKey: tripKeys.photos(tripId) });
@@ -47,6 +48,7 @@ export function useTripMutations(tripId: string) {
     onSuccess: (trip: Trip) => {
       queryClient.setQueryData(tripKeys.detail(tripId), trip);
       queryClient.invalidateQueries({ queryKey: tripKeys.detail(tripId) });
+      queryClient.invalidateQueries({ queryKey: tripKeys.shell(tripId) });
     },
   });
 
@@ -58,6 +60,7 @@ export function useTripMutations(tripId: string) {
     onSuccess: (trip: Trip) => {
       queryClient.setQueryData(tripKeys.detail(tripId), trip);
       queryClient.invalidateQueries({ queryKey: tripKeys.detail(tripId) });
+      queryClient.invalidateQueries({ queryKey: tripKeys.shell(tripId) });
     },
   });
 
@@ -67,6 +70,7 @@ export function useTripMutations(tripId: string) {
     mutationFn: () => unwrap(regenerateHashCode(tripId)),
     onSuccess: (trip: Trip) => {
       queryClient.setQueryData(tripKeys.detail(tripId), trip);
+      queryClient.invalidateQueries({ queryKey: tripKeys.shell(tripId) });
       queryClient.invalidateQueries({ queryKey: tripKeys.list });
     },
   });

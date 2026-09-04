@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import { ArrowLeft, History, MoreHorizontal, Settings, Wallet } from 'lucide-react';
+import dynamic from 'next/dynamic';
+import { ArrowLeft, History, Loader2, MoreHorizontal, Settings, Wallet } from 'lucide-react';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 import { ROUTES } from '@/constants/routes';
@@ -18,9 +19,15 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
-import { BudgetDialog } from '@/components/trips/detail/dialogs';
-import { ExpenseFormSheet } from '@/components/trips/detail/expense-form';
 import { TripSpaceProvider, type AddExpensePrefill } from './TripSpaceContext';
+
+const ExpenseFormSheet = dynamic(
+  () => import('@/components/trips/detail/expense-form/ExpenseFormSheet'),
+  { ssr: false }
+);
+const BudgetDialog = dynamic(() => import('@/components/trips/detail/dialogs/BudgetDialog'), {
+  ssr: false,
+});
 
 /**
  * 行程空間殼（trips/[id]/layout.tsx 掛載，換分頁不重繪）：
@@ -49,6 +56,7 @@ export function TripSpaceShell({
   const tTrip = useTranslations('trip');
   const tTrips = useTranslations('trips');
   const tBudget = useTranslations('budget');
+  const tCommon = useTranslations('common');
 
   const {
     trip,
@@ -56,6 +64,7 @@ export function TripSpaceShell({
     members,
     currentUser,
     isMember,
+    isMembershipLoading,
     itineraryDays,
     existingTags,
     budgetProgress,
@@ -338,27 +347,46 @@ export function TripSpaceShell({
         <div className="flex-1">{children}</div>
 
         {/* 空間層級 Dialogs：新增支出（旅行內 CTA／工具列共用）、預算 */}
-        <ExpenseFormSheet
-          mode="add"
-          tripId={tripId}
-          open={addExpenseDialog.open}
-          onClose={addExpenseDialog.closeDialog}
-          onSubmit={handleAddExpense}
-          members={members}
-          currentUser={currentUser}
-          itineraryDays={itineraryDays}
-          existingTags={existingTags}
-          initialDescription={addExpenseDialog.data?.description}
-          currencySettings={trip?.currency_settings ?? null}
-        />
+        {addExpenseDialog.open && (
+          <>
+            {/* Rendering closed starts the dynamic chunk in parallel with metadata queries. */}
+            <ExpenseFormSheet
+              mode="add"
+              tripId={tripId}
+              open={!isMembershipLoading && currentUser != null && members.length > 0}
+              onClose={addExpenseDialog.closeDialog}
+              onSubmit={handleAddExpense}
+              members={members}
+              currentUser={currentUser}
+              itineraryDays={itineraryDays}
+              existingTags={existingTags}
+              initialDescription={addExpenseDialog.data?.description}
+              currencySettings={trip?.currency_settings ?? null}
+            />
+            {(isMembershipLoading || !currentUser || members.length === 0) && (
+              <div
+                className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm"
+                role="status"
+                aria-live="polite"
+              >
+                <span className="flex items-center gap-2 rounded-lg border bg-background px-4 py-3 text-sm shadow-lg">
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                  {tCommon('loading')}
+                </span>
+              </div>
+            )}
+          </>
+        )}
 
-        <BudgetDialog
-          open={budgetDialog.open}
-          onClose={budgetDialog.closeDialog}
-          onSubmit={handleSetBudget}
-          budget={trip?.budget ?? null}
-          legacyBudget={trip?.legacy_budget ?? null}
-        />
+        {budgetDialog.open && (
+          <BudgetDialog
+            open
+            onClose={budgetDialog.closeDialog}
+            onSubmit={handleSetBudget}
+            budget={trip?.budget ?? null}
+            legacyBudget={trip?.legacy_budget ?? null}
+          />
+        )}
       </div>
     </TripSpaceProvider>
   );

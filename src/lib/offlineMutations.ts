@@ -37,6 +37,8 @@ export async function unwrap<T>(p: Promise<ActionResult<T>>): Promise<T> {
 /** Invalidate every trip query derived from expenses (balances + stats + feed). */
 export function invalidateExpenseDerived(queryClient: QueryClient, tripId: string): void {
   queryClient.invalidateQueries({ queryKey: tripKeys.expenses(tripId) });
+  queryClient.invalidateQueries({ queryKey: tripKeys.expenseTags(tripId) });
+  queryClient.invalidateQueries({ queryKey: tripKeys.shell(tripId) });
   queryClient.invalidateQueries({ queryKey: tripKeys.settlement(tripId) });
   queryClient.invalidateQueries({ queryKey: tripKeys.stats(tripId) });
   queryClient.invalidateQueries({ queryKey: tripKeys.activity(tripId) });

@@ -7,6 +7,7 @@
 
 | 日期 | 里程碑 |
 | --- | --- |
+| 09-04 | 完成輕量 Trip Shell 與按需載入：共用殼改用角色／預算／成員與支出 aggregate DTO，完整 members、itinerary 與 distinct tags 僅在新增支出時載入；表單及預算 Dialog 拆為動態 chunk，首頁不再為摘要下載完整支出清單，並保留新增支出的 optimistic 摘要更新 |
 | 09-04 | 完成 P0 基礎修復：React Query／離線 mutation 依登入使用者分區，登出統一清除記憶體與 IndexedDB 並提示未同步項目；authenticated layout 明確採動態渲染，production build 不再產生 cookies dynamic usage 假錯誤 |
 | 09-04 | 補齊 expense、settlement、trip 核心 actions 的授權、驗證、金額計算、附件與級聯副作用測試，連同既有 member actions 測試形成核心業務安全網；同步補上更新支出時的團外付款人／分帳成員防線 |
 

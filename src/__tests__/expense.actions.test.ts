@@ -7,6 +7,7 @@ const expenseCreate = vi.fn();
 const expenseFindOne = vi.fn();
 const expenseUpdateOne = vi.fn();
 const expenseDeleteOne = vi.fn();
+const expenseDistinct = vi.fn();
 const itineraryCountDocuments = vi.fn();
 const commentDeleteMany = vi.fn();
 const headObject = vi.fn();
@@ -54,6 +55,7 @@ vi.mock('@/models', () => ({
     findOne: (...args: unknown[]) => expenseFindOne(...args),
     updateOne: (...args: unknown[]) => expenseUpdateOne(...args),
     deleteOne: (...args: unknown[]) => expenseDeleteOne(...args),
+    distinct: (...args: unknown[]) => expenseDistinct(...args),
   },
   ItineraryDay: {
     countDocuments: (...args: unknown[]) => itineraryCountDocuments(...args),
@@ -64,6 +66,7 @@ vi.mock('@/models', () => ({
 import {
   createExpense,
   deleteExpense,
+  getExpenseTags,
   getReceiptUrl,
   updateExpense,
 } from '@/actions/expense.actions';
@@ -121,6 +124,17 @@ beforeEach(() => {
   logActivity.mockResolvedValue(undefined);
   expenseUpdateOne.mockResolvedValue({ modifiedCount: 1 });
   expenseDeleteOne.mockResolvedValue({ deletedCount: 1 });
+  expenseDistinct.mockResolvedValue(['visa', '', 'food']);
+});
+
+describe('getExpenseTags', () => {
+  it('loads only distinct non-empty tags after membership validation', async () => {
+    expect(await getExpenseTags('oldcode1')).toEqual({
+      success: true,
+      data: ['food', 'visa'],
+    });
+    expect(expenseDistinct).toHaveBeenCalledWith('tags', { trip: TRIP });
+  });
 });
 
 describe('createExpense', () => {

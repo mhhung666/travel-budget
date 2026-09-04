@@ -3,7 +3,8 @@
 import { onlineManager, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createExpense, updateExpense, deleteExpense } from '@/actions';
 import type { UpdateExpenseInput } from '@/lib/validation';
-import type { Expense, Member } from '@/types';
+import type { AuthUserWithCreatedAt } from '@/actions';
+import type { Expense, Member, TripShell } from '@/types';
 import { buildOptimisticExpense, newOptimisticId } from '@/lib/optimisticExpense';
 import {
   expenseCreateMutationKey,
@@ -43,6 +44,11 @@ export function useExpenseMutations(tripId: string) {
       await queryClient.cancelQueries({ queryKey: key });
       const previous = queryClient.getQueryData<Expense[]>(key);
       const members = queryClient.getQueryData<Member[]>(tripKeys.members(vars.tripId)) ?? [];
+      const shellKey = tripKeys.shell(vars.tripId);
+      const previousShell = queryClient.getQueryData<TripShell>(shellKey);
+      const currentUser = queryClient.getQueryData<AuthUserWithCreatedAt | null>(
+        tripKeys.currentUser
+      );
       const optimistic = buildOptimisticExpense(vars.input, {
         tripId: vars.tripId,
         members,
@@ -50,10 +56,31 @@ export function useExpenseMutations(tripId: string) {
         createdAt: new Date().toISOString(),
       });
       queryClient.setQueryData<Expense[]>(key, (old = []) => [optimistic, ...old]);
-      return { previous, key, wasOffline };
+      if (previousShell && currentUser) {
+        const personalShare =
+          vars.input.splits.find((split) => split.user_id === currentUser.id)?.share_amount ?? 0;
+        const today = new Date();
+        const todayKey = [
+          today.getFullYear(),
+          String(today.getMonth() + 1).padStart(2, '0'),
+          String(today.getDate()).padStart(2, '0'),
+        ].join('-');
+        queryClient.setQueryData<TripShell>(shellKey, {
+          ...previousShell,
+          expense_count: previousShell.expense_count + 1,
+          total_spent: previousShell.total_spent + personalShare,
+          today_spent:
+            previousShell.today_spent +
+            (vars.input.date === todayKey
+              ? vars.input.original_amount * vars.input.exchange_rate
+              : 0),
+        });
+      }
+      return { previous, key, previousShell, shellKey, wasOffline };
     },
     onError: (_err, _vars, ctx) => {
       if (ctx?.previous) queryClient.setQueryData(ctx.key, ctx.previous);
+      if (ctx?.previousShell) queryClient.setQueryData(ctx.shellKey, ctx.previousShell);
       if (ctx?.wasOffline) {
         trackProductEvent('offline_expense', { state: 'failed' });
       }

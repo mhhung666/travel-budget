@@ -19,6 +19,7 @@ export type {
   TripRole,
   Member,
   Trip,
+  TripShell,
   TripWithMembers,
   TripMember,
   TripCurrency,

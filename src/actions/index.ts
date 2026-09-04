@@ -23,6 +23,7 @@ export { getAiUsageSummary, type AiUsageSummary } from './aiUsage.actions';
 export {
   getTrips,
   getTrip,
+  getTripShell,
   createTrip,
   updateTrip,
   deleteTrip,
@@ -35,6 +36,7 @@ export {
 // Expense actions
 export {
   getExpenses,
+  getExpenseTags,
   createExpense,
   updateExpense,
   deleteExpense,

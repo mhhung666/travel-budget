@@ -29,10 +29,9 @@ import type { Activity, ItineraryDay, TripPhoto } from '@/types';
 import type { CreateFlightRecordInput, CreateStayRecordInput } from '@/lib/validation';
 import {
   useItinerary,
-  useExpenses,
   usePhotos,
   useTrip,
-  useTripMembership,
+  useTripShell,
   useItineraryMutations,
   useTripCollectionLinks,
   useChecklists,
@@ -51,7 +50,7 @@ import {
   parseFlightNo,
   parseNights,
 } from '@/lib/collectionImport';
-import { ongoingDayNumber } from '@/lib/tripStatus';
+import { getTripPhase, ongoingDayNumber } from '@/lib/tripStatus';
 import { trackProductEvent } from '@/lib/productEvents';
 
 import { ItinerarySkeleton } from '@/components/skeletons';
@@ -91,11 +90,14 @@ export default function ItineraryPage() {
     refetch: refetchItinerary,
   } = useItinerary(tripId);
   const { data: trip } = useTrip(tripId);
-  const { data: expenses = [] } = useExpenses(tripId);
-  const { data: checklists = [] } = useChecklists(tripId);
+  const { data: shell } = useTripShell(tripId);
+  const phase = trip ? getTripPhase(trip.start_date, trip.end_date).phase : null;
+  // Secondary overview data is phase-specific and does not block itinerary content.
+  const { data: checklists = [] } = useChecklists(tripId, phase === 'preTrip');
   const { data: settlement = { balances: [], transactions: [], payments: [], totalExpenses: 0 } } =
-    useSettlement(tripId);
-  const { isAdmin, isMember, members } = useTripMembership(tripId);
+    useSettlement(tripId, phase === 'postTrip');
+  const isAdmin = shell?.role === 'admin';
+  const isMember = shell?.role != null;
   const { openAddExpense } = useTripSpaceActions();
   // 當天相片：與相簿頁共用同一份 query 快取（一趟旅程只查一次），在這裡依行程日分組。
   // 成員限定——usePhotos 無公開 fallback；非成員（含分享頁訪客）連問都不必問，故用 isMember 擋掉。
@@ -378,7 +380,7 @@ export default function ItineraryPage() {
         <TripContextOverview
           trip={trip}
           days={days}
-          expenses={expenses}
+          todaySpent={shell?.today_spent ?? 0}
           checklists={checklists}
           settlement={settlement}
           isMember={isMember}
@@ -393,8 +395,8 @@ export default function ItineraryPage() {
 
       {trip && isMember && !firstStepsDismissed && (
         <FirstStepsCard
-          hasExpense={expenses.length > 0}
-          hasInvited={members.length > 1 || inviteCopied}
+          hasExpense={(shell?.expense_count ?? 0) > 0}
+          hasInvited={(shell?.member_count ?? 0) > 1 || inviteCopied}
           onAddExpense={() => openAddExpense()}
           onCopyInvite={handleCopyInvite}
           onDismiss={dismissFirstSteps}

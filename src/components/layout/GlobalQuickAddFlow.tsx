@@ -147,7 +147,7 @@ function GlobalExpenseForm({
     itineraryDays,
     existingTags,
     handleAddExpense,
-  } = useTripSpace(tripId);
+  } = useTripSpace(tripId, open);
 
   const ready =
     !isLoading &&

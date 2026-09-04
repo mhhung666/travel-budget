@@ -6,6 +6,7 @@ const dbConnect = vi.fn();
 const tripExists = vi.fn();
 const tripCreate = vi.fn();
 const tripFindByIdAndUpdate = vi.fn();
+const tripFindById = vi.fn();
 const tripFindOneAndUpdate = vi.fn();
 const tripDeleteOne = vi.fn();
 const deleteByPrefix = vi.fn();
@@ -13,6 +14,7 @@ const notify = vi.fn();
 const logActivity = vi.fn();
 const revalidatePath = vi.fn();
 const loggerError = vi.fn();
+const expenseAggregate = vi.fn();
 const cascade = {
   expense: vi.fn(),
   itinerary: vi.fn(),
@@ -54,10 +56,14 @@ vi.mock('@/models', () => ({
     exists: (...args: unknown[]) => tripExists(...args),
     create: (...args: unknown[]) => tripCreate(...args),
     findByIdAndUpdate: (...args: unknown[]) => tripFindByIdAndUpdate(...args),
+    findById: (...args: unknown[]) => tripFindById(...args),
     findOneAndUpdate: (...args: unknown[]) => tripFindOneAndUpdate(...args),
     deleteOne: (...args: unknown[]) => tripDeleteOne(...args),
   },
-  Expense: { deleteMany: (...args: unknown[]) => cascade.expense(...args) },
+  Expense: {
+    deleteMany: (...args: unknown[]) => cascade.expense(...args),
+    aggregate: (...args: unknown[]) => expenseAggregate(...args),
+  },
   ItineraryDay: { deleteMany: (...args: unknown[]) => cascade.itinerary(...args) },
   Payment: { deleteMany: (...args: unknown[]) => cascade.payment(...args) },
   Checklist: { deleteMany: (...args: unknown[]) => cascade.checklist(...args) },
@@ -74,6 +80,7 @@ vi.mock('@/models', () => ({
 import {
   createTrip,
   deleteTrip,
+  getTripShell,
   joinTrip,
   regenerateHashCode,
   updateTrip,
@@ -84,6 +91,10 @@ const TRIP = '507f1f77bcf86cd799439011';
 
 function lean(value: unknown) {
   return { lean: () => Promise.resolve(value) };
+}
+
+function selectLean(value: unknown) {
+  return { select: () => ({ lean: () => Promise.resolve(value) }) };
 }
 
 function tripDoc(overrides: Record<string, unknown> = {}) {
@@ -108,12 +119,35 @@ beforeEach(() => {
   dbConnect.mockResolvedValue(undefined);
   tripExists.mockResolvedValue(null);
   tripFindByIdAndUpdate.mockReturnValue(lean(tripDoc()));
+  tripFindById.mockReturnValue(selectLean(tripDoc()));
+  expenseAggregate.mockResolvedValue([{ expenseCount: 3, todaySpent: 1200, totalSpent: 1800 }]);
   tripFindOneAndUpdate.mockReturnValue(lean(tripDoc()));
   tripDeleteOne.mockResolvedValue({ deletedCount: 1 });
   deleteByPrefix.mockResolvedValue(undefined);
   notify.mockResolvedValue(undefined);
   logActivity.mockResolvedValue(undefined);
   for (const operation of Object.values(cascade)) operation.mockResolvedValue({ deletedCount: 1 });
+});
+
+describe('getTripShell', () => {
+  it('returns aggregate counters without loading member profiles or expense rows', async () => {
+    const result = await getTripShell('oldcode1');
+
+    expect(result).toEqual({
+      success: true,
+      data: expect.objectContaining({
+        id: TRIP,
+        name: 'Tokyo',
+        role: 'admin',
+        member_count: 1,
+        expense_count: 3,
+        today_spent: 1200,
+        total_spent: 1800,
+      }),
+    });
+    expect(tripFindById).toHaveBeenCalledWith(TRIP);
+    expect(expenseAggregate).toHaveBeenCalledOnce();
+  });
 });
 
 describe('createTrip', () => {

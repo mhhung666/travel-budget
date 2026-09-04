@@ -114,6 +114,27 @@ export const getExpenses = withAuth(
   }
 );
 
+/** Lightweight autocomplete metadata for the expense form. */
+export const getExpenseTags = withAuth(
+  async (session, tripIdOrCode: string): Promise<ActionResult<string[]>> => {
+    try {
+      const membership = await getTripMembership(session.userId, tripIdOrCode);
+      if (!membership) {
+        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+      }
+
+      const tags = await Expense.distinct('tags', { trip: membership.tripId });
+      return {
+        success: true,
+        data: tags.filter((tag): tag is string => typeof tag === 'string' && tag.length > 0).sort(),
+      };
+    } catch (error) {
+      logger.error('Get expense tags error', error);
+      return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
+    }
+  }
+);
+
 /**
  * Create a new expense
  */

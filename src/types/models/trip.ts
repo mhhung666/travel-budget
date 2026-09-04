@@ -51,6 +51,28 @@ export interface TripWithMembers extends Trip {
 }
 
 /**
+ * Cross-tab trip shell payload. Deliberately excludes description, destination,
+ * member profiles and expense rows so every trip sub-page can mount cheaply.
+ */
+export interface TripShell {
+  id: string;
+  name: string;
+  start_date: string | null;
+  end_date: string | null;
+  hash_code: string;
+  role: TripRole | null;
+  member_count: number;
+  expense_count: number;
+  /** Whole-trip spend dated today, used by the itinerary landing summary. */
+  today_spent: number;
+  /** Current member's share across all expenses, in the TWD base currency. */
+  total_spent: number;
+  budget: Budget | null;
+  legacy_budget: Budget | null;
+  currency_settings: TripCurrencySettings | null;
+}
+
+/**
  * 旅程成員關聯
  */
 export interface TripMember {

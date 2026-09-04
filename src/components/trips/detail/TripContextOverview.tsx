@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
-import type { Checklist, Expense, ItineraryDay, Settlement, Trip } from '@/types';
+import type { Checklist, ItineraryDay, Settlement, Trip } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import { formatCurrency } from '@/constants/currencies';
 import { getTripPhase } from '@/lib/tripStatus';
@@ -23,24 +23,17 @@ import { Card, CardContent } from '@/components/ui/card';
 interface TripContextOverviewProps {
   trip: Trip;
   days: ItineraryDay[];
-  expenses: Expense[];
+  todaySpent: number;
   checklists: Checklist[];
   settlement: Settlement;
   isMember: boolean;
   onAddExpense: () => void;
 }
 
-function localDateKey(date: Date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
 export default function TripContextOverview({
   trip,
   days,
-  expenses,
+  todaySpent,
   checklists,
   settlement,
   isMember,
@@ -48,7 +41,6 @@ export default function TripContextOverview({
 }: TripContextOverviewProps) {
   const t = useTranslations('trip.context');
   const phase = getTripPhase(trip.start_date, trip.end_date);
-  const todayKey = localDateKey(new Date());
   const incompleteItems = checklists.reduce(
     (count, checklist) => count + checklist.items.filter((item) => !item.done).length,
     0
@@ -60,9 +52,6 @@ export default function TripContextOverview({
     currentDay?.activities.find((activity) => !activity.time || activity.time >= currentTime) ??
     currentDay?.activities[0];
   const firstPlannedActivity = days.flatMap((day) => day.activities)[0];
-  const todaySpent = expenses
-    .filter((expense) => expense.date.slice(0, 10) === todayKey)
-    .reduce((sum, expense) => sum + expense.amount, 0);
   const outstanding = settlement.transactions.reduce(
     (sum, transaction) => sum + transaction.amount,
     0

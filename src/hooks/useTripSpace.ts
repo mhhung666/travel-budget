@@ -1,17 +1,16 @@
-import { useMemo } from 'react';
 import { onlineManager } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import type { SetBudgetInput } from '@/lib/validation';
-import { computeBudgetProgress } from '@/lib/budget';
 import { useDialog } from '@/hooks/useDialog';
 import { useToast } from '@/hooks/use-toast';
 import type { ExpenseFormData } from '@/components/trips/detail/expense-form';
 import type { AddExpensePrefill } from '@/components/trips/space/TripSpaceContext';
 import {
-  useTrip,
-  useExpenses,
+  useTripShell,
+  useCurrentUser,
+  useMembers,
+  useExpenseTags,
   useItinerary,
-  useTripMembership,
   useExpenseMutations,
   useTripMutations,
 } from '@/hooks/queries';
@@ -22,10 +21,10 @@ import {
  * The shell owns the cross-tab pieces of the trip space: the persistent
  * budget/total summary bar, the always-available "add expense" flow (FAB on
  * mobile, toolbar button on the expenses tab) and the budget dialog reached
- * from the "more" menu. Everything here reads from the same React Query cache
- * as the tab pages, so mounting the shell adds no extra requests.
+ * from the "more" menu. The always-mounted path only reads the compact shell
+ * DTO; form-specific member/day/tag data is enabled after the form opens.
  */
-export function useTripSpace(tripId: string) {
+export function useTripSpace(tripId: string, loadExpenseForm = false) {
   const tExpense = useTranslations('expense');
   const tBudget = useTranslations('budget');
   const tCommon = useTranslations('common');
@@ -33,35 +32,33 @@ export function useTripSpace(tripId: string) {
 
   const { toast } = useToast();
 
-  const { data: trip, isLoading } = useTrip(tripId);
-  const { data: expenses = [] } = useExpenses(tripId);
-  const { data: itineraryDays = [] } = useItinerary(tripId);
-  const {
-    currentUser,
-    members,
-    isMember,
-    isAdmin,
-    isLoading: isMembershipLoading,
-  } = useTripMembership(tripId);
-
-  const expenseMutations = useExpenseMutations(tripId);
-  const tripMutations = useTripMutations(tripId);
-
   // 新增支出可帶預填（如清單購物項的品名）；dialog.data 存這份 prefill。
   const addExpenseDialog = useDialog<AddExpensePrefill>();
   const budgetDialog = useDialog();
 
-  // 常駐摘要條：登入者的分攤支出（＋已設定時的個人預算進度）。
-  const budgetProgress = useMemo(
-    () => computeBudgetProgress(trip?.budget ?? null, expenses, currentUser?.id ?? null),
-    [trip?.budget, expenses, currentUser?.id]
+  const { data: shell, isLoading } = useTripShell(tripId);
+  const isMember = shell?.role != null;
+  const shouldLoadForm = (loadExpenseForm || addExpenseDialog.open) && isMember;
+  const { data: currentUser = null, isLoading: isCurrentUserLoading } =
+    useCurrentUser(shouldLoadForm);
+  const { data: members = [], isLoading: areMembersLoading } = useMembers(tripId, shouldLoadForm);
+  const { data: itineraryDays = [], isLoading: isItineraryLoading } = useItinerary(
+    tripId,
+    shouldLoadForm
+  );
+  const { data: existingTags = [], isLoading: areTagsLoading } = useExpenseTags(
+    tripId,
+    shouldLoadForm
   );
 
-  // 本 trip 內已用過的標籤（供支出表單的標籤自動完成建議）。
-  const existingTags = useMemo(
-    () => [...new Set(expenses.flatMap((e) => e.tags))].sort(),
-    [expenses]
-  );
+  const expenseMutations = useExpenseMutations(tripId);
+  const tripMutations = useTripMutations(tripId);
+
+  // 常駐摘要條：登入者的分攤支出（＋已設定時的個人預算進度）。
+  const budgetProgress = {
+    total: shell?.budget?.total ?? null,
+    totalSpent: shell?.total_spent ?? 0,
+  };
 
   // Offline-capable: fire-and-forget so the dialog closes immediately. The
   // optimistic insert (mutation onMutate) shows the row at once; when offline
@@ -112,13 +109,16 @@ export function useTripSpace(tripId: string) {
   };
 
   return {
-    trip,
+    trip: shell,
+    shell,
     isLoading,
     members,
     currentUser,
-    isMember: !!isMember,
-    isAdmin: !!isAdmin,
-    isMembershipLoading,
+    isMember,
+    isAdmin: shell?.role === 'admin',
+    isMembershipLoading:
+      shouldLoadForm &&
+      (isCurrentUserLoading || areMembersLoading || isItineraryLoading || areTagsLoading),
     itineraryDays,
     existingTags,
     budgetProgress,
