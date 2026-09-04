@@ -15,6 +15,7 @@ interface ChecklistCardProps {
   /** 目前使用者 id，用來算 packing 清單的「我的進度」與勾選狀態；未登入為 null。 */
   currentUserId: string | null;
   canEdit: boolean;
+  busy?: boolean;
   pendingItemIds?: ReadonlySet<string>;
   onAddItem: (text: string) => void;
   onToggleItem: (itemId: string, done: boolean) => void;
@@ -39,6 +40,7 @@ export default function ChecklistCard({
   members,
   currentUserId,
   canEdit,
+  busy,
   pendingItemIds,
   onAddItem,
   onToggleItem,
@@ -88,7 +90,7 @@ export default function ChecklistCard({
   };
 
   return (
-    <Card>
+    <Card aria-busy={busy || undefined}>
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-2">
           {editingTitle ? (

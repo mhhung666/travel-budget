@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { isValidObjectId } from 'mongoose';
 import { Checklist, Trip } from '@/models';
 import { getTripMembership } from '@/lib/permissions';
 import {
@@ -273,12 +274,23 @@ export const deleteChecklist = withAuth(
     checklistId: string
   ): Promise<ActionResult<{ message: string }>> => {
     try {
+      // An optimistically-created list uses a temporary client ID until its
+      // create action resolves. Never pass that (or any malformed ID) into a
+      // Mongoose `_id` filter, where it would throw a CastError and surface as
+      // the misleading INTERNAL_ERROR.
+      if (!isValidObjectId(checklistId)) {
+        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+      }
+
       const membership = await getTripMembership(session.userId, tripIdOrCode);
       if (!membership) {
         return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
       }
 
-      await Checklist.deleteOne({ _id: checklistId, trip: membership.tripId });
+      const result = await Checklist.deleteOne({ _id: checklistId, trip: membership.tripId });
+      if (result.deletedCount === 0) {
+        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+      }
 
       revalidatePath(`/trips/${tripIdOrCode}/checklists`);
       return { success: true, data: { message: '清單已刪除' } };

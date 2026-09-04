@@ -116,7 +116,11 @@ export default function ChecklistsPage() {
               checklist={list}
               members={members}
               currentUserId={currentUser?.id ?? null}
-              canEdit={canEdit}
+              // Optimistic create IDs are not valid MongoDB ObjectIds. Keep
+              // the new list visible immediately, but wait for its real ID
+              // before exposing rename/delete/item actions.
+              canEdit={canEdit && !list.id.startsWith('optimistic-')}
+              busy={list.id.startsWith('optimistic-')}
               pendingItemIds={m.pendingItemIds}
               onAddItem={(text) =>
                 guard(m.addItem.mutateAsync({ checklistId: list.id, data: { text } }))

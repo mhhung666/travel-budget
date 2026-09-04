@@ -5,6 +5,7 @@ const getSession = vi.fn();
 const getTripMembership = vi.fn();
 const checklistFindOne = vi.fn();
 const checklistUpdateOne = vi.fn();
+const checklistDeleteOne = vi.fn();
 const tripFindById = vi.fn();
 
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
@@ -21,13 +22,14 @@ vi.mock('@/models', () => ({
   Checklist: {
     findOne: (...args: unknown[]) => checklistFindOne(...args),
     updateOne: (...args: unknown[]) => checklistUpdateOne(...args),
+    deleteOne: (...args: unknown[]) => checklistDeleteOne(...args),
   },
   Trip: {
     findById: (...args: unknown[]) => tripFindById(...args),
   },
 }));
 
-import { updateChecklistItem } from '@/actions/checklist.actions';
+import { deleteChecklist, updateChecklistItem } from '@/actions/checklist.actions';
 
 const VIEWER = '507f191e810c19729de860ea';
 const TRIP_ID = '507f1f77bcf86cd799439011';
@@ -115,5 +117,30 @@ describe('updateChecklistItem — per-member doneBy toggle', () => {
     const res = await updateChecklistItem(TRIP_ID, LIST_ID, ITEM_ID, { done: true });
     expect(res).toMatchObject({ success: false, code: 'NOT_FOUND' });
     expect(checklistUpdateOne).not.toHaveBeenCalled();
+  });
+});
+
+describe('deleteChecklist', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getSession.mockResolvedValue({ userId: VIEWER });
+    getTripMembership.mockResolvedValue({ tripId: TRIP_ID, role: 'member' });
+  });
+
+  it('rejects an optimistic client ID without querying MongoDB', async () => {
+    const res = await deleteChecklist(TRIP_ID, 'optimistic-123');
+
+    expect(res).toMatchObject({ success: false, code: 'NOT_FOUND' });
+    expect(getTripMembership).not.toHaveBeenCalled();
+    expect(checklistDeleteOne).not.toHaveBeenCalled();
+  });
+
+  it('deletes a persisted checklist', async () => {
+    checklistDeleteOne.mockResolvedValue({ deletedCount: 1 });
+
+    const res = await deleteChecklist(TRIP_ID, LIST_ID);
+
+    expect(res.success).toBe(true);
+    expect(checklistDeleteOne).toHaveBeenCalledWith({ _id: LIST_ID, trip: TRIP_ID });
   });
 });
