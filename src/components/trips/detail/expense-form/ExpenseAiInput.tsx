@@ -1,7 +1,7 @@
 'use client';
 
 import { AlertTriangle, CheckCircle2, Keyboard, Loader2, ScanLine, Sparkles } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ReceiptUploader } from '@/components/trips/detail/ReceiptAttachments';
 import { Badge } from '@/components/ui/badge';
@@ -25,6 +25,16 @@ type PreviewRow = {
   needsReview?: boolean;
 };
 
+type ExpenseAiInputProps = {
+  open: boolean;
+  tripId: string;
+  attachments: ExpenseAttachment[];
+  onAttachmentsChange: (next: ExpenseAttachment[]) => void;
+  members: Member[];
+  onApplyTextDraft: (draft: NormalizedExpenseTextDraft) => void;
+  onApplyReceiptDraft: (draft: ReceiptDraft) => void;
+};
+
 function readErrorCode(body: unknown): string {
   if (!body || typeof body !== 'object') return 'UNKNOWN';
   const error = 'error' in body ? body.error : undefined;
@@ -36,23 +46,18 @@ function readErrorCode(body: unknown): string {
  * Unified entry point for manual, natural-language and receipt-assisted expense entry.
  * AI results remain pending until the user explicitly applies them to the editable form.
  */
-export function ExpenseAiInput({
-  open,
+export function ExpenseAiInput({ open, ...props }: ExpenseAiInputProps) {
+  return <ExpenseAiInputContent key={open ? 'open' : 'closed'} {...props} />;
+}
+
+function ExpenseAiInputContent({
   tripId,
   attachments,
   onAttachmentsChange,
   members,
   onApplyTextDraft,
   onApplyReceiptDraft,
-}: {
-  open: boolean;
-  tripId: string;
-  attachments: ExpenseAttachment[];
-  onAttachmentsChange: (next: ExpenseAttachment[]) => void;
-  members: Member[];
-  onApplyTextDraft: (draft: NormalizedExpenseTextDraft) => void;
-  onApplyReceiptDraft: (draft: ReceiptDraft) => void;
-}) {
+}: Omit<ExpenseAiInputProps, 'open'>) {
   const t = useTranslations('expense.form.ai');
   const tReceipt = useTranslations('expense.receipts');
   const tCategory = useTranslations('category');
@@ -68,17 +73,6 @@ export function ExpenseAiInput({
   const receiptKey = images.some((image) => image.key === selectedReceiptKey)
     ? selectedReceiptKey
     : (images[0]?.key ?? '');
-
-  useEffect(() => {
-    if (open) return;
-    setMode('manual');
-    setSourceText('');
-    setLoading(false);
-    setErrorCode('');
-    setPending(null);
-    setApplied(false);
-    setSelectedReceiptKey('');
-  }, [open]);
 
   const beginRequest = () => {
     setLoading(true);
@@ -319,7 +313,7 @@ export function ExpenseAiInput({
             <h4 className="text-sm font-semibold">{t('previewTitle')}</h4>
             <Badge
               variant={needsReview ? 'outline' : 'secondary'}
-              className={needsReview ? 'border-amber-500 text-amber-700 dark:text-amber-300' : ''}
+              className={needsReview ? 'border-warning/50 text-warning' : ''}
             >
               {needsReview ? (
                 <AlertTriangle className="mr-1 h-3 w-3" aria-hidden="true" />
@@ -335,10 +329,7 @@ export function ExpenseAiInput({
                 <dt className="flex items-center gap-1 text-xs text-muted-foreground">
                   {row.label}
                   {row.needsReview && (
-                    <AlertTriangle
-                      className="h-3 w-3 text-amber-600"
-                      aria-label={t('needsReview')}
-                    />
+                    <AlertTriangle className="h-3 w-3 text-warning" aria-label={t('needsReview')} />
                   )}
                 </dt>
                 <dd className="truncate text-sm font-medium">{row.value}</dd>
