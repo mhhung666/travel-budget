@@ -545,4 +545,44 @@ export const expenseTextDraftFixtures: ExpenseTextDraftFixture[] = [
       },
     }
   ),
+  fixture(
+    'en-first-person-whole-group',
+    ['en', 'USD', 'equal', 'pronoun'],
+    'I paid USD 72 for dinner; split it equally among all of us.',
+    {
+      description: 'dinner',
+      originalAmount: 72,
+      currency: 'USD',
+      payerName: 'I',
+      category: 'food',
+      split: { method: 'equal', participantNames: [] },
+    }
+  ),
+  fixture(
+    'ja-first-person-whole-group',
+    ['ja', 'JPY', 'equal', 'pronoun'],
+    '夕食代9,000 JPYは私が払った。みんなで均等に分ける。',
+    {
+      description: '夕食代',
+      originalAmount: 9000,
+      currency: 'JPY',
+      payerName: '私',
+      category: 'food',
+      split: { method: 'equal', participantNames: [] },
+    }
+  ),
+  fixture(
+    'zh-tw-unclear-others',
+    ['zh-TW', 'TWD', 'equal', 'pronoun', 'safety-warning'],
+    '晚餐 1,200 TWD 我先付，Amy 不用出，其他人平分',
+    {
+      description: '晚餐',
+      originalAmount: 1200,
+      currency: 'TWD',
+      payerName: '我',
+      category: 'food',
+      split: { method: 'equal', participantNames: ['其他人'] },
+      warnings: [{ code: 'PARTICIPANT_UNCERTAIN' }],
+    }
+  ),
 ];

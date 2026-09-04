@@ -14,11 +14,127 @@ export type NormalizedExpenseTextDraft = ExpenseTextDraft & {
   requiresCorrection: boolean;
 };
 const key = (value: string) => value.normalize('NFKC').trim().toLocaleLowerCase();
-function resolve(name: string, members: DraftMember[]) {
+
+const SELF_PRONOUNS = new Set([
+  'i',
+  'me',
+  'myself',
+  '我',
+  '我自己',
+  '本人',
+  '私',
+  'わたし',
+  '僕',
+  'ぼく',
+  '自分',
+]);
+const ALL_PRONOUNS = new Set([
+  'all',
+  'everyone',
+  'everybody',
+  'all members',
+  '大家',
+  '全員',
+  '全员',
+  '所有人',
+  'みんな',
+  '皆',
+  '皆さん',
+]);
+const GROUP_PRONOUNS = new Set([
+  'we',
+  'us',
+  'ourselves',
+  'all of us',
+  '我們',
+  '我们',
+  '咱們',
+  '咱们',
+  '私たち',
+  '私達',
+  '僕たち',
+  '僕達',
+]);
+const OTHER_PRONOUNS = new Set([
+  'others',
+  'the others',
+  'other people',
+  'everyone else',
+  'everybody else',
+  'remaining people',
+  '其他人',
+  '其它人',
+  '其他的人',
+  '其餘人',
+  '其余人',
+  '別人',
+  '别人',
+  '他の人',
+  'ほかの人',
+  'その他の人',
+  '残りの人',
+]);
+
+type PronounKind = 'self' | 'all' | 'group' | 'other' | null;
+
+function pronounKind(name: string): PronounKind {
+  const normalized = key(name).replace(/[.,!?;:，。！？；：]/g, '');
+  if (SELF_PRONOUNS.has(normalized)) return 'self';
+  if (ALL_PRONOUNS.has(normalized)) return 'all';
+  if (GROUP_PRONOUNS.has(normalized)) return 'group';
+  if (
+    OTHER_PRONOUNS.has(normalized) ||
+    /^(?:其他|其它|其餘|其余|剩下)\s*\d*\s*(?:人|位)$/.test(normalized)
+  ) {
+    return 'other';
+  }
+  return null;
+}
+
+function resolveMemberName(name: string, members: DraftMember[]) {
   const matches = members.filter(
     (m) => key(m.displayName) === key(name) || key(m.username) === key(name)
   );
   return matches.length === 1 ? matches[0].id : undefined;
+}
+
+function resolvePayer(name: string | undefined, members: DraftMember[], currentUserId: string) {
+  if (!name) return currentUserId;
+  if (pronounKind(name) === 'self') return currentUserId;
+  if (pronounKind(name)) return undefined;
+  return resolveMemberName(name, members);
+}
+
+function resolveParticipants(
+  split: ExpenseTextDraft['split'],
+  members: DraftMember[],
+  currentUserId: string
+): Array<string | undefined> {
+  const names =
+    split.method === 'equal'
+      ? split.participantNames
+      : split.shares.map((share) => share.memberName);
+  if (names.length === 0) return members.map((member) => member.id);
+
+  const kinds = names.map(pronounKind);
+  if (split.method === 'equal') {
+    if (names.length === 1 && (kinds[0] === 'all' || kinds[0] === 'group')) {
+      return members.map((member) => member.id);
+    }
+    if (
+      names.length === 2 &&
+      kinds.filter((kind) => kind === 'self').length === 1 &&
+      kinds.filter((kind) => kind === 'other').length === 1
+    ) {
+      return members.map((member) => member.id);
+    }
+  }
+
+  return names.map((name, index) => {
+    if (kinds[index] === 'self') return currentUserId;
+    if (kinds[index]) return undefined;
+    return resolveMemberName(name, members);
+  });
 }
 
 function splitMode(method: ExpenseTextDraft['split']['method']): SplitMode {
@@ -42,18 +158,20 @@ export function normalizeExpenseTextDraft(
 ): NormalizedExpenseTextDraft {
   const draft = expenseTextDraftSchema.parse(input);
   const warnings = [...draft.warnings];
-  const payerId = draft.payerName ? resolve(draft.payerName, members) : currentUserId;
+  const payerId = resolvePayer(draft.payerName, members, currentUserId);
   if (!payerId) warnings.push({ code: draft.payerName ? 'AMBIGUOUS_PAYER' : 'MISSING_PAYER' });
   const names =
     draft.split.method === 'equal'
       ? draft.split.participantNames
       : draft.split.shares.map((share) => share.memberName);
-  const resolvedIds = names.map((name) => resolve(name, members));
-  const rawParticipantIds = names.length
-    ? resolvedIds.filter((id): id is string => !!id)
-    : members.map((member) => member.id);
+  const resolvedIds = resolveParticipants(draft.split, members, currentUserId);
+  const rawParticipantIds = resolvedIds.filter((id): id is string => !!id);
   const participantIds = [...new Set(rawParticipantIds)];
-  const hasUnresolvedParticipant = names.length > 0 && rawParticipantIds.length !== names.length;
+  const expandsToAll =
+    resolvedIds.length === members.length && rawParticipantIds.length === members.length;
+  const hasUnresolvedParticipant =
+    rawParticipantIds.length !== resolvedIds.length ||
+    (!expandsToAll && rawParticipantIds.length !== names.length);
   if (hasUnresolvedParticipant) warnings.push({ code: 'AMBIGUOUS_PARTICIPANT' });
   const hasDuplicateParticipant = participantIds.length !== rawParticipantIds.length;
   if (hasDuplicateParticipant) warnings.push({ code: 'DUPLICATE_PARTICIPANT' });

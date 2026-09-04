@@ -2,7 +2,11 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import ts from 'typescript';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { getCorrectionTiming, trackProductEvent } from '@/lib/productEvents';
+import {
+  getCorrectionTiming,
+  toAiExpenseDraftErrorCode,
+  trackProductEvent,
+} from '@/lib/productEvents';
 
 const { track } = vi.hoisted(() => ({
   track: vi.fn(),
@@ -55,6 +59,28 @@ describe('privacy-safe product events', () => {
       corrected: 'yes',
       errorCode: 'none',
     });
+  });
+
+  it('records the AI expense draft funnel without expense content', () => {
+    trackProductEvent('ai_expense_draft', {
+      source: 'receipt',
+      stage: 'preview_shown',
+      result: 'needs_review',
+      errorCode: 'none',
+    });
+
+    expect(track).toHaveBeenCalledWith('ai_expense_draft', {
+      source: 'receipt',
+      stage: 'preview_shown',
+      result: 'needs_review',
+      errorCode: 'none',
+    });
+  });
+
+  it('maps unexpected server errors to a fixed analytics category', () => {
+    expect(toAiExpenseDraftErrorCode('RATE_LIMITED')).toBe('RATE_LIMITED');
+    expect(toAiExpenseDraftErrorCode('SENSITIVE_DYNAMIC_VALUE')).toBe('UNKNOWN');
+    expect(toAiExpenseDraftErrorCode(null)).toBe('UNKNOWN');
   });
 
   it('never interrupts the product flow when analytics is unavailable', () => {

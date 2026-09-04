@@ -206,7 +206,7 @@ src/
 ### 4.15 UI/UX 驗證與產品量測
 
 - [test/axe.ts](../src/test/axe.ts) 封裝 axe-core，在 jsdom 對關鍵元件檢查 serious／critical violations；`pnpm test:a11y` 執行空旅行、首次行動、旅行資訊、行動導覽與邀請加入的 render／互動測試。jsdom 無 layout/canvas，色彩對比、200% zoom、螢幕閱讀器與真實 viewport 仍由瀏覽器／裝置矩陣驗證。
-- [productEvents.ts](../src/lib/productEvents.ts) 是產品事件的單一固定 taxonomy：activation、全域快速記帳、錯帳修正時間 bucket、離線支出 queued／synced／failed。事件屬性只接受 TypeScript union 的分類值，禁止 id、姓名、旅行名稱、描述、邀請碼、日期、位置、精確金額與自由輸入；量測為 best-effort，失效不得中斷主要任務。
+- [productEvents.ts](../src/lib/productEvents.ts) 是產品事件的單一固定 taxonomy：activation、全域快速記帳、錯帳修正時間 bucket、離線支出 queued／synced／failed，以及 AI 行程／記帳 funnel。事件屬性只接受 TypeScript union 的分類值，禁止 id、姓名、旅行名稱、描述、邀請碼、日期、位置、精確金額與自由輸入；量測為 best-effort，失效不得中斷主要任務。
 - UX 的介面規則以 [UI_UX_SPEC.md](./UI_UX_SPEC.md) 為基線；真人任務驗證使用 [USABILITY_TEST_PHASE4.md](./USABILITY_TEST_PHASE4.md)。程式測試通過不等於真人測試或正式環境指標已完成。
 
 ### 4.16 AI 行程匯入（受限試用）
@@ -224,12 +224,12 @@ src/
 - [/api/ai/receipt-draft](../src/app/api/ai/receipt-draft/route.ts) 與 [/api/ai/expense-text-draft](../src/app/api/ai/expense-text-draft/route.ts) 都先驗 session 與旅程成員身分；兩者只回傳草稿，沒有資料寫入路徑。兩種草稿都依 `AI_PROVIDER` 使用 Vercel AI Gateway 或 OpenAI 直連，並各自以 `AI_RECEIPT_MODEL`／`AI_EXPENSE_TEXT_MODEL` 覆寫共用模型；收據模型必須支援圖片輸入。設定不完整時回 `FEATURE_DISABLED`，手動記帳不受影響。
 - 新增支出 UI 將手動、自然語言與收據輸入收在同一入口。AI 結果先保留為 client-side pending draft，顯示辨識摘要與欄位級待確認狀態；只有使用者明確按下套用才改寫可編輯表單，之後仍沿用既有 `createExpense` 送出路徑。
 - 收據端點只允許 `receipts/<tripId>/` 下的 JPEG、PNG、WebP；先以 `headObject` 檢查實際型別與大小、再由 server 從私有 R2 讀取 bytes，絕不把簽名 URL 交給模型。模型輸出經 [receiptDraftSchema.ts](../src/lib/ai/receiptDraftSchema.ts) 與 [normalizeReceiptDraft.ts](../src/lib/ai/normalizeReceiptDraft.ts) 驗證，歧義總額／幣別保留為 warning。
-- 文字端點的模型輸出經 [expenseTextDraftSchema.ts](../src/lib/ai/expenseTextDraftSchema.ts) 驗證，不可含資料庫 ID、匯率、基準幣金額或最後分帳。 [normalizeExpenseTextDraft.ts](../src/lib/ai/normalizeExpenseTextDraft.ts) 只在名稱唯一匹配 username 或 display name 時解析成 member ID；未提付款人預設目前使用者、未提參與者預設全員，未知、同名或重複成員一律要求修正。
+- 文字端點的模型輸出經 [expenseTextDraftSchema.ts](../src/lib/ai/expenseTextDraftSchema.ts) 驗證，不可含資料庫 ID、匯率、基準幣金額或最後分帳。 [normalizeExpenseTextDraft.ts](../src/lib/ai/normalizeExpenseTextDraft.ts) 只在名稱唯一匹配 username 或 display name 時解析成 member ID；未提付款人預設目前使用者、未提參與者預設全員。第一人稱單數可解析為目前使用者；整團均分的全員／集體代名詞及「我和其他人」可展開為全員。單獨「其他人」或集體代名詞用在付款人與加權分帳時不猜測，與未知、同名或重複成員一樣要求修正。
 - 文字草稿已接入新增支出表單的四語輸入區；均分、指定金額、百分比與份數只有在成員解析完整、模型未標記分帳疑義且既有 `computeSplits` 判定平衡時，才由 server 附加 `resolvedSplit` 並預填現有可編輯欄位。其他 warning 會展開詳細欄位讓使用者修正，最後仍由使用者提交既有 `createExpense`。
 - 新增支出表單僅對已上傳的 JPEG、PNG、WebP 收據顯示掃描入口；掃描結果只帶入明確讀取的欄位，遇到遺漏或歧義時展開既有欄位讓使用者修正，且仍必須經既有 `createExpense` 明確提交。PDF 只能作一般附件。
 - 兩端點與行程匯入共用 [aiUsageQuota.ts](../src/lib/ai/aiUsageQuota.ts) 的持久化 global／user／trip request、token 與成本 bucket；provider 回應只將固定 metadata 寫入 server log，route tests 覆蓋授權、附件邊界、額度與失敗結算。
-- 收據草稿以 [receiptDraftFixtures.ts](../src/__fixtures__/ai/receiptDraftFixtures.ts) 的 40 張匿名合成圖片及 [evaluateReceiptDraft.ts](../src/lib/ai/evaluateReceiptDraft.ts) 評分。一般測試只驗 fixture、schema 與評分器；`pnpm test:ai-receipt-eval` 才逐張執行 live 評估，將 provider 成功率、成功輸出的 schema／商家／日期／幣別／總額、歧義攔截率、延遲、token 與設定後的估算成本分開記錄。完整 provider 品質基線與產品事件尚未完成。
-- 文字草稿以 [expenseTextDraftFixtures.ts](../src/__fixtures__/ai/expenseTextDraftFixtures.ts) 的 32 筆合成案例及 [evaluateExpenseTextDraft.ts](../src/lib/ai/evaluateExpenseTextDraft.ts) 評分。一般測試不呼叫 provider；`pnpm test:ai-expense-text-eval` 才逐筆執行 live 評估，將 provider 成功率與成功輸出的 schema／付款人／幣別／日期／分攤對象品質分開記錄。完整 provider 基線與產品事件尚未完成，因此不得對外擴流。
+- 收據草稿以 [receiptDraftFixtures.ts](../src/__fixtures__/ai/receiptDraftFixtures.ts) 的 40 張匿名合成圖片及 [evaluateReceiptDraft.ts](../src/lib/ai/evaluateReceiptDraft.ts) 評分。一般測試只驗 fixture、schema 與評分器；`pnpm test:ai-receipt-eval` 才逐張執行 live 評估，將 provider 成功率、成功輸出的 schema／商家／日期／幣別／總額、歧義攔截率、延遲、token 與設定後的估算成本分開記錄。完整 provider 品質基線尚未完成。
+- 文字草稿以 [expenseTextDraftFixtures.ts](../src/__fixtures__/ai/expenseTextDraftFixtures.ts) 的 35 筆合成案例及 [evaluateExpenseTextDraft.ts](../src/lib/ai/evaluateExpenseTextDraft.ts) 評分。一般測試不呼叫 provider；`pnpm test:ai-expense-text-eval` 才逐筆執行 live 評估，將 provider 成功率與成功輸出的 schema／付款人／幣別／日期／分攤對象品質分開記錄。`ai_expense_draft` 只送固定 source／stage／result／error code，觀測文字與收據從解析到套用的 funnel；完整 provider 基線尚未完成，因此不得對外擴流。
 
 ---
 

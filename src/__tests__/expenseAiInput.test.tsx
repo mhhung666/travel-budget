@@ -4,6 +4,10 @@ import userEvent from '@testing-library/user-event';
 import { ExpenseAiInput } from '@/components/trips/detail/expense-form/ExpenseAiInput';
 import type { ExpenseAttachment, Member } from '@/types';
 
+const { analyticsTrack } = vi.hoisted(() => ({ analyticsTrack: vi.fn() }));
+
+vi.mock('@vercel/analytics', () => ({ track: analyticsTrack }));
+
 vi.mock('@/components/trips/detail/ReceiptAttachments', () => ({
   ReceiptUploader: () => <div data-testid="receipt-uploader" />,
 }));
@@ -83,10 +87,28 @@ describe('ExpenseAiInput', () => {
     expect(screen.getByText('Taxi')).toBeInTheDocument();
     expect(screen.getByText('JPY')).toBeInTheDocument();
     expect(onApplyTextDraft).not.toHaveBeenCalled();
+    expect(analyticsTrack).toHaveBeenNthCalledWith(1, 'ai_expense_draft', {
+      source: 'text',
+      stage: 'parse_started',
+      result: 'pending',
+      errorCode: 'none',
+    });
+    expect(analyticsTrack).toHaveBeenNthCalledWith(2, 'ai_expense_draft', {
+      source: 'text',
+      stage: 'preview_shown',
+      result: 'success',
+      errorCode: 'none',
+    });
 
     await user.click(screen.getByRole('button', { name: 'apply' }));
     expect(onApplyTextDraft).toHaveBeenCalledTimes(1);
     expect(screen.getByRole('button', { name: 'applied' })).toBeDisabled();
+    expect(analyticsTrack).toHaveBeenNthCalledWith(3, 'ai_expense_draft', {
+      source: 'text',
+      stage: 'applied',
+      result: 'success',
+      errorCode: 'none',
+    });
   });
 
   it('shows field-level review markers for an ambiguous receipt before applying it', async () => {
@@ -138,6 +160,12 @@ describe('ExpenseAiInput', () => {
     expect(screen.getAllByText('notRecognized')).toHaveLength(2);
     expect(screen.getAllByLabelText('needsReview')).toHaveLength(2);
     expect(onApplyReceiptDraft).not.toHaveBeenCalled();
+    expect(analyticsTrack).toHaveBeenNthCalledWith(2, 'ai_expense_draft', {
+      source: 'receipt',
+      stage: 'preview_shown',
+      result: 'needs_review',
+      errorCode: 'none',
+    });
 
     await user.click(screen.getByRole('button', { name: 'apply' }));
     expect(onApplyReceiptDraft).toHaveBeenCalledTimes(1);
@@ -161,6 +189,12 @@ describe('ExpenseAiInput', () => {
     await user.click(screen.getByRole('button', { name: 'createDraft' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('errors.RATE_LIMITED');
+    expect(analyticsTrack).toHaveBeenNthCalledWith(2, 'ai_expense_draft', {
+      source: 'text',
+      stage: 'parse_failed',
+      result: 'failure',
+      errorCode: 'RATE_LIMITED',
+    });
     expect(source).toHaveValue('Dinner 50 USD');
     await user.click(screen.getByRole('tab', { name: 'modes.manual' }));
     expect(screen.getByText('manualHint')).toBeInTheDocument();

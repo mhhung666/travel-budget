@@ -28,6 +28,55 @@ describe('normalizeExpenseTextDraft', () => {
     expect(result.requiresCorrection).toBe(false);
   });
 
+  it.each(['我', 'I', '私'])(
+    'resolves the first-person payer %s to the current user',
+    (payerName) => {
+      const result = normalizeExpenseTextDraft({ ...base, payerName }, members, 'b');
+      expect(result.payerId).toBe('b');
+      expect(result.requiresCorrection).toBe(false);
+    }
+  );
+
+  it.each(['我們', 'everyone', 'みんな'])(
+    'expands the whole-group equal-split pronoun %s to every member',
+    (participantName) => {
+      const result = normalizeExpenseTextDraft(
+        { ...base, split: { method: 'equal', participantNames: [participantName] } },
+        members,
+        'a'
+      );
+      expect(result.participantIds).toEqual(['a', 'b']);
+      expect(result.resolvedSplit?.entries).toHaveLength(2);
+      expect(result.requiresCorrection).toBe(false);
+    }
+  );
+
+  it('treats me and everyone else as the whole group for an equal split', () => {
+    const result = normalizeExpenseTextDraft(
+      { ...base, split: { method: 'equal', participantNames: ['me', 'everyone else'] } },
+      members,
+      'a'
+    );
+    expect(result.participantIds).toEqual(['a', 'b']);
+    expect(result.requiresCorrection).toBe(false);
+  });
+
+  it.each([
+    { method: 'equal' as const, participantNames: ['其他人'] },
+    { method: 'amount' as const, shares: [{ memberName: '我們', amount: 1200 }] },
+  ])('does not guess an unclear or weighted collective participant', (split) => {
+    const result = normalizeExpenseTextDraft({ ...base, split }, members, 'a');
+    expect(result.resolvedSplit).toBeUndefined();
+    expect(result.warnings.map((warning) => warning.code)).toContain('AMBIGUOUS_PARTICIPANT');
+    expect(result.requiresCorrection).toBe(true);
+  });
+
+  it('does not accept a collective pronoun as one payer', () => {
+    const result = normalizeExpenseTextDraft({ ...base, payerName: '我們' }, members, 'a');
+    expect(result.payerId).toBeUndefined();
+    expect(result.warnings.map((warning) => warning.code)).toContain('AMBIGUOUS_PAYER');
+  });
+
   it('does not choose a duplicate matching person', () => {
     const result = normalizeExpenseTextDraft(
       { ...base, payerName: 'Amy', split: { method: 'equal', participantNames: ['Amy'] } },

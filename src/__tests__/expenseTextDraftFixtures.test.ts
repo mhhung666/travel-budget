@@ -35,6 +35,7 @@ describe('expense text draft fixtures', () => {
       'ambiguous-currency',
       'ambiguous-member',
       'duplicate-participant',
+      'pronoun',
       'safety-warning',
     ]) {
       expect(tags, `missing fixture tag: ${requiredTag}`).toContain(requiredTag);

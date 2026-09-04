@@ -2,6 +2,24 @@ import { track } from '@vercel/analytics';
 import type { StatsInsightRuleVersion, StatsInsightType } from '@/types';
 import type { ItineraryImportErrorCode } from '@/lib/ai/itineraryImportSchema';
 
+export const AI_EXPENSE_DRAFT_ERROR_CODES = [
+  'UNAUTHENTICATED',
+  'FORBIDDEN',
+  'TRIP_NOT_FOUND',
+  'INVALID_REQUEST',
+  'INVALID_IMAGE',
+  'USAGE_LIMITED',
+  'FEATURE_DISABLED',
+  'RATE_LIMITED',
+  'PROVIDER_TIMEOUT',
+  'INVALID_MODEL_OUTPUT',
+  'MODEL_OUTPUT_LIMIT',
+  'INTERNAL_ERROR',
+  'UNKNOWN',
+] as const;
+
+export type AiExpenseDraftErrorCode = (typeof AI_EXPENSE_DRAFT_ERROR_CODES)[number];
+
 export interface ProductEventMap {
   stats_insight_result: {
     ruleVersion: StatsInsightRuleVersion;
@@ -43,6 +61,20 @@ export interface ProductEventMap {
     corrected: 'yes' | 'no' | 'unknown';
     errorCode: ItineraryImportErrorCode | 'CONFIRMATION_ERROR' | 'none';
   };
+  ai_expense_draft: {
+    source: 'text' | 'receipt';
+    stage: 'parse_started' | 'preview_shown' | 'parse_failed' | 'applied';
+    result: 'pending' | 'success' | 'needs_review' | 'failure';
+    errorCode: AiExpenseDraftErrorCode | 'none';
+  };
+}
+
+const aiExpenseDraftErrorCodes = new Set<string>(AI_EXPENSE_DRAFT_ERROR_CODES);
+
+export function toAiExpenseDraftErrorCode(value: unknown): AiExpenseDraftErrorCode {
+  return typeof value === 'string' && aiExpenseDraftErrorCodes.has(value)
+    ? (value as AiExpenseDraftErrorCode)
+    : 'UNKNOWN';
 }
 
 /**
