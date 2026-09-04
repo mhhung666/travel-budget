@@ -60,7 +60,7 @@ describe('Phase 3 information architecture contracts', () => {
     expect(dialog).toContain('parseTripInviteInput');
     expect(dialog).toContain('onSuccess(joinedTrip)');
     expect(tripsPage).toContain('ROUTES.TRIP_DETAIL(trip.hash_code)');
-    expect(login).toContain("router.push(redirectTo ?? '/trips')");
+    expect(login).toContain("window.location.assign(redirectTo ?? '/trips')");
   });
 
   it('preserves the no-trip to first-expense continuation from Phase 2B', () => {

@@ -3,7 +3,7 @@
 > 更新日期：2026-09-04
 > 只列尚未完成的產品能力。已實作內容見 [FEATURES.md](./FEATURES.md)，技術債見 [IMPROVEMENTS.md](./IMPROVEMENTS.md)。
 
-狀態：`idea` 尚未設計、`ready` 範圍清楚可排程、`in-progress` 正在依規格驗收、`research` 需先查證規則或方案。
+狀態：`idea` 尚未設計、`ready` 範圍清楚可排程、`in-progress` 正在依規格驗收、`research` 需先查證規則或方案、`paused` 暫緩且不列入當前排程。
 
 ## 主要候選
 
@@ -13,9 +13,9 @@
 | EXPORT-1 | `idea` | PDF 行程與結算報告 | 便於分享、列印與報帳 | 可輸出至少行程手冊與結算單，四語文字與多幣別格式正確 |
 | SPLIT-1 | `idea` | 逐項分帳 | 一張帳單內不同品項可由不同成員負擔 | 品項合計、整筆支出與結算結果一致，編輯與公開檢視可用 |
 | OFFLINE-1 | `research` | 擴大離線寫入 | 弱網下可編輯與刪除，不只新增 | 定義衝突策略、復原 UI 與同步測試後再實作 |
-| AI-IMPORT-1 | `in-progress` | [AI 行程匯入](./AI_IMPORT_PLAN.md) | 將外部 AI agent 的規劃結果歸納為可編輯的逐日行程 | Phase 0–2B 與 Phase 2C 實作基線已完成；現為低流量受限試用，完整 provider 可用率與真人節時門檻待驗收 |
-| AI-RECEIPT-1 | `in-progress` | [收據圖片分析](./AI_IMPORT_PLAN.md#3-phase-3a收據圖片分析) | 拍一張收據即可帶入商家、總額、幣別、日期與分類草稿 | 私有圖片驗證、schema 草稿 API、表單帶入、共用配額、40 張 fixture、evaluator 與去識別產品觀測已完成；尚待 provider 品質門檻 |
-| AI-EXPENSE-1 | `in-progress` | [AI 自然語言記帳與分攤](./AI_IMPORT_PLAN.md#4-phase-3b自然語言記帳與分攤) | 用一句話建立可確認的支出與分攤草稿 | 文字草稿 API、安全分帳帶入、共用配額、35 筆 fixture、代名詞規則、離線／live evaluator 與去識別產品觀測已完成；尚待 provider 品質門檻 |
+| AI-IMPORT-1 | `paused` | [AI 行程匯入](./AI_IMPORT_PLAN.md) | 將外部 AI agent 的規劃結果歸納為可編輯的逐日行程 | Phase 0–2B 與 Phase 2C 實作基線已完成；真實 provider 可用率與真人節時驗收暫緩，先處理既有程式流程與效能 |
+| AI-RECEIPT-1 | `paused` | [收據圖片分析](./AI_IMPORT_PLAN.md#3-phase-3a收據圖片分析) | 拍一張收據即可帶入商家、總額、幣別、日期與分類草稿 | 私有圖片驗證、schema 草稿 API、表單帶入、共用配額、40 張 fixture、evaluator 與去識別產品觀測已完成；真實 provider 品質驗收暫緩 |
+| AI-EXPENSE-1 | `paused` | [AI 自然語言記帳與分攤](./AI_IMPORT_PLAN.md#4-phase-3b自然語言記帳與分攤) | 用一句話建立可確認的支出與分攤草稿 | 文字草稿 API、安全分帳帶入、共用配額、35 筆 fixture、代名詞規則、離線／live evaluator 與去識別產品觀測已完成；真實 provider 品質驗收暫緩 |
 
 ## 小型延伸
 

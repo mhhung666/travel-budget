@@ -37,7 +37,8 @@
     },
     "successTitle": "成功",
     "warningTitle": "警告",
-    "infoTitle": "提示"
+    "infoTitle": "提示",
+    "pendingOfflineLogout": "仍有尚未同步的离线记账。继续退出将丢弃这些项目，确定要退出吗？"
   },
   "nav": {
     "home": "旅行记账",

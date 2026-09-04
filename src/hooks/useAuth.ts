@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import type { User } from '@/types';
 import { logger } from '@/lib/logger';
+import { useLogoutFlow } from '@/hooks/useLogoutFlow';
 
 export interface UseAuthReturn {
   user: User | null;
@@ -36,7 +37,8 @@ export interface UseAuthReturn {
  * }
  */
 export function useAuth(): UseAuthReturn {
-  const router = useRouter();
+  const tCommon = useTranslations('common');
+  const performLogout = useLogoutFlow(tCommon('pendingOfflineLogout'));
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -68,16 +70,11 @@ export function useAuth(): UseAuthReturn {
 
   const logout = useCallback(async (): Promise<void> => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
-      setUser(null);
-      router.push('/login');
+      if (await performLogout()) setUser(null);
     } catch (err) {
       logger.error('Logout failed', err);
-      // Still clear user state and redirect even if API fails
-      setUser(null);
-      router.push('/login');
     }
-  }, [router]);
+  }, [performLogout]);
 
   // Check auth on mount
   useEffect(() => {
@@ -110,13 +107,12 @@ export function useAuth(): UseAuthReturn {
  */
 export function useRequireAuth() {
   const auth = useAuth();
-  const router = useRouter();
 
   useEffect(() => {
     if (!auth.loading && !auth.isAuthenticated) {
-      router.push('/login');
+      window.location.assign('/login');
     }
-  }, [auth.loading, auth.isAuthenticated, router]);
+  }, [auth.loading, auth.isAuthenticated]);
 
   return auth;
 }

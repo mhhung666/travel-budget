@@ -56,6 +56,7 @@ const eslintConfig = [
       'out/',
       'dist/',
       'build/',
+      'coverage/',
       'docs/archive/',
       'scripts/',
       'public/sw.js',

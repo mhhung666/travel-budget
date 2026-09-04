@@ -4,7 +4,128 @@
 > 本文件只列**尚未處理**的程式碼 / 基礎設施層級改善。已完成里程碑見 [CHANGELOG.md](./CHANGELOG.md)，架構說明見 [ARCHITECTURE.md](./ARCHITECTURE.md)。
 > 慣例：處理完一項 → 移到 [CHANGELOG.md](./CHANGELOG.md)、從本檔刪除。
 
-狀態圖例：⚠️ 待處理　🟡 部分完成 / 待外部條件
+狀態圖例：🔴 優先處理　⚠️ 待處理　🟡 部分完成 / 待外部條件
+
+## 目前優先順序
+
+本輪先改善既有程式流程、MongoDB 讀寫與畫面載入體驗；AI 行程匯入、收據分析與自然語言記帳的
+真實 provider 品質驗收暫緩，不列入以下執行順序。
+
+| 順序 | 項目 | 主要價值 | 建議批次 |
+| ---: | --- | --- | --- |
+| 1 | M. 輕量 Trip Shell 與按需載入 | 直接減少旅程頁首屏請求、MongoDB 讀取與下載量 | P1，核心效能批次 |
+| 2 | N. 會員授權與公開資料流去重 | 消除重複 Trip 查詢及公開頁雙重請求 | P1，接續 M |
+| 3 | O. MongoDB 查詢基線與索引 | 降低排序、每日掃描及資料成長後的退化風險 | P1，先量測再 migration |
+| 4 | P. 支出寫入 critical path 瘦身 | 縮短新增支出的實際回應時間，隔離外部通知失敗 | P1，需決定背景工作方案 |
+| 5 | Q. 查詢錯誤狀態與前端延遲載入 | 避免把錯誤顯示成空資料，改善互動流暢度 | P1/P2，逐頁落地 |
+| 6 | R. 原子更新與跨 collection 一致性 | 降低多人編輯覆蓋及部分寫入 | P2，依使用頻率安排 |
+
+### M. 🔴 輕量 Trip Shell 與按需載入（P1）
+
+**問題**：[useTripSpace.ts](../src/hooks/useTripSpace.ts) 目前在所有 `/trips/[id]/*` 分頁取得 trip、完整
+expenses、完整 itinerary 與 membership。即使使用者位於設定、相簿或清單頁，也會因共用 Shell 及常駐的
+新增支出表單下載不需要的資料。旅程首頁另會同時要求清單、結算、會員與照片，結算還會再讀一次 expenses。
+
+**處理方向**：
+
+- 建立輕量 Trip Shell DTO，只包含標題、日期、幣別、目前角色／預算、會員摘要及 aggregate 支出合計。
+- expenses、itinerary、photos、settlement 只由需要它們的分頁取得。
+- 新增支出視窗開啟後，才載入 itinerary 選項與標籤建議；大型表單元件採 dynamic import。
+- 旅程首頁以 trip + itinerary 為首屏，其餘摘要延後或獨立載入，不用次要 query 阻塞主要內容。
+- 保留既有 optimistic cache 更新，避免瘦身後讓 mutation 體感倒退。
+
+**完成條件**：非支出分頁不請求完整 expense list；非行程分頁不請求完整 itinerary；未開啟新增支出時
+不下載表單專用資料。記錄優化前後 request 數、回傳 bytes、MongoDB query 數及首屏可互動時間。
+
+### N. 🔴 會員授權與公開資料流去重（P1）
+
+**問題**：多數 Server Action 會先以 `getTripMembership` 查一次 Trip，再查一次實際資源；旅程首頁的
+多個獨立 action 因而反覆讀取相同會員資料。公開訪客則會先呼叫 authenticated action，收到
+unauthorized／forbidden／not found 後才 fallback 至 public API，使每種資源最多產生兩次請求。
+
+**處理方向**：
+
+- 建立 repository/service primitive，以一次有欄位 projection 的查詢完成會員驗證與 Trip 讀取。
+- 對首屏建立範圍明確的 bootstrap service：只授權一次，再平行取得該頁真正需要的資料；不要做成永遠
+  回傳所有資源的 mega endpoint。
+- 由 AppShell 提供已知登入狀態；未登入訪客直接使用 public endpoint，已登入非會員者只解析一次
+  access mode，後續 query 沿用相同模式。
+- authenticated/public routes 共用 repository 與計算 service，只在邊界決定可見欄位。
+
+**完成條件**：公開訪客不再有「authenticated 失敗後 public 重送」；主要旅程首屏不重複查詢相同
+membership；權限與公開資料欄位測試維持通過。
+
+### O. 🔴 MongoDB 查詢基線與索引（P1）
+
+**問題**：數個常用 filter + sort 沒有完整對應的複合索引；每日支出摘要只依 `createdAt` 查詢，但目前
+缺少對應索引。資料量增加後可能出現 collection scan 或 blocking sort。帳號查詢使用 case-insensitive
+collation，現有 binary unique index 也可能與查詢及唯一性規則不一致。
+
+**候選索引（須先用 production-like 資料驗證）**：
+
+| Collection | 查詢形狀 | 候選索引 |
+| --- | --- | --- |
+| Expense | trip filter，date/createdAt 排序 | `{ trip: 1, date: -1, createdAt: -1 }` |
+| Expense | 每日摘要依 createdAt 篩選 | `{ createdAt: 1 }` |
+| Payment | trip filter，createdAt 排序 | `{ trip: 1, createdAt: -1 }` |
+| Checklist | trip filter，createdAt 排序 | `{ trip: 1, createdAt: 1 }` |
+| Photo | trip filter，takenAt/createdAt 排序 | 視 explain 結果補完整複合索引 |
+
+**處理方向**：擴充 [explain-stats-expenses.mjs](../scripts/explain-stats-expenses.mjs)，保存變更前後的
+`totalDocsExamined`、`totalKeysExamined`、`nReturned`、execution time 與 blocking sort 結果；確認收益後才
+依 [MIGRATIONS.md](./MIGRATIONS.md) 建立索引。帳號欄位先掃描大小寫重複，再決定 canonical 欄位或 matching
+collation unique index，不可只修改 schema。
+
+**完成條件**：核心查詢有可重跑的 explain 基準；新增索引均有 migration／rollback 說明；登入唯一性規則
+與實際查詢一致，且 duplicate key race 有明確處理。
+
+### P. 🔴 支出寫入 critical path 瘦身（P1）
+
+**問題**：新增支出目前依序建立 Expense、populate、通知、Email／Web Push、活動紀錄後才回傳。通知與
+活動紀錄又會重讀 Trip／User，高頻操作會等待多次 MongoDB I/O 與外部服務。
+
+**處理方向**：
+
+- 先利用已取得的 trip/member/actor 快照減少 populate 與重複讀取，通知及活動紀錄可安全時平行處理。
+- 核心 Expense 寫入與次要副作用分離；可靠性要求高時採 MongoDB outbox + 可重試 worker。
+- 不在 serverless handler 直接 fire-and-forget 未等待的 Promise。
+- 通知失敗不可讓已成功的支出顯示為建立失敗；錯誤需可追蹤與重試。
+
+**完成條件**：建立支出的回應時間不受 Email／Push 延遲影響；副作用失敗可重試且不重複通知；optimistic
+update、離線佇列與 rollback 測試通過。
+
+### Q. 🔴 查詢錯誤狀態與前端延遲載入（P1/P2）
+
+**問題**：部分 query function 將失敗轉成 `[]` 或 `null`，使服務故障看起來像沒有資料或未登入。多個
+client page 又要等 hydration 後才開始取資料；Global Quick Add、大型 dialogs、AI 輸入與 lightbox 即使
+未開啟也可能進入共用 bundle 或提前取資料。
+
+**處理方向**：
+
+- 除明確的 auth-null 情境外，保留 ActionResult 錯誤並交給 React Query retry/error UI。
+- 有快取時顯示 stale data 與背景更新提示，不因 `isFetching` 切回整頁 skeleton。
+- Global Quick Add 與大型 dialogs 在開啟時才 mount／dynamic import；可視需求於 idle 或 hover 預載。
+- 支出搜尋使用 `useDeferredValue`；達到實際資料門檻後，以 date + `_id` cursor pagination 取代全量下載。
+- 逐頁評估 server prefetch + React Query hydration，先處理最常進入的旅程首頁與支出頁。
+
+**完成條件**：後端失敗有可重試錯誤狀態；關閉的全域表單不觸發 trips／表單 metadata 查詢；前後台已有
+資料時背景更新不遮蔽整頁。以 production build bundle 與瀏覽器 Network／Performance trace 驗證。
+
+### R. ⚠️ 原子更新與跨 collection 一致性（P2）
+
+**問題**：行程活動新增／編輯會覆寫整個 activities 陣列，增加寫入量並有多人同時編輯時的
+last-write-wins 風險。虛擬成員轉換、移除會員與刪除旅程會依序修改多個 collection，中途失敗可能留下
+部分完成狀態。
+
+**處理方向**：
+
+- 行程活動提供穩定 subdocument ID，以 `$push`、`arrayFilters`、`$pull` 分別新增、更新與刪除。
+- 以 version 或 `updatedAt` 做衝突檢查；整陣列寫回只保留給排序／批次編輯，並加入項目數量上限。
+- 身分轉換與會員移除使用 MongoDB transaction；R2 等外部刪除留在 transaction 外，以冪等工作重試。
+- 同時整理同步等待的 attachment `headObject`，在驗證 key 後採有上限的平行查詢。
+
+**完成條件**：不同使用者編輯不同活動不互相覆蓋；跨 collection 操作失敗時不留下半完成會員狀態；
+transaction 與外部清理失敗均有測試。
 
 ---
 

@@ -9,6 +9,7 @@ import { QueryProvider } from '@/components/providers/QueryProvider';
 import { Toaster } from '@/components/ui/toaster';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { SwUpdateToast } from '@/components/pwa/SwUpdateToast';
+import { getSession } from '@/lib/auth';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
@@ -50,12 +51,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // UI 語系由 NEXT_LOCALE cookie 決定（見 i18n/config.ts），網址不再帶語言前綴。
   const locale = await getLocale();
   const messages = await getMessages();
+  const session = await getSession();
+  const cacheScope = session ? `user:${session.userId}` : 'guest';
 
   return (
     <html lang={locale} className={inter.variable} suppressHydrationWarning>
       <body className="font-sans antialiased">
         <NextIntlClientProvider messages={messages}>
-          <QueryProvider>
+          <QueryProvider key={cacheScope} cacheScope={cacheScope}>
             <ThemeProvider
               attribute="class"
               defaultTheme="system"

@@ -37,7 +37,8 @@
     },
     "successTitle": "成功",
     "warningTitle": "警告",
-    "infoTitle": "お知らせ"
+    "infoTitle": "お知らせ",
+    "pendingOfflineLogout": "未同期のオフライン支出があります。ログアウトすると破棄されます。続行しますか？"
   },
   "nav": {
     "home": "旅行家計簿",

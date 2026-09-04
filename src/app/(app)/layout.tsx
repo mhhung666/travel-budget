@@ -1,6 +1,8 @@
 import { getCurrentUser } from '@/actions';
 import { AppShell } from '@/components/layout/AppShell';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * App Shell layout：server 端取 session 一次注入 shell，各頁不再自帶
  * Navbar / user 映射 / pt-24。

@@ -37,7 +37,8 @@
     },
     "successTitle": "Success",
     "warningTitle": "Warning",
-    "infoTitle": "Info"
+    "infoTitle": "Info",
+    "pendingOfflineLogout": "Some offline expenses have not synced yet. Logging out will discard them. Continue?"
   },
   "nav": {
     "home": "Travel Budget",

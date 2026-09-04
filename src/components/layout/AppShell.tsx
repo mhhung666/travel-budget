@@ -15,8 +15,8 @@ import {
 } from 'lucide-react';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
-import { logout } from '@/actions';
 import { logger } from '@/lib/logger';
+import { useLogoutFlow } from '@/hooks/useLogoutFlow';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -62,11 +62,11 @@ export function AppShell({
   const pathname = usePathname();
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [preferredQuickAddTrip, setPreferredQuickAddTrip] = useState<string | null>(null);
+  const logout = useLogoutFlow(tCommon('pendingOfflineLogout'));
 
   const handleLogout = async () => {
     try {
       await logout();
-      router.push('/login');
     } catch (error) {
       logger.error('登出失敗', error);
     }

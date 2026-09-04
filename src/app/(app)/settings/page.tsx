@@ -16,9 +16,9 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
-import { logout } from '@/actions';
 import { ROUTES } from '@/constants/routes';
 import { useCurrentUser } from '@/hooks/queries';
+import { useLogoutFlow } from '@/hooks/useLogoutFlow';
 import { logger } from '@/lib/logger';
 import { trackNavigation, type NavigationTarget } from '@/lib/navigationEvents';
 
@@ -39,13 +39,14 @@ export default function SettingsPage() {
   const t = useTranslations('settings');
   const tNav = useTranslations('nav');
   const tFriends = useTranslations('friends');
+  const tCommon = useTranslations('common');
+  const logout = useLogoutFlow(tCommon('pendingOfflineLogout'));
 
   const { data: user, isLoading } = useCurrentUser();
 
   const handleLogout = async () => {
     try {
       await logout();
-      router.push('/login');
     } catch (error) {
       logger.error('登出失敗', error);
     }

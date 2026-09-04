@@ -14,7 +14,8 @@ import { get, set, del } from 'idb-keyval';
  * are restructured) so stale caches are dropped instead of rehydrated wrong.
  */
 
-const IDB_KEY = 'travel-budget-rq-cache';
+const LEGACY_IDB_KEY = 'travel-budget-rq-cache';
+const IDB_KEY_PREFIX = `${LEGACY_IDB_KEY}:`;
 
 /** Cache-shape version. Bump to invalidate every client's persisted cache. */
 export const PERSIST_BUSTER = 'v7';
@@ -22,9 +23,13 @@ export const PERSIST_BUSTER = 'v7';
 /** 7 days: long enough to cover a trip offline, short enough to self-clean. */
 export const PERSIST_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
 
-export function createQueryPersister() {
+export function getQueryPersistKey(cacheScope: string): string {
+  return `${IDB_KEY_PREFIX}${encodeURIComponent(cacheScope)}`;
+}
+
+export function createQueryPersister(cacheScope: string) {
   return createAsyncStoragePersister({
-    key: IDB_KEY,
+    key: getQueryPersistKey(cacheScope),
     storage: {
       getItem: (key) => get(key),
       setItem: (key, value) => set(key, value),
@@ -33,4 +38,9 @@ export function createQueryPersister() {
     // Coalesce rapid cache writes (navigating between trip tabs) into one flush.
     throttleTime: 1000,
   });
+}
+
+/** Remove the pre-user-partition cache. It must never be restored by newer builds. */
+export async function removeLegacyQueryCache(): Promise<void> {
+  await del(LEGACY_IDB_KEY);
 }

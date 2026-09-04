@@ -27,6 +27,7 @@ import { withAuth } from './withAuth';
 import type { ActionResult } from './types';
 import type { User } from '@/types';
 import { logger } from '@/lib/logger';
+import { unstable_rethrow } from 'next/navigation';
 
 // Email 驗證碼（忘記密碼 + 變更 Email 共用）：6 位數、15 分鐘有效、最多 5 次驗證嘗試。
 const CODE_TTL_MS = 15 * 60 * 1000;
@@ -87,6 +88,7 @@ export async function getCurrentUser(): Promise<ActionResult<AuthUserWithCreated
       },
     };
   } catch (error) {
+    unstable_rethrow(error);
     logger.error('Get current user error', error);
     return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
   }

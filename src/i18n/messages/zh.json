@@ -37,7 +37,8 @@
     },
     "successTitle": "成功",
     "warningTitle": "警告",
-    "infoTitle": "提示"
+    "infoTitle": "提示",
+    "pendingOfflineLogout": "仍有尚未同步的離線記帳。繼續登出將捨棄這些項目，確定要登出嗎？"
   },
   "nav": {
     "home": "旅行記帳",

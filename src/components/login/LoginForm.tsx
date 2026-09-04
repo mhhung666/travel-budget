@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter, Link } from '@/i18n/navigation';
+import { Link } from '@/i18n/navigation';
 import { ArrowLeft, Loader2, AlertCircle } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { login, register } from '@/actions';
@@ -21,7 +21,6 @@ interface LoginFormProps {
 }
 
 export default function LoginForm({ hideBackToHome = false, redirectTo }: LoginFormProps) {
-  const router = useRouter();
   const t = useTranslations('auth');
 
   // We use key to force re-render tabs when checking isLogin,
@@ -60,7 +59,8 @@ export default function LoginForm({ hideBackToHome = false, redirectTo }: LoginF
       if (!isLogin) {
         trackProductEvent('activation_step', { step: 'registered' });
       }
-      router.push(redirectTo ?? '/trips');
+      // Rebuild RootLayout with the authenticated user's isolated query cache.
+      window.location.assign(redirectTo ?? '/trips');
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);
