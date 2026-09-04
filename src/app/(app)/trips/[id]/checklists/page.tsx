@@ -117,6 +117,7 @@ export default function ChecklistsPage() {
               members={members}
               currentUserId={currentUser?.id ?? null}
               canEdit={canEdit}
+              pendingItemIds={m.pendingItemIds}
               onAddItem={(text) =>
                 guard(m.addItem.mutateAsync({ checklistId: list.id, data: { text } }))
               }

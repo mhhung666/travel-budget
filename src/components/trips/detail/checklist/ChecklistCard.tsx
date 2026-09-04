@@ -15,6 +15,7 @@ interface ChecklistCardProps {
   /** 目前使用者 id，用來算 packing 清單的「我的進度」與勾選狀態；未登入為 null。 */
   currentUserId: string | null;
   canEdit: boolean;
+  pendingItemIds?: ReadonlySet<string>;
   onAddItem: (text: string) => void;
   onToggleItem: (itemId: string, done: boolean) => void;
   onAssignItem: (itemId: string, assigneeId: string | null) => void;
@@ -38,6 +39,7 @@ export default function ChecklistCard({
   members,
   currentUserId,
   canEdit,
+  pendingItemIds,
   onAddItem,
   onToggleItem,
   onAssignItem,
@@ -181,6 +183,7 @@ export default function ChecklistCard({
                 members={members}
                 checked={isItemDone(item)}
                 canEdit={canEdit}
+                busy={pendingItemIds?.has(item.id)}
                 onToggle={(d) => onToggleItem(item.id, d)}
                 onAssign={(a) => onAssignItem(item.id, a)}
                 onRemove={() => onRemoveItem(item.id)}
