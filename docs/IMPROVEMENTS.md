@@ -13,7 +13,7 @@
 
 | 順序 | 項目 | 主要價值 | 建議批次 |
 | ---: | --- | --- | --- |
-| 1 | N. 會員授權與公開資料流去重 | 消除重複 Trip 查詢及公開頁雙重請求 | P1，接續 M |
+| 1 | N. 旅程首屏 bootstrap | 將 shell 與落地頁資料合併成一次授權 | 🟡 已完成公開 access mode 與 Trip 單查詢 |
 | 2 | O. MongoDB 查詢基線與索引 | 降低排序、每日掃描及資料成長後的退化風險 | P1，先量測再 migration |
 | 3 | P. 支出寫入 critical path 瘦身 | 縮短新增支出的實際回應時間，隔離外部通知失敗 | P1，需決定背景工作方案 |
 | 4 | Q. 查詢錯誤狀態與前端延遲載入 | 避免把錯誤顯示成空資料，改善互動流暢度 | P1/P2，逐頁落地 |
@@ -28,19 +28,25 @@ members／itinerary／tags，首頁摘要也改用 aggregate 欄位。靜態基�
 production-like 資料量下補 Network bytes、MongoDB profiler/explain 與瀏覽器 TTI，確認實際收益及是否要調整
 aggregate／索引；完成後即可從本檔移除。
 
-### N. 🔴 會員授權與公開資料流去重（P1）
+### N. 🟡 會員授權與公開資料流去重（P1）
 
 **問題**：多數 Server Action 會先以 `getTripMembership` 查一次 Trip，再查一次實際資源；旅程首頁的
 多個獨立 action 因而反覆讀取相同會員資料。公開訪客則會先呼叫 authenticated action，收到
 unauthorized／forbidden／not found 後才 fallback 至 public API，使每種資源最多產生兩次請求。
 
-**處理方向**：
+**已完成（2026-09-04）**：
 
-- 建立 repository/service primitive，以一次有欄位 projection 的查詢完成會員驗證與 Trip 讀取。
-- 對首屏建立範圍明確的 bootstrap service：只授權一次，再平行取得該頁真正需要的資料；不要做成永遠
-  回傳所有資源的 mega endpoint。
-- 由 AppShell 提供已知登入狀態；未登入訪客直接使用 public endpoint，已登入非會員者只解析一次
-  access mode，後續 query 沿用相同模式。
+- Root layout 將 server 已知的登入狀態注入 query provider；未登入訪客直接走 public API，不再先送
+  authenticated action。
+- 已登入非會員的同旅程並行查詢共用第一次 access mode 判定；只有第一個 action 會做失敗探測，後續
+  query 直接沿用 public mode。
+- 新增 `getMemberTrip` repository primitive，以帶 membership filter 的單一 projection 查詢同時完成會員
+  授權與 Trip 讀取；`getTrip`、`getTripShell` 已改用，移除原本 membership + `findById` 的雙查詢。
+
+**剩餘處理方向**：
+
+- 旅程落地頁仍應建立範圍明確的 bootstrap service，讓 shell、trip、itinerary 與 phase-specific 摘要只
+  授權一次；目前各 authenticated resource action 仍各自做防線內的 membership 驗證。
 - authenticated/public routes 共用 repository 與計算 service，只在邊界決定可見欄位。
 
 **完成條件**：公開訪客不再有「authenticated 失敗後 public 重送」；主要旅程首屏不重複查詢相同

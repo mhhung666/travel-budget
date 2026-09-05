@@ -19,6 +19,7 @@ vi.mock('@/models', () => ({
 
 import {
   getTripMembership,
+  getMemberTrip,
   isAdmin,
   isMember,
   getUserRole,
@@ -82,6 +83,22 @@ describe('getTripMembership', () => {
   it('returns null when the user is not a member of the trip', async () => {
     mockFindOne(tripDoc('trip-1', [{ user: 'someone-else', role: 'admin' }]));
     expect(await getTripMembership('user-1', HASH_CODE)).toBeNull();
+  });
+});
+
+describe('getMemberTrip', () => {
+  it('combines member authorization and projected Trip loading in one query', async () => {
+    const doc = {
+      ...tripDoc('trip-1', [{ user: 'user-1', role: 'admin' }]),
+      members: [{ user: { toString: () => 'user-1' }, role: 'admin' as const }],
+      name: 'Tokyo',
+    };
+    mockFindOne(doc);
+    await expect(getMemberTrip<typeof doc>('user-1', HASH_CODE, 'name')).resolves.toEqual({
+      trip: doc,
+      membership: { tripId: 'trip-1', role: 'admin' },
+    });
+    expect(findOne).toHaveBeenCalledWith({ hashCode: HASH_CODE, 'members.user': 'user-1' });
   });
 });
 

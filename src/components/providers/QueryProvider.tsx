@@ -11,10 +11,18 @@ import {
   removeLegacyQueryCache,
 } from '@/lib/queryPersister';
 import { registerOfflineMutationDefaults } from '@/lib/offlineMutations';
+import { clearTripAccessModes } from '@/hooks/queries/fetcher';
 
 interface QueryPersistenceControls {
   hasPausedMutations: () => boolean;
   clearForLogout: () => Promise<void>;
+}
+
+const AuthStateContext = createContext(false);
+
+/** Server-resolved login state, so public pages do not probe an authenticated action first. */
+export function useAuthenticatedSession(): boolean {
+  return useContext(AuthStateContext);
 }
 
 const QueryPersistenceContext = createContext<QueryPersistenceControls | null>(null);
@@ -31,6 +39,7 @@ export async function clearQueryState(
 ): Promise<void> {
   await queryClient.cancelQueries();
   queryClient.clear();
+  clearTripAccessModes();
   await persister.removeClient();
 }
 
@@ -57,9 +66,11 @@ function shouldPersistQuery(query: { queryKey: readonly unknown[]; state: { stat
  */
 export function QueryProvider({
   cacheScope,
+  authenticated,
   children,
 }: {
   cacheScope: string;
+  authenticated: boolean;
   children: React.ReactNode;
 }) {
   const [queryClient] = useState(() => {
@@ -104,24 +115,26 @@ export function QueryProvider({
   );
 
   return (
-    <QueryPersistenceContext.Provider value={controls}>
-      <PersistQueryClientProvider
-        client={queryClient}
-        persistOptions={{
-          persister,
-          maxAge: PERSIST_MAX_AGE,
-          buster: PERSIST_BUSTER,
-          dehydrateOptions: { shouldDehydrateQuery: shouldPersistQuery },
-        }}
-        // After the persisted cache + paused mutations are restored, replay any
-        // queued offline writes. If still offline they stay paused and TanStack
-        // auto-resumes them on reconnect.
-        onSuccess={() => {
-          queryClient.resumePausedMutations();
-        }}
-      >
-        {children}
-      </PersistQueryClientProvider>
-    </QueryPersistenceContext.Provider>
+    <AuthStateContext.Provider value={authenticated}>
+      <QueryPersistenceContext.Provider value={controls}>
+        <PersistQueryClientProvider
+          client={queryClient}
+          persistOptions={{
+            persister,
+            maxAge: PERSIST_MAX_AGE,
+            buster: PERSIST_BUSTER,
+            dehydrateOptions: { shouldDehydrateQuery: shouldPersistQuery },
+          }}
+          // After the persisted cache + paused mutations are restored, replay any
+          // queued offline writes. If still offline they stay paused and TanStack
+          // auto-resumes them on reconnect.
+          onSuccess={() => {
+            queryClient.resumePausedMutations();
+          }}
+        >
+          {children}
+        </PersistQueryClientProvider>
+      </QueryPersistenceContext.Provider>
+    </AuthStateContext.Provider>
   );
 }

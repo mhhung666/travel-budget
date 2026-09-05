@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const getSession = vi.fn();
 const getTripMembership = vi.fn();
+const getMemberTrip = vi.fn();
 const dbConnect = vi.fn();
 const tripExists = vi.fn();
 const tripCreate = vi.fn();
@@ -35,6 +36,7 @@ vi.mock('@/lib/auth', () => ({ getSession: () => getSession() }));
 vi.mock('@/lib/mongodb', () => ({ dbConnect: (...args: unknown[]) => dbConnect(...args) }));
 vi.mock('@/lib/permissions', () => ({
   getTripMembership: (...args: unknown[]) => getTripMembership(...args),
+  getMemberTrip: (...args: unknown[]) => getMemberTrip(...args),
 }));
 vi.mock('@/lib/hashcode', () => ({
   generateUniqueHashCode: async (exists: (code: string) => Promise<boolean>) => {
@@ -116,6 +118,10 @@ beforeEach(() => {
   vi.clearAllMocks();
   getSession.mockResolvedValue({ userId: USER });
   getTripMembership.mockResolvedValue({ tripId: TRIP, role: 'admin' });
+  getMemberTrip.mockResolvedValue({
+    trip: tripDoc(),
+    membership: { tripId: TRIP, role: 'admin' },
+  });
   dbConnect.mockResolvedValue(undefined);
   tripExists.mockResolvedValue(null);
   tripFindByIdAndUpdate.mockReturnValue(lean(tripDoc()));
@@ -145,7 +151,12 @@ describe('getTripShell', () => {
         total_spent: 1800,
       }),
     });
-    expect(tripFindById).toHaveBeenCalledWith(TRIP);
+    expect(getMemberTrip).toHaveBeenCalledWith(
+      USER,
+      'oldcode1',
+      'name startDate endDate hashCode legacyBudget currencySettings'
+    );
+    expect(tripFindById).not.toHaveBeenCalled();
     expect(expenseAggregate).toHaveBeenCalledOnce();
   });
 });

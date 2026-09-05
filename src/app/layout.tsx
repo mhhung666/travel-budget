@@ -58,7 +58,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang={locale} className={inter.variable} suppressHydrationWarning>
       <body className="font-sans antialiased">
         <NextIntlClientProvider messages={messages}>
-          <QueryProvider key={cacheScope} cacheScope={cacheScope}>
+          <QueryProvider key={cacheScope} cacheScope={cacheScope} authenticated={session != null}>
             <ThemeProvider
               attribute="class"
               defaultTheme="system"

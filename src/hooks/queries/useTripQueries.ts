@@ -19,6 +19,7 @@ import type { AuthUserWithCreatedAt, CopyableChecklistSource } from '@/actions';
 import type { Checklist, Settlement, TripShell, TripStatsData, TripWithMembers } from '@/types';
 import { tripKeys } from './keys';
 import { fetchWithPublicFallback } from './fetcher';
+import { useAuthenticatedSession } from '@/components/providers/QueryProvider';
 
 /**
  * Trip-scoped data hooks backed by TanStack Query.
@@ -54,15 +55,23 @@ export function useTrips() {
 }
 
 export function useTrip(tripId: string) {
+  const authenticated = useAuthenticatedSession();
   return useQuery({
     queryKey: tripKeys.detail(tripId),
     queryFn: () =>
-      fetchWithPublicFallback(tripId, getTrip, { path: '', responseKey: 'trip' }, null),
+      fetchWithPublicFallback(
+        tripId,
+        getTrip,
+        { path: '', responseKey: 'trip' },
+        null,
+        authenticated
+      ),
     enabled: !!tripId,
   });
 }
 
 export function useTripShell(tripId: string) {
+  const authenticated = useAuthenticatedSession();
   return useQuery({
     queryKey: tripKeys.shell(tripId),
     queryFn: () => {
@@ -76,7 +85,8 @@ export function useTripShell(tripId: string) {
         tripId,
         (id) => getTripShell(id, viewerDate),
         { path: 'shell', responseKey: 'shell' },
-        null as unknown as TripShell
+        null as unknown as TripShell,
+        authenticated
       );
     },
     enabled: !!tripId,
@@ -84,15 +94,23 @@ export function useTripShell(tripId: string) {
 }
 
 export function useMembers(tripId: string, enabled = true) {
+  const authenticated = useAuthenticatedSession();
   return useQuery({
     queryKey: tripKeys.members(tripId),
     queryFn: () =>
-      fetchWithPublicFallback(tripId, getMembers, { path: 'members', responseKey: 'members' }, []),
+      fetchWithPublicFallback(
+        tripId,
+        getMembers,
+        { path: 'members', responseKey: 'members' },
+        [],
+        authenticated
+      ),
     enabled: !!tripId && enabled,
   });
 }
 
 export function useExpenses(tripId: string, enabled = true) {
+  const authenticated = useAuthenticatedSession();
   return useQuery({
     queryKey: tripKeys.expenses(tripId),
     queryFn: () =>
@@ -100,7 +118,8 @@ export function useExpenses(tripId: string, enabled = true) {
         tripId,
         getExpenses,
         { path: 'expenses', responseKey: 'expenses' },
-        []
+        [],
+        authenticated
       ),
     enabled: !!tripId && enabled,
   });
@@ -128,11 +147,18 @@ const EMPTY_SETTLEMENT: Settlement = {
 };
 
 export function useSettlement(tripId: string, enabled = true) {
+  const authenticated = useAuthenticatedSession();
   return useQuery({
     queryKey: tripKeys.settlement(tripId),
     // Settlement's public endpoint returns the body directly (no wrapper key).
     queryFn: () =>
-      fetchWithPublicFallback(tripId, getSettlement, { path: 'settlement' }, EMPTY_SETTLEMENT),
+      fetchWithPublicFallback(
+        tripId,
+        getSettlement,
+        { path: 'settlement' },
+        EMPTY_SETTLEMENT,
+        authenticated
+      ),
     enabled: !!tripId && enabled,
   });
 }
@@ -155,15 +181,23 @@ const EMPTY_TRIP_STATS: TripStatsData = {
  * Public endpoint returns the body directly (no wrapper key), like settlement.
  */
 export function useTripStats(tripId: string) {
+  const authenticated = useAuthenticatedSession();
   return useQuery({
     queryKey: tripKeys.stats(tripId),
     queryFn: () =>
-      fetchWithPublicFallback(tripId, getTripStats, { path: 'stats' }, EMPTY_TRIP_STATS),
+      fetchWithPublicFallback(
+        tripId,
+        getTripStats,
+        { path: 'stats' },
+        EMPTY_TRIP_STATS,
+        authenticated
+      ),
     enabled: !!tripId,
   });
 }
 
 export function useItinerary(tripId: string, enabled = true) {
+  const authenticated = useAuthenticatedSession();
   return useQuery({
     queryKey: tripKeys.itinerary(tripId),
     queryFn: () =>
@@ -171,7 +205,8 @@ export function useItinerary(tripId: string, enabled = true) {
         tripId,
         getItinerary,
         { path: 'itinerary', responseKey: 'itinerary' },
-        []
+        [],
+        authenticated
       ),
     enabled: !!tripId && enabled,
   });
@@ -179,6 +214,7 @@ export function useItinerary(tripId: string, enabled = true) {
 
 /** Trip checklists (packing / to-do). Read-only via the public share fallback. */
 export function useChecklists(tripId: string, enabled = true) {
+  const authenticated = useAuthenticatedSession();
   return useQuery({
     queryKey: tripKeys.checklists(tripId),
     queryFn: () =>
@@ -186,7 +222,8 @@ export function useChecklists(tripId: string, enabled = true) {
         tripId,
         getChecklists,
         { path: 'checklists', responseKey: 'checklists' },
-        [] as Checklist[]
+        [] as Checklist[],
+        authenticated
       ),
     enabled: !!tripId && enabled,
   });

@@ -19,7 +19,7 @@ import {
   AiImportUsage,
   type TripDoc,
 } from '@/models';
-import { getTripMembership } from '@/lib/permissions';
+import { getMemberTrip, getTripMembership } from '@/lib/permissions';
 import { generateUniqueHashCode } from '@/lib/hashcode';
 import { deleteByPrefix } from '@/lib/storage';
 import { receiptKeyPrefix, itineraryKeyPrefix, noteKeyPrefix, photoKeyPrefix } from '@/lib/uploads';
@@ -81,17 +81,16 @@ export const getTrips = withAuth(async (session): Promise<ActionResult<TripWithM
  */
 export const getTrip = withAuth(async (session, id: string): Promise<ActionResult<Trip>> => {
   try {
-    const membership = await getTripMembership(session.userId, id);
-    if (!membership) {
+    const result = await getMemberTrip<LeanTrip>(
+      session.userId,
+      id,
+      'name description startDate endDate destinationLocation hashCode createdAt legacyBudget currencySettings'
+    );
+    if (!result) {
       return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     }
 
-    const trip = await TripModel.findById(membership.tripId).lean<LeanTrip>();
-    if (!trip) {
-      return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
-    }
-
-    return { success: true, data: toTripDto(trip, session.userId) };
+    return { success: true, data: toTripDto(result.trip, session.userId) };
   } catch (error) {
     logger.error('Get trip error', error);
     return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
@@ -147,10 +146,15 @@ function mapBudget(
 export const getTripShell = withAuth(
   async (session, id: string, viewerDate?: string): Promise<ActionResult<TripShell>> => {
     try {
-      const membership = await getTripMembership(session.userId, id);
-      if (!membership) {
+      const memberTrip = await getMemberTrip<LeanTripShell>(
+        session.userId,
+        id,
+        'name startDate endDate hashCode legacyBudget currencySettings'
+      );
+      if (!memberTrip) {
         return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
       }
+      const { trip, membership } = memberTrip;
 
       const validViewerDate = /^\d{4}-\d{2}-\d{2}$/.test(viewerDate ?? '') ? viewerDate : null;
       const today = validViewerDate ? new Date(`${validViewerDate}T00:00:00.000Z`) : new Date();
@@ -158,51 +162,42 @@ export const getTripShell = withAuth(
       const tomorrow = new Date(today);
       tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
 
-      const [trip, aggregate] = await Promise.all([
-        TripModel.findById(membership.tripId)
-          .select('name startDate endDate hashCode members legacyBudget currencySettings')
-          .lean<LeanTripShell | null>(),
-        Expense.aggregate<ShellExpenseAggregate>([
-          { $match: { trip: new Types.ObjectId(membership.tripId) } },
-          {
-            $group: {
-              _id: null,
-              expenseCount: { $sum: 1 },
-              todaySpent: {
-                $sum: {
-                  $cond: [
-                    { $and: [{ $gte: ['$date', today] }, { $lt: ['$date', tomorrow] }] },
-                    '$amount',
-                    0,
-                  ],
-                },
+      const aggregate = await Expense.aggregate<ShellExpenseAggregate>([
+        { $match: { trip: new Types.ObjectId(membership.tripId) } },
+        {
+          $group: {
+            _id: null,
+            expenseCount: { $sum: 1 },
+            todaySpent: {
+              $sum: {
+                $cond: [
+                  { $and: [{ $gte: ['$date', today] }, { $lt: ['$date', tomorrow] }] },
+                  '$amount',
+                  0,
+                ],
               },
-              totalSpent: {
-                $sum: {
-                  $reduce: {
-                    input: '$splits',
-                    initialValue: 0,
-                    in: {
-                      $cond: [
-                        {
-                          $eq: ['$$this.user', new Types.ObjectId(session.userId)],
-                        },
-                        '$$this.shareAmount',
-                        0,
-                      ],
-                    },
+            },
+            totalSpent: {
+              $sum: {
+                $reduce: {
+                  input: '$splits',
+                  initialValue: 0,
+                  in: {
+                    $cond: [
+                      {
+                        $eq: ['$$this.user', new Types.ObjectId(session.userId)],
+                      },
+                      '$$this.shareAmount',
+                      0,
+                    ],
                   },
                 },
               },
             },
           },
-          { $project: { _id: 0, expenseCount: 1, todaySpent: 1, totalSpent: 1 } },
-        ]),
+        },
+        { $project: { _id: 0, expenseCount: 1, todaySpent: 1, totalSpent: 1 } },
       ]);
-
-      if (!trip) {
-        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
-      }
 
       const self = trip.members.find((member) => member.user.toString() === session.userId);
       const totals = aggregate[0] ?? { expenseCount: 0, todaySpent: 0, totalSpent: 0 };

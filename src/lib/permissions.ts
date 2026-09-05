@@ -14,12 +14,39 @@ export type MembershipResult = {
   role: TripRole;
 };
 
+type MemberTripShape = {
+  _id: { toString(): string };
+  members: { user: { toString(): string }; role?: TripRole | null }[];
+};
+
 /**
  * 依 tripId（ObjectId）或 hash_code 建立查詢條件。
  * hash_code 為 6-10 碼小寫英數，永遠不會是合法的 12-byte / 24-hex ObjectId，分流無歧義。
  */
-function tripQuery(tripIdOrCode: string) {
+export function tripQuery(tripIdOrCode: string) {
   return isValidObjectId(tripIdOrCode) ? { _id: tripIdOrCode } : { hashCode: tripIdOrCode };
+}
+
+/**
+ * Read a projected Trip and authorize its member in one MongoDB operation.
+ * Callers that need Trip fields should use this instead of membership + findById.
+ */
+export async function getMemberTrip<T extends MemberTripShape>(
+  userId: string,
+  tripIdOrCode: string,
+  projection: string
+): Promise<{ trip: T; membership: MembershipResult } | null> {
+  await dbConnect();
+  const trip = await Trip.findOne({ ...tripQuery(tripIdOrCode), 'members.user': userId })
+    .select(`${projection} members`)
+    .lean<T | null>();
+  if (!trip) return null;
+  const member = trip.members.find((item) => item.user.toString() === userId);
+  if (!member) return null;
+  return {
+    trip,
+    membership: { tripId: trip._id.toString(), role: (member.role ?? 'member') as TripRole },
+  };
 }
 
 /**
