@@ -54,6 +54,10 @@ migrate-mongo changelog／lock 與正式操作審查。現有測試庫的索引�
 供後續 worker 決定重試範圍；尚未啟用自動重試。設計、可靠性界線與待確認的排程頻率見
 [EXPENSE_BACKGROUND_DELIVERY.md](./EXPENSE_BACKGROUND_DELIVERY.md)。
 
+**佇列儲存層已完成**：Expense 內嵌工作狀態的原子 claim、token fencing、續租、退避重試與 5 次
+上限，已通過本機隔離 MongoDB 的 7 個情境（含 12 worker 併發認領與過期接手）；測試庫／容器
+已清理。尚未加入 Expense schema、事件快照、通知去重、worker 或排程，不會產生實際背景工作。
+
 **剩餘問題**：新增支出仍等待 populate、通知與活動紀錄完成，Web Push 延遲仍影響回應。
 支出 Email 原本已走每日彙整，並非每筆即時寄送。活動紀錄仍會查 User；目前副作用僅 best-effort
 記錄錯誤，尚無持久化重試或去重機制，不能視為 P 完整驗收通過。
