@@ -2,6 +2,8 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { mongo } from 'mongoose';
+import { createExpenseDeliveryEvent } from '@/lib/expenseDeliveryEvent';
+import { createExpenseEventStore, EXPENSE_EVENT_INDEXES } from '@/lib/expenseEventStore';
 import {
   createExpenseDeliveryQueue,
   initialExpenseDeliveryState,
@@ -36,6 +38,10 @@ describe.skipIf(!uri || !allowed)('expense queue isolated MongoDB', () => {
     owned = true;
     collection = db.collection<ExpenseDeliveryRecord>('expenses');
     await collection.createIndex(EXPENSE_DELIVERY_INDEX.key, { name: EXPENSE_DELIVERY_INDEX.name });
+    for (const { collection: name, ...definition } of EXPENSE_EVENT_INDEXES) {
+      const { key, ...options } = definition;
+      await db.collection(name).createIndex(key, options);
+    }
     queue = createExpenseDeliveryQueue(collection);
   });
 
@@ -49,6 +55,9 @@ describe.skipIf(!uri || !allowed)('expense queue isolated MongoDB', () => {
 
   beforeEach(async () => {
     await collection.deleteMany({});
+    for (const name of ['notifications', 'activitylogs', 'trips', 'users']) {
+      await db.collection(name).deleteMany({});
+    }
   });
 
   async function insert(attempts = 0) {
@@ -159,5 +168,168 @@ describe.skipIf(!uri || !allowed)('expense queue isolated MongoDB', () => {
     expect(await queue.fail(current.id, current.token, 'worker_error')).toBe(false);
     expect(await queue.renew(current.id, current.token)).toBe(false);
     expect(await collection.countDocuments()).toBe(0);
+  });
+
+  async function eventFixture() {
+    const expenseId = await insert();
+    const tripId = new mongo.ObjectId();
+    const actor = new mongo.ObjectId();
+    const recipient = new mongo.ObjectId();
+    const second = new mongo.ObjectId();
+    const event = createExpenseDeliveryEvent({
+      expenseId: expenseId.toHexString(),
+      tripId: tripId.toHexString(),
+      actorId: actor.toHexString(),
+      actorName: 'Original actor',
+      tripName: 'Original trip',
+      tripHashCode: 'trip-code',
+      memberIds: [actor, recipient, second].map((id) => id.toHexString()),
+      description: 'Original dinner',
+      amount: 120,
+      occurredAt: new Date('2026-09-05T12:00:00Z'),
+    });
+    await db.collection('expenses').updateOne(
+      { _id: expenseId },
+      {
+        $set: {
+          trip: tripId,
+          createdBy: actor,
+          expenseDeliveryEvent: event,
+          description: 'Edited dinner',
+          amount: 999,
+        },
+      }
+    );
+    await db
+      .collection('trips')
+      .insertOne({
+        _id: tripId,
+        name: 'Renamed trip',
+        members: [actor, recipient, second].map((user) => ({ user })),
+      });
+    await db
+      .collection('users')
+      .insertMany([actor, recipient, second].map((_id) => ({ _id, isVirtual: false })));
+    const lease = await claim();
+    const store = await createExpenseEventStore(db);
+    return { expenseId, tripId, actor, recipient, second, event, lease, store };
+  }
+
+  it('deduplicates 12 concurrent replays using event unique indexes', async () => {
+    const { store, lease } = await eventFixture();
+    const results = await Promise.all(
+      Array.from({ length: 12 }, () => store.persist(lease.id, lease.token))
+    );
+    expect(results.every((result) => result.status === 'persisted')).toBe(true);
+    expect(await db.collection('notifications').countDocuments()).toBe(2);
+    expect(await db.collection('activitylogs').countDocuments()).toBe(1);
+  });
+
+  it('preserves read state and original event metadata after edits and replay', async () => {
+    const { store, lease, event } = await eventFixture();
+    await store.persist(lease.id, lease.token);
+    await db.collection('notifications').updateMany({}, { $set: { read: true } });
+    await store.persist(lease.id, lease.token);
+    const notifications = await db.collection('notifications').find().toArray();
+    expect(notifications).toHaveLength(2);
+    for (const notification of notifications) {
+      expect(notification).toMatchObject({
+        read: true,
+        actorName: 'Original actor',
+        tripName: 'Original trip',
+        createdAt: event.occurredAt,
+        meta: { description: 'Original dinner', amount: 120 },
+      });
+    }
+    expect(await db.collection('activitylogs').countDocuments()).toBe(1);
+  });
+
+  it('excludes removed, nonexistent, virtual and newly joined recipients', async () => {
+    const { store, lease, recipient, second, tripId } = await eventFixture();
+    const newcomer = new mongo.ObjectId();
+    await db.collection('users').insertOne({ _id: newcomer, isVirtual: false });
+    await db.collection('users').updateOne({ _id: second }, { $set: { isVirtual: true } });
+    await db
+      .collection('trips')
+      .updateOne(
+        { _id: tripId },
+        { $set: { members: [second, newcomer].map((user) => ({ user })) } }
+      );
+    expect(await store.persist(lease.id, lease.token)).toEqual({
+      status: 'persisted',
+      recipients: [],
+    });
+    await db
+      .collection('trips')
+      .updateOne({ _id: tripId }, { $set: { members: [{ user: recipient }] } });
+    await db.collection('users').deleteOne({ _id: recipient });
+    expect(await store.persist(lease.id, lease.token)).toEqual({
+      status: 'persisted',
+      recipients: [],
+    });
+    expect(await db.collection('notifications').countDocuments()).toBe(0);
+    expect(await db.collection('activitylogs').countDocuments()).toBe(1);
+  });
+
+  it('repairs partial fan-out on retry without duplicate records', async () => {
+    const { store, lease, second } = await eventFixture();
+    await db.command({ collMod: 'notifications', validator: { user: { $ne: second } } });
+    try {
+      await expect(store.persist(lease.id, lease.token)).rejects.toMatchObject({ code: 121 });
+      expect(await db.collection('activitylogs').countDocuments()).toBe(1);
+      expect(await db.collection('notifications').countDocuments()).toBe(1);
+    } finally {
+      await db.command({ collMod: 'notifications', validator: {} });
+    }
+    await store.persist(lease.id, lease.token);
+    expect(await db.collection('activitylogs').countDocuments()).toBe(1);
+    expect(await db.collection('notifications').countDocuments()).toBe(2);
+  });
+
+  it('skips invalid leases, missing expenses and missing trips', async () => {
+    const { store, lease, tripId } = await eventFixture();
+    expect((await store.persist(lease.id, 'wrong-token')).status).toBe('skipped');
+    expect((await store.persist(new mongo.ObjectId(), lease.token)).status).toBe('skipped');
+    await db.collection('trips').deleteOne({ _id: tripId });
+    expect(await store.persist(lease.id, lease.token)).toEqual({
+      status: 'skipped',
+      reason: 'trip_missing',
+    });
+    expect(await db.collection('activitylogs').countDocuments()).toBe(0);
+    expect(await db.collection('notifications').countDocuments()).toBe(0);
+  });
+
+  it('rejects event ownership mismatch before writing side effects', async () => {
+    const { store, lease } = await eventFixture();
+    await db
+      .collection('expenses')
+      .updateOne(
+        { _id: lease.id },
+        { $set: { 'expenseDeliveryEvent.tripId': new mongo.ObjectId().toHexString() } }
+      );
+    await expect(store.persist(lease.id, lease.token)).rejects.toThrow('ownership mismatch');
+    expect(await db.collection('activitylogs').countDocuments()).toBe(0);
+  });
+
+  it('preserves legacy records outside the partial indexes', async () => {
+    await db.collection('notifications').insertMany([{ read: true }, { read: false }]);
+    await db
+      .collection('activitylogs')
+      .insertMany([{ type: 'expense_added' }, { type: 'expense_added' }]);
+    const { store, lease } = await eventFixture();
+    await store.persist(lease.id, lease.token);
+    expect(await db.collection('notifications').countDocuments()).toBe(4);
+    expect(await db.collection('activitylogs').countDocuments()).toBe(3);
+  });
+
+  it('refuses to initialize without unique event indexes', async () => {
+    const definition = EXPENSE_EVENT_INDEXES[0];
+    await db.collection(definition.collection).dropIndex(definition.name);
+    try {
+      await expect(createExpenseEventStore(db)).rejects.toThrow('Required expense event index');
+    } finally {
+      const { collection: name, key, ...options } = definition;
+      await db.collection(name).createIndex(key, options);
+    }
   });
 });

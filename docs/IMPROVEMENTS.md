@@ -56,7 +56,12 @@ migrate-mongo changelog／lock 與正式操作審查。現有測試庫的索引�
 
 **佇列儲存層已完成**：Expense 內嵌工作狀態的原子 claim、token fencing、續租、退避重試與 5 次
 上限，已通過本機隔離 MongoDB 的 7 個情境（含 12 worker 併發認領與過期接手）；測試庫／容器
-已清理。尚未加入 Expense schema、事件快照、通知去重、worker 或排程，不會產生實際背景工作。
+已清理。尚未將儲存層接入 Expense schema／action、worker 或排程，不會產生實際背景工作。
+
+**事件快照／站內去重模組已完成**：新增當下快照驗證、有效 lease 與事件歸屬檢查、成員交集、
+partial unique + upsert，保留已讀狀態與舊紀錄；隔離 MongoDB 驗證已擴至 15 個情境並全部通過。
+尚未接入 schema／action／worker，正式索引 migration 尚未建立；啟用前須補跨集合刪除／移除成員
+與 lease 過期競爭的生命週期保護，詳見背景通知文件。
 
 **剩餘問題**：新增支出仍等待 populate、通知與活動紀錄完成，Web Push 延遲仍影響回應。
 支出 Email 原本已走每日彙整，並非每筆即時寄送。活動紀錄仍會查 User；目前副作用僅 best-effort
