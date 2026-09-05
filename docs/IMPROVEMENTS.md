@@ -27,34 +27,19 @@ members／itinerary／tags，首頁摘要也改用 aggregate 欄位。靜態基�
 production-like 資料量下補 Network bytes、MongoDB profiler/explain 與瀏覽器 TTI，確認實際收益及是否要調整
 aggregate／索引；完成後即可從本檔移除。
 
-### O. 🔴 MongoDB 查詢基線與索引（P1）
+### O. 🟡 MongoDB 索引正式推廣驗收（P1）
 
 **2026-09-05 進度**：已建立 `pnpm mongodb:explain` 基線／前後比較、帳號 collation 重複掃描，
 修正舊 explain 誤納 rejected plans，補上註冊及確認改信箱的 duplicate-key race 處理。
-見 [MONGODB_QUERY_BASELINE.md](./MONGODB_QUERY_BASELINE.md)。尚待 staging snapshot 量測、
-唯一性衝突處置及經驗證的 migration，**本項仍未完成**；未連線或修改正式資料庫。
+測試庫新增 7 顆索引，完成 135 次 before + 135 次 after explain：digest 掃描由 122 降至 5 筆，
+四種旅程清單 SORT 消失，帳號使用 CI unique；回傳數不變、重複掃描為零。已補 additive migration、
+schema 及 ownership rollback 測試。見 [MONGODB_INDEX_RESULTS.md](./MONGODB_INDEX_RESULTS.md)。
+**尚待正式推廣驗收**：production-like snapshot、寫入成本、真實 migration rollback 及併發帳號整合測試。
+保留全部舊索引，未修改業務資料；目前成果不等於正式環境效能驗收。
 
-**問題**：數個常用 filter + sort 沒有完整對應的複合索引；每日支出摘要只依 `createdAt` 查詢，但目前
-缺少對應索引。資料量增加後可能出現 collection scan 或 blocking sort。帳號查詢使用 case-insensitive
-collation，現有 binary unique index 也可能與查詢及唯一性規則不一致。
-
-**候選索引（須先用 production-like 資料驗證）**：
-
-| Collection | 查詢形狀 | 候選索引 |
-| --- | --- | --- |
-| Expense | trip filter，date/createdAt 排序 | `{ trip: 1, date: -1, createdAt: -1 }` |
-| Expense | 每日摘要依 createdAt 篩選 | `{ createdAt: 1 }` |
-| Payment | trip filter，createdAt 排序 | `{ trip: 1, createdAt: -1 }` |
-| Checklist | trip filter，createdAt 排序 | `{ trip: 1, createdAt: 1 }` |
-| Photo | trip filter，takenAt/createdAt 排序 | 視 explain 結果補完整複合索引 |
-
-**處理方向**：擴充 [explain-stats-expenses.mjs](../scripts/explain-stats-expenses.mjs)，保存變更前後的
-`totalDocsExamined`、`totalKeysExamined`、`nReturned`、execution time 與 blocking sort 結果；確認收益後才
-依 [MIGRATIONS.md](./MIGRATIONS.md) 建立索引。帳號欄位先掃描大小寫重複，再決定 canonical 欄位或 matching
-collation unique index，不可只修改 schema。
-
-**完成條件**：核心查詢有可重跑的 explain 基準；新增索引均有 migration／rollback 說明；登入唯一性規則
-與實際查詢一致，且 duplicate key race 有明確處理。
+**剩餘完成條件**：在可修改的隔離 snapshot 驗證較大資料量的讀寫成本、真實 up／down／重跑、
+大小寫帳號併發唯一性，完成正式操作審查。現有測試庫的索引由人工核准建立，migration down
+不會誤刪這些既有索引；測試索引撤銷方式見結果文件。
 
 ### P. 🔴 支出寫入 critical path 瘦身（P1）
 

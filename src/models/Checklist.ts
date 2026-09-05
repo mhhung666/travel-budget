@@ -33,6 +33,8 @@ const ChecklistSchema = new Schema(
   }
 );
 
+ChecklistSchema.index({ trip: 1, createdAt: 1 });
+
 export type ChecklistDoc = InferSchemaType<typeof ChecklistSchema>;
 
 export const Checklist: Model<ChecklistDoc> =

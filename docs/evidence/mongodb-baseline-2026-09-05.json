@@ -1,0 +1,2555 @@
+{
+  "observedAt": "2026-09-05T04:19:37.866Z",
+  "snapshot": false,
+  "note": "User-approved test database, not an immutable snapshot. Relative sample sizes only. Read-only; no indexes changed.",
+  "counts": {
+    "trips": 7,
+    "users": 12,
+    "expenses": 122,
+    "payments": 11,
+    "checklists": 5,
+    "photos": 109,
+    "itinerarydays": 26
+  },
+  "indexes": {
+    "expenses": [
+      {
+        "name": "_id_",
+        "key": {
+          "_id": 1
+        }
+      },
+      {
+        "name": "trip_1",
+        "key": {
+          "trip": 1
+        }
+      },
+      {
+        "name": "splits.user_1_date_-1__id_-1",
+        "key": {
+          "splits.user": 1,
+          "date": -1,
+          "_id": -1
+        }
+      }
+    ],
+    "payments": [
+      {
+        "name": "_id_",
+        "key": {
+          "_id": 1
+        }
+      },
+      {
+        "name": "trip_1",
+        "key": {
+          "trip": 1
+        }
+      }
+    ],
+    "checklists": [
+      {
+        "name": "_id_",
+        "key": {
+          "_id": 1
+        }
+      },
+      {
+        "name": "trip_1",
+        "key": {
+          "trip": 1
+        }
+      }
+    ],
+    "photos": [
+      {
+        "name": "_id_",
+        "key": {
+          "_id": 1
+        }
+      },
+      {
+        "name": "trip_1_takenAt_-1",
+        "key": {
+          "trip": 1,
+          "takenAt": -1
+        }
+      },
+      {
+        "name": "trip_1_itineraryDay_1",
+        "key": {
+          "trip": 1,
+          "itineraryDay": 1
+        }
+      },
+      {
+        "name": "key_1",
+        "key": {
+          "key": 1
+        },
+        "unique": true
+      }
+    ],
+    "itinerarydays": [
+      {
+        "name": "_id_",
+        "key": {
+          "_id": 1
+        }
+      },
+      {
+        "name": "trip_1_dayNumber_1",
+        "key": {
+          "trip": 1,
+          "dayNumber": 1
+        },
+        "unique": true
+      }
+    ],
+    "users": [
+      {
+        "name": "_id_",
+        "key": {
+          "_id": 1
+        }
+      },
+      {
+        "name": "username_1",
+        "key": {
+          "username": 1
+        },
+        "unique": true
+      },
+      {
+        "name": "email_1",
+        "key": {
+          "email": 1
+        },
+        "unique": true
+      },
+      {
+        "name": "mapShareCode_1",
+        "key": {
+          "mapShareCode": 1
+        },
+        "unique": true,
+        "sparse": true
+      }
+    ]
+  },
+  "accounts": {
+    "username": {
+      "groups": 0,
+      "documents": 0,
+      "invalid": 0
+    },
+    "email": {
+      "groups": 0,
+      "documents": 0,
+      "invalid": 0
+    }
+  },
+  "runs": [
+    {
+      "sample": "small",
+      "expenseCount": 7,
+      "round": 1,
+      "format": 1,
+      "fingerprint": "42556462ef487cb995e158c069e5e20bb696bcc7983966c10c658ca0f04d9b12",
+      "capturedAt": "2026-09-05T04:19:25.203Z",
+      "dataset": "approved-test-observation-2026-09-05",
+      "since": "2026-09-01T00:00:00.000Z",
+      "maxTimeMS": 10000,
+      "results": [
+        {
+          "query": "expenses.list",
+          "nReturned": 7,
+          "totalDocsExamined": 7,
+          "totalKeysExamined": 7,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "expenses.digest",
+          "nReturned": 5,
+          "totalDocsExamined": 122,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "$gte",
+            "COLLSCAN",
+            "PROJECTION_SIMPLE"
+          ],
+          "indexes": [],
+          "collectionScan": true,
+          "blockingSort": false
+        },
+        {
+          "query": "expenses.settlement",
+          "nReturned": 7,
+          "totalDocsExamined": 7,
+          "totalKeysExamined": 7,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "PROJECTION_SIMPLE"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": false
+        },
+        {
+          "query": "payments.list",
+          "nReturned": 0,
+          "totalDocsExamined": 0,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 3,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "PROJECTION_SIMPLE",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "checklists.list",
+          "nReturned": 0,
+          "totalDocsExamined": 0,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 1,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "photos.list",
+          "nReturned": 0,
+          "totalDocsExamined": 0,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 1,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1_takenAt_-1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "itinerary.list",
+          "nReturned": 3,
+          "totalDocsExamined": 3,
+          "totalKeysExamined": 3,
+          "executionTimeMillis": 2,
+          "stages": [
+            "FETCH",
+            "IXSCAN"
+          ],
+          "indexes": [
+            "trip_1_dayNumber_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": false
+        },
+        {
+          "query": "users.username",
+          "nReturned": 1,
+          "totalDocsExamined": 1,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "$eq",
+            "COLLSCAN",
+            "LIMIT"
+          ],
+          "indexes": [],
+          "collectionScan": true,
+          "blockingSort": false
+        },
+        {
+          "query": "users.email",
+          "nReturned": 1,
+          "totalDocsExamined": 1,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "$eq",
+            "COLLSCAN",
+            "LIMIT"
+          ],
+          "indexes": [],
+          "collectionScan": true,
+          "blockingSort": false
+        }
+      ]
+    },
+    {
+      "sample": "small",
+      "expenseCount": 7,
+      "round": 2,
+      "format": 1,
+      "fingerprint": "42556462ef487cb995e158c069e5e20bb696bcc7983966c10c658ca0f04d9b12",
+      "capturedAt": "2026-09-05T04:19:26.100Z",
+      "dataset": "approved-test-observation-2026-09-05",
+      "since": "2026-09-01T00:00:00.000Z",
+      "maxTimeMS": 10000,
+      "results": [
+        {
+          "query": "expenses.list",
+          "nReturned": 7,
+          "totalDocsExamined": 7,
+          "totalKeysExamined": 7,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "expenses.digest",
+          "nReturned": 5,
+          "totalDocsExamined": 122,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "$gte",
+            "COLLSCAN",
+            "PROJECTION_SIMPLE"
+          ],
+          "indexes": [],
+          "collectionScan": true,
+          "blockingSort": false
+        },
+        {
+          "query": "expenses.settlement",
+          "nReturned": 7,
+          "totalDocsExamined": 7,
+          "totalKeysExamined": 7,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "PROJECTION_SIMPLE"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": false
+        },
+        {
+          "query": "payments.list",
+          "nReturned": 0,
+          "totalDocsExamined": 0,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "PROJECTION_SIMPLE",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "checklists.list",
+          "nReturned": 0,
+          "totalDocsExamined": 0,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "photos.list",
+          "nReturned": 0,
+          "totalDocsExamined": 0,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1_takenAt_-1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "itinerary.list",
+          "nReturned": 3,
+          "totalDocsExamined": 3,
+          "totalKeysExamined": 3,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN"
+          ],
+          "indexes": [
+            "trip_1_dayNumber_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": false
+        },
+        {
+          "query": "users.username",
+          "nReturned": 1,
+          "totalDocsExamined": 1,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "$eq",
+            "COLLSCAN",
+            "LIMIT"
+          ],
+          "indexes": [],
+          "collectionScan": true,
+          "blockingSort": false
+        },
+        {
+          "query": "users.email",
+          "nReturned": 1,
+          "totalDocsExamined": 1,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "$eq",
+            "COLLSCAN",
+            "LIMIT"
+          ],
+          "indexes": [],
+          "collectionScan": true,
+          "blockingSort": false
+        }
+      ]
+    },
+    {
+      "sample": "small",
+      "expenseCount": 7,
+      "round": 3,
+      "format": 1,
+      "fingerprint": "42556462ef487cb995e158c069e5e20bb696bcc7983966c10c658ca0f04d9b12",
+      "capturedAt": "2026-09-05T04:19:27.002Z",
+      "dataset": "approved-test-observation-2026-09-05",
+      "since": "2026-09-01T00:00:00.000Z",
+      "maxTimeMS": 10000,
+      "results": [
+        {
+          "query": "expenses.list",
+          "nReturned": 7,
+          "totalDocsExamined": 7,
+          "totalKeysExamined": 7,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "expenses.digest",
+          "nReturned": 5,
+          "totalDocsExamined": 122,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "$gte",
+            "COLLSCAN",
+            "PROJECTION_SIMPLE"
+          ],
+          "indexes": [],
+          "collectionScan": true,
+          "blockingSort": false
+        },
+        {
+          "query": "expenses.settlement",
+          "nReturned": 7,
+          "totalDocsExamined": 7,
+          "totalKeysExamined": 7,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "PROJECTION_SIMPLE"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": false
+        },
+        {
+          "query": "payments.list",
+          "nReturned": 0,
+          "totalDocsExamined": 0,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "PROJECTION_SIMPLE",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "checklists.list",
+          "nReturned": 0,
+          "totalDocsExamined": 0,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "photos.list",
+          "nReturned": 0,
+          "totalDocsExamined": 0,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1_takenAt_-1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "itinerary.list",
+          "nReturned": 3,
+          "totalDocsExamined": 3,
+          "totalKeysExamined": 3,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN"
+          ],
+          "indexes": [
+            "trip_1_dayNumber_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": false
+        },
+        {
+          "query": "users.username",
+          "nReturned": 1,
+          "totalDocsExamined": 1,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "$eq",
+            "COLLSCAN",
+            "LIMIT"
+          ],
+          "indexes": [],
+          "collectionScan": true,
+          "blockingSort": false
+        },
+        {
+          "query": "users.email",
+          "nReturned": 1,
+          "totalDocsExamined": 1,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "$eq",
+            "COLLSCAN",
+            "LIMIT"
+          ],
+          "indexes": [],
+          "collectionScan": true,
+          "blockingSort": false
+        }
+      ]
+    },
+    {
+      "sample": "small",
+      "expenseCount": 7,
+      "round": 4,
+      "format": 1,
+      "fingerprint": "42556462ef487cb995e158c069e5e20bb696bcc7983966c10c658ca0f04d9b12",
+      "capturedAt": "2026-09-05T04:19:27.893Z",
+      "dataset": "approved-test-observation-2026-09-05",
+      "since": "2026-09-01T00:00:00.000Z",
+      "maxTimeMS": 10000,
+      "results": [
+        {
+          "query": "expenses.list",
+          "nReturned": 7,
+          "totalDocsExamined": 7,
+          "totalKeysExamined": 7,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "expenses.digest",
+          "nReturned": 5,
+          "totalDocsExamined": 122,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "$gte",
+            "COLLSCAN",
+            "PROJECTION_SIMPLE"
+          ],
+          "indexes": [],
+          "collectionScan": true,
+          "blockingSort": false
+        },
+        {
+          "query": "expenses.settlement",
+          "nReturned": 7,
+          "totalDocsExamined": 7,
+          "totalKeysExamined": 7,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "PROJECTION_SIMPLE"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": false
+        },
+        {
+          "query": "payments.list",
+          "nReturned": 0,
+          "totalDocsExamined": 0,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "PROJECTION_SIMPLE",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "checklists.list",
+          "nReturned": 0,
+          "totalDocsExamined": 0,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "photos.list",
+          "nReturned": 0,
+          "totalDocsExamined": 0,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1_takenAt_-1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "itinerary.list",
+          "nReturned": 3,
+          "totalDocsExamined": 3,
+          "totalKeysExamined": 3,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN"
+          ],
+          "indexes": [
+            "trip_1_dayNumber_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": false
+        },
+        {
+          "query": "users.username",
+          "nReturned": 1,
+          "totalDocsExamined": 1,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "$eq",
+            "COLLSCAN",
+            "LIMIT"
+          ],
+          "indexes": [],
+          "collectionScan": true,
+          "blockingSort": false
+        },
+        {
+          "query": "users.email",
+          "nReturned": 1,
+          "totalDocsExamined": 1,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "$eq",
+            "COLLSCAN",
+            "LIMIT"
+          ],
+          "indexes": [],
+          "collectionScan": true,
+          "blockingSort": false
+        }
+      ]
+    },
+    {
+      "sample": "small",
+      "expenseCount": 7,
+      "round": 5,
+      "format": 1,
+      "fingerprint": "42556462ef487cb995e158c069e5e20bb696bcc7983966c10c658ca0f04d9b12",
+      "capturedAt": "2026-09-05T04:19:28.794Z",
+      "dataset": "approved-test-observation-2026-09-05",
+      "since": "2026-09-01T00:00:00.000Z",
+      "maxTimeMS": 10000,
+      "results": [
+        {
+          "query": "expenses.list",
+          "nReturned": 7,
+          "totalDocsExamined": 7,
+          "totalKeysExamined": 7,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "expenses.digest",
+          "nReturned": 5,
+          "totalDocsExamined": 122,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "$gte",
+            "COLLSCAN",
+            "PROJECTION_SIMPLE"
+          ],
+          "indexes": [],
+          "collectionScan": true,
+          "blockingSort": false
+        },
+        {
+          "query": "expenses.settlement",
+          "nReturned": 7,
+          "totalDocsExamined": 7,
+          "totalKeysExamined": 7,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "PROJECTION_SIMPLE"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": false
+        },
+        {
+          "query": "payments.list",
+          "nReturned": 0,
+          "totalDocsExamined": 0,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "PROJECTION_SIMPLE",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "checklists.list",
+          "nReturned": 0,
+          "totalDocsExamined": 0,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "photos.list",
+          "nReturned": 0,
+          "totalDocsExamined": 0,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1_takenAt_-1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "itinerary.list",
+          "nReturned": 3,
+          "totalDocsExamined": 3,
+          "totalKeysExamined": 3,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN"
+          ],
+          "indexes": [
+            "trip_1_dayNumber_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": false
+        },
+        {
+          "query": "users.username",
+          "nReturned": 1,
+          "totalDocsExamined": 1,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "$eq",
+            "COLLSCAN",
+            "LIMIT"
+          ],
+          "indexes": [],
+          "collectionScan": true,
+          "blockingSort": false
+        },
+        {
+          "query": "users.email",
+          "nReturned": 1,
+          "totalDocsExamined": 1,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "$eq",
+            "COLLSCAN",
+            "LIMIT"
+          ],
+          "indexes": [],
+          "collectionScan": true,
+          "blockingSort": false
+        }
+      ]
+    },
+    {
+      "sample": "medium",
+      "expenseCount": 23,
+      "round": 1,
+      "format": 1,
+      "fingerprint": "1f4141deb6132416e2ae44ae1fdc2d4b31e77224bb8b2b0321959ee44f5f963f",
+      "capturedAt": "2026-09-05T04:19:29.719Z",
+      "dataset": "approved-test-observation-2026-09-05",
+      "since": "2026-09-01T00:00:00.000Z",
+      "maxTimeMS": 10000,
+      "results": [
+        {
+          "query": "expenses.list",
+          "nReturned": 23,
+          "totalDocsExamined": 23,
+          "totalKeysExamined": 23,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "expenses.digest",
+          "nReturned": 5,
+          "totalDocsExamined": 122,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "$gte",
+            "COLLSCAN",
+            "PROJECTION_SIMPLE"
+          ],
+          "indexes": [],
+          "collectionScan": true,
+          "blockingSort": false
+        },
+        {
+          "query": "expenses.settlement",
+          "nReturned": 23,
+          "totalDocsExamined": 23,
+          "totalKeysExamined": 23,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "PROJECTION_SIMPLE"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": false
+        },
+        {
+          "query": "payments.list",
+          "nReturned": 1,
+          "totalDocsExamined": 1,
+          "totalKeysExamined": 1,
+          "executionTimeMillis": 3,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "PROJECTION_SIMPLE",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "checklists.list",
+          "nReturned": 2,
+          "totalDocsExamined": 2,
+          "totalKeysExamined": 2,
+          "executionTimeMillis": 1,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "photos.list",
+          "nReturned": 49,
+          "totalDocsExamined": 49,
+          "totalKeysExamined": 49,
+          "executionTimeMillis": 3,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1_takenAt_-1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "itinerary.list",
+          "nReturned": 4,
+          "totalDocsExamined": 4,
+          "totalKeysExamined": 4,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN"
+          ],
+          "indexes": [
+            "trip_1_dayNumber_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": false
+        },
+        {
+          "query": "users.username",
+          "nReturned": 1,
+          "totalDocsExamined": 1,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "$eq",
+            "COLLSCAN",
+            "LIMIT"
+          ],
+          "indexes": [],
+          "collectionScan": true,
+          "blockingSort": false
+        },
+        {
+          "query": "users.email",
+          "nReturned": 1,
+          "totalDocsExamined": 1,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "$eq",
+            "COLLSCAN",
+            "LIMIT"
+          ],
+          "indexes": [],
+          "collectionScan": true,
+          "blockingSort": false
+        }
+      ]
+    },
+    {
+      "sample": "medium",
+      "expenseCount": 23,
+      "round": 2,
+      "format": 1,
+      "fingerprint": "1f4141deb6132416e2ae44ae1fdc2d4b31e77224bb8b2b0321959ee44f5f963f",
+      "capturedAt": "2026-09-05T04:19:30.583Z",
+      "dataset": "approved-test-observation-2026-09-05",
+      "since": "2026-09-01T00:00:00.000Z",
+      "maxTimeMS": 10000,
+      "results": [
+        {
+          "query": "expenses.list",
+          "nReturned": 23,
+          "totalDocsExamined": 23,
+          "totalKeysExamined": 23,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "expenses.digest",
+          "nReturned": 5,
+          "totalDocsExamined": 122,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "$gte",
+            "COLLSCAN",
+            "PROJECTION_SIMPLE"
+          ],
+          "indexes": [],
+          "collectionScan": true,
+          "blockingSort": false
+        },
+        {
+          "query": "expenses.settlement",
+          "nReturned": 23,
+          "totalDocsExamined": 23,
+          "totalKeysExamined": 23,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "PROJECTION_SIMPLE"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": false
+        },
+        {
+          "query": "payments.list",
+          "nReturned": 1,
+          "totalDocsExamined": 1,
+          "totalKeysExamined": 1,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "PROJECTION_SIMPLE",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "checklists.list",
+          "nReturned": 2,
+          "totalDocsExamined": 2,
+          "totalKeysExamined": 2,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "photos.list",
+          "nReturned": 49,
+          "totalDocsExamined": 49,
+          "totalKeysExamined": 49,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1_takenAt_-1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "itinerary.list",
+          "nReturned": 4,
+          "totalDocsExamined": 4,
+          "totalKeysExamined": 4,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN"
+          ],
+          "indexes": [
+            "trip_1_dayNumber_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": false
+        },
+        {
+          "query": "users.username",
+          "nReturned": 1,
+          "totalDocsExamined": 1,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "$eq",
+            "COLLSCAN",
+            "LIMIT"
+          ],
+          "indexes": [],
+          "collectionScan": true,
+          "blockingSort": false
+        },
+        {
+          "query": "users.email",
+          "nReturned": 1,
+          "totalDocsExamined": 1,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "$eq",
+            "COLLSCAN",
+            "LIMIT"
+          ],
+          "indexes": [],
+          "collectionScan": true,
+          "blockingSort": false
+        }
+      ]
+    },
+    {
+      "sample": "medium",
+      "expenseCount": 23,
+      "round": 3,
+      "format": 1,
+      "fingerprint": "1f4141deb6132416e2ae44ae1fdc2d4b31e77224bb8b2b0321959ee44f5f963f",
+      "capturedAt": "2026-09-05T04:19:31.484Z",
+      "dataset": "approved-test-observation-2026-09-05",
+      "since": "2026-09-01T00:00:00.000Z",
+      "maxTimeMS": 10000,
+      "results": [
+        {
+          "query": "expenses.list",
+          "nReturned": 23,
+          "totalDocsExamined": 23,
+          "totalKeysExamined": 23,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "expenses.digest",
+          "nReturned": 5,
+          "totalDocsExamined": 122,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "$gte",
+            "COLLSCAN",
+            "PROJECTION_SIMPLE"
+          ],
+          "indexes": [],
+          "collectionScan": true,
+          "blockingSort": false
+        },
+        {
+          "query": "expenses.settlement",
+          "nReturned": 23,
+          "totalDocsExamined": 23,
+          "totalKeysExamined": 23,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "PROJECTION_SIMPLE"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": false
+        },
+        {
+          "query": "payments.list",
+          "nReturned": 1,
+          "totalDocsExamined": 1,
+          "totalKeysExamined": 1,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "PROJECTION_SIMPLE",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "checklists.list",
+          "nReturned": 2,
+          "totalDocsExamined": 2,
+          "totalKeysExamined": 2,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "photos.list",
+          "nReturned": 49,
+          "totalDocsExamined": 49,
+          "totalKeysExamined": 49,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1_takenAt_-1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "itinerary.list",
+          "nReturned": 4,
+          "totalDocsExamined": 4,
+          "totalKeysExamined": 4,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN"
+          ],
+          "indexes": [
+            "trip_1_dayNumber_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": false
+        },
+        {
+          "query": "users.username",
+          "nReturned": 1,
+          "totalDocsExamined": 1,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "$eq",
+            "COLLSCAN",
+            "LIMIT"
+          ],
+          "indexes": [],
+          "collectionScan": true,
+          "blockingSort": false
+        },
+        {
+          "query": "users.email",
+          "nReturned": 1,
+          "totalDocsExamined": 1,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "$eq",
+            "COLLSCAN",
+            "LIMIT"
+          ],
+          "indexes": [],
+          "collectionScan": true,
+          "blockingSort": false
+        }
+      ]
+    },
+    {
+      "sample": "medium",
+      "expenseCount": 23,
+      "round": 4,
+      "format": 1,
+      "fingerprint": "1f4141deb6132416e2ae44ae1fdc2d4b31e77224bb8b2b0321959ee44f5f963f",
+      "capturedAt": "2026-09-05T04:19:32.370Z",
+      "dataset": "approved-test-observation-2026-09-05",
+      "since": "2026-09-01T00:00:00.000Z",
+      "maxTimeMS": 10000,
+      "results": [
+        {
+          "query": "expenses.list",
+          "nReturned": 23,
+          "totalDocsExamined": 23,
+          "totalKeysExamined": 23,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "expenses.digest",
+          "nReturned": 5,
+          "totalDocsExamined": 122,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "$gte",
+            "COLLSCAN",
+            "PROJECTION_SIMPLE"
+          ],
+          "indexes": [],
+          "collectionScan": true,
+          "blockingSort": false
+        },
+        {
+          "query": "expenses.settlement",
+          "nReturned": 23,
+          "totalDocsExamined": 23,
+          "totalKeysExamined": 23,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "PROJECTION_SIMPLE"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": false
+        },
+        {
+          "query": "payments.list",
+          "nReturned": 1,
+          "totalDocsExamined": 1,
+          "totalKeysExamined": 1,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "PROJECTION_SIMPLE",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "checklists.list",
+          "nReturned": 2,
+          "totalDocsExamined": 2,
+          "totalKeysExamined": 2,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "photos.list",
+          "nReturned": 49,
+          "totalDocsExamined": 49,
+          "totalKeysExamined": 49,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1_takenAt_-1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "itinerary.list",
+          "nReturned": 4,
+          "totalDocsExamined": 4,
+          "totalKeysExamined": 4,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN"
+          ],
+          "indexes": [
+            "trip_1_dayNumber_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": false
+        },
+        {
+          "query": "users.username",
+          "nReturned": 1,
+          "totalDocsExamined": 1,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "$eq",
+            "COLLSCAN",
+            "LIMIT"
+          ],
+          "indexes": [],
+          "collectionScan": true,
+          "blockingSort": false
+        },
+        {
+          "query": "users.email",
+          "nReturned": 1,
+          "totalDocsExamined": 1,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "$eq",
+            "COLLSCAN",
+            "LIMIT"
+          ],
+          "indexes": [],
+          "collectionScan": true,
+          "blockingSort": false
+        }
+      ]
+    },
+    {
+      "sample": "medium",
+      "expenseCount": 23,
+      "round": 5,
+      "format": 1,
+      "fingerprint": "1f4141deb6132416e2ae44ae1fdc2d4b31e77224bb8b2b0321959ee44f5f963f",
+      "capturedAt": "2026-09-05T04:19:33.352Z",
+      "dataset": "approved-test-observation-2026-09-05",
+      "since": "2026-09-01T00:00:00.000Z",
+      "maxTimeMS": 10000,
+      "results": [
+        {
+          "query": "expenses.list",
+          "nReturned": 23,
+          "totalDocsExamined": 23,
+          "totalKeysExamined": 23,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "expenses.digest",
+          "nReturned": 5,
+          "totalDocsExamined": 122,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "$gte",
+            "COLLSCAN",
+            "PROJECTION_SIMPLE"
+          ],
+          "indexes": [],
+          "collectionScan": true,
+          "blockingSort": false
+        },
+        {
+          "query": "expenses.settlement",
+          "nReturned": 23,
+          "totalDocsExamined": 23,
+          "totalKeysExamined": 23,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "PROJECTION_SIMPLE"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": false
+        },
+        {
+          "query": "payments.list",
+          "nReturned": 1,
+          "totalDocsExamined": 1,
+          "totalKeysExamined": 1,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "PROJECTION_SIMPLE",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "checklists.list",
+          "nReturned": 2,
+          "totalDocsExamined": 2,
+          "totalKeysExamined": 2,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "photos.list",
+          "nReturned": 49,
+          "totalDocsExamined": 49,
+          "totalKeysExamined": 49,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1_takenAt_-1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "itinerary.list",
+          "nReturned": 4,
+          "totalDocsExamined": 4,
+          "totalKeysExamined": 4,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN"
+          ],
+          "indexes": [
+            "trip_1_dayNumber_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": false
+        },
+        {
+          "query": "users.username",
+          "nReturned": 1,
+          "totalDocsExamined": 1,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "$eq",
+            "COLLSCAN",
+            "LIMIT"
+          ],
+          "indexes": [],
+          "collectionScan": true,
+          "blockingSort": false
+        },
+        {
+          "query": "users.email",
+          "nReturned": 1,
+          "totalDocsExamined": 1,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "$eq",
+            "COLLSCAN",
+            "LIMIT"
+          ],
+          "indexes": [],
+          "collectionScan": true,
+          "blockingSort": false
+        }
+      ]
+    },
+    {
+      "sample": "large",
+      "expenseCount": 36,
+      "round": 1,
+      "format": 1,
+      "fingerprint": "a88ad2f5d2946d015f903aaa6f6cec0f23c0dceb8e5ad01abab4703c0b9d2ccb",
+      "capturedAt": "2026-09-05T04:19:34.272Z",
+      "dataset": "approved-test-observation-2026-09-05",
+      "since": "2026-09-01T00:00:00.000Z",
+      "maxTimeMS": 10000,
+      "results": [
+        {
+          "query": "expenses.list",
+          "nReturned": 36,
+          "totalDocsExamined": 36,
+          "totalKeysExamined": 36,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "expenses.digest",
+          "nReturned": 5,
+          "totalDocsExamined": 122,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "$gte",
+            "COLLSCAN",
+            "PROJECTION_SIMPLE"
+          ],
+          "indexes": [],
+          "collectionScan": true,
+          "blockingSort": false
+        },
+        {
+          "query": "expenses.settlement",
+          "nReturned": 36,
+          "totalDocsExamined": 36,
+          "totalKeysExamined": 36,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "PROJECTION_SIMPLE"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": false
+        },
+        {
+          "query": "payments.list",
+          "nReturned": 3,
+          "totalDocsExamined": 3,
+          "totalKeysExamined": 3,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "PROJECTION_SIMPLE",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "checklists.list",
+          "nReturned": 3,
+          "totalDocsExamined": 3,
+          "totalKeysExamined": 3,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "photos.list",
+          "nReturned": 52,
+          "totalDocsExamined": 52,
+          "totalKeysExamined": 52,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1_takenAt_-1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "itinerary.list",
+          "nReturned": 5,
+          "totalDocsExamined": 5,
+          "totalKeysExamined": 5,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN"
+          ],
+          "indexes": [
+            "trip_1_dayNumber_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": false
+        },
+        {
+          "query": "users.username",
+          "nReturned": 1,
+          "totalDocsExamined": 1,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "$eq",
+            "COLLSCAN",
+            "LIMIT"
+          ],
+          "indexes": [],
+          "collectionScan": true,
+          "blockingSort": false
+        },
+        {
+          "query": "users.email",
+          "nReturned": 1,
+          "totalDocsExamined": 1,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "$eq",
+            "COLLSCAN",
+            "LIMIT"
+          ],
+          "indexes": [],
+          "collectionScan": true,
+          "blockingSort": false
+        }
+      ]
+    },
+    {
+      "sample": "large",
+      "expenseCount": 36,
+      "round": 2,
+      "format": 1,
+      "fingerprint": "a88ad2f5d2946d015f903aaa6f6cec0f23c0dceb8e5ad01abab4703c0b9d2ccb",
+      "capturedAt": "2026-09-05T04:19:35.166Z",
+      "dataset": "approved-test-observation-2026-09-05",
+      "since": "2026-09-01T00:00:00.000Z",
+      "maxTimeMS": 10000,
+      "results": [
+        {
+          "query": "expenses.list",
+          "nReturned": 36,
+          "totalDocsExamined": 36,
+          "totalKeysExamined": 36,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "expenses.digest",
+          "nReturned": 5,
+          "totalDocsExamined": 122,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "$gte",
+            "COLLSCAN",
+            "PROJECTION_SIMPLE"
+          ],
+          "indexes": [],
+          "collectionScan": true,
+          "blockingSort": false
+        },
+        {
+          "query": "expenses.settlement",
+          "nReturned": 36,
+          "totalDocsExamined": 36,
+          "totalKeysExamined": 36,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "PROJECTION_SIMPLE"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": false
+        },
+        {
+          "query": "payments.list",
+          "nReturned": 3,
+          "totalDocsExamined": 3,
+          "totalKeysExamined": 3,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "PROJECTION_SIMPLE",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "checklists.list",
+          "nReturned": 3,
+          "totalDocsExamined": 3,
+          "totalKeysExamined": 3,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "photos.list",
+          "nReturned": 52,
+          "totalDocsExamined": 52,
+          "totalKeysExamined": 52,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1_takenAt_-1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "itinerary.list",
+          "nReturned": 5,
+          "totalDocsExamined": 5,
+          "totalKeysExamined": 5,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN"
+          ],
+          "indexes": [
+            "trip_1_dayNumber_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": false
+        },
+        {
+          "query": "users.username",
+          "nReturned": 1,
+          "totalDocsExamined": 1,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "$eq",
+            "COLLSCAN",
+            "LIMIT"
+          ],
+          "indexes": [],
+          "collectionScan": true,
+          "blockingSort": false
+        },
+        {
+          "query": "users.email",
+          "nReturned": 1,
+          "totalDocsExamined": 1,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "$eq",
+            "COLLSCAN",
+            "LIMIT"
+          ],
+          "indexes": [],
+          "collectionScan": true,
+          "blockingSort": false
+        }
+      ]
+    },
+    {
+      "sample": "large",
+      "expenseCount": 36,
+      "round": 3,
+      "format": 1,
+      "fingerprint": "a88ad2f5d2946d015f903aaa6f6cec0f23c0dceb8e5ad01abab4703c0b9d2ccb",
+      "capturedAt": "2026-09-05T04:19:36.060Z",
+      "dataset": "approved-test-observation-2026-09-05",
+      "since": "2026-09-01T00:00:00.000Z",
+      "maxTimeMS": 10000,
+      "results": [
+        {
+          "query": "expenses.list",
+          "nReturned": 36,
+          "totalDocsExamined": 36,
+          "totalKeysExamined": 36,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "expenses.digest",
+          "nReturned": 5,
+          "totalDocsExamined": 122,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "$gte",
+            "COLLSCAN",
+            "PROJECTION_SIMPLE"
+          ],
+          "indexes": [],
+          "collectionScan": true,
+          "blockingSort": false
+        },
+        {
+          "query": "expenses.settlement",
+          "nReturned": 36,
+          "totalDocsExamined": 36,
+          "totalKeysExamined": 36,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "PROJECTION_SIMPLE"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": false
+        },
+        {
+          "query": "payments.list",
+          "nReturned": 3,
+          "totalDocsExamined": 3,
+          "totalKeysExamined": 3,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "PROJECTION_SIMPLE",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "checklists.list",
+          "nReturned": 3,
+          "totalDocsExamined": 3,
+          "totalKeysExamined": 3,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "photos.list",
+          "nReturned": 52,
+          "totalDocsExamined": 52,
+          "totalKeysExamined": 52,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1_takenAt_-1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "itinerary.list",
+          "nReturned": 5,
+          "totalDocsExamined": 5,
+          "totalKeysExamined": 5,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN"
+          ],
+          "indexes": [
+            "trip_1_dayNumber_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": false
+        },
+        {
+          "query": "users.username",
+          "nReturned": 1,
+          "totalDocsExamined": 1,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "$eq",
+            "COLLSCAN",
+            "LIMIT"
+          ],
+          "indexes": [],
+          "collectionScan": true,
+          "blockingSort": false
+        },
+        {
+          "query": "users.email",
+          "nReturned": 1,
+          "totalDocsExamined": 1,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "$eq",
+            "COLLSCAN",
+            "LIMIT"
+          ],
+          "indexes": [],
+          "collectionScan": true,
+          "blockingSort": false
+        }
+      ]
+    },
+    {
+      "sample": "large",
+      "expenseCount": 36,
+      "round": 4,
+      "format": 1,
+      "fingerprint": "a88ad2f5d2946d015f903aaa6f6cec0f23c0dceb8e5ad01abab4703c0b9d2ccb",
+      "capturedAt": "2026-09-05T04:19:36.977Z",
+      "dataset": "approved-test-observation-2026-09-05",
+      "since": "2026-09-01T00:00:00.000Z",
+      "maxTimeMS": 10000,
+      "results": [
+        {
+          "query": "expenses.list",
+          "nReturned": 36,
+          "totalDocsExamined": 36,
+          "totalKeysExamined": 36,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "expenses.digest",
+          "nReturned": 5,
+          "totalDocsExamined": 122,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "$gte",
+            "COLLSCAN",
+            "PROJECTION_SIMPLE"
+          ],
+          "indexes": [],
+          "collectionScan": true,
+          "blockingSort": false
+        },
+        {
+          "query": "expenses.settlement",
+          "nReturned": 36,
+          "totalDocsExamined": 36,
+          "totalKeysExamined": 36,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "PROJECTION_SIMPLE"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": false
+        },
+        {
+          "query": "payments.list",
+          "nReturned": 3,
+          "totalDocsExamined": 3,
+          "totalKeysExamined": 3,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "PROJECTION_SIMPLE",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "checklists.list",
+          "nReturned": 3,
+          "totalDocsExamined": 3,
+          "totalKeysExamined": 3,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "photos.list",
+          "nReturned": 52,
+          "totalDocsExamined": 52,
+          "totalKeysExamined": 52,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1_takenAt_-1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "itinerary.list",
+          "nReturned": 5,
+          "totalDocsExamined": 5,
+          "totalKeysExamined": 5,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN"
+          ],
+          "indexes": [
+            "trip_1_dayNumber_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": false
+        },
+        {
+          "query": "users.username",
+          "nReturned": 1,
+          "totalDocsExamined": 1,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "$eq",
+            "COLLSCAN",
+            "LIMIT"
+          ],
+          "indexes": [],
+          "collectionScan": true,
+          "blockingSort": false
+        },
+        {
+          "query": "users.email",
+          "nReturned": 1,
+          "totalDocsExamined": 1,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "$eq",
+            "COLLSCAN",
+            "LIMIT"
+          ],
+          "indexes": [],
+          "collectionScan": true,
+          "blockingSort": false
+        }
+      ]
+    },
+    {
+      "sample": "large",
+      "expenseCount": 36,
+      "round": 5,
+      "format": 1,
+      "fingerprint": "a88ad2f5d2946d015f903aaa6f6cec0f23c0dceb8e5ad01abab4703c0b9d2ccb",
+      "capturedAt": "2026-09-05T04:19:37.852Z",
+      "dataset": "approved-test-observation-2026-09-05",
+      "since": "2026-09-01T00:00:00.000Z",
+      "maxTimeMS": 10000,
+      "results": [
+        {
+          "query": "expenses.list",
+          "nReturned": 36,
+          "totalDocsExamined": 36,
+          "totalKeysExamined": 36,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "expenses.digest",
+          "nReturned": 5,
+          "totalDocsExamined": 122,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "$gte",
+            "COLLSCAN",
+            "PROJECTION_SIMPLE"
+          ],
+          "indexes": [],
+          "collectionScan": true,
+          "blockingSort": false
+        },
+        {
+          "query": "expenses.settlement",
+          "nReturned": 36,
+          "totalDocsExamined": 36,
+          "totalKeysExamined": 36,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "PROJECTION_SIMPLE"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": false
+        },
+        {
+          "query": "payments.list",
+          "nReturned": 3,
+          "totalDocsExamined": 3,
+          "totalKeysExamined": 3,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "PROJECTION_SIMPLE",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "checklists.list",
+          "nReturned": 3,
+          "totalDocsExamined": 3,
+          "totalKeysExamined": 3,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "photos.list",
+          "nReturned": 52,
+          "totalDocsExamined": 52,
+          "totalKeysExamined": 52,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1_takenAt_-1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        {
+          "query": "itinerary.list",
+          "nReturned": 5,
+          "totalDocsExamined": 5,
+          "totalKeysExamined": 5,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN"
+          ],
+          "indexes": [
+            "trip_1_dayNumber_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": false
+        },
+        {
+          "query": "users.username",
+          "nReturned": 1,
+          "totalDocsExamined": 1,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "$eq",
+            "COLLSCAN",
+            "LIMIT"
+          ],
+          "indexes": [],
+          "collectionScan": true,
+          "blockingSort": false
+        },
+        {
+          "query": "users.email",
+          "nReturned": 1,
+          "totalDocsExamined": 1,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 0,
+          "stages": [
+            "$eq",
+            "COLLSCAN",
+            "LIMIT"
+          ],
+          "indexes": [],
+          "collectionScan": true,
+          "blockingSort": false
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,132 @@
+{
+  "capturedAt": "2026-09-05T09:19:22.483Z",
+  "audit": {
+    "username": {
+      "groups": 0,
+      "documents": 0,
+      "invalid": 0
+    },
+    "email": {
+      "groups": 0,
+      "documents": 0,
+      "invalid": 0
+    }
+  },
+  "created": [
+    {
+      "collection": "expenses",
+      "name": "trip_1_date_-1_createdAt_-1",
+      "key": {
+        "trip": 1,
+        "date": -1,
+        "createdAt": -1
+      }
+    },
+    {
+      "collection": "expenses",
+      "name": "createdAt_1",
+      "key": {
+        "createdAt": 1
+      }
+    },
+    {
+      "collection": "payments",
+      "name": "trip_1_createdAt_-1",
+      "key": {
+        "trip": 1,
+        "createdAt": -1
+      }
+    },
+    {
+      "collection": "checklists",
+      "name": "trip_1_createdAt_1",
+      "key": {
+        "trip": 1,
+        "createdAt": 1
+      }
+    },
+    {
+      "collection": "photos",
+      "name": "trip_1_takenAt_-1_createdAt_-1",
+      "key": {
+        "trip": 1,
+        "takenAt": -1,
+        "createdAt": -1
+      }
+    },
+    {
+      "collection": "users",
+      "name": "username_ci_unique",
+      "unique": true,
+      "collation": {
+        "locale": "en",
+        "strength": 2
+      },
+      "key": {
+        "username": 1
+      }
+    },
+    {
+      "collection": "users",
+      "name": "email_ci_unique",
+      "unique": true,
+      "collation": {
+        "locale": "en",
+        "strength": 2
+      },
+      "key": {
+        "email": 1
+      }
+    }
+  ],
+  "sizes": {
+    "expenses": {
+      "indexSizes": {
+        "_id_": 36864,
+        "trip_1": 36864,
+        "splits.user_1_date_-1__id_-1": 45056,
+        "trip_1_date_-1_createdAt_-1": 20480,
+        "createdAt_1": 20480
+      },
+      "totalIndexSize": 159744
+    },
+    "payments": {
+      "indexSizes": {
+        "_id_": 36864,
+        "trip_1": 36864,
+        "trip_1_createdAt_-1": 20480
+      },
+      "totalIndexSize": 94208
+    },
+    "checklists": {
+      "indexSizes": {
+        "_id_": 36864,
+        "trip_1": 36864,
+        "trip_1_createdAt_1": 20480
+      },
+      "totalIndexSize": 94208
+    },
+    "photos": {
+      "indexSizes": {
+        "_id_": 36864,
+        "trip_1_takenAt_-1": 36864,
+        "trip_1_itineraryDay_1": 36864,
+        "key_1": 45056,
+        "trip_1_takenAt_-1_createdAt_-1": 20480
+      },
+      "totalIndexSize": 176128
+    },
+    "users": {
+      "indexSizes": {
+        "_id_": 36864,
+        "username_1": 36864,
+        "email_1": 36864,
+        "mapShareCode_1": 36864,
+        "username_ci_unique": 20480,
+        "email_ci_unique": 20480
+      },
+      "totalIndexSize": 188416
+    }
+  },
+  "oldIndexesRetained": true
+}

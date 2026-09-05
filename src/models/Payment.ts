@@ -21,6 +21,8 @@ const PaymentSchema = new Schema(
   }
 );
 
+PaymentSchema.index({ trip: 1, createdAt: -1 });
+
 export type PaymentDoc = InferSchemaType<typeof PaymentSchema>;
 
 export const Payment: Model<PaymentDoc> =

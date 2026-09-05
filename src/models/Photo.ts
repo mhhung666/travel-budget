@@ -107,6 +107,7 @@ const PhotoSchema = new Schema(
 
 // 相簿主排序：拍攝時間新到舊
 PhotoSchema.index({ trip: 1, takenAt: -1 });
+PhotoSchema.index({ trip: 1, takenAt: -1, createdAt: -1 });
 // Phase 2 的行程日分組
 PhotoSchema.index({ trip: 1, itineraryDay: 1 });
 /**

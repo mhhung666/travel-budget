@@ -26,6 +26,15 @@ const UserSchema = new Schema(
 
 // 公開分享碼查詢；sparse 讓未分享（無此欄位）的使用者不佔唯一鍵。
 UserSchema.index({ mapShareCode: 1 }, { unique: true, sparse: true });
+// Keep binary indexes for rollback; CI indexes match auth.actions exact lookup semantics.
+UserSchema.index(
+  { username: 1 },
+  { name: 'username_ci_unique', unique: true, collation: { locale: 'en', strength: 2 } }
+);
+UserSchema.index(
+  { email: 1 },
+  { name: 'email_ci_unique', unique: true, collation: { locale: 'en', strength: 2 } }
+);
 
 export type UserDoc = InferSchemaType<typeof UserSchema>;
 

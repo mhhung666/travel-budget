@@ -3,8 +3,10 @@
 ## 狀態（2026-09-05）
 
 已建立唯讀 explain 基線、帳號 collation 重複掃描及 duplicate-key 競態處理。
-本機未設定 `MONGODB_BASELINE_URI`，尚未實測或修改資料庫；以下是候選，非已證實的效能改善。
-O 仍待 production-like snapshot 量測及 migration，AI 真實品質驗收繼續暫緩。
+已經使用者核准，以現有 app 連線執行測試庫唯讀基線：3 組旅程各 5 輪，共 135 次 explain。
+後續經核准新增 7 個索引，完成同樣本 135 次 after explain，確認掃描量下降及 SORT 消除。
+結果與 migration／rollback 見 [MONGODB_INDEX_RESULTS.md](./MONGODB_INDEX_RESULTS.md)。
+未修改業務資料；O 仍待 production-like／寫入成本與真實 rollback 驗證，AI 驗收繼續暫緩。
 
 ## 查詢盤點
 
@@ -19,8 +21,8 @@ O 仍待 production-like snapshot 量測及 migration，AI 真實品質驗收繼
 | itineraryRead 行程 | 現有 `{ trip: 1, dayNumber: 1 }` unique | 保留為對照，不新增 |
 | auth.actions 帳號／信箱 | 現有 binary unique；候選各自加 en/strength:2 unique | 先掃描 collation 重複及非字串資料 |
 
-實際索引以報告 `indexes` 為準，schema 不等於資料庫狀態。候選定義集中在
-[mongo-explain.mjs](../scripts/lib/mongo-explain.mjs)，刻意不匯入 model，避免 `autoIndex` 提前建立。
+實際索引以報告 `indexes` 為準，schema 不等於資料庫狀態。量測候選定義集中在
+[mongo-explain.mjs](../scripts/lib/mongo-explain.mjs)；驗證後已另行同步 schema 與固定版本 migration。
 
 ## 執行與比較
 
@@ -82,4 +84,4 @@ lowercase 代替 ICU collation；只輸出重複群組／文件及非字串數�
    必須同步回退 schema／部署，避免索引移除後又自動建立。
 6. staging 驗證 up／重跑／down／重跑、大小寫重複及併發註冊／改信箱後，才核准正式操作。
 
-本階段不新增可被 `migrate:up` 無條件套用的未驗證候選 migration。
+已依測試庫結果新增 additive migration；正式套用前仍需按結果報告完成較大資料量及回滾審查。

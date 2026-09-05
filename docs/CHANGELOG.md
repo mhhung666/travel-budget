@@ -7,6 +7,8 @@
 
 | 日期 | 里程碑 |
 | --- | --- |
+| 09-05 | 測試庫新增 7 顆 MongoDB 索引並完成 135 次 after explain：digest 掃描 122→5、四種清單 SORT 消除、帳號改用 CI unique；保留舊索引與業務資料。補 migration、schema 及 ownership 回滾測試，大資料量／寫入成本／真實回滾仍待驗證 |
+| 09-05 | 完成首次 MongoDB 測試庫唯讀基線：3 組旅程各 5 輪、共 135 次 explain，確認 digest 全表掃描、旅程清單 blocking sort 及帳號 collation 查詢 COLLSCAN；帳號重複掃描為零。保留逐輪統計，索引 after 與 migration 仍待驗證 |
 | 09-05 | 建立 MongoDB 核心查詢唯讀 explain 基線、前後比較及帳號 collation 重複掃描；排除 rejected plans 的誤判，註冊及確認改信箱的帳號 duplicate-key race 回傳 CONFLICT。候選索引仍待 staging 驗證與 migration，未修改資料庫 |
 | 09-05 | 完成 N 會員授權與公開資料流去重：首頁冷啟動以單次授權 bootstrap 取得 Trip、shell、行程及依階段擇一的清單／結算；沿用各資源 query key 與精準更新。共用行程、shell、清單、結算讀取 service，公開分享保留敏感欄位隔離；加入與成員變更清除 access mode，遠端資格變動於後續 refetch 重新判定 |
 | 09-04 | 完成輕量 Trip Shell 與按需載入：共用殼改用角色／預算／成員與支出 aggregate DTO，完整 members、itinerary 與 distinct tags 僅在新增支出時載入；表單及預算 Dialog 拆為動態 chunk，首頁不再為摘要下載完整支出清單，並保留新增支出的 optimistic 摘要更新 |

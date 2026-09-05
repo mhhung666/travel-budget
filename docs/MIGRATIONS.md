@@ -56,12 +56,13 @@ export const down = async (db) => {
 
 ## 現有遷移
 
-O 項目的候選索引尚未加入 migration。先依
-[MONGODB_QUERY_BASELINE.md](./MONGODB_QUERY_BASELINE.md) 完成基線與帳號重複檢查，再審查
-additive migration／rollback；不要直接加入 schema 觸發 `autoIndex`。
+O 已完成小型測試庫 before／after 並加入 additive migration；正式套用門檻見
+[MONGODB_INDEX_RESULTS.md](./MONGODB_INDEX_RESULTS.md)。先遷移再部署 schema，不依賴 autoIndex；
+新 migration 使用 `index_migration_ownership` 保護既有索引，down 不移除非 owned 索引。
 
 | 檔案 | 內容 |
 | --- | --- |
+| `20260905093000-core-query-indexes.js` | 新增支出／付款／清單／相片完整排序、digest 時間篩選及帳號 CI unique 索引；先掃描帳號重複，ownership ledger 防止回滾誤刪既有索引。 |
 | `20260616075344-baseline-indexes.js` | 明文建立目前所有模型的索引（users / trips / expenses / itinerarydays），作為基準點。冪等，可安全套用於已運行的環境。 |
 | `20260618032844-move-location-to-destination.js` | 將既有旅程地點資料搬到目前欄位形狀。 |
 | `20260618122537-add-user-map-share-code.js` | 建立使用者地圖分享碼與索引。 |
