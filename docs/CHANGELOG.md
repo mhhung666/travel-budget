@@ -7,6 +7,7 @@
 
 | 日期 | 里程碑 |
 | --- | --- |
+| 09-05 | P 第一階段：新增支出重用 server Trip 快照，省去通知的一次 Trip 查詢；通知與活動紀錄並行且隔離失敗，保留等待完成的 serverless 安全行為。推播仍在回應路徑，持久化背景重試／去重尚待實作 |
 | 09-05 | 測試庫新增 7 顆 MongoDB 索引並完成 135 次 after explain：digest 掃描 122→5、四種清單 SORT 消除、帳號改用 CI unique；保留舊索引與業務資料。補 migration、schema 及 ownership 回滾測試，大資料量／寫入成本／真實回滾仍待驗證 |
 | 09-05 | 完成首次 MongoDB 測試庫唯讀基線：3 組旅程各 5 輪、共 135 次 explain，確認 digest 全表掃描、旅程清單 blocking sort 及帳號 collation 查詢 COLLSCAN；帳號重複掃描為零。保留逐輪統計，索引 after 與 migration 仍待驗證 |
 | 09-05 | 建立 MongoDB 核心查詢唯讀 explain 基線、前後比較及帳號 collation 重複掃描；排除 rejected plans 的誤判，註冊及確認改信箱的帳號 duplicate-key race 回傳 CONFLICT。候選索引仍待 staging 驗證與 migration，未修改資料庫 |

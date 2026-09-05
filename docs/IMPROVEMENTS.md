@@ -43,10 +43,16 @@ schema 及 ownership rollback 測試。見 [MONGODB_INDEX_RESULTS.md](./MONGODB_
 migrate-mongo changelog／lock 與正式操作審查。現有測試庫的索引由人工核准建立，migration down
 不會誤刪這些既有索引；測試索引撤銷方式見結果文件。
 
-### P. 🔴 支出寫入 critical path 瘦身（P1）
+### P. 🟡 支出寫入 critical path 瘦身（P1）
 
-**問題**：新增支出目前依序建立 Expense、populate、通知、Email／Web Push、活動紀錄後才回傳。通知與
-活動紀錄又會重讀 Trip／User，高頻操作會等待多次 MongoDB I/O 與外部服務。
+**第一階段已完成（2026-09-05）**：新增支出將成員驗證時讀取的 Trip 名稱、hashCode、成員快照傳給
+通知，省去一次 Trip 讀取；通知與活動紀錄並行、仍等待兩者完成，並在 action 層隔離各自失敗。
+快照僅由 server 讀取，不採用 client 提供的資料；收件者仍查 User 並排除本人／虛擬成員。
+其他通知呼叫端保留原本的 Trip 查詢行為。
+
+**剩餘問題**：新增支出仍等待 populate、通知與活動紀錄完成，Web Push 延遲仍影響回應。
+支出 Email 原本已走每日彙整，並非每筆即時寄送。活動紀錄仍會查 User；目前副作用僅 best-effort
+記錄錯誤，尚無持久化重試或去重機制，不能視為 P 完整驗收通過。
 
 **處理方向**：
 

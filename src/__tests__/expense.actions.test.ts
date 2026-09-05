@@ -115,7 +115,9 @@ beforeEach(() => {
   vi.clearAllMocks();
   getSession.mockResolvedValue({ userId: USER });
   getTripMembership.mockResolvedValue({ tripId: TRIP, role: 'member' });
-  tripFindById.mockReturnValue(selectLean({ members: [{ user: USER }, { user: MEMBER }] }));
+  tripFindById.mockReturnValue(
+    selectLean({ name: 'Trip', hashCode: 'trip-code', members: [{ user: USER }, { user: MEMBER }] })
+  );
   itineraryCountDocuments.mockResolvedValue(1);
   headObject.mockResolvedValue({ contentType: 'image/webp', size: 2048 });
   deleteObjects.mockResolvedValue(undefined);
@@ -220,12 +222,64 @@ describe('createExpense', () => {
       })
     );
     expect(notify).toHaveBeenCalledWith(
-      expect.objectContaining({ tripId: TRIP, actorId: USER, type: 'expense_added' })
+      expect.objectContaining({
+        tripId: TRIP,
+        actorId: USER,
+        type: 'expense_added',
+        tripSnapshot: { id: TRIP, name: 'Trip', hashCode: 'trip-code', memberIds: [USER, MEMBER] },
+      })
     );
     expect(logActivity).toHaveBeenCalledWith(
       expect.objectContaining({ tripId: TRIP, actorId: USER, type: 'expense_added' })
     );
     expect(revalidatePath).toHaveBeenCalledWith(`/trips/${TRIP}/expenses`);
+  });
+});
+
+describe('createExpense side-effect isolation', () => {
+  beforeEach(() => {
+    expenseCreate.mockResolvedValue({
+      _id: { toString: () => EXPENSE },
+      populate: vi.fn().mockResolvedValue(undefined),
+      toObject: () => ({ _id: { toString: () => EXPENSE } }),
+    });
+  });
+
+  it.each(['notification', 'activity', 'both'])(
+    'preserves success when %s rejects',
+    async (effect) => {
+      if (effect !== 'activity')
+        notify.mockRejectedValueOnce(new Error('notification unavailable'));
+      if (effect !== 'notification')
+        logActivity.mockRejectedValueOnce(new Error('activity unavailable'));
+      expect((await createExpense(TRIP, validInput)).success).toBe(true);
+      expect(expenseCreate).toHaveBeenCalledTimes(1);
+      expect(notify).toHaveBeenCalledTimes(1);
+      expect(logActivity).toHaveBeenCalledTimes(1);
+      expect(loggerError).toHaveBeenCalledTimes(effect === 'both' ? 2 : 1);
+      expect(revalidatePath).toHaveBeenCalled();
+    }
+  );
+
+  it('starts activity while notification is pending and awaits both', async () => {
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    notify.mockReturnValueOnce(pending);
+    let finished = false;
+    const result = createExpense(TRIP, validInput).then((value) => {
+      finished = true;
+      return value;
+    });
+    try {
+      await vi.waitFor(() => expect(logActivity).toHaveBeenCalledTimes(1));
+      expect(finished).toBe(false);
+      expect(revalidatePath).not.toHaveBeenCalled();
+    } finally {
+      release();
+    }
+    expect((await result).success).toBe(true);
   });
 });
 

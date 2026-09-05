@@ -178,7 +178,9 @@ export const createExpense = withAuth(
       const amount = original_amount * exchange_rate;
 
       // Validate payer and split members are trip members
-      const trip = await Trip.findById(tripId).select('members').lean<{
+      const trip = await Trip.findById(tripId).select('name hashCode members').lean<{
+        name: string;
+        hashCode: string;
         members: { user: { toString(): string } }[];
       }>();
       const memberIds = new Set((trip?.members || []).map((m) => m.user.toString()));
@@ -236,19 +238,32 @@ export const createExpense = withAuth(
         { path: 'splits.user', select: 'username displayName' },
       ]);
 
-      // 通知其他成員「有人新增支出」（best-effort，失敗不影響建立）
-      await notify({
+      // 副作用互不依賴，並行但仍等待完成（serverless 不使用 fire-and-forget）。
+      // 呼叫端再隔離失敗，避免已建立的支出被呈現為失敗而誘發重送。
+      const event = {
         tripId,
         actorId: session.userId,
-        type: 'expense_added',
+        type: 'expense_added' as const,
         meta: { expense_id: created._id.toString(), description, amount },
-      });
-      // 動態牆紀錄（含觸發者本人；best-effort）
-      await logActivity({
-        tripId,
-        actorId: session.userId,
-        type: 'expense_added',
-        meta: { expense_id: created._id.toString(), description, amount },
+      };
+      const effects = await Promise.allSettled([
+        Promise.resolve().then(() =>
+          notify({
+            ...event,
+            tripSnapshot: trip
+              ? { id: tripId, name: trip.name, hashCode: trip.hashCode, memberIds: [...memberIds] }
+              : undefined,
+          })
+        ),
+        Promise.resolve().then(() => logActivity(event)),
+      ]);
+      effects.forEach((result, index) => {
+        if (result.status === 'rejected') {
+          logger.error(
+            `Create expense ${index === 0 ? 'notification' : 'activity'} failed`,
+            result.reason
+          );
+        }
       });
 
       revalidatePath(`/trips/${tripIdOrCode}/expenses`);

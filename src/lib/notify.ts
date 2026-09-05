@@ -65,6 +65,8 @@ interface NotifyInput {
    * 無 tripId 時必填。仍會再過濾掉觸發者與虛擬成員。
    */
   recipientIds?: string[];
+  /** 僅供 server 呼叫端傳入已授權、同一旅程的資料；不可使用 client input。 */
+  tripSnapshot?: { id: string; name: string; hashCode: string; memberIds: string[] };
 }
 
 /**
@@ -76,6 +78,7 @@ export async function notify({
   type,
   meta = {},
   recipientIds,
+  tripSnapshot,
 }: NotifyInput): Promise<void> {
   try {
     // 旅程通知：取旅程名稱（去正規化存進通知）+ 必要時取成員清單。
@@ -84,7 +87,11 @@ export async function notify({
     let tripName = '';
     let tripHashCode = '';
     let memberIds: string[] | null = null;
-    if (tripId) {
+    if (tripId && tripSnapshot?.id === tripId) {
+      tripName = tripSnapshot.name;
+      tripHashCode = tripSnapshot.hashCode;
+      memberIds = tripSnapshot.memberIds;
+    } else if (tripId) {
       const trip = await Trip.findById(tripId).select('name members hashCode').lean<{
         name: string;
         hashCode: string;
