@@ -28,6 +28,7 @@ import type { ActionResult } from './types';
 import type { User } from '@/types';
 import { logger } from '@/lib/logger';
 import { unstable_rethrow } from 'next/navigation';
+import { isAccountDuplicateKey } from '@/lib/mongoErrors';
 
 // Email 驗證碼（忘記密碼 + 變更 Email 共用）：6 位數、15 分鐘有效、最多 5 次驗證嘗試。
 const CODE_TTL_MS = 15 * 60 * 1000;
@@ -188,6 +189,9 @@ export async function register(input: RegisterInput): Promise<ActionResult<AuthU
       },
     };
   } catch (error) {
+    if (isAccountDuplicateKey(error)) {
+      return { success: false, error: 'CONFLICT', code: 'CONFLICT' };
+    }
     logger.error('Registration error', error);
     return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
   }
@@ -551,6 +555,9 @@ export const confirmEmailChange = withAuth(
 
       return { success: true, data: { message: 'Email 已更新' } };
     } catch (error) {
+      if (isAccountDuplicateKey(error)) {
+        return { success: false, error: 'CONFLICT', code: 'CONFLICT' };
+      }
       logger.error('Confirm email change error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }

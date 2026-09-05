@@ -7,6 +7,7 @@
 
 | 日期 | 里程碑 |
 | --- | --- |
+| 09-05 | 建立 MongoDB 核心查詢唯讀 explain 基線、前後比較及帳號 collation 重複掃描；排除 rejected plans 的誤判，註冊及確認改信箱的帳號 duplicate-key race 回傳 CONFLICT。候選索引仍待 staging 驗證與 migration，未修改資料庫 |
 | 09-05 | 完成 N 會員授權與公開資料流去重：首頁冷啟動以單次授權 bootstrap 取得 Trip、shell、行程及依階段擇一的清單／結算；沿用各資源 query key 與精準更新。共用行程、shell、清單、結算讀取 service，公開分享保留敏感欄位隔離；加入與成員變更清除 access mode，遠端資格變動於後續 refetch 重新判定 |
 | 09-04 | 完成輕量 Trip Shell 與按需載入：共用殼改用角色／預算／成員與支出 aggregate DTO，完整 members、itinerary 與 distinct tags 僅在新增支出時載入；表單及預算 Dialog 拆為動態 chunk，首頁不再為摘要下載完整支出清單，並保留新增支出的 optimistic 摘要更新 |
 | 09-04 | 完成 P0 基礎修復：React Query／離線 mutation 依登入使用者分區，登出統一清除記憶體與 IndexedDB 並提示未同步項目；authenticated layout 明確採動態渲染，production build 不再產生 cookies dynamic usage 假錯誤 |

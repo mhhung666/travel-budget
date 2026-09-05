@@ -56,6 +56,10 @@ export const down = async (db) => {
 
 ## 現有遷移
 
+O 項目的候選索引尚未加入 migration。先依
+[MONGODB_QUERY_BASELINE.md](./MONGODB_QUERY_BASELINE.md) 完成基線與帳號重複檢查，再審查
+additive migration／rollback；不要直接加入 schema 觸發 `autoIndex`。
+
 | 檔案 | 內容 |
 | --- | --- |
 | `20260616075344-baseline-indexes.js` | 明文建立目前所有模型的索引（users / trips / expenses / itinerarydays），作為基準點。冪等，可安全套用於已運行的環境。 |

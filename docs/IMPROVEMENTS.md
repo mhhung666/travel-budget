@@ -29,6 +29,11 @@ aggregate／索引；完成後即可從本檔移除。
 
 ### O. 🔴 MongoDB 查詢基線與索引（P1）
 
+**2026-09-05 進度**：已建立 `pnpm mongodb:explain` 基線／前後比較、帳號 collation 重複掃描，
+修正舊 explain 誤納 rejected plans，補上註冊及確認改信箱的 duplicate-key race 處理。
+見 [MONGODB_QUERY_BASELINE.md](./MONGODB_QUERY_BASELINE.md)。尚待 staging snapshot 量測、
+唯一性衝突處置及經驗證的 migration，**本項仍未完成**；未連線或修改正式資料庫。
+
 **問題**：數個常用 filter + sort 沒有完整對應的複合索引；每日支出摘要只依 `createdAt` 查詢，但目前
 缺少對應索引。資料量增加後可能出現 collection scan 或 blocking sort。帳號查詢使用 case-insensitive
 collation，現有 binary unique index 也可能與查詢及唯一性規則不一致。
