@@ -129,9 +129,25 @@ interface SendPushInput {
   meta: NotificationMeta;
 }
 
+/** 僅回傳裝置 ID，不包含 endpoint、金鑰或推播內容。accepted 不代表裝置已顯示。 */
+export interface PushDeliveryOutcome {
+  subscriptionId: string;
+  status: 'accepted' | 'expired' | 'failed';
+  statusCode?: number;
+  /** 失效裝置不再寄送；清理失敗可由獨立清理工作處理。 */
+  cleanupFailed?: boolean;
+}
+
+export type PushDeliveryResult =
+  | { status: 'disabled'; deliveries: [] }
+  | { status: 'processed'; deliveries: PushDeliveryOutcome[] }
+  // 前置設定／查詢失敗，尚未開始任何裝置寄送，不可誤認為全部成功。
+  | { status: 'failed'; deliveries: [] };
+
 /**
  * 對一組收件者送出 Web Push（每位每裝置一則）。best-effort，永不 throw。
- * 未配置 VAPID 或收件者皆無訂閱時靜默跳過。
+ * 回傳逐裝置結果供未來持久化 worker 使用；本函式不自動重試。
+ * 未配置 VAPID 與已處理但沒有裝置，使用不同狀態表示。
  */
 export async function sendPush({
   recipients,
@@ -141,10 +157,10 @@ export async function sendPush({
   tripName,
   actorName,
   meta,
-}: SendPushInput): Promise<void> {
+}: SendPushInput): Promise<PushDeliveryResult> {
   try {
     const config = getWebPushConfig();
-    if (!config) return; // 未配置 VAPID → 不送推播
+    if (!config) return { status: 'disabled', deliveries: [] };
 
     // 一次撈出全部收件者的裝置訂閱（一位使用者可多裝置）。
     const subs = await PushSubscription.find({ user: { $in: recipients } }).lean<
@@ -155,7 +171,7 @@ export async function sendPush({
         keys: { p256dh: string; auth: string };
       }[]
     >();
-    if (subs.length === 0) return;
+    if (subs.length === 0) return { status: 'processed', deliveries: [] };
 
     const vapidDetails = {
       subject: config.subject,
@@ -166,8 +182,9 @@ export async function sendPush({
     const rawAppUrl = getEnv().APP_URL;
     const appUrl = rawAppUrl ? rawAppUrl.replace(/\/+$/, '') : null;
 
-    await Promise.all(
-      subs.map(async (sub) => {
+    const deliveries = await Promise.all(
+      subs.map(async (sub): Promise<PushDeliveryOutcome> => {
+        const subscriptionId = sub._id.toString();
         try {
           const owner = byId.get(sub.user.toString());
           const payload = await buildPushPayload({
@@ -184,18 +201,31 @@ export async function sendPush({
             JSON.stringify(payload),
             { vapidDetails }
           );
+          return { subscriptionId, status: 'accepted' };
         } catch (error) {
-          const statusCode = (error as { statusCode?: number }).statusCode;
+          const rawStatus = (error as { statusCode?: unknown } | null)?.statusCode;
+          const statusCode = typeof rawStatus === 'number' ? rawStatus : undefined;
           if (isExpiredSubscriptionError(statusCode)) {
-            // 訂閱失效 → 回收（再失敗也吞掉，最終皆 best-effort）
-            await PushSubscription.deleteOne({ _id: sub._id }).catch(() => {});
+            try {
+              await PushSubscription.deleteOne({ _id: sub._id });
+              return { subscriptionId, status: 'expired', statusCode };
+            } catch {
+              return { subscriptionId, status: 'expired', statusCode, cleanupFailed: true };
+            }
           } else {
             logger.error('web push send failed', error);
+            return {
+              subscriptionId,
+              status: 'failed',
+              ...(statusCode === undefined ? {} : { statusCode }),
+            };
           }
         }
       })
     );
+    return { status: 'processed', deliveries };
   } catch (error) {
     logger.error('sendPush threw', error);
+    return { status: 'failed', deliveries: [] };
   }
 }

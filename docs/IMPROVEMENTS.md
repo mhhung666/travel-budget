@@ -50,6 +50,10 @@ migrate-mongo changelog／lock 與正式操作審查。現有測試庫的索引�
 快照僅由 server 讀取，不採用 client 提供的資料；收件者仍查 User 並排除本人／虛擬成員。
 其他通知呼叫端保留原本的 Trip 查詢行為。
 
+**背景處理前置已完成**：Web Push 提供逐裝置寄送結果，區分服務接受、失效、失敗及清理失敗，
+供後續 worker 決定重試範圍；尚未啟用自動重試。設計、可靠性界線與待確認的排程頻率見
+[EXPENSE_BACKGROUND_DELIVERY.md](./EXPENSE_BACKGROUND_DELIVERY.md)。
+
 **剩餘問題**：新增支出仍等待 populate、通知與活動紀錄完成，Web Push 延遲仍影響回應。
 支出 Email 原本已走每日彙整，並非每筆即時寄送。活動紀錄仍會查 User；目前副作用僅 best-effort
 記錄錯誤，尚無持久化重試或去重機制，不能視為 P 完整驗收通過。
