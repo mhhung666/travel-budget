@@ -26,6 +26,7 @@
     "migrate:create": "migrate-mongo create",
     "stats:explain": "node scripts/explain-stats-expenses.mjs",
     "mongodb:explain": "node scripts/explain-mongodb.mjs",
+    "mongodb:verify-indexes": "node scripts/verify-mongodb-indexes.mjs",
     "stats:benchmark": "node scripts/benchmark-stats.mjs",
     "generate:catalogs": "node scripts/generate-catalogs.mjs"
   },

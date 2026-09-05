@@ -34,11 +34,13 @@ aggregate／索引；完成後即可從本檔移除。
 測試庫新增 7 顆索引，完成 135 次 before + 135 次 after explain：digest 掃描由 122 降至 5 筆，
 四種旅程清單 SORT 消失，帳號使用 CI unique；回傳數不變、重複掃描為零。已補 additive migration、
 schema 及 ownership rollback 測試。見 [MONGODB_INDEX_RESULTS.md](./MONGODB_INDEX_RESULTS.md)。
-**尚待正式推廣驗收**：production-like snapshot、寫入成本、真實 migration rollback 及併發帳號整合測試。
+**尚待正式推廣驗收**：production-like snapshot、寫入成本及完整帳號 API 整合測試。
+已補 `pnpm mongodb:verify-indexes` 隔離驗收工具（up/down、既有索引保護、DB 併發唯一性）；
+已於本機隔離 MongoDB 8.0.29 執行，6 個情境全部通過，測試庫及容器已清理；未改動共用測試庫。
 保留全部舊索引，未修改業務資料；目前成果不等於正式環境效能驗收。
 
-**剩餘完成條件**：在可修改的隔離 snapshot 驗證較大資料量的讀寫成本、真實 up／down／重跑、
-大小寫帳號併發唯一性，完成正式操作審查。現有測試庫的索引由人工核准建立，migration down
+**剩餘完成條件**：在可修改的隔離 snapshot 驗證較大資料量的讀寫成本、完整帳號 API 併發流程、
+migrate-mongo changelog／lock 與正式操作審查。現有測試庫的索引由人工核准建立，migration down
 不會誤刪這些既有索引；測試索引撤銷方式見結果文件。
 
 ### P. 🔴 支出寫入 critical path 瘦身（P1）

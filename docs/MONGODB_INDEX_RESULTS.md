@@ -64,6 +64,31 @@ up 在任何索引寫入前掃描帳號及核對所有同名索引定義。建�
 up／重跑／down／重跑、既有索引保護、衝突 preflight、中斷恢復與外部改動保護單元測試。
 既有註冊／改信箱 E11000 測試繼續通過。
 
-仍待隔離環境驗證：較大 production-like 資料量、寫入成本、真實 migration rollback、
-併發註冊／改信箱的資料庫整合測試。這些測試可能寫入或刪除測試資料，不在本次索引操作中執行。
+後續已在本機隔離 MongoDB 完成真實 migration rollback 及 DB 層併發唯一性驗收（見下節）。
+仍待驗證：較大 production-like 資料量、寫入成本及完整註冊／改信箱 API 整合測試。
 O 的程式與小型測試庫索引驗證已落地，但正式推廣驗收仍保留待辦。
+
+## 隔離 MongoDB 驗收工具
+
+已補 `pnpm mongodb:verify-indexes`。僅接受明確的 `MONGODB_INDEX_TEST_URI` 與
+`MONGODB_INDEX_TEST_ALLOW_WRITES=1`；不讀取 dotenv、不回退 app URI，也不使用 URI 中的 database。
+請只指向可丟棄的隔離 MongoDB server，帳號需要建立及刪除測試 database 的權限。
+
+```sh
+MONGODB_INDEX_TEST_URI='mongodb://127.0.0.1:27017' MONGODB_INDEX_TEST_ALLOW_WRITES=1 pnpm mongodb:verify-indexes
+```
+
+每個情境建立隨機 `tb_index_verify_` database，先確認無 collection，結束後刪除該次自建 database。
+不讀寫現有 app database。若程序被強制中止可能留下測試庫；清理失敗時會印出該庫名稱，需人工確認後處理。
+成功輸出 JSON 情境結果，失敗退出非零；避免輸出 MongoDB 原始錯誤中的連線或資料值。
+
+涵蓋真實 migration up／重跑／down／重跑／再 up、舊索引與資料保留、既有候選索引保護、
+username／email 大小寫重複 preflight，以及併發 insert／update 的 E11000 與 keyPattern。
+這是資料庫層驗收，不是完整註冊／改信箱 API 整合測試，也不是 migrate-mongo changelog／lock 驗收。
+既有 action mock 測試另負責 CONFLICT 映射；完整端到端驗收仍待補。
+
+已依使用者指示，在本機一次性 Docker MongoDB 8.0.29 執行，**6 個情境全部通過，退出碼 0**。
+結果及 image digest 見 [隔離驗收證據](./evidence/mongodb-isolated-verification.json)。
+測試後查核 `tb_index_verify_` database 剩餘數為 0，臨時容器已停止並自動移除；下載的 image 保留供重跑。
+缺少 URI 或寫入旗標時拒絕執行的安全單元測試亦已通過。
+本次未連線共用測試庫、未執行正式 migration、未觸發 Vercel 部署，也未設定 CI 發布門檻。
