@@ -175,7 +175,7 @@ export default function ItineraryPage() {
   const hasImportable = days.some((d) =>
     d.activities.some((a) => activityImportKind(a.type) !== null)
   );
-  const { data: links } = useTripCollectionLinks(tripId, hasImportable);
+  const { data: links } = useTripCollectionLinks(tripId, isMember && hasImportable);
   // 帶入時鎖定的連結旅程＝當下旅程（用解析後的 ObjectId，避免與 hash_code 網址不一致）。
   const lockedTrip = useMemo(() => (trip ? { id: trip.id, name: trip.name } : null), [trip]);
   const importedActivityIds = new Set([

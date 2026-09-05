@@ -13,6 +13,7 @@ interface PublicEndpoint {
 
 type AccessMode = 'member' | 'public';
 const accessModeByTrip = new Map<string, Promise<AccessMode>>();
+const resolvedAt = new Map<string, number>();
 
 async function fetchPublic<T>(tripId: string, endpoint: PublicEndpoint, defaultValue: T) {
   const res = await fetch(`/api/public/trips/${tripId}/${endpoint.path}`);
@@ -25,6 +26,7 @@ async function fetchPublic<T>(tripId: string, endpoint: PublicEndpoint, defaultV
 /** Test/logout utility; normal sessions are isolated by the hard navigation on auth changes. */
 export function clearTripAccessModes() {
   accessModeByTrip.clear();
+  resolvedAt.clear();
 }
 
 /**
@@ -49,6 +51,13 @@ export async function fetchWithPublicFallback<T>(
 ): Promise<T> {
   if (!authenticated) return fetchPublic(tripId, publicEndpoint, defaultValue);
 
+  // Recheck remote membership changes on the next resource refetch after 30s.
+  const timestamp = resolvedAt.get(tripId);
+  if (timestamp !== undefined && Date.now() - timestamp >= 30_000) {
+    accessModeByTrip.delete(tripId);
+    resolvedAt.delete(tripId);
+  }
+
   const knownMode = accessModeByTrip.get(tripId);
   if (knownMode && (await knownMode) === 'public') {
     return fetchPublic(tripId, publicEndpoint, defaultValue);
@@ -63,9 +72,9 @@ export async function fetchWithPublicFallback<T>(
         resolveMode = resolve;
       })
     );
-  } else if ((await knownMode!) === 'member') {
-    // Membership is known, but every action still independently enforces authorization.
   }
+  const resolution = knownMode ?? accessModeByTrip.get(tripId);
+  const stillCurrent = () => accessModeByTrip.get(tripId) === resolution;
 
   let result: Awaited<ReturnType<typeof serverAction>>;
   try {
@@ -73,12 +82,13 @@ export async function fetchWithPublicFallback<T>(
   } catch (error) {
     // Release callers waiting for access resolution. They will enforce auth again.
     resolveMode?.('member');
-    if (ownsResolution) accessModeByTrip.delete(tripId);
+    if (ownsResolution && stillCurrent()) accessModeByTrip.delete(tripId);
     throw error;
   }
 
   if (result.success) {
     resolveMode?.('member');
+    if (stillCurrent()) resolvedAt.set(tripId, Date.now());
     return result.data;
   }
 
@@ -87,12 +97,14 @@ export async function fetchWithPublicFallback<T>(
     result.code === 'UNAUTHORIZED' ||
     result.code === 'NOT_FOUND'
   ) {
+    const current = stillCurrent();
     if (resolveMode) resolveMode('public');
-    else accessModeByTrip.set(tripId, Promise.resolve('public'));
+    else if (current) accessModeByTrip.set(tripId, Promise.resolve('public'));
+    if (current) resolvedAt.set(tripId, Date.now());
     return fetchPublic(tripId, publicEndpoint, defaultValue);
   }
 
   resolveMode?.('member');
-  if (ownsResolution) accessModeByTrip.delete(tripId);
+  if (ownsResolution && stillCurrent()) accessModeByTrip.delete(tripId);
   throw new Error(result.error);
 }

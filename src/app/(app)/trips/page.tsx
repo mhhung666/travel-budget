@@ -169,6 +169,8 @@ export default function TripsPage() {
             variant: 'success',
           });
           reloadTrips();
+          queryClient.invalidateQueries({ queryKey: tripKeys.all(trip.hash_code) });
+          queryClient.invalidateQueries({ queryKey: tripKeys.all(trip.id) });
           router.push(ROUTES.TRIP_DETAIL(trip.hash_code));
         }}
       />

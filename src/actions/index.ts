@@ -20,6 +20,7 @@ export type { AuthUser, AuthUserWithCreatedAt } from './auth.actions';
 export { getAiUsageSummary, type AiUsageSummary } from './aiUsage.actions';
 
 // Trip actions
+export { getTripLanding } from './tripLanding.actions';
 export {
   getTrips,
   getTrip,

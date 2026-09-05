@@ -1,5 +1,6 @@
 'use server';
 
+import { readChecklists } from '@/lib/checklistRead';
 import { revalidatePath } from 'next/cache';
 import { isValidObjectId } from 'mongoose';
 import { Checklist, Trip } from '@/models';
@@ -57,12 +58,7 @@ export const getChecklists = withAuth(
         return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
       }
 
-      const lists = await Checklist.find({ trip: membership.tripId })
-        .sort({ createdAt: 1 })
-        .populate(ITEM_POPULATE)
-        .lean<ChecklistDtoInput[]>();
-
-      return { success: true, data: lists.map(toChecklistDto) };
+      return { success: true, data: await readChecklists(membership.tripId) };
     } catch (error) {
       logger.error('Get checklists error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };

@@ -1,12 +1,13 @@
 # 重要完成里程碑
 
-> 更新日期：2026-09-04
+> 更新日期：2026-09-05
 > 本文件提供產品演進摘要，不是逐 commit 紀錄。精確變更、作者與 diff 請查 `git log`；目前能力見 [FEATURES.md](./FEATURES.md)。
 
 ## 2026-09
 
 | 日期 | 里程碑 |
 | --- | --- |
+| 09-05 | 完成 N 會員授權與公開資料流去重：首頁冷啟動以單次授權 bootstrap 取得 Trip、shell、行程及依階段擇一的清單／結算；沿用各資源 query key 與精準更新。共用行程、shell、清單、結算讀取 service，公開分享保留敏感欄位隔離；加入與成員變更清除 access mode，遠端資格變動於後續 refetch 重新判定 |
 | 09-04 | 完成輕量 Trip Shell 與按需載入：共用殼改用角色／預算／成員與支出 aggregate DTO，完整 members、itinerary 與 distinct tags 僅在新增支出時載入；表單及預算 Dialog 拆為動態 chunk，首頁不再為摘要下載完整支出清單，並保留新增支出的 optimistic 摘要更新 |
 | 09-04 | 完成 P0 基礎修復：React Query／離線 mutation 依登入使用者分區，登出統一清除記憶體與 IndexedDB 並提示未同步項目；authenticated layout 明確採動態渲染，production build 不再產生 cookies dynamic usage 假錯誤 |
 | 09-04 | 補齊 expense、settlement、trip 核心 actions 的授權、驗證、金額計算、附件與級聯副作用測試，連同既有 member actions 測試形成核心業務安全網；同步補上更新支出時的團外付款人／分帳成員防線 |

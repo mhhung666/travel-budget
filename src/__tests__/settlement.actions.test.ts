@@ -153,7 +153,9 @@ describe('getSettlement', () => {
   });
 
   it('maps database failures to a stable internal error', async () => {
-    dbConnect.mockRejectedValue(new Error('database unavailable'));
+    expenseFind.mockImplementationOnce(() => {
+      throw new Error('database unavailable');
+    });
     expect(await getSettlement(TRIP)).toEqual({
       success: false,
       error: 'INTERNAL_ERROR',

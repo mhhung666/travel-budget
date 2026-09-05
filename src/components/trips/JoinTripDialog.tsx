@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { joinTrip } from '@/actions';
+import { clearTripAccessModes } from '@/hooks/queries/fetcher';
 import type { Trip } from '@/types';
 import { parseTripInviteInput } from '@/lib/tripInvite';
 
@@ -51,6 +52,7 @@ export default function JoinTripDialog({ open, onClose, onSuccess }: JoinTripDia
 
     try {
       const result = await joinTrip(code);
+      if (result.success || result.code === 'CONFLICT') clearTripAccessModes();
 
       if (!result.success) {
         throw new Error(result.error);

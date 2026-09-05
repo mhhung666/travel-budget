@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { joinTrip } from '@/actions';
+import { clearTripAccessModes } from '@/hooks/queries/fetcher';
 import { tripKeys, useCurrentUser, useMembers, useTrip } from '@/hooks/queries';
 import { ROUTES } from '@/constants/routes';
 
@@ -71,6 +72,7 @@ export default function QuickJoinPage() {
 
     try {
       const result = await joinTrip(hashCode);
+      if (result.success || result.code === 'CONFLICT') clearTripAccessModes();
 
       if (!result.success) {
         if (result.code === 'CONFLICT') {
@@ -83,6 +85,8 @@ export default function QuickJoinPage() {
       }
 
       await queryClient.invalidateQueries({ queryKey: tripKeys.all(hashCode) });
+      await queryClient.invalidateQueries({ queryKey: tripKeys.all(result.data.id) });
+      await queryClient.invalidateQueries({ queryKey: tripKeys.list });
       router.push(ROUTES.TRIP_DETAIL(result.data.id));
     } catch {
       setError(t('join.error'));

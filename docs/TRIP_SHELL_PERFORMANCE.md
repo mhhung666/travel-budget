@@ -1,9 +1,9 @@
 # Trip Shell 效能基線
 
-> 更新日期：2026-09-04
+> 更新日期：2026-09-05
 > 範圍：`/trips/[id]/*` 共用 Shell 與旅程首頁。AI provider 品質驗收不在本輪範圍。
 
-## 已驗證的結構差異
+## M 完成時的結構差異（09-04）
 
 | 情境 | 改善前 | 改善後 |
 | --- | ---: | ---: |
@@ -28,6 +28,34 @@ settled 後重新驗證 shell、expenses、tags、settlement、stats 與 activit
 - `ExpenseFormSheet` loadable file set：155,806 raw bytes（包含可與其他頁共用的 chunks，不能直接視為淨節省量）。
 
 表單開啟時會讓動態 chunk 與 metadata queries 同時開始；metadata 尚未完成時顯示 loading 狀態。
+
+## N 完成後的首頁資料流（09-05）
+
+| 情境 | M 完成時 | N 完成後 |
+| --- | --- | --- |
+| 冷啟動首頁主要資料 requests（Trip／shell／itinerary／依階段摘要） | 3～4 | 1 個 landing bootstrap |
+| 上述主要資料的 membership 查詢（成員） | 每個 action 一次 | 1 次，與 Trip projection 合併 |
+| 非首頁的獨立 shell Mongo operations（成員） | 3 | 2：Trip + expense aggregate |
+| 未登入首頁主要資料 | 每個資源先 action、再 public fallback | 1 個 public landing GET |
+
+`getTripLanding` 與 `/api/public/trips/[id]/landing` 共用 `readTripLanding`，先解析及授權一份 Trip，
+再平行讀取 shell aggregate、itinerary，以及 preTrip 的 checklists 或 postTrip 的 settlement。日期使用
+瀏覽器傳入的本地日曆日。postTrip 結算沿用已取得的 member IDs 查 User，不重查 Trip。
+
+公開入口只接受短分享碼；DTO 不含個人預算、封存、訂位碼或票券附件。shell／itinerary／checklists／
+settlement 的獨立 action 與 public route 也共用同一套讀取及計算 service。
+
+client 只合併同一 QueryClient、同一旅程的首次無快取載入，結果填入原有 detail／shell／itinerary 與
+phase-specific query key。已有快取、離線還原及 mutation 後的 refetch 維持個別 query；不新增持久化
+bootstrap 副本。冷啟動時主要內容會等該階段摘要一同返回，其實際 latency／TTI 仍需 staging 量測。
+
+以上 request 與授權次數只計主要資料；照片、個人成就連結為後續成員限定查詢，各自保留伺服器授權。
+其他分頁與關閉中的新增支出表單不下載 landing payload。登入非會員共用一次 access 判定，public mode
+在 30 秒後的下一次 refetch 重新驗證；加入、成員修改、登出會立即清除判定，這不是輪詢或授權憑證。
+
+驗收測試：`tripLandingRead.test.ts`（權限／公開資料／階段）、`tripLandingHooks.test.tsx`（實際 hooks
+一次請求與非首頁隔離）、`landingBootstrap.test.ts`（並行去重、個別刷新、失敗重試與登出清除），以及
+`publicFallback.test.ts`（資格變動、到期及延遲回應）。數字為 mock/結構驗證，尚非真實 Mongo profiler。
 
 ## 尚待 production-like 環境實測
 

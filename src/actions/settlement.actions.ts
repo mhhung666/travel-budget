@@ -1,111 +1,16 @@
 'use server';
-
-import { dbConnect } from '@/lib/mongodb';
-import { Trip, Expense, Payment } from '@/models';
 import { getTripMembership } from '@/lib/permissions';
-import { calculateSettlement, applyPayments } from '@/lib/settlement';
+import { readSettlement } from '@/lib/settlementRead';
 import { withAuth } from './withAuth';
 import type { ActionResult } from './types';
-import type { Balance, Transaction, PaymentRecord } from '@/types';
+import type { Settlement } from '@/types';
 import { logger } from '@/lib/logger';
-import { toPaymentRecord, type PaymentDtoInput } from '@/lib/dto';
-
-interface SettlementResult {
-  balances: Balance[];
-  transactions: Transaction[];
-  payments: PaymentRecord[];
-  totalExpenses: number;
-}
-
-type PopulatedMember = {
-  user: { _id: { toString(): string }; username: string; displayName: string } | null;
-};
-
-type LeanExpenseForSettlement = {
-  payer: { toString(): string };
-  amount: number;
-  splits: { user: { toString(): string }; shareAmount: number }[];
-};
-
-/**
- * Get settlement for a trip
- */
 export const getSettlement = withAuth(
-  async (session, tripIdOrCode: string): Promise<ActionResult<SettlementResult>> => {
+  async (session, id: string): Promise<ActionResult<Settlement>> => {
     try {
-      const membership = await getTripMembership(session.userId, tripIdOrCode);
-      if (!membership) {
-        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
-      }
-
-      const tripId = membership.tripId;
-
-      await dbConnect();
-
-      // 一次取出成員 + 全部支出（含內嵌 splits）+ 已登記還款，其餘在記憶體計算
-      const [trip, expenses, paymentDocs] = await Promise.all([
-        Trip.findById(tripId)
-          .populate('members.user', 'username displayName')
-          .select('members')
-          .lean<{ members: PopulatedMember[] } | null>(),
-        Expense.find({ trip: tripId })
-          .select('payer amount splits')
-          .lean<LeanExpenseForSettlement[]>(),
-        Payment.find({ trip: tripId })
-          .sort({ createdAt: -1 })
-          .populate('from', 'username displayName')
-          .populate('to', 'username displayName')
-          .select('from to amount note createdAt')
-          .lean<PaymentDtoInput[]>(),
-      ]);
-
-      const members = (trip?.members || []).map((m) => m.user).filter((u) => u !== null);
-
-      const paidByUser = new Map<string, number>();
-      const owedByUser = new Map<string, number>();
-      let totalExpenses = 0;
-
-      for (const e of expenses) {
-        totalExpenses += e.amount || 0;
-        const payerId = e.payer.toString();
-        paidByUser.set(payerId, (paidByUser.get(payerId) || 0) + (e.amount || 0));
-        for (const s of e.splits || []) {
-          const uid = s.user.toString();
-          owedByUser.set(uid, (owedByUser.get(uid) || 0) + (s.shareAmount || 0));
-        }
-      }
-
-      const expenseBalances: Balance[] = members.map((member) => {
-        const id = member!._id.toString();
-        const totalPaid = paidByUser.get(id) || 0;
-        const totalOwed = owedByUser.get(id) || 0;
-        return {
-          userId: id,
-          username: member!.displayName,
-          totalPaid,
-          totalOwed,
-          balance: totalPaid - totalOwed,
-        };
-      });
-
-      const payments = paymentDocs.map(toPaymentRecord);
-
-      // 把已登記還款淨額抵銷進餘額，再算最少轉帳（totalPaid/totalOwed 維持支出原值供顯示）
-      const balances = applyPayments(
-        expenseBalances,
-        payments.map((p) => ({ from: p.fromId, to: p.toId, amount: p.amount }))
-      );
-      const transactions = calculateSettlement(balances.map((b) => ({ ...b })));
-
-      return {
-        success: true,
-        data: {
-          balances,
-          transactions,
-          payments,
-          totalExpenses,
-        },
-      };
+      const membership = await getTripMembership(session.userId, id);
+      if (!membership) return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+      return { success: true, data: await readSettlement(membership.tripId) };
     } catch (error) {
       logger.error('Get settlement error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };

@@ -1,4 +1,5 @@
 'use client';
+import type { TripLanding } from '@/types/tripLanding';
 
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -17,6 +18,7 @@ import {
 } from '@/actions';
 import type { AuthUserWithCreatedAt, CopyableChecklistSource } from '@/actions';
 import type { Checklist, Settlement, TripShell, TripStatsData, TripWithMembers } from '@/types';
+import { useLandingRead } from './useLandingRead';
 import { tripKeys } from './keys';
 import { fetchWithPublicFallback } from './fetcher';
 import { useAuthenticatedSession } from '@/components/providers/QueryProvider';
@@ -55,22 +57,26 @@ export function useTrips() {
 }
 
 export function useTrip(tripId: string) {
+  const landing = useLandingRead(tripId);
   const authenticated = useAuthenticatedSession();
   return useQuery({
     queryKey: tripKeys.detail(tripId),
     queryFn: () =>
-      fetchWithPublicFallback(
-        tripId,
-        getTrip,
-        { path: '', responseKey: 'trip' },
-        null,
-        authenticated
+      landing('trip', () =>
+        fetchWithPublicFallback(
+          tripId,
+          getTrip,
+          { path: '', responseKey: 'trip' },
+          null as unknown as TripLanding['trip'],
+          authenticated
+        )
       ),
     enabled: !!tripId,
   });
 }
 
 export function useTripShell(tripId: string) {
+  const landing = useLandingRead(tripId);
   const authenticated = useAuthenticatedSession();
   return useQuery({
     queryKey: tripKeys.shell(tripId),
@@ -81,12 +87,14 @@ export function useTripShell(tripId: string) {
         String(today.getMonth() + 1).padStart(2, '0'),
         String(today.getDate()).padStart(2, '0'),
       ].join('-');
-      return fetchWithPublicFallback(
-        tripId,
-        (id) => getTripShell(id, viewerDate),
-        { path: 'shell', responseKey: 'shell' },
-        null as unknown as TripShell,
-        authenticated
+      return landing('shell', () =>
+        fetchWithPublicFallback(
+          tripId,
+          (id) => getTripShell(id, viewerDate),
+          { path: 'shell', responseKey: 'shell' },
+          null as unknown as TripShell,
+          authenticated
+        )
       );
     },
     enabled: !!tripId,
@@ -197,16 +205,19 @@ export function useTripStats(tripId: string) {
 }
 
 export function useItinerary(tripId: string, enabled = true) {
+  const landing = useLandingRead(tripId);
   const authenticated = useAuthenticatedSession();
   return useQuery({
     queryKey: tripKeys.itinerary(tripId),
     queryFn: () =>
-      fetchWithPublicFallback(
-        tripId,
-        getItinerary,
-        { path: 'itinerary', responseKey: 'itinerary' },
-        [],
-        authenticated
+      landing('itinerary', () =>
+        fetchWithPublicFallback(
+          tripId,
+          getItinerary,
+          { path: 'itinerary', responseKey: 'itinerary' },
+          [],
+          authenticated
+        )
       ),
     enabled: !!tripId && enabled,
   });

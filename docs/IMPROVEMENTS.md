@@ -1,6 +1,6 @@
 # 改善建議（Improvements）
 
-> 更新日期：2026-09-04
+> 更新日期：2026-09-05
 > 本文件只列**尚未處理**的程式碼 / 基礎設施層級改善。已完成里程碑見 [CHANGELOG.md](./CHANGELOG.md)，架構說明見 [ARCHITECTURE.md](./ARCHITECTURE.md)。
 > 慣例：處理完一項 → 移到 [CHANGELOG.md](./CHANGELOG.md)、從本檔刪除。
 
@@ -13,12 +13,11 @@
 
 | 順序 | 項目 | 主要價值 | 建議批次 |
 | ---: | --- | --- | --- |
-| 1 | N. 旅程首屏 bootstrap | 將 shell 與落地頁資料合併成一次授權 | 🟡 已完成公開 access mode 與 Trip 單查詢 |
-| 2 | O. MongoDB 查詢基線與索引 | 降低排序、每日掃描及資料成長後的退化風險 | P1，先量測再 migration |
-| 3 | P. 支出寫入 critical path 瘦身 | 縮短新增支出的實際回應時間，隔離外部通知失敗 | P1，需決定背景工作方案 |
-| 4 | Q. 查詢錯誤狀態與前端延遲載入 | 避免把錯誤顯示成空資料，改善互動流暢度 | P1/P2，逐頁落地 |
-| 5 | R. 原子更新與跨 collection 一致性 | 降低多人編輯覆蓋及部分寫入 | P2，依使用頻率安排 |
-| 6 | M. production-like 效能追蹤 | 補齊實際 bytes、MongoDB profiler 與 TTI 數據 | 🟡 需測試環境與帳號 |
+| 1 | O. MongoDB 查詢基線與索引 | 降低排序、每日掃描及資料成長後的退化風險 | P1，先量測再 migration |
+| 2 | P. 支出寫入 critical path 瘦身 | 縮短新增支出的實際回應時間，隔離外部通知失敗 | P1，需決定背景工作方案 |
+| 3 | Q. 查詢錯誤狀態與前端延遲載入 | 避免把錯誤顯示成空資料，改善互動流暢度 | P1/P2，逐頁落地 |
+| 4 | R. 原子更新與跨 collection 一致性 | 降低多人編輯覆蓋及部分寫入 | P2，依使用頻率安排 |
+| 5 | M. production-like 效能追蹤 | 補齊實際 bytes、MongoDB profiler 與 TTI 數據 | 🟡 需測試環境與帳號 |
 
 ### M. 🟡 輕量 Trip Shell 的 production-like 效能追蹤
 
@@ -27,30 +26,6 @@ members／itinerary／tags，首頁摘要也改用 aggregate 欄位。靜態基�
 [TRIP_SHELL_PERFORMANCE.md](./TRIP_SHELL_PERFORMANCE.md)。目前本機沒有 MongoDB 連線與可登入測試帳號，仍需在
 production-like 資料量下補 Network bytes、MongoDB profiler/explain 與瀏覽器 TTI，確認實際收益及是否要調整
 aggregate／索引；完成後即可從本檔移除。
-
-### N. 🟡 會員授權與公開資料流去重（P1）
-
-**問題**：多數 Server Action 會先以 `getTripMembership` 查一次 Trip，再查一次實際資源；旅程首頁的
-多個獨立 action 因而反覆讀取相同會員資料。公開訪客則會先呼叫 authenticated action，收到
-unauthorized／forbidden／not found 後才 fallback 至 public API，使每種資源最多產生兩次請求。
-
-**已完成（2026-09-04）**：
-
-- Root layout 將 server 已知的登入狀態注入 query provider；未登入訪客直接走 public API，不再先送
-  authenticated action。
-- 已登入非會員的同旅程並行查詢共用第一次 access mode 判定；只有第一個 action 會做失敗探測，後續
-  query 直接沿用 public mode。
-- 新增 `getMemberTrip` repository primitive，以帶 membership filter 的單一 projection 查詢同時完成會員
-  授權與 Trip 讀取；`getTrip`、`getTripShell` 已改用，移除原本 membership + `findById` 的雙查詢。
-
-**剩餘處理方向**：
-
-- 旅程落地頁仍應建立範圍明確的 bootstrap service，讓 shell、trip、itinerary 與 phase-specific 摘要只
-  授權一次；目前各 authenticated resource action 仍各自做防線內的 membership 驗證。
-- authenticated/public routes 共用 repository 與計算 service，只在邊界決定可見欄位。
-
-**完成條件**：公開訪客不再有「authenticated 失敗後 public 重送」；主要旅程首屏不重複查詢相同
-membership；權限與公開資料欄位測試維持通過。
 
 ### O. 🔴 MongoDB 查詢基線與索引（P1）
 

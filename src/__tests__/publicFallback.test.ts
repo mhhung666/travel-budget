@@ -1,12 +1,63 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { ActionResult } from '@/actions';
 import { clearTripAccessModes, fetchWithPublicFallback } from '@/hooks/queries/fetcher';
 
 afterEach(() => {
   clearTripAccessModes();
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
 describe('fetchWithPublicFallback', () => {
+  it('rechecks a cached public decision after joining and after its freshness window', async () => {
+    vi.useFakeTimers();
+    const action = vi
+      .fn()
+      .mockResolvedValueOnce({ success: false, code: 'NOT_FOUND' })
+      .mockResolvedValue({ success: true, data: 'member' });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => 'public' }));
+    const read = () => fetchWithPublicFallback('abc12345', action, { path: 'shell' }, '');
+    expect(await read()).toBe('public');
+    expect(await read()).toBe('public');
+    expect(action).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(30_001);
+    expect(await read()).toBe('member');
+    clearTripAccessModes();
+    expect(await read()).toBe('member');
+    expect(action).toHaveBeenCalledTimes(3);
+  });
+
+  it('releases concurrent waiters on thrown errors and allows access re-resolution', async () => {
+    const action = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('network'))
+      .mockResolvedValue({ success: true, data: 'member' });
+    const first = fetchWithPublicFallback('abc12345', action, { path: '' }, '');
+    const second = fetchWithPublicFallback('abc12345', action, { path: '' }, '');
+    const results = await Promise.allSettled([first, second]);
+    expect(results[0].status).toBe('rejected');
+    expect(results[1]).toEqual({ status: 'fulfilled', value: 'member' });
+  });
+
+  it('does not restore an invalidated public decision from a late action response', async () => {
+    let resolve!: (value: ActionResult<string>) => void;
+    const first = fetchWithPublicFallback(
+      'abc12345',
+      () =>
+        new Promise<ActionResult<string>>((r) => {
+          resolve = r;
+        }),
+      { path: '' },
+      ''
+    );
+    clearTripAccessModes();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => 'public' }));
+    resolve({ success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' });
+    await first;
+    const member = vi.fn().mockResolvedValue({ success: true, data: 'member' });
+    expect(await fetchWithPublicFallback('abc12345', member, { path: '' }, '')).toBe('member');
+    expect(member).toHaveBeenCalledOnce();
+  });
   it('loads the public hash-code endpoint for a logged-in non-member', async () => {
     const serverAction = vi.fn().mockResolvedValue({
       success: false,

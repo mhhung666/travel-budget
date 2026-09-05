@@ -1,5 +1,6 @@
 'use server';
 
+import { readItinerary, toDayDto, type LeanActivity, type LeanDay } from '@/lib/itineraryRead';
 import { dbConnect } from '@/lib/mongodb';
 import { Expense, ItineraryDay, Photo, Trip } from '@/models';
 import { getTripMembership } from '@/lib/permissions';
@@ -9,65 +10,12 @@ import {
   type ActivityInput,
 } from '@/lib/validation';
 import type { ActionResult } from './types';
-import type { Activity as ActivityDto, ItineraryDay as ItineraryDayDto, Location } from '@/types';
+import type { ItineraryDay as ItineraryDayDto, Location } from '@/types';
 import { withAuth } from './withAuth';
 import { logger } from '@/lib/logger';
 import { isItineraryKeyForTrip, ITINERARY_CONTENT_TYPES, MAX_ITINERARY_BYTES } from '@/lib/uploads';
 import { headObject, deleteObjects, presignGet } from '@/lib/storage';
 import { rebindAutoPhotosToItinerary } from '@/lib/photoItinerary';
-
-type LeanAttachment = {
-  key: string;
-  contentType: string;
-  size: number;
-  uploadedBy: { toString(): string };
-  uploadedAt: Date;
-};
-
-type LeanActivity = {
-  _id: { toString(): string };
-  time?: string | null;
-  endTime?: string | null;
-  title: string;
-  type: ActivityDto['type'];
-  location?: Location | null;
-  locationName?: string;
-  note?: string;
-  confirmationCode?: string;
-  attachments?: LeanAttachment[];
-};
-
-type LeanDay = {
-  _id: { toString(): string };
-  trip: { toString(): string };
-  dayNumber: number;
-  title: string;
-  content: string;
-  location?: Location | null;
-  activities?: LeanActivity[];
-  createdAt: Date;
-  updatedAt: Date;
-};
-
-function toActivityDto(a: LeanActivity): ActivityDto {
-  return {
-    id: a._id.toString(),
-    time: a.time ?? null,
-    end_time: a.endTime ?? null,
-    title: a.title,
-    type: a.type,
-    location: a.location ?? null,
-    location_name: a.locationName ?? '',
-    note: a.note ?? '',
-    confirmation_code: a.confirmationCode ?? '',
-    // 只帶 key + 中繼資料（不含 url）；檢視時走 getItineraryAttachmentUrl 簽短效 GET。
-    attachments: (a.attachments ?? []).map((at) => ({
-      key: at.key,
-      content_type: at.contentType,
-      size: at.size,
-    })),
-  };
-}
 
 type AttachmentDoc = {
   key: string;
@@ -167,20 +115,6 @@ function attachmentsByKey(activities: LeanActivity[] | undefined): Map<string, A
   return map;
 }
 
-function toDayDto(d: LeanDay): ItineraryDayDto {
-  return {
-    id: d._id.toString(),
-    trip_id: d.trip.toString(),
-    day_number: d.dayNumber,
-    title: d.title,
-    content: d.content,
-    location: d.location ?? null,
-    activities: (d.activities ?? []).map(toActivityDto),
-    created_at: d.createdAt.toISOString(),
-    updated_at: d.updatedAt.toISOString(),
-  };
-}
-
 /**
  * Get all itinerary days for a trip
  */
@@ -192,11 +126,7 @@ export const getItinerary = withAuth(
         return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
       }
 
-      const days = await ItineraryDay.find({ trip: membership.tripId })
-        .sort({ dayNumber: 1 })
-        .lean<LeanDay[]>();
-
-      return { success: true, data: days.map(toDayDto) };
+      return { success: true, data: await readItinerary(membership.tripId, true) };
     } catch (error) {
       logger.error('Get itinerary error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };

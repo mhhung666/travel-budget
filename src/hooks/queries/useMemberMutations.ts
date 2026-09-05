@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { addVirtualMember, addFriendsToTrip, removeMember, updateMemberRole } from '@/actions';
 import type { ActionResult } from '@/actions';
 import { tripKeys } from './keys';
+import { clearTripAccessModes } from './fetcher';
 
 async function unwrap<T>(p: Promise<ActionResult<T>>): Promise<T> {
   const result = await p;
@@ -22,6 +23,8 @@ async function unwrap<T>(p: Promise<ActionResult<T>>): Promise<T> {
 export function useMemberMutations(tripId: string) {
   const queryClient = useQueryClient();
   const invalidate = () => {
+    clearTripAccessModes();
+    queryClient.invalidateQueries({ queryKey: tripKeys.shell(tripId) });
     queryClient.invalidateQueries({ queryKey: tripKeys.members(tripId) });
     queryClient.invalidateQueries({ queryKey: tripKeys.detail(tripId) });
     queryClient.invalidateQueries({ queryKey: tripKeys.expenses(tripId) });
