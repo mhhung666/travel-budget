@@ -8,7 +8,7 @@ const id = (n: number) => n.toString(16).padStart(24, '0');
 const checkpoint = { status: 'accepted' as const, recordedAt: new Date(0) };
 
 function setup() {
-  const progress: Record<string, typeof checkpoint> = {};
+  const progress: Record<string, { status: 'accepted' | 'expired'; recordedAt: Date }> = {};
   const send = vi.fn().mockResolvedValue('accepted');
   const read = vi.fn().mockImplementation(async () => ({ ...progress }));
   const record = vi.fn().mockImplementation(async (key: string) => {
@@ -21,6 +21,81 @@ function setup() {
 }
 
 describe('expense push batch executor (dormant)', () => {
+  it.each(['accepted', 'failed', 'expired'])(
+    'only cleans confirmed expired results: %s',
+    async (outcome) => {
+      const s = setup();
+      const cleanupExpired = vi.fn().mockResolvedValue(undefined);
+      s.send.mockResolvedValue(outcome);
+      s.prepare.mockResolvedValue({ status: 'ready', send: s.send, cleanupExpired });
+      s.record.mockImplementation(async (key: string) => {
+        expect(cleanupExpired).not.toHaveBeenCalled();
+        if (outcome === 'failed') throw new Error('Failed must not be checkpointed');
+        s.progress[key] = { ...checkpoint, status: outcome as 'accepted' | 'expired' };
+        return true;
+      });
+      const result = await executeExpensePushBatch([id(1)], s.dependencies);
+      expect(cleanupExpired).toHaveBeenCalledTimes(outcome === 'expired' ? 1 : 0);
+      expect(result.status).toBe(outcome === 'failed' ? 'retry' : 'exhausted');
+    }
+  );
+
+  it.each(['refused', 'thrown', 'accepted-first', 'lease-lost', 'budget'])(
+    'skips cleanup when %s',
+    async (mode) => {
+      const s = setup();
+      const cleanupExpired = vi.fn();
+      s.send.mockResolvedValue('expired');
+      s.prepare.mockResolvedValue({ status: 'ready', send: s.send, cleanupExpired });
+      if (mode === 'refused') s.record.mockResolvedValue(false);
+      if (mode === 'thrown') s.record.mockRejectedValue(new Error('checkpoint error'));
+      if (mode === 'lease-lost')
+        s.record.mockImplementation(async () => {
+          s.read.mockResolvedValue(null);
+          return true;
+        });
+      let elapsed = 0;
+      if (mode === 'budget') {
+        s.dependencies.now = () => elapsed;
+        s.record.mockImplementation(async () => {
+          elapsed = 30_000;
+          return true;
+        });
+      }
+      if (mode === 'thrown')
+        await expect(executeExpensePushBatch([id(1)], s.dependencies)).rejects.toThrow(
+          'checkpoint error'
+        );
+      else {
+        const result = await executeExpensePushBatch([id(1)], s.dependencies);
+        if (mode === 'lease-lost' || mode === 'refused') expect(result.status).toBe('stopped');
+      }
+      expect(cleanupExpired).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each(['read', 'cleanup'])(
+    'isolates post-checkpoint %s failure without resending',
+    async (failure) => {
+      const s = setup();
+      const cleanupExpired = vi.fn().mockRejectedValue(new Error('private details'));
+      s.send.mockResolvedValue('expired');
+      s.prepare.mockResolvedValue({ status: 'ready', send: s.send, cleanupExpired });
+      s.record.mockImplementation(async (key: string) => {
+        s.progress[key] = { ...checkpoint, status: 'expired' };
+        if (failure === 'read') s.read.mockRejectedValueOnce(new Error('DB unavailable'));
+        return true;
+      });
+      expect(await executeExpensePushBatch([id(1)], s.dependencies)).toMatchObject({
+        status: 'exhausted',
+        checkpointed: 1,
+        cleanupFailed: 1,
+      });
+      await executeExpensePushBatch([id(1)], s.dependencies);
+      expect(s.send).toHaveBeenCalledOnce();
+    }
+  );
+
   it('deduplicates devices and checkpoints before preparing the next one', async () => {
     const s = setup();
     s.prepare.mockImplementation(async (key: string) => {
@@ -32,6 +107,7 @@ describe('expense push batch executor (dormant)', () => {
       attempted: 2,
       checkpointed: 2,
       skipped: 0,
+      cleanupFailed: 0,
     });
   });
 
@@ -45,6 +121,7 @@ describe('expense push batch executor (dormant)', () => {
       attempted: 1,
       checkpointed: 1,
       skipped: 1,
+      cleanupFailed: 0,
     });
     expect(s.send).toHaveBeenCalledTimes(1);
   });

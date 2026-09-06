@@ -51,7 +51,8 @@ function fixture() {
     pushsubscriptions: vi.fn().mockResolvedValue(subscription),
     users: vi.fn().mockResolvedValue({ locale: 'en' }),
   };
-  const collection = vi.fn((name: keyof typeof queries) => ({ findOne: queries[name] }));
+  const deleteOne = vi.fn().mockResolvedValue({ deletedCount: 1 });
+  const collection = vi.fn((name: keyof typeof queries) => ({ findOne: queries[name], deleteOne }));
   const buildPayload = vi.fn().mockResolvedValue(payload);
   const sendDevice = vi.fn().mockResolvedValue('accepted');
   const options = { config, buildPayload, sendDevice };
@@ -67,11 +68,102 @@ function fixture() {
     options,
     prepare: createExpensePushPrepare(db, expenseId, 'lease-token', options),
     db,
+    deleteOne,
   };
 }
 
 describe('dormant expense push preparation', () => {
   beforeEach(() => vi.clearAllMocks());
+
+  it.each(['endpoint', 'auth', 'p256dh'])(
+    'rejects an incomplete cleanup identity: %s',
+    async (field) => {
+      const f = fixture();
+      if (field === 'endpoint') f.subscription.endpoint = '';
+      else f.subscription.keys[field as 'auth' | 'p256dh'] = '';
+      await expect(f.prepare(subscriptionId)).rejects.toThrow('Invalid push subscription');
+      expect(f.sendDevice).not.toHaveBeenCalled();
+      expect(f.deleteOne).not.toHaveBeenCalled();
+    }
+  );
+
+  it('cleans only the original expired subscription after checkpoint confirmation', async () => {
+    const f = fixture();
+    f.sendDevice.mockResolvedValue('expired');
+    const progress = {};
+    const record = vi.fn().mockImplementation(async () => {
+      expect(f.deleteOne).not.toHaveBeenCalled();
+      Object.assign(progress, { [subscriptionId]: { status: 'expired', recordedAt: new Date() } });
+      return true;
+    });
+    const result = await executeExpensePushBatch([subscriptionId], {
+      read: async () => progress,
+      record,
+      prepare: f.prepare,
+    });
+    expect(result).toMatchObject({ status: 'exhausted', checkpointed: 1, cleanupFailed: 0 });
+    expect(f.deleteOne).toHaveBeenCalledExactlyOnceWith(
+      {
+        _id: new mongo.ObjectId(subscriptionId),
+        user: userId,
+        endpoint: f.subscription.endpoint,
+        'keys.p256dh': 'key',
+        'keys.auth': 'auth',
+      },
+      { maxTimeMS: 2_000, timeoutMS: 2_000, collation: { locale: 'simple' } }
+    );
+  });
+
+  it.each(['accepted', 'failed'])('never cleans a %s delivery', async (outcome) => {
+    const f = fixture();
+    f.sendDevice.mockResolvedValue(outcome);
+    const ready = await f.prepare(subscriptionId);
+    if (ready.status !== 'ready') throw new Error('Expected ready');
+    await ready.cleanupExpired?.();
+    await ready.send();
+    await ready.cleanupExpired?.();
+    expect(f.deleteOne).not.toHaveBeenCalled();
+  });
+
+  it('captures immutable send/cleanup identity and treats no match as successful no-op', async () => {
+    const f = fixture();
+    f.sendDevice.mockResolvedValue('expired');
+    f.deleteOne.mockResolvedValue({ deletedCount: 0 });
+    const ready = await f.prepare(subscriptionId);
+    if (ready.status !== 'ready') throw new Error('Expected ready');
+    await ready.cleanupExpired?.();
+    expect(f.deleteOne).not.toHaveBeenCalled();
+    f.subscription.endpoint = 'https://push.example.com/updated';
+    f.subscription.keys.auth = 'updated';
+    f.subscription.keys.p256dh = 'updated';
+    f.subscription.user = new mongo.ObjectId(otherId);
+    await ready.send();
+    await ready.cleanupExpired?.();
+    await ready.cleanupExpired?.();
+    expect(f.sendDevice.mock.calls[0][0].subscription).toEqual({
+      endpoint: 'https://push.example.com/device',
+      keys: { auth: 'auth', p256dh: 'key' },
+    });
+    expect(f.deleteOne).toHaveBeenCalledOnce();
+    expect(f.deleteOne.mock.calls[0][0]).toMatchObject({
+      user: userId,
+      endpoint: 'https://push.example.com/device',
+      'keys.auth': 'auth',
+      'keys.p256dh': 'key',
+    });
+  });
+
+  it('does not retry cleanup within the prepared sender after a DB error', async () => {
+    const f = fixture();
+    f.sendDevice.mockResolvedValue('expired');
+    f.deleteOne.mockRejectedValue(new Error('DB unavailable'));
+    const ready = await f.prepare(subscriptionId);
+    if (ready.status !== 'ready') throw new Error('Expected ready');
+    await ready.send();
+    await expect(ready.cleanupExpired?.()).rejects.toThrow('DB unavailable');
+    await ready.cleanupExpired?.();
+    expect(f.deleteOne).toHaveBeenCalledOnce();
+  });
 
   it('executor stops without HTTP when lease is lost after preparation', async () => {
     const f = fixture();

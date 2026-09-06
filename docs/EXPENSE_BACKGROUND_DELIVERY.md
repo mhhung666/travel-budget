@@ -221,3 +221,30 @@ TypeScript、Prettier、lint 與 `git diff --check` 通過。
 
 本批完整一般測試 1,143 項通過、27 項略過（24 項 MongoDB opt-in 未重跑、3 項 AI 暫停）；
 Prettier、lint、TypeScript 與 `git diff --check` 通過。
+
+## 失效訂閱安全清理（2026-09-06，尚未啟用）
+
+- ready 新增一次性的 `cleanupExpired`，prepare／send 不執行刪除。只在本次 HTTP 回 expired、
+  terminal checkpoint 寫入成功後，由 executor 再讀進度確認保存的是 expired 才呼叫。
+  首次 terminal 結果不可覆寫，因此不能只靠 record 回 true 推斷保存狀態。
+- 清理以原 `_id`、owner、endpoint、keys.auth、keys.p256dh 做單次原子 `deleteOne`，
+  明確使用 simple collation 精確比對，不 upsert、不先刪再建；0 筆刪除視為正常無操作。
+  HTTP 與清理使用同一份原始值快照，
+  寄送期間變更任一比對欄位都不會匹配。缺少 endpoint／keys 則在 prepare 拋錯，不送出。
+- 設定 server maxTimeMS 與 driver timeoutMS 各 2 秒；不在交易內送 HTTP。
+  超出批次時間預算不開始清理，開始後仍可能占用這段單次 DB 時限，並非硬批次截止。
+- checkpoint 拒絕／拋錯、後續讀不到租約、保存的是 accepted 時不清理。
+  保存後用於清理的讀取或刪除例外只累計回傳 `cleanupFailed`，不外洩原始錯誤／金鑰，
+  不將 terminal 結果改成 retry；後續裝置仍須重查租約。worker 尚未接入此計數的監控。
+- 清理是 best-effort：保存後程序中斷、預算不足或 DB 失敗可留下失效訂閱。
+  已有 checkpoint 的裝置不重送，也不嘗試補清理；沒有把 endpoint／keys 寫入進度。
+  現有 schema 沒有註冊世代，因此無法區分所有欄位完全相同的重新註冊或改回原值，
+  不宣稱能完全消除這類競態。需要更強保證時須另設 revision 與訂閱寫入流程。
+
+新增 18 項 mock 測試，涵蓋清理次序、條件／時限、原始快照、不匹配、一次性、錯誤隔離、
+過期前置結果與預算限制；不是實際 MongoDB 競態驗證。本批未連真實 DB 或推播服務。
+尚未啟用 worker／action／排程，不需 migration 或新增環境參數，P 尚未驗收。
+下一步是有界候選裝置查詢與公平續跑，再整合 worker 續租及工作完成判定。
+
+本批完整一般測試 1,161 項通過、27 項略過（24 項 MongoDB opt-in 未重跑、3 項 AI 暫停）；
+Prettier、lint、TypeScript 與 `git diff --check` 通過。

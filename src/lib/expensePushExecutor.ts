@@ -13,13 +13,16 @@ export interface ExpensePushExecutorDependencies {
    * ready must contain a single-device sender with a bounded transport timeout, never sendPush.
    * No HTTP in a DB transaction. stop means missing job/lease/parent, not a skipped recipient.
    */
-  prepare(
-    subscriptionId: string
-  ): Promise<
+  prepare(subscriptionId: string): Promise<
     | { status: 'skip' }
     | { status: 'stop' }
     | { status: 'disabled' }
-    | { status: 'ready'; send(): Promise<Terminal | 'failed'> }
+    | {
+        status: 'ready';
+        send(): Promise<Terminal | 'failed'>;
+        /** Bounded, conditional DB cleanup only; executor calls after confirming expired progress. */
+        cleanupExpired?(): Promise<void>;
+      }
   >;
   /** Monotonic milliseconds; injectable for deterministic tests. */
   now?: () => number;
@@ -31,6 +34,8 @@ export type ExpensePushExecutionResult = {
   attempted: number;
   checkpointed: number;
   skipped: number;
+  /** Best-effort cleanup errors never turn a terminal delivery into a retry. */
+  cleanupFailed: number;
 };
 
 /** Dormant sequential executor: no DB connection, subscription discovery, HTTP or queue activation. */
@@ -51,7 +56,7 @@ export async function executeExpensePushBatch(
   const ids = [...new Set(subscriptionIds)];
   const now = dependencies.now ?? (() => performance.now());
   const deadline = now() + budgetMs;
-  const counts = { attempted: 0, checkpointed: 0, skipped: 0 };
+  const counts = { attempted: 0, checkpointed: 0, skipped: 0, cleanupFailed: 0 };
   const result = (status: ExpensePushExecutionResult['status']) => ({ status, ...counts });
   const initial = await dependencies.read();
   if (initial === null) return result('stopped');
@@ -98,6 +103,17 @@ export async function executeExpensePushBatch(
     // Always attempt checkpointing a terminal result, even if HTTP exceeded this batch's budget.
     if (!(await dependencies.record(id, outcome))) return result('stopped');
     counts.checkpointed++;
+    if (outcome === 'expired' && prepared.cleanupExpired && now() < deadline) {
+      try {
+        // record preserves the first terminal outcome, which may belong to another attempt.
+        const saved = await dependencies.read();
+        if (saved === null) return result('stopped');
+        if (saved[id]?.status === 'expired' && now() < deadline) await prepared.cleanupExpired();
+      } catch {
+        // Do not log endpoint/keys or raw provider/DB errors. Delivery is already terminal.
+        counts.cleanupFailed++;
+      }
+    }
   }
   return result(failed ? 'retry' : 'exhausted');
 }

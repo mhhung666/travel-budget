@@ -13,7 +13,7 @@ interface PrepareOptions {
 }
 
 /**
- * Dormant, read-only adapter bound to one job/lease. Never opens a connection or sends during prepare.
+ * Dormant adapter bound to one job/lease. Preparation is read-only and never opens a connection.
  * Executor must re-read lease/checkpoints after prepare and immediately invoke the one-shot sender.
  * Reads are not locks: membership/ownership may still change between the final query and HTTP.
  */
@@ -87,6 +87,12 @@ export function createExpensePushPrepare(
       { ...queryOptions, projection: { user: 1, endpoint: 1, keys: 1 } }
     );
     if (!subscription) return { status: 'skip' };
+    if (
+      [subscription.endpoint, subscription.keys?.p256dh, subscription.keys?.auth].some(
+        (value) => typeof value !== 'string' || value.length === 0
+      )
+    )
+      throw new Error('Invalid push subscription');
     const user = await db
       .collection('users')
       .findOne(
@@ -103,20 +109,42 @@ export function createExpensePushPrepare(
       meta: { expense_id: event.expenseId, description: event.description, amount: event.amount },
       appUrl: config.appUrl?.replace(/\/+$/, '') || null,
     });
+    // Capture primitive values once for both HTTP and compare-and-delete, never a mutable DB object.
+    const original = {
+      _id: new mongo.ObjectId(subscriptionId),
+      user: new mongo.ObjectId(subscription.user.toHexString()),
+      endpoint: subscription.endpoint as string,
+      'keys.p256dh': subscription.keys.p256dh as string,
+      'keys.auth': subscription.keys.auth as string,
+    };
     let sent = false;
+    let expired = false;
+    let cleanupAttempted = false;
     return {
       status: 'ready',
       async send() {
         if (sent) throw new Error('Prepared expense push already used');
         sent = true;
         // No cleanup before checkpoint: expired remains terminal even when later cleanup fails.
-        return sendDevice({
+        const outcome = await sendDevice({
           subscription: {
-            endpoint: subscription.endpoint,
-            keys: { p256dh: subscription.keys.p256dh, auth: subscription.keys.auth },
+            endpoint: original.endpoint,
+            keys: { p256dh: original['keys.p256dh'], auth: original['keys.auth'] },
           },
           payload,
           vapidDetails: config.vapidDetails,
+        });
+        expired = outcome === 'expired';
+        return outcome;
+      },
+      async cleanupExpired() {
+        // Caller must first confirm the persisted expired checkpoint; never call during prepare/send.
+        if (!expired || cleanupAttempted) return;
+        cleanupAttempted = true;
+        await db.collection('pushsubscriptions').deleteOne(original, {
+          maxTimeMS: 2_000,
+          timeoutMS: 2_000,
+          collation: { locale: 'simple' },
         });
       },
     };
