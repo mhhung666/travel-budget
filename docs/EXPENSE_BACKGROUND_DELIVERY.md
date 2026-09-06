@@ -144,3 +144,29 @@ Trip 成員、再刪其通知，能與 Trip fence 排序。刪除 Trip 已補 pa
 重複回報不覆寫與 12 個併發寫入爭取最後一個容量。一般完整測試 1,070 項通過、27 項略過
 （24 項 MongoDB 另跑通過、3 項 AI 依原規劃暫停）；TypeScript 通過。
 測試庫已清理，未讀取 `.env`、未修改共用 DB、未寄送真實推播；不需新增環境參數或執行 migration。
+
+## 逐裝置批次執行層（2026-09-06，尚未啟用）
+
+新增 `expensePushExecutor.ts`，以注入介面串接 read／record／prepare，逐台執行並立即保存
+accepted／expired。重跑會略過已有 checkpoint 的裝置；failed 保持可重試。現行 `sendPush`
+及新增支出路徑不變，這仍不是可啟用的完整 worker。
+
+- 候選裝置先去重、驗證 ID，並以既有 checkpoint 與全部候選的聯集檢查 256 台上限。
+  超限在任何 HTTP 前回 capacity；這是保守判定，包含後續資格查詢可能略過的候選。
+- 每台 prepare 前後都重讀有效租約／進度；prepare 的正式 adapter 必須重查旅程、真人成員、
+  首次站內完成收件者與訂閱歸屬。skip 僅略過該裝置，stop／disabled 則停止整批。
+- 每個 terminal 結果立即 await 保存；保存拒絕即停止，儲存／prepare／寄送例外向上拋出，
+  不會誤報成功或繼續寄下一台。HTTP 成功後保存失敗仍有重送窗口。
+- 預設每批最多走訪 32 個去重裝置、20 秒時間預算；包含已完成／不符資格的裝置。
+  超時不再開始下一個 HTTP，但已回傳的 terminal 結果仍嘗試保存。
+  這不是硬性執行期限，不會取消已開始的 HTTP；正式 adapter 仍須 transport timeout 與續租。
+- exhausted 只表示本次候選快照走訪完畢，**不能直接呼叫 queue.complete**。
+  yielded 必須由 worker 依進度選出下一批；retry 表示本批有失敗；其他非 exhausted 狀態也不能
+  視為整筆完成。不得每次固定取相同前 32 台造成後續裝置飢餓。
+
+本批新增 22 項 mock 單元測試，未新增 DB 操作或實際 HTTP adapter。尚待接入有界訂閱查詢、
+目前資格查詢、單裝置寄送器、worker 續租與完整工作結束判定，再決定排程及正式啟用。
+不需新增 `.env` 參數或執行 migration；沒有改動共用 DB 或寄送真實推播。
+
+本批一般完整測試 1,092 項通過、27 項略過（24 項 MongoDB opt-in 本批未重跑、3 項 AI 暫停）；
+TypeScript、Prettier、lint 與 `git diff --check` 通過。
