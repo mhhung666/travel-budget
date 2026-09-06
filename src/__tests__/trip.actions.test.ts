@@ -10,6 +10,7 @@ const tripFindByIdAndUpdate = vi.fn();
 const tripFindById = vi.fn();
 const tripFindOneAndUpdate = vi.fn();
 const tripDeleteOne = vi.fn();
+const tripUpdateOne = vi.fn();
 const deleteByPrefix = vi.fn();
 const notify = vi.fn();
 const logActivity = vi.fn();
@@ -61,6 +62,7 @@ vi.mock('@/models', () => ({
     findById: (...args: unknown[]) => tripFindById(...args),
     findOneAndUpdate: (...args: unknown[]) => tripFindOneAndUpdate(...args),
     deleteOne: (...args: unknown[]) => tripDeleteOne(...args),
+    updateOne: (...args: unknown[]) => tripUpdateOne(...args),
   },
   Expense: {
     deleteMany: (...args: unknown[]) => cascade.expense(...args),
@@ -129,6 +131,7 @@ beforeEach(() => {
   expenseAggregate.mockResolvedValue([{ expenseCount: 3, todaySpent: 1200, totalSpent: 1800 }]);
   tripFindOneAndUpdate.mockReturnValue(lean(tripDoc()));
   tripDeleteOne.mockResolvedValue({ deletedCount: 1 });
+  tripUpdateOne.mockResolvedValue({ matchedCount: 1 });
   deleteByPrefix.mockResolvedValue(undefined);
   notify.mockResolvedValue(undefined);
   logActivity.mockResolvedValue(undefined);
@@ -230,6 +233,13 @@ describe('admin-only trip mutations', () => {
   it('cascades trip deletion while retaining user-level flight and stay records', async () => {
     const result = await deleteTrip('oldcode1');
     expect(result.success).toBe(true);
+    expect(tripUpdateOne).toHaveBeenCalledWith(
+      { _id: TRIP },
+      { $set: { expenseDeliveryDeleting: true } }
+    );
+    expect(tripUpdateOne.mock.invocationCallOrder[0]).toBeLessThan(
+      cascade.expense.mock.invocationCallOrder[0]
+    );
     for (const key of [
       'expense',
       'itinerary',
@@ -260,6 +270,43 @@ describe('admin-only trip mutations', () => {
     const result = await deleteTrip(TRIP);
     expect(result.success).toBe(true);
     expect(loggerError).toHaveBeenCalledWith('Delete trip: blob cleanup failed', expect.any(Error));
+  });
+
+  it('does not cascade until the deletion marker is acknowledged', async () => {
+    let release!: () => void;
+    tripUpdateOne.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        release = resolve;
+      })
+    );
+    const result = deleteTrip(TRIP);
+    try {
+      await vi.waitFor(() => expect(tripUpdateOne).toHaveBeenCalledTimes(1));
+      for (const operation of Object.values(cascade)) expect(operation).not.toHaveBeenCalled();
+      expect(tripDeleteOne).not.toHaveBeenCalled();
+    } finally {
+      release();
+    }
+    expect((await result).success).toBe(true);
+  });
+
+  it('does not delete any data if marking the trip fails', async () => {
+    tripUpdateOne.mockRejectedValueOnce(new Error('marker unavailable'));
+    expect((await deleteTrip(TRIP)).success).toBe(false);
+    for (const operation of Object.values(cascade)) expect(operation).not.toHaveBeenCalled();
+    expect(tripDeleteOne).not.toHaveBeenCalled();
+    expect(deleteByPrefix).not.toHaveBeenCalled();
+  });
+
+  it('keeps the deletion marker after a cascade failure so deletion can be retried', async () => {
+    cascade.expense.mockRejectedValueOnce(new Error('cleanup unavailable'));
+    expect((await deleteTrip(TRIP)).success).toBe(false);
+    expect(tripUpdateOne).toHaveBeenCalledExactlyOnceWith(
+      { _id: TRIP },
+      { $set: { expenseDeliveryDeleting: true } }
+    );
+    expect(tripDeleteOne).not.toHaveBeenCalled();
+    expect((await deleteTrip(TRIP)).success).toBe(true);
   });
 
   it('replaces the share code and invalidates both trip routes', async () => {

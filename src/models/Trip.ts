@@ -85,6 +85,9 @@ const TripSchema = new Schema(
     // 重新產生會換碼、使舊連結立即失效；null／未設代表未分享。
     albumShareCode: { type: String },
     members: { type: [TripMemberSchema], default: [] },
+    // 刪除子資料前先設置；背景事件不得在級聯清理途中重新新增紀錄。
+    // 不設 default、不回補歷史資料。清理失敗時保留標記，管理員可重試 deleteTrip。
+    expenseDeliveryDeleting: { type: Boolean },
     // 舊版全團預算，只供個人預算改版後的過渡提示，不再參與任何進度計算。
     // migration 會將舊 budget 欄位改名至此；全新旅程維持 null。
     legacyBudget: { type: BudgetSchema, default: null },

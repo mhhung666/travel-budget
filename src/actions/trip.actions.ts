@@ -260,6 +260,10 @@ export const deleteTrip = withAuth(
 
       const tripId = membership.tripId;
 
+      // 先對 parent 寫入刪除標記：與背景事件的 Trip transaction fence 互斥。
+      // 必須等完成才能平行清理子資料；失敗不清除標記，避免部分刪除後重建通知。
+      await TripModel.updateOne({ _id: tripId }, { $set: { expenseDeliveryDeleting: true } });
+
       // MongoDB 無外鍵 cascade，需手動清除關聯資料（支出、行程日、結算還款、清單、通知、動態牆、留言、隨手記、相簿）
       await Promise.all([
         Expense.deleteMany({ trip: tripId }),

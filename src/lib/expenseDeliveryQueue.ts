@@ -8,6 +8,9 @@ export interface ExpenseDeliveryState {
   availableAt: Date;
   token: string | null;
   updatedAt?: Date;
+  recordFence?: number;
+  recordsPersistedAt?: Date;
+  recordRecipientIds?: string[];
   lastError?: 'delivery_failed' | 'worker_error' | 'lease_expired';
 }
 

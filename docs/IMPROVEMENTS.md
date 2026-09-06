@@ -1,6 +1,6 @@
 # 改善建議（Improvements）
 
-> 更新日期：2026-09-05
+> 更新日期：2026-09-06
 > 本文件只列**尚未處理**的程式碼 / 基礎設施層級改善。已完成里程碑見 [CHANGELOG.md](./CHANGELOG.md)，架構說明見 [ARCHITECTURE.md](./ARCHITECTURE.md)。
 > 慣例：處理完一項 → 移到 [CHANGELOG.md](./CHANGELOG.md)、從本檔刪除。
 
@@ -60,8 +60,12 @@ migrate-mongo changelog／lock 與正式操作審查。現有測試庫的索引�
 
 **事件快照／站內去重模組已完成**：新增當下快照驗證、有效 lease 與事件歸屬檢查、成員交集、
 partial unique + upsert，保留已讀狀態與舊紀錄；隔離 MongoDB 驗證已擴至 15 個情境並全部通過。
-尚未接入 schema／action／worker，正式索引 migration 尚未建立；啟用前須補跨集合刪除／移除成員
-與 lease 過期競爭的生命週期保護，詳見背景通知文件。
+尚未接入 Expense schema／新增 action／worker，正式索引 migration 尚未建立。
+
+**交易及生命週期防護已完成一階段**：站內紀錄與完成標記同交易寫入，Expense／Trip／User fence、
+交易末端 lease 重查，已完成紀錄不復活已刪通知；deleteTrip 先標記再清理，失敗可重試刪除。
+隔離 replica set 的 22 個情境通過；目標 DB 的 transaction 支援／成本、完整 action→worker 驗收、
+對外推播去重仍待完成。刪除標記不是所有業務寫入的全面封鎖，R 的其他一致性工作仍保留。
 
 **剩餘問題**：新增支出仍等待 populate、通知與活動紀錄完成，Web Push 延遲仍影響回應。
 支出 Email 原本已走每日彙整，並非每筆即時寄送。活動紀錄仍會查 User；目前副作用僅 best-effort

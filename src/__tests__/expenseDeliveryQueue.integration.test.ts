@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { randomUUID } from 'node:crypto';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mongo } from 'mongoose';
 import { createExpenseDeliveryEvent } from '@/lib/expenseDeliveryEvent';
 import { createExpenseEventStore, EXPENSE_EVENT_INDEXES } from '@/lib/expenseEventStore';
@@ -32,6 +32,8 @@ describe.skipIf(!uri || !allowed)('expense queue isolated MongoDB', () => {
       socketTimeoutMS: 10000,
     });
     await client.connect();
+    const hello = await client.db('admin').command({ hello: 1 });
+    if (!hello.setName) throw new Error('Isolated queue integration now requires a replica set');
     db = client.db(`tb_queue_verify_${randomUUID().replaceAll('-', '')}`);
     expect(await db.listCollections({}, { nameOnly: true }).toArray()).toHaveLength(0);
     await db.createCollection('verification_owner');
@@ -200,13 +202,11 @@ describe.skipIf(!uri || !allowed)('expense queue isolated MongoDB', () => {
         },
       }
     );
-    await db
-      .collection('trips')
-      .insertOne({
-        _id: tripId,
-        name: 'Renamed trip',
-        members: [actor, recipient, second].map((user) => ({ user })),
-      });
+    await db.collection('trips').insertOne({
+      _id: tripId,
+      name: 'Renamed trip',
+      members: [actor, recipient, second].map((user) => ({ user })),
+    });
     await db
       .collection('users')
       .insertMany([actor, recipient, second].map((_id) => ({ _id, isVirtual: false })));
@@ -271,13 +271,16 @@ describe.skipIf(!uri || !allowed)('expense queue isolated MongoDB', () => {
     expect(await db.collection('activitylogs').countDocuments()).toBe(1);
   });
 
-  it('repairs partial fan-out on retry without duplicate records', async () => {
+  it('rolls back partial fan-out and retries the entire event atomically', async () => {
     const { store, lease, second } = await eventFixture();
     await db.command({ collMod: 'notifications', validator: { user: { $ne: second } } });
     try {
       await expect(store.persist(lease.id, lease.token)).rejects.toMatchObject({ code: 121 });
-      expect(await db.collection('activitylogs').countDocuments()).toBe(1);
-      expect(await db.collection('notifications').countDocuments()).toBe(1);
+      expect(await db.collection('activitylogs').countDocuments()).toBe(0);
+      expect(await db.collection('notifications').countDocuments()).toBe(0);
+      expect(
+        (await collection.findOne({ _id: lease.id }))?.expenseDelivery?.recordsPersistedAt
+      ).toBeUndefined();
     } finally {
       await db.command({ collMod: 'notifications', validator: {} });
     }
@@ -332,4 +335,173 @@ describe.skipIf(!uri || !allowed)('expense queue isolated MongoDB', () => {
       await db.collection(name).createIndex(key, options);
     }
   });
+
+  it('does not resurrect deleted notifications or activities when replaying completed records', async () => {
+    const { store, lease } = await eventFixture();
+    await store.persist(lease.id, lease.token);
+    await db.collection('notifications').deleteMany({});
+    await db.collection('activitylogs').deleteMany({});
+    await store.persist(lease.id, lease.token);
+    expect(await db.collection('notifications').countDocuments()).toBe(0);
+    expect(await db.collection('activitylogs').countDocuments()).toBe(0);
+    expect(
+      (await collection.findOne({ _id: lease.id }))?.expenseDelivery?.recordsPersistedAt
+    ).toBeInstanceOf(Date);
+  });
+
+  it('does not backfill a removed then rejoined recipient after records commit', async () => {
+    const { store, lease, tripId, recipient, second } = await eventFixture();
+    await db
+      .collection('trips')
+      .updateOne({ _id: tripId }, { $pull: { members: { user: recipient } } } as mongo.Document);
+    expect(await store.persist(lease.id, lease.token)).toEqual({
+      status: 'persisted',
+      recipients: [second.toHexString()],
+    });
+    await db
+      .collection('trips')
+      .updateOne({ _id: tripId }, { $push: { members: { user: recipient } } } as mongo.Document);
+    expect(await store.persist(lease.id, lease.token)).toEqual({
+      status: 'persisted',
+      recipients: [second.toHexString()],
+    });
+    expect(await db.collection('notifications').countDocuments()).toBe(1);
+  });
+
+  it.each(['member_removed', 'trip_deleting'])(
+    'retries stale trip reads after %s between expense and trip locks',
+    async (change) => {
+      const { store, lease, tripId, recipient, second } = await eventFixture();
+      const original = mongo.Collection.prototype.findOneAndUpdate;
+      let injected = false;
+      const spy = vi
+        .spyOn(mongo.Collection.prototype, 'findOneAndUpdate')
+        .mockImplementation(async function (
+          this: mongo.Collection,
+          ...args: Parameters<typeof original>
+        ) {
+          if (this.collectionName === 'trips' && !injected) {
+            injected = true;
+            await db
+              .collection('trips')
+              .updateOne(
+                { _id: tripId },
+                change === 'member_removed'
+                  ? ({ $pull: { members: { user: recipient } } } as mongo.Document)
+                  : { $set: { expenseDeliveryDeleting: true } }
+              );
+          }
+          return original.apply(this, args);
+        });
+      try {
+        const result = await store.persist(lease.id, lease.token);
+        expect(injected).toBe(true);
+        if (change === 'member_removed') {
+          expect(result).toEqual({ status: 'persisted', recipients: [second.toHexString()] });
+          expect(await db.collection('notifications').countDocuments({ user: recipient })).toBe(0);
+        } else {
+          expect(result.status).toBe('skipped');
+          expect(await db.collection('notifications').countDocuments()).toBe(0);
+          expect(await db.collection('activitylogs').countDocuments()).toBe(0);
+        }
+      } finally {
+        spy.mockRestore();
+      }
+    }
+  );
+
+  it('rolls back notifications when the lease expires during fan-out', async () => {
+    const { store, lease } = await eventFixture();
+    await collection.updateOne({ _id: lease.id }, [
+      { $set: { 'expenseDelivery.availableAt': { $add: ['$$NOW', 500] } } },
+    ]);
+    const original = mongo.Collection.prototype.updateOne;
+    let paused = false;
+    const spy = vi
+      .spyOn(mongo.Collection.prototype, 'updateOne')
+      .mockImplementation(async function (
+        this: mongo.Collection,
+        ...args: Parameters<typeof original>
+      ) {
+        if (this.collectionName === 'notifications' && !paused) {
+          paused = true;
+          await new Promise((resolve) => setTimeout(resolve, 650));
+        }
+        return original.apply(this, args);
+      });
+    try {
+      expect(await store.persist(lease.id, lease.token)).toEqual({
+        status: 'skipped',
+        reason: 'lease_expired',
+      });
+      expect(paused).toBe(true);
+      expect(await db.collection('notifications').countDocuments()).toBe(0);
+      expect(await db.collection('activitylogs').countDocuments()).toBe(0);
+      expect(
+        (await collection.findOne({ _id: lease.id }))?.expenseDelivery?.recordsPersistedAt
+      ).toBeUndefined();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it.each(['member_removed', 'trip_deleted'])(
+    'finishes records before a waiting %s cleans them up',
+    async (change) => {
+      const { store, lease, tripId, recipient } = await eventFixture();
+      const original = mongo.Collection.prototype.updateOne;
+      let started = false;
+      let finished = false;
+      let cleanup: Promise<void> | undefined;
+      let cleanupError: unknown;
+      const spy = vi
+        .spyOn(mongo.Collection.prototype, 'updateOne')
+        .mockImplementation(async function (
+          this: mongo.Collection,
+          ...args: Parameters<typeof original>
+        ) {
+          if (this.collectionName === 'notifications' && !started) {
+            started = true;
+            cleanup = (async () => {
+              if (change === 'member_removed') {
+                await db.collection('trips').updateOne({ _id: tripId }, {
+                  $pull: { members: { user: recipient } },
+                } as mongo.Document);
+                await db.collection('notifications').deleteMany({ trip: tripId, user: recipient });
+              } else {
+                await db
+                  .collection('trips')
+                  .updateOne({ _id: tripId }, { $set: { expenseDeliveryDeleting: true } });
+                await Promise.all(
+                  ['expenses', 'notifications', 'activitylogs'].map((name) =>
+                    db.collection(name).deleteMany({ trip: tripId })
+                  )
+                );
+                await db.collection('trips').deleteOne({ _id: tripId });
+              }
+              finished = true;
+            })().catch((error) => {
+              cleanupError = error;
+            });
+            // Allow the outside write to reach MongoDB: it must wait for this transaction's Trip lock.
+            await new Promise((resolve) => setTimeout(resolve, 50));
+            expect(finished).toBe(false);
+          }
+          return original.apply(this, args);
+        });
+      try {
+        expect((await store.persist(lease.id, lease.token)).status).toBe('persisted');
+      } finally {
+        spy.mockRestore();
+        await cleanup;
+      }
+      expect(cleanupError).toBeUndefined();
+      expect(started && finished).toBe(true);
+      expect(await db.collection('notifications').countDocuments({ user: recipient })).toBe(0);
+      if (change === 'trip_deleted') {
+        expect(await db.collection('activitylogs').countDocuments()).toBe(0);
+        expect((await store.persist(lease.id, lease.token)).status).toBe('skipped');
+      }
+    }
+  );
 });
