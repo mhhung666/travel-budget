@@ -11,6 +11,7 @@ export interface ExpenseDeliveryState {
   recordFence?: number;
   recordsPersistedAt?: Date;
   recordRecipientIds?: string[];
+  pushCheckpoints?: Record<string, { status: 'accepted' | 'expired'; recordedAt: Date }>;
   lastError?: 'delivery_failed' | 'worker_error' | 'lease_expired';
 }
 

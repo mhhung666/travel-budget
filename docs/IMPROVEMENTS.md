@@ -67,6 +67,10 @@ partial unique + upsert，保留已讀狀態與舊紀錄；隔離 MongoDB 驗證
 隔離 replica set 的 22 個情境通過；目標 DB 的 transaction 支援／成本、完整 action→worker 驗收、
 對外推播去重仍待完成。刪除標記不是所有業務寫入的全面封鎖，R 的其他一致性工作仍保留。
 
+**逐裝置進度儲存層已完成**：內嵌 accepted／expired checkpoint，有效 lease 與站內完成標記檢查、
+首次結果保留、接手後保留進度、最多 256 裝置的原子容量保護。隔離 MongoDB 已擴至 24 項通過。
+尚未串接寄送器／worker；HTTP 已接受但 checkpoint 未保存的中斷窗口仍可能重複寄送。
+
 **剩餘問題**：新增支出仍等待 populate、通知與活動紀錄完成，Web Push 延遲仍影響回應。
 支出 Email 原本已走每日彙整，並非每筆即時寄送。活動紀錄仍會查 User；目前副作用僅 best-effort
 記錄錯誤，尚無持久化重試或去重機制，不能視為 P 完整驗收通過。

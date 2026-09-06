@@ -3,6 +3,10 @@ import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mongo } from 'mongoose';
 import { createExpenseDeliveryEvent } from '@/lib/expenseDeliveryEvent';
+import {
+  createExpensePushCheckpoint,
+  EXPENSE_PUSH_CHECKPOINT_LIMIT,
+} from '@/lib/expensePushCheckpoint';
 import { createExpenseEventStore, EXPENSE_EVENT_INDEXES } from '@/lib/expenseEventStore';
 import {
   createExpenseDeliveryQueue,
@@ -78,6 +82,74 @@ describe.skipIf(!uri || !allowed)('expense queue isolated MongoDB', () => {
     expect(job?.expenseDelivery?.token).toEqual(expect.any(String));
     return { id: job!._id, token: job!.expenseDelivery!.token! };
   }
+
+  it('checkpoints terminal devices once and retains progress across takeover', async () => {
+    await insert();
+    const lease = await claim();
+    const store = createExpensePushCheckpoint(collection);
+    const device = new mongo.ObjectId().toHexString();
+    expect(await store.record(lease.id, lease.token, device, 'accepted')).toBe(false);
+    expect(await store.read(lease.id, lease.token)).toBeNull();
+    await collection.updateOne(
+      { _id: lease.id },
+      { $set: { 'expenseDelivery.recordsPersistedAt': new Date() } }
+    );
+    expect(await store.read(lease.id, lease.token)).toEqual({});
+    expect(await store.record(lease.id, lease.token, device, 'accepted')).toBe(true);
+    const first = await store.read(lease.id, lease.token);
+    expect(first?.[device]).toEqual({ status: 'accepted', recordedAt: expect.any(Date) });
+    await Promise.all(
+      Array.from({ length: 12 }, () => store.record(lease.id, lease.token, device, 'expired'))
+    );
+    expect(await store.read(lease.id, lease.token)).toEqual(first);
+    await expire(lease.id);
+    expect(await store.read(lease.id, lease.token)).toBeNull();
+    expect(await store.record(lease.id, lease.token, device, 'expired')).toBe(false);
+    const next = await claim();
+    expect(await store.record(lease.id, lease.token, device, 'expired')).toBe(false);
+    expect(await store.read(next.id, next.token)).toEqual(first);
+    const expiredDevice = new mongo.ObjectId().toHexString();
+    expect(await store.record(next.id, next.token, expiredDevice, 'expired')).toBe(true);
+    expect((await store.read(next.id, next.token))?.[expiredDevice].status).toBe('expired');
+    await queue.complete(next.id, next.token);
+    expect(await store.record(next.id, next.token, device, 'accepted')).toBe(false);
+    await collection.deleteOne({ _id: next.id });
+    expect(await store.record(next.id, next.token, device, 'accepted')).toBe(false);
+    expect(await collection.countDocuments({})).toBe(0);
+  });
+
+  it('atomically bounds device checkpoints while permitting duplicate acknowledgements', async () => {
+    await insert();
+    const lease = await claim();
+    const store = createExpensePushCheckpoint(collection);
+    const existing = Object.fromEntries(
+      Array.from({ length: EXPENSE_PUSH_CHECKPOINT_LIMIT - 1 }, () => [
+        new mongo.ObjectId().toHexString(),
+        { status: 'accepted' as const, recordedAt: new Date() },
+      ])
+    );
+    await collection.updateOne(
+      { _id: lease.id },
+      {
+        $set: {
+          'expenseDelivery.recordsPersistedAt': new Date(),
+          'expenseDelivery.pushCheckpoints': existing,
+        },
+      }
+    );
+    const outcomes = await Promise.all(
+      Array.from({ length: 12 }, () =>
+        store.record(lease.id, lease.token, new mongo.ObjectId().toHexString(), 'accepted')
+      )
+    );
+    expect(outcomes.filter(Boolean)).toHaveLength(1);
+    expect(Object.keys((await store.read(lease.id, lease.token))!)).toHaveLength(
+      EXPENSE_PUSH_CHECKPOINT_LIMIT
+    );
+    expect(await store.record(lease.id, lease.token, Object.keys(existing)[0], 'expired')).toBe(
+      true
+    );
+  });
 
   it('gives exactly one of 12 concurrent claimers the job', async () => {
     const id = await insert();

@@ -119,5 +119,28 @@ Trip 成員、再刪其通知，能與 Trip fence 排序。刪除 Trip 已補 pa
 競爭情境在隔離 DB 驗證，尚未執行完整真實登入 API 到 worker 的驗收。
 
 啟用 worker 前須確認目標 DB 支援 transaction（replica set／sharded cluster），並評估 fence 額外
-寫入與交易成本；本次沒有查驗或變更 `.env` 指向的共用環境。對外推播仍須另做逐裝置完成紀錄、
+寫入與交易成本；本次沒有查驗或變更 `.env` 指向的共用環境。對外推播仍須串接逐裝置完成紀錄、
 失效處理與去重；站內完成標記不能視為已推播。唯一索引不保證對外寄送 exactly-once。
+
+## 逐裝置進度儲存層（2026-09-06，尚未啟用）
+
+新增 `expensePushCheckpoint.ts`，將裝置 ObjectId 作為 Expense 內嵌 checkpoint 的 key，
+僅保存 `accepted`／`expired` 與 DB 時間。不保存 endpoint、金鑰、推播內容或 provider 原始錯誤。
+這是儲存層，不會呼叫現行 `sendPush`、查訂閱或自動略過裝置；尚無實際 worker。
+
+- read／record 都要求有效 lease 與站內 `recordsPersistedAt`；read 回 null 表示必須停止。
+- 首次 terminal 結果及時間不可覆寫；claim 接手會保留進度。failed／不確定結果不記成完成。
+- 不使用 upsert；到期／舊 token／已完成／已刪支出不可寫入，也不會重建支出。
+- 每筆支出最多 256 個裝置 checkpoint，併發寫入也受原子上限保護，避免內嵌文件無限制增長。
+  record 回 false 必須停止／重新判斷，不能視為寄送完成；超限需後續 worker 的人工處理策略。
+- accepted 只代表 provider 接受；expired 的訂閱清理失敗應分開處理，不應重新寄送。
+
+未來 worker 須先依目前成員／使用者／訂閱資格取得可寄裝置，再排除 checkpoint 中的裝置；
+每個 HTTP 完成後立刻保存，不能等待整批才保存。read 不是 HTTP 鎖，途中仍可能失去 lease、
+被移除成員或刪除旅程。HTTP 已接受但 checkpoint 尚未保存的中斷窗口仍可能重送，不能宣稱 exactly-once。
+正式啟用前仍需寄送器介面、續租、批次／時間限制、超限處理、索引 migration 與 action 的原子事件接入。
+
+本階段驗證：新增 7 項單元測試；隔離 replica set 的整合測試共 24 項通過，含進度接手、
+重複回報不覆寫與 12 個併發寫入爭取最後一個容量。一般完整測試 1,070 項通過、27 項略過
+（24 項 MongoDB 另跑通過、3 項 AI 依原規劃暫停）；TypeScript 通過。
+測試庫已清理，未讀取 `.env`、未修改共用 DB、未寄送真實推播；不需新增環境參數或執行 migration。
