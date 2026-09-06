@@ -196,3 +196,28 @@ payload 與 VAPID 設定，使用 web-push 的 `generateRequestDetails` 產生�
 
 本批一般完整測試 1,120 項通過、27 項略過（24 項 MongoDB opt-in 本批未重跑、3 項 AI 暫停）；
 TypeScript、Prettier、lint 與 `git diff --check` 通過。
+
+## 送出前資格 adapter（2026-09-06，尚未啟用）
+
+新增 `expensePushPrepare.ts`，綁定單筆支出與租約，供 executor 的 prepare 使用：
+
+- 設定由伺服端呼叫者明確注入；null 回 disabled，不自行讀環境或建立 DB 連線。
+- 以 DB 時間檢查有效租約與站內紀錄完成標記，驗證不可變事件與支出／旅程／觸發者歸屬。
+  查不到有效工作或旅程（含刪除中）回 stop；損壞事件／收件者資料與 DB 例外直接拋出。
+- 只允許事件成員、首次站內通知收件者、目前旅程成員的交集，排除觸發者。
+  再依指定訂閱 ID 與合資格 owner 查詢，確認 owner 仍存在且非虛擬使用者；不符回 skip。
+- 四次查詢均走 primary、必要欄位 projection，設定每次 server maxTimeMS 與 driver timeoutMS
+  各 2 秒。這是單次查詢限制，不是整個 prepare 的總期限，也不是批次候選發現器。
+- 文案沿用本地化 builder：目前收件者語系、事件當時旅程／人物／支出快照、公開 hash 深連結。
+  ready 的 send 只能呼叫一次，接有總 HTTP 時限的單裝置 transport；prepare 本身不送網路請求。
+- executor 必須在 prepare 後重讀租約／進度，立即使用 send；不能快取 ready 供之後重跑。
+  這些讀取不是鎖，不能消除查詢後成員移除、訂閱移轉或 HTTP 成功後 checkpoint 失敗的窗口。
+- expired 直接交回 executor 保存，不在 checkpoint 前等待清理。條件式清理仍待後續接入：
+  必須匹配原 owner／endpoint／keys，且清理失敗不能觸發重送；目前不刪除訂閱。
+
+新增 23 項 mock 測試，包含資格排除、查詢條件／時限、錯誤傳遞、本地化輸入與一次性寄送，
+以及與 executor 串接的 prepare 後租約失效停止、expired 立即保存。未連真實 DB 或推播服務。
+仍未啟用 worker／action／排程，不需 migration 或新增環境參數，P 的線上回應時間尚未改善。
+
+本批完整一般測試 1,143 項通過、27 項略過（24 項 MongoDB opt-in 未重跑、3 項 AI 暫停）；
+Prettier、lint、TypeScript 與 `git diff --check` 通過。
