@@ -170,3 +170,29 @@ accepted／expired。重跑會略過已有 checkpoint 的裝置；failed 保持�
 
 本批一般完整測試 1,092 項通過、27 項略過（24 項 MongoDB opt-in 本批未重跑、3 項 AI 暫停）；
 TypeScript、Prettier、lint 與 `git diff --check` 通過。
+
+## 單裝置 HTTP 傳送層（2026-09-06，尚未啟用）
+
+新增 `expensePushTransport.ts` 的 `sendExpensePushDevice`：接收已授權的一個訂閱、已本地化
+payload 與 VAPID 設定，使用 web-push 的 `generateRequestDetails` 產生加密 body／簽章，
+再由 Node HTTPS 傳送。不呼叫既有多裝置 `sendPush`，也不修改現行新增支出流程。
+
+- 預設 HTTP 總時間上限 5 秒，可由呼叫端指定 1–10,000 毫秒整數；非 socket 閒置逾時。
+  到期會 destroy request／response 並回 failed，持續收到資料也不延長期限。
+  時限從 HTTP 建立前開始，不涵蓋同步加密；仍受 Node event loop 排程影響，不是硬即時保證。
+- 完整回應的 2xx 為 accepted，404／410 為 expired，其餘（含重新導向、429、5xx）為 failed。
+  不追蹤重新導向、不自動重試；串流中斷、網路錯誤與逾時均不可記為 terminal checkpoint。
+- 不累積或記錄 provider body、endpoint、金鑰與原始錯誤；僅回傳分類。
+  每次關閉本地連線，不使用共享 keep-alive agent。
+- 本層不查 DB、不讀 `.env`、不判斷 disabled、不刪除失效訂閱。正式 prepare adapter 仍須重查
+  旅程／真人成員／首次完成收件者／訂閱歸屬，組合語系 payload，並處理未配置 VAPID。
+  expired 清理須比對原訂閱擁有者與 endpoint／keys，避免刪掉寄送期間更新的訂閱；清理失敗
+  不得將 expired 改成可重送。此清理與 adapter 留待下一批。
+- HTTP 中止只能停止本地工作，無法撤回 provider 已接受的訊息；failed 重試與成功後保存前
+  的中斷都仍可能重送，不保證 exactly-once。尚未接入 executor／worker／action，P 尚未驗收。
+
+新增 28 項 mock 測試，覆蓋狀態分類、簽章 request 轉送、總時限、串流逾時、晚到事件、
+同步／非同步錯誤與參數驗證。沒有真實推播、共用 DB 操作或 migration；不需新增環境參數。
+
+本批一般完整測試 1,120 項通過、27 項略過（24 項 MongoDB opt-in 本批未重跑、3 項 AI 暫停）；
+TypeScript、Prettier、lint 與 `git diff --check` 通過。
