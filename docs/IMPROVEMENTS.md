@@ -46,7 +46,8 @@ migrate-mongo changelog／lock 與正式操作審查。現有測試庫的索引�
 ### P. 🟡 支出寫入 critical path 瘦身（P1）
 
 **目前狀態（2026-09-07）**：三階段程式整合與本機驗證完成，背景模式預設 off，
-尚待確認補撿頻率／Vercel 方案、授權正式索引 migration、部署啟用與實測延遲驗收。
+已確認 Hobby 每日補撿，並加入台灣 20:00 所在小時的排程設定；
+尚待授權正式索引 migration、部署啟用與實測延遲驗收。
 完整交付、測試證據與操作清單見 [EXPENSE_DELIVERY_ACCEPTANCE.md](./EXPENSE_DELIVERY_ACCEPTANCE.md)。
 P 尚未標記正式完成；以下為歷次開發紀錄，不代表目前仍缺少 worker／action 實作。
 

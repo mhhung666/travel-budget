@@ -6,7 +6,8 @@
 
 程式整合與本機隔離驗證已完成；**P 尚未完成正式環境驗收**。
 新增支出的背景模式預設關閉。沒有修改使用者 `.env`、執行共用 DB migration、
-新增 Vercel 排程、push 或部署；AI 真實品質驗收依原決定暫停。
+push 或部署；AI 真實品質驗收依原決定暫停。
+使用者已確認 Hobby、每日補送；`vercel.json` 已加入每日補撿設定，待 production 部署才生效。
 
 ## 本次交付
 
@@ -43,18 +44,22 @@ Schema 不預設建立歷史工作，內部事件／進度預設不列入一般�
 已確認隨機 `tb_queue_verify_…` 測試庫全部清除，臨時 MongoDB 容器停止並移除；
 僅清除本次合成測試資料，沒有刪除使用者資料。
 
-## 正式啟用前需要決定
+## 每日排程決定與正式啟用清單
 
-1. 確認 Vercel 方案與補送頻率：每日可接受，或需要分鐘級／外部排程。
-   [Vercel Cron 限制](https://vercel.com/docs/cron-jobs/usage-and-pricing) 的 Hobby 頻率僅每日；
-   不可在尚未確認方案前直接改成分鐘級。
+1. **已確認：Hobby，每日一次即可**。補撿設定為 `0 12 * * *`（UTC），即台灣時間
+   20:00 所在小時；保留原每日摘要 `0 13 * * *`（台灣 21:00 所在小時）。
+   Hobby 不保證準點，可能於 20:00–20:59 觸發，見
+   [Vercel Cron 限制](https://vercel.com/docs/cron-jobs/usage-and-pricing)。
+   此排程只在 production 部署後生效，preview 不會自動跑，見
+   [Vercel Cron 啟用文件](https://vercel.com/docs/cron-jobs/quickstart)。
 2. 每次補撿只跑一筆／一批；低頻排程在累積工作時可能遠超隔天才送完。
    必須依每日新增量、每事件裝置數、失敗率及 pending 最舊時間評估排空能力。
    after 只處理一批且可能中斷，不能拿正常即時路徑代替補撿容量規劃。
 3. 確認使用者授權的目標 DB 與既有 migration status，再執行
    `20260907170000-expense-delivery-indexes.js`。不要直接執行未盤點的所有 pending migrations。
-4. 先部署 off 版本、保持既有 CRON_SECRET，建立受驗證的獨立 GET
-   `/api/cron/expense-delivery` 排程；驗證 401／503 邊界與 authorized idle 回應。
+4. 先部署 off 版本、保持既有 CRON_SECRET，確認 Vercel 已登錄獨立 GET
+   `/api/cron/expense-delivery` 每日排程；驗證 401／503 邊界與 authorized idle 回應。
+   索引尚未安裝時入口預期回 503，不會自動 migration；先完成第 3 步再啟用。
 5. 確認排程正常後才設 `EXPENSE_BACKGROUND_DELIVERY=on` 並重新部署。新增一筆測試支出，
    比對回應 DTO、站內通知／活動各一次、推播結果與 completed 狀態。
 6. 在隔離 preview DB／測試訂閱製造 provider 失敗與 worker 中斷，確認排程恢復；
