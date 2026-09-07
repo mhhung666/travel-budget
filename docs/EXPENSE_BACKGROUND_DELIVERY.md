@@ -271,3 +271,26 @@ terminal 超時後推進、續跑租約／容量重查與不合法游標。未�
 
 本批完整一般測試 1,175 項通過、27 項略過（24 項 MongoDB opt-in 未重跑、3 項 AI 暫停）；
 Prettier、lint、TypeScript 與 `git diff --check` 通過。
+
+## MongoDB 有界候選裝置查詢（2026-09-07，尚未啟用）
+
+新增 `createExpensePushCandidates(db)`，由呼叫者提供連線與工作 ID／租約 token；不自行
+連線、不讀環境參數、不寫 DB、不送 HTTP，也尚未接入 worker。
+
+- 先確認有效租約及站內記錄完成標記，驗證事件歸屬、首次收件人與 checkpoint 格式。
+- 只查事件成員與首次收件人的交集、排除 actor；排除已 accepted／expired 的裝置。
+  只投影 `_id`，按 `_id` 排序，以 256 減既有 checkpoint 數再加一筆作為查詢上限。
+- 溢位回 capacity，不提供部分清單；滿 256 checkpoint 時仍查一筆確認是否超量。
+- 查詢後再次確認有效租約並重讀 checkpoint，扣除新增 terminal、重新檢查聯集容量。
+  租約失效／工作刪除回 stop，查詢或資料驗證失敗拋出，不當成空清單成功。
+- 每次 DB 操作使用 primary、2 秒伺服器與 driver 時限；不是整個函式的共同 deadline。
+  有界指回傳筆數，並非保證掃描筆數；既有 user 索引是否足以支援排序仍需 explain 驗證，
+  本批未新增或安裝索引，也未宣稱實測效能改善。
+- 候選集合保守包含可能已退出／刪除／轉虛擬帳號的收件人，可能因此提前 capacity；
+  不在此授權派送，prepare 仍須逐裝置重查當下資格。worker 不得把 capacity 當作完成。
+- ready 空清單也不是 queue.complete 的依據；多次讀取不是 transaction snapshot，
+  註冊可能在查詢中／之後改變。回傳清單只供同一工作的一輪 executor continuation 固定使用，
+  不可每批重新查詢後套用舊游標。候選快照、游標持久化與完成政策仍待實作。
+
+新增 17 項 mock 測試，驗證查詢形狀、上限、競態防護與錯誤傳遞；不等同實際 MongoDB
+查詢計畫或競態驗證。未連真實 DB／推播服務，不需 migration 或新增環境參數。
