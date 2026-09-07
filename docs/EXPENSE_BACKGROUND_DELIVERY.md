@@ -2,6 +2,31 @@
 
 > 更新日期：2026-09-06
 
+## P 整合階段 2（2026-09-07；預設關閉）
+
+已加入 `EXPENSE_BACKGROUND_DELIVERY=off|on`（預設 off），範例見 `.env.example`。
+on 時新增入口先確認 CRON_SECRET、transaction 支援、4 個必要索引，再以單次 Expense insert
+保存不可變事件及初始工作狀態。User 顯示名稱在寫入前一次讀取，成功後直接組回應，不再 populate。
+同一 outbox 事件不呼叫舊 notify／logActivity，避免無去重鍵的雙份紀錄。
+
+回應後使用 Next.js `after` 嘗試一批背景工作；註冊 callback、執行 worker 或 cache invalidation
+失敗不改寫已成功的支出結果。after 受平台執行時限約束，**不是獨立排程替代品**。
+參考 [Next.js after 文件](https://nextjs.org/docs/app/api-reference/functions/after)。
+
+新增 `/api/cron/expense-delivery`，只接受 CRON_SECRET Bearer 驗證，單次處理一筆／一批、
+route maxDuration 60 秒，失敗回 503 且不暴露 DB／provider 原始錯誤。關閉新寫入開關後，
+此入口仍可排空已存在的工作。未新增 vercel.json 排程，不自動呼叫遠端入口。
+
+新增 `20260907170000-expense-delivery-indexes.js` migration：queue ready、站內通知去重、
+活動去重、user + _id 候選查詢共 4 索引。事前檢查所有同名索引相容性；已存在則保留，
+不回補歷史通知、不刪業務資料、無 TTL。down 刻意拒絕移除去重保護，回滾採 off 並排空。
+migration 僅已編寫，**未對 `.env`／共用 DB 執行**；不得直接 migrate:up 連帶執行未盤點的舊 migration。
+
+啟用順序：確認排程頻率與平台方案 → 盤點 migration status／目標 DB → 安裝並驗證索引 →
+部署 off 版本及設定受保護補撿排程 → 確認排程能執行 → 開 on → 驗證新增回應及補送。
+readiness 成功在同一程序／Db 快取；刪索引後既有工作會由 worker fail-closed 重試，
+部署期間不得移除必要索引。
+
 ## P 整合階段 1（2026-09-07）
 
 已串接持久化 runner 與單工 worker：站內交易 → 固定候選初始化／重讀 → 每批最多

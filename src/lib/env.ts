@@ -33,6 +33,8 @@ const envSchema = z.object({
   // 排程任務（Vercel Cron）的共享密鑰。Vercel 觸發 cron 時會自動帶
   // `Authorization: Bearer <CRON_SECRET>`；未設定時 cron route 一律拒絕（防止公開觸發）。
   CRON_SECRET: z.string().optional(),
+  // Enable only after indexes and an independent recovery scheduler are verified.
+  EXPENSE_BACKGROUND_DELIVERY: z.enum(['off', 'on']).default('off'),
   // Web Push（瀏覽器推播通知，ROADMAP #9 Phase 3）。比照 R2 / Resend 一律 optional：
   // 未設定的環境（含 CI build、本機未配置）仍能正常 boot；只有實際要送推播時才透過
   // getWebPushConfig() 嚴格檢查。**VAPID 公鑰刻意以 NEXT_PUBLIC_ 暴露給前端**——

@@ -22,7 +22,10 @@ export const EXPENSE_EVENT_INDEXES = [
 /** Refuse to run without the exact unique indexes. Only reads index metadata, never performs DDL. */
 export async function createExpenseEventStore(db: mongo.Db) {
   for (const definition of EXPENSE_EVENT_INDEXES) {
-    const indexes = await db.collection(definition.collection).listIndexes().toArray();
+    const indexes = await db
+      .collection(definition.collection)
+      .listIndexes({ timeoutMS: 2_000 })
+      .toArray();
     const index = indexes.find((candidate) => candidate.name === definition.name);
     if (
       !index ||

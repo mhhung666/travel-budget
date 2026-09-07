@@ -1,7 +1,9 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { Expense, Trip, ItineraryDay, Comment, EXPENSE_CATEGORIES } from '@/models';
+import { after } from 'next/server';
+import { Types } from 'mongoose';
+import { Expense, Trip, User, ItineraryDay, Comment, EXPENSE_CATEGORIES } from '@/models';
 import { getTripMembership } from '@/lib/permissions';
 import {
   createExpenseSchema,
@@ -18,6 +20,12 @@ import { isReceiptKeyForTrip, RECEIPT_CONTENT_TYPES, MAX_RECEIPT_BYTES } from '@
 import { headObject, deleteObjects, presignGet } from '@/lib/storage';
 import { notify } from '@/lib/notify';
 import { logActivity } from '@/lib/activity';
+import {
+  prepareExpenseBackgroundWrite,
+  runExpenseBackgroundDelivery,
+} from '@/lib/expenseDeliveryRuntime';
+import { createExpenseDeliveryEvent } from '@/lib/expenseDeliveryEvent';
+import { initialExpenseDeliveryState } from '@/lib/expenseDeliveryQueue';
 
 type LeanExpense = ExpenseDtoInput & { date: Date };
 
@@ -178,11 +186,17 @@ export const createExpense = withAuth(
       const amount = original_amount * exchange_rate;
 
       // Validate payer and split members are trip members
-      const trip = await Trip.findById(tripId).select('name hashCode members').lean<{
-        name: string;
-        hashCode: string;
-        members: { user: { toString(): string } }[];
-      }>();
+      const trip = await Trip.findById(tripId)
+        .select('name hashCode members expenseDeliveryDeleting')
+        .lean<{
+          name: string;
+          hashCode: string;
+          members: { user: { toString(): string } }[];
+          expenseDeliveryDeleting?: boolean;
+        }>();
+      if (!trip || trip.expenseDeliveryDeleting) {
+        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+      }
       const memberIds = new Set((trip?.members || []).map((m) => m.user.toString()));
 
       if (!memberIds.has(payer_id)) {
@@ -216,7 +230,50 @@ export const createExpense = withAuth(
         attachmentDocs = resolved;
       }
 
+      const background = await prepareExpenseBackgroundWrite();
+      const expenseId = new Types.ObjectId();
+      // Resolve response names and immutable actor name BEFORE the insert. No post-write populate
+      // can fail and misrepresent an already committed expense as a failed creation.
+      const people = background
+        ? await User.find({
+            _id: {
+              $in: [
+                ...new Set([session.userId, payer_id, ...splits.map((split) => split.user_id)]),
+              ],
+            },
+          })
+            .select('username displayName')
+            .lean<
+              {
+                _id: Types.ObjectId;
+                username: string;
+                displayName: string;
+              }[]
+            >()
+        : [];
+      const byId = new Map(people.map((person) => [person._id.toString(), person]));
+      const eventSnapshot = background
+        ? createExpenseDeliveryEvent({
+            expenseId: expenseId.toHexString(),
+            tripId,
+            actorId: session.userId,
+            actorName: byId.get(session.userId)?.displayName ?? '',
+            tripName: trip.name,
+            tripHashCode: trip.hashCode,
+            memberIds: [...memberIds],
+            description,
+            amount,
+            occurredAt: new Date(),
+          })
+        : undefined;
       const created = await Expense.create({
+        ...(background
+          ? {
+              _id: expenseId,
+              expenseDelivery: initialExpenseDeliveryState(),
+              expenseDeliveryEvent: eventSnapshot,
+            }
+          : {}),
         trip: tripId,
         payer: payer_id,
         amount,
@@ -232,6 +289,45 @@ export const createExpense = withAuth(
         createdBy: session.userId,
         tags: [...new Set(tags ?? [])],
       });
+
+      if (background) {
+        const person = (id: string) =>
+          byId.get(id) ?? {
+            _id: new Types.ObjectId(id),
+            username: 'Unknown',
+            displayName: 'Unknown',
+          };
+        const data = toExpenseDto(
+          {
+            ...created.toObject(),
+            payer: person(payer_id),
+            splits: splits.map((split) => ({
+              user: person(split.user_id),
+              shareAmount: split.share_amount,
+            })),
+          } as unknown as LeanExpense,
+          tripId
+        );
+        try {
+          // Platform-supported post-response work; durable recovery never relies on this alone.
+          after(async () => {
+            try {
+              await runExpenseBackgroundDelivery();
+            } catch {
+              logger.error('Expense delivery background trigger failed');
+            }
+          });
+        } catch {
+          logger.error('Expense delivery background scheduling failed');
+        }
+        try {
+          revalidatePath(`/trips/${tripIdOrCode}/expenses`);
+        } catch {
+          logger.error('Create expense cache invalidation failed');
+        }
+        // Never call legacy notify/logActivity for an outbox event (their records have no dedupe key).
+        return { success: true, data };
+      }
 
       await created.populate([
         { path: 'payer', select: 'username displayName' },

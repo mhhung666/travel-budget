@@ -17,6 +17,16 @@ const notify = vi.fn();
 const logActivity = vi.fn();
 const revalidatePath = vi.fn();
 const loggerError = vi.fn();
+const prepareBackground = vi.fn();
+const runBackground = vi.fn();
+const after = vi.fn();
+const userFind = vi.fn();
+
+vi.mock('next/server', () => ({ after: (...args: unknown[]) => after(...args) }));
+vi.mock('@/lib/expenseDeliveryRuntime', () => ({
+  prepareExpenseBackgroundWrite: () => prepareBackground(),
+  runExpenseBackgroundDelivery: () => runBackground(),
+}));
 
 vi.mock('next/cache', () => ({ revalidatePath: (...args: unknown[]) => revalidatePath(...args) }));
 vi.mock('@/lib/auth', () => ({ getSession: () => getSession() }));
@@ -50,6 +60,7 @@ vi.mock('@/models', () => ({
     'other',
   ],
   Trip: { findById: (...args: unknown[]) => tripFindById(...args) },
+  User: { find: (...args: unknown[]) => userFind(...args) },
   Expense: {
     create: (...args: unknown[]) => expenseCreate(...args),
     findOne: (...args: unknown[]) => expenseFindOne(...args),
@@ -113,6 +124,9 @@ function currentExpense(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  prepareBackground.mockResolvedValue(false);
+  after.mockImplementation(() => undefined);
+  userFind.mockReturnValue(selectLean([{ _id: USER, displayName: 'Actor', username: 'actor' }]));
   getSession.mockResolvedValue({ userId: USER });
   getTripMembership.mockResolvedValue({ tripId: TRIP, role: 'member' });
   tripFindById.mockReturnValue(
@@ -280,6 +294,80 @@ describe('createExpense side-effect isolation', () => {
       release();
     }
     expect((await result).success).toBe(true);
+  });
+});
+
+describe('createExpense atomic outbox', () => {
+  beforeEach(() => {
+    prepareBackground.mockResolvedValue(true);
+    expenseCreate.mockImplementation(async (document) => ({
+      _id: document._id,
+      populate: vi.fn().mockRejectedValue(new Error('must not populate')),
+      toObject: () => document,
+    }));
+  });
+  it('inserts the validated immutable snapshot with the expense and responds before background I/O', async () => {
+    runBackground.mockImplementation(() => new Promise(() => {}));
+    const result = await createExpense(TRIP, validInput);
+    expect(result.success).toBe(true);
+    expect(expenseCreate).toHaveBeenCalledOnce();
+    const inserted = expenseCreate.mock.calls[0][0];
+    expect(inserted.expenseDelivery).toMatchObject({ status: 'pending', attempts: 0, token: null });
+    expect(inserted.expenseDeliveryEvent).toMatchObject({
+      eventKey: `expense_added:${inserted._id}`,
+      expenseId: inserted._id.toString(),
+      actorId: USER,
+      actorName: 'Actor',
+      tripId: TRIP,
+      tripName: 'Trip',
+      memberIds: [USER, MEMBER],
+      description: 'Dinner',
+      amount: 3000,
+    });
+    expect(after).toHaveBeenCalledOnce();
+    expect(runBackground).not.toHaveBeenCalled();
+    expect(notify).not.toHaveBeenCalled();
+    expect(logActivity).not.toHaveBeenCalled();
+  });
+  it('does not insert if readiness or response-name lookup fails', async () => {
+    prepareBackground.mockRejectedValueOnce(new Error('indexes missing'));
+    expect((await createExpense(TRIP, validInput)).success).toBe(false);
+    expect(expenseCreate).not.toHaveBeenCalled();
+    userFind.mockReturnValue({
+      select: () => ({ lean: () => Promise.reject(new Error('DB failed')) }),
+    });
+    expect((await createExpense(TRIP, validInput)).success).toBe(false);
+    expect(expenseCreate).not.toHaveBeenCalled();
+  });
+  it('does not schedule a job when the atomic expense insert fails', async () => {
+    expenseCreate.mockRejectedValueOnce(new Error('insert failed'));
+    expect((await createExpense(TRIP, validInput)).success).toBe(false);
+    expect(after).not.toHaveBeenCalled();
+    expect(notify).not.toHaveBeenCalled();
+  });
+  it('keeps committed expense successful if scheduling or invalidation throws', async () => {
+    after.mockImplementationOnce(() => {
+      throw new Error('after unavailable');
+    });
+    revalidatePath.mockImplementationOnce(() => {
+      throw new Error('cache unavailable');
+    });
+    expect((await createExpense(TRIP, validInput)).success).toBe(true);
+    expect(notify).not.toHaveBeenCalled();
+  });
+  it('handles a rejected post-response worker without invoking legacy fallback', async () => {
+    runBackground.mockRejectedValueOnce(new Error('secret'));
+    expect((await createExpense(TRIP, validInput)).success).toBe(true);
+    await expect(after.mock.calls[0][0]()).resolves.toBeUndefined();
+    expect(loggerError).toHaveBeenCalledWith('Expense delivery background trigger failed');
+    expect(notify).not.toHaveBeenCalled();
+  });
+  it('rejects a trip already marked for deletion before creating any expense', async () => {
+    tripFindById.mockReturnValue(
+      selectLean({ expenseDeliveryDeleting: true, members: [{ user: USER }] })
+    );
+    expect((await createExpense(TRIP, validInput)).success).toBe(false);
+    expect(expenseCreate).not.toHaveBeenCalled();
   });
 });
 
