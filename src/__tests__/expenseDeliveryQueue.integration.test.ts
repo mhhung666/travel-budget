@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mongo } from 'mongoose';
 import { createExpenseDeliveryEvent } from '@/lib/expenseDeliveryEvent';
+import { createExpensePushSweep } from '@/lib/expensePushSweep';
 import {
   createExpensePushCheckpoint,
   EXPENSE_PUSH_CHECKPOINT_LIMIT,
@@ -82,6 +83,102 @@ describe.skipIf(!uri || !allowed)('expense queue isolated MongoDB', () => {
     expect(job?.expenseDelivery?.token).toEqual(expect.any(String));
     return { id: job!._id, token: job!.expenseDelivery!.token! };
   }
+
+  it('initializes one fixed sweep under competing writes and enforces checkpoint union capacity', async () => {
+    await insert();
+    const lease = await claim();
+    await collection.updateOne(
+      { _id: lease.id },
+      { $set: { 'expenseDelivery.recordsPersistedAt': new Date() } }
+    );
+    const store = createExpensePushSweep(collection);
+    const proposals = Array.from({ length: 8 }, () => [new mongo.ObjectId().toHexString()]);
+    const results = await Promise.all(
+      proposals.map((ids) => store.initialize(lease.id, lease.token, ids))
+    );
+    expect(results.filter(Boolean)).toHaveLength(1);
+    const saved = await store.read(lease.id, lease.token);
+    expect(saved.status).toBe('ready');
+    if (saved.status !== 'ready') throw new Error('Missing sweep');
+    expect(saved.sweep.subscriptionIds).toEqual(proposals[results.indexOf(true)]);
+
+    await insert();
+    const second = await claim();
+    const checkpoints = Object.fromEntries(
+      Array.from({ length: 256 }, () => [
+        new mongo.ObjectId().toHexString(),
+        { status: 'accepted' as const, recordedAt: new Date() },
+      ])
+    );
+    await collection.updateOne(
+      { _id: second.id },
+      {
+        $set: {
+          'expenseDelivery.recordsPersistedAt': new Date(),
+          'expenseDelivery.pushCheckpoints': checkpoints,
+        },
+      }
+    );
+    expect(await store.initialize(second.id, second.token, proposals[0])).toBe(false);
+    expect(await store.initialize(second.id, second.token, [Object.keys(checkpoints)[0]])).toBe(
+      true
+    );
+  });
+
+  it('retains sweep progress across lease takeover and rejects stale or duplicate saves', async () => {
+    await insert();
+    const first = await claim();
+    await collection.updateOne(
+      { _id: first.id },
+      { $set: { 'expenseDelivery.recordsPersistedAt': new Date() } }
+    );
+    const store = createExpensePushSweep(collection);
+    const ids = Array.from({ length: 3 }, () => new mongo.ObjectId().toHexString());
+    expect(await store.initialize(first.id, first.token, ids)).toBe(true);
+    const original = await store.read(first.id, first.token);
+    if (original.status !== 'ready') throw new Error('Missing sweep');
+    const result = {
+      status: 'yielded' as const,
+      continuation: { subscriptionIds: ids, nextIndex: 1, hadFailures: true },
+    };
+    const competing = await Promise.all(
+      Array.from({ length: 8 }, () => store.save(first.id, first.token, original.sweep, result))
+    );
+    expect(competing.filter(Boolean)).toHaveLength(1);
+    await expire(first.id);
+    expect(await store.read(first.id, first.token)).toEqual({ status: 'stop' });
+    const second = await claim();
+    expect(await store.save(first.id, first.token, original.sweep, result)).toBe(false);
+    const resumed = await store.read(second.id, second.token);
+    if (resumed.status !== 'ready') throw new Error('Missing resumed sweep');
+    expect(resumed.sweep).toEqual({
+      ...original.sweep,
+      nextIndex: 1,
+      hadFailures: true,
+      revision: 1,
+    });
+    expect(await store.initialize(second.id, second.token, [])).toBe(false);
+    expect(
+      await store.save(second.id, second.token, resumed.sweep, {
+        status: 'retry',
+        continuation: null,
+      })
+    ).toBe(true);
+    const finished = await store.read(second.id, second.token);
+    expect(finished).toMatchObject({
+      status: 'ready',
+      sweep: { status: 'retry', nextIndex: 3, hadFailures: true, revision: 2 },
+    });
+    expect((await collection.findOne({ _id: second.id }))?.expenseDelivery?.status).toBe('leased');
+    await collection.deleteOne({ _id: second.id });
+    expect(await store.initialize(second.id, second.token, [])).toBe(false);
+    expect(
+      await store.save(second.id, second.token, resumed.sweep, {
+        status: 'retry',
+        continuation: null,
+      })
+    ).toBe(false);
+  });
 
   it('checkpoints terminal devices once and retains progress across takeover', async () => {
     await insert();

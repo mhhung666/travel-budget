@@ -294,3 +294,36 @@ Prettier、lint、TypeScript 與 `git diff --check` 通過。
 
 新增 17 項 mock 測試，驗證查詢形狀、上限、競態防護與錯誤傳遞；不等同實際 MongoDB
 查詢計畫或競態驗證。未連真實 DB／推播服務，不需 migration 或新增環境參數。
+
+## 固定候選與游標持久化儲存層（2026-09-07，尚未啟用）
+
+新增 `createExpensePushSweep(collection)`，在同一 Expense 的 `expenseDelivery.pushSweep`
+保存 snapshotId、固定 subscriptionIds、nextIndex、hadFailures、revision 與 status。
+只擴充 dormant 原生 driver 型別，未啟用 Mongoose schema／action／worker／排程。
+
+- read 區分 stop（無有效租約）、missing（尚無快照）、ready（含已完成巡覽的儲存狀態）；
+  異常資料拋出，不自動重建清單或歸零。工作 ID 由 Expense `_id` 綁定。
+- initialize 僅能首次寫入，要求有效租約及站內記錄完成標記；原子檢查候選與 checkpoint
+  聯集不超過 256。清單不得重複、超量或包含非法 ID；空清單允許建立。
+  false 可能代表競爭、失去租約或容量不足，必須重讀，不得直接使用提議清單送出。
+- save 僅接受可信任 executor 的 yielded／retry／exhausted 結果；以有效租約、快照 ID、
+  revision、原始清單與原始進度作 CAS，保存後版本加一。游標不可倒退，失敗旗標不可消失。
+  不能重設已結束的巡覽，不能以 stopped／disabled／capacity 標記完成。
+- retry／exhausted 只表示這輪固定清單巡覽完畢，**不會呼叫 queue.complete**。
+  本批不新增清單刷新或重試輪 reset，避免先行決定新註冊裝置的納入政策。
+- DB 操作各有 2 秒 server／driver 時限；讀取使用 primary，寫入使用 majority。
+  timeout 可能已寫入，呼叫者應重讀並核對版本；false／例外都不能當保存成功繼續送下一批。
+- 新租約可讀取既有清單與位置；尚未整合 executor，未實現自動恢復流程。
+  之後 worker 應先讀／初始化並重讀清單，再執行一批並 CAS 保存；continuation 只能由
+  同一工作儲存狀態組成。空清單或已結束狀態不可直接傳成 executor continuation。
+- 保存前的中斷仍會重跑未保存批次；terminal checkpoint 有助減少重送，但 HTTP 成功與
+  checkpoint 之間仍有重複窗口。CAS 保護儲存進度，不保證同租約並行 HTTP 不重複；
+  worker 仍須單工執行、續租並安排批次／重試，不能只靠本儲存層宣稱 exactly-once。
+
+新增 25 項 mock 測試與 2 項 opt-in MongoDB 整合測試，涵蓋並行初始化、容量聯集、
+並行 CAS、租約接手、舊租約拒絕、失敗旗標與刪除不復活。隔離 replica set 測試不使用 `.env`。
+本批不需 migration 或新增部署環境參數，線上支出延遲與 P 驗收狀態不變。
+
+驗證結果：一般測試 1,217 項通過、29 項略過（26 項 MongoDB opt-in 另跑全部通過、
+3 項 AI 驗收仍暫停）；Prettier、lint、TypeScript、`git diff --check` 通過。
+隔離測試資料庫已確認清除，臨時 MongoDB 容器已停止並移除，未操作部署資料庫。

@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { mongo } from 'mongoose';
+import type { ExpensePushSweep } from './expensePushSweep';
 
 /** 尚未接入 Expense schema/action；啟用時必須與 Expense 同一次 insert 保存。 */
 export interface ExpenseDeliveryState {
@@ -12,6 +13,7 @@ export interface ExpenseDeliveryState {
   recordsPersistedAt?: Date;
   recordRecipientIds?: string[];
   pushCheckpoints?: Record<string, { status: 'accepted' | 'expired'; recordedAt: Date }>;
+  pushSweep?: ExpensePushSweep;
   lastError?: 'delivery_failed' | 'worker_error' | 'lease_expired';
 }
 
