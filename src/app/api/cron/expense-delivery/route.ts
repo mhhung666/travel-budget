@@ -1,7 +1,10 @@
 import { timingSafeEqual } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { getEnv } from '@/lib/env';
-import { runExpenseBackgroundDelivery } from '@/lib/expenseDeliveryRuntime';
+import {
+  runExpenseBackgroundDelivery,
+  inspectExpenseBackgroundDelivery,
+} from '@/lib/expenseDeliveryRuntime';
 import { logger } from '@/lib/logger';
 
 export const runtime = 'nodejs';
@@ -17,6 +20,8 @@ export async function GET(request: NextRequest) {
   if (actual.length !== expected.length || !timingSafeEqual(actual, expected))
     return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
   try {
+    if (request.nextUrl.searchParams.get('inspect') === '1')
+      return NextResponse.json({ success: true, ...(await inspectExpenseBackgroundDelivery()) });
     return NextResponse.json({ success: true, ...(await runExpenseBackgroundDelivery()) });
   } catch {
     logger.error('Expense delivery batch unavailable');

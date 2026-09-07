@@ -4,6 +4,41 @@ import type { ActionResult } from '@/actions';
 import type { CreateExpenseInput } from '@/lib/validation';
 import { tripKeys } from '@/hooks/queries/keys';
 import { trackProductEvent } from '@/lib/productEvents';
+import type { Expense, TripShell } from '@/types';
+
+export interface ExpenseCreateContext {
+  optimisticId: string;
+  previousShell?: TripShell;
+  appliedShell?: TripShell;
+  wasOffline: boolean;
+}
+
+/** Remove only this mutation's placeholder; never restore a stale whole-list snapshot. */
+export function reconcileExpenseCreate(
+  queryClient: QueryClient,
+  vars: CreateExpenseVars,
+  context: ExpenseCreateContext | undefined,
+  expense?: Expense
+) {
+  const key = tripKeys.expenses(vars.tripId);
+  if (expense || context?.optimisticId) {
+    queryClient.setQueryData<Expense[]>(key, (current = []) => {
+      const remaining = current.filter(
+        (item) => item.id !== context?.optimisticId && item.id !== expense?.id
+      );
+      return expense ? [expense, ...remaining] : remaining;
+    });
+  }
+  if (
+    !expense &&
+    context?.previousShell &&
+    context.appliedShell &&
+    queryClient.getQueryData(tripKeys.shell(vars.tripId)) === context.appliedShell
+  ) {
+    // Only restore our own unchanged shell projection, not newer concurrent/refetched data.
+    queryClient.setQueryData(tripKeys.shell(vars.tripId), context.previousShell);
+  }
+}
 
 /**
  * Offline-queued mutation plumbing (ROADMAP #5 Phase 2).
@@ -53,11 +88,13 @@ export function invalidateExpenseDerived(queryClient: QueryClient, tripId: strin
 export function registerOfflineMutationDefaults(queryClient: QueryClient): void {
   queryClient.setMutationDefaults(expenseCreateMutationKey, {
     mutationFn: (vars: CreateExpenseVars) => unwrap(createExpense(vars.tripId, vars.input)),
-    onSuccess: () => {
+    onSuccess: (data, vars, context: ExpenseCreateContext | undefined) => {
+      reconcileExpenseCreate(queryClient, vars, context, data);
       trackProductEvent('activation_step', { step: 'expense_created' });
       trackProductEvent('offline_expense', { state: 'synced' });
     },
-    onError: () => {
+    onError: (_error, vars, context: ExpenseCreateContext | undefined) => {
+      reconcileExpenseCreate(queryClient, vars, context);
       trackProductEvent('offline_expense', { state: 'failed' });
     },
     onSettled: (_data, _error, vars) => {

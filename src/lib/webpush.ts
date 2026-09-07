@@ -29,6 +29,8 @@ export interface PushPayload {
   body: string;
   /** 點擊通知後導向的（絕對或相對）路徑。 */
   url: string;
+  /** Stable event identity for replacing an already displayed retry (not exactly-once). */
+  tag?: string;
 }
 
 interface BuildPushPayloadInput {

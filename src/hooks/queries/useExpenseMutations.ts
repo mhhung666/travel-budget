@@ -11,6 +11,8 @@ import {
   invalidateExpenseDerived,
   unwrap,
   type CreateExpenseVars,
+  type ExpenseCreateContext,
+  reconcileExpenseCreate,
 } from '@/lib/offlineMutations';
 import { tripKeys } from './keys';
 import { trackProductEvent } from '@/lib/productEvents';
@@ -34,7 +36,7 @@ export function useExpenseMutations(tripId: string) {
   const create = useMutation({
     mutationKey: expenseCreateMutationKey,
     mutationFn: (vars: CreateExpenseVars) => unwrap(createExpense(vars.tripId, vars.input)),
-    onMutate: async (vars: CreateExpenseVars) => {
+    onMutate: async (vars: CreateExpenseVars): Promise<ExpenseCreateContext> => {
       const wasOffline = !onlineManager.isOnline();
       if (wasOffline) {
         trackProductEvent('offline_expense', { state: 'queued' });
@@ -42,7 +44,6 @@ export function useExpenseMutations(tripId: string) {
       const key = tripKeys.expenses(vars.tripId);
       // Stop in-flight refetches from clobbering the optimistic insert.
       await queryClient.cancelQueries({ queryKey: key });
-      const previous = queryClient.getQueryData<Expense[]>(key);
       const members = queryClient.getQueryData<Member[]>(tripKeys.members(vars.tripId)) ?? [];
       const shellKey = tripKeys.shell(vars.tripId);
       const previousShell = queryClient.getQueryData<TripShell>(shellKey);
@@ -56,6 +57,7 @@ export function useExpenseMutations(tripId: string) {
         createdAt: new Date().toISOString(),
       });
       queryClient.setQueryData<Expense[]>(key, (old = []) => [optimistic, ...old]);
+      let appliedShell: TripShell | undefined;
       if (previousShell && currentUser) {
         const personalShare =
           vars.input.splits.find((split) => split.user_id === currentUser.id)?.share_amount ?? 0;
@@ -65,7 +67,7 @@ export function useExpenseMutations(tripId: string) {
           String(today.getMonth() + 1).padStart(2, '0'),
           String(today.getDate()).padStart(2, '0'),
         ].join('-');
-        queryClient.setQueryData<TripShell>(shellKey, {
+        appliedShell = queryClient.setQueryData<TripShell>(shellKey, {
           ...previousShell,
           expense_count: previousShell.expense_count + 1,
           total_spent: previousShell.total_spent + personalShare,
@@ -76,16 +78,16 @@ export function useExpenseMutations(tripId: string) {
               : 0),
         });
       }
-      return { previous, key, previousShell, shellKey, wasOffline };
+      return { optimisticId: optimistic.id, previousShell, appliedShell, wasOffline };
     },
-    onError: (_err, _vars, ctx) => {
-      if (ctx?.previous) queryClient.setQueryData(ctx.key, ctx.previous);
-      if (ctx?.previousShell) queryClient.setQueryData(ctx.shellKey, ctx.previousShell);
+    onError: (_err, vars, ctx) => {
+      reconcileExpenseCreate(queryClient, vars, ctx);
       if (ctx?.wasOffline) {
         trackProductEvent('offline_expense', { state: 'failed' });
       }
     },
-    onSuccess: (_data, _vars, ctx) => {
+    onSuccess: (data, vars, ctx) => {
+      reconcileExpenseCreate(queryClient, vars, ctx, data);
       trackProductEvent('activation_step', { step: 'expense_created' });
       if (ctx?.wasOffline) {
         trackProductEvent('offline_expense', { state: 'synced' });

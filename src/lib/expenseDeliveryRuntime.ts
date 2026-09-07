@@ -5,6 +5,7 @@ import { createExpenseDeliveryWorker } from './expenseDeliveryWorker';
 import { createExpenseEventStore } from './expenseEventStore';
 import { EXPENSE_DELIVERY_INDEX } from './expenseDeliveryQueue';
 import { logger } from './logger';
+import { expenseDeliveryHealth } from './expenseDeliveryHealth';
 
 const ready = new WeakMap<mongo.Db, Promise<void>>();
 
@@ -50,6 +51,13 @@ export async function assertExpenseDeliveryReady(db: mongo.Db) {
 
 export function expenseBackgroundEnabled() {
   return getEnv().EXPENSE_BACKGROUND_DELIVERY === 'on';
+}
+
+export async function inspectExpenseBackgroundDelivery() {
+  const connection = await dbConnect();
+  const db = connection.connection.db;
+  if (!db) throw new Error('Database unavailable');
+  return expenseDeliveryHealth(db);
 }
 
 export async function prepareExpenseBackgroundWrite() {

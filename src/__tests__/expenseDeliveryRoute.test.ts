@@ -1,9 +1,12 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
-const mocks = vi.hoisted(() => ({ env: vi.fn(), run: vi.fn(), error: vi.fn() }));
+const mocks = vi.hoisted(() => ({ env: vi.fn(), run: vi.fn(), error: vi.fn(), inspect: vi.fn() }));
 vi.mock('@/lib/env', () => ({ getEnv: mocks.env }));
-vi.mock('@/lib/expenseDeliveryRuntime', () => ({ runExpenseBackgroundDelivery: mocks.run }));
+vi.mock('@/lib/expenseDeliveryRuntime', () => ({
+  runExpenseBackgroundDelivery: mocks.run,
+  inspectExpenseBackgroundDelivery: mocks.inspect,
+}));
 vi.mock('@/lib/logger', () => ({ logger: { error: mocks.error } }));
 import { GET, maxDuration } from '@/app/api/cron/expense-delivery/route';
 const request = (authorization = 'Bearer secret') =>
@@ -16,6 +19,18 @@ beforeEach(() => {
   mocks.run.mockResolvedValue({ status: 'done' });
 });
 describe('authenticated bounded expense recovery route', () => {
+  it('supports authenticated read-only inspection without claiming a job', async () => {
+    mocks.inspect.mockResolvedValue({
+      counts: { pending: 2, leased: 0, done: 3, dead: 0 },
+      oldestPendingAt: null,
+    });
+    const req = new NextRequest('http://localhost/api/cron/expense-delivery?inspect=1', {
+      headers: { authorization: 'Bearer secret' },
+    });
+    expect((await GET(req)).status).toBe(200);
+    expect(mocks.inspect).toHaveBeenCalledOnce();
+    expect(mocks.run).not.toHaveBeenCalled();
+  });
   it('refuses missing configuration before database access', async () => {
     mocks.env.mockReturnValue({});
     expect((await GET(request())).status).toBe(503);

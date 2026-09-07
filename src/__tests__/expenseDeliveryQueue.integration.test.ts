@@ -1,11 +1,14 @@
 // @vitest-environment node
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { mongo } from 'mongoose';
+import mongoose, { mongo } from 'mongoose';
+import { Expense } from '@/models/Expense';
+import { up as migrateDeliveryIndexes } from '../../migrations/20260907170000-expense-delivery-indexes.js';
 vi.unmock('next-intl');
 import { createExpenseDeliveryEvent } from '@/lib/expenseDeliveryEvent';
 import { createExpensePushSweep } from '@/lib/expensePushSweep';
 import { createExpenseDeliveryWorker } from '@/lib/expenseDeliveryWorker';
+import { expenseDeliveryHealth } from '@/lib/expenseDeliveryHealth';
 import {
   createExpensePushCheckpoint,
   EXPENSE_PUSH_CHECKPOINT_LIMIT,
@@ -51,6 +54,7 @@ describe.skipIf(!uri || !allowed)('expense queue isolated MongoDB', () => {
       const { key, ...options } = definition;
       await db.collection(name).createIndex(key, options);
     }
+    await migrateDeliveryIndexes(db);
     queue = createExpenseDeliveryQueue(collection);
   });
 
@@ -396,6 +400,15 @@ describe.skipIf(!uri || !allowed)('expense queue isolated MongoDB', () => {
       keys: { p256dh: 'fake', auth: 'fake' },
     }));
     await db.collection('pushsubscriptions').insertMany(subscriptions);
+    const plan = await db
+      .collection('pushsubscriptions')
+      .find({ user: { $in: [recipient] }, _id: { $nin: [] } }, { projection: { _id: 1 } })
+      .sort({ _id: 1 })
+      .limit(257)
+      .explain('executionStats');
+    expect(JSON.stringify(plan.queryPlanner.winningPlan)).toContain('expense_push_candidates');
+    expect(JSON.stringify(plan.queryPlanner.winningPlan)).not.toContain('COLLSCAN');
+    expect(plan.executionStats.nReturned).toBe(65);
     const sendDevice = vi.fn().mockResolvedValue('accepted');
     sendDevice.mockResolvedValueOnce('failed');
     const worker = await createExpenseDeliveryWorker(db, {
@@ -421,6 +434,64 @@ describe.skipIf(!uri || !allowed)('expense queue isolated MongoDB', () => {
     expect(await db.collection('notifications').countDocuments()).toBe(2);
     expect(await db.collection('activitylogs').countDocuments()).toBe(1);
     expect(await worker()).toEqual({ status: 'idle' });
+  });
+
+  it('preserves an atomic Mongoose event insert, hides internal fields, and processes it through the worker', async () => {
+    const fixture = await eventFixture();
+    // Replace only our synthetic fixture expense via the actual application schema.
+    await collection.deleteOne({ _id: fixture.expenseId });
+    const connection = await mongoose
+      .createConnection(uri!, {
+        dbName: db.databaseName,
+        autoIndex: false,
+        serverSelectionTimeoutMS: 2_000,
+      })
+      .asPromise();
+    try {
+      const Model = connection.model('Expense', Expense.schema);
+      const input = {
+        _id: fixture.expenseId,
+        trip: fixture.tripId,
+        payer: fixture.actor,
+        createdBy: fixture.actor,
+        amount: 120,
+        description: 'Original dinner',
+        date: new Date(),
+        expenseDeliveryEvent: fixture.event,
+        expenseDelivery: initialExpenseDeliveryState(),
+      };
+      await Model.create(input);
+      const raw = await db.collection('expenses').findOne({ _id: fixture.expenseId });
+      expect(raw?.expenseDeliveryEvent.eventKey).toBe(fixture.event.eventKey);
+      expect(raw?.expenseDelivery).toMatchObject({ status: 'pending', attempts: 0 });
+      const ordinary = await Model.findById(fixture.expenseId).lean();
+      expect(ordinary).not.toHaveProperty('expenseDelivery');
+      expect(ordinary).not.toHaveProperty('expenseDeliveryEvent');
+      await Model.updateOne(
+        { _id: fixture.expenseId },
+        { $set: { expenseDeliveryEvent: { bad: true } } }
+      );
+      expect(
+        (await db.collection('expenses').findOne({ _id: fixture.expenseId }))?.expenseDeliveryEvent
+          .eventKey
+      ).toBe(fixture.event.eventKey);
+      const worker = await createExpenseDeliveryWorker(db, { config: null });
+      expect(await worker()).toEqual({ status: 'done' });
+      expect((await expenseDeliveryHealth(db)).counts).toEqual({
+        pending: 0,
+        leased: 0,
+        done: 1,
+        dead: 0,
+      });
+      expect(await db.collection('notifications').countDocuments()).toBe(2);
+      expect(await db.collection('activitylogs').countDocuments()).toBe(1);
+      await expect(
+        Model.create({ ...input, _id: new mongo.ObjectId(), expenseDeliveryEvent: { bad: true } })
+      ).rejects.toThrow();
+      expect(await collection.countDocuments()).toBe(1);
+    } finally {
+      await connection.close();
+    }
   });
 
   it('refunds a yielded lease only once and refuses old-token release after takeover', async () => {

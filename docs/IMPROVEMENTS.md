@@ -45,6 +45,11 @@ migrate-mongo changelog／lock 與正式操作審查。現有測試庫的索引�
 
 ### P. 🟡 支出寫入 critical path 瘦身（P1）
 
+**目前狀態（2026-09-07）**：三階段程式整合與本機驗證完成，背景模式預設 off，
+尚待確認補撿頻率／Vercel 方案、授權正式索引 migration、部署啟用與實測延遲驗收。
+完整交付、測試證據與操作清單見 [EXPENSE_DELIVERY_ACCEPTANCE.md](./EXPENSE_DELIVERY_ACCEPTANCE.md)。
+P 尚未標記正式完成；以下為歷次開發紀錄，不代表目前仍缺少 worker／action 實作。
+
 **整合階段 1 完成（2026-09-07）**：runner／worker 已串接持久化批次、序列續租、
 固定候選重試與完成政策；正常前進的分批不消耗失敗額度，超量封存供人工處理。
 尚未接入線上 action／排程，完整啟用與延遲驗收仍待完成。以下保留各前置階段歷程。

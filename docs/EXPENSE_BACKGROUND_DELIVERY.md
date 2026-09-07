@@ -2,6 +2,9 @@
 
 > 更新日期：2026-09-06
 
+> 2026-09-07 最新整合與驗收狀態見 [EXPENSE_DELIVERY_ACCEPTANCE.md](./EXPENSE_DELIVERY_ACCEPTANCE.md)。
+> 本文件保留各階段歷程；三階段整合已完成，正式啟用仍須排程決定及 migration／部署驗收。
+
 ## P 整合階段 2（2026-09-07；預設關閉）
 
 已加入 `EXPENSE_BACKGROUND_DELIVERY=off|on`（預設 off），範例見 `.env.example`。

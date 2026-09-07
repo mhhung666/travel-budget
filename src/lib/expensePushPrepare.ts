@@ -131,7 +131,7 @@ export function createExpensePushPrepare(
             endpoint: original.endpoint,
             keys: { p256dh: original['keys.p256dh'], auth: original['keys.auth'] },
           },
-          payload,
+          payload: { ...payload, tag: event.eventKey },
           vapidDetails: config.vapidDetails,
         });
         expired = outcome === 'expired';

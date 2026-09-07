@@ -21,6 +21,18 @@ function setup() {
 }
 
 describe('expense push batch executor (dormant)', () => {
+  it('rejects sparse candidate and continuation arrays before I/O', async () => {
+    const s = setup();
+    await expect(executeExpensePushBatch(new Array<string>(1), s.dependencies)).rejects.toThrow(
+      'Invalid subscription'
+    );
+    await expect(
+      executeExpensePushBatch([id(1)], s.dependencies, {
+        continuation: { subscriptionIds: new Array<string>(1), nextIndex: 0, hadFailures: false },
+      })
+    ).rejects.toThrow('Invalid push continuation');
+    expect(s.read).not.toHaveBeenCalled();
+  });
   it('visits later devices before retrying failures from earlier batches', async () => {
     const s = setup();
     const ids = Array.from({ length: 65 }, (_, i) => id(i + 1));

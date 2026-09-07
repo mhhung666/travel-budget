@@ -236,7 +236,7 @@ describe('dormant expense push preparation', () => {
     expect(await result.send()).toBe('accepted');
     expect(f.sendDevice).toHaveBeenCalledWith({
       subscription: { endpoint: f.subscription.endpoint, keys: f.subscription.keys },
-      payload,
+      payload: { ...payload, tag: `expense_added:${expenseId.toHexString()}` },
       vapidDetails: config.vapidDetails,
     });
     await expect(result.send()).rejects.toThrow('already used');

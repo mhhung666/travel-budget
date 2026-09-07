@@ -21,6 +21,7 @@
  * localized server-side (see src/lib/webpush.ts) — the SW only renders it.
  */
 import { defaultCache } from '@serwist/next/worker';
+import { expensePushDisplayOptions } from './lib/expensePushDisplay';
 import type { PrecacheEntry, RuntimeCaching, SerwistGlobalConfig } from 'serwist';
 import { CacheFirst, ExpirationPlugin, Serwist } from 'serwist';
 
@@ -100,6 +101,7 @@ interface PushPayload {
   title: string;
   body: string;
   url: string;
+  tag?: string;
 }
 
 self.addEventListener('push', (event) => {
@@ -117,6 +119,8 @@ self.addEventListener('push', (event) => {
         body: payload?.body ?? '',
         icon: '/icon-192.png',
         badge: '/icon-192.png',
+        // Stable expense event tags replace a still-visible retry without re-alerting.
+        ...expensePushDisplayOptions(payload?.tag),
         // Carried to `notificationclick` for deep-linking.
         data: { url: payload?.url || '/' },
       });
