@@ -5,8 +5,8 @@
 ## 結論
 
 程式整合與本機隔離驗證已完成；**P 尚未完成正式環境驗收**。
-新增支出的背景模式預設關閉。沒有修改使用者 `.env`、執行共用 DB migration、
-push 或部署；AI 真實品質驗收依原決定暫停。
+新增支出的背景模式預設關閉。P 的共用 DB 索引 migration 已經使用者授權完成（見下方紀錄）。
+沒有修改使用者 `.env`、push 或部署；AI 真實品質驗收依原決定暫停。
 使用者已確認 Hobby、每日補送；`vercel.json` 已加入每日補撿設定，待 production 部署才生效。
 
 ## 本次交付
@@ -55,8 +55,8 @@ Schema 不預設建立歷史工作，內部事件／進度預設不列入一般�
 2. 每次補撿只跑一筆／一批；低頻排程在累積工作時可能遠超隔天才送完。
    必須依每日新增量、每事件裝置數、失敗率及 pending 最舊時間評估排空能力。
    after 只處理一批且可能中斷，不能拿正常即時路徑代替補撿容量規劃。
-3. 確認使用者授權的目標 DB 與既有 migration status，再執行
-   `20260907170000-expense-delivery-indexes.js`。不要直接執行未盤點的所有 pending migrations。
+3. **已完成**：使用者授權 `.env` 目標 DB，已執行並驗證
+   `20260907170000-expense-delivery-indexes.js`。未連帶執行其他 pending migrations。
 4. 先部署 off 版本、保持既有 CRON_SECRET，確認 Vercel 已登錄獨立 GET
    `/api/cron/expense-delivery` 每日排程；驗證 401／503 邊界與 authorized idle 回應。
    索引尚未安裝時入口預期回 503，不會自動 migration；先完成第 3 步再啟用。
@@ -70,6 +70,26 @@ cron route 明確設定 maxDuration 60 秒；DB 個別時限與批次開始工�
 連線／已開始 HTTP／transaction／checkpoint 仍可能被平台終止，靠 lease 及持久化狀態恢復。
 
 ## 操作與回滾
+
+### 共用 DB 執行紀錄（2026-09-07）
+
+- 目標：直接解析 `.env` 的 MONGODB_URI，資料庫 `travel-budget`；未輸出主機或連線憑證。
+  已確認沒有資料庫名稱覆寫差異，目標支援 transaction；執行前無 migration 鎖，
+  兩組新唯一鍵未發現重複資料。
+- 僅呼叫 `20260907170000-expense-delivery-indexes.js` 的 up，不使用全量 migrate:up。
+  四個索引皆為本次新增：expense_delivery_ready、expense_event_recipient_unique、
+  expense_event_unique、expense_push_candidates。
+- 建立後逐一核對 key、unique、partial filter、collation、非 hidden／sparse／TTL；
+  原有索引定義完全保留。未修改支出／通知／活動／訂閱的業務文件，未寄送推播。
+- 驗證完成後登錄一筆 changelog，appliedAt 為 `2026-09-07T09:26:06.968Z`；
+  其他 changelog 紀錄未變更。
+- 現有 migrate-mongo config 的 lockTtl 為 0，套件實際不啟用鎖。本次使用獨立固定 ID 的
+  臨時鎖防止相同手動流程併行，完成後只移除自己的 token 鎖；不宣稱能封鎖不遵守此鎖的 runner。
+- `20260905093000-core-query-indexes.js` 仍未登錄，未在本次執行或補登；後續全量 migration
+  前仍須另行盤點。此次不代表所有歷史 migration 已套用。
+- 本機背景開關維持 off；沒有讀寫 Vercel 環境設定，也沒有 push／部署。
+
+### 日常檢查
 
 以相同 Bearer 認證請求 `/api/cron/expense-delivery?inspect=1` 可唯讀取得四種狀態計數與
 oldestPendingAt，不會 claim／寄推播；聚合使用 primary、2 秒上限，逾時回 503，不偽裝為零。

@@ -3,7 +3,7 @@
 > 更新日期：2026-09-06
 
 > 2026-09-07 最新整合與驗收狀態見 [EXPENSE_DELIVERY_ACCEPTANCE.md](./EXPENSE_DELIVERY_ACCEPTANCE.md)。
-> 本文件保留各階段歷程；三階段整合已完成，Hobby 每日補撿已確認並設定，仍待 migration／部署驗收。
+> 本文件保留各階段歷程；三階段整合、Hobby 每日排程設定及 P 共用 DB migration 已完成，仍待部署啟用驗收。
 
 ## P 整合階段 2（2026-09-07；預設關閉）
 
