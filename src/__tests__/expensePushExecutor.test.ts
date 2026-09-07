@@ -21,6 +21,115 @@ function setup() {
 }
 
 describe('expense push batch executor (dormant)', () => {
+  it('visits later devices before retrying failures from earlier batches', async () => {
+    const s = setup();
+    const ids = Array.from({ length: 65 }, (_, i) => id(i + 1));
+    s.send.mockResolvedValue('failed');
+    const first = await executeExpensePushBatch(ids, s.dependencies);
+    expect(first.continuation).toEqual({ subscriptionIds: ids, nextIndex: 32, hadFailures: true });
+    const second = await executeExpensePushBatch(ids, s.dependencies, {
+      continuation: first.continuation!,
+    });
+    expect(second.continuation?.nextIndex).toBe(64);
+    s.send.mockResolvedValue('accepted');
+    const last = await executeExpensePushBatch(ids, s.dependencies, {
+      continuation: second.continuation!,
+    });
+    expect(last).toMatchObject({ status: 'retry', attempted: 1, continuation: null });
+    expect(s.prepare.mock.calls.map(([key]) => key)).toEqual(ids);
+  });
+
+  it('advances past completed and ineligible devices without losing the snapshot', async () => {
+    const s = setup();
+    const ids = [id(1), id(1), id(2), id(3)];
+    s.progress[id(1)] = checkpoint;
+    s.prepare.mockResolvedValueOnce({ status: 'skip' });
+    const first = await executeExpensePushBatch(ids, s.dependencies, { maxDevices: 2 });
+    expect(first.continuation).toEqual({
+      subscriptionIds: [id(1), id(2), id(3)],
+      nextIndex: 2,
+      hadFailures: false,
+    });
+    const last = await executeExpensePushBatch(ids, s.dependencies, {
+      continuation: first.continuation!,
+    });
+    expect(last).toMatchObject({ status: 'exhausted', attempted: 1, continuation: null });
+    expect(s.prepare.mock.calls.map(([key]) => key)).toEqual([id(2), id(3)]);
+  });
+
+  it('resumes the same device if preparation used the remaining budget', async () => {
+    const s = setup();
+    let elapsed = 0;
+    s.dependencies.now = () => elapsed;
+    s.prepare.mockImplementationOnce(async () => {
+      elapsed = 20_000;
+      return { status: 'ready', send: s.send };
+    });
+    const first = await executeExpensePushBatch([id(1)], s.dependencies);
+    expect(first.continuation?.nextIndex).toBe(0);
+    expect(s.send).not.toHaveBeenCalled();
+    const last = await executeExpensePushBatch([id(1)], s.dependencies, {
+      continuation: first.continuation!,
+    });
+    expect(last.status).toBe('exhausted');
+    expect(s.prepare).toHaveBeenCalledTimes(2);
+    expect(s.send).toHaveBeenCalledOnce();
+  });
+
+  it('advances after a terminal send that exceeded the budget', async () => {
+    const s = setup();
+    let elapsed = 0;
+    s.dependencies.now = () => elapsed;
+    s.send.mockImplementationOnce(async () => {
+      elapsed = 30_000;
+      return 'accepted';
+    });
+    const first = await executeExpensePushBatch([id(1), id(2)], s.dependencies);
+    expect(first.continuation?.nextIndex).toBe(1);
+    expect(s.record).toHaveBeenCalledWith(id(1), 'accepted');
+  });
+
+  it('rechecks lease and full checkpoint capacity when resuming', async () => {
+    const s = setup();
+    const ids = [id(1), id(2)];
+    const first = await executeExpensePushBatch(ids, s.dependencies, { maxDevices: 1 });
+    s.read.mockResolvedValueOnce(null);
+    expect(
+      await executeExpensePushBatch(ids, s.dependencies, { continuation: first.continuation! })
+    ).toMatchObject({ status: 'stopped', continuation: null });
+    for (let i = 3; i <= 257; i++) s.progress[id(i)] = checkpoint;
+    expect(
+      await executeExpensePushBatch(ids, s.dependencies, { continuation: first.continuation! })
+    ).toMatchObject({ status: 'capacity', continuation: null });
+    expect(s.send).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    { nextIndex: -1 },
+    { nextIndex: 2 },
+    { nextIndex: 0.5 },
+    { nextIndex: NaN },
+    { hadFailures: 'false' },
+    { subscriptionIds: [id(2), id(1)] },
+    { subscriptionIds: [id(1)] },
+    { subscriptionIds: [id(1), id(3)] },
+    { subscriptionIds: null },
+  ])('rejects a malformed or mismatched continuation before I/O: %j', async (override) => {
+    const s = setup();
+    const continuation = {
+      subscriptionIds: [id(1), id(2)],
+      nextIndex: 1,
+      hadFailures: false,
+      ...override,
+    };
+    await expect(
+      executeExpensePushBatch([id(1), id(2)], s.dependencies, {
+        continuation: continuation as never,
+      })
+    ).rejects.toThrow('Invalid push continuation');
+    expect(s.read).not.toHaveBeenCalled();
+  });
+
   it.each(['accepted', 'failed', 'expired'])(
     'only cleans confirmed expired results: %s',
     async (outcome) => {
@@ -108,6 +217,7 @@ describe('expense push batch executor (dormant)', () => {
       checkpointed: 2,
       skipped: 0,
       cleanupFailed: 0,
+      continuation: null,
     });
   });
 
@@ -122,6 +232,7 @@ describe('expense push batch executor (dormant)', () => {
       checkpointed: 1,
       skipped: 1,
       cleanupFailed: 0,
+      continuation: null,
     });
     expect(s.send).toHaveBeenCalledTimes(1);
   });

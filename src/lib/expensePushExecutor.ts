@@ -28,6 +28,13 @@ export interface ExpensePushExecutorDependencies {
   now?: () => number;
 }
 
+/** Internal trusted worker state, not a client cursor or proof that delivery completed. */
+export type ExpensePushContinuation = {
+  subscriptionIds: readonly string[];
+  nextIndex: number;
+  hadFailures: boolean;
+};
+
 export type ExpensePushExecutionResult = {
   /** exhausted only covers the supplied snapshot, never authorizes completing the queue job. */
   status: 'exhausted' | 'retry' | 'stopped' | 'disabled' | 'capacity' | 'yielded';
@@ -36,13 +43,19 @@ export type ExpensePushExecutionResult = {
   skipped: number;
   /** Best-effort cleanup errors never turn a terminal delivery into a retry. */
   cleanupFailed: number;
+  /** Only yielded batches can resume; counters describe this invocation, not the whole sweep. */
+  continuation: ExpensePushContinuation | null;
 };
 
 /** Dormant sequential executor: no DB connection, subscription discovery, HTTP or queue activation. */
 export async function executeExpensePushBatch(
   subscriptionIds: readonly string[],
   dependencies: ExpensePushExecutorDependencies,
-  limits: { maxDevices?: number; budgetMs?: number } = {}
+  limits: {
+    maxDevices?: number;
+    budgetMs?: number;
+    continuation?: ExpensePushContinuation;
+  } = {}
 ): Promise<ExpensePushExecutionResult> {
   const maxDevices = limits.maxDevices ?? 32;
   const budgetMs = limits.budgetMs ?? 20_000;
@@ -54,10 +67,29 @@ export async function executeExpensePushBatch(
     throw new Error('Invalid subscription ID');
 
   const ids = [...new Set(subscriptionIds)];
+  const resume = limits.continuation;
+  if (
+    resume &&
+    (!Number.isInteger(resume.nextIndex) ||
+      resume.nextIndex < 0 ||
+      resume.nextIndex >= ids.length ||
+      typeof resume.hadFailures !== 'boolean' ||
+      !Array.isArray(resume.subscriptionIds) ||
+      resume.subscriptionIds.length !== ids.length ||
+      resume.subscriptionIds.some((id, index) => id !== ids[index]))
+  )
+    throw new Error('Invalid push continuation');
+  let nextIndex = resume?.nextIndex ?? 0;
+  let failed = resume?.hadFailures ?? false;
   const now = dependencies.now ?? (() => performance.now());
   const deadline = now() + budgetMs;
   const counts = { attempted: 0, checkpointed: 0, skipped: 0, cleanupFailed: 0 };
-  const result = (status: ExpensePushExecutionResult['status']) => ({ status, ...counts });
+  const result = (status: ExpensePushExecutionResult['status']): ExpensePushExecutionResult => ({
+    status,
+    ...counts,
+    continuation:
+      status === 'yielded' ? { subscriptionIds: [...ids], nextIndex, hadFailures: failed } : null,
+  });
   const initial = await dependencies.read();
   if (initial === null) return result('stopped');
   // Conservative preflight includes old checkpoints and all candidates before any HTTP.
@@ -65,9 +97,9 @@ export async function executeExpensePushBatch(
     return result('capacity');
 
   let visited = 0;
-  let failed = false;
-  for (const id of ids) {
+  for (; nextIndex < ids.length; nextIndex++) {
     if (visited >= maxDevices || now() >= deadline) return result('yielded');
+    const id = ids[nextIndex];
     visited++;
     const progress = await dependencies.read();
     if (progress === null) return result('stopped');

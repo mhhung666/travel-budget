@@ -248,3 +248,26 @@ Prettier、lint、TypeScript 與 `git diff --check` 通過。
 
 本批完整一般測試 1,161 項通過、27 項略過（24 項 MongoDB opt-in 未重跑、3 項 AI 暫停）；
 Prettier、lint、TypeScript 與 `git diff --check` 通過。
+
+## 固定候選清單公平續跑（2026-09-07，尚未啟用）
+
+- executor 在裝置數或時間預算耗盡時回傳 continuation：去重後的候選 ID 清單、nextIndex、
+  hadFailures。下一批透過 limits.continuation 傳回；計數只代表當批，不是整輪累計。
+- 已 checkpoint、資格 skip、failed 與成功保存的 terminal 都推進位置；準備後尚未送出就
+  超時則保留原位置，下批重新 prepare，不快取 send。跨批保留失敗旗標，避免後批成功
+  掩蓋前批失敗；巡覽完有任何 failed 仍回 retry，新的重試輪不帶舊 continuation。
+- 驗證游標範圍、失敗旗標型別，以及去重清單的完整內容／順序一致，錯誤在 I/O 前拋出。
+  每批仍重讀租約、以完整候選與既有 checkpoint 聯集檢查 256 筆上限，送出前重查資格。
+- 只有 yielded 回傳 continuation；stopped、disabled、capacity、retry、exhausted 均不回傳。
+  exhausted 仍只代表候選快照巡覽完成，不授權 queue.complete。
+- 這是可信任伺服端 worker 的內部狀態，不是公開 API 游標或完成證明；不得接受客戶端自訂
+  位置／旗標。尚未持久化或綁定工作 ID／租約；呼叫者必須限制在同一工作與候選快照使用。
+  程序中斷、例外或遺失 continuation 後，僅靠 terminal checkpoint 不能保證公平續跑。
+- MongoDB 有界候選查詢、穩定快照與游標保存、續租／重試排程／完成判定仍待整合。
+  本批未啟用 worker、action 或排程，不需 migration 或新增環境參數，P 尚未驗收。
+
+新增 14 項 mock 測試，涵蓋 65 裝置跨三批失敗公平性、去重與 skip、準備逾時原位續跑、
+terminal 超時後推進、續跑租約／容量重查與不合法游標。未連真實 MongoDB 或推播服務。
+
+本批完整一般測試 1,175 項通過、27 項略過（24 項 MongoDB opt-in 未重跑、3 項 AI 暫停）；
+Prettier、lint、TypeScript 與 `git diff --check` 通過。
