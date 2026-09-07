@@ -18,6 +18,9 @@ export function createExpensePushCheckpoint(collection: mongo.Collection<Expense
     /** null means stop, not an empty success. Eligibility must still be rechecked before HTTP. */
     async read(_id: mongo.ObjectId, token: string) {
       const record = await collection.findOne(active(_id, token), {
+        readPreference: 'primary',
+        maxTimeMS: 2_000,
+        timeoutMS: 2_000,
         projection: { 'expenseDelivery.pushCheckpoints': 1 },
       });
       return record ? (record.expenseDelivery?.pushCheckpoints ?? {}) : null;
@@ -58,7 +61,8 @@ export function createExpensePushCheckpoint(collection: mongo.Collection<Expense
             ],
           },
         },
-        [{ $set: { [path]: { $ifNull: [`$${path}`, { status, recordedAt: '$$NOW' }] } } }]
+        [{ $set: { [path]: { $ifNull: [`$${path}`, { status, recordedAt: '$$NOW' }] } } }],
+        { maxTimeMS: 2_000, timeoutMS: 2_000, writeConcern: { w: 'majority' } }
       );
       // No upsert: deleted expenses and stale workers cannot recreate progress.
       // A duplicate terminal result preserves the first outcome and timestamp.

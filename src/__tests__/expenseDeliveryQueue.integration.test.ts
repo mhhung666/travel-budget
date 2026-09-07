@@ -2,8 +2,10 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mongo } from 'mongoose';
+vi.unmock('next-intl');
 import { createExpenseDeliveryEvent } from '@/lib/expenseDeliveryEvent';
 import { createExpensePushSweep } from '@/lib/expensePushSweep';
+import { createExpenseDeliveryWorker } from '@/lib/expenseDeliveryWorker';
 import {
   createExpensePushCheckpoint,
   EXPENSE_PUSH_CHECKPOINT_LIMIT,
@@ -62,7 +64,7 @@ describe.skipIf(!uri || !allowed)('expense queue isolated MongoDB', () => {
 
   beforeEach(async () => {
     await collection.deleteMany({});
-    for (const name of ['notifications', 'activitylogs', 'trips', 'users']) {
+    for (const name of ['notifications', 'activitylogs', 'trips', 'users', 'pushsubscriptions']) {
       await db.collection(name).deleteMany({});
     }
   });
@@ -383,6 +385,64 @@ describe.skipIf(!uri || !allowed)('expense queue isolated MongoDB', () => {
     const store = await createExpenseEventStore(db);
     return { expenseId, tripId, actor, recipient, second, event, lease, store };
   }
+
+  it('runs 65 devices across persisted batches, retries only failures, and does not exhaust attempts on yields', async () => {
+    const { lease, recipient, expenseId } = await eventFixture();
+    await expire(lease.id);
+    const subscriptions = Array.from({ length: 65 }, (_, i) => ({
+      _id: new mongo.ObjectId(),
+      user: recipient,
+      endpoint: `https://push.example/${i}`,
+      keys: { p256dh: 'fake', auth: 'fake' },
+    }));
+    await db.collection('pushsubscriptions').insertMany(subscriptions);
+    const sendDevice = vi.fn().mockResolvedValue('accepted');
+    sendDevice.mockResolvedValueOnce('failed');
+    const worker = await createExpenseDeliveryWorker(db, {
+      config: {
+        vapidDetails: { subject: 'mailto:test@example.com', publicKey: 'fake', privateKey: 'fake' },
+        appUrl: null,
+      },
+      sendDevice,
+    });
+    expect(await worker()).toEqual({ status: 'pending' });
+    expect((await collection.findOne({ _id: expenseId }))?.expenseDelivery?.attempts).toBe(1);
+    expect(await worker()).toEqual({ status: 'pending' });
+    expect(await worker()).toEqual({ status: 'failed' });
+    const failed = (await collection.findOne({ _id: expenseId }))!.expenseDelivery!;
+    expect(failed.pushSweep).toMatchObject({ status: 'running', nextIndex: 0, hadFailures: false });
+    expect(Object.keys(failed.pushCheckpoints!)).toHaveLength(64);
+    expect(await worker()).toEqual({ status: 'idle' });
+    await expire(expenseId);
+    expect(await worker()).toEqual({ status: 'pending' });
+    expect(await worker()).toEqual({ status: 'pending' });
+    expect(await worker()).toEqual({ status: 'done' });
+    expect(sendDevice).toHaveBeenCalledTimes(66);
+    expect(await db.collection('notifications').countDocuments()).toBe(2);
+    expect(await db.collection('activitylogs').countDocuments()).toBe(1);
+    expect(await worker()).toEqual({ status: 'idle' });
+  });
+
+  it('refunds a yielded lease only once and refuses old-token release after takeover', async () => {
+    const { lease } = await eventFixture();
+    await collection.updateOne(
+      { _id: lease.id },
+      {
+        $set: {
+          'expenseDelivery.pushSweep.status': 'running',
+          'expenseDelivery.pushSweep.nextIndex': 1,
+        },
+      }
+    );
+    const results = await Promise.all(
+      Array.from({ length: 8 }, () => queue.yield(lease.id, lease.token))
+    );
+    expect(results.filter(Boolean)).toHaveLength(1);
+    expect((await collection.findOne({ _id: lease.id }))?.expenseDelivery?.attempts).toBe(0);
+    await claim();
+    expect(await queue.yield(lease.id, lease.token)).toBe(false);
+    expect(await queue.abandon(lease.id, lease.token, 'capacity')).toBe(false);
+  });
 
   it('deduplicates 12 concurrent replays using event unique indexes', async () => {
     const { store, lease } = await eventFixture();

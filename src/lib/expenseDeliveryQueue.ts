@@ -14,7 +14,7 @@ export interface ExpenseDeliveryState {
   recordRecipientIds?: string[];
   pushCheckpoints?: Record<string, { status: 'accepted' | 'expired'; recordedAt: Date }>;
   pushSweep?: ExpensePushSweep;
-  lastError?: 'delivery_failed' | 'worker_error' | 'lease_expired';
+  lastError?: 'delivery_failed' | 'worker_error' | 'lease_expired' | 'capacity' | 'trip_missing';
 }
 
 export interface ExpenseDeliveryRecord {
@@ -40,6 +40,7 @@ export function initialExpenseDeliveryState(): ExpenseDeliveryState {
  * lease 只保護 DB 狀態，不能阻止已失去 lease 的程序完成外部 HTTP 請求。
  */
 export function createExpenseDeliveryQueue(collection: mongo.Collection<ExpenseDeliveryRecord>) {
+  const options = { maxTimeMS: 2_000, timeoutMS: 2_000, writeConcern: { w: 'majority' as const } };
   const activeLease = (_id: mongo.ObjectId, token: string) => ({
     _id,
     'expenseDelivery.status': 'leased' as const,
@@ -68,6 +69,7 @@ export function createExpenseDeliveryQueue(collection: mongo.Collection<ExpenseD
           },
         ],
         {
+          ...options,
           returnDocument: 'after',
           includeResultMetadata: false,
           sort: { 'expenseDelivery.availableAt': 1, _id: 1 },
@@ -77,28 +79,36 @@ export function createExpenseDeliveryQueue(collection: mongo.Collection<ExpenseD
     },
 
     async renew(_id: mongo.ObjectId, token: string): Promise<boolean> {
-      const result = await collection.updateOne(activeLease(_id, token), [
-        {
-          $set: {
-            'expenseDelivery.availableAt': { $add: ['$$NOW', EXPENSE_DELIVERY_LEASE_MS] },
-            'expenseDelivery.updatedAt': '$$NOW',
+      const result = await collection.updateOne(
+        activeLease(_id, token),
+        [
+          {
+            $set: {
+              'expenseDelivery.availableAt': { $add: ['$$NOW', EXPENSE_DELIVERY_LEASE_MS] },
+              'expenseDelivery.updatedAt': '$$NOW',
+            },
           },
-        },
-      ]);
+        ],
+        options
+      );
       return result.matchedCount === 1;
     },
 
     async complete(_id: mongo.ObjectId, token: string): Promise<boolean> {
-      const result = await collection.updateOne(activeLease(_id, token), [
-        {
-          $set: {
-            'expenseDelivery.status': 'done',
-            'expenseDelivery.token': null,
-            'expenseDelivery.updatedAt': '$$NOW',
-            'expenseDelivery.lastError': '$$REMOVE',
+      const result = await collection.updateOne(
+        activeLease(_id, token),
+        [
+          {
+            $set: {
+              'expenseDelivery.status': 'done',
+              'expenseDelivery.token': null,
+              'expenseDelivery.updatedAt': '$$NOW',
+              'expenseDelivery.lastError': '$$REMOVE',
+            },
           },
-        },
-      ]);
+        ],
+        options
+      );
       return result.matchedCount === 1;
     },
 
@@ -110,34 +120,102 @@ export function createExpenseDeliveryQueue(collection: mongo.Collection<ExpenseD
     ): Promise<boolean> {
       if (code !== 'delivery_failed' && code !== 'worker_error')
         throw new Error('Invalid delivery failure code');
-      const result = await collection.updateOne(activeLease(_id, token), [
-        {
-          $set: {
-            'expenseDelivery.status': {
-              $cond: [
-                { $gte: ['$expenseDelivery.attempts', EXPENSE_DELIVERY_MAX_ATTEMPTS] },
-                'dead',
-                'pending',
-              ],
+      const result = await collection.updateOne(
+        activeLease(_id, token),
+        [
+          {
+            $set: {
+              'expenseDelivery.status': {
+                $cond: [
+                  { $gte: ['$expenseDelivery.attempts', EXPENSE_DELIVERY_MAX_ATTEMPTS] },
+                  'dead',
+                  'pending',
+                ],
+              },
+              // 30s, 60s, 120s, 240s；第五次失敗封存，不再重試。
+              'expenseDelivery.availableAt': {
+                $add: [
+                  '$$NOW',
+                  {
+                    $multiply: [
+                      30_000,
+                      { $pow: [2, { $subtract: ['$expenseDelivery.attempts', 1] }] },
+                    ],
+                  },
+                ],
+              },
+              'expenseDelivery.token': null,
+              'expenseDelivery.updatedAt': '$$NOW',
+              'expenseDelivery.lastError': code,
+              // Retry the same fixed device cohort, retaining every terminal checkpoint.
+              'expenseDelivery.pushSweep': {
+                $cond: [
+                  { $eq: ['$expenseDelivery.pushSweep.status', 'retry'] },
+                  {
+                    $mergeObjects: [
+                      '$expenseDelivery.pushSweep',
+                      {
+                        status: 'running',
+                        nextIndex: 0,
+                        hadFailures: false,
+                        revision: { $add: ['$expenseDelivery.pushSweep.revision', 1] },
+                      },
+                    ],
+                  },
+                  { $ifNull: ['$expenseDelivery.pushSweep', '$$REMOVE'] },
+                ],
+              },
             },
-            // 30s, 60s, 120s, 240s；第五次失敗封存，不再重試。
-            'expenseDelivery.availableAt': {
-              $add: [
-                '$$NOW',
-                {
-                  $multiply: [
-                    30_000,
-                    { $pow: [2, { $subtract: ['$expenseDelivery.attempts', 1] }] },
-                  ],
-                },
-              ],
-            },
-            'expenseDelivery.token': null,
-            'expenseDelivery.updatedAt': '$$NOW',
-            'expenseDelivery.lastError': code,
           },
+        ],
+        options
+      );
+      return result.matchedCount === 1;
+    },
+
+    /** Normal saved forward progress is not a failed attempt. CAS prevents duplicate refunds. */
+    async yield(_id: mongo.ObjectId, token: string): Promise<boolean> {
+      const result = await collection.updateOne(
+        {
+          ...activeLease(_id, token),
+          'expenseDelivery.pushSweep.status': 'running',
+          'expenseDelivery.pushSweep.nextIndex': { $gt: 0 },
         },
-      ]);
+        [
+          {
+            $set: {
+              'expenseDelivery.status': 'pending',
+              'expenseDelivery.token': null,
+              'expenseDelivery.attempts': {
+                $max: [0, { $subtract: ['$expenseDelivery.attempts', 1] }],
+              },
+              'expenseDelivery.availableAt': '$$NOW',
+              'expenseDelivery.updatedAt': '$$NOW',
+            },
+          },
+        ],
+        options
+      );
+      return result.matchedCount === 1;
+    },
+
+    async abandon(_id: mongo.ObjectId, token: string, reason: 'capacity' | 'trip_missing') {
+      if (reason !== 'capacity' && reason !== 'trip_missing')
+        throw new Error('Invalid abandonment');
+      const result = await collection.updateOne(
+        activeLease(_id, token),
+        [
+          {
+            $set: {
+              'expenseDelivery.status': 'dead',
+              'expenseDelivery.token': null,
+              'expenseDelivery.lastError': reason,
+              'expenseDelivery.updatedAt': '$$NOW',
+            },
+          },
+        ],
+        options
+      );
       return result.matchedCount === 1;
     },
 
@@ -160,6 +238,7 @@ export function createExpenseDeliveryQueue(collection: mongo.Collection<ExpenseD
           },
         ],
         {
+          ...options,
           returnDocument: 'after',
           includeResultMetadata: false,
           sort: { 'expenseDelivery.availableAt': 1, _id: 1 },

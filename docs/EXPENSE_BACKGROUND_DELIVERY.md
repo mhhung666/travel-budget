@@ -2,6 +2,27 @@
 
 > 更新日期：2026-09-06
 
+## P 整合階段 1（2026-09-07）
+
+已串接持久化 runner 與單工 worker：站內交易 → 固定候選初始化／重讀 → 每批最多
+32 裝置／15 秒開始工作預算 → checkpoint → 游標 CAS → 完成／退避／續跑。
+批次前續租，批次內透過序列化 checkpoint read 每 15 秒檢查續租，不使用背景 interval。
+DB 佇列與 checkpoint 操作也加上 2 秒 driver／server 時限與 majority 寫入。
+
+- 正常已保存且向前推進的 yield 退還一次 claim 額度；零進度、例外及程序中斷仍消耗
+  失敗額度，避免有限批次使 256 台裝置提早耗盡 5 次上限，也避免無進度無限迴圈。
+- retry 在同一次 fail 原子更新中重設同一候選清單的游標／失敗旗標並增加 revision；
+  不清掉 accepted／expired checkpoint，不重新發現裝置。
+- 完成政策：僅首次持久化的裝置集合屬於該事件；之後註冊的裝置不補歷史通知。
+  當下不符資格的裝置略過；所有候選巡覽完且無失敗才完成。VAPID 未配置則僅完成
+  站內通知／活動紀錄，沿用既有「未配置不寄推播」語義。
+- 超過容量封存為 capacity；旅程已不存在／刪除中封存為 trip_missing；不默默算成功。
+  對外請求及 checkpoint 的不確定窗口仍可能重送，不能宣稱 exactly-once。
+
+本階段仍未接入 action／HTTP route／排程，不操作共用 DB。新增 runner／worker 的
+23 項單元測試，一般測試 1,240 項通過；隔離 replica set 另驗證 65 裝置跨批、重試去重、
+yield 額度 CAS 與原有併發／生命週期情境。啟用及 production-like 驗收留待後續階段。
+
 ## 已完成
 
 - 新增支出重用 server Trip 快照，通知及活動紀錄並行、等待完成且隔離失敗。

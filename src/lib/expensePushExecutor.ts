@@ -63,7 +63,9 @@ export async function executeExpensePushBatch(
     throw new Error('Invalid device limit');
   if (!Number.isFinite(budgetMs) || budgetMs <= 0 || budgetMs > 30_000)
     throw new Error('Invalid time budget');
-  if (subscriptionIds.some((id) => !/^[a-f0-9]{24}$/.test(id)))
+  if (
+    Array.from(subscriptionIds).some((id) => typeof id !== 'string' || !/^[a-f0-9]{24}$/.test(id))
+  )
     throw new Error('Invalid subscription ID');
 
   const ids = [...new Set(subscriptionIds)];
@@ -76,7 +78,7 @@ export async function executeExpensePushBatch(
       typeof resume.hadFailures !== 'boolean' ||
       !Array.isArray(resume.subscriptionIds) ||
       resume.subscriptionIds.length !== ids.length ||
-      resume.subscriptionIds.some((id, index) => id !== ids[index]))
+      Array.from(resume.subscriptionIds).some((id, index) => id !== ids[index]))
   )
     throw new Error('Invalid push continuation');
   let nextIndex = resume?.nextIndex ?? 0;
