@@ -12,15 +12,18 @@ import {
   TripDangerZone,
 } from '@/components/trips/detail';
 
-// Dialogs
 import {
   AddVirtualMemberDialog,
   AddFriendsToTripDialog,
+  RegisterVirtualMemberDialog,
+  LinkExistingMemberDialog,
+} from '@/components/trips/DeferredDialogs';
+
+// Small confirmation dialogs remain synchronous.
+import {
   DeleteTripDialog,
   RemoveMemberDialog,
   ToggleAdminDialog,
-  RegisterVirtualMemberDialog,
-  LinkExistingMemberDialog,
   RegenerateShareCodeDialog,
 } from '@/components/trips/detail/dialogs';
 

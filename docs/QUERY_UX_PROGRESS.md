@@ -10,7 +10,7 @@
 | --- | --- | --- |
 | Q1a | 旅程列表 query 錯誤、重試、背景更新提示及快速記帳的列表錯誤 | 已實作 |
 | Q1b | 其他 queries 與消費頁逐一配對，補錯誤 UI、auth-null 邊界及 stale data 顯示 | 已完成 |
-| Q2 | 全域快速記帳與大型 dialogs／AI／lightbox 的 mount 與動態載入 | 進行中：第一階段全域入口 |
+| Q2 | 全域快速記帳與大型 dialogs／AI／lightbox 的 mount 與動態載入 | 已完成 |
 | Q3 | 支出搜尋 deferred rendering、常用頁 prefetch 評估與 production build／瀏覽器量測 | 待處理 |
 
 ## Q1a
@@ -70,11 +70,11 @@ disabled gating、匯率 service failure、五類記帳依賴失敗、可關閉�
 lint（無警告）、Prettier、TypeScript 與 production build 均通過。
 不跑正式站壓測／業務寫入／真實 AI provider；不需要 migration 或新增環境參數。
 
-## Q2／Q3 待處理重點
+## Q3 待處理重點
 
-- 動態 import 需有可關閉的載入介面，檢查開關／重開、草稿狀態及 metadata 查詢次數。
+- Q2 已完成動態 import 的可關閉／重試介面、重開／草稿及 metadata 查詢次數回歸。
 - Cursor pagination 依真實資料量門檻另行評估，不能為滿足清單而直接更動全量清單契約。
-- Q1b production build 已驗證；Q2／Q3 的 bundle 比較與瀏覽器 Network／Performance 量測尚未執行。先建立可比較量測條件，
+- Q2 production build 與 bundle 比較已完成（見下）；瀏覽器 Network／Performance 量測仍屬 Q3。先建立可比較量測條件，
   不把前次正式站的少量冷／熱混合樣本當成改善前後基準。
 
 ## Q2 第一階段：全域入口與可恢復的 chunk 載入
@@ -103,3 +103,52 @@ lint（無警告）、Prettier、TypeScript 與 production build 均通過。
 
 第一階段驗證：新增 3 項 lazy dialog 測試（首次 gating、草稿重開、pending 關閉、失敗重試）；
 全套 1,363 通過、37 項 opt-in 跳過。lint、Prettier、TypeScript、production build 通過。
+
+## Q2 第二階段：大型表單、AI 與 lightbox（完成）
+
+| 入口 | 按需載入範圍 |
+| --- | --- |
+| 旅程列表／全域快速記帳 | 建立／加入旅程、完整支出表單 |
+| Trip Shell／支出頁 | 新增／編輯支出及預算；新增支出點擊後仍並行載入 chunk 與 metadata，readiness 未完成只顯示可關閉 QueryReadDialog |
+| 行程首頁 | 旅程編輯、整天／單一活動編輯、AI 行程匯入、航班／住宿帶入 |
+| 相簿／行程首頁／地圖釘點 | 共用 PhotoLightbox 首次選照片才 import，保留 index=0、切換與關閉回呼 |
+| 隨手記／清單／結算 | 編輯筆記、轉行程、建立／複製清單、記錄付款 |
+| 收藏／旅程設定 | 航班／住宿表單、加入好友／虛擬成員、註冊／連結成員表單 |
+| 記帳 AI | 手動模式僅載入輕量模式選單；選文字／收據才 import AI 輸入與預覽邏輯。chunk 載入／失敗只影響選配工具，手動欄位與整張表單仍可操作、關閉 |
+
+小型確認視窗、首屏清單／縮圖與原本就可見的分享按鈕不強制拆 chunk。
+公開相簿的簡單唯讀 lightbox 維持現狀；本階段處理的是共用成員相簿大型檢視器。
+不做 idle 全量預載；避免未使用功能提早占用頻寬。僅使用者明確要求新增支出後 preload 該表單。
+純 activity 草稿轉換抽離 editor 模組，避免首頁為工具函式引入編輯 UI；payload 契約不變。
+
+### 狀態與驗證
+
+- dialog 首次 open 後保留實例並傳入 closed props，沿用元件既有 reset 規則；
+  例如筆記重開回到原文、AI 表單關閉後回到手動模式，同次開啟切模式保留文字。
+- 全域快速記帳及 Shell 本來就以關閉結束新增流程，維持卸載；不新增草稿持久化。
+- import 失敗重新建立 lazy promise 供明確重試；若部署舊 chunk 已被移除仍可能需要重新載入頁面，
+  不自動 reload 而丟棄其他欄位。錯誤訊息不暴露 chunk URL 或內部例外。
+- 新增實際 QueryClient＋延遲 PlanNoteSheet 測試：關閉零讀取；開啟一次；關閉 invalidate 不讀；
+  重開已失效快取才再讀，fresh 重開不重複請求。
+- 包含 import gating、pending 關閉後完成不重開、失敗重試、草稿重開、onOpenChange 適配、
+  lightbox index／關閉、AI 手動模式／草稿重設、選配 AI 失敗不提交外層表單、明確 preload。
+- Q2 合計新增 10 項測試；最終全套 **1,370 通過、37 項 opt-in 跳過**。
+  lint（無警告）、Prettier、TypeScript、production build、diff whitespace 檢查通過。
+- 不跑正式站壓測、DB／業務寫入或真實 AI provider；無 migration、無新增環境參數、未 push。
+
+### 最終 production build 比較
+
+同一測量腳本，數字為 bytes；下降比例以逐檔 gzip 加總計算。
+
+| Entry | Q2 JS bytes | Q2 gzip bytes | gzip 較基準 |
+| --- | ---: | ---: | ---: |
+| AppShell | 329502 | 108794 | -35.5% |
+| trips | 306003 | 99107 | -14.9% |
+| trips/[id] | 898513 | 282675 | -8.0% |
+| trips/[id]/album | 479368 | 156004 | -12.3% |
+| trips/[id]/expenses | 504062 | 163650 | -6.4% |
+
+這是入口依賴的靜態量測，並非總下載量；開啟功能會再下載所需 chunks，共用依賴仍可能由其他可見功能載入。
+AppShell entry 已確認不包含快速記帳建立流程事件、AI 文字欄位與文字解析 API 的程式字串。
+真實冷／熱、mobile、PWA service worker、Network／Performance trace 與正式站長尾驗收留在 Q3；
+不將這次 bundle 減量宣稱為 LCP／INP 改善。

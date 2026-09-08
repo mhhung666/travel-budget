@@ -1,4 +1,5 @@
 'use client';
+import { RecordPaymentDialog } from '@/components/trips/DeferredDialogs';
 import { QueryStatus } from '@/components/common/QueryStatus';
 
 import { useMemo, useState } from 'react';
@@ -9,7 +10,6 @@ import {
   SettlementBalances,
   SettlementPlan,
   PaymentHistory,
-  RecordPaymentDialog,
   type PaymentMemberOption,
 } from '@/components/settlement';
 import { ExportMenu } from '@/components/export';

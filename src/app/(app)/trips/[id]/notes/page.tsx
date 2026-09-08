@@ -1,4 +1,5 @@
 'use client';
+import { NoteEditDialog, PlanNoteSheet } from '@/components/trips/DeferredDialogs';
 import { QueryStatus } from '@/components/common/QueryStatus';
 
 import { useMemo, useState } from 'react';
@@ -12,12 +13,7 @@ import { cn } from '@/lib/utils';
 import { ItinerarySkeleton } from '@/components/skeletons';
 import { ConfirmDialog, EmptyState } from '@/components/common';
 import { QueryFeedback } from '@/components/common/QueryFeedback';
-import {
-  NoteComposer,
-  NoteCard,
-  NoteEditDialog,
-  PlanNoteSheet,
-} from '@/components/trips/detail/notes';
+import { NoteComposer, NoteCard } from '@/components/trips/detail/notes';
 
 /**
  * 隨手記分頁：頂部快速輸入框（Enter 即存）＋ 卡片列表（釘選優先、新到舊）。
@@ -183,6 +179,7 @@ export default function NotesPage() {
       )}
 
       <NoteEditDialog
+        open={editingNote !== null}
         tripId={tripId}
         note={editingNote}
         saving={m.update.isPending}

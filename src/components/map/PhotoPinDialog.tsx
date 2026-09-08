@@ -9,7 +9,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
-import { PhotoLightbox } from '@/components/trips/detail/album/PhotoLightbox';
+import { PhotoLightbox } from '@/components/trips/detail/album/DeferredPhotoLightbox';
 import { countryCodeToFlag } from './country';
 import type { PhotoPin } from './photos';
 

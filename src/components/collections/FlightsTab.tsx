@@ -12,7 +12,7 @@ import type { FlightRecordItem } from '@/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog, EmptyState } from '@/components/common';
-import { FlightRecordDialog } from './FlightRecordDialog';
+import { FlightRecordDialog } from './DeferredDialogs';
 import { RecordYearGroups } from './RecordYearGroups';
 import { StatTiles } from './RecordFormFields';
 

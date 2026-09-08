@@ -64,15 +64,16 @@ HTTP 已接受但 checkpoint 尚未保存仍可能重送；不承諾推播永久
 ### Q. 🔴 查詢錯誤狀態與前端延遲載入（P1/P2）
 
 **進度（2026-09-08）**：Q1a／Q1b 程式交付完成：查詢失敗與 auth-null 分離、消費頁重試與 stale data 提示、
-記帳 metadata 失敗可關閉／重試。剩下 Q2 延遲 mount／dynamic import 與 Q3 搜尋、prefetch 評估及瀏覽器效能量測。
+記帳 metadata 失敗可關閉／重試。Q2 已完成全域入口／大型表單／AI／lightbox 按需載入、草稿及重試回歸；
+AppShell entry gzip 較基準減少約 35.5%。剩下 Q3 搜尋、prefetch 評估及瀏覽器效能量測。
 分階段結果見 [QUERY_UX_PROGRESS.md](./QUERY_UX_PROGRESS.md)。
 
-**剩餘問題**：多個 client page 要等 hydration 後才開始取資料；Global Quick Add、大型 dialogs、AI 輸入與 lightbox 即使
-未開啟也可能進入共用 bundle 或提前取資料。
+**剩餘問題**：多個 client page 要等 hydration 後才開始取資料，正式站長尾仍需瀏覽器量測定位；
+Q2 的 build bundle 減量不等於 LCP／INP 已改善。
 
 **處理方向**：
 
-- Global Quick Add 與大型 dialogs 在開啟時才 mount／dynamic import；可視需求於 idle 或 hover 預載。
+- 已完成 Q2：Global Quick Add、大型 dialogs、AI 輸入及共用 lightbox 按需載入；不全量 idle 預載。
 - 支出搜尋使用 `useDeferredValue`；達到實際資料門檻後，以 date + `_id` cursor pagination 取代全量下載。
 - 逐頁評估 server prefetch + React Query hydration，先處理最常進入的旅程首頁與支出頁。
 

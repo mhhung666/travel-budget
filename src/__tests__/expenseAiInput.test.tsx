@@ -80,7 +80,7 @@ describe('ExpenseAiInput', () => {
 
     render(<ExpenseAiInput {...baseProps} onApplyTextDraft={onApplyTextDraft} />);
     await user.click(screen.getByRole('tab', { name: 'modes.text' }));
-    await user.type(screen.getByLabelText('sourceLabel'), 'Taxi 1200 yen');
+    await user.type(await screen.findByLabelText('sourceLabel'), 'Taxi 1200 yen');
     await user.click(screen.getByRole('button', { name: 'createDraft' }));
 
     expect(await screen.findByText('previewTitle')).toBeInTheDocument();
@@ -154,7 +154,7 @@ describe('ExpenseAiInput', () => {
       />
     );
     await user.click(screen.getByRole('tab', { name: 'modes.receipt' }));
-    await user.click(screen.getByRole('button', { name: 'scan' }));
+    await user.click(await screen.findByRole('button', { name: 'scan' }));
 
     expect(await screen.findByText('previewTitle')).toBeInTheDocument();
     expect(screen.getAllByText('notRecognized')).toHaveLength(2);
@@ -184,7 +184,7 @@ describe('ExpenseAiInput', () => {
     render(<ExpenseAiInput {...baseProps} />);
     expect(screen.getByText('manualHint')).toBeInTheDocument();
     await user.click(screen.getByRole('tab', { name: 'modes.text' }));
-    const source = screen.getByLabelText('sourceLabel');
+    const source = await screen.findByLabelText('sourceLabel');
     await user.type(source, 'Dinner 50 USD');
     await user.click(screen.getByRole('button', { name: 'createDraft' }));
 
@@ -199,4 +199,22 @@ describe('ExpenseAiInput', () => {
     await user.click(screen.getByRole('tab', { name: 'modes.manual' }));
     expect(screen.getByText('manualHint')).toBeInTheDocument();
   });
+});
+
+it('does not mount AI inputs in manual mode and clears a text draft when the form closes', async () => {
+  const user = userEvent.setup();
+  const view = render(<ExpenseAiInput {...baseProps} />);
+  expect(screen.queryByLabelText('sourceLabel')).not.toBeInTheDocument();
+  expect(screen.queryByTestId('receipt-uploader')).not.toBeInTheDocument();
+  await user.click(screen.getByRole('tab', { name: 'modes.text' }));
+  await user.type(await screen.findByLabelText('sourceLabel'), 'unsaved text');
+  await user.click(screen.getByRole('tab', { name: 'modes.manual' }));
+  await user.click(screen.getByRole('tab', { name: 'modes.text' }));
+  expect(screen.getByLabelText('sourceLabel')).toHaveValue('unsaved text');
+  view.rerender(<ExpenseAiInput {...baseProps} open={false} />);
+  expect(view.container).toBeEmptyDOMElement();
+  view.rerender(<ExpenseAiInput {...baseProps} />);
+  expect(screen.getByText('manualHint')).toBeInTheDocument();
+  await user.click(screen.getByRole('tab', { name: 'modes.text' }));
+  expect(await screen.findByLabelText('sourceLabel')).toHaveValue('');
 });

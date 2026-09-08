@@ -10,7 +10,7 @@ import { TripExpenses } from '@/components/trips/detail';
 import { useTripSpaceActions } from '@/components/trips/space/TripSpaceContext';
 
 // Dialogs（新增支出與預算已上移到行程空間殼）
-import { ExpenseFormSheet } from '@/components/trips/detail/expense-form';
+import { ExpenseFormSheet } from '@/components/trips/DeferredDialogs';
 
 import { useTripDetailPage } from '@/hooks/useTripDetailPage';
 

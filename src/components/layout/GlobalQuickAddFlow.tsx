@@ -13,12 +13,7 @@ import { useTripSpace } from '@/hooks/useTripSpace';
 import { trackProductEvent } from '@/lib/productEvents';
 
 import { ResponsiveFormSheet } from '@/components/common';
-import { lazyDialog } from '@/components/common/lazyDialog';
-
-const CreateTripDialog = lazyDialog(() => import('@/components/trips/CreateTripDialog'));
-const ExpenseFormSheet = lazyDialog(
-  () => import('@/components/trips/detail/expense-form/ExpenseFormSheet')
-);
+import { CreateTripDialog, ExpenseFormSheet } from '@/components/trips/DeferredDialogs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';

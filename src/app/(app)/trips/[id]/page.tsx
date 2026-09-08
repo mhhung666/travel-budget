@@ -6,26 +6,23 @@ import { useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useQueryClient } from '@tanstack/react-query';
 import { CalendarDays, Plus, Sparkles } from 'lucide-react';
-import {
-  ItineraryDayCard,
-  ItineraryDayDialog,
-  ActivityFormDialog,
-} from '@/components/trips/detail/itinerary';
-import {
-  dayActivitiesToDrafts,
-  draftsToPayload,
-} from '@/components/trips/detail/itinerary/ActivityListEditor';
+import { ItineraryDayCard } from '@/components/trips/detail/itinerary';
+import { dayActivitiesToDrafts, draftsToPayload } from '@/lib/activityDraft';
 import { PhotoLightbox } from '@/components/trips/detail/album';
 import { QueryFeedback } from '@/components/common/QueryFeedback';
 import { TripHeader } from '@/components/trips/detail';
 import TripContextOverview from '@/components/trips/detail/TripContextOverview';
 import FirstStepsCard from '@/components/trips/detail/FirstStepsCard';
-import { EditTripDialog } from '@/components/trips/detail/dialogs';
+import {
+  EditTripDialog,
+  ItineraryDayDialog,
+  ActivityFormDialog,
+  ItineraryImportDialog,
+} from '@/components/trips/DeferredDialogs';
 import { useTripSpaceActions } from '@/components/trips/space/TripSpaceContext';
 import type { LocationOption } from '@/components/location/LocationAutocomplete';
 import { ExportMenu } from '@/components/export';
-import { FlightRecordDialog, StayRecordDialog } from '@/components/collections';
-import { ItineraryImportDialog } from '@/components/ai-import';
+import { FlightRecordDialog, StayRecordDialog } from '@/components/collections/DeferredDialogs';
 import type { Activity, ItineraryDay, TripPhoto } from '@/types';
 import type { CreateFlightRecordInput, CreateStayRecordInput } from '@/lib/validation';
 import {

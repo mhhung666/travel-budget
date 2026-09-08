@@ -3,7 +3,7 @@ import { QueryStatus } from '@/components/common/QueryStatus';
 import { QueryReadDialog } from '@/components/common/QueryReadDialog';
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import dynamic from 'next/dynamic';
+import { ExpenseFormSheet, BudgetDialog } from '@/components/trips/DeferredDialogs';
 import { ArrowLeft, History, MoreHorizontal, Settings, Wallet } from 'lucide-react';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
@@ -22,14 +22,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { TripSpaceProvider, type AddExpensePrefill } from './TripSpaceContext';
-
-const ExpenseFormSheet = dynamic(
-  () => import('@/components/trips/detail/expense-form/ExpenseFormSheet'),
-  { ssr: false }
-);
-const BudgetDialog = dynamic(() => import('@/components/trips/detail/dialogs/BudgetDialog'), {
-  ssr: false,
-});
 
 /**
  * 行程空間殼（trips/[id]/layout.tsx 掛載，換分頁不重繪）：
@@ -355,8 +347,9 @@ export function TripSpaceShell({
         {/* 空間層級 Dialogs：新增支出（旅行內 CTA／工具列共用）、預算 */}
         {addExpenseDialog.open && (
           <>
-            {/* Rendering closed starts the dynamic chunk in parallel with metadata queries. */}
+            {/* Start the requested chunk in parallel with metadata; only the read dialog is visible until ready. */}
             <ExpenseFormSheet
+              preload
               mode="add"
               tripId={tripId}
               open={formReady}

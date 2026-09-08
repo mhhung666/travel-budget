@@ -21,7 +21,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { ConfirmDialog, EmptyState } from '@/components/common';
-import { StayRecordDialog } from './StayRecordDialog';
+import { StayRecordDialog } from './DeferredDialogs';
 import { RecordYearGroups } from './RecordYearGroups';
 import { StatTiles } from './RecordFormFields';
 
