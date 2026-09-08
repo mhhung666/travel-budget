@@ -6,6 +6,7 @@ import type { ActionResult } from '@/actions';
 import type { TripPhoto } from '@/types';
 import type { PhotoItemInput } from '@/lib/validation';
 import { tripKeys } from './keys';
+import { unwrapActionResult } from '@/lib/actionQuery';
 
 /** Unwraps an ActionResult, throwing on failure so React Query's onError fires. */
 async function unwrap<T>(p: Promise<ActionResult<T>>): Promise<T> {
@@ -18,7 +19,7 @@ async function unwrap<T>(p: Promise<ActionResult<T>>): Promise<T> {
  * 旅程相簿（拍攝時間新到舊，排序由伺服器決定）。**成員限定**：比照 useNotes 直接
  * 呼叫 action、不走 fetchWithPublicFallback——沒有對應的公開路由，就是「分享頁看不到
  * 相簿」的保證（Phase 4 的公開相簿會是另一條路由、另一套不含位置的 DTO）。
- * 失敗回空陣列（不擋頁面）。
+ * 失敗交給 Query error 狀態，不當成空資料。
  *
  * `enabled` 供非相簿頁的呼叫端把「已知不是成員」的情形擋在前面（行程頁的公開分享訪客
  * 就是這樣：不擋的話每次瀏覽分享頁都會多打一趟必定回 UNAUTHORIZED 的 action）。
@@ -32,7 +33,7 @@ export function usePhotos(tripId: string, enabled = true) {
     queryKey: tripKeys.photos(tripId),
     queryFn: async (): Promise<TripPhoto[]> => {
       const res = await getTripPhotos(tripId);
-      return res.success ? res.data : [];
+      return unwrapActionResult(res);
     },
     enabled: !!tripId && enabled,
     staleTime: 30 * 60 * 1000,

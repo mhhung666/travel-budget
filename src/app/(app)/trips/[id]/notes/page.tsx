@@ -2,16 +2,15 @@
 
 import { useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 import { ChevronDown, StickyNote } from 'lucide-react';
 import type { TripNote, ExpenseAttachment } from '@/types';
-import { ROUTES } from '@/constants/routes';
 import { useNotes, useNoteMutations, useTripMembership } from '@/hooks/queries';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { ItinerarySkeleton } from '@/components/skeletons';
-import { ConfirmDialog, EmptyState, ErrorState } from '@/components/common';
+import { ConfirmDialog, EmptyState } from '@/components/common';
+import { QueryFeedback } from '@/components/common/QueryFeedback';
 import {
   NoteComposer,
   NoteCard,
@@ -24,14 +23,14 @@ import {
  * 已轉成行程的筆記收進底部摺疊區。頁首由行程空間殼提供。
  */
 export default function NotesPage() {
-  const router = useRouter();
   const params = useParams();
   const tripId = params.id as string;
   const t = useTranslations('notes');
   const tCommon = useTranslations('common');
   const { toast } = useToast();
 
-  const { data: notes = [], isLoading: loading, isError } = useNotes(tripId);
+  const query = useNotes(tripId);
+  const { data: notes = [], isLoading: loading } = query;
   const { isMember } = useTripMembership(tripId);
   const m = useNoteMutations(tripId);
 
@@ -92,19 +91,21 @@ export default function NotesPage() {
     return <ItinerarySkeleton />;
   }
 
-  if (isError) {
-    return (
-      <ErrorState
-        message={t('loadFailed')}
-        onBack={() => router.push(ROUTES.TRIP_DETAIL(tripId))}
-        backText={t('backToTrip')}
-      />
-    );
-  }
+  const feedback = (
+    <QueryFeedback
+      hasData={query.data !== undefined}
+      isError={query.isError}
+      isFetching={query.isFetching}
+      isPaused={query.isPaused}
+      onRetry={() => void query.refetch()}
+    />
+  );
+  if (query.data === undefined) return feedback;
 
   // 頁首由行程空間殼提供（分頁列已標示所在位置）
   return (
     <div className="container mx-auto max-w-3xl px-4 py-4 sm:px-6">
+      {feedback}
       {canEdit && (
         <div className="mb-4">
           <NoteComposer

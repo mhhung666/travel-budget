@@ -5,6 +5,7 @@ import { getNotes, createNote, updateNote, deleteNote, planNote } from '@/action
 import type { ActionResult } from '@/actions';
 import type { TripNote, ExpenseAttachment } from '@/types';
 import { tripKeys } from './keys';
+import { unwrapActionResult } from '@/lib/actionQuery';
 
 /** Unwraps an ActionResult, throwing on failure so React Query's onError fires. */
 async function unwrap<T>(p: Promise<ActionResult<T>>): Promise<T> {
@@ -16,14 +17,14 @@ async function unwrap<T>(p: Promise<ActionResult<T>>): Promise<T> {
 /**
  * 旅程隨手記（釘選優先、新到舊，排序由伺服器決定）。**成員限定**：比照
  * useActivityLog 直接呼叫 action、不走 fetchWithPublicFallback——沒有對應的
- * 公開路由就是「分享頁看不到隨手記」的保證。失敗回空陣列（不擋頁面）。
+ * 公開路由就是「分享頁看不到隨手記」的保證。失敗交給 Query error 狀態，不當成空資料。
  */
 export function useNotes(tripId: string) {
   return useQuery({
     queryKey: tripKeys.notes(tripId),
     queryFn: async (): Promise<TripNote[]> => {
       const res = await getNotes(tripId);
-      return res.success ? res.data : [];
+      return unwrapActionResult(res);
     },
     enabled: !!tripId,
   });

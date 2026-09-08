@@ -5,6 +5,7 @@ import { History, Coins, FilePenLine, Receipt, Sparkles, Trash2, UserPlus } from
 import { useActivityLog } from '@/hooks/queries';
 import type { ActivityLogItem, ActivityLogType } from '@/types';
 import { formatRelativeTime } from '@/lib/relativeTime';
+import { QueryFeedback } from '@/components/common/QueryFeedback';
 
 const TYPE_ICON: Record<ActivityLogType, typeof History> = {
   expense_added: Receipt,
@@ -22,7 +23,8 @@ const TYPE_ICON: Record<ActivityLogType, typeof History> = {
 export function ActivityFeed({ tripId }: { tripId: string }) {
   const locale = useLocale();
   const t = useTranslations('activity');
-  const { data: items = [], isLoading } = useActivityLog(tripId);
+  const query = useActivityLog(tripId);
+  const { data: items = [], isLoading } = query;
 
   const renderMessage = (a: ActivityLogItem): string => {
     const actor = a.actor_name || t('someone');
@@ -53,9 +55,21 @@ export function ActivityFeed({ tripId }: { tripId: string }) {
     return <p className="py-12 text-center text-sm text-muted-foreground">{t('loading')}</p>;
   }
 
+  const feedback = (
+    <QueryFeedback
+      hasData={query.data !== undefined}
+      isError={query.isError}
+      isFetching={query.isFetching}
+      isPaused={query.isPaused}
+      onRetry={() => void query.refetch()}
+    />
+  );
+  if (query.data === undefined) return feedback;
+
   if (items.length === 0) {
     return (
       <div className="flex flex-col items-center gap-3 py-16 text-center">
+        {feedback}
         <History className="h-10 w-10 text-muted-foreground/40" />
         <p className="text-sm text-muted-foreground">{t('empty')}</p>
       </div>
@@ -63,23 +77,29 @@ export function ActivityFeed({ tripId }: { tripId: string }) {
   }
 
   return (
-    <ul className="space-y-1">
-      {items.map((a) => {
-        const Icon = TYPE_ICON[a.type] ?? History;
-        return (
-          <li key={a.id} className="flex items-start gap-3 rounded-lg px-3 py-3 hover:bg-accent/50">
-            <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
-              <Icon className="h-4 w-4" />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-sm leading-snug">{renderMessage(a)}</span>
-              <span className="mt-0.5 block text-xs text-muted-foreground">
-                {formatRelativeTime(a.created_at, locale)}
+    <>
+      {feedback}
+      <ul className="space-y-1">
+        {items.map((a) => {
+          const Icon = TYPE_ICON[a.type] ?? History;
+          return (
+            <li
+              key={a.id}
+              className="flex items-start gap-3 rounded-lg px-3 py-3 hover:bg-accent/50"
+            >
+              <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                <Icon className="h-4 w-4" />
               </span>
-            </span>
-          </li>
-        );
-      })}
-    </ul>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm leading-snug">{renderMessage(a)}</span>
+                <span className="mt-0.5 block text-xs text-muted-foreground">
+                  {formatRelativeTime(a.created_at, locale)}
+                </span>
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </>
   );
 }

@@ -2,15 +2,14 @@
 
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
-import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 import { Images, Trash2 } from 'lucide-react';
 import type { TripPhoto } from '@/types';
-import { ROUTES } from '@/constants/routes';
 import { usePhotos, usePhotoMutations, useItinerary, useTripMembership } from '@/hooks/queries';
 import { useToast } from '@/hooks/use-toast';
 import { ItinerarySkeleton } from '@/components/skeletons';
-import { ConfirmDialog, EmptyState, ErrorState } from '@/components/common';
+import { ConfirmDialog, EmptyState } from '@/components/common';
+import { QueryFeedback } from '@/components/common/QueryFeedback';
 import { Button } from '@/components/ui/button';
 import {
   AlbumShareDialog,
@@ -23,17 +22,17 @@ import {
  * 旅程相簿分頁：grid 瀏覽 + lightbox 放大／下載／刪除／編輯說明／關聯行程日 + 上傳
  * + 批次選取刪除（PLAN-PHOTOS Phase 1／2）。
  * 定位比照隨手記——trip-scoped、成員共享，任何成員可上傳／編輯／刪除。頁首由行程空間殼提供。
- * 沒有對應公開路由，非成員造訪時 usePhotos 回空陣列，上傳／編輯／刪除也一併隱藏（同 notes 頁）。
+ * 非成員不能透過此頁取得相簿；查詢失敗提供重試，上傳／編輯／刪除仍依成員資格顯示。
  */
 export default function AlbumPage() {
-  const router = useRouter();
   const params = useParams();
   const tripId = params.id as string;
   const t = useTranslations('album');
   const tCommon = useTranslations('common');
   const { toast } = useToast();
 
-  const { data: photos = [], isLoading: loading, isError } = usePhotos(tripId);
+  const query = usePhotos(tripId);
+  const { data: photos = [], isLoading: loading } = query;
   // 行程日清單供 lightbox 的關聯選單；非成員時 useItinerary 走公開 fallback，選單本來就不顯示。
   const { data: days = [] } = useItinerary(tripId);
   const { isMember } = useTripMembership(tripId);
@@ -101,19 +100,21 @@ export default function AlbumPage() {
     return <ItinerarySkeleton />;
   }
 
-  if (isError) {
-    return (
-      <ErrorState
-        message={t('loadFailed')}
-        onBack={() => router.push(ROUTES.TRIP_DETAIL(tripId))}
-        backText={t('backToTrip')}
-      />
-    );
-  }
+  const feedback = (
+    <QueryFeedback
+      hasData={query.data !== undefined}
+      isError={query.isError}
+      isFetching={query.isFetching}
+      isPaused={query.isPaused}
+      onRetry={() => void query.refetch()}
+    />
+  );
+  if (query.data === undefined) return feedback;
 
   // 頁首由行程空間殼提供（分頁列已標示所在位置）
   return (
     <div className="container mx-auto max-w-5xl px-4 py-4 sm:px-6">
+      {feedback}
       {isMember && (
         <div className="mb-4 flex flex-wrap items-center justify-end gap-2">
           {selectionMode ? (

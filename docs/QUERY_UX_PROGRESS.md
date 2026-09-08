@@ -9,7 +9,7 @@
 | 階段 | 範圍 | 狀態 |
 | --- | --- | --- |
 | Q1a | 旅程列表 query 錯誤、重試、背景更新提示及快速記帳的列表錯誤 | 已實作 |
-| Q1b | 其他 queries 與消費頁逐一配對，補錯誤 UI、auth-null 邊界及 stale data 顯示 | 待處理 |
+| Q1b | 其他 queries 與消費頁逐一配對，補錯誤 UI、auth-null 邊界及 stale data 顯示 | 第一批完成，其餘待處理 |
 | Q2 | 全域快速記帳與大型 dialogs／AI／lightbox 的 mount 與動態載入 | 待處理 |
 | Q3 | 支出搜尋 deferred rendering、常用頁 prefetch 評估與 production build／瀏覽器量測 | 待處理 |
 
@@ -29,10 +29,23 @@
 lint、Prettier 與 TypeScript 檢查通過；未執行真實 provider／DB 整合測試。
 其他頁面尚未全面導入，本階段不代表 Q 結案，也不宣稱已解決正式站長尾。
 
+## Q1b 第一批：隨手記、相簿與活動紀錄
+
+- 三個 query 改用 `unwrapActionResult` 保留錯誤與 code，不再把失敗寫成成功的空清單。
+- 隨手記頁、相簿頁與 ActivityFeed 使用共用 QueryFeedback：冷載入失敗提供重試，
+  背景更新失敗保留快取內容；離線暫停且沒有資料時顯示等待連線，不顯示空清單。
+- 旅程首頁共用照片 query 的每日照片也加上更新／失敗提示及重試；仍由 `isMember` 啟用，
+  不新增公開 fallback，不改伺服器授權、照片 DTO、寫入與 mutation 流程。
+- 登入／會員判斷、相簿 lightbox 的行程 metadata 與其他次要查詢仍屬後續批次，未宣稱全部完成。
+
+驗證：三個真實 QueryClient＋頁面／元件各四情境，共新增 12 項測試，涵蓋初次失敗、
+手動重試成功、背景 transport failure、權限拒絕及離線暫停。全套 1,314 通過、37 項 opt-in 跳過；
+lint、Prettier、TypeScript 通過。沒有操作正式站、DB 或真實 provider；production build／瀏覽器量測仍待 Q3。
+
 ## 待處理重點
 
 - 仍吞錯的 queries：current user、copyable checklists、friends、collections／links、map photos、
-  comments／counts、activity log、visited places、notifications／counts、notes、photos。
+  comments／counts、visited places、notifications／counts。
 - 調整 query 時必須同步檢查所有消費元件；不得只 throw 卻讓 UI 仍顯示空資料或無限 loading。
 - 保留真正成功的 auth-null；內部服務故障不得當成未登入自動導頁。
 - 動態 import 需有可關閉的載入介面，檢查開關／重開、草稿狀態及 metadata 查詢次數。

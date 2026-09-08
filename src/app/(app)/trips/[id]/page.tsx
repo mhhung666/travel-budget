@@ -16,6 +16,7 @@ import {
   draftsToPayload,
 } from '@/components/trips/detail/itinerary/ActivityListEditor';
 import { PhotoLightbox } from '@/components/trips/detail/album';
+import { QueryFeedback } from '@/components/common/QueryFeedback';
 import { TripHeader } from '@/components/trips/detail';
 import TripContextOverview from '@/components/trips/detail/TripContextOverview';
 import FirstStepsCard from '@/components/trips/detail/FirstStepsCard';
@@ -101,7 +102,8 @@ export default function ItineraryPage() {
   const { openAddExpense } = useTripSpaceActions();
   // 當天相片：與相簿頁共用同一份 query 快取（一趟旅程只查一次），在這裡依行程日分組。
   // 成員限定——usePhotos 無公開 fallback；非成員（含分享頁訪客）連問都不必問，故用 isMember 擋掉。
-  const { data: photos = [] } = usePhotos(tripId, isMember);
+  const photosQuery = usePhotos(tripId, isMember);
+  const { data: photos = [] } = photosQuery;
   const { create, update, remove } = useItineraryMutations(tripId);
   // 行程資訊卡（原在支出分頁）：行程分頁成為空間落點後改掛這裡
   const { editTripDialog, handleEditTrip } = useEditTrip(tripId);
@@ -376,6 +378,15 @@ export default function ItineraryPage() {
 
   return (
     <div className="container mx-auto max-w-4xl py-4 px-4 sm:px-6">
+      {isMember && (
+        <QueryFeedback
+          hasData={photosQuery.data !== undefined}
+          isError={photosQuery.isError}
+          isFetching={photosQuery.isFetching}
+          isPaused={photosQuery.isPaused}
+          onRetry={() => void photosQuery.refetch()}
+        />
+      )}
       {trip && (
         <TripContextOverview
           trip={trip}
