@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import mongoose from 'mongoose';
 import { up, down } from '../migrations/20260905093000-core-query-indexes.js';
 import { CANDIDATE_INDEXES } from './lib/mongo-explain.mjs';
+import { adoptCoreIndexes, CORE_MIGRATION } from './lib/adopt-core-indexes.mjs';
 
 // Deliberately no dotenv/app URI fallback. Only use a disposable MongoDB server.
 const uri = process.env.MONGODB_INDEX_TEST_URI;
@@ -62,6 +63,45 @@ async function expectOneDuplicate(operations, field) {
 
 try {
   await client.connect();
+  await scenario(
+    'adoption dry-run/apply/retry preserves indexes and unrelated history',
+    async (db) => {
+      for (const { collection, key, ...options } of CANDIDATE_INDEXES) {
+        await db.collection(collection).createIndex(key, options);
+      }
+      await db.collection('changelog').insertOne({ fileName: 'unrelated.js' });
+      const before = await indexes(db);
+      assert.equal((await adoptCoreIndexes(db)).recorded, false);
+      assert.equal(await db.collection('index_migration_ownership').countDocuments({}), 0);
+      await adoptCoreIndexes(db, { apply: true });
+      await adoptCoreIndexes(db, { apply: true });
+      assert.equal(
+        await db.collection('changelog').countDocuments({ fileName: CORE_MIGRATION }),
+        1
+      );
+      assert.equal(
+        await db.collection('changelog').countDocuments({ fileName: 'unrelated.js' }),
+        1
+      );
+      assert.equal(
+        await db.collection('index_migration_ownership').countDocuments({ owned: false }),
+        7
+      );
+      assert.equal(await db.collection('changelog_lock').countDocuments({}), 0);
+      await down(db);
+      assert.deepEqual(await indexes(db), before);
+    }
+  );
+  await scenario('adoption refuses missing indexes and respects existing lock', async (db) => {
+    await db.collection('users').insertOne({ username: 'safe', email: 'safe@example.invalid' });
+    await assert.rejects(adoptCoreIndexes(db, { apply: true }), /Missing index/);
+    assert.equal(await db.collection('changelog').countDocuments({}), 0);
+    assert.equal(await db.collection('index_migration_ownership').countDocuments({}), 0);
+    assert.equal(await db.collection('changelog_lock').countDocuments({}), 0);
+    await db.collection('changelog_lock').insertOne({ _id: 'other-runner' });
+    await assert.rejects(adoptCoreIndexes(db, { apply: true }), /Existing migration lock/);
+    assert.equal(await db.collection('changelog_lock').countDocuments({}), 1);
+  });
   await scenario('owned up/retry/down/retry/up; data and old indexes retained', async (db) => {
     await db
       .collection('users')

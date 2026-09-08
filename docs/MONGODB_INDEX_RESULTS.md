@@ -1,5 +1,24 @@
 # MongoDB 索引 before／after（2026-09-05）
 
+## O 收尾進度（2026-09-08）
+
+階段一完成：共用 `.env` 目標 `travel-budget` 的七顆索引均已存在且相容，帳號 audit 通過。
+已執行受限 adoption，於 `2026-09-08T04:05:57.988Z` 登錄
+`20260905093000-core-query-indexes.js`。七筆 ownership 均為非 owned；沒有建刪索引、
+修改業務資料或套用其他 migrations。再次唯讀檢查確認登錄成功。以下 09-05 未登錄描述為歷史紀錄。
+
+操作工具：`node scripts/adopt-core-indexes.mjs` 預設唯讀；加上
+`--apply --confirm-no-other-ddl` 才登錄。只讀取 `.env`，拒絕 shell 的不同 DB 覆寫；
+原 migration 的 audit/preflight 全部通過才寫 ledger，缺少索引直接拒絕，不會隱性建立。
+helper 鎖只協調同一工具，不能阻止其他 DDL runner；現有 migrate-mongo `lockTtl: 0`
+不啟用其鎖，不可宣稱有全域排他保證。不要與其他 migration 同時執行。
+此為定向補登錄，不是更換通用 migrate-mongo runner；不要直接 down（會依 migrationBlock
+選擇最近批次），回退需先審查對應索引 ownership，現有七顆索引不屬於此 migration。
+
+隔離 MongoDB 新增 adoption dry-run/apply/retry、缺索引拒絕、既有鎖保留等驗收，合計
+8 個情境通過；migration/safety 單元測試 10 項通過，lint 與 Prettier 通過。
+後續階段：較大合成資料集讀寫量測、真實 DB 的帳號 action 流程驗證與完整收尾紀錄。
+
 ## 結果
 
 經使用者核准，在同一測試庫新增 7 個索引，保留全部舊索引及業務資料。
