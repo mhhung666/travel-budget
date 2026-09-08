@@ -23,7 +23,7 @@
 
 程式拆分與 production build 已完成：非支出分頁不再由共用 Shell 取得完整 expenses，表單關閉時不查
 members／itinerary／tags，首頁摘要也改用 aggregate 欄位。靜態基線與待補實測項目見
-[TRIP_SHELL_PERFORMANCE.md](./TRIP_SHELL_PERFORMANCE.md)。目前本機沒有 MongoDB 連線與可登入測試帳號，仍需在
+[TRIP_SHELL_PERFORMANCE.md](./TRIP_SHELL_PERFORMANCE.md)。目前已可連線 DB，並完成指定正式站帳號的登入與唯讀抽查；仍需在
 production-like 資料量下補 Network bytes、MongoDB profiler/explain 與瀏覽器 TTI，確認實際收益及是否要調整
 aggregate／索引；完成後即可從本檔移除。
 
@@ -39,8 +39,10 @@ aggregate／索引；完成後即可從本檔移除。
 
 **僅剩正式效能驗收**：合成資料與本機單節點不等同實際 Atlas 分布／併發；
 account actions 測試替換了 session／郵件邊界，非完整 HTTP E2E。
-需指定隔離環境、測試帳號、代表性資料分布與可接受讀寫延遲，再驗證正式負載的寫入成本及
-Vercel 帳號 HTTP 流程。未獲指定前不向共用 DB 壓測或寄真實驗證信，本項不冒稱完全結案。
+已使用指定正式站帳號完成真實登入、大小寫登入、session／登出及旅程頁面唯讀 smoke test，
+見 [線上驗收](./MONGODB_LIVE_ACCEPTANCE.md)。部分頁面讀取有長尾，尚無 server trace 可歸因。
+仍需隔離環境、可丟棄帳號／信箱、代表性負載與可接受延遲標準，驗證寫入成本及註冊／改信箱
+HTTP＋郵件流程；不向共用 DB 壓測或任意修改現有帳號，本項不冒稱完全結案。
 
 ### P. 🟡 程式交付完成，待部署驗收（P1）
 
