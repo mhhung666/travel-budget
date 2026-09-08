@@ -160,3 +160,15 @@ AppShell entry 已確認不包含快速記帳建立流程事件、AI 文字欄�
 - 篩選完成才重設 20 筆漸進列表；保留展開狀態、完整資料匯出與 ID 對應，不新增搜尋網路請求。
 - React Profiler 回歸驗證輸入先提交、舊列表 busy、後續結果正確；另驗證顯示更多、清除、無結果與操作 ID。
 - 23 項相關測試、lint、Prettier、TypeScript 通過。Q3 分階段 WIP，最終交付才更新一次版本。
+
+## Q3 第二階段：預載評估與瀏覽器量測工具（已完成）
+
+- 新增 `pnpm perf:query-ux`，production build、固定匿名 DTO 與隔離 loopback server；
+  desktop／mobile／service worker，首頁／支出，cold／warm 各 3 筆，共 36 次載入。
+- 保留 Network、Playwright trace、Chrome Performance timeline、LCP／long tasks／輸入 rAF 與 build ID。
+- 預載、server hydration、cursor pagination 決策及重跑方式見 [QUERY_UX_PERFORMANCE.md](./QUERY_UX_PERFORMANCE.md)。
+- 舊 Q2 build 完整基準跑出 2 次 warm 首頁 hydration error（mobile／worker），工具正確返回失敗，
+  不列為綠色驗收。初期工具校正的 SW 禁用錯誤、被拒絕的匿名未讀數請求不納入正式比較。
+- 首頁 cold 只有 landing GET；支出 cold 為 5 個 DTO GET；warm 不重抓這些 fresh DTO。
+  另有匿名 current-user／通知未讀數 POST，分開記錄，不誤稱所有請求都消失。
+- 本階段為測量工具／ADR 與 dev dependency，Q3 版本仍留最終修復交付更新。
