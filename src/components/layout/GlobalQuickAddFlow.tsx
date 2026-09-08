@@ -17,6 +17,7 @@ import { ExpenseFormSheet } from '@/components/trips/detail/expense-form';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { QueryFeedback } from '@/components/common/QueryFeedback';
 
 export const QUICK_ADD_LAST_TRIP_KEY = 'quick-add:last-trip';
 
@@ -185,7 +186,8 @@ export function GlobalQuickAddFlow({ open, preferredTripId, onClose }: GlobalQui
   const t = useTranslations('quickAdd');
   const tTrips = useTranslations('trips');
   const queryClient = useQueryClient();
-  const { data: trips = [], isLoading } = useTrips();
+  const tripsQuery = useTrips(open);
+  const { data: trips = [], isLoading } = tripsQuery;
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
   const [selectedPath, setSelectedPath] = useState<'picker' | 'created'>('picker');
   const [createOpen, setCreateOpen] = useState(false);
@@ -216,7 +218,7 @@ export function GlobalQuickAddFlow({ open, preferredTripId, onClose }: GlobalQui
     ? null
     : selectedTripId
       ? `form_opened:${selectedPath}`
-      : isLoading
+      : isLoading || tripsQuery.isError || tripsQuery.isPaused
         ? null
         : decision.kind === 'direct'
           ? 'form_opened:direct'
@@ -248,6 +250,25 @@ export function GlobalQuickAddFlow({ open, preferredTripId, onClose }: GlobalQui
 
   if (isLoading) {
     return <QuickAddLoading open onClose={closeFlow} />;
+  }
+
+  if (tripsQuery.isError || tripsQuery.isPaused) {
+    return (
+      <ResponsiveFormSheet
+        open
+        onOpenChange={(nextOpen) => !nextOpen && closeFlow()}
+        title={t('title')}
+        description={t('pickTripDescription')}
+      >
+        <QueryFeedback
+          hasData={false}
+          isError={tripsQuery.isError}
+          isFetching={tripsQuery.isFetching}
+          isPaused={tripsQuery.isPaused}
+          onRetry={() => void tripsQuery.refetch()}
+        />
+      </ResponsiveFormSheet>
+    );
   }
 
   if (decision.kind === 'direct') {

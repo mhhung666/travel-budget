@@ -22,6 +22,7 @@ import { useLandingRead } from './useLandingRead';
 import { tripKeys } from './keys';
 import { fetchWithPublicFallback } from './fetcher';
 import { useAuthenticatedSession } from '@/components/providers/QueryProvider';
+import { unwrapActionResult } from '@/lib/actionQuery';
 
 /**
  * Trip-scoped data hooks backed by TanStack Query.
@@ -45,14 +46,15 @@ export function useCurrentUser(enabled = true) {
   });
 }
 
-/** The current user's trips (authenticated; empty list when logged out). */
-export function useTrips() {
+/** The current user's trips. Failures must not masquerade as an empty list. */
+export function useTrips(enabled = true) {
   return useQuery({
     queryKey: tripKeys.list,
     queryFn: async (): Promise<TripWithMembers[]> => {
       const res = await getTrips();
-      return res.success ? res.data : [];
+      return unwrapActionResult(res);
     },
+    enabled,
   });
 }
 

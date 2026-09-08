@@ -7,6 +7,7 @@
 
 | 日期 | 里程碑 |
 | --- | --- |
+| 09-08 | Q1a：旅程列表保留查詢失敗與重試狀態，背景更新保留快取內容並提示失敗；快速記帳關閉時不主動查 trips，列表失敗不再誤進建立旅程流程。新增 QueryClient＋旅程頁回歸測試，其餘 Q 階段見 [進度清單](./QUERY_UX_PROGRESS.md) |
 | 09-08 | O 線上 smoke test：指定正式站帳號正常／大小寫登入、session 安全屬性、登出與保護頁導回登入均通過，旅程／支出／結算／清單唯讀正常；記錄頁面長尾而不歸因索引，未修改帳號或進行正式站壓測，見 [線上驗收](./MONGODB_LIVE_ACCEPTANCE.md) |
 | 09-08 | O 工程驗收：共用 DB 七顆既有核心索引經受限 adoption 正式登錄 migration，沒有建刪索引或修改業務資料；隔離 migration 八情境、真實 MongoDB account actions 五項測試通過。補十萬筆合成支出的讀寫比較與線上唯讀 explain；付款批次寫入 p95 有上升，實際負載與 HTTP 驗收仍保留，見 [索引結果](./MONGODB_INDEX_RESULTS.md) |
 | 09-08 | P 程式交付收尾：新增支出以單次寫入保存背景事件，整合持久化 worker、站內去重、逐裝置重試／續跑及離線對帳；預設啟用、保留 off 回退與 Hobby 每日補送。四個共用 DB 索引 migration 已完成；正式部署、真實通知與延遲驗收尚待完成，見 [驗收清單](./EXPENSE_DELIVERY_ACCEPTANCE.md) |

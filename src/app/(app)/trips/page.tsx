@@ -12,6 +12,7 @@ import JoinTripDialog from '@/components/trips/JoinTripDialog';
 import TripList from '@/components/trips/TripList';
 import EmptyTripsState from '@/components/trips/EmptyTripsState';
 import { TripsPageSkeleton } from '@/components/skeletons';
+import { QueryFeedback } from '@/components/common/QueryFeedback';
 
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -24,7 +25,8 @@ export default function TripsPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: trips = [], isLoading: loading } = useTrips();
+  const tripsQuery = useTrips();
+  const { data: trips = [], isLoading: loading } = tripsQuery;
   const { archive, unarchive } = useTripArchiveMutations();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
@@ -73,12 +75,25 @@ export default function TripsPage() {
     }
   };
 
-  if (loading) {
+  if (loading && tripsQuery.data === undefined) {
     return <TripsPageSkeleton />;
   }
 
+  const feedback = (
+    <QueryFeedback
+      hasData={tripsQuery.data !== undefined}
+      isError={tripsQuery.isError}
+      isFetching={tripsQuery.isFetching}
+      isPaused={tripsQuery.isPaused}
+      onRetry={() => void tripsQuery.refetch()}
+    />
+  );
+
+  if (tripsQuery.data === undefined) return feedback;
+
   return (
     <div className="container mx-auto max-w-6xl px-4 py-6">
+      {feedback}
       {/* 5.1：假 Card 版型移除，行程卡直接鋪在頁面上 */}
       <div className="mb-6 flex items-center justify-between gap-4">
         <h1 className="text-2xl font-bold">{t('list')}</h1>

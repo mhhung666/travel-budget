@@ -1,5 +1,9 @@
 {
   "common": {
+    "queryLoadFailed": "無法載入資料，請稍後重試。",
+    "queryRefreshing": "正在更新資料…",
+    "queryRefreshFailed": "更新失敗，目前顯示上次成功載入的資料。",
+    "queryPaused": "等待網路連線後繼續載入。",
     "loading": "載入中...",
     "save": "儲存",
     "cancel": "取消",

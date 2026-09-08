@@ -2,16 +2,23 @@
 
 import { TripMapView } from '@/components/map';
 import { useTrips } from '@/hooks/queries';
+import { QueryFeedback } from '@/components/common/QueryFeedback';
 
 // 登入守衛與 user 注入由 (app)/layout.tsx 的 App Shell 處理。
 export default function MapPage() {
-  const { data: trips = [], isFetching: loading, isError, error: tripsError } = useTrips();
-
-  const error = isError
-    ? tripsError instanceof Error
-      ? tripsError.message
-      : String(tripsError)
-    : '';
-
-  return <TripMapView trips={trips} loading={loading} error={error} />;
+  const query = useTrips();
+  return (
+    <>
+      <QueryFeedback
+        hasData={query.data !== undefined}
+        isError={query.isError}
+        isFetching={query.isFetching}
+        isPaused={query.isPaused}
+        onRetry={() => void query.refetch()}
+      />
+      {(query.data !== undefined || query.isLoading) && (
+        <TripMapView trips={query.data ?? []} loading={query.isLoading} error="" />
+      )}
+    </>
+  );
 }

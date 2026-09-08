@@ -1,5 +1,9 @@
 {
   "common": {
+    "queryLoadFailed": "データを読み込めませんでした。もう一度お試しください。",
+    "queryRefreshing": "データを更新中…",
+    "queryRefreshFailed": "更新に失敗しました。前回取得したデータを表示しています。",
+    "queryPaused": "ネットワーク接続を待っています。",
     "loading": "読み込み中...",
     "save": "保存",
     "cancel": "キャンセル",

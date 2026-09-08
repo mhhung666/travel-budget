@@ -61,13 +61,13 @@ export function ErrorState({
 
         <div className="flex gap-4 justify-center">
           {onBack && (
-            <Button variant="outline" onClick={onBack} className="gap-2">
+            <Button type="button" variant="outline" onClick={onBack} className="gap-2">
               <ArrowLeft size={16} />
               {backText}
             </Button>
           )}
           {onRetry && (
-            <Button onClick={onRetry} className="gap-2">
+            <Button type="button" onClick={onRetry} className="gap-2">
               <RefreshCcw size={16} />
               {retryText}
             </Button>

@@ -1,5 +1,9 @@
 {
   "common": {
+    "queryLoadFailed": "无法加载数据，请稍后重试。",
+    "queryRefreshing": "正在更新数据…",
+    "queryRefreshFailed": "更新失败，目前显示上次成功加载的数据。",
+    "queryPaused": "等待网络连接后继续加载。",
     "loading": "加载中...",
     "save": "保存",
     "cancel": "取消",

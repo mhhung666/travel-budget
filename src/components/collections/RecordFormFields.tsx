@@ -4,6 +4,7 @@ import { useTranslations } from 'next-intl';
 import { Link2 } from 'lucide-react';
 
 import { useTrips } from '@/hooks/queries';
+import { QueryFeedback } from '@/components/common/QueryFeedback';
 import type { DatePrecision } from '@/types';
 import { Input } from '@/components/ui/input';
 import {
@@ -85,22 +86,36 @@ export function TripLinkSelect({
   onChange: (tripId: string | null) => void;
 }) {
   const t = useTranslations('collections');
-  const { data: trips } = useTrips();
+  const query = useTrips();
+  const { data: trips } = query;
 
   return (
-    <Select value={value ?? NO_TRIP} onValueChange={(v) => onChange(v === NO_TRIP ? null : v)}>
-      <SelectTrigger>
-        <SelectValue placeholder={t('common.noTrip')} />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value={NO_TRIP}>{t('common.noTrip')}</SelectItem>
-        {(trips ?? []).map((trip) => (
-          <SelectItem key={trip.id} value={trip.id}>
-            {trip.name}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <>
+      <QueryFeedback
+        hasData={trips !== undefined}
+        isError={query.isError}
+        isFetching={query.isFetching}
+        isPaused={query.isPaused}
+        onRetry={() => void query.refetch()}
+      />
+      <Select
+        disabled={trips === undefined}
+        value={value ?? NO_TRIP}
+        onValueChange={(v) => onChange(v === NO_TRIP ? null : v)}
+      >
+        <SelectTrigger>
+          <SelectValue placeholder={t('common.noTrip')} />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={NO_TRIP}>{t('common.noTrip')}</SelectItem>
+          {(trips ?? []).map((trip) => (
+            <SelectItem key={trip.id} value={trip.id}>
+              {trip.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </>
   );
 }
 

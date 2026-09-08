@@ -1,5 +1,9 @@
 {
   "common": {
+    "queryLoadFailed": "Unable to load data. Please try again.",
+    "queryRefreshing": "Updating data…",
+    "queryRefreshFailed": "Update failed. Showing the last successfully loaded data.",
+    "queryPaused": "Waiting for a network connection to continue loading.",
     "loading": "Loading...",
     "save": "Save",
     "cancel": "Cancel",
