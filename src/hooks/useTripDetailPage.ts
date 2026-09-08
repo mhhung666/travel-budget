@@ -1,8 +1,8 @@
 import { combineReadStates } from '@/lib/queryReadState';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { onlineManager } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
-import type { Expense } from '@/types';
+import type { Expense, ItineraryDay } from '@/types';
 import { EMPTY_EXPENSE_FILTERS, type ExpenseFilters } from '@/lib/expenseFilters';
 import { useDialog } from '@/hooks/useDialog';
 import { useToast } from '@/hooks/use-toast';
@@ -15,6 +15,8 @@ import {
   useExpenseMutations,
 } from '@/hooks/queries';
 import { getCorrectionTiming, trackProductEvent } from '@/lib/productEvents';
+
+const EMPTY_ITINERARY: ItineraryDay[] = [];
 
 /**
  * Controller hook for the trip expenses tab (trips/[id]/expenses/page.tsx).
@@ -39,7 +41,7 @@ export function useTripDetailPage(tripId: string) {
   const { data: expenses = [] } = expensesQuery;
   // 行程日供支出表單「關聯行程日」下拉與支出卡的 Day 標籤使用（React Query 快取，與行程頁共用）。
   const itineraryQuery = useItinerary(tripId);
-  const { data: itineraryDays = [] } = itineraryQuery;
+  const { data: itineraryDays = EMPTY_ITINERARY } = itineraryQuery;
   const membership = useTripMembership(tripId);
   const { currentUser, members, isMember, isAdmin } = membership;
   const query = combineReadStates([tripQuery, expensesQuery]);
@@ -114,10 +116,14 @@ export function useTripDetailPage(tripId: string) {
     });
   };
 
-  const handleDeleteExpense = (expenseId: string) => {
-    const expense = expenses.find((item) => item.id === expenseId);
-    if (expense) deleteExpenseDialog.openDialog(expense);
-  };
+  const openDeleteExpense = deleteExpenseDialog.openDialog;
+  const handleDeleteExpense = useCallback(
+    (expenseId: string) => {
+      const expense = expenses.find((item) => item.id === expenseId);
+      if (expense) openDeleteExpense(expense);
+    },
+    [expenses, openDeleteExpense]
+  );
 
   const confirmDeleteExpense = async () => {
     const deletingExpense = deleteExpenseDialog.data;

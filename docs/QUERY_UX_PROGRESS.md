@@ -152,3 +152,11 @@ lint（無警告）、Prettier、TypeScript 與 production build 均通過。
 AppShell entry 已確認不包含快速記帳建立流程事件、AI 文字欄位與文字解析 API 的程式字串。
 真實冷／熱、mobile、PWA service worker、Network／Performance trace 與正式站長尾驗收留在 Q3；
 不將這次 bundle 減量宣稱為 LCP／INP 改善。
+
+## Q3 第一階段：支出搜尋（已完成）
+
+- 搜尋欄維持即時 controlled value；篩選結果使用 useDeferredValue，舊結果以 aria-busy 與透明度標示。
+- memo 列表邊界隔離篩選／分組／rows，並穩定編輯、刪除 callback 與缺少行程日的空陣列參照。
+- 篩選完成才重設 20 筆漸進列表；保留展開狀態、完整資料匯出與 ID 對應，不新增搜尋網路請求。
+- React Profiler 回歸驗證輸入先提交、舊列表 busy、後續結果正確；另驗證顯示更多、清除、無結果與操作 ID。
+- 23 項相關測試、lint、Prettier、TypeScript 通過。Q3 分階段 WIP，最終交付才更新一次版本。

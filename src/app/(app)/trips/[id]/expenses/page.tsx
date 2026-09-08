@@ -101,7 +101,7 @@ export default function TripDetailPage() {
         filters={filters}
         onFiltersChange={setFilters}
         onAdd={openAddExpense}
-        onEdit={(expense) => editExpenseDialog.openDialog(expense)}
+        onEdit={editExpenseDialog.openDialog}
         onDelete={handleDeleteExpense}
       />
 

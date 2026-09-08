@@ -1,7 +1,7 @@
 'use client';
 import { QueryStatus } from '@/components/common/QueryStatus';
 
-import { useEffect, useMemo, useState } from 'react';
+import { memo, useDeferredValue, useMemo, useState } from 'react';
 import { Plus, ReceiptText, Search, SearchX, SlidersHorizontal, X } from 'lucide-react';
 import { EmptyState } from '@/components/common';
 import { useTranslations } from 'next-intl';
@@ -33,6 +33,7 @@ import { Label } from '@/components/ui/label';
 
 /** 列表初次顯示的筆數，以及每次「顯示更多」的增量（純前端漸進渲染，避免長列表一次塞滿 DOM）。 */
 const PAGE_SIZE = 20;
+const EMPTY_DAYS: ItineraryDay[] = [];
 
 interface TripExpensesProps {
   tripId: string;
@@ -69,7 +70,7 @@ export default function TripExpenses({
   tripId,
   expenses,
   members,
-  itineraryDays = [],
+  itineraryDays = EMPTY_DAYS,
   tripName,
   isCurrentUserMember,
   currentUserId,
@@ -85,64 +86,12 @@ export default function TripExpenses({
   const tCategory = useTranslations('category');
 
   const [showFilters, setShowFilters] = useState(false);
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-  const countsQuery = useCommentCounts(tripId, isCurrentUserMember);
-  const { data: commentCounts = {} } = countsQuery;
-
-  const toggleExpanded = (expenseId: string) =>
-    setExpandedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(expenseId)) next.delete(expenseId);
-      else next.add(expenseId);
-      return next;
-    });
-
-  // 行程日 id → 日序，供支出項顯示「Day N」標籤。
-  const dayNumberById = useMemo(
-    () => new Map(itineraryDays.map((d) => [d.id, d.day_number])),
-    [itineraryDays]
-  );
-
   // 本 trip 內出現過的所有標籤（供標籤篩選下拉）。
   const allTags = useMemo(() => [...new Set(expenses.flatMap((e) => e.tags))].sort(), [expenses]);
 
   const activeCount = countActiveFilters(filters);
-  const filtered = useMemo(() => filterExpenses(expenses, filters), [expenses, filters]);
-  const visible = filtered.slice(0, visibleCount);
-
-  // 依日期分組（沿用伺服器的日期排序；同一天以當地時區歸組）。
-  const groups = useMemo<ExpenseDayGroup[]>(() => {
-    const byDay = new Map<string, ExpenseDayGroup>();
-    for (const expense of visible) {
-      const day = new Date(expense.date);
-      const key = day.toDateString();
-      let group = byDay.get(key);
-      if (!group) {
-        group = {
-          key,
-          label: day.toLocaleDateString(undefined, {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-            weekday: 'short',
-          }),
-          total: 0,
-          expenses: [],
-        };
-        byDay.set(key, group);
-      }
-      group.total += expense.amount;
-      group.expenses.push(expense);
-    }
-    return [...byDay.values()];
-  }, [visible]);
-
-  // 篩選條件變動時，把漸進渲染的計數重設回第一頁。
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- 條件變更時刻意重置分頁計數
-    setVisibleCount(PAGE_SIZE);
-  }, [filters]);
+  const deferredFilters = useDeferredValue(filters);
+  const isSearchPending = filters !== deferredFilters;
 
   const updateFilters = (patch: Partial<ExpenseFilters>) =>
     onFiltersChange({ ...filters, ...patch });
@@ -170,7 +119,6 @@ export default function TripExpenses({
 
   return (
     <section aria-label={tExpense('title')}>
-      {isCurrentUserMember && <QueryStatus query={countsQuery} />}
       {/* Toolbar: search + filter toggle + export + add（行動端的新增走空間 FAB） */}
       <div className="mb-4 space-y-3">
         <div className="flex items-center gap-2">
@@ -347,6 +295,107 @@ export default function TripExpenses({
         )}
       </div>
 
+      <div aria-busy={isSearchPending} className={isSearchPending ? 'opacity-60' : undefined}>
+        <ExpenseResults
+          tripId={tripId}
+          expenses={expenses}
+          itineraryDays={itineraryDays}
+          isCurrentUserMember={isCurrentUserMember}
+          currentUserId={currentUserId}
+          isCurrentUserAdmin={isCurrentUserAdmin}
+          filters={deferredFilters}
+          onAdd={onAdd}
+          onEdit={onEdit}
+          onDelete={onDelete}
+        />
+      </div>
+    </section>
+  );
+}
+
+// Memo boundary is essential: urgent input updates must skip list filtering and rows.
+const ExpenseResults = memo(function ExpenseResults({
+  tripId,
+  expenses,
+  itineraryDays,
+  isCurrentUserMember,
+  currentUserId,
+  isCurrentUserAdmin,
+  filters,
+  onAdd,
+  onEdit,
+  onDelete,
+}: Pick<
+  TripExpensesProps,
+  | 'tripId'
+  | 'expenses'
+  | 'isCurrentUserMember'
+  | 'currentUserId'
+  | 'isCurrentUserAdmin'
+  | 'filters'
+  | 'onAdd'
+  | 'onEdit'
+  | 'onDelete'
+> & { itineraryDays: ItineraryDay[] }) {
+  const tExpense = useTranslations('expense');
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const countsQuery = useCommentCounts(tripId, isCurrentUserMember);
+  const { data: commentCounts = {} } = countsQuery;
+
+  const toggleExpanded = (expenseId: string) =>
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(expenseId)) next.delete(expenseId);
+      else next.add(expenseId);
+      return next;
+    });
+
+  // 行程日 id → 日序，供支出項顯示「Day N」標籤。
+  const dayNumberById = useMemo(
+    () => new Map(itineraryDays.map((d) => [d.id, d.day_number])),
+    [itineraryDays]
+  );
+
+  const [previousFilters, setPreviousFilters] = useState(filters);
+  if (previousFilters !== filters) {
+    setPreviousFilters(filters);
+    setVisibleCount(PAGE_SIZE);
+  }
+  const activeCount = countActiveFilters(filters);
+  const filtered = useMemo(() => filterExpenses(expenses, filters), [expenses, filters]);
+  const visible = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
+
+  // 依日期分組（沿用伺服器的日期排序；同一天以當地時區歸組）。
+  const groups = useMemo<ExpenseDayGroup[]>(() => {
+    const byDay = new Map<string, ExpenseDayGroup>();
+    for (const expense of visible) {
+      const day = new Date(expense.date);
+      const key = day.toDateString();
+      let group = byDay.get(key);
+      if (!group) {
+        group = {
+          key,
+          label: day.toLocaleDateString(undefined, {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            weekday: 'short',
+          }),
+          total: 0,
+          expenses: [],
+        };
+        byDay.set(key, group);
+      }
+      group.total += expense.amount;
+      group.expenses.push(expense);
+    }
+    return [...byDay.values()];
+  }, [visible]);
+
+  return (
+    <>
+      {isCurrentUserMember && <QueryStatus query={countsQuery} />}
       {expenses.length === 0 ? (
         <EmptyState
           icon={ReceiptText}
@@ -421,6 +470,6 @@ export default function TripExpenses({
           )}
         </>
       )}
-    </section>
+    </>
   );
-}
+});
