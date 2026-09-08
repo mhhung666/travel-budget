@@ -10,7 +10,7 @@
 | --- | --- | --- |
 | Q1a | 旅程列表 query 錯誤、重試、背景更新提示及快速記帳的列表錯誤 | 已實作 |
 | Q1b | 其他 queries 與消費頁逐一配對，補錯誤 UI、auth-null 邊界及 stale data 顯示 | 已完成 |
-| Q2 | 全域快速記帳與大型 dialogs／AI／lightbox 的 mount 與動態載入 | 待處理 |
+| Q2 | 全域快速記帳與大型 dialogs／AI／lightbox 的 mount 與動態載入 | 進行中：第一階段全域入口 |
 | Q3 | 支出搜尋 deferred rendering、常用頁 prefetch 評估與 production build／瀏覽器量測 | 待處理 |
 
 ## Q1a
@@ -76,3 +76,30 @@ lint（無警告）、Prettier、TypeScript 與 production build 均通過。
 - Cursor pagination 依真實資料量門檻另行評估，不能為滿足清單而直接更動全量清單契約。
 - Q1b production build 已驗證；Q2／Q3 的 bundle 比較與瀏覽器 Network／Performance 量測尚未執行。先建立可比較量測條件，
   不把前次正式站的少量冷／熱混合樣本當成改善前後基準。
+
+## Q2 第一階段：全域入口與可恢復的 chunk 載入
+
+- AppShell 不再靜態匯入快速記帳；未開啟不 mount flow、不啟動其旅程／metadata 查詢。
+- 建立旅程與支出表單各自拆 chunk；picker／無旅程畫面不會順便 mount 表單。
+- 共用 lazyDialog 首次 open 才 import，載入／失敗都有可關閉的 responsive dialog。
+  import 失敗可重試；關閉後即使 promise 完成也不重新打開。
+- 一般 dialog 首次開啟後保留元件，沿用各自草稿／reset 規則；全域 flow 關閉則卸載，
+  沿用原本快速記帳關閉即結束的流程，不保存跨旅程草稿。
+- Q2 分階段 WIP commit，版本於完整 Q2 最終交付更新一次。
+
+### 可重現 bundle 基準
+
+執行 `pnpm build` 後 `node scripts/measure-client-entry.mjs`。
+讀取 client-reference manifest 的 entry chunks，逐檔 gzip 後加總；不同 entry 有共用 chunks，
+**不可跨列加總，也不是瀏覽器實際傳輸量或 LCP**。基準來自 Q1b 的本機 production build。
+
+| Entry | 基準 JS bytes | 基準 gzip bytes |
+| --- | ---: | ---: |
+| AppShell | 504959 | 168590 |
+| trips | 357428 | 116434 |
+| trips/[id] | 990595 | 307142 |
+| trips/[id]/album | 538921 | 177872 |
+| trips/[id]/expenses | 539545 | 174802 |
+
+第一階段驗證：新增 3 項 lazy dialog 測試（首次 gating、草稿重開、pending 關閉、失敗重試）；
+全套 1,363 通過、37 項 opt-in 跳過。lint、Prettier、TypeScript、production build 通過。

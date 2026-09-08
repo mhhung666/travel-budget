@@ -29,7 +29,12 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { BottomTabBar } from './BottomTabBar';
-import { GlobalQuickAddFlow, QUICK_ADD_LAST_TRIP_KEY } from './GlobalQuickAddFlow';
+import { QUICK_ADD_LAST_TRIP_KEY } from '@/lib/quickAdd';
+import { lazyDialog } from '@/components/common/lazyDialog';
+
+const GlobalQuickAddFlow = lazyDialog(async () => ({
+  default: (await import('./GlobalQuickAddFlow')).GlobalQuickAddFlow,
+}));
 import { ROUTES } from '@/constants/routes';
 import { cn } from '@/lib/utils';
 import { trackNavigation } from '@/lib/navigationEvents';
@@ -252,7 +257,7 @@ export function AppShell({
       {/* 底部分頁列的分頁皆需登入，訪客不顯示。 */}
       {user && <BottomTabBar onQuickAdd={openQuickAdd} />}
 
-      {user && (
+      {user && quickAddVisible && (
         <GlobalQuickAddFlow
           open={quickAddVisible}
           preferredTripId={preferredQuickAddTrip}

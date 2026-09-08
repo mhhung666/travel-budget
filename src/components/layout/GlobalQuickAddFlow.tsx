@@ -6,21 +6,23 @@ import { useLocale, useTranslations } from 'next-intl';
 import { useQueryClient } from '@tanstack/react-query';
 import { CalendarRange, Loader2, Plus, ReceiptText } from 'lucide-react';
 import type { Trip, TripWithMembers } from '@/types';
-import { decideQuickAddTrip } from '@/lib/quickAdd';
+import { decideQuickAddTrip, QUICK_ADD_LAST_TRIP_KEY } from '@/lib/quickAdd';
 import { ongoingDayNumber } from '@/lib/tripStatus';
 import { useTrips, tripKeys } from '@/hooks/queries';
 import { useTripSpace } from '@/hooks/useTripSpace';
 import { trackProductEvent } from '@/lib/productEvents';
 
 import { ResponsiveFormSheet } from '@/components/common';
-import CreateTripDialog from '@/components/trips/CreateTripDialog';
-import { ExpenseFormSheet } from '@/components/trips/detail/expense-form';
+import { lazyDialog } from '@/components/common/lazyDialog';
+
+const CreateTripDialog = lazyDialog(() => import('@/components/trips/CreateTripDialog'));
+const ExpenseFormSheet = lazyDialog(
+  () => import('@/components/trips/detail/expense-form/ExpenseFormSheet')
+);
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { QueryFeedback } from '@/components/common/QueryFeedback';
-
-export const QUICK_ADD_LAST_TRIP_KEY = 'quick-add:last-trip';
 
 interface GlobalQuickAddFlowProps {
   open: boolean;

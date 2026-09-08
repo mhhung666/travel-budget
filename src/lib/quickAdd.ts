@@ -85,3 +85,5 @@ export function decideQuickAddTrip(
   }
   return { kind: 'pick', trips: ranked };
 }
+
+export const QUICK_ADD_LAST_TRIP_KEY = 'quick-add:last-trip';
