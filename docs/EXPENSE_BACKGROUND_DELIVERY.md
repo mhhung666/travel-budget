@@ -4,6 +4,7 @@
 
 > 2026-09-07 最新整合與驗收狀態見 [EXPENSE_DELIVERY_ACCEPTANCE.md](./EXPENSE_DELIVERY_ACCEPTANCE.md)。
 > 本文件保留各階段歷程；三階段整合、Hobby 每日排程設定及 P 共用 DB migration 已完成，仍待部署啟用驗收。
+> 最新預設已改為 on，無須提供 EXPENSE_BACKGROUND_DELIVERY；off 僅供緊急回退。以下預設 off 為歷史紀錄。
 
 ## P 整合階段 2（2026-09-07；預設關閉）
 

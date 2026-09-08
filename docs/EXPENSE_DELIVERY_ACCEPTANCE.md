@@ -1,11 +1,12 @@
 # P 支出背景處理：驗收與啟用清單
 
-更新：2026-09-07。應用程式版本以 package.json 為準。
+更新：2026-09-08。應用程式版本以 package.json 為準。
 
 ## 結論
 
 程式整合與本機隔離驗證已完成；**P 尚未完成正式環境驗收**。
-新增支出的背景模式預設關閉。P 的共用 DB 索引 migration 已經使用者授權完成（見下方紀錄）。
+新增支出的背景模式預設開啟，不必提供 `EXPENSE_BACKGROUND_DELIVERY`。
+P 的共用 DB 索引 migration 已經使用者授權完成（見下方紀錄）。
 沒有修改使用者 `.env`、push 或部署；AI 真實品質驗收依原決定暫停。
 使用者已確認 Hobby、每日補送；`vercel.json` 已加入每日補撿設定，待 production 部署才生效。
 
@@ -17,7 +18,10 @@
 | 2：入口與資料庫 | 4 個 additive 索引 migration、readiness gate、單次 Expense insert 保存事件與工作、回應前不等待推播、post-response after、Bearer 驗證補撿入口 |
 | 3：驗收及操作 | 真實 Mongoose → worker、MongoDB 候選 explain、離線重載續送／失敗對帳、optimistic 修復、推播 tag、唯讀佇列計數及部署操作清單 |
 
-一般路徑仍由 `EXPENSE_BACKGROUND_DELIVERY=off` 保持舊通知方式。
+未設定參數即使用背景模式；只有明確設定 `EXPENSE_BACKGROUND_DELIVERY=off` 才使用舊通知方式。
+空字串或其他值不合法；若先前已設定 off，需刪除該設定才會採用預設值。
+CRON_SECRET、transaction 與必要索引檢查仍保留；不符合時在新增支出前拒絕寫入，
+不會自動 migration 或靜默退回舊路徑。程式無法確認平台排程是否已登錄，仍須部署後人工驗證。
 on 模式在寫入前取得姓名，省去寫入後 populate，通知與活動交由 outbox worker；
 actor／trip／支出快照均為 server-owned，不採用 client 提供的背景狀態。
 Schema 不預設建立歷史工作，內部事件／進度預設不列入一般查詢，也不輸出於 DTO。
@@ -40,7 +44,11 @@ Schema 不預設建立歷史工作，內部事件／進度預設不列入一般�
 - 完整一般測試、Prettier、lint、TypeScript、production build 通過。MongoDB opt-in 測試另跑；
   3 項 AI live eval 維持略過。build 使用明確 dummy MongoDB URI，不連共用 DB。
 
-最終一般測試 1,282 項通過、32 項略過（29 項 MongoDB 另跑全部通過、3 項 AI 暫停）。
+2026-09-08 收尾重跑：一般測試 1,290 項通過、32 項略過；29 項 MongoDB 在本機隔離
+replica set 另跑全部通過，僅 3 項 AI live eval 仍暫停。合計實際通過 1,319 項。
+新增 6 項環境設定測試涵蓋省略參數預設 on、明確 on／off，以及空字串／無效值拒絕。
+`pnpm lint`、`pnpm format:check`、`pnpm exec tsc --noEmit`、`pnpm build` 通過；
+build 明確覆寫 dummy MONGODB_URI 與 JWT_SECRET，未連共用 DB。
 已確認隨機 `tb_queue_verify_…` 測試庫全部清除，臨時 MongoDB 容器停止並移除；
 僅清除本次合成測試資料，沒有刪除使用者資料。
 
@@ -57,17 +65,31 @@ Schema 不預設建立歷史工作，內部事件／進度預設不列入一般�
    after 只處理一批且可能中斷，不能拿正常即時路徑代替補撿容量規劃。
 3. **已完成**：使用者授權 `.env` 目標 DB，已執行並驗證
    `20260907170000-expense-delivery-indexes.js`。未連帶執行其他 pending migrations。
-4. 先部署 off 版本、保持既有 CRON_SECRET，確認 Vercel 已登錄獨立 GET
+4. 保持既有 CRON_SECRET，部署前完成第 3 步；部署後確認 Vercel 已登錄獨立 GET
    `/api/cron/expense-delivery` 每日排程；驗證 401／503 邊界與 authorized idle 回應。
    索引尚未安裝時入口預期回 503，不會自動 migration；先完成第 3 步再啟用。
-5. 確認排程正常後才設 `EXPENSE_BACKGROUND_DELIVERY=on` 並重新部署。新增一筆測試支出，
-   比對回應 DTO、站內通知／活動各一次、推播結果與 completed 狀態。
+5. 不必新增 `EXPENSE_BACKGROUND_DELIVERY`；此版本部署後即預設啟用。
+   若需分階段驗證，可暫設 off，確認排程正常後刪除 off 並重新部署。新增一筆測試支出，
+   比對回應 DTO、站內通知／活動各一次、推播結果與工作 done 狀態。
 6. 在隔離 preview DB／測試訂閱製造 provider 失敗與 worker 中斷，確認排程恢復；
    不在真實使用者訂閱上注入故障。記錄建立支出 p50／p95 與最舊 pending 延遲再將 P 標成完成。
 
 after 的執行仍受平台函式時限約束，參考 [Next.js after](https://nextjs.org/docs/app/api-reference/functions/after)。
 cron route 明確設定 maxDuration 60 秒；DB 個別時限與批次開始工作預算不是硬即時截止，
 連線／已開始 HTTP／transaction／checkpoint 仍可能被平台終止，靠 lease 及持久化狀態恢復。
+
+## 正式結案紀錄（部署後填寫，不以本機測試代替）
+
+- [ ] 記錄 production 部署 commit 與部署時間，確認部署成功。
+- [ ] 確認 production CRON_SECRET 已設定、背景開關未被舊 off 覆寫、每日排程已登錄。
+- [ ] 使用授權的測試旅程／帳號建立支出，核對 DTO、站內通知／活動各一次與工作 done。
+- [ ] 在隔離 DB／測試訂閱驗證失敗重試及 worker 中斷接手；不得對真實訂閱注入故障。
+- [ ] 確認每日排程實際執行紀錄，記錄 pending／leased／done／dead 與 oldestPendingAt。
+- [ ] 記錄相同負載下的建立支出樣本數、p50／p95（改善前後）、pending 延遲與是否符合可接受等待時間。
+
+本輪未 push、部署或寄送真實測試通知；上述項目尚未執行，P 不標成正式完成。
+未授權的測試帳號／旅程不得自行使用。一般 cron GET 會認領工作並可能寄送通知，
+唯讀檢查必須使用 `?inspect=1`；不得以健康檢查之名觸發正式工作。
 
 ## 操作與回滾
 

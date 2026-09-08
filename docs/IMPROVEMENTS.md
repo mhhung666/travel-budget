@@ -1,6 +1,6 @@
 # 改善建議（Improvements）
 
-> 更新日期：2026-09-06
+> 更新日期：2026-09-08
 > 本文件只列**尚未處理**的程式碼 / 基礎設施層級改善。已完成里程碑見 [CHANGELOG.md](./CHANGELOG.md)，架構說明見 [ARCHITECTURE.md](./ARCHITECTURE.md)。
 > 慣例：處理完一項 → 移到 [CHANGELOG.md](./CHANGELOG.md)、從本檔刪除。
 
@@ -14,7 +14,7 @@
 | 順序 | 項目 | 主要價值 | 建議批次 |
 | ---: | --- | --- | --- |
 | 1 | O. MongoDB 查詢基線與索引 | 降低排序、每日掃描及資料成長後的退化風險 | P1，先量測再 migration |
-| 2 | P. 支出寫入 critical path 瘦身 | 縮短新增支出的實際回應時間，隔離外部通知失敗 | P1，需決定背景工作方案 |
+| 2 | P. 支出背景處理部署驗收 | 確認正式環境回應延遲與補送恢復 | 🟡 程式與 migration 已完成 |
 | 3 | Q. 查詢錯誤狀態與前端延遲載入 | 避免把錯誤顯示成空資料，改善互動流暢度 | P1/P2，逐頁落地 |
 | 4 | R. 原子更新與跨 collection 一致性 | 降低多人編輯覆蓋及部分寫入 | P2，依使用頻率安排 |
 | 5 | M. production-like 效能追蹤 | 補齊實際 bytes、MongoDB profiler 與 TTI 數據 | 🟡 需測試環境與帳號 |
@@ -43,92 +43,22 @@ schema 及 ownership rollback 測試。見 [MONGODB_INDEX_RESULTS.md](./MONGODB_
 migrate-mongo changelog／lock 與正式操作審查。現有測試庫的索引由人工核准建立，migration down
 不會誤刪這些既有索引；測試索引撤銷方式見結果文件。
 
-### P. 🟡 支出寫入 critical path 瘦身（P1）
+### P. 🟡 程式交付完成，待部署驗收（P1）
 
-**目前狀態（2026-09-07）**：三階段程式整合與本機驗證完成，背景模式預設 off，
-已確認 Hobby 每日補撿，並加入台灣 20:00 所在小時的排程設定；
-P 的四個共用 DB 索引已經授權建立、驗證並登錄 changelog；
-尚待部署啟用與實測延遲驗收，其他 pending migrations 未連帶執行。
-完整交付、測試證據與操作清單見 [EXPENSE_DELIVERY_ACCEPTANCE.md](./EXPENSE_DELIVERY_ACCEPTANCE.md)。
-P 尚未標記正式完成；以下為歷次開發紀錄，不代表目前仍缺少 worker／action 實作。
+**目前狀態（2026-09-08）**：背景 worker／action／離線對帳整合完成；背景模式預設 on，
+不必新增參數，off 僅供緊急回退。Hobby 每日補撿設定已加入；四個共用 DB 索引已建立、
+驗證並登錄 changelog，不必重跑 P migration。已完成里程碑見 [CHANGELOG.md](./CHANGELOG.md)。
 
-**整合階段 1 完成（2026-09-07）**：runner／worker 已串接持久化批次、序列續租、
-固定候選重試與完成政策；正常前進的分批不消耗失敗額度，超量封存供人工處理。
-尚未接入線上 action／排程，完整啟用與延遲驗收仍待完成。以下保留各前置階段歷程。
+**僅剩正式環境收尾**：
 
-**第一階段已完成（2026-09-05）**：新增支出將成員驗證時讀取的 Trip 名稱、hashCode、成員快照傳給
-通知，省去一次 Trip 讀取；通知與活動紀錄並行、仍等待兩者完成，並在 action 層隔離各自失敗。
-快照僅由 server 讀取，不採用 client 提供的資料；收件者仍查 User 並排除本人／虛擬成員。
-其他通知呼叫端保留原本的 Trip 查詢行為。
+- Commit 後 push／Vercel production 部署，確認 CRON_SECRET 與每日排程。
+- 使用指定測試旅程／帳號驗證支出 DTO、站內通知、活動紀錄及推播。
+- 在隔離環境驗證中斷／失敗恢復，記錄新增支出 p50／p95 與最舊 pending 延遲。
 
-**背景處理前置已完成**：Web Push 提供逐裝置寄送結果，區分服務接受、失效、失敗及清理失敗，
-供後續 worker 決定重試範圍；尚未啟用自動重試。設計、可靠性界線與待確認的排程頻率見
-[EXPENSE_BACKGROUND_DELIVERY.md](./EXPENSE_BACKGROUND_DELIVERY.md)。
-
-**佇列儲存層已完成**：Expense 內嵌工作狀態的原子 claim、token fencing、續租、退避重試與 5 次
-上限，已通過本機隔離 MongoDB 的 7 個情境（含 12 worker 併發認領與過期接手）；測試庫／容器
-已清理。尚未將儲存層接入 Expense schema／action、worker 或排程，不會產生實際背景工作。
-
-**事件快照／站內去重模組已完成**：新增當下快照驗證、有效 lease 與事件歸屬檢查、成員交集、
-partial unique + upsert，保留已讀狀態與舊紀錄；隔離 MongoDB 驗證已擴至 15 個情境並全部通過。
-尚未接入 Expense schema／新增 action／worker，正式索引 migration 尚未建立。
-
-**交易及生命週期防護已完成一階段**：站內紀錄與完成標記同交易寫入，Expense／Trip／User fence、
-交易末端 lease 重查，已完成紀錄不復活已刪通知；deleteTrip 先標記再清理，失敗可重試刪除。
-隔離 replica set 的 22 個情境通過；目標 DB 的 transaction 支援／成本、完整 action→worker 驗收、
-對外推播去重仍待完成。刪除標記不是所有業務寫入的全面封鎖，R 的其他一致性工作仍保留。
-
-**逐裝置進度儲存層已完成**：內嵌 accepted／expired checkpoint，有效 lease 與站內完成標記檢查、
-首次結果保留、接手後保留進度、最多 256 裝置的原子容量保護。隔離 MongoDB 已擴至 24 項通過。
-尚未串接寄送器／worker；HTTP 已接受但 checkpoint 未保存的中斷窗口仍可能重複寄送。
-
-**逐裝置批次執行層已完成（未啟用）**：新增可注入的逐台執行流程，先檢查容量、每台重查租約，
-略過已完成裝置、terminal 結果立即保存，並限制批次走訪數與開始新 HTTP 的時間預算。
-22 項單元測試覆蓋停止／失敗／續跑；仍待實際資格查詢、單裝置 HTTP adapter、續租及 worker 接入。
-此層完成不代表已縮短線上新增支出回應時間，P 仍未驗收完成。
-
-**單裝置 HTTP 傳送層已完成（未啟用）**：沿用 web-push 加密／簽章，新增整次 HTTP
-逾時中止、逐裝置 accepted／expired／failed 分類；不追蹤重新導向、不自動重試、不記錄敏感回應。
-失效訂閱條件式清理、worker 續租及正式接入仍待完成；線上流程維持不變。
-
-**送出前資格 adapter 已完成（未啟用）**：綁定支出／租約，重查事件歸屬、旅程刪除狀態、
-事件成員與首次通知收件者及目前成員的交集、訂閱歸屬與真人使用者；查詢有時限、失敗向上拋出。
-依收件者語系建立快照文案，ready 接單裝置傳送層，executor 送出前仍須重讀 checkpoint／租約。
-尚待有界候選查詢及完整 worker；本批未變更線上支出流程。
-
-**失效訂閱條件式清理已完成（未啟用）**：executor 保存結果後再次確認 expired checkpoint，
-才以原訂閱 ID／owner／endpoint／keys 原子比對刪除；更新後不匹配的訂閱保留。
-清理有單次 DB 時限，錯誤只累計 cleanupFailed，不將已保存結果改為重送；超出批次預算則略過。
-程序中斷後不保證補清理，且無法辨識全部欄位相同的重新註冊；完整 worker 與候選查詢仍待完成。
-
-**固定候選清單續跑已完成（未啟用）**：executor 達裝置／時間上限時回傳 continuation，
-下一批從未完成巡覽的位置繼續，不反覆停在前 32 個失敗裝置。跨批保留失敗旗標，
-完整巡覽後仍回 retry；候選清單變更則拒絕續跑，每批重新檢查租約與容量。
-目前只有可信任 worker 內部的續跑契約，尚未保存游標或實作 MongoDB 候選查詢；
-不保證程序重啟後的公平性，線上流程與 P 驗收狀態不變。
-
-**MongoDB 有界候選查詢已完成（未啟用）**：只讀首次收件人與事件成員交集的裝置 ID，
-排除 actor 與 terminal checkpoint，以剩餘容量加一筆偵測超量；查詢後重查租約與容量。
-這是保守候選集合，當下資格仍交由 prepare 檢查；超量不回傳截斷清單。
-尚未持久化候選清單／游標或整合 worker，不改線上流程，也不代表 P 驗收完成。
-
-**候選清單與批次游標持久化儲存層已完成（未啟用）**：固定清單首次寫入、租約保護、
-快照 ID／版本 CAS、失敗旗標保留與批次完成狀態已加入；並以隔離 MongoDB 驗證並行寫入與接手。
-尚未串接 executor／worker；下一步是整合批次執行、保存與續租，再處理重試輪及完成政策。
-
-**剩餘問題**：新增支出仍等待 populate、通知與活動紀錄完成，Web Push 延遲仍影響回應。
-支出 Email 原本已走每日彙整，並非每筆即時寄送。活動紀錄仍會查 User；目前副作用僅 best-effort
-記錄錯誤，尚無持久化重試或去重機制，不能視為 P 完整驗收通過。
-
-**處理方向**：
-
-- 先利用已取得的 trip/member/actor 快照減少 populate 與重複讀取，通知及活動紀錄可安全時平行處理。
-- 核心 Expense 寫入與次要副作用分離；可靠性要求高時採 MongoDB outbox + 可重試 worker。
-- 不在 serverless handler 直接 fire-and-forget 未等待的 Promise。
-- 通知失敗不可讓已成功的支出顯示為建立失敗；錯誤需可追蹤與重試。
-
-**完成條件**：建立支出的回應時間不受 Email／Push 延遲影響；副作用失敗可重試且不重複通知；optimistic
-update、離線佇列與 rollback 測試通過。
+正式驗收未通過前仍保留本項，不以本機測試替代線上結果。
+唯一驗收清單與可靠性限制見 [EXPENSE_DELIVERY_ACCEPTANCE.md](./EXPENSE_DELIVERY_ACCEPTANCE.md)；
+歷次模組開發紀錄見 [EXPENSE_BACKGROUND_DELIVERY.md](./EXPENSE_BACKGROUND_DELIVERY.md) 與 Git 歷史。
+HTTP 已接受但 checkpoint 尚未保存仍可能重送；不承諾推播永久 exactly-once。
 
 ### Q. 🔴 查詢錯誤狀態與前端延遲載入（P1/P2）
 
