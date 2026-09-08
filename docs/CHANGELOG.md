@@ -7,6 +7,7 @@
 
 | 日期 | 里程碑 |
 | --- | --- |
+| 09-08 | O 工程驗收：共用 DB 七顆既有核心索引經受限 adoption 正式登錄 migration，沒有建刪索引或修改業務資料；隔離 migration 八情境、真實 MongoDB account actions 五項測試通過。補十萬筆合成支出的讀寫比較與線上唯讀 explain；付款批次寫入 p95 有上升，實際負載與 HTTP 驗收仍保留，見 [索引結果](./MONGODB_INDEX_RESULTS.md) |
 | 09-08 | P 程式交付收尾：新增支出以單次寫入保存背景事件，整合持久化 worker、站內去重、逐裝置重試／續跑及離線對帳；預設啟用、保留 off 回退與 Hobby 每日補送。四個共用 DB 索引 migration 已完成；正式部署、真實通知與延遲驗收尚待完成，見 [驗收清單](./EXPENSE_DELIVERY_ACCEPTANCE.md) |
 | 09-05 | P 第一階段：新增支出重用 server Trip 快照，省去通知的一次 Trip 查詢；通知與活動紀錄並行且隔離失敗，保留等待完成的 serverless 安全行為。推播仍在回應路徑，持久化背景重試／去重尚待實作 |
 | 09-05 | 測試庫新增 7 顆 MongoDB 索引並完成 135 次 after explain：digest 掃描 122→5、四種清單 SORT 消除、帳號改用 CI unique；保留舊索引與業務資料。補 migration、schema 及 ownership 回滾測試，大資料量／寫入成本／真實回滾仍待驗證 |

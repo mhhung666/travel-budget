@@ -26,7 +26,8 @@ const config = {
   // 已套用遷移的紀錄集合
   changelogCollectionName: 'changelog',
 
-  // 併發鎖集合（避免多個 runner 同時遷移）
+  // 鎖集合名稱；目前 lockTtl: 0 會停用 migrate-mongo 的鎖。
+  // 操作時仍須確保沒有其他 migration／DDL runner，不可視為已有排他保護。
   lockCollectionName: 'changelog_lock',
   lockTtl: 0,
 

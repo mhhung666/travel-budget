@@ -13,7 +13,7 @@
 
 | 順序 | 項目 | 主要價值 | 建議批次 |
 | ---: | --- | --- | --- |
-| 1 | O. MongoDB 查詢基線與索引 | 降低排序、每日掃描及資料成長後的退化風險 | P1，先量測再 migration |
+| 1 | O. MongoDB 正式效能驗收 | 確認實際負載下的讀寫成本 | 🟡 migration 與工程驗收完成 |
 | 2 | P. 支出背景處理部署驗收 | 確認正式環境回應延遲與補送恢復 | 🟡 程式與 migration 已完成 |
 | 3 | Q. 查詢錯誤狀態與前端延遲載入 | 避免把錯誤顯示成空資料，改善互動流暢度 | P1/P2，逐頁落地 |
 | 4 | R. 原子更新與跨 collection 一致性 | 降低多人編輯覆蓋及部分寫入 | P2，依使用頻率安排 |
@@ -29,19 +29,18 @@ aggregate／索引；完成後即可從本檔移除。
 
 ### O. 🟡 MongoDB 索引正式推廣驗收（P1）
 
-**2026-09-05 進度**：已建立 `pnpm mongodb:explain` 基線／前後比較、帳號 collation 重複掃描，
-修正舊 explain 誤納 rejected plans，補上註冊及確認改信箱的 duplicate-key race 處理。
-測試庫新增 7 顆索引，完成 135 次 before + 135 次 after explain：digest 掃描由 122 降至 5 筆，
-四種旅程清單 SORT 消失，帳號使用 CI unique；回傳數不變、重複掃描為零。已補 additive migration、
-schema 及 ownership rollback 測試。見 [MONGODB_INDEX_RESULTS.md](./MONGODB_INDEX_RESULTS.md)。
-**尚待正式推廣驗收**：production-like snapshot、寫入成本及完整帳號 API 整合測試。
-已補 `pnpm mongodb:verify-indexes` 隔離驗收工具（up/down、既有索引保護、DB 併發唯一性）；
-已於本機隔離 MongoDB 8.0.29 執行，6 個情境全部通過，測試庫及容器已清理；未改動共用測試庫。
-保留全部舊索引，未修改業務資料；目前成果不等於正式環境效能驗收。
+**2026-09-08 工程交付完成**：七顆共用 DB 索引已核對並正式登錄 core-query migration，
+不必重跑；非 owned 登錄不會讓 down 刪除既有索引。受限登錄工具拒絕 DDL／業務寫入，
+隔離驗收 8 情境通過。真實 MongoDB account actions 5 項測試驗證註冊、登入、改信箱及競態。
+10 萬筆合成支出 snapshot 的摘要掃描由 100,000 降至 100，四類清單 SORT 消失；
+另完成五個 collection 的批次寫入量測，付款 p95 有上升，未宣稱全面加速。
+共用 DB 登錄後唯讀 explain 確認索引採用。操作與結果見
+[MONGODB_INDEX_RESULTS.md](./MONGODB_INDEX_RESULTS.md)。
 
-**剩餘完成條件**：在可修改的隔離 snapshot 驗證較大資料量的讀寫成本、完整帳號 API 併發流程、
-migrate-mongo changelog／lock 與正式操作審查。現有測試庫的索引由人工核准建立，migration down
-不會誤刪這些既有索引；測試索引撤銷方式見結果文件。
+**僅剩正式效能驗收**：合成資料與本機單節點不等同實際 Atlas 分布／併發；
+account actions 測試替換了 session／郵件邊界，非完整 HTTP E2E。
+需指定隔離環境、測試帳號、代表性資料分布與可接受讀寫延遲，再驗證正式負載的寫入成本及
+Vercel 帳號 HTTP 流程。未獲指定前不向共用 DB 壓測或寄真實驗證信，本項不冒稱完全結案。
 
 ### P. 🟡 程式交付完成，待部署驗收（P1）
 

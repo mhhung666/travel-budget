@@ -29,6 +29,62 @@ session/cookie、郵件/template 與 dbConnect 為測試邊界替身，非瀏覽
 此範圍驗收的是 O 的資料库唯一性與 action 映射，不宣稱完整身份驗證系統 E2E。
 隔離庫測後清除，lint、Prettier、TypeScript 通過。
 
+### 階段三：固定合成 snapshot 與寫入成本
+
+新增 `scripts/benchmark-core-indexes.mjs`；沿用明確的隔離 URI 與寫入 opt-in，
+不讀取 dotenv、不回退 app URI。可重跑：
+
+```sh
+MONGODB_INDEX_TEST_URI='mongodb://127.0.0.1:27129/?directConnection=true&replicaSet=rs0' MONGODB_INDEX_TEST_ALLOW_WRITES=1 node scripts/benchmark-core-indexes.mjs
+```
+
+2026-09-08 在 MongoDB 8.0.29 單節點 replica set、majority write concern 執行通過。
+使用兩份相同、固定生成規則的隔離 snapshot：100,000 expenses、各 20,000 payments／
+checklists／photos、10,000 users、1,000 itinerarydays，分散於 100 個旅程。
+before 使用本次查詢相關的舊索引，after 保留它們並執行原 migration；不是完整正式 DB 索引副本。
+每個查詢 warm-up 後各 5 輪，交替前後順序；九種查詢的回傳文件內容 hash 相同。
+寫入各 collection 30 輪，每批 50 筆 insert 及索引欄位 update，另排除一輪 warm-up。
+最終五個 collection 全部文件 hash 前後相同；沒有修改或複製共用 DB 資料。
+
+完整證據：[合成資料讀寫量測](./evidence/mongodb-core-scale-2026-09-08.json)。
+
+| 項目 | Before | After |
+| --- | ---: | ---: |
+| 摘要掃描文件／回傳 | 100,000／100 | 100／100 |
+| 摘要查詢 p50（ms） | 26.78 | 1.11 |
+| username／email 掃描文件 | 各 10,000 | 各 1 |
+| 四類清單 blocking SORT | 有 | 無 |
+| 付款批次 insert p95（ms／50 筆） | 1.73 | 2.86 |
+| 付款批次 update p95（ms／50 筆） | 3.39 | 5.48 |
+| 支出批次 update p50（ms／50 筆） | 3.01 | 3.30 |
+
+**判讀**：有明確的掃描／排序收益，但索引不是免費的；本次付款批次 p95 約增加 65%／62%，
+不可宣稱所有讀寫更快。單節點本機、均勻旅程分布與合成文件大小不代表 Atlas 網路、複寫、
+真實寫入併發或熱門旅程；5 個讀取樣本的 p95 實際為最大值，不能當正式 SLO。
+儲存大小為當下 collStats（受 checkpoint／配置影響），不是長期容量預測。
+因此保留現有索引，不新增／移除其他索引；正式環境仍需以代表性負載確認寫入代價可接受。
+
+### 共用 DB 登錄後唯讀複查
+
+2026-09-08T04:10:45.674Z 再查 `.env` 的 `travel-budget`：migration 紀錄恰一筆、
+非 owned ownership 七筆、helper 鎖零筆；username／email 重複及非字串數均零。
+挑選支出最多的旅程（36 筆）執行九種 executionStats explain，未輸出帳號或旅程 ID。
+支出／付款／清單／照片回傳 36／3／3／52 筆，全部採用預期索引且無 blocking SORT；
+帳號兩查詢各掃描一筆、使用 CI unique；結算與行程保留原索引。
+摘要使用 createdAt_1，但本次日期範圍回傳零筆，不能作線上效能收益證據。
+未執行線上寫入壓測，也未驗證 Vercel HTTP／瀏覽器端到端延遲。
+
+**工程交付完成，正式效能驗收仍保留**：migration／DB 一致性與 action 競態已有證據，
+但合成 benchmark 不冒充原先要求的 production-like 實際資料分布與完整 HTTP 驗收。
+下一個外部驗收需指定可用的隔離環境與測試帳號、代表性資料分布及可接受讀寫延遲；
+不在共用 DB 製造負載或寄送帳號驗證信來補數據。
+
+最終檢查：一般測試 1,292 項通過，另行 opt-in 執行 account／queue MongoDB 整合測試
+34 項通過（合計 1,326 項；3 項 AI 真實 provider 驗收依原決定略過）。
+lint、Prettier（含新 scripts）與 TypeScript 通過。本輪只變更操作工具、測試、註解與文件，
+不修改應用程式行為，因此不另調整版本。所有本次隨機隔離庫查核剩餘零筆，
+臨時容器 `tb-o-closeout-20260908` 已移除；MongoDB image 保留供重跑，未 push／部署。
+
 ## 結果
 
 經使用者核准，在同一測試庫新增 7 個索引，保留全部舊索引及業務資料。

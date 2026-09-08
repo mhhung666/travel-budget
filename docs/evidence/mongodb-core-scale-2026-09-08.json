@@ -1,0 +1,601 @@
+{
+  "date": "2026-09-08",
+  "kind": "isolated synthetic; not production latency",
+  "seedCounts": {
+    "expenses": 100000,
+    "payments": 20000,
+    "checklists": 20000,
+    "photos": 20000,
+    "users": 10000,
+    "itinerarydays": 1000
+  },
+  "readRounds": 5,
+  "writeRounds": 30,
+  "batchSize": 50,
+  "writeConcern": "majority",
+  "queries": [
+    {
+      "name": "expenses.list",
+      "before": {
+        "plan": {
+          "nReturned": 1000,
+          "totalDocsExamined": 1000,
+          "totalKeysExamined": 1000,
+          "executionTimeMillis": 1,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        "latency": {
+          "samples": 5,
+          "p50Ms": 6.130000000000109,
+          "p95Ms": 6.992041000000427
+        }
+      },
+      "after": {
+        "plan": {
+          "nReturned": 1000,
+          "totalDocsExamined": 1000,
+          "totalKeysExamined": 1000,
+          "executionTimeMillis": 1,
+          "stages": [
+            "FETCH",
+            "IXSCAN"
+          ],
+          "indexes": [
+            "trip_1_date_-1_createdAt_-1"
+          ],
+          "collectionScan": false,
+          "blockingSort": false
+        },
+        "latency": {
+          "samples": 5,
+          "p50Ms": 5.105916999999863,
+          "p95Ms": 6.024415999999292
+        }
+      }
+    },
+    {
+      "name": "expenses.digest",
+      "before": {
+        "plan": {
+          "nReturned": 100,
+          "totalDocsExamined": 100000,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 25,
+          "stages": [
+            "$gte",
+            "COLLSCAN",
+            "PROJECTION_SIMPLE"
+          ],
+          "indexes": [],
+          "collectionScan": true,
+          "blockingSort": false
+        },
+        "latency": {
+          "samples": 5,
+          "p50Ms": 26.77624999999989,
+          "p95Ms": 27.992459000000053
+        }
+      },
+      "after": {
+        "plan": {
+          "nReturned": 100,
+          "totalDocsExamined": 100,
+          "totalKeysExamined": 100,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "PROJECTION_SIMPLE"
+          ],
+          "indexes": [
+            "createdAt_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": false
+        },
+        "latency": {
+          "samples": 5,
+          "p50Ms": 1.1138339999997697,
+          "p95Ms": 1.8050830000001952
+        }
+      }
+    },
+    {
+      "name": "expenses.settlement",
+      "before": {
+        "plan": {
+          "nReturned": 1000,
+          "totalDocsExamined": 1000,
+          "totalKeysExamined": 1000,
+          "executionTimeMillis": 1,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "PROJECTION_SIMPLE"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": false
+        },
+        "latency": {
+          "samples": 5,
+          "p50Ms": 2.7445840000000317,
+          "p95Ms": 3.121624999999767
+        }
+      },
+      "after": {
+        "plan": {
+          "nReturned": 1000,
+          "totalDocsExamined": 1000,
+          "totalKeysExamined": 1000,
+          "executionTimeMillis": 1,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "PROJECTION_SIMPLE"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": false
+        },
+        "latency": {
+          "samples": 5,
+          "p50Ms": 2.8820839999998498,
+          "p95Ms": 3.6299580000004426
+        }
+      }
+    },
+    {
+      "name": "payments.list",
+      "before": {
+        "plan": {
+          "nReturned": 200,
+          "totalDocsExamined": 200,
+          "totalKeysExamined": 200,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "PROJECTION_SIMPLE",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        "latency": {
+          "samples": 5,
+          "p50Ms": 1.4264579999999114,
+          "p95Ms": 1.8043330000000424
+        }
+      },
+      "after": {
+        "plan": {
+          "nReturned": 200,
+          "totalDocsExamined": 200,
+          "totalKeysExamined": 200,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "PROJECTION_SIMPLE"
+          ],
+          "indexes": [
+            "trip_1_createdAt_-1"
+          ],
+          "collectionScan": false,
+          "blockingSort": false
+        },
+        "latency": {
+          "samples": 5,
+          "p50Ms": 1.490125000000262,
+          "p95Ms": 1.9261249999999563
+        }
+      }
+    },
+    {
+      "name": "checklists.list",
+      "before": {
+        "plan": {
+          "nReturned": 200,
+          "totalDocsExamined": 200,
+          "totalKeysExamined": 200,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        "latency": {
+          "samples": 5,
+          "p50Ms": 1.7662909999999101,
+          "p95Ms": 3.1078749999996944
+        }
+      },
+      "after": {
+        "plan": {
+          "nReturned": 200,
+          "totalDocsExamined": 200,
+          "totalKeysExamined": 200,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN"
+          ],
+          "indexes": [
+            "trip_1_createdAt_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": false
+        },
+        "latency": {
+          "samples": 5,
+          "p50Ms": 1.6579160000001139,
+          "p95Ms": 2.6565410000002885
+        }
+      }
+    },
+    {
+      "name": "photos.list",
+      "before": {
+        "plan": {
+          "nReturned": 200,
+          "totalDocsExamined": 200,
+          "totalKeysExamined": 200,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN",
+            "SORT"
+          ],
+          "indexes": [
+            "trip_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": true
+        },
+        "latency": {
+          "samples": 5,
+          "p50Ms": 1.6392919999998412,
+          "p95Ms": 2.2590000000000146
+        }
+      },
+      "after": {
+        "plan": {
+          "nReturned": 200,
+          "totalDocsExamined": 200,
+          "totalKeysExamined": 200,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN"
+          ],
+          "indexes": [
+            "trip_1_takenAt_-1_createdAt_-1"
+          ],
+          "collectionScan": false,
+          "blockingSort": false
+        },
+        "latency": {
+          "samples": 5,
+          "p50Ms": 1.4078330000002097,
+          "p95Ms": 1.7545829999999114
+        }
+      }
+    },
+    {
+      "name": "itinerary.list",
+      "before": {
+        "plan": {
+          "nReturned": 10,
+          "totalDocsExamined": 10,
+          "totalKeysExamined": 10,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN"
+          ],
+          "indexes": [
+            "trip_1_dayNumber_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": false
+        },
+        "latency": {
+          "samples": 5,
+          "p50Ms": 0.3971670000000813,
+          "p95Ms": 0.4288749999996071
+        }
+      },
+      "after": {
+        "plan": {
+          "nReturned": 10,
+          "totalDocsExamined": 10,
+          "totalKeysExamined": 10,
+          "executionTimeMillis": 0,
+          "stages": [
+            "FETCH",
+            "IXSCAN"
+          ],
+          "indexes": [
+            "trip_1_dayNumber_1"
+          ],
+          "collectionScan": false,
+          "blockingSort": false
+        },
+        "latency": {
+          "samples": 5,
+          "p50Ms": 0.4076660000000629,
+          "p95Ms": 0.41662499999983993
+        }
+      }
+    },
+    {
+      "name": "users.username",
+      "before": {
+        "plan": {
+          "nReturned": 1,
+          "totalDocsExamined": 10000,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 2,
+          "stages": [
+            "$eq",
+            "COLLSCAN",
+            "LIMIT"
+          ],
+          "indexes": [],
+          "collectionScan": true,
+          "blockingSort": false
+        },
+        "latency": {
+          "samples": 5,
+          "p50Ms": 3.1060000000006767,
+          "p95Ms": 3.301625000000058
+        }
+      },
+      "after": {
+        "plan": {
+          "nReturned": 1,
+          "totalDocsExamined": 1,
+          "totalKeysExamined": 1,
+          "executionTimeMillis": 0,
+          "stages": [
+            "EXPRESS_IXSCAN"
+          ],
+          "indexes": [
+            "username_ci_unique"
+          ],
+          "collectionScan": false,
+          "blockingSort": false
+        },
+        "latency": {
+          "samples": 5,
+          "p50Ms": 0.5321249999997235,
+          "p95Ms": 0.6774999999997817
+        }
+      }
+    },
+    {
+      "name": "users.email",
+      "before": {
+        "plan": {
+          "nReturned": 1,
+          "totalDocsExamined": 10000,
+          "totalKeysExamined": 0,
+          "executionTimeMillis": 2,
+          "stages": [
+            "$eq",
+            "COLLSCAN",
+            "LIMIT"
+          ],
+          "indexes": [],
+          "collectionScan": true,
+          "blockingSort": false
+        },
+        "latency": {
+          "samples": 5,
+          "p50Ms": 3.1018330000006245,
+          "p95Ms": 3.6112089999996897
+        }
+      },
+      "after": {
+        "plan": {
+          "nReturned": 1,
+          "totalDocsExamined": 1,
+          "totalKeysExamined": 1,
+          "executionTimeMillis": 0,
+          "stages": [
+            "EXPRESS_IXSCAN"
+          ],
+          "indexes": [
+            "email_ci_unique"
+          ],
+          "collectionScan": false,
+          "blockingSort": false
+        },
+        "latency": {
+          "samples": 5,
+          "p50Ms": 0.5807089999998425,
+          "p95Ms": 0.6727080000000569
+        }
+      }
+    }
+  ],
+  "writes": {
+    "expenses": {
+      "before": {
+        "insert": {
+          "samples": 30,
+          "p50Ms": 2.0323749999997744,
+          "p95Ms": 2.611000000000786
+        },
+        "update": {
+          "samples": 30,
+          "p50Ms": 3.007832999999664,
+          "p95Ms": 4.7262909999999465
+        }
+      },
+      "after": {
+        "insert": {
+          "samples": 30,
+          "p50Ms": 2.0001659999998083,
+          "p95Ms": 2.769000000000233
+        },
+        "update": {
+          "samples": 30,
+          "p50Ms": 3.3006249999998545,
+          "p95Ms": 4.413416999999754
+        }
+      }
+    },
+    "payments": {
+      "before": {
+        "insert": {
+          "samples": 30,
+          "p50Ms": 1.2279170000001614,
+          "p95Ms": 1.7342910000006668
+        },
+        "update": {
+          "samples": 30,
+          "p50Ms": 2.5979579999984708,
+          "p95Ms": 3.3926250000004075
+        }
+      },
+      "after": {
+        "insert": {
+          "samples": 30,
+          "p50Ms": 1.3151670000006561,
+          "p95Ms": 2.860500000000684
+        },
+        "update": {
+          "samples": 30,
+          "p50Ms": 2.961333999999624,
+          "p95Ms": 5.481332999999722
+        }
+      }
+    },
+    "checklists": {
+      "before": {
+        "insert": {
+          "samples": 30,
+          "p50Ms": 1.1965840000011667,
+          "p95Ms": 2.854290999999648
+        },
+        "update": {
+          "samples": 30,
+          "p50Ms": 2.9079579999997804,
+          "p95Ms": 4.239125000000058
+        }
+      },
+      "after": {
+        "insert": {
+          "samples": 30,
+          "p50Ms": 1.3348339999993186,
+          "p95Ms": 2.7298329999994166
+        },
+        "update": {
+          "samples": 30,
+          "p50Ms": 2.558541000000332,
+          "p95Ms": 3.770250000001397
+        }
+      }
+    },
+    "photos": {
+      "before": {
+        "insert": {
+          "samples": 30,
+          "p50Ms": 1.234958999999435,
+          "p95Ms": 2.6480419999988953
+        },
+        "update": {
+          "samples": 30,
+          "p50Ms": 2.791291999999885,
+          "p95Ms": 3.9205830000009882
+        }
+      },
+      "after": {
+        "insert": {
+          "samples": 30,
+          "p50Ms": 1.3677499999994325,
+          "p95Ms": 2.279000000000451
+        },
+        "update": {
+          "samples": 30,
+          "p50Ms": 2.716374999999971,
+          "p95Ms": 4.401749999999083
+        }
+      }
+    },
+    "users": {
+      "before": {
+        "insert": {
+          "samples": 30,
+          "p50Ms": 1.1304999999993015,
+          "p95Ms": 1.510415999999168
+        },
+        "update": {
+          "samples": 30,
+          "p50Ms": 2.9069579999995767,
+          "p95Ms": 4.187791999998808
+        }
+      },
+      "after": {
+        "insert": {
+          "samples": 30,
+          "p50Ms": 1.3413330000003043,
+          "p95Ms": 1.611165999998775
+        },
+        "update": {
+          "samples": 30,
+          "p50Ms": 2.6866659999996045,
+          "p95Ms": 3.516250000000582
+        }
+      }
+    }
+  },
+  "indexBytes": {
+    "expenses": {
+      "before": 3276800,
+      "after": 6660096
+    },
+    "payments": {
+      "before": 692224,
+      "after": 1056768
+    },
+    "checklists": {
+      "before": 679936,
+      "after": 1036288
+    },
+    "photos": {
+      "before": 1036288,
+      "after": 1597440
+    },
+    "users": {
+      "before": 696320,
+      "after": 942080
+    }
+  },
+  "passed": true,
+  "cleaned": true
+}
