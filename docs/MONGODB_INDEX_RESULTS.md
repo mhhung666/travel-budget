@@ -19,6 +19,16 @@ helper 鎖只協調同一工具，不能阻止其他 DDL runner；現有 migrate
 8 個情境通過；migration/safety 單元測試 10 項通過，lint 與 Prettier 通過。
 後續階段：較大合成資料集讀寫量測、真實 DB 的帳號 action 流程驗證與完整收尾紀錄。
 
+階段二完成：`coreAccountIndexes.integration.test.ts` 在隔離 MongoDB 執行 5 項測試通過。
+使用真實 User／EmailChangeCode models、validation、bcrypt、withAuth 及 account actions，
+涵蓋註冊、大小寫登入、重複帳號、改信箱 request/confirm、錯碼計數及成功後不可重用。
+以寫入前 barrier 強制兩請求通過真實 DB preflight，驗證 username／email 註冊競態與
+確認改信箱競態由 MongoDB 真實 E11000 映射為 CONFLICT；僅贏家建立 session／更新信箱。
+敗方信箱保持原值，成功驗證碼刪除；衝突分支保留驗證碼符合目前 action 行為。
+session/cookie、郵件/template 與 dbConnect 為測試邊界替身，非瀏覽器 HTTP 或郵件供應商 E2E。
+此範圍驗收的是 O 的資料库唯一性與 action 映射，不宣稱完整身份驗證系統 E2E。
+隔離庫測後清除，lint、Prettier、TypeScript 通過。
+
 ## 結果
 
 經使用者核准，在同一測試庫新增 7 個索引，保留全部舊索引及業務資料。
