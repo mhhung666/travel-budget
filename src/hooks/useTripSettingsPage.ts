@@ -1,3 +1,4 @@
+import { combineReadStates } from '@/lib/queryReadState';
 import { useState } from 'react';
 import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
@@ -7,7 +8,6 @@ import { buildVirtualMemberInvitePath } from '@/lib/tripInvite';
 import { useDialog } from '@/hooks/useDialog';
 import { useToast } from '@/hooks/use-toast';
 import {
-  useCurrentUser,
   useTrip,
   useTripMembership,
   useMemberMutations,
@@ -33,20 +33,22 @@ export function useTripSettingsPage(tripId: string) {
   const { toast } = useToast();
 
   // --- Data ---
-  const { isSuccess: userResolved } = useCurrentUser();
-  const { data: trip, isLoading: tripLoading } = useTrip(tripId);
-  const { currentUser, members, isMember, isAdmin } = useTripMembership(tripId);
+  const tripQuery = useTrip(tripId);
+  const { data: trip } = tripQuery;
+  const membership = useTripMembership(tripId);
+  const { currentUser, members, isMember, isAdmin } = membership;
+  const query = combineReadStates([tripQuery, membership.query]);
   const memberMutations = useMemberMutations(tripId);
   const tripMutations = useTripMutations(tripId);
   const archiveMutations = useTripArchiveMutations();
 
-  const loading = tripLoading;
+  const loading = query.isLoading;
   // Settings strictly requires membership: surface unauthorized/forbidden rather
   // than falling back to the public (read-only) view that useTrip would allow.
   const error =
-    userResolved && !currentUser
+    membership.isResolved && !currentUser
       ? tError('unauthorized')
-      : !loading && trip && !isMember
+      : membership.isResolved && trip && !isMember
         ? tError('forbidden')
         : '';
 
@@ -230,6 +232,7 @@ export function useTripSettingsPage(tripId: string) {
     members,
     isAdmin: !!isAdmin,
     // status
+    query,
     loading,
     error,
     // dialogs

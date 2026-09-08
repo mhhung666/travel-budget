@@ -1,4 +1,5 @@
 'use client';
+import { QueryStatus } from '@/components/common/QueryStatus';
 
 import { useParams } from 'next/navigation';
 import { useRouter } from '@/i18n/navigation';
@@ -40,6 +41,7 @@ export default function TripSettingsPage() {
     currentUser,
     members,
     isAdmin,
+    query,
     loading,
     error,
     addVirtualMemberDialog,
@@ -70,6 +72,8 @@ export default function TripSettingsPage() {
     handleSaveCurrencySettings,
   } = useTripSettingsPage(tripId);
 
+  if (query.isError || query.data === undefined) return <QueryStatus query={query} />;
+
   if (loading) {
     return <TripSettingsSkeleton />;
   }
@@ -89,6 +93,7 @@ export default function TripSettingsPage() {
   // 返回鍵由行程空間殼提供（「更多」頁返回行程空間）
   return (
     <div className="container mx-auto max-w-4xl py-4 px-4 sm:px-6">
+      <QueryStatus query={query} />
       <h2 className="mb-6 text-lg font-semibold text-foreground">{tTrip('settings')}</h2>
 
       <div className="flex flex-col gap-8">

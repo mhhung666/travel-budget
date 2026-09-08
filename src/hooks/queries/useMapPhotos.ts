@@ -1,4 +1,5 @@
 'use client';
+import { unwrapActionResult } from '@/lib/actionQuery';
 
 import { useQuery } from '@tanstack/react-query';
 import { getMapPhotos, type MapPhoto } from '@/actions';
@@ -14,7 +15,7 @@ export function useMapPhotos(enabled: boolean, year: number | null) {
     queryKey: [...tripKeys.mapPhotos, year ?? 'all'],
     queryFn: async (): Promise<MapPhoto[]> => {
       const res = await getMapPhotos({ year });
-      return res.success ? res.data : [];
+      return unwrapActionResult(res);
     },
     enabled,
     staleTime: 60_000,

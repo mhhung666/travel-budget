@@ -1,4 +1,6 @@
 'use client';
+import { QueryStatus } from '@/components/common/QueryStatus';
+import { combineReadStates } from '@/lib/queryReadState';
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
@@ -42,20 +44,20 @@ export default function QuickJoinPage() {
   const t = useTranslations('trips');
   const tCommon = useTranslations('common');
 
-  const { data: currentUser, isPending: userPending } = useCurrentUser();
-  const {
-    data: trip,
-    isPending: tripPending,
-    isError: tripIsError,
-    error: tripError,
-  } = useTrip(hashCode);
-  const { data: members = [], isPending: membersPending } = useMembers(hashCode);
+  const userQuery = useCurrentUser();
+  const { data: currentUser, isPending: userPending } = userQuery;
+  const tripQuery = useTrip(hashCode);
+  const { data: trip, isPending: tripPending, isError: tripIsError, error: tripError } = tripQuery;
+  const membersQuery = useMembers(hashCode);
+  const { data: members = [], isPending: membersPending } = membersQuery;
+  const identityQuery = combineReadStates([userQuery, membersQuery]);
 
   const [error, setError] = useState('');
   const [isJoining, setIsJoining] = useState(false);
 
   const isLoggedIn = !!currentUser;
-  const alreadyMember = isLoggedIn && members.some((member) => member.id === currentUser.id);
+  const alreadyMember =
+    !identityQuery.isError && isLoggedIn && members.some((member) => member.id === currentUser.id);
   const inviter = members.find((member) => member.role === 'admin');
   const dateLocale = locale === 'zh' ? 'zh-TW' : locale === 'jp' ? 'ja-JP' : locale;
 
@@ -100,6 +102,10 @@ export default function QuickJoinPage() {
 
   // PersistQueryClientProvider 還原 IndexedDB 時，query 是 pending + idle；
   // isLoading 會是 false，因此這裡必須用 isPending 避免閃出錯誤畫面。
+  if (identityQuery.isError || identityQuery.isPaused) return <QueryStatus query={identityQuery} />;
+
+  if (tripQuery.isPaused) return <QueryStatus query={tripQuery} />;
+
   if (tripPending || userPending) {
     return <JoinPageSkeleton />;
   }
@@ -117,6 +123,9 @@ export default function QuickJoinPage() {
           </div>
           <h1 className="text-xl font-semibold">{tCommon('errorTitle')}</h1>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">{message}</p>
+          <Button type="button" className="mt-4 w-full" onClick={() => void tripQuery.refetch()}>
+            {tCommon('retry')}
+          </Button>
           <Button variant="outline" className="mt-7 w-full" onClick={() => router.push('/trips')}>
             <ArrowLeft className="mr-2 h-4 w-4" />
             {t('detail.backToTrips')}

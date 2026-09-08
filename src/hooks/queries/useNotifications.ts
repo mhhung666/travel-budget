@@ -1,4 +1,5 @@
 'use client';
+import { unwrapActionResult } from '@/lib/actionQuery';
 
 import { useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -18,14 +19,14 @@ import { notificationKeys } from './keys';
  * `refetchOnWindowFocus: false`) so the badge stays roughly live. Web Push now
  * invalidates this query on arrival for instant updates (see
  * {@link useNotificationPushSync}); polling remains the fallback for users
- * without push. Never throws: a failed/logged-out fetch yields 0 (bell hides).
+ * without push. Failures preserve the last count and expose a retryable error.
  */
 export function useUnreadNotificationCount(enabled = true) {
   return useQuery({
     queryKey: notificationKeys.unreadCount,
     queryFn: async (): Promise<number> => {
       const res = await getUnreadNotificationCount();
-      return res.success ? res.data.count : 0;
+      return unwrapActionResult(res).count;
     },
     enabled,
     refetchInterval: 60_000,
@@ -64,7 +65,7 @@ export function useNotificationList(enabled = true) {
     queryKey: notificationKeys.list,
     queryFn: async (): Promise<NotificationItem[]> => {
       const res = await getNotifications();
-      return res.success ? res.data : [];
+      return unwrapActionResult(res);
     },
     enabled,
   });

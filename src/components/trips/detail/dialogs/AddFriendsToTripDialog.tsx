@@ -1,4 +1,5 @@
 'use client';
+import { QueryStatus } from '@/components/common/QueryStatus';
 
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
@@ -39,7 +40,8 @@ export default function AddFriendsToTripDialog({
 }: AddFriendsToTripDialogProps) {
   const t = useTranslations('member');
   const tCommon = useTranslations('common');
-  const { data, isLoading } = useFriends(open);
+  const query = useFriends(open);
+  const { data, isLoading } = query;
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -85,7 +87,10 @@ export default function AddFriendsToTripDialog({
         </DialogHeader>
 
         <div className="py-2">
-          {isLoading ? (
+          {query.data !== undefined && <QueryStatus query={query} />}
+          {query.data === undefined && !isLoading ? (
+            <QueryStatus query={query} />
+          ) : isLoading ? (
             <div className="space-y-2">
               {[0, 1, 2].map((i) => (
                 <Skeleton key={i} className="h-14 w-full rounded-lg" />

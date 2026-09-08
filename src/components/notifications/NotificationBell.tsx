@@ -1,4 +1,5 @@
 'use client';
+import { QueryStatus } from '@/components/common/QueryStatus';
 
 import { useState } from 'react';
 import {
@@ -57,8 +58,10 @@ export function NotificationBell() {
   const t = useTranslations('notifications');
   const router = useRouter();
 
-  const { data: unreadCount = 0 } = useUnreadNotificationCount();
-  const { data: notifications = [], isLoading } = useNotificationList(open);
+  const countQuery = useUnreadNotificationCount();
+  const { data: unreadCount = 0 } = countQuery;
+  const query = useNotificationList(open);
+  const { data: notifications = [], isLoading } = query;
   const { markRead, markAllRead } = useNotificationMutations();
   // 收到 Web Push 時即時 invalidate 未讀數/清單（SW → client 訊息橋接）。
   useNotificationPushSync();
@@ -98,6 +101,7 @@ export function NotificationBell() {
           className="relative text-foreground"
           aria-label={t('title')}
         >
+          {countQuery.isError && <span aria-label={t('title')}>!</span>}
           <Bell className="h-[1.2rem] w-[1.2rem]" />
           {unreadCount > 0 && (
             <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-medium leading-none text-destructive-foreground">
@@ -124,7 +128,11 @@ export function NotificationBell() {
         </div>
 
         <ScrollArea className="max-h-96">
-          {isLoading ? (
+          <QueryStatus query={countQuery} />
+          {query.data !== undefined && <QueryStatus query={query} />}
+          {query.data === undefined && !isLoading ? (
+            <QueryStatus query={query} />
+          ) : isLoading ? (
             <p className="px-4 py-8 text-center text-sm text-muted-foreground">{t('loading')}</p>
           ) : notifications.length === 0 ? (
             <p className="px-4 py-8 text-center text-sm text-muted-foreground">{t('empty')}</p>

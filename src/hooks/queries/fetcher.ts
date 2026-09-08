@@ -1,3 +1,4 @@
+import { ActionQueryError } from '@/lib/actionQuery';
 import type { ActionResult } from '@/actions';
 
 interface PublicEndpoint {
@@ -106,5 +107,5 @@ export async function fetchWithPublicFallback<T>(
 
   resolveMode?.('member');
   if (ownsResolution && stillCurrent()) accessModeByTrip.delete(tripId);
-  throw new Error(result.error);
+  throw new ActionQueryError(result.error, result.code);
 }

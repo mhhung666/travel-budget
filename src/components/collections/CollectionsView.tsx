@@ -1,4 +1,5 @@
 'use client';
+import { QueryStatus } from '@/components/common/QueryStatus';
 
 import { useTranslations } from 'next-intl';
 import { Award, Globe2, Hotel, Plane } from 'lucide-react';
@@ -17,14 +18,17 @@ import { BadgesTab } from './BadgesTab';
  */
 export function CollectionsView() {
   const t = useTranslations('collections');
-  const { data, isLoading } = useCollections();
+  const query = useCollections();
+  const { data, isLoading } = query;
 
+  if (query.data === undefined && !isLoading) return <QueryStatus query={query} />;
   if (isLoading || !data) {
     return <LoadingState />;
   }
 
   return (
     <div className="container mx-auto max-w-4xl px-4 py-6 pb-8">
+      <QueryStatus query={query} />
       <h1 className="mb-1 text-2xl font-bold text-foreground">{t('title')}</h1>
       <p className="mb-6 text-sm text-muted-foreground">{t('subtitle')}</p>
 

@@ -1,4 +1,5 @@
 'use client';
+import { QueryStatus } from '@/components/common/QueryStatus';
 
 import { useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
@@ -55,9 +56,11 @@ export default function WrappedView() {
   const locale = useLocale();
   const { toast } = useToast();
 
-  const { data: user } = useCurrentUser();
+  const userQuery = useCurrentUser();
+  const { data: user } = userQuery;
   const [year, setYear] = useState<number | null>(null);
-  const { data, isLoading } = useYearInReview(year, Boolean(user));
+  const reviewQuery = useYearInReview(year, Boolean(user));
+  const { data, isLoading } = reviewQuery;
 
   const cardRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);
@@ -115,6 +118,7 @@ export default function WrappedView() {
     }
   };
 
+  if (userQuery.data === undefined || userQuery.isError) return <QueryStatus query={userQuery} />;
   if (isLoading && !data) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
@@ -123,10 +127,13 @@ export default function WrappedView() {
     );
   }
 
+  if (user && reviewQuery.data === undefined) return <QueryStatus query={reviewQuery} />;
+
   // 完全沒有可回顧的年份（無任何旅行/支出）。
   if (availableYears.length === 0) {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 px-4 text-center text-muted-foreground">
+        {user && <QueryStatus query={reviewQuery} />}
         <Sparkles className="h-10 w-10" />
         <p>{t('empty')}</p>
       </div>
@@ -135,6 +142,7 @@ export default function WrappedView() {
 
   return (
     <main className="container mx-auto max-w-2xl px-4 py-6 pb-12">
+      <QueryStatus query={reviewQuery} />
       {/* 年份切換 */}
       <div className="mb-5 flex flex-wrap items-center gap-1.5">
         {availableYears.map((y) => (

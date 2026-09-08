@@ -1,4 +1,5 @@
 'use client';
+import { unwrapActionResult } from '@/lib/actionQuery';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getComments, getCommentCounts, createComment, deleteComment } from '@/actions';
@@ -9,14 +10,14 @@ import { tripKeys } from './keys';
 
 /**
  * 某旅程內所有支出的留言數（{ expenseId: count }）。隨支出列表一起載入，供每張
- * 支出卡片顯示「留言 (N)」而不必展開；失敗回空物件（badge 只是不顯示數字）。
+ * 支出卡片顯示「留言 (N)」而不必展開；失敗保留錯誤狀態，由列表顯示重試提示。
  */
 export function useCommentCounts(tripId: string, enabled = true) {
   return useQuery({
     queryKey: tripKeys.commentCounts(tripId),
     queryFn: async (): Promise<Record<string, number>> => {
       const res = await getCommentCounts(tripId);
-      return res.success ? res.data : {};
+      return unwrapActionResult(res);
     },
     enabled: enabled && !!tripId,
   });
@@ -31,7 +32,7 @@ export function useExpenseComments(tripId: string, expenseId: string, enabled: b
     queryKey: tripKeys.comments(tripId, expenseId),
     queryFn: async (): Promise<CommentDto[]> => {
       const res = await getComments(tripId, expenseId);
-      return res.success ? res.data : [];
+      return unwrapActionResult(res);
     },
     enabled: enabled && !!tripId && !!expenseId,
   });

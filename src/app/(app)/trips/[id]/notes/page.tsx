@@ -1,4 +1,5 @@
 'use client';
+import { QueryStatus } from '@/components/common/QueryStatus';
 
 import { useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
@@ -31,7 +32,8 @@ export default function NotesPage() {
 
   const query = useNotes(tripId);
   const { data: notes = [], isLoading: loading } = query;
-  const { isMember } = useTripMembership(tripId);
+  const membership = useTripMembership(tripId);
+  const { isMember } = membership;
   const m = useNoteMutations(tripId);
 
   const [editingNote, setEditingNote] = useState<TripNote | null>(null);
@@ -105,6 +107,7 @@ export default function NotesPage() {
   // 頁首由行程空間殼提供（分頁列已標示所在位置）
   return (
     <div className="container mx-auto max-w-3xl px-4 py-4 sm:px-6">
+      <QueryStatus query={membership.query} />
       {feedback}
       {canEdit && (
         <div className="mb-4">

@@ -1,4 +1,5 @@
 'use client';
+import { QueryStatus } from '@/components/common/QueryStatus';
 
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
@@ -63,7 +64,8 @@ export function StayRecordDialog({
   const { toast } = useToast();
   const { createStay, updateStay } = useCollectionMutations();
   const { createEntry } = useLoyaltyMutations();
-  const { data: loyalty } = useLoyalty(open);
+  const loyaltyQuery = useLoyalty(open);
+  const { data: loyalty } = loyaltyQuery;
 
   const [checkIn, setCheckIn] = useState(today());
   const [precision, setPrecision] = useState<DatePrecision>('day');
@@ -230,6 +232,7 @@ export function StayRecordDialog({
       }
     >
       <form id="stay-record-form" onSubmit={handleSubmit} className="space-y-4">
+        <QueryStatus query={loyaltyQuery} />
         <div className="space-y-2">
           <Label>
             {t('stays.hotelName')} <span className="text-destructive">*</span>

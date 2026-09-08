@@ -1,4 +1,5 @@
 'use client';
+import { QueryStatus } from '@/components/common/QueryStatus';
 
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
@@ -90,7 +91,8 @@ export function FlightRecordDialog({
   const { createFlight, updateFlight } = useCollectionMutations();
   const { createEntry } = useLoyaltyMutations();
   const { data: airlines } = useAirlines(open);
-  const { data: loyalty } = useLoyalty(open);
+  const loyaltyQuery = useLoyalty(open);
+  const { data: loyalty } = loyaltyQuery;
 
   const [date, setDate] = useState(today());
   const [precision, setPrecision] = useState<DatePrecision>('day');
@@ -282,6 +284,7 @@ export function FlightRecordDialog({
       }
     >
       <form id="flight-record-form" onSubmit={handleSubmit} className="space-y-4">
+        <QueryStatus query={loyaltyQuery} />
         <div className="space-y-2">
           <Label>{t('common.date')}</Label>
           <DatePrecisionInput

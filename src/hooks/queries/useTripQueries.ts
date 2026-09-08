@@ -22,6 +22,7 @@ import { useLandingRead } from './useLandingRead';
 import { tripKeys } from './keys';
 import { fetchWithPublicFallback } from './fetcher';
 import { useAuthenticatedSession } from '@/components/providers/QueryProvider';
+import { combineReadStates } from '@/lib/queryReadState';
 import { unwrapActionResult } from '@/lib/actionQuery';
 
 /**
@@ -33,13 +34,13 @@ import { unwrapActionResult } from '@/lib/actionQuery';
  * useState + reload() pattern previously duplicated across trip pages.
  */
 
-/** Current logged-in user, or null when not authenticated (never throws). */
+/** Current logged-in user, or null when not authenticated (only successful auth-null means unauthenticated). */
 export function useCurrentUser(enabled = true) {
   return useQuery({
     queryKey: tripKeys.currentUser,
     queryFn: async (): Promise<AuthUserWithCreatedAt | null> => {
       const res = await getCurrentUser();
-      return res.success && res.data ? res.data : null;
+      return unwrapActionResult(res);
     },
     staleTime: 5 * 60_000,
     enabled,
@@ -252,7 +253,7 @@ export function useCopyableChecklists(tripId: string, enabled: boolean) {
     queryKey: tripKeys.copyableChecklists(tripId),
     queryFn: async (): Promise<CopyableChecklistSource[]> => {
       const res = await getCopyableChecklists(tripId);
-      return res.success ? res.data : [];
+      return unwrapActionResult(res);
     },
     enabled: !!tripId && enabled,
     staleTime: 60_000,
@@ -263,17 +264,23 @@ export function useCopyableChecklists(tripId: string, enabled: boolean) {
  * Derives membership/role from the current user + members list.
  */
 export function useTripMembership(tripId: string) {
-  const { data: currentUser, isLoading: isCurrentUserLoading } = useCurrentUser();
-  const { data: members = [], isLoading: areMembersLoading } = useMembers(tripId);
+  const userQuery = useCurrentUser();
+  const membersQuery = useMembers(tripId);
+  const { data: currentUser } = userQuery;
+  const { data: members = [] } = membersQuery;
+  const query = combineReadStates([userQuery, membersQuery]);
 
-  const isMember = currentUser != null && members.some((m) => m.id === currentUser.id);
-  const isAdmin = members.find((m) => m.id === currentUser?.id)?.role === 'admin';
+  const isMember =
+    !query.isError && currentUser != null && members.some((m) => m.id === currentUser.id);
+  const isAdmin = isMember && members.find((m) => m.id === currentUser?.id)?.role === 'admin';
 
   return {
     currentUser: currentUser ?? null,
     members,
     isMember,
     isAdmin,
-    isLoading: isCurrentUserLoading || areMembersLoading,
+    isLoading: query.isLoading,
+    query,
+    isResolved: query.data !== undefined && !query.isError,
   };
 }

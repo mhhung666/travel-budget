@@ -9,7 +9,7 @@
 | 階段 | 範圍 | 狀態 |
 | --- | --- | --- |
 | Q1a | 旅程列表 query 錯誤、重試、背景更新提示及快速記帳的列表錯誤 | 已實作 |
-| Q1b | 其他 queries 與消費頁逐一配對，補錯誤 UI、auth-null 邊界及 stale data 顯示 | 第一批完成，其餘待處理 |
+| Q1b | 其他 queries 與消費頁逐一配對，補錯誤 UI、auth-null 邊界及 stale data 顯示 | 已完成 |
 | Q2 | 全域快速記帳與大型 dialogs／AI／lightbox 的 mount 與動態載入 | 待處理 |
 | Q3 | 支出搜尋 deferred rendering、常用頁 prefetch 評估與 production build／瀏覽器量測 | 待處理 |
 
@@ -42,13 +42,37 @@ lint、Prettier 與 TypeScript 檢查通過；未執行真實 provider／DB 整�
 手動重試成功、背景 transport failure、權限拒絕及離線暫停。全套 1,314 通過、37 項 opt-in 跳過；
 lint、Prettier、TypeScript 通過。沒有操作正式站、DB 或真實 provider；production build／瀏覽器量測仍待 Q3。
 
-## 待處理重點
+## Q1b 收尾：其餘查詢、登入與表單
 
-- 仍吞錯的 queries：current user、copyable checklists、friends、collections／links、map photos、
-  comments／counts、visited places、notifications／counts。
-- 調整 query 時必須同步檢查所有消費元件；不得只 throw 卻讓 UI 仍顯示空資料或無限 loading。
-- 保留真正成功的 auth-null；內部服務故障不得當成未登入自動導頁。
+Q1b 程式交付完成；Q2／Q3 仍獨立保留，不以本機測試冒稱正式站效能驗收。
+
+| 查詢群組 | 消費端處理 |
+| --- | --- |
+| current user／members | 成功 auth-null 才代表未登入；服務錯誤保留 error，會員資格須完成解析，加入旅程／設定頁提供重試，不把故障判成未登入或無權限 |
+| friends／collections／links | 好友頁、加入好友、建立旅程、收藏清單與帶入活動狀態提供重試；未知好友關係不顯示可發邀請，未知帶入狀態不執行帶入 |
+| comments／counts、notifications／count | 留言與通知清單失敗不顯示空清單；計數失敗保留快取並提示，通知鈴可見失敗標記、面板可重試 |
+| copyable checklists、行程日 metadata | 複製清單與筆記轉行程選單區別載入／失敗／成功空清單；未開啟的筆記選單不主動讀取 |
+| map photos／visited places／collections | 地圖依目前模式彙整必要查詢，無資料失敗時可重試，背景失敗保留既有地圖 |
+| shell／expenses／checklists／settlement／stats | 旅程頁面與次要摘要提供失敗／更新提示，快取不因背景失敗被清空或切回整頁錯誤 |
+| exchange rates／year in review／loyalty | 匯率服務失敗不再寫入成功的 TWD-only 結果；回顧、會員與收藏表單的次要讀取有錯誤提示 |
+
+新增 QueryStatus、combineReadStates 與 QueryReadDialog，統一區分 undefined、成功 null／空值與錯誤。
+新增／編輯支出必須完成必要 metadata 才開啟；失敗、暫停與資格不足都有可關閉、可重試的介面，
+取代原本可能無限等待的遮罩。表單 readiness 只彙整已啟用查詢，不為關閉表單強制取資料。
+
+**保護性例外**：登入／會員資格發生錯誤時，設定與加入操作先要求重試，不依過期資格開放操作；
+資料仍保留於快取。一般清單與圖表則保留 stale content。可選 metadata 不阻止不依賴它的操作，
+但會顯示失敗提示。伺服器授權仍為最終防線，沒有新增公開路由或放寬權限。
+
+**驗證**：新增其餘 11 種 action query 的失敗／重試與背景失敗測試、auth-null／會員解析、
+disabled gating、匯率 service failure、五類記帳依賴失敗、可關閉的失敗／離線表單，
+以及好友／收藏／留言／通知消費端與加入旅程防誤判測試。本批新增 46 項測試；最終全套 1,360 通過、37 項 opt-in 跳過。
+lint（無警告）、Prettier、TypeScript 與 production build 均通過。
+不跑正式站壓測／業務寫入／真實 AI provider；不需要 migration 或新增環境參數。
+
+## Q2／Q3 待處理重點
+
 - 動態 import 需有可關閉的載入介面，檢查開關／重開、草稿狀態及 metadata 查詢次數。
 - Cursor pagination 依真實資料量門檻另行評估，不能為滿足清單而直接更動全量清單契約。
-- Production build 與瀏覽器 Network／Performance 驗證尚未執行；先建立可比較量測條件，
+- Q1b production build 已驗證；Q2／Q3 的 bundle 比較與瀏覽器 Network／Performance 量測尚未執行。先建立可比較量測條件，
   不把前次正式站的少量冷／熱混合樣本當成改善前後基準。

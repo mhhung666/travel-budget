@@ -1,4 +1,5 @@
 'use client';
+import { QueryStatus } from '@/components/common/QueryStatus';
 
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
@@ -23,7 +24,8 @@ export interface PlanNoteSheetProps {
 export function PlanNoteSheet({ tripId, open, pending, onPickDay, onClose }: PlanNoteSheetProps) {
   const t = useTranslations('notes');
   const router = useRouter();
-  const { data: days = [], isLoading } = useItinerary(tripId);
+  const query = useItinerary(tripId, open);
+  const { data: days = [], isLoading } = query;
 
   return (
     <ResponsiveFormSheet
@@ -32,7 +34,10 @@ export function PlanNoteSheet({ tripId, open, pending, onPickDay, onClose }: Pla
       title={t('pickDayTitle')}
       description={t('pickDayTitle')}
     >
-      {isLoading ? (
+      {query.data !== undefined && <QueryStatus query={query} />}
+      {query.data === undefined && !isLoading ? (
+        <QueryStatus query={query} />
+      ) : isLoading ? (
         <p className="py-6 text-center text-sm text-muted-foreground">{t('loadingDays')}</p>
       ) : days.length === 0 ? (
         <div className="flex flex-col items-center gap-4 py-4">

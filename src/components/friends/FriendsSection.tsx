@@ -1,4 +1,5 @@
 'use client';
+import { QueryStatus } from '@/components/common/QueryStatus';
 
 import { Check, Loader2, UserMinus, Users, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -41,7 +42,8 @@ function FriendRow({ item, actions }: { item: FriendItem; actions: React.ReactNo
 export function FriendsSection() {
   const t = useTranslations('friends');
   const { toast } = useToast();
-  const { data, isLoading } = useFriends();
+  const query = useFriends();
+  const { data, isLoading } = query;
   const { accept, decline, remove } = useFriendMutations();
   const removeDialog = useDialog<FriendItem>();
 
@@ -80,6 +82,7 @@ export function FriendsSection() {
     });
   };
 
+  if (query.data === undefined && !isLoading) return <QueryStatus query={query} />;
   if (isLoading || !data) {
     return (
       <div className="space-y-3">
@@ -93,6 +96,7 @@ export function FriendsSection() {
 
   return (
     <div className="flex flex-col gap-6">
+      <QueryStatus query={query} />
       {/* 收到的邀請 */}
       {incoming.length > 0 && (
         <Card>

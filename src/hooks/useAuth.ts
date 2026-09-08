@@ -50,10 +50,11 @@ export function useAuth(): UseAuthReturn {
 
       const response = await fetch('/api/auth/me');
 
-      if (!response.ok) {
+      if (response.status === 401) {
         setUser(null);
         return null;
       }
+      if (!response.ok) throw new Error(`Authentication check failed (${response.status})`);
 
       const data = await response.json();
       setUser(data.user);
@@ -61,7 +62,6 @@ export function useAuth(): UseAuthReturn {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Authentication check failed';
       setError(errorMessage);
-      setUser(null);
       return null;
     } finally {
       setLoading(false);
@@ -109,10 +109,10 @@ export function useRequireAuth() {
   const auth = useAuth();
 
   useEffect(() => {
-    if (!auth.loading && !auth.isAuthenticated) {
+    if (!auth.loading && !auth.error && !auth.isAuthenticated) {
       window.location.assign('/login');
     }
-  }, [auth.loading, auth.isAuthenticated]);
+  }, [auth.loading, auth.error, auth.isAuthenticated]);
 
   return auth;
 }

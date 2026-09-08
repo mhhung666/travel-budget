@@ -1,4 +1,5 @@
 'use client';
+import { unwrapActionResult } from '@/lib/actionQuery';
 
 import { useQuery } from '@tanstack/react-query';
 import { getVisitedPlaces, type VisitedPlace } from '@/actions';
@@ -13,7 +14,7 @@ export function useVisitedPlaces(enabled: boolean, year: number | null) {
     queryKey: [...tripKeys.visitedPlaces, year ?? 'all'],
     queryFn: async (): Promise<VisitedPlace[]> => {
       const res = await getVisitedPlaces({ year });
-      return res.success ? res.data : [];
+      return unwrapActionResult(res);
     },
     enabled,
     staleTime: 60_000,

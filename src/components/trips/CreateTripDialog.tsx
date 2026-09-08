@@ -1,4 +1,5 @@
 'use client';
+import { QueryStatus } from '@/components/common/QueryStatus';
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
@@ -47,7 +48,8 @@ export default function CreateTripDialog({ open, onClose, onSuccess }: CreateTri
 
   // 建立當下即可挑好友一起加入（ROADMAP #12 Phase 3）。好友資料共用 useFriends 快取。
   // 進階欄位展開前不先請求好友，讓第一屏只專注在唯一必填的旅行名稱。
-  const { data: friendsData } = useFriends(open && detailsOpen);
+  const friendsQuery = useFriends(open && detailsOpen);
+  const { data: friendsData } = friendsQuery;
   const friends = friendsData?.friends ?? [];
 
   const toggleFriend = (id: string) => {
@@ -211,6 +213,7 @@ export default function CreateTripDialog({ open, onClose, onSuccess }: CreateTri
             </div>
 
             {/* 從好友挑選一起加入（有好友時才顯示） */}
+            {open && detailsOpen && <QueryStatus query={friendsQuery} />}
             {friends.length > 0 && (
               <div className="space-y-2">
                 <Label>{t('create.inviteFriends')}</Label>

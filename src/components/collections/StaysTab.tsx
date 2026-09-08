@@ -1,4 +1,5 @@
 'use client';
+import { QueryStatus } from '@/components/common/QueryStatus';
 
 import { useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
@@ -62,7 +63,8 @@ export function StaysTab({ stays }: { stays: StayRecordItem[] }) {
   const locale = useLocale();
   const { toast } = useToast();
   const { removeStay } = useCollectionMutations();
-  const { data: loyalty } = useLoyalty();
+  const loyaltyQuery = useLoyalty();
+  const { data: loyalty } = loyaltyQuery;
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<StayRecordItem | null>(null);
@@ -145,6 +147,7 @@ export function StaysTab({ stays }: { stays: StayRecordItem[] }) {
 
   return (
     <div className="space-y-6">
+      <QueryStatus query={loyaltyQuery} />
       <StatTiles
         tiles={[
           { label: t('stays.stats.stays'), value: stays.length },

@@ -63,18 +63,15 @@ HTTP 已接受但 checkpoint 尚未保存仍可能重送；不承諾推播永久
 
 ### Q. 🔴 查詢錯誤狀態與前端延遲載入（P1/P2）
 
-**進度（2026-09-08）**：Q1a 已完成旅程列表錯誤／重試、快取背景更新提示及快速記帳列表查詢 gating；
-Q1b 第一批已完成隨手記／相簿／活動紀錄的錯誤與快取顯示，並同步旅程首頁照片提示；
-登入判斷、其餘 query 消費頁、延遲載入與量測仍待處理。分階段清單見 [QUERY_UX_PROGRESS.md](./QUERY_UX_PROGRESS.md)。
+**進度（2026-09-08）**：Q1a／Q1b 程式交付完成：查詢失敗與 auth-null 分離、消費頁重試與 stale data 提示、
+記帳 metadata 失敗可關閉／重試。剩下 Q2 延遲 mount／dynamic import 與 Q3 搜尋、prefetch 評估及瀏覽器效能量測。
+分階段結果見 [QUERY_UX_PROGRESS.md](./QUERY_UX_PROGRESS.md)。
 
-**問題**：部分 query function 將失敗轉成 `[]` 或 `null`，使服務故障看起來像沒有資料或未登入。多個
-client page 又要等 hydration 後才開始取資料；Global Quick Add、大型 dialogs、AI 輸入與 lightbox 即使
+**剩餘問題**：多個 client page 要等 hydration 後才開始取資料；Global Quick Add、大型 dialogs、AI 輸入與 lightbox 即使
 未開啟也可能進入共用 bundle 或提前取資料。
 
 **處理方向**：
 
-- 除明確的 auth-null 情境外，保留 ActionResult 錯誤並交給 React Query retry/error UI。
-- 有快取時顯示 stale data 與背景更新提示，不因 `isFetching` 切回整頁 skeleton。
 - Global Quick Add 與大型 dialogs 在開啟時才 mount／dynamic import；可視需求於 idle 或 hover 預載。
 - 支出搜尋使用 `useDeferredValue`；達到實際資料門檻後，以 date + `_id` cursor pagination 取代全量下載。
 - 逐頁評估 server prefetch + React Query hydration，先處理最常進入的旅程首頁與支出頁。

@@ -1,4 +1,5 @@
 'use client';
+import { QueryStatus } from '@/components/common/QueryStatus';
 
 import { useEffect, useMemo, useState } from 'react';
 import { Plus, ReceiptText, Search, SearchX, SlidersHorizontal, X } from 'lucide-react';
@@ -86,7 +87,8 @@ export default function TripExpenses({
   const [showFilters, setShowFilters] = useState(false);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-  const { data: commentCounts = {} } = useCommentCounts(tripId);
+  const countsQuery = useCommentCounts(tripId, isCurrentUserMember);
+  const { data: commentCounts = {} } = countsQuery;
 
   const toggleExpanded = (expenseId: string) =>
     setExpandedIds((prev) => {
@@ -168,6 +170,7 @@ export default function TripExpenses({
 
   return (
     <section aria-label={tExpense('title')}>
+      {isCurrentUserMember && <QueryStatus query={countsQuery} />}
       {/* Toolbar: search + filter toggle + export + add（行動端的新增走空間 FAB） */}
       <div className="mb-4 space-y-3">
         <div className="flex items-center gap-2">

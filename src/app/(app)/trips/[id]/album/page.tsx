@@ -1,4 +1,5 @@
 'use client';
+import { QueryStatus } from '@/components/common/QueryStatus';
 
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
@@ -34,8 +35,10 @@ export default function AlbumPage() {
   const query = usePhotos(tripId);
   const { data: photos = [], isLoading: loading } = query;
   // 行程日清單供 lightbox 的關聯選單；非成員時 useItinerary 走公開 fallback，選單本來就不顯示。
-  const { data: days = [] } = useItinerary(tripId);
-  const { isMember } = useTripMembership(tripId);
+  const daysQuery = useItinerary(tripId);
+  const { data: days = [] } = daysQuery;
+  const membership = useTripMembership(tripId);
+  const { isMember } = membership;
   const m = usePhotoMutations(tripId);
 
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
@@ -114,6 +117,8 @@ export default function AlbumPage() {
   // 頁首由行程空間殼提供（分頁列已標示所在位置）
   return (
     <div className="container mx-auto max-w-5xl px-4 py-4 sm:px-6">
+      <QueryStatus query={membership.query} />
+      <QueryStatus query={daysQuery} />
       {feedback}
       {isMember && (
         <div className="mb-4 flex flex-wrap items-center justify-end gap-2">
@@ -194,7 +199,7 @@ export default function AlbumPage() {
         onUpdate={handleUpdate}
         deleting={m.remove.isPending}
         saving={m.update.isPending}
-        canEdit={isMember}
+        canEdit={isMember && daysQuery.data !== undefined && !daysQuery.isError}
       />
 
       <ConfirmDialog

@@ -1,8 +1,8 @@
 'use client';
+import { QueryStatus } from '@/components/common/QueryStatus';
 
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
-import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 import { ListChecks, Plus } from 'lucide-react';
 import { ChecklistCard, NewChecklistSheet } from '@/components/trips/detail/checklist';
@@ -10,7 +10,7 @@ import { useTripSpaceActions } from '@/components/trips/space/TripSpaceContext';
 import type { Checklist, ChecklistKind } from '@/types';
 import { useChecklists, useTripMembership, useChecklistMutations } from '@/hooks/queries';
 import { ItinerarySkeleton } from '@/components/skeletons';
-import { EmptyState, ErrorState } from '@/components/common';
+import { EmptyState } from '@/components/common';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -25,15 +25,16 @@ import {
 import { useToast } from '@/hooks/use-toast';
 
 export default function ChecklistsPage() {
-  const router = useRouter();
   const params = useParams();
   const tripId = params.id as string;
   const t = useTranslations('checklist');
   const tCommon = useTranslations('common');
   const { toast } = useToast();
 
-  const { data: checklists = [], isLoading: loading, isError } = useChecklists(tripId);
-  const { currentUser, members, isMember } = useTripMembership(tripId);
+  const query = useChecklists(tripId);
+  const { data: checklists = [], isLoading: loading } = query;
+  const membership = useTripMembership(tripId);
+  const { currentUser, members, isMember } = membership;
   const { openAddExpense } = useTripSpaceActions();
   const m = useChecklistMutations(tripId);
 
@@ -71,19 +72,13 @@ export default function ChecklistsPage() {
     return <ItinerarySkeleton />;
   }
 
-  if (isError) {
-    return (
-      <ErrorState
-        message={t('loadFailed')}
-        onBack={() => router.push(`/trips/${tripId}`)}
-        backText={t('backToTrip')}
-      />
-    );
-  }
+  if (query.data === undefined) return <QueryStatus query={query} />;
 
   // 頁首由行程空間殼提供（分頁列已標示所在位置）
   return (
     <div className="container mx-auto max-w-3xl py-4 px-4 sm:px-6">
+      <QueryStatus query={query} />
+      <QueryStatus query={membership.query} />
       {/* Add new list */}
       {canEdit && checklists.length > 0 && (
         <div className="mb-6 flex justify-end">

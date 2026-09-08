@@ -1,4 +1,5 @@
 'use client';
+import { unwrapActionResult } from '@/lib/actionQuery';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -23,8 +24,6 @@ async function unwrap<T>(p: Promise<ActionResult<T>>): Promise<T> {
   return result.data;
 }
 
-const EMPTY_COLLECTIONS: CollectionsData = { flights: [], stays: [], countries: [] };
-
 /**
  * 旅行成就總覽（我的全部飛行/住宿紀錄＋造訪國家）。
  * user-level 資料（比照 friends），一支查詢餵整頁三個 tab。
@@ -34,13 +33,11 @@ export function useCollections(enabled = true) {
     queryKey: collectionKeys.all,
     queryFn: async (): Promise<CollectionsData> => {
       const res = await getCollections();
-      return res.success ? res.data : EMPTY_COLLECTIONS;
+      return unwrapActionResult(res);
     },
     enabled,
   });
 }
-
-const EMPTY_LINKS: TripCollectionLinks = { flight_activity_ids: [], stay_activity_ids: [] };
 
 /**
  * 某旅程中「我已帶入成就」的活動 id（行程頁顯示已帶入、防重複帶入）。
@@ -50,7 +47,7 @@ export function useTripCollectionLinks(tripId: string, enabled = true) {
     queryKey: collectionKeys.tripLinks(tripId),
     queryFn: async (): Promise<TripCollectionLinks> => {
       const res = await getTripCollectionLinks(tripId);
-      return res.success ? res.data : EMPTY_LINKS;
+      return unwrapActionResult(res);
     },
     enabled,
   });

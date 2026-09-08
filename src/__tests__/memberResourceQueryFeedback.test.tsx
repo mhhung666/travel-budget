@@ -20,7 +20,7 @@ vi.mock('@/hooks/queries', async () => {
     useActivityLog,
     useNoteMutations: mutations,
     usePhotoMutations: mutations,
-    useTripMembership: () => ({ isMember: false }),
+    useTripMembership: () => ({ isMember: false, query: { data: true, refetch: vi.fn() } }),
     useItinerary: () => ({ data: [] }),
   };
 });

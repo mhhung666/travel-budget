@@ -1,8 +1,8 @@
 'use client';
+import { QueryStatus } from '@/components/common/QueryStatus';
 
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 import { useQueryClient } from '@tanstack/react-query';
 import { CalendarDays, Plus, Sparkles } from 'lucide-react';
@@ -55,7 +55,7 @@ import { getTripPhase, ongoingDayNumber } from '@/lib/tripStatus';
 import { trackProductEvent } from '@/lib/productEvents';
 
 import { ItinerarySkeleton } from '@/components/skeletons';
-import { EmptyState, ErrorState } from '@/components/common';
+import { EmptyState } from '@/components/common';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -74,7 +74,6 @@ import { useToast } from '@/hooks/use-toast';
  * 隨手記／清單為本分頁的子分頁（見 TripSpaceShell 的子分頁列）。
  */
 export default function ItineraryPage() {
-  const router = useRouter();
   const params = useParams();
   const tripId = params.id as string;
   const tItinerary = useTranslations('itinerary');
@@ -84,19 +83,18 @@ export default function ItineraryPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const {
-    data: days = [],
-    isLoading: loading,
-    isError,
-    refetch: refetchItinerary,
-  } = useItinerary(tripId);
-  const { data: trip } = useTrip(tripId);
+  const itineraryQuery = useItinerary(tripId);
+  const { data: days = [], isLoading: loading, refetch: refetchItinerary } = itineraryQuery;
+  const tripQuery = useTrip(tripId);
+  const { data: trip } = tripQuery;
   const { data: shell } = useTripShell(tripId);
   const phase = trip ? getTripPhase(trip.start_date, trip.end_date).phase : null;
   // Secondary overview data is phase-specific and does not block itinerary content.
-  const { data: checklists = [] } = useChecklists(tripId, phase === 'preTrip');
+  const checklistQuery = useChecklists(tripId, phase === 'preTrip');
+  const { data: checklists = [] } = checklistQuery;
+  const settlementQuery = useSettlement(tripId, phase === 'postTrip');
   const { data: settlement = { balances: [], transactions: [], payments: [], totalExpenses: 0 } } =
-    useSettlement(tripId, phase === 'postTrip');
+    settlementQuery;
   const isAdmin = shell?.role === 'admin';
   const isMember = shell?.role != null;
   const { openAddExpense } = useTripSpaceActions();
@@ -108,8 +106,6 @@ export default function ItineraryPage() {
   // 行程資訊卡（原在支出分頁）：行程分頁成為空間落點後改掛這裡
   const { editTripDialog, handleEditTrip } = useEditTrip(tripId);
   const tExport = useTranslations('export');
-
-  const error = isError ? tItinerary('loadFailed') : '';
 
   const buildExport = (format: ExportFormat) =>
     exportItinerary(days, format, {
@@ -177,7 +173,8 @@ export default function ItineraryPage() {
   const hasImportable = days.some((d) =>
     d.activities.some((a) => activityImportKind(a.type) !== null)
   );
-  const { data: links } = useTripCollectionLinks(tripId, isMember && hasImportable);
+  const linksQuery = useTripCollectionLinks(tripId, isMember && hasImportable);
+  const { data: links } = linksQuery;
   // 帶入時鎖定的連結旅程＝當下旅程（用解析後的 ObjectId，避免與 hash_code 網址不一致）。
   const lockedTrip = useMemo(() => (trip ? { id: trip.id, name: trip.name } : null), [trip]);
   const importedActivityIds = new Set([
@@ -191,6 +188,7 @@ export default function ItineraryPage() {
   // 帶入＝開預填的補登對話框：日期由旅程出發日推第 N 天，其餘從活動文字啟發式帶出，
   // 猜錯在對話框裡改掉即可；trip 與來源活動 id 一併連結（後端驗證歸屬）。
   const handleImportActivity = (day: ItineraryDay, activity: Activity) => {
+    if (!linksQuery.data || linksQuery.isError) return;
     const kind = activityImportKind(activity.type);
     if (!kind) return;
     const date = dayDateFromTrip(trip?.start_date, day.day_number);
@@ -366,18 +364,15 @@ export default function ItineraryPage() {
     return <ItinerarySkeleton />;
   }
 
-  if (error) {
-    return (
-      <ErrorState
-        message={error}
-        onBack={() => router.push(`/trips/${tripId}`)}
-        backText={tItinerary('backToTrip')}
-      />
-    );
-  }
+  if (itineraryQuery.data === undefined) return <QueryStatus query={itineraryQuery} />;
 
   return (
     <div className="container mx-auto max-w-4xl py-4 px-4 sm:px-6">
+      <QueryStatus query={tripQuery} />
+      {phase === 'preTrip' && <QueryStatus query={checklistQuery} />}
+      {phase === 'postTrip' && <QueryStatus query={settlementQuery} />}
+      <QueryStatus query={itineraryQuery} />
+      {isMember && hasImportable && <QueryStatus query={linksQuery} />}
       {isMember && (
         <QueryFeedback
           hasData={photosQuery.data !== undefined}

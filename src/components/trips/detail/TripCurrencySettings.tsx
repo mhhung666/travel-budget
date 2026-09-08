@@ -1,4 +1,5 @@
 'use client';
+import { QueryStatus } from '@/components/common/QueryStatus';
 
 import { useEffect, useState } from 'react';
 import { Coins, Loader2, X } from 'lucide-react';
@@ -41,7 +42,8 @@ export default function TripCurrencySettingsCard({
 }: TripCurrencySettingsCardProps) {
   const t = useTranslations('trip');
   const locale = useLocale();
-  const { data: liveRates = { TWD: 1 } } = useExchangeRates();
+  const ratesQuery = useExchangeRates();
+  const { data: liveRates = { TWD: 1 } } = ratesQuery;
 
   const [rows, setRows] = useState<Row[]>([]);
   const [defaultCurrency, setDefaultCurrency] = useState(DEFAULT_CURRENCY);
@@ -99,6 +101,7 @@ export default function TripCurrencySettingsCard({
 
   return (
     <Card>
+      <QueryStatus query={ratesQuery} />
       <CardHeader className="pb-2">
         <CardTitle className="text-base font-bold flex items-center gap-2">
           <Coins className="h-4 w-4" />

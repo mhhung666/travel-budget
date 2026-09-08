@@ -1,4 +1,5 @@
 'use client';
+import { QueryStatus } from '@/components/common/QueryStatus';
 
 import {
   BarChart3,
@@ -42,7 +43,8 @@ export default function SettingsPage() {
   const tCommon = useTranslations('common');
   const logout = useLogoutFlow(tCommon('pendingOfflineLogout'));
 
-  const { data: user, isLoading } = useCurrentUser();
+  const userQuery = useCurrentUser();
+  const { data: user, isLoading } = userQuery;
 
   const handleLogout = async () => {
     try {
@@ -56,6 +58,8 @@ export default function SettingsPage() {
     trackNavigation(target, 'me_menu');
     router.push(href);
   };
+
+  if (userQuery.data === undefined || userQuery.isError) return <QueryStatus query={userQuery} />;
 
   const items: { icon: LucideIcon; label: string; href: string }[] = [
     { icon: User, label: t('profile.title'), href: ROUTES.SETTINGS_ACCOUNT },

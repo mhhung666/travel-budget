@@ -1,4 +1,5 @@
 'use client';
+import { QueryStatus } from '@/components/common/QueryStatus';
 
 import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
@@ -15,7 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import { toLocalDateInputValue } from '@/lib/dateInput';
 import type { LoyaltyAccountItem, LoyaltyEntryItem } from '@/types';
 import { Button } from '@/components/ui/button';
-import { ConfirmDialog, ErrorState, LoadingState } from '@/components/common';
+import { ConfirmDialog, LoadingState } from '@/components/common';
 import { LoyaltyAccountDialog, LoyaltyEntryDialog } from '@/components/collections';
 import { ProgramProgressCard } from './ProgramProgressCard';
 import { LoyaltyLedger } from './LoyaltyLedger';
@@ -41,7 +42,8 @@ export function AirlineMemberships() {
   const t = useTranslations('collections');
   const tm = useTranslations('memberships');
   const { toast } = useToast();
-  const { data, isLoading, isError, refetch } = useLoyalty();
+  const query = useLoyalty();
+  const { data, isLoading } = query;
   const { upsertAccount, removeAccount, removeEntry } = useLoyaltyMutations();
 
   const [accountDialog, setAccountDialog] = useState<AccountDialogState>({
@@ -149,9 +151,7 @@ export function AirlineMemberships() {
     }
   };
 
-  if (isError) {
-    return <ErrorState message={tm('loadFailed')} onRetry={() => void refetch()} />;
-  }
+  if (query.data === undefined && !isLoading) return <QueryStatus query={query} />;
 
   if (isLoading || !data) {
     return <LoadingState />;
@@ -190,6 +190,7 @@ export function AirlineMemberships() {
 
   return (
     <div className="space-y-8">
+      <QueryStatus query={query} />
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="flex items-center gap-2 text-base font-semibold">

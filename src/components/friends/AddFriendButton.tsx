@@ -1,4 +1,5 @@
 'use client';
+import { QueryStatus } from '@/components/common/QueryStatus';
 
 import { Clock, UserCheck, UserPlus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -17,7 +18,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 export function AddFriendButton({ targetUserId }: { targetUserId: string }) {
   const t = useTranslations('friends');
   const { toast } = useToast();
-  const { data } = useFriends();
+  const query = useFriends();
+  const { data } = query;
   const { send, accept } = useFriendMutations();
 
   const relation = data
@@ -46,6 +48,8 @@ export function AddFriendButton({ targetUserId }: { targetUserId: string }) {
       onError: errorToast,
     });
   };
+
+  if (query.isError || data === undefined) return <QueryStatus query={query} />;
 
   let icon: React.ReactNode;
   let label: string;

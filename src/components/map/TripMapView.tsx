@@ -1,4 +1,6 @@
 'use client';
+import { QueryStatus } from '@/components/common/QueryStatus';
+import { combineReadStates } from '@/lib/queryReadState';
 
 import { useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
@@ -46,12 +48,24 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
   const [selectedFlightKey, setSelectedFlightKey] = useState<string | null>(null);
 
   // 行程日地點（造訪次數權重）：供儀表板「城市數」、國家點亮與熱點一起用。
-  const { data: visited = [] } = useVisitedPlaces(true, selectedYear);
+  const visitedQuery = useVisitedPlaces(true, selectedYear);
+  const { data: visited = [] } = visitedQuery;
   // 相片釘點：只在相片模式才查（含 $lookup 關聯行程日，較重）。年份篩選連動。
-  const { data: mapPhotos = [] } = useMapPhotos(mode === 'photos', selectedYear);
+  const photosQuery = useMapPhotos(mode === 'photos', selectedYear);
+  const { data: mapPhotos = [] } = photosQuery;
   // 飛行航線（旅行成就）：紀錄＋機場目錄都只在飛行模式才抓；登入限定、不進公開分享。
-  const { data: collections } = useCollections(mode === 'flights');
-  const { data: airports } = useAirports(mode === 'flights');
+  const collectionsQuery = useCollections(mode === 'flights');
+  const { data: collections } = collectionsQuery;
+  const airportsQuery = useAirports(mode === 'flights');
+  const { data: airports } = airportsQuery;
+  const query = combineReadStates([
+    visitedQuery,
+    ...(mode === 'photos'
+      ? [photosQuery]
+      : mode === 'flights'
+        ? [collectionsQuery, airportsQuery]
+        : []),
+  ]);
   // 開啟中的相片釘點（gallery 對話框）。
   const [activePin, setActivePin] = useState<PhotoPin | null>(null);
   const photoPins = useMemo<PhotoPin[]>(
@@ -242,6 +256,8 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
   const activeMeta = modeMeta[mode];
   const ActiveModeIcon = activeMeta.icon;
 
+  if (query.data === undefined) return <QueryStatus query={query} />;
+
   if (loading) {
     return (
       <div className="container mx-auto flex min-h-[60vh] items-center justify-center px-4">
@@ -258,6 +274,7 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
     // 桌機：扣掉 sticky 頂列（4rem）與 main 底部 padding（2rem）後佔滿視窗高度的 flex 欄，
     // 避免地圖高度硬算（會多出一點點 scrollbar）；列表在自己的欄內捲動。手機維持一般文件流捲動。
     <div className="container mx-auto px-4 pt-4 pb-8 lg:flex lg:h-[calc(100vh-6rem)] lg:flex-col lg:overflow-hidden lg:pb-4">
+      <QueryStatus query={query} />
       {/* 工具列：飛行是唯一線段資料；其餘模式呈現旅行目的地與行程內容。 */}
       <div className="mb-4 flex flex-wrap items-center gap-2 lg:shrink-0">
         <div className="inline-flex rounded-lg border border-border p-0.5">

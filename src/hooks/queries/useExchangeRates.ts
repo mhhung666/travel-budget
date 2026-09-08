@@ -17,7 +17,7 @@ export function useExchangeRates() {
       if (!res.ok) throw new Error('Failed to load exchange rates');
       const data = await res.json();
       if (data.success && data.rates) return data.rates;
-      return { TWD: 1 };
+      throw new Error('Failed to load exchange rates');
     },
     staleTime: 60 * 60_000,
     placeholderData: { TWD: 1 },

@@ -1,4 +1,6 @@
 'use client';
+import { QueryStatus } from '@/components/common/QueryStatus';
+import { QueryReadDialog } from '@/components/common/QueryReadDialog';
 
 import { useEffect, useRef } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
@@ -40,6 +42,9 @@ export default function TripDetailPage() {
     currentUser,
     isMember,
     isAdmin,
+    query,
+    formQuery,
+    formReady,
     loading,
     error,
     editExpenseDialog,
@@ -63,6 +68,7 @@ export default function TripDetailPage() {
     }
   }, [editExpenseDialog, expenses, requestedExpenseId]);
 
+  if (query.data === undefined) return <QueryStatus query={query} />;
   if (loading) {
     return <TripDetailSkeleton />;
   }
@@ -81,6 +87,8 @@ export default function TripDetailPage() {
 
   return (
     <div className="container mx-auto max-w-3xl py-4 px-4 sm:px-6">
+      <QueryStatus query={query} />
+      <QueryStatus query={formQuery} />
       <TripExpenses
         tripId={tripId}
         expenses={expenses}
@@ -98,10 +106,13 @@ export default function TripDetailPage() {
       />
 
       {/* Dialogs */}
+      {editExpenseDialog.open && !formReady && (
+        <QueryReadDialog query={formQuery} onClose={editExpenseDialog.closeDialog} />
+      )}
       <ExpenseFormSheet
         mode="edit"
         tripId={tripId}
-        open={editExpenseDialog.open}
+        open={editExpenseDialog.open && formReady}
         onClose={editExpenseDialog.closeDialog}
         onSubmit={handleEditExpense}
         expense={editExpenseDialog.data}

@@ -1,4 +1,5 @@
 'use client';
+import { QueryReadDialog } from '@/components/common/QueryReadDialog';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
@@ -145,6 +146,8 @@ function GlobalExpenseForm({
     currentUser,
     isMember,
     isMembershipLoading,
+    formQuery,
+    formReady,
     itineraryDays,
     existingTags,
     handleAddExpense,
@@ -158,8 +161,8 @@ function GlobalExpenseForm({
     currentUser != null &&
     members.length > 0;
 
-  if (!ready) {
-    return <QuickAddLoading open={open} onClose={onClose} />;
+  if (!ready || !formReady) {
+    return <QueryReadDialog query={formQuery} onClose={onClose} />;
   }
 
   return (

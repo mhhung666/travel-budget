@@ -1,4 +1,5 @@
 'use client';
+import { QueryStatus } from '@/components/common/QueryStatus';
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
@@ -34,7 +35,8 @@ export function NewChecklistSheet({
 }: NewChecklistSheetProps) {
   const t = useTranslations('checklist');
   const [mode, setMode] = useState<'menu' | 'copy'>('menu');
-  const { data: sources = [], isLoading } = useCopyableChecklists(tripId, open && mode === 'copy');
+  const query = useCopyableChecklists(tripId, open && mode === 'copy');
+  const { data: sources = [], isLoading } = query;
 
   // 關閉時重置回第一層，下次開啟從範本選單開始。
   const handleOpenChange = (o: boolean) => {
@@ -111,7 +113,10 @@ export function NewChecklistSheet({
             {t('back')}
           </button>
 
-          {isLoading ? (
+          {query.data !== undefined && <QueryStatus query={query} />}
+          {query.data === undefined && !isLoading ? (
+            <QueryStatus query={query} />
+          ) : isLoading ? (
             <p className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
               {t('loadingCopySources')}

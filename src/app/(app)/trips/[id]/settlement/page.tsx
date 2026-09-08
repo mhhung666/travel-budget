@@ -1,8 +1,8 @@
 'use client';
+import { QueryStatus } from '@/components/common/QueryStatus';
 
 import { useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 import {
   SettlementSummary,
@@ -24,7 +24,7 @@ import {
 } from '@/hooks/queries';
 import { useDialog } from '@/hooks/useDialog';
 import { useToast } from '@/hooks/use-toast';
-import { ConfirmDialog, ErrorState } from '@/components/common';
+import { ConfirmDialog } from '@/components/common';
 import { exportSettlement, type ExportFormat } from '@/lib/exporters';
 import { resolveTripRates, getTripDisplayCurrencies } from '@/lib/tripCurrency';
 import type { Transaction } from '@/types';
@@ -32,24 +32,25 @@ import type { RecordPaymentInput } from '@/lib/validation';
 import { SettlementSkeleton } from '@/components/skeletons';
 
 export default function SettlementPage() {
-  const router = useRouter();
   const params = useParams();
   const tripId = params.id as string;
   const tSettlement = useTranslations('settlement');
-  const tError = useTranslations('error');
   const tExport = useTranslations('export');
   const tCommon = useTranslations('common');
   const { toast } = useToast();
 
   const { data: currentUser } = useCurrentUser();
-  const { data: trip } = useTrip(tripId);
+  const tripQuery = useTrip(tripId);
+  const { data: trip } = tripQuery;
+  const settlementQuery = useSettlement(tripId);
   const {
     data: settlement = { balances: [], transactions: [], payments: [], totalExpenses: 0 },
     isLoading: loading,
-    isError,
-  } = useSettlement(tripId);
-  const { data: exchangeRates = { TWD: 1 }, isFetching: loadingRates } = useExchangeRates();
-  const { isMember } = useTripMembership(tripId);
+  } = settlementQuery;
+  const ratesQuery = useExchangeRates();
+  const { data: exchangeRates = { TWD: 1 }, isFetching: loadingRates } = ratesQuery;
+  const membership = useTripMembership(tripId);
+  const { isMember } = membership;
   const paymentMutations = usePaymentMutations(tripId);
   const { data: members = [] } = useMembers(tripId);
 
@@ -57,7 +58,6 @@ export default function SettlementPage() {
   const deletePaymentDialog = useDialog<string>();
 
   const { balances, transactions, payments, totalExpenses } = settlement;
-  const error = isError ? tError('loadSettlementFailed') : '';
 
   // 顯示換算：旅程自訂匯率優先於即時匯率；幣別選項常用排前（見 lib/tripCurrency）
   const displayRates = useMemo(
@@ -180,18 +180,14 @@ export default function SettlementPage() {
     return <SettlementSkeleton />;
   }
 
-  if (error) {
-    return (
-      <ErrorState
-        message={error}
-        onBack={() => router.push(`/trips/${tripId}`)}
-        backText={tSettlement('backToTrip')}
-      />
-    );
-  }
+  if (settlementQuery.data === undefined) return <QueryStatus query={settlementQuery} />;
 
   return (
     <div className="container mx-auto max-w-6xl py-4 px-4 sm:px-6">
+      <QueryStatus query={tripQuery} />
+      <QueryStatus query={settlementQuery} />
+      <QueryStatus query={ratesQuery} />
+      <QueryStatus query={membership.query} />
       {/* 頁首由行程空間殼提供，此列只放匯出 */}
       <div className="mb-4 flex items-center justify-end">
         <ExportMenu

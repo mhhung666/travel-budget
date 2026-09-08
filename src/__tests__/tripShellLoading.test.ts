@@ -34,7 +34,7 @@ describe('lightweight trip shell loading contracts', () => {
     );
     expect(shell).toContain("import('@/components/trips/detail/expense-form/ExpenseFormSheet')");
     expect(shell).toContain('{addExpenseDialog.open && (');
-    expect(shell).toContain('open={!isMembershipLoading && currentUser != null');
+    expect(shell).toContain('open={formReady}');
     expect(shell).toContain('{budgetDialog.open && (');
   });
 });

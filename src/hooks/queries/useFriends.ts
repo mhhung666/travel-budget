@@ -1,4 +1,5 @@
 'use client';
+import { unwrapActionResult } from '@/lib/actionQuery';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -20,8 +21,6 @@ async function unwrap<T>(p: Promise<ActionResult<T>>): Promise<T> {
   return result.data;
 }
 
-const EMPTY_FRIENDS: FriendsData = { friends: [], incoming: [], outgoing: [] };
-
 /**
  * 我的好友總覽（好友 + 收到 / 送出的 pending 邀請）。
  * 設定頁好友卡片與旅程成員頁的加好友按鈕共用同一個 key，
@@ -32,7 +31,7 @@ export function useFriends(enabled = true) {
     queryKey: friendKeys.all,
     queryFn: async (): Promise<FriendsData> => {
       const res = await getFriends();
-      return res.success ? res.data : EMPTY_FRIENDS;
+      return unwrapActionResult(res);
     },
     enabled,
   });

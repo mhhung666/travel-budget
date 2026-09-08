@@ -1,4 +1,5 @@
 'use client';
+import { QueryStatus } from '@/components/common/QueryStatus';
 
 import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
@@ -34,7 +35,8 @@ export function ExpenseComments({
   const [draft, setDraft] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
-  const { data: comments = [], isLoading } = useExpenseComments(tripId, expenseId, true);
+  const query = useExpenseComments(tripId, expenseId, true);
+  const { data: comments = [], isLoading } = query;
   const { create, remove } = useCommentMutations(tripId);
 
   const handlePost = () => {
@@ -58,7 +60,10 @@ export function ExpenseComments({
 
   return (
     <div className="mt-3 border-t border-border pt-3">
-      {isLoading ? (
+      {query.data !== undefined && <QueryStatus query={query} />}
+      {query.data === undefined && !isLoading ? (
+        <QueryStatus query={query} />
+      ) : isLoading ? (
         <p className="py-3 text-center text-sm text-muted-foreground">{t('loading')}</p>
       ) : comments.length === 0 ? (
         <p className="py-2 text-sm text-muted-foreground">{t('empty')}</p>

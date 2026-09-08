@@ -1,3 +1,4 @@
+import { combineReadStates } from '@/lib/queryReadState';
 import { onlineManager } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import type { SetBudgetInput } from '@/lib/validation';
@@ -36,20 +37,28 @@ export function useTripSpace(tripId: string, loadExpenseForm = false) {
   const addExpenseDialog = useDialog<AddExpensePrefill>();
   const budgetDialog = useDialog();
 
-  const { data: shell, isLoading } = useTripShell(tripId);
+  const shellQuery = useTripShell(tripId);
+  const { data: shell, isLoading } = shellQuery;
   const isMember = shell?.role != null;
   const shouldLoadForm = (loadExpenseForm || addExpenseDialog.open) && isMember;
-  const { data: currentUser = null, isLoading: isCurrentUserLoading } =
-    useCurrentUser(shouldLoadForm);
-  const { data: members = [], isLoading: areMembersLoading } = useMembers(tripId, shouldLoadForm);
-  const { data: itineraryDays = [], isLoading: isItineraryLoading } = useItinerary(
-    tripId,
-    shouldLoadForm
+  const userQuery = useCurrentUser(shouldLoadForm);
+  const { data: currentUser = null, isLoading: isCurrentUserLoading } = userQuery;
+  const membersQuery = useMembers(tripId, shouldLoadForm);
+  const { data: members = [], isLoading: areMembersLoading } = membersQuery;
+  const itineraryQuery = useItinerary(tripId, shouldLoadForm);
+  const tagsQuery = useExpenseTags(tripId, shouldLoadForm);
+
+  const { data: itineraryDays = [], isLoading: isItineraryLoading } = itineraryQuery;
+  const { data: existingTags = [], isLoading: areTagsLoading } = tagsQuery;
+  const formQuery = combineReadStates(
+    shouldLoadForm ? [shellQuery, userQuery, membersQuery, itineraryQuery, tagsQuery] : [shellQuery]
   );
-  const { data: existingTags = [], isLoading: areTagsLoading } = useExpenseTags(
-    tripId,
-    shouldLoadForm
-  );
+  const formReady =
+    shouldLoadForm &&
+    formQuery.data !== undefined &&
+    !formQuery.isError &&
+    currentUser !== null &&
+    members.length > 0;
 
   const expenseMutations = useExpenseMutations(tripId);
   const tripMutations = useTripMutations(tripId);
@@ -109,6 +118,9 @@ export function useTripSpace(tripId: string, loadExpenseForm = false) {
   };
 
   return {
+    formQuery,
+    formReady,
+    shellQuery,
     trip: shell,
     shell,
     isLoading,

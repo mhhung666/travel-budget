@@ -1,8 +1,10 @@
 'use client';
+import { QueryStatus } from '@/components/common/QueryStatus';
+import { QueryReadDialog } from '@/components/common/QueryReadDialog';
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import dynamic from 'next/dynamic';
-import { ArrowLeft, History, Loader2, MoreHorizontal, Settings, Wallet } from 'lucide-react';
+import { ArrowLeft, History, MoreHorizontal, Settings, Wallet } from 'lucide-react';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 import { ROUTES } from '@/constants/routes';
@@ -56,7 +58,6 @@ export function TripSpaceShell({
   const tTrip = useTranslations('trip');
   const tTrips = useTranslations('trips');
   const tBudget = useTranslations('budget');
-  const tCommon = useTranslations('common');
 
   const {
     trip,
@@ -64,7 +65,9 @@ export function TripSpaceShell({
     members,
     currentUser,
     isMember,
-    isMembershipLoading,
+    formQuery,
+    formReady,
+    shellQuery,
     itineraryDays,
     existingTags,
     budgetProgress,
@@ -344,7 +347,10 @@ export function TripSpaceShell({
           )}
         </div>
 
-        <div className="flex-1">{children}</div>
+        <div className="flex-1">
+          <QueryStatus query={shellQuery} />
+          {children}
+        </div>
 
         {/* 空間層級 Dialogs：新增支出（旅行內 CTA／工具列共用）、預算 */}
         {addExpenseDialog.open && (
@@ -353,7 +359,7 @@ export function TripSpaceShell({
             <ExpenseFormSheet
               mode="add"
               tripId={tripId}
-              open={!isMembershipLoading && currentUser != null && members.length > 0}
+              open={formReady}
               onClose={addExpenseDialog.closeDialog}
               onSubmit={handleAddExpense}
               members={members}
@@ -363,17 +369,8 @@ export function TripSpaceShell({
               initialDescription={addExpenseDialog.data?.description}
               currencySettings={trip?.currency_settings ?? null}
             />
-            {(isMembershipLoading || !currentUser || members.length === 0) && (
-              <div
-                className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm"
-                role="status"
-                aria-live="polite"
-              >
-                <span className="flex items-center gap-2 rounded-lg border bg-background px-4 py-3 text-sm shadow-lg">
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                  {tCommon('loading')}
-                </span>
-              </div>
+            {!formReady && (
+              <QueryReadDialog query={formQuery} onClose={addExpenseDialog.closeDialog} />
             )}
           </>
         )}

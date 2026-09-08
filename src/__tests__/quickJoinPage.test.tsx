@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, fireEvent } from '@testing-library/react';
 import QuickJoinPage from '@/app/(public)/join/[hashCode]/page';
 import type { Trip } from '@/types';
 
@@ -65,6 +65,19 @@ afterEach(() => {
 });
 
 describe('QuickJoinPage query states', () => {
+  it('does not offer login or join after an identity service failure and retries', () => {
+    const refetch = vi.fn();
+    mocks.useCurrentUser.mockReturnValue({ data: undefined, isError: true, refetch });
+    mocks.useMembers.mockReturnValue({ data: [], refetch: vi.fn() });
+    render(<QuickJoinPage />);
+    expect(screen.getByText('queryLoadFailed')).toBeInTheDocument();
+    expect(screen.queryByText('quickJoin.loginToJoin')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'retry' }));
+    expect(refetch).toHaveBeenCalledOnce();
+    expect(mocks.push).not.toHaveBeenCalled();
+    expect(mocks.joinTrip).not.toHaveBeenCalled();
+  });
+
   it('keeps showing a loading state while persisted queries are being restored', () => {
     mocks.useTrip.mockReturnValue({
       data: undefined,

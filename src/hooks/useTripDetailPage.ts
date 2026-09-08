@@ -1,3 +1,4 @@
+import { combineReadStates } from '@/lib/queryReadState';
 import { useMemo, useState } from 'react';
 import { onlineManager } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
@@ -32,16 +33,23 @@ export function useTripDetailPage(tripId: string) {
   const { toast } = useToast();
 
   // --- Data ---
-  const { data: trip, isLoading: tripLoading, isError } = useTrip(tripId);
-  const { data: expenses = [] } = useExpenses(tripId);
+  const tripQuery = useTrip(tripId);
+  const { data: trip, isLoading: tripLoading, isError } = tripQuery;
+  const expensesQuery = useExpenses(tripId);
+  const { data: expenses = [] } = expensesQuery;
   // 行程日供支出表單「關聯行程日」下拉與支出卡的 Day 標籤使用（React Query 快取，與行程頁共用）。
-  const { data: itineraryDays = [] } = useItinerary(tripId);
-  const { currentUser, members, isMember, isAdmin } = useTripMembership(tripId);
+  const itineraryQuery = useItinerary(tripId);
+  const { data: itineraryDays = [] } = itineraryQuery;
+  const membership = useTripMembership(tripId);
+  const { currentUser, members, isMember, isAdmin } = membership;
+  const query = combineReadStates([tripQuery, expensesQuery]);
+  const formQuery = combineReadStates([membership.query, itineraryQuery]);
+  const formReady = formQuery.data !== undefined && !formQuery.isError && isMember;
 
   const expenseMutations = useExpenseMutations(tripId);
 
   const loading = tripLoading;
-  const error = isError ? tError('loadTripFailed') : '';
+  const error = isError && !trip ? tError('loadTripFailed') : '';
 
   // --- Dialog state ---
   const editExpenseDialog = useDialog<Expense>();
@@ -142,6 +150,9 @@ export function useTripDetailPage(tripId: string) {
   };
 
   return {
+    query,
+    formQuery,
+    formReady,
     // data
     trip,
     expenses,
