@@ -9,6 +9,7 @@ const noteFindOneAndUpdate = vi.fn();
 const noteCreate = vi.fn();
 const noteDeleteOne = vi.fn();
 const itineraryDayFindOneAndUpdate = vi.fn();
+const itineraryDayExists = vi.fn();
 const userFindById = vi.fn();
 const headObject = vi.fn();
 const deleteObjects = vi.fn();
@@ -39,6 +40,7 @@ vi.mock('@/models', () => ({
     deleteOne: (...args: unknown[]) => noteDeleteOne(...args),
   },
   ItineraryDay: {
+    exists: (...args: unknown[]) => itineraryDayExists(...args),
     findOneAndUpdate: (...args: unknown[]) => itineraryDayFindOneAndUpdate(...args),
   },
   User: {
@@ -369,6 +371,17 @@ describe('getNoteAttachmentUrl', () => {
 });
 
 describe('planNote', () => {
+  it('does not mark a note planned when the conditional append finds a full day', async () => {
+    noteFindOne.mockReturnValue(chainSelectLean({ text: 'Coffee', plannedAt: null }));
+    itineraryDayFindOneAndUpdate.mockReturnValue({ select: () => Promise.resolve(null) });
+    itineraryDayExists.mockResolvedValue({ _id: DAY_ID });
+    const result = await planNote(TRIP_ID, NOTE_ID, { day_id: DAY_ID });
+    expect(result).toMatchObject({ success: false, code: 'ACTIVITY_LIMIT' });
+    expect(itineraryDayExists).toHaveBeenCalledWith({ _id: DAY_ID, trip: TRIP_ID });
+    expect(noteFindOneAndUpdate).not.toHaveBeenCalled();
+    itineraryDayExists.mockReset();
+  });
+
   it('returns NOT_FOUND when the note does not belong to this trip', async () => {
     noteFindOne.mockReturnValue(chainSelectLean(null));
 
@@ -419,7 +432,11 @@ describe('planNote', () => {
 
     // 單行短筆記：全文即標題，活動備註留空
     expect(itineraryDayFindOneAndUpdate).toHaveBeenCalledWith(
-      { _id: DAY_ID, trip: TRIP_ID },
+      {
+        _id: DAY_ID,
+        trip: TRIP_ID,
+        $expr: { $lte: [{ $size: { $ifNull: ['$activities', []] } }, 14] },
+      },
       {
         $push: {
           activities: {

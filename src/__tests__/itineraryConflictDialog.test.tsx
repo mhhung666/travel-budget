@@ -144,3 +144,29 @@ it.each(['activity', 'day'] as const)(
     client.clear();
   }
 );
+
+it('shows the localized activity limit and preserves the draft', async () => {
+  mocks.update.mockResolvedValue({
+    success: false,
+    error: 'ACTIVITY_LIMIT',
+    code: 'ACTIVITY_LIMIT',
+  });
+  const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
+  render(
+    <QueryClientProvider client={client}>
+      <Editor mode="activity" />
+    </QueryClientProvider>
+  );
+  const input = screen.getByLabelText('activity title');
+  fireEvent.change(input, { target: { value: 'Keep my activity' } });
+  fireEvent.click(screen.getByRole('button', { name: 'save' }));
+  await waitFor(() =>
+    expect(mocks.toast).toHaveBeenCalledWith({
+      description: 'activityLimit',
+      variant: 'destructive',
+    })
+  );
+  expect(input).toHaveValue('Keep my activity');
+  expect(mocks.close).not.toHaveBeenCalled();
+  client.clear();
+});

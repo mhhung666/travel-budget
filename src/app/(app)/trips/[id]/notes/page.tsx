@@ -1,4 +1,6 @@
 'use client';
+import { ActionQueryError } from '@/lib/actionQuery';
+import { MAX_ACTIVITIES_PER_DAY } from '@/lib/itineraryLimits';
 import { NoteEditDialog, PlanNoteSheet } from '@/components/trips/DeferredDialogs';
 import { QueryStatus } from '@/components/common/QueryStatus';
 
@@ -24,6 +26,7 @@ export default function NotesPage() {
   const tripId = params.id as string;
   const t = useTranslations('notes');
   const tCommon = useTranslations('common');
+  const tItinerary = useTranslations('itinerary');
   const { toast } = useToast();
 
   const query = useNotes(tripId);
@@ -54,7 +57,12 @@ export default function NotesPage() {
     } catch (err: unknown) {
       toast({
         title: tCommon('errorTitle'),
-        description: err instanceof Error ? err.message : String(err),
+        description:
+          err instanceof ActionQueryError && err.code === 'ACTIVITY_LIMIT'
+            ? tItinerary('activityLimit', { max: MAX_ACTIVITIES_PER_DAY })
+            : err instanceof Error
+              ? err.message
+              : String(err),
         variant: 'destructive',
       });
     }
@@ -73,9 +81,9 @@ export default function NotesPage() {
     await guard(
       m.plan.mutateAsync({ noteId: note.id, dayId }).then((updated) => {
         toast({ description: t('planSuccess', { day: updated.planned_day_number ?? '?' }) });
+        setPlanningNote(null);
       })
     );
-    setPlanningNote(null);
   };
 
   const confirmDelete = () => {

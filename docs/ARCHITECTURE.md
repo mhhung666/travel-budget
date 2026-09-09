@@ -211,6 +211,9 @@ src/
 
 ### 行程編輯的衝突契約
 
+- 每日活動容量由 [itineraryLimits.ts](../src/lib/itineraryLimits.ts) 統一定義：手動建立／整陣列提交在
+  validation 檢查上限；手動追加、筆記轉活動及 AI 追加以共用 MongoDB 容量條件原子判斷。
+  歷史超量資料仍可單筆編輯／刪除，不允許繼續追加。滿額不標記筆記已規劃。
 - `updateItineraryDay` 與 `mutateItineraryActivity` 必須收到表單開啟時 DTO 的 `updated_at`，以 `expected_updated_at` 傳入；
   不可在送出時改拿最新快取的 token 配上舊草稿。缺漏或無效 token 回 `VALIDATION_ERROR`。
 - 讀取當日後先核對時間，寫入仍以 `_id`、`trip`、`updatedAt` 作為條件；未匹配回 `CONFLICT`，

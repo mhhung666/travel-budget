@@ -7,6 +7,7 @@
 
 | 日期 | 里程碑 |
 | --- | --- |
+| 09-09 | R2c：手動、筆記轉活動與 AI 匯入統一每日活動上限，追加時原子檢查容量，滿額提供四語提示，見 [R 進度](./ITINERARY_CONSISTENCY_PROGRESS.md) |
 | 09-09 | R2b：行程頁活動新增／編輯／刪除改為單筆原子寫入，沿用整天衝突保護；只驗證目標票券並保留當天其他活動仍引用的附件，見 [R 進度](./ITINERARY_CONSISTENCY_PROGRESS.md) |
 | 09-09 | R2a：活動草稿與整天寫入保留既有 ID，拒絕漏傳、重複及外來活動 ID；單筆原子更新仍待後續，見 [R 進度](./ITINERARY_CONSISTENCY_PROGRESS.md) |
 | 09-09 | R1：行程編輯攜帶開啟時的更新時間，伺服器以條件寫入拒絕舊草稿覆蓋；衝突不清票券或同步相片，保留表單草稿並提供四語提示。單筆原子更新與跨 collection 一致性仍待處理，見 [R 進度](./ITINERARY_CONSISTENCY_PROGRESS.md) |

@@ -1,5 +1,6 @@
 'use server';
 
+import { MAX_ACTIVITIES_PER_DAY, activityCapacityFilter } from '@/lib/itineraryLimits';
 import { readItinerary, toDayDto, type LeanActivity, type LeanDay } from '@/lib/itineraryRead';
 import { dbConnect } from '@/lib/mongodb';
 import { Expense, ItineraryDay, Photo, Trip } from '@/models';
@@ -161,7 +162,14 @@ export const createItineraryDay = withAuth(
         return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
       }
 
-      const validated = createItineraryDaySchema.parse(input);
+      if (Array.isArray(input.activities) && input.activities.length > MAX_ACTIVITIES_PER_DAY) {
+        return { success: false, error: 'ACTIVITY_LIMIT', code: 'ACTIVITY_LIMIT' };
+      }
+      const parsed = createItineraryDaySchema.safeParse(input);
+      if (!parsed.success) {
+        return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
+      }
+      const validated = parsed.data;
 
       // 票券附件驗證（建立時無既有附件，故 existingByKey 為空）
       const built = await buildActivitiesStorage(
@@ -233,6 +241,9 @@ export const updateItineraryDay = withAuth(
         return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
       }
 
+      if (Array.isArray(input.activities) && input.activities.length > MAX_ACTIVITIES_PER_DAY) {
+        return { success: false, error: 'ACTIVITY_LIMIT', code: 'ACTIVITY_LIMIT' };
+      }
       const parsed = updateItineraryDaySchema.safeParse(input);
       if (!parsed.success) {
         return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
@@ -365,6 +376,9 @@ export const mutateItineraryActivity = withAuth(
       if (current.updatedAt.getTime() !== expectedUpdatedAt.getTime()) {
         return { success: false, error: 'CONFLICT', code: 'CONFLICT' };
       }
+      if (data.operation === 'add' && (current.activities?.length ?? 0) >= MAX_ACTIVITIES_PER_DAY) {
+        return { success: false, error: 'ACTIVITY_LIMIT', code: 'ACTIVITY_LIMIT' };
+      }
       const target =
         data.operation === 'add'
           ? undefined
@@ -398,7 +412,9 @@ export const mutateItineraryActivity = withAuth(
           _id: dayId,
           trip: membership.tripId,
           updatedAt: expectedUpdatedAt,
-          ...(data.operation === 'add' ? {} : { 'activities._id': data.activity_id }),
+          ...(data.operation === 'add'
+            ? activityCapacityFilter(1)
+            : { 'activities._id': data.activity_id }),
         },
         update,
         { new: true, timestamps: false }

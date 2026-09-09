@@ -59,6 +59,7 @@ vi.mock('@/models', () => ({
 }));
 
 import {
+  createItineraryDay,
   deleteItineraryDay,
   updateItineraryDay,
   mutateItineraryActivity,
@@ -477,6 +478,72 @@ describe('mutateItineraryActivity', () => {
     dayFindOneAndUpdate.mockReturnValue(
       chainLean(leanDay({ activities: [{ ...target, ...activity, attachments: [] }, sibling] }))
     );
+  });
+
+  it.each([15, 16])(
+    'rejects appending to a day with %i activities before checking tickets',
+    async (count) => {
+      const { headObject } = await import('@/lib/storage');
+      dayFindOne.mockReturnValue(
+        chainSelectLean(leanDay({ activities: Array.from({ length: count }, () => target) }))
+      );
+      const result = await mutateItineraryActivity(TRIP_ID, DAY_ID, {
+        operation: 'add',
+        activity,
+        expected_updated_at: EXPECTED_UPDATED_AT,
+      });
+      expect(result).toMatchObject({ code: 'ACTIVITY_LIMIT' });
+      expect(dayFindOneAndUpdate).not.toHaveBeenCalled();
+      expect(headObject).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each(['update', 'delete'] as const)(
+    'allows %s on an existing over-limit day',
+    async (operation) => {
+      dayFindOne.mockReturnValue(
+        chainSelectLean(leanDay({ activities: Array.from({ length: 16 }, () => target) }))
+      );
+      expect(
+        (await mutateItineraryActivity(TRIP_ID, DAY_ID, { ...input, operation })).success
+      ).toBe(true);
+      expect(dayFindOneAndUpdate.mock.calls[0][0]).not.toHaveProperty('$expr');
+    }
+  );
+
+  it('guards the last available slot in the same write as the append', async () => {
+    dayFindOne.mockReturnValue(
+      chainSelectLean(leanDay({ activities: Array.from({ length: 14 }, () => target) }))
+    );
+    expect(
+      (
+        await mutateItineraryActivity(TRIP_ID, DAY_ID, {
+          operation: 'add',
+          activity,
+          expected_updated_at: EXPECTED_UPDATED_AT,
+        })
+      ).success
+    ).toBe(true);
+    expect(dayFindOneAndUpdate.mock.calls[0][0].$expr).toEqual({
+      $lte: [{ $size: { $ifNull: ['$activities', []] } }, 14],
+    });
+  });
+
+  it('rejects oversized create and full-array updates before storage or database work', async () => {
+    const { headObject } = await import('@/lib/storage');
+    const activities = Array.from({ length: 16 }, () => ({ ...activity, id: null }));
+    expect(await createItineraryDay(TRIP_ID, { title: 'Day', activities })).toMatchObject({
+      code: 'ACTIVITY_LIMIT',
+    });
+    expect(
+      await updateItineraryDay(TRIP_ID, DAY_ID, {
+        expected_updated_at: EXPECTED_UPDATED_AT,
+        activities,
+      })
+    ).toMatchObject({ code: 'ACTIVITY_LIMIT' });
+    expect(dayFindOne).not.toHaveBeenCalled();
+    expect(dayFindOneAndUpdate).not.toHaveBeenCalled();
+    expect(headObject).not.toHaveBeenCalled();
   });
 
   it('updates only the matched activity and cleans only unreferenced target tickets', async () => {

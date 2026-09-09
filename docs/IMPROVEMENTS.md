@@ -72,8 +72,8 @@ HTTP 已接受但 checkpoint 尚未保存仍可能重送；不承諾推播永久
 ### R. ⚠️ 原子更新與跨 collection 一致性（P2）
 
 **進度（2026-09-09）**：R1 已加入整天更新的 `updated_at` 條件寫入，覆蓋活動新增／編輯／刪除
-及整天欄位編輯；衝突保留草稿、更新查詢並提供四語提示。R2a 已保留既有活動 ID 並驗證身分，R2b 已將行程頁接上單筆原子寫入；衝突粒度、
-批次上限與跨 collection transaction 仍待處理，見 [R 分階段進度](./ITINERARY_CONSISTENCY_PROGRESS.md)。
+及整天欄位編輯；衝突保留草稿、更新查詢並提供四語提示。R2a 已保留既有活動 ID 並驗證身分，R2b 已將行程頁接上單筆原子寫入，R2c 已統一各入口的每日活動上限；衝突粒度、
+revision 與跨 collection transaction 仍待處理，見 [R 分階段進度](./ITINERARY_CONSISTENCY_PROGRESS.md)。
 
 **問題**：行程頁已改單筆活動寫入，但衝突判斷仍是整天粒度；其他寫入入口尚未統一 revision，
 舊客戶端仍可透過整陣列更新契約寫入。虛擬成員轉換、移除會員與刪除旅程會依序修改多個 collection，中途失敗可能留下

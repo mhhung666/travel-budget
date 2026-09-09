@@ -10,6 +10,7 @@ import {
 import type { ActionResult } from '@/actions';
 import { tripKeys } from './keys';
 import type { ActivityType, ExpenseAttachment, Location } from '@/types';
+import { MAX_ACTIVITIES_PER_DAY } from '@/lib/itineraryLimits';
 import { ActionQueryError, unwrapActionResult } from '@/lib/actionQuery';
 import { useTranslations } from 'next-intl';
 import type { MutateItineraryActivityInput } from '@/lib/validation';
@@ -66,13 +67,17 @@ export function useItineraryMutations(tripId: string) {
       void invalidateItinerary();
     }
     toast({
-      description: t(conflict ? 'updateConflict' : 'updateFailed'),
+      description:
+        error instanceof ActionQueryError && error.code === 'ACTIVITY_LIMIT'
+          ? t('activityLimit', { max: MAX_ACTIVITIES_PER_DAY })
+          : t(conflict ? 'updateConflict' : 'updateFailed'),
       variant: 'destructive',
     });
   };
 
   const create = useMutation({
     mutationFn: (data: DayInput) => unwrap(createItineraryDay(tripId, data)),
+    onError: reportUpdateError,
     onSuccess: () => {
       invalidateItinerary();
       invalidatePhotos();

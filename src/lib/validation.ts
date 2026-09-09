@@ -1,3 +1,4 @@
+import { MAX_ACTIVITIES_PER_DAY } from '@/lib/itineraryLimits';
 import { z } from 'zod';
 import { SUPPORTED_CURRENCY_CODES } from '@/constants/currencies';
 import { LOYALTY_PROGRAMS, LOYALTY_ENTRY_TYPES } from '@/constants/loyalty';
@@ -301,7 +302,7 @@ export const createItineraryDaySchema = z.object({
   title: z.string().min(1, '標題不能為空').trim(),
   content: z.string().default(''),
   location: locationSchema.nullable().optional(),
-  activities: z.array(activitySchema).optional(),
+  activities: z.array(activitySchema).max(MAX_ACTIVITIES_PER_DAY).optional(),
 });
 
 // 更新必須明確區分既有活動與新增列，避免舊客戶端省略 ID 後重建整天身分。
@@ -318,7 +319,7 @@ export const updateItineraryDaySchema = z.object({
   content: z.string().optional(),
   day_number: z.number().int().positive().optional(),
   location: locationSchema.nullable().optional(),
-  activities: z.array(updateActivitySchema).optional(),
+  activities: z.array(updateActivitySchema).max(MAX_ACTIVITIES_PER_DAY).optional(),
 });
 
 const activityMutationBaseSchema = z.object({

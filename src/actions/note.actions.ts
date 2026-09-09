@@ -1,5 +1,6 @@
 'use server';
 
+import { activityCapacityFilter } from '@/lib/itineraryLimits';
 import { revalidatePath } from 'next/cache';
 import { ItineraryDay, Note, User } from '@/models';
 import { getTripMembership } from '@/lib/permissions';
@@ -328,7 +329,7 @@ export const planNote = withAuth(
       const truncated = title !== note.text.trim();
 
       const day = await ItineraryDay.findOneAndUpdate(
-        { _id: validation.data.day_id, trip: membership.tripId },
+        { _id: validation.data.day_id, trip: membership.tripId, ...activityCapacityFilter(1) },
         {
           $push: {
             activities: {
@@ -345,7 +346,12 @@ export const planNote = withAuth(
         }
       ).select('dayNumber');
       if (!day) {
-        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+        const exists = await ItineraryDay.exists({
+          _id: validation.data.day_id,
+          trip: membership.tripId,
+        });
+        const code = exists ? 'ACTIVITY_LIMIT' : 'NOT_FOUND';
+        return { success: false, error: code, code };
       }
 
       const updated = await Note.findOneAndUpdate(

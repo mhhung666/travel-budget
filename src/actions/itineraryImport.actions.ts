@@ -1,5 +1,6 @@
 'use server';
 
+import { activityCapacityFilter } from '@/lib/itineraryLimits';
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { ItineraryDay, Trip } from '@/models';
@@ -151,9 +152,7 @@ async function appendToExistingDay(input: {
       _id: current._id,
       trip: input.tripId,
       appliedImportKeys: { $ne: input.key },
-      $expr: {
-        $lte: [{ $size: { $ifNull: ['$activities', []] } }, maximumExisting],
-      },
+      ...activityCapacityFilter(input.activities.length),
     },
     {
       $push: { activities: { $each: input.activities } },

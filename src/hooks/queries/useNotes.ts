@@ -93,7 +93,7 @@ export function useNoteMutations(tripId: string) {
 
   const plan = useMutation({
     mutationFn: ({ noteId, dayId }: { noteId: string; dayId: string }) =>
-      unwrap(planNote(tripId, noteId, { day_id: dayId })),
+      planNote(tripId, noteId, { day_id: dayId }).then(unwrapActionResult),
     onSuccess: () => {
       invalidate();
       queryClient.invalidateQueries({ queryKey: tripKeys.itinerary(tripId) });

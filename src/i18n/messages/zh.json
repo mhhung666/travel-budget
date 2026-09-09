@@ -1133,6 +1133,7 @@
   "itinerary": {
     "updateConflict": "這天的行程已變更，草稿仍保留在視窗中。請先複製要保留的內容，再關閉並重新開啟編輯，核對最新行程。",
     "updateFailed": "無法儲存行程，尚未確認變更成功，請重試。",
+    "activityLimit": "每天最多 {max} 個活動，請先刪除活動或選擇其他天。",
     "title": "旅程規劃",
     "addDay": "新增天數",
     "addDayN": "新增第 {dayNumber} 天",

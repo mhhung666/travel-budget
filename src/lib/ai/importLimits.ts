@@ -1,7 +1,9 @@
+import { MAX_ACTIVITIES_PER_DAY } from '@/lib/itineraryLimits';
+
 export const ITINERARY_IMPORT_LIMITS = {
   sourceCharacters: 30_000,
   days: 14,
-  activitiesPerDay: 15,
+  activitiesPerDay: MAX_ACTIVITIES_PER_DAY,
   totalActivities: 120,
   sourceSummaryCharacters: 500,
   dayTitleCharacters: 200,
