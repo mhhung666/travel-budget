@@ -209,6 +209,16 @@ src/
 - [productEvents.ts](../src/lib/productEvents.ts) 是產品事件的單一固定 taxonomy：activation、全域快速記帳、錯帳修正時間 bucket、離線支出 queued／synced／failed，以及 AI 行程／記帳 funnel。事件屬性只接受 TypeScript union 的分類值，禁止 id、姓名、旅行名稱、描述、邀請碼、日期、位置、精確金額與自由輸入；量測為 best-effort，失效不得中斷主要任務。
 - UX 的介面規則以 [UI_UX_SPEC.md](./UI_UX_SPEC.md) 為基線；真人任務驗證使用 [USABILITY_TEST_PHASE4.md](./USABILITY_TEST_PHASE4.md)。程式測試通過不等於真人測試或正式環境指標已完成。
 
+### 行程編輯的衝突契約
+
+- `updateItineraryDay` 必須收到表單開啟時 DTO 的 `updated_at`，以 `expected_updated_at` 傳入；
+  不可在送出時改拿最新快取的 token 配上舊草稿。缺漏或無效 token 回 `VALIDATION_ERROR`。
+- 讀取當日後先核對時間，寫入仍以 `_id`、`trip`、`updatedAt` 作為條件；未匹配回 `CONFLICT`，
+  不執行票券清理或相片座標同步。本 action 的新時間至少比舊值大 1ms，關閉 Mongoose 自動時間覆寫。
+- 前端衝突後使行程查詢失效，但保留原表單快照與草稿；提示先複製內容、關閉再重開，不能自動重送覆蓋。
+- 這是整天粒度的保護，不會合併不同活動的編輯；穩定活動 ID、單筆更新、其他寫入入口及跨 collection
+  副作用的一致性由 [R 後續階段](./ITINERARY_CONSISTENCY_PROGRESS.md) 追蹤。
+
 ### 4.16 AI 行程匯入（受限試用）
 
 - [/api/ai/itinerary-import](../src/app/api/ai/itinerary-import/route.ts) 依序驗證 session、admin、輸入 schema、最小旅程 context 與持久化配額，再透過 [itineraryImportProvider.ts](../src/lib/ai/itineraryImportProvider.ts) 呼叫 Gateway 或 OpenAI。provider 未設定時回 `FEATURE_DISABLED`，不影響手動行程與其他 route。

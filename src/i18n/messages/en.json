@@ -1138,6 +1138,8 @@
     "photoAlt": "Trip photo"
   },
   "itinerary": {
+    "updateConflict": "This day has changed. Your draft is still open. Copy any changes you want to keep, then close and reopen the editor with the latest itinerary.",
+    "updateFailed": "Could not save the itinerary. Your changes have not been confirmed. Please try again.",
     "title": "Trip Itinerary",
     "addDay": "Add Day",
     "addDayN": "Add Day {dayNumber}",

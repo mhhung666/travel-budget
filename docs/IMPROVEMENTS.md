@@ -71,6 +71,10 @@ HTTP 已接受但 checkpoint 尚未保存仍可能重送；不承諾推播永久
 
 ### R. ⚠️ 原子更新與跨 collection 一致性（P2）
 
+**進度（2026-09-09）**：R1 已加入整天更新的 `updated_at` 條件寫入，覆蓋活動新增／編輯／刪除
+及整天欄位編輯；衝突保留草稿、更新查詢並提供四語提示。活動穩定 ID、單筆原子更新、
+批次上限與跨 collection transaction 仍待處理，見 [R 分階段進度](./ITINERARY_CONSISTENCY_PROGRESS.md)。
+
 **問題**：行程活動新增／編輯會覆寫整個 activities 陣列，增加寫入量並有多人同時編輯時的
 last-write-wins 風險。虛擬成員轉換、移除會員與刪除旅程會依序修改多個 collection，中途失敗可能留下
 部分完成狀態。

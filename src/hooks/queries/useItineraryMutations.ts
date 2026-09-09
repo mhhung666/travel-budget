@@ -5,12 +5,13 @@ import { createItineraryDay, updateItineraryDay, deleteItineraryDay } from '@/ac
 import type { ActionResult } from '@/actions';
 import { tripKeys } from './keys';
 import type { ActivityType, ExpenseAttachment, Location } from '@/types';
+import { ActionQueryError, unwrapActionResult } from '@/lib/actionQuery';
+import { useTranslations } from 'next-intl';
+import { useToast } from '@/hooks/use-toast';
 
 /** Unwraps an ActionResult, throwing on failure so React Query's onError fires. */
 async function unwrap<T>(p: Promise<ActionResult<T>>): Promise<T> {
-  const result = await p;
-  if (!result.success) throw new Error(result.error);
-  return result.data;
+  return unwrapActionResult(await p);
 }
 
 /** 送往 createItineraryDay / updateItineraryDay 的單一活動 payload（snake_case，對應 activitySchema）。 */
@@ -34,8 +35,8 @@ interface DayInput {
   activities?: ActivityPayload[];
 }
 
-/** 更新時各欄位皆可省略（只送有改的；action 對 undefined 欄位不動），例如只追加一筆活動。 */
-type UpdateDayInput = Partial<DayInput>;
+/** 更新欄位可省略；必須攜帶開啟表單時的時間，不以最新快取替換舊草稿的 token。 */
+type UpdateDayInput = Partial<DayInput> & { expected_updated_at: string };
 
 /**
  * Itinerary create/update/delete mutations for a trip.
@@ -43,6 +44,8 @@ type UpdateDayInput = Partial<DayInput>;
  * background refetch (replacing the manual reload() call).
  */
 export function useItineraryMutations(tripId: string) {
+  const t = useTranslations('itinerary');
+  const { toast } = useToast();
   const queryClient = useQueryClient();
   const invalidateItinerary = () =>
     queryClient.invalidateQueries({ queryKey: tripKeys.itinerary(tripId) });
@@ -60,6 +63,16 @@ export function useItineraryMutations(tripId: string) {
   const update = useMutation({
     mutationFn: ({ dayId, data }: { dayId: string; data: UpdateDayInput }) =>
       unwrap(updateItineraryDay(tripId, dayId, data)),
+    onError: (error) => {
+      const conflict = error instanceof ActionQueryError && error.code === 'CONFLICT';
+      if (conflict || (error instanceof ActionQueryError && error.code === 'NOT_FOUND')) {
+        void invalidateItinerary();
+      }
+      toast({
+        description: t(conflict ? 'updateConflict' : 'updateFailed'),
+        variant: 'destructive',
+      });
+    },
     onSuccess: (_day, { data }) => {
       invalidateItinerary();
       // 行程日地點變動會同步借用此地點的相片座標。

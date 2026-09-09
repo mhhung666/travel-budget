@@ -305,6 +305,7 @@ export const createItineraryDaySchema = z.object({
 });
 
 export const updateItineraryDaySchema = z.object({
+  expected_updated_at: z.string().datetime(),
   title: z.string().min(1, '標題不能為空').trim().optional(),
   content: z.string().optional(),
   day_number: z.number().int().positive().optional(),

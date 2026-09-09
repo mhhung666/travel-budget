@@ -212,6 +212,7 @@ export const updateItineraryDay = withAuth(
     tripIdOrCode: string,
     dayId: string,
     input: {
+      expected_updated_at: string;
       title?: string;
       content?: string;
       day_number?: number;
@@ -228,9 +229,27 @@ export const updateItineraryDay = withAuth(
         return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
       }
 
-      const validated = updateItineraryDaySchema.parse(input);
+      const parsed = updateItineraryDaySchema.safeParse(input);
+      if (!parsed.success) {
+        return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
+      }
+      const validated = parsed.data;
+      const expectedUpdatedAt = new Date(validated.expected_updated_at);
+      const currentDay = await ItineraryDay.findOne({ _id: dayId, trip: membership.tripId })
+        .select('activities.attachments updatedAt')
+        .lean<{ activities?: LeanActivity[]; updatedAt: Date } | null>();
+      if (!currentDay) {
+        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+      }
+      if (currentDay.updatedAt.getTime() !== expectedUpdatedAt.getTime()) {
+        return { success: false, error: 'CONFLICT', code: 'CONFLICT' };
+      }
 
-      const set: Record<string, unknown> = {};
+      // Advance even when two saves occur in the same millisecond. Disable Mongoose's
+      // timestamp rewrite below so the compare-and-set token cannot be reused.
+      const set: Record<string, unknown> = {
+        updatedAt: new Date(Math.max(Date.now(), expectedUpdatedAt.getTime() + 1)),
+      };
       if (validated.title !== undefined) set.title = validated.title;
       if (validated.content !== undefined) set.content = validated.content;
       if (validated.day_number !== undefined) set.dayNumber = validated.day_number;
@@ -242,12 +261,6 @@ export const updateItineraryDay = withAuth(
       // 被移除的 key 在更新成功後 best-effort 刪 R2（同 updateExpense 的收據清理）。
       let removedKeys: string[] = [];
       if (validated.activities !== undefined) {
-        const currentDay = await ItineraryDay.findOne({ _id: dayId, trip: membership.tripId })
-          .select('activities.attachments')
-          .lean<{ activities?: LeanActivity[] } | null>();
-        if (!currentDay) {
-          return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
-        }
         const existingByKey = attachmentsByKey(currentDay.activities);
         const built = await buildActivitiesStorage(
           membership.tripId,
@@ -263,13 +276,15 @@ export const updateItineraryDay = withAuth(
       }
 
       const updated = await ItineraryDay.findOneAndUpdate(
-        { _id: dayId, trip: membership.tripId },
+        { _id: dayId, trip: membership.tripId, updatedAt: expectedUpdatedAt },
         { $set: set },
-        { new: true }
+        { new: true, timestamps: false }
       ).lean<LeanDay | null>();
 
       if (!updated) {
-        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+        // The day changed or disappeared after the snapshot read. In particular,
+        // do not delete ticket blobs or propagate locations for a rejected write.
+        return { success: false, error: 'CONFLICT', code: 'CONFLICT' };
       }
 
       if (removedKeys.length > 0) {

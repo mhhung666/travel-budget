@@ -7,6 +7,7 @@
 
 | 日期 | 里程碑 |
 | --- | --- |
+| 09-09 | R1：行程編輯攜帶開啟時的更新時間，伺服器以條件寫入拒絕舊草稿覆蓋；衝突不清票券或同步相片，保留表單草稿並提供四語提示。單筆原子更新與跨 collection 一致性仍待處理，見 [R 進度](./ITINERARY_CONSISTENCY_PROGRESS.md) |
 | 09-09 | Q1～Q3 工程結案，使用者回報已 push；自待實作清單移除，正式部署確認與實機／線上效能驗收移交 M，尚未宣稱通過。無新增 migration 或環境參數，見 [結案狀態與後續清單](./QUERY_UX_PROGRESS.md) |
 | 09-09 | Q3 完成：支出搜尋與列表 deferred rendering、首頁／支出預載決策、client query 與 Trip Shell hydration 邊界；36 次隔離 production-build 瀏覽器載入通過。保留冷／熱、手機／worker 量測與限制，不宣稱正式站 CWV 改善，見 [效能報告](./QUERY_UX_PERFORMANCE.md) |
 | 09-08 | Q2 完成：全域快速記帳、大型表單、AI 輸入與共用 lightbox 按需載入；chunk 等待／失敗可關閉與重試，保留既有草稿重設及 metadata gating。AppShell entry gzip 較基準減少約 35.5%；全套 1,370 測試通過，瀏覽器效能驗收仍在 Q3，見 [Q 進度與 bundle 比較](./QUERY_UX_PROGRESS.md) |

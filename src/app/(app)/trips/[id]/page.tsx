@@ -292,7 +292,10 @@ function ItineraryPageContent() {
     const activities = activity
       ? drafts.flatMap((d) => (d.key === activity.id ? [payload] : draftsToPayload([d])))
       : [...draftsToPayload(drafts), payload];
-    await update.mutateAsync({ dayId: day.id, data: { activities } });
+    await update.mutateAsync({
+      dayId: day.id,
+      data: { activities, expected_updated_at: day.updated_at },
+    });
     toast({
       title: activity
         ? tAct('updatedInDay', { dayNumber: day.day_number })
@@ -312,15 +315,14 @@ function ItineraryPageContent() {
       dayActivitiesToDrafts(day.activities.filter((a) => a.id !== activity.id))
     );
     try {
-      await update.mutateAsync({ dayId: day.id, data: { activities: remaining } });
+      await update.mutateAsync({
+        dayId: day.id,
+        data: { activities: remaining, expected_updated_at: day.updated_at },
+      });
       toast({ title: tAct('removedFromDay', { dayNumber: day.day_number }) });
       setDeletingActivity(null);
-    } catch (err: unknown) {
-      toast({
-        title: tCommon('errorTitle'),
-        description: err instanceof Error ? err.message : String(err),
-        variant: 'destructive',
-      });
+    } catch {
+      // The mutation reports the translated error; keep the original snapshot.
     }
   };
 
@@ -359,7 +361,10 @@ function ItineraryPageContent() {
         title: tItinerary('success.created', { dayNumber: newDayNumber }),
       });
     } else if (editingDay) {
-      await update.mutateAsync({ dayId: editingDay.id, data });
+      await update.mutateAsync({
+        dayId: editingDay.id,
+        data: { ...data, expected_updated_at: editingDay.updated_at },
+      });
       toast({
         title: tItinerary('success.updated', { dayNumber: editingDay.day_number }),
       });
@@ -566,7 +571,11 @@ function ItineraryPageContent() {
           <AlertDialogFooter>
             <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
             <AlertDialogAction
-              onClick={confirmDeleteActivity}
+              onClick={(event) => {
+                event.preventDefault();
+                void confirmDeleteActivity();
+              }}
+              disabled={update.isPending}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {tCommon('confirm')}
