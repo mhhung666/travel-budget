@@ -270,7 +270,7 @@ const timeOfDaySchema = z
   .optional()
   .transform((v) => v || null);
 
-// 單一活動。不含 id：整個 activities 陣列由 updateItineraryDay 覆寫，子文件 _id 由 Mongoose 重新產生。
+// 新活動內容；既有活動的身分另外由更新 schema 驗證。
 export const activitySchema = z.object({
   time: timeOfDaySchema,
   end_time: timeOfDaySchema,
@@ -304,13 +304,21 @@ export const createItineraryDaySchema = z.object({
   activities: z.array(activitySchema).optional(),
 });
 
+// 更新必須明確區分既有活動與新增列，避免舊客戶端省略 ID 後重建整天身分。
+export const updateActivitySchema = activitySchema.extend({
+  id: z
+    .string()
+    .regex(/^[a-f0-9]{24}$/)
+    .nullable(),
+});
+
 export const updateItineraryDaySchema = z.object({
   expected_updated_at: z.string().datetime(),
   title: z.string().min(1, '標題不能為空').trim().optional(),
   content: z.string().optional(),
   day_number: z.number().int().positive().optional(),
   location: locationSchema.nullable().optional(),
-  activities: z.array(activitySchema).optional(),
+  activities: z.array(updateActivitySchema).optional(),
 });
 
 // Checklist schemas（打包清單 / 待辦；任何成員皆可編輯）
@@ -632,6 +640,7 @@ export type CreateChecklistWithItemsInput = z.infer<typeof createChecklistWithIt
 export type UpdateChecklistInput = z.infer<typeof updateChecklistSchema>;
 export type AddChecklistItemInput = z.infer<typeof addChecklistItemSchema>;
 export type UpdateChecklistItemInput = z.infer<typeof updateChecklistItemSchema>;
+export type UpdateActivityInput = z.infer<typeof updateActivitySchema>;
 export type ActivityInput = z.infer<typeof activitySchema>;
 export type CreateItineraryDayInput = z.infer<typeof createItineraryDaySchema>;
 export type UpdateItineraryDayInput = z.infer<typeof updateItineraryDaySchema>;

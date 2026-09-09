@@ -8,6 +8,7 @@ import {
   createItineraryDaySchema,
   updateItineraryDaySchema,
   type ActivityInput,
+  type UpdateActivityInput,
 } from '@/lib/validation';
 import type { ActionResult } from './types';
 import type { ItineraryDay as ItineraryDayDto, Location } from '@/types';
@@ -69,7 +70,7 @@ async function resolveActivityAttachments(
 async function buildActivitiesStorage(
   tripId: string,
   uploaderId: string,
-  activities: ActivityInput[],
+  activities: (ActivityInput & { id?: string | null })[],
   existingByKey: Map<string, AttachmentDoc>
 ): Promise<{ storage: Record<string, unknown>[]; keptKeys: Set<string> } | null> {
   const storage: Record<string, unknown>[] = [];
@@ -84,6 +85,7 @@ async function buildActivitiesStorage(
     if (!resolved) return null;
     for (const at of resolved) keptKeys.add(at.key);
     storage.push({
+      ...(a.id ? { _id: a.id } : {}),
       time: a.time ?? null,
       endTime: a.end_time ?? null,
       title: a.title,
@@ -217,7 +219,7 @@ export const updateItineraryDay = withAuth(
       content?: string;
       day_number?: number;
       location?: Location | null;
-      activities?: ActivityInput[];
+      activities?: UpdateActivityInput[];
     }
   ): Promise<ActionResult<ItineraryDayDto>> => {
     try {
@@ -236,7 +238,7 @@ export const updateItineraryDay = withAuth(
       const validated = parsed.data;
       const expectedUpdatedAt = new Date(validated.expected_updated_at);
       const currentDay = await ItineraryDay.findOne({ _id: dayId, trip: membership.tripId })
-        .select('activities.attachments updatedAt')
+        .select('activities._id activities.attachments updatedAt')
         .lean<{ activities?: LeanActivity[]; updatedAt: Date } | null>();
       if (!currentDay) {
         return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
@@ -256,11 +258,19 @@ export const updateItineraryDay = withAuth(
       // location 可被設為 null 以清除；故只要欄位有出現（!== undefined）就寫入。
       if (validated.location !== undefined) set.location = validated.location;
 
-      // activities 整陣列覆寫（同 splits 的取捨）；子文件 _id 由 Mongoose 重新產生。
+      // activities 暫時仍整陣列覆寫；保留已驗證的既有 ID，只有 id: null 的新列產生 ID。
       // 票券附件以 key 為穩定身分跨整天 diff：新 key 走 headObject 驗證、舊 key 沿用、
       // 被移除的 key 在更新成功後 best-effort 刪 R2（同 updateExpense 的收據清理）。
       let removedKeys: string[] = [];
       if (validated.activities !== undefined) {
+        const existingIds = new Set((currentDay.activities ?? []).map((a) => a._id.toString()));
+        const suppliedIds = validated.activities.flatMap((a) => (a.id === null ? [] : [a.id]));
+        if (
+          new Set(suppliedIds).size !== suppliedIds.length ||
+          suppliedIds.some((id) => !existingIds.has(id))
+        ) {
+          return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
+        }
         const existingByKey = attachmentsByKey(currentDay.activities);
         const built = await buildActivitiesStorage(
           membership.tripId,

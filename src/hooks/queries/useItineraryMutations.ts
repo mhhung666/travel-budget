@@ -16,6 +16,8 @@ async function unwrap<T>(p: Promise<ActionResult<T>>): Promise<T> {
 
 /** 送往 createItineraryDay / updateItineraryDay 的單一活動 payload（snake_case，對應 activitySchema）。 */
 export interface ActivityPayload {
+  /** 既有子文件 ID；新增活動明確傳 null。 */
+  id: string | null;
   time: string | null;
   end_time: string | null;
   title: string;

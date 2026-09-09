@@ -279,7 +279,12 @@ describe('updateItineraryDay → stale draft protection', () => {
     dayFindOne.mockReturnValue(
       chainSelectLean(
         leanDay({
-          activities: [{ attachments: [{ key: 'kept-by-winner', uploadedBy: ADMIN }] }],
+          activities: [
+            {
+              _id: '507f1f77bcf86cd799439015',
+              attachments: [{ key: 'kept-by-winner', uploadedBy: ADMIN }],
+            },
+          ],
         })
       )
     );
@@ -335,7 +340,14 @@ describe('updateItineraryDay → stale draft protection', () => {
     const { deleteObjects } = await import('@/lib/storage');
     dayFindOne.mockReturnValue(
       chainSelectLean(
-        leanDay({ activities: [{ attachments: [{ key: 'removed', uploadedBy: ADMIN }] }] })
+        leanDay({
+          activities: [
+            {
+              _id: '507f1f77bcf86cd799439015',
+              attachments: [{ key: 'removed', uploadedBy: ADMIN }],
+            },
+          ],
+        })
       )
     );
     dayFindOneAndUpdate.mockReturnValue(chainLean(leanDay()));
@@ -346,5 +358,74 @@ describe('updateItineraryDay → stale draft protection', () => {
       })
     ).toMatchObject({ success: true });
     expect(deleteObjects).toHaveBeenCalledWith('receipts', ['removed']);
+  });
+});
+
+describe('updateItineraryDay activity identity', () => {
+  const firstId = '507f1f77bcf86cd799439015';
+  const secondId = '507f1f77bcf86cd799439016';
+  const payload = (id: string | null, title = 'Activity') => ({
+    id,
+    title,
+    type: 'other' as const,
+    time: null,
+    end_time: null,
+    location_name: '',
+    note: '',
+    confirmation_code: '',
+  });
+
+  it('preserves reordered/edited IDs and leaves new IDs to Mongoose', async () => {
+    dayFindOne.mockReturnValue(
+      chainSelectLean(
+        leanDay({
+          activities: [{ _id: firstId }, { _id: secondId }],
+        })
+      )
+    );
+    dayFindOneAndUpdate.mockReturnValue(chainLean(leanDay()));
+    const result = await updateItineraryDay(TRIP_ID, DAY_ID, {
+      expected_updated_at: EXPECTED_UPDATED_AT,
+      activities: [payload(secondId, 'Edited'), payload(firstId), payload(null, 'New')],
+    });
+    expect(result.success).toBe(true);
+    const stored = dayFindOneAndUpdate.mock.calls[0][1].$set.activities;
+    expect(stored[0]).toMatchObject({ _id: secondId, title: 'Edited' });
+    expect(stored[1]).toMatchObject({ _id: firstId });
+    expect(stored[2]).not.toHaveProperty('_id');
+  });
+
+  it.each([
+    ['duplicate', [payload(firstId), payload(firstId)]],
+    ['foreign day', [payload(secondId)]],
+    ['malformed', [payload('bad-id')]],
+    ['omitted (old client)', [{ ...payload(null), id: undefined }]],
+  ])('rejects %s IDs before attachment validation or writes', async (_label, activities) => {
+    const { headObject, deleteObjects } = await import('@/lib/storage');
+    dayFindOne.mockReturnValue(chainSelectLean(leanDay({ activities: [{ _id: firstId }] })));
+    const result = await updateItineraryDay(TRIP_ID, DAY_ID, {
+      expected_updated_at: EXPECTED_UPDATED_AT,
+      activities: activities as Parameters<typeof updateItineraryDay>[2]['activities'],
+    });
+    expect(result).toEqual({ success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' });
+    expect(headObject).not.toHaveBeenCalled();
+    expect(dayFindOneAndUpdate).not.toHaveBeenCalled();
+    expect(deleteObjects).not.toHaveBeenCalled();
+    expect(photoUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it('removes one activity without changing the survivor identity', async () => {
+    dayFindOne.mockReturnValue(
+      chainSelectLean(leanDay({ activities: [{ _id: firstId }, { _id: secondId }] }))
+    );
+    dayFindOneAndUpdate.mockReturnValue(chainLean(leanDay()));
+    const result = await updateItineraryDay(TRIP_ID, DAY_ID, {
+      expected_updated_at: EXPECTED_UPDATED_AT,
+      activities: [payload(secondId)],
+    });
+    expect(result.success).toBe(true);
+    expect(dayFindOneAndUpdate.mock.calls[0][1].$set.activities).toEqual([
+      expect.objectContaining({ _id: secondId }),
+    ]);
   });
 });

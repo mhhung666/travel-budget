@@ -5,6 +5,8 @@ import type { LocationOption } from '@/components/location/LocationAutocomplete'
 /** 編輯器內的活動草稿。time/endTime 以空字串表示未指定（submit 時轉成 null）；key 為前端 render key。 */
 export interface ActivityDraft {
   key: string;
+  /** 儲存身分獨立於 render key；新草稿沒有 MongoDB ID。 */
+  id: string | null;
   time: string;
   endTime: string;
   title: string;
@@ -26,6 +28,7 @@ function uid(): string {
 export function makeEmptyActivity(): ActivityDraft {
   return {
     key: uid(),
+    id: null,
     time: '',
     endTime: '',
     title: '',
@@ -42,6 +45,7 @@ export function makeEmptyActivity(): ActivityDraft {
 export function dayActivitiesToDrafts(activities: Activity[]): ActivityDraft[] {
   return activities.map((a) => ({
     key: a.id || uid(),
+    id: a.id,
     time: a.time ?? '',
     endTime: a.end_time ?? '',
     title: a.title,
@@ -69,6 +73,7 @@ export function draftsToPayload(drafts: ActivityDraft[]): ActivityPayload[] {
   return drafts
     .filter((d) => d.title.trim())
     .map((d) => ({
+      id: d.id,
       time: d.time || null,
       end_time: d.endTime || null,
       title: d.title.trim(),
