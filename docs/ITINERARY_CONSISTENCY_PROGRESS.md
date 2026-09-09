@@ -7,7 +7,7 @@
 | 階段 | 範圍 | 狀態 |
 | --- | --- | --- |
 | R1 | 舊草稿覆蓋保護與衝突提示 | 已完成工程驗證 |
-| R2 | 穩定活動 ID、單筆新增／編輯／刪除原子更新，批次上限與衝突策略 | R2a～R2e 已完成；R2f 進行資料庫併發驗收與收尾 |
+| R2 | 穩定活動 ID、單筆新增／編輯／刪除原子更新，批次上限與衝突策略 | R2a～R2f 已完成工程與本機 MongoDB 併發驗證 |
 | R3 | 虛擬成員轉換／會員移除／旅程刪除的一致性、外部清理重試 | 待處理 |
 | R4 | 票券附件驗證的有界平行查詢 | 待處理 |
 
@@ -107,6 +107,30 @@ diff whitespace 檢查通過。Build 覆寫 dummy MongoDB URI 與 JWT secret，�
 - 本段以 model mock 驗證同活動競爭、不同活動並行、容量最後一位、整批版本遞增及表單保留；
   migration 用記憶體 fake 驗證冪等與回退。完整 1,436 項測試通過、37 項 opt-in 跳過；
   lint、格式、TypeScript 與 dummy 環境 production build 通過。真實 MongoDB 驗收留給 R2f。
+
+## R2f 驗收與結案
+
+- 新增 [itineraryConcurrency.integration.test.ts](../src/__tests__/itineraryConcurrency.integration.test.ts)，
+  使用真實 Server Actions、membership、Mongoose model 與 MongoDB 寫入；只替換 session、外部儲存／
+  相片重綁／動態紀錄及 Next cache。附件 HEAD barrier 固定讀寫間交錯，不靠機率撞出競爭。
+- 本機 MongoDB 8.0.13 的獨立隨機測試庫通過 16 項測試：兩位 admin 編輯相同／不同活動、
+  並行追加與最後一個名額、ID + revision 同元素匹配、刪除不復活、整批與單筆互斥、
+  慢請求時間不倒退、手動／筆記／AI 的版本預設與容量、AI 冪等、權限／trip scope、
+  相同日的附件共用／公開讀取隱私、重新編號，以及兩支 migration 的冪等和回退。
+- 測試只接受專用 URI + write opt-in，強制建立隨機空 DB；結束時只刪自己的測試庫。
+  不載入 `.env`，不回退使用 app URI。重跑方式（URI 指向測試 MongoDB）：
+
+  ```bash
+  MONGODB_ITINERARY_TEST_URI='mongodb://127.0.0.1:27029' \
+    MONGODB_ITINERARY_TEST_ALLOW_WRITES=1 \
+    pnpm vitest run src/__tests__/itineraryConcurrency.integration.test.ts
+  ```
+
+- 含 MongoDB 整合測試的完整 suite 共 1,452 項通過、37 項 opt-in 跳過；TypeScript、lint、格式通過。
+  Production build 沿用 R2e 的成功結果，本段未修改產品程式。
+- R2 的穩定 ID、單筆原子更新、批次上限與活動衝突策略已完成；本段僅測試與文件，不重複 bump 版本。
+  驗收為本機 standalone MongoDB，不代表正式拓撲、跨 collection transaction 或真人瀏覽器驗收。
+- R3、R4 維持未完成；部署仍須遵守 R2d／R2e 的停寫、遷移、新 writer 上線順序。
 
 ## 後續界線
 

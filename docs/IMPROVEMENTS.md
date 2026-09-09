@@ -71,8 +71,9 @@ HTTP 已接受但 checkpoint 尚未保存仍可能重送；不承諾推播永久
 
 ### R. ⚠️ 原子更新與跨 collection 一致性（P2）
 
-**進度（2026-09-09）**：R1 已加入整天更新的 `updated_at` 條件寫入，覆蓋活動新增／編輯／刪除
-及整天欄位編輯；衝突保留草稿、更新查詢並提供四語提示。R2a 已保留既有活動 ID 並驗證身分，R2b 已將行程頁接上單筆原子寫入，R2c 已統一各入口的每日活動上限，R2d 已統一 revision，R2e 已細化活動衝突；MongoDB 併發驗收與跨 collection transaction 仍待處理，見 [R 分階段進度](./ITINERARY_CONSISTENCY_PROGRESS.md)。
+**進度（2026-09-09）**：R1～R2 已完成。活動穩定 ID、單筆原子更新、每日上限與活動 revision
+均已完成實作，通過本機 MongoDB 併發驗收；衝突保留草稿並提供四語提示。
+R3 的跨 collection／外部清理一致性與 R4 的附件平行驗證待處理，見 [R 分階段進度](./ITINERARY_CONSISTENCY_PROGRESS.md)。
 
 **問題**：行程頁已改單筆活動寫入與目標 revision 保護；所有寫入入口已統一整天 revision，
 整陣列更新契約仍保留，但也必須帶 revision。虛擬成員轉換、移除會員與刪除旅程會依序修改多個 collection，中途失敗可能留下
@@ -80,8 +81,6 @@ HTTP 已接受但 checkpoint 尚未保存仍可能重送；不承諾推播永久
 
 **處理方向**：
 
-- 行程活動提供穩定 subdocument ID，以 `$push`、`arrayFilters`、`$pull` 分別新增、更新與刪除。
-- 以 version 或 `updatedAt` 做衝突檢查；整陣列寫回只保留給排序／批次編輯，並加入項目數量上限。
 - 身分轉換與會員移除使用 MongoDB transaction；R2 等外部刪除留在 transaction 外，以冪等工作重試。
 - 同時整理同步等待的 attachment `headObject`，在驗證 key 後採有上限的平行查詢。
 

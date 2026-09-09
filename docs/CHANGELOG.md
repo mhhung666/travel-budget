@@ -7,6 +7,7 @@
 
 | 日期 | 里程碑 |
 | --- | --- |
+| 09-09 | R2 完成工程驗收：真實 MongoDB 驗證活動並行、容量、批次衝突及 migrations；跨 collection 與 blob 清理仍屬 R3，見 [R 進度](./ITINERARY_CONSISTENCY_PROGRESS.md) |
 | 09-09 | R2e：單筆編輯／刪除改用活動 revision，不同活動可並行；整批更新同步使活動快照失效，附 migration 與 cache buster，見 [R 進度](./ITINERARY_CONSISTENCY_PROGRESS.md) |
 | 09-09 | R2d：行程衝突 token 改用明確 revision，手動、AI、筆記與重新編號統一原子遞增；附可逆 migration 與 cache buster，見 [R 進度](./ITINERARY_CONSISTENCY_PROGRESS.md) |
 | 09-09 | R2c：手動、筆記轉活動與 AI 匯入統一每日活動上限，追加時原子檢查容量，滿額提供四語提示，見 [R 進度](./ITINERARY_CONSISTENCY_PROGRESS.md) |
