@@ -2,13 +2,34 @@
 
 更新日期：2026-09-09
 
+## 結案狀態
+
+**Q1～Q3 工程交付已完成並結案；使用者於 2026-09-09 回報已 push。**
+Push 不等於 Vercel production 部署成功或正式站驗收通過；這兩項本次未核對。
+
+- 最終程式交付：`ac54811`；Q3 前兩階段：`89e8ba0`、`be76f1a`。
+- 最終工程驗證：lint、Prettier、TypeScript、production build 通過；1,375 項測試通過、37 項 opt-in 跳過；36 次隔離本機瀏覽器載入無錯誤。
+- 不需要 migration 或新增 `.env` 參數；本次收尾僅更新文件，未重跑上述程式驗證或操作正式資料。
+- Server prefetch 已評估並決定維持現有 landing／IndexedDB 流程，不是漏做；cursor pagination 依資料量另案評估，由改善建議 G 追蹤。
+- 正式環境觀測移交 [改善建議 M](./IMPROVEMENTS.md)，不再把 Q 列為待實作；AI 真實品質驗收仍依使用者要求暫緩。
+
+### 部署後驗收移交 M（尚未執行）
+
+- [ ] 確認 `budget.mhhung.com` 的 Vercel production deployment 包含 `ac54811`，記錄部署 commit 與驗收日期。
+- [ ] 指定測試帳號檢查首頁／支出頁冷載入及快取重載，確認無 hydration error、內容與會員導覽正確。
+- [ ] 在安全測試條件下檢查查詢失敗／離線／重試，已有內容不被整頁 loading 遮蔽。
+- [ ] 檢查快速記帳、表單與 lightbox 的開關／重開／載入失敗重試，以及支出搜尋、清除與更多列表；不送出業務寫入或呼叫真實 AI provider。
+- [ ] 依 [量測規範](./QUERY_UX_PERFORMANCE.md) 留存冷／熱、桌面／手機、實機安裝 PWA 的 Network／Performance 證據；不把本機 bundle 或 rAF 數據當成正式 CWV。
+
+以下為各階段當時的歷史紀錄；「未 push」「仍待 Q2／Q3」等敘述不代表目前狀態。
+
 ## 分階段交付
 
-每個可獨立交付階段驗證後 commit；行為變更依 AGENTS.md 更新版本。不 push 或操作正式資料。
+各階段已驗證後 commit；行為變更依 AGENTS.md 更新版本。開發期間由代理不 push、不操作正式資料；後續由使用者 push。
 
 | 階段 | 範圍 | 狀態 |
 | --- | --- | --- |
-| Q1a | 旅程列表 query 錯誤、重試、背景更新提示及快速記帳的列表錯誤 | 已實作 |
+| Q1a | 旅程列表 query 錯誤、重試、背景更新提示及快速記帳的列表錯誤 | 已完成 |
 | Q1b | 其他 queries 與消費頁逐一配對，補錯誤 UI、auth-null 邊界及 stale data 顯示 | 已完成 |
 | Q2 | 全域快速記帳與大型 dialogs／AI／lightbox 的 mount 與動態載入 | 已完成 |
 | Q3 | 支出搜尋 deferred rendering、常用頁 prefetch 評估與 production build／瀏覽器量測 | 已完成（本機工程驗收） |

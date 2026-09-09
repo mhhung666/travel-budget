@@ -1,6 +1,6 @@
 # 改善建議（Improvements）
 
-> 更新日期：2026-09-08
+> 更新日期：2026-09-09
 > 本文件只列**尚未處理**的程式碼 / 基礎設施層級改善。已完成里程碑見 [CHANGELOG.md](./CHANGELOG.md)，架構說明見 [ARCHITECTURE.md](./ARCHITECTURE.md)。
 > 慣例：處理完一項 → 移到 [CHANGELOG.md](./CHANGELOG.md)、從本檔刪除。
 
@@ -15,9 +15,11 @@
 | ---: | --- | --- | --- |
 | 1 | O. MongoDB 正式效能驗收 | 確認實際負載下的讀寫成本 | 🟡 migration 與工程驗收完成 |
 | 2 | P. 支出背景處理部署驗收 | 確認正式環境回應延遲與補送恢復 | 🟡 程式與 migration 已完成 |
-| 3 | Q. 查詢錯誤狀態與前端延遲載入 | 避免把錯誤顯示成空資料，改善互動流暢度 | P1/P2，逐頁落地 |
-| 4 | R. 原子更新與跨 collection 一致性 | 降低多人編輯覆蓋及部分寫入 | P2，依使用頻率安排 |
-| 5 | M. production-like 效能追蹤 | 補齊實際 bytes、MongoDB profiler 與 TTI 數據 | 🟡 需測試環境與帳號 |
+| 3 | R. 原子更新與跨 collection 一致性 | 降低多人編輯覆蓋及部分寫入 | P2，依使用頻率安排 |
+| 4 | M. production-like 效能追蹤（含 Q 部署後觀測） | 補齊實際 bytes、MongoDB profiler 與 TTI 數據 | 🟡 需測試環境與帳號 |
+
+Q1～Q3 已於 2026-09-09 工程結案，使用者回報已 push；不再列為待實作項目。
+交付與驗證見 [Q 結案紀錄](./QUERY_UX_PROGRESS.md)，正式環境觀測統一由 M 追蹤，尚未宣稱通過。
 
 ### M. 🟡 輕量 Trip Shell 的 production-like 效能追蹤
 
@@ -26,6 +28,12 @@ members／itinerary／tags，首頁摘要也改用 aggregate 欄位。靜態基�
 [TRIP_SHELL_PERFORMANCE.md](./TRIP_SHELL_PERFORMANCE.md)。目前已可連線 DB，並完成指定正式站帳號的登入與唯讀抽查；仍需在
 production-like 資料量下補 Network bytes、MongoDB profiler/explain 與瀏覽器 TTI，確認實際收益及是否要調整
 aggregate／索引；完成後即可從本檔移除。
+
+Q 部署後觀測也歸入本項：確認 Vercel production 對應 Q 最終交付 `ac54811` 或包含它的後續 commit，
+再以正式帳號驗證冷／熱載入、查詢錯誤重試、按需載入與搜尋，以及實機／安裝 PWA 的表現。
+使用者已回報 push，但本次未核對部署結果或執行線上驗收。
+具體待辦見 [Q 部署後驗收清單](./QUERY_UX_PROGRESS.md#部署後驗收移交-m尚未執行)，
+量測條件與隱私限制見 [效能報告](./QUERY_UX_PERFORMANCE.md)。
 
 ### O. 🟡 MongoDB 索引正式推廣驗收（P1）
 
@@ -60,26 +68,6 @@ HTTP＋郵件流程；不向共用 DB 壓測或任意修改現有帳號，本項
 唯一驗收清單與可靠性限制見 [EXPENSE_DELIVERY_ACCEPTANCE.md](./EXPENSE_DELIVERY_ACCEPTANCE.md)；
 歷次模組開發紀錄見 [EXPENSE_BACKGROUND_DELIVERY.md](./EXPENSE_BACKGROUND_DELIVERY.md) 與 Git 歷史。
 HTTP 已接受但 checkpoint 尚未保存仍可能重送；不承諾推播永久 exactly-once。
-
-### Q. 🔴 查詢錯誤狀態與前端延遲載入（P1/P2）
-
-**進度（2026-09-08）**：Q1a／Q1b 程式交付完成：查詢失敗與 auth-null 分離、消費頁重試與 stale data 提示、
-記帳 metadata 失敗可關閉／重試。Q2 已完成全域入口／大型表單／AI／lightbox 按需載入、草稿及重試回歸；
-AppShell entry gzip 較基準減少約 35.5%。Q3 於 2026-09-09 完成搜尋 deferred rendering、預載評估、
-hydration 修復與 36 次本機 production-build 瀏覽器驗證；詳見 [效能報告](./QUERY_UX_PERFORMANCE.md)。
-分階段結果見 [QUERY_UX_PROGRESS.md](./QUERY_UX_PROGRESS.md)。
-
-**剩餘問題**：多個 client page 要等 hydration 後才開始取資料，正式站長尾仍需瀏覽器量測定位；
-Q2 的 build bundle 減量不等於 LCP／INP 已改善。
-
-**處理方向**：
-
-- 已完成 Q2：Global Quick Add、大型 dialogs、AI 輸入及共用 lightbox 按需載入；不全量 idle 預載。
-- 已完成 Q3：支出搜尋使用 `useDeferredValue` 與 memo 列表邊界；cursor pagination 依正式資料量門檻另案評估。
-- 已完成首頁／支出頁 server prefetch 評估：保留合併 landing／IndexedDB 快取；暫不增加 server hydration 或全量支出預讀。
-
-**完成條件**：後端失敗有可重試錯誤狀態；關閉的全域表單不觸發 trips／表單 metadata 查詢；前後台已有
-資料時背景更新不遮蔽整頁。以 production build bundle 與瀏覽器 Network／Performance trace 驗證。
 
 ### R. ⚠️ 原子更新與跨 collection 一致性（P2）
 
