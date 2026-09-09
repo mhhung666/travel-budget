@@ -282,7 +282,7 @@ function ItineraryPageContent() {
     setActivityDialog({ day, activity });
   };
 
-  // 單筆活動寫入；保留開啟表單時的整天 snapshot，避免舊草稿覆蓋。
+  // 單筆活動寫入；保留開啟表單時的活動 snapshot，避免舊草稿覆蓋。
   const handleActivitySubmit = async (payload: ActivityPayload) => {
     if (!activityDialog) return;
     const { day, activity } = activityDialog;
@@ -293,9 +293,9 @@ function ItineraryPageContent() {
             operation: 'update',
             activity_id: activity.id,
             activity: payload,
-            expected_revision: day.revision,
+            expected_activity_revision: activity.revision,
           }
-        : { operation: 'add', activity: payload, expected_revision: day.revision },
+        : { operation: 'add', activity: payload },
     });
     toast({
       title: activity
@@ -318,7 +318,7 @@ function ItineraryPageContent() {
         data: {
           operation: 'delete',
           activity_id: activity.id,
-          expected_revision: day.revision,
+          expected_activity_revision: activity.revision,
         },
       });
       toast({ title: tAct('removedFromDay', { dayNumber: day.day_number }) });

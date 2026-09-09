@@ -214,19 +214,21 @@ src/
 - 每日活動容量由 [itineraryLimits.ts](../src/lib/itineraryLimits.ts) 統一定義：手動建立／整陣列提交在
   validation 檢查上限；手動追加、筆記轉活動及 AI 追加以共用 MongoDB 容量條件原子判斷。
   歷史超量資料仍可單筆編輯／刪除，不允許繼續追加。滿額不標記筆記已規劃。
-- `updateItineraryDay` 與 `mutateItineraryActivity` 必須收到表單開啟時 DTO 的 `revision`，以 `expected_revision` 傳入；
-  不可在送出時改拿最新快取的 token 配上舊草稿。缺漏或無效 token 回 `VALIDATION_ERROR`。
-- 讀取當日後先核對 revision，寫入仍以 `_id`、`trip`、`revision` 作為條件；未匹配回 `CONFLICT`，
-  不執行票券清理或相片座標同步。每次成功更新原子遞增 revision；時間只供顯示，不作衝突 token。
-- 新行程日 revision 預設為 0；AI 追加、筆記轉活動與刪日後重新編號也在同一寫入遞增 revision。
-  既有資料先執行 revision migration，部署時停止舊版 writer，不能混用不會遞增版本的舊服務。
+- `updateItineraryDay` 收到表單開啟時整天 `expected_revision`，以 `_id`、`trip`、`revision` 條件寫入。
+  整陣列更新時，保留 ID 的每個活動 revision 遞增，新列從 0 開始。
+- `mutateItineraryActivity` 編輯／刪除攜帶目標活動的 `expected_activity_revision`，以 `$elemMatch`
+  同時匹配 ID 與 revision；不同活動可並行，同活動舊草稿拒絕。新增不需 token，原子檢查容量。
+  不可用最新快取 token 配舊草稿；編輯／刪除缺漏或無效 token 回 `VALIDATION_ERROR`。
+- 所有成功寫入仍原子遞增整天 revision，讓舊整批草稿失效；單筆編輯另更新目標活動 revision。
+  未匹配回 `CONFLICT`，不清票券或同步相片。時間只供顯示，單筆寫入以 `$max` 避免並行時間倒退。
+- 新行程日與活動 revision 預設為 0；AI 追加、筆記轉活動及刪日後編號遵守整天遞增契約。
+  既有資料先執行兩支 revision migration，部署時停止舊版 writer，不可混用舊服務。
 - 前端衝突後使行程查詢失效，但保留原表單快照與草稿；提示先複製內容、關閉再重開，不能自動重送覆蓋。
 - 更新活動陣列時每列必須帶 `id`：既有列沿用當天的 ID，新增列為 `null`；拒絕漏傳、重複、
   格式無效及外來 ID。草稿將儲存 ID 與 render key 分開，整批寫回也保留既有子文件身分。
 - 行程頁活動操作走 `mutateItineraryActivity`，新增 `$push`、編輯定位 `$set`、刪除 `$pull`；
   只驗證目標活動附件，成功後才清理當天已無引用的目標票券，不觸發相片座標同步。
-- 這是整天粒度的保護，不會合併不同活動的編輯；更細衝突判斷、其他寫入入口及跨 collection
-  副作用的一致性由 [R 後續階段](./ITINERARY_CONSISTENCY_PROGRESS.md) 追蹤。
+- 整天欄位／批次編輯仍採整天粒度；跨 collection 與附件重新引用的競爭由 [R 後續階段](./ITINERARY_CONSISTENCY_PROGRESS.md) 追蹤。
 
 ### 4.16 AI 行程匯入（受限試用）
 
@@ -287,7 +289,7 @@ AiImportUsage     ── AI 匯入 global/user/trip UTC 每日 request、token �
 | `Trip` | `hashCode`(uniq，分享用), `location`(Mixed), 日期, `legacyBudget`（舊版團體預算，只供過渡參考）, `currencySettings`（`{ defaultCurrency, currencies[{code,rate}] }`，null=未設）；**`members[]`**=`{ user(ref), role(admin/member), joinedAt, archivedAt?, budget? }`，其中 `budget={ total, categories[] }` 為本人私有預算，DTO 只輸出 viewer 自己的值，並對 `members.user` 建 index |
 | `Expense` | `trip`(ref,index), `payer`(ref), `createdBy`(ref，≠payer，供摘要排除自己), `itineraryDay`(ref,可 null), `amount`/`originalAmount`/`currency`/`exchangeRate`, `category`(enum), `date`；**`splits[]`**=`{ user(ref), shareAmount }`；**`attachments[]`**=`{ key, contentType, size, uploadedBy(ref), uploadedAt }`（R2 物件 key，不存 url） |
 | `Payment` | `trip`(ref,index), `from`(ref), `to`(ref), `amount`（基準幣 TWD）, `note`, `createdBy`(ref)；結算還款紀錄，`getSettlement` 以 `applyPayments` 淨額抵銷餘額 |
-| `ItineraryDay` | `revision`（所有 writer 原子遞增）, `trip`(ref), `(trip,dayNumber)` 複合唯一索引；**`activities[]`**=`{ time?, endTime?, title, type, location?, note?, confirmationCode?, attachments[] }`；刪除日程後以 ordered `bulkWrite` 重新編號 |
+| `ItineraryDay` | `revision`（所有 writer 原子遞增）, `trip`(ref), `(trip,dayNumber)` 複合唯一索引；**`activities[]`**=`{ revision, time?, endTime?, title, type, location?, note?, confirmationCode?, attachments[] }`；刪除日程後以 ordered `bulkWrite` 重新編號 |
 | `Checklist` | `trip`(ref,index), `title`, `createdBy`(ref)；**`items[]`**=`{ text, done, assignee(ref,可 null) }`（成員信任模型、可指派成員） |
 | `Notification` | `user`(收件者,ref,index), `trip`, `tripName`/`actorName`（去正規化快照）, `type`, `actor`, `meta`, `read`；per-user 收件匣 |
 | `ActivityLog` | `trip`(ref,index), `actor`, `actorName`（快照）, `type`, `meta`；per-trip 共享動態牆（只 createdAt） |

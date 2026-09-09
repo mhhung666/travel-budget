@@ -15,6 +15,8 @@ export type ActivityType =
 
 /** 行程當日的單一活動（前端 DTO）。 */
 export interface Activity {
+  /** Optimistic concurrency token for this activity. */
+  revision: number;
   /** 內嵌子文件 _id，作為前端 render key。 */
   id: string;
   /** "HH:mm" 24h 開始時間；null＝未指定。 */

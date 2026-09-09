@@ -35,6 +35,7 @@ vi.mock('@/components/trips/detail/itinerary/ActivityListEditor', async () => ({
 }));
 
 const activity: Activity = {
+  revision: 0,
   id: 'activity',
   title: 'Original',
   type: 'other',
@@ -73,7 +74,7 @@ function Editor({ mode }: { mode: 'activity' | 'day' }) {
             operation: 'update',
             activity_id: activity.id,
             activity: payload,
-            expected_revision: day.revision,
+            expected_activity_revision: activity.revision,
           },
         });
       }}
@@ -130,7 +131,13 @@ it.each(['activity', 'day'] as const)(
     expect(invalidate).toHaveBeenCalledWith({ queryKey: tripKeys.itinerary('trip') });
     await act(async () => {
       client.setQueryData(tripKeys.itinerary('trip'), [
-        { ...day, title: 'Other editor', revision: 1, updated_at: '2026-07-02T00:00:00.000Z' },
+        {
+          ...day,
+          title: 'Other editor',
+          revision: 1,
+          activities: [{ ...activity, revision: 1 }],
+          updated_at: '2026-07-02T00:00:00.000Z',
+        },
       ]);
     });
     expect(input).toHaveValue('My unsaved draft');
@@ -140,7 +147,11 @@ it.each(['activity', 'day'] as const)(
     fireEvent.click(screen.getByRole('button', { name: 'save' }));
     await waitFor(() => expect(mocks.update).toHaveBeenCalledTimes(2));
     for (const call of mocks.update.mock.calls) {
-      expect(call[2]).toMatchObject({ expected_revision: day.revision });
+      expect(call[2]).toMatchObject(
+        mode === 'activity'
+          ? { expected_activity_revision: activity.revision }
+          : { expected_revision: day.revision }
+      );
     }
     client.clear();
   }

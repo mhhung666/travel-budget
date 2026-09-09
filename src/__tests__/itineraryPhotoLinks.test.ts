@@ -418,7 +418,10 @@ describe('updateItineraryDay activity identity', () => {
     dayFindOne.mockReturnValue(
       chainSelectLean(
         leanDay({
-          activities: [{ _id: firstId }, { _id: secondId }],
+          activities: [
+            { _id: firstId, revision: 3 },
+            { _id: secondId, revision: 7 },
+          ],
         })
       )
     );
@@ -429,8 +432,8 @@ describe('updateItineraryDay activity identity', () => {
     });
     expect(result.success).toBe(true);
     const stored = dayFindOneAndUpdate.mock.calls[0][1].$set.activities;
-    expect(stored[0]).toMatchObject({ _id: secondId, title: 'Edited' });
-    expect(stored[1]).toMatchObject({ _id: firstId });
+    expect(stored[0]).toMatchObject({ _id: secondId, title: 'Edited', revision: 8 });
+    expect(stored[1]).toMatchObject({ _id: firstId, revision: 4 });
     expect(stored[2]).not.toHaveProperty('_id');
   });
 
@@ -441,7 +444,9 @@ describe('updateItineraryDay activity identity', () => {
     ['omitted (old client)', [{ ...payload(null), id: undefined }]],
   ])('rejects %s IDs before attachment validation or writes', async (_label, activities) => {
     const { headObject, deleteObjects } = await import('@/lib/storage');
-    dayFindOne.mockReturnValue(chainSelectLean(leanDay({ activities: [{ _id: firstId }] })));
+    dayFindOne.mockReturnValue(
+      chainSelectLean(leanDay({ activities: [{ _id: firstId, revision: 3 }] }))
+    );
     const result = await updateItineraryDay(TRIP_ID, DAY_ID, {
       expected_revision: 0,
       activities: activities as Parameters<typeof updateItineraryDay>[2]['activities'],
@@ -455,7 +460,14 @@ describe('updateItineraryDay activity identity', () => {
 
   it('removes one activity without changing the survivor identity', async () => {
     dayFindOne.mockReturnValue(
-      chainSelectLean(leanDay({ activities: [{ _id: firstId }, { _id: secondId }] }))
+      chainSelectLean(
+        leanDay({
+          activities: [
+            { _id: firstId, revision: 3 },
+            { _id: secondId, revision: 7 },
+          ],
+        })
+      )
     );
     dayFindOneAndUpdate.mockReturnValue(chainLean(leanDay()));
     const result = await updateItineraryDay(TRIP_ID, DAY_ID, {
@@ -464,7 +476,7 @@ describe('updateItineraryDay activity identity', () => {
     });
     expect(result.success).toBe(true);
     expect(dayFindOneAndUpdate.mock.calls[0][1].$set.activities).toEqual([
-      expect.objectContaining({ _id: secondId }),
+      expect.objectContaining({ _id: secondId, revision: 8 }),
     ]);
   });
 });
@@ -481,12 +493,14 @@ describe('mutateItineraryActivity', () => {
   });
   const target = {
     _id: activityId,
+    revision: 0,
     title: 'Original',
     type: 'other',
     attachments: [ticket('removed'), ticket('shared')],
   };
   const sibling = {
     _id: siblingId,
+    revision: 0,
     title: 'Sibling',
     type: 'other',
     attachments: [ticket('shared')],
@@ -504,7 +518,7 @@ describe('mutateItineraryActivity', () => {
     operation: 'update' as const,
     activity_id: activityId,
     activity,
-    expected_revision: 0,
+    expected_activity_revision: 0,
   };
 
   beforeEach(() => {
@@ -524,7 +538,6 @@ describe('mutateItineraryActivity', () => {
       const result = await mutateItineraryActivity(TRIP_ID, DAY_ID, {
         operation: 'add',
         activity,
-        expected_revision: 0,
       });
       expect(result).toMatchObject({ code: 'ACTIVITY_LIMIT' });
       expect(dayFindOneAndUpdate).not.toHaveBeenCalled();
@@ -554,7 +567,6 @@ describe('mutateItineraryActivity', () => {
         await mutateItineraryActivity(TRIP_ID, DAY_ID, {
           operation: 'add',
           activity,
-          expected_revision: 0,
         })
       ).success
     ).toBe(true);
@@ -588,8 +600,7 @@ describe('mutateItineraryActivity', () => {
     expect(filter).toEqual({
       _id: DAY_ID,
       trip: TRIP_ID,
-      revision: 0,
-      'activities._id': activityId,
+      activities: { $elemMatch: { _id: activityId, revision: 0 } },
     });
     expect(update.$inc).toEqual({ revision: 1 });
     expect(update.$set['activities.$']).toMatchObject({ _id: activityId, title: 'Edited' });
@@ -604,13 +615,13 @@ describe('mutateItineraryActivity', () => {
     const result = await mutateItineraryActivity(TRIP_ID, DAY_ID, {
       operation: 'add',
       activity,
-      expected_revision: 0,
     });
     expect(result.success).toBe(true);
     const [, update] = dayFindOneAndUpdate.mock.calls[0];
     expect(update.$push.activities).toMatchObject({ title: 'Edited' });
     expect(update.$push.activities).not.toHaveProperty('_id');
-    expect(Object.keys(update.$set)).toEqual(['updatedAt']);
+    expect(update.$set).toBeUndefined();
+    expect(update.$max.updatedAt).toBeInstanceOf(Date);
     expect(update.$inc).toEqual({ revision: 1 });
     expect(deleteObjects).not.toHaveBeenCalled();
   });
@@ -623,13 +634,14 @@ describe('mutateItineraryActivity', () => {
         await mutateItineraryActivity(TRIP_ID, DAY_ID, {
           operation: 'delete',
           activity_id: activityId,
-          expected_revision: 0,
+          expected_activity_revision: 0,
         })
       ).success
     ).toBe(true);
     const [, update] = dayFindOneAndUpdate.mock.calls[0];
     expect(update.$pull).toEqual({ activities: { _id: activityId } });
-    expect(Object.keys(update.$set)).toEqual(['updatedAt']);
+    expect(update.$set).toBeUndefined();
+    expect(update.$max.updatedAt).toBeInstanceOf(Date);
     expect(update.$inc).toEqual({ revision: 1 });
     expect(deleteObjects).toHaveBeenCalledWith('receipts', ['removed']);
   });
@@ -663,11 +675,13 @@ describe('mutateItineraryActivity', () => {
     expect(deleteObjects).not.toHaveBeenCalled();
   });
 
-  it.each(['add', 'update', 'delete'] as const)(
+  it.each(['update', 'delete'] as const)(
     'rejects stale %s without writing or deleting tickets',
     async (operation) => {
       const { deleteObjects, headObject } = await import('@/lib/storage');
-      dayFindOne.mockReturnValue(chainSelectLean(leanDay({ revision: 1 })));
+      dayFindOne.mockReturnValue(
+        chainSelectLean(leanDay({ revision: 1, activities: [{ ...target, revision: 1 }, sibling] }))
+      );
       const result = await mutateItineraryActivity(TRIP_ID, DAY_ID, { ...input, operation });
       expect(result).toMatchObject({ success: false, code: 'CONFLICT' });
       expect(dayFindOneAndUpdate).not.toHaveBeenCalled();
@@ -712,7 +726,7 @@ describe('mutateItineraryActivity', () => {
 
   it('requires a valid snapshot and target ID', async () => {
     for (const invalid of [
-      { ...input, expected_revision: -1 },
+      { ...input, expected_activity_revision: -1 },
       { ...input, activity_id: 'bad' },
     ]) {
       expect(await mutateItineraryActivity(TRIP_ID, DAY_ID, invalid)).toMatchObject({
@@ -747,38 +761,94 @@ describe('mutateItineraryActivity', () => {
     expect((await mutateItineraryActivity(TRIP_ID, DAY_ID, input)).success).toBe(true);
   });
 
-  it('allows only one append per snapshot in the same millisecond', async () => {
-    const clock = vi.spyOn(Date, 'now').mockReturnValue(new Date(EXPECTED_UPDATED_AT).getTime());
-    try {
-      let stored = leanDay();
-      dayFindOne.mockReturnValue(chainSelectLean(leanDay()));
+  it.each([2, 14])(
+    'allows concurrent appends subject to capacity (starting at %i)',
+    async (count) => {
+      let stored = { ...leanDay(), activities: Array.from({ length: count }, () => sibling) };
+      dayFindOne.mockReturnValue(
+        chainSelectLean({
+          ...stored,
+          activities: stored.activities.map((a: typeof target) => ({ ...a })),
+        })
+      );
       dayFindOneAndUpdate.mockImplementation((filter, update) => ({
         lean: async () => {
-          if (filter.revision !== stored.revision) return null;
+          expect(filter).not.toHaveProperty('revision');
+          if (stored.activities.length > filter.$expr.$lte[1]) return null;
           stored = {
             ...stored,
-            updatedAt: update.$set.updatedAt,
             revision: stored.revision + update.$inc.revision,
+            activities: [
+              ...stored.activities,
+              { ...update.$push.activities, _id: activityId, revision: 0 },
+            ],
           };
           return stored;
         },
       }));
       const results = await Promise.all(
-        [1, 2].map(() =>
-          mutateItineraryActivity(TRIP_ID, DAY_ID, {
-            operation: 'add',
-            activity,
-            expected_revision: 0,
-          })
+        [1, 2].map(() => mutateItineraryActivity(TRIP_ID, DAY_ID, { operation: 'add', activity }))
+      );
+      expect(results.filter((r) => r.success)).toHaveLength(count === 14 ? 1 : 2);
+      expect(stored.activities).toHaveLength(count === 14 ? 15 : 4);
+    }
+  );
+
+  it.each([true, false])(
+    'guards same activity while allowing sibling edits (same target: %s)',
+    async (sameTarget) => {
+      const stored = {
+        ...leanDay(),
+        activities: [
+          { ...target, attachments: [] },
+          { ...sibling, attachments: [] },
+        ],
+      };
+      dayFindOne.mockReturnValue(
+        chainSelectLean({
+          ...stored,
+          activities: stored.activities.map((a: typeof target) => ({ ...a })),
+        })
+      );
+      dayFindOneAndUpdate.mockImplementation((filter, update) => ({
+        lean: async () => {
+          const guard = filter.activities.$elemMatch;
+          const index = stored.activities.findIndex(
+            (a: typeof target) => a._id === guard._id && a.revision === guard.revision
+          );
+          if (index === -1) return null;
+          stored.activities[index] = update.$set['activities.$'];
+          stored.revision += update.$inc.revision;
+          return { ...stored, activities: stored.activities.map((a: typeof target) => ({ ...a })) };
+        },
+      }));
+      const results = await Promise.all(
+        [activityId, sameTarget ? activityId : siblingId].map((activity_id) =>
+          mutateItineraryActivity(TRIP_ID, DAY_ID, { ...input, activity_id })
         )
       );
-      expect(results.filter((result) => result.success)).toHaveLength(1);
-      expect(
-        results.filter((result) => !result.success && result.code === 'CONFLICT')
-      ).toHaveLength(1);
-      expect(stored.updatedAt.getTime()).toBe(new Date(EXPECTED_UPDATED_AT).getTime() + 1);
-    } finally {
-      clock.mockRestore();
+      expect(results.filter((r) => r.success)).toHaveLength(sameTarget ? 1 : 2);
+      expect(stored.revision).toBe(sameTarget ? 1 : 2);
+      expect(stored.activities[0].revision).toBe(1);
+      expect(stored.activities[1].revision).toBe(sameTarget ? 0 : 1);
     }
+  );
+
+  it('allows a still-current activity snapshot after unrelated day changes', async () => {
+    dayFindOne.mockReturnValue(
+      chainSelectLean(leanDay({ revision: 9, activities: [target, sibling] }))
+    );
+    expect((await mutateItineraryActivity(TRIP_ID, DAY_ID, input)).success).toBe(true);
   });
+
+  it.each([undefined, -1, 0.5, NaN, Infinity, Number.MAX_SAFE_INTEGER])(
+    'rejects invalid activity revision %s',
+    async (revision) => {
+      const invalid = { ...input, expected_activity_revision: revision } as typeof input;
+      expect(await mutateItineraryActivity(TRIP_ID, DAY_ID, invalid)).toMatchObject({
+        code: 'VALIDATION_ERROR',
+      });
+      expect(dayFindOne).not.toHaveBeenCalled();
+    }
+  );
 });

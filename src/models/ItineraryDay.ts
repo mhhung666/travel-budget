@@ -14,7 +14,7 @@ export const ACTIVITY_TYPES = [
 ] as const;
 
 /**
- * 行程當日的單一活動（內嵌於 ItineraryDay）。比照 Checklist.items：數量有界、整批一起編輯，
+ * 行程當日的單一活動（內嵌於 ItineraryDay）。比照 Checklist.items：數量有界、支援單筆原子更新，
  * 由 Mongoose 自動帶 `_id` 作為前端 render key。time/endTime 為 "HH:mm"（24h）字串或 null；
  * confirmationCode 為訂位/票券確認碼（敏感，不外洩到公開分享路由）。
  */
@@ -35,6 +35,7 @@ const ActivityAttachmentSchema = new Schema(
 );
 
 const ActivitySchema = new Schema({
+  revision: { type: Number, required: true, default: 0, min: 0 },
   // "HH:mm" 24 小時制；null＝未指定時間（渲染時排在有時間的活動之後）
   time: { type: String, default: null },
   endTime: { type: String, default: null },

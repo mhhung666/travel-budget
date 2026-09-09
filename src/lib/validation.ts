@@ -327,7 +327,7 @@ export const updateItineraryDaySchema = z.object({
 });
 
 const activityMutationBaseSchema = z.object({
-  expected_revision: z
+  expected_activity_revision: z
     .number()
     .int()
     .min(0)
@@ -335,7 +335,7 @@ const activityMutationBaseSchema = z.object({
 });
 const activityIdSchema = z.string().regex(/^[a-f0-9]{24}$/);
 export const mutateItineraryActivitySchema = z.discriminatedUnion('operation', [
-  activityMutationBaseSchema.extend({ operation: z.literal('add'), activity: activitySchema }),
+  z.object({ operation: z.literal('add'), activity: activitySchema }),
   activityMutationBaseSchema.extend({
     operation: z.literal('update'),
     activity_id: activityIdSchema,

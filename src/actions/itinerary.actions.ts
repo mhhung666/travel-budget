@@ -250,7 +250,7 @@ export const updateItineraryDay = withAuth(
       }
       const validated = parsed.data;
       const currentDay = await ItineraryDay.findOne({ _id: dayId, trip: membership.tripId })
-        .select('activities._id activities.attachments updatedAt revision')
+        .select('activities._id activities.revision activities.attachments updatedAt revision')
         .lean<{ activities?: LeanActivity[]; updatedAt: Date; revision: number } | null>();
       if (!currentDay) {
         return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
@@ -293,7 +293,17 @@ export const updateItineraryDay = withAuth(
         if (!built) {
           return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
         }
-        set.activities = built.storage;
+        // A whole-array replacement invalidates every retained activity snapshot.
+        const revisions = new Map(
+          (currentDay.activities ?? []).map((a) => [a._id.toString(), a.revision])
+        );
+        set.activities = built.storage.map((a, index) => ({
+          ...a,
+          revision:
+            validated.activities![index].id === null
+              ? 0
+              : revisions.get(validated.activities![index].id!)! + 1,
+        }));
         removedKeys = [...existingByKey.keys()].filter((k) => !built.keptKeys.has(k));
       }
 
@@ -348,7 +358,7 @@ export const updateItineraryDay = withAuth(
   }
 );
 
-/** Single-activity writes use the shared day revision until activity-level guards are introduced. */
+/** Match the target ID and revision in the same array element; siblings may change concurrently. */
 export const mutateItineraryActivity = withAuth(
   async (
     session,
@@ -368,13 +378,10 @@ export const mutateItineraryActivity = withAuth(
       }
       const data = parsed.data;
       const current = await ItineraryDay.findOne({ _id: dayId, trip: membership.tripId })
-        .select('activities._id activities.attachments updatedAt revision')
+        .select('activities._id activities.revision activities.attachments updatedAt revision')
         .lean<{ activities?: LeanActivity[]; updatedAt: Date; revision: number } | null>();
       if (!current) return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
       const expectedUpdatedAt = current.updatedAt;
-      if (current.revision !== data.expected_revision) {
-        return { success: false, error: 'CONFLICT', code: 'CONFLICT' };
-      }
       if (data.operation === 'add' && (current.activities?.length ?? 0) >= MAX_ACTIVITIES_PER_DAY) {
         return { success: false, error: 'ACTIVITY_LIMIT', code: 'ACTIVITY_LIMIT' };
       }
@@ -385,11 +392,16 @@ export const mutateItineraryActivity = withAuth(
       if (data.operation !== 'add' && !target) {
         return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
       }
+      if (data.operation !== 'add' && target!.revision !== data.expected_activity_revision) {
+        return { success: false, error: 'CONFLICT', code: 'CONFLICT' };
+      }
       const existingAttachments = attachmentsByKey(target ? [target] : []);
-      const set: Record<string, unknown> = {
-        updatedAt: new Date(Math.max(Date.now(), expectedUpdatedAt.getTime() + 1)),
+      const set: Record<string, unknown> = {};
+      const update: Record<string, unknown> = {
+        $inc: { revision: 1 },
+        // Concurrent sibling writes must not move the display timestamp backwards.
+        $max: { updatedAt: new Date(Math.max(Date.now(), expectedUpdatedAt.getTime() + 1)) },
       };
-      const update: Record<string, unknown> = { $set: set, $inc: { revision: 1 } };
       if (data.operation === 'delete') {
         update.$pull = { activities: { _id: data.activity_id } };
       } else {
@@ -403,17 +415,25 @@ export const mutateItineraryActivity = withAuth(
         if (data.operation === 'add') {
           update.$push = { activities: built.storage[0] };
         } else {
-          set['activities.$'] = { ...built.storage[0], _id: data.activity_id };
+          set['activities.$'] = {
+            ...built.storage[0],
+            _id: data.activity_id,
+            revision: data.expected_activity_revision + 1,
+          };
+          update.$set = set;
         }
       }
       const updated = await ItineraryDay.findOneAndUpdate(
         {
           _id: dayId,
           trip: membership.tripId,
-          revision: data.expected_revision,
           ...(data.operation === 'add'
             ? activityCapacityFilter(1)
-            : { 'activities._id': data.activity_id }),
+            : {
+                activities: {
+                  $elemMatch: { _id: data.activity_id, revision: data.expected_activity_revision },
+                },
+              }),
         },
         update,
         { new: true, timestamps: false }

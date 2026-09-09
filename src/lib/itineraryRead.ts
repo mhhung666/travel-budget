@@ -9,6 +9,7 @@ type LeanAttachment = {
 };
 
 export type LeanActivity = {
+  revision: number;
   _id: { toString(): string };
   time?: string | null;
   endTime?: string | null;
@@ -37,6 +38,7 @@ export type LeanDay = {
 function toActivityDto(a: LeanActivity): ActivityDto {
   return {
     id: a._id.toString(),
+    revision: a.revision,
     time: a.time ?? null,
     end_time: a.endTime ?? null,
     title: a.title,

@@ -27,3 +27,49 @@ it('backfills missing revisions without resetting existing revisions, and suppor
   expect(rows.every((row) => row.revision === 0)).toBe(true);
   expect(collection.mock.calls.every(([name]) => name === 'itinerarydays')).toBe(true);
 });
+
+it('backfills only missing activity revisions and reversibly handles mixed and empty days', async () => {
+  const migration = await import('../../migrations/20260909130000-itinerary-activity-revision.js');
+  const rows = [
+    { activities: [{ title: 'old' }, { title: 'edited', revision: 7 }] },
+    { activities: [] },
+    {},
+  ];
+  const updateMany = vi.fn(async (filter, update, options) => {
+    if (update.$set) {
+      expect(filter).toEqual({ activities: { $elemMatch: { revision: { $exists: false } } } });
+      expect(options).toEqual({ arrayFilters: [{ 'activity.revision': { $exists: false } }] });
+      for (const row of rows)
+        for (const activity of row.activities ?? []) {
+          if (!Object.hasOwn(activity, 'revision'))
+            activity.revision = update.$set['activities.$[activity].revision'];
+        }
+    } else {
+      expect(filter).toEqual({ 'activities.revision': { $exists: true } });
+      expect(update).toEqual({ $unset: { 'activities.$[].revision': '' } });
+      for (const row of rows) for (const activity of row.activities ?? []) delete activity.revision;
+    }
+  });
+  const collection = vi.fn(() => ({ updateMany }));
+  const db = { collection };
+  await migration.up(db);
+  await migration.up(db);
+  expect(rows).toEqual([
+    {
+      activities: [
+        { title: 'old', revision: 0 },
+        { title: 'edited', revision: 7 },
+      ],
+    },
+    { activities: [] },
+    {},
+  ]);
+  await migration.down(db);
+  await migration.down(db);
+  expect(rows).toEqual([
+    { activities: [{ title: 'old' }, { title: 'edited' }] },
+    { activities: [] },
+    {},
+  ]);
+  expect(collection.mock.calls.every(([name]) => name === 'itinerarydays')).toBe(true);
+});

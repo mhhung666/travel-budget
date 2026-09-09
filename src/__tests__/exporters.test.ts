@@ -95,6 +95,7 @@ describe('exportItinerary', () => {
         activities: [
           {
             id: 'a2',
+            revision: 0,
             time: '12:30',
             end_time: null,
             title: 'Lunch',
@@ -106,6 +107,7 @@ describe('exportItinerary', () => {
           },
           {
             id: 'a1',
+            revision: 0,
             time: '09:00',
             end_time: null,
             title: 'Castle',

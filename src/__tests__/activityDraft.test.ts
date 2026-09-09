@@ -5,6 +5,7 @@ import type { Activity } from '@/types';
 describe('activity draft identity', () => {
   it('keeps stored identity through editing even if the render key changes', () => {
     const activity: Activity = {
+      revision: 0,
       id: '507f1f77bcf86cd799439015',
       title: 'Original',
       type: 'other',
