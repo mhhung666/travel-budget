@@ -321,6 +321,24 @@ export const updateItineraryDaySchema = z.object({
   activities: z.array(updateActivitySchema).optional(),
 });
 
+const activityMutationBaseSchema = z.object({
+  expected_updated_at: z.string().datetime(),
+});
+const activityIdSchema = z.string().regex(/^[a-f0-9]{24}$/);
+export const mutateItineraryActivitySchema = z.discriminatedUnion('operation', [
+  activityMutationBaseSchema.extend({ operation: z.literal('add'), activity: activitySchema }),
+  activityMutationBaseSchema.extend({
+    operation: z.literal('update'),
+    activity_id: activityIdSchema,
+    activity: activitySchema,
+  }),
+  activityMutationBaseSchema.extend({
+    operation: z.literal('delete'),
+    activity_id: activityIdSchema,
+  }),
+]);
+export type MutateItineraryActivityInput = z.infer<typeof mutateItineraryActivitySchema>;
+
 // Checklist schemas（打包清單 / 待辦；任何成員皆可編輯）
 export const createChecklistSchema = z.object({
   title: z.string().min(1, '清單名稱不能為空').trim(),

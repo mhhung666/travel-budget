@@ -12,7 +12,6 @@ describe('lightweight trip shell loading contracts', () => {
     expect(app).toContain('{user && quickAddVisible && (');
     expect(app).toContain("from '@/lib/quickAdd'");
     const page = readSource('app', '(app)', 'trips', '[id]', 'page.tsx');
-    expect(page).toContain("from '@/lib/activityDraft'");
     expect(page).not.toContain('itinerary/ActivityListEditor');
   });
 

@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({ update: vi.fn(), toast: vi.fn(), close: vi.fn(
 vi.mock('@/actions', () => ({
   createItineraryDay: vi.fn(),
   updateItineraryDay: mocks.update,
+  mutateItineraryActivity: mocks.update,
   deleteItineraryDay: vi.fn(),
 }));
 vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: mocks.toast }) }));
@@ -57,7 +58,7 @@ const day: ItineraryDay = {
   updated_at: '2026-07-01T00:00:00.000Z',
 };
 function Editor({ mode }: { mode: 'activity' | 'day' }) {
-  const { update } = useItineraryMutations('trip');
+  const { update, mutateActivity } = useItineraryMutations('trip');
   return mode === 'activity' ? (
     <ActivityFormDialog
       open
@@ -65,9 +66,14 @@ function Editor({ mode }: { mode: 'activity' | 'day' }) {
       tripId="trip"
       activity={activity}
       onSubmit={async (payload) => {
-        await update.mutateAsync({
+        await mutateActivity.mutateAsync({
           dayId: day.id,
-          data: { activities: [payload], expected_updated_at: day.updated_at },
+          data: {
+            operation: 'update',
+            activity_id: activity.id,
+            activity: payload,
+            expected_updated_at: day.updated_at,
+          },
         });
       }}
     />

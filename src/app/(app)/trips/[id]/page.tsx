@@ -8,7 +8,6 @@ import { useTranslations } from 'next-intl';
 import { useQueryClient } from '@tanstack/react-query';
 import { CalendarDays, Plus, Sparkles } from 'lucide-react';
 import { ItineraryDayCard } from '@/components/trips/detail/itinerary';
-import { dayActivitiesToDrafts, draftsToPayload } from '@/lib/activityDraft';
 import { PhotoLightbox } from '@/components/trips/detail/album';
 import { QueryFeedback } from '@/components/common/QueryFeedback';
 import { TripHeader } from '@/components/trips/detail';
@@ -108,7 +107,7 @@ function ItineraryPageContent() {
   // 成員限定——usePhotos 無公開 fallback；非成員（含分享頁訪客）連問都不必問，故用 isMember 擋掉。
   const photosQuery = usePhotos(tripId, isMember);
   const { data: photos = [] } = photosQuery;
-  const { create, update, remove } = useItineraryMutations(tripId);
+  const { create, update, remove, mutateActivity } = useItineraryMutations(tripId);
   // 行程資訊卡（原在支出分頁）：行程分頁成為空間落點後改掛這裡
   const { editTripDialog, handleEditTrip } = useEditTrip(tripId);
   const tExport = useTranslations('export');
@@ -283,18 +282,20 @@ function ItineraryPageContent() {
     setActivityDialog({ day, activity });
   };
 
-  // 單一活動送出：新增＝併入該天既有活動、編輯＝原位替換該筆，整批覆寫 activities
-  // （updateItineraryDay 只傳 activities，其餘欄位 undefined 不動）。
+  // 單筆活動寫入；保留開啟表單時的整天 snapshot，避免舊草稿覆蓋。
   const handleActivitySubmit = async (payload: ActivityPayload) => {
     if (!activityDialog) return;
     const { day, activity } = activityDialog;
-    const drafts = dayActivitiesToDrafts(day.activities);
-    const activities = activity
-      ? drafts.flatMap((d) => (d.key === activity.id ? [payload] : draftsToPayload([d])))
-      : [...draftsToPayload(drafts), payload];
-    await update.mutateAsync({
+    await mutateActivity.mutateAsync({
       dayId: day.id,
-      data: { activities, expected_updated_at: day.updated_at },
+      data: activity
+        ? {
+            operation: 'update',
+            activity_id: activity.id,
+            activity: payload,
+            expected_updated_at: day.updated_at,
+          }
+        : { operation: 'add', activity: payload, expected_updated_at: day.updated_at },
     });
     toast({
       title: activity
@@ -311,13 +312,14 @@ function ItineraryPageContent() {
   const confirmDeleteActivity = async () => {
     if (!deletingActivity) return;
     const { day, activity } = deletingActivity;
-    const remaining = draftsToPayload(
-      dayActivitiesToDrafts(day.activities.filter((a) => a.id !== activity.id))
-    );
     try {
-      await update.mutateAsync({
+      await mutateActivity.mutateAsync({
         dayId: day.id,
-        data: { activities: remaining, expected_updated_at: day.updated_at },
+        data: {
+          operation: 'delete',
+          activity_id: activity.id,
+          expected_updated_at: day.updated_at,
+        },
       });
       toast({ title: tAct('removedFromDay', { dayNumber: day.day_number }) });
       setDeletingActivity(null);
@@ -575,7 +577,7 @@ function ItineraryPageContent() {
                 event.preventDefault();
                 void confirmDeleteActivity();
               }}
-              disabled={update.isPending}
+              disabled={mutateActivity.isPending}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {tCommon('confirm')}

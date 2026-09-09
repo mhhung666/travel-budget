@@ -211,14 +211,16 @@ src/
 
 ### 行程編輯的衝突契約
 
-- `updateItineraryDay` 必須收到表單開啟時 DTO 的 `updated_at`，以 `expected_updated_at` 傳入；
+- `updateItineraryDay` 與 `mutateItineraryActivity` 必須收到表單開啟時 DTO 的 `updated_at`，以 `expected_updated_at` 傳入；
   不可在送出時改拿最新快取的 token 配上舊草稿。缺漏或無效 token 回 `VALIDATION_ERROR`。
 - 讀取當日後先核對時間，寫入仍以 `_id`、`trip`、`updatedAt` 作為條件；未匹配回 `CONFLICT`，
-  不執行票券清理或相片座標同步。本 action 的新時間至少比舊值大 1ms，關閉 Mongoose 自動時間覆寫。
+  不執行票券清理或相片座標同步。這兩個 action 的新時間至少比舊值大 1ms，關閉 Mongoose 自動時間覆寫。
 - 前端衝突後使行程查詢失效，但保留原表單快照與草稿；提示先複製內容、關閉再重開，不能自動重送覆蓋。
 - 更新活動陣列時每列必須帶 `id`：既有列沿用當天的 ID，新增列為 `null`；拒絕漏傳、重複、
   格式無效及外來 ID。草稿將儲存 ID 與 render key 分開，整批寫回也保留既有子文件身分。
-- 這是整天粒度的保護，不會合併不同活動的編輯；單筆更新、其他寫入入口及跨 collection
+- 行程頁活動操作走 `mutateItineraryActivity`，新增 `$push`、編輯定位 `$set`、刪除 `$pull`；
+  只驗證目標活動附件，成功後才清理當天已無引用的目標票券，不觸發相片座標同步。
+- 這是整天粒度的保護，不會合併不同活動的編輯；更細衝突判斷、其他寫入入口及跨 collection
   副作用的一致性由 [R 後續階段](./ITINERARY_CONSISTENCY_PROGRESS.md) 追蹤。
 
 ### 4.16 AI 行程匯入（受限試用）

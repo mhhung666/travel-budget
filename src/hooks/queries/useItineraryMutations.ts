@@ -1,12 +1,18 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { createItineraryDay, updateItineraryDay, deleteItineraryDay } from '@/actions';
+import {
+  createItineraryDay,
+  updateItineraryDay,
+  deleteItineraryDay,
+  mutateItineraryActivity,
+} from '@/actions';
 import type { ActionResult } from '@/actions';
 import { tripKeys } from './keys';
 import type { ActivityType, ExpenseAttachment, Location } from '@/types';
 import { ActionQueryError, unwrapActionResult } from '@/lib/actionQuery';
 import { useTranslations } from 'next-intl';
+import type { MutateItineraryActivityInput } from '@/lib/validation';
 import { useToast } from '@/hooks/use-toast';
 
 /** Unwraps an ActionResult, throwing on failure so React Query's onError fires. */
@@ -54,6 +60,17 @@ export function useItineraryMutations(tripId: string) {
   const invalidatePhotos = () =>
     queryClient.invalidateQueries({ queryKey: tripKeys.photos(tripId) });
 
+  const reportUpdateError = (error: Error) => {
+    const conflict = error instanceof ActionQueryError && error.code === 'CONFLICT';
+    if (conflict || (error instanceof ActionQueryError && error.code === 'NOT_FOUND')) {
+      void invalidateItinerary();
+    }
+    toast({
+      description: t(conflict ? 'updateConflict' : 'updateFailed'),
+      variant: 'destructive',
+    });
+  };
+
   const create = useMutation({
     mutationFn: (data: DayInput) => unwrap(createItineraryDay(tripId, data)),
     onSuccess: () => {
@@ -65,20 +82,20 @@ export function useItineraryMutations(tripId: string) {
   const update = useMutation({
     mutationFn: ({ dayId, data }: { dayId: string; data: UpdateDayInput }) =>
       unwrap(updateItineraryDay(tripId, dayId, data)),
-    onError: (error) => {
-      const conflict = error instanceof ActionQueryError && error.code === 'CONFLICT';
-      if (conflict || (error instanceof ActionQueryError && error.code === 'NOT_FOUND')) {
-        void invalidateItinerary();
-      }
-      toast({
-        description: t(conflict ? 'updateConflict' : 'updateFailed'),
-        variant: 'destructive',
-      });
-    },
+    onError: reportUpdateError,
     onSuccess: (_day, { data }) => {
       invalidateItinerary();
       // 行程日地點變動會同步借用此地點的相片座標。
       if (data.location !== undefined) invalidatePhotos();
+    },
+  });
+
+  const mutateActivity = useMutation({
+    mutationFn: ({ dayId, data }: { dayId: string; data: MutateItineraryActivityInput }) =>
+      unwrap(mutateItineraryActivity(tripId, dayId, data)),
+    onError: reportUpdateError,
+    onSuccess: () => {
+      void invalidateItinerary();
     },
   });
 
@@ -90,5 +107,5 @@ export function useItineraryMutations(tripId: string) {
     },
   });
 
-  return { create, update, remove };
+  return { create, update, remove, mutateActivity };
 }

@@ -84,6 +84,7 @@ export {
   getItinerary,
   createItineraryDay,
   updateItineraryDay,
+  mutateItineraryActivity,
   deleteItineraryDay,
   getItineraryAttachmentUrl,
 } from './itinerary.actions';

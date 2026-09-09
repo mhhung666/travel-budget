@@ -24,7 +24,7 @@ import { Button } from '@/components/ui/button';
 interface ActivityFormDialogProps {
   open: boolean;
   onClose: () => void;
-  /** 送出單一活動 payload；由父層併入/替換該天既有活動後呼叫 updateItineraryDay。 */
+  /** 送出單一活動 payload；由父層呼叫單筆 mutateItineraryActivity。 */
   onSubmit: (activity: ActivityPayload) => Promise<void>;
   tripId: string;
   /** 對話框標題顯示「第 N 天」；可省略。 */

@@ -6,6 +6,8 @@ import { Expense, ItineraryDay, Photo, Trip } from '@/models';
 import { getTripMembership } from '@/lib/permissions';
 import {
   createItineraryDaySchema,
+  mutateItineraryActivitySchema,
+  type MutateItineraryActivityInput,
   updateItineraryDaySchema,
   type ActivityInput,
   type UpdateActivityInput,
@@ -331,6 +333,90 @@ export const updateItineraryDay = withAuth(
       return { success: true, data: toDayDto(updated) };
     } catch (error) {
       logger.error('Update itinerary day error', error);
+      return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
+    }
+  }
+);
+
+/** Single-activity writes retain the day snapshot guard until finer revisions are introduced. */
+export const mutateItineraryActivity = withAuth(
+  async (
+    session,
+    tripIdOrCode: string,
+    dayId: string,
+    input: MutateItineraryActivityInput
+  ): Promise<ActionResult<ItineraryDayDto>> => {
+    try {
+      const membership = await getTripMembership(session.userId, tripIdOrCode);
+      if (!membership) return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+      if (membership.role !== 'admin') {
+        return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
+      }
+      const parsed = mutateItineraryActivitySchema.safeParse(input);
+      if (!parsed.success || !/^[a-f0-9]{24}$/.test(dayId)) {
+        return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
+      }
+      const data = parsed.data;
+      const expectedUpdatedAt = new Date(data.expected_updated_at);
+      const current = await ItineraryDay.findOne({ _id: dayId, trip: membership.tripId })
+        .select('activities._id activities.attachments updatedAt')
+        .lean<{ activities?: LeanActivity[]; updatedAt: Date } | null>();
+      if (!current) return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+      if (current.updatedAt.getTime() !== expectedUpdatedAt.getTime()) {
+        return { success: false, error: 'CONFLICT', code: 'CONFLICT' };
+      }
+      const target =
+        data.operation === 'add'
+          ? undefined
+          : current.activities?.find((a) => a._id.toString() === data.activity_id);
+      if (data.operation !== 'add' && !target) {
+        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+      }
+      const existingAttachments = attachmentsByKey(target ? [target] : []);
+      const set: Record<string, unknown> = {
+        updatedAt: new Date(Math.max(Date.now(), expectedUpdatedAt.getTime() + 1)),
+      };
+      const update: Record<string, unknown> = { $set: set };
+      if (data.operation === 'delete') {
+        update.$pull = { activities: { _id: data.activity_id } };
+      } else {
+        const built = await buildActivitiesStorage(
+          membership.tripId,
+          session.userId,
+          [data.activity],
+          existingAttachments
+        );
+        if (!built) return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
+        if (data.operation === 'add') {
+          update.$push = { activities: built.storage[0] };
+        } else {
+          set['activities.$'] = { ...built.storage[0], _id: data.activity_id };
+        }
+      }
+      const updated = await ItineraryDay.findOneAndUpdate(
+        {
+          _id: dayId,
+          trip: membership.tripId,
+          updatedAt: expectedUpdatedAt,
+          ...(data.operation === 'add' ? {} : { 'activities._id': data.activity_id }),
+        },
+        update,
+        { new: true, timestamps: false }
+      ).lean<LeanDay | null>();
+      if (!updated) return { success: false, error: 'CONFLICT', code: 'CONFLICT' };
+
+      // A ticket can still be referenced by a sibling activity. Only clean removed
+      // target keys absent from the complete, successfully written day.
+      const keptKeys = attachmentsByKey(updated.activities);
+      const removedKeys = [...existingAttachments.keys()].filter((key) => !keptKeys.has(key));
+      if (removedKeys.length) {
+        await deleteObjects('receipts', removedKeys).catch((error) =>
+          logger.error('Mutate itinerary activity: ticket cleanup failed', error)
+        );
+      }
+      return { success: true, data: toDayDto(updated) };
+    } catch (error) {
+      logger.error('Mutate itinerary activity error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
   }
