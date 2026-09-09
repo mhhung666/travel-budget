@@ -1,4 +1,5 @@
 'use client';
+import { ClientQueryBoundary } from '@/components/common/ClientQueryBoundary';
 import { QueryStatus } from '@/components/common/QueryStatus';
 import { QueryReadDialog } from '@/components/common/QueryReadDialog';
 
@@ -23,6 +24,14 @@ import { TripDetailSkeleton } from '@/components/skeletons';
  * （行程資訊卡在行程分頁，即空間落點 trips/[id]）。
  */
 export default function TripDetailPage() {
+  return (
+    <ClientQueryBoundary fallback={<TripDetailSkeleton />}>
+      <ExpensePageContent />
+    </ClientQueryBoundary>
+  );
+}
+
+function ExpensePageContent() {
   const router = useRouter();
   const params = useParams();
   const searchParams = useSearchParams();

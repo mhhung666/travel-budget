@@ -1,12 +1,13 @@
 # 重要完成里程碑
 
-> 更新日期：2026-09-08
+> 更新日期：2026-09-09
 > 本文件提供產品演進摘要，不是逐 commit 紀錄。精確變更、作者與 diff 請查 `git log`；目前能力見 [FEATURES.md](./FEATURES.md)。
 
 ## 2026-09
 
 | 日期 | 里程碑 |
 | --- | --- |
+| 09-09 | Q3 完成：支出搜尋與列表 deferred rendering、首頁／支出預載決策、client query 與 Trip Shell hydration 邊界；36 次隔離 production-build 瀏覽器載入通過。保留冷／熱、手機／worker 量測與限制，不宣稱正式站 CWV 改善，見 [效能報告](./QUERY_UX_PERFORMANCE.md) |
 | 09-08 | Q2 完成：全域快速記帳、大型表單、AI 輸入與共用 lightbox 按需載入；chunk 等待／失敗可關閉與重試，保留既有草稿重設及 metadata gating。AppShell entry gzip 較基準減少約 35.5%；全套 1,370 測試通過，瀏覽器效能驗收仍在 Q3，見 [Q 進度與 bundle 比較](./QUERY_UX_PROGRESS.md) |
 | 09-08 | Q1b 收尾：其餘 ActionResult query 不再吞錯，登入故障與 auth-null 分離；補齊好友／收藏／地圖／通知／留言／清單／結算／統計等重試與快取提示。新增／編輯記帳 metadata 失敗可關閉並重試，不再無限等待；Q2 按需載入與 Q3 效能量測另行處理，見 [Q 進度](./QUERY_UX_PROGRESS.md) |
 | 09-08 | Q1b 第一批：隨手記、相簿與活動紀錄不再吞掉查詢失敗；頁面提供重試、離線等待與保留快取的背景更新提示，旅程首頁同步顯示照片查詢狀態。新增 12 項回歸測試，登入判斷及其他 queries 仍待後續批次 |

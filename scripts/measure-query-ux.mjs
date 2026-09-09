@@ -30,12 +30,19 @@ const readActions = new Set(
 if (readActions.size !== 2) throw Error('Cannot uniquely allowlist anonymous read actions');
 
 const id = 'q3-fixture';
+// Keep the landing in the same in-trip phase on every run, including across calendar days.
+const fixtureTripDate = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Asia/Taipei',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+}).format(new Date());
 const trip = {
   id,
   name: 'Q3 Fixture',
   description: null,
-  start_date: '2026-09-08',
-  end_date: '2026-09-08',
+  start_date: fixtureTripDate,
+  end_date: fixtureTripDate,
   destination_location: null,
   hash_code: id,
   created_at: '2026-09-08',
@@ -329,8 +336,6 @@ try {
       }
     }
   }
-  if (rejected.length)
-    throw Error(`Unexpected requests blocked: ${[...new Set(rejected)].join(', ')}`);
   await writeFile(
     resolve(output, 'results.json'),
     JSON.stringify(
@@ -346,12 +351,16 @@ try {
         fixtureExpenseBytes: Buffer.byteLength(JSON.stringify(fixtures.expenses)),
         notes:
           'Synthetic public guest only. Warm reload retains HTTP/IDB/SW cache. Worker mode is not installed standalone PWA. Event durations are not field INP.',
+        fixtureTripDate,
+        rejected,
         results,
       },
       null,
       2
     )
   );
+  if (rejected.length)
+    throw Error(`Unexpected requests blocked: ${[...new Set(rejected)].join(', ')}`);
   if (results.some((item) => item.errors.length))
     throw Error('Browser errors captured in results.json; this run is not a passing acceptance.');
 } finally {

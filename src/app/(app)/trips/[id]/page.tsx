@@ -1,4 +1,5 @@
 'use client';
+import { ClientQueryBoundary } from '@/components/common/ClientQueryBoundary';
 import { QueryStatus } from '@/components/common/QueryStatus';
 
 import { useEffect, useMemo, useState } from 'react';
@@ -71,6 +72,14 @@ import { useToast } from '@/hooks/use-toast';
  * 隨手記／清單為本分頁的子分頁（見 TripSpaceShell 的子分頁列）。
  */
 export default function ItineraryPage() {
+  return (
+    <ClientQueryBoundary fallback={<ItinerarySkeleton />}>
+      <ItineraryPageContent />
+    </ClientQueryBoundary>
+  );
+}
+
+function ItineraryPageContent() {
   const params = useParams();
   const tripId = params.id as string;
   const tItinerary = useTranslations('itinerary');

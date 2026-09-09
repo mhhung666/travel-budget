@@ -1,6 +1,6 @@
 # Q：查詢錯誤狀態與前端延遲載入
 
-更新日期：2026-09-08
+更新日期：2026-09-09
 
 ## 分階段交付
 
@@ -11,7 +11,7 @@
 | Q1a | 旅程列表 query 錯誤、重試、背景更新提示及快速記帳的列表錯誤 | 已實作 |
 | Q1b | 其他 queries 與消費頁逐一配對，補錯誤 UI、auth-null 邊界及 stale data 顯示 | 已完成 |
 | Q2 | 全域快速記帳與大型 dialogs／AI／lightbox 的 mount 與動態載入 | 已完成 |
-| Q3 | 支出搜尋 deferred rendering、常用頁 prefetch 評估與 production build／瀏覽器量測 | 待處理 |
+| Q3 | 支出搜尋 deferred rendering、常用頁 prefetch 評估與 production build／瀏覽器量測 | 已完成（本機工程驗收） |
 
 ## Q1a
 
@@ -70,12 +70,12 @@ disabled gating、匯率 service failure、五類記帳依賴失敗、可關閉�
 lint（無警告）、Prettier、TypeScript 與 production build 均通過。
 不跑正式站壓測／業務寫入／真實 AI provider；不需要 migration 或新增環境參數。
 
-## Q3 待處理重點
+## Q3 範圍與驗收界線
 
 - Q2 已完成動態 import 的可關閉／重試介面、重開／草稿及 metadata 查詢次數回歸。
 - Cursor pagination 依真實資料量門檻另行評估，不能為滿足清單而直接更動全量清單契約。
-- Q2 production build 與 bundle 比較已完成（見下）；瀏覽器 Network／Performance 量測仍屬 Q3。先建立可比較量測條件，
-  不把前次正式站的少量冷／熱混合樣本當成改善前後基準。
+- Q2 production build 與 bundle 比較已完成（見下）；Q3 已完成本機 Network／Performance 量測。
+  正式站少量冷／熱混合樣本不作為改善基準；完整條件與限制見 [效能報告](./QUERY_UX_PERFORMANCE.md)。
 
 ## Q2 第一階段：全域入口與可恢復的 chunk 載入
 
@@ -172,3 +172,17 @@ AppShell entry 已確認不包含快速記帳建立流程事件、AI 文字欄�
 - 首頁 cold 只有 landing GET；支出 cold 為 5 個 DTO GET；warm 不重抓這些 fresh DTO。
   另有匿名 current-user／通知未讀數 POST，分開記錄，不誤稱所有請求都消失。
 - 本階段為測量工具／ADR 與 dev dependency，Q3 版本仍留最終修復交付更新。
+
+## Q3 第三階段：hydration 修復與最終交付（完成）
+
+- 首頁與支出頁新增 ClientQueryBoundary：SSR／首次 hydration 固定 skeleton，之後才 mount client-only query content。
+  保留伺服器輸出的全域／旅程導覽，不清掉 IndexedDB 或樂觀快取，不新增資料 API。
+- Trip Shell 原本只保護名稱；補上 query feedback 與會員專屬導覽／預算，避免 persisted data 在 selective hydration 前完成而改變 SSR markup。
+- 新增快取提前完成後 hydrateRoot 的無 recoverable error 回歸、快取更新仍顯示，以及 Shell 訪客／會員兩種情境。
+- 最終 production build 通過；36 次隔離 browser 載入全部成功（desktop／mobile／worker × 首頁／支出 × cold／warm × 3），
+  沒有 page error 或未預期 API／寫入。結果、日期／Chrome 版本差異與未改善指標均記入 [效能報告](./QUERY_UX_PERFORMANCE.md)。
+- 最終 lint（無警告）、Prettier、TypeScript、production build 通過；全套 **1,375 通過、37 項 opt-in 跳過**。
+- Q3 全部交付只在此階段 bump patch 一次；不 push／部署，不需要 migration 或新增 .env 參數。
+
+Q1～Q3 程式與本機工程驗收完成。正式帳號資料、Vercel／Atlas 長尾、實機安裝 PWA／iOS 與真實 CWV
+仍屬部署後驗收，不能以這次合成資料宣稱通過；AI 真實品質驗收依原要求仍不做。

@@ -51,12 +51,21 @@ export function TripSpaceShell({
   const tTrips = useTranslations('trips');
   const tBudget = useTranslations('budget');
 
+  // `trip` 來自 client-only 的 React Query 快取（SSR 時永遠沒有值，rehydrate 後才可能有）。
+  // 若直接依 trip/isLoading 分支，server HTML 與首次 client paint 會對不上（div↔h1、skeleton 有無）
+  // 而觸發 hydration mismatch。掛載前一律走 skeleton 分支，確保首屏兩邊一致。
+  const mounted = useSyncExternalStore(
+    subscribeNever,
+    () => true,
+    () => false
+  );
+
   const {
     trip,
     isLoading,
     members,
     currentUser,
-    isMember,
+    isMember: hasMembership,
     formQuery,
     formReady,
     shellQuery,
@@ -68,6 +77,7 @@ export function TripSpaceShell({
     handleAddExpense,
     handleSetBudget,
   } = useTripSpace(tripId);
+  const isMember = mounted && hasMembership;
 
   // 隨手記／相簿為成員限定（無公開分享路由），分享連結訪客不顯示這兩項。
   // subs＝該主分頁的子分頁列；主分頁自己也列在 subs 第一項（第一顆子分頁＝主分頁落點）。
@@ -127,15 +137,6 @@ export function TripSpaceShell({
     window.addEventListener('scroll', updateCompactMode, { passive: true });
     return () => window.removeEventListener('scroll', updateCompactMode);
   }, []);
-
-  // `trip` 來自 client-only 的 React Query 快取（SSR 時永遠沒有值，rehydrate 後才可能有）。
-  // 若直接依 trip/isLoading 分支，server HTML 與首次 client paint 會對不上（div↔h1、skeleton 有無）
-  // 而觸發 hydration mismatch。掛載前一律走 skeleton 分支，確保首屏兩邊一致。
-  const mounted = useSyncExternalStore(
-    subscribeNever,
-    () => true,
-    () => false
-  );
 
   const openAddExpense = addExpenseDialog.openDialog;
   const contextValue = useMemo(
@@ -340,7 +341,17 @@ export function TripSpaceShell({
         </div>
 
         <div className="flex-1">
-          <QueryStatus query={shellQuery} />
+          <QueryStatus
+            query={
+              mounted
+                ? shellQuery
+                : {
+                    data: undefined,
+                    isFetching: true,
+                    refetch: shellQuery.refetch,
+                  }
+            }
+          />
           {children}
         </div>
 
