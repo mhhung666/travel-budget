@@ -86,6 +86,7 @@ const leanDay = (overrides: Record<string, unknown> = {}) => ({
   _id: { toString: () => DAY_ID },
   trip: { toString: () => TRIP_ID },
   dayNumber: 1,
+  revision: 0,
   title: 'Tokyo',
   content: '',
   location: null,
@@ -117,6 +118,22 @@ beforeEach(() => {
 });
 
 describe('deleteItineraryDay → 相片關聯清理', () => {
+  it('increments the revision of each renumbered day in the same scoped write', async () => {
+    dayFind.mockReturnValue(chainSortSelectLean([{ _id: 'remaining', dayNumber: 2 }]));
+    expect((await deleteItineraryDay(TRIP_ID, DAY_ID)).success).toBe(true);
+    expect(dayBulkWrite).toHaveBeenCalledWith(
+      [
+        {
+          updateOne: {
+            filter: { _id: 'remaining', trip: TRIP_ID },
+            update: { $set: { dayNumber: 1 }, $inc: { revision: 1 } },
+          },
+        },
+      ],
+      { ordered: true }
+    );
+  });
+
   it('unlinks the photos and reclaims only the coordinates borrowed from this day', async () => {
     const result = await deleteItineraryDay(TRIP_ID, DAY_ID);
 
@@ -171,7 +188,7 @@ describe('updateItineraryDay → 借出座標的同步', () => {
     dayFindOneAndUpdate.mockReturnValue(chainLean(leanDay()));
 
     const result = await updateItineraryDay(TRIP_ID, DAY_ID, {
-      expected_updated_at: EXPECTED_UPDATED_AT,
+      expected_revision: 0,
       location: {
         name: 'Paris',
         display_name: 'Paris, France',
@@ -198,7 +215,7 @@ describe('updateItineraryDay → 借出座標的同步', () => {
     dayFindOneAndUpdate.mockReturnValue(chainLean(leanDay()));
 
     await updateItineraryDay(TRIP_ID, DAY_ID, {
-      expected_updated_at: EXPECTED_UPDATED_AT,
+      expected_revision: 0,
       location: null,
     });
 
@@ -214,7 +231,7 @@ describe('updateItineraryDay → 借出座標的同步', () => {
     dayFindOneAndUpdate.mockReturnValue(chainLean(leanDay({ title: 'Osaka' })));
 
     await updateItineraryDay(TRIP_ID, DAY_ID, {
-      expected_updated_at: EXPECTED_UPDATED_AT,
+      expected_revision: 0,
       title: 'Osaka',
     });
 
@@ -223,6 +240,24 @@ describe('updateItineraryDay → 借出座標的同步', () => {
 });
 
 describe('updateItineraryDay → stale draft protection', () => {
+  it.each([-1, 0.5, Number.MAX_SAFE_INTEGER, NaN, Infinity])(
+    'rejects invalid revision %s before database access',
+    async (expected_revision) => {
+      expect(
+        await updateItineraryDay(TRIP_ID, DAY_ID, { expected_revision, title: 'X' })
+      ).toMatchObject({ code: 'VALIDATION_ERROR' });
+      expect(dayFindOne).not.toHaveBeenCalled();
+    }
+  );
+
+  it('rejects a timestamp-only legacy client', async () => {
+    expect(
+      // @ts-expect-error old client contract must fail closed
+      await updateItineraryDay(TRIP_ID, DAY_ID, { expected_updated_at: EXPECTED_UPDATED_AT })
+    ).toMatchObject({ code: 'VALIDATION_ERROR' });
+    expect(dayFindOne).not.toHaveBeenCalled();
+  });
+
   it('rejects missing or invalid snapshot tokens without reading or writing the day', async () => {
     // Old deployed clients must fail closed instead of silently overwriting new data.
     // @ts-expect-error deliberately exercise an old client payload
@@ -230,7 +265,7 @@ describe('updateItineraryDay → stale draft protection', () => {
       code: 'VALIDATION_ERROR',
     });
     expect(
-      await updateItineraryDay(TRIP_ID, DAY_ID, { expected_updated_at: 'invalid', title: 'X' })
+      await updateItineraryDay(TRIP_ID, DAY_ID, { expected_revision: -1, title: 'X' })
     ).toMatchObject({ code: 'VALIDATION_ERROR' });
     expect(dayFindOne).not.toHaveBeenCalled();
     expect(dayFindOneAndUpdate).not.toHaveBeenCalled();
@@ -242,7 +277,7 @@ describe('updateItineraryDay → stale draft protection', () => {
       getTripMembership.mockResolvedValue(membership);
       expect(
         await updateItineraryDay(TRIP_ID, DAY_ID, {
-          expected_updated_at: EXPECTED_UPDATED_AT,
+          expected_revision: 0,
           title: 'X',
         })
       ).toMatchObject({ code: membership ? 'FORBIDDEN' : 'NOT_FOUND' });
@@ -255,7 +290,7 @@ describe('updateItineraryDay → stale draft protection', () => {
     dayFindOne.mockReturnValue(chainSelectLean(null));
     expect(
       await updateItineraryDay(TRIP_ID, DAY_ID, {
-        expected_updated_at: EXPECTED_UPDATED_AT,
+        expected_revision: 0,
         title: 'X',
       })
     ).toMatchObject({ code: 'NOT_FOUND' });
@@ -264,11 +299,9 @@ describe('updateItineraryDay → stale draft protection', () => {
 
   it('rejects a stale draft before attachment validation or any side effect', async () => {
     const { headObject, deleteObjects } = await import('@/lib/storage');
-    dayFindOne.mockReturnValue(
-      chainSelectLean(leanDay({ updatedAt: new Date('2026-07-02T00:00:00.000Z') }))
-    );
+    dayFindOne.mockReturnValue(chainSelectLean(leanDay({ revision: 1 })));
     const result = await updateItineraryDay(TRIP_ID, DAY_ID, {
-      expected_updated_at: EXPECTED_UPDATED_AT,
+      expected_revision: 0,
       activities: [],
       location: null,
     });
@@ -296,7 +329,7 @@ describe('updateItineraryDay → stale draft protection', () => {
     dayFindOneAndUpdate.mockReturnValue(chainLean(null));
     expect(
       await updateItineraryDay(TRIP_ID, DAY_ID, {
-        expected_updated_at: EXPECTED_UPDATED_AT,
+        expected_revision: 0,
         activities: [],
         location: null,
       })
@@ -315,15 +348,15 @@ describe('updateItineraryDay → stale draft protection', () => {
         lean: async () => {
           expect(filter).toMatchObject({ _id: DAY_ID, trip: TRIP_ID });
           expect(options.timestamps).toBe(false);
-          if (filter.updatedAt.getTime() !== stored.updatedAt.getTime()) return null;
-          stored = { ...stored, ...update.$set };
+          if (filter.revision !== stored.revision) return null;
+          stored = { ...stored, ...update.$set, revision: stored.revision + update.$inc.revision };
           return stored;
         },
       }));
       const results = await Promise.all(
         ['First draft', 'Second draft'].map((title) =>
           updateItineraryDay(TRIP_ID, DAY_ID, {
-            expected_updated_at: EXPECTED_UPDATED_AT,
+            expected_revision: 0,
             title,
           })
         )
@@ -333,6 +366,7 @@ describe('updateItineraryDay → stale draft protection', () => {
         results.filter((result) => !result.success && result.code === 'CONFLICT')
       ).toHaveLength(1);
       expect(stored.title).toBe('First draft');
+      expect(stored.revision).toBe(1);
       expect(stored.updatedAt.getTime()).toBe(new Date(EXPECTED_UPDATED_AT).getTime() + 1);
       const winner = results[0];
       expect(winner.success && winner.data.updated_at).toBe(stored.updatedAt.toISOString());
@@ -358,7 +392,7 @@ describe('updateItineraryDay → stale draft protection', () => {
     dayFindOneAndUpdate.mockReturnValue(chainLean(leanDay()));
     expect(
       await updateItineraryDay(TRIP_ID, DAY_ID, {
-        expected_updated_at: EXPECTED_UPDATED_AT,
+        expected_revision: 0,
         activities: [],
       })
     ).toMatchObject({ success: true });
@@ -390,7 +424,7 @@ describe('updateItineraryDay activity identity', () => {
     );
     dayFindOneAndUpdate.mockReturnValue(chainLean(leanDay()));
     const result = await updateItineraryDay(TRIP_ID, DAY_ID, {
-      expected_updated_at: EXPECTED_UPDATED_AT,
+      expected_revision: 0,
       activities: [payload(secondId, 'Edited'), payload(firstId), payload(null, 'New')],
     });
     expect(result.success).toBe(true);
@@ -409,7 +443,7 @@ describe('updateItineraryDay activity identity', () => {
     const { headObject, deleteObjects } = await import('@/lib/storage');
     dayFindOne.mockReturnValue(chainSelectLean(leanDay({ activities: [{ _id: firstId }] })));
     const result = await updateItineraryDay(TRIP_ID, DAY_ID, {
-      expected_updated_at: EXPECTED_UPDATED_AT,
+      expected_revision: 0,
       activities: activities as Parameters<typeof updateItineraryDay>[2]['activities'],
     });
     expect(result).toEqual({ success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' });
@@ -425,7 +459,7 @@ describe('updateItineraryDay activity identity', () => {
     );
     dayFindOneAndUpdate.mockReturnValue(chainLean(leanDay()));
     const result = await updateItineraryDay(TRIP_ID, DAY_ID, {
-      expected_updated_at: EXPECTED_UPDATED_AT,
+      expected_revision: 0,
       activities: [payload(secondId)],
     });
     expect(result.success).toBe(true);
@@ -470,7 +504,7 @@ describe('mutateItineraryActivity', () => {
     operation: 'update' as const,
     activity_id: activityId,
     activity,
-    expected_updated_at: EXPECTED_UPDATED_AT,
+    expected_revision: 0,
   };
 
   beforeEach(() => {
@@ -490,7 +524,7 @@ describe('mutateItineraryActivity', () => {
       const result = await mutateItineraryActivity(TRIP_ID, DAY_ID, {
         operation: 'add',
         activity,
-        expected_updated_at: EXPECTED_UPDATED_AT,
+        expected_revision: 0,
       });
       expect(result).toMatchObject({ code: 'ACTIVITY_LIMIT' });
       expect(dayFindOneAndUpdate).not.toHaveBeenCalled();
@@ -520,7 +554,7 @@ describe('mutateItineraryActivity', () => {
         await mutateItineraryActivity(TRIP_ID, DAY_ID, {
           operation: 'add',
           activity,
-          expected_updated_at: EXPECTED_UPDATED_AT,
+          expected_revision: 0,
         })
       ).success
     ).toBe(true);
@@ -537,7 +571,7 @@ describe('mutateItineraryActivity', () => {
     });
     expect(
       await updateItineraryDay(TRIP_ID, DAY_ID, {
-        expected_updated_at: EXPECTED_UPDATED_AT,
+        expected_revision: 0,
         activities,
       })
     ).toMatchObject({ code: 'ACTIVITY_LIMIT' });
@@ -554,9 +588,10 @@ describe('mutateItineraryActivity', () => {
     expect(filter).toEqual({
       _id: DAY_ID,
       trip: TRIP_ID,
-      updatedAt: new Date(EXPECTED_UPDATED_AT),
+      revision: 0,
       'activities._id': activityId,
     });
+    expect(update.$inc).toEqual({ revision: 1 });
     expect(update.$set['activities.$']).toMatchObject({ _id: activityId, title: 'Edited' });
     expect(update.$set).not.toHaveProperty('activities');
     expect(options).toEqual({ new: true, timestamps: false });
@@ -569,13 +604,14 @@ describe('mutateItineraryActivity', () => {
     const result = await mutateItineraryActivity(TRIP_ID, DAY_ID, {
       operation: 'add',
       activity,
-      expected_updated_at: EXPECTED_UPDATED_AT,
+      expected_revision: 0,
     });
     expect(result.success).toBe(true);
     const [, update] = dayFindOneAndUpdate.mock.calls[0];
     expect(update.$push.activities).toMatchObject({ title: 'Edited' });
     expect(update.$push.activities).not.toHaveProperty('_id');
     expect(Object.keys(update.$set)).toEqual(['updatedAt']);
+    expect(update.$inc).toEqual({ revision: 1 });
     expect(deleteObjects).not.toHaveBeenCalled();
   });
 
@@ -587,13 +623,14 @@ describe('mutateItineraryActivity', () => {
         await mutateItineraryActivity(TRIP_ID, DAY_ID, {
           operation: 'delete',
           activity_id: activityId,
-          expected_updated_at: EXPECTED_UPDATED_AT,
+          expected_revision: 0,
         })
       ).success
     ).toBe(true);
     const [, update] = dayFindOneAndUpdate.mock.calls[0];
     expect(update.$pull).toEqual({ activities: { _id: activityId } });
     expect(Object.keys(update.$set)).toEqual(['updatedAt']);
+    expect(update.$inc).toEqual({ revision: 1 });
     expect(deleteObjects).toHaveBeenCalledWith('receipts', ['removed']);
   });
 
@@ -630,7 +667,7 @@ describe('mutateItineraryActivity', () => {
     'rejects stale %s without writing or deleting tickets',
     async (operation) => {
       const { deleteObjects, headObject } = await import('@/lib/storage');
-      dayFindOne.mockReturnValue(chainSelectLean(leanDay({ updatedAt: new Date('2026-07-02') })));
+      dayFindOne.mockReturnValue(chainSelectLean(leanDay({ revision: 1 })));
       const result = await mutateItineraryActivity(TRIP_ID, DAY_ID, { ...input, operation });
       expect(result).toMatchObject({ success: false, code: 'CONFLICT' });
       expect(dayFindOneAndUpdate).not.toHaveBeenCalled();
@@ -675,7 +712,7 @@ describe('mutateItineraryActivity', () => {
 
   it('requires a valid snapshot and target ID', async () => {
     for (const invalid of [
-      { ...input, expected_updated_at: '' },
+      { ...input, expected_revision: -1 },
       { ...input, activity_id: 'bad' },
     ]) {
       expect(await mutateItineraryActivity(TRIP_ID, DAY_ID, invalid)).toMatchObject({
@@ -717,8 +754,12 @@ describe('mutateItineraryActivity', () => {
       dayFindOne.mockReturnValue(chainSelectLean(leanDay()));
       dayFindOneAndUpdate.mockImplementation((filter, update) => ({
         lean: async () => {
-          if (filter.updatedAt.getTime() !== stored.updatedAt.getTime()) return null;
-          stored = { ...stored, updatedAt: update.$set.updatedAt };
+          if (filter.revision !== stored.revision) return null;
+          stored = {
+            ...stored,
+            updatedAt: update.$set.updatedAt,
+            revision: stored.revision + update.$inc.revision,
+          };
           return stored;
         },
       }));
@@ -727,7 +768,7 @@ describe('mutateItineraryActivity', () => {
           mutateItineraryActivity(TRIP_ID, DAY_ID, {
             operation: 'add',
             activity,
-            expected_updated_at: EXPECTED_UPDATED_AT,
+            expected_revision: 0,
           })
         )
       );

@@ -331,6 +331,7 @@ export const planNote = withAuth(
       const day = await ItineraryDay.findOneAndUpdate(
         { _id: validation.data.day_id, trip: membership.tripId, ...activityCapacityFilter(1) },
         {
+          $inc: { revision: 1 },
           $push: {
             activities: {
               time: null,

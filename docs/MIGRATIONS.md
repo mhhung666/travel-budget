@@ -62,6 +62,7 @@ O 已完成小型測試庫 before／after 並加入 additive migration；正式�
 
 | 檔案 | 內容 |
 | --- | --- |
+| `20260909120000-itinerary-day-revision.js` | 行程日缺少 revision 時回填 0；down 移除欄位。需暫停行程寫入、排空舊請求，遷移後部署全部新 writer 再恢復；詳見 [R2d 部署順序](./ITINERARY_CONSISTENCY_PROGRESS.md)。 |
 | `20260905093000-core-query-indexes.js` | 新增支出／付款／清單／相片完整排序、digest 時間篩選及帳號 CI unique 索引；先掃描帳號重複，ownership ledger 防止回滾誤刪既有索引。 |
 | `20260616075344-baseline-indexes.js` | 明文建立目前所有模型的索引（users / trips / expenses / itinerarydays），作為基準點。冪等，可安全套用於已運行的環境。 |
 | `20260618032844-move-location-to-destination.js` | 將既有旅程地點資料搬到目前欄位形狀。 |

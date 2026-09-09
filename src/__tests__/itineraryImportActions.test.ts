@@ -96,6 +96,7 @@ beforeEach(() => {
         const activities = (
           update.$push as { activities: { $each: Array<Record<string, unknown>> } }
         ).activities.$each;
+        expect(update.$inc).toEqual({ revision: 1 });
         day.activities.push(...activities);
         day.appliedImportKeys.push(key);
         return day;

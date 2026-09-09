@@ -22,6 +22,7 @@ export type LeanActivity = {
 };
 
 export type LeanDay = {
+  revision: number;
   _id: { toString(): string };
   trip: { toString(): string };
   dayNumber: number;
@@ -58,6 +59,7 @@ export function toDayDto(d: LeanDay, privateFields = true): ItineraryDayDto {
     id: d._id.toString(),
     trip_id: d.trip.toString(),
     day_number: d.dayNumber,
+    revision: d.revision,
     title: d.title,
     content: d.content,
     location: d.location ?? null,

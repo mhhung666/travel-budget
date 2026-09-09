@@ -438,6 +438,7 @@ describe('planNote', () => {
         $expr: { $lte: [{ $size: { $ifNull: ['$activities', []] } }, 14] },
       },
       {
+        $inc: { revision: 1 },
         $push: {
           activities: {
             time: null,

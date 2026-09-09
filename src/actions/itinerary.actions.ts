@@ -224,7 +224,7 @@ export const updateItineraryDay = withAuth(
     tripIdOrCode: string,
     dayId: string,
     input: {
-      expected_updated_at: string;
+      expected_revision: number;
       title?: string;
       content?: string;
       day_number?: number;
@@ -249,19 +249,18 @@ export const updateItineraryDay = withAuth(
         return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
       }
       const validated = parsed.data;
-      const expectedUpdatedAt = new Date(validated.expected_updated_at);
       const currentDay = await ItineraryDay.findOne({ _id: dayId, trip: membership.tripId })
-        .select('activities._id activities.attachments updatedAt')
-        .lean<{ activities?: LeanActivity[]; updatedAt: Date } | null>();
+        .select('activities._id activities.attachments updatedAt revision')
+        .lean<{ activities?: LeanActivity[]; updatedAt: Date; revision: number } | null>();
       if (!currentDay) {
         return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
       }
-      if (currentDay.updatedAt.getTime() !== expectedUpdatedAt.getTime()) {
+      const expectedUpdatedAt = currentDay.updatedAt;
+      if (currentDay.revision !== validated.expected_revision) {
         return { success: false, error: 'CONFLICT', code: 'CONFLICT' };
       }
 
-      // Advance even when two saves occur in the same millisecond. Disable Mongoose's
-      // timestamp rewrite below so the compare-and-set token cannot be reused.
+      // Keep display timestamps monotonic; revision is the compare-and-set token.
       const set: Record<string, unknown> = {
         updatedAt: new Date(Math.max(Date.now(), expectedUpdatedAt.getTime() + 1)),
       };
@@ -299,8 +298,8 @@ export const updateItineraryDay = withAuth(
       }
 
       const updated = await ItineraryDay.findOneAndUpdate(
-        { _id: dayId, trip: membership.tripId, updatedAt: expectedUpdatedAt },
-        { $set: set },
+        { _id: dayId, trip: membership.tripId, revision: validated.expected_revision },
+        { $set: set, $inc: { revision: 1 } },
         { new: true, timestamps: false }
       ).lean<LeanDay | null>();
 
@@ -349,7 +348,7 @@ export const updateItineraryDay = withAuth(
   }
 );
 
-/** Single-activity writes retain the day snapshot guard until finer revisions are introduced. */
+/** Single-activity writes use the shared day revision until activity-level guards are introduced. */
 export const mutateItineraryActivity = withAuth(
   async (
     session,
@@ -368,12 +367,12 @@ export const mutateItineraryActivity = withAuth(
         return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
       }
       const data = parsed.data;
-      const expectedUpdatedAt = new Date(data.expected_updated_at);
       const current = await ItineraryDay.findOne({ _id: dayId, trip: membership.tripId })
-        .select('activities._id activities.attachments updatedAt')
-        .lean<{ activities?: LeanActivity[]; updatedAt: Date } | null>();
+        .select('activities._id activities.attachments updatedAt revision')
+        .lean<{ activities?: LeanActivity[]; updatedAt: Date; revision: number } | null>();
       if (!current) return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
-      if (current.updatedAt.getTime() !== expectedUpdatedAt.getTime()) {
+      const expectedUpdatedAt = current.updatedAt;
+      if (current.revision !== data.expected_revision) {
         return { success: false, error: 'CONFLICT', code: 'CONFLICT' };
       }
       if (data.operation === 'add' && (current.activities?.length ?? 0) >= MAX_ACTIVITIES_PER_DAY) {
@@ -390,7 +389,7 @@ export const mutateItineraryActivity = withAuth(
       const set: Record<string, unknown> = {
         updatedAt: new Date(Math.max(Date.now(), expectedUpdatedAt.getTime() + 1)),
       };
-      const update: Record<string, unknown> = { $set: set };
+      const update: Record<string, unknown> = { $set: set, $inc: { revision: 1 } };
       if (data.operation === 'delete') {
         update.$pull = { activities: { _id: data.activity_id } };
       } else {
@@ -411,7 +410,7 @@ export const mutateItineraryActivity = withAuth(
         {
           _id: dayId,
           trip: membership.tripId,
-          updatedAt: expectedUpdatedAt,
+          revision: data.expected_revision,
           ...(data.operation === 'add'
             ? activityCapacityFilter(1)
             : { 'activities._id': data.activity_id }),
@@ -507,8 +506,8 @@ export const deleteItineraryDay = withAuth(
         .filter(({ d, newNumber }) => d.dayNumber !== newNumber)
         .map(({ d, newNumber }) => ({
           updateOne: {
-            filter: { _id: d._id },
-            update: { $set: { dayNumber: newNumber } },
+            filter: { _id: d._id, trip: membership.tripId },
+            update: { $set: { dayNumber: newNumber }, $inc: { revision: 1 } },
           },
         }));
 

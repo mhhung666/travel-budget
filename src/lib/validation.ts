@@ -314,7 +314,11 @@ export const updateActivitySchema = activitySchema.extend({
 });
 
 export const updateItineraryDaySchema = z.object({
-  expected_updated_at: z.string().datetime(),
+  expected_revision: z
+    .number()
+    .int()
+    .min(0)
+    .max(Number.MAX_SAFE_INTEGER - 1),
   title: z.string().min(1, '標題不能為空').trim().optional(),
   content: z.string().optional(),
   day_number: z.number().int().positive().optional(),
@@ -323,7 +327,11 @@ export const updateItineraryDaySchema = z.object({
 });
 
 const activityMutationBaseSchema = z.object({
-  expected_updated_at: z.string().datetime(),
+  expected_revision: z
+    .number()
+    .int()
+    .min(0)
+    .max(Number.MAX_SAFE_INTEGER - 1),
 });
 const activityIdSchema = z.string().regex(/^[a-f0-9]{24}$/);
 export const mutateItineraryActivitySchema = z.discriminatedUnion('operation', [

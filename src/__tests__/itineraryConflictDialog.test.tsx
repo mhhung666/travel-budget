@@ -50,6 +50,7 @@ const day: ItineraryDay = {
   id: 'day',
   trip_id: 'trip',
   day_number: 1,
+  revision: 0,
   title: 'Original day',
   content: '',
   location: null,
@@ -72,7 +73,7 @@ function Editor({ mode }: { mode: 'activity' | 'day' }) {
             operation: 'update',
             activity_id: activity.id,
             activity: payload,
-            expected_updated_at: day.updated_at,
+            expected_revision: day.revision,
           },
         });
       }}
@@ -86,7 +87,7 @@ function Editor({ mode }: { mode: 'activity' | 'day' }) {
       onSubmit={async (data) => {
         await update.mutateAsync({
           dayId: day.id,
-          data: { ...data, expected_updated_at: day.updated_at },
+          data: { ...data, expected_revision: day.revision },
         });
       }}
     />
@@ -129,7 +130,7 @@ it.each(['activity', 'day'] as const)(
     expect(invalidate).toHaveBeenCalledWith({ queryKey: tripKeys.itinerary('trip') });
     await act(async () => {
       client.setQueryData(tripKeys.itinerary('trip'), [
-        { ...day, title: 'Other editor', updated_at: '2026-07-02T00:00:00.000Z' },
+        { ...day, title: 'Other editor', revision: 1, updated_at: '2026-07-02T00:00:00.000Z' },
       ]);
     });
     expect(input).toHaveValue('My unsaved draft');
@@ -139,7 +140,7 @@ it.each(['activity', 'day'] as const)(
     fireEvent.click(screen.getByRole('button', { name: 'save' }));
     await waitFor(() => expect(mocks.update).toHaveBeenCalledTimes(2));
     for (const call of mocks.update.mock.calls) {
-      expect(call[2]).toMatchObject({ expected_updated_at: day.updated_at });
+      expect(call[2]).toMatchObject({ expected_revision: day.revision });
     }
     client.clear();
   }

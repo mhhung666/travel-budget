@@ -7,9 +7,11 @@
 | 階段 | 範圍 | 狀態 |
 | --- | --- | --- |
 | R1 | 舊草稿覆蓋保護與衝突提示 | 已完成工程驗證 |
-| R2 | 穩定活動 ID、單筆新增／編輯／刪除原子更新，批次上限與衝突策略 | R2a 穩定 ID、R2b 單筆寫入、R2c 活動上限已完成；revision 與衝突粒度待處理 |
+| R2 | 穩定活動 ID、單筆新增／編輯／刪除原子更新，批次上限與衝突策略 | R2a～R2d 已完成穩定 ID、單筆寫入、上限與統一 revision；活動衝突粒度待處理 |
 | R3 | 虛擬成員轉換／會員移除／旅程刪除的一致性、外部清理重試 | 待處理 |
 | R4 | 票券附件驗證的有界平行查詢 | 待處理 |
+
+> R1～R2c 為各段交付紀錄；目前衝突 token 已由 R2d 的 revision 取代時間。
 
 ## R1 交付
 
@@ -75,13 +77,27 @@ diff whitespace 檢查通過。Build 覆寫 dummy MongoDB URI 與 JWT secret，�
 - 完整測試 1,418 項通過、37 項 opt-in 跳過；lint、格式、TypeScript、production build 與 diff 檢查通過。
   Build 使用 dummy MongoDB URI 與 JWT secret；未連共用 DB，未做真實瀏覽器驗收。
 
+## R2d 交付
+
+- 行程日新增明確的整數 revision；建立預設為 0。手動整天／單筆活動更新、AI 追加、
+  筆記轉活動及刪日後重新編號均在同一 MongoDB 更新中以 `$inc` 遞增。
+- 前端攜帶開啟時的 `expected_revision`，伺服器先核對再作條件寫入；即使時間相同也能拒絕舊草稿。
+  缺少 revision、負數、小數或超出安全整數範圍的 token 會拒絕；只有時間的舊客戶端必須重載。
+- DTO 新增 revision，已更新 persisted cache buster；顯示時間仍保留，無舊欄位讀取 fallback。
+- 新增 migration `20260909120000-itinerary-day-revision.js`，up 只回填缺欄位文件，重跑不重設已有版本；
+  down 移除欄位。已用記憶體 collection fake 驗證重跑／回退，未對共用或正式 DB 執行。
+- **部署順序**：暫停行程寫入並排空舊版請求 → `pnpm migrate:up` → 部署全部新 writer →
+  恢復寫入並重載頁面。不可讓舊 writer 與新版並存；回退時先停用 revision 客戶端／回退 app，再執行 down。
+- 新增 8 項測試並更新既有 writer／表單測試；完整 1,426 項通過、37 項 opt-in 跳過，
+  lint、格式、TypeScript、production build 與 diff 檢查通過。Build 使用 dummy MongoDB URI 與 JWT secret；
+  未執行真實 MongoDB 併發或瀏覽器驗收。
+- 衝突粒度仍是整天；下一段才細化至活動，沒有宣稱跨 collection 副作用已具交易保證。
+
 ## 後續界線
 
-- 行程頁已改單筆活動寫入；`updateItineraryDay` 仍保留舊客戶端的整陣列更新契約。
-  不同活動的並行編輯仍會要求重開，不自動合併。下一段 R2d 處理所有寫入入口的 revision
-  與活動衝突粒度。
-- R2 必須同步盤點 AI 匯入、筆記轉活動與重新編號等其他寫入入口；本段沒有統一所有 writer
-  的 revision 機制，不能把毫秒級 `updatedAt` 當成全系統唯一 revision。
+- 行程頁已改單筆活動寫入；`updateItineraryDay` 仍保留整陣列更新契約，但也必須帶 revision。
+  不同活動的並行編輯仍會要求重開，不自動合併。下一段 R2e 處理活動衝突粒度。
+- R2d 已統一現有 writer 的 revision；未來新增入口必須遵守同一原子遞增契約。
 - 行程日刪除、地點更新後的相片同步及成功寫入後的 R2 清理，仍有跨資源競爭／部分失敗風險，
   不宣稱 R 已結案。R2／R3 要一起檢查附件共用與重新引用，不只改 `$push`／`$pull`。
 - 本段未操作正式 DB、真實通知、AI provider、push 或部署。

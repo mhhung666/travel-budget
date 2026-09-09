@@ -38,6 +38,8 @@ export interface Activity {
 }
 
 export interface ItineraryDay {
+  /** Optimistic concurrency token for all day writers. */
+  revision: number;
   id: string;
   trip_id: string;
   day_number: number;

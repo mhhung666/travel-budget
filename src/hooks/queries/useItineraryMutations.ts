@@ -44,8 +44,8 @@ interface DayInput {
   activities?: ActivityPayload[];
 }
 
-/** 更新欄位可省略；必須攜帶開啟表單時的時間，不以最新快取替換舊草稿的 token。 */
-type UpdateDayInput = Partial<DayInput> & { expected_updated_at: string };
+/** 更新欄位可省略；必須攜帶開啟表單時的 revision，不以最新快取替換舊草稿的 token。 */
+type UpdateDayInput = Partial<DayInput> & { expected_revision: number };
 
 /**
  * Itinerary create/update/delete mutations for a trip.

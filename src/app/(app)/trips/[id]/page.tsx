@@ -293,9 +293,9 @@ function ItineraryPageContent() {
             operation: 'update',
             activity_id: activity.id,
             activity: payload,
-            expected_updated_at: day.updated_at,
+            expected_revision: day.revision,
           }
-        : { operation: 'add', activity: payload, expected_updated_at: day.updated_at },
+        : { operation: 'add', activity: payload, expected_revision: day.revision },
     });
     toast({
       title: activity
@@ -318,7 +318,7 @@ function ItineraryPageContent() {
         data: {
           operation: 'delete',
           activity_id: activity.id,
-          expected_updated_at: day.updated_at,
+          expected_revision: day.revision,
         },
       });
       toast({ title: tAct('removedFromDay', { dayNumber: day.day_number }) });
@@ -365,7 +365,7 @@ function ItineraryPageContent() {
     } else if (editingDay) {
       await update.mutateAsync({
         dayId: editingDay.id,
-        data: { ...data, expected_updated_at: editingDay.updated_at },
+        data: { ...data, expected_revision: editingDay.revision },
       });
       toast({
         title: tItinerary('success.updated', { dayNumber: editingDay.day_number }),

@@ -155,6 +155,7 @@ async function appendToExistingDay(input: {
       ...activityCapacityFilter(input.activities.length),
     },
     {
+      $inc: { revision: 1 },
       $push: { activities: { $each: input.activities } },
       $addToSet: { appliedImportKeys: input.key },
     },
