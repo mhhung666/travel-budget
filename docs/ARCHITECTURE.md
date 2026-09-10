@@ -242,6 +242,8 @@ src/
 
 `updateTrip` 使用同一 Trip fence 交易重新驗證管理員／刪除狀態，將部分日期與交易內的既有區間合併驗證，再提交旅程欄位與 auto 相片重綁；重綁失敗則旅程更新一起回滾。名稱／目的地等更新亦重新驗權，但只有日期更新觸發重綁；路徑失效在成功提交後執行。
 
+`updatePhoto` 透過成員資格的 Trip fence 交易讀取行程日、推導借用座標並更新相片，與刪日／日期／地點更新協調；交易內重新驗證成員與旅程刪除狀態。保留成員信任、手動分類及自有 GPS 優先規則，簽名 URL 與頁面失效在提交後執行。
+
 ### 4.16 AI 行程匯入（受限試用）
 
 - [/api/ai/itinerary-import](../src/app/api/ai/itinerary-import/route.ts) 依序驗證 session、admin、輸入 schema、最小旅程 context 與持久化配額，再透過 [itineraryImportProvider.ts](../src/lib/ai/itineraryImportProvider.ts) 呼叫 Gateway 或 OpenAI。provider 未設定時回 `FEATURE_DISABLED`，不影響手動行程與其他 route。

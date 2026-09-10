@@ -12,6 +12,7 @@ import {
 } from '@/actions/itinerary.actions';
 import { confirmItineraryImport } from '@/actions/itineraryImport.actions';
 import { withNotePlanningTransaction } from '@/lib/notePlanningTransaction';
+import { updatePhoto } from '@/actions/photo.actions';
 import { updateTrip } from '@/actions/trip.actions';
 import { planNote } from '@/actions/note.actions';
 import { readItinerary } from '@/lib/itineraryRead';
@@ -32,6 +33,7 @@ vi.mock('@/lib/storage', () => ({
   headObject: mocks.head,
   deleteObjects: mocks.cleanup,
   presignGet: vi.fn(),
+  presignGetStable: vi.fn(async () => 'https://example.test/photo'),
 }));
 vi.mock('@/lib/photoItinerary', async (original) => ({
   ...(await original<typeof import('@/lib/photoItinerary')>()),
@@ -125,6 +127,132 @@ describe.skipIf(!uri || !allowed)('itinerary actions against isolated MongoDB', 
     });
     tripId = trip.id;
   });
+  async function seedPhoto() {
+    return mongoose.connection.db!.collection('photos').insertOne({
+      trip: new mongo.ObjectId(tripId),
+      uploadedBy: member,
+      key: 'photo.jpg',
+      thumbKey: 'photo_t.webp',
+      contentType: 'image/jpeg',
+      size: 100,
+      caption: 'Original',
+      location: null,
+      itineraryDay: null,
+      createdAt: new Date(),
+    });
+  }
+
+  it('allows an ordinary member to classify a photo and borrow day coordinates', async () => {
+    const day = await seed();
+    await ItineraryDay.updateOne(
+      { _id: day._id },
+      { $set: { location: { name: 'Tokyo', lat: 35, lon: 139 } } }
+    );
+    const photo = await seedPhoto();
+    mocks.session.mockResolvedValue({ userId: member.toHexString() });
+    expect(
+      await updatePhoto('r2verify', photo.insertedId.toHexString(), {
+        itinerary_day_id: day._id.toString(),
+      })
+    ).toMatchObject({ success: true });
+    expect(
+      await mongoose.connection.db!.collection('photos').findOne({ _id: photo.insertedId })
+    ).toMatchObject({
+      itineraryDay: day._id,
+      itineraryDaySource: 'manual',
+      location: { lat: 35, lon: 139, source: 'itinerary' },
+    });
+  });
+
+  it('rolls back photo edits and the trip fence on a late database failure, then retries', async () => {
+    const photo = await seedPhoto();
+    const db = mongoose.connection.db!;
+    const before = await db.collection('trips').findOne({ _id: new mongo.ObjectId(tripId) });
+    const original = mongo.Collection.prototype.findOneAndUpdate;
+    const spy = vi
+      .spyOn(mongo.Collection.prototype, 'findOneAndUpdate')
+      .mockImplementation(async function (this: mongo.Collection, ...args) {
+        const result = await original.apply(this, args);
+        if (this.collectionName === 'photos') throw new Error('Injected photo failure');
+        return result;
+      });
+    try {
+      expect(
+        await updatePhoto(tripId, photo.insertedId.toHexString(), { caption: 'Changed' })
+      ).toMatchObject({ code: 'INTERNAL_ERROR' });
+      expect(await db.collection('photos').findOne({ _id: photo.insertedId })).toMatchObject({
+        caption: 'Original',
+      });
+      expect(
+        (await db.collection('trips').findOne({ _id: new mongo.ObjectId(tripId) }))!
+          .expenseDeliveryFence
+      ).toBe(before!.expenseDeliveryFence);
+    } finally {
+      spy.mockRestore();
+    }
+    expect(
+      await updatePhoto(tripId, photo.insertedId.toHexString(), { caption: 'Changed' })
+    ).toMatchObject({ success: true });
+  });
+
+  it.each(['removed', 'deleting', 'deleted', 'day_deleted'])(
+    'rejects a photo edit when %s after initial authorization',
+    async (change) => {
+      const day = await seed();
+      const photo = await seedPhoto();
+      const db = mongoose.connection.db!;
+      const trip = new mongo.ObjectId(tripId);
+      const original = mongo.Collection.prototype.findOneAndUpdate;
+      let changed = false;
+      const spy = vi
+        .spyOn(mongo.Collection.prototype, 'findOneAndUpdate')
+        .mockImplementation(async function (this: mongo.Collection, ...args) {
+          if (this.collectionName === 'trips' && !changed) {
+            changed = true;
+            if (change === 'removed')
+              await db.collection('trips').updateOne({ _id: trip }, {
+                $pull: { members: { user: admin } },
+              } as mongo.Document);
+            else if (change === 'deleted') await db.collection('trips').deleteOne({ _id: trip });
+            else if (change === 'deleting')
+              await db
+                .collection('trips')
+                .updateOne({ _id: trip }, { $set: { expenseDeliveryDeleting: true } });
+            else await ItineraryDay.deleteOne({ _id: day._id });
+          }
+          return original.apply(this, args);
+        });
+      try {
+        expect(
+          await updatePhoto(tripId, photo.insertedId.toHexString(), {
+            caption: 'Changed',
+            itinerary_day_id: day._id.toString(),
+          })
+        ).toMatchObject({ code: change === 'day_deleted' ? 'NOT_FOUND' : 'FORBIDDEN' });
+        expect(await db.collection('photos').findOne({ _id: photo.insertedId })).toMatchObject({
+          caption: 'Original',
+          itineraryDay: null,
+        });
+      } finally {
+        spy.mockRestore();
+      }
+    }
+  );
+
+  it('leaves no dangling photo relation when classification races with day deletion', async () => {
+    const day = await seed();
+    const photo = await seedPhoto();
+    const [edited, deleted] = await Promise.all([
+      updatePhoto(tripId, photo.insertedId.toHexString(), { itinerary_day_id: day._id.toString() }),
+      deleteItineraryDay(tripId, day._id.toString()),
+    ]);
+    expect(deleted.success).toBe(true);
+    if (!edited.success) expect(edited.code).toBe('NOT_FOUND');
+    expect(
+      await mongoose.connection.db!.collection('photos').findOne({ _id: photo.insertedId })
+    ).toMatchObject({ itineraryDay: null, location: null });
+  });
+
   it('rolls back trip dates and metadata when photo rebinding fails, then retries successfully', async () => {
     const day = await seed();
     const db = mongoose.connection.db!;

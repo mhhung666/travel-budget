@@ -20,6 +20,17 @@ const headObject = vi.fn();
 const deleteObjects = vi.fn();
 const presignGetStable = vi.fn();
 
+vi.mock('@/lib/mongodb', () => ({ dbConnect: vi.fn() }));
+vi.mock('@/lib/photoUpdateTransaction', async (original) => ({
+  ...(await original<typeof import('@/lib/photoUpdateTransaction')>()),
+  withPhotoUpdateTransaction: (
+    _db: unknown,
+    _trip: string,
+    _actor: string,
+    update: (session: unknown) => Promise<unknown>
+  ) => update(undefined),
+}));
+
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 
 vi.mock('@/lib/storage', () => ({
@@ -91,7 +102,11 @@ function chainSortSelectLean(returnValue: unknown) {
 
 /** Mongoose 的 findOne(...).select(...).lean() 鏈式呼叫。 */
 function chainSelectLean(returnValue: unknown) {
-  return { select: () => ({ lean: () => Promise.resolve(returnValue) }) };
+  const query = {
+    session: (_session: unknown) => query,
+    select: () => ({ lean: () => Promise.resolve(returnValue) }),
+  };
+  return query;
 }
 
 /** Mongoose 的 findOneAndUpdate(...).lean() 鏈式呼叫（無 .select）。 */
@@ -511,7 +526,7 @@ describe('updatePhoto', () => {
     expect(photoFindOneAndUpdate).toHaveBeenCalledWith(
       { _id: PHOTO_ID, trip: TRIP_ID },
       { $set: { location: { lat: 35.6, lon: 139.7, source: 'manual' } } },
-      { new: true }
+      { new: true, session: undefined }
     );
   });
 

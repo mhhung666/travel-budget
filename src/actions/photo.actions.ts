@@ -1,5 +1,8 @@
 'use server';
 
+import mongoose from 'mongoose';
+import { dbConnect } from '@/lib/mongodb';
+import { withPhotoUpdateTransaction, PhotoUpdateError } from '@/lib/photoUpdateTransaction';
 import { revalidatePath } from 'next/cache';
 import { ItineraryDay, Photo, Trip, User } from '@/models';
 import { getTripMembership } from '@/lib/permissions';
@@ -306,64 +309,79 @@ export const updatePhoto = withAuth(
         };
       }
 
-      const { caption, itinerary_day_id, location } = validation.data;
-      const set: Record<string, unknown> = {};
-      if (caption !== undefined) set.caption = caption;
-      if (location !== undefined) {
-        set.location = location ? { ...location, source: 'manual' as const } : null;
-      }
-      if (itinerary_day_id !== undefined) {
-        // 使用者明確選日或選「未分類」都視為 manual，日後旅程日期改動不可覆蓋。
-        set.itineraryDaySource = 'manual';
-        let dayLocation: { lat?: number | null; lon?: number | null } | null = null;
-        if (itinerary_day_id === null) {
-          set.itineraryDay = null;
-        } else {
-          // 行程日必須屬於本 trip——否則成員可以把相片掛到別團的行程日上。
-          // 取 location 是為了下面的座標退回（沒有 GPS 的相片借當天的城市座標）。
-          const day = await ItineraryDay.findOne({
-            _id: itinerary_day_id,
-            trip: membership.tripId,
-          })
-            .select('location')
-            .lean<{ location?: { lat?: number | null; lon?: number | null } | null } | null>();
-          if (!day) {
-            return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+      await dbConnect();
+      const updated = await withPhotoUpdateTransaction(
+        mongoose.connection.db!,
+        membership.tripId,
+        session.userId,
+        async (transactionSession) => {
+          const { caption, itinerary_day_id, location } = validation.data;
+          const set: Record<string, unknown> = {};
+          if (caption !== undefined) set.caption = caption;
+          if (location !== undefined) {
+            set.location = location ? { ...location, source: 'manual' as const } : null;
           }
-          set.itineraryDay = itinerary_day_id;
-          dayLocation = day.location ?? null;
-        }
+          if (itinerary_day_id !== undefined) {
+            // 使用者明確選日或選「未分類」都視為 manual，日後旅程日期改動不可覆蓋。
+            set.itineraryDaySource = 'manual';
+            let dayLocation: { lat?: number | null; lon?: number | null } | null = null;
+            if (itinerary_day_id === null) {
+              set.itineraryDay = null;
+            } else {
+              // 行程日必須屬於本 trip——否則成員可以把相片掛到別團的行程日上。
+              // 取 location 是為了下面的座標退回（沒有 GPS 的相片借當天的城市座標）。
+              const day = await ItineraryDay.findOne({
+                _id: itinerary_day_id,
+                trip: membership.tripId,
+              })
+                .session(transactionSession)
+                .select('location')
+                .lean<{ location?: { lat?: number | null; lon?: number | null } | null } | null>();
+              if (!day) {
+                throw new PhotoUpdateError('NOT_FOUND');
+              }
+              set.itineraryDay = itinerary_day_id;
+              dayLocation = day.location ?? null;
+            }
 
-        // 同一次呼叫明確拉了釘就以它為準，別讓退回規則蓋掉使用者剛拉的座標。
-        // `location: null`（明確清掉手動釘）不算數——清掉後這張就沒有座標了，正好可以借當天的。
-        if (!location) {
-          // location === null 時現有座標已經要被清掉，不必回頭讀
-          const current =
-            location === null
-              ? null
-              : await Photo.findOne({ _id: photoId, trip: membership.tripId })
-                  .select('location')
-                  .lean<{ location?: { source?: string | null } | null } | null>();
-          if (location === undefined && !current) {
-            return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+            // 同一次呼叫明確拉了釘就以它為準，別讓退回規則蓋掉使用者剛拉的座標。
+            // `location: null`（明確清掉手動釘）不算數——清掉後這張就沒有座標了，正好可以借當天的。
+            if (!location) {
+              // location === null 時現有座標已經要被清掉，不必回頭讀
+              const current =
+                location === null
+                  ? null
+                  : await Photo.findOne({ _id: photoId, trip: membership.tripId })
+                      .session(transactionSession)
+                      .select('location')
+                      .lean<{ location?: { source?: string | null } | null } | null>();
+              if (location === undefined && !current) {
+                throw new PhotoUpdateError('NOT_FOUND');
+              }
+              const derived = deriveItineraryLocation(current?.location, dayLocation);
+              if (derived !== undefined) set.location = derived;
+            }
           }
-          const derived = deriveItineraryLocation(current?.location, dayLocation);
-          if (derived !== undefined) set.location = derived;
-        }
-      }
 
-      const updated = await Photo.findOneAndUpdate(
-        { _id: photoId, trip: membership.tripId },
-        { $set: set },
-        { new: true }
-      ).lean<(TripPhotoDtoInput & { key: string; thumbKey: string }) | null>();
-      if (!updated) {
-        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
-      }
+          const updated = await Photo.findOneAndUpdate(
+            { _id: photoId, trip: membership.tripId },
+            { $set: set },
+            { new: true, session: transactionSession }
+          ).lean<(TripPhotoDtoInput & { key: string; thumbKey: string }) | null>();
+          if (!updated) {
+            throw new PhotoUpdateError('NOT_FOUND');
+          }
+
+          return updated;
+        }
+      );
 
       revalidatePath(`/trips/${tripIdOrCode}/album`);
       return { success: true, data: toTripPhotoDto(updated, await signPhotoUrls(updated)) };
     } catch (error) {
+      if (error instanceof PhotoUpdateError) {
+        return { success: false, error: error.code, code: error.code };
+      }
       logger.error('Update photo error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
