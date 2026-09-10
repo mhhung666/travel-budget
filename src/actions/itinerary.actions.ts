@@ -443,22 +443,34 @@ export const mutateItineraryActivity = withAuth(
           update.$set = set;
         }
       }
-      const updated = await ItineraryDay.findOneAndUpdate(
-        {
-          _id: dayId,
-          trip: membership.tripId,
-          ...(data.operation === 'add'
-            ? activityCapacityFilter(1)
-            : {
-                activities: {
-                  $elemMatch: { _id: data.activity_id, revision: data.expected_activity_revision },
-                },
-              }),
-        },
-        update,
-        { new: true, timestamps: false }
-      ).lean<LeanDay | null>();
-      if (!updated) return { success: false, error: 'CONFLICT', code: 'CONFLICT' };
+      await dbConnect();
+      const updated = await withItineraryDayUpdateTransaction(
+        mongoose.connection.db!,
+        membership.tripId,
+        session.userId,
+        async (transactionSession) => {
+          const day = await ItineraryDay.findOneAndUpdate(
+            {
+              _id: dayId,
+              trip: membership.tripId,
+              ...(data.operation === 'add'
+                ? activityCapacityFilter(1)
+                : {
+                    activities: {
+                      $elemMatch: {
+                        _id: data.activity_id,
+                        revision: data.expected_activity_revision,
+                      },
+                    },
+                  }),
+            },
+            update,
+            { new: true, timestamps: false, session: transactionSession }
+          ).lean<LeanDay | null>();
+          if (!day) throw new ItineraryDayUpdateError('CONFLICT');
+          return day;
+        }
+      );
 
       // A ticket can still be referenced by a sibling activity. Only clean removed
       // target keys absent from the complete, successfully written day.
@@ -471,6 +483,9 @@ export const mutateItineraryActivity = withAuth(
       }
       return { success: true, data: toDayDto(updated) };
     } catch (error) {
+      if (error instanceof ItineraryDayUpdateError) {
+        return { success: false, error: error.code, code: error.code };
+      }
       logger.error('Mutate itinerary activity error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }

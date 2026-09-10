@@ -236,7 +236,7 @@ src/
 
 `createItineraryDay` 在附件 HEAD 驗證後，以相同 Trip fence 交易重新驗權、分配日號、建立行程日及重綁 auto 相片；任一步驟失敗全部回滾。新增與刪除共用交易內重綁 helper。AI 匯入、筆記規劃與相片直接寫入尚未全面參與此協調。
 
-`updateItineraryDay` 在同一交易重新驗權、寫入 Trip fence、以 revision CAS 更新整天與同步借用座標；日號變更時亦重綁 auto 相片。失敗全部回滾，原有 EXIF／手動座標與手動分類保留。附件 HEAD 在交易外完成，移除票券只在提交後 best-effort 清理。單筆活動與其他 writer 的整體協調仍待後續階段。
+`updateItineraryDay` 在同一交易重新驗權、寫入 Trip fence、以 revision CAS 更新整天與同步借用座標；日號變更時亦重綁 auto 相片。失敗全部回滾，原有 EXIF／手動座標與手動分類保留。附件 HEAD 在交易外完成，移除票券只在提交後 best-effort 清理。`mutateItineraryActivity` 亦在附件 HEAD 後使用同一 Trip fence 交易，重新驗證管理員與旅程狀態，保留活動 revision CAS、容量上限及提交後票券清理；其他 writer 與跨天票券引用的整體協調仍待後續階段。
 
 ### 4.16 AI 行程匯入（受限試用）
 

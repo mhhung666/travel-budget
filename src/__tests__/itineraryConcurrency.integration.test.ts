@@ -722,6 +722,76 @@ describe.skipIf(!uri || !allowed)('itinerary actions against isolated MongoDB', 
     expect((await ItineraryDay.findById(day.id))!.updatedAt).toEqual(future);
   });
 
+  it.each(['demoted', 'deleting', 'deleted'] as const)(
+    'rejects a pending activity write when its trip is %s during HEAD',
+    async (state) => {
+      const day = await seed();
+      const gate = headBarrier(1);
+      const pending = mutateItineraryActivity(tripId, day.id, {
+        operation: 'update',
+        activity_id: day.activities[0]._id.toString(),
+        expected_activity_revision: 0,
+        activity: uploaded('Unauthorized'),
+      });
+      await gate.entered;
+      if (state === 'demoted') {
+        await Trip.updateOne(
+          { _id: tripId, 'members.user': admin },
+          { $set: { 'members.$.role': 'member' } }
+        );
+      } else if (state === 'deleting') {
+        await mongoose.connection
+          .db!.collection('trips')
+          .updateOne(
+            { _id: new mongo.ObjectId(tripId) },
+            { $set: { expenseDeliveryDeleting: true } }
+          );
+      } else {
+        await Trip.deleteOne({ _id: tripId });
+      }
+      gate.release();
+      expect(await pending).toMatchObject({ code: 'FORBIDDEN' });
+      expect(await ItineraryDay.findById(day.id).lean()).toMatchObject({
+        revision: 0,
+        activities: [
+          { title: 'Original 0', revision: 0 },
+          { title: 'Original 1', revision: 0 },
+        ],
+      });
+      expect(mocks.cleanup).not.toHaveBeenCalled();
+    }
+  );
+
+  it('rolls back the activity transaction fence on revision conflict', async () => {
+    const day = await seed();
+    const gate = headBarrier(1);
+    const pending = mutateItineraryActivity(tripId, day.id, {
+      operation: 'update',
+      activity_id: day.activities[0]._id.toString(),
+      expected_activity_revision: 0,
+      activity: uploaded('Stale'),
+    });
+    await gate.entered;
+    expect(
+      await mutateItineraryActivity(tripId, day.id, {
+        operation: 'delete',
+        activity_id: day.activities[0]._id.toString(),
+        expected_activity_revision: 0,
+      })
+    ).toMatchObject({ success: true });
+    const parent = await mongoose.connection
+      .db!.collection('trips')
+      .findOne({ _id: new mongo.ObjectId(tripId) });
+    gate.release();
+    expect(await pending).toMatchObject({ code: 'CONFLICT' });
+    expect(
+      (await mongoose.connection
+        .db!.collection('trips')
+        .findOne({ _id: new mongo.ObjectId(tripId) }))!.expenseDeliveryFence
+    ).toBe(parent!.expenseDeliveryFence);
+    expect(mocks.cleanup).not.toHaveBeenCalled();
+  });
+
   it('shares capacity and revision contracts with note planning and AI import', async () => {
     const day = await seed(12);
     const note = await Note.create({ trip: tripId, text: 'From note', createdBy: member });
