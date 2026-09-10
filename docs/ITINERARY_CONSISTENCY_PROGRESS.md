@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | R1 | 舊草稿覆蓋保護與衝突提示 | 已完成工程驗證 |
 | R2 | 穩定活動 ID、單筆新增／編輯／刪除原子更新，批次上限與衝突策略 | R2a～R2f 已完成工程與本機 MongoDB 併發驗證 |
-| R3 | 虛擬成員轉換／會員移除／旅程刪除的一致性、外部清理重試 | R3a 身分轉換完成；後續階段進行中 |
+| R3 | 虛擬成員轉換／會員移除／旅程刪除的一致性、外部清理重試 | R3a～R3c 成員／旅程刪除已完成；行程日／票券引用協調仍待後續處理 |
 | R4 | 票券附件驗證的有界平行查詢 | 待處理 |
 
 > R1～R2c 為各段交付紀錄；目前衝突 token 已由 R2d 的 revision 取代時間。
@@ -162,3 +162,39 @@ diff whitespace 檢查通過。Build 覆寫 dummy MongoDB URI 與 JWT secret，�
 - 新增 4 項真實 replica set 測試，涵蓋完整清理、晚期失敗回滾、移除與認領競態、權限變更與自我移除；含 R3a 共 13 項通過。
 - 完整 suite 1,436 項通過；未啟用的 MongoDB/live provider 測試跳過，不視為通過。
 - 不需 migration；下一階段處理旅程刪除與持久化外部清理工作。
+
+## R3c：旅程刪除與外部清理
+
+- `deleteTripAtomically` 在同一 transaction 重新核對 admin、寫入 parent fence、建立清理工作、刪除旅程子資料及 parent；FlightRecord／StayRecord 僅解除連結。
+- 任何 DB 步驟失敗會連同刪除標記與工作一起回滾；舊版留下的刪除標記仍可由 admin 重試完成。
+- 新增 `tripcleanupjobs`，`_id` 即旅程 ID；記錄每個 prefix 的清理進度、5 分鐘租約與 token。外部 HTTP 不在 transaction 內，失敗不影響已完成的刪除。
+- 每頁最多 1,000 個物件、5 秒 timeout，S3 HTTP 成功但回報部分 Errors 也必須重試。失效 worker 無法覆寫新租約的 checkpoint。
+- 首次完成後至少 24 小時再掃一次全部 prefix 與殘留子資料，收掉刪除前已簽發的上傳網址／執行中的晚到寫入。完成工作保留最小 tombstone；這不是對任意長時間的外部還原／直接 DB 寫入提供保證。
+- `/api/cron/trip-cleanup` 沿用 CRON_SECRET，Vercel 每日 UTC 14:00 補撿；每次最多 10 個工作批次、40 秒軟期限，平台上限 60 秒。外部失敗保留工作，不設 TTL 丟棄未完成工作。
+- 本機 replica set 共 21 項 R3 整合測試通過；另有 storage 部分失敗／分頁及 cron 授權測試。這些不代表正式 R2 或正式排程驗收。
+
+### 部署與重跑
+
+1. 部署前執行 `pnpm migrate:up`，建立 `20260910090000-trip-cleanup-jobs.js` 的 collection／索引；本次只對隔離測試 DB 驗證，未操作正式 DB。
+2. 部署本次全部提交，確認 CRON_SECRET 與新排程。交易需要 replica set／sharded MongoDB。
+3. 指定測試旅程驗收刪除與 `tripcleanupjobs` 的 firstSweepAt／completedAt；需要立即補撿時可由受授權的 cron GET 執行同一個有界 worker。
+4. 回退前先排空未完成工作；migration down 只移除自有索引，不刪除工作資料。舊版不會處理新工作，不能把 rollback 當作已完成清理。
+
+隔離測試不載入 `.env`、不用 app URI，強制建立隨機空庫並只刪除自己的測試庫：
+
+```bash
+MONGODB_MEMBER_TEST_URI='mongodb://127.0.0.1:27030/?replicaSet=r3test' \
+  MONGODB_MEMBER_TEST_ALLOW_WRITES=1 \
+  pnpm vitest run src/__tests__/memberIdentity.integration.test.ts
+```
+
+### 尚存界線
+
+本次 R3a～R3c 交付涵蓋身分轉換、成員移除與旅程刪除。行程日刪除／重新編號／相片重綁，
+以及存活旅程內票券跨天引用與刪除後重新引用，仍需獨立的交易／引用清理協調；未宣稱已處理。
+一般支出、還款、清單等 writer 尚未全部加入 Trip fence，因此不承諾移除／轉換與所有晚到一般寫入具全域序列化。
+保留 User 避免因此造成懸空身分；旅程刪除則由延後清掃處理正常請求生命週期內的晚到寫入。
+
+### R3a～R3c 本次交付驗證
+
+完整 suite（啟用隔離 replica set）1,464 項通過、53 項未啟用測試跳過；lint、Prettier、TypeScript、dummy DB/JWT 環境 production build 與 diff whitespace 檢查通過。版本在 R3c 交付提交統一 patch bump 一次。未 push、部署或操作正式資料。

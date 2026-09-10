@@ -86,7 +86,8 @@ const TripSchema = new Schema(
     albumShareCode: { type: String },
     members: { type: [TripMemberSchema], default: [] },
     // 刪除子資料前先設置；背景事件不得在級聯清理途中重新新增紀錄。
-    // 不設 default、不回補歷史資料。清理失敗時保留標記，管理員可重試 deleteTrip。
+    // 不設 default、不回補歷史資料。新版刪除在 transaction 內寫入；失敗連同標記回滾。
+    // 歷史留下的標記仍允許 admin 重試完成刪除。
     expenseDeliveryDeleting: { type: Boolean },
     // 舊版全團預算，只供個人預算改版後的過渡提示，不再參與任何進度計算。
     // migration 會將舊 budget 欄位改名至此；全新旅程維持 null。

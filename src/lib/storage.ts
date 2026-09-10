@@ -125,14 +125,20 @@ export async function headObject(
 const DELETE_BATCH_MAX = 1000;
 
 /** 刪除指定 keys（自動分批，呼叫端不必自己算 1000 的上限）。 */
-export async function deleteObjects(bucket: R2Bucket, keys: string[]): Promise<void> {
+export async function deleteObjects(
+  bucket: R2Bucket,
+  keys: string[],
+  abortSignal?: AbortSignal
+): Promise<void> {
   for (let i = 0; i < keys.length; i += DELETE_BATCH_MAX) {
-    await r2().send(
+    const result = await r2().send(
       new DeleteObjectsCommand({
         Bucket: bucketName(bucket),
         Delete: { Objects: keys.slice(i, i + DELETE_BATCH_MAX).map((Key) => ({ Key })) },
-      })
+      }),
+      abortSignal ? { abortSignal } : undefined
     );
+    if (result.Errors?.length) throw new Error('Storage object deletion incomplete');
   }
 }
 
@@ -214,4 +220,18 @@ export function avatarPublicUrl(key: string): string {
 export function avatarKeyFromUrl(url: string): string | null {
   const base = `${getR2Config().avatarsPublicUrl}/`;
   return url.startsWith(base) ? url.slice(base.length) : null;
+}
+
+/** A bounded cleanup page. Always restart at the first page after deleting its keys. */
+export async function deletePrefixPage(bucket: R2Bucket, prefix: string): Promise<boolean> {
+  const abortSignal = AbortSignal.timeout(5000);
+  const listed = await r2().send(
+    new ListObjectsV2Command({ Bucket: bucketName(bucket), Prefix: prefix, MaxKeys: 1000 }),
+    { abortSignal }
+  );
+  const keys = (listed.Contents ?? [])
+    .map((object) => object.Key)
+    .filter((key): key is string => Boolean(key));
+  await deleteObjects(bucket, keys, abortSignal);
+  return !listed.IsTruncated;
 }

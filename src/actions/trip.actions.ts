@@ -3,26 +3,13 @@
 import { readTripShell, type LeanTripShell } from '@/lib/tripShellRead';
 import { revalidatePath } from 'next/cache';
 import { dbConnect } from '@/lib/mongodb';
-import {
-  Trip as TripModel,
-  Expense,
-  ItineraryDay,
-  Payment,
-  Checklist,
-  Notification,
-  ActivityLog,
-  Comment,
-  Note,
-  Photo,
-  FlightRecord,
-  StayRecord,
-  AiImportUsage,
-  type TripDoc,
-} from '@/models';
+import mongoose from 'mongoose';
+import { Trip as TripModel, type TripDoc } from '@/models';
+import { deleteTripAtomically, TripDeletionError } from '@/lib/tripDeletion';
+import { runTripCleanup } from '@/lib/tripCleanup';
 import { getMemberTrip, getTripMembership } from '@/lib/permissions';
 import { generateUniqueHashCode } from '@/lib/hashcode';
-import { deleteByPrefix } from '@/lib/storage';
-import { receiptKeyPrefix, itineraryKeyPrefix, noteKeyPrefix, photoKeyPrefix } from '@/lib/uploads';
+import { deletePrefixPage } from '@/lib/storage';
 import {
   createTripSchema,
   updateTripSchema,
@@ -260,41 +247,19 @@ export const deleteTrip = withAuth(
 
       const tripId = membership.tripId;
 
-      // 先對 parent 寫入刪除標記：與背景事件的 Trip transaction fence 互斥。
-      // 必須等完成才能平行清理子資料；失敗不清除標記，避免部分刪除後重建通知。
-      await TripModel.updateOne({ _id: tripId }, { $set: { expenseDeliveryDeleting: true } });
-
-      // MongoDB 無外鍵 cascade，需手動清除關聯資料（支出、行程日、結算還款、清單、通知、動態牆、留言、隨手記、相簿）
-      await Promise.all([
-        Expense.deleteMany({ trip: tripId }),
-        ItineraryDay.deleteMany({ trip: tripId }),
-        Payment.deleteMany({ trip: tripId }),
-        Checklist.deleteMany({ trip: tripId }),
-        Notification.deleteMany({ trip: tripId }),
-        ActivityLog.deleteMany({ trip: tripId }),
-        Comment.deleteMany({ trip: tripId }),
-        Note.deleteMany({ trip: tripId }),
-        Photo.deleteMany({ trip: tripId }),
-        // 旅行成就的飛行/住宿是 user-level 終身紀錄：解除連結（trip 置 null）而非刪除
-        //（刻意偏離級聯刪除慣例，見 ROADMAP #19 / FlightRecord model 註解）
-        FlightRecord.updateMany({ trip: tripId }, { $set: { trip: null } }),
-        StayRecord.updateMany({ trip: tripId }, { $set: { trip: null } }),
-        AiImportUsage.deleteMany({ scope: 'trip', scopeKey: tripId }),
-      ]);
-      await TripModel.deleteOne({ _id: tripId });
-
-      // R2 也無 cascade：清掉此 trip 的所有收據、票券、隨手記照片與相簿相片物件
-      //（同屬私有 receipts bucket，前綴不同）。best-effort——刪不掉不該擋住刪除。
-      await Promise.all([
-        deleteByPrefix('receipts', receiptKeyPrefix(tripId)),
-        deleteByPrefix('receipts', itineraryKeyPrefix(tripId)),
-        deleteByPrefix('receipts', noteKeyPrefix(tripId)),
-        deleteByPrefix('receipts', photoKeyPrefix(tripId)),
-      ]).catch((e) => logger.error('Delete trip: blob cleanup failed', e));
+      await deleteTripAtomically(mongoose.connection.db!, tripId, session.userId);
+      // Durable job was committed with deletion. Storage failure cannot undo that success.
+      await runTripCleanup(
+        mongoose.connection.db!,
+        (prefix) => deletePrefixPage('receipts', prefix),
+        { tripId }
+      ).catch((error) => logger.error('Delete trip: cleanup deferred', error));
 
       revalidatePath('/trips');
       return { success: true, data: { message: '旅行已刪除' } };
     } catch (error) {
+      if (error instanceof TripDeletionError)
+        return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
       logger.error('Delete trip error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }

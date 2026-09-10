@@ -1,12 +1,13 @@
 # 重要完成里程碑
 
-> 更新日期：2026-09-09
+> 更新日期：2026-09-10
 > 本文件提供產品演進摘要，不是逐 commit 紀錄。精確變更、作者與 diff 請查 `git log`；目前能力見 [FEATURES.md](./FEATURES.md)。
 
 ## 2026-09
 
 | 日期 | 里程碑 |
 | --- | --- |
+| 09-10 | R3a～R3c：虛擬身分轉換、成員移除與旅程刪除改用 transaction；旅程檔案清理具持久化重試與延後清掃，附 migration／cron。本機 replica set 驗證通過，剩餘行程日／票券引用協調見 [R 進度](./ITINERARY_CONSISTENCY_PROGRESS.md) |
 | 09-09 | R2 完成工程驗收：真實 MongoDB 驗證活動並行、容量、批次衝突及 migrations；跨 collection 與 blob 清理仍屬 R3，見 [R 進度](./ITINERARY_CONSISTENCY_PROGRESS.md) |
 | 09-09 | R2e：單筆編輯／刪除改用活動 revision，不同活動可並行；整批更新同步使活動快照失效，附 migration 與 cache buster，見 [R 進度](./ITINERARY_CONSISTENCY_PROGRESS.md) |
 | 09-09 | R2d：行程衝突 token 改用明確 revision，手動、AI、筆記與重新編號統一原子遞增；附可逆 migration 與 cache buster，見 [R 進度](./ITINERARY_CONSISTENCY_PROGRESS.md) |

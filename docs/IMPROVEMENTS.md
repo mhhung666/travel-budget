@@ -1,6 +1,6 @@
 # 改善建議（Improvements）
 
-> 更新日期：2026-09-09
+> 更新日期：2026-09-10
 > 本文件只列**尚未處理**的程式碼 / 基礎設施層級改善。已完成里程碑見 [CHANGELOG.md](./CHANGELOG.md)，架構說明見 [ARCHITECTURE.md](./ARCHITECTURE.md)。
 > 慣例：處理完一項 → 移到 [CHANGELOG.md](./CHANGELOG.md)、從本檔刪除。
 
@@ -71,21 +71,14 @@ HTTP 已接受但 checkpoint 尚未保存仍可能重送；不承諾推播永久
 
 ### R. ⚠️ 原子更新與跨 collection 一致性（P2）
 
-**進度（2026-09-09）**：R1～R2 已完成。活動穩定 ID、單筆原子更新、每日上限與活動 revision
-均已完成實作，通過本機 MongoDB 併發驗收；衝突保留草稿並提供四語提示。
-R3 的跨 collection／外部清理一致性與 R4 的附件平行驗證待處理，見 [R 分階段進度](./ITINERARY_CONSISTENCY_PROGRESS.md)。
+**進度（2026-09-10）**：使用者確認 R2 已正式部署。R3a～R3c 已將虛擬成員註冊／連結、成員移除與旅程刪除改為 transaction；旅程外部清理具持久化工作、租約、checkpoint、重試與延後清掃。部署需先執行新 cleanup migration 並確認 cron，詳見 [R 分階段進度](./ITINERARY_CONSISTENCY_PROGRESS.md)。
 
-**問題**：行程頁已改單筆活動寫入與目標 revision 保護；所有寫入入口已統一整天 revision，
-整陣列更新契約仍保留，但也必須帶 revision。虛擬成員轉換、移除會員與刪除旅程會依序修改多個 collection，中途失敗可能留下
-部分完成狀態。
+**仍待處理**：行程日刪除／重新編號／相片重綁，以及存活旅程內票券跨天引用與重新引用的清理協調。
+一般支出／還款／清單 writer 仍未全部加入 Trip fence，需繼續縮小移除／轉換後晚到寫入的競爭窗口。
+R4 的附件 `headObject` 有界平行驗證另列下一階段。
 
-**處理方向**：
-
-- 身分轉換與會員移除使用 MongoDB transaction；R2 等外部刪除留在 transaction 外，以冪等工作重試。
-- 同時整理同步等待的 attachment `headObject`，在驗證 key 後採有上限的平行查詢。
-
-**完成條件**：不同使用者編輯不同活動不互相覆蓋；跨 collection 操作失敗時不留下半完成會員狀態；
-transaction 與外部清理失敗均有測試。
+**完成條件**：行程日與相片關聯不因中途失敗部分完成；附件清理不刪除仍引用或重新引用的檔案；
+一般 writer 與成員變動競態有實際 MongoDB 驗證。R3a～R3c 不冒稱上述後續事項已完成。
 
 ---
 

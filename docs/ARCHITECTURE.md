@@ -150,7 +150,7 @@ src/
 - **上傳流程**：瀏覽器先用 [lib/imageCompress.ts](../src/lib/imageCompress.ts) 壓成 WebP → 向 server action（`createReceiptUploadUrl` / `createAvatarUploadUrl`）要 presigned PUT → **直傳 R2**（大檔不過 server action）→ 回存參照（收據併入 `createExpense`/`updateExpense`，頭像走 `setAvatar`）。**owner 段（`receipts/<tripId>/`、`avatars/<userId>/`）由伺服器帶入**、client 無法指定，防跨 trip/user 寫入；存參照前以 **`headObject`** 重新驗證大小/型別（presigned PUT 無法限制 client 真正送出的內容）。
 - **隱私**：收據為私有，`toExpenseDto` 的 `{ attachments }` 選項對**公開分享路由關閉**（收據不外洩到未登入分享頁）；頭像為低敏感、走公開 bucket。
 - **環境變數**：六個 `R2_*` 在 [lib/env.ts](../src/lib/env.ts) 設為 **optional**，`getR2Config()` 於實際用到時才嚴格檢查 → 未設定 R2 也能 boot / CI build。
-- **清理（無 cascade）**：`deleteExpense` / `deleteTrip` 刪收據物件、`setAvatar` / `removeAvatar` 刪舊頭像，皆 **best-effort**（刪不掉的孤兒不擋住使用者操作，只記 log）。
+- **清理（無 cascade）**：`deleteExpense` 刪收據物件、`setAvatar` / `removeAvatar` 刪舊頭像維持 best-effort。`deleteTrip` 則將 DB cascade 與 `tripcleanupjobs` 一起 transaction 提交，再於交易外有界清理四種私有 prefix；失敗保留 checkpoint，cron 重試並於首次清掃後至少 24 小時再次清掃。詳見 [R3 進度與限制](./ITINERARY_CONSISTENCY_PROGRESS.md)。
 
 > 使用者可見的檔案與相簿能力摘要見 [FEATURES.md](./FEATURES.md)。
 
@@ -304,7 +304,9 @@ AiImportUsage     ── AI 匯入 global/user/trip UTC 每日 request、token �
 | `Photo` | `trip`(ref,index), R2 keys, `exif`, `location`, `itineraryDay`, caption；公開分享另走去位置 DTO |
 | `AiImportUsage` | `(scope,scopeKey,periodStart)` unique；每日 requests、reserved/spent micro-USD、input/output tokens、成功／失敗數；`expiresAt` TTL |
 
-> ⚠️ MongoDB 無外鍵 cascade：刪除 trip 時 `deleteTrip` 會手動一併刪除該 trip 的 expenses、payments、itinerary days、checklists、notifications、activity logs、comments、notes，並 best-effort 刪除該 trip 在 R2 的收據 / 票券物件；**FlightRecord / StayRecord 例外**——它們是 user-level 終身紀錄，只解除連結（`trip` 置 null）不刪除；`removeMember` 也會檢查還款參照避免孤兒，並清掉清單項目對該成員的指派與其在此 trip 的通知。
+`tripcleanupjobs` 為 raw MongoDB 的持久化清理集合（不經 Mongoose DTO）：`_id`＝已刪除旅程 ID，保存 `availableAt`／`token`／`prefixIndex`／`attempts` 與清掃時間；以 `availableAt` 索引領取工作，completed 工作保留 tombstone。
+
+> MongoDB 無外鍵 cascade：`deleteTrip` 在 transaction 內刪除 expenses、payments、itinerarydays、checklists、notifications、activitylogs、comments、notes、photos、旅程 AI usage 與 parent，並建立持久化清理工作。FlightRecord／StayRecord 只解除 trip 連結。`removeMember` 在 transaction 內移除成員、清單指派／勾選與通知，保留 User 與財務／歷史紀錄。公開虛擬成員註冊／連結亦使用 transaction，密碼驗證與登入 cookie 留在交易外。需要 replica set／sharded MongoDB。
 > ID 一律為 ObjectId 字串，從 JWT、DTO 到前端 props 一致。
 
 ---

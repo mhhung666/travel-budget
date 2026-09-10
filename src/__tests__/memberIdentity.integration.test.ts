@@ -4,6 +4,12 @@ import mongoose, { mongo } from 'mongoose';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { changeMemberIdentity } from '@/lib/memberIdentity';
 import { removeTripMember } from '@/lib/memberRemoval';
+import { deleteTripAtomically, TRIP_CHILD_COLLECTIONS } from '@/lib/tripDeletion';
+import { runTripCleanup } from '@/lib/tripCleanup';
+import {
+  up as cleanupUp,
+  down as cleanupDown,
+} from '../../migrations/20260910090000-trip-cleanup-jobs.js';
 
 const uri = process.env.MONGODB_MEMBER_TEST_URI;
 const allowed = process.env.MONGODB_MEMBER_TEST_ALLOW_WRITES === '1';
@@ -58,7 +64,17 @@ describe.skipIf(!uri || !allowed)('member identity transactions in isolated Mong
   });
   beforeEach(async () => {
     vi.restoreAllMocks();
-    for (const name of ['trips', 'users', 'expenses', 'payments', 'checklists', 'notifications'])
+    for (const name of [
+      ...new Set([
+        'trips',
+        'users',
+        ...TRIP_CHILD_COLLECTIONS,
+        'flightrecords',
+        'stayrecords',
+        'aiimportusages',
+        'tripcleanupjobs',
+      ]),
+    ])
       await db.collection(name).deleteMany({});
     await db.collection('users').insertMany([
       { _id: virtual, username: 'virtual', isVirtual: true },
@@ -229,5 +245,139 @@ describe.skipIf(!uri || !allowed)('member identity transactions in isolated Mong
       .updateOne({ _id: trip, 'members.user': other }, { $set: { 'members.$.role': 'member' } });
     await expect(removeTripMember(db, input)).rejects.toMatchObject({ code: 'FORBIDDEN' });
     expect((await db.collection('trips').findOne({ _id: trip }))?.members).toHaveLength(2);
+  });
+  async function deletionFixture() {
+    await removalFixture();
+    for (const name of TRIP_CHILD_COLLECTIONS) {
+      await db.collection(name).insertOne({ trip });
+      await db.collection(name).insertOne({ trip: other });
+    }
+    for (const name of ['flightrecords', 'stayrecords'])
+      await db.collection(name).insertOne({ trip, user: real });
+    await db
+      .collection('aiimportusages')
+      .insertOne({ scope: 'trip', scopeKey: trip.toHexString() });
+  }
+  it('deletes all trip collections and commits cleanup work while unlinking lifetime records', async () => {
+    await deletionFixture();
+    await deleteTripAtomically(db, trip.toHexString(), other.toHexString());
+    expect(await db.collection('trips').findOne({ _id: trip })).toBeNull();
+    for (const name of TRIP_CHILD_COLLECTIONS) {
+      expect(await db.collection(name).countDocuments({ trip })).toBe(0);
+      expect(await db.collection(name).countDocuments({ trip: other })).toBeGreaterThan(0);
+    }
+    for (const name of ['flightrecords', 'stayrecords'])
+      expect(await db.collection(name).findOne({ user: real })).toMatchObject({ trip: null });
+    expect(
+      await db.collection('aiimportusages').countDocuments({ scopeKey: trip.toHexString() })
+    ).toBe(0);
+    expect(await db.collection('tripcleanupjobs').findOne({ _id: trip })).toMatchObject({
+      prefixIndex: 0,
+      attempts: 0,
+    });
+  });
+  it('rolls cascade, parent marker and cleanup job back on a late DB failure', async () => {
+    await deletionFixture();
+    const original = mongo.Collection.prototype.updateMany;
+    vi.spyOn(mongo.Collection.prototype, 'updateMany').mockImplementation(function (
+      this: mongo.Collection,
+      ...args: Parameters<typeof original>
+    ) {
+      if (this.collectionName === 'stayrecords') throw new Error('late cascade failure');
+      return original.apply(this, args);
+    });
+    await expect(deleteTripAtomically(db, trip.toHexString(), other.toHexString())).rejects.toThrow(
+      'late cascade failure'
+    );
+    expect(
+      (await db.collection('trips').findOne({ _id: trip }))?.expenseDeliveryDeleting
+    ).toBeUndefined();
+    expect(await db.collection('expenses').countDocuments({ trip })).toBeGreaterThan(0);
+    expect((await db.collection('flightrecords').findOne({ user: real }))?.trip).toEqual(trip);
+    expect(await db.collection('tripcleanupjobs').findOne({ _id: trip })).toBeNull();
+  });
+  it('only a current admin can delete and create a cleanup job', async () => {
+    await deletionFixture();
+    await expect(
+      deleteTripAtomically(db, trip.toHexString(), virtual.toHexString())
+    ).rejects.toThrow('FORBIDDEN');
+    expect(await db.collection('tripcleanupjobs').findOne({ _id: trip })).toBeNull();
+  });
+  async function queued() {
+    await deletionFixture();
+    await deleteTripAtomically(db, trip.toHexString(), other.toHexString());
+    return new Date(Date.now() + 1000);
+  }
+  it('retries external failure from its checkpoint, then sweeps late data after 24 hours', async () => {
+    const now = await queued();
+    const page = vi
+      .fn()
+      .mockResolvedValueOnce(true)
+      .mockRejectedValueOnce(new Error('storage error'));
+    expect(await runTripCleanup(db, page, { now })).toEqual({ status: 'retry' });
+    expect((await db.collection('tripcleanupjobs').findOne({ _id: trip }))?.prefixIndex).toBe(1);
+    page.mockReset().mockResolvedValue(true);
+    const retryAt = new Date(now.getTime() + 6 * 60_000);
+    expect(await runTripCleanup(db, page, { now: retryAt })).toEqual({ status: 'swept' });
+    expect(page.mock.calls.map((call) => call[0])).toEqual([
+      `itinerary/${trip}/`,
+      `notes/${trip}/`,
+      `photos/${trip}/`,
+    ]);
+    await db.collection('photos').insertOne({ trip, late: true });
+    const finalAt = new Date(retryAt.getTime() + 25 * 60 * 60_000);
+    page.mockClear();
+    expect(await runTripCleanup(db, page, { now: finalAt })).toEqual({ status: 'swept' });
+    expect(page).toHaveBeenCalledTimes(4);
+    expect(await db.collection('photos').countDocuments({ trip })).toBe(0);
+    const job = await db.collection('tripcleanupjobs').findOne({ _id: trip });
+    expect(job?.completedAt).toEqual(finalAt);
+    expect(job?.availableAt).toBeUndefined();
+  });
+  it('checkpoints a bounded storage page without skipping its remaining objects', async () => {
+    const now = await queued();
+    const page = vi.fn().mockResolvedValue(false);
+    expect(await runTripCleanup(db, page, { now })).toEqual({ status: 'pending' });
+    expect(page).toHaveBeenCalledTimes(1);
+    expect((await db.collection('tripcleanupjobs').findOne({ _id: trip }))?.prefixIndex).toBe(0);
+  });
+  it('only one worker leases a job and a crashed lease can be reclaimed', async () => {
+    const now = await queued();
+    let release!: () => void;
+    const waiting = new Promise<boolean>((resolve) => {
+      release = () => resolve(true);
+    });
+    const page = vi.fn().mockReturnValueOnce(waiting).mockResolvedValue(true);
+    const first = runTripCleanup(db, page, { now });
+    await vi.waitFor(() => expect(page).toHaveBeenCalledTimes(1));
+    expect(await runTripCleanup(db, page, { now })).toEqual({ status: 'idle' });
+    const replacement = vi.fn().mockResolvedValue(true);
+    expect(
+      await runTripCleanup(db, replacement, { now: new Date(now.getTime() + 6 * 60_000) })
+    ).toEqual({ status: 'swept' });
+    release();
+    expect(await first).toEqual({ status: 'lost_lease' });
+    expect(page).toHaveBeenCalledTimes(1);
+  });
+  it('refuses storage deletion if the parent exists', async () => {
+    const now = await queued();
+    await db.collection('trips').insertOne({ _id: trip });
+    const page = vi.fn();
+    expect(await runTripCleanup(db, page, { now })).toEqual({ status: 'retry' });
+    expect(page).not.toHaveBeenCalled();
+  });
+  it('migration is idempotent and rollback preserves queued work', async () => {
+    await queued();
+    await cleanupUp(db);
+    await cleanupUp(db);
+    expect(
+      (await db.collection('tripcleanupjobs').listIndexes().toArray()).some(
+        (index) => index.name === 'trip_cleanup_available'
+      )
+    ).toBe(true);
+    await cleanupDown(db);
+    await cleanupDown(db);
+    expect(await db.collection('tripcleanupjobs').findOne({ _id: trip })).not.toBeNull();
+    await cleanupUp(db);
   });
 });

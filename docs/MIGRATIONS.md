@@ -62,6 +62,7 @@ O 已完成小型測試庫 before／after 並加入 additive migration；正式�
 
 | 檔案 | 內容 |
 | --- | --- |
+| `20260910090000-trip-cleanup-jobs.js` | 建立持久化旅程清理工作及 availableAt 索引；ownership 保護既有索引，down 保留工作資料。需先 migrate 再部署 R3c。 |
 | `20260909130000-itinerary-activity-revision.js` | 只回填缺少 revision 的活動為 0，保留已有版本；down 移除活動 revision。部署需排空舊 writer，順序見 [R 進度](./ITINERARY_CONSISTENCY_PROGRESS.md)。 |
 | `20260909120000-itinerary-day-revision.js` | 行程日缺少 revision 時回填 0；down 移除欄位。需暫停行程寫入、排空舊請求，遷移後部署全部新 writer 再恢復；詳見 [R2d 部署順序](./ITINERARY_CONSISTENCY_PROGRESS.md)。 |
 | `20260905093000-core-query-indexes.js` | 新增支出／付款／清單／相片完整排序、digest 時間篩選及帳號 CI unique 索引；先掃描帳號重複，ownership ledger 防止回滾誤刪既有索引。 |
