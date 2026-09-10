@@ -8,6 +8,11 @@ import {
   deleteItineraryDayAtomically,
   ItineraryDayDeletionError,
 } from '@/lib/itineraryDayDeletion';
+import {
+  withItineraryDayUpdateTransaction,
+  ItineraryDayUpdateError,
+} from '@/lib/itineraryDayUpdate';
+import { rebindAutoPhotosInTransaction } from '@/lib/photoItineraryTransaction';
 import { ItineraryDay, Photo } from '@/models';
 import {
   createItineraryDayAtomically,
@@ -305,18 +310,56 @@ export const updateItineraryDay = withAuth(
         removedKeys = [...existingByKey.keys()].filter((k) => !built.keptKeys.has(k));
       }
 
-      const updated = await ItineraryDay.findOneAndUpdate(
-        { _id: dayId, trip: membership.tripId, revision: validated.expected_revision },
-        { $set: set, $inc: { revision: 1 } },
-        { new: true, timestamps: false }
-      ).lean<LeanDay | null>();
+      await dbConnect();
+      const updated = await withItineraryDayUpdateTransaction(
+        mongoose.connection.db!,
+        membership.tripId,
+        session.userId,
+        async (transactionSession, parent) => {
+          const day = await ItineraryDay.findOneAndUpdate(
+            { _id: dayId, trip: membership.tripId, revision: validated.expected_revision },
+            { $set: set, $inc: { revision: 1 } },
+            { new: true, timestamps: false, session: transactionSession }
+          ).lean<LeanDay | null>();
 
-      if (!updated) {
-        // The day changed or disappeared after the snapshot read. In particular,
-        // do not delete ticket blobs or propagate locations for a rejected write.
-        return { success: false, error: 'CONFLICT', code: 'CONFLICT' };
-      }
+          if (!day) throw new ItineraryDayUpdateError('CONFLICT');
+          // 當日地點換了（或被清掉）→ 跟著更新「借」這天座標的相片。借來的座標必須跟著來源走，
+          // 否則改了地點之後相片會停在舊城市、清了地點之後相片會留著無來源的座標。
+          // 只動 source 'itinerary' 或原本無座標的：相片自己的 GPS 與手動釘比整天共用的
+          // 城市座標精確，不可覆蓋；先前因當日沒地點而借不到座標的相片則可在這次補上。
+          if (validated.location !== undefined) {
+            const { lat, lon } = validated.location ?? {};
+            const borrowed =
+              typeof lat === 'number' && typeof lon === 'number'
+                ? { lat, lon, source: 'itinerary' as const }
+                : null;
+            await Photo.updateMany(
+              {
+                trip: membership.tripId,
+                itineraryDay: dayId,
+                ...(borrowed
+                  ? {
+                      $or: [{ 'location.source': 'itinerary' }, { location: null }],
+                    }
+                  : { 'location.source': 'itinerary' }),
+              },
+              { $set: { location: borrowed } },
+              { session: transactionSession }
+            );
+          }
 
+          if (validated.day_number !== undefined) {
+            await rebindAutoPhotosInTransaction(
+              mongoose.connection.db!,
+              transactionSession,
+              new mongoose.mongo.ObjectId(membership.tripId),
+              parent,
+              new Date()
+            );
+          }
+          return day;
+        }
+      );
       if (removedKeys.length > 0) {
         // best-effort：孤兒票券刪不掉不該擋住更新
         await deleteObjects('receipts', removedKeys).catch((e) =>
@@ -324,32 +367,11 @@ export const updateItineraryDay = withAuth(
         );
       }
 
-      // 當日地點換了（或被清掉）→ 跟著更新「借」這天座標的相片。借來的座標必須跟著來源走，
-      // 否則改了地點之後相片會停在舊城市、清了地點之後相片會留著無來源的座標。
-      // 只動 source 'itinerary' 或原本無座標的：相片自己的 GPS 與手動釘比整天共用的
-      // 城市座標精確，不可覆蓋；先前因當日沒地點而借不到座標的相片則可在這次補上。
-      if (validated.location !== undefined) {
-        const { lat, lon } = validated.location ?? {};
-        const borrowed =
-          typeof lat === 'number' && typeof lon === 'number'
-            ? { lat, lon, source: 'itinerary' as const }
-            : null;
-        await Photo.updateMany(
-          {
-            trip: membership.tripId,
-            itineraryDay: dayId,
-            ...(borrowed
-              ? {
-                  $or: [{ 'location.source': 'itinerary' }, { location: null }],
-                }
-              : { 'location.source': 'itinerary' }),
-          },
-          { $set: { location: borrowed } }
-        );
-      }
-
       return { success: true, data: toDayDto(updated) };
     } catch (error) {
+      if (error instanceof ItineraryDayUpdateError) {
+        return { success: false, error: error.code, code: error.code };
+      }
       logger.error('Update itinerary day error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }

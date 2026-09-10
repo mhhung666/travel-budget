@@ -14,6 +14,16 @@ vi.mock('@/lib/itineraryDayDeletion', async (original) => ({
   ...(await original<typeof import('@/lib/itineraryDayDeletion')>()),
   deleteItineraryDayAtomically: (...args: unknown[]) => deleteDayAtomic(...args),
 }));
+// Real transaction rollback and authorization are covered by the replica-set suite.
+vi.mock('@/lib/itineraryDayUpdate', async (original) => ({
+  ...(await original<typeof import('@/lib/itineraryDayUpdate')>()),
+  withItineraryDayUpdateTransaction: (
+    _db: unknown,
+    _trip: string,
+    _actor: string,
+    update: (session: undefined, parent: object) => unknown
+  ) => update(undefined, {}),
+}));
 const getSession = vi.fn();
 const getTripMembership = vi.fn();
 const dayFindOne = vi.fn();

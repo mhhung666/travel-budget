@@ -123,6 +123,134 @@ describe.skipIf(!uri || !allowed)('itinerary actions against isolated MongoDB', 
     });
     tripId = trip.id;
   });
+  it('rolls back day, revision and borrowed photo writes if the final rebind fails', async () => {
+    const day = await seed();
+    const db = mongoose.connection.db!;
+    const trip = new mongo.ObjectId(tripId);
+    const ticketKey = `itinerary/${tripId}/removed.pdf`;
+    await ItineraryDay.updateOne(
+      { _id: day._id },
+      {
+        $set: {
+          'activities.0.attachments': [
+            {
+              key: ticketKey,
+              contentType: 'application/pdf',
+              size: 100,
+              uploadedBy: admin,
+              uploadedAt: new Date(),
+            },
+          ],
+        },
+      }
+    );
+
+    await db.collection('photos').insertMany([
+      {
+        trip,
+        caption: 'auto',
+        itineraryDay: day._id,
+        itineraryDaySource: 'auto',
+        takenLocalDate: '2026-09-01',
+        location: null,
+      },
+      {
+        trip,
+        caption: 'manual',
+        itineraryDay: day._id,
+        itineraryDaySource: 'manual',
+        location: null,
+      },
+      {
+        trip,
+        caption: 'gps',
+        itineraryDay: day._id,
+        itineraryDaySource: 'manual',
+        location: { lat: 1, lon: 2, source: 'exif' },
+      },
+    ]);
+    const input = {
+      expected_revision: 0,
+      activities: [],
+      title: 'Changed',
+      day_number: 2,
+      location: { name: 'Tokyo', display_name: 'Tokyo', lat: 35, lon: 139 },
+    };
+    const original = mongo.Collection.prototype.bulkWrite;
+    const spy = vi.spyOn(mongo.Collection.prototype, 'bulkWrite').mockImplementation(function (
+      this: mongo.Collection,
+      ...args
+    ) {
+      if (this.collectionName === 'photos') throw new Error('final rebind failed');
+      return original.apply(this, args);
+    });
+    try {
+      expect(await updateItineraryDay('r2verify', day.id, input)).toMatchObject({
+        code: 'INTERNAL_ERROR',
+      });
+      expect(await ItineraryDay.findById(day.id).lean()).toMatchObject({
+        title: 'Day',
+        dayNumber: 1,
+        revision: 0,
+      });
+      expect((await db.collection('photos').findOne({ caption: 'manual' }))?.location).toBeNull();
+      expect(mocks.cleanup).not.toHaveBeenCalled();
+    } finally {
+      spy.mockRestore();
+    }
+    expect(await updateItineraryDay('r2verify', day.id, input)).toMatchObject({ success: true });
+    expect(mocks.cleanup).toHaveBeenCalledWith('receipts', [ticketKey]);
+    const auto = await db.collection('photos').findOne({ caption: 'auto' });
+    expect(auto?.itineraryDay).toBeNull();
+    expect(auto?.location).toBeNull();
+    const manual = await db.collection('photos').findOne({ caption: 'manual' });
+    expect(manual?.itineraryDay.toString()).toBe(day.id);
+    expect(manual?.location).toEqual({ lat: 35, lon: 139, source: 'itinerary' });
+    expect((await db.collection('photos').findOne({ caption: 'gps' }))?.location).toEqual({
+      lat: 1,
+      lon: 2,
+      source: 'exif',
+    });
+    expect(
+      await updateItineraryDay(tripId, day.id, { expected_revision: 1, location: null })
+    ).toMatchObject({ success: true });
+    expect((await db.collection('photos').findOne({ caption: 'manual' }))?.location).toBeNull();
+  });
+
+  it('rejects a day update if admin access is revoked during attachment verification', async () => {
+    const day = await seed();
+    const gate = headBarrier(1);
+    const pending = updateItineraryDay(tripId, day.id, {
+      expected_revision: 0,
+      activities: [{ ...uploaded('Late'), id: day.activities[0]._id.toString() }],
+    });
+    await gate.entered;
+    try {
+      await Trip.updateOne(
+        { _id: tripId, 'members.user': admin },
+        { $set: { 'members.$.role': 'member' } }
+      );
+    } finally {
+      gate.release();
+    }
+    expect(await pending).toMatchObject({ code: 'FORBIDDEN' });
+    expect((await ItineraryDay.findById(day.id))?.revision).toBe(0);
+    expect(mocks.head).toHaveBeenCalledTimes(1);
+    expect(mocks.cleanup).not.toHaveBeenCalled();
+  });
+
+  it('allows only one concurrent whole-day update at the same revision', async () => {
+    const day = await seed();
+    const results = await Promise.all(
+      ['A', 'B'].map((title) => updateItineraryDay(tripId, day.id, { expected_revision: 0, title }))
+    );
+    expect(results.filter((result) => result.success)).toHaveLength(1);
+    expect(results.filter((result) => !result.success)).toEqual([
+      expect.objectContaining({ code: 'CONFLICT' }),
+    ]);
+    expect((await ItineraryDay.findById(day.id))?.revision).toBe(1);
+  });
+
   it('serializes concurrent creates and deletion, allocating contiguous day numbers', async () => {
     const first = await seed();
     const results = await Promise.all([
