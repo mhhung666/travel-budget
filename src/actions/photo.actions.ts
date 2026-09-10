@@ -421,15 +421,23 @@ export const deletePhotos = withAuth(
       }
       const { photo_ids } = validation.data;
 
-      // trip 條件是歸屬把關：別團的 id 混進來只會查不到，不會被刪。
-      const docs = await Photo.find({ _id: { $in: photo_ids }, trip: membership.tripId })
-        .select('key thumbKey')
-        .lean<{ key: string; thumbKey: string }[]>();
-      if (docs.length === 0) {
-        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
-      }
-
-      await Photo.deleteMany({ _id: { $in: photo_ids }, trip: membership.tripId });
+      await dbConnect();
+      const docs = await withPhotoUpdateTransaction(
+        mongoose.connection.db!,
+        membership.tripId,
+        session.userId,
+        async (transactionSession) => {
+          // trip 條件是歸屬把關：別團的 id 混進來只會查不到，不會被刪。
+          const filter = { _id: { $in: photo_ids }, trip: membership.tripId };
+          const docs = await Photo.find(filter)
+            .session(transactionSession)
+            .select('key thumbKey')
+            .lean<{ key: string; thumbKey: string }[]>();
+          if (docs.length === 0) throw new PhotoUpdateError('NOT_FOUND');
+          await Photo.deleteMany(filter, { session: transactionSession });
+          return docs;
+        }
+      );
 
       const keys = docs.flatMap((d) => [d.key, d.thumbKey, sanitizedPhotoKey(d.key)]);
       await deleteObjects('receipts', keys).catch((e) =>
@@ -439,6 +447,9 @@ export const deletePhotos = withAuth(
       revalidatePath(`/trips/${tripIdOrCode}/album`);
       return { success: true, data: { deleted: docs.length } };
     } catch (error) {
+      if (error instanceof PhotoUpdateError) {
+        return { success: false, error: error.code, code: error.code };
+      }
       logger.error('Delete photos error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }

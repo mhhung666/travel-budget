@@ -470,7 +470,10 @@ describe('deletePhotos', () => {
 
     await deletePhotos(TRIP_ID, { photo_ids: [PHOTO_ID] });
 
-    expect(photoDeleteMany).toHaveBeenCalledWith({ _id: { $in: [PHOTO_ID] }, trip: TRIP_ID });
+    expect(photoDeleteMany).toHaveBeenCalledWith(
+      { _id: { $in: [PHOTO_ID] }, trip: TRIP_ID },
+      { session: undefined }
+    );
   });
 
   it('still returns success when the blob cleanup fails (best-effort, never blocks the user)', async () => {

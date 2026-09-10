@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | R1 | 舊草稿覆蓋保護與衝突提示 | 已完成工程驗證 |
 | R2 | 穩定活動 ID、單筆新增／編輯／刪除原子更新，批次上限與衝突策略 | R2a～R2f 已完成工程與本機 MongoDB 併發驗證 |
-| R3 | 虛擬成員轉換／會員移除／旅程刪除的一致性、外部清理重試 | R3a～R3c 已部署；R3d～R3f 行程日刪除／新增／整天更新交易完成，R3g 單筆活動、R3h 筆記規劃、R3i AI 匯入、R3j 旅程更新與 R3k 相片編輯交易完成、隔離 DB 驗證通過；其他 writer／票券引用協調待續 |
+| R3 | 虛擬成員轉換／會員移除／旅程刪除的一致性、外部清理重試 | R3a～R3c 已部署；R3d～R3f 行程日刪除／新增／整天更新交易完成，R3g 單筆活動、R3h 筆記規劃、R3i AI 匯入、R3j 旅程更新、R3k 相片編輯與 R3l 相片刪除交易完成、隔離 DB 驗證通過；其他 writer／票券引用協調待續 |
 | R4 | 票券附件驗證的有界平行查詢 | 待處理 |
 
 > R1～R2c 為各段交付紀錄；目前衝突 token 已由 R2d 的 revision 取代時間。
@@ -272,3 +272,13 @@ MONGODB_MEMBER_TEST_URI='mongodb://127.0.0.1:27030/?replicaSet=r3test' \
 - 無 schema／索引變更，不需 migration；交付 commit 含 patch bump，未 push／部署。相片新增／刪除、支出等其他 writer 與跨天票券引用協調仍待續。
 
 - 驗證：52 項隔離 MongoDB 行程整合測試通過；完整 suite 啟用行程／成員 replica set，1,515 項通過、37 項跳過。TypeScript、lint、Prettier、dummy DB/JWT production build 與 diff whitespace 檢查通過。未操作正式資料。
+
+
+## R3l：相片批次刪除交易
+
+- `deletePhotos` 在成員 Trip fence 交易內重新驗權、讀取相片與物件 key 並批次刪除，與旅程刪除及成員移除協調。保留一般成員可刪除、跨旅程隔離與部分 ID 命中的契約。
+- R2 best-effort 清理與頁面失效在成功提交後執行；交易回滾不刪物件。
+- 新增 6 項隔離 MongoDB 測試：一般成員／跨旅程／提交後清理、晚期失敗回滾與重試、移除／刪除中／已刪除，以及並行重複刪除。
+- 無 schema／索引變更，不需 migration；交付 commit 含 patch bump，未 push／部署。相片新增、支出等其他 writer 與票券引用協調仍待續。
+
+- 驗證：58 項隔離 MongoDB 行程整合測試通過；完整 suite 啟用行程／成員 replica set，1,521 項通過、37 項跳過。TypeScript、lint、Prettier、dummy DB/JWT production build 與 diff whitespace 檢查通過。未操作正式資料。

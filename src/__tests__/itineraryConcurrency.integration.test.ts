@@ -12,7 +12,7 @@ import {
 } from '@/actions/itinerary.actions';
 import { confirmItineraryImport } from '@/actions/itineraryImport.actions';
 import { withNotePlanningTransaction } from '@/lib/notePlanningTransaction';
-import { updatePhoto } from '@/actions/photo.actions';
+import { deletePhotos, updatePhoto } from '@/actions/photo.actions';
 import { updateTrip } from '@/actions/trip.actions';
 import { planNote } from '@/actions/note.actions';
 import { readItinerary } from '@/lib/itineraryRead';
@@ -141,6 +141,103 @@ describe.skipIf(!uri || !allowed)('itinerary actions against isolated MongoDB', 
       createdAt: new Date(),
     });
   }
+
+  it('deletes member photos before cleaning blobs and preserves foreign photos', async () => {
+    const photo = await seedPhoto();
+    const foreign = await seedPhoto();
+    const photos = mongoose.connection.db!.collection('photos');
+    await photos.updateOne({ _id: foreign.insertedId }, { $set: { trip: new mongo.ObjectId() } });
+    mocks.session.mockResolvedValue({ userId: member.toHexString() });
+    let deletedBeforeCleanup = false;
+    mocks.cleanup.mockImplementationOnce(async () => {
+      deletedBeforeCleanup = (await photos.findOne({ _id: photo.insertedId })) === null;
+      throw new Error('R2 unavailable');
+    });
+    expect(
+      await deletePhotos('r2verify', {
+        photo_ids: [photo.insertedId.toHexString(), foreign.insertedId.toHexString()],
+      })
+    ).toMatchObject({ success: true, data: { deleted: 1 } });
+    expect(deletedBeforeCleanup).toBe(true);
+    expect(await photos.findOne({ _id: foreign.insertedId })).not.toBeNull();
+    expect(mocks.cleanup).toHaveBeenCalledTimes(1);
+  });
+
+  it('rolls back a late photo deletion failure without deleting blobs', async () => {
+    const photo = await seedPhoto();
+    const db = mongoose.connection.db!;
+    const before = await db.collection('trips').findOne({ _id: new mongo.ObjectId(tripId) });
+    const original = mongo.Collection.prototype.deleteMany;
+    const spy = vi
+      .spyOn(mongo.Collection.prototype, 'deleteMany')
+      .mockImplementation(async function (this: mongo.Collection, ...args) {
+        const result = await original.apply(this, args);
+        if (this.collectionName === 'photos') throw new Error('Injected deletion failure');
+        return result;
+      });
+    try {
+      expect(
+        await deletePhotos(tripId, { photo_ids: [photo.insertedId.toHexString()] })
+      ).toMatchObject({ code: 'INTERNAL_ERROR' });
+      expect(await db.collection('photos').findOne({ _id: photo.insertedId })).not.toBeNull();
+      expect(
+        (await db.collection('trips').findOne({ _id: new mongo.ObjectId(tripId) }))!
+          .expenseDeliveryFence
+      ).toBe(before!.expenseDeliveryFence);
+      expect(mocks.cleanup).not.toHaveBeenCalled();
+    } finally {
+      spy.mockRestore();
+    }
+    expect(
+      await deletePhotos(tripId, { photo_ids: [photo.insertedId.toHexString()] })
+    ).toMatchObject({ success: true });
+  });
+
+  it.each(['removed', 'deleting', 'deleted'])(
+    'rejects photo deletion when %s after initial authorization',
+    async (change) => {
+      const photo = await seedPhoto();
+      const db = mongoose.connection.db!;
+      const trip = new mongo.ObjectId(tripId);
+      const original = mongo.Collection.prototype.findOneAndUpdate;
+      let changed = false;
+      const spy = vi
+        .spyOn(mongo.Collection.prototype, 'findOneAndUpdate')
+        .mockImplementation(async function (this: mongo.Collection, ...args) {
+          if (this.collectionName === 'trips' && !changed) {
+            changed = true;
+            if (change === 'removed')
+              await db.collection('trips').updateOne({ _id: trip }, {
+                $pull: { members: { user: admin } },
+              } as mongo.Document);
+            else if (change === 'deleted') await db.collection('trips').deleteOne({ _id: trip });
+            else
+              await db
+                .collection('trips')
+                .updateOne({ _id: trip }, { $set: { expenseDeliveryDeleting: true } });
+          }
+          return original.apply(this, args);
+        });
+      try {
+        expect(
+          await deletePhotos(tripId, { photo_ids: [photo.insertedId.toHexString()] })
+        ).toMatchObject({ code: 'FORBIDDEN' });
+        expect(await db.collection('photos').findOne({ _id: photo.insertedId })).not.toBeNull();
+        expect(mocks.cleanup).not.toHaveBeenCalled();
+      } finally {
+        spy.mockRestore();
+      }
+    }
+  );
+
+  it('only cleans blobs once when two photo deletions race', async () => {
+    const photo = await seedPhoto();
+    const input = { photo_ids: [photo.insertedId.toHexString()] };
+    const results = await Promise.all([deletePhotos(tripId, input), deletePhotos(tripId, input)]);
+    expect(results.filter((result) => result.success)).toHaveLength(1);
+    expect(results.find((result) => !result.success)).toMatchObject({ code: 'NOT_FOUND' });
+    expect(mocks.cleanup).toHaveBeenCalledTimes(1);
+  });
 
   it('allows an ordinary member to classify a photo and borrow day coordinates', async () => {
     const day = await seed();
