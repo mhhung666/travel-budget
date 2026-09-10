@@ -11,6 +11,7 @@ import {
   updateItineraryDay,
 } from '@/actions/itinerary.actions';
 import { confirmItineraryImport } from '@/actions/itineraryImport.actions';
+import { withNotePlanningTransaction } from '@/lib/notePlanningTransaction';
 import { planNote } from '@/actions/note.actions';
 import { readItinerary } from '@/lib/itineraryRead';
 import {
@@ -790,6 +791,59 @@ describe.skipIf(!uri || !allowed)('itinerary actions against isolated MongoDB', 
         .findOne({ _id: new mongo.ObjectId(tripId) }))!.expenseDeliveryFence
     ).toBe(parent!.expenseDeliveryFence);
     expect(mocks.cleanup).not.toHaveBeenCalled();
+  });
+
+  it('plans the same note once across concurrent member requests', async () => {
+    const day = await seed();
+    const note = await Note.create({ trip: tripId, text: 'Coffee', createdBy: member });
+    mocks.session.mockResolvedValue({ userId: member.toHexString() });
+    const results = await Promise.all([
+      planNote(tripId, note.id, { day_id: day.id }),
+      planNote(tripId, note.id, { day_id: day.id }),
+    ]);
+    expect(results.filter((result) => result.success)).toHaveLength(1);
+    expect(results.find((result) => !result.success)).toMatchObject({ code: 'VALIDATION_ERROR' });
+    const stored = await ItineraryDay.findById(day.id).lean();
+    expect(stored!.activities).toHaveLength(3);
+    expect(stored!.revision).toBe(1);
+    expect(stored!.activities[2]).toMatchObject({ title: 'Coffee', revision: 0 });
+    expect((await Note.findById(note.id))!.plannedDayNumber).toBe(1);
+  });
+
+  it('rolls back an appended activity when marking its note fails', async () => {
+    const day = await seed();
+    const note = await Note.create({ trip: tripId, text: 'Coffee', createdBy: member });
+    const spy = vi.spyOn(Note, 'findOneAndUpdate').mockImplementationOnce(() => {
+      throw new Error('Injected note write failure');
+    });
+    try {
+      expect(await planNote(tripId, note.id, { day_id: day.id })).toMatchObject({
+        code: 'INTERNAL_ERROR',
+      });
+    } finally {
+      spy.mockRestore();
+    }
+    expect((await ItineraryDay.findById(day.id))!.activities).toHaveLength(2);
+    expect((await ItineraryDay.findById(day.id))!.revision).toBe(0);
+    expect((await Note.findById(note.id))!.plannedAt).toBeNull();
+    expect(await planNote(tripId, note.id, { day_id: day.id })).toMatchObject({ success: true });
+    expect((await ItineraryDay.findById(day.id))!.activities).toHaveLength(3);
+  });
+
+  it('rejects removed members and deleting trips inside the note planning transaction', async () => {
+    const db = mongoose.connection.db!;
+    const callback = vi.fn();
+    await Trip.updateOne({ _id: tripId }, { $pull: { members: { user: member } } });
+    await expect(
+      withNotePlanningTransaction(db, tripId, member.toHexString(), callback)
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    await db
+      .collection('trips')
+      .updateOne({ _id: new mongo.ObjectId(tripId) }, { $set: { expenseDeliveryDeleting: true } });
+    await expect(
+      withNotePlanningTransaction(db, tripId, admin.toHexString(), callback)
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    expect(callback).not.toHaveBeenCalled();
   });
 
   it('shares capacity and revision contracts with note planning and AI import', async () => {

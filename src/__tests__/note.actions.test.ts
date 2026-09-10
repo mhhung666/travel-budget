@@ -10,6 +10,16 @@ const noteCreate = vi.fn();
 const noteDeleteOne = vi.fn();
 const itineraryDayFindOneAndUpdate = vi.fn();
 const itineraryDayExists = vi.fn();
+vi.mock('@/lib/mongodb', () => ({ dbConnect: vi.fn() }));
+vi.mock('@/lib/notePlanningTransaction', async (original) => ({
+  ...(await original<typeof import('@/lib/notePlanningTransaction')>()),
+  withNotePlanningTransaction: (
+    _db: unknown,
+    _trip: string,
+    _actor: string,
+    update: (session: undefined) => unknown
+  ) => update(undefined),
+}));
 const userFindById = vi.fn();
 const headObject = vi.fn();
 const deleteObjects = vi.fn();
@@ -40,7 +50,7 @@ vi.mock('@/models', () => ({
     deleteOne: (...args: unknown[]) => noteDeleteOne(...args),
   },
   ItineraryDay: {
-    exists: (...args: unknown[]) => itineraryDayExists(...args),
+    findOne: (...args: unknown[]) => itineraryDayExists(...args),
     findOneAndUpdate: (...args: unknown[]) => itineraryDayFindOneAndUpdate(...args),
   },
   User: {
@@ -377,7 +387,11 @@ describe('planNote', () => {
     itineraryDayExists.mockResolvedValue({ _id: DAY_ID });
     const result = await planNote(TRIP_ID, NOTE_ID, { day_id: DAY_ID });
     expect(result).toMatchObject({ success: false, code: 'ACTIVITY_LIMIT' });
-    expect(itineraryDayExists).toHaveBeenCalledWith({ _id: DAY_ID, trip: TRIP_ID });
+    expect(itineraryDayExists).toHaveBeenCalledWith(
+      { _id: DAY_ID, trip: TRIP_ID },
+      { _id: 1 },
+      { session: undefined }
+    );
     expect(noteFindOneAndUpdate).not.toHaveBeenCalled();
     itineraryDayExists.mockReset();
   });
@@ -451,13 +465,14 @@ describe('planNote', () => {
             attachments: [],
           },
         },
-      }
+      },
+      { session: undefined }
     );
 
     expect(noteFindOneAndUpdate).toHaveBeenCalledWith(
-      { _id: NOTE_ID, trip: TRIP_ID },
+      { _id: NOTE_ID, trip: TRIP_ID, plannedAt: null },
       { $set: expect.objectContaining({ plannedDayNumber: 3, plannedAt: expect.any(Date) }) },
-      { new: true }
+      { new: true, session: undefined }
     );
   });
 

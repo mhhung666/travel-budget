@@ -234,9 +234,11 @@ src/
 
 `deleteItineraryDay` 在同一 MongoDB transaction 重新檢查管理員並寫入 Trip fence，完成刪日、支出／相片解除關聯、連續編號與 auto 相片重綁；重新編號會遞增日 revision。手動分類與原有 GPS 保留。票券 best-effort 清理在提交後執行。其他 writer 與票券跨日引用的協調仍待後續階段，詳見 [R 進度](./ITINERARY_CONSISTENCY_PROGRESS.md)。
 
-`createItineraryDay` 在附件 HEAD 驗證後，以相同 Trip fence 交易重新驗權、分配日號、建立行程日及重綁 auto 相片；任一步驟失敗全部回滾。新增與刪除共用交易內重綁 helper。AI 匯入、筆記規劃與相片直接寫入尚未全面參與此協調。
+`createItineraryDay` 在附件 HEAD 驗證後，以相同 Trip fence 交易重新驗權、分配日號、建立行程日及重綁 auto 相片；任一步驟失敗全部回滾。新增與刪除共用交易內重綁 helper。AI 匯入與相片直接寫入尚未全面參與此協調。
 
 `updateItineraryDay` 在同一交易重新驗權、寫入 Trip fence、以 revision CAS 更新整天與同步借用座標；日號變更時亦重綁 auto 相片。失敗全部回滾，原有 EXIF／手動座標與手動分類保留。附件 HEAD 在交易外完成，移除票券只在提交後 best-effort 清理。`mutateItineraryActivity` 亦在附件 HEAD 後使用同一 Trip fence 交易，重新驗證管理員與旅程狀態，保留活動 revision CAS、容量上限及提交後票券清理；其他 writer 與跨天票券引用的整體協調仍待後續階段。
+
+`planNote` 依成員信任模型，在交易內重新驗證成員並寫入 Trip fence；讀取未規劃筆記、新增活動與標記筆記原子提交。重複轉換回傳 `VALIDATION_ERROR`，容量已滿回傳 `ACTIVITY_LIMIT`；任何寫入失敗均回滾，頁面快取只在提交後失效。
 
 ### 4.16 AI 行程匯入（受限試用）
 

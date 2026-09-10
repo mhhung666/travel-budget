@@ -1,5 +1,8 @@
 'use server';
 
+import mongoose from 'mongoose';
+import { dbConnect } from '@/lib/mongodb';
+import { withNotePlanningTransaction, NotePlanningError } from '@/lib/notePlanningTransaction';
 import { activityCapacityFilter } from '@/lib/itineraryLimits';
 import { revalidatePath } from 'next/cache';
 import { ItineraryDay, Note, User } from '@/models';
@@ -285,8 +288,7 @@ export const deleteNote = withAuth(
  * 權限是**產品決定**：行程日本身的建立/編輯是 admin-only，但這裡開放全體成員——
  * 隨手記的定位就是「人人先丟點子、順手推進行程」，卡在 admin 會斷掉這條協作路徑。
  *
- * 非交易式（本 codebase 無多文件交易慣例）：先 $push 活動、再標記筆記；中途失敗
- * 筆記維持未規劃，重試可能產生重複活動（可手動刪），不會反向遺失資料。
+ * 交易內重新驗證成員並寫入 Trip fence，新增活動與標記筆記一起提交或回滾。
  */
 export const planNote = withAuth(
   async (
@@ -310,64 +312,84 @@ export const planNote = withAuth(
         };
       }
 
-      const note = await Note.findOne({ _id: noteId, trip: membership.tripId })
-        .select('text plannedAt')
-        .lean<{ text: string; plannedAt: Date | null } | null>();
-      if (!note) {
-        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
-      }
-      if (note.plannedAt) {
-        return { success: false, error: '這則筆記已加入行程', code: 'VALIDATION_ERROR' };
-      }
+      await dbConnect();
+      const updated = await withNotePlanningTransaction(
+        mongoose.connection.db!,
+        membership.tripId,
+        session.userId,
+        async (transactionSession) => {
+          const note = await Note.findOne({ _id: noteId, trip: membership.tripId }, null, {
+            session: transactionSession,
+          })
+            .select('text plannedAt')
+            .lean<{ text: string; plannedAt: Date | null } | null>();
+          if (!note) {
+            throw new NotePlanningError('NOT_FOUND');
+          }
+          if (note.plannedAt) {
+            throw new NotePlanningError('VALIDATION_ERROR');
+          }
 
-      // 首行去掉 Markdown 語法後截斷作標題（「# 東京美食」→「東京美食」）；
-      // strip 不出內容（如整行只有圖片語法）退回原始首行。標題有截斷/改寫或
-      // 筆記多行時，全文進活動備註，避免資訊遺失。
-      const plainTitle = summarizeNote(note.text).title;
-      const rawFirstLine = note.text.split('\n', 1)[0].trim();
-      const title = (plainTitle || rawFirstLine).slice(0, PLAN_TITLE_MAX);
-      const truncated = title !== note.text.trim();
+          // 首行去掉 Markdown 語法後截斷作標題（「# 東京美食」→「東京美食」）；
+          // strip 不出內容（如整行只有圖片語法）退回原始首行。標題有截斷/改寫或
+          // 筆記多行時，全文進活動備註，避免資訊遺失。
+          const plainTitle = summarizeNote(note.text).title;
+          const rawFirstLine = note.text.split('\n', 1)[0].trim();
+          const title = (plainTitle || rawFirstLine).slice(0, PLAN_TITLE_MAX);
+          const truncated = title !== note.text.trim();
 
-      const day = await ItineraryDay.findOneAndUpdate(
-        { _id: validation.data.day_id, trip: membership.tripId, ...activityCapacityFilter(1) },
-        {
-          $inc: { revision: 1 },
-          $push: {
-            activities: {
-              time: null,
-              endTime: null,
-              title,
-              type: 'other',
-              location: null,
-              note: truncated ? note.text : '',
-              confirmationCode: '',
-              attachments: [],
+          const day = await ItineraryDay.findOneAndUpdate(
+            { _id: validation.data.day_id, trip: membership.tripId, ...activityCapacityFilter(1) },
+            {
+              $inc: { revision: 1 },
+              $push: {
+                activities: {
+                  time: null,
+                  endTime: null,
+                  title,
+                  type: 'other',
+                  location: null,
+                  note: truncated ? note.text : '',
+                  confirmationCode: '',
+                  attachments: [],
+                },
+              },
             },
-          },
-        }
-      ).select('dayNumber');
-      if (!day) {
-        const exists = await ItineraryDay.exists({
-          _id: validation.data.day_id,
-          trip: membership.tripId,
-        });
-        const code = exists ? 'ACTIVITY_LIMIT' : 'NOT_FOUND';
-        return { success: false, error: code, code };
-      }
+            { session: transactionSession }
+          ).select('dayNumber');
+          if (!day) {
+            const exists = await ItineraryDay.findOne(
+              {
+                _id: validation.data.day_id,
+                trip: membership.tripId,
+              },
+              { _id: 1 },
+              { session: transactionSession }
+            );
+            const code = exists ? 'ACTIVITY_LIMIT' : 'NOT_FOUND';
+            throw new NotePlanningError(code);
+          }
 
-      const updated = await Note.findOneAndUpdate(
-        { _id: noteId, trip: membership.tripId },
-        { $set: { plannedAt: new Date(), plannedDayNumber: day.dayNumber } },
-        { new: true }
-      ).lean<TripNoteDtoInput | null>();
-      if (!updated) {
-        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
-      }
+          const updated = await Note.findOneAndUpdate(
+            { _id: noteId, trip: membership.tripId, plannedAt: null },
+            { $set: { plannedAt: new Date(), plannedDayNumber: day.dayNumber } },
+            { new: true, session: transactionSession }
+          ).lean<TripNoteDtoInput | null>();
+          if (!updated) {
+            throw new NotePlanningError('NOT_FOUND');
+          }
+
+          return updated;
+        }
+      );
 
       revalidatePath(`/trips/${tripIdOrCode}/notes`);
       revalidatePath(`/trips/${tripIdOrCode}`);
       return { success: true, data: toTripNoteDto(updated) };
     } catch (error) {
+      if (error instanceof NotePlanningError) {
+        return { success: false, error: error.code, code: error.code };
+      }
       logger.error('Plan note error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }

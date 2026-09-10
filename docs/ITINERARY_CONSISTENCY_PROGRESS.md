@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | R1 | 舊草稿覆蓋保護與衝突提示 | 已完成工程驗證 |
 | R2 | 穩定活動 ID、單筆新增／編輯／刪除原子更新，批次上限與衝突策略 | R2a～R2f 已完成工程與本機 MongoDB 併發驗證 |
-| R3 | 虛擬成員轉換／會員移除／旅程刪除的一致性、外部清理重試 | R3a～R3c 已部署；R3d～R3f 行程日刪除／新增／整天更新交易完成，R3g 單筆活動交易已實作、隔離 DB 驗證待補；其他 writer／票券引用協調待續 |
+| R3 | 虛擬成員轉換／會員移除／旅程刪除的一致性、外部清理重試 | R3a～R3c 已部署；R3d～R3f 行程日刪除／新增／整天更新交易完成，R3g 單筆活動與 R3h 筆記規劃交易完成、隔離 DB 驗證通過；其他 writer／票券引用協調待續 |
 | R4 | 票券附件驗證的有界平行查詢 | 待處理 |
 
 > R1～R2c 為各段交付紀錄；目前衝突 token 已由 R2d 的 revision 取代時間。
@@ -233,3 +233,12 @@ MONGODB_MEMBER_TEST_URI='mongodb://127.0.0.1:27030/?replicaSet=r3test' \
 - 新增隔離 replica set 測試：HEAD 期間降權、旅程標記刪除／刪除，以及 revision 衝突時 fence 回滾與不清票券。
 - 驗證：相關單元測試 59 項、完整 suite 1,443 項通過，87 項跳過；TypeScript、lint、Prettier、dummy DB/JWT production build 與 diff whitespace 檢查通過。隔離 MongoDB 映像因本機 Linux 核心相容性問題無法啟動，因此新增與既有 replica set 測試本次未驗證，不視為通過。
 - 無 schema／索引變更，不需 migration；交付 commit 含 patch bump，未 push／部署。AI 匯入／筆記規劃、其他 writer 與跨天票券引用清理仍待續。
+
+## R3h：筆記轉行程交易
+
+- `planNote` 在 snapshot／majority 交易內重新驗證成員與旅程刪除狀態，寫入共用 Trip fence；讀取筆記、活動新增及筆記規劃標記一起提交或回滾。保留任何成員皆可轉換的產品權限。
+- 交易重試時重新讀取筆記；同一筆記並行轉換只有一次成功，另一筆回傳既有 `VALIDATION_ERROR`。活動容量與 revision 契約、Markdown 標題與全文備註不變，頁面失效放在提交後。
+- 原生 macOS MongoDB 隔離 replica set 的 32 項行程整合測試通過，包含並行筆記轉換、標記寫入失敗回滾及重試、移除成員／刪除中旅程拒絕。此次也補驗 R3g 的降權／刪除／revision 衝突回滾案例，上節容器限制已由原生測試解決。
+- 無 schema／索引變更，不需 migration；交付 commit 含 patch bump，未 push／部署。下一階段為 AI 匯入；其他 writer 與跨天票券引用協調仍待續。
+
+- 驗證：完整 suite 啟用行程／成員隔離 replica set，1,496 項通過、37 項跳過；TypeScript、lint、Prettier、dummy DB/JWT production build 與 diff whitespace 檢查通過。未操作正式資料。
