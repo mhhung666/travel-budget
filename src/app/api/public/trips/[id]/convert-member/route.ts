@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import { isValidObjectId } from 'mongoose';
+import mongoose, { isValidObjectId } from 'mongoose';
+import { changeMemberIdentity, MemberIdentityError } from '@/lib/memberIdentity';
 import { Trip, User } from '@/models';
 import { createSession } from '@/lib/auth';
 import { registerSchema } from '@/lib/validation';
@@ -16,7 +17,7 @@ const CI = { locale: 'en', strength: 2 } as const;
  * Body: { virtualUserId, username, display_name, email, password }
  */
 export const POST = withPublicTrip(
-  async ({ request, tripId }) => {
+  async ({ request, tripId, params }) => {
     const body = await request.json();
     const { virtualUserId, username, display_name, email, password } = body;
 
@@ -68,18 +69,27 @@ export const POST = withPublicTrip(
     // 更新虛擬用戶為正式會員
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    await User.updateOne(
-      { _id: virtualUserId },
-      {
-        $set: {
-          username: validation.data.username,
-          displayName: validation.data.display_name,
-          email: validation.data.email.toLowerCase().trim(),
-          password: hashedPassword,
-          isVirtual: false,
-        },
+    try {
+      await changeMemberIdentity(mongoose.connection.db!, {
+        tripId,
+        virtualUserId,
+        hashCode: params.id,
+        kind: 'register',
+        username: validation.data.username,
+        displayName: validation.data.display_name,
+        email: validation.data.email.toLowerCase().trim(),
+        password: hashedPassword,
+      });
+    } catch (error) {
+      if (error instanceof MemberIdentityError) return apiError(error.code, error.status);
+      if (error instanceof mongoose.mongo.MongoServerError && error.code === 11000) {
+        return apiError(
+          error.keyPattern?.email ? PublicApiError.EMAIL_TAKEN : PublicApiError.USERNAME_TAKEN,
+          409
+        );
       }
-    );
+      throw error;
+    }
 
     // 自動登入
     await createSession(virtualUserId, validation.data.username);
