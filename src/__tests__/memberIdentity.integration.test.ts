@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import mongoose, { mongo } from 'mongoose';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { changeMemberIdentity } from '@/lib/memberIdentity';
+import { removeTripMember } from '@/lib/memberRemoval';
 
 const uri = process.env.MONGODB_MEMBER_TEST_URI;
 const allowed = process.env.MONGODB_MEMBER_TEST_ALLOW_WRITES === '1';
@@ -153,5 +154,80 @@ describe.skipIf(!uri || !allowed)('member identity transactions in isolated Mong
     expect(
       (await db.collection('trips').findOne({ _id: trip }))?.expenseDeliveryFence
     ).toBeUndefined();
+  });
+  async function removalFixture() {
+    await db.collection('trips').updateOne(
+      { _id: trip },
+      {
+        $set: {
+          members: [
+            { user: virtual, role: 'member' },
+            { user: other, role: 'admin' },
+          ],
+        },
+      }
+    );
+    return {
+      tripId: trip.toHexString(),
+      actorId: other.toHexString(),
+      targetId: virtual.toHexString(),
+    };
+  }
+  it('removes membership, assignments and notifications together while retaining financial history', async () => {
+    const input = await removalFixture();
+    expect(await removeTripMember(db, input)).toEqual({ hasExpenses: true });
+    expect((await db.collection('trips').findOne({ _id: trip }))?.members).toEqual([
+      { user: other, role: 'admin' },
+    ]);
+    expect((await db.collection('checklists').findOne({ trip }))?.items).toEqual([
+      { assignee: null, doneBy: [real] },
+    ]);
+    expect(await db.collection('notifications').countDocuments({ trip })).toBe(0);
+    expect((await db.collection('expenses').findOne({ trip }))?.payer).toEqual(virtual);
+    expect((await db.collection('payments').findOne({ trip }))?.from).toEqual(virtual);
+    expect(await db.collection('users').findOne({ _id: virtual })).not.toBeNull();
+  });
+  it('rolls removal and assignments back on notification cleanup failure', async () => {
+    const input = await removalFixture();
+    const original = mongo.Collection.prototype.deleteMany;
+    vi.spyOn(mongo.Collection.prototype, 'deleteMany').mockImplementation(function (
+      this: mongo.Collection,
+      ...args: Parameters<typeof original>
+    ) {
+      if (this.collectionName === 'notifications') throw new Error('removal cleanup failure');
+      return original.apply(this, args);
+    });
+    await expect(removeTripMember(db, input)).rejects.toThrow('removal cleanup failure');
+    expect((await db.collection('trips').findOne({ _id: trip }))?.members).toHaveLength(2);
+    expect((await db.collection('checklists').findOne({ trip }))?.items[0].assignee).toEqual(
+      virtual
+    );
+  });
+  it('serializes member removal against identity linking', async () => {
+    const input = await removalFixture();
+    const results = await Promise.allSettled([
+      removeTripMember(db, input),
+      changeMemberIdentity(db, link),
+    ]);
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    const parent = await db.collection('trips').findOne({ _id: trip });
+    expect(parent?.members.some((m: { user: mongo.ObjectId }) => m.user.equals(virtual))).toBe(
+      false
+    );
+    const linked = parent?.members.some((m: { user: mongo.ObjectId }) => m.user.equals(real));
+    expect((await db.collection('expenses').findOne({ trip }))?.payer).toEqual(
+      linked ? real : virtual
+    );
+  });
+  it('rejects stale admin authorization and self-removal', async () => {
+    const input = await removalFixture();
+    await expect(removeTripMember(db, { ...input, targetId: input.actorId })).rejects.toMatchObject(
+      { code: 'VALIDATION_ERROR' }
+    );
+    await db
+      .collection('trips')
+      .updateOne({ _id: trip, 'members.user': other }, { $set: { 'members.$.role': 'member' } });
+    await expect(removeTripMember(db, input)).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    expect((await db.collection('trips').findOne({ _id: trip }))?.members).toHaveLength(2);
   });
 });

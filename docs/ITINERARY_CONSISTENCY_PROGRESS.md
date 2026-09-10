@@ -154,3 +154,11 @@ diff whitespace 檢查通過。Build 覆寫 dummy MongoDB URI 與 JWT secret，�
 - 本機獨立 replica set 的 9 項測試通過，涵蓋晚期失敗全部回滾、並行認領、分享碼撤銷、成員移除、刪除標記、密碼變更及唯一鍵衝突。
 - 不需 migration；需要支援 transaction 的 replica set／sharded MongoDB，不支援 standalone fallback。
 - R3 分階段提交，應用版本依 AGENTS.md 在最後交付提交統一調升一次。會員移除與刪除／外部清理尚未完成。
+
+## R3b：成員移除
+
+- 交易內重新驗證 admin 與目標成員；Trip 寫入與身分連結／背景事件互斥。
+- 成員陣列、清單 assignee/doneBy 與收件通知一起提交或回滾，保留財務紀錄、歷史動態與 User。
+- 新增 4 項真實 replica set 測試，涵蓋完整清理、晚期失敗回滾、移除與認領競態、權限變更與自我移除；含 R3a 共 13 項通過。
+- 完整 suite 1,436 項通過；未啟用的 MongoDB/live provider 測試跳過，不視為通過。
+- 不需 migration；下一階段處理旅程刪除與持久化外部清理工作。

@@ -1,9 +1,11 @@
 'use server';
 
 import { randomUUID } from 'crypto';
+import mongoose, { isValidObjectId } from 'mongoose';
+import { removeTripMember, MemberRemovalError } from '@/lib/memberRemoval';
 import { revalidatePath } from 'next/cache';
 import { dbConnect } from '@/lib/mongodb';
-import { Trip, User, Expense, Payment, Checklist, Notification } from '@/models';
+import { Trip, User } from '@/models';
 import { Friendship, friendshipPairKey } from '@/models';
 import { getTripMembership } from '@/lib/permissions';
 import {
@@ -304,54 +306,14 @@ export const removeMember = withAuth(
         return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
       }
 
-      const tripId = membership.tripId;
-
-      // 並行：確認成員存在、是否有支出（付款人或分帳）或結算還款、是否虛擬成員
-      const [trip, payerExpense, splitExpense, payment, user] = await Promise.all([
-        Trip.findOne({ _id: tripId, 'members.user': targetUserId }).select('_id').lean(),
-        Expense.exists({ trip: tripId, payer: targetUserId }),
-        Expense.exists({ trip: tripId, 'splits.user': targetUserId }),
-        Payment.exists({ trip: tripId, $or: [{ from: targetUserId }, { to: targetUserId }] }),
-        User.findById(targetUserId)
-          .select('isVirtual')
-          .lean<{ isVirtual?: boolean | null } | null>(),
-      ]);
-
-      if (!trip) {
-        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+      if (!isValidObjectId(targetUserId)) {
+        return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
       }
-
-      // 有任何財務紀錄（支出或還款）就保留 User，避免孤兒參照
-      const hasExpenses = payerExpense !== null || splitExpense !== null || payment !== null;
-      const isVirtualMember = user?.isVirtual || false;
-
-      // Remove member from embedded array
-      await Trip.updateOne({ _id: tripId }, { $pull: { members: { user: targetUserId } } });
-
-      // 清掉清單項目對該成員的指派（指派不算財務紀錄、不阻擋移除，僅避免孤兒參照）
-      await Checklist.updateMany(
-        { trip: tripId, 'items.assignee': targetUserId },
-        { $set: { 'items.$[el].assignee': null } },
-        { arrayFilters: [{ 'el.assignee': targetUserId }] }
-      );
-      // 同理把該成員從各項目的勾選名單（doneBy，含 packing 逐人勾選）移除，避免孤兒參照
-      await Checklist.updateMany(
-        { trip: tripId, 'items.doneBy': targetUserId },
-        { $pull: { 'items.$[].doneBy': targetUserId } }
-      );
-
-      // 清掉此成員在本旅程的通知（已不是成員，通知點進去也無權檢視）
-      await Notification.deleteMany({ trip: tripId, user: targetUserId });
-      // 動態牆（ActivityLog）刻意**不清**：它是稽核性質的歷史紀錄，且 actorName 已去
-      // 正規化（事件當下快照），即使該成員被移除，過往動態仍能正確顯示。
-
-      // Cleanup virtual member if it has no expenses and belongs to no other trip
-      if (isVirtualMember && !hasExpenses) {
-        const otherTrip = await Trip.exists({ 'members.user': targetUserId });
-        if (otherTrip === null) {
-          await User.deleteOne({ _id: targetUserId });
-        }
-      }
+      const { hasExpenses } = await removeTripMember(mongoose.connection.db!, {
+        tripId: membership.tripId,
+        actorId: session.userId,
+        targetId: targetUserId,
+      });
 
       revalidatePath(`/trips/${tripIdOrCode}`);
       return {
@@ -362,6 +324,9 @@ export const removeMember = withAuth(
         },
       };
     } catch (error) {
+      if (error instanceof MemberRemovalError) {
+        return { success: false, error: error.code, code: error.code };
+      }
       logger.error('Remove member error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
