@@ -8,7 +8,11 @@ import {
   deleteItineraryDayAtomically,
   ItineraryDayDeletionError,
 } from '@/lib/itineraryDayDeletion';
-import { ItineraryDay, Photo, Trip } from '@/models';
+import { ItineraryDay, Photo } from '@/models';
+import {
+  createItineraryDayAtomically,
+  ItineraryDayCreationError,
+} from '@/lib/itineraryDayCreation';
 import { getTripMembership } from '@/lib/permissions';
 import {
   createItineraryDaySchema,
@@ -24,7 +28,6 @@ import { withAuth } from './withAuth';
 import { logger } from '@/lib/logger';
 import { isItineraryKeyForTrip, ITINERARY_CONTENT_TYPES, MAX_ITINERARY_BYTES } from '@/lib/uploads';
 import { headObject, deleteObjects, presignGet } from '@/lib/storage';
-import { rebindAutoPhotosToItinerary } from '@/lib/photoItinerary';
 
 type AttachmentDoc = {
   key: string;
@@ -187,33 +190,23 @@ export const createItineraryDay = withAuth(
         return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
       }
 
-      // Next day_number
-      const last = await ItineraryDay.findOne({ trip: membership.tripId })
-        .sort({ dayNumber: -1 })
-        .select('dayNumber')
-        .lean<{ dayNumber: number } | null>();
-      const nextDayNumber = last ? last.dayNumber + 1 : 1;
-
-      const created = await ItineraryDay.create({
-        trip: membership.tripId,
-        dayNumber: nextDayNumber,
-        title: validated.title,
-        content: validated.content || '',
-        location: validated.location ?? null,
-        activities: built.storage,
-      });
-
-      const trip = await Trip.findById(membership.tripId)
-        .select('startDate endDate')
-        .lean<{ startDate?: Date | null; endDate?: Date | null } | null>();
-      if (trip) {
-        await rebindAutoPhotosToItinerary(membership.tripId, trip.startDate, trip.endDate).catch(
-          (e) => logger.error('Create itinerary day: auto photo rebind failed', e)
-        );
-      }
-
-      return { success: true, data: toDayDto(created.toObject() as unknown as LeanDay) };
+      await dbConnect();
+      const created = await createItineraryDayAtomically(
+        mongoose.connection.db!,
+        membership.tripId,
+        session.userId,
+        {
+          title: validated.title,
+          content: validated.content || '',
+          location: validated.location ?? null,
+          activities: built.storage,
+        }
+      );
+      return { success: true, data: toDayDto(created as unknown as LeanDay) };
     } catch (error) {
+      if (error instanceof ItineraryDayCreationError) {
+        return { success: false, error: error.code, code: error.code };
+      }
       logger.error('Create itinerary day error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }

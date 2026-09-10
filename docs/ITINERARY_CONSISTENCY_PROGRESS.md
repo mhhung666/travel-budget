@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | R1 | 舊草稿覆蓋保護與衝突提示 | 已完成工程驗證 |
 | R2 | 穩定活動 ID、單筆新增／編輯／刪除原子更新，批次上限與衝突策略 | R2a～R2f 已完成工程與本機 MongoDB 併發驗證 |
-| R3 | 虛擬成員轉換／會員移除／旅程刪除的一致性、外部清理重試 | R3a～R3c 已部署；R3d 行程日刪除交易完成，其他 writer／票券引用協調待續 |
+| R3 | 虛擬成員轉換／會員移除／旅程刪除的一致性、外部清理重試 | R3a～R3c 已部署；R3d／R3e 行程日刪除／新增交易完成，其他 writer／票券引用協調待續 |
 | R4 | 票券附件驗證的有界平行查詢 | 待處理 |
 
 > R1～R2c 為各段交付紀錄；目前衝突 token 已由 R2d 的 revision 取代時間。
@@ -209,3 +209,11 @@ MONGODB_MEMBER_TEST_URI='mongodb://127.0.0.1:27030/?replicaSet=r3test' \
 - 界線：本階段保證刪日操作自身原子性。新增行程日、日期／地點變更、相片／支出 writer 尚未全面使用同一 Trip fence；其競態及存活旅程票券跨日引用／清理重試仍需後續階段。
 
 - 驗證：完整 suite 啟用行程／成員兩組隔離 replica set，1,483 項通過、37 項跳過；最後調整後相關 78 項再驗證通過。lint、格式、TypeScript 與 dummy DB/JWT production build 通過。
+
+## R3e：新增行程日交易
+
+- `createItineraryDay` 在交易外完成附件 HEAD 驗證，交易內重查當前管理員與旅程狀態、寫入 Trip fence、分配下一日號、建立行程日並重綁 auto 相片。相片寫入失敗時新增一併回滾。
+- 與 R3d 刪日共用交易內相片重綁邏輯及 Trip fence；同時新增與刪日由交易重試協調，保留 Mongoose 活動 ID、revision、附件型別與時間戳預設值。
+- 真實 replica set 驗證並行新增／刪除、相片寫入失敗回滾、成功補綁、保留手動分類與 EXIF，以及附件 HEAD 等待期間管理員被降權。
+- 無 schema／索引變更，不需新增 migration。更新行程日、AI 匯入／筆記規劃、旅程日期與相片／支出 writer 尚未全面加入 Trip fence；票券跨日引用及清理協調仍待後續階段。
+- 驗證：完整 suite 啟用行程／成員隔離 replica set，1,486 項通過、37 項跳過；lint、格式、TypeScript、dummy DB/JWT production build、文件相對連結與 diff whitespace 檢查通過。交付 commit 含 patch bump；未 push／部署。

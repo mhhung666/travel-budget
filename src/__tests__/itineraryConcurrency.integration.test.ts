@@ -123,6 +123,109 @@ describe.skipIf(!uri || !allowed)('itinerary actions against isolated MongoDB', 
     });
     tripId = trip.id;
   });
+  it('serializes concurrent creates and deletion, allocating contiguous day numbers', async () => {
+    const first = await seed();
+    const results = await Promise.all([
+      ...Array.from({ length: 4 }, (_, i) => createItineraryDay('r2verify', { title: `New ${i}` })),
+      deleteItineraryDay(tripId, first.id),
+    ]);
+    expect(results.every((result) => result.success)).toBe(true);
+    const days = await ItineraryDay.find({ trip: tripId }).sort({ dayNumber: 1 }).lean();
+    expect(days.map((day) => day.dayNumber)).toEqual([1, 2, 3, 4]);
+  });
+
+  it('rolls back creation when photo rebind fails, then creates and binds successfully', async () => {
+    const db = mongoose.connection.db!;
+    const trip = new mongo.ObjectId(tripId);
+    await db.collection('photos').insertMany([
+      {
+        trip,
+        caption: 'auto',
+        itineraryDaySource: 'auto',
+        takenLocalDate: '2026-09-01',
+        location: null,
+      },
+      {
+        trip,
+        caption: 'gps',
+        itineraryDaySource: 'auto',
+        takenLocalDate: '2026-09-01',
+        location: { lat: 1, lon: 2, source: 'exif' },
+      },
+      {
+        trip,
+        caption: 'manual',
+        itineraryDaySource: 'manual',
+        takenLocalDate: '2026-09-01',
+        itineraryDay: null,
+      },
+    ]);
+    const original = mongo.Collection.prototype.bulkWrite;
+    const spy = vi.spyOn(mongo.Collection.prototype, 'bulkWrite').mockImplementation(function (
+      this: mongo.Collection,
+      ...args
+    ) {
+      if (this.collectionName === 'photos') throw new Error('photo write failed');
+      return original.apply(this, args);
+    });
+    try {
+      expect(
+        await createItineraryDay(tripId, {
+          title: 'New',
+          location: { name: 'Tokyo', display_name: 'Tokyo', lat: 35, lon: 139 },
+        })
+      ).toMatchObject({ success: false, code: 'INTERNAL_ERROR' });
+      expect(await ItineraryDay.countDocuments({ trip })).toBe(0);
+      expect(
+        (await db.collection('photos').findOne({ trip, caption: 'auto' }))?.location
+      ).toBeNull();
+    } finally {
+      spy.mockRestore();
+    }
+    const result = await createItineraryDay(tripId, {
+      title: 'New',
+      location: { name: 'Tokyo', display_name: 'Tokyo', lat: 35, lon: 139 },
+    });
+    expect(result.success).toBe(true);
+    if (!result.success) throw new Error('create failed');
+    const auto = await db.collection('photos').findOne({ trip, caption: 'auto' });
+    expect(auto?.itineraryDay.toString()).toBe(result.data.id);
+    expect(auto?.location).toEqual({ lat: 35, lon: 139, source: 'itinerary' });
+    expect((await db.collection('photos').findOne({ trip, caption: 'gps' }))?.location).toEqual({
+      lat: 1,
+      lon: 2,
+      source: 'exif',
+    });
+    expect(
+      (await db.collection('photos').findOne({ trip, caption: 'manual' }))?.itineraryDay
+    ).toBeNull();
+  });
+
+  it('rechecks admin authorization after attachment verification', async () => {
+    const barrier = headBarrier(1);
+    const pending = createItineraryDay(tripId, {
+      title: 'Late',
+      activities: [
+        activity('Ticket', [
+          { key: `itinerary/${tripId}/late.pdf`, content_type: 'application/pdf', size: 100 },
+        ]),
+      ],
+    });
+    await barrier.entered;
+    try {
+      await Trip.updateOne(
+        { _id: tripId, 'members.user': admin },
+        { $set: { 'members.$.role': 'member' } }
+      );
+    } finally {
+      barrier.release();
+    }
+    expect(await pending).toMatchObject({ success: false, code: 'FORBIDDEN' });
+    expect(await ItineraryDay.countDocuments({ trip: tripId })).toBe(0);
+    expect(mocks.head).toHaveBeenCalledTimes(1);
+    expect(mocks.cleanup).not.toHaveBeenCalled();
+  });
+
   it('atomically renumbers and rebinds photos while preserving manual choices, GPS and other trip data', async () => {
     const db = mongoose.connection.db!;
     const first = await seed();

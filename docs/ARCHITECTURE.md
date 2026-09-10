@@ -230,9 +230,11 @@ src/
   只驗證目標活動附件，成功後才清理當天已無引用的目標票券，不觸發相片座標同步。
 - 整天欄位／批次編輯仍採整天粒度；跨 collection 與附件重新引用的競爭由 [R 後續階段](./ITINERARY_CONSISTENCY_PROGRESS.md) 追蹤。
 
-### 行程日刪除一致性
+### 行程日新增／刪除一致性
 
 `deleteItineraryDay` 在同一 MongoDB transaction 重新檢查管理員並寫入 Trip fence，完成刪日、支出／相片解除關聯、連續編號與 auto 相片重綁；重新編號會遞增日 revision。手動分類與原有 GPS 保留。票券 best-effort 清理在提交後執行。其他 writer 與票券跨日引用的協調仍待後續階段，詳見 [R 進度](./ITINERARY_CONSISTENCY_PROGRESS.md)。
+
+`createItineraryDay` 在附件 HEAD 驗證後，以相同 Trip fence 交易重新驗權、分配日號、建立行程日及重綁 auto 相片；任一步驟失敗全部回滾。新增與刪除共用交易內重綁 helper。更新行程日、AI 匯入、筆記規劃與相片直接寫入尚未全面參與此協調。
 
 ### 4.16 AI 行程匯入（受限試用）
 

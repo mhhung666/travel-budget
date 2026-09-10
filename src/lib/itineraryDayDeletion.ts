@@ -1,5 +1,5 @@
 import { mongo } from 'mongoose';
-import { buildItineraryDayDateMap, type PhotoItineraryDay } from '@/lib/photoItinerary';
+import { rebindAutoPhotosInTransaction } from '@/lib/photoItineraryTransaction';
 
 export class ItineraryDayDeletionError extends Error {
   constructor(public readonly code: 'FORBIDDEN' | 'NOT_FOUND') {
@@ -77,37 +77,13 @@ export async function deleteItineraryDayAtomically(
             );
           item.dayNumber = dayNumber;
         }
-        const byDate = buildItineraryDayDateMap(
-          parent.startDate,
-          parent.endDate,
-          remaining as unknown as PhotoItineraryDay[]
+        await rebindAutoPhotosInTransaction(
+          db,
+          session,
+          trip,
+          { startDate: parent.startDate, endDate: parent.endDate },
+          now
         );
-        const photos = await db
-          .collection('photos')
-          .find(
-            { trip, itineraryDaySource: 'auto' },
-            { session, projection: { takenLocalDate: 1, location: 1 } }
-          )
-          .toArray();
-        const photoUpdates = photos.map((photo) => {
-          const target = photo.takenLocalDate ? byDate.get(photo.takenLocalDate) : undefined;
-          const set: Record<string, unknown> = { itineraryDay: target?._id ?? null };
-          if (!photo.location || photo.location.source === 'itinerary') {
-            const { lat, lon } = target?.location ?? {};
-            set.location =
-              typeof lat === 'number' && typeof lon === 'number'
-                ? { lat, lon, source: 'itinerary' }
-                : null;
-          }
-          return {
-            updateOne: {
-              filter: { _id: photo._id, trip, itineraryDaySource: 'auto' },
-              update: { $set: set, $max: { updatedAt: now } },
-            },
-          };
-        });
-        if (photoUpdates.length)
-          await db.collection('photos').bulkWrite(photoUpdates, { session, ordered: true });
         return [
           ...new Set<string>(
             (removed.activities ?? []).flatMap((activity: { attachments?: { key: string }[] }) =>
