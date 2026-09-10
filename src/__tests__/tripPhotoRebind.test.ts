@@ -4,15 +4,25 @@ const getSession = vi.fn();
 const getTripMembership = vi.fn();
 const tripFindById = vi.fn();
 const tripFindByIdAndUpdate = vi.fn();
-const rebindAutoPhotosToItinerary = vi.fn();
+const rebindAutoPhotosInTransaction = vi.fn();
 
+vi.mock('@/lib/itineraryDayUpdate', async (original) => ({
+  ...(await original<typeof import('@/lib/itineraryDayUpdate')>()),
+  withItineraryDayUpdateTransaction: (
+    _db: unknown,
+    _trip: string,
+    _actor: string,
+    update: (session: unknown, dates: { startDate: Date; endDate: Date }) => Promise<unknown>
+  ) => update(undefined, { startDate: new Date('2026-07-01'), endDate: new Date('2026-07-10') }),
+}));
+vi.mock('@/lib/mongodb', () => ({ dbConnect: vi.fn() }));
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 vi.mock('@/lib/auth', () => ({ getSession: () => getSession() }));
 vi.mock('@/lib/permissions', () => ({
   getTripMembership: (...args: unknown[]) => getTripMembership(...args),
 }));
-vi.mock('@/lib/photoItinerary', () => ({
-  rebindAutoPhotosToItinerary: (...args: unknown[]) => rebindAutoPhotosToItinerary(...args),
+vi.mock('@/lib/photoItineraryTransaction', () => ({
+  rebindAutoPhotosInTransaction: (...args: unknown[]) => rebindAutoPhotosInTransaction(...args),
 }));
 vi.mock('@/models', () => ({
   Trip: {
@@ -64,7 +74,7 @@ beforeEach(() => {
     })
   );
   tripFindByIdAndUpdate.mockReturnValue(chainLean(updatedTrip));
-  rebindAutoPhotosToItinerary.mockResolvedValue(undefined);
+  rebindAutoPhotosInTransaction.mockResolvedValue(undefined);
 });
 
 describe('updateTrip → 自動相片重綁', () => {
@@ -72,10 +82,12 @@ describe('updateTrip → 自動相片重綁', () => {
     const result = await updateTrip(TRIP_ID, { start_date: '2026-07-02' });
 
     expect(result.success).toBe(true);
-    expect(rebindAutoPhotosToItinerary).toHaveBeenCalledWith(
-      TRIP_ID,
-      new Date('2026-07-02T00:00:00.000Z'),
-      new Date('2026-07-10T00:00:00.000Z')
+    expect(rebindAutoPhotosInTransaction).toHaveBeenCalledWith(
+      undefined,
+      undefined,
+      expect.anything(),
+      updatedTrip,
+      expect.any(Date)
     );
   });
 
@@ -83,7 +95,7 @@ describe('updateTrip → 自動相片重綁', () => {
     const result = await updateTrip(TRIP_ID, { name: 'Europe 2026' });
 
     expect(result.success).toBe(true);
-    expect(rebindAutoPhotosToItinerary).not.toHaveBeenCalled();
+    expect(rebindAutoPhotosInTransaction).not.toHaveBeenCalled();
     expect(tripFindById).not.toHaveBeenCalled();
   });
 });

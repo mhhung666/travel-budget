@@ -12,6 +12,7 @@ import {
 } from '@/actions/itinerary.actions';
 import { confirmItineraryImport } from '@/actions/itineraryImport.actions';
 import { withNotePlanningTransaction } from '@/lib/notePlanningTransaction';
+import { updateTrip } from '@/actions/trip.actions';
 import { planNote } from '@/actions/note.actions';
 import { readItinerary } from '@/lib/itineraryRead';
 import {
@@ -124,6 +125,96 @@ describe.skipIf(!uri || !allowed)('itinerary actions against isolated MongoDB', 
     });
     tripId = trip.id;
   });
+  it('rolls back trip dates and metadata when photo rebinding fails, then retries successfully', async () => {
+    const day = await seed();
+    const db = mongoose.connection.db!;
+    const trip = new mongo.ObjectId(tripId);
+    const photo = await db.collection('photos').insertOne({
+      trip,
+      itineraryDay: day._id,
+      itineraryDaySource: 'auto',
+      takenLocalDate: '2026-09-01',
+      location: null,
+    });
+    const original = mongo.Collection.prototype.bulkWrite;
+    const spy = vi.spyOn(mongo.Collection.prototype, 'bulkWrite').mockImplementation(function (
+      this: mongo.Collection,
+      ...args
+    ) {
+      if (this.collectionName === 'photos') throw new Error('Injected rebind failure');
+      return original.apply(this, args);
+    });
+    try {
+      expect(
+        await updateTrip('r2verify', { start_date: '2026-09-02', name: 'Changed' })
+      ).toMatchObject({ code: 'INTERNAL_ERROR' });
+      expect(await Trip.findById(trip).lean()).toMatchObject({
+        name: 'Test',
+        startDate: new Date('2026-09-01'),
+      });
+      expect(
+        (await db.collection('photos').findOne({ _id: photo.insertedId }))!.itineraryDay
+      ).toEqual(day._id);
+    } finally {
+      spy.mockRestore();
+    }
+    expect(await updateTrip(tripId, { start_date: '2026-09-02', name: 'Changed' })).toMatchObject({
+      success: true,
+    });
+    expect(
+      (await db.collection('photos').findOne({ _id: photo.insertedId }))!.itineraryDay
+    ).toBeNull();
+  });
+
+  it('prevents concurrent partial date edits from producing an inverted range', async () => {
+    const results = await Promise.all([
+      updateTrip(tripId, { start_date: '2026-09-10' }),
+      updateTrip('r2verify', { end_date: '2026-09-05' }),
+    ]);
+    expect(results.filter((result) => result.success)).toHaveLength(1);
+    expect(results.find((result) => !result.success)).toMatchObject({ code: 'VALIDATION_ERROR' });
+    const trip = await Trip.findById(tripId).lean();
+    expect(trip!.startDate!.getTime()).toBeLessThanOrEqual(trip!.endDate!.getTime());
+  });
+
+  it.each(['demoted', 'deleting', 'deleted'])(
+    'rejects trip metadata writes when %s after initial authorization',
+    async (change) => {
+      const db = mongoose.connection.db!;
+      const trip = new mongo.ObjectId(tripId);
+      const original = mongo.Collection.prototype.findOneAndUpdate;
+      let changed = false;
+      const spy = vi
+        .spyOn(mongo.Collection.prototype, 'findOneAndUpdate')
+        .mockImplementation(async function (this: mongo.Collection, ...args) {
+          if (this.collectionName === 'trips' && !changed) {
+            changed = true;
+            if (change === 'deleted') await db.collection('trips').deleteOne({ _id: trip });
+            else if (change === 'deleting')
+              await db
+                .collection('trips')
+                .updateOne({ _id: trip }, { $set: { expenseDeliveryDeleting: true } });
+            else
+              await db
+                .collection('trips')
+                .updateOne(
+                  { _id: trip, 'members.user': admin },
+                  { $set: { 'members.$.role': 'member' } }
+                );
+          }
+          return original.apply(this, args);
+        });
+      try {
+        expect(await updateTrip(tripId, { name: 'Forbidden change' })).toMatchObject({
+          code: 'FORBIDDEN',
+        });
+        expect(await Trip.countDocuments({ _id: trip, name: 'Forbidden change' })).toBe(0);
+      } finally {
+        spy.mockRestore();
+      }
+    }
+  );
+
   it('rolls back day, revision and borrowed photo writes if the final rebind fails', async () => {
     const day = await seed();
     const db = mongoose.connection.db!;

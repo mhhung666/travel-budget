@@ -240,6 +240,8 @@ src/
 
 `planNote` 依成員信任模型，在交易內重新驗證成員並寫入 Trip fence；讀取未規劃筆記、新增活動與標記筆記原子提交。重複轉換回傳 `VALIDATION_ERROR`，容量已滿回傳 `ACTIVITY_LIMIT`；任何寫入失敗均回滾，頁面快取只在提交後失效。
 
+`updateTrip` 使用同一 Trip fence 交易重新驗證管理員／刪除狀態，將部分日期與交易內的既有區間合併驗證，再提交旅程欄位與 auto 相片重綁；重綁失敗則旅程更新一起回滾。名稱／目的地等更新亦重新驗權，但只有日期更新觸發重綁；路徑失效在成功提交後執行。
+
 ### 4.16 AI 行程匯入（受限試用）
 
 - [/api/ai/itinerary-import](../src/app/api/ai/itinerary-import/route.ts) 依序驗證 session、admin、輸入 schema、最小旅程 context 與持久化配額，再透過 [itineraryImportProvider.ts](../src/lib/ai/itineraryImportProvider.ts) 呼叫 Gateway 或 OpenAI。provider 未設定時回 `FEATURE_DISABLED`，不影響手動行程與其他 route。

@@ -25,7 +25,11 @@ import { toTripDto } from '@/lib/dto';
 import { notify } from '@/lib/notify';
 import { logActivity } from '@/lib/activity';
 import { isEffectiveTripDateRangeValid } from '@/lib/dateRange';
-import { rebindAutoPhotosToItinerary } from '@/lib/photoItinerary';
+import { rebindAutoPhotosInTransaction } from '@/lib/photoItineraryTransaction';
+import {
+  withItineraryDayUpdateTransaction,
+  ItineraryDayUpdateError,
+} from '@/lib/itineraryDayUpdate';
 
 /** 將 Mongoose Trip 文件映射為對外 DTO（維持 snake_case 以相容前端） */
 type LeanTrip = TripDoc & { _id: { toString(): string }; createdAt: Date };
@@ -170,31 +174,6 @@ export const updateTrip = withAuth(
 
       const { name, description, start_date, end_date, destination_location } = validation.data;
 
-      if (start_date !== undefined || end_date !== undefined) {
-        // update schema 只能看到這次送來的欄位。先讀既有另一端合併驗證，避免例如只把
-        // start_date 改到既有 end_date 之後，形成倒置區間並讓每日行程日期提示失真。
-        const currentDates = await TripModel.findById(membership.tripId)
-          .select('startDate endDate')
-          .lean<{ startDate?: Date | null; endDate?: Date | null } | null>();
-        if (!currentDates) {
-          return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
-        }
-        if (
-          !isEffectiveTripDateRangeValid(
-            currentDates.startDate,
-            currentDates.endDate,
-            start_date,
-            end_date
-          )
-        ) {
-          return {
-            success: false,
-            error: '開始日期不能晚於結束日期',
-            code: 'VALIDATION_ERROR',
-          };
-        }
-      }
-
       const updateData: Record<string, unknown> = {};
       if (name !== undefined) updateData.name = name.trim();
       if (description !== undefined) updateData.description = description?.trim() || '';
@@ -203,28 +182,49 @@ export const updateTrip = withAuth(
       if (destination_location !== undefined)
         updateData.destinationLocation = destination_location ?? null;
 
-      const trip = await TripModel.findByIdAndUpdate(
+      await dbConnect();
+      const db = mongoose.connection.db!;
+      const result = await withItineraryDayUpdateTransaction<ActionResult<Trip>>(
+        db,
         membership.tripId,
-        { $set: updateData },
-        {
-          new: true,
+        session.userId,
+        async (transactionSession, currentDates) => {
+          // Merge partial date edits with the dates protected by this transaction.
+          if (
+            (start_date !== undefined || end_date !== undefined) &&
+            !isEffectiveTripDateRangeValid(
+              currentDates.startDate,
+              currentDates.endDate,
+              start_date,
+              end_date
+            )
+          ) {
+            return { success: false, error: '開始日期不能晚於結束日期', code: 'VALIDATION_ERROR' };
+          }
+          const trip = await TripModel.findByIdAndUpdate(
+            membership.tripId,
+            { $set: updateData },
+            { new: true, session: transactionSession }
+          ).lean<LeanTrip>();
+          if (!trip) throw new ItineraryDayUpdateError('FORBIDDEN');
+          if (start_date !== undefined || end_date !== undefined) {
+            await rebindAutoPhotosInTransaction(
+              db,
+              transactionSession,
+              new mongoose.mongo.ObjectId(membership.tripId),
+              trip,
+              new Date()
+            );
+          }
+          return { success: true, data: toTripDto(trip, session.userId) };
         }
-      ).lean<LeanTrip>();
-
-      if (!trip) {
-        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
-      }
-
-      if (start_date !== undefined || end_date !== undefined) {
-        // 相片自動關聯是可重建的衍生資料；人工選日（source manual）由 helper 保護不動。
-        await rebindAutoPhotosToItinerary(membership.tripId, trip.startDate, trip.endDate).catch(
-          (e) => logger.error('Update trip: auto photo rebind failed', e)
-        );
-      }
-
-      revalidatePath(`/trips/${id}`);
-      return { success: true, data: toTripDto(trip, session.userId) };
+      );
+      if (result.success) revalidatePath(`/trips/${id}`);
+      return result;
     } catch (error) {
+      if (error instanceof ItineraryDayUpdateError) {
+        return { success: false, error: error.code, code: error.code };
+      }
       logger.error('Update trip error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }

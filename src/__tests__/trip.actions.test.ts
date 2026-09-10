@@ -38,6 +38,15 @@ vi.mock('@/lib/tripDeletion', () => ({
   TripDeletionError: class extends Error {},
 }));
 vi.mock('@/lib/tripCleanup', () => ({ runTripCleanup: deletion.cleanup }));
+vi.mock('@/lib/itineraryDayUpdate', async (original) => ({
+  ...(await original<typeof import('@/lib/itineraryDayUpdate')>()),
+  withItineraryDayUpdateTransaction: (
+    _db: unknown,
+    _trip: string,
+    _actor: string,
+    update: (session: unknown, dates: { startDate: Date; endDate: Date }) => Promise<unknown>
+  ) => update(undefined, { startDate: new Date('2026-07-01'), endDate: new Date('2026-07-10') }),
+}));
 vi.mock('next/cache', () => ({ revalidatePath: (...args: unknown[]) => revalidatePath(...args) }));
 vi.mock('@/lib/auth', () => ({ getSession: () => getSession() }));
 vi.mock('@/lib/mongodb', () => ({ dbConnect: (...args: unknown[]) => dbConnect(...args) }));
@@ -233,7 +242,7 @@ describe('admin-only trip mutations', () => {
     expect(tripFindByIdAndUpdate).toHaveBeenCalledWith(
       TRIP,
       { $set: { name: 'Updated' } },
-      { new: true }
+      { new: true, session: undefined }
     );
     expect(revalidatePath).toHaveBeenCalledWith('/trips/oldcode1');
   });
