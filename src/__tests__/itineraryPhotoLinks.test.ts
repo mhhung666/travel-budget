@@ -9,6 +9,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
  * 沒有任何來源可解釋的釘子（Mongo 無 FK cascade，這種清理一律得自己來）。
  * 相片自己的 GPS（`'exif'`）與手動釘（`'manual'`）比整天共用的城市座標精確，任何情況都不可被覆蓋。
  */
+const deleteDayAtomic = vi.fn();
+vi.mock('@/lib/itineraryDayDeletion', async (original) => ({
+  ...(await original<typeof import('@/lib/itineraryDayDeletion')>()),
+  deleteItineraryDayAtomically: (...args: unknown[]) => deleteDayAtomic(...args),
+}));
 const getSession = vi.fn();
 const getTripMembership = vi.fn();
 const dayFindOne = vi.fn();
@@ -117,69 +122,33 @@ beforeEach(() => {
   rebindAutoPhotosToItinerary.mockResolvedValue(undefined);
 });
 
-describe('deleteItineraryDay → 相片關聯清理', () => {
-  it('increments the revision of each renumbered day in the same scoped write', async () => {
-    dayFind.mockReturnValue(chainSortSelectLean([{ _id: 'remaining', dayNumber: 2 }]));
+describe('deleteItineraryDay transaction boundary', () => {
+  it('cleans tickets only after commit', async () => {
+    const { deleteObjects } = await import('@/lib/storage');
+    deleteDayAtomic.mockImplementationOnce(async () => {
+      expect(deleteObjects).not.toHaveBeenCalled();
+      return ['ticket'];
+    });
     expect((await deleteItineraryDay(TRIP_ID, DAY_ID)).success).toBe(true);
-    expect(dayBulkWrite).toHaveBeenCalledWith(
-      [
-        {
-          updateOne: {
-            filter: { _id: 'remaining', trip: TRIP_ID },
-            update: { $set: { dayNumber: 1 }, $inc: { revision: 1 } },
-          },
-        },
-      ],
-      { ordered: true }
-    );
+    expect(deleteDayAtomic).toHaveBeenCalledWith(undefined, TRIP_ID, ADMIN, DAY_ID);
+    expect(deleteObjects).toHaveBeenCalledWith('receipts', ['ticket']);
   });
-
-  it('unlinks the photos and reclaims only the coordinates borrowed from this day', async () => {
-    const result = await deleteItineraryDay(TRIP_ID, DAY_ID);
-
-    expect(result.success).toBe(true);
-    const calls = photoCalls();
-    expect(calls).toHaveLength(2);
-
-    // 先收回借來的座標——這一步靠 itineraryDay 篩，若順序反了就篩不到任何相片
-    expect(calls[0]).toEqual({
-      filter: { trip: TRIP_ID, itineraryDay: DAY_ID, 'location.source': 'itinerary' },
-      update: { $set: { location: null } },
-    });
-    // 再解除關聯，避免留下指向已刪文件的孤兒參照
-    expect(calls[1]).toEqual({
-      filter: { trip: TRIP_ID, itineraryDay: DAY_ID },
-      update: { $set: { itineraryDay: null } },
-    });
-    expect(rebindAutoPhotosToItinerary).toHaveBeenCalledWith(
-      TRIP_ID,
-      new Date('2026-07-01T00:00:00.000Z'),
-      new Date('2026-07-03T00:00:00.000Z')
-    );
+  it('does not clean tickets after rollback', async () => {
+    const { deleteObjects } = await import('@/lib/storage');
+    deleteDayAtomic.mockRejectedValueOnce(new Error('rollback'));
+    expect(await deleteItineraryDay(TRIP_ID, DAY_ID)).toMatchObject({ code: 'INTERNAL_ERROR' });
+    expect(deleteObjects).not.toHaveBeenCalled();
   });
-
-  it('never touches exif/manual locations (the source filter is what protects them)', async () => {
-    await deleteItineraryDay(TRIP_ID, DAY_ID);
-
-    const clearing = photoCalls().filter((c) => 'location' in (c.update.$set ?? {}));
-    // 每一次清座標的操作都必須帶 source: 'itinerary' 條件
-    for (const call of clearing) {
-      expect(
-        call.filter['location.source'] === 'itinerary' ||
-          call.filter.$or?.some(
-            (condition: Record<string, unknown>) => condition['location.source'] === 'itinerary'
-          )
-      ).toBe(true);
-    }
+  it('maps a revoked admin checked inside the transaction', async () => {
+    const { ItineraryDayDeletionError } = await import('@/lib/itineraryDayDeletion');
+    deleteDayAtomic.mockRejectedValueOnce(new ItineraryDayDeletionError('FORBIDDEN'));
+    expect(await deleteItineraryDay(TRIP_ID, DAY_ID)).toMatchObject({ code: 'FORBIDDEN' });
   });
-
-  it('does not clean photos up when the caller is not an admin', async () => {
+  it('rejects invalid ids and non-admins before the transaction', async () => {
+    expect(await deleteItineraryDay(TRIP_ID, 'bad')).toMatchObject({ code: 'VALIDATION_ERROR' });
     getTripMembership.mockResolvedValue({ tripId: TRIP_ID, role: 'member' });
-
-    const result = await deleteItineraryDay(TRIP_ID, DAY_ID);
-
-    expect(result).toEqual({ success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' });
-    expect(photoUpdateMany).not.toHaveBeenCalled();
+    expect(await deleteItineraryDay(TRIP_ID, DAY_ID)).toMatchObject({ code: 'FORBIDDEN' });
+    expect(deleteDayAtomic).not.toHaveBeenCalled();
   });
 });
 

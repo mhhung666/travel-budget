@@ -7,6 +7,7 @@
 
 | 日期 | 里程碑 |
 | --- | --- |
+| 09-10 | R3d：行程日刪除、支出／相片關聯清理、連續編號及 auto 相片重綁交易化；真實 replica set 驗證回滾與並行刪除 |
 | 09-10 | R3a～R3c：虛擬身分轉換、成員移除與旅程刪除改用 transaction；旅程檔案清理具持久化重試與延後清掃，附 migration／cron。本機 replica set 驗證通過，剩餘行程日／票券引用協調見 [R 進度](./ITINERARY_CONSISTENCY_PROGRESS.md) |
 | 09-09 | R2 完成工程驗收：真實 MongoDB 驗證活動並行、容量、批次衝突及 migrations；跨 collection 與 blob 清理仍屬 R3，見 [R 進度](./ITINERARY_CONSISTENCY_PROGRESS.md) |
 | 09-09 | R2e：單筆編輯／刪除改用活動 revision，不同活動可並行；整批更新同步使活動快照失效，附 migration 與 cache buster，見 [R 進度](./ITINERARY_CONSISTENCY_PROGRESS.md) |

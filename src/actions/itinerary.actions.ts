@@ -3,7 +3,12 @@
 import { MAX_ACTIVITIES_PER_DAY, activityCapacityFilter } from '@/lib/itineraryLimits';
 import { readItinerary, toDayDto, type LeanActivity, type LeanDay } from '@/lib/itineraryRead';
 import { dbConnect } from '@/lib/mongodb';
-import { Expense, ItineraryDay, Photo, Trip } from '@/models';
+import mongoose from 'mongoose';
+import {
+  deleteItineraryDayAtomically,
+  ItineraryDayDeletionError,
+} from '@/lib/itineraryDayDeletion';
+import { ItineraryDay, Photo, Trip } from '@/models';
 import { getTripMembership } from '@/lib/permissions';
 import {
   createItineraryDaySchema,
@@ -459,7 +464,7 @@ export const mutateItineraryActivity = withAuth(
 
 /**
  * Delete an itinerary day and renumber remaining days.
- * 取代原 Postgres RPC：刪除後以遞增順序 bulkWrite 重新編號，避免 (trip, dayNumber) 唯一索引衝突。
+ * 刪除、關聯清理、重新編號與相片重綁在同一交易完成；提交後才清理票券。
  */
 export const deleteItineraryDay = withAuth(
   async (
@@ -478,74 +483,26 @@ export const deleteItineraryDay = withAuth(
 
       await dbConnect();
 
-      // 先讀附件 key 以便刪 R2 物件（attachments 內嵌於 activities，隨文件一併移除）
-      const doc = await ItineraryDay.findOne({ _id: dayId, trip: membership.tripId })
-        .select('activities.attachments.key')
-        .lean<{ activities?: { attachments?: { key: string }[] }[] } | null>();
-
-      await ItineraryDay.deleteOne({ _id: dayId, trip: membership.tripId });
-
-      const ticketKeys = (doc?.activities ?? []).flatMap((a) =>
-        (a.attachments ?? []).map((at) => at.key)
-      );
-      if (ticketKeys.length > 0) {
-        // best-effort：孤兒票券刪不掉不該擋住刪除行程日
-        await deleteObjects('receipts', ticketKeys).catch((e) =>
-          logger.error('Delete itinerary day: ticket cleanup failed', e)
-        );
+      if (!/^[a-f0-9]{24}$/i.test(dayId)) {
+        return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
       }
-
-      // 清掉支出對此行程日的關聯（從可複選的陣列 $pull 掉；避免孤兒參照，比照 removeMember
-      // 清 checklist 指派）。其他關聯日保留。
-      await Expense.updateMany(
-        { trip: membership.tripId, itineraryDays: dayId },
-        { $pull: { itineraryDays: dayId } }
+      const ticketKeys = await deleteItineraryDayAtomically(
+        mongoose.connection.db!,
+        membership.tripId,
+        session.userId,
+        dayId
       );
-
-      // 同理清掉相簿相片對此行程日的關聯。**順序有意義**：先收回「借」自這天的座標
-      // （條件靠 itineraryDay 篩），再解除關聯。相片自己的 GPS（source 'exif'）與手動釘
-      // （'manual'）不受影響——只有借來的座標會隨來源消失，否則地圖上會留下沒有任何
-      // 來源可解釋的釘子（規則見 photo.actions.ts 的 deriveItineraryLocation）。
-      await Photo.updateMany(
-        { trip: membership.tripId, itineraryDay: dayId, 'location.source': 'itinerary' },
-        { $set: { location: null } }
-      );
-      await Photo.updateMany(
-        { trip: membership.tripId, itineraryDay: dayId },
-        { $set: { itineraryDay: null } }
-      );
-
-      // 重新編號剩餘行程日為連續 1..n（遞增處理，數字只會變小，不會撞到唯一索引）
-      const remaining = await ItineraryDay.find({ trip: membership.tripId })
-        .sort({ dayNumber: 1 })
-        .select('_id dayNumber')
-        .lean<{ _id: { toString(): string }; dayNumber: number }[]>();
-
-      const ops = remaining
-        .map((d, i) => ({ d, newNumber: i + 1 }))
-        .filter(({ d, newNumber }) => d.dayNumber !== newNumber)
-        .map(({ d, newNumber }) => ({
-          updateOne: {
-            filter: { _id: d._id, trip: membership.tripId },
-            update: { $set: { dayNumber: newNumber }, $inc: { revision: 1 } },
-          },
-        }));
-
-      if (ops.length > 0) {
-        await ItineraryDay.bulkWrite(ops, { ordered: true });
-      }
-
-      const trip = await Trip.findById(membership.tripId)
-        .select('startDate endDate')
-        .lean<{ startDate?: Date | null; endDate?: Date | null } | null>();
-      if (trip) {
-        await rebindAutoPhotosToItinerary(membership.tripId, trip.startDate, trip.endDate).catch(
-          (e) => logger.error('Delete itinerary day: auto photo rebind failed', e)
+      if (ticketKeys.length) {
+        await deleteObjects('receipts', ticketKeys).catch((error) =>
+          logger.error('Delete itinerary day: ticket cleanup failed', error)
         );
       }
 
       return { success: true, data: { message: 'DELETED' } };
     } catch (error) {
+      if (error instanceof ItineraryDayDeletionError) {
+        return { success: false, error: error.code, code: error.code };
+      }
       logger.error('Delete itinerary day error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }

@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | R1 | 舊草稿覆蓋保護與衝突提示 | 已完成工程驗證 |
 | R2 | 穩定活動 ID、單筆新增／編輯／刪除原子更新，批次上限與衝突策略 | R2a～R2f 已完成工程與本機 MongoDB 併發驗證 |
-| R3 | 虛擬成員轉換／會員移除／旅程刪除的一致性、外部清理重試 | R3a～R3c 成員／旅程刪除已完成；行程日／票券引用協調仍待後續處理 |
+| R3 | 虛擬成員轉換／會員移除／旅程刪除的一致性、外部清理重試 | R3a～R3c 已部署；R3d 行程日刪除交易完成，其他 writer／票券引用協調待續 |
 | R4 | 票券附件驗證的有界平行查詢 | 待處理 |
 
 > R1～R2c 為各段交付紀錄；目前衝突 token 已由 R2d 的 revision 取代時間。
@@ -188,7 +188,7 @@ MONGODB_MEMBER_TEST_URI='mongodb://127.0.0.1:27030/?replicaSet=r3test' \
   pnpm vitest run src/__tests__/memberIdentity.integration.test.ts
 ```
 
-### 尚存界線
+### R3a～R3c 交付時的界線
 
 本次 R3a～R3c 交付涵蓋身分轉換、成員移除與旅程刪除。行程日刪除／重新編號／相片重綁，
 以及存活旅程內票券跨天引用與刪除後重新引用，仍需獨立的交易／引用清理協調；未宣稱已處理。
@@ -198,3 +198,14 @@ MONGODB_MEMBER_TEST_URI='mongodb://127.0.0.1:27030/?replicaSet=r3test' \
 ### R3a～R3c 本次交付驗證
 
 完整 suite（啟用隔離 replica set）1,464 項通過、53 項未啟用測試跳過；lint、Prettier、TypeScript、dummy DB/JWT 環境 production build 與 diff whitespace 檢查通過。版本在 R3c 交付提交統一 patch bump 一次。未 push、部署或操作正式資料。
+
+## R3d：行程日刪除交易
+
+- 使用者於 2026-09-10 確認 R3a～R3c migration 與部署成功；本階段未自行操作正式環境。
+- `deleteItineraryDay` 將當前管理員檢查與 Trip fence、刪日、支出關聯清除、相片解除關聯、連續編號及 auto 相片重綁放入同一 snapshot／majority transaction。任何步驟失敗全部回滾，票券刪除只在提交後執行。
+- 重新編號遞增處理，保留既有唯一索引；被重新編號的日 revision 遞增。手動分類保留、僅收回借用座標，EXIF／手動座標不覆蓋。
+- 真實 replica set 測試涵蓋唯一索引、相片日期與座標、跨旅程隔離、晚期失敗回滾、並行刪日、權限及不存在的目標；既有 action 並行測試一起執行。
+- 無 schema／索引變更，不需新增 migration。交易需求沿用已部署 R3 的 replica set。
+- 界線：本階段保證刪日操作自身原子性。新增行程日、日期／地點變更、相片／支出 writer 尚未全面使用同一 Trip fence；其競態及存活旅程票券跨日引用／清理重試仍需後續階段。
+
+- 驗證：完整 suite 啟用行程／成員兩組隔離 replica set，1,483 項通過、37 項跳過；最後調整後相關 78 項再驗證通過。lint、格式、TypeScript 與 dummy DB/JWT production build 通過。

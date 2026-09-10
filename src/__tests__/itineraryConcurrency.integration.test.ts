@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { randomUUID } from 'node:crypto';
-import mongoose from 'mongoose';
+import mongoose, { mongo } from 'mongoose';
+import { deleteItineraryDayAtomically } from '@/lib/itineraryDayDeletion';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ItineraryDay, Note, Trip } from '@/models';
 import {
@@ -30,7 +31,8 @@ vi.mock('@/lib/storage', () => ({
   deleteObjects: mocks.cleanup,
   presignGet: vi.fn(),
 }));
-vi.mock('@/lib/photoItinerary', () => ({
+vi.mock('@/lib/photoItinerary', async (original) => ({
+  ...(await original<typeof import('@/lib/photoItinerary')>()),
   rebindAutoPhotosToItinerary: vi.fn(async () => undefined),
 }));
 vi.mock('@/lib/activity', () => ({ logActivity: vi.fn() }));
@@ -89,6 +91,7 @@ describe.skipIf(!uri || !allowed)('itinerary actions against isolated MongoDB', 
       serverSelectionTimeoutMS: 5000,
     });
     const db = mongoose.connection.db!;
+    expect((await db.admin().command({ hello: 1 })).setName).toBeTruthy();
     expect(await db.listCollections({}, { nameOnly: true }).toArray()).toHaveLength(0);
     await db.createCollection('verification_owner');
     owned = true;
@@ -120,6 +123,146 @@ describe.skipIf(!uri || !allowed)('itinerary actions against isolated MongoDB', 
     });
     tripId = trip.id;
   });
+  it('atomically renumbers and rebinds photos while preserving manual choices, GPS and other trip data', async () => {
+    const db = mongoose.connection.db!;
+    const first = await seed();
+    const second = await ItineraryDay.create({
+      trip: tripId,
+      dayNumber: 2,
+      title: 'Second',
+      location: { lat: 35, lon: 139 },
+    });
+    const third = await ItineraryDay.create({ trip: tripId, dayNumber: 3, title: 'Third' });
+    const trip = new mongo.ObjectId(tripId);
+    const other = new mongo.ObjectId();
+    await db.collection('expenses').insertMany([
+      { trip, itineraryDays: [first._id, second._id] },
+      { trip: other, itineraryDays: [first._id] },
+    ]);
+    await db.collection('photos').insertMany([
+      {
+        trip,
+        caption: 'auto',
+        itineraryDay: first._id,
+        itineraryDaySource: 'auto',
+        takenLocalDate: '2026-09-01',
+        location: { lat: 1, lon: 2, source: 'itinerary' },
+      },
+      {
+        trip,
+        caption: 'manual',
+        itineraryDay: first._id,
+        itineraryDaySource: 'manual',
+        location: { lat: 1, lon: 2, source: 'itinerary' },
+      },
+      {
+        trip,
+        caption: 'gps',
+        itineraryDay: first._id,
+        itineraryDaySource: 'auto',
+        takenLocalDate: '2026-09-01',
+        location: { lat: 9, lon: 8, source: 'exif' },
+      },
+      {
+        trip,
+        caption: 'out',
+        itineraryDay: third._id,
+        itineraryDaySource: 'auto',
+        takenLocalDate: '2026-09-03',
+        location: { lat: 1, lon: 2, source: 'itinerary' },
+      },
+      { trip: other, caption: 'other', itineraryDay: first._id, location: { source: 'itinerary' } },
+    ]);
+    expect(await deleteItineraryDay(tripId, first.id)).toMatchObject({ success: true });
+    const remaining = await ItineraryDay.find({ trip }).sort({ dayNumber: 1 }).lean();
+    expect(remaining.map((d) => [d.dayNumber, d.revision])).toEqual([
+      [1, 1],
+      [2, 1],
+    ]);
+    expect((await db.collection('expenses').findOne({ trip }))?.itineraryDays).toEqual([
+      second._id,
+    ]);
+    expect((await db.collection('expenses').findOne({ trip: other }))?.itineraryDays).toEqual([
+      first._id,
+    ]);
+    expect(await db.collection('photos').findOne({ trip, caption: 'auto' })).toMatchObject({
+      itineraryDay: second._id,
+      location: { lat: 35, lon: 139, source: 'itinerary' },
+    });
+    expect(await db.collection('photos').findOne({ trip, caption: 'manual' })).toMatchObject({
+      itineraryDay: null,
+      itineraryDaySource: 'manual',
+      location: null,
+    });
+    expect(await db.collection('photos').findOne({ trip, caption: 'gps' })).toMatchObject({
+      itineraryDay: second._id,
+      location: { lat: 9, lon: 8, source: 'exif' },
+    });
+    expect(await db.collection('photos').findOne({ trip, caption: 'out' })).toMatchObject({
+      itineraryDay: null,
+      location: null,
+    });
+    expect(await db.collection('photos').findOne({ trip: other })).toMatchObject({
+      itineraryDay: first._id,
+      location: { source: 'itinerary' },
+    });
+  });
+
+  it('rolls back deletion, expense cleanup and renumbering when the final photo rebind fails', async () => {
+    const db = mongoose.connection.db!;
+    const first = await seed();
+    await ItineraryDay.create({ trip: tripId, dayNumber: 2, title: 'Second' });
+    const trip = new mongo.ObjectId(tripId);
+    await db.collection('expenses').insertOne({ trip, itineraryDays: [first._id] });
+    await db.collection('photos').insertOne({
+      trip,
+      itineraryDay: first._id,
+      itineraryDaySource: 'auto',
+      takenLocalDate: '2026-09-01',
+    });
+    const original = mongo.Collection.prototype.bulkWrite;
+    const spy = vi.spyOn(mongo.Collection.prototype, 'bulkWrite').mockImplementation(function (
+      this: mongo.Collection,
+      ...args: Parameters<typeof original>
+    ) {
+      if (this.collectionName === 'photos') throw new Error('injected late failure');
+      return original.apply(this, args);
+    });
+    try {
+      expect(await deleteItineraryDay(tripId, first.id)).toMatchObject({ code: 'INTERNAL_ERROR' });
+    } finally {
+      spy.mockRestore();
+    }
+    expect(
+      (await ItineraryDay.find({ trip }).sort({ dayNumber: 1 }).lean()).map((d) => [
+        d.dayNumber,
+        d.revision,
+      ])
+    ).toEqual([
+      [1, 0],
+      [2, 0],
+    ]);
+    expect((await db.collection('expenses').findOne({ trip }))?.itineraryDays).toEqual([first._id]);
+    expect((await db.collection('photos').findOne({ trip }))?.itineraryDay).toEqual(first._id);
+    expect(mocks.cleanup).not.toHaveBeenCalled();
+  });
+
+  it('serializes concurrent day deletions with contiguous numbering and rejects stale admins', async () => {
+    const db = mongoose.connection.db!;
+    const first = await seed();
+    const second = await ItineraryDay.create({ trip: tripId, dayNumber: 2, title: 'Second' });
+    await ItineraryDay.create({ trip: tripId, dayNumber: 3, title: 'Third' });
+    const results = await Promise.all([first, second].map((d) => deleteItineraryDay(tripId, d.id)));
+    expect(results.every((r) => r.success)).toBe(true);
+    expect((await ItineraryDay.find({ trip: tripId }).lean()).map((d) => d.dayNumber)).toEqual([1]);
+    await expect(
+      deleteItineraryDayAtomically(db, tripId, member.toHexString(), first.id)
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    await expect(
+      deleteItineraryDayAtomically(db, tripId, admin.toHexString(), first.id)
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+
   async function seed(count = 2) {
     return ItineraryDay.create({
       trip: tripId,
