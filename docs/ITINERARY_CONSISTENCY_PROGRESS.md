@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | R1 | 舊草稿覆蓋保護與衝突提示 | 已完成工程驗證 |
 | R2 | 穩定活動 ID、單筆新增／編輯／刪除原子更新，批次上限與衝突策略 | R2a～R2f 已完成工程與本機 MongoDB 併發驗證 |
-| R3 | 虛擬成員轉換／會員移除／旅程刪除的一致性、外部清理重試 | R3a～R3c 已部署；R3d～R3f 行程日刪除／新增／整天更新交易完成，R3g 單筆活動與 R3h 筆記規劃交易完成、隔離 DB 驗證通過；其他 writer／票券引用協調待續 |
+| R3 | 虛擬成員轉換／會員移除／旅程刪除的一致性、外部清理重試 | R3a～R3c 已部署；R3d～R3f 行程日刪除／新增／整天更新交易完成，R3g 單筆活動、R3h 筆記規劃與 R3i AI 匯入交易完成、隔離 DB 驗證通過；其他 writer／票券引用協調待續 |
 | R4 | 票券附件驗證的有界平行查詢 | 待處理 |
 
 > R1～R2c 為各段交付紀錄；目前衝突 token 已由 R2d 的 revision 取代時間。
@@ -242,3 +242,13 @@ MONGODB_MEMBER_TEST_URI='mongodb://127.0.0.1:27030/?replicaSet=r3test' \
 - 無 schema／索引變更，不需 migration；交付 commit 含 patch bump，未 push／部署。下一階段為 AI 匯入；其他 writer 與跨天票券引用協調仍待續。
 
 - 驗證：完整 suite 啟用行程／成員隔離 replica set，1,496 項通過、37 項跳過；TypeScript、lint、Prettier、dummy DB/JWT production build 與 diff whitespace 檢查通過。未操作正式資料。
+
+
+## R3i：AI 匯入逐日交易
+
+- 每個日期獨立使用共用 Trip fence 交易，重新驗證管理員／旅程刪除狀態並讀取旅程日期；活動新增、revision／去重 key 與 auto 相片重綁一起提交或回滾。
+- 保留逐日部分成功、容量上限與冪等重送；交易重試重新讀取日資料。資料庫錯誤必須離開交易才轉成逐日失敗，避免在已中止的 session 接續寫入。活動紀錄在交易外執行。
+- 驗權後降權／刪除的日期回傳 `FORBIDDEN`，沿用四語既有訊息。以隔離 replica set 驗證新增／既有日並行去重、相片重綁失敗時活動與 key 回滾及其他日期成功、重試恢復、降權／刪除拒絕，以及交易內最新日期。
+- 無 schema／索引變更，不需 migration；交付 commit 含 patch bump，未 push／部署。日期／地點、相片／支出等其他 writer 與跨天票券引用協調仍待續。
+
+- 驗證：40 項隔離 MongoDB 行程整合測試通過；完整 suite 啟用行程／成員 replica set，1,503 項通過、37 項跳過。TypeScript、lint、Prettier、dummy DB/JWT production build 與 diff whitespace 檢查通過。未操作正式資料。

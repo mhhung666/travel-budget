@@ -3,7 +3,14 @@
 import { activityCapacityFilter } from '@/lib/itineraryLimits';
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
-import { ItineraryDay, Trip } from '@/models';
+import mongoose from 'mongoose';
+import { dbConnect } from '@/lib/mongodb';
+import {
+  withItineraryDayUpdateTransaction,
+  ItineraryDayUpdateError,
+} from '@/lib/itineraryDayUpdate';
+import { rebindAutoPhotosInTransaction } from '@/lib/photoItineraryTransaction';
+import { ItineraryDay } from '@/models';
 import { getTripMembership } from '@/lib/permissions';
 import { activitySchema } from '@/lib/validation';
 import { ITINERARY_IMPORT_LIMITS } from '@/lib/ai/importLimits';
@@ -14,7 +21,6 @@ import {
 } from '@/lib/ai/itineraryImportSchema';
 import { logger } from '@/lib/logger';
 import { logActivity } from '@/lib/activity';
-import { rebindAutoPhotosToItinerary } from '@/lib/photoItinerary';
 import { withAuth } from './withAuth';
 import type { ActionResult } from './types';
 
@@ -27,6 +33,7 @@ const confirmItineraryImportInputSchema = z
 
 export type ItineraryImportDayStatus = 'success' | 'already_imported' | 'failed';
 export type ItineraryImportDayErrorCode =
+  | 'FORBIDDEN'
   | 'TRIP_DATES_REQUIRED'
   | 'MISSING_DATE'
   | 'DATE_OUTSIDE_TRIP'
@@ -53,7 +60,6 @@ export type ItineraryImportConfirmation = {
   };
 };
 
-type LeanTripDates = { startDate?: Date | null; endDate?: Date | null };
 type ExistingDay = {
   _id: unknown;
   appliedImportKeys?: string[];
@@ -133,8 +139,13 @@ async function appendToExistingDay(input: {
   date: string;
   key: string;
   activities: Record<string, unknown>[];
+  session: mongoose.mongo.ClientSession;
 }): Promise<ItineraryImportDayResult> {
-  const current = await ItineraryDay.findOne({ trip: input.tripId, dayNumber: input.dayNumber })
+  const current = await ItineraryDay.findOne(
+    { trip: input.tripId, dayNumber: input.dayNumber },
+    null,
+    { session: input.session }
+  )
     .select('_id activities appliedImportKeys')
     .lean<ExistingDay | null>();
   if (!current) return failed(input.date, 'INTERNAL_ERROR');
@@ -159,7 +170,7 @@ async function appendToExistingDay(input: {
       $push: { activities: { $each: input.activities } },
       $addToSet: { appliedImportKeys: input.key },
     },
-    { new: true }
+    { new: true, session: input.session }
   ).lean<ExistingDay | null>();
 
   if (updated) {
@@ -170,7 +181,9 @@ async function appendToExistingDay(input: {
     };
   }
 
-  const raced = await ItineraryDay.findOne({ _id: current._id, trip: input.tripId })
+  const raced = await ItineraryDay.findOne({ _id: current._id, trip: input.tripId }, null, {
+    session: input.session,
+  })
     .select('activities appliedImportKeys')
     .lean<ExistingDay | null>();
   if ((raced?.appliedImportKeys ?? []).includes(input.key)) {
@@ -179,16 +192,13 @@ async function appendToExistingDay(input: {
   return failed(input.date, 'ACTIVITY_LIMIT');
 }
 
-function isDuplicateKeyError(error: unknown): boolean {
-  return !!error && typeof error === 'object' && Reflect.get(error, 'code') === 11000;
-}
-
 async function applyDay(input: {
   tripId: string;
   operationId: string;
   startDate: string;
   endDate: string | null;
   day: GroupedDay;
+  session: mongoose.mongo.ClientSession;
 }): Promise<ItineraryImportDayResult> {
   const date = input.day.date;
   if (!date) return failed('', 'MISSING_DATE');
@@ -208,7 +218,9 @@ async function applyDay(input: {
 
   const dayNumber = dayNumberForDate(input.startDate, date);
   const key = importKey(input.tripId, input.operationId, date);
-  const existing = await ItineraryDay.findOne({ trip: input.tripId, dayNumber })
+  const existing = await ItineraryDay.findOne({ trip: input.tripId, dayNumber }, null, {
+    session: input.session,
+  })
     .select('_id')
     .lean<{ _id: unknown } | null>();
   if (existing) {
@@ -218,34 +230,26 @@ async function applyDay(input: {
       date,
       key,
       activities,
+      session: input.session,
     });
   }
   if (!input.day.title?.trim()) return failed(date, 'MISSING_DAY_TITLE');
 
-  try {
-    await ItineraryDay.create({
-      trip: input.tripId,
-      dayNumber,
-      title: input.day.title,
-      content: input.day.content ?? '',
-      location: null,
-      activities,
-      appliedImportKeys: [key],
-    });
-    return { date, status: 'success', addedActivities: activities.length };
-  } catch (error) {
-    if (isDuplicateKeyError(error)) {
-      return appendToExistingDay({
-        tripId: input.tripId,
+  await ItineraryDay.create(
+    [
+      {
+        trip: input.tripId,
         dayNumber,
-        date,
-        key,
+        title: input.day.title,
+        content: input.day.content ?? '',
+        location: null,
         activities,
-      });
-    }
-    logger.warn('AI itinerary import day failed', { status: 'error', errorCode: 'INTERNAL_ERROR' });
-    return failed(date, 'INTERNAL_ERROR');
-  }
+        appliedImportKeys: [key],
+      },
+    ],
+    { session: input.session }
+  );
+  return { date, status: 'success', addedActivities: activities.length };
 }
 
 export const confirmItineraryImport = withAuth(
@@ -266,27 +270,50 @@ export const confirmItineraryImport = withAuth(
         return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
       }
 
-      const trip = await Trip.findById(membership.tripId)
-        .select('startDate endDate')
-        .lean<LeanTripDates | null>();
-      if (!trip) return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
-
-      const startDate = formatDate(trip.startDate);
-      const endDate = formatDate(trip.endDate);
-      const groupedDays = groupDaysByDate(parsed.data.draft.days);
-      const days = startDate
-        ? await Promise.all(
-            groupedDays.map((day) =>
-              applyDay({
-                tripId: membership.tripId,
-                operationId: parsed.data.operationId,
-                startDate,
-                endDate,
-                day,
-              })
+      await dbConnect();
+      const db = mongoose.connection.db!;
+      const days: ItineraryImportDayResult[] = [];
+      // Each date commits independently. Do not run parallel operations in one session.
+      for (const day of groupDaysByDate(parsed.data.draft.days)) {
+        try {
+          days.push(
+            await withItineraryDayUpdateTransaction(
+              db,
+              membership.tripId,
+              session.userId,
+              async (transactionSession, parent) => {
+                const startDate = formatDate(parent.startDate);
+                if (!startDate) return failed(day.date ?? '', 'TRIP_DATES_REQUIRED');
+                const result = await applyDay({
+                  tripId: membership.tripId,
+                  operationId: parsed.data.operationId,
+                  startDate,
+                  endDate: formatDate(parent.endDate),
+                  day,
+                  session: transactionSession,
+                });
+                if (result.status === 'success') {
+                  await rebindAutoPhotosInTransaction(
+                    db,
+                    transactionSession,
+                    new mongoose.mongo.ObjectId(membership.tripId),
+                    parent,
+                    new Date()
+                  );
+                }
+                return result;
+              }
             )
-          )
-        : groupedDays.map((day) => failed(day.date ?? '', 'TRIP_DATES_REQUIRED'));
+          );
+        } catch (error) {
+          const code =
+            error instanceof ItineraryDayUpdateError && error.code === 'FORBIDDEN'
+              ? 'FORBIDDEN'
+              : 'INTERNAL_ERROR';
+          logger.warn('AI itinerary import day failed', { status: 'error', errorCode: code });
+          days.push(failed(day.date ?? '', code));
+        }
+      }
 
       const summary = {
         successfulDays: days.filter((day) => day.status === 'success').length,
@@ -299,13 +326,6 @@ export const confirmItineraryImport = withAuth(
         ...summary,
       });
       if (summary.addedActivities > 0 || summary.successfulDays > 0) {
-        await rebindAutoPhotosToItinerary(membership.tripId, trip.startDate, trip.endDate).catch(
-          () =>
-            logger.warn('AI itinerary import photo rebind failed', {
-              status: 'error',
-              errorCode: 'INTERNAL_ERROR',
-            })
-        );
         await logActivity({
           tripId: membership.tripId,
           actorId: session.userId,

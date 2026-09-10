@@ -3,27 +3,31 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   getSession: vi.fn(),
   getTripMembership: vi.fn(),
-  tripFindById: vi.fn(),
+  transaction: vi.fn(),
   dayFindOne: vi.fn(),
   dayFindOneAndUpdate: vi.fn(),
   dayCreate: vi.fn(),
   loggerInfo: vi.fn(),
   loggerWarn: vi.fn(),
   logActivity: vi.fn(),
-  rebindAutoPhotosToItinerary: vi.fn(),
+  rebindAutoPhotosInTransaction: vi.fn(),
 }));
 
+vi.mock('@/lib/mongodb', () => ({ dbConnect: vi.fn() }));
+vi.mock('@/lib/itineraryDayUpdate', async (original) => ({
+  ...(await original<typeof import('@/lib/itineraryDayUpdate')>()),
+  withItineraryDayUpdateTransaction: mocks.transaction,
+}));
 vi.mock('@/lib/auth', () => ({ getSession: mocks.getSession }));
 vi.mock('@/lib/permissions', () => ({ getTripMembership: mocks.getTripMembership }));
 vi.mock('@/lib/logger', () => ({
   logger: { info: mocks.loggerInfo, warn: mocks.loggerWarn, error: vi.fn(), debug: vi.fn() },
 }));
 vi.mock('@/lib/activity', () => ({ logActivity: mocks.logActivity }));
-vi.mock('@/lib/photoItinerary', () => ({
-  rebindAutoPhotosToItinerary: mocks.rebindAutoPhotosToItinerary,
+vi.mock('@/lib/photoItineraryTransaction', () => ({
+  rebindAutoPhotosInTransaction: mocks.rebindAutoPhotosInTransaction,
 }));
 vi.mock('@/models', () => ({
-  Trip: { findById: mocks.tripFindById },
   ItineraryDay: {
     findOne: mocks.dayFindOne,
     findOneAndUpdate: mocks.dayFindOneAndUpdate,
@@ -74,9 +78,9 @@ beforeEach(() => {
   mocks.getSession.mockResolvedValue({ userId: USER_ID });
   mocks.getTripMembership.mockResolvedValue({ tripId: TRIP_ID, role: 'admin' });
   mocks.logActivity.mockResolvedValue(undefined);
-  mocks.rebindAutoPhotosToItinerary.mockResolvedValue(undefined);
-  mocks.tripFindById.mockReturnValue(
-    selectLean({
+  mocks.rebindAutoPhotosInTransaction.mockResolvedValue(undefined);
+  mocks.transaction.mockImplementation((_db, _trip, _actor, update) =>
+    update(undefined, {
       startDate: new Date('2026-09-01T00:00:00.000Z'),
       endDate: new Date('2026-09-05T00:00:00.000Z'),
     })
@@ -103,7 +107,7 @@ beforeEach(() => {
       },
     })
   );
-  mocks.dayCreate.mockImplementation(async (input: Omit<StoredDay, '_id'>) => {
+  mocks.dayCreate.mockImplementation(async ([input]: Omit<StoredDay, '_id'>[]) => {
     if (storedDays.some((day) => day.trip === input.trip && day.dayNumber === input.dayNumber)) {
       throw Object.assign(new Error('duplicate'), { code: 11000 });
     }
@@ -202,29 +206,6 @@ describe('confirmItineraryImport', () => {
     expect(storedDays[0].title).toBe('Existing title');
     expect(storedDays[0].content).toBe('Existing content');
     expect(storedDays[0].activities).toHaveLength(2);
-  });
-
-  it('deduplicates two concurrent confirmations of a new date', async () => {
-    const input = draft([
-      {
-        date: '2026-09-01',
-        title: 'Day 1',
-        activities: [{ title: 'Museum', type: 'sightseeing' }],
-      },
-    ]);
-
-    const results = await Promise.all([
-      confirmItineraryImport(TRIP_ID, input),
-      confirmItineraryImport(TRIP_ID, input),
-    ]);
-
-    expect(results.filter((result) => result.success)).toHaveLength(2);
-    const statuses = results.flatMap((result) =>
-      result.success ? result.data.days.map((day) => day.status) : []
-    );
-    expect(statuses.sort()).toEqual(['already_imported', 'success']);
-    expect(storedDays).toHaveLength(1);
-    expect(storedDays[0].activities).toHaveLength(1);
   });
 
   it('returns per-day failures without rolling successful dates back', async () => {

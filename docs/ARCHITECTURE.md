@@ -234,7 +234,7 @@ src/
 
 `deleteItineraryDay` 在同一 MongoDB transaction 重新檢查管理員並寫入 Trip fence，完成刪日、支出／相片解除關聯、連續編號與 auto 相片重綁；重新編號會遞增日 revision。手動分類與原有 GPS 保留。票券 best-effort 清理在提交後執行。其他 writer 與票券跨日引用的協調仍待後續階段，詳見 [R 進度](./ITINERARY_CONSISTENCY_PROGRESS.md)。
 
-`createItineraryDay` 在附件 HEAD 驗證後，以相同 Trip fence 交易重新驗權、分配日號、建立行程日及重綁 auto 相片；任一步驟失敗全部回滾。新增與刪除共用交易內重綁 helper。AI 匯入與相片直接寫入尚未全面參與此協調。
+`createItineraryDay` 在附件 HEAD 驗證後，以相同 Trip fence 交易重新驗權、分配日號、建立行程日及重綁 auto 相片；任一步驟失敗全部回滾。新增與刪除共用交易內重綁 helper。相片直接寫入尚未全面參與此協調。
 
 `updateItineraryDay` 在同一交易重新驗權、寫入 Trip fence、以 revision CAS 更新整天與同步借用座標；日號變更時亦重綁 auto 相片。失敗全部回滾，原有 EXIF／手動座標與手動分類保留。附件 HEAD 在交易外完成，移除票券只在提交後 best-effort 清理。`mutateItineraryActivity` 亦在附件 HEAD 後使用同一 Trip fence 交易，重新驗證管理員與旅程狀態，保留活動 revision CAS、容量上限及提交後票券清理；其他 writer 與跨天票券引用的整體協調仍待後續階段。
 
@@ -244,7 +244,7 @@ src/
 
 - [/api/ai/itinerary-import](../src/app/api/ai/itinerary-import/route.ts) 依序驗證 session、admin、輸入 schema、最小旅程 context 與持久化配額，再透過 [itineraryImportProvider.ts](../src/lib/ai/itineraryImportProvider.ts) 呼叫 Gateway 或 OpenAI。provider 未設定時回 `FEATURE_DISABLED`，不影響手動行程與其他 route。
 - 模型只產生 [itineraryImportSchema.ts](../src/lib/ai/itineraryImportSchema.ts) 的草稿；日期正規化與既有活動提示由確定性程式處理。瀏覽器預覽可編輯且確認前零寫入；[itineraryImport.actions.ts](../src/actions/itineraryImport.actions.ts) 在確認時重新驗權與驗證。
-- 確認寫入以日期為原子單位。`ItineraryDay.appliedImportKeys` 保存 server-only 冪等 key，既有日以條件式 `$push` 附加並同時檢查活動上限，避免重送重複或 read-modify-write 覆蓋。
+- 確認寫入以日期為交易單位；每個日期在交易內重新驗證管理員與旅程刪除狀態、寫入共用 Trip fence，使用當下旅程日期並原子完成行程寫入及 auto 相片重綁。失敗日期回滾且不影響其他日期，交易內降權／刪除回傳逐日 `FORBIDDEN`；活動紀錄在提交後寫入。`ItineraryDay.appliedImportKeys` 保存 server-only 冪等 key，既有日以條件式 `$push` 附加並同時檢查活動上限，避免重送重複或 read-modify-write 覆蓋。
 - [AiImportUsage](../src/models/AiImportUsage.ts) 是所有 AI 草稿端點共用的 UTC 每日 bucket（保留歷史 model 名稱以免搬移資料），唯一鍵為 `(scope, scopeKey, periodStart)`，scope 為 global／user／trip。請求在 provider 前依序原子保留，後續結算 token 與 micro-USD；跨 scope 失敗會補償已保留 bucket。程序中斷時額度維持保留以 fail closed，TTL 只清理 35 天後資料。
 - 全域成本上限使用 `AI_DAILY_COST_LIMIT_MICRO_USD` 與每請求最壞情況預留；舊 `AI_IMPORT_*` 名稱仍相容。付費模型必須依 provider 當前價格設定 input／output micro-USD 單價，預留值不得低於可能的單次最大成本。provider 失敗若未提供 usage，會保守地將整筆預留計為已花費，避免失敗回應繞過 cap。Free Tier 可將四個成本值設 0，request 與 token 仍持久化觀測。
 - Vercel Analytics 的 `ai_itinerary_import` 事件只接受固定 stage／result／corrected／error code，禁止來源文字、草稿、日期、位置、確認碼、名稱或 id。伺服器 log 只含 provider、model、latency、token、micro-USD 與錯誤分類。

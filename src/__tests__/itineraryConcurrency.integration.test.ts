@@ -883,6 +883,158 @@ describe.skipIf(!uri || !allowed)('itinerary actions against isolated MongoDB', 
     ).toMatchObject({ code: 'CONFLICT' });
   });
 
+  it.each([false, true])(
+    'deduplicates concurrent AI confirmations (existing day: %s)',
+    async (existing) => {
+      if (existing) await seed();
+      const input = importDraft();
+      const results = await Promise.all([
+        confirmItineraryImport('r2verify', input),
+        confirmItineraryImport(tripId, input),
+      ]);
+      expect(
+        results
+          .flatMap((result) => (result.success ? result.data.days.map((day) => day.status) : []))
+          .sort()
+      ).toEqual(['already_imported', 'success']);
+      const days = await ItineraryDay.find({ trip: tripId }).lean();
+      expect(days).toHaveLength(1);
+      expect(days[0].activities).toHaveLength(existing ? 3 : 1);
+      expect(days[0].revision).toBe(existing ? 1 : 0);
+      expect(days[0].appliedImportKeys).toHaveLength(1);
+    }
+  );
+
+  it.each([false, true])(
+    'rolls back a failed import date and its key while retaining other dates (existing: %s)',
+    async (existing) => {
+      if (existing) await seed();
+      const db = mongoose.connection.db!;
+      const trip = new mongo.ObjectId(tripId);
+      await db.collection('photos').insertOne({
+        trip,
+        caption: 'import-auto',
+        itineraryDay: null,
+        itineraryDaySource: 'auto',
+        takenLocalDate: '2026-09-01',
+        location: null,
+      });
+      const input = importDraft();
+      input.draft.days.push({ ...input.draft.days[0], date: '2026-09-02' });
+      const original = mongo.Collection.prototype.bulkWrite;
+      let fail = true;
+      const spy = vi.spyOn(mongo.Collection.prototype, 'bulkWrite').mockImplementation(function (
+        this: mongo.Collection,
+        ...args
+      ) {
+        if (this.collectionName === 'photos' && fail) {
+          fail = false;
+          throw new Error('Injected photo rebind failure');
+        }
+        return original.apply(this, args);
+      });
+      try {
+        expect(await confirmItineraryImport(tripId, input)).toMatchObject({
+          success: true,
+          data: {
+            days: [{ status: 'failed', errorCode: 'INTERNAL_ERROR' }, { status: 'success' }],
+            summary: { successfulDays: 1, failedDays: 1, addedActivities: 1 },
+          },
+        });
+      } finally {
+        spy.mockRestore();
+      }
+      const first = await ItineraryDay.findOne({ trip, dayNumber: 1 }).lean();
+      if (existing) {
+        expect(first!.activities).toHaveLength(2);
+        expect(first!.revision).toBe(0);
+        expect(first!.appliedImportKeys).toHaveLength(0);
+      } else expect(first).toBeNull();
+      expect(await confirmItineraryImport(tripId, input)).toMatchObject({
+        success: true,
+        data: {
+          days: [{ status: 'success' }, { status: 'already_imported' }],
+        },
+      });
+      const retried = await ItineraryDay.findOne({ trip, dayNumber: 1 }).lean();
+      expect(retried!.activities).toHaveLength(existing ? 3 : 1);
+      expect(retried!.appliedImportKeys).toHaveLength(1);
+      const photo = await db.collection('photos').findOne({ trip, caption: 'import-auto' });
+      expect(photo!.itineraryDay.toString()).toBe(retried!._id.toString());
+    }
+  );
+
+  it.each(['demoted', 'deleting', 'deleted'])(
+    'rejects an AI import when the trip is %s after initial authorization',
+    async (change) => {
+      const db = mongoose.connection.db!;
+      const trip = new mongo.ObjectId(tripId);
+      const original = mongo.Collection.prototype.findOneAndUpdate;
+      let changed = false;
+      const spy = vi
+        .spyOn(mongo.Collection.prototype, 'findOneAndUpdate')
+        .mockImplementation(async function (this: mongo.Collection, ...args) {
+          if (this.collectionName === 'trips' && !changed) {
+            changed = true;
+            if (change === 'deleted') await db.collection('trips').deleteOne({ _id: trip });
+            else if (change === 'deleting')
+              await db
+                .collection('trips')
+                .updateOne({ _id: trip }, { $set: { expenseDeliveryDeleting: true } });
+            else
+              await db
+                .collection('trips')
+                .updateOne(
+                  { _id: trip, 'members.user': admin },
+                  { $set: { 'members.$.role': 'member' } }
+                );
+          }
+          return original.apply(this, args);
+        });
+      try {
+        expect(await confirmItineraryImport(tripId, importDraft())).toMatchObject({
+          success: true,
+          data: {
+            days: [{ status: 'failed', errorCode: 'FORBIDDEN' }],
+            summary: { successfulDays: 0 },
+          },
+        });
+        expect(await ItineraryDay.countDocuments({ trip })).toBe(0);
+      } finally {
+        spy.mockRestore();
+      }
+    }
+  );
+
+  it('uses trip dates read inside the import transaction', async () => {
+    const db = mongoose.connection.db!;
+    const trip = new mongo.ObjectId(tripId);
+    const original = mongo.Collection.prototype.findOneAndUpdate;
+    let changed = false;
+    const spy = vi
+      .spyOn(mongo.Collection.prototype, 'findOneAndUpdate')
+      .mockImplementation(async function (this: mongo.Collection, ...args) {
+        if (this.collectionName === 'trips' && !changed) {
+          changed = true;
+          await db
+            .collection('trips')
+            .updateOne({ _id: trip }, { $set: { startDate: new Date('2026-08-31') } });
+        }
+        return original.apply(this, args);
+      });
+    try {
+      expect(await confirmItineraryImport(tripId, importDraft())).toMatchObject({
+        success: true,
+        data: {
+          days: [{ status: 'success' }],
+        },
+      });
+      expect(await ItineraryDay.findOne({ trip }).lean()).toMatchObject({ dayNumber: 2 });
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   it('initializes revisions when AI import creates a day', async () => {
     expect(await confirmItineraryImport(tripId, importDraft())).toMatchObject({
       success: true,
