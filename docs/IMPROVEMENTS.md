@@ -16,7 +16,7 @@
 | 1 | O. MongoDB 正式效能驗收 | 確認實際負載下的讀寫成本 | 🟡 migration 與工程驗收完成 |
 | 2 | P. 支出背景處理部署驗收 | 確認正式環境回應延遲與補送恢復 | 🟡 程式與 migration 已完成 |
 | 3 | R. 部署與一致性驗收 | 確認新版 writer 與清理 worker 一致上線 | 🟡 工程完成、migration／push 已回報完成，待確認部署驗收 |
-| 4 | M. production-like 效能追蹤（含 Q 部署後觀測） | 補齊實際 bytes、MongoDB profiler 與 TTI 數據 | 🟡 需測試環境與帳號 |
+| 4 | M. production-like 效能追蹤（含 Q 部署後觀測） | 補齊實際 bytes、MongoDB profiler 與 TTI 數據 | 🟡 正式站載入體驗抽查通過，效能／PWA 待驗收 |
 
 Q1～Q3 已於 2026-09-09 工程結案，使用者回報已 push；不再列為待實作項目。
 交付與驗證見 [Q 結案紀錄](./QUERY_UX_PROGRESS.md)，正式環境觀測統一由 M 追蹤，尚未宣稱通過。
@@ -29,10 +29,17 @@ members／itinerary／tags，首頁摘要也改用 aggregate 欄位。靜態基�
 production-like 資料量下補 Network bytes、MongoDB profiler/explain 與瀏覽器 TTI，確認實際收益及是否要調整
 aggregate／索引；完成後即可從本檔移除。
 
-Q 部署後觀測也歸入本項：確認 Vercel production 對應 Q 最終交付 `ac54811` 或包含它的後續 commit，
-再以正式帳號驗證冷／熱載入、查詢錯誤重試、按需載入與搜尋，以及實機／安裝 PWA 的表現。
-使用者已回報 push，但本次未核對部署結果或執行線上驗收。
-具體待辦見 [Q 部署後驗收清單](./QUERY_UX_PROGRESS.md#部署後驗收移交-m尚未執行)，
+Q 部署後觀測也歸入本項。2026-09-11 已在 `budget.mhhung.com` 使用指定帳號完成部分正式站驗收：
+行程、支出、旅程設定、個人設定與歷史紀錄於桌面及手機 viewport 正常顯示；
+慢速請求顯示骨架並完成載入，歷史紀錄請求失敗後可手動重試恢復，新增支出表單可開啟／關閉。
+已完成紀錄見 [CHANGELOG.md](./CHANGELOG.md)；本次為唯讀操作，手機 viewport 不等同實機或安裝 PWA。
+
+仍需確認 Vercel production 對應 Q 最終交付 `ac54811` 或包含它的後續 commit；
+頁面顯示版本不作為部署 commit 的核對證據。尚待補齊冷／熱快取比較、離線與背景更新失敗時保留內容、
+快速記帳／lightbox／動態模組載入失敗重試、支出搜尋與更多列表，以及實機／安裝 PWA 驗收。
+本次未量測 Network bytes、MongoDB profiler/explain 或 TTI，不代表 M 效能驗收結案，
+也不涵蓋 O／P／R 的寫入、通知補送、附件與清理 cron 驗收。
+原始範圍見 [Q 部署後驗收清單](./QUERY_UX_PROGRESS.md#部署後驗收移交-m尚未執行)（部分已驗項目以上述紀錄為準），
 量測條件與隱私限制見 [效能報告](./QUERY_UX_PERFORMANCE.md)。
 
 ### O. 🟡 MongoDB 索引正式推廣驗收（P1）
