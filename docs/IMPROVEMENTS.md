@@ -15,7 +15,7 @@
 | ---: | --- | --- | --- |
 | 1 | O. MongoDB 正式效能驗收 | 確認實際負載下的讀寫成本 | 🟡 migration 與工程驗收完成 |
 | 2 | P. 支出背景處理部署驗收 | 確認正式環境回應延遲與補送恢復 | 🟡 程式與 migration 已完成 |
-| 3 | R. 部署與一致性驗收 | 確認新版 writer 與清理 worker 一致上線 | 🟡 R1～R4 工程完成，待部署 |
+| 3 | R. 部署與一致性驗收 | 確認新版 writer 與清理 worker 一致上線 | 🟡 工程完成、migration／push 已回報完成，待確認部署驗收 |
 | 4 | M. production-like 效能追蹤（含 Q 部署後觀測） | 補齊實際 bytes、MongoDB profiler 與 TTI 數據 | 🟡 需測試環境與帳號 |
 
 Q1～Q3 已於 2026-09-09 工程結案，使用者回報已 push；不再列為待實作項目。
@@ -69,11 +69,11 @@ HTTP＋郵件流程；不向共用 DB 壓測或任意修改現有帳號，本項
 歷次模組開發紀錄見 [EXPENSE_BACKGROUND_DELIVERY.md](./EXPENSE_BACKGROUND_DELIVERY.md) 與 Git 歷史。
 HTTP 已接受但 checkpoint 尚未保存仍可能重送；不承諾推播永久 exactly-once。
 
-### R. 🟡 工程完成，待部署驗收
+### R. 🟡 工程結案，部署與線上驗收待確認
 
-R1～R4 已完成工程與測試；R4 的票券 HEAD 有界平行驗證已交付。
-R3 最新 migration 與後續部署尚未操作，仍須停寫、排空舊請求、執行 migration，
-再部署全部 writer／worker 並驗收。部署順序及驗證紀錄見 [R 分階段進度](./ITINERARY_CONSISTENCY_PROGRESS.md)。
+R1～R4 已完成工程與測試；使用者於 2026-09-11 回報 migration 已執行、全部程式已 push，不再有 R 系列待實作項目。
+僅保留正式環境收尾：確認最新 commit 已部署，驗收行程新增／修改／刪除、附件儲存及清理 cron。
+目前尚未取得上述線上驗收結果；部署要求與驗證紀錄見 [R 分階段進度](./ITINERARY_CONSISTENCY_PROGRESS.md)。
 
 ---
 
