@@ -2,7 +2,24 @@
 import { randomUUID } from 'node:crypto';
 import mongoose, { mongo } from 'mongoose';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { Trip, Checklist, Payment, Expense, Comment, ItineraryDay, Note } from '@/models';
+import {
+  Trip,
+  Checklist,
+  Payment,
+  Expense,
+  Comment,
+  ItineraryDay,
+  Note,
+  FlightRecord,
+  StayRecord,
+} from '@/models';
+import {
+  createFlightRecord,
+  updateFlightRecord,
+  createStayRecord,
+  updateStayRecord,
+} from '@/actions/collection.actions';
+import { deleteTripAtomically } from '@/lib/tripDeletion';
 import { createNote, updateNote, deleteNote } from '@/actions/note.actions';
 import { addVirtualMember, addFriendsToTrip, updateMemberRole } from '@/actions/member.actions';
 import { regenerateHashCode, joinTrip } from '@/actions/trip.actions';
@@ -62,6 +79,8 @@ describe.skipIf(!uri || !allowed)('trip writers against isolated replica set', (
   let expenseId: string;
   let commentId: string;
   let noteId: string;
+  let flightId: string;
+  let stayId: string;
   beforeAll(async () => {
     await mongoose.connect(uri!, {
       dbName: `tb_writers_${randomUUID().replaceAll('-', '')}`,
@@ -102,6 +121,25 @@ describe.skipIf(!uri || !allowed)('trip writers against isolated replica set', (
       ],
     });
     tripId = trip.id;
+    flightId = (
+      await FlightRecord.create({
+        user: admin,
+        trip: tripId,
+        date: new Date(),
+        datePrecision: 'day',
+        airline: 'BR',
+      })
+    ).id;
+    stayId = (
+      await StayRecord.create({
+        user: admin,
+        trip: tripId,
+        checkIn: new Date(),
+        datePrecision: 'day',
+        hotelName: 'Hotel',
+      })
+    ).id;
+
     noteId = (
       await Note.create({ trip: tripId, text: 'Original', createdBy: admin, authorName: 'Admin' })
     ).id;
@@ -153,7 +191,27 @@ describe.skipIf(!uri || !allowed)('trip writers against isolated replica set', (
     date: '2026-09-01',
     splits: [{ user_id: member.toHexString(), share_amount: 100 }],
   });
+  const flightInput = () => ({
+    trip_id: tripId,
+    date: '2026-09-01',
+    date_precision: 'day' as const,
+    airline: 'BR',
+    flight_no: '',
+    note: '',
+  });
+  const stayInput = () => ({
+    trip_id: tripId,
+    check_in: '2026-09-01',
+    date_precision: 'day' as const,
+    hotel_name: 'Hotel',
+    city: '',
+    note: '',
+  });
   const writers = [
+    ['flight create', () => createFlightRecord(flightInput())],
+    ['flight update', () => updateFlightRecord(flightId, flightInput())],
+    ['stay create', () => createStayRecord(stayInput())],
+    ['stay update', () => updateStayRecord(stayId, stayInput())],
     ['note create', () => createNote(tripId, { text: 'New' })],
     ['note update', () => updateNote(tripId, noteId, { text: 'Changed' })],
     ['note delete', () => deleteNote(tripId, noteId)],
@@ -206,6 +264,26 @@ describe.skipIf(!uri || !allowed)('trip writers against isolated replica set', (
       expect(mocks.notify).not.toHaveBeenCalled();
     }
   );
+  it('does not reattach lifetime records after trip deletion', async () => {
+    await Promise.all([
+      createFlightRecord(flightInput()),
+      updateStayRecord(stayId, stayInput()),
+      deleteTripAtomically(mongoose.connection.db!, tripId, admin.toHexString()),
+    ]);
+    expect(await FlightRecord.countDocuments({ trip: tripId })).toBe(0);
+    expect(await StayRecord.countDocuments({ trip: tripId })).toBe(0);
+    expect(await StayRecord.findById(stayId)).not.toBeNull();
+  });
+  it('continues to create personal records without a trip', async () => {
+    expect(await createFlightRecord({ ...flightInput(), trip_id: null })).toMatchObject({
+      success: true,
+      data: { trip_id: null },
+    });
+    expect(await createStayRecord({ ...stayInput(), trip_id: null })).toMatchObject({
+      success: true,
+      data: { trip_id: null },
+    });
+  });
   it('revokes trip codes and album sharing for a current member', async () => {
     expect(await regenerateHashCode(tripId)).toMatchObject({ success: true });
     expect(await enableAlbumShare(tripId)).toMatchObject({ success: true });

@@ -314,3 +314,11 @@ MONGODB_MEMBER_TEST_URI='mongodb://127.0.0.1:27030/?replicaSet=r3test' \
 - 分享碼撤銷、相簿分享、個人封存／預算的單文件更新在原子條件中核對當前權限與刪除狀態；一般加入旅程同時檢查尚非成員，並行加入不重複。
 - 驗證：51 項隔離 replica set 與 55 項相關單元測試通過；TypeScript、相關 ESLint 與格式通過。
 - 無 schema 變更；本階段獨立交付並 patch bump，完整驗證於 R3 最終交付執行，未 push／部署。
+
+
+## R3q：終身紀錄連結與旅程副作用
+
+- 飛行／住宿紀錄連結旅程時，最新成員與來源活動驗證、紀錄寫入使用 Trip fence 交易；個人無旅程紀錄仍可獨立建立。旅程刪除與晚到重新掛入連結互斥。
+- 通知與動態紀錄亦使用交易；通知依交易內最新成員名單過濾指定收件者，舊 snapshot 不再跳過檢查。Email／Push 在通知提交後執行，保留既有 best-effort 語意。
+- 驗證：65 項隔離 replica set 與 36 項相關單元測試通過；TypeScript、相關 ESLint 與格式通過。
+- 無 schema 變更；本階段獨立交付並 patch bump，完整驗證於 R3 最終交付執行，未 push／部署。

@@ -1,6 +1,7 @@
 'use server';
 
-import { isValidObjectId, Types } from 'mongoose';
+import { withTripWrite, TripWriteError } from '@/lib/tripWriteTransaction';
+import { isValidObjectId, Types, type mongo } from 'mongoose';
 import { dbConnect } from '@/lib/mongodb';
 import { FlightRecord, StayRecord, LoyaltyEntry, Trip, ItineraryDay } from '@/models';
 import type { FlightRecordDoc, StayRecordDoc } from '@/models';
@@ -99,11 +100,15 @@ async function resolveTripLink(
  */
 async function validateSourceActivity(
   tripId: string | null,
-  sourceActivityId: string | null | undefined
+  sourceActivityId: string | null | undefined,
+  transactionSession?: mongo.ClientSession
 ): Promise<boolean> {
   if (!sourceActivityId) return true;
   if (!tripId) return false;
-  const exists = await ItineraryDay.exists({ trip: tripId, 'activities._id': sourceActivityId });
+  const exists = await ItineraryDay.exists({
+    trip: tripId,
+    'activities._id': sourceActivityId,
+  }).session(transactionSession ?? null);
   return exists !== null;
 }
 
@@ -239,17 +244,34 @@ export const createFlightRecord = withAuth(
       if (tripId === undefined) {
         return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
       }
-      if (!(await validateSourceActivity(tripId, parsed.data.source_activity_id))) {
-        return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
-      }
+      const write = async (transactionSession?: mongo.ClientSession) => {
+        if (
+          !(await validateSourceActivity(
+            tripId,
+            parsed.data.source_activity_id,
+            transactionSession
+          ))
+        ) {
+          throw new TripWriteError('VALIDATION_ERROR');
+        }
 
-      const doc = await FlightRecord.create({
-        user: session.userId,
-        ...flightFields(parsed.data, tripId),
-      });
+        const [doc] = await FlightRecord.create(
+          [
+            {
+              user: session.userId,
+              ...flightFields(parsed.data, tripId),
+            },
+          ],
+          { session: transactionSession }
+        );
 
+        return doc;
+      };
+      const doc = tripId ? await withTripWrite(tripId, session.userId, write) : await write();
       return { success: true, data: toFlightRecordItem(doc.toObject() as LeanFlight) };
     } catch (error) {
+      if (error instanceof TripWriteError)
+        return { success: false, error: error.code, code: error.code };
       logger.error('Create flight record error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
@@ -277,22 +299,34 @@ export const updateFlightRecord = withAuth(
       if (tripId === undefined) {
         return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
       }
-      if (!(await validateSourceActivity(tripId, parsed.data.source_activity_id))) {
-        return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
-      }
+      const write = async (transactionSession?: mongo.ClientSession) => {
+        if (
+          !(await validateSourceActivity(
+            tripId,
+            parsed.data.source_activity_id,
+            transactionSession
+          ))
+        ) {
+          throw new TripWriteError('VALIDATION_ERROR');
+        }
 
-      // 原子更新：filter 同時帶 _id + 本人（比照好友系統，不做讀改寫）
-      const updated = await FlightRecord.findOneAndUpdate(
-        { _id: recordId, user: session.userId },
-        { $set: flightFields(parsed.data, tripId) },
-        { new: true }
-      ).lean<LeanFlight | null>();
-      if (!updated) {
-        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
-      }
+        // 原子更新：filter 同時帶 _id + 本人（比照好友系統，不做讀改寫）
+        const updated = await FlightRecord.findOneAndUpdate(
+          { _id: recordId, user: session.userId },
+          { $set: flightFields(parsed.data, tripId) },
+          { new: true, session: transactionSession }
+        ).lean<LeanFlight | null>();
+        if (!updated) {
+          throw new TripWriteError('NOT_FOUND');
+        }
 
+        return updated;
+      };
+      const updated = tripId ? await withTripWrite(tripId, session.userId, write) : await write();
       return { success: true, data: toFlightRecordItem(updated) };
     } catch (error) {
+      if (error instanceof TripWriteError)
+        return { success: false, error: error.code, code: error.code };
       logger.error('Update flight record error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
@@ -362,17 +396,34 @@ export const createStayRecord = withAuth(
       if (tripId === undefined) {
         return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
       }
-      if (!(await validateSourceActivity(tripId, parsed.data.source_activity_id))) {
-        return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
-      }
+      const write = async (transactionSession?: mongo.ClientSession) => {
+        if (
+          !(await validateSourceActivity(
+            tripId,
+            parsed.data.source_activity_id,
+            transactionSession
+          ))
+        ) {
+          throw new TripWriteError('VALIDATION_ERROR');
+        }
 
-      const doc = await StayRecord.create({
-        user: session.userId,
-        ...stayFields(parsed.data, tripId),
-      });
+        const [doc] = await StayRecord.create(
+          [
+            {
+              user: session.userId,
+              ...stayFields(parsed.data, tripId),
+            },
+          ],
+          { session: transactionSession }
+        );
 
+        return doc;
+      };
+      const doc = tripId ? await withTripWrite(tripId, session.userId, write) : await write();
       return { success: true, data: toStayRecordItem(doc.toObject() as LeanStay) };
     } catch (error) {
+      if (error instanceof TripWriteError)
+        return { success: false, error: error.code, code: error.code };
       logger.error('Create stay record error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
@@ -400,21 +451,33 @@ export const updateStayRecord = withAuth(
       if (tripId === undefined) {
         return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
       }
-      if (!(await validateSourceActivity(tripId, parsed.data.source_activity_id))) {
-        return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
-      }
+      const write = async (transactionSession?: mongo.ClientSession) => {
+        if (
+          !(await validateSourceActivity(
+            tripId,
+            parsed.data.source_activity_id,
+            transactionSession
+          ))
+        ) {
+          throw new TripWriteError('VALIDATION_ERROR');
+        }
 
-      const updated = await StayRecord.findOneAndUpdate(
-        { _id: recordId, user: session.userId },
-        { $set: stayFields(parsed.data, tripId) },
-        { new: true }
-      ).lean<LeanStay | null>();
-      if (!updated) {
-        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
-      }
+        const updated = await StayRecord.findOneAndUpdate(
+          { _id: recordId, user: session.userId },
+          { $set: stayFields(parsed.data, tripId) },
+          { new: true, session: transactionSession }
+        ).lean<LeanStay | null>();
+        if (!updated) {
+          throw new TripWriteError('NOT_FOUND');
+        }
 
+        return updated;
+      };
+      const updated = tripId ? await withTripWrite(tripId, session.userId, write) : await write();
       return { success: true, data: toStayRecordItem(updated) };
     } catch (error) {
+      if (error instanceof TripWriteError)
+        return { success: false, error: error.code, code: error.code };
       logger.error('Update stay record error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }

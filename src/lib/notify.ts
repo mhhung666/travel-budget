@@ -1,3 +1,6 @@
+import { withTripWrite } from './tripWriteTransaction';
+import type { mongo } from 'mongoose';
+import { dbConnect } from './mongodb';
 import { Trip, User, Notification, type NotificationType } from '@/models';
 import { logger } from './logger';
 import { getResendConfig } from './env';
@@ -65,7 +68,7 @@ interface NotifyInput {
    * 無 tripId 時必填。仍會再過濾掉觸發者與虛擬成員。
    */
   recipientIds?: string[];
-  /** 僅供 server 呼叫端傳入已授權、同一旅程的資料；不可使用 client input。 */
+  /** 相容既有 server 呼叫端；寫入時仍重新讀取交易內的旅程與成員。 */
   tripSnapshot?: { id: string; name: string; hashCode: string; memberIds: string[] };
 }
 
@@ -78,73 +81,83 @@ export async function notify({
   type,
   meta = {},
   recipientIds,
-  tripSnapshot,
 }: NotifyInput): Promise<void> {
   try {
-    // 旅程通知：取旅程名稱（去正規化存進通知）+ 必要時取成員清單。
-    // 非旅程通知（好友邀請等）沒有 tripId：跳過查詢，tripName / hashCode 留空，
-    // 收件者只能來自 recipientIds。
-    let tripName = '';
-    let tripHashCode = '';
-    let memberIds: string[] | null = null;
-    if (tripId && tripSnapshot?.id === tripId) {
-      tripName = tripSnapshot.name;
-      tripHashCode = tripSnapshot.hashCode;
-      memberIds = tripSnapshot.memberIds;
-    } else if (tripId) {
-      const trip = await Trip.findById(tripId).select('name members hashCode').lean<{
-        name: string;
-        hashCode: string;
-        members: { user: { toString(): string } }[];
-      } | null>();
-      if (!trip) return;
-      tripName = trip.name;
-      tripHashCode = trip.hashCode;
-      memberIds = trip.members.map((m) => m.user.toString());
-    }
+    await dbConnect();
+    const write = async (transactionSession?: mongo.ClientSession) => {
+      // 旅程通知：取旅程名稱（去正規化存進通知）+ 必要時取成員清單。
+      // 非旅程通知（好友邀請等）沒有 tripId：跳過查詢，tripName / hashCode 留空，
+      // 收件者只能來自 recipientIds。
+      let tripName = '';
+      let tripHashCode = '';
+      let memberIds: string[] | null = null;
+      if (tripId) {
+        const trip = await Trip.findById(tripId)
+          .session(transactionSession ?? null)
+          .select('name members hashCode')
+          .lean<{
+            name: string;
+            hashCode: string;
+            members: { user: { toString(): string } }[];
+          } | null>();
+        if (!trip) return;
+        tripName = trip.name;
+        tripHashCode = trip.hashCode;
+        memberIds = trip.members.map((m) => m.user.toString());
+      }
 
-    const candidateIds = recipientIds ?? memberIds;
-    if (!candidateIds) return; // 非旅程通知必須明確指定收件者
-    const uniqueIds = [...new Set(candidateIds.filter((id) => id !== actorId))];
-    if (uniqueIds.length === 0) return;
+      const candidateIds = memberIds
+        ? (recipientIds ?? memberIds).filter((id) => memberIds.includes(id))
+        : recipientIds;
+      if (!candidateIds) return; // 非旅程通知必須明確指定收件者
+      const uniqueIds = [...new Set(candidateIds.filter((id) => id !== actorId))];
+      if (uniqueIds.length === 0) return;
 
-    // 一次撈出候選人 + 觸發者：取 displayName（觸發者名）+ isVirtual（過濾收件者），
-    // 以及 Email fan-out 需要的 email / notifyByEmail / locale。
-    const users = await User.find({ _id: { $in: [...uniqueIds, actorId] } })
-      .select('displayName isVirtual email notifyByEmail locale')
-      .lean<
-        {
-          _id: { toString(): string };
-          displayName: string;
-          isVirtual?: boolean | null;
-          email?: string | null;
-          notifyByEmail?: boolean | null;
-          locale?: string | null;
-        }[]
-      >();
+      // 一次撈出候選人 + 觸發者：取 displayName（觸發者名）+ isVirtual（過濾收件者），
+      // 以及 Email fan-out 需要的 email / notifyByEmail / locale。
+      const users = await User.find({ _id: { $in: [...uniqueIds, actorId] } })
+        .session(transactionSession ?? null)
+        .select('displayName isVirtual email notifyByEmail locale')
+        .lean<
+          {
+            _id: { toString(): string };
+            displayName: string;
+            isVirtual?: boolean | null;
+            email?: string | null;
+            notifyByEmail?: boolean | null;
+            locale?: string | null;
+          }[]
+        >();
 
-    const byId = new Map(users.map((u) => [u._id.toString(), u]));
-    const actorName = byId.get(actorId)?.displayName ?? '';
+      const byId = new Map(users.map((u) => [u._id.toString(), u]));
+      const actorName = byId.get(actorId)?.displayName ?? '';
 
-    const recipients = selectNotificationRecipients(
-      uniqueIds.map((id) => ({ id, isVirtual: byId.get(id)?.isVirtual })),
-      actorId
-    );
-    if (recipients.length === 0) return;
+      const recipients = selectNotificationRecipients(
+        uniqueIds.map((id) => ({ id, isVirtual: byId.get(id)?.isVirtual })),
+        actorId
+      );
+      if (recipients.length === 0) return;
 
-    await Notification.insertMany(
-      recipients.map((uid) => ({
-        user: uid,
-        // 非旅程通知 trip 為 undefined，Mongoose 會省略此欄位（schema 已設 optional）。
-        ...(tripId ? { trip: tripId } : {}),
-        tripName,
-        type,
-        actor: actorId,
-        actorName,
-        meta,
-        read: false,
-      }))
-    );
+      await Notification.insertMany(
+        recipients.map((uid) => ({
+          user: uid,
+          // 非旅程通知 trip 為 undefined，Mongoose 會省略此欄位（schema 已設 optional）。
+          ...(tripId ? { trip: tripId } : {}),
+          tripName,
+          type,
+          actor: actorId,
+          actorName,
+          meta,
+          read: false,
+        })),
+        { session: transactionSession }
+      );
+
+      return { recipients, byId, tripHashCode, tripName, actorName };
+    };
+    const result = tripId ? await withTripWrite(tripId, actorId, write) : await write();
+    if (!result) return;
+    const { recipients, byId, tripHashCode, tripName, actorName } = result;
 
     // Email fan-out（best-effort、加值）：站內通知寫入後，對開啟 Email 通知且有信箱
     // 的收件者寄信。未配置 Resend 時整段跳過，省去無謂的模板/查詢工作。

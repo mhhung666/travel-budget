@@ -1,3 +1,4 @@
+import { withTripWrite } from './tripWriteTransaction';
 import { ActivityLog, User, type ActivityType } from '@/models';
 import { logger } from './logger';
 
@@ -30,17 +31,25 @@ export async function logActivity({
   meta = {},
 }: LogActivityInput): Promise<void> {
   try {
-    // 去正規化觸發者名稱（事件當下快照，讀取免 populate）
-    const actor = await User.findById(actorId)
-      .select('displayName')
-      .lean<{ displayName: string } | null>();
+    await withTripWrite(tripId, actorId, async (transactionSession) => {
+      // 去正規化觸發者名稱（事件當下快照，讀取免 populate）
+      const actor = await User.findById(actorId)
+        .session(transactionSession)
+        .select('displayName')
+        .lean<{ displayName: string } | null>();
 
-    await ActivityLog.create({
-      trip: tripId,
-      actor: actorId,
-      actorName: actor?.displayName ?? '',
-      type,
-      meta,
+      await ActivityLog.create(
+        [
+          {
+            trip: tripId,
+            actor: actorId,
+            actorName: actor?.displayName ?? '',
+            type,
+            meta,
+          },
+        ],
+        { session: transactionSession }
+      );
     });
   } catch (error) {
     // 次要副作用：失敗只記 log，不影響主 action

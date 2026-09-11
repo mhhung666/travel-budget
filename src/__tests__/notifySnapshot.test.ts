@@ -1,6 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({ trip: vi.fn(), users: vi.fn(), insert: vi.fn(), push: vi.fn() }));
+vi.mock('@/lib/mongodb', () => ({ dbConnect: vi.fn() }));
+vi.mock('@/lib/tripWriteTransaction', async (original) => ({
+  ...(await original<typeof import('@/lib/tripWriteTransaction')>()),
+  withTripWrite: (_trip: string, _actor: string, write: (session: unknown) => Promise<unknown>) =>
+    write(undefined),
+}));
 vi.mock('@/models', () => ({
   Trip: { findById: mocks.trip },
   User: { find: mocks.users },
@@ -18,7 +24,10 @@ const snapshot = {
   hashCode: 'code',
   memberIds: ['actor', 'real', 'virtual', 'real'],
 };
-const query = (value: unknown) => ({ select: () => ({ lean: async () => value }) });
+const query = (value: unknown) => {
+  const q = { session: () => q, select: () => ({ lean: async () => value }) };
+  return q;
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -37,25 +46,28 @@ beforeEach(() => {
 });
 
 describe('notification trip snapshot', () => {
-  it('skips the duplicate Trip read but still resolves users and filters recipients', async () => {
+  it('rechecks the current Trip even when a stale snapshot is supplied', async () => {
     await notify({
       tripId: 'trip',
       actorId: 'actor',
       type: 'expense_added',
       tripSnapshot: snapshot,
     });
-    expect(mocks.trip).not.toHaveBeenCalled();
+    expect(mocks.trip).toHaveBeenCalledWith('trip');
     expect(mocks.users).toHaveBeenCalledTimes(1);
-    expect(mocks.insert).toHaveBeenCalledWith([
-      expect.objectContaining({
-        user: 'real',
-        trip: 'trip',
-        tripName: 'Snapshot',
-        actorName: 'Actor',
-      }),
-    ]);
+    expect(mocks.insert).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          user: 'real',
+          trip: 'trip',
+          tripName: 'Fresh',
+          actorName: 'Actor',
+        }),
+      ],
+      { session: undefined }
+    );
     expect(mocks.push).toHaveBeenCalledWith(
-      expect.objectContaining({ recipients: ['real'], tripHashCode: 'code' })
+      expect.objectContaining({ recipients: ['real'], tripHashCode: 'fresh' })
     );
   });
 
@@ -64,7 +76,9 @@ describe('notification trip snapshot', () => {
     async (tripSnapshot) => {
       await notify({ tripId: 'trip', actorId: 'actor', type: 'expense_added', tripSnapshot });
       expect(mocks.trip).toHaveBeenCalledWith('trip');
-      expect(mocks.insert).toHaveBeenCalledWith([expect.objectContaining({ tripName: 'Fresh' })]);
+      expect(mocks.insert).toHaveBeenCalledWith([expect.objectContaining({ tripName: 'Fresh' })], {
+        session: undefined,
+      });
     }
   );
 
