@@ -36,7 +36,13 @@ export function AiUsageCard() {
             <p className="text-sm font-medium text-foreground">{t('title')}</p>
             <p className="text-xs text-muted-foreground">{t('loadFailed')}</p>
           </div>
-          <Button type="button" variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
+            disabled={isFetching}
+          >
             {isFetching ? (
               <>
                 <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />

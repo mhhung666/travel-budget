@@ -21,7 +21,10 @@ function LoadingDialog({ open, onClose, onRetry }: CloseControl & { onRetry?: ()
       {onRetry ? (
         <ErrorState message={t('queryLoadFailed')} onRetry={onRetry} />
       ) : (
-        <div role="status" className="flex flex-col items-center justify-center gap-3 py-8 text-sm text-muted-foreground">
+        <div
+          role="status"
+          className="flex flex-col items-center justify-center gap-3 py-8 text-sm text-muted-foreground"
+        >
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
           <p>{t('loading')}</p>
         </div>
@@ -86,7 +89,10 @@ export function lazyPanel<P extends object>(load: () => Promise<{ default: Compo
       >
         <Suspense
           fallback={
-            <div role="status" className="flex items-center justify-center gap-2 py-4 text-sm text-muted-foreground">
+            <div
+              role="status"
+              className="flex items-center justify-center gap-2 py-4 text-sm text-muted-foreground"
+            >
               <Loader2 className="h-4 w-4 animate-spin text-primary" />
               <p>{t('loading')}</p>
             </div>

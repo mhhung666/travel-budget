@@ -1,7 +1,16 @@
 'use client';
 
 import { useLocale, useTranslations } from 'next-intl';
-import { History, Coins, FilePenLine, Loader2, Receipt, Sparkles, Trash2, UserPlus } from 'lucide-react';
+import {
+  History,
+  Coins,
+  FilePenLine,
+  Loader2,
+  Receipt,
+  Sparkles,
+  Trash2,
+  UserPlus,
+} from 'lucide-react';
 import { useActivityLog } from '@/hooks/queries';
 import type { ActivityLogItem, ActivityLogType } from '@/types';
 import { formatRelativeTime } from '@/lib/relativeTime';
