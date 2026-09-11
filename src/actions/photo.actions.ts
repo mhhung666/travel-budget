@@ -151,14 +151,6 @@ export const addTripPhotos = withAuth(
       }
       const { items } = validation.data;
 
-      // 軟上限：擋住失控成長，但不動既有相片（R2 超額是 $0.015/GB/月，真正的風險是
-      // 失控而非單價）。回 CONFLICT 而非 VALIDATION_ERROR，前端才能把「相簿滿了」
-      // 對應到專屬訊息而不是通用的「輸入有誤」。
-      const existing = await Photo.countDocuments({ trip: membership.tripId });
-      if (existing + items.length > PHOTO_LIMIT_PER_TRIP) {
-        return { success: false, error: '相簿相片數已達上限', code: 'CONFLICT' };
-      }
-
       const heads = await Promise.all(
         items.map((item) => verifyPhotoObjects(membership.tripId, item))
       );
@@ -166,68 +158,90 @@ export const addTripPhotos = withAuth(
         return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
       }
 
-      // 去正規化上傳者名稱（上傳當下快照，讀取免 populate，比照 note.actions.ts）
-      const uploader = await User.findById(session.userId)
-        .select('displayName')
-        .lean<{ displayName: string } | null>();
+      await dbConnect();
+      const { created, trip } = await withPhotoUpdateTransaction(
+        mongoose.connection.db!,
+        membership.tripId,
+        session.userId,
+        async (transactionSession) => {
+          // 軟上限：擋住失控成長，但不動既有相片（R2 超額是 $0.015/GB/月，真正的風險是
+          // 失控而非單價）。回 CONFLICT 而非 VALIDATION_ERROR，前端才能把「相簿滿了」
+          // 對應到專屬訊息而不是通用的「輸入有誤」。
+          const existing = await Photo.countDocuments({ trip: membership.tripId }).session(
+            transactionSession
+          );
+          if (existing + items.length > PHOTO_LIMIT_PER_TRIP) {
+            throw new PhotoUpdateError('CONFLICT');
+          }
 
-      const trip = await Trip.findById(membership.tripId)
-        .select('albumShareCode startDate endDate')
-        .lean<{
-          albumShareCode?: string | null;
-          startDate?: Date | null;
-          endDate?: Date | null;
-        } | null>();
-      if (!trip) {
-        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
-      }
+          // 去正規化上傳者名稱（上傳當下快照，讀取免 populate，比照 note.actions.ts）
+          const uploader = await User.findById(session.userId)
+            .session(transactionSession)
+            .select('displayName')
+            .lean<{ displayName: string } | null>();
 
-      const itineraryDays =
-        trip.startDate && items.some((item) => item.taken_local_date)
-          ? await ItineraryDay.find({ trip: membership.tripId })
-              .sort({ dayNumber: 1 })
-              .select('_id dayNumber location')
-              .lean<PhotoItineraryDay[]>()
-          : [];
-      const daysByDate = buildItineraryDayDateMap(trip.startDate, trip.endDate, itineraryDays);
+          const trip = await Trip.findById(membership.tripId)
+            .session(transactionSession)
+            .select('albumShareCode startDate endDate')
+            .lean<{
+              albumShareCode?: string | null;
+              startDate?: Date | null;
+              endDate?: Date | null;
+            } | null>();
+          if (!trip) {
+            throw new PhotoUpdateError('NOT_FOUND');
+          }
 
-      const docs = items.map((item, i) => {
-        const auto = autoItineraryFields(item.taken_local_date, daysByDate);
-        return {
-          trip: membership.tripId,
-          key: item.key,
-          thumbKey: item.thumb_key,
-          contentType: heads[i]!.contentType,
-          size: heads[i]!.size,
-          width: item.width ?? 0,
-          height: item.height ?? 0,
-          takenAt: item.taken_at ? new Date(item.taken_at) : null,
-          takenLocalDate: item.taken_local_date ?? null,
-          takenDateSource: item.taken_date_source ?? null,
-          // 自己的 GPS 優先；沒有 GPS 但成功配對行程日時，借用當天的城市座標。
-          location: item.location
-            ? { ...item.location, source: 'exif' as const }
-            : auto.borrowedLocation,
-          place: null,
-          exif: {
-            make: item.exif?.make,
-            model: item.exif?.model,
-            lens: item.exif?.lens,
-            iso: item.exif?.iso,
-            fNumber: item.exif?.f_number,
-            exposureTime: item.exif?.exposure_time,
-            focalLength: item.exif?.focal_length,
-            orientation: item.exif?.orientation,
-          },
-          itineraryDay: auto.itineraryDay,
-          itineraryDaySource: auto.itineraryDaySource,
-          caption: item.caption ?? '',
-          uploadedBy: session.userId,
-          uploadedByName: uploader?.displayName ?? '',
-        };
-      });
+          const itineraryDays =
+            trip.startDate && items.some((item) => item.taken_local_date)
+              ? await ItineraryDay.find({ trip: membership.tripId })
+                  .session(transactionSession)
+                  .sort({ dayNumber: 1 })
+                  .select('_id dayNumber location')
+                  .lean<PhotoItineraryDay[]>()
+              : [];
+          const daysByDate = buildItineraryDayDateMap(trip.startDate, trip.endDate, itineraryDays);
 
-      const created = await Photo.insertMany(docs);
+          const docs = items.map((item, i) => {
+            const auto = autoItineraryFields(item.taken_local_date, daysByDate);
+            return {
+              trip: membership.tripId,
+              key: item.key,
+              thumbKey: item.thumb_key,
+              contentType: heads[i]!.contentType,
+              size: heads[i]!.size,
+              width: item.width ?? 0,
+              height: item.height ?? 0,
+              takenAt: item.taken_at ? new Date(item.taken_at) : null,
+              takenLocalDate: item.taken_local_date ?? null,
+              takenDateSource: item.taken_date_source ?? null,
+              // 自己的 GPS 優先；沒有 GPS 但成功配對行程日時，借用當天的城市座標。
+              location: item.location
+                ? { ...item.location, source: 'exif' as const }
+                : auto.borrowedLocation,
+              place: null,
+              exif: {
+                make: item.exif?.make,
+                model: item.exif?.model,
+                lens: item.exif?.lens,
+                iso: item.exif?.iso,
+                fNumber: item.exif?.f_number,
+                exposureTime: item.exif?.exposure_time,
+                focalLength: item.exif?.focal_length,
+                orientation: item.exif?.orientation,
+              },
+              itineraryDay: auto.itineraryDay,
+              itineraryDaySource: auto.itineraryDaySource,
+              caption: item.caption ?? '',
+              uploadedBy: session.userId,
+              uploadedByName: uploader?.displayName ?? '',
+            };
+          });
+
+          const created = await Photo.insertMany(docs, { session: transactionSession });
+          return { created, trip };
+        }
+      );
 
       // 若相簿已公開分享，補產這批新相片的消毒副本 `_p.jpg`，讓公開頁立刻能顯示它們
       // （否則要等下一位訪客觸發 self-heal）。best-effort：失敗只 log，不擋上傳成功。
@@ -250,6 +264,9 @@ export const addTripPhotos = withAuth(
       revalidatePath(`/trips/${tripIdOrCode}/album`);
       return { success: true, data: dtos };
     } catch (error) {
+      if (error instanceof PhotoUpdateError) {
+        return { success: false, error: error.code, code: error.code };
+      }
       logger.error('Add photos error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }

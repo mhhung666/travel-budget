@@ -12,9 +12,11 @@ import {
 } from '@/actions/itinerary.actions';
 import { confirmItineraryImport } from '@/actions/itineraryImport.actions';
 import { withNotePlanningTransaction } from '@/lib/notePlanningTransaction';
-import { deletePhotos, updatePhoto } from '@/actions/photo.actions';
+import { addTripPhotos, deletePhotos, updatePhoto } from '@/actions/photo.actions';
 import { updateTrip } from '@/actions/trip.actions';
 import { planNote } from '@/actions/note.actions';
+import { buildPhotoObjectKeys } from '@/lib/uploads';
+import { PHOTO_LIMIT_PER_TRIP } from '@/lib/validation';
 import { readItinerary } from '@/lib/itineraryRead';
 import {
   up as dayUp,
@@ -141,6 +143,90 @@ describe.skipIf(!uri || !allowed)('itinerary actions against isolated MongoDB', 
       createdAt: new Date(),
     });
   }
+
+  function photoInput() {
+    const { key, thumbKey } = buildPhotoObjectKeys(tripId);
+    return {
+      items: [
+        {
+          key,
+          thumb_key: thumbKey,
+          taken_local_date: '2026-09-01',
+          taken_date_source: 'exif' as const,
+        },
+      ],
+    };
+  }
+  function photoHeads() {
+    mocks.head.mockImplementation(async (_bucket: string, key: string) => ({
+      size: 100,
+      contentType: key.endsWith('.webp') ? 'image/webp' : 'image/jpeg',
+    }));
+  }
+  it('serializes uploads at the last album slot', async () => {
+    photoHeads();
+    const photos = mongoose.connection.db!.collection('photos');
+    await photos.insertMany(
+      Array.from({ length: PHOTO_LIMIT_PER_TRIP - 1 }, () => ({
+        trip: new mongo.ObjectId(tripId),
+        key: randomUUID(),
+      }))
+    );
+    const results = await Promise.all([
+      addTripPhotos('r2verify', photoInput()),
+      addTripPhotos(tripId, photoInput()),
+    ]);
+    expect(results.filter((r) => r.success)).toHaveLength(1);
+    expect(results.filter((r) => !r.success && r.code === 'CONFLICT')).toHaveLength(1);
+    expect(await photos.countDocuments({ trip: new mongo.ObjectId(tripId) })).toBe(
+      PHOTO_LIMIT_PER_TRIP
+    );
+  });
+  it('rolls back the entire photo batch after a late insert failure', async () => {
+    photoHeads();
+    const original = mongo.Collection.prototype.insertMany;
+    const spy = vi
+      .spyOn(mongo.Collection.prototype, 'insertMany')
+      .mockImplementation(async function (this: mongo.Collection, ...args) {
+        const result = await original.apply(this, args);
+        if (this.collectionName === 'photos') throw new Error('Injected photo insert failure');
+        return result;
+      });
+    try {
+      expect(await addTripPhotos(tripId, photoInput())).toMatchObject({ code: 'INTERNAL_ERROR' });
+      expect(
+        await mongoose.connection
+          .db!.collection('photos')
+          .countDocuments({ trip: new mongo.ObjectId(tripId) })
+      ).toBe(0);
+    } finally {
+      spy.mockRestore();
+    }
+    expect(await addTripPhotos(tripId, photoInput())).toMatchObject({ success: true });
+  });
+  it.each(['removed', 'deleting', 'deleted', 'dayDeleted'])(
+    'rechecks photo upload state after HEAD: %s',
+    async (change) => {
+      const day = await seed();
+      let changed = false;
+      mocks.head.mockImplementation(async (_bucket: string, key: string) => {
+        if (!changed) {
+          changed = true;
+          if (change === 'removed')
+            await Trip.updateOne({ _id: tripId }, { $pull: { members: { user: admin } } });
+          if (change === 'deleting')
+            await Trip.updateOne({ _id: tripId }, { $set: { expenseDeliveryDeleting: true } });
+          if (change === 'deleted') await Trip.deleteOne({ _id: tripId });
+          if (change === 'dayDeleted') await ItineraryDay.deleteOne({ _id: day._id });
+        }
+        return { size: 100, contentType: key.endsWith('.webp') ? 'image/webp' : 'image/jpeg' };
+      });
+      const result = await addTripPhotos(tripId, photoInput());
+      if (change === 'dayDeleted')
+        expect(result).toMatchObject({ success: true, data: [{ itinerary_day_id: null }] });
+      else expect(result).toMatchObject({ code: 'FORBIDDEN' });
+    }
+  );
 
   it('deletes member photos before cleaning blobs and preserves foreign photos', async () => {
     const photo = await seedPhoto();

@@ -1,6 +1,6 @@
 # R：行程與跨 collection 一致性
 
-更新日期：2026-09-10
+更新日期：2026-09-11
 
 ## 階段
 
@@ -282,3 +282,11 @@ MONGODB_MEMBER_TEST_URI='mongodb://127.0.0.1:27030/?replicaSet=r3test' \
 - 無 schema／索引變更，不需 migration；交付 commit 含 patch bump，未 push／部署。相片新增、支出等其他 writer 與票券引用協調仍待續。
 
 - 驗證：58 項隔離 MongoDB 行程整合測試通過；完整 suite 啟用行程／成員 replica set，1,521 項通過、37 項跳過。TypeScript、lint、Prettier、dummy DB/JWT production build 與 diff whitespace 檢查通過。未操作正式資料。
+
+
+## R3m：相片新增交易
+
+- 相片 HEAD 在交易外完成；交易內重新驗證成員與刪除狀態、檢查容量、讀取最新旅程日期與行程日並批次新增。並行上傳不超量，晚期失敗整批回滾。
+- 消毒副本與 URL 簽名在提交後執行，保留 EXIF 優先及自動分類契約。無 schema／索引變更。
+- 驗證：相片單元與隔離 MongoDB 行程整合共 98 項通過，TypeScript 通過。完整驗證於 R3 最終交付執行。
+- 本階段獨立交付並 patch bump，未 push／部署；後續完成財務／協作 writer 及票券引用清理。

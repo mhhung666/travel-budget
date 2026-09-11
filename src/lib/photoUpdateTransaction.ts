@@ -1,7 +1,7 @@
 import { mongo } from 'mongoose';
 
 export class PhotoUpdateError extends Error {
-  constructor(public readonly code: 'FORBIDDEN' | 'NOT_FOUND') {
+  constructor(public readonly code: 'FORBIDDEN' | 'NOT_FOUND' | 'CONFLICT') {
     super(code);
   }
 }

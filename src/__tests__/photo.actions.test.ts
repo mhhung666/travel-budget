@@ -97,7 +97,11 @@ function chainSortLean(returnValue: unknown) {
 
 /** Mongoose 的 find(...).sort(...).select(...).lean() 鏈式呼叫。 */
 function chainSortSelectLean(returnValue: unknown) {
-  return { sort: () => ({ select: () => ({ lean: () => Promise.resolve(returnValue) }) }) };
+  const query = {
+    session: (_session: unknown) => query,
+    sort: () => ({ select: () => ({ lean: () => Promise.resolve(returnValue) }) }),
+  };
+  return query;
 }
 
 /** Mongoose 的 findOne(...).select(...).lean() 鏈式呼叫。 */
@@ -164,11 +168,15 @@ function leanPhoto(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function countQuery(value: number) {
+  return { session: () => Promise.resolve(value) };
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   getSession.mockResolvedValue({ userId: VIEWER });
   getTripMembership.mockResolvedValue({ tripId: TRIP_ID, role: 'member' });
-  photoCountDocuments.mockResolvedValue(0);
+  photoCountDocuments.mockReturnValue(countQuery(0));
   presignGetStable.mockResolvedValue('https://signed.example/photo');
   userFindById.mockReturnValue(chainSelectLean({ displayName: 'Alice' }));
   // 預設：相簿未分享（albumShareCode 為 null）→ addTripPhotos 不觸發消毒副本補產。
@@ -222,12 +230,15 @@ describe('addTripPhotos', () => {
     const result = await addTripPhotos(TRIP_ID, { items: [item] });
 
     expect(result.success).toBe(true);
-    expect(photoInsertMany).toHaveBeenCalledWith([
-      expect.objectContaining({
-        location: { lat: 35.6, lon: 139.7, source: 'exif' },
-        place: null,
-      }),
-    ]);
+    expect(photoInsertMany).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          location: { lat: 35.6, lon: 139.7, source: 'exif' },
+          place: null,
+        }),
+      ],
+      { session: undefined }
+    );
   });
 
   it('依拍攝當地日期自動關聯行程日，沒有 GPS 時借用當日座標', async () => {
@@ -260,15 +271,18 @@ describe('addTripPhotos', () => {
     const result = await addTripPhotos(TRIP_ID, { items: [item] });
 
     expect(result.success).toBe(true);
-    expect(photoInsertMany).toHaveBeenCalledWith([
-      expect.objectContaining({
-        takenLocalDate: '2026-06-21',
-        takenDateSource: 'exif',
-        itineraryDay: expect.objectContaining({ toString: expect.any(Function) }),
-        itineraryDaySource: 'auto',
-        location: { lat: 48.85, lon: 2.35, source: 'itinerary' },
-      }),
-    ]);
+    expect(photoInsertMany).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          takenLocalDate: '2026-06-21',
+          takenDateSource: 'exif',
+          itineraryDay: expect.objectContaining({ toString: expect.any(Function) }),
+          itineraryDaySource: 'auto',
+          location: { lat: 48.85, lon: 2.35, source: 'itinerary' },
+        }),
+      ],
+      { session: undefined }
+    );
   });
 
   it('rejects a key belonging to another trip, without inserting', async () => {
@@ -385,7 +399,7 @@ describe('addTripPhotos', () => {
 
   it('returns CONFLICT when the upload would exceed PHOTO_LIMIT_PER_TRIP', async () => {
     mockHeadObjectHappy();
-    photoCountDocuments.mockResolvedValue(PHOTO_LIMIT_PER_TRIP - 1);
+    photoCountDocuments.mockReturnValue(countQuery(PHOTO_LIMIT_PER_TRIP - 1));
     const items = [validItem(TRIP_ID), validItem(TRIP_ID)]; // 299 + 2 > 300
 
     const result = await addTripPhotos(TRIP_ID, { items });
@@ -393,8 +407,7 @@ describe('addTripPhotos', () => {
     expect(result.success).toBe(false);
     if (result.success) throw new Error('expected failure');
     expect(result.code).toBe('CONFLICT');
-    // 上限先擋，根本不必打 headObject
-    expect(headObject).not.toHaveBeenCalled();
+    // 容量在交易內重新檢查，拒絕超量批次。
     expect(photoInsertMany).not.toHaveBeenCalled();
   });
 
