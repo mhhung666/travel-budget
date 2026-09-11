@@ -10,6 +10,11 @@ const friendshipFind = vi.fn();
 const notify = vi.fn();
 const logActivity = vi.fn();
 
+vi.mock('@/lib/tripWriteTransaction', async (original) => ({
+  ...(await original<typeof import('@/lib/tripWriteTransaction')>()),
+  withTripWrite: (_trip: string, _actor: string, write: (session: unknown) => Promise<unknown>) =>
+    write(undefined),
+}));
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 
 vi.mock('@/lib/auth', () => ({
@@ -61,7 +66,11 @@ const STRANGER = '507f191e810c19729de860ee'; // 非好友
 const TRIP_ID = '507f1f77bcf86cd799439021';
 
 function chainSelectLean(returnValue: unknown) {
-  return { select: () => ({ lean: () => Promise.resolve(returnValue) }) };
+  const query = {
+    session: () => query,
+    select: () => ({ lean: () => Promise.resolve(returnValue) }),
+  };
+  return query;
 }
 
 /** Trip.findById 回傳的成員清單（embedded members.user）。 */

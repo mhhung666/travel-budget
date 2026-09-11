@@ -290,8 +290,12 @@ export const regenerateHashCode = withAuth(
         return (await TripModel.exists({ hashCode: code })) !== null;
       });
 
-      const trip = await TripModel.findByIdAndUpdate(
-        membership.tripId,
+      const trip = await TripModel.findOneAndUpdate(
+        {
+          _id: membership.tripId,
+          expenseDeliveryDeleting: { $ne: true },
+          members: { $elemMatch: { user: session.userId, role: 'admin' } },
+        },
         { $set: { hashCode } },
         { new: true }
       ).lean<LeanTrip>();
@@ -330,7 +334,11 @@ async function setArchivedAt(
 
   // 定位到當前使用者那筆 member，只改自己的 archivedAt（positional `$`）
   const trip = await TripModel.findOneAndUpdate(
-    { _id: membership.tripId, 'members.user': session.userId },
+    {
+      _id: membership.tripId,
+      'members.user': session.userId,
+      expenseDeliveryDeleting: { $ne: true },
+    },
     { $set: { 'members.$.archivedAt': archivedAt } },
     { new: true }
   ).lean<LeanTrip>();
@@ -379,9 +387,11 @@ export const joinTrip = withAuth(
         return { success: false, error: 'CONFLICT', code: 'CONFLICT' };
       }
 
-      // 加入為一般成員（addToSet 防併發重複）
+      // 原子核對尚非成員與刪除狀態，避免並行加入產生重複成員。
       const trip = await TripModel.findOneAndUpdate(
         {
+          expenseDeliveryDeleting: { $ne: true },
+          'members.user': { $ne: session.userId },
           $or: [
             ...(isObjectIdLike(tripIdOrCode) ? [{ _id: tripIdOrCode }] : []),
             { hashCode: tripIdOrCode },

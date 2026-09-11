@@ -59,7 +59,11 @@ export const setTripBudget = withAuth(
           : { total: normalizedTotal, categories: normalizedCategories };
 
       const trip = await TripModel.findOneAndUpdate(
-        { _id: membership.tripId, 'members.user': session.userId },
+        {
+          _id: membership.tripId,
+          'members.user': session.userId,
+          expenseDeliveryDeleting: { $ne: true },
+        },
         { $set: { 'members.$.budget': budget } },
         { new: true }
       ).lean<LeanTrip>();

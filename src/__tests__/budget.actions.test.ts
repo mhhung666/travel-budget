@@ -79,7 +79,7 @@ describe('setTripBudget', () => {
     });
 
     expect(findOneAndUpdate).toHaveBeenCalledWith(
-      { _id: TRIP_ID, 'members.user': VIEWER },
+      { _id: TRIP_ID, 'members.user': VIEWER, expenseDeliveryDeleting: { $ne: true } },
       {
         $set: {
           'members.$.budget': {

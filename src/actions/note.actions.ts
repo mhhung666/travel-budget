@@ -1,5 +1,6 @@
 'use server';
 
+import { withTripWrite, TripWriteError } from '@/lib/tripWriteTransaction';
 import mongoose from 'mongoose';
 import { dbConnect } from '@/lib/mongodb';
 import { withNotePlanningTransaction, NotePlanningError } from '@/lib/notePlanningTransaction';
@@ -140,25 +141,40 @@ export const createNote = withAuth(
         return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
       }
 
-      // 去正規化作者名稱（事件當下快照，讀取免 populate，比照 comment.actions.ts）
-      const author = await User.findById(session.userId)
-        .select('displayName')
-        .lean<{ displayName: string } | null>();
+      const created = await withTripWrite(
+        membership.tripId,
+        session.userId,
+        async (transactionSession) => {
+          // 去正規化作者名稱（事件當下快照，讀取免 populate，比照 comment.actions.ts）
+          const author = await User.findById(session.userId)
+            .session(transactionSession)
+            .select('displayName')
+            .lean<{ displayName: string } | null>();
 
-      const created = await Note.create({
-        trip: membership.tripId,
-        text: validation.data.text,
-        createdBy: session.userId,
-        authorName: author?.displayName ?? '',
-        attachments,
-      });
+          const [created] = await Note.create(
+            [
+              {
+                trip: membership.tripId,
+                text: validation.data.text,
+                createdBy: session.userId,
+                authorName: author?.displayName ?? '',
+                attachments,
+              },
+            ],
+            { session: transactionSession }
+          );
 
+          return created;
+        }
+      );
       revalidatePath(`/trips/${tripIdOrCode}/notes`);
       return {
         success: true,
         data: toTripNoteDto(created.toObject() as unknown as TripNoteDtoInput),
       };
     } catch (error) {
+      if (error instanceof TripWriteError)
+        return { success: false, error: error.code, code: error.code };
       logger.error('Create note error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
@@ -189,46 +205,60 @@ export const updateNote = withAuth(
       }
 
       const { text, pinned, attachments } = validation.data;
-      const set: Record<string, unknown> = {};
-      if (text !== undefined) set.text = text;
-      if (pinned !== undefined) set.pinned = pinned;
-
-      // 照片附件以 key 為穩定身分整批覆寫：新 key 走 headObject 驗證、舊 key 沿用、
-      // 被移除的 key 於更新成功後 best-effort 刪 R2（比照 updateItineraryDay 的票券清理）。
-      let removedKeys: string[] = [];
+      let verified: NoteAttachmentDoc[] | undefined;
       if (attachments !== undefined) {
-        const current = await Note.findOne({ _id: noteId, trip: membership.tripId })
+        const initial = await Note.findOne({ _id: noteId, trip: membership.tripId })
           .select('attachments')
           .lean<{ attachments?: NoteAttachmentDoc[] } | null>();
-        if (!current) {
-          return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
-        }
-        const existingByKey = noteAttachmentsByKey(
-          (current.attachments ?? []).map((a) => ({ ...a, uploadedBy: a.uploadedBy.toString() }))
-        );
+        if (!initial) return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+        const existing = noteAttachmentsByKey(initial.attachments ?? []);
         const resolved = await resolveNoteAttachments(
           membership.tripId,
           session.userId,
           attachments,
-          existingByKey
+          existing
         );
-        if (!resolved) {
+        if (!resolved)
           return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
+        verified = resolved.filter((a) => !existing.has(a.key));
+      }
+      const { updated, removedKeys } = await withTripWrite(
+        membership.tripId,
+        session.userId,
+        async (transactionSession) => {
+          const set: Record<string, unknown> = {};
+          if (text !== undefined) set.text = text;
+          if (pinned !== undefined) set.pinned = pinned;
+
+          let removedKeys: string[] = [];
+          if (attachments !== undefined) {
+            const current = await Note.findOne({ _id: noteId, trip: membership.tripId })
+              .session(transactionSession)
+              .select('attachments')
+              .lean<{ attachments?: NoteAttachmentDoc[] } | null>();
+            if (!current) throw new TripWriteError('NOT_FOUND');
+            const existing = noteAttachmentsByKey(current.attachments ?? []);
+            const verifiedByKey = noteAttachmentsByKey(verified ?? []);
+            set.attachments = attachments.map((a) => {
+              const value = existing.get(a.key) ?? verifiedByKey.get(a.key);
+              if (!value) throw new TripWriteError('CONFLICT');
+              return value;
+            });
+            const nextKeys = new Set(attachments.map((a) => a.key));
+            removedKeys = [...existing.keys()].filter((key) => !nextKeys.has(key));
+          }
+          const updated = await Note.findOneAndUpdate(
+            { _id: noteId, trip: membership.tripId },
+            { $set: set },
+            { new: true, session: transactionSession }
+          ).lean<TripNoteDtoInput | null>();
+          if (!updated) {
+            throw new TripWriteError('NOT_FOUND');
+          }
+
+          return { updated, removedKeys };
         }
-        set.attachments = resolved;
-        const keptKeys = new Set(resolved.map((a) => a.key));
-        removedKeys = [...existingByKey.keys()].filter((k) => !keptKeys.has(k));
-      }
-
-      const updated = await Note.findOneAndUpdate(
-        { _id: noteId, trip: membership.tripId },
-        { $set: set },
-        { new: true }
-      ).lean<TripNoteDtoInput | null>();
-      if (!updated) {
-        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
-      }
-
+      );
       if (removedKeys.length > 0) {
         // best-effort：孤兒照片刪不掉不該擋住更新
         await deleteObjects('receipts', removedKeys).catch((e) =>
@@ -239,6 +269,8 @@ export const updateNote = withAuth(
       revalidatePath(`/trips/${tripIdOrCode}/notes`);
       return { success: true, data: toTripNoteDto(updated) };
     } catch (error) {
+      if (error instanceof TripWriteError)
+        return { success: false, error: error.code, code: error.code };
       logger.error('Update note error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
@@ -258,13 +290,24 @@ export const deleteNote = withAuth(
         return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
       }
 
-      // 先讀附件 key 以便刪 R2 物件（attachments 內嵌，隨文件一併移除）
-      const doc = await Note.findOne({ _id: noteId, trip: membership.tripId })
-        .select('attachments.key')
-        .lean<{ attachments?: { key: string }[] } | null>();
+      const doc = await withTripWrite(
+        membership.tripId,
+        session.userId,
+        async (transactionSession) => {
+          // 先讀附件 key 以便刪 R2 物件（attachments 內嵌，隨文件一併移除）
+          const doc = await Note.findOne({ _id: noteId, trip: membership.tripId })
+            .session(transactionSession)
+            .select('attachments.key')
+            .lean<{ attachments?: { key: string }[] } | null>();
 
-      await Note.deleteOne({ _id: noteId, trip: membership.tripId });
+          await Note.deleteOne(
+            { _id: noteId, trip: membership.tripId },
+            { session: transactionSession }
+          );
 
+          return doc;
+        }
+      );
       const keys = (doc?.attachments ?? []).map((a) => a.key);
       if (keys.length > 0) {
         // best-effort：孤兒照片刪不掉不該擋住刪除筆記
@@ -276,6 +319,8 @@ export const deleteNote = withAuth(
       revalidatePath(`/trips/${tripIdOrCode}/notes`);
       return { success: true, data: { message: '筆記已刪除' } };
     } catch (error) {
+      if (error instanceof TripWriteError)
+        return { success: false, error: error.code, code: error.code };
       logger.error('Delete note error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }

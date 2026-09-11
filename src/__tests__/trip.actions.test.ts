@@ -265,11 +265,15 @@ describe('admin-only trip mutations', () => {
   });
 
   it('replaces the share code and invalidates both trip routes', async () => {
-    tripFindByIdAndUpdate.mockReturnValue(lean(tripDoc({ hashCode: 'newcode1' })));
+    tripFindOneAndUpdate.mockReturnValue(lean(tripDoc({ hashCode: 'newcode1' })));
     const result = await regenerateHashCode('oldcode1');
     expect(result.success).toBe(true);
-    expect(tripFindByIdAndUpdate).toHaveBeenCalledWith(
-      TRIP,
+    expect(tripFindOneAndUpdate).toHaveBeenCalledWith(
+      {
+        _id: TRIP,
+        expenseDeliveryDeleting: { $ne: true },
+        members: { $elemMatch: { user: USER, role: 'admin' } },
+      },
       { $set: { hashCode: 'newcode1' } },
       { new: true }
     );
@@ -294,7 +298,11 @@ describe('joinTrip', () => {
     const result = await joinTrip('oldcode1');
     expect(result.success).toBe(true);
     expect(tripFindOneAndUpdate).toHaveBeenCalledWith(
-      { $or: [{ hashCode: 'oldcode1' }] },
+      {
+        $or: [{ hashCode: 'oldcode1' }],
+        'members.user': { $ne: USER },
+        expenseDeliveryDeleting: { $ne: true },
+      },
       { $push: { members: { user: USER, role: 'member' } } },
       { new: true }
     );

@@ -61,7 +61,15 @@ export const enableAlbumShare = withAuth(
       const code = await generateUniqueHashCode(
         async (candidate) => (await Trip.exists({ albumShareCode: candidate })) !== null
       );
-      await Trip.findByIdAndUpdate(membership.tripId, { $set: { albumShareCode: code } });
+      const updated = await Trip.findOneAndUpdate(
+        {
+          _id: membership.tripId,
+          'members.user': session.userId,
+          expenseDeliveryDeleting: { $ne: true },
+        },
+        { $set: { albumShareCode: code } }
+      );
+      if (!updated) return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
 
       await ensureSanitizedPhotoCopies(membership.tripId).catch((e) =>
         logger.error('Enable album share: sanitize pre-warm failed', e)
@@ -83,7 +91,15 @@ export const disableAlbumShare = withAuth(
       if (!membership) {
         return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
       }
-      await Trip.findByIdAndUpdate(membership.tripId, { $unset: { albumShareCode: '' } });
+      const updated = await Trip.findOneAndUpdate(
+        {
+          _id: membership.tripId,
+          'members.user': session.userId,
+          expenseDeliveryDeleting: { $ne: true },
+        },
+        { $unset: { albumShareCode: '' } }
+      );
+      if (!updated) return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
       return { success: true, data: { enabled: false, code: null } };
     } catch (error) {
       logger.error('Disable album share error', error);

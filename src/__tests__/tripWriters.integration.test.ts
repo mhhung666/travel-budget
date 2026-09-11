@@ -2,7 +2,11 @@
 import { randomUUID } from 'node:crypto';
 import mongoose, { mongo } from 'mongoose';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { Trip, Checklist, Payment, Expense, Comment, ItineraryDay } from '@/models';
+import { Trip, Checklist, Payment, Expense, Comment, ItineraryDay, Note } from '@/models';
+import { createNote, updateNote, deleteNote } from '@/actions/note.actions';
+import { addVirtualMember, addFriendsToTrip, updateMemberRole } from '@/actions/member.actions';
+import { regenerateHashCode, joinTrip } from '@/actions/trip.actions';
+import { enableAlbumShare, disableAlbumShare } from '@/actions/albumShare.actions';
 import { createExpense, updateExpense, deleteExpense } from '@/actions/expense.actions';
 import { createComment, deleteComment } from '@/actions/comment.actions';
 import { recordPayment, deletePayment } from '@/actions/payment.actions';
@@ -34,6 +38,9 @@ vi.mock('@/lib/expenseDeliveryRuntime', () => ({
   prepareExpenseBackgroundWrite: mocks.background,
   runExpenseBackgroundDelivery: vi.fn(),
 }));
+vi.mock('@/lib/photoSanitize', () => ({
+  ensureSanitizedPhotoCopies: vi.fn(async () => undefined),
+}));
 vi.mock('next/server', () => ({ after: vi.fn() }));
 vi.mock('@/lib/auth', () => ({ getSession: mocks.session }));
 vi.mock('@/lib/mongodb', () => ({ dbConnect: vi.fn() }));
@@ -54,6 +61,7 @@ describe.skipIf(!uri || !allowed)('trip writers against isolated replica set', (
   let itemId: string;
   let expenseId: string;
   let commentId: string;
+  let noteId: string;
   beforeAll(async () => {
     await mongoose.connect(uri!, {
       dbName: `tb_writers_${randomUUID().replaceAll('-', '')}`,
@@ -94,6 +102,9 @@ describe.skipIf(!uri || !allowed)('trip writers against isolated replica set', (
       ],
     });
     tripId = trip.id;
+    noteId = (
+      await Note.create({ trip: tripId, text: 'Original', createdBy: admin, authorName: 'Admin' })
+    ).id;
     const expense = await Expense.create({
       trip: tripId,
       payer: member,
@@ -143,6 +154,12 @@ describe.skipIf(!uri || !allowed)('trip writers against isolated replica set', (
     splits: [{ user_id: member.toHexString(), share_amount: 100 }],
   });
   const writers = [
+    ['note create', () => createNote(tripId, { text: 'New' })],
+    ['note update', () => updateNote(tripId, noteId, { text: 'Changed' })],
+    ['note delete', () => deleteNote(tripId, noteId)],
+    ['virtual member', () => addVirtualMember(tripId, { display_name: 'New virtual' })],
+    ['friend add', () => addFriendsToTrip(tripId, { friend_ids: [real.toHexString()] })],
+    ['member role', () => updateMemberRole(tripId, member.toHexString(), 'admin')],
     ['expense create', () => createExpense(tripId, expenseInput())],
     ['expense update', () => updateExpense(tripId, expenseId, { description: 'Changed' })],
     ['expense delete', () => deleteExpense(tripId, expenseId)],
@@ -189,6 +206,44 @@ describe.skipIf(!uri || !allowed)('trip writers against isolated replica set', (
       expect(mocks.notify).not.toHaveBeenCalled();
     }
   );
+  it('revokes trip codes and album sharing for a current member', async () => {
+    expect(await regenerateHashCode(tripId)).toMatchObject({ success: true });
+    expect(await enableAlbumShare(tripId)).toMatchObject({ success: true });
+    expect(await disableAlbumShare(tripId)).toMatchObject({ success: true });
+  });
+  it('only joins once when two requests race and rejects deleting trips', async () => {
+    mocks.session.mockResolvedValue({ userId: real.toHexString() });
+    const results = await Promise.all([joinTrip(tripId), joinTrip(tripId)]);
+    expect(results.filter((r) => r.success)).toHaveLength(1);
+    expect((await Trip.findById(tripId))!.members.filter((m) => m.user.equals(real))).toHaveLength(
+      1
+    );
+    await Trip.updateOne(
+      { _id: tripId },
+      { $pull: { members: { user: real } }, $set: { expenseDeliveryDeleting: true } }
+    );
+    expect(await joinTrip(tripId)).toMatchObject({ success: false });
+  });
+  it('rolls back a newly created virtual user if adding the member fails', async () => {
+    const before = await mongoose.connection.db!.collection('users').countDocuments();
+    const original = mongo.Collection.prototype.updateOne;
+    const spy = vi
+      .spyOn(mongo.Collection.prototype, 'updateOne')
+      .mockImplementation(async function (this: mongo.Collection, ...args) {
+        const result = await original.apply(this, args);
+        if (this.collectionName === 'trips') throw new Error('Injected member failure');
+        return result;
+      });
+    try {
+      expect(await addVirtualMember(tripId, { display_name: 'New' })).toMatchObject({
+        code: 'INTERNAL_ERROR',
+      });
+    } finally {
+      spy.mockRestore();
+    }
+    expect(await mongoose.connection.db!.collection('users').countDocuments()).toBe(before);
+  });
+
   it('rolls back expense and comment deletion before any receipt cleanup', async () => {
     const key = `receipts/${tripId}/test.webp`;
     await Expense.updateOne(

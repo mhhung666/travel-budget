@@ -10,6 +10,11 @@ const noteCreate = vi.fn();
 const noteDeleteOne = vi.fn();
 const itineraryDayFindOneAndUpdate = vi.fn();
 const itineraryDayExists = vi.fn();
+vi.mock('@/lib/tripWriteTransaction', async (original) => ({
+  ...(await original<typeof import('@/lib/tripWriteTransaction')>()),
+  withTripWrite: (_trip: string, _actor: string, write: (session: unknown) => Promise<unknown>) =>
+    write(undefined),
+}));
 vi.mock('@/lib/mongodb', () => ({ dbConnect: vi.fn() }));
 vi.mock('@/lib/notePlanningTransaction', async (original) => ({
   ...(await original<typeof import('@/lib/notePlanningTransaction')>()),
@@ -46,7 +51,7 @@ vi.mock('@/models', () => ({
     find: (...args: unknown[]) => noteFind(...args),
     findOne: (...args: unknown[]) => noteFindOne(...args),
     findOneAndUpdate: (...args: unknown[]) => noteFindOneAndUpdate(...args),
-    create: (...args: unknown[]) => noteCreate(...args),
+    create: async (docs: unknown[]) => [await noteCreate(docs[0])],
     deleteOne: (...args: unknown[]) => noteDeleteOne(...args),
   },
   ItineraryDay: {
@@ -74,7 +79,11 @@ const DAY_ID = '507f1f77bcf86cd799439013';
 
 /** Mongoose 的 findOne(...).select(...).lean() 鏈式呼叫。 */
 function chainSelectLean(returnValue: unknown) {
-  return { select: () => ({ lean: () => Promise.resolve(returnValue) }) };
+  const query = {
+    session: () => query,
+    select: () => ({ lean: () => Promise.resolve(returnValue) }),
+  };
+  return query;
 }
 
 /** Mongoose 的 find(...).sort(...).lean() 鏈式呼叫。 */
@@ -344,7 +353,10 @@ describe('deleteNote', () => {
     const result = await deleteNote(TRIP_ID, NOTE_ID);
 
     expect(result.success).toBe(true);
-    expect(noteDeleteOne).toHaveBeenCalledWith({ _id: NOTE_ID, trip: TRIP_ID });
+    expect(noteDeleteOne).toHaveBeenCalledWith(
+      { _id: NOTE_ID, trip: TRIP_ID },
+      { session: undefined }
+    );
   });
 
   it('best-effort deletes attachment objects from R2', async () => {

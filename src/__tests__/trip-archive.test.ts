@@ -92,7 +92,11 @@ describe('archiveTrip', () => {
 
     // 只更新 viewer 自己那筆 member（positional `$`），且設了一個 Date
     const [filter, update] = findOneAndUpdate.mock.calls[0];
-    expect(filter).toEqual({ _id: TRIP_ID, 'members.user': VIEWER });
+    expect(filter).toEqual({
+      _id: TRIP_ID,
+      'members.user': VIEWER,
+      expenseDeliveryDeleting: { $ne: true },
+    });
     expect(update.$set['members.$.archivedAt']).toBeInstanceOf(Date);
   });
 

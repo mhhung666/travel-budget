@@ -1,5 +1,6 @@
 'use server';
 
+import { withTripWrite, TripWriteError } from '@/lib/tripWriteTransaction';
 import { randomUUID } from 'crypto';
 import mongoose, { isValidObjectId } from 'mongoose';
 import { removeTripMember, MemberRemovalError } from '@/lib/memberRemoval';
@@ -104,28 +105,35 @@ export const addVirtualMember = withAuth(
 
       await dbConnect();
 
-      // Create virtual user
-      const virtualUsername = `virtual_${randomUUID()}`;
-      const newUser = await User.create({
-        username: virtualUsername,
-        displayName: display_name.trim(),
-        email: `${virtualUsername}@virtual.local`,
-        password: randomUUID(),
-        isVirtual: true,
-      });
+      const { newUser, joinedAt } = await withTripWrite(
+        membership.tripId,
+        session.userId,
+        async (transactionSession) => {
+          // Create virtual user
+          const virtualUsername = `virtual_${randomUUID()}`;
+          const [newUser] = await User.create(
+            [
+              {
+                username: virtualUsername,
+                displayName: display_name.trim(),
+                email: `${virtualUsername}@virtual.local`,
+                password: randomUUID(),
+                isVirtual: true,
+              },
+            ],
+            { session: transactionSession }
+          );
 
-      const joinedAt = new Date();
-      try {
-        await Trip.updateOne(
-          { _id: membership.tripId },
-          { $push: { members: { user: newUser._id, role: 'member', joinedAt } } }
-        );
-      } catch (memberError) {
-        // Cleanup if adding to trip failed
-        await User.deleteOne({ _id: newUser._id });
-        throw memberError;
-      }
-
+          const joinedAt = new Date();
+          await Trip.updateOne(
+            { _id: membership.tripId },
+            { $push: { members: { user: newUser._id, role: 'member', joinedAt } } },
+            { session: transactionSession }
+          );
+          return { newUser, joinedAt };
+        },
+        'admin'
+      );
       const member: Member = {
         id: newUser._id.toString(),
         username: newUser.username,
@@ -138,6 +146,8 @@ export const addVirtualMember = withAuth(
       revalidatePath(`/trips/${tripIdOrCode}`);
       return { success: true, data: member };
     } catch (error) {
+      if (error instanceof TripWriteError)
+        return { success: false, error: error.code, code: error.code };
       logger.error('Create virtual member error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
@@ -183,43 +193,52 @@ export const addFriendsToTrip = withAuth(
 
       const tripId = membership.tripId;
 
-      const trip = await Trip.findById(tripId)
-        .select('members.user')
-        .lean<{ members: { user: { toString(): string } }[] } | null>();
-      if (!trip) {
-        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
-      }
-      const memberIds = new Set(trip.members.map((m) => m.user.toString()));
+      const { added, memberIds } = await withTripWrite(
+        tripId,
+        session.userId,
+        async (transactionSession) => {
+          const trip = await Trip.findById(tripId)
+            .session(transactionSession)
+            .select('members.user')
+            .lean<{ members: { user: { toString(): string } }[] } | null>();
+          if (!trip) {
+            throw new TripWriteError('NOT_FOUND');
+          }
+          const memberIds = new Set(trip.members.map((m) => m.user.toString()));
 
-      // 僅允許「已成立好友」：用排序 pair 鍵一次查回 accepted 關係，取出對方 id
-      const pairKeys = requested.map((id) => friendshipPairKey(session.userId, id));
-      const accepted = await Friendship.find({ pairKey: { $in: pairKeys }, status: 'accepted' })
-        .select('requester recipient')
-        .lean<{ requester: { toString(): string }; recipient: { toString(): string } }[]>();
-      const acceptedFriendIds = new Set(
-        accepted.map((f) => {
-          const requester = f.requester.toString();
-          return requester === session.userId ? f.recipient.toString() : requester;
-        })
+          // 僅允許「已成立好友」：用排序 pair 鍵一次查回 accepted 關係，取出對方 id
+          const pairKeys = requested.map((id) => friendshipPairKey(session.userId, id));
+          const accepted = await Friendship.find({ pairKey: { $in: pairKeys }, status: 'accepted' })
+            .session(transactionSession)
+            .select('requester recipient')
+            .lean<{ requester: { toString(): string }; recipient: { toString(): string } }[]>();
+          const acceptedFriendIds = new Set(
+            accepted.map((f) => {
+              const requester = f.requester.toString();
+              return requester === session.userId ? f.recipient.toString() : requester;
+            })
+          );
+
+          // 合格 = 已是好友 且 尚非本旅程成員
+          const eligible = requested.filter(
+            (id) => acceptedFriendIds.has(id) && !memberIds.has(id)
+          );
+
+          // 逐一加入（filter 帶 members.user $ne 防併發重複加入），統計實際加入者
+          const joinedAt = new Date();
+          const added: string[] = [];
+          for (const id of eligible) {
+            const result = await Trip.updateOne(
+              { _id: tripId, 'members.user': { $ne: id } },
+              { $push: { members: { user: id, role: 'member', joinedAt } } },
+              { session: transactionSession }
+            );
+            if (result.modifiedCount > 0) added.push(id);
+          }
+
+          return { added, memberIds };
+        }
       );
-
-      // 合格 = 已是好友 且 尚非本旅程成員
-      const eligible = requested.filter((id) => acceptedFriendIds.has(id) && !memberIds.has(id));
-      if (eligible.length === 0) {
-        return { success: true, data: { added: 0 } };
-      }
-
-      // 逐一加入（filter 帶 members.user $ne 防併發重複加入），統計實際加入者
-      const joinedAt = new Date();
-      const added: string[] = [];
-      for (const id of eligible) {
-        const result = await Trip.updateOne(
-          { _id: tripId, 'members.user': { $ne: id } },
-          { $push: { members: { user: id, role: 'member', joinedAt } } }
-        );
-        if (result.modifiedCount > 0) added.push(id);
-      }
-
       // 通知 + 動態牆：以「被加入者」為觸發者（語意＝他加入了旅程），fan-out 給既有成員；
       // 排除操作者本人（他有 toast 回饋，免自我通知）。notify 會再排除觸發者與虛擬成員。
       const recipientPool = [...new Set([...memberIds, ...added])].filter(
@@ -235,6 +254,8 @@ export const addFriendsToTrip = withAuth(
       revalidatePath(`/trips/${tripIdOrCode}`);
       return { success: true, data: { added: added.length } };
     } catch (error) {
+      if (error instanceof TripWriteError)
+        return { success: false, error: error.code, code: error.code };
       logger.error('Add friends to trip error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
@@ -265,18 +286,27 @@ export const updateMemberRole = withAuth(
         return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
       }
 
-      const result = await Trip.updateOne(
-        { _id: membership.tripId, 'members.user': targetUserId },
-        { $set: { 'members.$.role': newRole } }
+      await withTripWrite(
+        membership.tripId,
+        session.userId,
+        async (transactionSession) => {
+          const result = await Trip.updateOne(
+            { _id: membership.tripId, 'members.user': targetUserId },
+            { $set: { 'members.$.role': newRole } },
+            { session: transactionSession }
+          );
+
+          if (result.matchedCount === 0) {
+            throw new TripWriteError('NOT_FOUND');
+          }
+        },
+        'admin'
       );
-
-      if (result.matchedCount === 0) {
-        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
-      }
-
       revalidatePath(`/trips/${tripIdOrCode}`);
       return { success: true, data: { message: '角色已更新' } };
     } catch (error) {
+      if (error instanceof TripWriteError)
+        return { success: false, error: error.code, code: error.code };
       logger.error('Update member role error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
