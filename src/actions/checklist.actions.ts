@@ -2,7 +2,8 @@
 
 import { readChecklists } from '@/lib/checklistRead';
 import { revalidatePath } from 'next/cache';
-import { isValidObjectId } from 'mongoose';
+import { withTripWrite, TripWriteError } from '@/lib/tripWriteTransaction';
+import { isValidObjectId, type mongo } from 'mongoose';
 import { Checklist, Trip } from '@/models';
 import { getTripMembership } from '@/lib/permissions';
 import {
@@ -34,16 +35,25 @@ import { toChecklistDto, type ChecklistDtoInput } from '@/lib/dto';
 const ITEM_POPULATE = { path: 'items.assignee', select: 'username displayName' } as const;
 
 /** 讀回一份（已 populate assignee 的）清單並轉 DTO；查不到回 null。 */
-async function findChecklistDto(checklistId: string, tripId: string): Promise<ChecklistDto | null> {
+async function findChecklistDto(
+  checklistId: string,
+  tripId: string,
+  transactionSession: mongo.ClientSession
+): Promise<ChecklistDto | null> {
   const doc = await Checklist.findOne({ _id: checklistId, trip: tripId })
+    .session(transactionSession)
     .populate(ITEM_POPULATE)
     .lean<ChecklistDtoInput | null>();
   return doc ? toChecklistDto(doc) : null;
 }
 
 /** assignee 必須是本旅程成員（僅在有指定時檢查，避免勾選等熱路徑多一次查詢）。 */
-async function assigneeIsMember(tripId: string, assigneeId: string): Promise<boolean> {
-  const trip = await Trip.findById(tripId).select('members').lean<{
+async function assigneeIsMember(
+  tripId: string,
+  assigneeId: string,
+  transactionSession: mongo.ClientSession
+): Promise<boolean> {
+  const trip = await Trip.findById(tripId).session(transactionSession).select('members').lean<{
     members: { user: { toString(): string } }[];
   } | null>();
   return (trip?.members || []).some((m) => m.user.toString() === assigneeId);
@@ -88,12 +98,25 @@ export const createChecklist = withAuth(
         };
       }
 
-      const created = await Checklist.create({
-        trip: membership.tripId,
-        title: validation.data.title,
-        items: [],
-        createdBy: session.userId,
-      });
+      const created = await withTripWrite(
+        membership.tripId,
+        session.userId,
+        async (transactionSession) => {
+          const [created] = await Checklist.create(
+            [
+              {
+                trip: membership.tripId,
+                title: validation.data.title,
+                items: [],
+                createdBy: session.userId,
+              },
+            ],
+            { session: transactionSession }
+          );
+
+          return created;
+        }
+      );
 
       revalidatePath(`/trips/${tripIdOrCode}/checklists`);
       return {
@@ -101,6 +124,8 @@ export const createChecklist = withAuth(
         data: toChecklistDto(created.toObject() as unknown as ChecklistDtoInput),
       };
     } catch (error) {
+      if (error instanceof TripWriteError)
+        return { success: false, error: error.code, code: error.code };
       logger.error('Create checklist error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
@@ -132,13 +157,26 @@ export const createChecklistWithItems = withAuth(
         };
       }
 
-      const created = await Checklist.create({
-        trip: membership.tripId,
-        kind: validation.data.kind,
-        title: validation.data.title,
-        items: validation.data.items.map((text) => ({ text, doneBy: [], assignee: null })),
-        createdBy: session.userId,
-      });
+      const created = await withTripWrite(
+        membership.tripId,
+        session.userId,
+        async (transactionSession) => {
+          const [created] = await Checklist.create(
+            [
+              {
+                trip: membership.tripId,
+                kind: validation.data.kind,
+                title: validation.data.title,
+                items: validation.data.items.map((text) => ({ text, doneBy: [], assignee: null })),
+                createdBy: session.userId,
+              },
+            ],
+            { session: transactionSession }
+          );
+
+          return created;
+        }
+      );
 
       revalidatePath(`/trips/${tripIdOrCode}/checklists`);
       return {
@@ -146,6 +184,8 @@ export const createChecklistWithItems = withAuth(
         data: toChecklistDto(created.toObject() as unknown as ChecklistDtoInput),
       };
     } catch (error) {
+      if (error instanceof TripWriteError)
+        return { success: false, error: error.code, code: error.code };
       logger.error('Create checklist with items error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
@@ -242,20 +282,31 @@ export const updateChecklist = withAuth(
         };
       }
 
-      const res = await Checklist.updateOne(
-        { _id: checklistId, trip: membership.tripId },
-        { $set: { title: validation.data.title } }
-      );
-      if (res.matchedCount === 0) {
-        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
-      }
+      const dto = await withTripWrite(
+        membership.tripId,
+        session.userId,
+        async (transactionSession) => {
+          const res = await Checklist.updateOne(
+            { _id: checklistId, trip: membership.tripId },
+            { $set: { title: validation.data.title } },
+            { session: transactionSession }
+          );
+          if (res.matchedCount === 0) {
+            throw new TripWriteError('NOT_FOUND');
+          }
 
-      const dto = await findChecklistDto(checklistId, membership.tripId);
-      if (!dto) return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+          const dto = await findChecklistDto(checklistId, membership.tripId, transactionSession);
+          if (!dto) throw new TripWriteError('NOT_FOUND');
+
+          return dto;
+        }
+      );
 
       revalidatePath(`/trips/${tripIdOrCode}/checklists`);
       return { success: true, data: dto };
     } catch (error) {
+      if (error instanceof TripWriteError)
+        return { success: false, error: error.code, code: error.code };
       logger.error('Update checklist error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
@@ -283,14 +334,23 @@ export const deleteChecklist = withAuth(
         return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
       }
 
-      const result = await Checklist.deleteOne({ _id: checklistId, trip: membership.tripId });
-      if (result.deletedCount === 0) {
-        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
-      }
+      await withTripWrite(membership.tripId, session.userId, async (transactionSession) => {
+        const result = await Checklist.deleteOne(
+          { _id: checklistId, trip: membership.tripId },
+          { session: transactionSession }
+        );
+        if (result.deletedCount === 0) {
+          throw new TripWriteError('NOT_FOUND');
+        }
+
+        return result;
+      });
 
       revalidatePath(`/trips/${tripIdOrCode}/checklists`);
       return { success: true, data: { message: '清單已刪除' } };
     } catch (error) {
+      if (error instanceof TripWriteError)
+        return { success: false, error: error.code, code: error.code };
       logger.error('Delete checklist error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
@@ -320,25 +380,39 @@ export const addChecklistItem = withAuth(
         };
       }
 
-      const { text, assignee_id } = validation.data;
-      if (assignee_id && !(await assigneeIsMember(membership.tripId, assignee_id))) {
-        return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
-      }
+      const dto = await withTripWrite(
+        membership.tripId,
+        session.userId,
+        async (transactionSession) => {
+          const { text, assignee_id } = validation.data;
+          if (
+            assignee_id &&
+            !(await assigneeIsMember(membership.tripId, assignee_id, transactionSession))
+          ) {
+            throw new TripWriteError('VALIDATION_ERROR');
+          }
 
-      const res = await Checklist.updateOne(
-        { _id: checklistId, trip: membership.tripId },
-        { $push: { items: { text, doneBy: [], assignee: assignee_id ?? null } } }
+          const res = await Checklist.updateOne(
+            { _id: checklistId, trip: membership.tripId },
+            { $push: { items: { text, doneBy: [], assignee: assignee_id ?? null } } },
+            { session: transactionSession }
+          );
+          if (res.matchedCount === 0) {
+            throw new TripWriteError('NOT_FOUND');
+          }
+
+          const dto = await findChecklistDto(checklistId, membership.tripId, transactionSession);
+          if (!dto) throw new TripWriteError('NOT_FOUND');
+
+          return dto;
+        }
       );
-      if (res.matchedCount === 0) {
-        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
-      }
-
-      const dto = await findChecklistDto(checklistId, membership.tripId);
-      if (!dto) return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
 
       revalidatePath(`/trips/${tripIdOrCode}/checklists`);
       return { success: true, data: dto };
     } catch (error) {
+      if (error instanceof TripWriteError)
+        return { success: false, error: error.code, code: error.code };
       logger.error('Add checklist item error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
@@ -369,50 +443,69 @@ export const updateChecklistItem = withAuth(
         };
       }
 
-      const { text, done, assignee_id } = validation.data;
-      if (assignee_id && !(await assigneeIsMember(membership.tripId, assignee_id))) {
-        return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
-      }
+      const dto = await withTripWrite(
+        membership.tripId,
+        session.userId,
+        async (transactionSession) => {
+          const { text, done, assignee_id } = validation.data;
+          if (
+            assignee_id &&
+            !(await assigneeIsMember(membership.tripId, assignee_id, transactionSession))
+          ) {
+            throw new TripWriteError('VALIDATION_ERROR');
+          }
 
-      // 勾選語意隨清單類型不同（見 model）：需先知道 kind 才能決定 doneBy 的寫法。
-      const checklist = await Checklist.findOne({ _id: checklistId, trip: membership.tripId })
-        .select('kind')
-        .lean<{ kind?: 'todo' | 'packing' | 'shopping' } | null>();
-      if (!checklist) {
-        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
-      }
+          // 勾選語意隨清單類型不同（見 model）：需先知道 kind 才能決定 doneBy 的寫法。
+          const checklist = await Checklist.findOne({ _id: checklistId, trip: membership.tripId })
+            .session(transactionSession)
+            .select('kind')
+            .lean<{ kind?: 'todo' | 'packing' | 'shopping' } | null>();
+          if (!checklist) {
+            throw new TripWriteError('NOT_FOUND');
+          }
 
-      const set: Record<string, unknown> = {};
-      if (text !== undefined) set['items.$[el].text'] = text;
-      // assignee_id 可被設為 null 以清除指派；只要欄位有出現就寫入。
-      if (assignee_id !== undefined) set['items.$[el].assignee'] = assignee_id;
+          const set: Record<string, unknown> = {};
+          if (text !== undefined) set['items.$[el].text'] = text;
+          // assignee_id 可被設為 null 以清除指派；只要欄位有出現就寫入。
+          if (assignee_id !== undefined) set['items.$[el].assignee'] = assignee_id;
 
-      const update: Record<string, Record<string, unknown>> = {};
-      if (done !== undefined) {
-        if (checklist.kind === 'packing') {
-          // 逐人各自勾：勾＝把自己加進 doneBy、取消＝把自己移除。
-          if (done) update.$addToSet = { 'items.$[el].doneBy': session.userId };
-          else update.$pull = { 'items.$[el].doneBy': session.userId };
-        } else {
-          // 共享清單：任一人勾即完成，doneBy 存標記者 id；取消＝清空。
-          set['items.$[el].doneBy'] = done ? [session.userId] : [];
+          const update: Record<string, Record<string, unknown>> = {};
+          if (done !== undefined) {
+            if (checklist.kind === 'packing') {
+              // 逐人各自勾：勾＝把自己加進 doneBy、取消＝把自己移除。
+              if (done) update.$addToSet = { 'items.$[el].doneBy': session.userId };
+              else update.$pull = { 'items.$[el].doneBy': session.userId };
+            } else {
+              // 共享清單：任一人勾即完成，doneBy 存標記者 id；取消＝清空。
+              set['items.$[el].doneBy'] = done ? [session.userId] : [];
+            }
+          }
+          if (Object.keys(set).length > 0) update.$set = set;
+
+          const res = await Checklist.updateOne(
+            { _id: checklistId, trip: membership.tripId },
+            update,
+            {
+              session: transactionSession,
+              arrayFilters: [{ 'el._id': itemId }],
+            }
+          );
+          if (res.matchedCount === 0) {
+            throw new TripWriteError('NOT_FOUND');
+          }
+
+          const dto = await findChecklistDto(checklistId, membership.tripId, transactionSession);
+          if (!dto) throw new TripWriteError('NOT_FOUND');
+
+          return dto;
         }
-      }
-      if (Object.keys(set).length > 0) update.$set = set;
-
-      const res = await Checklist.updateOne({ _id: checklistId, trip: membership.tripId }, update, {
-        arrayFilters: [{ 'el._id': itemId }],
-      });
-      if (res.matchedCount === 0) {
-        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
-      }
-
-      const dto = await findChecklistDto(checklistId, membership.tripId);
-      if (!dto) return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+      );
 
       revalidatePath(`/trips/${tripIdOrCode}/checklists`);
       return { success: true, data: dto };
     } catch (error) {
+      if (error instanceof TripWriteError)
+        return { success: false, error: error.code, code: error.code };
       logger.error('Update checklist item error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
@@ -433,20 +526,31 @@ export const removeChecklistItem = withAuth(
         return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
       }
 
-      const res = await Checklist.updateOne(
-        { _id: checklistId, trip: membership.tripId },
-        { $pull: { items: { _id: itemId } } }
-      );
-      if (res.matchedCount === 0) {
-        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
-      }
+      const dto = await withTripWrite(
+        membership.tripId,
+        session.userId,
+        async (transactionSession) => {
+          const res = await Checklist.updateOne(
+            { _id: checklistId, trip: membership.tripId },
+            { $pull: { items: { _id: itemId } } },
+            { session: transactionSession }
+          );
+          if (res.matchedCount === 0) {
+            throw new TripWriteError('NOT_FOUND');
+          }
 
-      const dto = await findChecklistDto(checklistId, membership.tripId);
-      if (!dto) return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+          const dto = await findChecklistDto(checklistId, membership.tripId, transactionSession);
+          if (!dto) throw new TripWriteError('NOT_FOUND');
+
+          return dto;
+        }
+      );
 
       revalidatePath(`/trips/${tripIdOrCode}/checklists`);
       return { success: true, data: dto };
     } catch (error) {
+      if (error instanceof TripWriteError)
+        return { success: false, error: error.code, code: error.code };
       logger.error('Remove checklist item error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }

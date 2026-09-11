@@ -8,6 +8,13 @@ const checklistUpdateOne = vi.fn();
 const checklistDeleteOne = vi.fn();
 const tripFindById = vi.fn();
 
+vi.mock('@/lib/mongodb', () => ({ dbConnect: vi.fn() }));
+vi.mock('@/lib/tripWriteTransaction', async (original) => ({
+  ...(await original<typeof import('@/lib/tripWriteTransaction')>()),
+  withTripWrite: (_trip: string, _actor: string, write: (session: unknown) => Promise<unknown>) =>
+    write(undefined),
+}));
+
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 
 vi.mock('@/lib/auth', () => ({
@@ -41,6 +48,7 @@ function queueFindOne(...leanResults: unknown[]) {
   const queue = [...leanResults];
   checklistFindOne.mockImplementation(() => {
     const chain = {
+      session: () => chain,
       select: () => chain,
       populate: () => chain,
       lean: () => Promise.resolve(queue.shift()),
@@ -141,6 +149,9 @@ describe('deleteChecklist', () => {
     const res = await deleteChecklist(TRIP_ID, LIST_ID);
 
     expect(res.success).toBe(true);
-    expect(checklistDeleteOne).toHaveBeenCalledWith({ _id: LIST_ID, trip: TRIP_ID });
+    expect(checklistDeleteOne).toHaveBeenCalledWith(
+      { _id: LIST_ID, trip: TRIP_ID },
+      { session: undefined }
+    );
   });
 });

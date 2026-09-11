@@ -1,5 +1,6 @@
 'use server';
 
+import { withTripWrite, TripWriteError } from '@/lib/tripWriteTransaction';
 import { revalidatePath } from 'next/cache';
 import { Payment, Trip, Expense, User } from '@/models';
 import { getTripMembership } from '@/lib/permissions';
@@ -44,24 +45,35 @@ export const recordPayment = withAuth(
       const { from_id, to_id, amount, note } = validation.data;
       const { tripId } = membership;
 
-      // 付款人與收款人都必須是本旅程成員
-      const trip = await Trip.findById(tripId).select('members').lean<{
-        members: { user: { toString(): string } }[];
-      }>();
-      const memberIds = new Set((trip?.members || []).map((m) => m.user.toString()));
-      if (!memberIds.has(from_id) || !memberIds.has(to_id)) {
-        return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
-      }
+      const created = await withTripWrite(tripId, session.userId, async (transactionSession) => {
+        // 付款人與收款人都必須是本旅程成員
+        const trip = await Trip.findById(tripId)
+          .session(transactionSession)
+          .select('members')
+          .lean<{
+            members: { user: { toString(): string } }[];
+          }>();
+        const memberIds = new Set((trip?.members || []).map((m) => m.user.toString()));
+        if (!memberIds.has(from_id) || !memberIds.has(to_id)) {
+          throw new TripWriteError('VALIDATION_ERROR');
+        }
 
-      const created = await Payment.create({
-        trip: tripId,
-        from: from_id,
-        to: to_id,
-        amount,
-        note: note ?? '',
-        createdBy: session.userId,
+        const [created] = await Payment.create(
+          [
+            {
+              trip: tripId,
+              from: from_id,
+              to: to_id,
+              amount,
+              note: note ?? '',
+              createdBy: session.userId,
+            },
+          ],
+          { session: transactionSession }
+        );
+
+        return created;
       });
-
       await created.populate([
         { path: 'from', select: 'username displayName' },
         { path: 'to', select: 'username displayName' },
@@ -89,6 +101,8 @@ export const recordPayment = withAuth(
         data: toPaymentRecord(created.toObject() as unknown as PaymentDtoInput),
       };
     } catch (error) {
+      if (error instanceof TripWriteError)
+        return { success: false, error: error.code, code: error.code };
       logger.error('Record payment error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
@@ -110,11 +124,18 @@ export const deletePayment = withAuth(
         return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
       }
 
-      await Payment.deleteOne({ _id: paymentId, trip: membership.tripId });
+      await withTripWrite(membership.tripId, session.userId, async (transactionSession) => {
+        await Payment.deleteOne(
+          { _id: paymentId, trip: membership.tripId },
+          { session: transactionSession }
+        );
+      });
 
       revalidatePath(`/trips/${tripIdOrCode}/settlement`);
       return { success: true, data: { message: '還款紀錄已刪除' } };
     } catch (error) {
+      if (error instanceof TripWriteError)
+        return { success: false, error: error.code, code: error.code };
       logger.error('Delete payment error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }

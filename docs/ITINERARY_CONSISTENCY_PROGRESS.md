@@ -290,3 +290,11 @@ MONGODB_MEMBER_TEST_URI='mongodb://127.0.0.1:27030/?replicaSet=r3test' \
 - 消毒副本與 URL 簽名在提交後執行，保留 EXIF 優先及自動分類契約。無 schema／索引變更。
 - 驗證：相片單元與隔離 MongoDB 行程整合共 98 項通過，TypeScript 通過。完整驗證於 R3 最終交付執行。
 - 本階段獨立交付並 patch bump，未 push／部署；後續完成財務／協作 writer 及票券引用清理。
+
+
+## R3n：還款與清單 writer
+
+- 還款新增／刪除、清單建立／刪除／改名及項目新增／修改／移除使用共用 Trip fence 交易，成員與指派資格在 snapshot 內重查。
+- 虛擬身分轉換與晚到付款／指派寫入互斥；清單查回失敗亦回滾寫入，外部通知在提交後執行。無 schema 變更。
+- 驗證：22 項隔離 replica set 測試與 7 項清單單元測試通過；TypeScript、相關 ESLint 與格式通過。完整驗證於 R3 最終交付執行。
+- 本階段獨立交付並 patch bump，未 push／部署。

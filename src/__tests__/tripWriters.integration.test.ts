@@ -1,0 +1,190 @@
+// @vitest-environment node
+import { randomUUID } from 'node:crypto';
+import mongoose, { mongo } from 'mongoose';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { Trip, Checklist, Payment } from '@/models';
+import { recordPayment, deletePayment } from '@/actions/payment.actions';
+import {
+  createChecklist,
+  createChecklistWithItems,
+  updateChecklist,
+  deleteChecklist,
+  addChecklistItem,
+  updateChecklistItem,
+  removeChecklistItem,
+} from '@/actions/checklist.actions';
+import { removeTripMember } from '@/lib/memberRemoval';
+import { changeMemberIdentity } from '@/lib/memberIdentity';
+const mocks = vi.hoisted(() => ({ session: vi.fn(), notify: vi.fn(), activity: vi.fn() }));
+vi.mock('@/lib/auth', () => ({ getSession: mocks.session }));
+vi.mock('@/lib/mongodb', () => ({ dbConnect: vi.fn() }));
+vi.mock('@/lib/notify', () => ({ notify: mocks.notify }));
+vi.mock('@/lib/activity', () => ({ logActivity: mocks.activity }));
+vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
+const uri = process.env.MONGODB_MEMBER_TEST_URI;
+const allowed = process.env.MONGODB_MEMBER_TEST_ALLOW_WRITES === '1';
+if ((uri || allowed) && !(uri && allowed))
+  throw new Error('Requires isolated URI and write opt-in');
+const admin = new mongo.ObjectId();
+const member = new mongo.ObjectId();
+const real = new mongo.ObjectId();
+describe.skipIf(!uri || !allowed)('trip writers against isolated replica set', () => {
+  let owned = false;
+  let tripId: string;
+  let listId: string;
+  let itemId: string;
+  beforeAll(async () => {
+    await mongoose.connect(uri!, {
+      dbName: `tb_writers_${randomUUID().replaceAll('-', '')}`,
+      autoIndex: false,
+      autoCreate: false,
+      serverSelectionTimeoutMS: 5000,
+    });
+    const db = mongoose.connection.db!;
+    expect((await db.admin().command({ hello: 1 })).setName).toBeTruthy();
+    expect(await db.listCollections().toArray()).toHaveLength(0);
+    await db.createCollection('verification_owner');
+    owned = true;
+    await db.collection('users').insertMany([
+      { _id: admin, username: 'admin', displayName: 'Admin' },
+      { _id: member, username: 'virtual', displayName: 'Virtual', isVirtual: true },
+      { _id: real, username: 'real', displayName: 'Real', password: 'hash', isVirtual: false },
+    ]);
+  });
+  afterAll(async () => {
+    try {
+      if (owned) await mongoose.connection.db!.dropDatabase();
+    } finally {
+      await mongoose.disconnect();
+    }
+  });
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    mocks.session.mockResolvedValue({ userId: admin.toHexString() });
+    const trip = await Trip.create({
+      name: 'Writers',
+      hashCode: randomUUID().replaceAll('-', '').slice(0, 8),
+      members: [
+        { user: admin, role: 'admin' },
+        { user: member, role: 'member' },
+      ],
+    });
+    tripId = trip.id;
+    const list = await Checklist.create({
+      trip: tripId,
+      title: 'List',
+      kind: 'packing',
+      createdBy: admin,
+      items: [{ text: 'Pack', assignee: member, doneBy: [member] }],
+    });
+    listId = list.id;
+    itemId = list.items[0]._id!.toString();
+  });
+  const paymentInput = () => ({
+    from_id: member.toHexString(),
+    to_id: admin.toHexString(),
+    amount: 100,
+  });
+  const writers = [
+    ['payment create', () => recordPayment(tripId, paymentInput())],
+    ['payment delete', () => deletePayment(tripId, new mongo.ObjectId().toHexString())],
+    ['checklist create', () => createChecklist(tripId, { title: 'New' })],
+    [
+      'checklist template',
+      () => createChecklistWithItems(tripId, { title: 'New', kind: 'packing', items: ['A'] }),
+    ],
+    ['checklist rename', () => updateChecklist(tripId, listId, { title: 'Rename' })],
+    ['checklist delete', () => deleteChecklist(tripId, listId)],
+    [
+      'item add',
+      () => addChecklistItem(tripId, listId, { text: 'New', assignee_id: member.toHexString() }),
+    ],
+    ['item edit', () => updateChecklistItem(tripId, listId, itemId, { done: true })],
+    ['item delete', () => removeChecklistItem(tripId, listId, itemId)],
+  ] as const;
+  it.each(writers)('commits %s for a current member', async (_name, write) => {
+    expect(await write()).toMatchObject({ success: true });
+  });
+  it.each(writers)(
+    'rejects %s after the actor is removed during initial authorization',
+    async (_name, write) => {
+      const original = mongo.Collection.prototype.findOneAndUpdate;
+      let changed = false;
+      const spy = vi
+        .spyOn(mongo.Collection.prototype, 'findOneAndUpdate')
+        .mockImplementation(async function (this: mongo.Collection, ...args) {
+          if (this.collectionName === 'trips' && !changed) {
+            changed = true;
+            await Trip.updateOne({ _id: tripId }, { $pull: { members: { user: admin } } });
+          }
+          return original.apply(this, args);
+        });
+      try {
+        expect(await write()).toMatchObject({ code: 'FORBIDDEN' });
+      } finally {
+        spy.mockRestore();
+      }
+      expect(mocks.notify).not.toHaveBeenCalled();
+    }
+  );
+  it('creates and deletes payments with hash-code input', async () => {
+    const trip = await Trip.findById(tripId).lean();
+    const result = await recordPayment(trip!.hashCode, paymentInput());
+    expect(result.success).toBe(true);
+    const payment = await Payment.findOne({ trip: tripId });
+    expect(payment).not.toBeNull();
+    expect(await deletePayment(trip!.hashCode, payment!.id)).toMatchObject({ success: true });
+    expect(await Payment.countDocuments({ trip: tripId })).toBe(0);
+  });
+  it('serializes a virtual identity claim with payment and assignment writers', async () => {
+    const trip = await Trip.findById(tripId).lean();
+    await Promise.all([
+      recordPayment(tripId, paymentInput()),
+      updateChecklistItem(tripId, listId, itemId, { assignee_id: member.toHexString() }),
+      changeMemberIdentity(mongoose.connection.db!, {
+        kind: 'link',
+        tripId,
+        virtualUserId: member.toHexString(),
+        realUserId: real.toHexString(),
+        passwordHash: 'hash',
+        hashCode: trip!.hashCode,
+      }),
+    ]);
+    expect(
+      await Payment.countDocuments({ trip: tripId, $or: [{ from: member }, { to: member }] })
+    ).toBe(0);
+    expect(await Checklist.countDocuments({ trip: tripId, 'items.assignee': member })).toBe(0);
+  });
+  it('does not resurrect a removed checklist assignee or doneBy', async () => {
+    await Promise.all([
+      updateChecklistItem(tripId, listId, itemId, { assignee_id: member.toHexString() }),
+      removeTripMember(mongoose.connection.db!, {
+        tripId,
+        actorId: admin.toHexString(),
+        targetId: member.toHexString(),
+      }),
+    ]);
+    const list = await Checklist.findById(listId).lean();
+    expect(list!.items[0].assignee).toBeNull();
+    expect(list!.items[0].doneBy).toEqual([]);
+  });
+  it('rolls back checklist writes when the response read fails inside the transaction', async () => {
+    const original = mongo.Collection.prototype.findOne;
+    const spy = vi.spyOn(mongo.Collection.prototype, 'findOne').mockImplementation(async function (
+      this: mongo.Collection,
+      ...args
+    ) {
+      if (this.collectionName === 'checklists') throw new Error('Injected read failure');
+      return original.apply(this, args);
+    });
+    try {
+      expect(await updateChecklist(tripId, listId, { title: 'Changed' })).toMatchObject({
+        code: 'INTERNAL_ERROR',
+      });
+    } finally {
+      spy.mockRestore();
+    }
+    expect((await Checklist.findById(listId))!.title).toBe('List');
+    expect(mocks.activity).not.toHaveBeenCalled();
+  });
+});
