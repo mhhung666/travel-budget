@@ -9,7 +9,7 @@
 | R1 | 舊草稿覆蓋保護與衝突提示 | 已完成工程驗證 |
 | R2 | 穩定活動 ID、單筆新增／編輯／刪除原子更新，批次上限與衝突策略 | R2a～R2f 已完成工程與本機 MongoDB 併發驗證 |
 | R3 | 虛擬成員轉換／會員移除／旅程刪除的一致性、外部清理重試 | R3a～R3r 已完成工程與隔離 replica set 驗證；R3a～R3c 已部署，後續交付未部署 |
-| R4 | 票券附件驗證的有界平行查詢 | 待處理 |
+| R4 | 票券附件驗證的有界平行查詢 | R4a～R4b 已完成工程與測試，未部署 |
 
 > R1～R2c 為各段交付紀錄；目前衝突 token 已由 R2d 的 revision 取代時間。
 
@@ -337,6 +337,17 @@ MONGODB_MEMBER_TEST_URI='mongodb://127.0.0.1:27030/?replicaSet=r3test' \
 2. 部署全部 R3 writer 與清理 worker，再恢復寫入。不可混用未檢查 tombstone 的舊 writer；回退亦須先停寫，處理未完成工作，不得刪除 tombstone 後重新開放舊 key。
 3. 驗收 `blobcleanupjobs.firstSweepAt`／`completedAt` 與 cron 結果；清理失敗可由已授權 cron 重試。migration down 僅移除自有索引，保留資料。
 
-R3 的應用程式資料一致性與清理重試已完成。AI 使用量暫存計數沿用到期／旅程延後清掃；外部通知及上傳採有限請求生命週期，已送出的 Email／Push 不可撤回，不涵蓋任意直接 DB／R2 修改或外部還原。R4 HEAD 有界平行查詢另列未完成，不在本次範圍。
+R3 的應用程式資料一致性與清理重試已完成。AI 使用量暫存計數沿用到期／旅程延後清掃；外部通知及上傳採有限請求生命週期，已送出的 Email／Push 不可撤回，不涵蓋任意直接 DB／R2 修改或外部還原。R4 HEAD 有界平行查詢於後續 R4a～R4b 交付，見下節。
 
 完整驗證：啟用兩組隔離 MongoDB URI 的 suite 1,603 項通過、37 項未啟用測試跳過；lint、Prettier、TypeScript 與 dummy MongoDB/JWT production build 通過。批次查詢調整後另有 136 項受影響整合測試通過。migration 僅對本機隨機空庫驗證，未讀寫正式資料、未 push／部署。本階段獨立 commit 並 patch bump。
+
+## R4：票券附件有界平行驗證
+
+- R4a：新增驗證器及受控 Promise 測試；尚未接入 action，無產品行為變更。
+- R4b：新增日、整天更新及單一活動新增／修改共同使用驗證器；每次 action 最多 4 個 HEAD，跨所有活動共用上限。此為單次請求上限，不是跨 instance 限流。
+- 新 key 去重，先驗旅程前綴，再以儲存端實際型別／大小驗證；既有 key 保留 uploader／timestamp。依輸入重建附件順序，不受完成順序影響。
+- 任一 HEAD 無效或失敗停止派發新查詢，等待已開始的查詢結束後回 VALIDATION_ERROR，不進行寫入或清理。HEAD 全部留在交易外；原有 revision、交易內重新驗權與永久退役檢查不變。
+- 新增 13 項測試涵蓋上限、補位、失敗排空、旅程歸屬、大小／型別、例外、既有 metadata、跨活動去重／順序，以及四個寫入入口失敗無副作用。
+- 無 schema、DTO 或設定變更，R4 不新增 migration；R3 尚未部署的 migration 仍須依既有順序執行。R4 最終交付統一 patch bump，未 push／部署。
+
+驗證：72 項針對性測試通過；啟用兩組本機隔離 MongoDB URI 的完整 suite 共 1,616 項通過、37 項未啟用測試跳過。lint、Prettier、production build（dummy MongoDB URI／JWT）、build 後 TypeScript 及 diff 檢查通過。測試用 replica set 已關閉，未操作正式 DB／R2。

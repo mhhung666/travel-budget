@@ -726,6 +726,86 @@ describe('mutateItineraryActivity', () => {
     }
     expect(dayFindOne).not.toHaveBeenCalled();
   });
+  it('shares the HEAD limit across a whole day and preserves submitted attachment order', async () => {
+    const { headObject } = await import('@/lib/storage');
+    const pending: (() => void)[] = [];
+    vi.mocked(headObject)
+      .mockReset()
+      .mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            pending.push(() => resolve({ size: 321, contentType: 'application/pdf' }));
+          })
+      );
+    const attachments = Array.from({ length: 6 }, (_, n) => ({
+      key: `itinerary/${TRIP_ID}/ordered-${n}.pdf`,
+      content_type: 'application/pdf',
+      size: 1,
+    }));
+    const save = updateItineraryDay(TRIP_ID, DAY_ID, {
+      expected_revision: 0,
+      activities: [
+        { ...activity, id: activityId, attachments: attachments.slice(0, 3) },
+        { ...activity, id: siblingId, attachments: [...attachments.slice(3), attachments[0]] },
+      ],
+    });
+    await vi.waitFor(() => expect(headObject).toHaveBeenCalledTimes(4));
+    expect(dayFindOneAndUpdate).not.toHaveBeenCalled();
+    pending[3]();
+    await vi.waitFor(() => expect(headObject).toHaveBeenCalledTimes(5));
+    pending[4]();
+    await vi.waitFor(() => expect(headObject).toHaveBeenCalledTimes(6));
+    for (const release of pending) release();
+    expect((await save).success).toBe(true);
+    const stored = dayFindOneAndUpdate.mock.calls[0][1].$set.activities;
+    expect(
+      stored.map((a: { attachments: { key: string }[] }) => a.attachments.map(({ key }) => key))
+    ).toEqual([
+      attachments.slice(0, 3).map(({ key }) => key),
+      [...attachments.slice(3), attachments[0]].map(({ key }) => key),
+    ]);
+    expect(headObject).toHaveBeenCalledTimes(6);
+  });
+
+  it.each(['create', 'day', 'add', 'update'] as const)(
+    'does not write or clean up when parallel attachment validation fails (%s)',
+    async (operation) => {
+      const { headObject, deleteObjects } = await import('@/lib/storage');
+      const { assertBlobsAvailable } = await import('@/lib/blobReferences');
+      vi.mocked(headObject).mockResolvedValue({ size: 321, contentType: 'application/pdf' });
+      vi.mocked(headObject).mockResolvedValueOnce(null);
+      const submitted = {
+        ...activity,
+        attachments: [0, 1, 2].map((n) => ({
+          key: `itinerary/${TRIP_ID}/${n}.pdf`,
+          content_type: 'application/pdf',
+          size: 1,
+        })),
+      };
+      const result =
+        operation === 'create'
+          ? await createItineraryDay(TRIP_ID, { title: 'New day', activities: [submitted] })
+          : operation === 'day'
+            ? await updateItineraryDay(TRIP_ID, DAY_ID, {
+                expected_revision: 0,
+                activities: [{ ...submitted, id: activityId }],
+              })
+            : await mutateItineraryActivity(
+                TRIP_ID,
+                DAY_ID,
+                operation === 'add'
+                  ? { operation: 'add', activity: submitted }
+                  : { ...input, activity: submitted }
+              );
+      expect(result).toMatchObject({ success: false, code: 'VALIDATION_ERROR' });
+      expect(headObject).toHaveBeenCalledTimes(3);
+      expect(dayFindOneAndUpdate).not.toHaveBeenCalled();
+      expect(assertBlobsAvailable).not.toHaveBeenCalled();
+      expect(photoUpdateMany).not.toHaveBeenCalled();
+      expect(deleteObjects).not.toHaveBeenCalled();
+    }
+  );
+
   it('validates new uploads using server metadata and ignores client activity identity', async () => {
     const { headObject } = await import('@/lib/storage');
     const key = `itinerary/${TRIP_ID}/new.pdf`;

@@ -1,6 +1,6 @@
 # 改善建議（Improvements）
 
-> 更新日期：2026-09-10
+> 更新日期：2026-09-11
 > 本文件只列**尚未處理**的程式碼 / 基礎設施層級改善。已完成里程碑見 [CHANGELOG.md](./CHANGELOG.md)，架構說明見 [ARCHITECTURE.md](./ARCHITECTURE.md)。
 > 慣例：處理完一項 → 移到 [CHANGELOG.md](./CHANGELOG.md)、從本檔刪除。
 
@@ -15,7 +15,7 @@
 | ---: | --- | --- | --- |
 | 1 | O. MongoDB 正式效能驗收 | 確認實際負載下的讀寫成本 | 🟡 migration 與工程驗收完成 |
 | 2 | P. 支出背景處理部署驗收 | 確認正式環境回應延遲與補送恢復 | 🟡 程式與 migration 已完成 |
-| 3 | R. 原子更新與跨 collection 一致性 | 降低多人編輯覆蓋及部分寫入 | P2，依使用頻率安排 |
+| 3 | R. 部署與一致性驗收 | 確認新版 writer 與清理 worker 一致上線 | 🟡 R1～R4 工程完成，待部署 |
 | 4 | M. production-like 效能追蹤（含 Q 部署後觀測） | 補齊實際 bytes、MongoDB profiler 與 TTI 數據 | 🟡 需測試環境與帳號 |
 
 Q1～Q3 已於 2026-09-09 工程結案，使用者回報已 push；不再列為待實作項目。
@@ -69,13 +69,11 @@ HTTP＋郵件流程；不向共用 DB 壓測或任意修改現有帳號，本項
 歷次模組開發紀錄見 [EXPENSE_BACKGROUND_DELIVERY.md](./EXPENSE_BACKGROUND_DELIVERY.md) 與 Git 歷史。
 HTTP 已接受但 checkpoint 尚未保存仍可能重送；不承諾推播永久 exactly-once。
 
-### R4. 🟡 票券附件驗證的有界平行查詢（P2）
+### R. 🟡 工程完成，待部署驗收
 
-R1～R3 已完成工程與隔離 MongoDB 驗證；成員轉換／移除、旅程與子資料寫入、跨日附件引用及持久化清理已交付，詳見 [R 分階段進度](./ITINERARY_CONSISTENCY_PROGRESS.md)。R3 最新 migration 與部署尚未操作。
-
-**待處理**：票券附件 `headObject` 目前循序驗證，改用有界平行查詢縮短多附件等待時間。
-
-**完成條件**：限制同時 HEAD 數量，保留附件型別／大小／旅程歸屬檢查、任一失敗不寫入及既有交易／revision 契約，加入併發上限與失敗測試。
+R1～R4 已完成工程與測試；R4 的票券 HEAD 有界平行驗證已交付。
+R3 最新 migration 與後續部署尚未操作，仍須停寫、排空舊請求、執行 migration，
+再部署全部 writer／worker 並驗收。部署順序及驗證紀錄見 [R 分階段進度](./ITINERARY_CONSISTENCY_PROGRESS.md)。
 
 ---
 

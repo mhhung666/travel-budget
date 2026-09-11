@@ -37,51 +37,9 @@ import type { ActionResult } from './types';
 import type { ItineraryDay as ItineraryDayDto, Location } from '@/types';
 import { withAuth } from './withAuth';
 import { logger } from '@/lib/logger';
-import { isItineraryKeyForTrip, ITINERARY_CONTENT_TYPES, MAX_ITINERARY_BYTES } from '@/lib/uploads';
-import { headObject, presignGet } from '@/lib/storage';
-
-type AttachmentDoc = {
-  key: string;
-  contentType: string;
-  size: number;
-  uploadedBy: string;
-  uploadedAt: Date;
-};
-
-/**
- * 把一個活動的票券附件輸入轉成儲存用 doc。已存在的 key（existingByKey）直接沿用
- * （保留 uploadedBy/At）；新 key 以 **headObject** 驗證——key 須屬本 trip 的票券前綴、
- * 物件須存在、size/type 以實際物件為準再核對白名單/上限（防 client 謊報）。
- * 任一參照無效回 null（呼叫端對應 VALIDATION_ERROR）。
- */
-async function resolveActivityAttachments(
-  tripId: string,
-  uploaderId: string,
-  inputs: { key: string }[],
-  existingByKey: Map<string, AttachmentDoc>
-): Promise<AttachmentDoc[] | null> {
-  const docs: AttachmentDoc[] = [];
-  for (const input of inputs) {
-    const existing = existingByKey.get(input.key);
-    if (existing) {
-      docs.push(existing);
-      continue;
-    }
-    if (!isItineraryKeyForTrip(tripId, input.key)) return null;
-    const head = await headObject('receipts', input.key);
-    if (!head) return null;
-    if (head.size > MAX_ITINERARY_BYTES) return null;
-    if (!(ITINERARY_CONTENT_TYPES as readonly string[]).includes(head.contentType)) return null;
-    docs.push({
-      key: input.key,
-      contentType: head.contentType,
-      size: head.size,
-      uploadedBy: uploaderId,
-      uploadedAt: new Date(),
-    });
-  }
-  return docs;
-}
+import { isItineraryKeyForTrip } from '@/lib/uploads';
+import { resolveItineraryAttachments, type AttachmentDoc } from '@/lib/itineraryAttachments';
+import { presignGet } from '@/lib/storage';
 
 /**
  * 把驗證後的活動陣列轉成 model 儲存形狀，並把票券附件 key 解析成完整 doc。
@@ -95,16 +53,18 @@ async function buildActivitiesStorage(
   activities: (ActivityInput & { id?: string | null })[],
   existingByKey: Map<string, AttachmentDoc>
 ): Promise<{ storage: Record<string, unknown>[]; keptKeys: Set<string> } | null> {
+  const resolvedByKey = await resolveItineraryAttachments(
+    tripId,
+    uploaderId,
+    activities.flatMap((activity) => activity.attachments ?? []),
+    existingByKey
+  );
+  if (!resolvedByKey) return null;
   const storage: Record<string, unknown>[] = [];
   const keptKeys = new Set<string>();
   for (const a of activities) {
-    const resolved = await resolveActivityAttachments(
-      tripId,
-      uploaderId,
-      a.attachments ?? [],
-      existingByKey
-    );
-    if (!resolved) return null;
+    // Reconstruct in submitted order regardless of HEAD completion order.
+    const resolved = (a.attachments ?? []).map(({ key }) => resolvedByKey.get(key)!);
     for (const at of resolved) keptKeys.add(at.key);
     storage.push({
       ...(a.id ? { _id: a.id } : {}),
