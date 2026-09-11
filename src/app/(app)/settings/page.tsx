@@ -1,5 +1,6 @@
 'use client';
 import { QueryStatus } from '@/components/common/QueryStatus';
+import { AccountSettingsSkeleton } from '@/components/skeletons';
 
 import {
   BarChart3,
@@ -59,7 +60,8 @@ export default function SettingsPage() {
     router.push(href);
   };
 
-  if (userQuery.data === undefined || userQuery.isError) return <QueryStatus query={userQuery} />;
+  if (userQuery.isError) return <QueryStatus query={userQuery} />;
+  if (isLoading && userQuery.data === undefined) return <AccountSettingsSkeleton />;
 
   const items: { icon: LucideIcon; label: string; href: string }[] = [
     { icon: User, label: t('profile.title'), href: ROUTES.SETTINGS_ACCOUNT },

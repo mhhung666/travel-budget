@@ -75,11 +75,11 @@ export default function TripSettingsPage() {
     handleSaveCurrencySettings,
   } = useTripSettingsPage(tripId);
 
-  if (query.isError || query.data === undefined) return <QueryStatus query={query} />;
-
   if (loading) {
     return <TripSettingsSkeleton />;
   }
+
+  if (query.isError || query.data === undefined) return <QueryStatus query={query} />;
 
   if (error) {
     return (

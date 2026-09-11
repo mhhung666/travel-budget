@@ -64,7 +64,10 @@ export function ExpenseComments({
       {query.data === undefined && !isLoading ? (
         <QueryStatus query={query} />
       ) : isLoading ? (
-        <p className="py-3 text-center text-sm text-muted-foreground">{t('loading')}</p>
+        <div className="flex items-center justify-center gap-2 py-4 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin text-primary" />
+          <span>{t('loading')}</span>
+        </div>
       ) : comments.length === 0 ? (
         <p className="py-2 text-sm text-muted-foreground">{t('empty')}</p>
       ) : (

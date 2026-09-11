@@ -1,6 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ErrorState } from './ErrorState';
 
@@ -22,11 +23,19 @@ export function QueryFeedback({
   if (!hasData && isError && !isFetching && !isPaused) {
     return <ErrorState message={t('queryLoadFailed')} onRetry={onRetry} />;
   }
-  if (isPaused || isFetching) {
+  if (isPaused) {
     return (
       <p role="status" className="py-2 text-sm text-muted-foreground">
-        {t(isPaused ? 'queryPaused' : hasData ? 'queryRefreshing' : 'loading')}
+        {t('queryPaused')}
       </p>
+    );
+  }
+  if (hasData && isFetching) {
+    return (
+      <div role="status" className="flex items-center gap-1.5 py-1 text-xs text-muted-foreground">
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        <span>{t('queryRefreshing')}</span>
+      </div>
     );
   }
   if (hasData && isError) {

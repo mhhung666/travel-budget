@@ -77,10 +77,11 @@ function ExpensePageContent() {
     }
   }, [editExpenseDialog, expenses, requestedExpenseId]);
 
-  if (query.data === undefined) return <QueryStatus query={query} />;
   if (loading) {
     return <TripDetailSkeleton />;
   }
+
+  if (query.data === undefined) return <QueryStatus query={query} />;
 
   if (error) {
     return (

@@ -256,8 +256,6 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
   const activeMeta = modeMeta[mode];
   const ActiveModeIcon = activeMeta.icon;
 
-  if (query.data === undefined) return <QueryStatus query={query} />;
-
   if (loading) {
     return (
       <div className="container mx-auto flex min-h-[60vh] items-center justify-center px-4">
@@ -265,6 +263,8 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
       </div>
     );
   }
+
+  if (query.data === undefined) return <QueryStatus query={query} />;
 
   if (error) {
     return <div className="container mx-auto px-4 py-10 text-center text-destructive">{error}</div>;

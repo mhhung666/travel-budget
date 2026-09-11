@@ -373,7 +373,7 @@ function ItineraryPageContent() {
     }
   };
 
-  if (loading) {
+  if (loading || (tripQuery.isLoading && tripQuery.data === undefined)) {
     return <ItinerarySkeleton />;
   }
 

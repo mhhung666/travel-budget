@@ -2,6 +2,7 @@
 
 import { Component, Suspense, lazy, useState, type ComponentType, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
+import { Loader2 } from 'lucide-react';
 import { ResponsiveFormSheet } from './ResponsiveFormSheet';
 import { ErrorState } from './ErrorState';
 
@@ -20,9 +21,10 @@ function LoadingDialog({ open, onClose, onRetry }: CloseControl & { onRetry?: ()
       {onRetry ? (
         <ErrorState message={t('queryLoadFailed')} onRetry={onRetry} />
       ) : (
-        <p role="status" className="py-6 text-sm text-muted-foreground">
-          {t('loading')}
-        </p>
+        <div role="status" className="flex flex-col items-center justify-center gap-3 py-8 text-sm text-muted-foreground">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          <p>{t('loading')}</p>
+        </div>
       )}
     </ResponsiveFormSheet>
   );
@@ -82,7 +84,14 @@ export function lazyPanel<P extends object>(load: () => Promise<{ default: Compo
           />
         }
       >
-        <Suspense fallback={<p role="status">{t('loading')}</p>}>
+        <Suspense
+          fallback={
+            <div role="status" className="flex items-center justify-center gap-2 py-4 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+              <p>{t('loading')}</p>
+            </div>
+          }
+        >
           <entry.View {...props} />
         </Suspense>
       </ChunkBoundary>

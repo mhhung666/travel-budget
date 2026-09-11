@@ -6,6 +6,7 @@ import {
   Bell,
   CheckCheck,
   Coins,
+  Loader2,
   MessageSquare,
   Receipt,
   UserCheck,
@@ -133,7 +134,10 @@ export function NotificationBell() {
           {query.data === undefined && !isLoading ? (
             <QueryStatus query={query} />
           ) : isLoading ? (
-            <p className="px-4 py-8 text-center text-sm text-muted-foreground">{t('loading')}</p>
+            <div className="flex flex-col items-center justify-center gap-2 px-4 py-8 text-sm text-muted-foreground">
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              <span>{t('loading')}</span>
+            </div>
           ) : notifications.length === 0 ? (
             <p className="px-4 py-8 text-center text-sm text-muted-foreground">{t('empty')}</p>
           ) : (

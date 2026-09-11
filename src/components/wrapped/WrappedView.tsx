@@ -118,14 +118,16 @@ export default function WrappedView() {
     }
   };
 
-  if (userQuery.data === undefined || userQuery.isError) return <QueryStatus query={userQuery} />;
-  if (isLoading && !data) {
+  if (userQuery.isError) return <QueryStatus query={userQuery} />;
+  if ((userQuery.isLoading && !user) || (isLoading && !data)) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
+
+  if (userQuery.data === undefined) return <QueryStatus query={userQuery} />;
 
   if (user && reviewQuery.data === undefined) return <QueryStatus query={reviewQuery} />;
 

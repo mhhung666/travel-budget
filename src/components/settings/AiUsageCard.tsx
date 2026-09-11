@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { Sparkles } from 'lucide-react';
+import { Loader2, Sparkles } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { getAiUsageSummary } from '@/actions';
 import { Button } from '@/components/ui/button';
@@ -36,8 +36,15 @@ export function AiUsageCard() {
             <p className="text-sm font-medium text-foreground">{t('title')}</p>
             <p className="text-xs text-muted-foreground">{t('loadFailed')}</p>
           </div>
-          <Button type="button" variant="outline" size="sm" onClick={() => refetch()}>
-            {isFetching ? t('loading') : t('retry')}
+          <Button type="button" variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
+            {isFetching ? (
+              <>
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                {t('loading')}
+              </>
+            ) : (
+              t('retry')
+            )}
           </Button>
         </CardContent>
       </Card>
