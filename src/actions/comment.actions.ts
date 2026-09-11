@@ -1,7 +1,8 @@
 'use server';
 
+import { withTripWrite, TripWriteError } from '@/lib/tripWriteTransaction';
 import { Types } from 'mongoose';
-import { Comment, Expense, User } from '@/models';
+import { Comment, Expense, User, Trip } from '@/models';
 import { getTripMembership } from '@/lib/permissions';
 import { createCommentSchema, type CreateCommentInput } from '@/lib/validation';
 import { withAuth } from './withAuth';
@@ -94,13 +95,6 @@ export const createComment = withAuth(
       }
       const { tripId } = membership;
 
-      const expense = await Expense.findOne({ _id: expenseId, trip: tripId })
-        .select('description')
-        .lean<{ description: string } | null>();
-      if (!expense) {
-        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
-      }
-
       const validation = createCommentSchema.safeParse(input);
       if (!validation.success) {
         return {
@@ -111,18 +105,40 @@ export const createComment = withAuth(
       }
       const { body } = validation.data;
 
-      // 去正規化留言者名稱（事件當下快照，讀取免 populate，比照 lib/activity.ts）
-      const author = await User.findById(session.userId)
-        .select('displayName')
-        .lean<{ displayName: string } | null>();
+      const { expense, created } = await withTripWrite(
+        tripId,
+        session.userId,
+        async (transactionSession) => {
+          const expense = await Expense.findOne({ _id: expenseId, trip: tripId })
+            .session(transactionSession)
+            .select('description')
+            .lean<{ description: string } | null>();
+          if (!expense) {
+            throw new TripWriteError('NOT_FOUND');
+          }
 
-      const created = await Comment.create({
-        trip: tripId,
-        expense: expenseId,
-        author: session.userId,
-        authorName: author?.displayName ?? '',
-        body,
-      });
+          // 去正規化留言者名稱（事件當下快照，讀取免 populate，比照 lib/activity.ts）
+          const author = await User.findById(session.userId)
+            .session(transactionSession)
+            .select('displayName')
+            .lean<{ displayName: string } | null>();
+
+          const [created] = await Comment.create(
+            [
+              {
+                trip: tripId,
+                expense: expenseId,
+                author: session.userId,
+                authorName: author?.displayName ?? '',
+                body,
+              },
+            ],
+            { session: transactionSession }
+          );
+
+          return { expense, created };
+        }
+      );
 
       await notify({
         tripId,
@@ -141,6 +157,8 @@ export const createComment = withAuth(
         data: toCommentDto(created.toObject() as unknown as CommentDtoInput),
       };
     } catch (error) {
+      if (error instanceof TripWriteError)
+        return { success: false, error: error.code, code: error.code };
       logger.error('Create comment error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
@@ -164,25 +182,39 @@ export const deleteComment = withAuth(
         return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
       }
 
-      const comment = await Comment.findOne({
-        _id: commentId,
-        expense: expenseId,
-        trip: membership.tripId,
-      })
-        .select('author')
-        .lean<{ author: { toString(): string } } | null>();
-      if (!comment) {
-        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
-      }
+      await withTripWrite(membership.tripId, session.userId, async (transactionSession) => {
+        const comment = await Comment.findOne({
+          _id: commentId,
+          expense: expenseId,
+          trip: membership.tripId,
+        })
+          .session(transactionSession)
+          .select('author')
+          .lean<{ author: { toString(): string } } | null>();
+        if (!comment) {
+          throw new TripWriteError('NOT_FOUND');
+        }
 
-      const isAuthor = comment.author.toString() === session.userId;
-      if (!isAuthor && membership.role !== 'admin') {
-        return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
-      }
+        const isAuthor = comment.author.toString() === session.userId;
+        if (
+          !isAuthor &&
+          !(await Trip.exists({
+            _id: membership.tripId,
+            members: { $elemMatch: { user: session.userId, role: 'admin' } },
+          }).session(transactionSession))
+        ) {
+          throw new TripWriteError('FORBIDDEN');
+        }
 
-      await Comment.deleteOne({ _id: commentId });
+        await Comment.deleteOne(
+          { _id: commentId, trip: membership.tripId, expense: expenseId },
+          { session: transactionSession }
+        );
+      });
       return { success: true, data: { message: 'Comment deleted' } };
     } catch (error) {
+      if (error instanceof TripWriteError)
+        return { success: false, error: error.code, code: error.code };
       logger.error('Delete comment error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }

@@ -298,3 +298,11 @@ MONGODB_MEMBER_TEST_URI='mongodb://127.0.0.1:27030/?replicaSet=r3test' \
 - 虛擬身分轉換與晚到付款／指派寫入互斥；清單查回失敗亦回滾寫入，外部通知在提交後執行。無 schema 變更。
 - 驗證：22 項隔離 replica set 測試與 7 項清單單元測試通過；TypeScript、相關 ESLint 與格式通過。完整驗證於 R3 最終交付執行。
 - 本階段獨立交付並 patch bump，未 push／部署。
+
+
+## R3o：支出與留言 writer
+
+- 支出新增／編輯／刪除在 Trip fence 交易中重新讀取成員、金額、分攤與行程關聯；新增支出與 outbox snapshot 原子寫入。收據 HEAD 保留在交易外，刪除改為提交後執行。
+- 支出與留言 cascade 同一交易；留言新增重查支出存在、刪除重查作者／管理員，避免並行刪除後留下孤兒留言。
+- 驗證：36 項隔離 replica set 與 40 項相關單元測試通過，涵蓋身分轉換、行程日消失、cascade 失敗回滾及並行留言／刪支出。相關 ESLint、格式、TypeScript 通過。
+- 無 schema 變更；本階段獨立交付並 patch bump，完整驗證於 R3 最終交付執行，未 push／部署。

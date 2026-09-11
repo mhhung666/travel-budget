@@ -2,7 +2,8 @@
 
 import { revalidatePath } from 'next/cache';
 import { after } from 'next/server';
-import { Types } from 'mongoose';
+import { Types, type mongo } from 'mongoose';
+import { withTripWrite, TripWriteError } from '@/lib/tripWriteTransaction';
 import { Expense, Trip, User, ItineraryDay, Comment, EXPENSE_CATEGORIES } from '@/models';
 import { getTripMembership } from '@/lib/permissions';
 import {
@@ -46,11 +47,14 @@ function splitsMatchAmount(splits: { share_amount: number }[], amount: number): 
  */
 async function itineraryDaysBelongToTrip(
   tripId: string,
-  dayIds: string[] | null | undefined
+  dayIds: string[] | null | undefined,
+  transactionSession: mongo.ClientSession
 ): Promise<boolean> {
   const unique = [...new Set(dayIds ?? [])];
   if (unique.length === 0) return true;
-  const count = await ItineraryDay.countDocuments({ _id: { $in: unique }, trip: tripId });
+  const count = await ItineraryDay.countDocuments({ _id: { $in: unique }, trip: tripId }).session(
+    transactionSession
+  );
   return count === unique.length;
 }
 
@@ -185,41 +189,6 @@ export const createExpense = withAuth(
 
       const amount = original_amount * exchange_rate;
 
-      // Validate payer and split members are trip members
-      const trip = await Trip.findById(tripId)
-        .select('name hashCode members expenseDeliveryDeleting')
-        .lean<{
-          name: string;
-          hashCode: string;
-          members: { user: { toString(): string } }[];
-          expenseDeliveryDeleting?: boolean;
-        }>();
-      if (!trip || trip.expenseDeliveryDeleting) {
-        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
-      }
-      const memberIds = new Set((trip?.members || []).map((m) => m.user.toString()));
-
-      if (!memberIds.has(payer_id)) {
-        return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
-      }
-      for (const split of splits) {
-        if (!memberIds.has(split.user_id)) {
-          return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
-        }
-      }
-
-      // Defence-in-depth: split shares (TWD) must add up to the expense amount.
-      // The form already balances them; this only rejects a grossly malformed
-      // client payload (tolerance is generous to never trip on float rounding).
-      if (!splitsMatchAmount(splits, amount)) {
-        return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
-      }
-
-      // 關聯行程日（可複選，若有）須全部屬本 trip
-      if (!(await itineraryDaysBelongToTrip(tripId, itinerary_day_ids))) {
-        return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
-      }
-
       // 驗證並轉換收據附件（key 須屬本 trip、物件須存在、size/type 以 headObject 為準）
       let attachmentDocs: AttachmentDoc[] = [];
       if (attachments && attachments.length > 0) {
@@ -231,64 +200,114 @@ export const createExpense = withAuth(
       }
 
       const background = await prepareExpenseBackgroundWrite();
-      const expenseId = new Types.ObjectId();
-      // Resolve response names and immutable actor name BEFORE the insert. No post-write populate
-      // can fail and misrepresent an already committed expense as a failed creation.
-      const people = background
-        ? await User.find({
-            _id: {
-              $in: [
-                ...new Set([session.userId, payer_id, ...splits.map((split) => split.user_id)]),
-              ],
-            },
-          })
-            .select('username displayName')
-            .lean<
-              {
-                _id: Types.ObjectId;
-                username: string;
-                displayName: string;
-              }[]
-            >()
-        : [];
-      const byId = new Map(people.map((person) => [person._id.toString(), person]));
-      const eventSnapshot = background
-        ? createExpenseDeliveryEvent({
-            expenseId: expenseId.toHexString(),
-            tripId,
-            actorId: session.userId,
-            actorName: byId.get(session.userId)?.displayName ?? '',
-            tripName: trip.name,
-            tripHashCode: trip.hashCode,
-            memberIds: [...memberIds],
-            description,
-            amount,
-            occurredAt: new Date(),
-          })
-        : undefined;
-      const created = await Expense.create({
-        ...(background
-          ? {
-              _id: expenseId,
-              expenseDelivery: initialExpenseDeliveryState(),
-              expenseDeliveryEvent: eventSnapshot,
+      const { created, byId, trip, memberIds } = await withTripWrite(
+        tripId,
+        session.userId,
+        async (transactionSession) => {
+          // Validate payer and split members are trip members
+          const trip = await Trip.findById(tripId)
+            .session(transactionSession)
+            .select('name hashCode members expenseDeliveryDeleting')
+            .lean<{
+              name: string;
+              hashCode: string;
+              members: { user: { toString(): string } }[];
+              expenseDeliveryDeleting?: boolean;
+            }>();
+          if (!trip || trip.expenseDeliveryDeleting) {
+            throw new TripWriteError('NOT_FOUND');
+          }
+          const memberIds = new Set((trip?.members || []).map((m) => m.user.toString()));
+
+          if (!memberIds.has(payer_id)) {
+            throw new TripWriteError('VALIDATION_ERROR');
+          }
+          for (const split of splits) {
+            if (!memberIds.has(split.user_id)) {
+              throw new TripWriteError('VALIDATION_ERROR');
             }
-          : {}),
-        trip: tripId,
-        payer: payer_id,
-        amount,
-        originalAmount: original_amount,
-        currency,
-        exchangeRate: exchange_rate,
-        description,
-        category: category as (typeof EXPENSE_CATEGORIES)[number],
-        date: new Date(date),
-        splits: splits.map((s) => ({ user: s.user_id, shareAmount: s.share_amount })),
-        attachments: attachmentDocs,
-        itineraryDays: [...new Set(itinerary_day_ids ?? [])],
-        createdBy: session.userId,
-        tags: [...new Set(tags ?? [])],
-      });
+          }
+
+          // Defence-in-depth: split shares (TWD) must add up to the expense amount.
+          // The form already balances them; this only rejects a grossly malformed
+          // client payload (tolerance is generous to never trip on float rounding).
+          if (!splitsMatchAmount(splits, amount)) {
+            throw new TripWriteError('VALIDATION_ERROR');
+          }
+
+          // 關聯行程日（可複選，若有）須全部屬本 trip
+          if (!(await itineraryDaysBelongToTrip(tripId, itinerary_day_ids, transactionSession))) {
+            throw new TripWriteError('VALIDATION_ERROR');
+          }
+
+          const expenseId = new Types.ObjectId();
+          // Resolve response names and immutable actor name BEFORE the insert. No post-write populate
+          // can fail and misrepresent an already committed expense as a failed creation.
+          const people = background
+            ? await User.find({
+                _id: {
+                  $in: [
+                    ...new Set([session.userId, payer_id, ...splits.map((split) => split.user_id)]),
+                  ],
+                },
+              })
+                .session(transactionSession)
+                .select('username displayName')
+                .lean<
+                  {
+                    _id: Types.ObjectId;
+                    username: string;
+                    displayName: string;
+                  }[]
+                >()
+            : [];
+          const byId = new Map(people.map((person) => [person._id.toString(), person]));
+          const eventSnapshot = background
+            ? createExpenseDeliveryEvent({
+                expenseId: expenseId.toHexString(),
+                tripId,
+                actorId: session.userId,
+                actorName: byId.get(session.userId)?.displayName ?? '',
+                tripName: trip.name,
+                tripHashCode: trip.hashCode,
+                memberIds: [...memberIds],
+                description,
+                amount,
+                occurredAt: new Date(),
+              })
+            : undefined;
+          const [created] = await Expense.create(
+            [
+              {
+                ...(background
+                  ? {
+                      _id: expenseId,
+                      expenseDelivery: initialExpenseDeliveryState(),
+                      expenseDeliveryEvent: eventSnapshot,
+                    }
+                  : {}),
+                trip: tripId,
+                payer: payer_id,
+                amount,
+                originalAmount: original_amount,
+                currency,
+                exchangeRate: exchange_rate,
+                description,
+                category: category as (typeof EXPENSE_CATEGORIES)[number],
+                date: new Date(date),
+                splits: splits.map((s) => ({ user: s.user_id, shareAmount: s.share_amount })),
+                attachments: attachmentDocs,
+                itineraryDays: [...new Set(itinerary_day_ids ?? [])],
+                createdBy: session.userId,
+                tags: [...new Set(tags ?? [])],
+              },
+            ],
+            { session: transactionSession }
+          );
+
+          return { created, byId, trip, memberIds };
+        }
+      );
 
       if (background) {
         const person = (id: string) =>
@@ -368,6 +387,8 @@ export const createExpense = withAuth(
         data: toExpenseDto(created.toObject() as unknown as LeanExpense, tripId),
       };
     } catch (error) {
+      if (error instanceof TripWriteError)
+        return { success: false, error: error.code, code: error.code };
       logger.error('Create expense error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
@@ -416,7 +437,7 @@ export const updateExpense = withAuth(
       } = validation.data;
 
       // 讀取目前值（同時作為 existence check）
-      const current = await Expense.findOne({ _id: expenseId, trip: tripId })
+      const snapshot = await Expense.findOne({ _id: expenseId, trip: tripId })
         .select('originalAmount exchangeRate description splits attachments')
         .lean<{
           originalAmount: number;
@@ -432,96 +453,138 @@ export const updateExpense = withAuth(
           }[];
         }>();
 
-      if (!current) {
+      if (!snapshot) {
         return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
       }
 
-      // Updates must preserve the same trip-member boundary as creation. Without
-      // this check, a client that knows an outside user id could replace the payer
-      // or a split participant after the expense was created.
-      if (payer_id !== undefined || splits !== undefined) {
-        const trip = await Trip.findById(tripId).select('members').lean<{
-          members: { user: { toString(): string } }[];
-        }>();
-        const memberIds = new Set((trip?.members ?? []).map((member) => member.user.toString()));
-        if (
-          (payer_id !== undefined && !memberIds.has(payer_id)) ||
-          splits?.some((split) => !memberIds.has(split.user_id))
-        ) {
-          return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
-        }
-      }
+      const initialKeys = new Set((snapshot.attachments ?? []).map((a) => a.key));
+      const verified =
+        attachments === undefined
+          ? []
+          : await resolveAttachments(
+              tripId,
+              session.userId,
+              attachments.filter((a) => !initialKeys.has(a.key))
+            );
+      if (!verified) return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
+      const { current, removed } = await withTripWrite(
+        tripId,
+        session.userId,
+        async (transactionSession) => {
+          // 讀取目前值（同時作為 existence check）
+          const current = await Expense.findOne({ _id: expenseId, trip: tripId })
+            .session(transactionSession)
+            .select('originalAmount exchangeRate description splits attachments')
+            .lean<{
+              originalAmount: number;
+              exchangeRate: number;
+              description: string;
+              splits: { user: { toString(): string }; shareAmount: number }[];
+              attachments?: {
+                key: string;
+                contentType: string;
+                size: number;
+                uploadedBy: { toString(): string };
+                uploadedAt: Date;
+              }[];
+            }>();
 
-      const set: Record<string, unknown> = {};
-      if (description !== undefined) set.description = description.trim();
-      if (original_amount !== undefined) set.originalAmount = original_amount;
-      if (currency !== undefined) set.currency = currency;
-      if (exchange_rate !== undefined) set.exchangeRate = exchange_rate;
-      if (category !== undefined) set.category = category;
-      if (payer_id !== undefined) set.payer = payer_id;
-      if (date !== undefined) set.date = new Date(date);
+          if (!current) {
+            throw new TripWriteError('NOT_FOUND');
+          }
 
-      // 關聯行程日（可複選）：欄位出現才處理；傳空陣列可清除關聯，傳的 id 須全屬本 trip。
-      if (itinerary_day_ids !== undefined) {
-        if (!(await itineraryDaysBelongToTrip(tripId, itinerary_day_ids))) {
-          return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
-        }
-        set.itineraryDays = [...new Set(itinerary_day_ids)];
-      }
+          // Updates must preserve the same trip-member boundary as creation. Without
+          // this check, a client that knows an outside user id could replace the payer
+          // or a split participant after the expense was created.
+          if (payer_id !== undefined || splits !== undefined) {
+            const trip = await Trip.findById(tripId)
+              .session(transactionSession)
+              .select('members')
+              .lean<{
+                members: { user: { toString(): string } }[];
+              }>();
+            const memberIds = new Set(
+              (trip?.members ?? []).map((member) => member.user.toString())
+            );
+            if (
+              (payer_id !== undefined && !memberIds.has(payer_id)) ||
+              splits?.some((split) => !memberIds.has(split.user_id))
+            ) {
+              throw new TripWriteError('VALIDATION_ERROR');
+            }
+          }
 
-      // 自訂標籤：欄位出現才處理；傳空陣列可清除標籤。
-      if (tags !== undefined) {
-        set.tags = [...new Set(tags)];
-      }
+          const set: Record<string, unknown> = {};
+          if (description !== undefined) set.description = description.trim();
+          if (original_amount !== undefined) set.originalAmount = original_amount;
+          if (currency !== undefined) set.currency = currency;
+          if (exchange_rate !== undefined) set.exchangeRate = exchange_rate;
+          if (category !== undefined) set.category = category;
+          if (payer_id !== undefined) set.payer = payer_id;
+          if (date !== undefined) set.date = new Date(date);
 
-      // Recalculate TWD amount if needed
-      let newAmount: number | undefined;
-      if (original_amount !== undefined || exchange_rate !== undefined) {
-        const oa = original_amount ?? current.originalAmount;
-        const er = exchange_rate ?? current.exchangeRate;
-        newAmount = oa * er;
-        set.amount = newAmount;
-      }
+          // 關聯行程日（可複選）：欄位出現才處理；傳空陣列可清除關聯，傳的 id 須全屬本 trip。
+          if (itinerary_day_ids !== undefined) {
+            if (!(await itineraryDaysBelongToTrip(tripId, itinerary_day_ids, transactionSession))) {
+              throw new TripWriteError('VALIDATION_ERROR');
+            }
+            set.itineraryDays = [...new Set(itinerary_day_ids)];
+          }
 
-      if (splits !== undefined) {
-        // Validate against the effective amount (recomputed if amount/rate changed,
-        // otherwise the expense's current amount). See splitsMatchAmount.
-        const effectiveAmount = newAmount ?? current.originalAmount * current.exchangeRate;
-        if (!splitsMatchAmount(splits, effectiveAmount)) {
-          return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
-        }
-        set.splits = splits.map((s) => ({ user: s.user_id, shareAmount: s.share_amount }));
-      } else if (newAmount !== undefined && current.splits.length > 0) {
-        // 金額改變但未提供 splits：依人數平均重算
-        const share = newAmount / current.splits.length;
-        set.splits = current.splits.map((s) => ({ user: s.user, shareAmount: share }));
-      }
+          // 自訂標籤：欄位出現才處理；傳空陣列可清除標籤。
+          if (tags !== undefined) {
+            set.tags = [...new Set(tags)];
+          }
 
-      // 收據附件：保留既有（含 uploadedBy/At）、只驗證並附加新的、移除被拿掉的
-      if (attachments !== undefined) {
-        const currentByKey = new Map((current.attachments ?? []).map((a) => [a.key, a]));
-        const nextKeys = new Set(attachments.map((a) => a.key));
-        const removed = [...currentByKey.keys()].filter((k) => !nextKeys.has(k));
-        const newInputs = attachments.filter((a) => !currentByKey.has(a.key));
+          // Recalculate TWD amount if needed
+          let newAmount: number | undefined;
+          if (original_amount !== undefined || exchange_rate !== undefined) {
+            const oa = original_amount ?? current.originalAmount;
+            const er = exchange_rate ?? current.exchangeRate;
+            newAmount = oa * er;
+            set.amount = newAmount;
+          }
 
-        const resolvedNew = await resolveAttachments(tripId, session.userId, newInputs);
-        if (!resolvedNew) {
-          return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
-        }
-        const kept = attachments
-          .filter((a) => currentByKey.has(a.key))
-          .map((a) => currentByKey.get(a.key)!);
-        set.attachments = [...kept, ...resolvedNew];
+          if (splits !== undefined) {
+            // Validate against the effective amount (recomputed if amount/rate changed,
+            // otherwise the expense's current amount). See splitsMatchAmount.
+            const effectiveAmount = newAmount ?? current.originalAmount * current.exchangeRate;
+            if (!splitsMatchAmount(splits, effectiveAmount)) {
+              throw new TripWriteError('VALIDATION_ERROR');
+            }
+            set.splits = splits.map((s) => ({ user: s.user_id, shareAmount: s.share_amount }));
+          } else if (newAmount !== undefined && current.splits.length > 0) {
+            // 金額改變但未提供 splits：依人數平均重算
+            const share = newAmount / current.splits.length;
+            set.splits = current.splits.map((s) => ({ user: s.user, shareAmount: share }));
+          }
 
-        if (removed.length > 0) {
-          // best-effort：刪不掉孤兒物件不該擋住使用者更新
-          await deleteObjects('receipts', removed).catch((e) =>
-            logger.error('Update expense: receipt cleanup failed', e)
+          let removed: string[] = [];
+          if (attachments !== undefined) {
+            const currentByKey = new Map((current.attachments ?? []).map((a) => [a.key, a]));
+            const verifiedByKey = new Map(verified.map((a) => [a.key, a]));
+            const nextKeys = new Set(attachments.map((a) => a.key));
+            removed = [...currentByKey.keys()].filter((key) => !nextKeys.has(key));
+            set.attachments = attachments.map((a) => {
+              const value = currentByKey.get(a.key) ?? verifiedByKey.get(a.key);
+              if (!value) throw new TripWriteError('CONFLICT');
+              return value;
+            });
+          }
+
+          await Expense.updateOne(
+            { _id: expenseId, trip: tripId },
+            { $set: set },
+            { session: transactionSession }
           );
-        }
-      }
 
-      await Expense.updateOne({ _id: expenseId, trip: tripId }, { $set: set });
+          return { current, removed };
+        }
+      );
+      if (removed.length)
+        await deleteObjects('receipts', removed).catch((e) =>
+          logger.error('Update expense: receipt cleanup failed', e)
+        );
 
       // 動態牆紀錄（描述取更新後的有效值；best-effort）
       await logActivity({
@@ -537,6 +600,8 @@ export const updateExpense = withAuth(
       revalidatePath(`/trips/${tripIdOrCode}/expenses`);
       return { success: true, data: { message: '支出已更新' } };
     } catch (error) {
+      if (error instanceof TripWriteError)
+        return { success: false, error: error.code, code: error.code };
       logger.error('Update expense error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
@@ -558,12 +623,28 @@ export const deleteExpense = withAuth(
         return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
       }
 
-      // 先讀附件 key（刪 R2 物件用）+ 描述（動態牆顯示用）
-      const doc = await Expense.findOne({ _id: expenseId, trip: membership.tripId })
-        .select('attachments description')
-        .lean<{ attachments?: { key: string }[]; description?: string }>();
+      const doc = await withTripWrite(
+        membership.tripId,
+        session.userId,
+        async (transactionSession) => {
+          // 先讀附件 key（刪 R2 物件用）+ 描述（動態牆顯示用）
+          const doc = await Expense.findOne({ _id: expenseId, trip: membership.tripId })
+            .session(transactionSession)
+            .select('attachments description')
+            .lean<{ attachments?: { key: string }[]; description?: string }>();
 
-      await Expense.deleteOne({ _id: expenseId, trip: membership.tripId });
+          await Expense.deleteOne(
+            { _id: expenseId, trip: membership.tripId },
+            { session: transactionSession }
+          );
+
+          await Comment.deleteMany(
+            { expense: expenseId, trip: membership.tripId },
+            { session: transactionSession }
+          );
+          return doc;
+        }
+      );
 
       const keys = (doc?.attachments ?? []).map((a) => a.key);
       if (keys.length > 0) {
@@ -572,11 +653,6 @@ export const deleteExpense = withAuth(
           logger.error('Delete expense: receipt cleanup failed', e)
         );
       }
-
-      // MongoDB 無 FK cascade：手動清掉此支出下的留言（best-effort）
-      await Comment.deleteMany({ expense: expenseId }).catch((e) =>
-        logger.error('Delete expense: comment cleanup failed', e)
-      );
 
       // 動態牆紀錄（支出已刪，描述取自刪除前的快照；best-effort）
       await logActivity({
@@ -589,6 +665,8 @@ export const deleteExpense = withAuth(
       revalidatePath(`/trips/${tripIdOrCode}/expenses`);
       return { success: true, data: { message: '支出已刪除' } };
     } catch (error) {
+      if (error instanceof TripWriteError)
+        return { success: false, error: error.code, code: error.code };
       logger.error('Delete expense error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }

@@ -12,6 +12,12 @@ const commentDeleteOne = vi.fn();
 const commentAggregate = vi.fn();
 const userFindById = vi.fn();
 
+vi.mock('@/lib/mongodb', () => ({ dbConnect: vi.fn() }));
+vi.mock('@/lib/tripWriteTransaction', async (original) => ({
+  ...(await original<typeof import('@/lib/tripWriteTransaction')>()),
+  withTripWrite: (_trip: string, _actor: string, write: (session: unknown) => Promise<unknown>) =>
+    write(undefined),
+}));
 vi.mock('@/lib/auth', () => ({
   getSession: () => getSession(),
 }));
@@ -25,10 +31,15 @@ vi.mock('@/lib/notify', () => ({
 }));
 
 vi.mock('@/models', () => ({
+  Trip: {
+    exists: () => ({
+      session: async () => ((await getTripMembership()).role === 'admin' ? {} : null),
+    }),
+  },
   Comment: {
     find: (...args: unknown[]) => commentFind(...args),
     findOne: (...args: unknown[]) => commentFindOne(...args),
-    create: (...args: unknown[]) => commentCreate(...args),
+    create: async (docs: unknown[]) => [await commentCreate(docs[0])],
     deleteOne: (...args: unknown[]) => commentDeleteOne(...args),
     aggregate: (...args: unknown[]) => commentAggregate(...args),
   },
@@ -58,7 +69,11 @@ const COMMENT_ID = '507f1f77bcf86cd799439013';
 
 /** Mongoose 的 findOne(...).select(...).lean() 鏈式呼叫。 */
 function chainSelectLean(returnValue: unknown) {
-  return { select: () => ({ lean: () => Promise.resolve(returnValue) }) };
+  const query = {
+    session: () => query,
+    select: () => ({ lean: () => Promise.resolve(returnValue) }),
+  };
+  return query;
 }
 
 /** Mongoose 的 find(...).sort(...).lean() 鏈式呼叫。 */
@@ -250,7 +265,10 @@ describe('deleteComment', () => {
     const result = await deleteComment(TRIP_ID, EXPENSE_ID, COMMENT_ID);
 
     expect(result.success).toBe(true);
-    expect(commentDeleteOne).toHaveBeenCalledWith({ _id: COMMENT_ID });
+    expect(commentDeleteOne).toHaveBeenCalledWith(
+      { _id: COMMENT_ID, trip: TRIP_ID, expense: EXPENSE_ID },
+      { session: undefined }
+    );
   });
 
   it('allows a trip admin to delete someone else’s comment', async () => {
@@ -260,6 +278,9 @@ describe('deleteComment', () => {
     const result = await deleteComment(TRIP_ID, EXPENSE_ID, COMMENT_ID);
 
     expect(result.success).toBe(true);
-    expect(commentDeleteOne).toHaveBeenCalledWith({ _id: COMMENT_ID });
+    expect(commentDeleteOne).toHaveBeenCalledWith(
+      { _id: COMMENT_ID, trip: TRIP_ID, expense: EXPENSE_ID },
+      { session: undefined }
+    );
   });
 });

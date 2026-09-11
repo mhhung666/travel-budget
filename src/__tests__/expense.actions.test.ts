@@ -22,6 +22,12 @@ const runBackground = vi.fn();
 const after = vi.fn();
 const userFind = vi.fn();
 
+vi.mock('@/lib/mongodb', () => ({ dbConnect: vi.fn() }));
+vi.mock('@/lib/tripWriteTransaction', async (original) => ({
+  ...(await original<typeof import('@/lib/tripWriteTransaction')>()),
+  withTripWrite: (_trip: string, _actor: string, write: (session: unknown) => Promise<unknown>) =>
+    write(undefined),
+}));
 vi.mock('next/server', () => ({ after: (...args: unknown[]) => after(...args) }));
 vi.mock('@/lib/expenseDeliveryRuntime', () => ({
   prepareExpenseBackgroundWrite: () => prepareBackground(),
@@ -62,14 +68,14 @@ vi.mock('@/models', () => ({
   Trip: { findById: (...args: unknown[]) => tripFindById(...args) },
   User: { find: (...args: unknown[]) => userFind(...args) },
   Expense: {
-    create: (...args: unknown[]) => expenseCreate(...args),
+    create: async (docs: unknown[]) => [await expenseCreate(docs[0])],
     findOne: (...args: unknown[]) => expenseFindOne(...args),
     updateOne: (...args: unknown[]) => expenseUpdateOne(...args),
     deleteOne: (...args: unknown[]) => expenseDeleteOne(...args),
     distinct: (...args: unknown[]) => expenseDistinct(...args),
   },
   ItineraryDay: {
-    countDocuments: (...args: unknown[]) => itineraryCountDocuments(...args),
+    countDocuments: (...args: unknown[]) => ({ session: () => itineraryCountDocuments(...args) }),
   },
   Comment: { deleteMany: (...args: unknown[]) => commentDeleteMany(...args) },
 }));
@@ -105,7 +111,8 @@ const validInput = {
 };
 
 function selectLean(value: unknown) {
-  return { select: () => ({ lean: () => Promise.resolve(value) }) };
+  const query = { session: () => query, select: () => ({ lean: () => Promise.resolve(value) }) };
+  return query;
 }
 
 function currentExpense(overrides: Record<string, unknown> = {}) {
@@ -397,7 +404,8 @@ describe('updateExpense', () => {
             { user: MEMBER, shareAmount: 3000 },
           ],
         }),
-      }
+      },
+      { session: undefined }
     );
   });
 
@@ -447,7 +455,8 @@ describe('updateExpense', () => {
     );
     expect(expenseUpdateOne).toHaveBeenCalledWith(
       { _id: EXPENSE, trip: TRIP },
-      { $set: { attachments: [kept] } }
+      { $set: { attachments: [kept] } },
+      { session: undefined }
     );
   });
 });
@@ -459,9 +468,15 @@ describe('deleteExpense and getReceiptUrl', () => {
     );
     const result = await deleteExpense(TRIP, EXPENSE);
     expect(result.success).toBe(true);
-    expect(expenseDeleteOne).toHaveBeenCalledWith({ _id: EXPENSE, trip: TRIP });
+    expect(expenseDeleteOne).toHaveBeenCalledWith(
+      { _id: EXPENSE, trip: TRIP },
+      { session: undefined }
+    );
     expect(deleteObjects).toHaveBeenCalledWith('receipts', [RECEIPT]);
-    expect(commentDeleteMany).toHaveBeenCalledWith({ expense: EXPENSE });
+    expect(commentDeleteMany).toHaveBeenCalledWith(
+      { expense: EXPENSE, trip: TRIP },
+      { session: undefined }
+    );
     expect(logActivity).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'expense_deleted', meta: { description: 'Dinner' } })
     );

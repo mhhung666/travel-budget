@@ -2,7 +2,9 @@
 import { randomUUID } from 'node:crypto';
 import mongoose, { mongo } from 'mongoose';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { Trip, Checklist, Payment } from '@/models';
+import { Trip, Checklist, Payment, Expense, Comment, ItineraryDay } from '@/models';
+import { createExpense, updateExpense, deleteExpense } from '@/actions/expense.actions';
+import { createComment, deleteComment } from '@/actions/comment.actions';
 import { recordPayment, deletePayment } from '@/actions/payment.actions';
 import {
   createChecklist,
@@ -15,7 +17,24 @@ import {
 } from '@/actions/checklist.actions';
 import { removeTripMember } from '@/lib/memberRemoval';
 import { changeMemberIdentity } from '@/lib/memberIdentity';
-const mocks = vi.hoisted(() => ({ session: vi.fn(), notify: vi.fn(), activity: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  session: vi.fn(),
+  notify: vi.fn(),
+  activity: vi.fn(),
+  head: vi.fn(),
+  cleanup: vi.fn(),
+  background: vi.fn(),
+}));
+vi.mock('@/lib/storage', () => ({
+  headObject: mocks.head,
+  deleteObjects: mocks.cleanup,
+  presignGet: vi.fn(),
+}));
+vi.mock('@/lib/expenseDeliveryRuntime', () => ({
+  prepareExpenseBackgroundWrite: mocks.background,
+  runExpenseBackgroundDelivery: vi.fn(),
+}));
+vi.mock('next/server', () => ({ after: vi.fn() }));
 vi.mock('@/lib/auth', () => ({ getSession: mocks.session }));
 vi.mock('@/lib/mongodb', () => ({ dbConnect: vi.fn() }));
 vi.mock('@/lib/notify', () => ({ notify: mocks.notify }));
@@ -33,6 +52,8 @@ describe.skipIf(!uri || !allowed)('trip writers against isolated replica set', (
   let tripId: string;
   let listId: string;
   let itemId: string;
+  let expenseId: string;
+  let commentId: string;
   beforeAll(async () => {
     await mongoose.connect(uri!, {
       dbName: `tb_writers_${randomUUID().replaceAll('-', '')}`,
@@ -60,6 +81,9 @@ describe.skipIf(!uri || !allowed)('trip writers against isolated replica set', (
   });
   beforeEach(async () => {
     vi.clearAllMocks();
+    mocks.head.mockResolvedValue({ size: 100, contentType: 'image/webp' });
+    mocks.cleanup.mockResolvedValue(undefined);
+    mocks.background.mockResolvedValue(false);
     mocks.session.mockResolvedValue({ userId: admin.toHexString() });
     const trip = await Trip.create({
       name: 'Writers',
@@ -70,6 +94,29 @@ describe.skipIf(!uri || !allowed)('trip writers against isolated replica set', (
       ],
     });
     tripId = trip.id;
+    const expense = await Expense.create({
+      trip: tripId,
+      payer: member,
+      amount: 100,
+      originalAmount: 100,
+      exchangeRate: 1,
+      currency: 'TWD',
+      description: 'Original',
+      category: 'food',
+      date: new Date(),
+      splits: [{ user: member, shareAmount: 100 }],
+      createdBy: admin,
+    });
+    expenseId = expense.id;
+    const comment = await Comment.create({
+      trip: tripId,
+      expense: expenseId,
+      author: member,
+      authorName: 'Virtual',
+      body: 'Hello',
+    });
+    commentId = comment.id;
+
     const list = await Checklist.create({
       trip: tripId,
       title: 'List',
@@ -85,7 +132,22 @@ describe.skipIf(!uri || !allowed)('trip writers against isolated replica set', (
     to_id: admin.toHexString(),
     amount: 100,
   });
+  const expenseInput = () => ({
+    payer_id: member.toHexString(),
+    original_amount: 100,
+    exchange_rate: 1,
+    currency: 'TWD',
+    description: 'New',
+    category: 'food',
+    date: '2026-09-01',
+    splits: [{ user_id: member.toHexString(), share_amount: 100 }],
+  });
   const writers = [
+    ['expense create', () => createExpense(tripId, expenseInput())],
+    ['expense update', () => updateExpense(tripId, expenseId, { description: 'Changed' })],
+    ['expense delete', () => deleteExpense(tripId, expenseId)],
+    ['comment create', () => createComment(tripId, expenseId, { body: 'New' })],
+    ['comment delete', () => deleteComment(tripId, expenseId, commentId)],
     ['payment create', () => recordPayment(tripId, paymentInput())],
     ['payment delete', () => deletePayment(tripId, new mongo.ObjectId().toHexString())],
     ['checklist create', () => createChecklist(tripId, { title: 'New' })],
@@ -127,6 +189,82 @@ describe.skipIf(!uri || !allowed)('trip writers against isolated replica set', (
       expect(mocks.notify).not.toHaveBeenCalled();
     }
   );
+  it('rolls back expense and comment deletion before any receipt cleanup', async () => {
+    const key = `receipts/${tripId}/test.webp`;
+    await Expense.updateOne(
+      { _id: expenseId },
+      { $set: { attachments: [{ key, contentType: 'image/webp', size: 100, uploadedBy: admin }] } }
+    );
+    const original = mongo.Collection.prototype.deleteMany;
+    const spy = vi
+      .spyOn(mongo.Collection.prototype, 'deleteMany')
+      .mockImplementation(async function (this: mongo.Collection, ...args) {
+        const result = await original.apply(this, args);
+        if (this.collectionName === 'comments') throw new Error('Injected cascade failure');
+        return result;
+      });
+    try {
+      expect(await deleteExpense(tripId, expenseId)).toMatchObject({ code: 'INTERNAL_ERROR' });
+    } finally {
+      spy.mockRestore();
+    }
+    expect(await Expense.findById(expenseId)).not.toBeNull();
+    expect(await Comment.findById(commentId)).not.toBeNull();
+    expect(mocks.cleanup).not.toHaveBeenCalled();
+  });
+  it('rechecks payer membership and day references after receipt HEAD', async () => {
+    const day = await ItineraryDay.create({
+      trip: tripId,
+      dayNumber: 1,
+      title: 'Day',
+      activities: [],
+    });
+    mocks.head.mockImplementationOnce(async () => {
+      await ItineraryDay.deleteOne({ _id: day._id });
+      return { size: 100, contentType: 'image/webp' };
+    });
+    expect(
+      await createExpense(tripId, {
+        ...expenseInput(),
+        itinerary_day_ids: [day.id],
+        attachments: [
+          { key: `receipts/${tripId}/new.webp`, content_type: 'image/webp', size: 100 },
+        ],
+      })
+    ).toMatchObject({ code: 'VALIDATION_ERROR' });
+    expect(await Expense.countDocuments({ trip: tripId })).toBe(1);
+  });
+  it('serializes expense creation with identity conversion including outbox snapshots', async () => {
+    mocks.background.mockResolvedValue(true);
+    const trip = await Trip.findById(tripId).lean();
+    await Promise.all([
+      createExpense(tripId, expenseInput()),
+      updateExpense(tripId, expenseId, { original_amount: 200 }),
+      changeMemberIdentity(mongoose.connection.db!, {
+        kind: 'link',
+        tripId,
+        virtualUserId: member.toHexString(),
+        realUserId: real.toHexString(),
+        passwordHash: 'hash',
+        hashCode: trip!.hashCode,
+      }),
+    ]);
+    expect(
+      await Expense.countDocuments({
+        trip: tripId,
+        $or: [{ payer: member }, { 'splits.user': member }],
+      })
+    ).toBe(0);
+  });
+  it('does not leave comments when creation races with expense deletion', async () => {
+    await Promise.all([
+      createComment(tripId, expenseId, { body: 'Late' }),
+      deleteExpense(tripId, expenseId),
+    ]);
+    expect(await Expense.findById(expenseId)).toBeNull();
+    expect(await Comment.countDocuments({ expense: expenseId })).toBe(0);
+  });
+
   it('creates and deletes payments with hash-code input', async () => {
     const trip = await Trip.findById(tripId).lean();
     const result = await recordPayment(trip!.hashCode, paymentInput());
