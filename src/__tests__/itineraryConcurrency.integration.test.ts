@@ -1,6 +1,11 @@
 // @vitest-environment node
 import { randomUUID } from 'node:crypto';
 import mongoose, { mongo } from 'mongoose';
+import { runBlobCleanup } from '@/lib/blobCleanup';
+import {
+  up as blobUp,
+  down as blobDown,
+} from '../../migrations/20260911090000-blob-cleanup-jobs.js';
 import { deleteItineraryDayAtomically } from '@/lib/itineraryDayDeletion';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ItineraryDay, Note, Trip } from '@/models';
@@ -102,6 +107,7 @@ describe.skipIf(!uri || !allowed)('itinerary actions against isolated MongoDB', 
     await db.createCollection('verification_owner');
     owned = true;
     await ItineraryDay.createIndexes();
+    await blobUp(db);
   });
   afterAll(async () => {
     try {
@@ -133,8 +139,7 @@ describe.skipIf(!uri || !allowed)('itinerary actions against isolated MongoDB', 
     return mongoose.connection.db!.collection('photos').insertOne({
       trip: new mongo.ObjectId(tripId),
       uploadedBy: member,
-      key: 'photo.jpg',
-      thumbKey: 'photo_t.webp',
+      ...buildPhotoObjectKeys(tripId),
       contentType: 'image/jpeg',
       size: 100,
       caption: 'Original',
@@ -143,6 +148,195 @@ describe.skipIf(!uri || !allowed)('itinerary actions against isolated MongoDB', 
       createdAt: new Date(),
     });
   }
+
+  async function sharedTicket() {
+    const key = `itinerary/${tripId}/${randomUUID()}.pdf`;
+    const attachment = { key, ...metadata, uploadedBy: admin, uploadedAt: new Date() };
+    const first = await ItineraryDay.create({
+      trip: tripId,
+      dayNumber: 1,
+      title: 'First',
+      activities: [{ title: 'Ticket', attachments: [attachment] }],
+    });
+    const second = await ItineraryDay.create({
+      trip: tripId,
+      dayNumber: 2,
+      title: 'Second',
+      activities: [{ title: 'Ticket', attachments: [attachment] }],
+    });
+    return { key, first, second };
+  }
+  it.each(['day', 'activity', 'wholeDay'])(
+    'preserves cross-day ticket references on %s removal and retires the final reference',
+    async (kind) => {
+      const { key, first, second } = await sharedTicket();
+      if (kind === 'day')
+        expect(await deleteItineraryDay(tripId, first.id)).toMatchObject({ success: true });
+      else if (kind === 'wholeDay')
+        expect(
+          await updateItineraryDay(tripId, first.id, { expected_revision: 0, activities: [] })
+        ).toMatchObject({ success: true });
+      else
+        expect(
+          await mutateItineraryActivity(tripId, first.id, {
+            operation: 'delete',
+            activity_id: first.activities[0]._id.toString(),
+            expected_activity_revision: 0,
+          })
+        ).toMatchObject({ success: true });
+      expect(mocks.cleanup).not.toHaveBeenCalled();
+      const jobs = mongoose.connection.db!.collection<{ _id: string }>('blobcleanupjobs');
+      expect(await jobs.findOne({ _id: key })).toBeNull();
+      expect(await deleteItineraryDay(tripId, second.id)).toMatchObject({ success: true });
+      expect(await jobs.findOne({ _id: key })).toHaveProperty('firstSweepAt');
+      expect(mocks.cleanup).toHaveBeenCalledWith('receipts', [key], expect.any(AbortSignal));
+    }
+  );
+  it('rejects a ticket re-reference whose HEAD completed before final deletion', async () => {
+    const { key, first, second } = await sharedTicket();
+    await deleteItineraryDay(tripId, second.id);
+    const target = await ItineraryDay.create({
+      trip: tripId,
+      dayNumber: 2,
+      title: 'Target',
+      activities: [],
+    });
+    const barrier = headBarrier(1);
+    const pending = mutateItineraryActivity(tripId, target.id, {
+      operation: 'add',
+      activity: activity('Reused', [
+        { key, content_type: metadata.contentType, size: metadata.size },
+      ]),
+    });
+    await barrier.entered;
+    await deleteItineraryDay(tripId, first.id);
+    barrier.release();
+    expect(await pending).toMatchObject({ code: 'CONFLICT' });
+    expect((await ItineraryDay.findById(target.id))!.activities).toHaveLength(0);
+  });
+  it('keeps a ticket when a new reference commits before final deletion', async () => {
+    const { key, first, second } = await sharedTicket();
+    await deleteItineraryDay(tripId, second.id);
+    expect(
+      await createItineraryDay(tripId, {
+        title: 'New ref',
+        activities: [
+          activity('Ticket', [{ key, content_type: metadata.contentType, size: metadata.size }]),
+        ],
+      })
+    ).toMatchObject({ success: true });
+    await deleteItineraryDay(tripId, first.id);
+    expect(mocks.cleanup).not.toHaveBeenCalled();
+  });
+  it('rolls back removed references and tombstones if enqueue fails after writing', async () => {
+    const { key, first, second } = await sharedTicket();
+    await deleteItineraryDay(tripId, second.id);
+    const original = mongo.Collection.prototype.bulkWrite;
+    const spy = vi
+      .spyOn(mongo.Collection.prototype, 'bulkWrite')
+      .mockImplementation(async function (this: mongo.Collection, ...args) {
+        const result = await original.apply(this, args);
+        if (this.collectionName === 'blobcleanupjobs') throw new Error('Injected enqueue failure');
+        return result;
+      });
+    try {
+      expect(await deleteItineraryDay(tripId, first.id)).toMatchObject({ code: 'INTERNAL_ERROR' });
+    } finally {
+      spy.mockRestore();
+    }
+    expect(await ItineraryDay.findById(first.id)).not.toBeNull();
+    expect(
+      await mongoose.connection
+        .db!.collection<{ _id: string }>('blobcleanupjobs')
+        .findOne({ _id: key })
+    ).toBeNull();
+    expect(mocks.cleanup).not.toHaveBeenCalled();
+  });
+  it('retries failed storage cleanup and rescans late uploads before retaining a tombstone', async () => {
+    const { key, first, second } = await sharedTicket();
+    await deleteItineraryDay(tripId, second.id);
+    mocks.cleanup.mockRejectedValueOnce(new Error('R2 unavailable'));
+    expect(await deleteItineraryDay(tripId, first.id)).toMatchObject({ success: true });
+    const db = mongoose.connection.db!;
+    const jobs = db.collection<{ _id: string; availableAt: Date; firstSweepAt?: Date }>(
+      'blobcleanupjobs'
+    );
+    const job = (await jobs.findOne({ _id: key }))!;
+    expect(job.firstSweepAt).toBeUndefined();
+    const remove = vi.fn(async (_keys: string[]) => undefined);
+    expect(await runBlobCleanup(db, remove, { keys: [key], now: job.availableAt })).toMatchObject({
+      status: 'cleaned',
+    });
+    const swept = (await jobs.findOne({ _id: key }))!;
+    expect(swept.firstSweepAt).toEqual(job.availableAt);
+    expect(swept.availableAt.getTime() - swept.firstSweepAt!.getTime()).toBe(24 * 60 * 60_000);
+    await runBlobCleanup(db, remove, { keys: [key], now: swept.availableAt });
+    expect(await jobs.findOne({ _id: key })).toHaveProperty('completedAt');
+    expect(
+      await createItineraryDay(tripId, {
+        title: 'Reused',
+        activities: [
+          activity('Reused', [{ key, content_type: metadata.contentType, size: metadata.size }]),
+        ],
+      })
+    ).toMatchObject({ code: 'CONFLICT' });
+    expect(remove).toHaveBeenCalledTimes(2);
+  });
+  it('prevents expired cleanup workers from overwriting a newer lease', async () => {
+    const db = mongoose.connection.db!;
+    const key = `itinerary/${tripId}/lease.pdf`;
+    const now = new Date();
+    const jobs = db.collection<{ _id: string; availableAt: Date; token?: string }>(
+      'blobcleanupjobs'
+    );
+    await jobs.insertOne({ _id: key, availableAt: now });
+    let entered!: () => void;
+    let release!: () => void;
+    const ready = new Promise<void>((r) => {
+      entered = r;
+    });
+    const wait = new Promise<void>((r) => {
+      release = r;
+    });
+    const first = runBlobCleanup(
+      db,
+      async () => {
+        entered();
+        await wait;
+      },
+      { keys: [key], now }
+    );
+    await ready;
+    const later = new Date(now.getTime() + 6 * 60_000);
+    expect(
+      await runBlobCleanup(
+        db,
+        async () => {
+          throw new Error('Retry');
+        },
+        { keys: [key], now: later }
+      )
+    ).toMatchObject({ status: 'retry' });
+    const checkpoint = await jobs.findOne({ _id: key });
+    release();
+    await first;
+    expect(await jobs.findOne({ _id: key })).toEqual(checkpoint);
+  });
+  it('bounds cleanup batches and preserves jobs across migration replays and rollback', async () => {
+    const db = mongoose.connection.db!;
+    const keys = Array.from({ length: 51 }, () => `itinerary/${tripId}/${randomUUID()}.pdf`);
+    const jobs = db.collection<{ _id: string; availableAt: Date }>('blobcleanupjobs');
+    await jobs.insertMany(keys.map((key) => ({ _id: key, availableAt: new Date(0) })));
+    await blobUp(db);
+    await blobUp(db);
+    const remove = vi.fn(async (_keys: string[]) => undefined);
+    await runBlobCleanup(db, remove, { keys });
+    expect(remove.mock.calls[0][0]).toHaveLength(50);
+    await blobDown(db);
+    await blobDown(db);
+    expect(await jobs.countDocuments({ _id: { $in: keys } })).toBe(51);
+    await blobUp(db);
+  });
 
   function photoInput() {
     const { key, thumbKey } = buildPhotoObjectKeys(tripId);
@@ -602,7 +796,7 @@ describe.skipIf(!uri || !allowed)('itinerary actions against isolated MongoDB', 
       spy.mockRestore();
     }
     expect(await updateItineraryDay('r2verify', day.id, input)).toMatchObject({ success: true });
-    expect(mocks.cleanup).toHaveBeenCalledWith('receipts', [ticketKey]);
+    expect(mocks.cleanup).toHaveBeenCalledWith('receipts', [ticketKey], expect.any(AbortSignal));
     const auto = await db.collection('photos').findOne({ caption: 'auto' });
     expect(auto?.itineraryDay).toBeNull();
     expect(auto?.location).toBeNull();

@@ -1,5 +1,11 @@
 'use server';
 
+import {
+  assertBlobsAvailable,
+  retireUnreferencedBlobs,
+  RetiredBlobError,
+} from '@/lib/blobReferences';
+import { cleanupRetiredBlobs } from '@/lib/blobCleanup';
 import { MAX_ACTIVITIES_PER_DAY, activityCapacityFilter } from '@/lib/itineraryLimits';
 import { readItinerary, toDayDto, type LeanActivity, type LeanDay } from '@/lib/itineraryRead';
 import { dbConnect } from '@/lib/mongodb';
@@ -32,7 +38,7 @@ import type { ItineraryDay as ItineraryDayDto, Location } from '@/types';
 import { withAuth } from './withAuth';
 import { logger } from '@/lib/logger';
 import { isItineraryKeyForTrip, ITINERARY_CONTENT_TYPES, MAX_ITINERARY_BYTES } from '@/lib/uploads';
-import { headObject, deleteObjects, presignGet } from '@/lib/storage';
+import { headObject, presignGet } from '@/lib/storage';
 
 type AttachmentDoc = {
   key: string;
@@ -209,6 +215,8 @@ export const createItineraryDay = withAuth(
       );
       return { success: true, data: toDayDto(created as unknown as LeanDay) };
     } catch (error) {
+      if (error instanceof RetiredBlobError)
+        return { success: false, error: error.code, code: error.code };
       if (error instanceof ItineraryDayCreationError) {
         return { success: false, error: error.code, code: error.code };
       }
@@ -323,6 +331,9 @@ export const updateItineraryDay = withAuth(
           ).lean<LeanDay | null>();
 
           if (!day) throw new ItineraryDayUpdateError('CONFLICT');
+          await assertBlobsAvailable(mongoose.connection.db!, transactionSession, [
+            ...attachmentsByKey(day.activities).keys(),
+          ]);
           // 當日地點換了（或被清掉）→ 跟著更新「借」這天座標的相片。借來的座標必須跟著來源走，
           // 否則改了地點之後相片會停在舊城市、清了地點之後相片會留著無來源的座標。
           // 只動 source 'itinerary' 或原本無座標的：相片自己的 GPS 與手動釘比整天共用的
@@ -357,18 +368,21 @@ export const updateItineraryDay = withAuth(
               new Date()
             );
           }
+          await retireUnreferencedBlobs(
+            mongoose.connection.db!,
+            transactionSession,
+            membership.tripId,
+            removedKeys
+          );
           return day;
         }
       );
-      if (removedKeys.length > 0) {
-        // best-effort：孤兒票券刪不掉不該擋住更新
-        await deleteObjects('receipts', removedKeys).catch((e) =>
-          logger.error('Update itinerary day: ticket cleanup failed', e)
-        );
-      }
+      await cleanupRetiredBlobs(mongoose.connection.db!, removedKeys);
 
       return { success: true, data: toDayDto(updated) };
     } catch (error) {
+      if (error instanceof RetiredBlobError)
+        return { success: false, error: error.code, code: error.code };
       if (error instanceof ItineraryDayUpdateError) {
         return { success: false, error: error.code, code: error.code };
       }
@@ -468,6 +482,17 @@ export const mutateItineraryActivity = withAuth(
             { new: true, timestamps: false, session: transactionSession }
           ).lean<LeanDay | null>();
           if (!day) throw new ItineraryDayUpdateError('CONFLICT');
+          await assertBlobsAvailable(mongoose.connection.db!, transactionSession, [
+            ...attachmentsByKey(day.activities).keys(),
+          ]);
+          await retireUnreferencedBlobs(
+            mongoose.connection.db!,
+            transactionSession,
+            membership.tripId,
+            [...existingAttachments.keys()].filter(
+              (key) => !attachmentsByKey(day.activities).has(key)
+            )
+          );
           return day;
         }
       );
@@ -476,13 +501,11 @@ export const mutateItineraryActivity = withAuth(
       // target keys absent from the complete, successfully written day.
       const keptKeys = attachmentsByKey(updated.activities);
       const removedKeys = [...existingAttachments.keys()].filter((key) => !keptKeys.has(key));
-      if (removedKeys.length) {
-        await deleteObjects('receipts', removedKeys).catch((error) =>
-          logger.error('Mutate itinerary activity: ticket cleanup failed', error)
-        );
-      }
+      await cleanupRetiredBlobs(mongoose.connection.db!, removedKeys);
       return { success: true, data: toDayDto(updated) };
     } catch (error) {
+      if (error instanceof RetiredBlobError)
+        return { success: false, error: error.code, code: error.code };
       if (error instanceof ItineraryDayUpdateError) {
         return { success: false, error: error.code, code: error.code };
       }
@@ -522,12 +545,7 @@ export const deleteItineraryDay = withAuth(
         session.userId,
         dayId
       );
-      if (ticketKeys.length) {
-        await deleteObjects('receipts', ticketKeys).catch((error) =>
-          logger.error('Delete itinerary day: ticket cleanup failed', error)
-        );
-      }
-
+      await cleanupRetiredBlobs(mongoose.connection.db!, ticketKeys);
       return { success: true, data: { message: 'DELETED' } };
     } catch (error) {
       if (error instanceof ItineraryDayDeletionError) {

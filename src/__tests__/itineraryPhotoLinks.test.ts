@@ -10,6 +10,17 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
  * 相片自己的 GPS（`'exif'`）與手動釘（`'manual'`）比整天共用的城市座標精確，任何情況都不可被覆蓋。
  */
 const deleteDayAtomic = vi.fn();
+vi.mock('@/lib/blobReferences', async (original) => ({
+  ...(await original<typeof import('@/lib/blobReferences')>()),
+  assertBlobsAvailable: vi.fn(),
+  retireUnreferencedBlobs: vi.fn(),
+}));
+vi.mock('@/lib/blobCleanup', () => ({
+  cleanupRetiredBlobs: async (_db: unknown, keys: string[]) => {
+    if (keys.length)
+      await (await import('@/lib/storage')).deleteObjects('receipts', keys).catch(() => undefined);
+  },
+}));
 vi.mock('@/lib/itineraryDayDeletion', async (original) => ({
   ...(await original<typeof import('@/lib/itineraryDayDeletion')>()),
   deleteItineraryDayAtomically: (...args: unknown[]) => deleteDayAtomic(...args),

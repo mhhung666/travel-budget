@@ -1,3 +1,4 @@
+import { assertBlobsAvailable } from './blobReferences';
 import { mongo } from 'mongoose';
 import { ItineraryDay } from '@/models';
 import { rebindAutoPhotosInTransaction } from '@/lib/photoItineraryTransaction';
@@ -39,6 +40,11 @@ export async function createItineraryDayAtomically(
           .findOne({ trip }, { session, sort: { dayNumber: -1 }, projection: { dayNumber: 1 } });
         // Construct anew on retries; retain Mongoose casting, validation and subdocument defaults.
         const created = new ItineraryDay({ ...input, trip, dayNumber: (last?.dayNumber ?? 0) + 1 });
+        await assertBlobsAvailable(
+          db,
+          session,
+          created.activities.flatMap((a) => (a.attachments ?? []).map((at) => at.key))
+        );
         await created.save({ session });
         await rebindAutoPhotosInTransaction(
           db,

@@ -22,6 +22,17 @@ const runBackground = vi.fn();
 const after = vi.fn();
 const userFind = vi.fn();
 
+vi.mock('@/lib/blobReferences', async (original) => ({
+  ...(await original<typeof import('@/lib/blobReferences')>()),
+  assertBlobsAvailable: vi.fn(),
+  retireUnreferencedBlobs: vi.fn(),
+}));
+vi.mock('@/lib/blobCleanup', () => ({
+  cleanupRetiredBlobs: async (_db: unknown, keys: string[]) => {
+    if (keys.length)
+      await (await import('@/lib/storage')).deleteObjects('receipts', keys).catch(() => undefined);
+  },
+}));
 vi.mock('@/lib/mongodb', () => ({ dbConnect: vi.fn() }));
 vi.mock('@/lib/tripWriteTransaction', async (original) => ({
   ...(await original<typeof import('@/lib/tripWriteTransaction')>()),
@@ -449,10 +460,6 @@ describe('updateExpense', () => {
     expect(result.success).toBe(true);
     expect(headObject).not.toHaveBeenCalled();
     expect(deleteObjects).toHaveBeenCalledWith('receipts', [oldReceipt]);
-    expect(loggerError).toHaveBeenCalledWith(
-      'Update expense: receipt cleanup failed',
-      expect.any(Error)
-    );
     expect(expenseUpdateOne).toHaveBeenCalledWith(
       { _id: EXPENSE, trip: TRIP },
       { $set: { attachments: [kept] } },

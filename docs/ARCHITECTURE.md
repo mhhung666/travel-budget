@@ -227,16 +227,16 @@ src/
 - 更新活動陣列時每列必須帶 `id`：既有列沿用當天的 ID，新增列為 `null`；拒絕漏傳、重複、
   格式無效及外來 ID。草稿將儲存 ID 與 render key 分開，整批寫回也保留既有子文件身分。
 - 行程頁活動操作走 `mutateItineraryActivity`，新增 `$push`、編輯定位 `$set`、刪除 `$pull`；
-  只驗證目標活動附件，成功後才清理當天已無引用的目標票券，不觸發相片座標同步。
-- 整天欄位／批次編輯仍採整天粒度；跨 collection 與附件重新引用的競爭由 [R 後續階段](./ITINERARY_CONSISTENCY_PROGRESS.md) 追蹤。
+  只驗證目標活動附件，成功後才清理全旅程已無引用且已建立 tombstone 的目標票券，不觸發相片座標同步。
+- 整天欄位／批次編輯仍採整天粒度；跨 collection 與附件引用協調的驗證見 [R 交付](./ITINERARY_CONSISTENCY_PROGRESS.md)。
 
 ### 行程日新增／更新／刪除一致性
 
-`deleteItineraryDay` 在同一 MongoDB transaction 重新檢查管理員並寫入 Trip fence，完成刪日、支出／相片解除關聯、連續編號與 auto 相片重綁；重新編號會遞增日 revision。手動分類與原有 GPS 保留。票券 best-effort 清理在提交後執行。其他 writer 與票券跨日引用的協調仍待後續階段，詳見 [R 進度](./ITINERARY_CONSISTENCY_PROGRESS.md)。
+`deleteItineraryDay` 在同一 MongoDB transaction 重新檢查管理員並寫入 Trip fence，完成刪日、支出／相片解除關聯、連續編號與 auto 相片重綁；重新編號會遞增日 revision。手動分類與原有 GPS 保留。票券引用檢查與清理工作在同一交易建立，外部刪除在提交後執行，詳見 [R 交付](./ITINERARY_CONSISTENCY_PROGRESS.md)。
 
-`createItineraryDay` 在附件 HEAD 驗證後，以相同 Trip fence 交易重新驗權、分配日號、建立行程日及重綁 auto 相片；任一步驟失敗全部回滾。新增與刪除共用交易內重綁 helper。相片直接寫入尚未全面參與此協調。
+`createItineraryDay` 在附件 HEAD 驗證後，以相同 Trip fence 交易重新驗權、分配日號、建立行程日及重綁 auto 相片；任一步驟失敗全部回滾。新增與刪除共用交易內重綁 helper。相片新增／修改／刪除亦參與此協調。
 
-`updateItineraryDay` 在同一交易重新驗權、寫入 Trip fence、以 revision CAS 更新整天與同步借用座標；日號變更時亦重綁 auto 相片。失敗全部回滾，原有 EXIF／手動座標與手動分類保留。附件 HEAD 在交易外完成，移除票券只在提交後 best-effort 清理。`mutateItineraryActivity` 亦在附件 HEAD 後使用同一 Trip fence 交易，重新驗證管理員與旅程狀態，保留活動 revision CAS、容量上限及提交後票券清理；其他 writer 與跨天票券引用的整體協調仍待後續階段。
+`updateItineraryDay` 在同一交易重新驗權、寫入 Trip fence、以 revision CAS 更新整天與同步借用座標；日號變更時亦重綁 auto 相片。失敗全部回滾，原有 EXIF／手動座標與手動分類保留。附件 HEAD 在交易外完成，移除票券只在提交後 best-effort 清理。`mutateItineraryActivity` 亦使用同一 Trip fence 交易，保留活動 revision CAS 與容量上限。跨日共用票券保留到最後引用被移除，tombstone 阻止 HEAD 與刪除交錯時重新引用已排程刪除的 key。
 
 `planNote` 依成員信任模型，在交易內重新驗證成員並寫入 Trip fence；讀取未規劃筆記、新增活動與標記筆記原子提交。重複轉換回傳 `VALIDATION_ERROR`，容量已滿回傳 `ACTIVITY_LIMIT`；任何寫入失敗均回滾，頁面快取只在提交後失效。
 
@@ -245,6 +245,14 @@ src/
 `updatePhoto` 透過成員資格的 Trip fence 交易讀取行程日、推導借用座標並更新相片，與刪日／日期／地點更新協調；交易內重新驗證成員與旅程刪除狀態。保留成員信任、手動分類及自有 GPS 優先規則，簽名 URL 與頁面失效在提交後執行。
 
 `deletePhotos` 使用相同成員 Trip fence，將待刪相片與物件 key 的讀取、批次刪除納入交易。只有成功提交後才執行 R2 best-effort 清理與頁面失效；交易失敗保留資料及物件。
+
+`addTripPhotos` 在交易外完成 HEAD，交易內重新驗權、檢查相簿容量、讀取最新旅程日期／行程日並批次寫入；並行批次不超量，消毒副本與簽名在提交後執行。
+
+支出、還款、清單、筆記與留言 writer 使用共用 Trip fence；成員／指派／分攤及行程日檢查在交易 snapshot 內完成。支出刪除與留言 cascade 原子提交，終身飛行／住宿紀錄的旅程連結亦參與 fence。新增虛擬 User 與旅程成員一起提交；父文件的分享／封存／預算／加入更新以原子條件核對當前權限與刪除狀態。
+
+旅程通知與動態寫入亦使用 fence；通知以交易內最新成員名單篩選收件者，舊 snapshot 不跳過檢查。Email／Push 在提交後 best-effort 發送，已開始的外部發送無法撤回。
+
+收據／票券／筆記附件／相片的最後引用移除，與 `blobcleanupjobs` 工作在同一交易提交；引用檢查至多四次批次查詢，工作以單次 bulk write 建立。工作以物件 key 為 `_id`，永久 tombstone 阻止 key 再引用（回傳 `CONFLICT`，需重新上傳）。每批至多 50 個 key、5 秒 storage timeout、5 分鐘租約及 token 保護 checkpoint；首次清理後至少 24 小時再掃一次，處理已簽發上傳網址或消毒副本流程的晚到寫入。既有 `/api/cron/trip-cleanup` 同時補撿旅程與物件工作，分配旅程 20 秒／合計 40 秒軟期限；未完成工作不使用 TTL 丟棄。部署前套用 `20260911090000-blob-cleanup-jobs.js` 並排空舊 writer，詳見 [R 交付](./ITINERARY_CONSISTENCY_PROGRESS.md)。
 
 ### 4.16 AI 行程匯入（受限試用）
 

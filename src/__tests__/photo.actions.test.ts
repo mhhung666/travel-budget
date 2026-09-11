@@ -20,6 +20,17 @@ const headObject = vi.fn();
 const deleteObjects = vi.fn();
 const presignGetStable = vi.fn();
 
+vi.mock('@/lib/blobReferences', async (original) => ({
+  ...(await original<typeof import('@/lib/blobReferences')>()),
+  assertBlobsAvailable: vi.fn(),
+  retireUnreferencedBlobs: vi.fn(),
+}));
+vi.mock('@/lib/blobCleanup', () => ({
+  cleanupRetiredBlobs: async (_db: unknown, keys: string[]) => {
+    if (keys.length)
+      await (await import('@/lib/storage')).deleteObjects('receipts', keys).catch(() => undefined);
+  },
+}));
 vi.mock('@/lib/mongodb', () => ({ dbConnect: vi.fn() }));
 vi.mock('@/lib/photoUpdateTransaction', async (original) => ({
   ...(await original<typeof import('@/lib/photoUpdateTransaction')>()),

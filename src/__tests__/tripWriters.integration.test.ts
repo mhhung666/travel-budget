@@ -264,6 +264,56 @@ describe.skipIf(!uri || !allowed)('trip writers against isolated replica set', (
       expect(mocks.notify).not.toHaveBeenCalled();
     }
   );
+  it.each(['receipt', 'note'])(
+    'retains shared %s blobs until the last reference and rejects retired keys',
+    async (kind) => {
+      const key = `${kind === 'receipt' ? 'receipts' : 'notes'}/${tripId}/shared.webp`;
+      const attachment = {
+        key,
+        contentType: 'image/webp',
+        size: 100,
+        uploadedBy: admin,
+        uploadedAt: new Date(),
+      };
+      if (kind === 'receipt') {
+        await Expense.updateOne({ _id: expenseId }, { $set: { attachments: [attachment] } });
+        const other = await createExpense(tripId, {
+          ...expenseInput(),
+          attachments: [{ key, content_type: 'image/webp', size: 100 }],
+        });
+        expect(other.success).toBe(true);
+        if (!other.success) throw new Error('create failed');
+        await deleteExpense(tripId, expenseId);
+        expect(mocks.cleanup).not.toHaveBeenCalled();
+        await deleteExpense(tripId, other.data.id);
+        expect(mocks.cleanup).toHaveBeenCalledTimes(1);
+        expect(
+          await createExpense(tripId, {
+            ...expenseInput(),
+            attachments: [{ key, content_type: 'image/webp', size: 100 }],
+          })
+        ).toMatchObject({ code: 'CONFLICT' });
+      } else {
+        await Note.updateOne({ _id: noteId }, { $set: { attachments: [attachment] } });
+        const other = await createNote(tripId, {
+          text: 'Shared',
+          attachments: [{ key, content_type: 'image/webp', size: 100 }],
+        });
+        expect(other.success).toBe(true);
+        if (!other.success) throw new Error('create failed');
+        await deleteNote(tripId, noteId);
+        expect(mocks.cleanup).not.toHaveBeenCalled();
+        await deleteNote(tripId, other.data.id);
+        expect(mocks.cleanup).toHaveBeenCalledTimes(1);
+        expect(
+          await createNote(tripId, {
+            text: 'Reused',
+            attachments: [{ key, content_type: 'image/webp', size: 100 }],
+          })
+        ).toMatchObject({ code: 'CONFLICT' });
+      }
+    }
+  );
   it('does not reattach lifetime records after trip deletion', async () => {
     await Promise.all([
       createFlightRecord(flightInput()),

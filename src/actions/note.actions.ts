@@ -1,5 +1,11 @@
 'use server';
 
+import {
+  assertBlobsAvailable,
+  retireUnreferencedBlobs,
+  RetiredBlobError,
+} from '@/lib/blobReferences';
+import { cleanupRetiredBlobs } from '@/lib/blobCleanup';
 import { withTripWrite, TripWriteError } from '@/lib/tripWriteTransaction';
 import mongoose from 'mongoose';
 import { dbConnect } from '@/lib/mongodb';
@@ -23,7 +29,7 @@ import { withAuth } from './withAuth';
 import { logger } from '@/lib/logger';
 import { toTripNoteDto, type TripNoteDtoInput } from '@/lib/dto';
 import { isNoteKeyForTrip, NOTE_CONTENT_TYPES, MAX_NOTE_BYTES } from '@/lib/uploads';
-import { headObject, deleteObjects, presignGet } from '@/lib/storage';
+import { headObject, presignGet } from '@/lib/storage';
 
 /** 儲存用的照片附件 doc（內嵌於 Note）。 */
 type NoteAttachmentDoc = {
@@ -151,6 +157,11 @@ export const createNote = withAuth(
             .select('displayName')
             .lean<{ displayName: string } | null>();
 
+          await assertBlobsAvailable(
+            mongoose.connection.db!,
+            transactionSession,
+            attachments.map((a) => a.key)
+          );
           const [created] = await Note.create(
             [
               {
@@ -173,6 +184,8 @@ export const createNote = withAuth(
         data: toTripNoteDto(created.toObject() as unknown as TripNoteDtoInput),
       };
     } catch (error) {
+      if (error instanceof RetiredBlobError)
+        return { success: false, error: error.code, code: error.code };
       if (error instanceof TripWriteError)
         return { success: false, error: error.code, code: error.code };
       logger.error('Create note error', error);
@@ -247,6 +260,12 @@ export const updateNote = withAuth(
             const nextKeys = new Set(attachments.map((a) => a.key));
             removedKeys = [...existing.keys()].filter((key) => !nextKeys.has(key));
           }
+          if (attachments)
+            await assertBlobsAvailable(
+              mongoose.connection.db!,
+              transactionSession,
+              attachments.map((a) => a.key)
+            );
           const updated = await Note.findOneAndUpdate(
             { _id: noteId, trip: membership.tripId },
             { $set: set },
@@ -256,19 +275,22 @@ export const updateNote = withAuth(
             throw new TripWriteError('NOT_FOUND');
           }
 
+          await retireUnreferencedBlobs(
+            mongoose.connection.db!,
+            transactionSession,
+            membership.tripId,
+            removedKeys
+          );
           return { updated, removedKeys };
         }
       );
-      if (removedKeys.length > 0) {
-        // best-effort：孤兒照片刪不掉不該擋住更新
-        await deleteObjects('receipts', removedKeys).catch((e) =>
-          logger.error('Update note: attachment cleanup failed', e)
-        );
-      }
+      await cleanupRetiredBlobs(mongoose.connection.db!, removedKeys);
 
       revalidatePath(`/trips/${tripIdOrCode}/notes`);
       return { success: true, data: toTripNoteDto(updated) };
     } catch (error) {
+      if (error instanceof RetiredBlobError)
+        return { success: false, error: error.code, code: error.code };
       if (error instanceof TripWriteError)
         return { success: false, error: error.code, code: error.code };
       logger.error('Update note error', error);
@@ -305,16 +327,17 @@ export const deleteNote = withAuth(
             { session: transactionSession }
           );
 
+          await retireUnreferencedBlobs(
+            mongoose.connection.db!,
+            transactionSession,
+            membership.tripId,
+            (doc?.attachments ?? []).map((a) => a.key)
+          );
           return doc;
         }
       );
       const keys = (doc?.attachments ?? []).map((a) => a.key);
-      if (keys.length > 0) {
-        // best-effort：孤兒照片刪不掉不該擋住刪除筆記
-        await deleteObjects('receipts', keys).catch((e) =>
-          logger.error('Delete note: attachment cleanup failed', e)
-        );
-      }
+      await cleanupRetiredBlobs(mongoose.connection.db!, keys);
 
       revalidatePath(`/trips/${tripIdOrCode}/notes`);
       return { success: true, data: { message: '筆記已刪除' } };

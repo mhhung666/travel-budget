@@ -1,3 +1,4 @@
+import { retireUnreferencedBlobs } from './blobReferences';
 import { mongo } from 'mongoose';
 import { rebindAutoPhotosInTransaction } from '@/lib/photoItineraryTransaction';
 
@@ -84,13 +85,15 @@ export async function deleteItineraryDayAtomically(
           { startDate: parent.startDate, endDate: parent.endDate },
           now
         );
-        return [
+        const keys = [
           ...new Set<string>(
             (removed.activities ?? []).flatMap((activity: { attachments?: { key: string }[] }) =>
               (activity.attachments ?? []).map((attachment) => attachment.key)
             )
           ),
         ];
+        await retireUnreferencedBlobs(db, session, tripId, keys);
+        return keys;
       },
       {
         readConcern: { level: 'snapshot' },

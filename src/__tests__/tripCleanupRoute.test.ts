@@ -1,9 +1,10 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
-const mocks = vi.hoisted(() => ({ env: vi.fn(), connect: vi.fn(), run: vi.fn() }));
+const mocks = vi.hoisted(() => ({ env: vi.fn(), connect: vi.fn(), run: vi.fn(), blobs: vi.fn() }));
 vi.mock('@/lib/env', () => ({ getEnv: mocks.env }));
 vi.mock('@/lib/mongodb', () => ({ dbConnect: mocks.connect }));
+vi.mock('@/lib/blobCleanup', () => ({ runBlobCleanup: mocks.blobs }));
 vi.mock('@/lib/tripCleanup', () => ({ runTripCleanup: mocks.run }));
 vi.mock('@/lib/storage', () => ({ deletePrefixPage: vi.fn() }));
 vi.mock('@/lib/logger', () => ({ logger: { error: vi.fn() } }));
@@ -13,6 +14,7 @@ const request = (authorization = 'Bearer secret') =>
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.run.mockReset();
+  mocks.blobs.mockResolvedValue({ status: 'idle' });
   mocks.env.mockReturnValue({ CRON_SECRET: 'secret' });
   mocks.run.mockResolvedValueOnce({ status: 'swept' }).mockResolvedValue({ status: 'idle' });
 });
@@ -32,7 +34,7 @@ describe('trip cleanup cron authorization', () => {
   it('runs a bounded recovery batch', async () => {
     expect(await (await GET(request())).json()).toEqual({
       success: true,
-      results: { swept: 1, idle: 1 },
+      results: { swept: 1, idle: 1, blobs_idle: 1 },
     });
     expect(mocks.run).toHaveBeenCalledTimes(2);
   });

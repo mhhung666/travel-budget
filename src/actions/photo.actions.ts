@@ -1,5 +1,11 @@
 'use server';
 
+import {
+  assertBlobsAvailable,
+  retireUnreferencedBlobs,
+  RetiredBlobError,
+} from '@/lib/blobReferences';
+import { cleanupRetiredBlobs } from '@/lib/blobCleanup';
 import mongoose from 'mongoose';
 import { dbConnect } from '@/lib/mongodb';
 import { withPhotoUpdateTransaction, PhotoUpdateError } from '@/lib/photoUpdateTransaction';
@@ -29,7 +35,7 @@ import {
   PHOTO_DISPLAY_CONTENT_TYPE,
   PHOTO_THUMB_CONTENT_TYPE,
 } from '@/lib/uploads';
-import { headObject, deleteObjects, presignGetStable } from '@/lib/storage';
+import { headObject, presignGetStable } from '@/lib/storage';
 import {
   autoItineraryFields,
   buildItineraryDayDateMap,
@@ -238,6 +244,11 @@ export const addTripPhotos = withAuth(
             };
           });
 
+          await assertBlobsAvailable(
+            mongoose.connection.db!,
+            transactionSession,
+            docs.flatMap((d) => [d.key, d.thumbKey])
+          );
           const created = await Photo.insertMany(docs, { session: transactionSession });
           return { created, trip };
         }
@@ -264,6 +275,8 @@ export const addTripPhotos = withAuth(
       revalidatePath(`/trips/${tripIdOrCode}/album`);
       return { success: true, data: dtos };
     } catch (error) {
+      if (error instanceof RetiredBlobError)
+        return { success: false, error: error.code, code: error.code };
       if (error instanceof PhotoUpdateError) {
         return { success: false, error: error.code, code: error.code };
       }
@@ -452,14 +465,18 @@ export const deletePhotos = withAuth(
             .lean<{ key: string; thumbKey: string }[]>();
           if (docs.length === 0) throw new PhotoUpdateError('NOT_FOUND');
           await Photo.deleteMany(filter, { session: transactionSession });
+          await retireUnreferencedBlobs(
+            mongoose.connection.db!,
+            transactionSession,
+            membership.tripId,
+            docs.flatMap((d) => [d.key, d.thumbKey, sanitizedPhotoKey(d.key)])
+          );
           return docs;
         }
       );
 
       const keys = docs.flatMap((d) => [d.key, d.thumbKey, sanitizedPhotoKey(d.key)]);
-      await deleteObjects('receipts', keys).catch((e) =>
-        logger.error('Delete photos: blob cleanup failed', e)
-      );
+      await cleanupRetiredBlobs(mongoose.connection.db!, keys);
 
       revalidatePath(`/trips/${tripIdOrCode}/album`);
       return { success: true, data: { deleted: docs.length } };

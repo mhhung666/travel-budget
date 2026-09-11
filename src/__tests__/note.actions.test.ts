@@ -10,6 +10,17 @@ const noteCreate = vi.fn();
 const noteDeleteOne = vi.fn();
 const itineraryDayFindOneAndUpdate = vi.fn();
 const itineraryDayExists = vi.fn();
+vi.mock('@/lib/blobReferences', async (original) => ({
+  ...(await original<typeof import('@/lib/blobReferences')>()),
+  assertBlobsAvailable: vi.fn(),
+  retireUnreferencedBlobs: vi.fn(),
+}));
+vi.mock('@/lib/blobCleanup', () => ({
+  cleanupRetiredBlobs: async (_db: unknown, keys: string[]) => {
+    if (keys.length)
+      await (await import('@/lib/storage')).deleteObjects('receipts', keys).catch(() => undefined);
+  },
+}));
 vi.mock('@/lib/tripWriteTransaction', async (original) => ({
   ...(await original<typeof import('@/lib/tripWriteTransaction')>()),
   withTripWrite: (_trip: string, _actor: string, write: (session: unknown) => Promise<unknown>) =>

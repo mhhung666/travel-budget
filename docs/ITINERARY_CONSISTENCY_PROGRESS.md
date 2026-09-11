@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | R1 | 舊草稿覆蓋保護與衝突提示 | 已完成工程驗證 |
 | R2 | 穩定活動 ID、單筆新增／編輯／刪除原子更新，批次上限與衝突策略 | R2a～R2f 已完成工程與本機 MongoDB 併發驗證 |
-| R3 | 虛擬成員轉換／會員移除／旅程刪除的一致性、外部清理重試 | R3a～R3c 已部署；R3d～R3f 行程日刪除／新增／整天更新交易完成，R3g 單筆活動、R3h 筆記規劃、R3i AI 匯入、R3j 旅程更新、R3k 相片編輯與 R3l 相片刪除交易完成、隔離 DB 驗證通過；其他 writer／票券引用協調待續 |
+| R3 | 虛擬成員轉換／會員移除／旅程刪除的一致性、外部清理重試 | R3a～R3r 已完成工程與隔離 replica set 驗證；R3a～R3c 已部署，後續交付未部署 |
 | R4 | 票券附件驗證的有界平行查詢 | 待處理 |
 
 > R1～R2c 為各段交付紀錄；目前衝突 token 已由 R2d 的 revision 取代時間。
@@ -132,7 +132,7 @@ diff whitespace 檢查通過。Build 覆寫 dummy MongoDB URI 與 JWT secret，�
   驗收為本機 standalone MongoDB，不代表正式拓撲、跨 collection transaction 或真人瀏覽器驗收。
 - R3、R4 維持未完成；部署仍須遵守 R2d／R2e 的停寫、遷移、新 writer 上線順序。
 
-## 後續界線
+## R2 交付時的界線（R3 已完成後續協調）
 
 - 整天欄位與整陣列更新仍需整天 revision；不同活動的單筆編輯已能並行。
 - 所有新 writer 必須遞增整天 revision；改寫既有活動亦須遞增活動 revision。
@@ -322,3 +322,21 @@ MONGODB_MEMBER_TEST_URI='mongodb://127.0.0.1:27030/?replicaSet=r3test' \
 - 通知與動態紀錄亦使用交易；通知依交易內最新成員名單過濾指定收件者，舊 snapshot 不再跳過檢查。Email／Push 在通知提交後執行，保留既有 best-effort 語意。
 - 驗證：65 項隔離 replica set 與 36 項相關單元測試通過；TypeScript、相關 ESLint 與格式通過。
 - 無 schema 變更；本階段獨立交付並 patch bump，完整驗證於 R3 最終交付執行，未 push／部署。
+
+## R3r：附件引用協調與可重試清理（R3 結案）
+
+- 所有收據／票券／筆記附件／相片 writer 在 Trip fence 交易內檢查 key 尚未退役。移除最後引用時，在相同交易建立 `blobcleanupjobs` 永久 tombstone；跨日／跨文件仍有引用則保留，晚到重新引用回 `CONFLICT`，需用新 key 上傳。
+- 引用檢查至多四次批次查詢，清理工作以單次 bulk write 建立；任何資料庫失敗連同主寫入回滾。外部刪除每批至多 50 個 key、5 秒 timeout，失敗保留工作，5 分鐘租約／token 防止過期 worker 覆寫 checkpoint。
+- 首次清理後至少 24 小時再次清掃，處理有效 presigned PUT 與相片消毒副本的晚到寫入。完成仍保留 tombstone，無 TTL；未知或跨旅程 key 不排入清理。
+- 既有 `/api/cron/trip-cleanup` 與 CRON_SECRET 補撿兩種清理工作；旅程清理預算 20 秒，整體 40 秒軟期限，平台上限 60 秒。未新增 cron 或環境參數。
+- 實際 replica set 驗證跨日三種刪除路徑、HEAD／刪除交錯、先新增引用再刪除、排程失敗回滾、storage 失敗重試、二次清掃、永久禁止重用、過期租約、批次上限，以及 migration 冪等／回退保留工作；收據與筆記共用亦有真實 DB 驗證。
+
+### R3 最終部署順序與界線
+
+1. 暫停相關寫入並排空舊版請求，執行 `pnpm migrate:up`，包含 `20260911090000-blob-cleanup-jobs.js`；交易要求沿用 replica set／sharded MongoDB。
+2. 部署全部 R3 writer 與清理 worker，再恢復寫入。不可混用未檢查 tombstone 的舊 writer；回退亦須先停寫，處理未完成工作，不得刪除 tombstone 後重新開放舊 key。
+3. 驗收 `blobcleanupjobs.firstSweepAt`／`completedAt` 與 cron 結果；清理失敗可由已授權 cron 重試。migration down 僅移除自有索引，保留資料。
+
+R3 的應用程式資料一致性與清理重試已完成。AI 使用量暫存計數沿用到期／旅程延後清掃；外部通知及上傳採有限請求生命週期，已送出的 Email／Push 不可撤回，不涵蓋任意直接 DB／R2 修改或外部還原。R4 HEAD 有界平行查詢另列未完成，不在本次範圍。
+
+完整驗證：啟用兩組隔離 MongoDB URI 的 suite 1,603 項通過、37 項未啟用測試跳過；lint、Prettier、TypeScript 與 dummy MongoDB/JWT production build 通過。批次查詢調整後另有 136 項受影響整合測試通過。migration 僅對本機隨機空庫驗證，未讀寫正式資料、未 push／部署。本階段獨立 commit 並 patch bump。

@@ -69,16 +69,13 @@ HTTP＋郵件流程；不向共用 DB 壓測或任意修改現有帳號，本項
 歷次模組開發紀錄見 [EXPENSE_BACKGROUND_DELIVERY.md](./EXPENSE_BACKGROUND_DELIVERY.md) 與 Git 歷史。
 HTTP 已接受但 checkpoint 尚未保存仍可能重送；不承諾推播永久 exactly-once。
 
-### R. ⚠️ 原子更新與跨 collection 一致性（P2）
+### R4. 🟡 票券附件驗證的有界平行查詢（P2）
 
-**進度（2026-09-11）**：使用者確認 R2 已正式部署。R3a～R3c 已將虛擬成員註冊／連結、成員移除與旅程刪除改為 transaction；旅程外部清理具持久化工作、租約、checkpoint、重試與延後清掃。使用者已確認 migration 與部署成功。R3d～R3f 已將刪日、新增日及整天更新的編號／相片關聯調整納入各自的 transaction，R3g 已將單筆活動新增／修改／刪除加入同一 Trip fence 交易；R3h 已將筆記轉行程的活動新增／筆記標記交易化，R3i 已將 AI 匯入與相片重綁納入逐日交易；R3j 已將旅程更新、日期驗證與 auto 相片重綁交易化；R3k 已將相片編輯、行程日驗證與座標推導交易化；R3l 已將相片批次刪除交易化；R3g～R3l 隔離 DB 驗證通過，詳見 [R 分階段進度](./ITINERARY_CONSISTENCY_PROGRESS.md)。
+R1～R3 已完成工程與隔離 MongoDB 驗證；成員轉換／移除、旅程與子資料寫入、跨日附件引用及持久化清理已交付，詳見 [R 分階段進度](./ITINERARY_CONSISTENCY_PROGRESS.md)。R3 最新 migration 與部署尚未操作。
 
-**仍待處理**：相片新增、支出等其他 writer 的跨 collection 協調，以及存活旅程內票券跨天引用與重新引用的清理協調。
-一般支出／還款／清單 writer 仍未全部加入 Trip fence，需繼續縮小移除／轉換後晚到寫入的競爭窗口。
-R4 的附件 `headObject` 有界平行驗證另列下一階段。
+**待處理**：票券附件 `headObject` 目前循序驗證，改用有界平行查詢縮短多附件等待時間。
 
-**完成條件**：行程日與相片關聯不因中途失敗部分完成；附件清理不刪除仍引用或重新引用的檔案；
-一般 writer 與成員變動競態有實際 MongoDB 驗證。R3a～R3c 不冒稱上述後續事項已完成。
+**完成條件**：限制同時 HEAD 數量，保留附件型別／大小／旅程歸屬檢查、任一失敗不寫入及既有交易／revision 契約，加入併發上限與失敗測試。
 
 ---
 

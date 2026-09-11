@@ -1,8 +1,14 @@
 'use server';
 
+import {
+  assertBlobsAvailable,
+  retireUnreferencedBlobs,
+  RetiredBlobError,
+} from '@/lib/blobReferences';
+import { cleanupRetiredBlobs } from '@/lib/blobCleanup';
 import { revalidatePath } from 'next/cache';
 import { after } from 'next/server';
-import { Types, type mongo } from 'mongoose';
+import mongoose, { Types, type mongo } from 'mongoose';
 import { withTripWrite, TripWriteError } from '@/lib/tripWriteTransaction';
 import { Expense, Trip, User, ItineraryDay, Comment, EXPENSE_CATEGORIES } from '@/models';
 import { getTripMembership } from '@/lib/permissions';
@@ -18,7 +24,7 @@ import type { Expense as ExpenseDto } from '@/types';
 import { logger } from '@/lib/logger';
 import { toExpenseDto, type ExpenseDtoInput } from '@/lib/dto';
 import { isReceiptKeyForTrip, RECEIPT_CONTENT_TYPES, MAX_RECEIPT_BYTES } from '@/lib/uploads';
-import { headObject, deleteObjects, presignGet } from '@/lib/storage';
+import { headObject, presignGet } from '@/lib/storage';
 import { notify } from '@/lib/notify';
 import { logActivity } from '@/lib/activity';
 import {
@@ -276,6 +282,11 @@ export const createExpense = withAuth(
                 occurredAt: new Date(),
               })
             : undefined;
+          await assertBlobsAvailable(
+            mongoose.connection.db!,
+            transactionSession,
+            attachmentDocs.map((a) => a.key)
+          );
           const [created] = await Expense.create(
             [
               {
@@ -387,6 +398,8 @@ export const createExpense = withAuth(
         data: toExpenseDto(created.toObject() as unknown as LeanExpense, tripId),
       };
     } catch (error) {
+      if (error instanceof RetiredBlobError)
+        return { success: false, error: error.code, code: error.code };
       if (error instanceof TripWriteError)
         return { success: false, error: error.code, code: error.code };
       logger.error('Create expense error', error);
@@ -572,19 +585,28 @@ export const updateExpense = withAuth(
             });
           }
 
+          if (attachments)
+            await assertBlobsAvailable(
+              mongoose.connection.db!,
+              transactionSession,
+              attachments.map((a) => a.key)
+            );
           await Expense.updateOne(
             { _id: expenseId, trip: tripId },
             { $set: set },
             { session: transactionSession }
           );
 
+          await retireUnreferencedBlobs(
+            mongoose.connection.db!,
+            transactionSession,
+            tripId,
+            removed
+          );
           return { current, removed };
         }
       );
-      if (removed.length)
-        await deleteObjects('receipts', removed).catch((e) =>
-          logger.error('Update expense: receipt cleanup failed', e)
-        );
+      await cleanupRetiredBlobs(mongoose.connection.db!, removed);
 
       // 動態牆紀錄（描述取更新後的有效值；best-effort）
       await logActivity({
@@ -600,6 +622,8 @@ export const updateExpense = withAuth(
       revalidatePath(`/trips/${tripIdOrCode}/expenses`);
       return { success: true, data: { message: '支出已更新' } };
     } catch (error) {
+      if (error instanceof RetiredBlobError)
+        return { success: false, error: error.code, code: error.code };
       if (error instanceof TripWriteError)
         return { success: false, error: error.code, code: error.code };
       logger.error('Update expense error', error);
@@ -642,17 +666,18 @@ export const deleteExpense = withAuth(
             { expense: expenseId, trip: membership.tripId },
             { session: transactionSession }
           );
+          await retireUnreferencedBlobs(
+            mongoose.connection.db!,
+            transactionSession,
+            membership.tripId,
+            (doc?.attachments ?? []).map((a) => a.key)
+          );
           return doc;
         }
       );
 
       const keys = (doc?.attachments ?? []).map((a) => a.key);
-      if (keys.length > 0) {
-        // best-effort：孤兒收據刪不掉不該擋住刪除支出
-        await deleteObjects('receipts', keys).catch((e) =>
-          logger.error('Delete expense: receipt cleanup failed', e)
-        );
-      }
+      await cleanupRetiredBlobs(mongoose.connection.db!, keys);
 
       // 動態牆紀錄（支出已刪，描述取自刪除前的快照；best-effort）
       await logActivity({
