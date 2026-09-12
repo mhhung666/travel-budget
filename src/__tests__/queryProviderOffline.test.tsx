@@ -1,16 +1,18 @@
 import type { PropsWithChildren } from 'react';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { onlineManager, useIsRestoring, useQueryClient } from '@tanstack/react-query';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryProvider } from '@/components/providers/QueryProvider';
 import { useExpenseMutations } from '@/hooks/queries/useExpenseMutations';
 import { tripKeys } from '@/hooks/queries/keys';
+import { getExpenseOutboxKey } from '@/lib/expenseOutbox';
 import { getQueryPersistKey } from '@/lib/queryPersister';
 import { buildOptimisticExpense } from '@/lib/optimisticExpense';
 
-const { storage, createExpense } = vi.hoisted(() => ({
+const { storage, createExpense, writeGate } = vi.hoisted(() => ({
   storage: new Map<string, string>(),
   createExpense: vi.fn(),
+  writeGate: vi.fn(async () => {}),
 }));
 // Keep the real async persister, JSON serialization and provider lifecycle.
 // Only replace the browser's IndexedDB boundary with isolated storage.
@@ -18,6 +20,10 @@ vi.mock('idb-keyval', () => ({
   get: async (key: string) => storage.get(key),
   set: async (key: string, value: string) => {
     storage.set(key, value);
+  },
+  update: async (key: string, updater: (value: unknown) => unknown) => {
+    await writeGate();
+    storage.set(key, structuredClone(updater(storage.get(key))) as string);
   },
   del: async (key: string) => {
     storage.delete(key);
@@ -41,9 +47,14 @@ const vars = {
 };
 const expenseKey = tripKeys.expenses(vars.tripId);
 const shellKey = tripKeys.shell(vars.tripId);
-const persistKey = getQueryPersistKey('user:offline-test');
+let scope = '';
+let persistKey = '';
+beforeEach(() => {
+  scope = `user:offline-test:${crypto.randomUUID()}`;
+  persistKey = getQueryPersistKey(scope);
+});
 const wrapper = ({ children }: PropsWithChildren) => (
-  <QueryProvider cacheScope="user:offline-test" authenticated>
+  <QueryProvider cacheScope={scope} authenticated>
     {children}
   </QueryProvider>
 );
@@ -58,9 +69,102 @@ afterEach(() => {
   onlineManager.setOnline(true);
   storage.clear();
   createExpense.mockReset();
+  writeGate.mockReset();
 });
 
 describe('QueryProvider offline startup', () => {
+  it('does not acknowledge or send until IndexedDB commits, and survives immediate reload without a cache snapshot', async () => {
+    const browserOnline = vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(false);
+    let release!: () => void;
+    writeGate.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          release = resolve;
+        })
+    );
+    let mounted = renderHook(useProbe, { wrapper });
+    await waitFor(() => expect(mounted.result.current.restoring).toBe(false));
+    let acknowledged = false;
+    let queued!: Promise<void>;
+    act(() => {
+      queued = mounted.result.current.create.enqueue(vars).then(() => {
+        acknowledged = true;
+      });
+    });
+    await waitFor(() => expect(writeGate).toHaveBeenCalledOnce());
+    expect(acknowledged).toBe(false);
+    expect(createExpense).not.toHaveBeenCalled();
+    await act(async () => {
+      release();
+      await queued;
+    });
+    expect(acknowledged).toBe(true);
+    mounted.unmount();
+    storage.delete(persistKey);
+    mounted = renderHook(useProbe, { wrapper });
+    await waitFor(() => expect(mounted.result.current.restoring).toBe(false));
+    expect(mounted.result.current.client.getQueryData<unknown[]>(expenseKey)).toHaveLength(1);
+    expect(createExpense).not.toHaveBeenCalled();
+    createExpense.mockResolvedValue({
+      success: true,
+      data: buildOptimisticExpense(vars.input, {
+        tripId: 'trip',
+        id: 'saved',
+        members: [],
+        createdAt: new Date().toISOString(),
+      }),
+    });
+    browserOnline.mockReturnValue(true);
+    act(() => window.dispatchEvent(new Event('online')));
+    await waitFor(() => expect(createExpense).toHaveBeenCalledOnce());
+    await waitFor(() =>
+      expect(mounted.result.current.client.getMutationCache().getAll()[0].state.status).toBe(
+        'success'
+      )
+    );
+    mounted.unmount();
+  });
+  it('rejects a submission when local storage fails, without sending or inserting a placeholder', async () => {
+    vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(true);
+    const mounted = renderHook(useProbe, { wrapper });
+    await waitFor(() => expect(mounted.result.current.restoring).toBe(false));
+    writeGate.mockRejectedValueOnce(new DOMException('Storage is full', 'QuotaExceededError'));
+    await act(async () => {
+      await expect(mounted.result.current.create.enqueue(vars)).rejects.toThrow('Storage is full');
+    });
+    expect(createExpense).not.toHaveBeenCalled();
+    expect(mounted.result.current.client.getQueryData(expenseKey)).toBeUndefined();
+    expect(storage.get(getExpenseOutboxKey(scope))).toBeUndefined();
+    mounted.unmount();
+  });
+  it.each(['expired', 'incompatible', 'corrupt'])(
+    'keeps the outbox when the query cache is %s',
+    async (kind) => {
+      vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(false);
+      let mounted = renderHook(useProbe, { wrapper });
+      await waitFor(() => expect(mounted.result.current.restoring).toBe(false));
+      await act(async () => {
+        await mounted.result.current.create.enqueue(vars);
+      });
+      mounted.unmount();
+      storage.set(
+        persistKey,
+        kind === 'corrupt'
+          ? 'invalid json'
+          : JSON.stringify({
+              timestamp: kind === 'expired' ? 1 : Date.now(),
+              buster: kind === 'incompatible' ? 'old' : 'v9',
+              clientState: { mutations: [], queries: [] },
+            })
+      );
+      mounted = renderHook(useProbe, { wrapper });
+      await waitFor(() => expect(mounted.result.current.restoring).toBe(false));
+      expect(mounted.result.current.client.getMutationCache().getAll()).toHaveLength(1);
+      expect(mounted.result.current.client.getQueryData<unknown[]>(expenseKey)).toHaveLength(1);
+      expect(createExpense).not.toHaveBeenCalled();
+      mounted.unmount();
+    }
+  );
   it.each([false, true])(
     'preserves a queue across repeated offline starts (legacy=%s)',
     async (legacy) => {
@@ -89,6 +193,7 @@ describe('QueryProvider offline startup', () => {
           ''
         );
         storage.set(persistKey, JSON.stringify(oldCache));
+        storage.delete(getExpenseOutboxKey(scope));
       }
       const optimistic = mounted.result.current.client.getQueryData(expenseKey);
       const projectedShell = mounted.result.current.client.getQueryData(shellKey);

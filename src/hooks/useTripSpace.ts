@@ -1,5 +1,4 @@
 import { combineReadStates } from '@/lib/queryReadState';
-import { onlineManager } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import type { SetBudgetInput } from '@/lib/validation';
 import { useDialog } from '@/hooks/useDialog';
@@ -26,9 +25,7 @@ import {
  * DTO; form-specific member/day/tag data is enabled after the form opens.
  */
 export function useTripSpace(tripId: string, loadExpenseForm = false) {
-  const tExpense = useTranslations('expense');
   const tBudget = useTranslations('budget');
-  const tCommon = useTranslations('common');
   const tOffline = useTranslations('offline');
 
   const { toast } = useToast();
@@ -69,44 +66,27 @@ export function useTripSpace(tripId: string, loadExpenseForm = false) {
     totalSpent: shell?.total_spent ?? 0,
   };
 
-  // Offline-capable: fire-and-forget so the dialog closes immediately. The
-  // optimistic insert (mutation onMutate) shows the row at once; when offline
-  // the mutation pauses and replays on reconnect (ROADMAP #5 Phase 2).
+  // Close only after the independent IndexedDB journal acknowledges the submission.
   const handleAddExpense = async (data: ExpenseFormData) => {
-    const online = onlineManager.isOnline();
-    expenseMutations.create.mutate(
-      {
-        tripId,
-        input: {
-          payer_id: data.payer_id,
-          original_amount: parseFloat(data.original_amount),
-          currency: data.currency,
-          exchange_rate: parseFloat(data.exchange_rate),
-          description: data.description,
-          category: data.category,
-          date: data.date,
-          splits: data.splits,
-          attachments: data.attachments,
-          itinerary_day_ids: data.itinerary_day_ids,
-          tags: data.tags,
-        },
+    await expenseMutations.create.enqueue({
+      tripId,
+      input: {
+        payer_id: data.payer_id,
+        original_amount: parseFloat(data.original_amount),
+        currency: data.currency,
+        exchange_rate: parseFloat(data.exchange_rate),
+        description: data.description,
+        category: data.category,
+        date: data.date,
+        splits: data.splits,
+        attachments: data.attachments,
+        itinerary_day_ids: data.itinerary_day_ids,
+        tags: data.tags,
       },
-      {
-        onError: (err) =>
-          toast({
-            variant: 'destructive',
-            title: tCommon('errorTitle'),
-            description: err instanceof Error ? err.message : String(err),
-          }),
-      }
-    );
+    });
 
     addExpenseDialog.closeDialog();
-    toast(
-      online
-        ? { title: tExpense('success.added'), description: tExpense('success.addedMessage') }
-        : { title: tOffline('queuedTitle'), description: tOffline('queuedMessage') }
-    );
+    toast({ title: tOffline('queuedTitle'), description: tOffline('queuedMessage') });
   };
 
   const handleSetBudget = async (input: SetBudgetInput) => {

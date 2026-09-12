@@ -1,5 +1,7 @@
 'use client';
 
+import { useRef } from 'react';
+import { saveExpenseOutbox } from '@/lib/expenseOutbox';
 import { onlineManager, useMutation, useQueryClient } from '@tanstack/react-query';
 import { updateExpense, deleteExpense } from '@/actions';
 import type { UpdateExpenseInput } from '@/lib/validation';
@@ -33,6 +35,9 @@ import { trackProductEvent } from '@/lib/productEvents';
  */
 export function useExpenseMutations(tripId: string) {
   const queryClient = useQueryClient();
+  const acknowledgements = useRef(
+    new WeakMap<CreateExpenseVars, { resolve: () => void; reject: (error: unknown) => void }>()
+  );
   const invalidate = () => invalidateExpenseDerived(queryClient, tripId);
 
   const create = useMutation({
@@ -59,7 +64,6 @@ export function useExpenseMutations(tripId: string) {
         id: newOptimisticId(),
         createdAt: new Date().toISOString(),
       });
-      queryClient.setQueryData<Expense[]>(key, (old = []) => [optimistic, ...old]);
       let appliedShell: TripShell | undefined;
       if (previousShell && currentUser) {
         const personalShare =
@@ -70,7 +74,7 @@ export function useExpenseMutations(tripId: string) {
           String(today.getMonth() + 1).padStart(2, '0'),
           String(today.getDate()).padStart(2, '0'),
         ].join('-');
-        appliedShell = queryClient.setQueryData<TripShell>(shellKey, {
+        appliedShell = {
           ...previousShell,
           expense_count: previousShell.expense_count + 1,
           total_spent: previousShell.total_spent + personalShare,
@@ -79,11 +83,17 @@ export function useExpenseMutations(tripId: string) {
             (vars.input.date === todayKey
               ? vars.input.original_amount * vars.input.exchange_rate
               : 0),
-        });
+        };
       }
-      return { optimisticId: optimistic.id, previousShell, appliedShell, wasOffline };
+      const context = { optimisticId: optimistic.id, previousShell, appliedShell, wasOffline };
+      await saveExpenseOutbox(queryClient, vars, context, 'pending');
+      queryClient.setQueryData<Expense[]>(key, (old = []) => [optimistic, ...old]);
+      if (appliedShell) queryClient.setQueryData(shellKey, appliedShell);
+      acknowledgements.current.get(vars)?.resolve();
+      return context;
     },
     onError: (_err, vars, ctx) => {
+      acknowledgements.current.get(vars)?.reject(_err);
       reconcileExpenseCreate(queryClient, vars, ctx);
       if (ctx?.wasOffline) {
         trackProductEvent('offline_expense', { state: 'failed' });
@@ -121,6 +131,13 @@ export function useExpenseMutations(tripId: string) {
   return {
     create: {
       ...create,
+      enqueue: async (vars: CreateExpenseVars) => {
+        const request = withRequestId(vars);
+        await new Promise<void>((resolve, reject) => {
+          acknowledgements.current.set(request, { resolve, reject });
+          create.mutate(request);
+        });
+      },
       mutate: ((vars, options) =>
         create.mutate(withRequestId(vars), options)) as typeof create.mutate,
       mutateAsync: ((vars, options) =>

@@ -11,6 +11,7 @@ import {
   removeLegacyQueryCache,
 } from '@/lib/queryPersister';
 import { expenseCreateMutationKey, registerOfflineMutationDefaults } from '@/lib/offlineMutations';
+import { bindExpenseOutbox, clearExpenseOutbox, expenseOutboxQueryKey } from '@/lib/expenseOutbox';
 import { clearTripAccessModes } from '@/hooks/queries/fetcher';
 
 interface QueryPersistenceControls {
@@ -37,8 +38,10 @@ export async function clearQueryState(
   queryClient: QueryClient,
   persister: Persister
 ): Promise<void> {
+  if ('stop' in persister && typeof persister.stop === 'function') persister.stop();
   await queryClient.cancelQueries();
   queryClient.clear();
+  await clearExpenseOutbox(queryClient);
   clearTripAccessModes();
   await persister.removeClient();
 }
@@ -97,6 +100,7 @@ export function QueryProvider({
     return client;
   });
 
+  const [outbox] = useState(() => bindExpenseOutbox(queryClient, cacheScope));
   const [persister] = useState(() => createQueryPersister(cacheScope));
 
   useEffect(() => {
@@ -138,17 +142,18 @@ export function QueryProvider({
             dehydrateOptions: {
               shouldDehydrateQuery: shouldPersistQuery,
               shouldDehydrateMutation: (mutation) =>
-                mutation.state.isPaused ||
-                (mutation.options.mutationKey?.[0] === expenseCreateMutationKey[0] &&
-                  mutation.options.mutationKey?.[1] === expenseCreateMutationKey[1] &&
-                  mutation.state.status === 'pending'),
+                mutation.options.mutationKey?.[0] === expenseCreateMutationKey[0] &&
+                mutation.options.mutationKey?.[1] === expenseCreateMutationKey[1]
+                  ? mutation.state.status === 'pending' && !!mutation.state.context
+                  : mutation.state.isPaused,
             },
           }}
           // After the persisted cache + paused mutations are restored, replay any
           // queued offline writes. If still offline they stay paused and TanStack
           // auto-resumes them on reconnect.
-          onSuccess={() => {
-            queryClient.resumePausedMutations();
+          onSuccess={async () => {
+            queryClient.setQueryData(expenseOutboxQueryKey, await outbox.read());
+            void queryClient.resumePausedMutations();
           }}
         >
           {children}

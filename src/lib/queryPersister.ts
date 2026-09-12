@@ -2,6 +2,11 @@ import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persi
 import type { CreateExpenseVars, ExpenseCreateContext } from './offlineMutations';
 import type { PersistedClient } from '@tanstack/react-query-persist-client';
 import { get, set, del } from 'idb-keyval';
+import { createExpenseOutbox } from './expenseOutbox';
+import { buildOptimisticExpense } from './optimisticExpense';
+import { tripKeys } from '@/hooks/queries/keys';
+import { replaceEqualDeep } from '@tanstack/react-query';
+import type { Expense } from '@/types';
 
 /**
  * IndexedDB-backed persister for the TanStack Query cache (ROADMAP #5 Phase 1).
@@ -30,7 +35,8 @@ export function getQueryPersistKey(cacheScope: string): string {
 }
 
 export function createQueryPersister(cacheScope: string) {
-  return createAsyncStoragePersister({
+  let active = true;
+  const cache = createAsyncStoragePersister({
     key: getQueryPersistKey(cacheScope),
     deserialize: (serialized) => {
       const client: PersistedClient = JSON.parse(serialized);
@@ -60,12 +66,166 @@ export function createQueryPersister(cacheScope: string) {
     },
     storage: {
       getItem: (key) => get(key),
-      setItem: (key, value) => set(key, value),
+      setItem: (key, value) => (active ? set(key, value) : Promise.resolve()),
       removeItem: (key) => del(key),
     },
     // Coalesce rapid cache writes (navigating between trip tabs) into one flush.
     throttleTime: 1000,
   });
+  const outbox = createExpenseOutbox(cacheScope);
+  return {
+    ...cache,
+    stop: () => {
+      active = false;
+    },
+    // Cache expiry/restore failures may call removeClient; only explicit logout clears the journal.
+    removeClient: cache.removeClient,
+    restoreClient: async () => {
+      let saved;
+      try {
+        saved = await cache.restoreClient();
+      } catch {
+        /* A damaged read cache must not hide the independent outbox. */
+      }
+      let entries = await outbox.read();
+      // Import old queues before allowing cache expiry/buster handling to remove them.
+      for (const mutation of saved?.clientState.mutations ?? []) {
+        const vars = mutation.state.variables as CreateExpenseVars;
+        if (
+          mutation.mutationKey?.[0] === 'expenses' &&
+          mutation.mutationKey?.[1] === 'create' &&
+          vars?.input?.client_request_id &&
+          !entries[vars.input.client_request_id]
+        ) {
+          await outbox.write({
+            vars,
+            context: mutation.state.context as ExpenseCreateContext,
+            status: mutation.state.status === 'error' ? 'failed' : 'pending',
+            createdAt: mutation.state.submittedAt,
+          });
+        }
+      }
+      entries = await outbox.read();
+      const fresh =
+        saved && saved.buster === PERSIST_BUSTER && Date.now() - saved.timestamp <= PERSIST_MAX_AGE;
+      const client: PersistedClient = fresh
+        ? saved!
+        : {
+            timestamp: Date.now(),
+            buster: PERSIST_BUSTER,
+            clientState: { mutations: [], queries: [] },
+          };
+      client.clientState.mutations = client.clientState.mutations.filter(
+        (m) => m.mutationKey?.[0] !== 'expenses' || m.mutationKey?.[1] !== 'create'
+      );
+      const placeholders = new Map<string, Expense>();
+      // The journal is authoritative; stale query snapshots must not resurrect placeholders.
+      for (const query of client.clientState.queries) {
+        if (
+          query.queryKey[0] === 'trip' &&
+          query.queryKey[2] === 'expenses' &&
+          Array.isArray(query.state.data)
+        ) {
+          for (const expense of query.state.data as Expense[])
+            placeholders.set(expense.id, expense);
+          query.state.data = (query.state.data as Expense[]).filter(
+            (e) => !e.id.startsWith('optimistic_')
+          );
+        }
+      }
+      for (const entry of Object.values(entries)) {
+        const shell = client.clientState.queries.find(
+          (q) => JSON.stringify(q.queryKey) === JSON.stringify(tripKeys.shell(entry.vars.tripId))
+        );
+        const contextProjection = entry.context;
+        if (shell && contextProjection?.previousShell && contextProjection.appliedShell) {
+          if (
+            entry.status === 'failed' &&
+            replaceEqualDeep(contextProjection.appliedShell, shell.state.data) ===
+              contextProjection.appliedShell
+          )
+            shell.state.data = contextProjection.previousShell;
+          if (
+            entry.status === 'pending' &&
+            replaceEqualDeep(contextProjection.previousShell, shell.state.data) ===
+              contextProjection.previousShell
+          )
+            shell.state.data = contextProjection.appliedShell;
+        }
+        if (
+          entry.status === 'done' &&
+          entry.expense &&
+          fresh &&
+          saved!.timestamp < (entry.updatedAt ?? 0)
+        ) {
+          const query = client.clientState.queries.find(
+            (q) =>
+              JSON.stringify(q.queryKey) === JSON.stringify(tripKeys.expenses(entry.vars.tripId))
+          );
+          if (query)
+            query.state.data = [
+              entry.expense,
+              ...(query.state.data as Expense[]).filter((e) => e.id !== entry.expense!.id),
+            ];
+        }
+        if (entry.status !== 'pending') continue;
+        const { vars } = entry;
+        const optimisticId =
+          entry.context?.optimisticId ?? `optimistic_${vars.input.client_request_id}`;
+        const context = entry.context ?? { optimisticId, wasOffline: true };
+        client.clientState.mutations.push({
+          mutationKey: ['expenses', 'create'],
+          state: {
+            context,
+            variables: vars,
+            data: undefined,
+            error: null,
+            failureCount: 0,
+            failureReason: null,
+            isPaused: true,
+            status: 'pending',
+            submittedAt: entry.createdAt,
+          },
+        });
+        const queryKey = tripKeys.expenses(vars.tripId);
+        let query = client.clientState.queries.find(
+          (q) => JSON.stringify(q.queryKey) === JSON.stringify(queryKey)
+        );
+        if (!query) {
+          query = {
+            queryKey,
+            queryHash: JSON.stringify(queryKey),
+            state: {
+              data: [],
+              dataUpdateCount: 1,
+              dataUpdatedAt: 0,
+              error: null,
+              errorUpdateCount: 0,
+              errorUpdatedAt: 0,
+              fetchFailureCount: 0,
+              fetchFailureReason: null,
+              fetchMeta: null,
+              isInvalidated: true,
+              status: 'success',
+              fetchStatus: 'idle',
+            },
+          };
+          client.clientState.queries.push(query);
+        }
+        query.state.data = [
+          placeholders.get(optimisticId) ??
+            buildOptimisticExpense(vars.input, {
+              tripId: vars.tripId,
+              id: optimisticId,
+              members: [],
+              createdAt: new Date(entry.createdAt).toISOString(),
+            }),
+          ...(query.state.data as Expense[]),
+        ];
+      }
+      return client;
+    },
+  };
 }
 
 /** Remove the pre-user-partition cache. It must never be restored by newer builds. */

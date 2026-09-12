@@ -1,4 +1,5 @@
 import { replaceEqualDeep, type QueryClient } from '@tanstack/react-query';
+import { saveExpenseOutbox } from './expenseOutbox';
 import { createExpense } from '@/actions';
 import type { ActionResult } from '@/actions';
 import type { CreateExpenseInput } from '@/lib/validation';
@@ -20,6 +21,13 @@ export function reconcileExpenseCreate(
   context: ExpenseCreateContext | undefined,
   expense?: Expense
 ) {
+  if (
+    !queryClient
+      .getMutationCache()
+      .getAll()
+      .some((m) => m.state.variables === vars)
+  )
+    return;
   const key = tripKeys.expenses(vars.tripId);
   if (expense || context?.optimisticId) {
     queryClient.setQueryData<Expense[]>(key, (current = []) => {
@@ -95,6 +103,23 @@ export async function executeExpenseCreate(
     ...vars.input,
     client_request_id: vars.input.client_request_id ?? crypto.randomUUID(),
   };
+  const context = queryClient
+    .getMutationCache()
+    .getAll()
+    .find((m) => m.state.variables === vars)?.state.context as ExpenseCreateContext | undefined;
+  // A restored legacy request must also reach durable storage before any network send.
+  try {
+    await saveExpenseOutbox(queryClient, vars, context, 'pending');
+  } catch {
+    throw new RetryableExpenseError('Unable to save expense locally');
+  }
+  if (
+    !queryClient
+      .getMutationCache()
+      .getAll()
+      .some((m) => m.state.variables === vars)
+  )
+    throw new Error('Expense request was cleared');
   let result: ActionResult<Expense>;
   try {
     result = await createExpense(vars.tripId, vars.input);
@@ -103,7 +128,17 @@ export async function executeExpenseCreate(
   }
   if (!result.success) {
     if (result.code === 'INTERNAL_ERROR') throw new RetryableExpenseError(result.error);
+    try {
+      await saveExpenseOutbox(queryClient, vars, context, 'failed', result.error);
+    } catch {
+      throw new RetryableExpenseError('Unable to save expense failure');
+    }
     throw new Error(result.error);
+  }
+  try {
+    await saveExpenseOutbox(queryClient, vars, context, 'done', undefined, result.data);
+  } catch {
+    throw new RetryableExpenseError('Unable to save expense confirmation');
   }
   return result.data;
 }
