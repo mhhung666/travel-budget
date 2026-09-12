@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { QueryClient } from '@tanstack/react-query';
+import { onlineManager, QueryClient } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import type { Persister } from '@tanstack/react-query-persist-client';
 import {
@@ -74,6 +74,12 @@ export function QueryProvider({
   children: React.ReactNode;
 }) {
   const [queryClient] = useState(() => {
+    // TanStack starts online and only listens for subsequent browser events.
+    // Seed it before children mount or persisted mutations are restored: an
+    // offline reload otherwise attempts a write and discards the failed queue.
+    if (typeof window !== 'undefined') {
+      onlineManager.setOnline(window.navigator.onLine);
+    }
     const client = new QueryClient({
       defaultOptions: {
         queries: {

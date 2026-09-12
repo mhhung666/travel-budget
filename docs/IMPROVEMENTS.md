@@ -28,8 +28,10 @@ Q1～Q3 已於 2026-09-09 工程結案，使用者回報已 push；不再列為�
 恢復連線也未補送。已確認 IndexedDB 的 paused mutation 由 1 筆變 0 筆，optimistic 列也被移除。
 不重載直接恢復連線則可成功補送，問題集中於離線啟動與還原。
 
-程式檢查推測 QueryProvider 在初始 onlineManager 仍為 true 時恢復工作，離線 action 失敗後
-清除暫存；尚未修復驗證。離線重載同時有誤導的載入／更新失敗提示與短暫摘要不一致。
+本機已修正 QueryProvider：建立 QueryClient 前以瀏覽器 navigator.onLine 初始化 onlineManager，
+避免離線啟動時誤送還原工作。新增 provider 整合回歸，透過實際 JSON persister 與兩次離線
+重新掛載確認工作、optimistic 列與摘要保留，恢復連線只補送一次；IndexedDB 邊界使用記憶體替身。
+尚待正式瀏覽器／IndexedDB／SW 重載驗收；離線載入失敗提示與傳輸中斷的持久保留仍待處理。
 完成條件：同步初始連線狀態、保留可重試工作與草稿，覆蓋重複離線重載／恢復補送的瀏覽器回歸。
 詳見 [正式站補充驗收](./PRODUCTION_ACCEPTANCE_2026-09-12.md)。S 修復前不宣稱離線記帳完整通過。
 

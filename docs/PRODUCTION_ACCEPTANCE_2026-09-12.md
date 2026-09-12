@@ -46,7 +46,7 @@
 5. 約 5 秒後 IndexedDB 暫停工作為空，optimistic 支出為 0；畫面只剩既有支出，摘要一度仍包含未同步金額。
 6. 恢復連線並重載，遺失支出沒有補送。NT$3 與 NT$4 兩筆測試均重現；正式 API 只查到線上支出與不重載直接補送的支出。
 
-**程式檢查推論（尚未修正驗證）**：TanStack onlineManager 初值為 true；目前
+**驗收當時的程式檢查推論**：TanStack onlineManager 初值為 true；目前
 [QueryProvider](../src/components/providers/QueryProvider.tsx) 未在恢復暫存前同步瀏覽器的初始離線狀態，
 持久化還原完成即呼叫 resumePausedMutations。補送失敗走
 [offlineMutations](../src/lib/offlineMutations.ts) 的 onError 清除 optimistic 列；失敗工作不再是 paused，
@@ -55,6 +55,11 @@
 完成條件：離線啟動時保留待同步工作與草稿，不因暫時 transport failure 丟棄；
 重複離線重載後恢復連線仍可補送，列表與摘要一致，並新增涵蓋瀏覽器初始離線狀態的回歸驗證。
 由 [改善建議 S](./IMPROVEMENTS.md) 追蹤，不能以本次發現代替修復。
+
+後續本機修正：QueryProvider 已在建立 QueryClient 前同步瀏覽器初始連線狀態。
+新增整合回歸涵蓋兩次離線重新掛載、JSON 持久化、列表與摘要保留，以及連線事件後只補送一次。
+測試使用記憶體替代 IndexedDB，尚未重跑正式瀏覽器／SW 驗收，不改動上方正式站未通過的結論；
+也不代表已處理請求送出後斷線或回應遺失。
 
 ## 正式站支出頁的小樣本效能
 
