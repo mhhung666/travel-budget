@@ -1,4 +1,4 @@
-import type { QueryClient } from '@tanstack/react-query';
+import { replaceEqualDeep, type QueryClient } from '@tanstack/react-query';
 import { createExpense } from '@/actions';
 import type { ActionResult } from '@/actions';
 import type { CreateExpenseInput } from '@/lib/validation';
@@ -33,9 +33,13 @@ export function reconcileExpenseCreate(
     !expense &&
     context?.previousShell &&
     context.appliedShell &&
-    queryClient.getQueryData(tripKeys.shell(vars.tripId)) === context.appliedShell
+    replaceEqualDeep(
+      context.appliedShell,
+      queryClient.getQueryData(tripKeys.shell(vars.tripId))
+    ) === context.appliedShell
   ) {
-    // Only restore our own unchanged shell projection, not newer concurrent/refetched data.
+    // Compare values because persistence restores the context and cache as separate objects.
+    // Only restore an unchanged projection; preserve concurrent/refetched changes.
     queryClient.setQueryData(tripKeys.shell(vars.tripId), context.previousShell);
   }
 }

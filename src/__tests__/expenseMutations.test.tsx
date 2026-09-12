@@ -118,15 +118,28 @@ describe('expense optimistic and offline acceptance', () => {
     });
     await waitFor(() => expect(client.getQueryData(key)).toEqual([saved]));
   });
-  it.each([true, false])(
-    'persists an offline mutation through JSON hydration then reconciles success=%s',
-    async (success) => {
+  it.each([
+    { success: true, newerShell: false },
+    { success: false, newerShell: false },
+    { success: false, newerShell: true },
+  ])(
+    'reconciles a persisted mutation: success=$success, newerShell=$newerShell',
+    async ({ success, newerShell }) => {
+      const shell = {
+        expense_count: 1,
+        total_spent: 10,
+        today_spent: 10,
+        currency_settings: { default_currency: 'TWD', currencies: [{ code: 'TWD', rate: null }] },
+      } as TripShell;
+      client.setQueryData(tripKeys.shell('trip'), shell);
+      client.setQueryData(tripKeys.currentUser, { id: 'user' });
       onlineManager.setOnline(false);
       const { result, unmount } = renderHook(() => useExpenseMutations('trip'), { wrapper });
       act(() => result.current.create.mutate(vars));
       await waitFor(() => expect(result.current.create.isPaused).toBe(true));
       await waitFor(() => expect(client.getQueryData<Expense[]>(key)?.length).toBe(1));
       expect(createExpense).not.toHaveBeenCalled();
+      const projectedShell = client.getQueryData(tripKeys.shell('trip'));
       const snapshot = JSON.parse(JSON.stringify(dehydrate(client)));
       unmount();
       client.clear();
@@ -134,6 +147,8 @@ describe('expense optimistic and offline acceptance', () => {
       extraClients.push(resumed);
       registerOfflineMutationDefaults(resumed);
       hydrate(resumed, snapshot);
+      const refreshedShell = { ...shell, name: 'Updated trip', expense_count: 5, total_spent: 500 };
+      if (newerShell) resumed.setQueryData(tripKeys.shell('trip'), refreshedShell);
       createExpense.mockResolvedValue(
         success ? { success: true, data: saved } : { success: false, error: 'FAILED' }
       );
@@ -141,6 +156,9 @@ describe('expense optimistic and offline acceptance', () => {
       await resumed.resumePausedMutations();
       expect(createExpense).toHaveBeenCalledExactlyOnceWith(vars.tripId, vars.input);
       expect(resumed.getQueryData(key)).toEqual(success ? [saved] : []);
+      expect(resumed.getQueryData(tripKeys.shell('trip'))).toEqual(
+        newerShell ? refreshedShell : success ? projectedShell : shell
+      );
       expect(resumed.getMutationCache().getAll()[0].state.status).toBe(
         success ? 'success' : 'error'
       );
