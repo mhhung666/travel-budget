@@ -89,6 +89,7 @@ export const attachmentInputSchema = z.object({
 
 // Expense schemas
 export const createExpenseSchema = z.object({
+  client_request_id: z.string().uuid().optional(),
   payer_id: objectIdSchema,
   original_amount: z.number().positive('金額必須大於 0'),
   currency: currencyCodeSchema,

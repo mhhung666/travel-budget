@@ -79,6 +79,52 @@ describe('expense optimistic and offline acceptance', () => {
     await waitFor(() => expect(result.current.create.isSuccess).toBe(true));
     expect(client.getQueryData(key)).toEqual([saved]);
   });
+  it.each(['transport', 'server'])(
+    'retries an ambiguous %s failure using one request key',
+    async (failure) => {
+      if (failure === 'transport')
+        createExpense.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+      else
+        createExpense.mockResolvedValueOnce({
+          success: false,
+          code: 'INTERNAL_ERROR',
+          error: 'INTERNAL_ERROR',
+        });
+      createExpense.mockResolvedValueOnce({ success: true, data: saved });
+      const { result } = renderHook(() => useExpenseMutations('trip'), { wrapper });
+      act(() => result.current.create.mutate(vars));
+      await waitFor(() => expect(result.current.create.failureCount).toBe(1));
+      expect(client.getQueryData<Expense[]>(key)?.[0].id).toMatch(/^optimistic_/);
+      await waitFor(() => expect(result.current.create.isSuccess).toBe(true), { timeout: 3000 });
+      expect(createExpense).toHaveBeenCalledTimes(2);
+      expect(createExpense.mock.calls[1][1]).toEqual(createExpense.mock.calls[0][1]);
+      expect(client.getQueryData(key)).toEqual([saved]);
+      expect(vars.input).not.toHaveProperty('client_request_id');
+    }
+  );
+  it('does not send a delayed retry after logout clears the mutation cache', async () => {
+    createExpense.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    const { result } = renderHook(() => useExpenseMutations('trip'), { wrapper });
+    act(() => result.current.create.mutate(vars));
+    await waitFor(() => expect(result.current.create.failureCount).toBe(1));
+    act(() => client.clear());
+    await waitFor(() => expect(result.current.create.isError).toBe(true), { timeout: 3000 });
+    expect(createExpense).toHaveBeenCalledOnce();
+  });
+  it('allocates distinct keys when submitting the same form object twice', async () => {
+    createExpense.mockResolvedValue({ success: true, data: saved });
+    const { result } = renderHook(() => useExpenseMutations('trip'), { wrapper });
+    await act(async () => {
+      await result.current.create.mutateAsync(vars);
+    });
+    await act(async () => {
+      await result.current.create.mutateAsync(vars);
+    });
+    expect(createExpense.mock.calls[0][1].client_request_id).not.toBe(
+      createExpense.mock.calls[1][1].client_request_id
+    );
+    expect(vars.input).not.toHaveProperty('client_request_id');
+  });
   it('removes the placeholder even when no cache existed before a rejected create', async () => {
     createExpense.mockResolvedValue({ success: false, error: 'VALIDATION_ERROR' });
     const { result } = renderHook(() => useExpenseMutations('trip'), { wrapper });
@@ -154,7 +200,10 @@ describe('expense optimistic and offline acceptance', () => {
       );
       onlineManager.setOnline(true);
       await resumed.resumePausedMutations();
-      expect(createExpense).toHaveBeenCalledExactlyOnceWith(vars.tripId, vars.input);
+      expect(createExpense).toHaveBeenCalledExactlyOnceWith(
+        vars.tripId,
+        expect.objectContaining({ ...vars.input, client_request_id: expect.any(String) })
+      );
       expect(resumed.getQueryData(key)).toEqual(success ? [saved] : []);
       expect(resumed.getQueryData(tripKeys.shell('trip'))).toEqual(
         newerShell ? refreshedShell : success ? projectedShell : shell

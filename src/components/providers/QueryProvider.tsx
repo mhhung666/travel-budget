@@ -10,7 +10,7 @@ import {
   PERSIST_MAX_AGE,
   removeLegacyQueryCache,
 } from '@/lib/queryPersister';
-import { registerOfflineMutationDefaults } from '@/lib/offlineMutations';
+import { expenseCreateMutationKey, registerOfflineMutationDefaults } from '@/lib/offlineMutations';
 import { clearTripAccessModes } from '@/hooks/queries/fetcher';
 
 interface QueryPersistenceControls {
@@ -108,7 +108,13 @@ export function QueryProvider({
       queryClient
         .getMutationCache()
         .getAll()
-        .some((mutation) => mutation.state.isPaused),
+        .some(
+          (mutation) =>
+            mutation.state.isPaused ||
+            (mutation.options.mutationKey?.[0] === expenseCreateMutationKey[0] &&
+              mutation.options.mutationKey?.[1] === expenseCreateMutationKey[1] &&
+              mutation.state.status === 'pending')
+        ),
     [queryClient]
   );
   const clearForLogout = useCallback(
@@ -129,7 +135,14 @@ export function QueryProvider({
             persister,
             maxAge: PERSIST_MAX_AGE,
             buster: PERSIST_BUSTER,
-            dehydrateOptions: { shouldDehydrateQuery: shouldPersistQuery },
+            dehydrateOptions: {
+              shouldDehydrateQuery: shouldPersistQuery,
+              shouldDehydrateMutation: (mutation) =>
+                mutation.state.isPaused ||
+                (mutation.options.mutationKey?.[0] === expenseCreateMutationKey[0] &&
+                  mutation.options.mutationKey?.[1] === expenseCreateMutationKey[1] &&
+                  mutation.state.status === 'pending'),
+            },
           }}
           // After the persisted cache + paused mutations are restored, replay any
           // queued offline writes. If still offline they stay paused and TanStack

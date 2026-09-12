@@ -4,6 +4,7 @@ export class TripDeletionError extends Error {}
 
 export const TRIP_CHILD_COLLECTIONS = [
   'expenses',
+  'expensecreaterequests',
   'itinerarydays',
   'payments',
   'checklists',

@@ -1,13 +1,15 @@
 'use client';
 
 import { onlineManager, useMutation, useQueryClient } from '@tanstack/react-query';
-import { createExpense, updateExpense, deleteExpense } from '@/actions';
+import { updateExpense, deleteExpense } from '@/actions';
 import type { UpdateExpenseInput } from '@/lib/validation';
 import type { AuthUserWithCreatedAt } from '@/actions';
 import type { Expense, Member, TripShell } from '@/types';
 import { buildOptimisticExpense, newOptimisticId } from '@/lib/optimisticExpense';
 import {
   expenseCreateMutationKey,
+  executeExpenseCreate,
+  expenseCreateRetryOptions,
   invalidateExpenseDerived,
   unwrap,
   type CreateExpenseVars,
@@ -35,7 +37,8 @@ export function useExpenseMutations(tripId: string) {
 
   const create = useMutation({
     mutationKey: expenseCreateMutationKey,
-    mutationFn: (vars: CreateExpenseVars) => unwrap(createExpense(vars.tripId, vars.input)),
+    mutationFn: (vars: CreateExpenseVars) => executeExpenseCreate(queryClient, vars),
+    ...expenseCreateRetryOptions,
     onMutate: async (vars: CreateExpenseVars): Promise<ExpenseCreateContext> => {
       const wasOffline = !onlineManager.isOnline();
       if (wasOffline) {
@@ -107,5 +110,23 @@ export function useExpenseMutations(tripId: string) {
     onSuccess: invalidate,
   });
 
-  return { create, update, remove };
+  // Allocate per submission, without mutating a caller's reusable form data.
+  const withRequestId = (vars: CreateExpenseVars): CreateExpenseVars => ({
+    ...vars,
+    input: {
+      ...vars.input,
+      client_request_id: vars.input.client_request_id ?? crypto.randomUUID(),
+    },
+  });
+  return {
+    create: {
+      ...create,
+      mutate: ((vars, options) =>
+        create.mutate(withRequestId(vars), options)) as typeof create.mutate,
+      mutateAsync: ((vars, options) =>
+        create.mutateAsync(withRequestId(vars), options)) as typeof create.mutateAsync,
+    },
+    update,
+    remove,
+  };
 }

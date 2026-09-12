@@ -61,31 +61,124 @@ afterEach(() => {
 });
 
 describe('QueryProvider offline startup', () => {
-  it('preserves a queued expense across repeated offline starts, then sends once on reconnect', async () => {
-    const browserOnline = vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(true);
-    onlineManager.setOnline(true);
-    let mounted = renderHook(useProbe, { wrapper });
-    await waitFor(() => expect(mounted.result.current.restoring).toBe(false));
-    browserOnline.mockReturnValue(false);
-    act(() => window.dispatchEvent(new Event('offline')));
-    const shell = { expense_count: 0, total_spent: 0, today_spent: 0 };
-    act(() => {
-      mounted.result.current.client.setQueryData(shellKey, shell);
-      mounted.result.current.client.setQueryData(tripKeys.currentUser, { id: 'user' });
-      mounted.result.current.create.mutate(vars);
-    });
-    await waitFor(() => expect(mounted.result.current.create.isPaused).toBe(true));
-    await waitFor(() => expect(persisted()?.mutations[0]?.state.context).toBeDefined(), {
-      timeout: 3000,
-    });
-    const optimistic = mounted.result.current.client.getQueryData(expenseKey);
-    const projectedShell = mounted.result.current.client.getQueryData(shellKey);
-    expect(projectedShell).toMatchObject({ expense_count: 1, total_spent: 100 });
-
-    for (let reload = 0; reload < 2; reload++) {
-      mounted.unmount();
-      // A fresh JS realm starts online even though the browser remains offline.
+  it.each([false, true])(
+    'preserves a queue across repeated offline starts (legacy=%s)',
+    async (legacy) => {
+      const browserOnline = vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(true);
       onlineManager.setOnline(true);
+      let mounted = renderHook(useProbe, { wrapper });
+      await waitFor(() => expect(mounted.result.current.restoring).toBe(false));
+      browserOnline.mockReturnValue(false);
+      act(() => window.dispatchEvent(new Event('offline')));
+      const shell = { expense_count: 0, total_spent: 0, today_spent: 0 };
+      act(() => {
+        mounted.result.current.client.setQueryData(shellKey, shell);
+        mounted.result.current.client.setQueryData(tripKeys.currentUser, { id: 'user' });
+        mounted.result.current.create.mutate(vars);
+      });
+      await waitFor(() => expect(mounted.result.current.create.isPaused).toBe(true));
+      await waitFor(() => expect(persisted()?.mutations[0]?.state.context).toBeDefined(), {
+        timeout: 3000,
+      });
+      let expectedRequestId = persisted().mutations[0].state.variables.input.client_request_id;
+      if (legacy) {
+        const oldCache = JSON.parse(storage.get(persistKey)!);
+        delete oldCache.clientState.mutations[0].state.variables.input.client_request_id;
+        expectedRequestId = oldCache.clientState.mutations[0].state.context.optimisticId.replace(
+          /^optimistic_/,
+          ''
+        );
+        storage.set(persistKey, JSON.stringify(oldCache));
+      }
+      const optimistic = mounted.result.current.client.getQueryData(expenseKey);
+      const projectedShell = mounted.result.current.client.getQueryData(shellKey);
+      expect(projectedShell).toMatchObject({ expense_count: 1, total_spent: 100 });
+
+      for (let reload = 0; reload < 2; reload++) {
+        mounted.unmount();
+        // A fresh JS realm starts online even though the browser remains offline.
+        onlineManager.setOnline(true);
+        mounted = renderHook(useProbe, { wrapper });
+        await waitFor(() => expect(mounted.result.current.restoring).toBe(false));
+        expect(mounted.result.current.client.getMutationCache().getAll()[0].state).toMatchObject({
+          status: 'pending',
+          isPaused: true,
+        });
+        expect(mounted.result.current.client.getQueryData(expenseKey)).toEqual(optimistic);
+        expect(mounted.result.current.client.getQueryData(shellKey)).toEqual(projectedShell);
+        // Force a persisted cache update and wait past the real throttle window.
+        act(() => mounted.result.current.client.setQueryData(['reload'], reload));
+        await waitFor(
+          () =>
+            expect(
+              persisted()?.queries.some(
+                (q: { queryKey: string[]; state: { data: number } }) =>
+                  q.queryKey[0] === 'reload' && q.state.data === reload
+              )
+            ).toBe(true),
+          { timeout: 3000 }
+        );
+        expect(persisted().mutations).toHaveLength(1);
+        expect(createExpense).not.toHaveBeenCalled();
+      }
+
+      const saved = buildOptimisticExpense(vars.input, {
+        tripId: vars.tripId,
+        id: 'saved',
+        members: [],
+        createdAt: '2026-09-12T00:00:00Z',
+      });
+      createExpense.mockResolvedValue({ success: true, data: saved });
+      browserOnline.mockReturnValue(true);
+      act(() => window.dispatchEvent(new Event('online')));
+      await waitFor(() =>
+        expect(mounted.result.current.client.getQueryData(expenseKey)).toEqual([saved])
+      );
+      expect(createExpense).toHaveBeenCalledExactlyOnceWith(
+        vars.tripId,
+        expect.objectContaining({ ...vars.input, client_request_id: expectedRequestId })
+      );
+      await waitFor(() => expect(persisted()?.mutations).toEqual([]), { timeout: 3000 });
+      mounted.unmount();
+    }
+  );
+  it.each(['in-flight', 'retrying'])(
+    'restores a %s request after reload and reuses its original key',
+    async (phase) => {
+      const browserOnline = vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(true);
+      onlineManager.setOnline(true);
+      let reject!: (reason: Error) => void;
+      createExpense.mockReturnValueOnce(
+        new Promise((_resolve, fail) => {
+          reject = fail;
+        })
+      );
+      let mounted = renderHook(useProbe, { wrapper });
+      await waitFor(() => expect(mounted.result.current.restoring).toBe(false));
+      act(() => mounted.result.current.create.mutate(vars));
+      await waitFor(() => expect(createExpense).toHaveBeenCalledOnce());
+      const sent = structuredClone(createExpense.mock.calls[0][1]);
+      expect(sent.client_request_id).toEqual(expect.any(String));
+      if (phase === 'retrying') {
+        browserOnline.mockReturnValue(false);
+        act(() => window.dispatchEvent(new Event('offline')));
+        await act(async () => reject(new TypeError('Failed to fetch')));
+        await waitFor(() => expect(mounted.result.current.create.failureCount).toBe(1));
+        await waitFor(() => expect(mounted.result.current.create.isPaused).toBe(true), {
+          timeout: 3000,
+        });
+      }
+      // In-flight remains online: persistence must not require isPaused.
+      await waitFor(() => expect(persisted()?.mutations[0]?.state.variables.input).toEqual(sent), {
+        timeout: 3000,
+      });
+      await waitFor(() => expect(persisted()?.mutations[0]?.state.context).toBeDefined(), {
+        timeout: 3000,
+      });
+      const optimistic = mounted.result.current.client.getQueryData(expenseKey);
+      mounted.unmount();
+      browserOnline.mockReturnValue(false);
+      onlineManager.setOnline(false);
       mounted = renderHook(useProbe, { wrapper });
       await waitFor(() => expect(mounted.result.current.restoring).toBe(false));
       expect(mounted.result.current.client.getMutationCache().getAll()[0].state).toMatchObject({
@@ -93,37 +186,22 @@ describe('QueryProvider offline startup', () => {
         isPaused: true,
       });
       expect(mounted.result.current.client.getQueryData(expenseKey)).toEqual(optimistic);
-      expect(mounted.result.current.client.getQueryData(shellKey)).toEqual(projectedShell);
-      // Force a persisted cache update and wait past the real throttle window.
-      act(() => mounted.result.current.client.setQueryData(['reload'], reload));
-      await waitFor(
-        () =>
-          expect(
-            persisted()?.queries.some(
-              (q: { queryKey: string[]; state: { data: number } }) =>
-                q.queryKey[0] === 'reload' && q.state.data === reload
-            )
-          ).toBe(true),
-        { timeout: 3000 }
+      const saved = buildOptimisticExpense(vars.input, {
+        tripId: vars.tripId,
+        id: 'committed-before-reload',
+        members: [],
+        createdAt: '2026-09-12T00:00:00Z',
+      });
+      createExpense.mockResolvedValue({ success: true, data: saved });
+      browserOnline.mockReturnValue(true);
+      act(() => window.dispatchEvent(new Event('online')));
+      await waitFor(() =>
+        expect(mounted.result.current.client.getQueryData(expenseKey)).toEqual([saved])
       );
-      expect(persisted().mutations).toHaveLength(1);
-      expect(createExpense).not.toHaveBeenCalled();
+      expect(createExpense).toHaveBeenCalledTimes(2);
+      expect(createExpense.mock.calls[1][1]).toEqual(sent);
+      await waitFor(() => expect(persisted()?.mutations).toEqual([]), { timeout: 3000 });
+      mounted.unmount();
     }
-
-    const saved = buildOptimisticExpense(vars.input, {
-      tripId: vars.tripId,
-      id: 'saved',
-      members: [],
-      createdAt: '2026-09-12T00:00:00Z',
-    });
-    createExpense.mockResolvedValue({ success: true, data: saved });
-    browserOnline.mockReturnValue(true);
-    act(() => window.dispatchEvent(new Event('online')));
-    await waitFor(() =>
-      expect(mounted.result.current.client.getQueryData(expenseKey)).toEqual([saved])
-    );
-    expect(createExpense).toHaveBeenCalledExactlyOnceWith(vars.tripId, vars.input);
-    await waitFor(() => expect(persisted()?.mutations).toEqual([]), { timeout: 3000 });
-    mounted.unmount();
-  });
+  );
 });

@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import mongoose, { type mongo } from 'mongoose';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const getSession = vi.fn();
 const getTripMembership = vi.fn();
@@ -21,6 +22,14 @@ const prepareBackground = vi.fn();
 const runBackground = vi.fn();
 const after = vi.fn();
 const userFind = vi.fn();
+const originalDbDescriptor = Object.getOwnPropertyDescriptor(mongoose.connection, 'db');
+afterAll(() => {
+  if (originalDbDescriptor) Object.defineProperty(mongoose.connection, 'db', originalDbDescriptor);
+  else Reflect.deleteProperty(mongoose.connection, 'db');
+});
+const receipts = new Map<string, unknown>();
+const receiptFind = vi.fn();
+const receiptInsert = vi.fn();
 
 vi.mock('@/lib/blobReferences', async (original) => ({
   ...(await original<typeof import('@/lib/blobReferences')>()),
@@ -142,7 +151,18 @@ function currentExpense(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  prepareBackground.mockResolvedValue(false);
+  receipts.clear();
+  receiptFind.mockImplementation(async ({ _id }) => receipts.get(_id) ?? null);
+  receiptInsert.mockImplementation(async (receipt) => {
+    receipts.set(receipt._id, structuredClone(receipt));
+  });
+  Object.defineProperty(mongoose.connection, 'db', {
+    configurable: true,
+    value: {
+      collection: () => ({ findOne: receiptFind, insertOne: receiptInsert }),
+    } as unknown as mongo.Db,
+  });
+  prepareBackground.mockReset().mockResolvedValue(false);
   after.mockImplementation(() => undefined);
   userFind.mockReturnValue(selectLean([{ _id: USER, displayName: 'Actor', username: 'actor' }]));
   getSession.mockResolvedValue({ userId: USER });
@@ -385,6 +405,58 @@ describe('createExpense atomic outbox', () => {
       selectLean({ expenseDeliveryDeleting: true, members: [{ user: USER }] })
     );
     expect((await createExpense(TRIP, validInput)).success).toBe(false);
+    expect(expenseCreate).not.toHaveBeenCalled();
+  });
+});
+
+describe('createExpense request replay', () => {
+  const input = { ...validInput, client_request_id: '017fd635-8dc2-41c1-bf6a-ecbe40f18f90' };
+  beforeEach(() => {
+    expenseCreate.mockImplementation(async (document) => ({
+      _id: EXPENSE,
+      toObject: () => ({ ...document, _id: EXPENSE }),
+    }));
+  });
+  it.each([false, true])(
+    'returns the committed result without repeating effects (background=%s)',
+    async (background) => {
+      prepareBackground.mockResolvedValue(background);
+      const first = await createExpense(TRIP, input);
+      expect(first.success).toBe(true);
+      // Simulate a lost response; attachments and delivery readiness no longer need to be available.
+      prepareBackground.mockRejectedValueOnce(new Error('unavailable'));
+      expect(await createExpense('trip-code', input)).toEqual(first);
+      expect(expenseCreate).toHaveBeenCalledOnce();
+      expect(receiptInsert).toHaveBeenCalledOnce();
+      expect(notify).toHaveBeenCalledTimes(background ? 0 : 1);
+      expect(logActivity).toHaveBeenCalledTimes(background ? 0 : 1);
+      expect(after).toHaveBeenCalledTimes(background ? 1 : 0);
+    }
+  );
+  it('rejects different contents reusing a key and still checks membership on replay', async () => {
+    await createExpense(TRIP, input);
+    expect(await createExpense(TRIP, { ...input, description: 'Different' })).toMatchObject({
+      success: false,
+      code: 'CONFLICT',
+    });
+    getTripMembership.mockResolvedValue(null);
+    expect(await createExpense(TRIP, input)).toMatchObject({ success: false, code: 'NOT_FOUND' });
+    expect(expenseCreate).toHaveBeenCalledOnce();
+  });
+  it('scopes request keys to the authenticated actor and canonical trip', async () => {
+    await createExpense(TRIP, input);
+    getSession.mockResolvedValue({ userId: MEMBER });
+    await createExpense(TRIP, input);
+    getTripMembership.mockResolvedValue({ tripId: DAY, role: 'member' });
+    await createExpense(DAY, input);
+    expect(expenseCreate).toHaveBeenCalledTimes(3);
+    expect(receipts.size).toBe(3);
+  });
+  it('rejects invalid keys before writing', async () => {
+    expect(await createExpense(TRIP, { ...input, client_request_id: 'bad-key' })).toMatchObject({
+      success: false,
+      code: 'VALIDATION_ERROR',
+    });
     expect(expenseCreate).not.toHaveBeenCalled();
   });
 });

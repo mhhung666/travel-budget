@@ -9,6 +9,7 @@ import { cleanupRetiredBlobs } from '@/lib/blobCleanup';
 import { revalidatePath } from 'next/cache';
 import { after } from 'next/server';
 import mongoose, { Types, type mongo } from 'mongoose';
+import { readExpenseCreateResult, withExpenseCreateRequest } from '@/lib/expenseCreateRequest';
 import { withTripWrite, TripWriteError } from '@/lib/tripWriteTransaction';
 import { Expense, Trip, User, ItineraryDay, Comment, EXPENSE_CATEGORIES } from '@/models';
 import { getTripMembership } from '@/lib/permissions';
@@ -193,6 +194,10 @@ export const createExpense = withAuth(
         tags,
       } = validation.data;
 
+      const request = { tripId, actorId: session.userId, input: validation.data };
+      // Replays must not depend on attachments or members that may have changed since commit.
+      const previous = await readExpenseCreateResult(mongoose.connection.db!, request);
+      if (previous) return { success: true, data: previous };
       const amount = original_amount * exchange_rate;
 
       // 驗證並轉換收據附件（key 須屬本 trip、物件須存在、size/type 以 headObject 為準）
@@ -206,10 +211,8 @@ export const createExpense = withAuth(
       }
 
       const background = await prepareExpenseBackgroundWrite();
-      const { created, byId, trip, memberIds } = await withTripWrite(
-        tripId,
-        session.userId,
-        async (transactionSession) => {
+      const result = await withTripWrite(tripId, session.userId, (transactionSession) =>
+        withExpenseCreateRequest(mongoose.connection.db!, transactionSession, request, async () => {
           // Validate payer and split members are trip members
           const trip = await Trip.findById(tripId)
             .session(transactionSession)
@@ -249,24 +252,22 @@ export const createExpense = withAuth(
           const expenseId = new Types.ObjectId();
           // Resolve response names and immutable actor name BEFORE the insert. No post-write populate
           // can fail and misrepresent an already committed expense as a failed creation.
-          const people = background
-            ? await User.find({
-                _id: {
-                  $in: [
-                    ...new Set([session.userId, payer_id, ...splits.map((split) => split.user_id)]),
-                  ],
-                },
-              })
-                .session(transactionSession)
-                .select('username displayName')
-                .lean<
-                  {
-                    _id: Types.ObjectId;
-                    username: string;
-                    displayName: string;
-                  }[]
-                >()
-            : [];
+          const people = await User.find({
+            _id: {
+              $in: [
+                ...new Set([session.userId, payer_id, ...splits.map((split) => split.user_id)]),
+              ],
+            },
+          })
+            .session(transactionSession)
+            .select('username displayName')
+            .lean<
+              {
+                _id: Types.ObjectId;
+                username: string;
+                displayName: string;
+              }[]
+            >();
           const byId = new Map(people.map((person) => [person._id.toString(), person]));
           const eventSnapshot = background
             ? createExpenseDeliveryEvent({
@@ -316,28 +317,30 @@ export const createExpense = withAuth(
             { session: transactionSession }
           );
 
-          return { created, byId, trip, memberIds };
-        }
+          const person = (id: string) =>
+            byId.get(id) ?? {
+              _id: new Types.ObjectId(id),
+              username: 'Unknown',
+              displayName: 'Unknown',
+            };
+          const data = toExpenseDto(
+            {
+              ...created.toObject(),
+              payer: person(payer_id),
+              splits: splits.map((split) => ({
+                user: person(split.user_id),
+                shareAmount: split.share_amount,
+              })),
+            } as unknown as LeanExpense,
+            tripId
+          );
+          return { data, trip, memberIds };
+        })
       );
+      if (result.replayed) return { success: true, data: result.data };
+      const { data, trip, memberIds } = result;
 
       if (background) {
-        const person = (id: string) =>
-          byId.get(id) ?? {
-            _id: new Types.ObjectId(id),
-            username: 'Unknown',
-            displayName: 'Unknown',
-          };
-        const data = toExpenseDto(
-          {
-            ...created.toObject(),
-            payer: person(payer_id),
-            splits: splits.map((split) => ({
-              user: person(split.user_id),
-              shareAmount: split.share_amount,
-            })),
-          } as unknown as LeanExpense,
-          tripId
-        );
         try {
           // Platform-supported post-response work; durable recovery never relies on this alone.
           after(async () => {
@@ -359,18 +362,13 @@ export const createExpense = withAuth(
         return { success: true, data };
       }
 
-      await created.populate([
-        { path: 'payer', select: 'username displayName' },
-        { path: 'splits.user', select: 'username displayName' },
-      ]);
-
       // 副作用互不依賴，並行但仍等待完成（serverless 不使用 fire-and-forget）。
       // 呼叫端再隔離失敗，避免已建立的支出被呈現為失敗而誘發重送。
       const event = {
         tripId,
         actorId: session.userId,
         type: 'expense_added' as const,
-        meta: { expense_id: created._id.toString(), description, amount },
+        meta: { expense_id: data.id, description, amount },
       };
       const effects = await Promise.allSettled([
         Promise.resolve().then(() =>
@@ -395,7 +393,7 @@ export const createExpense = withAuth(
       revalidatePath(`/trips/${tripIdOrCode}/expenses`);
       return {
         success: true,
-        data: toExpenseDto(created.toObject() as unknown as LeanExpense, tripId),
+        data,
       };
     } catch (error) {
       if (error instanceof RetiredBlobError)

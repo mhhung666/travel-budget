@@ -73,6 +73,46 @@ export async function unwrap<T>(p: Promise<ActionResult<T>>): Promise<T> {
   return result.data;
 }
 
+class RetryableExpenseError extends Error {}
+
+/** A rejected transport cannot tell us whether the server committed. Reuse the same key. */
+export async function executeExpenseCreate(
+  queryClient: QueryClient,
+  vars: CreateExpenseVars
+): Promise<Expense> {
+  // Clearing the cache on logout does not cancel TanStack's existing retry timer.
+  // Never send a removed request under a later authenticated session.
+  if (
+    !queryClient
+      .getMutationCache()
+      .getAll()
+      .some((mutation) => mutation.state.variables === vars)
+  ) {
+    throw new Error('Expense request was cleared');
+  }
+  // Older paused queues have no key; attach one before their first replay.
+  vars.input = {
+    ...vars.input,
+    client_request_id: vars.input.client_request_id ?? crypto.randomUUID(),
+  };
+  let result: ActionResult<Expense>;
+  try {
+    result = await createExpense(vars.tripId, vars.input);
+  } catch (error) {
+    throw new RetryableExpenseError(error instanceof Error ? error.message : String(error));
+  }
+  if (!result.success) {
+    if (result.code === 'INTERNAL_ERROR') throw new RetryableExpenseError(result.error);
+    throw new Error(result.error);
+  }
+  return result.data;
+}
+
+export const expenseCreateRetryOptions = {
+  retry: (_failureCount: number, error: Error) => error instanceof RetryableExpenseError,
+  retryDelay: (attempt: number) => Math.min(1000 * 2 ** attempt, 30_000),
+};
+
 /** Invalidate every trip query derived from expenses (balances + stats + feed). */
 export function invalidateExpenseDerived(queryClient: QueryClient, tripId: string): void {
   queryClient.invalidateQueries({ queryKey: tripKeys.expenses(tripId) });
@@ -91,7 +131,8 @@ export function invalidateExpenseDerived(queryClient: QueryClient, tripId: strin
  */
 export function registerOfflineMutationDefaults(queryClient: QueryClient): void {
   queryClient.setMutationDefaults(expenseCreateMutationKey, {
-    mutationFn: (vars: CreateExpenseVars) => unwrap(createExpense(vars.tripId, vars.input)),
+    mutationFn: (vars: CreateExpenseVars) => executeExpenseCreate(queryClient, vars),
+    ...expenseCreateRetryOptions,
     onSuccess: (data, vars, context: ExpenseCreateContext | undefined) => {
       reconcileExpenseCreate(queryClient, vars, context, data);
       trackProductEvent('activation_step', { step: 'expense_created' });
