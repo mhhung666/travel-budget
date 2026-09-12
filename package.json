@@ -1,6 +1,6 @@
 {
   "name": "travel-budget",
-  "version": "4.6.47",
+  "version": "4.6.48",
   "description": "一個輕量化的旅行記帳與分帳應用程式,適合多人出國旅行時使用。",
   "main": "index.js",
   "type": "module",
@@ -16,6 +16,7 @@
     "format:check": "prettier --check \"src/**/*.{ts,tsx,json,css}\"",
     "test": "vitest",
     "test:run": "vitest run",
+    "test:offline-browser": "node scripts/verify-offline-expenses.mjs",
     "test:ai-import-eval": "RUN_AI_IMPORT_EVAL=1 vitest run src/__tests__/itineraryImportLiveEvaluation.test.ts",
     "test:ai-expense-text-eval": "RUN_AI_EXPENSE_TEXT_EVAL=1 vitest run src/__tests__/expenseTextDraftLiveEvaluation.test.ts",
     "test:ai-receipt-eval": "RUN_AI_RECEIPT_EVAL=1 vitest run src/__tests__/receiptDraftLiveEvaluation.test.ts",

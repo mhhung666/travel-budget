@@ -6,7 +6,7 @@ import { createExpenseOutbox } from './expenseOutbox';
 import { buildOptimisticExpense } from './optimisticExpense';
 import { tripKeys } from '@/hooks/queries/keys';
 import { replaceEqualDeep } from '@tanstack/react-query';
-import type { Expense } from '@/types';
+import type { Expense, TripShell } from '@/types';
 
 /**
  * IndexedDB-backed persister for the TanStack Query cache (ROADMAP #5 Phase 1).
@@ -133,6 +133,58 @@ export function createQueryPersister(cacheScope: string) {
           );
         }
       }
+      // Multiple tabs can have independent projections based on the same server total.
+      // Unwind the recognized local projection, then include every durable pending entry once.
+      for (const query of client.clientState.queries) {
+        if (query.queryKey[0] !== 'trip') continue;
+        const tripEntries = Object.values(entries).filter(
+          (entry) => entry.vars.tripId === query.queryKey[1]
+        );
+        if (!tripEntries.length) continue;
+        if (
+          ['shell', 'expenses', 'settlement', 'stats', 'activity', 'expenseTags'].includes(
+            String(query.queryKey[2])
+          )
+        )
+          query.state.isInvalidated = true;
+        if (query.queryKey[2] !== 'shell') continue;
+        const pending = tripEntries.filter(
+          (entry) =>
+            entry.status === 'pending' && entry.context?.previousShell && entry.context.appliedShell
+        );
+        let base = query.state.data as TripShell;
+        const unwound = new Set<ExpenseCreateContext>();
+        while (true) {
+          const projection = pending.find(
+            (entry) =>
+              !unwound.has(entry.context!) &&
+              replaceEqualDeep(entry.context!.appliedShell, base) === entry.context!.appliedShell
+          )?.context;
+          if (!projection) break;
+          unwound.add(projection);
+          base = projection.previousShell!;
+        }
+        if (
+          unwound.size ||
+          pending.some(
+            (entry) =>
+              replaceEqualDeep(entry.context!.previousShell, base) === entry.context!.previousShell
+          )
+        ) {
+          query.state.data = pending.reduce((shell, entry) => {
+            const { previousShell, appliedShell } = entry.context!;
+            return {
+              ...shell,
+              expense_count:
+                shell.expense_count + appliedShell!.expense_count - previousShell!.expense_count,
+              total_spent:
+                shell.total_spent + appliedShell!.total_spent - previousShell!.total_spent,
+              today_spent:
+                shell.today_spent + appliedShell!.today_spent - previousShell!.today_spent,
+            };
+          }, base);
+        }
+      }
       for (const entry of Object.values(entries)) {
         const shell = client.clientState.queries.find(
           (q) => JSON.stringify(q.queryKey) === JSON.stringify(tripKeys.shell(entry.vars.tripId))
@@ -145,12 +197,6 @@ export function createQueryPersister(cacheScope: string) {
               contextProjection.appliedShell
           )
             shell.state.data = contextProjection.previousShell;
-          if (
-            entry.status === 'pending' &&
-            replaceEqualDeep(contextProjection.previousShell, shell.state.data) ===
-              contextProjection.previousShell
-          )
-            shell.state.data = contextProjection.appliedShell;
         }
         if (
           entry.status === 'done' &&

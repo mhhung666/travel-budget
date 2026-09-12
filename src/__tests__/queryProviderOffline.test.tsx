@@ -1,16 +1,24 @@
 import type { PropsWithChildren } from 'react';
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { onlineManager, useIsRestoring, useQueryClient } from '@tanstack/react-query';
+import {
+  QueryClient,
+  dehydrate,
+  onlineManager,
+  useIsRestoring,
+  useQueryClient,
+} from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryProvider, useQueryPersistenceControls } from '@/components/providers/QueryProvider';
 import { useExpenseMutations } from '@/hooks/queries/useExpenseMutations';
 import { tripKeys } from '@/hooks/queries/keys';
 import {
+  createExpenseOutbox,
   getExpenseOutboxKey,
   expenseOutboxQueryKey,
   type ExpenseOutbox,
 } from '@/lib/expenseOutbox';
 import { getQueryPersistKey } from '@/lib/queryPersister';
+import type { TripShell } from '@/types';
 import { buildOptimisticExpense } from '@/lib/optimisticExpense';
 
 const { storage, createExpense, writeGate } = vi.hoisted(() => ({
@@ -234,6 +242,50 @@ describe('QueryProvider offline startup', () => {
     });
     expect(storage.get(getExpenseOutboxKey(scope))).toBeUndefined();
     mounted.unmount();
+  });
+  it('combines projections from separate tabs and refreshes derived cached reads', async () => {
+    vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(false);
+    const base = { expense_count: 4, total_spent: 82, today_spent: 82 };
+    const first = { expense_count: 5, total_spent: 113, today_spent: 113 };
+    const second = { expense_count: 5, total_spent: 119, today_spent: 119 };
+    const snapshot = new QueryClient();
+    snapshot.setQueryData(shellKey, first);
+    storage.set(
+      persistKey,
+      JSON.stringify({ timestamp: Date.now(), buster: 'v9', clientState: dehydrate(snapshot) })
+    );
+    for (const [amount, projection] of [
+      [31, first],
+      [37, second],
+    ] as const) {
+      const requestId = crypto.randomUUID();
+      await createExpenseOutbox(scope).write({
+        vars: {
+          ...vars,
+          input: { ...vars.input, client_request_id: requestId, original_amount: amount },
+        },
+        status: 'pending',
+        createdAt: Date.now(),
+        context: {
+          optimisticId: `optimistic_${requestId}`,
+          wasOffline: true,
+          previousShell: base as TripShell,
+          appliedShell: projection as TripShell,
+        },
+      });
+    }
+    const mounted = renderHook(useProbe, { wrapper });
+    await waitFor(() => expect(mounted.result.current.restoring).toBe(false));
+    expect(mounted.result.current.client.getQueryData(shellKey)).toEqual({
+      expense_count: 6,
+      total_spent: 150,
+      today_spent: 150,
+    });
+    expect(mounted.result.current.client.getQueryState(shellKey)?.isInvalidated).toBe(true);
+    expect(mounted.result.current.client.getQueryData<unknown[]>(expenseKey)).toHaveLength(2);
+    expect(createExpense).not.toHaveBeenCalled();
+    mounted.unmount();
+    snapshot.clear();
   });
   it.each([false, true])(
     'preserves a queue across repeated offline starts (legacy=%s)',

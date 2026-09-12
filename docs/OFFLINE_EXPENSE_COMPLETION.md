@@ -1,5 +1,8 @@
 # S 分階段完成紀錄
 
+2026-09-13 結案：程式修正與本機 production build 的真實瀏覽器驗收完成。
+尚未 push 或部署；2026-09-12 正式站的失敗紀錄保留為歷史證據，部署後抽驗由 M 追蹤。
+
 ## 第一階段：先保存，再確認
 
 新增獨立、依登入身分隔離的 IndexedDB 支出寄送紀錄。表單等待本機交易完成才關閉並顯示
@@ -15,7 +18,7 @@ IndexedDB 的原子更新避免同身分多分頁新增不同支出互相覆寫�
 驗證涵蓋本機寫入等待／失敗、無查詢快取的立即重載、快取到期／格式不相容／損壞、
 舊版佇列、重複離線重載與恢復補送。這一階段使用 IndexedDB 替身；真實瀏覽器驗證於後續階段執行。
 
-本文件記錄分階段交付；S 尚未結案。各階段 commit，最終交付依 AGENTS.md 統一升版一次。
+第一階段 commit：`8539289`。各階段 commit，最終交付依 AGENTS.md 統一升版一次。
 
 ## 第二階段：草稿復原與離線讀取
 
@@ -30,3 +33,49 @@ IndexedDB 的原子更新避免同身分多分頁新增不同支出互相覆寫�
 
 測試：永久失敗／重載／草稿替換交易與儲存失敗、舊稿重複提交、登出清除、完整欄位預填，
 以及離線有／無快取提示、既有表單／查詢錯誤流程。共 59 項相關測試通過，TypeScript 與變更檔案 ESLint 通過。
+
+第二階段 commit：`9df81fe`。
+
+## 第三階段：真實瀏覽器驗收與摘要一致性
+
+新增 `pnpm test:offline-browser`：自動建立全新本機 MongoDB replica set、合成帳號／旅程、
+獨立 Chrome context，執行 production build 並啟用實際 Service Worker。
+伺服器使用真正的登入驗證、server actions、MongoDB transaction 與請求去重紀錄，非 action 替身。
+腳本固定使用自己的 Docker 容器，不讀取或連接正式資料庫；結束時清除容器、資料卷與瀏覽器環境。
+背景通知設為 off，測試帳號無收件人，不呼叫正式郵件／推播／AI 或 cron。
+
+2026-09-13，Chrome `152.0.7977.83`，桌面 1280 × 900，以下六項全部通過：
+
+| 情境 | 驗證結果 |
+| --- | --- |
+| 離線新增後立即重載，再次離線重載，最後恢復連線 | 真實 IndexedDB 保留工作，資料庫只新增 1 筆 |
+| 真正 server action 已寫入後丟棄回應，離線重載並補送 | 沿用同一請求識別碼，資料庫仍只有 1 筆 |
+| 撤銷成員權限導致同步失敗 | 重載後可找回／匯出原稿，恢復權限後修改並重送成功 |
+| IndexedDB 寫入拋出 QuotaExceededError | 保留表單、沒有送到伺服器；儲存恢復後重送成功 |
+| 同身分兩分頁同時離線新增、重載、補送 | 原子保存兩筆；共同還原與重送不重複新增；離線摘要包含兩筆 |
+| 移除一般讀取快取後離線重載 | 清楚提示資料尚未保存；獨立寄送紀錄仍可查看，連線恢復後成功同步 |
+
+最終 DB 為 7 筆支出與 7 筆去重紀錄；畫面列表與摘要均為 NT$191，無 page error。
+驗收發現並修正多分頁摘要停留在舊值的問題：還原時合併同一基礎上的 pending 投影，
+並將寄送紀錄相關的衍生查詢標為需要更新；離線保留內容，恢復連線後重新核對伺服器資料。
+
+Chrome 在多分頁關閉／重載時可能重設 `navigator.onLine`，腳本以原生 CDP
+`Network.overrideNetworkState` 配合 Playwright 的實際網路封鎖；最後一項在重載後重新套用原生狀態，
+再檢查離線提示。未替換應用程式的 navigator、QueryClient 或 Service Worker。只有儲存失敗情境暫時讓
+真實 IndexedDB 的 put 邊界拋出 QuotaExceededError；其餘讀寫、交易與還原使用真實 IndexedDB。
+第一個頁面須先由 SW 接管並快取，才進行離線重載，未聲稱從未開過的頁面能無網路啟動。
+
+完整 `pnpm test:run`：149 個測試檔、1,479 項通過；需要額外環境的 204 項跳過。
+production build、TypeScript 與變更 TypeScript 檔案 ESLint 通過。
+瀏覽器腳本另通過 Node 語法檢查；repository 的 ESLint 原本排除 scripts。
+
+## 重跑與部署界線
+
+需要已啟動的 Docker、`mongo:8.0` 映像（缺少時 Docker 會下載）、Google Chrome 及已安裝的 pnpm 依賴。
+執行 `pnpm test:offline-browser`；只有已用目前程式產生 production build 時才可加 `--skip-build`。
+合成截圖、結果 JSON 與服務日誌會寫到系統暫存目錄，路徑由腳本輸出；不含正式帳號或資料。
+本次成功產物目錄的末段為 `travel-budget-offline-eolC80`，暫存檔不保證永久保留。
+
+部署仍需套用 `20260912160000-expense-create-requests` migration，並確保新版 server action 與客戶端一致上線。
+本輪未部署、未執行正式 migration，也未驗證 iOS Safari／安裝 PWA；這些環境的部署後觀測由 M 追蹤。
+S 的修正、資料保留與瀏覽器回歸已完成，不再列為待實作缺陷。
