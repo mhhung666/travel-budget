@@ -1,6 +1,6 @@
 # 改善建議（Improvements）
 
-> 更新日期：2026-09-11
+> 更新日期：2026-09-12
 > 本文件只列**尚未處理**的程式碼 / 基礎設施層級改善。已完成里程碑見 [CHANGELOG.md](./CHANGELOG.md)，架構說明見 [ARCHITECTURE.md](./ARCHITECTURE.md)。
 > 慣例：處理完一項 → 移到 [CHANGELOG.md](./CHANGELOG.md)、從本檔刪除。
 
@@ -13,33 +13,46 @@
 
 | 順序 | 項目 | 主要價值 | 建議批次 |
 | ---: | --- | --- | --- |
-| 1 | O. MongoDB 正式效能驗收 | 確認實際負載下的讀寫成本 | 🟡 migration 與工程驗收完成 |
-| 2 | P. 支出背景處理部署驗收 | 確認正式環境回應延遲與補送恢復 | 🟡 程式與 migration 已完成 |
-| 3 | R. 部署與一致性驗收 | 確認新版 writer 與清理 worker 一致上線 | 🟡 工程完成、migration／push 已回報完成，待確認部署驗收 |
-| 4 | M. production-like 效能追蹤（含 Q 部署後觀測） | 補齊實際 bytes、MongoDB profiler 與 TTI 數據 | 🟡 正式站載入體驗抽查通過，效能／PWA 待驗收 |
+| 1 | S. 離線重載遺失待同步支出 | 避免已告知暫存成功的記帳資料遺失 | 🔴 正式站重現，阻擋驗收 |
+| 2 | O. MongoDB 正式效能驗收 | 確認實際負載下的讀寫成本 | 🟡 migration 與工程驗收完成 |
+| 3 | P. 支出背景處理部署驗收 | 確認正式環境回應延遲與補送恢復 | 🟡 單人寫入與 done 觀測通過，通知／排程／失敗恢復待驗 |
+| 4 | R. 部署與一致性驗收 | 確認新版 writer 與清理 worker 一致上線 | 🟡 CRUD／活動衝突／票券正常流程通過，部署／清理待驗 |
+| 5 | M. production-like 效能追蹤（含 Q 部署後觀測） | 補齊實際 bytes、MongoDB profiler 與 TTI 數據 | 🟡 已補冷／熱小樣本，離線缺陷與效能／PWA 待驗收 |
 
 Q1～Q3 已於 2026-09-09 工程結案，使用者回報已 push；不再列為待實作項目。
 交付與驗證見 [Q 結案紀錄](./QUERY_UX_PROGRESS.md)，正式環境觀測統一由 M 追蹤，尚未宣稱通過。
+
+### S. 🔴 離線重載遺失待同步支出
+
+2026-09-12 正式站兩次重現：離線新增顯示「已暫存／待同步」，保持離線重載後支出消失，
+恢復連線也未補送。已確認 IndexedDB 的 paused mutation 由 1 筆變 0 筆，optimistic 列也被移除。
+不重載直接恢復連線則可成功補送，問題集中於離線啟動與還原。
+
+程式檢查推測 QueryProvider 在初始 onlineManager 仍為 true 時恢復工作，離線 action 失敗後
+清除暫存；尚未修復驗證。離線重載同時有誤導的載入／更新失敗提示與短暫摘要不一致。
+完成條件：同步初始連線狀態、保留可重試工作與草稿，覆蓋重複離線重載／恢復補送的瀏覽器回歸。
+詳見 [正式站補充驗收](./PRODUCTION_ACCEPTANCE_2026-09-12.md)。S 修復前不宣稱離線記帳完整通過。
 
 ### M. 🟡 輕量 Trip Shell 的 production-like 效能追蹤
 
 程式拆分與 production build 已完成：非支出分頁不再由共用 Shell 取得完整 expenses，表單關閉時不查
 members／itinerary／tags，首頁摘要也改用 aggregate 欄位。靜態基線與待補實測項目見
-[TRIP_SHELL_PERFORMANCE.md](./TRIP_SHELL_PERFORMANCE.md)。目前已可連線 DB，並完成指定正式站帳號的登入與唯讀抽查；仍需在
+[TRIP_SHELL_PERFORMANCE.md](./TRIP_SHELL_PERFORMANCE.md)。先前曾完成 DB 連線與正式帳號唯讀抽查；本輪本機 DB 連線不可用，仍需在
 production-like 資料量下補 Network bytes、MongoDB profiler/explain 與瀏覽器 TTI，確認實際收益及是否要調整
 aggregate／索引；完成後即可從本檔移除。
 
 Q 部署後觀測也歸入本項。2026-09-11 已在 `budget.mhhung.com` 使用指定帳號完成部分正式站驗收：
 行程、支出、旅程設定、個人設定與歷史紀錄於桌面及手機 viewport 正常顯示；
 慢速請求顯示骨架並完成載入，歷史紀錄請求失敗後可手動重試恢復，新增支出表單可開啟／關閉。
-已完成紀錄見 [CHANGELOG.md](./CHANGELOG.md)；本次為唯讀操作，手機 viewport 不等同實機或安裝 PWA。
+已完成紀錄見 [CHANGELOG.md](./CHANGELOG.md)；該次為唯讀操作，手機 viewport 不等同實機或安裝 PWA。
 
-仍需確認 Vercel production 對應 Q 最終交付 `ac54811` 或包含它的後續 commit；
-頁面顯示版本不作為部署 commit 的核對證據。尚待補齊冷／熱快取比較、離線與背景更新失敗時保留內容、
-快速記帳／lightbox／動態模組載入失敗重試、支出搜尋與更多列表，以及實機／安裝 PWA 驗收。
-本次未量測 Network bytes、MongoDB profiler/explain 或 TTI，不代表 M 效能驗收結案，
-也不涵蓋 O／P／R 的寫入、通知補送、附件與清理 cron 驗收。
-原始範圍見 [Q 部署後驗收清單](./QUERY_UX_PROGRESS.md#部署後驗收移交-m尚未執行)（部分已驗項目以上述紀錄為準），
+09-11～09-12 已補 12 次正式支出頁冷／熱載入與頁面 bytes 觀測、動態表單失敗重試、
+搜尋／清除、快速記帳與 PDF 檢視器正常流程；詳見 [補充驗收報告](./PRODUCTION_ACCEPTANCE_2026-09-12.md)。
+離線重載發現 S 缺陷，不能列為通過。仍需背景更新失敗保留內容、檢視器失敗重試、更多列表、
+代表性大資料量、實機／安裝 PWA、MongoDB profiler/explain 與 TTI。
+Vercel production 對應 Q 最終交付 `ac54811` 或其後續 commit 仍未核對，頁面版本不是部署證據。
+小樣本量測不代表 M 效能結案，O／P／R 仍依各自條件驗收。
+剩餘範圍見 [Q 部署後驗收清單](./QUERY_UX_PROGRESS.md#部署後驗收移交-m尚未執行)，
 量測條件與隱私限制見 [效能報告](./QUERY_UX_PERFORMANCE.md)。
 
 ### O. 🟡 MongoDB 索引正式推廣驗收（P1）
@@ -67,9 +80,11 @@ HTTP＋郵件流程；不向共用 DB 壓測或任意修改現有帳號，本項
 
 **僅剩正式環境收尾**：
 
-- Commit 後 push／Vercel production 部署，確認 CRON_SECRET 與每日排程。
-- 使用指定測試旅程／帳號驗證支出 DTO、站內通知、活動紀錄及推播。
+- 核對 Vercel production 部署 commit、背景開關與每日排程實際執行紀錄。
+- 單人測試已驗證支出新增／修改／刪除、活動紀錄及 done 計數；仍需 action DTO、逐事件 checkpoint、其他收件人站內通知與實際推播。
+- 授權 inspect 已回 200，未授權回 401；曾有一次 503，稍後恢復，需 server trace 追查。
 - 在隔離環境驗證中斷／失敗恢復，記錄新增支出 p50／p95 與最舊 pending 延遲。
+- 離線重載補送未通過，須先修復 S；不重載直接恢復連線已成功補送。
 
 正式驗收未通過前仍保留本項，不以本機測試替代線上結果。
 唯一驗收清單與可靠性限制見 [EXPENSE_DELIVERY_ACCEPTANCE.md](./EXPENSE_DELIVERY_ACCEPTANCE.md)；
@@ -79,8 +94,10 @@ HTTP 已接受但 checkpoint 尚未保存仍可能重送；不承諾推播永久
 ### R. 🟡 工程結案，部署與線上驗收待確認
 
 R1～R4 已完成工程與測試；使用者於 2026-09-11 回報 migration 已執行、全部程式已 push，不再有 R 系列待實作項目。
-僅保留正式環境收尾：確認最新 commit 已部署，驗收行程新增／修改／刪除、附件儲存及清理 cron。
-目前尚未取得上述線上驗收結果；部署要求與驗證紀錄見 [R 分階段進度](./ITINERARY_CONSISTENCY_PROGRESS.md)。
+09-11～09-12 正式站已驗證行程日新增／刪除、活動 CRUD、兩分頁舊草稿衝突保護，以及 PDF 票券上傳／保存／檢視。
+仍需核對最新 commit 與 migration／writer 一致上線、整天欄位修改、跨 collection 競態、成員變更、附件退休與清理 cron 的實際結果。
+上述正常流程不代表清理 worker 已驗收；證據見 [補充驗收](./PRODUCTION_ACCEPTANCE_2026-09-12.md)，
+部署要求見 [R 分階段進度](./ITINERARY_CONSISTENCY_PROGRESS.md)。
 
 ---
 

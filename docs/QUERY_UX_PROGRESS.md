@@ -1,11 +1,12 @@
 # Q：查詢錯誤狀態與前端延遲載入
 
-更新日期：2026-09-09
+更新日期：2026-09-12
 
 ## 結案狀態
 
 **Q1～Q3 工程交付已完成並結案；使用者於 2026-09-09 回報已 push。**
-Push 不等於 Vercel production 部署成功或正式站驗收通過；這兩項本次未核對。
+Push 不等於正式站驗收通過。09-11～09-12 已完成部分正式站檢查，並發現離線重載遺失暫存記帳；
+部署 commit 仍未核對，完整結果見 [補充驗收報告](./PRODUCTION_ACCEPTANCE_2026-09-12.md)。以下工程驗證數字為原交付紀錄。
 
 - 最終程式交付：`ac54811`；Q3 前兩階段：`89e8ba0`、`be76f1a`。
 - 最終工程驗證：lint、Prettier、TypeScript、production build 通過；1,375 項測試通過、37 項 opt-in 跳過；36 次隔離本機瀏覽器載入無錯誤。
@@ -13,13 +14,19 @@ Push 不等於 Vercel production 部署成功或正式站驗收通過；這兩�
 - Server prefetch 已評估並決定維持現有 landing／IndexedDB 流程，不是漏做；cursor pagination 依資料量另案評估，由改善建議 G 追蹤。
 - 正式環境觀測移交 [改善建議 M](./IMPROVEMENTS.md)，不再把 Q 列為待實作；AI 真實品質驗收仍依使用者要求暫緩。
 
-### 部署後驗收移交 M（尚未執行）
+<a id="部署後驗收移交-m尚未執行"></a>
+
+### 部署後驗收移交 M（部分完成，離線重載未通過）
 
 - [ ] 確認 `budget.mhhung.com` 的 Vercel production deployment 包含 `ac54811`，記錄部署 commit 與驗收日期。
-- [ ] 指定測試帳號檢查首頁／支出頁冷載入及快取重載，確認無 hydration error、內容與會員導覽正確。
-- [ ] 在安全測試條件下檢查查詢失敗／離線／重試，已有內容不被整頁 loading 遮蔽。
-- [ ] 檢查快速記帳、表單與 lightbox 的開關／重開／載入失敗重試，以及支出搜尋、清除與更多列表；不送出業務寫入或呼叫真實 AI provider。
+- [x] 指定帳號完成行程首頁／支出頁抽查；支出頁桌面與手機 viewport 共 12 次冷／熱載入無 page error。
+- [x] 查詢失敗重試及動態表單 chunk 失敗重試成功；搜尋／清除、快速記帳與 PDF 檢視器正常流程已驗。
+- [ ] 修復離線重載遺失 paused mutation 與誤導錯誤提示（改善建議 S）；補驗背景更新失敗保留內容。
+- [ ] 補驗檢視器載入失敗重試、超過 20 筆的更多列表與代表性大資料量。
 - [ ] 依 [量測規範](./QUERY_UX_PERFORMANCE.md) 留存冷／熱、桌面／手機、實機安裝 PWA 的 Network／Performance 證據；不把本機 bundle 或 rAF 數據當成正式 CWV。
+
+已新增單人臨時旅程的合成寫入驗收，未操作既有旅程資料或呼叫 AI provider。
+正式站頁面 bytes／readyMs 小樣本已記錄，但完整 Performance trace、實機與安裝 PWA 尚未完成。
 
 以下為各階段當時的歷史紀錄；「未 push」「仍待 Q2／Q3」等敘述不代表目前狀態。
 

@@ -20,6 +20,7 @@
 | 修改 schema、index 或回填資料 | [MIGRATIONS.md](./MIGRATIONS.md) |
 | 開發或驗收介面 | [UI_UX_SPEC.md](./UI_UX_SPEC.md) |
 | 查 UI/UX 實作與驗證狀態 | [UI_UX_EVALUATION.md](./UI_UX_EVALUATION.md) |
+| 查本輪正式站驗收結果、離線缺陷與待驗範圍 | [PRODUCTION_ACCEPTANCE_2026-09-12.md](./PRODUCTION_ACCEPTANCE_2026-09-12.md) |
 | 執行真人可用性測試 | [USABILITY_TEST_PHASE4.md](./USABILITY_TEST_PHASE4.md) |
 | 修改會籍 badge 顏色 | [TIER-COLORS.md](./TIER-COLORS.md) |
 | 查已完成大型規劃的決策摘要 | [archive/README.md](./archive/README.md) |
