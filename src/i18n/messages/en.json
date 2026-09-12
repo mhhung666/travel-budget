@@ -42,7 +42,9 @@
     "successTitle": "Success",
     "warningTitle": "Warning",
     "infoTitle": "Info",
-    "pendingOfflineLogout": "Some offline expenses have not synced yet. Logging out will discard them. Continue?"
+    "pendingOfflineLogout": "You have pending expenses or unresolved drafts. Signing out removes their saved input from this device. Sign out?",
+    "queryOfflineCached": "You are offline. Showing saved data.",
+    "queryOfflineMissing": "You are offline and this data is not saved on this device. It will load when you reconnect."
   },
   "nav": {
     "home": "Travel Budget",
@@ -1514,10 +1516,18 @@
     "updateAvailable": "A new version is available",
     "reload": "Reload",
     "pending": "Pending sync",
-    "queuedTitle": "Expense saved offline",
-    "queuedMessage": "You're offline — this expense will sync automatically once you're back online.",
+    "queuedTitle": "Expense saved on this device",
+    "queuedMessage": "Saved on this device. It will sync when a connection is available.",
     "writeUnavailableTitle": "Unavailable offline",
-    "writeUnavailableMessage": "Editing and deleting need a connection. Please try again once you're back online."
+    "writeUnavailableMessage": "Editing and deleting need a connection. Please try again once you're back online.",
+    "draftsMessage": "{count} expenses are waiting to sync or need review. Your input is saved.",
+    "reviewDrafts": "Review drafts",
+    "draftsTitle": "Unsynced expense drafts",
+    "editDraft": "Edit and resubmit",
+    "exportDraft": "Export draft",
+    "discardDraft": "Discard draft",
+    "discardDraftConfirm": "Discard this draft and remove its saved input from this device?",
+    "draftAccessMessage": "Trip members must be loaded to edit. If you no longer have access, you can still export your saved input."
   },
   "wrapped": {
     "title": "Year in Review",

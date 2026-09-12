@@ -1,3 +1,4 @@
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { combineReadStates } from '@/lib/queryReadState';
 import { useTranslations } from 'next-intl';
 import type { SetBudgetInput } from '@/lib/validation';
@@ -25,6 +26,7 @@ import {
  * DTO; form-specific member/day/tag data is enabled after the form opens.
  */
 export function useTripSpace(tripId: string, loadExpenseForm = false) {
+  const online = useOnlineStatus();
   const tBudget = useTranslations('budget');
   const tOffline = useTranslations('offline');
 
@@ -53,7 +55,7 @@ export function useTripSpace(tripId: string, loadExpenseForm = false) {
   const formReady =
     shouldLoadForm &&
     formQuery.data !== undefined &&
-    !formQuery.isError &&
+    (!online || !formQuery.isError) &&
     currentUser !== null &&
     members.length > 0;
 

@@ -1,5 +1,6 @@
 'use client';
 
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -20,6 +21,13 @@ export function QueryFeedback({
   onRetry: () => void;
 }) {
   const t = useTranslations('common');
+  const online = useOnlineStatus();
+  if (!online)
+    return (
+      <p role="status" className="py-2 text-sm text-muted-foreground">
+        {t(hasData ? 'queryOfflineCached' : 'queryOfflineMissing')}
+      </p>
+    );
   if (!hasData && isError && !isFetching && !isPaused) {
     return <ErrorState message={t('queryLoadFailed')} onRetry={onRetry} />;
   }

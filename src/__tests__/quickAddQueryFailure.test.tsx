@@ -50,3 +50,16 @@ it('shows a network waiting state for a paused cold query', () => {
   expect(screen.getByRole('status')).toHaveTextContent('queryPaused');
   expect(screen.queryByRole('button')).not.toBeInTheDocument();
 });
+
+it.each([true, false])(
+  'explains offline reads without a misleading failure (cached=%s)',
+  (hasData) => {
+    vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(false);
+    render(<QueryFeedback hasData={hasData} isError isFetching={false} onRetry={vi.fn()} />);
+    expect(screen.getByRole('status')).toHaveTextContent(
+      hasData ? 'queryOfflineCached' : 'queryOfflineMissing'
+    );
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    vi.restoreAllMocks();
+  }
+);

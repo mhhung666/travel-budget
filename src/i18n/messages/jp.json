@@ -42,7 +42,9 @@
     "successTitle": "成功",
     "warningTitle": "警告",
     "infoTitle": "お知らせ",
-    "pendingOfflineLogout": "未同期のオフライン支出があります。ログアウトすると破棄されます。続行しますか？"
+    "pendingOfflineLogout": "未同期の支出または下書きがあります。ログアウトすると端末の保存内容が削除されます。ログアウトしますか？",
+    "queryOfflineCached": "オフラインです。保存済みのデータを表示しています。",
+    "queryOfflineMissing": "オフラインで、このデータは端末に保存されていません。再接続すると読み込みます。"
   },
   "nav": {
     "home": "旅行家計簿",
@@ -1508,9 +1510,17 @@
     "reload": "再読み込み",
     "pending": "同期待ち",
     "queuedTitle": "支出を一時保存しました",
-    "queuedMessage": "現在オフラインです。この支出は再接続後に自動的に同期されます。",
+    "queuedMessage": "この端末に保存しました。接続できると自動で同期します。",
     "writeUnavailableTitle": "オフラインでは編集できません",
-    "writeUnavailableMessage": "編集と削除には接続が必要です。再接続後にもう一度お試しください。"
+    "writeUnavailableMessage": "編集と削除には接続が必要です。再接続後にもう一度お試しください。",
+    "draftsMessage": "{count} 件の支出が同期待ち、または確認が必要です。入力内容は保存済みです。",
+    "reviewDrafts": "下書きを確認",
+    "draftsTitle": "未同期の支出下書き",
+    "editDraft": "編集して再送信",
+    "exportDraft": "下書きをエクスポート",
+    "discardDraft": "下書きを破棄",
+    "discardDraftConfirm": "この下書きと端末に保存された入力内容を削除しますか？",
+    "draftAccessMessage": "編集には旅行メンバーの読み込みが必要です。旅行にアクセスできなくても、保存した入力内容をエクスポートできます。"
   },
   "wrapped": {
     "title": "年間まとめ",

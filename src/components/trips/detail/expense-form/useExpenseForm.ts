@@ -109,7 +109,7 @@ export function useExpenseForm({
 
   useEffect(() => {
     if (open) {
-      if (mode === 'edit' && expense) {
+      if (expense) {
         // Edit mode: Load existing expense data
         // eslint-disable-next-line react-hooks/set-state-in-effect -- 開啟表單時帶入支出資料，為刻意的同步
         setForm({
@@ -182,7 +182,7 @@ export function useExpenseForm({
       }
 
       setError('');
-      setShowAdvanced(mode === 'edit');
+      setShowAdvanced(mode === 'edit' || !!expense);
       // 新增模式且預設幣別是外幣又沒自訂匯率時，即時匯率回來後補進表單；
       // 只在匯率仍為空值（使用者沒動過）時補，避免蓋掉手動輸入。
       fetchExchangeRates().then((rates) => {

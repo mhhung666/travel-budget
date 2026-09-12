@@ -27,13 +27,27 @@ export function createExpenseOutbox(scope: string) {
     write: async (entry: ExpenseOutboxEntry) => {
       const id = entry.vars.input.client_request_id;
       if (!id) throw new Error('Missing expense request ID');
-      await update<ExpenseOutbox>(key, (entries = {}) => ({
-        ...entries,
-        [id]:
-          entries[id]?.status === 'done'
-            ? entries[id]
-            : { ...entry, createdAt: entries[id]?.createdAt ?? entry.createdAt },
-      }));
+      let committed: ExpenseOutbox = {};
+      await update<ExpenseOutbox>(key, (entries = {}) => {
+        const oldId = entry.vars.replacesRequestId;
+        if (oldId && !entries[id]) {
+          if (entries[oldId]?.status !== 'failed')
+            throw new Error('This draft has already been replaced');
+          entries = {
+            ...entries,
+            [oldId]: { ...entries[oldId], status: 'done', expense: undefined },
+          };
+        }
+        committed = {
+          ...entries,
+          [id]:
+            entries[id]?.status === 'done'
+              ? entries[id]
+              : { ...entry, createdAt: entries[id]?.createdAt ?? entry.createdAt },
+        };
+        return committed;
+      });
+      return committed;
     },
     clear: async () => del(key),
   };
@@ -54,7 +68,7 @@ export async function saveExpenseOutbox(
   if (cleared.has(client)) throw new Error('Expense request was cleared');
   const outbox = bindings.get(client);
   if (!outbox) return; // Standalone QueryClients used outside the persisted application provider.
-  await outbox.write({
+  const entries = await outbox.write({
     vars,
     context,
     status,
@@ -63,11 +77,14 @@ export async function saveExpenseOutbox(
     createdAt: Date.now(),
     updatedAt: Date.now(),
   });
-  const entries = await outbox.read();
   if (cleared.has(client)) throw new Error('Expense request was cleared');
   client.setQueryData(expenseOutboxQueryKey, entries);
 }
 export async function clearExpenseOutbox(client: QueryClient) {
   cleared.add(client);
   await bindings.get(client)?.clear();
+}
+
+export async function readExpenseOutbox(client: QueryClient): Promise<ExpenseOutbox> {
+  return (await bindings.get(client)?.read()) ?? {};
 }

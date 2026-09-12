@@ -1,3 +1,4 @@
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { combineReadStates } from '@/lib/queryReadState';
 import { useCallback, useMemo, useState } from 'react';
 import { onlineManager } from '@tanstack/react-query';
@@ -27,6 +28,7 @@ const EMPTY_ITINERARY: ItineraryDay[] = [];
  * trip-info card and its edit dialog live on the itinerary tab (useEditTrip).
  */
 export function useTripDetailPage(tripId: string) {
+  const online = useOnlineStatus();
   const tExpense = useTranslations('expense');
   const tError = useTranslations('error');
   const tCommon = useTranslations('common');
@@ -46,7 +48,7 @@ export function useTripDetailPage(tripId: string) {
   const { currentUser, members, isMember, isAdmin } = membership;
   const query = combineReadStates([tripQuery, expensesQuery]);
   const formQuery = combineReadStates([membership.query, itineraryQuery]);
-  const formReady = formQuery.data !== undefined && !formQuery.isError && isMember;
+  const formReady = formQuery.data !== undefined && (!online || !formQuery.isError) && isMember;
 
   const expenseMutations = useExpenseMutations(tripId);
 

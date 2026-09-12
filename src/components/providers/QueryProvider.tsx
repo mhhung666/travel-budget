@@ -48,7 +48,7 @@ export async function clearQueryState(
 
 function shouldPersistQuery(query: { queryKey: readonly unknown[]; state: { status: string } }) {
   const rootKey = query.queryKey[0];
-  const excludedRoots = new Set(['currentUser', 'notifications', 'mapPhotos']);
+  const excludedRoots = new Set(['expenseOutbox', 'notifications', 'mapPhotos']);
   const isPhotoQuery = rootKey === 'trip' && query.queryKey[2] === 'photos';
   return !excludedRoots.has(String(rootKey)) && !isPhotoQuery && query.state.status === 'success';
 }
@@ -60,8 +60,8 @@ function shouldPersistQuery(query: { queryKey: readonly unknown[]; state: { stat
  * re-renders but is never shared across requests on the server). Defaults are
  * tuned for this app: data is fresh for 30s (cuts redundant refetches while
  * navigating between trip tabs), failed queries retry once, and `networkMode`
- * is `offlineFirst` so that when the device is offline queries serve the
- * persisted cache instead of erroring or spinning on retries.
+ * is `online` so offline reads use persisted data without attempting a server
+ * action; missing data stays paused until a connection is available.
  *
  * {@link PersistQueryClientProvider} dehydrates the cache to IndexedDB (see
  * {@link createQueryPersister}) and rehydrates it on load, so previously-viewed
@@ -90,7 +90,7 @@ export function QueryProvider({
           gcTime: 5 * 60_000,
           retry: 1,
           refetchOnWindowFocus: false,
-          networkMode: 'offlineFirst',
+          networkMode: 'online',
         },
       },
     });
@@ -109,6 +109,9 @@ export function QueryProvider({
 
   const hasPausedMutations = useCallback(
     () =>
+      Object.values(
+        queryClient.getQueryData<Record<string, { status: string }>>(expenseOutboxQueryKey) ?? {}
+      ).some((entry) => entry.status !== 'done') ||
       queryClient
         .getMutationCache()
         .getAll()

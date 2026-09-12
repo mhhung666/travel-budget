@@ -42,7 +42,9 @@
     "successTitle": "成功",
     "warningTitle": "警告",
     "infoTitle": "提示",
-    "pendingOfflineLogout": "仍有尚未同步的离线记账。继续退出将丢弃这些项目，确定要退出吗？"
+    "pendingOfflineLogout": "还有待同步支出或未处理草稿。退出将移除此设备保存的输入，确定退出？",
+    "queryOfflineCached": "当前离线，显示已保存的数据。",
+    "queryOfflineMissing": "当前离线，此数据尚未保存在设备上。恢复连接后会重新加载。"
   },
   "nav": {
     "home": "旅行记账",
@@ -1508,9 +1510,17 @@
     "reload": "刷新",
     "pending": "待同步",
     "queuedTitle": "已暂存支出",
-    "queuedMessage": "当前离线，这笔支出会在恢复连接后自动同步。",
+    "queuedMessage": "已保存在这台设备，连接可用时会自动同步。",
     "writeUnavailableTitle": "离线时无法编辑",
-    "writeUnavailableMessage": "编辑与删除需要网络连接，请恢复连接后再试。"
+    "writeUnavailableMessage": "编辑与删除需要网络连接，请恢复连接后再试。",
+    "draftsMessage": "有 {count} 笔支出待同步或需修正，输入已保留。",
+    "reviewDrafts": "查看草稿",
+    "draftsTitle": "未同步支出草稿",
+    "editDraft": "编辑后重发",
+    "exportDraft": "导出草稿",
+    "discardDraft": "舍弃草稿",
+    "discardDraftConfirm": "确定舍弃这份草稿？这会移除本机保存的输入。",
+    "draftAccessMessage": "需要加载旅程成员才能编辑。如果已无法访问旅程，仍可导出保存的输入。"
   },
   "wrapped": {
     "title": "年度回顾",

@@ -73,6 +73,8 @@ export const expenseCreateMutationKey = ['expenses', 'create'] as const;
 export interface CreateExpenseVars {
   tripId: string;
   input: CreateExpenseInput;
+  /** Atomically replace a rejected draft only after its corrected submission is durable. */
+  replacesRequestId?: string;
 }
 
 export async function unwrap<T>(p: Promise<ActionResult<T>>): Promise<T> {

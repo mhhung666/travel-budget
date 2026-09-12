@@ -2,10 +2,14 @@ import type { PropsWithChildren } from 'react';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { onlineManager, useIsRestoring, useQueryClient } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { QueryProvider } from '@/components/providers/QueryProvider';
+import { QueryProvider, useQueryPersistenceControls } from '@/components/providers/QueryProvider';
 import { useExpenseMutations } from '@/hooks/queries/useExpenseMutations';
 import { tripKeys } from '@/hooks/queries/keys';
-import { getExpenseOutboxKey } from '@/lib/expenseOutbox';
+import {
+  getExpenseOutboxKey,
+  expenseOutboxQueryKey,
+  type ExpenseOutbox,
+} from '@/lib/expenseOutbox';
 import { getQueryPersistKey } from '@/lib/queryPersister';
 import { buildOptimisticExpense } from '@/lib/optimisticExpense';
 
@@ -59,7 +63,12 @@ const wrapper = ({ children }: PropsWithChildren) => (
   </QueryProvider>
 );
 function useProbe() {
-  return { client: useQueryClient(), restoring: useIsRestoring(), ...useExpenseMutations('trip') };
+  return {
+    client: useQueryClient(),
+    restoring: useIsRestoring(),
+    ...useQueryPersistenceControls(),
+    ...useExpenseMutations('trip'),
+  };
 }
 function persisted() {
   return JSON.parse(storage.get(persistKey) ?? '{}').clientState;
@@ -165,6 +174,67 @@ describe('QueryProvider offline startup', () => {
       mounted.unmount();
     }
   );
+  it('retains a rejected draft after reload and replaces it atomically when corrected', async () => {
+    const browserOnline = vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(true);
+    createExpense.mockResolvedValue({
+      success: false,
+      code: 'FORBIDDEN',
+      error: 'Membership removed',
+    });
+    let mounted = renderHook(useProbe, { wrapper });
+    await waitFor(() => expect(mounted.result.current.restoring).toBe(false));
+    await act(async () => {
+      await mounted.result.current.create.enqueue(vars);
+    });
+    await waitFor(() => expect(mounted.result.current.create.isError).toBe(true));
+    const entries =
+      mounted.result.current.client.getQueryData<ExpenseOutbox>(expenseOutboxQueryKey)!;
+    const original = Object.values(entries)[0];
+    expect(original).toMatchObject({
+      status: 'failed',
+      error: 'Membership removed',
+      vars: { input: vars.input },
+    });
+    expect(mounted.result.current.hasPausedMutations()).toBe(true);
+    mounted.unmount();
+    browserOnline.mockReturnValue(false);
+    mounted = renderHook(useProbe, { wrapper });
+    await waitFor(() => expect(mounted.result.current.restoring).toBe(false));
+    expect(mounted.result.current.client.getMutationCache().getAll()).toHaveLength(0);
+    expect(mounted.result.current.client.getQueryData(expenseOutboxQueryKey)).toEqual(entries);
+    writeGate.mockRejectedValueOnce(new Error('Disk full'));
+    const correction = {
+      ...vars,
+      replacesRequestId: original.vars.input.client_request_id,
+      input: { ...vars.input, description: 'Corrected dinner' },
+    };
+    await act(async () => {
+      await expect(mounted.result.current.create.enqueue(correction)).rejects.toThrow('Disk full');
+    });
+    expect(mounted.result.current.client.getQueryData(expenseOutboxQueryKey)).toEqual(entries);
+    await act(async () => {
+      await mounted.result.current.create.enqueue(correction);
+    });
+    const corrected = Object.values(
+      mounted.result.current.client.getQueryData<ExpenseOutbox>(expenseOutboxQueryKey)!
+    );
+    expect(corrected.filter((e) => e.status === 'failed')).toHaveLength(0);
+    expect(corrected.filter((e) => e.status === 'pending')).toHaveLength(1);
+    expect(corrected.find((e) => e.status === 'pending')?.vars.input.description).toBe(
+      'Corrected dinner'
+    );
+    await act(async () => {
+      await expect(mounted.result.current.create.enqueue(correction)).rejects.toThrow(
+        'already been replaced'
+      );
+    });
+    expect(createExpense).toHaveBeenCalledOnce();
+    await act(async () => {
+      await mounted.result.current.clearForLogout();
+    });
+    expect(storage.get(getExpenseOutboxKey(scope))).toBeUndefined();
+    mounted.unmount();
+  });
   it.each([false, true])(
     'preserves a queue across repeated offline starts (legacy=%s)',
     async (legacy) => {

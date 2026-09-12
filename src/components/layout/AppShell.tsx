@@ -1,5 +1,6 @@
 'use client';
 
+import { ExpenseDraftRecovery } from '@/components/expenses/ExpenseDraftRecovery';
 import { useState } from 'react';
 import Image from 'next/image';
 import {
@@ -252,7 +253,10 @@ export function AppShell({
       </header>
 
       {/* 內容區：底部預留 TabBar 高度 + safe-area（桌機無 TabBar） */}
-      <main className="flex-1 pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-8">{children}</main>
+      <main className="flex-1 pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-8">
+        {user && <ExpenseDraftRecovery />}
+        {children}
+      </main>
 
       {/* 底部分頁列的分頁皆需登入，訪客不顯示。 */}
       {user && <BottomTabBar onQuickAdd={openQuickAdd} />}

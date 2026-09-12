@@ -1,7 +1,14 @@
 'use client';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import type { TripLanding } from '@/types/tripLanding';
 
-import { useQuery } from '@tanstack/react-query';
+import { useMutationState, useQuery } from '@tanstack/react-query';
+import {
+  expenseCreateMutationKey,
+  type CreateExpenseVars,
+  type ExpenseCreateContext,
+} from '@/lib/offlineMutations';
+import { buildOptimisticExpense } from '@/lib/optimisticExpense';
 import {
   getCurrentUser,
   getTrips,
@@ -122,7 +129,7 @@ export function useMembers(tripId: string, enabled = true) {
 
 export function useExpenses(tripId: string, enabled = true) {
   const authenticated = useAuthenticatedSession();
-  return useQuery({
+  const query = useQuery({
     queryKey: tripKeys.expenses(tripId),
     queryFn: () =>
       fetchWithPublicFallback(
@@ -134,6 +141,34 @@ export function useExpenses(tripId: string, enabled = true) {
       ),
     enabled: !!tripId && enabled,
   });
+  const pending = useMutationState({
+    filters: { mutationKey: expenseCreateMutationKey, status: 'pending' },
+    select: (mutation) => ({
+      vars: mutation.state.variables as CreateExpenseVars,
+      context: mutation.state.context as ExpenseCreateContext | undefined,
+      submittedAt: mutation.state.submittedAt,
+    }),
+  });
+  const optimistic = pending
+    .filter((entry) => entry.vars?.tripId === tripId && entry.context)
+    .map(
+      (entry) =>
+        query.data?.find((expense) => expense.id === entry.context!.optimisticId) ??
+        buildOptimisticExpense(entry.vars.input, {
+          tripId,
+          id: entry.context!.optimisticId,
+          members: [],
+          createdAt: new Date(entry.submittedAt).toISOString(),
+        })
+    );
+  const ids = new Set(optimistic.map((expense) => expense.id));
+  return {
+    ...query,
+    data:
+      query.data === undefined && !optimistic.length
+        ? undefined
+        : [...optimistic, ...(query.data ?? []).filter((expense) => !ids.has(expense.id))],
+  };
 }
 
 /** Distinct tags used by the add/edit form; never downloads expense rows. */
@@ -264,6 +299,7 @@ export function useCopyableChecklists(tripId: string, enabled: boolean) {
  * Derives membership/role from the current user + members list.
  */
 export function useTripMembership(tripId: string) {
+  const online = useOnlineStatus();
   const userQuery = useCurrentUser();
   const membersQuery = useMembers(tripId);
   const { data: currentUser } = userQuery;
@@ -271,7 +307,9 @@ export function useTripMembership(tripId: string) {
   const query = combineReadStates([userQuery, membersQuery]);
 
   const isMember =
-    !query.isError && currentUser != null && members.some((m) => m.id === currentUser.id);
+    (!online || !query.isError) &&
+    currentUser != null &&
+    members.some((m) => m.id === currentUser.id);
   const isAdmin = isMember && members.find((m) => m.id === currentUser?.id)?.role === 'admin';
 
   return {
@@ -281,6 +319,6 @@ export function useTripMembership(tripId: string) {
     isAdmin,
     isLoading: query.isLoading,
     query,
-    isResolved: query.data !== undefined && !query.isError,
+    isResolved: query.data !== undefined && (!online || !query.isError),
   };
 }
