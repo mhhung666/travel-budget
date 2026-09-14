@@ -243,6 +243,57 @@ describe('QueryProvider offline startup', () => {
     expect(storage.get(getExpenseOutboxKey(scope))).toBeUndefined();
     mounted.unmount();
   });
+  it.each([false, true])(
+    'keeps concurrent submissions consistent when the first storage write fails=%s',
+    async (failFirst) => {
+      vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(false);
+      const mounted = renderHook(() => ({ first: useProbe(), second: useProbe() }), { wrapper });
+      try {
+        await waitFor(() => expect(mounted.result.current.first.restoring).toBe(false));
+        const client = mounted.result.current.first.client;
+        act(() => {
+          client.setQueryData(shellKey, { expense_count: 0, total_spent: 0, today_spent: 0 });
+          client.setQueryData(tripKeys.currentUser, { id: 'user' });
+        });
+        if (failFirst) writeGate.mockRejectedValueOnce(new Error('Disk full'));
+        const today = new Date();
+        const date = [
+          today.getFullYear(),
+          String(today.getMonth() + 1).padStart(2, '0'),
+          String(today.getDate()).padStart(2, '0'),
+        ].join('-');
+        await act(async () => {
+          const results = await Promise.allSettled([
+            mounted.result.current.first.create.enqueue({
+              ...vars,
+              input: { ...vars.input, date },
+            }),
+            mounted.result.current.second.create.enqueue({
+              ...vars,
+              input: { ...vars.input, date },
+            }),
+          ]);
+          expect(results.map((result) => result.status)).toEqual([
+            failFirst ? 'rejected' : 'fulfilled',
+            'fulfilled',
+          ]);
+        });
+        const count = failFirst ? 1 : 2;
+        expect(client.getQueryData<unknown[]>(expenseKey)).toHaveLength(count);
+        expect(
+          Object.values(client.getQueryData<ExpenseOutbox>(expenseOutboxQueryKey)!)
+        ).toHaveLength(count);
+        expect(client.getQueryData(shellKey)).toEqual({
+          expense_count: count,
+          total_spent: count * 100,
+          today_spent: count * 100,
+        });
+        expect(createExpense).not.toHaveBeenCalled();
+      } finally {
+        mounted.unmount();
+      }
+    }
+  );
   it('combines projections from separate tabs and refreshes derived cached reads', async () => {
     vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(false);
     const base = { expense_count: 4, total_spent: 82, today_spent: 82 };

@@ -2,7 +2,12 @@
 
 import { useRef } from 'react';
 import { saveExpenseOutbox } from '@/lib/expenseOutbox';
-import { onlineManager, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  onlineManager,
+  useMutation,
+  useQueryClient,
+  type QueryClient,
+} from '@tanstack/react-query';
 import { updateExpense, deleteExpense } from '@/actions';
 import type { UpdateExpenseInput } from '@/lib/validation';
 import type { AuthUserWithCreatedAt } from '@/actions';
@@ -20,6 +25,29 @@ import {
 } from '@/lib/offlineMutations';
 import { tripKeys } from './keys';
 import { trackProductEvent } from '@/lib/productEvents';
+
+// Forms sharing a client must capture, persist and apply each local projection in order.
+// Serializing only the server mutation would still allow onMutate snapshots to race.
+const preparationQueues = new WeakMap<QueryClient, Promise<void>>();
+
+async function prepareExpenseCreate(
+  client: QueryClient,
+  prepare: () => Promise<ExpenseCreateContext>
+): Promise<ExpenseCreateContext> {
+  const previous = preparationQueues.get(client) ?? Promise.resolve();
+  const result = previous.then(prepare);
+  // A failed local write must not prevent the next submission from being saved.
+  const settled = result.then(
+    () => {},
+    () => {}
+  );
+  preparationQueues.set(client, settled);
+  try {
+    return await result;
+  } finally {
+    if (preparationQueues.get(client) === settled) preparationQueues.delete(client);
+  }
+}
 
 /**
  * Expense create/update/delete mutations for a trip.
@@ -44,54 +72,55 @@ export function useExpenseMutations(tripId: string) {
     mutationKey: expenseCreateMutationKey,
     mutationFn: (vars: CreateExpenseVars) => executeExpenseCreate(queryClient, vars),
     ...expenseCreateRetryOptions,
-    onMutate: async (vars: CreateExpenseVars): Promise<ExpenseCreateContext> => {
-      const wasOffline = !onlineManager.isOnline();
-      if (wasOffline) {
-        trackProductEvent('offline_expense', { state: 'queued' });
-      }
-      const key = tripKeys.expenses(vars.tripId);
-      // Stop in-flight refetches from clobbering the optimistic insert.
-      await queryClient.cancelQueries({ queryKey: key });
-      const members = queryClient.getQueryData<Member[]>(tripKeys.members(vars.tripId)) ?? [];
-      const shellKey = tripKeys.shell(vars.tripId);
-      const previousShell = queryClient.getQueryData<TripShell>(shellKey);
-      const currentUser = queryClient.getQueryData<AuthUserWithCreatedAt | null>(
-        tripKeys.currentUser
-      );
-      const optimistic = buildOptimisticExpense(vars.input, {
-        tripId: vars.tripId,
-        members,
-        id: newOptimisticId(),
-        createdAt: new Date().toISOString(),
-      });
-      let appliedShell: TripShell | undefined;
-      if (previousShell && currentUser) {
-        const personalShare =
-          vars.input.splits.find((split) => split.user_id === currentUser.id)?.share_amount ?? 0;
-        const today = new Date();
-        const todayKey = [
-          today.getFullYear(),
-          String(today.getMonth() + 1).padStart(2, '0'),
-          String(today.getDate()).padStart(2, '0'),
-        ].join('-');
-        appliedShell = {
-          ...previousShell,
-          expense_count: previousShell.expense_count + 1,
-          total_spent: previousShell.total_spent + personalShare,
-          today_spent:
-            previousShell.today_spent +
-            (vars.input.date === todayKey
-              ? vars.input.original_amount * vars.input.exchange_rate
-              : 0),
-        };
-      }
-      const context = { optimisticId: optimistic.id, previousShell, appliedShell, wasOffline };
-      await saveExpenseOutbox(queryClient, vars, context, 'pending');
-      queryClient.setQueryData<Expense[]>(key, (old = []) => [optimistic, ...old]);
-      if (appliedShell) queryClient.setQueryData(shellKey, appliedShell);
-      acknowledgements.current.get(vars)?.resolve();
-      return context;
-    },
+    onMutate: (vars: CreateExpenseVars): Promise<ExpenseCreateContext> =>
+      prepareExpenseCreate(queryClient, async () => {
+        const wasOffline = !onlineManager.isOnline();
+        if (wasOffline) {
+          trackProductEvent('offline_expense', { state: 'queued' });
+        }
+        const key = tripKeys.expenses(vars.tripId);
+        // Stop in-flight refetches from clobbering the optimistic insert.
+        await queryClient.cancelQueries({ queryKey: key });
+        const members = queryClient.getQueryData<Member[]>(tripKeys.members(vars.tripId)) ?? [];
+        const shellKey = tripKeys.shell(vars.tripId);
+        const previousShell = queryClient.getQueryData<TripShell>(shellKey);
+        const currentUser = queryClient.getQueryData<AuthUserWithCreatedAt | null>(
+          tripKeys.currentUser
+        );
+        const optimistic = buildOptimisticExpense(vars.input, {
+          tripId: vars.tripId,
+          members,
+          id: newOptimisticId(),
+          createdAt: new Date().toISOString(),
+        });
+        let appliedShell: TripShell | undefined;
+        if (previousShell && currentUser) {
+          const personalShare =
+            vars.input.splits.find((split) => split.user_id === currentUser.id)?.share_amount ?? 0;
+          const today = new Date();
+          const todayKey = [
+            today.getFullYear(),
+            String(today.getMonth() + 1).padStart(2, '0'),
+            String(today.getDate()).padStart(2, '0'),
+          ].join('-');
+          appliedShell = {
+            ...previousShell,
+            expense_count: previousShell.expense_count + 1,
+            total_spent: previousShell.total_spent + personalShare,
+            today_spent:
+              previousShell.today_spent +
+              (vars.input.date === todayKey
+                ? vars.input.original_amount * vars.input.exchange_rate
+                : 0),
+          };
+        }
+        const context = { optimisticId: optimistic.id, previousShell, appliedShell, wasOffline };
+        await saveExpenseOutbox(queryClient, vars, context, 'pending');
+        queryClient.setQueryData<Expense[]>(key, (old = []) => [optimistic, ...old]);
+        if (appliedShell) queryClient.setQueryData(shellKey, appliedShell);
+        acknowledgements.current.get(vars)?.resolve();
+        return context;
+      }),
     onError: (_err, vars, ctx) => {
       acknowledgements.current.get(vars)?.reject(_err);
       reconcileExpenseCreate(queryClient, vars, ctx);
