@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
 import { randomBytes, randomUUID } from 'node:crypto';
-import { mkdtemp, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createServer } from 'node:net';
@@ -20,6 +20,7 @@ const artifacts = await mkdtemp(join(tmpdir(), 'travel-budget-offline-'));
 const results = [];
 let dockerCreated = false;
 let mongo;
+let nativeMongo;
 let app;
 let browser;
 let page;
@@ -48,48 +49,89 @@ function pass(name) {
   console.log(`PASS ${name}`);
 }
 try {
-  console.log('Starting disposable MongoDB replica set');
-  await exec('docker', [
-    'run',
-    '--detach',
-    '--name',
-    container,
-    '--env',
-    'GLIBC_TUNABLES=glibc.pthread.rseq=1',
-    '--publish',
-    '127.0.0.1::27017',
-    'mongo:8.0',
-    '--replSet',
-    'offlineverify',
-    '--bind_ip_all',
-  ]);
-  dockerCreated = true;
-  await eventually(async () => {
-    try {
-      await exec('docker', [
-        'exec',
-        container,
-        'mongosh',
-        '--quiet',
-        '--eval',
-        'db.adminCommand({ping:1})',
-      ]);
-      return true;
-    } catch {
-      return false;
-    }
-  }, 'MongoDB did not start');
-  await exec('docker', [
-    'exec',
-    container,
-    'mongosh',
-    '--quiet',
-    '--eval',
-    'rs.initiate({_id:"offlineverify",members:[{_id:0,host:"localhost:27017"}]})',
-  ]);
-  const mapping = (await exec('docker', ['port', container, '27017/tcp'])).stdout.trim();
-  const uri = `mongodb://${mapping}/${dbName}?directConnection=true`;
-  mongo = await new mongoose.mongo.MongoClient(uri).connect();
+  let uri;
+  if (process.env.MONGOD_BINARY) {
+    console.log('Starting disposable native MongoDB replica set');
+    const mongoPort = await freePort();
+    const dbPath = join(artifacts, 'mongo-data');
+    await mkdir(dbPath);
+    nativeMongo = spawn(
+      process.env.MONGOD_BINARY,
+      [
+        '--dbpath',
+        dbPath,
+        '--port',
+        String(mongoPort),
+        '--bind_ip',
+        '127.0.0.1',
+        '--replSet',
+        'offlineverify',
+        '--logpath',
+        join(artifacts, 'mongo.log'),
+      ],
+      { stdio: 'ignore' }
+    );
+    uri = `mongodb://127.0.0.1:${mongoPort}/${dbName}?directConnection=true`;
+    await eventually(async () => {
+      const candidate = new mongoose.mongo.MongoClient(uri, { serverSelectionTimeoutMS: 500 });
+      try {
+        mongo = await candidate.connect();
+        return true;
+      } catch {
+        await candidate.close();
+        return false;
+      }
+    }, 'Native MongoDB did not start');
+    await mongo.db('admin').command({
+      replSetInitiate: {
+        _id: 'offlineverify',
+        members: [{ _id: 0, host: `127.0.0.1:${mongoPort}` }],
+      },
+    });
+  } else {
+    console.log('Starting disposable MongoDB replica set');
+    await exec('docker', [
+      'run',
+      '--detach',
+      '--name',
+      container,
+      '--env',
+      'GLIBC_TUNABLES=glibc.pthread.rseq=1',
+      '--publish',
+      '127.0.0.1::27017',
+      'mongo:8.0',
+      '--replSet',
+      'offlineverify',
+      '--bind_ip_all',
+    ]);
+    dockerCreated = true;
+    await eventually(async () => {
+      try {
+        await exec('docker', [
+          'exec',
+          container,
+          'mongosh',
+          '--quiet',
+          '--eval',
+          'db.adminCommand({ping:1})',
+        ]);
+        return true;
+      } catch {
+        return false;
+      }
+    }, 'MongoDB did not start');
+    await exec('docker', [
+      'exec',
+      container,
+      'mongosh',
+      '--quiet',
+      '--eval',
+      'rs.initiate({_id:"offlineverify",members:[{_id:0,host:"localhost:27017"}]})',
+    ]);
+    const mapping = (await exec('docker', ['port', container, '27017/tcp'])).stdout.trim();
+    uri = `mongodb://${mapping}/${dbName}?directConnection=true`;
+    mongo = await new mongoose.mongo.MongoClient(uri).connect();
+  }
   const db = mongo.db(dbName);
   await eventually(
     async () => (await db.admin().command({ hello: 1 })).isWritablePrimary,
@@ -436,6 +478,141 @@ try {
   await page.reload();
   await page.getByText('tab-two', { exact: true }).first().waitFor();
 
+  // Reproduce the production timing gap: restore after one rejection, then reject
+  // the remaining request before a server summary can repair the local projection.
+  await openForm();
+  await fill('staged-reject-one', 41);
+  await setConnectivityOffline(true);
+  await submit();
+  await openForm();
+  await fill('staged-reject-two', 43);
+  await submit();
+  await page.evaluate(
+    (key) =>
+      new Promise((resolve, reject) => {
+        const open = indexedDB.open('keyval-store');
+        open.onsuccess = () => {
+          const database = open.result;
+          const tx = database.transaction('keyval', 'readwrite');
+          const store = tx.objectStore('keyval');
+          const read = store.get(key);
+          read.onsuccess = () => {
+            const journal = read.result;
+            for (const entry of Object.values(journal))
+              if (entry.vars.input.description.startsWith('staged-reject-'))
+                entry.vars.input.original_amount *= -1;
+            store.put(journal, key);
+          };
+          tx.oncomplete = () => {
+            database.close();
+            resolve();
+          };
+          tx.onerror = () => reject(tx.error);
+        };
+        open.onerror = () => reject(open.error);
+      }),
+    outboxKey
+  );
+  await page.reload();
+  await page.getByText('staged-reject-two', { exact: true }).first().waitFor();
+  let heldSecond = false;
+  await page.route('**/*', async (route) => {
+    const request = route.request();
+    if (request.method() === 'POST' && request.headers()['next-action']) {
+      if ((request.postData() ?? '').includes('staged-reject-two')) {
+        await eventually(
+          async () =>
+            (await entries()).some(
+              (entry) =>
+                entry.vars.input.description === 'staged-reject-one' && entry.status === 'failed'
+            ),
+          'First staged rejection did not arrive'
+        );
+        await setConnectivityOffline(true);
+        heldSecond = true;
+        await route.abort('internetdisconnected');
+      } else if (!(request.postData() ?? '').includes('staged-reject-one')) {
+        // Derived refetches must not hide a broken local rollback.
+        await route.abort('internetdisconnected');
+      } else await route.continue();
+    } else await route.continue();
+  });
+  await setConnectivityOffline(false);
+  await eventually(() => heldSecond, 'Second staged request was not held');
+  await page.unrouteAll({ behavior: 'wait' });
+  await page.reload();
+  await setConnectivityOffline(true);
+  await eventually(
+    async () => (await page.locator('body').innerText()).includes('My spending NT$193'),
+    'Partially rejected shell did not retain only the second amount'
+  );
+  // Wait for this recombined projection to be persisted, then reject its last request.
+  await eventually(async () => {
+    const saved = await idbRead(cacheKey);
+    return (
+      saved &&
+      JSON.parse(saved).clientState.queries.some(
+        (query) => query.queryKey[2] === 'shell' && query.state.data.total_spent === 193
+      )
+    );
+  }, 'Partially rejected shell was not persisted');
+  await page.route('**/*', async (route) => {
+    const request = route.request();
+    if (
+      request.method() === 'POST' &&
+      request.headers()['next-action'] &&
+      !(request.postData() ?? '').includes('staged-reject-two')
+    )
+      await route.abort('internetdisconnected');
+    else await route.continue();
+  });
+  await setConnectivityOffline(false);
+  await eventually(
+    async () =>
+      (await entries()).filter(
+        (entry) =>
+          entry.vars.input.description.startsWith('staged-reject-') && entry.status === 'failed'
+      ).length === 2,
+    'Second staged rejection did not persist'
+  );
+  await setConnectivityOffline(true);
+  await page.unrouteAll({ behavior: 'wait' });
+  for (let reload = 0; reload < 2; reload++) {
+    try {
+      await page.reload();
+    } catch (error) {
+      if (!error.message.includes('net::ERR_ABORTED')) throw error;
+      // Next's final action refresh can supersede a simultaneous navigation.
+      // Require a completed navigation; never count the pre-reload DOM as a pass.
+      await page.goto(expensesUrl);
+    }
+    await setConnectivityOffline(true);
+    await page.getByRole('button', { name: 'Review drafts', exact: true }).waitFor();
+    await eventually(
+      async () => (await page.locator('body').innerText()).includes('My spending NT$150'),
+      'Failed contributions survived offline reload'
+    );
+    assert.equal(await page.getByText('staged-reject-two', { exact: true }).count(), 0);
+    await eventually(async () => {
+      const saved = await idbRead(cacheKey);
+      return (
+        saved &&
+        JSON.parse(saved).clientState.queries.some(
+          (query) => query.queryKey[2] === 'shell' && query.state.data.total_spent === 150
+        )
+      );
+    }, 'Fully rejected summary was not persisted');
+  }
+  assert.equal(await count('staged-reject-one'), 0);
+  assert.equal(await count('staged-reject-two'), 0);
+  await page.screenshot({ path: join(artifacts, 'staged-rejections.png'), fullPage: true });
+  pass(
+    'staged permanent failures: recombined summary survives repeated offline reload without a server refetch'
+  );
+  await setConnectivityOffline(false);
+  await page.reload();
+  await page.getByText('tab-two', { exact: true }).first().waitFor();
+
   await openForm();
   await fill('missing-read-cache', 41);
   await setConnectivityOffline(true);
@@ -547,4 +724,10 @@ try {
   await writeFile(join(artifacts, 'server.log'), appLog);
   await mongo?.close();
   if (dockerCreated) await exec('docker', ['rm', '-fv', container]);
+  if (nativeMongo) {
+    const stopped = new Promise((resolve) => nativeMongo.once('close', resolve));
+    nativeMongo.kill('SIGTERM');
+    await stopped;
+    await rm(join(artifacts, 'mongo-data'), { recursive: true, force: true });
+  }
 }

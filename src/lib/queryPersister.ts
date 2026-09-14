@@ -6,7 +6,12 @@ import { createExpenseOutbox } from './expenseOutbox';
 import { buildOptimisticExpense } from './optimisticExpense';
 import { tripKeys } from '@/hooks/queries/keys';
 import { replaceEqualDeep } from '@tanstack/react-query';
-import type { Expense, TripShell } from '@/types';
+import type { Expense } from '@/types';
+import {
+  expenseShellDelta,
+  projectExpenseShell,
+  type ProjectedExpenseShell,
+} from './expenseShellProjection';
 
 /**
  * IndexedDB-backed persister for the TanStack Query cache (ROADMAP #5 Phase 1).
@@ -154,7 +159,27 @@ export function createQueryPersister(cacheScope: string) {
             entry.status !== 'done' && entry.context?.previousShell && entry.context.appliedShell
         );
         const pending = projections.filter((entry) => entry.status === 'pending');
-        let base = query.state.data as TripShell;
+        let base = query.state.data as ProjectedExpenseShell;
+        if (base.expenseProjection) {
+          const { base: serverBase, contributions } = base.expenseProjection;
+          const retained = { ...contributions };
+          for (const entry of tripEntries) {
+            const id = entry.vars.input.client_request_id!;
+            if (entry.status === 'failed' || (entry.status === 'done' && !entry.expense))
+              delete retained[id];
+          }
+          for (const entry of pending) {
+            retained[entry.vars.input.client_request_id!] = expenseShellDelta(
+              entry.context!.previousShell!,
+              entry.context!.appliedShell!
+            );
+          }
+          // Keep confirmed contributions until a server read replaces the base.
+          // Unlike value matching, this also handles a failure after a prior restore
+          // combined independent tabs or removed another rejected contribution.
+          query.state.data = projectExpenseShell(serverBase, retained);
+          continue;
+        }
         const unwound = new Set<ExpenseCreateContext>();
         while (true) {
           const projection = projections.find(
@@ -173,18 +198,15 @@ export function createQueryPersister(cacheScope: string) {
               replaceEqualDeep(entry.context!.previousShell, base) === entry.context!.previousShell
           )
         ) {
-          query.state.data = pending.reduce((shell, entry) => {
-            const { previousShell, appliedShell } = entry.context!;
-            return {
-              ...shell,
-              expense_count:
-                shell.expense_count + appliedShell!.expense_count - previousShell!.expense_count,
-              total_spent:
-                shell.total_spent + appliedShell!.total_spent - previousShell!.total_spent,
-              today_spent:
-                shell.today_spent + appliedShell!.today_spent - previousShell!.today_spent,
-            };
-          }, base);
+          query.state.data = projectExpenseShell(
+            base,
+            Object.fromEntries(
+              pending.map((entry) => [
+                entry.vars.input.client_request_id!,
+                expenseShellDelta(entry.context!.previousShell!, entry.context!.appliedShell!),
+              ])
+            )
+          );
         }
       }
       for (const entry of Object.values(entries)) {

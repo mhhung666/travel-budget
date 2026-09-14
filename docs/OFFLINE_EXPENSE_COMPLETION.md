@@ -1,6 +1,7 @@
 # S 分階段完成紀錄
 
-2026-09-14 正式站抽驗發現失敗摘要時序不一致，S 正式驗收仍未結案；見
+2026-09-14 正式站抽驗發現的摘要時序問題已建立本機重現、完成修正並通過七項真實瀏覽器驗收。
+尚未部署這次修正，S 正式站驗收仍待部署後複驗；見
 [正式站驗收報告](./PRODUCTION_ACCEPTANCE_2026-09-14.md)。以下保留各批次的歷史驗證界線。
 
 2026-09-13 結案：程式修正與本機 production build 的真實瀏覽器驗收完成。
@@ -44,7 +45,8 @@ IndexedDB 的原子更新避免同身分多分頁新增不同支出互相覆寫�
 新增 `pnpm test:offline-browser`：自動建立全新本機 MongoDB replica set、合成帳號／旅程、
 獨立 Chrome context，執行 production build 並啟用實際 Service Worker。
 伺服器使用真正的登入驗證、server actions、MongoDB transaction 與請求去重紀錄，非 action 替身。
-腳本固定使用自己的 Docker 容器，不讀取或連接正式資料庫；結束時清除容器、資料卷與瀏覽器環境。
+腳本使用自己的 Docker 容器，或以 `MONGOD_BINARY` 指定本機 MongoDB 執行檔建立獨立 replica set；
+不讀取或連接正式資料庫，結束時清除測試資料與瀏覽器環境。
 背景通知設為 off，測試帳號無收件人，不呼叫正式郵件／推播／AI 或 cron。
 
 2026-09-13，Chrome `152.0.7977.83`，桌面 1280 × 900，以下六項全部通過：
@@ -90,13 +92,35 @@ production build、TypeScript 與變更 TypeScript 檔案 ESLint 通過。
 本批 4 個測試檔、37 項測試通過，TypeScript 與變更檔案 ESLint 通過。
 本批同樣使用 IndexedDB／action 替身，未執行真實瀏覽器或正式站驗收。
 
+### 正式抽驗後的摘要時序修正
+
+已建立穩定回歸：基礎摘要 NT$169，兩筆暫存 NT$41／NT$43；第一筆失敗後重載，
+摘要重組為 NT$212。第二筆隨後失敗時，舊邏輯仍以 NT$253 的原始快照比對，無法扣回 NT$43。
+新增測試在修正前確實失敗，修正後回到 NT$169，並涵蓋第二筆維持 pending 或完成 done 的情況。
+這證明本機存在與正式觀測一致的缺口，未取得正式部署 commit，故不宣稱已確認正式站執行的版本。
+
+現在本機摘要隨快取記錄基礎值與各請求的金額，重載、重組與失敗移除都使用同一來源。
+已成功支出的本機金額保留到伺服器重新讀取後取代；失敗或已退休草稿不再計入。
+舊格式仍可沿既有快照回溯升級，不清除離線查詢與草稿；無法識別的歷史殘留仍需成功連線刷新一次。
+另一筆失敗或重新讀取發生於 IndexedDB 保存期間時，新的支出只加到當下摘要，不覆蓋為保存前的舊值。
+
+驗證：完整測試 1,492 項通過、204 項依原環境條件跳過；production build、TypeScript、
+變更 TypeScript 檔案 ESLint 與瀏覽器腳本 Node 語法檢查通過。
+七項 Chrome／SW 驗收通過；新增情境讓兩筆草稿由真正 server action 分階段拒絕，
+阻斷衍生資料重新讀取，在第一次失敗後保存重組摘要，再讓第二筆失敗並連續離線重載兩次。
+列表和摘要均回到 NT$150，兩筆失敗輸入仍保留，DB 沒有新增這兩筆支出。
+其餘六項既有情境重跑通過，最終為 7 筆支出、7 筆去重紀錄、NT$191，無 page error。
+本次使用獨立本機 MongoDB 執行檔；證據目錄末段為 `travel-budget-offline-KZd5ZV`。
+
 ## 重跑與部署界線
 
 需要已啟動的 Docker、`mongo:8.0` 映像（缺少時 Docker 會下載）、Google Chrome 及已安裝的 pnpm 依賴。
 執行 `pnpm test:offline-browser`；只有已用目前程式產生 production build 時才可加 `--skip-build`。
+沒有 Docker 時，可執行 `MONGOD_BINARY=/absolute/path/to/mongod pnpm test:offline-browser`；
+腳本會使用全新暫存資料目錄與隨機本機 port，結束時停止程序並移除該資料目錄。
 合成截圖、結果 JSON 與服務日誌會寫到系統暫存目錄，路徑由腳本輸出；不含正式帳號或資料。
 本次成功產物目錄的末段為 `travel-budget-offline-eolC80`，暫存檔不保證永久保留。
 
 部署仍需套用 `20260912160000-expense-create-requests` migration，並確保新版 server action 與客戶端一致上線。
 本輪未部署、未執行正式 migration，也未驗證 iOS Safari／安裝 PWA；這些環境的部署後觀測由 M 追蹤。
-上述為本機工程交付結果；09-14 正式抽驗另發現失敗摘要時序問題，已重新列入 S 追蹤。
+上述為本機工程交付結果；最新摘要修正與七項瀏覽器回歸已完成，正式部署後複驗仍由 S 追蹤。

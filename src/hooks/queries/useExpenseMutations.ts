@@ -25,6 +25,7 @@ import {
 } from '@/lib/offlineMutations';
 import { tripKeys } from './keys';
 import { trackProductEvent } from '@/lib/productEvents';
+import { addExpenseShellProjection, expenseShellDelta } from '@/lib/expenseShellProjection';
 
 // Forms sharing a client must capture, persist and apply each local projection in order.
 // Serializing only the server mutation would still allow onMutate snapshots to race.
@@ -81,6 +82,7 @@ export function useExpenseMutations(tripId: string) {
         const key = tripKeys.expenses(vars.tripId);
         // Stop in-flight refetches from clobbering the optimistic insert.
         await queryClient.cancelQueries({ queryKey: key });
+        await queryClient.cancelQueries({ queryKey: tripKeys.shell(vars.tripId) });
         const members = queryClient.getQueryData<Member[]>(tripKeys.members(vars.tripId)) ?? [];
         const shellKey = tripKeys.shell(vars.tripId);
         const previousShell = queryClient.getQueryData<TripShell>(shellKey);
@@ -103,21 +105,28 @@ export function useExpenseMutations(tripId: string) {
             String(today.getMonth() + 1).padStart(2, '0'),
             String(today.getDate()).padStart(2, '0'),
           ].join('-');
-          appliedShell = {
-            ...previousShell,
-            expense_count: previousShell.expense_count + 1,
-            total_spent: previousShell.total_spent + personalShare,
+          appliedShell = addExpenseShellProjection(previousShell, vars.input.client_request_id!, {
+            expense_count: 1,
+            total_spent: personalShare,
             today_spent:
-              previousShell.today_spent +
-              (vars.input.date === todayKey
+              vars.input.date === todayKey
                 ? vars.input.original_amount * vars.input.exchange_rate
-                : 0),
-          };
+                : 0,
+          });
         }
         const context = { optimisticId: optimistic.id, previousShell, appliedShell, wasOffline };
         await saveExpenseOutbox(queryClient, vars, context, 'pending');
         queryClient.setQueryData<Expense[]>(key, (old = []) => [optimistic, ...old]);
-        if (appliedShell) queryClient.setQueryData(shellKey, appliedShell);
+        if (previousShell && appliedShell) {
+          const delta = expenseShellDelta(previousShell, appliedShell);
+          // Another request may settle while IndexedDB is writing. Apply only this
+          // contribution to the current value, without reviving a rejected one.
+          queryClient.setQueryData<TripShell>(shellKey, (current) =>
+            current
+              ? addExpenseShellProjection(current, vars.input.client_request_id!, delta)
+              : current
+          );
+        }
         acknowledgements.current.get(vars)?.resolve();
         return context;
       }),

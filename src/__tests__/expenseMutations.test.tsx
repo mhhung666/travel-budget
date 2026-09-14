@@ -165,6 +165,59 @@ describe('expense optimistic and offline acceptance', () => {
     await waitFor(() => expect(client.getQueryData(key)).toEqual([saved]));
   });
   it.each([
+    { order: [0, 1], success: false },
+    { order: [1, 0], success: false },
+    { order: [0, 1], success: true },
+    { order: [1, 0], success: true },
+  ])(
+    'removes only rejected contributions in settlement order $order (second succeeds=$success)',
+    async ({ order, success }) => {
+      const base = { expense_count: 7, total_spent: 169, today_spent: 169 } as TripShell;
+      client.setQueryData(tripKeys.shell('trip'), base);
+      client.setQueryData(tripKeys.currentUser, { id: 'user' });
+      const replies: ((value: unknown) => void)[] = [];
+      createExpense.mockImplementation(() => new Promise((resolve) => replies.push(resolve)));
+      const mounted = renderHook(() => useExpenseMutations('trip'), { wrapper });
+      try {
+        for (const amount of [41, 43]) {
+          await act(async () => {
+            await mounted.result.current.create.enqueue({
+              ...vars,
+              input: {
+                ...vars.input,
+                original_amount: amount,
+                splits: [{ user_id: 'user', share_amount: amount }],
+              },
+            });
+          });
+        }
+        await waitFor(() => expect(replies).toHaveLength(2));
+        expect(client.getQueryData(tripKeys.shell('trip'))).toMatchObject({ total_spent: 253 });
+        let total = 253;
+        for (const index of order) {
+          const accepted = index === 1 && success;
+          await act(async () =>
+            replies[index](
+              accepted
+                ? { success: true, data: saved }
+                : { success: false, error: 'VALIDATION_ERROR' }
+            )
+          );
+          if (!accepted) total -= [41, 43][index];
+          await waitFor(() =>
+            expect(client.getQueryData(tripKeys.shell('trip'))).toMatchObject({
+              total_spent: total,
+            })
+          );
+        }
+        expect(client.getQueryData<Expense[]>(key)).toHaveLength(success ? 1 : 0);
+        if (!success) expect(client.getQueryData(tripKeys.shell('trip'))).toEqual(base);
+      } finally {
+        mounted.unmount();
+      }
+    }
+  );
+  it.each([
     { success: true, newerShell: false },
     { success: false, newerShell: false },
     { success: false, newerShell: true },

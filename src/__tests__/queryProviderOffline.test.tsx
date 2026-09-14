@@ -17,7 +17,7 @@ import {
   expenseOutboxQueryKey,
   type ExpenseOutbox,
 } from '@/lib/expenseOutbox';
-import { getQueryPersistKey } from '@/lib/queryPersister';
+import { createQueryPersister, getQueryPersistKey } from '@/lib/queryPersister';
 import type { TripShell } from '@/types';
 import { buildOptimisticExpense } from '@/lib/optimisticExpense';
 
@@ -283,7 +283,7 @@ describe('QueryProvider offline startup', () => {
         expect(
           Object.values(client.getQueryData<ExpenseOutbox>(expenseOutboxQueryKey)!)
         ).toHaveLength(count);
-        expect(client.getQueryData(shellKey)).toEqual({
+        expect(client.getQueryData(shellKey)).toMatchObject({
           expense_count: count,
           total_spent: count * 100,
           today_spent: count * 100,
@@ -294,6 +294,55 @@ describe('QueryProvider offline startup', () => {
       }
     }
   );
+  it('does not revive a rejected contribution when another local write finishes later', async () => {
+    vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(true);
+    let rejectFirst!: (value: unknown) => void;
+    createExpense.mockReturnValueOnce(
+      new Promise((resolve) => {
+        rejectFirst = resolve;
+      })
+    );
+    createExpense.mockImplementation(() => new Promise(() => {}));
+    const mounted = renderHook(useProbe, { wrapper });
+    try {
+      await waitFor(() => expect(mounted.result.current.restoring).toBe(false));
+      const client = mounted.result.current.client;
+      act(() => {
+        client.setQueryData(shellKey, { expense_count: 7, total_spent: 169, today_spent: 169 });
+        client.setQueryData(tripKeys.currentUser, { id: 'user' });
+      });
+      await act(async () => {
+        await mounted.result.current.create.enqueue(vars);
+      });
+      await waitFor(() => expect(createExpense).toHaveBeenCalledOnce());
+      let release!: () => void;
+      writeGate.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            release = resolve;
+          })
+      );
+      let second!: Promise<void>;
+      act(() => {
+        second = mounted.result.current.create.enqueue(vars);
+      });
+      await waitFor(() => expect(release).toBeDefined());
+      await act(async () => {
+        rejectFirst({ success: false, error: 'VALIDATION_ERROR' });
+      });
+      await waitFor(() =>
+        expect(client.getQueryData(shellKey)).toMatchObject({ total_spent: 169 })
+      );
+      await act(async () => {
+        release();
+        await second;
+      });
+      expect(client.getQueryData(shellKey)).toMatchObject({ expense_count: 8, total_spent: 269 });
+      expect(client.getQueryData<unknown[]>(expenseKey)).toHaveLength(1);
+    } finally {
+      mounted.unmount();
+    }
+  });
   it('combines projections from separate tabs and refreshes derived cached reads', async () => {
     vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(false);
     const base = { expense_count: 4, total_spent: 82, today_spent: 82 };
@@ -327,7 +376,7 @@ describe('QueryProvider offline startup', () => {
     }
     const mounted = renderHook(useProbe, { wrapper });
     await waitFor(() => expect(mounted.result.current.restoring).toBe(false));
-    expect(mounted.result.current.client.getQueryData(shellKey)).toEqual({
+    expect(mounted.result.current.client.getQueryData(shellKey)).toMatchObject({
       expense_count: 6,
       total_spent: 150,
       today_spent: 150,
@@ -380,7 +429,7 @@ describe('QueryProvider offline startup', () => {
       const pendingCount = Number(firstStatus === 'pending') + Number(secondStatus === 'pending');
       const pendingAmount =
         (firstStatus === 'pending' ? 31 : 0) + (secondStatus === 'pending' ? 37 : 0);
-      expect(mounted.result.current.client.getQueryData(shellKey)).toEqual({
+      expect(mounted.result.current.client.getQueryData(shellKey)).toMatchObject({
         expense_count: 4 + pendingCount,
         total_spent: 82 + pendingAmount,
         today_spent: 82 + pendingAmount,
@@ -390,6 +439,72 @@ describe('QueryProvider offline startup', () => {
       );
       expect(createExpense).not.toHaveBeenCalled();
       mounted.unmount();
+      snapshot.clear();
+    }
+  );
+  it.each(['failed', 'done', 'pending'] as const)(
+    'reconciles a second journal transition after persisting a partially restored summary: %s',
+    async (nextStatus) => {
+      const base = { expense_count: 7, total_spent: 169, today_spent: 169 } as TripShell;
+      const first = { ...base, expense_count: 8, total_spent: 210, today_spent: 210 };
+      const second = { ...base, expense_count: 9, total_spent: 253, today_spent: 253 };
+      const snapshot = new QueryClient();
+      snapshot.setQueryData(shellKey, second);
+      storage.set(
+        persistKey,
+        JSON.stringify({
+          timestamp: Date.now(),
+          buster: 'v9',
+          clientState: dehydrate(snapshot),
+        })
+      );
+      const outbox = createExpenseOutbox(scope);
+      for (const [id, previousShell, appliedShell, status] of [
+        ['first', base, first, 'failed'],
+        ['second', first, second, 'pending'],
+      ] as const) {
+        await outbox.write({
+          vars: { ...vars, input: { ...vars.input, client_request_id: id } },
+          status,
+          createdAt: Date.now(),
+          context: {
+            optimisticId: `optimistic_${id}`,
+            wasOffline: true,
+            previousShell,
+            appliedShell,
+          },
+        });
+      }
+      const restored = await createQueryPersister(scope).restoreClient();
+      const shell = () =>
+        restored!.clientState.queries.find((q) => q.queryKey[2] === 'shell')!.state.data;
+      expect(shell()).toMatchObject({ expense_count: 8, total_spent: 212, today_spent: 212 });
+      storage.set(persistKey, JSON.stringify(restored));
+      const entry = (await outbox.read()).second;
+      await outbox.write({
+        ...entry,
+        status: nextStatus,
+        expense:
+          nextStatus === 'done'
+            ? buildOptimisticExpense(vars.input, {
+                tripId: 'trip',
+                id: 'saved',
+                members: [],
+                createdAt: new Date().toISOString(),
+              })
+            : undefined,
+      });
+      for (let reload = 0; reload < 2; reload++) {
+        const again = await createQueryPersister(scope).restoreClient();
+        expect(
+          again!.clientState.queries.find((q) => q.queryKey[2] === 'shell')!.state.data
+        ).toMatchObject({
+          expense_count: nextStatus === 'failed' ? 7 : 8,
+          total_spent: nextStatus === 'failed' ? 169 : 212,
+          today_spent: nextStatus === 'failed' ? 169 : 212,
+        });
+        storage.set(persistKey, JSON.stringify(again));
+      }
       snapshot.clear();
     }
   );
@@ -416,6 +531,10 @@ describe('QueryProvider offline startup', () => {
       if (legacy) {
         const oldCache = JSON.parse(storage.get(persistKey)!);
         delete oldCache.clientState.mutations[0].state.variables.input.client_request_id;
+        // Legacy caches predate client-side projection provenance.
+        for (const query of oldCache.clientState.queries)
+          if (query.queryKey[2] === 'shell') delete query.state.data.expenseProjection;
+        delete oldCache.clientState.mutations[0].state.context.appliedShell.expenseProjection;
         expectedRequestId = oldCache.clientState.mutations[0].state.context.optimisticId.replace(
           /^optimistic_/,
           ''
@@ -424,7 +543,7 @@ describe('QueryProvider offline startup', () => {
         storage.delete(getExpenseOutboxKey(scope));
       }
       const optimistic = mounted.result.current.client.getQueryData(expenseKey);
-      const projectedShell = mounted.result.current.client.getQueryData(shellKey);
+      const projectedShell = mounted.result.current.client.getQueryData<TripShell>(shellKey)!;
       expect(projectedShell).toMatchObject({ expense_count: 1, total_spent: 100 });
 
       for (let reload = 0; reload < 2; reload++) {
@@ -438,7 +557,11 @@ describe('QueryProvider offline startup', () => {
           isPaused: true,
         });
         expect(mounted.result.current.client.getQueryData(expenseKey)).toEqual(optimistic);
-        expect(mounted.result.current.client.getQueryData(shellKey)).toEqual(projectedShell);
+        expect(mounted.result.current.client.getQueryData(shellKey)).toMatchObject({
+          expense_count: projectedShell.expense_count,
+          total_spent: projectedShell.total_spent,
+          today_spent: projectedShell.today_spent,
+        });
         // Force a persisted cache update and wait past the real throttle window.
         act(() => mounted.result.current.client.setQueryData(['reload'], reload));
         await waitFor(

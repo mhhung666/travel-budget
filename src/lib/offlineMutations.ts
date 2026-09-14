@@ -6,6 +6,7 @@ import type { CreateExpenseInput } from '@/lib/validation';
 import { tripKeys } from '@/hooks/queries/keys';
 import { trackProductEvent } from '@/lib/productEvents';
 import type { Expense, TripShell } from '@/types';
+import { removeExpenseShellProjection, type ProjectedExpenseShell } from './expenseShellProjection';
 
 export interface ExpenseCreateContext {
   optimisticId: string;
@@ -37,7 +38,13 @@ export function reconcileExpenseCreate(
       return expense ? [expense, ...remaining] : remaining;
     });
   }
-  if (
+  const shell = queryClient.getQueryData<ProjectedExpenseShell>(tripKeys.shell(vars.tripId));
+  if (!expense && shell?.expenseProjection && vars.input.client_request_id) {
+    queryClient.setQueryData(
+      tripKeys.shell(vars.tripId),
+      removeExpenseShellProjection(shell, vars.input.client_request_id)
+    );
+  } else if (
     !expense &&
     context?.previousShell &&
     context.appliedShell &&
