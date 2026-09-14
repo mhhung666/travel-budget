@@ -134,7 +134,8 @@ export function createQueryPersister(cacheScope: string) {
         }
       }
       // Multiple tabs can have independent projections based on the same server total.
-      // Unwind the recognized local projection, then include every durable pending entry once.
+      // Unwind pending and failed local projections, including sequential submissions,
+      // then include every durable pending entry once. Rejected drafts contribute no totals.
       for (const query of client.clientState.queries) {
         if (query.queryKey[0] !== 'trip') continue;
         const tripEntries = Object.values(entries).filter(
@@ -148,14 +149,15 @@ export function createQueryPersister(cacheScope: string) {
         )
           query.state.isInvalidated = true;
         if (query.queryKey[2] !== 'shell') continue;
-        const pending = tripEntries.filter(
+        const projections = tripEntries.filter(
           (entry) =>
-            entry.status === 'pending' && entry.context?.previousShell && entry.context.appliedShell
+            entry.status !== 'done' && entry.context?.previousShell && entry.context.appliedShell
         );
+        const pending = projections.filter((entry) => entry.status === 'pending');
         let base = query.state.data as TripShell;
         const unwound = new Set<ExpenseCreateContext>();
         while (true) {
-          const projection = pending.find(
+          const projection = projections.find(
             (entry) =>
               !unwound.has(entry.context!) &&
               replaceEqualDeep(entry.context!.appliedShell, base) === entry.context!.appliedShell
@@ -186,18 +188,6 @@ export function createQueryPersister(cacheScope: string) {
         }
       }
       for (const entry of Object.values(entries)) {
-        const shell = client.clientState.queries.find(
-          (q) => JSON.stringify(q.queryKey) === JSON.stringify(tripKeys.shell(entry.vars.tripId))
-        );
-        const contextProjection = entry.context;
-        if (shell && contextProjection?.previousShell && contextProjection.appliedShell) {
-          if (
-            entry.status === 'failed' &&
-            replaceEqualDeep(contextProjection.appliedShell, shell.state.data) ===
-              contextProjection.appliedShell
-          )
-            shell.state.data = contextProjection.previousShell;
-        }
         if (
           entry.status === 'done' &&
           entry.expense &&

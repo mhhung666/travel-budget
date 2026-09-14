@@ -287,6 +287,61 @@ describe('QueryProvider offline startup', () => {
     mounted.unmount();
     snapshot.clear();
   });
+  it.each([
+    ['failed', 'pending'],
+    ['pending', 'failed'],
+    ['failed', 'failed'],
+  ] as const)(
+    'unwinds sequential %s and %s projections before restoring pending totals',
+    async (firstStatus, secondStatus) => {
+      vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(false);
+      const base = { expense_count: 4, total_spent: 82, today_spent: 82 };
+      const first = { expense_count: 5, total_spent: 113, today_spent: 113 };
+      const second = { expense_count: 6, total_spent: 150, today_spent: 150 };
+      const snapshot = new QueryClient();
+      snapshot.setQueryData(shellKey, second);
+      storage.set(
+        persistKey,
+        JSON.stringify({ timestamp: Date.now(), buster: 'v9', clientState: dehydrate(snapshot) })
+      );
+      for (const [amount, previousShell, appliedShell, status] of [
+        [31, base, first, firstStatus],
+        [37, first, second, secondStatus],
+      ] as const) {
+        const requestId = crypto.randomUUID();
+        await createExpenseOutbox(scope).write({
+          vars: {
+            ...vars,
+            input: { ...vars.input, client_request_id: requestId, original_amount: amount },
+          },
+          status,
+          createdAt: Date.now(),
+          context: {
+            optimisticId: `optimistic_${requestId}`,
+            wasOffline: true,
+            previousShell: previousShell as TripShell,
+            appliedShell: appliedShell as TripShell,
+          },
+        });
+      }
+      const mounted = renderHook(useProbe, { wrapper });
+      await waitFor(() => expect(mounted.result.current.restoring).toBe(false));
+      const pendingCount = Number(firstStatus === 'pending') + Number(secondStatus === 'pending');
+      const pendingAmount =
+        (firstStatus === 'pending' ? 31 : 0) + (secondStatus === 'pending' ? 37 : 0);
+      expect(mounted.result.current.client.getQueryData(shellKey)).toEqual({
+        expense_count: 4 + pendingCount,
+        total_spent: 82 + pendingAmount,
+        today_spent: 82 + pendingAmount,
+      });
+      expect(mounted.result.current.client.getQueryData<unknown[]>(expenseKey) ?? []).toHaveLength(
+        pendingCount
+      );
+      expect(createExpense).not.toHaveBeenCalled();
+      mounted.unmount();
+      snapshot.clear();
+    }
+  );
   it.each([false, true])(
     'preserves a queue across repeated offline starts (legacy=%s)',
     async (legacy) => {
