@@ -1,5 +1,8 @@
 # S 分階段完成紀錄
 
+2026-09-14 正式站抽驗發現失敗摘要時序不一致，S 正式驗收仍未結案；見
+[正式站驗收報告](./PRODUCTION_ACCEPTANCE_2026-09-14.md)。以下保留各批次的歷史驗證界線。
+
 2026-09-13 結案：程式修正與本機 production build 的真實瀏覽器驗收完成。
 尚未 push 或部署；2026-09-12 正式站的失敗紀錄保留為歷史證據，部署後抽驗由 M 追蹤。
 
@@ -96,4 +99,4 @@ production build、TypeScript 與變更 TypeScript 檔案 ESLint 通過。
 
 部署仍需套用 `20260912160000-expense-create-requests` migration，並確保新版 server action 與客戶端一致上線。
 本輪未部署、未執行正式 migration，也未驗證 iOS Safari／安裝 PWA；這些環境的部署後觀測由 M 追蹤。
-S 的修正、資料保留與瀏覽器回歸已完成，不再列為待實作缺陷。
+上述為本機工程交付結果；09-14 正式抽驗另發現失敗摘要時序問題，已重新列入 S 追蹤。
