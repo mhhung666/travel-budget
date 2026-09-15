@@ -2,6 +2,7 @@
 
 一個現代化、輕量級的**多人旅行記帳與分帳**應用程式，專為團隊出國旅行設計。協助大家輕鬆追蹤支出、自動計算誰該付誰多少、規劃行程，並支援多幣別即時匯率、收據附件、離線記帳與年度回顧。
 
+> 進度先看 [專案狀態總覽](docs/README.md)：已完成、待改善、待驗證與暫緩項目。
 > 文件導覽：架構見 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)、完整功能盤點見 [docs/FEATURES.md](docs/FEATURES.md)、待辦藍圖見 [docs/ROADMAP.md](docs/ROADMAP.md)、文件索引見 [docs/README.md](docs/README.md)。
 
 ## ✨ 核心功能 (Features)

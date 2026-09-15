@@ -1,134 +1,45 @@
-# 改善建議（Improvements）
+# 技術改善與驗收待辦
 
-> 更新日期：2026-09-15
-> 本文件只列**尚未處理**的程式碼 / 基礎設施層級改善。已完成里程碑見 [CHANGELOG.md](./CHANGELOG.md)，架構說明見 [ARCHITECTURE.md](./ARCHITECTURE.md)。
-> 慣例：處理完一項 → 移到 [CHANGELOG.md](./CHANGELOG.md)、從本檔刪除。
+> 更新日期：2026-09-15。跨項目完成狀態見 [專案總覽](./README.md)。
+> 本文件只保留未結案項目；已完成的 S 與 Q 工程歷程見總覽連結，不在此重列。
 
-狀態圖例：🔴 優先處理　⚠️ 待處理　🟡 部分完成 / 待外部條件
+<a id="目前優先順序"></a>
 
-## 目前優先順序
+## 待驗收：工程已完成
 
-本輪先改善既有程式流程、MongoDB 讀寫與畫面載入體驗；AI 行程匯入、收據分析與自然語言記帳的
-真實 provider 品質驗收暫緩，不列入以下執行順序。
+既定優先順序為 O → P → R → M。以下是尚缺的驗收證據，不代表要重新實作或重跑已完成的 migration。
+正式環境缺少對應部署 commit；頁面版本、使用者回報已 push 或正常 UI 流程均不能單獨取代部署紀錄。
 
-| 順序 | 項目 | 主要價值 | 建議批次 |
-| ---: | --- | --- | --- |
-| — | S. 正式站離線摘要一致性 | 驗證失敗後快速離線重載的摘要修正 | ✅ 09-15 正式站分階段失敗與兩次離線重載複驗通過 |
-| 1 | O. MongoDB 正式效能驗收 | 確認實際負載下的讀寫成本 | 🟡 migration 與工程驗收完成 |
-| 2 | P. 支出背景處理部署驗收 | 確認正式環境回應延遲與補送恢復 | 🟡 單人寫入與 done 觀測通過，通知／排程／失敗恢復待驗 |
-| 3 | R. 部署與一致性驗收 | 確認新版 writer 與清理 worker 一致上線 | 🟡 CRUD／活動衝突／票券正常流程通過，部署／清理待驗 |
-| 4 | M. production-like 效能追蹤（含 Q 部署後觀測） | 補齊實際 bytes、MongoDB profiler 與 TTI 數據 | 🟡 S 已複驗通過；效能待驗，iOS／安裝 PWA 依使用者決定暫時通過 |
+| 順序／項目 | 已有證據 | 尚缺／完成條件 | 詳細規範與證據 |
+| --- | --- | --- | --- |
+| 1．O MongoDB 正式效能 | 七個共用索引已登錄；隔離資料 explain／寫入量測、account actions 與正式登入／唯讀抽查完成 | 代表性 Atlas 分布與併發下的讀寫成本、profiler/explain 與長尾 server trace；註冊／改信箱 HTTP＋郵件流程 | [索引結果](./MONGODB_INDEX_RESULTS.md)、[線上抽查](./MONGODB_LIVE_ACCEPTANCE.md) |
+| 2．P 支出背景處理 | worker／action 整合與四個索引完成；正式單人 CRUD、活動、done 計數及 inspect 200／401 通過 | 部署 commit／背景開關／排程執行紀錄；DTO、逐事件 checkpoint、收件人通知／推播；隔離失敗恢復；新增 p50／p95 與 pending 延遲；追查曾發生的 inspect 503 | [唯一詳細驗收清單](./EXPENSE_DELIVERY_ACCEPTANCE.md) |
+| 3．R 行程與資料一致性 | R1～R4 工程完成；使用者回報 migration／push 完成；正式活動 CRUD、舊草稿衝突與 PDF 票券正常流程通過 | 部署與 migration／writer 同時上線證據；整天欄位修改、成員變更、跨 collection 競態；附件退休、R2 最終清理及 cron 結果 | [階段紀錄與部署要求](./ITINERARY_CONSISTENCY_PROGRESS.md)、[正式流程證據](./PRODUCTION_ACCEPTANCE_2026-09-12.md) |
+| 4．M 前端體驗與效能（含 Q） | Shell 拆分與 Q1～Q3 工程完成；12 次冷／熱小樣本、表單失敗重試、搜尋、快速記帳、PDF 正常流程與支出背景更新重試通過 | 核對 Q 交付 `ac54811` 或後續部署；檢視器載入失敗重試、超過 20 筆更多列表；代表性資料量 Network bytes、Performance trace／TTI 與 MongoDB profiler/explain | [Q 驗收勾選表](./QUERY_UX_PROGRESS.md#部署後驗收移交-m尚未執行)、[量測規範](./QUERY_UX_PERFORMANCE.md)、[背景更新補驗](./PRODUCTION_ACCEPTANCE_2026-09-15.md) |
 
-Q1～Q3 已於 2026-09-09 工程結案，使用者回報已 push；不再列為待實作項目。
-交付與驗證見 [Q 結案紀錄](./QUERY_UX_PROGRESS.md)，正式環境觀測統一由 M 追蹤，尚未宣稱通過。
+執行條件與界線：
 
-### S. ✅ 摘要時序修正與正式站複驗完成
+- O 需要隔離環境、可丟棄帳號／信箱、代表性負載及可接受延遲標準；不以共用 DB 壓測代替。
+- P 的失敗注入使用隔離 DB／測試訂閱；對外通知需另有明確授權。HTTP accepted 不等於裝置收到，也不保證永久 exactly-once。
+- R 的正常 UI 流程通過不代表清理 worker 已驗收；保留既有 tombstone 與部署順序要求。
+- M 與 O 的量測可共用同一代表性場景及證據；小樣本 bytes／readyMs 不代表正式 CWV 或完整效能結案。
+- iOS Safari／安裝版 PWA 依使用者 09-15 決定暫時通過、未實測，本輪不列為阻擋；AI 真實 provider 品質驗收繼續暫緩。
 
-2026-09-12 正式站發現的待同步支出遺失已修正。2026-09-13 完成三階段交付：
-送出前等待獨立 IndexedDB 保存、永久失敗的可編輯／匯出草稿、離線讀取提示，以及真實 Chrome／SW 驗收。
-待送紀錄不隨一般快取到期或格式更新而移除；同一請求安全重送，多分頁也不覆寫彼此的資料。
-另修正多分頁還原後列表與摘要不同步的問題。
-09-14 追加修正連續補送失敗的摘要殘留，commit `086bb48`；27 項相關測試通過，
-詳見 [S 後續修正](./OFFLINE_EXPENSE_COMPLETION.md#後續修正2026-09-14)，此追加批次尚未做真實瀏覽器／正式站驗收。
-同日另修正同頁並行新增造成摘要漏算，37 項相關測試通過；尚未部署，細節同見 S 後續修正。
+## 待改善：尚未完成的技術項目
 
-六項 production build 瀏覽器情境通過，最終 DB 與列表皆為 7 筆、摘要 NT$191；
-完整測試 1,479 項通過。實作、逐階段 commit、驗收方法與環境界線見
-[S 分階段完成紀錄](./OFFLINE_EXPENSE_COMPLETION.md)，伺服器去重設計見
-[離線支出安全重送](./OFFLINE_EXPENSE_RETRY.md)。
+A／I／J 尚待方案或實作；G／H 先觀察，沒有實際需求前不直接排入開發。
+R 處理已入庫附件的退休與可重試清理；I 處理上傳成功但從未入庫的孤兒物件，兩者範圍不同。
 
-上方未部署與未驗收描述為各批交付當時的狀態。09-14 直接驗收正式站，離線保存、補送、
-雙分頁、儲存失敗與草稿復原通過；但兩筆永久失敗後快速切離線重載，出現列表 NT$169、
-摘要 NT$212，連線更新後恢復正常。後續已在本機重現部分失敗後重組摘要、下一筆失敗無法扣回的缺口，
-修正為依請求追蹤本機金額，並處理 IndexedDB 保存期間另一筆失敗的競態。
-完整 1,492 項測試與七項真實 Chrome／SW 驗收通過，見
-[修正紀錄](./OFFLINE_EXPENSE_COMPLETION.md#正式抽驗後的摘要時序修正)。
-09-15 正式站已載入修正程式，分階段拒絕兩筆草稿後連續離線重載兩次，摘要均正確，S 此缺陷複驗完成。
-清理合成草稿後，全新 context 確認九筆支出、NT$253；正式部署 commit 尚未核對。
-方法、人工故障注入界線與證據見 [09-14 正式站驗收](./PRODUCTION_ACCEPTANCE_2026-09-14.md)。
-
-### M. 🟡 輕量 Trip Shell 的 production-like 效能追蹤
-
-程式拆分與 production build 已完成：非支出分頁不再由共用 Shell 取得完整 expenses，表單關閉時不查
-members／itinerary／tags，首頁摘要也改用 aggregate 欄位。靜態基線與待補實測項目見
-[TRIP_SHELL_PERFORMANCE.md](./TRIP_SHELL_PERFORMANCE.md)。先前曾完成 DB 連線與正式帳號唯讀抽查；本輪本機 DB 連線不可用，仍需在
-production-like 資料量下補 Network bytes、MongoDB profiler/explain 與瀏覽器 TTI，確認實際收益及是否要調整
-aggregate／索引；完成後即可從本檔移除。
-
-Q 部署後觀測也歸入本項。2026-09-11 已在 `budget.mhhung.com` 使用指定帳號完成部分正式站驗收：
-行程、支出、旅程設定、個人設定與歷史紀錄於桌面及手機 viewport 正常顯示；
-慢速請求顯示骨架並完成載入，歷史紀錄請求失敗後可手動重試恢復，新增支出表單可開啟／關閉。
-已完成紀錄見 [CHANGELOG.md](./CHANGELOG.md)；該次為唯讀操作，手機 viewport 不等同實機或安裝 PWA。
-
-09-11～09-12 已補 12 次正式支出頁冷／熱載入與頁面 bytes 觀測、動態表單失敗重試、
-搜尋／清除、快速記帳與 PDF 檢視器正常流程；詳見 [補充驗收報告](./PRODUCTION_ACCEPTANCE_2026-09-12.md)。
-S 離線保存與摘要時序缺陷已於 09-15 完成正式站複驗，見 S。
-09-15 支出頁背景更新失敗保留內容與手動重試在桌面／手機 viewport 均通過，九筆／NT$253 一致，
-見 [背景更新補驗](./PRODUCTION_ACCEPTANCE_2026-09-15.md)。仍需檢視器失敗重試、更多列表、
-代表性大資料量、MongoDB profiler/explain 與 TTI。
-09-15 依使用者決定，iOS Safari／安裝版 PWA 暫時通過，本輪不執行、不列為阻擋；
-此為接受暫緩實測，不代表已取得實機驗證證據。
-Vercel production 對應 Q 最終交付 `ac54811` 或其後續 commit 仍未核對，頁面版本不是部署證據。
-小樣本量測不代表 M 效能結案，O／P／R 仍依各自條件驗收。
-剩餘範圍見 [Q 部署後驗收清單](./QUERY_UX_PROGRESS.md#部署後驗收移交-m尚未執行)，
-量測條件與隱私限制見 [效能報告](./QUERY_UX_PERFORMANCE.md)。
-
-### O. 🟡 MongoDB 索引正式推廣驗收（P1）
-
-**2026-09-08 工程交付完成**：七顆共用 DB 索引已核對並正式登錄 core-query migration，
-不必重跑；非 owned 登錄不會讓 down 刪除既有索引。受限登錄工具拒絕 DDL／業務寫入，
-隔離驗收 8 情境通過。真實 MongoDB account actions 5 項測試驗證註冊、登入、改信箱及競態。
-10 萬筆合成支出 snapshot 的摘要掃描由 100,000 降至 100，四類清單 SORT 消失；
-另完成五個 collection 的批次寫入量測，付款 p95 有上升，未宣稱全面加速。
-共用 DB 登錄後唯讀 explain 確認索引採用。操作與結果見
-[MONGODB_INDEX_RESULTS.md](./MONGODB_INDEX_RESULTS.md)。
-
-**僅剩正式效能驗收**：合成資料與本機單節點不等同實際 Atlas 分布／併發；
-account actions 測試替換了 session／郵件邊界，非完整 HTTP E2E。
-已使用指定正式站帳號完成真實登入、大小寫登入、session／登出及旅程頁面唯讀 smoke test，
-見 [線上驗收](./MONGODB_LIVE_ACCEPTANCE.md)。部分頁面讀取有長尾，尚無 server trace 可歸因。
-仍需隔離環境、可丟棄帳號／信箱、代表性負載與可接受延遲標準，驗證寫入成本及註冊／改信箱
-HTTP＋郵件流程；不向共用 DB 壓測或任意修改現有帳號，本項不冒稱完全結案。
-
-### P. 🟡 程式交付完成，待部署驗收（P1）
-
-**目前狀態（2026-09-08）**：背景 worker／action／離線對帳整合完成；背景模式預設 on，
-不必新增參數，off 僅供緊急回退。Hobby 每日補撿設定已加入；四個共用 DB 索引已建立、
-驗證並登錄 changelog，不必重跑 P migration。已完成里程碑見 [CHANGELOG.md](./CHANGELOG.md)。
-
-**僅剩正式環境收尾**：
-
-- 核對 Vercel production 部署 commit、背景開關與每日排程實際執行紀錄。
-- 單人測試已驗證支出新增／修改／刪除、活動紀錄及 done 計數；仍需 action DTO、逐事件 checkpoint、其他收件人站內通知與實際推播。
-- 授權 inspect 已回 200，未授權回 401；曾有一次 503，稍後恢復，需 server trace 追查。
-- 在隔離環境驗證中斷／失敗恢復，記錄新增支出 p50／p95 與最舊 pending 延遲。
-- 先前正式站離線重載補送缺陷已由 S 修復，09-14～09-15 正式站補送與摘要複驗通過；不代表通知或 worker 失敗恢復已驗收。
-
-正式驗收未通過前仍保留本項，不以本機測試替代線上結果。
-唯一驗收清單與可靠性限制見 [EXPENSE_DELIVERY_ACCEPTANCE.md](./EXPENSE_DELIVERY_ACCEPTANCE.md)；
-歷次模組開發紀錄見 [EXPENSE_BACKGROUND_DELIVERY.md](./EXPENSE_BACKGROUND_DELIVERY.md) 與 Git 歷史。
-HTTP 已接受但 checkpoint 尚未保存仍可能重送；不承諾推播永久 exactly-once。
-
-### R. 🟡 工程結案，部署與線上驗收待確認
-
-R1～R4 已完成工程與測試；使用者於 2026-09-11 回報 migration 已執行、全部程式已 push，不再有 R 系列待實作項目。
-09-11～09-12 正式站已驗證行程日新增／刪除、活動 CRUD、兩分頁舊草稿衝突保護，以及 PDF 票券上傳／保存／檢視。
-仍需核對最新 commit 與 migration／writer 一致上線、整天欄位修改、跨 collection 競態、成員變更、附件退休與清理 cron 的實際結果。
-上述正常流程不代表清理 worker 已驗收；證據見 [補充驗收](./PRODUCTION_ACCEPTANCE_2026-09-12.md)，
-部署要求見 [R 分階段進度](./ITINERARY_CONSISTENCY_PROGRESS.md)。
-
----
-
-### A. 🟡 Public API 限流（Rate limiting）
+### A. 待方案：Public API 限流（Rate limiting）
 **問題**：`/api/public/*` 是「知道 `hash_code` 即可檢視」的未登入端點，目前無任何速率限制，易被枚舉 / 爬取。
 **現況**：刻意未做——Serverless（Vercel）下記憶體式限流形同虛設（各 instance 各自計數），須外部儲存。
 **建議**：導入 Upstash Redis（`@upstash/ratelimit` + `@upstash/redis`）以 IP（或 `hash_code`）為 key 做滑動視窗限流，套在 8 條公開路由與 `/api/exchange-rates`。屬基礎設施決策，待確認方案後再做。
 
-### G. 🟡 支出列表無上限（潛在效能）
+### G. 待觀察：支出列表無上限（潛在效能）
 **問題**：`getExpenses`（[expense.actions.ts](../src/actions/expense.actions.ts)）與公開 expenses 路由皆 `Expense.find({ trip })` 全量載入 + 雙 `populate`。一般旅行筆數有限尚可，但長期 / 大型旅行無分頁保護。
 **建議**：先觀察實際資料量再決定。若需要，加上 `limit` + 游標分頁（以 `date`/`_id`），前端配合無限捲動；屬「為未來鋪路」，非當前痛點。
 
-### H. 🟡 SW `r2-images` 快取上限對相簿偏低
+### H. 待觀察：SW `r2-images` 快取上限對相簿偏低
 **問題**：[sw.ts](../src/sw.ts) 的 `r2-images`（CacheFirst）`maxEntries: 128`，是為「一次看一兩張收據」設計的。
 旅程相簿一頁就有數十張縮圖、軟上限 300 張／旅程，會把收據與頭像一起擠出快取（LRU）。
 另外 `presignGetStable` 的簽名每個窗口（1 小時）輪替一次，同一張相片跨窗口就是新的快取 key，會加速這個消耗。
@@ -136,7 +47,7 @@ R1～R4 已完成工程與測試；使用者於 2026-09-11 回報 migration 已�
 兩者都要以 `pnpm build && pnpm start` 實測（dev 模式 SW 停用）。**先觀察實際用量再決定**——
 相片是 CacheFirst，把上限開太大等於長期佔用使用者的儲存配額。
 
-### I. 🟡 相簿上傳失敗會在 R2 留下孤兒物件
+### I. 待實作：相簿上傳失敗會在 R2 留下孤兒物件
 **問題**：相片是「先直傳 R2、再 `addTripPhotos` 入庫」兩段式（[photoUpload.ts](../src/lib/photoUpload.ts)）。
 物件傳完但入庫失敗時（達 300 張軟上限、離線、DB 錯誤、使用者中途關頁），那些 blob 就沒有任何 doc 指向它，
 只有「刪整個旅程」的 prefix 掃描會收掉。**已緩解**最常見的一種：一次選 >20 張不再整批被 Zod 打回
@@ -145,7 +56,7 @@ R1～R4 已完成工程與測試；使用者於 2026-09-11 回報 migration 已�
 比對 `Photo` collection 的 key，刪掉超過 N 小時仍無人指向的物件。**不要在上傳失敗當下同步清**——
 那條路徑本身就已經在出錯了，再加一個會失敗的網路呼叫只會更糟。
 
-### J. 🟡 完整 Content Security Policy
+### J. 待實作：完整 Content Security Policy
 **現況**：目前只有 `frame-ancestors 'none'` 等基礎安全標頭。
 **完成條件**：加入 `default-src` / `script-src` 等完整 CSP，並實測 Leaflet 圖磚、R2 圖片/PDF、
 next-themes 內嵌腳本、Radix 內嵌樣式與 production build，不可造成靜默功能失效。

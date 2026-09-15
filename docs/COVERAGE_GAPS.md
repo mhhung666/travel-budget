@@ -1,10 +1,13 @@
-# 測試覆蓋缺口報告
+# 測試覆蓋缺口報告（09-04 歷史基準）
 
 > 基準日期：2026-09-04
 > 指令：`pnpm test:coverage`
 > 報告產物：`coverage/index.html`、`coverage/coverage-final.json`、`coverage/coverage-summary.json`
 
-## 結論
+> 本報告未隨後續 O／P／Q／R／S 補測重新量測；以下「目前」「0%」及優先順序均指基準當日。
+> 不作為現行未完成清單；若要據此排補測，先重新執行 coverage 並核對實際測試。現行進度見 [專案總覽](./README.md)。
+
+## 當時結論
 
 目前測試對純函式、AI schema／normalizer、核心支出與相片 actions 的保護良好，但對公開 API、
 認證、通知／儲存整合，以及多數頁面協調 hooks 幾乎沒有直接覆蓋。下一輪應優先保護權限、資料寫入與
