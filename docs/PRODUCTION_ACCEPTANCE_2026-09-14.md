@@ -18,7 +18,8 @@
 證據位於 `/tmp/budget-production-s-20260915/`：`result.json`、`passed.png`、
 `fresh-server.png`、`fresh-server.txt`。暫存產物不保證永久保留。
 
-S 已完成此次正式站摘要缺陷的修正與複驗；iOS Safari／安裝 PWA 等環境仍由 M 追蹤。
+S 已完成此次正式站摘要缺陷的修正與複驗。09-15 依使用者決定，iOS Safari／安裝版 PWA
+暫時通過，本輪不執行、不列為阻擋；此決定不代表已完成實機測試。
 本輪只重跑上述關鍵情境，其他正式站情境沿用 09-14 紀錄。
 
 ## 09-14 結論

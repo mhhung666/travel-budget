@@ -122,5 +122,6 @@ production build、TypeScript 與變更 TypeScript 檔案 ESLint 通過。
 本次成功產物目錄的末段為 `travel-budget-offline-eolC80`，暫存檔不保證永久保留。
 
 部署仍需套用 `20260912160000-expense-create-requests` migration，並確保新版 server action 與客戶端一致上線。
-本輪未部署、未執行正式 migration，也未驗證 iOS Safari／安裝 PWA；這些環境的部署後觀測由 M 追蹤。
+本輪未部署、未執行正式 migration，也未驗證 iOS Safari／安裝 PWA。
+09-15 使用者決定這兩種環境暫時通過，本輪不再列為阻擋，尚無實機驗證證據。
 上述為本機工程交付結果；09-15 另完成正式站摘要時序複驗，詳見正式站驗收報告。

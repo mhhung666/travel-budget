@@ -1,6 +1,6 @@
 # Q：查詢錯誤狀態與前端延遲載入
 
-更新日期：2026-09-12
+更新日期：2026-09-15
 
 ## 結案狀態
 
@@ -16,17 +16,19 @@ Push 不等於正式站驗收通過。09-11～09-12 已完成部分正式站檢�
 
 <a id="部署後驗收移交-m尚未執行"></a>
 
-### 部署後驗收移交 M（部分完成，離線重載未通過）
+### 部署後驗收移交 M（部分完成，S 已複驗通過）
 
 - [ ] 確認 `budget.mhhung.com` 的 Vercel production deployment 包含 `ac54811`，記錄部署 commit 與驗收日期。
 - [x] 指定帳號完成行程首頁／支出頁抽查；支出頁桌面與手機 viewport 共 12 次冷／熱載入無 page error。
 - [x] 查詢失敗重試及動態表單 chunk 失敗重試成功；搜尋／清除、快速記帳與 PDF 檢視器正常流程已驗。
-- [ ] 修復離線重載遺失 paused mutation 與誤導錯誤提示（改善建議 S）；補驗背景更新失敗保留內容。
+- [x] 修復離線重載遺失暫存支出、誤導錯誤提示與摘要時序缺陷（S）；09-14～09-15 正式站複驗通過。
+- [x] 支出頁背景更新失敗保留內容與手動重試：09-15 桌面／手機 viewport 正式站通過，見 [補驗報告](./PRODUCTION_ACCEPTANCE_2026-09-15.md)。
 - [ ] 補驗檢視器載入失敗重試、超過 20 筆的更多列表與代表性大資料量。
-- [ ] 依 [量測規範](./QUERY_UX_PERFORMANCE.md) 留存冷／熱、桌面／手機、實機安裝 PWA 的 Network／Performance 證據；不把本機 bundle 或 rAF 數據當成正式 CWV。
+- [ ] 依 [量測規範](./QUERY_UX_PERFORMANCE.md) 留存冷／熱、桌面／手機的 Network／Performance 證據；不把本機 bundle 或 rAF 數據當成正式 CWV。
 
 已新增單人臨時旅程的合成寫入驗收，未操作既有旅程資料或呼叫 AI provider。
-正式站頁面 bytes／readyMs 小樣本已記錄，但完整 Performance trace、實機與安裝 PWA 尚未完成。
+正式站頁面 bytes／readyMs 小樣本已記錄，但完整 Performance trace 尚未完成。
+09-15 依使用者決定，iOS Safari／安裝版 PWA 暫時通過，本輪不執行且不列為阻擋；尚無實機驗證證據。
 
 以下為各階段當時的歷史紀錄；「未 push」「仍待 Q2／Q3」等敘述不代表目前狀態。
 
