@@ -213,6 +213,18 @@ describe('createExpense', () => {
     ['payer', { ...validInput, payer_id: OUTSIDER }],
     ['split member', { ...validInput, splits: [{ user_id: OUTSIDER, share_amount: 3000 }] }],
     ['unbalanced shares', { ...validInput, splits: [{ user_id: USER, share_amount: 100 }] }],
+    // 容差固定一分、不隨金額放大：3,000 元少分攤 0.05 元也要擋下，否則結算會留下
+    // 無人可還的餘額（見 docs/archive/tests/AMOUNT_CONSISTENCY_ACCEPTANCE_2026-09-16.md）。
+    [
+      'shares that fall short by less than a dollar',
+      {
+        ...validInput,
+        splits: [
+          { user_id: USER, share_amount: 1499.95 },
+          { user_id: MEMBER, share_amount: 1500 },
+        ],
+      },
+    ],
   ])('rejects an invalid %s without creating an expense', async (_label, input) => {
     const result = await createExpense(TRIP, input);
     expect(result.success).toBe(false);
@@ -220,6 +232,71 @@ describe('createExpense', () => {
     expect(result.code).toBe('VALIDATION_ERROR');
     expect(expenseCreate).not.toHaveBeenCalled();
   });
+
+  it('rounds the converted amount and shares to cents before storing them', async () => {
+    expenseCreate.mockResolvedValue({
+      _id: { toString: () => EXPENSE },
+      populate: vi.fn().mockResolvedValue(undefined),
+      toObject: () => ({ _id: { toString: () => EXPENSE } }),
+    });
+
+    const result = await createExpense(TRIP, {
+      ...validInput,
+      original_amount: 30.004,
+      exchange_rate: 1,
+      splits: [
+        { user_id: USER, share_amount: 15.002 },
+        { user_id: MEMBER, share_amount: 15.002 },
+      ],
+    });
+    expect(result.success).toBe(true);
+    // 存未取整的換算金額，統計（逐筆取整）與結算（加總後取整）就會算出不同數字。
+    expect(expenseCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        amount: 30,
+        splits: [
+          { user: USER, shareAmount: 15 },
+          { user: MEMBER, shareAmount: 15 },
+        ],
+      })
+    );
+  });
+
+  // 容差內的尾差必須實際分配掉，不能只是各自四捨五入：500＋499.99 各自取整後仍是
+  // 999.99，1,000 元的支出就永遠留下一分無人可還。
+  it.each([
+    ['a share that ends in a stray cent', 1000, [500, 499.99], [500.01, 499.99]],
+    ['shares that both round up', 10.01, [5.005, 5.005], [5.01, 5]],
+  ])(
+    'allocates the remainder for %s so stored shares add up exactly',
+    async (_label, amount, shares, expected) => {
+      expenseCreate.mockResolvedValue({
+        _id: { toString: () => EXPENSE },
+        populate: vi.fn().mockResolvedValue(undefined),
+        toObject: () => ({ _id: { toString: () => EXPENSE } }),
+      });
+
+      const result = await createExpense(TRIP, {
+        ...validInput,
+        original_amount: amount,
+        exchange_rate: 1,
+        splits: [
+          { user_id: USER, share_amount: shares[0] },
+          { user_id: MEMBER, share_amount: shares[1] },
+        ],
+      });
+      expect(result.success).toBe(true);
+      expect(expenseCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          amount,
+          splits: [
+            { user: USER, shareAmount: expected[0] },
+            { user: MEMBER, shareAmount: expected[1] },
+          ],
+        })
+      );
+    }
+  );
 
   it('rejects itinerary days from another trip', async () => {
     itineraryCountDocuments.mockResolvedValue(0);
@@ -485,6 +562,32 @@ describe('updateExpense', () => {
           splits: [
             { user: USER, shareAmount: 3000 },
             { user: MEMBER, shareAmount: 3000 },
+          ],
+        }),
+      },
+      { session: undefined }
+    );
+  });
+
+  it('allocates the remainder of explicit splits when updating', async () => {
+    expenseFindOne.mockReturnValue(selectLean(currentExpense()));
+    const result = await updateExpense(TRIP, EXPENSE, {
+      original_amount: 3000,
+      exchange_rate: 1,
+      splits: [
+        { user_id: USER, share_amount: 1500 },
+        { user_id: MEMBER, share_amount: 1499.99 },
+      ],
+    });
+    expect(result.success).toBe(true);
+    expect(expenseUpdateOne).toHaveBeenCalledWith(
+      { _id: EXPENSE, trip: TRIP },
+      {
+        $set: expect.objectContaining({
+          amount: 3000,
+          splits: [
+            { user: USER, shareAmount: 1500.01 },
+            { user: MEMBER, shareAmount: 1499.99 },
           ],
         }),
       },

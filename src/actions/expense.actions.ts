@@ -5,6 +5,7 @@ import {
   retireUnreferencedBlobs,
   RetiredBlobError,
 } from '@/lib/blobReferences';
+import { allocateMoney, roundMoney, SPLIT_TOLERANCE } from '@/lib/money';
 import { cleanupRetiredBlobs } from '@/lib/blobCleanup';
 import { revalidatePath } from 'next/cache';
 import { after } from 'next/server';
@@ -38,13 +39,31 @@ import { initialExpenseDeliveryState } from '@/lib/expenseDeliveryQueue';
 type LeanExpense = ExpenseDtoInput & { date: Date };
 
 /**
- * Whether split shares (TWD) add up to the expense amount, within a generous
- * tolerance (1 TWD or 1%). The client form balances splits exactly; this guard
- * only rejects a grossly malformed payload (e.g. a buggy/tampered client).
+ * Whether split shares (TWD) add up to the expense amount, within one cent.
+ * 通過之後一律走 {@link allocateShares} 把尾差分配掉，寫進 DB 的分攤才會剛好加總。
  */
 function splitsMatchAmount(splits: { share_amount: number }[], amount: number): boolean {
   const sum = splits.reduce((acc, sp) => acc + sp.share_amount, 0);
-  return Math.abs(sum - amount) <= Math.max(1, amount * 0.01);
+  // 與前端 computeSplits 共用同一個容差與比較方式（lib/money.ts）：先收斂到分，
+  // 只吸收小數位誤差。容差不隨金額放大——曾寬到 1 TWD／1%，後來的萬分之一也還是
+  // 讓 1,000 元只分攤 999.95 元寫入，結算就留下無人可還的餘額。
+  return Math.abs(roundMoney(sum - amount)) <= SPLIT_TOLERANCE;
+}
+
+/**
+ * 把通過 {@link splitsMatchAmount} 的分攤收斂到分，並把尾差實際分配掉，使加總
+ * 「剛好」等於支出金額。
+ *
+ * 各自四捨五入是不夠的：500＋499.99 各自取整後仍是 999.99，1,000 元的支出就永遠
+ * 留下一分無人可還；5.005＋5.005 各自進位則變成 10.02，比支出還多。此時差額必定
+ * 在一分內（否則前面已擋下），因此重分配動到任何人的金額都不超過一分。
+ * 與前端 computeSplits 使用同一個 allocateMoney，兩邊算出的分攤一致。
+ */
+function allocateShares(splits: { share_amount: number }[], amount: number): number[] {
+  return allocateMoney(
+    amount,
+    splits.map((sp) => sp.share_amount)
+  );
 }
 
 /**
@@ -198,7 +217,9 @@ export const createExpense = withAuth(
       // Replays must not depend on attachments or members that may have changed since commit.
       const previous = await readExpenseCreateResult(mongoose.connection.db!, request);
       if (previous) return { success: true, data: previous };
-      const amount = original_amount * exchange_rate;
+      // 換算後先收斂到分再寫入：30.004 這種未取整的金額會讓統計（逐筆取整）與
+      // 結算（加總後取整）在同一趟旅行算出 60 與 60.01 兩個數字。
+      const amount = roundMoney(original_amount * exchange_rate);
 
       // 驗證並轉換收據附件（key 須屬本 trip、物件須存在、size/type 以 headObject 為準）
       let attachmentDocs: AttachmentDoc[] = [];
@@ -237,12 +258,13 @@ export const createExpense = withAuth(
             }
           }
 
-          // Defence-in-depth: split shares (TWD) must add up to the expense amount.
-          // The form already balances them; this only rejects a grossly malformed
-          // client payload (tolerance is generous to never trip on float rounding).
+          // Split shares (TWD) must add up to the expense amount. The form already
+          // allocates the remainder exactly; the tolerance here only absorbs decimal
+          // rounding, so an unallocated gap can no longer reach the database.
           if (!splitsMatchAmount(splits, amount)) {
             throw new TripWriteError('VALIDATION_ERROR');
           }
+          const shareAmounts = allocateShares(splits, amount);
 
           // 關聯行程日（可複選，若有）須全部屬本 trip
           if (!(await itineraryDaysBelongToTrip(tripId, itinerary_day_ids, transactionSession))) {
@@ -307,7 +329,10 @@ export const createExpense = withAuth(
                 description,
                 category: category as (typeof EXPENSE_CATEGORIES)[number],
                 date: new Date(date),
-                splits: splits.map((s) => ({ user: s.user_id, shareAmount: s.share_amount })),
+                splits: splits.map((s, i) => ({
+                  user: s.user_id,
+                  shareAmount: shareAmounts[i],
+                })),
                 attachments: attachmentDocs,
                 itineraryDays: [...new Set(itinerary_day_ids ?? [])],
                 createdBy: session.userId,
@@ -327,9 +352,9 @@ export const createExpense = withAuth(
             {
               ...created.toObject(),
               payer: person(payer_id),
-              splits: splits.map((split) => ({
+              splits: splits.map((split, i) => ({
                 user: person(split.user_id),
-                shareAmount: split.share_amount,
+                shareAmount: shareAmounts[i],
               })),
             } as unknown as LeanExpense,
             tripId
@@ -552,22 +577,30 @@ export const updateExpense = withAuth(
           if (original_amount !== undefined || exchange_rate !== undefined) {
             const oa = original_amount ?? current.originalAmount;
             const er = exchange_rate ?? current.exchangeRate;
-            newAmount = oa * er;
+            newAmount = roundMoney(oa * er);
             set.amount = newAmount;
           }
 
           if (splits !== undefined) {
             // Validate against the effective amount (recomputed if amount/rate changed,
             // otherwise the expense's current amount). See splitsMatchAmount.
-            const effectiveAmount = newAmount ?? current.originalAmount * current.exchangeRate;
+            const effectiveAmount =
+              newAmount ?? roundMoney(current.originalAmount * current.exchangeRate);
             if (!splitsMatchAmount(splits, effectiveAmount)) {
               throw new TripWriteError('VALIDATION_ERROR');
             }
-            set.splits = splits.map((s) => ({ user: s.user_id, shareAmount: s.share_amount }));
+            const shareAmounts = allocateShares(splits, effectiveAmount);
+            set.splits = splits.map((s, i) => ({
+              user: s.user_id,
+              shareAmount: shareAmounts[i],
+            }));
           } else if (newAmount !== undefined && current.splits.length > 0) {
-            // 金額改變但未提供 splits：依人數平均重算
-            const share = newAmount / current.splits.length;
-            set.splits = current.splits.map((s) => ({ user: s.user, shareAmount: share }));
+            // 金額改變但未提供 splits：依人數平均重算；尾差要分配掉，否則加總會少於金額
+            const shares = allocateMoney(
+              newAmount,
+              current.splits.map(() => 1)
+            );
+            set.splits = current.splits.map((s, i) => ({ user: s.user, shareAmount: shares[i] }));
           }
 
           let removed: string[] = [];

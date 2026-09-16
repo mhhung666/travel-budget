@@ -1,4 +1,5 @@
 import { Types } from 'mongoose';
+import { roundMoney } from '@/lib/money';
 import { Expense } from '@/models';
 import type { TripShell } from '@/types';
 export type LeanTripShell = {
@@ -66,7 +67,9 @@ export async function readTripShell(
               $sum: {
                 $cond: [
                   { $and: [{ $gte: ['$date', today] }, { $lt: ['$date', tomorrow] }] },
-                  '$amount',
+                  // 逐筆收斂到分，與結算、統計同一種取整順序（舊資料可能存了未取整
+                  // 的換算金額，加總後再取整會多出一分）。
+                  { $round: ['$amount', 2] },
                   0,
                 ],
               },
@@ -84,7 +87,7 @@ export async function readTripShell(
                       {
                         $eq: [{ $toString: '$$this.user' }, viewerId],
                       },
-                      '$$this.shareAmount',
+                      { $round: ['$$this.shareAmount', 2] },
                       0,
                     ],
                   },
@@ -110,8 +113,9 @@ export async function readTripShell(
     role: viewerId ? (self?.role ?? 'member') : null,
     member_count: trip.members.length,
     expense_count: totals.expenseCount,
-    today_spent: Math.round(totals.todaySpent),
-    total_spent: Math.round(totals.totalSpent),
+    // 保留到分，與結算、統計、預算同精度（整數取整會讓同一筆錢在各頁差一元）。
+    today_spent: roundMoney(totals.todaySpent),
+    total_spent: roundMoney(totals.totalSpent),
     budget: mapBudget(self?.budget ?? null),
     legacy_budget: viewerId ? mapBudget(trip.legacyBudget ?? null) : null,
     currency_settings: trip.currencySettings

@@ -97,6 +97,29 @@ describe('getSettlement', () => {
     expect(expenseFind).not.toHaveBeenCalled();
   });
 
+  it('rounds each expense to cents so the totals match the stats page', async () => {
+    // 舊資料可能存了未取整的換算金額（30.004）。逐筆取整再加總才會與統計一致；
+    // 加總後才取整會得到 60.01（見 docs/archive/tests/AMOUNT_CONSISTENCY_ACCEPTANCE_2026-09-16.md）。
+    expenseFind.mockReturnValue(
+      expenseQuery(
+        [30.004, 30.004].map((amount) => ({
+          payer: ref(VIEWER),
+          amount,
+          splits: [
+            { user: ref(VIEWER), shareAmount: amount / 2 },
+            { user: ref(BOB), shareAmount: amount / 2 },
+          ],
+        }))
+      )
+    );
+
+    const result = await getSettlement(TRIP);
+    expect(result.success).toBe(true);
+    if (!result.success) throw new Error('expected success');
+    expect(result.data.totalExpenses).toBe(60);
+    expect(result.data.balances.find((b) => b.userId === VIEWER)?.totalOwed).toBe(30);
+  });
+
   it('aggregates embedded splits, applies payments, and returns minimum transfers', async () => {
     expenseFind.mockReturnValue(
       expenseQuery([

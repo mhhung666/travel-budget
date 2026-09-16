@@ -1,5 +1,6 @@
 import { Trip, Expense, Payment, User } from '@/models';
 import { calculateSettlement, applyPayments } from '@/lib/settlement';
+import { roundMoney } from '@/lib/money';
 import { toPaymentRecord, type PaymentDtoInput } from '@/lib/dto';
 import type { Balance, Settlement } from '@/types';
 type PopulatedMember = {
@@ -43,25 +44,28 @@ export async function readSettlement(tripId: string, memberIds?: string[]): Prom
   let totalExpenses = 0;
 
   for (const e of expenses) {
-    totalExpenses += e.amount || 0;
+    // 逐筆先收斂到分，與統計、預算列同一種取整順序；舊資料若存了未取整的換算金額
+    // （30.004），這裡加總後再取整會比統計多出一分。
+    const amount = roundMoney(e.amount || 0);
+    totalExpenses += amount;
     const payerId = e.payer.toString();
-    paidByUser.set(payerId, (paidByUser.get(payerId) || 0) + (e.amount || 0));
+    paidByUser.set(payerId, (paidByUser.get(payerId) || 0) + amount);
     for (const s of e.splits || []) {
       const uid = s.user.toString();
-      owedByUser.set(uid, (owedByUser.get(uid) || 0) + (s.shareAmount || 0));
+      owedByUser.set(uid, (owedByUser.get(uid) || 0) + roundMoney(s.shareAmount || 0));
     }
   }
 
   const expenseBalances: Balance[] = members.map((member) => {
     const id = member!._id.toString();
-    const totalPaid = paidByUser.get(id) || 0;
-    const totalOwed = owedByUser.get(id) || 0;
+    const totalPaid = roundMoney(paidByUser.get(id) || 0);
+    const totalOwed = roundMoney(owedByUser.get(id) || 0);
     return {
       userId: id,
       username: member!.displayName,
       totalPaid,
       totalOwed,
-      balance: totalPaid - totalOwed,
+      balance: roundMoney(totalPaid - totalOwed),
     };
   });
 
@@ -74,5 +78,5 @@ export async function readSettlement(tripId: string, memberIds?: string[]): Prom
   );
   const transactions = calculateSettlement(balances.map((b) => ({ ...b })));
 
-  return { balances, transactions, payments, totalExpenses };
+  return { balances, transactions, payments, totalExpenses: roundMoney(totalExpenses) };
 }

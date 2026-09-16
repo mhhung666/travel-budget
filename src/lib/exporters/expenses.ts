@@ -1,3 +1,4 @@
+import { roundMoney } from '@/lib/money';
 import type { Expense } from '@/types';
 import type { ExportFile, ExportFormat } from './types';
 import { FORMAT_META } from './types';
@@ -31,7 +32,7 @@ function isoDate(date: string): string {
 }
 
 function splitsText(e: Expense): string {
-  return e.splits.map((s) => `${s.display_name}: ${s.share_amount}`).join('; ');
+  return e.splits.map((s) => `${s.display_name}: ${roundMoney(s.share_amount)}`).join('; ');
 }
 
 /** markdown 表格單元格跳脫：管線符與換行 */
@@ -49,11 +50,12 @@ function toMarkdown(expenses: Expense[], labels: ExpenseLabels): string {
     mdCell(e.description),
     mdCell(labels.category(e.category)),
     mdCell(e.payer_name),
-    e.amount,
+    roundMoney(e.amount),
     mdCell(splitsText(e)),
     mdCell(e.tags.join(', ')),
   ]);
-  const total = expenses.reduce((sum, e) => sum + e.amount, 0);
+  // 與統計、結算同一種取整順序：逐筆收斂到分再加總。
+  const total = roundMoney(expenses.reduce((sum, e) => sum + roundMoney(e.amount), 0));
 
   const lines = [
     `# ${labels.heading}`,
@@ -88,7 +90,7 @@ function toExpenseCsv(expenses: Expense[], labels: ExpenseLabels): string {
       e.description,
       labels.category(e.category),
       e.payer_name,
-      e.amount,
+      roundMoney(e.amount),
       e.original_amount,
       e.currency,
       e.exchange_rate,

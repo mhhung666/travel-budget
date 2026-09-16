@@ -1,3 +1,4 @@
+import { allocateMoney, roundMoney } from '@/lib/money';
 import type {
   CategoryStat,
   DailySpend,
@@ -81,14 +82,15 @@ export function computeTripStats(
   let maxDate: string | null = null;
 
   for (const e of expenses) {
-    const amount = e.amount || 0;
+    // 先收斂到分，之後所有桶都由同精度的數字加總，各分類相加才會等於總額。
+    const amount = roundMoney(e.amount || 0);
     const category = e.category || 'other';
     const current = categoryMap.get(category) || { total: 0, count: 0, details: [] };
     const detail: ExpenseDetail = {
       id: e.id,
       date: e.date,
       description: e.description || '',
-      amount: Math.round(amount),
+      amount,
       tripName: e.payerName, // 群組視角：明細列顯示付款人
     };
     categoryMap.set(category, {
@@ -108,17 +110,22 @@ export function computeTripStats(
 
     if (e.payerId) paidByUser.set(e.payerId, (paidByUser.get(e.payerId) || 0) + amount);
     for (const s of e.splits || []) {
-      shareByUser.set(s.userId, (shareByUser.get(s.userId) || 0) + (s.shareAmount || 0));
+      shareByUser.set(s.userId, (shareByUser.get(s.userId) || 0) + roundMoney(s.shareAmount || 0));
     }
 
     // 關聯多個行程日時把金額平均分攤到每一天（跨夜飯店分散到各晚）；未關聯歸入 null 桶。
     // count 對每個關聯日各 +1（這筆支出確實「涉及」那天），故跨日支出會在多天各列一筆。
     const dayKeys = e.itineraryDayIds && e.itineraryDayIds.length > 0 ? e.itineraryDayIds : [null];
-    const perDay = amount / dayKeys.length;
-    for (const dayKey of dayKeys) {
+    // 以最大餘數法拆給每一天：100 元分三天是 33.34/33.33/33.33，加總仍是 100，
+    // 各自取整會變成 99（每日花費永遠少於旅行總額）。
+    const perDay = allocateMoney(
+      amount,
+      dayKeys.map(() => 1)
+    );
+    dayKeys.forEach((dayKey, i) => {
       const dayAgg = spendByDay.get(dayKey) || { total: 0, count: 0 };
-      spendByDay.set(dayKey, { total: dayAgg.total + perDay, count: dayAgg.count + 1 });
-    }
+      spendByDay.set(dayKey, { total: dayAgg.total + perDay[i], count: dayAgg.count + 1 });
+    });
 
     if (e.date) {
       if (minDate === null || e.date < minDate) minDate = e.date;
@@ -129,7 +136,7 @@ export function computeTripStats(
   const categoryStats: CategoryStat[] = Array.from(categoryMap.entries())
     .map(([category, s]) => ({
       category,
-      total: Math.round(s.total),
+      total: roundMoney(s.total),
       count: s.count,
       details: s.details.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)),
     }))
@@ -138,21 +145,21 @@ export function computeTripStats(
   const tagStats: TagStat[] = Array.from(tagMap.entries())
     .map(([tag, s]) => ({
       tag,
-      total: Math.round(s.total),
+      total: roundMoney(s.total),
       count: s.count,
       details: s.details.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)),
     }))
     .sort((a, b) => b.total - a.total);
 
-  const totalAmount = categoryStats.reduce((sum, c) => sum + c.total, 0);
+  const totalAmount = roundMoney(categoryStats.reduce((sum, c) => sum + c.total, 0));
   const totalExpenses = categoryStats.reduce((sum, c) => sum + c.count, 0);
 
   const memberSpends: MemberSpend[] = members
     .map((m) => ({
       userId: m.userId,
       name: m.name,
-      paid: Math.round(paidByUser.get(m.userId) || 0),
-      share: Math.round(shareByUser.get(m.userId) || 0),
+      paid: roundMoney(paidByUser.get(m.userId) || 0),
+      share: roundMoney(shareByUser.get(m.userId) || 0),
     }))
     .sort((a, b) => b.paid - a.paid || b.share - a.share);
 
@@ -160,6 +167,7 @@ export function computeTripStats(
   const dayCount =
     inclusiveDayCount(range.startDate, range.endDate) || inclusiveDayCount(minDate, maxDate);
   const avgPerPersonPerDay =
+    // 平均值不參與任何加總，維持整數顯示。
     memberCount > 0 && dayCount > 0 ? Math.round(totalAmount / (memberCount * dayCount)) : 0;
 
   // 按行程日聚合：依 days 順序（dayNumber 升冪）列出每天總額，最後補上「未關聯」桶（若有）。
@@ -172,7 +180,7 @@ export function computeTripStats(
       dayId: d.id,
       dayNumber: d.dayNumber,
       title: d.title,
-      total: Math.round(agg.total),
+      total: roundMoney(agg.total),
       count: agg.count,
     };
   });
@@ -182,7 +190,7 @@ export function computeTripStats(
       dayId: null,
       dayNumber: null,
       title: '',
-      total: Math.round(unlinked.total),
+      total: roundMoney(unlinked.total),
       count: unlinked.count,
     });
   }

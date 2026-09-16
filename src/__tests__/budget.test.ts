@@ -87,15 +87,15 @@ describe('computeBudgetProgress', () => {
     ]);
   });
 
-  it('rounds amounts to whole numbers (base currency has no decimals)', () => {
+  it('keeps cents so the budget bar matches settlement and stats', () => {
     const budget: Budget = { total: 1000, categories: [{ category: 'food', amount: 500 }] };
     const result = computeBudgetProgress(
       budget,
       [expense('food', 100.4), expense('food', 100.4)],
       'me'
     );
-    expect(result.totalSpent).toBe(201);
-    expect(result.categories[0]).toEqual({ category: 'food', budget: 500, spent: 201 });
+    expect(result.totalSpent).toBe(200.8);
+    expect(result.categories[0]).toEqual({ category: 'food', budget: 500, spent: 200.8 });
   });
 
   it('treats missing/empty category as "other"', () => {

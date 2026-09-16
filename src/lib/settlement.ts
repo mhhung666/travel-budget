@@ -1,4 +1,5 @@
 import { formatCurrency } from '@/constants/currencies';
+import { MONEY_EPSILON, roundMoney } from '@/lib/money';
 
 interface Balance {
   userId: string;
@@ -20,9 +21,14 @@ interface Transaction {
 export function calculateSettlement(balances: Balance[]): Transaction[] {
   const transactions: Transaction[] = [];
 
-  // 分離債權人和債務人
-  const creditors = balances.filter((b) => b.balance > 0.01).sort((a, b) => b.balance - a.balance);
-  const debtors = balances.filter((b) => b.balance < -0.01).sort((a, b) => a.balance - b.balance);
+  // 分離債權人和債務人。門檻是半分錢：金額都已收斂到分，用 0.01 會把「剛好應收
+  // 一分」排除在外，畫面顯示有欠款卻排不出任何轉帳方案。
+  const creditors = balances
+    .filter((b) => b.balance > MONEY_EPSILON)
+    .sort((a, b) => b.balance - a.balance);
+  const debtors = balances
+    .filter((b) => b.balance < -MONEY_EPSILON)
+    .sort((a, b) => a.balance - b.balance);
 
   let i = 0;
   let j = 0;
@@ -34,11 +40,11 @@ export function calculateSettlement(balances: Balance[]): Transaction[] {
     // 計算這次轉帳金額(取較小的絕對值)
     const amount = Math.min(creditor.balance, Math.abs(debtor.balance));
 
-    if (amount > 0.01) {
+    if (amount > MONEY_EPSILON) {
       transactions.push({
         from: debtor.username,
         to: creditor.username,
-        amount: Math.round(amount * 100) / 100, // 四捨五入到小數點後兩位
+        amount: roundMoney(amount),
       });
     }
 
@@ -47,12 +53,12 @@ export function calculateSettlement(balances: Balance[]): Transaction[] {
     debtor.balance += amount;
 
     // 如果債權人收完了,移到下一個
-    if (creditor.balance < 0.01) {
+    if (creditor.balance < MONEY_EPSILON) {
       i++;
     }
 
     // 如果債務人付完了,移到下一個
-    if (Math.abs(debtor.balance) < 0.01) {
+    if (Math.abs(debtor.balance) < MONEY_EPSILON) {
       j++;
     }
   }
@@ -83,7 +89,10 @@ export function applyPayments<T extends { userId: string; balance: number }>(
     delta.set(p.from, (delta.get(p.from) ?? 0) + p.amount);
     delta.set(p.to, (delta.get(p.to) ?? 0) - p.amount);
   }
-  return balances.map((b) => ({ ...b, balance: b.balance + (delta.get(b.userId) ?? 0) }));
+  return balances.map((b) => ({
+    ...b,
+    balance: roundMoney(b.balance + (delta.get(b.userId) ?? 0)),
+  }));
 }
 
 /**

@@ -9,7 +9,10 @@
  *
  * 平衡判定一律在原幣進行（避免匯率放大誤差）。amount/percent 因「留空均分剩餘」，
  * 只有在手動值「超額」時才會不平衡；equal/shares 永遠平衡。
+ * 判定平衡後，分攤會重新以最大餘數法分配（lib/money.ts），保證加總剛好等於總額。
  */
+
+import { allocateMoney, roundMoney, SPLIT_TOLERANCE } from '@/lib/money';
 
 export type SplitMode = 'equal' | 'amount' | 'percent' | 'shares';
 
@@ -79,21 +82,46 @@ export function computeSplits(
     }
   }
 
-  const allocatedOriginal = selected.reduce((a, m) => a + (original[m.id] || 0), 0);
+  const rawAllocated = selected.reduce((a, m) => a + (original[m.id] || 0), 0);
 
-  const twd: Record<string, number> = {};
-  for (const m of members) twd[m.id] = (original[m.id] || 0) * exchangeRate;
-  const allocatedTWD = selected.reduce((a, m) => a + (twd[m.id] || 0), 0);
-
-  // 容差：金額級的浮點/手動取整誤差；至少 0.02 原幣或總額的 0.1%
-  const tol = Math.max(0.02, originalAmount * 0.001);
+  // 容差只吸收小數位／浮點誤差（見 lib/money.ts）；使用者真的少分的金額算不平衡。
   let balanced = false;
   let imbalance: 'over' | 'under' | null = null;
   if (selected.length > 0 && originalAmount > 0) {
-    const diff = allocatedOriginal - originalAmount;
-    if (Math.abs(diff) <= tol) balanced = true;
+    // 先收斂到分再比較，否則 33.33% × 3 的浮點餘數會剛好超出一分的容差。
+    const diff = roundMoney(rawAllocated - originalAmount);
+    if (Math.abs(diff) <= SPLIT_TOLERANCE) balanced = true;
     else imbalance = diff > 0 ? 'over' : 'under';
   }
+
+  // 平衡就必須「剛好」分完：容差內的尾差要落到某個人身上，否則結算會留下
+  // 沒有對應債務人的餘額（1,000 元分攤 500/499，還完款仍有 1 元應收）。
+  if (balanced) {
+    const shares = allocateMoney(
+      originalAmount,
+      selected.map((m) => original[m.id] || 0)
+    );
+    selected.forEach((m, i) => {
+      original[m.id] = shares[i];
+    });
+  } else {
+    for (const m of selected) original[m.id] = roundMoney(original[m.id] || 0);
+  }
+  const allocatedOriginal = roundMoney(selected.reduce((a, m) => a + (original[m.id] || 0), 0));
+
+  const twd: Record<string, number> = {};
+  for (const m of members) twd[m.id] = roundMoney((original[m.id] || 0) * exchangeRate);
+  // TWD 才是存進 DB、供結算與統計加總的數字，換算後同樣要剛好等於整筆金額。
+  if (balanced) {
+    const twdShares = allocateMoney(
+      originalAmount * exchangeRate,
+      selected.map((m) => original[m.id] || 0)
+    );
+    selected.forEach((m, i) => {
+      twd[m.id] = twdShares[i];
+    });
+  }
+  const allocatedTWD = roundMoney(selected.reduce((a, m) => a + (twd[m.id] || 0), 0));
 
   return { original, twd, allocatedOriginal, allocatedTWD, balanced, imbalance };
 }

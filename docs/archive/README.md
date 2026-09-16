@@ -18,6 +18,7 @@
 - [S 正式站驗收（2026-09-14）](tests/PRODUCTION_ACCEPTANCE_2026-09-14.md)
 - [正式站背景更新補充驗收（2026-09-15）](tests/PRODUCTION_ACCEPTANCE_2026-09-15.md)
 - [正式站檢視器、支出列表與效能補驗（2026-09-16）](tests/PRODUCTION_ACCEPTANCE_2026-09-16.md)
+- [同趟旅行金額一致性本機驗收（2026-09-16，三輪十項已修正）](tests/AMOUNT_CONSISTENCY_ACCEPTANCE_2026-09-16.md)
 - [Q3：預載決策與可重跑效能量測](tests/QUERY_UX_PERFORMANCE.md)
 - [UI/UX 實作與驗證狀態](tests/UI_UX_EVALUATION.md)
 - [Phase 4 可用性測試套件](tests/USABILITY_TEST_PHASE4.md)

@@ -1,3 +1,4 @@
+import { roundMoney } from '@/lib/money';
 import type { Budget, BudgetProgress, CategoryBudgetProgress } from '@/types';
 import { CATEGORY_CODES } from '@/constants/categories';
 
@@ -8,7 +9,7 @@ import { CATEGORY_CODES } from '@/constants/categories';
  * 於前端即時計算可省去一次後端往返。
  *
  * 金額一律以基準幣（TWD）計：expense.amount 已是換算後的 TWD，budget 亦以 TWD 設定，
- * 故可直接相加比對。回傳金額四捨五入為整數（基準幣無小數）。
+ * 故可直接相加比對。回傳金額保留到分（見 lib/money.ts），與結算、統計同精度。
  *
  * @param budget  旅程預算設定；null 代表未設定
  * @param expenses 旅程全部支出（需含 category 與 splits）
@@ -51,14 +52,14 @@ export function computeBudgetProgress(
   const categories: CategoryBudgetProgress[] = ordered.map((category) => ({
     category,
     budget: categoryBudgets.has(category) ? (categoryBudgets.get(category) as number) : null,
-    spent: Math.round(spentByCategory.get(category) ?? 0),
+    spent: roundMoney(spentByCategory.get(category) ?? 0),
   }));
 
   const hasBudget = total !== null || categoryBudgets.size > 0;
 
   return {
     total,
-    totalSpent: Math.round(totalSpent),
+    totalSpent: roundMoney(totalSpent),
     categories,
     hasBudget,
   };

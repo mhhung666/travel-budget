@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { getCategoryIcon } from '@/constants/categories';
 import { formatCurrency } from '@/constants/currencies';
 import type { Expense } from '@/types';
+import { roundMoney } from '@/lib/money';
 import { isOptimisticId } from '@/lib/optimisticExpense';
 import { ReceiptThumb } from '@/components/trips/detail/ReceiptAttachments';
 import { ExpenseComments, ExpenseCommentsToggle } from '@/components/expenses';
@@ -143,7 +144,7 @@ export default function ExpenseListItem({
             <div className="flex flex-wrap gap-1.5">
               {expense.splits.map((split) => (
                 <Badge key={split.user_id} variant="outline" className="font-normal">
-                  {split.display_name}: {formatCurrency(Math.round(split.share_amount), 'TWD')}
+                  {split.display_name}: {formatCurrency(roundMoney(split.share_amount), 'TWD')}
                 </Badge>
               ))}
             </div>

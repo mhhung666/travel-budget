@@ -3,6 +3,7 @@
 import { useLocale, useTranslations } from 'next-intl';
 import type { Balance } from '@/types';
 import { formatCurrency } from '@/constants/currencies';
+import { MONEY_EPSILON } from '@/lib/money';
 import { Card, CardContent } from '@/components/ui/card';
 
 interface SettlementSummaryProps {
@@ -32,7 +33,9 @@ export default function SettlementSummary({ totalExpenses, myBalance }: Settleme
     );
   }
 
-  const settled = Math.abs(myBalance.balance) < 0.01;
+  // 與 calculateSettlement 同門檻：剛好一分也算要結清，否則這裡寫「已結清」、
+  // 下方卻列出一筆一元以下的轉帳。
+  const settled = Math.abs(myBalance.balance) < MONEY_EPSILON;
   const statusLabel = settled
     ? t('youSettled')
     : myBalance.balance > 0
@@ -45,7 +48,7 @@ export default function SettlementSummary({ totalExpenses, myBalance }: Settleme
         <div className="text-center sm:text-left">
           <h3 className="mb-1 text-lg font-semibold opacity-90">{statusLabel}</h3>
           <p className="text-4xl font-bold tracking-tight tabular-nums">
-            {settled ? '🎉' : money(Math.round(Math.abs(myBalance.balance)))}
+            {settled ? '🎉' : money(Math.abs(myBalance.balance))}
           </p>
           <p className="mt-2 text-sm opacity-80 tabular-nums">
             {t('myPaid')} {money(myBalance.totalPaid)} · {t('myShare')} {money(myBalance.totalOwed)}

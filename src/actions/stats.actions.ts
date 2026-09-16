@@ -1,6 +1,7 @@
 'use server';
 
 import { Types, type PipelineStage } from 'mongoose';
+import { roundMoney } from '@/lib/money';
 import { dbConnect } from '@/lib/mongodb';
 import { Trip, Expense, ItineraryDay } from '@/models';
 import { getTripMembership } from '@/lib/permissions';
@@ -87,15 +88,17 @@ function aggregatePersonalStats(expenses: LeanStatExpense[], userId: string): St
   const allDetails: ExpenseDetail[] = [];
 
   for (const expense of expenses) {
-    const share =
-      expense.splits.find((split) => split.user.toString() === userId)?.shareAmount || 0;
+    // 先收斂到分：各分類、各旅行的桶都由同精度的數字加總，相加才會等於總額。
+    const share = roundMoney(
+      expense.splits.find((split) => split.user.toString() === userId)?.shareAmount || 0
+    );
     const category = expense.category || 'other';
     const tripId = expense.trip?._id.toString() || '';
     const detail: ExpenseDetail = {
       id: expense._id.toString(),
       date: expense.date instanceof Date ? expense.date.toISOString().slice(0, 10) : expense.date,
       description: expense.description || '',
-      amount: Math.round(share),
+      amount: share,
       tripName: expense.trip?.name || '',
       tripId,
       category,
@@ -139,20 +142,20 @@ function aggregatePersonalStats(expenses: LeanStatExpense[], userId: string): St
     details.sort((a, b) => b.date.localeCompare(a.date));
   const categoryStats: CategoryStat[] = Array.from(categoryMap, ([category, value]) => ({
     category,
-    total: Math.round(value.total),
+    total: roundMoney(value.total),
     count: value.count,
     details: sortDetails(value.details),
   })).sort((a, b) => b.total - a.total);
   const tripStats: PersonalTripStat[] = Array.from(tripMap, ([tripId, value]) => ({
     tripId,
     tripName: value.tripName,
-    total: Math.round(value.total),
+    total: roundMoney(value.total),
     count: value.count,
     details: sortDetails(value.details),
   })).sort((a, b) => b.total - a.total);
   const tagStats: TagStat[] = Array.from(tagMap, ([tag, value]) => ({
     tag,
-    total: Math.round(value.total),
+    total: roundMoney(value.total),
     count: value.count,
     details: sortDetails(value.details),
   })).sort((a, b) => b.total - a.total);
@@ -161,7 +164,7 @@ function aggregatePersonalStats(expenses: LeanStatExpense[], userId: string): St
     categoryStats,
     tripStats,
     tagStats,
-    totalAmount: categoryStats.reduce((sum, category) => sum + category.total, 0),
+    totalAmount: roundMoney(categoryStats.reduce((sum, category) => sum + category.total, 0)),
     totalExpenses: expenses.length,
     tripCount: tripStats.length,
     recentExpenses: sortDetails(allDetails),
@@ -276,7 +279,7 @@ export const getStats = withAuth(
           totalExpenses: current.totalExpenses,
           tripCount: current.tripCount,
           averagePerTrip: current.tripCount
-            ? Math.round(current.totalAmount / current.tripCount)
+            ? roundMoney(current.totalAmount / current.tripCount)
             : 0,
           startDate: effectiveStart || null,
           endDate: effectiveEnd || null,
@@ -412,7 +415,7 @@ export const getStatsExpensePage = withAuth(
             id: row._id.toString(),
             date: dateOnly(row.date),
             description: row.description || '',
-            amount: Math.round(row.shareAmount),
+            amount: roundMoney(row.shareAmount),
             tripName: row.tripName || '',
             tripId: row.trip.toString(),
             category: row.category || 'other',
