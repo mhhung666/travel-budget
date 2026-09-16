@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { logger } from '@/lib/logger';
+import { trackProductEvent } from '@/lib/productEvents';
 
 export interface ShareCodeProps {
   hashCode: string;
@@ -42,6 +43,7 @@ export function ShareCode({
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(getShareUrl());
+      trackProductEvent('activation_step', { step: 'invite_shared' });
       setCopied(true);
       toast({
         description: tCommon('copied'),

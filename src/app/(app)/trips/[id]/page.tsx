@@ -2,17 +2,19 @@
 import { ClientQueryBoundary } from '@/components/common/ClientQueryBoundary';
 import { QueryStatus } from '@/components/common/QueryStatus';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useQueryClient } from '@tanstack/react-query';
 import { CalendarDays, Plus, Sparkles } from 'lucide-react';
-import { ItineraryDayCard } from '@/components/trips/detail/itinerary';
+import {
+  ItineraryDayCard,
+  ItineraryDayNav,
+  itineraryDayAnchorId,
+} from '@/components/trips/detail/itinerary';
 import { PhotoLightbox } from '@/components/trips/detail/album';
 import { QueryFeedback } from '@/components/common/QueryFeedback';
-import { TripHeader } from '@/components/trips/detail';
 import TripContextOverview from '@/components/trips/detail/TripContextOverview';
-import FirstStepsCard from '@/components/trips/detail/FirstStepsCard';
 import {
   EditTripDialog,
   ItineraryDayDialog,
@@ -49,7 +51,6 @@ import {
   parseNights,
 } from '@/lib/collectionImport';
 import { getTripPhase, ongoingDayNumber } from '@/lib/tripStatus';
-import { trackProductEvent } from '@/lib/productEvents';
 
 import { ItinerarySkeleton } from '@/components/skeletons';
 import { EmptyState } from '@/components/common';
@@ -83,7 +84,6 @@ function ItineraryPageContent() {
   const tripId = params.id as string;
   const tItinerary = useTranslations('itinerary');
   const tAct = useTranslations('itinerary.activities');
-  const tFirstSteps = useTranslations('trip.firstSteps');
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -96,10 +96,9 @@ function ItineraryPageContent() {
   const phase = trip ? getTripPhase(trip.start_date, trip.end_date).phase : null;
   // Secondary overview data is phase-specific and does not block itinerary content.
   const checklistQuery = useChecklists(tripId, phase === 'preTrip');
-  const { data: checklists = [] } = checklistQuery;
+  const { data: checklists } = checklistQuery;
   const settlementQuery = useSettlement(tripId, phase === 'postTrip');
-  const { data: settlement = { balances: [], transactions: [], payments: [], totalExpenses: 0 } } =
-    settlementQuery;
+  const { data: settlement } = settlementQuery;
   const isAdmin = shell?.role === 'admin';
   const isMember = shell?.role != null;
   const { openAddExpense } = useTripSpaceActions();
@@ -160,8 +159,6 @@ function ItineraryPageContent() {
     activity?: Activity;
   } | null>(null);
   const [deletingDay, setDeletingDay] = useState<ItineraryDay | null>(null);
-  const [inviteCopied, setInviteCopied] = useState(false);
-  const [firstStepsDismissed, setFirstStepsDismissed] = useState(false);
   // 待確認刪除的單筆活動；null＝關閉確認框。
   const [deletingActivity, setDeletingActivity] = useState<{
     day: ItineraryDay;
@@ -187,6 +184,10 @@ function ItineraryPageContent() {
     ...(links?.stay_activity_ids ?? []),
   ]);
   const activeDayNumber = trip ? ongoingDayNumber(trip.start_date, trip.end_date) : null;
+  const datesByDayId = useMemo(
+    () => new Map(days.map((day) => [day.id, dayDateFromTrip(trip?.start_date, day.day_number)])),
+    [days, trip?.start_date]
+  );
   const dialogDayNumber = dialogMode === 'edit' ? (editingDay?.day_number ?? 0) : days.length + 1;
   const dialogDayDate = dayDateFromTrip(trip?.start_date, dialogDayNumber);
 
@@ -241,29 +242,6 @@ function ItineraryPageContent() {
     setDialogMode('add');
     setEditingDay(null);
     setDialogOpen(true);
-  };
-
-  const handleCopyInvite = async () => {
-    if (!trip) return;
-    try {
-      await navigator.clipboard.writeText(`${window.location.origin}/join/${trip.hash_code}`);
-      trackProductEvent('activation_step', { step: 'invite_shared' });
-      setInviteCopied(true);
-      toast({ description: tFirstSteps('inviteCopied'), variant: 'success' });
-    } catch {
-      toast({ description: tFirstSteps('copyFailed'), variant: 'destructive' });
-    }
-  };
-
-  useEffect(() => {
-    if (!trip?.id) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage 是一次性提示的持久狀態來源
-    setFirstStepsDismissed(localStorage.getItem(`trip-first-steps:${trip.id}`) === 'dismissed');
-  }, [trip?.id]);
-
-  const dismissFirstSteps = () => {
-    if (trip?.id) localStorage.setItem(`trip-first-steps:${trip.id}`, 'dismissed');
-    setFirstStepsDismissed(true);
   };
 
   const handleEditDay = (day: ItineraryDay) => {
@@ -403,40 +381,32 @@ function ItineraryPageContent() {
           checklists={checklists}
           settlement={settlement}
           isMember={isMember}
+          isAdmin={isAdmin}
+          onEdit={editTripDialog.openDialog}
           onAddExpense={() => openAddExpense()}
-        />
-      )}
-
-      {/* 旅行資料改為 compact cover，需要時再展開描述或進入編輯。 */}
-      {trip && (
-        <TripHeader trip={trip} isCurrentUserAdmin={isAdmin} onEdit={editTripDialog.openDialog} />
-      )}
-
-      {trip && isMember && !firstStepsDismissed && (
-        <FirstStepsCard
-          hasExpense={(shell?.expense_count ?? 0) > 0}
-          hasInvited={(shell?.member_count ?? 0) > 1 || inviteCopied}
-          onAddExpense={() => openAddExpense()}
-          onCopyInvite={handleCopyInvite}
-          onDismiss={dismissFirstSteps}
         />
       )}
 
       {/* 頁首由行程空間殼提供（分頁列已標示所在位置），此列只放動作 */}
-      <div className="mb-4 flex items-center justify-end gap-2">
+      <div className="mb-2 flex items-center justify-end gap-2">
         <ExportMenu
           build={buildExport}
           fileBaseName={`${trip?.name ?? 'trip'}-${tExport('itinerary.heading')}`}
           disabled={days.length === 0}
         />
         {isAdmin && (
-          <Button variant="outline" onClick={() => setAiImportOpen(true)} className="gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setAiImportOpen(true)}
+            className="gap-2"
+          >
             <Sparkles className="h-4 w-4" />
             {tItinerary('aiImport.action')}
           </Button>
         )}
         {isAdmin && days.length > 0 && (
-          <Button onClick={handleAddDay} className="gap-2">
+          <Button size="sm" onClick={handleAddDay} className="gap-2">
             <Plus className="h-4 w-4" />
             {tItinerary('addDay')}
           </Button>
@@ -459,31 +429,44 @@ function ItineraryPageContent() {
           }
         />
       ) : (
-        <div className="flex flex-col gap-6">
-          {days.map((day) => {
-            const date = dayDateFromTrip(trip?.start_date, day.day_number);
-            return (
-              <div key={day.id} id={day.day_number === activeDayNumber ? 'trip-today' : undefined}>
-                <ItineraryDayCard
-                  day={day}
-                  date={date}
-                  outsideTripRange={isTripDayOutsideRange(date, trip?.end_date)}
-                  tripId={tripId}
-                  isAdmin={isAdmin}
-                  onEdit={handleEditDay}
-                  onAddActivity={handleAddActivity}
-                  onDelete={handleDeleteDay}
-                  onEditActivity={handleEditActivity}
-                  onDeleteActivity={handleDeleteActivity}
-                  onImportActivity={handleImportActivity}
-                  importedActivityIds={importedActivityIds}
-                  photos={photosByDay.get(day.id) ?? []}
-                  onSelectPhoto={(index) => setViewingPhotos({ dayId: day.id, index })}
-                />
-              </div>
-            );
-          })}
-        </div>
+        <>
+          {days.length > 1 && (
+            <ItineraryDayNav
+              days={days}
+              datesByDayId={datesByDayId}
+              todayDayNumber={activeDayNumber}
+            />
+          )}
+          <div className="flex flex-col gap-6">
+            {days.map((day) => {
+              const date = datesByDayId.get(day.id) ?? null;
+              return (
+                <div
+                  key={day.id}
+                  id={itineraryDayAnchorId(day.day_number)}
+                  className="scroll-mt-[calc(var(--trip-space-header-height,0px)+4rem)] md:scroll-mt-[calc(var(--trip-space-header-height,0px)+8rem)]"
+                >
+                  <ItineraryDayCard
+                    day={day}
+                    date={date}
+                    outsideTripRange={isTripDayOutsideRange(date, trip?.end_date)}
+                    tripId={tripId}
+                    isAdmin={isAdmin}
+                    onEdit={handleEditDay}
+                    onAddActivity={handleAddActivity}
+                    onDelete={handleDeleteDay}
+                    onEditActivity={handleEditActivity}
+                    onDeleteActivity={handleDeleteActivity}
+                    onImportActivity={handleImportActivity}
+                    importedActivityIds={importedActivityIds}
+                    photos={photosByDay.get(day.id) ?? []}
+                    onSelectPhoto={(index) => setViewingPhotos({ dayId: day.id, index })}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </>
       )}
 
       {/* 當天相片的放大檢視（唯讀：編輯與刪除在相簿頁） */}

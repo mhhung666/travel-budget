@@ -924,35 +924,21 @@
         "ongoing": "旅途中",
         "postTrip": "旅后"
       },
-      "planningTitle": "安排下一个实用步骤",
-      "preTripTitle": "距离出发还有 {days} 天",
-      "ongoingTitle": "Day {day} · 今天先看这些",
-      "postTripTitle": "完成这趟旅行的收尾",
-      "openTasks": "未完成待办",
-      "taskCount": "还有 {count} 项",
-      "nextPlan": "下一个已排行程",
-      "noPlan": "尚未安排活动",
       "viewChecklist": "查看清单",
-      "nextActivity": "下一个行程",
       "noActivityToday": "今天尚未安排活动",
-      "todaySpent": "今日花费",
       "quickExpense": "记一笔",
-      "viewToday": "查看今日行程",
-      "outstanding": "待结算金额",
+      "viewToday": "看今天",
       "viewSettlement": "查看结算",
-      "viewAlbum": "打开相册"
-    },
-    "firstSteps": {
-      "title": "先完成这两步",
-      "description": "记下第一笔支出，再把旅伴邀请进来。",
-      "progress": "{completed}/{total} 完成",
-      "expense": "新增第一笔支出",
-      "addExpense": "新增支出",
-      "invite": "分享邀请链接",
-      "copyInvite": "复制链接",
-      "inviteCopied": "邀请链接已复制",
-      "copyFailed": "无法复制邀请链接",
-      "dismiss": "关闭首次使用提示"
+      "viewAlbum": "打开相册",
+      "startsIn": "{days} 天后出发",
+      "noDates": "尚未设置日期",
+      "ongoingDay": "Day {day}",
+      "tasksLeft": "清单还有 {count} 项",
+      "checklistDone": "清单已完成",
+      "nextActivity": "下一个：{activity}",
+      "todaySpent": "今日花费 {amount}",
+      "outstanding": "待结算 {amount}",
+      "settled": "已结清"
     },
     "tabs": {
       "label": "行程分页",
@@ -1208,7 +1194,8 @@
       "removeConfirmMessage": "将从第 {dayNumber} 天移除「{title}」。",
       "importToCollections": "带入旅行成就",
       "imported": "已带入旅行成就",
-      "importedSuccess": "已带入旅行成就"
+      "importedSuccess": "已带入旅行成就",
+      "moreActions": "活动的更多操作"
     },
     "dayLabel": "第 {dayNumber} 天",
     "aiImport": {
@@ -1302,7 +1289,10 @@
         "MODEL_OUTPUT_LIMIT": "解析结果过长，请分批导入。",
         "INTERNAL_ERROR": "发生意外错误，请稍后重试。"
       }
-    }
+    },
+    "dayNav": "切换日期",
+    "today": "今天",
+    "dayActions": "这一天的更多操作"
   },
   "export": {
     "label": "导出",

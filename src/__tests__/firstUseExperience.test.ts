@@ -40,13 +40,4 @@ describe('Phase 2A first-use experience contracts', () => {
   ])('keeps an action in the %s empty state', (_name, source) => {
     expect(source).toMatch(/<EmptyState[\s\S]*?action=/);
   });
-
-  it('keeps first expense and invite actions in the lightweight checklist', () => {
-    const source = readSource('components', 'trips', 'detail', 'FirstStepsCard.tsx');
-
-    expect(source).toContain("key: 'expense'");
-    expect(source).toContain("key: 'invite'");
-    expect(source).toContain('if (hasExpense && hasInvited) return null');
-    expect(source).toContain('onDismiss');
-  });
 });

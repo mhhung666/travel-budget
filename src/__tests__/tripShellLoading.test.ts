@@ -22,7 +22,6 @@ describe('lightweight trip shell loading contracts', () => {
     expect(controller).toContain('useTripShell(tripId)');
     expect(controller).not.toContain('useExpenses(');
     expect(landing).not.toContain('useExpenses(');
-    expect(landing).toContain('shell?.expense_count');
     expect(landing).toContain('shell?.today_spent');
   });
 

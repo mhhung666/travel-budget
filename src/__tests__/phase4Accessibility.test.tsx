@@ -2,8 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import EmptyTripsState from '@/components/trips/EmptyTripsState';
-import FirstStepsCard from '@/components/trips/detail/FirstStepsCard';
-import TripHeader from '@/components/trips/detail/TripHeader';
+import TripContextOverview from '@/components/trips/detail/TripContextOverview';
 import { BottomTabBar } from '@/components/layout/BottomTabBar';
 import { expectNoSeriousAxeViolations } from '@/test/axe';
 import type { Trip } from '@/types';
@@ -64,39 +63,26 @@ describe('Phase 4 critical interaction accessibility', () => {
     expect(onJoin).toHaveBeenCalledOnce();
   });
 
-  it('exposes both onboarding actions and dismiss through named controls', async () => {
-    const user = userEvent.setup();
-    const onAddExpense = vi.fn();
-    const onCopyInvite = vi.fn();
-    const onDismiss = vi.fn();
-    const { container } = render(
-      <FirstStepsCard
-        hasExpense={false}
-        hasInvited={false}
-        onAddExpense={onAddExpense}
-        onCopyInvite={onCopyInvite}
-        onDismiss={onDismiss}
-      />
-    );
-
-    await expectNoSeriousAxeViolations(container);
-    await user.click(screen.getByRole('button', { name: 'addExpense' }));
-    await user.click(screen.getByRole('button', { name: 'copyInvite' }));
-    await user.click(screen.getByRole('button', { name: 'dismiss' }));
-
-    expect(onAddExpense).toHaveBeenCalledOnce();
-    expect(onCopyInvite).toHaveBeenCalledOnce();
-    expect(onDismiss).toHaveBeenCalledOnce();
-  });
-
   it('opens compact trip details with keyboard-compatible controls', async () => {
     const user = userEvent.setup();
     const onEdit = vi.fn();
-    const { container } = render(<TripHeader trip={trip} isCurrentUserAdmin onEdit={onEdit} />);
+    const { container } = render(
+      <TripContextOverview
+        trip={trip}
+        days={[]}
+        todaySpent={0}
+        isMember
+        isAdmin
+        onEdit={onEdit}
+        onAddExpense={vi.fn()}
+      />
+    );
 
     expect(screen.queryByText('Trip details')).toBeNull();
     await user.click(screen.getByRole('button', { name: 'moreDetails' }));
     expect(screen.queryByText('Trip details')).not.toBeNull();
+    await user.click(screen.getByRole('button', { name: 'edit' }));
+    expect(onEdit).toHaveBeenCalledOnce();
     await expectNoSeriousAxeViolations(container);
   });
 

@@ -9,13 +9,13 @@ describe('Phase 4 measurement contracts', () => {
   it('keeps activation steps at the successful workflow boundaries', () => {
     const login = readSource('components', 'login', 'LoginForm.tsx');
     const trip = readSource('components', 'trips', 'CreateTripDialog.tsx');
-    const itinerary = readSource('app', '(app)', 'trips', '[id]', 'page.tsx');
+    const shareCode = readSource('components', 'trips', 'ShareCode.tsx');
     const expenses = readSource('hooks', 'queries', 'useExpenseMutations.ts');
 
     expect(login).toContain("{ step: 'registered' }");
     expect(trip).toContain("{ step: 'trip_created' }");
     expect(trip).toContain("{ step: 'companion_added' }");
-    expect(itinerary).toContain("{ step: 'invite_shared' }");
+    expect(shareCode).toContain("{ step: 'invite_shared' }");
     expect(expenses).toContain("{ step: 'expense_created' }");
   });
 

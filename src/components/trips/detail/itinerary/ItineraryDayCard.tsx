@@ -1,9 +1,9 @@
 'use client';
 
-import { Edit2, Trash2, MapPin, Ticket, CalendarPlus, Medal } from 'lucide-react';
+import { Edit2, Trash2, MapPin, Ticket, CalendarPlus, Medal, MoreHorizontal } from 'lucide-react';
 import { useTranslations, useLocale } from 'next-intl';
 import type { Activity, ItineraryDay, TripPhoto } from '@/types';
-import { pickLocalizedName, cn } from '@/lib/utils';
+import { pickLocalizedName } from '@/lib/utils';
 import { activityImportKind } from '@/lib/collectionImport';
 import { countryCodeToFlag } from '@/components/map/country';
 import { sortActivities } from '@/lib/itineraryActivities';
@@ -15,6 +15,12 @@ import { DayPhotoStrip } from '@/components/trips/detail/album';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface ItineraryDayCardProps {
   day: ItineraryDay;
@@ -95,7 +101,7 @@ export default function ItineraryDayCard({
             </div>
           </div>
           {isAdmin && (
-            <div className="flex gap-1">
+            <div className="flex shrink-0 gap-1">
               <Button
                 variant="ghost"
                 size="icon"
@@ -106,26 +112,33 @@ export default function ItineraryDayCard({
               >
                 <CalendarPlus className="h-4 w-4" />
               </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => onEdit(day)}
-                title={tItinerary('editDay')}
-                aria-label={tItinerary('editDay')}
-              >
-                <Edit2 className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                onClick={() => onDelete(day.id)}
-                title={tItinerary('deleteDay')}
-                aria-label={tItinerary('deleteDay')}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+              {/* 低頻的編輯／刪除整天收進「⋯」，卡片標題列只留新增活動 */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    title={tItinerary('dayActions')}
+                    aria-label={tItinerary('dayActions')}
+                  >
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => onEdit(day)}>
+                    <Edit2 className="mr-2 h-4 w-4" />
+                    {tItinerary('editDay')}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => onDelete(day.id)}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    {tItinerary('deleteDay')}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           )}
         </div>
@@ -144,6 +157,9 @@ export default function ItineraryDayCard({
           <div className="mt-4 flex flex-col gap-2.5 border-t pt-4">
             {activities.map((activity) => {
               const Icon = ACTIVITY_TYPE_ICON[activity.type] ?? MapPin;
+              // 帶入旅行成就是個人紀錄，任何成員都能用；已帶入的只顯示獎章。
+              const canImport =
+                activityImportKind(activity.type) !== null && !importedActivityIds.has(activity.id);
               return (
                 <div key={activity.id} className="flex items-start gap-3">
                   <div className="flex w-11 shrink-0 flex-col items-end pt-1 text-xs font-medium leading-tight tabular-nums text-muted-foreground">
@@ -191,52 +207,52 @@ export default function ItineraryDayCard({
                       </div>
                     )}
                   </div>
-                  <div className="flex shrink-0 gap-0.5">
-                    {activityImportKind(activity.type) !== null &&
-                      (importedActivityIds.has(activity.id) ? (
-                        <span
-                          className="flex h-7 w-7 items-center justify-center text-primary"
-                          title={tAct('imported')}
-                        >
-                          <Medal className="h-3.5 w-3.5" />
-                          <span className="sr-only">{tAct('imported')}</span>
-                        </span>
-                      ) : (
+                  {importedActivityIds.has(activity.id) && (
+                    <span
+                      className="flex h-7 w-7 shrink-0 items-center justify-center text-primary"
+                      title={tAct('imported')}
+                    >
+                      <Medal className="h-3.5 w-3.5" />
+                      <span className="sr-only">{tAct('imported')}</span>
+                    </span>
+                  )}
+                  {(isAdmin || canImport) && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
                         <Button
                           variant="ghost"
                           size="icon"
-                          className={cn('h-7 w-7 text-muted-foreground hover:text-primary')}
-                          onClick={() => onImportActivity(day, activity)}
-                          title={tAct('importToCollections')}
-                          aria-label={tAct('importToCollections')}
+                          className="h-7 w-7 shrink-0 text-muted-foreground"
+                          title={tAct('moreActions')}
+                          aria-label={tAct('moreActions')}
                         >
-                          <Medal className="h-3.5 w-3.5" />
+                          <MoreHorizontal className="h-4 w-4" />
                         </Button>
-                      ))}
-                  </div>
-                  {isAdmin && (
-                    <div className="flex shrink-0 gap-0.5">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={() => onEditActivity(day, activity)}
-                        title={tAct('edit')}
-                        aria-label={tAct('edit')}
-                      >
-                        <Edit2 className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => onDeleteActivity(day, activity)}
-                        title={tAct('remove')}
-                        aria-label={tAct('remove')}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        {canImport && (
+                          <DropdownMenuItem onClick={() => onImportActivity(day, activity)}>
+                            <Medal className="mr-2 h-4 w-4" />
+                            {tAct('importToCollections')}
+                          </DropdownMenuItem>
+                        )}
+                        {isAdmin && (
+                          <>
+                            <DropdownMenuItem onClick={() => onEditActivity(day, activity)}>
+                              <Edit2 className="mr-2 h-4 w-4" />
+                              {tAct('edit')}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => onDeleteActivity(day, activity)}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              {tAct('remove')}
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   )}
                 </div>
               );

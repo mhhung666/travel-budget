@@ -2,7 +2,7 @@
 import { QueryStatus } from '@/components/common/QueryStatus';
 import { QueryReadDialog } from '@/components/common/QueryReadDialog';
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { ExpenseFormSheet, BudgetDialog } from '@/components/trips/DeferredDialogs';
 import { ArrowLeft, History, MoreHorizontal, Settings, Wallet } from 'lucide-react';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
@@ -139,6 +139,21 @@ export function TripSpaceShell({
     return () => window.removeEventListener('scroll', updateCompactMode);
   }, []);
 
+  // 把 sticky 頁首的實際高度（隨 compact mode／摘要條改變）提供給頁內的次級 sticky 列，
+  // 例如行程頁的日期快速切換，讓它貼在頁首下緣。
+  const rootRef = useRef<HTMLDivElement>(null);
+  const stickyHeaderRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const root = rootRef.current;
+    const header = stickyHeaderRef.current;
+    if (!root || !header || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => {
+      root.style.setProperty('--trip-space-header-height', `${header.offsetHeight}px`);
+    });
+    observer.observe(header);
+    return () => observer.disconnect();
+  }, []);
+
   const openAddExpense = addExpenseDialog.openDialog;
   const contextValue = useMemo(
     () => ({ openAddExpense: (prefill?: AddExpensePrefill) => openAddExpense(prefill) }),
@@ -165,9 +180,12 @@ export function TripSpaceShell({
 
   return (
     <TripSpaceProvider value={contextValue}>
-      <div className="flex min-h-full flex-col">
+      <div ref={rootRef} className="flex min-h-full flex-col">
         {/* 空間頁首 + 分頁列 + 摘要條：sticky（行動端置頂；桌機貼在 AppShell 頂列下方） */}
-        <div className="sticky top-0 z-40 border-b bg-background/95 pt-[env(safe-area-inset-top)] backdrop-blur supports-[backdrop-filter]:bg-background/80 md:top-16">
+        <div
+          ref={stickyHeaderRef}
+          className="sticky top-0 z-40 border-b bg-background/95 pt-[env(safe-area-inset-top)] backdrop-blur supports-[backdrop-filter]:bg-background/80 md:top-16"
+        >
           <div className="container mx-auto max-w-6xl px-2 sm:px-4">
             {/* 頁首列 */}
             <div

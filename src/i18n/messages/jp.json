@@ -924,35 +924,21 @@
         "ongoing": "旅行中",
         "postTrip": "旅行後"
       },
-      "planningTitle": "次に役立つ準備を進めましょう",
-      "preTripTitle": "出発まであと {days} 日",
-      "ongoingTitle": "Day {day} · 今日のポイント",
-      "postTripTitle": "旅行を締めくくりましょう",
-      "openTasks": "未完了の項目",
-      "taskCount": "残り {count} 件",
-      "nextPlan": "次の予定",
-      "noPlan": "予定はまだありません",
       "viewChecklist": "リストを見る",
-      "nextActivity": "次の行程",
       "noActivityToday": "今日の予定はありません",
-      "todaySpent": "今日の支出",
       "quickExpense": "支出を記録",
-      "viewToday": "今日の旅程を見る",
-      "outstanding": "未精算金額",
+      "viewToday": "今日を見る",
       "viewSettlement": "精算を確認",
-      "viewAlbum": "アルバムを見る"
-    },
-    "firstSteps": {
-      "title": "まずはこの2つから",
-      "description": "最初の支出を記録して、旅行仲間を招待しましょう。",
-      "progress": "{completed}/{total} 完了",
-      "expense": "最初の支出を追加",
-      "addExpense": "支出を追加",
-      "invite": "招待リンクを共有",
-      "copyInvite": "リンクをコピー",
-      "inviteCopied": "招待リンクをコピーしました",
-      "copyFailed": "招待リンクをコピーできませんでした",
-      "dismiss": "初回ガイドを閉じる"
+      "viewAlbum": "アルバムを見る",
+      "startsIn": "出発まであと {days} 日",
+      "noDates": "日程未設定",
+      "ongoingDay": "Day {day}",
+      "tasksLeft": "リスト残り {count} 件",
+      "checklistDone": "リスト完了",
+      "nextActivity": "次：{activity}",
+      "todaySpent": "今日 {amount}",
+      "outstanding": "未精算 {amount}",
+      "settled": "精算済み"
     },
     "tabs": {
       "label": "旅行タブ",
@@ -1208,7 +1194,8 @@
       "removeConfirmMessage": "{dayNumber}日目から「{title}」を削除します。",
       "importToCollections": "旅の実績に追加",
       "imported": "実績に追加済み",
-      "importedSuccess": "旅の実績に追加しました"
+      "importedSuccess": "旅の実績に追加しました",
+      "moreActions": "アクティビティのその他の操作"
     },
     "dayLabel": "{dayNumber}日目",
     "aiImport": {
@@ -1302,7 +1289,10 @@
         "MODEL_OUTPUT_LIMIT": "解析結果が長すぎます。分割してインポートしてください。",
         "INTERNAL_ERROR": "予期しないエラーが発生しました。後でもう一度お試しください。"
       }
-    }
+    },
+    "dayNav": "日付を切り替え",
+    "today": "今日",
+    "dayActions": "この日のその他の操作"
   },
   "export": {
     "label": "エクスポート",

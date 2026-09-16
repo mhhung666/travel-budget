@@ -924,35 +924,21 @@
         "ongoing": "Traveling now",
         "postTrip": "After the trip"
       },
-      "planningTitle": "Plan the next useful step",
-      "preTripTitle": "Departing in {days} days",
-      "ongoingTitle": "Day {day} · What matters today",
-      "postTripTitle": "Wrap up this trip",
-      "openTasks": "Open checklist items",
-      "taskCount": "{count} remaining",
-      "nextPlan": "Next planned activity",
-      "noPlan": "No activity planned yet",
       "viewChecklist": "Open checklist",
-      "nextActivity": "Next activity",
       "noActivityToday": "No activity planned for today",
-      "todaySpent": "Spent today",
       "quickExpense": "Log an expense",
-      "viewToday": "View today's itinerary",
-      "outstanding": "Still to settle",
+      "viewToday": "Today",
       "viewSettlement": "Review settlement",
-      "viewAlbum": "Open album"
-    },
-    "firstSteps": {
-      "title": "Start with these two steps",
-      "description": "Record your first expense, then invite your travel companions.",
-      "progress": "{completed}/{total} complete",
-      "expense": "Add your first expense",
-      "addExpense": "Add expense",
-      "invite": "Share an invite link",
-      "copyInvite": "Copy link",
-      "inviteCopied": "Invite link copied",
-      "copyFailed": "Could not copy the invite link",
-      "dismiss": "Dismiss first-use tips"
+      "viewAlbum": "Open album",
+      "startsIn": "{days, plural, one {Departs tomorrow} other {Departs in # days}}",
+      "noDates": "Dates not set",
+      "ongoingDay": "Day {day}",
+      "tasksLeft": "{count, plural, one {# checklist item left} other {# checklist items left}}",
+      "checklistDone": "Checklist done",
+      "nextActivity": "Next: {activity}",
+      "todaySpent": "Today {amount}",
+      "outstanding": "To settle {amount}",
+      "settled": "All settled"
     },
     "tabs": {
       "label": "Trip sections",
@@ -1215,7 +1201,8 @@
       "removeConfirmMessage": "This will remove \"{title}\" from Day {dayNumber}.",
       "importToCollections": "Add to achievements",
       "imported": "Added to achievements",
-      "importedSuccess": "Added to achievements"
+      "importedSuccess": "Added to achievements",
+      "moreActions": "More actions for this activity"
     },
     "dayLabel": "Day {dayNumber}",
     "aiImport": {
@@ -1309,7 +1296,10 @@
         "MODEL_OUTPUT_LIMIT": "The parsed result is too long. Import it in smaller batches.",
         "INTERNAL_ERROR": "An unexpected error occurred. Try again later."
       }
-    }
+    },
+    "dayNav": "Jump to day",
+    "today": "Today",
+    "dayActions": "More actions for this day"
   },
   "export": {
     "label": "Export",
