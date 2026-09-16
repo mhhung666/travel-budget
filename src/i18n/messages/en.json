@@ -286,12 +286,24 @@
     "archiveFailed": "Action failed, please try again",
     "tripActions": "Trip actions",
     "copyInviteLink": "Copy invitation link",
-    "tabActive": "Active",
+    "tabActive": "Current",
     "tabArchived": "Archived",
-    "noActiveTrips": "No active trips",
+    "noActiveTrips": "No current trips",
     "noDateGroup": "No date",
     "ongoingBadge": "On trip · Day {day}",
-    "ongoingGroup": "Traveling now"
+    "currentGroup": "On trip & upcoming",
+    "card": {
+      "upcoming": "{days, plural, one {Upcoming · tomorrow} other {Upcoming · in # days}}",
+      "pendingSettlement": "To settle",
+      "settled": "All settled",
+      "mySpent": "My share {amount}",
+      "mySpentOfBudget": "My share {spent} / budget {budget}",
+      "youReceive": "You are owed {amount}",
+      "youPay": "You owe {amount}",
+      "quickExpense": "Log an expense",
+      "viewItinerary": "View itinerary",
+      "viewSettlement": "View settlement"
+    }
   },
   "auth": {
     "login": {

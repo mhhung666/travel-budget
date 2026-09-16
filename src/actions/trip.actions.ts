@@ -1,6 +1,7 @@
 'use server';
 
 import { readTripShell, type LeanTripShell } from '@/lib/tripShellRead';
+import { readTripListSummaries } from '@/lib/tripListSummary';
 import { revalidatePath } from 'next/cache';
 import { dbConnect } from '@/lib/mongodb';
 import mongoose from 'mongoose';
@@ -55,10 +56,20 @@ export const getTrips = withAuth(async (session): Promise<ActionResult<TripWithM
       return tb - ta; // 新到舊
     });
 
-    const formattedTrips: TripWithMembers[] = trips.map((trip) => ({
-      ...toTripDto(trip, session.userId),
-      member_count: trip.members.length,
-    }));
+    // 卡片狀態摘要（我的花費／結算餘額）：整批兩次查詢，不隨旅行數增加往返次數。
+    const summaries = await readTripListSummaries(
+      trips.map((trip) => trip._id.toString()),
+      session.userId
+    );
+    const formattedTrips: TripWithMembers[] = trips.map((trip) => {
+      const summary = summaries.get(trip._id.toString());
+      return {
+        ...toTripDto(trip, session.userId),
+        member_count: trip.members.length,
+        my_spent: summary?.mySpent ?? 0,
+        my_balance: summary?.myBalance ?? 0,
+      };
+    });
 
     return { success: true, data: formattedTrips };
   } catch (error) {

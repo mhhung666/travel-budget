@@ -7,7 +7,11 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from '@/i18n/navigation';
 import { ROUTES } from '@/constants/routes';
 import { useTrips, useTripArchiveMutations, tripKeys } from '@/hooks/queries';
-import { CreateTripDialog, JoinTripDialog } from '@/components/trips/DeferredDialogs';
+import {
+  CreateTripDialog,
+  JoinTripDialog,
+  TripExpenseQuickAdd,
+} from '@/components/trips/DeferredDialogs';
 import TripList from '@/components/trips/TripList';
 import EmptyTripsState from '@/components/trips/EmptyTripsState';
 import { TripsPageSkeleton } from '@/components/skeletons';
@@ -29,6 +33,9 @@ export default function TripsPage() {
   const { archive, unarchive } = useTripArchiveMutations();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
+  // 卡片「記一筆」選定的旅行（hash_code）；null＝表單關閉。
+  const [quickExpenseTrip, setQuickExpenseTrip] = useState<string | null>(null);
+  const openQuickExpense = (trip: TripWithMembers) => setQuickExpenseTrip(trip.hash_code);
 
   const { activeTrips, archivedTrips } = useMemo(
     () => ({
@@ -118,7 +125,12 @@ export default function TripsPage() {
         />
       ) : archivedTrips.length === 0 ? (
         // 沒有任何封存時維持單一列表，不顯示分頁籤
-        <TripList trips={activeTrips} onCopyCode={copyHashCode} onToggleArchive={toggleArchive} />
+        <TripList
+          trips={activeTrips}
+          onCopyCode={copyHashCode}
+          onToggleArchive={toggleArchive}
+          onQuickExpense={openQuickExpense}
+        />
       ) : (
         <Tabs defaultValue="active">
           <TabsList className="mb-6">
@@ -138,6 +150,7 @@ export default function TripsPage() {
                 trips={activeTrips}
                 onCopyCode={copyHashCode}
                 onToggleArchive={toggleArchive}
+                onQuickExpense={openQuickExpense}
               />
             )}
           </TabsContent>
@@ -161,6 +174,15 @@ export default function TripsPage() {
         >
           <Plus />
         </Button>
+      )}
+
+      {quickExpenseTrip && (
+        <TripExpenseQuickAdd
+          tripId={quickExpenseTrip}
+          open
+          path="picker"
+          onClose={() => setQuickExpenseTrip(null)}
+        />
       )}
 
       {/* Create Trip Dialog */}

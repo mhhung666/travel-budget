@@ -3,9 +3,10 @@ import { randomUUID } from 'node:crypto';
 import mongoose, { mongo } from 'mongoose';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { roundMoney, roundMoneyExpr, normalizeShares, normalizedSplitsExpr } from '@/lib/money';
-import { Expense, User, Trip } from '@/models';
+import { Expense, User, Trip, Payment } from '@/models';
 import { readTripShell } from '@/lib/tripShellRead';
 import { readSettlement } from '@/lib/settlementRead';
+import { readTripListSummaries } from '@/lib/tripListSummary';
 import { computeTripStats } from '@/lib/tripStats';
 import { computeBudgetProgress } from '@/lib/budget';
 import { toExpenseDto } from '@/lib/dto';
@@ -173,8 +174,13 @@ describe.skipIf(!uri || !allowed)('money rounding inside MongoDB aggregation', (
     expect(stats.totalAmount).toBe(settlement.totalExpenses);
     for (const [i, id] of ids.entries()) {
       const shell = await readTripShell(trip, id.toString(), '2026-09-16');
-      const owed = settlement.balances.find((b) => b.userId === id.toString())!.totalOwed;
+      const balance = settlement.balances.find((b) => b.userId === id.toString())!;
+      const owed = balance.totalOwed;
       expect(shell.total_spent).toBe(owed);
+      const card = (await readTripListSummaries([tripId.toString()], id.toString())).get(
+        tripId.toString()
+      )!;
+      expect(card).toEqual({ mySpent: owed, myBalance: balance.balance });
       auth.userId = id.toString();
       const personal = await getStats();
       expect(personal.success).toBe(true);
@@ -204,6 +210,26 @@ describe.skipIf(!uri || !allowed)('money rounding inside MongoDB aggregation', (
     expect(applyPayments(settlement.balances, payments).map((b) => b.balance)).toEqual(
       ids.map(() => 0)
     );
+    // 登記部分還款後，列表卡片的餘額仍與結算頁一致
+    if (payments.length > 0) {
+      await Payment.collection.insertOne({
+        trip: tripId,
+        from: new mongoose.Types.ObjectId(payments[0].from),
+        to: new mongoose.Types.ObjectId(payments[0].to),
+        amount: roundMoney(payments[0].amount / 3),
+        createdBy: new mongoose.Types.ObjectId(payments[0].from),
+        createdAt: new Date('2026-09-17'),
+      });
+      const afterPayment = await readSettlement(tripId.toString());
+      for (const id of ids) {
+        const card = (await readTripListSummaries([tripId.toString()], id.toString())).get(
+          tripId.toString()
+        )!;
+        expect(card.myBalance).toBe(
+          afterPayment.balances.find((b) => b.userId === id.toString())!.balance
+        );
+      }
+    }
   });
 
   it('treats a missing amount as zero rather than failing the pipeline', async () => {

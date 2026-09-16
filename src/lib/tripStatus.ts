@@ -75,3 +75,40 @@ export function ongoingDayNumber(
   const phase = getTripPhase(startDate, endDate, now);
   return phase.phase === 'ongoing' ? phase.day : null;
 }
+
+export type TripCardStatus =
+  | { kind: 'upcoming'; daysUntil: number }
+  | { kind: 'ongoing'; day: number }
+  | { kind: 'pendingSettlement' }
+  | { kind: 'settled' }
+  | { kind: 'none' };
+
+/**
+ * 旅行列表卡片的狀態標記（UX 改善 #6）。封存旅行不標；結束後依「我的」結算餘額
+ * 區分待結算／已結清，沒有任何花費的旅行不標「已結清」以免誤導。
+ */
+export function getTripCardStatus(
+  trip: {
+    start_date: string | null;
+    end_date: string | null;
+    archived_at: string | null;
+    my_spent: number;
+    my_balance: number;
+  },
+  now: Date = new Date()
+): TripCardStatus {
+  if (trip.archived_at != null) return { kind: 'none' };
+  const phase = getTripPhase(trip.start_date, trip.end_date, now);
+  if (phase.phase === 'preTrip') {
+    return phase.daysUntil !== null
+      ? { kind: 'upcoming', daysUntil: phase.daysUntil }
+      : { kind: 'none' };
+  }
+  // 只有開始日、沒有結束日時 getTripPhase 會一直判為進行中；列表沿用 ongoingDayNumber
+  // 需要兩端日期的既有規則，避免久遠旅行永遠顯示「旅行中」。
+  if (phase.phase === 'ongoing') {
+    return trip.end_date ? { kind: 'ongoing', day: phase.day ?? 1 } : { kind: 'none' };
+  }
+  if (Math.abs(trip.my_balance) >= 0.01) return { kind: 'pendingSettlement' };
+  return trip.my_spent > 0 ? { kind: 'settled' } : { kind: 'none' };
+}

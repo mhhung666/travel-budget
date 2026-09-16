@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getTripPhase, ongoingDayNumber } from '@/lib/tripStatus';
+import { getTripCardStatus, getTripPhase, ongoingDayNumber } from '@/lib/tripStatus';
 
 describe('ongoingDayNumber', () => {
   const noon = (d: string) => new Date(`${d}T12:00:00`);
@@ -65,5 +65,42 @@ describe('getTripPhase', () => {
       day: null,
       daysUntil: null,
     });
+  });
+});
+
+describe('getTripCardStatus', () => {
+  const now = new Date('2026-07-10T12:00:00');
+  const trip = (overrides: Partial<Parameters<typeof getTripCardStatus>[0]> = {}) => ({
+    start_date: '2026-07-01',
+    end_date: '2026-07-05',
+    archived_at: null,
+    my_spent: 0,
+    my_balance: 0,
+    ...overrides,
+  });
+
+  it('標出即將出發、旅行中與天數', () => {
+    expect(
+      getTripCardStatus(trip({ start_date: '2026-07-20', end_date: '2026-07-25' }), now)
+    ).toEqual({ kind: 'upcoming', daysUntil: 10 });
+    expect(
+      getTripCardStatus(trip({ start_date: '2026-07-08', end_date: '2026-07-12' }), now)
+    ).toEqual({ kind: 'ongoing', day: 3 });
+  });
+
+  it('結束後依我的餘額分待結算／已結清，沒花費不標', () => {
+    expect(getTripCardStatus(trip({ my_spent: 100, my_balance: -50 }), now).kind).toBe(
+      'pendingSettlement'
+    );
+    expect(getTripCardStatus(trip({ my_spent: 100, my_balance: 0.004 }), now).kind).toBe('settled');
+    expect(getTripCardStatus(trip(), now).kind).toBe('none');
+  });
+
+  it('封存、無日期、只有出發日的舊旅行不標', () => {
+    expect(getTripCardStatus(trip({ archived_at: '2026-07-06', my_balance: 10 }), now).kind).toBe(
+      'none'
+    );
+    expect(getTripCardStatus(trip({ start_date: null, end_date: null }), now).kind).toBe('none');
+    expect(getTripCardStatus(trip({ end_date: null }), now).kind).toBe('none');
   });
 });

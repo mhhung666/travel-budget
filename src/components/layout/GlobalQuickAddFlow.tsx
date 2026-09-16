@@ -125,7 +125,8 @@ function QuickAddLoading({ open, onClose }: { open: boolean; onClose: () => void
   );
 }
 
-function GlobalExpenseForm({
+/** 指定旅行的新增支出表單（也供旅行列表卡片的「記一筆」直接開啟）。 */
+export function GlobalExpenseForm({
   tripId,
   open,
   onClose,

@@ -4,36 +4,47 @@ import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import type { TripWithMembers } from '@/types';
-import { ongoingDayNumber } from '@/lib/tripStatus';
+import { getTripCardStatus } from '@/lib/tripStatus';
 import TripCard from './TripCard';
 
 interface TripListProps {
   trips: TripWithMembers[];
   onCopyCode: (code: string) => void;
   onToggleArchive?: (trip: TripWithMembers) => void;
+  onQuickExpense?: (trip: TripWithMembers) => void;
 }
 
-export default function TripList({ trips, onCopyCode, onToggleArchive }: TripListProps) {
+export default function TripList({
+  trips,
+  onCopyCode,
+  onToggleArchive,
+  onQuickExpense,
+}: TripListProps) {
   const router = useRouter();
   const t = useTranslations('trips');
 
   // 依年份分組（年份取自 start_date）。trips 已按 start_date 新到舊排序、無日期者墊底，
   // 故順序掃描即可得到 2026 → 2025 → … → 未排定 的分組。
-  // 進行中的行程（今天落在日期區間內，5.1）抽出置頂為獨立分組。
+  // 旅行中與即將出發的旅行（UX #6）抽出置頂：旅行中在前，即將出發依出發日由近到遠。
   const groups = useMemo(() => {
-    const ongoing: TripWithMembers[] = [];
+    const current: { trip: TripWithMembers; rank: number }[] = [];
     const rest: TripWithMembers[] = [];
+    const now = new Date();
     for (const trip of trips) {
-      if (trip.archived_at == null && ongoingDayNumber(trip.start_date, trip.end_date) !== null) {
-        ongoing.push(trip);
-      } else {
-        rest.push(trip);
-      }
+      const status = getTripCardStatus(trip, now);
+      if (status.kind === 'ongoing') current.push({ trip, rank: -1 });
+      else if (status.kind === 'upcoming') current.push({ trip, rank: status.daysUntil });
+      else rest.push(trip);
     }
+    current.sort((a, b) => a.rank - b.rank);
 
     const result: { key: string; label: string; trips: TripWithMembers[] }[] = [];
-    if (ongoing.length > 0) {
-      result.push({ key: 'ongoing', label: t('ongoingGroup'), trips: ongoing });
+    if (current.length > 0) {
+      result.push({
+        key: 'current',
+        label: t('currentGroup'),
+        trips: current.map((entry) => entry.trip),
+      });
     }
     for (const trip of rest) {
       const year = trip.start_date ? new Date(trip.start_date).getFullYear() : null;
@@ -69,6 +80,7 @@ export default function TripList({ trips, onCopyCode, onToggleArchive }: TripLis
                 onClick={() => router.push(`/trips/${trip.hash_code}`)}
                 onCopyCode={onCopyCode}
                 onToggleArchive={onToggleArchive}
+                onQuickExpense={onQuickExpense}
               />
             ))}
           </div>

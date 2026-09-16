@@ -286,12 +286,24 @@
     "archiveFailed": "操作失败,请稍后再试",
     "tripActions": "旅行操作",
     "copyInviteLink": "复制邀请链接",
-    "tabActive": "进行中",
+    "tabActive": "当前旅行",
     "tabArchived": "已归档",
-    "noActiveTrips": "没有进行中的旅行",
+    "noActiveTrips": "没有当前的旅行",
     "noDateGroup": "未排定日期",
     "ongoingBadge": "旅行中 · Day {day}",
-    "ongoingGroup": "正在旅行"
+    "currentGroup": "旅行中与即将出发",
+    "card": {
+      "upcoming": "即将出发 · {days} 天后",
+      "pendingSettlement": "待结算",
+      "settled": "已结清",
+      "mySpent": "我的花费 {amount}",
+      "mySpentOfBudget": "我的花费 {spent} / 预算 {budget}",
+      "youReceive": "你应收 {amount}",
+      "youPay": "你应付 {amount}",
+      "quickExpense": "记一笔",
+      "viewItinerary": "查看行程",
+      "viewSettlement": "查看结算"
+    }
   },
   "expense": {
     "receipts": {

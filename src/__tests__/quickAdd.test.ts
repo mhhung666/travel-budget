@@ -16,6 +16,8 @@ const makeTrip = (id: string, overrides: Partial<TripWithMembers> = {}): TripWit
   legacy_budget: null,
   currency_settings: null,
   member_count: 1,
+  my_spent: 0,
+  my_balance: 0,
   ...overrides,
 });
 

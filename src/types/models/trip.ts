@@ -48,6 +48,10 @@ export interface Trip {
 export interface TripWithMembers extends Trip {
   member_count: number;
   role?: TripRole;
+  /** 我的分攤花費（TWD），供旅行列表卡片摘要。 */
+  my_spent: number;
+  /** 我的結算餘額（TWD，已抵銷還款）；正＝應收、負＝應付。 */
+  my_balance: number;
 }
 
 /**

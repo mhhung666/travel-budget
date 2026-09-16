@@ -6,6 +6,9 @@ import { lazyDialog } from '@/components/common/lazyDialog';
 export const CreateTripDialog = lazyDialog(() => import('./CreateTripDialog'));
 export const JoinTripDialog = lazyDialog(() => import('./JoinTripDialog'));
 export const ExpenseFormSheet = lazyDialog(() => import('./detail/expense-form/ExpenseFormSheet'));
+export const TripExpenseQuickAdd = lazyDialog(async () => ({
+  default: (await import('@/components/layout/GlobalQuickAddFlow')).GlobalExpenseForm,
+}));
 export const BudgetDialog = lazyDialog(() => import('./detail/dialogs/BudgetDialog'));
 export const EditTripDialog = lazyDialog(() => import('./detail/dialogs/EditTripDialog'));
 export const ItineraryDayDialog = lazyDialog(() => import('./detail/itinerary/ItineraryDayDialog'));
