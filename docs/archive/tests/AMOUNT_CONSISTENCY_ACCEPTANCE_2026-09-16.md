@@ -303,7 +303,8 @@ pnpm exec vitest run \
 
 ### 修正內容
 
-- `money.ts` 的 JS／MongoDB 取整都使用相同 double 運算順序，僅以機器精度吸收乘法誤差，
+- `money.ts` 的 JS／MongoDB 取整都使用相同 double 運算順序，以 `|cents| × Number.EPSILON × 2`
+  為容差，落在半分以下此誤差帶內也視為半分（並非純數學四捨五入），
   移除「12 位有效數字 vs Decimal128」的兩套規則。30.124999999999 兩邊均為 **30.12**，
   精確半分 30.125 兩邊均為 **30.13**，1.005 仍為 **1.01**。
 - 新增 `normalizeShares` 與相同規則的 `normalizedSplitsExpr`：以已取到分的支出為基準，
@@ -314,6 +315,8 @@ pnpm exec vitest run \
 - 跨頁測試發現 `tripShellRead` 的 `$reduce` 遺漏 `$$value`，每次迴圈只留下當前成員的結果，
   本人不是最後一位時花費會變成 0。已改成真正累加，並逐位成員驗證。
   這是可造成 NT$0 的具體程式原因，尚未確認原「成都重慶」正式資料是否屬於同一案例。
+- 上線預算修正是上述 `tripShellRead` 的 `$reduce`；`budget.ts` 的 `computeBudgetProgress`
+  目前只有測試呼叫，其一致性改動本身沒有上線效果。
 
 讀取時只修小額尾差，不寫回資料庫。原始分攤總和與已取整支出差額（取到分後）超過
 `roundMoney(人數 × 0.005 + 0.01)` 時，保留各自取整值，不擅自重分大額異常或捏造缺少的參與人。
@@ -337,3 +340,20 @@ pnpm exec vitest run \
 驗證紀錄：全套 150 檔 **1,514 項通過**、11 檔 213 項依環境略過；最後小額容差調整及新增
 匯出案例後重跑受影響 11 檔，**156 項全部通過**（其中含已啟用的 9 項 MongoDB 整合測試）。
 `tsc --noEmit`、lint、format 檢查通過。正式資料及瀏覽器端到端驗收未執行。
+
+### 審查後補強
+
+- CI 增加獨立 MongoDB service job，每次 master push / PR 必跑 9 項真實聚合整合測試，
+  不依賴 secret 或手動設定環境。一般本機 `pnpm test:run` 仍略過此組；採用 CI 預設真實 DB
+  方案，未恢復 BigInt 求值器。新增兩個相對 epsilon 邊界，本機單元測試也會預設驗證。
+- JS 與聚合的尾差上限統一以 `MONEY_EPSILON` / `SPLIT_TOLERANCE` 表達。
+- `toExpenseDto` 不會修改輸入或寫 DB，但編輯表單取 DTO 分攤反算原幣，送出時重新計算，
+  server action 以 `roundMoney(original_amount × exchange_rate)` 儲存 TWD，因此一次正常儲存
+  可能將舊精度收斂。`ExpenseListItem` 確實並列原幣、TWD 與匯率，未宣稱乘積未取整仍相等。
+  已補 DTO 回歸案例；表單反算精度與正式瀏覽器驗收另列待辦。
+- Migration 尚未實作、讀取熱路徑仍重算；具體範圍與驗收條件已列入
+  [目前待辦](../../UX_IMPROVEMENTS.md#待確認)。
+
+本輪驗證：全套 **1,517 項通過、213 項略過**；另啟用獨立本機 MongoDB，受影響 4 檔
+**48 項通過**（含 9 項真實 DB 測試、617 個取整輸入）。型別、lint、format 與 diff 檢查通過。
+測試資料庫已刪除且本機 MongoDB 已停止。GitHub service job 已設定，遠端 CI 尚未執行。

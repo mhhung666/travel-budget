@@ -66,6 +66,24 @@ describe('toExpenseDto', () => {
     expect(toExpenseDto(tagged, 'trip9').tags).toEqual(['visa', 'insurance']);
   });
 
+  it('normalizes TWD cents while preserving original currency values and the input', () => {
+    const input = {
+      ...base,
+      amount: 30.125,
+      originalAmount: 1,
+      currency: 'USD',
+      exchangeRate: 30.125,
+      splits: base.splits.map((s) => ({ ...s, shareAmount: 15.0625 })),
+    };
+    const dto = toExpenseDto(input, 'trip9');
+    expect(dto.amount).toBe(30.13);
+    expect(dto.splits.map((s) => s.share_amount)).toEqual([15.07, 15.06]);
+    expect(dto.original_amount).toBe(1);
+    expect(dto.exchange_rate).toBe(30.125);
+    expect(input.amount).toBe(30.125);
+    expect(input.splits.map((s) => s.shareAmount)).toEqual([15.0625, 15.0625]);
+  });
+
   it('maps linked itinerary days to itinerary_day_ids', () => {
     const linked: ExpenseDtoInput = {
       ...base,

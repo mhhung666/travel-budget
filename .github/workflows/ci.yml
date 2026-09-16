@@ -12,6 +12,35 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  money-aggregation:
+    name: Money consistency (real MongoDB)
+    runs-on: ubuntu-latest
+    services:
+      mongo:
+        image: mongo:8.2.6
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.adminCommand({ ping: 1 })'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Isolated service, fresh UUID database; no secrets or production connection.
+      # Keep these env vars scoped here: other opt-in DB suites have separate contracts.
+      - name: Verify rounding, allocation and actual readers
+        run: pnpm exec vitest run src/__tests__/moneyAggregation.integration.test.ts
+        env:
+          MONGODB_QUEUE_TEST_URI: mongodb://127.0.0.1:27017
+          MONGODB_QUEUE_TEST_ALLOW_WRITES: '1'
+
   verify:
     name: Lint, format, test, build
     runs-on: ubuntu-latest

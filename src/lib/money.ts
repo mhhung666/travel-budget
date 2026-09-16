@@ -11,7 +11,13 @@
  *    拆出來的加總「剛好」等於原金額，尾差有人認領而不是消失。
  */
 
-/** 轉成整數分；只吸收乘法造成的機器精度誤差，JS 與 MongoDB 使用相同 double 運算。 */
+/**
+ * 轉成整數分；JS 與 MongoDB 使用相同 double 運算次序。
+ * 刻意加入容差 |cents| × Number.EPSILON × 2（相對約 4.44e-16），
+ * 半分以下落在此誤差帶內也視同半分，並非純數學四捨五入。
+ * 這是兩倍相對 epsilon，非嚴格固定 2 ulp（ulp 隨二進位指數階梯改變）。
+ * 例如 30.1249999999999 → 30.12，30.12499999999999 → 30.13。
+ */
 function toCents(amount: number): number {
   if (!Number.isFinite(amount)) return 0;
   const cents = amount * 100;
@@ -95,10 +101,11 @@ export function roundMoneyExpr(valueExpr: unknown): Record<string, unknown> {
 export function normalizeShares(amount: number, shares: number[]): number[] {
   amount = roundMoney(amount);
   const rounded = shares.map(roundMoney);
+  // n 人各自取整最多差 n 個半分，再加原本接受的分攤容差。
   // 只修正分精度的尾差；缺少參與人或大額不平衡不能被讀取流程擅自重分。
   if (
     Math.abs(roundMoney(shares.reduce((sum, share) => sum + share, 0) - amount)) >
-    roundMoney(shares.length * 0.005 + 0.01)
+    roundMoney(shares.length * MONEY_EPSILON + SPLIT_TOLERANCE)
   )
     return rounded;
   if (rounded.reduce((sum, share) => sum + toCents(share), 0) === toCents(amount)) return rounded;
@@ -218,7 +225,10 @@ export function normalizedSplitsExpr(): Record<string, unknown> {
                               }),
                             },
                             roundMoneyExpr({
-                              $add: [{ $multiply: [{ $size: '$$splits' }, 0.005] }, 0.01],
+                              $add: [
+                                { $multiply: [{ $size: '$$splits' }, MONEY_EPSILON] },
+                                SPLIT_TOLERANCE,
+                              ],
                             }),
                           ],
                         },

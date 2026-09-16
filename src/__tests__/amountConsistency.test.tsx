@@ -27,6 +27,11 @@ const expense = (over: Partial<TripStatsExpense> & { id: string }): TripStatsExp
 });
 
 describe('money helpers', () => {
+  it('treats values inside the documented relative epsilon band as half a cent', () => {
+    expect(roundMoney(30.1249999999999)).toBe(30.12);
+    expect(roundMoney(30.12499999999999)).toBe(30.13);
+  });
+
   it('allocates a remainder so the parts add up to the whole', () => {
     expect(allocateMoney(100, [1, 1, 1])).toEqual([33.34, 33.33, 33.33]);
     expect(allocateMoney(100, [1, 1, 1]).reduce((a, b) => a + b, 0)).toBe(100);

@@ -55,6 +55,10 @@ function toDateStr(d: Date | string): string {
   return d instanceof Date ? d.toISOString().slice(0, 10) : d;
 }
 
+/**
+ * TWD amount / shares 正規化到分；原幣與匯率保留原值，乘積可有不足一分的差。
+ * 不修改輸入或寫 DB；編輯表單會以此 DTO 重建分攤，儲存時可能將正規化結果寫回。
+ */
 export function toExpenseDto(
   e: ExpenseDtoInput,
   tripId: string,
