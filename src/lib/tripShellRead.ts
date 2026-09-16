@@ -1,5 +1,5 @@
 import { Types } from 'mongoose';
-import { roundMoney } from '@/lib/money';
+import { roundMoney, roundMoneyExpr } from '@/lib/money';
 import { Expense } from '@/models';
 import type { TripShell } from '@/types';
 export type LeanTripShell = {
@@ -68,8 +68,9 @@ export async function readTripShell(
                 $cond: [
                   { $and: [{ $gte: ['$date', today] }, { $lt: ['$date', tomorrow] }] },
                   // 逐筆收斂到分，與結算、統計同一種取整順序（舊資料可能存了未取整
-                  // 的換算金額，加總後再取整會多出一分）。
-                  { $round: ['$amount', 2] },
+                  // 的換算金額，加總後再取整會多出一分）。取整規則必須與 JS 端同源，
+                  // 故走 roundMoneyExpr 而非 $round（後者是銀行家捨入，30.125 會少一分）。
+                  roundMoneyExpr('$amount'),
                   0,
                 ],
               },
@@ -87,7 +88,7 @@ export async function readTripShell(
                       {
                         $eq: [{ $toString: '$$this.user' }, viewerId],
                       },
-                      { $round: ['$$this.shareAmount', 2] },
+                      roundMoneyExpr('$$this.shareAmount'),
                       0,
                     ],
                   },

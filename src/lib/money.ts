@@ -64,3 +64,29 @@ export const MONEY_EPSILON = 0.005;
  * 容差內的尾差仍必須實際分配出去，見 {@link allocateMoney}。
  */
 export const SPLIT_TOLERANCE = 0.01;
+
+/**
+ * `roundMoney` 的 MongoDB 聚合版本：把欄位收斂到分，和 JS 端逐分取整完全一致。
+ *
+ * 不能用 `$round: [expr, 2]`——MongoDB 的 $round 是銀行家捨入（四捨六入五成雙），
+ * 30.125 會變成 30.12，而 JS 的 `roundMoney` 是四捨五入得到 30.13：同一筆舊資料
+ * 在預算列／今日花費（走聚合）與結算／統計（走 JS）就差一分。
+ *
+ * 先 `$toDecimal` 再運算：MongoDB 轉 Decimal128 時取 15 位有效數字，等同 JS 端
+ * `toPrecision` 消掉 1.005 這類二進位表示誤差的作用；`$floor(x * 100 + 0.5)` 則是
+ * `Math.round` 的定義（含負數一律朝 +∞ 進位），兩邊才會逐筆逐分吻合。
+ */
+export function roundMoneyExpr(valueExpr: unknown): Record<string, unknown> {
+  return {
+    $toDouble: {
+      $divide: [
+        {
+          $floor: {
+            $add: [{ $multiply: [{ $toDecimal: { $ifNull: [valueExpr, 0] } }, 100] }, 0.5],
+          },
+        },
+        100,
+      ],
+    },
+  };
+}
