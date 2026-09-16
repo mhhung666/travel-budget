@@ -1,6 +1,6 @@
 # 改善建議（Improvements）
 
-> 更新日期：2026-09-15
+> 更新日期：2026-09-16
 > 本文件只列**尚未處理**的程式碼 / 基礎設施層級改善。已完成里程碑見 [CHANGELOG.md](./CHANGELOG.md)，架構說明見 [ARCHITECTURE.md](./ARCHITECTURE.md)。
 > 慣例：處理完一項 → 移到 [CHANGELOG.md](./CHANGELOG.md)、從本檔刪除。
 
@@ -64,8 +64,11 @@ Q 部署後觀測也歸入本項。2026-09-11 已在 `budget.mhhung.com` 使用�
 搜尋／清除、快速記帳與 PDF 檢視器正常流程；詳見 [補充驗收報告](./PRODUCTION_ACCEPTANCE_2026-09-12.md)。
 S 離線保存與摘要時序缺陷已於 09-15 完成正式站複驗，見 S。
 09-15 支出頁背景更新失敗保留內容與手動重試在桌面／手機 viewport 均通過，九筆／NT$253 一致，
-見 [背景更新補驗](./PRODUCTION_ACCEPTANCE_2026-09-15.md)。仍需檢視器失敗重試、更多列表、
-代表性大資料量、MongoDB profiler/explain 與 TTI。
+見 [背景更新補驗](./PRODUCTION_ACCEPTANCE_2026-09-15.md)。
+09-16 相簿檢視器失敗重試與 23 筆支出列表／搜尋重設，在桌面／手機 viewport 均通過，
+並補存 12 次正式支出頁冷／熱 Network／Performance trace，均無 page error。
+同日續驗完成 Network 等待分析，最慢 cold 有單一 POST wait 4,092 ms；尚無 server span 可歸因。
+見 [補驗報告](./PRODUCTION_ACCEPTANCE_2026-09-16.md)。仍需代表性大資料量、多批列表展開、MongoDB profiler/explain 與 TTI。
 09-15 依使用者決定，iOS Safari／安裝版 PWA 暫時通過，本輪不執行、不列為阻擋；
 此為接受暫緩實測，不代表已取得實機驗證證據。
 Vercel production 對應 Q 最終交付 `ac54811` 或其後續 commit 仍未核對，頁面版本不是部署證據。
