@@ -48,8 +48,7 @@ export default function SettlementSummary({ totalExpenses, myBalance }: Settleme
             {settled ? '🎉' : money(Math.round(Math.abs(myBalance.balance)))}
           </p>
           <p className="mt-2 text-sm opacity-80 tabular-nums">
-            {t('totalPaid')} {money(myBalance.totalPaid)} · {t('totalOwed')}{' '}
-            {money(myBalance.totalOwed)}
+            {t('myPaid')} {money(myBalance.totalPaid)} · {t('myShare')} {money(myBalance.totalOwed)}
           </p>
         </div>
         <div className="text-center sm:text-right">

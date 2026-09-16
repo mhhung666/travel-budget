@@ -58,7 +58,7 @@ it.each([false, true])(
         root = hydrateRoot(container, app, { onRecoverableError: errors });
       });
       expect(screen.getByRole('heading', { name: 'Cached trip' })).toBeInTheDocument();
-      expect(!!screen.queryByText(/mySpent/)).toBe(member);
+      expect(!!screen.queryByText(/totalSpent/)).toBe(member);
       expect(screen.queryByText('loading')).not.toBeInTheDocument();
       expect(errors).not.toHaveBeenCalled();
     } finally {

@@ -15,6 +15,7 @@ import {
   X,
 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
+import { formatCurrency as formatMoney } from '@/constants/currencies';
 import DateRangeFilter from './DateRangeFilter';
 import ExpenseHistogram from './ExpenseHistogram';
 import RuleBasedInsights from './RuleBasedInsights';
@@ -135,12 +136,8 @@ export default function StatsDashboard({
   const locale = useLocale();
   const numberLocale =
     locale === 'zh' ? 'zh-TW' : locale === 'jp' ? 'ja-JP' : locale === 'zh-CN' ? 'zh-CN' : 'en-US';
-  const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat(numberLocale, {
-      style: 'currency',
-      currency: 'TWD',
-      maximumFractionDigits: 0,
-    }).format(amount);
+  // 與預算列、結算頁共用同一個金額格式（NT$1,972），避免同一筆錢有三種寫法。
+  const formatCurrency = (amount: number) => formatMoney(amount, 'TWD', locale);
   const formatDate = (date: string) =>
     new Intl.DateTimeFormat(numberLocale, {
       month: 'short',

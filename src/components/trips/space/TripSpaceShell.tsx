@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { ExpenseFormSheet, BudgetDialog } from '@/components/trips/DeferredDialogs';
 import { ArrowLeft, History, MoreHorizontal, Settings, Wallet } from 'lucide-react';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { ROUTES } from '@/constants/routes';
 import { formatCurrency } from '@/constants/currencies';
 import { useTripSpace } from '@/hooks/useTripSpace';
@@ -50,6 +50,7 @@ export function TripSpaceShell({
   const tTrip = useTranslations('trip');
   const tTrips = useTranslations('trips');
   const tBudget = useTranslations('budget');
+  const locale = useLocale();
 
   // `trip` 來自 client-only 的 React Query 快取（SSR 時永遠沒有值，rehydrate 後才可能有）。
   // 若直接依 trip/isLoading 分支，server HTML 與首次 client paint 會對不上（div↔h1、skeleton 有無）
@@ -293,10 +294,11 @@ export function TripSpaceShell({
               )}
             >
               <div className="container mx-auto flex h-9 max-w-6xl items-center justify-between gap-3 px-4 text-sm">
-                <span className="shrink-0 text-muted-foreground">
-                  {tBudget('mySpent')}{' '}
+                {/* 口徑：每筆支出分攤給本人的金額，不含代墊他人的部分（見結算頁）。 */}
+                <span className="shrink-0 text-muted-foreground" title={tBudget('shareHint')}>
+                  {tBudget('totalSpent')}{' '}
                   <span className="font-semibold tabular-nums text-foreground">
-                    {formatCurrency(totalSpent, 'TWD')}
+                    {formatCurrency(totalSpent, 'TWD', locale)}
                   </span>
                 </span>
                 {total !== null ? (
@@ -306,10 +308,10 @@ export function TripSpaceShell({
                       overBudget ? 'font-medium text-destructive' : 'text-muted-foreground'
                     )}
                   >
-                    {tBudget('myTotal')} {formatCurrency(total, 'TWD')} ·{' '}
+                    {tBudget('myTotal')} {formatCurrency(total, 'TWD', locale)} ·{' '}
                     {overBudget
-                      ? `${tBudget('overBudget')} ${formatCurrency(totalSpent - total, 'TWD')}`
-                      : `${tBudget('remaining')} ${formatCurrency(total - totalSpent, 'TWD')}`}
+                      ? `${tBudget('overBudget')} ${formatCurrency(totalSpent - total, 'TWD', locale)}`
+                      : `${tBudget('remaining')} ${formatCurrency(total - totalSpent, 'TWD', locale)}`}
                   </span>
                 ) : (
                   <button

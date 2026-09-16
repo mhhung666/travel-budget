@@ -78,8 +78,11 @@ export async function readTripShell(
                   initialValue: 0,
                   in: {
                     $cond: [
+                      // 比字串而非 ObjectId：結算與個人統計都用 `.toString()` 比對，
+                      // 型別若不一致（歷史匯入的 splits.user 存成字串）只有這裡會漏算，
+                      // 同一趟旅行就會出現「我的花費 0、結算卻有金額」。
                       {
-                        $eq: ['$$this.user', new Types.ObjectId(viewerId)],
+                        $eq: [{ $toString: '$$this.user' }, viewerId],
                       },
                       '$$this.shareAmount',
                       0,

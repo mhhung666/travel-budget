@@ -69,10 +69,9 @@ export default function SettlementPlan({
     return rate ? amount / rate : amount;
   };
 
-  const formatAmount = (amount: number): string => {
-    const converted = convertAmount(amount);
-    return converted.toFixed(selectedCurrency === 'JPY' ? 0 : 2);
-  };
+  // 全站金額一律走 formatCurrency（NT$1,972），不自行拼 `TWD 1972.00`。
+  const formatAmount = (amount: number): string =>
+    formatCurrency(convertAmount(amount), selectedCurrency, locale);
 
   return (
     <Card>
@@ -148,7 +147,7 @@ export default function SettlementPlan({
                     {/* Amount & Arrow */}
                     <div className="text-center my-2 sm:my-0 flex-1">
                       <p className="text-lg font-bold tabular-nums text-warning">
-                        {selectedCurrency} {formatAmount(transaction.amount)}
+                        {formatAmount(transaction.amount)}
                       </p>
                       {selectedCurrency !== 'TWD' && (
                         <p className="text-xs text-muted-foreground">

@@ -5,6 +5,7 @@ import { useTranslations, useLocale } from 'next-intl';
 import { Users, CalendarDays, TrendingUp } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { TripStatsData } from '@/types';
+import { formatCurrency as formatMoney } from '@/constants/currencies';
 import StatsSummaryCard from './StatsSummaryCard';
 import CategoryStats from './CategoryStats';
 import TagStats from './TagStats';
@@ -79,13 +80,8 @@ export default function TripStatsView({
   const [displayCurrency, setDisplayCurrency] = useState('TWD');
   const rate = displayCurrency === 'TWD' ? 1 : (displayRates?.[displayCurrency] ?? 1);
 
-  const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat(intlLocale(locale), {
-      style: 'currency',
-      currency: displayCurrency,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount / rate);
+  // 與預算列、結算頁共用同一個金額格式（NT$1,972），避免同一筆錢有三種寫法。
+  const formatCurrency = (amount: number) => formatMoney(amount / rate, displayCurrency, locale);
 
   const formatDate = (date: string) => new Date(date).toLocaleDateString(intlLocale(locale));
 

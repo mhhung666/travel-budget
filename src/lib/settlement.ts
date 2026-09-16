@@ -1,3 +1,5 @@
+import { formatCurrency } from '@/constants/currencies';
+
 interface Balance {
   userId: string;
   username: string;
@@ -87,10 +89,6 @@ export function applyPayments<T extends { userId: string; balance: number }>(
 /**
  * 格式化金額顯示
  */
-export function formatAmount(amount: number): string {
-  return new Intl.NumberFormat('zh-TW', {
-    style: 'currency',
-    currency: 'TWD',
-    minimumFractionDigits: 0,
-  }).format(amount);
+export function formatAmount(amount: number, locale = 'zh'): string {
+  return formatCurrency(amount, 'TWD', locale);
 }
