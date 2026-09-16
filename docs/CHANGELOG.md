@@ -7,6 +7,7 @@
 
 | 日期 | 里程碑 |
 | --- | --- |
+| 09-16 | P 支出背景處理驗收結案：293 項相關／隔離測試、正式站佇列檢查與 iPhone 系統推播／站內通知通過；其餘部署、排程、逐事件與效能項目依使用者決定接受免驗。見 [P 結案紀錄](./EXPENSE_DELIVERY_ACCEPTANCE.md) |
 | 09-16 | 正式站相簿檢視器載入失敗重試、23 筆支出列表與搜尋重設於桌面／手機 viewport 通過；補存 12 次冷／熱 Network／Performance trace，無 page error，尚不代表效能結案。見 [補驗報告](./PRODUCTION_ACCEPTANCE_2026-09-16.md) |
 | 09-15 | 正式站支出背景更新失敗／手動重試在桌面與手機 viewport 通過：九筆與 NT$253 保留，重試成功，無 page error。iOS Safari／安裝版 PWA 依使用者決定暫時通過、未實測；見 [補驗報告](./PRODUCTION_ACCEPTANCE_2026-09-15.md) |
 | 09-15 | S 正式站摘要時序複驗通過：分階段拒絕兩筆草稿後，連續離線重載兩次均回到正確摘要；清理草稿後全新 context 核對九筆、NT$253。詳見 [正式站複驗](./PRODUCTION_ACCEPTANCE_2026-09-14.md#09-15-摘要時序複驗) |
