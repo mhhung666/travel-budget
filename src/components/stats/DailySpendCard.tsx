@@ -29,6 +29,7 @@ export default function DailySpendCard({ dailySpend, formatCurrency }: DailySpen
           <CalendarRange className="h-5 w-5 text-muted-foreground" />
           {t('dailySpend')}
         </CardTitle>
+        <p className="text-xs text-muted-foreground">{t('dailySpendHint')}</p>
       </CardHeader>
       <CardContent>
         <ul className="space-y-3">

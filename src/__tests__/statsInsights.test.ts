@@ -136,4 +136,22 @@ describe('advanced personal stats insight rules', () => {
     expect(insights.map((insight) => insight.type)).toContain('balanced_category_distribution');
     expect(insights.map((insight) => insight.type)).not.toContain('trip_category_concentration');
   });
+
+  it('carries the trip start date so the UI can flag pre-trip spending', () => {
+    const insights = generateStatsInsights({
+      tripStats: [
+        trip(
+          [
+            detail('flight', 870, 'transportation', '2026-07-01'),
+            detail('hotel', 80, 'accommodation', '2026-07-02'),
+            detail('sim', 50, 'other', '2026-07-03'),
+          ],
+          { tripStartDate: '2026-10-01' }
+        ),
+      ],
+    });
+
+    expect(insights.length).toBeGreaterThan(0);
+    expect(insights.every((insight) => insight.tripStartDate === '2026-10-01')).toBe(true);
+  });
 });

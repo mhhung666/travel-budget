@@ -85,6 +85,7 @@ export function generateStatsInsights(stats: { tripStats: PersonalTripStat[] }):
     const base = {
       tripId: trip.tripId,
       tripName: trip.tripName,
+      tripStartDate: trip.tripStartDate ?? null,
       sampleSize: details.length,
       totalAmount: total,
     };

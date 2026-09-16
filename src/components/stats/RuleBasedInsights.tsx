@@ -11,6 +11,7 @@ import {
   type StatsInsight,
 } from '@/lib/statsInsights';
 import { trackProductEvent } from '@/lib/productEvents';
+import { getTripPhase } from '@/lib/tripStatus';
 import type { StatsData } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -168,6 +169,13 @@ export default function RuleBasedInsights({
                   {t(`advancedInsight.${insight.type}.label`)}
                 </div>
                 <p className="font-semibold">{title}</p>
+                {/* 旅行還沒出發時，分布只反映機票、住宿等預訂，先提醒以免誤讀 */}
+                {insight.tripStartDate &&
+                  getTripPhase(insight.tripStartDate, null).phase === 'preTrip' && (
+                    <p className="mt-1 text-xs font-medium text-warning">
+                      {t('advancedInsight.preTripNote')}
+                    </p>
+                  )}
                 <p className="mt-2 text-sm text-muted-foreground">
                   {formatCurrency(insight.amount)} ·{' '}
                   {t('advancedInsight.sampleSize', { count: insight.sampleSize })}

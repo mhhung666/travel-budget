@@ -171,7 +171,9 @@ export default function CreateTripDialog({ open, onClose, onSuccess }: CreateTri
               variant="ghost"
               className="w-full justify-between px-2 text-muted-foreground"
             >
-              <span>{t('create.moreDetails')}</span>
+              <span>
+                {friends.length > 0 ? t('create.moreDetailsWithFriends') : t('create.moreDetails')}
+              </span>
               <ChevronDown
                 className={cn('h-4 w-4 transition-transform', detailsOpen && 'rotate-180')}
               />

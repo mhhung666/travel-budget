@@ -38,6 +38,8 @@ interface ExpenseHistogramProps {
   interval?: TimeInterval;
   onIntervalChange?: (interval: TimeInterval) => void;
   cardGradient?: string;
+  /** 標題下的說明；預設為選取時段的操作提示 */
+  hint?: string;
   selectedPeriod?: { startDate: string; endDate: string } | null;
   onPeriodSelect?: (period: { startDate: string; endDate: string } | null) => void;
 }
@@ -63,6 +65,7 @@ export default function ExpenseHistogram({
   onMetricChange = () => undefined,
   interval: requestedInterval,
   onIntervalChange,
+  hint,
   selectedPeriod,
   onPeriodSelect,
 }: ExpenseHistogramProps) {
@@ -116,7 +119,7 @@ export default function ExpenseHistogram({
           </div>
           <div>
             <h2 className="font-semibold">{t('expenseHistogram')}</h2>
-            <p className="text-xs text-muted-foreground">{t('chartHint')}</p>
+            <p className="text-xs text-muted-foreground">{hint ?? t('chartHint')}</p>
           </div>
         </div>
         <div className="grid w-full gap-2 sm:flex sm:w-auto sm:flex-wrap">

@@ -30,6 +30,8 @@ export interface TagStat {
 export interface PersonalTripStat {
   tripId: string;
   tripName: string;
+  /** 旅行出發日（YYYY-MM-DD）；前端據此判斷洞察是否為行前支出 */
+  tripStartDate?: string | null;
   total: number;
   count: number;
   details: ExpenseDetail[];
@@ -48,6 +50,7 @@ export interface StatsInsight {
   type: StatsInsightType;
   tripId: string;
   tripName: string;
+  tripStartDate?: string | null;
   amount: number;
   totalAmount: number;
   percentage?: number;

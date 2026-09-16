@@ -51,7 +51,7 @@ type LeanStatExpense = {
   date: Date;
   description: string;
   splits: { user: { toString(): string }; shareAmount: number }[];
-  trip: { _id: { toString(): string }; name: string } | null;
+  trip: { _id: { toString(): string }; name: string; startDate?: Date | null } | null;
   tags?: string[] | null;
 };
 
@@ -83,7 +83,13 @@ function aggregatePersonalStats(expenses: LeanStatExpense[], userId: string): St
   const categoryMap = new Map<string, { total: number; count: number; details: ExpenseDetail[] }>();
   const tripMap = new Map<
     string,
-    { tripName: string; total: number; count: number; details: ExpenseDetail[] }
+    {
+      tripName: string;
+      tripStartDate: string | null;
+      total: number;
+      count: number;
+      details: ExpenseDetail[];
+    }
   >();
   const tagMap = new Map<string, { total: number; count: number; details: ExpenseDetail[] }>();
   const allDetails: ExpenseDetail[] = [];
@@ -120,6 +126,7 @@ function aggregatePersonalStats(expenses: LeanStatExpense[], userId: string): St
     if (tripId) {
       const tripValue = tripMap.get(tripId) || {
         tripName: expense.trip?.name || '',
+        tripStartDate: expense.trip?.startDate?.toISOString().slice(0, 10) ?? null,
         total: 0,
         count: 0,
         details: [],
@@ -153,6 +160,7 @@ function aggregatePersonalStats(expenses: LeanStatExpense[], userId: string): St
   const tripStats: PersonalTripStat[] = Array.from(tripMap, ([tripId, value]) => ({
     tripId,
     tripName: value.tripName,
+    tripStartDate: value.tripStartDate,
     total: roundMoney(value.total),
     count: value.count,
     details: sortDetails(value.details),
@@ -241,7 +249,7 @@ export const getStats = withAuth(
         ...(rangeStart || rangeEnd ? { date: dateFilter } : {}),
       })
         .select('amount category date description splits trip tags')
-        .populate('trip', 'name')
+        .populate('trip', 'name startDate')
         .lean<LeanStatExpense[]>();
 
       const isCurrent = (expense: LeanStatExpense) => {
