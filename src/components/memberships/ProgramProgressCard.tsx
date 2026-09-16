@@ -76,7 +76,7 @@ export function ProgramProgressCard({
   const rules = PROGRAM_RULES[account.program];
   const tierName = (key: string) =>
     t(`loyalty.tiers.${account.program}.${key}` as Parameters<typeof t>[0]);
-  // 等級 tag 底色＝官方卡面近似色（docs/TIER-COLORS.md）；查無則 fallback secondary
+  // 等級 tag 底色＝官方卡面近似色（docs/archive/details/TIER-COLORS.md）；查無則 fallback secondary
   const tierColor = TIER_BADGE_COLORS[account.program]?.[account.current_tier];
 
   // 收合列的迷你進度（文字＋百分比）與展開區詳情，依規則 kind 各算一次

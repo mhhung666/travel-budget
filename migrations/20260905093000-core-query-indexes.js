@@ -1,5 +1,5 @@
 /**
- * Additive indexes validated by docs/MONGODB_INDEX_RESULTS.md.
+ * Additive indexes validated by docs/archive/tests/MONGODB_INDEX_RESULTS.md.
  * Run before deploying matching schemas. Never run concurrently with another DDL runner.
  * A ledger protects pre-existing/autoIndex-created indexes from rollback deletion.
  */

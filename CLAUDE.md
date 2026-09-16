@@ -7,7 +7,7 @@ Detail lives in the linked docs — open the one matching your task; do not past
 
 Travel Budget Planner (旅行記帳) — multi-user trip expense tracking and bill-splitting.
 Next.js 16 (App Router) + React 19 + TypeScript, MongoDB (Mongoose), Shadcn UI (Radix) + Tailwind, next-intl.
-Primary backend = **Server Actions** in [src/actions/](src/actions/), not REST. `/api` only hosts the
+Primary backend = **Server Actions** in [src/actions/](src/actions), not REST. `/api` only hosts the
 intentionally-public share endpoints and the exchange-rate proxy.
 
 ## Commands
@@ -20,7 +20,7 @@ pnpm format            # Prettier write; format:check to verify
 pnpm test:run          # Vitest single run (CI / one-shot); `pnpm test` = watch mode
 pnpm test:coverage     # Coverage (v8)
 pnpm vitest run src/__tests__/settlement.test.ts   # single file; `-t "name"` for one test
-pnpm migrate:status|up|down|create                 # migrate-mongo (docs/MIGRATIONS.md)
+pnpm migrate:status|up|down|create                 # migrate-mongo (docs/archive/details/MIGRATIONS.md)
 npx tsc --noEmit                                   # type check (no pnpm script for this)
 ```
 
@@ -35,7 +35,7 @@ npx tsc --noEmit                                   # type check (no pnpm script 
   best-effort (log, never fail the user action).
 - Trip ids are ObjectId string **or** `hash_code` (`[a-z0-9]{6,10}`) — keep dual acceptance in new endpoints,
   **except** `/api/public/*` which accepts hash_code only (deliberate).
-- NEVER add session checks to [src/app/api/public/](src/app/api/public/) — unauthenticated by design.
+- NEVER add session checks to [src/app/api/public/](src/app/api/public) — unauthenticated by design.
 - NEVER return receipt attachments on public routes (`toExpenseDto(..., { attachments: false })`);
   receipts live in the private bucket only, avatars in the public one.
 - Album photos (`photos/<tripId>/`): the display `<uuid>.jpg` **carries live GPS EXIF by design**
@@ -57,7 +57,7 @@ npx tsc --noEmit                                   # type check (no pnpm script 
 
 **i18n**
 - New user-facing strings go to **all four** catalogs (`en`, `zh`, `zh-CN`, `jp`) in
-  [src/i18n/messages/](src/i18n/messages/). Verify: `grep -l "<key>" src/i18n/messages/*.json` → 4 files.
+  [src/i18n/messages/](src/i18n/messages). Verify: `grep -l "<key>" src/i18n/messages/*.json` → 4 files.
 - URLs carry **no locale prefix** (no `[locale]` segment); UI locale = `NEXT_LOCALE` cookie read server-side.
   No i18n middleware — [src/proxy.ts](src/proxy.ts) does auth redirects only.
 
@@ -71,14 +71,14 @@ npx tsc --noEmit                                   # type check (no pnpm script 
 - Reshaping a stored field → write a migrate-mongo migration (idempotent + `down`) first; no lingering
   read-side `newField ?? legacyField` fallbacks. Other environments need `pnpm migrate:up` — say so.
 - Existing code that "looks like a bug" may be deliberate — check the relevant section in
-  [docs/claude/ARCH-NOTES.md](docs/claude/ARCH-NOTES.md) and Git history before "fixing" it.
+  [docs/archive/claude/ARCH-NOTES.md](docs/archive/claude/ARCH-NOTES.md) and Git history before "fixing" it.
 
 ## Read-before-touching map
 
 | Touching… | Read first |
 |---|---|
-| Server actions, models, auth, permissions | [docs/claude/ARCH-NOTES.md](docs/claude/ARCH-NOTES.md) §Server Actions / §Auth / §tripIdOrCode |
-| Schema / migrations | ARCH-NOTES §Schema + [docs/MIGRATIONS.md](docs/MIGRATIONS.md) |
+| Server actions, models, auth, permissions | [docs/archive/claude/ARCH-NOTES.md](docs/archive/claude/ARCH-NOTES.md) §Server Actions / §Auth / §tripIdOrCode |
+| Schema / migrations | ARCH-NOTES §Schema + [docs/archive/details/MIGRATIONS.md](docs/archive/details/MIGRATIONS.md) |
 | Receipts, avatars, uploads (R2) | ARCH-NOTES §R2 blob 儲存 |
 | Offline / service worker / query persistence | ARCH-NOTES §離線 PWA |
 | Notifications / web push / email | ARCH-NOTES §Web Push |
@@ -89,18 +89,17 @@ npx tsc --noEmit                                   # type check (no pnpm script 
 
 ## Docs index
 
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — authoritative system structure (subsystems, data model)
-- [docs/FEATURES.md](docs/FEATURES.md) — concise shipped-features inventory
-- [docs/ROADMAP.md](docs/ROADMAP.md) — not-yet-built ideas · [docs/CHANGELOG.md](docs/CHANGELOG.md) — done log
-- [docs/IMPROVEMENTS.md](docs/IMPROVEMENTS.md) — known tech debt
-- [docs/MIGRATIONS.md](docs/MIGRATIONS.md) — migrate-mongo guide
+- [docs/README.md](docs/README.md) — core documentation entry point
+- [docs/FEATURES.md](docs/FEATURES.md) — current product capabilities and limits
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — core structure and maintenance contracts
+- [docs/archive/README.md](docs/archive/README.md) — archived details, test evidence and deferred plans; consult only when relevant, not an active work queue
 
 ## Working protocol (read before non-trivial tasks)
 
-- Follow [docs/claude/WORKFLOW.md](docs/claude/WORKFLOW.md) for scope, synchronized contracts,
+- Follow [docs/archive/claude/WORKFLOW.md](docs/archive/claude/WORKFLOW.md) for scope, synchronized contracts,
   risk-based verification, and completion reporting.
-- Read only the relevant section of [docs/claude/ARCH-NOTES.md](docs/claude/ARCH-NOTES.md).
-- Append confirmed recurring mistakes to [docs/claude/LESSONS.md](docs/claude/LESSONS.md).
+- Read only the relevant section of [docs/archive/claude/ARCH-NOTES.md](docs/archive/claude/ARCH-NOTES.md).
+- Append confirmed recurring mistakes to [docs/archive/claude/LESSONS.md](docs/archive/claude/LESSONS.md).
 
 ## Conventions
 

@@ -1,0 +1,95 @@
+# 重要完成里程碑
+
+> 更新日期：2026-09-16
+> 本文件提供產品演進摘要，不是逐 commit 紀錄。精確變更、作者與 diff 請查 `git log`；目前能力見 [FEATURES.md](../../FEATURES.md)。
+
+## 2026-09
+
+| 日期 | 里程碑 |
+| --- | --- |
+| 09-16 | P 支出背景處理驗收結案：293 項相關／隔離測試、正式站佇列檢查與 iPhone 系統推播／站內通知通過；其餘部署、排程、逐事件與效能項目依使用者決定接受免驗。見 [P 結案紀錄](../tests/EXPENSE_DELIVERY_ACCEPTANCE.md) |
+| 09-16 | 正式站相簿檢視器載入失敗重試、23 筆支出列表與搜尋重設於桌面／手機 viewport 通過；補存 12 次冷／熱 Network／Performance trace，無 page error，尚不代表效能結案。見 [補驗報告](../tests/PRODUCTION_ACCEPTANCE_2026-09-16.md) |
+| 09-15 | 正式站支出背景更新失敗／手動重試在桌面與手機 viewport 通過：九筆與 NT$253 保留，重試成功，無 page error。iOS Safari／安裝版 PWA 依使用者決定暫時通過、未實測；見 [補驗報告](../tests/PRODUCTION_ACCEPTANCE_2026-09-15.md) |
+| 09-15 | S 正式站摘要時序複驗通過：分階段拒絕兩筆草稿後，連續離線重載兩次均回到正確摘要；清理草稿後全新 context 核對九筆、NT$253。詳見 [正式站複驗](../tests/PRODUCTION_ACCEPTANCE_2026-09-14.md#09-15-摘要時序複驗) |
+| 09-14 | 修正部分失敗後重組摘要、下一筆失敗仍殘留金額，以及 IndexedDB 保存期間覆蓋已復原摘要的競態。完整 1,492 項測試與七項 Chrome／SW 驗收通過；尚未部署，詳見 [S 摘要時序修正](OFFLINE_EXPENSE_COMPLETION.md#正式抽驗後的摘要時序修正) |
+| 09-14 | S 正式站抽驗：離線重載、補送、回應遺失、多分頁與草稿復原通過；永久失敗後快速離線重載曾出現摘要多計 NT$43，S 正式驗收尚未結案。詳見 [正式站驗收報告](../tests/PRODUCTION_ACCEPTANCE_2026-09-14.md) |
+| 09-14 | 修正同頁兩個記帳入口同時新增時，列表兩筆但摘要只計一筆的競態；本機保存與摘要更新依 QueryClient 排序，儲存失敗不阻擋下一筆。37 項相關測試、TypeScript 與變更檔案 ESLint 通過；尚未部署，見 [S 後續修正](OFFLINE_EXPENSE_COMPLETION.md#後續修正2026-09-14) |
+| 09-14 | 修正連續離線支出補送失敗後，重載摘要仍計入失敗金額的問題；回溯暫時計算後只加回待同步支出，新增三種失敗組合回歸測試。交付 `086bb48`，27 項相關測試、TypeScript 與變更檔案 ESLint 通過；尚未部署，見 [S 後續修正](OFFLINE_EXPENSE_COMPLETION.md#後續修正2026-09-14) |
+| 09-13 | S 離線資料保留工程與六項本機 production-build 瀏覽器驗收完成，涵蓋立即重載、回應遺失、多分頁、失敗草稿與儲存失敗；完整測試 1,479 項通過，正式部署抽驗仍由 M 追蹤，見 [S 完成紀錄](OFFLINE_EXPENSE_COMPLETION.md) |
+| 09-12 | 完成正式站補充驗收：支出 CRUD、動態表單失敗重試、行程活動衝突保護、票券 PDF 正常流程及離線直接補送通過，補 12 次冷／熱載入觀測；離線重載遺失待同步支出已重現並列為阻擋缺陷 S，M／O／P／R 尚未完整結案，見 [驗收報告](../tests/PRODUCTION_ACCEPTANCE_2026-09-12.md) |
+| 09-11 | 載入態 UI 正式站唯讀驗收通過：以指定帳號於 `budget.mhhung.com` 的「202609 澎湖」旅程檢查行程、支出、旅程設定、個人設定及歷史紀錄，桌面（1440px）與手機 viewport（390px）無橫向溢出，正常瀏覽未捕捉到 JavaScript 執行錯誤；延遲查詢時顯示骨架並完成載入，歷史紀錄請求失敗可手動重試恢復，新增支出表單可開啟／關閉。未修改正式資料、送出記帳或呼叫 AI 解析；效能量測、部署 commit 核對、實機／PWA 與寫入流程仍待驗收，見 [M 後續項目](../plans/IMPROVEMENTS.md#目前優先順序) |
+| 09-11 | 載入態 UI 體驗修復：消除次要查詢與未完成請求在頁面頂端渲染「載入中...」純文字的問題；支出、旅程設定、地圖與個人設定冷載入優先顯示專屬骨架屏／動畫，活動紀錄、留言、通知與對話框補齊旋轉 Spinner 指示 |
+| 09-11 | R4 完成：票券附件驗證每次請求最多 4 個平行 HEAD，跨活動去重並保留輸入順序，任一失敗不寫入；R1～R4 工程結案，使用者回報 migration 與全部 push 已完成，部署與線上驗收待確認，見 [R 交付](ITINERARY_CONSISTENCY_PROGRESS.md) |
+| 09-11 | R3 完成：相片／財務／協作 writer 與成員變更交易協調，附件跨日引用具永久退役標記、持久化重試及延後清掃；部署需停寫、排空舊請求並執行最新 migration，見 [R 交付](ITINERARY_CONSISTENCY_PROGRESS.md) |
+| 09-11 | R3l：相片批次刪除交易化，交易內重新驗證成員，提交後才清理 R2 物件 |
+| 09-11 | R3k：相片編輯、行程日驗證與座標推導交易化，避免刪日競態留下失效關聯，交易內重新驗證成員 |
+| 09-10 | R3j：旅程更新與日期相片重綁交易化，阻止並行部分日期修改形成倒置區間，交易內重新驗權 |
+| 09-10 | R3i：AI 行程匯入與相片重綁納入逐日交易，保留重送去重與部分成功，交易內重新驗權及讀取旅程日期 |
+| 09-10 | R3h：筆記轉行程與規劃標記交易化，避免並行重複新增及部分寫入；補驗 R3g 單筆活動交易 |
+| 09-10 | R3f：整天更新、借用相片座標與日號重綁交易化；保留 revision 衝突契約，驗證回滾、降權及並行更新 |
+| 09-10 | R3e：新增行程日、日號分配及 auto 相片重綁交易化；真實 replica set 驗證並行新增／刪除、回滾及交易內重新驗權 |
+| 09-10 | R3d：行程日刪除、支出／相片關聯清理、連續編號及 auto 相片重綁交易化；真實 replica set 驗證回滾與並行刪除 |
+| 09-10 | R3a～R3c：虛擬身分轉換、成員移除與旅程刪除改用 transaction；旅程檔案清理具持久化重試與延後清掃，附 migration／cron。本機 replica set 驗證通過，剩餘行程日／票券引用協調見 [R 進度](ITINERARY_CONSISTENCY_PROGRESS.md) |
+| 09-09 | R2 完成工程驗收：真實 MongoDB 驗證活動並行、容量、批次衝突及 migrations；跨 collection 與 blob 清理仍屬 R3，見 [R 進度](ITINERARY_CONSISTENCY_PROGRESS.md) |
+| 09-09 | R2e：單筆編輯／刪除改用活動 revision，不同活動可並行；整批更新同步使活動快照失效，附 migration 與 cache buster，見 [R 進度](ITINERARY_CONSISTENCY_PROGRESS.md) |
+| 09-09 | R2d：行程衝突 token 改用明確 revision，手動、AI、筆記與重新編號統一原子遞增；附可逆 migration 與 cache buster，見 [R 進度](ITINERARY_CONSISTENCY_PROGRESS.md) |
+| 09-09 | R2c：手動、筆記轉活動與 AI 匯入統一每日活動上限，追加時原子檢查容量，滿額提供四語提示，見 [R 進度](ITINERARY_CONSISTENCY_PROGRESS.md) |
+| 09-09 | R2b：行程頁活動新增／編輯／刪除改為單筆原子寫入，沿用整天衝突保護；只驗證目標票券並保留當天其他活動仍引用的附件，見 [R 進度](ITINERARY_CONSISTENCY_PROGRESS.md) |
+| 09-09 | R2a：活動草稿與整天寫入保留既有 ID，拒絕漏傳、重複及外來活動 ID；單筆原子更新仍待後續，見 [R 進度](ITINERARY_CONSISTENCY_PROGRESS.md) |
+| 09-09 | R1：行程編輯攜帶開啟時的更新時間，伺服器以條件寫入拒絕舊草稿覆蓋；衝突不清票券或同步相片，保留表單草稿並提供四語提示。單筆原子更新與跨 collection 一致性仍待處理，見 [R 進度](ITINERARY_CONSISTENCY_PROGRESS.md) |
+| 09-09 | Q1～Q3 工程結案，使用者回報已 push；自待實作清單移除，正式部署確認與實機／線上效能驗收移交 M，尚未宣稱通過。無新增 migration 或環境參數，見 [結案狀態與後續清單](QUERY_UX_PROGRESS.md) |
+| 09-09 | Q3 完成：支出搜尋與列表 deferred rendering、首頁／支出預載決策、client query 與 Trip Shell hydration 邊界；36 次隔離 production-build 瀏覽器載入通過。保留冷／熱、手機／worker 量測與限制，不宣稱正式站 CWV 改善，見 [效能報告](../tests/QUERY_UX_PERFORMANCE.md) |
+| 09-08 | Q2 完成：全域快速記帳、大型表單、AI 輸入與共用 lightbox 按需載入；chunk 等待／失敗可關閉與重試，保留既有草稿重設及 metadata gating。AppShell entry gzip 較基準減少約 35.5%；全套 1,370 測試通過，瀏覽器效能驗收仍在 Q3，見 [Q 進度與 bundle 比較](QUERY_UX_PROGRESS.md) |
+| 09-08 | Q1b 收尾：其餘 ActionResult query 不再吞錯，登入故障與 auth-null 分離；補齊好友／收藏／地圖／通知／留言／清單／結算／統計等重試與快取提示。新增／編輯記帳 metadata 失敗可關閉並重試，不再無限等待；Q2 按需載入與 Q3 效能量測另行處理，見 [Q 進度](QUERY_UX_PROGRESS.md) |
+| 09-08 | Q1b 第一批：隨手記、相簿與活動紀錄不再吞掉查詢失敗；頁面提供重試、離線等待與保留快取的背景更新提示，旅程首頁同步顯示照片查詢狀態。新增 12 項回歸測試，登入判斷及其他 queries 仍待後續批次 |
+| 09-08 | Q1a：旅程列表保留查詢失敗與重試狀態，背景更新保留快取內容並提示失敗；快速記帳關閉時不主動查 trips，列表失敗不再誤進建立旅程流程。新增 QueryClient＋旅程頁回歸測試，其餘 Q 階段見 [進度清單](QUERY_UX_PROGRESS.md) |
+| 09-08 | O 線上 smoke test：指定正式站帳號正常／大小寫登入、session 安全屬性、登出與保護頁導回登入均通過，旅程／支出／結算／清單唯讀正常；記錄頁面長尾而不歸因索引，未修改帳號或進行正式站壓測，見 [線上驗收](../tests/MONGODB_LIVE_ACCEPTANCE.md) |
+| 09-08 | O 工程驗收：共用 DB 七顆既有核心索引經受限 adoption 正式登錄 migration，沒有建刪索引或修改業務資料；隔離 migration 八情境、真實 MongoDB account actions 五項測試通過。補十萬筆合成支出的讀寫比較與線上唯讀 explain；付款批次寫入 p95 有上升，實際負載與 HTTP 驗收仍保留，見 [索引結果](../tests/MONGODB_INDEX_RESULTS.md) |
+| 09-08 | P 程式交付收尾：新增支出以單次寫入保存背景事件，整合持久化 worker、站內去重、逐裝置重試／續跑及離線對帳；預設啟用、保留 off 回退與 Hobby 每日補送。四個共用 DB 索引 migration 已完成；正式部署、真實通知與延遲驗收尚待完成，見 [驗收清單](../tests/EXPENSE_DELIVERY_ACCEPTANCE.md) |
+| 09-05 | P 第一階段：新增支出重用 server Trip 快照，省去通知的一次 Trip 查詢；通知與活動紀錄並行且隔離失敗，保留等待完成的 serverless 安全行為。推播仍在回應路徑，持久化背景重試／去重尚待實作 |
+| 09-05 | 測試庫新增 7 顆 MongoDB 索引並完成 135 次 after explain：digest 掃描 122→5、四種清單 SORT 消除、帳號改用 CI unique；保留舊索引與業務資料。補 migration、schema 及 ownership 回滾測試，大資料量／寫入成本／真實回滾仍待驗證 |
+| 09-05 | 完成首次 MongoDB 測試庫唯讀基線：3 組旅程各 5 輪、共 135 次 explain，確認 digest 全表掃描、旅程清單 blocking sort 及帳號 collation 查詢 COLLSCAN；帳號重複掃描為零。保留逐輪統計，索引 after 與 migration 仍待驗證 |
+| 09-05 | 建立 MongoDB 核心查詢唯讀 explain 基線、前後比較及帳號 collation 重複掃描；排除 rejected plans 的誤判，註冊及確認改信箱的帳號 duplicate-key race 回傳 CONFLICT。候選索引仍待 staging 驗證與 migration，未修改資料庫 |
+| 09-05 | 完成 N 會員授權與公開資料流去重：首頁冷啟動以單次授權 bootstrap 取得 Trip、shell、行程及依階段擇一的清單／結算；沿用各資源 query key 與精準更新。共用行程、shell、清單、結算讀取 service，公開分享保留敏感欄位隔離；加入與成員變更清除 access mode，遠端資格變動於後續 refetch 重新判定 |
+| 09-04 | 完成輕量 Trip Shell 與按需載入：共用殼改用角色／預算／成員與支出 aggregate DTO，完整 members、itinerary 與 distinct tags 僅在新增支出時載入；表單及預算 Dialog 拆為動態 chunk，首頁不再為摘要下載完整支出清單，並保留新增支出的 optimistic 摘要更新 |
+| 09-04 | 完成 P0 基礎修復：React Query／離線 mutation 依登入使用者分區，登出統一清除記憶體與 IndexedDB 並提示未同步項目；authenticated layout 明確採動態渲染，production build 不再產生 cookies dynamic usage 假錯誤 |
+| 09-04 | 補齊 expense、settlement、trip 核心 actions 的授權、驗證、金額計算、附件與級聯副作用測試，連同既有 member actions 測試形成核心業務安全網；同步補上更新支出時的團外付款人／分帳成員防線 |
+
+## 2026-08
+
+| 日期 | 里程碑 |
+| --- | --- |
+| 08-04 | AI 行程匯入完成低流量受限試用基線：依介面語言產生四語可編輯預覽並保留專有名詞、逐日冪等確認、部分重試、MongoDB 持久化全域／使用者／旅程配額、成本預留、去識別 funnel 事件與五天腳本化驗收；完整 provider 擴流門檻仍待通過 |
+
+## 2026-07
+
+| 日期 | 里程碑 |
+| --- | --- |
+| 07-30 | 預算由全團共用改為每位正式成員自行設定，進度依支出中的個人分攤金額計算；舊團體預算保留作設定參考，個人預算不進入公開分享 |
+| 07-29 | 完成個人統計儀表板 MVP 與手機互動驗證：四項洞察、等長前期比較、互動趨勢、分類／旅程／標籤分析、完整 URL 狀態、明細排序、直達支出編輯、空狀態與錯誤重試；手機補齊 44px 觸控目標、窄版日期排版及可水平滑動的圖表資料點 |
+| 07-28 | 個人設定顯示由 `package.json.version` 注入的軟體版本；建立 Agent Semantic Versioning 與 commit 規則 |
+| 07-27 | 完成 UI/UX Phase 1–4 的程式基線：金額/日期一致性、可及性、首次成功流程、全域快速記帳、導覽與旅行首頁、匿名產品事件與 axe 測試 |
+| 07-18 | 會籍等級 badge 色彩規則集中化 |
+| 07-14～16 | 完成 CX/CI/BR 會籍積分與里程 ledger、升等/續會進度及 CX 區間試算 |
+| 07-15～16 | 完成共享旅程相簿、EXIF/GPS 保存、行程與地圖整合、批次操作，以及移除位置資料的公開分享 |
+| 07-15 | 重排行程空間：行程成為落點，主分頁收斂為行程/支出/相簿/結算 |
+| 07-13 | 完成飛行、住宿、國家、徽章的旅行成就與公開徽章卡 |
+| 07-03～14 | 完成共享隨手記、GFM Markdown、互動待辦、好友系統與旅行幣別設定 |
+| 07-02 | 完成 App Shell/底部導覽重構、CI、Public API 樣板與錯誤碼、結構化 logger、安全標頭、路由規則單一來源 |
+| 07-01 | 完成支出留言與自訂標籤 |
+
+## 2026-06
+
+| 日期 | 里程碑 |
+| --- | --- |
+| 06-29 | 完成站內通知、Email、排程、Web Push 與年度旅行回顧 |
+| 06-28 | 完成 PWA、離線讀取/新增支出、動態牆與支出搜尋 |
+| 06-27 | 完成 R2 收據/頭像、行程強化與票券附件 |
+| 06-26 | 完成預算、彈性分帳、還款閉環、打包清單與群組統計 |
+| 06-16 起 | 資料層由 Supabase/PostgreSQL 遷移至 MongoDB/Mongoose；建立內嵌 members/splits、應用層權限與手動 cascade 契約 |
+
+## 維護方式
+
+- 只新增跨功能、架構或明顯產品能力的里程碑。
+- 小修、測試補強、純文件調整與單一樣式變更留在 Git，不在此重抄。
+- 已完成規劃的設計過程不保留全文；需要時用 `git log -- <path>` 或 `git show <commit>` 回顧。

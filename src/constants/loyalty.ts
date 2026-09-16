@@ -270,7 +270,7 @@ export const PROGRAM_RULES: Record<LoyaltyProgram, ProgramRules> = {
 };
 
 /**
- * 等級 tag 的底色（會籍頁 tier badge 用；規則見 docs/TIER-COLORS.md）。
+ * 等級 tag 的底色（會籍頁 tier badge 用；規則見 docs/archive/details/TIER-COLORS.md）。
  * 取各家官方會員卡卡面主色的**近似值**（人工對照官網視覺取色，非官方色票）；
  * 銀／金／黑鑽等「材質級」跨航空共用同色，基礎級用該航空品牌綠／藍近似色。
  * 查無 key 時 UI fallback 回預設 secondary badge——新 program 未補色不會壞。

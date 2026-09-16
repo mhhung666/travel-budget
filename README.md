@@ -2,27 +2,15 @@
 
 一個現代化、輕量級的**多人旅行記帳與分帳**應用程式，專為團隊出國旅行設計。協助大家輕鬆追蹤支出、自動計算誰該付誰多少、規劃行程，並支援多幣別即時匯率、收據附件、離線記帳與年度回顧。
 
-> 進度先看 [專案狀態總覽](docs/README.md)：已完成、待改善、待驗證與暫緩項目。
-> 文件導覽：架構見 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)、完整功能盤點見 [docs/FEATURES.md](docs/FEATURES.md)、待辦藍圖見 [docs/ROADMAP.md](docs/ROADMAP.md)、文件索引見 [docs/README.md](docs/README.md)。
+> 從 [核心文件](docs/README.md) 開始；完整的 [現有功能](docs/FEATURES.md) 與 [架構摘要](docs/ARCHITECTURE.md) 分開維護。
 
-## ✨ 核心功能 (Features)
+## 核心功能
 
-- **多人協作分帳**：建立旅程、邀請成員，共同記錄消費；支援**虛擬成員**（未註冊也能參與分帳，事後可連結真人帳號）。
-- **彈性分帳**：每筆支出支援**均分 / 指定金額 / 百分比 / 份數**四種分攤方式。
-- **結算閉環**：一鍵生成**最小化轉帳次數**的結算方案，並可**標記「已付清」**、登記實際還款，算出淨額。
-- **個人預算管理**：每位成員可為旅程與各分類設定自己的預算，依個人分攤金額呈現進度與超支警示。
-- **多幣別 + 即時匯率**：記錄當地貨幣，自動換算為基準貨幣（TWD）。
-- **收據 / 票券附件**：支出收據與行程票券上傳（Cloudflare R2，私有儲存、成員限定檢視）。
-- **行程規劃**：逐日行程 + 活動時間軸（時段、訂房 / 機票確認碼），支出可關聯到「第幾天」。
-- **AI 行程匯入（受限試用）**：旅程 admin 可將外部文字依目前介面語言解析成四語可編輯預覽（保留地名與專有名詞），確認後逐日安全匯入；具持久化每日配額、成本預留、冪等重試與去識別量測。
-- **打包清單 / 待辦**：可指派成員、進度條。
-- **統計圖表**：個人（跨旅程）與全團（單一旅程）統計、付款排行、按日花費、趨勢直方圖（Recharts）。
-- **旅遊地圖**：航線 / 熱點 / 國家三種模式，支援公開分享（去識別化）。
-- **通知**：站內鈴鐺 + Email（Resend）+ 排程提醒（Vercel Cron）+ **瀏覽器推播（Web Push）**。
-- **動態牆**：per-trip 共享活動時間軸（誰改了什麼）。
-- **離線優先 PWA**：可安裝、離線檢視、**離線記帳**（連線後自動同步）。
-- **年度旅行回顧**：年底「Travel Wrapped」漸層圖卡，可匯出 PNG / 分享。
-- **現代化 UI/UX**：Shadcn UI + Tailwind、深色模式、響應式、四語系（en / zh / zh-CN / jp）。
+- 多人旅程、真人／虛擬成員、多幣別支出、四種分攤方式、個人預算與還款結算。
+- 每日行程、票券、共享相簿、清單、筆記與活動紀錄。
+- AI 行程匯入、自然語言記帳與收據草稿（受限試用，確認後才寫入）。
+- 個人／群組統計、旅行地圖、年度回顧、旅行成就與航空會籍紀錄。
+- 站內／Email／Web Push 通知、PWA 與離線新增支出、四語系與深色模式。
 
 ## 🛠 技術架構 (Tech Stack)
 
@@ -44,7 +32,7 @@
 | 測試 | [Vitest](https://vitest.dev/) + Testing Library + jsdom |
 | 部署 | [Vercel](https://vercel.com/) |
 
-> 架構細節（為何用 Server Actions 而非 REST、內嵌文件如何消除 N+1、各子系統如何運作）見 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
+> 核心資料流與維護原則見 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
 
 ## 📂 專案結構 (Project Structure)
 
@@ -61,7 +49,7 @@ src/
 ├── hooks/            # Custom hooks（+ queries/：React Query 查詢 / 失效層）
 ├── i18n/             # 國際化設定與四語系訊息檔
 ├── lib/              # 核心邏輯（auth / permissions / settlement / storage / notify...）
-├── models/           # Mongoose models（11 個 collection）
+├── models/           # Mongoose 資料模型
 ├── sw.ts             # Serwist service worker（離線快取 + Web Push）
 ├── constants/        # categories / countries / currencies / routes
 └── types/            # TypeScript 型別與 DTO
@@ -73,7 +61,7 @@ docs/                 # 專案文件（見 docs/README.md）
 
 ### 1. 前置需求
 - Node.js 20+ 與 [pnpm](https://pnpm.io/)（`packageManager: pnpm@11`）
-- 一個 MongoDB 資料庫（[MongoDB Atlas](https://www.mongodb.com/atlas) 免費 tier 即可）
+- 支援交易的 MongoDB replica set 或 sharded cluster（可使用 MongoDB Atlas）
 
 ### 2. 安裝依賴
 ```bash
@@ -124,7 +112,7 @@ pnpm dev
 | `pnpm test:ai-import-eval` | 明確啟用 live AI fixture 評估（會使用額度；可由 `AI_IMPORT_EVAL_CASE_LIMIT` 限制樣本） |
 | `pnpm test:ai-expense-text-eval` | 明確啟用自然語言記帳 live 評估（會使用額度；可限制案例數與間隔） |
 | `pnpm test:ai-receipt-eval` | 明確啟用收據圖片 live 評估（會使用圖片模型額度；可由 `AI_RECEIPT_EVAL_CASE_LIMIT` 限制樣本） |
-| `pnpm migrate:status` / `:up` / `:down` / `:create` | migrate-mongo 資料遷移（見 [docs/MIGRATIONS.md](docs/MIGRATIONS.md)） |
+| `pnpm migrate:status` / `:up` / `:down` / `:create` | migrate-mongo 資料遷移（見 [docs/archive/details/MIGRATIONS.md](docs/archive/details/MIGRATIONS.md)） |
 
 ## 🤝 貢獻 (Contributing)
 
@@ -133,4 +121,3 @@ pnpm dev
 ## 📄 授權 (License)
 
 ISC License
-</content>

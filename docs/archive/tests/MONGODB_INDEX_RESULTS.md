@@ -1,0 +1,183 @@
+# MongoDB 索引 before／after（2026-09-05）
+
+## O 收尾進度（2026-09-08）
+
+後續已使用指定正式站帳號完成登入／session／大小寫登入、登出與旅程頁面唯讀驗證。
+詳見 [線上驗收紀錄](MONGODB_LIVE_ACCEPTANCE.md)；未改動帳號與業務資料，
+真實負載寫入成本及註冊／改信箱 HTTP＋郵件流程仍未驗收。
+
+階段一完成：共用 `.env` 目標 `travel-budget` 的七顆索引均已存在且相容，帳號 audit 通過。
+已執行受限 adoption，於 `2026-09-08T04:05:57.988Z` 登錄
+`20260905093000-core-query-indexes.js`。七筆 ownership 均為非 owned；沒有建刪索引、
+修改業務資料或套用其他 migrations。再次唯讀檢查確認登錄成功。以下 09-05 未登錄描述為歷史紀錄。
+
+操作工具：`node scripts/adopt-core-indexes.mjs` 預設唯讀；加上
+`--apply --confirm-no-other-ddl` 才登錄。只讀取 `.env`，拒絕 shell 的不同 DB 覆寫；
+原 migration 的 audit/preflight 全部通過才寫 ledger，缺少索引直接拒絕，不會隱性建立。
+helper 鎖只協調同一工具，不能阻止其他 DDL runner；現有 migrate-mongo `lockTtl: 0`
+不啟用其鎖，不可宣稱有全域排他保證。不要與其他 migration 同時執行。
+此為定向補登錄，不是更換通用 migrate-mongo runner；不要直接 down（會依 migrationBlock
+選擇最近批次），回退需先審查對應索引 ownership，現有七顆索引不屬於此 migration。
+
+隔離 MongoDB 新增 adoption dry-run/apply/retry、缺索引拒絕、既有鎖保留等驗收，合計
+8 個情境通過；migration/safety 單元測試 10 項通過，lint 與 Prettier 通過。
+後續階段：較大合成資料集讀寫量測、真實 DB 的帳號 action 流程驗證與完整收尾紀錄。
+
+階段二完成：`coreAccountIndexes.integration.test.ts` 在隔離 MongoDB 執行 5 項測試通過。
+使用真實 User／EmailChangeCode models、validation、bcrypt、withAuth 及 account actions，
+涵蓋註冊、大小寫登入、重複帳號、改信箱 request/confirm、錯碼計數及成功後不可重用。
+以寫入前 barrier 強制兩請求通過真實 DB preflight，驗證 username／email 註冊競態與
+確認改信箱競態由 MongoDB 真實 E11000 映射為 CONFLICT；僅贏家建立 session／更新信箱。
+敗方信箱保持原值，成功驗證碼刪除；衝突分支保留驗證碼符合目前 action 行為。
+session/cookie、郵件/template 與 dbConnect 為測試邊界替身，非瀏覽器 HTTP 或郵件供應商 E2E。
+此範圍驗收的是 O 的資料库唯一性與 action 映射，不宣稱完整身份驗證系統 E2E。
+隔離庫測後清除，lint、Prettier、TypeScript 通過。
+
+### 階段三：固定合成 snapshot 與寫入成本
+
+新增 `scripts/benchmark-core-indexes.mjs`；沿用明確的隔離 URI 與寫入 opt-in，
+不讀取 dotenv、不回退 app URI。可重跑：
+
+```sh
+MONGODB_INDEX_TEST_URI='mongodb://127.0.0.1:27129/?directConnection=true&replicaSet=rs0' MONGODB_INDEX_TEST_ALLOW_WRITES=1 node scripts/benchmark-core-indexes.mjs
+```
+
+2026-09-08 在 MongoDB 8.0.29 單節點 replica set、majority write concern 執行通過。
+使用兩份相同、固定生成規則的隔離 snapshot：100,000 expenses、各 20,000 payments／
+checklists／photos、10,000 users、1,000 itinerarydays，分散於 100 個旅程。
+before 使用本次查詢相關的舊索引，after 保留它們並執行原 migration；不是完整正式 DB 索引副本。
+每個查詢 warm-up 後各 5 輪，交替前後順序；九種查詢的回傳文件內容 hash 相同。
+寫入各 collection 30 輪，每批 50 筆 insert 及索引欄位 update，另排除一輪 warm-up。
+最終五個 collection 全部文件 hash 前後相同；沒有修改或複製共用 DB 資料。
+
+完整證據：[合成資料讀寫量測](evidence/mongodb-core-scale-2026-09-08.json)。
+
+| 項目 | Before | After |
+| --- | ---: | ---: |
+| 摘要掃描文件／回傳 | 100,000／100 | 100／100 |
+| 摘要查詢 p50（ms） | 26.78 | 1.11 |
+| username／email 掃描文件 | 各 10,000 | 各 1 |
+| 四類清單 blocking SORT | 有 | 無 |
+| 付款批次 insert p95（ms／50 筆） | 1.73 | 2.86 |
+| 付款批次 update p95（ms／50 筆） | 3.39 | 5.48 |
+| 支出批次 update p50（ms／50 筆） | 3.01 | 3.30 |
+
+**判讀**：有明確的掃描／排序收益，但索引不是免費的；本次付款批次 p95 約增加 65%／62%，
+不可宣稱所有讀寫更快。單節點本機、均勻旅程分布與合成文件大小不代表 Atlas 網路、複寫、
+真實寫入併發或熱門旅程；5 個讀取樣本的 p95 實際為最大值，不能當正式 SLO。
+儲存大小為當下 collStats（受 checkpoint／配置影響），不是長期容量預測。
+因此保留現有索引，不新增／移除其他索引；正式環境仍需以代表性負載確認寫入代價可接受。
+
+### 共用 DB 登錄後唯讀複查
+
+2026-09-08T04:10:45.674Z 再查 `.env` 的 `travel-budget`：migration 紀錄恰一筆、
+非 owned ownership 七筆、helper 鎖零筆；username／email 重複及非字串數均零。
+挑選支出最多的旅程（36 筆）執行九種 executionStats explain，未輸出帳號或旅程 ID。
+支出／付款／清單／照片回傳 36／3／3／52 筆，全部採用預期索引且無 blocking SORT；
+帳號兩查詢各掃描一筆、使用 CI unique；結算與行程保留原索引。
+摘要使用 createdAt_1，但本次日期範圍回傳零筆，不能作線上效能收益證據。
+未執行線上寫入壓測，也未驗證 Vercel HTTP／瀏覽器端到端延遲。
+
+**工程交付完成，正式效能驗收仍保留**：migration／DB 一致性與 action 競態已有證據，
+但合成 benchmark 不冒充原先要求的 production-like 實際資料分布與完整 HTTP 驗收。
+下一個外部驗收需指定可用的隔離環境與測試帳號、代表性資料分布及可接受讀寫延遲；
+不在共用 DB 製造負載或寄送帳號驗證信來補數據。
+
+最終檢查：一般測試 1,292 項通過，另行 opt-in 執行 account／queue MongoDB 整合測試
+34 項通過（合計 1,326 項；3 項 AI 真實 provider 驗收依原決定略過）。
+lint、Prettier（含新 scripts）與 TypeScript 通過。本輪只變更操作工具、測試、註解與文件，
+不修改應用程式行為，因此不另調整版本。所有本次隨機隔離庫查核剩餘零筆，
+臨時容器 `tb-o-closeout-20260908` 已移除；MongoDB image 保留供重跑，未 push／部署。
+
+## 結果
+
+經使用者核准，在同一測試庫新增 7 個索引，保留全部舊索引及業務資料。
+3 組相同旅程各重測 5 輪，共 135 次 after explain（連同 before 共 270 次）。
+每組查詢 fingerprint 與 before 相同，集合筆數及各查詢回傳數未變。
+這是同一測試庫的兩次觀察，並非不可變 snapshot 或 production-like 壓測。
+
+| 查詢 | Before | After | 判讀 |
+| --- | --- | --- | --- |
+| 每日摘要 | COLLSCAN，掃描 122 筆、回傳 5 筆 | createdAt_1，掃描 5 筆、回傳 5 筆 | 掃描文件減少 95.9%，keys 由 0 變 5 |
+| 支出清單 | trip_1 + SORT | trip_1_date_-1_createdAt_-1，無 SORT | 掃描及回傳維持 7／23／36 |
+| 付款清單 | trip_1 + SORT | trip_1_createdAt_-1，無 SORT | 回傳維持 0／1／3 |
+| 清單 | trip_1 + SORT | trip_1_createdAt_1，無 SORT | 回傳維持 0／2／3 |
+| 相片 | trip_1_takenAt_-1 + SORT | trip_1_takenAt_-1_createdAt_-1，無 SORT | 回傳維持 0／49／52 |
+| username／email | COLLSCAN | 各自 CI unique，EXPRESS_IXSCAN | 各回傳 1 筆；不宣稱本次文件掃描數下降 |
+| 結算支出／行程 | 已有 trip／trip+dayNumber 索引 | 保持原計畫 | 對照組無退化 |
+
+每輪均不加 hint，採用的是 planner 自己選擇的索引。空的小旅程清單不作收益證據，中／大樣本有資料。
+沒有衡量端到端延遲、populate、Shell 聚合或 TTI，不以毫秒差宣稱加速比例。
+
+## 證據
+
+- [Before 報告](MONGODB_BASELINE_RESULTS.md) 與 [15 輪摘要](evidence/mongodb-baseline-2026-09-05.json)
+- [After 15 輪摘要](evidence/mongodb-after-2026-09-05.json)
+- [建索引紀錄與大小](evidence/mongodb-index-build-2026-09-05.json)
+
+建立前重新檢查 username／email 的 collation 重複及非字串數，均為 0；建索引成功，after 掃描仍為 0。
+建索引操作未修改任何帳號、支出或相片內容。每顆新索引在這次 collStats 中為 20,480 bytes，
+七顆合計 143,360 bytes（140 KiB）；這是當下儲存引擎配置大小，非長期成長率或寫入成本量測。
+
+## Migration 與部署
+
+已新增 [20260905093000-core-query-indexes.js](../../../migrations/20260905093000-core-query-indexes.js)，
+並同步 Expense／Payment／Checklist／Photo／User schema。User 保留原 binary unique，CI 索引名稱
+另用 username_ci_unique／email_ci_unique，與 auth.actions 的 collation 相符。
+
+**本次測試索引是獨立建立，不是執行 `migrate:up`**，未修改 migrate-mongo changelog 或其他待遷移資料。
+正式部署前先審查 `migrate:status`，不要因為本項而盲目套用所有歷史 migration。
+應先 migration、再部署 matching schema；目前 autoIndex 開啟，不能依靠部署時隱性建索引取代遷移審查。
+
+up 在任何索引寫入前掃描帳號及核對所有同名索引定義。建立意圖以 `index_migration_ownership` 保存：
+
+- 遷移前已存在且相容的索引記為非 owned，down 不會移除。
+- 本遷移新建的索引記為 owned；中斷後重跑仍保留 ownership。
+- down 核對目前定義後，只移除 owned 索引；定義不相容時停下，不誤刪外部改動。
+- 沒有 ownership 記錄時不猜測。必須禁止併發 DDL／autoIndex，ledger 不是跨 runner 的 DDL 鎖。
+- CI unique index 建立本身仍可能因併發重複寫入失敗，應控制相關寫入；失敗時不自動清理帳號。
+
+## 回滾
+
+先停 autoIndex／回退 schema，再處理索引，避免索引自動建回。
+回退 CI unique 會解除大小寫唯一性保障，須先限制註冊及改信箱寫入。
+
+正常 migration 建立的索引由其 down 依 ownership 回退。本測試庫的 7 顆索引已在 migration 之前建立，
+之後跑 up 會標記為非 owned，**down 刻意不會移除它們**。若要撤銷本次測試，核對建索引紀錄及
+當前定義後，僅對紀錄中的七個 collection/name 執行 dropIndex；不動任何舊索引或業務資料。
+本輪沒有執行這個刪除操作，也沒有測試真實資料庫 down／重新建立的循環。
+
+## 已驗證與仍待驗證
+
+已完成：真實測試庫 createIndex／after explain、重複掃描、schema 定義對齊，以及 migration 的
+up／重跑／down／重跑、既有索引保護、衝突 preflight、中斷恢復與外部改動保護單元測試。
+既有註冊／改信箱 E11000 測試繼續通過。
+
+後續已在本機隔離 MongoDB 完成真實 migration rollback 及 DB 層併發唯一性驗收（見下節）。
+仍待驗證：較大 production-like 資料量、寫入成本及完整註冊／改信箱 API 整合測試。
+O 的程式與小型測試庫索引驗證已落地，但正式推廣驗收仍保留待辦。
+
+## 隔離 MongoDB 驗收工具
+
+已補 `pnpm mongodb:verify-indexes`。僅接受明確的 `MONGODB_INDEX_TEST_URI` 與
+`MONGODB_INDEX_TEST_ALLOW_WRITES=1`；不讀取 dotenv、不回退 app URI，也不使用 URI 中的 database。
+請只指向可丟棄的隔離 MongoDB server，帳號需要建立及刪除測試 database 的權限。
+
+```sh
+MONGODB_INDEX_TEST_URI='mongodb://127.0.0.1:27017' MONGODB_INDEX_TEST_ALLOW_WRITES=1 pnpm mongodb:verify-indexes
+```
+
+每個情境建立隨機 `tb_index_verify_` database，先確認無 collection，結束後刪除該次自建 database。
+不讀寫現有 app database。若程序被強制中止可能留下測試庫；清理失敗時會印出該庫名稱，需人工確認後處理。
+成功輸出 JSON 情境結果，失敗退出非零；避免輸出 MongoDB 原始錯誤中的連線或資料值。
+
+涵蓋真實 migration up／重跑／down／重跑／再 up、舊索引與資料保留、既有候選索引保護、
+username／email 大小寫重複 preflight，以及併發 insert／update 的 E11000 與 keyPattern。
+這是資料庫層驗收，不是完整註冊／改信箱 API 整合測試，也不是 migrate-mongo changelog／lock 驗收。
+既有 action mock 測試另負責 CONFLICT 映射；完整端到端驗收仍待補。
+
+已依使用者指示，在本機一次性 Docker MongoDB 8.0.29 執行，**6 個情境全部通過，退出碼 0**。
+結果及 image digest 見 [隔離驗收證據](evidence/mongodb-isolated-verification.json)。
+測試後查核 `tb_index_verify_` database 剩餘數為 0，臨時容器已停止並自動移除；下載的 image 保留供重跑。
+缺少 URI 或寫入旗標時拒絕執行的安全單元測試亦已通過。
+本次未連線共用測試庫、未執行正式 migration、未觸發 Vercel 部署，也未設定 CI 發布門檻。
