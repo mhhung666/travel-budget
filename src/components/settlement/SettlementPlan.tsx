@@ -35,7 +35,7 @@ interface SettlementPlanProps {
   loadingRates: boolean;
   /** 顯示幣別選項（旅程常用幣別排前）；未傳則用預設順序。 */
   currencyOptions?: string[];
-  /** 成員專屬：點擊建議轉帳的「標記已付」時觸發（登記一筆還款）。未傳即唯讀。 */
+  /** 成員專屬：點擊建議轉帳的「標記已付」（依身分顯示為「確認已收到／我已付款」）時觸發（登記一筆還款）。未傳即唯讀。 */
   onMarkPaid?: (transaction: Transaction) => void;
   /** name → 頭像 URL（結算方案只帶名字，故以名字對應）。 */
   avatarUrlByName?: Record<string, string | null>;
@@ -190,6 +190,13 @@ export default function SettlementPlan({
                     const canRemind =
                       !!onRemind && !!currentUserName && transaction.to === currentUserName;
                     const reminding = remindingKey === `${transaction.from}__${transaction.to}`;
+                    // 按鈕依身分改字：收款人確認收到、付款人回報已付；旁觀的成員維持中性「標記已付」。
+                    const markPaidLabel =
+                      currentUserName && transaction.to === currentUserName
+                        ? t('confirmReceived')
+                        : currentUserName && transaction.from === currentUserName
+                          ? t('iPaid')
+                          : t('markPaid');
                     if (!onMarkPaid && !canRemind) return null;
                     return (
                       <div className="mt-3 flex flex-wrap justify-center gap-2 border-t border-warning/20 pt-3">
@@ -201,7 +208,7 @@ export default function SettlementPlan({
                             onClick={() => onMarkPaid(transaction)}
                           >
                             <Check className="h-4 w-4" />
-                            {t('markPaid')}
+                            {markPaidLabel}
                           </Button>
                         )}
                         {canRemind && (

@@ -582,6 +582,8 @@
     "loadingRates": "載入匯率中...",
     "ratesError": "無法載入匯率",
     "markPaid": "標記已付",
+    "confirmReceived": "確認已收到",
+    "iPaid": "我已付款",
     "recordPayment": "登記還款",
     "recordPaymentDescription": "登記一筆實際還款，餘額會自動扣除這筆款項。",
     "paymentHistory": "已結清紀錄",

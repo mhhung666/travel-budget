@@ -631,6 +631,8 @@
     "loadingRates": "Loading exchange rates...",
     "ratesError": "Failed to load exchange rates",
     "markPaid": "Mark as paid",
+    "confirmReceived": "Confirm received",
+    "iPaid": "I paid",
     "recordPayment": "Record payment",
     "recordPaymentDescription": "Log an actual repayment; balances net out this amount automatically.",
     "paymentHistory": "Settled payments",

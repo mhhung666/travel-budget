@@ -582,6 +582,8 @@
     "loadingRates": "加载汇率中...",
     "ratesError": "无法加载汇率",
     "markPaid": "标记已付",
+    "confirmReceived": "确认已收到",
+    "iPaid": "我已付款",
     "recordPayment": "登记还款",
     "recordPaymentDescription": "登记一笔实际还款，余额会自动扣除这笔款项。",
     "paymentHistory": "已结清记录",
