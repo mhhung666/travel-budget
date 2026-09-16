@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { computeSplits, type SplitMemberInput, type SplitMode } from '@/lib/expenseSplit';
+import {
+  computeSplits,
+  reconstructOriginalShares,
+  type SplitMemberInput,
+  type SplitMode,
+} from '@/lib/expenseSplit';
+import { allocateMoney, roundMoney } from '@/lib/money';
 
 const mk = (entries: [string, boolean, string][]): SplitMemberInput[] =>
   entries.map(([id, selected, value]) => ({ id, selected, value }));
@@ -203,5 +209,50 @@ describe('computeSplits', () => {
       expect(r.twd.b).toBeCloseTo(10.5, 6);
       expect(r.allocatedTWD).toBeCloseTo(21, 6);
     });
+  });
+});
+
+describe('reconstructOriginalShares (edit round trip)', () => {
+  // 模擬：新增時 computeSplits → 伺服器分配 → 編輯表單重建 → 未改任何欄位直接回存。
+  function roundTrip(mode: SplitMode, values: string[], total: number, rate: number) {
+    const members = values.map((value, i) => ({ id: String(i), selected: true, value }));
+    const created = computeSplits(mode, members, total, rate);
+    const amount = roundMoney(total * rate);
+    const stored = allocateMoney(
+      amount,
+      members.map((m) => created.twd[m.id])
+    );
+    const { shares, equal } = reconstructOriginalShares(total, stored);
+    const edited = computeSplits(
+      equal ? 'equal' : 'amount',
+      members.map((m, i) => ({ ...m, value: equal ? '' : String(shares[i]) })),
+      total,
+      rate
+    );
+    const saved = allocateMoney(
+      amount,
+      members.map((m) => edited.twd[m.id])
+    );
+    return { stored, saved, balanced: edited.balanced, equal };
+  }
+
+  it.each([
+    ['KRW shares', 'shares', ['2', '1', '1'], 10000, 0.02341],
+    ['VND shares', 'shares', ['2', '2', '2', '3'], 496469, 0.001262],
+    ['JPY shares with fractional yen', 'shares', ['1', '1', '2'], 15425, 0.2133],
+    ['JPY percent', 'percent', ['1', '19', ''], 3868, 0.2133],
+    ['USD shares', 'shares', ['1', '1', '2'], 100.01, 32.15],
+    ['THB amount', 'amount', ['1.99', '4', ''], 81.62, 0.9123],
+    ['TWD amount', 'amount', ['300', '300', ''], 1001, 1],
+  ] as const)('%s saves unchanged without editing', (_, mode, values, total, rate) => {
+    const r = roundTrip(mode, [...values], total, rate);
+    expect(r.balanced).toBe(true);
+    expect(r.saved).toEqual(r.stored);
+  });
+
+  it('infers equal mode only when shares match an even split exactly', () => {
+    expect(roundTrip('equal', ['', '', ''], 100, 0.02341).equal).toBe(true);
+    expect(reconstructOriginalShares(100, [33.33, 33.33, 33.34]).equal).toBe(false);
+    expect(reconstructOriginalShares(100, [33.34, 33.33, 33.33]).equal).toBe(true);
   });
 });

@@ -130,6 +130,8 @@ export function SplitSection({
                         onChange={(e) => onValueChange(member.id, e.target.value)}
                         type="number"
                         min="0"
+                        // 預設 step=1 會讓瀏覽器擋下 12.50 這類小數金額，表單無法送出。
+                        step="any"
                         className="h-11 w-20 bg-background pr-1 text-right shadow-sm focus-visible:ring-1"
                       />
                       <span className="w-8 text-xs text-muted-foreground">{unit}</span>

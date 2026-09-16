@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { DEFAULT_CATEGORY } from '@/constants/categories';
-import { computeSplits, type SplitMode } from '@/lib/expenseSplit';
+import { computeSplits, reconstructOriginalShares, type SplitMode } from '@/lib/expenseSplit';
 import { getPinnedRate, getTripDefaultCurrency } from '@/lib/tripCurrency';
 import { toDateInputValue, toLocalDateInputValue } from '@/lib/dateInput';
 import type { Expense, ExpenseAttachment, Member, TripCurrencySettings } from '@/types';
@@ -123,27 +123,24 @@ export function useExpenseForm({
         });
 
         // Reconstruct split inputs from stored TWD shares. We don't persist the
-        // split mode, so infer it: all-equal shares → 'equal' (blank inputs),
-        // otherwise → 'amount' with each member's reconstructed original amount.
-        const exchangeRate = parseFloat(expense.exchange_rate.toString()) || 1;
-        const originalShares = expense.splits.map((s) => s.share_amount / exchangeRate);
-        const allEqual =
-          originalShares.length > 0 &&
-          originalShares.every((v) => Math.abs(v - originalShares[0]) < 0.01);
-        const inferredMode: SplitMode = allEqual ? 'equal' : 'amount';
+        // split mode, so infer it: shares identical to an even split → 'equal'
+        // (blank inputs), otherwise → 'amount' with each member's original amount.
+        // 依成員順序排列：回存時 computeSplits 也按成員順序分配尾差。
+        const splitMembers = members.filter((m) => expense.splits.some((s) => s.user_id === m.id));
+        const { shares: originalShares, equal } = reconstructOriginalShares(
+          expense.original_amount,
+          splitMembers.map((m) => expense.splits.find((s) => s.user_id === m.id)!.share_amount)
+        );
+        const inferredMode: SplitMode = equal ? 'equal' : 'amount';
         setSplitMode(inferredMode);
 
         const initialSplits: SplitState = {};
         members.forEach((m) => {
-          const existingSplit = expense.splits.find((s) => s.user_id === m.id);
-          if (existingSplit) {
-            const originalAmount = existingSplit.share_amount / exchangeRate;
+          const index = splitMembers.indexOf(m);
+          if (index >= 0) {
             initialSplits[m.id] = {
               selected: true,
-              value:
-                inferredMode === 'equal'
-                  ? ''
-                  : originalAmount.toFixed(expense.currency === 'JPY' ? 0 : 2),
+              value: inferredMode === 'equal' ? '' : String(originalShares[index]),
             };
           } else {
             initialSplits[m.id] = { selected: false, value: '' };

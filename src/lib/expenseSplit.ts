@@ -125,3 +125,22 @@ export function computeSplits(
 
   return { original, twd, allocatedOriginal, allocatedTWD, balanced, imbalance };
 }
+
+/**
+ * 編輯既有支出時，由儲存的 TWD 分攤重建原幣分攤輸入。
+ *
+ * 不能逐筆「TWD ÷ 匯率」再取位數：TWD 只存到分，除以低匯率（KRW 0.023）後每人
+ * 誤差可達數十韓元，加總就不等於原幣總額，未改任何欄位也無法儲存；JPY 取整也會
+ * 丟掉份數／百分比模式產生的小數。改以原幣總額按 TWD 分攤比例用最大餘數法分配，
+ * 加總必定剛好等於原幣總額，回存時由 computeSplits 算回相同的 TWD 分攤。
+ */
+export function reconstructOriginalShares(originalAmount: number, twdShares: number[]) {
+  const shares = allocateMoney(originalAmount, twdShares);
+  // 只有與「均分」算出的結果完全相同時才推回均分模式，否則尾差落點不同會改動分攤。
+  const evenly = allocateMoney(
+    originalAmount,
+    twdShares.map(() => 1)
+  );
+  const equal = shares.length > 0 && shares.every((share, i) => share === evenly[i]);
+  return { shares, equal };
+}
