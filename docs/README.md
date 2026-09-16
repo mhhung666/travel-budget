@@ -1,7 +1,7 @@
 # 專案狀態與文件入口
 
-> 狀態整理日期：2026-09-15。先看本頁判斷進度，再依連結查看完成條件與證據。
-> 本次為文件整理，沒有新增產品驗收結果。
+> 狀態整理日期：2026-09-16。先看本頁判斷進度，再依連結查看完成條件與證據。
+> 本次整合 09-16 正式站補驗紀錄；詳細範圍與限制見當日報告。
 
 ## 現在做到哪裡
 
@@ -15,7 +15,7 @@
 | 工程完成、待驗收 | O：MongoDB 索引與查詢效能 | 索引登錄、隔離測試與線上登入／唯讀抽查完成；實際負載與完整帳號流程待驗 | [待驗收清單](./IMPROVEMENTS.md#待驗收工程已完成) |
 | 工程完成、待驗收 | P：支出背景處理 | 單人 CRUD、活動與 done 觀測通過；部署、通知、排程及失敗恢復待驗 | [P 驗收清單](./EXPENSE_DELIVERY_ACCEPTANCE.md) |
 | 工程完成、待驗收 | R：行程與資料一致性 | R1～R4 工程結案，部分線上流程通過；部署、競態與附件清理待驗 | [R 進度與部署要求](./ITINERARY_CONSISTENCY_PROGRESS.md) |
-| 部分驗收完成 | M：前端正式環境體驗與效能（含 Q） | 冷／熱小樣本與支出背景更新重試通過；檢視器失敗、更多列表及完整效能待驗 | [待驗收清單](./IMPROVEMENTS.md#待驗收工程已完成) |
+| 部分驗收完成 | M：前端正式環境體驗與效能（含 Q） | 相簿檢視器失敗重試、23／36 筆列表及圖片收據正常流程通過；已留存小樣本 trace，多批列表與完整效能待驗 | [待驗收清單](./IMPROVEMENTS.md#待驗收工程已完成) |
 | 待改善／評估 | A、G、H、I、J | 公開 API 限流、支出分頁、圖片快取、孤兒相片清理與完整 CSP | [尚未完成的技術改善](./IMPROVEMENTS.md#待改善尚未完成的技術項目) |
 | 待驗證 | UI/UX 真人與可及性驗證 | 程式基線完成；真人任務、輔助科技、色彩對比及匿名指標仍待驗 | [UI/UX 驗證清單](./UI_UX_EVALUATION.md#尚未完成) |
 | 暫時通過、未實測 | iOS Safari／安裝版 PWA | 09-15 依使用者決定，本輪不執行、不列為阻擋 | [範圍調整](./PRODUCTION_ACCEPTANCE_2026-09-15.md#驗收範圍調整) |
@@ -37,6 +37,7 @@
 | [09-12 正式站報告](./PRODUCTION_ACCEPTANCE_2026-09-12.md) | 一般流程、CRUD、票券、小樣本效能與最初離線缺陷的歷史證據 |
 | [09-14 報告及 09-15 複驗](./PRODUCTION_ACCEPTANCE_2026-09-14.md) | S 離線保存、故障注入、摘要修正的正式站結果 |
 | [09-15 背景更新補驗](./PRODUCTION_ACCEPTANCE_2026-09-15.md) | 桌面／手機 viewport 背景讀取失敗保留資料與手動重試；iOS／PWA 暫緩決定 |
+| [09-16 檢視器、列表與效能補驗](./PRODUCTION_ACCEPTANCE_2026-09-16.md) | 相簿檢視器重試、23／36 筆列表、圖片收據正常流程與冷／熱 Network／Performance 觀測 |
 | [測試覆蓋基準](./COVERAGE_GAPS.md) | 09-04 歷史快照；不能用舊百分比判定目前缺口，需重新量測 |
 
 歷次測試數量取決於當時程式與啟用的 suite，不能直接互相比較；完整產品能力見 [FEATURES.md](./FEATURES.md)。
@@ -60,6 +61,8 @@
 | 開發或驗收介面 | [UI_UX_SPEC.md](./UI_UX_SPEC.md) |
 | 查 UI/UX 實作與驗證狀態 | [UI_UX_EVALUATION.md](./UI_UX_EVALUATION.md) |
 | 確認完成、待改善、待驗證與暫緩項目 | 本頁狀態總覽；技術完成條件見 [IMPROVEMENTS.md](./IMPROVEMENTS.md) |
+| 查最新檢視器、列表與效能驗收 | [PRODUCTION_ACCEPTANCE_2026-09-16.md](./PRODUCTION_ACCEPTANCE_2026-09-16.md) |
+| 查離線缺陷與先前待驗範圍 | [PRODUCTION_ACCEPTANCE_2026-09-12.md](./PRODUCTION_ACCEPTANCE_2026-09-12.md) |
 | 執行真人可用性測試 | [USABILITY_TEST_PHASE4.md](./USABILITY_TEST_PHASE4.md) |
 | 修改會籍 badge 顏色 | [TIER-COLORS.md](./TIER-COLORS.md) |
 | 查已完成大型規劃的決策摘要 | [archive/README.md](./archive/README.md) |

@@ -1,6 +1,6 @@
 # 技術改善與驗收待辦
 
-> 更新日期：2026-09-15。跨項目完成狀態見 [專案總覽](./README.md)。
+> 更新日期：2026-09-16。跨項目完成狀態見 [專案總覽](./README.md)。
 > 本文件只保留未結案項目；已完成的 S 與 Q 工程歷程見總覽連結，不在此重列。
 
 <a id="目前優先順序"></a>
@@ -15,7 +15,7 @@
 | 1．O MongoDB 正式效能 | 七個共用索引已登錄；隔離資料 explain／寫入量測、account actions 與正式登入／唯讀抽查完成 | 代表性 Atlas 分布與併發下的讀寫成本、profiler/explain 與長尾 server trace；註冊／改信箱 HTTP＋郵件流程 | [索引結果](./MONGODB_INDEX_RESULTS.md)、[線上抽查](./MONGODB_LIVE_ACCEPTANCE.md) |
 | 2．P 支出背景處理 | worker／action 整合與四個索引完成；正式單人 CRUD、活動、done 計數及 inspect 200／401 通過 | 部署 commit／背景開關／排程執行紀錄；DTO、逐事件 checkpoint、收件人通知／推播；隔離失敗恢復；新增 p50／p95 與 pending 延遲；追查曾發生的 inspect 503 | [唯一詳細驗收清單](./EXPENSE_DELIVERY_ACCEPTANCE.md) |
 | 3．R 行程與資料一致性 | R1～R4 工程完成；使用者回報 migration／push 完成；正式活動 CRUD、舊草稿衝突與 PDF 票券正常流程通過 | 部署與 migration／writer 同時上線證據；整天欄位修改、成員變更、跨 collection 競態；附件退休、R2 最終清理及 cron 結果 | [階段紀錄與部署要求](./ITINERARY_CONSISTENCY_PROGRESS.md)、[正式流程證據](./PRODUCTION_ACCEPTANCE_2026-09-12.md) |
-| 4．M 前端體驗與效能（含 Q） | Shell 拆分與 Q1～Q3 工程完成；12 次冷／熱小樣本、表單失敗重試、搜尋、快速記帳、PDF 正常流程與支出背景更新重試通過 | 核對 Q 交付 `ac54811` 或後續部署；檢視器載入失敗重試、超過 20 筆更多列表；代表性資料量 Network bytes、Performance trace／TTI 與 MongoDB profiler/explain | [Q 驗收勾選表](./QUERY_UX_PROGRESS.md#部署後驗收移交-m尚未執行)、[量測規範](./QUERY_UX_PERFORMANCE.md)、[背景更新補驗](./PRODUCTION_ACCEPTANCE_2026-09-15.md) |
+| 4．M 前端體驗與效能（含 Q） | Shell 拆分與 Q1～Q3 工程完成；表單與支出背景更新失敗重試、搜尋、快速記帳與 PDF 正常流程通過；09-16 相簿檢視器失敗重試、23／36 筆列表與圖片收據正常流程通過，另留存 12 次冷／熱 Network／Performance trace 並完成 Network 等待分析 | 核對 Q 交付 `ac54811` 或後續部署；超過 40 筆多批列表；代表性資料量 Network bytes、Performance trace／TTI 與 MongoDB profiler/explain；最慢 cold 單一 POST wait 4,092 ms 尚待 server span 歸因 | [Q 驗收勾選表](./QUERY_UX_PROGRESS.md#部署後驗收移交-m尚未執行)、[量測規範](./QUERY_UX_PERFORMANCE.md)、[09-16 補驗](./PRODUCTION_ACCEPTANCE_2026-09-16.md) |
 
 執行條件與界線：
 
