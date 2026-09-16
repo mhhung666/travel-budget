@@ -430,12 +430,17 @@
       "tags": "Tags",
       "tagsPlaceholder": "Type and press Enter or comma to add",
       "summary": {
-        "payerDate": "{payer} paid · {date}",
         "equalSplit": "{count, plural, one {# person} other {# people}} equally · {amount} each",
         "customSplit": "{mode} · {count, plural, one {# person} other {# people}} · {allocated} allocated",
         "converted": "{original} ≈ {converted}",
         "loadingRate": "Loading exchange rate…"
-      }
+      },
+      "recordingTo": "Trip: {trip}",
+      "switchTrip": "Switch trip",
+      "payerSelf": "{name} (me)",
+      "moreSettings": "More settings",
+      "moreSettingsHint": "Exchange rate, tags, itinerary days",
+      "moreSettingsHintWithReceipts": "Exchange rate, tags, itinerary days, receipts"
     },
     "confirm": {
       "delete": "Are you sure you want to delete this expense?",

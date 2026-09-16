@@ -381,12 +381,17 @@
       "tags": "標籤",
       "tagsPlaceholder": "輸入後按 Enter 或逗號新增",
       "summary": {
-        "payerDate": "{payer}付款 · {date}",
         "equalSplit": "{count} 人均分 · 每人 {amount}",
         "customSplit": "{mode} · {count} 人 · 已分配 {allocated}",
         "converted": "{original} ≈ {converted}",
         "loadingRate": "正在取得匯率…"
-      }
+      },
+      "recordingTo": "記到：{trip}",
+      "switchTrip": "切換旅行",
+      "payerSelf": "{name}（我）",
+      "moreSettings": "更多設定",
+      "moreSettingsHint": "匯率、標籤、關聯行程日",
+      "moreSettingsHintWithReceipts": "匯率、標籤、關聯行程日、收據"
     },
     "confirm": {
       "delete": "確定要刪除這筆支出嗎？",

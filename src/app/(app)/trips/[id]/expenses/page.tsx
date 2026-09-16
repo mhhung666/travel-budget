@@ -131,6 +131,7 @@ function ExpensePageContent() {
         itineraryDays={itineraryDays}
         existingTags={existingTags}
         currencySettings={trip.currency_settings}
+        tripName={trip.name}
       />
 
       <ConfirmDialog

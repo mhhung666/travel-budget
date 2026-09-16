@@ -374,6 +374,7 @@ export function TripSpaceShell({
               existingTags={existingTags}
               initialDescription={addExpenseDialog.data?.description}
               currencySettings={trip?.currency_settings ?? null}
+              tripName={trip?.name}
             />
             {!formReady && (
               <QueryReadDialog query={formQuery} onClose={addExpenseDialog.closeDialog} />

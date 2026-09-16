@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronDown, ChevronUp, DollarSign, Loader2 } from 'lucide-react';
+import { ArrowLeftRight, ChevronDown, ChevronUp, DollarSign, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { formatCurrency } from '@/constants/currencies';
@@ -18,6 +18,7 @@ import { AmountField } from './AmountField';
 import { CategoryPicker } from './CategoryPicker';
 import { SplitSection } from './SplitSection';
 import { AdvancedFields } from './AdvancedFields';
+import { PayerDateFields } from './PayerDateFields';
 import { ExpenseAiInput } from './ExpenseAiInput';
 import { useExpenseForm, type ExpenseFormData } from './useExpenseForm';
 
@@ -38,15 +39,21 @@ interface ExpenseFormSheetProps {
   initialDescription?: string;
   /** 旅程幣別設定（預設幣別／常用排序／自訂匯率）；null/未傳 = 未設定。 */
   currencySettings?: TripCurrencySettings | null;
+  /** 正在記帳的旅行名稱；顯示在標題下方，降低記錯帳本的機會。 */
+  tripName?: string;
+  /** 提供時在表單頂端顯示「切換旅行」（全域快速記帳有多趟可選時）。 */
+  onSwitchTrip?: () => void;
 }
 
 const FORM_ID = 'expense-form';
 
 /**
  * 新增／編輯支出表單（UI/UX 重設計 5.3 —— 最高頻操作）。
- * 欄位按輸入頻率排序：金額（大字、自動聚焦）→ 描述 → 分類 → 送出；
- * 付款人／日期／分帳／行程日／標籤／匯率／收據收進「進階」折疊區，
- * 預設值＝今天、TWD、平分全員，理想流程三步完成。
+ * 欄位按輸入頻率排序（docs/UX_IMPROVEMENTS.md 第 2 項）：
+ * 旅行名稱（可切換）→ 金額（大字、自動聚焦）＋幣別 → 描述 → 分類
+ * → 直接可改的付款人／日期／分帳摘要（點開即改分帳）→ 一句話記帳／掃描收據
+ * →「更多設定」折疊區（行程日／標籤／匯率／收據）。
+ * 預設值＝我付款、今天、全員均分，理想流程三步完成。
  * 行動端為全螢幕 Sheet、桌機為 Dialog（ResponsiveFormSheet 雙形態）。
  */
 export default function ExpenseFormSheet({
@@ -62,6 +69,8 @@ export default function ExpenseFormSheet({
   existingTags = [],
   initialDescription,
   currencySettings = null,
+  tripName,
+  onSwitchTrip,
 }: ExpenseFormSheetProps) {
   const tExpense = useTranslations('expense');
   const tCommon = useTranslations('common');
@@ -75,6 +84,8 @@ export default function ExpenseFormSheet({
     setError,
     splitMode,
     splitState,
+    showSplit,
+    setShowSplit,
     showAdvanced,
     setShowAdvanced,
     attachments,
@@ -156,13 +167,7 @@ export default function ExpenseFormSheet({
     }
   };
 
-  // 收合時仍顯示完整的記帳摘要，讓快速流程不以隱藏付款人／日期／分帳結果為代價。
-  const payerName = members.find((m) => m.id === form.payer_id)?.display_name ?? '';
-  const intlLocale =
-    locale === 'zh' ? 'zh-TW' : locale === 'jp' ? 'ja-JP' : locale === 'zh-CN' ? 'zh-CN' : 'en-US';
-  const displayDate = form.date
-    ? new Date(`${form.date}T00:00:00`).toLocaleDateString(intlLocale)
-    : '';
+  // 分帳收合時仍顯示結果摘要，讓快速流程不以隱藏分帳方式為代價。
   const selectedMemberIds = members
     .filter((member) => splitState[member.id]?.selected)
     .map((member) => member.id);
@@ -174,10 +179,6 @@ export default function ExpenseFormSheet({
   const allocatedLabel = hasValidExchangeRate
     ? formatCurrency(Math.round(split.allocatedTWD), 'TWD', locale)
     : '—';
-  const payerDateSummary = tExpense('form.summary.payerDate', {
-    payer: payerName,
-    date: displayDate,
-  });
   const splitSummary =
     splitMode === 'equal'
       ? tExpense('form.summary.equalSplit', {
@@ -202,12 +203,27 @@ export default function ExpenseFormSheet({
       : null;
 
   const submitLabel = mode === 'add' ? tExpense('add') : tCommon('save');
+  // 外幣缺匯率時強制展開「更多設定」，讓匯率欄位與錯誤訊息不被藏起來。
+  const rateMissing = form.currency !== 'TWD' && !hasValidExchangeRate && !loadingRates;
+  const advancedOpen = showAdvanced || rateMissing;
+  const formTitle = mode === 'add' ? tExpense('add') : tExpense('edit');
 
   return (
     <ResponsiveFormSheet
       open={open}
       onOpenChange={(val) => !val && onClose()}
-      title={mode === 'add' ? tExpense('add') : tExpense('edit')}
+      title={
+        tripName ? (
+          <span className="flex min-w-0 flex-col">
+            <span>{formTitle}</span>
+            <span className="truncate text-sm font-normal text-muted-foreground">
+              {tExpense('form.recordingTo', { trip: tripName })}
+            </span>
+          </span>
+        ) : (
+          formTitle
+        )
+      }
       description={tExpense('form.formDescription')}
       footer={
         <>
@@ -240,16 +256,20 @@ export default function ExpenseFormSheet({
           </Alert>
         )}
 
-        {mode === 'add' && (
-          <ExpenseAiInput
-            open={open}
-            tripId={tripId}
-            attachments={attachments}
-            onAttachmentsChange={setAttachments}
-            members={members}
-            onApplyTextDraft={applyTextDraft}
-            onApplyReceiptDraft={applyReceiptDraft}
-          />
+        {/* 旅行名稱已常駐在標題下方；這裡只補切換入口，不重複顯示名稱 */}
+        {onSwitchTrip && (
+          <div className="-mt-2 flex justify-end">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={onSwitchTrip}
+              className="min-h-11 gap-1.5 text-muted-foreground"
+            >
+              <ArrowLeftRight className="h-4 w-4" aria-hidden="true" />
+              {tExpense('form.switchTrip')}
+            </Button>
+          </div>
         )}
 
         {/* 1. 金額（Hero）＋幣別 */}
@@ -260,6 +280,17 @@ export default function ExpenseFormSheet({
           onCurrencyChange={handleCurrencyChange}
           currencyOptions={getTripExpenseCurrencies(currencySettings, form.currency)}
         />
+        {conversionSummary && (
+          <p
+            className={
+              hasValidExchangeRate
+                ? '-mt-2 px-1 text-xs text-muted-foreground'
+                : '-mt-2 px-1 text-xs font-medium text-destructive'
+            }
+          >
+            {conversionSummary}
+          </p>
+        )}
 
         {/* 2. 描述 */}
         <Input
@@ -277,49 +308,92 @@ export default function ExpenseFormSheet({
           onChange={(category) => setForm((prev) => ({ ...prev, category }))}
         />
 
-        {/* 4. 進階（折疊；預設：今天、目前使用者付款、平分全員） */}
+        {/* 4. 直接可改：付款人／日期／分帳（預設：我付款、今天、全員均分） */}
+        <PayerDateFields
+          payerId={form.payer_id}
+          date={form.date}
+          onPayerChange={(payer_id) => setForm((prev) => ({ ...prev, payer_id }))}
+          onDateChange={(date) => setForm((prev) => ({ ...prev, date }))}
+          members={members}
+          currentUserId={currentUser?.id}
+        />
+
+        <div className="space-y-3">
+          <Button
+            type="button"
+            variant="ghost"
+            className="h-auto min-h-11 w-full justify-between rounded-lg border px-3 py-2 text-left font-normal hover:bg-muted/60"
+            onClick={() => setShowSplit(!showSplit)}
+            aria-expanded={showSplit}
+          >
+            <span className="flex min-w-0 flex-col items-start">
+              <span className="text-xs text-muted-foreground">{tExpense('form.splitWith')}</span>
+              <span className="truncate font-medium">{splitSummary}</span>
+            </span>
+            {showSplit ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </Button>
+
+          {showSplit && (
+            <div className="rounded-lg bg-muted/30 p-3 animate-in fade-in slide-in-from-top-2">
+              <SplitSection
+                members={members}
+                splitMode={splitMode}
+                splitState={splitState}
+                split={split}
+                currency={form.currency}
+                anySelected={anySelected}
+                originalAmount={originalAmount}
+                totalAmountTWD={totalAmountTWD}
+                onModeChange={handleModeChange}
+                onToggle={handleSplitToggle}
+                onValueChange={handleValueChange}
+                onSelectAll={handleSelectAll}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* 5. 次要入口：一句話記帳／掃描收據（AI 只產生草稿，套用後仍可在上方修改） */}
+        {mode === 'add' && (
+          <ExpenseAiInput
+            open={open}
+            tripId={tripId}
+            attachments={attachments}
+            onAttachmentsChange={setAttachments}
+            members={members}
+            onApplyTextDraft={applyTextDraft}
+            onApplyReceiptDraft={applyReceiptDraft}
+          />
+        )}
+
+        {/* 6. 更多設定（折疊）：行程日／標籤／匯率／收據 */}
         <Button
           type="button"
           variant="ghost"
-          className="h-auto min-h-11 w-full justify-between rounded-lg border bg-muted/30 px-3 py-3 text-left font-normal text-muted-foreground hover:bg-muted/60"
-          onClick={() => setShowAdvanced(!showAdvanced)}
-          aria-expanded={showAdvanced}
+          className="h-auto min-h-11 w-full justify-between rounded-lg border bg-muted/30 px-3 py-2 text-left font-normal text-muted-foreground hover:bg-muted/60"
+          onClick={() => setShowAdvanced(!advancedOpen)}
+          aria-expanded={advancedOpen}
+          disabled={rateMissing}
         >
-          <span className="flex min-w-0 flex-col items-start gap-1">
-            <span className="font-medium text-foreground">
-              {showAdvanced ? tCommon('hideDetails') : payerDateSummary}
+          <span className="flex min-w-0 flex-col items-start">
+            <span className="font-medium text-foreground">{tExpense('form.moreSettings')}</span>
+            <span className="text-xs">
+              {mode === 'edit'
+                ? tExpense('form.moreSettingsHintWithReceipts')
+                : tExpense('form.moreSettingsHint')}
             </span>
-            {!showAdvanced && (
-              <>
-                <span className="text-xs">{splitSummary}</span>
-                {conversionSummary && (
-                  <span
-                    className={
-                      hasValidExchangeRate ? 'text-xs' : 'text-xs font-medium text-destructive'
-                    }
-                  >
-                    {conversionSummary}
-                  </span>
-                )}
-              </>
-            )}
           </span>
-          {showAdvanced ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          {advancedOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </Button>
 
-        {showAdvanced && (
+        {advancedOpen && (
           <div className="space-y-4 rounded-lg bg-muted/30 p-4 animate-in fade-in slide-in-from-top-2">
             <AdvancedFields
-              payerId={form.payer_id}
-              date={form.date}
               currency={form.currency}
               exchangeRate={form.exchange_rate}
-              onPayerChange={(payer_id) => setForm((prev) => ({ ...prev, payer_id }))}
-              onDateChange={(date) => setForm((prev) => ({ ...prev, date }))}
               onExchangeRateChange={(exchange_rate) =>
                 setForm((prev) => ({ ...prev, exchange_rate }))
               }
-              members={members}
               itineraryDays={itineraryDays}
               itineraryDayIds={itineraryDayIds}
               onItineraryDayToggle={handleItineraryDayToggle}
@@ -329,21 +403,6 @@ export default function ExpenseFormSheet({
               loadingRates={loadingRates}
               ratesError={hasValidExchangeRate ? '' : ratesError}
               onRefreshRates={handleRefreshRates}
-            />
-
-            <SplitSection
-              members={members}
-              splitMode={splitMode}
-              splitState={splitState}
-              split={split}
-              currency={form.currency}
-              anySelected={anySelected}
-              originalAmount={originalAmount}
-              totalAmountTWD={totalAmountTWD}
-              onModeChange={handleModeChange}
-              onToggle={handleSplitToggle}
-              onValueChange={handleValueChange}
-              onSelectAll={handleSelectAll}
             />
 
             {mode === 'edit' && (

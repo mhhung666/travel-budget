@@ -70,9 +70,10 @@ export function useExpenseForm({
 
   const [splitMode, setSplitMode] = useState<SplitMode>('equal');
   const [splitState, setSplitState] = useState<SplitState>({});
-  // 進階欄位（付款人／日期／分帳／行程日／標籤／匯率／收據）預設收合，
-  // 讓「金額 → 描述 → 送出」三步完成；編輯模式預設展開。
-  const [showAdvanced, setShowAdvanced] = useState(mode === 'edit');
+  // 付款人／日期直接露出；分帳明細與「更多設定」（行程日／標籤／匯率／收據）預設收合，
+  // 讓「金額 → 描述 → 送出」三步完成，改分帳只需展開一層。
+  const [showSplit, setShowSplit] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [attachments, setAttachments] = useState<ExpenseAttachment[]>([]);
   const [itineraryDayIds, setItineraryDayIds] = useState<string[]>([]);
   const [tags, setTags] = useState<string[]>([]);
@@ -150,6 +151,14 @@ export function useExpenseForm({
         setAttachments(expense.attachments ?? []);
         setItineraryDayIds(expense.itinerary_day_ids ?? []);
         setTags(expense.tags ?? []);
+        // 既有支出：非均分才展開分帳；有填過更多設定的內容才展開，避免編輯時表單又拉長。
+        setShowSplit(inferredMode !== 'equal');
+        setShowAdvanced(
+          expense.currency !== 'TWD' ||
+            (expense.tags?.length ?? 0) > 0 ||
+            (expense.itinerary_day_ids?.length ?? 0) > 0 ||
+            (mode === 'edit' && (expense.attachments?.length ?? 0) > 0)
+        );
       } else {
         // Add mode: Initialize with defaults（今天、旅程預設幣別（未設定則 TWD）、平分全員）；
         // 描述可由呼叫端預填（如清單購物項的品名，「勾完→記一筆」）。
@@ -176,10 +185,11 @@ export function useExpenseForm({
         setAttachments([]);
         setItineraryDayIds([]);
         setTags([]);
+        setShowSplit(false);
+        setShowAdvanced(false);
       }
 
       setError('');
-      setShowAdvanced(mode === 'edit' || !!expense);
       // 新增模式且預設幣別是外幣又沒自訂匯率時，即時匯率回來後補進表單；
       // 只在匯率仍為空值（使用者沒動過）時補，避免蓋掉手動輸入。
       fetchExchangeRates().then((rates) => {
@@ -347,8 +357,12 @@ export function useExpenseForm({
         )
       );
     }
-    if (draft.tags) setTags(draft.tags);
-    setShowAdvanced(true);
+    // 付款人已直接露出；分帳與標籤有被草稿改動時才展開對應區塊供確認。
+    if (draft.resolvedSplit) setShowSplit(true);
+    if (draft.tags) {
+      setTags(draft.tags);
+      if (draft.tags.length > 0) setShowAdvanced(true);
+    }
   };
 
   /** Applies only fields the receipt parser identified unambiguously. */
@@ -383,7 +397,6 @@ export function useExpenseForm({
         category: draft.suggestedCategory ?? previous.category,
       };
     });
-    setShowAdvanced(true);
     return draft.warnings.length > 0 || !canApplyTotal || !canApplyCurrency;
   };
 
@@ -394,6 +407,8 @@ export function useExpenseForm({
     setError,
     splitMode,
     splitState,
+    showSplit,
+    setShowSplit,
     showAdvanced,
     setShowAdvanced,
     attachments,

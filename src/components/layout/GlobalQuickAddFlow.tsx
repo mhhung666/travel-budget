@@ -130,11 +130,13 @@ function GlobalExpenseForm({
   open,
   onClose,
   path,
+  onSwitchTrip,
 }: {
   tripId: string;
   open: boolean;
   onClose: () => void;
   path: 'direct' | 'picker' | 'created';
+  onSwitchTrip?: () => void;
 }) {
   const {
     trip,
@@ -178,6 +180,8 @@ function GlobalExpenseForm({
       itineraryDays={itineraryDays}
       existingTags={existingTags}
       currencySettings={trip.currency_settings}
+      tripName={trip.name}
+      onSwitchTrip={onSwitchTrip}
     />
   );
 }
@@ -191,6 +195,8 @@ export function GlobalQuickAddFlow({ open, preferredTripId, onClose }: GlobalQui
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
   const [selectedPath, setSelectedPath] = useState<'picker' | 'created'>('picker');
   const [createOpen, setCreateOpen] = useState(false);
+  // 使用者在表單中按「切換旅行」後，即使規則會直接開表單也改顯示 picker。
+  const [forcePicker, setForcePicker] = useState(false);
   const measuredStage = useRef<string | null>(null);
 
   const decision = useMemo(
@@ -202,6 +208,7 @@ export function GlobalQuickAddFlow({ open, preferredTripId, onClose }: GlobalQui
     setSelectedTripId(null);
     setSelectedPath('picker');
     setCreateOpen(false);
+    setForcePicker(false);
     onClose();
   };
 
@@ -212,6 +219,14 @@ export function GlobalQuickAddFlow({ open, preferredTripId, onClose }: GlobalQui
     rememberTrip(trip);
     setSelectedPath(path);
     setSelectedTripId(trip.hash_code);
+    setForcePicker(false);
+  };
+
+  // 只有一趟可選時沒有切換的意義；新建旅行後也保留切換，方便改記到既有旅行。
+  const canSwitchTrip = decision.trips.length > 1;
+  const switchTrip = () => {
+    setSelectedTripId(null);
+    setForcePicker(true);
   };
 
   const stage = !open
@@ -220,11 +235,13 @@ export function GlobalQuickAddFlow({ open, preferredTripId, onClose }: GlobalQui
       ? `form_opened:${selectedPath}`
       : isLoading || tripsQuery.isError || tripsQuery.isPaused
         ? null
-        : decision.kind === 'direct'
-          ? 'form_opened:direct'
-          : decision.kind === 'pick'
-            ? 'picker_shown:picker'
-            : 'trip_creation_shown:created';
+        : forcePicker && canSwitchTrip
+          ? 'picker_shown:picker'
+          : decision.kind === 'direct'
+            ? 'form_opened:direct'
+            : decision.kind === 'pick'
+              ? 'picker_shown:picker'
+              : 'trip_creation_shown:created';
 
   useEffect(() => {
     if (!stage) {
@@ -244,7 +261,13 @@ export function GlobalQuickAddFlow({ open, preferredTripId, onClose }: GlobalQui
 
   if (selectedTripId) {
     return (
-      <GlobalExpenseForm tripId={selectedTripId} open onClose={closeFlow} path={selectedPath} />
+      <GlobalExpenseForm
+        tripId={selectedTripId}
+        open
+        onClose={closeFlow}
+        path={selectedPath}
+        onSwitchTrip={canSwitchTrip ? switchTrip : undefined}
+      />
     );
   }
 
@@ -271,13 +294,19 @@ export function GlobalQuickAddFlow({ open, preferredTripId, onClose }: GlobalQui
     );
   }
 
-  if (decision.kind === 'direct') {
+  if (decision.kind === 'direct' && !(forcePicker && canSwitchTrip)) {
     return (
-      <GlobalExpenseForm tripId={decision.trip.hash_code} open onClose={closeFlow} path="direct" />
+      <GlobalExpenseForm
+        tripId={decision.trip.hash_code}
+        open
+        onClose={closeFlow}
+        path="direct"
+        onSwitchTrip={canSwitchTrip ? switchTrip : undefined}
+      />
     );
   }
 
-  if (decision.kind === 'pick') {
+  if (decision.kind !== 'none') {
     return <TripPicker open trips={decision.trips} onSelect={selectTrip} onClose={closeFlow} />;
   }
 

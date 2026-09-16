@@ -381,12 +381,17 @@
       "tags": "タグ",
       "tagsPlaceholder": "入力後 Enter またはカンマで追加",
       "summary": {
-        "payerDate": "{payer}が支払い · {date}",
         "equalSplit": "{count}人で均等 · 1人 {amount}",
         "customSplit": "{mode} · {count}人 · {allocated} 割当済み",
         "converted": "{original} ≈ {converted}",
         "loadingRate": "為替レートを取得中…"
-      }
+      },
+      "recordingTo": "旅行：{trip}",
+      "switchTrip": "旅行を切り替え",
+      "payerSelf": "{name}（自分）",
+      "moreSettings": "その他の設定",
+      "moreSettingsHint": "為替レート・タグ・関連する日程",
+      "moreSettingsHintWithReceipts": "為替レート・タグ・関連する日程・レシート"
     },
     "confirm": {
       "delete": "この支出を削除しますか？",

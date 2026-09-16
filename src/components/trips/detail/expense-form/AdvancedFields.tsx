@@ -2,31 +2,19 @@
 
 import { Loader2, RefreshCw } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import type { ItineraryDay, Member } from '@/types';
+import type { ItineraryDay } from '@/types';
 
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { TagInput } from '@/components/ui/tag-input';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface AdvancedFieldsProps {
-  payerId: string;
-  date: string;
   currency: string;
   exchangeRate: string;
-  onPayerChange: (payerId: string) => void;
-  onDateChange: (date: string) => void;
   onExchangeRateChange: (rate: string) => void;
-  members: Member[];
   itineraryDays: ItineraryDay[];
   itineraryDayIds: string[];
   onItineraryDayToggle: (dayId: string) => void;
@@ -38,16 +26,11 @@ interface AdvancedFieldsProps {
   onRefreshRates: () => void;
 }
 
-/** 進階欄位：付款人／日期／關聯行程日／標籤／匯率（分帳與收據由外層組進同一折疊區）。 */
+/** 「更多設定」欄位：關聯行程日／標籤／匯率（收據由外層組進同一折疊區）。 */
 export function AdvancedFields({
-  payerId,
-  date,
   currency,
   exchangeRate,
-  onPayerChange,
-  onDateChange,
   onExchangeRateChange,
-  members,
   itineraryDays,
   itineraryDayIds,
   onItineraryDayToggle,
@@ -63,32 +46,6 @@ export function AdvancedFields({
 
   return (
     <>
-      <div className="space-y-2">
-        <Label>{tExpense('form.payer')}</Label>
-        <Select value={payerId.toString()} onValueChange={onPayerChange}>
-          <SelectTrigger aria-label={tExpense('form.payer')}>
-            <SelectValue placeholder={tExpense('form.payerPlaceholder')} />
-          </SelectTrigger>
-          <SelectContent>
-            {members.map((member) => (
-              <SelectItem key={member.id} value={member.id.toString()}>
-                {member.display_name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="expense-date">{tExpense('form.date')}</Label>
-        <Input
-          id="expense-date"
-          type="date"
-          value={date}
-          onChange={(e) => onDateChange(e.target.value)}
-        />
-      </div>
-
       {itineraryDays.length > 0 && (
         <div className="space-y-2">
           <Label>{tExpense('form.itineraryDay')}</Label>
