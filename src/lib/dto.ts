@@ -1,3 +1,4 @@
+import { roundMoney, normalizeShares } from '@/lib/money';
 import type { ChecklistKind } from '@/types';
 import type {
   Expense as ExpenseDto,
@@ -62,10 +63,14 @@ export function toExpenseDto(
   // 收據預設帶出（已登入情境）；公開分享路由傳 { attachments: false }，避免把收據
   // 外洩到未登入的分享頁（隱私決策：收據常含卡號/地址）。
   const includeAttachments = opts?.attachments ?? true;
+  const shares = normalizeShares(
+    e.amount,
+    (e.splits || []).map((s) => s.shareAmount)
+  );
   return {
     id: e._id.toString(),
     trip_id: tripId,
-    amount: e.amount,
+    amount: roundMoney(e.amount),
     original_amount: e.originalAmount,
     currency: e.currency,
     exchange_rate: e.exchangeRate,
@@ -75,9 +80,9 @@ export function toExpenseDto(
     created_at: e.createdAt.toISOString(),
     payer_id: e.payer?._id.toString() || '',
     payer_name: e.payer?.displayName || 'Unknown',
-    splits: (e.splits || []).map((s) => ({
+    splits: (e.splits || []).map((s, i) => ({
       user_id: s.user?._id.toString() || '',
-      share_amount: s.shareAmount,
+      share_amount: shares[i],
       username: s.user?.username || 'Unknown',
       display_name: s.user?.displayName || 'Unknown',
     })),

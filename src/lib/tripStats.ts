@@ -1,4 +1,4 @@
-import { allocateMoney, roundMoney } from '@/lib/money';
+import { allocateMoney, roundMoney, normalizeShares } from '@/lib/money';
 import type {
   CategoryStat,
   DailySpend,
@@ -109,8 +109,12 @@ export function computeTripStats(
     }
 
     if (e.payerId) paidByUser.set(e.payerId, (paidByUser.get(e.payerId) || 0) + amount);
-    for (const s of e.splits || []) {
-      shareByUser.set(s.userId, (shareByUser.get(s.userId) || 0) + roundMoney(s.shareAmount || 0));
+    const shares = normalizeShares(
+      amount,
+      (e.splits || []).map((s) => s.shareAmount || 0)
+    );
+    for (const [i, s] of (e.splits || []).entries()) {
+      shareByUser.set(s.userId, (shareByUser.get(s.userId) || 0) + shares[i]);
     }
 
     // 關聯多個行程日時把金額平均分攤到每一天（跨夜飯店分散到各晚）；未關聯歸入 null 桶。

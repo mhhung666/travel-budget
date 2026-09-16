@@ -1,6 +1,6 @@
 import { Trip, Expense, Payment, User } from '@/models';
 import { calculateSettlement, applyPayments } from '@/lib/settlement';
-import { roundMoney } from '@/lib/money';
+import { roundMoney, normalizeShares } from '@/lib/money';
 import { toPaymentRecord, type PaymentDtoInput } from '@/lib/dto';
 import type { Balance, Settlement } from '@/types';
 type PopulatedMember = {
@@ -50,9 +50,13 @@ export async function readSettlement(tripId: string, memberIds?: string[]): Prom
     totalExpenses += amount;
     const payerId = e.payer.toString();
     paidByUser.set(payerId, (paidByUser.get(payerId) || 0) + amount);
-    for (const s of e.splits || []) {
+    const shares = normalizeShares(
+      amount,
+      (e.splits || []).map((s) => s.shareAmount || 0)
+    );
+    for (const [i, s] of (e.splits || []).entries()) {
       const uid = s.user.toString();
-      owedByUser.set(uid, (owedByUser.get(uid) || 0) + roundMoney(s.shareAmount || 0));
+      owedByUser.set(uid, (owedByUser.get(uid) || 0) + shares[i]);
     }
   }
 

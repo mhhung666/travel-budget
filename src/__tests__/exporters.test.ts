@@ -242,3 +242,22 @@ describe('exportSettlement', () => {
     expect(JSON.parse(content)).toEqual(settlement);
   });
 });
+
+it('exports legacy split remainders consistently in every format', () => {
+  const legacy = {
+    ...expenses[0],
+    amount: 30.25,
+    splits: [
+      { user_id: 'a', username: 'a', display_name: 'A', share_amount: 15.125 },
+      { user_id: 'b', username: 'b', display_name: 'B', share_amount: 15.125 },
+    ],
+  };
+  for (const format of ['markdown', 'csv'] as const) {
+    const { content } = exportExpenses([legacy], format, expenseLabels);
+    expect(content).toContain('A: 15.13; B: 15.12');
+    expect(content).toContain('30.25');
+  }
+  const [row] = JSON.parse(exportExpenses([legacy], 'json', expenseLabels).content);
+  expect(row.splits.map((s: { share_amount: number }) => s.share_amount)).toEqual([15.13, 15.12]);
+  expect(legacy.splits[0].share_amount).toBe(15.125);
+});

@@ -1,4 +1,4 @@
-import { roundMoney } from '@/lib/money';
+import { roundMoney, normalizeShares } from '@/lib/money';
 import type { Expense } from '@/types';
 import type { ExportFile, ExportFormat } from './types';
 import { FORMAT_META } from './types';
@@ -108,6 +108,17 @@ export function exportExpenses(
   format: ExportFormat,
   labels: ExpenseLabels
 ): ExportFile {
+  expenses = expenses.map((e) => {
+    const shares = normalizeShares(
+      e.amount,
+      e.splits.map((s) => s.share_amount)
+    );
+    return {
+      ...e,
+      amount: roundMoney(e.amount),
+      splits: e.splits.map((s, i) => ({ ...s, share_amount: shares[i] })),
+    };
+  });
   const meta = FORMAT_META[format];
   let content: string;
   switch (format) {

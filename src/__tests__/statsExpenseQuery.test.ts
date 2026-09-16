@@ -27,6 +27,7 @@ describe('buildStatsExpensePagePipeline', () => {
       '$match',
       '$sort',
       '$limit',
+      '$set',
       '$unwind',
       '$match',
     ]);
@@ -65,13 +66,14 @@ describe('buildStatsExpensePagePipeline', () => {
 
     expect(pipeline.map((stage) => Object.keys(stage)[0])).toEqual([
       '$match',
+      '$set',
       '$unwind',
       '$match',
       '$match',
       '$sort',
       '$limit',
     ]);
-    expect(pipeline[3]).toMatchObject({
+    expect(pipeline[4]).toMatchObject({
       $match: {
         $or: [
           { 'splits.shareAmount': { $gt: 1200 } },
@@ -82,9 +84,9 @@ describe('buildStatsExpensePagePipeline', () => {
         ],
       },
     });
-    expect(pipeline[4]).toEqual({
+    expect(pipeline[5]).toEqual({
       $sort: { 'splits.shareAmount': 1, _id: 1 },
     });
-    expect(pipeline[5]).toEqual({ $limit: 21 });
+    expect(pipeline[6]).toEqual({ $limit: 21 });
   });
 });

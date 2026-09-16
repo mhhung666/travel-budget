@@ -10,7 +10,7 @@ import { render, screen } from '@testing-library/react';
 import { computeSplits, type SplitMemberInput } from '@/lib/expenseSplit';
 import { computeTripStats, type TripStatsExpense } from '@/lib/tripStats';
 import { applyPayments, calculateSettlement } from '@/lib/settlement';
-import { allocateMoney, roundMoney, roundMoneyExpr } from '@/lib/money';
+import { allocateMoney, roundMoney, normalizeShares } from '@/lib/money';
 import SettlementSummary from '@/components/settlement/SettlementSummary';
 
 const member = (id: string, value = ''): SplitMemberInput => ({ id, selected: true, value });
@@ -161,76 +161,22 @@ describe('settlement summary precision', () => {
   });
 });
 
-/**
- * 聚合端取整必須與 JS 端同源。MongoDB 的 `$round` 是銀行家捨入（30.125 → 30.12），
- * 而 `roundMoney` 四捨五入（30.13）：舊資料 30.125 因此在預算列／今日花費與結算／
- * 個人統計之間差一分。這裡用同一套語意重算 `roundMoneyExpr`，不需要資料庫；真正在
- * MongoDB 上跑的驗證見 moneyAggregation.integration.test.ts。
- */
-// 十進位運算以定點 BigInt 模擬（Decimal128 有 34 位有效數字，這裡固定 20 位小數綽綽
-// 有餘）；用 double 會重新引入正要避開的二進位誤差。字面量寫法（1n）在 ES2017 目標下
-// 不可用，故一律以 BigInt() 建構。
-const ZERO = BigInt(0);
-const ONE = BigInt(1);
-const HUNDRED = BigInt(100);
-const UNIT = BigInt(10) ** BigInt(20);
-const CENT = UNIT / HUNDRED;
-/** 欄位不存在的哨兵值，唯一用途是讓 `$ifNull` 有東西可判。 */
-const MISSING = -(BigInt(10) ** BigInt(38));
-
-function toDecimal(value: number): bigint {
-  // MongoDB 由 double 轉 Decimal128 時取 15 位有效數字，正是消去 1.005 這類表示誤差的關鍵。
-  const text = value.toPrecision(15);
-  const negative = text.startsWith('-');
-  const [whole, fraction = ''] = (negative ? text.slice(1) : text).split('.');
-  const scaled = BigInt(whole) * UNIT + BigInt((fraction + '0'.repeat(20)).slice(0, 20));
-  return negative ? -scaled : scaled;
-}
-
-function evaluateExpr(expr: unknown, value: number | undefined): bigint {
-  if (typeof expr === 'number') return toDecimal(expr);
-  if (typeof expr === 'string') return value === undefined ? MISSING : toDecimal(value);
-  const [op, arg] = Object.entries(expr as Record<string, unknown>)[0];
-  const args = (Array.isArray(arg) ? arg : [arg]).map((a) => evaluateExpr(a, value));
-  switch (op) {
-    case '$toDecimal':
-    case '$toDouble':
-      return args[0];
-    case '$ifNull':
-      return args[0] === MISSING ? ZERO : args[0];
-    case '$multiply':
-      return (args[0] * args[1]) / UNIT;
-    case '$add':
-      return args[0] + args[1];
-    case '$floor':
-      return (args[0] >= ZERO ? args[0] / UNIT : -((-args[0] + UNIT - ONE) / UNIT)) * UNIT;
-    case '$divide':
-      return (args[0] * UNIT) / args[1];
-    default:
-      throw new Error(`unsupported operator ${op}`);
-  }
-}
-
-function evaluate(value: number | undefined): number {
-  const scaled = evaluateExpr(roundMoneyExpr('$amount'), value);
-  // 結果必須落在分上；用 Number(scaled) / 1e20 收尾會把 1000 變成 999.9999999999999。
-  if (scaled % CENT !== ZERO) throw new Error(`not a whole cent: ${scaled}`);
-  return Number(scaled / CENT) / 100;
-}
-
-describe('aggregation rounding matches roundMoney', () => {
-  it.each([30.125, 30.135, 1.005, 2.675, 0.005, 0.015, 999.995, -30.125, 12, 30.124])(
-    'rounds %s the same way on both sides',
-    (amount) => {
-      expect(evaluate(amount)).toBe(roundMoney(amount));
-    }
-  );
-
-  it('treats a missing amount as zero', () => {
-    expect(evaluate(undefined)).toBe(0);
+describe('legacy split normalization', () => {
+  it('allocates half-cent shares without changing the expense total', () => {
+    expect(normalizeShares(30.25, [15.125, 15.125])).toEqual([15.13, 15.12]);
   });
-
-  it('never falls back to $round, whose half-to-even loses the cent', () => {
-    expect(JSON.stringify(roundMoneyExpr('$amount'))).not.toContain('$round');
+  it('does not redistribute a large discrepancy or invent missing participants', () => {
+    expect(normalizeShares(300, [5])).toEqual([5]);
+    expect(normalizeShares(300, [])).toEqual([]);
+  });
+  it('preserves balanced cent shares and is idempotent', () => {
+    const shares = normalizeShares(1000, [500, 499.99]);
+    expect(shares).toEqual([500.01, 499.99]);
+    expect(normalizeShares(1000, shares)).toEqual(shares);
+  });
+  it('does not promote values genuinely below a half cent', () => {
+    expect(roundMoney(30.124999999999)).toBe(30.12);
+    expect(roundMoney(30.125)).toBe(30.13);
+    expect(roundMoney(1.005)).toBe(1.01);
   });
 });

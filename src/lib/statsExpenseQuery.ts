@@ -1,3 +1,4 @@
+import { normalizedSplitsExpr } from '@/lib/money';
 import { Types, type PipelineStage } from 'mongoose';
 import type { StatsExpenseSort } from '@/types';
 import type { StatsExpenseCursor } from '@/lib/statsExpenseCursor';
@@ -52,6 +53,7 @@ export function buildStatsExpensePagePipeline({
       { $match: cursorMatch ? { $and: [match, cursorMatch] } : match },
       { $sort: { date: direction, _id: direction } },
       { $limit: pageSize + 1 },
+      { $set: { splits: normalizedSplitsExpr() } },
       { $unwind: '$splits' },
       { $match: { 'splits.user': userId } },
     ];
@@ -59,6 +61,7 @@ export function buildStatsExpensePagePipeline({
 
   const pipeline: PipelineStage[] = [
     { $match: match },
+    { $set: { splits: normalizedSplitsExpr() } },
     { $unwind: '$splits' },
     { $match: { 'splits.user': userId } },
   ];

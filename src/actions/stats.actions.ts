@@ -1,7 +1,7 @@
 'use server';
 
 import { Types, type PipelineStage } from 'mongoose';
-import { roundMoney } from '@/lib/money';
+import { roundMoney, normalizeShares } from '@/lib/money';
 import { dbConnect } from '@/lib/mongodb';
 import { Trip, Expense, ItineraryDay } from '@/models';
 import { getTripMembership } from '@/lib/permissions';
@@ -45,6 +45,7 @@ interface GetStatsOptions {
 }
 
 type LeanStatExpense = {
+  amount: number;
   _id: { toString(): string };
   category: string | null;
   date: Date;
@@ -89,9 +90,12 @@ function aggregatePersonalStats(expenses: LeanStatExpense[], userId: string): St
 
   for (const expense of expenses) {
     // 先收斂到分：各分類、各旅行的桶都由同精度的數字加總，相加才會等於總額。
-    const share = roundMoney(
-      expense.splits.find((split) => split.user.toString() === userId)?.shareAmount || 0
+    const shares = normalizeShares(
+      expense.amount ?? expense.splits.reduce((sum, s) => sum + s.shareAmount, 0),
+      expense.splits.map((s) => s.shareAmount)
     );
+    const share =
+      shares[expense.splits.findIndex((split) => split.user.toString() === userId)] ?? 0;
     const category = expense.category || 'other';
     const tripId = expense.trip?._id.toString() || '';
     const detail: ExpenseDetail = {
@@ -236,7 +240,7 @@ export const getStats = withAuth(
         'splits.user': session.userId,
         ...(rangeStart || rangeEnd ? { date: dateFilter } : {}),
       })
-        .select('category date description splits trip tags')
+        .select('amount category date description splits trip tags')
         .populate('trip', 'name')
         .lean<LeanStatExpense[]>();
 

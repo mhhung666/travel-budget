@@ -1,4 +1,4 @@
-import { roundMoney } from '@/lib/money';
+import { roundMoney, normalizeShares } from '@/lib/money';
 import type { Budget, BudgetProgress, CategoryBudgetProgress } from '@/types';
 import { CATEGORY_CODES } from '@/constants/categories';
 
@@ -19,6 +19,7 @@ export function computeBudgetProgress(
   budget: Budget | null,
   expenses: {
     category: string;
+    amount?: number;
     splits: { user_id: string; share_amount: number }[];
   }[],
   userId: string | null
@@ -35,9 +36,11 @@ export function computeBudgetProgress(
   let totalSpent = 0;
   for (const e of expenses) {
     const cat = e.category || 'other';
-    const amt = userId
-      ? (e.splits.find((split) => split.user_id === userId)?.share_amount ?? 0)
-      : 0;
+    const shares = normalizeShares(
+      e.amount ?? e.splits.reduce((sum, s) => sum + s.share_amount, 0),
+      e.splits.map((s) => s.share_amount)
+    );
+    const amt = userId ? (shares[e.splits.findIndex((s) => s.user_id === userId)] ?? 0) : 0;
     totalSpent += amt;
     spentByCategory.set(cat, (spentByCategory.get(cat) ?? 0) + amt);
   }

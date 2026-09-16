@@ -1,5 +1,5 @@
 import { Types } from 'mongoose';
-import { roundMoney, roundMoneyExpr } from '@/lib/money';
+import { roundMoney, roundMoneyExpr, normalizedSplitsExpr } from '@/lib/money';
 import { Expense } from '@/models';
 import type { TripShell } from '@/types';
 export type LeanTripShell = {
@@ -59,6 +59,7 @@ export async function readTripShell(
   const aggregate = viewerId
     ? await Expense.aggregate<ShellExpenseAggregate>([
         { $match: { trip: new Types.ObjectId(tripId) } },
+        { $set: { splits: normalizedSplitsExpr() } },
         {
           $group: {
             _id: null,
@@ -81,15 +82,20 @@ export async function readTripShell(
                   input: '$splits',
                   initialValue: 0,
                   in: {
-                    $cond: [
-                      // 比字串而非 ObjectId：結算與個人統計都用 `.toString()` 比對，
-                      // 型別若不一致（歷史匯入的 splits.user 存成字串）只有這裡會漏算，
-                      // 同一趟旅行就會出現「我的花費 0、結算卻有金額」。
+                    $add: [
+                      '$$value',
                       {
-                        $eq: [{ $toString: '$$this.user' }, viewerId],
+                        $cond: [
+                          // 比字串而非 ObjectId：結算與個人統計都用 `.toString()` 比對，
+                          // 型別若不一致（歷史匯入的 splits.user 存成字串）只有這裡會漏算，
+                          // 同一趟旅行就會出現「我的花費 0、結算卻有金額」。
+                          {
+                            $eq: [{ $toString: '$$this.user' }, viewerId],
+                          },
+                          roundMoneyExpr('$$this.shareAmount'),
+                          0,
+                        ],
                       },
-                      roundMoneyExpr('$$this.shareAmount'),
-                      0,
                     ],
                   },
                 },

@@ -11,10 +11,11 @@
  *    拆出來的加總「剛好」等於原金額，尾差有人認領而不是消失。
  */
 
-/** 轉成整數分；先 toPrecision 消掉 1.005 這類二進位表示誤差。 */
+/** 轉成整數分；只吸收乘法造成的機器精度誤差，JS 與 MongoDB 使用相同 double 運算。 */
 function toCents(amount: number): number {
   if (!Number.isFinite(amount)) return 0;
-  return Math.round(Number((amount * 100).toPrecision(12)));
+  const cents = amount * 100;
+  return Math.floor(cents + 0.5 + Math.abs(cents) * Number.EPSILON * 2);
 }
 
 /** 四捨五入到分。金額進入任何加總、比較或儲存前都先過這裡。 */
@@ -35,11 +36,14 @@ export function allocateMoney(total: number, weights: number[]): number[] {
   const effective = totalWeight > 0 ? positive : weights.map(() => 1);
   const effectiveTotal = totalWeight > 0 ? totalWeight : weights.length;
 
-  const exact = effective.map((w) => (totalCents * w) / effectiveTotal);
+  // 把遠小於一分的運算雜訊收斂，避免 JS 與 MongoDB 加總演算法讓同餘數換人。
+  const exact = effective.map(
+    (w) => Math.floor(((totalCents * w) / effectiveTotal) * 1e9 + 0.5) / 1e9
+  );
   const cents = exact.map((value) => Math.floor(value));
   let remainder = totalCents - cents.reduce((sum, c) => sum + c, 0);
   const order = exact
-    .map((value, index) => ({ index, frac: value - Math.floor(value) }))
+    .map((value, index) => ({ index, frac: Math.round((value - Math.floor(value)) * 1e9) / 1e9 }))
     .sort((a, b) => b.frac - a.frac || a.index - b.index);
   for (let i = 0; remainder > 0 && order.length > 0; i += 1, remainder -= 1) {
     cents[order[i % order.length].index] += 1;
@@ -65,28 +69,223 @@ export const MONEY_EPSILON = 0.005;
  */
 export const SPLIT_TOLERANCE = 0.01;
 
-/**
- * `roundMoney` 的 MongoDB 聚合版本：把欄位收斂到分，和 JS 端逐分取整完全一致。
- *
- * 不能用 `$round: [expr, 2]`——MongoDB 的 $round 是銀行家捨入（四捨六入五成雙），
- * 30.125 會變成 30.12，而 JS 的 `roundMoney` 是四捨五入得到 30.13：同一筆舊資料
- * 在預算列／今日花費（走聚合）與結算／統計（走 JS）就差一分。
- *
- * 先 `$toDecimal` 再運算：MongoDB 轉 Decimal128 時取 15 位有效數字，等同 JS 端
- * `toPrecision` 消掉 1.005 這類二進位表示誤差的作用；`$floor(x * 100 + 0.5)` 則是
- * `Math.round` 的定義（含負數一律朝 +∞ 進位），兩邊才會逐筆逐分吻合。
- */
+/** MongoDB 與 toCents 使用相同的 double 運算次序及誤差範圍。 */
 export function roundMoneyExpr(valueExpr: unknown): Record<string, unknown> {
   return {
-    $toDouble: {
-      $divide: [
-        {
-          $floor: {
-            $add: [{ $multiply: [{ $toDecimal: { $ifNull: [valueExpr, 0] } }, 100] }, 0.5],
+    $let: {
+      vars: { cents: { $multiply: [{ $ifNull: [valueExpr, 0] }, 100] } },
+      in: {
+        $divide: [
+          {
+            $floor: {
+              $add: [
+                { $add: ['$$cents', 0.5] },
+                { $multiply: [{ $multiply: [{ $abs: '$$cents' }, Number.EPSILON] }, 2] },
+              ],
+            },
+          },
+          100,
+        ],
+      },
+    },
+  };
+}
+
+/** 保留已平衡的分攤；舊資料取到分後若不平衡，依原始權重分配尾差。 */
+export function normalizeShares(amount: number, shares: number[]): number[] {
+  amount = roundMoney(amount);
+  const rounded = shares.map(roundMoney);
+  // 只修正分精度的尾差；缺少參與人或大額不平衡不能被讀取流程擅自重分。
+  if (
+    Math.abs(roundMoney(shares.reduce((sum, share) => sum + share, 0) - amount)) >
+    roundMoney(shares.length * 0.005 + 0.01)
+  )
+    return rounded;
+  if (rounded.reduce((sum, share) => sum + toCents(share), 0) === toCents(amount)) return rounded;
+  return allocateMoney(amount, shares);
+}
+
+/** 舊分攤的聚合版本。排序以原始索引破同分，與 allocateMoney 的最大餘數法一致。 */
+export function normalizedSplitsExpr(): Record<string, unknown> {
+  return {
+    $let: {
+      vars: {
+        splits: { $ifNull: ['$splits', []] },
+        total: { $round: [{ $multiply: [roundMoneyExpr('$amount'), 100] }, 0] },
+      },
+      in: {
+        $let: {
+          vars: {
+            rounded: {
+              $map: { input: '$$splits', as: 's', in: roundMoneyExpr('$$s.shareAmount') },
+            },
+            weight: {
+              $sum: {
+                $map: {
+                  input: '$$splits',
+                  as: 's',
+                  in: { $max: [0, { $ifNull: ['$$s.shareAmount', 0] }] },
+                },
+              },
+            },
+          },
+          in: {
+            $let: {
+              vars: {
+                parts: {
+                  $map: {
+                    input: { $range: [0, { $size: '$$splits' }] },
+                    as: 'i',
+                    in: {
+                      $let: {
+                        vars: { s: { $arrayElemAt: ['$$splits', '$$i'] } },
+                        in: {
+                          $let: {
+                            vars: {
+                              rawExact: {
+                                $divide: [
+                                  {
+                                    $multiply: [
+                                      '$$total',
+                                      {
+                                        $cond: [
+                                          { $gt: ['$$weight', 0] },
+                                          { $max: [0, { $ifNull: ['$$s.shareAmount', 0] }] },
+                                          1,
+                                        ],
+                                      },
+                                    ],
+                                  },
+                                  {
+                                    $cond: [
+                                      { $gt: ['$$weight', 0] },
+                                      '$$weight',
+                                      { $size: '$$splits' },
+                                    ],
+                                  },
+                                ],
+                              },
+                            },
+                            in: {
+                              $let: {
+                                vars: {
+                                  exact: {
+                                    $divide: [
+                                      {
+                                        $floor: { $add: [{ $multiply: ['$$rawExact', 1e9] }, 0.5] },
+                                      },
+                                      1e9,
+                                    ],
+                                  },
+                                },
+                                in: {
+                                  i: '$$i',
+                                  base: { $floor: '$$exact' },
+                                  frac: {
+                                    $round: [{ $subtract: ['$$exact', { $floor: '$$exact' }] }, 9],
+                                  },
+                                },
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+              in: {
+                $let: {
+                  vars: {
+                    order: {
+                      $map: {
+                        input: { $sortArray: { input: '$$parts', sortBy: { frac: -1, i: 1 } } },
+                        as: 'p',
+                        in: '$$p.i',
+                      },
+                    },
+                    remainder: { $subtract: ['$$total', { $sum: '$$parts.base' }] },
+                    balanced: {
+                      $or: [
+                        {
+                          $gt: [
+                            {
+                              $abs: roundMoneyExpr({
+                                $subtract: [
+                                  { $sum: '$$splits.shareAmount' },
+                                  { $divide: ['$$total', 100] },
+                                ],
+                              }),
+                            },
+                            roundMoneyExpr({
+                              $add: [{ $multiply: [{ $size: '$$splits' }, 0.005] }, 0.01],
+                            }),
+                          ],
+                        },
+                        {
+                          $eq: [
+                            {
+                              $sum: {
+                                $map: {
+                                  input: '$$rounded',
+                                  as: 'r',
+                                  in: { $round: [{ $multiply: ['$$r', 100] }, 0] },
+                                },
+                              },
+                            },
+                            '$$total',
+                          ],
+                        },
+                      ],
+                    },
+                  },
+                  in: {
+                    $map: {
+                      input: '$$parts',
+                      as: 'p',
+                      in: {
+                        $mergeObjects: [
+                          { $arrayElemAt: ['$$splits', '$$p.i'] },
+                          {
+                            shareAmount: {
+                              $cond: [
+                                '$$balanced',
+                                { $arrayElemAt: ['$$rounded', '$$p.i'] },
+                                {
+                                  $divide: [
+                                    {
+                                      $add: [
+                                        '$$p.base',
+                                        {
+                                          $cond: [
+                                            {
+                                              $lt: [
+                                                { $indexOfArray: ['$$order', '$$p.i'] },
+                                                '$$remainder',
+                                              ],
+                                            },
+                                            1,
+                                            0,
+                                          ],
+                                        },
+                                      ],
+                                    },
+                                    100,
+                                  ],
+                                },
+                              ],
+                            },
+                          },
+                        ],
+                      },
+                    },
+                  },
+                },
+              },
+            },
           },
         },
-        100,
-      ],
+      },
     },
   };
 }
