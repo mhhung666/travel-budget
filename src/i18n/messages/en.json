@@ -944,14 +944,14 @@
       "label": "Trip sections",
       "subLabel": "Section pages",
       "expenses": "Expenses",
+      "expenseList": "Expense list",
       "notes": "Notes",
       "album": "Album",
       "itinerary": "Itinerary",
       "dailyItinerary": "Daily itinerary",
       "settlement": "Settle up",
-      "settlementPlan": "Settlement plan",
       "stats": "Stats",
-      "groupStats": "Group stats",
+      "spendingAnalysis": "Spending analysis",
       "checklists": "Lists"
     },
     "currencySettings": {

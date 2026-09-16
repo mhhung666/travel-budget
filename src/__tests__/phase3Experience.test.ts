@@ -38,8 +38,9 @@ describe('Phase 3 information architecture contracts', () => {
     expect(source).toContain('isCompact');
     expect(source).toContain('window.scrollY > 48');
     expect(source).toContain("tTrip('tabs.dailyItinerary')");
-    expect(source).toContain("tTrip('tabs.settlementPlan')");
-    expect(source).toContain("tTrip('tabs.groupStats')");
+    expect(source).toContain("tTrip('tabs.expenseList')");
+    expect(source).toContain("tTrip('tabs.spendingAnalysis')");
+    expect(source).not.toContain("tTrip('tabs.settlementPlan')");
   });
 
   it('renders a contextual before/during/after trip home', () => {

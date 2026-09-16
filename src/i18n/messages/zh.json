@@ -944,14 +944,14 @@
       "label": "行程分頁",
       "subLabel": "分頁內頁面",
       "expenses": "支出",
+      "expenseList": "支出明細",
       "notes": "隨手記",
       "album": "相簿",
       "itinerary": "行程",
       "dailyItinerary": "每日行程",
       "settlement": "結算",
-      "settlementPlan": "結算方案",
       "stats": "統計",
-      "groupStats": "群組統計",
+      "spendingAnalysis": "花費分析",
       "checklists": "清單"
     },
     "currencySettings": {

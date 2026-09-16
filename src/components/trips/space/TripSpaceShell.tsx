@@ -28,7 +28,7 @@ import { TripSpaceProvider, type AddExpensePrefill } from './TripSpaceContext';
  * - 頁首列：返回鍵 + 行程名 + 鈴鐺（行動端，AppShell 頂列在空間內隱藏）+「更多」選單
  *   （預算／活動紀錄／行程設定 — 低頻功能不佔分頁）。
  * - 分頁列：行程／支出／相簿／結算 四顆主分頁，可橫向滑動、`aria-current` 標記現在位置。
- *   低頻的隨手記／清單收進「行程」、統計收進「結算」的子分頁列（見 SUB_TABS），
+ *   隨手記／清單收進「行程」、單趟花費分析收進「支出」的子分頁列（見 tabs 的 subs），
  *   各子頁 URL 不變，深連結與分享連結照舊。
  * - 常駐摘要條：我的分攤支出（有個人預算時加進度條），跨分頁常駐。
  * - 新增支出表單留在 shell 層供旅行內操作；跨頁快速記帳由 AppShell 全域入口負責。
@@ -95,19 +95,17 @@ export function TripSpaceShell({
         { href: ROUTES.TRIP_CHECKLISTS(tripId), label: tTrip('tabs.checklists') },
       ],
     },
-    { href: ROUTES.TRIP_EXPENSES(tripId), label: tTrip('tabs.expenses') },
-    ...(isMember ? [{ href: ROUTES.TRIP_ALBUM(tripId), label: tTrip('tabs.album') }] : []),
     {
-      href: ROUTES.TRIP_SETTLEMENT(tripId),
-      label: tTrip('tabs.settlement'),
+      href: ROUTES.TRIP_EXPENSES(tripId),
+      label: tTrip('tabs.expenses'),
       subs: [
-        {
-          href: ROUTES.TRIP_SETTLEMENT(tripId),
-          label: tTrip('tabs.settlementPlan'),
-        },
-        { href: ROUTES.TRIP_STATS(tripId), label: tTrip('tabs.groupStats') },
+        { href: ROUTES.TRIP_EXPENSES(tripId), label: tTrip('tabs.expenseList') },
+        { href: ROUTES.TRIP_STATS(tripId), label: tTrip('tabs.spendingAnalysis') },
       ],
     },
+    ...(isMember ? [{ href: ROUTES.TRIP_ALBUM(tripId), label: tTrip('tabs.album') }] : []),
+    // 待收／待付與還款紀錄同在結算頁，無子分頁
+    { href: ROUTES.TRIP_SETTLEMENT(tripId), label: tTrip('tabs.settlement') },
   ];
 
   const isLinkActive = (link: TabLink) =>
@@ -275,7 +273,7 @@ export function TripSpaceShell({
               })}
             </nav>
 
-            {/* 子分頁列：低頻頁（隨手記／清單／統計）收在所屬主分頁下 */}
+            {/* 子分頁列：隨手記／清單、花費分析收在所屬主分頁下 */}
             {subTabs && (
               <nav
                 aria-label={tTrip('tabs.subLabel')}
