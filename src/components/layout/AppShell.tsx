@@ -30,7 +30,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { BottomTabBar } from './BottomTabBar';
-import { QUICK_ADD_LAST_TRIP_KEY } from '@/lib/quickAdd';
+import { QUICK_ADD_LAST_TRIP_KEY, tripIdFromPath } from '@/lib/quickAdd';
 import { lazyDialog } from '@/components/common/lazyDialog';
 
 const GlobalQuickAddFlow = lazyDialog(async () => ({
@@ -68,6 +68,7 @@ export function AppShell({
   const pathname = usePathname();
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [preferredQuickAddTrip, setPreferredQuickAddTrip] = useState<string | null>(null);
+  const [quickAddCurrentTrip, setQuickAddCurrentTrip] = useState<string | null>(null);
   const logout = useLogoutFlow(tCommon('pendingOfflineLogout'));
 
   const handleLogout = async () => {
@@ -100,6 +101,8 @@ export function AppShell({
     } catch {
       setPreferredQuickAddTrip(null);
     }
+    // 在旅行內按「記一筆」直接記到這趟；開啟當下記住，避免流程中換頁改變目標。
+    setQuickAddCurrentTrip(tripIdFromPath(pathname));
     setQuickAddOpen(true);
   };
 
@@ -265,6 +268,7 @@ export function AppShell({
         <GlobalQuickAddFlow
           open={quickAddVisible}
           preferredTripId={preferredQuickAddTrip}
+          currentTripId={onQuickAddRoute ? null : quickAddCurrentTrip}
           onClose={closeQuickAdd}
         />
       )}

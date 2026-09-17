@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { TripWithMembers } from '@/types';
-import { decideQuickAddTrip, rankQuickAddTrips } from '@/lib/quickAdd';
+import { decideQuickAddTrip, rankQuickAddTrips, tripIdFromPath } from '@/lib/quickAdd';
 
 const makeTrip = (id: string, overrides: Partial<TripWithMembers> = {}): TripWithMembers => ({
   id,
@@ -97,5 +97,42 @@ describe('quick-add trip selection', () => {
     });
 
     expect(rankQuickAddTrips([nearer, preferred], now, preferred.id)[0].id).toBe('preferred');
+  });
+
+  describe('inside a trip', () => {
+    const ongoing = makeTrip('ongoing', { start_date: '2026-07-08', end_date: '2026-07-12' });
+    const upcoming = makeTrip('upcoming', { start_date: '2026-08-01', end_date: '2026-08-05' });
+    const other = makeTrip('other');
+
+    it('records to the trip being viewed instead of asking, by id or hash code', () => {
+      const trips = [ongoing, upcoming, other];
+      // 沒有目前旅行時這組會跳 picker；在旅行內則直接帶入。
+      expect(decideQuickAddTrip([upcoming, other], now).kind).toBe('pick');
+      for (const idOrCode of ['upcoming', 'hash-upcoming']) {
+        const decision = decideQuickAddTrip(trips, now, 'other', idOrCode);
+        expect(decision).toMatchObject({ kind: 'direct', trip: { id: 'upcoming' } });
+        // 切換旅行清單仍列出全部候選，目前這趟排第一。
+        expect(decision.trips.map((trip) => trip.id)).toEqual(['upcoming', 'ongoing', 'other']);
+      }
+    });
+
+    it('still records to an archived trip being viewed', () => {
+      const archived = makeTrip('archived', { archived_at: '2026-07-01T00:00:00.000Z' });
+      const decision = decideQuickAddTrip([archived, ongoing], now, null, 'hash-archived');
+      expect(decision).toMatchObject({ kind: 'direct', trip: { id: 'archived' } });
+      expect(decision.trips.map((trip) => trip.id)).toEqual(['archived', 'ongoing']);
+    });
+
+    it('falls back to the usual rule when the viewed trip is not one of mine', () => {
+      expect(decideQuickAddTrip([upcoming, other], now, null, 'hash-shared').kind).toBe('pick');
+    });
+
+    it('reads the trip from trip-space paths only', () => {
+      expect(tripIdFromPath('/trips/abc123')).toBe('abc123');
+      expect(tripIdFromPath('/trips/abc123/expenses')).toBe('abc123');
+      expect(tripIdFromPath('/trips')).toBeNull();
+      expect(tripIdFromPath('/stats')).toBeNull();
+      expect(tripIdFromPath('/quick-add')).toBeNull();
+    });
   });
 });

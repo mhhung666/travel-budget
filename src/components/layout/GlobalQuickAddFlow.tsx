@@ -22,6 +22,8 @@ import { QueryFeedback } from '@/components/common/QueryFeedback';
 interface GlobalQuickAddFlowProps {
   open: boolean;
   preferredTripId: string | null;
+  /** 開啟時所在的旅行（/trips/[id]/*），有值就直接記到這趟。 */
+  currentTripId?: string | null;
   onClose: () => void;
 }
 
@@ -187,7 +189,12 @@ export function GlobalExpenseForm({
   );
 }
 
-export function GlobalQuickAddFlow({ open, preferredTripId, onClose }: GlobalQuickAddFlowProps) {
+export function GlobalQuickAddFlow({
+  open,
+  preferredTripId,
+  currentTripId = null,
+  onClose,
+}: GlobalQuickAddFlowProps) {
   const t = useTranslations('quickAdd');
   const tTrips = useTranslations('trips');
   const queryClient = useQueryClient();
@@ -201,8 +208,8 @@ export function GlobalQuickAddFlow({ open, preferredTripId, onClose }: GlobalQui
   const measuredStage = useRef<string | null>(null);
 
   const decision = useMemo(
-    () => decideQuickAddTrip(trips, new Date(), preferredTripId),
-    [trips, preferredTripId]
+    () => decideQuickAddTrip(trips, new Date(), preferredTripId, currentTripId),
+    [trips, preferredTripId, currentTripId]
   );
 
   const closeFlow = () => {

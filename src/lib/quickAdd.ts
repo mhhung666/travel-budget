@@ -62,16 +62,30 @@ export function rankQuickAddTrips(
   return ranked.map(({ trip }) => trip);
 }
 
+const matchesTrip = (trip: TripWithMembers, idOrCode: string) =>
+  trip.id === idOrCode || trip.hash_code === idOrCode;
+
 /**
- * 只有一趟進行中旅行時直接開表單；沒有進行中旅行但僅一趟可用旅行時亦直接開啟。
+ * 在旅行內（/trips/[id]/*）按「記一筆」時直接記到目前這趟（封存的也算，旅行內本來就能記帳），
+ * 並把它放在切換清單最前面；使用者不是成員（不在清單中）才退回一般規則。
+ * 其餘入口：只有一趟進行中旅行時直接開表單；沒有進行中旅行但僅一趟可用旅行時亦直接開啟。
  * 其餘情況交給 picker，避免多趟旅行時把支出記錯。
  */
 export function decideQuickAddTrip(
   trips: TripWithMembers[],
   now: Date = new Date(),
-  preferredTripId?: string | null
+  preferredTripId?: string | null,
+  currentTripId?: string | null
 ): QuickAddDecision {
   const ranked = rankQuickAddTrips(trips, now, preferredTripId);
+  const current = currentTripId ? trips.find((trip) => matchesTrip(trip, currentTripId)) : null;
+  if (current) {
+    return {
+      kind: 'direct',
+      trip: current,
+      trips: [current, ...ranked.filter((trip) => trip.id !== current.id)],
+    };
+  }
   if (ranked.length === 0) return { kind: 'none', trips: [] };
 
   const ongoing = ranked.filter(
@@ -87,3 +101,8 @@ export function decideQuickAddTrip(
 }
 
 export const QUICK_ADD_LAST_TRIP_KEY = 'quick-add:last-trip';
+
+/** 行程空間路徑（/trips/[id]/*）中的旅行 id 或 hash_code；其他頁面回傳 null。 */
+export function tripIdFromPath(pathname: string): string | null {
+  return pathname.match(/^\/trips\/([^/]+)/)?.[1] ?? null;
+}
