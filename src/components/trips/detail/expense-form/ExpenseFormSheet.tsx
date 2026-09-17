@@ -104,6 +104,7 @@ export default function ExpenseFormSheet({
     tags,
     setTags,
     exchangeRates,
+    rateDates,
     loadingRates,
     ratesError,
     fetchExchangeRates,
@@ -493,7 +494,8 @@ export default function ExpenseFormSheet({
                 onTagsChange={setTags}
                 existingTags={existingTags}
                 loadingRates={loadingRates}
-                ratesError={hasValidExchangeRate ? '' : ratesError}
+                ratesError={ratesError}
+                rateDate={rateDates[form.currency]}
                 onRefreshRates={handleRefreshRates}
               />
 

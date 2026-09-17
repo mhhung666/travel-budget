@@ -128,6 +128,7 @@ export function useExpenseForm({
   const [exchangeRates, setExchangeRates] = useState<Record<string, number>>({});
   const [loadingRates, setLoadingRates] = useState(false);
   const [ratesError, setRatesError] = useState('');
+  const [rateDates, setRateDates] = useState<Record<string, string>>({});
 
   const fetchExchangeRates = async (): Promise<Record<string, number> | null> => {
     setLoadingRates(true);
@@ -136,17 +137,18 @@ export function useExpenseForm({
       const response = await fetch('/api/exchange-rates');
       const data = await response.json();
 
-      if (data.success) {
+      if (response.ok && data.success) {
+        setRateDates(data.dates ?? {});
         setExchangeRates(data.rates);
         return data.rates;
       }
       setRatesError(tExpense('error.ratesLoadFailed'));
-      if (data.rates) {
-        setExchangeRates(data.rates);
-        return data.rates;
-      }
+      setExchangeRates({});
+      setRateDates({});
       return null;
     } catch {
+      setExchangeRates({});
+      setRateDates({});
       setRatesError(tExpense('error.ratesLoadFailed'));
       return null;
     } finally {
@@ -579,6 +581,7 @@ export function useExpenseForm({
     tags,
     setTags,
     exchangeRates,
+    rateDates,
     loadingRates,
     ratesError,
     fetchExchangeRates,

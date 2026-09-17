@@ -23,6 +23,7 @@ interface AdvancedFieldsProps {
   existingTags: string[];
   loadingRates: boolean;
   ratesError: string;
+  rateDate?: string;
   onRefreshRates: () => void;
 }
 
@@ -39,6 +40,7 @@ export function AdvancedFields({
   existingTags,
   loadingRates,
   ratesError,
+  rateDate,
   onRefreshRates,
 }: AdvancedFieldsProps) {
   const tExpense = useTranslations('expense');
@@ -127,6 +129,11 @@ export function AdvancedFields({
                 currency,
                 rate: Number(exchangeRate).toFixed(4),
               })}
+            </p>
+          )}
+          {rateDate && (
+            <p className="text-xs text-muted-foreground">
+              {tExpense('form.referenceRateDate', { date: rateDate })}
             </p>
           )}
           {ratesError && <p className="text-xs text-destructive">{ratesError}</p>}

@@ -10,16 +10,20 @@ import { useQuery } from '@tanstack/react-query';
  * a TWD: 1 base so consumers have a usable default before/if the fetch fails.
  */
 export function useExchangeRates() {
-  return useQuery({
-    queryKey: ['exchangeRates'],
-    queryFn: async (): Promise<Record<string, number>> => {
+  const query = useQuery({
+    queryKey: ['exchangeRates', 'frankfurter'],
+    queryFn: async (): Promise<{
+      rates: Record<string, number>;
+      dates: Record<string, string>;
+    }> => {
       const res = await fetch('/api/exchange-rates');
       if (!res.ok) throw new Error('Failed to load exchange rates');
       const data = await res.json();
-      if (data.success && data.rates) return data.rates;
+      if (data.success && data.rates) return { rates: data.rates, dates: data.dates ?? {} };
       throw new Error('Failed to load exchange rates');
     },
-    staleTime: 60 * 60_000,
-    placeholderData: { TWD: 1 },
+    staleTime: 15 * 60_000,
+    placeholderData: { rates: { TWD: 1 }, dates: {} },
   });
+  return { ...query, data: query.data?.rates, rateDates: query.data?.dates ?? {} };
 }

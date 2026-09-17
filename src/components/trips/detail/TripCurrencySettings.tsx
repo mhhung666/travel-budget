@@ -136,22 +136,31 @@ export default function TripCurrencySettingsCard({
                       {t('currencySettings.baseCurrency')}
                     </span>
                   ) : (
-                    <Input
-                      aria-label={`${row.code} · ${t('currencySettings.customRate')}`}
-                      type="number"
-                      min="0"
-                      step="0.000001"
-                      inputMode="decimal"
-                      value={row.rate}
-                      onChange={(e) => setRate(row.code, e.target.value)}
-                      disabled={!canEdit}
-                      placeholder={
-                        live != null
-                          ? t('currencySettings.ratePlaceholder', { rate: live.toFixed(4) })
-                          : '—'
-                      }
-                      className="h-9 flex-1"
-                    />
+                    <div className="min-w-0 flex-1">
+                      <Input
+                        aria-label={`${row.code} · ${t('currencySettings.customRate')}`}
+                        type="number"
+                        min="0"
+                        step="0.000001"
+                        inputMode="decimal"
+                        value={row.rate}
+                        onChange={(e) => setRate(row.code, e.target.value)}
+                        disabled={!canEdit}
+                        placeholder={
+                          live != null
+                            ? t('currencySettings.ratePlaceholder', { rate: live.toFixed(4) })
+                            : '—'
+                        }
+                        className="h-9 w-full"
+                      />
+                      {ratesQuery.rateDates?.[row.code] && (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {t('currencySettings.referenceRateDate', {
+                            date: ratesQuery.rateDates[row.code],
+                          })}
+                        </p>
+                      )}
+                    </div>
                   )}
                   {canEdit && (
                     <Button

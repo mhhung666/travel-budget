@@ -195,5 +195,5 @@ it('does not store an exchange-rate service failure as successful TWD-only data'
   );
   const { result } = renderHook(() => useExchangeRates(), { wrapper });
   await waitFor(() => expect(result.current.isError).toBe(true));
-  expect(client.getQueryData(['exchangeRates'])).toBeUndefined();
+  expect(client.getQueryData(['exchangeRates', 'frankfurter'])).toBeUndefined();
 });
