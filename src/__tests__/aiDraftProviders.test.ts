@@ -21,8 +21,15 @@ vi.mock('@ai-sdk/gateway', () => ({
   createGateway: mocks.createGateway.mockReturnValue(mocks.gatewayModel),
 }));
 
-import { parseExpenseTextDraft } from '@/lib/ai/expenseTextDraftProvider';
-import { parseReceiptDraft } from '@/lib/ai/receiptDraftProvider';
+import {
+  parseExpenseTextDraft,
+  resolveExpenseTextDraftProviderConfig,
+} from '@/lib/ai/expenseTextDraftProvider';
+import {
+  parseReceiptDraft,
+  resolveReceiptDraftProviderConfig,
+} from '@/lib/ai/receiptDraftProvider';
+import { resolveItineraryImportProviderConfig } from '@/lib/ai/itineraryImportProvider';
 
 const originalEnvironment = { ...process.env };
 const receiptDraft = {
@@ -53,11 +60,31 @@ afterEach(() => {
 });
 
 describe('AI expense draft providers', () => {
+  it.each(['', 'old-model'])(
+    'shares AI_MODEL across all features despite legacy overrides (%j)',
+    (legacyModel) => {
+      const environment = {
+        AI_PROVIDER: 'vercel',
+        AI_GATEWAY_API_KEY: 'gateway-secret',
+        AI_MODEL: 'shared/vision-model',
+        AI_RECEIPT_MODEL: legacyModel,
+        AI_EXPENSE_TEXT_MODEL: legacyModel,
+      };
+
+      for (const resolve of [
+        resolveItineraryImportProviderConfig,
+        resolveReceiptDraftProviderConfig,
+        resolveExpenseTextDraftProviderConfig,
+      ]) {
+        expect(resolve(environment).model).toBe('shared/vision-model');
+        expect(() => resolve({ ...environment, AI_MODEL: undefined })).toThrow();
+      }
+    }
+  );
+
   it('treats missing AI provider configuration as a disabled feature', async () => {
     delete process.env.OPENAI_API_KEY;
     delete process.env.AI_MODEL;
-    delete process.env.AI_RECEIPT_MODEL;
-    delete process.env.AI_EXPENSE_TEXT_MODEL;
     delete process.env.AI_PROVIDER;
     delete process.env.AI_GATEWAY_API_KEY;
     delete process.env.VERCEL_OIDC_TOKEN;
@@ -74,7 +101,7 @@ describe('AI expense draft providers', () => {
   it('returns receipt draft usage without exposing image content in metadata', async () => {
     process.env.AI_PROVIDER = 'openai';
     process.env.OPENAI_API_KEY = 'secret';
-    process.env.AI_RECEIPT_MODEL = 'openai/gpt-receipt';
+    process.env.AI_MODEL = 'openai/gpt-receipt';
     mocks.openAIModel.mockReturnValue('language-model');
     mocks.generateText.mockResolvedValue({
       output: receiptDraft,
@@ -96,7 +123,7 @@ describe('AI expense draft providers', () => {
   it('uses the configured Vercel AI Gateway vision model for receipt drafts', async () => {
     process.env.AI_PROVIDER = 'vercel';
     process.env.AI_GATEWAY_API_KEY = 'gateway-secret';
-    process.env.AI_RECEIPT_MODEL = 'alibaba/qwen-vision';
+    process.env.AI_MODEL = 'alibaba/qwen-vision';
     delete process.env.OPENAI_API_KEY;
     mocks.gatewayModel.mockReturnValue('gateway-vision-model');
     mocks.generateText.mockResolvedValue({
@@ -132,7 +159,7 @@ describe('AI expense draft providers', () => {
   it('returns text draft usage and maps provider timeouts to a stable code', async () => {
     process.env.AI_PROVIDER = 'openai';
     process.env.OPENAI_API_KEY = 'secret';
-    process.env.AI_EXPENSE_TEXT_MODEL = 'gpt-text';
+    process.env.AI_MODEL = 'gpt-text';
     mocks.openAIModel.mockReturnValue('language-model');
     mocks.generateText.mockResolvedValueOnce({
       output: textDraft,
@@ -158,7 +185,7 @@ describe('AI expense draft providers', () => {
   it('uses the configured Vercel AI Gateway model for text drafts', async () => {
     process.env.AI_PROVIDER = 'vercel';
     process.env.AI_GATEWAY_API_KEY = 'gateway-secret';
-    process.env.AI_EXPENSE_TEXT_MODEL = 'alibaba/qwen3.7-flash';
+    process.env.AI_MODEL = 'alibaba/qwen3.7-flash';
     delete process.env.OPENAI_API_KEY;
     mocks.gatewayModel.mockReturnValue('gateway-language-model');
     mocks.generateText.mockResolvedValue({
@@ -186,7 +213,7 @@ describe('AI expense draft providers', () => {
   it('maps truncated structured drafts to an output-limit error', async () => {
     process.env.AI_PROVIDER = 'openai';
     process.env.OPENAI_API_KEY = 'secret';
-    process.env.AI_RECEIPT_MODEL = 'gpt-receipt';
+    process.env.AI_MODEL = 'gpt-receipt';
     mocks.generateText.mockResolvedValue({
       output: receiptDraft,
       finishReason: 'length',

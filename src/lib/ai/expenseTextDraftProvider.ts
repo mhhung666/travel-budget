@@ -38,12 +38,12 @@ function readTimeout(value: string | undefined): number {
   return Number.isInteger(parsed) ? parsed : Number.NaN;
 }
 
-/** Resolve the text model independently while sharing the configured AI provider and credential. */
+/** Resolve text drafts using the shared AI model, provider, and credential. */
 export function resolveExpenseTextDraftProviderConfig(
   environment: ProviderEnvironment = process.env
 ): ExpenseTextDraftProviderConfig {
   const provider = environment.AI_PROVIDER ?? (environment.OPENAI_API_KEY ? 'openai' : undefined);
-  const model = environment.AI_EXPENSE_TEXT_MODEL ?? environment.AI_MODEL;
+  const model = environment.AI_MODEL;
   const timeoutMs = readTimeout(environment.AI_TIMEOUT_MS ?? environment.AI_IMPORT_TIMEOUT_MS);
   const result = providerConfigSchema.safeParse({
     provider,

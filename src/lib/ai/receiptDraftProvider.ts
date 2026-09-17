@@ -44,7 +44,7 @@ export function resolveReceiptDraftProviderConfig(
   environment: ProviderEnvironment = process.env
 ): ReceiptDraftProviderConfig {
   const provider = environment.AI_PROVIDER ?? (environment.OPENAI_API_KEY ? 'openai' : undefined);
-  const model = environment.AI_RECEIPT_MODEL ?? environment.AI_MODEL;
+  const model = environment.AI_MODEL;
   const result = providerConfigSchema.safeParse({
     provider,
     model,
