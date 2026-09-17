@@ -1,13 +1,12 @@
 'use client';
 
-import { AlertTriangle, CheckCircle2, Keyboard, Loader2, ScanLine, Sparkles } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Loader2, ScanLine } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ReceiptUploader } from '@/components/trips/detail/ReceiptAttachments';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import type { NormalizedExpenseTextDraft } from '@/lib/ai/normalizeExpenseTextDraft';
 import type { ReceiptDraft } from '@/lib/ai/receiptDraftSchema';
@@ -17,6 +16,7 @@ import {
   type AiExpenseDraftErrorCode,
 } from '@/lib/productEvents';
 import type { ExpenseAttachment, Member } from '@/types';
+import { ExpenseAiModeButtons, type AiMode } from './ExpenseAiModeButtons';
 
 const imageTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
@@ -60,7 +60,8 @@ function receiptNeedsReview(draft: ReceiptDraft): boolean {
 }
 
 /**
- * Unified entry point for manual, natural-language and receipt-assisted expense entry.
+ * Natural-language and receipt-assisted entry, opened from the two secondary buttons.
+ * Collapsing hides the panel but keeps typed text until the form closes.
  * AI results remain pending until the user explicitly applies them to the editable form.
  */
 export default function ExpenseAiInputContent({
@@ -71,11 +72,11 @@ export default function ExpenseAiInputContent({
   onApplyTextDraft,
   onApplyReceiptDraft,
   initialMode,
-}: Omit<ExpenseAiInputProps, 'open'> & { initialMode: string }) {
+}: Omit<ExpenseAiInputProps, 'open'> & { initialMode: AiMode }) {
   const t = useTranslations('expense.form.ai');
   const tReceipt = useTranslations('expense.receipts');
   const tCategory = useTranslations('category');
-  const [mode, setMode] = useState(initialMode);
+  const [mode, setMode] = useState<AiMode | null>(initialMode);
   const [sourceText, setSourceText] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorCode, setErrorCode] = useState<AiExpenseDraftErrorCode | ''>('');
@@ -273,52 +274,23 @@ export default function ExpenseAiInputContent({
     needsReview = receiptNeedsReview(draft);
   }
 
-  return (
-    <section
-      className="space-y-3 rounded-xl border bg-muted/20 p-3"
-      aria-labelledby="expense-ai-title"
-    >
-      <div className="flex items-start gap-2">
-        <span className="rounded-lg bg-primary/10 p-2 text-primary">
-          <Sparkles className="h-4 w-4" aria-hidden="true" />
-        </span>
-        <div>
-          <h3 id="expense-ai-title" className="text-sm font-semibold">
-            {t('title')}
-          </h3>
-          <p className="text-xs text-muted-foreground">{t('description')}</p>
-        </div>
-      </div>
+  if (!mode) return <ExpenseAiModeButtons mode={null} onSelect={setMode} />;
 
-      <Tabs
-        value={mode}
-        onValueChange={(value) => {
+  return (
+    <section className="space-y-3 rounded-xl border bg-muted/20 p-3" aria-label={t('title')}>
+      <ExpenseAiModeButtons
+        mode={mode}
+        onSelect={(value) => {
           setMode(value);
           setErrorCode('');
           setPending(null);
           setApplied(false);
         }}
-      >
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="manual">
-            <Keyboard className="mr-1.5 h-4 w-4" aria-hidden="true" />
-            {t('modes.manual')}
-          </TabsTrigger>
-          <TabsTrigger value="text">
-            <Sparkles className="mr-1.5 h-4 w-4" aria-hidden="true" />
-            {t('modes.text')}
-          </TabsTrigger>
-          <TabsTrigger value="receipt">
-            <ScanLine className="mr-1.5 h-4 w-4" aria-hidden="true" />
-            {t('modes.receipt')}
-          </TabsTrigger>
-        </TabsList>
+      />
+      <p className="text-xs text-muted-foreground">{t('description')}</p>
 
-        <TabsContent value="manual" className="mb-0 text-sm text-muted-foreground">
-          {t('manualHint')}
-        </TabsContent>
-
-        <TabsContent value="text" className="mb-0 space-y-2">
+      {mode === 'text' && (
+        <div className="space-y-2">
           <Label htmlFor="expense-ai-source" className="sr-only">
             {t('sourceLabel')}
           </Label>
@@ -337,9 +309,11 @@ export default function ExpenseAiInputContent({
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {t('createDraft')}
           </Button>
-        </TabsContent>
+        </div>
+      )}
 
-        <TabsContent value="receipt" className="mb-0 space-y-3">
+      {mode === 'receipt' && (
+        <div className="space-y-3">
           <div className="space-y-2">
             <Label>{tReceipt('label')}</Label>
             <ReceiptUploader tripId={tripId} value={attachments} onChange={onAttachmentsChange} />
@@ -374,8 +348,8 @@ export default function ExpenseAiInputContent({
           {attachments.length > 0 && images.length === 0 && (
             <p className="text-xs text-muted-foreground">{t('imageOnlyHint')}</p>
           )}
-        </TabsContent>
-      </Tabs>
+        </div>
+      )}
 
       {errorCode && (
         <p role="alert" className="text-sm text-destructive">
@@ -383,7 +357,7 @@ export default function ExpenseAiInputContent({
         </p>
       )}
 
-      {pending && (
+      {pending?.source === mode && (
         <div className="space-y-3 rounded-lg border bg-background p-3" aria-live="polite">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h4 className="text-sm font-semibold">{t('previewTitle')}</h4>

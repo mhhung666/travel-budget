@@ -335,13 +335,11 @@
       "descriptionPlaceholder": "例：午餐、交通费、酒店住宿",
       "ai": {
         "title": "快速记账",
-        "description": "选择输入方式；AI 只会生成草稿，不会自动新增支出。",
+        "description": "AI 只会生成草稿，不会自动新增支出；应用后仍可修改。",
         "modes": {
-          "manual": "手动",
           "text": "说一句话",
           "receipt": "扫描收据"
         },
-        "manualHint": "直接填写下方字段即可。",
         "sourceLabel": "用一句话描述支出",
         "sourcePlaceholder": "例：昨晚出租车 1,200 日元我先付，Amy 不用出",
         "createDraft": "生成草稿",

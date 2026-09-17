@@ -335,13 +335,11 @@
       "descriptionPlaceholder": "例：ランチ、交通費、ホテル宿泊",
       "ai": {
         "title": "かんたん入力",
-        "description": "入力方法を選択してください。AI は下書きのみ作成し、自動保存はしません。",
+        "description": "AI は下書きのみ作成し、自動保存はしません。反映後も修正できます。",
         "modes": {
-          "manual": "手入力",
           "text": "文章で入力",
           "receipt": "レシート読取"
         },
-        "manualHint": "下の項目に直接入力してください。",
         "sourceLabel": "支出を一文で説明",
         "sourcePlaceholder": "例：昨夜のタクシー代1,200円は私が払い、Amyは除外",
         "createDraft": "下書きを作成",

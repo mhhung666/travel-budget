@@ -384,13 +384,11 @@
       "descriptionPlaceholder": "e.g., Lunch, Transportation, Hotel",
       "ai": {
         "title": "Quick entry",
-        "description": "Choose how to start. AI only creates a draft and never saves it automatically.",
+        "description": "AI only creates a draft; it never saves automatically, and you can still edit it after applying.",
         "modes": {
-          "manual": "Manual",
           "text": "Describe it",
           "receipt": "Scan receipt"
         },
-        "manualHint": "Fill in the fields below to enter the expense manually.",
         "sourceLabel": "Describe the expense in one sentence",
         "sourcePlaceholder": "Example: I paid JPY 1,200 for last night's taxi; exclude Amy",
         "createDraft": "Create draft",
