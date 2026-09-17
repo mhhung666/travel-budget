@@ -1,9 +1,12 @@
-# UX 優先改善項目
+# UX 優先改善項目（已結案）
 
-> 來源：2026-09-16 外部工具（ChatGPT）以「已登入桌面版」實際操作後的回饋，經確認為本階段要處理的改善方向。
-> 各項「現況」與建議保留當時畫面觀察；後續實作見各節「已完成」，
-> 2026-09-17 已完成程式碼複核，結果與驗證限制見下方驗收紀錄。功能背景見 [現有功能](FEATURES.md)
-> 與 [UI/UX 規格](archive/details/UI_UX_SPEC.md)。
+> **已結案（2026-09-17 部署）。** 第 1 項金額一致性於 2026-09-16 部署；第 2–7 項與程式碼複核發現的兩項 P2
+> 修正已部署。現行行為見 [現有功能](../../FEATURES.md)。
+> 下方為歸檔時的紀錄：「待部署」「待驗證」字樣屬當時脈絡，部署後未另做瀏覽器驗收，
+> 〈驗證限制與待辦〉所列項目仍未實測。
+>
+> 來源：2026-09-16 外部工具（ChatGPT）以「已登入桌面版」實際操作後的回饋。
+> 規格背景見 [UI/UX 規格](../details/UI_UX_SPEC.md)。
 
 ## 檢視範圍
 
@@ -15,40 +18,40 @@
 
 | # | 主題 | 回饋重點 | 優先度 |
 | --- | --- | --- | --- |
-| 2 | 記帳表單 | 分帳設定藏在詳細資訊區，改起來慢 | ②（已實作，待部署） |
-| 3 | 行程頁第一屏 | 上方區塊太多，活動被推到畫面底部 | ③（已實作，待部署） |
-| 4 | 統計入口位置 | 單趟「群組統計」放在結算底下，與尋找路徑不符 | ④（已實作，待部署） |
-| 5 | 結算文案 | 按鈕不隨身分改字；金額格式不一致 | ⑤（已實作，待部署） |
-| 6 | 首頁旅行卡片 | 看得出是哪本帳，但看不出「現在怎樣了」 | ⑥（已實作，待部署） |
-| 7 | 零星小項 | 文案與內容不符、圖表口徑標示、洞察語氣、視覺密度 | ⑦（已實作，待部署） |
+| 2 | 記帳表單 | 分帳設定藏在詳細資訊區，改起來慢 | ②（已部署） |
+| 3 | 行程頁第一屏 | 上方區塊太多，活動被推到畫面底部 | ③（已部署） |
+| 4 | 統計入口位置 | 單趟「群組統計」放在結算底下，與尋找路徑不符 | ④（已部署） |
+| 5 | 結算文案 | 按鈕不隨身分改字；金額格式不一致 | ⑤（已部署） |
+| 6 | 首頁旅行卡片 | 看得出是哪本帳，但看不出「現在怎樣了」 | ⑥（已部署） |
+| 7 | 零星小項 | 文案與內容不符、圖表口徑標示、洞察語氣、視覺密度 | ⑦（已部署） |
 
-第 2–7 項均已實作，程式碼複核發現的兩項 P2 已修正；仍待部署與下列操作驗證。
+第 2–7 項與兩項 P2 修正已於 2026-09-17 部署。
 
-第 1 項「金額一致性」已於 2026-09-16 部署結案，現況見 [現有功能](FEATURES.md#使用限制)，
-過程與驗證見 [金額一致性驗收紀錄](archive/tests/AMOUNT_CONSISTENCY_ACCEPTANCE_2026-09-16.md#結案2026-09-16)。
+第 1 項「金額一致性」已於 2026-09-16 部署結案，現況見 [現有功能](../../FEATURES.md#使用限制)，
+過程與驗證見 [金額一致性驗收紀錄](../tests/AMOUNT_CONSISTENCY_ACCEPTANCE_2026-09-16.md#結案2026-09-16)。
 
 ## 驗收紀錄（2026-09-17）
 
 ### 複核結果
 
-第 2–7 項已完成程式碼層級複核，兩項確認的 P2 均已修正並複核通過，未發現其他確定問題。部署狀態仍為待部署。
+第 2–7 項已完成程式碼層級複核，兩項確認的 P2 均已修正並複核通過，未發現其他確定問題。
 
 ### P2：首頁卡片摘要未隨操作更新
 
 - P2 成因：卡片新增的花費、結算餘額與預算摘要依賴 `tripKeys.list`，相關寫入卻未讓列表快取失效。
   已在 `invalidateExpenseDerived`、還款 mutation 與 `setBudget` 補上列表失效處理，涵蓋支出新增／編輯／刪除、
   離線補送、記錄／刪除還款及修改個人預算。成員異動原有列表失效處理；幣別設定不影響卡片摘要。
-- 新增 [tripListInvalidation.test.tsx](../src/__tests__/tripListInvalidation.test.tsx)，守支出、還款及預算三條路徑。
+- 新增 [tripListInvalidation.test.tsx](../../../src/__tests__/tripListInvalidation.test.tsx)，守支出、還款及預算三條路徑。
   修正者驗證：全套測試 1,545 項通過、217 項跳過，TypeScript、ESLint、Prettier 通過。
   複核另重跑此回歸測試與支出 mutation 測試，共 18 項通過；`git diff --check` 通過。
 
 ### P2：當日活動結束後仍顯示過去的「下一個活動」
 
 - 第 3 項沿用的邏輯在找不到後續活動時退回當天第一筆，例如 20:00 仍顯示「下一個：09:00 早餐」。
-- [TripContextOverview.tsx](../src/components/trips/detail/TripContextOverview.tsx) 已移除回退；
+- [TripContextOverview.tsx](../../../src/components/trips/detail/TripContextOverview.tsx) 已移除回退；
   當天有活動但全部已過時，顯示「今日行程已結束」。無活動時保留「今天尚未安排活動」，
   仍有後續活動或未指定時間的活動時保留「下一個活動」。四語系文案已補齊。
-- [itineraryFirstScreen.test.tsx](../src/__tests__/itineraryFirstScreen.test.tsx) 新增固定時間的回歸測試，
+- [itineraryFirstScreen.test.tsx](../../../src/__tests__/itineraryFirstScreen.test.tsx) 新增固定時間的回歸測試，
   複查共 8 項通過；TypeScript、相關檔案 ESLint 與 `git diff --check` 通過。
 
 ### 驗證限制與待辦
@@ -120,7 +123,7 @@
   兩種寬度點 Day 4 後標題在日期列下方、目前日正確標示；「⋯」可開編輯與移除確認。
 - 移除行程頁的「先完成這兩步」首次使用提示卡：新旅行尚無支出／旅伴時會把活動推出桌面第一屏，
   且其兩個動作已有常駐入口（全域「記一筆」、行程設定的邀請連結）。`activation_step: invite_shared`
-  改在設定頁邀請連結的複製按鈕（[ShareCode](../src/components/trips/ShareCode.tsx)）記錄。
+  改在設定頁邀請連結的複製按鈕（[ShareCode](../../../src/components/trips/ShareCode.tsx)）記錄。
 
 ## 4. 統計的位置與尋找路徑不一致
 
@@ -156,7 +159,7 @@
 - 結算方案每筆轉帳的按鈕依目前登入者身分改字：收款人「確認已收到」、付款人「我已付款」；
   與自己無關的轉帳（其他成員之間）維持中性的「標記已付」。按下後的行為不變（開啟登記還款）。
 - 四語系同步新增 `settlement.confirmReceived`／`settlement.iPaid`；
-  [settlementPlanLabels.test.tsx](../src/__tests__/settlementPlanLabels.test.tsx) 守三種身分的按鈕文字。
+  [settlementPlanLabels.test.tsx](../../../src/__tests__/settlementPlanLabels.test.tsx) 守三種身分的按鈕文字。
 
 ## 6. 首頁應呈現「這趟現在怎樣了」
 
@@ -182,9 +185,9 @@
 - 卡片摘要：待結算時顯示「你應收／你應付 NT$…」，否則「我的花費 NT$…（/ 預算 NT$…）」。
 - 卡片動作列：「記一筆」直接開該旅行的新增支出表單（與全域記一筆同一元件）＋「查看行程」；
   待結算時「記一筆」換成「查看結算」。封存旅行不顯示動作列。
-- 資料：`getTrips` 多帶 `my_spent`／`my_balance`，由 [tripListSummary.ts](../src/lib/tripListSummary.ts)
+- 資料：`getTrips` 多帶 `my_spent`／`my_balance`，由 [tripListSummary.ts](../../../src/lib/tripListSummary.ts)
   以一次支出聚合＋一次還款查詢算出，不隨旅行數增加查詢次數；
-  [moneyAggregation 整合測試](../src/__tests__/moneyAggregation.integration.test.ts) 守它與結算頁同值（含部分還款）。
+  [moneyAggregation 整合測試](../../../src/__tests__/moneyAggregation.integration.test.ts) 守它與結算頁同值（含部分還款）。
   持久化快取形狀改變，`PERSIST_BUSTER` 升到 v10。
 - 本機瀏覽器（桌面 1280＋手機 390，五趟旅行涵蓋各狀態）驗證：分組順序、標記、摘要金額正確，
   「記一筆」開出「記到：成都美食」表單，手機無橫向捲動。未另外點選「已封存」分頁。
