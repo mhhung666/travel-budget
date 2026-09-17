@@ -14,6 +14,7 @@ import {
   CommandList,
 } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { searchAirports } from '@/lib/airportSearch';
 
 interface AirportComboboxProps {
   /** IATA 三碼；null＝未填（可選欄位）。 */
@@ -27,7 +28,7 @@ const MAX_RESULTS = 50;
 
 /**
  * 可搜尋的機場選擇器（目錄：public/data/airports.json ~4000 筆，開啟時才載入）。
- * 手動過濾＋上限 50 筆；欄位可選，已選時提供清除。
+ * 手動過濾並依吻合程度排序（searchAirports）＋上限 50 筆；欄位可選，已選時提供清除。
  */
 export function AirportCombobox({ value, onChange, placeholder, disabled }: AirportComboboxProps) {
   const t = useTranslations('collections');
@@ -38,19 +39,10 @@ export function AirportCombobox({ value, onChange, placeholder, disabled }: Airp
 
   const selected = useMemo(() => airports?.find((a) => a.iata === value), [airports, value]);
 
-  const options = useMemo<AirportEntry[]>(() => {
-    if (!airports) return [];
-    const q = search.trim().toLowerCase();
-    if (!q) return [];
-    return airports
-      .filter(
-        (a) =>
-          a.iata.toLowerCase().startsWith(q) ||
-          a.name.toLowerCase().includes(q) ||
-          (a.city ?? '').toLowerCase().includes(q)
-      )
-      .slice(0, MAX_RESULTS);
-  }, [airports, search]);
+  const options = useMemo<AirportEntry[]>(
+    () => (airports ? searchAirports(airports, search, MAX_RESULTS) : []),
+    [airports, search]
+  );
 
   const label = (a: AirportEntry) => (a.city ? `${a.city} · ${a.name}` : a.name);
 
