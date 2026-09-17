@@ -82,7 +82,7 @@ export default function ImportPreview({
     issues.filter((issue) => issue.dayIndex === dayIndex && issue.activityIndex === activityIndex);
 
   return (
-    <div className="space-y-4" data-testid="ai-import-preview">
+    <div className="min-w-0 space-y-4" data-testid="ai-import-preview">
       {preview.sourceSummary && (
         <div className="rounded-lg border bg-muted/30 p-3 text-sm">
           <p className="mb-1 font-medium">{t('sourceSummary')}</p>
@@ -116,7 +116,7 @@ export default function ImportPreview({
         return (
           <section
             key={day.id}
-            className={`space-y-4 rounded-xl border p-4 ${day.included ? 'bg-card' : 'bg-muted/30 opacity-75'}`}
+            className={`min-w-0 space-y-4 rounded-xl border p-3 sm:p-4 ${day.included ? 'bg-card' : 'bg-muted/30 opacity-75'}`}
             aria-labelledby={`${day.id}-heading`}
           >
             <div className="flex flex-wrap items-center gap-2">
@@ -159,11 +159,12 @@ export default function ImportPreview({
                 )}
 
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="space-y-1.5">
+                  <div className="min-w-0 space-y-1.5">
                     <Label htmlFor={`${day.id}-date`}>{t('date')}</Label>
                     <Input
                       id={`${day.id}-date`}
                       type="date"
+                      className="min-w-0 max-w-full appearance-none [color-scheme:light] dark:[color-scheme:dark]"
                       value={day.date}
                       aria-invalid={currentDayIssues.some((issue) =>
                         ['MISSING_DATE', 'INVALID_DATE', 'DATE_OUTSIDE_TRIP'].includes(issue.code)
@@ -171,7 +172,7 @@ export default function ImportPreview({
                       onChange={(event) => patchDay(dayIndex, { date: event.target.value })}
                     />
                   </div>
-                  <div className="space-y-1.5">
+                  <div className="min-w-0 space-y-1.5">
                     <Label htmlFor={`${day.id}-title`}>{t('dayTitle')}</Label>
                     <Input
                       id={`${day.id}-title`}
@@ -183,7 +184,7 @@ export default function ImportPreview({
                     />
                   </div>
                 </div>
-                <div className="space-y-1.5">
+                <div className="min-w-0 space-y-1.5">
                   <Label htmlFor={`${day.id}-content`}>{t('dayContent')}</Label>
                   <Textarea
                     id={`${day.id}-content`}
@@ -206,7 +207,7 @@ export default function ImportPreview({
                     return (
                       <div
                         key={activity.id}
-                        className={`space-y-3 rounded-lg border p-3 ${activity.included ? 'bg-background' : 'bg-muted/30 opacity-75'}`}
+                        className={`min-w-0 space-y-3 rounded-lg border p-3 ${activity.included ? 'bg-background' : 'bg-muted/30 opacity-75'}`}
                       >
                         <div className="flex items-center gap-2">
                           <Checkbox
@@ -250,110 +251,153 @@ export default function ImportPreview({
                                 </AlertDescription>
                               </Alert>
                             )}
-                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-[7rem_7rem_1fr]">
-                              <Input
-                                type="time"
-                                aria-label={tActivities('time')}
-                                value={activity.time}
-                                onChange={(event) =>
-                                  patchActivity(dayIndex, activityIndex, {
-                                    time: event.target.value,
-                                  })
-                                }
-                              />
-                              <Input
-                                type="time"
-                                aria-label={tActivities('endTime')}
-                                value={activity.endTime}
-                                onChange={(event) =>
-                                  patchActivity(dayIndex, activityIndex, {
-                                    endTime: event.target.value,
-                                  })
-                                }
-                              />
-                              <Input
-                                className="col-span-2 sm:col-span-1"
-                                aria-label={t('activityTitle')}
-                                value={activity.title}
-                                onChange={(event) =>
-                                  patchActivity(dayIndex, activityIndex, {
-                                    title: event.target.value,
-                                  })
-                                }
-                              />
+                            <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+                              <div className="min-w-0 space-y-1.5">
+                                <Label htmlFor={`${activity.id}-time`}>{tActivities('time')}</Label>
+                                <Input
+                                  id={`${activity.id}-time`}
+                                  className="min-w-0 max-w-full appearance-none [color-scheme:light] dark:[color-scheme:dark]"
+                                  type="time"
+                                  aria-label={tActivities('time')}
+                                  value={activity.time}
+                                  onChange={(event) =>
+                                    patchActivity(dayIndex, activityIndex, {
+                                      time: event.target.value,
+                                    })
+                                  }
+                                />
+                              </div>
+                              <div className="min-w-0 space-y-1.5">
+                                <Label htmlFor={`${activity.id}-endTime`}>
+                                  {tActivities('endTime')}
+                                </Label>
+                                <Input
+                                  id={`${activity.id}-endTime`}
+                                  className="min-w-0 max-w-full appearance-none [color-scheme:light] dark:[color-scheme:dark]"
+                                  type="time"
+                                  aria-label={tActivities('endTime')}
+                                  value={activity.endTime}
+                                  onChange={(event) =>
+                                    patchActivity(dayIndex, activityIndex, {
+                                      endTime: event.target.value,
+                                    })
+                                  }
+                                />
+                              </div>
+                              <div className="min-w-0 space-y-1.5 sm:col-span-2">
+                                <Label htmlFor={`${activity.id}-title`}>{t('activityTitle')}</Label>
+                                <Input
+                                  id={`${activity.id}-title`}
+                                  className="min-w-0"
+                                  aria-label={t('activityTitle')}
+                                  value={activity.title}
+                                  onChange={(event) =>
+                                    patchActivity(dayIndex, activityIndex, {
+                                      title: event.target.value,
+                                    })
+                                  }
+                                />
+                              </div>
                             </div>
                             <div className="grid gap-2 sm:grid-cols-2">
-                              <Select
-                                value={activity.type}
-                                onValueChange={(type) =>
-                                  patchActivity(dayIndex, activityIndex, {
-                                    type: type as ItineraryImportPreviewActivity['type'],
-                                  })
-                                }
-                              >
-                                <SelectTrigger aria-label={tActivities('typeLabel')}>
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {ITINERARY_IMPORT_ACTIVITY_TYPES.map((type) => (
-                                    <SelectItem key={type} value={type}>
-                                      {tActivities(`types.${type}`)}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                              <div className="min-w-0 space-y-1.5">
+                                <Label htmlFor={`${activity.id}-type`}>
+                                  {tActivities('typeLabel')}
+                                </Label>
+                                <Select
+                                  value={activity.type}
+                                  onValueChange={(type) =>
+                                    patchActivity(dayIndex, activityIndex, {
+                                      type: type as ItineraryImportPreviewActivity['type'],
+                                    })
+                                  }
+                                >
+                                  <SelectTrigger
+                                    id={`${activity.id}-type`}
+                                    aria-label={tActivities('typeLabel')}
+                                  >
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {ITINERARY_IMPORT_ACTIVITY_TYPES.map((type) => (
+                                      <SelectItem key={type} value={type}>
+                                        {tActivities(`types.${type}`)}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="min-w-0 space-y-1.5">
+                                <Label htmlFor={`${activity.id}-locationName`}>
+                                  {t('locationName')}
+                                </Label>
+                                <Input
+                                  id={`${activity.id}-locationName`}
+                                  aria-label={t('locationName')}
+                                  value={activity.locationName}
+                                  onChange={(event) =>
+                                    patchActivity(dayIndex, activityIndex, {
+                                      locationName: event.target.value,
+                                    })
+                                  }
+                                />
+                              </div>
+                            </div>
+                            <div className="min-w-0 space-y-1.5">
+                              <Label htmlFor={`${activity.id}-note`}>{tActivities('note')}</Label>
                               <Input
-                                aria-label={t('locationName')}
-                                value={activity.locationName}
+                                id={`${activity.id}-note`}
+                                aria-label={tActivities('note')}
+                                value={activity.note}
                                 onChange={(event) =>
                                   patchActivity(dayIndex, activityIndex, {
-                                    locationName: event.target.value,
+                                    note: event.target.value,
                                   })
                                 }
                               />
                             </div>
-                            <Input
-                              aria-label={tActivities('note')}
-                              value={activity.note}
-                              onChange={(event) =>
-                                patchActivity(dayIndex, activityIndex, {
-                                  note: event.target.value,
-                                })
-                              }
-                            />
-                            <div className="flex gap-2">
-                              <Input
-                                type={revealed ? 'text' : 'password'}
-                                aria-label={tActivities('confirmationCode')}
-                                autoComplete="off"
-                                value={activity.confirmationCode}
-                                onChange={(event) =>
-                                  patchActivity(dayIndex, activityIndex, {
-                                    confirmationCode: event.target.value,
-                                  })
-                                }
-                              />
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="icon"
-                                aria-label={revealed ? t('hideCode') : t('showCode')}
-                                aria-pressed={revealed}
-                                onClick={() =>
-                                  setRevealedCodes((current) => {
-                                    const next = new Set(current);
-                                    if (revealed) next.delete(activity.id);
-                                    else next.add(activity.id);
-                                    return next;
-                                  })
-                                }
-                              >
-                                {revealed ? (
-                                  <EyeOff className="h-4 w-4" />
-                                ) : (
-                                  <Eye className="h-4 w-4" />
-                                )}
-                              </Button>
+                            <div className="min-w-0 space-y-1.5">
+                              <Label htmlFor={`${activity.id}-confirmationCode`}>
+                                {tActivities('confirmationCode')}
+                              </Label>
+                              <div className="flex min-w-0 gap-2">
+                                <Input
+                                  id={`${activity.id}-confirmationCode`}
+                                  className="min-w-0 flex-1"
+                                  type={revealed ? 'text' : 'password'}
+                                  aria-label={tActivities('confirmationCode')}
+                                  autoComplete="off"
+                                  value={activity.confirmationCode}
+                                  onChange={(event) =>
+                                    patchActivity(dayIndex, activityIndex, {
+                                      confirmationCode: event.target.value,
+                                    })
+                                  }
+                                />
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="icon"
+                                  className="shrink-0"
+                                  title={revealed ? t('hideCode') : t('showCode')}
+                                  aria-label={revealed ? t('hideCode') : t('showCode')}
+                                  aria-pressed={revealed}
+                                  onClick={() =>
+                                    setRevealedCodes((current) => {
+                                      const next = new Set(current);
+                                      if (revealed) next.delete(activity.id);
+                                      else next.add(activity.id);
+                                      return next;
+                                    })
+                                  }
+                                >
+                                  {revealed ? (
+                                    <EyeOff className="h-4 w-4" />
+                                  ) : (
+                                    <Eye className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              </div>
                             </div>
                           </>
                         )}

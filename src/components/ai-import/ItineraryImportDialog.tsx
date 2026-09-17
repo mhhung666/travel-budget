@@ -273,7 +273,7 @@ export default function ItineraryImportDialog({
           <DialogDescription>{t('description')}</DialogDescription>
         </DialogHeader>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-0.5">
+        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto px-0.5">
           {!preview ? (
             <div className="space-y-4 py-1">
               <div className="space-y-2">
