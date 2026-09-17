@@ -113,9 +113,11 @@ OpenAI Structured Outputs 要求所有欄位列為 required，選填資料以 nu
 
 本次只修改評估工具、測試和報告；正式 prompt、表單與資料處理尚未改動。使用者已自行把本機 .env 模型改成 GPT-5 mini；沒有提交、部署或提升應用程式版本。
 
-## 重跑與原始證據
+## 歷史重跑設定與原始證據
 
-原始檔在 `docs/evaluations/ai-2026-09-17/`，包含基準、thinking、提示詞、時間 regex、schema 失敗診斷及各 summary。`combined-baseline.summary.json` 只合併基準並去重，不混入調參結果。
+以下保留評測當時的實驗設定；正式程式已於後續修正。現行操作請看 [AI 維護與測試](../../AI.md)，不要把歷史 schema 適配旗標當成必要設定。
+
+原始檔在 `docs/archive/tests/evidence/ai-2026-09-17/`，包含基準、thinking、提示詞、時間 regex、schema 失敗診斷及各 summary。`combined-baseline.summary.json` 只合併基準並去重，不混入調參結果。
 
 評測讀取 `.env.local`、`.env`，shell 環境變數優先。每次用不同報告路徑保存結果。預設 60 秒間隔、零 SDK 重試，與正式 provider 的 retry 1 次不同；主要是避免測試限流污染內容準確度。
 
@@ -135,7 +137,7 @@ AI_DIAGNOSTIC_IDS=zh-tw-equal-default,ambiguous-two-totals,markdown-table-dates,
 AI_DIAGNOSTIC_OUTPUT=/tmp/ai-gpt5mini.jsonl pnpm test:ai-accuracy
 
 # 不呼叫 API，離線重算保存的基準。
-AI_DIAGNOSTIC_REPLAY_INPUT=docs/evaluations/ai-2026-09-17/smoke.jsonl,docs/evaluations/ai-2026-09-17/paced-baseline.jsonl,docs/evaluations/ai-2026-09-17/representative-baseline.jsonl \
+AI_DIAGNOSTIC_REPLAY_INPUT=docs/archive/tests/evidence/ai-2026-09-17/smoke.jsonl,docs/archive/tests/evidence/ai-2026-09-17/paced-baseline.jsonl,docs/archive/tests/evidence/ai-2026-09-17/representative-baseline.jsonl \
 AI_DIAGNOSTIC_OUTPUT=/tmp/ai-replay.json \
 pnpm exec vitest run src/__tests__/aiAccuracyDiagnostic.test.ts --maxWorkers=1
 ```

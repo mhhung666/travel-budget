@@ -1,5 +1,7 @@
 # AI 智慧輸入規劃
 
+> 歷史文件：階段狀態與待辦保留當時脈絡；現況與後續驗證見 [AI 維護與測試](../../AI.md)。
+
 > 狀態：`in-progress`（Phase 3A／3B 已接入新增支出表單、共用持久化配額與去識別產品觀測；代名詞規則、fixture 與 evaluator 已建立，provider 品質基線尚未完成）
 > 更新日期：2026-09-04
 > 已完成的 AI 行程匯入 Phase 0–2 實作摘要見 [archive/AI_ITINERARY_IMPORT_PHASES_0_2.md](../history/AI_ITINERARY_IMPORT_PHASES_0_2.md)；目前能力與技術契約分別以 [FEATURES.md](../../FEATURES.md) 與 [ARCHITECTURE.md](../../ARCHITECTURE.md) 為準。

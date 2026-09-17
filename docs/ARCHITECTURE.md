@@ -29,7 +29,7 @@ Next.js App Router 與 React 組成介面，TanStack Query 負責查詢、重新
 - JWT 搭配 httpOnly cookie 驗證身分。每個旅程操作自行檢查成員與角色；Server Actions 回傳 `ActionResult<T>`，輸入由 Zod 驗證。
 - 公開分享採獨立資料邊界：不輸出私人預算、收據或成員限定筆記；公開相簿不輸出位置、EXIF 或內部 key。
 - 行程與跨資料集合的寫入使用交易及衝突檢查，需要支援交易的 MongoDB replica set 或 sharded cluster。刪除相關資料須明確處理，外部檔案清理由持久化工作補送。
-- AI 只產生可編輯草稿，使用者確認後才走既有寫入流程；行程匯入限 admin，支出草稿限成員。三種 AI 入口共用每日使用量及成本限制。
+- AI 只產生可編輯草稿，使用者確認後才走既有寫入流程；行程匯入限 admin，支出草稿限成員。三種 AI 入口共用每日使用量及成本限制；模型設定、格式相容性與正規化入口見 [AI 維護與測試](AI.md)。
 - Service worker 快取頁面與資源；查詢快取及離線新增支出保存於 IndexedDB。不可快取 Server Action POST 或 API 寫入；改變持久化快取格式時須更新 `PERSIST_BUSTER`。
 - 新增介面字串須補齊四語。路由不帶語系前綴，路徑使用 [routes.ts](../src/constants/routes.ts) 的 builder。
 - PWA 需以 `pnpm build`（webpack）及 `pnpm start` 驗證；開發模式不啟用 service worker。
