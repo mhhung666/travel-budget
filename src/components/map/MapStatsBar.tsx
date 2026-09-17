@@ -10,6 +10,11 @@ interface MapStatsBarProps {
   showDistance?: boolean;
   /** 左側總覽面板使用無外框的緊湊樣式，避免資訊被切成許多獨立卡片。 */
   compact?: boolean;
+  /**
+   * 私人地圖會把計畫中旅行排除在國家／城市之外，但旅行數仍含未出發，標籤要說清楚各自範圍。
+   * 公開地圖不區分計畫中，維持原本的通用標籤。
+   */
+  distinguishPlanned?: boolean;
 }
 
 /**
@@ -20,6 +25,7 @@ export default function MapStatsBar({
   stats,
   showDistance = true,
   compact = false,
+  distinguishPlanned = false,
 }: MapStatsBarProps) {
   const t = useTranslations('map');
 
@@ -35,18 +41,26 @@ export default function MapStatsBar({
     suffix?: string;
     note?: string;
   }> = [
-    { icon: Plane, value: String(stats.trips), label: t('statTrips') },
+    {
+      icon: Plane,
+      value: String(stats.trips),
+      label: t(distinguishPlanned ? 'statTripsCreated' : 'statTrips'),
+    },
     {
       icon: Globe2,
       value: String(stats.countries),
-      label: t('statCountries'),
+      label: t(distinguishPlanned ? 'statCountriesVisited' : 'statCountries'),
       // 還沒出發的目的地不算足跡，另外註明，免得使用者以為漏算。
       note:
         stats.plannedCountries > 0
           ? t('statPlannedCountries', { count: stats.plannedCountries })
           : undefined,
     },
-    { icon: Building2, value: String(stats.cities), label: t('statCities') },
+    {
+      icon: Building2,
+      value: String(stats.cities),
+      label: t(distinguishPlanned ? 'statCitiesVisited' : 'statCities'),
+    },
   ];
   if (showDistance) {
     items.push({ icon: Route, value: distance, label: t('statDistance'), suffix: 'km' });

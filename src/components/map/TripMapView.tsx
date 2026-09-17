@@ -384,7 +384,7 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
               </div>
               <Badge variant="outline">{selectedYear ?? t('filterAll')}</Badge>
             </div>
-            <MapStatsBar stats={stats} compact />
+            <MapStatsBar stats={stats} compact distinguishPlanned />
           </div>
 
           <div className="border-b border-border px-4 py-3">
