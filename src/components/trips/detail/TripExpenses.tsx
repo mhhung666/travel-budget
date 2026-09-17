@@ -1,13 +1,14 @@
 'use client';
 import { QueryStatus } from '@/components/common/QueryStatus';
 
-import { memo, useDeferredValue, useMemo, useState } from 'react';
+import { memo, useDeferredValue, useMemo, useRef, useState } from 'react';
 import { Plus, ReceiptText, Search, SearchX, SlidersHorizontal, X } from 'lucide-react';
 import { EmptyState } from '@/components/common';
 import { useTranslations } from 'next-intl';
 import { getCategoryIcon, CATEGORY_CODES } from '@/constants/categories';
 import { formatCurrency } from '@/constants/currencies';
 import { roundMoney } from '@/lib/money';
+import { cn } from '@/lib/utils';
 import type { Expense, Member, ItineraryDay } from '@/types';
 import { ExportMenu } from '@/components/export';
 import { exportExpenses, type ExportFormat } from '@/lib/exporters';
@@ -99,6 +100,22 @@ export default function TripExpenses({
 
   const clearFilters = () => onFiltersChange(EMPTY_EXPENSE_FILTERS);
 
+  // 手機篩選區展開後佔滿首屏：提供「查看 N 筆結果」收合面板並捲回列表（條件保留）。
+  const sectionRef = useRef<HTMLElement>(null);
+  const matchCount = useMemo(
+    () => (showFilters ? filterExpenses(expenses, deferredFilters).length : 0),
+    [showFilters, expenses, deferredFilters]
+  );
+  const showResults = () => {
+    setShowFilters(false);
+    requestAnimationFrame(() => {
+      const section = sectionRef.current;
+      if (section && section.getBoundingClientRect().top < 0) {
+        section.scrollIntoView({ block: 'start' });
+      }
+    });
+  };
+
   const buildExport = (format: ExportFormat) =>
     exportExpenses(expenses, format, {
       heading: tExport('expense.heading'),
@@ -119,7 +136,11 @@ export default function TripExpenses({
     });
 
   return (
-    <section aria-label={tExpense('title')}>
+    <section
+      ref={sectionRef}
+      aria-label={tExpense('title')}
+      className="scroll-mt-[calc(var(--trip-space-header-height,0px)+1rem)]"
+    >
       {/* Toolbar: search + filter toggle + export + add（行動端的新增走空間 FAB） */}
       <div className="mb-4 space-y-3">
         <div className="flex items-center gap-2">
@@ -130,11 +151,21 @@ export default function TripExpenses({
             </Label>
             <Input
               id="expense-search"
-              className="pl-9"
+              className={cn('pl-9', filters.keyword && 'pr-11')}
               placeholder={tExpense('searchPlaceholder')}
               value={filters.keyword}
               onChange={(e) => updateFilters({ keyword: e.target.value })}
             />
+            {filters.keyword && (
+              <button
+                type="button"
+                onClick={() => updateFilters({ keyword: '' })}
+                aria-label={tExpense('clearSearch')}
+                className="absolute right-0 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-4 w-4" aria-hidden />
+              </button>
+            )}
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <Button
@@ -281,16 +312,21 @@ export default function TripExpenses({
                   />
                 </div>
               </div>
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={clearFilters}
-                disabled={activeCount === 0}
-                className="gap-2 text-muted-foreground"
-              >
-                <X className="h-4 w-4" />
-                {tExpense('filterClear')}
-              </Button>
+              <div className="grid grid-cols-2 gap-2 sm:flex">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={clearFilters}
+                  disabled={activeCount === 0}
+                  className="gap-2 text-muted-foreground"
+                >
+                  <X className="h-4 w-4" aria-hidden />
+                  {tExpense('filterClear')}
+                </Button>
+                <Button type="button" onClick={showResults} className="sm:hidden">
+                  {tExpense('viewResults', { count: matchCount })}
+                </Button>
+              </div>
             </div>
           </div>
         )}
@@ -305,6 +341,7 @@ export default function TripExpenses({
           currentUserId={currentUserId}
           isCurrentUserAdmin={isCurrentUserAdmin}
           filters={deferredFilters}
+          onFiltersChange={onFiltersChange}
           onAdd={onAdd}
           onEdit={onEdit}
           onDelete={onDelete}
@@ -323,6 +360,7 @@ const ExpenseResults = memo(function ExpenseResults({
   currentUserId,
   isCurrentUserAdmin,
   filters,
+  onFiltersChange,
   onAdd,
   onEdit,
   onDelete,
@@ -334,6 +372,7 @@ const ExpenseResults = memo(function ExpenseResults({
   | 'currentUserId'
   | 'isCurrentUserAdmin'
   | 'filters'
+  | 'onFiltersChange'
   | 'onAdd'
   | 'onEdit'
   | 'onDelete'
@@ -416,6 +455,17 @@ const ExpenseResults = memo(function ExpenseResults({
           icon={SearchX}
           title={tExpense('noFilterResults')}
           description={tExpense('noFilterResultsHint')}
+          action={
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onFiltersChange(EMPTY_EXPENSE_FILTERS)}
+              className="gap-2"
+            >
+              <X className="h-4 w-4" aria-hidden />
+              {tExpense('clearSearchAndFilters')}
+            </Button>
+          }
         />
       ) : (
         <>

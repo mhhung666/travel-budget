@@ -161,14 +161,14 @@ export default function RuleBasedInsights({
           return (
             <Card
               key={insight.id}
-              className={cn('h-full border-muted', selected && 'border-primary bg-primary/5')}
+              className={cn('h-full min-w-0 border-muted', selected && 'border-primary bg-primary/5')}
             >
               <CardContent className="flex h-full flex-col p-4">
                 <div className="mb-3 flex items-center gap-2 text-sm text-muted-foreground">
                   <Lightbulb size={17} className="text-primary" aria-hidden />
                   {t(`advancedInsight.${insight.type}.label`)}
                 </div>
-                <p className="font-semibold">{title}</p>
+                <p className="break-words font-semibold">{title}</p>
                 {/* 旅行還沒出發時，分布只反映機票、住宿等預訂，先提醒以免誤讀 */}
                 {insight.tripStartDate &&
                   getTripPhase(insight.tripStartDate, null).phase === 'preTrip' && (

@@ -55,9 +55,11 @@ export default function ExportMenu({
           variant={variant}
           size={size}
           disabled={disabled}
+          // 手機版常以 labelClassName 隱藏文字，名稱由 aria-label 保底
+          aria-label={t('label')}
           className={cn('gap-2', className)}
         >
-          <Download className="h-4 w-4" />
+          <Download className="h-4 w-4" aria-hidden />
           <span className={labelClassName}>{t('label')}</span>
         </Button>
       </DropdownMenuTrigger>

@@ -400,7 +400,7 @@ export default function StatsDashboard({
             {cards.map((card) => {
               const Icon = card.icon;
               return (
-                <div key={card.label}>
+                <div key={card.label} className="min-w-0">
                   <Card className="h-full border-muted">
                     <CardContent className="p-4 sm:p-5">
                       <div className="mb-4 flex items-center justify-between">
@@ -499,7 +499,7 @@ export default function StatsDashboard({
           </section>
 
           <section className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
-            <Card className="border-muted">
+            <Card className="min-w-0 border-muted">
               <CardContent className="p-5">
                 <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
                   <div className="grid w-full grid-cols-3 gap-1 rounded-lg bg-muted p-1 sm:w-auto">
@@ -627,13 +627,15 @@ export default function StatsDashboard({
                           }}
                         >
                           <div className="mb-2 flex items-start justify-between gap-3">
-                            <div>
-                              <p className="font-medium">{item.name}</p>
+                            <div className="min-w-0">
+                              <p className="break-words font-medium">{item.name}</p>
                               <p className="text-xs text-muted-foreground">
                                 {t('dimensionMeta', { count: item.count, percentage })}
                               </p>
                             </div>
-                            <span className="font-semibold">{formatCurrency(item.total)}</span>
+                            <span className="shrink-0 font-semibold">
+                              {formatCurrency(item.total)}
+                            </span>
                           </div>
                           <div className="h-2 overflow-hidden rounded-full bg-muted">
                             <div
@@ -662,7 +664,7 @@ export default function StatsDashboard({
               </CardContent>
             </Card>
 
-            <Card id="stats-expense-details" className="scroll-mt-4 border-muted">
+            <Card id="stats-expense-details" className="min-w-0 scroll-mt-4 border-muted">
               <CardContent className="p-5">
                 <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-2">

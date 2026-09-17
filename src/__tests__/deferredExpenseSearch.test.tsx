@@ -91,3 +91,29 @@ it('resets progressive rows on settled search/clear and keeps the selected expen
   expect(screen.getByText('noFilterResults')).toBeInTheDocument();
   expect(screen.getByLabelText('search')).toHaveValue('missing');
 });
+
+it('recovers from an empty search in one tap via the input clear button or the empty state', () => {
+  render(<Harness />);
+  const input = screen.getByLabelText('search');
+  expect(screen.queryByRole('button', { name: 'clearSearch' })).toBeNull();
+
+  fireEvent.change(input, { target: { value: 'missing' } });
+  fireEvent.click(screen.getByRole('button', { name: 'clearSearch' }));
+  expect(input).toHaveValue('');
+  expect(screen.getAllByTestId('row')).toHaveLength(20);
+
+  fireEvent.change(input, { target: { value: 'missing' } });
+  fireEvent.click(screen.getByRole('button', { name: /clearSearchAndFilters/ }));
+  expect(input).toHaveValue('');
+  expect(screen.getAllByTestId('row')).toHaveLength(20);
+});
+
+it('closes the filter panel from "view results" while keeping the chosen conditions', () => {
+  render(<Harness />);
+  fireEvent.change(screen.getByLabelText('search'), { target: { value: 'Sushi' } });
+  fireEvent.click(screen.getByRole('button', { name: 'filters' }));
+  fireEvent.click(screen.getByRole('button', { name: /viewResults/ }));
+  expect(screen.queryByLabelText('dateFrom')).toBeNull();
+  expect(screen.getByLabelText('search')).toHaveValue('Sushi');
+  expect(screen.getAllByTestId('row')).toHaveLength(1);
+});

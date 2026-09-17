@@ -183,6 +183,18 @@ html {
 }
 
 /*
+ * Leaflet 觸控裝置預設縮放鈕僅 30×30px，粗指標裝置放大到 44×44px 較好點。
+ */
+@media (pointer: coarse) {
+  /* leaflet.css 在地圖元件內較晚載入，同權重會被它的 30px 蓋掉，故多加 .leaflet-container 提高權重 */
+  .leaflet-container.leaflet-touch .leaflet-bar a {
+    width: 44px;
+    height: 44px;
+    line-height: 44px;
+  }
+}
+
+/*
  * 底圖來源失效時的備援是 OSM 標準圖磚，只有亮色版本。深色主題下反相並回轉色相，
  * 讓備援底圖不會在暗色介面中亮成一片白（僅套在圖磚上，地圖上的資料圖層不受影響）。
  */

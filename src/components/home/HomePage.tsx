@@ -40,13 +40,13 @@ export default function HomePage({ redirectTo }: { redirectTo?: string }) {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl px-4 pb-[calc(3rem+env(safe-area-inset-bottom))] pt-8 sm:px-6 sm:pt-12 lg:grid lg:min-h-[calc(100vh-4rem)] lg:grid-cols-[minmax(0,1.12fr)_minmax(360px,0.78fr)] lg:content-center lg:gap-x-16 lg:px-8 lg:py-14">
+      <main className="mx-auto w-full max-w-6xl px-4 pb-[calc(3rem+env(safe-area-inset-bottom))] pt-4 sm:px-6 sm:pt-12 lg:grid lg:min-h-[calc(100vh-4rem)] lg:grid-cols-[minmax(0,1.12fr)_minmax(360px,0.78fr)] lg:content-center lg:gap-x-16 lg:px-8 lg:py-14">
         <div className="mx-auto w-full max-w-2xl self-end lg:mx-0">
           <Hero />
         </div>
 
         <aside
-          className="mt-8 self-center lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:mt-0"
+          className="mt-5 self-center sm:mt-8 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:mt-0"
           aria-label={tNav('login')}
         >
           <div className="mx-auto w-full max-w-md">

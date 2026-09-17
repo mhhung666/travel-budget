@@ -131,7 +131,11 @@ export function TripSpaceShell({
     pathname.startsWith(ROUTES.TRIP_STATS(tripId));
 
   useEffect(() => {
-    const updateCompactMode = () => setIsCompact(window.scrollY > 48);
+    // 進入／退出用不同門檻（遲滯）：切換 compact 會改變頁首高度（標題列 8px，非財務頁再收起摘要條），
+    // 頁面很短時 scrollY 會被瀏覽器夾回來；單一門檻會在兩種狀態間反覆切換造成抖動。
+    // 兩門檻間距須大於最大高度差。
+    const updateCompactMode = () =>
+      setIsCompact((prev) => (prev ? window.scrollY > 8 : window.scrollY > 64));
     updateCompactMode();
     window.addEventListener('scroll', updateCompactMode, { passive: true });
     return () => window.removeEventListener('scroll', updateCompactMode);
@@ -277,23 +281,29 @@ export function TripSpaceShell({
             {subTabs && (
               <nav
                 aria-label={tTrip('tabs.subLabel')}
-                className="flex gap-1 overflow-x-auto border-t py-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                className="flex overflow-x-auto border-t [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
               >
                 {subTabs.map((sub) => {
                   const active = isLinkActive(sub);
+                  // 外層 Link 撐滿 44px 觸控高度，視覺膠囊留在內層 span，不增加視覺份量
                   return (
                     <Link
                       key={sub.href}
                       href={sub.href}
                       aria-current={active ? 'page' : undefined}
-                      className={cn(
-                        'shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors',
-                        active
-                          ? 'bg-primary/10 text-primary'
-                          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                      )}
+                      className="group flex h-11 shrink-0 items-center px-0.5"
                     >
-                      {sub.label}
+                      <span
+                        className={cn(
+                          'rounded-full px-3 py-1 text-xs font-medium transition-colors',
+                          // 選取態不用 text-primary：淺色模式在 primary/10 底上對比僅 4.29:1
+                          active
+                            ? 'bg-primary/10 text-foreground ring-1 ring-inset ring-primary/40'
+                            : 'text-muted-foreground group-hover:bg-muted group-hover:text-foreground'
+                        )}
+                      >
+                        {sub.label}
+                      </span>
                     </Link>
                   );
                 })}
@@ -333,7 +343,8 @@ export function TripSpaceShell({
                   <button
                     type="button"
                     onClick={() => budgetDialog.openDialog()}
-                    className="shrink-0 text-xs font-medium text-primary hover:underline"
+                    // 摘要條只有 36px 高：負 margin 讓按鈕框達 44px 而不撐高摘要條
+                    className="-my-1 -mr-3 flex h-11 min-w-11 shrink-0 items-center px-3 text-xs font-medium text-primary hover:underline"
                   >
                     {tBudget('empty.cta')}
                   </button>

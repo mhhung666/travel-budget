@@ -36,7 +36,7 @@ describe('Phase 3 information architecture contracts', () => {
     const source = readSource('components', 'trips', 'space', 'TripSpaceShell.tsx');
 
     expect(source).toContain('isCompact');
-    expect(source).toContain('window.scrollY > 48');
+    expect(source).toContain('window.scrollY > 64');
     expect(source).toContain("tTrip('tabs.dailyItinerary')");
     expect(source).toContain("tTrip('tabs.expenseList')");
     expect(source).toContain("tTrip('tabs.spendingAnalysis')");
