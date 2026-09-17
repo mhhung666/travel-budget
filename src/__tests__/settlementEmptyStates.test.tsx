@@ -3,6 +3,8 @@ import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import SettlementPlan from '@/components/settlement/SettlementPlan';
 import SettlementSummary from '@/components/settlement/SettlementSummary';
+import SettlementBalances from '@/components/settlement/SettlementBalances';
+import PaymentHistory from '@/components/settlement/PaymentHistory';
 
 afterEach(cleanup);
 
@@ -72,5 +74,47 @@ describe('settlement summary at a zero balance', () => {
     );
     expect(screen.getByText('youSettled')).toBeInTheDocument();
     expect(screen.getByText('🎉')).toBeInTheDocument();
+  });
+});
+
+describe('member balances on an empty trip', () => {
+  it('shows "no shares yet" instead of settled and hides +NT$0', () => {
+    render(<SettlementBalances balances={[zeroBalance]} hasActivity={false} />);
+    expect(screen.getByText('noShareYet')).toBeInTheDocument();
+    expect(screen.queryByText('settled')).not.toBeInTheDocument();
+    expect(screen.queryByText(/NT\$0/)).not.toBeInTheDocument();
+  });
+
+  it('still calls a zero balance settled once the trip has expenses', () => {
+    render(<SettlementBalances balances={[{ ...zeroBalance, totalPaid: 50, totalOwed: 50 }]} />);
+    expect(screen.getByText('settled')).toBeInTheDocument();
+    expect(screen.getByText(/\+\s*NT\$0/)).toBeInTheDocument();
+    expect(screen.queryByText('noShareYet')).not.toBeInTheDocument();
+  });
+});
+
+describe('payment history on an empty trip', () => {
+  const props = { payments: [], onRecord: vi.fn(), onDelete: vi.fn() };
+
+  it('explains advance payments and lowers the record button', () => {
+    render(<PaymentHistory {...props} canManage hasExpenses={false} />);
+    expect(screen.getByText('paymentHistoryNoExpenses')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'recordPayment' })).toHaveClass(
+      'text-muted-foreground'
+    );
+  });
+
+  it('keeps the plain empty hint and outline button once expenses exist', () => {
+    render(<PaymentHistory {...props} canManage />);
+    expect(screen.getByText('paymentHistoryEmpty')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'recordPayment' })).not.toHaveClass(
+      'text-muted-foreground'
+    );
+  });
+
+  it('does not suggest recording to viewers who cannot manage payments', () => {
+    render(<PaymentHistory {...props} canManage={false} hasExpenses={false} />);
+    expect(screen.getByText('paymentHistoryEmpty')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'recordPayment' })).not.toBeInTheDocument();
   });
 });

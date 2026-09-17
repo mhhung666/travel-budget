@@ -1,6 +1,6 @@
 'use client';
 
-import { TrendingUp, TrendingDown, CheckCircle } from 'lucide-react';
+import { TrendingUp, TrendingDown, CheckCircle, Minus } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import type { Balance } from '@/types';
 import { formatCurrency } from '@/constants/currencies';
@@ -14,12 +14,15 @@ interface SettlementBalancesProps {
   avatarUrlById?: Record<string, string | null>;
   /** 目前登入者的 userId；有值時「我」的卡片排最前並加標記（5.4 以我為中心）。 */
   currentUserId?: string;
+  /** 旅行是否有支出或還款；都沒有時餘額為 0 只代表「尚無分攤」，不標「已結清」也不顯示 `+NT$0`。 */
+  hasActivity?: boolean;
 }
 
 export default function SettlementBalances({
   balances,
   avatarUrlById,
   currentUserId,
+  hasActivity = true,
 }: SettlementBalancesProps) {
   const t = useTranslations('settlement');
   const locale = useLocale();
@@ -47,7 +50,13 @@ export default function SettlementBalances({
                   ? 'text-destructive'
                   : 'text-muted-foreground';
             const StatusIcon =
-              balance.balance > 0 ? TrendingUp : balance.balance < 0 ? TrendingDown : CheckCircle;
+              balance.balance > 0
+                ? TrendingUp
+                : balance.balance < 0
+                  ? TrendingDown
+                  : hasActivity
+                    ? CheckCircle
+                    : Minus;
             return (
               <li
                 key={balance.userId}
@@ -72,24 +81,30 @@ export default function SettlementBalances({
                         </Badge>
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground tabular-nums">
-                      {t('totalPaid')} {money(balance.totalPaid)} · {t('totalOwed')}{' '}
-                      {money(balance.totalOwed)}
-                    </p>
+                    {hasActivity && (
+                      <p className="text-xs text-muted-foreground tabular-nums">
+                        {t('totalPaid')} {money(balance.totalPaid)} · {t('totalOwed')}{' '}
+                        {money(balance.totalOwed)}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className={cn('shrink-0 text-right', tone)}>
-                  <p className="text-lg font-bold tabular-nums">
-                    {balance.balance >= 0 ? '+' : ''}
-                    {money(balance.balance)}
-                  </p>
+                  {hasActivity && (
+                    <p className="text-lg font-bold tabular-nums">
+                      {balance.balance >= 0 ? '+' : ''}
+                      {money(balance.balance)}
+                    </p>
+                  )}
                   <p className="flex items-center justify-end gap-1 text-xs font-medium">
                     <StatusIcon className="h-3.5 w-3.5" aria-hidden />
                     {balance.balance > 0
                       ? t('shouldReceive')
                       : balance.balance < 0
                         ? t('shouldPay')
-                        : t('settled')}
+                        : hasActivity
+                          ? t('settled')
+                          : t('noShareYet')}
                   </p>
                 </div>
               </li>

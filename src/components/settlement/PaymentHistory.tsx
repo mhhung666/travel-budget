@@ -13,6 +13,8 @@ interface PaymentHistoryProps {
   canManage: boolean;
   onRecord: () => void;
   onDelete: (id: string) => void;
+  /** 旅行是否已有支出；沒有時「登記還款」降為次要按鈕，空白提示改說明可先登記預付款。 */
+  hasExpenses?: boolean;
 }
 
 /**
@@ -24,6 +26,7 @@ export default function PaymentHistory({
   canManage,
   onRecord,
   onDelete,
+  hasExpenses = true,
 }: PaymentHistoryProps) {
   const t = useTranslations('settlement');
   const locale = useLocale();
@@ -40,7 +43,12 @@ export default function PaymentHistory({
           )}
         </CardTitle>
         {canManage && (
-          <Button size="sm" variant="outline" className="gap-1" onClick={onRecord}>
+          <Button
+            size="sm"
+            variant={hasExpenses ? 'outline' : 'ghost'}
+            className={hasExpenses ? 'gap-1' : 'gap-1 text-muted-foreground'}
+            onClick={onRecord}
+          >
             <Plus className="h-4 w-4" />
             {t('recordPayment')}
           </Button>
@@ -49,7 +57,7 @@ export default function PaymentHistory({
       <CardContent>
         {payments.length === 0 ? (
           <p className="text-center text-sm text-muted-foreground py-6">
-            {t('paymentHistoryEmpty')}
+            {t(hasExpenses || !canManage ? 'paymentHistoryEmpty' : 'paymentHistoryNoExpenses')}
           </p>
         ) : (
           <ul className="space-y-2">

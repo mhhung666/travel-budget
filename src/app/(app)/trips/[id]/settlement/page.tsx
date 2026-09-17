@@ -216,6 +216,7 @@ export default function SettlementPage() {
           balances={balances}
           avatarUrlById={avatarById}
           currentUserId={currentUser?.id}
+          hasActivity={totalExpenses >= MONEY_EPSILON || payments.length > 0}
         />
 
         {/* 結算方案（與我有關的轉帳排最前） */}
@@ -242,6 +243,7 @@ export default function SettlementPage() {
           canManage={isMember}
           onRecord={openBlankRecord}
           onDelete={handleDeletePayment}
+          hasExpenses={totalExpenses >= MONEY_EPSILON}
         />
       </div>
 
