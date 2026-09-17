@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Polyline, Tooltip, useMap } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import {
@@ -16,6 +16,7 @@ import { mergePhotoPins, type PhotoPin } from './photos';
 import { countryCodeToFlag, countryColor } from './country';
 import { greatCirclePositions } from './arc';
 import HeatLayer from './HeatLayer';
+import { basemapFor, TILE_ERROR_THRESHOLD, TRANSPARENT_TILE } from './basemaps';
 import CountriesLayer from './CountriesLayer';
 
 export type MapMode = 'flights' | 'heat' | 'countries' | 'photos';
@@ -40,11 +41,43 @@ interface TripMapCanvasProps {
   onPhotoPinSelect?: (pin: PhotoPin) => void;
 }
 
-// 主題感應底圖：淺色用 CartoDB Positron、深色用 Dark Matter。
-const BASEMAPS = {
-  light: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-  dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-};
+/**
+ * 主題感應底圖（來源與理由見 ./basemaps）。
+ * 圖磚連續載入失敗就換備援來源，別讓使用者對著空白或破圖的地圖。
+ */
+function BasemapLayers({ isDark }: { isDark: boolean }) {
+  const [tileErrors, setTileErrors] = useState(0);
+  const fallback = tileErrors >= TILE_ERROR_THRESHOLD;
+  const source = basemapFor(isDark, fallback);
+  const theme = isDark ? 'dark' : 'light';
+  // 換過備援就不再計數，免得備援也失敗時一直重設圖層。
+  // 地名是獨立一層，它掛掉一樣要換來源，否則會一直顯示沒有地名的底圖。
+  const eventHandlers = fallback ? undefined : { tileerror: () => setTileErrors((n) => n + 1) };
+  return (
+    <>
+      <TileLayer
+        key={`base-${theme}-${fallback}`}
+        url={source.base}
+        attribution={source.attribution}
+        errorTileUrl={TRANSPARENT_TILE}
+        className={source.invert ? 'map-tiles-inverted' : undefined}
+        // 圖磚走 CORS 取得，回應才不是 opaque，SW 的 CacheFirst 才存得起來（離線可用）。
+        crossOrigin="anonymous"
+        eventHandlers={eventHandlers}
+      />
+      {source.reference && (
+        <TileLayer
+          key={`reference-${theme}-${fallback}`}
+          url={source.reference}
+          errorTileUrl={TRANSPARENT_TILE}
+          crossOrigin="anonymous"
+          zIndex={2}
+          eventHandlers={eventHandlers}
+        />
+      )}
+    </>
+  );
+}
 
 /** 初次載入時把視野框到所有點；座標變動時重框。 */
 function FitBounds({ coords }: { coords: [number, number][] }) {
@@ -305,14 +338,10 @@ export default function TripMapCanvas({
       center={[20, 0]}
       zoom={2}
       scrollWheelZoom
-      className="h-full w-full rounded-lg"
+      className="bg-muted h-full w-full rounded-lg"
       worldCopyJump
     >
-      <TileLayer
-        key={isDark ? 'dark' : 'light'}
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
-        url={isDark ? BASEMAPS.dark : BASEMAPS.light}
-      />
+      <BasemapLayers isDark={isDark} />
       <FitBounds coords={fitCoords} />
 
       {isHeat && <HeatLayer points={heatTuples} max={maxWeight} />}

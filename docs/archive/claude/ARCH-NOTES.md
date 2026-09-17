@@ -70,6 +70,7 @@
 - `User.mapShareCode` 是 trip `hash_code` 的使用者層級對應（opt-in、sparse-unique、同格式驗證）；`/map/share/*` 是公開頁（不在 `proxy.ts` protectedRoutes）。
 - **公開地圖 API 去識別化契約**（[/api/public/map/[code]](../../../src/app/api/public/map/%5Bcode%5D/route.ts)）：只露座標、在地化地名、**年份**（年份是刻意例外，供篩選）——絕不露旅程名稱、id、完整日期。熱點彙整到四捨五入座標。地圖上的**照片圖層**（相簿相片依 EXIF GPS 精確釘點，退關聯行程日座標）**恆為登入限定**，`url`／`thumb_url` 由 `presignGetStable` 批次簽發，永不進公開分享。舊的收據衍生照片模式已退役。
 - **相簿公開分享是另一條路由、另一套契約**：`Trip.albumShareCode`（opt-in、sparse-unique、同 `hash_code` 格式），公開頁 `/album/share/[code]` + API [/api/public/album/[code]](../../../src/app/api/public/album/%5Bcode%5D/route.ts)。**純相片牌**：相片＋說明＋日期＋旅程名，**不含位置**——公開路由只簽剝除 APP1 的消毒副本 `_p.jpg`（[jpegSanitize.ts](../../../src/lib/jpegSanitize.ts) / [photoSanitize.ts](../../../src/lib/photoSanitize.ts)）與縮圖 `_t.webp`，**絕不簽自帶 GPS 的 `.jpg`**；DTO `PublicAlbumPhoto` 是**獨立型別**（非成員 DTO 加 omit），不含 `location`／`place`／`exif`。**不要把相片餵進地圖 API**，兩條路由的契約各自獨立。
+- **底圖來源**集中在 [basemaps.ts](../../../src/components/map/basemaps.ts)：主要用免金鑰的 Esri Gray Canvas（底圖＋地名兩層），底圖與地名層合計累積 6 次圖磚失敗後退到 OSM 標準圖磚。兩層皆以 CORS 載入，SW 快取允許狀態碼 `0／200`。**不要改回原本的 CARTO 來源**（抽查免金鑰圖磚出現「API KEY REQUIRED」浮水印），也不要引進需要前端金鑰的服務。換來源要同步改 attribution 與 [sw.ts](../../../src/sw.ts) 的圖磚快取網域（有測試把關）。
 - `public/geo/countries.geojson` 是**生成資產**（Natural Earth 110m 裁剪），不手改；要更新從 `nvkelso/natural-earth-vector` 重新生成。
 
 ## 國際化

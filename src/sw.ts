@@ -23,7 +23,7 @@
 import { defaultCache } from '@serwist/next/worker';
 import { expensePushDisplayOptions } from './lib/expensePushDisplay';
 import type { PrecacheEntry, RuntimeCaching, SerwistGlobalConfig } from 'serwist';
-import { CacheFirst, ExpirationPlugin, Serwist } from 'serwist';
+import { CacheableResponsePlugin, CacheFirst, ExpirationPlugin, Serwist } from 'serwist';
 
 declare global {
   interface WorkerGlobalScope extends SerwistGlobalConfig {
@@ -34,12 +34,21 @@ declare global {
 declare const self: ServiceWorkerGlobalScope;
 
 const runtimeCaching: RuntimeCaching[] = [
-  // Leaflet/OpenStreetMap raster tiles — keep the basemap available offline.
+  // Leaflet raster basemap tiles — keep the basemap available offline.
+  // Hosts must track src/components/map/basemaps.ts: Esri Gray Canvas (primary)
+  // and the OpenStreetMap standard tiles used as the fallback source.
   {
-    matcher: ({ url }) => /\.tile\.openstreetmap\.org$/.test(url.hostname),
+    matcher: ({ url }) =>
+      url.hostname === 'services.arcgisonline.com' ||
+      /(^|\.)tile\.openstreetmap\.org$/.test(url.hostname),
     handler: new CacheFirst({
       cacheName: 'map-tiles',
       plugins: [
+        // Tiles are requested with crossOrigin="anonymous" (both hosts send
+        // Access-Control-Allow-Origin: *), so responses are CORS, not opaque.
+        // Status 0 stays allowed so a tile that somehow loads opaquely is still
+        // cached instead of silently skipping the offline basemap.
+        new CacheableResponsePlugin({ statuses: [0, 200] }),
         new ExpirationPlugin({
           maxEntries: 256,
           maxAgeSeconds: 7 * 24 * 60 * 60,
