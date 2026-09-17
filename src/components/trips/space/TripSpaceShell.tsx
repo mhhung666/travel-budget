@@ -1,4 +1,6 @@
 'use client';
+import { TripRefreshIndicator } from './TripRefreshIndicator';
+import { BackgroundRefreshContext } from '@/components/common/QueryFeedback';
 import { QueryStatus } from '@/components/common/QueryStatus';
 import { QueryReadDialog } from '@/components/common/QueryReadDialog';
 
@@ -369,20 +371,23 @@ export function TripSpaceShell({
           )}
         </div>
 
-        <div className="flex-1">
-          <QueryStatus
-            query={
-              mounted
-                ? shellQuery
-                : {
-                    data: undefined,
-                    isFetching: true,
-                    refetch: shellQuery.refetch,
-                  }
-            }
-          />
-          {children}
-        </div>
+        <BackgroundRefreshContext.Provider value={true}>
+          <div className="relative flex-1">
+            <TripRefreshIndicator tripId={tripId} />
+            <QueryStatus
+              query={
+                mounted
+                  ? shellQuery
+                  : {
+                      data: undefined,
+                      isFetching: true,
+                      refetch: shellQuery.refetch,
+                    }
+              }
+            />
+            {children}
+          </div>
+        </BackgroundRefreshContext.Provider>
 
         {/* 空間層級 Dialogs：新增支出（旅行內 CTA／工具列共用）、預算 */}
         {addExpenseDialog.open && (

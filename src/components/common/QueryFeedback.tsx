@@ -1,10 +1,13 @@
 'use client';
 
+import { createContext, useContext } from 'react';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ErrorState } from './ErrorState';
+
+export const BackgroundRefreshContext = createContext(false);
 
 /** Keep cached content visible; reserve the full error state for a cold failure. */
 export function QueryFeedback({
@@ -22,6 +25,7 @@ export function QueryFeedback({
 }) {
   const t = useTranslations('common');
   const online = useOnlineStatus();
+  const sharedRefreshIndicator = useContext(BackgroundRefreshContext);
   if (!online)
     return (
       <p role="status" className="py-2 text-sm text-muted-foreground">
@@ -39,6 +43,7 @@ export function QueryFeedback({
     );
   }
   if (hasData && isFetching) {
+    if (sharedRefreshIndicator) return null;
     return (
       <div role="status" className="flex items-center gap-1.5 py-1 text-xs text-muted-foreground">
         <Loader2 className="h-3.5 w-3.5 animate-spin" />

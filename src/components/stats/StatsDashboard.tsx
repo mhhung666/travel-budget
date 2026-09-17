@@ -210,11 +210,13 @@ export default function StatsDashboard({
   const cards = [
     {
       label: t('totalSpent'),
+      isAmount: true,
       value: formatCurrency(stats?.totalAmount ?? 0),
       icon: CircleDollarSign,
     },
     {
       label: t('averagePerTrip'),
+      isAmount: true,
       value: formatCurrency(stats?.averagePerTrip ?? 0),
       icon: Calculator,
     },
@@ -400,14 +402,21 @@ export default function StatsDashboard({
             {cards.map((card) => {
               const Icon = card.icon;
               return (
-                <div key={card.label} className="min-w-0">
+                <div
+                  key={card.label}
+                  className={
+                    card.isAmount ? 'min-w-0 min-[360px]:col-span-2 lg:col-span-1' : 'min-w-0'
+                  }
+                >
                   <Card className="h-full border-muted">
                     <CardContent className="p-4 sm:p-5">
                       <div className="mb-4 flex items-center justify-between">
                         <span className="text-sm text-muted-foreground">{card.label}</span>
                         <Icon size={18} className="text-primary" aria-hidden />
                       </div>
-                      <p className="truncate text-xl font-bold sm:text-2xl">{card.value}</p>
+                      <p className="break-words text-xl font-bold tabular-nums sm:text-2xl">
+                        {card.value}
+                      </p>
                     </CardContent>
                   </Card>
                 </div>
