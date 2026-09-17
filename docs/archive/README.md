@@ -55,6 +55,7 @@
 - [Q：查詢錯誤狀態與前端延遲載入](history/QUERY_UX_PROGRESS.md)
 - [專案狀態與文件入口](history/STATUS_2026-09-16.md)
 - [UX 優先改善項目（2026-09-17 結案）](history/UX_IMPROVEMENTS_2026-09-17.md)
+- [UX 改善項目第二輪（2026-09-17 結案）](history/UX_IMPROVEMENTS_ROUND2_2026-09-17.md)
 
 ## Agent 維護參考
 
