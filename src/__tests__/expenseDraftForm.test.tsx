@@ -37,7 +37,14 @@ it('restores all rejected input into an add form for correction without applying
     createdAt: '2026-09-01T00:00:00Z',
   });
   const { result } = renderHook(() =>
-    useExpenseForm({ mode: 'add', open: true, expense, members, currentUser: members[1] })
+    useExpenseForm({
+      mode: 'add',
+      tripId: 'trip',
+      open: true,
+      expense,
+      members,
+      currentUser: members[1],
+    })
   );
   await waitFor(() => expect(result.current.loadingRates).toBe(false));
   expect(result.current.showAdvanced).toBe(true);

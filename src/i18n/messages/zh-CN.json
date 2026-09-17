@@ -404,7 +404,18 @@
       "payerSelf": "{name}（我）",
       "moreSettings": "更多设置",
       "moreSettingsHint": "汇率、标签、关联行程日",
-      "moreSettingsHintWithReceipts": "汇率、标签、关联行程日、收据"
+      "moreSettingsHintWithReceipts": "汇率、标签、关联行程日、收据",
+      "draft": {
+        "saved": "草稿已保留",
+        "savedHint": "下次打开这趟旅行的记账表单就能接着填。",
+        "restored": "已带回上次未填完的内容。",
+        "discard": "舍弃草稿",
+        "discarded": "已舍弃草稿",
+        "unsavedTitle": "尚未保存的修改",
+        "unsavedMessage": "现在关闭，这笔支出的修改不会保留。",
+        "keepEditing": "继续编辑",
+        "discardChanges": "舍弃修改"
+      }
     },
     "confirm": {
       "delete": "确定要删除这笔支出吗？",

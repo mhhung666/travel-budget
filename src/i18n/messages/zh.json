@@ -404,7 +404,18 @@
       "payerSelf": "{name}（我）",
       "moreSettings": "更多設定",
       "moreSettingsHint": "匯率、標籤、關聯行程日",
-      "moreSettingsHintWithReceipts": "匯率、標籤、關聯行程日、收據"
+      "moreSettingsHintWithReceipts": "匯率、標籤、關聯行程日、收據",
+      "draft": {
+        "saved": "草稿已保留",
+        "savedHint": "下次打開這趟旅行的記帳表單就能接著填。",
+        "restored": "已帶回上次未填完的內容。",
+        "discard": "捨棄草稿",
+        "discarded": "已捨棄草稿",
+        "unsavedTitle": "尚未儲存的修改",
+        "unsavedMessage": "現在關閉，這筆支出的修改不會保留。",
+        "keepEditing": "繼續編輯",
+        "discardChanges": "捨棄修改"
+      }
     },
     "confirm": {
       "delete": "確定要刪除這筆支出嗎？",

@@ -404,7 +404,18 @@
       "payerSelf": "{name}（自分）",
       "moreSettings": "その他の設定",
       "moreSettingsHint": "為替レート・タグ・関連する日程",
-      "moreSettingsHintWithReceipts": "為替レート・タグ・関連する日程・レシート"
+      "moreSettingsHintWithReceipts": "為替レート・タグ・関連する日程・レシート",
+      "draft": {
+        "saved": "下書きを保存しました",
+        "savedHint": "次にこの旅行の記録画面を開くと続きから入力できます。",
+        "restored": "前回の入力内容を復元しました。",
+        "discard": "下書きを破棄",
+        "discarded": "下書きを破棄しました",
+        "unsavedTitle": "未保存の変更があります",
+        "unsavedMessage": "ここで閉じると、この支出への変更は保存されません。",
+        "keepEditing": "編集を続ける",
+        "discardChanges": "変更を破棄"
+      }
     },
     "confirm": {
       "delete": "この支出を削除しますか？",
