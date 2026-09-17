@@ -161,7 +161,10 @@ export default function RuleBasedInsights({
           return (
             <Card
               key={insight.id}
-              className={cn('h-full min-w-0 border-muted', selected && 'border-primary bg-primary/5')}
+              className={cn(
+                'h-full min-w-0 border-muted',
+                selected && 'border-primary bg-primary/5'
+              )}
             >
               <CardContent className="flex h-full flex-col p-4">
                 <div className="mb-3 flex items-center gap-2 text-sm text-muted-foreground">
