@@ -1,8 +1,10 @@
-# UX 改善項目（第四輪）
+# UX 改善項目（第四輪，已結案）
 
-> **進行中：第 1–3 項已上線並通過實測；第 5 項（轉帳付款人與收款人相同）已完成、待上線實測；第 4 項待實測；第 6 項（花費分析平均值與天數）已完成、待上線實測；第 2 項既有資料待查核。** 來源：2026-09-17 外部工具（ChatGPT）以 Test 帳號在桌面瀏覽器實測第三輪改善後的回饋。
-> 第三輪清單與實測結果見 [UX 改善項目（第三輪，已結案）](archive/history/UX_IMPROVEMENTS_ROUND3_2026-09-17.md)。
-> 現行行為見 [現有功能](FEATURES.md)。結案後依 [維護方式](README.md#維護方式) 移入 `archive/history/`。
+> **已結案（2026-09-17）。** 第 1–3、5、6 項已實作並 commit，第 4 項完整帳務流程已驗收；使用者確認全部完成，見文末〈結案確認〉。
+> 現行行為見 [現有功能](../../FEATURES.md)。下方為歸檔時的紀錄。
+>
+> 來源：2026-09-17 外部工具（ChatGPT）以 Test 帳號在桌面瀏覽器實測第三輪改善後的回饋。
+> 上一輪清單見 [UX 改善項目（第三輪，已結案）](UX_IMPROVEMENTS_ROUND3_2026-09-17.md)。
 
 ## 第三輪實測結論
 
@@ -15,13 +17,13 @@
 | # | 主題 | 問題 | 優先度 | 狀態 |
 | --- | --- | --- | --- | --- |
 | 1 | 機場搜尋排序 | 輸入 `TPE`，第一筆是 MPL（Montpellier），TPE 排第二 | ① | 已完成 |
-| 2 | 起訖機場相同 | 出發與抵達都選 TPE，沒有提示，儲存按鈕仍可按 | ② | 已完成（既有資料待查核） |
+| 2 | 起訖機場相同 | 出發與抵達都選 TPE，沒有提示，儲存按鈕仍可按 | ② | 已完成 |
 | 3 | 預付款文案 | 結算頁說可先登記訂金，但表單仍寫「登記一筆實際還款」 | ③ | 已完成 |
-| 4 | 完整帳務流程驗收 | 輸入畫面已確認，儲存後的花費、預算、分帳、還款尚未走過 | ④ | 待處理 |
-| 5 | 轉帳付款人與收款人相同 | 付款人、收款人都選 Test，沒有提示，「登記」仍可按 | ⑤ | 已完成（待上線實測） |
-| 6 | 花費分析平均值與天數 | 「平均每人每日」顯示 NT$62，同頁分攤是 NT$61.5；未設旅行日期卻顯示「天數 1」 | ⑥ | 已完成（待上線實測） |
+| 4 | 完整帳務流程驗收 | 輸入畫面已確認，儲存後的花費、預算、分帳、還款尚未走過 | ④ | 已完成 |
+| 5 | 轉帳付款人與收款人相同 | 付款人、收款人都選 Test，沒有提示，「登記」仍可按 | ⑤ | 已完成 |
+| 6 | 花費分析平均值與天數 | 「平均每人每日」顯示 NT$62，同頁分攤是 NT$61.5；未設旅行日期卻顯示「天數 1」 | ⑥ | 已完成 |
 
-建議順序：1 → 2 → 3 → 5（已完成）→ 4。第 5 項改的是登記轉帳表單，先修再做第 4 項的完整帳務實測。
+實際順序：1 → 2 → 3 → 5 → 6 → 4。第 5 項改的是登記轉帳表單，先修再做第 4 項的完整帳務實測；第 6 項是實測中發現的顯示問題。
 版型與配色不變，不增加新功能。
 
 ## 上線後實測結果（2026-09-17）
@@ -34,7 +36,7 @@
 | 2 相同起訖機場 | 顯示「出發與抵達機場相同，請確認」，並停用儲存 |
 | 3 轉帳文案 | 顯示「轉帳與還款紀錄／登記轉帳」；表單說明包含預付款、不會新增旅遊支出 |
 
-這輪沒有新增任何正式紀錄。接續測試發現與第 2 項同類的防錯缺口，列為第 5 項。
+這輪沒有新增任何正式紀錄。接續測試發現與第 2 項同類的防錯缺口，列為第 5 項；之後的帳務實測發現花費分析的顯示問題，列為第 6 項。
 
 ---
 
@@ -47,7 +49,7 @@
 
 知道代碼的人預期第一筆就是答案，現在容易選錯。
 
-**改善前行為**（2026-09-17 核對）：[AirportCombobox.tsx](../src/components/collections/AirportCombobox.tsx)
+**改善前行為**（2026-09-17 核對）：[AirportCombobox.tsx](../../../src/components/collections/AirportCombobox.tsx)
 以「代碼前綴 或 名稱包含 或 城市包含」過濾後，直接依目錄原順序 `slice(0, MAX_RESULTS)`，沒有排序。
 MPL 會出現是因為名稱或城市字串含 `tpe`（例如 Montpellier）。另一個風險是先截斷再顯示：
 目錄前面的名稱吻合可能把代碼吻合擠出結果清單。
@@ -71,10 +73,10 @@ MPL 會出現是因為名稱或城市字串含 `tpe`（例如 Montpellier）。�
 
 **實作結果**（2026-09-17）
 
-- 過濾與排序抽成純函式 `searchAirports`（[airportSearch.ts](../src/lib/airportSearch.ts)），依上表四個順位排序後才截斷到 50 筆；
-  同順位維持目錄原順序。[AirportCombobox.tsx](../src/components/collections/AirportCombobox.tsx) 改用此函式，過濾範圍不變。
+- 過濾與排序抽成純函式 `searchAirports`（[airportSearch.ts](../../../src/lib/airportSearch.ts)），依上表四個順位排序後才截斷到 50 筆；
+  同順位維持目錄原順序。[AirportCombobox.tsx](../../../src/components/collections/AirportCombobox.tsx) 改用此函式，過濾範圍不變。
 - 以實際目錄核對：`TPE` 依序為 TPE、MPL；`TP` 前段為 TPA、TPE、TPI 等代碼前綴吻合。
-- 測試：[airportSearch.test.ts](../src/__tests__/airportSearch.test.ts) 涵蓋代碼完全吻合、大小寫與前後空白、
+- 測試：[airportSearch.test.ts](../../../src/__tests__/airportSearch.test.ts) 涵蓋代碼完全吻合、大小寫與前後空白、
   前綴／開頭／包含的順位、名稱吻合填滿上限時代碼吻合不被擠出，以及空白查詢。
 
 **驗證結果**（2026-09-17）
@@ -90,9 +92,9 @@ MPL 會出現是因為名稱或城市字串含 `tpe`（例如 Montpellier）。�
 
 **改善前行為**（2026-09-17 核對）
 
-- 前端 [FlightRecordDialog.tsx](../src/components/collections/FlightRecordDialog.tsx) 的停用條件只檢查
+- 前端 [FlightRecordDialog.tsx](../../../src/components/collections/FlightRecordDialog.tsx) 的停用條件只檢查
   航空公司、日期、起訖機場是否有值。
-- 後端 `createFlightRecordSchema`（[validation.ts](../src/lib/validation.ts)）只驗代碼格式，
+- 後端 `createFlightRecordSchema`（[validation.ts](../../../src/lib/validation.ts)）只驗代碼格式，
   **會接受起訖相同**；存下來的航線距離為 0，地圖上也畫不出航線。
 
 **建議**
@@ -119,14 +121,14 @@ MPL 會出現是因為名稱或城市字串含 `tpe`（例如 Montpellier）。�
 
 **實作結果**（2026-09-17）
 
-- 後端：`createFlightRecordSchema`（[validation.ts](../src/lib/validation.ts)）加上 `refine`，起訖相同（不分大小寫）時
+- 後端：`createFlightRecordSchema`（[validation.ts](../../../src/lib/validation.ts)）加上 `refine`，起訖相同（不分大小寫）時
   在 `to_airport` 回傳驗證錯誤；`updateFlightRecordSchema` 沿用同一個 schema。action 仍回 `VALIDATION_ERROR`，
   前端顯示既有的「輸入資料有誤」訊息；正常操作會先被前端擋下，不會走到這一步。
-- 前端：[FlightRecordDialog.tsx](../src/components/collections/FlightRecordDialog.tsx) 在抵達欄位下顯示提示並停用儲存，
+- 前端：[FlightRecordDialog.tsx](../../../src/components/collections/FlightRecordDialog.tsx) 在抵達欄位下顯示提示並停用儲存，
   送出 handler 也同樣擋下。新增與一鍵帶入顯示 `flights.sameAirport`；編輯原本就相同的紀錄顯示
   `flights.sameAirportExisting`。修正成不同機場後提示消失、恢復儲存。四種語系已補。
-- 測試：[flightRecordSameAirport.test.tsx](../src/__tests__/flightRecordSameAirport.test.tsx) 涵蓋即時提示、`TPE-TPE` 帶入、
-  舊紀錄未修正無法送出、修正後可儲存；[validation.test.ts](../src/__tests__/validation.test.ts) 補 schema 測試。
+- 測試：[flightRecordSameAirport.test.tsx](../../../src/__tests__/flightRecordSameAirport.test.tsx) 涵蓋即時提示、`TPE-TPE` 帶入、
+  舊紀錄未修正無法送出、修正後可儲存；[validation.test.ts](../../../src/__tests__/validation.test.ts) 補 schema 測試。
   刪除在清單操作、不經表單，行為未變；取消沿用表單既有的關閉方式。
 - **既有資料查核：尚未完成。** 本機 `.env` 的 `MONGODB_URI` 是佔位值，連不到實際資料庫。
   請在正式環境以唯讀查詢確認筆數：
@@ -151,9 +153,9 @@ MPL 會出現是因為名稱或城市字串含 `tpe`（例如 Montpellier）。�
 
 - 相關字串：`settlement.recordPayment`（登記還款）、`recordPaymentDescription`、`paymentHistory`（已結清紀錄）、
   `paymentHistoryEmpty`、`paymentRecorded`、`deletePayment`、`deletePaymentConfirm`；
-  使用於 [PaymentHistory.tsx](../src/components/settlement/PaymentHistory.tsx)、
-  [RecordPaymentDialog.tsx](../src/components/settlement/RecordPaymentDialog.tsx)。
-- 計算規則：還款只經 `applyPayments`（[settlement.ts](../src/lib/settlement.ts)）調整結算餘額，
+  使用於 [PaymentHistory.tsx](../../../src/components/settlement/PaymentHistory.tsx)、
+  [RecordPaymentDialog.tsx](../../../src/components/settlement/RecordPaymentDialog.tsx)。
+- 計算規則：還款只經 `applyPayments`（[settlement.ts](../../../src/lib/settlement.ts)）調整結算餘額，
   不計入已付款、應分攤，也不會新增支出。因此表單可以寫「不會新增旅遊支出」。
 
 **建議文案**
@@ -184,7 +186,7 @@ MPL 會出現是因為名稱或城市字串含 `tpe`（例如 Montpellier）。�
 **完成條件**
 
 - 標題、按鈕、表單說明、成功與刪除提示、通知、動態、推播及 Email 用詞一致，四種語系同步。
-- 檢查 [settlementEmptyStates.test.tsx](../src/__tests__/settlementEmptyStates.test.tsx) 等相關測試，
+- 檢查 [settlementEmptyStates.test.tsx](../../../src/__tests__/settlementEmptyStates.test.tsx) 等相關測試，
   更新舊文案斷言；既有翻譯 key 保留。驗證預付款登記後的通知與 Email 不再稱為「還款」。
 
 **實作結果**（2026-09-17）
@@ -196,8 +198,8 @@ MPL 會出現是因為名稱或城市字串含 `tpe`（例如 Montpellier）。�
 - 另把設定頁 Email 通知說明（`emailHelp`）的「登記還款」改為「登記轉帳」，與通知一致。
 - 英文用 transfer，日文用「送金」，簡中用「转账」。`remind`、`reminderSent`、`allSettledHint`、
   還款提醒 Email、「標記已付」「我已付款」依規則維持原文案。
-- 前端測試以 key 斷言，不受文案影響；[emailTemplates.test.ts](../src/__tests__/emailTemplates.test.ts) 補四語系
-  `payment_recorded` Email 使用轉帳用詞、不含舊詞，[webpush.test.ts](../src/__tests__/webpush.test.ts) 補中文推播不含「還款」。
+- 前端測試以 key 斷言，不受文案影響；[emailTemplates.test.ts](../../../src/__tests__/emailTemplates.test.ts) 補四語系
+  `payment_recorded` Email 使用轉帳用詞、不含舊詞，[webpush.test.ts](../../../src/__tests__/webpush.test.ts) 補中文推播不含「還款」。
 
 **驗證結果**（2026-09-17）
 
@@ -213,10 +215,10 @@ MPL 會出現是因為名稱或城市字串含 `tpe`（例如 Montpellier）。�
 
 **改善前行為**（2026-09-17 核對）
 
-- 前端 [RecordPaymentDialog.tsx](../src/components/settlement/RecordPaymentDialog.tsx)：兩個下拉選單都列出全部成員；
+- 前端 [RecordPaymentDialog.tsx](../../../src/components/settlement/RecordPaymentDialog.tsx)：兩個下拉選單都列出全部成員；
   「登記」只在儲存中停用。**按下登記後** handler 才檢查，顯示 `settlement.errorSamePerson`（付款人與收款人不能相同），不會送出。
-- 後端 `recordPaymentSchema`（[validation.ts](../src/lib/validation.ts)）已用 `refine` 拒絕 `from_id === to_id`，
-  [payment.actions.ts](../src/actions/payment.actions.ts) 在寫入前套用 schema，**不會存下自己付給自己的紀錄**。
+- 後端 `recordPaymentSchema`（[validation.ts](../../../src/lib/validation.ts)）已用 `refine` 拒絕 `from_id === to_id`，
+  [payment.actions.ts](../../../src/actions/payment.actions.ts) 在寫入前套用 schema，**不會存下自己付給自己的紀錄**。
 - 缺口只在送出前：沒有即時提示、按鈕可按，與第 2 項修好前的機場表單一樣。目前沒有測試涵蓋這個情況。
 
 **建議**
@@ -234,15 +236,15 @@ MPL 會出現是因為名稱或城市字串含 `tpe`（例如 Montpellier）。�
 
 **實作結果**（2026-09-17）
 
-- 前端 [RecordPaymentDialog.tsx](../src/components/settlement/RecordPaymentDialog.tsx)：選定付款人後，收款人選單不列出同一人
+- 前端 [RecordPaymentDialog.tsx](../../../src/components/settlement/RecordPaymentDialog.tsx)：選定付款人後，收款人選單不列出同一人
   （只處理收款人這一側）。若預填或改選付款人造成兩者相同，收款人選單暫時保留該成員，讓衝突看得見；
   表單上方立即顯示 `settlement.errorSamePerson`，並停用「登記」，改成不同成員後提示消失、恢復可按。
   提示沿用表單既有的錯誤區塊位置，沒有另外放在收款人欄位下。
 - 只有一位成員時顯示新增的 `settlement.errorNeedTwoMembers`（至少需要兩位成員才能登記轉帳）並停用「登記」；四種語系已補。
 - 送出 handler 保留相同成員檢查，並補上成員不足的檢查；後端 schema、帳務計算與資料結構未改。
-- 測試：[recordPaymentSamePerson.test.tsx](../src/__tests__/recordPaymentSamePerson.test.tsx) 涵蓋收款人選單排除付款人、
+- 測試：[recordPaymentSamePerson.test.tsx](../../../src/__tests__/recordPaymentSamePerson.test.tsx) 涵蓋收款人選單排除付款人、
   預填相同即提示並停用、直接送出仍被擋、改回不同成員後可登記、改選付款人造成相同、單一成員；
-  [validation.test.ts](../src/__tests__/validation.test.ts) 補 `recordPaymentSchema` 測試。
+  [validation.test.ts](../../../src/__tests__/validation.test.ts) 補 `recordPaymentSchema` 測試。
   還原元件修改時新測試 4 項全數失敗，套用後通過；`tsc`、lint、format 與全部測試通過。
 - 尚未在瀏覽器實際操作；上線後請以 Test 帳號重測原案例（付款人 Test、收款人 Test），不需要真的送出。
 
@@ -252,7 +254,7 @@ MPL 會出現是因為名稱或城市字串含 `tpe`（例如 Montpellier）。�
 旅行未設定日期時顯示「天數 1」，容易誤會成行程只有一天。
 驗證資料：旅行「QA 帳務驗證 20260917」（虛擬旅伴、一筆支出、一筆標明「非實際轉帳」的測試轉帳）。
 
-**原因**（[tripStats.ts](../src/lib/tripStats.ts) `computeTripStats`）：
+**原因**（[tripStats.ts](../../../src/lib/tripStats.ts) `computeTripStats`）：
 
 - `avgPerPersonPerDay` 以 `Math.round` 取整數（註解寫「平均值不參與任何加總，維持整數顯示」），
   沒跟上第三輪「金額尾數」統一保留小數的規則。123 ÷ (2 人 × 1 天) = 61.5 → 顯示 62。
@@ -265,10 +267,10 @@ MPL 會出現是因為名稱或城市字串含 `tpe`（例如 Montpellier）。�
   不採用「約 NT$62」，避免同頁出現兩種尾數規則。
 - `computeTripStats` 多回傳天數來源（旅行日期／支出日期／無）；來自支出日期時，
   在「天數」下方加一行說明（例如「依支出日期計算」），四種語系都補。
-- 更新 [tripStats.test.ts](../src/__tests__/tripStats.test.ts) 既有的整數預期（37、62），補天數來源與畫面說明的測試。
+- 更新 [tripStats.test.ts](../../../src/__tests__/tripStats.test.ts) 既有的整數預期（37、62），補天數來源與畫面說明的測試。
 - 不改資料結構、不需 migration。
 
-**狀態**：已完成、待上線實測。
+**狀態**：已完成。
 
 **實作結果**（2026-09-17）：
 
@@ -276,8 +278,8 @@ MPL 會出現是因為名稱或城市字串含 `tpe`（例如 Montpellier）。�
 - `TripStatsData` 新增 `dayCountSource`（`tripDates`／`expenseDates`／`none`）；為 `expenseDates` 時，
   「天數」下方顯示 `stats.daysFromExpenseDates`（依支出日期計算），四種語系已補。
 - 統計結果會存進離線快取，`PERSIST_BUSTER` 升到 `v12`（離線測試裡寫死的值一併更新）。
-- 測試：[tripStats.test.ts](../src/__tests__/tripStats.test.ts) 改為兩位小數預期，補天數來源與 QA 案例（123 ÷ 2 人 ÷ 1 天 = 61.5）；
-  新增 [tripStatsDayCountNote.test.tsx](../src/__tests__/tripStatsDayCountNote.test.tsx) 驗證說明文字只在依支出日期時出現。
+- 測試：[tripStats.test.ts](../../../src/__tests__/tripStats.test.ts) 改為兩位小數預期，補天數來源與 QA 案例（123 ÷ 2 人 ÷ 1 天 = 61.5）；
+  新增 [tripStatsDayCountNote.test.tsx](../../../src/__tests__/tripStatsDayCountNote.test.tsx) 驗證說明文字只在依支出日期時出現。
   還原實作時 5 項測試失敗，套用後通過；`tsc`、lint、format 與全部測試通過。
 - 尚未在瀏覽器實際操作；上線後請打開「QA 帳務驗證 20260917」的花費分析確認。
 
@@ -296,15 +298,29 @@ MPL 會出現是因為名稱或城市字串含 `tpe`（例如 Montpellier）。�
 | 4 | 再查看預算列與個人統計 | 我的花費仍各為 NT$61.5，不因還款改變 |
 | 5 | 刪除該筆還款 | 餘額恢復步驟 1 的狀態 |
 
-**狀態**：尚未進行，是下一個重要驗收；單看表單不能確認整段帳務正確。第 5 項已完成，上線後可與第 5 項重測一起進行。
+**狀態**：已完成。驗證資料保留在旅行「QA 帳務驗證 20260917」（虛擬旅伴、一筆支出、一筆標明「非實際轉帳」的測試紀錄）。
 
-**同時檢查**：重新整理與切換分頁後金額不變；結算 CSV 匯出的分攤金額與畫面一致（匯出目前不含還款紀錄，見 [exporters/settlement.ts](../src/lib/exporters/settlement.ts)）。
+**同時檢查**：重新整理與切換分頁後金額不變；結算 CSV 匯出的分攤金額與畫面一致（匯出目前不含還款紀錄，見 [exporters/settlement.ts](../../../src/lib/exporters/settlement.ts)）。
 
 ---
 
-## 待驗證（沿用前幾輪）
+## 結案確認
 
-以下項目尚未實測，不能列為已通過：
+2026-09-17 使用者確認本輪全部完成：第 1–3 項上線實測通過（見上方〈上線後實測結果〉），
+第 2 項既有資料查核、第 5 項重測、第 6 項畫面確認與第 4 項完整帳務流程驗收都已完成。
+逐步數字與查核筆數未另外附在本文件。
+
+| 項目 | Commit |
+| --- | --- |
+| 1 機場搜尋排序 | `6a71ca9` |
+| 2 相同起訖機場 | `c955641` |
+| 3 轉帳文案 | `472f77e` |
+| 5 轉帳付款人與收款人相同 | `df9fa73` |
+| 6 花費分析平均值與天數 | `c3fd829` |
+
+## 未納入本輪範圍（沿用前幾輪）
+
+以下項目不在本輪清單內，結案確認不代表已實測：
 
 - 手機鍵盤、離線後同步。
 - 地圖統計標籤在窄螢幕與英文、日文下是否被截斷。

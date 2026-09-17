@@ -57,6 +57,7 @@
 - [UX 優先改善項目（2026-09-17 結案）](history/UX_IMPROVEMENTS_2026-09-17.md)
 - [UX 改善項目第二輪（2026-09-17 結案）](history/UX_IMPROVEMENTS_ROUND2_2026-09-17.md)
 - [UX 改善項目第三輪（2026-09-17 結案）](history/UX_IMPROVEMENTS_ROUND3_2026-09-17.md)
+- [UX 改善項目第四輪（2026-09-17 結案）](history/UX_IMPROVEMENTS_ROUND4_2026-09-17.md)
 
 ## Agent 維護參考
 
