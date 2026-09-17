@@ -78,3 +78,16 @@ it('offers trip switching only when the caller provides it', async () => {
   await user.click(screen.getByRole('button', { name: /form\.switchTrip/ }));
   expect(onSwitchTrip).toHaveBeenCalledTimes(1);
 });
+
+it('explains that the draft stays with this trip once the form has content', async () => {
+  const user = userEvent.setup();
+  renderForm({ tripId: `trip-${Math.random()}`, tripName: 'Penghu', onSwitchTrip: vi.fn() });
+  expect(screen.queryByText('form.switchTripDraftHint')).not.toBeInTheDocument();
+
+  await user.type(screen.getByLabelText('amount'), '120');
+  expect(screen.getByText('form.switchTripDraftHint')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /form\.switchTrip/ })).toHaveAttribute(
+    'aria-describedby',
+    'switch-trip-draft-hint'
+  );
+});

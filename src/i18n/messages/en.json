@@ -449,6 +449,7 @@
       },
       "recordingTo": "Trip: {trip}",
       "switchTrip": "Switch trip",
+      "switchTripDraftHint": "Your draft stays with {trip}. Switching opens a new form for the other trip.",
       "payerSelf": "{name} (me)",
       "moreSettings": "More settings",
       "moreSettingsHint": "Exchange rate, tags, itinerary days",

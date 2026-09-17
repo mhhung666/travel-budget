@@ -400,6 +400,7 @@
       },
       "recordingTo": "旅行：{trip}",
       "switchTrip": "旅行を切り替え",
+      "switchTripDraftHint": "下書きは「{trip}」に残ります。切り替えると別の旅行の記録フォームが開きます。",
       "payerSelf": "{name}（自分）",
       "moreSettings": "その他の設定",
       "moreSettingsHint": "為替レート・タグ・関連する日程",

@@ -400,6 +400,7 @@
       },
       "recordingTo": "记到：{trip}",
       "switchTrip": "切换旅行",
+      "switchTripDraftHint": "草稿会保留在「{trip}」，切换后打开另一趟旅行的记账表单。",
       "payerSelf": "{name}（我）",
       "moreSettings": "更多设置",
       "moreSettingsHint": "汇率、标签、关联行程日",

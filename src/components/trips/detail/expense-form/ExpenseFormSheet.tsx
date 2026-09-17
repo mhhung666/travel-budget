@@ -171,6 +171,8 @@ export default function ExpenseFormSheet({
   const handleRequestClose = () => leaveForm(onClose);
   // 切換旅行會立刻換掉整張表單，debounce 的自動存檔來不及跑，這裡先把草稿定下來。
   const handleSwitchTrip = onSwitchTrip ? () => leaveForm(onSwitchTrip) : undefined;
+  // 只有會留草稿的新增模式才提示；編輯模式切換前會先問是否捨棄修改。
+  const showSwitchDraftHint = !!handleSwitchTrip && !!tripName && draftEnabled && isDirty();
 
   const handleDiscardDraft = () => {
     discardDraft();
@@ -341,13 +343,20 @@ export default function ExpenseFormSheet({
 
           {/* 旅行名稱已常駐在標題下方；這裡只補切換入口，不重複顯示名稱 */}
           {handleSwitchTrip && (
-            <div className="-mt-2 flex justify-end">
+            <div className="-mt-2 flex items-center justify-end gap-2">
+              {/* 填了內容才說明：草稿留在原旅行，不會跟著帶到另一趟（UX 第三輪第 3 項） */}
+              {showSwitchDraftHint && (
+                <p id="switch-trip-draft-hint" className="text-xs text-muted-foreground">
+                  {tExpense('form.switchTripDraftHint', { trip: tripName })}
+                </p>
+              )}
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
                 onClick={handleSwitchTrip}
-                className="min-h-11 gap-1.5 text-muted-foreground"
+                aria-describedby={showSwitchDraftHint ? 'switch-trip-draft-hint' : undefined}
+                className="min-h-11 shrink-0 gap-1.5 text-muted-foreground"
               >
                 <ArrowLeftRight className="h-4 w-4" aria-hidden="true" />
                 {tExpense('form.switchTrip')}
