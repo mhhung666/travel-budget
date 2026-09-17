@@ -636,6 +636,7 @@
     "deletePaymentConfirm": "確定要刪除這筆轉帳紀錄嗎？刪除後餘額會重新計入這筆款項。",
     "errorSelectMembers": "請選擇付款人與收款人",
     "errorSamePerson": "付款人與收款人不能相同",
+    "errorNeedTwoMembers": "至少需要兩位成員才能登記轉帳",
     "errorAmount": "請輸入大於 0 的金額",
     "remind": "提醒還款",
     "reminderSent": "已發送還款提醒",

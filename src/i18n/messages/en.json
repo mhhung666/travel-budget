@@ -685,6 +685,7 @@
     "deletePaymentConfirm": "Delete this transfer record? Balances will count this amount again.",
     "errorSelectMembers": "Please select both the payer and the payee",
     "errorSamePerson": "Payer and payee cannot be the same",
+    "errorNeedTwoMembers": "At least two members are needed to record a transfer",
     "errorAmount": "Please enter an amount greater than 0",
     "remind": "Send reminder",
     "reminderSent": "Payment reminder sent",

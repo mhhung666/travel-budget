@@ -69,9 +69,24 @@ export default function RecordPaymentDialog({
     setError('');
   }, [open, initial]);
 
+  // 送出前就顯示的衝突：成員不足或付款人＝收款人（例如預填或改選造成），並停用「登記」。
+  const conflict =
+    members.length < 2
+      ? t('errorNeedTwoMembers')
+      : fromId && fromId === toId
+        ? t('errorSamePerson')
+        : '';
+  const shownError = conflict || error;
+  // 收款人選單不列出付款人；但若目前已選成同一人，保留該項讓衝突看得見、可改選。
+  const payeeOptions = members.filter((m) => m.id !== fromId || m.id === toId);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const amt = parseFloat(amount);
+    if (members.length < 2) {
+      setError(t('errorNeedTwoMembers'));
+      return;
+    }
     if (!fromId || !toId) {
       setError(t('errorSelectMembers'));
       return;
@@ -114,17 +129,23 @@ export default function RecordPaymentDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 py-2">
-          {error && (
+          {shownError && (
             <Alert variant="destructive">
               <AlertTitle>{tCommon('errorTitle')}</AlertTitle>
-              <AlertDescription>{error}</AlertDescription>
+              <AlertDescription>{shownError}</AlertDescription>
             </Alert>
           )}
 
           <div className="flex items-end gap-2">
             <div className="flex-1 space-y-2">
               <Label>{t('payer')}</Label>
-              <Select value={fromId} onValueChange={setFromId}>
+              <Select
+                value={fromId}
+                onValueChange={(v) => {
+                  setFromId(v);
+                  setError('');
+                }}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder={t('selectMember')} />
                 </SelectTrigger>
@@ -140,12 +161,18 @@ export default function RecordPaymentDialog({
             <ArrowRight className="mb-3 h-4 w-4 shrink-0 text-muted-foreground" />
             <div className="flex-1 space-y-2">
               <Label>{t('payee')}</Label>
-              <Select value={toId} onValueChange={setToId}>
+              <Select
+                value={toId}
+                onValueChange={(v) => {
+                  setToId(v);
+                  setError('');
+                }}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder={t('selectMember')} />
                 </SelectTrigger>
                 <SelectContent>
-                  {members.map((m) => (
+                  {payeeOptions.map((m) => (
                     <SelectItem key={m.id} value={m.id}>
                       {m.name}
                     </SelectItem>
@@ -184,7 +211,7 @@ export default function RecordPaymentDialog({
             <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
               {tCommon('cancel')}
             </Button>
-            <Button type="submit" disabled={isSaving}>
+            <Button type="submit" disabled={isSaving || !!conflict}>
               {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {t('record')}
             </Button>

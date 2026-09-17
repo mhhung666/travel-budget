@@ -636,6 +636,7 @@
     "deletePaymentConfirm": "确定要删除这笔转账记录吗？删除后余额会重新计入这笔款项。",
     "errorSelectMembers": "请选择付款人与收款人",
     "errorSamePerson": "付款人与收款人不能相同",
+    "errorNeedTwoMembers": "至少需要两位成员才能登记转账",
     "errorAmount": "请输入大于 0 的金额",
     "remind": "提醒还款",
     "reminderSent": "已发送还款提醒",

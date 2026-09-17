@@ -15,6 +15,7 @@ import {
   NOTE_TEXT_MAX,
   createFlightRecordSchema,
   updateFlightRecordSchema,
+  recordPaymentSchema,
 } from '@/lib/validation';
 
 describe('createTripSchema', () => {
@@ -461,5 +462,20 @@ describe('createFlightRecordSchema', () => {
         .success
     ).toBe(true);
     expect(createFlightRecordSchema.safeParse(base).success).toBe(true);
+  });
+});
+
+describe('recordPaymentSchema', () => {
+  const a = '507f1f77bcf86cd799439011';
+  const b = '507f1f77bcf86cd799439012';
+
+  it('accepts a transfer between two different members', () => {
+    expect(recordPaymentSchema.safeParse({ from_id: a, to_id: b, amount: 10 }).success).toBe(true);
+  });
+
+  it('rejects the same payer and payee on to_id', () => {
+    const result = recordPaymentSchema.safeParse({ from_id: a, to_id: a, amount: 10 });
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.error.issues[0].path).toEqual(['to_id']);
   });
 });
