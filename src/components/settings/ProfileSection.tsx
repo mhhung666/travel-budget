@@ -191,7 +191,15 @@ export function ProfileSection() {
           <form onSubmit={handleUpdateProfile} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="username">{t('profile.username')}</Label>
-              <Input id="username" value={user?.username || ''} disabled className="bg-muted" />
+              <Input
+                id="username"
+                autoComplete="username"
+                autoCapitalize="none"
+                spellCheck={false}
+                value={user?.username || ''}
+                disabled
+                className="bg-muted"
+              />
               <p className="text-xs text-muted-foreground">{t('profile.usernameHelp')}</p>
             </div>
 
@@ -199,6 +207,7 @@ export function ProfileSection() {
               <Label htmlFor="displayName">{t('profile.displayName')}</Label>
               <Input
                 id="displayName"
+                autoComplete="nickname"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 required
@@ -223,6 +232,9 @@ export function ProfileSection() {
               <Label htmlFor="email">{t('email.title')}</Label>
               <Input
                 id="email"
+                autoComplete="email"
+                autoCapitalize="none"
+                spellCheck={false}
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}

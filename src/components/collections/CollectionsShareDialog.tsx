@@ -105,7 +105,12 @@ export function CollectionsShareDialog() {
           ) : code ? (
             <>
               <div className="flex items-center gap-2">
-                <Input value={shareUrl} readOnly className="flex-1 bg-muted/40" />
+                <Input
+                  aria-label={tCommon('shareLink')}
+                  value={shareUrl}
+                  readOnly
+                  className="flex-1 bg-muted/40"
+                />
                 <Button
                   variant="outline"
                   size="icon"

@@ -42,9 +42,10 @@ describe('LoyaltyEntryDialog', () => {
     );
 
     await waitFor(() => {
-      const inputs = screen.getAllByRole('spinbutton');
-      expect((inputs[0] as HTMLInputElement).value).toBe('25');
-      expect((inputs[1] as HTMLInputElement).value).toBe('2500');
+      expect(screen.getByRole('spinbutton', { name: 'loyalty.statusPoints' })).toHaveValue(25);
+      expect(screen.getByRole('spinbutton', { name: 'loyalty.awardMiles' })).toHaveValue(2500);
+      expect(screen.getByLabelText('common.date')).toBeRequired();
+      expect(screen.getByRole('combobox', { name: 'loyalty.entryType' })).toBeInTheDocument();
     });
   });
 
@@ -60,9 +61,8 @@ describe('LoyaltyEntryDialog', () => {
     );
 
     await waitFor(() => {
-      const inputs = screen.getAllByRole('spinbutton');
-      expect((inputs[0] as HTMLInputElement).value).toBe('1200');
-      expect((inputs[1] as HTMLInputElement).value).toBe('1800');
+      expect(screen.getByRole('spinbutton', { name: 'loyalty.qualifyingMiles' })).toHaveValue(1200);
+      expect(screen.getByRole('spinbutton', { name: 'loyalty.awardMiles' })).toHaveValue(1800);
     });
   });
 });

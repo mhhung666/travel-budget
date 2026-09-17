@@ -81,6 +81,7 @@ export function ActivityCard({
       <div className="flex flex-col gap-2 sm:flex-row">
         <Input
           className="flex-1"
+          aria-label={t('titlePlaceholder')}
           placeholder={t('titlePlaceholder')}
           value={activity.title}
           onChange={(e) => onChange({ title: e.target.value })}
@@ -122,12 +123,14 @@ export function ActivityCard({
       <div className="flex flex-col gap-2 sm:flex-row">
         <Input
           className="sm:w-48"
+          aria-label={t('confirmationCodePlaceholder')}
           placeholder={t('confirmationCodePlaceholder')}
           value={activity.confirmationCode}
           onChange={(e) => onChange({ confirmationCode: e.target.value })}
         />
         <Input
           className="flex-1"
+          aria-label={t('notePlaceholder')}
           placeholder={t('notePlaceholder')}
           value={activity.note}
           onChange={(e) => onChange({ note: e.target.value })}

@@ -106,6 +106,7 @@ export function ExpenseComments({
 
       <div className="mt-2 flex items-end gap-2">
         <Textarea
+          aria-label={t('placeholder')}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           placeholder={t('placeholder')}

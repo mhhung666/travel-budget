@@ -102,7 +102,7 @@ export default function RegisterVirtualMemberDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>{t('registerTitle')}</DialogTitle>
           <DialogDescription>
@@ -122,6 +122,9 @@ export default function RegisterVirtualMemberDialog({
             <Label htmlFor="reg-username">{tAuth('username')}</Label>
             <Input
               id="reg-username"
+              autoComplete="username"
+              autoCapitalize="none"
+              spellCheck={false}
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
@@ -133,6 +136,7 @@ export default function RegisterVirtualMemberDialog({
             <Label htmlFor="reg-displayName">{tAuth('displayName')}</Label>
             <Input
               id="reg-displayName"
+              autoComplete="nickname"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               required
@@ -143,6 +147,9 @@ export default function RegisterVirtualMemberDialog({
             <Label htmlFor="reg-email">{tAuth('email')}</Label>
             <Input
               id="reg-email"
+              autoComplete="email"
+              autoCapitalize="none"
+              spellCheck={false}
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -155,6 +162,7 @@ export default function RegisterVirtualMemberDialog({
             <Label htmlFor="reg-password">{tAuth('password')}</Label>
             <Input
               id="reg-password"
+              autoComplete="new-password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}

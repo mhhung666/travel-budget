@@ -54,6 +54,7 @@ export default function NotesPage() {
   const guard = async (p: Promise<unknown>) => {
     try {
       await p;
+      return true;
     } catch (err: unknown) {
       toast({
         title: tCommon('errorTitle'),
@@ -61,18 +62,21 @@ export default function NotesPage() {
           err instanceof ActionQueryError && err.code === 'ACTIVITY_LIMIT'
             ? tItinerary('activityLimit', { max: MAX_ACTIVITIES_PER_DAY })
             : err instanceof Error
-              ? err.message
-              : String(err),
+              ? err instanceof TypeError || err.message === 'Failed to fetch'
+                ? t('saveFailed')
+                : err.message
+              : t('saveFailed'),
         variant: 'destructive',
       });
+      return false;
     }
   };
 
   const handleSaveEdit = async (text: string, attachments: ExpenseAttachment[]) => {
     if (!editingNote) return;
     const noteId = editingNote.id;
-    await guard(m.update.mutateAsync({ noteId, data: { text, attachments } }));
-    setEditingNote(null);
+    if (await guard(m.update.mutateAsync({ noteId, data: { text, attachments } })))
+      setEditingNote(null);
   };
 
   const handlePickDay = async (dayId: string) => {

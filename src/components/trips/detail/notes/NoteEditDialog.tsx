@@ -69,6 +69,7 @@ export function NoteEditDialog({ tripId, note, saving, onSave, onClose }: NoteEd
           </TabsList>
           <TabsContent value="write" className="space-y-1.5">
             <Textarea
+              aria-label={t('editTitle')}
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               rows={8}

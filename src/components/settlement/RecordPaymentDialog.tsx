@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useId, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Loader2, ArrowRight, HandCoins } from 'lucide-react';
 import type { RecordPaymentInput } from '@/lib/validation';
@@ -49,6 +49,7 @@ export default function RecordPaymentDialog({
   initial,
   onSubmit,
 }: RecordPaymentDialogProps) {
+  const fieldId = useId();
   const t = useTranslations('settlement');
   const tCommon = useTranslations('common');
 
@@ -119,7 +120,7 @@ export default function RecordPaymentDialog({
 
   return (
     <Dialog open={open} onOpenChange={(val) => !val && !isSaving && onClose()}>
-      <DialogContent className="sm:max-w-[440px]">
+      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-[440px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <HandCoins className="h-5 w-5 text-primary" />
@@ -138,7 +139,9 @@ export default function RecordPaymentDialog({
 
           <div className="flex items-end gap-2">
             <div className="flex-1 space-y-2">
-              <Label>{t('payer')}</Label>
+              <Label id={`${fieldId}-payer-label`} htmlFor={`${fieldId}-payer`}>
+                {t('payer')}
+              </Label>
               <Select
                 value={fromId}
                 onValueChange={(v) => {
@@ -146,7 +149,7 @@ export default function RecordPaymentDialog({
                   setError('');
                 }}
               >
-                <SelectTrigger>
+                <SelectTrigger id={`${fieldId}-payer`} aria-labelledby={`${fieldId}-payer-label`}>
                   <SelectValue placeholder={t('selectMember')} />
                 </SelectTrigger>
                 <SelectContent>
@@ -160,7 +163,9 @@ export default function RecordPaymentDialog({
             </div>
             <ArrowRight className="mb-3 h-4 w-4 shrink-0 text-muted-foreground" />
             <div className="flex-1 space-y-2">
-              <Label>{t('payee')}</Label>
+              <Label id={`${fieldId}-payee-label`} htmlFor={`${fieldId}-payee`}>
+                {t('payee')}
+              </Label>
               <Select
                 value={toId}
                 onValueChange={(v) => {
@@ -168,7 +173,7 @@ export default function RecordPaymentDialog({
                   setError('');
                 }}
               >
-                <SelectTrigger>
+                <SelectTrigger id={`${fieldId}-payee`} aria-labelledby={`${fieldId}-payee-label`}>
                   <SelectValue placeholder={t('selectMember')} />
                 </SelectTrigger>
                 <SelectContent>

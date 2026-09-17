@@ -1,7 +1,7 @@
 'use client';
 import { QueryStatus } from '@/components/common/QueryStatus';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useId, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
 
@@ -86,6 +86,7 @@ export function FlightRecordDialog({
   lockedTrip,
   onSaved,
 }: FlightRecordDialogProps) {
+  const fieldId = useId();
   const t = useTranslations('collections');
   const { toast } = useToast();
   const { createFlight, updateFlight } = useCollectionMutations();
@@ -289,8 +290,12 @@ export function FlightRecordDialog({
       <form id="flight-record-form" onSubmit={handleSubmit} className="space-y-4">
         <QueryStatus query={loyaltyQuery} />
         <div className="space-y-2">
-          <Label>{t('common.date')}</Label>
+          <Label id={`${fieldId}-common-date-label`} htmlFor={`${fieldId}-common-date`}>
+            {t('common.date')}
+          </Label>
           <DatePrecisionInput
+            id={`${fieldId}-common-date`}
+            aria-labelledby={`${fieldId}-common-date-label`}
             date={date}
             precision={precision}
             onDateChange={setDate}
@@ -300,8 +305,12 @@ export function FlightRecordDialog({
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label>{t('flights.flightNo')}</Label>
+            <Label id={`${fieldId}-flights-flightNo-label`} htmlFor={`${fieldId}-flights-flightNo`}>
+              {t('flights.flightNo')}
+            </Label>
             <Input
+              id={`${fieldId}-flights-flightNo`}
+              aria-labelledby={`${fieldId}-flights-flightNo-label`}
               value={flightNo}
               onChange={(e) => handleFlightNo(e.target.value)}
               placeholder="BR182"
@@ -310,29 +319,38 @@ export function FlightRecordDialog({
             />
           </div>
           <div className="space-y-2">
-            <Label>
+            <Label id={`${fieldId}-flights-airline-label`} htmlFor={`${fieldId}-flights-airline`}>
               {t('flights.airline')} <span className="text-destructive">*</span>
             </Label>
-            <AirlineCombobox value={airline} onChange={setAirline} />
+            <AirlineCombobox
+              id={`${fieldId}-flights-airline`}
+              aria-labelledby={`${fieldId}-flights-airline-label`}
+              value={airline}
+              onChange={setAirline}
+            />
           </div>
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label>
+            <Label id={`${fieldId}-flights-from-label`} htmlFor={`${fieldId}-flights-from`}>
               {t('flights.from')} <span className="text-destructive">*</span>
             </Label>
             <AirportCombobox
+              id={`${fieldId}-flights-from`}
+              aria-labelledby={`${fieldId}-flights-from-label`}
               value={fromAirport}
               onChange={setFromAirport}
               placeholder={t('flights.fromPlaceholder')}
             />
           </div>
           <div className="space-y-2">
-            <Label>
+            <Label id={`${fieldId}-flights-to-label`} htmlFor={`${fieldId}-flights-to`}>
               {t('flights.to')} <span className="text-destructive">*</span>
             </Label>
             <AirportCombobox
+              id={`${fieldId}-flights-to`}
+              aria-labelledby={`${fieldId}-flights-to-label`}
               value={toAirport}
               onChange={setToAirport}
               placeholder={t('flights.toPlaceholder')}
@@ -347,9 +365,14 @@ export function FlightRecordDialog({
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label>{t('flights.cabin')}</Label>
+            <Label id={`${fieldId}-flights-cabin-label`} htmlFor={`${fieldId}-flights-cabin`}>
+              {t('flights.cabin')}
+            </Label>
             <Select value={cabin} onValueChange={setCabin}>
-              <SelectTrigger>
+              <SelectTrigger
+                id={`${fieldId}-flights-cabin`}
+                aria-labelledby={`${fieldId}-flights-cabin-label`}
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -363,11 +386,18 @@ export function FlightRecordDialog({
             </Select>
           </div>
           <div className="space-y-2">
-            <Label>{t('common.linkTrip')}</Label>
+            <Label id={`${fieldId}-common-linkTrip-label`} htmlFor={`${fieldId}-common-linkTrip`}>
+              {t('common.linkTrip')}
+            </Label>
             {locked ? (
               <LockedTripField name={locked.name} />
             ) : (
-              <TripLinkSelect value={tripId} onChange={setTripId} />
+              <TripLinkSelect
+                id={`${fieldId}-common-linkTrip`}
+                aria-labelledby={`${fieldId}-common-linkTrip-label`}
+                value={tripId}
+                onChange={setTripId}
+              />
             )}
           </div>
         </div>
@@ -400,7 +430,10 @@ export function FlightRecordDialog({
               <div className="space-y-3">
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <Label>
+                    <Label
+                      id={`${fieldId}-flight-credit-label`}
+                      htmlFor={`${fieldId}-flight-credit`}
+                    >
                       {t(
                         loyaltyKind === 'points'
                           ? 'loyalty.statusPoints'
@@ -408,6 +441,8 @@ export function FlightRecordDialog({
                       )}
                     </Label>
                     <Input
+                      id={`${fieldId}-flight-credit`}
+                      aria-labelledby={`${fieldId}-flight-credit-label`}
                       type="number"
                       inputMode="numeric"
                       value={loyaltyKind === 'points' ? statusPoints : qualifyingMiles}
@@ -420,8 +455,15 @@ export function FlightRecordDialog({
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>{t('loyalty.awardMiles')}</Label>
+                    <Label
+                      id={`${fieldId}-loyalty-awardMiles-label`}
+                      htmlFor={`${fieldId}-loyalty-awardMiles`}
+                    >
+                      {t('loyalty.awardMiles')}
+                    </Label>
                     <Input
+                      id={`${fieldId}-loyalty-awardMiles`}
+                      aria-labelledby={`${fieldId}-loyalty-awardMiles-label`}
                       type="number"
                       inputMode="numeric"
                       value={awardMiles}
@@ -477,8 +519,12 @@ export function FlightRecordDialog({
         )}
 
         <div className="space-y-2">
-          <Label>{t('common.note')}</Label>
+          <Label id={`${fieldId}-common-note-label`} htmlFor={`${fieldId}-common-note`}>
+            {t('common.note')}
+          </Label>
           <Textarea
+            id={`${fieldId}-common-note`}
+            aria-labelledby={`${fieldId}-common-note-label`}
             value={note}
             onChange={(e) => setNote(e.target.value)}
             rows={2}

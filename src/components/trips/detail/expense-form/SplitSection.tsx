@@ -125,6 +125,8 @@ export function SplitSection({
                   {splitMode !== 'equal' && (
                     <div className="flex items-center gap-1">
                       <Input
+                        aria-label={`${member.display_name} · ${unit}`}
+                        inputMode="decimal"
                         placeholder={splitMode === 'shares' ? '1' : '0'}
                         value={state.value}
                         onChange={(e) => onValueChange(member.id, e.target.value)}

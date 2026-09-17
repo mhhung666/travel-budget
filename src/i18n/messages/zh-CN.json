@@ -44,7 +44,8 @@
     "infoTitle": "提示",
     "pendingOfflineLogout": "还有待同步支出或未处理草稿。退出将移除此设备保存的输入，确定退出？",
     "queryOfflineCached": "当前离线，显示已保存的数据。",
-    "queryOfflineMissing": "当前离线，此数据尚未保存在设备上。恢复连接后会重新加载。"
+    "queryOfflineMissing": "当前离线，此数据尚未保存在设备上。恢复连接后会重新加载。",
+    "shareLink": "分享链接"
   },
   "nav": {
     "home": "旅行记账",
@@ -200,7 +201,9 @@
     "searching": "搜索中...",
     "noResults": "找不到地点",
     "minChars": "请至少输入 2 个字符",
-    "selectPlaceholder": "选择地点..."
+    "selectPlaceholder": "选择地点...",
+    "searchFailed": "搜索暂时无法使用，请重试。",
+    "retry": "重试"
   },
   "trips": {
     "title": "我的旅行",
@@ -230,7 +233,9 @@
       "endDate": "结束日期",
       "inviteFriends": "邀请好友一起（可选）",
       "createButton": "创建",
-      "success": "旅行创建成功！"
+      "success": "旅行创建成功！",
+      "draftRetained": "已保留尚未创建的旅行内容。",
+      "clearDraft": "清除草稿"
     },
     "join": {
       "title": "加入旅行",
@@ -782,7 +787,8 @@
       "invalidCode": "验证码错误",
       "codeExpired": "验证码已过期，请重新获取",
       "tooManyAttempts": "尝试次数过多，请重新获取验证码"
-    }
+    },
+    "submitting": "处理中…"
   },
   "stats": {
     "title": "个人统计",
@@ -1017,7 +1023,8 @@
       "searchPlaceholder": "搜索币种（代码或名称）",
       "noMatch": "找不到匹配的币种",
       "empty": "尚未添加币种——新增支出将使用新台币。",
-      "remove": "移除"
+      "remove": "移除",
+      "customRate": "自定义汇率"
     }
   },
   "checklist": {
@@ -1121,7 +1128,9 @@
     "editorTab": "编辑",
     "previewTab": "预览",
     "markdownHint": "支持 Markdown：# 标题、- 列表、- [ ] 待办、**粗体**",
-    "previewEmpty": "暂无内容可预览"
+    "previewEmpty": "暂无内容可预览",
+    "saveFailed": "操作失败，请检查连接后重试。",
+    "inputLabel": "笔记内容"
   },
   "album": {
     "loadFailed": "加载相册失败",
@@ -1656,7 +1665,9 @@
         "day": "日期",
         "month": "月份",
         "year": "年份"
-      }
+      },
+      "datePrecision": "日期精度",
+      "yearInvalid": "请输入 1900～2100 的四位数年份"
     },
     "flights": {
       "empty": "还没有飞行记录",

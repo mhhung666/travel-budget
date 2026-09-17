@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { Users, CalendarDays, TrendingUp } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -74,6 +74,7 @@ export default function TripStatsView({
   currencyOptions,
   displayRates,
 }: TripStatsViewProps) {
+  const currencyId = useId();
   const t = useTranslations('stats');
   const tCategory = useTranslations('category');
   const locale = useLocale();
@@ -92,9 +93,15 @@ export default function TripStatsView({
     <div className="animate-in fade-in slide-in-from-bottom-5 duration-500">
       {currencyOptions && currencyOptions.length > 1 && (
         <div className="mb-4 flex items-center justify-end gap-2">
-          <Label className="text-xs text-muted-foreground">{t('displayCurrency')}</Label>
+          <Label htmlFor={currencyId} className="text-xs text-muted-foreground">
+            {t('displayCurrency')}
+          </Label>
           <Select value={displayCurrency} onValueChange={setDisplayCurrency}>
-            <SelectTrigger className="h-8 w-[110px]">
+            <SelectTrigger
+              id={currencyId}
+              aria-label={t('displayCurrency')}
+              className="h-8 w-[110px]"
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

@@ -1,7 +1,7 @@
 'use client';
 import { QueryStatus } from '@/components/common/QueryStatus';
 
-import { useEffect, useState } from 'react';
+import { useId, useEffect, useState } from 'react';
 import { Coins, Loader2, X } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import type { TripCurrencySettings } from '@/types';
@@ -40,6 +40,7 @@ export default function TripCurrencySettingsCard({
   canEdit,
   onSave,
 }: TripCurrencySettingsCardProps) {
+  const fieldId = useId();
   const t = useTranslations('trip');
   const locale = useLocale();
   const ratesQuery = useExchangeRates();
@@ -136,6 +137,7 @@ export default function TripCurrencySettingsCard({
                     </span>
                   ) : (
                     <Input
+                      aria-label={`${row.code} · ${t('currencySettings.customRate')}`}
                       type="number"
                       min="0"
                       step="0.000001"
@@ -170,9 +172,18 @@ export default function TripCurrencySettingsCard({
         </div>
 
         <div className="space-y-2">
-          <Label>{t('currencySettings.defaultCurrencyLabel')}</Label>
+          <Label
+            id={`${fieldId}-currencySettings-defaultCurrencyLabel-label`}
+            htmlFor={`${fieldId}-currencySettings-defaultCurrencyLabel`}
+          >
+            {t('currencySettings.defaultCurrencyLabel')}
+          </Label>
           <Select value={defaultCurrency} onValueChange={setDefaultCurrency} disabled={!canEdit}>
-            <SelectTrigger className="w-full sm:w-72">
+            <SelectTrigger
+              id={`${fieldId}-currencySettings-defaultCurrencyLabel`}
+              aria-labelledby={`${fieldId}-currencySettings-defaultCurrencyLabel-label`}
+              className="w-full sm:w-72"
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

@@ -20,6 +20,8 @@ interface AirlineComboboxProps {
   value: string | null;
   onChange: (iata: string) => void;
   disabled?: boolean;
+  id?: string;
+  'aria-labelledby'?: string;
 }
 
 const MAX_RESULTS = 50;
@@ -28,7 +30,13 @@ const MAX_RESULTS = 50;
  * 可搜尋的航空公司選擇器（目錄：public/data/airlines.json，開啟時才載入）。
  * 目錄逾千筆，改為手動過濾＋上限 50 筆：未輸入時先列常用航空（有繁中名者）。
  */
-export function AirlineCombobox({ value, onChange, disabled }: AirlineComboboxProps) {
+export function AirlineCombobox({
+  value,
+  onChange,
+  disabled,
+  id,
+  'aria-labelledby': labelledBy,
+}: AirlineComboboxProps) {
   const t = useTranslations('collections');
   const locale = useLocale();
   const [open, setOpen] = useState(false);
@@ -61,6 +69,9 @@ export function AirlineCombobox({ value, onChange, disabled }: AirlineComboboxPr
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
+          id={id}
+          aria-labelledby={labelledBy}
+          aria-label={labelledBy ? undefined : t('flights.airline')}
           type="button"
           variant="outline"
           role="combobox"
@@ -87,6 +98,7 @@ export function AirlineCombobox({ value, onChange, disabled }: AirlineComboboxPr
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
         <Command shouldFilter={false}>
           <CommandInput
+            aria-label={t('flights.searchAirline')}
             placeholder={t('flights.searchAirline')}
             value={search}
             onValueChange={setSearch}

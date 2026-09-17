@@ -95,7 +95,7 @@ export default function EditTripDialog({ open, onClose, onSubmit, trip }: EditTr
 
   return (
     <Dialog open={open} onOpenChange={(val) => !val && onClose()}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>{tTrip('editTrip')}</DialogTitle>
         </DialogHeader>

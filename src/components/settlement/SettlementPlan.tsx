@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import {
   ArrowRight,
@@ -70,6 +70,7 @@ export default function SettlementPlan({
   hasPayments = false,
   onAddExpense,
 }: SettlementPlanProps) {
+  const currencyId = useId();
   const t = useTranslations('settlement');
   const locale = useLocale();
   const [selectedCurrency, setSelectedCurrency] = useState('TWD');
@@ -104,13 +105,15 @@ export default function SettlementPlan({
           </CardTitle>
         </div>
         <div className="w-[120px]">
-          <Label className="sr-only">{t('currency')}</Label>
+          <Label htmlFor={currencyId} className="sr-only">
+            {t('currency')}
+          </Label>
           <Select
             value={selectedCurrency}
             onValueChange={setSelectedCurrency}
             disabled={loadingRates}
           >
-            <SelectTrigger className="h-8">
+            <SelectTrigger id={currencyId} aria-label={t('currency')} className="h-8">
               <SelectValue placeholder={t('currency')} />
             </SelectTrigger>
             <SelectContent>

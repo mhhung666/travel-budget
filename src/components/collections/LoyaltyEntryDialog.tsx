@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useId, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
 
@@ -70,6 +70,7 @@ export function LoyaltyEntryDialog({
   spEstimate,
   onSaved,
 }: LoyaltyEntryDialogProps) {
+  const fieldId = useId();
   const t = useTranslations('collections');
   const { toast } = useToast();
   const { createEntry, updateEntry } = useLoyaltyMutations();
@@ -215,13 +216,30 @@ export function LoyaltyEntryDialog({
       <form id="loyalty-entry-form" onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label>{t('common.date')}</Label>
-            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
+            <Label id={`${fieldId}-common-date-label`} htmlFor={`${fieldId}-common-date`}>
+              {t('common.date')}
+            </Label>
+            <Input
+              id={`${fieldId}-common-date`}
+              aria-labelledby={`${fieldId}-common-date-label`}
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              required
+            />
           </div>
           <div className="space-y-2">
-            <Label>{t('loyalty.entryType')}</Label>
+            <Label
+              id={`${fieldId}-loyalty-entryType-label`}
+              htmlFor={`${fieldId}-loyalty-entryType`}
+            >
+              {t('loyalty.entryType')}
+            </Label>
             <Select value={type} onValueChange={(v) => setType(v as LoyaltyEntryType)}>
-              <SelectTrigger>
+              <SelectTrigger
+                id={`${fieldId}-loyalty-entryType`}
+                aria-labelledby={`${fieldId}-loyalty-entryType-label`}
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -238,8 +256,15 @@ export function LoyaltyEntryDialog({
         {kind === 'nights' ? (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>{t('loyalty.qualifyingNights')}</Label>
+              <Label
+                id={`${fieldId}-loyalty-qualifyingNights-label`}
+                htmlFor={`${fieldId}-loyalty-qualifyingNights`}
+              >
+                {t('loyalty.qualifyingNights')}
+              </Label>
               <Input
+                id={`${fieldId}-loyalty-qualifyingNights`}
+                aria-labelledby={`${fieldId}-loyalty-qualifyingNights-label`}
                 type="number"
                 inputMode="decimal"
                 step={0.5}
@@ -250,8 +275,15 @@ export function LoyaltyEntryDialog({
             </div>
             {program === 'HH' && (
               <div className="space-y-2">
-                <Label>{t('loyalty.qualifyingStays')}</Label>
+                <Label
+                  id={`${fieldId}-loyalty-qualifyingStays-label`}
+                  htmlFor={`${fieldId}-loyalty-qualifyingStays`}
+                >
+                  {t('loyalty.qualifyingStays')}
+                </Label>
                 <Input
+                  id={`${fieldId}-loyalty-qualifyingStays`}
+                  aria-labelledby={`${fieldId}-loyalty-qualifyingStays-label`}
                   type="number"
                   inputMode="numeric"
                   value={qualifyingStays}
@@ -262,8 +294,15 @@ export function LoyaltyEntryDialog({
             )}
             {program === 'IHG' && (
               <div className="space-y-2">
-                <Label>{t('loyalty.eliteQualifyingPoints')}</Label>
+                <Label
+                  id={`${fieldId}-loyalty-eliteQualifyingPoints-label`}
+                  htmlFor={`${fieldId}-loyalty-eliteQualifyingPoints`}
+                >
+                  {t('loyalty.eliteQualifyingPoints')}
+                </Label>
                 <Input
+                  id={`${fieldId}-loyalty-eliteQualifyingPoints`}
+                  aria-labelledby={`${fieldId}-loyalty-eliteQualifyingPoints-label`}
                   type="number"
                   inputMode="numeric"
                   value={eliteQualifyingPoints}
@@ -273,8 +312,15 @@ export function LoyaltyEntryDialog({
               </div>
             )}
             <div className="space-y-2">
-              <Label>{t('loyalty.qualifyingSpendUsd')}</Label>
+              <Label
+                id={`${fieldId}-loyalty-qualifyingSpendUsd-label`}
+                htmlFor={`${fieldId}-loyalty-qualifyingSpendUsd`}
+              >
+                {t('loyalty.qualifyingSpendUsd')}
+              </Label>
               <Input
+                id={`${fieldId}-loyalty-qualifyingSpendUsd`}
+                aria-labelledby={`${fieldId}-loyalty-qualifyingSpendUsd-label`}
                 type="number"
                 inputMode="decimal"
                 step={0.01}
@@ -284,8 +330,15 @@ export function LoyaltyEntryDialog({
               />
             </div>
             <div className="space-y-2">
-              <Label>{t('loyalty.hotelRewardPoints')}</Label>
+              <Label
+                id={`${fieldId}-loyalty-hotelRewardPoints-label`}
+                htmlFor={`${fieldId}-loyalty-hotelRewardPoints`}
+              >
+                {t('loyalty.hotelRewardPoints')}
+              </Label>
               <Input
+                id={`${fieldId}-loyalty-hotelRewardPoints`}
+                aria-labelledby={`${fieldId}-loyalty-hotelRewardPoints-label`}
                 type="number"
                 inputMode="numeric"
                 value={rewardPoints}
@@ -297,10 +350,12 @@ export function LoyaltyEntryDialog({
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>
+              <Label id={`${fieldId}-flight-credit-label`} htmlFor={`${fieldId}-flight-credit`}>
                 {t(kind === 'points' ? 'loyalty.statusPoints' : 'loyalty.qualifyingMiles')}
               </Label>
               <Input
+                id={`${fieldId}-flight-credit`}
+                aria-labelledby={`${fieldId}-flight-credit-label`}
                 type="number"
                 inputMode="numeric"
                 value={kind === 'points' ? statusPoints : qualifyingMiles}
@@ -313,8 +368,15 @@ export function LoyaltyEntryDialog({
               />
             </div>
             <div className="space-y-2">
-              <Label>{t('loyalty.awardMiles')}</Label>
+              <Label
+                id={`${fieldId}-loyalty-awardMiles-label`}
+                htmlFor={`${fieldId}-loyalty-awardMiles`}
+              >
+                {t('loyalty.awardMiles')}
+              </Label>
               <Input
+                id={`${fieldId}-loyalty-awardMiles`}
+                aria-labelledby={`${fieldId}-loyalty-awardMiles-label`}
                 type="number"
                 inputMode="numeric"
                 value={awardMiles}
@@ -365,8 +427,12 @@ export function LoyaltyEntryDialog({
         )}
 
         <div className="space-y-2">
-          <Label>{t('common.note')}</Label>
+          <Label id={`${fieldId}-common-note-label`} htmlFor={`${fieldId}-common-note`}>
+            {t('common.note')}
+          </Label>
           <Textarea
+            id={`${fieldId}-common-note`}
+            aria-labelledby={`${fieldId}-common-note-label`}
             value={note}
             onChange={(e) => setNote(e.target.value)}
             rows={2}

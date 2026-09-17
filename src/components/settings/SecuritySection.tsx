@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { updateProfile } from '@/actions';
@@ -16,6 +16,13 @@ export function SecuritySection() {
   const t = useTranslations('settings');
   const tCommon = useTranslations('common');
 
+  const newPasswordRef = useRef<HTMLInputElement>(null);
+  const confirmPasswordRef = useRef<HTMLInputElement>(null);
+  const [invalidField, setInvalidField] = useState<'new' | 'confirm' | null>(null);
+  const clearFieldError = () => {
+    setInvalidField(null);
+    setError('');
+  };
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
@@ -26,16 +33,21 @@ export function SecuritySection() {
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setInvalidField(null);
     setSuccess('');
 
     // 驗證新密碼
     if (newPassword.length < 6) {
       setError(t('password.tooShort'));
+      setInvalidField('new');
+      newPasswordRef.current?.focus();
       return;
     }
 
     if (newPassword !== confirmPassword) {
       setError(t('password.mismatch'));
+      setInvalidField('confirm');
+      confirmPasswordRef.current?.focus();
       return;
     }
 
@@ -85,6 +97,7 @@ export function SecuritySection() {
               <Label htmlFor="currentPassword">{t('password.current')}</Label>
               <Input
                 id="currentPassword"
+                autoComplete="current-password"
                 type="password"
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
@@ -95,28 +108,56 @@ export function SecuritySection() {
             <div className="space-y-2">
               <Label htmlFor="newPassword">{t('password.new')}</Label>
               <Input
+                ref={newPasswordRef}
+                aria-invalid={invalidField === 'new'}
+                aria-describedby={
+                  invalidField === 'new' ? 'new-password-error' : 'new-password-help'
+                }
                 id="newPassword"
+                autoComplete="new-password"
                 type="password"
                 value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
+                onChange={(e) => {
+                  setNewPassword(e.target.value);
+                  clearFieldError();
+                }}
                 required
                 minLength={6}
               />
-              <p className="text-xs text-muted-foreground">{t('password.minLength')}</p>
+              <p id="new-password-help" className="text-xs text-muted-foreground">
+                {t('password.minLength')}
+              </p>
+              {invalidField === 'new' && (
+                <p id="new-password-error" className="text-sm text-destructive">
+                  {error}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="confirmPassword">{t('password.confirm')}</Label>
               <Input
+                ref={confirmPasswordRef}
+                aria-invalid={invalidField === 'confirm'}
+                aria-describedby={invalidField === 'confirm' ? 'confirm-password-error' : undefined}
                 id="confirmPassword"
+                autoComplete="new-password"
                 type="password"
                 value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
+                onChange={(e) => {
+                  setConfirmPassword(e.target.value);
+                  clearFieldError();
+                }}
                 required
                 minLength={6}
               />
             </div>
 
+            {invalidField === 'confirm' && (
+              <p id="confirm-password-error" className="text-sm text-destructive">
+                {error}
+              </p>
+            )}
             <div className="pt-2">
               <Button type="submit" disabled={updatingPassword} className="w-full sm:w-auto">
                 {updatingPassword && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

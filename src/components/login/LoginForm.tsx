@@ -114,6 +114,9 @@ export default function LoginForm({ hideBackToHome = false, redirectTo }: LoginF
             <Label htmlFor="username">{t('login.username')}</Label>
             <Input
               id="username"
+              autoComplete="username"
+              autoCapitalize="none"
+              spellCheck={false}
               value={formData.username}
               onChange={(e) => setFormData({ ...formData, username: e.target.value })}
               required
@@ -127,6 +130,7 @@ export default function LoginForm({ hideBackToHome = false, redirectTo }: LoginF
                 <Label htmlFor="display_name">{t('register.displayName')}</Label>
                 <Input
                   id="display_name"
+                  autoComplete="nickname"
                   value={formData.display_name}
                   onChange={(e) => setFormData({ ...formData, display_name: e.target.value })}
                   required={!isLogin}
@@ -136,6 +140,9 @@ export default function LoginForm({ hideBackToHome = false, redirectTo }: LoginF
                 <Label htmlFor="email">{t('register.email')}</Label>
                 <Input
                   id="email"
+                  autoComplete="email"
+                  autoCapitalize="none"
+                  spellCheck={false}
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -150,6 +157,7 @@ export default function LoginForm({ hideBackToHome = false, redirectTo }: LoginF
             <Label htmlFor="password">{t('login.password')}</Label>
             <Input
               id="password"
+              autoComplete={isLogin ? 'current-password' : 'new-password'}
               type="password"
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
@@ -179,7 +187,10 @@ export default function LoginForm({ hideBackToHome = false, redirectTo }: LoginF
           <div className={isLogin ? '' : 'pt-2'}>
             <Button type="submit" className="w-full text-lg py-6 font-semibold" disabled={loading}>
               {loading ? (
-                <Loader2 className="mr-2 h-6 w-6 animate-spin" />
+                <>
+                  <Loader2 className="mr-2 h-6 w-6 animate-spin" aria-hidden />
+                  <span>{t('submitting')}</span>
+                </>
               ) : isLogin ? (
                 t('login.loginButton')
               ) : (

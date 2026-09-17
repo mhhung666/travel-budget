@@ -44,7 +44,8 @@
     "infoTitle": "提示",
     "pendingOfflineLogout": "尚有待同步支出或未處理草稿。登出將移除這台裝置保存的輸入，確定登出？",
     "queryOfflineCached": "目前離線，顯示已保存的資料。",
-    "queryOfflineMissing": "目前離線，這份資料尚未保存在裝置上。恢復連線後會重新載入。"
+    "queryOfflineMissing": "目前離線，這份資料尚未保存在裝置上。恢復連線後會重新載入。",
+    "shareLink": "分享連結"
   },
   "nav": {
     "home": "旅行記帳",
@@ -200,7 +201,9 @@
     "searching": "搜尋中...",
     "noResults": "找不到地點",
     "minChars": "請至少輸入 2 個字元",
-    "selectPlaceholder": "選擇地點..."
+    "selectPlaceholder": "選擇地點...",
+    "searchFailed": "搜尋暫時無法使用，請重試。",
+    "retry": "重試"
   },
   "trips": {
     "title": "我的旅行",
@@ -230,7 +233,9 @@
       "endDate": "結束日期",
       "inviteFriends": "邀請好友一起（可選）",
       "createButton": "建立",
-      "success": "旅行建立成功！"
+      "success": "旅行建立成功！",
+      "draftRetained": "已保留尚未建立的旅行內容。",
+      "clearDraft": "清除草稿"
     },
     "join": {
       "title": "加入旅行",
@@ -782,7 +787,8 @@
       "invalidCode": "驗證碼錯誤",
       "codeExpired": "驗證碼已過期，請重新索取",
       "tooManyAttempts": "嘗試次數過多，請重新索取驗證碼"
-    }
+    },
+    "submitting": "處理中…"
   },
   "stats": {
     "title": "個人統計",
@@ -1017,7 +1023,8 @@
       "searchPlaceholder": "搜尋幣別（代碼或名稱）",
       "noMatch": "找不到符合的幣別",
       "empty": "尚未加入幣別——新增支出會使用新台幣。",
-      "remove": "移除"
+      "remove": "移除",
+      "customRate": "自訂匯率"
     }
   },
   "checklist": {
@@ -1121,7 +1128,9 @@
     "editorTab": "編輯",
     "previewTab": "預覽",
     "markdownHint": "支援 Markdown：# 標題、- 清單、- [ ] 待辦、**粗體**",
-    "previewEmpty": "尚無內容可預覽"
+    "previewEmpty": "尚無內容可預覽",
+    "saveFailed": "操作失敗，請檢查連線後重試。",
+    "inputLabel": "筆記內容"
   },
   "album": {
     "loadFailed": "載入相簿失敗",
@@ -1656,7 +1665,9 @@
         "day": "日期",
         "month": "月份",
         "year": "年份"
-      }
+      },
+      "datePrecision": "日期精度",
+      "yearInvalid": "請輸入 1900～2100 的四位數年份"
     },
     "flights": {
       "empty": "還沒有飛行紀錄",

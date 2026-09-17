@@ -160,6 +160,9 @@ export default function ForgotPasswordModal({ open, onClose }: ForgotPasswordMod
               <Label htmlFor="reset-email">{t('forgotPassword.email')}</Label>
               <Input
                 id="reset-email"
+                autoComplete="email"
+                autoCapitalize="none"
+                spellCheck={false}
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -173,7 +176,10 @@ export default function ForgotPasswordModal({ open, onClose }: ForgotPasswordMod
               </Button>
               <Button type="submit" disabled={loading}>
                 {loading ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+                    <span>{t('submitting')}</span>
+                  </>
                 ) : (
                   t('forgotPassword.sendCode')
                 )}
@@ -200,6 +206,7 @@ export default function ForgotPasswordModal({ open, onClose }: ForgotPasswordMod
               <Label htmlFor="reset-password">{t('forgotPassword.newPassword')}</Label>
               <Input
                 id="reset-password"
+                autoComplete="new-password"
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
@@ -215,7 +222,10 @@ export default function ForgotPasswordModal({ open, onClose }: ForgotPasswordMod
               </Button>
               <Button type="submit" disabled={loading}>
                 {loading ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+                    <span>{t('submitting')}</span>
+                  </>
                 ) : (
                   t('forgotPassword.submit')
                 )}

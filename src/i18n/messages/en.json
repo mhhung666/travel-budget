@@ -44,7 +44,8 @@
     "infoTitle": "Info",
     "pendingOfflineLogout": "You have pending expenses or unresolved drafts. Signing out removes their saved input from this device. Sign out?",
     "queryOfflineCached": "You are offline. Showing saved data.",
-    "queryOfflineMissing": "You are offline and this data is not saved on this device. It will load when you reconnect."
+    "queryOfflineMissing": "You are offline and this data is not saved on this device. It will load when you reconnect.",
+    "shareLink": "Share link"
   },
   "nav": {
     "home": "Travel Budget",
@@ -200,7 +201,9 @@
     "searching": "Searching...",
     "noResults": "No location found.",
     "minChars": "Please enter at least 2 characters.",
-    "selectPlaceholder": "Select location..."
+    "selectPlaceholder": "Select location...",
+    "searchFailed": "Search is unavailable. Please try again.",
+    "retry": "Retry"
   },
   "trips": {
     "title": "My Trips",
@@ -230,7 +233,9 @@
       "endDate": "End Date",
       "inviteFriends": "Invite friends (optional)",
       "createButton": "Create",
-      "success": "Trip created successfully!"
+      "success": "Trip created successfully!",
+      "draftRetained": "Your unfinished trip is kept here.",
+      "clearDraft": "Clear draft"
     },
     "join": {
       "title": "Join Trip",
@@ -353,7 +358,8 @@
       "invalidCode": "Incorrect verification code",
       "codeExpired": "The code has expired. Please request a new one.",
       "tooManyAttempts": "Too many attempts. Please request a new code."
-    }
+    },
+    "submitting": "Submitting…"
   },
   "expense": {
     "receipts": {
@@ -1017,7 +1023,8 @@
       "searchPlaceholder": "Search currency (code or name)",
       "noMatch": "No matching currency",
       "empty": "No currencies added yet — new expenses will use TWD.",
-      "remove": "Remove"
+      "remove": "Remove",
+      "customRate": "Custom exchange rate"
     }
   },
   "checklist": {
@@ -1128,7 +1135,9 @@
     "editorTab": "Write",
     "previewTab": "Preview",
     "markdownHint": "Markdown supported: # heading, - list, - [ ] task, **bold**",
-    "previewEmpty": "Nothing to preview yet"
+    "previewEmpty": "Nothing to preview yet",
+    "saveFailed": "The request failed. Check your connection and try again.",
+    "inputLabel": "Note content"
   },
   "album": {
     "loadFailed": "Failed to load album",
@@ -1663,7 +1672,9 @@
         "day": "Date",
         "month": "Month",
         "year": "Year"
-      }
+      },
+      "datePrecision": "Date precision",
+      "yearInvalid": "Enter a four-digit year from 1900 to 2100."
     },
     "flights": {
       "empty": "No flights yet",

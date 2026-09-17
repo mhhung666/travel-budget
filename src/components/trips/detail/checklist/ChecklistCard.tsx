@@ -73,13 +73,14 @@ export default function ChecklistCard({
 
   const submitItem = () => {
     const text = newItem.trim();
-    if (!text) return;
+    if (!text || busy) return;
     onAddItem(text);
     setNewItem('');
   };
 
   const saveTitle = () => {
     const title = titleDraft.trim();
+    if (busy) return;
     if (title && title !== checklist.title) onRename(title);
     setEditingTitle(false);
   };
@@ -96,10 +97,13 @@ export default function ChecklistCard({
           {editingTitle ? (
             <div className="flex flex-1 items-center gap-1">
               <Input
+                aria-label={t('renameList')}
+                disabled={busy}
                 value={titleDraft}
                 onChange={(e) => setTitleDraft(e.target.value)}
                 autoFocus
                 onKeyDown={(e) => {
+                  if (e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229) return;
                   if (e.key === 'Enter') saveTitle();
                   if (e.key === 'Escape') cancelTitle();
                 }}
@@ -198,9 +202,12 @@ export default function ChecklistCard({
         {canEdit && (
           <div className="mt-3 flex items-center gap-2">
             <Input
+              aria-label={t('itemPlaceholder')}
+              disabled={busy}
               value={newItem}
               onChange={(e) => setNewItem(e.target.value)}
               onKeyDown={(e) => {
+                if (e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229) return;
                 if (e.key === 'Enter') {
                   e.preventDefault();
                   submitItem();

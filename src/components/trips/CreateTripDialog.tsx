@@ -43,6 +43,7 @@ export default function CreateTripDialog({ open, onClose, onSuccess }: CreateTri
   const [destinationLocation, setDestinationLocation] = useState<LocationOption | null>(null);
   const [selectedFriends, setSelectedFriends] = useState<Set<string>>(new Set());
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [draftRetained, setDraftRetained] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -61,12 +62,26 @@ export default function CreateTripDialog({ open, onClose, onSuccess }: CreateTri
     });
   };
 
-  const handleClose = () => {
+  const resetForm = () => {
+    setDraftRetained(false);
     setError('');
     setFormData({ name: '', description: '', start_date: '', end_date: '' });
     setDestinationLocation(null);
     setSelectedFriends(new Set());
     setDetailsOpen(false);
+  };
+  const handleClose = () => {
+    if (submitting) return;
+    setDraftRetained(
+      Boolean(
+        formData.name ||
+        formData.description ||
+        formData.start_date ||
+        formData.end_date ||
+        destinationLocation ||
+        selectedFriends.size
+      )
+    );
     onClose();
   };
 
@@ -101,7 +116,8 @@ export default function CreateTripDialog({ open, onClose, onSuccess }: CreateTri
         }
       }
 
-      handleClose();
+      resetForm();
+      onClose();
       onSuccess(createdTrip);
     } catch (err: unknown) {
       if (err instanceof Error) {
@@ -138,6 +154,16 @@ export default function CreateTripDialog({ open, onClose, onSuccess }: CreateTri
       }
     >
       <form id={FORM_ID} onSubmit={handleSubmit} className="space-y-4">
+        {draftRetained && (
+          <Alert>
+            <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
+              <span>{t('create.draftRetained')}</span>
+              <Button type="button" variant="ghost" onClick={resetForm} disabled={submitting}>
+                {t('create.clearDraft')}
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
         {error && (
           <Alert variant="destructive">
             <AlertTitle>{tCommon('errorTitle')}</AlertTitle>

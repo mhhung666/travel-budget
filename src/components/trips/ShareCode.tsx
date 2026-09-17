@@ -59,7 +59,12 @@ export function ShareCode({
       <CardContent className="p-4">
         <h4 className="font-semibold text-sm mb-2 text-foreground">{title}</h4>
         <div className="flex gap-2 items-center">
-          <Input value={getShareUrl()} readOnly className="flex-1 bg-background h-9" />
+          <Input
+            aria-label={tCommon('shareLink')}
+            value={getShareUrl()}
+            readOnly
+            className="flex-1 bg-background h-9"
+          />
           <Button
             variant="outline"
             size="icon"

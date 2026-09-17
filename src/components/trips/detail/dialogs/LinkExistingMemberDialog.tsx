@@ -116,6 +116,9 @@ export default function LinkExistingMemberDialog({
             <Label htmlFor="link-username">{tAuth('username')}</Label>
             <Input
               id="link-username"
+              autoComplete="username"
+              autoCapitalize="none"
+              spellCheck={false}
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
@@ -127,6 +130,7 @@ export default function LinkExistingMemberDialog({
             <Label htmlFor="link-password">{tAuth('password')}</Label>
             <Input
               id="link-password"
+              autoComplete="current-password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}

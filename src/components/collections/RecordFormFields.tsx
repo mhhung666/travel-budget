@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link2 } from 'lucide-react';
 
@@ -24,8 +25,12 @@ export function DatePrecisionInput({
   precision,
   onDateChange,
   onPrecisionChange,
+  id,
+  'aria-labelledby': labelledBy,
 }: {
   /** YYYY-MM-DD；'' = 未填。 */
+  id?: string;
+  'aria-labelledby'?: string;
   date: string;
   precision: DatePrecision;
   onDateChange: (date: string) => void;
@@ -36,7 +41,7 @@ export function DatePrecisionInput({
   return (
     <div className="flex gap-2">
       <Select value={precision} onValueChange={(v) => onPrecisionChange(v as DatePrecision)}>
-        <SelectTrigger className="w-28 shrink-0">
+        <SelectTrigger aria-label={t('common.datePrecision')} className="w-28 shrink-0">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -46,10 +51,21 @@ export function DatePrecisionInput({
         </SelectContent>
       </Select>
       {precision === 'day' && (
-        <Input type="date" value={date} onChange={(e) => onDateChange(e.target.value)} required />
+        <Input
+          id={id}
+          aria-label={id ? undefined : t('common.date')}
+          aria-labelledby={labelledBy}
+          type="date"
+          value={date}
+          onChange={(e) => onDateChange(e.target.value)}
+          required
+        />
       )}
       {precision === 'month' && (
         <Input
+          id={id}
+          aria-label={id ? undefined : t('common.date')}
+          aria-labelledby={labelledBy}
           type="month"
           value={date.slice(0, 7)}
           onChange={(e) => onDateChange(e.target.value ? `${e.target.value}-01` : '')}
@@ -57,19 +73,65 @@ export function DatePrecisionInput({
         />
       )}
       {precision === 'year' && (
-        <Input
-          type="number"
-          inputMode="numeric"
-          min={1900}
-          max={2100}
-          placeholder="2018"
-          value={date.slice(0, 4)}
-          onChange={(e) => {
-            const y = e.target.value;
-            onDateChange(/^\d{4}$/.test(y) ? `${y}-01-01` : '');
-          }}
-          required
-        />
+        <YearInput labelledBy={labelledBy} id={id} date={date} onDateChange={onDateChange} />
+      )}
+    </div>
+  );
+}
+
+function YearInput({
+  id,
+  labelledBy,
+  date,
+  onDateChange,
+}: {
+  labelledBy?: string;
+  id?: string;
+  date: string;
+  onDateChange: (date: string) => void;
+}) {
+  const t = useTranslations('collections');
+  const [year, setYear] = useState(date.slice(0, 4));
+  const [lastDate, setLastDate] = useState(date);
+  const [touched, setTouched] = useState(false);
+  if (date !== lastDate) {
+    setLastDate(date);
+    setYear(date.slice(0, 4));
+    setTouched(false);
+  }
+  const valid = /^\d{4}$/.test(year) && Number(year) >= 1900 && Number(year) <= 2100;
+  return (
+    <div className="min-w-0 flex-1">
+      <Input
+        id={id}
+        aria-labelledby={labelledBy}
+        aria-label={id ? undefined : t('common.date')}
+        type="number"
+        inputMode="numeric"
+        min={1900}
+        max={2100}
+        required
+        value={year}
+        aria-invalid={touched && !valid}
+        aria-describedby={touched && !valid && id ? `${id}-error` : undefined}
+        onBlur={() => setTouched(true)}
+        onChange={(e) => {
+          const raw = e.target.value;
+          setYear(raw);
+          const next =
+            /^\d{4}$/.test(raw) && Number(raw) >= 1900 && Number(raw) <= 2100 ? `${raw}-01-01` : '';
+          setLastDate(next);
+          onDateChange(next);
+        }}
+      />
+      {touched && !valid && (
+        <p
+          id={id ? `${id}-error` : undefined}
+          role="alert"
+          className="mt-1 text-sm text-destructive"
+        >
+          {t('common.yearInvalid')}
+        </p>
       )}
     </div>
   );
@@ -81,7 +143,11 @@ const NO_TRIP = 'none';
 export function TripLinkSelect({
   value,
   onChange,
+  id,
+  'aria-labelledby': labelledBy,
 }: {
+  id?: string;
+  'aria-labelledby'?: string;
   value: string | null;
   onChange: (tripId: string | null) => void;
 }) {
@@ -103,7 +169,11 @@ export function TripLinkSelect({
         value={value ?? NO_TRIP}
         onValueChange={(v) => onChange(v === NO_TRIP ? null : v)}
       >
-        <SelectTrigger>
+        <SelectTrigger
+          id={id}
+          aria-labelledby={labelledBy}
+          aria-label={labelledBy ? undefined : t('common.linkTrip')}
+        >
           <SelectValue placeholder={t('common.noTrip')} />
         </SelectTrigger>
         <SelectContent>

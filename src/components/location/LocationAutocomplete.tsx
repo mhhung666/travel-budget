@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useId, useState, useEffect } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { MapPin, Loader2, ChevronsUpDown, Check } from 'lucide-react';
 
@@ -102,92 +102,123 @@ export default function LocationAutocomplete({
   error = false,
   disabled = false,
 }: LocationAutocompleteProps) {
+  const fieldId = useId();
   const locale = useLocale();
   const t = useTranslations('location');
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [options, setOptions] = useState<LocationOption[]>([]);
   const [loading, setLoading] = useState(false);
+  const [searchFailed, setSearchFailed] = useState(false);
+  const [retry, setRetry] = useState(0);
 
   // 使用 Nominatim API 搜尋地點
-  const searchLocations = async (searchQuery: string): Promise<LocationOption[]> => {
+  const searchLocations = async (
+    searchQuery: string,
+    signal: AbortSignal
+  ): Promise<LocationOption[]> => {
     if (!searchQuery || searchQuery.length < 2) {
       return [];
     }
 
-    try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?` +
-          new URLSearchParams({
-            q: searchQuery,
-            format: 'json',
-            addressdetails: '1',
-            namedetails: '1', // 一併取得各語言地名，建立時存下供之後在地化顯示
-            limit: '5',
-            'accept-language': acceptLanguageFor(locale), // 跟著 app 當前語言
-          }),
-        {
-          headers: {
-            'User-Agent': 'TravelBudget/1.0', // Nominatim 要求提供 User-Agent
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('Search failed');
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/search?` +
+        new URLSearchParams({
+          q: searchQuery,
+          format: 'json',
+          addressdetails: '1',
+          namedetails: '1', // 一併取得各語言地名，建立時存下供之後在地化顯示
+          limit: '5',
+          'accept-language': acceptLanguageFor(locale), // 跟著 app 當前語言
+        }),
+      {
+        signal,
+        headers: {
+          'User-Agent': 'TravelBudget/1.0', // Nominatim 要求提供 User-Agent
+        },
       }
+    );
 
-      const data: NominatimPlace[] = await response.json();
-
-      return data.map((place) => {
-        // 取得地點的簡短名稱
-        const name =
-          place.address.city ||
-          place.address.town ||
-          place.address.village ||
-          place.address.state ||
-          place.display_name.split(',')[0];
-
-        return {
-          name,
-          names: buildLocalizedNames(place.namedetails),
-          display_name: place.display_name,
-          lat: parseFloat(place.lat),
-          lon: parseFloat(place.lon),
-          country: place.address.country,
-          country_code: place.address.country_code?.toUpperCase(),
-        };
-      });
-    } catch (error) {
-      logger.error('Location search error', error);
-      return [];
+    if (!response.ok) {
+      throw new Error('Search failed');
     }
+
+    const data: NominatimPlace[] = await response.json();
+
+    return data.map((place) => {
+      // 取得地點的簡短名稱
+      const name =
+        place.address.city ||
+        place.address.town ||
+        place.address.village ||
+        place.address.state ||
+        place.display_name.split(',')[0];
+
+      return {
+        name,
+        names: buildLocalizedNames(place.namedetails),
+        display_name: place.display_name,
+        lat: parseFloat(place.lat),
+        lon: parseFloat(place.lon),
+        country: place.address.country,
+        country_code: place.address.country_code?.toUpperCase(),
+      };
+    });
   };
 
   useEffect(() => {
+    if (!open) return;
+    let active = true;
+    const controller = new AbortController();
     const timer = setTimeout(async () => {
-      if (query.length >= 2) {
-        setLoading(true);
-        const results = await searchLocations(query);
-        setOptions(results);
+      setOptions([]);
+      setSearchFailed(false);
+      if (query.length < 2) {
         setLoading(false);
-      } else {
-        setOptions([]);
+        return;
+      }
+      setLoading(true);
+      try {
+        const results = await searchLocations(query, controller.signal);
+        if (active) setOptions(results);
+      } catch (error) {
+        if (active) {
+          logger.error('Location search error', error);
+          setSearchFailed(true);
+        }
+      } finally {
+        if (active) setLoading(false);
       }
     }, 500);
-
-    return () => clearTimeout(timer);
-    // 包含 locale：切換語言時用新語言重新搜尋
+    return () => {
+      active = false;
+      clearTimeout(timer);
+      controller.abort();
+    };
+    // searchLocations uses the current locale; cancel obsolete responses on each query.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, locale]);
+  }, [query, locale, retry, open]);
 
   return (
     <div className="grid gap-2">
-      {label && <Label className={error ? 'text-destructive' : ''}>{label}</Label>}
+      {label && (
+        <Label
+          htmlFor={fieldId}
+          id={`${fieldId}-label`}
+          className={error ? 'text-destructive' : ''}
+        >
+          {label}
+        </Label>
+      )}
 
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
+            id={fieldId}
+            aria-labelledby={label ? `${fieldId}-label` : undefined}
+            aria-label={label ? undefined : placeholder || t('selectPlaceholder')}
+            aria-describedby={helperText ? `${fieldId}-help` : undefined}
+            aria-invalid={error}
             variant="outline"
             role="combobox"
             aria-expanded={open}
@@ -207,9 +238,15 @@ export default function LocationAutocomplete({
         <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
           <Command shouldFilter={false}>
             <CommandInput
+              aria-label={t('searchPlaceholder')}
               placeholder={t('searchPlaceholder')}
               value={query}
-              onValueChange={setQuery}
+              onValueChange={(value) => {
+                setQuery(value);
+                setOptions([]);
+                setSearchFailed(false);
+                setLoading(value.length >= 2);
+              }}
             />
             <CommandList>
               {loading && (
@@ -219,7 +256,20 @@ export default function LocationAutocomplete({
                 </div>
               )}
 
-              {!loading && options.length === 0 && query.length >= 2 && (
+              {searchFailed && (
+                <div role="alert" className="p-3 text-sm">
+                  <p>{t('searchFailed')}</p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="mt-2"
+                    onClick={() => setRetry((n) => n + 1)}
+                  >
+                    {t('retry')}
+                  </Button>
+                </div>
+              )}
+              {!loading && !searchFailed && options.length === 0 && query.length >= 2 && (
                 <CommandEmpty>{t('noResults')}</CommandEmpty>
               )}
 
@@ -258,7 +308,10 @@ export default function LocationAutocomplete({
       </Popover>
 
       {helperText && (
-        <p className={cn('text-[0.8rem] text-muted-foreground', error && 'text-destructive')}>
+        <p
+          id={`${fieldId}-help`}
+          className={cn('text-[0.8rem] text-muted-foreground', error && 'text-destructive')}
+        >
           {helperText}
         </p>
       )}

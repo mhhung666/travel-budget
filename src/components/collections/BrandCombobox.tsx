@@ -26,13 +26,21 @@ interface BrandComboboxProps {
   value: string | null;
   onChange: (brandId: string | null) => void;
   disabled?: boolean;
+  id?: string;
+  'aria-labelledby'?: string;
 }
 
 /**
  * 可搜尋的飯店品牌選擇器（精選目錄 src/constants/hotelBrands.ts）。
  * 品牌為可選欄位——目錄缺漏不擋輸入，選不到就留空（獨立旅宿）。
  */
-export function BrandCombobox({ value, onChange, disabled }: BrandComboboxProps) {
+export function BrandCombobox({
+  value,
+  onChange,
+  disabled,
+  id,
+  'aria-labelledby': labelledBy,
+}: BrandComboboxProps) {
   const t = useTranslations('collections');
   const locale = useLocale();
   const [open, setOpen] = useState(false);
@@ -56,6 +64,9 @@ export function BrandCombobox({ value, onChange, disabled }: BrandComboboxProps)
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
+          id={id}
+          aria-labelledby={labelledBy}
+          aria-label={labelledBy ? undefined : t('stays.brand')}
           type="button"
           variant="outline"
           role="combobox"

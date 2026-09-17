@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useId, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
 
@@ -42,6 +42,7 @@ export function LoyaltyAccountDialog({
   editing,
   availablePrograms,
 }: LoyaltyAccountDialogProps) {
+  const fieldId = useId();
   const t = useTranslations('collections');
   const { toast } = useToast();
   const { upsertAccount } = useLoyaltyMutations();
@@ -144,10 +145,15 @@ export function LoyaltyAccountDialog({
     >
       <form id="loyalty-account-form" onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
-          <Label>{t('loyalty.program')}</Label>
+          <Label id={`${fieldId}-loyalty-program-label`} htmlFor={`${fieldId}-loyalty-program`}>
+            {t('loyalty.program')}
+          </Label>
           {showProgramPicker ? (
             <Select value={selectedProgram} onValueChange={handleProgramChange}>
-              <SelectTrigger>
+              <SelectTrigger
+                id={`${fieldId}-loyalty-program`}
+                aria-labelledby={`${fieldId}-loyalty-program-label`}
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -160,6 +166,8 @@ export function LoyaltyAccountDialog({
             </Select>
           ) : (
             <Input
+              id={`${fieldId}-loyalty-program`}
+              aria-labelledby={`${fieldId}-loyalty-program-label`}
               value={t(`loyalty.programs.${selectedProgram}` as Parameters<typeof t>[0])}
               disabled
               readOnly
@@ -169,9 +177,17 @@ export function LoyaltyAccountDialog({
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label>{t('loyalty.tierLabel')}</Label>
+            <Label
+              id={`${fieldId}-loyalty-tierLabel-label`}
+              htmlFor={`${fieldId}-loyalty-tierLabel`}
+            >
+              {t('loyalty.tierLabel')}
+            </Label>
             <Select value={tier} onValueChange={setTier}>
-              <SelectTrigger>
+              <SelectTrigger
+                id={`${fieldId}-loyalty-tierLabel`}
+                aria-labelledby={`${fieldId}-loyalty-tierLabel-label`}
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -186,8 +202,12 @@ export function LoyaltyAccountDialog({
             </Select>
           </div>
           <div className="space-y-2">
-            <Label>{t('loyalty.memberNo')}</Label>
+            <Label id={`${fieldId}-loyalty-memberNo-label`} htmlFor={`${fieldId}-loyalty-memberNo`}>
+              {t('loyalty.memberNo')}
+            </Label>
             <Input
+              id={`${fieldId}-loyalty-memberNo`}
+              aria-labelledby={`${fieldId}-loyalty-memberNo-label`}
               value={memberNo}
               onChange={(e) => setMemberNo(e.target.value)}
               maxLength={30}
@@ -198,8 +218,15 @@ export function LoyaltyAccountDialog({
 
         {!isHotel && (
           <div className="space-y-2">
-            <Label>{t('loyalty.tierStarted')}</Label>
+            <Label
+              id={`${fieldId}-loyalty-tierStarted-label`}
+              htmlFor={`${fieldId}-loyalty-tierStarted`}
+            >
+              {t('loyalty.tierStarted')}
+            </Label>
             <Input
+              id={`${fieldId}-loyalty-tierStarted`}
+              aria-labelledby={`${fieldId}-loyalty-tierStarted-label`}
               type="date"
               value={tierStartedAt}
               onChange={(e) => setTierStartedAt(e.target.value)}
@@ -210,8 +237,15 @@ export function LoyaltyAccountDialog({
 
         {showExpiry && (
           <div className="space-y-2">
-            <Label>{t('loyalty.tierExpires')}</Label>
+            <Label
+              id={`${fieldId}-loyalty-tierExpires-label`}
+              htmlFor={`${fieldId}-loyalty-tierExpires`}
+            >
+              {t('loyalty.tierExpires')}
+            </Label>
             <Input
+              id={`${fieldId}-loyalty-tierExpires`}
+              aria-labelledby={`${fieldId}-loyalty-tierExpires-label`}
               type="date"
               value={tierExpiresAt}
               onChange={(e) => setTierExpiresAt(e.target.value)}
@@ -226,8 +260,15 @@ export function LoyaltyAccountDialog({
               <p className="text-xs text-muted-foreground">{t('loyalty.lifetimeProgressHint')}</p>
             </div>
             <div className="space-y-2">
-              <Label>{t('loyalty.lifetimeNights')}</Label>
+              <Label
+                id={`${fieldId}-loyalty-lifetimeNights-label`}
+                htmlFor={`${fieldId}-loyalty-lifetimeNights`}
+              >
+                {t('loyalty.lifetimeNights')}
+              </Label>
               <Input
+                id={`${fieldId}-loyalty-lifetimeNights`}
+                aria-labelledby={`${fieldId}-loyalty-lifetimeNights-label`}
                 type="number"
                 min={0}
                 step={0.5}
@@ -243,12 +284,17 @@ export function LoyaltyAccountDialog({
                 ['platinum', lifetimePlatinumYears, setLifetimePlatinumYears],
               ].map(([key, value, setter]) => (
                 <div className="space-y-2" key={key as string}>
-                  <Label>
+                  <Label
+                    id={`${fieldId}-loyalty-lifetimeYears-${key as string}-label`}
+                    htmlFor={`${fieldId}-loyalty-lifetimeYears-${key as string}`}
+                  >
                     {t('loyalty.lifetimeYears', {
                       tier: t(`loyalty.tiers.${selectedProgram}.${key}` as Parameters<typeof t>[0]),
                     })}
                   </Label>
                   <Input
+                    id={`${fieldId}-loyalty-lifetimeYears-${key as string}`}
+                    aria-labelledby={`${fieldId}-loyalty-lifetimeYears-${key as string}-label`}
                     type="number"
                     min={0}
                     step={1}
@@ -269,8 +315,15 @@ export function LoyaltyAccountDialog({
             <p className="text-sm font-medium text-foreground">{t('loyalty.lifetimeProgress')}</p>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="space-y-2">
-                <Label>{t('loyalty.lifetimeNights')}</Label>
+                <Label
+                  id={`${fieldId}-loyalty-lifetimeNights-label`}
+                  htmlFor={`${fieldId}-loyalty-lifetimeNights`}
+                >
+                  {t('loyalty.lifetimeNights')}
+                </Label>
                 <Input
+                  id={`${fieldId}-loyalty-lifetimeNights`}
+                  aria-labelledby={`${fieldId}-loyalty-lifetimeNights-label`}
                   type="number"
                   min={0}
                   value={lifetimeNights}
@@ -278,8 +331,15 @@ export function LoyaltyAccountDialog({
                 />
               </div>
               <div className="space-y-2">
-                <Label>{t('loyalty.lifetimeDiamondYears')}</Label>
+                <Label
+                  id={`${fieldId}-loyalty-lifetimeDiamondYears-label`}
+                  htmlFor={`${fieldId}-loyalty-lifetimeDiamondYears`}
+                >
+                  {t('loyalty.lifetimeDiamondYears')}
+                </Label>
                 <Input
+                  id={`${fieldId}-loyalty-lifetimeDiamondYears`}
+                  aria-labelledby={`${fieldId}-loyalty-lifetimeDiamondYears-label`}
                   type="number"
                   min={0}
                   value={lifetimeDiamondYears}
@@ -287,8 +347,15 @@ export function LoyaltyAccountDialog({
                 />
               </div>
               <div className="space-y-2">
-                <Label>{t('loyalty.lifetimeSpendUsd')}</Label>
+                <Label
+                  id={`${fieldId}-loyalty-lifetimeSpendUsd-label`}
+                  htmlFor={`${fieldId}-loyalty-lifetimeSpendUsd`}
+                >
+                  {t('loyalty.lifetimeSpendUsd')}
+                </Label>
                 <Input
+                  id={`${fieldId}-loyalty-lifetimeSpendUsd`}
+                  aria-labelledby={`${fieldId}-loyalty-lifetimeSpendUsd-label`}
                   type="number"
                   min={0}
                   step={0.01}
@@ -302,8 +369,15 @@ export function LoyaltyAccountDialog({
 
         {selectedProgram === 'IHG' && (
           <div className="space-y-2">
-            <Label>{t('loyalty.rolloverNights')}</Label>
+            <Label
+              id={`${fieldId}-loyalty-rolloverNights-label`}
+              htmlFor={`${fieldId}-loyalty-rolloverNights`}
+            >
+              {t('loyalty.rolloverNights')}
+            </Label>
             <Input
+              id={`${fieldId}-loyalty-rolloverNights`}
+              aria-labelledby={`${fieldId}-loyalty-rolloverNights-label`}
               type="number"
               min={0}
               step={0.5}
@@ -315,8 +389,12 @@ export function LoyaltyAccountDialog({
         )}
 
         <div className="space-y-2">
-          <Label>{t('common.note')}</Label>
+          <Label id={`${fieldId}-common-note-label`} htmlFor={`${fieldId}-common-note`}>
+            {t('common.note')}
+          </Label>
           <Textarea
+            id={`${fieldId}-common-note`}
+            aria-labelledby={`${fieldId}-common-note-label`}
             value={note}
             onChange={(e) => setNote(e.target.value)}
             rows={2}

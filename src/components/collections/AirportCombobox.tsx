@@ -22,6 +22,8 @@ interface AirportComboboxProps {
   onChange: (iata: string | null) => void;
   placeholder: string;
   disabled?: boolean;
+  id?: string;
+  'aria-labelledby'?: string;
 }
 
 const MAX_RESULTS = 50;
@@ -30,7 +32,14 @@ const MAX_RESULTS = 50;
  * 可搜尋的機場選擇器（目錄：public/data/airports.json ~4000 筆，開啟時才載入）。
  * 手動過濾並依吻合程度排序（searchAirports）＋上限 50 筆；欄位可選，已選時提供清除。
  */
-export function AirportCombobox({ value, onChange, placeholder, disabled }: AirportComboboxProps) {
+export function AirportCombobox({
+  value,
+  onChange,
+  placeholder,
+  disabled,
+  id,
+  'aria-labelledby': labelledBy,
+}: AirportComboboxProps) {
   const t = useTranslations('collections');
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -50,6 +59,9 @@ export function AirportCombobox({ value, onChange, placeholder, disabled }: Airp
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
+          id={id}
+          aria-labelledby={labelledBy}
+          aria-label={labelledBy ? undefined : placeholder}
           type="button"
           variant="outline"
           role="combobox"
@@ -71,6 +83,7 @@ export function AirportCombobox({ value, onChange, placeholder, disabled }: Airp
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
         <Command shouldFilter={false}>
           <CommandInput
+            aria-label={t('flights.searchAirport')}
             placeholder={t('flights.searchAirport')}
             value={search}
             onValueChange={setSearch}

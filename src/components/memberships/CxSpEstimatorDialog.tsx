@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
 import { CX_AWARD_MILES_PER_SP, CX_EARN_VERIFIED_AT } from '@/constants/loyalty';
@@ -32,6 +32,7 @@ const CABINS: CabinClass[] = ['economy', 'premium_economy', 'business', 'first']
  * 明示為預估）。純顯示、不落 DB；數字仍由使用者記帳時自填。
  */
 export function CxSpEstimatorDialog({ open, onOpenChange }: CxSpEstimatorDialogProps) {
+  const fieldId = useId();
   const t = useTranslations('collections');
 
   const [from, setFrom] = useState<string | null>(null);
@@ -74,19 +75,40 @@ export function CxSpEstimatorDialog({ open, onOpenChange }: CxSpEstimatorDialogP
       <div className="space-y-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label>{t('flights.from')}</Label>
-            <AirportCombobox value={from} onChange={setFrom} placeholder={t('flights.from')} />
+            <Label id={`${fieldId}-flights-from-label`} htmlFor={`${fieldId}-flights-from`}>
+              {t('flights.from')}
+            </Label>
+            <AirportCombobox
+              id={`${fieldId}-flights-from`}
+              aria-labelledby={`${fieldId}-flights-from-label`}
+              value={from}
+              onChange={setFrom}
+              placeholder={t('flights.from')}
+            />
           </div>
           <div className="space-y-2">
-            <Label>{t('flights.to')}</Label>
-            <AirportCombobox value={to} onChange={setTo} placeholder={t('flights.to')} />
+            <Label id={`${fieldId}-flights-to-label`} htmlFor={`${fieldId}-flights-to`}>
+              {t('flights.to')}
+            </Label>
+            <AirportCombobox
+              id={`${fieldId}-flights-to`}
+              aria-labelledby={`${fieldId}-flights-to-label`}
+              value={to}
+              onChange={setTo}
+              placeholder={t('flights.to')}
+            />
           </div>
         </div>
 
         <div className="space-y-2">
-          <Label>{t('flights.cabin')}</Label>
+          <Label id={`${fieldId}-flights-cabin-label`} htmlFor={`${fieldId}-flights-cabin`}>
+            {t('flights.cabin')}
+          </Label>
           <Select value={cabin} onValueChange={(v) => setCabin(v as CabinClass)}>
-            <SelectTrigger>
+            <SelectTrigger
+              id={`${fieldId}-flights-cabin`}
+              aria-labelledby={`${fieldId}-flights-cabin-label`}
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

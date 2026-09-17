@@ -18,7 +18,7 @@ const COUNTER_THRESHOLD = NOTE_TEXT_MAX - 500;
 
 export interface NoteComposerProps {
   tripId: string;
-  onSubmit: (text: string, attachments: ExpenseAttachment[]) => void;
+  onSubmit: (text: string, attachments: ExpenseAttachment[]) => Promise<boolean>;
   pending: boolean;
 }
 
@@ -26,13 +26,16 @@ export interface NoteComposerProps {
  * 隨手記快速輸入框（頁面頂部常駐），排成單一卡片：Textarea 在上、附件縮圖只在有圖時出現、
  * 底部工具列放「加照片」icon + 字數 + 送出。相片入口收成一顆 icon（不再常駐孤兒上傳方塊），
  * 選檔即走與收據相同的上傳流程（壓縮 → presigned PUT → headObject 驗證）。
- * Enter 送出、Shift+Enter 換行；也支援貼上圖片（截圖直接貼）。送出即清空，失敗由呼叫端 toast。
+ * Enter 送出、Shift+Enter 換行；也支援貼上圖片（截圖直接貼）。成功才清空，失敗保留草稿並由呼叫端提示。
  */
 export function NoteComposer({ tripId, onSubmit, pending }: NoteComposerProps) {
   const t = useTranslations('notes');
   const [draft, setDraft] = useState('');
   const [attachments, setAttachments] = useState<ExpenseAttachment[]>([]);
   const [uploading, setUploading] = useState(false);
+  const sending = useRef(false);
+  const [submitting, setSubmitting] = useState(false);
+  const busy = pending || submitting;
   const inputRef = useRef<HTMLInputElement>(null);
 
   const upload = async (files: File[]) => {
@@ -50,24 +53,34 @@ export function NoteComposer({ tripId, onSubmit, pending }: NoteComposerProps) {
     }
   };
 
-  const submit = () => {
+  const submit = async () => {
     const text = draft.trim();
-    if (!text || uploading) return;
-    setDraft('');
-    const imgs = attachments;
-    setAttachments([]);
-    onSubmit(text, imgs);
+    if (!text || uploading || pending || sending.current) return;
+    sending.current = true;
+    setSubmitting(true);
+    try {
+      if (await onSubmit(text, attachments)) {
+        setDraft('');
+        setAttachments([]);
+      }
+    } finally {
+      sending.current = false;
+      setSubmitting(false);
+    }
   };
 
   return (
     <div className="rounded-lg border bg-card focus-within:ring-1 focus-within:ring-ring">
       <Textarea
+        aria-label={t('inputLabel')}
+        disabled={busy}
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onKeyDown={(e) => {
+          if (e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229) return;
           if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            submit();
+            void submit();
           }
         }}
         onPaste={(e) => {
@@ -91,7 +104,11 @@ export function NoteComposer({ tripId, onSubmit, pending }: NoteComposerProps) {
               key={a.key}
               tripId={tripId}
               attachment={a}
-              onRemove={() => setAttachments((prev) => prev.filter((x) => x.key !== a.key))}
+              onRemove={
+                busy
+                  ? undefined
+                  : () => setAttachments((prev) => prev.filter((x) => x.key !== a.key))
+              }
             />
           ))}
         </div>
@@ -104,7 +121,7 @@ export function NoteComposer({ tripId, onSubmit, pending }: NoteComposerProps) {
           size="icon"
           className="h-8 w-8 text-muted-foreground"
           onClick={() => inputRef.current?.click()}
-          disabled={uploading}
+          disabled={uploading || busy}
           aria-label={t('addImage')}
           title={t('addImage')}
         >
@@ -136,11 +153,11 @@ export function NoteComposer({ tripId, onSubmit, pending }: NoteComposerProps) {
           <Button
             size="icon"
             className="h-8 w-8 shrink-0"
-            disabled={!draft.trim() || pending || uploading}
+            disabled={!draft.trim() || busy || uploading}
             onClick={submit}
             aria-label={t('send')}
           >
-            {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </Button>
         </div>
       </div>

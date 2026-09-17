@@ -1,7 +1,7 @@
 'use client';
 import { QueryStatus } from '@/components/common/QueryStatus';
 
-import { useEffect, useState } from 'react';
+import { useId, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Loader2, Star } from 'lucide-react';
 
@@ -60,6 +60,7 @@ export function StayRecordDialog({
   lockedTrip,
   onSaved,
 }: StayRecordDialogProps) {
+  const fieldId = useId();
   const t = useTranslations('collections');
   const { toast } = useToast();
   const { createStay, updateStay } = useCollectionMutations();
@@ -234,10 +235,12 @@ export function StayRecordDialog({
       <form id="stay-record-form" onSubmit={handleSubmit} className="space-y-4">
         <QueryStatus query={loyaltyQuery} />
         <div className="space-y-2">
-          <Label>
+          <Label id={`${fieldId}-stays-hotelName-label`} htmlFor={`${fieldId}-stays-hotelName`}>
             {t('stays.hotelName')} <span className="text-destructive">*</span>
           </Label>
           <Input
+            id={`${fieldId}-stays-hotelName`}
+            aria-labelledby={`${fieldId}-stays-hotelName-label`}
             value={hotelName}
             onChange={(e) => setHotelName(e.target.value)}
             placeholder={t('stays.hotelNamePlaceholder')}
@@ -247,14 +250,25 @@ export function StayRecordDialog({
         </div>
 
         <div className="space-y-2">
-          <Label>{t('stays.brand')}</Label>
-          <BrandCombobox value={brand} onChange={setBrand} />
+          <Label id={`${fieldId}-stays-brand-label`} htmlFor={`${fieldId}-stays-brand`}>
+            {t('stays.brand')}
+          </Label>
+          <BrandCombobox
+            id={`${fieldId}-stays-brand`}
+            aria-labelledby={`${fieldId}-stays-brand-label`}
+            value={brand}
+            onChange={setBrand}
+          />
           <p className="text-xs text-muted-foreground">{t('stays.brandHint')}</p>
         </div>
 
         <div className="space-y-2">
-          <Label>{t('stays.checkIn')}</Label>
+          <Label id={`${fieldId}-stays-checkIn-label`} htmlFor={`${fieldId}-stays-checkIn`}>
+            {t('stays.checkIn')}
+          </Label>
           <DatePrecisionInput
+            id={`${fieldId}-stays-checkIn`}
+            aria-labelledby={`${fieldId}-stays-checkIn-label`}
             date={checkIn}
             precision={precision}
             onDateChange={setCheckIn}
@@ -264,8 +278,12 @@ export function StayRecordDialog({
 
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label>{t('stays.nights')}</Label>
+            <Label id={`${fieldId}-stays-nights-label`} htmlFor={`${fieldId}-stays-nights`}>
+              {t('stays.nights')}
+            </Label>
             <Input
+              id={`${fieldId}-stays-nights`}
+              aria-labelledby={`${fieldId}-stays-nights-label`}
               type="number"
               inputMode="numeric"
               min={1}
@@ -276,9 +294,14 @@ export function StayRecordDialog({
             />
           </div>
           <div className="space-y-2">
-            <Label>{t('stays.stars')}</Label>
+            <Label id={`${fieldId}-stays-stars-label`} htmlFor={`${fieldId}-stays-stars`}>
+              {t('stays.stars')}
+            </Label>
             <Select value={stars} onValueChange={setStars}>
-              <SelectTrigger>
+              <SelectTrigger
+                id={`${fieldId}-stays-stars`}
+                aria-labelledby={`${fieldId}-stays-stars-label`}
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -298,15 +321,30 @@ export function StayRecordDialog({
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label>{t('stays.city')}</Label>
-            <Input value={city} onChange={(e) => setCity(e.target.value)} maxLength={80} />
+            <Label id={`${fieldId}-stays-city-label`} htmlFor={`${fieldId}-stays-city`}>
+              {t('stays.city')}
+            </Label>
+            <Input
+              id={`${fieldId}-stays-city`}
+              aria-labelledby={`${fieldId}-stays-city-label`}
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              maxLength={80}
+            />
           </div>
           <div className="space-y-2">
-            <Label>{t('common.linkTrip')}</Label>
+            <Label id={`${fieldId}-common-linkTrip-label`} htmlFor={`${fieldId}-common-linkTrip`}>
+              {t('common.linkTrip')}
+            </Label>
             {locked ? (
               <LockedTripField name={locked.name} />
             ) : (
-              <TripLinkSelect value={tripId} onChange={setTripId} />
+              <TripLinkSelect
+                id={`${fieldId}-common-linkTrip`}
+                aria-labelledby={`${fieldId}-common-linkTrip-label`}
+                value={tripId}
+                onChange={setTripId}
+              />
             )}
           </div>
         </div>
@@ -339,8 +377,15 @@ export function StayRecordDialog({
             {accrue && (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <div className="space-y-2">
-                  <Label>{t('loyalty.qualifyingNights')}</Label>
+                  <Label
+                    id={`${fieldId}-loyalty-qualifyingNights-label`}
+                    htmlFor={`${fieldId}-loyalty-qualifyingNights`}
+                  >
+                    {t('loyalty.qualifyingNights')}
+                  </Label>
                   <Input
+                    id={`${fieldId}-loyalty-qualifyingNights`}
+                    aria-labelledby={`${fieldId}-loyalty-qualifyingNights-label`}
                     type="number"
                     step={0.5}
                     value={qualifyingNights}
@@ -349,8 +394,15 @@ export function StayRecordDialog({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>{t('loyalty.qualifyingSpendUsd')}</Label>
+                  <Label
+                    id={`${fieldId}-loyalty-qualifyingSpendUsd-label`}
+                    htmlFor={`${fieldId}-loyalty-qualifyingSpendUsd`}
+                  >
+                    {t('loyalty.qualifyingSpendUsd')}
+                  </Label>
                   <Input
+                    id={`${fieldId}-loyalty-qualifyingSpendUsd`}
+                    aria-labelledby={`${fieldId}-loyalty-qualifyingSpendUsd-label`}
                     type="number"
                     step={0.01}
                     value={qualifyingSpendUsd}
@@ -359,8 +411,15 @@ export function StayRecordDialog({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>{t('loyalty.hotelRewardPoints')}</Label>
+                  <Label
+                    id={`${fieldId}-loyalty-hotelRewardPoints-label`}
+                    htmlFor={`${fieldId}-loyalty-hotelRewardPoints`}
+                  >
+                    {t('loyalty.hotelRewardPoints')}
+                  </Label>
                   <Input
+                    id={`${fieldId}-loyalty-hotelRewardPoints`}
+                    aria-labelledby={`${fieldId}-loyalty-hotelRewardPoints-label`}
                     type="number"
                     value={rewardPoints}
                     onChange={(e) => setRewardPoints(e.target.value)}
@@ -379,8 +438,12 @@ export function StayRecordDialog({
         )}
 
         <div className="space-y-2">
-          <Label>{t('common.note')}</Label>
+          <Label id={`${fieldId}-common-note-label`} htmlFor={`${fieldId}-common-note`}>
+            {t('common.note')}
+          </Label>
           <Textarea
+            id={`${fieldId}-common-note`}
+            aria-labelledby={`${fieldId}-common-note-label`}
             value={note}
             onChange={(e) => setNote(e.target.value)}
             rows={2}
