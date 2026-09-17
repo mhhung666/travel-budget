@@ -124,7 +124,11 @@ export default function NotesPage() {
       )}
 
       {notes.length === 0 ? (
-        <EmptyState icon={StickyNote} title={t('emptyState')} description={t('emptyStateHint')} />
+        <EmptyState
+          icon={StickyNote}
+          title={t('emptyState')}
+          description={t(canEdit ? 'emptyStateHint' : 'emptyStateHintReadOnly')}
+        />
       ) : (
         <>
           <div className="flex flex-col gap-3">

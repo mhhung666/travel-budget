@@ -94,7 +94,7 @@ export default function ChecklistsPage() {
         <EmptyState
           icon={ListChecks}
           title={t('emptyState')}
-          description={t('emptyStateHint')}
+          description={t(canEdit ? 'emptyStateHint' : 'emptyStateHintReadOnly')}
           action={
             canEdit ? (
               <Button onClick={() => setNewSheetOpen(true)} className="gap-2">

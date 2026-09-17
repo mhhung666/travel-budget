@@ -169,7 +169,7 @@ export default function AlbumPage() {
         <EmptyState
           icon={Images}
           title={t('emptyState')}
-          description={isMember ? t('emptyStateHint') : undefined}
+          description={t(isMember ? 'emptyStateHint' : 'emptyStateHintReadOnly')}
           action={
             isMember ? (
               <PhotoUploadButton

@@ -61,6 +61,7 @@
 - 全域導覽桌機／行動端都用旅行／地圖／統計／記一筆／我的分組；成就、會籍、回顧與設定歸「我的」。導覽事件只能經 [navigationEvents.ts](../../../src/lib/navigationEvents.ts) 的固定 taxonomy，不得附 trip/user/hash code、名稱、描述或金額。
 - 加入旅行輸入先經 [tripInvite.ts](../../../src/lib/tripInvite.ts) 解析裸代碼或完整 `/join/{code}` URL；登入 redirect 要保留、sanitize，成功加入後直接導向該旅行。
 - 通知 / Push / Email 的導向表分散在三處（[NotificationBell](../../../src/components/notifications/NotificationBell.tsx) / [webpush.ts](../../../src/lib/webpush.ts) / [emailTemplates.ts](../../../src/lib/emailTemplates.ts)），**改一處要三處一起改**（有測試守著）：支出語意 → `/expenses`、還款 → `/settlement`、其餘 → 落點。
+- **空白狀態文案要依權限分岔**：行程／清單／隨手記／相簿／支出的 `EmptyState` 在沒有新增權限時改用 `…ReadOnly` 文案（行程是 admin 限定，其餘是成員限定），不要叫看不到按鈕的人去按按鈕；新增空白狀態時一併加兩種文案（有測試守著）。
 - 全貌與路由表見 [docs/ARCHITECTURE.md](../../ARCHITECTURE.md) §4.14。
 
 ## 旅遊地圖與分享

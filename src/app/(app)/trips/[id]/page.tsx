@@ -415,10 +415,11 @@ function ItineraryPageContent() {
 
       {/* Day cards */}
       {days.length === 0 ? (
+        /* 沒有新增權限時別叫使用者去按不存在的按鈕（docs/UX_IMPROVEMENTS.md 第 3 項） */
         <EmptyState
           icon={CalendarDays}
           title={tItinerary('emptyState')}
-          description={tItinerary('emptyStateHint')}
+          description={tItinerary(isAdmin ? 'emptyStateHint' : 'emptyStateHintReadOnly')}
           action={
             isAdmin ? (
               <Button onClick={handleAddDay} className="gap-2">

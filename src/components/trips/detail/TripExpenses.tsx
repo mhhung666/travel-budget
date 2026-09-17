@@ -400,7 +400,7 @@ const ExpenseResults = memo(function ExpenseResults({
         <EmptyState
           icon={ReceiptText}
           title={tExpense('noExpenses')}
-          description={isCurrentUserMember ? tExpense('clickToAdd') : undefined}
+          description={tExpense(isCurrentUserMember ? 'clickToAdd' : 'noExpensesReadOnly')}
           action={
             isCurrentUserMember ? (
               <Button onClick={onAdd} className="gap-2">
