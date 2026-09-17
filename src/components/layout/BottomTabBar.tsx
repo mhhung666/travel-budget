@@ -36,7 +36,7 @@ export function BottomTabBar({ onQuickAdd }: { onQuickAdd: () => void }) {
       href: '/settings',
       label: t('me'),
       icon: UserRound,
-      match: ['/settings', '/wrapped', '/collections', '/memberships'],
+      match: ['/settings', '/wrapped', '/collections'],
       target: 'me',
     },
   ] satisfies {

@@ -60,7 +60,6 @@
     "collections": "Achievements",
     "me": "Me",
     "bottomNav": "Primary navigation",
-    "memberships": "Memberships",
     "quickAdd": "Log expense"
   },
   "quickAdd": {
@@ -76,7 +75,7 @@
     "hero": {
       "eyebrow": "Plan · Track · Explore",
       "title": "From planning to footprints—all in one place",
-      "subtitle": "Organize itineraries with AI, track and split expenses together, and keep personal budgets, travel insights, albums, maps, and loyalty progress in one place.",
+      "subtitle": "Organize itineraries with AI, track and split expenses together, and keep personal budgets, travel insights, albums, maps, and yearly recaps in one place.",
       "getStarted": "Get Started",
       "viewTrips": "View Trips"
     },
@@ -96,8 +95,8 @@
         "description": "Share lists, notes, and albums, then split expenses and simplify settlement."
       },
       "remember": {
-        "title": "Collect journeys and rewards",
-        "description": "Build travel maps and yearly recaps while tracking airline and hotel loyalty."
+        "title": "Collect your travel memories",
+        "description": "Build travel maps and yearly recaps, and keep a record of your flights and stays."
       }
     }
   },
@@ -1682,8 +1681,6 @@
       "empty": "No flights yet",
       "emptyDesc": "Log past flights to collect airlines and alliances",
       "addFlight": "Add flight",
-      "accrueLoyalty": "Accrue {program} status",
-      "accrueLoyaltyHint": "Log this flight's status points and miles (copy the numbers from the airline app)",
       "editFlight": "Edit flight",
       "formDescription": "Log a flight; airports are used for your flight map and distance totals",
       "airline": "Airline",
@@ -1736,12 +1733,6 @@
       "nights": "Nights",
       "stars": "Stars",
       "city": "City",
-      "accrueMarriott": "Add to Marriott Bonvoy membership",
-      "accrueHotelProgram": "Add to {program} membership",
-      "accrueHotelProgramHint": "Night and point values are editable suggestions; confirm them against the official posting.",
-      "accrueMarriottHint": "The night count is only a suggestion; confirm award stays, 0.5-credit brands and qualified spend against Marriott's posting.",
-      "addToMarriott": "Add to Marriott Bonvoy",
-      "marriottCrossYearHint": "This stay crosses calendar years. Standard night credits belong to each actual stay date, so add the officially posted nights as separate membership entries.",
       "staysCount": "{count, plural, one {# stay} other {# stays}}",
       "nightsCount": "{count, plural, one {# night} other {# nights}}",
       "independent": "Independent hotels",
@@ -1829,220 +1820,11 @@
       "notFound": "This shared page isn't available.",
       "empty": "No achievements to show yet.",
       "cta": "Start my own collection"
-    },
-    "loyalty": {
-      "empty": "No membership set up yet",
-      "emptyDesc": "Set up your airline membership, log status points and miles by hand, and track tier progress",
-      "setupAccount": "Set up membership",
-      "editAccount": "Edit membership",
-      "accountFormDescription": "Declare your current tier; log points and miles as entries later",
-      "program": "Program",
-      "programs": {
-        "CX": "Cathay Pacific",
-        "CI": "China Airlines",
-        "BR": "EVA Air",
-        "MB": "Marriott Bonvoy",
-        "HH": "Hilton Honors",
-        "IHG": "IHG One Rewards"
-      },
-      "tierLabel": "Current tier",
-      "tierStarted": "Current tier start date",
-      "tierStartedHint": "China Airlines and EVA calculate the next tier from this date; if blank, the latest 12 months are used.",
-      "memberNo": "Member number",
-      "tierExpires": "Card expires on",
-      "tiers": {
-        "CX": {
-          "green": "Green",
-          "silver": "Silver",
-          "gold": "Gold",
-          "diamond": "Diamond",
-          "diamond_plus": "Diamond Executive"
-        },
-        "CI": {
-          "member": "Dynasty",
-          "gold": "Gold",
-          "emerald": "Emerald",
-          "paragon": "Paragon"
-        },
-        "BR": {
-          "green": "Green",
-          "silver": "Silver",
-          "gold": "Gold",
-          "diamond": "Diamond"
-        },
-        "MB": {
-          "member": "Member",
-          "silver": "Silver Elite",
-          "gold": "Gold Elite",
-          "platinum": "Platinum Elite",
-          "titanium": "Titanium Elite",
-          "ambassador": "Ambassador Elite"
-        },
-        "HH": {
-          "member": "Member",
-          "silver": "Silver",
-          "gold": "Gold",
-          "diamond": "Diamond",
-          "diamond_reserve": "Diamond Reserve"
-        },
-        "IHG": {
-          "club": "Club",
-          "silver": "Silver Elite",
-          "gold": "Gold Elite",
-          "platinum": "Platinum Elite",
-          "diamond": "Diamond Elite"
-        }
-      },
-      "stats": {
-        "yearPoints": "{year} points",
-        "points12m": "Points (12 mo)",
-        "milesBalance": "Miles balance",
-        "carryOver": "Est. carry-over",
-        "ownAirlineRatio": "Own-airline intl share",
-        "windowMiles": "Qualifying miles",
-        "segments": "Intl segments",
-        "yearNights": "{year} qualifying nights",
-        "qualifiedSpend": "Annual qualified spend",
-        "pointsBalance": "Points balance",
-        "yearStays": "Qualifying stays",
-        "eliteQualifyingPoints": "Elite qualifying points"
-      },
-      "progressToNext": "{points} points to {tier}",
-      "windowCalendar": "Period: {year}/01/01–{year}/12/31",
-      "windowRange": "Period: {start}–{end}",
-      "maxTier": "Top tier reached",
-      "renewalMet": "Renewal threshold met ({required} points)",
-      "renewalPending": "Renewal needs {required} points — {points} to go",
-      "renewalNeedsExpiry": "Set the card expiry date to calculate renewal progress",
-      "disclaimer": "Thresholds verified on {date}; official figures prevail",
-      "ownAirlineWarning": "Only {percent}% of points are from own-airline flights — upgrade/renewal needs ≥{required}%",
-      "renewalOwnAirlineWarning": "Only {percent}% of renewal points are from eligible self-operated international flights; ≥{required}% is required",
-      "cxSegmentsProgress": "Eligible Cathay segments {value}/{required}",
-      "estimatedTier": "Estimated {tier}",
-      "estimated2027Tier": "2027 estimate: {tier}",
-      "confirmTier": "Sync tier",
-      "tierUpdated": "Current tier updated",
-      "tierUpdatedNeedsReview": "Tier updated; add the new official expiry and retained balance",
-      "officialVsEstimated": "Official tier confirmed by you: {official}; estimate from recorded activity: {estimated}.",
-      "cxTransitionNote": "2026 points estimate your 2027 tier ({estimated}); immediate upgrades during 2026 still follow your official membership cycle.",
-      "addEntry": "Accrue status",
-      "editEntry": "Edit entry",
-      "entryFormDescription": "Copy points and miles changes from the airline app",
-      "hotelEntryFormDescription": "Copy qualifying nights, spend and points from the hotel app",
-      "entryType": "Type",
-      "types": {
-        "flight": "Flight",
-        "stay": "Hotel",
-        "card": "Credit card",
-        "dining": "Dining & retail",
-        "promo": "Promotion",
-        "adjust": "Adjustment",
-        "other": "Other"
-      },
-      "statusPoints": "Status points",
-      "awardMiles": "Miles",
-      "pointsAmount": "{points} pts",
-      "milesAmount": "{miles} miles",
-      "ownAirlineMarker": "Eligible own-airline flight",
-      "linkedFlightMarker": "Linked flight record",
-      "linkedStayMarker": "Linked stay record",
-      "qualifyingNights": "Qualifying nights",
-      "qualifyingSpendUsd": "Qualified spend (USD)",
-      "rewardPoints": "Bonvoy points",
-      "hotelRewardPoints": "Reward points",
-      "qualifyingStays": "Qualifying stays",
-      "eliteQualifyingPoints": "Elite qualifying points",
-      "staysAlternative": "or {value}/{total} qualifying stays",
-      "eqpAlternative": "or {value}/{total} elite qualifying points",
-      "staysAmount": "{stays} stays",
-      "eqpAmount": "{points} EQP",
-      "lifetimeDiamondYears": "Years at Diamond",
-      "lifetimeSpendUsd": "Lifetime eligible spend (USD)",
-      "rolloverNights": "Rollover nights",
-      "rolloverNightsHint": "Counts toward IHG status only, not Milestone Rewards.",
-      "hotelDisclaimer": {
-        "MB": "Qualifying nights reset annually; some brands earn half or no night credit.",
-        "HH": "No new rollover nights are earned from 2026; status can be earned by nights, stays or eligible spend.",
-        "IHG": "Excess nights at Gold or above can roll over once; rollover nights do not count toward Milestone Rewards."
-      },
-      "nightsAmount": "{nights} nights",
-      "spendAmount": "US${spend}",
-      "rewardPointsAmount": "{points} points",
-      "summaryNights": "{value}/{total} nights",
-      "nightsToNextTier": "{nights} nights to {tier}",
-      "spendToAmbassador": "{spend} qualified spend to Ambassador",
-      "choiceBenefit": "Annual Choice Benefit",
-      "choiceBenefitReached": "Reached the {nights}-night milestone — choose your benefit on Marriott",
-      "choiceBenefitNext": "{nights} nights to the {threshold}-night benefit",
-      "lifetimeProgress": "Lifetime status progress",
-      "lifetimeProgressHint": "Manually sync lifetime nights and eligible years shown by Marriott.",
-      "lifetimeNights": "Lifetime qualifying nights",
-      "lifetimeYears": "Years at {tier}+",
-      "lifetimeTier": "Lifetime {tier}",
-      "lifetimeRequirement": "{nights}/{requiredNights} nights · {years}/{requiredYears} years",
-      "lifetimeHiltonRequirement": "{years}/{requiredYears} years plus {nights}/{requiredNights} nights or {spend}/{requiredSpend}",
-      "requirementMet": "Requirements met",
-      "marriottNightsDisclaimer": "Qualifying nights reset annually with no rollover; award stays generally count. Some brands earn 0.5 or no night credit, so official posting prevails.",
-      "entriesEmpty": "No entries yet — tap \"Accrue status\" to start",
-      "deleteAccountTitle": "Delete membership",
-      "deleteAccountMessage": "This also deletes all point entries for this program. This cannot be undone. Continue?",
-      "deleteEntryTitle": "Delete entry",
-      "deleteEntryMessage": "Delete this entry?",
-      "milesToNextTier": "{miles} miles to {tier}",
-      "segmentsToNextTier": "{segments} segments to {tier}",
-      "progressPathHint": "Upgrade by miles or segments — whichever comes first",
-      "renewalNote": "Card valid for 2 years; renewal uses different thresholds (see EVA Air)",
-      "renewalProgressMet": "Renewal (valid until {date}) met: {miles}/{requiredMiles} mi · {segments}/{requiredSegments} segs",
-      "renewalProgressPending": "Renewal (valid until {date}) not yet met: {miles}/{requiredMiles} mi · {segments}/{requiredSegments} segs",
-      "qualifyingMiles": "Qualifying miles",
-      "ownAirline": {
-        "CX": {
-          "label": "Eligible Cathay segment",
-          "hint": "Paid flight marketed with a CX flight number; used for the minimum-segment requirement"
-        },
-        "BR": {
-          "label": "EVA / UNI intl segment",
-          "hint": "Counts toward your segment total"
-        },
-        "CI": {
-          "label": "CI/AE self-operated international flight",
-          "hint": "Counts toward the self-operated international points ratio for upgrades and renewal"
-        }
-      },
-      "qualifyingAmount": "{miles} qual. mi",
-      "estimate": "Estimate",
-      "estimatorTitle": "Status Points estimator (Cathay)",
-      "estimatorDescription": "Estimate Status Points and Asia Miles from route distance and cabin, based on the official earn chart.",
-      "estimatorEmpty": "Pick departure and arrival airports to see an estimate",
-      "estimateDistance": "Great-circle distance ~{miles} mi · {zone}",
-      "zones": {
-        "ultraShort": "Ultra-short",
-        "short1": "Short – Type 1",
-        "short2": "Short – Type 2",
-        "medium": "Medium",
-        "long": "Long",
-        "ultraLong": "Ultra-long"
-      },
-      "estimatePrefill": "Estimated points (tap to fill; miles ×100)",
-      "earnDisclaimer": "Estimates use the official earn chart effective 20 Aug 2025 (verified {date}); actual earnings vary by fare type — official figures prevail",
-      "summaryMiles": "{value}/{total} mi",
-      "summarySegments": "{value}/{total} segs"
     }
   },
   "pwa": {
     "updateTitle": "Update available",
     "updateDescription": "Reload to get the latest features and fixes.",
     "updateAction": "Update"
-  },
-  "memberships": {
-    "title": "Memberships",
-    "subtitle": "Track airline and hotel loyalty tiers, points and miles by hand.",
-    "airlineHeading": "Airline",
-    "hotelHeading": "Hotel",
-    "airlineEmpty": "No airline membership set up",
-    "hotelEmpty": "Set up a hotel membership to track qualifying nights and tier progress",
-    "loadFailed": "Unable to load membership data. Please try again.",
-    "hotelComingSoon": "Hotel memberships coming soon",
-    "hotelComingSoonDesc": "Track Marriott, Hilton, IHG and more by qualifying nights — on the way."
   }
 }

@@ -170,7 +170,7 @@ describe('QueryProvider offline startup', () => {
           ? 'invalid json'
           : JSON.stringify({
               timestamp: kind === 'expired' ? 1 : Date.now(),
-              buster: kind === 'incompatible' ? 'old' : 'v12',
+              buster: kind === 'incompatible' ? 'old' : 'v13',
               clientState: { mutations: [], queries: [] },
             })
       );
@@ -352,7 +352,7 @@ describe('QueryProvider offline startup', () => {
     snapshot.setQueryData(shellKey, first);
     storage.set(
       persistKey,
-      JSON.stringify({ timestamp: Date.now(), buster: 'v12', clientState: dehydrate(snapshot) })
+      JSON.stringify({ timestamp: Date.now(), buster: 'v13', clientState: dehydrate(snapshot) })
     );
     for (const [amount, projection] of [
       [31, first],
@@ -402,7 +402,7 @@ describe('QueryProvider offline startup', () => {
       snapshot.setQueryData(shellKey, second);
       storage.set(
         persistKey,
-        JSON.stringify({ timestamp: Date.now(), buster: 'v12', clientState: dehydrate(snapshot) })
+        JSON.stringify({ timestamp: Date.now(), buster: 'v13', clientState: dehydrate(snapshot) })
       );
       for (const [amount, previousShell, appliedShell, status] of [
         [31, base, first, firstStatus],
@@ -454,7 +454,7 @@ describe('QueryProvider offline startup', () => {
         persistKey,
         JSON.stringify({
           timestamp: Date.now(),
-          buster: 'v12',
+          buster: 'v13',
           clientState: dehydrate(snapshot),
         })
       );

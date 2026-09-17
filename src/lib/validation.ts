@@ -1,7 +1,6 @@
 import { MAX_ACTIVITIES_PER_DAY } from '@/lib/itineraryLimits';
 import { z } from 'zod';
 import { SUPPORTED_CURRENCY_CODES } from '@/constants/currencies';
-import { LOYALTY_PROGRAMS, LOYALTY_ENTRY_TYPES } from '@/constants/loyalty';
 
 // Currency codes
 // 精選常用 6 種（保留供既有引用）；實際可接受的幣別為完整 ISO 4217 集合（見下方 schema）。
@@ -620,54 +619,6 @@ export const createStayRecordSchema = z.object({
 
 export const updateStayRecordSchema = createStayRecordSchema;
 
-// ── 會籍積分與里程（docs/PLAN-LOYALTY.md）────────────────────────────
-// user-level 個人資料；current_tier 的合法值依 program 不同，由 action 以
-// programTierKeys 驗證（constants/loyalty.ts 是 UI 也吃的規則常數，schema 端只驗格式）。
-const loyaltyProgramSchema = z.enum(LOYALTY_PROGRAMS);
-// 積分/里數為使用者手抄：允許負數（adjust/兌換沖銷），上限抓寬鬆的防呆值
-const loyaltyAmountSchema = z.number().int().min(-10_000_000).max(10_000_000);
-
-export const upsertLoyaltyAccountSchema = z.object({
-  program: loyaltyProgramSchema,
-  current_tier: z.string().trim().min(1).max(30),
-  // 目前卡級生效／升等進度起算日；未填時以各計畫預設窗口計算
-  tier_started_at: ymdSchema.nullable().default(null),
-  // 卡籍效期（term2y 續卡窗口用，BR/CI）；CX 等 sameWindow program 不顯示，恆傳 null
-  tier_expires_at: ymdSchema.nullable().default(null),
-  member_no: z.string().trim().max(30, '會員號過長').default(''),
-  lifetime_nights: z.number().multipleOf(0.5).min(0).max(1_000_000).default(0),
-  lifetime_silver_years: z.number().int().min(0).max(200).default(0),
-  lifetime_gold_years: z.number().int().min(0).max(200).default(0),
-  lifetime_platinum_years: z.number().int().min(0).max(200).default(0),
-  lifetime_diamond_years: z.number().int().min(0).max(200).default(0),
-  lifetime_spend_usd: z.number().min(0).max(1_000_000_000).default(0),
-  rollover_nights: z.number().multipleOf(0.5).min(0).max(10000).default(0),
-  note: z.string().trim().max(500, '備註過長').default(''),
-});
-
-export const createLoyaltyEntrySchema = z.object({
-  program: loyaltyProgramSchema,
-  date: ymdSchema,
-  type: z.enum(LOYALTY_ENTRY_TYPES),
-  status_points: loyaltyAmountSchema.default(0),
-  qualifying_miles: loyaltyAmountSchema.default(0),
-  award_miles: loyaltyAmountSchema.default(0),
-  qualifying_nights: z.number().multipleOf(0.5).min(-10000).max(10000).default(0),
-  qualifying_stays: z.number().int().min(-10000).max(10000).default(0),
-  elite_qualifying_points: loyaltyAmountSchema.default(0),
-  qualifying_spend_usd: z.number().min(-100_000_000).max(100_000_000).default(0),
-  reward_points: loyaltyAmountSchema.default(0),
-  own_airline: z.boolean().default(false),
-  // 來源飛行紀錄（「從飛行紀錄帶入」防重複）；歸屬與重複由 action 驗證
-  flight_record_id: objectIdSchema.nullable().optional(),
-  // 來源住宿紀錄（「從住宿收藏帶入」防重複）；歸屬與重複由 action 驗證
-  stay_record_id: objectIdSchema.nullable().optional(),
-  note: z.string().trim().max(500, '備註過長').default(''),
-});
-
-// 表單整筆送出，更新沿用建立 schema（同飛行/住宿紀錄慣例）
-export const updateLoyaltyEntrySchema = createLoyaltyEntrySchema;
-
 // Type exports
 export type CreateChecklistInput = z.infer<typeof createChecklistSchema>;
 export type CreateChecklistWithItemsInput = z.infer<typeof createChecklistWithItemsSchema>;
@@ -705,5 +656,3 @@ export type DeletePhotosInput = z.infer<typeof deletePhotosSchema>;
 export type PhotoItemInput = z.infer<typeof photoItemSchema>;
 export type CreateFlightRecordInput = z.infer<typeof createFlightRecordSchema>;
 export type CreateStayRecordInput = z.infer<typeof createStayRecordSchema>;
-export type UpsertLoyaltyAccountInput = z.infer<typeof upsertLoyaltyAccountSchema>;
-export type CreateLoyaltyEntryInput = z.infer<typeof createLoyaltyEntrySchema>;

@@ -41,7 +41,7 @@
 - [資料庫遷移（migrate-mongo）](details/MIGRATIONS.md)
 - [離線支出安全重送](details/OFFLINE_EXPENSE_RETRY.md)
 - [個人統計維護說明](details/PERSONAL_STATS_DASHBOARD.md)
-- [會籍等級 tag 顏色規則（TIER-COLORS）](details/TIER-COLORS.md)
+- [會籍等級 tag 顏色規則（TIER-COLORS）](details/TIER-COLORS.md)（會籍功能已下線，僅供歷史參考）
 - [Trip Shell 效能基線](details/TRIP_SHELL_PERFORMANCE.md)
 - [UI/UX 實作規格](details/UI_UX_SPEC.md)
 

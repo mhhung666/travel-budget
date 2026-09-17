@@ -3,7 +3,7 @@
 import { withTripWrite, TripWriteError } from '@/lib/tripWriteTransaction';
 import { isValidObjectId, Types, type mongo } from 'mongoose';
 import { dbConnect } from '@/lib/mongodb';
-import { FlightRecord, StayRecord, LoyaltyEntry, Trip, ItineraryDay } from '@/models';
+import { FlightRecord, StayRecord, Trip, ItineraryDay } from '@/models';
 import type { FlightRecordDoc, StayRecordDoc } from '@/models';
 import { getTripMembership } from '@/lib/permissions';
 import {
@@ -346,11 +346,6 @@ export const deleteFlightRecord = withAuth(
       if (result.deletedCount === 0) {
         return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
       }
-      // 會籍 entry 解除連結（積分仍是賺到的，entry 保留）；同 deleteTrip 對本 collection 的語意
-      await LoyaltyEntry.updateMany(
-        { user: session.userId, flightRecord: recordId },
-        { $set: { flightRecord: null } }
-      );
 
       return { success: true, data: { deleted: true } };
     } catch (error) {
@@ -497,11 +492,6 @@ export const deleteStayRecord = withAuth(
       if (result.deletedCount === 0) {
         return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
       }
-      // 會籍 entry 解除連結但保留房晚／點數歷史。
-      await LoyaltyEntry.updateMany(
-        { user: session.userId, stayRecord: recordId },
-        { $set: { stayRecord: null } }
-      );
 
       return { success: true, data: { deleted: true } };
     } catch (error) {

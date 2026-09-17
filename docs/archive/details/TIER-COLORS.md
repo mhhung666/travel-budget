@@ -1,5 +1,7 @@
 # 會籍等級 tag 顏色規則（TIER-COLORS）
 
+> **已下線**：會籍功能（`/memberships`）與本檔引用的程式碼已移除，本檔僅供歷史參考。
+
 會籍頁（`/memberships`）各計畫收合列的等級 badge（[ProgramProgressCard](../../../src/components/memberships/ProgramProgressCard.tsx)）
 以**該等級官方會員卡的卡面主色**做底色，讓等級一眼可辨。本檔制定取色與維護規則；
 色值本體集中在 [constants/loyalty.ts](../../../src/constants/loyalty.ts) 的 `TIER_BADGE_COLORS`。

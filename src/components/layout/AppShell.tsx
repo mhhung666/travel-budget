@@ -11,7 +11,6 @@ import {
   Map as MapIcon,
   Sparkles,
   Medal,
-  Ticket,
   ReceiptText,
 } from 'lucide-react';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
@@ -52,7 +51,7 @@ export interface ShellUser {
  * 登入後的 App Shell：由 (app)/layout.tsx 渲染一次，換頁只換內容區。
  * - 桌機（≥ md）：頂列 = logo + 旅行/地圖/統計 + 記一筆 + 鈴鐺 +「我的」選單。
  * - 行動（< md）：頂列只放 目前位置標題 + 鈴鐺；全域導覽走 BottomTabBar。
- *   個人統計在兩種尺寸皆為一級入口；成就、會籍、回顧與設定歸入「我的」。
+ *   個人統計在兩種尺寸皆為一級入口；成就、回顧與設定歸入「我的」。
  * - 頂列 sticky（非 fixed），內容不再需要 pt-24 魔術數字。
  */
 export function AppShell({
@@ -87,7 +86,6 @@ export function AppShell({
 
   const personalNavLinks = [
     { href: '/collections', label: t('collections'), icon: Medal, target: 'collections' },
-    { href: '/memberships', label: t('memberships'), icon: Ticket, target: 'memberships' },
     { href: '/wrapped', label: t('wrapped'), icon: Sparkles, target: 'wrapped' },
   ] as const;
 
@@ -120,7 +118,6 @@ export function AppShell({
     if (isActive('/map')) return t('map');
     if (isActive('/stats')) return t('stats');
     if (isActive('/collections')) return t('collections');
-    if (isActive('/memberships')) return t('memberships');
     if (isActive('/wrapped')) return t('wrapped');
     if (isActive('/settings')) return t('me');
     if (isActive(ROUTES.QUICK_ADD)) return t('quickAdd');

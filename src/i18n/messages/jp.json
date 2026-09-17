@@ -60,7 +60,6 @@
     "collections": "旅の実績",
     "me": "マイページ",
     "bottomNav": "メインナビゲーション",
-    "memberships": "メンバーシップ",
     "quickAdd": "支出を記録"
   },
   "quickAdd": {
@@ -76,7 +75,7 @@
     "hero": {
       "eyebrow": "計画・記録・探索",
       "title": "旅程づくりから旅の足跡まで、ひとつに",
-      "subtitle": "AIで旅程を整理し、仲間と支出を記録・精算。個人予算、旅の分析、アルバム、マップ、会員プログラムの進捗まで一か所で管理できます。",
+      "subtitle": "AIで旅程を整理し、仲間と支出を記録・精算。個人予算、旅の分析、アルバム、マップ、年間まとめまで一か所で管理できます。",
       "getStarted": "始める",
       "viewTrips": "旅行を見る"
     },
@@ -96,8 +95,8 @@
         "description": "リスト、ノート、アルバムを共有し、柔軟な割り勘で精算もシンプルに。"
       },
       "remember": {
-        "title": "足跡も会員プログラムも記録",
-        "description": "旅行マップや年間まとめと一緒に、航空・ホテル会員の進捗も管理。"
+        "title": "旅の思い出を残そう",
+        "description": "旅行マップや年間まとめで旅を振り返り、フライトや宿泊の記録を残せます。"
       }
     }
   },
@@ -1675,8 +1674,6 @@
       "empty": "フライト記録がありません",
       "emptyDesc": "搭乗したフライトを記録して、航空会社とアライアンスを集めよう",
       "addFlight": "フライトを追加",
-      "accrueLoyalty": "{program} のステータスに加算",
-      "accrueLoyaltyHint": "このフライトのステータスポイントとマイルを記録（数値は航空会社アプリから転記）",
       "editFlight": "フライトを編集",
       "formDescription": "搭乗したフライトを記録します。空港はフライトマップと距離集計に使用されます",
       "airline": "航空会社",
@@ -1729,12 +1726,6 @@
       "nights": "泊数",
       "stars": "星",
       "city": "都市",
-      "accrueMarriott": "Marriott Bonvoy会員情報に追加",
-      "accrueHotelProgram": "{program}会員情報に追加",
-      "accrueHotelProgramHint": "宿泊数とポイントは候補値です。公式の反映を確認してください。",
-      "accrueMarriottHint": "宿泊数は候補値です。特典宿泊、0.5泊対象ブランド、対象利用額は公式反映を確認してください。",
-      "addToMarriott": "Marriott Bonvoyに追加",
-      "marriottCrossYearHint": "この宿泊は年をまたぎます。通常の宿泊実績は実際の宿泊日に応じて年別になるため、公式反映を会員ページで年ごとに分けて記録してください。",
       "staysCount": "宿泊 {count} 回",
       "nightsCount": "{count} 泊",
       "independent": "独立系ホテル",
@@ -1822,220 +1813,11 @@
       "notFound": "この共有ページは利用できません。",
       "empty": "まだ表示できる達成はありません。",
       "cta": "自分のコレクションを始める"
-    },
-    "loyalty": {
-      "empty": "会員プログラムが未設定です",
-      "emptyDesc": "航空会社の会員プログラムを設定し、ポイントとマイルを手動で記帳してステータスの進捗を確認",
-      "setupAccount": "会員情報を設定",
-      "editAccount": "会員情報を編集",
-      "accountFormDescription": "現在のステータスを自己申告し、ポイント・マイルは後から記帳",
-      "program": "プログラム",
-      "programs": {
-        "CX": "キャセイパシフィック航空",
-        "CI": "チャイナエアライン",
-        "BR": "エバー航空",
-        "MB": "Marriott Bonvoy",
-        "HH": "Hilton Honors",
-        "IHG": "IHG One Rewards"
-      },
-      "tierLabel": "現在のステータス",
-      "tierStarted": "現在のステータス開始日",
-      "tierStartedHint": "チャイナ エアラインとエバー航空はこの日から次のステータスを計算します。未入力の場合は直近12か月を使用します。",
-      "memberNo": "会員番号",
-      "tierExpires": "カード有効期限",
-      "tiers": {
-        "CX": {
-          "green": "グリーン",
-          "silver": "シルバー",
-          "gold": "ゴールド",
-          "diamond": "ダイヤモンド",
-          "diamond_plus": "ダイヤモンド・エグゼクティブ"
-        },
-        "CI": {
-          "member": "ダイナスティ",
-          "gold": "ゴールド",
-          "emerald": "エメラルド",
-          "paragon": "パラゴン"
-        },
-        "BR": {
-          "green": "グリーン",
-          "silver": "シルバー",
-          "gold": "ゴールド",
-          "diamond": "ダイヤモンド"
-        },
-        "MB": {
-          "member": "会員",
-          "silver": "シルバーエリート",
-          "gold": "ゴールドエリート",
-          "platinum": "プラチナエリート",
-          "titanium": "チタンエリート",
-          "ambassador": "アンバサダーエリート"
-        },
-        "HH": {
-          "member": "メンバー",
-          "silver": "シルバー",
-          "gold": "ゴールド",
-          "diamond": "ダイヤモンド",
-          "diamond_reserve": "ダイヤモンド・リザーブ"
-        },
-        "IHG": {
-          "club": "クラブ",
-          "silver": "シルバーエリート",
-          "gold": "ゴールドエリート",
-          "platinum": "プラチナエリート",
-          "diamond": "ダイヤモンドエリート"
-        }
-      },
-      "stats": {
-        "yearPoints": "{year}年のポイント",
-        "points12m": "直近12ヶ月のポイント",
-        "milesBalance": "マイル残高",
-        "carryOver": "繰越見込み",
-        "ownAirlineRatio": "自社運航国際線比率",
-        "windowMiles": "資格マイル",
-        "segments": "国際区間",
-        "yearNights": "{year}年の対象宿泊数",
-        "qualifiedSpend": "年間対象利用額",
-        "pointsBalance": "ポイント残高",
-        "yearStays": "対象滞在数",
-        "eliteQualifyingPoints": "エリート資格対象ポイント"
-      },
-      "progressToNext": "{tier}まであと{points}ポイント",
-      "windowCalendar": "計算期間：{year}/01/01–{year}/12/31",
-      "windowRange": "計算期間：{start}–{end}",
-      "maxTier": "最上位ステータス達成",
-      "renewalMet": "更新基準を達成（{required}ポイント）",
-      "renewalPending": "更新基準は{required}ポイント、あと{points}ポイント",
-      "renewalNeedsExpiry": "カード有効期限を設定すると更新の進捗を計算できます",
-      "disclaimer": "基準は{date}時点の確認です。実際のポイント・ステータスは公式情報をご確認ください",
-      "ownAirlineWarning": "自社便のポイント比率は{percent}%——昇格・更新には{required}%以上が必要です",
-      "renewalOwnAirlineWarning": "更新期間の対象自社運航国際線ポイントは{percent}%です。{required}%以上が必要です",
-      "cxSegmentsProgress": "対象キャセイ便区間 {value}/{required}",
-      "estimatedTier": "推定{tier}",
-      "estimated2027Tier": "2027年推定：{tier}",
-      "confirmTier": "ステータスを同期",
-      "tierUpdated": "現在のステータスを更新しました",
-      "tierUpdatedNeedsReview": "ステータスを更新しました。公式の新しい有効期限と繰越残高を入力してください",
-      "officialVsEstimated": "確認済みの公式ステータス：{official}。記録からの推定：{estimated}。",
-      "cxTransitionNote": "2026年のポイントによる2027年ステータス予測は{estimated}です。2026年中の即時昇格は公式会員年度に従います。",
-      "addEntry": "ステータスに加算",
-      "editEntry": "記録を編集",
-      "entryFormDescription": "航空会社アプリからポイント・マイルの増減を転記",
-      "hotelEntryFormDescription": "ホテルアプリから対象宿泊数・利用額・ポイントを転記",
-      "entryType": "種類",
-      "types": {
-        "flight": "フライト",
-        "stay": "ホテル",
-        "card": "クレジットカード",
-        "dining": "飲食・買い物",
-        "promo": "キャンペーン",
-        "adjust": "調整・取消",
-        "other": "その他"
-      },
-      "statusPoints": "ステータスポイント",
-      "awardMiles": "マイル",
-      "pointsAmount": "{points}ポイント",
-      "milesAmount": "{miles}マイル",
-      "ownAirlineMarker": "対象自社便",
-      "linkedFlightMarker": "フライト記録に連携済み",
-      "linkedStayMarker": "宿泊記録に連携済み",
-      "qualifyingNights": "対象宿泊数",
-      "qualifyingSpendUsd": "対象利用額（USD）",
-      "rewardPoints": "Bonvoyポイント",
-      "hotelRewardPoints": "利用可能ポイント",
-      "qualifyingStays": "対象滞在数",
-      "eliteQualifyingPoints": "エリート資格対象ポイント",
-      "staysAlternative": "または対象滞在 {value}/{total} 回",
-      "eqpAlternative": "または資格対象ポイント {value}/{total}",
-      "staysAmount": "{stays} 滞在",
-      "eqpAmount": "{points} 資格対象ポイント",
-      "lifetimeDiamondYears": "ダイヤモンド年数",
-      "lifetimeSpendUsd": "生涯対象利用額（USD）",
-      "rolloverNights": "繰越宿泊数",
-      "rolloverNightsHint": "IHGステータス判定のみ対象で、マイルストーン特典には含まれません。",
-      "hotelDisclaimer": {
-        "MB": "対象宿泊数は毎年リセットされ、一部ブランドは0.5泊または対象外です。",
-        "HH": "2026年以降は新たな繰越宿泊はなく、宿泊数・滞在数・対象利用額で判定されます。",
-        "IHG": "ゴールド以上の超過宿泊は1年繰越可能ですが、マイルストーン特典には含まれません。"
-      },
-      "nightsAmount": "{nights}泊",
-      "spendAmount": "US${spend}",
-      "rewardPointsAmount": "{points}ポイント",
-      "summaryNights": "{value}/{total}泊",
-      "nightsToNextTier": "{tier}まであと{nights}泊",
-      "spendToAmbassador": "アンバサダーまで対象利用額あと{spend}",
-      "choiceBenefit": "年間チョイス特典",
-      "choiceBenefitReached": "{nights}泊の基準達成。Marriottで特典を選択してください",
-      "choiceBenefitNext": "{threshold}泊特典まであと{nights}泊",
-      "lifetimeProgress": "ライフタイムステータス",
-      "lifetimeProgressHint": "Marriott公式アカウントの累計宿泊数と対象年数を手動で同期します。",
-      "lifetimeNights": "累計対象宿泊数",
-      "lifetimeYears": "{tier}以上の年数",
-      "lifetimeTier": "ライフタイム{tier}",
-      "lifetimeRequirement": "{nights}/{requiredNights}泊・{years}/{requiredYears}年",
-      "lifetimeHiltonRequirement": "{years}/{requiredYears}年、かつ{nights}/{requiredNights}泊または{spend}/{requiredSpend}",
-      "requirementMet": "条件達成",
-      "marriottNightsDisclaimer": "対象宿泊数は毎年リセットされ繰越不可。特典宿泊も通常は対象です。一部ブランドは0.5泊または対象外のため、公式反映を優先してください。",
-      "entriesEmpty": "まだ記録がありません。「ステータスに加算」から始めましょう",
-      "deleteAccountTitle": "会員情報を削除",
-      "deleteAccountMessage": "このプログラムのポイント記録もすべて削除されます。この操作は取り消せません。よろしいですか？",
-      "deleteEntryTitle": "記録を削除",
-      "deleteEntryMessage": "この記録を削除しますか？",
-      "milesToNextTier": "{tier}まで残り{miles}マイル",
-      "segmentsToNextTier": "{tier}まで残り{segments}区間",
-      "progressPathHint": "マイルか区間のいずれか達成で昇格（直近12ヶ月）",
-      "renewalNote": "カード有効期間は2年、継続基準は別途（公式をご確認ください）",
-      "renewalProgressMet": "更新（有効期限{date}まで）達成：{miles}/{requiredMiles}マイル・{segments}/{requiredSegments}区間",
-      "renewalProgressPending": "更新（有効期限{date}まで）未達成：{miles}/{requiredMiles}マイル・{segments}/{requiredSegments}区間",
-      "qualifyingMiles": "資格マイル",
-      "ownAirline": {
-        "CX": {
-          "label": "対象キャセイ便区間",
-          "hint": "CX便名の有償航空券。昇格に必要な最低区間数の判定に使用します"
-        },
-        "BR": {
-          "label": "エバー／ユニー国際線区間",
-          "hint": "区間数に加算されます"
-        },
-        "CI": {
-          "label": "CI／AE自社運航国際線",
-          "hint": "昇格・更新に必要な自社運航国際線ポイント比率に加算されます"
-        }
-      },
-      "qualifyingAmount": "資格 {miles} マイル",
-      "estimate": "試算",
-      "estimatorTitle": "ポイント試算（キャセイ）",
-      "estimatorDescription": "公式の獲得表に基づき、路線距離とキャビンクラスからステータスポイントとマイルの目安を算出します。",
-      "estimatorEmpty": "出発・到着空港を選ぶと目安が表示されます",
-      "estimateDistance": "大圏距離 約{miles}マイル・{zone}",
-      "zones": {
-        "ultraShort": "超短距離",
-        "short1": "短距離－タイプ1",
-        "short2": "短距離－タイプ2",
-        "medium": "中距離",
-        "long": "長距離",
-        "ultraLong": "超長距離"
-      },
-      "estimatePrefill": "ポイント目安（タップで入力、マイルは×100）",
-      "earnDisclaimer": "目安は2025/8/20発効の公式獲得表に基づきます（{date}確認）。同じキャビンでも運賃種別により異なります。実際は公式情報をご確認ください",
-      "summaryMiles": "{value}/{total} マイル",
-      "summarySegments": "{value}/{total} 区間"
     }
   },
   "pwa": {
     "updateTitle": "新しいバージョンがあります",
     "updateDescription": "更新すると最新の機能と修正が利用できます。",
     "updateAction": "更新"
-  },
-  "memberships": {
-    "title": "メンバーシップ",
-    "subtitle": "航空・ホテルの会員ステータス、ポイント・マイルを手動で記録。",
-    "airlineHeading": "航空",
-    "hotelHeading": "ホテル",
-    "airlineEmpty": "航空会員プログラムは未設定です",
-    "hotelEmpty": "ホテル会員プログラムを設定して対象宿泊数とステータスを追跡",
-    "loadFailed": "会員情報を読み込めませんでした。もう一度お試しください。",
-    "hotelComingSoon": "ホテル会員資格は近日対応",
-    "hotelComingSoonDesc": "マリオット、ヒルトン、IHG など宿泊数制の会員資格に順次対応予定。"
   }
 }

@@ -4,24 +4,17 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { FlightRecordDialog } from '@/components/collections/FlightRecordDialog';
 import type { FlightRecordItem } from '@/types';
 
-const { createFlight, updateFlight, createEntry } = vi.hoisted(() => ({
+const { createFlight, updateFlight } = vi.hoisted(() => ({
   createFlight: { isPending: false, mutateAsync: vi.fn() },
   updateFlight: { isPending: false, mutateAsync: vi.fn() },
-  createEntry: { isPending: false, mutateAsync: vi.fn() },
 }));
 
 vi.mock('@/hooks/queries', () => ({
   useAirlines: () => ({ data: [] }),
-  useAirports: () => ({ data: undefined }),
   useCollectionMutations: () => ({ createFlight, updateFlight }),
-  useLoyalty: () => ({ data: { accounts: [], entries: [] } }),
-  useLoyaltyMutations: () => ({ createEntry }),
 }));
 vi.mock('@/hooks/useMediaQuery', () => ({
   useMediaQuery: () => true,
-}));
-vi.mock('@/components/common/QueryStatus', () => ({
-  QueryStatus: () => null,
 }));
 // 目錄型下拉換成原生輸入，測試只關心起訖相同的判斷。
 vi.mock('@/components/collections/AirportCombobox', () => ({

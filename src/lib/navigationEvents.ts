@@ -7,7 +7,6 @@ export type NavigationTarget =
   | 'me'
   | 'stats'
   | 'collections'
-  | 'memberships'
   | 'wrapped'
   | 'settings';
 

@@ -90,9 +90,6 @@ export type {
   VisitedCountryItem,
   CollectionsData,
   TripCollectionLinks,
-  LoyaltyAccountItem,
-  LoyaltyEntryItem,
-  LoyaltyData,
 } from './models';
 
 // ============================================

@@ -93,4 +93,3 @@ export type {
   CollectionsData,
   TripCollectionLinks,
 } from './collection';
-export type { LoyaltyAccountItem, LoyaltyEntryItem, LoyaltyData } from './loyalty';
