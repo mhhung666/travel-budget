@@ -1,5 +1,8 @@
 # 全站表單 UI／UX 檢查
 
+> **已結案（2026-09-17）。** F01～F10 已修正並通過本機重測（`f3e37f2`）；使用者確認完成後歸檔。內文的「目前工作目錄」「未建立 commit」「待驗證」為當時脈絡。
+> 現行行為見 [現有功能](../../FEATURES.md)。
+
 測試日期：2026-09-17。程式基準：`1624c03`；應用版本以 `package.json.version` 為準。
 
 **初測結論：不能判定所有表單符合 UI／UX 要求。** 初次盤點 19 個包含實際 `<form>` 的元件，另納入沒有使用 `<form>` 的行程活動、隨手記、清單、搜尋、分享與設定輸入。已確認 4 項 P1、6 項 P2，主要問題是輸入被清空、送出失敗遺失內容、中文組字誤送出，以及欄位名稱缺失。
@@ -85,7 +88,7 @@
 
 - **重現**：旅行成就 → 新增飛行紀錄 → 日期精度選「年份」→ 清空 → 逐字輸入 `2018`。
 - **實測**：三種尺寸的最終值都是空字串。第一個字尚未滿四碼就被清除，後續字元亦同；一次貼上四碼與逐字輸入不是相同驗證。
-- **原因**：[RecordFormFields.tsx](../src/components/collections/RecordFormFields.tsx) 的 `DatePrecisionInput` 每次 onChange 只接受四碼，否則把受控值設成空字串。住宿也使用此元件，屬同一修正範圍。
+- **原因**：[RecordFormFields.tsx](../../../src/components/collections/RecordFormFields.tsx) 的 `DatePrecisionInput` 每次 onChange 只接受四碼，否則把受控值設成空字串。住宿也使用此元件，屬同一修正範圍。
 - **改善**：保留可編輯的年份字串，允許空值及 1～4 碼中間狀態；在離焦／送出時驗證年份與轉換日期。
 - **驗收**：逐字輸入、全選替換、刪除一碼再補回、貼上四碼均正常；超出範圍時顯示明確原因。飛行及住宿各重測。
 
@@ -93,7 +96,7 @@
 
 - **重現**：隨手記輸入內容，攔截本機 POST 使其失敗，再點「送出」。
 - **實測**：三種尺寸均出現錯誤提示 `Failed to fetch`，但輸入框已清空，列表沒有新增內容，也沒有恢復入口。
-- **原因**：[NoteComposer.tsx](../src/components/trips/detail/notes/NoteComposer.tsx) 在請求成功前執行 `setDraft('')`、`setAttachments([])`，呼叫端只顯示錯誤，沒有還原輸入。文字遺失已實測；附件同樣提前清空是原始碼發現，未做上傳實測。
+- **原因**：[NoteComposer.tsx](../../../src/components/trips/detail/notes/NoteComposer.tsx) 在請求成功前執行 `setDraft('')`、`setAttachments([])`，呼叫端只顯示錯誤，沒有還原輸入。文字遺失已實測；附件同樣提前清空是原始碼發現，未做上傳實測。
 - **改善**：成功後才清空；或保留獨立的待送出快照，失敗可恢復／重試，同時避免覆蓋使用者送出後新寫的內容。錯誤使用本地化文字。
 - **驗收**：離線、請求失敗、伺服器拒絕時文字與附件仍可重試；成功清空且只新增一次。
 
@@ -101,7 +104,7 @@
 
 - **重現**：填入隨手記文字，觸發 `isComposing: true` 的 Enter；320px 清單新增項目做相同測試。
 - **實測**：三尺寸隨手記均觸發送出並清空；清單新增一筆「中文選字中」，輸入亦清空。前者攔截網路避免誤存，後者在本機資料庫確認新增。
-- **原因**：[NoteComposer.tsx](../src/components/trips/detail/notes/NoteComposer.tsx)、[ChecklistCard.tsx](../src/components/trips/detail/checklist/ChecklistCard.tsx) 的 Enter handler 沒有排除 composition。共用 [tag-input.tsx](../src/components/ui/tag-input.tsx) 的 Enter／逗號提交也有相同程式碼缺口，尚未做實際標籤操作確認。
+- **原因**：[NoteComposer.tsx](../../../src/components/trips/detail/notes/NoteComposer.tsx)、[ChecklistCard.tsx](../../../src/components/trips/detail/checklist/ChecklistCard.tsx) 的 Enter handler 沒有排除 composition。共用 [tag-input.tsx](../../../src/components/ui/tag-input.tsx) 的 Enter／逗號提交也有相同程式碼缺口，尚未做實際標籤操作確認。
 - **改善**：組字期間不提交，統一處理輸入法事件；清單重新命名與標籤同步檢查。提交函式也應檢查 pending，避免只停用按鈕卻仍可用鍵盤重複送出。
 - **驗收**：注音／拼音／日文選字 Enter 不送出；結束組字後的明確送出才生效；一般 Enter、Shift+Enter 與按鈕仍符合原設計。須補真機輸入法。
 
@@ -120,7 +123,7 @@
 | 編輯筆記、清單重新命名，320px | 各 1 個 `label` |
 | 國泰會籍流水，320px | 1 個 `button-name`、2 個 `label` |
 
-- **涉及元件**：[RecordFormFields.tsx](../src/components/collections/RecordFormFields.tsx)、四個 collections 表單、航空／機場／品牌 combobox、[LocationAutocomplete.tsx](../src/components/location/LocationAutocomplete.tsx)、[RecordPaymentDialog.tsx](../src/components/settlement/RecordPaymentDialog.tsx)、筆記與清單編輯。
+- **涉及元件**：[RecordFormFields.tsx](../../../src/components/collections/RecordFormFields.tsx)、四個 collections 表單、航空／機場／品牌 combobox、[LocationAutocomplete.tsx](../../../src/components/location/LocationAutocomplete.tsx)、[RecordPaymentDialog.tsx](../../../src/components/settlement/RecordPaymentDialog.tsx)、筆記與清單編輯。
 - **原始碼延伸範圍**：自訂分帳數字、旅行匯率、部分統計／結算幣別、會籍試算，以及五種分享唯讀輸入框也缺少明確關聯。這些延伸項目尚未逐一跑 axe。placeholder 可能讓工具不報錯，但填入後看不到用途提示，仍應檢查持續可見標籤。
 - **改善**：一般欄位使用唯一 id 與 `htmlFor`；共用複合欄位接受 id／label props；日期精度與日期值各有名稱；重複欄位包含成員或幣別；提示與錯誤透過 `aria-describedby` 關聯。
 - **驗收**：不靠 placeholder 或目前選值也能辨認欄位用途；點可見標籤能聚焦對應欄位；新增／編輯／條件展開狀態均重測。不能只用新增 aria-label 掩蓋可見標籤不一致。
@@ -136,14 +139,14 @@
 | 虛擬成員註冊 | -74.19 | 716.38 | 642.19 | 標題、關閉與底部取消超出視窗 |
 
 - **界線**：不表示所有儲存按鈕均不可按；編輯旅行的儲存仍在畫面內。390／412 × 844 的上述視窗可容納。虛擬成員連結視窗在三尺寸也可容納。
-- **原因**：[dialog.tsx](../src/components/ui/dialog.tsx) 預設置中；上述呼叫端沒有高度限制與內部捲動。行程日、預算已有不同處理，不能一概判定所有 Dialog 有問題。
+- **原因**：[dialog.tsx](../../../src/components/ui/dialog.tsx) 預設置中；上述呼叫端沒有高度限制與內部捲動。行程日、預算已有不同處理，不能一概判定所有 Dialog 有問題。
 - **改善**：長表單使用可捲動內容區與可見操作列，或套用既有 `ResponsiveFormSheet`；錯誤訊息增加高度後也應維持可操作。
 - **驗收**：320 × 568 及更短可視區域，標題、關閉、欄位及取消／送出都可抵達；補驗實機鍵盤。僅用 `100dvh` 不能取代實機鍵盤測試。
 
 ### F06 · P2 · 關閉建立旅行時無提示清除內容
 
 - **重現**：320px 建立旅行 → 輸入「未儲存旅程」→ 點關閉 → 重開。
-- **實測**：名稱變成空字串，無保留或放棄確認。來源為 [CreateTripDialog.tsx](../src/components/trips/CreateTripDialog.tsx) 的 `handleClose()`。
+- **實測**：名稱變成空字串，無保留或放棄確認。來源為 [CreateTripDialog.tsx](../../../src/components/trips/CreateTripDialog.tsx) 的 `handleClose()`。
 - **改善**：有變更時保留草稿或詢問是否放棄；與已有草稿機制的支出表單保持一致。其他長表單也應訂定一致策略，本次不把未實測者一律視為已確認遺失。
 - **驗收**：無變更直接關閉；有變更時可恢復或明確放棄；送出成功才清空。
 
@@ -151,7 +154,7 @@
 
 - **重現**：320px 登入，延遲 POST 回應，在送出中讀取 submit button。
 - **實測**：按鈕文字為空，沒有 aria-label。停用狀態不等於提供「登入中」進度名稱。
-- **來源**：[LoginForm.tsx](../src/components/login/LoginForm.tsx) 將整個文字替換為 Loader2；註冊共用同一分支。[ForgotPasswordModal.tsx](../src/components/login/ForgotPasswordModal.tsx) 的寄碼／重設按鈕亦有相同模式，屬原始碼確認。
+- **來源**：[LoginForm.tsx](../../../src/components/login/LoginForm.tsx) 將整個文字替換為 Loader2；註冊共用同一分支。[ForgotPasswordModal.tsx](../../../src/components/login/ForgotPasswordModal.tsx) 的寄碼／重設按鈕亦有相同模式，屬原始碼確認。
 - **改善／驗收**：保留可讀的「登入中／註冊中／傳送中」文字或名稱，圖示設為裝飾；載入期間仍能取得正確名稱及避免重複提交。
 
 ### F08 · P2 · 帳號與密碼欄位未宣告自動填寫用途
@@ -165,7 +168,7 @@
 
 - **重現**：320px 建立旅行 → 開啟目的地搜尋 → 攔截 Nominatim 請求使其失敗 → 輸入 `Tokyo`。
 - **實測**：畫面顯示「找不到地點」，沒有服務失敗與重試提示。
-- **原因**：[LocationAutocomplete.tsx](../src/components/location/LocationAutocomplete.tsx) catch 回傳空陣列，與成功但零結果共用呈現。
+- **原因**：[LocationAutocomplete.tsx](../../../src/components/location/LocationAutocomplete.tsx) catch 回傳空陣列，與成功但零結果共用呈現。
 - **改善／驗收**：分開處理載入中、零結果、請求失敗；失敗保留關鍵字並可重試；不得暗示地點不存在。搜尋競速／過期回應另應補測，本次未列為已實測問題。
 
 ### F10 · P2 · 驗證錯誤未連到需要修改的欄位
