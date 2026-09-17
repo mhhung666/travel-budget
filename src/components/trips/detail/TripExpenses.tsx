@@ -7,6 +7,7 @@ import { EmptyState } from '@/components/common';
 import { useTranslations } from 'next-intl';
 import { getCategoryIcon, CATEGORY_CODES } from '@/constants/categories';
 import { formatCurrency } from '@/constants/currencies';
+import { roundMoney } from '@/lib/money';
 import type { Expense, Member, ItineraryDay } from '@/types';
 import { ExportMenu } from '@/components/export';
 import { exportExpenses, type ExportFormat } from '@/lib/exporters';
@@ -429,7 +430,7 @@ const ExpenseResults = memo(function ExpenseResults({
                 <div className="flex items-baseline justify-between px-1">
                   <h3 className="text-sm font-medium text-muted-foreground">{group.label}</h3>
                   <span className="text-xs tabular-nums text-muted-foreground">
-                    {formatCurrency(Math.round(group.total), 'TWD')}
+                    {formatCurrency(roundMoney(group.total), 'TWD')}
                   </span>
                 </div>
                 <div className="space-y-2">

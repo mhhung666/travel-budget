@@ -442,6 +442,7 @@
       "tagsPlaceholder": "Type and press Enter or comma to add",
       "summary": {
         "equalSplit": "{count, plural, one {# person} other {# people}} equally · {amount} each",
+        "equalSplitUneven": "{count, plural, one {# person} other {# people}} equally",
         "customSplit": "{mode} · {count, plural, one {# person} other {# people}} · {allocated} allocated",
         "converted": "{original} ≈ {converted}",
         "loadingRate": "Loading exchange rate…"
@@ -645,6 +646,7 @@
     "myShare": "My share",
     "plan": "Settlement Plan",
     "transferCount": "transfers",
+    "approxAmount": "≈ {amount}",
     "noTransfersTitle": "No transfers needed",
     "noTransfersHint": "Everyone has paid exactly their own share.",
     "allSettledTitle": "All settled up",

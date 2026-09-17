@@ -42,10 +42,11 @@ export function getCurrencySymbol(code: string): string {
 export function formatCurrency(amount: number, currencyCode: string, locale = 'zh'): string {
   const symbol = getCurrencySymbol(currencyCode);
   const sign = amount < 0 ? '-' : '';
-  // 整數金額不補 .00(TWD 實務上不顯示分位),非整數最多兩位小數。
+  // 帳內金額保留到分：整數不補 .00、小數省略末尾的零，最多兩位。
+  // 不分幣別（含 JPY），分攤尾差才不會在顯示時被四捨五入藏掉。
   const formatted = Math.abs(amount).toLocaleString(toIntlLocale(locale), {
     minimumFractionDigits: 0,
-    maximumFractionDigits: currencyCode === 'JPY' ? 0 : 2,
+    maximumFractionDigits: 2,
   });
   // 完整 ISO 清單中的非精選幣別沒有 symbol mapping，以「CODE 1,234」
   // 顯示，避免黏成 KRW1,234。

@@ -6,8 +6,9 @@ describe('formatCurrency', () => {
     expect(formatCurrency(1234, 'TWD')).toBe('NT$1,234');
   });
 
-  it('rounds JPY to a whole number', () => {
-    expect(formatCurrency(1234.56, 'JPY')).toBe('¥1,235');
+  it('keeps JPY cents so split shares are not hidden', () => {
+    expect(formatCurrency(1234.56, 'JPY')).toBe('¥1,234.56');
+    expect(formatCurrency(1234, 'JPY')).toBe('¥1,234');
   });
 
   it('adds a space for ISO currencies without a curated symbol', () => {

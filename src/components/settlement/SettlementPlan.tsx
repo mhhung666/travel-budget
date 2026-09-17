@@ -82,8 +82,13 @@ export default function SettlementPlan({
   };
 
   // 全站金額一律走 formatCurrency（NT$1,972），不自行拼 `TWD 1972.00`。
+  // 外幣是依匯率換算的參考金額，標「約」和帳內精確的 TWD 金額區分。
   const formatAmount = (amount: number): string =>
-    formatCurrency(convertAmount(amount), selectedCurrency, locale);
+    selectedCurrency === 'TWD'
+      ? formatCurrency(amount, 'TWD', locale)
+      : t('approxAmount', {
+          amount: formatCurrency(convertAmount(amount), selectedCurrency, locale),
+        });
 
   return (
     <Card>

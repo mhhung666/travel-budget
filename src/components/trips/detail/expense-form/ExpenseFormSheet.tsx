@@ -228,18 +228,22 @@ export default function ExpenseFormSheet({
     .map((member) => member.id);
   const selectedCount = selectedMemberIds.length;
   const firstSelectedShare = selectedMemberIds[0] ? (split.twd[selectedMemberIds[0]] ?? 0) : 0;
+  // 均分有尾差（100／3 → 33.34、33.33、33.33）時不能宣稱「每人 X」，只說幾人均分。
+  const evenShares = selectedMemberIds.every((id) => (split.twd[id] ?? 0) === firstSelectedShare);
   const firstShareLabel = hasValidExchangeRate
-    ? formatCurrency(Math.round(firstSelectedShare), 'TWD', locale)
+    ? formatCurrency(firstSelectedShare, 'TWD', locale)
     : '—';
   const allocatedLabel = hasValidExchangeRate
-    ? formatCurrency(Math.round(split.allocatedTWD), 'TWD', locale)
+    ? formatCurrency(split.allocatedTWD, 'TWD', locale)
     : '—';
   const splitSummary =
     splitMode === 'equal'
-      ? tExpense('form.summary.equalSplit', {
-          count: selectedCount,
-          amount: firstShareLabel,
-        })
+      ? hasValidExchangeRate && !evenShares
+        ? tExpense('form.summary.equalSplitUneven', { count: selectedCount })
+        : tExpense('form.summary.equalSplit', {
+            count: selectedCount,
+            amount: firstShareLabel,
+          })
       : tExpense('form.summary.customSplit', {
           mode: tExpense(`split.${splitMode}`),
           count: selectedCount,
@@ -250,7 +254,7 @@ export default function ExpenseFormSheet({
       ? hasValidExchangeRate
         ? tExpense('form.summary.converted', {
             original: formatCurrency(originalAmount, form.currency, locale),
-            converted: formatCurrency(Math.round(totalAmountTWD), 'TWD', locale),
+            converted: formatCurrency(totalAmountTWD, 'TWD', locale),
           })
         : loadingRates
           ? tExpense('form.summary.loadingRate')

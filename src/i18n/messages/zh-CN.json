@@ -393,6 +393,7 @@
       "tagsPlaceholder": "输入后按 Enter 或逗号新增",
       "summary": {
         "equalSplit": "{count} 人均分 · 每人 {amount}",
+        "equalSplitUneven": "{count} 人均分",
         "customSplit": "{mode} · {count} 人 · 已分配 {allocated}",
         "converted": "{original} ≈ {converted}",
         "loadingRate": "正在获取汇率…"
@@ -596,6 +597,7 @@
     "myShare": "我的花费",
     "plan": "结算方案",
     "transferCount": "笔转账",
+    "approxAmount": "约 {amount}",
     "noTransfersTitle": "目前无需互相转账",
     "noTransfersHint": "每个人已付的金额刚好等于自己的分摊。",
     "allSettledTitle": "已全部结清",

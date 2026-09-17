@@ -120,7 +120,7 @@ export function SplitSection({
                 <div className="flex items-center gap-2">
                   {/* converted TWD share */}
                   <span className="text-xs tabular-nums text-muted-foreground">
-                    {formatCurrency(Math.round(twdShare), 'TWD', locale)}
+                    {formatCurrency(twdShare, 'TWD', locale)}
                   </span>
                   {splitMode !== 'equal' && (
                     <div className="flex items-center gap-1">
@@ -150,8 +150,8 @@ export function SplitSection({
       {anySelected && originalAmount > 0 && (
         <p className="px-1 text-xs tabular-nums text-muted-foreground">
           {tExpense('split.allocated', {
-            allocated: formatCurrency(Math.round(split.allocatedTWD), 'TWD', locale),
-            total: formatCurrency(Math.round(totalAmountTWD), 'TWD', locale),
+            allocated: formatCurrency(split.allocatedTWD, 'TWD', locale),
+            total: formatCurrency(totalAmountTWD, 'TWD', locale),
           })}
         </p>
       )}

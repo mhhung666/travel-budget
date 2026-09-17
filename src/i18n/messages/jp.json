@@ -393,6 +393,7 @@
       "tagsPlaceholder": "入力後 Enter またはカンマで追加",
       "summary": {
         "equalSplit": "{count}人で均等 · 1人 {amount}",
+        "equalSplitUneven": "{count}人で均等",
         "customSplit": "{mode} · {count}人 · {allocated} 割当済み",
         "converted": "{original} ≈ {converted}",
         "loadingRate": "為替レートを取得中…"
@@ -596,6 +597,7 @@
     "myShare": "自分の負担額",
     "plan": "清算プラン",
     "transferCount": "件の送金",
+    "approxAmount": "約 {amount}",
     "noTransfersTitle": "現在、送金は不要です",
     "noTransfersHint": "全員の支払額が自分の負担額とちょうど同じです。",
     "allSettledTitle": "すべて精算済みです",
