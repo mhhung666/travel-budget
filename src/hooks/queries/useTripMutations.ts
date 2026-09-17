@@ -49,6 +49,8 @@ export function useTripMutations(tripId: string) {
       queryClient.setQueryData(tripKeys.detail(tripId), trip);
       queryClient.invalidateQueries({ queryKey: tripKeys.detail(tripId) });
       queryClient.invalidateQueries({ queryKey: tripKeys.shell(tripId) });
+      // Trip cards show my share vs budget.
+      queryClient.invalidateQueries({ queryKey: tripKeys.list });
     },
   });
 

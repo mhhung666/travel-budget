@@ -157,7 +157,7 @@ export const expenseCreateRetryOptions = {
   retryDelay: (attempt: number) => Math.min(1000 * 2 ** attempt, 30_000),
 };
 
-/** Invalidate every trip query derived from expenses (balances + stats + feed). */
+/** Invalidate every trip query derived from expenses (balances + stats + feed + trips-list summary). */
 export function invalidateExpenseDerived(queryClient: QueryClient, tripId: string): void {
   queryClient.invalidateQueries({ queryKey: tripKeys.expenses(tripId) });
   queryClient.invalidateQueries({ queryKey: tripKeys.expenseTags(tripId) });
@@ -165,6 +165,7 @@ export function invalidateExpenseDerived(queryClient: QueryClient, tripId: strin
   queryClient.invalidateQueries({ queryKey: tripKeys.settlement(tripId) });
   queryClient.invalidateQueries({ queryKey: tripKeys.stats(tripId) });
   queryClient.invalidateQueries({ queryKey: tripKeys.activity(tripId) });
+  queryClient.invalidateQueries({ queryKey: tripKeys.list });
 }
 
 /**

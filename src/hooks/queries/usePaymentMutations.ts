@@ -24,6 +24,8 @@ export function usePaymentMutations(tripId: string) {
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: tripKeys.settlement(tripId) });
     queryClient.invalidateQueries({ queryKey: tripKeys.activity(tripId) });
+    // Trip cards show my balance / settle status.
+    queryClient.invalidateQueries({ queryKey: tripKeys.list });
   };
 
   const record = useMutation({
