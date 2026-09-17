@@ -1,0 +1,209 @@
+{
+  "provider": "vercel",
+  "model": "alibaba/qwen3.7-flash",
+  "thinking": "production-default",
+  "datasetCounts": {
+    "text": 35,
+    "receipt": 40,
+    "itinerary": 31
+  },
+  "repeats": 1,
+  "intervalMs": 60000,
+  "maxRetries": 0,
+  "failureCounts": {
+    "INVALID_MODEL_OUTPUT": 1
+  },
+  "inputTokens": 7621,
+  "outputTokens": 1021,
+  "averageLatencyMs": 4646.428571428572,
+  "p95LatencyMs": 8256,
+  "attempted": 7,
+  "successful": 6,
+  "text": {
+    "cases": 2,
+    "validSchemaCases": 2,
+    "validSchemaRate": 1,
+    "fields": {
+      "payer": {
+        "correct": 2,
+        "total": 2,
+        "accuracy": 1
+      },
+      "currency": {
+        "correct": 1,
+        "total": 2,
+        "accuracy": 0.5
+      },
+      "date": {
+        "correct": 2,
+        "total": 2,
+        "accuracy": 1
+      },
+      "participants": {
+        "correct": 2,
+        "total": 2,
+        "accuracy": 1
+      },
+      "amount": {
+        "correct": 2,
+        "total": 2,
+        "accuracy": 1
+      },
+      "split": {
+        "correct": 2,
+        "total": 2,
+        "accuracy": 1
+      },
+      "category": {
+        "correct": 0,
+        "total": 2,
+        "accuracy": 0
+      },
+      "warnings": {
+        "correct": 1,
+        "total": 2,
+        "accuracy": 0.5
+      }
+    },
+    "coreFieldAccuracy": 0.75,
+    "invalidCaseIds": [],
+    "mismatchCaseIds": {
+      "payer": [],
+      "currency": [
+        "ambiguous-dollar#1"
+      ],
+      "date": [],
+      "participants": [],
+      "amount": [],
+      "split": [],
+      "category": [
+        "zh-tw-ratio#1",
+        "ambiguous-dollar#1"
+      ],
+      "warnings": [
+        "ambiguous-dollar#1"
+      ]
+    }
+  },
+  "receipt": {
+    "cases": 3,
+    "validSchemaCases": 3,
+    "validSchemaRate": 1,
+    "fields": {
+      "merchantName": {
+        "correct": 3,
+        "total": 3,
+        "accuracy": 1
+      },
+      "transactionDate": {
+        "correct": 3,
+        "total": 3,
+        "accuracy": 1
+      },
+      "currency": {
+        "correct": 2,
+        "total": 3,
+        "accuracy": 0.6666666666666666
+      },
+      "total": {
+        "correct": 2,
+        "total": 3,
+        "accuracy": 0.6666666666666666
+      }
+    },
+    "coreFieldAccuracy": 0.8333333333333334,
+    "ambiguity": {
+      "merchantName": {
+        "correct": 0,
+        "total": 0,
+        "accuracy": 1
+      },
+      "transactionDate": {
+        "correct": 0,
+        "total": 0,
+        "accuracy": 1
+      },
+      "currency": {
+        "correct": 0,
+        "total": 1,
+        "accuracy": 0
+      },
+      "total": {
+        "correct": 0,
+        "total": 1,
+        "accuracy": 0
+      }
+    },
+    "ambiguityInterceptionRate": 0,
+    "invalidCaseIds": [],
+    "mismatchCaseIds": {
+      "merchantName": [],
+      "transactionDate": [],
+      "currency": [
+        "ambiguous-dollar#1"
+      ],
+      "total": [
+        "ambiguous-two-totals#1"
+      ]
+    },
+    "missedAmbiguityCaseIds": {
+      "merchantName": [],
+      "transactionDate": [],
+      "currency": [
+        "ambiguous-dollar#1"
+      ],
+      "total": [
+        "ambiguous-two-totals#1"
+      ]
+    }
+  },
+  "itinerary": {
+    "cases": 1,
+    "validSchemaCases": 1,
+    "validSchemaRate": 1,
+    "fields": {
+      "date": {
+        "correct": 0,
+        "total": 2,
+        "accuracy": 0
+      },
+      "time": {
+        "correct": 1,
+        "total": 3,
+        "accuracy": 0.3333333333333333
+      },
+      "title": {
+        "correct": 3,
+        "total": 3,
+        "accuracy": 1
+      },
+      "type": {
+        "correct": 2,
+        "total": 3,
+        "accuracy": 0.6666666666666666
+      },
+      "structure": {
+        "correct": 1,
+        "total": 1,
+        "accuracy": 1
+      },
+      "endTime": {
+        "correct": 3,
+        "total": 3,
+        "accuracy": 1
+      },
+      "locationName": {
+        "correct": 0,
+        "total": 3,
+        "accuracy": 0
+      },
+      "confirmationCode": {
+        "correct": 3,
+        "total": 3,
+        "accuracy": 1
+      }
+    },
+    "coreFieldAccuracy": 0.6190476190476191,
+    "invalidCaseIds": []
+  }
+}

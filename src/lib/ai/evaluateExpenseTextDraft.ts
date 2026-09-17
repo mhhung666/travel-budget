@@ -6,7 +6,15 @@ export type ExpenseTextDraftEvaluationCase = {
   actual: unknown;
 };
 
-type CoreField = 'payer' | 'currency' | 'date' | 'participants';
+type CoreField =
+  | 'payer'
+  | 'currency'
+  | 'date'
+  | 'participants'
+  | 'amount'
+  | 'split'
+  | 'category'
+  | 'warnings';
 type FieldScore = { correct: number; total: number; accuracy: number };
 
 export type ExpenseTextDraftEvaluation = {
@@ -39,6 +47,18 @@ function sameStringArray(left: string[], right: string[]): boolean {
   return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
+function canonicalSplit(draft: ExpenseTextDraft): string {
+  const split = draft.split;
+  if (split.method === 'equal') return JSON.stringify(['equal', participants(draft)]);
+  const shares = split.shares
+    .map((share) => [
+      canonicalName(share.memberName),
+      'amount' in share ? share.amount : 'percentage' in share ? share.percentage : share.units,
+    ])
+    .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)));
+  return JSON.stringify([split.method, shares]);
+}
+
 /** Score provider output without letting schema/provider failures inflate field accuracy. */
 export function evaluateExpenseTextDraftCases(
   cases: ExpenseTextDraftEvaluationCase[]
@@ -48,6 +68,10 @@ export function evaluateExpenseTextDraftCases(
     currency: { correct: 0, total: 0 },
     date: { correct: 0, total: 0 },
     participants: { correct: 0, total: 0 },
+    amount: { correct: 0, total: 0 },
+    split: { correct: 0, total: 0 },
+    category: { correct: 0, total: 0 },
+    warnings: { correct: 0, total: 0 },
   };
   const invalidCaseIds: string[] = [];
   const mismatchCaseIds: Record<CoreField, string[]> = {
@@ -55,6 +79,10 @@ export function evaluateExpenseTextDraftCases(
     currency: [],
     date: [],
     participants: [],
+    amount: [],
+    split: [],
+    category: [],
+    warnings: [],
   };
 
   for (const testCase of cases) {
@@ -72,6 +100,23 @@ export function evaluateExpenseTextDraftCases(
     if (actual && sameStringArray(participants(actual), participants(testCase.expected))) {
       counts.participants.correct += 1;
     } else mismatchCaseIds.participants.push(testCase.id);
+    if (actual && actual.originalAmount === testCase.expected.originalAmount)
+      counts.amount.correct += 1;
+    else mismatchCaseIds.amount.push(testCase.id);
+    if (actual && canonicalSplit(actual) === canonicalSplit(testCase.expected))
+      counts.split.correct += 1;
+    else mismatchCaseIds.split.push(testCase.id);
+    if (actual && actual.category === testCase.expected.category) counts.category.correct += 1;
+    else mismatchCaseIds.category.push(testCase.id);
+    if (
+      actual &&
+      sameStringArray(
+        [...new Set(actual.warnings.map((warning) => warning.code))].sort(),
+        [...new Set(testCase.expected.warnings.map((warning) => warning.code))].sort()
+      )
+    )
+      counts.warnings.correct += 1;
+    else mismatchCaseIds.warnings.push(testCase.id);
   }
 
   const fields = Object.fromEntries(

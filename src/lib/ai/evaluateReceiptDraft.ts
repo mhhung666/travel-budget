@@ -7,7 +7,7 @@ export type ReceiptDraftEvaluationCase = {
 };
 
 type CoreField = 'merchantName' | 'transactionDate' | 'currency' | 'total';
-type AmbiguousField = 'currency' | 'total';
+type AmbiguousField = CoreField;
 type FieldScore = { correct: number; total: number; accuracy: number };
 
 export type ReceiptDraftEvaluation = {
@@ -38,6 +38,7 @@ function uniqueTotal(draft: ReceiptDraft): number | undefined {
 
 function fieldMatches(field: CoreField, expected: ReceiptDraft, actual: ReceiptDraft): boolean {
   if (field === 'merchantName') {
+    if (expected.merchantName === undefined) return actual.merchantName === undefined;
     return (
       expected.merchantName !== undefined &&
       actual.merchantName !== undefined &&
@@ -49,7 +50,7 @@ function fieldMatches(field: CoreField, expected: ReceiptDraft, actual: ReceiptD
   return uniqueTotal(actual) === uniqueTotal(expected);
 }
 
-/** Evaluate successful model output separately from provider availability and unsafe ambiguity cases. */
+/** Score values and uncertainty together, including missing fields that must not be invented. */
 export function evaluateReceiptDraftCases(
   cases: ReceiptDraftEvaluationCase[]
 ): ReceiptDraftEvaluation {
@@ -60,6 +61,8 @@ export function evaluateReceiptDraftCases(
     total: { correct: 0, total: 0 },
   };
   const ambiguityCounts: Record<AmbiguousField, { correct: number; total: number }> = {
+    merchantName: { correct: 0, total: 0 },
+    transactionDate: { correct: 0, total: 0 },
     currency: { correct: 0, total: 0 },
     total: { correct: 0, total: 0 },
   };
@@ -71,6 +74,8 @@ export function evaluateReceiptDraftCases(
     total: [],
   };
   const missedAmbiguityCaseIds: Record<AmbiguousField, string[]> = {
+    merchantName: [],
+    transactionDate: [],
     currency: [],
     total: [],
   };
@@ -81,9 +86,13 @@ export function evaluateReceiptDraftCases(
     const actual = result.success ? result.data : undefined;
 
     for (const field of Object.keys(counts) as CoreField[]) {
-      if (testCase.expected.fieldStatus[field] !== 'read') continue;
       counts[field].total += 1;
-      if (actual && fieldMatches(field, testCase.expected, actual)) counts[field].correct += 1;
+      if (
+        actual &&
+        actual.fieldStatus[field] === testCase.expected.fieldStatus[field] &&
+        fieldMatches(field, testCase.expected, actual)
+      )
+        counts[field].correct += 1;
       else mismatchCaseIds[field].push(testCase.id);
     }
 

@@ -2,7 +2,12 @@ import { createGateway } from '@ai-sdk/gateway';
 import { createOpenAI } from '@ai-sdk/openai';
 import { generateText, Output } from 'ai';
 import { z } from 'zod';
-import { receiptDraftSchema, type ReceiptDraft } from './receiptDraftSchema';
+import {
+  openAIReceiptDraftSchema,
+  parseOpenAIReceiptDraft,
+  receiptDraftSchema,
+  type ReceiptDraft,
+} from './receiptDraftSchema';
 import { receiptDraftPrompt } from './receiptDraftPrompt';
 import { AiProviderError, classifyAiProviderFailure, type AiProviderUsage } from './aiProvider';
 
@@ -77,13 +82,16 @@ export async function parseReceiptDraft(
   mediaType: 'image/jpeg' | 'image/png' | 'image/webp'
 ): Promise<ReceiptDraftGeneration> {
   const config = resolveReceiptDraftProviderConfig();
+  const useOpenAI = config.provider === 'openai' || config.model.startsWith('openai/');
   try {
     const result = await generateText({
       model: modelFor(config),
-      system: receiptDraftPrompt,
+      system:
+        receiptDraftPrompt +
+        (useOpenAI ? '\nRepresent absent optional fields as null, as required by the schema.' : ''),
       prompt: [{ role: 'user', content: [{ type: 'file', data: image, mediaType }] }],
-      output: Output.object({
-        schema: receiptDraftSchema,
+      output: Output.object<unknown>({
+        schema: useOpenAI ? openAIReceiptDraftSchema : receiptDraftSchema,
         name: 'receipt_draft',
         description: 'Receipt expense draft',
       }),
@@ -94,7 +102,9 @@ export async function parseReceiptDraft(
     });
     if (result.finishReason === 'length') throw new AiProviderError('MODEL_OUTPUT_LIMIT');
     return {
-      draft: receiptDraftSchema.parse(result.output),
+      draft: useOpenAI
+        ? parseOpenAIReceiptDraft(result.output)
+        : receiptDraftSchema.parse(result.output),
       provider: config.provider,
       model: config.model,
       usage: {

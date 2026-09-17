@@ -1,25 +1,18 @@
+import { SUPPORTED_CURRENCY_CODES } from '@/constants/currencies';
+import { isDraftCalendarDate } from './draftValidation';
 import { receiptDraftSchema, type ReceiptDraft } from './receiptDraftSchema';
-
-const currencies = new Set(['TWD', 'JPY', 'USD', 'EUR', 'HKD', 'THB']);
-const validDate = (value: string) => {
-  const [year, month, day] = value.split('-').map(Number);
-  const date = new Date(Date.UTC(year, month - 1, day));
-  return (
-    date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
-  );
-};
 
 /** Never resolves uncertainty on the user's behalf; only makes invalid claims explicit. */
 export function normalizeReceiptDraft(input: ReceiptDraft): ReceiptDraft {
   const draft = receiptDraftSchema.parse(input);
   const warnings = [...draft.warnings];
   const status = { ...draft.fieldStatus };
-  if (draft.transactionDate && !validDate(draft.transactionDate)) {
+  if (draft.transactionDate && !isDraftCalendarDate(draft.transactionDate)) {
     delete draft.transactionDate;
     status.transactionDate = 'missing';
     warnings.push({ code: 'INVALID_DATE', field: 'transactionDate' });
   }
-  if (draft.currency && !currencies.has(draft.currency)) {
+  if (draft.currency && !SUPPORTED_CURRENCY_CODES.has(draft.currency)) {
     delete draft.currency;
     status.currency = 'ambiguous';
     warnings.push({ code: 'AMBIGUOUS_CURRENCY', field: 'currency' });

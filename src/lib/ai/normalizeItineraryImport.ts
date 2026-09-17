@@ -90,13 +90,21 @@ export function normalizeItineraryImport(
     )
   );
   const importedKeys = new Set<string>();
-  const warnings = parsed.warnings.map((warning) => ({ ...warning }));
+  const sortedActivities = parsed.days.map((day) => sortActivities(day.activities));
+  const warnings = parsed.warnings.map((warning) => {
+    if (warning.dayIndex === undefined || warning.activityIndex === undefined)
+      return { ...warning };
+    const source = parsed.days[warning.dayIndex]?.activities[warning.activityIndex];
+    return source
+      ? { ...warning, activityIndex: sortedActivities[warning.dayIndex].indexOf(source) }
+      : { ...warning };
+  });
   const warningKeys = new Set(warnings.map(warningKey));
 
   const days = parsed.days.map((sourceDay, dayIndex) => {
     const day = {
       ...sourceDay,
-      activities: sortActivities(sourceDay.activities.map((activity) => ({ ...activity }))),
+      activities: sortedActivities[dayIndex].map((activity) => ({ ...activity })),
     };
 
     if (!day.date && day.relativeDay && context.tripStartDate) {

@@ -15,7 +15,7 @@ import { logger } from '@/lib/logger';
 
 const liveEvaluationEnabled = process.env.RUN_AI_IMPORT_EVAL === '1';
 if (liveEvaluationEnabled) {
-  loadEnvironment({ path: '.env.local', quiet: true });
+  loadEnvironment({ path: ['.env.local', '.env'], quiet: true });
 }
 const configuredIntervalMs = Number(process.env.AI_IMPORT_EVAL_INTERVAL_MS ?? '0');
 const requestIntervalMs =

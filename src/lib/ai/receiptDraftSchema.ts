@@ -56,3 +56,28 @@ export const receiptDraftRequestSchema = z
   .object({ tripId: z.string().trim().min(1).max(100), key: z.string().trim().min(1).max(500) })
   .strict();
 export type ReceiptDraft = z.infer<typeof receiptDraftSchema>;
+
+export const openAIReceiptDraftSchema = receiptDraftSchema.extend({
+  merchantName: receiptDraftSchema.shape.merchantName.unwrap().nullable(),
+  transactionDate: receiptDraftSchema.shape.transactionDate.unwrap().nullable(),
+  currency: receiptDraftSchema.shape.currency.unwrap().nullable(),
+  suggestedCategory: receiptDraftSchema.shape.suggestedCategory.unwrap().nullable(),
+  warnings: z
+    .array(
+      receiptDraftSchema.shape.warnings.element.extend({
+        field: receiptDraftSchema.shape.warnings.element.shape.field.unwrap().nullable(),
+      })
+    )
+    .max(20),
+});
+
+export function parseOpenAIReceiptDraft(value: unknown): ReceiptDraft {
+  const draft = openAIReceiptDraftSchema.parse(value);
+  return receiptDraftSchema.parse({
+    ...Object.fromEntries(Object.entries(draft).filter(([, value]) => value !== null)),
+    warnings: draft.warnings.map(({ code, field }) => ({
+      code,
+      ...(field !== null ? { field } : {}),
+    })),
+  });
+}

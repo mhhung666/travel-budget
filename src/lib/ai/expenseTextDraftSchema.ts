@@ -58,3 +58,21 @@ export const expenseTextDraftRequestSchema = z
   })
   .strict();
 export type ExpenseTextDraft = z.infer<typeof expenseTextDraftSchema>;
+
+// OpenAI strict output uses required nullable fields and anyOf for the mutually exclusive splits.
+export const openAIExpenseTextDraftSchema = expenseTextDraftSchema.extend({
+  date: expenseTextDraftSchema.shape.date.unwrap().nullable(),
+  currency: expenseTextDraftSchema.shape.currency.unwrap().nullable(),
+  payerName: expenseTextDraftSchema.shape.payerName.unwrap().nullable(),
+  category: expenseTextDraftSchema.shape.category.unwrap().nullable(),
+  tags: expenseTextDraftSchema.shape.tags.unwrap().nullable(),
+  itineraryDate: expenseTextDraftSchema.shape.itineraryDate.unwrap().nullable(),
+  split: z.union(split.options),
+});
+
+export function parseOpenAIExpenseTextDraft(value: unknown): ExpenseTextDraft {
+  const draft = openAIExpenseTextDraftSchema.parse(value);
+  return expenseTextDraftSchema.parse(
+    Object.fromEntries(Object.entries(draft).filter(([, value]) => value !== null))
+  );
+}

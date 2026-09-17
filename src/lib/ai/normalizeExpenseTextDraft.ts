@@ -1,3 +1,5 @@
+import { SUPPORTED_CURRENCY_CODES } from '@/constants/currencies';
+import { isDraftCalendarDate } from './draftValidation';
 import { expenseTextDraftSchema, type ExpenseTextDraft } from './expenseTextDraftSchema';
 import { computeSplits, type SplitMode } from '@/lib/expenseSplit';
 
@@ -158,6 +160,16 @@ export function normalizeExpenseTextDraft(
 ): NormalizedExpenseTextDraft {
   const draft = expenseTextDraftSchema.parse(input);
   const warnings = [...draft.warnings];
+  for (const field of ['date', 'itineraryDate'] as const) {
+    if (draft[field] && !isDraftCalendarDate(draft[field])) {
+      delete draft[field];
+      warnings.push({ code: field === 'date' ? 'INVALID_DATE' : 'INVALID_ITINERARY_DATE' });
+    }
+  }
+  if (draft.currency && !SUPPORTED_CURRENCY_CODES.has(draft.currency)) {
+    delete draft.currency;
+    warnings.push({ code: 'INVALID_CURRENCY' });
+  }
   const payerId = resolvePayer(draft.payerName, members, currentUserId);
   if (!payerId) warnings.push({ code: draft.payerName ? 'AMBIGUOUS_PAYER' : 'MISSING_PAYER' });
   const names =

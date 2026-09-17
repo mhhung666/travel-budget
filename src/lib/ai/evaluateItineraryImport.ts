@@ -7,7 +7,15 @@ export type ItineraryImportEvaluationCase = {
   actual: unknown;
 };
 
-type CoreField = 'date' | 'time' | 'title' | 'type';
+type CoreField =
+  | 'date'
+  | 'time'
+  | 'title'
+  | 'type'
+  | 'structure'
+  | 'endTime'
+  | 'locationName'
+  | 'confirmationCode';
 
 type FieldScore = {
   correct: number;
@@ -40,12 +48,27 @@ export function evaluateItineraryImportCases(
     time: { correct: 0, total: 0 },
     title: { correct: 0, total: 0 },
     type: { correct: 0, total: 0 },
+    structure: { correct: 0, total: 0 },
+    endTime: { correct: 0, total: 0 },
+    locationName: { correct: 0, total: 0 },
+    confirmationCode: { correct: 0, total: 0 },
   };
   const invalidCaseIds: string[] = [];
 
   for (const testCase of cases) {
     const actualResult = itineraryImportDraftSchema.safeParse(testCase.actual);
     if (!actualResult.success) invalidCaseIds.push(testCase.id);
+
+    counts.structure.total += 1;
+    if (
+      actualResult.success &&
+      actualResult.data.days.length === testCase.expected.days.length &&
+      testCase.expected.days.every(
+        (day, index) => day.activities.length === actualResult.data.days[index].activities.length
+      )
+    ) {
+      counts.structure.correct += 1;
+    }
 
     testCase.expected.days.forEach((expectedDay, dayIndex) => {
       const actualDay = actualResult.success ? actualResult.data.days[dayIndex] : undefined;
@@ -55,9 +78,17 @@ export function evaluateItineraryImportCases(
 
       expectedDay.activities.forEach((expectedActivity, activityIndex) => {
         const actualActivity = actualDay?.activities[activityIndex];
-        for (const field of ['time', 'title', 'type'] as const) {
+        for (const field of [
+          'time',
+          'title',
+          'type',
+          'endTime',
+          'locationName',
+          'confirmationCode',
+        ] as const) {
           counts[field].total += 1;
-          if (actualActivity?.[field] === expectedActivity[field]) counts[field].correct += 1;
+          if (actualActivity && actualActivity[field] === expectedActivity[field])
+            counts[field].correct += 1;
         }
       });
     });

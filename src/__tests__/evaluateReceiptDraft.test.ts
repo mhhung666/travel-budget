@@ -3,6 +3,22 @@ import { receiptDraftFixtures } from '@/__fixtures__/ai/receiptDraftFixtures';
 import { evaluateReceiptDraftCases } from '@/lib/ai/evaluateReceiptDraft';
 
 describe('evaluateReceiptDraftCases', () => {
+  it('does not accept a guessed currency merely because its status says ambiguous', () => {
+    const sample = receiptDraftFixtures.find((fixture) => fixture.id === 'ambiguous-dollar')!;
+    const actual = { ...sample.expected, currency: 'USD' };
+    expect(evaluateReceiptDraftCases([{ ...sample, actual }]).fields.currency.accuracy).toBe(0);
+  });
+
+  it('checks date ambiguity as well as currency and total ambiguity', () => {
+    const sample = receiptDraftFixtures.find((fixture) => fixture.id === 'ambiguous-date')!;
+    const actual = structuredClone(sample.expected);
+    actual.transactionDate = '2026-03-04';
+    actual.fieldStatus.transactionDate = 'read';
+    const result = evaluateReceiptDraftCases([{ ...sample, actual }]);
+    expect(result.ambiguity.transactionDate).toMatchObject({ total: 1, accuracy: 0 });
+    expect(result.fields.transactionDate.accuracy).toBe(0);
+  });
+
   it('reports a perfect reproducible baseline for expected fixtures', () => {
     const evaluation = evaluateReceiptDraftCases(
       receiptDraftFixtures.map((sample) => ({

@@ -1,0 +1,91 @@
+{
+  "provider": "vercel",
+  "model": "openai/gpt-5-mini",
+  "thinking": "production-default",
+  "systemAppend": "Check field completeness before returning JSON. For expense text drafts, choose the best supported category from the schema when the expense type is recognizable. Never supply date or itineraryDate unless the source explicitly includes an unambiguous four-digit year; a missing-year warning does not permit inventing a year. For itineraries, put every explicitly stated activity start and end time in that activity time and endTime fields; mentioning the time only in sourceSummary is insufficient. For receipts, distinguish the total due from cash tendered and change; retain multiple plausible final totals and mark total ambiguous if the final payable amount cannot be uniquely determined. Do not invent currency from a bare dollar sign. Keep exactly the keys allowed by each schema. A bare dollar sign without an explicit currency code or disambiguating country is ambiguous: omit currency and emit AMBIGUOUS_CURRENCY; for receipts set fieldStatus.currency to ambiguous. A suggested or optional tip is not proof it was paid. When a receipt lists both a pre-tip total and a total including a suggested tip without a confirmed paid amount, retain both as total candidates, set fieldStatus.total to ambiguous, and emit AMBIGUOUS_TOTAL.",
+  "timePatternRelaxed": false,
+  "openAISchemaAdapter": true,
+  "datasetCounts": {
+    "text": 35,
+    "receipt": 40,
+    "itinerary": 31
+  },
+  "repeats": 1,
+  "intervalMs": 60000,
+  "maxRetries": 0,
+  "failureCounts": {},
+  "inputTokens": 1559,
+  "outputTokens": 1008,
+  "averageLatencyMs": 13370,
+  "p95LatencyMs": 13370,
+  "attempted": 1,
+  "successful": 1,
+  "text": null,
+  "receipt": {
+    "cases": 1,
+    "validSchemaCases": 1,
+    "validSchemaRate": 1,
+    "fields": {
+      "merchantName": {
+        "correct": 1,
+        "total": 1,
+        "accuracy": 1
+      },
+      "transactionDate": {
+        "correct": 1,
+        "total": 1,
+        "accuracy": 1
+      },
+      "currency": {
+        "correct": 1,
+        "total": 1,
+        "accuracy": 1
+      },
+      "total": {
+        "correct": 0,
+        "total": 1,
+        "accuracy": 0
+      }
+    },
+    "coreFieldAccuracy": 0.75,
+    "ambiguity": {
+      "merchantName": {
+        "correct": 0,
+        "total": 0,
+        "accuracy": 1
+      },
+      "transactionDate": {
+        "correct": 0,
+        "total": 0,
+        "accuracy": 1
+      },
+      "currency": {
+        "correct": 0,
+        "total": 0,
+        "accuracy": 1
+      },
+      "total": {
+        "correct": 1,
+        "total": 1,
+        "accuracy": 1
+      }
+    },
+    "ambiguityInterceptionRate": 1,
+    "invalidCaseIds": [],
+    "mismatchCaseIds": {
+      "merchantName": [],
+      "transactionDate": [],
+      "currency": [],
+      "total": [
+        "ambiguous-two-totals#1"
+      ]
+    },
+    "missedAmbiguityCaseIds": {
+      "merchantName": [],
+      "transactionDate": [],
+      "currency": [],
+      "total": []
+    }
+  },
+  "itinerary": null
+}

@@ -1,0 +1,72 @@
+{
+  "provider": "vercel",
+  "model": "alibaba/qwen3.7-flash",
+  "thinking": "production-default",
+  "timePatternRelaxed": true,
+  "datasetCounts": {
+    "text": 35,
+    "receipt": 40,
+    "itinerary": 31
+  },
+  "repeats": 1,
+  "intervalMs": 60000,
+  "maxRetries": 0,
+  "failureCounts": {},
+  "inputTokens": 1102,
+  "outputTokens": 147,
+  "averageLatencyMs": 3277,
+  "p95LatencyMs": 3277,
+  "attempted": 1,
+  "successful": 1,
+  "text": null,
+  "receipt": null,
+  "itinerary": {
+    "cases": 1,
+    "validSchemaCases": 1,
+    "validSchemaRate": 1,
+    "fields": {
+      "date": {
+        "correct": 1,
+        "total": 1,
+        "accuracy": 1
+      },
+      "time": {
+        "correct": 0,
+        "total": 2,
+        "accuracy": 0
+      },
+      "title": {
+        "correct": 2,
+        "total": 2,
+        "accuracy": 1
+      },
+      "type": {
+        "correct": 2,
+        "total": 2,
+        "accuracy": 1
+      },
+      "structure": {
+        "correct": 1,
+        "total": 1,
+        "accuracy": 1
+      },
+      "endTime": {
+        "correct": 2,
+        "total": 2,
+        "accuracy": 1
+      },
+      "locationName": {
+        "correct": 2,
+        "total": 2,
+        "accuracy": 1
+      },
+      "confirmationCode": {
+        "correct": 2,
+        "total": 2,
+        "accuracy": 1
+      }
+    },
+    "coreFieldAccuracy": 0.8571428571428571,
+    "invalidCaseIds": []
+  }
+}

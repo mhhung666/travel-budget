@@ -3,6 +3,36 @@ import { expenseTextDraftFixtures } from '@/__fixtures__/ai/expenseTextDraftFixt
 import { evaluateExpenseTextDraftCases } from '@/lib/ai/evaluateExpenseTextDraft';
 
 describe('evaluateExpenseTextDraftCases', () => {
+  it('detects incorrect totals and shares even when all participant names match', () => {
+    const sample = expenseTextDraftFixtures.find(({ id }) => id === 'zh-tw-amount')!;
+    const actual = structuredClone(sample.expected);
+    actual.originalAmount = 9000;
+    actual.split = {
+      method: 'amount',
+      shares: [
+        { memberName: '小安', amount: 600 },
+        { memberName: '小北', amount: 300 },
+      ],
+    };
+    expect(evaluateExpenseTextDraftCases([{ ...sample, actual }])).toMatchObject({
+      fields: { participants: { accuracy: 1 }, amount: { accuracy: 0 }, split: { accuracy: 0 } },
+    });
+    actual.originalAmount = 900;
+    actual.split = { method: 'equal', participantNames: ['小安', '小北'] };
+    expect(evaluateExpenseTextDraftCases([{ ...sample, actual }]).fields.split.accuracy).toBe(0);
+  });
+
+  it('compares explicit shares independently of ordering and checks categories', () => {
+    const sample = expenseTextDraftFixtures.find(({ id }) => id === 'zh-tw-amount')!;
+    const actual = structuredClone(sample.expected);
+    if (actual.split.method !== 'amount') throw new Error('Expected amount fixture');
+    actual.split.shares.reverse();
+    actual.category = 'food';
+    expect(evaluateExpenseTextDraftCases([{ ...sample, actual }])).toMatchObject({
+      fields: { split: { accuracy: 1 }, category: { accuracy: 0 } },
+    });
+  });
+
   it('reports a perfect reproducible baseline for expected fixtures', () => {
     const evaluation = evaluateExpenseTextDraftCases(
       expenseTextDraftFixtures.map((sample) => ({

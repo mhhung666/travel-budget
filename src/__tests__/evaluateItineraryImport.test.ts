@@ -3,6 +3,32 @@ import { itineraryImportFixtures } from '@/__fixtures__/ai/itineraryImportFixtur
 import { evaluateItineraryImportCases } from '@/lib/ai/evaluateItineraryImport';
 
 describe('evaluateItineraryImportCases', () => {
+  it('does not award absent optional fields when the whole activity is missing', () => {
+    const expected = {
+      sourceSummary: '',
+      days: [{ date: '2026-09-01', activities: [{ title: 'Lunch', type: 'food' as const }] }],
+      warnings: [],
+    };
+    const actual = { ...expected, days: [{ date: '2026-09-01', activities: [] }] };
+    const result = evaluateItineraryImportCases([{ id: 'omitted', expected, actual }]);
+    for (const field of [
+      'time',
+      'endTime',
+      'locationName',
+      'confirmationCode',
+      'structure',
+    ] as const) {
+      expect(result.fields[field].accuracy).toBe(0);
+    }
+  });
+
+  it('detects invented days even when all expected activities are preserved', () => {
+    const sample = itineraryImportFixtures[0];
+    const actual = structuredClone(sample.expected);
+    actual.days.push({ date: '2026-09-02', activities: [] });
+    expect(evaluateItineraryImportCases([{ ...sample, actual }]).fields.structure.accuracy).toBe(0);
+  });
+
   it('reports a perfect reproducible baseline for expected fixtures', () => {
     const evaluation = evaluateItineraryImportCases(
       itineraryImportFixtures.map((sample) => ({

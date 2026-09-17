@@ -495,15 +495,28 @@ export function useExpenseForm({
   };
 
   const applyTextDraft = (draft: NormalizedExpenseTextDraft) => {
-    setForm((previous) => ({
-      ...previous,
-      description: draft.description,
-      original_amount: String(draft.originalAmount),
-      currency: draft.currency ?? previous.currency,
-      date: draft.date ?? previous.date,
-      category: draft.category ?? previous.category,
-      payer_id: draft.payerId ?? previous.payer_id,
-    }));
+    setForm((previous) => {
+      const currency = draft.currency ?? previous.currency;
+      const pinnedRate = getPinnedRate(currencySettings, currency);
+      const exchangeRate =
+        currency === previous.currency
+          ? previous.exchange_rate
+          : currency === 'TWD'
+            ? '1.0'
+            : pinnedRate != null
+              ? String(pinnedRate)
+              : (exchangeRates[currency]?.toFixed(6) ?? '');
+      return {
+        ...previous,
+        description: draft.description,
+        original_amount: String(draft.originalAmount),
+        currency,
+        exchange_rate: exchangeRate,
+        date: draft.date ?? previous.date,
+        category: draft.category ?? previous.category,
+        payer_id: draft.payerId ?? previous.payer_id,
+      };
+    });
     if (draft.resolvedSplit) {
       const entries = new Map(
         draft.resolvedSplit.entries.map((entry) => [entry.memberId, entry.value])

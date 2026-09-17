@@ -104,7 +104,11 @@ describe('AI expense draft providers', () => {
     process.env.AI_MODEL = 'openai/gpt-receipt';
     mocks.openAIModel.mockReturnValue('language-model');
     mocks.generateText.mockResolvedValue({
-      output: receiptDraft,
+      output: {
+        transactionDate: null,
+        suggestedCategory: null,
+        ...receiptDraft,
+      },
       finishReason: 'stop',
       usage: { inputTokens: 100, outputTokens: 20, totalTokens: 120 },
     });
@@ -162,7 +166,14 @@ describe('AI expense draft providers', () => {
     process.env.AI_MODEL = 'gpt-text';
     mocks.openAIModel.mockReturnValue('language-model');
     mocks.generateText.mockResolvedValueOnce({
-      output: textDraft,
+      output: {
+        date: null,
+        payerName: null,
+        category: null,
+        tags: null,
+        itineraryDate: null,
+        ...textDraft,
+      },
       finishReason: 'stop',
       usage: { inputTokens: 30, outputTokens: 10, totalTokens: 40 },
     });
@@ -209,6 +220,61 @@ describe('AI expense draft providers', () => {
       })
     );
   });
+
+  it.each(['openai', 'vercel'])(
+    'supports GPT-5 mini nullable drafts through %s',
+    async (provider) => {
+      process.env.AI_PROVIDER = provider;
+      process.env.AI_MODEL = 'openai/gpt-5-mini';
+      process.env.OPENAI_API_KEY = 'secret';
+      process.env.AI_GATEWAY_API_KEY = 'gateway-secret';
+      mocks.generateText.mockResolvedValueOnce({
+        output: {
+          date: null,
+          payerName: null,
+          category: null,
+          tags: null,
+          itineraryDate: null,
+          ...textDraft,
+        },
+        finishReason: 'stop',
+        usage: {},
+      });
+      expect((await parseExpenseTextDraft('Lunch 180 TWD')).draft).toEqual(textDraft);
+      const textSchema = mocks.generateText.mock.calls.at(-1)![0].output.schema;
+      expect(
+        textSchema.safeParse({
+          ...textDraft,
+          date: null,
+          payerName: null,
+          category: null,
+          tags: null,
+          itineraryDate: null,
+        }).success
+      ).toBe(true);
+      mocks.generateText.mockResolvedValueOnce({
+        output: {
+          transactionDate: null,
+          suggestedCategory: null,
+          ...receiptDraft,
+          warnings: [{ code: 'MISSING_DATE', field: null }],
+        },
+        finishReason: 'stop',
+        usage: {},
+      });
+      expect((await parseReceiptDraft(Buffer.from('image'), 'image/png')).draft).toEqual({
+        ...receiptDraft,
+        warnings: [{ code: 'MISSING_DATE' }],
+      });
+      expect(
+        mocks.generateText.mock.calls.at(-1)![0].output.schema.safeParse({
+          transactionDate: null,
+          suggestedCategory: null,
+          ...receiptDraft,
+        }).success
+      ).toBe(true);
+    }
+  );
 
   it('maps truncated structured drafts to an output-limit error', async () => {
     process.env.AI_PROVIDER = 'openai';

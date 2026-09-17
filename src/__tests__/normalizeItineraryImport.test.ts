@@ -156,3 +156,44 @@ describe('normalizeItineraryImport', () => {
     expect(result.days[0].activities[0].confirmationCode).toBe('TEST-SECRET-NOT-REAL');
   });
 });
+
+// Indices supplied by the model refer to the source order, including days without dates.
+it('keeps provider and generated warnings attached after stable sorting on multiple days', () => {
+  const source = {
+    sourceSummary: '',
+    days: [
+      {
+        activities: [
+          { title: 'Untimed', type: 'food' as const },
+          { title: 'Morning', type: 'food' as const, time: '09:00' },
+        ],
+      },
+      {
+        date: '2026-09-01',
+        activities: [
+          { title: 'Late', type: 'food' as const, time: '18:00', endTime: '17:00' },
+          { title: 'First', type: 'food' as const, time: '09:00' },
+          { title: 'Second', type: 'food' as const, time: '09:00' },
+        ],
+      },
+    ],
+    warnings: [
+      { code: 'UNRECOGNIZED_CONTENT' as const, dayIndex: 0, activityIndex: 0 },
+      { code: 'END_TIME_BEFORE_START' as const, dayIndex: 1, activityIndex: 0 },
+      { code: 'UNRECOGNIZED_CONTENT' as const, dayIndex: 1 },
+    ],
+  };
+  const snapshot = structuredClone(source);
+  const result = normalizeItineraryImport(source, {});
+  expect(source).toEqual(snapshot);
+  expect(result.days[1].activities.map((a) => a.title)).toEqual(['First', 'Second', 'Late']);
+  expect(result.warnings).toContainEqual({
+    code: 'UNRECOGNIZED_CONTENT',
+    dayIndex: 0,
+    activityIndex: 1,
+  });
+  expect(result.warnings.filter((w) => w.code === 'END_TIME_BEFORE_START')).toEqual([
+    { code: 'END_TIME_BEFORE_START', dayIndex: 1, activityIndex: 2 },
+  ]);
+  expect(result.warnings).toContainEqual({ code: 'UNRECOGNIZED_CONTENT', dayIndex: 1 });
+});

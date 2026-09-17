@@ -1,0 +1,192 @@
+{
+  "provider": "vercel",
+  "model": "alibaba/qwen3.7-flash",
+  "thinking": "production-default",
+  "datasetCounts": {
+    "text": 35,
+    "receipt": 40,
+    "itinerary": 31
+  },
+  "repeats": 1,
+  "failureCounts": {},
+  "inputTokens": 3799,
+  "outputTokens": 388,
+  "averageLatencyMs": 3596.6666666666665,
+  "p95LatencyMs": 4134,
+  "attempted": 3,
+  "successful": 3,
+  "text": {
+    "cases": 1,
+    "validSchemaCases": 1,
+    "validSchemaRate": 1,
+    "fields": {
+      "payer": {
+        "correct": 1,
+        "total": 1,
+        "accuracy": 1
+      },
+      "currency": {
+        "correct": 1,
+        "total": 1,
+        "accuracy": 1
+      },
+      "date": {
+        "correct": 1,
+        "total": 1,
+        "accuracy": 1
+      },
+      "participants": {
+        "correct": 1,
+        "total": 1,
+        "accuracy": 1
+      },
+      "amount": {
+        "correct": 1,
+        "total": 1,
+        "accuracy": 1
+      },
+      "split": {
+        "correct": 1,
+        "total": 1,
+        "accuracy": 1
+      },
+      "category": {
+        "correct": 0,
+        "total": 1,
+        "accuracy": 0
+      },
+      "warnings": {
+        "correct": 1,
+        "total": 1,
+        "accuracy": 1
+      }
+    },
+    "coreFieldAccuracy": 0.875,
+    "invalidCaseIds": [],
+    "mismatchCaseIds": {
+      "payer": [],
+      "currency": [],
+      "date": [],
+      "participants": [],
+      "amount": [],
+      "split": [],
+      "category": [
+        "zh-tw-equal-explicit#1"
+      ],
+      "warnings": []
+    }
+  },
+  "receipt": {
+    "cases": 1,
+    "validSchemaCases": 1,
+    "validSchemaRate": 1,
+    "fields": {
+      "merchantName": {
+        "correct": 1,
+        "total": 1,
+        "accuracy": 1
+      },
+      "transactionDate": {
+        "correct": 1,
+        "total": 1,
+        "accuracy": 1
+      },
+      "currency": {
+        "correct": 1,
+        "total": 1,
+        "accuracy": 1
+      },
+      "total": {
+        "correct": 1,
+        "total": 1,
+        "accuracy": 1
+      }
+    },
+    "coreFieldAccuracy": 1,
+    "ambiguity": {
+      "merchantName": {
+        "correct": 0,
+        "total": 0,
+        "accuracy": 1
+      },
+      "transactionDate": {
+        "correct": 0,
+        "total": 0,
+        "accuracy": 1
+      },
+      "currency": {
+        "correct": 0,
+        "total": 0,
+        "accuracy": 1
+      },
+      "total": {
+        "correct": 0,
+        "total": 0,
+        "accuracy": 1
+      }
+    },
+    "ambiguityInterceptionRate": 1,
+    "invalidCaseIds": [],
+    "mismatchCaseIds": {
+      "merchantName": [],
+      "transactionDate": [],
+      "currency": [],
+      "total": []
+    },
+    "missedAmbiguityCaseIds": {
+      "merchantName": [],
+      "transactionDate": [],
+      "currency": [],
+      "total": []
+    }
+  },
+  "itinerary": {
+    "cases": 1,
+    "validSchemaCases": 1,
+    "validSchemaRate": 1,
+    "fields": {
+      "date": {
+        "correct": 1,
+        "total": 1,
+        "accuracy": 1
+      },
+      "time": {
+        "correct": 0,
+        "total": 2,
+        "accuracy": 0
+      },
+      "title": {
+        "correct": 2,
+        "total": 2,
+        "accuracy": 1
+      },
+      "type": {
+        "correct": 2,
+        "total": 2,
+        "accuracy": 1
+      },
+      "structure": {
+        "correct": 1,
+        "total": 1,
+        "accuracy": 1
+      },
+      "endTime": {
+        "correct": 2,
+        "total": 2,
+        "accuracy": 1
+      },
+      "locationName": {
+        "correct": 2,
+        "total": 2,
+        "accuracy": 1
+      },
+      "confirmationCode": {
+        "correct": 2,
+        "total": 2,
+        "accuracy": 1
+      }
+    },
+    "coreFieldAccuracy": 0.8571428571428571,
+    "invalidCaseIds": []
+  }
+}

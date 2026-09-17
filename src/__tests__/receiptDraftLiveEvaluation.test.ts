@@ -19,7 +19,7 @@ import {
 import { logger } from '@/lib/logger';
 
 const liveEvaluationEnabled = process.env.RUN_AI_RECEIPT_EVAL === '1';
-if (liveEvaluationEnabled) loadEnvironment({ path: '.env.local', quiet: true });
+if (liveEvaluationEnabled) loadEnvironment({ path: ['.env.local', '.env'], quiet: true });
 const configuredIntervalMs = Number(process.env.AI_RECEIPT_EVAL_INTERVAL_MS ?? '10000');
 const requestIntervalMs =
   Number.isInteger(configuredIntervalMs) && configuredIntervalMs >= 0 ? configuredIntervalMs : 0;

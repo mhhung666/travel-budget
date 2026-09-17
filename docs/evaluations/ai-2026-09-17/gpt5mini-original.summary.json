@@ -1,0 +1,74 @@
+{
+  "provider": "vercel",
+  "model": "openai/gpt-5-mini",
+  "thinking": "production-default",
+  "timePatternRelaxed": false,
+  "datasetCounts": {
+    "text": 35,
+    "receipt": 40,
+    "itinerary": 31
+  },
+  "repeats": 1,
+  "intervalMs": 60000,
+  "maxRetries": 0,
+  "failureCounts": {
+    "INTERNAL_ERROR": 2
+  },
+  "inputTokens": 761,
+  "outputTokens": 298,
+  "averageLatencyMs": 7127.666666666667,
+  "p95LatencyMs": 7592,
+  "attempted": 3,
+  "successful": 1,
+  "text": null,
+  "receipt": null,
+  "itinerary": {
+    "cases": 1,
+    "validSchemaCases": 1,
+    "validSchemaRate": 1,
+    "fields": {
+      "date": {
+        "correct": 1,
+        "total": 1,
+        "accuracy": 1
+      },
+      "time": {
+        "correct": 2,
+        "total": 2,
+        "accuracy": 1
+      },
+      "title": {
+        "correct": 2,
+        "total": 2,
+        "accuracy": 1
+      },
+      "type": {
+        "correct": 2,
+        "total": 2,
+        "accuracy": 1
+      },
+      "structure": {
+        "correct": 1,
+        "total": 1,
+        "accuracy": 1
+      },
+      "endTime": {
+        "correct": 2,
+        "total": 2,
+        "accuracy": 1
+      },
+      "locationName": {
+        "correct": 2,
+        "total": 2,
+        "accuracy": 1
+      },
+      "confirmationCode": {
+        "correct": 2,
+        "total": 2,
+        "accuracy": 1
+      }
+    },
+    "coreFieldAccuracy": 1,
+    "invalidCaseIds": []
+  }
+}
