@@ -49,6 +49,26 @@ describe('buildNotificationEmail', () => {
     }
   });
 
+  it('describes a recorded payment as a transfer so prepayments are not called repayments', async () => {
+    for (const [locale, word, old] of [
+      ['zh', '轉帳', '還款'],
+      ['zh-CN', '转账', '还款'],
+      ['en', 'transfer', 'payment'],
+      ['jp', '送金', '返済'],
+    ] as const) {
+      const email = await buildNotificationEmail({
+        ...base,
+        locale,
+        type: 'payment_recorded',
+        meta: { amount: 500 },
+      });
+      expect(email.subject).toContain(word);
+      expect(email.text).toContain(word);
+      expect(email.subject).not.toContain(old);
+      expect(email.text).not.toContain(old);
+    }
+  });
+
   it('localizes the subject/body per recipient locale', async () => {
     const zh = await buildNotificationEmail({
       ...base,

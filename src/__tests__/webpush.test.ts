@@ -76,6 +76,12 @@ describe('buildPushPayload', () => {
     expect(joined.url).toBe('https://app.example.com/trips/trip123');
   });
 
+  it('describes a recorded payment as a transfer', async () => {
+    const zh = await buildPushPayload({ ...base, type: 'payment_recorded', locale: 'zh' });
+    expect(zh.body).toContain('轉帳');
+    expect(zh.body).not.toContain('還款');
+  });
+
   it('falls back to a relative URL when no appUrl is provided', async () => {
     const p = await buildPushPayload({
       ...base,

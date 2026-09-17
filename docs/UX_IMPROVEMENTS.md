@@ -1,6 +1,6 @@
 # UX 改善項目（第四輪）
 
-> **進行中：第 1、2 項已完成程式驗證；第 2 項既有資料待查核，第 3、4 項待處理。** 來源：2026-09-17 外部工具（ChatGPT）以 Test 帳號在桌面瀏覽器實測第三輪改善後的回饋。
+> **進行中：第 1–3 項已完成程式驗證；第 2 項既有資料待查核，第 4 項待處理。** 來源：2026-09-17 外部工具（ChatGPT）以 Test 帳號在桌面瀏覽器實測第三輪改善後的回饋。
 > 第三輪清單與實測結果見 [UX 改善項目（第三輪，已結案）](archive/history/UX_IMPROVEMENTS_ROUND3_2026-09-17.md)。
 > 現行行為見 [現有功能](FEATURES.md)。結案後依 [維護方式](README.md#維護方式) 移入 `archive/history/`。
 
@@ -16,7 +16,7 @@
 | --- | --- | --- | --- | --- |
 | 1 | 機場搜尋排序 | 輸入 `TPE`，第一筆是 MPL（Montpellier），TPE 排第二 | ① | 已完成 |
 | 2 | 起訖機場相同 | 出發與抵達都選 TPE，沒有提示，儲存按鈕仍可按 | ② | 已完成（既有資料待查核） |
-| 3 | 預付款文案 | 結算頁說可先登記訂金，但表單仍寫「登記一筆實際還款」 | ③ | 待處理 |
+| 3 | 預付款文案 | 結算頁說可先登記訂金，但表單仍寫「登記一筆實際還款」 | ③ | 已完成 |
 | 4 | 完整帳務流程驗收 | 輸入畫面已確認，儲存後的花費、預算、分帳、還款尚未走過 | ④ | 待處理 |
 
 建議順序：1 → 2 → 3，第 4 項在前三項完成後實測。版型與配色不變，不增加新功能。
@@ -132,7 +132,7 @@ MPL 會出現是因為名稱或城市字串含 `tpe`（例如 Montpellier）。�
 
 尚未產生欠款的人會不確定是否用對功能；「已結清紀錄」這個標題也不涵蓋預付款。
 
-**程式現況**（2026-09-17 核對）
+**改善前行為**（2026-09-17 核對）
 
 - 相關字串：`settlement.recordPayment`（登記還款）、`recordPaymentDescription`、`paymentHistory`（已結清紀錄）、
   `paymentHistoryEmpty`、`paymentRecorded`、`deletePayment`、`deletePaymentConfirm`；
@@ -171,6 +171,25 @@ MPL 會出現是因為名稱或城市字串含 `tpe`（例如 Montpellier）。�
 - 標題、按鈕、表單說明、成功與刪除提示、通知、動態、推播及 Email 用詞一致，四種語系同步。
 - 檢查 [settlementEmptyStates.test.tsx](../src/__tests__/settlementEmptyStates.test.tsx) 等相關測試，
   更新舊文案斷言；既有翻譯 key 保留。驗證預付款登記後的通知與 Email 不再稱為「還款」。
+
+**實作結果**（2026-09-17）
+
+- 只改四種語系的顯示文案，翻譯 key、`payment_recorded` 事件類型、資料結構與結算計算都沒動：
+  `settlement.recordPayment`、`recordPaymentDescription`、`paymentHistory`、`paymentHistoryEmpty`、
+  `paymentHistoryNoExpenses`、`paymentRecorded`、`deletePayment`、`deletePaymentConfirm`，
+  `notifications.paymentRecorded`（推播共用）、`activity.paymentRecorded`，以及 `email.payment_recorded.*`。
+- 另把設定頁 Email 通知說明（`emailHelp`）的「登記還款」改為「登記轉帳」，與通知一致。
+- 英文用 transfer，日文用「送金」，簡中用「转账」。`remind`、`reminderSent`、`allSettledHint`、
+  還款提醒 Email、「標記已付」「我已付款」依規則維持原文案。
+- 前端測試以 key 斷言，不受文案影響；[emailTemplates.test.ts](../src/__tests__/emailTemplates.test.ts) 補四語系
+  `payment_recorded` Email 使用轉帳用詞、不含舊詞，[webpush.test.ts](../src/__tests__/webpush.test.ts) 補中文推播不含「還款」。
+
+**驗證結果**（2026-09-17）
+
+- Email 模板、推播與結算空白狀態共 3 個測試檔、40 項測試全部通過；TypeScript、相關測試檔 ESLint 與 `git diff --check` 通過。
+- 四語系各更新相同的 14 個文案 key，既有 key 與插值參數完整保留；催收、結清與「標記已付」「我已付款」文案未變。
+- 已核對表單、成功提示、刪除確認與無障礙標籤、通知鈴鐺、動態紀錄及推播使用對應翻譯；帳務程式未改動。
+- 尚未進行瀏覽器操作、實際預付款登記及 Email／推播送達驗收；目前驗證涵蓋文案引用與訊息產生。
 
 ## 4. 完整帳務流程驗收
 
