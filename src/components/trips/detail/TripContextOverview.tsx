@@ -83,15 +83,18 @@ export default function TripContextOverview({
     if (currentDay) currentDayNumber = currentDay.day_number;
     const activities = currentDay ? sortActivities(currentDay.activities) : [];
     const currentTime = new Date().toTimeString().slice(0, 5);
-    const nextActivity =
-      activities.find((activity) => !activity.time || activity.time >= currentTime) ??
-      activities[0];
+    const nextActivity = activities.find(
+      (activity) => !activity.time || activity.time >= currentTime
+    );
+    // 當日活動全都過時就說已結束，不回頭顯示早上的活動
     summary.push(
       nextActivity
         ? t('nextActivity', {
             activity: [nextActivity.time, nextActivity.title].filter(Boolean).join(' '),
           })
-        : t('noActivityToday')
+        : activities.length > 0
+          ? t('todayActivitiesDone')
+          : t('noActivityToday')
     );
     if (isMember) summary.push(t('todaySpent', { amount: formatCurrency(todaySpent, 'TWD') }));
   } else if (settlement) {

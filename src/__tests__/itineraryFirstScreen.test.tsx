@@ -109,6 +109,25 @@ describe('itinerary first screen', () => {
     );
   });
 
+  it('says today is done instead of pointing back at a past activity', () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 8, 17, 20, 0));
+    try {
+      const trip = { ...baseTrip, start_date: ymd(-1), end_date: ymd(2) };
+      render(
+        <TripContextOverview
+          {...overviewProps}
+          trip={trip}
+          days={[day(2, [activity({ time: '09:00', title: 'Breakfast' })])]}
+        />
+      );
+
+      expect(screen.getByText('ongoingDay · todayActivitiesDone · todaySpent')).not.toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('jumps between days from the sticky day switcher', () => {
     const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
     const days = [day(1), day(2), day(3)];
