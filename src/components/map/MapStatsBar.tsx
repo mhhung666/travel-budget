@@ -33,9 +33,19 @@ export default function MapStatsBar({
     value: string;
     label: string;
     suffix?: string;
+    note?: string;
   }> = [
     { icon: Plane, value: String(stats.trips), label: t('statTrips') },
-    { icon: Globe2, value: String(stats.countries), label: t('statCountries') },
+    {
+      icon: Globe2,
+      value: String(stats.countries),
+      label: t('statCountries'),
+      // 還沒出發的目的地不算足跡，另外註明，免得使用者以為漏算。
+      note:
+        stats.plannedCountries > 0
+          ? t('statPlannedCountries', { count: stats.plannedCountries })
+          : undefined,
+    },
     { icon: Building2, value: String(stats.cities), label: t('statCities') },
   ];
   if (showDistance) {
@@ -52,7 +62,7 @@ export default function MapStatsBar({
             : 'grid grid-cols-3 gap-2'
       }
     >
-      {items.map(({ icon: Icon, value, label, suffix }, index) => (
+      {items.map(({ icon: Icon, value, label, suffix, note }, index) => (
         <div
           key={label}
           className={
@@ -78,6 +88,7 @@ export default function MapStatsBar({
               )}
             </div>
             <div className="truncate text-xs text-muted-foreground">{label}</div>
+            {note && <div className="truncate text-[11px] text-muted-foreground/80">{note}</div>}
           </div>
         </div>
       ))}

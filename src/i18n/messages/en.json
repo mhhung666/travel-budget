@@ -1413,11 +1413,13 @@
     "modeCountries": "Countries",
     "statTrips": "Trips",
     "statCountries": "Countries",
+    "statPlannedCountries": "+{count} planned",
     "statCities": "Cities",
     "statDistance": "Flight distance",
-    "countryTitle": "{count} countries",
-    "countryDescription": "Highlights visited countries and summarizes cities and visits with location data.",
+    "countryTitle": "{count} countries visited",
+    "countryDescription": "Highlights countries from trips that have started. Trips not yet started or without dates are outlined as planned and not counted.",
     "countryCities": "{count} cities",
+    "countryPlanned": "Planned",
     "modePhotos": "Photos",
     "photoTitle": "{count} photos",
     "photoDescription": "{spots} shooting spots grouped by area. Select one to browse the set.",
@@ -1427,7 +1429,7 @@
     "modeFlights": "Flights",
     "flightTitle": "{count, plural, one {# route} other {# routes}}",
     "flightDescription": "Return flights share one route; hover or select a route to see its details.",
-    "flightEmpty": "No flights to show yet — log flights with departure and arrival airports in Achievements"
+    "flightEmpty": "No flights to show yet. Add a flight with departure and arrival airports to draw its route."
   },
   "notifications": {
     "title": "Notifications",

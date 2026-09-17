@@ -5,16 +5,18 @@ import { combineReadStates } from '@/lib/queryReadState';
 import { useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useLocale, useTranslations } from 'next-intl';
-import { Loader2, ArrowLeftRight, Camera, Plane, Flame, Globe2, Images } from 'lucide-react';
+import { Loader2, ArrowLeftRight, Camera, Plane, Plus, Flame, Globe2, Images } from 'lucide-react';
 import { pickLocalizedName } from '@/lib/utils';
 import { tripOverlapsRange } from '@/lib/dateRange';
+import { dateFromLocalDateKey, isPlannedTrip, localDateKey } from '@/lib/tripStatus';
 import { useVisitedPlaces, useMapPhotos, useCollections, useAirports } from '@/hooks/queries';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { FlightRecordDialog } from '@/components/collections/DeferredDialogs';
 import MapShareDialog from './MapShareDialog';
 import MapStatsBar from './MapStatsBar';
 import PhotoPinDialog from './PhotoPinDialog';
-import { computeMapStats, visitedCountrySet } from './stats';
+import { computeMapStats, plannedCountrySet, visitedCountrySet } from './stats';
 import { groupPhotoAreas, groupPhotoPins, type PhotoPin } from './photos';
 import type { Location } from '@/types';
 import type { TripWithMembers } from '@/types';
@@ -41,14 +43,18 @@ interface TripMapViewProps {
 
 export default function TripMapView({ trips, loading, error }: TripMapViewProps) {
   const t = useTranslations('map');
+  const tCollections = useTranslations('collections');
   const locale = useLocale();
   // null = 全部年份；否則只看與該年（1/1–12/31）重疊的旅程。
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [mode, setMode] = useState<MapMode>('flights');
   const [selectedFlightKey, setSelectedFlightKey] = useState<string | null>(null);
+  const [flightDialogOpen, setFlightDialogOpen] = useState(false);
 
   // 行程日地點（造訪次數權重）：供儀表板「城市數」、國家點亮與熱點一起用。
-  const visitedQuery = useVisitedPlaces(true, selectedYear);
+  // 目的地與行程地點用同一個「今天」判斷計畫中（伺服器收到的也是這個值）。
+  const today = localDateKey();
+  const visitedQuery = useVisitedPlaces(true, selectedYear, today);
   const { data: visited = [] } = visitedQuery;
   // 相片釘點：只在相片模式才查（含 $lookup 關聯行程日，較重）。年份篩選連動。
   const photosQuery = useMapPhotos(mode === 'photos', selectedYear);
@@ -86,6 +92,7 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
         weight: p.weight,
         name: pickLocalizedName(p.names, locale, p.name),
         countryCode: p.countryCode,
+        planned: p.planned,
       })),
     [visited, locale]
   );
@@ -108,7 +115,7 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
     };
 
     return trips
-      .map((tr) => {
+      .map((tr): TripDestinationPoint | null => {
         const point = toPoint(tr.destination_location, tr.name);
         return point
           ? {
@@ -117,6 +124,11 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
               tripName: tr.name,
               startDate: tr.start_date,
               endDate: tr.end_date,
+              planned: isPlannedTrip(
+                tr.start_date,
+                tr.end_date,
+                dateFromLocalDateKey(today) ?? undefined
+              ),
             }
           : null;
       })
@@ -126,7 +138,7 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
         const tb = b.startDate ? new Date(b.startDate).getTime() : Infinity;
         return ta - tb;
       });
-  }, [trips, locale]);
+  }, [trips, locale, today]);
 
   // 飛行航線：往返紀錄依機場配對合併，避免同一路線重疊；年份篩選連動。
   const flightSegments = useMemo<FlightSegment[]>(() => {
@@ -181,6 +193,7 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
         weight: p.weight,
         name: pickLocalizedName(p.names, locale, p.name),
         countryCode: p.countryCode,
+        planned: p.planned,
       })),
     [visited, locale]
   );
@@ -195,31 +208,45 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
     [filteredDestinations, visitsPoints]
   );
 
-  // 國家模式側欄：依造訪城市次數排序的國家清單。
+  const plannedCountries = useMemo(
+    () => plannedCountrySet(filteredDestinations, visitsPoints),
+    [filteredDestinations, visitsPoints]
+  );
+
+  // 國家模式側欄：已造訪國家依造訪城市次數排序，計畫中國家排在後面；
+  // 兩類各自只統計自己的地點，已造訪國家的次數不混入還沒出發的行程日。
   const rankedCountries = useMemo(() => {
-    const map = new Map<string, { code: string; cities: number; visits: number }>();
-    const cityKeys = new Map<string, Set<string>>();
-    const addCity = (code: string, lat: number, lon: number) => {
-      const set = cityKeys.get(code) ?? new Set<string>();
-      set.add(`${lat.toFixed(2)},${lon.toFixed(2)}`);
-      cityKeys.set(code, set);
+    const rank = (planned: boolean) => {
+      const map = new Map<string, { code: string; cities: number; visits: number }>();
+      const cityKeys = new Map<string, Set<string>>();
+      const addCity = (code: string, lat: number, lon: number) => {
+        const set = cityKeys.get(code) ?? new Set<string>();
+        set.add(`${lat.toFixed(2)},${lon.toFixed(2)}`);
+        cityKeys.set(code, set);
+      };
+      const include = (code: string | undefined, isPlanned: boolean | undefined) =>
+        !!code && !!isPlanned === planned && (!planned || plannedCountries.has(code));
+      for (const p of visitsPoints) {
+        const code = p.countryCode?.toUpperCase();
+        if (!code || !include(code, p.planned)) continue;
+        const e = map.get(code) ?? { code, cities: 0, visits: 0 };
+        e.visits += p.weight;
+        map.set(code, e);
+        addCity(code, p.lat, p.lon);
+      }
+      for (const destination of filteredDestinations) {
+        const code = destination.countryCode?.toUpperCase();
+        if (!code || !include(code, destination.planned)) continue;
+        if (!map.has(code)) map.set(code, { code, cities: 0, visits: 0 });
+        addCity(code, destination.lat, destination.lon);
+      }
+      for (const [code, entry] of map) entry.cities = cityKeys.get(code)?.size ?? 0;
+      return [...map.values()]
+        .sort((a, b) => b.visits - a.visits || b.cities - a.cities)
+        .map((entry) => ({ ...entry, planned }));
     };
-    for (const p of visitsPoints) {
-      const code = p.countryCode?.toUpperCase();
-      if (!code) continue;
-      const e = map.get(code) ?? { code, cities: 0, visits: 0 };
-      e.visits += p.weight;
-      map.set(code, e);
-      addCity(code, p.lat, p.lon);
-    }
-    for (const destination of filteredDestinations) {
-      const code = destination.countryCode?.toUpperCase();
-      if (code && !map.has(code)) map.set(code, { code, cities: 0, visits: 0 });
-      if (code) addCity(code, destination.lat, destination.lon);
-    }
-    for (const [code, entry] of map) entry.cities = cityKeys.get(code)?.size ?? 0;
-    return [...map.values()].sort((a, b) => b.visits - a.visits || b.cities - a.cities);
-  }, [visitsPoints, filteredDestinations]);
+    return [...rank(false), ...rank(true)];
+  }, [visitsPoints, filteredDestinations, plannedCountries]);
 
   const countryNames = useMemo(() => {
     const intlLocale =
@@ -244,7 +271,7 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
     },
     countries: {
       icon: Globe2,
-      title: t('countryTitle', { count: rankedCountries.length }),
+      title: t('countryTitle', { count: visitedCountries.size }),
       description: t('countryDescription'),
     },
     photos: {
@@ -430,10 +457,16 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
                             </span>
                           </span>
                         </span>
-                        {c.cities > 0 && (
-                          <Badge variant="secondary" className="shrink-0">
-                            {t('countryCities', { count: c.cities })}
+                        {c.planned ? (
+                          <Badge variant="outline" className="shrink-0 border-dashed">
+                            {t('countryPlanned')}
                           </Badge>
+                        ) : (
+                          c.cities > 0 && (
+                            <Badge variant="secondary" className="shrink-0">
+                              {t('countryCities', { count: c.cities })}
+                            </Badge>
+                          )
                         )}
                       </li>
                     ))}
@@ -443,9 +476,13 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
             ) : mode === 'flights' ? (
               <>
                 {flightSegments.length === 0 ? (
-                  <p className="rounded-lg bg-muted/40 p-3 text-sm text-muted-foreground">
-                    {t('flightEmpty')}
-                  </p>
+                  <div className="space-y-3 rounded-lg bg-muted/40 p-3">
+                    <p className="text-sm text-muted-foreground">{t('flightEmpty')}</p>
+                    <Button size="sm" onClick={() => setFlightDialogOpen(true)}>
+                      <Plus className="mr-1.5 h-4 w-4" aria-hidden="true" />
+                      {tCollections('flights.addFlight')}
+                    </Button>
+                  </div>
                 ) : (
                   <ol className="space-y-2">
                     {flightSegments.map((s) => (
@@ -556,6 +593,8 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
             onFlightSelect={setSelectedFlightKey}
             heatPoints={heatPoints}
             visitedCountries={visitedCountries}
+            plannedCountries={plannedCountries}
+            plannedCountryLabel={t('countryPlanned')}
             photoPins={photoPins}
             onPhotoPinSelect={setActivePin}
           />
@@ -563,6 +602,12 @@ export default function TripMapView({ trips, loading, error }: TripMapViewProps)
       </div>
 
       <PhotoPinDialog pin={activePin} onOpenChange={(open) => !open && setActivePin(null)} />
+      {/* 飛行空白提示的直接入口：與旅行成就頁同一個表單，存檔後成就資料失效重抓，航線隨即出現。 */}
+      <FlightRecordDialog
+        open={flightDialogOpen}
+        onOpenChange={setFlightDialogOpen}
+        editing={null}
+      />
     </div>
   );
 }

@@ -8,6 +8,8 @@ export interface HeatPoint {
   weight: number;
   name?: string;
   countryCode?: string;
+  /** 來自尚未出發的旅程；公開分享不帶此欄（一律視為足跡，不外洩日期）。 */
+  planned?: boolean;
 }
 
 /** 地圖上的一個座標點。 */
@@ -50,4 +52,6 @@ export interface TripDestinationPoint extends GeoPoint {
   tripName: string;
   startDate: string | null;
   endDate: string | null;
+  /** 尚未出發或未排日期（見 isPlannedTrip）；計畫中不算進國家／城市足跡。 */
+  planned?: boolean;
 }

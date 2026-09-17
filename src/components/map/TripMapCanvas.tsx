@@ -35,6 +35,10 @@ interface TripMapCanvasProps {
   heatPoints?: HeatPoint[];
   /** 已造訪國家 alpha-2 集合（mode === 'countries' 時上色用）。 */
   visitedCountries?: Set<string>;
+  /** 只出現在計畫中旅程的國碼（mode === 'countries' 時淡色標示）。 */
+  plannedCountries?: Set<string>;
+  /** 計畫中國家的 tooltip 後綴（已翻譯）。 */
+  plannedCountryLabel?: string;
   /** 相片釘點（mode === 'photos' 時使用）。 */
   photoPins?: PhotoPin[];
   /** 點擊相片釘點（開啟該點的相片 gallery）。 */
@@ -301,6 +305,8 @@ export default function TripMapCanvas({
   onFlightSelect,
   heatPoints = [],
   visitedCountries,
+  plannedCountries,
+  plannedCountryLabel,
   photoPins = [],
   onPhotoPinSelect,
 }: TripMapCanvasProps) {
@@ -346,7 +352,14 @@ export default function TripMapCanvas({
 
       {isHeat && <HeatLayer points={heatTuples} max={maxWeight} />}
 
-      {isCountries && <CountriesLayer visited={visitedCountries ?? new Set()} isDark={isDark} />}
+      {isCountries && (
+        <CountriesLayer
+          visited={visitedCountries ?? new Set()}
+          planned={plannedCountries}
+          plannedLabel={plannedCountryLabel}
+          isDark={isDark}
+        />
+      )}
 
       {/* 相片釘點：縮圖卡片，近點聚合成同款卡片（radius 涵蓋卡片寬避免重疊），點擊開啟 gallery。 */}
       {isPhotos && <PhotoPinsLayer pins={photoPins} onSelect={onPhotoPinSelect} />}

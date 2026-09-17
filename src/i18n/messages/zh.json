@@ -1406,11 +1406,13 @@
     "modeCountries": "國家",
     "statTrips": "旅行",
     "statCountries": "國家",
+    "statPlannedCountries": "另有 {count} 個計畫中",
     "statCities": "城市",
     "statDistance": "飛行里程",
-    "countryTitle": "共 {count} 個國家",
-    "countryDescription": "點亮曾造訪的國家；清單統計有地點資料的城市與造訪次數。",
+    "countryTitle": "已造訪 {count} 個國家",
+    "countryDescription": "點亮已出發旅行去過的國家；還沒出發或未排日期的旅行以虛線標為計畫中，不算進統計。",
     "countryCities": "{count} 個城市",
+    "countryPlanned": "計畫中",
     "modePhotos": "相片",
     "photoTitle": "共 {count} 張相片",
     "photoDescription": "{spots} 個拍攝點依地區整理，點一下即可瀏覽整組相片。",
@@ -1420,7 +1422,7 @@
     "modeFlights": "飛行",
     "flightTitle": "{count} 條航線",
     "flightDescription": "往返紀錄合併為同一條航線；滑過或選取時可查看細節。",
-    "flightEmpty": "還沒有可顯示的飛行——到「旅行成就」補登含出發／抵達機場的飛行紀錄"
+    "flightEmpty": "還沒有可顯示的飛行。新增含出發／抵達機場的飛行紀錄，就會畫出航線。"
   },
   "notifications": {
     "title": "通知",

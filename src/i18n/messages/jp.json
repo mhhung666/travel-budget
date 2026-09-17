@@ -1406,11 +1406,13 @@
     "modeCountries": "国",
     "statTrips": "旅行",
     "statCountries": "国",
+    "statPlannedCountries": "ほか予定 {count} か国",
     "statCities": "都市",
     "statDistance": "飛行距離",
-    "countryTitle": "{count} か国",
-    "countryDescription": "訪問した国を色付けし、位置情報のある都市数と訪問回数をまとめます。",
+    "countryTitle": "訪問済み {count} か国",
+    "countryDescription": "出発済みの旅行で訪れた国を色付けします。未出発・日程未定の旅行は点線で「予定」として表示し、集計には含めません。",
     "countryCities": "{count} 都市",
+    "countryPlanned": "予定",
     "modePhotos": "写真",
     "photoTitle": "写真 {count} 枚",
     "photoDescription": "{spots}か所の撮影地点をエリア別に整理しています。選択するとまとめて閲覧できます。",
@@ -1420,7 +1422,7 @@
     "modeFlights": "フライト",
     "flightTitle": "{count} 路線",
     "flightDescription": "往復便を同じ路線にまとめ、ホバーまたは選択時に詳細を表示します。",
-    "flightEmpty": "表示できるフライトがありません。「旅の実績」で出発／到着空港つきのフライトを記録しましょう"
+    "flightEmpty": "表示できるフライトがありません。出発／到着空港つきのフライトを追加すると航路が表示されます。"
   },
   "notifications": {
     "title": "通知",

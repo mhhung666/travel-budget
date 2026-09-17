@@ -7,6 +7,7 @@ import { withAuth } from './withAuth';
 import type { ActionResult } from './types';
 import type { LocalizedNames, TripPhoto } from '@/types';
 import { tripOverlapsRange } from '@/lib/dateRange';
+import { dateFromLocalDateKey, isPlannedTrip } from '@/lib/tripStatus';
 import { presignGetStable } from '@/lib/storage';
 import { toTripPhotoDto, type TripPhotoDtoInput } from '@/lib/dto';
 import { logger } from '@/lib/logger';
@@ -20,6 +21,8 @@ export interface VisitedPlace {
   countryCode?: string;
   /** 此座標出現在行程日的次數。 */
   weight: number;
+  /** 來自尚未出發（或未排日期）的旅程；同一座標已出發與計畫中各自一列。 */
+  planned: boolean;
 }
 
 type AggRow = {
@@ -29,6 +32,7 @@ type AggRow = {
   names?: LocalizedNames;
   countryCode?: string;
   weight: number;
+  planned: boolean;
 };
 
 /**
@@ -38,10 +42,22 @@ type AggRow = {
  * 行程日本身沒有日期，故 `year` 篩選改以「所屬旅程的起訖日是否與該年重疊」為準，
  * 與航線的年份篩選共用同一套判斷（src/lib/dateRange.ts），兩種模式行為一致。
  *
+ * 「計畫中／已造訪」依所屬旅程的出發日判斷（{@link isPlannedTrip}），分群鍵含此旗標，
+ * 讓地圖統計只把已出發的旅程算成足跡。「今天」由瀏覽器以本地日曆日（`today`）傳入，
+ * 伺服器不用自己的時區判斷，前端目的地與這裡的地點才會落在同一天。
+ *
  * 一次 aggregate 完成（先取使用者旅程 id，再對 ItineraryDay 分群），不 N+1。
  */
+/** 與 trip DTO 的 `start_date` 同格式（UTC 日期字串），讓伺服器與前端用同一套日曆日判斷。 */
+function dateOnly(date: Date | null | undefined): string | null {
+  return date ? date.toISOString().slice(0, 10) : null;
+}
+
 export const getVisitedPlaces = withAuth(
-  async (session, options?: { year?: number | null }): Promise<ActionResult<VisitedPlace[]>> => {
+  async (
+    session,
+    options?: { year?: number | null; today?: string }
+  ): Promise<ActionResult<VisitedPlace[]>> => {
     try {
       await dbConnect();
 
@@ -66,6 +82,11 @@ export const getVisitedPlaces = withAuth(
       if (selected.length === 0) return { success: true, data: [] };
 
       const tripIds = selected.map((t) => t._id);
+      // 格式不合（或舊版前端沒帶）才退回伺服器時間。
+      const now = (options?.today && dateFromLocalDateKey(options.today)) || new Date();
+      const plannedTripIds = selected
+        .filter((t) => isPlannedTrip(dateOnly(t.startDate), dateOnly(t.endDate), now))
+        .map((t) => t._id);
 
       const pipeline: PipelineStage[] = [
         {
@@ -75,13 +96,16 @@ export const getVisitedPlaces = withAuth(
             'location.lon': { $type: 'number' },
           },
         },
+        { $addFields: { planned: { $in: ['$trip', plannedTripIds] } } },
         {
           $group: {
             _id: {
               lat: { $round: ['$location.lat', 2] },
               lon: { $round: ['$location.lon', 2] },
+              planned: '$planned',
             },
             weight: { $sum: 1 },
+            planned: { $first: '$planned' },
             lat: { $first: '$location.lat' },
             lon: { $first: '$location.lon' },
             name: { $first: '$location.name' },
@@ -101,6 +125,7 @@ export const getVisitedPlaces = withAuth(
         names: r.names,
         countryCode: r.countryCode,
         weight: r.weight,
+        planned: r.planned,
       }));
 
       return { success: true, data: places };

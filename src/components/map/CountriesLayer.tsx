@@ -19,8 +19,14 @@ interface CountryProps {
 interface CountriesLayerProps {
   /** 已造訪國家的 alpha-2 國碼集合（大寫）。 */
   visited: Set<string>;
+  /** 只出現在計畫中旅程的國碼：淡色虛線，不算點亮。 */
+  planned?: Set<string>;
+  /** 計畫中國家 tooltip 後綴（已翻譯）。 */
+  plannedLabel?: string;
   isDark: boolean;
 }
+
+const EMPTY_SET = new Set<string>();
 
 let cache: FeatureCollection<Geometry, CountryProps> | null = null;
 
@@ -37,7 +43,12 @@ function pickName(p: CountryProps, locale: string): string {
  * 國界資料是靜態資產（public/geo/countries.geojson，Natural Earth 110m 瘦身版），
  * 只在切到此模式時才抓，並以模組層級快取避免重複下載。
  */
-export default function CountriesLayer({ visited, isDark }: CountriesLayerProps) {
+export default function CountriesLayer({
+  visited,
+  planned = EMPTY_SET,
+  plannedLabel,
+  isDark,
+}: CountriesLayerProps) {
   const locale = useLocale();
   const [data, setData] = useState<FeatureCollection<Geometry, CountryProps> | null>(cache);
 
@@ -74,6 +85,16 @@ export default function CountriesLayer({ visited, isDark }: CountriesLayerProps)
         opacity: 0.8,
       };
     }
+    if (iso && planned.has(iso)) {
+      return {
+        fillColor: countryColor(iso),
+        fillOpacity: 0.15,
+        color: countryColor(iso),
+        weight: 1,
+        opacity: 0.7,
+        dashArray: '4 3',
+      };
+    }
     return {
       fillColor: isDark ? '#94a3b8' : '#cbd5e1',
       fillOpacity: 0.06,
@@ -85,14 +106,20 @@ export default function CountriesLayer({ visited, isDark }: CountriesLayerProps)
 
   const onEachFeature = (feature: Feature<Geometry, CountryProps>, layer: Layer) => {
     const iso = feature.properties.iso_a2?.toUpperCase();
-    if (iso && visited.has(iso)) {
-      const name = pickName(feature.properties, locale);
-      layer.bindTooltip(`${countryCodeToFlag(iso)} ${name}`, { direction: 'top', sticky: true });
+    if (!iso) return;
+    const label = `${countryCodeToFlag(iso)} ${pickName(feature.properties, locale)}`;
+    if (visited.has(iso)) {
+      layer.bindTooltip(label, { direction: 'top', sticky: true });
+    } else if (planned.has(iso)) {
+      const text = plannedLabel ? `${label} · ${plannedLabel}` : label;
+      layer.bindTooltip(text, { direction: 'top', sticky: true });
     }
   };
 
-  // visited / 主題 / 語系變動時用 key 強制重建圖層套用新樣式與 tooltip。
-  const key = `${[...visited].sort().join(',')}|${isDark ? 'd' : 'l'}|${locale}`;
+  // visited / planned / 主題 / 語系變動時用 key 強制重建圖層套用新樣式與 tooltip。
+  const key = `${[...visited].sort().join(',')}|${[...planned].sort().join(',')}|${
+    isDark ? 'd' : 'l'
+  }|${locale}`;
 
   return <GeoJSON key={key} data={data} style={style} onEachFeature={onEachFeature} />;
 }

@@ -37,6 +37,8 @@ export function useTripMutations(tripId: string) {
       queryClient.invalidateQueries({ queryKey: tripKeys.list });
       if (input.start_date !== undefined || input.end_date !== undefined) {
         queryClient.invalidateQueries({ queryKey: tripKeys.photos(tripId) });
+        // 地圖的計畫中／足跡依出發日分類；前綴失效涵蓋所有年份與日期的地點查詢。
+        queryClient.invalidateQueries({ queryKey: tripKeys.visitedPlaces });
       }
     },
   });
