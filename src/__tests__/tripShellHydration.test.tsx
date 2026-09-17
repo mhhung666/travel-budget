@@ -1,4 +1,5 @@
 import { act, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderToString } from 'react-dom/server';
 import { hydrateRoot, type Root } from 'react-dom/client';
 import { expect, it, vi } from 'vitest';
@@ -36,10 +37,13 @@ it.each([false, true])(
       handleSetBudget: noop,
     } as unknown as ReturnType<typeof useTripSpace>;
     vi.mocked(useTripSpace).mockReturnValue(cold);
+    const queryClient = new QueryClient();
     const app = (
-      <TripSpaceShell tripId="t1">
-        <p>route content</p>
-      </TripSpaceShell>
+      <QueryClientProvider client={queryClient}>
+        <TripSpaceShell tripId="t1">
+          <p>route content</p>
+        </TripSpaceShell>
+      </QueryClientProvider>
     );
     const container = document.createElement('div');
     document.body.append(container);
@@ -63,6 +67,7 @@ it.each([false, true])(
       expect(errors).not.toHaveBeenCalled();
     } finally {
       await act(async () => root?.unmount());
+      queryClient.clear();
       container.remove();
     }
   }
