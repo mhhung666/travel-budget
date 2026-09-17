@@ -816,6 +816,7 @@
     "shareTotal": "負担",
     "members": "メンバー",
     "days": "日数",
+    "daysFromExpenseDates": "支出日から計算",
     "avgPerPersonPerDay": "1人1日あたり平均",
     "dailySpend": "日別支出",
     "dailySpendHint": "行程日ごとに集計（複数日の支出は均等に按分）",

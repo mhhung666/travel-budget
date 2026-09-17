@@ -816,6 +816,7 @@
     "shareTotal": "分攤",
     "members": "成員",
     "days": "天數",
+    "daysFromExpenseDates": "依支出日期計算",
     "avgPerPersonPerDay": "平均每人每日",
     "dailySpend": "每日花費",
     "dailySpendHint": "依行程日整理；跨多天的支出平均分攤",

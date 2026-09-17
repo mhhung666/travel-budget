@@ -816,6 +816,7 @@
     "shareTotal": "Share",
     "members": "Members",
     "days": "Days",
+    "daysFromExpenseDates": "Based on expense dates",
     "avgPerPersonPerDay": "Avg / person / day",
     "dailySpend": "Daily spend",
     "dailySpendHint": "By itinerary day; multi-day expenses are split evenly",

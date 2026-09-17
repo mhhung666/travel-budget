@@ -49,6 +49,7 @@ export type {
   MemberSpend,
   DailySpend,
   TripStatsData,
+  TripDayCountSource,
   YearInReviewData,
   YearInReviewCategory,
   TimeInterval,

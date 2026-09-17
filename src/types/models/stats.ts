@@ -134,6 +134,9 @@ export interface DailySpend {
  * categoryStats / totalAmount / totalExpenses 與個人 StatsData 同形狀，故可直接餵給
  * 既有的 ExpenseHistogram / CategoryStats 元件。
  */
+/** 天數來源：旅行起訖日、首筆到末筆支出日期，或兩者皆無。 */
+export type TripDayCountSource = 'tripDates' | 'expenseDates' | 'none';
+
 export interface TripStatsData {
   categoryStats: CategoryStat[];
   tagStats: TagStat[];
@@ -142,6 +145,7 @@ export interface TripStatsData {
   memberSpends: MemberSpend[];
   memberCount: number;
   dayCount: number;
+  dayCountSource: TripDayCountSource;
   avgPerPersonPerDay: number;
   /** 按行程日聚合的花費（行程日序升冪，未關聯桶在最後）。無任何行程日時為空陣列。 */
   dailySpend: DailySpend[];

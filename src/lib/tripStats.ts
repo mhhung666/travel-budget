@@ -6,6 +6,7 @@ import type {
   MemberSpend,
   TagStat,
   TripStatsData,
+  TripDayCountSource,
 } from '@/types';
 
 export interface TripStatsMember {
@@ -168,11 +169,14 @@ export function computeTripStats(
     .sort((a, b) => b.paid - a.paid || b.share - a.share);
 
   const memberCount = members.length;
-  const dayCount =
-    inclusiveDayCount(range.startDate, range.endDate) || inclusiveDayCount(minDate, maxDate);
+  // 沒設旅行日期時退回首筆到末筆支出日期；畫面依來源加註，免得「天數 1」被當成行程只有一天。
+  const tripDayCount = inclusiveDayCount(range.startDate, range.endDate);
+  const dayCount = tripDayCount || inclusiveDayCount(minDate, maxDate);
+  const dayCountSource: TripDayCountSource =
+    tripDayCount > 0 ? 'tripDates' : dayCount > 0 ? 'expenseDates' : 'none';
   const avgPerPersonPerDay =
-    // 平均值不參與任何加總，維持整數顯示。
-    memberCount > 0 && dayCount > 0 ? Math.round(totalAmount / (memberCount * dayCount)) : 0;
+    // 與分攤同樣保留兩位小數（123 ÷ 2 人 ÷ 1 天 = 61.5），同頁不出現兩種尾數規則。
+    memberCount > 0 && dayCount > 0 ? roundMoney(totalAmount / (memberCount * dayCount)) : 0;
 
   // 按行程日聚合：依 days 順序（dayNumber 升冪）列出每天總額，最後補上「未關聯」桶（若有）。
   // 沒有任何花費的行程日 total=0、count=0 仍會列出，讓使用者看到「這天還沒記帳」。
@@ -207,6 +211,7 @@ export function computeTripStats(
     memberSpends,
     memberCount,
     dayCount,
+    dayCountSource,
     avgPerPersonPerDay,
     dailySpend,
   };

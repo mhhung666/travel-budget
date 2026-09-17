@@ -92,14 +92,42 @@ describe('computeTripStats', () => {
       endDate: '2026-06-05',
     });
     expect(r.dayCount).toBe(5); // inclusive
+    expect(r.dayCountSource).toBe('tripDates');
     expect(r.memberCount).toBe(3);
-    expect(r.avgPerPersonPerDay).toBe(37); // round(560 / (3 * 5))
+    expect(r.avgPerPersonPerDay).toBe(37.33); // 560 / (3 * 5)，保留兩位小數
   });
 
   it('falls back to expense min/max dates when no trip range is set', () => {
     const r = computeTripStats(expenses, members, {});
     expect(r.dayCount).toBe(3); // 06-01 .. 06-03 inclusive
-    expect(r.avgPerPersonPerDay).toBe(62); // round(560 / (3 * 3))
+    expect(r.dayCountSource).toBe('expenseDates');
+    expect(r.avgPerPersonPerDay).toBe(62.22); // 560 / (3 * 3)
+  });
+
+  it('keeps the same decimals as the split for a single undated expense', () => {
+    // QA 案例：NT$123 兩人均分、未設旅行日期；分攤 61.5，平均不可顯示成 62。
+    const r = computeTripStats(
+      [
+        {
+          id: 'q1',
+          category: 'food',
+          date: '2026-09-17',
+          description: 'QA',
+          amount: 123,
+          payerId: 'a',
+          payerName: 'Alice',
+          splits: [
+            { userId: 'a', shareAmount: 61.5 },
+            { userId: 'b', shareAmount: 61.5 },
+          ],
+        },
+      ],
+      members.slice(0, 2),
+      {}
+    );
+    expect(r.dayCount).toBe(1);
+    expect(r.dayCountSource).toBe('expenseDates');
+    expect(r.avgPerPersonPerDay).toBe(61.5);
   });
 
   it('returns zeros for an empty trip but still lists members', () => {
@@ -108,6 +136,7 @@ describe('computeTripStats', () => {
     expect(r.totalExpenses).toBe(0);
     expect(r.categoryStats).toEqual([]);
     expect(r.dayCount).toBe(0);
+    expect(r.dayCountSource).toBe('none');
     expect(r.avgPerPersonPerDay).toBe(0);
     expect(r.memberSpends).toEqual([
       { userId: 'a', name: 'Alice', paid: 0, share: 0 },

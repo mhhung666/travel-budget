@@ -44,10 +44,12 @@ function MetricTile({
   icon: Icon,
   label,
   value,
+  note,
 }: {
   icon: LucideIcon;
   label: string;
   value: string;
+  note?: string;
 }) {
   return (
     <Card className="h-full">
@@ -57,6 +59,7 @@ function MetricTile({
           {label}
         </div>
         <div className="text-2xl font-bold tracking-tight tabular-nums">{value}</div>
+        {note && <div className="text-xs text-muted-foreground">{note}</div>}
       </CardContent>
     </Card>
   );
@@ -116,7 +119,12 @@ export default function TripStatsView({
         </div>
         <div className="grid grid-cols-3 gap-4 md:col-span-7">
           <MetricTile icon={Users} label={t('members')} value={String(stats.memberCount)} />
-          <MetricTile icon={CalendarDays} label={t('days')} value={String(stats.dayCount)} />
+          <MetricTile
+            icon={CalendarDays}
+            label={t('days')}
+            value={String(stats.dayCount)}
+            note={stats.dayCountSource === 'expenseDates' ? t('daysFromExpenseDates') : undefined}
+          />
           <MetricTile
             icon={TrendingUp}
             label={t('avgPerPersonPerDay')}
