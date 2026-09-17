@@ -414,7 +414,10 @@
         "unsavedTitle": "尚未保存的修改",
         "unsavedMessage": "现在关闭，这笔支出的修改不会保留。",
         "keepEditing": "继续编辑",
-        "discardChanges": "舍弃修改"
+        "discardChanges": "舍弃修改",
+        "saveFailedTitle": "草稿存不下来",
+        "saveFailedMessage": "本机存储空间不足或无法使用，草稿留不住。建议先提交这笔支出，或关闭并放弃已填的内容。",
+        "discardContent": "关闭并放弃内容"
       }
     },
     "confirm": {

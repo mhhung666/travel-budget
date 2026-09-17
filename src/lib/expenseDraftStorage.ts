@@ -125,18 +125,21 @@ export function loadExpenseDraft(tripId: string, now = Date.now()): ExpenseDraft
   return stored.snapshot;
 }
 
+/** 寫入草稿；回傳是否真的存進去了（配額用盡／storage 不可用時為 false，呼叫端才不會謊報已保留）。 */
 export function saveExpenseDraft(
   tripId: string,
   snapshot: ExpenseDraftSnapshot,
   now = Date.now()
-): void {
+): boolean {
   const store = storage();
-  if (!store) return;
+  if (!store) return false;
   const record: StoredExpenseDraft = { version: EXPENSE_DRAFT_VERSION, savedAt: now, snapshot };
   try {
     store.setItem(expenseDraftKey(tripId), JSON.stringify(record));
+    return true;
   } catch {
-    // 配額用盡或 storage 不可用：草稿存不下不該讓使用者記不了帳。
+    // 配額用盡或 storage 不可用：草稿存不下不該讓使用者記不了帳，改由呼叫端提示。
+    return false;
   }
 }
 

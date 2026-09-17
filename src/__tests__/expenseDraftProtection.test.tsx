@@ -198,3 +198,35 @@ it('closes an untouched edit form without asking', async () => {
   expect(onClose).toHaveBeenCalledTimes(1);
   expect(screen.queryByText('form.draft.unsavedTitle')).not.toBeInTheDocument();
 });
+
+it('keeps the draft immediately when switching trips, without waiting for the autosave', async () => {
+  const user = userEvent.setup();
+  const onSwitchTrip = vi.fn();
+  renderForm({ onSwitchTrip });
+
+  await user.type(screen.getByLabelText('amount'), '250');
+  await user.click(screen.getByRole('button', { name: /form\.switchTrip/ }));
+
+  expect(onSwitchTrip).toHaveBeenCalledTimes(1);
+  expect(loadExpenseDraft(TRIP)?.form.original_amount).toBe('250');
+});
+
+it('asks instead of claiming the draft was kept when storage refuses the write', async () => {
+  const user = userEvent.setup();
+  const onClose = vi.fn();
+  vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+    throw new DOMException('quota', 'QuotaExceededError');
+  });
+  renderForm({ onClose });
+
+  await user.type(screen.getByLabelText('amount'), '250');
+  await user.click(screen.getByRole('button', { name: 'cancel' }));
+
+  expect(onClose).not.toHaveBeenCalled();
+  expect(screen.getByText('form.draft.saveFailedTitle')).toBeInTheDocument();
+  expect(screen.queryByText('form.draft.saved')).not.toBeInTheDocument();
+
+  await user.click(screen.getByRole('button', { name: 'form.draft.discardContent' }));
+  expect(onClose).toHaveBeenCalledTimes(1);
+  vi.restoreAllMocks();
+});

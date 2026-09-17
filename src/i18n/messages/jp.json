@@ -414,7 +414,10 @@
         "unsavedTitle": "未保存の変更があります",
         "unsavedMessage": "ここで閉じると、この支出への変更は保存されません。",
         "keepEditing": "編集を続ける",
-        "discardChanges": "変更を破棄"
+        "discardChanges": "変更を破棄",
+        "saveFailedTitle": "下書きを保存できません",
+        "saveFailedMessage": "端末の保存領域が不足しているか利用できないため、下書きを残せません。先に支出を登録するか、入力内容を破棄して閉じてください。",
+        "discardContent": "破棄して閉じる"
       }
     },
     "confirm": {

@@ -48,6 +48,12 @@ interface ExpenseFormSheetProps {
 
 const FORM_ID = 'expense-form';
 
+/** 被擋下的離開動作：為什麼要問，以及使用者確認後要執行什麼。 */
+interface PendingLeave {
+  reason: 'edit' | 'storage';
+  proceed: () => void;
+}
+
 /**
  * 新增／編輯支出表單（UI/UX 重設計 5.3 —— 最高頻操作）。
  * 欄位按輸入頻率排序（docs/archive/history/UX_IMPROVEMENTS_2026-09-17.md 第 2 項）：
@@ -78,8 +84,8 @@ export default function ExpenseFormSheet({
   const locale = useLocale();
   const { toast } = useToast();
   const [submitting, setSubmitting] = useState(false);
-  // 編輯既有支出時關閉前的確認（新增模式改為直接留草稿，不打斷）。
-  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  // 內容留不住時才擋下離開：編輯既有支出（不落地草稿），或草稿寫入失敗。
+  const [pendingLeave, setPendingLeave] = useState<PendingLeave | null>(null);
 
   const {
     form,
@@ -135,28 +141,36 @@ export default function ExpenseFormSheet({
   });
 
   /**
-   * ×、點遮罩、Esc、手機下滑、footer 的「取消」都走這裡，關閉行為才會一致
-   * （docs/UX_IMPROVEMENTS.md 第 1 項）。
+   * 表單要被收掉前的共同出口：×、點遮罩、Esc、手機下滑、footer 的「取消」，
+   * 以及會把表單換掉的「切換旅行」（docs/UX_IMPROVEMENTS.md 第 1 項）。
    * - 新增模式：有填過就靜靜存成草稿並提示，下次打開接著填。
    * - 編輯模式：草稿不落地，改過就先問「繼續編輯／捨棄修改」。
+   * - 草稿寫不進 localStorage（配額用盡等）：不謊報已保留，改成先問過再離開。
    */
-  const handleRequestClose = () => {
+  const leaveForm = (proceed: () => void) => {
     if (!isDirty()) {
       clearDraft();
-      onClose();
+      proceed();
       return;
     }
     if (draftEnabled) {
-      persistDraft();
-      toast({
-        title: tExpense('form.draft.saved'),
-        description: tExpense('form.draft.savedHint'),
-      });
-      onClose();
+      if (persistDraft()) {
+        toast({
+          title: tExpense('form.draft.saved'),
+          description: tExpense('form.draft.savedHint'),
+        });
+        proceed();
+        return;
+      }
+      setPendingLeave({ reason: 'storage', proceed });
       return;
     }
-    setConfirmDiscard(true);
+    setPendingLeave({ reason: 'edit', proceed });
   };
+
+  const handleRequestClose = () => leaveForm(onClose);
+  // 切換旅行會立刻換掉整張表單，debounce 的自動存檔來不及跑，這裡先把草稿定下來。
+  const handleSwitchTrip = onSwitchTrip ? () => leaveForm(onSwitchTrip) : undefined;
 
   const handleDiscardDraft = () => {
     discardDraft();
@@ -322,13 +336,13 @@ export default function ExpenseFormSheet({
           )}
 
           {/* 旅行名稱已常駐在標題下方；這裡只補切換入口，不重複顯示名稱 */}
-          {onSwitchTrip && (
+          {handleSwitchTrip && (
             <div className="-mt-2 flex justify-end">
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={onSwitchTrip}
+                onClick={handleSwitchTrip}
                 className="min-h-11 gap-1.5 text-muted-foreground"
               >
                 <ArrowLeftRight className="h-4 w-4" aria-hidden="true" />
@@ -490,17 +504,30 @@ export default function ExpenseFormSheet({
         </form>
       </ResponsiveFormSheet>
       <ConfirmDialog
-        open={confirmDiscard}
-        title={tExpense('form.draft.unsavedTitle')}
-        message={tExpense('form.draft.unsavedMessage')}
-        confirmText={tExpense('form.draft.discardChanges')}
+        open={pendingLeave != null}
+        title={tExpense(
+          pendingLeave?.reason === 'storage'
+            ? 'form.draft.saveFailedTitle'
+            : 'form.draft.unsavedTitle'
+        )}
+        message={tExpense(
+          pendingLeave?.reason === 'storage'
+            ? 'form.draft.saveFailedMessage'
+            : 'form.draft.unsavedMessage'
+        )}
+        confirmText={tExpense(
+          pendingLeave?.reason === 'storage'
+            ? 'form.draft.discardContent'
+            : 'form.draft.discardChanges'
+        )}
         cancelText={tExpense('form.draft.keepEditing')}
         severity="warning"
         onConfirm={() => {
-          setConfirmDiscard(false);
-          onClose();
+          const proceed = pendingLeave?.proceed;
+          setPendingLeave(null);
+          proceed?.();
         }}
-        onCancel={() => setConfirmDiscard(false)}
+        onCancel={() => setPendingLeave(null)}
       />
     </>
   );

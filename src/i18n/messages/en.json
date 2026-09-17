@@ -463,7 +463,10 @@
         "unsavedTitle": "Unsaved changes",
         "unsavedMessage": "Closing now discards the changes to this expense.",
         "keepEditing": "Keep editing",
-        "discardChanges": "Discard changes"
+        "discardChanges": "Discard changes",
+        "saveFailedTitle": "Couldn't keep this draft",
+        "saveFailedMessage": "Local storage is full or unavailable, so the draft can't be kept. Submit the expense now, or close and lose what you typed.",
+        "discardContent": "Close and lose it"
       }
     },
     "confirm": {

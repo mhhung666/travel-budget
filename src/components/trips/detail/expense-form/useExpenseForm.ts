@@ -329,15 +329,17 @@ export function useExpenseForm({
     return baseline != null && serializedSnapshot !== serializeExpenseDraft(baseline);
   }, [serializedSnapshot]);
 
-  /** 立刻把目前內容寫進草稿（關閉表單時呼叫，不等 debounce）。 */
+  /**
+   * 立刻把目前內容寫進草稿（關閉或切換旅行時呼叫，不等 debounce）。
+   * 回傳是否真的留下草稿：沒改過或寫入失敗都是 false，呼叫端據此決定要不要提示。
+   */
   const persistDraft = useCallback(() => {
     if (!draftTripId) return false;
     if (!isDirty()) {
       clearExpenseDraft(draftTripId);
       return false;
     }
-    saveExpenseDraft(draftTripId, snapshot);
-    return true;
+    return saveExpenseDraft(draftTripId, snapshot);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- snapshot 以序列化結果代表，避免每次 render 都換掉 callback
   }, [draftTripId, isDirty, serializedSnapshot]);
 
