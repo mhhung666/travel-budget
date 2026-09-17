@@ -1,6 +1,6 @@
 # UX 改善項目（第四輪）
 
-> **進行中：第 1 項已完成程式驗證，第 2–4 項待處理。** 來源：2026-09-17 外部工具（ChatGPT）以 Test 帳號在桌面瀏覽器實測第三輪改善後的回饋。
+> **進行中：第 1、2 項已完成程式驗證；第 2 項既有資料待查核，第 3、4 項待處理。** 來源：2026-09-17 外部工具（ChatGPT）以 Test 帳號在桌面瀏覽器實測第三輪改善後的回饋。
 > 第三輪清單與實測結果見 [UX 改善項目（第三輪，已結案）](archive/history/UX_IMPROVEMENTS_ROUND3_2026-09-17.md)。
 > 現行行為見 [現有功能](FEATURES.md)。結案後依 [維護方式](README.md#維護方式) 移入 `archive/history/`。
 
@@ -15,7 +15,7 @@
 | # | 主題 | 問題 | 優先度 | 狀態 |
 | --- | --- | --- | --- | --- |
 | 1 | 機場搜尋排序 | 輸入 `TPE`，第一筆是 MPL（Montpellier），TPE 排第二 | ① | 已完成 |
-| 2 | 起訖機場相同 | 出發與抵達都選 TPE，沒有提示，儲存按鈕仍可按 | ② | 待處理 |
+| 2 | 起訖機場相同 | 出發與抵達都選 TPE，沒有提示，儲存按鈕仍可按 | ② | 已完成（既有資料待查核） |
 | 3 | 預付款文案 | 結算頁說可先登記訂金，但表單仍寫「登記一筆實際還款」 | ③ | 待處理 |
 | 4 | 完整帳務流程驗收 | 輸入畫面已確認，儲存後的花費、預算、分帳、還款尚未走過 | ④ | 待處理 |
 
@@ -73,7 +73,7 @@ MPL 會出現是因為名稱或城市字串含 `tpe`（例如 Montpellier）。�
 
 **實測**：出發與抵達都選 TPE，沒有警告，儲存按鈕仍可操作。回饋者沒有送出。
 
-**程式現況**（2026-09-17 核對）
+**改善前行為**（2026-09-17 核對）
 
 - 前端 [FlightRecordDialog.tsx](../src/components/collections/FlightRecordDialog.tsx) 的停用條件只檢查
   航空公司、日期、起訖機場是否有值。
@@ -101,6 +101,28 @@ MPL 會出現是因為名稱或城市字串含 `tpe`（例如 Montpellier）。�
 - 新文案補齊四種語系；補前端與 schema 測試。
 - 測試既有起訖相同紀錄：開啟編輯即提示、未修正無法儲存、修正後可儲存，取消與刪除仍可使用。
 - 從行程活動一鍵帶入時，若標題解析出相同機場（例如 `TPE-TPE`），開啟表單即顯示同一提示並停用儲存。
+
+**實作結果**（2026-09-17）
+
+- 後端：`createFlightRecordSchema`（[validation.ts](../src/lib/validation.ts)）加上 `refine`，起訖相同（不分大小寫）時
+  在 `to_airport` 回傳驗證錯誤；`updateFlightRecordSchema` 沿用同一個 schema。action 仍回 `VALIDATION_ERROR`，
+  前端顯示既有的「輸入資料有誤」訊息；正常操作會先被前端擋下，不會走到這一步。
+- 前端：[FlightRecordDialog.tsx](../src/components/collections/FlightRecordDialog.tsx) 在抵達欄位下顯示提示並停用儲存，
+  送出 handler 也同樣擋下。新增與一鍵帶入顯示 `flights.sameAirport`；編輯原本就相同的紀錄顯示
+  `flights.sameAirportExisting`。修正成不同機場後提示消失、恢復儲存。四種語系已補。
+- 測試：[flightRecordSameAirport.test.tsx](../src/__tests__/flightRecordSameAirport.test.tsx) 涵蓋即時提示、`TPE-TPE` 帶入、
+  舊紀錄未修正無法送出、修正後可儲存；[validation.test.ts](../src/__tests__/validation.test.ts) 補 schema 測試。
+  刪除在清單操作、不經表單，行為未變；取消沿用表單既有的關閉方式。
+- **既有資料查核：尚未完成。** 本機 `.env` 的 `MONGODB_URI` 是佔位值，連不到實際資料庫。
+  請在正式環境以唯讀查詢確認筆數：
+  `db.flightrecords.countDocuments({ fromAirport: { $ne: null }, $expr: { $eq: ['$fromAirport', '$toAirport'] } })`
+
+**驗證結果**（2026-09-17）
+
+- 表單、schema、行程帶入、收藏統計與地圖航線共 5 個測試檔、81 項測試全部通過；TypeScript、相關檔案 ESLint 與 `git diff --check` 通過。
+- 補測舊紀錄即使無法儲存，仍可關閉且不觸發寫入；已核對刪除 action 不經新增／編輯 schema，讀取流程未改動。
+- 新增與編輯 action 均在資料庫操作前套用 schema，無法繞過前端保存相同機場。
+- 本機資料庫設定確為佔位值，既有資料筆數仍待正式環境唯讀查核；尚未進行瀏覽器互動與實際資料庫儲存／刪除驗收。
 
 ## 3. 預付款：表單文案與結算頁說明接上
 

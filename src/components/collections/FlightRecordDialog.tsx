@@ -201,9 +201,16 @@ export function FlightRecordDialog({
 
   const pending = createFlight.isPending || updateFlight.isPending || createEntry.isPending;
 
+  // 起訖相同：航線距離為 0、地圖畫不出來，後端 schema 也會拒絕，前端先擋下並提示。
+  // 編輯本來就相同的舊紀錄時改用「請修正」文案（即使只改備註也必須先修正機場）。
+  const sameAirport = fromAirport !== null && fromAirport === toAirport;
+  const editingSameAirport =
+    editing?.from_airport != null && editing.from_airport === editing.to_airport;
+  const canSubmit = !!airline && !!date && !!fromAirport && !!toAirport && !sameAirport;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!airline || !date || !fromAirport || !toAirport) return;
+    if (!canSubmit || !airline || !fromAirport || !toAirport) return;
 
     const input: CreateFlightRecordInput = {
       trip_id: tripId,
@@ -273,11 +280,7 @@ export function FlightRecordDialog({
       title={editing ? t('flights.editFlight') : t('flights.addFlight')}
       description={t('flights.formDescription')}
       footer={
-        <Button
-          form="flight-record-form"
-          type="submit"
-          disabled={pending || !airline || !date || !fromAirport || !toAirport}
-        >
+        <Button form="flight-record-form" type="submit" disabled={pending || !canSubmit}>
           {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           {t('common.save')}
         </Button>
@@ -334,6 +337,11 @@ export function FlightRecordDialog({
               onChange={setToAirport}
               placeholder={t('flights.toPlaceholder')}
             />
+            {sameAirport && (
+              <p role="alert" className="text-xs text-destructive">
+                {t(editingSameAirport ? 'flights.sameAirportExisting' : 'flights.sameAirport')}
+              </p>
+            )}
           </div>
         </div>
 

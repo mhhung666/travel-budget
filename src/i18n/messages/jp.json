@@ -1667,6 +1667,8 @@
       "to": "到着空港",
       "fromPlaceholder": "例: TPE",
       "toPlaceholder": "例: HND",
+      "sameAirport": "出発空港と到着空港が同じです。ご確認ください",
+      "sameAirportExisting": "この記録は出発空港と到着空港が同じです。修正してから保存してください",
       "cabin": "座席クラス",
       "cabins": {
         "economy": "エコノミー",

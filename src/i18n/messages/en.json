@@ -1674,6 +1674,8 @@
       "to": "To",
       "fromPlaceholder": "e.g. TPE",
       "toPlaceholder": "e.g. HND",
+      "sameAirport": "Departure and arrival airports are the same. Please check.",
+      "sameAirportExisting": "This record has the same departure and arrival airport. Fix it before saving.",
       "cabin": "Cabin",
       "cabins": {
         "economy": "Economy",

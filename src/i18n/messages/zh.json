@@ -1667,6 +1667,8 @@
       "to": "抵達機場",
       "fromPlaceholder": "如 TPE",
       "toPlaceholder": "如 HND",
+      "sameAirport": "出發與抵達機場相同，請確認",
+      "sameAirportExisting": "這筆紀錄的出發與抵達機場相同，請修正後再儲存",
       "cabin": "艙等",
       "cabins": {
         "economy": "經濟艙",

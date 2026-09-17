@@ -563,36 +563,42 @@ const tripIdOrCodeSchema = z
   .string()
   .regex(/^([0-9a-fA-F]{24}|[a-z0-9]{6,10})$/, '無效的旅程識別碼');
 
-export const createFlightRecordSchema = z.object({
-  trip_id: tripIdOrCodeSchema.nullable().optional(),
-  // 來源行程活動 id（一鍵帶入防重複）：有值時必須同時帶 trip_id，歸屬由 action 驗證
-  source_activity_id: objectIdSchema.nullable().optional(),
-  date: ymdSchema,
-  date_precision: datePrecisionSchema,
-  // IATA 航空公司代碼；只驗格式，目錄比對在前端（見 FlightRecord model 註解）
-  airline: z
-    .string()
-    .trim()
-    .toUpperCase()
-    .regex(/^[A-Z0-9]{2}$/, '航空公司代碼格式錯誤'),
-  flight_no: z.string().trim().toUpperCase().max(8, '航班號過長').default(''),
-  from_airport: z
-    .string()
-    .trim()
-    .toUpperCase()
-    .regex(/^[A-Z]{3}$/, '機場代碼格式錯誤')
-    .nullable()
-    .optional(),
-  to_airport: z
-    .string()
-    .trim()
-    .toUpperCase()
-    .regex(/^[A-Z]{3}$/, '機場代碼格式錯誤')
-    .nullable()
-    .optional(),
-  cabin: z.enum(['economy', 'premium_economy', 'business', 'first']).nullable().optional(),
-  note: z.string().trim().max(500, '備註過長').default(''),
-});
+export const createFlightRecordSchema = z
+  .object({
+    trip_id: tripIdOrCodeSchema.nullable().optional(),
+    // 來源行程活動 id（一鍵帶入防重複）：有值時必須同時帶 trip_id，歸屬由 action 驗證
+    source_activity_id: objectIdSchema.nullable().optional(),
+    date: ymdSchema,
+    date_precision: datePrecisionSchema,
+    // IATA 航空公司代碼；只驗格式，目錄比對在前端（見 FlightRecord model 註解）
+    airline: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .regex(/^[A-Z0-9]{2}$/, '航空公司代碼格式錯誤'),
+    flight_no: z.string().trim().toUpperCase().max(8, '航班號過長').default(''),
+    from_airport: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .regex(/^[A-Z]{3}$/, '機場代碼格式錯誤')
+      .nullable()
+      .optional(),
+    to_airport: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .regex(/^[A-Z]{3}$/, '機場代碼格式錯誤')
+      .nullable()
+      .optional(),
+    cabin: z.enum(['economy', 'premium_economy', 'business', 'first']).nullable().optional(),
+    note: z.string().trim().max(500, '備註過長').default(''),
+  })
+  .refine((d) => !d.from_airport || d.from_airport !== d.to_airport, {
+    // 起訖相同的航線距離為 0、地圖畫不出來；既有舊資料不擋讀取，下次編輯時才須修正。
+    message: '出發與抵達機場不能相同',
+    path: ['to_airport'],
+  });
 
 // 表單一律整筆送出（欄位少），更新沿用建立的完整 schema（整筆覆寫語意）。
 export const updateFlightRecordSchema = createFlightRecordSchema;

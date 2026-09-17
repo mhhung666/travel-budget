@@ -1667,6 +1667,8 @@
       "to": "到达机场",
       "fromPlaceholder": "如 TPE",
       "toPlaceholder": "如 HND",
+      "sameAirport": "出发与抵达机场相同，请确认",
+      "sameAirportExisting": "这条记录的出发与抵达机场相同，请修正后再保存",
       "cabin": "舱位",
       "cabins": {
         "economy": "经济舱",

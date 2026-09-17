@@ -13,6 +13,8 @@ import {
   updateNoteSchema,
   planNoteSchema,
   NOTE_TEXT_MAX,
+  createFlightRecordSchema,
+  updateFlightRecordSchema,
 } from '@/lib/validation';
 
 describe('createTripSchema', () => {
@@ -428,5 +430,36 @@ describe('planNoteSchema', () => {
     expect(planNoteSchema.safeParse({ day_id: '507f1f77bcf86cd799439011' }).success).toBe(true);
     expect(planNoteSchema.safeParse({ day_id: 'day-1' }).success).toBe(false);
     expect(planNoteSchema.safeParse({}).success).toBe(false);
+  });
+});
+
+describe('createFlightRecordSchema', () => {
+  const base = { date: '2024-05-01', airline: 'br' };
+
+  it('rejects identical departure and arrival airports, ignoring case', () => {
+    const result = createFlightRecordSchema.safeParse({
+      ...base,
+      from_airport: 'TPE',
+      to_airport: 'tpe',
+    });
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0].path).toEqual(['to_airport']);
+    // 更新沿用同一套規則：只改備註的舊紀錄也不能存回相同機場
+    expect(
+      updateFlightRecordSchema.safeParse({
+        ...base,
+        from_airport: 'TPE',
+        to_airport: 'TPE',
+        note: 'x',
+      }).success
+    ).toBe(false);
+  });
+
+  it('accepts different or missing airports', () => {
+    expect(
+      createFlightRecordSchema.safeParse({ ...base, from_airport: 'TPE', to_airport: 'HND' })
+        .success
+    ).toBe(true);
+    expect(createFlightRecordSchema.safeParse(base).success).toBe(true);
   });
 });
