@@ -596,8 +596,15 @@
     "myShare": "我的花費",
     "plan": "結算方案",
     "transferCount": "筆轉帳",
-    "noTransfers": "所有帳目已結清,無需進行轉帳",
-    "great": "太好了!",
+    "noTransfersTitle": "目前無需互相轉帳",
+    "noTransfersHint": "每個人已付的金額剛好等於自己的分攤。",
+    "allSettledTitle": "已全部結清",
+    "allSettledHint": "還款都已登記，大家互不相欠。",
+    "noExpensesTitle": "尚無需要結算的支出",
+    "noExpensesHint": "記下第一筆支出後，這裡會算出誰該付給誰。",
+    "noExpensesReadOnly": "旅伴記下支出後，這裡會算出誰該付給誰。",
+    "noExpensesSummaryHint": "記下支出後，這裡會顯示你應收或應付多少。",
+    "addFirstExpense": "記第一筆",
     "payer": "付款人",
     "payee": "收款人",
     "tip": "提示:",
@@ -633,7 +640,8 @@
     "you": "我",
     "youReceive": "你應收",
     "youPay": "你應付",
-    "youSettled": "你已結清"
+    "youSettled": "你已結清",
+    "youNoTransfer": "你目前無需轉帳"
   },
   "currency": {
     "TWD": "新台幣",

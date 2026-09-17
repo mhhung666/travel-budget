@@ -596,8 +596,15 @@
     "myShare": "自分の負担額",
     "plan": "清算プラン",
     "transferCount": "件の送金",
-    "noTransfers": "すべて精算済みです。送金は不要です",
-    "great": "すばらしい！",
+    "noTransfersTitle": "現在、送金は不要です",
+    "noTransfersHint": "全員の支払額が自分の負担額とちょうど同じです。",
+    "allSettledTitle": "すべて精算済みです",
+    "allSettledHint": "返済はすべて記録され、貸し借りはありません。",
+    "noExpensesTitle": "精算する支出はまだありません",
+    "noExpensesHint": "最初の支出を記録すると、誰が誰に支払うかをここで計算します。",
+    "noExpensesReadOnly": "メンバーが支出を記録すると、誰が誰に支払うかをここで計算します。",
+    "noExpensesSummaryHint": "支出を記録すると、受け取る額や支払う額がここに表示されます。",
+    "addFirstExpense": "最初の支出を記録",
     "payer": "支払者",
     "payee": "受取者",
     "tip": "ヒント:",
@@ -633,7 +640,8 @@
     "you": "自分",
     "youReceive": "受け取る金額",
     "youPay": "支払う金額",
-    "youSettled": "精算済みです"
+    "youSettled": "精算済みです",
+    "youNoTransfer": "現在、送金は不要です"
   },
   "currency": {
     "TWD": "台湾ドル",

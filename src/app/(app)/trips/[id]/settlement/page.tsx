@@ -25,11 +25,13 @@ import {
 import { useDialog } from '@/hooks/useDialog';
 import { useToast } from '@/hooks/use-toast';
 import { ConfirmDialog } from '@/components/common';
+import { useTripSpaceActions } from '@/components/trips/space/TripSpaceContext';
 import { exportSettlement, type ExportFormat } from '@/lib/exporters';
 import { resolveTripRates, getTripDisplayCurrencies } from '@/lib/tripCurrency';
 import type { Transaction } from '@/types';
 import type { RecordPaymentInput } from '@/lib/validation';
 import { SettlementSkeleton } from '@/components/skeletons';
+import { MONEY_EPSILON } from '@/lib/money';
 
 export default function SettlementPage() {
   const params = useParams();
@@ -53,6 +55,7 @@ export default function SettlementPage() {
   const { isMember } = membership;
   const paymentMutations = usePaymentMutations(tripId);
   const { data: members = [] } = useMembers(tripId);
+  const { openAddExpense } = useTripSpaceActions();
 
   const recordDialog = useDialog<{ fromId: string; toId: string; amount: number }>();
   const deletePaymentDialog = useDialog<string>();
@@ -80,6 +83,9 @@ export default function SettlementPage() {
     () => (currentUser ? (balances.find((b) => b.userId === currentUser.id) ?? null) : null),
     [balances, currentUser]
   );
+  const hasMyPayments =
+    currentUser != null &&
+    payments.some((p) => p.fromId === currentUser.id || p.toId === currentUser.id);
   const orderedTransactions = useMemo(() => {
     const myName = currentUser?.display_name;
     if (!myName) return transactions;
@@ -198,7 +204,11 @@ export default function SettlementPage() {
       </div>
 
       {/* 摘要：先講「我」的應收應付，總支出次之（訪客檢視退回總支出） */}
-      <SettlementSummary totalExpenses={totalExpenses} myBalance={myBalance} />
+      <SettlementSummary
+        totalExpenses={totalExpenses}
+        myBalance={myBalance}
+        hasMyPayments={hasMyPayments}
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* 每人統計（我排最前） */}
@@ -219,6 +229,9 @@ export default function SettlementPage() {
           onRemind={isMember ? handleRemind : undefined}
           currentUserName={currentUser?.display_name}
           remindingKey={remindingKey}
+          hasExpenses={totalExpenses >= MONEY_EPSILON}
+          hasPayments={payments.length > 0}
+          onAddExpense={isMember ? () => openAddExpense() : undefined}
         />
       </div>
 

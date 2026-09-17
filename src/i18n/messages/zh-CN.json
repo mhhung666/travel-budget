@@ -596,8 +596,15 @@
     "myShare": "我的花费",
     "plan": "结算方案",
     "transferCount": "笔转账",
-    "noTransfers": "所有账目已结清,无需进行转账",
-    "great": "太好了!",
+    "noTransfersTitle": "目前无需互相转账",
+    "noTransfersHint": "每个人已付的金额刚好等于自己的分摊。",
+    "allSettledTitle": "已全部结清",
+    "allSettledHint": "还款都已登记，大家互不相欠。",
+    "noExpensesTitle": "暂无需要结算的支出",
+    "noExpensesHint": "记下第一笔支出后，这里会算出谁该付给谁。",
+    "noExpensesReadOnly": "旅伴记下支出后，这里会算出谁该付给谁。",
+    "noExpensesSummaryHint": "记下支出后，这里会显示你应收或应付多少。",
+    "addFirstExpense": "记第一笔",
     "payer": "付款人",
     "payee": "收款人",
     "tip": "提示:",
@@ -633,7 +640,8 @@
     "you": "我",
     "youReceive": "你应收",
     "youPay": "你应付",
-    "youSettled": "你已结清"
+    "youSettled": "你已结清",
+    "youNoTransfer": "你目前无需转账"
   },
   "currency": {
     "TWD": "新台币",

@@ -645,8 +645,15 @@
     "myShare": "My share",
     "plan": "Settlement Plan",
     "transferCount": "transfers",
-    "noTransfers": "All settled, no transfers needed!",
-    "great": "Great!",
+    "noTransfersTitle": "No transfers needed",
+    "noTransfersHint": "Everyone has paid exactly their own share.",
+    "allSettledTitle": "All settled up",
+    "allSettledHint": "Every repayment is recorded and nobody owes anyone.",
+    "noExpensesTitle": "No expenses to settle yet",
+    "noExpensesHint": "Once you add the first expense, this shows who owes whom.",
+    "noExpensesReadOnly": "Once trip members add expenses, this shows who owes whom.",
+    "noExpensesSummaryHint": "Once expenses are added, this shows how much you receive or pay.",
+    "addFirstExpense": "Add the first expense",
     "payer": "Payer",
     "payee": "Payee",
     "tip": "Tip:",
@@ -682,7 +689,8 @@
     "you": "You",
     "youReceive": "You are owed",
     "youPay": "You owe",
-    "youSettled": "You're all settled"
+    "youSettled": "You're all settled",
+    "youNoTransfer": "No transfers for you right now"
   },
   "currency": {
     "TWD": "TWD",

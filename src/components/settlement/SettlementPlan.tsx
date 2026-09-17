@@ -10,6 +10,9 @@ import {
   BellRing,
   Loader2,
   PartyPopper,
+  Plus,
+  ReceiptText,
+  Scale,
 } from 'lucide-react';
 import type { Transaction } from '@/types';
 import { formatCurrency } from '@/constants/currencies';
@@ -45,6 +48,12 @@ interface SettlementPlanProps {
   currentUserName?: string;
   /** 正在寄送提醒的轉帳鍵（`${from}__${to}`），用於該列按鈕的 loading 狀態。 */
   remindingKey?: string | null;
+  /** 旅行是否已有支出；沒有時空白狀態說「尚無需要結算的支出」而不是「已結清」。 */
+  hasExpenses?: boolean;
+  /** 是否已登記過還款；沒有轉帳時，有還款才算「已全部結清」，否則只是「無需互相轉帳」。 */
+  hasPayments?: boolean;
+  /** 成員專屬：沒有支出時的「記第一筆」。未傳即不顯示。 */
+  onAddExpense?: () => void;
 }
 
 export default function SettlementPlan({
@@ -57,6 +66,9 @@ export default function SettlementPlan({
   onRemind,
   currentUserName,
   remindingKey,
+  hasExpenses = true,
+  hasPayments = false,
+  onAddExpense,
 }: SettlementPlanProps) {
   const t = useTranslations('settlement');
   const locale = useLocale();
@@ -108,12 +120,36 @@ export default function SettlementPlan({
       </CardHeader>
       <CardContent>
         {transactions.length === 0 ? (
-          <EmptyState
-            icon={PartyPopper}
-            title={t('great')}
-            description={t('noTransfers')}
-            className="border-0 bg-transparent py-8"
-          />
+          !hasExpenses && !hasPayments ? (
+            <EmptyState
+              icon={ReceiptText}
+              title={t('noExpensesTitle')}
+              description={t(onAddExpense ? 'noExpensesHint' : 'noExpensesReadOnly')}
+              action={
+                onAddExpense && (
+                  <Button onClick={onAddExpense} className="gap-2">
+                    <Plus className="h-4 w-4" />
+                    {t('addFirstExpense')}
+                  </Button>
+                )
+              }
+              className="border-0 bg-transparent py-8"
+            />
+          ) : hasPayments ? (
+            <EmptyState
+              icon={PartyPopper}
+              title={t('allSettledTitle')}
+              description={t('allSettledHint')}
+              className="border-0 bg-transparent py-8"
+            />
+          ) : (
+            <EmptyState
+              icon={Scale}
+              title={t('noTransfersTitle')}
+              description={t('noTransfersHint')}
+              className="border-0 bg-transparent py-8"
+            />
+          )
         ) : (
           <div className="space-y-4">
             <div className="flex flex-col gap-3">
