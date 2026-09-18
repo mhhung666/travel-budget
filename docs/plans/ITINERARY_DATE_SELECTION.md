@@ -1,6 +1,6 @@
 # 旅遊規劃：依日期新增行程日
 
-研究日期：2026-09-18。狀態：提案，尚未實作。
+研究日期：2026-09-18。狀態：第一批已實作（2026-09-18），第二批（整天改期、自訂月曆、批次新增）仍為提案。
 
 ## 建議結論
 
@@ -182,4 +182,4 @@ type DayTarget =
 | 手機與鍵盤 | 320px 不橫向溢出；鍵盤可完成、錯誤可讀、成功定位不被 sticky header 遮住 |
 | 長旅程及所有日期已建立 | 無巨量快捷按鈕；有明確查看既有行程路徑 |
 
-實作時以日期 helper 單元測試、Dialog 互動測試及既有 itinerary concurrency 整合測試覆蓋核心規則；再實機檢查 iOS Safari、Android Chrome 與桌面鍵盤／讀屏操作。此次只交付研究文件，以上驗收尚未執行。
+實作時以日期 helper 單元測試、Dialog 互動測試及既有 itinerary concurrency 整合測試覆蓋核心規則；再實機檢查 iOS Safari、Android Chrome 與桌面鍵盤／讀屏操作。第一批已補上日期 helper 單元測試與 Dialog 互動測試，並更新 itinerary concurrency 整合測試（需 `MONGODB_ITINERARY_TEST_URI` replica set 才會執行）；實機瀏覽器與讀屏驗收尚未執行。

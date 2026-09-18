@@ -1026,7 +1026,10 @@
       "empty": "No currencies added yet — new expenses will use TWD.",
       "remove": "Remove",
       "customRate": "Custom exchange rate"
-    }
+    },
+    "startDateShiftLater": "Changing the departure date moves every itinerary day {days} day(s) later.",
+    "startDateShiftEarlier": "Changing the departure date moves every itinerary day {days} day(s) earlier.",
+    "startDateCleared": "Removing the start date leaves itinerary days showing only Day N, with no dates."
   },
   "checklist": {
     "title": "Checklists",
@@ -1200,7 +1203,7 @@
     "updateFailed": "Could not save the itinerary. Your changes have not been confirmed. Please try again.",
     "activityLimit": "Each day can have up to {max} activities. Remove an activity or choose another day.",
     "title": "Trip Itinerary",
-    "addDay": "Add Day",
+    "addDay": "Add itinerary day",
     "addDayN": "Add Day {dayNumber}",
     "editDay": "Edit Day",
     "editDayN": "Edit Day {dayNumber}",
@@ -1363,7 +1366,38 @@
     },
     "dayNav": "Jump to day",
     "today": "Today",
-    "dayActions": "More actions for this day"
+    "dayActions": "More actions for this day",
+    "dayTarget": {
+      "dateLabel": "Itinerary date",
+      "dayNumberLabel": "Which day of the trip",
+      "tripRange": "Trip dates: {start} – {end}",
+      "tripRangeOpen": "Trip starts {start} · no end date set",
+      "preview": "Day {dayNumber} · {date}",
+      "pickDate": "Pick a date to see which day it is",
+      "skipHint": "You can skip days you have not planned yet and add them later.",
+      "quickPickUsed": "Added",
+      "quickPickSelected": "Selected",
+      "quickPickA11y": "{date}, day {dayNumber}",
+      "quickPickUsedA11y": "{date}, day {dayNumber}, already added",
+      "createdCount": "{created} of {total} itinerary days added",
+      "nextAvailable": "Next open date ({date})",
+      "viewExistingDay": "View day {dayNumber}",
+      "viewDates": "View itinerary dates",
+      "allDatesCreated": "Every date in this trip already has a day. Open a day to add activities.",
+      "noStartDate": "Set the trip start date to choose days by date.",
+      "tripSettings": "Trip settings",
+      "submit": "Add itinerary day",
+      "submitting": "Adding…",
+      "createdOn": "Added {date} (Day {dayNumber})",
+      "errors": {
+        "required": "Choose a date for this itinerary day.",
+        "dayExists": "This day already has an itinerary. Pick another date.",
+        "outsideTrip": "This date is outside the trip. Adjust the trip dates first.",
+        "datesChanged": "The trip dates changed while this form was open. Check the date and try again.",
+        "startRequired": "The trip has no start date, so days cannot be placed by date."
+      },
+      "discardDraftConfirm": "Leaving now discards the day you are writing. Continue?"
+    }
   },
   "export": {
     "label": "Export",

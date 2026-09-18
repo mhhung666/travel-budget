@@ -7,14 +7,22 @@ import {
   deleteItineraryDay,
   mutateItineraryActivity,
 } from '@/actions';
-import type { ActionResult } from '@/actions';
+import type { ActionResult, ErrorCode } from '@/actions';
 import { tripKeys } from './keys';
 import type { ActivityType, ExpenseAttachment, Location } from '@/types';
 import { MAX_ACTIVITIES_PER_DAY } from '@/lib/itineraryLimits';
 import { ActionQueryError, unwrapActionResult } from '@/lib/actionQuery';
 import { useTranslations } from 'next-intl';
-import type { MutateItineraryActivityInput } from '@/lib/validation';
+import type { ItineraryDayTargetInput, MutateItineraryActivityInput } from '@/lib/validation';
 import { useToast } from '@/hooks/use-toast';
+
+/** 這些失敗由新增對話框就地顯示在日期欄位旁，不另外彈 toast（草稿必須留著改日期）。 */
+const CREATE_FIELD_ERROR_CODES = new Set<ErrorCode>([
+  'DAY_ALREADY_EXISTS',
+  'DATE_OUTSIDE_TRIP',
+  'TRIP_DATES_CHANGED',
+  'TRIP_START_DATE_REQUIRED',
+]);
 
 /** Unwraps an ActionResult, throwing on failure so React Query's onError fires. */
 async function unwrap<T>(p: Promise<ActionResult<T>>): Promise<T> {
@@ -42,6 +50,8 @@ interface DayInput {
   content: string;
   location?: Location | null;
   activities?: ActivityPayload[];
+  /** 新增時的目標日期／第幾天；server 依此重算 dayNumber，不採信前端預覽。 */
+  target?: ItineraryDayTargetInput;
 }
 
 /** 更新欄位可省略；必須攜帶開啟表單時的 revision，不以最新快取替換舊草稿的 token。 */
@@ -75,9 +85,21 @@ export function useItineraryMutations(tripId: string) {
     });
   };
 
+  // 新增失敗時要讓使用者能改選日期：同日被搶走就刷新行程日、旅程改期就刷新旅程資料，
+  // 錯誤訊息由對話框就地顯示（保留草稿），這裡只負責讓可用日期重新算對。
+  const reportCreateError = (error: Error) => {
+    const code = error instanceof ActionQueryError ? error.code : undefined;
+    if (code === 'DAY_ALREADY_EXISTS') void invalidateItinerary();
+    if (code === 'TRIP_DATES_CHANGED' || code === 'DATE_OUTSIDE_TRIP') {
+      void queryClient.invalidateQueries({ queryKey: tripKeys.detail(tripId) });
+      void invalidateItinerary();
+    }
+    if (!code || !CREATE_FIELD_ERROR_CODES.has(code)) reportUpdateError(error);
+  };
+
   const create = useMutation({
     mutationFn: (data: DayInput) => unwrap(createItineraryDay(tripId, data)),
-    onError: reportUpdateError,
+    onError: reportCreateError,
     onSuccess: () => {
       invalidateItinerary();
       invalidatePhotos();

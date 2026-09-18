@@ -848,7 +848,141 @@ describe.skipIf(!uri || !allowed)('itinerary actions against isolated MongoDB', 
     expect((await ItineraryDay.findById(day.id))?.revision).toBe(1);
   });
 
-  it('serializes concurrent creates and deletion, allocating contiguous day numbers', async () => {
+  describe('creating a day by date', () => {
+    const range = { expected_start_date: '2026-09-01', expected_end_date: '2026-09-14' };
+
+    it('places a day at the chosen date, leaving gaps unfilled and reusable', async () => {
+      expect(
+        await createItineraryDay('r2verify', {
+          title: 'Day 3',
+          target: { date: '2026-09-03', ...range },
+        })
+      ).toMatchObject({ success: true, data: { day_number: 3 } });
+      // 不自動補 Day 1、Day 2。
+      expect((await ItineraryDay.find({ trip: tripId }).lean()).map((d) => d.dayNumber)).toEqual([
+        3,
+      ]);
+
+      const gap = await createItineraryDay('r2verify', {
+        title: 'Day 2',
+        target: { date: '2026-09-02', ...range },
+      });
+      expect(gap).toMatchObject({ success: true, data: { day_number: 2 } });
+      expect(
+        (await ItineraryDay.find({ trip: tripId }).sort({ dayNumber: 1 }).lean()).map(
+          (d) => d.dayNumber
+        )
+      ).toEqual([2, 3]);
+    });
+
+    it('rejects a date that already has a day and keeps the existing one untouched', async () => {
+      const existing = await seed();
+      expect(
+        await createItineraryDay('r2verify', {
+          title: 'Dup',
+          target: { date: '2026-09-01', ...range },
+        })
+      ).toMatchObject({ code: 'DAY_ALREADY_EXISTS' });
+      expect(await ItineraryDay.findById(existing.id).lean()).toMatchObject({
+        title: 'Day',
+        revision: 0,
+      });
+    });
+
+    it('lets only one of two concurrent admins take the same date', async () => {
+      const results = await Promise.all(
+        ['A', 'B'].map((title) =>
+          createItineraryDay('r2verify', { title, target: { date: '2026-09-05', ...range } })
+        )
+      );
+      expect(results.filter((r) => r.success)).toHaveLength(1);
+      expect(results.filter((r) => !r.success)).toEqual([
+        expect.objectContaining({ code: 'DAY_ALREADY_EXISTS' }),
+      ]);
+      expect(await ItineraryDay.countDocuments({ trip: tripId, dayNumber: 5 })).toBe(1);
+    });
+
+    it('rejects dates outside the trip and refuses a stale date baseline', async () => {
+      expect(
+        await createItineraryDay('r2verify', {
+          title: 'After',
+          target: { date: '2026-09-15', ...range },
+        })
+      ).toMatchObject({ code: 'DATE_OUTSIDE_TRIP' });
+      expect(
+        await createItineraryDay('r2verify', {
+          title: 'Before',
+          target: { date: '2026-08-31', ...range },
+        })
+      ).toMatchObject({ code: 'DATE_OUTSIDE_TRIP' });
+      // 表單開啟後旅程改期：舊基準算出的 Day N 不可信，直接擋下。
+      await Trip.updateOne({ _id: tripId }, { $set: { startDate: new Date('2026-09-02') } });
+      expect(
+        await createItineraryDay('r2verify', {
+          title: 'Stale',
+          target: { date: '2026-09-03', ...range },
+        })
+      ).toMatchObject({ code: 'TRIP_DATES_CHANGED' });
+      expect(await ItineraryDay.countDocuments({ trip: tripId })).toBe(0);
+    });
+
+    it('rejects an impossible calendar date and a target that mixes date with day number', async () => {
+      expect(
+        await createItineraryDay('r2verify', {
+          title: 'Bad',
+          target: { date: '2026-02-30', ...range },
+        })
+      ).toMatchObject({ code: 'VALIDATION_ERROR' });
+      expect(
+        await createItineraryDay('r2verify', {
+          title: 'Both',
+          // 同時給日期與天數不可被當成舊輸入吞掉。
+          target: { date: '2026-09-03', day_number: 3, ...range } as never,
+        })
+      ).toMatchObject({ code: 'VALIDATION_ERROR' });
+      expect(await ItineraryDay.countDocuments({ trip: tripId })).toBe(0);
+    });
+
+    it('falls back to a day number only while the trip has no start date', async () => {
+      await Trip.updateOne({ _id: tripId }, { $set: { startDate: null, endDate: null } });
+      expect(
+        await createItineraryDay('r2verify', {
+          title: 'Third',
+          target: { day_number: 3, expected_start_date: null, expected_end_date: null },
+        })
+      ).toMatchObject({ success: true, data: { day_number: 3 } });
+      // 補上開始日後，「第幾天」的基準已變，必須回表單改用日期。
+      await Trip.updateOne({ _id: tripId }, { $set: { startDate: new Date('2026-09-01') } });
+      expect(
+        await createItineraryDay('r2verify', {
+          title: 'Fourth',
+          target: { day_number: 4, expected_start_date: null, expected_end_date: null },
+        })
+      ).toMatchObject({ code: 'TRIP_DATES_CHANGED' });
+      expect(
+        await createItineraryDay('r2verify', {
+          title: 'By date',
+          target: {
+            date: '2026-09-04',
+            expected_start_date: '2026-09-01',
+            expected_end_date: null,
+          },
+        })
+      ).toMatchObject({ success: true, data: { day_number: 4 } });
+    });
+
+    it('reports a missing start date when a dated target arrives without one', async () => {
+      await Trip.updateOne({ _id: tripId }, { $set: { startDate: null } });
+      expect(
+        await createItineraryDay('r2verify', {
+          title: 'Dated',
+          target: { date: '2026-09-03', ...range },
+        })
+      ).toMatchObject({ code: 'TRIP_START_DATE_REQUIRED' });
+    });
+  });
+
+  it('serializes concurrent legacy creates and deletion, allocating distinct day numbers', async () => {
     const first = await seed();
     const results = await Promise.all([
       ...Array.from({ length: 4 }, (_, i) => createItineraryDay('r2verify', { title: `New ${i}` })),
@@ -856,7 +990,11 @@ describe.skipIf(!uri || !allowed)('itinerary actions against isolated MongoDB', 
     ]);
     expect(results.every((result) => result.success)).toBe(true);
     const days = await ItineraryDay.find({ trip: tripId }).sort({ dayNumber: 1 }).lean();
-    expect(days.map((day) => day.dayNumber)).toEqual([1, 2, 3, 4]);
+    // 沒有目標的舊輸入仍接在最後一天；刪除不重編，故實際數值取決於交易順序，
+    // 唯一保證是四筆各佔一個不重複的 dayNumber。
+    const numbers = days.map((day) => day.dayNumber);
+    expect(numbers).toHaveLength(4);
+    expect(new Set(numbers).size).toBe(4);
   });
 
   it('rolls back creation when photo rebind fails, then creates and binds successfully', async () => {
@@ -951,7 +1089,7 @@ describe.skipIf(!uri || !allowed)('itinerary actions against isolated MongoDB', 
     expect(mocks.cleanup).not.toHaveBeenCalled();
   });
 
-  it('atomically renumbers and rebinds photos while preserving manual choices, GPS and other trip data', async () => {
+  it('deletes without renumbering and rebinds photos while preserving manual choices, GPS and other trip data', async () => {
     const db = mongoose.connection.db!;
     const first = await seed();
     const second = await ItineraryDay.create({
@@ -1003,9 +1141,10 @@ describe.skipIf(!uri || !allowed)('itinerary actions against isolated MongoDB', 
     ]);
     expect(await deleteItineraryDay(tripId, first.id)).toMatchObject({ success: true });
     const remaining = await ItineraryDay.find({ trip }).sort({ dayNumber: 1 }).lean();
+    // Day N 保持原樣：刪掉 Day 1 不會把 Day 2/3 往前移，revision 也不因重編而變動。
     expect(remaining.map((d) => [d.dayNumber, d.revision])).toEqual([
-      [1, 1],
-      [2, 1],
+      [2, 0],
+      [3, 0],
     ]);
     expect((await db.collection('expenses').findOne({ trip }))?.itineraryDays).toEqual([
       second._id,
@@ -1013,9 +1152,10 @@ describe.skipIf(!uri || !allowed)('itinerary actions against isolated MongoDB', 
     expect((await db.collection('expenses').findOne({ trip: other }))?.itineraryDays).toEqual([
       first._id,
     ]);
+    // 09-01 那天已不存在（Day 2 仍是 09-02），auto 相片改為未分類。
     expect(await db.collection('photos').findOne({ trip, caption: 'auto' })).toMatchObject({
-      itineraryDay: second._id,
-      location: { lat: 35, lon: 139, source: 'itinerary' },
+      itineraryDay: null,
+      location: null,
     });
     expect(await db.collection('photos').findOne({ trip, caption: 'manual' })).toMatchObject({
       itineraryDay: null,
@@ -1023,11 +1163,12 @@ describe.skipIf(!uri || !allowed)('itinerary actions against isolated MongoDB', 
       location: null,
     });
     expect(await db.collection('photos').findOne({ trip, caption: 'gps' })).toMatchObject({
-      itineraryDay: second._id,
+      itineraryDay: null,
       location: { lat: 9, lon: 8, source: 'exif' },
     });
+    // Day 3 沒有前移，09-03 的相片仍綁在原本那天（該日無座標，故不借用）。
     expect(await db.collection('photos').findOne({ trip, caption: 'out' })).toMatchObject({
-      itineraryDay: null,
+      itineraryDay: third._id,
       location: null,
     });
     expect(await db.collection('photos').findOne({ trip: other })).toMatchObject({
@@ -1036,7 +1177,7 @@ describe.skipIf(!uri || !allowed)('itinerary actions against isolated MongoDB', 
     });
   });
 
-  it('rolls back deletion, expense cleanup and renumbering when the final photo rebind fails', async () => {
+  it('rolls back deletion and expense cleanup when the final photo rebind fails', async () => {
     const db = mongoose.connection.db!;
     const first = await seed();
     await ItineraryDay.create({ trip: tripId, dayNumber: 2, title: 'Second' });
@@ -1075,14 +1216,14 @@ describe.skipIf(!uri || !allowed)('itinerary actions against isolated MongoDB', 
     expect(mocks.cleanup).not.toHaveBeenCalled();
   });
 
-  it('serializes concurrent day deletions with contiguous numbering and rejects stale admins', async () => {
+  it('serializes concurrent day deletions without renumbering and rejects stale admins', async () => {
     const db = mongoose.connection.db!;
     const first = await seed();
     const second = await ItineraryDay.create({ trip: tripId, dayNumber: 2, title: 'Second' });
     await ItineraryDay.create({ trip: tripId, dayNumber: 3, title: 'Third' });
     const results = await Promise.all([first, second].map((d) => deleteItineraryDay(tripId, d.id)));
     expect(results.every((r) => r.success)).toBe(true);
-    expect((await ItineraryDay.find({ trip: tripId }).lean()).map((d) => d.dayNumber)).toEqual([1]);
+    expect((await ItineraryDay.find({ trip: tripId }).lean()).map((d) => d.dayNumber)).toEqual([3]);
     await expect(
       deleteItineraryDayAtomically(db, tripId, member.toHexString(), first.id)
     ).rejects.toMatchObject({ code: 'FORBIDDEN' });

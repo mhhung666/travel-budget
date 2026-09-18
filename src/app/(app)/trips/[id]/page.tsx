@@ -4,7 +4,7 @@ import { QueryStatus } from '@/components/common/QueryStatus';
 
 import { useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useQueryClient } from '@tanstack/react-query';
 import { CalendarDays, Plus, Sparkles } from 'lucide-react';
 import {
@@ -26,7 +26,11 @@ import type { LocationOption } from '@/components/location/LocationAutocomplete'
 import { ExportMenu } from '@/components/export';
 import { FlightRecordDialog, StayRecordDialog } from '@/components/collections/DeferredDialogs';
 import type { Activity, ItineraryDay, TripPhoto } from '@/types';
-import type { CreateFlightRecordInput, CreateStayRecordInput } from '@/lib/validation';
+import type {
+  CreateFlightRecordInput,
+  CreateStayRecordInput,
+  ItineraryDayTargetInput,
+} from '@/lib/validation';
 import {
   useItinerary,
   usePhotos,
@@ -51,6 +55,8 @@ import {
   parseNights,
 } from '@/lib/collectionImport';
 import { getTripPhase, ongoingDayNumber } from '@/lib/tripStatus';
+import { tripDateList } from '@/lib/itineraryDayTarget';
+import { intlLocale } from '@/lib/relativeTime';
 
 import { ItinerarySkeleton } from '@/components/skeletons';
 import { EmptyState } from '@/components/common';
@@ -84,6 +90,7 @@ function ItineraryPageContent() {
   const tripId = params.id as string;
   const tItinerary = useTranslations('itinerary');
   const tAct = useTranslations('itinerary.activities');
+  const locale = useLocale();
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -188,8 +195,16 @@ function ItineraryPageContent() {
     () => new Map(days.map((day) => [day.id, dayDateFromTrip(trip?.start_date, day.day_number)])),
     [days, trip?.start_date]
   );
-  const dialogDayNumber = dialogMode === 'edit' ? (editingDay?.day_number ?? 0) : days.length + 1;
+  const dialogDayNumber = dialogMode === 'edit' ? (editingDay?.day_number ?? 0) : 0;
   const dialogDayDate = dayDateFromTrip(trip?.start_date, dialogDayNumber);
+  const usedDayNumbers = useMemo(() => days.map((day) => day.day_number), [days]);
+  // 旅程範圍內是否還有可新增的日期；全滿時入口改成「查看行程日期」。
+  const allDatesCreated = useMemo(() => {
+    const dates = tripDateList(trip?.start_date, trip?.end_date);
+    if (dates.length === 0) return false;
+    const used = new Set(usedDayNumbers);
+    return dates.every((_, index) => used.has(index + 1));
+  }, [trip?.start_date, trip?.end_date, usedDayNumbers]);
 
   // 帶入＝開預填的補登對話框：日期由旅程出發日推第 N 天，其餘從活動文字啟發式帶出，
   // 猜錯在對話框裡改掉即可；trip 與來源活動 id 一併連結（後端驗證歸屬）。
@@ -242,6 +257,24 @@ function ItineraryPageContent() {
     setDialogMode('add');
     setEditingDay(null);
     setDialogOpen(true);
+  };
+
+  /**
+   * 捲到某一天的卡片並把焦點放上去。錨點自身帶 `scroll-mt-*`（含 sticky 頁首高度），
+   * 所以用 scrollIntoView 即可，不必重算 offset；並尊重「減少動態效果」。
+   */
+  const focusDayCard = (dayNumber: number) => {
+    const el = document.getElementById(itineraryDayAnchorId(dayNumber));
+    if (!el) return;
+    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    el.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+    el.focus({ preventScroll: true });
+  };
+
+  // 從新增表單跳去看已建立的那天；有草稿時先確認，避免默默丟掉未儲存內容。
+  const handleViewExistingDay = (dayNumber: number) => {
+    setDialogOpen(false);
+    requestAnimationFrame(() => focusDayCard(dayNumber));
   };
 
   const handleEditDay = (day: ItineraryDay) => {
@@ -333,13 +366,25 @@ function ItineraryPageContent() {
     title: string;
     content: string;
     location: LocationOption | null;
+    target?: ItineraryDayTargetInput;
   }) => {
     if (dialogMode === 'add') {
-      const newDayNumber = days.length + 1;
-      await create.mutateAsync(data);
+      // 真正的 dayNumber 由 server 依日期算出，不用清單長度推算。
+      const created = await create.mutateAsync(data);
+      const createdDate = dayDateFromTrip(trip?.start_date, created.day_number);
       toast({
-        title: tItinerary('success.created', { dayNumber: newDayNumber }),
+        title: createdDate
+          ? tItinerary('dayTarget.createdOn', {
+              dayNumber: created.day_number,
+              date: new Intl.DateTimeFormat(intlLocale(locale), {
+                month: 'short',
+                day: 'numeric',
+                timeZone: 'UTC',
+              }).format(new Date(`${createdDate}T00:00:00Z`)),
+            })
+          : tItinerary('success.created', { dayNumber: created.day_number }),
       });
+      requestAnimationFrame(() => focusDayCard(created.day_number));
     } else if (editingDay) {
       await update.mutateAsync({
         dayId: editingDay.id,
@@ -405,13 +450,31 @@ function ItineraryPageContent() {
             {tItinerary('aiImport.action')}
           </Button>
         )}
-        {isAdmin && days.length > 0 && (
-          <Button size="sm" onClick={handleAddDay} className="gap-2">
-            <Plus className="h-4 w-4" />
-            {tItinerary('addDay')}
-          </Button>
-        )}
+        {/* 旅程內的日期都建立後就沒有可新增的目標，入口改成導向既有卡片。 */}
+        {isAdmin &&
+          days.length > 0 &&
+          (allDatesCreated ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => focusDayCard(days[0].day_number)}
+            >
+              <CalendarDays className="h-4 w-4" />
+              {tItinerary('dayTarget.viewDates')}
+            </Button>
+          ) : (
+            <Button size="sm" onClick={handleAddDay} className="gap-2">
+              <Plus className="h-4 w-4" />
+              {tItinerary('addDay')}
+            </Button>
+          ))}
       </div>
+      {isAdmin && days.length > 0 && allDatesCreated && (
+        <p className="mb-2 text-right text-xs text-muted-foreground">
+          {tItinerary('dayTarget.allDatesCreated')}
+        </p>
+      )}
 
       {/* Day cards */}
       {days.length === 0 ? (
@@ -445,7 +508,8 @@ function ItineraryPageContent() {
                 <div
                   key={day.id}
                   id={itineraryDayAnchorId(day.day_number)}
-                  className="scroll-mt-[calc(var(--trip-space-header-height,0px)+4rem)] md:scroll-mt-[calc(var(--trip-space-header-height,0px)+8rem)]"
+                  tabIndex={-1}
+                  className="outline-none scroll-mt-[calc(var(--trip-space-header-height,0px)+4rem)] md:scroll-mt-[calc(var(--trip-space-header-height,0px)+8rem)]"
                 >
                   <ItineraryDayCard
                     day={day}
@@ -508,6 +572,11 @@ function ItineraryPageContent() {
         dayNumber={dialogDayNumber || undefined}
         date={dialogDayDate}
         outsideTripRange={isTripDayOutsideRange(dialogDayDate, trip?.end_date)}
+        tripStartDate={trip?.start_date}
+        tripEndDate={trip?.end_date}
+        usedDayNumbers={usedDayNumbers}
+        onViewExistingDay={handleViewExistingDay}
+        onOpenTripSettings={isAdmin ? editTripDialog.openDialog : undefined}
       />
 
       {/* 卡片捷徑：手機友善的單一活動新增/編輯（不開整天編輯） */}

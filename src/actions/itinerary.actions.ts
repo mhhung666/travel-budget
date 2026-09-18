@@ -30,6 +30,7 @@ import {
   mutateItineraryActivitySchema,
   type MutateItineraryActivityInput,
   updateItineraryDaySchema,
+  type ItineraryDayTargetInput,
   type ActivityInput,
   type UpdateActivityInput,
 } from '@/lib/validation';
@@ -130,6 +131,8 @@ export const createItineraryDay = withAuth(
       content?: string;
       location?: Location | null;
       activities?: ActivityInput[];
+      /** 新增目標（日期或第幾天）。省略＝尚未更新的舊頁面，沿用接在最後一天。 */
+      target?: ItineraryDayTargetInput;
     }
   ): Promise<ActionResult<ItineraryDayDto>> => {
     try {
@@ -171,6 +174,7 @@ export const createItineraryDay = withAuth(
           content: validated.content || '',
           location: validated.location ?? null,
           activities: built.storage,
+          target: validated.target,
         }
       );
       return { success: true, data: toDayDto(created as unknown as LeanDay) };

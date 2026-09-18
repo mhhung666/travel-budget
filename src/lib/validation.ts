@@ -1,4 +1,5 @@
 import { MAX_ACTIVITIES_PER_DAY } from '@/lib/itineraryLimits';
+import { isCalendarDate, MAX_ITINERARY_DAY_NUMBER } from '@/lib/itineraryDayTarget';
 import { z } from 'zod';
 import { SUPPORTED_CURRENCY_CODES } from '@/constants/currencies';
 
@@ -298,11 +299,38 @@ export const activitySchema = z.object({
   attachments: z.array(attachmentInputSchema).max(10, '附件數量過多').optional(),
 });
 
+// 嚴格日曆日：擋掉 2026-02-30 這類格式正確但不存在的日期。
+const calendarDateSchema = z.string().refine(isCalendarDate, '日期格式錯誤');
+
+/**
+ * 新增行程日的目標，日期與天數互斥（`strict` 讓同時傳兩者直接失敗，不會被當成舊輸入吞掉）。
+ * `expected_*` 是表單開啟時看到的旅程起訖；交易內比對不符即回 TRIP_DATES_CHANGED，
+ * 避免使用者以舊基準算出的 Day N 建到別天。
+ */
+export const itineraryDayTargetSchema = z.union([
+  z
+    .object({
+      date: calendarDateSchema,
+      expected_start_date: calendarDateSchema,
+      expected_end_date: calendarDateSchema.nullable(),
+    })
+    .strict(),
+  z
+    .object({
+      day_number: z.number().int().min(1).max(MAX_ITINERARY_DAY_NUMBER),
+      expected_start_date: z.null(),
+      expected_end_date: calendarDateSchema.nullable(),
+    })
+    .strict(),
+]);
+
 export const createItineraryDaySchema = z.object({
   title: z.string().min(1, '標題不能為空').trim(),
   content: z.string().default(''),
   location: locationSchema.nullable().optional(),
   activities: z.array(activitySchema).max(MAX_ACTIVITIES_PER_DAY).optional(),
+  // 省略＝尚未更新的舊頁面，沿用接在最後一天；給了就必須完整且合法。
+  target: itineraryDayTargetSchema.optional(),
 });
 
 // 更新必須明確區分既有活動與新增列，避免舊客戶端省略 ID 後重建整天身分。
@@ -628,6 +656,7 @@ export type UpdateChecklistItemInput = z.infer<typeof updateChecklistItemSchema>
 export type UpdateActivityInput = z.infer<typeof updateActivitySchema>;
 export type ActivityInput = z.infer<typeof activitySchema>;
 export type CreateItineraryDayInput = z.infer<typeof createItineraryDaySchema>;
+export type ItineraryDayTargetInput = z.infer<typeof itineraryDayTargetSchema>;
 export type UpdateItineraryDayInput = z.infer<typeof updateItineraryDaySchema>;
 export type CreateTripInput = z.infer<typeof createTripSchema>;
 export type UpdateTripInput = z.infer<typeof updateTripSchema>;

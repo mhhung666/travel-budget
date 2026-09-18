@@ -60,24 +60,8 @@ export async function deleteItineraryDayAtomically(
             { $set: { itineraryDay: null }, $max: { updatedAt: now } },
             { session }
           );
-        const remaining = await db
-          .collection('itinerarydays')
-          .find({ trip }, { session, projection: { dayNumber: 1, location: 1 } })
-          .sort({ dayNumber: 1 })
-          .toArray();
-        // Ascending writes free each unique (trip, dayNumber) slot before the next uses it.
-        for (const [index, item] of remaining.entries()) {
-          const dayNumber = index + 1;
-          if (item.dayNumber === dayNumber) continue;
-          await db
-            .collection('itinerarydays')
-            .updateOne(
-              { _id: item._id, trip },
-              { $set: { dayNumber }, $inc: { revision: 1 }, $max: { updatedAt: now } },
-              { session }
-            );
-          item.dayNumber = dayNumber;
-        }
+        // 不重新編號：Day N 代表出發後第 N 天，刪掉中間一天不該讓後續行程的日期前移。
+        // 空出的 dayNumber 重新成為可新增的目標（見 lib/itineraryDayTarget.ts）。
         await rebindAutoPhotosInTransaction(
           db,
           session,

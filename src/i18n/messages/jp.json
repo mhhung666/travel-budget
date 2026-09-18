@@ -1026,7 +1026,10 @@
       "empty": "まだ通貨が追加されていません——支出は TWD で登録されます。",
       "remove": "削除",
       "customRate": "カスタム為替レート"
-    }
+    },
+    "startDateShiftLater": "出発日を変更すると、すべての旅程日が {days} 日後ろにずれます。",
+    "startDateShiftEarlier": "出発日を変更すると、すべての旅程日が {days} 日前にずれます。",
+    "startDateCleared": "開始日を削除すると、旅程日は日付なしで Day N のみ表示されます。"
   },
   "checklist": {
     "title": "チェックリスト",
@@ -1193,7 +1196,7 @@
     "updateFailed": "旅程を保存できませんでした。変更の成功は確認されていません。もう一度お試しください。",
     "activityLimit": "1日につき活動は{max}件までです。活動を削除するか、別の日を選んでください。",
     "title": "旅程プラン",
-    "addDay": "日程を追加",
+    "addDay": "旅程日を追加",
     "addDayN": "第{dayNumber}日を追加",
     "editDay": "日程を編集",
     "editDayN": "第{dayNumber}日を編集",
@@ -1356,7 +1359,38 @@
     },
     "dayNav": "日付を切り替え",
     "today": "今日",
-    "dayActions": "この日のその他の操作"
+    "dayActions": "この日のその他の操作",
+    "dayTarget": {
+      "dateLabel": "旅程の日付",
+      "dayNumberLabel": "何日目",
+      "tripRange": "旅行期間：{start}–{end}",
+      "tripRangeOpen": "{start} 出発 · 終了日は未設定",
+      "preview": "Day {dayNumber} · {date}",
+      "pickDate": "日付を選ぶと何日目かを表示します",
+      "skipHint": "まだ計画していない日は飛ばして、あとから追加できます。",
+      "quickPickUsed": "作成済み",
+      "quickPickSelected": "選択中",
+      "quickPickA11y": "{date}、{dayNumber} 日目",
+      "quickPickUsedA11y": "{date}、{dayNumber} 日目、作成済み",
+      "createdCount": "{total} 日中 {created} 日を作成済み",
+      "nextAvailable": "次の未作成の日（{date}）",
+      "viewExistingDay": "{dayNumber} 日目を表示",
+      "viewDates": "旅程の日付を見る",
+      "allDatesCreated": "旅行期間中のすべての日が作成済みです。各日にアクティビティを追加できます。",
+      "noStartDate": "出発日を設定すると日付で選べます。",
+      "tripSettings": "旅行の設定",
+      "submit": "旅程日を追加",
+      "submitting": "追加中…",
+      "createdOn": "{date}（Day {dayNumber}）を追加しました",
+      "errors": {
+        "required": "この旅程日の日付を選んでください。",
+        "dayExists": "この日にはすでに旅程があります。別の日付を選んでください。",
+        "outsideTrip": "この日付は旅行期間外です。先に旅行の日付を調整してください。",
+        "datesChanged": "フォームを開いたあとに旅行の日付が変更されました。日付を確認して再送信してください。",
+        "startRequired": "旅行に出発日が設定されていないため、日付で指定できません。"
+      },
+      "discardDraftConfirm": "移動すると未保存の内容は破棄されます。続けますか？"
+    }
   },
   "export": {
     "label": "エクスポート",

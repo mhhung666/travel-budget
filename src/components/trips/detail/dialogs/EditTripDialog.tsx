@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { dayDiff, isCalendarDate } from '@/lib/itineraryDayTarget';
 
 export interface EditTripFormData {
   name: string;
@@ -48,6 +49,21 @@ export default function EditTripDialog({ open, onClose, onSubmit, trip }: EditTr
     end_date: '',
   });
   const [destinationLocation, setDestinationLocation] = useState<LocationOption | null>(null);
+
+  /**
+   * 出發日的變動量（天）；'cleared'＝原本有出發日但被清空（行程日將只剩 Day N）。
+   * null＝沒有影響行程日期的變動。
+   */
+  const originalStart = trip?.start_date
+    ? new Date(trip.start_date).toISOString().slice(0, 10)
+    : null;
+  const startDateShift: number | 'cleared' | null = !originalStart
+    ? null
+    : !form.start_date
+      ? 'cleared'
+      : isCalendarDate(form.start_date) && form.start_date !== originalStart
+        ? dayDiff(originalStart, form.start_date)
+        : null;
 
   useEffect(() => {
     if (open && trip) {
@@ -157,6 +173,17 @@ export default function EditTripDialog({ open, onClose, onSubmit, trip }: EditTr
               />
             </div>
           </div>
+
+          {/* 行程日的日期＝出發日 + (Day N - 1)，改出發日會整段平移，先預覽位移天數。 */}
+          {startDateShift !== null && (
+            <p className="text-xs text-warning" role="status">
+              {startDateShift === 'cleared'
+                ? tTrip('startDateCleared')
+                : tTrip(startDateShift > 0 ? 'startDateShiftLater' : 'startDateShiftEarlier', {
+                    days: Math.abs(startDateShift),
+                  })}
+            </p>
+          )}
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>

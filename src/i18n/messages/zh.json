@@ -1026,7 +1026,10 @@
       "empty": "尚未加入幣別——新增支出會使用新台幣。",
       "remove": "移除",
       "customRate": "自訂匯率"
-    }
+    },
+    "startDateShiftLater": "變更出發日期會把所有行程日往後平移 {days} 天。",
+    "startDateShiftEarlier": "變更出發日期會把所有行程日往前平移 {days} 天。",
+    "startDateCleared": "移除開始日期後，行程日將只顯示 Day N，不再顯示日期。"
   },
   "checklist": {
     "title": "清單",
@@ -1193,7 +1196,7 @@
     "updateFailed": "無法儲存行程，尚未確認變更成功，請重試。",
     "activityLimit": "每天最多 {max} 個活動，請先刪除活動或選擇其他天。",
     "title": "旅程規劃",
-    "addDay": "新增天數",
+    "addDay": "新增行程日",
     "addDayN": "新增第 {dayNumber} 天",
     "editDay": "編輯行程",
     "editDayN": "編輯第 {dayNumber} 天",
@@ -1356,7 +1359,38 @@
     },
     "dayNav": "切換日期",
     "today": "今天",
-    "dayActions": "這一天的更多動作"
+    "dayActions": "這一天的更多動作",
+    "dayTarget": {
+      "dateLabel": "行程日期",
+      "dayNumberLabel": "第幾天",
+      "tripRange": "旅程日期：{start}–{end}",
+      "tripRangeOpen": "旅程自 {start} 開始 · 尚未設定結束日期",
+      "preview": "Day {dayNumber} · {date}",
+      "pickDate": "選擇日期後顯示對應的天數",
+      "skipHint": "可跳過尚未規劃的日期，之後再補上。",
+      "quickPickUsed": "已建立",
+      "quickPickSelected": "已選",
+      "quickPickA11y": "{date}，第 {dayNumber} 天",
+      "quickPickUsedA11y": "{date}，第 {dayNumber} 天，已建立",
+      "createdCount": "已建立 {created} / {total} 個行程日",
+      "nextAvailable": "選下一個未建立日期（{date}）",
+      "viewExistingDay": "查看第 {dayNumber} 天行程",
+      "viewDates": "查看行程日期",
+      "allDatesCreated": "旅程內的日期皆已建立，可在當日新增活動。",
+      "noStartDate": "設定開始日期後即可依日期選擇。",
+      "tripSettings": "旅程設定",
+      "submit": "新增行程日",
+      "submitting": "新增中…",
+      "createdOn": "已新增 {date}（Day {dayNumber}）",
+      "errors": {
+        "required": "請選擇這個行程日的日期。",
+        "dayExists": "這一天已有行程，請選擇其他日期。",
+        "outsideTrip": "這個日期不在旅程範圍內，請先調整旅程日期。",
+        "datesChanged": "表單開啟後旅程日期已變更，請確認日期再送出。",
+        "startRequired": "旅程尚未設定開始日期，無法依日期定位行程日。"
+      },
+      "discardDraftConfirm": "離開會放棄尚未儲存的內容，確定要前往嗎？"
+    }
   },
   "export": {
     "label": "匯出",
