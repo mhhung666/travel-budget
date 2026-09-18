@@ -1429,6 +1429,29 @@
       "colPaid": "已付",
       "colOwed": "應分攤",
       "colBalance": "結餘"
+    },
+    "pdfOptions": {
+      "title": "匯出行程 PDF",
+      "description": "選擇已儲存的行程日。匯出版面會簡化表格，圖片與附件不收錄；emoji 或缺少字型的字元以 Unicode 編碼顯示。首次產生需下載中文字型。",
+      "range": "匯出範圍",
+      "allDays": "所有行程日",
+      "day": "第 {n} 天",
+      "includeNotes": "包含每日說明",
+      "includeConfirmation": "包含訂位確認碼",
+      "privacy": "確認碼預設不收錄；請留意自行寫在說明或備註中的私人資訊。",
+      "generate": "產生 PDF",
+      "generating": "正在讀取最新行程並產生 PDF…",
+      "ready": "PDF 已備妥，請下載或開啟儲存。",
+      "download": "下載 PDF",
+      "open": "開啟 PDF",
+      "close": "關閉",
+      "failed": "無法產生 PDF，請確認連線後重試。",
+      "offline": "請連上網路後再產生 PDF。",
+      "saving": "請等待目前的儲存完成後再產生 PDF。",
+      "selectionChanged": "選取的行程日已變更，請關閉視窗並重新選擇。",
+      "generated": "產生時間",
+      "outsideRange": "超出旅程日期",
+      "imageOmitted": "圖片未收錄"
     }
   },
   "map": {

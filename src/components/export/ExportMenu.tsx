@@ -20,6 +20,7 @@ interface ExportMenuProps {
   fileBaseName: string;
   /** 提供的格式，預設三種皆有 */
   formats?: ExportFormat[];
+  onExportPdf?: () => void;
   disabled?: boolean;
   variant?: ButtonProps['variant'];
   size?: ButtonProps['size'];
@@ -36,6 +37,7 @@ export default function ExportMenu({
   fileBaseName,
   formats = DEFAULT_FORMATS,
   disabled = false,
+  onExportPdf,
   variant = 'outline',
   size = 'sm',
   align = 'end',
@@ -64,6 +66,7 @@ export default function ExportMenu({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align={align}>
+        {onExportPdf && <DropdownMenuItem onClick={onExportPdf}>PDF</DropdownMenuItem>}
         {formats.map((format) => (
           <DropdownMenuItem key={format} onClick={() => handleExport(format)}>
             {t(format)}

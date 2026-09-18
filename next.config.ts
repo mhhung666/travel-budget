@@ -14,6 +14,8 @@ const withNextIntl = createNextIntlPlugin('./src/i18n/config.ts');
 const withSerwist = withSerwistInit({
   swSrc: 'src/sw.ts',
   swDest: 'public/sw.js',
+  // The full CJK PDF font is fetched only when generating an export.
+  globPublicPatterns: ['*', '!(fonts)/**/*'],
   disable: process.env.NODE_ENV === 'development',
 });
 

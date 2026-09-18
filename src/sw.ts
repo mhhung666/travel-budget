@@ -23,7 +23,13 @@
 import { defaultCache } from '@serwist/next/worker';
 import { expensePushDisplayOptions } from './lib/expensePushDisplay';
 import type { PrecacheEntry, RuntimeCaching, SerwistGlobalConfig } from 'serwist';
-import { CacheableResponsePlugin, CacheFirst, ExpirationPlugin, Serwist } from 'serwist';
+import {
+  CacheableResponsePlugin,
+  CacheFirst,
+  ExpirationPlugin,
+  NetworkOnly,
+  Serwist,
+} from 'serwist';
 
 declare global {
   interface WorkerGlobalScope extends SerwistGlobalConfig {
@@ -34,6 +40,13 @@ declare global {
 declare const self: ServiceWorkerGlobalScope;
 
 const runtimeCaching: RuntimeCaching[] = [
+  // Explicit fresh exports must never fall back to a previously authorized API response.
+  {
+    matcher: ({ request, sameOrigin, url }) =>
+      sameOrigin && url.pathname.startsWith('/api/public/trips/') && request.cache === 'no-store',
+    method: 'GET',
+    handler: new NetworkOnly(),
+  },
   // Leaflet raster basemap tiles — keep the basemap available offline.
   // Hosts must track src/components/map/basemaps.ts: Esri Gray Canvas (primary)
   // and the OpenStreetMap standard tiles used as the fallback source.

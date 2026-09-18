@@ -1436,6 +1436,29 @@
       "colPaid": "Paid",
       "colOwed": "Owed",
       "colBalance": "Balance"
+    },
+    "pdfOptions": {
+      "title": "Export itinerary PDF",
+      "description": "Choose saved itinerary days. Tables use a simplified layout; images and attachments are omitted. Emoji and missing glyphs appear as Unicode codes. The first export downloads a CJK font.",
+      "range": "Export range",
+      "allDays": "All itinerary days",
+      "day": "Day {n}",
+      "includeNotes": "Include daily notes",
+      "includeConfirmation": "Include booking references",
+      "privacy": "Booking references are excluded by default. Check notes for any personal information you entered.",
+      "generate": "Generate PDF",
+      "generating": "Loading the latest itinerary and generating PDF…",
+      "ready": "Your PDF is ready. Download it or open it to save.",
+      "download": "Download PDF",
+      "open": "Open PDF",
+      "close": "Close",
+      "failed": "Could not generate the PDF. Check your connection and try again.",
+      "offline": "Connect to the internet to generate a PDF.",
+      "saving": "Wait for the current save to finish before generating a PDF.",
+      "selectionChanged": "Selected days have changed. Close this window and select them again.",
+      "generated": "Generated",
+      "outsideRange": "Outside trip dates",
+      "imageOmitted": "Image omitted"
     }
   },
   "map": {

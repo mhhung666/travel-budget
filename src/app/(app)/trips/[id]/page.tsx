@@ -1,4 +1,5 @@
 'use client';
+import dynamic from 'next/dynamic';
 import { ClientQueryBoundary } from '@/components/common/ClientQueryBoundary';
 import { QueryStatus } from '@/components/common/QueryStatus';
 
@@ -73,6 +74,11 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 
+const ItineraryPdfExportDialog = dynamic(
+  () => import('@/components/export/ItineraryPdfExportDialog'),
+  { ssr: false }
+);
+
 /**
  * 行程空間的「行程」分頁，同時是空間落點（trips/[id]）：行程資訊卡 + 每日行程卡。
  * 隨手記／清單為本分頁的子分頁（見 TripSpaceShell 的子分頁列）。
@@ -86,6 +92,7 @@ export default function ItineraryPage() {
 }
 
 function ItineraryPageContent() {
+  const [pdfOpen, setPdfOpen] = useState(false);
   const params = useParams();
   const tripId = params.id as string;
   const tItinerary = useTranslations('itinerary');
@@ -451,6 +458,7 @@ function ItineraryPageContent() {
       {/* 頁首由行程空間殼提供（分頁列已標示所在位置），此列只放動作 */}
       <div className="mb-2 flex items-center justify-end gap-2">
         <ExportMenu
+          onExportPdf={() => setPdfOpen(true)}
           build={buildExport}
           fileBaseName={`${trip?.name ?? 'trip'}-${tExport('itinerary.heading')}`}
           disabled={days.length === 0}
@@ -490,6 +498,17 @@ function ItineraryPageContent() {
         <p className="mb-2 text-right text-xs text-muted-foreground">
           {tItinerary('dayTarget.allDatesCreated')}
         </p>
+      )}
+
+      {pdfOpen && (
+        <ItineraryPdfExportDialog
+          key={`${tripId}-${isMember}`}
+          startDate={trip?.start_date}
+          tripId={tripId}
+          days={days}
+          isMember={isMember}
+          onClose={() => setPdfOpen(false)}
+        />
       )}
 
       {/* Day cards */}

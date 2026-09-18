@@ -1429,6 +1429,29 @@
       "colPaid": "支払済",
       "colOwed": "負担額",
       "colBalance": "収支"
+    },
+    "pdfOptions": {
+      "title": "旅程を PDF に出力",
+      "description": "保存済みの日程を選択してください。表は簡略化され、画像と添付ファイルは含まれません。絵文字や未対応の文字は Unicode コードで表示します。初回は CJK フォントをダウンロードします。",
+      "range": "出力範囲",
+      "allDays": "すべての日程",
+      "day": "{n} 日目",
+      "includeNotes": "毎日の説明を含める",
+      "includeConfirmation": "予約確認番号を含める",
+      "privacy": "確認番号は初期設定では含まれません。説明やメモに入力した個人情報にもご注意ください。",
+      "generate": "PDF を作成",
+      "generating": "最新の旅程を読み込み、PDF を作成しています…",
+      "ready": "PDF の準備ができました。ダウンロードするか、開いて保存してください。",
+      "download": "PDF をダウンロード",
+      "open": "PDF を開く",
+      "close": "閉じる",
+      "failed": "PDF を作成できませんでした。接続を確認して再試行してください。",
+      "offline": "インターネットに接続してから PDF を作成してください。",
+      "saving": "保存が完了してから PDF を作成してください。",
+      "selectionChanged": "選択した日程が変更されました。閉じてから再度選択してください。",
+      "generated": "作成日時",
+      "outsideRange": "旅行期間外",
+      "imageOmitted": "画像は省略"
     }
   },
   "map": {

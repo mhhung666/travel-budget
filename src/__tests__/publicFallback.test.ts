@@ -9,6 +9,26 @@ afterEach(() => {
 });
 
 describe('fetchWithPublicFallback', () => {
+  it('uses unique no-store URLs for explicit fresh public reads and never masks failures', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => 'fresh' });
+    vi.stubGlobal('fetch', fetchMock);
+    const read = () =>
+      fetchWithPublicFallback(
+        'abc12345',
+        vi.fn(),
+        { path: 'landing?date=2026-09-18', fresh: true },
+        null,
+        false
+      );
+    expect(await read()).toBe('fresh');
+    expect(await read()).toBe('fresh');
+    const [first, second] = fetchMock.mock.calls;
+    expect(first[0]).toMatch(/^\/api\/public\/trips\/abc12345\/landing\?date=2026-09-18&_fresh=/);
+    expect(first[0]).not.toBe(second[0]);
+    expect(first[1]).toEqual({ cache: 'no-store' });
+    fetchMock.mockRejectedValueOnce(new Error('offline'));
+    await expect(read()).rejects.toThrow('offline');
+  });
   it('rechecks a cached public decision after joining and after its freshness window', async () => {
     vi.useFakeTimers();
     const action = vi

@@ -10,6 +10,8 @@ interface PublicEndpoint {
    * `{ balances, transactions, totalExpenses }` at the top level).
    */
   responseKey?: string;
+  /** Require a network read, including when an older service worker controls this tab. */
+  fresh?: boolean;
 }
 
 type AccessMode = 'member' | 'public';
@@ -17,7 +19,13 @@ const accessModeByTrip = new Map<string, Promise<AccessMode>>();
 const resolvedAt = new Map<string, number>();
 
 async function fetchPublic<T>(tripId: string, endpoint: PublicEndpoint, defaultValue: T) {
-  const res = await fetch(`/api/public/trips/${tripId}/${endpoint.path}`);
+  const path = `/api/public/trips/${tripId}/${endpoint.path}`;
+  // A nonce also defeats offline fallback in older SWs that do not honor no-store.
+  const res = endpoint.fresh
+    ? await fetch(`${path}${path.includes('?') ? '&' : '?'}_fresh=${crypto.randomUUID()}`, {
+        cache: 'no-store',
+      })
+    : await fetch(path);
   if (!res.ok) throw new Error(`Failed to load (${res.status})`);
   const json = await res.json();
   const value = endpoint.responseKey ? json[endpoint.responseKey] : json;

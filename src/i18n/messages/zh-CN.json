@@ -1429,6 +1429,29 @@
       "colPaid": "已付",
       "colOwed": "应分摊",
       "colBalance": "结余"
+    },
+    "pdfOptions": {
+      "title": "导出行程 PDF",
+      "description": "选择已保存的行程日。导出版面会简化表格，不包含图片和附件；emoji 或缺失字形以 Unicode 编码显示。首次生成需下载中文字体。",
+      "range": "导出范围",
+      "allDays": "所有行程日",
+      "day": "第 {n} 天",
+      "includeNotes": "包含每日说明",
+      "includeConfirmation": "包含预订确认码",
+      "privacy": "默认不包含确认码；请留意自行写在说明或备注中的私人信息。",
+      "generate": "生成 PDF",
+      "generating": "正在读取最新行程并生成 PDF…",
+      "ready": "PDF 已准备好，请下载或打开保存。",
+      "download": "下载 PDF",
+      "open": "打开 PDF",
+      "close": "关闭",
+      "failed": "无法生成 PDF，请确认网络连接后重试。",
+      "offline": "请连接网络后再生成 PDF。",
+      "saving": "请等待当前保存完成后再生成 PDF。",
+      "selectionChanged": "所选行程日已变更，请关闭窗口并重新选择。",
+      "generated": "生成时间",
+      "outsideRange": "超出旅程日期",
+      "imageOmitted": "未包含图片"
     }
   },
   "map": {
