@@ -24,6 +24,7 @@ import {
   createItineraryDayAtomically,
   ItineraryDayCreationError,
 } from '@/lib/itineraryDayCreation';
+import { dayNumberForDate, toDateOnly } from '@/lib/itineraryDayTarget';
 import { getTripMembership } from '@/lib/permissions';
 import {
   createItineraryDaySchema,
@@ -225,8 +226,15 @@ export const updateItineraryDay = withAuth(
       }
       const validated = parsed.data;
       const currentDay = await ItineraryDay.findOne({ _id: dayId, trip: membership.tripId })
-        .select('activities._id activities.revision activities.attachments updatedAt revision')
-        .lean<{ activities?: LeanActivity[]; updatedAt: Date; revision: number } | null>();
+        .select(
+          'activities._id activities.revision activities.attachments updatedAt revision dayNumber'
+        )
+        .lean<{
+          activities?: LeanActivity[];
+          updatedAt: Date;
+          revision: number;
+          dayNumber: number;
+        } | null>();
       if (!currentDay) {
         return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
       }
@@ -242,6 +250,11 @@ export const updateItineraryDay = withAuth(
       if (validated.title !== undefined) set.title = validated.title;
       if (validated.content !== undefined) set.content = validated.content;
       if (validated.day_number !== undefined) set.dayNumber = validated.day_number;
+      // 真正換到別天才需要重驗範圍與唯一性（見交易內）；重送同一天視為沒動。
+      const movedTo =
+        validated.day_number !== undefined && validated.day_number !== currentDay.dayNumber
+          ? validated.day_number
+          : null;
       // location 可被設為 null 以清除；故只要欄位有出現（!== undefined）就寫入。
       if (validated.location !== undefined) set.location = validated.location;
 
@@ -288,11 +301,36 @@ export const updateItineraryDay = withAuth(
         membership.tripId,
         session.userId,
         async (transactionSession, parent) => {
+          // 只在真的換天時驗證：舊資料原本就超出旅程範圍時，仍可純編輯內容不被擋。
+          if (movedTo !== null) {
+            const startDate = toDateOnly(parent.startDate);
+            const endDate = toDateOnly(parent.endDate);
+            if (startDate && endDate && dayNumberForDate(startDate, endDate) < movedTo) {
+              throw new ItineraryDayUpdateError('DATE_OUTSIDE_TRIP');
+            }
+            const taken = await ItineraryDay.findOne({
+              trip: membership.tripId,
+              dayNumber: movedTo,
+            })
+              .select('_id')
+              .session(transactionSession)
+              .lean<{ _id: mongoose.Types.ObjectId } | null>();
+            if (taken) throw new ItineraryDayUpdateError('DAY_ALREADY_EXISTS');
+          }
+
           const day = await ItineraryDay.findOneAndUpdate(
             { _id: dayId, trip: membership.tripId, revision: validated.expected_revision },
             { $set: set, $inc: { revision: 1 } },
             { new: true, timestamps: false, session: transactionSession }
-          ).lean<LeanDay | null>();
+          )
+            .lean<LeanDay | null>()
+            // 兩人同時改到同一天：唯一索引是最後防線，轉成可辨識的錯誤碼。
+            .catch((error: unknown) => {
+              if ((error as { code?: number }).code === 11000) {
+                throw new ItineraryDayUpdateError('DAY_ALREADY_EXISTS');
+              }
+              throw error;
+            });
 
           if (!day) throw new ItineraryDayUpdateError('CONFLICT');
           await assertBlobsAvailable(mongoose.connection.db!, transactionSession, [

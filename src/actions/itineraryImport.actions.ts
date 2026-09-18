@@ -1,6 +1,7 @@
 'use server';
 
 import { activityCapacityFilter } from '@/lib/itineraryLimits';
+import { dayNumberForDate } from '@/lib/itineraryDayTarget';
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import mongoose from 'mongoose';
@@ -69,12 +70,6 @@ type GroupedDay = ItineraryImportDay & { date?: string };
 
 function formatDate(value: Date | null | undefined): string | null {
   return value ? value.toISOString().slice(0, 10) : null;
-}
-
-function dayNumberForDate(startDate: string, date: string): number {
-  const start = Date.parse(`${startDate}T00:00:00.000Z`);
-  const target = Date.parse(`${date}T00:00:00.000Z`);
-  return Math.round((target - start) / 86_400_000) + 1;
 }
 
 function importKey(tripId: string, operationId: string, date: string): string {

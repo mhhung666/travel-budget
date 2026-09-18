@@ -848,6 +848,54 @@ describe.skipIf(!uri || !allowed)('itinerary actions against isolated MongoDB', 
     expect((await ItineraryDay.findById(day.id))?.revision).toBe(1);
   });
 
+  it('refuses to move a day onto a taken day number or outside the trip', async () => {
+    const day = await seed();
+    await ItineraryDay.create({ trip: tripId, dayNumber: 4, title: 'Fourth' });
+    expect(
+      await updateItineraryDay(tripId, day.id, { expected_revision: 0, day_number: 4 })
+    ).toMatchObject({ code: 'DAY_ALREADY_EXISTS' });
+    // 2026-09-01～09-14 共 14 天，第 15 天已超出旅程範圍。
+    expect(
+      await updateItineraryDay(tripId, day.id, { expected_revision: 0, day_number: 15 })
+    ).toMatchObject({ code: 'DATE_OUTSIDE_TRIP' });
+    expect(await ItineraryDay.findById(day.id).lean()).toMatchObject({
+      dayNumber: 1,
+      revision: 0,
+    });
+  });
+
+  it('still edits a legacy day that already sits outside the trip', async () => {
+    const day = await ItineraryDay.create({ trip: tripId, dayNumber: 30, title: 'Legacy' });
+    // 只改內容、沒有換天：舊的超界資料不該因為新規則變成無法編輯。
+    expect(
+      await updateItineraryDay(tripId, day.id, { expected_revision: 0, title: 'Edited' })
+    ).toMatchObject({ success: true });
+    expect(
+      await updateItineraryDay(tripId, day.id, { expected_revision: 1, day_number: 30 })
+    ).toMatchObject({ success: true });
+    expect(await ItineraryDay.findById(day.id).lean()).toMatchObject({
+      dayNumber: 30,
+      title: 'Edited',
+    });
+  });
+
+  it('lets only one of two concurrent moves take the same free day number', async () => {
+    const first = await seed(0);
+    const second = await ItineraryDay.create({ trip: tripId, dayNumber: 2, title: 'Second' });
+    const results = await Promise.all([
+      updateItineraryDay(tripId, first.id, { expected_revision: 0, day_number: 5 }),
+      updateItineraryDay(tripId, second.id, { expected_revision: 0, day_number: 5 }),
+    ]);
+    expect(results.filter((result) => result.success)).toHaveLength(1);
+    expect(results.filter((result) => !result.success)).toEqual([
+      expect.objectContaining({ code: 'DAY_ALREADY_EXISTS' }),
+    ]);
+    // 贏的那天移到 5，輸的留在原位；無論誰贏都不會出現兩個 Day 5。
+    const numbers = (await ItineraryDay.find({ trip: tripId }).lean()).map((d) => d.dayNumber);
+    expect(new Set(numbers).size).toBe(2);
+    expect(numbers).toContain(5);
+  });
+
   describe('creating a day by date', () => {
     const range = { expected_start_date: '2026-09-01', expected_end_date: '2026-09-14' };
 
@@ -1836,7 +1884,7 @@ describe.skipIf(!uri || !allowed)('itinerary actions against isolated MongoDB', 
     expect(JSON.stringify(publicDays)).not.toContain(key);
   });
 
-  it('renumbering invalidates a day draft while preserving activity identity and revision', async () => {
+  it('leaves a surviving day untouched by a neighbour deletion, keeping open drafts valid', async () => {
     const first = await seed(0);
     const second = await ItineraryDay.create({
       trip: tripId,
@@ -1846,11 +1894,12 @@ describe.skipIf(!uri || !allowed)('itinerary actions against isolated MongoDB', 
     });
     expect(await deleteItineraryDay(tripId, first.id)).toMatchObject({ success: true });
     const stored = await ItineraryDay.findById(second.id).lean();
-    expect(stored).toMatchObject({ dayNumber: 1, revision: 1, activities: [{ revision: 0 }] });
+    // 不重新編號：Day 2 仍是 Day 2，revision 不動，開著的草稿不會被誤判成過期。
+    expect(stored).toMatchObject({ dayNumber: 2, revision: 0, activities: [{ revision: 0 }] });
     expect(stored!.activities[0]._id.toString()).toBe(second.activities[0]._id.toString());
     expect(
-      await updateItineraryDay(tripId, second.id, { expected_revision: 0, title: 'Stale' })
-    ).toMatchObject({ code: 'CONFLICT' });
+      await updateItineraryDay(tripId, second.id, { expected_revision: 0, title: 'Still current' })
+    ).toMatchObject({ success: true });
     expect(
       await mutateItineraryActivity(tripId, second.id, {
         operation: 'update',

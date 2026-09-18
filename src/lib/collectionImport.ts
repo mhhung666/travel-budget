@@ -5,6 +5,7 @@
  */
 
 import { HOTEL_BRANDS } from '@/constants/hotelBrands';
+import { dateForDayNumber, toDateOnly } from '@/lib/itineraryDayTarget';
 
 /** 行程活動類型 → 帶入的成就種類；只有明確的航班與住宿提供帶入。 */
 export function activityImportKind(type: string): 'flight' | 'stay' | null {
@@ -82,13 +83,9 @@ export function dayDateFromTrip(
   startDate: string | null | undefined,
   dayNumber: number
 ): string | null {
-  if (!startDate || !Number.isInteger(dayNumber) || dayNumber < 1) return null;
-  const ymd = startDate.slice(0, 10);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return null;
-  const d = new Date(`${ymd}T00:00:00Z`);
-  if (Number.isNaN(d.getTime())) return null;
-  d.setUTCDate(d.getUTCDate() + dayNumber - 1);
-  return d.toISOString().slice(0, 10);
+  if (!Number.isInteger(dayNumber) || dayNumber < 1) return null;
+  const ymd = toDateOnly(startDate);
+  return ymd ? dateForDayNumber(ymd, dayNumber) : null;
 }
 
 /** 行程日推算日期是否晚於旅程結束日；缺少任一日期時不視為超出範圍。 */

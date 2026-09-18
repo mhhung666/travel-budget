@@ -1,7 +1,9 @@
 import { mongo } from 'mongoose';
 
 export class ItineraryDayUpdateError extends Error {
-  constructor(public readonly code: 'FORBIDDEN' | 'CONFLICT') {
+  constructor(
+    public readonly code: 'FORBIDDEN' | 'CONFLICT' | 'DAY_ALREADY_EXISTS' | 'DATE_OUTSIDE_TRIP'
+  ) {
     super(code);
   }
 }

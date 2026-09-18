@@ -349,7 +349,8 @@ export const updateItineraryDaySchema = z.object({
     .max(Number.MAX_SAFE_INTEGER - 1),
   title: z.string().min(1, '標題不能為空').trim().optional(),
   content: z.string().optional(),
-  day_number: z.number().int().positive().optional(),
+  // 與新增共用上限；範圍與唯一性由 action 在交易內驗證（見 itinerary.actions.ts）。
+  day_number: z.number().int().min(1).max(MAX_ITINERARY_DAY_NUMBER).optional(),
   location: locationSchema.nullable().optional(),
   activities: z.array(updateActivitySchema).max(MAX_ACTIVITIES_PER_DAY).optional(),
 });

@@ -142,7 +142,7 @@ type DayTarget =
 4. 驗證範圍、檢查同日是否存在，建立資料並保留既有附件檢查與照片重綁流程。
 5. 捕捉唯一索引衝突並轉成 `DAY_ALREADY_EXISTS`；超界回 `DATE_OUTSIDE_TRIP`，缺開始日回 `TRIP_START_DATE_REQUIRED`，非法日期回 `VALIDATION_ERROR`。這些錯誤碼需加入實際 ActionResult 與翻譯支援。
 
-新增、AI 匯入共用日曆日期／dayNumber 轉換及範圍判斷；保留兩者不同的同日策略：手動新增阻擋，AI 匯入仍依原流程追加。既有 `updateItineraryDay(day_number)` 也需驗證範圍與唯一性，避免繞過規則；內容更新不應因此阻擋舊的超界行程。
+新增、AI 匯入共用日曆日期／dayNumber 轉換及範圍判斷；保留兩者不同的同日策略：手動新增阻擋，AI 匯入仍依原流程追加。既有 `updateItineraryDay(day_number)` 也需驗證範圍與唯一性，避免繞過規則；內容更新不應因此阻擋舊的超界行程（已實作：只有真的換天才檢查，並沿用同一組錯誤碼）。
 
 ### 修改範圍
 
@@ -182,4 +182,4 @@ type DayTarget =
 | 手機與鍵盤 | 320px 不橫向溢出；鍵盤可完成、錯誤可讀、成功定位不被 sticky header 遮住 |
 | 長旅程及所有日期已建立 | 無巨量快捷按鈕；有明確查看既有行程路徑 |
 
-實作時以日期 helper 單元測試、Dialog 互動測試及既有 itinerary concurrency 整合測試覆蓋核心規則；再實機檢查 iOS Safari、Android Chrome 與桌面鍵盤／讀屏操作。第一批已補上日期 helper 單元測試與 Dialog 互動測試，並更新 itinerary concurrency 整合測試（需 `MONGODB_ITINERARY_TEST_URI` replica set 才會執行）；實機瀏覽器與讀屏驗收尚未執行。
+實作時以日期 helper 單元測試、Dialog 互動測試及既有 itinerary concurrency 整合測試覆蓋核心規則；再實機檢查 iOS Safari、Android Chrome 與桌面鍵盤／讀屏操作。第一批已補上日期 helper 單元測試與 Dialog 互動測試，並更新 itinerary concurrency 整合測試（含更新入口換天的範圍／唯一性情境；需 `MONGODB_ITINERARY_TEST_URI` replica set 才會執行，本機尚未實跑）；實機瀏覽器與讀屏驗收尚未執行。
