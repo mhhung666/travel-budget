@@ -2,7 +2,7 @@
 import { ClientQueryBoundary } from '@/components/common/ClientQueryBoundary';
 import { QueryStatus } from '@/components/common/QueryStatus';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { useQueryClient } from '@tanstack/react-query';
@@ -263,13 +263,29 @@ function ItineraryPageContent() {
    * 捲到某一天的卡片並把焦點放上去。錨點自身帶 `scroll-mt-*`（含 sticky 頁首高度），
    * 所以用 scrollIntoView 即可，不必重算 offset；並尊重「減少動態效果」。
    */
-  const focusDayCard = (dayNumber: number) => {
+  const [pendingFocusDay, setPendingFocusDay] = useState<number | null>(null);
+  const focusDayCard = useCallback((dayNumber: number) => {
     const el = document.getElementById(itineraryDayAnchorId(dayNumber));
     if (!el) return;
     const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     el.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
     el.focus({ preventScroll: true });
-  };
+  }, []);
+
+  // 等待刷新後的卡片掛載且對話框關閉，避免網路較慢時遺失定位。
+  useEffect(() => {
+    if (
+      pendingFocusDay === null ||
+      dialogOpen ||
+      !days.some((day) => day.day_number === pendingFocusDay)
+    )
+      return;
+    const frame = requestAnimationFrame(() => {
+      focusDayCard(pendingFocusDay);
+      setPendingFocusDay(null);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [pendingFocusDay, dialogOpen, days, focusDayCard]);
 
   // 從新增表單跳去看已建立的那天；有草稿時先確認，避免默默丟掉未儲存內容。
   const handleViewExistingDay = (dayNumber: number) => {
@@ -384,7 +400,7 @@ function ItineraryPageContent() {
             })
           : tItinerary('success.created', { dayNumber: created.day_number }),
       });
-      requestAnimationFrame(() => focusDayCard(created.day_number));
+      setPendingFocusDay(created.day_number);
     } else if (editingDay) {
       await update.mutateAsync({
         dayId: editingDay.id,

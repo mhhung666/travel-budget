@@ -1368,6 +1368,7 @@
     "today": "Today",
     "dayActions": "More actions for this day",
     "dayTarget": {
+      "confirmDates": "Confirm updated trip dates",
       "dateLabel": "Itinerary date",
       "dayNumberLabel": "Which day of the trip",
       "tripRange": "Trip dates: {start} – {end}",

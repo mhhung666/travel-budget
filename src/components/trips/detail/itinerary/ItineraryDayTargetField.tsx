@@ -100,6 +100,17 @@ export function ItineraryDayTargetField({
           )}
         </p>
         <TargetError id={errorId} message={error} />
+        {usedDayNumbers.has(dayNumber) && onViewExistingDay && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={disabled}
+            onClick={() => onViewExistingDay(dayNumber)}
+          >
+            {t('viewExistingDay', { dayNumber })}
+          </Button>
+        )}
       </div>
     );
   }

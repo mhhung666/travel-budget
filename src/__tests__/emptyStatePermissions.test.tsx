@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
@@ -7,7 +7,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
  * 沒有新增權限的人看到的說明，不能叫他去按畫面上不存在的按鈕。
  */
 
-const state = vi.hoisted(() => ({ isMember: true, role: 'admin' as string | null }));
+const state = vi.hoisted(() => ({
+  isMember: true,
+  role: 'admin' as string | null,
+  days: [] as import('@/types').ItineraryDay[],
+  createDay: vi.fn(),
+}));
 
 vi.mock('next/navigation', () => ({ useParams: () => ({ id: 'trip' }) }));
 vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: vi.fn() }) }));
@@ -29,7 +34,7 @@ vi.mock('@/hooks/queries', () => {
         key === 'mutateActivity' ? vi.fn() : { isPending: false, mutateAsync: vi.fn() },
     });
   return {
-    useItinerary: () => empty,
+    useItinerary: () => ({ ...empty, data: state.days }),
     useCommentCounts: () => ({ ...empty, data: {} }),
     useChecklists: () => empty,
     usePhotos: () => empty,
@@ -47,7 +52,12 @@ vi.mock('@/hooks/queries', () => {
       query: { data: true, isError: false, refetch: vi.fn() },
       isResolved: true,
     }),
-    useItineraryMutations: mutations,
+    useItineraryMutations: () => ({
+      update: { isPending: false, mutateAsync: vi.fn() },
+      remove: { isPending: false, mutateAsync: vi.fn() },
+      mutateActivity: { isPending: false, mutateAsync: vi.fn() },
+      create: { isPending: false, mutateAsync: state.createDay },
+    }),
     useChecklistMutations: mutations,
     usePhotoMutations: mutations,
     useNoteMutations: mutations,
@@ -59,7 +69,25 @@ vi.mock('@/components/common/ClientQueryBoundary', () => ({
 vi.mock('@/components/trips/detail/TripContextOverview', () => ({ default: () => null }));
 vi.mock('@/components/trips/DeferredDialogs', () => ({
   EditTripDialog: () => null,
-  ItineraryDayDialog: () => null,
+  ItineraryDayDialog: ({
+    open,
+    onSubmit,
+    onClose,
+  }: {
+    open: boolean;
+    onSubmit: (data: { title: string; content: string; location: null }) => Promise<void>;
+    onClose: () => void;
+  }) =>
+    open ? (
+      <button
+        onClick={async () => {
+          await onSubmit({ title: 'New day', content: '', location: null });
+          onClose();
+        }}
+      >
+        submit-day
+      </button>
+    ) : null,
   ActivityFormDialog: () => null,
   ItineraryImportDialog: () => null,
   NewChecklistSheet: () => null,
@@ -76,6 +104,7 @@ vi.mock('@/components/trips/detail/album', () => ({
   PhotoUploadButton: () => null,
   PhotoLightbox: () => null,
   PhotoGrid: () => null,
+  DayPhotoStrip: () => null,
 }));
 vi.mock('@/components/trips/detail/notes', () => ({
   NoteComposer: () => null,
@@ -101,6 +130,8 @@ const cases = [
 beforeEach(() => {
   state.isMember = true;
   state.role = 'admin';
+  state.days = [];
+  state.createDay.mockReset();
 });
 afterEach(cleanup);
 
@@ -159,4 +190,46 @@ describe('empty states follow what the viewer may actually do', () => {
     expect(screen.getByText('emptyStateHintReadOnly')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'addDay' })).not.toBeInTheDocument();
   });
+});
+
+it('focuses a newly created day after a delayed itinerary refresh', async () => {
+  const created = {
+    id: 'new-day',
+    trip_id: 'trip',
+    day_number: 3,
+    title: 'New day',
+    content: '',
+    revision: 0,
+    location: null,
+    activities: [],
+    created_at: '',
+    updated_at: '',
+  };
+  state.createDay.mockResolvedValue(created);
+  const scrollIntoView = vi.fn();
+  const previous = Element.prototype.scrollIntoView;
+  Element.prototype.scrollIntoView = scrollIntoView;
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const page = () => (
+    <QueryClientProvider client={client}>
+      <ItineraryPage />
+    </QueryClientProvider>
+  );
+  try {
+    const { rerender } = render(page());
+    fireEvent.click(screen.getByRole('button', { name: 'addDay' }));
+    fireEvent.click(screen.getByRole('button', { name: 'submit-day' }));
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'submit-day' })).toBeNull());
+    // Let the initial frame pass while the refreshed itinerary still has no card.
+    await act(async () => {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    });
+    expect(scrollIntoView).not.toHaveBeenCalled();
+    state.days = [created];
+    rerender(page());
+    await waitFor(() => expect(document.getElementById('itinerary-day-3')).toHaveFocus());
+    expect(scrollIntoView).toHaveBeenCalledOnce();
+  } finally {
+    Element.prototype.scrollIntoView = previous;
+  }
 });

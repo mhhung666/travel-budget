@@ -1361,6 +1361,7 @@
     "today": "今天",
     "dayActions": "这一天的更多操作",
     "dayTarget": {
+      "confirmDates": "确认更新后的旅程日期",
       "dateLabel": "行程日期",
       "dayNumberLabel": "第几天",
       "tripRange": "旅程日期：{start}–{end}",

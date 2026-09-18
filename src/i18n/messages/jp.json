@@ -1361,6 +1361,7 @@
     "today": "今日",
     "dayActions": "この日のその他の操作",
     "dayTarget": {
+      "confirmDates": "変更後の旅行日程を確認",
       "dateLabel": "旅程の日付",
       "dayNumberLabel": "何日目",
       "tripRange": "旅行期間：{start}–{end}",

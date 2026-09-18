@@ -134,3 +134,68 @@ it('does not offer a date field when editing an existing day', () => {
   );
   expect(screen.queryByLabelText('dateLabel')).toBeNull();
 });
+
+it.each([
+  ['2026-09-02', '2026-09-05'],
+  ['2026-09-01', '2026-09-06'],
+  [null, '2026-09-05'],
+])('requires confirmation after the trip dates change to %s / %s', async (start, end) => {
+  const onSubmit = vi.fn().mockResolvedValue(undefined);
+  const props = {
+    mode: 'add' as const,
+    open: true,
+    onClose: vi.fn(),
+    onSubmit,
+    usedDayNumbers: [],
+  };
+  const { rerender } = render(
+    <ItineraryDayDialog {...props} tripStartDate="2026-09-01" tripEndDate="2026-09-05" />
+  );
+  fireEvent.change(screen.getByLabelText('dayTitle'), { target: { value: 'Draft' } });
+  rerender(<ItineraryDayDialog {...props} tripStartDate={start} tripEndDate={end} />);
+  expect(submit()).toBeDisabled();
+  fireEvent.click(submit());
+  expect(onSubmit).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'confirmDates' }));
+  expect(screen.getByLabelText('dayTitle')).toHaveValue('Draft');
+  fireEvent.click(submit());
+  await waitFor(() =>
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        target: start
+          ? { date: start, expected_start_date: start, expected_end_date: end }
+          : { day_number: 1, expected_start_date: null, expected_end_date: end },
+      })
+    )
+  );
+});
+
+it('keeps generic submission failures visible and preserves the draft for retry', async () => {
+  const onSubmit = vi
+    .fn()
+    .mockRejectedValueOnce(new ActionQueryError('failed', 'INTERNAL_ERROR'))
+    .mockResolvedValue(undefined);
+  const onClose = vi.fn();
+  open({ usedDayNumbers: [], onClose }, onSubmit);
+  fireEvent.change(screen.getByLabelText('dayTitle'), { target: { value: 'Draft' } });
+  fireEvent.click(submit());
+  await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('updateFailed'));
+  expect(onClose).not.toHaveBeenCalled();
+  expect(screen.getByLabelText('dayTitle')).toHaveValue('Draft');
+  fireEvent.click(submit());
+  await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
+});
+
+it('offers viewing an existing day without a start date and confirms before discarding a draft', () => {
+  const onViewExistingDay = vi.fn();
+  const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  open({ tripStartDate: null, tripEndDate: null, usedDayNumbers: [1], onViewExistingDay });
+  fireEvent.change(screen.getByLabelText('dayNumberLabel'), { target: { value: '1' } });
+  fireEvent.change(screen.getByLabelText('dayTitle'), { target: { value: 'Draft' } });
+  fireEvent.click(screen.getByRole('button', { name: 'viewExistingDay' }));
+  expect(onViewExistingDay).not.toHaveBeenCalled();
+  confirm.mockReturnValue(true);
+  fireEvent.click(screen.getByRole('button', { name: 'viewExistingDay' }));
+  expect(onViewExistingDay).toHaveBeenCalledWith(1);
+  confirm.mockRestore();
+});

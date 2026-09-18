@@ -90,7 +90,11 @@ export function useItineraryMutations(tripId: string) {
   const reportCreateError = (error: Error) => {
     const code = error instanceof ActionQueryError ? error.code : undefined;
     if (code === 'DAY_ALREADY_EXISTS') void invalidateItinerary();
-    if (code === 'TRIP_DATES_CHANGED' || code === 'DATE_OUTSIDE_TRIP') {
+    if (
+      code === 'TRIP_DATES_CHANGED' ||
+      code === 'DATE_OUTSIDE_TRIP' ||
+      code === 'TRIP_START_DATE_REQUIRED'
+    ) {
       void queryClient.invalidateQueries({ queryKey: tripKeys.detail(tripId) });
       void invalidateItinerary();
     }
@@ -131,6 +135,8 @@ export function useItineraryMutations(tripId: string) {
     onSuccess: () => {
       invalidateItinerary();
       invalidatePhotos();
+      void queryClient.invalidateQueries({ queryKey: tripKeys.expenses(tripId) });
+      void queryClient.invalidateQueries({ queryKey: tripKeys.stats(tripId) });
     },
   });
 

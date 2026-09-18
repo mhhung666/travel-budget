@@ -90,10 +90,17 @@ export default function ItineraryDayDialog({
   const [targetDayNumber, setTargetDayNumber] = useState(1);
   // server 回報的失敗（同日已存在、旅程改期…）：就地顯示在日期欄位，草稿留著。
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [baseline, setBaseline] = useState<{ start: string | null; end: string | null }>({
+    start: null,
+    end: null,
+  });
+  const [formError, setFormError] = useState<string | null>(null);
+  const navigatingToDay = useRef(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const startDate = toDateOnly(tripStartDate);
   const endDate = toDateOnly(tripEndDate);
+  const datesChanged = mode === 'add' && (baseline.start !== startDate || baseline.end !== endDate);
   const targetMode: 'date' | 'dayNumber' = startDate ? 'date' : 'dayNumber';
   const usedSet = useMemo(() => new Set(usedDayNumbers), [usedDayNumbers]);
   const resolvedDayNumber =
@@ -109,14 +116,16 @@ export default function ItineraryDayDialog({
   const localTargetError =
     mode !== 'add'
       ? null
-      : resolvedDayNumber === null
-        ? tTarget('errors.required')
-        : usedSet.has(resolvedDayNumber)
-          ? tTarget('errors.dayExists')
-          : targetMode === 'date' && !isDateWithinTrip(targetDate, startDate, endDate)
-            ? tTarget('errors.outsideTrip')
-            : null;
-  const targetError = submitError ?? localTargetError;
+      : datesChanged
+        ? tTarget('errors.datesChanged')
+        : resolvedDayNumber === null
+          ? tTarget('errors.required')
+          : usedSet.has(resolvedDayNumber)
+            ? tTarget('errors.dayExists')
+            : targetMode === 'date' && !isDateWithinTrip(targetDate, startDate, endDate)
+              ? tTarget('errors.outsideTrip')
+              : null;
+  const targetError = datesChanged ? localTargetError : (submitError ?? localTargetError);
 
   const autoResize = useCallback(() => {
     const textarea = textareaRef.current;
@@ -127,6 +136,7 @@ export default function ItineraryDayDialog({
 
   useEffect(() => {
     if (open) {
+      navigatingToDay.current = false;
       if (mode === 'edit' && day) {
         // eslint-disable-next-line react-hooks/set-state-in-effect -- 開啟對話框時帶入當日資料，為刻意的同步
         setTitle(day.title);
@@ -152,6 +162,8 @@ export default function ItineraryDayDialog({
         setTargetDate(firstUnusedDate(tripStartDate, tripEndDate, usedDayNumbers) ?? '');
         setTargetDayNumber(firstUnusedDayNumber(usedDayNumbers));
       }
+      setBaseline({ start: toDateOnly(tripStartDate), end: toDateOnly(tripEndDate) });
+      setFormError(null);
       setSubmitError(null);
       setViewMode('write');
       requestAnimationFrame(autoResize);
@@ -171,6 +183,7 @@ export default function ItineraryDayDialog({
     ? (dayNumber: number) => {
         const hasDraft = title.trim() !== '' || content.trim() !== '' || location !== null;
         if (hasDraft && !window.confirm(tTarget('discardDraftConfirm'))) return;
+        navigatingToDay.current = true;
         onViewExistingDay(dayNumber);
       }
     : undefined;
@@ -178,19 +191,24 @@ export default function ItineraryDayDialog({
   const buildTarget = (): ItineraryDayTargetInput | undefined => {
     if (mode !== 'add') return undefined;
     if (targetMode === 'date') {
-      return { date: targetDate, expected_start_date: startDate!, expected_end_date: endDate };
+      return {
+        date: targetDate,
+        expected_start_date: baseline.start!,
+        expected_end_date: baseline.end,
+      };
     }
     return {
       day_number: targetDayNumber,
       expected_start_date: null,
-      expected_end_date: endDate,
+      expected_end_date: baseline.end,
     };
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || localTargetError) return;
+    if (loading || !title.trim() || localTargetError) return;
 
+    setFormError(null);
     setLoading(true);
     setSubmitError(null);
     try {
@@ -200,14 +218,16 @@ export default function ItineraryDayDialog({
         location,
         ...(mode === 'add' ? { target: buildTarget() } : {}),
       });
+      navigatingToDay.current = mode === 'add';
       onClose();
     } catch (error) {
-      // 日期相關失敗留在表單裡改；其餘（網路、權限…）由 parent 的 toast 負責。
+      // 所有失敗都留在表單內，保留草稿供使用者重試。
       const code = error instanceof ActionQueryError ? error.code : undefined;
       if (code === 'DAY_ALREADY_EXISTS') setSubmitError(tTarget('errors.dayExists'));
       else if (code === 'DATE_OUTSIDE_TRIP') setSubmitError(tTarget('errors.outsideTrip'));
       else if (code === 'TRIP_DATES_CHANGED') setSubmitError(tTarget('errors.datesChanged'));
       else if (code === 'TRIP_START_DATE_REQUIRED') setSubmitError(tTarget('errors.startRequired'));
+      else setFormError(tItinerary('updateFailed'));
     } finally {
       setLoading(false);
     }
@@ -215,7 +235,12 @@ export default function ItineraryDayDialog({
 
   return (
     <Dialog open={open} onOpenChange={(val) => !val && onClose()}>
-      <DialogContent className="sm:max-w-[640px] max-h-[90vh] flex flex-col">
+      <DialogContent
+        className="sm:max-w-[640px] max-h-[90vh] flex flex-col"
+        onCloseAutoFocus={(event) => {
+          if (navigatingToDay.current) event.preventDefault();
+        }}
+      >
         <DialogHeader>
           <DialogTitle>
             {mode === 'add'
@@ -253,6 +278,27 @@ export default function ItineraryDayDialog({
               onOpenTripSettings={onOpenTripSettings}
               disabled={loading}
             />
+          )}
+
+          {datesChanged && (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={loading}
+              onClick={() => {
+                setBaseline({ start: startDate, end: endDate });
+                setTargetDate(firstUnusedDate(startDate, endDate, usedDayNumbers) ?? '');
+                setTargetDayNumber(firstUnusedDayNumber(usedDayNumbers));
+                setSubmitError(null);
+              }}
+            >
+              {tTarget('confirmDates')}
+            </Button>
+          )}
+          {formError && (
+            <p role="alert" className="text-sm text-destructive">
+              {formError}
+            </p>
           )}
 
           <div className="space-y-2">
