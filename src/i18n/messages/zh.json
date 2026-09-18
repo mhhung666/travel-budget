@@ -1876,6 +1876,17 @@
   "pwa": {
     "updateTitle": "有新版本可用",
     "updateDescription": "更新後即可使用最新功能與修正。",
-    "updateAction": "更新"
+    "updateAction": "更新",
+    "install": {
+      "title": "把旅行記帳加入主畫面",
+      "description": "下次記帳，從桌面一點就開。",
+      "action": "加入主畫面",
+      "later": "稍後",
+      "iosBrowser": "請在 Safari 開啟此網頁；若在 LINE 等 App 內瀏覽，請先改用 Safari。",
+      "iosShare": "開啟瀏覽器選單，點選「分享」。",
+      "iosHome": "選擇「加入主畫面」（若未看到，請往下捲動或查看「編輯動作」）。",
+      "iosConfirm": "點選「加入」，就能從主畫面開啟旅行記帳。",
+      "fallback": "暫時無法開啟安裝視窗，請從瀏覽器選單選擇「安裝應用程式」或「加到主畫面」。"
+    }
   }
 }

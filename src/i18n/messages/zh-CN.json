@@ -1876,6 +1876,17 @@
   "pwa": {
     "updateTitle": "有新版本可用",
     "updateDescription": "更新后即可使用最新功能与修正。",
-    "updateAction": "更新"
+    "updateAction": "更新",
+    "install": {
+      "title": "把旅行记账添加到主屏幕",
+      "description": "下次记账，从桌面一点就开。",
+      "action": "添加到主屏幕",
+      "later": "稍后",
+      "iosBrowser": "请在 Safari 打开此网页；若在微信等 App 内浏览，请先改用 Safari。",
+      "iosShare": "打开浏览器菜单，点击“分享”。",
+      "iosHome": "选择“添加到主屏幕”（若未看到，请向下滚动或查看“编辑操作”）。",
+      "iosConfirm": "点击“添加”，就能从主屏幕打开旅行记账。",
+      "fallback": "暂时无法打开安装窗口，请从浏览器菜单选择“安装应用”或“添加到主屏幕”。"
+    }
   }
 }

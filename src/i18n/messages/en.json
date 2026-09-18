@@ -1883,6 +1883,17 @@
   "pwa": {
     "updateTitle": "Update available",
     "updateDescription": "Reload to get the latest features and fixes.",
-    "updateAction": "Update"
+    "updateAction": "Update",
+    "install": {
+      "title": "Add Travel Budget to your home screen",
+      "description": "Open it from your home screen next time you record an expense.",
+      "action": "Add to home screen",
+      "later": "Later",
+      "iosBrowser": "Open this page in Safari. If you are browsing inside another app, switch to Safari first.",
+      "iosShare": "Open the browser menu and tap Share.",
+      "iosHome": "Choose “Add to Home Screen” (scroll down or check “Edit Actions” if needed).",
+      "iosConfirm": "Tap “Add” to open Travel Budget from your home screen.",
+      "fallback": "The install prompt could not open. Choose “Install app” or “Add to home screen” from your browser menu."
+    }
   }
 }

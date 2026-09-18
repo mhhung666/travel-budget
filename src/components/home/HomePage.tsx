@@ -7,6 +7,7 @@ import Features from '@/components/home/Features';
 import { LoginForm } from '@/components/login';
 import LanguageSwitcher from '@/components/layout/LanguageSwitcher';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
+import { InstallPrompt } from '@/components/pwa/InstallPrompt';
 
 export default function HomePage({ redirectTo }: { redirectTo?: string }) {
   const tNav = useTranslations('nav');
@@ -43,6 +44,7 @@ export default function HomePage({ redirectTo }: { redirectTo?: string }) {
       <main className="mx-auto w-full max-w-6xl px-4 pb-[calc(3rem+env(safe-area-inset-bottom))] pt-4 sm:px-6 sm:pt-12 lg:grid lg:min-h-[calc(100vh-4rem)] lg:grid-cols-[minmax(0,1.12fr)_minmax(360px,0.78fr)] lg:content-center lg:gap-x-16 lg:px-8 lg:py-14">
         <div className="mx-auto w-full max-w-2xl self-end lg:mx-0">
           <Hero />
+          <InstallPrompt />
         </div>
 
         <aside
