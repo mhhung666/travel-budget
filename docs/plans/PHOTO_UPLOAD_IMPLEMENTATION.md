@@ -1,6 +1,6 @@
 # 相簿上傳改善實作紀錄
 
-日期：2026-10-01。對應 [研究文件](PHOTO_UPLOAD_RESEARCH.md) 的 A–C 階段；歷史資料盤點 D 不在本次範圍。
+日期：2026-10-01。對應 [研究文件](PHOTO_UPLOAD_RESEARCH.md) 的 A–C 階段；歷史資料盤點 D 的後續工具與測試另見 [階段 D 操作文件](PHOTO_UPLOAD_HISTORY_AUDIT.md)，正式盤點及 8 個孤兒物件清理結果見 [正式測試與清理紀錄](PHOTO_UPLOAD_HISTORY_PRODUCTION_TEST.md)。本項目依約定範圍結案，限制見 [研究文件的結案摘要](PHOTO_UPLOAD_RESEARCH.md)。
 
 ## 使用者看得到的改變
 
@@ -38,7 +38,7 @@
 2. 部署應用程式，確認既有 `/api/cron/trip-cleanup` 排程及 `CRON_SECRET` 有效。回應多出 `uploads_retired`，代表該次已交付物件清理的工作數，不是已刪除的物件數。
 3. 在測試旅程驗收真實 R2 PUT、CORS、iPhone／Android 大檔、多張進度與公開分享副本；本機 mock 儲存測試不代表這些外部設定已驗證。
 
-本次沒有執行正式資料庫遷移、正式 R2 列舉／刪除或部署。研究文件先獨立提交；功能提交依專案規則同步提升 minor 版本，版本以 package.json 為準。
+A–C 開發階段未執行正式資料庫遷移、正式 R2 列舉／刪除或部署；後續已確認正式 migration 存在，並完成階段 D 盤點及核准清理，見正式測試與清理紀錄。研究文件先獨立提交；功能提交依專案規則同步提升 minor 版本，版本以 package.json 為準。
 
 ## 驗證
 
@@ -57,4 +57,4 @@ PHOTO_UPLOAD_TEST_MONGODB_URI='mongodb://127.0.0.1:27017/?directConnection=true&
   pnpm exec vitest run src/__tests__/photoUploadJobs.integration.test.ts
 ```
 
-歷史照片查重、舊孤兒盤點、關頁後自動恢復本機 File、感知相似照片辨識與精確上傳百分比均未實作。重新開頁後重選，已入庫的新照片會由原檔 hash 略過；前一次未入庫的工作由期限清理回收。
+後續已提供歷史照片儲存檔查重、舊孤兒只讀盤點及 hash 回填 CLI（詳見階段 D 文件），已對正式資料完成只讀盤點及核准的 8 個孤兒物件清理，尚未正式回填 hash，也未將 storedHash 接入上傳查重。關頁後自動恢復本機 File、感知相似照片辨識與精確上傳百分比均未實作。重新開頁後重選，已入庫的新照片會由原檔 hash 略過；前一次未入庫的工作由期限清理回收。

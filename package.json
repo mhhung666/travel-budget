@@ -1,6 +1,6 @@
 {
   "name": "travel-budget",
-  "version": "4.14.0",
+  "version": "4.15.0",
   "description": "一個輕量化的旅行記帳與分帳應用程式,適合多人出國旅行時使用。",
   "main": "index.js",
   "type": "module",
@@ -28,6 +28,7 @@
     "migrate:down": "migrate-mongo down",
     "migrate:create": "migrate-mongo create",
     "stats:explain": "node scripts/explain-stats-expenses.mjs",
+    "photos:audit": "node scripts/photo-audit.mjs",
     "mongodb:explain": "node scripts/explain-mongodb.mjs",
     "mongodb:verify-indexes": "node scripts/verify-mongodb-indexes.mjs",
     "stats:benchmark": "node scripts/benchmark-stats.mjs",

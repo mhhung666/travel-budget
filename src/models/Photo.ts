@@ -84,6 +84,14 @@ const PhotoSchema = new Schema(
     sourceHash: { type: String },
     sourceHashVersion: { type: String },
     sourceSize: { type: Number },
+    // Server-computed stored JPEG fingerprint for historical audits; deliberately non-unique.
+    // This is not the original File sourceHash and does not affect upload deduplication.
+    storedHash: { type: String },
+    storedHashVersion: { type: String },
+    storedHashSize: { type: Number },
+    storedHashETag: { type: String },
+    storedHashLastModified: { type: Date },
+    storedHashVerifiedAt: { type: Date },
     contentType: { type: String, required: true }, // 一律 image/jpeg（顯示檔）
     size: { type: Number, required: true },
     width: { type: Number, default: 0 },

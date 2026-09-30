@@ -47,3 +47,6 @@ next-env.d.ts
 # database
 database.db
 database.db-journal
+
+# local photo audit reports (private object keys / photo IDs)
+/photo-audit-reports/

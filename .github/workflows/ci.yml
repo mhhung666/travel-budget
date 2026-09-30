@@ -62,7 +62,7 @@ jobs:
           done
           docker exec photo-test-mongo mongosh --quiet --eval 'rs.initiate({_id:"rs0",members:[{_id:0,host:"localhost:27017"}]})'
       - name: Verify retries, deduplication and cleanup races
-        run: pnpm exec vitest run src/__tests__/photoUploadJobs.integration.test.ts
+        run: pnpm exec vitest run src/__tests__/photoUploadJobs.integration.test.ts src/__tests__/photoAudit.test.mjs
         env:
           PHOTO_UPLOAD_TEST_MONGODB_URI: mongodb://127.0.0.1:27017/?directConnection=true&replicaSet=rs0
       - if: always()
