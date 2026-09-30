@@ -1,5 +1,8 @@
 'use server';
 
+import mongoose from 'mongoose';
+import { withPhotoUpdateTransaction } from '@/lib/photoUpdateTransaction';
+import { photoUploadJobs, PHOTO_UPLOAD_LEASE_MS } from '@/lib/photoUploadJobs';
 import { withAuth } from './withAuth';
 import type { ActionResult } from './types';
 import { getTripMembership } from '@/lib/permissions';
@@ -164,6 +167,31 @@ export const createPhotoUploadUrls = withAuth(
       }
 
       const { key, thumbKey } = buildPhotoObjectKeys(membership.tripId);
+      // Keep older clients covered during rollout as well. Existing addTripPhotos references
+      // are rechecked by expiry cleanup; referenced objects are never retired.
+      await withPhotoUpdateTransaction(
+        mongoose.connection.db!,
+        membership.tripId,
+        session.userId,
+        async (transactionSession) => {
+          const now = new Date();
+          await photoUploadJobs(mongoose.connection.db!).insertOne(
+            {
+              _id: key,
+              trip: new mongoose.mongo.ObjectId(membership.tripId),
+              user: new mongoose.mongo.ObjectId(session.userId),
+              key,
+              thumbKey,
+              displaySize: display.size,
+              thumbSize: thumb.size,
+              status: 'pending',
+              createdAt: now,
+              expiresAt: new Date(now.getTime() + PHOTO_UPLOAD_LEASE_MS),
+            },
+            { session: transactionSession }
+          );
+        }
+      );
       const [uploadUrl, thumbUploadUrl] = await Promise.all([
         presignPut('receipts', key, display.contentType),
         presignPut('receipts', thumbKey, thumb.contentType),

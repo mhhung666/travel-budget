@@ -111,12 +111,15 @@ export async function presignGetStable(
  */
 export async function headObject(
   bucket: R2Bucket,
-  key: string
+  key: string,
+  options: { strict?: boolean } = {}
 ): Promise<{ size: number; contentType: string } | null> {
   try {
     const res = await r2().send(new HeadObjectCommand({ Bucket: bucketName(bucket), Key: key }));
     return { size: res.ContentLength ?? 0, contentType: res.ContentType ?? '' };
-  } catch {
+  } catch (error) {
+    const status = (error as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode;
+    if (options.strict && status !== 404) throw error;
     return null;
   }
 }

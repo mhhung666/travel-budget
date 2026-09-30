@@ -1182,6 +1182,31 @@
       "revoke": "关闭分享",
       "enabledHint": "分享已开启。任何有此链接的人都能浏览照片——不含任何位置信息。",
       "disabledHint": "分享已关闭。生成链接即可公开分享这本相册。"
+    },
+    "uploadFull": "相册已满，已停止新增上传",
+    "uploadAccessLost": "已无法访问此行程，请重新确认成员资格",
+    "uploadRemaining": "还可新增 {count} 张",
+    "uploadProgress": "处理中 {done} / {total} 张",
+    "uploadComplete": "处理结束 {done} / {total} 张",
+    "uploadSummary": "新增 {saved} · 重复跳过 {duplicate} · 失败 {failed} · 停止 {canceled}",
+    "uploadDetails": "逐张结果",
+    "uploadViewExisting": "查看已有照片",
+    "uploadView": "查看",
+    "uploadStop": "停止剩余上传",
+    "uploadRetry": "重试失败／停止项目",
+    "uploadDismiss": "收起结果",
+    "uploadDedupHint": "查重仅适用于启用此功能后，同一行程内完全相同的原文件；旧照片、重新压缩或编辑过的图片可能无法识别。离开页面会停止未完成上传。",
+    "uploadStages": {
+      "waiting": "等待中",
+      "checking": "检查重复",
+      "compressing": "压缩中",
+      "uploading": "上传中",
+      "saving": "存入相册",
+      "confirming": "确认上传结果",
+      "saved": "已加入相册",
+      "duplicate": "重复，已跳过",
+      "failed": "失败",
+      "canceled": "已停止"
     }
   },
   "publicAlbum": {

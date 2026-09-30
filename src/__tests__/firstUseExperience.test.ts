@@ -32,11 +32,12 @@ describe('Phase 2A first-use experience contracts', () => {
     expect(source).toContain('useFriends(open && detailsOpen)');
   });
 
+  // Album uploads stay mounted outside EmptyState; its visible action is covered by
+  // emptyStatePermissions.test.tsx and photoUploadButton.test.tsx.
   it.each([
     ['expense', readSource('components', 'trips', 'detail', 'TripExpenses.tsx')],
     ['itinerary', readSource('app', '(app)', 'trips', '[id]', 'page.tsx')],
     ['checklist', readSource('app', '(app)', 'trips', '[id]', 'checklists', 'page.tsx')],
-    ['album', readSource('app', '(app)', 'trips', '[id]', 'album', 'page.tsx')],
   ])('keeps an action in the %s empty state', (_name, source) => {
     expect(source).toMatch(/<EmptyState[\s\S]*?action=/);
   });

@@ -15,10 +15,17 @@ vi.mock('@/lib/env', () => ({
     secretAccessKey: 'dummy',
   }),
 }));
-import { deleteObjects, deletePrefixPage } from '@/lib/storage';
+import { deleteObjects, deletePrefixPage, headObject } from '@/lib/storage';
 
 describe('durable cleanup storage boundary', () => {
   beforeEach(() => mocks.send.mockReset());
+  it('strict upload verification distinguishes a missing object from a storage outage', async () => {
+    mocks.send.mockRejectedValueOnce({ $metadata: { httpStatusCode: 404 } });
+    expect(await headObject('receipts', 'photo', { strict: true })).toBeNull();
+    const outage = { $metadata: { httpStatusCode: 503 } };
+    mocks.send.mockRejectedValueOnce(outage);
+    await expect(headObject('receipts', 'photo', { strict: true })).rejects.toEqual(outage);
+  });
   it('rejects partial S3 deletion errors even when HTTP succeeded', async () => {
     mocks.send.mockResolvedValue({ Errors: [{ Key: 'x', Code: 'AccessDenied' }] });
     await expect(deleteObjects('receipts', ['x'])).rejects.toThrow('incomplete');

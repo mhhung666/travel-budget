@@ -1,85 +1,212 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import { ImagePlus, Loader2 } from 'lucide-react';
-import { uploadPhotoFilesInBatches, type PhotoUploadFailure } from '@/lib/photoUpload';
-import type { PhotoItemInput } from '@/lib/validation';
-import { useToast } from '@/hooks/use-toast';
+import {
+  runPhotoUploadQueue,
+  type PhotoUploadTask,
+  type PhotoUploadFailure,
+} from '@/lib/photoUpload';
+import type { TripPhoto } from '@/types';
+import { PHOTO_LIMIT_PER_TRIP } from '@/lib/validation';
 import { Button } from '@/components/ui/button';
 
-// accept 刻意不列 HEIC：iOS 選圖器在 accept 不含 HEIC 時會自動把 HEIC 轉成 JPEG 才交給網頁
-// （EXIF／GPS 保留）。加了 HEIC，iPhone 會直接送 HEIC 進來，瀏覽器解不開、相簿當場壞掉。
-// 這行不是漏了優化，千萬別「順手」加回去。
 const ACCEPT = 'image/jpeg,image/png,image/webp';
-
 const FAILURE_MESSAGE_KEY: Record<PhotoUploadFailure, string> = {
   'too-large': 'uploadTooLarge',
   unsupported: 'uploadUnsupported',
   failed: 'uploadFailed',
+  full: 'uploadFull',
+  access: 'uploadAccessLost',
 };
 
-/**
- * 相簿上傳按鈕：選檔 → 直傳 R2 → 每批交回呼叫端入庫（見 lib/photoUpload.ts）。
- * 傳檔與入庫刻意分開，成功的檔案不因入庫失敗陪葬；逐檔獨立失敗，不同 reason 分別
- * 跳 toast，不讓一張壞檔擋住整批訊息。
- *
- * 選超過 PHOTO_BATCH_MAX 張會**自動分批**（每批傳完就入庫再傳下一批），不是把多的丟掉——
- * 「一次把整趟旅程的照片丟進去」正是相簿的預設用法。
- */
+/** Mounted once above the empty/grid branches so the first saved photo cannot reset the queue. */
 export function PhotoUploadButton({
   tripId,
-  onUploaded,
-  pending,
+  photoCount,
+  onPhoto,
+  onView,
+  onFinished,
 }: {
   tripId: string;
-  /** 入庫一批相片。回傳的 promise 決議後才會開始傳下一批。 */
-  onUploaded: (items: PhotoItemInput[]) => Promise<void>;
-  /** 入庫 mutation 進行中時一併鎖住按鈕，避免同時觸發第二批上傳。 */
-  pending?: boolean;
+  photoCount: number;
+  onPhoto: (photo: TripPhoto) => void;
+  onView: (photoId: string) => void;
+  onFinished: () => void;
 }) {
   const t = useTranslations('album');
-  const { toast } = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
+  const controller = useRef<AbortController | null>(null);
+  const mounted = useRef(true);
+  const [tasks, setTasks] = useState<PhotoUploadTask[]>([]);
+  const [busy, setBusy] = useState(false);
+  const callbacks = useRef({ onPhoto, onFinished });
+  useEffect(() => {
+    callbacks.current = { onPhoto, onFinished };
+  });
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      controller.current?.abort();
+    };
+  }, []);
+  useEffect(() => {
+    if (!busy) return;
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [busy]);
 
-  const handleFiles = async (files: FileList | null) => {
-    if (!files || files.length === 0) return;
-    setUploading(true);
+  const run = async (selected: PhotoUploadTask[]) => {
+    if (controller.current) return;
+    const abort = new AbortController();
+    controller.current = abort;
+    setBusy(true);
     try {
-      const { failures } = await uploadPhotoFilesInBatches(Array.from(files), {
+      await runPhotoUploadQueue(selected, {
         tripId,
-        onBatch: onUploaded,
+        signal: abort.signal,
+        onChange: (task) => {
+          if (mounted.current)
+            setTasks((current) => current.map((old) => (old.id === task.id ? task : old)));
+        },
+        onPhoto: (photo) => {
+          if (mounted.current) callbacks.current.onPhoto(photo);
+        },
       });
-      for (const failure of failures) {
-        toast({
-          title: failure.name,
-          description: t(FAILURE_MESSAGE_KEY[failure.reason]),
-          variant: 'destructive',
-        });
-      }
     } finally {
-      setUploading(false);
-      if (inputRef.current) inputRef.current.value = '';
+      controller.current = null;
+      if (mounted.current) {
+        setBusy(false);
+        callbacks.current.onFinished();
+      }
     }
   };
-
-  const busy = uploading || pending;
+  const handleFiles = (files: FileList | null) => {
+    if (!files?.length || controller.current) return;
+    const selected = Array.from(
+      files,
+      (file): PhotoUploadTask => ({ id: crypto.randomUUID(), file, stage: 'waiting' })
+    );
+    setTasks(selected);
+    if (inputRef.current) inputRef.current.value = '';
+    void run(selected);
+  };
+  const retryable = tasks.filter((task) => task.stage === 'failed' || task.stage === 'canceled');
+  const saved = tasks.filter((task) => task.stage === 'saved').length;
+  const duplicate = tasks.filter((task) => task.stage === 'duplicate').length;
+  const canceled = tasks.filter((task) => task.stage === 'canceled').length;
+  const failed = tasks.filter((task) => task.stage === 'failed').length;
+  const done = saved + duplicate + canceled + failed;
 
   return (
-    <>
-      <Button type="button" onClick={() => inputRef.current?.click()} disabled={busy}>
-        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
-        {t('upload')}
-      </Button>
-      <input
-        ref={inputRef}
-        type="file"
-        accept={ACCEPT}
-        multiple
-        className="hidden"
-        onChange={(e) => handleFiles(e.target.files)}
-      />
-    </>
+    <section className="mb-4 space-y-3" aria-label={t('upload')}>
+      <div className="flex flex-wrap items-center gap-3">
+        <Button type="button" onClick={() => inputRef.current?.click()} disabled={busy}>
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
+          {t('upload')}
+        </Button>
+        <span className="text-sm text-muted-foreground">
+          {t('uploadRemaining', { count: Math.max(0, PHOTO_LIMIT_PER_TRIP - photoCount) })}
+        </span>
+        <input
+          ref={inputRef}
+          type="file"
+          accept={ACCEPT}
+          multiple
+          className="hidden"
+          aria-label={t('upload')}
+          onChange={(e) => handleFiles(e.target.files)}
+        />
+      </div>
+      {tasks.length > 0 && (
+        <div className="space-y-3 rounded-lg border p-3">
+          <p role="status" aria-live="polite" className="text-sm">
+            {t(busy ? 'uploadProgress' : 'uploadComplete', { done, total: tasks.length })}
+            {' · '}
+            {t('uploadSummary', { saved, duplicate, failed, canceled })}
+          </p>
+          <progress
+            className="h-2 w-full"
+            value={done}
+            max={tasks.length}
+            aria-label={t('upload')}
+          />
+          <details open={busy || retryable.length > 0}>
+            <summary className="cursor-pointer text-sm">{t('uploadDetails')}</summary>
+            <ul className="mt-2 max-h-72 space-y-2 overflow-y-auto">
+              {tasks.map((task) => (
+                <li key={task.id} className="flex items-center gap-2 text-sm">
+                  {task.photo && (
+                    <Image
+                      unoptimized
+                      src={task.photo.thumb_url}
+                      alt=""
+                      width={36}
+                      height={36}
+                      className="h-9 w-9 rounded object-cover"
+                    />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate" title={task.file.name}>
+                      {task.file.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {t(`uploadStages.${task.stage}`)}
+                      {task.reason && ` · ${t(FAILURE_MESSAGE_KEY[task.reason])}`}
+                    </p>
+                    {task.photo && (
+                      <p className="text-xs text-muted-foreground">
+                        {task.photo.uploaded_by_name} ·{' '}
+                        {new Date(task.photo.created_at).toLocaleDateString()}
+                      </p>
+                    )}
+                  </div>
+                  {task.photo && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => onView(task.photo!.id)}
+                    >
+                      {t(task.stage === 'duplicate' ? 'uploadViewExisting' : 'uploadView')}
+                    </Button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </details>
+          <div className="flex flex-wrap gap-2">
+            {busy && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => controller.current?.abort()}
+              >
+                {t('uploadStop')}
+              </Button>
+            )}
+            {!busy && retryable.length > 0 && (
+              <Button type="button" size="sm" variant="outline" onClick={() => void run(retryable)}>
+                {t('uploadRetry')}
+              </Button>
+            )}
+            {!busy && (
+              <Button type="button" size="sm" variant="ghost" onClick={() => setTasks([])}>
+                {t('uploadDismiss')}
+              </Button>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground">{t('uploadDedupHint')}</p>
+        </div>
+      )}
+    </section>
   );
 }

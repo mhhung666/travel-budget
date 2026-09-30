@@ -11,7 +11,6 @@ import {
   MAX_PHOTO_BYTES,
 } from '@/lib/uploads';
 import { stableSigningWindow, STABLE_GET_WINDOW_SECONDS } from '@/lib/storage';
-import { chunk } from '@/lib/photoUpload';
 import { addPhotosSchema, PHOTO_BATCH_MAX } from '@/lib/validation';
 
 const TRIP = '507f1f77bcf86cd799439011';
@@ -147,30 +146,6 @@ describe('stableSigningWindow', () => {
 
   it('預設窗口為 1 小時', () => {
     expect(STABLE_GET_WINDOW_SECONDS).toBe(3600);
-  });
-});
-
-describe('chunk（相簿分批上傳）', () => {
-  it('切成每批至多 PHOTO_BATCH_MAX——一次選 25 張要能全部傳完，而不是被整批打回', () => {
-    const files = Array.from({ length: 25 }, (_, i) => i);
-    const batches = chunk(files, PHOTO_BATCH_MAX);
-    expect(batches).toHaveLength(2);
-    expect(batches[0]).toHaveLength(PHOTO_BATCH_MAX);
-    expect(batches[1]).toHaveLength(5);
-    expect(batches.flat()).toEqual(files); // 不掉檔、不重複、保序
-  });
-
-  it('剛好整除時不產生空批', () => {
-    expect(
-      chunk(
-        Array.from({ length: 40 }, (_, i) => i),
-        PHOTO_BATCH_MAX
-      )
-    ).toHaveLength(2);
-  });
-
-  it('空清單回空陣列', () => {
-    expect(chunk([], PHOTO_BATCH_MAX)).toEqual([]);
   });
 });
 

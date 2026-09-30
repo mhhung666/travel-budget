@@ -34,12 +34,12 @@ export async function ensureSanitizedPhotoCopies(tripId: string): Promise<void> 
   const missing = displayKeys.filter((k) => !existing.has(sanitizedPhotoKey(k)));
 
   for (let i = 0; i < missing.length; i += CONCURRENCY) {
-    await Promise.all(missing.slice(i, i + CONCURRENCY).map(sanitizeOne));
+    await Promise.all(missing.slice(i, i + CONCURRENCY).map(ensureSanitizedPhotoCopy));
   }
 }
 
 /** 對單一顯示檔 key 產生其 `_p.jpg`。失敗只 log。 */
-async function sanitizeOne(key: string): Promise<void> {
+export async function ensureSanitizedPhotoCopy(key: string): Promise<void> {
   try {
     const bytes = await getObjectBuffer('receipts', key);
     if (!bytes) return; // 顯示檔不存在（異常）——跳過，別產出空的 _p

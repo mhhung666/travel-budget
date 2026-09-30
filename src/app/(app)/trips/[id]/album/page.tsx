@@ -152,17 +152,25 @@ export default function AlbumPage() {
                   {t('select')}
                 </Button>
               )}
-              {photos.length > 0 && (
-                <PhotoUploadButton
-                  tripId={tripId}
-                  pending={m.add.isPending}
-                  // 回傳 promise：上傳器要等這批入庫完才傳下一批（見 uploadPhotoFilesInBatches）
-                  onUploaded={(items) => guard(m.add.mutateAsync(items))}
-                />
-              )}
             </>
           )}
         </div>
+      )}
+
+      {isMember && (
+        <PhotoUploadButton
+          key={tripId}
+          tripId={tripId}
+          photoCount={photos.length}
+          onPhoto={m.acceptUploaded}
+          onFinished={() => {
+            void query.refetch();
+          }}
+          onView={(photoId) => {
+            const index = photos.findIndex((photo) => photo.id === photoId);
+            if (index >= 0) setLightboxIndex(index);
+          }}
+        />
       )}
 
       {photos.length === 0 ? (
@@ -170,15 +178,6 @@ export default function AlbumPage() {
           icon={Images}
           title={t('emptyState')}
           description={t(isMember ? 'emptyStateHint' : 'emptyStateHintReadOnly')}
-          action={
-            isMember ? (
-              <PhotoUploadButton
-                tripId={tripId}
-                pending={m.add.isPending}
-                onUploaded={(items) => guard(m.add.mutateAsync(items))}
-              />
-            ) : undefined
-          }
         />
       ) : (
         <PhotoGrid

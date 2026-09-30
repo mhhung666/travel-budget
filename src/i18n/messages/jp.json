@@ -1182,6 +1182,31 @@
       "revoke": "共有を停止",
       "enabledHint": "共有はオンです。リンクを知っている人は写真を閲覧できます（位置情報は含まれません）。",
       "disabledHint": "共有はオフです。リンクを生成してアルバムを公開できます。"
+    },
+    "uploadFull": "アルバムがいっぱいです。新しいアップロードを停止しました。",
+    "uploadAccessLost": "旅行へのアクセスが失われました。メンバー資格を確認してください。",
+    "uploadRemaining": "あと {count} 枚追加できます",
+    "uploadProgress": "処理中 {done} / {total} 枚",
+    "uploadComplete": "処理終了 {done} / {total} 枚",
+    "uploadSummary": "追加 {saved} · 重複 {duplicate} · 失敗 {failed} · 停止 {canceled}",
+    "uploadDetails": "写真ごとの結果",
+    "uploadViewExisting": "既存の写真を見る",
+    "uploadView": "表示",
+    "uploadStop": "残りのアップロードを停止",
+    "uploadRetry": "失敗・停止した項目を再試行",
+    "uploadDismiss": "結果を閉じる",
+    "uploadDedupHint": "重複検出は、この機能の導入後に同じ旅行へアップロードした、完全に同一の元ファイルが対象です。古い写真や再圧縮・編集した写真は検出できない場合があります。このページを離れると未完了のアップロードが停止します。",
+    "uploadStages": {
+      "waiting": "待機中",
+      "checking": "重複を確認中",
+      "compressing": "圧縮中",
+      "uploading": "アップロード中",
+      "saving": "アルバムに保存中",
+      "confirming": "結果を確認中",
+      "saved": "アルバムに追加済み",
+      "duplicate": "重複のためスキップ",
+      "failed": "失敗",
+      "canceled": "停止済み"
     }
   },
   "publicAlbum": {

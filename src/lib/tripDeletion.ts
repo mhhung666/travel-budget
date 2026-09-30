@@ -13,6 +13,7 @@ export const TRIP_CHILD_COLLECTIONS = [
   'comments',
   'notes',
   'photos',
+  'photouploadjobs',
 ] as const;
 
 /** Sequential inside transactions; also used by the delayed cleanup sweep for late writers. */

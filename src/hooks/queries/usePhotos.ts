@@ -47,12 +47,8 @@ interface UpdatePhotoData {
 }
 
 /**
- * 相簿 mutations。全為 invalidate-on-success（同 useChecklistMutations）：相片入庫後
- * 伺服器要重新簽 URL、重排順序，optimistic 沒有意義——本機沒有簽名 URL 可以先顯示。
- *
- * `add` 收的是**已經直傳完 R2** 的項目（見 lib/photoUpload.ts）；傳檔與入庫刻意分開，
- * 傳了一半失敗時，成功的那些仍然入得了庫。
- * Online-only：離線時失敗由呼叫端 toast（僅支出建立有離線佇列）。
+ * 編輯／刪除成功後刷新相簿。新上傳以 acceptUploaded 合併伺服器確認的 DTO，
+ * 整個佇列結束才刷新；保留 add 供既有直傳介面使用。離線不新增照片。
  */
 export function usePhotoMutations(tripId: string) {
   const queryClient = useQueryClient();
@@ -76,5 +72,16 @@ export function usePhotoMutations(tripId: string) {
     onSuccess: invalidate,
   });
 
-  return { add, update, remove };
+  const acceptUploaded = (photo: TripPhoto) => {
+    // Cancel an older snapshot before merging a confirmed DTO; refresh once after the queue.
+    void queryClient.cancelQueries({ queryKey: photosKey });
+    queryClient.setQueryData<TripPhoto[]>(photosKey, (current = []) =>
+      [...current.filter((item) => item.id !== photo.id), photo].sort(
+        (a, b) =>
+          (b.taken_at ? Date.parse(b.taken_at) : 0) - (a.taken_at ? Date.parse(a.taken_at) : 0) ||
+          Date.parse(b.created_at) - Date.parse(a.created_at)
+      )
+    );
+  };
+  return { add, update, remove, acceptUploaded };
 }

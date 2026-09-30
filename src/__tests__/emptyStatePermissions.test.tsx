@@ -101,7 +101,7 @@ vi.mock('@/components/collections/DeferredDialogs', () => ({
 vi.mock('@/components/export', () => ({ ExportMenu: () => null }));
 vi.mock('@/components/trips/detail/album', () => ({
   AlbumShareDialog: () => null,
-  PhotoUploadButton: () => null,
+  PhotoUploadButton: () => <button>upload</button>,
   PhotoLightbox: () => null,
   PhotoGrid: () => null,
   DayPhotoStrip: () => null,
@@ -123,7 +123,7 @@ import AlbumPage from '@/app/(app)/trips/[id]/album/page';
 const cases = [
   { name: 'itinerary', Page: ItineraryPage, editorRole: 'admin', addLabel: 'addDay' },
   { name: 'checklists', Page: ChecklistsPage, editorRole: 'member', addLabel: 'addList' },
-  { name: 'album', Page: AlbumPage, editorRole: 'member', addLabel: null },
+  { name: 'album', Page: AlbumPage, editorRole: 'member', addLabel: 'upload' },
   { name: 'notes', Page: NotesPage, editorRole: 'member', addLabel: null },
 ] as const;
 

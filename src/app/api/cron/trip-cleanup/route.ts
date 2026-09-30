@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getEnv } from '@/lib/env';
 import { dbConnect } from '@/lib/mongodb';
 import { runTripCleanup } from '@/lib/tripCleanup';
+import { expirePhotoUploadJobs } from '@/lib/photoUploadJobs';
 import { runBlobCleanup } from '@/lib/blobCleanup';
 import { deleteObjects, deletePrefixPage } from '@/lib/storage';
 import { logger } from '@/lib/logger';
@@ -22,7 +23,7 @@ export async function GET(request: NextRequest) {
   try {
     await dbConnect();
     const deadline = Date.now() + 40_000;
-    const tripDeadline = Date.now() + 20_000;
+    const tripDeadline = Date.now() + 15_000;
     const results: Record<string, number> = {};
     for (let i = 0; i < 10 && Date.now() < tripDeadline; i++) {
       const result = await runTripCleanup(
@@ -33,6 +34,9 @@ export async function GET(request: NextRequest) {
       results[result.status] = (results[result.status] ?? 0) + 1;
       if (result.status === 'idle') break;
     }
+    results.uploads_retired = await expirePhotoUploadJobs(mongoose.connection.db!, {
+      deadline: Math.min(deadline - 10_000, Date.now() + 10_000),
+    });
     for (let i = 0; i < 10 && Date.now() < deadline; i++) {
       const result = await runBlobCleanup(mongoose.connection.db!, (keys) =>
         deleteObjects('receipts', keys, AbortSignal.timeout(5000))

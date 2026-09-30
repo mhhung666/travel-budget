@@ -1189,6 +1189,31 @@
       "revoke": "Disable sharing",
       "enabledHint": "Sharing is on. Anyone with this link can view the photos — no location is included.",
       "disabledHint": "Sharing is off. Generate a link to share this album publicly."
+    },
+    "uploadFull": "Album is full. Further uploads stopped.",
+    "uploadAccessLost": "Trip access was lost. Check your membership.",
+    "uploadRemaining": "Room for {count} more photos",
+    "uploadProgress": "Processing {done} / {total}",
+    "uploadComplete": "Finished {done} / {total}",
+    "uploadSummary": "Added {saved} · Duplicates {duplicate} · Failed {failed} · Stopped {canceled}",
+    "uploadDetails": "Photo results",
+    "uploadViewExisting": "View existing",
+    "uploadView": "View",
+    "uploadStop": "Stop remaining uploads",
+    "uploadRetry": "Retry failed / stopped",
+    "uploadDismiss": "Dismiss results",
+    "uploadDedupHint": "Duplicate checks match identical original files in this trip uploaded after this feature was enabled. Older, recompressed or edited photos may not be detected. Leaving this page stops unfinished uploads.",
+    "uploadStages": {
+      "waiting": "Waiting",
+      "checking": "Checking duplicates",
+      "compressing": "Compressing",
+      "uploading": "Uploading",
+      "saving": "Saving to album",
+      "confirming": "Confirming result",
+      "saved": "Added to album",
+      "duplicate": "Duplicate skipped",
+      "failed": "Failed",
+      "canceled": "Stopped"
     }
   },
   "publicAlbum": {

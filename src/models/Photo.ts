@@ -80,6 +80,10 @@ const PhotoSchema = new Schema(
     trip: { type: Schema.Types.ObjectId, ref: 'Trip', required: true },
     key: { type: String, required: true },
     thumbKey: { type: String, required: true },
+    // Hash of browser-provided original bytes; a deduplication hint, never an authorization token.
+    sourceHash: { type: String },
+    sourceHashVersion: { type: String },
+    sourceSize: { type: Number },
     contentType: { type: String, required: true }, // 一律 image/jpeg（顯示檔）
     size: { type: Number, required: true },
     width: { type: Number, default: 0 },
@@ -117,6 +121,15 @@ PhotoSchema.index({ trip: 1, itineraryDay: 1 });
  * 另一筆的圖就永久 404。
  */
 PhotoSchema.index({ key: 1 }, { unique: true });
+
+PhotoSchema.index(
+  { trip: 1, sourceHash: 1 },
+  {
+    name: 'photo_trip_source_hash',
+    unique: true,
+    partialFilterExpression: { sourceHash: { $type: 'string' } },
+  }
+);
 
 export type PhotoDoc = InferSchemaType<typeof PhotoSchema>;
 

@@ -41,6 +41,33 @@ jobs:
           MONGODB_QUEUE_TEST_URI: mongodb://127.0.0.1:27017
           MONGODB_QUEUE_TEST_ALLOW_WRITES: '1'
 
+  photo-uploads:
+    name: Photo uploads (MongoDB transactions)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Start isolated replica set
+        run: |
+          docker run -d --name photo-test-mongo -p 127.0.0.1:27017:27017 mongo:8.2.6 --replSet rs0 --bind_ip_all
+          for attempt in $(seq 1 30); do
+            if docker exec photo-test-mongo mongosh --quiet --eval 'db.adminCommand({ping:1})'; then break; fi
+            sleep 1
+          done
+          docker exec photo-test-mongo mongosh --quiet --eval 'rs.initiate({_id:"rs0",members:[{_id:0,host:"localhost:27017"}]})'
+      - name: Verify retries, deduplication and cleanup races
+        run: pnpm exec vitest run src/__tests__/photoUploadJobs.integration.test.ts
+        env:
+          PHOTO_UPLOAD_TEST_MONGODB_URI: mongodb://127.0.0.1:27017/?directConnection=true&replicaSet=rs0
+      - if: always()
+        run: docker rm -f photo-test-mongo
+
   verify:
     name: Lint, format, test, build
     runs-on: ubuntu-latest

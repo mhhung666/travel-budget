@@ -1182,6 +1182,31 @@
       "revoke": "關閉分享",
       "enabledHint": "分享已開啟。任何有此連結的人都能瀏覽相片——不含任何位置資訊。",
       "disabledHint": "分享已關閉。產生連結即可公開分享這本相簿。"
+    },
+    "uploadFull": "相簿已滿，已停止新增上傳",
+    "uploadAccessLost": "已無法存取此旅程，請重新確認成員資格",
+    "uploadRemaining": "尚可新增 {count} 張",
+    "uploadProgress": "處理中 {done} / {total} 張",
+    "uploadComplete": "處理結束 {done} / {total} 張",
+    "uploadSummary": "新增 {saved} · 重複略過 {duplicate} · 失敗 {failed} · 停止 {canceled}",
+    "uploadDetails": "逐張結果",
+    "uploadViewExisting": "查看既有照片",
+    "uploadView": "查看",
+    "uploadStop": "停止剩餘上傳",
+    "uploadRetry": "重試失敗／停止項目",
+    "uploadDismiss": "收起結果",
+    "uploadDedupHint": "查重僅適用於啟用此功能後，同旅程內完全相同的原檔；舊照片、重新壓縮或編輯過的圖片可能無法辨識。離開頁面會停止未完成上傳。",
+    "uploadStages": {
+      "waiting": "等待中",
+      "checking": "檢查重複",
+      "compressing": "壓縮中",
+      "uploading": "上傳中",
+      "saving": "存入相簿",
+      "confirming": "確認上傳結果",
+      "saved": "已加入相簿",
+      "duplicate": "重複，已略過",
+      "failed": "失敗",
+      "canceled": "已停止"
     }
   },
   "publicAlbum": {
