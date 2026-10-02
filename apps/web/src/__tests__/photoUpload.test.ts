@@ -99,14 +99,37 @@ describe('per-file photo queue', () => {
     await run(tasks);
     expect(tasks.map((t) => t.stage)).toEqual(['failed', 'saved']);
   });
-  it('matches renamed identical source bytes without a second compression or PUT', async () => {
-    const tasks = [task('a.jpg', 'same'), task('renamed.jpg', 'same')];
-    await run(tasks);
-    expect(tasks.map((t) => t.stage)).toEqual(['saved', 'duplicate']);
-    expect(mocks.begin).toHaveBeenCalledTimes(1);
-    expect(fetch).toHaveBeenCalledTimes(2);
-    expect(mocks.compress).toHaveBeenCalledTimes(2);
-  });
+  it.each([0, 1])(
+    'deduplicates renamed identical bytes when file %i finishes hashing first',
+    async (first) => {
+      const tasks = [task('a.jpg', 'same'), task('renamed.jpg', 'same')];
+      const slower = tasks[1 - first].file;
+      const bytes = await slower.arrayBuffer();
+      let release!: () => void;
+      const blocked = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      vi.spyOn(slower, 'arrayBuffer').mockImplementation(async () => {
+        await blocked;
+        return bytes;
+      });
+      const processing = run(tasks);
+      try {
+        // Hashing is concurrent; selection order does not decide which copy is saved.
+        await vi.waitFor(() => expect(tasks[first].stage).toBe('saved'));
+      } finally {
+        release();
+        await processing;
+      }
+      expect(tasks[first].stage).toBe('saved');
+      expect(tasks[1 - first].stage).toBe('duplicate');
+      expect(tasks[1 - first].photo).toBe(tasks[first].photo);
+      expect(mocks.duplicate).toHaveBeenCalledTimes(1);
+      expect(mocks.begin).toHaveBeenCalledTimes(1);
+      expect(fetch).toHaveBeenCalledTimes(2);
+      expect(mocks.compress).toHaveBeenCalledTimes(2);
+    }
+  );
   it('skips an existing photo before decoding, even when the album is full', async () => {
     mocks.duplicate.mockResolvedValue(ok(photo('existing')));
     const tasks = [task('a')];
