@@ -18,7 +18,10 @@ export class SessionManager {
   private session: Session | null = null;
   private revision = 0;
   private refreshFlight: Promise<void> | null = null;
+  private refreshRevision = 0;
   private restoreFlight: Promise<void> | null = null;
+  private logoutFlight: Promise<void> | null = null;
+  private logoutRevision = 0;
   private storageQueue: Promise<unknown> = Promise.resolve();
   private listeners = new Set<() => void>();
   private state: AuthState = { status: 'loading', user: null };
@@ -45,39 +48,56 @@ export class SessionManager {
   }
   private async accept(session: Session, revision: number) {
     if (revision !== this.revision) throw new ApiError('CANCELLED');
-    await this.storage(() =>
-      revision === this.revision ? this.store.set(session.refreshToken) : Promise.resolve()
-    );
+    try {
+      await this.storage(() =>
+        revision === this.revision ? this.store.set(session.refreshToken) : Promise.resolve()
+      );
+    } catch {
+      throw new ApiError('STORAGE');
+    }
     if (revision !== this.revision) throw new ApiError('CANCELLED');
     this.session = session;
     this.publish({ status: 'signedIn', user: session.user });
   }
+  private revoke(refreshToken: string) {
+    return this.api.request('/auth/logout', z.object({ loggedOut: z.literal(true) }), {
+      method: 'POST',
+      body: { refreshToken },
+    });
+  }
   private async invalidate(error?: unknown) {
-    this.revision++;
+    const revision = ++this.revision;
     this.session = null;
     this.publish({ status: 'loading', user: null });
     await this.clearPrivateData();
     try {
-      await this.storage(() => this.store.clear());
+      await this.storage(() =>
+        revision === this.revision ? this.store.clear() : Promise.resolve()
+      );
+      if (revision !== this.revision) return;
       this.publish({ status: 'signedOut', user: null, ...(error ? { error } : {}) });
     } catch {
+      if (revision !== this.revision) return;
       this.publish({ status: 'error', user: null, error: new ApiError('STORAGE') });
       throw new ApiError('STORAGE');
     }
   }
   restore(): Promise<void> {
     if (this.restoreFlight) return this.restoreFlight;
+    const revision = this.revision;
     this.restoreFlight = (async () => {
       this.publish({ status: 'loading', user: null });
       try {
         const token = await this.storage(() => this.store.get());
+        if (revision !== this.revision) return;
         if (!token) {
           this.publish({ status: 'signedOut', user: null });
           return;
         }
         await this.refresh(token);
       } catch (error) {
-        if (this.state.status !== 'signedOut') this.publish({ status: 'error', user: null, error });
+        if (revision === this.revision && this.state.status !== 'signedOut')
+          this.publish({ status: 'error', user: null, error });
       } finally {
         this.restoreFlight = null;
       }
@@ -96,19 +116,15 @@ export class SessionManager {
       await this.accept(session, revision);
     } catch (error) {
       // If secure persistence fails, do not leave a usable untracked device session behind.
-      await this.api
-        .request('/auth/logout', z.object({ loggedOut: z.literal(true) }), {
-          method: 'POST',
-          body: { refreshToken: session.refreshToken },
-        })
-        .catch(() => {});
+      await this.revoke(session.refreshToken).catch(() => {});
       throw error instanceof ApiError ? error : new ApiError('STORAGE');
     }
   }
   private refresh(token = this.session?.refreshToken): Promise<void> {
-    if (this.refreshFlight) return this.refreshFlight;
+    if (this.refreshFlight && this.refreshRevision === this.revision) return this.refreshFlight;
     if (!token) return Promise.reject(new ApiError('UNAUTHORIZED', 401));
     const revision = this.revision;
+    this.refreshRevision = revision;
     const expectedUser = this.session?.user.id;
     this.refreshFlight = (async () => {
       try {
@@ -118,13 +134,23 @@ export class SessionManager {
         });
         if (expectedUser && session.user.id !== expectedUser)
           throw new ApiError('UNAUTHORIZED', 401);
-        await this.accept(session, revision);
+        try {
+          await this.accept(session, revision);
+        } catch (error) {
+          // Rotation has consumed the saved token. Never keep using or restoring it.
+          try {
+            if (revision === this.revision) await this.invalidate(error);
+          } finally {
+            await this.revoke(session.refreshToken).catch(() => {});
+          }
+          throw error;
+        }
       } catch (error) {
         if (revision === this.revision && error instanceof ApiError && error.status === 401)
           await this.invalidate(error);
         throw error;
       } finally {
-        this.refreshFlight = null;
+        if (this.refreshRevision === revision) this.refreshFlight = null;
       }
     })();
     return this.refreshFlight;
@@ -166,20 +192,29 @@ export class SessionManager {
       }
     }
   }
-  async logout() {
-    // Wait for rotation before revoking; network failures retain the session for explicit retry.
-    await this.refreshFlight?.catch(() => {});
-    const token = this.session?.refreshToken ?? (await this.storage(() => this.store.get()));
-    if (token) {
+  logout(): Promise<void> {
+    if (this.logoutFlight && this.logoutRevision === this.revision) return this.logoutFlight;
+    const revision = this.revision;
+    this.logoutRevision = revision;
+    this.logoutFlight = (async () => {
       try {
-        await this.api.request('/auth/logout', z.object({ loggedOut: z.literal(true) }), {
-          method: 'POST',
-          body: { refreshToken: token },
-        });
-      } catch (error) {
-        if (!(error instanceof ApiError) || error.status !== 401) throw error;
+        // Wait for rotation before revoking; network failures retain the session for explicit retry.
+        if (this.refreshRevision === revision) await this.refreshFlight?.catch(() => {});
+        if (revision !== this.revision) return;
+        const token = this.session?.refreshToken ?? (await this.storage(() => this.store.get()));
+        if (revision !== this.revision) return;
+        if (token) {
+          try {
+            await this.revoke(token);
+          } catch (error) {
+            if (!(error instanceof ApiError) || error.status !== 401) throw error;
+          }
+        }
+        if (revision === this.revision) await this.invalidate();
+      } finally {
+        if (this.logoutRevision === revision) this.logoutFlight = null;
       }
-    }
-    await this.invalidate();
+    })();
+    return this.logoutFlight;
   }
 }

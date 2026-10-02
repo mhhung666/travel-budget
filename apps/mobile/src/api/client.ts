@@ -73,7 +73,13 @@ export class ApiClient {
         body: options.body === undefined ? undefined : JSON.stringify(options.body),
         signal: controller.signal,
       });
-      const body: unknown = await response.json().catch(() => null);
+      const body: unknown = await response.json().catch((error: unknown) => {
+        // Malformed JSON is a payload error; interrupted body reads are transport failures.
+        if (error instanceof SyntaxError) return null;
+        throw error;
+      });
+      checkAborted(options.signal);
+      if (timedOut) throw new ApiError('TIMEOUT');
       if (!response.ok) {
         const error = z.object({ error: z.object({ code: z.string() }) }).safeParse(body);
         const rawRetry = response.headers.get('Retry-After');
@@ -94,8 +100,9 @@ export class ApiClient {
       return parsed.data.data;
     } catch (error) {
       checkAborted(options.signal);
+      if (timedOut) throw new ApiError('TIMEOUT');
       if (error instanceof ApiError) throw error;
-      throw new ApiError(timedOut ? 'TIMEOUT' : 'NETWORK');
+      throw new ApiError('NETWORK');
     } finally {
       clearTimeout(timer);
       options.signal?.removeEventListener('abort', abort);

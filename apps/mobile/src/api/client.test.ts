@@ -106,11 +106,62 @@ describe('HTTP boundary', () => {
       );
       const pending = new ApiClient('https://example.com', fetcher, 100).request('/me', schema);
       const check = expect(pending).rejects.toMatchObject({ code: 'TIMEOUT' });
-      await vi.advanceTimersByTimeAsync(101);
-      await check;
+      await Promise.all([vi.advanceTimersByTimeAsync(101), check]);
     } finally {
       vi.useRealTimers();
     }
+  });
+  it('reports a disconnect while reading the response body as a network error', async () => {
+    const response = Response.json({ data: { value: 'partial' } });
+    vi.spyOn(response, 'json').mockRejectedValue(new TypeError('connection lost'));
+    const fetcher = vi.fn<Fetcher>().mockResolvedValue(response);
+    await expect(
+      new ApiClient('https://example.com', fetcher).request('/me', schema)
+    ).rejects.toMatchObject({ code: 'NETWORK' });
+  });
+  it('keeps the timeout active while reading the response body', async () => {
+    vi.useFakeTimers();
+    try {
+      const fetcher = vi.fn<Fetcher>().mockImplementation(async (_url, init) => {
+        const response = Response.json({ data: { value: 'partial' } });
+        vi.spyOn(response, 'json').mockImplementation(
+          () =>
+            new Promise((_resolve, reject) => {
+              init?.signal?.addEventListener('abort', () => reject(new Error('aborted')));
+            })
+        );
+        return response;
+      });
+      const pending = new ApiClient('https://example.com', fetcher, 100).request('/me', schema);
+      const check = expect(pending).rejects.toMatchObject({ code: 'TIMEOUT' });
+      await Promise.all([vi.advanceTimersByTimeAsync(101), check]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+  it('rejects a completed response if cancellation arrived while reading its body', async () => {
+    const controller = new AbortController();
+    const response = Response.json({ data: { value: 'private' } });
+    vi.spyOn(response, 'json').mockImplementation(async () => {
+      controller.abort();
+      return { data: { value: 'private' } };
+    });
+    const fetcher = vi.fn<Fetcher>().mockResolvedValue(response);
+    await expect(
+      new ApiClient('https://example.com', fetcher).request('/me', schema, {
+        signal: nativeSignal(controller),
+      })
+    ).rejects.toMatchObject({ code: 'CANCELLED' });
+  });
+  it.each([200, 401, 503])('preserves HTTP status %s when the body is not JSON', async (status) => {
+    const fetcher = vi
+      .fn<Fetcher>()
+      .mockResolvedValue(new Response('<html>error</html>', { status }));
+    await expect(
+      new ApiClient('https://example.com', fetcher).request('/me', schema)
+    ).rejects.toMatchObject(
+      status === 200 ? { code: 'INVALID_RESPONSE' } : { code: 'SERVER_ERROR', status }
+    );
   });
 });
 

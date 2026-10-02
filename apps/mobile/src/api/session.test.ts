@@ -1,11 +1,13 @@
 import type { Fetcher } from './client';
+import { QueryClient } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { ApiClient } from './client';
 import { SessionManager, type CredentialStore } from './session';
 const user = { id: '507f191e810c19729de860ea', username: 'traveler', displayName: 'Traveler' };
-const session = (n: number) => ({
-  user,
+const otherUser = { id: '507f191e810c19729de860eb', username: 'other', displayName: 'Other' };
+const session = (n: number, account = user) => ({
+  user: account,
   accessToken: `access-${n}`,
   refreshToken: `refresh-${n}`,
   expiresIn: 900,
@@ -13,6 +15,13 @@ const session = (n: number) => ({
 const ok = (data: unknown) => Response.json({ data });
 const unauthorized = () => Response.json({ error: { code: 'UNAUTHORIZED' } }, { status: 401 });
 const schema = z.object({ name: z.string() });
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((complete) => {
+    resolve = complete;
+  });
+  return { promise, resolve };
+}
 function nativeSignal(controller: AbortController): AbortSignal {
   return {
     get aborted() {
@@ -22,7 +31,10 @@ function nativeSignal(controller: AbortController): AbortSignal {
     removeEventListener: controller.signal.removeEventListener.bind(controller.signal),
   } as AbortSignal;
 }
-function setup(handler: (path: string, init?: RequestInit) => Promise<Response>) {
+function setup(
+  handler: (path: string, init?: RequestInit) => Promise<Response>,
+  clearPrivateData = async () => {}
+) {
   let token: string | null = null;
   const store: CredentialStore = {
     get: vi.fn(async () => token),
@@ -33,7 +45,7 @@ function setup(handler: (path: string, init?: RequestInit) => Promise<Response>)
       token = null;
     }),
   };
-  const clear = vi.fn(async () => {});
+  const clear = vi.fn(clearPrivateData);
   const fetcher = vi.fn<Fetcher>().mockImplementation((url, init) => handler(String(url), init));
   const manager = new SessionManager(new ApiClient('https://example.com', fetcher), store, clear);
   return { manager, store, clear, fetcher };
@@ -199,4 +211,169 @@ describe('interrupted authentication', () => {
     expect(manager.getSnapshot().user).toBeNull();
     expect(String(fetcher.mock.calls[1][0])).toContain('/auth/logout');
   });
+  it.each(['query', 'restore'])(
+    'clears an unusable session when a %s rotation cannot be saved',
+    async (source) => {
+      const { manager, store, clear, fetcher } = setup(async (url) => {
+        if (url.endsWith('/login')) return ok(session(1));
+        if (url.endsWith('/refresh')) return ok(session(2));
+        if (url.endsWith('/logout')) return ok({ loggedOut: true });
+        return unauthorized();
+      });
+      if (source === 'query') await manager.login('traveler', 'password');
+      else await store.set('refresh-1');
+      clear.mockClear();
+      vi.mocked(store.set).mockRejectedValueOnce(new Error('locked'));
+      if (source === 'query') {
+        await expect(manager.request('/trip', schema)).rejects.toMatchObject({ code: 'STORAGE' });
+      } else {
+        await manager.restore();
+      }
+      expect(manager.getSnapshot()).toMatchObject({
+        status: 'signedOut',
+        user: null,
+        error: { code: 'STORAGE' },
+      });
+      expect(await store.get()).toBeNull();
+      expect(clear).toHaveBeenCalledOnce();
+      const logout = fetcher.mock.calls.find(([url]) => url.endsWith('/logout'));
+      expect(JSON.parse(logout?.[1]?.body as string)).toEqual({ refreshToken: 'refresh-2' });
+      await expect(manager.request('/trip', schema)).rejects.toMatchObject({ status: 401 });
+    }
+  );
+  it('does not let an old restore failure replace a newly signed-in account', async () => {
+    const revoking = deferred<void>();
+    const revoked = deferred<Response>();
+    const { manager, store } = setup(async (url) => {
+      if (url.endsWith('/refresh')) return ok(session(2));
+      if (url.endsWith('/logout')) {
+        revoking.resolve();
+        return revoked.promise;
+      }
+      return ok(session(3, otherUser));
+    });
+    await store.set('refresh-1');
+    vi.mocked(store.set).mockRejectedValueOnce(new Error('locked'));
+    const restoring = manager.restore();
+    await revoking.promise;
+    await manager.login('other', 'password');
+    revoked.resolve(ok({ loggedOut: true }));
+    await restoring;
+    expect(manager.getSnapshot()).toEqual({ status: 'signedIn', user: otherUser });
+    expect(await store.get()).toBe('refresh-3');
+  });
+  it('coalesces repeated logout taps into a single revocation and cleanup', async () => {
+    const { manager, clear, fetcher } = setup(async (url) =>
+      url.endsWith('/login') ? ok(session(1)) : ok({ loggedOut: true })
+    );
+    await manager.login('traveler', 'password');
+    clear.mockClear();
+    await Promise.all([manager.logout(), manager.logout()]);
+    expect(fetcher.mock.calls.filter(([url]) => url.endsWith('/logout'))).toHaveLength(1);
+    expect(clear).toHaveBeenCalledOnce();
+    expect(manager.getSnapshot().status).toBe('signedOut');
+  });
+  it('does not let a late logout erase a newer login', async () => {
+    const revoking = deferred<void>();
+    const revoked = deferred<Response>();
+    let logins = 0;
+    const { manager, store } = setup(async (url) => {
+      if (url.endsWith('/login')) return ok(session(++logins, logins === 1 ? user : otherUser));
+      revoking.resolve();
+      return revoked.promise;
+    });
+    await manager.login('traveler', 'password');
+    const logout = manager.logout();
+    await revoking.promise;
+    await manager.login('other', 'password');
+    revoked.resolve(ok({ loggedOut: true }));
+    await logout;
+    expect(manager.getSnapshot()).toEqual({ status: 'signedIn', user: otherUser });
+    expect(await store.get()).toBe('refresh-2');
+  });
+  it('allows a new account to refresh while the previous session cleanup is pending', async () => {
+    const revoking = deferred<void>();
+    const revoked = deferred<Response>();
+    let refreshes = 0;
+    const { manager, store } = setup(async (url, init) => {
+      if (url.endsWith('/login')) return ok(session(3, otherUser));
+      if (url.endsWith('/refresh'))
+        return ok(++refreshes === 1 ? session(2) : session(4, otherUser));
+      if (url.endsWith('/logout')) {
+        revoking.resolve();
+        return revoked.promise;
+      }
+      return (init?.headers as Record<string, string>).Authorization === 'Bearer access-4'
+        ? ok({ name: 'New trip' })
+        : unauthorized();
+    });
+    await store.set('refresh-1');
+    vi.mocked(store.set).mockRejectedValueOnce(new Error('locked'));
+    const restoring = manager.restore();
+    await revoking.promise;
+    await manager.login('other', 'password');
+    try {
+      await expect(manager.request('/trip', schema)).resolves.toEqual({ name: 'New trip' });
+    } finally {
+      revoked.resolve(ok({ loggedOut: true }));
+      await restoring;
+    }
+    expect(refreshes).toBe(2);
+    expect(await store.get()).toBe('refresh-4');
+    expect(manager.getSnapshot().status).toBe('signedIn');
+  });
+});
+
+describe('private query cache lifecycle', () => {
+  it.each(['logout', 'revoked', 'storage'])(
+    'removes cached trips and cancels pending reads on %s',
+    async (cause) => {
+      const cache = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      const pendingRead = deferred<Response>();
+      const readStarted = deferred<void>();
+      const { manager, store } = setup(
+        async (url) => {
+          if (url.endsWith('/login')) return ok(session(1));
+          if (url.endsWith('/logout')) return ok({ loggedOut: true });
+          if (url.endsWith('/refresh'))
+            return cause === 'storage' ? ok(session(2)) : unauthorized();
+          if (url.endsWith('/slow-trip')) {
+            readStarted.resolve();
+            return pendingRead.promise;
+          }
+          return unauthorized();
+        },
+        async () => {
+          await cache.cancelQueries();
+          cache.clear();
+        }
+      );
+      try {
+        await manager.login('traveler', 'password');
+        cache.setQueryData([manager.api.baseUrl, user.id, 'trips'], [{ name: 'Private trip' }]);
+        const loading = cache
+          .fetchQuery({
+            queryKey: [manager.api.baseUrl, user.id, 'trip', 'slow'],
+            queryFn: ({ signal }) => manager.request('/slow-trip', schema, { signal }),
+          })
+          .catch(() => {});
+        await readStarted.promise;
+        if (cause === 'logout') await manager.logout();
+        else {
+          if (cause === 'storage') vi.mocked(store.set).mockRejectedValueOnce(new Error('locked'));
+          await expect(manager.request('/trip', schema)).rejects.toMatchObject(
+            cause === 'storage' ? { code: 'STORAGE' } : { status: 401 }
+          );
+        }
+        pendingRead.resolve(ok({ name: 'Late private trip' }));
+        await loading;
+        expect(cache.getQueryCache().getAll()).toHaveLength(0);
+        expect(manager.getSnapshot().status).toBe('signedOut');
+        expect(await store.get()).toBeNull();
+      } finally {
+        pendingRead.resolve(ok({ name: 'Late private trip' }));
+        cache.clear();
+      }
+    }
+  );
 });
