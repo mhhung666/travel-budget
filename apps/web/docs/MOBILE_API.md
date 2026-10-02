@@ -18,4 +18,6 @@
 
 尚無手機支出寫入、離線 outbox、附件上傳、推播或帳號刪除 API。
 
+`dev:mobile-api` 的獨立 loopback 控制通道供 Maestro 撤銷／到期隔離帳號的 session，採每次執行的隨機憑證並隨環境關閉。它只在測試腳本內存在，不加入 Next.js routes 或共用契約，也不隨 `--lan` 對外開放。
+
 Web／後端 workspace 名稱為 `@travel-budget/web`；在根目錄可用 `pnpm --filter @travel-budget/web exec vitest run <test-path>`。依賴使用根 lockfile，版本與環境設定仍屬各 app。手機程式現在位於同 repository 的 `apps/mobile`；既有 `travel-budget-mobile` repository 已棄用。

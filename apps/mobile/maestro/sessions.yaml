@@ -1,0 +1,84 @@
+appId: ${MAESTRO_APP_ID}
+name: Revoked and expired native sessions
+---
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: reset-limits
+- runFlow: flows/cold-start.yaml
+- runFlow:
+    when:
+      visible:
+        id: logout
+    commands:
+      - tapOn:
+          id: logout
+- runFlow:
+    file: flows/login.yaml
+    env:
+      USERNAME: mobile-a
+- tapOn:
+    id: trip-${MAESTRO_SHARED_TRIP}
+- scrollUntilVisible:
+    element:
+      id: trip-budget
+- assertVisible:
+    id: trip-budget
+    text: 'TWD[ \u00a0]1,000'
+- scrollUntilVisible:
+    element:
+      id: trip-refresh
+# Invalidate while a private summary is on screen, then make an actual API read.
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: revoke-a
+- tapOn:
+    id: trip-refresh
+- runFlow: flows/signed-out.yaml
+- assertVisible: ${MAESTRO_SESSION_EXPIRED}
+- runFlow: flows/cold-start.yaml
+- runFlow: flows/signed-out.yaml
+# A cleared credential must not cause another failed restore after restarting.
+- assertNotVisible: ${MAESTRO_SESSION_EXPIRED}
+- runFlow:
+    file: flows/login.yaml
+    env:
+      USERNAME: mobile-b
+- runFlow:
+    file: flows/summary.yaml
+    env:
+      SPENT: 'TWD[ \u00a0]50\.01'
+      BUDGET: 'TWD[ \u00a0]9,000'
+      BALANCE_LABEL: ${MAESTRO_PAYABLE}
+- tapOn:
+    id: logout
+- runFlow:
+    file: flows/login.yaml
+    env:
+      USERNAME: mobile-a
+# Expire the database session before cold restore consumes its refresh token.
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: expire-a
+- runFlow: flows/cold-start.yaml
+- runFlow: flows/signed-out.yaml
+- assertVisible: ${MAESTRO_SESSION_EXPIRED}
+- runFlow: flows/cold-start.yaml
+- runFlow: flows/signed-out.yaml
+- assertNotVisible: ${MAESTRO_SESSION_EXPIRED}
+# Reauthentication after expiry must work with a fresh session and correct data.
+- runFlow:
+    file: flows/login.yaml
+    env:
+      USERNAME: mobile-a
+- runFlow:
+    file: flows/summary.yaml
+    env:
+      SPENT: 'TWD[ \u00a0]50'
+      BUDGET: 'TWD[ \u00a0]1,000'
+      BALANCE_LABEL: ${MAESTRO_RECEIVABLE}
+- tapOn:
+    id: logout
+- runFlow: flows/signed-out.yaml

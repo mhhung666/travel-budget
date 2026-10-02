@@ -6,7 +6,7 @@ describe('map basemaps', () => {
   it('serves both themes from a key-free source that is not CARTO', () => {
     for (const isDark of [false, true]) {
       const source = basemapFor(isDark);
-      // CARTO 會在沒有 API key 的圖磚壓上浮水印（UX_IMPROVEMENTS 第 2 項）。
+      // CARTO 會在沒有 API key 的圖磚壓上浮水印（docs/archive/history/UX_IMPROVEMENTS.md）。
       expect(source.base).not.toContain('cartocdn');
       expect(source.base).not.toMatch(/api[-_]?key|access[-_]?token/i);
       // 地名是獨立一層，缺了地圖上就沒有地名。

@@ -1,0 +1,14 @@
+# Changelog
+
+只記錄變更要點；版本以各應用的 `package.json` 為準，提交紀錄見 Git。
+
+## Unreleased
+
+### 2026-10-02
+
+- Mobile／測試：補上登入撤銷與 session 到期的原生驗收及隔離控制通道；iOS、Android 模擬器通過，弱網與完整真機驗收仍待完成。
+- 文件：統一變更紀錄，合併四輪 UX 紀錄，精簡歷史報告與已完成規劃；開發規則要求每次更新本檔，只記重點。
+
+## 歷史摘要
+
+此前里程碑見 [Web 歷史摘要](apps/web/docs/archive/history/CHANGELOG.md)；該檔不再追加。

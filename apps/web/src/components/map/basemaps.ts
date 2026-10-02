@@ -1,5 +1,5 @@
 /**
- * 地圖底圖來源（docs/UX_IMPROVEMENTS.md 第 2 項）。
+ * 地圖底圖來源（docs/archive/history/UX_IMPROVEMENTS.md）。
  *
  * 原本用 CARTO 的免金鑰 basemap（light_all / dark_all），但 CARTO 現在會在所有未帶
  * API key 的圖磚上壓「API KEY REQUIRED」浮水印（2026-09-17 直接抓圖磚確認，兩種主題皆是），

@@ -24,6 +24,21 @@ Repository-wide instructions for coding agents.
   root frozen install, `pnpm check`, `pnpm test:run`, `pnpm build`, and `pnpm export:check`.
   Native bundle export does not replace simulator/device tests.
 
+## Documentation and changelog
+
+- Every development task must update the root `changelog.md` before completion, including fixes,
+  features, tests/tooling, and documentation changes. Group related work into one dated entry;
+  use 1–3 short bullets describing the outcome and affected app, plus material limitations if any.
+- Use dates and an `Unreleased` section for uncommitted/unreleased work. Do not invent release
+  versions or claim deployment; application versions remain in each application's `package.json`.
+- Consolidate reports about the same topic into one short document, not separate rounds or phases.
+- Keep one changelog for the repository; do not add app-local changelogs or per-task progress reports.
+- Documentation should record key points, not a work diary: current behavior, necessary commands,
+  important decisions, and remaining work. Update the authoritative document and link to it instead
+  of repeating content. Close completed plans with a short outcome, verification, and limitations.
+- Summarize old reports rather than appending every attempt, test log, or implementation step.
+  Keep essential operational instructions and evidence links; use Git history for detailed changes.
+
 ## Software version and commits
 
 - Each application's `package.json.version` is its single source of truth: `apps/web/package.json`

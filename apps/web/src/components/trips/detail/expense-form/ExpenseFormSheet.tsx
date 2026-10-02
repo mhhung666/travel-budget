@@ -56,7 +56,7 @@ interface PendingLeave {
 
 /**
  * 新增／編輯支出表單（UI/UX 重設計 5.3 —— 最高頻操作）。
- * 欄位按輸入頻率排序（docs/archive/history/UX_IMPROVEMENTS_2026-09-17.md 第 2 項）：
+ * 欄位按輸入頻率排序（docs/archive/history/UX_IMPROVEMENTS.md）：
  * 旅行名稱（可切換）→ 金額（大字、自動聚焦）＋幣別 → 描述 → 分類
  * → 直接可改的付款人／日期／分帳摘要（點開即改分帳）→ 一句話記帳／掃描收據
  * →「更多設定」折疊區（行程日／標籤／匯率／收據）。
@@ -143,7 +143,7 @@ export default function ExpenseFormSheet({
 
   /**
    * 表單要被收掉前的共同出口：×、點遮罩、Esc、手機下滑、footer 的「取消」，
-   * 以及會把表單換掉的「切換旅行」（docs/UX_IMPROVEMENTS.md 第 1 項）。
+   * 以及會把表單換掉的「切換旅行」（docs/archive/history/UX_IMPROVEMENTS.md）。
    * - 新增模式：有填過就靜靜存成草稿並提示，下次打開接著填。
    * - 編輯模式：草稿不落地，改過就先問「繼續編輯／捨棄修改」。
    * - 草稿寫不進 localStorage（配額用盡等）：不謊報已保留，改成先問過再離開。

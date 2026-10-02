@@ -48,3 +48,5 @@ Web 與 Mobile 的產品版本分別只讀取 `apps/web/package.json.version` �
 Vercel 專案的 **Root Directory 設為 `apps/web`**，並啟用 **Include files outside of the Root Directory in the Build Step**，讓建置可讀到 workspace 和共用契約。`apps/web/vercel.json` 保留既有 cron。遠端設定須在下一次部署前更新，整併本身不會修改 Vercel 或發布 App。
 
 原同層 `travel-budget-mobile` 已棄用；後續開發、安裝、CI 與提交一律在本 repository。舊目錄僅保留歷史與回復用途。
+
+變更要點見 [changelog.md](changelog.md)，文件入口見 [docs/README.md](docs/README.md)。

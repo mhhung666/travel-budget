@@ -1,0 +1,16 @@
+appId: ${MAESTRO_APP_ID}
+---
+# Keep SecureStore intact, including when the previous session was invalidated.
+- stopApp
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - launchApp:
+          clearState: false
+          stopApp: false
+- openLink: ${MAESTRO_EXPO_URL}
+- extendedWaitUntil:
+    visible:
+      id: 'logout|login-username'
+    timeout: 60000

@@ -7,6 +7,7 @@ import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir, networkInterfaces } from 'node:os';
 import { join } from 'node:path';
 import { createServer } from 'node:net';
+import { createServer as createHttpServer } from 'node:http';
 import { once } from 'node:events';
 import { createInterface } from 'node:readline';
 import mongoose from 'mongoose';
@@ -31,6 +32,7 @@ let mongo;
 let app;
 let appLog = '';
 let terminal;
+let control;
 let commandQueue = Promise.resolve();
 let stopping = false;
 const stop = new AbortController();
@@ -404,6 +406,71 @@ try {
     'HTTP/MongoDB acceptance passed. Native UI and SecureStore still require device checks.'
   );
   if (args.has('--serve')) {
+    // This control channel exists only in the disposable harness, never in Next routes.
+    const controlToken = randomBytes(32).toString('hex');
+    async function fixtureCommand(command) {
+      if (command === 'reset-limits') {
+        await db.collection('mobileloginattempts').deleteMany({});
+        return {};
+      }
+      assert(['revoke-a', 'expire-a'].includes(command), 'Unknown fixture command');
+      const result = await db.collection('mobilesessions').updateMany(
+        { user: users[0]._id, revokedAt: null, expiresAt: { $gt: new Date() } },
+        {
+          $set: command === 'revoke-a' ? { revokedAt: new Date() } : { expiresAt: new Date(0) },
+        }
+      );
+      return { affectedSessions: result.modifiedCount };
+    }
+    function enqueueCommand(command) {
+      const result = commandQueue.then(() => fixtureCommand(command));
+      commandQueue = result.catch(() => {});
+      return result;
+    }
+    control = createHttpServer(async (req, res) => {
+      res.setHeader('Cache-Control', 'no-store');
+      res.setHeader('Content-Type', 'application/json');
+      const reply = (status, body) => {
+        res.writeHead(status);
+        res.end(JSON.stringify(body));
+      };
+      if (req.headers.authorization !== `Bearer ${controlToken}`)
+        return reply(401, { error: 'Unauthorized' });
+      if (req.method === 'GET' && req.url === '/health')
+        return reply(200, { apiUrl: `${origin}/api/v1` });
+      if (req.method !== 'POST') return reply(405, { error: 'Method not allowed' });
+      const command = req.url.slice(1);
+      if (!['revoke-a', 'expire-a', 'reset-limits'].includes(command))
+        return reply(404, { error: 'Unknown fixture command' });
+      try {
+        reply(200, await enqueueCommand(command));
+      } catch {
+        reply(500, { error: 'Local fixture command failed' });
+      }
+    });
+    await new Promise((resolve, reject) => {
+      control.once('error', reject);
+      control.listen(0, '127.0.0.1', resolve);
+    });
+    const controlUrl = `http://127.0.0.1:${control.address().port}`;
+    const controlHeaders = { Authorization: `Bearer ${controlToken}` };
+    // Verify the test channel cannot mutate fixtures without its separate credential.
+    for (const headers of [{}, { Authorization: 'Bearer incorrect' }]) {
+      assert.equal(
+        (await fetch(`${controlUrl}/revoke-a`, { method: 'POST', headers })).status,
+        401
+      );
+    }
+    assert.equal((await fetch(`${controlUrl}/revoke-a`, { headers: controlHeaders })).status, 405);
+    assert.equal(
+      (await fetch(`${controlUrl}/quit`, { method: 'POST', headers: controlHeaders })).status,
+      404
+    );
+    assert.deepEqual(
+      await (await fetch(`${controlUrl}/health`, { headers: controlHeaders })).json(),
+      { apiUrl: `${origin}/api/v1` }
+    );
+    pass('authenticated loopback fixture control');
     console.log(`\nAPI: ${origin}/api/v1\nAndroid emulator: http://10.0.2.2:${port}/api/v1`);
     if (args.has('--lan'))
       for (const addresses of Object.values(networkInterfaces())) {
@@ -423,6 +490,8 @@ try {
         sharedTrip: String(shared._id),
         privateTrip: String(privateTrip._id),
         date,
+        controlUrl,
+        controlToken,
       }),
       { mode: 0o600 }
     );
@@ -430,26 +499,14 @@ try {
     console.log('Commands: revoke-a, expire-a, reset-limits, quit');
     terminal = createInterface({ input: process.stdin, output: process.stdout });
     terminal.on('line', (line) => {
-      commandQueue = commandQueue
-        .then(async () => {
-          const command = line.trim();
-          if (command === 'quit') return onSignal();
-          if (command === 'reset-limits') {
-            await db.collection('mobileloginattempts').deleteMany({});
-          } else if (command === 'revoke-a' || command === 'expire-a') {
-            await db.collection('mobilesessions').updateMany(
-              { user: users[0]._id },
-              {
-                $set:
-                  command === 'revoke-a' ? { revokedAt: new Date() } : { expiresAt: new Date(0) },
-              }
-            );
-          } else {
-            console.log('Commands: revoke-a, expire-a, reset-limits, quit');
-            return;
-          }
-          console.log(`DONE ${command}`);
-        })
+      const command = line.trim();
+      if (command === 'quit') return onSignal();
+      if (!['revoke-a', 'expire-a', 'reset-limits'].includes(command)) {
+        console.log('Commands: revoke-a, expire-a, reset-limits, quit');
+        return;
+      }
+      void enqueueCommand(command)
+        .then(() => console.log(`DONE ${command}`))
         .catch(() => {
           console.error('Local fixture command failed');
         });
@@ -464,6 +521,7 @@ try {
   }
 } finally {
   terminal?.close();
+  if (control) await new Promise((resolve) => control.close(resolve));
   await commandQueue;
   if (app?.pid) {
     try {

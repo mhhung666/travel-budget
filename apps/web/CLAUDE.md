@@ -37,6 +37,7 @@ Canonical [OpenAPI](../../packages/contracts/openapi.json): run `pnpm contracts:
 ## Hard rules
 
 **Data & auth**
+
 - Actions return `ActionResult<T>` ([src/actions/types.ts](src/actions/types.ts)); never throw across the
   action boundary; error `code` from `ErrorCodes` (frontend maps codes to i18n messages).
 - `await dbConnect()` before any DB access. There is **no RLS** — every action touching trip data must call
@@ -58,6 +59,7 @@ Canonical [OpenAPI](../../packages/contracts/openapi.json): run `pnpm contracts:
 - `MONGODB_URI` never gets `NEXT_PUBLIC_`; the only `NEXT_PUBLIC_` env is the VAPID public key.
 
 **Build & PWA**
+
 - `pnpm build` must stay `next build --webpack` — Turbopack **silently** skips Serwist (no sw.js). Never revert.
 - NEVER read/edit/lint `public/sw.js` (gitignored build artifact) — edit [src/sw.ts](src/sw.ts).
   Verify PWA/SW behavior with `pnpm build && pnpm start`; the SW is disabled in `pnpm dev`.
@@ -66,12 +68,14 @@ Canonical [OpenAPI](../../packages/contracts/openapi.json): run `pnpm contracts:
   cache shape/keys change.
 
 **i18n**
+
 - New user-facing strings go to **all four** catalogs (`en`, `zh`, `zh-CN`, `jp`) in
   [src/i18n/messages/](src/i18n/messages). Verify: `grep -l "<key>" src/i18n/messages/*.json` → 4 files.
 - URLs carry **no locale prefix** (no `[locale]` segment); UI locale = `NEXT_LOCALE` cookie read server-side.
   No i18n middleware — [src/proxy.ts](src/proxy.ts) does auth redirects only.
 
 **Misc**
+
 - NEVER hand-edit `public/geo/countries.geojson` (generated) or read `pnpm-lock.yaml` / catalog JSONs whole.
 - Before committing, follow the application version policy in [AGENTS.md](AGENTS.md): `package.json.version`
   in this app is the Web version source; Mobile versions independently. Never auto-tag or deploy.
@@ -85,17 +89,17 @@ Canonical [OpenAPI](../../packages/contracts/openapi.json): run `pnpm contracts:
 
 ## Read-before-touching map
 
-| Touching… | Read first |
-|---|---|
-| Server actions, models, auth, permissions | [docs/archive/claude/ARCH-NOTES.md](docs/archive/claude/ARCH-NOTES.md) §Server Actions / §Auth / §tripIdOrCode |
-| Schema / migrations | ARCH-NOTES §Schema + [docs/archive/details/MIGRATIONS.md](docs/archive/details/MIGRATIONS.md) |
-| Receipts, avatars, uploads (R2) | ARCH-NOTES §R2 blob 儲存 |
-| Offline / service worker / query persistence | ARCH-NOTES §離線 PWA |
-| Notifications / web push / email | ARCH-NOTES §Web Push |
-| Trip tabs / trip-space routes (`/trips/[id]` = itinerary, **not** expenses) | ARCH-NOTES §行程空間分頁 |
-| Map pages & public map share | ARCH-NOTES §旅遊地圖 |
-| i18n / locale switching | ARCH-NOTES §國際化 |
-| Settlement / payments math | ARCH-NOTES §結算 + [src/lib/settlement.ts](src/lib/settlement.ts) |
+| Touching…                                                                   | Read first                                                                                                     |
+| --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Server actions, models, auth, permissions                                   | [docs/archive/claude/ARCH-NOTES.md](docs/archive/claude/ARCH-NOTES.md) §Server Actions / §Auth / §tripIdOrCode |
+| Schema / migrations                                                         | ARCH-NOTES §Schema + [docs/archive/details/MIGRATIONS.md](docs/archive/details/MIGRATIONS.md)                  |
+| Receipts, avatars, uploads (R2)                                             | ARCH-NOTES §R2 blob 儲存                                                                                       |
+| Offline / service worker / query persistence                                | ARCH-NOTES §離線 PWA                                                                                           |
+| Notifications / web push / email                                            | ARCH-NOTES §Web Push                                                                                           |
+| Trip tabs / trip-space routes (`/trips/[id]` = itinerary, **not** expenses) | ARCH-NOTES §行程空間分頁                                                                                       |
+| Map pages & public map share                                                | ARCH-NOTES §旅遊地圖                                                                                           |
+| i18n / locale switching                                                     | ARCH-NOTES §國際化                                                                                             |
+| Settlement / payments math                                                  | ARCH-NOTES §結算 + [src/lib/settlement.ts](src/lib/settlement.ts)                                              |
 
 ## Docs index
 
@@ -109,7 +113,7 @@ Canonical [OpenAPI](../../packages/contracts/openapi.json): run `pnpm contracts:
 - Follow [docs/archive/claude/WORKFLOW.md](docs/archive/claude/WORKFLOW.md) for scope, synchronized contracts,
   risk-based verification, and completion reporting.
 - Read only the relevant section of [docs/archive/claude/ARCH-NOTES.md](docs/archive/claude/ARCH-NOTES.md).
-- Append confirmed recurring mistakes to [docs/archive/claude/LESSONS.md](docs/archive/claude/LESSONS.md).
+- Keep concise, confirmed recurring lessons in [docs/archive/claude/LESSONS.md](docs/archive/claude/LESSONS.md).
 
 ## Conventions
 

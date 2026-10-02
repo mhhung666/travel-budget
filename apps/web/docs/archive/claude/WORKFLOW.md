@@ -19,15 +19,15 @@
 
 ## 3. 常見同步契約
 
-| 變更 | 必須一起確認 |
-| --- | --- |
-| 使用者可見文字 | `en`、`zh`、`zh-CN`、`jp` 四份 catalog |
-| Server Action | `'use server'`、auth、membership、Zod、`ActionResult<T>`、必要 re-export |
-| 刪除旅程資源 | Mongo 手動 cascade、R2 best-effort cleanup、終身紀錄只解除連結 |
-| 通知導向 | 站內通知、Web Push、Email 三處語意一致 |
-| persisted query shape/key | bump `PERSIST_BUSTER` |
-| schema/index/backfill | migrate-mongo `up`/`down`、冪等、部署前提醒 `pnpm migrate:up` |
-| shipped behavior + commit | 依 [AGENTS.md](../../../AGENTS.md) 判斷 Semantic Versioning bump |
+| 變更                      | 必須一起確認                                                             |
+| ------------------------- | ------------------------------------------------------------------------ |
+| 使用者可見文字            | `en`、`zh`、`zh-CN`、`jp` 四份 catalog                                   |
+| Server Action             | `'use server'`、auth、membership、Zod、`ActionResult<T>`、必要 re-export |
+| 刪除旅程資源              | Mongo 手動 cascade、R2 best-effort cleanup、終身紀錄只解除連結           |
+| 通知導向                  | 站內通知、Web Push、Email 三處語意一致                                   |
+| persisted query shape/key | bump `PERSIST_BUSTER`                                                    |
+| schema/index/backfill     | migrate-mongo `up`/`down`、冪等、部署前提醒 `pnpm migrate:up`            |
+| shipped behavior + commit | 依 [AGENTS.md](../../../AGENTS.md) 判斷 Semantic Versioning bump         |
 
 ## 4. 驗證
 
@@ -47,7 +47,10 @@ pnpm build
 - i18n 用搜尋確認新 key 出現在四份 catalog，不靠記憶。
 - 文件變更檢查 Markdown 相對連結、過時路徑與重複狀態。
 
-## 5. 完成回報
+## 5. 文件與完成回報
+
+- 每次開發更新根目錄 [changelog.md](../../../../../changelog.md)，相關工作合併 1–3 點。
+- 同步權威文件的現況與未完成項目，不新增逐輪報告或重複驗收流水帳。
 
 - 先說結果，再列重要檔案與驗證結果。
 - 清楚區分：已完成、未驗證、刻意未做、需要使用者決定。

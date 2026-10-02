@@ -83,6 +83,8 @@ pnpm --filter @travel-budget/web dev:mobile-api --lan
 
 此選項讓測試後端綁定 `0.0.0.0`，並列出 LAN 候選位址。手機的 `EXPO_PUBLIC_API_BASE_URL` 使用可達的電腦 LAN IP；Metro 使用預設 LAN 模式並掃描 QR code。不要使用手機自己的 localhost。完成後以 Ctrl+C 關閉；本環境僅供本機開發。
 
+保留模式另啟動獨立的 loopback 控制通道，讓原生自動化執行上述撤銷、到期與重設限制操作。它使用隨機憑證，URL／憑證只存入私有 `fixture.json`，即使指定 `--lan` 也不對區域網路開放。此通道只存在驗收腳本，不是產品 API；關閉環境時一起停止。
+
 ## 每平台操作表
 
 iOS／Android 各自記錄裝置、OS、Expo Go／development build、語系、深淺色與結果。未操作的項目保持待驗收，不能用 API 測試或 bundle 匯出代替。
@@ -106,6 +108,8 @@ HTTP／MongoDB 與下節的模擬器流程各自驗證不同層次；本表的�
 
 `maestro/auth-trips.yaml` 透過原生畫面操作實際 API，涵蓋必填／錯誤密碼、A 的旅行摘要、冷啟動恢復登入、載入第二頁、非成員旅行拒絕、切換 B 的金額／預算，以及 empty 的空狀態。使用 Expo Go，不清除 App 或 Keychain／SecureStore；每次執行先正常登出，結束也正常登出。
 
+`maestro/sessions.yaml` 涵蓋摘要顯示中撤銷 session、API 讀取後回到登入頁、切換 B 的預算，以及 session 到期後的冷啟動與重新登入。每次失效後再重啟一次，確認安全儲存的失效憑證已清除，不會反覆出現到期錯誤。這是資料庫 session 期限驗收，尚未取代 access JWT 自然到期或弱網操作。
+
 安裝 [Maestro CLI](https://docs.maestro.dev/maestro-cli/how-to-install-maestro-cli)（Java 17 以上）；macOS 可用 `brew install mobile-dev-inc/tap/maestro`。不需登入 Maestro Cloud。先依上文啟動隔離後端、模擬器及對應 API 位址的 Metro，確認 Expo Go 可開啟此專案。Android 的 localhost Metro 由 Expo CLI 設定 adb reverse。
 
 在 repository 根目錄執行，替換 `FIXTURE_PATH` 與 `IOS_UUID`；`--metro-port` 要與該平台的 Expo 指令一致：
@@ -118,10 +122,21 @@ pnpm --filter travel-budget-mobile test:native \
 pnpm --filter travel-budget-mobile test:native \
   --platform android --device emulator-5554 \
   --fixture FIXTURE_PATH --metro-port 8082
+
+# 兩平台各自執行；同一份 fixture 請依序驗收，避免互相撤銷 session
+pnpm --filter travel-budget-mobile test:native --suite sessions \
+  --platform ios --device IOS_UUID \
+  --fixture FIXTURE_PATH --metro-port 8083
+
+pnpm --filter travel-budget-mobile test:native --suite sessions \
+  --platform android --device emulator-5554 \
+  --fixture FIXTURE_PATH --metro-port 8082
 ```
 
 `FIXTURE_PATH` 是 `dev:mobile-api` 輸出的暫存 `fixture.json`，不是帳號設定檔。工具只接受 loopback 的隔離後端資料，帳號固定為 `mobile-a`／`mobile-b`／`mobile-empty`，密碼透過環境傳入 Maestro。勿使用正式帳號；本機診斷檔可能包含 fixture 密碼與畫面，放在每次產生的私有暫存目錄，勿提交。
 
+預設 `--suite auth-trips`；`--suite sessions` 需要新版保留環境輸出的控制通道。若提示缺少控制資訊，重啟 `dev:mobile-api` 並更新 Metro API 位址。session 流程開始會清除此 fixture 的登入次數限制；撤銷／到期命令必須實際影響至少一個有效 session，否則測試失敗。控制請求由電腦上的 [Maestro JavaScript HTTP client](https://docs.maestro.dev/maestro-flows/javascript/make-http-requests) 發出，不從手機呼叫。
+
 預設驗證英文；裝置使用其他語系時，傳入 `--locale zh`／`zh-CN`／`jp`，工具不會改變裝置語系。此選項只切換斷言用的文字，不代表四語皆已驗收。深淺色與文字大小由裝置設定控制。第一次開啟 Expo Go 的系統提示請先完成，再跑流程。iOS 測試模擬器請在 Settings → General → AutoFill & Passwords 關閉 AutoFill Passwords and Passkeys，避免系統儲存密碼提示遮住測試；這不改動 App 的自動填寫能力，也不代表已驗證密碼管理器整合。重複執行若觸發 429，在隔離後端終端輸入 `reset-limits` 後再試。
 
-此自動化補上可重跑的原生核心流程；弱網、撤銷／到期、螢幕閱讀器及實體裝置仍按上表驗收。它不替代 development build、簽章或商店驗收。
+此自動化補上可重跑的原生核心與 session 失效流程；弱網、前後景、access JWT 自然到期、螢幕閱讀器及實體裝置仍按上表驗收。它不替代 development build、簽章或商店驗收。

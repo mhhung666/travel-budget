@@ -513,7 +513,7 @@ function ItineraryPageContent() {
 
       {/* Day cards */}
       {days.length === 0 ? (
-        /* 沒有新增權限時別叫使用者去按不存在的按鈕（docs/UX_IMPROVEMENTS.md 第 3 項） */
+        /* 沒有新增權限時別叫使用者去按不存在的按鈕（docs/archive/history/UX_IMPROVEMENTS.md） */
         <EmptyState
           icon={CalendarDays}
           title={tItinerary('emptyState')}

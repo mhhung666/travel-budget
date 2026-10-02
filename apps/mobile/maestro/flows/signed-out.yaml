@@ -1,0 +1,13 @@
+appId: ${MAESTRO_APP_ID}
+---
+- extendedWaitUntil:
+    visible:
+      id: login-submit
+    timeout: 30000
+- assertNotVisible:
+    id: trip-budget
+- assertNotVisible:
+    id: trip-${MAESTRO_SHARED_TRIP}
+- assertNotVisible: TEST mobile-a
+- assertNotVisible:
+    id: logout

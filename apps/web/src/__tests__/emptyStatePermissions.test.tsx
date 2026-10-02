@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
- * 空白引導要配合權限（docs/UX_IMPROVEMENTS.md 第 3 項）。
+ * 空白引導要配合權限（docs/archive/history/UX_IMPROVEMENTS.md）。
  * 沒有新增權限的人看到的說明，不能叫他去按畫面上不存在的按鈕。
  */
 

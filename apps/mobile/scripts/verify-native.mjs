@@ -16,11 +16,13 @@ const { values } = parseArgs({
     fixture: { type: 'string' },
     'metro-port': { type: 'string' },
     locale: { type: 'string', default: 'en' },
+    suite: { type: 'string', default: 'auth-trips' },
   },
 });
 assert(['ios', 'android'].includes(values.platform), 'Use --platform ios|android');
 assert(values.device, 'Select a simulator with --device <UUID or emulator serial>');
 assert(values.fixture, 'Use --fixture <path printed by dev:mobile-api>');
+assert(['auth-trips', 'sessions'].includes(values.suite), 'Use --suite auth-trips|sessions');
 assert(Object.hasOwn(messages, values.locale), 'Use --locale en|zh|zh-CN|jp (must match device)');
 const port = Number(values['metro-port']);
 assert(Number.isInteger(port) && port > 0 && port < 65536, 'Use --metro-port <local Metro port>');
@@ -38,6 +40,27 @@ for (const key of ['sharedTrip', 'privateTrip'])
   assert(/^[a-f0-9]{24}$/.test(fixture[key]), `Invalid ${key}`);
 const response = await fetch(`${api}/me`, { signal: AbortSignal.timeout(5000) });
 assert.equal(response.status, 401, 'Start dev:mobile-api before native acceptance');
+if (values.suite === 'sessions') {
+  assert(fixture.controlUrl, 'Restart dev:mobile-api to enable session acceptance');
+  const control = new URL(fixture.controlUrl);
+  assert(
+    control.protocol === 'http:' &&
+      control.hostname === '127.0.0.1' &&
+      control.pathname === '/' &&
+      /^[a-f0-9]{64}$/.test(fixture.controlToken),
+    'Invalid local fixture control channel'
+  );
+  const health = await fetch(`${control.origin}/health`, {
+    headers: { Authorization: `Bearer ${fixture.controlToken}` },
+    signal: AbortSignal.timeout(5000),
+  });
+  assert.equal(health.status, 200, 'Fixture control is unavailable');
+  assert.equal(
+    (await health.json()).apiUrl,
+    fixture.apiUrl,
+    'Fixture control belongs to another API'
+  );
+}
 const artifacts = await mkdtemp(join(tmpdir(), 'travel-budget-native-'));
 const t = messages[values.locale];
 const env = {
@@ -55,6 +78,10 @@ const env = {
   MAESTRO_NOT_FOUND: t.notFound,
   MAESTRO_RECEIVABLE: t.receivable,
   MAESTRO_PAYABLE: t.payable,
+  MAESTRO_SESSION_EXPIRED: t.sessionExpired,
+  ...(values.suite === 'sessions'
+    ? { MAESTRO_CONTROL_URL: fixture.controlUrl, MAESTRO_CONTROL_TOKEN: fixture.controlToken }
+    : {}),
 };
 console.log(`Running ${values.platform} native acceptance; local artifacts: ${artifacts}`);
 const child = spawn(
@@ -66,7 +93,7 @@ const child = spawn(
     '--no-ansi',
     '--test-output-dir',
     artifacts,
-    'maestro/auth-trips.yaml',
+    `maestro/${values.suite}.yaml`,
   ],
   { env, stdio: ['inherit', 'pipe', 'pipe'] }
 );
@@ -74,6 +101,11 @@ const stop = (signal) => child.kill(signal);
 process.on('SIGINT', stop);
 process.on('SIGTERM', stop);
 // Maestro may echo inputText values; keep the disposable password out of terminal output.
+const redact = (line) => {
+  for (const secret of [fixture.password, fixture.controlToken].filter(Boolean))
+    line = line.replaceAll(secret, '[fixture credential]');
+  return line;
+};
 for (const stream of [child.stdout, child.stderr]) {
   stream.setEncoding('utf8');
   let pending = '';
@@ -81,10 +113,10 @@ for (const stream of [child.stdout, child.stderr]) {
     pending += chunk;
     const lines = pending.split('\n');
     pending = lines.pop();
-    for (const line of lines) console.log(line.replaceAll(fixture.password, '[fixture password]'));
+    for (const line of lines) console.log(redact(line));
   });
   stream.on('end', () => {
-    if (pending) console.log(pending.replaceAll(fixture.password, '[fixture password]'));
+    if (pending) console.log(redact(pending));
   });
 }
 child.on('error', (error) => {

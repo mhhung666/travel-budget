@@ -2,7 +2,7 @@ import type { SplitMode } from '@/lib/expenseSplit';
 import type { ExpenseAttachment } from '@/types';
 
 /**
- * 記帳表單的本機草稿（docs/UX_IMPROVEMENTS.md 第 1 項）。
+ * 記帳表單的本機草稿（docs/archive/history/UX_IMPROVEMENTS.md）。
  *
  * 旅行途中記帳常被打斷，關掉視窗就重填的挫折感很高，因此「新增支出」表單的內容
  * 在關閉時（以及編輯過程中）存進 localStorage，下次打開同一趟旅行可以接著填。
