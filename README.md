@@ -1,122 +1,50 @@
-# Travel Budget Planner — 旅行記帳
+# Travel Budget
 
-一個現代化、輕量級的**多人旅行記帳與分帳**應用程式，專為團隊出國旅行設計。協助大家輕鬆追蹤支出、自動計算誰該付誰多少、規劃行程，並支援多幣別每日參考匯率、收據附件、離線記帳與年度回顧。
+旅行記帳的單一 repository，包含 Next.js Web／後端與 Expo iOS／Android App。兩個應用共用一套後端和 API 契約，各自維護產品版本與發布流程。
 
-> 從 [核心文件](docs/README.md) 開始；完整的 [現有功能](docs/FEATURES.md) 與 [架構摘要](docs/ARCHITECTURE.md) 分開維護。
-
-## 核心功能
-
-- 多人旅程、真人／虛擬成員、多幣別支出、四種分攤方式、個人預算與還款結算。
-- 每日行程、票券、共享相簿、清單、筆記與活動紀錄。
-- AI 行程匯入、自然語言記帳與收據草稿（受限試用，確認後才寫入）。
-- 個人／群組統計、旅行地圖、年度回顧、旅行成就。
-- 站內／Email／Web Push 通知、PWA 與離線新增支出、四語系與深色模式。
-
-## 🛠 技術架構 (Tech Stack)
-
-| 層級 | 技術 |
-| --- | --- |
-| 框架 | [Next.js 16](https://nextjs.org/)（App Router）+ [React 19](https://react.dev/) |
-| 語言 | [TypeScript](https://www.typescriptlang.org/)（`strict`） |
-| 資料庫 | [MongoDB](https://www.mongodb.com/) + [Mongoose](https://mongoosejs.com/) ODM |
-| 後端 | **Server Actions**（主要）+ 少量 REST（公開分享 / 匯率 / 排程） |
-| 認證 | 自製 JWT（[`jose`](https://github.com/panva/jose)）+ httpOnly cookie；密碼 `bcryptjs` |
-| 驗證 | [Zod](https://zod.dev/) |
-| UI | [Shadcn UI](https://ui.shadcn.com/)（Radix）+ [Tailwind CSS](https://tailwindcss.com/) + [Lucide](https://lucide.dev/) 圖示 |
-| 資料查詢 | [TanStack React Query](https://tanstack.com/query)（+ IndexedDB 離線持久化） |
-| 圖表 / 地圖 | [Recharts](https://recharts.org/) / [Leaflet](https://leafletjs.com/) |
-| 國際化 | [next-intl](https://next-intl.dev/)（en / zh / zh-CN / jp） |
-| 檔案儲存 | [Cloudflare R2](https://developers.cloudflare.com/r2/)（S3 相容） |
-| 通知 | [Resend](https://resend.com/)（Email）+ [web-push](https://github.com/web-push-libs/web-push)（VAPID）+ Vercel Cron |
-| PWA / 離線 | [Serwist](https://serwist.pages.dev/)（service worker） |
-| 測試 | [Vitest](https://vitest.dev/) + Testing Library + jsdom |
-| 部署 | [Vercel](https://vercel.com/) |
-
-> 核心資料流與維護原則見 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
-
-## 📂 專案結構 (Project Structure)
-
-```
-src/
-├── actions/          # Server Actions（業務邏輯層，回傳 ActionResult<T>）⭐
-├── app/
-│   ├── (app)/        # 登入後頁面（route group，不改 URL）
-│   ├── (auth)/       # 登入與註冊
-│   ├── (public)/     # 公開加入/連結流程
-│   ├── (share)/      # 公開分享頁
-│   └── api/          # 公開分享 API + 匯率代理 + cron（排程）
-├── components/       # React 元件（依功能分組：trips / stats / map / wrapped / ui...）
-├── hooks/            # Custom hooks（+ queries/：React Query 查詢 / 失效層）
-├── i18n/             # 國際化設定與四語系訊息檔
-├── lib/              # 核心邏輯（auth / permissions / settlement / storage / notify...）
-├── models/           # Mongoose 資料模型
-├── sw.ts             # Serwist service worker（離線快取 + Web Push）
-├── constants/        # categories / countries / currencies / routes
-└── types/            # TypeScript 型別與 DTO
-migrations/           # migrate-mongo 資料遷移腳本
-docs/                 # 專案文件（見 docs/README.md）
+```text
+apps/web/           Next.js Web、HTTP API、MongoDB models、migrations、外部服務
+apps/mobile/        Expo / React Native iOS、Android 用戶端
+packages/contracts/ 純 TypeScript / Zod API schema 與 OpenAPI
+docs/              跨應用開發規範與架構決策
 ```
 
-## 🚀 快速開始 (Getting Started)
+## 開始開發
 
-### 1. 前置需求
-- Node.js 20+ 與 [pnpm](https://pnpm.io/)（`packageManager: pnpm@11`）
-- 支援交易的 MongoDB replica set 或 sharded cluster（可使用 MongoDB Atlas）
+使用 `.node-version` 指定的 Node.js 24，以及根目錄 `package.json.packageManager` 指定的 pnpm。整個 repository 只在根目錄安裝依賴，並提交一份 `pnpm-lock.yaml`。
 
-### 2. 安裝依賴
 ```bash
-git clone <repository-url>
 cd travel-budget
 pnpm install
+cp apps/web/.env.example apps/web/.env
+cp apps/mobile/.env.example apps/mobile/.env.local
+pnpm dev:web
 ```
 
-### 3. 設定環境變數
-複製 `.env.example` 為 `.env`，至少填入 **`JWT_SECRET`** 與 **`MONGODB_URI`**：
-```bash
-cp .env.example .env
-```
+另一個終端機執行 `pnpm dev:mobile`。Web 的 MongoDB／JWT 設定留在 `apps/web/.env`；手機僅設定公開 API 位址 `EXPO_PUBLIC_API_BASE_URL`，不放後端密鑰。iOS 模擬器可用 `http://localhost:3000/api/v1`，Android 模擬器用 `http://10.0.2.2:3000/api/v1`，真機使用電腦的 LAN IP；正式 bundle 要求 HTTPS。
 
-| 變數 | 必填 | 說明 |
-| --- | --- | --- |
-| `JWT_SECRET` | ✅ | session JWT 簽章密鑰（至少 32 字元，無 fallback）。產生：`openssl rand -base64 48` |
-| `MONGODB_URI` | ✅ | MongoDB 連線字串（**不帶** `NEXT_PUBLIC_`，不暴露給前端） |
-| `R2_*`（6 個） | ⬜ | Cloudflare R2：收據 / 票券 / 頭像。未設定則上傳功能停用，其餘正常 |
-| `RESEND_API_KEY` / `RESEND_FROM` / `APP_URL` | ⬜ | Email 通知。未設定則不寄信，站內通知不受影響 |
-| `CRON_SECRET` | ⬜ | 保護 `/api/cron/*` 排程路由。未設定則 cron route 一律拒絕 |
-| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | ⬜ | Web Push。未設定則推播停用 |
-| `AI_PROVIDER` / `AI_MODEL` / provider key | ⬜ | AI 行程匯入、收據與文字記帳；支援 Vercel AI Gateway 或 OpenAI 直連。三種功能共用 `AI_MODEL`，模型須支援圖片輸入。未設定時只停用 AI 解析 |
-| `AI_DAILY_*` / `AI_*_MICRO_USD*` | ⬜ | 所有 AI 草稿共用的 MongoDB 持久化每日 request／成本上限；預設適合低流量試用，舊 `AI_IMPORT_*` 名稱仍相容 |
+| 根目錄指令                                          | 用途                                                |
+| --------------------------------------------------- | --------------------------------------------------- |
+| `pnpm dev` / `pnpm dev:web`                         | 啟動 Web／後端                                      |
+| `pnpm dev:mobile`                                   | 啟動 Expo                                           |
+| `pnpm mobile:ios` / `mobile:android` / `mobile:web` | 開啟手機平台或瀏覽器預覽                            |
+| `pnpm check`                                        | 契約產物、所有 workspace 型別、兩個應用 lint 與格式 |
+| `pnpm test:run`                                     | Web／後端與 Mobile 測試                             |
+| `pnpm build` / `pnpm start`                         | Web 正式建置／啟動，保留 webpack／Serwist           |
+| `pnpm export:check`                                 | Mobile iOS／Android／Web JS 與資源打包              |
+| `pnpm contracts:generate` / `contracts:check`       | 產生／檢查共用 OpenAPI                              |
 
-> 所有選用的外部服務皆 **env-gated**：未設定也能正常啟動與 CI build，只有對應功能停用。各變數的詳細說明見 [.env.example](.env.example)。
+應用原有指令可在各自目錄執行，也可從根目錄使用 `pnpm --filter @travel-budget/web <script>` 或 `pnpm --filter travel-budget-mobile <script>`。資料庫遷移由 Web 擁有，例如 `pnpm --filter @travel-budget/web migrate:status`；整併不會自動執行 migration。
 
-### 4. 啟動開發伺服器
-```bash
-pnpm dev
-```
-開啟 `http://localhost:3000`。資料庫索引會在首次連線時自動建立（`autoIndex`），無需手動初始化 schema。
+## 文件與發布
 
-> **PWA / 離線功能**在 dev 停用（Serwist 用 webpack、dev 走 Turbopack）。要測試離線 / 推播，請用 `pnpm build && pnpm start`。
+- [跨應用文件](docs/README.md)、[開發規範](docs/DEVELOPMENT.md)與[整併決策](docs/decisions/0001-monorepo.md)。
+- [Web／後端文件](apps/web/docs/README.md)與[環境設定](apps/web/README.md)。
+- [Mobile 文件](apps/mobile/docs/README.md)與[操作入口](apps/mobile/README.md)。
+- [共用 API 契約](packages/contracts/README.md)。
 
-## 📜 腳本指令 (Scripts)
+Web 與 Mobile 的產品版本分別只讀取 `apps/web/package.json.version` 與 `apps/mobile/package.json.version`；根 manifest 是開發協調工具，沒有產品版本。Mobile 透過 HTTP 呼叫後端，只引用共用契約，不引用 Web／MongoDB 原始碼。
 
-| 指令 | 說明 |
-| --- | --- |
-| `pnpm dev` | 開發伺服器（Turbopack） |
-| `pnpm build` | 生產建置（`next build --webpack`——Serwist 需要 webpack，勿改回 Turbopack） |
-| `pnpm start` | 執行生產版本 |
-| `pnpm lint` / `pnpm lint:fix` | ESLint 檢查 / 自動修正 |
-| `pnpm format` / `pnpm format:check` | Prettier 格式化 / 檢查 |
-| `pnpm test` / `pnpm test:run` | Vitest（watch / 單次） |
-| `pnpm test:coverage` | 測試覆蓋率報告 |
-| `pnpm test:ai-import-eval` | 明確啟用 live AI fixture 評估（會使用額度；可由 `AI_IMPORT_EVAL_CASE_LIMIT` 限制樣本） |
-| `pnpm test:ai-expense-text-eval` | 明確啟用自然語言記帳 live 評估（會使用額度；可限制案例數與間隔） |
-| `pnpm test:ai-receipt-eval` | 明確啟用收據圖片 live 評估（會使用圖片模型額度；可由 `AI_RECEIPT_EVAL_CASE_LIMIT` 限制樣本） |
-| `pnpm migrate:status` / `:up` / `:down` / `:create` | migrate-mongo 資料遷移（見 [docs/archive/details/MIGRATIONS.md](docs/archive/details/MIGRATIONS.md)） |
+Vercel 專案的 **Root Directory 設為 `apps/web`**，並啟用 **Include files outside of the Root Directory in the Build Step**，讓建置可讀到 workspace 和共用契約。`apps/web/vercel.json` 保留既有 cron。遠端設定須在下一次部署前更新，整併本身不會修改 Vercel 或發布 App。
 
-## 🤝 貢獻 (Contributing)
-
-歡迎提交 Pull Request 或 Issue。動工前請先讀 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)；新使用者字串記得**四語系都要補**。CI 會在 PR 跑 lint / format / test / build。
-
-## 📄 授權 (License)
-
-ISC License
+原同層 `travel-budget-mobile` 已棄用；後續開發、安裝、CI 與提交一律在本 repository。舊目錄僅保留歷史與回復用途。

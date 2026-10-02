@@ -1,0 +1,27 @@
+import { ActivityIndicator } from 'react-native';
+import { Redirect } from 'expo-router';
+import { useAuth } from './AuthProvider';
+import { LoginScreen } from './LoginScreen';
+import { errorMessage } from './errorMessage';
+import { Action, Notice, Page, Title } from '@/components/ui';
+import { useMessages } from '@/i18n/useMessages';
+
+export function EntryScreen() {
+  const auth = useAuth();
+  const t = useMessages();
+  if (auth.status === 'signedIn') return <Redirect href="/trips" />;
+  if (auth.status === 'signedOut') return <LoginScreen />;
+  return (
+    <Page style={{ justifyContent: 'center' }}>
+      <Title>{auth.status === 'loading' ? t.restoreTitle : t.restoreError}</Title>
+      {auth.status === 'loading' ? (
+        <ActivityIndicator accessibilityLabel={t.loading} />
+      ) : (
+        <>
+          <Notice>{errorMessage(auth.error, t)}</Notice>
+          <Action label={t.retry} onPress={() => void auth.manager.restore()} />
+        </>
+      )}
+    </Page>
+  );
+}

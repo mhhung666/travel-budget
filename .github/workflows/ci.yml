@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [master]
+    branches: [main, master]
   pull_request:
-    branches: [master]
+    branches: [main, master]
 
 # Cancel superseded runs on the same ref (e.g. rapid pushes to a PR).
 concurrency:
@@ -30,13 +30,13 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version-file: .node-version
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       # Isolated service, fresh UUID database; no secrets or production connection.
       # Keep these env vars scoped here: other opt-in DB suites have separate contracts.
       - name: Verify rounding, allocation, actual readers and money migration
-        run: pnpm exec vitest run src/__tests__/moneyAggregation.integration.test.ts src/__tests__/expenseMoneyMigration.integration.test.mjs
+        run: pnpm --filter @travel-budget/web exec vitest run src/__tests__/moneyAggregation.integration.test.ts src/__tests__/expenseMoneyMigration.integration.test.mjs
         env:
           MONGODB_QUEUE_TEST_URI: mongodb://127.0.0.1:27017
           MONGODB_QUEUE_TEST_ALLOW_WRITES: '1'
@@ -50,7 +50,7 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version-file: .node-version
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Start isolated replica set
@@ -62,7 +62,7 @@ jobs:
           done
           docker exec photo-test-mongo mongosh --quiet --eval 'rs.initiate({_id:"rs0",members:[{_id:0,host:"localhost:27017"}]})'
       - name: Verify retries, deduplication and cleanup races
-        run: pnpm exec vitest run src/__tests__/photoUploadJobs.integration.test.ts src/__tests__/photoAudit.test.mjs
+        run: pnpm --filter @travel-budget/web exec vitest run src/__tests__/photoUploadJobs.integration.test.ts src/__tests__/photoAudit.test.mjs
         env:
           PHOTO_UPLOAD_TEST_MONGODB_URI: mongodb://127.0.0.1:27017/?directConnection=true&replicaSet=rs0
       - if: always()
@@ -89,20 +89,46 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version-file: .node-version
           cache: pnpm
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Check shared contract artifact
+        run: pnpm contracts:check
+
+      - name: Check workspace types
+        run: pnpm typecheck
+
+      - name: Check workspace formatting
+        run: pnpm exec prettier --check package.json pnpm-workspace.yaml .github docs README.md AGENTS.md CLAUDE.md packages
+
       - name: Lint
-        run: pnpm lint
+        run: pnpm --filter @travel-budget/web lint
 
       - name: Check formatting
-        run: pnpm format:check
+        run: pnpm --filter @travel-budget/web format:check
 
       - name: Test
-        run: pnpm test:run
+        run: pnpm --filter @travel-budget/web test:run
 
       - name: Build
-        run: pnpm build
+        run: pnpm --filter @travel-budget/web build
+
+  mobile:
+    name: Mobile types, lint, tests and platform bundles
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter travel-budget-mobile check
+      - run: pnpm --filter travel-budget-mobile test
+      - run: pnpm --filter travel-budget-mobile exec expo install --check
+      - run: pnpm export:check

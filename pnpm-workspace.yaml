@@ -1,6 +1,31 @@
+packages:
+  - apps/*
+  - packages/*
+
 allowBuilds:
   '@parcel/watcher': true
   '@swc/core': true
   esbuild: true
   sharp: true
   unrs-resolver: true
+
+# Keep React ambient declarations consistent while app runtime versions stay independent.
+overrides:
+  '@types/react': 19.2.17
+
+# Published packages omit these runtime/type dependency edges.
+packageExtensions:
+  '@testing-library/jest-dom@6.9.1':
+    peerDependencies:
+      vitest: '*'
+    peerDependenciesMeta:
+      vitest:
+        optional: true
+  'react-leaflet@5.0.0':
+    dependencies:
+      '@types/leaflet': 1.9.21
+      '@types/geojson': 7946.0.16
+  '@react-leaflet/core@3.0.0':
+    dependencies:
+      '@types/leaflet': 1.9.21
+      '@types/geojson': 7946.0.16

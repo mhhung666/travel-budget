@@ -5,6 +5,8 @@ description: 在本機實跑 app 驗證行為變更（local MongoDB via docker +
 
 # 本 repo 的實跑驗證配方
 
+本 repository 已整併為 pnpm workspace。從 repository 根目錄先執行 `pnpm install`，再 `cd apps/web`；下列所有檔案路徑與指令以 Web app 目錄為工作目錄。
+
 無既有 .env.local 時，從零到可驅動的 UI 約需 3 步：
 
 ## 1. 起本機 MongoDB + env

@@ -1,20 +1,14 @@
-# 核心文件
+# 跨應用文件
 
-目前先統整現有功能，作為下一步討論的共同基礎。
+`travel-budget` 是 Web、Mobile 和 API 契約的唯一開發 repository。
 
-| 文件 | 用途 |
-| --- | --- |
-| [現有功能](FEATURES.md) | 使用者能做什麼、主要操作流程與使用限制 |
-| [AI 維護與測試](AI.md) | 三種 AI 功能的現況、設定、測試方式與評測入口 |
-| [架構摘要](ARCHITECTURE.md) | 核心資料流、程式入口與維護原則 |
-| [專案 README](../README.md) | 安裝、環境設定與開發指令 |
+| 文件                                         | 用途                                 |
+| -------------------------------------------- | ------------------------------------ |
+| [開發規範](DEVELOPMENT.md)                   | Workspace 指令、環境、版本與部署路徑 |
+| [Monorepo 決策](decisions/0001-monorepo.md)  | 邊界、整併來源與舊專案棄用方式       |
+| [Web／後端文件](../apps/web/docs/README.md)  | Web 現有功能、架構、AI 與歷史資料    |
+| [Mobile 文件](../apps/mobile/docs/README.md) | 手機現有功能、架構、驗收與路線       |
+| [共用契約](../packages/contracts/README.md)  | Schema、OpenAPI 與相容性             |
+| [Agent 規則](../AGENTS.md)                   | Repository-wide 開發與提交規範       |
 
-歷史測試結果、驗收紀錄、詳細設計與待辦已集中到 [archive](archive/README.md)，需要追溯時再查閱。封存不代表待辦完成，也不代表所有功能已通過正式環境驗收；目前不以封存清單安排下一步工作。
-
-## 維護方式
-
-- 現有功能變更時，更新 `FEATURES.md`；核心資料流改變時，更新 `ARCHITECTURE.md`。
-- 階段性改善清單結案後，現況反映到 `FEATURES.md`，原清單移入 `archive/history/`。
-- 主文件只保留現況，不累積測試流水帳、階段進度或候選功能。
-- 歷史報告與詳細資料放入 `archive/`，不要求日常閱讀或持續同步。
-- 程式碼與文件不一致時，以實作為準；應用程式版本只讀取 `package.json.version`。
+跨應用規範放在這裡，應用專屬文件留在各自的 `docs`。已實作功能和未完成工作仍依各應用的 FEATURES／ROADMAP 維護。
