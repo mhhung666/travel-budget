@@ -29,3 +29,9 @@ packageExtensions:
     dependencies:
       '@types/leaflet': 1.9.21
       '@types/geojson': 7946.0.16
+
+# Resolve native packages for local development and Linux CI/deployments.
+supportedArchitectures:
+  os: [current, darwin, linux]
+  cpu: [current, arm64, x64]
+  libc: [glibc, musl]
