@@ -1,0 +1,46 @@
+appId: ${MAESTRO_APP_ID}
+name: Resume a revoked session without restarting or manually refreshing
+---
+# verify-native waits for stale data and revokes A while the app is backgrounded.
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - launchApp:
+          clearState: false
+          stopApp: false
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      # The runner opened Recents; the centered card is the project just backgrounded.
+      # Launching Expo Go would open its separate HomeActivity instead.
+      - assertVisible: Expo Go
+      - tapOn:
+          point: '50%,50%'
+- runFlow: flows/signed-out.yaml
+- assertVisible: ${MAESTRO_SESSION_EXPIRED}
+- runFlow: flows/cold-start.yaml
+- runFlow: flows/signed-out.yaml
+- assertNotVisible: ${MAESTRO_SESSION_EXPIRED}
+- runFlow:
+    file: flows/login.yaml
+    env:
+      USERNAME: mobile-b
+- tapOn:
+    id: trip-${MAESTRO_SHARED_TRIP}
+- scrollUntilVisible:
+    element:
+      id: trip-budget
+- assertVisible:
+    id: trip-budget
+    text: 'TWD[ \u00a0]9,000'
+- scrollUntilVisible:
+    element:
+      id: trip-back
+    direction: UP
+- tapOn:
+    id: trip-back
+- tapOn:
+    id: logout
+- runFlow: flows/signed-out.yaml

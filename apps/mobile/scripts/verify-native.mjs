@@ -1,11 +1,12 @@
 /** Run local Expo Go acceptance against the disposable backend fixture. */
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { mkdtemp, readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
+import { setTimeout as delay } from 'node:timers/promises';
 // Node 24 can load this pure TypeScript table without changing the Expo package module type.
 const { messages } = createRequire(import.meta.url)('../src/i18n/messages.ts');
 
@@ -22,11 +23,18 @@ const { values } = parseArgs({
 assert(['ios', 'android'].includes(values.platform), 'Use --platform ios|android');
 assert(values.device, 'Select a simulator with --device <UUID or emulator serial>');
 assert(values.fixture, 'Use --fixture <path printed by dev:mobile-api>');
-assert(['auth-trips', 'sessions'].includes(values.suite), 'Use --suite auth-trips|sessions');
+assert(
+  ['auth-trips', 'sessions', 'lifecycle'].includes(values.suite),
+  'Use --suite auth-trips|sessions|lifecycle'
+);
+const needsControl = values.suite !== 'auth-trips';
 assert(Object.hasOwn(messages, values.locale), 'Use --locale en|zh|zh-CN|jp (must match device)');
 const port = Number(values['metro-port']);
 assert(Number.isInteger(port) && port > 0 && port < 65536, 'Use --metro-port <local Metro port>');
 const fixture = JSON.parse(await readFile(values.fixture, 'utf8'));
+const now = new Date();
+const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+assert.equal(fixture.date, today, 'Fixture is from another day; restart dev:mobile-api and Metro');
 const api = new URL(fixture.apiUrl);
 assert(
   api.protocol === 'http:' && api.hostname === '127.0.0.1' && api.pathname === '/api/v1',
@@ -40,7 +48,7 @@ for (const key of ['sharedTrip', 'privateTrip'])
   assert(/^[a-f0-9]{24}$/.test(fixture[key]), `Invalid ${key}`);
 const response = await fetch(`${api}/me`, { signal: AbortSignal.timeout(5000) });
 assert.equal(response.status, 401, 'Start dev:mobile-api before native acceptance');
-if (values.suite === 'sessions') {
+if (needsControl) {
   assert(fixture.controlUrl, 'Restart dev:mobile-api to enable session acceptance');
   const control = new URL(fixture.controlUrl);
   assert(
@@ -79,52 +87,94 @@ const env = {
   MAESTRO_RECEIVABLE: t.receivable,
   MAESTRO_PAYABLE: t.payable,
   MAESTRO_SESSION_EXPIRED: t.sessionExpired,
-  ...(values.suite === 'sessions'
+  ...(needsControl
     ? { MAESTRO_CONTROL_URL: fixture.controlUrl, MAESTRO_CONTROL_TOKEN: fixture.controlToken }
     : {}),
 };
 console.log(`Running ${values.platform} native acceptance; local artifacts: ${artifacts}`);
-const child = spawn(
-  'maestro',
-  [
-    '--device',
-    values.device,
-    'test',
-    '--no-ansi',
-    '--test-output-dir',
-    artifacts,
-    `maestro/${values.suite}.yaml`,
-  ],
-  { env, stdio: ['inherit', 'pipe', 'pipe'] }
-);
-const stop = (signal) => child.kill(signal);
-process.on('SIGINT', stop);
-process.on('SIGTERM', stop);
-// Maestro may echo inputText values; keep the disposable password out of terminal output.
+// Maestro may echo inputText values; keep fixture credentials out of terminal output.
 const redact = (line) => {
   for (const secret of [fixture.password, fixture.controlToken].filter(Boolean))
     line = line.replaceAll(secret, '[fixture credential]');
   return line;
 };
-for (const stream of [child.stdout, child.stderr]) {
-  stream.setEncoding('utf8');
-  let pending = '';
-  stream.on('data', (chunk) => {
-    pending += chunk;
-    const lines = pending.split('\n');
-    pending = lines.pop();
-    for (const line of lines) console.log(redact(line));
-  });
-  stream.on('end', () => {
-    if (pending) console.log(redact(pending));
+let child;
+const interrupted = new AbortController();
+const stop = () => {
+  interrupted.abort();
+  child?.kill('SIGTERM');
+};
+process.on('SIGINT', stop);
+process.on('SIGTERM', stop);
+async function runFlow(flow) {
+  interrupted.signal.throwIfAborted();
+  child = spawn(
+    'maestro',
+    [
+      '--device',
+      values.device,
+      'test',
+      '--no-ansi',
+      '--test-output-dir',
+      join(artifacts, flow),
+      `maestro/${flow}.yaml`,
+    ],
+    { env, stdio: ['inherit', 'pipe', 'pipe'] }
+  );
+  for (const stream of [child.stdout, child.stderr]) {
+    stream.setEncoding('utf8');
+    let pending = '';
+    stream.on('data', (chunk) => {
+      pending += chunk;
+      const lines = pending.split('\n');
+      pending = lines.pop();
+      for (const line of lines) console.log(redact(line));
+    });
+    stream.on('end', () => {
+      if (pending) console.log(redact(pending));
+    });
+  }
+  await new Promise((resolve, reject) => {
+    child.once('error', reject);
+    child.once('close', (code) => {
+      child = undefined;
+      if (code === 0) resolve();
+      else reject(new Error(`Maestro ${flow} failed (${code ?? 'interrupted'})`));
+    });
   });
 }
-child.on('error', (error) => {
-  console.error(`Unable to run Maestro: ${error.message}`);
+try {
+  if (values.suite === 'lifecycle') {
+    await runFlow('lifecycle-background');
+    // The production cache is fresh for 30 seconds. Wait on the host while the
+    // actual app stays backgrounded; do not shorten product timers for acceptance.
+    console.log('App is backgrounded; waiting 35 seconds for cached data to become stale.');
+    await delay(35_000, undefined, { signal: interrupted.signal });
+    const revoked = await fetch(`${fixture.controlUrl}/revoke-a`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${fixture.controlToken}` },
+      signal: AbortSignal.any([interrupted.signal, AbortSignal.timeout(5000)]),
+    });
+    assert.equal(revoked.status, 200, 'Unable to revoke the background session');
+    assert((await revoked.json()).affectedSessions > 0, 'No background session was revoked');
+    if (values.platform === 'android') {
+      // Expo Go's launcher activity is a separate task from the running project.
+      // Open Recents so Maestro can resume the existing project card instead.
+      const sdk = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT;
+      execFileSync(
+        sdk ? join(sdk, 'platform-tools', 'adb') : 'adb',
+        ['-s', values.device, 'shell', 'input', 'keyevent', 'KEYCODE_APP_SWITCH'],
+        { timeout: 5000 }
+      );
+    }
+    await runFlow('lifecycle-resume');
+  } else {
+    await runFlow(values.suite);
+  }
+} catch (error) {
+  console.error(redact(error.message));
   process.exitCode = 1;
-});
-child.on('close', (code) => {
+} finally {
   process.removeListener('SIGINT', stop);
   process.removeListener('SIGTERM', stop);
-  process.exitCode = code ?? 1;
-});
+}
