@@ -16,6 +16,8 @@
     "format:check": "prettier --check \"src/**/*.{ts,tsx,json,css}\"",
     "test": "vitest",
     "test:run": "vitest run",
+    "test:mobile-api": "node scripts/verify-mobile-api.mjs",
+    "dev:mobile-api": "node scripts/verify-mobile-api.mjs --serve",
     "test:offline-browser": "node scripts/verify-offline-expenses.mjs",
     "test:ai-accuracy": "RUN_AI_ACCURACY_DIAGNOSTIC=1 vitest run src/__tests__/aiAccuracyDiagnostic.test.ts --maxWorkers=1",
     "test:ai-import-eval": "RUN_AI_IMPORT_EVAL=1 vitest run src/__tests__/itineraryImportLiveEvaluation.test.ts",

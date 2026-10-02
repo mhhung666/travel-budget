@@ -8,6 +8,7 @@
 | [架構](ARCHITECTURE.md)                                  | 目錄、依賴方向、資料流及平台邊界         |
 | [開發規範](DEVELOPMENT.md)                               | 環境、指令、既有規則、測試與發布         |
 | [後端契約](BACKEND_CONTRACT.md)                          | 單一後端分工、待實作 API、認證與離線契約 |
+| [本機驗收](LOCAL_ACCEPTANCE.md)                          | 隔離後端、測試帳號、模擬器與真機操作表   |
 | [開發路線](ROADMAP.md)                                   | 下一階段工作與驗收條件                   |
 | [整併決策](../../../docs/decisions/0001-monorepo.md)     | 單一 repository、workspace 與發布邊界    |
 | [原始獨立專案決策](decisions/0001-project-boundaries.md) | 已被整併決策取代的初始化紀錄             |

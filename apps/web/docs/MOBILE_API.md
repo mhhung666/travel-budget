@@ -14,7 +14,7 @@
 
 新增 `20261002100000-mobile-session-expiry.js` 為 session／登入限制紀錄建立 TTL 索引。此次實作不執行遠端 migration；正式環境沿用既有 migration 流程。即使 TTL 尚未清理，授權仍會檢查 expiresAt。
 
-測試在 `apps/web` 執行：`pnpm exec vitest run src/__tests__/mobileSession.test.ts src/__tests__/mobileTrips.test.ts src/__tests__/mobileHttp.test.ts`。目前測試使用隔離的 model mocks；實際 MongoDB、手機 SecureStore 與 iOS／Android 真機串接仍須在測試環境驗收。
+測試在 `apps/web` 執行：`pnpm exec vitest run src/__tests__/mobileSession.test.ts src/__tests__/mobileTrips.test.ts src/__tests__/mobileHttp.test.ts`。這組單元測試使用隔離的 model mocks。另可執行 `pnpm test:mobile-api`，以可丟棄的 Docker MongoDB 與 Next.js 開發伺服器驗證實際 HTTP／資料庫流程；`pnpm dev:mobile-api` 保留環境與測試帳號供裝置連線。手機 SecureStore 與 iOS／Android 真機串接仍需操作驗收，詳見 [本機驗收流程](../../mobile/docs/LOCAL_ACCEPTANCE.md)。
 
 尚無手機支出寫入、離線 outbox、附件上傳、推播或帳號刪除 API。
 
