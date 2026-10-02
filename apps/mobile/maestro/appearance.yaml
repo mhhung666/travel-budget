@@ -1,0 +1,80 @@
+appId: ${MAESTRO_APP_ID}
+name: Large text login, keyboard and trip navigation
+---
+# Set the simulator's font size and appearance before running this flow.
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: reset-limits
+- stopApp
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - launchApp:
+          clearState: false
+          stopApp: false
+- openLink: ${MAESTRO_EXPO_URL}
+- extendedWaitUntil:
+    visible: '${MAESTRO_TITLE}|TEST mobile-(a|b|empty)'
+    timeout: 60000
+- runFlow:
+    when:
+      visible: 'TEST mobile-(a|b|empty)'
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: logout
+      - tapOn:
+          id: logout
+- scrollUntilVisible:
+    element:
+      id: login-submit
+- tapOn:
+    id: login-submit
+- assertVisible: ${MAESTRO_REQUIRED}
+- takeScreenshot: large-text-validation
+- scrollUntilVisible:
+    element:
+      id: login-username
+    direction: UP
+- tapOn:
+    id: login-username
+- inputText: mobile-a
+- scrollUntilVisible:
+    element:
+      id: login-password
+- tapOn:
+    id: login-password
+- inputText: ${MAESTRO_PASSWORD}
+# Do not dismiss the keyboard explicitly; submit must be reachable after editing.
+- scrollUntilVisible:
+    element:
+      id: login-submit
+- takeScreenshot: large-text-keyboard
+- tapOn:
+    id: login-submit
+- extendedWaitUntil:
+    visible: TEST mobile-a
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      id: trip-${MAESTRO_SHARED_TRIP}
+    visibilityPercentage: 30
+- takeScreenshot: large-text-trip-list
+- runFlow:
+    file: flows/summary.yaml
+    env:
+      SPENT: 'TWD[ \u00a0]50'
+      BUDGET: 'TWD[ \u00a0]1,000'
+      BALANCE_LABEL: ${MAESTRO_RECEIVABLE}
+- scrollUntilVisible:
+    element:
+      id: logout
+- tapOn:
+    id: logout
+- scrollUntilVisible:
+    element:
+      id: login-submit
+- assertNotVisible:
+    id: trip-budget

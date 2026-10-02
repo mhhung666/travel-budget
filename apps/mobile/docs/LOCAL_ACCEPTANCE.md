@@ -116,6 +116,18 @@ HTTP／MongoDB 與下節的模擬器流程各自驗證不同層次；本表的�
 
 執行 network 前重啟對應 Metro，將 API 改為 `http://127.0.0.1:61110/api/v1`（iOS）或 `http://10.0.2.2:61110/api/v1`（Android）；保留原來的 `--fixture` 與 Metro port。`61110` 可換成其他未占用 port，但須與 `--network-port` 相同。代理只在驗收程序執行時存在；結束或中斷會關閉，之後一般開發須把 Metro API 改回 fixture 後端位址。故障控制需獨立隨機憑證，不更改產品 API；中斷／逾時請求不會轉送或消耗後端 refresh 憑證。
 
+`--suite appearance` 驗證大字體下的必填提示、表單捲動、登入、旅行金額、返回與登出，並將畫面留在私有驗收目錄。先記下裝置原本設定，再調整字級／深淺色；工具不會代改設定。旅行卡片可能高於螢幕，因此只要求部分可見後點擊；金額與操作按鈕仍須完整可見。
+
+```bash
+# IOS_UUID 換成模擬器 UUID；xcrun 指令省略最後一個參數可讀取原值
+xcrun simctl ui IOS_UUID content_size accessibility-extra-extra-extra-large
+xcrun simctl ui IOS_UUID appearance dark
+# Android 原值：settings get system font_scale；cmd uimode night
+adb -s emulator-5554 shell settings put system font_scale 2.0
+adb -s emulator-5554 shell cmd uimode night yes
+# 使用下方 test:native 指令，將 suite 換成 appearance；結束後還原原值
+```
+
 安裝 [Maestro CLI](https://docs.maestro.dev/maestro-cli/how-to-install-maestro-cli)（Java 17 以上）；macOS 可用 `brew install mobile-dev-inc/tap/maestro`。不需登入 Maestro Cloud。先依上文啟動隔離後端、模擬器及對應 API 位址的 Metro，確認 Expo Go 可開啟此專案。Android 的 localhost Metro 由 Expo CLI 設定 adb reverse。
 
 在 repository 根目錄執行，替換 `FIXTURE_PATH` 與 `IOS_UUID`；`--metro-port` 要與該平台的 Expo 指令一致：
@@ -141,10 +153,10 @@ pnpm --filter travel-budget-mobile test:native --suite sessions \
 
 `FIXTURE_PATH` 是 `dev:mobile-api` 輸出的暫存 `fixture.json`，不是帳號設定檔。工具只接受 loopback 的隔離後端資料，帳號固定為 `mobile-a`／`mobile-b`／`mobile-empty`，密碼透過環境傳入 Maestro。勿使用正式帳號；本機診斷檔可能包含 fixture 密碼與畫面，放在每次產生的私有暫存目錄，勿提交。
 
-預設 `--suite auth-trips`；將上述指令的 `--suite sessions` 換成 `--suite lifecycle` 可驗收前後景。lifecycle、sessions 與 network 都需要保留環境輸出的控制通道。若提示缺少控制資訊，重啟 `dev:mobile-api` 並更新 Metro API 位址。session／lifecycle／network 流程開始會清除此 fixture 的登入次數限制；撤銷／到期命令必須實際影響至少一個有效 session，否則測試失敗。控制請求由電腦上的驗收工具發出，不從手機呼叫。
+預設 `--suite auth-trips`；將上述指令的 `--suite sessions` 換成 `--suite lifecycle` 可驗收前後景。lifecycle、sessions、network 與 appearance 都需要保留環境輸出的控制通道。若提示缺少控制資訊，重啟 `dev:mobile-api` 並更新 Metro API 位址。session／lifecycle／network／appearance 流程開始會清除此 fixture 的登入次數限制；撤銷／到期命令必須實際影響至少一個有效 session，否則測試失敗。控制請求由電腦上的驗收工具發出，不從手機呼叫。
 
 預設驗證英文；裝置使用其他語系時，傳入 `--locale zh`／`zh-CN`／`jp`，工具不會改變裝置語系。此選項只切換斷言用的文字，不代表四語皆已驗收。深淺色與文字大小由裝置設定控制。第一次開啟 Expo Go 的系統提示請先完成，再跑流程。iOS 測試模擬器請在 Settings → General → AutoFill & Passwords 關閉 AutoFill Passwords and Passkeys，避免系統儲存密碼提示遮住測試；這不改動 App 的自動填寫能力，也不代表已驗證密碼管理器整合。重複執行若觸發 429，在隔離後端終端輸入 `reset-limits` 後再試。
 
-最近驗收：2026-10-03，Expo Go／英文，iPhone 18 Pro（iOS 27）與 Pixel 9 模擬器（API 36）的 `lifecycle`、`network` 流程皆通過。
+最近驗收：2026-10-03，Expo Go／英文，iPhone 18 Pro（iOS 27）與 Pixel 9 模擬器（API 36）的 `lifecycle`、`network` 流程皆通過。`appearance` 另通過 iOS 最大輔助字級／深色，以及 Android 2 倍字級／深色、預設字級／淺色；Android 截圖確認軟體鍵盤開啟時可提交。
 
-此自動化補上可重跑的原生核心、session 失效與前後景撤銷流程；裝置斷網／飛航模式、限速與封包遺失、access JWT 自然到期、螢幕閱讀器及實體裝置仍按上表驗收。它不替代 development build、簽章或商店驗收。
+仍待驗收：完整四語與外觀組合、iOS 軟體鍵盤遮擋、裝置斷網／飛航模式、限速與封包遺失、access JWT 自然到期、螢幕閱讀器及實體裝置。它不替代 development build、簽章或商店驗收。

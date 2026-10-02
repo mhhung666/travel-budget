@@ -2,6 +2,8 @@ appId: ${MAESTRO_APP_ID}
 ---
 - tapOn:
     id: trip-${MAESTRO_SHARED_TRIP}
+    # The top of a large-text card is visible before its off-screen center.
+    point: '50%,10%'
 - scrollUntilVisible:
     element:
       id: trip-my-spent
@@ -31,5 +33,7 @@ appId: ${MAESTRO_APP_ID}
     element:
       id: trip-back
     direction: UP
+    timeout: 60000
+    speed: 80
 - tapOn:
     id: trip-back

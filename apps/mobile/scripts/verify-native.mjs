@@ -26,8 +26,8 @@ assert(['ios', 'android'].includes(values.platform), 'Use --platform ios|android
 assert(values.device, 'Select a simulator with --device <UUID or emulator serial>');
 assert(values.fixture, 'Use --fixture <path printed by dev:mobile-api>');
 assert(
-  ['auth-trips', 'sessions', 'lifecycle', 'network'].includes(values.suite),
-  'Use --suite auth-trips|sessions|lifecycle|network'
+  ['auth-trips', 'sessions', 'lifecycle', 'network', 'appearance'].includes(values.suite),
+  'Use --suite auth-trips|sessions|lifecycle|network|appearance'
 );
 const needsControl = values.suite !== 'auth-trips';
 assert(Object.hasOwn(messages, values.locale), 'Use --locale en|zh|zh-CN|jp (must match device)');
@@ -82,6 +82,7 @@ const env = {
   MAESTRO_PASSWORD: fixture.password,
   MAESTRO_SHARED_TRIP: fixture.sharedTrip,
   MAESTRO_PRIVATE_TRIP: fixture.privateTrip,
+  MAESTRO_TITLE: t.title,
   MAESTRO_REQUIRED: t.required,
   MAESTRO_INVALID: t.invalidCredentials,
   MAESTRO_EMPTY: t.noTrips,
