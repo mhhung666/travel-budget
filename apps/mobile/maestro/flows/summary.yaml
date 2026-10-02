@@ -1,0 +1,35 @@
+appId: ${MAESTRO_APP_ID}
+---
+- tapOn:
+    id: trip-${MAESTRO_SHARED_TRIP}
+- scrollUntilVisible:
+    element:
+      id: trip-my-spent
+- assertVisible:
+    id: trip-my-spent
+    text: ${SPENT}
+- scrollUntilVisible:
+    element:
+      id: trip-balance
+- assertVisible: ${BALANCE_LABEL}
+- assertVisible:
+    id: trip-balance
+    text: 'TWD[ \u00a0]50\.01'
+- scrollUntilVisible:
+    element:
+      id: trip-group-spent
+- assertVisible:
+    id: trip-group-spent
+    text: 'TWD[ \u00a0]100\.01'
+- scrollUntilVisible:
+    element:
+      id: trip-budget
+- assertVisible:
+    id: trip-budget
+    text: ${BUDGET}
+- scrollUntilVisible:
+    element:
+      id: trip-back
+    direction: UP
+- tapOn:
+    id: trip-back

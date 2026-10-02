@@ -15,7 +15,12 @@ export function TripScreen({ id }: { id: string }) {
     query.error && 'status' in query.error && [401, 403, 404].includes(Number(query.error.status));
   return (
     <Page>
-      <Action secondary label={t.back} onPress={() => router.replace('/trips')} />
+      <Action
+        testID="trip-back"
+        secondary
+        label={t.back}
+        onPress={() => router.replace('/trips')}
+      />
       {!online && <Notice>{t.offline}</Notice>}
       {query.isPending && online && <ActivityIndicator accessibilityLabel={t.loading} />}
       {query.isError && (
@@ -40,15 +45,21 @@ export function TripScreen({ id }: { id: string }) {
           <View style={{ marginTop: 8 }}>
             <Title>{t.overview}</Title>
           </View>
-          <Metric label={t.mySpent} value={money(trip.mySpent)} />
+          <Metric testID="trip-my-spent" label={t.mySpent} value={money(trip.mySpent)} />
           <Metric
+            testID="trip-balance"
             label={
               trip.myBalance === 0 ? t.balanced : trip.myBalance > 0 ? t.receivable : t.payable
             }
             value={money(Math.abs(trip.myBalance))}
           />
-          <Metric label={t.todayGroupSpent} value={money(trip.todayGroupSpent)} />
           <Metric
+            testID="trip-group-spent"
+            label={t.todayGroupSpent}
+            value={money(trip.todayGroupSpent)}
+          />
+          <Metric
+            testID="trip-budget"
             label={t.budgetTotal}
             value={trip.budgetTotal === null ? t.notSet : money(trip.budgetTotal)}
           />
@@ -57,6 +68,7 @@ export function TripScreen({ id }: { id: string }) {
           <Copy>{t.baseCurrency}</Copy>
           <Notice>{t.nextFeatures}</Notice>
           <Action
+            testID="trip-refresh"
             secondary
             label={query.isFetching ? t.loading : t.refresh}
             busy={query.isFetching}

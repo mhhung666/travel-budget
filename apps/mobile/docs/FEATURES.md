@@ -15,4 +15,4 @@ Web 匯出只提供介面預覽，登入明確停用；不把憑證降級存到 
 
 尚未提供手機註冊、建立／加入旅行、記帳寫入、支出明細、結算操作、行程編輯、附件、SQLite 離線儲存、推播或帳號刪除。摘要中的後續功能說明不會假裝是可操作入口。
 
-已有 API client／session 行為測試與 CI。App ID、簽章、EAS、商店資訊及正式圖示尚未設定。原生打包匯出不等於原生編譯；iOS／Android 裝置驗收仍待執行，見 [開發規範](DEVELOPMENT.md)。
+已有 API client／session 行為測試與 CI。App ID、簽章、EAS、商店資訊及正式圖示尚未設定。原生打包匯出不等於原生編譯；已有 Maestro 模擬器核心流程；iOS／Android 完整真機驗收仍待完成，見 [本機驗收](LOCAL_ACCEPTANCE.md)。

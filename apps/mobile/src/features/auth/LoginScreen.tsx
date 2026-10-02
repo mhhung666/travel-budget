@@ -54,6 +54,7 @@ export function LoginScreen() {
           <Copy>{t.loginHint}</Copy>
           <Text style={{ color: p.text, fontSize: 16 }}>{t.username}</Text>
           <TextInput
+            testID="login-username"
             accessibilityLabel={t.username}
             value={username}
             onChangeText={setUsername}
@@ -71,6 +72,7 @@ export function LoginScreen() {
           />
           <Text style={{ color: p.text, fontSize: 16 }}>{t.password}</Text>
           <TextInput
+            testID="login-password"
             ref={passwordInput}
             accessibilityLabel={t.password}
             value={password}
@@ -92,6 +94,7 @@ export function LoginScreen() {
           {!error && !!sessionError && <Notice>{errorMessage(sessionError, t)}</Notice>}
           {Platform.OS === 'web' && <Notice>{t.nativeOnly}</Notice>}
           <Action
+            testID="login-submit"
             label={busy ? t.signingIn : t.login}
             busy={busy}
             disabled={Platform.OS === 'web'}

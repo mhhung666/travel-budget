@@ -1,0 +1,115 @@
+appId: ${MAESTRO_APP_ID}
+name: Local login, trips and account isolation
+---
+# Preserve SecureStore; signing out through the UI makes repeated runs safe.
+- stopApp
+# Start the Expo Go container before opening a project link on Android.
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - launchApp:
+          clearState: false
+          stopApp: false
+- openLink: ${MAESTRO_EXPO_URL}
+- extendedWaitUntil:
+    visible:
+      id: 'logout|login-username'
+    timeout: 60000
+- runFlow:
+    when:
+      visible:
+        id: logout
+    commands:
+      - tapOn:
+          id: logout
+- extendedWaitUntil:
+    visible:
+      id: login-submit
+    timeout: 30000
+- tapOn:
+    id: login-submit
+- assertVisible: ${MAESTRO_REQUIRED}
+- tapOn:
+    id: login-username
+- inputText: mobile-a
+- tapOn:
+    id: login-password
+- inputText: incorrect-fixture-password
+- scrollUntilVisible:
+    element:
+      id: login-submit
+- tapOn:
+    id: login-submit
+- assertVisible: ${MAESTRO_INVALID}
+- runFlow:
+    file: flows/login.yaml
+    env:
+      USERNAME: mobile-a
+- runFlow:
+    file: flows/summary.yaml
+    env:
+      SPENT: 'TWD[ \u00a0]50'
+      BUDGET: 'TWD[ \u00a0]1,000'
+      BALANCE_LABEL: ${MAESTRO_RECEIVABLE}
+# Cold start must restore the real SecureStore refresh credential.
+- stopApp
+# Start the Expo Go container before opening a project link on Android.
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - launchApp:
+          clearState: false
+          stopApp: false
+- openLink: ${MAESTRO_EXPO_URL}
+- extendedWaitUntil:
+    visible: TEST mobile-a
+    timeout: 60000
+- assertNotVisible:
+    id: login-submit
+- scrollUntilVisible:
+    element:
+      id: trips-load-more
+    timeout: 120000
+    speed: 90
+- tapOn:
+    id: trips-load-more
+- scrollUntilVisible:
+    element: TEST Archived
+    timeout: 30000
+- assertNotVisible:
+    id: trips-load-more
+- openLink: ${MAESTRO_EXPO_URL}/--/trips/${MAESTRO_PRIVATE_TRIP}
+- assertVisible: ${MAESTRO_NOT_FOUND}
+- assertNotVisible:
+    id: trip-budget
+- tapOn:
+    id: trip-back
+- tapOn:
+    id: logout
+- runFlow:
+    file: flows/login.yaml
+    env:
+      USERNAME: mobile-b
+- assertNotVisible: TEST mobile-a
+- runFlow:
+    file: flows/summary.yaml
+    env:
+      SPENT: 'TWD[ \u00a0]50\.01'
+      BUDGET: 'TWD[ \u00a0]9,000'
+      BALANCE_LABEL: ${MAESTRO_PAYABLE}
+- tapOn:
+    id: logout
+- runFlow:
+    file: flows/login.yaml
+    env:
+      USERNAME: mobile-empty
+- assertVisible: ${MAESTRO_EMPTY}
+- assertNotVisible: TEST mobile-b
+- assertNotVisible:
+    id: trip-${MAESTRO_SHARED_TRIP}
+- tapOn:
+    id: logout
+- assertVisible:
+    id: login-submit

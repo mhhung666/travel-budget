@@ -41,16 +41,19 @@ export function Action({
   disabled = false,
   secondary = false,
   busy = false,
+  testID,
 }: {
   label: string;
   onPress: () => void;
   disabled?: boolean;
   secondary?: boolean;
   busy?: boolean;
+  testID?: string;
 }) {
   const p = usePalette();
   return (
     <Pressable
+      testID={testID}
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ disabled: disabled || busy, busy }}
@@ -86,12 +89,22 @@ export function Notice({ children }: PropsWithChildren) {
     </View>
   );
 }
-export function Metric({ label, value }: { label: string; value: string }) {
+export function Metric({
+  label,
+  value,
+  testID,
+}: {
+  label: string;
+  value: string;
+  testID?: string;
+}) {
   const p = usePalette();
   return (
     <View style={[styles.metric, { backgroundColor: p.surface, borderColor: p.border }]}>
       <Copy>{label}</Copy>
-      <Text style={{ fontSize: 24, fontWeight: '700', color: p.text }}>{value}</Text>
+      <Text testID={testID} style={{ fontSize: 24, fontWeight: '700', color: p.text }}>
+        {value}
+      </Text>
     </View>
   );
 }

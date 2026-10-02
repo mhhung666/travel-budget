@@ -100,4 +100,28 @@ iOS／Android 各自記錄裝置、OS、Expo Go／development build、語系、�
 | 繁中、簡中、英文、日文；深淺色                 | 翻譯、數字、對比與畫面完整                                |
 | 大字體、鍵盤、螢幕閱讀器                       | 可捲動並操作登入、返回、載入更多；按鈕有標籤              |
 
-目前自動化只驗證 HTTP／MongoDB；本表的原生操作結果須另行記錄。模擬器通過也不能直接標示兩平台真機驗收完成。
+HTTP／MongoDB 與下節的模擬器流程各自驗證不同層次；本表的原生操作結果須另行記錄。模擬器通過也不能直接標示兩平台真機驗收完成。
+
+## 可重跑的模擬器驗收
+
+`maestro/auth-trips.yaml` 透過原生畫面操作實際 API，涵蓋必填／錯誤密碼、A 的旅行摘要、冷啟動恢復登入、載入第二頁、非成員旅行拒絕、切換 B 的金額／預算，以及 empty 的空狀態。使用 Expo Go，不清除 App 或 Keychain／SecureStore；每次執行先正常登出，結束也正常登出。
+
+安裝 [Maestro CLI](https://docs.maestro.dev/maestro-cli/how-to-install-maestro-cli)（Java 17 以上）；macOS 可用 `brew install mobile-dev-inc/tap/maestro`。不需登入 Maestro Cloud。先依上文啟動隔離後端、模擬器及對應 API 位址的 Metro，確認 Expo Go 可開啟此專案。Android 的 localhost Metro 由 Expo CLI 設定 adb reverse。
+
+在 repository 根目錄執行，替換 `FIXTURE_PATH` 與 `IOS_UUID`；`--metro-port` 要與該平台的 Expo 指令一致：
+
+```bash
+pnpm --filter travel-budget-mobile test:native \
+  --platform ios --device IOS_UUID \
+  --fixture FIXTURE_PATH --metro-port 8083
+
+pnpm --filter travel-budget-mobile test:native \
+  --platform android --device emulator-5554 \
+  --fixture FIXTURE_PATH --metro-port 8082
+```
+
+`FIXTURE_PATH` 是 `dev:mobile-api` 輸出的暫存 `fixture.json`，不是帳號設定檔。工具只接受 loopback 的隔離後端資料，帳號固定為 `mobile-a`／`mobile-b`／`mobile-empty`，密碼透過環境傳入 Maestro。勿使用正式帳號；本機診斷檔可能包含 fixture 密碼與畫面，放在每次產生的私有暫存目錄，勿提交。
+
+預設驗證英文；裝置使用其他語系時，傳入 `--locale zh`／`zh-CN`／`jp`，工具不會改變裝置語系。此選項只切換斷言用的文字，不代表四語皆已驗收。深淺色與文字大小由裝置設定控制。第一次開啟 Expo Go 的系統提示請先完成，再跑流程。iOS 測試模擬器請在 Settings → General → AutoFill & Passwords 關閉 AutoFill Passwords and Passkeys，避免系統儲存密碼提示遮住測試；這不改動 App 的自動填寫能力，也不代表已驗證密碼管理器整合。重複執行若觸發 429，在隔離後端終端輸入 `reset-limits` 後再試。
+
+此自動化補上可重跑的原生核心流程；弱網、撤銷／到期、螢幕閱讀器及實體裝置仍按上表驗收。它不替代 development build、簽章或商店驗收。

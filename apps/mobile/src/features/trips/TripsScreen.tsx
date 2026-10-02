@@ -33,6 +33,7 @@ export function TripsScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: p.background }}>
       <FlatList
+        testID="trips-list"
         data={trips}
         keyExtractor={(trip) => trip.id}
         contentContainerStyle={[styles.page, { flexGrow: 1 }]}
@@ -49,6 +50,7 @@ export function TripsScreen() {
             <Title>{t.trips}</Title>
             <Copy>{t.tripsHint}</Copy>
             <Action
+              testID="logout"
               secondary
               label={loggingOut ? t.loggingOut : t.logout}
               busy={loggingOut}
@@ -88,6 +90,7 @@ export function TripsScreen() {
         }
         renderItem={({ item }) => (
           <Pressable
+            testID={`trip-${item.id}`}
             accessibilityRole="button"
             accessibilityLabel={item.name}
             onPress={() => router.push({ pathname: '/trips/[id]', params: { id: item.id } })}
@@ -122,6 +125,7 @@ export function TripsScreen() {
         ListFooterComponent={
           query.hasNextPage ? (
             <Action
+              testID="trips-load-more"
               secondary
               label={query.isFetchingNextPage ? t.loading : t.loadMore}
               busy={query.isFetchingNextPage}
