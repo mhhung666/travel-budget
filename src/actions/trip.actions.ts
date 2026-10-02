@@ -1,7 +1,7 @@
 'use server';
 
 import { readTripShell, type LeanTripShell } from '@/lib/tripShellRead';
-import { readTripListSummaries } from '@/lib/tripListSummary';
+import { readMemberTrips } from '@/lib/tripListRead';
 import { revalidatePath } from 'next/cache';
 import { dbConnect } from '@/lib/mongodb';
 import mongoose from 'mongoose';
@@ -40,37 +40,7 @@ type LeanTrip = TripDoc & { _id: { toString(): string }; createdAt: Date };
  */
 export const getTrips = withAuth(async (session): Promise<ActionResult<TripWithMembers[]>> => {
   try {
-    await dbConnect();
-    const trips = await TripModel.find({ 'members.user': session.userId })
-      .sort({ createdAt: -1 })
-      .lean<LeanTrip[]>();
-
-    // 依旅行日期（startDate）新到舊排序，沒有日期的旅程放最後。
-    // DB 已先按 createdAt 由新到舊，stable sort 讓同日期 / 皆無日期者維持此序。
-    trips.sort((a, b) => {
-      const ta = a.startDate ? new Date(a.startDate).getTime() : null;
-      const tb = b.startDate ? new Date(b.startDate).getTime() : null;
-      if (ta === null && tb === null) return 0;
-      if (ta === null) return 1; // a 無日期 → 排後面
-      if (tb === null) return -1; // b 無日期 → 排後面
-      return tb - ta; // 新到舊
-    });
-
-    // 卡片狀態摘要（我的花費／結算餘額）：整批兩次查詢，不隨旅行數增加往返次數。
-    const summaries = await readTripListSummaries(
-      trips.map((trip) => trip._id.toString()),
-      session.userId
-    );
-    const formattedTrips: TripWithMembers[] = trips.map((trip) => {
-      const summary = summaries.get(trip._id.toString());
-      return {
-        ...toTripDto(trip, session.userId),
-        member_count: trip.members.length,
-        my_spent: summary?.mySpent ?? 0,
-        my_balance: summary?.myBalance ?? 0,
-      };
-    });
-
+    const formattedTrips = await readMemberTrips(session.userId);
     return { success: true, data: formattedTrips };
   } catch (error) {
     logger.error('Get trips error', error);

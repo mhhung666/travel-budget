@@ -35,3 +35,7 @@ Next.js App Router 與 React 組成介面，TanStack Query 負責查詢、重新
 - PWA 需以 `pnpm build`（webpack）及 `pnpm start` 驗證；開發模式不啟用 service worker。
 
 細部設計、資料庫遷移操作與子系統注意事項已收進 [封存索引](archive/README.md)，修改相關子系統時可按需查閱。
+
+## 手機 HTTP adapter
+
+`src/app/api/v1` 是原生用戶端入口，`src/lib/mobile` 管理獨立 bearer session、輸入 schema、錯誤 envelope 與 DTO。`credentials.ts`、`tripListRead.ts` 同時供 Web Server Actions 與手機呼叫；摘要重用成員權限及 `tripShellRead`／`tripListSummary`。手機簽章與 Web cookie 隔離，MongoDB 儲存 refresh 雜湊與撤銷狀態。詳細安全邊界及 OpenAPI 見 [手機 API](MOBILE_API.md)。
