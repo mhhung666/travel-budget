@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { setTimeout as delay } from 'node:timers/promises';
+import { startNetworkProxy } from './network-proxy.mjs';
 // Node 24 can load this pure TypeScript table without changing the Expo package module type.
 const { messages } = createRequire(import.meta.url)('../src/i18n/messages.ts');
 
@@ -16,6 +17,7 @@ const { values } = parseArgs({
     device: { type: 'string' },
     fixture: { type: 'string' },
     'metro-port': { type: 'string' },
+    'network-port': { type: 'string' },
     locale: { type: 'string', default: 'en' },
     suite: { type: 'string', default: 'auth-trips' },
   },
@@ -24,8 +26,8 @@ assert(['ios', 'android'].includes(values.platform), 'Use --platform ios|android
 assert(values.device, 'Select a simulator with --device <UUID or emulator serial>');
 assert(values.fixture, 'Use --fixture <path printed by dev:mobile-api>');
 assert(
-  ['auth-trips', 'sessions', 'lifecycle'].includes(values.suite),
-  'Use --suite auth-trips|sessions|lifecycle'
+  ['auth-trips', 'sessions', 'lifecycle', 'network'].includes(values.suite),
+  'Use --suite auth-trips|sessions|lifecycle|network'
 );
 const needsControl = values.suite !== 'auth-trips';
 assert(Object.hasOwn(messages, values.locale), 'Use --locale en|zh|zh-CN|jp (must match device)');
@@ -87,6 +89,10 @@ const env = {
   MAESTRO_RECEIVABLE: t.receivable,
   MAESTRO_PAYABLE: t.payable,
   MAESTRO_SESSION_EXPIRED: t.sessionExpired,
+  MAESTRO_STALE_DATA: t.staleData,
+  MAESTRO_RETRY: t.retry,
+  MAESTRO_NETWORK_ERROR: t.networkError,
+  MAESTRO_RESTORE_ERROR: t.restoreError,
   ...(needsControl
     ? { MAESTRO_CONTROL_URL: fixture.controlUrl, MAESTRO_CONTROL_TOKEN: fixture.controlToken }
     : {}),
@@ -94,11 +100,12 @@ const env = {
 console.log(`Running ${values.platform} native acceptance; local artifacts: ${artifacts}`);
 // Maestro may echo inputText values; keep fixture credentials out of terminal output.
 const redact = (line) => {
-  for (const secret of [fixture.password, fixture.controlToken].filter(Boolean))
+  for (const secret of [fixture.password, fixture.controlToken, proxy?.token].filter(Boolean))
     line = line.replaceAll(secret, '[fixture credential]');
   return line;
 };
 let child;
+let proxy;
 const interrupted = new AbortController();
 const stop = () => {
   interrupted.abort();
@@ -144,6 +151,17 @@ async function runFlow(flow) {
   });
 }
 try {
+  if (values.suite === 'network') {
+    const networkPort = Number(values['network-port']);
+    assert(
+      Number.isInteger(networkPort) && networkPort > 0 && networkPort < 65536,
+      'Use --network-port <unused local port>; Metro API must use this proxy port'
+    );
+    proxy = await startNetworkProxy(fixture.apiUrl, networkPort);
+    env.MAESTRO_NETWORK_URL = proxy.url;
+    env.MAESTRO_NETWORK_TOKEN = proxy.token;
+    console.log(`Network proxy: ${proxy.url}/api/v1 (Metro must use this API port)`);
+  }
   if (values.suite === 'lifecycle') {
     await runFlow('lifecycle-background');
     // The production cache is fresh for 30 seconds. Wait on the host while the
@@ -170,11 +188,17 @@ try {
     await runFlow('lifecycle-resume');
   } else {
     await runFlow(values.suite);
+    if (proxy) {
+      assert(proxy.counts.forwarded > 0, 'App did not connect through the network proxy');
+      assert(proxy.counts.disconnect >= 2, 'Missing logout/restore disconnection requests');
+      assert(proxy.counts.timeout > 0, 'Missing summary timeout request');
+    }
   }
 } catch (error) {
   console.error(redact(error.message));
   process.exitCode = 1;
 } finally {
+  await proxy?.close();
   process.removeListener('SIGINT', stop);
   process.removeListener('SIGTERM', stop);
 }

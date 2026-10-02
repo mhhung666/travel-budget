@@ -1,0 +1,120 @@
+appId: ${MAESTRO_APP_ID}
+name: Transport timeout, failed logout and cold restore recovery
+---
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: reset-limits
+- runFlow: flows/cold-start.yaml
+- runFlow:
+    when:
+      visible:
+        id: logout
+    commands:
+      - tapOn:
+          id: logout
+- runFlow:
+    file: flows/login.yaml
+    env:
+      USERNAME: mobile-a
+- tapOn:
+    id: trip-${MAESTRO_SHARED_TRIP}
+- scrollUntilVisible:
+    element:
+      id: trip-budget
+- assertVisible:
+    id: trip-budget
+    text: 'TWD[ \u00a0]1,000'
+- scrollUntilVisible:
+    element:
+      id: trip-refresh
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: timeout
+- tapOn:
+    id: trip-refresh
+- scrollUntilVisible:
+    element:
+      id: trip-back
+    direction: UP
+- extendedWaitUntil:
+    visible: ${MAESTRO_STALE_DATA}
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      id: trip-budget
+- assertVisible:
+    id: trip-budget
+    text: 'TWD[ \u00a0]1,000'
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online
+- scrollUntilVisible:
+    element:
+      id: trip-back
+    direction: UP
+- tapOn: ${MAESTRO_RETRY}
+- assertNotVisible: ${MAESTRO_STALE_DATA}
+- tapOn:
+    id: trip-back
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: disconnect
+- tapOn:
+    id: logout
+- extendedWaitUntil:
+    visible: ${MAESTRO_NETWORK_ERROR}
+    timeout: 30000
+- assertVisible: TEST mobile-a
+- assertVisible:
+    id: logout
+- assertNotVisible:
+    id: login-username
+# Restart without clearing SecureStore. Failed restore must offer retry and hide private data.
+- stopApp
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - launchApp:
+          clearState: false
+          stopApp: false
+- openLink: ${MAESTRO_EXPO_URL}
+- extendedWaitUntil:
+    visible: ${MAESTRO_RESTORE_ERROR}
+    timeout: 60000
+- assertNotVisible: TEST mobile-a
+- assertNotVisible:
+    id: trip-budget
+- assertNotVisible:
+    id: login-username
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online
+- tapOn: ${MAESTRO_RETRY}
+- extendedWaitUntil:
+    visible: TEST mobile-a
+    timeout: 30000
+- tapOn:
+    id: trip-${MAESTRO_SHARED_TRIP}
+- scrollUntilVisible:
+    element:
+      id: trip-budget
+- assertVisible:
+    id: trip-budget
+    text: 'TWD[ \u00a0]1,000'
+- scrollUntilVisible:
+    element:
+      id: trip-back
+    direction: UP
+- tapOn:
+    id: trip-back
+- tapOn:
+    id: logout
+- runFlow: flows/signed-out.yaml
+- runFlow: flows/cold-start.yaml
+- runFlow: flows/signed-out.yaml
