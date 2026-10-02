@@ -9,6 +9,12 @@ export class ApiError extends Error {
     super(code);
   }
 }
+
+// React Native signals expose aborted/events, but may omit throwIfAborted and reason.
+export function checkAborted(signal?: AbortSignal) {
+  if (signal?.aborted) throw signal.reason ?? new ApiError('CANCELLED');
+}
+
 export type RequestOptions = {
   method?: 'GET' | 'POST';
   body?: unknown;
@@ -46,7 +52,7 @@ export class ApiClient {
     if (!this.baseUrl) throw new ApiError('CONFIGURATION');
     const remaining = (this.cooldowns.get(path) ?? 0) - Date.now();
     if (remaining > 0) throw new ApiError('RATE_LIMITED', 429, Math.ceil(remaining / 1000));
-    options.signal?.throwIfAborted();
+    checkAborted(options.signal);
     const controller = new AbortController();
     let timedOut = false;
     const abort = () => controller.abort();
@@ -87,7 +93,7 @@ export class ApiClient {
       if (!parsed.success) throw new ApiError('INVALID_RESPONSE');
       return parsed.data.data;
     } catch (error) {
-      if (options.signal?.aborted) throw options.signal.reason ?? new ApiError('CANCELLED');
+      checkAborted(options.signal);
       if (error instanceof ApiError) throw error;
       throw new ApiError(timedOut ? 'TIMEOUT' : 'NETWORK');
     } finally {

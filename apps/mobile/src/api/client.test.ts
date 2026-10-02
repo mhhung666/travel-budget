@@ -2,7 +2,17 @@ import type { Fetcher } from './client';
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { ApiClient, validateBaseUrl } from './client';
+import { tripsSchema } from './contracts';
 const schema = z.object({ value: z.string() });
+function nativeSignal(controller: AbortController): AbortSignal {
+  return {
+    get aborted() {
+      return controller.signal.aborted;
+    },
+    addEventListener: controller.signal.addEventListener.bind(controller.signal),
+    removeEventListener: controller.signal.removeEventListener.bind(controller.signal),
+  } as AbortSignal;
+}
 describe('HTTP boundary', () => {
   it('rejects unsafe production addresses and URL credentials', () => {
     expect(() => validateBaseUrl('http://example.com/api/v1', false)).toThrow('CONFIGURATION');
@@ -36,21 +46,55 @@ describe('HTTP boundary', () => {
       new ApiClient('https://example.com', fetcher).request('/me', schema)
     ).rejects.toMatchObject({ status: 429, retryAfter: 60 });
   });
-  it('aborts an in-flight request when its query is cancelled', async () => {
-    const fetcher = vi.fn<Fetcher>().mockImplementation(
-      (_url, init) =>
-        new Promise((_resolve, reject) => {
-          init?.signal?.addEventListener('abort', () => reject(new Error('aborted')));
-        })
+  it('loads member trips with a React Native signal that omits newer AbortSignal methods', async () => {
+    const data = { items: [], nextPage: null };
+    const fetcher = vi.fn<Fetcher>().mockResolvedValue(Response.json({ data }));
+    const signal = nativeSignal(new AbortController());
+    const path = '/trips?page=1&date=2026-10-02';
+    await expect(
+      new ApiClient('https://example.com/api/v1', fetcher).request(path, tripsSchema, {
+        accessToken: 'private',
+        signal,
+      })
+    ).resolves.toEqual(data);
+    expect(fetcher).toHaveBeenCalledWith(
+      `https://example.com/api/v1${path}`,
+      expect.objectContaining({
+        method: 'GET',
+        headers: expect.objectContaining({ Authorization: 'Bearer private' }),
+      })
     );
-    const controller = new AbortController();
-    const result = new ApiClient('https://example.com', fetcher).request('/me', schema, {
-      signal: controller.signal,
-    });
-    controller.abort();
-    await expect(result).rejects.toMatchObject({ name: 'AbortError' });
-    expect(fetcher.mock.calls[0][1]?.signal?.aborted).toBe(true);
   });
+  it('does not send a query already cancelled with a React Native signal', async () => {
+    const fetcher = vi.fn<Fetcher>();
+    const controller = new AbortController();
+    const signal = nativeSignal(controller);
+    controller.abort();
+    await expect(
+      new ApiClient('https://example.com', fetcher).request('/me', schema, { signal })
+    ).rejects.toMatchObject({ code: 'CANCELLED' });
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+  it.each(['Node', 'React Native'])(
+    'aborts an in-flight query with a %s signal',
+    async (runtime) => {
+      const fetcher = vi.fn<Fetcher>().mockImplementation(
+        (_url, init) =>
+          new Promise((_resolve, reject) => {
+            init?.signal?.addEventListener('abort', () => reject(new Error('aborted')));
+          })
+      );
+      const controller = new AbortController();
+      const result = new ApiClient('https://example.com', fetcher).request('/me', schema, {
+        signal: runtime === 'React Native' ? nativeSignal(controller) : controller.signal,
+      });
+      controller.abort();
+      await expect(result).rejects.toMatchObject(
+        runtime === 'React Native' ? { code: 'CANCELLED' } : { name: 'AbortError' }
+      );
+      expect(fetcher.mock.calls[0][1]?.signal?.aborted).toBe(true);
+    }
+  );
   it('times out instead of spinning forever', async () => {
     vi.useFakeTimers();
     try {

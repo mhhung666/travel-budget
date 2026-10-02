@@ -13,6 +13,15 @@ const session = (n: number) => ({
 const ok = (data: unknown) => Response.json({ data });
 const unauthorized = () => Response.json({ error: { code: 'UNAUTHORIZED' } }, { status: 401 });
 const schema = z.object({ name: z.string() });
+function nativeSignal(controller: AbortController): AbortSignal {
+  return {
+    get aborted() {
+      return controller.signal.aborted;
+    },
+    addEventListener: controller.signal.addEventListener.bind(controller.signal),
+    removeEventListener: controller.signal.removeEventListener.bind(controller.signal),
+  } as AbortSignal;
+}
 function setup(handler: (path: string, init?: RequestInit) => Promise<Response>) {
   let token: string | null = null;
   const store: CredentialStore = {
@@ -30,7 +39,7 @@ function setup(handler: (path: string, init?: RequestInit) => Promise<Response>)
   return { manager, store, clear, fetcher };
 }
 describe('session lifecycle', () => {
-  it('coalesces simultaneous 401s into one rotation and retries each request only once', async () => {
+  it('coalesces simultaneous native queries into one rotation and retries each only once', async () => {
     let refreshes = 0;
     const { manager } = setup(async (url, init) => {
       if (url.endsWith('/login')) return ok(session(1));
@@ -45,7 +54,11 @@ describe('session lifecycle', () => {
     });
     await manager.login('traveler', 'password');
     expect(
-      await Promise.all([manager.request('/trip', schema), manager.request('/trip', schema)])
+      await Promise.all(
+        [nativeSignal(new AbortController()), nativeSignal(new AbortController())].map((signal) =>
+          manager.request('/trip', schema, { signal })
+        )
+      )
     ).toEqual([{ name: 'Tokyo' }, { name: 'Tokyo' }]);
     expect(refreshes).toBe(1);
     expect(manager.getSnapshot()).toEqual({ status: 'signedIn', user });
@@ -144,32 +157,39 @@ describe('interrupted authentication', () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
     expect(await store.get()).toBe('refresh-1');
   });
-  it('does not replay a query cancelled while its shared refresh is in flight', async () => {
-    let finish!: (response: Response) => void;
-    let started!: () => void;
-    const refreshing = new Promise<void>((resolve) => {
-      started = resolve;
-    });
-    const { manager, fetcher } = setup(async (url) => {
-      if (url.endsWith('/login')) return ok(session(1));
-      if (url.endsWith('/refresh')) {
-        started();
-        return new Promise((resolve) => {
-          finish = resolve;
-        });
-      }
-      return unauthorized();
-    });
-    await manager.login('traveler', 'password');
-    const controller = new AbortController();
-    const result = manager.request('/trip', schema, { signal: controller.signal });
-    await refreshing;
-    controller.abort();
-    finish(ok(session(2)));
-    await expect(result).rejects.toMatchObject({ name: 'AbortError' });
-    expect(fetcher).toHaveBeenCalledTimes(3);
-    expect(manager.getSnapshot().status).toBe('signedIn');
-  });
+  it.each(['Node', 'React Native'])(
+    'does not replay a %s query cancelled while its shared refresh is in flight',
+    async (runtime) => {
+      let finish!: (response: Response) => void;
+      let started!: () => void;
+      const refreshing = new Promise<void>((resolve) => {
+        started = resolve;
+      });
+      const { manager, fetcher } = setup(async (url) => {
+        if (url.endsWith('/login')) return ok(session(1));
+        if (url.endsWith('/refresh')) {
+          started();
+          return new Promise((resolve) => {
+            finish = resolve;
+          });
+        }
+        return unauthorized();
+      });
+      await manager.login('traveler', 'password');
+      const controller = new AbortController();
+      const result = manager.request('/trip', schema, {
+        signal: runtime === 'React Native' ? nativeSignal(controller) : controller.signal,
+      });
+      await refreshing;
+      controller.abort();
+      finish(ok(session(2)));
+      await expect(result).rejects.toMatchObject(
+        runtime === 'React Native' ? { code: 'CANCELLED' } : { name: 'AbortError' }
+      );
+      expect(fetcher).toHaveBeenCalledTimes(3);
+      expect(manager.getSnapshot().status).toBe('signedIn');
+    }
+  );
   it('does not expose a session when SecureStore cannot save its credential', async () => {
     const { manager, store, fetcher } = setup(async (url) =>
       url.endsWith('/login') ? ok(session(1)) : ok({ loggedOut: true })

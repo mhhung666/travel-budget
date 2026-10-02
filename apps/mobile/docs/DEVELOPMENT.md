@@ -57,7 +57,7 @@ pnpm contracts:check
 
 目前使用 Vitest 測試 HTTP／登入生命週期，手機 CI 執行型別、lint、格式、測試、Expo 相容性與三平台 bundle 檢查，不需要後端密鑰。共用契約檢查驗證 OpenAPI 與 schema 同步。API／權限、裝置 session 與 DB transaction 測試留在 `apps/web`，不使用正式帳號或資料庫。
 
-現有測試涵蓋 401／refresh 合併、錯誤映射、取消／逾時、重啟恢復與登出隔離。後續 SQLite outbox 須驗證重啟／重送／帳號切換；畫面與端對端測試可逐步加入 React Native Testing Library／Maestro。
+現有測試涵蓋 401／refresh 合併、錯誤映射、取消／逾時、重啟恢復與登出隔離，並驗證缺少 `throwIfAborted()`／`reason` 的原生 AbortSignal。後續 SQLite outbox 須驗證重啟／重送／帳號切換；畫面與端對端測試可逐步加入 React Native Testing Library／Maestro。
 
 手機測試不可依賴正式帳號或資料庫；模擬資料需明確標示。發布前，iOS 與 Android 都要實測登入、弱網、前後景、重啟、文字縮放及權限拒絕。
 

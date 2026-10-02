@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ApiClient, ApiError, type RequestOptions } from './client';
+import { ApiClient, ApiError, checkAborted, type RequestOptions } from './client';
 import { sessionSchema, type Session, type User } from './contracts';
 
 export interface CredentialStore {
@@ -146,10 +146,10 @@ export class SessionManager {
     } catch (error) {
       if (!(error instanceof ApiError) || error.status !== 401 || revision !== this.revision)
         throw error;
-      options.signal?.throwIfAborted();
+      checkAborted(options.signal);
       // A late 401 for the previous access token reuses the already-refreshed session.
       if (this.session?.accessToken === accessToken) await this.refresh();
-      options.signal?.throwIfAborted();
+      checkAborted(options.signal);
       if (revision !== this.revision) throw new ApiError('CANCELLED');
       try {
         const data = await run();
