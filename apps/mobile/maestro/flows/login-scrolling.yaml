@@ -1,0 +1,27 @@
+appId: ${MAESTRO_APP_ID}
+---
+# Large text pushes the form out of view, and the login page may keep its scroll position after a
+# sign-out: bring the username field on screen from whichever side it is on before using it.
+- scrollUntilVisible:
+    element:
+      id: login-username
+    direction: UP
+    timeout: 8000
+    optional: true
+- scrollUntilVisible:
+    element:
+      id: login-username
+    timeout: 30000
+- tapOn:
+    id: login-username
+- inputText: ${USERNAME}
+- assertVisible: ${USERNAME}
+# The keyboard's Next action focuses the password field; tapping it is unreliable at large text.
+- pressKey: Enter
+- inputText: ${MAESTRO_PASSWORD}
+- runFlow: submit-visible.yaml
+- tapOn:
+    id: login-submit
+- extendedWaitUntil:
+    visible: TEST ${USERNAME}
+    timeout: 30000

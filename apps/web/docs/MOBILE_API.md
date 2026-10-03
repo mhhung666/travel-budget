@@ -1,6 +1,6 @@
 # 手機唯讀 API
 
-已在程式碼加入 `/api/v1` 的登入、更新憑證、登出、目前使用者、旅行列表與旅行摘要。這不代表遠端環境已部署。契約以 [packages/contracts/src/index.ts](../../../packages/contracts/src/index.ts) 的 Zod schema 為單一來源；Web 與手機透過 `@travel-budget/contracts` 匯入，Web 的 `src/lib/mobile/contract.ts` 只保留薄 adapter。共用產物見 [OpenAPI](../../../packages/contracts/openapi.json)，在 repository 根目錄執行 `pnpm contracts:generate` 產生、`pnpm contracts:check` 檢查同步。
+已在程式碼加入 `/api/v1` 的登入、更新憑證、登出、目前使用者、旅行列表、旅行摘要、支出清單／明細與結算。這不代表遠端環境已部署。契約以 [packages/contracts/src/index.ts](../../../packages/contracts/src/index.ts) 的 Zod schema 為單一來源；Web 與手機透過 `@travel-budget/contracts` 匯入，Web 的 `src/lib/mobile/contract.ts` 只保留薄 adapter。共用產物見 [OpenAPI](../../../packages/contracts/openapi.json)，在 repository 根目錄執行 `pnpm contracts:generate` 產生、`pnpm contracts:check` 檢查同步。
 
 - Web Server Actions 與手機 HTTP handler 在後端共用 `credentials.ts`、`tripListRead.ts` 及既有權限／金額摘要；HTTP handler 不呼叫依賴 cookie 的 Server Action，手機 bundle 不匯入這些後端模組。
 - 手機 access JWT 15 分鐘、裝置 session 絕對期限 30 天；JWT key、issuer、audience 與 Web cookie 隔離。每次授權查詢 session 撤銷／期限與目前密碼 fingerprint。
@@ -10,13 +10,17 @@
 - 成員 API 只接受 bearer，拒絕 Web cookie 或 public share code。回應白名單不包含其他人的預算、分享碼、收據／檔案 key。`budgetTotal` 只屬於 viewer。
 - 日期為 `YYYY-MM-DD`，`date` query 表示手機當地日期。金額由現有服務算到分，以 TWD 回傳；`myBalance` 正為應收、負為應付。
 - 旅行列表共用 Web 全列表讀取，HTTP 每頁 20 筆；DB 計算未改為游標分頁。正在旅行優先，已封存最後。分頁非快照，資料變更後從第一頁重讀。
+- 支出清單 `GET /trips/:id/expenses?cursor=` 每頁 20 筆，依 `date`、`createdAt`、`_id` 降冪；游標 `<date ms>.<createdAt ms>.<id>` 編碼最後一筆的實際儲存值，查詢以 `$or` 取其後的資料（沿用 `{trip, date, createdAt}` 索引，不新增索引或 migration；以 `_id` 破同分需記憶體排序），同日同時間也不會漏筆或重複。無效或重複的游標回 400。分頁非快照，下拉更新從第一頁重讀。
+- 明細 `GET /trips/:id/expenses/:expenseId` 以旅行加支出 id 查詢，其他旅行的支出回 404。清單與明細重用 `toExpenseDto` 的到分取整與分攤正規化，再映射為明確白名單 DTO：只 populate 顯示名稱，投影排除附件、標籤、行程關聯與送達狀態，不輸出登入帳號、Email 或分享碼。類別未知歸為 `other`；付款人或分攤成員參照已不存在時 id 為 `null`、名稱為空；缺少原幣欄位的歷史資料以 TWD 金額、`TWD`、匯率 1 補齊。
+- 結算 `GET /trips/:id/settlement` 由 `readSettlementDetail` 提供：`readSettlement` 的原有輸出不變（Web 與公開路由仍只含原欄位），另加以成員 id 標示的 `transfers`，因為 `transactions` 只有顯示名稱而同名成員無法辨識。`suggestedTransfers` 是已扣除還款後的建議、皆未付款；`status` 為 `empty`、`settled` 或 `outstanding`，任何餘額未歸零即為 `outstanding`。每次仍讀取整個旅行的支出與還款。
+- 上述端點只接受成員 ObjectId（`lib/mobile/access.ts`）：非成員、分享碼、格式錯誤、不存在與他旅行資源一律 404，授權先於讀取，失去成員資格立即生效。
 - 原生 API 無跨來源瀏覽器 CORS；現有 Web 不遷移至此認證流程。所有成功／錯誤回應均 no-store。
 
 新增 `20261002100000-mobile-session-expiry.js` 為 session／登入限制紀錄建立 TTL 索引。此次實作不執行遠端 migration；正式環境沿用既有 migration 流程。即使 TTL 尚未清理，授權仍會檢查 expiresAt。
 
-測試在 `apps/web` 執行：`pnpm exec vitest run src/__tests__/mobileSession.test.ts src/__tests__/mobileTrips.test.ts src/__tests__/mobileHttp.test.ts`。這組單元測試使用隔離的 model mocks。另可執行 `pnpm test:mobile-api`，以可丟棄的 Docker MongoDB 與 Next.js 開發伺服器驗證實際 HTTP／資料庫流程；`pnpm dev:mobile-api` 保留環境與測試帳號供裝置連線。手機 SecureStore 與 iOS／Android 真機串接仍需操作驗收，詳見 [本機驗收流程](../../mobile/docs/LOCAL_ACCEPTANCE.md)。
+測試在 `apps/web` 執行：`pnpm exec vitest run src/__tests__/mobileSession.test.ts src/__tests__/mobileTrips.test.ts src/__tests__/mobileHttp.test.ts src/__tests__/mobileExpenses.test.ts src/__tests__/mobileSettlement.test.ts src/__tests__/settlementRead.test.ts`。這組單元測試使用隔離的 model mocks。`mobileReadApi.integration.test.ts` 在獨立測試 MongoDB 上驗證游標分頁、與 Web 讀取一致、歷史／外幣／虛擬成員資料與授權，需 `MONGODB_QUEUE_TEST_URI` 與 `MONGODB_QUEUE_TEST_ALLOW_WRITES=1`（CI 的真 MongoDB 工作已包含），未設定時略過。另可執行 `pnpm test:mobile-api`，以可丟棄的 Docker MongoDB 與 Next.js 開發伺服器驗證實際 HTTP／資料庫流程；`pnpm dev:mobile-api` 保留環境與測試帳號供裝置連線。手機 SecureStore 與 iOS／Android 真機串接仍需操作驗收，詳見 [本機驗收流程](../../mobile/docs/LOCAL_ACCEPTANCE.md)。
 
-尚無手機支出寫入、離線 outbox、附件上傳、推播或帳號刪除 API。
+尚無手機支出寫入／預覽、成員資料、冪等 request ID、離線 outbox、附件上傳、推播或帳號刪除 API。
 
 `dev:mobile-api` 的獨立 loopback 控制通道供 Maestro 撤銷／到期隔離帳號的 session，採每次執行的隨機憑證並隨環境關閉。它只在測試腳本內存在，不加入 Next.js routes 或共用契約，也不隨 `--lan` 對外開放。
 

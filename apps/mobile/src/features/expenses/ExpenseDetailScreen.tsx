@@ -1,0 +1,105 @@
+import { ActivityIndicator } from 'react-native';
+import { Action, Card, Copy, DetailRow, Notice, Page, Section, Title } from '@/components/ui';
+import { goBack } from '@/components/navigation';
+import { errorMessage, isAccessDenied } from '@/features/auth/errorMessage';
+import { formatCurrency, formatRate, money } from '@/i18n/format';
+import { useMessages } from '@/i18n/useMessages';
+import { useOnline } from '@/providers/useOnline';
+import { useExpense } from './queries';
+import { categoryLabel, isForeign, memberName } from './rows';
+
+export function ExpenseDetailScreen({ tripId, expenseId }: { tripId: string; expenseId: string }) {
+  const t = useMessages();
+  const online = useOnline();
+  const query = useExpense(tripId, expenseId);
+  const expense = query.data;
+  // Never leave a previously cached member payload visible after access is denied.
+  const denied = isAccessDenied(query.error);
+  return (
+    <Page>
+      <Action
+        testID="expense-back"
+        secondary
+        label={t.backToExpenses}
+        onPress={() => goBack({ pathname: '/trips/[id]/expenses', params: { id: tripId } })}
+      />
+      {!online && <Notice>{t.offline}</Notice>}
+      {query.isPending && online && <ActivityIndicator accessibilityLabel={t.loading} />}
+      {query.isError && (
+        <>
+          <Notice>
+            {expense && !denied
+              ? t.staleData
+              : denied
+                ? t.expenseUnavailable
+                : errorMessage(query.error, t)}
+          </Notice>
+          <Action
+            testID="expense-retry"
+            label={t.retry}
+            disabled={!online || query.isFetching}
+            onPress={() => void query.refetch()}
+          />
+        </>
+      )}
+      {expense && !denied && (
+        <>
+          <Title>{expense.description}</Title>
+          <Card>
+            <DetailRow testID="expense-date" label={t.date} value={expense.date} />
+            <DetailRow
+              testID="expense-category"
+              label={t.category}
+              value={categoryLabel(expense.category, t)}
+            />
+            <DetailRow
+              testID="expense-payer"
+              label={t.paidBy}
+              value={memberName(expense.payerName, t)}
+            />
+            <DetailRow testID="expense-amount" label={t.amountTwd} value={money(expense.amount)} />
+            {isForeign(expense) && (
+              <>
+                <DetailRow
+                  testID="expense-original"
+                  label={t.originalAmount}
+                  value={formatCurrency(expense.originalAmount, expense.currency)}
+                />
+                <DetailRow
+                  testID="expense-rate"
+                  label={t.exchangeRate}
+                  value={formatRate(expense.exchangeRate)}
+                />
+              </>
+            )}
+          </Card>
+          <Section title={t.splitDetails}>
+            {expense.splits.length === 0 ? (
+              <Copy>{t.noSplits}</Copy>
+            ) : (
+              <Card>
+                {expense.splits.map((split, index) => (
+                  <DetailRow
+                    key={`${split.userId ?? 'unknown'}-${index}`}
+                    testID={`expense-split-${index}`}
+                    label={memberName(split.displayName, t)}
+                    value={money(split.shareAmount)}
+                  />
+                ))}
+              </Card>
+            )}
+          </Section>
+          <Copy>{t.amountsInTwd}</Copy>
+          <Action
+            testID="expense-refresh"
+            secondary
+            label={query.isFetching ? t.loading : t.refresh}
+            busy={query.isFetching}
+            disabled={!online}
+            onPress={() => void query.refetch()}
+          />
+        </>
+      )}
+    </Page>
+  );
+}

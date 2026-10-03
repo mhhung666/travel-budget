@@ -13,7 +13,15 @@ import { createInterface } from 'node:readline';
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import { SignJWT, decodeJwt } from 'jose';
-import { sessionSchema, userSchema, tripsSchema, landingSchema } from '@travel-budget/contracts';
+import {
+  sessionSchema,
+  userSchema,
+  tripsSchema,
+  landingSchema,
+  expensesSchema,
+  expenseDetailSchema,
+  settlementSchema,
+} from '@travel-budget/contracts';
 import { up as migrateSessions } from '../migrations/20261002100000-mobile-session-expiry.js';
 
 const args = new Set(process.argv.slice(2));
@@ -154,6 +162,218 @@ try {
     attachments: [
       { key: 'private-fixture-key', contentType: 'image/jpeg', size: 1, uploadedBy: users[0]._id },
     ],
+  });
+  // Read-only ledger fixtures use their own accounts so the trip fixtures above keep their values.
+  const person = (username, displayName = `TEST ${username}`, isVirtual = false) => ({
+    _id: new mongoose.Types.ObjectId(),
+    username,
+    displayName,
+    email: `${username}@example.invalid`,
+    isVirtual,
+    notifyByEmail: false,
+    createdAt: now,
+  });
+  const [ledgerOwner, ledgerPeer, ledgerRemoved] = [
+    'mobile-ledger',
+    'mobile-ledger-b',
+    'mobile-removed',
+  ].map((username) => person(username));
+  const virtualGuest = person('ledger-virtual', 'TEST virtual guest', true);
+  await db
+    .collection('users')
+    .insertMany(
+      [ledgerOwner, ledgerPeer, ledgerRemoved, virtualGuest].map((user) => ({
+        ...user,
+        password: hash,
+      }))
+    );
+  const ledger = trip('Ledger trip', [
+    member(ledgerOwner, 'admin'),
+    member(ledgerPeer),
+    member(virtualGuest),
+    member(ledgerRemoved),
+  ]);
+  const emptyLedger = trip('Empty ledger', [member(ledgerOwner, 'admin'), member(ledgerPeer)]);
+  const settledLedger = trip('Settled ledger', [member(ledgerOwner, 'admin'), member(ledgerPeer)]);
+  await db.collection('trips').insertMany([ledger, emptyLedger, settledLedger]);
+  const names = new Map(
+    [ledgerOwner, ledgerPeer, ledgerRemoved, virtualGuest].map((user) => [
+      String(user._id),
+      user.displayName,
+    ])
+  );
+  // Expected values are written independently of the server code, in integer cents.
+  const toCents = (value) => Math.round(value * 100);
+  const evenShares = (cents, count) =>
+    Array.from(
+      { length: count },
+      (_, index) => Math.floor(cents / count) + (index < cents % count ? 1 : 0)
+    );
+  const ledgerExpenses = [];
+  const addLedgerExpense = (doc, expected) => {
+    ledgerExpenses.push({
+      doc: { trip: ledger._id, createdBy: doc.payer, ...doc },
+      expected: { amountCents: toCents(doc.amount), ...expected },
+    });
+  };
+  for (let i = 0; i < 45; i++) {
+    const amountCents = (100 + i) * 100;
+    const members = [ledgerOwner, ledgerPeer, virtualGuest];
+    const shares = evenShares(amountCents, 3);
+    addLedgerExpense(
+      {
+        payer: (i % 2 === 0 ? ledgerOwner : ledgerPeer)._id,
+        amount: amountCents / 100,
+        originalAmount: amountCents / 100,
+        currency: 'TWD',
+        exchangeRate: 1,
+        description: `TEST bulk ${String(i + 1).padStart(2, '0')}`,
+        category: 'food',
+        // Groups of nine share a date and groups of three share createdAt: ties across pages.
+        date: new Date(Date.UTC(2026, 8, 10 + Math.floor(i / 9))),
+        createdAt: new Date(Date.UTC(2026, 8, 1, 8, 0, Math.floor(i / 3))),
+        splits: members.map((user, index) => ({
+          user: user._id,
+          shareAmount: shares[index] / 100,
+        })),
+        ...(i === 0
+          ? {
+              attachments: [
+                {
+                  key: 'private-fixture-key-ledger',
+                  contentType: 'image/jpeg',
+                  size: 1,
+                  uploadedBy: ledgerOwner._id,
+                },
+              ],
+              tags: ['private-tag-ledger'],
+            }
+          : {}),
+      },
+      {
+        splitCents: members.map((user, index) => [String(user._id), shares[index]]),
+        originalAmount: amountCents / 100,
+        currency: 'TWD',
+        category: 'food',
+      }
+    );
+  }
+  addLedgerExpense(
+    {
+      payer: ledgerPeer._id,
+      amount: 99.9,
+      originalAmount: 3000,
+      currency: 'JPY',
+      exchangeRate: 0.0333,
+      description: 'TEST foreign currency',
+      category: 'shopping',
+      date: new Date(Date.UTC(2026, 7, 22)),
+      createdAt: new Date(Date.UTC(2026, 8, 1, 7, 0, 3)),
+      splits: [
+        { user: ledgerOwner._id, shareAmount: 60 },
+        { user: ledgerPeer._id, shareAmount: 39.9 },
+      ],
+    },
+    {
+      splitCents: [
+        [String(ledgerOwner._id), 6000],
+        [String(ledgerPeer._id), 3990],
+      ],
+      originalAmount: 3000,
+      currency: 'JPY',
+      exchangeRate: 0.0333,
+      category: 'shopping',
+    }
+  );
+  addLedgerExpense(
+    {
+      // A virtual member pays and does not take part in the split.
+      payer: virtualGuest._id,
+      amount: 200,
+      originalAmount: 200,
+      currency: 'TWD',
+      exchangeRate: 1,
+      description: 'TEST virtual payer, uneven split',
+      category: 'transportation',
+      date: new Date(Date.UTC(2026, 7, 21)),
+      createdAt: new Date(Date.UTC(2026, 8, 1, 7, 0, 2)),
+      splits: [
+        { user: ledgerOwner._id, shareAmount: 120 },
+        { user: ledgerPeer._id, shareAmount: 80 },
+      ],
+    },
+    {
+      splitCents: [
+        [String(ledgerOwner._id), 12000],
+        [String(ledgerPeer._id), 8000],
+      ],
+      originalAmount: 200,
+      currency: 'TWD',
+      exchangeRate: 1,
+      category: 'transportation',
+    }
+  );
+  addLedgerExpense(
+    {
+      // Historical shape: no original-currency fields and unrounded converted amounts.
+      payer: ledgerOwner._id,
+      amount: 30.004,
+      description: 'TEST legacy expense',
+      date: new Date(Date.UTC(2026, 7, 20)),
+      createdAt: new Date(Date.UTC(2026, 8, 1, 7, 0, 1)),
+      splits: [
+        { user: ledgerOwner._id, shareAmount: 15.002 },
+        { user: ledgerPeer._id, shareAmount: 15.002 },
+      ],
+    },
+    {
+      amountCents: 3000,
+      splitCents: [
+        [String(ledgerOwner._id), 1500],
+        [String(ledgerPeer._id), 1500],
+      ],
+      originalAmount: 30,
+      currency: 'TWD',
+      exchangeRate: 1,
+      category: 'other',
+    }
+  );
+  const ledgerPayment = {
+    trip: ledger._id,
+    from: ledgerPeer._id,
+    to: ledgerOwner._id,
+    amount: 20.5,
+    note: 'TEST cash',
+    createdBy: ledgerPeer._id,
+    createdAt: now,
+  };
+  await db.collection('expenses').insertMany(ledgerExpenses.map(({ doc }) => doc));
+  await db.collection('payments').insertOne(ledgerPayment);
+  const settledExpense = {
+    trip: settledLedger._id,
+    payer: ledgerOwner._id,
+    amount: 100,
+    originalAmount: 100,
+    currency: 'TWD',
+    exchangeRate: 1,
+    description: 'TEST settled dinner',
+    category: 'food',
+    date: day,
+    createdAt: now,
+    splits: [
+      { user: ledgerOwner._id, shareAmount: 50 },
+      { user: ledgerPeer._id, shareAmount: 50 },
+    ],
+  };
+  await db.collection('expenses').insertOne(settledExpense);
+  await db.collection('payments').insertOne({
+    trip: settledLedger._id,
+    from: ledgerPeer._id,
+    to: ledgerOwner._id,
+    amount: 50,
+    note: '',
+    createdBy: ledgerPeer._id,
+    createdAt: now,
   });
   const port = await freePort();
   const origin = `http://127.0.0.1:${port}`;
@@ -317,6 +537,296 @@ try {
     { items: [], nextPage: null }
   );
   pass('different account views and empty trips');
+  // --- Read-only expenses and settlement (delivery A) ---
+  const owner = await login('mobile-ledger');
+  const raw = (value) => JSON.stringify(value);
+  const assertKeys = (value, keys, label) =>
+    assert.deepEqual(Object.keys(value).sort(), [...keys].sort(), `${label}: unexpected fields`);
+  const hexId = (id) => String(id);
+  const byDisplayOrder = (a, b) =>
+    b.doc.date - a.doc.date ||
+    b.doc.createdAt - a.doc.createdAt ||
+    (hexId(b.doc._id) > hexId(a.doc._id) ? 1 : -1);
+  const expectedRows = [...ledgerExpenses].sort(byDisplayOrder);
+  assert.equal(expectedRows.length, 48);
+  // The fixture must straddle a page boundary with an exact date/createdAt tie.
+  assert(
+    expectedRows[19].doc.date.getTime() === expectedRows[20].doc.date.getTime() &&
+      expectedRows[19].doc.createdAt.getTime() === expectedRows[20].doc.createdAt.getTime(),
+    'fixture must tie across the first page boundary'
+  );
+  const listPath = `/trips/${ledger._id}/expenses`;
+  const fetchPage = async (token, cursor) =>
+    (
+      await request(`${listPath}${cursor ? `?cursor=${cursor}` : ''}`, {
+        token,
+        schema: expensesSchema,
+      })
+    ).data;
+  const pages = [await fetchPage(owner.accessToken)];
+  assert.equal(pages[0].items.length, 20);
+  assert(pages[0].nextCursor);
+  pages.push(await fetchPage(owner.accessToken, pages[0].nextCursor));
+  assert.equal(pages[1].items.length, 20);
+  // A newer expense added between page loads must not shift or repeat later pages.
+  const interloper = {
+    ...ledgerExpenses[0].doc,
+    _id: new mongoose.Types.ObjectId(),
+    description: 'TEST inserted between pages',
+    date: new Date(Date.UTC(2026, 8, 30)),
+    attachments: [],
+    tags: [],
+  };
+  await db.collection('expenses').insertOne(interloper);
+  pages.push(await fetchPage(owner.accessToken, pages[1].nextCursor));
+  await db.collection('expenses').deleteOne({ _id: interloper._id });
+  assert.equal(pages[2].items.length, 8);
+  assert.equal(pages[2].nextCursor, null);
+  const listed = pages.flatMap((page) => page.items);
+  assert.deepEqual(
+    listed.map((item) => item.id),
+    expectedRows.map(({ doc }) => hexId(doc._id)),
+    'cursor pages must follow date, createdAt and id (descending) without gaps or repeats'
+  );
+  assert.equal(new Set(listed.map((item) => item.id)).size, 48);
+  for (const [index, item] of listed.entries()) {
+    const { doc, expected } = expectedRows[index];
+    assertKeys(
+      item,
+      [
+        'id',
+        'date',
+        'description',
+        'category',
+        'payerId',
+        'payerName',
+        'amount',
+        'originalAmount',
+        'currency',
+      ],
+      'list item'
+    );
+    assert.deepEqual(item, {
+      id: hexId(doc._id),
+      date: doc.date.toISOString().slice(0, 10),
+      description: doc.description,
+      category: expected.category,
+      payerId: hexId(doc.payer),
+      payerName: names.get(hexId(doc.payer)),
+      amount: expected.amountCents / 100,
+      originalAmount: expected.originalAmount,
+      currency: expected.currency,
+    });
+  }
+  const landingOfLedger = (
+    await request(`/trips/${ledger._id}/landing?date=${date}`, {
+      token: owner.accessToken,
+      schema: landingSchema,
+    })
+  ).data;
+  assert.equal(landingOfLedger.expenseCount, listed.length, 'landing and list counts agree');
+  for (const { doc, expected } of expectedRows) {
+    const detail = (
+      await request(`${listPath}/${doc._id}`, {
+        token: owner.accessToken,
+        schema: expenseDetailSchema,
+      })
+    ).data;
+    assertKeys(
+      detail,
+      [
+        'id',
+        'date',
+        'description',
+        'category',
+        'payerId',
+        'payerName',
+        'amount',
+        'originalAmount',
+        'currency',
+        'exchangeRate',
+        'splits',
+      ],
+      'detail'
+    );
+    assert.equal(detail.amount, expected.amountCents / 100);
+    assert.equal(detail.exchangeRate, expected.exchangeRate ?? 1);
+    assert.deepEqual(
+      detail.splits.map((split) => [split.userId, toCents(split.shareAmount)]),
+      expected.splitCents,
+      `${doc.description}: shares`
+    );
+    for (const split of detail.splits) {
+      assertKeys(split, ['userId', 'displayName', 'shareAmount'], 'split');
+      assert.equal(split.displayName, names.get(split.userId));
+    }
+    assert.equal(
+      detail.splits.reduce((sum, split) => sum + toCents(split.shareAmount), 0),
+      expected.amountCents,
+      `${doc.description}: shares add up to the amount`
+    );
+  }
+  const virtualRow = listed.find((item) => item.payerId === hexId(virtualGuest._id));
+  assert.equal(virtualRow.payerName, 'TEST virtual guest');
+  const legacyRow = listed.find((item) => item.description === 'TEST legacy expense');
+  assert.deepEqual(
+    { amount: legacyRow.amount, currency: legacyRow.currency, category: legacyRow.category },
+    { amount: 30, currency: 'TWD', category: 'other' }
+  );
+  const foreignRow = listed.find((item) => item.currency === 'JPY');
+  assert.equal(foreignRow.originalAmount, 3000);
+  assert.equal(foreignRow.amount, 99.9);
+  const leakPattern =
+    /private-fixture-key|private-tag|attachments|tags|hashCode|createdBy|username|email|password|\$2[aby]\$|example\.invalid/;
+  assert(!leakPattern.test(raw(pages)), 'list must not expose private fields');
+  pass(
+    'expense list cursor stability (ties, concurrent insert), detail, legacy/foreign/virtual rows'
+  );
+
+  const settlementOf = async (tripId, token = owner.accessToken) =>
+    (await request(`/trips/${tripId}/settlement`, { token, schema: settlementSchema })).data;
+  const ledgerSettlement = await settlementOf(ledger._id);
+  assertKeys(
+    ledgerSettlement,
+    ['status', 'totalExpenses', 'balances', 'suggestedTransfers', 'payments'],
+    'settlement'
+  );
+  const paid = new Map();
+  const owed = new Map();
+  for (const { doc, expected } of ledgerExpenses) {
+    paid.set(hexId(doc.payer), (paid.get(hexId(doc.payer)) ?? 0) + expected.amountCents);
+    for (const [user, cents] of expected.splitCents) owed.set(user, (owed.get(user) ?? 0) + cents);
+  }
+  const net = new Map(
+    [ledgerOwner, ledgerPeer, ledgerRemoved, virtualGuest].map((user) => {
+      const id = hexId(user._id);
+      let balance = (paid.get(id) ?? 0) - (owed.get(id) ?? 0);
+      if (id === hexId(ledgerPeer._id)) balance += toCents(ledgerPayment.amount);
+      if (id === hexId(ledgerOwner._id)) balance -= toCents(ledgerPayment.amount);
+      return [id, balance];
+    })
+  );
+  assert.equal(ledgerSettlement.status, 'outstanding');
+  assert.equal(
+    ledgerSettlement.totalExpenses * 100,
+    ledgerExpenses.reduce((sum, { expected }) => sum + expected.amountCents, 0)
+  );
+  assert.deepEqual(
+    ledgerSettlement.balances.map((entry) => [entry.userId, toCents(entry.balance)]).sort(),
+    [...net].sort()
+  );
+  for (const entry of ledgerSettlement.balances) {
+    assertKeys(entry, ['userId', 'displayName', 'totalPaid', 'totalOwed', 'balance'], 'balance');
+    assert.equal(toCents(entry.totalPaid), paid.get(entry.userId) ?? 0);
+    assert.equal(toCents(entry.totalOwed), owed.get(entry.userId) ?? 0);
+    assert.equal(entry.displayName, names.get(entry.userId));
+  }
+  // Following every suggestion must clear every balance.
+  const remaining = new Map(net);
+  for (const transfer of ledgerSettlement.suggestedTransfers) {
+    assertKeys(transfer, ['fromId', 'fromName', 'toId', 'toName', 'amount'], 'transfer');
+    assert.equal(transfer.fromName, names.get(transfer.fromId));
+    assert.equal(transfer.toName, names.get(transfer.toId));
+    remaining.set(transfer.fromId, remaining.get(transfer.fromId) + toCents(transfer.amount));
+    remaining.set(transfer.toId, remaining.get(transfer.toId) - toCents(transfer.amount));
+  }
+  assert(
+    [...remaining.values()].every((cents) => Math.abs(cents) <= 1),
+    'transfers clear balances'
+  );
+  assert(ledgerSettlement.suggestedTransfers.length > 0);
+  assert.deepEqual(
+    ledgerSettlement.payments.map(({ id: _id, createdAt: _createdAt, ...rest }) => rest),
+    [
+      {
+        fromId: hexId(ledgerPeer._id),
+        fromName: 'TEST mobile-ledger-b',
+        toId: hexId(ledgerOwner._id),
+        toName: 'TEST mobile-ledger',
+        amount: 20.5,
+        note: 'TEST cash',
+      },
+    ]
+  );
+  assert.equal(
+    ledgerSettlement.payments[0].createdAt,
+    new Date(ledgerPayment.createdAt).toISOString()
+  );
+  const settledView = await settlementOf(settledLedger._id);
+  assert.equal(settledView.status, 'settled');
+  assert.equal(settledView.totalExpenses, 100);
+  assert.deepEqual(settledView.suggestedTransfers, []);
+  assert.deepEqual(
+    settledView.balances.map((entry) => entry.balance),
+    [0, 0]
+  );
+  assert.equal(settledView.payments.length, 1);
+  const emptyView = await settlementOf(emptyLedger._id);
+  assert.deepEqual(
+    {
+      status: emptyView.status,
+      total: emptyView.totalExpenses,
+      transfers: emptyView.suggestedTransfers,
+      payments: emptyView.payments,
+    },
+    { status: 'empty', total: 0, transfers: [], payments: [] }
+  );
+  assert.equal(emptyView.balances.length, 2);
+  assert(
+    !leakPattern.test(raw([ledgerSettlement, settledView, emptyView])),
+    'settlement must not expose private fields'
+  );
+  pass(
+    'settlement balances, suggestions, registered payments; empty, settled and outstanding states'
+  );
+
+  const ledgerExpenseId = hexId(ledgerExpenses[0].doc._id);
+  const deny = (path, token, status = 404) => request(path, { token, status });
+  // Non-member, cross-trip, share code and malformed ids are all indistinguishable 404s.
+  for (const path of [
+    `/trips/${ledger._id}/expenses`,
+    `/trips/${ledger._id}/expenses/${ledgerExpenseId}`,
+    `/trips/${ledger._id}/settlement`,
+  ])
+    await deny(path, first.accessToken);
+  await deny(`/trips/${shared._id}/expenses/${ledgerExpenseId}`, first.accessToken);
+  await deny(`/trips/${settledLedger._id}/expenses/${ledgerExpenseId}`, owner.accessToken);
+  await deny(`/trips/${ledger._id}/expenses/${hexId(settledExpense._id)}`, owner.accessToken);
+  await deny(`/trips/${ledger.hashCode}/expenses`, owner.accessToken);
+  await deny(`/trips/${ledger.hashCode}/settlement`, owner.accessToken);
+  await deny(`/trips/not-an-id/expenses`, owner.accessToken);
+  await deny(`${listPath}/not-an-id`, owner.accessToken);
+  await deny(`/trips/${new mongoose.Types.ObjectId()}/settlement`, owner.accessToken);
+  for (const cursor of ['bad', '', '1.2.3', `9999999999999999.1.${ledgerExpenseId}`])
+    await request(`${listPath}?cursor=${cursor}`, { token: owner.accessToken, status: 400 });
+  await request(`${listPath}?cursor=1.2.${ledgerExpenseId}&cursor=1.2.${ledgerExpenseId}`, {
+    token: owner.accessToken,
+    status: 400,
+  });
+  for (const path of [
+    listPath,
+    `${listPath}/${ledgerExpenseId}`,
+    `/trips/${ledger._id}/settlement`,
+  ])
+    await request(path, { status: 401 });
+  // Losing membership takes effect immediately, even with a still-valid access token.
+  const removedUser = await login('mobile-removed');
+  await request(listPath, { token: removedUser.accessToken, schema: expensesSchema });
+  await db
+    .collection('trips')
+    .updateOne({ _id: ledger._id }, { $pull: { members: { user: ledgerRemoved._id } } });
+  for (const path of [
+    listPath,
+    `${listPath}/${ledgerExpenseId}`,
+    `/trips/${ledger._id}/settlement`,
+  ])
+    await deny(path, removedUser.accessToken);
+  await db
+    .collection('trips')
+    .updateOne({ _id: ledger._id }, { $push: { members: member(ledgerRemoved) } });
+  pass(
+    'non-member, cross-trip, share-code, malformed id, bad cursor, unauthenticated and revoked access'
+  );
   const rotated = (await refresh(first)).data;
   assert.notEqual(rotated.refreshToken, first.refreshToken);
   await me(rotated);
@@ -478,9 +988,11 @@ try {
           if (address.family === 'IPv4' && !address.internal)
             console.log(`LAN candidate: http://${address.address}:${port}/api/v1`);
       }
-    console.log(`Disposable accounts: mobile-a, mobile-b, mobile-empty\nPassword: ${password}`);
     console.log(
-      `Shared trip: ${shared._id}\nB-only trip: ${privateTrip._id}\nFixture date: ${date}\nStop with Ctrl+C to remove the database and server.`
+      `Disposable accounts: mobile-a, mobile-b, mobile-empty, mobile-ledger, mobile-ledger-b, mobile-removed\nPassword: ${password}`
+    );
+    console.log(
+      `Shared trip: ${shared._id}\nB-only trip: ${privateTrip._id}\nLedger trip (48 expenses): ${ledger._id}\nEmpty ledger: ${emptyLedger._id}\nSettled ledger: ${settledLedger._id}\nFixture date: ${date}\nStop with Ctrl+C to remove the database and server.`
     );
     await writeFile(
       join(artifacts, 'fixture.json'),
@@ -489,6 +1001,9 @@ try {
         password,
         sharedTrip: String(shared._id),
         privateTrip: String(privateTrip._id),
+        ledgerTrip: String(ledger._id),
+        emptyLedgerTrip: String(emptyLedger._id),
+        settledLedgerTrip: String(settledLedger._id),
         date,
         controlUrl,
         controlToken,

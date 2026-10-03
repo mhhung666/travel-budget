@@ -1,9 +1,11 @@
 import { ActivityIndicator, View } from 'react-native';
 import { router } from 'expo-router';
 import { Action, Copy, Metric, Notice, Page, Title } from '@/components/ui';
-import { errorMessage } from '@/features/auth/errorMessage';
+import { errorMessage, isAccessDenied } from '@/features/auth/errorMessage';
+import { money } from '@/i18n/format';
 import { useMessages } from '@/i18n/useMessages';
-import { money, useOnline, useTrip } from './queries';
+import { useOnline } from '@/providers/useOnline';
+import { useTrip } from './queries';
 
 export function TripScreen({ id }: { id: string }) {
   const query = useTrip(id);
@@ -11,8 +13,7 @@ export function TripScreen({ id }: { id: string }) {
   const t = useMessages();
   const online = useOnline();
   // Never leave a previously cached member payload visible after access is denied.
-  const denied =
-    query.error && 'status' in query.error && [401, 403, 404].includes(Number(query.error.status));
+  const denied = isAccessDenied(query.error);
   return (
     <Page>
       <Action
@@ -40,6 +41,16 @@ export function TripScreen({ id }: { id: string }) {
           {!!trip.destination && <Copy>{trip.destination}</Copy>}
           {!!trip.description && <Copy>{trip.description}</Copy>}
           <Copy>{t[trip.role]}</Copy>
+          <Action
+            testID="trip-expenses"
+            label={t.expenses}
+            onPress={() => router.push({ pathname: '/trips/[id]/expenses', params: { id } })}
+          />
+          <Action
+            testID="trip-settlement"
+            label={t.settlement}
+            onPress={() => router.push({ pathname: '/trips/[id]/settlement', params: { id } })}
+          />
           <Metric label={t.startDate} value={trip.startDate ?? t.notSet} />
           <Metric label={t.endDate} value={trip.endDate ?? t.notSet} />
           <View style={{ marginTop: 8 }}>

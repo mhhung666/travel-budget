@@ -13,7 +13,23 @@ type LeanExpenseForSettlement = {
   splits: { user: { toString(): string }; shareAmount: number }[];
 };
 
+/** 建議轉帳的成員 id 版本；`Settlement.transactions` 只帶顯示名稱，同名成員無法分辨。 */
+export type SettlementTransfer = { fromId: string; toId: string; amount: number };
+export type SettlementDetail = Settlement & { transfers: SettlementTransfer[] };
+
 export async function readSettlement(tripId: string, memberIds?: string[]): Promise<Settlement> {
+  const { balances, transactions, payments, totalExpenses } = await readSettlementDetail(
+    tripId,
+    memberIds
+  );
+  // 只回傳原有欄位：公開結算路由直接序列化這個結果。
+  return { balances, transactions, payments, totalExpenses };
+}
+
+export async function readSettlementDetail(
+  tripId: string,
+  memberIds?: string[]
+): Promise<SettlementDetail> {
   // 一次取出成員 + 全部支出（含內嵌 splits）+ 已登記還款，其餘在記憶體計算
   const [trip, expenses, paymentDocs] = await Promise.all([
     memberIds
@@ -80,7 +96,17 @@ export async function readSettlement(tripId: string, memberIds?: string[]): Prom
     expenseBalances,
     payments.map((p) => ({ from: p.fromId, to: p.toId, amount: p.amount }))
   );
-  const transactions = calculateSettlement(balances.map((b) => ({ ...b })));
+  // 以 userId 當標籤跑同一個演算法，再換回顯示名稱：transactions 與先前逐位相同，
+  // 同時保留可辨識成員的 transfers。
+  const transfers = calculateSettlement(
+    balances.map((b) => ({ userId: b.userId, username: b.userId, balance: b.balance }))
+  ).map((t) => ({ fromId: t.from, toId: t.to, amount: t.amount }));
+  const names = new Map(balances.map((b) => [b.userId, b.username]));
+  const transactions = transfers.map((t) => ({
+    from: names.get(t.fromId) ?? '',
+    to: names.get(t.toId) ?? '',
+    amount: t.amount,
+  }));
 
-  return { balances, transactions, payments, totalExpenses: roundMoney(totalExpenses) };
+  return { balances, transactions, transfers, payments, totalExpenses: roundMoney(totalExpenses) };
 }

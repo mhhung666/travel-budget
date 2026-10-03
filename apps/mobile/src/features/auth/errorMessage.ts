@@ -13,3 +13,8 @@ export function errorMessage(error: unknown, t: Messages): string {
   if (error.status === 403 || error.status === 404) return t.notFound;
   return t.genericError;
 }
+
+/** The server treats lost membership and unknown resources alike; never keep showing stale private data. */
+export function isAccessDenied(error: unknown): boolean {
+  return error instanceof ApiError && [401, 403, 404].includes(error.status);
+}

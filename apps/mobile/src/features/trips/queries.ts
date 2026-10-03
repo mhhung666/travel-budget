@@ -1,12 +1,12 @@
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useEffect, useState } from 'react';
 import { AppState } from 'react-native';
-import { onlineManager, useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { queryOptions, useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { landingSchema, tripsSchema } from '@/api/contracts';
+import type { SessionManager } from '@/api/session';
 import { useAuth } from '@/features/auth/AuthProvider';
+import { keepAccessDenial } from '@/features/auth/accessGuard';
+import { localDate } from '@/i18n/format';
 
-export function localDate(now = new Date()) {
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-}
 function useToday() {
   const [date, setDate] = useState(localDate);
   useEffect(() => {
@@ -20,12 +20,6 @@ function useToday() {
   }, []);
   return date;
 }
-export const useOnline = () =>
-  useSyncExternalStore(
-    onlineManager.subscribe,
-    () => onlineManager.isOnline(),
-    () => true
-  );
 export function useTrips() {
   const { manager, user } = useAuth();
   const date = useToday();
@@ -38,24 +32,24 @@ export function useTrips() {
     getNextPageParam: (page) => page.nextPage ?? undefined,
   });
 }
+export const tripQuery = (
+  manager: Pick<SessionManager, 'request'> & { api: Pick<SessionManager['api'], 'baseUrl'> },
+  userId: string | undefined,
+  id: string,
+  date: string
+) =>
+  queryOptions({
+    queryKey: [manager.api.baseUrl, userId, 'trip', id, date],
+    enabled: !!userId,
+    queryFn: ({ client, queryKey, signal }) =>
+      keepAccessDenial(client, queryKey, () =>
+        manager.request(`/trips/${encodeURIComponent(id)}/landing?date=${date}`, landingSchema, {
+          signal,
+        })
+      ),
+  });
 export function useTrip(id: string) {
   const { manager, user } = useAuth();
   const date = useToday();
-  return useQuery({
-    queryKey: [manager.api.baseUrl, user?.id, 'trip', id, date],
-    enabled: !!user,
-    queryFn: ({ signal }) =>
-      manager.request(`/trips/${encodeURIComponent(id)}/landing?date=${date}`, landingSchema, {
-        signal,
-      }),
-  });
-}
-export function money(value: number) {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'TWD',
-    currencyDisplay: 'code',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  }).format(value);
+  return useQuery(tripQuery(manager, user?.id, id, date));
 }

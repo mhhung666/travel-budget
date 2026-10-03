@@ -1,0 +1,263 @@
+appId: ${MAESTRO_APP_ID}
+name: Read-only expense list, detail, settlement and account isolation
+---
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: reset-limits
+- stopApp
+# Start the Expo Go container before opening a project link on Android.
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - launchApp:
+          clearState: false
+          stopApp: false
+- openLink: ${MAESTRO_EXPO_URL}
+# The Expo Go splash shows the app name too; the login subtitle only exists once the app has loaded.
+- extendedWaitUntil:
+    visible: '${MAESTRO_SUBTITLE}|TEST mobile-.*'
+    timeout: 60000
+- runFlow:
+    when:
+      visible: 'TEST mobile-.*'
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: logout
+      - tapOn:
+          id: logout
+- runFlow:
+    file: flows/login-scrolling.yaml
+    env:
+      USERNAME: mobile-ledger
+- scrollUntilVisible:
+    element:
+      id: trip-${MAESTRO_LEDGER_TRIP}
+    visibilityPercentage: 30
+    timeout: 60000
+- tapOn:
+    id: trip-${MAESTRO_LEDGER_TRIP}
+    point: '50%,10%'
+- scrollUntilVisible:
+    element:
+      id: trip-expenses
+    timeout: 60000
+- tapOn:
+    id: trip-expenses
+- extendedWaitUntil:
+    visible: ${MAESTRO_EXPENSES}
+    timeout: 30000
+# Newest rows first: the 45th bulk row is the newest date, createdAt and id.
+- scrollUntilVisible:
+    element: 'TEST bulk 45,.*TWD[ \u00a0]144.*'
+    visibilityPercentage: 30
+    timeout: 30000
+    speed: 80
+- takeScreenshot: ledger-expenses
+- assertNotVisible: 'TEST foreign currency.*'
+- assertNotVisible: '.*private-fixture-key.*'
+# 48 rows load as 20 + 20 + 8; the cursor must not skip or repeat tied rows.
+- scrollUntilVisible:
+    element:
+      id: expenses-load-more
+    timeout: 120000
+    speed: 90
+- tapOn:
+    id: expenses-load-more
+# The footer keeps its id while loading. Wait for a row from page two before seeking it again.
+- scrollUntilVisible:
+    element: 'TEST bulk 25,.*'
+    visibilityPercentage: 30
+    timeout: 120000
+    speed: 90
+- scrollUntilVisible:
+    element:
+      id: expenses-load-more
+    timeout: 120000
+    speed: 90
+- tapOn:
+    id: expenses-load-more
+- scrollUntilVisible:
+    element: 'TEST foreign currency.*'
+    visibilityPercentage: 30
+    timeout: 120000
+    speed: 90
+- assertVisible: 'TEST foreign currency.*TWD[ \u00a0]99\.9.*JPY[ \u00a0]3,000.*'
+- assertNotVisible:
+    id: expenses-load-more
+- takeScreenshot: ledger-expenses-end
+- tapOn:
+    text: 'TEST foreign currency.*'
+    point: '50%,10%'
+- extendedWaitUntil:
+    visible:
+      id: expense-back
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      id: expense-date
+    timeout: 60000
+- assertVisible:
+    id: expense-date
+    text: '2026-08-22'
+- scrollUntilVisible:
+    element:
+      id: expense-category
+    timeout: 60000
+- assertVisible:
+    id: expense-category
+    text: ${MAESTRO_CATEGORY_SHOPPING}
+- scrollUntilVisible:
+    element:
+      id: expense-amount
+    timeout: 60000
+- assertVisible:
+    id: expense-amount
+    text: 'TWD[ \u00a0]99\.9'
+- scrollUntilVisible:
+    element:
+      id: expense-original
+    timeout: 60000
+- assertVisible:
+    id: expense-original
+    text: 'JPY[ \u00a0]3,000'
+- scrollUntilVisible:
+    element:
+      id: expense-rate
+    timeout: 60000
+- assertVisible:
+    id: expense-rate
+    text: '0\.0333'
+- scrollUntilVisible:
+    element:
+      id: expense-split-0
+    timeout: 60000
+- assertVisible:
+    id: expense-split-0
+    text: 'TWD[ \u00a0]60'
+- scrollUntilVisible:
+    element:
+      id: expense-split-1
+    timeout: 60000
+- assertVisible:
+    id: expense-split-1
+    text: 'TWD[ \u00a0]39\.9'
+- takeScreenshot: ledger-expense-detail
+- scrollUntilVisible:
+    element:
+      id: expense-back
+    direction: UP
+    timeout: 120000
+    speed: 90
+- tapOn:
+    id: expense-back
+- extendedWaitUntil:
+    visible:
+      id: expenses-list
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      id: expenses-back
+    direction: UP
+    timeout: 120000
+    speed: 90
+- tapOn:
+    id: expenses-back
+- scrollUntilVisible:
+    element:
+      id: trip-settlement
+    timeout: 60000
+- tapOn:
+    id: trip-settlement
+- scrollUntilVisible:
+    element:
+      id: settlement-status
+    timeout: 30000
+    speed: 80
+- assertVisible:
+    id: settlement-status
+    text: ${MAESTRO_SETTLEMENT_OUTSTANDING}
+- scrollUntilVisible:
+    element:
+      id: settlement-total
+    timeout: 60000
+- assertVisible:
+    id: settlement-total
+    text: 'TWD[ \u00a0]5,819\.9'
+- takeScreenshot: ledger-settlement
+- scrollUntilVisible:
+    element:
+      id: settlement-transfer-0
+    visibilityPercentage: 30
+    timeout: 60000
+- scrollUntilVisible:
+    element: ${MAESTRO_UNPAID}
+    timeout: 60000
+- scrollUntilVisible:
+    element: 'TWD[ \u00a0]20\.5'
+    timeout: 60000
+- scrollUntilVisible:
+    element: 'TEST cash'
+    timeout: 60000
+- takeScreenshot: ledger-settlement-payments
+# Settled and empty trips are different states, not just empty lists.
+- openLink: ${MAESTRO_EXPO_URL}/--/trips/${MAESTRO_SETTLED_LEDGER_TRIP}/settlement
+- scrollUntilVisible:
+    element:
+      id: settlement-status
+      text: ${MAESTRO_SETTLEMENT_SETTLED}
+    timeout: 30000
+    speed: 80
+- takeScreenshot: ledger-settled
+# A deep link has no history: back must fall back to the trip overview.
+- tapOn:
+    id: settlement-back
+- extendedWaitUntil:
+    visible:
+      id: trip-back
+    timeout: 30000
+- openLink: ${MAESTRO_EXPO_URL}/--/trips/${MAESTRO_EMPTY_LEDGER_TRIP}/settlement
+- scrollUntilVisible:
+    element:
+      id: settlement-status
+      text: ${MAESTRO_SETTLEMENT_EMPTY}
+    timeout: 30000
+    speed: 80
+- takeScreenshot: ledger-empty
+# A signed-in non-member, and the same trip after switching accounts, see nothing.
+- openLink: ${MAESTRO_EXPO_URL}/--/trips
+- scrollUntilVisible:
+    element:
+      id: logout
+    timeout: 60000
+- tapOn:
+    id: logout
+- runFlow:
+    file: flows/login-scrolling.yaml
+    env:
+      USERNAME: mobile-a
+- openLink: ${MAESTRO_EXPO_URL}/--/trips/${MAESTRO_LEDGER_TRIP}/expenses
+- scrollUntilVisible:
+    element: ${MAESTRO_NOT_FOUND}
+    timeout: 30000
+    speed: 80
+- assertNotVisible: 'TEST bulk.*'
+- takeScreenshot: ledger-denied
+- openLink: ${MAESTRO_EXPO_URL}/--/trips/${MAESTRO_LEDGER_TRIP}/settlement
+- scrollUntilVisible:
+    element: ${MAESTRO_NOT_FOUND}
+    timeout: 30000
+    speed: 80
+- assertNotVisible:
+    id: settlement-total
+- openLink: ${MAESTRO_EXPO_URL}/--/trips
+- scrollUntilVisible:
+    element:
+      id: logout
+    timeout: 60000
+- tapOn:
+    id: logout
+- assertVisible:
+    id: login-submit

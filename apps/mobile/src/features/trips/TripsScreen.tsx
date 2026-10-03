@@ -6,7 +6,9 @@ import { useAuth } from '@/features/auth/AuthProvider';
 import { errorMessage } from '@/features/auth/errorMessage';
 import { Action, Copy, Notice, Title, styles, usePalette } from '@/components/ui';
 import { useMessages } from '@/i18n/useMessages';
-import { money, useOnline, useTrips } from './queries';
+import { money } from '@/i18n/format';
+import { useOnline } from '@/providers/useOnline';
+import { useTrips } from './queries';
 
 export function TripsScreen() {
   const { manager, user } = useAuth();

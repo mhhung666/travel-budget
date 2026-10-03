@@ -7,6 +7,9 @@ import {
   sessionSchema,
   tripsSchema,
   landingSchema,
+  expensesSchema,
+  expenseDetailSchema,
+  settlementSchema,
 } from '../src/index.ts';
 
 const schemas = Object.fromEntries(
@@ -17,6 +20,9 @@ const schemas = Object.fromEntries(
     Session: sessionSchema,
     Trips: tripsSchema,
     Landing: landingSchema,
+    Expenses: expensesSchema,
+    ExpenseDetail: expenseDetailSchema,
+    Settlement: settlementSchema,
     Logout: z.object({ loggedOut: z.literal(true) }),
     Error: z.object({ error: z.object({ code: z.string() }), requestId: z.string() }),
   }).map(([name, schema]) => {
@@ -58,6 +64,8 @@ const dateParam = {
   description: 'Device calendar date. Defaults to server UTC date if omitted.',
   schema: { type: 'string', format: 'date' },
 };
+const objectId = { type: 'string', pattern: '^[a-fA-F0-9]{24}$' };
+const tripIdParam = { name: 'id', in: 'path', required: true, schema: objectId };
 const paths = {
   '/auth/login': { post: operation('login', 'Session', 'LoginInput') },
   '/auth/refresh': { post: operation('refresh', 'Session', 'RefreshInput') },
@@ -81,15 +89,42 @@ const paths = {
   '/trips/{id}/landing': {
     get: {
       ...operation('landing', 'Landing'),
+      parameters: [tripIdParam, dateParam],
+    },
+  },
+  '/trips/{id}/expenses': {
+    get: {
+      ...operation('expenses', 'Expenses'),
       parameters: [
+        tripIdParam,
         {
-          name: 'id',
-          in: 'path',
-          required: true,
-          schema: { type: 'string', pattern: '^[a-fA-F0-9]{24}$' },
+          name: 'cursor',
+          in: 'query',
+          description: 'Opaque nextCursor from the previous page; an invalid cursor returns 400.',
+          schema: { type: 'string', minLength: 1, maxLength: 64 },
         },
-        dateParam,
       ],
+      description:
+        '20 items/page ordered by date, createdAt and id (all descending). Pagination is not a snapshot; refresh from the first page after changes. Members only: non-members and unknown trips return 404. Attachments are never returned.',
+    },
+  },
+  '/trips/{id}/expenses/{expenseId}': {
+    get: {
+      ...operation('expense', 'ExpenseDetail'),
+      parameters: [
+        tripIdParam,
+        { name: 'expenseId', in: 'path', required: true, schema: objectId },
+      ],
+      description:
+        'Amounts are TWD rounded by the existing money rules; originalAmount, currency and exchangeRate describe the entered value. An expense of another trip returns 404.',
+    },
+  },
+  '/trips/{id}/settlement': {
+    get: {
+      ...operation('settlement', 'Settlement'),
+      parameters: [tripIdParam],
+      description:
+        'Balances already include registered payments. suggestedTransfers are suggestions only and have not been paid. status distinguishes no expenses, settled and outstanding.',
     },
   },
 };

@@ -108,6 +108,60 @@ export function Metric({
     </View>
   );
 }
+export function Section({ title, children }: PropsWithChildren<{ title: string }>) {
+  const p = usePalette();
+  return (
+    <View style={{ gap: 12, marginTop: 8 }}>
+      <Text accessibilityRole="header" style={[styles.section, { color: p.text }]}>
+        {title}
+      </Text>
+      {children}
+    </View>
+  );
+}
+export function Card({
+  children,
+  style,
+  testID,
+}: PropsWithChildren<{ style?: ViewStyle; testID?: string }>) {
+  const p = usePalette();
+  return (
+    <View
+      testID={testID}
+      style={[styles.card, { backgroundColor: p.surface, borderColor: p.border }, style]}
+    >
+      {children}
+    </View>
+  );
+}
+/** Label above value, so long values and large text wrap instead of colliding. */
+export function DetailRow({
+  label,
+  value,
+  testID,
+}: {
+  label: string;
+  value: string;
+  testID?: string;
+}) {
+  const p = usePalette();
+  return (
+    <View style={{ gap: 2 }}>
+      <Text style={[styles.label, { color: p.muted }]}>{label}</Text>
+      <Text testID={testID} style={[styles.value, { color: p.text }]}>
+        {value}
+      </Text>
+    </View>
+  );
+}
+export function Badge({ label }: { label: string }) {
+  const p = usePalette();
+  return (
+    <View style={[styles.badge, { backgroundColor: p.notice }]}>
+      <Text style={[styles.badgeLabel, { color: p.text }]}>{label}</Text>
+    </View>
+  );
+}
 export const styles = StyleSheet.create({
   page: { flexGrow: 1, width: '100%', maxWidth: 640, alignSelf: 'center', padding: 24, gap: 16 },
   title: { fontSize: 32, fontWeight: '700' },
@@ -126,4 +180,10 @@ export const styles = StyleSheet.create({
   buttonLabel: { fontSize: 16, fontWeight: '600', flexShrink: 1 },
   notice: { borderRadius: 14, padding: 16 },
   metric: { borderRadius: 18, padding: 18, gap: 8, borderWidth: 1 },
+  section: { fontSize: 22, fontWeight: '700' },
+  card: { borderRadius: 18, padding: 18, gap: 14, borderWidth: 1 },
+  label: { fontSize: 14, lineHeight: 20 },
+  value: { fontSize: 17, lineHeight: 24, fontWeight: '600' },
+  badge: { alignSelf: 'flex-start', borderRadius: 999, paddingVertical: 4, paddingHorizontal: 10 },
+  badgeLabel: { fontSize: 13, fontWeight: '600' },
 });

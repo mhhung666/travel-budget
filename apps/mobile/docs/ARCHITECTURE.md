@@ -4,7 +4,7 @@
 
 ## 一套後端，兩種前端
 
-登入憑證檢查、旅行列表與摘要讀取已接入此分工；支出等寫入 service 仍待後續抽取。
+登入憑證檢查、旅行列表與摘要、支出清單／明細及結算讀取已接入此分工；支出寫入 service 仍待後續抽取。
 
 ```mermaid
 flowchart LR
@@ -26,6 +26,8 @@ src/
   features/
     auth/              登入、恢復登入與安全路由
     trips/             旅行列表、摘要與查詢 hooks
+    expenses/          支出清單、明細、游標查詢與列資料轉換
+    settlement/        結算畫面、查詢與本人視角排序
   providers/           Query、SafeArea、Auth 及網路／前景同步
   api/                 HTTP client、runtime DTO 驗證、session manager
   storage/             環境隔離的 SecureStore refresh token adapter
@@ -37,7 +39,9 @@ docs/                  現況、規範、契約與規劃
 assets/                目前保留 Expo 模板圖示
 ```
 
-後續依需求建立 `features/expenses`、`settlement`，每個 feature 內再放 screens、hooks、components、schemas，不先建大量空資料夾。
+路由為 `trips/[id]`（摘要）、`trips/[id]/expenses`（清單）、`trips/[id]/expenses/[expenseId]`（明細）與 `trips/[id]/settlement`；`features/expenses`、`settlement` 各放畫面、查詢選項與可單元測試的純函式。新增支出時再加入表單與待確認紀錄，不先建大量空資料夾。
+
+支出清單使用 TanStack Query 的游標式無限查詢；下拉更新只保留並重讀最新一頁，較舊頁面按需再載入。所有私人查詢的 key 以 `[API 環境, 帳號, 資源, 旅行…]` 開頭，換帳號不會讀到同一筆快取，登出仍會清除全部。
 
 依賴方向：`app → features → api / storage / i18n / theme`。API 與 storage 不得反向 import 畫面或路由；route 不直接呼叫 fetch，也不計算業務交易。跨 feature 使用明確的公開 export，避免引用彼此內部元件。
 
@@ -54,7 +58,7 @@ assets/                目前保留 Expo 模板圖示
 | 檔案         | App 私有目錄、穩定 upload ID、begin／finish 協議      | 相簿與附件階段     |
 | 通知         | 原生裝置 token 與後端裝置註冊                         | 核心流程穩定後     |
 
-Query 預設不重試；HTTP 在 401 時由 session manager 合併 refresh、最多重送一次。429 尊重 Retry-After；其餘錯誤由使用者明確重試。登入／登出先取消並清除私人查詢，key 包含 API 環境與帳號。Token 不進 Query cache；refresh 持久化完成後才公開登入狀態。尚無業務寫入或離線持久化。
+Query 預設不重試；私人資源的讀取經 `keepAccessDenial`：收到存取拒絕（401／403／404）後，該拒絕保持為查詢的錯誤，暫時性失敗不會讓隱藏的快取重新出現，直到成功讀取。HTTP 在 401 時由 session manager 合併 refresh、最多重送一次。429 尊重 Retry-After；其餘錯誤由使用者明確重試。登入／登出先取消並清除私人查詢，key 包含 API 環境與帳號。Token 不進 Query cache；refresh 持久化完成後才公開登入狀態。尚無業務寫入或離線持久化。
 
 前景／網路 adapter 在啟動時同步目前 AppState，回到前景時重新讀取連線狀態；較舊的非同步網路讀取不得覆蓋較新的事件或讀取結果。Query 沿用 30 秒新鮮期，回前景／重新連線會更新已過期的觀察中查詢，離線暫停的首次讀取可在連線恢復後繼續。
 

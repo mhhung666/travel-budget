@@ -46,6 +46,6 @@ Next.js App Router 與 React 組成介面，TanStack Query 負責查詢、重新
 
 ## 手機 HTTP adapter
 
-`src/app/api/v1` 是原生用戶端入口，`src/lib/mobile` 管理獨立 bearer session、錯誤 envelope 與 DTO 組裝；輸入與回應 schema 由 `@travel-budget/contracts` 匯入。`credentials.ts`、`tripListRead.ts` 同時供 Web Server Actions 與手機呼叫；摘要重用成員權限及 `tripShellRead`／`tripListSummary`。手機簽章與 Web cookie 隔離，MongoDB 儲存 refresh 雜湊與撤銷狀態。詳細安全邊界及 OpenAPI 見 [手機 API](MOBILE_API.md)。
+`src/app/api/v1` 是原生用戶端入口，`src/lib/mobile` 管理獨立 bearer session、錯誤 envelope 與 DTO 組裝；輸入與回應 schema 由 `@travel-budget/contracts` 匯入。`credentials.ts`、`tripListRead.ts` 同時供 Web Server Actions 與手機呼叫；摘要重用成員權限及 `tripShellRead`／`tripListSummary`。支出清單／明細（`lib/mobile/expenses.ts`）重用 `toExpenseDto` 與 `Expense` 索引，結算（`lib/mobile/settlement.ts`）重用 `readSettlementDetail`（`readSettlement` 的成員 id 版本，原回傳不變）；兩者先經 `lib/mobile/access.ts` 驗證成員 ObjectId，再讀資料。手機簽章與 Web cookie 隔離，MongoDB 儲存 refresh 雜湊與撤銷狀態。詳細安全邊界及 OpenAPI 見 [手機 API](MOBILE_API.md)。
 
 [packages/contracts/openapi.json](../../../packages/contracts/openapi.json) 是共用契約產物；在 repository 根目錄執行 `pnpm contracts:generate` 更新、`pnpm contracts:check` 檢查同步。Vercel 使用 Root Directory `apps/web`，啟用 outside-root source files 以建置共享契約；本目錄 `vercel.json` 保留既有 cron。

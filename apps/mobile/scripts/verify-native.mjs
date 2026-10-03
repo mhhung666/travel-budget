@@ -38,8 +38,9 @@ assert(
     'expiry',
     'locales',
     'keyboard',
+    'ledger',
   ].includes(values.suite),
-  'Use --suite auth-trips|sessions|lifecycle|network|appearance|expiry|locales|keyboard'
+  'Use --suite auth-trips|sessions|lifecycle|network|appearance|expiry|locales|keyboard|ledger'
 );
 const needsControl = values.suite !== 'auth-trips';
 if (values.suite === 'keyboard') assert.equal(values.platform, 'ios', 'Keyboard suite targets iOS');
@@ -61,6 +62,10 @@ assert(
 );
 for (const key of ['sharedTrip', 'privateTrip'])
   assert(/^[a-f0-9]{24}$/.test(fixture[key]), `Invalid ${key}`);
+const ledgerKeys = ['ledgerTrip', 'emptyLedgerTrip', 'settledLedgerTrip'];
+if (['ledger', 'locales'].includes(values.suite))
+  for (const key of ledgerKeys)
+    assert(/^[a-f0-9]{24}$/.test(fixture[key]), `Invalid ${key}; restart dev:mobile-api`);
 const response = await fetch(`${api}/me`, { signal: AbortSignal.timeout(5000) });
 assert.equal(response.status, 401, 'Start dev:mobile-api before native acceptance');
 if (needsControl) {
@@ -90,6 +95,7 @@ function localizedEnv(locale) {
   return {
     MAESTRO_SELECT_LATIN_KEYBOARD: String(locale !== 'en'),
     MAESTRO_TITLE: t.title,
+    MAESTRO_SUBTITLE: t.subtitle,
     MAESTRO_REQUIRED: t.required,
     MAESTRO_INVALID: t.invalidCredentials,
     MAESTRO_EMPTY: t.noTrips,
@@ -101,6 +107,12 @@ function localizedEnv(locale) {
     MAESTRO_RETRY: t.retry,
     MAESTRO_NETWORK_ERROR: t.networkError,
     MAESTRO_RESTORE_ERROR: t.restoreError,
+    MAESTRO_EXPENSES: t.expenses,
+    MAESTRO_CATEGORY_SHOPPING: t.categoryShopping,
+    MAESTRO_SETTLEMENT_OUTSTANDING: t.settlementOutstanding,
+    MAESTRO_SETTLEMENT_SETTLED: t.settlementSettled,
+    MAESTRO_SETTLEMENT_EMPTY: t.settlementEmpty,
+    MAESTRO_UNPAID: t.unpaid,
   };
 }
 const env = {
@@ -113,6 +125,13 @@ const env = {
   MAESTRO_SHARED_TRIP: fixture.sharedTrip,
   MAESTRO_PRIVATE_TRIP: fixture.privateTrip,
   MAESTRO_REQUIRE_KEYBOARD: String(values.suite === 'keyboard'),
+  ...(['ledger', 'locales'].includes(values.suite)
+    ? {
+        MAESTRO_LEDGER_TRIP: fixture.ledgerTrip,
+        MAESTRO_EMPTY_LEDGER_TRIP: fixture.emptyLedgerTrip,
+        MAESTRO_SETTLED_LEDGER_TRIP: fixture.settledLedgerTrip,
+      }
+    : {}),
   ...localizedEnv(values.locale),
   ...(needsControl
     ? { MAESTRO_CONTROL_URL: fixture.controlUrl, MAESTRO_CONTROL_TOKEN: fixture.controlToken }
@@ -199,6 +218,7 @@ try {
         });
         assert.equal(reset.status, 200, 'Unable to reset fixture login limits');
         await runFlow('auth-trips', `locale-${locale}`);
+        await runFlow('ledger', `locale-${locale}-ledger`);
       } finally {
         restoreLocale();
       }
