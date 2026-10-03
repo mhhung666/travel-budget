@@ -1,0 +1,16 @@
+appId: ${MAESTRO_APP_ID}
+name: Refresh after natural JWT expiry without logging in again
+---
+# The host waited for the observed JWT exp; no restart, clock change or DB mutation.
+- tapOn:
+    id: trip-refresh
+- scrollUntilVisible:
+    element:
+      id: trip-budget
+    direction: UP
+- assertVisible:
+    id: trip-budget
+    text: 'TWD[ \u00a0]1,000'
+- assertNotVisible: ${MAESTRO_SESSION_EXPIRED}
+- assertNotVisible:
+    id: login-username

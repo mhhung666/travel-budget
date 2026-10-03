@@ -4,21 +4,13 @@ appId: ${MAESTRO_APP_ID}
     visible:
       id: login-username
     timeout: 30000
-# Tap near the field end: a center tap can put Android's caret before the last
-# characters, leaving a suffix behind when eraseText sends backspaces.
-- tapOn:
-    id: login-username
-    point: '95%,50%'
-- eraseText
-- inputText: ${USERNAME}
+- runFlow: username.yaml
 - tapOn:
     id: login-password
     point: '95%,50%'
 - eraseText
 - inputText: ${MAESTRO_PASSWORD}
-- scrollUntilVisible:
-    element:
-      id: login-submit
+- runFlow: submit-visible.yaml
 - tapOn:
     id: login-submit
 - extendedWaitUntil:

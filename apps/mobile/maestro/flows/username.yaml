@@ -1,0 +1,18 @@
+appId: ${MAESTRO_APP_ID}
+---
+- tapOn:
+    id: login-username
+- runFlow:
+    when:
+      platform: Android
+      true: ${MAESTRO_SELECT_LATIN_KEYBOARD === 'true'}
+      visible:
+        id: com.google.android.inputmethod.latin:id/(key_pos_switch_to_next_language|key_pos_ja_12keys_10)
+    commands:
+      # Gboard follows the app locale. Select Latin input for the ASCII fixture account.
+      - longPressOn:
+          id: com.google.android.inputmethod.latin:id/(key_pos_switch_to_next_language|key_pos_ja_12keys_10)
+      - tapOn: 'English \(US\)'
+- eraseText
+- inputText: ${USERNAME}
+- assertVisible: ${USERNAME}

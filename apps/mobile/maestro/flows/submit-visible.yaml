@@ -1,0 +1,29 @@
+appId: ${MAESTRO_APP_ID}
+---
+# Swipe the page padding above the keyboard. A center swipe can hit a TextInput
+# and move its caret instead of scrolling, especially with shorter translations.
+# XCTest can report a button behind the iOS keyboard as visible.
+- runFlow:
+    when:
+      platform: iOS
+      visible: q
+    commands:
+      - repeat:
+          times: 2
+          commands:
+            - swipe:
+                start: '96%,55%'
+                end: '96%,20%'
+                duration: 700
+- repeat:
+    times: 8
+    while:
+      notVisible:
+        id: login-submit
+    commands:
+      - swipe:
+          start: '96%,55%'
+          end: '96%,20%'
+          duration: 400
+- assertVisible:
+    id: login-submit

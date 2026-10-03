@@ -29,6 +29,7 @@ appId: ${MAESTRO_APP_ID}
 - assertVisible:
     id: trip-budget
     text: ${BUDGET}
+- takeScreenshot: summary-budget
 - scrollUntilVisible:
     element:
       id: trip-back

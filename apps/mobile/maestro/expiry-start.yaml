@@ -1,0 +1,30 @@
+appId: ${MAESTRO_APP_ID}
+name: Start a real fifteen minute access JWT
+---
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: reset-limits
+- runFlow: flows/cold-start.yaml
+- runFlow:
+    when:
+      visible:
+        id: logout
+    commands:
+      - tapOn:
+          id: logout
+- runFlow:
+    file: flows/login.yaml
+    env:
+      USERNAME: mobile-a
+- tapOn:
+    id: trip-${MAESTRO_SHARED_TRIP}
+- scrollUntilVisible:
+    element:
+      id: trip-budget
+- assertVisible:
+    id: trip-budget
+    text: 'TWD[ \u00a0]1,000'
+- scrollUntilVisible:
+    element:
+      id: trip-refresh

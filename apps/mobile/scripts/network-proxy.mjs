@@ -3,7 +3,7 @@ import { randomBytes } from 'node:crypto';
 import { createServer, request } from 'node:http';
 
 /** Disposable loopback transport faults. Never mounted in the application/backend. */
-export async function startNetworkProxy(apiUrl, port) {
+export async function startNetworkProxy(apiUrl, port, observe = () => {}) {
   const api = new URL(apiUrl);
   assert(
     api.protocol === 'http:' && api.hostname === '127.0.0.1' && api.pathname === '/api/v1',
@@ -47,6 +47,12 @@ export async function startNetworkProxy(apiUrl, port) {
         headers: { ...req.headers, host: api.host },
       },
       (response) => {
+        observe({
+          method: req.method,
+          path: req.url,
+          authorization: req.headers.authorization,
+          status: response.statusCode,
+        });
         res.writeHead(response.statusCode, response.headers);
         response.on('error', () => res.destroy());
         response.pipe(res);

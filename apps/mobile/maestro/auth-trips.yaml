@@ -30,15 +30,16 @@ name: Local login, trips and account isolation
 - tapOn:
     id: login-submit
 - assertVisible: ${MAESTRO_REQUIRED}
-- tapOn:
-    id: login-username
-- inputText: mobile-a
+- takeScreenshot: login-validation
+- runFlow:
+    file: flows/username.yaml
+    env:
+      USERNAME: mobile-a
 - tapOn:
     id: login-password
+    point: '95%,50%'
 - inputText: incorrect-fixture-password
-- scrollUntilVisible:
-    element:
-      id: login-submit
+- runFlow: flows/submit-visible.yaml
 - tapOn:
     id: login-submit
 - assertVisible: ${MAESTRO_INVALID}
@@ -106,6 +107,7 @@ name: Local login, trips and account isolation
     env:
       USERNAME: mobile-empty
 - assertVisible: ${MAESTRO_EMPTY}
+- takeScreenshot: empty-trips
 - assertNotVisible: TEST mobile-b
 - assertNotVisible:
     id: trip-${MAESTRO_SHARED_TRIP}

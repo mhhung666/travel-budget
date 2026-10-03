@@ -1,0 +1,14 @@
+appId: ${MAESTRO_APP_ID}
+name: Restore the rotated credential after natural expiry
+---
+- runFlow: flows/cold-start.yaml
+- assertVisible: TEST mobile-a
+- runFlow:
+    file: flows/summary.yaml
+    env:
+      SPENT: 'TWD[ \u00a0]50'
+      BUDGET: 'TWD[ \u00a0]1,000'
+      BALANCE_LABEL: ${MAESTRO_RECEIVABLE}
+- tapOn:
+    id: logout
+- runFlow: flows/signed-out.yaml

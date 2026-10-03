@@ -27,9 +27,7 @@ name: Large text login, keyboard and trip navigation
             id: logout
       - tapOn:
           id: logout
-- scrollUntilVisible:
-    element:
-      id: login-submit
+- runFlow: flows/submit-visible.yaml
 - tapOn:
     id: login-submit
 - assertVisible: ${MAESTRO_REQUIRED}
@@ -40,17 +38,36 @@ name: Large text login, keyboard and trip navigation
     direction: UP
 - tapOn:
     id: login-username
+- runFlow:
+    when:
+      true: ${MAESTRO_REQUIRE_KEYBOARD === 'true'}
+    commands:
+      - assertVisible: 'q'
 - inputText: mobile-a
-- scrollUntilVisible:
-    element:
-      id: login-password
-- tapOn:
-    id: login-password
+- assertVisible: mobile-a
+- runFlow:
+    when:
+      true: ${MAESTRO_REQUIRE_KEYBOARD === 'true'}
+    commands:
+      # Exercise the username field's Next action with the software keyboard open.
+      - pressKey: Enter
+- runFlow:
+    when:
+      true: ${MAESTRO_REQUIRE_KEYBOARD !== 'true'}
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: login-password
+      - tapOn:
+          id: login-password
 - inputText: ${MAESTRO_PASSWORD}
 # Do not dismiss the keyboard explicitly; submit must be reachable after editing.
-- scrollUntilVisible:
-    element:
-      id: login-submit
+- runFlow: flows/submit-visible.yaml
+- runFlow:
+    when:
+      true: ${MAESTRO_REQUIRE_KEYBOARD === 'true'}
+    commands:
+      - assertVisible: 'q'
 - takeScreenshot: large-text-keyboard
 - tapOn:
     id: login-submit
@@ -73,8 +90,6 @@ name: Large text login, keyboard and trip navigation
       id: logout
 - tapOn:
     id: logout
-- scrollUntilVisible:
-    element:
-      id: login-submit
+- runFlow: flows/submit-visible.yaml
 - assertNotVisible:
     id: trip-budget
