@@ -1,6 +1,6 @@
 # 開發路線
 
-登入、旅行列表與摘要、支出清單／明細與結算（唯讀，下方 A）及相應後端 API 已實作；真機與 development build 驗收仍未完成，不以 JS bundle 打包代表 MVP 完成。
+登入、旅行列表與摘要、支出清單／明細與結算（唯讀，下方 A）及相應後端 API 已實作；線上新增的共用服務與 HTTP API（下方 B）已實作；B 核心功能與驗收修正已通過獨立複驗，手機新增畫面（C）尚未開始。真機與 development build 驗收仍未完成，不以 JS bundle 打包代表 MVP 完成。
 
 | 階段          | 手機工作                                       | 後端／外部依賴                          | 驗收條件                                         |
 | ------------- | ---------------------------------------------- | --------------------------------------- | ------------------------------------------------ |
@@ -14,11 +14,11 @@
 
 已提供 [隔離本機後端與裝置操作表](LOCAL_ACCEPTANCE.md)，可重跑登入／旅行、session 失效與 JWT 自然到期、前後景、HTTP 故障、四語、大字體／深淺色及 iOS 軟體鍵盤驗收；完整真機驗收仍未完成。
 
-「查看支出 → 線上新增 → 查看結算」依下方 A／B／C 分段交付、分段驗收；A 核心功能與撤權快取修正已獨立複驗通過，可交接 B；完整裝置矩陣與正式建置限制見下方。登入／旅行的模擬器基線已通過；真機與 development build 驗收保留為對外測試前的門檻，不阻擋本機功能開發。附件／背景上傳／推播不要阻擋這個切片。
+「查看支出 → 線上新增 → 查看結算」依下方 A／B／C 分段交付、分段驗收；A 已通過獨立驗收；B 後端核心功能與修正已通過獨立複驗，可交接 C；完整裝置矩陣與正式建置限制見下方。登入／旅行的模擬器基線已通過；真機與 development build 驗收保留為對外測試前的門檻，不阻擋本機功能開發。附件／背景上傳／推播不要阻擋這個切片。
 
 ## 下一個切片：線上記帳交接規格
 
-A 已實作（狀態見其下）；B、C 仍是待實作計畫，不代表 API 或畫面已完成。實作模型先交付 A，驗收模型核對程式、實際 HTTP／MongoDB 與兩平台操作後，再進入 B、C；不得只用實作模型的通過聲明結案。
+A、B 已通過核心功能獨立驗收，可進入 C；C 仍是待實作計畫，不代表手機畫面已完成。實作模型先交付 A，驗收模型核對程式、實際 HTTP／MongoDB 與兩平台操作後，再進入 B、C；不得只用實作模型的通過聲明結案。
 
 ### 範圍與使用流程
 
@@ -56,6 +56,23 @@ A 已實作（狀態見其下）；B、C 仍是待實作計畫，不代表 API �
 
 ### B：共用寫入與 API（第二個交付）
 
+**狀態（2026-10-04）：B 核心功能與 P1／P2 修正獨立複驗通過，可交接 C；正式 check／build 仍有既有型別錯誤。** 共用服務、四個端點、共用契約／OpenAPI 與測試已完成；手機端沒有新增畫面。以下規格保留為驗收依據。實作時的決策：
+
+- `lib/expenseCreate.ts#createExpenseForActor` 接受已授權的旅行／操作者與 `createExpenseSchema` 的輸出，內含 `withTripWrite` 交易、成員／分攤／金額驗證、收據驗證、同交易提交的冪等 receipt 與通知／outbox 副作用，不 import `next/*`。Web Server Action 與 HTTP 各為 adapter：驗證登入、解析旅行與輸入、各自的快取／排程（`after` 以參數注入）與錯誤對照。重構前後 `expense.actions.test.ts` 的既有 36 個案例原樣通過；原本傳統通知路徑中未隔離的 `revalidatePath`（失敗會把已入帳回報成失敗）一併修正。
+- 新增、同樣套用在 Web 的驗證：真實日曆日（V8 會把 `2026-02-31` 悄悄滾成 3 月 3 日）、分攤成員不重複、到分須為安全整數。重播與查詢的 key 不分大小寫：同一個 UUID 的任何拼法都對應同一筆結果（先找以送出的拼法儲存的 receipt，找不到再於同一旅行與操作者的 receipt 範圍內不分大小寫比對）；receipt 的 `_id` 與指紋維持升級前的格式（key 保持送出時的大小寫），見下方 P1 的修正。
+- 單筆金額上限：TWD 金額與每份分攤至多 1,000,000,000.00（`MAX_EXPENSE_AMOUNT`，契約與共用服務共用）。共用取整（`roundMoney`）從約 8.8e12（2^43）起不再原樣保留分格上的值，上限留有約 8,800 倍的餘裕；超過者在契約（HTTP 400）與共用服務（Web 為 `VALIDATION_ERROR`）都於寫入前拒絕，不留 receipt。
+- 成員順序＝加入時間、同刻依儲存順序、略過已不存在的帳號，與 Web `getMembers` 相同（整合測試鎖定兩者一致）；它也是均分尾差的固定順序。預覽重用 `computeSplits('equal')`，結果與請求順序無關。
+- 請求欄位沿用 Web 輸入的 snake_case（預覽為 `amount`、`member_ids`），回應沿用 A 的 camelCase DTO；這是為了共用輸入驗證而刻意的不對稱。`client_request_id`、`currency: 'TWD'`、`exchange_rate: 1`、`category` 皆須明確提供；其餘欄位一律 `.strict()` 拒絕；說明 1–200 字、成員上限 100（8 KiB 內）。
+- 狀態碼：任何 4xx 都代表此請求沒有寫入；409 為 `IDEMPOTENCY_CONFLICT`；429 為 `BUSY`（`TransientTransactionError` 耗盡重試、交易已中止，附 `Retry-After`）；5xx／逾時代表結果不確定，以結果查詢或同 key 重送。授權先於讀取 body；失去資格者連重播與查詢都是 404。
+- `test:mobile-api`／`dev:mobile-api` 的隔離 MongoDB 改為單節點 replica set（交易需要）。使用者已開著的舊環境不是 replica set，須重啟才能使用新增 API。
+
+**獨立複驗通過（2026-10-04）**：
+
+- UUID 相容與冪等：舊／新 receipt 的小寫、大寫與混合拼法都能查回原結果；重送不重複入帳或產生副作用，改內容回 409，刪除後不復活。保留既有 `_id`／指紋格式，以 receipt 的原拼法驗證內容。查詢先找完全相同的 key，再於同旅行／操作者的 `_id` 索引範圍內不分大小寫比對；16 種拼法跨 Web／HTTP 併發只提交一次，索引範圍測試通過。
+- 金額限制：單筆 TWD／分攤上限 1,000,000,000；原本偏移的 `10_000_000_000_000` 在預覽、HTTP 與 Web 新增均於寫入前拒絕、不留 receipt。上限邊界、隨機分攤與預覽／DB／DTO／結算一致性測試通過。
+
+獨立重跑通過 Web 2,006、Mobile 135（131 Vitest＋4 Node）、真 replica set 174 個案例（B 111＋trip writers 63）、隔離 HTTP、frozen install、契約、lint／格式、Mobile check 與三平台匯出；上次留下的 5 個獨立真 DB 邊界測試也全數通過。根 `check` 的 53 個 Web 型別錯誤與先前乾淨基線逐項相同，正式 `build` 仍受既有型別錯誤阻擋，不能標示 CI／正式建置通過。B 沒有新增畫面，本輪未跑 Maestro；429 真實競爭、C 的代理丟棄回應／App 重啟仍未驗。證據見 [本機驗收](LOCAL_ACCEPTANCE.md)。
+
 目前 `expense.actions.ts#createExpense` 已有交易、成員檢查、收據驗證、通知與冪等；`expenseCreateRequest.ts` 已以「旅行＋操作者＋client_request_id」保存結果，並拒絕同 key 不同內容。必須重用，不能為手機另建第二套帳務或 receipt collection。
 
 1. 抽出可接受明確 actor／trip／已驗證輸入的後端服務；Web cookie adapter 與 HTTP bearer adapter 分別驗證登入，共用同一服務。保留 `withTripWrite` 的交易內成員檢查、支出與 receipt 原子提交、附件驗證、既有通知／活動紀錄語意。Next cache／排程留在適當 adapter；提交後副作用失敗不得把已入帳回報成未入帳，重播不得重複產生副作用。
@@ -64,7 +81,7 @@ A 已實作（狀態見其下）；B、C 仍是待實作計畫，不代表 API �
 4. 新增 `POST /trips/:id/expenses`；欄位為 `client_request_id`（必填 UUID）、`payer_id`、`original_amount`、`currency`（TWD）、`exchange_rate`（1）、`description`、`category`、`date`、`splits`（`user_id/share_amount`）。嚴格拒絕本輪不支援的欄位；使用既有 service 正規化與驗證金額／分攤／成員，不能信任預覽或前端按鈕。初次與重播均可沿用現有 200 `{ data }` envelope。
 5. 新增 `GET /trips/:id/expense-requests/:clientRequestId` 查回目前操作者的已提交結果；有權限但尚無 receipt 回 `{ status: 'not_found' }`，已提交回 `{ status: 'committed', expense }`。沒有 receipt 不代表另一請求不在執行，只能用原 key／payload 重試。曾入帳後遭刪除仍視為已提交，不重新建立。
 
-HTTP 明訂 400 輸入錯誤、401 session 失效、404 無權或不存在、409 同 key 不同內容、413 body 過大、429 等待重試與 5xx 不確定結果；保留 no-store 與既有 8 KiB 上限。金額須有限、正值、至多兩位小數且換算到分不超安全整數範圍；成員不可重複，至少一位，date-only 必須是真實日期。回應中的 `requestId` 是診斷編號，不能取代冪等 `client_request_id`。結果重播前仍須重新授權；不得依可變成員／預覽重新計算已提交 payload 的 fingerprint。
+HTTP 明訂 400 輸入錯誤、401 session 失效、404 無權或不存在、409 同 key 不同內容、413 body 過大、429 等待重試與 5xx 不確定結果；保留 no-store 與既有 8 KiB 上限。金額須有限、正值、至多兩位小數、不超過單筆上限 1,000,000,000 且換算到分不超安全整數範圍；成員不可重複，至少一位，date-only 必須是真實日期。回應中的 `requestId` 是診斷編號，不能取代冪等 `client_request_id`。結果重播前仍須重新授權；不得依可變成員／預覽重新計算已提交 payload 的 fingerprint。
 
 ### C：手機新增與不確定結果恢復（第三個交付）
 

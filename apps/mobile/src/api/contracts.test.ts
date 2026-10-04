@@ -9,6 +9,14 @@ import {
   expensesSchema,
   expenseDetailSchema,
   settlementSchema,
+  expenseOptionsSchema,
+  expensePreviewInput,
+  expensePreviewSchema,
+  expenseCreateInput,
+  expenseRequestSchema,
+  isPositiveCentAmount,
+  isCentShare,
+  MAX_EXPENSE_AMOUNT,
 } from './contracts';
 function normalize(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(normalize);
@@ -33,6 +41,11 @@ describe('published backend contract', () => {
     Expenses: expensesSchema,
     ExpenseDetail: expenseDetailSchema,
     Settlement: settlementSchema,
+    ExpenseOptions: expenseOptionsSchema,
+    ExpensePreview: expensePreviewSchema,
+    ExpenseRequest: expenseRequestSchema,
+    ExpensePreviewInput: expensePreviewInput,
+    ExpenseCreateInput: expenseCreateInput,
   })) {
     it(`keeps ${name} response fields in sync`, () => {
       const actual = z.toJSONSchema(schema);
@@ -90,5 +103,134 @@ describe('expense and settlement payloads', () => {
     for (const status of ['empty', 'settled', 'outstanding'])
       expect(settlementSchema.safeParse({ ...base, status }).success).toBe(true);
     expect(settlementSchema.safeParse({ ...base, status: 'paid' }).success).toBe(false);
+  });
+});
+
+const key = '017fd635-8dc2-41c1-bf6a-ecbe40f18f90';
+const createBody = {
+  client_request_id: key,
+  payer_id: id,
+  original_amount: 100,
+  currency: 'TWD',
+  exchange_rate: 1,
+  description: 'Dinner',
+  category: 'food',
+  date: '2026-10-03',
+  splits: [{ user_id: id, share_amount: 100 }],
+};
+describe('online expense entry payloads', () => {
+  it('accepts amounts on the cent grid up to the limit and nothing else', () => {
+    for (const ok of [0.01, 0.1, 1.15, 33.34, 12345678.9, 999_999_999.99, MAX_EXPENSE_AMOUNT])
+      expect(isPositiveCentAmount(ok), String(ok)).toBe(true);
+    for (const bad of [0, -1, 0.001, 1.005, 33.345, 0.1 + 0.2, NaN, Infinity, 1e15, 1e21])
+      expect(isPositiveCentAmount(bad), String(bad)).toBe(false);
+    // A share may be zero: 0.01 split three ways gives two members nothing.
+    expect(isCentShare(0)).toBe(true);
+    expect(isCentShare(-0.01)).toBe(false);
+    expect(isCentShare(0.005)).toBe(false);
+    expect(isCentShare(MAX_EXPENSE_AMOUNT)).toBe(true);
+  });
+
+  // The backend's cent rounding turns 10_000_000_000_000 into 10_000_000_000_000.01, so larger
+  // amounts must be refused at the contract instead of drifting between preview, storage and reply.
+  it('refuses amounts and shares above the limit', () => {
+    expect(MAX_EXPENSE_AMOUNT).toBe(1_000_000_000);
+    for (const bad of [1_000_000_000.01, 10_000_000_000_000, 90_071_992_547_409.91]) {
+      expect(isPositiveCentAmount(bad), String(bad)).toBe(false);
+      expect(isCentShare(bad), String(bad)).toBe(false);
+      expect(expensePreviewInput.safeParse({ amount: bad, member_ids: [id] }).success).toBe(false);
+      expect(expenseCreateInput.safeParse({ ...createBody, original_amount: bad }).success).toBe(
+        false
+      );
+      expect(
+        expenseCreateInput.safeParse({
+          ...createBody,
+          splits: [{ user_id: id, share_amount: bad }],
+        }).success
+      ).toBe(false);
+    }
+    const largest = {
+      ...createBody,
+      original_amount: MAX_EXPENSE_AMOUNT,
+      splits: [{ user_id: id, share_amount: MAX_EXPENSE_AMOUNT }],
+    };
+    expect(expenseCreateInput.parse(largest)).toEqual(largest);
+    expect(
+      expensePreviewInput.safeParse({ amount: MAX_EXPENSE_AMOUNT, member_ids: [id] }).success
+    ).toBe(true);
+  });
+
+  it('trims the description and fixes the supported scope', () => {
+    expect(expenseCreateInput.parse({ ...createBody, description: '  Dinner  ' })).toEqual(
+      createBody
+    );
+    for (const bad of [
+      { currency: 'JPY' },
+      { exchange_rate: 30 },
+      { client_request_id: 'abc' },
+      { client_request_id: undefined },
+      { category: 'games' },
+      { date: '2026-02-30' },
+      { date: '2026-10-03T00:00:00Z' },
+      { description: '   ' },
+      { description: 'x'.repeat(201) },
+      { original_amount: 10.005 },
+      { original_amount: '100' },
+      { splits: [] },
+      { splits: [createBody.splits[0], createBody.splits[0]] },
+      { splits: [{ ...createBody.splits[0], note: 'x' }] },
+      { splits: [{ user_id: id, share_amount: -1 }] },
+      { attachments: [] },
+      { tags: [] },
+      { itinerary_day_ids: [] },
+      { unknown: true },
+    ])
+      expect(
+        expenseCreateInput.safeParse({ ...createBody, ...bad }).success,
+        JSON.stringify(bad)
+      ).toBe(false);
+  });
+
+  it('requires unique members for a preview', () => {
+    expect(expensePreviewInput.safeParse({ amount: 100, member_ids: [id] }).success).toBe(true);
+    for (const bad of [
+      { amount: 100, member_ids: [] },
+      { amount: 100, member_ids: [id, id] },
+      { amount: 0, member_ids: [id] },
+      { amount: 100, member_ids: [id], currency: 'TWD' },
+    ])
+      expect(expensePreviewInput.safeParse(bad).success).toBe(false);
+  });
+
+  it('describes the outcome of a request lookup as a closed set', () => {
+    expect(expenseRequestSchema.parse({ status: 'not_found' })).toEqual({ status: 'not_found' });
+    const expenseDetail = { ...expense, exchangeRate: 1, splits: [] };
+    expect(expenseRequestSchema.parse({ status: 'committed', expense: expenseDetail }).status).toBe(
+      'committed'
+    );
+    for (const bad of [{ status: 'committed' }, { status: 'pending' }, {}])
+      expect(expenseRequestSchema.safeParse(bad).success, JSON.stringify(bad)).toBe(false);
+    // Like every response schema, additive fields from a newer server are ignored.
+    expect(expenseRequestSchema.parse({ status: 'not_found', futureField: 1 })).toEqual({
+      status: 'not_found',
+    });
+  });
+
+  it('lists members and categories for the form', () => {
+    expect(
+      expenseOptionsSchema.parse({
+        members: [{ id, displayName: 'Amy' }],
+        categories: ['food', 'other'],
+      })
+    ).toEqual({ members: [{ id, displayName: 'Amy' }], categories: ['food', 'other'] });
+    expect(expenseOptionsSchema.safeParse({ members: [], categories: ['games'] }).success).toBe(
+      false
+    );
+    expect(
+      expensePreviewSchema.safeParse({
+        amount: 100,
+        splits: [{ userId: id, displayName: 'Amy', shareAmount: 100 }],
+      }).success
+    ).toBe(true);
   });
 });

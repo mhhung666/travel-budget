@@ -1,5 +1,7 @@
 import mongoose, { type mongo } from 'mongoose';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { roundMoney } from '@/lib/money';
+import { findStoredReceipt } from '@/test/receiptStore';
 
 const getSession = vi.fn();
 const getTripMembership = vi.fn();
@@ -27,7 +29,7 @@ afterAll(() => {
   if (originalDbDescriptor) Object.defineProperty(mongoose.connection, 'db', originalDbDescriptor);
   else Reflect.deleteProperty(mongoose.connection, 'db');
 });
-const receipts = new Map<string, unknown>();
+const receipts = new Map<string, { _id: string }>();
 const receiptFind = vi.fn();
 const receiptInsert = vi.fn();
 
@@ -152,7 +154,9 @@ function currentExpense(overrides: Record<string, unknown> = {}) {
 beforeEach(() => {
   vi.clearAllMocks();
   receipts.clear();
-  receiptFind.mockImplementation(async ({ _id }) => receipts.get(_id) ?? null);
+  receiptFind.mockImplementation(async (filter, options) =>
+    findStoredReceipt(receipts, filter, options)
+  );
   receiptInsert.mockImplementation(async (receipt) => {
     receipts.set(receipt._id, structuredClone(receipt));
   });
@@ -298,6 +302,120 @@ describe('createExpense', () => {
     }
   );
 
+  // V8 rolls 2026-02-31 over to March 3 instead of rejecting it, so a regex-valid date alone
+  // would silently be stored on the wrong day.
+  it.each(['2026-02-31', '2026-13-01', '2025-02-29', '2026-04-31', '0000-00-00'])(
+    'rejects the impossible calendar date %s without writing',
+    async (date) => {
+      const result = await createExpense(TRIP, { ...validInput, date });
+      expect(result).toMatchObject({ success: false, code: 'VALIDATION_ERROR' });
+      expect(expenseCreate).not.toHaveBeenCalled();
+    }
+  );
+
+  it('accepts a real leap day', async () => {
+    expenseCreate.mockResolvedValue({
+      _id: { toString: () => EXPENSE },
+      toObject: () => ({ _id: { toString: () => EXPENSE } }),
+    });
+    expect((await createExpense(TRIP, { ...validInput, date: '2028-02-29' })).success).toBe(true);
+    expect(expenseCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ date: new Date('2028-02-29T00:00:00.000Z') })
+    );
+  });
+
+  it('rejects the same member listed twice', async () => {
+    const result = await createExpense(TRIP, {
+      ...validInput,
+      splits: [
+        { user_id: USER, share_amount: 1500 },
+        { user_id: USER, share_amount: 1500 },
+      ],
+    });
+    expect(result).toMatchObject({ success: false, code: 'VALIDATION_ERROR' });
+    expect(expenseCreate).not.toHaveBeenCalled();
+  });
+
+  // The shared cent rounding stops returning cent values unchanged from about 8.8e12: it turns
+  // 10_000_000_000_000 into 10_000_000_000_000.01, so the amount the caller confirmed could not be
+  // stored as is. Each split below balances exactly (halves of what the amount rounds to), leaving
+  // the range guard as the only thing that can reject.
+  it.each([
+    ['an amount just above the limit', 1_000_000_000.01, 1],
+    ['the amount that used to drift by a cent', 10_000_000_000_000, 1],
+    ['an amount whose cents are beyond the safe integers', 9.1e13, 1],
+    ['an amount that converts above the limit', 50_000_000_000, 0.0200001],
+    ['an amount that converts beyond the safe integers', 1e11, 1000],
+  ])('rejects %s', async (_label, originalAmount, exchangeRate) => {
+    const half = roundMoney(originalAmount * exchangeRate) / 2;
+    const result = await createExpense(TRIP, {
+      ...validInput,
+      original_amount: originalAmount,
+      exchange_rate: exchangeRate,
+      splits: [
+        { user_id: USER, share_amount: half },
+        { user_id: MEMBER, share_amount: half },
+      ],
+    });
+    expect(result).toMatchObject({ success: false, code: 'VALIDATION_ERROR' });
+    expect(expenseCreate).not.toHaveBeenCalled();
+    expect(receipts.size).toBe(0);
+  });
+
+  it('rejects a share above the limit even when the split still balances within a cent', async () => {
+    const result = await createExpense(TRIP, {
+      ...validInput,
+      original_amount: 1_000_000_000,
+      exchange_rate: 1,
+      splits: [
+        { user_id: USER, share_amount: 1_000_000_000.01 },
+        { user_id: MEMBER, share_amount: 0 },
+      ],
+    });
+    expect(result).toMatchObject({ success: false, code: 'VALIDATION_ERROR' });
+    expect(expenseCreate).not.toHaveBeenCalled();
+  });
+
+  it('rejects a conversion that overflows instead of rounding it to zero', async () => {
+    const result = await createExpense(TRIP, {
+      ...validInput,
+      original_amount: 1e10,
+      exchange_rate: 1e300,
+      splits: [{ user_id: USER, share_amount: 0 }],
+    });
+    expect(result).toMatchObject({ success: false, code: 'VALIDATION_ERROR' });
+    expect(expenseCreate).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['the largest TWD amount', 1_000_000_000, 1],
+    ['an amount that converts to the largest TWD amount', 50_000_000_000, 0.02],
+  ])('accepts %s and stores it unchanged', async (_label, originalAmount, exchangeRate) => {
+    expenseCreate.mockResolvedValue({
+      _id: { toString: () => EXPENSE },
+      toObject: () => ({ _id: { toString: () => EXPENSE } }),
+    });
+    const result = await createExpense(TRIP, {
+      ...validInput,
+      original_amount: originalAmount,
+      exchange_rate: exchangeRate,
+      splits: [
+        { user_id: USER, share_amount: 500_000_000 },
+        { user_id: MEMBER, share_amount: 500_000_000 },
+      ],
+    });
+    expect(result.success).toBe(true);
+    expect(expenseCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        amount: 1_000_000_000,
+        splits: [
+          { user: USER, shareAmount: 500_000_000 },
+          { user: MEMBER, shareAmount: 500_000_000 },
+        ],
+      })
+    );
+  });
+
   it('rejects itinerary days from another trip', async () => {
     itineraryCountDocuments.mockResolvedValue(0);
     const result = await createExpense(TRIP, { ...validInput, itinerary_day_ids: [DAY] });
@@ -389,6 +507,16 @@ describe('createExpense side-effect isolation', () => {
       expect(revalidatePath).toHaveBeenCalled();
     }
   );
+
+  it('keeps a committed expense successful when cache invalidation throws (legacy delivery)', async () => {
+    revalidatePath.mockImplementationOnce(() => {
+      throw new Error('cache unavailable');
+    });
+    expect((await createExpense(TRIP, validInput)).success).toBe(true);
+    expect(expenseCreate).toHaveBeenCalledTimes(1);
+    expect(notify).toHaveBeenCalledTimes(1);
+    expect(loggerError).toHaveBeenCalledWith('Create expense cache invalidation failed');
+  });
 
   it('starts activity while notification is pending and awaits both', async () => {
     let release!: () => void;
@@ -528,6 +656,39 @@ describe('createExpense request replay', () => {
     await createExpense(DAY, input);
     expect(expenseCreate).toHaveBeenCalledTimes(3);
     expect(receipts.size).toBe(3);
+  });
+  it.each([
+    ['uppercase', '017FD635-8DC2-41C1-BF6A-ECBE40F18F90'],
+    ['mixed case', '017fD635-8Dc2-41c1-Bf6A-eCbe40F18f90'],
+  ])('treats the same key in %s as the same request', async (_label, spelled) => {
+    const first = await createExpense(TRIP, input);
+    const retry = { ...input, client_request_id: spelled };
+    expect(await createExpense(TRIP, retry)).toEqual(first);
+    expect(expenseCreate).toHaveBeenCalledOnce();
+    expect(receipts.size).toBe(1);
+    // ...and different content under that key is still a conflict, whatever the case.
+    expect(await createExpense(TRIP, { ...retry, description: 'Different' })).toMatchObject({
+      success: false,
+      code: 'CONFLICT',
+    });
+    // The retry stored nothing; the one receipt keeps the spelling of the first request.
+    expect([...receipts.keys()].map((id) => id.split(':').pop())).toEqual([
+      input.client_request_id,
+    ]);
+  });
+  it('finds a request first sent in mixed case when it is retried in lowercase', async () => {
+    const mixed = { ...input, client_request_id: '017fD635-8Dc2-41c1-Bf6A-eCbe40F18f90' };
+    const first = await createExpense(TRIP, mixed);
+    expect(await createExpense(TRIP, input)).toEqual(first);
+    expect(expenseCreate).toHaveBeenCalledOnce();
+    // The receipt keeps the spelling of the first request, as earlier versions stored it.
+    expect([...receipts.keys()].map((id) => id.split(':').pop())).toEqual([
+      mixed.client_request_id,
+    ]);
+    expect(await createExpense(TRIP, { ...input, description: 'Different' })).toMatchObject({
+      success: false,
+      code: 'CONFLICT',
+    });
   });
   it('rejects invalid keys before writing', async () => {
     expect(await createExpense(TRIP, { ...input, client_request_id: 'bad-key' })).toMatchObject({

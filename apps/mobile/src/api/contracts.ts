@@ -11,6 +11,17 @@ export {
   expensesSchema,
   expenseDetailSchema,
   settlementSchema,
+  expenseOptionsSchema,
+  expensePreviewInput,
+  expensePreviewSchema,
+  expenseCreateInput,
+  expenseRequestSchema,
+  clientRequestIdSchema,
+  isPositiveCentAmount,
+  isCentShare,
+  MAX_EXPENSE_AMOUNT,
+  MAX_EXPENSE_MEMBERS,
+  MAX_EXPENSE_DESCRIPTION,
 } from '@travel-budget/contracts';
 export type {
   MobileUser as User,
@@ -18,6 +29,11 @@ export type {
   MobileExpense as Expense,
   MobileExpenseDetail as ExpenseDetail,
   MobileSettlement as Settlement,
+  MobileExpenseOptions as ExpenseOptions,
+  MobileExpensePreviewInput as ExpensePreviewInput,
+  MobileExpensePreview as ExpensePreview,
+  MobileExpenseCreateInput as ExpenseCreateInput,
+  MobileExpenseRequest as ExpenseRequest,
 } from '@travel-budget/contracts';
 
 // Preserve the client's existing rejection of empty credentials.

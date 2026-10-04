@@ -57,7 +57,7 @@ pnpm contracts:check
 
 目前使用 Vitest 測試 HTTP／登入生命週期，故障代理另以 Node HTTP 測試確認斷線／逾時不送出寫入、恢復後正常轉送，包含在 `pnpm test`。手機 CI 執行型別、lint、格式、測試、Expo 相容性與三平台 bundle 檢查，不需要後端密鑰。共用契約檢查驗證 OpenAPI 與 schema 同步。API／權限、裝置 session 與 DB transaction 測試留在 `apps/web`，不使用正式帳號或資料庫。
 
-現有測試涵蓋 401／refresh 合併、回應內容讀取中斷線／逾時／取消、重啟恢復、憑證輪替後安全儲存失敗、重複登出及新舊登入交錯，並驗證缺少 `throwIfAborted()`／`reason` 的原生 AbortSignal。原生生命週期 adapter 與 QueryObserver 整合測試涵蓋網路事件／啟動讀取競態、前景重新讀取連線、離線查詢恢復及過期資料更新。QueryClient 整合測試驗證登出、session 撤銷及憑證儲存失敗會清除私人快取、取消尚未完成的讀取。這些測試使用模擬 HTTP／儲存介面，不取代裝置上的登入與 SecureStore 驗收。支出清單的游標查詢、帳號／環境隔離的 query key、撤權後的快取隱藏（真 QueryClient）、金額格式與四語訊息完整性另有單元測試；支出與結算畫面由 Maestro `ledger` suite 驗收。後續 SQLite outbox 須驗證重啟／重送／帳號切換；原生核心流程另有 Maestro 驗收，指令與涵蓋範圍見 [本機驗收流程](LOCAL_ACCEPTANCE.md)。
+現有測試涵蓋 401／refresh 合併、回應內容讀取中斷線／逾時／取消、重啟恢復、憑證輪替後安全儲存失敗、重複登出及新舊登入交錯，並驗證缺少 `throwIfAborted()`／`reason` 的原生 AbortSignal。原生生命週期 adapter 與 QueryObserver 整合測試涵蓋網路事件／啟動讀取競態、前景重新讀取連線、離線查詢恢復及過期資料更新。QueryClient 整合測試驗證登出、session 撤銷及憑證儲存失敗會清除私人快取、取消尚未完成的讀取。這些測試使用模擬 HTTP／儲存介面，不取代裝置上的登入與 SecureStore 驗收。支出清單的游標查詢、帳號／環境隔離的 query key、撤權後的快取隱藏（真 QueryClient）、金額格式、四語訊息完整性與新增支出契約（金額到分、嚴格欄位、結果查詢）另有單元測試；支出與結算畫面由 Maestro `ledger` suite 驗收。後續 SQLite outbox 須驗證重啟／重送／帳號切換；原生核心流程另有 Maestro 驗收，指令與涵蓋範圍見 [本機驗收流程](LOCAL_ACCEPTANCE.md)。
 
 手機測試不可依賴正式帳號或資料庫；模擬資料需明確標示。發布前，iOS 與 Android 都要實測登入、弱網、前後景、重啟、文字縮放及權限拒絕。
 

@@ -4,7 +4,7 @@
 
 ## 一套後端，兩種前端
 
-登入憑證檢查、旅行列表與摘要、支出清單／明細及結算讀取已接入此分工；支出寫入 service 仍待後續抽取。
+登入憑證檢查、旅行列表與摘要、支出清單／明細、結算讀取與新增支出的寫入服務（`createExpenseForActor`，Server Action 與 HTTP 各為 adapter）都已接入此分工；手機端的新增畫面尚未實作。
 
 ```mermaid
 flowchart LR

@@ -1,6 +1,6 @@
-# 手機唯讀 API
+# 手機 API
 
-已在程式碼加入 `/api/v1` 的登入、更新憑證、登出、目前使用者、旅行列表、旅行摘要、支出清單／明細與結算。這不代表遠端環境已部署。契約以 [packages/contracts/src/index.ts](../../../packages/contracts/src/index.ts) 的 Zod schema 為單一來源；Web 與手機透過 `@travel-budget/contracts` 匯入，Web 的 `src/lib/mobile/contract.ts` 只保留薄 adapter。共用產物見 [OpenAPI](../../../packages/contracts/openapi.json)，在 repository 根目錄執行 `pnpm contracts:generate` 產生、`pnpm contracts:check` 檢查同步。
+已在程式碼加入 `/api/v1` 的登入、更新憑證、登出、目前使用者、旅行列表、旅行摘要、支出清單／明細與結算，以及線上新增支出所需的成員資料、均分預覽、冪等新增與結果查詢。這不代表遠端環境已部署。契約以 [packages/contracts/src/index.ts](../../../packages/contracts/src/index.ts) 的 Zod schema 為單一來源；Web 與手機透過 `@travel-budget/contracts` 匯入，Web 的 `src/lib/mobile/contract.ts` 只保留薄 adapter。共用產物見 [OpenAPI](../../../packages/contracts/openapi.json)，在 repository 根目錄執行 `pnpm contracts:generate` 產生、`pnpm contracts:check` 檢查同步。
 
 - Web Server Actions 與手機 HTTP handler 在後端共用 `credentials.ts`、`tripListRead.ts` 及既有權限／金額摘要；HTTP handler 不呼叫依賴 cookie 的 Server Action，手機 bundle 不匯入這些後端模組。
 - 手機 access JWT 15 分鐘、裝置 session 絕對期限 30 天；JWT key、issuer、audience 與 Web cookie 隔離。每次授權查詢 session 撤銷／期限與目前密碼 fingerprint。
@@ -16,11 +16,23 @@
 - 上述端點只接受成員 ObjectId（`lib/mobile/access.ts`）：非成員、分享碼、格式錯誤、不存在與他旅行資源一律 404，授權先於讀取，失去成員資格立即生效。
 - 原生 API 無跨來源瀏覽器 CORS；現有 Web 不遷移至此認證流程。所有成功／錯誤回應均 no-store。
 
+### 線上新增支出
+
+- **共用服務**：Web Server Action（cookie）與 HTTP（bearer）都呼叫 `lib/expenseCreate.ts` 的 `createExpenseForActor`。兩個入口只負責驗證登入、解析旅行、解析輸入與各自的快取／排程（`after` 以參數注入，服務不 import `next/*`）；成員檢查與 `withTripWrite` 交易、成員／分攤／金額驗證、收據驗證、與支出同一交易提交的冪等 receipt，以及通知／活動／outbox 副作用只有一套。提交後的副作用失敗只記錄，不會把已入帳的支出回報成失敗（原本傳統通知路徑的 `revalidatePath` 沒有隔離，已一併修正）；重播在交易前後都不重複任何副作用。
+- `GET /trips/:id/expense-options` → `{ members: [{ id, displayName }], categories }`。成員依加入時間排序（同刻依儲存順序）、含虛擬成員、略過已不存在的帳號，不含登入名稱；順序與 Web 成員清單（`getMembers`）相同，並固定為均分尾差的順序。
+- `POST /trips/:id/expenses/preview`，body `{ amount, member_ids }`（TWD、至多兩位小數、至多 1,000,000,000.00、成員不可重複）→ `{ amount, splits: [{ userId, displayName, shareAmount }] }`。呼叫 Web 表單使用的 `computeSplits('equal')`，結果一律依 options 順序、與請求順序無關：100 元三人為 33.34／33.33／33.33，0.01 元三人為 0.01／0／0，加總恆等於金額。唯讀：不寫資料、不保留交易，也不代表日後一定能寫入；不屬於旅行的成員回 400。
+- `POST /trips/:id/expenses` 的欄位沿用 Web 輸入名稱：`client_request_id`（UUID，必填）、`payer_id`、`original_amount`、`currency`（只接受 `TWD`）、`exchange_rate`（只接受 `1`）、`description`（trim 後 1–200 字）、`category`、`date`（真實日曆日）、`splits[{ user_id, share_amount }]`（1–100 位、成員不可重複、至多兩位小數、可為 0；付款人可不在其中）。請求為 snake_case、回應為 camelCase DTO：這是為了與 Web 共用輸入驗證而刻意的不對稱。附件、標籤、行程關聯等未支援欄位一律 400，不被忽略。金額須為正值；金額與每份分攤至多兩位小數、不超過單筆上限 1,000,000,000.00（共用取整從約 8.8e12 起不再原樣保留分格上的值，上限留有餘裕），超過回 400 並不寫入；到分為安全整數。成功與重播都回 200 `{ data }`，內容與支出明細相同（白名單 DTO）。
+- 不信任預覽或按鈕：服務內會再驗證付款人與分攤成員屬於旅行、加總等於金額（容差一分並把尾差分配掉）、日期為真實日曆日（V8 會把 `2026-02-31` 悄悄滾成 3 月 3 日，不能只靠格式檢查）、成員不重複、金額與每份分攤不超過單筆上限（換算後溢位也拒絕）、原始金額到分為安全整數。這些檢查同樣套用在 Web 新增。
+- `GET /trips/:id/expense-requests/:clientRequestId` → `{ status: 'committed', expense }` 或 `{ status: 'not_found' }`，只查本人在此旅行的結果。`not_found` 只代表沒有 receipt，不代表同 key 的請求不在執行，應以原 key 與原內容重試。支出之後被刪除仍是 `committed`（回傳提交當時的內容，不會重新建立）。
+- 狀態碼：200 已入帳（含重播）。**任何 4xx 都代表此請求沒有寫入**：400 輸入或成員／金額驗證錯誤、401、404（非成員、失去資格、分享碼、不存在；授權先於讀取 body）、409 `IDEMPOTENCY_CONFLICT`（同 key 不同內容，須查明原請求，不要換 key）、413（8 KiB）、415。429 `BUSY` 表示交易因競爭而中止、尚未提交，附 `Retry-After`，以同 key 重試。**5xx、逾時與斷線代表結果不確定**：以 `expense-requests` 查詢，或以同 key 同內容重試。回應的 `requestId` 只是診斷編號，不能取代 `client_request_id`。
+- 重播前仍重新授權：失去成員資格者不能重播也不能查詢。比對的是請求內容與提交時的指紋，不依目前成員或預覽重算。receipt 與支出同一交易提交，不隨支出刪除、不設 TTL；`client_request_id` 不分大小寫，但 receipt 的 `_id` 與指紋維持升級前的格式（key 保持送出時的大小寫、指紋為 schema 解析後輸入的 SHA-256），所以舊紀錄無須遷移、也可回滾；重播與查詢先找以送出的拼法儲存的 receipt，找不到再在同一旅行、同一操作者的 receipt 範圍內不分大小寫比對（索引範圍只含該操作者在該旅行的紀錄，不隨整個 collection 變慢），所以同一個 UUID 的任何拼法（全小寫、全大寫、任意混合）都對應同一筆結果；指紋以 receipt 儲存的拼法重算，舊版本寫入的紀錄因此仍可比對。
+- 同時刻同旅行的寫入透過 `withTripWrite` 的 trip fence 序列化；八個併發的相同請求只提交一次並得到相同結果。
+
 新增 `20261002100000-mobile-session-expiry.js` 為 session／登入限制紀錄建立 TTL 索引。此次實作不執行遠端 migration；正式環境沿用既有 migration 流程。即使 TTL 尚未清理，授權仍會檢查 expiresAt。
 
-測試在 `apps/web` 執行：`pnpm exec vitest run src/__tests__/mobileSession.test.ts src/__tests__/mobileTrips.test.ts src/__tests__/mobileHttp.test.ts src/__tests__/mobileExpenses.test.ts src/__tests__/mobileSettlement.test.ts src/__tests__/settlementRead.test.ts`。這組單元測試使用隔離的 model mocks。`mobileReadApi.integration.test.ts` 在獨立測試 MongoDB 上驗證游標分頁、與 Web 讀取一致、歷史／外幣／虛擬成員資料與授權，需 `MONGODB_QUEUE_TEST_URI` 與 `MONGODB_QUEUE_TEST_ALLOW_WRITES=1`（CI 的真 MongoDB 工作已包含），未設定時略過。另可執行 `pnpm test:mobile-api`，以可丟棄的 Docker MongoDB 與 Next.js 開發伺服器驗證實際 HTTP／資料庫流程；`pnpm dev:mobile-api` 保留環境與測試帳號供裝置連線。手機 SecureStore 與 iOS／Android 真機串接仍需操作驗收，詳見 [本機驗收流程](../../mobile/docs/LOCAL_ACCEPTANCE.md)。
+測試在 `apps/web` 執行：`pnpm exec vitest run src/__tests__/mobileSession.test.ts src/__tests__/mobileTrips.test.ts src/__tests__/mobileHttp.test.ts src/__tests__/mobileExpenses.test.ts src/__tests__/mobileSettlement.test.ts src/__tests__/settlementRead.test.ts src/__tests__/mobileExpenseWrite.test.ts src/__tests__/expenseCreateRequest.test.ts src/__tests__/expenseAmountRange.test.ts src/__tests__/expense.actions.test.ts`。這組單元測試使用隔離的 model mocks；`expense.actions.test.ts` 同時鎖定 Web 新增沒有行為退步。`mobileReadApi.integration.test.ts` 在獨立測試 MongoDB 上驗證游標分頁、與 Web 讀取一致、歷史／外幣／虛擬成員資料與授權，需 `MONGODB_QUEUE_TEST_URI` 與 `MONGODB_QUEUE_TEST_ALLOW_WRITES=1`（CI 的真 MongoDB 工作已包含），未設定時略過。新增支出需要交易，`mobileExpenseWrite.integration.test.ts` 因此要在**單節點 replica set** 上執行，沿用其他 trip writer 整合測試的 `MONGODB_MEMBER_TEST_URI`（例如 `mongodb://127.0.0.1:27017/?directConnection=true`）與 `MONGODB_MEMBER_TEST_ALLOW_WRITES=1`，CI 的 `expense-writes` 工作會啟動 replica set 並同時執行 `tripWriters.integration.test.ts`。它驗證預覽到新增的固定順序均分、與 Web 的互讀一致、八個併發相同請求只提交一次且副作用不重複（含不同大小寫與十六種不同拼法、Web 與手機兩個入口混合）、同 key 不同內容 409、刪除或失去成員資格後的重播／查詢、以獨立建出的舊格式 receipt 與本版寫入的 receipt，在小寫、大寫與兩種混合拼法的每一種組合下的重播／查詢／409／刪除後不復活，以及以 explain 確認不分大小寫的查詢只掃該操作者在該旅行的索引範圍、單筆上限內的金額從預覽到儲存與結算逐分一致、超過上限的請求不留資料、回滾（receipt 或支出寫入失敗不留任何資料）與無效輸入不留 receipt。另可執行 `pnpm test:mobile-api`，以可丟棄的 Docker MongoDB 與 Next.js 開發伺服器驗證實際 HTTP／資料庫流程（資料庫現為單節點 replica set，涵蓋上述新增流程並以獨立計算的預期值核對儲存結果，另模擬回應遺失：伺服器仍提交、以 key 查得、重送不重複）；`pnpm dev:mobile-api` 保留環境與測試帳號供裝置連線，已開著的舊環境不是 replica set，需重啟才能使用新增 API。手機 SecureStore 與 iOS／Android 真機串接仍需操作驗收，詳見 [本機驗收流程](../../mobile/docs/LOCAL_ACCEPTANCE.md)。
 
-尚無手機支出寫入／預覽、成員資料、冪等 request ID、離線 outbox、附件上傳、推播或帳號刪除 API。
+尚無手機端離線 outbox、附件上傳、編輯／刪除支出、登記還款、外幣與非均分新增、推播或帳號刪除 API；手機畫面尚未使用上述新增端點。
 
 `dev:mobile-api` 的獨立 loopback 控制通道供 Maestro 撤銷／到期隔離帳號的 session，採每次執行的隨機憑證並隨環境關閉。它只在測試腳本內存在，不加入 Next.js routes 或共用契約，也不隨 `--lan` 對外開放。
 

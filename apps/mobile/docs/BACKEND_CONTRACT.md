@@ -1,22 +1,26 @@
 # 後端分工與 API 契約
 
-手機沿用同一 repository 中 `apps/web` 的後端與資料庫。唯讀切片（登入、旅行、支出清單／明細、結算）的端點已實作，尚未代表任何遠端環境已部署。
+手機沿用同一 repository 中 `apps/web` 的後端與資料庫。唯讀切片（登入、旅行、支出清單／明細、結算）與線上新增支出的後端端點（成員資料、均分預覽、冪等新增、結果查詢）已實作，尚未代表任何遠端環境已部署；手機畫面尚未使用新增端點。
 
 ## 已實作端點
 
 基底路徑 `/api/v1`。手機與後端透過 `@travel-budget/contracts` 共用 schema，單一來源為 [packages/contracts/src/index.ts](../../../packages/contracts/src/index.ts)，OpenAPI 產物為 [packages/contracts/openapi.json](../../../packages/contracts/openapi.json)。從 repository 根目錄執行 `pnpm contracts:generate` 更新產物，`pnpm contracts:check` 檢查同步。手機沒有 Web source 或 DB 相依。
 
-| 端點                                     | 輸入／回應                                                                       |
-| ---------------------------------------- | -------------------------------------------------------------------------------- |
-| `POST /auth/login`                       | JSON `{ username, password }` → `{ accessToken, refreshToken, expiresIn, user }` |
-| `POST /auth/refresh`                     | JSON `{ refreshToken }` → 新 token pair 與目前 user                              |
-| `POST /auth/logout`                      | JSON `{ refreshToken }` → `{ loggedOut: true }`；無須有效 access token           |
-| `GET /me`                                | Bearer access token → `{ id, username, displayName }`                            |
-| `GET /trips?page=1&date=YYYY-MM-DD`      | Bearer → `{ items, nextPage }`；每頁 20 筆                                       |
-| `GET /trips/:id/landing?date=YYYY-MM-DD` | Bearer；僅 ObjectId → 受限成員摘要                                               |
-| `GET /trips/:id/expenses?cursor=…`       | Bearer → `{ items, nextCursor }`；每頁 20 筆，游標無效回 400                     |
-| `GET /trips/:id/expenses/:expenseId`     | Bearer → 單筆明細：原幣／TWD 金額、匯率與各成員 TWD 分攤                         |
-| `GET /trips/:id/settlement`              | Bearer → 餘額、建議轉帳（尚未付款）、既有還款、總額與三種狀態                    |
+| 端點                                     | 輸入／回應                                                                        |
+| ---------------------------------------- | --------------------------------------------------------------------------------- |
+| `POST /auth/login`                       | JSON `{ username, password }` → `{ accessToken, refreshToken, expiresIn, user }`  |
+| `POST /auth/refresh`                     | JSON `{ refreshToken }` → 新 token pair 與目前 user                               |
+| `POST /auth/logout`                      | JSON `{ refreshToken }` → `{ loggedOut: true }`；無須有效 access token            |
+| `GET /me`                                | Bearer access token → `{ id, username, displayName }`                             |
+| `GET /trips?page=1&date=YYYY-MM-DD`      | Bearer → `{ items, nextPage }`；每頁 20 筆                                        |
+| `GET /trips/:id/landing?date=YYYY-MM-DD` | Bearer；僅 ObjectId → 受限成員摘要                                                |
+| `GET /trips/:id/expenses?cursor=…`       | Bearer → `{ items, nextCursor }`；每頁 20 筆，游標無效回 400                      |
+| `GET /trips/:id/expenses/:expenseId`     | Bearer → 單筆明細：原幣／TWD 金額、匯率與各成員 TWD 分攤                          |
+| `GET /trips/:id/settlement`              | Bearer → 餘額、建議轉帳（尚未付款）、既有還款、總額與三種狀態                     |
+| `GET /trips/:id/expense-options`         | Bearer → `{ members: [{ id, displayName }], categories }`；成員順序即均分尾差順序 |
+| `POST /trips/:id/expenses/preview`       | JSON `{ amount, member_ids }` → `{ amount, splits }`；唯讀的均分預覽              |
+| `POST /trips/:id/expenses`               | JSON（見下）→ 與明細相同的支出；`client_request_id` 冪等，重播得到相同結果        |
+| `GET /trips/:id/expense-requests/:uuid`  | Bearer → `{ status: 'committed', expense }` 或 `{ status: 'not_found' }`          |
 
 成功 envelope 是 `{ data }`；失敗是 `{ error: { code }, requestId }`。所有回應 `Cache-Control: no-store`，429 帶 `Retry-After`。僅接受 JSON body，大小上限 8 KiB。沒有跨來源瀏覽器 CORS；原生請求不使用 Web cookie。
 
@@ -26,7 +30,17 @@ Trip DTO 包含 `id/name/description/startDate/endDate/destination/archived/memb
 
 結算沿用 `readSettlement` 的餘額與最少轉帳計算（已先扣除已登記還款），`suggestedTransfers` 帶成員 id 以辨識同名成員，全部尚未付款；`status` 為 `empty`（無支出也無還款）、`settled` 或 `outstanding`（任何餘額未歸零即為此狀態）。結算仍讀取該旅行全部支出與還款，游標分頁不代表結算查詢有最佳化。
 
-上述三個端點只接受成員 ObjectId：非成員、失去資格、分享碼、格式錯誤、不存在或屬於其他旅行的支出一律 404，不 fallback 到 public API。
+上述旅行端點只接受成員 ObjectId：非成員、失去資格、分享碼、格式錯誤、不存在或屬於其他旅行的支出一律 404，不 fallback 到 public API。
+
+### 線上新增支出的契約
+
+本輪只支援 TWD、匯率 1 與勾選成員均分。新增 body（snake_case，沿用 Web 輸入名稱；回應仍是 camelCase DTO）：`client_request_id`（UUID，必填）、`payer_id`、`original_amount`、`currency: 'TWD'`、`exchange_rate: 1`、`description`（trim 後 1–200 字）、`category`、`date`（YYYY-MM-DD，須是真實日期）、`splits: [{ user_id, share_amount }]`（1–100 位、不可重複、可為 0、至多兩位小數）。金額為正值、至多兩位小數，且金額與每份分攤不超過單筆上限 1,000,000,000.00（超過回 400、不寫入，預覽同樣）；附件、標籤、行程關聯等其他欄位一律 400，不被忽略。付款人可不參與分攤。
+
+預覽 `{ amount, member_ids }` 由後端呼叫 Web 表單使用的 `computeSplits('equal')`，結果一律依 `expense-options` 的成員順序（與請求順序無關）：100 元三人為 33.34／33.33／33.33。預覽不寫入、不保留交易，新增時後端仍重新驗證成員、加總與金額，所以預覽不代表日後一定能寫入。App 應原樣送出預覽的分攤，不自行計算。
+
+**狀態碼語意**：200 已入帳（含重播）；**任何 4xx 都代表此請求沒有寫入**——400 輸入或成員／金額驗證錯誤、401 session 失效、404 無權或不存在、409 `IDEMPOTENCY_CONFLICT`（同 key 不同內容，須查明原請求，不可換 UUID）、413 body 超過 8 KiB、415；429 `BUSY` 是交易因競爭而中止、尚未提交，依 `Retry-After` 以同一個 key 重試。**5xx、逾時與斷線代表結果不確定**：以 `expense-requests` 查詢，或以同 key、同內容重試；`not_found` 只代表目前沒有 receipt，不代表請求不在執行中。`requestId` 只是診斷編號，不能取代 `client_request_id`。
+
+每次使用者確認的提交產生一個 UUID（建議小寫，後端比對不分大小寫），之後的重送、401 refresh 重送與結果查詢都沿用它與凍結的內容。重播前後端重新授權：失去成員資格者不能重播或查詢；receipt 與支出同一交易提交，支出之後被刪除仍視為已提交，不會重新建立。
 
 旅行列表沿用 Web 共用服務先讀取本人全部旅程與摘要，再排序、分頁；HTTP payload 有界，DB 工作量仍隨本人旅程數增加。分頁不是快照，Web 有變更後應從第一頁重新整理。`date` 由手機以本地日曆日提供，未提供時使用伺服器 UTC 日。
 
@@ -44,6 +58,6 @@ Trip DTO 包含 `id/name/description/startDate/endDate/destination/archived/memb
 
 ## 尚未實作
 
-支出新增與均分預覽、成員資料、冪等 request ID 與結果查詢、SQLite 待確認紀錄／outbox、附件 begin／finish、推播及帳號刪除均屬後續工作（見 [路線](ROADMAP.md)）。未來支出寫入仍須抽出共用 service，不得複製分帳演算法。
+手機端的新增畫面與 SQLite 待確認紀錄（階段 C）、外幣與非均分輸入、編輯／刪除支出、登記還款、離線 outbox、附件 begin／finish、推播及帳號刪除均屬後續工作（見 [路線](ROADMAP.md)）。後端的新增服務已與 Web 共用；手機不得複製分帳演算法。
 
 outbox 必須按帳號／環境隔離，重試沿用 request ID，過期登入暫停同步；快取清除不刪待送資料。AI 只產生草稿，正式寫入需使用者確認。

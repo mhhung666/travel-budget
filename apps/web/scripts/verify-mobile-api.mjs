@@ -2,11 +2,11 @@
 import assert from 'node:assert/strict';
 import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
-import { randomBytes, randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir, networkInterfaces } from 'node:os';
 import { join } from 'node:path';
-import { createServer } from 'node:net';
+import { createServer, connect } from 'node:net';
 import { createServer as createHttpServer } from 'node:http';
 import { once } from 'node:events';
 import { createInterface } from 'node:readline';
@@ -21,8 +21,12 @@ import {
   expensesSchema,
   expenseDetailSchema,
   settlementSchema,
+  expenseOptionsSchema,
+  expensePreviewSchema,
+  expenseRequestSchema,
 } from '@travel-budget/contracts';
 import { up as migrateSessions } from '../migrations/20261002100000-mobile-session-expiry.js';
+import { up as migrateRequests } from '../migrations/20260912160000-expense-create-requests.js';
 
 const args = new Set(process.argv.slice(2));
 assert(
@@ -72,7 +76,9 @@ async function freePort() {
 const pass = (name) => console.log(`PASS ${name}`);
 try {
   await exec('docker', ['info', '--format', '{{.ServerVersion}}']);
-  console.log('Starting disposable local MongoDB');
+  // Expense creation commits the expense, its idempotency receipt and the trip fence in one
+  // transaction, so even the disposable database must be a (single-node) replica set.
+  console.log('Starting disposable local MongoDB replica set');
   await exec('docker', [
     'run',
     '--detach',
@@ -84,6 +90,8 @@ try {
     '--publish',
     '127.0.0.1::27017',
     'mongo:8.0',
+    '--replSet',
+    'mobileverify',
     '--bind_ip_all',
   ]);
   const mapping = (await exec('docker', ['port', container, '27017/tcp'])).stdout.trim();
@@ -98,8 +106,21 @@ try {
       return false;
     }
   }, 'MongoDB did not start');
+  await exec('docker', [
+    'exec',
+    container,
+    'mongosh',
+    '--quiet',
+    '--eval',
+    'rs.initiate({_id:"mobileverify",members:[{_id:0,host:"localhost:27017"}]})',
+  ]);
   const db = mongo.db(dbName);
+  await eventually(
+    async () => (await db.admin().command({ hello: 1 })).isWritablePrimary,
+    'MongoDB did not elect a primary'
+  );
   await migrateSessions(db);
+  await migrateRequests(db);
   const now = new Date();
   const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   const day = new Date(`${date}T00:00:00.000Z`);
@@ -179,14 +200,12 @@ try {
     'mobile-removed',
   ].map((username) => person(username));
   const virtualGuest = person('ledger-virtual', 'TEST virtual guest', true);
-  await db
-    .collection('users')
-    .insertMany(
-      [ledgerOwner, ledgerPeer, ledgerRemoved, virtualGuest].map((user) => ({
-        ...user,
-        password: hash,
-      }))
-    );
+  await db.collection('users').insertMany(
+    [ledgerOwner, ledgerPeer, ledgerRemoved, virtualGuest].map((user) => ({
+      ...user,
+      password: hash,
+    }))
+  );
   const ledger = trip('Ledger trip', [
     member(ledgerOwner, 'admin'),
     member(ledgerPeer),
@@ -375,6 +394,33 @@ try {
     createdBy: ledgerPeer._id,
     createdAt: now,
   });
+  // Online-write fixtures. Distinct join times fix the member order that leftover cents follow;
+  // the last two share a join time, so stored order must break the tie.
+  const [writer, writerPeer, writerRemoved, writerOutsider] = [
+    'mobile-writer',
+    'mobile-writer-b',
+    'mobile-writer-removed',
+    'mobile-writer-out',
+  ].map((username) => person(username));
+  const writerVirtual = person('writer-virtual', 'TEST virtual writer', true);
+  await db.collection('users').insertMany(
+    [writer, writerPeer, writerRemoved, writerOutsider, writerVirtual].map((user) => ({
+      ...user,
+      password: hash,
+    }))
+  );
+  const writerMember = (user, role, minute) => ({
+    ...member(user, role),
+    joinedAt: new Date(Date.UTC(2026, 8, 1, 0, minute)),
+  });
+  const writerTrip = trip('Writer trip', [
+    writerMember(writer, 'admin', 0),
+    writerMember(writerPeer, 'member', 1),
+    writerMember(writerVirtual, 'member', 2),
+    writerMember(writerRemoved, 'member', 2),
+  ]);
+  const outsiderTrip = trip('Writer outsider trip', [writerMember(writerOutsider, 'admin', 0)]);
+  await db.collection('trips').insertMany([writerTrip, outsiderTrip]);
   const port = await freePort();
   const origin = `http://127.0.0.1:${port}`;
   const jwtSecret = randomBytes(48).toString('hex');
@@ -827,6 +873,784 @@ try {
   pass(
     'non-member, cross-trip, share-code, malformed id, bad cursor, unauthenticated and revoked access'
   );
+  // --- Online expense entry (delivery B) ---
+  const writerSession = await login('mobile-writer');
+  const peerSession = await login('mobile-writer-b');
+  const removedWriter = await login('mobile-writer-removed');
+  const outsiderSession = await login('mobile-writer-out');
+  const tripPath = `/trips/${writerTrip._id}`;
+  const memberOrder = [writer, writerPeer, writerVirtual, writerRemoved];
+  const memberIds = memberOrder.map((user) => hexId(user._id));
+  const [writerId, peerId, virtualId, removedId] = memberIds;
+  const outsiderId = hexId(writerOutsider._id);
+  const writerNames = new Map(memberOrder.map((user) => [hexId(user._id), user.displayName]));
+  const evenIds = memberIds.slice(0, 3);
+  const counts = async () => {
+    const filter = { trip: writerTrip._id };
+    return {
+      expenses: await db.collection('expenses').countDocuments(filter),
+      receipts: await db.collection('expensecreaterequests').countDocuments(filter),
+      notifications: await db.collection('notifications').countDocuments(filter),
+      activity: await db.collection('activitylogs').countDocuments(filter),
+    };
+  };
+  // Every human except the actor gets one notification; the virtual member gets none.
+  const recipients = memberOrder.filter((user) => !user.isVirtual).length - 1;
+  const zero = { expenses: 0, receipts: 0, notifications: 0, activity: 0 };
+  const rawPost = (path, token, text, headers = { 'Content-Type': 'application/json' }) =>
+    fetch(`${origin}/api/v1${path}`, {
+      method: 'POST',
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...headers },
+      body: text,
+      signal: AbortSignal.timeout(60_000),
+    });
+  const expectError = async (response, status, code, label = 'request') => {
+    assert.equal(response.status, status, `${label}: unexpected HTTP status`);
+    assert.equal(response.headers.get('cache-control'), 'no-store');
+    const payload = await response.json();
+    if (code) assert.equal(payload.error.code, code, `${label}: unexpected error code`);
+    assert(payload.requestId);
+    return payload;
+  };
+
+  const options = (
+    await request(`${tripPath}/expense-options`, {
+      token: writerSession.accessToken,
+      schema: expenseOptionsSchema,
+    })
+  ).data;
+  assertKeys(options, ['members', 'categories'], 'options');
+  assert.deepEqual(
+    options.members,
+    memberOrder.map((user) => ({ id: hexId(user._id), displayName: user.displayName })),
+    'members follow join time, then stored order, with virtual members included'
+  );
+  assert.deepEqual(options.categories, [
+    'accommodation',
+    'transportation',
+    'food',
+    'shopping',
+    'entertainment',
+    'tickets',
+    'other',
+  ]);
+  assert(!leakPattern.test(raw(options)), 'options must not expose private fields');
+  await deny(`${tripPath}/expense-options`, outsiderSession.accessToken);
+  await deny(`/trips/${writerTrip.hashCode}/expense-options`, writerSession.accessToken);
+  await deny('/trips/not-an-id/expense-options', writerSession.accessToken);
+  await request(`${tripPath}/expense-options`, { status: 401 });
+  pass('expense options: member order, names only, nonmember and share-code access');
+
+  const previewPath = `${tripPath}/expenses/preview`;
+  const preview = async (body, token = writerSession.accessToken) =>
+    (await request(previewPath, { token, body, schema: expensePreviewSchema })).data;
+  const sharesOf = (result) =>
+    result.splits.map((split) => [split.userId, toCents(split.shareAmount)]);
+  const evenFor = (ids, cents) =>
+    ids.map((id, index) => [id, evenShares(cents, ids.length)[index]]);
+  const hundred = await preview({ amount: 100, member_ids: evenIds });
+  assertKeys(hundred, ['amount', 'splits'], 'preview');
+  assert.equal(hundred.amount, 100);
+  assert.deepEqual(sharesOf(hundred), evenFor(evenIds, 10000));
+  assert.deepEqual(
+    hundred.splits.map((split) => split.shareAmount),
+    [33.34, 33.33, 33.33]
+  );
+  for (const split of hundred.splits) {
+    assertKeys(split, ['userId', 'displayName', 'shareAmount'], 'preview split');
+    assert.equal(split.displayName, writerNames.get(split.userId));
+  }
+  assert.deepEqual(
+    sharesOf(await preview({ amount: 100, member_ids: [...evenIds].reverse() })),
+    sharesOf(hundred),
+    'the order members were sent in must not move the leftover cent'
+  );
+  assert.deepEqual(
+    sharesOf(await preview({ amount: 0.01, member_ids: evenIds })),
+    evenFor(evenIds, 1)
+  );
+  // Leftover cents follow member order for every subset; the total is always exact.
+  for (const [subset, amount] of [
+    [[1, 2], 0.03],
+    [[0, 3], 10.01],
+    [[0, 1, 2, 3], 99.99],
+    [[3], 12.34],
+    [[0, 1, 2, 3], 0.02],
+  ]) {
+    const ids = subset.map((index) => memberIds[index]);
+    const result = await preview({ amount, member_ids: [...ids].reverse() });
+    assert.deepEqual(sharesOf(result), evenFor(ids, toCents(amount)), `${amount} among ${subset}`);
+    assert.equal(
+      result.splits.reduce((sum, split) => sum + toCents(split.shareAmount), 0),
+      toCents(amount)
+    );
+  }
+  const badPreviews = [
+    ['stranger', { amount: 100, member_ids: [outsiderId] }],
+    ['duplicate', { amount: 100, member_ids: [writerId, writerId] }],
+    ['empty list', { amount: 100, member_ids: [] }],
+    ['zero', { amount: 0, member_ids: [writerId] }],
+    ['negative', { amount: -1, member_ids: [writerId] }],
+    ['fractional cent', { amount: 0.001, member_ids: [writerId] }],
+    ['three decimals', { amount: 33.345, member_ids: [writerId] }],
+    ['unsafe', { amount: 1e21, member_ids: [writerId] }],
+    ['above the limit', { amount: 1000000000.01, member_ids: [writerId] }],
+    ['drifts by a cent', { amount: 10000000000000, member_ids: [writerId] }],
+    ['string', { amount: '100', member_ids: [writerId] }],
+    ['null', { amount: null, member_ids: [writerId] }],
+    ['unknown field', { amount: 100, member_ids: [writerId], currency: 'TWD' }],
+  ];
+  for (const [label, body] of badPreviews)
+    await expectError(
+      await rawPost(previewPath, writerSession.accessToken, JSON.stringify(body)),
+      400,
+      'VALIDATION_ERROR',
+      label
+    );
+  for (const [label, text] of [
+    ['infinite amount', `{"amount":1e999,"member_ids":["${writerId}"]}`],
+    ['truncated JSON', '{"amount":'],
+  ])
+    await expectError(
+      await rawPost(previewPath, writerSession.accessToken, text),
+      400,
+      'VALIDATION_ERROR',
+      label
+    );
+  await expectError(
+    await rawPost(previewPath, writerSession.accessToken, '{}', { 'Content-Type': 'text/plain' }),
+    415
+  );
+  await expectError(
+    await rawPost(previewPath, writerSession.accessToken, ' '.repeat(9000)),
+    413,
+    'BODY_TOO_LARGE'
+  );
+  // Authorization comes first, so a stranger learns nothing from how the body is rejected.
+  await expectError(
+    await rawPost(previewPath, outsiderSession.accessToken, '{not json'),
+    404,
+    'NOT_FOUND'
+  );
+  await expectError(await rawPost(previewPath, undefined, '{}'), 401);
+  assert.deepEqual(await counts(), zero, 'a preview must not write anything');
+  pass('expense preview: fixed-order equal split, exact totals and strict input');
+
+  const createPath = `${tripPath}/expenses`;
+  const sharesFor = (ids, cents) =>
+    evenFor(ids, cents).map(([id, share]) => ({ user_id: id, share_amount: share / 100 }));
+  const payload = (overrides = {}) => ({
+    client_request_id: randomUUID(),
+    payer_id: writerId,
+    original_amount: 100,
+    currency: 'TWD',
+    exchange_rate: 1,
+    description: 'TEST online dinner',
+    category: 'food',
+    date,
+    splits: sharesFor(evenIds, 10000),
+    ...overrides,
+  });
+  const create = async (body, token = writerSession.accessToken) =>
+    (await request(createPath, { token, body, schema: expenseDetailSchema })).data;
+  const dinnerBody = payload();
+  const dinner = await create(dinnerBody);
+  assertKeys(
+    dinner,
+    [
+      'id',
+      'date',
+      'description',
+      'category',
+      'payerId',
+      'payerName',
+      'amount',
+      'originalAmount',
+      'currency',
+      'exchangeRate',
+      'splits',
+    ],
+    'created expense'
+  );
+  assert.equal(dinner.date, date);
+  assert.equal(dinner.description, 'TEST online dinner');
+  assert.equal(dinner.category, 'food');
+  assert.equal(dinner.payerId, writerId);
+  assert.equal(dinner.payerName, writer.displayName);
+  assert.deepEqual(
+    [dinner.amount, dinner.originalAmount, dinner.currency, dinner.exchangeRate],
+    [100, 100, 'TWD', 1]
+  );
+  assert.deepEqual(
+    dinner.splits.map((split) => [split.userId, toCents(split.shareAmount)]),
+    evenFor(evenIds, 10000)
+  );
+  // The stored documents, read independently of the API.
+  const dinnerObjectId = new mongoose.Types.ObjectId(dinner.id);
+  const storedDinner = await db.collection('expenses').findOne({ _id: dinnerObjectId });
+  assert.equal(String(storedDinner.trip), String(writerTrip._id));
+  assert.equal(String(storedDinner.payer), writerId);
+  assert.equal(String(storedDinner.createdBy), writerId);
+  assert.deepEqual(
+    [
+      storedDinner.amount,
+      storedDinner.originalAmount,
+      storedDinner.currency,
+      storedDinner.exchangeRate,
+    ],
+    [100, 100, 'TWD', 1]
+  );
+  assert.equal(storedDinner.date.toISOString(), `${date}T00:00:00.000Z`);
+  assert.deepEqual([storedDinner.attachments, storedDinner.tags], [[], []]);
+  assert.deepEqual(
+    storedDinner.splits.map((split) => [String(split.user), toCents(split.shareAmount)]),
+    evenFor(evenIds, 10000)
+  );
+  const receipt = await db
+    .collection('expensecreaterequests')
+    .findOne({ _id: `${writerTrip._id}:${writerId}:${dinnerBody.client_request_id}` });
+  assert(receipt, 'the receipt is stored under trip, actor and key');
+  assert.equal(String(receipt.trip), String(writerTrip._id));
+  assert.equal(receipt.data.id, dinner.id);
+  // Read back through the read endpoints, as another member.
+  const writerList = (
+    await request(createPath, { token: peerSession.accessToken, schema: expensesSchema })
+  ).data;
+  assert.deepEqual(
+    writerList.items.map((item) => item.id),
+    [dinner.id]
+  );
+  assert.deepEqual(
+    (
+      await request(`${createPath}/${dinner.id}`, {
+        token: peerSession.accessToken,
+        schema: expenseDetailSchema,
+      })
+    ).data,
+    dinner
+  );
+  const dinnerSettlement = await settlementOf(writerTrip._id, writerSession.accessToken);
+  assert.equal(dinnerSettlement.totalExpenses, 100);
+  assert.deepEqual(
+    new Map(dinnerSettlement.balances.map((entry) => [entry.userId, toCents(entry.balance)])),
+    new Map([
+      [writerId, 6666],
+      [peerId, -3333],
+      [virtualId, -3333],
+      [removedId, 0],
+    ])
+  );
+  assert(!leakPattern.test(raw([dinner, writerList, dinnerSettlement])));
+  const afterDinner = await counts();
+  assert.deepEqual(afterDinner, {
+    expenses: 1,
+    receipts: 1,
+    notifications: recipients,
+    activity: 1,
+  });
+  pass('expense creation: stored values, receipt, readers, settlement and side effects');
+
+  for (let attempt = 0; attempt < 3; attempt++)
+    assert.deepEqual(await create(dinnerBody), dinner, 'a replay returns the accepted result');
+  assert.deepEqual(
+    await create({ ...dinnerBody, client_request_id: dinnerBody.client_request_id.toUpperCase() }),
+    dinner,
+    'a key differing only in case is the same key'
+  );
+  assert.deepEqual(await counts(), afterDinner, 'a replay must not write or notify again');
+  for (const [label, changed] of [
+    ['description', { description: 'TEST changed' }],
+    ['amount', { original_amount: 100.01, splits: sharesFor(evenIds, 10001) }],
+    ['category', { category: 'other' }],
+    ['date', { date: '2026-01-01' }],
+    ['payer', { payer_id: peerId }],
+    ['members', { splits: sharesFor(memberIds, 10000) }],
+  ]) {
+    const conflict = await request(createPath, {
+      token: writerSession.accessToken,
+      body: { ...dinnerBody, ...changed },
+      status: 409,
+    });
+    assert.equal(conflict.error.code, 'IDEMPOTENCY_CONFLICT', label);
+  }
+  assert.deepEqual(await counts(), afterDinner, 'a conflict must not write');
+  const sameKeyPeer = await create({ ...dinnerBody, payer_id: peerId }, peerSession.accessToken);
+  assert.notEqual(sameKeyPeer.id, dinner.id, 'keys are scoped to the member that used them');
+  const burstBody = payload({ description: 'TEST burst' });
+  const burst = await Promise.all(
+    Array.from({ length: 8 }, () =>
+      rawPost(createPath, writerSession.accessToken, JSON.stringify(burstBody))
+    )
+  );
+  assert.deepEqual(
+    burst.map((response) => response.status),
+    Array(8).fill(200)
+  );
+  const burstResults = await Promise.all(
+    burst.map(async (response) => (await response.json()).data)
+  );
+  for (const result of burstResults) assert.deepEqual(result, burstResults[0]);
+  expenseDetailSchema.strict().parse(burstResults[0]);
+  assert.deepEqual(await counts(), {
+    expenses: 3,
+    receipts: 3,
+    notifications: recipients * 3,
+    activity: 3,
+  });
+  const many = await Promise.all(
+    Array.from({ length: 6 }, (_, index) =>
+      create(payload({ description: `TEST parallel ${index}` }))
+    )
+  );
+  assert.equal(new Set(many.map((expense) => expense.id)).size, 6);
+  assert.equal((await counts()).expenses, 9);
+  pass(
+    'idempotency: replay, key case, 409, member scoping, eight concurrent duplicates, parallel creates'
+  );
+
+  const keyPath = (key) => `${tripPath}/expense-requests/${key}`;
+  const lookup = async (key, token = writerSession.accessToken) => {
+    const { data } = await request(keyPath(key), { token });
+    expenseRequestSchema.parse(data);
+    if (data.status === 'committed') {
+      assertKeys(data, ['status', 'expense'], 'committed lookup');
+      expenseDetailSchema.strict().parse(data.expense);
+    } else assert.deepEqual(data, { status: 'not_found' });
+    return data;
+  };
+  assert.deepEqual(await lookup(randomUUID()), { status: 'not_found' });
+  assert.deepEqual(await lookup(dinnerBody.client_request_id), {
+    status: 'committed',
+    expense: dinner,
+  });
+  assert.deepEqual(
+    await lookup(dinnerBody.client_request_id, removedWriter.accessToken),
+    { status: 'not_found' },
+    'a member who never used the key sees nothing under it'
+  );
+  assert.equal(
+    (await lookup(dinnerBody.client_request_id, peerSession.accessToken)).expense.id,
+    sameKeyPeer.id,
+    'each member sees only their own result for a shared key'
+  );
+  await request(keyPath(dinnerBody.client_request_id), {
+    token: outsiderSession.accessToken,
+    status: 404,
+  });
+  await request(keyPath('not-a-uuid'), { token: writerSession.accessToken, status: 400 });
+  await request(keyPath(dinnerBody.client_request_id), { status: 401 });
+
+  // A deleted expense stays accepted: neither a replay nor a lookup brings it back or hides it.
+  await db.collection('expenses').deleteOne({ _id: dinnerObjectId });
+  assert.deepEqual(await create(dinnerBody), dinner);
+  assert.equal(await db.collection('expenses').countDocuments({ _id: dinnerObjectId }), 0);
+  assert.deepEqual(await lookup(dinnerBody.client_request_id), {
+    status: 'committed',
+    expense: dinner,
+  });
+  pass('result lookup by key and no resurrection of a deleted expense');
+
+  // Losing membership gives nothing back: no replay, no lookup, no new expense, no reading.
+  const removedBody = payload({
+    payer_id: removedId,
+    original_amount: 50,
+    description: 'TEST removed member',
+    splits: sharesFor([writerId, removedId], 5000),
+  });
+  const removedExpense = await create(removedBody, removedWriter.accessToken);
+  await request(createPath, { token: removedWriter.accessToken, schema: expensesSchema });
+  const beforeRemoval = await counts();
+  await db
+    .collection('trips')
+    .updateOne({ _id: writerTrip._id }, { $pull: { members: { user: writerRemoved._id } } });
+  await expectError(
+    await rawPost(createPath, removedWriter.accessToken, JSON.stringify(removedBody)),
+    404,
+    'NOT_FOUND',
+    'replay after removal'
+  );
+  await expectError(
+    await rawPost(createPath, removedWriter.accessToken, JSON.stringify(payload())),
+    404,
+    'NOT_FOUND',
+    'new expense after removal'
+  );
+  await expectError(
+    await rawPost(
+      previewPath,
+      removedWriter.accessToken,
+      JSON.stringify({ amount: 1, member_ids: [writerId] })
+    ),
+    404,
+    'NOT_FOUND',
+    'preview after removal'
+  );
+  await request(keyPath(removedBody.client_request_id), {
+    token: removedWriter.accessToken,
+    status: 404,
+  });
+  await deny(`${tripPath}/expense-options`, removedWriter.accessToken);
+  await deny(createPath, removedWriter.accessToken);
+  await deny(`${createPath}/${removedExpense.id}`, removedWriter.accessToken);
+  assert.deepEqual(await counts(), beforeRemoval, 'a removed member must not change anything');
+  await db
+    .collection('trips')
+    .updateOne(
+      { _id: writerTrip._id },
+      { $push: { members: writerMember(writerRemoved, 'member', 2) } }
+    );
+  assert.deepEqual(await create(removedBody, removedWriter.accessToken), removedExpense);
+  pass('removed member: replay, lookup, preview, options, reading and new expenses all refused');
+
+  const beforeRejects = await counts();
+  const rejects = [
+    ['impossible date', { date: '2026-02-31' }],
+    ['month 13', { date: '2026-13-01' }],
+    ['date with time', { date: `${date}T00:00:00.000Z` }],
+    ['stranger as payer', { payer_id: outsiderId }],
+    [
+      'stranger in split',
+      {
+        splits: [
+          { user_id: writerId, share_amount: 50 },
+          { user_id: outsiderId, share_amount: 50 },
+        ],
+      },
+    ],
+    [
+      'duplicate members',
+      {
+        splits: [
+          { user_id: writerId, share_amount: 50 },
+          { user_id: writerId, share_amount: 50 },
+        ],
+      },
+    ],
+    ['no members', { splits: [] }],
+    ['shares short', { splits: [{ user_id: writerId, share_amount: 99 }] }],
+    ['shares over', { splits: [{ user_id: writerId, share_amount: 100.02 }] }],
+    ['fractional share', { splits: [{ user_id: writerId, share_amount: 100.001 }] }],
+    [
+      'negative share',
+      {
+        splits: [
+          { user_id: writerId, share_amount: -1 },
+          { user_id: peerId, share_amount: 101 },
+        ],
+      },
+    ],
+    ['zero amount', { original_amount: 0 }],
+    [
+      'three decimals',
+      { original_amount: 10.005, splits: [{ user_id: writerId, share_amount: 10.005 }] },
+    ],
+    [
+      'unsafe amount',
+      { original_amount: 1e17, splits: [{ user_id: writerId, share_amount: 1e17 }] },
+    ],
+    [
+      'amount above the limit',
+      {
+        original_amount: 1000000000.01,
+        splits: [
+          { user_id: writerId, share_amount: 500000000.01 },
+          { user_id: peerId, share_amount: 500000000 },
+        ],
+      },
+    ],
+    [
+      'amount that drifts by a cent',
+      {
+        original_amount: 10000000000000,
+        splits: [
+          { user_id: writerId, share_amount: 5000000000000 },
+          { user_id: peerId, share_amount: 5000000000000 },
+        ],
+      },
+    ],
+    ['foreign currency', { currency: 'JPY' }],
+    ['other exchange rate', { exchange_rate: 30 }],
+    ['unknown category', { category: 'games' }],
+    ['blank description', { description: '   ' }],
+    ['long description', { description: 'x'.repeat(201) }],
+    ['missing key', { client_request_id: undefined }],
+    ['malformed key', { client_request_id: 'abc' }],
+    ['attachments', { attachments: [] }],
+    ['tags', { tags: ['x'] }],
+    ['itinerary days', { itinerary_day_ids: [] }],
+    ['unknown field', { note: 'x' }],
+  ];
+  for (const [label, overrides] of rejects)
+    await expectError(
+      await rawPost(
+        createPath,
+        writerSession.accessToken,
+        JSON.stringify({ ...payload(), ...overrides })
+      ),
+      400,
+      'VALIDATION_ERROR',
+      label
+    );
+  await expectError(
+    await rawPost(createPath, writerSession.accessToken, '{"original_amount":1e999}'),
+    400,
+    'VALIDATION_ERROR',
+    'infinite amount'
+  );
+  await expectError(
+    await rawPost(createPath, writerSession.accessToken, '{}', { 'Content-Type': 'text/plain' }),
+    415
+  );
+  await expectError(
+    await rawPost(
+      createPath,
+      writerSession.accessToken,
+      JSON.stringify(payload({ description: 'x'.repeat(9000) }))
+    ),
+    413,
+    'BODY_TOO_LARGE'
+  );
+  await expectError(await rawPost(createPath, undefined, JSON.stringify(payload())), 401);
+  for (const [path, session] of [
+    [createPath, outsiderSession],
+    [`/trips/${writerTrip.hashCode}/expenses`, writerSession],
+    [`/trips/${outsiderTrip._id}/expenses`, writerSession],
+    ['/trips/not-an-id/expenses', writerSession],
+  ])
+    await expectError(
+      await rawPost(path, session.accessToken, JSON.stringify(payload())),
+      404,
+      'NOT_FOUND',
+      path
+    );
+  assert.deepEqual(
+    await counts(),
+    beforeRejects,
+    'rejected requests must not write or leave receipts'
+  );
+  // Nothing was stored, so a corrected request may reuse the key of a rejected one.
+  const reused = payload({ date: '2026-02-31' });
+  await expectError(
+    await rawPost(createPath, writerSession.accessToken, JSON.stringify(reused)),
+    400
+  );
+  assert.equal((await create({ ...reused, date })).description, 'TEST online dinner');
+  pass(
+    'expense creation rejects invalid, foreign, unsupported and unauthorized requests without writing'
+  );
+
+  // The client sends the request but never reads the response, as if it were lost on the way back:
+  // the server still commits, the key finds the result and the retry repeats nothing.
+  const lostBody = payload({ description: 'TEST lost response' });
+  const lostReceipt = `${writerTrip._id}:${writerId}:${lostBody.client_request_id}`;
+  const lostSocket = connect(port, '127.0.0.1');
+  lostSocket.on('error', () => {});
+  await once(lostSocket, 'connect');
+  const lostText = JSON.stringify(lostBody);
+  lostSocket.write(
+    `POST /api/v1${createPath} HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\nAuthorization: Bearer ${writerSession.accessToken}\r\nContent-Type: application/json\r\nContent-Length: ${Buffer.byteLength(lostText)}\r\nConnection: close\r\n\r\n${lostText}`
+  );
+  await eventually(
+    async () =>
+      (await db.collection('expensecreaterequests').countDocuments({ _id: lostReceipt })) === 1,
+    'the server never committed the request',
+    20_000
+  );
+  lostSocket.destroy();
+  const recovered = await lookup(lostBody.client_request_id);
+  assert.equal(recovered.status, 'committed');
+  assert.deepEqual(await create(lostBody), recovered.expense);
+  assert.equal(
+    await db
+      .collection('expenses')
+      .countDocuments({ trip: writerTrip._id, description: 'TEST lost response' }),
+    1
+  );
+  pass('lost response: the commit survives, the key finds it and the retry repeats nothing');
+
+  // The largest accepted amount stays exact from the preview to the settlement. Above it the
+  // backend's cent rounding drifts (1e13 comes back as 1e13 + 0.01), which the requests refused
+  // above must never have been able to store.
+  const largestAmount = 1_000_000_000;
+  const balancesOf = (settlement) =>
+    new Map(settlement.balances.map((entry) => [entry.userId, toCents(entry.balance)]));
+  const beforeLargest = await settlementOf(writerTrip._id, writerSession.accessToken);
+  const largestPreview = await preview({ amount: largestAmount, member_ids: evenIds });
+  assert.equal(largestPreview.amount, largestAmount);
+  assert.deepEqual(sharesOf(largestPreview), evenFor(evenIds, toCents(largestAmount)));
+  const largest = await create(
+    payload({
+      original_amount: largestAmount,
+      description: 'TEST largest amount',
+      splits: largestPreview.splits.map((split) => ({
+        user_id: split.userId,
+        share_amount: split.shareAmount,
+      })),
+    })
+  );
+  assert.deepEqual([largest.amount, largest.originalAmount], [largestAmount, largestAmount]);
+  assert.deepEqual(
+    largest.splits.map((split) => [split.userId, toCents(split.shareAmount)]),
+    sharesOf(largestPreview)
+  );
+  const storedLargest = await db
+    .collection('expenses')
+    .findOne({ _id: new mongoose.Types.ObjectId(largest.id) });
+  assert.deepEqual(
+    [storedLargest.amount, storedLargest.originalAmount],
+    [largestAmount, largestAmount]
+  );
+  assert.deepEqual(
+    storedLargest.splits.map((split) => [String(split.user), toCents(split.shareAmount)]),
+    sharesOf(largestPreview)
+  );
+  const afterLargest = await settlementOf(writerTrip._id, writerSession.accessToken);
+  assert.equal(
+    toCents(afterLargest.totalExpenses) - toCents(beforeLargest.totalExpenses),
+    toCents(largestAmount)
+  );
+  const [balancesBefore, balancesAfter] = [balancesOf(beforeLargest), balancesOf(afterLargest)];
+  const shareOf = new Map(sharesOf(largestPreview));
+  for (const id of memberIds)
+    assert.equal(
+      (balancesAfter.get(id) ?? 0) - (balancesBefore.get(id) ?? 0),
+      (id === writerId ? toCents(largestAmount) : 0) - (shareOf.get(id) ?? 0),
+      `balance of ${id}`
+    );
+  pass('the largest amount is exact in the preview, the stored expense and the settlement');
+
+  // Receipts as every earlier version stored them: the key in whatever case it was sent, and a
+  // SHA-256 of the schema-parsed input. Built here without any of the server's code. After an
+  // upgrade, a retry of such a request must find its receipt instead of creating the expense again,
+  // whichever letter case the retry spells the key in.
+  const alternate = (key, upperFirst) =>
+    [...key.toLowerCase()]
+      .map((char, index) => (index % 2 === (upperFirst ? 0 : 1) ? char.toUpperCase() : char))
+      .join('');
+  const spellingsOf = (key) => [
+    key,
+    key.toLowerCase(),
+    key.toUpperCase(),
+    alternate(key, true),
+    alternate(key, false),
+  ];
+  const earlierFingerprint = (body) =>
+    createHash('sha256')
+      .update(
+        JSON.stringify({
+          client_request_id: body.client_request_id,
+          payer_id: body.payer_id,
+          original_amount: body.original_amount,
+          currency: body.currency,
+          exchange_rate: body.exchange_rate,
+          description: body.description,
+          category: body.category,
+          date: body.date,
+          splits: body.splits.map((split) => ({
+            user_id: split.user_id,
+            share_amount: split.share_amount,
+          })),
+        })
+      )
+      .digest('hex');
+  const receiptsOfTrip = db.collection('expensecreaterequests');
+  for (const earlierKey of [randomUUID().toUpperCase(), alternate(randomUUID(), true)]) {
+    const earlierBody = payload({
+      client_request_id: earlierKey,
+      description: 'TEST earlier version',
+    });
+    const throwawayKey = randomUUID();
+    const earlier = await create({ ...earlierBody, client_request_id: throwawayKey });
+    const throwawayId = `${writerTrip._id}:${writerId}:${throwawayKey}`;
+    const throwawayReceipt = await receiptsOfTrip.findOne({ _id: throwawayId });
+    await receiptsOfTrip.deleteOne({ _id: throwawayId });
+    await receiptsOfTrip.insertOne({
+      _id: `${writerTrip._id}:${writerId}:${earlierKey}`,
+      trip: writerTrip._id,
+      fingerprint: earlierFingerprint(earlierBody),
+      data: throwawayReceipt.data,
+    });
+    const beforeEarlier = await counts();
+    for (const spelled of spellingsOf(earlierKey)) {
+      assert.deepEqual(
+        await create({ ...earlierBody, client_request_id: spelled }),
+        earlier,
+        `a replay of the earlier receipt stored as ${earlierKey}, key sent as ${spelled}`
+      );
+      assert.deepEqual(await lookup(spelled), { status: 'committed', expense: earlier }, spelled);
+      const changed = await request(createPath, {
+        token: writerSession.accessToken,
+        body: { ...earlierBody, client_request_id: spelled, description: 'TEST changed' },
+        status: 409,
+      });
+      assert.equal(changed.error.code, 'IDEMPOTENCY_CONFLICT', spelled);
+    }
+    assert.deepEqual(await counts(), beforeEarlier, 'replaying an earlier receipt writes nothing');
+    const earlierObjectId = new mongoose.Types.ObjectId(earlier.id);
+    await db.collection('expenses').deleteOne({ _id: earlierObjectId });
+    for (const spelled of spellingsOf(earlierKey))
+      assert.deepEqual(await create({ ...earlierBody, client_request_id: spelled }), earlier);
+    assert.equal(await db.collection('expenses').countDocuments({ _id: earlierObjectId }), 0);
+    assert.deepEqual(await lookup(earlierKey), { status: 'committed', expense: earlier });
+  }
+  pass('receipts stored by earlier versions replay in any letter case and never resurrect');
+
+  // A key first sent with mixed letter case: the receipt keeps that spelling, and every other
+  // spelling of the same UUID must still find it, replay it, be refused when the content changed
+  // and never bring a deleted expense back (it used to create a second expense).
+  const mixedKey = 'F47ac10B-58cc-4372-A567-0E02b2c3D479';
+  const mixedBody = payload({ client_request_id: mixedKey, description: 'TEST mixed case' });
+  const mixedCreated = await create(mixedBody);
+  const beforeMixed = await counts();
+  const mixedSpellings = [
+    ...spellingsOf(mixedKey),
+    'f47AC10b-58CC-4372-a567-0e02B2C3d479', // a second, different mixed spelling
+  ];
+  for (const spelled of mixedSpellings) {
+    assert.deepEqual(
+      await lookup(spelled),
+      { status: 'committed', expense: mixedCreated },
+      `lookup of ${spelled}`
+    );
+    assert.deepEqual(
+      await create({ ...mixedBody, client_request_id: spelled }),
+      mixedCreated,
+      `a retry sent as ${spelled} replays the first request`
+    );
+    const changed = await request(createPath, {
+      token: writerSession.accessToken,
+      body: { ...mixedBody, client_request_id: spelled, description: 'TEST changed' },
+      status: 409,
+    });
+    assert.equal(changed.error.code, 'IDEMPOTENCY_CONFLICT', spelled);
+  }
+  assert.deepEqual(await counts(), beforeMixed, 'every spelling of the key finds the one request');
+  assert.equal(
+    await receiptsOfTrip.countDocuments({
+      _id: { $regex: `^${writerTrip._id}:${writerId}:${mixedKey}$`, $options: 'i' },
+    }),
+    1,
+    'one receipt for all spellings'
+  );
+  assert(
+    await receiptsOfTrip.findOne({ _id: `${writerTrip._id}:${writerId}:${mixedKey}` }),
+    'the receipt keeps the spelling of the first request'
+  );
+  const mixedObjectId = new mongoose.Types.ObjectId(mixedCreated.id);
+  await db.collection('expenses').deleteOne({ _id: mixedObjectId });
+  for (const spelled of mixedSpellings)
+    assert.deepEqual(
+      await create({ ...mixedBody, client_request_id: spelled }),
+      mixedCreated,
+      `a deleted expense stays deleted when the retry is sent as ${spelled}`
+    );
+  assert.equal(await db.collection('expenses').countDocuments({ _id: mixedObjectId }), 0);
+  assert.deepEqual(await counts(), { ...beforeMixed, expenses: beforeMixed.expenses - 1 });
+  pass('a key first sent in mixed letter case is one key in every spelling, also after deletion');
+
+  // Return the trip to its pristine state for device testing.
+  for (const name of ['expenses', 'expensecreaterequests', 'notifications', 'activitylogs'])
+    await db.collection(name).deleteMany({ trip: writerTrip._id });
   const rotated = (await refresh(first)).data;
   assert.notEqual(rotated.refreshToken, first.refreshToken);
   await me(rotated);
@@ -989,10 +1813,10 @@ try {
             console.log(`LAN candidate: http://${address.address}:${port}/api/v1`);
       }
     console.log(
-      `Disposable accounts: mobile-a, mobile-b, mobile-empty, mobile-ledger, mobile-ledger-b, mobile-removed\nPassword: ${password}`
+      `Disposable accounts: mobile-a, mobile-b, mobile-empty, mobile-ledger, mobile-ledger-b, mobile-removed, mobile-writer, mobile-writer-b, mobile-writer-removed, mobile-writer-out\nPassword: ${password}`
     );
     console.log(
-      `Shared trip: ${shared._id}\nB-only trip: ${privateTrip._id}\nLedger trip (48 expenses): ${ledger._id}\nEmpty ledger: ${emptyLedger._id}\nSettled ledger: ${settledLedger._id}\nFixture date: ${date}\nStop with Ctrl+C to remove the database and server.`
+      `Shared trip: ${shared._id}\nB-only trip: ${privateTrip._id}\nLedger trip (48 expenses): ${ledger._id}\nEmpty ledger: ${emptyLedger._id}\nSettled ledger: ${settledLedger._id}\nWriter trip (mobile-writer, mobile-writer-b, mobile-writer-removed): ${writerTrip._id}\nFixture date: ${date}\nStop with Ctrl+C to remove the database and server.`
     );
     await writeFile(
       join(artifacts, 'fixture.json'),
@@ -1004,6 +1828,7 @@ try {
         ledgerTrip: String(ledger._id),
         emptyLedgerTrip: String(emptyLedger._id),
         settledLedgerTrip: String(settledLedger._id),
+        writerTrip: String(writerTrip._id),
         date,
         controlUrl,
         controlToken,

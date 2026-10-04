@@ -69,7 +69,8 @@ function toMobileExpense(expense: ExpenseDto): MobileExpense {
     currency: expense.currency || 'TWD',
   };
 }
-function toMobileExpenseDetail(expense: ExpenseDto): MobileExpenseDetail {
+// Also maps the accepted result of an expense creation, which is stored in the Web DTO shape.
+export function toMobileExpenseDetail(expense: ExpenseDto): MobileExpenseDetail {
   return {
     ...toMobileExpense(expense),
     exchangeRate: finite(expense.exchange_rate, 1),

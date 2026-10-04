@@ -5,7 +5,7 @@
 ## 先決條件
 
 - 根目錄完成 `pnpm install --frozen-lockfile`；Node／pnpm 版本依 repository 設定。
-- Docker Desktop 已啟動。第一次執行會下載 `mongo:8.0`。
+- Docker Desktop 已啟動。第一次執行會下載 `mongo:8.0`；隔離資料庫是單節點 replica set（新增支出的交易需要）。已經開著的舊 `dev:mobile-api` 環境不是 replica set，須重啟才能使用新增 API。
 - 暫停其他 `apps/web` 開發伺服器：驗收環境使用同一份 Next.js 開發產物與 lock。
 - iOS：Xcode 與 iOS Simulator runtime；`xcrun simctl list devices available` 應有可開機裝置。若全域仍指向 Command Line Tools，可只在目前終端設定 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`。
 - Android：Java、Android SDK platform-tools、emulator 與符合電腦架構的 system image。設定 `ANDROID_HOME` 與 SDK 的 `platform-tools`／`emulator` 路徑，啟動 AVD 後確認 `adb devices` 可見裝置。安裝方式見 [Expo Android 模擬器文件](https://docs.expo.dev/workflow/android-studio-emulator/) 與 [Android 命令列工具](https://developer.android.com/tools)。
@@ -36,6 +36,17 @@ pnpm --filter @travel-budget/web test:mobile-api
 
 支出與結算唯讀 API 使用獨立的 ledger 帳號與旅行，不影響上述金額：48 筆支出涵蓋同日同時間的游標邊界（20／20／8 筆分頁）、分頁之間插入新支出、外幣、非均分、虛擬成員付款人與缺少原幣欄位的歷史資料，另有已登記還款、已結清與無支出旅行。腳本以獨立計算的預期值對照清單順序、明細金額／分攤與結算餘額，並檢查回應沒有附件、標籤、帳號或 Email；非成員、他旅行的支出、分享碼、格式錯誤的 ID、無效游標、未登入及中途失去成員資格皆被拒絕。對應的資料庫層整合測試（`mobileReadApi.integration.test.ts`，需獨立測試 MongoDB）在 CI 的真 MongoDB 工作中執行。
 
+線上新增支出的後端使用獨立的 writer 帳號與旅行：成員資料的順序（含加入時間相同的成員與虛擬成員）、預覽的固定順序均分與嚴格輸入、新增後以獨立計算的預期值核對儲存的支出與 receipt、再由讀取端點與結算讀回；同 key 的重播與任何大小寫拼法（含混合）、八個併發的相同請求只提交一次且通知／動態不重複、同 key 不同內容 409、他人不能看到本人的 key、支出被刪除後重播與查詢、失去成員資格者的重播／查詢／預覽／讀取皆 404，以及 二十多種無效請求都 400 且不留支出或 receipt。單筆上限 1,000,000,000 的金額從預覽、儲存的文件到結算逐分核對，超過上限（含 `10_000_000_000_000`）的預覽與新增都 400 且不留資料；另以獨立算出的舊格式 receipt（大寫與混合大小寫 key）驗證在原樣與其他拼法下的重播、結果查詢與 409，刪除支出後仍不復活；以混合大小寫 key 新增後，其他拼法的查詢、重送、改內容與刪除後重送也都對應同一筆。另模擬回應遺失：客戶端送出請求後不讀回應，伺服器仍提交，以 key 查得結果，重送不重複。結束前清空該旅行的支出、receipt、通知與動態，保留環境供裝置使用。資料庫層另有需要 replica set 的 `mobileExpenseWrite.integration.test.ts`（CI 的 `expense-writes` 工作）；本機可用：
+
+```bash
+docker run -d --rm --name tb-replica -p 127.0.0.1:27017:27017 mongo:8.0 --replSet rs0 --bind_ip_all
+docker exec tb-replica mongosh --quiet --eval 'rs.initiate({_id:"rs0",members:[{_id:0,host:"localhost:27017"}]})'
+MONGODB_MEMBER_TEST_URI='mongodb://127.0.0.1:27017/?directConnection=true' \
+  MONGODB_MEMBER_TEST_ALLOW_WRITES=1 \
+  pnpm --filter @travel-budget/web exec vitest run src/__tests__/mobileExpenseWrite.integration.test.ts
+docker rm -f tb-replica
+```
+
 正常結束、失敗或 Ctrl+C 都會停止自己的 Next.js 與移除容器；診斷 log 留在輸出的暫存目錄。不應把這些輸出提交到 repository。強制關機或 SIGKILL 無法觸發清理；此時只移除該次產生的 `tb-mobile-<隨機碼>` 容器，避免清除其他工作。
 
 ## 保留環境供裝置操作
@@ -46,14 +57,15 @@ pnpm --filter @travel-budget/web dev:mobile-api
 
 先執行自動驗收，成功後清空測試產生的登入限制與 session，再保留資料庫與伺服器。終端顯示 API URL、一次性密碼、旅行 ID 與 fixture 日期；密碼也只寫入權限 `0600` 的暫存 `fixture.json`。每次重啟都會換 port、密碼與資料 ID，手機須更新 API 位址並重啟 Expo。
 
-| 帳號                               | 旅行與預期金額（TWD）                                                                      |
-| ---------------------------------- | ------------------------------------------------------------------------------------------ |
-| `mobile-a`                         | 22 筆：共用旅行、20 筆未來旅行、1 筆封存旅行；共用旅行本人花費 50、應收 50.01、預算 1,000  |
-| `mobile-b`                         | 共用旅行與 B 專屬旅行；共用旅行本人花費 50.01、應付 50.01、預算 9,000                      |
-| `mobile-empty`                     | 無旅行                                                                                     |
-| `mobile-ledger`／`mobile-ledger-b` | 支出與結算 fixture：Ledger 旅行（48 筆）、Settled ledger（已結清）、Empty ledger（無支出） |
+| 帳號                                                                             | 旅行與預期金額（TWD）                                                                                                       |
+| -------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `mobile-a`                                                                       | 22 筆：共用旅行、20 筆未來旅行、1 筆封存旅行；共用旅行本人花費 50、應收 50.01、預算 1,000                                   |
+| `mobile-b`                                                                       | 共用旅行與 B 專屬旅行；共用旅行本人花費 50.01、應付 50.01、預算 9,000                                                       |
+| `mobile-empty`                                                                   | 無旅行                                                                                                                      |
+| `mobile-ledger`／`mobile-ledger-b`                                               | 支出與結算 fixture：Ledger 旅行（48 筆）、Settled ledger（已結清）、Empty ledger（無支出）                                  |
+| `mobile-writer`／`mobile-writer-b`／`mobile-writer-removed`／`mobile-writer-out` | 線上新增 fixture：Writer 旅行（無支出；前三者與一名虛擬成員為成員，`mobile-writer` 為管理員，`mobile-writer-out` 不是成員） |
 
-共用旅行只有一筆 100.01 支出、2 名成員；fixture 當日全團花費為 100.01。Ledger 旅行有 4 名成員（含虛擬成員與測試用 `mobile-removed`）：總支出 5,819.9、`mobile-ledger` 應收 790.35、`mobile-ledger-b` 應收 839.5；含一筆 JPY 3,000（匯率 0.0333）= 99.9、一筆虛擬成員付款的 200 與一筆歷史資料 30，以及一筆 20.5 的已登記還款。工具會先檢查 fixture 與本機日期一致；跨日驗收時重啟後端與 Metro，使日期一致。所有 fixture 名稱以 `TEST` 開頭；收據 key 是不可存取的測試字串。
+共用旅行只有一筆 100.01 支出、2 名成員；fixture 當日全團花費為 100.01。Ledger 旅行有 4 名成員（含虛擬成員與測試用 `mobile-removed`）：總支出 5,819.9、`mobile-ledger` 應收 790.35、`mobile-ledger-b` 應收 839.5；含一筆 JPY 3,000（匯率 0.0333）= 99.9、一筆虛擬成員付款的 200 與一筆歷史資料 30，以及一筆 20.5 的已登記還款。工具會先檢查 fixture 與本機日期一致；跨日驗收時重啟後端與 Metro，使日期一致。Writer 旅行的成員依加入時間為 `mobile-writer`、`mobile-writer-b`，其後是加入時間相同的虛擬成員與 `mobile-writer-removed`；驗收腳本結束時已清空該旅行的支出、receipt、通知與動態。所有 fixture 名稱以 `TEST` 開頭；收據 key 是不可存取的測試字串。
 
 保留環境的終端接受以下命令：
 
@@ -186,3 +198,11 @@ A 核心功能與 P1 修正複驗通過，可交接 B。33 個撤權回歸測試
 本機證據（不提交產物）：`/tmp/tb-a-reaccept-{tests,db,edge,check,build,ios,android}.log`；額外邊界案例原始碼 `/tmp/tb-a-reaccept-edge.test.ts`。兩平台截圖與流程位於系統暫存目錄的 `travel-budget-native-IGhYLg`（iOS）及 `travel-budget-native-cmMvHo`（Android），完整路徑見對應 log。
 
 仍待驗收：四語與最大字級／深淺色的交叉組合、支出／結算畫面的 Android 四語、iOS 最大字級的結算頁與 Android 大字級／深色、裝置斷網／飛航模式、限速與封包遺失、螢幕閱讀器及實體裝置。上述結果不替代 development build、簽章或商店驗收。
+
+### B 後端獨立驗收（2026-10-04）
+
+B 核心功能與 P1／P2 修正複驗通過，可交接 C。舊／新 receipt 的各種 UUID 大小寫拼法皆能查回原結果；重送、衝突、刪除後重播及跨入口併發符合冪等要求。金額上限與拒絕超範圍輸入亦通過，詳見 [B 路線](ROADMAP.md#b共用寫入與-api第二個交付)。
+
+通過 Web 2,006、Mobile 135（131 Vitest＋4 Node）、真 replica set 174 個案例（B 111＋trip writers 63）、隔離 HTTP、frozen install、契約、lint／格式、Mobile check 與三平台匯出；上次留下的 5 個真 DB 邊界測試全部通過。一般 Web 測試另有 364 個案例跳過，不算通過；其中本輪交易套件已另行執行。根 check 的 53 個 Web 型別錯誤與先前乾淨基線相同，正式 build 仍受既有型別錯誤阻擋。本輪未執行原生操作，也未驗證 429 真實競爭或 C 的代理丟棄回應／App 重啟。
+
+本機證據：`/tmp/tb-b-final-{tests,db,http,edge,check,build,quality,export}.log`；額外案例沿用 `/tmp/tb-b-reaccept-edge.test.ts`。複驗可暫放到 Web 的 `src/__tests__`，沿用本文件的隔離 replica set 環境，以 Vitest `-t 'REVIEW:'` 執行，完成後移除暫存檔。

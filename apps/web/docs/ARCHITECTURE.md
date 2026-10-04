@@ -48,4 +48,6 @@ Next.js App Router 與 React 組成介面，TanStack Query 負責查詢、重新
 
 `src/app/api/v1` 是原生用戶端入口，`src/lib/mobile` 管理獨立 bearer session、錯誤 envelope 與 DTO 組裝；輸入與回應 schema 由 `@travel-budget/contracts` 匯入。`credentials.ts`、`tripListRead.ts` 同時供 Web Server Actions 與手機呼叫；摘要重用成員權限及 `tripShellRead`／`tripListSummary`。支出清單／明細（`lib/mobile/expenses.ts`）重用 `toExpenseDto` 與 `Expense` 索引，結算（`lib/mobile/settlement.ts`）重用 `readSettlementDetail`（`readSettlement` 的成員 id 版本，原回傳不變）；兩者先經 `lib/mobile/access.ts` 驗證成員 ObjectId，再讀資料。手機簽章與 Web cookie 隔離，MongoDB 儲存 refresh 雜湊與撤銷狀態。詳細安全邊界及 OpenAPI 見 [手機 API](MOBILE_API.md)。
 
+新增支出只有一個寫入服務：`lib/expenseCreate.ts#createExpenseForActor` 接受已授權的旅行與操作者及 `createExpenseSchema` 的輸出，內含 `withTripWrite` 交易、成員／分攤／金額驗證、收據驗證、與支出同交易提交的冪等 receipt（`expenseCreateRequest.ts`）及通知／outbox 副作用，且不 import `next/*`。Web Server Action（`expense.actions.ts#createExpense`，cookie）與手機 HTTP（`lib/mobile/expenseWrite.ts`，bearer）是它的兩個 adapter：各自驗證登入、解析旅行與輸入、處理自己的快取／排程並對照錯誤碼。成員順序（`lib/mobile/expenseOptions.ts`）與 Web 成員清單相同，均分預覽重用 `computeSplits`，手機不複製金額演算法。
+
 [packages/contracts/openapi.json](../../../packages/contracts/openapi.json) 是共用契約產物；在 repository 根目錄執行 `pnpm contracts:generate` 更新、`pnpm contracts:check` 檢查同步。Vercel 使用 Root Directory `apps/web`，啟用 outside-root source files 以建置共享契約；本目錄 `vercel.json` 保留既有 cron。

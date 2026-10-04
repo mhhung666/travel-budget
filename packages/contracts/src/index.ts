@@ -105,8 +105,94 @@ export const settlementSchema = z.object({
     })
   ),
 });
+// Online expense entry. This round supports TWD only, rate 1, and members chosen for an equal split.
+export const MAX_EXPENSE_MEMBERS = 100;
+export const MAX_EXPENSE_DESCRIPTION = 200;
+/**
+ * Largest TWD amount (and share) one new expense may carry. The backend's shared cent rounding adds
+ * a tolerance proportional to the amount, so from about 8.8e12 (2^43) it no longer returns a value
+ * on the cent grid unchanged: 10_000_000_000_000 becomes 10_000_000_000_000.01 and every further
+ * rounding adds another cent. Staying thousands of times below that keeps preview, stored amount,
+ * response and split sums identical to the cent. It is far above any real expense.
+ */
+export const MAX_EXPENSE_AMOUNT = 1_000_000_000;
+// A TWD amount fits the cent grid when it is finite, within MAX_EXPENSE_AMOUNT and has at most two
+// decimals: 33.34 passes; 33.345, 1e21 and 1_000_000_000.01 do not.
+function onCentGrid(value: number): boolean {
+  if (!Number.isFinite(value) || value > MAX_EXPENSE_AMOUNT) return false;
+  return Math.round(value * 100) / 100 === value;
+}
+/** Strictly positive amount of at least 0.01. */
+export const isPositiveCentAmount = (value: number) => value >= 0.01 && onCentGrid(value);
+/** Share of an amount; 0.00 is a valid share (0.01 split three ways). */
+export const isCentShare = (value: number) => value >= 0 && onCentGrid(value);
+const centAmount = z
+  .number()
+  .min(0.01)
+  .max(MAX_EXPENSE_AMOUNT)
+  .refine(isPositiveCentAmount, 'Use a positive amount with at most two decimals');
+const centShare = z
+  .number()
+  .min(0)
+  .max(MAX_EXPENSE_AMOUNT)
+  .refine(isCentShare, 'Use a non-negative share with at most two decimals');
+const noDuplicates = (values: string[]) => new Set(values).size === values.length;
+
+// Members in the order used to place the leftover cents of an equal split (earliest joined first).
+export const expenseOptionsSchema = z.object({
+  members: z.array(z.object({ id: idSchema, displayName: z.string() })),
+  categories: z.array(expenseCategorySchema),
+});
+export const expensePreviewInput = z
+  .object({
+    amount: centAmount,
+    member_ids: z
+      .array(idSchema)
+      .min(1)
+      .max(MAX_EXPENSE_MEMBERS)
+      .refine(noDuplicates, 'Members must be unique'),
+  })
+  .strict();
+// Shares are returned in expense-options member order whatever order the request used.
+export const expensePreviewSchema = z.object({
+  amount: z.number(),
+  splits: z.array(z.object({ userId: idSchema, displayName: z.string(), shareAmount: z.number() })),
+});
+// One UUID per user-confirmed submission, reused by every retry of that submission.
+export const clientRequestIdSchema = z.uuid();
+// Field names mirror the Web expense input; unknown fields (attachments, tags, itinerary days, ...)
+// are rejected rather than ignored.
+export const expenseCreateInput = z
+  .object({
+    client_request_id: clientRequestIdSchema,
+    payer_id: idSchema,
+    original_amount: centAmount,
+    currency: z.literal('TWD'),
+    exchange_rate: z.literal(1),
+    description: z.string().trim().min(1).max(MAX_EXPENSE_DESCRIPTION),
+    category: expenseCategorySchema,
+    date: dateSchema,
+    splits: z
+      .array(z.object({ user_id: idSchema, share_amount: centShare }).strict())
+      .min(1)
+      .max(MAX_EXPENSE_MEMBERS)
+      .refine(
+        (splits) => noDuplicates(splits.map((split) => split.user_id)),
+        'Members must be unique'
+      ),
+  })
+  .strict();
+export const expenseRequestSchema = z.discriminatedUnion('status', [
+  z.object({ status: z.literal('not_found') }),
+  z.object({ status: z.literal('committed'), expense: expenseDetailSchema }),
+]);
 export type MobileUser = z.infer<typeof userSchema>;
 export type MobileTrip = z.infer<typeof tripSchema>;
 export type MobileExpense = z.infer<typeof expenseSchema>;
 export type MobileExpenseDetail = z.infer<typeof expenseDetailSchema>;
 export type MobileSettlement = z.infer<typeof settlementSchema>;
+export type MobileExpenseOptions = z.infer<typeof expenseOptionsSchema>;
+export type MobileExpensePreviewInput = z.infer<typeof expensePreviewInput>;
+export type MobileExpensePreview = z.infer<typeof expensePreviewSchema>;
+export type MobileExpenseCreateInput = z.infer<typeof expenseCreateInput>;
+export type MobileExpenseRequest = z.infer<typeof expenseRequestSchema>;
