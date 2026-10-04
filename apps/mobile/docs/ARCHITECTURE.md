@@ -55,7 +55,7 @@ assets/                目前保留 Expo 模板圖示
 | 遠端快取     | TanStack Query；key 包含帳號、環境與資源範圍          | 已實作（僅記憶體） |
 | 登入憑證     | access token 記憶體；refresh token SecureStore        | 已實作             |
 | 待確認支出   | SQLite 紀錄（`expo-sqlite`），獨立於可清除的快取      | 已實作（階段 C）   |
-| 待送支出     | 完整離線 outbox：離線建立、批次重送、背景同步         | 階段 4             |
+| 待送支出     | 離線草稿、待送佇列與前景同步；OS 背景排程另排         | 階段 4（D1–D3）    |
 | 原生生命週期 | AppState／網路 adapter 接 Query focus／online manager | 已實作             |
 | 檔案         | App 私有目錄、穩定 upload ID、begin／finish 協議      | 相簿與附件階段     |
 | 通知         | 原生裝置 token 與後端裝置註冊                         | 核心流程穩定後     |

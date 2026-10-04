@@ -461,6 +461,34 @@ describe('requests bound to one account', () => {
     await expect(write).rejects.toMatchObject({ code: 'CANCELLED' });
   });
 
+  it('does not answer a write that was resent and succeeds after the account changed', async () => {
+    let finish: ((response: Response) => void) | undefined;
+    let logins = 0;
+    const accounts = [user, otherUser];
+    const { manager } = setup(async (url, init) => {
+      if (url.endsWith('/login')) return ok(session(logins ? 3 : 1, accounts[logins++]));
+      if (url.endsWith('/refresh')) return ok(session(2));
+      if (url.endsWith('/logout')) return ok({ loggedOut: true });
+      if ((init?.headers as Record<string, string>).Authorization === 'Bearer access-1')
+        return unauthorized();
+      return new Promise((respond) => {
+        finish = respond;
+      });
+    });
+    await manager.login('traveler', 'password');
+    const write = manager.requestAs(user.id, '/trips/1/expenses', schema, {
+      method: 'POST',
+      body: { a: 1 },
+    });
+    // The first attempt was refused, the session refreshed and the write sent again.
+    await vi.waitFor(() => expect(finish).toBeDefined());
+    await manager.logout();
+    await manager.login('other', 'password');
+    finish!(ok({ name: 'created' }));
+    await expect(write).rejects.toMatchObject({ code: 'CANCELLED' });
+    expect(manager.getSnapshot()).toEqual({ status: 'signedIn', user: otherUser });
+  });
+
   describe('an error that arrives after the account changed', () => {
     const answers: [string, () => Response | Error][] = [
       [

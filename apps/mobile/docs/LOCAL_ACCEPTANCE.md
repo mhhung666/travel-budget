@@ -170,8 +170,9 @@ adb -s emulator-5554 shell cmd uimode night yes
 | `entry-session`         | 登入到期且無法更新：回到登入頁、不顯示私人資料；同帳號重新登入後找回，從未重送                                                                                                                                                                      |
 | `entry-rejected`        | 寫入前被伺服器明確拒絕（預覽後成員被移出旅行）：回到編輯、沒有待確認紀錄、後端零筆；修正後重新預覽並確認是新的提交                                                                                                                                  |
 | `entry-preview-revoked` | 預覽成功後本人被移出旅行，再預覽得到 404：整個畫面只剩「找不到旅行」，沒有成員、分攤與確認；後端零筆寫入、重讀成員選項也被拒；斷線後離開再回來仍不顯示                                                                                              |
+| `entry-appearance`      | 裝置先設為最大字級／深色（見上方 `appearance` 指令）：表單、成員、預覽與「已儲存」都不在第一屏，逐一捲到可見後完成輸入、預覽、確認；後端一筆支出、一個 receipt。每個步驟只要求捲到可見、不置中，因為最大字級下的區塊高過螢幕時 Maestro 無法置中     |
 
-代理新增兩個一次性、只限「建立支出」（`POST /api/v1/trips/<id>/expenses`）的模式：`drop-response` 讓請求完整轉送並在後端提交後丟棄回應，之後代理維持連線；`drop-response-offline` 同上，之後代理斷線直到收到 `online`。預覽、查詢、其他寫入與登入不受影響；`online` 會一併解除尚未使用的丟回應設定；後端無法連線時不消耗它。`keyboard`（iOS）與 `locales` suite 也會跑 `entry-create`；大字體、深淺色則在設定好裝置後執行 `--suite entry --flows entry-create`。
+代理新增兩個一次性、只限「建立支出」（`POST /api/v1/trips/<id>/expenses`）的模式：`drop-response` 讓請求完整轉送並在後端提交後丟棄回應，之後代理維持連線；`drop-response-offline` 同上，之後代理斷線直到收到 `online`。預覽、查詢、其他寫入與登入不受影響；`online` 會一併解除尚未使用的丟回應設定；後端無法連線時不消耗它。`keyboard`（iOS）與 `locales` suite 也會跑 `entry-create`；大字體、深淺色則在設定好裝置後執行 `--suite entry --flows entry-appearance`（`entry-create` 的置中捲動在最大字級下不成立，只在預設字級執行）。
 
 所有 suite 都可加 `--flow-timeout <分鐘>`（預設 20）：單一 Maestro 流程超過時間就會被結束並判為失敗，避免卡死的測試驅動讓整輪無限等待（實測過 iOS 驅動對空的數字欄位 `eraseText` 或鍵盤動畫中的點擊都可能卡住或落空，相關流程已避開：只清除輸入過的欄位、等「完成」按鈕出現並靜止後才點、輸入後先等文字完整出現）。數字鍵盤沒有 return 鍵：iOS 用鍵盤上方的「完成」收起（軟體鍵盤與外接鍵盤模式都可），Android 用鍵盤的動作鍵。
 
@@ -208,38 +209,13 @@ pnpm --filter travel-budget-mobile test:native --suite sessions \
 
 預設驗證英文；裝置使用其他語系時，傳入 `--locale zh`／`zh-CN`／`jp`。此選項只切換斷言文字；只有 `locales` suite 會暫時切換原生 App 語系。深淺色與文字大小由裝置設定控制。第一次開啟 Expo Go 的系統提示請先完成，再跑流程。iOS 測試模擬器請在 Settings → General → AutoFill & Passwords 關閉 AutoFill Passwords and Passkeys，避免系統儲存密碼提示遮住測試；這不改動 App 的自動填寫能力，也不代表已驗證密碼管理器整合。重複執行若觸發 429，在隔離後端終端輸入 `reset-limits` 後再試。
 
-最近驗收：2026-10-03，Expo Go，iPhone 18 Pro（iOS 27）與 Pixel 9（API 36）模擬器：
+## 尚未完成的驗收
 
-- 兩平台四語登入／旅行皆通過，涵蓋必填、錯誤密碼、冷啟動、分頁、非成員、換帳號與空旅行。
-- iOS 英文軟體鍵盤開啟時可用「下一步」切換欄位、捲動並提交，再完成摘要與登出；Android 鍵盤操作亦通過。
-- 兩平台實際等待 15 分鐘 JWT 自然到期，皆驗證 401 → 單次 refresh → 新 JWT 重送成功，且冷啟動可恢復輪替後的憑證。
-- `lifecycle`、`network` 皆通過；`appearance` 通過 iOS 最大輔助字級／深色，以及 Android 2 倍字級／深色、預設字級／淺色。
-- 支出／結算唯讀（`ledger`）：修正撤權快取後，獨立重跑兩平台英文、預設字級／淺色的完整流程皆通過（含第二頁載入等待）。實作者先前的 iOS 四語與最大輔助字級／深色僅為部分驗證，本次未獨立重跑。
+已完成的登入／旅行、A／B 與 C 核心修正結果，以及本機歷史證據，合併至 [archive](archive/README.md)。以下項目仍須驗收，不能因封存已完成成果而視為通過：
 
-A 核心功能與 P1 修正複驗通過，可交接 B。33 個撤權回歸測試與額外 9 個 QueryClient 邊界案例皆通過：拒絕後遇逾時／斷線／5xx、下拉更新、離開再返回、取消／晚到回應、多頁刷新部分失敗都不會重新顯示私人快取；恢復權限後可正常讀取，一般網路失敗仍保留合法舊資料。裝置上的「撤銷旅行資格後再斷線」組合故障尚未執行，不以 QueryClient 測試代替裝置證據。
+- C：兩平台完整 `entry` 流程與修正後回歸；四語、軟體鍵盤、最大字級／深淺色交叉組合與螢幕閱讀器。
+- A：支出／結算兩平台完整四語與大字級／外觀矩陣，以及裝置上的「撤銷旅行資格後再斷線」組合故障。
+- 網路／後端：裝置斷網／飛航模式、限速與封包遺失、429 真實交易競爭；refresh 400／413／415 故障目前只有模擬 HTTP 證據。
+- 建置／裝置：重新確認並修復既有 Web 型別錯誤造成的根 check／build 阻擋；完成 development build 與 iOS／Android 實體裝置驗收。Expo Go 或 bundle export 不替代這些項目。
 
-重跑通過 Web 1,849 個測試、Mobile 124 個測試（120 Vitest＋4 Node，含上述 33 個）、23 個 MongoDB 整合測試、隔離 HTTP、frozen install、契約、lint／格式、Mobile check、Expo 相容性與三平台匯出。一般測試有 253 個選擇性案例跳過，其中 A 的 10 個已在上述 MongoDB 驗證另行執行；其餘跳過不算通過。根 `check` 的 53 個 Web 型別錯誤與乾淨 HEAD 逐項相同；正式 `build` 仍受既有型別錯誤阻擋。
-
-本機證據（不提交產物）：`/tmp/tb-a-reaccept-{tests,db,edge,check,build,ios,android}.log`；額外邊界案例原始碼 `/tmp/tb-a-reaccept-edge.test.ts`。兩平台截圖與流程位於系統暫存目錄的 `travel-budget-native-IGhYLg`（iOS）及 `travel-budget-native-cmMvHo`（Android），完整路徑見對應 log。
-
-仍待驗收：四語與最大字級／深淺色的交叉組合、支出／結算畫面的 Android 四語、iOS 最大字級的結算頁與 Android 大字級／深色、裝置斷網／飛航模式、限速與封包遺失、螢幕閱讀器及實體裝置。上述結果不替代 development build、簽章或商店驗收。
-
-### B 後端獨立驗收（2026-10-04）
-
-B 核心功能與 P1／P2 修正複驗通過，可交接 C。舊／新 receipt 的各種 UUID 大小寫拼法皆能查回原結果；重送、衝突、刪除後重播及跨入口併發符合冪等要求。金額上限與拒絕超範圍輸入亦通過，詳見 [B 路線](ROADMAP.md#b共用寫入與-api第二個交付)。
-
-通過 Web 2,006、Mobile 135（131 Vitest＋4 Node）、真 replica set 174 個案例（B 111＋trip writers 63）、隔離 HTTP、frozen install、契約、lint／格式、Mobile check 與三平台匯出；上次留下的 5 個真 DB 邊界測試全部通過。一般 Web 測試另有 364 個案例跳過，不算通過；其中本輪交易套件已另行執行。根 check 的 53 個 Web 型別錯誤與先前乾淨基線相同，正式 build 仍受既有型別錯誤阻擋。本輪未執行原生操作，也未驗證 429 真實競爭或 C 的代理丟棄回應／App 重啟。
-
-本機證據：`/tmp/tb-b-final-{tests,db,http,edge,check,build,quality,export}.log`；額外案例沿用 `/tmp/tb-b-reaccept-edge.test.ts`。複驗可暫放到 Web 的 `src/__tests__`，沿用本文件的隔離 replica set 環境，以 Vitest `-t 'REVIEW:'` 執行，完成後移除暫存檔。
-
-### C 手機新增驗收與修正（2026-10-04）
-
-**已修正驗收發現的問題，原 5 個獨立案例全部通過。** 預覽撤權、直接晚到 400 與 lint 已先行複驗；最後的 refresh 錯誤處理改為保留 HTTP／傳輸錯誤的 code、status、Retry-After，另標記來源，記帳引擎只暫停並保留待確認紀錄，不當成支出被拒；晚到錯誤先檢查登入世代。未完成的裝置矩陣不計通過。
-
-真 SQLite／SessionManager／ApiClient 配合模擬 HTTP 的回歸測試涵蓋：已提交但回應遺失後，重試遇 401／refresh 400、413、415 仍保留原 UUID 與內容、阻擋另開新筆，重新登入只查回原支出；A→B 後晚到的 refresh 錯誤保留 A 的紀錄；同帳號重新登入也有世代隔離。Mobile 393（378 Vitest＋15 Node）與原 5 個額外案例通過。refresh 400 故障使用模擬 HTTP，未宣稱已在真 API 或裝置注入。
-
-本輪完整 Mobile check 與三平台匯出通過；iOS `entry-session` 原生流程也通過：提交後丟回應、session 與 refresh 失效、重新登入找回原筆，後端仍只有一筆支出／receipt，代理確認沒有再次寫入。截圖與流量在 `travel-budget-native-Xj5Q1H` 暫存目錄，完整路徑見 ios log。
-
-此前 iOS 英文／預設字級／淺色的 `entry-preview-revoked` 通過，包含撤權後隱藏姓名／分攤／確認、斷線後離開再返回，以及 DB／代理流量核對。兩平台 `entry-create`／`entry-lost-restart`、Web 2,006 與 frozen install 沿用前輪結果；Android、完整四語／字級／外觀、螢幕閱讀器、實體裝置與 development build 本輪未重跑。Web 364 選擇性案例跳過，根 check／正式 build 仍受既有 53 個 Web 型別錯誤阻擋，本輪未重新宣稱通過。
-
-修正證據：`/tmp/tb-c-refresh-{tests,check,export,edge,ios}.log`；原額外案例 `/tmp/tb-c-reaccept-edge.test.ts`。先前 iOS 撤權截圖在 `travel-budget-native-JP7UDx` 暫存目錄，完整路徑見 `/tmp/tb-c-reaccept-ios.log`。提交時依新增功能調整 Mobile minor 版本；不代表已部署或通過完整裝置驗收。
+開發順序與交付條件見 [ROADMAP](ROADMAP.md)。本文件維護可重跑的操作與未驗項目，已完成結果只更新 archive 摘要。
