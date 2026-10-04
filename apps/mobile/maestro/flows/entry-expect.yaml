@@ -1,0 +1,8 @@
+appId: ${MAESTRO_APP_ID}
+---
+# EXPECT_EXPENSES and EXPECT_RECEIPTS: what the backend must hold for the Writer trip right now.
+- runScript:
+    file: ../entry-state-command.js
+    env:
+      EXPECT_EXPENSES: ${EXPECT_EXPENSES}
+      EXPECT_RECEIPTS: ${EXPECT_RECEIPTS}

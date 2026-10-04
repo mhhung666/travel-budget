@@ -2,7 +2,7 @@
 
 旅行記帳的 iOS／Android 用戶端，使用 Expo、React Native、Expo Router 與 TypeScript。位於 `travel-budget` repository 的 `apps/mobile`，與 `apps/web` 共用同一套業務後端及 `@travel-budget/contracts` API 契約。
 
-**已實作唯讀流程**：既有帳號登入、旅行列表與摘要、支出清單／明細與結算，搭配四語系、深淺色與安全憑證儲存。需同時啟動 `apps/web` 後端；尚未部署或完成真機驗收。
+**已實作**：既有帳號登入、旅行列表與摘要、支出清單／明細與結算，以及線上新增支出（TWD、勾選成員均分，後端預覽、冪等送出）與裝置端待確認紀錄（回應遺失或重啟後找回，不重複記帳），搭配四語系、深淺色與安全憑證儲存。需同時啟動 `apps/web` 後端；尚未部署或完成真機驗收，新增支出仍待獨立驗收。
 
 ## 開始開發
 

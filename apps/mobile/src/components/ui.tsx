@@ -1,23 +1,36 @@
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
   useColorScheme,
+  type Insets,
+  type TextInputProps,
   type ViewStyle,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import type { PropsWithChildren } from 'react';
+import type { PropsWithChildren, Ref } from 'react';
 import { colors } from '@/theme/tokens';
 
 export const usePalette = () => colors[useColorScheme() === 'dark' ? 'dark' : 'light'];
-export function Page({ children, style }: PropsWithChildren<{ style?: ViewStyle }>) {
+export function Page({
+  children,
+  style,
+  form = false,
+}: PropsWithChildren<{ style?: ViewStyle; form?: boolean }>) {
   const palette = usePalette();
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.background }}>
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.page, style]}>
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        // A numeric keyboard has no return key on iOS; dragging the page down puts it away.
+        keyboardDismissMode={form ? 'on-drag' : 'none'}
+        contentContainerStyle={[styles.page, style]}
+      >
         {children}
       </ScrollView>
     </SafeAreaView>
@@ -162,6 +175,81 @@ export function Badge({ label }: { label: string }) {
     </View>
   );
 }
+/** Labelled single input; the error, when there is one, is announced right under it. */
+export function TextField({
+  label,
+  error,
+  inputRef,
+  ...input
+}: TextInputProps & { label: string; error?: string; inputRef?: Ref<TextInput> }) {
+  const p = usePalette();
+  return (
+    <View style={{ gap: 6 }}>
+      <Text style={[styles.label, { color: p.text }]}>{label}</Text>
+      <TextInput
+        ref={inputRef}
+        accessibilityLabel={label}
+        placeholderTextColor={p.muted}
+        {...input}
+        style={[
+          styles.input,
+          { color: p.text, borderColor: error ? p.danger : p.border, backgroundColor: p.surface },
+        ]}
+      />
+      {!!error && (
+        <Text accessibilityRole="alert" style={[styles.copy, { color: p.danger }]}>
+          {error}
+        </Text>
+      )}
+    </View>
+  );
+}
+const chipHitSlop: Insets = { top: 4, bottom: 4, left: 4, right: 4 };
+/** A selectable option: `radio` for one of many, `checkbox` for many, `button` for a plain action. */
+export function Chip({
+  label,
+  onPress,
+  selected = false,
+  role = 'radio',
+  disabled = false,
+  testID,
+}: {
+  label: string;
+  onPress: () => void;
+  selected?: boolean;
+  role?: 'radio' | 'checkbox' | 'button';
+  disabled?: boolean;
+  testID?: string;
+}) {
+  const p = usePalette();
+  return (
+    <Pressable
+      testID={testID}
+      accessibilityRole={role}
+      accessibilityLabel={label}
+      accessibilityState={
+        role === 'checkbox'
+          ? { checked: selected, disabled }
+          : role === 'radio'
+            ? { selected, disabled }
+            : { disabled }
+      }
+      disabled={disabled}
+      hitSlop={chipHitSlop}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.chip,
+        {
+          backgroundColor: selected ? p.primary : p.surface,
+          borderColor: selected ? p.primary : p.border,
+          opacity: disabled ? 0.55 : pressed ? 0.8 : 1,
+        },
+      ]}
+    >
+      <Text style={[styles.chipLabel, { color: selected ? p.onPrimary : p.text }]}>{label}</Text>
+    </Pressable>
+  );
+}
 export const styles = StyleSheet.create({
   page: { flexGrow: 1, width: '100%', maxWidth: 640, alignSelf: 'center', padding: 24, gap: 16 },
   title: { fontSize: 32, fontWeight: '700' },
@@ -184,6 +272,28 @@ export const styles = StyleSheet.create({
   card: { borderRadius: 18, padding: 18, gap: 14, borderWidth: 1 },
   label: { fontSize: 14, lineHeight: 20 },
   value: { fontSize: 17, lineHeight: 24, fontWeight: '600' },
+  input: {
+    borderWidth: 1,
+    borderRadius: 12,
+    minHeight: 52,
+    padding: 14,
+    fontSize: 18,
+    // Android sizes the field from the default font but lays the text out with the app language's
+    // fonts; with CJK ones the line can be taller than the box, so React Native treats the field as
+    // scrollable and a drag that starts on it no longer scrolls the page. A fixed line height keeps
+    // both in agreement.
+    ...Platform.select({ android: { lineHeight: 24 } }),
+  },
+  chip: {
+    minHeight: 44,
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    justifyContent: 'center',
+    maxWidth: '100%',
+  },
+  chipLabel: { fontSize: 16, lineHeight: 22, fontWeight: '600', flexShrink: 1 },
   badge: { alignSelf: 'flex-start', borderRadius: 999, paddingVertical: 4, paddingHorizontal: 10 },
   badgeLabel: { fontSize: 13, fontWeight: '600' },
 });

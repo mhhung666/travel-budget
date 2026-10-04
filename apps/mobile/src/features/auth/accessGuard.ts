@@ -1,4 +1,5 @@
 import type { QueryClient, QueryKey } from '@tanstack/react-query';
+import { ApiError } from '@/api/client';
 import { isAccessDenied } from './errorMessage';
 
 /**
@@ -23,4 +24,22 @@ export async function keepAccessDenial<T>(
     if (isAccessDenied(previous) && !isAccessDenied(error)) throw previous;
     throw error;
   }
+}
+
+/**
+ * Records a denial that a different request found out, such as a refused expense preview, as the
+ * error of the query that holds the private data. From then on that data stays hidden exactly as
+ * if the query had been refused itself: through later transient failures and across leaving and
+ * returning to the screen, until a read of it succeeds. Only a lost-access answer is recorded;
+ * other failures prove nothing about access. A resource that was never read has nothing to hide.
+ */
+export function recordAccessDenial(client: QueryClient, queryKey: QueryKey, error: unknown) {
+  if (!(error instanceof ApiError) || !isAccessDenied(error)) return;
+  const query = client.getQueryCache().find({ queryKey, exact: true });
+  query?.setState({
+    status: 'error',
+    error,
+    errorUpdatedAt: Date.now(),
+    errorUpdateCount: query.state.errorUpdateCount + 1,
+  });
 }

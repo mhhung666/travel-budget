@@ -4,7 +4,7 @@
 
 ## 一套後端，兩種前端
 
-登入憑證檢查、旅行列表與摘要、支出清單／明細、結算讀取與新增支出的寫入服務（`createExpenseForActor`，Server Action 與 HTTP 各為 adapter）都已接入此分工；手機端的新增畫面尚未實作。
+登入憑證檢查、旅行列表與摘要、支出清單／明細、結算讀取與新增支出的寫入服務（`createExpenseForActor`，Server Action 與 HTTP 各為 adapter）都已接入此分工；手機的新增畫面透過同一組 HTTP API 寫入，金額分攤由後端預覽，手機只送出預覽的結果。
 
 ```mermaid
 flowchart LR
@@ -26,11 +26,12 @@ src/
   features/
     auth/              登入、恢復登入與安全路由
     trips/             旅行列表、摘要與查詢 hooks
-    expenses/          支出清單、明細、游標查詢與列資料轉換
+    expenses/          支出清單、明細、游標查詢與列資料轉換；新增支出：輸入驗證、草稿與預覽狀態、
+                       送出與不確定結果恢復引擎、待確認畫面
     settlement/        結算畫面、查詢與本人視角排序
   providers/           Query、SafeArea、Auth 及網路／前景同步
   api/                 HTTP client、runtime DTO 驗證、session manager
-  storage/             環境隔離的 SecureStore refresh token adapter
+  storage/             環境隔離的 SecureStore refresh token adapter；待確認支出的 SQLite 紀錄
   components/          共用按鈕、頁面、提示與指標
   i18n/                四語訊息與裝置語系 adapter
   theme/               語意色彩與間距 tokens
@@ -39,7 +40,7 @@ docs/                  現況、規範、契約與規劃
 assets/                目前保留 Expo 模板圖示
 ```
 
-路由為 `trips/[id]`（摘要）、`trips/[id]/expenses`（清單）、`trips/[id]/expenses/[expenseId]`（明細）與 `trips/[id]/settlement`；`features/expenses`、`settlement` 各放畫面、查詢選項與可單元測試的純函式。新增支出時再加入表單與待確認紀錄，不先建大量空資料夾。
+路由為 `trips/[id]`（摘要）、`trips/[id]/expenses`（清單）、`trips/[id]/expenses/new`（新增）、`trips/[id]/expenses/[expenseId]`（明細）與 `trips/[id]/settlement`；`features/expenses`、`settlement` 各放畫面、查詢選項與可單元測試的純函式。
 
 支出清單使用 TanStack Query 的游標式無限查詢；下拉更新只保留並重讀最新一頁，較舊頁面按需再載入。所有私人查詢的 key 以 `[API 環境, 帳號, 資源, 旅行…]` 開頭，換帳號不會讀到同一筆快取，登出仍會清除全部。
 
@@ -53,16 +54,41 @@ assets/                目前保留 Expo 模板圖示
 | ------------ | ----------------------------------------------------- | ------------------ |
 | 遠端快取     | TanStack Query；key 包含帳號、環境與資源範圍          | 已實作（僅記憶體） |
 | 登入憑證     | access token 記憶體；refresh token SecureStore        | 已實作             |
-| 待送支出     | SQLite outbox，獨立於可清除的快取                     | 線上新增支出穩定後 |
+| 待確認支出   | SQLite 紀錄（`expo-sqlite`），獨立於可清除的快取      | 已實作（階段 C）   |
+| 待送支出     | 完整離線 outbox：離線建立、批次重送、背景同步         | 階段 4             |
 | 原生生命週期 | AppState／網路 adapter 接 Query focus／online manager | 已實作             |
 | 檔案         | App 私有目錄、穩定 upload ID、begin／finish 協議      | 相簿與附件階段     |
 | 通知         | 原生裝置 token 與後端裝置註冊                         | 核心流程穩定後     |
 
-Query 預設不重試；私人資源的讀取經 `keepAccessDenial`：收到存取拒絕（401／403／404）後，該拒絕保持為查詢的錯誤，暫時性失敗不會讓隱藏的快取重新出現，直到成功讀取。HTTP 在 401 時由 session manager 合併 refresh、最多重送一次。429 尊重 Retry-After；其餘錯誤由使用者明確重試。登入／登出先取消並清除私人查詢，key 包含 API 環境與帳號。Token 不進 Query cache；refresh 持久化完成後才公開登入狀態。尚無業務寫入或離線持久化。
+Query 預設不重試；私人資源的讀取經 `keepAccessDenial`：收到存取拒絕（401／403／404）後，該拒絕保持為查詢的錯誤，暫時性失敗不會讓隱藏的快取重新出現，直到成功讀取。其他請求發現的拒絕（例如新增支出的預覽被拒）以 `recordAccessDenial` 記為該資源查詢的錯誤，效果相同。HTTP 在 401 時由 session manager 合併 refresh、最多重送一次。429 尊重 Retry-After；其餘錯誤由使用者明確重試。登入／登出先取消並清除私人查詢，key 包含 API 環境與帳號。Token 不進 Query cache；refresh 持久化完成後才公開登入狀態。`SessionManager.requestAs(userId, …)` 只在該帳號仍是目前登入者時送出，換帳號或登出後在送出前就失敗，不會用另一個帳號的 token 送出前一個帳號的請求。
 
 前景／網路 adapter 在啟動時同步目前 AppState，回到前景時重新讀取連線狀態；較舊的非同步網路讀取不得覆蓋較新的事件或讀取結果。Query 沿用 30 秒新鮮期，回前景／重新連線會更新已過期的觀察中查詢，離線暫停的首次讀取可在連線恢復後繼續。
 
-憑證輪替後若安全儲存失敗，session manager 清除舊 session 與私人快取，並嘗試撤銷新憑證。非同步恢復、refresh、登出及儲存清除都檢查登入世代，避免舊請求覆蓋後續登入；同一世代的 refresh／登出各自合併併發請求。
+憑證輪替後若安全儲存失敗，session manager 清除舊 session 與私人快取，並嘗試撤銷新憑證。非同步恢復、refresh、登出及儲存清除都檢查登入世代，避免舊請求覆蓋後續登入；請求的回應不論是資料或錯誤（包括看似確定的 400、404、5xx 與斷線），登入世代已更換就一律以 `CANCELLED` 結束，不會被當成新登入的答覆。同一世代的 refresh／登出各自合併併發請求。
+
+## 新增支出與不確定結果
+
+線上新增是一個與畫面無關的引擎（`features/expenses/entry.ts` 的 `ExpenseEntry`），由 `ExpenseEntryProvider` 在 App 層建立一次；畫面只呼叫它並顯示結果，離開畫面不會取消或清除已送出的請求。
+
+```mermaid
+flowchart LR
+  FORM[新增畫面：驗證、預覽、確認] -->|凍結內容＋新 UUID| ENGINE[ExpenseEntry]
+  ENGINE -->|1 先存入| DB[(SQLite 待確認紀錄)]
+  ENGINE -->|2 requestAs 帳號| API[POST /trips/:id/expenses]
+  API -->|200| DONE[移除紀錄、重讀清單與結算]
+  API -->|明確 4xx 拒絕| EDIT[移除紀錄、回到編輯]
+  API -->|逾時／斷線／5xx／回應遺失| LOOKUP[GET expense-requests/:uuid]
+  LOOKUP -->|committed| DONE
+  LOOKUP -->|not_found／失敗| KEEP[保留紀錄：只能查詢或以原內容重試]
+```
+
+- **先存後送**：紀錄含環境（API 位址）、帳號、旅行、UUID、凍結的請求內容與狀態（`sending`／`unconfirmed`），不含 token。寫入失敗就不送出 HTTP。表以 `(environment, account_id, client_request_id)` 為主鍵，所有讀寫都帶環境與帳號，不同帳號或環境互不可見。App 重啟後仍在，登出、換帳號與清除查詢快取都不會刪除它。
+- **只有明確的伺服器答覆才結案**：200（含重播）或查詢得到 `committed` 才移除紀錄並顯示已儲存；寫入前的明確拒絕（來自 API 本身的 400／413／415 等）才移除並回到編輯。401／403／404／429 與所有逾時、斷線、5xx、無法解析的回應都不證明沒寫入（先前的嘗試可能已提交），紀錄保留。非 API 本身的 4xx（例如閘道的網頁）同樣不被信任。refresh 的 HTTP／傳輸錯誤另標記來源，只暫停並保留紀錄，不套用支出端點的拒絕規則；晚到錯誤先檢查登入世代。409 一律查明原請求，不換 UUID。
+- **不確定期間鎖定**：只能查詢結果，或以同一個 UUID 與同一份內容重試（後端以 receipt 去重，不會重複記帳）；同一旅行在紀錄確認前不能新增其他支出，避免把可能已存的支出重新輸入。同一個請求的查詢與重試依序執行。
+- **恢復**：App 啟動、回前景與恢復連線時，對目前帳號的所有紀錄查詢結果（只讀，不自動重送）；本機移除失敗時不再送出，下次讀取再移除。
+- **帳號隔離**：引擎的每個請求經 `requestAs`；晚到的舊帳號回應（成功或錯誤皆然，包括 400）一律以 `CANCELLED` 結束，只讓該帳號的紀錄維持待確認，不影響新帳號，也不刪除紀錄；同帳號再次登入後以查詢找回。
+
+Web 預覽沒有登入也沒有資料庫，打包時改用 `pendingExpenseDatabase.web.ts`，不引入 `expo-sqlite` 的 wasm 版本。SQLite 邏輯寫在小型介面之後（`storage/pendingExpenses.ts`），測試以 Node 內建 SQLite 執行同一份 SQL。
 
 ## 共用與平台界線
 

@@ -1,0 +1,146 @@
+appId: ${MAESTRO_APP_ID}
+name: Another account on the same trip never sees, sends or resolves the first account's unconfirmed request
+---
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: reset-limits
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: entry-reset
+- runFlow:
+    file: flows/entry-lost-start.yaml
+    env:
+      USERNAME: mobile-writer
+      DESCRIPTION: TEST account switch
+      AMOUNT: '100'
+      FAULT: drop-response-offline
+- runFlow:
+    file: flows/entry-expect.yaml
+    env:
+      EXPECT_EXPENSES: '1'
+      EXPECT_RECEIPTS: '1'
+# Sign out (needs the network) while the request is still unconfirmed on the phone.
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online
+- tapOn:
+    id: new-expense-back
+- extendedWaitUntil:
+    visible:
+      id: trip-back
+    timeout: 30000
+- tapOn:
+    id: trip-back
+- scrollUntilVisible:
+    element:
+      id: logout
+    timeout: 30000
+    centerElement: true
+- tapOn:
+    id: logout
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: reset-limits
+# B belongs to the same trip. B sees the committed expense like anyone, but not A's request.
+- runFlow:
+    file: flows/login-scrolling.yaml
+    env:
+      USERNAME: mobile-writer-b
+- scrollUntilVisible:
+    element:
+      id: trip-${MAESTRO_WRITER_TRIP}
+    timeout: 60000
+    visibilityPercentage: 30
+- tapOn:
+    id: trip-${MAESTRO_WRITER_TRIP}
+    point: '50%,10%'
+- scrollUntilVisible:
+    element:
+      id: trip-expenses
+    timeout: 60000
+    centerElement: true
+- tapOn:
+    id: trip-expenses
+- extendedWaitUntil:
+    visible: 'TEST account switch.*TWD[  ]100.*'
+    timeout: 60000
+- assertNotVisible: ${MAESTRO_PENDING_NOTICE}
+- assertVisible:
+    id: expenses-add
+    text: ${MAESTRO_ADD_EXPENSE}
+- tapOn:
+    id: expenses-add
+- extendedWaitUntil:
+    visible:
+      id: new-expense-description
+    timeout: 30000
+- assertNotVisible:
+    id: pending-card-0
+- takeScreenshot: entry-other-account
+- runFlow:
+    file: flows/entry-expect.yaml
+    env:
+      EXPECT_EXPENSES: '1'
+      EXPECT_RECEIPTS: '1'
+# Back to A: the request is looked up on sign-in and resolved without a second write.
+- tapOn:
+    id: new-expense-back
+- extendedWaitUntil:
+    visible:
+      id: expenses-back
+    timeout: 30000
+- tapOn:
+    id: expenses-back
+- extendedWaitUntil:
+    visible:
+      id: trip-back
+    timeout: 30000
+- tapOn:
+    id: trip-back
+- scrollUntilVisible:
+    element:
+      id: logout
+    timeout: 30000
+    centerElement: true
+- tapOn:
+    id: logout
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: reset-limits
+- runFlow:
+    file: flows/login-scrolling.yaml
+    env:
+      USERNAME: mobile-writer
+- scrollUntilVisible:
+    element:
+      id: trip-${MAESTRO_WRITER_TRIP}
+    timeout: 60000
+    visibilityPercentage: 30
+- tapOn:
+    id: trip-${MAESTRO_WRITER_TRIP}
+    point: '50%,10%'
+- scrollUntilVisible:
+    element:
+      id: trip-expenses
+    timeout: 60000
+    centerElement: true
+- tapOn:
+    id: trip-expenses
+- extendedWaitUntil:
+    visible: 'TEST account switch.*TWD[  ]100.*'
+    timeout: 60000
+- assertNotVisible: ${MAESTRO_PENDING_NOTICE}
+- runFlow:
+    file: flows/entry-expect.yaml
+    env:
+      EXPECT_EXPENSES: '1'
+      EXPECT_RECEIPTS: '1'

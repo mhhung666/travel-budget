@@ -377,3 +377,233 @@ describe('private query cache lifecycle', () => {
     }
   );
 });
+
+describe('requests bound to one account', () => {
+  const sentBodies = (fetcher: ReturnType<typeof setup>['fetcher'], suffix: string) =>
+    fetcher.mock.calls
+      .filter(([url]) => url.endsWith(suffix))
+      .map(([, init]) => String(init?.body));
+
+  it('runs for the signed-in account', async () => {
+    const { manager } = setup(async (url) =>
+      url.endsWith('/login') ? ok(session(1)) : ok({ name: 'Tokyo' })
+    );
+    await manager.login('traveler', 'password');
+    await expect(manager.requestAs(user.id, '/trip', schema)).resolves.toEqual({ name: 'Tokyo' });
+  });
+
+  it('sends nothing when no one is signed in', async () => {
+    const { manager, fetcher } = setup(async () => ok({ name: 'x' }));
+    await expect(manager.requestAs(user.id, '/trip', schema)).rejects.toMatchObject({
+      status: 401,
+    });
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it('never sends one account’s request with another account’s token', async () => {
+    let logins = 0;
+    const { manager, fetcher } = setup(async (url) => {
+      if (url.endsWith('/login')) return ok(session(++logins, logins === 1 ? user : otherUser));
+      if (url.endsWith('/logout')) return ok({ loggedOut: true });
+      return ok({ name: 'created' });
+    });
+    await manager.login('traveler', 'password');
+    await manager.logout();
+    await manager.login('other', 'password');
+    fetcher.mockClear();
+    await expect(
+      manager.requestAs(user.id, '/trips/1/expenses', schema, { method: 'POST', body: { a: 1 } })
+    ).rejects.toMatchObject({ code: 'CANCELLED' });
+    expect(fetcher).not.toHaveBeenCalled();
+    await expect(manager.requestAs(otherUser.id, '/trip', schema)).resolves.toEqual({
+      name: 'created',
+    });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it('refreshes after a 401 and resends the write with the same body', async () => {
+    const body = { client_request_id: '8d2b0f0e-6a63-4f6f-a0f5-0b7a4d2c9e11', amount: 100 };
+    const { manager, fetcher } = setup(async (url, init) => {
+      if (url.endsWith('/login')) return ok(session(1));
+      if (url.endsWith('/refresh')) return ok(session(2));
+      return (init?.headers as Record<string, string>).Authorization === 'Bearer access-2'
+        ? ok({ name: 'created' })
+        : unauthorized();
+    });
+    await manager.login('traveler', 'password');
+    await expect(
+      manager.requestAs(user.id, '/trips/1/expenses', schema, { method: 'POST', body })
+    ).resolves.toEqual({ name: 'created' });
+    const bodies = sentBodies(fetcher, '/trips/1/expenses');
+    expect(bodies).toEqual([JSON.stringify(body), JSON.stringify(body)]);
+    expect(fetcher.mock.calls.filter(([url]) => url.endsWith('/refresh'))).toHaveLength(1);
+  });
+
+  it('does not answer a write that is still in flight after the account changed', async () => {
+    let finish!: (response: Response) => void;
+    let logins = 0;
+    const { manager } = setup(async (url) => {
+      if (url.endsWith('/login')) return ok(session(++logins, logins === 1 ? user : otherUser));
+      if (url.endsWith('/logout')) return ok({ loggedOut: true });
+      return new Promise((resolve) => {
+        finish = resolve;
+      });
+    });
+    await manager.login('traveler', 'password');
+    const write = manager.requestAs(user.id, '/trips/1/expenses', schema, {
+      method: 'POST',
+      body: { a: 1 },
+    });
+    await manager.logout();
+    await manager.login('other', 'password');
+    finish(ok({ name: 'created' }));
+    // The server may have written it; the caller must treat the outcome as unknown.
+    await expect(write).rejects.toMatchObject({ code: 'CANCELLED' });
+  });
+
+  describe('an error that arrives after the account changed', () => {
+    const answers: [string, () => Response | Error][] = [
+      [
+        '400 with the API’s error body',
+        () => Response.json({ error: { code: 'VALIDATION_ERROR' } }, { status: 400 }),
+      ],
+      ['404', () => Response.json({ error: { code: 'NOT_FOUND' } }, { status: 404 })],
+      ['500', () => Response.json({ error: { code: 'SERVER_ERROR' } }, { status: 500 })],
+      ['401', unauthorized],
+      ['unreadable answer', () => new Response('<html>', { status: 502 })],
+      ['network failure', () => new TypeError('connection lost')],
+    ];
+    const accounts = [user, otherUser];
+
+    it.each(answers)(
+      'is never reported as the answer of the new sign-in: %s',
+      async (_name, answer) => {
+        let finish!: { respond(response: Response): void; fail(error: unknown): void };
+        let logins = 0;
+        const { manager } = setup(async (url) => {
+          if (url.endsWith('/login')) return ok(session(logins + 1, accounts[logins++]));
+          if (url.endsWith('/logout')) return ok({ loggedOut: true });
+          return new Promise((respond, fail) => {
+            finish = { respond, fail };
+          });
+        });
+        await manager.login('traveler', 'password');
+        const write = manager.requestAs(user.id, '/trips/1/expenses', schema, {
+          method: 'POST',
+          body: { a: 1 },
+        });
+        await manager.logout();
+        await manager.login('other', 'password');
+        const result = answer();
+        if (result instanceof Error) finish.fail(result);
+        else finish.respond(result);
+        // A late 400 would otherwise read as proof that the write never happened.
+        await expect(write).rejects.toMatchObject({ code: 'CANCELLED' });
+        expect(manager.getSnapshot()).toEqual({ status: 'signedIn', user: otherUser });
+      }
+    );
+
+    it('is never reported as the answer of the new sign-in, also when the write was resent', async () => {
+      let finish: ((response: Response) => void) | undefined;
+      let logins = 0;
+      const { manager } = setup(async (url, init) => {
+        if (url.endsWith('/login')) return ok(session(logins ? 3 : 1, accounts[logins++]));
+        if (url.endsWith('/refresh')) return ok(session(2));
+        if (url.endsWith('/logout')) return ok({ loggedOut: true });
+        if ((init?.headers as Record<string, string>).Authorization === 'Bearer access-1')
+          return unauthorized();
+        return new Promise((respond) => {
+          finish = respond;
+        });
+      });
+      await manager.login('traveler', 'password');
+      const write = manager.requestAs(user.id, '/trips/1/expenses', schema, {
+        method: 'POST',
+        body: { a: 1 },
+      });
+      // The first attempt was refused, the session refreshed and the write sent again.
+      await vi.waitFor(() => expect(finish).toBeDefined());
+      await manager.logout();
+      await manager.login('other', 'password');
+      finish!(Response.json({ error: { code: 'VALIDATION_ERROR' } }, { status: 400 }));
+      await expect(write).rejects.toMatchObject({ code: 'CANCELLED' });
+      expect(manager.getSnapshot()).toEqual({ status: 'signedIn', user: otherUser });
+    });
+
+    it('still reports errors of the current sign-in as they are', async () => {
+      const { manager } = setup(async (url) =>
+        url.endsWith('/login')
+          ? ok(session(1))
+          : Response.json({ error: { code: 'VALIDATION_ERROR' } }, { status: 400 })
+      );
+      await manager.login('traveler', 'password');
+      await expect(
+        manager.requestAs(user.id, '/trips/1/expenses', schema, { method: 'POST', body: { a: 1 } })
+      ).rejects.toMatchObject({ status: 400, code: 'VALIDATION_ERROR' });
+    });
+  });
+});
+
+describe('refresh error provenance', () => {
+  it.each([400, 401, 403, 404, 409, 413, 415, 429, 500])(
+    'marks refresh %s as an authentication request error without replaying the write',
+    async (status) => {
+      const { manager, fetcher } = setup(async (url) => {
+        if (url.endsWith('/login')) return ok(session(1));
+        if (url.endsWith('/refresh'))
+          return Response.json(
+            { error: { code: 'REFRESH_REFUSED' } },
+            { status, headers: { 'Retry-After': '10' } }
+          );
+        return unauthorized();
+      });
+      await manager.login('traveler', 'password');
+      await expect(
+        manager.requestAs(user.id, '/trips/1/expenses', schema, { method: 'POST', body: { a: 1 } })
+      ).rejects.toMatchObject({
+        source: 'refresh',
+        status,
+        code: 'REFRESH_REFUSED',
+        retryAfter: 10,
+      });
+      expect(fetcher.mock.calls.filter(([url]) => url.endsWith('/expenses'))).toHaveLength(1);
+      if (status === 401) expect(manager.getSnapshot().status).toBe('signedOut');
+    }
+  );
+
+  it.each([400, 401, 500, 'network'] as const)(
+    'cancels an old refresh %s when even the same account signs in again',
+    async (status) => {
+      const entered = deferred<void>();
+      const finish = deferred<Response>();
+      let logins = 0;
+      const { manager, store, fetcher } = setup(async (url) => {
+        if (url.endsWith('/login')) return ok(session(++logins));
+        if (url.endsWith('/refresh')) {
+          entered.resolve();
+          return finish.promise;
+        }
+        return unauthorized();
+      });
+      await manager.login('traveler', 'password');
+      const write = manager.requestAs(user.id, '/trips/1/expenses', schema, {
+        method: 'POST',
+        body: { a: 1 },
+      });
+      await entered.promise;
+      await manager.login('traveler', 'password');
+      if (status === 'network') {
+        // A body-read failure is a transport error too.
+        const response = ok({});
+        response.json = async () => {
+          throw new TypeError('connection lost');
+        };
+        finish.resolve(response);
+      } else finish.resolve(Response.json({ error: { code: 'REFRESH_REFUSED' } }, { status }));
+      await expect(write).rejects.toMatchObject({ code: 'CANCELLED' });
+      expect(manager.getSnapshot()).toEqual({ status: 'signedIn', user });
+      expect(await store.get()).toBe('refresh-2');
+      expect(fetcher.mock.calls.filter(([url]) => url.endsWith('/expenses'))).toHaveLength(1);
+    }
+  );
+});

@@ -14,7 +14,18 @@ describe('message catalogs', () => {
     }
   });
   it('uses distinct wording per language for the new screens', () => {
-    for (const key of ['expenses', 'settlement', 'paidBy', 'unpaid'] as const) {
+    for (const key of [
+      'expenses',
+      'settlement',
+      'paidBy',
+      'unpaid',
+      'addExpense',
+      'previewSplit',
+      'confirmSave',
+      'pendingTitle',
+      'checkResult',
+      'retrySame',
+    ] as const) {
       expect(messages.en[key]).not.toBe(messages.zh[key]);
       expect(messages.jp[key]).not.toBe(messages.en[key]);
     }

@@ -1,0 +1,84 @@
+appId: ${MAESTRO_APP_ID}
+name: A session that cannot be refreshed asks for sign-in and keeps the unconfirmed request for the same account
+---
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: reset-limits
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: entry-reset
+- runFlow:
+    file: flows/entry-lost-start.yaml
+    env:
+      USERNAME: mobile-writer
+      DESCRIPTION: TEST session expired
+      AMOUNT: '100'
+      FAULT: drop-response-offline
+- runFlow:
+    file: flows/entry-expect.yaml
+    env:
+      EXPECT_EXPENSES: '1'
+      EXPECT_RECEIPTS: '1'
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: expire-writer
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online
+# The check is refused (401), the refresh is refused too: back to sign-in, nothing private on screen.
+- scrollUntilVisible:
+    element:
+      id: pending-check-0
+    timeout: 30000
+    centerElement: true
+- tapOn:
+    id: pending-check-0
+- extendedWaitUntil:
+    visible:
+      id: login-username
+    timeout: 60000
+- assertNotVisible:
+    id: pending-card-0
+- assertNotVisible: TEST mobile-writer
+- takeScreenshot: entry-signed-out
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: reset-limits
+# The same account signs in again: the request is still known and is resolved, never re-sent.
+- runFlow:
+    file: flows/login-scrolling.yaml
+    env:
+      USERNAME: mobile-writer
+- scrollUntilVisible:
+    element:
+      id: trip-${MAESTRO_WRITER_TRIP}
+    timeout: 60000
+    visibilityPercentage: 30
+- tapOn:
+    id: trip-${MAESTRO_WRITER_TRIP}
+    point: '50%,10%'
+- scrollUntilVisible:
+    element:
+      id: trip-expenses
+    timeout: 60000
+    centerElement: true
+- tapOn:
+    id: trip-expenses
+- extendedWaitUntil:
+    visible: 'TEST session expired.*TWD[  ]100.*'
+    timeout: 60000
+- assertNotVisible: ${MAESTRO_PENDING_NOTICE}
+- runFlow:
+    file: flows/entry-expect.yaml
+    env:
+      EXPECT_EXPENSES: '1'
+      EXPECT_RECEIPTS: '1'

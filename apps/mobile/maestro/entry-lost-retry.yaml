@@ -1,0 +1,51 @@
+appId: ${MAESTRO_APP_ID}
+name: Lost response, then Retry with the same content - the replay returns the original expense
+---
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: reset-limits
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: entry-reset
+- runFlow:
+    file: flows/entry-lost-start.yaml
+    env:
+      USERNAME: mobile-writer
+      DESCRIPTION: TEST lost then retry
+      AMOUNT: '75.5'
+      FAULT: drop-response-offline
+- runFlow:
+    file: flows/entry-expect.yaml
+    env:
+      EXPECT_EXPENSES: '1'
+      EXPECT_RECEIPTS: '1'
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online
+- scrollUntilVisible:
+    element:
+      id: pending-retry-0
+    timeout: 30000
+    centerElement: true
+- tapOn:
+    id: pending-retry-0
+- extendedWaitUntil:
+    visible:
+      id: new-expense-saved
+    timeout: 30000
+- assertVisible:
+    id: saved-amount
+    text: 'TWD[  ]75\.5'
+# Repeating the identical request created nothing new.
+- runFlow:
+    file: flows/entry-expect.yaml
+    env:
+      EXPECT_EXPENSES: '1'
+      EXPECT_RECEIPTS: '1'

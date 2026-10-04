@@ -1,0 +1,70 @@
+appId: ${MAESTRO_APP_ID}
+name: Lost access to the trip keeps the unconfirmed request and says so; regained access finds it
+---
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: reset-limits
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: entry-reset
+- runFlow:
+    file: flows/entry-lost-start.yaml
+    env:
+      USERNAME: mobile-writer
+      DESCRIPTION: TEST access lost
+      AMOUNT: '100'
+      FAULT: drop-response-offline
+- runFlow:
+    file: flows/entry-expect.yaml
+    env:
+      EXPECT_EXPENSES: '1'
+      EXPECT_RECEIPTS: '1'
+# Membership is revoked while the answer is still missing.
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: writer-leave
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online
+- scrollUntilVisible:
+    element:
+      id: pending-check-0
+    timeout: 30000
+    centerElement: true
+- tapOn:
+    id: pending-check-0
+- extendedWaitUntil:
+    visible: ${MAESTRO_PENDING_ACCESS_LOST}
+    timeout: 30000
+# Neither failed nor cleared: the request is still there.
+- assertVisible:
+    id: pending-card-0
+- takeScreenshot: entry-access-lost
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: writer-rejoin
+- scrollUntilVisible:
+    element:
+      id: pending-check-0
+    timeout: 30000
+    centerElement: true
+- tapOn:
+    id: pending-check-0
+- extendedWaitUntil:
+    visible:
+      id: new-expense-saved
+    timeout: 30000
+- runFlow:
+    file: flows/entry-expect.yaml
+    env:
+      EXPECT_EXPENSES: '1'
+      EXPECT_RECEIPTS: '1'

@@ -1,0 +1,74 @@
+appId: ${MAESTRO_APP_ID}
+name: Lost response, then Check result - the original expense is found, never duplicated
+---
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: reset-limits
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: entry-reset
+- runFlow:
+    file: flows/entry-lost-start.yaml
+    env:
+      USERNAME: mobile-writer
+      DESCRIPTION: TEST lost then check
+      AMOUNT: '100'
+      FAULT: drop-response-offline
+- takeScreenshot: entry-unconfirmed
+# The backend committed although the phone never heard: one expense, one receipt.
+- runFlow:
+    file: flows/entry-expect.yaml
+    env:
+      EXPECT_EXPENSES: '1'
+      EXPECT_RECEIPTS: '1'
+# Offline checks keep failing without changing anything.
+- scrollUntilVisible:
+    element:
+      id: pending-check-0
+    timeout: 30000
+    centerElement: true
+- tapOn:
+    id: pending-check-0
+- assertVisible: ${MAESTRO_NETWORK_ERROR}
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online
+- scrollUntilVisible:
+    element:
+      id: pending-check-0
+    timeout: 30000
+    centerElement: true
+- tapOn:
+    id: pending-check-0
+- extendedWaitUntil:
+    visible:
+      id: new-expense-saved
+    timeout: 30000
+- assertVisible:
+    id: saved-amount
+    text: 'TWD[  ]100'
+- takeScreenshot: entry-found
+- runFlow:
+    file: flows/entry-expect.yaml
+    env:
+      EXPECT_EXPENSES: '1'
+      EXPECT_RECEIPTS: '1'
+# The lookup removed the saved request: the trip shows the expense and takes a new one.
+- scrollUntilVisible:
+    element:
+      id: new-expense-another
+    timeout: 30000
+    centerElement: true
+- tapOn:
+    id: new-expense-another
+- extendedWaitUntil:
+    visible:
+      id: new-expense-description
+    timeout: 30000

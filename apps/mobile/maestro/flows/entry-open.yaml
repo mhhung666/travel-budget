@@ -1,0 +1,25 @@
+appId: ${MAESTRO_APP_ID}
+---
+# From the trip list of a signed-in writer: open the Writer trip and its add-expense screen. The
+# screen shows either the form or, while an earlier request is unconfirmed, that request.
+- scrollUntilVisible:
+    element:
+      id: trip-${MAESTRO_WRITER_TRIP}
+    timeout: 60000
+    visibilityPercentage: 30
+- tapOn:
+    id: trip-${MAESTRO_WRITER_TRIP}
+    point: '50%,10%'
+- scrollUntilVisible:
+    element:
+      id: trip-add-expense
+    timeout: 60000
+    centerElement: true
+- tapOn:
+    id: trip-add-expense
+# Large text pushes the form below the first screen: scroll to it rather than wait for it to appear.
+- scrollUntilVisible:
+    element:
+      id: 'new-expense-description|pending-card-0'
+    visibilityPercentage: 30
+    timeout: 60000

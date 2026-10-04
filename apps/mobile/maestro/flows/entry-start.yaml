@@ -1,0 +1,32 @@
+appId: ${MAESTRO_APP_ID}
+---
+# Cold start without clearing SecureStore, sign in as USERNAME (signing out first when someone
+# else is signed in), then open the add-expense screen of the Writer trip. Large text pushes the
+# buttons out of view, so the app is recognised by its text and the logout button is scrolled to.
+- stopApp
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - launchApp:
+          clearState: false
+          stopApp: false
+- openLink: ${MAESTRO_EXPO_URL}
+# The Expo Go splash shows the app name too; the login subtitle only exists once the app has loaded.
+- extendedWaitUntil:
+    visible: '${MAESTRO_SUBTITLE}|TEST mobile-.*'
+    timeout: 60000
+- runFlow:
+    when:
+      visible: 'TEST mobile-.*'
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: logout
+      - tapOn:
+          id: logout
+- runFlow:
+    file: entry-login.yaml
+    env:
+      USERNAME: ${USERNAME}
+- runFlow: entry-open.yaml

@@ -47,6 +47,11 @@ export function TripScreen({ id }: { id: string }) {
             onPress={() => router.push({ pathname: '/trips/[id]/expenses', params: { id } })}
           />
           <Action
+            testID="trip-add-expense"
+            label={t.addExpense}
+            onPress={() => router.push({ pathname: '/trips/[id]/expenses/new', params: { id } })}
+          />
+          <Action
             testID="trip-settlement"
             label={t.settlement}
             onPress={() => router.push({ pathname: '/trips/[id]/settlement', params: { id } })}

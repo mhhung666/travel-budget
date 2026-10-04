@@ -1,0 +1,89 @@
+appId: ${MAESTRO_APP_ID}
+name: A refusal before anything is written returns to editing; the corrected request is a new submission
+---
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: reset-limits
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: entry-reset
+- runFlow:
+    file: flows/entry-start.yaml
+    env:
+      USERNAME: mobile-writer
+- runFlow:
+    file: flows/entry-fill.yaml
+    env:
+      DESCRIPTION: TEST refused
+      AMOUNT: '100'
+      KEEP_REMOVED: 'true'
+# One of the four members leaves the trip after the preview. The server refuses the split.
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: removed-leave
+- scrollUntilVisible:
+    element:
+      id: new-expense-confirm
+    timeout: 30000
+    centerElement: true
+- tapOn:
+    id: new-expense-confirm
+- scrollUntilVisible:
+    element: ${MAESTRO_ENTRY_REJECTED}
+    direction: UP
+    visibilityPercentage: 30
+    timeout: 60000
+- assertVisible: ${MAESTRO_ENTRY_REJECTED}
+- takeScreenshot: entry-rejected
+# Nothing was written and nothing is waiting: the form is back, and the preview must be redone.
+- runFlow:
+    file: flows/entry-expect.yaml
+    env:
+      EXPECT_EXPENSES: '0'
+      EXPECT_RECEIPTS: '0'
+- assertNotVisible:
+    id: pending-card-0
+- assertVisible:
+    id: new-expense-description
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: removed-rejoin
+# Fixed (here: the member is back), previewed again and confirmed as a new submission.
+- scrollUntilVisible:
+    element:
+      id: new-expense-preview
+    timeout: 30000
+    centerElement: true
+- assertNotVisible:
+    id: new-expense-preview-card
+- tapOn:
+    id: new-expense-preview
+- scrollUntilVisible:
+    element:
+      id: new-expense-preview-card
+    timeout: 30000
+    visibilityPercentage: 30
+- scrollUntilVisible:
+    element:
+      id: new-expense-confirm
+    timeout: 30000
+    centerElement: true
+- tapOn:
+    id: new-expense-confirm
+- extendedWaitUntil:
+    visible:
+      id: new-expense-saved
+    timeout: 60000
+- runFlow:
+    file: flows/entry-expect.yaml
+    env:
+      EXPECT_EXPENSES: '1'
+      EXPECT_RECEIPTS: '1'

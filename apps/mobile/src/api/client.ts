@@ -4,7 +4,9 @@ export class ApiError extends Error {
   constructor(
     public code: string,
     public status = 0,
-    public retryAfter?: number
+    public retryAfter?: number,
+    /** A refresh failure says nothing about whether the caller's resource request was written. */
+    public source: 'request' | 'refresh' = 'request'
   ) {
     super(code);
   }

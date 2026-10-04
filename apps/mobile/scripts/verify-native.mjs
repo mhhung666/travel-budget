@@ -9,6 +9,7 @@ import { parseArgs } from 'node:util';
 import { setTimeout as delay } from 'node:timers/promises';
 import { startNetworkProxy } from './network-proxy.mjs';
 import { createAuthTrace, verifyNaturalRefresh } from './auth-trace.mjs';
+import { entryFlows, verifyEntryTraffic } from './entry-trace.mjs';
 import { configureNativeLocale } from './native-locale.mjs';
 // Node 24 can load this pure TypeScript table without changing the Expo package module type.
 const { messages } = createRequire(import.meta.url)('../src/i18n/messages.ts');
@@ -23,6 +24,9 @@ const { values } = parseArgs({
     locale: { type: 'string', default: 'en' },
     locales: { type: 'string', default: 'en,zh,zh-CN,jp' },
     suite: { type: 'string', default: 'auth-trips' },
+    flows: { type: 'string' },
+    'locale-flows': { type: 'string' },
+    'flow-timeout': { type: 'string', default: '20' },
   },
 });
 assert(['ios', 'android'].includes(values.platform), 'Use --platform ios|android');
@@ -39,8 +43,9 @@ assert(
     'locales',
     'keyboard',
     'ledger',
+    'entry',
   ].includes(values.suite),
-  'Use --suite auth-trips|sessions|lifecycle|network|appearance|expiry|locales|keyboard|ledger'
+  'Use --suite auth-trips|sessions|lifecycle|network|appearance|expiry|locales|keyboard|ledger|entry'
 );
 const needsControl = values.suite !== 'auth-trips';
 if (values.suite === 'keyboard') assert.equal(values.platform, 'ios', 'Keyboard suite targets iOS');
@@ -66,6 +71,15 @@ const ledgerKeys = ['ledgerTrip', 'emptyLedgerTrip', 'settledLedgerTrip'];
 if (['ledger', 'locales'].includes(values.suite))
   for (const key of ledgerKeys)
     assert(/^[a-f0-9]{24}$/.test(fixture[key]), `Invalid ${key}; restart dev:mobile-api`);
+const usesWriterTrip = ['entry', 'locales', 'keyboard'].includes(values.suite);
+if (usesWriterTrip) {
+  assert(/^[a-f0-9]{24}$/.test(fixture.writerTrip), 'Invalid writerTrip; restart dev:mobile-api');
+  for (const key of ['writer', 'peer', 'virtual', 'removed'])
+    assert(
+      /^[a-f0-9]{24}$/.test(fixture.writerMembers?.[key]),
+      `Invalid writerMembers.${key}; restart dev:mobile-api`
+    );
+}
 const response = await fetch(`${api}/me`, { signal: AbortSignal.timeout(5000) });
 assert.equal(response.status, 401, 'Start dev:mobile-api before native acceptance');
 if (needsControl) {
@@ -90,6 +104,8 @@ if (needsControl) {
   );
 }
 const artifacts = await mkdtemp(join(tmpdir(), 'travel-budget-native-'));
+// Maestro reads these as regular expressions; the app's own sentences are literal text.
+const exact = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 function localizedEnv(locale) {
   const t = messages[locale];
   return {
@@ -113,6 +129,16 @@ function localizedEnv(locale) {
     MAESTRO_SETTLEMENT_SETTLED: t.settlementSettled,
     MAESTRO_SETTLEMENT_EMPTY: t.settlementEmpty,
     MAESTRO_UNPAID: t.unpaid,
+    MAESTRO_ADD_EXPENSE: exact(t.addExpense),
+    MAESTRO_DESCRIPTION_REQUIRED: exact(t.descriptionRequired),
+    MAESTRO_AMOUNT_REQUIRED: exact(t.amountRequired),
+    MAESTRO_AMOUNT_FORMAT: exact(t.amountFormat),
+    MAESTRO_PREVIEW_NEEDED: exact(t.previewNeeded),
+    MAESTRO_ENTRY_REJECTED: exact(t.entryRejected),
+    MAESTRO_PENDING_TITLE: exact(t.pendingTitle),
+    MAESTRO_PENDING_NOTICE: exact(t.pendingExpensesNotice),
+    MAESTRO_PENDING_NOT_FOUND: exact(t.pendingNotFound),
+    MAESTRO_PENDING_ACCESS_LOST: exact(t.pendingAccessLost),
   };
 }
 const env = {
@@ -131,6 +157,9 @@ const env = {
         MAESTRO_EMPTY_LEDGER_TRIP: fixture.emptyLedgerTrip,
         MAESTRO_SETTLED_LEDGER_TRIP: fixture.settledLedgerTrip,
       }
+    : {}),
+  ...(usesWriterTrip
+    ? { MAESTRO_WRITER_TRIP: fixture.writerTrip, MAESTRO_REMOVED_ID: fixture.writerMembers.removed }
     : {}),
   ...localizedEnv(values.locale),
   ...(needsControl
@@ -154,8 +183,12 @@ const stop = () => {
 };
 process.on('SIGINT', stop);
 process.on('SIGTERM', stop);
+// A wedged XCTest/UIAutomator driver never ends a flow by itself; stop it instead of waiting.
+const flowTimeoutMinutes = Number(values['flow-timeout']);
+assert(flowTimeoutMinutes > 0, 'Use --flow-timeout <minutes>');
 async function runFlow(flow, artifactName = flow) {
   interrupted.signal.throwIfAborted();
+  let timedOut = false;
   child = spawn(
     'maestro',
     [
@@ -182,17 +215,29 @@ async function runFlow(flow, artifactName = flow) {
       if (pending) console.log(redact(pending));
     });
   }
-  await new Promise((resolve, reject) => {
-    child.once('error', reject);
-    child.once('close', (code) => {
-      child = undefined;
-      if (code === 0) resolve();
-      else reject(new Error(`Maestro ${flow} failed (${code ?? 'interrupted'})`));
+  const flowChild = child;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    flowChild.kill('SIGTERM');
+    setTimeout(() => flowChild.kill('SIGKILL'), 10_000).unref();
+  }, flowTimeoutMinutes * 60_000);
+  try {
+    await new Promise((resolve, reject) => {
+      flowChild.once('error', reject);
+      flowChild.once('close', (code) => {
+        child = undefined;
+        if (timedOut)
+          reject(new Error(`Maestro ${flow} timed out after ${flowTimeoutMinutes} minutes`));
+        else if (code === 0) resolve();
+        else reject(new Error(`Maestro ${flow} failed (${code ?? 'interrupted'})`));
+      });
     });
-  });
+  } finally {
+    clearTimeout(timer);
+  }
 }
 try {
-  if (['network', 'expiry'].includes(values.suite)) {
+  if (['network', 'expiry', 'entry'].includes(values.suite)) {
     const networkPort = Number(values['network-port']);
     assert(
       Number.isInteger(networkPort) && networkPort > 0 && networkPort < 65536,
@@ -203,7 +248,19 @@ try {
     env.MAESTRO_NETWORK_TOKEN = proxy.token;
     console.log(`Network proxy: ${proxy.url}/api/v1 (Metro must use this API port)`);
   }
+  // The phone keeps unconfirmed requests across runs; settle leftovers before measuring anything.
+  if (usesWriterTrip) await runFlow('entry-drain');
   if (values.suite === 'locales') {
+    const localeFlows = values['locale-flows']?.split(',') ?? [
+      'auth-trips',
+      'ledger',
+      'entry-create',
+    ];
+    for (const flow of localeFlows)
+      assert(
+        ['auth-trips', 'ledger', 'entry-create'].includes(flow),
+        'Use --locale-flows auth-trips,ledger,entry-create (or a subset)'
+      );
     for (const locale of values.locales.split(',')) {
       assert(Object.hasOwn(messages, locale), 'Use --locales en,zh,zh-CN,jp (or a subset)');
       interrupted.signal.throwIfAborted();
@@ -217,11 +274,34 @@ try {
           signal: AbortSignal.any([interrupted.signal, AbortSignal.timeout(5000)]),
         });
         assert.equal(reset.status, 200, 'Unable to reset fixture login limits');
-        await runFlow('auth-trips', `locale-${locale}`);
-        await runFlow('ledger', `locale-${locale}-ledger`);
+        for (const flow of localeFlows)
+          await runFlow(
+            flow,
+            flow === 'auth-trips' ? `locale-${locale}` : `locale-${locale}-${flow}`
+          );
       } finally {
         restoreLocale();
       }
+    }
+  } else if (values.suite === 'entry') {
+    const wanted = values.flows ? values.flows.split(',') : entryFlows;
+    for (const flow of wanted)
+      assert(entryFlows.includes(flow), `Unknown entry flow ${flow}; use ${entryFlows.join(', ')}`);
+    const context = {
+      writer: fixture.writerMembers.writer,
+      peer: fixture.writerMembers.peer,
+      counts: proxy.counts,
+    };
+    for (const flow of wanted) {
+      const from = authTrace.events.length;
+      const disconnects = proxy.counts.disconnect;
+      await runFlow(flow);
+      // The proxy's record of what reached the backend must agree with the scenario's promise.
+      verifyEntryTraffic(flow, authTrace.events.slice(from), {
+        ...context,
+        counts: { ...proxy.counts, disconnect: proxy.counts.disconnect - disconnects },
+      });
+      console.log(`Verified backend traffic for ${flow}.`);
     }
   } else if (values.suite === 'expiry') {
     await runFlow('expiry-start');
@@ -271,6 +351,8 @@ try {
     await runFlow('lifecycle-resume');
   } else {
     await runFlow(values.suite === 'keyboard' ? 'appearance' : values.suite);
+    // The add-expense form with the iOS software keyboard: its numeric pad has an accessory Done.
+    if (values.suite === 'keyboard') await runFlow('entry-create', 'keyboard-entry');
     if (proxy) {
       assert(proxy.counts.forwarded > 0, 'App did not connect through the network proxy');
       assert(proxy.counts.disconnect >= 2, 'Missing logout/restore disconnection requests');

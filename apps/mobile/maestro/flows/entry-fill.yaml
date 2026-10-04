@@ -1,0 +1,56 @@
+appId: ${MAESTRO_APP_ID}
+---
+# Fill the open form (empty, or with an amount to replace when ERASE_AMOUNT is 'true') with
+# DESCRIPTION and AMOUNT, leave the removed member out of the split (unless KEEP_REMOVED is
+# 'true'), and preview. Three members share the amount in the backend's fixed order.
+- tapOn:
+    id: new-expense-description
+- runFlow:
+    when:
+      platform: Android
+      true: ${MAESTRO_SELECT_LATIN_KEYBOARD === 'true'}
+      visible:
+        id: com.google.android.inputmethod.latin:id/(key_pos_switch_to_next_language|key_pos_ja_12keys_10)
+    commands:
+      - longPressOn:
+          id: com.google.android.inputmethod.latin:id/(key_pos_switch_to_next_language|key_pos_ja_12keys_10)
+      - tapOn: 'English \(US\)'
+- inputText: ${DESCRIPTION}
+# The soft keyboard types key by key after inputText returns: wait until the text is all there
+# before touching anything else, or the last characters (and a following tap) are lost.
+- assertVisible: ${DESCRIPTION}
+- tapOn:
+    id: new-expense-amount
+# Erasing an empty numeric field stalls the iOS test driver; only clear what was typed before.
+- runFlow:
+    when:
+      true: ${ERASE_AMOUNT === 'true'}
+    commands:
+      - eraseText
+- inputText: ${AMOUNT}
+- assertVisible: ${AMOUNT}
+- runFlow: entry-keyboard-done.yaml
+- runFlow:
+    when:
+      true: ${KEEP_REMOVED !== 'true'}
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: new-expense-member-${MAESTRO_REMOVED_ID}
+          timeout: 30000
+          centerElement: true
+      - tapOn:
+          id: new-expense-member-${MAESTRO_REMOVED_ID}
+- scrollUntilVisible:
+    element:
+      id: new-expense-preview
+    timeout: 30000
+    centerElement: true
+- tapOn:
+    id: new-expense-preview
+# The answer appears below the button, possibly below the fold: scroll to it as it arrives.
+- scrollUntilVisible:
+    element:
+      id: new-expense-preview-card
+    timeout: 30000
+    visibilityPercentage: 30

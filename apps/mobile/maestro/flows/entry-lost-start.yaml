@@ -1,0 +1,39 @@
+appId: ${MAESTRO_APP_ID}
+---
+# Sign in as USERNAME, fill the form (DESCRIPTION, AMOUNT) and confirm while the proxy is armed
+# with FAULT: the answer to the write is lost (drop-response-offline: the backend commits, the
+# network dies) or the write never leaves the phone (disconnect). The app must keep the request
+# and say it is unconfirmed.
+- runFlow:
+    file: entry-start.yaml
+    env:
+      USERNAME: ${USERNAME}
+- runFlow:
+    file: entry-fill.yaml
+    env:
+      DESCRIPTION: ${DESCRIPTION}
+      AMOUNT: ${AMOUNT}
+- runScript:
+    file: ../network-command.js
+    env:
+      COMMAND: ${FAULT}
+- scrollUntilVisible:
+    element:
+      id: new-expense-confirm
+    timeout: 30000
+    centerElement: true
+- tapOn:
+    id: new-expense-confirm
+- extendedWaitUntil:
+    visible:
+      id: pending-card-0
+    timeout: 60000
+- assertVisible: ${MAESTRO_PENDING_TITLE}
+- assertVisible:
+    id: pending-amount-0
+    text: 'TWD[  ]${AMOUNT}'
+# The request is locked: no form, no second submission.
+- assertNotVisible:
+    id: new-expense-description
+- assertNotVisible:
+    id: new-expense-confirm

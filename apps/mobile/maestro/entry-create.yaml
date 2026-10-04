@@ -1,0 +1,264 @@
+appId: ${MAESTRO_APP_ID}
+name: Add an expense online - validation, preview, confirmation, detail and settlement
+---
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: reset-limits
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: entry-reset
+- runFlow:
+    file: flows/entry-start.yaml
+    env:
+      USERNAME: mobile-writer
+- takeScreenshot: entry-form
+# A drag that starts on a text field scrolls the page. On Android with Chinese or Japanese text it
+# did not: the field claimed it could scroll itself, so the form could not be dragged from it.
+- scrollUntilVisible:
+    element:
+      id: new-expense-date
+    timeout: 30000
+- swipe:
+    from:
+      id: new-expense-date
+    direction: UP
+- assertNotVisible:
+    id: new-expense-amount
+- scrollUntilVisible:
+    element:
+      id: new-expense-amount
+    direction: UP
+    timeout: 30000
+# Strict input: a third decimal is not rounded away or ignored, and the missing description is named.
+- tapOn:
+    id: new-expense-amount
+# The numeric keyboard has no return key on iOS; its accessory bar is the way to put it away.
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - extendedWaitUntil:
+          visible:
+            id: new-expense-keyboard-done
+          timeout: 10000
+- inputText: '12.345'
+- assertVisible: '12\.345'
+- runFlow: flows/entry-keyboard-done.yaml
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - extendedWaitUntil:
+          notVisible:
+            id: new-expense-keyboard-done
+          timeout: 8000
+- scrollUntilVisible:
+    element:
+      id: new-expense-preview
+    timeout: 30000
+    centerElement: true
+- tapOn:
+    id: new-expense-preview
+- scrollUntilVisible:
+    element: ${MAESTRO_AMOUNT_FORMAT}
+    direction: UP
+    visibilityPercentage: 30
+    timeout: 30000
+- assertVisible: ${MAESTRO_AMOUNT_FORMAT}
+- assertVisible: ${MAESTRO_DESCRIPTION_REQUIRED}
+- takeScreenshot: entry-validation
+- assertNotVisible:
+    id: new-expense-preview-card
+# Fill in properly. 100 TWD between three people: 33.34, 33.33, 33.33 in the backend's order.
+- runFlow:
+    file: flows/entry-fill.yaml
+    env:
+      DESCRIPTION: TEST native dinner
+      AMOUNT: '100'
+      ERASE_AMOUNT: 'true'
+- scrollUntilVisible:
+    element:
+      id: new-expense-split-2
+    visibilityPercentage: 30
+    timeout: 30000
+- assertVisible:
+    id: new-expense-preview-total
+    text: 'TWD[  ]100'
+- assertVisible:
+    id: new-expense-split-0
+    text: 'TWD[  ]33\.34'
+- assertVisible:
+    id: new-expense-split-1
+    text: 'TWD[  ]33\.33'
+- assertVisible:
+    id: new-expense-split-2
+    text: 'TWD[  ]33\.33'
+- assertNotVisible:
+    id: new-expense-split-3
+- takeScreenshot: entry-preview
+# A changed amount makes the preview void at once, and it is not back when the amount is restored.
+- scrollUntilVisible:
+    element:
+      id: new-expense-amount
+    direction: UP
+    timeout: 30000
+    centerElement: true
+- tapOn:
+    id: new-expense-amount
+- eraseText
+- inputText: '101'
+- assertVisible: '101'
+- runFlow: flows/entry-keyboard-done.yaml
+- scrollUntilVisible:
+    element:
+      id: new-expense-confirm
+    timeout: 30000
+    centerElement: true
+- assertNotVisible:
+    id: new-expense-preview-card
+- assertVisible:
+    id: new-expense-confirm
+    enabled: false
+- scrollUntilVisible:
+    element:
+      id: new-expense-amount
+    direction: UP
+    timeout: 30000
+    centerElement: true
+- tapOn:
+    id: new-expense-amount
+- eraseText
+- inputText: '100'
+- assertVisible: '100'
+- runFlow: flows/entry-keyboard-done.yaml
+- scrollUntilVisible:
+    element:
+      id: new-expense-confirm
+    timeout: 30000
+    centerElement: true
+- assertNotVisible:
+    id: new-expense-preview-card
+- assertVisible:
+    id: new-expense-confirm
+    enabled: false
+- tapOn:
+    id: new-expense-preview
+- scrollUntilVisible:
+    element:
+      id: new-expense-preview-card
+    timeout: 30000
+    visibilityPercentage: 30
+- scrollUntilVisible:
+    element:
+      id: new-expense-confirm
+    timeout: 30000
+    centerElement: true
+- tapOn:
+    id: new-expense-confirm
+# Only the server's answer produces "saved".
+- extendedWaitUntil:
+    visible:
+      id: new-expense-saved
+    timeout: 60000
+- scrollUntilVisible:
+    element:
+      id: saved-split-2
+    visibilityPercentage: 30
+    timeout: 30000
+- assertVisible:
+    id: saved-split-0
+    text: 'TWD[  ]33\.34'
+- assertVisible:
+    id: saved-split-2
+    text: 'TWD[  ]33\.33'
+- takeScreenshot: entry-saved
+# Not centred: on a short page (Japanese) the button cannot be moved to the middle, only shown whole.
+- scrollUntilVisible:
+    element:
+      id: new-expense-view
+    timeout: 30000
+- tapOn:
+    id: new-expense-view
+- extendedWaitUntil:
+    visible:
+      id: expense-back
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      id: expense-amount
+    timeout: 30000
+- assertVisible:
+    id: expense-amount
+    text: 'TWD[  ]100'
+- scrollUntilVisible:
+    element:
+      id: expense-payer
+    timeout: 30000
+- assertVisible:
+    id: expense-payer
+    text: TEST mobile-writer
+- scrollUntilVisible:
+    element:
+      id: expense-split-2
+    timeout: 30000
+- assertVisible:
+    id: expense-split-0
+    text: 'TWD[  ]33\.34'
+- tapOn:
+    id: expense-back
+# The trip summary was refreshed: I paid 100 and owe 33.34.
+- scrollUntilVisible:
+    element:
+      id: trip-my-spent
+    timeout: 30000
+- assertVisible:
+    id: trip-my-spent
+    text: 'TWD[  ]33\.34'
+- scrollUntilVisible:
+    element:
+      id: trip-balance
+    timeout: 30000
+- assertVisible:
+    id: trip-balance
+    text: 'TWD[  ]66\.66'
+- assertVisible: ${MAESTRO_RECEIVABLE}
+- scrollUntilVisible:
+    element:
+      id: trip-settlement
+    direction: UP
+    timeout: 30000
+    centerElement: true
+- tapOn:
+    id: trip-settlement
+- extendedWaitUntil:
+    visible:
+      id: settlement-total
+    timeout: 30000
+- assertVisible:
+    id: settlement-total
+    text: 'TWD[  ]100'
+- scrollUntilVisible:
+    element:
+      id: settlement-my-balance
+    timeout: 30000
+- assertVisible:
+    id: settlement-my-balance
+    text: 'TWD[  ]66\.66'
+- takeScreenshot: entry-settlement
+- tapOn:
+    id: settlement-back
+- scrollUntilVisible:
+    element:
+      id: trip-expenses
+    direction: UP
+    timeout: 30000
+    centerElement: true
+- tapOn:
+    id: trip-expenses
+- extendedWaitUntil:
+    visible: 'TEST native dinner.*'
+    timeout: 30000
+- assertVisible: 'TEST native dinner.*TWD[  ]100.*'
+- takeScreenshot: entry-list

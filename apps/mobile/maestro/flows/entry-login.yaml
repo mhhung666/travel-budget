@@ -1,0 +1,27 @@
+appId: ${MAESTRO_APP_ID}
+---
+# Sign in as USERNAME from the login page. Large text pushes the form out of view, so bring the
+# username field on screen first. The password is submitted with the keyboard's Go key, not by
+# tapping the button: the iOS soft keyboard keeps typing after inputText returns, and a tap does not
+# wait for that (the login is then sent with half a password), while a key press queues behind it.
+- scrollUntilVisible:
+    element:
+      id: login-username
+    direction: UP
+    timeout: 8000
+    optional: true
+- scrollUntilVisible:
+    element:
+      id: login-username
+    timeout: 30000
+- tapOn:
+    id: login-username
+- inputText: ${USERNAME}
+- assertVisible: ${USERNAME}
+# The keyboard's Next action focuses the password field; tapping it is unreliable at large text.
+- pressKey: Enter
+- inputText: ${MAESTRO_PASSWORD}
+- pressKey: Enter
+- extendedWaitUntil:
+    visible: TEST ${USERNAME}
+    timeout: 30000

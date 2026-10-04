@@ -18,7 +18,7 @@ pnpm contracts:check
 
 進入 `apps/mobile` 後，原有 `pnpm dev`、`ios`、`android`、`web`、`check`、`test`、`export:check` 仍可使用。App 內的 `pnpm format` 格式化程式與文件；`pnpm check` 執行 TypeScript、ESLint 與格式檢查。`export:check` 產出 App 的 `dist/`，只驗證各平台 JS／資源打包，不是 IPA／APK。
 
-新增 Native／Expo 套件時，從 `apps/mobile` 使用 `pnpm exec expo install <package>`，再執行 `pnpm exec expo install --check`。一般純 JS 套件從根目錄用 `pnpm --filter travel-budget-mobile add <package>`；不要為了跟網站相同而強改 React 版本。
+新增 Native／Expo 套件時，從 `apps/mobile` 使用 `pnpm exec expo install <package>`，再執行 `pnpm exec expo install --check`。`expo-sqlite` 的 config plugin 只設定 FTS／SQLCipher 等選填建置屬性，預設用法不必加入 `app.config.ts`；它的 Web 版需要額外的 wasm 打包設定，所以資料庫入口以 `.web.ts` 檔案在 Web 預覽中換成不引入它的版本。一般純 JS 套件從根目錄用 `pnpm --filter travel-budget-mobile add <package>`；不要為了跟網站相同而強改 React 版本。
 
 共用契約透過 `@travel-budget/contracts` 引用，來源在 `packages/contracts/src/index.ts`。更動 schema 後從根目錄執行 `pnpm contracts:generate` 更新 `packages/contracts/openapi.json`，並以 `pnpm contracts:check` 檢查產物同步。
 
@@ -48,6 +48,7 @@ pnpm contracts:check
 - 路由保持薄層，畫面／hooks 依 feature 組織。路由跳轉使用 Expo Router 型別；不要複製網站 route builder。
 - 後端才是授權與寫入權威，前端控制按鈕不能取代 API 檢查。
 - 新功能包含 loading、empty、error、重試與鍵盤操作；尊重 SafeArea、字體縮放、深淺色與輔助閱讀。
+- 文字輸入欄一律用 `TextField`：它在 Android 固定 `lineHeight`。Android 以預設字型決定欄位高度，卻用 App 語系的字型排版；中日文字型的行高較高時，React Native 會把欄位當成可自行捲動，從欄位上起手的拖曳就不再捲動頁面（英文不會出現）。原生流程 `entry-create` 以「從輸入框起手向上拖曳」的斷言守住，並在四語各跑一次。
 - 現有訊息表適合骨架短字串；新增複數／插值前採用支援 ICU 的方案，不以字串拼接取代翻譯。
 - `EXPO_PUBLIC_*` 會進 bundle；不放資料庫連線、JWT 簽章密鑰、AI／R2 key 或商店私鑰。環境檔與簽章檔由 gitignore 排除。
 - Query cache、普通偏好設定與 log 不保存 token；log 不輸出完整個資／憑證／敏感 payload。
@@ -55,9 +56,9 @@ pnpm contracts:check
 
 ## 測試與 CI
 
-目前使用 Vitest 測試 HTTP／登入生命週期，故障代理另以 Node HTTP 測試確認斷線／逾時不送出寫入、恢復後正常轉送，包含在 `pnpm test`。手機 CI 執行型別、lint、格式、測試、Expo 相容性與三平台 bundle 檢查，不需要後端密鑰。共用契約檢查驗證 OpenAPI 與 schema 同步。API／權限、裝置 session 與 DB transaction 測試留在 `apps/web`，不使用正式帳號或資料庫。
+目前使用 Vitest 測試 HTTP／登入生命週期，故障代理另以 Node HTTP 測試確認斷線／逾時不送出寫入、恢復後正常轉送，以及一次性「丟回應」模式（目標寫入已在後端提交、客戶端收不到回應，其他請求與之後的同一寫入不受影響），包含在 `pnpm test`。手機 CI 執行型別、lint、格式、測試、Expo 相容性與三平台 bundle 檢查，不需要後端密鑰。共用契約檢查驗證 OpenAPI 與 schema 同步。API／權限、裝置 session 與 DB transaction 測試留在 `apps/web`，不使用正式帳號或資料庫。
 
-現有測試涵蓋 401／refresh 合併、回應內容讀取中斷線／逾時／取消、重啟恢復、憑證輪替後安全儲存失敗、重複登出及新舊登入交錯，並驗證缺少 `throwIfAborted()`／`reason` 的原生 AbortSignal。原生生命週期 adapter 與 QueryObserver 整合測試涵蓋網路事件／啟動讀取競態、前景重新讀取連線、離線查詢恢復及過期資料更新。QueryClient 整合測試驗證登出、session 撤銷及憑證儲存失敗會清除私人快取、取消尚未完成的讀取。這些測試使用模擬 HTTP／儲存介面，不取代裝置上的登入與 SecureStore 驗收。支出清單的游標查詢、帳號／環境隔離的 query key、撤權後的快取隱藏（真 QueryClient）、金額格式、四語訊息完整性與新增支出契約（金額到分、嚴格欄位、結果查詢）另有單元測試；支出與結算畫面由 Maestro `ledger` suite 驗收。後續 SQLite outbox 須驗證重啟／重送／帳號切換；原生核心流程另有 Maestro 驗收，指令與涵蓋範圍見 [本機驗收流程](LOCAL_ACCEPTANCE.md)。
+現有測試涵蓋 401／refresh 合併、回應內容讀取中斷線／逾時／取消、重啟恢復、憑證輪替後安全儲存失敗、重複登出及新舊登入交錯，並驗證缺少 `throwIfAborted()`／`reason` 的原生 AbortSignal。原生生命週期 adapter 與 QueryObserver 整合測試涵蓋網路事件／啟動讀取競態、前景重新讀取連線、離線查詢恢復及過期資料更新。QueryClient 整合測試驗證登出、session 撤銷及憑證儲存失敗會清除私人快取、取消尚未完成的讀取。這些測試使用模擬 HTTP／儲存介面，不取代裝置上的登入與 SecureStore 驗收。支出清單的游標查詢、帳號／環境隔離的 query key、撤權後的快取隱藏（真 QueryClient）、金額格式、四語訊息完整性與新增支出契約（金額到分、嚴格欄位、結果查詢）另有單元測試；支出與結算畫面由 Maestro `ledger` suite 驗收。新增支出另有單元測試：嚴格金額／日期輸入、草稿驗證與預覽狀態（請求亂序、改輸入即失效、重新預覽或被拒即捨棄舊結果）、待確認紀錄的 SQLite（以 Node 內建 `node:sqlite` 對同一份 SQL 執行，涵蓋環境／帳號隔離）、`requestAs` 帳號綁定與登入世代檢查、預覽被拒後的持續隱藏（真 QueryClient），以及以真 SQLite、真 session manager 與模擬後端（`src/test/expenseServer.ts`：成員資格、契約驗證、冪等 receipt、可注入遺失回應／逾時／5xx）執行的送出引擎：先存後送、儲存失敗不送、明確拒絕才清除、回應遺失後查詢找回或以同一 UUID 重試、重啟恢復、帳號切換與晚到的成功／錯誤回應（含看似確定的 400）、併發操作、本機清理失敗後不重送、409 不換 UUID。原生流程由 Maestro `entry` suite 驗收並以代理流量與資料庫核對；完整離線 outbox（階段 4）仍須另外驗證斷網建立、批次重送與背景同步。原生核心流程另有 Maestro 驗收，指令與涵蓋範圍見 [本機驗收流程](LOCAL_ACCEPTANCE.md)。
 
 手機測試不可依賴正式帳號或資料庫；模擬資料需明確標示。發布前，iOS 與 Android 都要實測登入、弱網、前後景、重啟、文字縮放及權限拒絕。
 

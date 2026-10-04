@@ -128,10 +128,20 @@ export class SessionManager {
     const expectedUser = this.session?.user.id;
     this.refreshFlight = (async () => {
       try {
-        const session = await this.api.request('/auth/refresh', sessionSchema, {
-          method: 'POST',
-          body: { refreshToken: token },
-        });
+        let session: Session;
+        try {
+          session = await this.api.request('/auth/refresh', sessionSchema, {
+            method: 'POST',
+            body: { refreshToken: token },
+          });
+        } catch (error) {
+          if (revision !== this.revision) throw new ApiError('CANCELLED');
+          // Preserve authentication/transport details, but never present this as a rejection of
+          // the resource request that needed the refresh (especially a pending expense write).
+          if (error instanceof ApiError)
+            throw new ApiError(error.code, error.status, error.retryAfter, 'refresh');
+          throw error;
+        }
         if (expectedUser && session.user.id !== expectedUser)
           throw new ApiError('UNAUTHORIZED', 401);
         try {
@@ -165,32 +175,50 @@ export class SessionManager {
     if (!accessToken) throw new ApiError('UNAUTHORIZED', 401);
     const run = () =>
       this.api.request(path, schema, { ...options, accessToken: this.session?.accessToken });
+    // An answer, whether data or an error, that arrives after the sign-in changed belongs to a
+    // session that is gone. It must not reach the caller as if it described the current one: a late
+    // 400 would otherwise look like proof that a saved request was never written.
+    const sameSignIn = () => {
+      if (revision !== this.revision) throw new ApiError('CANCELLED');
+    };
     try {
       const data = await run();
-      if (revision !== this.revision) throw new ApiError('CANCELLED');
+      sameSignIn();
       return data;
     } catch (error) {
-      if (!(error instanceof ApiError) || error.status !== 401 || revision !== this.revision)
-        throw error;
+      sameSignIn();
+      if (!(error instanceof ApiError) || error.status !== 401) throw error;
       checkAborted(options.signal);
       // A late 401 for the previous access token reuses the already-refreshed session.
       if (this.session?.accessToken === accessToken) await this.refresh();
       checkAborted(options.signal);
-      if (revision !== this.revision) throw new ApiError('CANCELLED');
+      sameSignIn();
       try {
         const data = await run();
-        if (revision !== this.revision) throw new ApiError('CANCELLED');
+        sameSignIn();
         return data;
       } catch (retryError) {
-        if (
-          revision === this.revision &&
-          retryError instanceof ApiError &&
-          retryError.status === 401
-        )
+        sameSignIn();
+        if (retryError instanceof ApiError && retryError.status === 401)
           await this.invalidate(retryError);
         throw retryError;
       }
     }
+  }
+  /**
+   * `request` for work that belongs to one account, such as a saved expense request. It runs only
+   * while that account is signed in; after a switch (or sign-out) it fails before any network call,
+   * so one account's request is never sent with another account's token.
+   */
+  requestAs<T>(
+    userId: string,
+    path: string,
+    schema: z.ZodType<T>,
+    options: Omit<RequestOptions, 'accessToken'> = {}
+  ): Promise<T> {
+    if (!this.session) return Promise.reject(new ApiError('UNAUTHORIZED', 401));
+    if (this.session.user.id !== userId) return Promise.reject(new ApiError('CANCELLED'));
+    return this.request(path, schema, options);
   }
   logout(): Promise<void> {
     if (this.logoutFlight && this.logoutRevision === this.revision) return this.logoutFlight;

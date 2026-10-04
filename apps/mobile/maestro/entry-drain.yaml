@@ -1,0 +1,38 @@
+appId: ${MAESTRO_APP_ID}
+name: Settle any request an earlier run left unconfirmed on the phone
+---
+# Unconfirmed requests are kept on purpose, across restarts and sign-ins, so one left by an
+# interrupted run would block the next scenario. Settle it through the app's own retry, then wipe
+# what that wrote on the backend. A clean phone passes straight through.
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: reset-limits
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: entry-reset
+- runFlow:
+    file: flows/entry-start.yaml
+    env:
+      USERNAME: mobile-writer
+- runFlow:
+    when:
+      visible:
+        id: pending-card-0
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: pending-retry-0
+          timeout: 30000
+          centerElement: true
+      - tapOn:
+          id: pending-retry-0
+      - extendedWaitUntil:
+          visible:
+            id: 'new-expense-saved|new-expense-description'
+          timeout: 60000
+      - runScript:
+          file: fixture-command.js
+          env:
+            COMMAND: entry-reset

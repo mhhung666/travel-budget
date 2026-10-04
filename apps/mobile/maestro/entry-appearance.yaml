@@ -1,0 +1,78 @@
+appId: ${MAESTRO_APP_ID}
+name: Add an expense under the device's current text size and appearance
+---
+# Set the device's text size and appearance first (see LOCAL_ACCEPTANCE), then run this flow. Large
+# text pushes controls off the first screen and makes blocks taller than a screen can centre, so it
+# only scrolls each control into full view; the screenshots show the form, the members, the preview,
+# the saved screen and its buttons for inspection.
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: reset-limits
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: entry-reset
+- runFlow:
+    file: flows/entry-start.yaml
+    env:
+      USERNAME: mobile-writer
+- takeScreenshot: appearance-form
+- scrollUntilVisible:
+    element:
+      id: new-expense-description
+    timeout: 30000
+- tapOn:
+    id: new-expense-description
+- inputText: TEST appearance
+# The soft keyboard types key by key after inputText returns: wait for the text before moving on.
+- assertVisible: TEST appearance
+- scrollUntilVisible:
+    element:
+      id: new-expense-amount
+    timeout: 30000
+- tapOn:
+    id: new-expense-amount
+- inputText: '100'
+- assertVisible: '100'
+- runFlow: flows/entry-keyboard-done.yaml
+- scrollUntilVisible:
+    element:
+      id: new-expense-member-${MAESTRO_REMOVED_ID}
+    timeout: 30000
+- takeScreenshot: appearance-members
+- scrollUntilVisible:
+    element:
+      id: new-expense-preview
+    timeout: 30000
+- tapOn:
+    id: new-expense-preview
+- scrollUntilVisible:
+    element:
+      id: new-expense-preview-card
+    visibilityPercentage: 30
+    timeout: 30000
+- takeScreenshot: appearance-preview
+- scrollUntilVisible:
+    element:
+      id: new-expense-confirm
+    timeout: 30000
+- tapOn:
+    id: new-expense-confirm
+# Large text can put the whole confirmation block below the first screen: scroll to it.
+- scrollUntilVisible:
+    element:
+      id: new-expense-saved
+    visibilityPercentage: 30
+    timeout: 60000
+- takeScreenshot: appearance-saved
+- scrollUntilVisible:
+    element:
+      id: new-expense-view
+    timeout: 30000
+- takeScreenshot: appearance-saved-actions
+- runFlow:
+    file: flows/entry-expect.yaml
+    env:
+      EXPECT_EXPENSES: '1'
+      EXPECT_RECEIPTS: '1'

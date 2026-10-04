@@ -1,0 +1,64 @@
+appId: ${MAESTRO_APP_ID}
+name: A write that never leaves the phone - Check finds nothing, Retry writes it once
+---
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: reset-limits
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: entry-reset
+- runFlow:
+    file: flows/entry-lost-start.yaml
+    env:
+      USERNAME: mobile-writer
+      DESCRIPTION: TEST never sent
+      AMOUNT: '50'
+      FAULT: disconnect
+- assertVisible: ${MAESTRO_NETWORK_ERROR}
+- runFlow:
+    file: flows/entry-expect.yaml
+    env:
+      EXPECT_EXPENSES: '0'
+      EXPECT_RECEIPTS: '0'
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online
+# The server has no record, and says so without calling the request failed.
+- scrollUntilVisible:
+    element:
+      id: pending-check-0
+    timeout: 30000
+    centerElement: true
+- tapOn:
+    id: pending-check-0
+- extendedWaitUntil:
+    visible: ${MAESTRO_PENDING_NOT_FOUND}
+    timeout: 30000
+- assertVisible:
+    id: pending-card-0
+- scrollUntilVisible:
+    element:
+      id: pending-retry-0
+    timeout: 30000
+    centerElement: true
+- tapOn:
+    id: pending-retry-0
+- extendedWaitUntil:
+    visible:
+      id: new-expense-saved
+    timeout: 30000
+- assertVisible:
+    id: saved-amount
+    text: 'TWD[  ]50'
+- runFlow:
+    file: flows/entry-expect.yaml
+    env:
+      EXPECT_EXPENSES: '1'
+      EXPECT_RECEIPTS: '1'

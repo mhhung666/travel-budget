@@ -1,0 +1,21 @@
+appId: ${MAESTRO_APP_ID}
+---
+# A numeric keyboard has no return key on iOS: the accessory bar's Done puts it away. Android's
+# numeric keyboard has an action key, which is pressed through Enter.
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      # The accessory bar animates in with the keyboard; tapping it mid-animation misses.
+      - extendedWaitUntil:
+          visible:
+            id: new-expense-keyboard-done
+          timeout: 10000
+      - waitForAnimationToEnd
+      - tapOn:
+          id: new-expense-keyboard-done
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - pressKey: Enter

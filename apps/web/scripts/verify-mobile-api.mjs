@@ -1742,19 +1742,74 @@ try {
   if (args.has('--serve')) {
     // This control channel exists only in the disposable harness, never in Next routes.
     const controlToken = randomBytes(32).toString('hex');
-    async function fixtureCommand(command) {
-      if (command === 'reset-limits') {
+    const activeSessions = (user) => ({
+      user: user._id,
+      revokedAt: null,
+      expiresAt: { $gt: new Date() },
+    });
+    const sessionCommand = (user, change) => async () => {
+      const result = await db
+        .collection('mobilesessions')
+        .updateMany(activeSessions(user), { $set: change() });
+      return { affectedSessions: result.modifiedCount };
+    };
+    const membershipOf = (user) =>
+      writerTrip.members.find((entry) => String(entry.user) === String(user._id));
+    const leave = (user) => async () => {
+      await db
+        .collection('trips')
+        .updateOne({ _id: writerTrip._id }, { $pull: { members: { user: user._id } } });
+      return {};
+    };
+    const rejoin = (user) => async () => {
+      await db
+        .collection('trips')
+        .updateOne(
+          { _id: writerTrip._id, 'members.user': { $ne: user._id } },
+          { $push: { members: membershipOf(user) } }
+        );
+      return {};
+    };
+    // What the Writer trip holds, for device runs to compare with what the app reported.
+    const entryState = async () => {
+      const filter = { trip: writerTrip._id };
+      const stored = await db.collection('expenses').find(filter).sort({ createdAt: 1 }).toArray();
+      return {
+        expenses: stored.length,
+        receipts: await db.collection('expensecreaterequests').countDocuments(filter),
+        notifications: await db.collection('notifications').countDocuments(filter),
+        activity: await db.collection('activitylogs').countDocuments(filter),
+        descriptions: stored.map((expense) => expense.description),
+        amounts: stored.map((expense) => expense.amount),
+      };
+    };
+    const fixtureCommands = {
+      'reset-limits': async () => {
         await db.collection('mobileloginattempts').deleteMany({});
         return {};
-      }
-      assert(['revoke-a', 'expire-a'].includes(command), 'Unknown fixture command');
-      const result = await db.collection('mobilesessions').updateMany(
-        { user: users[0]._id, revokedAt: null, expiresAt: { $gt: new Date() } },
-        {
-          $set: command === 'revoke-a' ? { revokedAt: new Date() } : { expiresAt: new Date(0) },
-        }
-      );
-      return { affectedSessions: result.modifiedCount };
+      },
+      'revoke-a': sessionCommand(users[0], () => ({ revokedAt: new Date() })),
+      'expire-a': sessionCommand(users[0], () => ({ expiresAt: new Date(0) })),
+      'revoke-writer': sessionCommand(writer, () => ({ revokedAt: new Date() })),
+      'expire-writer': sessionCommand(writer, () => ({ expiresAt: new Date(0) })),
+      // The writer, or the removable member, loses and regains membership of the Writer trip.
+      'writer-leave': leave(writer),
+      'writer-rejoin': rejoin(writer),
+      'removed-leave': leave(writerRemoved),
+      'removed-rejoin': rejoin(writerRemoved),
+      'entry-state': entryState,
+      // Back to a pristine Writer trip: no expenses, receipts or side effects, writer is a member.
+      'entry-reset': async () => {
+        for (const name of ['expenses', 'expensecreaterequests', 'notifications', 'activitylogs'])
+          await db.collection(name).deleteMany({ trip: writerTrip._id });
+        await fixtureCommands['writer-rejoin']();
+        await fixtureCommands['removed-rejoin']();
+        return entryState();
+      },
+    };
+    async function fixtureCommand(command) {
+      assert(Object.hasOwn(fixtureCommands, command), 'Unknown fixture command');
+      return fixtureCommands[command]();
     }
     function enqueueCommand(command) {
       const result = commandQueue.then(() => fixtureCommand(command));
@@ -1774,7 +1829,7 @@ try {
         return reply(200, { apiUrl: `${origin}/api/v1` });
       if (req.method !== 'POST') return reply(405, { error: 'Method not allowed' });
       const command = req.url.slice(1);
-      if (!['revoke-a', 'expire-a', 'reset-limits'].includes(command))
+      if (!Object.hasOwn(fixtureCommands, command))
         return reply(404, { error: 'Unknown fixture command' });
       try {
         reply(200, await enqueueCommand(command));
@@ -1829,6 +1884,12 @@ try {
         emptyLedgerTrip: String(emptyLedger._id),
         settledLedgerTrip: String(settledLedger._id),
         writerTrip: String(writerTrip._id),
+        writerMembers: {
+          writer: String(writer._id),
+          peer: String(writerPeer._id),
+          virtual: String(writerVirtual._id),
+          removed: String(writerRemoved._id),
+        },
         date,
         controlUrl,
         controlToken,
@@ -1836,17 +1897,22 @@ try {
       { mode: 0o600 }
     );
     console.log(`Local fixture details: ${join(artifacts, 'fixture.json')}`);
-    console.log('Commands: revoke-a, expire-a, reset-limits, quit');
+    const commandList = `${Object.keys(fixtureCommands).join(', ')}, quit`;
+    console.log(`Commands: ${commandList}`);
     terminal = createInterface({ input: process.stdin, output: process.stdout });
     terminal.on('line', (line) => {
       const command = line.trim();
       if (command === 'quit') return onSignal();
-      if (!['revoke-a', 'expire-a', 'reset-limits'].includes(command)) {
-        console.log('Commands: revoke-a, expire-a, reset-limits, quit');
+      if (!Object.hasOwn(fixtureCommands, command)) {
+        console.log(`Commands: ${commandList}`);
         return;
       }
       void enqueueCommand(command)
-        .then(() => console.log(`DONE ${command}`))
+        .then((result) =>
+          console.log(
+            `DONE ${command}${command === 'entry-state' ? ` ${JSON.stringify(result)}` : ''}`
+          )
+        )
         .catch(() => {
           console.error('Local fixture command failed');
         });

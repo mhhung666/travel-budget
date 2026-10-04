@@ -1,0 +1,79 @@
+appId: ${MAESTRO_APP_ID}
+name: Lost response, then the app is force-closed and reopened - the request is recovered
+---
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: reset-limits
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: entry-reset
+- runFlow:
+    file: flows/entry-lost-start.yaml
+    env:
+      USERNAME: mobile-writer
+      DESCRIPTION: TEST lost then restart
+      AMOUNT: '100'
+      FAULT: drop-response-offline
+- runFlow:
+    file: flows/entry-expect.yaml
+    env:
+      EXPECT_EXPENSES: '1'
+      EXPECT_RECEIPTS: '1'
+# Force-close while the network is still down, then reopen with the network back.
+- stopApp
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - launchApp:
+          clearState: false
+          stopApp: false
+- openLink: ${MAESTRO_EXPO_URL}
+- extendedWaitUntil:
+    visible: TEST mobile-writer
+    timeout: 90000
+- scrollUntilVisible:
+    element:
+      id: trip-${MAESTRO_WRITER_TRIP}
+    timeout: 60000
+    visibilityPercentage: 30
+- tapOn:
+    id: trip-${MAESTRO_WRITER_TRIP}
+    point: '50%,10%'
+- scrollUntilVisible:
+    element:
+      id: trip-expenses
+    timeout: 60000
+    centerElement: true
+- tapOn:
+    id: trip-expenses
+# Recovery found the committed expense on its own: it is listed and nothing is left unconfirmed.
+- extendedWaitUntil:
+    visible: 'TEST lost then restart.*TWD[  ]100.*'
+    timeout: 60000
+- assertNotVisible: ${MAESTRO_PENDING_NOTICE}
+- assertVisible:
+    id: expenses-add
+    text: ${MAESTRO_ADD_EXPENSE}
+- takeScreenshot: entry-recovered
+- tapOn:
+    id: expenses-add
+- extendedWaitUntil:
+    visible:
+      id: new-expense-description
+    timeout: 30000
+- runFlow:
+    file: flows/entry-expect.yaml
+    env:
+      EXPECT_EXPENSES: '1'
+      EXPECT_RECEIPTS: '1'

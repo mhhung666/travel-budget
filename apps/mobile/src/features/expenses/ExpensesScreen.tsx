@@ -8,6 +8,7 @@ import { errorMessage, isAccessDenied } from '@/features/auth/errorMessage';
 import { formatCurrency, money } from '@/i18n/format';
 import { useMessages } from '@/i18n/useMessages';
 import { useOnline } from '@/providers/useOnline';
+import { usePendingExpenses } from './entryProvider';
 import { useExpenses } from './queries';
 import { isForeign, memberName, uniqueExpenses } from './rows';
 
@@ -70,6 +71,7 @@ export function ExpensesScreen({ tripId }: { tripId: string }) {
   const p = usePalette();
   const online = useOnline();
   const { query, refresh } = useExpenses(tripId);
+  const hasPending = (usePendingExpenses(tripId).data?.length ?? 0) > 0;
   // Never leave a previously cached member payload visible after access is denied.
   const denied = isAccessDenied(query.error);
   const expenses = denied ? [] : uniqueExpenses(query.data?.pages ?? []);
@@ -100,6 +102,14 @@ export function ExpensesScreen({ tripId }: { tripId: string }) {
             />
             <Title>{t.expenses}</Title>
             <Copy>{t.expensesHint}</Copy>
+            {hasPending && <Notice>{t.pendingExpensesNotice}</Notice>}
+            <Action
+              testID="expenses-add"
+              label={hasPending ? t.reviewPending : t.addExpense}
+              onPress={() =>
+                router.push({ pathname: '/trips/[id]/expenses/new', params: { id: tripId } })
+              }
+            />
             {!online && <Notice>{t.offline}</Notice>}
             {query.isError && (
               <>

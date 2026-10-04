@@ -1,0 +1,104 @@
+appId: ${MAESTRO_APP_ID}
+name: A preview refused because access was revoked leaves no split, members or confirm button behind
+---
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: reset-limits
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: entry-reset
+- runFlow:
+    file: flows/entry-start.yaml
+    env:
+      USERNAME: mobile-writer
+- runFlow:
+    file: flows/entry-fill.yaml
+    env:
+      DESCRIPTION: TEST preview revoked
+      AMOUNT: '100'
+# A good preview is on screen and could be confirmed.
+- assertVisible:
+    id: new-expense-preview-card
+- scrollUntilVisible:
+    element:
+      id: new-expense-confirm
+    timeout: 30000
+    centerElement: true
+- assertVisible:
+    id: new-expense-confirm
+    enabled: true
+- takeScreenshot: entry-preview-before-revoke
+# The writer is removed from the trip. Asking for the same split again is refused.
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: writer-leave
+- scrollUntilVisible:
+    element:
+      id: new-expense-preview
+    timeout: 30000
+    centerElement: true
+- tapOn:
+    id: new-expense-preview
+- scrollUntilVisible:
+    element: ${MAESTRO_NOT_FOUND}
+    direction: UP
+    visibilityPercentage: 30
+    timeout: 30000
+- assertVisible: ${MAESTRO_NOT_FOUND}
+# Nothing of the trip stays: not the split, not the members, not a way to confirm.
+- assertNotVisible:
+    id: new-expense-preview-card
+- assertNotVisible:
+    id: new-expense-split-0
+- assertNotVisible:
+    id: new-expense-confirm
+- assertNotVisible:
+    id: new-expense-preview
+- assertNotVisible:
+    id: new-expense-member-.*
+- assertNotVisible:
+    id: new-expense-payer-.*
+- takeScreenshot: entry-preview-revoked
+# Nothing was written, and nothing is waiting on the phone.
+- runFlow:
+    file: flows/entry-expect.yaml
+    env:
+      EXPECT_EXPENSES: '0'
+      EXPECT_RECEIPTS: '0'
+- assertNotVisible:
+    id: pending-card-0
+# A later network failure does not lift the refusal: leave, lose the connection, come back.
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: disconnect
+- tapOn:
+    id: new-expense-back
+- scrollUntilVisible:
+    element:
+      id: trip-add-expense
+    timeout: 30000
+    centerElement: true
+- tapOn:
+    id: trip-add-expense
+- extendedWaitUntil:
+    visible: ${MAESTRO_NOT_FOUND}
+    timeout: 30000
+- assertNotVisible:
+    id: new-expense-description
+- assertNotVisible:
+    id: new-expense-member-.*
+- assertNotVisible:
+    id: new-expense-confirm
+- takeScreenshot: entry-preview-revoked-offline
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online

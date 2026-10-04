@@ -7,16 +7,18 @@ export function createAuthTrace() {
   const events = [];
   return {
     events,
-    observe({ method, path, authorization, status }) {
-      const event = { method, path, status, at: Date.now() };
+    observe({ method, path, authorization, status, dropped }) {
+      const event = { method, path, status, at: Date.now(), ...(dropped ? { dropped: true } : {}) };
       if (authorization?.startsWith('Bearer ')) {
         try {
           const token = authorization.slice(7);
-          const { iat, exp } = JSON.parse(Buffer.from(token.split('.')[1], 'base64url'));
+          const { iat, exp, sub } = JSON.parse(Buffer.from(token.split('.')[1], 'base64url'));
           if (Number.isInteger(iat) && Number.isInteger(exp)) {
             event.issuedAt = iat * 1000;
             event.expiresAt = exp * 1000;
             event.fingerprint = createHash('sha256').update(token).digest('hex');
+            // Which account made the request: the account id (not a secret), never the token.
+            if (typeof sub === 'string' && /^[a-f0-9]{24}$/.test(sub)) event.userId = sub;
           }
         } catch {
           // Invalid bearer values cannot establish an expiry acceptance baseline.

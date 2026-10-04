@@ -5,7 +5,8 @@ import { createAuthTrace, verifyNaturalRefresh } from './auth-trace.mjs';
 
 test('auth evidence contains no bearer, refresh token or response body', () => {
   const trace = createAuthTrace();
-  const token = `header.${Buffer.from(JSON.stringify({ iat: 10, exp: 910 })).toString('base64url')}.signature`;
+  const account = 'a'.repeat(24);
+  const token = `header.${Buffer.from(JSON.stringify({ iat: 10, exp: 910, sub: account })).toString('base64url')}.signature`;
   trace.observe({
     method: 'GET',
     path: '/api/v1/me',
@@ -16,6 +17,7 @@ test('auth evidence contains no bearer, refresh token or response body', () => {
   assert.equal(trace.events[0].issuedAt, 10_000);
   assert.equal(trace.events[0].expiresAt, 910_000);
   assert.match(trace.events[0].fingerprint, /^[a-f0-9]{64}$/);
+  assert.equal(trace.events[0].userId, account);
   assert(!JSON.stringify(trace.events).includes(token));
   assert(!JSON.stringify(trace.events).includes('never-retain-me'));
   trace.observe({
@@ -25,6 +27,10 @@ test('auth evidence contains no bearer, refresh token or response body', () => {
     authorization: 'Bearer invalid',
   });
   assert.equal(trace.events[1].fingerprint, undefined);
+  assert.equal(trace.events[1].userId, undefined);
+  trace.observe({ method: 'POST', path: '/api/v1/trips/x/expenses', status: 200, dropped: true });
+  assert.equal(trace.events[2].dropped, true);
+  assert.equal(trace.events[0].dropped, undefined);
 });
 
 test('natural expiry requires backend rejection, one refresh and replay with a new JWT', () => {
