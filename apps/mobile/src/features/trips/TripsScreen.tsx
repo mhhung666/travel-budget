@@ -65,6 +65,7 @@ export function TripsScreen() {
               label={t.localDrafts}
               onPress={() => router.push('/drafts')}
             />
+            <Action secondary label={t.queueTitle} onPress={() => router.push('/queue')} />
             {!online && <Notice>{t.offline}</Notice>}
             {query.isError && (
               <>

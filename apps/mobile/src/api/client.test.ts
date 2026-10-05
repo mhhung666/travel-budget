@@ -1,7 +1,7 @@
 import type { Fetcher } from './client';
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
-import { ApiClient, validateBaseUrl } from './client';
+import { ApiClient, ApiError, validateBaseUrl } from './client';
 import { tripsSchema } from './contracts';
 const schema = z.object({ value: z.string() });
 function nativeSignal(controller: AbortController): AbortSignal {
@@ -180,4 +180,22 @@ describe('rate limiting', () => {
     await expect(api.request('/login', schema)).rejects.toMatchObject({ status: 429 });
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
+});
+
+it('preserves a synchronous send guard failure without starting HTTP', async () => {
+  const fetcher = vi.fn<Fetcher>().mockResolvedValue(Response.json({ data: { value: 'ok' } }));
+  const client = new ApiClient('https://example.com', fetcher);
+  const error = new ApiError('ACCESS_REVOKED', 403);
+  await expect(
+    client.request('/expenses', schema, {
+      method: 'POST',
+      body: { amount: 100 },
+      beforeSend: () => {
+        throw error;
+      },
+    })
+  ).rejects.toBe(error);
+  expect(fetcher).not.toHaveBeenCalled();
+  await expect(client.request('/expenses', schema)).resolves.toEqual({ value: 'ok' });
+  expect(fetcher).toHaveBeenCalledTimes(1);
 });

@@ -1,4 +1,5 @@
 import * as SQLite from 'expo-sqlite';
+import { createExpenseQueueStore, type ExpenseQueueStore } from './expenseQueue';
 import {
   createPendingExpenseStore,
   type PendingExpenseStore,
@@ -40,4 +41,15 @@ export function openPendingExpenseStore(): Promise<PendingExpenseStore> {
       throw error;
     });
   return opening;
+}
+
+let queue: Promise<ExpenseQueueStore> | null = null;
+export function openExpenseQueueStore() {
+  queue ??= openDatabase()
+    .then(createExpenseQueueStore)
+    .catch((error: unknown) => {
+      queue = null;
+      throw error;
+    });
+  return queue;
 }

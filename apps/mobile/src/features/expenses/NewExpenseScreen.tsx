@@ -41,7 +41,7 @@ import {
 } from './draft';
 import type { EntryOutcome, UnconfirmedReason } from './entry';
 import { issueMessage } from './entryMessages';
-import { useExpenseEntry, usePendingExpenses } from './entryProvider';
+import { useExpenseEntry, usePendingExpenses, useExpenseQueue } from './entryProvider';
 import { requestPreview, useDenyExpenseOptions, useExpenseOptions } from './entryQueries';
 import { addDays, isCalendarDate } from './input';
 import { PendingSection } from './PendingSection';
@@ -331,6 +331,8 @@ function EntryForm({
   const online = useOnline();
   const { user } = useAuth();
   const { entry, scope, manager } = useExpenseEntry();
+  const { queue } = useExpenseQueue();
+  const [queueError, setQueueError] = useState(false);
   const [attempted, setAttempted] = useState(false);
   const [previews, dispatch] = useReducer(previewReducer, initialPreview);
   const [submitting, setSubmitting] = useState(false);
@@ -420,6 +422,30 @@ function EntryForm({
       }
       dispatch({ type: 'reject', ticket, key: requestKey, error });
       if (isAccessDenied(error)) onDenied(error);
+    }
+  };
+
+  const enqueue = async () => {
+    setAttempted(true);
+    if (sending.current || !scope || issues.length || saveStatus !== 'saved') return;
+    const identity = manager.getSnapshot();
+    if (!['signedIn', 'local'].includes(identity.status) || identity.user?.id !== scope.accountId)
+      return;
+    sending.current = true;
+    setSubmitting(true);
+    setQueueError(false);
+    reset();
+    try {
+      const stored = await editor.flush();
+      await queue.enqueue(stored, options);
+      // The queue owns this source now. A new draft starts only when the user returns.
+      editor.close();
+      router.replace('/queue');
+    } catch {
+      setQueueError(true);
+    } finally {
+      sending.current = false;
+      setSubmitting(false);
     }
   };
 
@@ -673,6 +699,15 @@ function EntryForm({
           localOnly || !current || !online || locked || saveStatus !== 'saved' || issues.length > 0
         }
         onPress={() => void confirm()}
+      />
+      <Notice>{t.queueRule}</Notice>
+      {!!queueError && <Notice>{t.entryNotSent}</Notice>}
+      <Action
+        testID="expense-queue-confirm"
+        label={t.queueConfirm}
+        busy={submitting}
+        disabled={locked || saveStatus !== 'saved'}
+        onPress={() => void enqueue()}
       />
       <Action
         secondary

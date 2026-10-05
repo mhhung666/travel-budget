@@ -1,6 +1,30 @@
 const zh = {
   localDrafts: '本機支出草稿',
-  localDraftHint: '可建立或續填本機草稿，尚未入帳。成員選項可能已變更，連線後須重新預覽並確認。',
+  queueTitle: '待送支出佇列',
+  queueDiscard: '捨棄待送支出',
+  queueConflict:
+    '此請求已對應不同內容的已入帳支出，未另建新支出。此卡保留原待送輸入供核對，不能再次送出。',
+  queueDismiss: '確認並移除此提示',
+  queueDraftExists:
+    '這趟旅行已有草稿。移回此筆會捨棄現有草稿，請確認後繼續。若有待確認支出，仍須先查明結果。',
+  queueReplaceDraft: '捨棄現有草稿並移回此筆',
+  queueRule:
+    '確認後將自動送出：依指定成員均分 TWD 總額，各人金額與尾差由後端決定。成員名單或順序改變會暫停並要求重新確認。尚未入帳。',
+  queueConfirm: '確認均分規則並加入待送佇列',
+  queueHint:
+    '只在 App 前景、連線且登入有效時依序同步。草稿不會自動加入；尚未送出的紀錄可修改或捨棄。',
+  queueSync: '立即同步',
+  queueEmpty: '沒有待送支出。',
+  queueWaiting: '已確認，等待送出',
+  queueAttention: '需要重新確認',
+  queueUnknown: '已準備送出／結果待確認',
+  queueFrozen: '已凍結原 UUID 與內容，不能修改或捨棄。同步會先查詢結果，再以原請求安全重試。',
+  queueEdit: '移回草稿修改並重新確認',
+  queueFailed: '讀取或操作失敗，紀錄保留。修改前請先處理該旅行現有草稿或待確認支出。',
+  queuePaused: '同步已暫停，紀錄保留；登入失效時請重新登入。',
+  queueRetryAt: '最早重試時間',
+  localDraftHint:
+    '可離線續填草稿，或明確確認均分規則加入待送佇列；尚未入帳。送出前會重新檢查成員。',
   localSessionHint: '目前只使用此裝置保存的帳號身分，尚未驗證線上登入；無法讀取帳務或送出。',
   restoreOnline: '恢復線上登入',
   reviewOnline: '連線後重新預覽',
@@ -155,7 +179,7 @@ const zh = {
   membersRequired: '請至少選擇一位分攤成員。',
   entryRejected: '伺服器拒絕了這筆內容，沒有儲存任何資料。請修正後重新預覽。',
   entryNotSent: '無法在這支手機上保存待確認紀錄，因此沒有送出。請稍後再試。',
-  offlineEntry: '目前離線，可保存本機草稿；連線後才能預覽與入帳。',
+  offlineEntry: '目前離線，可保存草稿或確認均分規則加入待送佇列；連線登入後才能入帳。',
   pendingTitle: '尚未確認的支出',
   pendingHint:
     '送出後沒有收到伺服器的回應，這筆可能已經儲存。請先確認結果，不要重新輸入，以免重複記帳。',
@@ -177,8 +201,31 @@ export const messages = {
   zh,
   'zh-CN': {
     localDrafts: '本机支出草稿',
+    queueTitle: '待发支出队列',
+    queueDiscard: '丢弃待发支出',
+    queueConflict:
+      '此请求已对应不同内容的已入账支出，未另建新支出。此卡保留原待发输入供核对，不能再次发送。',
+    queueDismiss: '确认并移除此提示',
+    queueDraftExists:
+      '该旅行已有草稿。移回此笔会丢弃现有草稿，请确认后继续。若有待确认支出，仍须先查明结果。',
+    queueReplaceDraft: '丢弃现有草稿并移回此笔',
+    queueRule:
+      '确认后将自动发送：按指定成员均分 TWD 总额，每人金额与尾差由后端决定。成员名单或顺序改变会暂停并要求重新确认。尚未入账。',
+    queueConfirm: '确认均分规则并加入待发队列',
+    queueHint:
+      '仅在 App 前台、联网且登录有效时依次同步。草稿不会自动加入；尚未发送的记录可修改或丢弃。',
+    queueSync: '立即同步',
+    queueEmpty: '没有待发支出。',
+    queueWaiting: '已确认，等待发送',
+    queueAttention: '需要重新确认',
+    queueUnknown: '已准备发送／结果待确认',
+    queueFrozen: '已冻结原 UUID 与内容，不能修改或丢弃。同步先查询结果，再安全重试原请求。',
+    queueEdit: '移回草稿修改并重新确认',
+    queueFailed: '读取或操作失败，记录保留。修改前请先处理该旅行现有草稿或待确认支出。',
+    queuePaused: '同步已暂停，记录保留；登录失效时请重新登录。',
+    queueRetryAt: '最早重试时间',
     localDraftHint:
-      '可新建或继续填写本机草稿，尚未入账。成员选项可能已变更，联网后须重新预览并确认。',
+      '可离线填写草稿，或明确确认均分规则加入待发队列；尚未入账。发送前重新检查成员。',
     localSessionHint: '目前仅使用此设备保存的账号身份，尚未验证在线登录；无法读取账务或提交。',
     restoreOnline: '恢复在线登录',
     reviewOnline: '联网后重新预览',
@@ -333,7 +380,7 @@ export const messages = {
     membersRequired: '请至少选择一位分摊成员。',
     entryRejected: '服务器拒绝了这笔内容，没有保存任何数据。请修正后重新预览。',
     entryNotSent: '无法在这部手机上保存待确认记录，因此没有发送。请稍后再试。',
-    offlineEntry: '目前离线，可保存本机草稿；联网后才能预览与入账。',
+    offlineEntry: '目前离线，可保存草稿或确认均分规则加入待发队列；联网登录后才能入账。',
     pendingTitle: '尚未确认的支出',
     pendingHint:
       '发送后没有收到服务器的响应，这笔可能已经保存。请先确认结果，不要重新输入，以免重复记账。',
@@ -350,8 +397,33 @@ export const messages = {
   },
   en: {
     localDrafts: 'Local expense drafts',
+    queueTitle: 'Expense queue',
+    queueDiscard: 'Discard queued expense',
+    queueConflict:
+      'This request belongs to a recorded expense with different content. No new expense was created. This card keeps your original queued input for review and cannot be sent again.',
+    queueDismiss: 'Acknowledge and dismiss',
+    queueDraftExists:
+      'This trip has a draft. Moving this entry back will discard that draft; confirm to proceed. Unconfirmed expenses must still be resolved first.',
+    queueReplaceDraft: 'Discard current draft and move this entry back',
+    queueRule:
+      'Confirm automatic submission: split the TWD total equally among the selected members. The server determines shares and leftover cents. Changes to the member list or order pause submission for your review. Nothing is recorded yet.',
+    queueConfirm: 'Confirm equal split and queue',
+    queueHint:
+      'Sync runs in order while the app is foreground, online and signed in. Drafts are never queued automatically. Unsent entries can be edited or discarded.',
+    queueSync: 'Sync now',
+    queueEmpty: 'No queued expenses.',
+    queueWaiting: 'Confirmed, waiting to send',
+    queueAttention: 'Review and confirm again',
+    queueUnknown: 'Prepared / awaiting confirmation',
+    queueFrozen:
+      'Original UUID and body are frozen. Editing and discarding are disabled. Sync checks the result before safely retrying the original request.',
+    queueEdit: 'Move to draft, edit and confirm again',
+    queueFailed:
+      'Read or action failed; records are kept. Resolve the existing draft or unconfirmed expense for this trip before editing.',
+    queuePaused: 'Sync is paused; records are kept. Sign in again if your session expired.',
+    queueRetryAt: 'Earliest retry',
     localDraftHint:
-      'Create or continue a draft on this device. Nothing is recorded in the ledger. Members may have changed; preview and confirm again online.',
+      'Edit drafts offline, or explicitly confirm the equal-split rule and queue them. Nothing is recorded yet. Members are checked again before sending.',
     localSessionHint:
       'Using the account identity saved on this device. Online sign-in has not been verified; ledger access and submission are unavailable.',
     restoreOnline: 'Restore online sign-in',
@@ -521,7 +593,7 @@ export const messages = {
     entryNotSent:
       'This phone could not keep a record of the request, so it was not sent. Try again later.',
     offlineEntry:
-      'You are offline. Save a local draft now; preview and recording require a connection.',
+      'You are offline. Save a draft or confirm equal split to queue it. Recording requires a connection and valid login.',
     pendingTitle: 'Unconfirmed expense',
     pendingHint:
       'No answer came back from the server, so this expense may already be saved. Check the result first and do not enter it again, or it could be recorded twice.',
@@ -542,8 +614,34 @@ export const messages = {
   },
   jp: {
     localDrafts: '端末の支出下書き',
+    queueTitle: '送信待ちの支出',
+    queueDiscard: '送信待ちの支出を破棄',
+    queueConflict:
+      'このリクエストは別の内容で記帳済みです。新しい支出は作成していません。照合用に元の入力を保持し、再送信はできません。',
+    queueDismiss: '確認してこの表示を閉じる',
+    queueDraftExists:
+      'この旅行には下書きがあります。この項目を戻すと既存の下書きを破棄します。確認して続けてください。未確認の支出は先に結果を確認してください。',
+    queueReplaceDraft: '現在の下書きを破棄してこの項目を戻す',
+    queueRule:
+      '確認後は自動送信します。指定メンバーで TWD 合計を均等に分割し、各金額と端数はサーバーが決定します。メンバーや順序が変わった場合は停止し再確認が必要です。まだ記帳されていません。',
+    queueConfirm: '均等分割を確認して送信待ちに追加',
+    queueHint:
+      'アプリが前面・オンライン・ログイン中のとき順番に同期します。下書きは自動追加されません。未送信の項目は変更・破棄できます。',
+    queueSync: '今すぐ同期',
+    queueEmpty: '送信待ちの支出はありません。',
+    queueWaiting: '確認済み・送信待ち',
+    queueAttention: '再確認が必要です',
+    queueUnknown: '送信準備済み／結果確認待ち',
+    queueFrozen:
+      '元の UUID と内容は固定され、変更・破棄できません。同期時に結果を照会し、同じリクエストを安全に再送します。',
+    queueEdit: '下書きに戻して編集・再確認',
+    queueFailed:
+      '読み取りまたは操作に失敗しました。記録は保持されます。編集前にこの旅行の既存下書きや未確認の支出を処理してください。',
+    queuePaused:
+      '同期は停止中です。記録は保持されます。セッション切れの場合は再ログインしてください。',
+    queueRetryAt: '再試行可能な最早時刻',
     localDraftHint:
-      '端末で下書きを作成・再開できます。まだ記帳されていません。メンバーが変わっている可能性があるため、接続後に再プレビューして確認してください。',
+      'オフラインで下書きを編集し、均等分割を明確に確認して送信待ちに追加できます。まだ記帳されていません。送信前にメンバーを再確認します。',
     localSessionHint:
       '端末に保存されたアカウント情報を使用しています。オンライン認証は未確認のため、帳簿の閲覧や送信はできません。',
     restoreOnline: 'オンライン認証を再開',
@@ -715,7 +813,7 @@ export const messages = {
     entryNotSent:
       'この端末に確認用の記録を保存できなかったため、送信しませんでした。しばらくしてから再試行してください。',
     offlineEntry:
-      'オフラインです。下書きを端末に保存できますが、プレビューと記帳には接続が必要です。',
+      'オフラインです。下書きを保存するか、均等分割を確認して送信待ちに追加できます。記帳には接続と有効なログインが必要です。',
     pendingTitle: '未確認の支出',
     pendingHint:
       '送信後にサーバーから応答がなく、この支出は保存済みの可能性があります。二重に記録しないよう、入力し直す前に結果を確認してください。',

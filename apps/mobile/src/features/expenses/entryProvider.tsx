@@ -4,6 +4,7 @@ import {
   useEffect,
   useMemo,
   useState,
+  useSyncExternalStore,
   type PropsWithChildren,
 } from 'react';
 import { AppState } from 'react-native';
@@ -12,11 +13,16 @@ import * as Crypto from 'expo-crypto';
 import { ApiError } from '@/api/client';
 import { useDraftCatalog } from '@/features/localDrafts/provider';
 import { useAuth } from '@/features/auth/AuthProvider';
-import { openPendingExpenseStore } from '@/storage/pendingExpenseDatabase';
+import { ExpenseQueue } from '@/features/expenseQueue/sync';
+import { openExpenseQueueStore, openPendingExpenseStore } from '@/storage/pendingExpenseDatabase';
 import type { PendingScope } from '@/storage/pendingExpenses';
 import { ExpenseEntry } from './entry';
+import type { EntryRequest } from './entry';
 import { pendingKey, refreshTripData } from './entryQueries';
 
+const QueueContext = createContext<ExpenseQueue | null>(null);
+export const queueKey = (scope: PendingScope | null) =>
+  [scope?.environment, scope?.accountId, 'expense-queue'] as const;
 const EntryContext = createContext<ExpenseEntry | null>(null);
 
 /**
@@ -27,40 +33,74 @@ export function ExpenseEntryProvider({ children }: PropsWithChildren) {
   const client = useQueryClient();
   const { manager } = useAuth();
   const { catalog } = useDraftCatalog();
+  const [request] = useState(() => {
+    const send: EntryRequest = async (userId, path, schema, options) => {
+      try {
+        if (AppState.currentState !== 'active' || !onlineManager.isOnline())
+          throw new ApiError('CANCELLED');
+        return await manager.requestAs(userId, path, schema, options);
+      } catch (error) {
+        const match = /^\/trips\/([^/]+)\//.exec(path);
+        if (
+          match &&
+          error instanceof ApiError &&
+          error.source === 'request' &&
+          [403, 404].includes(error.status)
+        )
+          await catalog
+            .deny(
+              { environment: manager.api.baseUrl, accountId: userId },
+              decodeURIComponent(match[1])
+            )
+            .catch(() => undefined);
+        throw error;
+      }
+    };
+    return send;
+  });
   const [entry] = useState(
     () =>
       new ExpenseEntry({
         store: openPendingExpenseStore,
-        request: async (userId, path, schema, options) => {
-          try {
-            return await manager.requestAs(userId, path, schema, options);
-          } catch (error) {
-            const match = /^\/trips\/([^/]+)\//.exec(path);
-            if (
-              match &&
-              error instanceof ApiError &&
-              error.source === 'request' &&
-              [403, 404].includes(error.status)
-            )
-              await catalog
-                .deny(
-                  { environment: manager.api.baseUrl, accountId: userId },
-                  decodeURIComponent(match[1])
-                )
-                .catch(() => undefined);
-            throw error;
-          }
-        },
+        request,
         newId: () => Crypto.randomUUID(),
         onCommitted: (scope, tripId) =>
           refreshTripData(client, scope.environment, scope.accountId, tripId),
-        onChange: (scope, tripId) =>
+        onChange: (scope, tripId) => {
           void client.invalidateQueries({
             queryKey: pendingKey(scope.environment, scope.accountId, tripId),
-          }),
+          });
+          void client.invalidateQueries({ queryKey: queueKey(scope) });
+        },
       })
   );
-  return <EntryContext.Provider value={entry}>{children}</EntryContext.Provider>;
+  const [queue] = useState(
+    () =>
+      new ExpenseQueue({
+        store: openExpenseQueueStore,
+        entry,
+        request,
+        authorizationVersion: (scope, tripId) => catalog.accessVersion(scope, tripId),
+        newId: () => Crypto.randomUUID(),
+        active: (scope) =>
+          AppState.currentState === 'active' &&
+          onlineManager.isOnline() &&
+          manager.getSnapshot().status === 'signedIn' &&
+          manager.getSnapshot().user?.id === scope.accountId &&
+          manager.api.baseUrl === scope.environment,
+        onChange: (scope) => {
+          void client.invalidateQueries({ queryKey: queueKey(scope) });
+        },
+      })
+  );
+  return (
+    <EntryContext.Provider value={entry}>
+      <QueueContext.Provider value={queue}>
+        <ExpenseSync />
+        {children}
+      </QueueContext.Provider>
+    </EntryContext.Provider>
+  );
 }
 
 /** The engine and the signed-in account's scope (null while signed out). */
@@ -92,16 +132,27 @@ export function usePendingExpenses(tripId: string) {
 
 /**
  * Asks the server about the signed-in account's unconfirmed requests when the app starts, returns
- * to the foreground or regains connectivity. It only looks; nothing is sent again without the user.
+ * to the foreground or regains connectivity. Confirmed queue items may send; legacy C only looks.
  */
 export function usePendingRecovery() {
   const { entry, scope } = useExpenseEntry();
   const { status } = useAuth();
+  const { queue } = useExpenseQueue();
   useEffect(() => {
     if (!scope || status !== 'signedIn') return;
+    let running = false;
     const run = () => {
-      if (onlineManager.isOnline()) void entry.recover(scope);
+      if (running || AppState.currentState !== 'active' || !onlineManager.isOnline()) return;
+      running = true;
+      void queue
+        .synchronize(scope)
+        .then(() => entry.recover(scope))
+        .catch(() => undefined)
+        .finally(() => {
+          running = false;
+        });
     };
+    const timer = setInterval(run, 30_000);
     run();
     const foreground = AppState.addEventListener('change', (state) => {
       if (state === 'active') run();
@@ -110,8 +161,35 @@ export function usePendingRecovery() {
       if (online) run();
     });
     return () => {
+      clearInterval(timer);
       foreground.remove();
       connectivity();
     };
-  }, [entry, scope, status]);
+  }, [entry, queue, scope, status]);
+}
+
+export function useExpenseQueue() {
+  const queue = useContext(QueueContext);
+  const { scope } = useExpenseEntry();
+  if (!queue) throw new Error('ExpenseEntryProvider is missing');
+  const sync = useSyncExternalStore(queue.subscribe, queue.getSnapshot, queue.getSnapshot);
+  const records = useQuery({
+    queryKey: queueKey(scope),
+    enabled: !!scope,
+    networkMode: 'always',
+    staleTime: 0,
+    queryFn: () => queue.list(scope!),
+  });
+  return {
+    queue,
+    scope,
+    records,
+    syncFailed:
+      !!scope && sync.failedScopes.includes(JSON.stringify([scope.environment, scope.accountId])),
+  };
+}
+
+function ExpenseSync() {
+  usePendingRecovery();
+  return null;
 }

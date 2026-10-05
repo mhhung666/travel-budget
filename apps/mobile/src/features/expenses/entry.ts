@@ -1,5 +1,5 @@
 import type { z } from 'zod';
-import { ApiError } from '@/api/client';
+import { ApiError, type RequestOptions } from '@/api/client';
 import {
   expenseCreateInput,
   expenseDetailSchema,
@@ -15,13 +15,13 @@ export type EntryRequest = <T>(
   userId: string,
   path: string,
   schema: z.ZodType<T>,
-  options?: { method?: 'GET' | 'POST'; body?: unknown }
+  options?: Pick<RequestOptions, 'method' | 'body' | 'beforeSend'>
 ) => Promise<T>;
 
 export interface EntryDeps {
   /** Opened on first use; a failure means nothing can be saved, so nothing is sent. */
   store: () => Promise<PendingExpenseStore>;
-  /** Must send as the given account only (`SessionManager.requestAs`). */
+  /** Must send as the given account only and forward beforeSend to transport (`requestAs`). */
   request: EntryRequest;
   newId: () => string;
   now?: () => number;
@@ -106,7 +106,7 @@ const unconfirmed = (
   record: PendingExpense,
   reason: UnconfirmedReason,
   error?: unknown
-): EntryOutcome => ({
+): Extract<EntryOutcome, { kind: 'unconfirmed' }> => ({
   kind: 'unconfirmed',
   clientRequestId: record.clientRequestId,
   reason,
@@ -129,7 +129,7 @@ export class ExpenseEntry {
   private chains = new Map<string, Promise<unknown>>();
   private opening = new Set<string>();
   /** Requests the server settled whose local record could not be removed yet. */
-  private resolved = new Map<string, 'committed' | 'rejected'>();
+  private resolved = new Map<string, 'committed' | 'rejected' | 'conflict'>();
   private recovering = new Map<string, Promise<EntryOutcome[]>>();
   constructor(private deps: EntryDeps) {}
 
@@ -221,11 +221,15 @@ export class ExpenseEntry {
     });
   }
 
-  /** Repeats a pending request exactly: same id, same body. */
-  retry(scope: PendingScope, clientRequestId: string): Promise<EntryOutcome> {
+  /** Repeats the frozen request; transport checks beforeSend after all waits and before any replay. */
+  retry(
+    scope: PendingScope,
+    clientRequestId: string,
+    beforeSend?: () => void
+  ): Promise<EntryOutcome> {
     return this.serial(scope, clientRequestId, async () => {
       const loaded = await this.load(scope, clientRequestId);
-      return 'store' in loaded ? this.post(loaded.store, loaded.record) : loaded;
+      return 'store' in loaded ? this.post(loaded.store, loaded.record, beforeSend) : loaded;
     });
   }
 
@@ -254,7 +258,7 @@ export class ExpenseEntry {
     id: string
   ): Promise<
     | { store: PendingExpenseStore; record: PendingExpense }
-    | Extract<EntryOutcome, { kind: 'not-sent' | 'gone' }>
+    | Extract<EntryOutcome, { kind: 'not-sent' | 'gone' | 'unconfirmed' }>
   > {
     let store: PendingExpenseStore;
     let record: PendingExpense | null;
@@ -265,10 +269,25 @@ export class ExpenseEntry {
       return { kind: 'not-sent', error };
     }
     if (!record || this.resolved.has(this.keyOf(scope, id))) return { kind: 'gone' };
+    try {
+      const nextAt = (await store.retryAt?.(scope, id)) ?? 0;
+      if (nextAt > this.now())
+        return unconfirmed(
+          record,
+          'busy',
+          new ApiError('RATE_LIMITED', 429, Math.ceil((nextAt - this.now()) / 1000))
+        );
+    } catch (error) {
+      return { kind: 'not-sent', error };
+    }
     return { store, record };
   }
 
-  private async post(store: PendingExpenseStore, record: PendingExpense): Promise<EntryOutcome> {
+  private async post(
+    store: PendingExpenseStore,
+    record: PendingExpense,
+    beforeSend?: () => void
+  ): Promise<EntryOutcome> {
     if (record.status !== 'sending') await this.mark(store, record, 'sending');
     let expense: ExpenseDetail;
     try {
@@ -276,7 +295,7 @@ export class ExpenseEntry {
         record.accountId,
         `${tripPath(record.tripId)}/expenses`,
         expenseDetailSchema,
-        { method: 'POST', body: record.payload }
+        { method: 'POST', body: record.payload, beforeSend }
       );
     } catch (error) {
       return this.failed(store, record, error);
@@ -295,14 +314,37 @@ export class ExpenseEntry {
       return { kind: 'rejected', error: error as ApiError };
     }
     await this.mark(store, record, 'unconfirmed');
+    try {
+      // Record 409 before its follow-up lookup, and 429 before returning to any caller.
+      await this.rememberFailure(store, record, error);
+    } catch (storageError) {
+      return unconfirmed(record, 'server', storageError);
+    }
     if (verdict === 'refused') return unconfirmed(record, reasonOf(error), error);
     // The server may hold the request (a lost answer, a 409): ask before reporting anything.
     const found = await this.lookupCore(store, record);
     if (found.kind !== 'unconfirmed') return found;
-    // An answer about access or the session says more than the transport failure that preceded it.
-    if (['access', 'unauthorized', 'cancelled'].includes(found.reason)) return found;
+    // Preserve access/session failures and the lookup's own Retry-After in the returned outcome.
+    if (['access', 'unauthorized', 'cancelled', 'busy'].includes(found.reason)) return found;
     if (found.reason === 'not-found' && verdict !== 'conflict') return found;
     return unconfirmed(record, reasonOf(error), error);
+  }
+
+  private async rememberFailure(
+    store: PendingExpenseStore,
+    record: PendingExpense,
+    error: unknown
+  ) {
+    if (!(error instanceof ApiError)) return;
+    if (error.status !== 429 && verdictOf(error) !== 'conflict') return;
+    if (!store.pause) return;
+    await store.pause(
+      scopeOf(record),
+      record.clientRequestId,
+      reasonOf(error),
+      this.now() + Math.max(30, error.retryAfter ?? 30) * 1000
+    );
+    this.deps.onChange?.(scopeOf(record), record.tripId);
   }
 
   private async lookupCore(
@@ -317,6 +359,11 @@ export class ExpenseEntry {
         expenseRequestSchema
       );
     } catch (error) {
+      try {
+        await this.rememberFailure(store, record, error);
+      } catch (storageError) {
+        return unconfirmed(record, 'server', storageError);
+      }
       return unconfirmed(record, reasonOf(error), error);
     }
     if (result.status === 'committed') return this.settle(store, record, result.expense);
@@ -330,20 +377,21 @@ export class ExpenseEntry {
     expense: ExpenseDetail
   ): Promise<EntryOutcome> {
     // The server's answer is final. A removal that fails here is retried when records are next read.
-    await this.drop(store, record);
+    const differs = !sameExpense(record.payload, expense);
+    await this.drop(store, record, differs ? 'conflict' : 'committed');
     const refreshed = Promise.resolve()
       .then(() => this.deps.onCommitted?.(scopeOf(record), record.tripId, expense))
       .then(
         () => true,
         () => false
       );
-    return { kind: 'saved', expense, differs: !sameExpense(record.payload, expense), refreshed };
+    return { kind: 'saved', expense, differs, refreshed };
   }
 
   private async drop(
     store: PendingExpenseStore,
     record: PendingExpense,
-    resolution: 'committed' | 'rejected' = 'committed'
+    resolution: 'committed' | 'rejected' | 'conflict' = 'committed'
   ) {
     const key = this.keyOf(record, record.clientRequestId);
     try {

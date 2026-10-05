@@ -22,6 +22,8 @@ export type RequestOptions = {
   body?: unknown;
   accessToken?: string;
   signal?: AbortSignal;
+  /** Synchronous guard immediately before each fetch, including a session refresh replay. */
+  beforeSend?: () => void;
 };
 export function validateBaseUrl(value: string | undefined, development: boolean) {
   if (!value) throw new ApiError('CONFIGURATION');
@@ -67,14 +69,16 @@ export class ApiClient {
       const headers: Record<string, string> = { Accept: 'application/json' };
       if (options.body !== undefined) headers['Content-Type'] = 'application/json';
       if (options.accessToken) headers.Authorization = `Bearer ${options.accessToken}`;
-      const response = await this.fetcher(`${this.baseUrl}${path}`, {
+      const init: RequestInit = {
         method: options.method ?? 'GET',
         headers,
         credentials: 'omit',
         redirect: 'error',
         body: options.body === undefined ? undefined : JSON.stringify(options.body),
         signal: controller.signal,
-      });
+      };
+      options.beforeSend?.();
+      const response = await this.fetcher(`${this.baseUrl}${path}`, init);
       const body: unknown = await response.json().catch((error: unknown) => {
         // Malformed JSON is a payload error; interrupted body reads are transport failures.
         if (error instanceof SyntaxError) return null;

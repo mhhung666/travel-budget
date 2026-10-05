@@ -98,6 +98,9 @@ export class DraftCatalog {
     }
     return this.open();
   }
+  accessVersion(scope: PendingScope, tripId: string) {
+    return this.denials.get(keyOf(scope, tripId));
+  }
   isVisible(scope: PendingScope, tripId: string) {
     return !this.blocked.has(keyOf(scope, tripId));
   }

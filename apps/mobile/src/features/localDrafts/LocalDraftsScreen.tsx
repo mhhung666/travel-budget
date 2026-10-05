@@ -62,6 +62,7 @@ export function LocalTripsScreen() {
     <Page>
       <Title>{t.localDrafts}</Title>
       <Notice>{t.localDraftHint}</Notice>
+      <Action label={t.queueTitle} onPress={() => router.push('/queue')} />
       <LocalSessionActions />
       {query.storageFailed && <Notice>{t.localSnapshotFailed}</Notice>}
       {query.isPending && <ActivityIndicator accessibilityLabel={t.loading} />}

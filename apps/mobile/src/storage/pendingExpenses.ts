@@ -32,11 +32,19 @@ export interface PendingExpenseStore {
   drafts: ExpenseDraftStore;
   get(scope: PendingScope, clientRequestId: string): Promise<PendingExpense | null>;
   list(scope: PendingScope, tripId?: string): Promise<PendingExpense[]>;
+  retryAt?(scope: PendingScope, clientRequestId: string): Promise<number>;
+  /** Persist queue cooldown / conflict at the HTTP boundary, including manual C operations. */
+  pause?(
+    scope: PendingScope,
+    clientRequestId: string,
+    reason: string,
+    nextAt: number
+  ): Promise<void>;
   setStatus(scope: PendingScope, clientRequestId: string, status: PendingStatus): Promise<void>;
   remove(
     scope: PendingScope,
     clientRequestId: string,
-    resolution?: 'committed' | 'rejected'
+    resolution?: 'committed' | 'rejected' | 'conflict'
   ): Promise<void>;
 }
 
@@ -238,6 +246,18 @@ export async function createPendingExpenseStore(db: SqlDatabase): Promise<Pendin
         );
         return rows.flatMap((row) => toRecord(row) ?? []);
       }),
+    retryAt: (scope, clientRequestId) =>
+      serial(
+        async () =>
+          (
+            await db.getFirstAsync<{ next_at: number }>(
+              'SELECT next_at FROM expense_queue WHERE environment = ? AND account_id = ? AND client_request_id = ?',
+              scope.environment,
+              scope.accountId,
+              clientRequestId
+            )
+          )?.next_at ?? 0
+      ),
     setStatus: (scope, clientRequestId, status) =>
       serial(async () => {
         await db.runAsync(
@@ -250,6 +270,18 @@ export async function createPendingExpenseStore(db: SqlDatabase): Promise<Pendin
           clientRequestId
         );
       }),
+    pause: (scope, clientRequestId, reason, nextAt) =>
+      serial(async () => {
+        await db.runAsync(
+          `UPDATE expense_queue SET reason = CASE WHEN reason = 'conflict' THEN reason ELSE ? END,
+          next_at = MAX(next_at, ?) WHERE environment = ? AND account_id = ? AND client_request_id = ? AND status = 'prepared'`,
+          reason,
+          nextAt,
+          scope.environment,
+          scope.accountId,
+          clientRequestId
+        );
+      }),
     remove: (scope, clientRequestId, resolution = 'committed') =>
       serial(() =>
         transaction(db, async () => {
@@ -257,7 +289,7 @@ export async function createPendingExpenseStore(db: SqlDatabase): Promise<Pendin
           // so queued writes from the old editor cannot bring a submitted draft back.
           await db.runAsync(
             `UPDATE expense_draft SET status = ?, revision = revision + 1,
-        input = CASE WHEN ? = 'committed' THEN '{}' ELSE input END, client_request_id = NULL
+        input = CASE WHEN ? <> 'rejected' THEN '{}' ELSE input END, client_request_id = NULL
         WHERE environment = ? AND account_id = ? AND client_request_id = ? AND status = 'handed-off'`,
             resolution === 'rejected' ? 'editing' : 'discarded',
             resolution,
@@ -265,6 +297,22 @@ export async function createPendingExpenseStore(db: SqlDatabase): Promise<Pendin
             scope.accountId,
             clientRequestId
           );
+          if (resolution === 'committed')
+            await db.runAsync(
+              'DELETE FROM expense_queue WHERE environment = ? AND account_id = ? AND client_request_id = ?',
+              scope.environment,
+              scope.accountId,
+              clientRequestId
+            );
+          else
+            await db.runAsync(
+              'UPDATE expense_queue SET status = ?, reason = ?, next_at = 0 WHERE environment = ? AND account_id = ? AND client_request_id = ?',
+              resolution === 'conflict' ? 'resolved' : 'attention',
+              resolution === 'conflict' ? 'conflict' : 'rejected',
+              scope.environment,
+              scope.accountId,
+              clientRequestId
+            );
           await db.runAsync(
             `DELETE FROM pending_expense
           WHERE environment = ? AND account_id = ? AND client_request_id = ?`,

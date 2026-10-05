@@ -107,11 +107,11 @@ it('upgrades a D1 database without replacing its draft or pending tables', async
     input: newDraft(options, scope.accountId, '2026-10-05'),
   };
   await pending.drafts.start(raw);
-  await db.execAsync('DROP TABLE draft_trip; PRAGMA user_version = 2');
+  await db.execAsync('DROP TABLE draft_trip; DROP TABLE expense_queue; PRAGMA user_version = 2');
   const store = await createDraftTripStore(db);
   expect(await store.list(scope)).toEqual([]);
   expect(await (await createPendingExpenseStore(db)).drafts.load(scope, tripId)).toEqual(raw);
-  expect(await db.getFirstAsync('PRAGMA user_version')).toEqual({ user_version: 3 });
+  expect(await db.getFirstAsync('PRAGMA user_version')).toEqual({ user_version: 4 });
 });
 it('fails closed on malformed persisted options and exposes storage failures', async () => {
   const db = open();
@@ -124,7 +124,7 @@ it('fails closed on malformed persisted options and exposes storage failures', a
 });
 it('uses SQL parameters for names and rejects invalid remote options before writing', async () => {
   const store = await createDraftTripStore(open());
-  const name = "x'); DROP TABLE draft_trip; --";
+  const name = "x'); DROP TABLE draft_trip; DROP TABLE expense_queue; --";
   await store.rememberName(scope, tripId, name, 1);
   expect((await store.get(scope, tripId))?.name).toBe(name);
   await expect(
