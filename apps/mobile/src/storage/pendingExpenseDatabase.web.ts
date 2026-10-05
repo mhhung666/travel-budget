@@ -5,3 +5,7 @@ import type { PendingExpenseStore } from './pendingExpenses';
 export function openPendingExpenseStore(): Promise<PendingExpenseStore> {
   return Promise.reject(new ApiError('NATIVE_ONLY'));
 }
+
+export function openDraftTripStore(): Promise<import('./draftTrips').DraftTripStore> {
+  return Promise.reject(new ApiError('NATIVE_ONLY'));
+}

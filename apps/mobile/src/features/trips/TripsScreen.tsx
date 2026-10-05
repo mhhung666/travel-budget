@@ -59,6 +59,12 @@ export function TripsScreen() {
               onPress={() => void logout()}
             />
             {!!logoutError && <Notice>{errorMessage(logoutError, t)}</Notice>}
+            <Action
+              secondary
+              testID="local-drafts"
+              label={t.localDrafts}
+              onPress={() => router.push('/drafts')}
+            />
             {!online && <Notice>{t.offline}</Notice>}
             {query.isError && (
               <>

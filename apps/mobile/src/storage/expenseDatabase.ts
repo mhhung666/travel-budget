@@ -22,7 +22,7 @@ export async function transaction<T>(db: SqlDatabase, task: () => Promise<T>): P
   }
 }
 
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 /** Central, additive migration: the original C table and every pending request are retained. */
 export function migrateExpenseDatabase(db: SqlDatabase): Promise<void> {
   return databaseTask(db, async () => {
@@ -43,13 +43,22 @@ export function migrateExpenseDatabase(db: SqlDatabase): Promise<void> {
         CREATE INDEX IF NOT EXISTS pending_expense_by_trip
           ON pending_expense (environment, account_id, trip_id, created_at);
       `);
-      await db.execAsync(`
+      if (version < 2)
+        await db.execAsync(`
         CREATE TABLE expense_draft (
           environment TEXT NOT NULL, account_id TEXT NOT NULL, trip_id TEXT NOT NULL,
           draft_id TEXT NOT NULL, revision INTEGER NOT NULL, input TEXT NOT NULL,
           updated_at INTEGER NOT NULL,
           status TEXT NOT NULL CHECK (status IN ('editing', 'discarded', 'handed-off')),
           client_request_id TEXT,
+          PRIMARY KEY (environment, account_id, trip_id)
+        );
+      `);
+      await db.execAsync(`
+        CREATE TABLE draft_trip (
+          environment TEXT NOT NULL, account_id TEXT NOT NULL, trip_id TEXT NOT NULL,
+          name TEXT, options TEXT, updated_at INTEGER NOT NULL,
+          denied INTEGER NOT NULL DEFAULT 0,
           PRIMARY KEY (environment, account_id, trip_id)
         );
         PRAGMA user_version = ${SCHEMA_VERSION};

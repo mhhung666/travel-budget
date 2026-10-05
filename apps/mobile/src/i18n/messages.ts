@@ -1,4 +1,13 @@
 const zh = {
+  localDrafts: '本機支出草稿',
+  localDraftHint: '可建立或續填本機草稿，尚未入帳。成員選項可能已變更，連線後須重新預覽並確認。',
+  localSessionHint: '目前只使用此裝置保存的帳號身分，尚未驗證線上登入；無法讀取帳務或送出。',
+  restoreOnline: '恢復線上登入',
+  reviewOnline: '連線後重新預覽',
+  localUpdated: '選項最後更新',
+  localTripUnavailable: '此旅行尚無可用的本機選項，或存取已被拒絕。請連線登入並開啟旅行後再試。',
+  localSnapshotFailed: '旅行選項保存失敗，重啟後可能無法離線續填。請連線重新載入旅行。',
+  cachedTrip: '已保存的旅行',
   draftFound: '有未完成的支出草稿',
   draftResumeHint: '續填後請重新確認成員並預覽分攤；草稿尚未入帳。',
   draftRestore: '續填草稿',
@@ -146,7 +155,7 @@ const zh = {
   membersRequired: '請至少選擇一位分攤成員。',
   entryRejected: '伺服器拒絕了這筆內容，沒有儲存任何資料。請修正後重新預覽。',
   entryNotSent: '無法在這支手機上保存待確認紀錄，因此沒有送出。請稍後再試。',
-  offlineEntry: '目前離線，無法新增支出。連線後再試。',
+  offlineEntry: '目前離線，可保存本機草稿；連線後才能預覽與入帳。',
   pendingTitle: '尚未確認的支出',
   pendingHint:
     '送出後沒有收到伺服器的回應，這筆可能已經儲存。請先確認結果，不要重新輸入，以免重複記帳。',
@@ -167,6 +176,16 @@ export type Messages = Record<keyof typeof zh, string>;
 export const messages = {
   zh,
   'zh-CN': {
+    localDrafts: '本机支出草稿',
+    localDraftHint:
+      '可新建或继续填写本机草稿，尚未入账。成员选项可能已变更，联网后须重新预览并确认。',
+    localSessionHint: '目前仅使用此设备保存的账号身份，尚未验证在线登录；无法读取账务或提交。',
+    restoreOnline: '恢复在线登录',
+    reviewOnline: '联网后重新预览',
+    localUpdated: '选项最后更新',
+    localTripUnavailable: '此旅行尚无可用的本机选项，或访问已被拒绝。请联网登录并打开旅行后重试。',
+    localSnapshotFailed: '旅行选项保存失败，重启后可能无法离线填写。请联网重新加载旅行。',
+    cachedTrip: '已保存的旅行',
     draftFound: '有未完成的支出草稿',
     draftResumeHint: '继续填写后请重新确认成员并预览分摊；草稿尚未入账。',
     draftRestore: '继续填写草稿',
@@ -314,7 +333,7 @@ export const messages = {
     membersRequired: '请至少选择一位分摊成员。',
     entryRejected: '服务器拒绝了这笔内容，没有保存任何数据。请修正后重新预览。',
     entryNotSent: '无法在这部手机上保存待确认记录，因此没有发送。请稍后再试。',
-    offlineEntry: '目前离线，无法新增支出。联网后再试。',
+    offlineEntry: '目前离线，可保存本机草稿；联网后才能预览与入账。',
     pendingTitle: '尚未确认的支出',
     pendingHint:
       '发送后没有收到服务器的响应，这笔可能已经保存。请先确认结果，不要重新输入，以免重复记账。',
@@ -330,6 +349,19 @@ export const messages = {
     done: '完成',
   },
   en: {
+    localDrafts: 'Local expense drafts',
+    localDraftHint:
+      'Create or continue a draft on this device. Nothing is recorded in the ledger. Members may have changed; preview and confirm again online.',
+    localSessionHint:
+      'Using the account identity saved on this device. Online sign-in has not been verified; ledger access and submission are unavailable.',
+    restoreOnline: 'Restore online sign-in',
+    reviewOnline: 'Preview again online',
+    localUpdated: 'Options last updated',
+    localTripUnavailable:
+      'No usable local options for this trip, or access was denied. Sign in online and open the trip, then try again.',
+    localSnapshotFailed:
+      'Trip options could not be saved. Offline editing may be unavailable after restart. Reload the trip online.',
+    cachedTrip: 'Saved trip',
     draftFound: 'An unfinished expense draft',
     draftResumeHint:
       'Review members and get a new split preview before confirming. This draft is not recorded.',
@@ -488,7 +520,8 @@ export const messages = {
       'The server rejected this expense and nothing was saved. Fix it and preview again.',
     entryNotSent:
       'This phone could not keep a record of the request, so it was not sent. Try again later.',
-    offlineEntry: 'You are offline, so expenses cannot be added. Try again when connected.',
+    offlineEntry:
+      'You are offline. Save a local draft now; preview and recording require a connection.',
     pendingTitle: 'Unconfirmed expense',
     pendingHint:
       'No answer came back from the server, so this expense may already be saved. Check the result first and do not enter it again, or it could be recorded twice.',
@@ -508,6 +541,19 @@ export const messages = {
     done: 'Done',
   },
   jp: {
+    localDrafts: '端末の支出下書き',
+    localDraftHint:
+      '端末で下書きを作成・再開できます。まだ記帳されていません。メンバーが変わっている可能性があるため、接続後に再プレビューして確認してください。',
+    localSessionHint:
+      '端末に保存されたアカウント情報を使用しています。オンライン認証は未確認のため、帳簿の閲覧や送信はできません。',
+    restoreOnline: 'オンライン認証を再開',
+    reviewOnline: '接続後に再プレビュー',
+    localUpdated: '選択肢の最終更新',
+    localTripUnavailable:
+      'この旅行の選択肢が端末にないか、アクセスが拒否されています。オンラインでログインし、旅行を開いてから再試行してください。',
+    localSnapshotFailed:
+      '旅行の選択肢を保存できませんでした。再起動後はオフラインで編集できない場合があります。接続して旅行を再読込してください。',
+    cachedTrip: '保存済みの旅行',
     draftFound: '未完成の支出下書きがあります',
     draftResumeHint: 'メンバーを確認して分担を再プレビューしてください。まだ記帳されていません。',
     draftRestore: '下書きを再開',
@@ -668,7 +714,8 @@ export const messages = {
       'サーバーがこの内容を受け付けず、何も保存されていません。修正してからもう一度プレビューしてください。',
     entryNotSent:
       'この端末に確認用の記録を保存できなかったため、送信しませんでした。しばらくしてから再試行してください。',
-    offlineEntry: 'オフラインのため支出を追加できません。接続してから再試行してください。',
+    offlineEntry:
+      'オフラインです。下書きを端末に保存できますが、プレビューと記帳には接続が必要です。',
     pendingTitle: '未確認の支出',
     pendingHint:
       '送信後にサーバーから応答がなく、この支出は保存済みの可能性があります。二重に記録しないよう、入力し直す前に結果を確認してください。',

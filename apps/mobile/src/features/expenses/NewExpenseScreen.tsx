@@ -10,6 +10,7 @@ import {
   View,
   type TextInput,
 } from 'react-native';
+import { router } from 'expo-router';
 import type { ExpenseOptions } from '@/api/contracts';
 import {
   Action,
@@ -198,6 +199,13 @@ function ScopedNewExpenseScreen({ tripId }: { tripId: string }) {
           </>
         )}
         {!online && !saved && <Notice>{t.offlineEntry}</Notice>}
+        {!online && !saved && !denied && (
+          <Action
+            secondary
+            label={t.localDrafts}
+            onPress={() => router.replace({ pathname: '/drafts/[id]', params: { id: tripId } })}
+          />
+        )}
         {banner === 'rejected' && !saved && <Notice>{t.entryRejected}</Notice>}
         {banner === 'not-sent' && !saved && <Notice>{t.entryNotSent}</Notice>}
         {body}
@@ -208,6 +216,7 @@ function ScopedNewExpenseScreen({ tripId }: { tripId: string }) {
 
 type FormProps = {
   tripId: string;
+  localOnly?: boolean;
   options: ExpenseOptions;
   refreshOptions: () => Promise<ExpenseOptions>;
   onSubmitting: (submitting: boolean) => void | Promise<void>;
@@ -216,6 +225,32 @@ type FormProps = {
   onUnconfirmed: (clientRequestId: string, reason: UnconfirmedReason) => void;
   onDenied: (error: unknown) => void;
 };
+
+/** Reuses the raw-input editor, with all preview/submit paths disabled in local mode. */
+export function LocalDraftForm({
+  scope,
+  tripId,
+  options,
+}: {
+  scope: PendingScope;
+  tripId: string;
+  options: ExpenseOptions;
+}) {
+  return (
+    <DraftForm
+      scope={scope}
+      tripId={tripId}
+      options={options}
+      localOnly
+      refreshOptions={() => Promise.reject(new Error('LOCAL_ONLY'))}
+      onSubmitting={() => {}}
+      onSaved={() => {}}
+      onBanner={() => {}}
+      onUnconfirmed={() => {}}
+      onDenied={() => {}}
+    />
+  );
+}
 
 function DraftForm(props: FormProps & { scope: PendingScope }) {
   const t = useMessages();
@@ -275,6 +310,7 @@ function DraftForm(props: FormProps & { scope: PendingScope }) {
 
 function EntryForm({
   tripId,
+  localOnly = false,
   options,
   refreshOptions,
   onSubmitting,
@@ -330,11 +366,28 @@ function EntryForm({
   const mine = (id: string) => (id === user?.id ? ` · ${t.you}` : '');
 
   useEffect(() => () => inFlight.current?.abort(), []);
+  useEffect(() => {
+    // Reconnection must never unlock a preview made before the connection was lost.
+    if (!online || localOnly) {
+      inFlight.current?.abort();
+      inFlight.current = null;
+      dispatch({ type: 'clear', ticket: ++tickets.current });
+    }
+  }, [online, localOnly]);
 
   const runPreview = async () => {
     setAttempted(true);
     onBanner(null);
-    if (!request || !scope || issues.length > 0 || submitting) return;
+    if (
+      localOnly ||
+      manager.getSnapshot().status !== 'signedIn' ||
+      !online ||
+      !request ||
+      !scope ||
+      issues.length > 0 ||
+      submitting
+    )
+      return;
     inFlight.current?.abort();
     const controller = (inFlight.current = new AbortController());
     const ticket = ++tickets.current;
@@ -371,7 +424,15 @@ function EntryForm({
   };
 
   const confirm = async () => {
-    if (sending.current || !current || !scope) return;
+    if (
+      localOnly ||
+      manager.getSnapshot().status !== 'signedIn' ||
+      !online ||
+      sending.current ||
+      !current ||
+      !scope
+    )
+      return;
     sending.current = true;
     setSubmitting(true);
     onSubmitting(true);
@@ -578,7 +639,7 @@ function EntryForm({
         secondary
         label={previewing ? t.previewing : t.previewSplit}
         busy={previewing}
-        disabled={!online || locked}
+        disabled={localOnly || !online || locked}
         onPress={() => void runPreview()}
       />
       {!!previewError && <Notice>{errorMessage(previewError, t)}</Notice>}
@@ -608,7 +669,9 @@ function EntryForm({
         testID="new-expense-confirm"
         label={submitting ? t.saving : t.confirmSave}
         busy={submitting}
-        disabled={!current || !online || locked || saveStatus !== 'saved' || issues.length > 0}
+        disabled={
+          localOnly || !current || !online || locked || saveStatus !== 'saved' || issues.length > 0
+        }
         onPress={() => void confirm()}
       />
       <Action

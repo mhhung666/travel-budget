@@ -1,7 +1,30 @@
 import * as SQLite from 'expo-sqlite';
-import { createPendingExpenseStore, type PendingExpenseStore } from './pendingExpenses';
+import {
+  createPendingExpenseStore,
+  type PendingExpenseStore,
+  type SqlDatabase,
+} from './pendingExpenses';
+import { createDraftTripStore, type DraftTripStore } from './draftTrips';
 
 const DATABASE = 'travel-budget-pending.db';
+let database: Promise<SqlDatabase> | null = null;
+function openDatabase() {
+  database ??= SQLite.openDatabaseAsync(DATABASE).catch((error: unknown) => {
+    database = null;
+    throw error;
+  });
+  return database;
+}
+let catalog: Promise<DraftTripStore> | null = null;
+export function openDraftTripStore(): Promise<DraftTripStore> {
+  catalog ??= openDatabase()
+    .then(createDraftTripStore)
+    .catch((error: unknown) => {
+      catalog = null;
+      throw error;
+    });
+  return catalog;
+}
 let opening: Promise<PendingExpenseStore> | null = null;
 
 /**
@@ -10,7 +33,7 @@ let opening: Promise<PendingExpenseStore> | null = null;
  * reached the server. The web preview has no sign-in and bundles `.web.ts` instead.
  */
 export function openPendingExpenseStore(): Promise<PendingExpenseStore> {
-  opening ??= SQLite.openDatabaseAsync(DATABASE)
+  opening ??= openDatabase()
     .then(createPendingExpenseStore)
     .catch((error: unknown) => {
       opening = null;

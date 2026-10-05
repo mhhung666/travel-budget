@@ -5,10 +5,12 @@ import { errorMessage, isAccessDenied } from '@/features/auth/errorMessage';
 import { money } from '@/i18n/format';
 import { useMessages } from '@/i18n/useMessages';
 import { useOnline } from '@/providers/useOnline';
+import { useExpenseOptions } from '@/features/expenses/entryQueries';
 import { useTrip } from './queries';
 
 export function TripScreen({ id }: { id: string }) {
   const query = useTrip(id);
+  useExpenseOptions(id);
   const trip = query.data;
   const t = useMessages();
   const online = useOnline();

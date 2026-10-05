@@ -9,6 +9,7 @@ import { useMessages } from '@/i18n/useMessages';
 export function EntryScreen() {
   const auth = useAuth();
   const t = useMessages();
+  if (auth.status === 'local') return <Redirect href="/drafts" />;
   if (auth.status === 'signedIn') return <Redirect href="/trips" />;
   if (auth.status === 'signedOut') return <LoginScreen />;
   return (

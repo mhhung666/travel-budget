@@ -9,6 +9,8 @@ import {
 import { AppState } from 'react-native';
 import { onlineManager, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Crypto from 'expo-crypto';
+import { ApiError } from '@/api/client';
+import { useDraftCatalog } from '@/features/localDrafts/provider';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { openPendingExpenseStore } from '@/storage/pendingExpenseDatabase';
 import type { PendingScope } from '@/storage/pendingExpenses';
@@ -24,12 +26,31 @@ const EntryContext = createContext<ExpenseEntry | null>(null);
 export function ExpenseEntryProvider({ children }: PropsWithChildren) {
   const client = useQueryClient();
   const { manager } = useAuth();
+  const { catalog } = useDraftCatalog();
   const [entry] = useState(
     () =>
       new ExpenseEntry({
         store: openPendingExpenseStore,
-        request: (userId, path, schema, options) =>
-          manager.requestAs(userId, path, schema, options),
+        request: async (userId, path, schema, options) => {
+          try {
+            return await manager.requestAs(userId, path, schema, options);
+          } catch (error) {
+            const match = /^\/trips\/([^/]+)\//.exec(path);
+            if (
+              match &&
+              error instanceof ApiError &&
+              error.source === 'request' &&
+              [403, 404].includes(error.status)
+            )
+              await catalog
+                .deny(
+                  { environment: manager.api.baseUrl, accountId: userId },
+                  decodeURIComponent(match[1])
+                )
+                .catch(() => undefined);
+            throw error;
+          }
+        },
         newId: () => Crypto.randomUUID(),
         onCommitted: (scope, tripId) =>
           refreshTripData(client, scope.environment, scope.accountId, tripId),
@@ -75,8 +96,9 @@ export function usePendingExpenses(tripId: string) {
  */
 export function usePendingRecovery() {
   const { entry, scope } = useExpenseEntry();
+  const { status } = useAuth();
   useEffect(() => {
-    if (!scope) return;
+    if (!scope || status !== 'signedIn') return;
     const run = () => {
       if (onlineManager.isOnline()) void entry.recover(scope);
     };
@@ -91,5 +113,5 @@ export function usePendingRecovery() {
       foreground.remove();
       connectivity();
     };
-  }, [entry, scope]);
+  }, [entry, scope, status]);
 }

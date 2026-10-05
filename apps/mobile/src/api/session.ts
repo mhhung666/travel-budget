@@ -4,11 +4,12 @@ import { sessionSchema, type Session, type User } from './contracts';
 
 export interface CredentialStore {
   get(): Promise<string | null>;
-  set(token: string): Promise<void>;
+  set(token: string, user?: User): Promise<void>;
+  getLocalUser?(): Promise<User | null>;
   clear(): Promise<void>;
 }
 export type AuthState = {
-  status: 'loading' | 'signedOut' | 'signedIn' | 'error';
+  status: 'loading' | 'signedOut' | 'signedIn' | 'local' | 'error';
   user: User | null;
   error?: unknown;
 };
@@ -50,7 +51,9 @@ export class SessionManager {
     if (revision !== this.revision) throw new ApiError('CANCELLED');
     try {
       await this.storage(() =>
-        revision === this.revision ? this.store.set(session.refreshToken) : Promise.resolve()
+        revision === this.revision
+          ? this.store.set(session.refreshToken, session.user)
+          : Promise.resolve()
       );
     } catch {
       throw new ApiError('STORAGE');
@@ -86,7 +89,8 @@ export class SessionManager {
     if (this.restoreFlight) return this.restoreFlight;
     const revision = this.revision;
     this.restoreFlight = (async () => {
-      this.publish({ status: 'loading', user: null });
+      if (this.state.status !== 'local') this.publish({ status: 'loading', user: null });
+      let localUser: User | null = null;
       try {
         const token = await this.storage(() => this.store.get());
         if (revision !== this.revision) return;
@@ -94,10 +98,16 @@ export class SessionManager {
           this.publish({ status: 'signedOut', user: null });
           return;
         }
-        await this.refresh(token);
+        localUser = await this.storage(() => this.store.getLocalUser?.() ?? Promise.resolve(null));
+        if (revision !== this.revision) return;
+        await this.refresh(token, localUser?.id);
       } catch (error) {
         if (revision === this.revision && this.state.status !== 'signedOut')
-          this.publish({ status: 'error', user: null, error });
+          this.publish(
+            localUser && error instanceof ApiError && ['NETWORK', 'TIMEOUT'].includes(error.code)
+              ? { status: 'local', user: localUser, error }
+              : { status: 'error', user: null, error }
+          );
       } finally {
         this.restoreFlight = null;
       }
@@ -107,6 +117,7 @@ export class SessionManager {
   async login(username: string, password: string) {
     const revision = ++this.revision;
     this.session = null;
+    this.publish({ status: 'signedOut', user: null });
     await this.clearPrivateData();
     const session = await this.api.request('/auth/login', sessionSchema, {
       method: 'POST',
@@ -120,12 +131,12 @@ export class SessionManager {
       throw error instanceof ApiError ? error : new ApiError('STORAGE');
     }
   }
-  private refresh(token = this.session?.refreshToken): Promise<void> {
+  private refresh(token = this.session?.refreshToken, localAccountId?: string): Promise<void> {
     if (this.refreshFlight && this.refreshRevision === this.revision) return this.refreshFlight;
     if (!token) return Promise.reject(new ApiError('UNAUTHORIZED', 401));
     const revision = this.revision;
     this.refreshRevision = revision;
-    const expectedUser = this.session?.user.id;
+    const expectedUser = this.session?.user.id ?? localAccountId;
     this.refreshFlight = (async () => {
       try {
         let session: Session;

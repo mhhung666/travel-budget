@@ -183,7 +183,7 @@ describe('migration and atomic handoff', () => {
     const db = open();
     const old = await createPendingExpenseStore(db);
     await old.insert(pending());
-    await db.execAsync('DROP TABLE expense_draft; PRAGMA user_version = 1;');
+    await db.execAsync('DROP TABLE expense_draft; DROP TABLE draft_trip; PRAGMA user_version = 1;');
     const upgraded = await createPendingExpenseStore(db);
     expect(await upgraded.list(scope)).toEqual([pending()]);
     await upgraded.drafts.start(draft({ tripId: hex(200) }));

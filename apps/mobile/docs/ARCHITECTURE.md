@@ -28,10 +28,11 @@ src/
     trips/             旅行列表、摘要與查詢 hooks
     expenses/          支出清單、明細、游標查詢與列資料轉換；新增支出：輸入驗證、草稿與預覽狀態、
                        送出與不確定結果恢復引擎、待確認畫面
+    localDrafts/       受限本機入口、最小旅行快照與持久化撤權
     settlement/        結算畫面、查詢與本人視角排序
   providers/           Query、SafeArea、Auth 及網路／前景同步
   api/                 HTTP client、runtime DTO 驗證、session manager
-  storage/             環境隔離的 SecureStore refresh token adapter；草稿與待確認支出的 SQLite 紀錄
+  storage/             環境隔離的 SecureStore 憑證／本機身分；草稿、旅行快照與待確認支出的 SQLite 紀錄
   components/          共用按鈕、頁面、提示與指標
   i18n/                四語訊息與裝置語系 adapter
   theme/               語意色彩與間距 tokens
@@ -56,7 +57,8 @@ assets/                目前保留 Expo 模板圖示
 | 登入憑證     | access token 記憶體；refresh token SecureStore        | 已實作             |
 | 待確認支出   | SQLite 紀錄（`expo-sqlite`），獨立於可清除的快取      | 已實作（階段 C）   |
 | 支出草稿     | 原始表單、修訂保存與原子交接；不保存預覽              | 已實作（D1）       |
-| 待送支出     | 離線入口、待送佇列與前景同步；OS 背景排程另排         | 階段 4（D2–D3）    |
+| 離線草稿入口 | 最小旅行／成員選項快照、受限本機身分、冷啟動續填      | 已實作（D2）       |
+| 待送支出     | 待送佇列與前景同步；OS 背景排程另排                   | 階段 4（D3）       |
 | 原生生命週期 | AppState／網路 adapter 接 Query focus／online manager | 已實作             |
 | 檔案         | App 私有目錄、穩定 upload ID、begin／finish 協議      | 相簿與附件階段     |
 | 通知         | 原生裝置 token 與後端裝置註冊                         | 核心流程穩定後     |
@@ -97,7 +99,15 @@ Web 預覽沒有登入也沒有資料庫，打包時改用 `pendingExpenseDataba
 
 資料庫仍為 `travel-budget-pending.db`；`storage/expenseDatabase.ts` 集中管理交易與版本升級，新增草稿表但保留原 C pending 表。共用連線的全部讀寫序列執行，C 的前景查詢不會混進 D1 的交易。草稿確認時 `PendingExpenseStore.insert(record, draftRef)` 在單一交易核對草稿 UUID／修訂、建立 pending 的凍結內容，再標記來源為 `handed-off`。交易失敗不送出；提交後原草稿保持鎖定，即使當機或清理失敗也不能用新 UUID 重送。明確拒絕時 `remove(..., 'rejected')` 同時恢復原始輸入並移除 pending；成功時同時清空草稿輸入與移除 pending。結果不明仍由 C 的原請求負責。
 
-新增入口按環境／帳號／旅行重新掛載，避免前一帳號的 UI 狀態殘留。每次進入先重新以 `requestAs` 讀取旅行選項，成功後才顯示本機草稿；已知撤權持續隱藏，直到成功讀取。續填只還原原始輸入，任何修改取消舊預覽。預覽前再刷新成員／分類，失效選項需明確修正，取得新的後端分攤並經使用者確認才交給 C。已授權的開啟表單離線時仍可存檔；離線冷啟動留給 D2。
+新增入口按環境／帳號／旅行重新掛載，避免前一帳號的 UI 狀態殘留。每次進入先重新以 `requestAs` 讀取旅行選項，成功後才顯示本機草稿；已知撤權持續隱藏，直到成功讀取。續填只還原原始輸入，任何修改取消舊預覽。預覽前再刷新成員／分類，失效選項需明確修正，取得新的後端分攤並經使用者確認才交給 C。已授權的開啟表單離線時仍可存檔；斷線取消舊預覽，恢復連線後須重取。受限離線入口見 D2。
+
+## 受限離線入口（D2）
+
+`SessionManager` 的 `local` 狀態只有本機帳號身分，沒有 session／access token。SecureStore 將 refresh token 與線上確認過的 user 原子保存在同一環境 slot；舊格式 token 仍可線上更新，但不能推測本機帳號。只有 restore 的 NETWORK／TIMEOUT 可降入本機模式，401 清除身分，安全儲存失敗與其他伺服器錯誤仍顯示登入錯誤。`(member)` 路由只接受 signedIn；`(local)` 的 `/drafts` 與 `/drafts/[id]` 接受 signedIn／local。本機表單共用 D1 editor，但 UI 與 handler 都禁止預覽／提交，`requestAs` 仍須有效 session。使用者恢復登入後明確前往線上新增入口；不因網路恢復自動送出。C 的自動結果查詢也只在 signedIn 執行。
+
+資料庫版本 3 新增 `draft_trip`，保留 D1／C 表與原始輸入。只保存旅行名稱、成員／分類選項、更新時間與拒絕標記，不保存帳務數字或整份 Query cache。`DraftCatalog` 觀察 Query 的實際成功讀取並以共用 SQLite 序列保存；手動寫入 Query cache 不算授權。旅行摘要預載成員選項，只有名稱的快照可顯示入口但不能建立草稿。快照保存失敗不阻擋既有線上帳務，提供本機保存失敗提示。
+
+旅行層級的 403／404（單筆支出不存在除外）及預覽拒絕同步阻擋本機顯示，再保存清空名稱／選項的 tombstone。拒絕持久化失敗仍保持本次執行隱藏，讀列表前重試；只有拒絕標記成功落盤才承諾跨重啟保護。只有在最近一次撤權後開始的成員選項請求成功讀取與保存，才解除拒絕。`DraftCatalog` 在 Query fetch 開始時記錄環境／帳號／旅行的撤權世代；開始時間未被觀察或跨越後續撤權的成功回應不寫入快照，較舊的成功保存也不能清除之後的拒絕。原始草稿不被刪除，權限恢復後可重新確認。所有本機查詢使用帳號／環境 key、networkMode always，換帳號重新掛載 editor，Query 清除不刪除草稿／快照／pending。
 
 ## 共用與平台界線
 
