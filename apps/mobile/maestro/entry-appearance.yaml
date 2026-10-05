@@ -17,6 +17,32 @@ name: Add an expense under the device's current text size and appearance
     file: flows/entry-start.yaml
     env:
       USERNAME: mobile-writer
+# Half the locale matrix starts from the expense list. Returning after saving must find the
+# existing list, while a form opened from the summary must reach a new list.
+- runFlow:
+    when:
+      true: ${MAESTRO_ENTRY_LIST_START === 'true'}
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: new-expense-back
+          direction: UP
+          timeout: 30000
+      - tapOn:
+          id: new-expense-back
+      - scrollUntilVisible:
+          element:
+            id: trip-expenses
+          direction: UP
+          timeout: 30000
+      - tapOn:
+          id: trip-expenses
+      - scrollUntilVisible:
+          element:
+            id: expenses-add
+          timeout: 30000
+      - tapOn:
+          id: expenses-add
 - takeScreenshot: appearance-form
 - scrollUntilVisible:
     element:
@@ -71,6 +97,34 @@ name: Add an expense under the device's current text size and appearance
       id: new-expense-view
     timeout: 30000
 - takeScreenshot: appearance-saved-actions
+- scrollUntilVisible:
+    element:
+      id: new-expense-another
+    timeout: 30000
+- takeScreenshot: appearance-saved-another
+- scrollUntilVisible:
+    element:
+      id: new-expense-done
+    timeout: 30000
+- takeScreenshot: appearance-saved-done
+- tapOn:
+    id: new-expense-done
+- extendedWaitUntil:
+    visible:
+      id: expenses-list
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      id: expenses-back
+    direction: UP
+    timeout: 30000
+- tapOn:
+    id: expenses-back
+- scrollUntilVisible:
+    element:
+      id: trip-expenses
+    direction: UP
+    timeout: 30000
 - runFlow:
     file: flows/entry-expect.yaml
     env:

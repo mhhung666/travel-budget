@@ -9,8 +9,9 @@ import { parseArgs } from 'node:util';
 import { setTimeout as delay } from 'node:timers/promises';
 import { startNetworkProxy } from './network-proxy.mjs';
 import { createAuthTrace, verifyNaturalRefresh } from './auth-trace.mjs';
-import { entryFlows, verifyEntryTraffic } from './entry-trace.mjs';
+import { entryFlows, verifyEntryTraffic, verifyEntryDatabase } from './entry-trace.mjs';
 import { configureNativeLocale } from './native-locale.mjs';
+import { configureNativeDisplay } from './native-display.mjs';
 // Node 24 can load this pure TypeScript table without changing the Expo package module type.
 const { messages } = createRequire(import.meta.url)('../src/i18n/messages.ts');
 
@@ -27,6 +28,8 @@ const { values } = parseArgs({
     flows: { type: 'string' },
     'locale-flows': { type: 'string' },
     'flow-timeout': { type: 'string', default: '20' },
+    appearance: { type: 'string' },
+    'text-size': { type: 'string' },
   },
 });
 assert(['ios', 'android'].includes(values.platform), 'Use --platform ios|android');
@@ -110,6 +113,7 @@ function localizedEnv(locale) {
   const t = messages[locale];
   return {
     MAESTRO_SELECT_LATIN_KEYBOARD: String(locale !== 'en'),
+    MAESTRO_ENTRY_LIST_START: String(['zh', 'jp'].includes(locale)),
     MAESTRO_TITLE: t.title,
     MAESTRO_SUBTITLE: t.subtitle,
     MAESTRO_REQUIRED: t.required,
@@ -175,6 +179,8 @@ const redact = (line) => {
 };
 let child;
 let proxy;
+let restoreDisplay;
+const entryResults = [];
 const authTrace = createAuthTrace();
 const interrupted = new AbortController();
 const stop = () => {
@@ -236,8 +242,36 @@ async function runFlow(flow, artifactName = flow) {
     clearTimeout(timer);
   }
 }
+async function runEntryFlow(flow, artifactName = flow, locale = values.locale) {
+  const from = authTrace.events.length;
+  const disconnects = proxy?.counts.disconnect ?? 0;
+  const result = { flow, artifactName, locale, passed: false };
+  entryResults.push(result);
+  await runFlow(flow, artifactName);
+  if (proxy) {
+    verifyEntryTraffic(flow, authTrace.events.slice(from), {
+      writer: fixture.writerMembers.writer,
+      peer: fixture.writerMembers.peer,
+      counts: { ...proxy.counts, disconnect: proxy.counts.disconnect - disconnects },
+    });
+  }
+  const response = await fetch(`${fixture.controlUrl}/entry-state`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${fixture.controlToken}` },
+    signal: AbortSignal.any([interrupted.signal, AbortSignal.timeout(5000)]),
+  });
+  assert.equal(response.status, 200, 'Unable to verify stored expenses');
+  result.database = await response.json();
+  verifyEntryDatabase(flow, result.database);
+  result.passed = true;
+  console.log(`Verified database${proxy ? ' and backend traffic' : ''} for ${artifactName}.`);
+}
 try {
-  if (['network', 'expiry', 'entry'].includes(values.suite)) {
+  restoreDisplay = configureNativeDisplay(values.platform, values.device, {
+    appearance: values.appearance,
+    textSize: values['text-size'],
+  });
+  if (['network', 'expiry', 'entry'].includes(values.suite) || values['network-port']) {
     const networkPort = Number(values['network-port']);
     assert(
       Number.isInteger(networkPort) && networkPort > 0 && networkPort < 65536,
@@ -258,8 +292,8 @@ try {
     ];
     for (const flow of localeFlows)
       assert(
-        ['auth-trips', 'ledger', 'entry-create'].includes(flow),
-        'Use --locale-flows auth-trips,ledger,entry-create (or a subset)'
+        ['auth-trips', 'ledger', 'entry-create', 'entry-appearance'].includes(flow),
+        'Use --locale-flows auth-trips,ledger,entry-create,entry-appearance (or a subset)'
       );
     for (const locale of values.locales.split(',')) {
       assert(Object.hasOwn(messages, locale), 'Use --locales en,zh,zh-CN,jp (or a subset)');
@@ -274,11 +308,11 @@ try {
           signal: AbortSignal.any([interrupted.signal, AbortSignal.timeout(5000)]),
         });
         assert.equal(reset.status, 200, 'Unable to reset fixture login limits');
-        for (const flow of localeFlows)
-          await runFlow(
-            flow,
-            flow === 'auth-trips' ? `locale-${locale}` : `locale-${locale}-${flow}`
-          );
+        for (const flow of localeFlows) {
+          const name = flow === 'auth-trips' ? `locale-${locale}` : `locale-${locale}-${flow}`;
+          if (flow.startsWith('entry-')) await runEntryFlow(flow, name, locale);
+          else await runFlow(flow, name);
+        }
       } finally {
         restoreLocale();
       }
@@ -287,22 +321,7 @@ try {
     const wanted = values.flows ? values.flows.split(',') : entryFlows;
     for (const flow of wanted)
       assert(entryFlows.includes(flow), `Unknown entry flow ${flow}; use ${entryFlows.join(', ')}`);
-    const context = {
-      writer: fixture.writerMembers.writer,
-      peer: fixture.writerMembers.peer,
-      counts: proxy.counts,
-    };
-    for (const flow of wanted) {
-      const from = authTrace.events.length;
-      const disconnects = proxy.counts.disconnect;
-      await runFlow(flow);
-      // The proxy's record of what reached the backend must agree with the scenario's promise.
-      verifyEntryTraffic(flow, authTrace.events.slice(from), {
-        ...context,
-        counts: { ...proxy.counts, disconnect: proxy.counts.disconnect - disconnects },
-      });
-      console.log(`Verified backend traffic for ${flow}.`);
-    }
+    for (const flow of wanted) await runEntryFlow(flow);
   } else if (values.suite === 'expiry') {
     await runFlow('expiry-start');
     const original = authTrace.events.findLast((e) => e.status === 200 && e.expiresAt);
@@ -352,8 +371,8 @@ try {
   } else {
     await runFlow(values.suite === 'keyboard' ? 'appearance' : values.suite);
     // The add-expense form with the iOS software keyboard: its numeric pad has an accessory Done.
-    if (values.suite === 'keyboard') await runFlow('entry-create', 'keyboard-entry');
-    if (proxy) {
+    if (values.suite === 'keyboard') await runEntryFlow('entry-create', 'keyboard-entry');
+    if (values.suite === 'network') {
       assert(proxy.counts.forwarded > 0, 'App did not connect through the network proxy');
       assert(proxy.counts.disconnect >= 2, 'Missing logout/restore disconnection requests');
       assert(proxy.counts.timeout > 0, 'Missing summary timeout request');
@@ -364,7 +383,7 @@ try {
   process.exitCode = 1;
 } finally {
   try {
-    if (values.suite === 'expiry') {
+    if (proxy) {
       await writeFile(
         join(artifacts, 'auth-trace.json'),
         JSON.stringify(authTrace.events, null, 2),
@@ -373,9 +392,30 @@ try {
         }
       );
     }
+    if (usesWriterTrip) {
+      await writeFile(
+        join(artifacts, 'entry-results.json'),
+        JSON.stringify(
+          {
+            platform: values.platform,
+            locale: values.locale,
+            appearance: values.appearance,
+            textSize: values['text-size'],
+            flows: entryResults,
+          },
+          null,
+          2
+        ),
+        { mode: 0o600 }
+      );
+    }
   } finally {
-    await proxy?.close();
-    process.removeListener('SIGINT', stop);
-    process.removeListener('SIGTERM', stop);
+    try {
+      await proxy?.close();
+    } finally {
+      restoreDisplay?.();
+      process.removeListener('SIGINT', stop);
+      process.removeListener('SIGTERM', stop);
+    }
   }
 }

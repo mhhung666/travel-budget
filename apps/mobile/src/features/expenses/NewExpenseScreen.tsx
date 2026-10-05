@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useRef, useState } from 'react';
+import { useEffect, useId, useReducer, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   InputAccessoryView,
@@ -58,7 +58,6 @@ import { SavedExpense } from './SavedExpense';
 
 type Saved = Extract<EntryOutcome, { kind: 'saved' }>;
 type Banner = 'rejected' | 'not-sent' | null;
-const AMOUNT_ACCESSORY = 'new-expense-amount-accessory';
 
 /**
  * Add a TWD expense split equally between chosen members: fill in, preview the backend's split,
@@ -214,6 +213,8 @@ function EntryForm({
   const inFlight = useRef<AbortController | null>(null);
   const sending = useRef(false);
   const amountInput = useRef<TextInput>(null);
+  // Reopened forms must attach their own accessory rather than reuse a recycled native view's ID.
+  const amountAccessoryId = `new-expense-amount-${useId()}`;
 
   const issues = validateDraft(draft, options);
   const request = previewInputOf(draft, options);
@@ -329,12 +330,12 @@ function EntryForm({
         keyboardType="decimal-pad"
         returnKeyType="done"
         onSubmitEditing={Keyboard.dismiss}
-        inputAccessoryViewID={AMOUNT_ACCESSORY}
+        inputAccessoryViewID={amountAccessoryId}
         autoCorrect={false}
         error={message('amount')}
       />
       {Platform.OS === 'ios' && (
-        <InputAccessoryView nativeID={AMOUNT_ACCESSORY}>
+        <InputAccessoryView nativeID={amountAccessoryId}>
           <View
             style={{
               alignItems: 'flex-end',
@@ -486,7 +487,11 @@ function EntryForm({
 function FieldError({ message }: { message: string }) {
   const p = usePalette();
   return (
-    <Text accessibilityRole="alert" style={{ color: p.danger, fontSize: 16, lineHeight: 25 }}>
+    <Text
+      accessibilityRole="alert"
+      accessibilityLiveRegion="polite"
+      style={{ color: p.danger, fontSize: 16, lineHeight: 25 }}
+    >
       {message}
     </Text>
   );

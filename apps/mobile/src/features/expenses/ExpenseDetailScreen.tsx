@@ -1,6 +1,6 @@
 import { ActivityIndicator } from 'react-native';
+import { router } from 'expo-router';
 import { Action, Card, Copy, DetailRow, Notice, Page, Section, Title } from '@/components/ui';
-import { goBack } from '@/components/navigation';
 import { errorMessage, isAccessDenied } from '@/features/auth/errorMessage';
 import { formatCurrency, formatRate, money } from '@/i18n/format';
 import { useMessages } from '@/i18n/useMessages';
@@ -21,7 +21,9 @@ export function ExpenseDetailScreen({ tripId, expenseId }: { tripId: string; exp
         testID="expense-back"
         secondary
         label={t.backToExpenses}
-        onPress={() => goBack({ pathname: '/trips/[id]/expenses', params: { id: tripId } })}
+        onPress={() =>
+          router.dismissTo({ pathname: '/trips/[id]/expenses', params: { id: tripId } })
+        }
       />
       {!online && <Notice>{t.offline}</Notice>}
       {query.isPending && online && <ActivityIndicator accessibilityLabel={t.loading} />}

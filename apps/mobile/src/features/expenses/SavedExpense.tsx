@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { Action, Card, Copy, DetailRow, Notice, Section, Title } from '@/components/ui';
-import { goBack } from '@/components/navigation';
 import { money } from '@/i18n/format';
 import { useMessages } from '@/i18n/useMessages';
 import { useOnline } from '@/providers/useOnline';
@@ -108,7 +107,9 @@ export function SavedExpense({
         testID="new-expense-done"
         secondary
         label={t.backToExpenses}
-        onPress={() => goBack({ pathname: '/trips/[id]/expenses', params: { id: tripId } })}
+        onPress={() =>
+          router.dismissTo({ pathname: '/trips/[id]/expenses', params: { id: tripId } })
+        }
       />
     </>
   );

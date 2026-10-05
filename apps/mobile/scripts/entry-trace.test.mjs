@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { entryFlows, expenseTraffic, verifyEntryTraffic } from './entry-trace.mjs';
+import {
+  entryFlows,
+  expenseTraffic,
+  verifyEntryTraffic,
+  verifyEntryDatabase,
+} from './entry-trace.mjs';
 
 const writer = 'a'.repeat(24);
 const peer = 'b'.repeat(24);
@@ -138,4 +143,16 @@ test('adding an expense under any text size is one confirmed write after a previ
   assert.throws(() => check('entry-appearance', [write()]), /previewed/);
   assert.throws(() => check('entry-appearance', [preview(), write(), write()]));
   assert.throws(() => check('entry-appearance', [preview(), write({ dropped: true })]));
+});
+
+test('database verification catches duplicates, missing receipts and wrong stored amounts', () => {
+  const database = { expenses: 1, receipts: 1, amounts: [100] };
+  verifyEntryDatabase('entry-create', database);
+  assert.throws(() => verifyEntryDatabase('entry-create', { ...database, expenses: 2 }));
+  assert.throws(() => verifyEntryDatabase('entry-create', { ...database, receipts: 0 }));
+  assert.throws(() => verifyEntryDatabase('entry-create', { ...database, amounts: [99.99] }));
+  verifyEntryDatabase('entry-lost-retry', { ...database, amounts: [75.5] });
+  verifyEntryDatabase('entry-retry', { ...database, amounts: [50] });
+  verifyEntryDatabase('entry-preview-revoked', { expenses: 0, receipts: 0, amounts: [] });
+  assert.throws(() => verifyEntryDatabase('entry-preview-revoked', database));
 });

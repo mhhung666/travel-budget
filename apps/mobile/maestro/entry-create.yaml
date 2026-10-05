@@ -208,6 +208,17 @@ name: Add an expense online - validation, preview, confirmation, detail and sett
     text: 'TWD[  ]33\.34'
 - tapOn:
     id: expense-back
+- extendedWaitUntil:
+    visible:
+      id: expenses-list
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      id: expenses-back
+    direction: UP
+    timeout: 30000
+- tapOn:
+    id: expenses-back
 # The trip summary was refreshed: I paid 100 and owe 33.34.
 - scrollUntilVisible:
     element:

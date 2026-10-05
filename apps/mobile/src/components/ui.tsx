@@ -189,6 +189,7 @@ export function TextField({
       <TextInput
         ref={inputRef}
         accessibilityLabel={label}
+        accessibilityHint={error}
         placeholderTextColor={p.muted}
         {...input}
         style={[
@@ -197,7 +198,11 @@ export function TextField({
         ]}
       />
       {!!error && (
-        <Text accessibilityRole="alert" style={[styles.copy, { color: p.danger }]}>
+        <Text
+          accessibilityRole="alert"
+          accessibilityLiveRegion="polite"
+          style={[styles.copy, { color: p.danger }]}
+        >
           {error}
         </Text>
       )}
@@ -231,7 +236,7 @@ export function Chip({
         role === 'checkbox'
           ? { checked: selected, disabled }
           : role === 'radio'
-            ? { selected, disabled }
+            ? { checked: selected, selected, disabled }
             : { disabled }
       }
       disabled={disabled}

@@ -16,11 +16,11 @@ name: Large text login, keyboard and trip navigation
           stopApp: false
 - openLink: ${MAESTRO_EXPO_URL}
 - extendedWaitUntil:
-    visible: '${MAESTRO_TITLE}|TEST mobile-(a|b|empty)'
+    visible: '${MAESTRO_SUBTITLE}|TEST mobile-.*'
     timeout: 60000
 - runFlow:
     when:
-      visible: 'TEST mobile-(a|b|empty)'
+      visible: 'TEST mobile-.*'
     commands:
       - scrollUntilVisible:
           element:

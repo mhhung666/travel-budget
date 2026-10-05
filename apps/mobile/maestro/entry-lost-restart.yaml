@@ -50,6 +50,7 @@ name: Lost response, then the app is force-closed and reopened - the request is 
 - tapOn:
     id: trip-${MAESTRO_WRITER_TRIP}
     point: '50%,10%'
+    retryTapIfNoChange: true
 - scrollUntilVisible:
     element:
       id: trip-expenses

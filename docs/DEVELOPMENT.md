@@ -4,7 +4,7 @@
 
 Node.js 使用根目錄 `.node-version`，pnpm 使用根 `package.json.packageManager`。從根目錄執行 `pnpm install`；CI 用 `pnpm install --frozen-lockfile`。只提交根目錄的 workspace 設定與 lockfile，不在應用內建立第二份 lockfile。
 
-Web 與 Mobile 各自保留 React、TypeScript、Vitest 和平台相容的依賴；根目錄不安裝 React 或原生模組。共用契約使用同一版 Zod，workspace 相依以 `workspace:*` 宣告。React runtime 保持各自版本；根 workspace 固定同一個相容的 `@types/react` patch，避免 ambient 型別分裂。`packageExtensions` 補齊 jest-dom 的 Vitest peer 與 React Leaflet 宣告檔缺少的型別相依，不透過全域 hoisting 混用工具鏈。
+Web 與 Mobile 各自保留 React、TypeScript、Vitest 和平台相容的依賴；根目錄不安裝 React 或原生模組。共用契約使用同一版 Zod，workspace 相依以 `workspace:*` 宣告。React runtime 保持各自版本；根 workspace 固定同一個相容的 `@types/react` patch，避免 ambient 型別分裂。`packageExtensions` 補齊 jest-dom 的 Vitest peer，以及 React PDF、next-themes、cmdk、React Leaflet／core 宣告檔缺少的型別相依。這些套件的 `.d.ts` 必須能從自己的隔離目錄找到 React／Leaflet 型別；只在 App 安裝型別並不足夠，不透過全域 hoisting 或型別斷言掩蓋錯誤。
 
 ```bash
 pnpm dev:web

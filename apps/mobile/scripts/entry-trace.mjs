@@ -115,3 +115,13 @@ export function verifyEntryTraffic(flow, events, context) {
   expectations[flow](traffic, { ...context, events });
   return traffic;
 }
+
+/** Check the stored ledger independently of the success text displayed by the app. */
+export function verifyEntryDatabase(flow, database) {
+  assert(Object.hasOwn(expectations, flow), `No database expectation for ${flow}`);
+  const expected = flow === 'entry-preview-revoked' ? 0 : 1;
+  assert.equal(database.expenses, expected, 'Unexpected DB expense count');
+  assert.equal(database.receipts, expected, 'Unexpected DB receipt count');
+  const amount = flow === 'entry-retry' ? 50 : flow === 'entry-lost-retry' ? 75.5 : 100;
+  assert.deepEqual(database.amounts, expected ? [amount] : [], 'Unexpected stored amount');
+}

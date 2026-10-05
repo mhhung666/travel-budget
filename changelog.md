@@ -4,6 +4,12 @@
 
 ## Unreleased
 
+### 2026-10-05
+
+- Web／workspace：補齊 React PDF、next-themes、cmdk 與 React Leaflet／core 的 React 型別依賴，修復 53 個型別錯誤；frozen install、根 check、Web 正式 build、Mobile 三平台匯出與 Expo 相容性通過。
+- Mobile：補上單選勾選狀態與欄位錯誤提示，修正明細／儲存頁返回支出清單及 iOS 重開表單的鍵盤完成列；兩平台各十個核心情境與四語／字級／外觀 32 組配置通過。C 剩餘 iOS 軟體鍵盤與完整螢幕閱讀器驗收依決定暫緩，下一階段排定 D1 草稿保存與原子交接；真機與 development build 仍待驗。
+- 測試／工具：新增字級／外觀自動還原、DB 金額／筆數與代理流量核對，補驗儲存頁按鈕與兩種入口的返回堆疊。Web 2,006、Mobile 399、交易整合 174、讀取／金額整合 23 與隔離 HTTP 驗收通過；一般 Web 測試另有 364 個選擇性案例跳過。
+
 ### 2026-10-04
 
 - Web／Mobile：B 共用新增服務與 API、UUID 相容／冪等及金額上限修正通過複驗；Web 2,006、Mobile 135、交易整合 174、額外邊界 5 個案例與 HTTP 驗收通過，根 check／build 仍受既有 Web 型別錯誤阻擋。
