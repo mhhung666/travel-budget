@@ -1,0 +1,54 @@
+appId: ${MAESTRO_APP_ID}
+---
+- extendedWaitUntil:
+    visible: ${MAESTRO_QUEUE_FROZEN}
+    timeout: 30000
+- runScript:
+    file: ../network-command.js
+    env:
+      COMMAND: sqlite-await-rate-limit
+- runScript:
+    file: ../network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-rate-before
+- runFlow: cold-start.yaml
+- runFlow: entry-open.yaml
+- assertVisible:
+    id: pending-card-0
+- runScript:
+    file: ../network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-rate-restarted
+- scrollUntilVisible:
+    element:
+      id: pending-check-0
+- tapOn:
+    id: pending-check-0
+- assertVisible:
+    id: pending-card-0
+- scrollUntilVisible:
+    element:
+      id: pending-retry-0
+- tapOn:
+    id: pending-retry-0
+- assertVisible:
+    id: pending-card-0
+- runScript:
+    file: ../network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-rate-manual
+- runFlow:
+    file: entry-expect.yaml
+    env:
+      EXPECT_EXPENSES: ${COMMITTED}
+      EXPECT_RECEIPTS: ${COMMITTED}
+- takeScreenshot: rate-limit-survives-restart-and-manual-actions
+- openLink: ${MAESTRO_EXPO_URL + '/--/queue'}
+- extendedWaitUntil:
+    visible: ${MAESTRO_QUEUE_EMPTY}
+    timeout: 240000
+- runScript:
+    file: ../network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-rate-recovered
+- takeScreenshot: original-request-recovers-after-real-cooldown

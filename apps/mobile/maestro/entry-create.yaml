@@ -31,9 +31,11 @@ name: Add an expense online - validation, preview, confirmation, detail and sett
       id: new-expense-amount
     direction: UP
     timeout: 30000
+    centerElement: true
 # Strict input: a third decimal is not rounded away or ignored, and the missing description is named.
 - tapOn:
     id: new-expense-amount
+    retryTapIfNoChange: true
 # The numeric keyboard has no return key on iOS; its accessory bar is the way to put it away.
 - runFlow:
     when:
@@ -67,6 +69,11 @@ name: Add an expense online - validation, preview, confirmation, detail and sett
     visibilityPercentage: 30
     timeout: 30000
 - assertVisible: ${MAESTRO_AMOUNT_FORMAT}
+- scrollUntilVisible:
+    element: ${MAESTRO_DESCRIPTION_REQUIRED}
+    direction: UP
+    visibilityPercentage: 30
+    timeout: 30000
 - assertVisible: ${MAESTRO_DESCRIPTION_REQUIRED}
 - takeScreenshot: entry-validation
 - assertNotVisible:

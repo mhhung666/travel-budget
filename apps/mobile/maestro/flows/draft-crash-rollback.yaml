@@ -1,0 +1,30 @@
+appId: ${MAESTRO_APP_ID}
+---
+- runFlow: draft-preview.yaml
+- runScript:
+    file: ../sql-gate-command.js
+    env:
+      COMMAND: ${'arm-' + STAGE}
+- tapOn:
+    id: new-expense-confirm
+- runScript:
+    file: ../sql-gate-command.js
+    env:
+      COMMAND: ${'wait-' + STAGE}
+- stopApp
+- runScript:
+    file: ../network-command.js
+    env:
+      COMMAND: ${'sqlite-checkpoint-' + STAGE}
+- runScript:
+    file: ../sql-gate-command.js
+    env:
+      COMMAND: release
+- runFlow: draft-reopen.yaml
+- scrollUntilVisible:
+    element:
+      id: draft-restore
+- tapOn:
+    id: draft-restore
+- assertVisible: TEST D1 transaction crash
+- runFlow: draft-review-online.yaml

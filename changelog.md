@@ -4,11 +4,11 @@
 
 ## Unreleased
 
-### 2026-10-05
+### 2026-10-05～2026-10-06
 
 - Web／workspace：補齊 React PDF、next-themes、cmdk 與 React Leaflet／core 的 React 型別依賴，修復 53 個型別錯誤；frozen install、根 check、Web 正式 build、Mobile 三平台匯出與 Expo 相容性通過。
-- Mobile：完成 C 表單無障礙與返回／鍵盤修正，既有核心與四語配置驗收通過；新增 D1 的 SQLite 隔離草稿、續填／捨棄、保存提示與原子交接 C，並修正捨棄後失效成員問題；D2 新增最小旅行快照、受限本機身分與離線重啟草稿入口；D3 定義離線均分規則確認，實作多筆 SQLite 待送佇列、未送出紀錄移回草稿／捨棄及前景同步，重讀成員／後端預覽後原子接回 C，未確認草稿不自動入帳。依使用者決定，D1／D2／D3 實作完成後再統一進行兩平台裝置複驗，並補驗 C 暫緩鍵盤／螢幕閱讀器；未驗項目、真機與 development build 仍待驗。
-- 測試／工具：D1／D2／D3 的 SQLite 升級／重開、原子交接與當機恢復、帳號／環境隔離、快照撤權、429 持久化等待及 409 衝突回歸通過；撤權檢查延伸至每次 HTTP fetch 前，涵蓋 C 序列／SQLite 等待與 refresh 重送，保留原 UUID／凍結內容。D2 P1 與 D3 P2 修正經複審未發現新問題。Mobile 532 個測試、check、三平台匯出、Expo 相容性與根 frozen install 通過；既有 DB／流量核對、字級／外觀還原及 Web 驗證摘要見 Mobile archive。
+- Mobile：完成 C 返回／鍵盤及無障礙修正，新增 D1 隔離草稿／原子交接、D2 最小快照／受限離線入口，以及 D3 明確均分確認／多筆前景佇列；未確認草稿不自動入帳，分攤仍由後端決定。
+- Mobile 驗收／工具：兩平台以原生 SQLite、隔離 MongoDB 與 HTTP 核對保存／當機恢復、撤權、佇列與持久化 429／409；補驗 iOS 完整軟體鍵盤新增及 VoiceOver 主要草稿／佇列操作。新增限定 fixture 的故障注入與 UUID／內容雜湊證據，541 個測試、Mobile check、三平台匯出與 Expo 相容性通過；本輪已收束，尚未全數結案；顯示自動化阻擋、完整閱讀器及其他撤權競態見 [本機驗收](apps/mobile/docs/LOCAL_ACCEPTANCE.md#尚未完成的驗收)，真機／development build 另排。
 
 ### 2026-10-04
 

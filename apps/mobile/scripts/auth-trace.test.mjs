@@ -31,6 +31,21 @@ test('auth evidence contains no bearer, refresh token or response body', () => {
   trace.observe({ method: 'POST', path: '/api/v1/trips/x/expenses', status: 200, dropped: true });
   assert.equal(trace.events[2].dropped, true);
   assert.equal(trace.events[0].dropped, undefined);
+  trace.observe({
+    method: 'POST',
+    path: '/api/v1/trips/x/expenses',
+    status: 200,
+    expenseRequest: {
+      id: '12345678-1234-4234-8234-123456789012',
+      fingerprint: 'a'.repeat(64),
+      body: 'private',
+    },
+  });
+  assert.deepEqual(trace.events[3].expenseRequest, {
+    id: '12345678-1234-4234-8234-123456789012',
+    fingerprint: 'a'.repeat(64),
+  });
+  assert(!JSON.stringify(trace.events).includes('private'));
 });
 
 test('natural expiry requires backend rejection, one refresh and replay with a new JWT', () => {

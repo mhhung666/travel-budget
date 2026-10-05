@@ -1,0 +1,86 @@
+appId: ${MAESTRO_APP_ID}
+---
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: entry-reset
+- runFlow:
+    file: flows/entry-start.yaml
+    env:
+      USERNAME: mobile-writer
+- runFlow:
+    file: flows/draft-fill.yaml
+    env:
+      DESCRIPTION: TEST D1 transaction crash
+      AMOUNT: '100'
+- runFlow:
+    file: flows/draft-crash-rollback.yaml
+    env:
+      STAGE: draft-before-pending
+- runFlow:
+    file: flows/draft-crash-rollback.yaml
+    env:
+      STAGE: draft-after-pending
+- runFlow: flows/draft-preview.yaml
+- runScript:
+    file: sql-gate-command.js
+    env:
+      COMMAND: arm-draft-after-commit
+- tapOn:
+    id: new-expense-confirm
+- runScript:
+    file: sql-gate-command.js
+    env:
+      COMMAND: wait-draft-after-commit
+- stopApp
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-draft-after-commit
+- runScript:
+    file: sql-gate-command.js
+    env:
+      COMMAND: release
+- runFlow: flows/cold-start.yaml
+- runFlow: flows/entry-open.yaml
+- assertVisible:
+    id: pending-card-0
+- assertNotVisible:
+    id: new-expense-confirm
+- assertNotVisible:
+    id: draft-restore
+- runScript:
+    file: sql-gate-command.js
+    env:
+      COMMAND: arm-before-cleanup
+- scrollUntilVisible:
+    element:
+      id: pending-retry-0
+- tapOn:
+    id: pending-retry-0
+- runScript:
+    file: sql-gate-command.js
+    env:
+      COMMAND: wait-before-cleanup
+- stopApp
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-draft-before-cleanup
+- runScript:
+    file: sql-gate-command.js
+    env:
+      COMMAND: release
+- runFlow: flows/cold-start.yaml
+- runFlow: flows/entry-open.yaml
+- assertNotVisible:
+    id: pending-card-0
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-draft-crash-recovered
+- takeScreenshot: committed-request-recovered-once

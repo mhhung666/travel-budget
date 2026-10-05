@@ -1,0 +1,31 @@
+appId: ${MAESTRO_APP_ID}
+---
+- runScript:
+    file: ../network-command.js
+    env:
+      COMMAND: online
+- runScript:
+    file: ../fixture-command.js
+    env:
+      COMMAND: entry-reset
+- runFlow:
+    file: entry-start.yaml
+    env:
+      USERNAME: mobile-writer
+- runScript:
+    file: ../network-command.js
+    env:
+      COMMAND: disconnect
+- runFlow:
+    file: draft-fill.yaml
+    env:
+      DESCRIPTION: ${DESCRIPTION}
+      AMOUNT: '100'
+- scrollUntilVisible:
+    element:
+      id: expense-queue-confirm
+- tapOn:
+    id: expense-queue-confirm
+- extendedWaitUntil:
+    visible: ${MAESTRO_QUEUE_TITLE}
+    timeout: 30000

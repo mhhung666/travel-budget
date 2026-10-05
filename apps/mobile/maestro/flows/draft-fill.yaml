@@ -1,0 +1,38 @@
+appId: ${MAESTRO_APP_ID}
+---
+- tapOn:
+    id: new-expense-description
+- inputText: ${DESCRIPTION}
+- assertVisible:
+    id: new-expense-description
+    text: ${DESCRIPTION}
+- pressKey: Enter
+- scrollUntilVisible:
+    element:
+      id: new-expense-amount
+- tapOn:
+    id: new-expense-amount
+- inputText: ${AMOUNT}
+- assertVisible:
+    id: new-expense-amount
+    text: '^${AMOUNT}$'
+- runFlow: entry-keyboard-done.yaml
+- assertVisible:
+    id: new-expense-amount
+    text: '^${AMOUNT}$'
+- scrollUntilVisible:
+    element:
+      id: new-expense-member-${MAESTRO_REMOVED_ID}
+    timeout: 30000
+    centerElement: true
+- tapOn:
+    id: new-expense-member-${MAESTRO_REMOVED_ID}
+- scrollUntilVisible:
+    element: ${MAESTRO_DRAFT_SAVED}
+    direction: UP
+    timeout: 30000
+- assertVisible: ${MAESTRO_DRAFT_SAVED}
+- runScript:
+    file: ../network-command.js
+    env:
+      COMMAND: sqlite-assert-filled

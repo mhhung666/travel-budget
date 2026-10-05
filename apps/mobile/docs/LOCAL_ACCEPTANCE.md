@@ -211,11 +211,32 @@ pnpm --filter travel-budget-mobile test:native --suite sessions \
 
 預設 `--suite auth-trips`；其餘 suite 都需要保留環境輸出的控制通道。若提示缺少控制資訊，重啟 `dev:mobile-api` 並更新 Metro API 位址。各進階流程開始會清除此 fixture 的登入次數限制；撤銷／到期命令必須實際影響至少一個有效 session，否則測試失敗。控制請求由電腦上的驗收工具發出，不從手機呼叫。
 
-預設驗證英文；裝置使用其他語系時，傳入 `--locale zh`／`zh-CN`／`jp`。此選項只切換斷言文字；只有 `locales` suite 會暫時切換原生 App 語系。深淺色與文字大小由裝置設定控制。第一次開啟 Expo Go 的系統提示請先完成，再跑流程。iOS 測試模擬器請在 Settings → General → AutoFill & Passwords 關閉 AutoFill Passwords and Passkeys，避免系統儲存密碼提示遮住測試；這不改動 App 的自動填寫能力，也不代表已驗證密碼管理器整合。重複執行若觸發 429，在隔離後端終端輸入 `reset-limits` 後再試。
+預設驗證英文；裝置使用其他語系時，傳入 `--locale zh`／`zh-CN`／`jp`。此選項只切換斷言文字；`locales` suite 或明確傳 `--native-locale` 才會暫時切換原生 App 語系，結束後還原。深淺色與文字大小由裝置設定控制。第一次開啟 Expo Go 的系統提示請先完成，再跑流程。iOS 測試模擬器請在 Settings → General → AutoFill & Passwords 關閉 AutoFill Passwords and Passkeys，避免系統儲存密碼提示遮住測試；這不改動 App 的自動填寫能力，也不代表已驗證密碼管理器整合。重複執行若觸發 429，在隔離後端終端輸入 `reset-limits` 後再試。
+
+D 基本流程使用 `--suite drafts --native-sqlite`（限隔離模擬器與 fixture）：
+
+```sh
+pnpm --filter travel-budget-mobile test:native \
+  --suite drafts --platform ios --device IOS_UUID --fixture FIXTURE_PATH \
+  --metro-port 8093 --network-port 61113 --native-sqlite \
+  --text-size default --appearance light
+```
+
+Android 換成 `--platform android --device emulator-5554`，先 `adb root`，再建立 Metro 的 `adb reverse tcp:8094 tcp:8094`；重啟 adb 會清除此轉送。`draft-offline`／`queue-multiple` 暫時開啟模擬器飛航模式並關閉 Wi-Fi 與行動數據，流程結束會還原原設定；iOS 模擬器採 HTTP 斷線注入，不能當作真機飛航證據。D suite 在 iOS 最大字級時以既有 deep link 開啟新增表單，避免 Maestro 旅行卡片邊界定位失準；此路徑不驗證卡片導覽，其他配置仍走旅行摘要入口。`--flows` 可選 `draft-restart,draft-offline,draft-expiry,draft-snapshot,draft-accounts,draft-revoked,draft-storage,draft-open-failure,queue-storage,queue-multiple,queue-edit,queue-lost,queue-members` 的子集。
+
+精確當機在新的 managed Git worktree 執行 `pnpm --filter travel-budget-mobile exec node scripts/instrument-native-sqlite.mjs --workspace WORKTREE_ROOT`，只改該隔離 checkout 的 SQLite 開啟與憑證寫入包裝；原 checkout／正式 bundle 不含暫停點。其 Metro 設定 `EXPO_PUBLIC_NATIVE_SQL_GATE_URL`（iOS loopback 或 Android `10.0.2.2`）、`EXPO_PUBLIC_NATIVE_ACCOUNT`／`EXPO_PUBLIC_NATIVE_TRIP` 為 fixture writer／writerTrip，再搭配 `--sqlite-gate-port` 與同一 proxy port 執行 `--flows draft-crash,queue-crash,queue-revocation-race`。每個案例保存 gate 時間／UUID、真 SQLite 檢查點與 HTTP 證據。
+
+refresh／憑證案例為 `queue-refresh-failure,queue-credential-failure,draft-legacy`；後兩者也需要隔離 checkout 與 gate。憑證失敗是在 SDK 寫入前回報錯誤，舊格式仍透過真 SecureStore 保存 token；此注入不能當作實際 Keychain 故障。快速編輯案例 `draft-edit-race` 在原生 SQL 更新前暫停，核對返回重進與捨棄競態。
+
+跨環境使用 `--flows draft-environments --other-metro-port 8097 --other-network-port 61117`；另啟動相同專案的 Metro，API 指向第二個 proxy port（Android 使用 `10.0.2.2` 並建立該 Metro 的 adb reverse）。兩個代理仍轉送同一隔離 fixture，只改 App 的 API environment key；核對另一環境看不到原草稿／成員選項／待送紀錄，回原環境 UUID 與內容不變，HTTP／DB 零入帳。流程完成後只清理兩個測試 scope。
+
+額外 HTTP 故障案例使用 `--flows queue-rate-post,queue-rate-lookup,queue-conflict`；代理明確標記 `injected`，分別注入 POST／receipt lookup 的 429 或 POST 409 後 lookup 403。429 保留實際 180 秒 Retry-After、不改產品計時，跨重啟與 C 手動操作核對沒有提早 HTTP；409 保存凍結紀錄、無後端寫入。衝突量測結束才停止 App、刪除這份 disposable fixture 指定帳號／環境／旅行的本機草稿／快照／queue／pending，其他 scope 不受影響。
+
+工具保存私有 `sqlite-*.json` 與每案例不可覆寫的 `sqlite-evidence.json`、`auth-trace.json`、`entry-results.json` 與畫面；HTTP 只保存寫入 UUID、內容 SHA-256 與帳號／狀態，不保存 body 或 token。若 iOS Maestro 將完成鍵定位到舊畫框，先在目前裝置、字級與鍵盤畫面核對完成鍵位置，才可傳 `--ios-done-point x%,y%`；目前 iPhone 18 Pro／預設字級數字鍵盤使用 `89%,62%`。工具在完成鍵前後核對完整金額；此座標不能直接套到其他機型或配置。
 
 ## D1 草稿驗收交接
 
-程式已實作；依 2026-10-05 決定，以下裝置驗收待 D1／D2／D3 實作完成後，在 iOS／Android 各跑一次，並一併驗收 D2 離線入口、D3 佇列與 C 寫入恢復、補驗 C 暫緩的鍵盤／螢幕閱讀器項目。未執行前不計通過，也不計入既有 C 證據。使用隔離 fixture 與原有故障代理，核對畫面、本機草稿／pending 狀態、HTTP UUID，以及後端 expense／receipt 筆數。
+程式已實作；2026-10-05～06 已完成 iOS／Android 主要情境複驗，通過範圍與證據見 [archive](archive/README.md#d-草稿離線入口與待送佇列2026-10-05)。以下為完整驗收契約，部分通過不代表整表完成，未執行項目不計通過，也不計入既有 C 證據。使用隔離 fixture 與原有故障代理，核對畫面、本機草稿／pending 狀態、HTTP UUID，以及後端 expense／receipt 筆數。
 
 | 情境             | 操作與預期                                                                                                                                                                                  |
 | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -228,11 +249,11 @@ pnpm --filter travel-budget-mobile test:native --suite sessions \
 | 單次記帳         | 「續填 → 新預覽 → 確認」，配合提交後丟回應、重啟與原內容重試；後端支出與 receipt 各一筆，重試 UUID／內容不變。成功後返回新增入口不再提供原草稿。                                            |
 | 四語與操作       | `zh`／`zh-CN`／`en`／`jp`，深淺色、最大字級、鍵盤、VoiceOver／TalkBack；保存狀態、失敗與續填／捨棄可讀可操作。                                                                              |
 
-現有 `entry` Maestro suite 可回歸 C；D1 續填選擇需要額外操作，不把舊 suite 直接視為 D1 證據。裝置 SQLite 失敗與精確交接當機需由驗收者在隔離 build 注入，目前未提供 App 內的故障開關。開發自動測試以同一 SQL、真 SQLite、子程序直接終止及模擬 HTTP 覆蓋這些分支。只對已落盤輸入承諾恢復；斷網冷啟動由 D2 本機入口補上，仍待裝置驗收。
+現有 `entry` Maestro suite 可回歸 C；D1 續填選擇需要額外操作，不把舊 suite 直接視為 D1 證據。SQLite 存檔／捨棄／交接／清理故障由工具在隔離 fixture 的裝置資料庫加入限定帳號、環境、旅行的觸發器；開啟故障先保存 DB／WAL／SHM，完成或失敗後還原。精確交接當機另在隔離 checkout 加入 SQL 暫停點，不加入正式 App。開發自動測試以同一 SQL、真 SQLite、子程序直接終止及模擬 HTTP 覆蓋這些分支。只對已落盤輸入承諾恢復；斷網冷啟動由 D2 本機入口補上。
 
 ## D2 離線入口驗收交接
 
-D2 程式已實作；依既定安排，D1／D2／D3 完成後由獨立驗收者在兩平台一起驗收。以下未執行、不計通過；使用隔離帳號／fixture，核對畫面、SQLite 與 HTTP／expense／receipt 筆數。本機模式只存草稿，恢復連線本身應為零次支出寫入。
+D2 程式已實作；兩平台主要裝置情境已通過，剩餘補驗待完成，已通過範圍見 archive。以下保留完整操作契約，尚未驗證的組合不計通過；使用隔離帳號／fixture，核對畫面、SQLite 與 HTTP／expense／receipt 筆數。本機模式只存草稿，恢復連線本身應為零次支出寫入。
 
 | 情境                   | 操作與預期                                                                                                                                                                                                       |
 | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -251,7 +272,7 @@ D2 程式已實作；依既定安排，D1／D2／D3 完成後由獨立驗收者�
 
 ## D3 佇列驗收交接
 
-D1／D2／D3 程式已完成；依約由其他人集中執行裝置驗收，此表尚未計通過。前景佇列契約見 [後端契約](BACKEND_CONTRACT.md#d3-離線確認與分攤契約)，沿用本文件的隔離 backend／proxy／DB，核對畫面、HTTP 及 expense／receipt／副作用，不只看顯示成功。
+D1／D2／D3 程式已完成；2026-10-05～06 主要裝置情境已通過，已通過範圍見 archive，此表尚未全部計通過。前景佇列契約見 [後端契約](BACKEND_CONTRACT.md#d3-離線確認與分攤契約)，沿用本文件的隔離 backend／proxy／DB，核對畫面、HTTP 及 expense／receipt／副作用，不只看顯示成功。
 
 | 情境                           | 兩平台核對                                                                                                                                                                                                                                          |
 | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -268,8 +289,9 @@ D1／D2／D3 程式已完成；依約由其他人集中執行裝置驗收，此�
 
 已完成的登入／旅行、A／B 與 C 核心修正結果，以及本機歷史證據，合併至 [archive](archive/README.md)。以下項目仍須驗收，不能因封存已完成成果而視為通過：
 
-- D：D1／D2／D3 實作完成後，再進行一次兩平台裝置驗收；包含上述草稿重啟、帳號隔離、存檔失敗、交接當機，以及 D2 離線入口與 D3 佇列情境，核對只入帳一次。開發測試與匯出不代替此項。
-- C（2026-10-05 依使用者決定暫緩，不阻擋 D1；對外測試前補驗）：iOS 新增表單的軟體鍵盤，以及兩平台 VoiceOver／TalkBack 完整朗讀與操作。兩平台十個核心情境與四語／預設及最大字級／深淺色配置已通過；Android 的 Gboard 輸入與動作鍵亦已操作驗證。
+- D：主要草稿／離線／佇列及故障復原情境已通過，D 尚未全部結案。剩餘補驗分三類：① D 四語、預設／最大字級與深淺色配置（既有 C 的 32 組不替代 D）；② 完整 VoiceOver／TalkBack，包含錯誤導覽與換帳號／撤權後的私人資料及焦點；③ C 序列等待、refresh 重送等其他撤權競態，以及晚到選項回應／切背景時機組合。已驗 SQL 等待撤權不能代表其餘時機。各項通過範圍與限制以 archive 的 UI／SQL／HTTP／DB 證據為準。
+- 本輪 D 顯示補驗未通過：繁中最大字級／深色的 iOS 日期清除輸入與 Android 冷啟動續填導覽受自動化操作阻擋，保留人工複驗，尚不足以判定產品缺陷；簡中／日文後續配置未執行，跨日後 fixture 日期檢查拒絕繼續。重跑須重新建立當日 fixture，勿修改日期或時鐘繞過檢查。
+- C（依使用者決定曾暫緩，不阻擋 D1）：iOS 軟體鍵盤已完成整段 `entry-create` 並核對 receipt／份額／副作用；VoiceOver 已完成主要輸入、保存失敗重試、離線續填、入佇列／移回草稿及重新授權後確認送出，連線恢復由前景查 receipt 清理。完整錯誤與私人資料導覽、TalkBack 仍待驗。既有兩平台十個核心情境與 32 組顯示配置通過；Android Gboard 輸入與動作鍵已操作驗證。
 - A：支出／結算的大字級／外觀矩陣，以及裝置上的「撤銷旅行資格後再斷線」組合故障。兩平台四語／預設字級／淺色的完整登入與唯讀流程已通過。
 - 網路／後端：裝置斷網／飛航模式、限速與封包遺失、429 真實交易競爭；refresh 400／413／415 故障目前只有模擬 HTTP 證據。
 - 建置／裝置：完成 development build 與 iOS／Android 實體裝置驗收。根 check／build 基線已修復並通過；Expo Go 或 bundle export 不替代原生建置與真機項目。

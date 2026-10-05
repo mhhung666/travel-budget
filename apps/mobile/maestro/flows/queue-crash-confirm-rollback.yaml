@@ -1,0 +1,31 @@
+appId: ${MAESTRO_APP_ID}
+---
+- scrollUntilVisible:
+    element:
+      id: expense-queue-confirm
+- runScript:
+    file: ../sql-gate-command.js
+    env:
+      COMMAND: ${'arm-' + STAGE}
+- tapOn:
+    id: expense-queue-confirm
+- runScript:
+    file: ../sql-gate-command.js
+    env:
+      COMMAND: ${'wait-' + STAGE}
+- stopApp
+- runScript:
+    file: ../network-command.js
+    env:
+      COMMAND: ${'sqlite-checkpoint-' + STAGE}
+- runScript:
+    file: ../sql-gate-command.js
+    env:
+      COMMAND: release
+- runFlow: draft-reopen.yaml
+- scrollUntilVisible:
+    element:
+      id: draft-restore
+- tapOn:
+    id: draft-restore
+- assertVisible: TEST D3 transaction crash

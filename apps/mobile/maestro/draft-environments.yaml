@@ -1,0 +1,108 @@
+appId: ${MAESTRO_APP_ID}
+---
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: entry-reset
+- runFlow:
+    file: flows/entry-start.yaml
+    env:
+      USERNAME: mobile-writer
+- runFlow:
+    file: flows/draft-fill.yaml
+    env:
+      DESCRIPTION: TEST D2 environment private
+      AMOUNT: '12.'
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-environment-original
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: disconnect
+- runFlow: flows/environment-other.yaml
+- runFlow:
+    when:
+      visible:
+        id: login-username
+    file: flows/entry-login.yaml
+    env:
+      USERNAME: mobile-writer
+- tapOn:
+    id: local-drafts
+- scrollUntilVisible:
+    element:
+      id: local-trip-${MAESTRO_WRITER_TRIP}
+- tapOn:
+    id: local-trip-${MAESTRO_WRITER_TRIP}
+- assertNotVisible: TEST D2 environment private
+- assertNotVisible:
+    id: new-expense-description
+- assertNotVisible:
+    id: draft-restore
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-environment-other
+- runFlow: flows/draft-reopen.yaml
+- scrollUntilVisible:
+    element:
+      id: draft-restore
+- tapOn:
+    id: draft-restore
+- assertVisible: TEST D2 environment private
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-environment-restored
+- scrollUntilVisible:
+    element:
+      id: new-expense-amount
+- tapOn:
+    id: new-expense-amount
+- eraseText
+- inputText: '100'
+- runFlow: flows/entry-keyboard-done.yaml
+- scrollUntilVisible:
+    element:
+      id: expense-queue-confirm
+- tapOn:
+    id: expense-queue-confirm
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-environment-queued
+- runFlow: flows/environment-other.yaml
+- openLink: ${MAESTRO_OTHER_EXPO_URL + '/--/queue'}
+- extendedWaitUntil:
+    visible: ${MAESTRO_QUEUE_EMPTY}
+    timeout: 30000
+- assertNotVisible: TEST D2 environment private
+- stopApp
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - launchApp:
+          clearState: false
+          stopApp: false
+- openLink: ${MAESTRO_EXPO_URL}
+- extendedWaitUntil:
+    visible: ${MAESTRO_LOCAL_DRAFTS}
+    timeout: 60000
+- tapOn: ${MAESTRO_QUEUE_TITLE}
+- extendedWaitUntil:
+    visible:
+      id: queue-record-0
+    timeout: 30000
+- assertVisible: TEST D2 environment private
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-environment-final
+- takeScreenshot: alternate-api-cannot-read-or-send-original-environment

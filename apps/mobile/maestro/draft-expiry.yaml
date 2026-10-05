@@ -1,0 +1,142 @@
+appId: ${MAESTRO_APP_ID}
+---
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: entry-reset
+- runFlow:
+    file: flows/entry-start.yaml
+    env:
+      USERNAME: mobile-writer
+- runFlow:
+    file: flows/draft-fill.yaml
+    env:
+      DESCRIPTION: TEST D2 discard offline
+      AMOUNT: '100'
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: disconnect
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - runScript:
+          file: network-command.js
+          env:
+            COMMAND: native-radio-offline
+- runFlow: flows/draft-reopen.yaml
+- scrollUntilVisible:
+    element:
+      id: draft-restore
+- tapOn:
+    id: draft-restore
+- assertVisible: TEST D2 discard offline
+- scrollUntilVisible:
+    element:
+      id: draft-discard
+- tapOn:
+    id: draft-discard
+- scrollUntilVisible:
+    element:
+      id: new-expense-description
+    direction: UP
+    timeout: 8000
+    optional: true
+- scrollUntilVisible:
+    element:
+      id: new-expense-description
+    direction: DOWN
+    timeout: 30000
+- assertNotVisible: TEST D2 discard offline
+- runFlow:
+    file: flows/draft-fill.yaml
+    env:
+      DESCRIPTION: TEST D2 offline new draft
+      AMOUNT: '12.'
+- scrollUntilVisible:
+    element:
+      id: new-expense-date
+- tapOn:
+    id: new-expense-date
+    point: '95%,50%'
+- eraseText
+- inputText: '2026-'
+- assertVisible:
+    id: new-expense-date
+    text: '^2026-$'
+- pressKey: Enter
+- scrollUntilVisible:
+    element:
+      id: new-expense-preview
+- assertVisible:
+    id: new-expense-preview
+    enabled: false
+- scrollUntilVisible:
+    element:
+      id: new-expense-confirm
+- assertVisible:
+    id: new-expense-confirm
+    enabled: false
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-expiry-before
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: expire-writer
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - runScript:
+          file: network-command.js
+          env:
+            COMMAND: native-radio-online
+- scrollUntilVisible:
+    element:
+      id: local-restore-login
+    direction: UP
+- tapOn:
+    id: local-restore-login
+- extendedWaitUntil:
+    visible:
+      id: login-username
+    timeout: 30000
+- assertNotVisible:
+    id: new-expense-confirm
+- takeScreenshot: expired-online-session-requires-login
+- runFlow:
+    file: flows/entry-login.yaml
+    env:
+      USERNAME: mobile-writer
+- scrollUntilVisible:
+    element:
+      id: local-drafts
+- tapOn:
+    id: local-drafts
+- scrollUntilVisible:
+    element:
+      id: local-trip-${MAESTRO_WRITER_TRIP}
+- tapOn:
+    id: local-trip-${MAESTRO_WRITER_TRIP}
+- scrollUntilVisible:
+    element:
+      id: draft-restore
+- tapOn:
+    id: draft-restore
+- assertVisible: TEST D2 offline new draft
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-expiry-after
+- takeScreenshot: original-offline-input-after-reauthentication

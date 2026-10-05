@@ -1,0 +1,44 @@
+appId: ${MAESTRO_APP_ID}
+---
+- runScript:
+    file: ../sql-gate-command.js
+    env:
+      COMMAND: ${'arm-' + STAGE}
+- runScript:
+    file: ../network-command.js
+    env:
+      COMMAND: online
+- scrollUntilVisible:
+    element: ${MAESTRO_RESTORE_ONLINE}
+    direction: UP
+- tapOn: ${MAESTRO_RESTORE_ONLINE}
+- scrollUntilVisible:
+    element:
+      id: queue-sync
+    direction: UP
+- runFlow:
+    when:
+      visible:
+        id: queue-sync
+        enabled: true
+    commands:
+      - tapOn:
+          id: queue-sync
+- runScript:
+    file: ../sql-gate-command.js
+    env:
+      COMMAND: ${'wait-' + STAGE}
+- stopApp
+- runScript:
+    file: ../network-command.js
+    env:
+      COMMAND: ${'sqlite-checkpoint-' + STAGE}
+- runScript:
+    file: ../network-command.js
+    env:
+      COMMAND: disconnect
+- runScript:
+    file: ../sql-gate-command.js
+    env:
+      COMMAND: release
+- runFlow: queue-crash-reopen.yaml

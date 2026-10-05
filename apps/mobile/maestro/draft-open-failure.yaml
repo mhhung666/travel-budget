@@ -1,0 +1,56 @@
+appId: ${MAESTRO_APP_ID}
+---
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: entry-reset
+- runFlow:
+    file: flows/entry-start.yaml
+    env:
+      USERNAME: mobile-writer
+- runFlow:
+    file: flows/draft-fill.yaml
+    env:
+      DESCRIPTION: TEST D1 open failure
+      AMOUNT: '12.'
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-open-fail
+- runFlow: flows/cold-start.yaml
+- scrollUntilVisible:
+    element:
+      id: trip-${MAESTRO_WRITER_TRIP}
+    visibilityPercentage: 30
+- tapOn:
+    id: trip-${MAESTRO_WRITER_TRIP}
+    point: '50%,10%'
+- scrollUntilVisible:
+    element:
+      id: trip-add-expense
+- tapOn:
+    id: trip-add-expense
+- extendedWaitUntil:
+    visible: ${MAESTRO_ENTRY_NOT_SENT}
+    timeout: 30000
+- assertNotVisible:
+    id: new-expense-confirm
+- assertNotVisible:
+    id: new-expense-description
+- takeScreenshot: database-open-failure
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-clear
+- runFlow: flows/draft-reopen.yaml
+- scrollUntilVisible:
+    element:
+      id: draft-restore
+- tapOn:
+    id: draft-restore
+- assertVisible: TEST D1 open failure
+- takeScreenshot: original-database-restored

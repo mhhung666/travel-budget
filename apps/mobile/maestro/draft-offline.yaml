@@ -1,0 +1,90 @@
+appId: ${MAESTRO_APP_ID}
+---
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: entry-reset
+- runFlow:
+    file: flows/entry-start.yaml
+    env:
+      USERNAME: mobile-writer
+- runFlow:
+    file: flows/draft-fill.yaml
+    env:
+      DESCRIPTION: TEST D2 offline draft
+      AMOUNT: '100'
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: disconnect
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - runScript:
+          file: network-command.js
+          env:
+            COMMAND: native-radio-offline
+- runFlow: flows/draft-reopen.yaml
+- extendedWaitUntil:
+    visible: ${MAESTRO_LOCAL_SESSION}
+    timeout: 60000
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - assertVisible:
+          id: local-restore-login
+          enabled: false
+- scrollUntilVisible:
+    element:
+      id: draft-restore
+    timeout: 30000
+- tapOn:
+    id: draft-restore
+- assertVisible:
+    id: new-expense-description
+    text: TEST D2 offline draft
+- scrollUntilVisible:
+    element:
+      id: new-expense-preview
+    timeout: 30000
+- assertVisible:
+    id: new-expense-preview
+    enabled: false
+- scrollUntilVisible:
+    element:
+      id: new-expense-confirm
+- assertVisible:
+    id: new-expense-confirm
+    enabled: false
+- takeScreenshot: offline-cold-start
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - runScript:
+          file: network-command.js
+          env:
+            COMMAND: native-radio-online
+- scrollUntilVisible:
+    element:
+      id: local-restore-login
+    direction: UP
+    timeout: 30000
+- tapOn:
+    id: local-restore-login
+- scrollUntilVisible:
+    element:
+      id: local-review-online
+    timeout: 30000
+- assertNotVisible: ${MAESTRO_LOCAL_SESSION}
+- takeScreenshot: restored-no-automatic-write

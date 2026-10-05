@@ -1,0 +1,54 @@
+appId: ${MAESTRO_APP_ID}
+---
+- runFlow:
+    file: flows/queue-create-offline.yaml
+    env:
+      DESCRIPTION: TEST D3 durable conflict
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online-post-409-lookup-403
+- scrollUntilVisible:
+    element:
+      id: queue-sync
+    direction: UP
+- tapOn:
+    id: queue-sync
+- extendedWaitUntil:
+    visible: ${MAESTRO_PENDING_CONFLICT}
+    timeout: 30000
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-conflict-before
+- runFlow: flows/cold-start.yaml
+- runFlow: flows/entry-open.yaml
+- assertVisible:
+    id: pending-card-0
+- scrollUntilVisible:
+    element:
+      id: pending-check-0
+- tapOn:
+    id: pending-check-0
+- assertVisible:
+    id: pending-card-0
+- openLink: ${MAESTRO_EXPO_URL + '/--/queue'}
+- extendedWaitUntil:
+    visible: ${MAESTRO_PENDING_CONFLICT}
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      id: queue-sync
+    direction: UP
+- tapOn:
+    id: queue-sync
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-conflict-after
+- runFlow:
+    file: flows/entry-expect.yaml
+    env:
+      EXPECT_EXPENSES: '0'
+      EXPECT_RECEIPTS: '0'
+- takeScreenshot: unresolved-conflict-retains-original-request

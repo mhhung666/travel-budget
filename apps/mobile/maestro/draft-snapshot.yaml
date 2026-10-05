@@ -1,0 +1,92 @@
+appId: ${MAESTRO_APP_ID}
+---
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: entry-reset
+- runFlow:
+    file: flows/entry-start.yaml
+    env:
+      USERNAME: mobile-writer
+- runFlow:
+    file: flows/draft-fill.yaml
+    env:
+      DESCRIPTION: TEST D2 snapshot failure
+      AMOUNT: '100'
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-snapshot-original
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-snapshot-fail
+- runFlow: flows/cold-start.yaml
+- runFlow: flows/entry-open.yaml
+- openLink: ${MAESTRO_EXPO_URL + '/--/drafts/' + MAESTRO_WRITER_TRIP}
+- extendedWaitUntil:
+    visible: ${MAESTRO_LOCAL_SNAPSHOT_FAILED}
+    timeout: 30000
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-snapshot-failed
+- takeScreenshot: failed-options-save-keeps-old-snapshot
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: writer-leave
+- scrollUntilVisible:
+    element:
+      id: local-review-online
+- tapOn:
+    id: local-review-online
+- extendedWaitUntil:
+    visible: ${MAESTRO_NOT_FOUND}
+    timeout: 30000
+- openLink: ${MAESTRO_EXPO_URL + '/--/drafts'}
+- extendedWaitUntil:
+    visible: ${MAESTRO_DRAFT_LOAD_FAILED}
+    timeout: 30000
+- assertNotVisible: TEST Writer trip
+- assertNotVisible:
+    id: local-trip-${MAESTRO_WRITER_TRIP}
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-snapshot-deny-failed
+- takeScreenshot: failed-denial-never-exposes-cached-private-options
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-clear
+- tapOn: ${MAESTRO_RETRY}
+- extendedWaitUntil:
+    notVisible: ${MAESTRO_DRAFT_LOAD_FAILED}
+    timeout: 30000
+- assertNotVisible: TEST Writer trip
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-snapshot-deny-recovered
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: writer-rejoin
+- runFlow: flows/cold-start.yaml
+- runFlow: flows/entry-open.yaml
+- openLink: ${MAESTRO_EXPO_URL + '/--/drafts/' + MAESTRO_WRITER_TRIP}
+- scrollUntilVisible:
+    element:
+      id: draft-restore|new-expense-description
+    timeout: 30000
+- assertNotVisible: ${MAESTRO_LOCAL_SNAPSHOT_FAILED}
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-snapshot-authorized
+- takeScreenshot: fresh-options-successfully-lift-denial

@@ -1,0 +1,113 @@
+appId: ${MAESTRO_APP_ID}
+---
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: entry-reset
+- runFlow:
+    file: flows/entry-start.yaml
+    env:
+      USERNAME: mobile-writer
+- runFlow:
+    file: flows/draft-fill.yaml
+    env:
+      DESCRIPTION: TEST D1 original edit
+      AMOUNT: '12.'
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-edit-original
+- runScript:
+    file: sql-gate-command.js
+    env:
+      COMMAND: arm-draft-save-before-update
+- scrollUntilVisible:
+    element:
+      id: new-expense-description
+- tapOn:
+    id: new-expense-description
+    point: '95%,50%'
+- eraseText
+- inputText: TEST D1 newest edit
+- pressKey: Enter
+- runFlow: flows/entry-keyboard-done.yaml
+- runScript:
+    file: sql-gate-command.js
+    env:
+      COMMAND: wait-draft-save-before-update
+- scrollUntilVisible:
+    element:
+      id: new-expense-back
+    direction: UP
+- tapOn:
+    id: new-expense-back
+- runScript:
+    file: sql-gate-command.js
+    env:
+      COMMAND: release
+- scrollUntilVisible:
+    element:
+      id: trip-add-expense
+- tapOn:
+    id: trip-add-expense
+- scrollUntilVisible:
+    element:
+      id: draft-restore
+- tapOn:
+    id: draft-restore
+- assertVisible: TEST D1 newest edit
+- scrollUntilVisible:
+    element: ${MAESTRO_DRAFT_SAVED}
+    direction: UP
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-edit-latest
+- runScript:
+    file: sql-gate-command.js
+    env:
+      COMMAND: arm-draft-save-before-update
+- scrollUntilVisible:
+    element:
+      id: new-expense-description
+- tapOn:
+    id: new-expense-description
+    point: '95%,50%'
+- inputText: ' discarded'
+- pressKey: Enter
+- runFlow: flows/entry-keyboard-done.yaml
+- runScript:
+    file: sql-gate-command.js
+    env:
+      COMMAND: wait-draft-save-before-update
+- scrollUntilVisible:
+    element:
+      id: draft-discard
+    centerElement: true
+- takeScreenshot: discard-while-save-is-held
+- tapOn:
+    id: draft-discard
+- runScript:
+    file: sql-gate-command.js
+    env:
+      COMMAND: release
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-await-discarded-generation
+- runFlow: flows/draft-reopen.yaml
+- scrollUntilVisible:
+    element:
+      id: draft-restore
+- tapOn:
+    id: draft-restore
+- assertNotVisible: TEST D1 newest edit
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-edit-discarded
+- takeScreenshot: delayed-save-cannot-revive-discarded-generation

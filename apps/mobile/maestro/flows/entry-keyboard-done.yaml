@@ -12,8 +12,23 @@ appId: ${MAESTRO_APP_ID}
             id: new-expense-keyboard-done
           timeout: 10000
       - waitForAnimationToEnd
-      - tapOn:
-          id: new-expense-keyboard-done
+      - runFlow:
+          when:
+            true: ${MAESTRO_IOS_DONE_POINT === 'id'}
+          commands:
+            - tapOn:
+                id: new-expense-keyboard-done
+                waitToSettleTimeoutMs: 1000
+      - runFlow:
+          when:
+            true: ${MAESTRO_IOS_DONE_POINT !== 'id'}
+          commands:
+            # Explicit, visually verified fallback for XCTest's incorrect accessory frame.
+            - tapOn:
+                point: ${MAESTRO_IOS_DONE_POINT}
+      - extendedWaitUntil:
+          notVisible: '^Delete$'
+          timeout: 10000
 - runFlow:
     when:
       platform: Android

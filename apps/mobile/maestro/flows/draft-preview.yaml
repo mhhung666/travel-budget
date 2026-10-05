@@ -1,0 +1,15 @@
+appId: ${MAESTRO_APP_ID}
+---
+- scrollUntilVisible:
+    element:
+      id: new-expense-preview
+- tapOn:
+    id: new-expense-preview
+- scrollUntilVisible:
+    element:
+      id: new-expense-preview-card
+    timeout: 30000
+    visibilityPercentage: 30
+- scrollUntilVisible:
+    element:
+      id: new-expense-confirm

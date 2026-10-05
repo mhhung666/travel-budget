@@ -1,0 +1,63 @@
+appId: ${MAESTRO_APP_ID}
+---
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: entry-reset
+- runFlow:
+    file: flows/entry-start.yaml
+    env:
+      USERNAME: mobile-writer
+- runFlow:
+    file: flows/draft-fill.yaml
+    env:
+      DESCRIPTION: TEST D1 account private
+      AMOUNT: '12.'
+- runFlow: flows/cold-start.yaml
+- tapOn:
+    id: logout
+- runFlow:
+    file: flows/entry-login.yaml
+    env:
+      USERNAME: mobile-writer-b
+- scrollUntilVisible:
+    element:
+      id: local-drafts
+- tapOn:
+    id: local-drafts
+- scrollUntilVisible:
+    element:
+      id: local-trip-${MAESTRO_WRITER_TRIP}
+- tapOn:
+    id: local-trip-${MAESTRO_WRITER_TRIP}
+- assertNotVisible: TEST D1 account private
+- assertNotVisible:
+    id: draft-restore
+- assertNotVisible:
+    id: new-expense-description
+- takeScreenshot: account-b-no-private-draft-or-options
+- runFlow: flows/cold-start.yaml
+- tapOn:
+    id: logout
+- runFlow:
+    file: flows/entry-login.yaml
+    env:
+      USERNAME: mobile-writer
+- tapOn:
+    id: local-drafts
+- scrollUntilVisible:
+    element:
+      id: local-trip-${MAESTRO_WRITER_TRIP}
+- tapOn:
+    id: local-trip-${MAESTRO_WRITER_TRIP}
+- scrollUntilVisible:
+    element:
+      id: draft-restore
+- tapOn:
+    id: draft-restore
+- assertVisible: TEST D1 account private
+- takeScreenshot: account-a-original-draft-restored

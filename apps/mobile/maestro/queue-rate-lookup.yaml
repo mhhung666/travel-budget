@@ -1,0 +1,29 @@
+appId: ${MAESTRO_APP_ID}
+---
+- runFlow:
+    file: flows/queue-create-offline.yaml
+    env:
+      DESCRIPTION: TEST D3 lookup rate limit
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online-drop-response-offline
+- scrollUntilVisible:
+    element:
+      id: queue-sync
+    direction: UP
+- tapOn:
+    id: queue-sync
+- extendedWaitUntil:
+    visible: ${MAESTRO_QUEUE_FROZEN}
+    timeout: 30000
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online-lookup-429
+- runFlow: flows/cold-start.yaml
+- openLink: ${MAESTRO_EXPO_URL + '/--/queue'}
+- runFlow:
+    file: flows/queue-rate-restart.yaml
+    env:
+      COMMITTED: '1'

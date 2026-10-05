@@ -1,0 +1,66 @@
+import type { SqlDatabase, SqlValue } from './pendingExpenses';
+
+// This file exists only in the disposable native acceptance checkout.
+export function wrapNativeAcceptance(db: SqlDatabase): SqlDatabase {
+  const url = process.env.EXPO_PUBLIC_NATIVE_SQL_GATE_URL;
+  if (!__DEV__ || !url) throw new Error('ISOLATED_NATIVE_GATE_REQUIRED');
+  const environment = process.env.EXPO_PUBLIC_API_BASE_URL;
+  const account = process.env.EXPO_PUBLIC_NATIVE_ACCOUNT;
+  const trip = process.env.EXPO_PUBLIC_NATIVE_TRIP;
+  let kind: string | null = null;
+  let requestId: string | null = null;
+  const gate = async (stage: string, id: SqlValue = requestId) => {
+    const response = await fetch(
+      `${url}/event?stage=${encodeURIComponent(stage)}&id=${encodeURIComponent(String(id ?? ''))}`
+    );
+    if (!response.ok) throw new Error('NATIVE_GATE_UNAVAILABLE');
+  };
+  return {
+    async execAsync(sql) {
+      if (sql === 'BEGIN IMMEDIATE') {
+        kind = null;
+        requestId = null;
+      }
+      await db.execAsync(sql);
+      if (sql === 'COMMIT' && kind) await gate(`${kind}-after-commit`);
+    },
+    async runAsync(sql, ...params) {
+      if (
+        /UPDATE expense_draft SET revision/.test(sql) &&
+        params[3] === environment && params[4] === account && params[5] === trip
+      ) await gate('draft-save-before-update', params[6]);
+      const scoped = params[0] === environment && params[1] === account && params[3] === trip;
+      const pending = scoped && /INSERT INTO pending_expense/.test(sql);
+      const queued = scoped && /INSERT INTO expense_queue/.test(sql);
+      if (pending) {
+        kind = /pending_expense\s*\(/.test(sql) ? 'draft' : 'queue-prepare';
+        requestId = String(params[2]);
+        await gate(`${kind}-before-pending`);
+      }
+      if (queued) {
+        kind = 'queue-confirm';
+        requestId = String(params[2]);
+        await gate('queue-confirm-before-insert');
+      }
+      if (
+        /DELETE FROM pending_expense/.test(sql) &&
+        params[0] === environment &&
+        params[1] === account
+      ) {
+        const row = await db.getFirstAsync<{ trip_id: string }>(
+          'SELECT trip_id FROM pending_expense WHERE environment = ? AND account_id = ? AND client_request_id = ?',
+          params[0],
+          params[1],
+          params[2]
+        );
+        if (row?.trip_id === trip) await gate('before-cleanup', params[2]);
+      }
+      const result = await db.runAsync(sql, ...params);
+      if (pending) await gate(`${kind}-after-pending`);
+      if (queued) await gate('queue-confirm-after-insert');
+      return result;
+    },
+    getAllAsync: <T,>(sql: string, ...params: SqlValue[]) => db.getAllAsync<T>(sql, ...params),
+    getFirstAsync: <T,>(sql: string, ...params: SqlValue[]) => db.getFirstAsync<T>(sql, ...params),
+  };
+}

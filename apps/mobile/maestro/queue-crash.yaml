@@ -1,0 +1,116 @@
+appId: ${MAESTRO_APP_ID}
+---
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: entry-reset
+- runFlow:
+    file: flows/entry-start.yaml
+    env:
+      USERNAME: mobile-writer
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: disconnect
+- runFlow:
+    file: flows/draft-fill.yaml
+    env:
+      DESCRIPTION: TEST D3 transaction crash
+      AMOUNT: '100'
+- runFlow:
+    file: flows/queue-crash-confirm-rollback.yaml
+    env:
+      STAGE: queue-confirm-before-insert
+- runFlow:
+    file: flows/queue-crash-confirm-rollback.yaml
+    env:
+      STAGE: queue-confirm-after-insert
+- scrollUntilVisible:
+    element:
+      id: expense-queue-confirm
+- runScript:
+    file: sql-gate-command.js
+    env:
+      COMMAND: arm-queue-confirm-after-commit
+- tapOn:
+    id: expense-queue-confirm
+- runScript:
+    file: sql-gate-command.js
+    env:
+      COMMAND: wait-queue-confirm-after-commit
+- stopApp
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-queue-confirm-after-commit
+- runScript:
+    file: sql-gate-command.js
+    env:
+      COMMAND: release
+- runFlow: flows/queue-crash-reopen.yaml
+- runFlow:
+    file: flows/queue-crash-prepare.yaml
+    env:
+      STAGE: queue-prepare-before-pending
+- runFlow:
+    file: flows/queue-crash-prepare.yaml
+    env:
+      STAGE: queue-prepare-after-pending
+- runFlow:
+    file: flows/queue-crash-prepare.yaml
+    env:
+      STAGE: queue-prepare-after-commit
+- assertVisible: ${MAESTRO_QUEUE_FROZEN}
+- assertNotVisible: ${MAESTRO_QUEUE_EDIT}
+- assertNotVisible: ${MAESTRO_QUEUE_DISCARD}
+- runScript:
+    file: sql-gate-command.js
+    env:
+      COMMAND: arm-before-cleanup
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online
+- scrollUntilVisible:
+    element: ${MAESTRO_RESTORE_ONLINE}
+    direction: UP
+- tapOn: ${MAESTRO_RESTORE_ONLINE}
+- scrollUntilVisible:
+    element:
+      id: queue-sync
+    direction: UP
+- runFlow:
+    when:
+      visible:
+        id: queue-sync
+        enabled: true
+    commands:
+      - tapOn:
+          id: queue-sync
+- runScript:
+    file: sql-gate-command.js
+    env:
+      COMMAND: wait-before-cleanup
+- stopApp
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-queue-before-cleanup
+- runScript:
+    file: sql-gate-command.js
+    env:
+      COMMAND: release
+- runFlow: flows/cold-start.yaml
+- openLink: ${MAESTRO_EXPO_URL + '/--/queue'}
+- extendedWaitUntil:
+    visible: ${MAESTRO_QUEUE_EMPTY}
+    timeout: 90000
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-queue-crash-recovered
+- takeScreenshot: committed-queue-recovered-once

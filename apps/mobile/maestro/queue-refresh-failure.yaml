@@ -1,0 +1,82 @@
+appId: ${MAESTRO_APP_ID}
+---
+- runFlow:
+    file: flows/queue-create-offline.yaml
+    env:
+      DESCRIPTION: TEST D3 refresh failure
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online-post-401-refresh-500
+- scrollUntilVisible:
+    element:
+      id: queue-sync
+    direction: UP
+- tapOn:
+    id: queue-sync
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-await-refresh-failure
+- extendedWaitUntil:
+    visible: ${MAESTRO_QUEUE_FROZEN}
+    timeout: 30000
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: disconnect
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-auth-failed
+- runFlow:
+    file: flows/entry-expect.yaml
+    env:
+      EXPECT_EXPENSES: '0'
+      EXPECT_RECEIPTS: '0'
+- stopApp
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - launchApp:
+          clearState: false
+          stopApp: false
+- openLink: ${MAESTRO_EXPO_URL}
+- extendedWaitUntil:
+    visible: ${MAESTRO_LOCAL_DRAFTS}
+    timeout: 60000
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online
+- tapOn: ${MAESTRO_LOGOUT}
+- runFlow:
+    file: flows/entry-login.yaml
+    env:
+      USERNAME: mobile-writer-b
+- openLink: ${MAESTRO_EXPO_URL + '/--/queue'}
+- extendedWaitUntil:
+    visible: ${MAESTRO_QUEUE_EMPTY}
+    timeout: 30000
+- assertNotVisible: TEST D3 refresh failure
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-auth-account-b
+- runFlow: flows/cold-start.yaml
+- tapOn:
+    id: logout
+- runFlow:
+    file: flows/entry-login.yaml
+    env:
+      USERNAME: mobile-writer
+- openLink: ${MAESTRO_EXPO_URL + '/--/queue'}
+- extendedWaitUntil:
+    visible: ${MAESTRO_QUEUE_EMPTY}
+    timeout: 120000
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-auth-recovered
+- takeScreenshot: original-request-after-refresh-failure-and-account-switch

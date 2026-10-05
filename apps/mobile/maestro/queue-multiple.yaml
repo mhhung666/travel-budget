@@ -1,0 +1,117 @@
+appId: ${MAESTRO_APP_ID}
+---
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: entry-reset
+- runFlow:
+    file: flows/entry-start.yaml
+    env:
+      USERNAME: mobile-writer
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: disconnect
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - runScript:
+          file: network-command.js
+          env:
+            COMMAND: native-radio-offline
+- runFlow:
+    file: flows/draft-fill.yaml
+    env:
+      DESCRIPTION: TEST D3 first
+      AMOUNT: '100'
+- scrollUntilVisible:
+    element:
+      id: expense-queue-confirm
+    timeout: 30000
+- tapOn:
+    id: expense-queue-confirm
+- extendedWaitUntil:
+    visible: ${MAESTRO_QUEUE_TITLE}
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      id: queue-record-0
+- assertVisible: TEST D3 first
+- openLink: ${MAESTRO_EXPO_URL + '/--/drafts/' + MAESTRO_WRITER_TRIP}
+- scrollUntilVisible:
+    element:
+      id: new-expense-description
+    timeout: 30000
+- runFlow:
+    file: flows/draft-fill.yaml
+    env:
+      DESCRIPTION: TEST D3 second
+      AMOUNT: '200'
+- scrollUntilVisible:
+    element:
+      id: expense-queue-confirm
+    timeout: 30000
+- tapOn:
+    id: expense-queue-confirm
+- scrollUntilVisible:
+    element:
+      id: queue-record-1
+    timeout: 30000
+- assertVisible: TEST D3 second
+- takeScreenshot: two-queued-before-restart
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-multiple-before
+- runFlow: flows/draft-reopen.yaml
+- openLink: ${MAESTRO_EXPO_URL + '/--/queue'}
+- extendedWaitUntil:
+    visible: ${MAESTRO_QUEUE_TITLE}
+    timeout: 60000
+- scrollUntilVisible:
+    element:
+      id: queue-record-1
+    timeout: 30000
+- assertVisible: TEST D3 second
+- takeScreenshot: two-queued-after-restart
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-multiple-after
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - runScript:
+          file: network-command.js
+          env:
+            COMMAND: native-radio-online
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online
+- scrollUntilVisible:
+    element: ${MAESTRO_RESTORE_ONLINE}
+    direction: UP
+    timeout: 30000
+- tapOn: ${MAESTRO_RESTORE_ONLINE}
+- scrollUntilVisible:
+    element:
+      id: queue-sync
+    direction: UP
+    timeout: 30000
+- tapOn:
+    id: queue-sync
+- extendedWaitUntil:
+    visible: ${MAESTRO_QUEUE_EMPTY}
+    timeout: 90000
+- takeScreenshot: queue-synced-once
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-multiple-synced

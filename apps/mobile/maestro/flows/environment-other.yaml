@@ -1,0 +1,15 @@
+appId: ${MAESTRO_APP_ID}
+---
+- stopApp
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - launchApp:
+          clearState: false
+          stopApp: false
+- openLink: ${MAESTRO_OTHER_EXPO_URL}
+- extendedWaitUntil:
+    visible:
+      id: 'logout|login-username'
+    timeout: 60000

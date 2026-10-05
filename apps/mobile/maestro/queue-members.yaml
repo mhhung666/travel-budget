@@ -1,0 +1,91 @@
+appId: ${MAESTRO_APP_ID}
+---
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: entry-reset
+- runFlow:
+    file: flows/entry-start.yaml
+    env:
+      USERNAME: mobile-writer
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: disconnect
+- runFlow:
+    file: flows/draft-fill.yaml
+    env:
+      DESCRIPTION: TEST D3 member change
+      AMOUNT: '100'
+- scrollUntilVisible:
+    element:
+      id: expense-queue-confirm
+- tapOn:
+    id: expense-queue-confirm
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: removed-leave
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online
+- scrollUntilVisible:
+    element:
+      id: queue-sync
+    direction: UP
+- tapOn:
+    id: queue-sync
+- scrollUntilVisible:
+    element: ${MAESTRO_QUEUE_EDIT}
+    timeout: 90000
+- takeScreenshot: changed-roster-requires-confirmation
+- runFlow:
+    file: flows/entry-expect.yaml
+    env:
+      EXPECT_EXPENSES: '0'
+      EXPECT_RECEIPTS: '0'
+# Rejoin restores the original roster, but attention must remain until explicit review.
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: removed-rejoin
+- scrollUntilVisible:
+    element:
+      id: queue-sync
+    direction: UP
+- tapOn:
+    id: queue-sync
+- runFlow:
+    file: flows/entry-expect.yaml
+    env:
+      EXPECT_EXPENSES: '0'
+      EXPECT_RECEIPTS: '0'
+- scrollUntilVisible:
+    element: ${MAESTRO_QUEUE_EDIT}
+- tapOn: ${MAESTRO_QUEUE_EDIT}
+- scrollUntilVisible:
+    element:
+      id: draft-restore
+- tapOn:
+    id: draft-restore
+- assertVisible: TEST D3 member change
+- scrollUntilVisible:
+    element:
+      id: expense-queue-confirm
+- tapOn:
+    id: expense-queue-confirm
+- scrollUntilVisible:
+    element:
+      id: queue-sync
+    direction: UP
+- tapOn:
+    id: queue-sync
+- extendedWaitUntil:
+    visible: ${MAESTRO_QUEUE_EMPTY}
+    timeout: 90000
+- takeScreenshot: explicitly-reconfirmed-roster

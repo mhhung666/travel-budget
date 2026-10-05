@@ -1,0 +1,79 @@
+appId: ${MAESTRO_APP_ID}
+---
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: entry-reset
+- runFlow:
+    file: flows/entry-start.yaml
+    env:
+      USERNAME: mobile-writer
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: disconnect
+- runFlow:
+    file: flows/draft-fill.yaml
+    env:
+      DESCRIPTION: TEST D3 edit queued
+      AMOUNT: '100'
+- scrollUntilVisible:
+    element:
+      id: expense-queue-confirm
+- tapOn:
+    id: expense-queue-confirm
+- scrollUntilVisible:
+    element: ${MAESTRO_QUEUE_EDIT}
+- tapOn: ${MAESTRO_QUEUE_EDIT}
+- scrollUntilVisible:
+    element:
+      id: draft-restore
+- tapOn:
+    id: draft-restore
+- assertVisible:
+    id: new-expense-description
+    text: TEST D3 edit queued
+- scrollUntilVisible:
+    element:
+      id: new-expense-amount
+- assertVisible:
+    id: new-expense-amount
+    text: '100'
+- scrollUntilVisible:
+    element:
+      id: new-expense-description
+    direction: UP
+- tapOn:
+    id: new-expense-description
+    point: '95%,50%'
+- eraseText
+- inputText: TEST D3 edited
+- assertVisible: TEST D3 edited
+- pressKey: Enter
+- runFlow: flows/entry-keyboard-done.yaml
+- scrollUntilVisible:
+    element:
+      id: draft-save-status
+    direction: UP
+- assertVisible: ${MAESTRO_DRAFT_SAVED}
+- scrollUntilVisible:
+    element:
+      id: expense-queue-confirm
+- tapOn:
+    id: expense-queue-confirm
+- assertVisible: TEST D3 edited
+- takeScreenshot: queue-explicit-edit
+- scrollUntilVisible:
+    element: ${MAESTRO_QUEUE_DISCARD}
+- tapOn: ${MAESTRO_QUEUE_DISCARD}
+- extendedWaitUntil:
+    visible: ${MAESTRO_QUEUE_EMPTY}
+    timeout: 30000
+- runFlow: flows/draft-reopen.yaml
+- assertNotVisible: TEST D3 edit queued
+- assertNotVisible: TEST D3 edited
+- takeScreenshot: queue-discard-restart

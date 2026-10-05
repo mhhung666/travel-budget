@@ -1,0 +1,72 @@
+appId: ${MAESTRO_APP_ID}
+---
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: entry-reset
+- runFlow:
+    file: flows/entry-start.yaml
+    env:
+      USERNAME: mobile-writer
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: disconnect
+- runFlow:
+    file: flows/draft-fill.yaml
+    env:
+      DESCRIPTION: TEST D3 lost response
+      AMOUNT: '100'
+- scrollUntilVisible:
+    element:
+      id: expense-queue-confirm
+- tapOn:
+    id: expense-queue-confirm
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: drop-response-offline
+- scrollUntilVisible:
+    element:
+      id: queue-sync
+    direction: UP
+- tapOn:
+    id: queue-sync
+- runFlow:
+    file: flows/entry-expect.yaml
+    env:
+      EXPECT_EXPENSES: '1'
+      EXPECT_RECEIPTS: '1'
+- scrollUntilVisible:
+    element:
+      id: queue-record-0
+- assertNotVisible: ${MAESTRO_QUEUE_EDIT}
+- assertNotVisible: ${MAESTRO_QUEUE_DISCARD}
+- takeScreenshot: queue-frozen-after-lost-response
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-lost-frozen
+- stopApp
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online
+- runFlow: flows/draft-reopen.yaml
+- openLink: ${MAESTRO_EXPO_URL + '/--/queue'}
+- extendedWaitUntil:
+    visible: ${MAESTRO_QUEUE_EMPTY}
+    timeout: 90000
+- takeScreenshot: queue-receipt-recovery
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-lost-recovered

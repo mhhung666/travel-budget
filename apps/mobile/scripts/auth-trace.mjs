@@ -7,8 +7,15 @@ export function createAuthTrace() {
   const events = [];
   return {
     events,
-    observe({ method, path, authorization, status, dropped }) {
+    observe({ method, path, authorization, status, dropped, expenseRequest, injected }) {
       const event = { method, path, status, at: Date.now(), ...(dropped ? { dropped: true } : {}) };
+      if (injected) event.injected = true;
+      if (
+        expenseRequest &&
+        /^[0-9a-f-]{36}$/i.test(expenseRequest.id) &&
+        /^[0-9a-f]{64}$/.test(expenseRequest.fingerprint)
+      )
+        event.expenseRequest = { id: expenseRequest.id, fingerprint: expenseRequest.fingerprint };
       if (authorization?.startsWith('Bearer ')) {
         try {
           const token = authorization.slice(7);

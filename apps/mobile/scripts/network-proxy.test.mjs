@@ -1,7 +1,97 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { createServer } from 'node:http';
 import { test } from 'node:test';
 import { startNetworkProxy } from './network-proxy.mjs';
+
+test('resuming transport arms faults before foreground requests can escape', async () => {
+  let writes = 0;
+  const upstream = createServer((req, res) => {
+    writes++;
+    req.resume();
+    req.on('end', () => res.end('{}'));
+  });
+  await new Promise((resolve) => upstream.listen(0, '127.0.0.1', resolve));
+  const proxy = await startNetworkProxy(`http://127.0.0.1:${upstream.address().port}/api/v1`, 0);
+  const command = (name) =>
+    fetch(`${proxy.url}/__network/${name}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${proxy.token}` },
+    });
+  const create = () =>
+    fetch(`${proxy.url}/api/v1/trips/${'a'.repeat(24)}/expenses`, {
+      method: 'POST',
+      body: '{}',
+    });
+  try {
+    await command('disconnect');
+    await command('online-post-401-refresh-500');
+    assert.equal((await create()).status, 401);
+    assert.equal((await fetch(`${proxy.url}/api/v1/auth/refresh`, { method: 'POST' })).status, 500);
+    assert.equal(writes, 0);
+    assert.equal((await create()).status, 200);
+    await command('online-drop-response-offline');
+    await assert.rejects(create, { name: 'TypeError' });
+    await assert.rejects(create, { name: 'TypeError' });
+    assert.equal(writes, 2, 'transport retries cannot reach the committed write again');
+    await command('online-lookup-429');
+    const lookup = await fetch(
+      `${proxy.url}/api/v1/trips/${'a'.repeat(24)}/expense-requests/12345678-1234-4234-8234-123456789012`
+    );
+    assert.equal(lookup.status, 429);
+    assert.equal(lookup.headers.get('retry-after'), '180');
+    assert.equal(writes, 2);
+  } finally {
+    await proxy.close();
+    upstream.closeAllConnections();
+    await new Promise((resolve) => upstream.close(resolve));
+  }
+});
+
+test('fixture write evidence retains UUID and identical byte hashes, excluding credentials and raw input', async () => {
+  const events = [];
+  const upstream = createServer((req, res) => {
+    req.resume();
+    req.on('end', () => {
+      res.writeHead(200);
+      res.end('{}');
+    });
+  });
+  await new Promise((resolve) => upstream.listen(0, '127.0.0.1', resolve));
+  const proxy = await startNetworkProxy(
+    `http://127.0.0.1:${upstream.address().port}/api/v1`,
+    0,
+    (event) => events.push(event)
+  );
+  try {
+    const id = '12345678-1234-4234-8234-123456789012';
+    const body = JSON.stringify({ client_request_id: id, description: 'private draft' });
+    const write = (path, content) =>
+      fetch(`${proxy.url}/api/v1/${path}`, { method: 'POST', body: content });
+    await write(`trips/${'a'.repeat(24)}/expenses`, body);
+    await write(`trips/${'a'.repeat(24)}/expenses`, body);
+    await write(
+      'auth/refresh',
+      JSON.stringify({ refreshToken: 'private credential', client_request_id: id })
+    );
+    await write(`trips/${'a'.repeat(24)}/expenses`, '{invalid');
+    assert.deepEqual(
+      events.slice(0, 2).map((e) => e.expenseRequest),
+      [0, 1].map(() => ({
+        id,
+        fingerprint: createHash('sha256').update(body).digest('hex'),
+      }))
+    );
+    assert.equal(events[2].expenseRequest, undefined);
+    assert.equal(events[3].expenseRequest, undefined);
+    assert(!JSON.stringify(events).includes('private draft'));
+    assert(!JSON.stringify(events).includes('private credential'));
+  } finally {
+    await proxy.close();
+    upstream.closeAllConnections();
+    await new Promise((resolve) => upstream.close(resolve));
+  }
+});
 
 test('local faults block upstream writes and recover without changing HTTP payloads', async () => {
   const received = [];
@@ -179,4 +269,66 @@ test('an unreachable backend does not use up an armed drop', async () => {
 test('rejects nonfixture upstreams', async () => {
   await assert.rejects(startNetworkProxy('https://example.com/api/v1', 0));
   await assert.rejects(startNetworkProxy('http://127.0.0.1:1234/other', 0));
+});
+
+test('one-shot status faults keep the write UUID/hash and never reach the fixture database', async () => {
+  let forwarded = 0;
+  const events = [];
+  const upstream = createServer((req, res) => {
+    forwarded++;
+    req.resume();
+    req.on('end', () => res.end('{}'));
+  });
+  await new Promise((resolve) => upstream.listen(0, '127.0.0.1', resolve));
+  const proxy = await startNetworkProxy(
+    `http://127.0.0.1:${upstream.address().port}/api/v1`,
+    0,
+    (e) => events.push(e)
+  );
+  const control = (command) =>
+    fetch(`${proxy.url}/__network/${command}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${proxy.token}` },
+    });
+  const id = '12345678-1234-4234-8234-123456789012';
+  const trip = 'a'.repeat(24);
+  const body = JSON.stringify({ client_request_id: id, description: 'private native intention' });
+  try {
+    await control('post-429');
+    await control('lookup-403');
+    const limited = await fetch(`${proxy.url}/api/v1/trips/${trip}/expenses`, {
+      method: 'POST',
+      body,
+    });
+    assert.equal(limited.status, 429);
+    assert.equal(limited.headers.get('retry-after'), '180');
+    assert.equal(
+      (await fetch(`${proxy.url}/api/v1/trips/${trip}/expense-requests/${id}`)).status,
+      403
+    );
+    assert.equal(forwarded, 0);
+    assert(events.every((e) => e.injected));
+    assert.equal(events[0].expenseRequest.id, id);
+    assert.equal(
+      events[0].expenseRequest.fingerprint,
+      createHash('sha256').update(body).digest('hex')
+    );
+    assert(!JSON.stringify(events).includes('private native intention'));
+    assert.equal(
+      (await fetch(`${proxy.url}/api/v1/trips/${trip}/expenses`, { method: 'POST', body })).status,
+      200
+    );
+    assert.equal(forwarded, 1);
+    assert.deepEqual(events[2].expenseRequest, events[0].expenseRequest);
+    await control('post-409');
+    await control('online');
+    assert.equal(
+      (await fetch(`${proxy.url}/api/v1/trips/${trip}/expenses`, { method: 'POST', body })).status,
+      200
+    );
+  } finally {
+    await proxy.close();
+    upstream.closeAllConnections();
+    await new Promise((resolve) => upstream.close(resolve));
+  }
 });

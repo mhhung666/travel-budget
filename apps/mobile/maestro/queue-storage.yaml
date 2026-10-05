@@ -1,0 +1,88 @@
+appId: ${MAESTRO_APP_ID}
+---
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: entry-reset
+- runFlow:
+    file: flows/entry-start.yaml
+    env:
+      USERNAME: mobile-writer
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: disconnect
+- runFlow:
+    file: flows/draft-fill.yaml
+    env:
+      DESCRIPTION: TEST D3 storage failure
+      AMOUNT: '100'
+- scrollUntilVisible:
+    element:
+      id: expense-queue-confirm
+- tapOn:
+    id: expense-queue-confirm
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-prepare-fail
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online
+- scrollUntilVisible:
+    element:
+      id: queue-sync
+    direction: UP
+- tapOn:
+    id: queue-sync
+- scrollUntilVisible:
+    element: ${MAESTRO_QUEUE_EDIT}
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-prepare-failed
+- runFlow:
+    file: flows/entry-expect.yaml
+    env:
+      EXPECT_EXPENSES: '0'
+      EXPECT_RECEIPTS: '0'
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-clear
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-cleanup-fail
+- extendedWaitUntil:
+    visible: ${MAESTRO_QUEUE_FROZEN}
+    timeout: 90000
+- runFlow:
+    file: flows/entry-expect.yaml
+    env:
+      EXPECT_EXPENSES: '1'
+      EXPECT_RECEIPTS: '1'
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-cleanup-failed
+- takeScreenshot: cleanup-failure-retains-frozen-request
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-clear
+- runFlow: flows/cold-start.yaml
+- openLink: ${MAESTRO_EXPO_URL + '/--/queue'}
+- extendedWaitUntil:
+    visible: ${MAESTRO_QUEUE_EMPTY}
+    timeout: 90000
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-cleanup-recovered
+- takeScreenshot: cleanup-retry-looks-up-original-receipt

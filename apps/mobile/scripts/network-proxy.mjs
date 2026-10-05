@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { randomBytes } from 'node:crypto';
+import { Buffer } from 'node:buffer';
+import { createHash, randomBytes } from 'node:crypto';
 import { createServer, request } from 'node:http';
 
 // The only write the drop-response modes may touch: creating an expense (not its preview or lookups).
@@ -8,7 +9,7 @@ const isExpenseCreate = (req) =>
   /^\/api\/v1\/trips\/[a-f0-9]{24}\/expenses$/.test(new URL(req.url, 'http://proxy').pathname);
 
 /** Disposable loopback transport faults. Never mounted in the application/backend. */
-export async function startNetworkProxy(apiUrl, port, observe = () => {}) {
+export async function startNetworkProxy(apiUrl, port, observe = () => {}, nativeCommand) {
   const api = new URL(apiUrl);
   assert(
     api.protocol === 'http:' && api.hostname === '127.0.0.1' && api.pathname === '/api/v1',
@@ -19,6 +20,7 @@ export async function startNetworkProxy(apiUrl, port, observe = () => {}) {
   // One-shot: the next expense creation is forwarded and committed upstream, then its response is
   // thrown away. `offline` also takes the connection down afterwards, as a dying network would.
   let armed = null;
+  const injections = new Map();
   const counts = { forwarded: 0, disconnect: 0, timeout: 0, dropped: 0 };
   const server = createServer((req, res) => {
     const reply = (status, body) => {
@@ -29,17 +31,52 @@ export async function startNetworkProxy(apiUrl, port, observe = () => {}) {
       if (req.headers.authorization !== `Bearer ${token}`) return reply(401, {});
       const command = req.url.slice('/__network/'.length);
       if (req.method !== 'POST') return reply(405, {});
+      if (nativeCommand && (command.startsWith('sqlite-') || command.startsWith('native-radio-'))) {
+        void Promise.resolve()
+          .then(() => nativeCommand(command))
+          .then((result) => reply(200, result))
+          .catch(() => reply(500, { error: 'Native SQLite control failed' }));
+        return;
+      }
+      const atomicFaults = {
+        'online-post-401': [['post', 401]],
+        'online-post-401-refresh-500': [
+          ['post', 401],
+          ['refresh', 500],
+        ],
+        'online-post-429': [['post', 429]],
+        'online-post-409-lookup-403': [
+          ['post', 409],
+          ['lookup', 403],
+        ],
+        'online-lookup-429': [['lookup', 429]],
+        'online-drop-response-offline': [],
+      };
+      if (Object.hasOwn(atomicFaults, command)) {
+        mode = 'online';
+        armed = command === 'online-drop-response-offline' ? { offline: true } : null;
+        injections.clear();
+        for (const [target, status] of atomicFaults[command]) injections.set(target, status);
+        return reply(200, { injected: command });
+      }
       if (
         !['online', 'disconnect', 'timeout', 'drop-response', 'drop-response-offline'].includes(
           command
         )
-      )
-        return reply(404, {});
+      ) {
+        const match = command.match(/^(post|lookup|refresh)-(401|403|404|409|429|500)$/);
+        if (!match) return reply(404, {});
+        injections.set(match[1], Number(match[2]));
+        return reply(200, { injected: command });
+      }
       if (command.startsWith('drop-response')) armed = { offline: command.endsWith('-offline') };
       else {
         mode = command;
         // `online` also stands down a drop that was armed but never used.
-        if (command === 'online') armed = null;
+        if (command === 'online') {
+          armed = null;
+          injections.clear();
+        }
       }
       return reply(200, { mode, armed: armed !== null });
     }
@@ -53,6 +90,66 @@ export async function startNetworkProxy(apiUrl, port, observe = () => {}) {
       // Accept the connection without forwarding or replying. The real client
       // timeout must release it; no refresh/logout can be consumed upstream.
       req.resume();
+      return;
+    }
+    // Only fixture expense writes: keep the UUID and a one-way byte fingerprint, never body data.
+    let expenseRequest;
+    if (isExpenseCreate(req)) {
+      const chunks = [];
+      let bytes = 0;
+      req.on('data', (chunk) => {
+        bytes += chunk.length;
+        if (bytes <= 65536) chunks.push(chunk);
+      });
+      req.on('end', () => {
+        if (bytes > 65536) return;
+        const body = Buffer.concat(chunks);
+        try {
+          const id = JSON.parse(body.toString()).client_request_id;
+          if (typeof id === 'string' && /^[0-9a-f-]{36}$/i.test(id))
+            expenseRequest = { id, fingerprint: createHash('sha256').update(body).digest('hex') };
+        } catch {
+          // Invalid bodies cannot establish a frozen request acceptance baseline.
+        }
+      });
+    }
+    const pathname = new URL(req.url, 'http://proxy').pathname;
+    const target = isExpenseCreate(req)
+      ? 'post'
+      : req.method === 'GET' &&
+          /^\/api\/v1\/trips\/[a-f0-9]{24}\/expense-requests\/[0-9a-f-]{36}$/.test(pathname)
+        ? 'lookup'
+        : req.method === 'POST' && pathname === '/api/v1/auth/refresh'
+          ? 'refresh'
+          : null;
+    const injected = injections.get(target);
+    if (injected) {
+      injections.delete(target);
+      req.resume();
+      req.on('end', () => {
+        observe({
+          method: req.method,
+          path: req.url,
+          authorization: req.headers.authorization,
+          status: injected,
+          injected: true,
+          ...(expenseRequest ? { expenseRequest } : {}),
+        });
+        const codes = {
+          401: 'UNAUTHORIZED',
+          403: 'FORBIDDEN',
+          404: 'NOT_FOUND',
+          409: 'IDEMPOTENCY_CONFLICT',
+          429: 'RATE_LIMITED',
+          500: 'SERVER_ERROR',
+        };
+        res.writeHead(injected, {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store',
+          ...(injected === 429 ? { 'Retry-After': '180' } : {}),
+        });
+        res.end(JSON.stringify({ error: { code: codes[injected] } }));
+      });
       return;
     }
     counts.forwarded++;
@@ -72,6 +169,7 @@ export async function startNetworkProxy(apiUrl, port, observe = () => {}) {
           path: req.url,
           authorization: req.headers.authorization,
           status: response.statusCode,
+          ...(expenseRequest ? { expenseRequest } : {}),
           ...(drop ? { dropped: true } : {}),
         });
         if (drop) {

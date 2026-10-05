@@ -1,0 +1,143 @@
+appId: ${MAESTRO_APP_ID}
+---
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: entry-reset
+- runFlow:
+    file: flows/entry-start.yaml
+    env:
+      USERNAME: mobile-writer
+- runFlow:
+    file: flows/draft-fill.yaml
+    env:
+      DESCRIPTION: TEST D1 storage original
+      AMOUNT: '100'
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-save-fail
+- scrollUntilVisible:
+    element:
+      id: new-expense-description
+- tapOn:
+    id: new-expense-description
+    point: '95%,50%'
+- eraseText
+- inputText: TEST D1 storage latest
+- assertVisible:
+    id: new-expense-description
+    text: '^TEST D1 storage latest$'
+- pressKey: Enter
+- runFlow: flows/entry-keyboard-done.yaml
+- scrollUntilVisible:
+    element:
+      id: draft-save-status
+    direction: UP
+- assertVisible: ${MAESTRO_DRAFT_SAVE_FAILED}
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-save-failed
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-clear
+- tapOn:
+    id: draft-save-retry
+- assertVisible: ${MAESTRO_DRAFT_SAVED}
+- scrollUntilVisible:
+    element:
+      id: new-expense-description
+- assertVisible: TEST D1 storage latest
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-discard-fail
+- scrollUntilVisible:
+    element:
+      id: draft-discard
+- tapOn:
+    id: draft-discard
+- scrollUntilVisible:
+    element: ${MAESTRO_DRAFT_DISCARD_FAILED}
+    direction: UP
+- assertVisible: ${MAESTRO_DRAFT_DISCARD_FAILED}
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-discard-failed
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-clear
+- scrollUntilVisible:
+    element:
+      id: draft-discard
+- tapOn:
+    id: draft-discard
+- scrollUntilVisible:
+    element:
+      id: new-expense-description
+    direction: UP
+- runFlow:
+    file: flows/draft-fill.yaml
+    env:
+      DESCRIPTION: TEST D1 handoff not sent
+      AMOUNT: '100'
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-enqueue-fail
+- scrollUntilVisible:
+    element:
+      id: expense-queue-confirm
+- tapOn:
+    id: expense-queue-confirm
+- scrollUntilVisible:
+    element: ${MAESTRO_ENTRY_NOT_SENT}
+    direction: UP
+- assertVisible: ${MAESTRO_ENTRY_NOT_SENT}
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-enqueue-failed
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-clear
+- scrollUntilVisible:
+    element:
+      id: new-expense-preview
+    direction: UP
+- tapOn:
+    id: new-expense-preview
+- scrollUntilVisible:
+    element:
+      id: new-expense-preview-card
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-prepare-fail
+- scrollUntilVisible:
+    element:
+      id: new-expense-confirm
+- tapOn:
+    id: new-expense-confirm
+- scrollUntilVisible:
+    element: ${MAESTRO_ENTRY_NOT_SENT}
+    direction: UP
+- assertVisible: ${MAESTRO_ENTRY_NOT_SENT}
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-handoff-failed
+- takeScreenshot: native-sqlite-failures-retain-raw-input
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-clear

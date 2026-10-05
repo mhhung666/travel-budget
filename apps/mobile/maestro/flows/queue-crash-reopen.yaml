@@ -1,0 +1,19 @@
+appId: ${MAESTRO_APP_ID}
+---
+- stopApp
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - launchApp:
+          clearState: false
+          stopApp: false
+- openLink: ${MAESTRO_EXPO_URL}
+- extendedWaitUntil:
+    visible: ${MAESTRO_LOCAL_DRAFTS}
+    timeout: 60000
+- openLink: ${MAESTRO_EXPO_URL + '/--/queue'}
+- extendedWaitUntil:
+    visible: ${MAESTRO_QUEUE_TITLE}
+    timeout: 30000
+- assertVisible: TEST D3 transaction crash

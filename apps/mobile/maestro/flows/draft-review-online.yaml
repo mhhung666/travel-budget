@@ -1,0 +1,19 @@
+appId: ${MAESTRO_APP_ID}
+---
+- scrollUntilVisible:
+    element:
+      id: local-review-online
+- tapOn:
+    id: local-review-online
+- scrollUntilVisible:
+    element:
+      id: 'draft-restore|new-expense-description'
+    timeout: 30000
+- runFlow:
+    when:
+      visible:
+        id: draft-restore
+    commands:
+      - tapOn:
+          id: draft-restore
+- assertVisible: TEST D1 transaction crash

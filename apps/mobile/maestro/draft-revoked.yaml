@@ -1,0 +1,63 @@
+appId: ${MAESTRO_APP_ID}
+---
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: entry-reset
+- runFlow:
+    file: flows/entry-start.yaml
+    env:
+      USERNAME: mobile-writer
+- runFlow:
+    file: flows/draft-fill.yaml
+    env:
+      DESCRIPTION: TEST D2 revoked private
+      AMOUNT: '100'
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: writer-leave
+- scrollUntilVisible:
+    element:
+      id: new-expense-preview
+- tapOn:
+    id: new-expense-preview
+- scrollUntilVisible:
+    element: ${MAESTRO_NOT_FOUND}
+    direction: UP
+- assertVisible: ${MAESTRO_NOT_FOUND}
+- assertNotVisible:
+    id: new-expense-description
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: disconnect
+- stopApp
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - launchApp:
+          clearState: false
+          stopApp: false
+- openLink: ${MAESTRO_EXPO_URL}
+- extendedWaitUntil:
+    visible: ${MAESTRO_LOCAL_DRAFTS}
+    timeout: 60000
+- assertVisible: ${MAESTRO_LOCAL_SESSION}
+- assertNotVisible:
+    id: local-trip-${MAESTRO_WRITER_TRIP}
+- assertNotVisible: TEST Writer trip
+- takeScreenshot: persisted-denial-offline-restart
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: writer-rejoin

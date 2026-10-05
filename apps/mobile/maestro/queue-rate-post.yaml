@@ -1,0 +1,20 @@
+appId: ${MAESTRO_APP_ID}
+---
+- runFlow:
+    file: flows/queue-create-offline.yaml
+    env:
+      DESCRIPTION: TEST D3 POST rate limit
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online-post-429
+- scrollUntilVisible:
+    element:
+      id: queue-sync
+    direction: UP
+- tapOn:
+    id: queue-sync
+- runFlow:
+    file: flows/queue-rate-restart.yaml
+    env:
+      COMMITTED: '0'

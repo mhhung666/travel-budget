@@ -1,0 +1,81 @@
+appId: ${MAESTRO_APP_ID}
+---
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: entry-reset
+- runFlow:
+    file: flows/entry-start.yaml
+    env:
+      USERNAME: mobile-writer
+- runFlow:
+    file: flows/draft-fill.yaml
+    env:
+      DESCRIPTION: TEST D2 legacy slot
+      AMOUNT: '12.'
+- runScript:
+    file: sql-gate-command.js
+    env:
+      COMMAND: arm-credential-legacy
+- runFlow: flows/cold-start.yaml
+- runScript:
+    file: sql-gate-command.js
+    env:
+      COMMAND: wait-credential-legacy
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: disconnect
+- stopApp
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - launchApp:
+          clearState: false
+          stopApp: false
+- openLink: ${MAESTRO_EXPO_URL}
+- extendedWaitUntil:
+    visible: ${MAESTRO_RESTORE_ERROR}
+    timeout: 60000
+- assertNotVisible: ${MAESTRO_LOCAL_DRAFTS}
+- assertNotVisible:
+    id: new-expense-description
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-legacy-blocked
+- takeScreenshot: legacy-credential-cannot-infer-offline-account
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online
+- tapOn: ${MAESTRO_RETRY}
+- extendedWaitUntil:
+    visible:
+      id: logout
+    timeout: 60000
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: disconnect
+- runFlow: flows/draft-reopen.yaml
+- scrollUntilVisible:
+    element:
+      id: draft-restore
+- tapOn:
+    id: draft-restore
+- assertVisible: TEST D2 legacy slot
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-legacy-restored
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online
+- takeScreenshot: legacy-reauthentication-restores-original-draft

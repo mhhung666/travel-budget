@@ -1,0 +1,56 @@
+appId: ${MAESTRO_APP_ID}
+---
+- runFlow:
+    file: flows/queue-create-offline.yaml
+    env:
+      DESCRIPTION: TEST D3 revoke during SQL
+- runScript:
+    file: sql-gate-command.js
+    env:
+      COMMAND: arm-queue-prepare-after-pending
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online
+- scrollUntilVisible:
+    element:
+      id: queue-sync
+    direction: UP
+- tapOn:
+    id: queue-sync
+- runScript:
+    file: sql-gate-command.js
+    env:
+      COMMAND: wait-queue-prepare-after-pending
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: writer-leave
+- openLink: ${MAESTRO_EXPO_URL + '/--/trips/' + MAESTRO_WRITER_TRIP + '/expenses/new'}
+# The form's SQLite read waits behind the handoff, but its options request can learn denial.
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-await-known-denial
+- runScript:
+    file: sql-gate-command.js
+    env:
+      COMMAND: release
+- extendedWaitUntil:
+    visible:
+      id: pending-card-0
+    timeout: 30000
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-revoked-prepared
+- runFlow:
+    file: flows/entry-expect.yaml
+    env:
+      EXPECT_EXPENSES: '0'
+      EXPECT_RECEIPTS: '0'
+- takeScreenshot: known-revocation-blocks-write-after-sql-wait
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: writer-rejoin

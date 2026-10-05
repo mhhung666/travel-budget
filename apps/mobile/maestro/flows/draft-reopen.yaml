@@ -1,0 +1,29 @@
+appId: ${MAESTRO_APP_ID}
+---
+# Session restoration chooses its home route; navigate through the native UI afterwards.
+- stopApp
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - launchApp:
+          clearState: false
+          stopApp: false
+- openLink: ${MAESTRO_EXPO_URL}
+- extendedWaitUntil:
+    visible:
+      text: '${MAESTRO_LOCAL_DRAFTS}'
+    timeout: 60000
+- runFlow:
+    when:
+      visible:
+        id: local-drafts
+    commands:
+      - tapOn:
+          id: local-drafts
+- scrollUntilVisible:
+    element:
+      id: local-trip-${MAESTRO_WRITER_TRIP}
+    timeout: 30000
+- tapOn:
+    id: local-trip-${MAESTRO_WRITER_TRIP}

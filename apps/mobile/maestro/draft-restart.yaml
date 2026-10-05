@@ -1,0 +1,105 @@
+appId: ${MAESTRO_APP_ID}
+---
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: entry-reset
+- runFlow:
+    file: flows/entry-start.yaml
+    env:
+      USERNAME: mobile-writer
+- runFlow:
+    file: flows/draft-fill.yaml
+    env:
+      DESCRIPTION: TEST D1 unfinished
+      AMOUNT: '12.'
+- scrollUntilVisible:
+    element:
+      id: new-expense-date
+- tapOn:
+    id: new-expense-date
+    point: '95%,50%'
+- eraseText
+- inputText: '2026-'
+- assertVisible:
+    id: new-expense-date
+    text: '^2026-$'
+- pressKey: Enter
+- scrollUntilVisible:
+    element:
+      id: new-expense-category-accommodation
+    centerElement: true
+- tapOn:
+    id: new-expense-category-accommodation
+- scrollUntilVisible:
+    element:
+      id: new-expense-payer-${MAESTRO_PEER_ID}
+    centerElement: true
+- tapOn:
+    id: new-expense-payer-${MAESTRO_PEER_ID}
+- scrollUntilVisible:
+    element:
+      text: ${MAESTRO_DRAFT_SAVED}
+    direction: UP
+- assertVisible: ${MAESTRO_DRAFT_SAVED}
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-restart-before
+- runFlow: flows/draft-reopen.yaml
+- scrollUntilVisible:
+    element:
+      id: draft-restore
+    timeout: 60000
+- tapOn:
+    id: draft-restore
+- assertVisible:
+    id: new-expense-description
+    text: TEST D1 unfinished
+- scrollUntilVisible:
+    element:
+      id: new-expense-amount
+- assertVisible:
+    id: new-expense-amount
+    text: '12\.'
+- scrollUntilVisible:
+    element:
+      id: new-expense-date
+- assertVisible:
+    id: new-expense-date
+    text: '^2026-$'
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-restart-after
+- takeScreenshot: draft-restored
+- scrollUntilVisible:
+    element:
+      id: draft-discard
+    timeout: 30000
+- tapOn:
+    id: draft-discard
+- scrollUntilVisible:
+    element:
+      id: new-expense-description
+    direction: UP
+    timeout: 30000
+- assertNotVisible: TEST D1 unfinished
+- runFlow: flows/draft-reopen.yaml
+- scrollUntilVisible:
+    element:
+      id: draft-restore
+    timeout: 60000
+- tapOn:
+    id: draft-restore
+- scrollUntilVisible:
+    element:
+      text: ${MAESTRO_DRAFT_SAVED}
+    direction: UP
+- assertNotVisible: TEST D1 unfinished
+- assertVisible: ${MAESTRO_DRAFT_SAVED}
+- takeScreenshot: draft-discarded-restart
