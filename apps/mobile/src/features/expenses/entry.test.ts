@@ -77,16 +77,16 @@ async function harness(options: { timeoutMs?: number } = {}) {
   const broken = { open: false, insert: false, remove: 0 };
   const store: PendingExpenseStore = {
     ...real,
-    insert: async (record) => {
+    insert: async (record, draft) => {
       if (broken.insert) throw new Error('disk full');
-      return real.insert(record);
+      return real.insert(record, draft);
     },
-    remove: async (scope, id) => {
+    remove: async (scope, id, resolution) => {
       if (broken.remove > 0) {
         broken.remove--;
         throw new Error('database is locked');
       }
-      return real.remove(scope, id);
+      return real.remove(scope, id, resolution);
     },
   };
   const committed = vi.fn();
@@ -919,5 +919,143 @@ describe('refresh failures do not reject pending expenses', () => {
     expect(h.manager.getSnapshot().user?.id).toBe(BOB);
     expect(h.committed).not.toHaveBeenCalled();
     expect(h.server.posts()).toHaveLength(1);
+  });
+});
+
+describe('D1 hands a durable draft to C', () => {
+  const raw = {
+    description: '  Dinner  ',
+    amountText: '100.00',
+    date: '2026-10-04',
+    category: 'food' as const,
+    payerId: ANN,
+    memberIds: [ANN, BOB, CAT],
+  };
+  const saveDraft = async (h: Awaited<ReturnType<typeof harness>>) => {
+    const draft = {
+      ...h.scope(ANN),
+      tripId: TRIP,
+      draftId: uuidOf(100),
+      revision: 3,
+      updatedAt: 1000,
+      input: raw,
+    };
+    await h.store.drafts.start(draft);
+    return draft;
+  };
+  it('hands off atomically before HTTP, then success retires the source draft', async () => {
+    const h = await harness();
+    await h.login('ann');
+    const draft = await saveDraft(h);
+    h.before(async (method, path) => {
+      if (method === 'POST' && path.endsWith('/expenses')) {
+        expect(await h.pending()).toHaveLength(1);
+        await expect(h.store.drafts.load(h.scope(ANN), TRIP)).rejects.toThrow('DRAFT_HANDED_OFF');
+      }
+    });
+    expectKind(await h.entry.submit(h.scope(ANN), TRIP, fields(), draft), 'saved');
+    expect(h.server.expenses).toHaveLength(1);
+    expect(await h.store.drafts.load(h.scope(ANN), TRIP)).toBeNull();
+    expect(await h.store.drafts.save({ ...draft, revision: 99 })).toBe(false);
+  });
+  it('handoff failure sends no HTTP and keeps the editable raw draft', async () => {
+    const h = await harness();
+    await h.login('ann');
+    const draft = await saveDraft(h);
+    h.broken.insert = true;
+    expectKind(await h.entry.submit(h.scope(ANN), TRIP, fields(), draft), 'not-sent');
+    expect(h.server.posts()).toHaveLength(0);
+    expect(await h.store.drafts.load(h.scope(ANN), TRIP)).toEqual(draft);
+  });
+  it('definite rejection restores exactly the raw input under a new revision', async () => {
+    const h = await harness();
+    await h.login('ann');
+    const draft = await saveDraft(h);
+    h.fail('POST', { kind: 'status', status: 400, code: 'VALIDATION_ERROR' });
+    expectKind(await h.entry.submit(h.scope(ANN), TRIP, fields(), draft), 'rejected');
+    const restored = await h.store.drafts.load(h.scope(ANN), TRIP);
+    expect(restored).toEqual({ ...draft, revision: 4 });
+    expectKind(await h.entry.submit(h.scope(ANN), TRIP, fields(), restored!), 'saved');
+    expect(h.server.expenses).toHaveLength(1);
+    expect(
+      h.server.posts().map((call) => (call.body as { client_request_id: string }).client_request_id)
+    ).toEqual([uuidOf(1), uuidOf(2)]);
+  });
+  it('crash after local handoff before HTTP resumes only the same frozen UUID', async () => {
+    const h = await harness();
+    await h.login('ann');
+    const draft = await saveDraft(h);
+    const payload = { ...fields(), client_request_id: uuidOf(999) };
+    await h.store.insert(
+      {
+        ...h.scope(ANN),
+        tripId: TRIP,
+        clientRequestId: uuidOf(999),
+        payload,
+        status: 'sending',
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+      draft
+    );
+    const restarted = h.makeEntry();
+    expect((await restarted.recover(h.scope(ANN)))[0].kind).toBe('unconfirmed');
+    expect(h.server.posts()).toHaveLength(0);
+    expectKind(await restarted.submit(h.scope(ANN), TRIP, fields(), draft), 'blocked');
+    expectKind(await restarted.retry(h.scope(ANN), uuidOf(999)), 'saved');
+    expect(h.server.posts()[0].body).toEqual(payload);
+    expect(h.server.expenses).toHaveLength(1);
+    expect(await h.store.drafts.load(h.scope(ANN), TRIP)).toBeNull();
+  });
+  it('server commit followed by a lost response and restart never creates a second expense', async () => {
+    const h = await harness();
+    await h.login('ann');
+    const draft = await saveDraft(h);
+    h.fail('POST', { kind: 'drop-response' });
+    h.fail('GET', { kind: 'network' });
+    const outcome = expectKind(
+      await h.entry.submit(h.scope(ANN), TRIP, fields(), draft),
+      'unconfirmed'
+    );
+    await expect(h.store.drafts.load(h.scope(ANN), TRIP)).rejects.toThrow('DRAFT_HANDED_OFF');
+    const restarted = h.makeEntry();
+    expectKind(await restarted.retry(h.scope(ANN), outcome.clientRequestId), 'saved');
+    await restarted.recover(h.scope(ANN));
+    expect(h.server.expenses).toHaveLength(1);
+    expect(h.server.posts()).toHaveLength(2);
+    expect(h.server.posts()[0].body).toEqual(h.server.posts()[1].body);
+    expect(await h.store.drafts.load(h.scope(ANN), TRIP)).toBeNull();
+  });
+  it('changing accounts after handoff retains A’s draft/request without using B’s credentials', async () => {
+    const h = await harness();
+    await h.login('ann');
+    const draft = await saveDraft(h);
+    let release!: () => void;
+    let started!: () => void;
+    const reached = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    const blocked = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    h.before(async (method, path) => {
+      if (method === 'POST' && path.endsWith('/expenses')) {
+        started();
+        await blocked;
+      }
+    });
+    const sending = h.entry.submit(h.scope(ANN), TRIP, fields(), draft);
+    await reached;
+    await h.login('bob');
+    release();
+    expectKind(await sending, 'unconfirmed');
+    expect(await h.store.drafts.load(h.scope(BOB), TRIP)).toBeNull();
+    expect(await h.pending(BOB)).toEqual([]);
+    await expect(h.store.drafts.load(h.scope(ANN), TRIP)).rejects.toThrow('DRAFT_HANDED_OFF');
+    await h.login('ann');
+    const outcomes = await h.makeEntry().recover(h.scope(ANN));
+    expect(outcomes[0].kind).toBe('saved');
+    expect(h.server.expenses).toHaveLength(1);
+    expect(await h.store.drafts.load(h.scope(ANN), TRIP)).toBeNull();
   });
 });

@@ -1,4 +1,6 @@
 import { expenseCreateInput, type ExpenseCreateInput } from '@/api/contracts';
+import { databaseTask, migrateExpenseDatabase, transaction } from './expenseDatabase';
+import { expenseDraftSchema, type DraftRef, type ExpenseDraftStore } from './expenseDrafts';
 
 export type SqlValue = string | number | null;
 /** The part of expo-sqlite's `SQLiteDatabase` this store uses, so tests can run it on node:sqlite. */
@@ -26,30 +28,17 @@ export interface PendingExpense extends PendingScope {
   updatedAt: number;
 }
 export interface PendingExpenseStore {
-  insert(record: PendingExpense): Promise<void>;
+  insert(record: PendingExpense, draft?: DraftRef): Promise<void>;
+  drafts: ExpenseDraftStore;
   get(scope: PendingScope, clientRequestId: string): Promise<PendingExpense | null>;
   list(scope: PendingScope, tripId?: string): Promise<PendingExpense[]>;
   setStatus(scope: PendingScope, clientRequestId: string, status: PendingStatus): Promise<void>;
-  remove(scope: PendingScope, clientRequestId: string): Promise<void>;
+  remove(
+    scope: PendingScope,
+    clientRequestId: string,
+    resolution?: 'committed' | 'rejected'
+  ): Promise<void>;
 }
-
-const SCHEMA_VERSION = 1;
-const SCHEMA = `
-CREATE TABLE IF NOT EXISTS pending_expense (
-  environment TEXT NOT NULL,
-  account_id TEXT NOT NULL,
-  client_request_id TEXT NOT NULL,
-  trip_id TEXT NOT NULL,
-  payload TEXT NOT NULL,
-  status TEXT NOT NULL CHECK (status IN ('sending', 'unconfirmed')),
-  created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL,
-  PRIMARY KEY (environment, account_id, client_request_id)
-);
-CREATE INDEX IF NOT EXISTS pending_expense_by_trip
-  ON pending_expense (environment, account_id, trip_id, created_at);
-PRAGMA user_version = ${SCHEMA_VERSION};
-`;
 
 interface Row {
   environment: string;
@@ -86,64 +75,204 @@ function toRecord(row: Row): PendingExpense | null {
 
 /** Creates the table on first use. A database from a newer app version is refused, not modified. */
 export async function createPendingExpenseStore(db: SqlDatabase): Promise<PendingExpenseStore> {
-  const version = (await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version'))
-    ?.user_version;
-  if ((version ?? 0) > SCHEMA_VERSION) throw new Error('PENDING_STORE_NEWER');
-  if ((version ?? 0) < SCHEMA_VERSION) await db.execAsync(SCHEMA);
+  await migrateExpenseDatabase(db);
+  const serial = <T>(task: () => Promise<T>) => databaseTask(db, task);
+  const params = (scope: PendingScope, tripId: string) => [
+    scope.environment,
+    scope.accountId,
+    tripId,
+  ];
+  const draftRow = (scope: PendingScope, tripId: string) =>
+    db.getFirstAsync<{
+      draft_id: string;
+      revision: number;
+      input: string;
+      updated_at: number;
+      status: string;
+    }>(
+      'SELECT * FROM expense_draft WHERE environment = ? AND account_id = ? AND trip_id = ?',
+      ...params(scope, tripId)
+    );
+  const drafts: ExpenseDraftStore = {
+    load: (scope, tripId) =>
+      serial(async () => {
+        const row = await draftRow(scope, tripId);
+        if (!row || row.status === 'discarded') return null;
+        if (row.status === 'handed-off') throw new Error('DRAFT_HANDED_OFF');
+        return {
+          ...scope,
+          tripId,
+          draftId: row.draft_id,
+          revision: row.revision,
+          input: expenseDraftSchema.parse(JSON.parse(row.input)),
+          updatedAt: row.updated_at,
+        };
+      }),
+    start: (record) =>
+      serial(() =>
+        transaction(db, async () => {
+          const row = await draftRow(record, record.tripId);
+          const pending = await db.getFirstAsync(
+            'SELECT 1 FROM pending_expense WHERE environment = ? AND account_id = ? AND trip_id = ?',
+            ...params(record, record.tripId)
+          );
+          if (pending || (row && (row.status !== 'discarded' || row.draft_id === record.draftId)))
+            throw new Error('DRAFT_BLOCKED');
+          await db.runAsync(
+            `INSERT INTO expense_draft
+        (environment, account_id, trip_id, draft_id, revision, input, updated_at, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'editing')
+        ON CONFLICT (environment, account_id, trip_id) DO UPDATE SET
+          draft_id = excluded.draft_id, revision = excluded.revision, input = excluded.input,
+          updated_at = excluded.updated_at, status = 'editing', client_request_id = NULL`,
+            ...params(record, record.tripId),
+            record.draftId,
+            record.revision,
+            JSON.stringify(expenseDraftSchema.parse(record.input)),
+            record.updatedAt
+          );
+        })
+      ),
+    save: (record) =>
+      serial(async () => {
+        await db.runAsync(
+          `UPDATE expense_draft SET revision = ?, input = ?, updated_at = ?
+        WHERE environment = ? AND account_id = ? AND trip_id = ? AND draft_id = ?
+          AND status = 'editing' AND revision < ?`,
+          record.revision,
+          JSON.stringify(expenseDraftSchema.parse(record.input)),
+          record.updatedAt,
+          ...params(record, record.tripId),
+          record.draftId,
+          record.revision
+        );
+        const row = await draftRow(record, record.tripId);
+        return (
+          row?.status === 'editing' &&
+          row.draft_id === record.draftId &&
+          row.revision === record.revision &&
+          row.input === JSON.stringify(expenseDraftSchema.parse(record.input))
+        );
+      }),
+    discard: (scope, tripId, draftId) =>
+      serial(() =>
+        transaction(db, async () => {
+          const row = await draftRow(scope, tripId);
+          if (row && (row.draft_id !== draftId || row.status === 'handed-off'))
+            throw new Error('DRAFT_CHANGED');
+          // Even an initial save that failed can be discarded. The tombstone also fences off any
+          // delayed start from that generation, rather than treating a missing row as a fresh draft.
+          await db.runAsync(
+            `INSERT INTO expense_draft
+        (environment, account_id, trip_id, draft_id, revision, input, updated_at, status)
+        VALUES (?, ?, ?, ?, 0, '{}', ?, 'discarded')
+        ON CONFLICT (environment, account_id, trip_id) DO UPDATE SET status = 'discarded', input = '{}'`,
+            ...params(scope, tripId),
+            draftId,
+            Date.now()
+          );
+        })
+      ),
+  };
   return {
-    async insert(record) {
-      await db.runAsync(
-        `INSERT INTO pending_expense (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        record.environment,
-        record.accountId,
-        record.clientRequestId,
-        record.tripId,
-        JSON.stringify(record.payload),
-        record.status,
-        record.createdAt,
-        record.updatedAt
-      );
-    },
-    async get(scope, clientRequestId) {
-      const row = await db.getFirstAsync<Row>(
-        `SELECT ${COLUMNS} FROM pending_expense
+    drafts,
+    insert: (record, draft) =>
+      serial(() =>
+        transaction(db, async () => {
+          if (draft) {
+            const row = await draftRow(record, record.tripId);
+            const pending = await db.getFirstAsync(
+              'SELECT 1 FROM pending_expense WHERE environment = ? AND account_id = ? AND trip_id = ?',
+              ...params(record, record.tripId)
+            );
+            if (
+              pending ||
+              !row ||
+              row.status !== 'editing' ||
+              row.draft_id !== draft.draftId ||
+              row.revision !== draft.revision
+            )
+              throw new Error('DRAFT_CHANGED');
+          }
+          await db.runAsync(
+            `INSERT INTO pending_expense (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            record.environment,
+            record.accountId,
+            record.clientRequestId,
+            record.tripId,
+            JSON.stringify(expenseCreateInput.parse(record.payload)),
+            record.status,
+            record.createdAt,
+            record.updatedAt
+          );
+          if (draft)
+            await db.runAsync(
+              `UPDATE expense_draft SET status = 'handed-off', client_request_id = ?
+        WHERE environment = ? AND account_id = ? AND trip_id = ? AND draft_id = ?`,
+              record.clientRequestId,
+              ...params(record, record.tripId),
+              draft.draftId
+            );
+        })
+      ),
+    get: (scope, clientRequestId) =>
+      serial(async () => {
+        const row = await db.getFirstAsync<Row>(
+          `SELECT ${COLUMNS} FROM pending_expense
           WHERE environment = ? AND account_id = ? AND client_request_id = ?`,
-        scope.environment,
-        scope.accountId,
-        clientRequestId
-      );
-      return row ? toRecord(row) : null;
-    },
-    async list(scope, tripId) {
-      const rows = await db.getAllAsync<Row>(
-        `SELECT ${COLUMNS} FROM pending_expense
+          scope.environment,
+          scope.accountId,
+          clientRequestId
+        );
+        return row ? toRecord(row) : null;
+      }),
+    list: (scope, tripId) =>
+      serial(async () => {
+        const rows = await db.getAllAsync<Row>(
+          `SELECT ${COLUMNS} FROM pending_expense
           WHERE environment = ? AND account_id = ?${tripId === undefined ? '' : ' AND trip_id = ?'}
           ORDER BY created_at, client_request_id`,
-        scope.environment,
-        scope.accountId,
-        ...(tripId === undefined ? [] : [tripId])
-      );
-      return rows.flatMap((row) => toRecord(row) ?? []);
-    },
-    async setStatus(scope, clientRequestId, status) {
-      await db.runAsync(
-        `UPDATE pending_expense SET status = ?, updated_at = ?
+          scope.environment,
+          scope.accountId,
+          ...(tripId === undefined ? [] : [tripId])
+        );
+        return rows.flatMap((row) => toRecord(row) ?? []);
+      }),
+    setStatus: (scope, clientRequestId, status) =>
+      serial(async () => {
+        await db.runAsync(
+          `UPDATE pending_expense SET status = ?, updated_at = ?
           WHERE environment = ? AND account_id = ? AND client_request_id = ?`,
-        status,
-        Date.now(),
-        scope.environment,
-        scope.accountId,
-        clientRequestId
-      );
-    },
-    async remove(scope, clientRequestId) {
-      await db.runAsync(
-        `DELETE FROM pending_expense
+          status,
+          Date.now(),
+          scope.environment,
+          scope.accountId,
+          clientRequestId
+        );
+      }),
+    remove: (scope, clientRequestId, resolution = 'committed') =>
+      serial(() =>
+        transaction(db, async () => {
+          // Rejection restores the raw input atomically with removal. Success leaves a tombstone,
+          // so queued writes from the old editor cannot bring a submitted draft back.
+          await db.runAsync(
+            `UPDATE expense_draft SET status = ?, revision = revision + 1,
+        input = CASE WHEN ? = 'committed' THEN '{}' ELSE input END, client_request_id = NULL
+        WHERE environment = ? AND account_id = ? AND client_request_id = ? AND status = 'handed-off'`,
+            resolution === 'rejected' ? 'editing' : 'discarded',
+            resolution,
+            scope.environment,
+            scope.accountId,
+            clientRequestId
+          );
+          await db.runAsync(
+            `DELETE FROM pending_expense
           WHERE environment = ? AND account_id = ? AND client_request_id = ?`,
-        scope.environment,
-        scope.accountId,
-        clientRequestId
-      );
-    },
+            scope.environment,
+            scope.accountId,
+            clientRequestId
+          );
+        })
+      ),
   };
 }

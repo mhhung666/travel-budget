@@ -76,17 +76,17 @@ describe('pending expense store', () => {
     expect(await second.list(scope())).toHaveLength(1);
     expect(
       (await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version'))?.user_version
-    ).toBe(1);
+    ).toBe(2);
   });
 
   it('refuses, and leaves untouched, a database written by a newer app', async () => {
     const db = open();
     await createPendingExpenseStore(db);
-    await db.execAsync('PRAGMA user_version = 2');
+    await db.execAsync('PRAGMA user_version = 3');
     await expect(createPendingExpenseStore(db)).rejects.toThrow('PENDING_STORE_NEWER');
     expect(
       (await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version'))?.user_version
-    ).toBe(2);
+    ).toBe(3);
   });
 
   describe('isolation', () => {

@@ -31,7 +31,7 @@ src/
     settlement/        結算畫面、查詢與本人視角排序
   providers/           Query、SafeArea、Auth 及網路／前景同步
   api/                 HTTP client、runtime DTO 驗證、session manager
-  storage/             環境隔離的 SecureStore refresh token adapter；待確認支出的 SQLite 紀錄
+  storage/             環境隔離的 SecureStore refresh token adapter；草稿與待確認支出的 SQLite 紀錄
   components/          共用按鈕、頁面、提示與指標
   i18n/                四語訊息與裝置語系 adapter
   theme/               語意色彩與間距 tokens
@@ -46,7 +46,7 @@ assets/                目前保留 Expo 模板圖示
 
 依賴方向：`app → features → api / storage / i18n / theme`。API 與 storage 不得反向 import 畫面或路由；route 不直接呼叫 fetch，也不計算業務交易。跨 feature 使用明確的公開 export，避免引用彼此內部元件。
 
-`api` 負責 transport、headers、timeout、錯誤映射；feature hooks 負責 query key 與快取失效。表單狀態留在畫面，遠端狀態交給 Query；沒有跨頁需求時不增加全域狀態框架。
+`api` 負責 transport、headers、timeout、錯誤映射；feature hooks 負責 query key 與快取失效。表單輸入由 `DraftEditor` 管理並持久化，遠端狀態交給 Query；沒有跨頁需求時不增加全域狀態框架。
 
 ## 資料能力與後續工作
 
@@ -55,7 +55,8 @@ assets/                目前保留 Expo 模板圖示
 | 遠端快取     | TanStack Query；key 包含帳號、環境與資源範圍          | 已實作（僅記憶體） |
 | 登入憑證     | access token 記憶體；refresh token SecureStore        | 已實作             |
 | 待確認支出   | SQLite 紀錄（`expo-sqlite`），獨立於可清除的快取      | 已實作（階段 C）   |
-| 待送支出     | 離線草稿、待送佇列與前景同步；OS 背景排程另排         | 階段 4（D1–D3）    |
+| 支出草稿     | 原始表單、修訂保存與原子交接；不保存預覽              | 已實作（D1）       |
+| 待送支出     | 離線入口、待送佇列與前景同步；OS 背景排程另排         | 階段 4（D2–D3）    |
 | 原生生命週期 | AppState／網路 adapter 接 Query focus／online manager | 已實作             |
 | 檔案         | App 私有目錄、穩定 upload ID、begin／finish 協議      | 相簿與附件階段     |
 | 通知         | 原生裝置 token 與後端裝置註冊                         | 核心流程穩定後     |
@@ -89,6 +90,14 @@ flowchart LR
 - **帳號隔離**：引擎的每個請求經 `requestAs`；晚到的舊帳號回應（成功或錯誤皆然，包括 400）一律以 `CANCELLED` 結束，只讓該帳號的紀錄維持待確認，不影響新帳號，也不刪除紀錄；同帳號再次登入後以查詢找回。
 
 Web 預覽沒有登入也沒有資料庫，打包時改用 `pendingExpenseDatabase.web.ts`，不引入 `expo-sqlite` 的 wasm 版本。SQLite 邏輯寫在小型介面之後（`storage/pendingExpenses.ts`），測試以 Node 內建 SQLite 執行同一份 SQL。
+
+## 草稿保存與交接（D1）
+
+`DraftEditor` 管理原始輸入、保存狀態與續填／捨棄。保存工作不依賴畫面掛載；同一環境／帳號／旅行的所有 editor 共用序列，重新進入會先等前一畫面的存檔。`expense_draft` 主鍵為 `(environment, account_id, trip_id)`，每筆含草稿 UUID、修訂號、原始輸入、更新時間與狀態。只更新同一草稿世代的較新修訂；捨棄／成功留下不含輸入的 tombstone，晚到存檔不能復活草稿。序列與 UI 修訂檢查避免舊存檔回應把最新狀態標成已保存。保存失敗保留記憶體輸入並提供重試。
+
+資料庫仍為 `travel-budget-pending.db`；`storage/expenseDatabase.ts` 集中管理交易與版本升級，新增草稿表但保留原 C pending 表。共用連線的全部讀寫序列執行，C 的前景查詢不會混進 D1 的交易。草稿確認時 `PendingExpenseStore.insert(record, draftRef)` 在單一交易核對草稿 UUID／修訂、建立 pending 的凍結內容，再標記來源為 `handed-off`。交易失敗不送出；提交後原草稿保持鎖定，即使當機或清理失敗也不能用新 UUID 重送。明確拒絕時 `remove(..., 'rejected')` 同時恢復原始輸入並移除 pending；成功時同時清空草稿輸入與移除 pending。結果不明仍由 C 的原請求負責。
+
+新增入口按環境／帳號／旅行重新掛載，避免前一帳號的 UI 狀態殘留。每次進入先重新以 `requestAs` 讀取旅行選項，成功後才顯示本機草稿；已知撤權持續隱藏，直到成功讀取。續填只還原原始輸入，任何修改取消舊預覽。預覽前再刷新成員／分類，失效選項需明確修正，取得新的後端分攤並經使用者確認才交給 C。已授權的開啟表單離線時仍可存檔；離線冷啟動留給 D2。
 
 ## 共用與平台界線
 

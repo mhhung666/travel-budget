@@ -9,6 +9,7 @@ import {
 } from '@/api/contracts';
 import type { PendingExpense, PendingExpenseStore, PendingScope } from '@/storage/pendingExpenses';
 import type { ExpenseFields } from './draft';
+import type { DraftRef } from '@/storage/expenseDrafts';
 
 export type EntryRequest = <T>(
   userId: string,
@@ -128,7 +129,7 @@ export class ExpenseEntry {
   private chains = new Map<string, Promise<unknown>>();
   private opening = new Set<string>();
   /** Requests the server settled whose local record could not be removed yet. */
-  private resolved = new Set<string>();
+  private resolved = new Map<string, 'committed' | 'rejected'>();
   private recovering = new Map<string, Promise<EntryOutcome[]>>();
   constructor(private deps: EntryDeps) {}
 
@@ -158,7 +159,11 @@ export class ExpenseEntry {
     const live: PendingExpense[] = [];
     for (const record of await store.list(scope, tripId)) {
       if (this.resolved.has(this.keyOf(record, record.clientRequestId)))
-        await this.drop(store, record);
+        await this.drop(
+          store,
+          record,
+          this.resolved.get(this.keyOf(record, record.clientRequestId))
+        );
       else live.push(record);
     }
     return live;
@@ -169,7 +174,12 @@ export class ExpenseEntry {
    * Refused while an earlier request of the same trip is unresolved, so a duplicate cannot be
    * started by re-entering something that may already have been saved.
    */
-  async submit(scope: PendingScope, tripId: string, fields: ExpenseFields): Promise<EntryOutcome> {
+  async submit(
+    scope: PendingScope,
+    tripId: string,
+    fields: ExpenseFields,
+    draft?: DraftRef
+  ): Promise<EntryOutcome> {
     const lock = `${scopeKey(scope)}\n${tripId}`;
     if (this.opening.has(lock)) return { kind: 'blocked' };
     this.opening.add(lock);
@@ -193,7 +203,7 @@ export class ExpenseEntry {
         updatedAt: now,
       };
       // A request that could not be saved is never sent.
-      await store.insert(record);
+      await store.insert(record, draft);
     } catch (error) {
       return { kind: 'not-sent', error };
     } finally {
@@ -281,7 +291,7 @@ export class ExpenseEntry {
   ): Promise<EntryOutcome> {
     const verdict = verdictOf(error);
     if (verdict === 'rejected') {
-      await this.drop(store, record);
+      await this.drop(store, record, 'rejected');
       return { kind: 'rejected', error: error as ApiError };
     }
     await this.mark(store, record, 'unconfirmed');
@@ -330,14 +340,18 @@ export class ExpenseEntry {
     return { kind: 'saved', expense, differs: !sameExpense(record.payload, expense), refreshed };
   }
 
-  private async drop(store: PendingExpenseStore, record: PendingExpense) {
+  private async drop(
+    store: PendingExpenseStore,
+    record: PendingExpense,
+    resolution: 'committed' | 'rejected' = 'committed'
+  ) {
     const key = this.keyOf(record, record.clientRequestId);
     try {
-      await store.remove(scopeOf(record), record.clientRequestId);
+      await store.remove(scopeOf(record), record.clientRequestId, resolution);
       this.resolved.delete(key);
       this.deps.onChange?.(scopeOf(record), record.tripId);
     } catch {
-      this.resolved.add(key);
+      this.resolved.set(key, resolution);
     }
   }
 

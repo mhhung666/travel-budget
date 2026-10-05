@@ -32,7 +32,6 @@ import { useMessages } from '@/i18n/useMessages';
 import { useOnline } from '@/providers/useOnline';
 import {
   confirmedFields,
-  newDraft,
   previewInputOf,
   previewKey,
   validateDraft,
@@ -55,6 +54,9 @@ import {
 } from './previewState';
 import { categoryLabel, memberName } from './rows';
 import { SavedExpense } from './SavedExpense';
+import { useExpenseDraft } from './useExpenseDraft';
+import type { DraftEditor } from './draftEditor';
+import type { PendingScope } from '@/storage/pendingExpenses';
 
 type Saved = Extract<EntryOutcome, { kind: 'saved' }>;
 type Banner = 'rejected' | 'not-sent' | null;
@@ -65,11 +67,22 @@ type Banner = 'rejected' | 'not-sent' | null;
  * owns it from there, so closing this screen never loses or cancels it.
  */
 export function NewExpenseScreen({ tripId }: { tripId: string }) {
+  const { scope } = useExpenseEntry();
+  return (
+    <ScopedNewExpenseScreen
+      key={JSON.stringify([scope?.environment, scope?.accountId, tripId])}
+      tripId={tripId}
+    />
+  );
+}
+
+function ScopedNewExpenseScreen({ tripId }: { tripId: string }) {
   const t = useMessages();
   const online = useOnline();
   const options = useExpenseOptions(tripId);
   const denyOptions = useDenyExpenseOptions(tripId);
   const pending = usePendingExpenses(tripId);
+  const { scope } = useExpenseEntry();
   const [submitting, setSubmitting] = useState(false);
   const [saved, setSaved] = useState<Saved | null>(null);
   const [banner, setBanner] = useState<Banner>(null);
@@ -123,10 +136,14 @@ export function NewExpenseScreen({ tripId }: { tripId: string }) {
     if (options.isPending) {
       return online ? <ActivityIndicator accessibilityLabel={t.loading} /> : null;
     }
-    if (!options.data) {
+    if (!options.data || !options.authorized) {
       return (
         <>
-          <Notice>{errorMessage(options.error, t)}</Notice>
+          {options.isFetching ? (
+            <ActivityIndicator accessibilityLabel={t.loading} />
+          ) : (
+            <Notice>{errorMessage(options.error, t)}</Notice>
+          )}
           <Action
             testID="new-expense-retry"
             label={t.retry}
@@ -137,9 +154,16 @@ export function NewExpenseScreen({ tripId }: { tripId: string }) {
       );
     }
     return (
-      <EntryForm
+      <DraftForm
+        key={`${scope?.environment}/${scope?.accountId}/${tripId}`}
+        scope={scope!}
         tripId={tripId}
         options={options.data}
+        refreshOptions={async () => {
+          const result = await options.refetch({ throwOnError: true });
+          if (!result.data) throw new Error('OPTIONS_UNAVAILABLE');
+          return result.data;
+        }}
         onSubmitting={setBusy}
         onSaved={setSaved}
         onBanner={setBanner}
@@ -182,30 +206,95 @@ export function NewExpenseScreen({ tripId }: { tripId: string }) {
   );
 }
 
+type FormProps = {
+  tripId: string;
+  options: ExpenseOptions;
+  refreshOptions: () => Promise<ExpenseOptions>;
+  onSubmitting: (submitting: boolean) => void | Promise<void>;
+  onSaved: (saved: Saved) => void;
+  onBanner: (banner: Banner) => void;
+  onUnconfirmed: (clientRequestId: string, reason: UnconfirmedReason) => void;
+  onDenied: (error: unknown) => void;
+};
+
+function DraftForm(props: FormProps & { scope: PendingScope }) {
+  const t = useMessages();
+  const { editor, state } = useExpenseDraft(props.scope, props.tripId, props.options);
+  if (state.phase === 'loading') return <ActivityIndicator accessibilityLabel={t.loading} />;
+  if (state.phase === 'error')
+    return (
+      <>
+        <Notice>{t.draftLoadFailed}</Notice>
+        <Action
+          label={t.retry}
+          testID="draft-load-retry"
+          onPress={() => void editor.initialize()}
+        />
+      </>
+    );
+  if (state.phase === 'choice')
+    return (
+      <>
+        <Title>{t.draftFound}</Title>
+        <Copy>{t.draftResumeHint}</Copy>
+        {state.discardFailed && <Notice>{t.draftDiscardFailed}</Notice>}
+        <Action label={t.draftRestore} testID="draft-restore" onPress={editor.restore} />
+        <Action
+          secondary
+          label={t.draftDiscard}
+          testID="draft-discard"
+          onPress={() => void editor.discard()}
+        />
+      </>
+    );
+  return (
+    <>
+      <Copy>{t.draftHint}</Copy>
+      <View testID="draft-save-status">
+        <Notice>
+          {state.status === 'saving'
+            ? t.draftSaving
+            : state.status === 'saved'
+              ? t.draftSaved
+              : t.draftSaveFailed}
+        </Notice>
+      </View>
+      {state.status === 'failed' && (
+        <Action
+          secondary
+          label={t.retry}
+          testID="draft-save-retry"
+          onPress={() => void editor.flush().catch(() => undefined)}
+        />
+      )}
+      {state.discardFailed && <Notice>{t.draftDiscardFailed}</Notice>}
+      <EntryForm {...props} editor={editor} draft={state.record!.input} saveStatus={state.status} />
+    </>
+  );
+}
+
 function EntryForm({
   tripId,
   options,
+  refreshOptions,
   onSubmitting,
   onSaved,
   onBanner,
   onUnconfirmed,
   onDenied,
-}: {
-  tripId: string;
-  options: ExpenseOptions;
-  onSubmitting: (submitting: boolean) => void | Promise<void>;
-  onSaved: (saved: Saved) => void;
-  onBanner: (banner: Banner) => void;
-  onUnconfirmed: (clientRequestId: string, reason: UnconfirmedReason) => void;
-  /** The trip can no longer be read: the form, its members and any split must go. */
-  onDenied: (error: unknown) => void;
+  editor,
+  draft,
+  saveStatus,
+}: FormProps & {
+  editor: DraftEditor;
+  draft: ExpenseDraft;
+  saveStatus: 'saving' | 'saved' | 'failed';
 }) {
   const t = useMessages();
   const p = usePalette();
   const online = useOnline();
   const { user } = useAuth();
   const { entry, scope, manager } = useExpenseEntry();
-  const [draft, setDraft] = useState<ExpenseDraft>(() => newDraft(options, user?.id, localDate()));
   const [attempted, setAttempted] = useState(false);
   const [previews, dispatch] = useReducer(previewReducer, initialPreview);
   const [submitting, setSubmitting] = useState(false);
@@ -224,7 +313,10 @@ function EntryForm({
   const stale = isStalePreview(previews, key);
   const previewing = isPreviewing(previews, key);
   const previewError = previewFailure(previews, key);
-  const edit = (patch: Partial<ExpenseDraft>) => setDraft((all) => ({ ...all, ...patch }));
+  const edit = (patch: Partial<ExpenseDraft>) => {
+    reset();
+    editor.edit({ ...editor.getSnapshot().record!.input, ...patch });
+  };
   // Any change to the amount or members throws the preview away and cancels a request in flight.
   const reset = () => {
     inFlight.current?.abort();
@@ -246,14 +338,25 @@ function EntryForm({
     inFlight.current?.abort();
     const controller = (inFlight.current = new AbortController());
     const ticket = ++tickets.current;
-    const requestKey = previewKey(request);
+    let requestKey = previewKey(request);
     dispatch({ type: 'start', ticket, key: requestKey });
     try {
+      // Always recheck authorization, members and categories before producing a new preview.
+      const revision = editor.getSnapshot().record?.revision;
+      const fresh = await refreshOptions();
+      if (controller.signal.aborted || revision !== editor.getSnapshot().record?.revision) return;
+      const freshInput = previewInputOf(draft, fresh);
+      if (!freshInput || validateDraft(draft, fresh).length > 0) {
+        dispatch({ type: 'abandon', ticket });
+        return;
+      }
+      requestKey = previewKey(freshInput);
+      dispatch({ type: 'start', ticket, key: requestKey });
       const value = await requestPreview(
         manager,
         scope.accountId,
         tripId,
-        request,
+        freshInput,
         controller.signal
       );
       dispatch({ type: 'resolve', ticket, key: requestKey, value });
@@ -274,16 +377,26 @@ function EntryForm({
     onSubmitting(true);
     onBanner(null);
     try {
-      const outcome = await entry.submit(scope, tripId, confirmedFields(draft, options, current));
+      const stored = await editor.flush();
+      const outcome = await entry.submit(
+        scope,
+        tripId,
+        confirmedFields(stored.input, options, current),
+        stored
+      );
+      if (outcome.kind === 'saved' || outcome.kind === 'unconfirmed' || outcome.kind === 'blocked')
+        editor.close();
       if (outcome.kind === 'saved') onSaved(outcome);
       else if (outcome.kind === 'unconfirmed')
         onUnconfirmed(outcome.clientRequestId, outcome.reason);
       else if (outcome.kind === 'rejected') {
         dispatch({ type: 'clear', ticket: ++tickets.current });
         onBanner('rejected');
+        await editor.initialize(true);
       } else if (outcome.kind === 'not-sent') onBanner('not-sent');
     } catch {
-      // The preview no longer matches the draft; nothing was saved or sent.
+      // Nothing was sent when local persistence or draft/preview validation failed.
+      onBanner('not-sent');
       dispatch({ type: 'clear', ticket: ++tickets.current });
     } finally {
       sending.current = false;
@@ -303,6 +416,9 @@ function EntryForm({
   const shift = (days: number) =>
     edit({ date: addDays(isCalendarDate(draft.date) ? draft.date : localDate(), days) });
   const locked = submitting;
+  const missingMembers = draft.memberIds.filter(
+    (id) => !options.members.some((member) => member.id === id)
+  );
 
   return (
     <>
@@ -409,6 +525,7 @@ function EntryForm({
             />
           ))}
         </View>
+        {!!message('category') && <FieldError message={message('category')!} />}
       </Section>
       <Section title={t.paidBy}>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
@@ -439,6 +556,20 @@ function EntryForm({
             />
           ))}
         </View>
+        {missingMembers.length > 0 && (
+          <>
+            <Notice>{t.draftMembersChanged}</Notice>
+            <Action
+              secondary
+              label={t.draftRemoveMembers}
+              testID="draft-remove-members"
+              disabled={locked}
+              onPress={() =>
+                edit({ memberIds: draft.memberIds.filter((id) => !missingMembers.includes(id)) })
+              }
+            />
+          </>
+        )}
         {!!message('members') && <FieldError message={message('members')!} />}
       </Section>
 
@@ -477,8 +608,18 @@ function EntryForm({
         testID="new-expense-confirm"
         label={submitting ? t.saving : t.confirmSave}
         busy={submitting}
-        disabled={!current || !online}
+        disabled={!current || !online || locked || saveStatus !== 'saved' || issues.length > 0}
         onPress={() => void confirm()}
+      />
+      <Action
+        secondary
+        label={t.draftDiscard}
+        testID="draft-discard"
+        disabled={locked}
+        onPress={() => {
+          reset();
+          void editor.discard();
+        }}
       />
     </>
   );

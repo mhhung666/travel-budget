@@ -5,27 +5,21 @@ import {
   type ExpensePreview,
   type ExpensePreviewInput,
 } from '@/api/contracts';
+import type { ExpenseDraft } from '@/storage/expenseDrafts';
 import { isCalendarDate, parseAmount } from './input';
 
-type Category = ExpenseCreateInput['category'];
 /** What a user-confirmed submission carries before it receives its request id. */
 export type ExpenseFields = Omit<ExpenseCreateInput, 'client_request_id'>;
 
-export interface ExpenseDraft {
-  description: string;
-  amountText: string;
-  category: Category;
-  date: string;
-  payerId: string | null;
-  memberIds: string[];
-}
+export type { ExpenseDraft } from '@/storage/expenseDrafts';
 
 export type DraftIssue =
   | { field: 'description'; code: 'required' | 'tooLong' }
   | { field: 'amount'; code: 'empty' | 'format' | 'zero' | 'tooLarge' }
   | { field: 'date'; code: 'invalid' }
   | { field: 'payer'; code: 'required' }
-  | { field: 'members'; code: 'required' };
+  | { field: 'members'; code: 'required' | 'changed' }
+  | { field: 'category'; code: 'required' };
 
 /** The person adding the expense pays by default and everyone shares it. */
 export function newDraft(
@@ -55,8 +49,11 @@ export function validateDraft(draft: ExpenseDraft, options: ExpenseOptions): Dra
   if (!isCalendarDate(draft.date)) issues.push({ field: 'date', code: 'invalid' });
   const ids = new Set(options.members.map((member) => member.id));
   if (!draft.payerId || !ids.has(draft.payerId)) issues.push({ field: 'payer', code: 'required' });
-  if (!draft.memberIds.some((id) => ids.has(id)))
-    issues.push({ field: 'members', code: 'required' });
+  if (!options.categories.includes(draft.category))
+    issues.push({ field: 'category', code: 'required' });
+  if (draft.memberIds.some((id) => !ids.has(id)))
+    issues.push({ field: 'members', code: 'changed' });
+  else if (draft.memberIds.length === 0) issues.push({ field: 'members', code: 'required' });
   return issues;
 }
 
@@ -68,7 +65,11 @@ export function previewInputOf(
   const amount = parseAmount(draft.amountText);
   const chosen = new Set(draft.memberIds);
   const member_ids = options.members.filter((member) => chosen.has(member.id)).map((m) => m.id);
-  return amount.ok && member_ids.length > 0 ? { amount: amount.amount, member_ids } : null;
+  return amount.ok &&
+    member_ids.length > 0 &&
+    draft.memberIds.every((id) => options.members.some((m) => m.id === id))
+    ? { amount: amount.amount, member_ids }
+    : null;
 }
 
 /** Identifies what a preview was computed for; any change to amount or members makes it stale. */

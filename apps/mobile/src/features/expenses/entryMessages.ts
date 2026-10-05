@@ -19,7 +19,9 @@ export function issueMessage(issue: DraftIssue, t: Messages): string {
     case 'payer':
       return t.payerRequired;
     case 'members':
-      return t.membersRequired;
+      return issue.code === 'changed' ? t.draftMembersChanged : t.membersRequired;
+    case 'category':
+      return t.draftCategoryChanged;
   }
 }
 

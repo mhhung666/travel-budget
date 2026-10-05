@@ -14,6 +14,8 @@ const issues: DraftIssue[] = [
   { field: 'date', code: 'invalid' },
   { field: 'payer', code: 'required' },
   { field: 'members', code: 'required' },
+  { field: 'members', code: 'changed' },
+  { field: 'category', code: 'required' },
 ];
 const reasons: UnconfirmedReason[] = [
   'network',

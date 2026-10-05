@@ -3,7 +3,13 @@ import { describe, expect, it, vi } from 'vitest';
 import { ApiError } from '@/api/client';
 import { recordAccessDenial } from '@/features/auth/accessGuard';
 import { isAccessDenied } from '@/features/auth/errorMessage';
-import { expenseOptionsQuery, pendingKey, refreshTripData, requestPreview } from './entryQueries';
+import {
+  expenseOptionsQuery,
+  pendingKey,
+  refreshTripData,
+  requestPreview,
+  canShowExpenseDraft,
+} from './entryQueries';
 
 // The hooks need React auth context; only the plain functions are under test.
 vi.mock('@/features/auth/AuthProvider', () => ({ useAuth: vi.fn() }));
@@ -157,7 +163,7 @@ describe('member options after a refused preview', () => {
   const options = { members: [], categories: [] };
   function mounted(read: () => Promise<unknown>) {
     const cache = client();
-    const manager = { api: { baseUrl: BASE }, request: vi.fn(read) };
+    const manager = { api: { baseUrl: BASE }, requestAs: vi.fn(read) };
     const query = expenseOptionsQuery(manager as never, USER, TRIP);
     const observer = new QueryObserver(cache, query);
     const stop = observer.subscribe(() => {});
@@ -199,5 +205,44 @@ describe('member options after a refused preview', () => {
     expect(isAccessDenied(m.cache.getQueryState(m.query.queryKey)?.error)).toBe(true);
     for (const key of others) expect(m.cache.getQueryState(key)?.error).toBeNull();
     m.stop();
+  });
+});
+
+describe('D1 authorization before showing local input', () => {
+  it('requires fresh account-bound authorization even when cached options are still fresh', async () => {
+    const cache = client();
+    let read = async () => ({ members: [], categories: [] });
+    const requestAs = vi.fn(() => read());
+    const query = expenseOptionsQuery({ api: { baseUrl: BASE }, requestAs } as never, USER, TRIP);
+    expect(query.refetchOnMount).toBe('always');
+    cache.setQueryData(query.queryKey, { members: [], categories: [] });
+    const before = cache.getQueryState(query.queryKey)!.dataUpdateCount;
+    expect(canShowExpenseDraft(cache, query.queryKey, before)).toBe(false);
+    const observer = new QueryObserver(cache, query);
+    const stop = observer.subscribe(() => {});
+    await observer.refetch();
+    expect(canShowExpenseDraft(cache, query.queryKey, before)).toBe(true);
+    expect(requestAs).toHaveBeenCalledWith(
+      USER,
+      '/trips/t1/expense-options',
+      expect.anything(),
+      expect.objectContaining({ signal: expect.anything() })
+    );
+    read = async () => {
+      throw new ApiError('NETWORK');
+    };
+    await observer.refetch();
+    // An already authorized open form may keep saving locally after connectivity is lost.
+    expect(canShowExpenseDraft(cache, query.queryKey, before)).toBe(true);
+    const reopened = cache.getQueryState(query.queryKey)!.dataUpdateCount;
+    expect(canShowExpenseDraft(cache, query.queryKey, reopened)).toBe(false);
+    recordAccessDenial(cache, query.queryKey, new ApiError('NOT_FOUND', 404));
+    expect(canShowExpenseDraft(cache, query.queryKey, before)).toBe(false);
+    await observer.refetch();
+    expect(canShowExpenseDraft(cache, query.queryKey, before)).toBe(false);
+    read = async () => ({ members: [], categories: [] });
+    await observer.refetch();
+    expect(canShowExpenseDraft(cache, query.queryKey, reopened)).toBe(true);
+    stop();
   });
 });

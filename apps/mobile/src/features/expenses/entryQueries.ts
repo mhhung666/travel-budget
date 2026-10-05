@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { queryOptions, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import {
   expenseOptionsSchema,
@@ -7,9 +8,12 @@ import {
 import type { SessionManager } from '@/api/session';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { keepAccessDenial, recordAccessDenial } from '@/features/auth/accessGuard';
+import { isAccessDenied } from '@/features/auth/errorMessage';
 import { expensesKey, keepFirstPage } from './queries';
 
-type Requester = Pick<SessionManager, 'request'> & { api: Pick<SessionManager['api'], 'baseUrl'> };
+type Requester = Pick<SessionManager, 'requestAs'> & {
+  api: Pick<SessionManager['api'], 'baseUrl'>;
+};
 const tripPath = (tripId: string) => `/trips/${encodeURIComponent(tripId)}`;
 
 /** Pending expense records of a trip, read from the device database (never from the network). */
@@ -27,14 +31,34 @@ export const expenseOptionsQuery = (
   queryOptions({
     queryKey: [manager.api.baseUrl, userId, 'expense-options', tripId],
     enabled: !!userId,
+    refetchOnMount: 'always',
     queryFn: ({ client, queryKey, signal }) =>
       keepAccessDenial(client, queryKey, () =>
-        manager.request(`${tripPath(tripId)}/expense-options`, expenseOptionsSchema, { signal })
+        manager.requestAs(userId!, `${tripPath(tripId)}/expense-options`, expenseOptionsSchema, {
+          signal,
+        })
       ),
   });
+/** Only a successful read after entry may reveal a draft; a recorded denial keeps it hidden. */
+export function canShowExpenseDraft(
+  client: QueryClient,
+  queryKey: readonly unknown[],
+  successesAtMount: number
+) {
+  const state = client.getQueryState(queryKey);
+  return (state?.dataUpdateCount ?? 0) > successesAtMount && !isAccessDenied(state?.error);
+}
 export function useExpenseOptions(tripId: string) {
   const { manager, user } = useAuth();
-  return useQuery(expenseOptionsQuery(manager, user?.id, tripId));
+  const client = useQueryClient();
+  const query = expenseOptionsQuery(manager, user?.id, tripId);
+  const result = useQuery(query);
+  const [successesAtMount] = useState(
+    () => client.getQueryState(query.queryKey)?.dataUpdateCount ?? 0
+  );
+  // A persisted draft is hidden until this mounted entry has rechecked authorization. Later
+  // transport failures may keep an already authorized open form usable for local saving.
+  return { ...result, authorized: canShowExpenseDraft(client, query.queryKey, successesAtMount) };
 }
 /**
  * For a request that found out access to the trip is gone (a refused preview): records that as the

@@ -1,4 +1,17 @@
 const zh = {
+  draftFound: '有未完成的支出草稿',
+  draftResumeHint: '續填後請重新確認成員並預覽分攤；草稿尚未入帳。',
+  draftRestore: '續填草稿',
+  draftDiscard: '捨棄草稿',
+  draftHint: '輸入依帳號與旅行保存在此裝置，尚未入帳；只有已保存的內容可在重啟後恢復。',
+  draftSaving: '正在保存草稿…',
+  draftSaved: '草稿已保存在此裝置，尚未入帳。',
+  draftSaveFailed: '草稿保存失敗，最新輸入可能無法在重啟後恢復。請重試。',
+  draftLoadFailed: '無法讀取草稿，已保存資料會保留。請重試。',
+  draftDiscardFailed: '無法捨棄草稿，資料仍保留。請重試。',
+  draftMembersChanged: '部分分攤成員已離開旅行，請確認並移除失效選項，再重新預覽。',
+  draftRemoveMembers: '移除失效的分攤成員',
+  draftCategoryChanged: '原分類已不可用，請重新選擇。',
   title: '旅行記帳',
   subtitle: '把旅程放口袋，花費記清楚。',
   login: '登入',
@@ -154,6 +167,19 @@ export type Messages = Record<keyof typeof zh, string>;
 export const messages = {
   zh,
   'zh-CN': {
+    draftFound: '有未完成的支出草稿',
+    draftResumeHint: '继续填写后请重新确认成员并预览分摊；草稿尚未入账。',
+    draftRestore: '继续填写草稿',
+    draftDiscard: '舍弃草稿',
+    draftHint: '输入按账号与旅行保存在此设备，尚未入账；只有已保存的内容可在重启后恢复。',
+    draftSaving: '正在保存草稿…',
+    draftSaved: '草稿已保存在此设备，尚未入账。',
+    draftSaveFailed: '草稿保存失败，最新输入可能无法在重启后恢复。请重试。',
+    draftLoadFailed: '无法读取草稿，已保存数据会保留。请重试。',
+    draftDiscardFailed: '无法舍弃草稿，数据仍保留。请重试。',
+    draftMembersChanged: '部分分摊成员已离开旅行，请确认并移除失效选项，再重新预览。',
+    draftRemoveMembers: '移除失效的分摊成员',
+    draftCategoryChanged: '原分类已不可用，请重新选择。',
     title: '旅行记账',
     subtitle: '把旅程放口袋，花费记清楚。',
     login: '登录',
@@ -304,6 +330,23 @@ export const messages = {
     done: '完成',
   },
   en: {
+    draftFound: 'An unfinished expense draft',
+    draftResumeHint:
+      'Review members and get a new split preview before confirming. This draft is not recorded.',
+    draftRestore: 'Resume draft',
+    draftDiscard: 'Discard draft',
+    draftHint:
+      'Inputs are saved on this device for this account and trip. Only saved inputs survive a restart. The draft is not recorded.',
+    draftSaving: 'Saving draft…',
+    draftSaved: 'Draft saved on this device. Not recorded yet.',
+    draftSaveFailed:
+      'Could not save the draft. Your latest inputs may not survive a restart. Please retry.',
+    draftLoadFailed: 'Could not read the draft. Saved data is retained. Please retry.',
+    draftDiscardFailed: 'Could not discard the draft. It is still retained. Please retry.',
+    draftMembersChanged:
+      'Some selected members have left the trip. Review and remove unavailable selections, then preview again.',
+    draftRemoveMembers: 'Remove unavailable split members',
+    draftCategoryChanged: 'The previous category is unavailable. Choose a category again.',
     title: 'Travel Budget',
     subtitle: 'Your journeys, with every expense in view.',
     login: 'Sign in',
@@ -465,6 +508,24 @@ export const messages = {
     done: 'Done',
   },
   jp: {
+    draftFound: '未完成の支出下書きがあります',
+    draftResumeHint: 'メンバーを確認して分担を再プレビューしてください。まだ記帳されていません。',
+    draftRestore: '下書きを再開',
+    draftDiscard: '下書きを破棄',
+    draftHint:
+      '入力はアカウントと旅行ごとに端末に保存されます。再起動後に復元できるのは保存済みの入力のみです。まだ記帳されていません。',
+    draftSaving: '下書きを保存中…',
+    draftSaved: '下書きを端末に保存しました。まだ記帳されていません。',
+    draftSaveFailed:
+      '下書きを保存できませんでした。最新の入力は再起動後に復元できない可能性があります。再試行してください。',
+    draftLoadFailed:
+      '下書きを読み込めませんでした。保存済みのデータは保持されます。再試行してください。',
+    draftDiscardFailed:
+      '下書きを破棄できませんでした。データは保持されています。再試行してください。',
+    draftMembersChanged:
+      '選択したメンバーの一部が退出しました。無効な選択を削除し、再プレビューしてください。',
+    draftRemoveMembers: '無効な分担メンバーを削除',
+    draftCategoryChanged: '以前の分類は利用できません。選び直してください。',
     title: '旅行家計簿',
     subtitle: '旅の予定も、支出も、手のひらに。',
     login: 'ログイン',

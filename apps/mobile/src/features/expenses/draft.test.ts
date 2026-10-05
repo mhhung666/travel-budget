@@ -101,8 +101,17 @@ describe('validateDraft', () => {
       { field: 'payer', code: 'required' },
     ]);
     expect(validateDraft(valid({ memberIds: [id(99)] }), options)).toEqual([
-      { field: 'members', code: 'required' },
+      { field: 'members', code: 'changed' },
     ]);
+  });
+  it('requires explicit correction of removed members and categories, never shrinking a split silently', () => {
+    const input = valid({ category: 'shopping', memberIds: [ME, id(99)] });
+    expect(validateDraft(input, options)).toEqual([
+      { field: 'category', code: 'required' },
+      { field: 'members', code: 'changed' },
+    ]);
+    expect(previewInputOf(input, options)).toBeNull();
+    expect(input.memberIds).toEqual([ME, id(99)]);
   });
   it('lets the payer stay out of the split', () => {
     expect(validateDraft(valid({ payerId: CAT, memberIds: [ME, ANN] }), options)).toEqual([]);
@@ -116,8 +125,8 @@ describe('previewInputOf and previewKey', () => {
       member_ids: [ME, ANN, BOB],
     });
   });
-  it('ignores ids that are not trip members and gives nothing for invalid input', () => {
-    expect(previewInputOf(valid({ memberIds: [ME, id(99)] }), options)?.member_ids).toEqual([ME]);
+  it('refuses removed members and invalid input', () => {
+    expect(previewInputOf(valid({ memberIds: [ME, id(99)] }), options)).toBeNull();
     expect(previewInputOf(valid({ amountText: 'x' }), options)).toBeNull();
     expect(previewInputOf(valid({ memberIds: [id(99)] }), options)).toBeNull();
   });
