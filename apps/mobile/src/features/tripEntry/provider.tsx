@@ -14,11 +14,14 @@ import { useAuth } from '@/features/auth/AuthProvider';
 import { openMutationStore } from '@/storage/pendingExpenseDatabase';
 import type { PendingScope } from '@/storage/pendingExpenses';
 import { TripEntry } from './engine';
+import { refreshTripData } from '@/features/expenses/entryQueries';
+import { useDraftCatalog } from '@/features/localDrafts/provider';
 const Context = createContext<TripEntry | null>(null);
 const keyOf = (scope: PendingScope | null) => [scope?.environment, scope?.accountId, 'mutations'];
 export function TripEntryProvider({ children }: PropsWithChildren) {
   const { manager } = useAuth();
   const client = useQueryClient();
+  const { catalog } = useDraftCatalog();
   const [entry] = useState(
     () =>
       new TripEntry({
@@ -30,24 +33,49 @@ export function TripEntryProvider({ children }: PropsWithChildren) {
           manager.getSnapshot().user?.id === scope.accountId &&
           onlineManager.isOnline() &&
           AppState.currentState === 'active',
-        guard: () => {
+        guard: (scope) => {
           const version = manager.getSignInVersion();
-          return () => {
+          const access = catalog.captureAccess(scope);
+          return (tripId) => {
             if (version !== manager.getSignInVersion()) throw new ApiError('CANCELLED');
+            access(tripId ?? undefined);
+            if (tripId && !catalog.isVisible(scope, tripId)) throw new ApiError('CANCELLED');
           };
         },
-        request: (userId, path, schema, options) =>
-          manager.requestAs(userId, path, schema, options),
+        request: async (userId, path, schema, options) => {
+          try {
+            return await manager.requestAs(userId, path, schema, options);
+          } catch (error) {
+            const match = /^\/trips\/([^/]+)\/expenses\//.exec(path);
+            if (
+              match &&
+              error instanceof ApiError &&
+              error.source === 'request' &&
+              (error.status === 403 || (error.status === 404 && error.code === 'NOT_FOUND'))
+            )
+              await catalog
+                .deny({ environment: manager.api.baseUrl, accountId: userId }, match[1])
+                .catch(() => undefined);
+            throw error;
+          }
+        },
         changed: (scope) => {
           void client.invalidateQueries({ queryKey: keyOf(scope) });
         },
-        committed: async (scope, tripId) => {
+        committed: async (scope, tripId, result) => {
           // Normal authorized landing/options reads establish D snapshots, never the join receipt.
           await Promise.all([
-            client.invalidateQueries({ queryKey: [scope.environment, scope.accountId, 'trips'] }),
-            client.invalidateQueries({
-              queryKey: [scope.environment, scope.accountId, 'trip', tripId],
-            }),
+            refreshTripData(
+              client,
+              scope.environment,
+              scope.accountId,
+              tripId,
+              result.status === 'committed' &&
+                result.operation === 'expense.delete' &&
+                'expenseId' in result.result
+                ? result.result.expenseId
+                : undefined
+            ),
             client.invalidateQueries({
               queryKey: [scope.environment, scope.accountId, 'expense-options', tripId],
             }),

@@ -149,6 +149,13 @@ export async function createExpenseQueueStore(db: SqlDatabase): Promise<ExpenseQ
             r.accountId,
             r.tripId
           );
+          const mutation = await db.getFirstAsync(
+            "SELECT 1 FROM pending_mutation WHERE environment = ? AND account_id = ? AND trip_id = ? AND status = 'pending'",
+            r.environment,
+            r.accountId,
+            r.tripId
+          );
+          if (mutation) return false;
           if (pending) return false;
           await db.runAsync(
             "INSERT INTO pending_expense VALUES (?, ?, ?, ?, ?, 'sending', ?, ?)",

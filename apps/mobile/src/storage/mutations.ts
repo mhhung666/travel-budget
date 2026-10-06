@@ -1,5 +1,12 @@
 import { z } from 'zod';
-import { tripCreateInput, tripJoinInput, mutationRequestSchema } from '@travel-budget/contracts';
+import {
+  tripCreateInput,
+  tripJoinInput,
+  mutationRequestSchema,
+  expenseUpdateInput,
+  expenseDeleteInput,
+  idSchema,
+} from '@travel-budget/contracts';
 import { databaseTask, migrateExpenseDatabase, transaction } from './expenseDatabase';
 import {
   currentExpenseRateLimit,
@@ -12,6 +19,18 @@ import type { PendingScope, SqlDatabase } from './pendingExpenses';
 export const mutationPayload = z.discriminatedUnion('operation', [
   z.object({ operation: z.literal('trip.create'), body: tripCreateInput }),
   z.object({ operation: z.literal('trip.join'), body: tripJoinInput }),
+  z.object({
+    operation: z.literal('expense.update'),
+    tripId: idSchema,
+    expenseId: idSchema,
+    body: expenseUpdateInput,
+  }),
+  z.object({
+    operation: z.literal('expense.delete'),
+    tripId: idSchema,
+    expenseId: idSchema,
+    body: expenseDeleteInput,
+  }),
 ]);
 export type MutationPayload = z.infer<typeof mutationPayload>;
 export interface PendingMutation extends PendingScope {
@@ -22,6 +41,7 @@ export interface PendingMutation extends PendingScope {
   status: 'pending' | 'completed';
   conflict: boolean;
   createdAt: number;
+  tripId?: string | null;
 }
 export interface MutationStore {
   list(scope: PendingScope): Promise<PendingMutation[]>;
@@ -48,6 +68,7 @@ interface Row {
   status: PendingMutation['status'];
   conflict: number;
   created_at: number;
+  trip_id: string | null;
 }
 function decode(row: Row): PendingMutation {
   const payload = row.payload ? mutationPayload.parse(JSON.parse(row.payload)) : null;
@@ -55,7 +76,8 @@ function decode(row: Row): PendingMutation {
     row.status === 'pending' &&
     (!payload ||
       payload.body.client_request_id !== row.client_request_id ||
-      payload.operation !== row.operation)
+      payload.operation !== row.operation ||
+      ('tripId' in payload ? payload.tripId : null) !== row.trip_id)
   )
     throw new Error('INVALID_MUTATION');
   return {
@@ -68,6 +90,7 @@ function decode(row: Row): PendingMutation {
     status: row.status,
     conflict: !!row.conflict,
     createdAt: row.created_at,
+    tripId: row.trip_id,
   };
 }
 export async function createMutationStore(db: SqlDatabase): Promise<MutationStore> {
@@ -96,21 +119,31 @@ export async function createMutationStore(db: SqlDatabase): Promise<MutationStor
     insert: (record) =>
       serial(() =>
         transaction(db, async () => {
-          const pending = await db.getFirstAsync(
-            "SELECT 1 FROM pending_mutation WHERE environment = ? AND account_id = ? AND operation = ? AND status = 'pending'",
-            ...scopeArgs(record),
-            record.operation
-          );
-          if (pending) return false;
           const parsed = mutationPayload.parse(record.payload);
           if (parsed.body.client_request_id !== record.clientRequestId)
             throw new Error('INVALID_MUTATION');
+          const tripId = 'tripId' in parsed ? parsed.tripId : null;
+          const pending = tripId
+            ? await db.getFirstAsync(
+                "SELECT 1 FROM pending_mutation WHERE environment = ? AND account_id = ? AND trip_id = ? AND status = 'pending' UNION ALL SELECT 1 FROM pending_expense WHERE environment = ? AND account_id = ? AND trip_id = ?",
+                ...scopeArgs(record),
+                tripId,
+                ...scopeArgs(record),
+                tripId
+              )
+            : await db.getFirstAsync(
+                "SELECT 1 FROM pending_mutation WHERE environment = ? AND account_id = ? AND operation = ? AND status = 'pending'",
+                ...scopeArgs(record),
+                record.operation
+              );
+          if (pending) return false;
           await db.runAsync(
-            "INSERT INTO pending_mutation (environment, account_id, client_request_id, operation, payload, status, conflict, created_at) VALUES (?, ?, ?, ?, ?, 'pending', 0, ?)",
+            "INSERT INTO pending_mutation (environment, account_id, client_request_id, operation, payload, trip_id, status, conflict, created_at) VALUES (?, ?, ?, ?, ?, ?, 'pending', 0, ?)",
             ...scopeArgs(record),
             record.clientRequestId,
             record.operation,
             JSON.stringify(parsed),
+            tripId,
             record.createdAt
           );
           return true;
@@ -128,7 +161,8 @@ export async function createMutationStore(db: SqlDatabase): Promise<MutationStor
       serial(async () => {
         if (result.status === 'not_found') throw new Error('NOT_TERMINAL');
         await db.runAsync(
-          "UPDATE pending_mutation SET status = 'completed', payload = NULL, result = ? WHERE environment = ? AND account_id = ? AND client_request_id = ?",
+          "UPDATE pending_mutation SET status = 'completed', payload = CASE WHEN ? = 1 AND operation LIKE 'expense.%' THEN payload ELSE NULL END, result = ? WHERE environment = ? AND account_id = ? AND client_request_id = ?",
+          result.status === 'rejected' ? 1 : 0,
           JSON.stringify(mutationRequestSchema.parse(result)),
           ...scopeArgs(scope),
           key

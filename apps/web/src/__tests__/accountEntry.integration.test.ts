@@ -266,6 +266,18 @@ describe.skipIf(!uri || !allowed)('E2 account entry against isolated replica set
       accepted: true,
     });
   });
+  it.each(['register', 'verify', 'source'] as const)(
+    '%s with no cooldown admits an earlier timestamp arriving later without shortening expiry',
+    async (kind) => {
+      await claimAccountLimit(db, context, kind, email);
+      const original = await db.collection(ACCOUNT_ATTEMPTS).findOne({});
+      await claimAccountLimit(db, { ...context, now: () => clock - 10 }, kind, email);
+      const stored = await db.collection(ACCOUNT_ATTEMPTS).findOne({});
+      expect(stored?.hits).toHaveLength(2);
+      expect(stored?.expiresAt).toEqual(original?.expiresAt);
+    }
+  );
+
   it('unknown emails also have ten verification requests per rolling 15 minutes', async () => {
     for (let i = 0; i < 10; i++)
       await expect(confirm()).rejects.toMatchObject({ code: 'INVALID_CODE' });

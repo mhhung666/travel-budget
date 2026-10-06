@@ -45,7 +45,15 @@ export function OperationsScreen() {
       />
       {records.data?.map((record) => (
         <Card key={record.clientRequestId}>
-          <Title>{record.operation === 'trip.create' ? t.createTrip : t.joinTrip}</Title>
+          <Title>
+            {record.operation === 'trip.create'
+              ? t.createTrip
+              : record.operation === 'trip.join'
+                ? t.joinTrip
+                : record.operation === 'expense.update'
+                  ? t.editExpense
+                  : t.deleteExpense}
+          </Title>
           <Copy>{record.clientRequestId}</Copy>
           {record.status === 'pending' ? (
             <>
@@ -67,7 +75,11 @@ export function OperationsScreen() {
           ) : (
             <>
               <Notice>
-                {record.result?.status === 'committed' ? t.operationDone : t.operationRejected}
+                {record.result?.status === 'committed'
+                  ? t.operationDone
+                  : record.operation.startsWith('expense.')
+                    ? t.expenseChanged
+                    : t.operationRejected}
               </Notice>
               {record.result?.status === 'committed' && (
                 <Action
@@ -76,12 +88,33 @@ export function OperationsScreen() {
                     router.push({
                       pathname: '/trips/[id]',
                       params: {
-                        id: record.result!.status === 'committed' ? record.result!.resourceId : '',
+                        id:
+                          record.result!.status === 'committed' ? record.result!.result.tripId : '',
                       },
                     })
                   }
                 />
               )}
+              {record.result?.status === 'rejected' &&
+                record.tripId &&
+                record.payload &&
+                'expenseId' in record.payload &&
+                record.result.code !== 'RESOURCE_GONE' && (
+                  <Action
+                    label={t.resumeExpenseEdit}
+                    onPress={() =>
+                      router.push({
+                        pathname: '/trips/[id]/expenses/edit',
+                        params: {
+                          id: record.tripId!,
+                          expenseId: 'expenseId' in record.payload! ? record.payload.expenseId : '',
+                          remove: record.operation === 'expense.delete' ? 'true' : 'false',
+                          source: record.clientRequestId,
+                        },
+                      })
+                    }
+                  />
+                )}
               <Action
                 secondary
                 label={t.dismissOperation}

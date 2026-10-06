@@ -295,5 +295,5 @@ it('schema 6 upgrade preserves C/D rows and account waits, failure rolls back th
   const upgraded = await createMutationStore(h.db);
   expect(await upgraded.retryAt(scope)).toBe(220000);
   expect(await h.db.getFirstAsync('SELECT name FROM draft_trip')).toEqual({ name: 'name' });
-  expect(await h.db.getFirstAsync('PRAGMA user_version')).toEqual({ user_version: 7 });
+  expect(await h.db.getFirstAsync('PRAGMA user_version')).toEqual({ user_version: 8 });
 });

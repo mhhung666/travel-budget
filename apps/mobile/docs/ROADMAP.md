@@ -25,7 +25,7 @@ D1 草稿、D2 受限離線入口與 D3 均分佇列的核心已交付，成果�
 
 ## E 規格：基本使用流程
 
-狀態：**E1／E2 程式已實作，兩平台基本操作待 E1–E4 全部功能完成後統一驗收；E3–E4 尚未實作**（2026-10-06）。E1／E2 現況見 [FEATURES](FEATURES.md) 與 [契約](BACKEND_CONTRACT.md)，其餘新增端點、錯誤碼及限制仍為提案。E 的目標是讓使用者在手機完成「建立帳號 → 建立或加入旅行 → 記帳 → 修正帳務 → 登記還款」。本節是 E 規格的單一維護位置；實作後才移入 FEATURES／BACKEND_CONTRACT，結果合併至 archive。
+狀態：**E1–E3 程式已實作，兩平台基本操作待 E1–E4 全部功能完成後統一驗收；E3 待獨立審查，E4 尚未實作**（2026-10-06）。E1–E3 現況見 [FEATURES](FEATURES.md) 與 [契約](BACKEND_CONTRACT.md)，其餘新增端點、錯誤碼及限制仍為提案。E 的目標是讓使用者在手機完成「建立帳號 → 建立或加入旅行 → 記帳 → 修正帳務 → 登記還款」。本節是 E 規格的單一維護位置；實作後才移入 FEATURES／BACKEND_CONTRACT，結果合併至 archive。
 
 E1 審查兩項 Web P2 已修正並通過獨立複驗：加入結果補讀在同一查詢核對目前成員與刪除狀態；建立只回傳已提交 ID，兩個畫面入口以 ID 接續。Web 2,014 項、隔離交易 71 項及根 check／build 通過；四個故障回歸案例在舊實作均失敗。E1 兩平台裝置驗收仍待執行。
 
@@ -72,7 +72,7 @@ E1 先交付共用寫入保護的最小版本，E3／E4 再增加操作種類，
 
 ### 4. E2：註冊與重設密碼
 
-已實作共用服務、匿名 HTTP、手機畫面與故障回歸；寄碼 429 誤鎖驗碼的 P2 已分開操作期限修正，程式審查及獨立複驗通過；兩平台基本操作依約待 E1–E4 全部完成後統一驗收，見 [本機驗收](LOCAL_ACCEPTANCE.md#e2-帳號入口驗收交接)。現行 API／限流與環境限制見 [後端契約](BACKEND_CONTRACT.md#e2-註冊與-email-驗證碼重設)。以下保留產品規則；匿名 HTTP 不使用 E1 receipt，也不保存密碼。
+已實作共用服務、匿名 HTTP、手機畫面與故障回歸；寄碼 429 誤鎖驗碼的 P2 已分開操作期限修正，程式審查及獨立複驗通過。E3 開發另修正零冷卻限流誤擋晚到請求，此新增修正待獨立複驗；兩平台基本操作依約待 E1–E4 全部完成後統一驗收，見 [本機驗收](LOCAL_ACCEPTANCE.md#e2-帳號入口驗收交接)。現行 API／限流與環境限制見 [後端契約](BACKEND_CONTRACT.md#e2-註冊與-email-驗證碼重設)。以下保留產品規則；匿名 HTTP 不使用 E1 receipt，也不保存密碼。
 
 **註冊**：登入頁新增「建立帳號」「忘記密碼」。欄位為帳號、顯示名稱、Email、密碼、確認密碼；確認密碼只供 UI，不送 API。帳號 trim 後 3–200 字、顯示名稱 trim 後 1–100 字、Email trim 並沿用既有格式與不分大小寫唯一規則。沿用既有至少六字元密碼政策，不自行 trim 密碼；新設密碼加上 bcrypt 的 72 UTF-8 bytes 上限，兩端提示一致，既有登入輸入相容性不因本片改動。
 
@@ -90,26 +90,7 @@ Mobile 註冊成功回最小 user DTO，回登入頁並帶入帳號，由使用�
 
 ### 5. E3：編輯與刪除已入帳支出
 
-**入口與載入**：明細頁提供「編輯」「刪除」，兩者都先在線上取得最新編輯上下文。沿用現有協作模型，admin／member 都可操作，不只限建立者或付款人。編輯表單與 D 新增草稿分開；不會覆蓋該旅行的新增草稿。後端回支出、最新選項、不透明 `revision`、可編輯能力及受限原因，手機不以 amount／splits 猜測原始分攤模式。
-
-**首版編輯模式**：
-
-| 模式         | 可改欄位                         | 保留規則                                                                                                         |
-| ------------ | -------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| 基本資料     | 說明（1–200 字）、分類、真實日期 | 外幣、匯率、付款人、原始金額及分攤完全保留；未知歷史分類不默默寫回 other                                         |
-| TWD 重新均分 | 上述欄位＋金額、付款人、分攤成員 | 只限原 TWD／匯率 1 且可解析的有效成員；使用者明確選「重新均分」，由既有後端 preview 產生分攤，確認新舊差異後提交 |
-
-預設基本資料模式，因此非均分舊帳不會只因打開並保存就變均分。TWD 非均分支出可在明確選擇重新均分後轉換；外幣、失效成員、超出手機金額範圍或無法安全映射的歷史資料，只開放後端判定可用的基本資料欄位，其餘提示到 Web 處理。付款人可以不在分攤名單；金額 0.01–1,000,000,000.00、最多兩位小數、成員 1–100 位，沿用現有預覽與尾差規則。
-
-只傳使用者實際修改的白名單欄位；未支援的附件、標籤、行程關聯、建立者、建立時間及既有 receipt 不變。基本資料模式不得要求重送舊金額／分攤，也不得把 DTO 的歷史補值或 null 成員當作原始資料寫回。沒有變更不送 PATCH。重新均分時必須送完整金額／付款人／後端分攤；禁止落入現有 Web「只改金額、未送 splits 就自動均分」的隱含分支。改輸入、成員或斷線皆取消新預覽，重新確認後才送。
-
-**衝突**：`expected_revision` 與寫入在 `withTripWrite` 同一交易核對。建議 revision 使用後端對原始可變業務欄位的穩定 HMAC，綁定 tripId／expenseId，包含付款人、原幣／金額／匯率、分攤、說明／分類／日期、附件／標籤／行程關聯，以及當前成員 ID 順序；不用 `createdAt` 當版本，也不依賴目前沒有的 updatedAt。所有 Web／虛擬身分轉換／行程解除關聯造成的有效內容變更，以及成員順序變更都應改變 token，背景 outbox 狀態不影響 token；內容完全還原時 token 可相同，此為狀態前條件而非變更歷史。簽章域與登入憑證分開，token 不洩漏欄位內容。
-
-他人先修改時回 `409 RESOURCE_CHANGED`，保留本人尚未送出的輸入，顯示最新內容與差異；只能重新載入後手動套用並確認，不能靜默覆蓋或自動合併分攤。已被刪除顯示不可編輯；同旅行不存在單筆支出不等於整個旅行被撤權。重播先查原 receipt 再判前條件，自己成功後版本變動不會把成功重播判成衝突。
-
-**刪除**：確認頁顯示說明、日期、付款人、TWD 金額，警示會影響結算並刪除相關評論／附件關聯，無還原功能；取消零寫入。使用 UUID 與 expected_revision 刪除；使用者看確認頁後內容被他人修改就先報衝突，要求重新確認。伺服器同交易寫 receipt、刪 expense／comments 並安排既有 blob retirement；外部檔案清理失敗不把已刪除改報成未刪。原建立 receipt 不刪除，舊 C／D 重播不能讓支出復活。
-
-成功後離開已刪除明細，或重新載入已更新明細；重讀支出第一頁、結算、landing 及旅行列表摘要。不先樂觀改餘額；已成功但重讀失敗顯示「操作完成，資料更新失敗」與只讀重試。
+程式、故障測試與獨立審查已完成；衝突欄位合併、拒絕紀錄切回基本資料兩項 P2 已通過獨立複驗，Mobile 692 項、check、三平台匯出與 Expo 相容性通過，未發現新問題。E 全部完成後兩平台統一驗收。現行白名單、基本資料／明確重新均分、HMAC revision、終局 receipt、刪除清理與 C／D 原子協調見 [E3 契約](BACKEND_CONTRACT.md#e3-支出維護)；交接案例見 [本機驗收](LOCAL_ACCEPTANCE.md#e3-支出維護驗收交接)。保留 admin／member 協作權限、未確認線上表單與既有進階資料，結果不明只用原 UUID 查詢／重試。未部署；E4 接續。
 
 ### 6. E4：登記與撤銷還款
 
@@ -137,8 +118,8 @@ Mobile 註冊成功回最小 user DTO，回登入頁並帶入帳號，由使用�
 | E2    | `POST /auth/password-reset/request`               | email、locale → `{ accepted: true }`；不表示實際送達                                                  |
 | E2    | `POST /auth/password-reset/confirm`               | email、code、new_password → `{ reset: true }`；無自動登入                                             |
 | E3    | `GET /trips/:id/expenses/:expenseId/edit-context` | expense、options、revision、capabilities／限制原因                                                    |
-| E3    | `PATCH /trips/:id/expenses/:expenseId`            | UUID、expected_revision、mode、changes → `{ expenseId, revision }`                                    |
-| E3    | `DELETE /trips/:id/expenses/:expenseId`           | JSON UUID、expected_revision → `{ expenseId, deleted: true }`                                         |
+| E3    | `PATCH /trips/:id/expenses/:expenseId`            | UUID、expected_revision、mode、changes → `{ tripId, expenseId, revision }`                            |
+| E3    | `DELETE /trips/:id/expenses/:expenseId`           | JSON UUID、expected_revision → `{ tripId, expenseId, deleted: true }`                                 |
 | E4    | `GET /trips/:id/payment-context`                  | members、settlement、settlementRevision、各 payment 的 revision                                       |
 | E4    | `POST /trips/:id/payments`                        | UUID、expected_settlement_revision、from_id、to_id、amount、note → `{ paymentId }`                    |
 | E4    | `DELETE /trips/:id/payments/:paymentId`           | JSON UUID、expected_revision → `{ paymentId, deleted: true }`                                         |

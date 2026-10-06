@@ -196,6 +196,13 @@ export async function createPendingExpenseStore(db: SqlDatabase): Promise<Pendin
     insert: (record, draft) =>
       serial(() =>
         transaction(db, async () => {
+          const mutation = await db.getFirstAsync(
+            "SELECT 1 FROM pending_mutation WHERE environment = ? AND account_id = ? AND trip_id = ? AND status = 'pending'",
+            record.environment,
+            record.accountId,
+            record.tripId
+          );
+          if (mutation) throw new Error('MUTATION_BLOCKED');
           if (draft) {
             const row = await draftRow(record, record.tripId);
             const pending = await db.getFirstAsync(

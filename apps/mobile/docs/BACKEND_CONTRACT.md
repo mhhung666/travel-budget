@@ -92,14 +92,28 @@ E 的寫入／查詢與 C／D 共用 `expense_rate_limit`。429 先落盤絕對�
 
 `accountEntry.ts` 共用 Web／HTTP 規則；六位碼 15 分鐘有效，五次錯碼上限；錯誤嘗試、密碼更新／碼消耗與重新寄碼的競態在 MongoDB 交易內處理。同碼併發只成功一次，重寄的新碼與尚存舊碼不同，副作用在提交後 best-effort；不印碼到本機／正式 log。現有 Mobile 密碼 fingerprint 檢查使舊 session 失效；Web cookie 機制不宣稱全撤銷。本機 C／D／E1 紀錄不刪。
 
-匿名限流為原子滑動時窗：每正規化 Email 寄碼每 60 秒一次、每小時五次；驗碼每 15 分鐘十次（未知 Email 同樣計數）；註冊另按帳號每小時二十次。可信來源的註冊／寄碼共用每小時二十次，只在 `VERCEL=1` 接受平台覆寫的單一 `x-forwarded-for` IP；其他環境忽略用戶轉送 header，仍保留 Email／帳號限制，需部署入口另做流量限制。政策集中 `accountPolicy`，adapter 不各自定義。計數 `_id` 用 JWT secret 的 domain-separated HMAC，不記明文 Email／IP，TTL 不取代期限判斷；與已登入帳務限流分開。
+匿名限流為原子滑動時窗：每正規化 Email 寄碼每 60 秒一次、每小時五次；驗碼每 15 分鐘十次（未知 Email 同樣計數）；註冊另按帳號每小時二十次。零冷卻操作只限制時窗次數，請求逆序到達不另加時間間隔，亦不縮短原到期時間。可信來源的註冊／寄碼共用每小時二十次，只在 `VERCEL=1` 接受平台覆寫的單一 `x-forwarded-for` IP；其他環境忽略用戶轉送 header，仍保留 Email／帳號限制，需部署入口另做流量限制。政策集中 `accountPolicy`，adapter 不各自定義。計數 `_id` 用 JWT secret 的 domain-separated HMAC，不記明文 Email／IP，TTL 不取代期限判斷；與已登入帳務限流分開。
 
 手機按註冊、寄碼、驗碼分開保存記憶體中的等待期限；首次寄碼與重新寄碼共用寄碼期限。按鈕與送出守衛只套用該操作期限，寄碼受限仍可提交已有的有效碼，驗碼受限仍可明確重新寄碼；寄碼成功不解除驗碼等待。本機攔截不延長原期限，後端及 HTTP client 各自的限流仍保留。
 
 migration `20261006120000-account-entry-limits.js` 建立匿名計數 TTL 並確保既有 reset-code unique／TTL 索引。驗證使用隔離 replica set、mock 寄信 adapter 與隔離 HTTP 資料庫，不寄正式信件；後端先部署相容服務／索引，App 後行。本次未執行遠端 migration。
 
+## E3 支出維護
+
+已實作 `GET /trips/:id/expenses/:expenseId/edit-context`、同資源 `PATCH`／`DELETE`。admin／member 都可操作；僅成員 Bearer，嚴格 JSON／8 KiB／no-store，輸入 snake_case。context 在 trip fence 的一致交易內取得明細、最新 options、raw category、HMAC revision 與 equal 能力／限制原因，不輸出附件、標籤或行程內容。單筆已不存在回 `404 RESOURCE_GONE`，旅行未授權回 `404 NOT_FOUND`；手機不把單筆消失當作整個旅行撤權。
+
+PATCH 帶 `client_request_id`、`expected_revision`、`mode`、非空 `changes`。`basic` 只接受實際修改的說明、分類、日期，未送欄位原樣保留，未知歷史分類不被 DTO 的 `other` 寫回。`equal` 必須明確選擇並帶完整 original_amount／payer_id／splits；只限後端判定可安全映射的原 TWD／匯率 1 帳務。確認前重讀 context，預覽後再查版本，金額 0.01–1,000,000,000.00、最多 100 位，後端以既有 equal 計算再次核對每份尾差。附件、標籤、行程關聯與建立資料均不清除。成功最小結果為 `{ tripId, expenseId, revision }`。
+
+DELETE 的 JSON body 為 UUID／expected_revision，成功 `{ tripId, expenseId, deleted: true }`。同交易移除 expense／comments、安排既有 blob retirement、寫一次活動及 receipt；提交後檔案清理失敗仍是成功，建立 receipt 不刪。`409 RESOURCE_CHANGED`／`RESOURCE_GONE`／`VALIDATION_ERROR` 均保存終局 rejected receipt；相同 UUID 重播先授權及查 receipt，再檢查新前條件，同 key 不同內容回 `IDEMPOTENCY_CONFLICT`。`mutation-requests` 延續原帳號查詢，E3 結果含獨立 tripId 與 expenseId，終局拒絕也重新核對旅行資格。
+
+revision 對原始業務欄位、支出／旅行 ID 與目前成員的儲存／有效順序作穩定 HMAC，簽章域與登入分開；外幣、分攤、附件、標籤、行程解除或虛擬身分轉換都使舊確認失效，背景 outbox 不影響。內容還原可回到相同 token，這是狀態前條件。Web advanced 編輯與 Mobile 維護都位於共用 `expenseMaintenance.ts`；Web 仍保留既有進階欄位／附件驗證與 cookie 行為。
+
+手機 SQLite schema 8 加上 E 的 trip_id／索引，保留 C／D／E1 與帳號等待。C 新增、D 交接及 E 確認在同一 SQLite 序列／交易檢查同旅行 pending；原 UUID 查詢／重試不被自己的鎖阻擋，D queued 可保留，其他旅行可繼續。未確認編輯只留畫面且與 D 草稿分離；確認後先落盤再 PATCH／DELETE，重啟／前景／重連只查 receipt，不自動重送。終局成功清 payload；E3 拒絕保留本人輸入供明確重開、讀新 context／預覽及新確認，未確定不能修改／捨棄。C／D／E 共用持久化 429 絕對期限與 fetch 前登入／撤權守衛。
+
+成功後重讀第一頁、明細、結算、landing 與列表摘要；刪除明細快取並避開其預期 404。重讀失敗保留成功，僅提供只讀重試；不樂觀調整餘額。兩平台操作待全部 E 完成後統一驗收，未部署／未執行遠端 migration。
+
 ## 尚未實作
 
-E3–E4 的支出維護及還款 API 仍是提案，完整流程、擬新增端點與驗收條件統一見 [E 規格](ROADMAP.md#e-規格基本使用流程)；以下現況不因規劃而視為已實作。
+E4 還款 API 仍是提案，完整流程、擬新增端點與驗收條件統一見 [E 規格](ROADMAP.md#e-規格基本使用流程)；以下現況不因規劃而視為已實作。
 
-外幣與非均分輸入、編輯／刪除已入帳支出、登記還款、附件 begin／finish、推播、帳號刪除及 OS 背景同步均屬後續工作（見 [路線](ROADMAP.md)）。D1 原始草稿、D2 受限入口與 D3 離線確認／多筆前景待送佇列沿用既有 HTTP 端點；AI 仍只產生草稿，正式寫入需使用者確認。實作與開發測試不代表已部署或兩平台裝置驗收通過。
+外幣與非均分金額編輯、登記還款、附件 begin／finish、推播、帳號刪除及 OS 背景同步均屬後續工作（見 [路線](ROADMAP.md)）。D1 原始草稿、D2 受限入口與 D3 離線確認／多筆前景待送佇列沿用既有 HTTP 端點；AI 仍只產生草稿，正式寫入需使用者確認。實作與開發測試不代表已部署或兩平台裝置驗收通過。

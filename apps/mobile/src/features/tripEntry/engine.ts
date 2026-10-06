@@ -1,7 +1,10 @@
 import {
   mutationRequestSchema,
   tripMutationResultSchema,
+  expenseMutationResultSchema,
   type MutationRequest,
+  type TripMutationResult,
+  type ExpenseMutationResult,
 } from '@travel-budget/contracts';
 import { ApiError } from '@/api/client';
 import { LocalRateLimitError, type EntryRequest } from '@/features/expenses/entry';
@@ -13,7 +16,7 @@ import {
   type PendingMutation,
 } from '@/storage/mutations';
 export type MutationOutcome =
-  | { kind: 'completed'; result: MutationRequest }
+  | { kind: 'completed'; result: MutationRequest; refreshed?: boolean }
   | { kind: 'pending'; error?: unknown }
   | { kind: 'not-sent'; error?: unknown }
   | { kind: 'blocked' };
@@ -23,10 +26,10 @@ interface Deps {
   newId: () => string;
   active: (scope: PendingScope) => boolean;
   /** Capture a synchronous guard before SQLite/serial waits; rejects intervening sign-in changes. */
-  guard?: (scope: PendingScope) => () => void;
+  guard?: (scope: PendingScope) => (tripId?: string | null) => void;
   now?: () => number;
   changed?: (scope: PendingScope) => void;
-  committed?: (scope: PendingScope, tripId: string) => unknown;
+  committed?: (scope: PendingScope, tripId: string, result: MutationRequest) => unknown;
 }
 export class TripEntry {
   private flights = new Map<string, Promise<MutationOutcome>>();
@@ -39,14 +42,14 @@ export class TripEntry {
   }
   private run(
     scope: PendingScope,
-    task: (guard: () => void) => Promise<MutationOutcome>
+    task: (guard: (tripId?: string | null) => void) => Promise<MutationOutcome>
   ): Promise<MutationOutcome> {
     const key = JSON.stringify([scope.environment, scope.accountId]);
     const running = this.flights.get(key);
     if (running) return Promise.resolve({ kind: 'blocked' });
     const captured = this.deps.guard?.(scope);
-    const guard = () => {
-      captured?.();
+    const guard = (tripId?: string | null) => {
+      captured?.(tripId);
       if (!this.deps.active(scope)) throw new ApiError('CANCELLED');
     };
     const work = Promise.resolve()
@@ -60,21 +63,17 @@ export class TripEntry {
   }
   confirm(
     scope: PendingScope,
-    payload:
-      | {
-          operation: 'trip.create';
-          body: Omit<
-            Extract<MutationPayload, { operation: 'trip.create' }>['body'],
-            'client_request_id'
-          >;
-        }
-      | { operation: 'trip.join'; body: { invite_code: string } }
+    payload: MutationPayload extends infer P
+      ? P extends MutationPayload
+        ? Omit<P, 'body'> & { body: Omit<P['body'], 'client_request_id'> }
+        : never
+      : never
   ) {
     return this.run(scope, async (guard) => {
       let record: PendingMutation;
       let store: MutationStore;
       try {
-        guard();
+        guard('tripId' in payload ? payload.tripId : undefined);
         store = await this.deps.store();
         await this.ready(store, scope, guard);
         const parsed = mutationPayload.parse({
@@ -90,6 +89,7 @@ export class TripEntry {
           status: 'pending',
           conflict: false,
           createdAt: this.now(),
+          tripId: 'tripId' in parsed ? parsed.tripId : null,
         };
         if (!(await store.insert(record))) return { kind: 'blocked' };
       } catch (error) {
@@ -138,15 +138,23 @@ export class TripEntry {
     await (await this.deps.store()).dismiss(scope, key);
     this.deps.changed?.(scope);
   }
-  private async ready(store: MutationStore, scope: PendingScope, guard: () => void) {
-    guard();
+  private async ready(
+    store: MutationStore,
+    scope: PendingScope,
+    guard: (tripId?: string | null) => void
+  ) {
+    guard('tripId' in scope ? (scope as PendingMutation).tripId : undefined);
     const until = await store.retryAt(scope);
-    guard();
+    guard('tripId' in scope ? (scope as PendingMutation).tripId : undefined);
     if (until > this.now()) throw new LocalRateLimitError(until, this.now());
   }
-  private beforeSend(store: MutationStore, scope: PendingScope, guard: () => void) {
+  private beforeSend(
+    store: MutationStore,
+    scope: PendingScope,
+    guard: (tripId?: string | null) => void
+  ) {
     return () => {
-      guard();
+      guard('tripId' in scope ? (scope as PendingMutation).tripId : undefined);
       const until = store.rateLimitUntil(scope);
       if (until > this.now()) throw new LocalRateLimitError(until, this.now());
     };
@@ -177,16 +185,20 @@ export class TripEntry {
   ): Promise<MutationOutcome> {
     if (result.status === 'not_found') return { kind: 'pending' };
     await store.complete(record, record.clientRequestId, result);
-    if (result.status === 'committed')
-      await Promise.resolve()
-        .then(() => this.deps.committed?.(record, result.resourceId))
-        .catch(() => undefined);
-    return { kind: 'completed', result };
+    let refreshed = true;
+    if (result.status === 'committed') {
+      try {
+        await this.deps.committed?.(record, result.result.tripId, result);
+      } catch {
+        refreshed = false;
+      }
+    }
+    return { kind: 'completed', result, refreshed };
   }
   private async query(
     store: MutationStore,
     record: PendingMutation,
-    guard: () => void
+    guard: (tripId?: string | null) => void
   ): Promise<MutationOutcome> {
     try {
       await this.ready(store, record, guard);
@@ -196,7 +208,7 @@ export class TripEntry {
         mutationRequestSchema,
         { beforeSend: this.beforeSend(store, record, guard) }
       );
-      guard();
+      guard(record.tripId);
       // A UUID collision may resolve another operation: display its result without replaying ours.
       return await this.finish(store, record, result);
     } catch (error) {
@@ -206,25 +218,36 @@ export class TripEntry {
   private async send(
     store: MutationStore,
     record: PendingMutation,
-    guard: () => void
+    guard: (tripId?: string | null) => void
   ): Promise<MutationOutcome> {
     try {
       await this.ready(store, record, guard);
-      const result = await this.deps.request(
+      const result = await this.deps.request<TripMutationResult | ExpenseMutationResult>(
         record.accountId,
-        record.operation === 'trip.create' ? '/trips' : '/trips/join',
-        tripMutationResultSchema,
+        record.operation === 'trip.create'
+          ? '/trips'
+          : record.operation === 'trip.join'
+            ? '/trips/join'
+            : `/trips/${record.tripId}/expenses/${'expenseId' in record.payload! ? record.payload.expenseId : ''}`,
+        record.operation.startsWith('expense.')
+          ? expenseMutationResultSchema
+          : tripMutationResultSchema,
         {
-          method: 'POST',
+          method:
+            record.operation === 'expense.update'
+              ? 'PATCH'
+              : record.operation === 'expense.delete'
+                ? 'DELETE'
+                : 'POST',
           body: record.payload!.body,
           beforeSend: this.beforeSend(store, record, guard),
         }
       );
-      guard();
+      guard(record.tripId);
       return await this.finish(store, record, {
         status: 'committed',
         operation: record.operation,
-        resourceId: result.tripId,
+        resourceId: 'expenseId' in result ? result.expenseId : result.tripId,
         result,
       });
     } catch (error) {

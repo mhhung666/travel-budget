@@ -25,7 +25,16 @@ interface Parent {
   members: { user: mongo.ObjectId; role: string; joinedAt?: Date }[];
 }
 export class TripEntryError extends Error {
-  constructor(public code: 'NOT_FOUND' | 'IDEMPOTENCY_CONFLICT' | 'INVITATION_INVALID' | 'BUSY') {
+  constructor(
+    public code:
+      | 'NOT_FOUND'
+      | 'IDEMPOTENCY_CONFLICT'
+      | 'INVITATION_INVALID'
+      | 'BUSY'
+      | 'RESOURCE_CHANGED'
+      | 'RESOURCE_GONE'
+      | 'VALIDATION_ERROR'
+  ) {
     super(code);
   }
 }
@@ -51,11 +60,17 @@ async function authorizeReceipt(
   actorId: string,
   terminal: Terminal
 ) {
-  if (terminal.status !== 'committed') return;
+  if (terminal.status === 'rejected' && !terminal.tripId) return;
+  const tripId =
+    terminal.status === 'rejected'
+      ? terminal.tripId!
+      : terminal.operation.startsWith('expense.')
+        ? terminal.result.tripId
+        : terminal.resourceId;
   const trip = await db
     .collection<Parent>('trips')
     .findOneAndUpdate(
-      { _id: new mongo.ObjectId(terminal.resourceId), ...memberFilter(actorId) },
+      { _id: new mongo.ObjectId(tripId), ...memberFilter(actorId) },
       { $inc: { expenseDeliveryFence: 1 } },
       { session }
     );
@@ -246,7 +261,7 @@ export async function enterTrip(
         await Promise.resolve()
           .then(() => deliver(accepted.delivery!))
           .catch(() => undefined);
-      return accepted.terminal.result;
+      return accepted.terminal.result as TripMutationResult;
     } catch (error) {
       if ((error as { code?: number })?.code === 11000 && attempt < 9) continue;
       throw error;

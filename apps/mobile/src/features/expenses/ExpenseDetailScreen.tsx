@@ -93,6 +93,29 @@ export function ExpenseDetailScreen({ tripId, expenseId }: { tripId: string; exp
           </Section>
           <Copy>{t.amountsInTwd}</Copy>
           <Action
+            testID="expense-edit"
+            label={t.editExpense}
+            disabled={!online}
+            onPress={() =>
+              router.push({
+                pathname: '/trips/[id]/expenses/edit',
+                params: { id: tripId, expenseId },
+              })
+            }
+          />
+          <Action
+            testID="expense-delete"
+            secondary
+            label={t.deleteExpense}
+            disabled={!online}
+            onPress={() =>
+              router.push({
+                pathname: '/trips/[id]/expenses/edit',
+                params: { id: tripId, expenseId, remove: 'true' },
+              })
+            }
+          />
+          <Action
             testID="expense-refresh"
             secondary
             label={query.isFetching ? t.loading : t.refresh}

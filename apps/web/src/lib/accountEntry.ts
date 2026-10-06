@@ -107,12 +107,16 @@ export async function claimAccountLimit(
         allowed: {
           $and: [
             { $lt: [{ $size: '$hits' }, maximum] },
-            {
-              $lte: [
-                { $ifNull: [{ $arrayElemAt: ['$hits', -1] }, new Date(0)] },
-                new Date(now - gapMs),
-              ],
-            },
+            // With no spacing rule, a slower earlier request must not be refused just because
+            // a later timestamp claimed the counter first. The rolling count still applies.
+            gapMs === 0
+              ? true
+              : {
+                  $lte: [
+                    { $ifNull: [{ $arrayElemAt: ['$hits', -1] }, new Date(0)] },
+                    new Date(now - gapMs),
+                  ],
+                },
           ],
         },
       },
@@ -121,7 +125,9 @@ export async function claimAccountLimit(
       $set: {
         grant: { $cond: ['$allowed', grant, '$grant'] },
         hits: { $cond: ['$allowed', { $concatArrays: ['$hits', [new Date(now)]] }, '$hits'] },
-        expiresAt: { $cond: ['$allowed', new Date(now + windowMs), '$expiresAt'] },
+        expiresAt: {
+          $cond: ['$allowed', { $max: ['$expiresAt', new Date(now + windowMs)] }, '$expiresAt'],
+        },
       },
     },
     { $unset: 'allowed' },
@@ -139,8 +145,9 @@ export async function claimAccountLimit(
   }
   if (!record) throw new Error('Account limit unavailable');
   if (record.grant !== grant) {
-    const oldest = record.hits[0]?.getTime() ?? now;
-    const last = record.hits.at(-1)?.getTime() ?? now;
+    const times = record.hits.map((hit) => hit.getTime());
+    const oldest = times.length ? Math.min(...times) : now;
+    const last = times.length ? Math.max(...times) : now;
     const until = Math.max(record.hits.length >= maximum ? oldest + windowMs : now, last + gapMs);
     throw new AccountEntryError('RATE_LIMITED', Math.max(1, Math.ceil((until - now) / 1000)));
   }

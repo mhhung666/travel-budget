@@ -98,6 +98,14 @@ export class DraftCatalog {
     }
     return this.open();
   }
+  /** Capture every trip's denial generation before asynchronous storage/refresh waits. */
+  captureAccess(scope: PendingScope) {
+    const versions = new Map(this.denials);
+    return (tripId?: string) => {
+      if (tripId && versions.get(keyOf(scope, tripId)) !== this.denials.get(keyOf(scope, tripId)))
+        throw new ApiError('CANCELLED');
+    };
+  }
   accessVersion(scope: PendingScope, tripId: string) {
     return this.denials.get(keyOf(scope, tripId));
   }

@@ -94,14 +94,26 @@ export async function refreshTripData(
   client: QueryClient,
   baseUrl: string,
   userId: string,
-  tripId: string
+  tripId: string,
+  deletedExpenseId?: string
 ): Promise<void> {
+  if (deletedExpenseId)
+    client.removeQueries({
+      queryKey: [baseUrl, userId, 'expense', tripId, deletedExpenseId],
+      exact: true,
+    });
   keepFirstPage(client, expensesKey(baseUrl, userId, tripId));
   const refetch = (...key: unknown[]) =>
     client.invalidateQueries({ queryKey: [baseUrl, userId, ...key] }, { throwOnError: true });
   await Promise.all([
     refetch('expenses', tripId),
-    refetch('expense', tripId),
+    client.invalidateQueries(
+      {
+        queryKey: [baseUrl, userId, 'expense', tripId],
+        predicate: (query) => query.queryKey[4] !== deletedExpenseId,
+      },
+      { throwOnError: true }
+    ),
     refetch('settlement', tripId),
     refetch('trip', tripId),
     refetch('trips'),

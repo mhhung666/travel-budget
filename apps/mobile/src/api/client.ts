@@ -18,7 +18,7 @@ export function checkAborted(signal?: AbortSignal) {
 }
 
 export type RequestOptions = {
-  method?: 'GET' | 'POST';
+  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
   body?: unknown;
   accessToken?: string;
   signal?: AbortSignal;

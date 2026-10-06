@@ -265,18 +265,92 @@ export const tripMutationResultSchema = z.object({
   alreadyMember: z.boolean().optional(),
 });
 export const invitationSchema = z.object({ code: inviteCodeSchema, url: z.url() });
+// E3: preserve unsupported historical fields; only explicit equal mode changes accounting.
+export const resourceRevisionSchema = z.string().regex(/^[a-f0-9]{64}$/);
+const basicExpenseChanges = z
+  .object({
+    description: z.string().trim().min(1).max(MAX_EXPENSE_DESCRIPTION).optional(),
+    category: expenseCategorySchema.optional(),
+    date: dateSchema.optional(),
+  })
+  .strict();
+const mutationIdentity = {
+  client_request_id: clientRequestIdSchema.toLowerCase(),
+  expected_revision: resourceRevisionSchema,
+};
+export const expenseUpdateInput = z.discriminatedUnion('mode', [
+  z
+    .object({
+      ...mutationIdentity,
+      mode: z.literal('basic'),
+      changes: basicExpenseChanges.refine((v) => Object.keys(v).length > 0, 'No changes'),
+    })
+    .strict(),
+  z
+    .object({
+      ...mutationIdentity,
+      mode: z.literal('equal'),
+      changes: basicExpenseChanges
+        .extend({
+          original_amount: expenseCreateInput.shape.original_amount,
+          payer_id: idSchema,
+          splits: expenseCreateInput.shape.splits,
+        })
+        .strict(),
+    })
+    .strict(),
+]);
+export const expenseDeleteInput = z.object(mutationIdentity).strict();
+export const expenseMutationResultSchema = z
+  .object({
+    tripId: idSchema,
+    expenseId: idSchema,
+    revision: resourceRevisionSchema.optional(),
+    deleted: z.literal(true).optional(),
+  })
+  .refine(
+    (v) => Boolean(v.revision) !== Boolean(v.deleted),
+    'A maintenance result must identify its outcome'
+  );
+export const expenseEditContextSchema = z.object({
+  expense: expenseDetailSchema,
+  // The list DTO maps unknown categories to other; an editor must preserve the raw category.
+  category: z.string().nullable(),
+  options: expenseOptionsSchema,
+  revision: resourceRevisionSchema,
+  capabilities: z.object({
+    basic: z.literal(true),
+    equal: z.boolean(),
+    reason: z.enum(['foreign', 'historical', 'members']).nullable(),
+  }),
+});
+export type ExpenseUpdateInput = z.infer<typeof expenseUpdateInput>;
+export type ExpenseDeleteInput = z.infer<typeof expenseDeleteInput>;
+export type ExpenseEditContext = z.infer<typeof expenseEditContextSchema>;
+export type ExpenseMutationResult = z.infer<typeof expenseMutationResultSchema>;
 export const mutationRequestSchema = z.discriminatedUnion('status', [
   z.object({ status: z.literal('not_found') }),
-  z.object({
-    status: z.literal('committed'),
-    operation: z.enum(['trip.create', 'trip.join']),
-    resourceId: idSchema,
-    result: tripMutationResultSchema,
-  }),
+  z
+    .object({
+      status: z.literal('committed'),
+      operation: z.enum(['trip.create', 'trip.join', 'expense.update', 'expense.delete']),
+      resourceId: idSchema,
+      result: z.union([expenseMutationResultSchema.strict(), tripMutationResultSchema.strict()]),
+    })
+    .refine(
+      (v) =>
+        v.operation.startsWith('expense.')
+          ? 'expenseId' in v.result &&
+            v.resourceId === v.result.expenseId &&
+            (v.operation === 'expense.update' ? !!v.result.revision : v.result.deleted === true)
+          : !('expenseId' in v.result) && v.resourceId === v.result.tripId,
+      'Receipt outcome does not match its operation'
+    ),
   z.object({
     status: z.literal('rejected'),
-    operation: z.enum(['trip.create', 'trip.join']),
-    code: z.literal('INVITATION_INVALID'),
+    operation: z.enum(['trip.create', 'trip.join', 'expense.update', 'expense.delete']),
+    code: z.enum(['INVITATION_INVALID', 'RESOURCE_CHANGED', 'RESOURCE_GONE', 'VALIDATION_ERROR']),
+    tripId: idSchema.optional(),
   }),
 ]);
 export type TripCreateInput = z.infer<typeof tripCreateInput>;

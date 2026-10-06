@@ -26,6 +26,10 @@ import {
   tripMutationResultSchema,
   invitationSchema,
   mutationRequestSchema,
+  expenseEditContextSchema,
+  expenseUpdateInput,
+  expenseDeleteInput,
+  expenseMutationResultSchema,
 } from '../src/index.ts';
 
 const maxAmount = MAX_EXPENSE_AMOUNT.toLocaleString('en-US', { minimumFractionDigits: 2 });
@@ -37,6 +41,10 @@ const schemas = Object.fromEntries(
     TripMutationResult: tripMutationResultSchema,
     Invitation: invitationSchema,
     MutationRequest: mutationRequestSchema,
+    ExpenseEditContext: expenseEditContextSchema,
+    ExpenseUpdateInput: expenseUpdateInput,
+    ExpenseDeleteInput: expenseDeleteInput,
+    ExpenseMutationResult: expenseMutationResultSchema,
     RegisterInput: registerInput,
     PasswordResetRequestInput: passwordResetRequestInput,
     PasswordResetInput: passwordResetInput,
@@ -234,7 +242,36 @@ const paths = {
         "Result of the caller's own earlier create request for this trip; the key matches without regard to letter case. committed: the expense as accepted, also after it was deleted later. not_found: no result is stored for this key; it does not prove that a request with the same key is not still running, so retry with the original key and payload.",
     },
   },
+  '/trips/{id}/expenses/{expenseId}/edit-context': {
+    get: {
+      ...operation('expenseEditContext', 'ExpenseEditContext'),
+      parameters: [
+        tripIdParam,
+        { name: 'expenseId', in: 'path', required: true, schema: objectId },
+      ],
+    },
+  },
   '/trips/{id}/expenses/{expenseId}': {
+    patch: {
+      ...operation('updateExpense', 'ExpenseMutationResult', 'ExpenseUpdateInput', {
+        authenticated: true,
+        errors: [409],
+      }),
+      parameters: [
+        tripIdParam,
+        { name: 'expenseId', in: 'path', required: true, schema: objectId },
+      ],
+    },
+    delete: {
+      ...operation('deleteExpense', 'ExpenseMutationResult', 'ExpenseDeleteInput', {
+        authenticated: true,
+        errors: [409],
+      }),
+      parameters: [
+        tripIdParam,
+        { name: 'expenseId', in: 'path', required: true, schema: objectId },
+      ],
+    },
     get: {
       ...operation('expense', 'ExpenseDetail'),
       parameters: [

@@ -78,6 +78,20 @@ describe('refreshTripData', () => {
     [...onScreen, offTrip, options].forEach(({ stop }) => stop());
   });
 
+  it('a deleted detail is evicted without treating its expected 404 as a failed refresh', async () => {
+    const cache = seeded();
+    const deleted = observe(cache, keys.detail, async () => {
+      throw new ApiError('RESOURCE_GONE', 404);
+    });
+    const remaining = observe(cache, [BASE, USER, 'expense', TRIP, 'e2']);
+    await refreshTripData(cache, BASE, USER, TRIP, 'e1');
+    expect(deleted.read).not.toHaveBeenCalled();
+    expect(cache.getQueryData(keys.detail)).toBeUndefined();
+    expect(remaining.read).toHaveBeenCalledTimes(1);
+    deleted.stop();
+    remaining.stop();
+  });
+
   it('rereads only the newest page of the expense list', async () => {
     const cache = client();
     cache.setQueryData(keys.list, {

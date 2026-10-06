@@ -84,7 +84,7 @@ it('upgrades schema 3 with drafts, pending and trip snapshots intact', async () 
   expect((await h.pending.drafts.load(scope, tripId))?.draftId).toBe(uuidOf(2));
   expect(await h.pending.list(scope)).toHaveLength(1);
   expect((await trips.get(scope, tripId))?.options).toEqual(options);
-  expect(await h.db.getFirstAsync('PRAGMA user_version')).toEqual({ user_version: 7 });
+  expect(await h.db.getFirstAsync('PRAGMA user_version')).toEqual({ user_version: 8 });
 });
 it('isolates queue operations by environment and account', async () => {
   const h = await setup();
@@ -307,7 +307,7 @@ it.each(['busy', 'conflict', 'pending'])(
       },
     ]);
     expect(await h.pending.list(scope)).toEqual(frozen);
-    expect(await h.db.getFirstAsync('PRAGMA user_version')).toEqual({ user_version: 7 });
+    expect(await h.db.getFirstAsync('PRAGMA user_version')).toEqual({ user_version: 8 });
   }
 );
 

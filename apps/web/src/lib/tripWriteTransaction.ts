@@ -16,6 +16,17 @@ export async function withTripWrite<T>(
 ): Promise<T> {
   await dbConnect();
   const db = mongoose.connection.db!;
+  return withTripWriteInDatabase(db, tripId, actorId, write, role);
+}
+
+/** Same fence and transaction for raw DB services and model-backed Web writers. */
+export async function withTripWriteInDatabase<T>(
+  db: mongo.Db,
+  tripId: string,
+  actorId: string,
+  write: (session: mongo.ClientSession) => Promise<T>,
+  role?: 'admin'
+): Promise<T> {
   return db.client.withSession((session) =>
     session.withTransaction(
       async () => {

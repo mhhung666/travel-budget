@@ -24,6 +24,9 @@ import {
   expenseOptionsSchema,
   expensePreviewSchema,
   expenseRequestSchema,
+  expenseEditContextSchema,
+  expenseMutationResultSchema,
+  mutationRequestSchema,
 } from '@travel-budget/contracts';
 import { up as migrateSessions } from '../migrations/20261002100000-mobile-session-expiry.js';
 import { up as migrateAccounts } from '../migrations/20261006120000-account-entry-limits.js';
@@ -518,7 +521,7 @@ try {
       assert(payload.requestId);
     } else {
       assert(payload.data);
-      if (schema) schema.strict().parse(payload.data);
+      if (schema) (typeof schema.strict === 'function' ? schema.strict() : schema).parse(payload.data);
     }
     return { data: payload.data, error: payload.error, response };
   }
@@ -1653,6 +1656,241 @@ try {
   assert.equal(await db.collection('expenses').countDocuments({ _id: mixedObjectId }), 0);
   assert.deepEqual(await counts(), { ...beforeMixed, expenses: beforeMixed.expenses - 1 });
   pass('a key first sent in mixed letter case is one key in every spelling, also after deletion');
+
+  // E3: new entry uses the same C creation receipt, and maintenance never removes that receipt.
+  const e3Body = payload({ description: 'E3 original' });
+  const e3Expense = await create(e3Body);
+  const e3Id = new mongoose.Types.ObjectId(e3Expense.id);
+  const e3Path = `${tripPath}/expenses/${e3Expense.id}`;
+  const e3Context = async () =>
+    (
+      await request(`${e3Path}/edit-context`, {
+        token: writerSession.accessToken,
+        schema: expenseEditContextSchema,
+      })
+    ).data;
+  await request(`${e3Path}/edit-context`, { token: outsiderSession.accessToken, status: 404 });
+  await db.collection('expenses').updateOne(
+    { _id: e3Id },
+    {
+      $set: {
+        currency: 'JPY',
+        originalAmount: 400,
+        exchangeRate: 0.25,
+        tags: ['keep'],
+        itineraryDays: [new mongoose.Types.ObjectId()],
+        category: 'historical-category',
+      },
+    }
+  );
+  const e3Foreign = await e3Context();
+  assert.equal(e3Foreign.category, 'historical-category');
+  assert.equal(e3Foreign.capabilities.equal, false);
+  assert(!JSON.stringify(e3Foreign).includes('attachments'));
+  const beforeE3Basic = await db.collection('expenses').findOne({ _id: e3Id });
+  const e3Basic = {
+    client_request_id: randomUUID(),
+    expected_revision: e3Foreign.revision,
+    mode: 'basic',
+    changes: { description: 'E3 metadata' },
+  };
+  await request(e3Path, {
+    token: writerSession.accessToken,
+    method: 'PATCH',
+    body: e3Basic,
+    schema: expenseMutationResultSchema,
+  });
+  const afterE3Basic = await db.collection('expenses').findOne({ _id: e3Id });
+  for (const field of [
+    'amount',
+    'originalAmount',
+    'currency',
+    'exchangeRate',
+    'payer',
+    'splits',
+    'category',
+    'tags',
+    'itineraryDays',
+    'attachments',
+    'createdAt',
+    'createdBy',
+  ])
+    assert.deepEqual(afterE3Basic[field], beforeE3Basic[field], `metadata changed ${field}`);
+  const e3Stale = {
+    client_request_id: randomUUID(),
+    expected_revision: (await e3Context()).revision,
+    mode: 'basic',
+    changes: { description: 'old confirmation' },
+  };
+  await db.collection('expenses').updateOne({ _id: e3Id }, { $set: { description: 'Web edit' } });
+  assert.equal(
+    (
+      await request(e3Path, {
+        token: writerSession.accessToken,
+        method: 'PATCH',
+        body: e3Stale,
+        status: 409,
+      })
+    ).error.code,
+    'RESOURCE_CHANGED'
+  );
+  assert.equal(
+    (
+      await request(`/mutation-requests/${e3Stale.client_request_id}`, {
+        token: writerSession.accessToken,
+        schema: mutationRequestSchema,
+      })
+    ).data.status,
+    'rejected'
+  );
+  await db
+    .collection('expenses')
+    .updateOne({ _id: e3Id }, { $set: { currency: 'TWD', originalAmount: 100, exchangeRate: 1 } });
+  const e3EqualPreview = await preview({ amount: 0.01, member_ids: evenIds });
+  const e3Equal = {
+    client_request_id: randomUUID(),
+    expected_revision: (await e3Context()).revision,
+    mode: 'equal',
+    changes: {
+      original_amount: 0.01,
+      payer_id: writerId,
+      splits: e3EqualPreview.splits.map((s) => ({
+        user_id: s.userId,
+        share_amount: s.shareAmount,
+      })),
+    },
+  };
+  const e3EqualResults = await Promise.all(
+    Array.from({ length: 4 }, () =>
+      request(e3Path, {
+        token: writerSession.accessToken,
+        method: 'PATCH',
+        body: e3Equal,
+        schema: expenseMutationResultSchema,
+      })
+    )
+  );
+  assert.deepEqual(
+    e3EqualResults.map((r) => r.data),
+    Array(4).fill(e3EqualResults[0].data)
+  );
+  assert.equal((await db.collection('expenses').findOne({ _id: e3Id })).amount, 0.01);
+  const e3Lost = {
+    client_request_id: randomUUID(),
+    expected_revision: (await e3Context()).revision,
+    mode: 'basic',
+    changes: { description: 'E3 lost response' },
+  };
+  const e3LostSocket = connect(port, '127.0.0.1');
+  e3LostSocket.on('error', () => {});
+  await once(e3LostSocket, 'connect');
+  const e3LostText = JSON.stringify(e3Lost);
+  e3LostSocket.write(
+    `PATCH /api/v1${e3Path} HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\nAuthorization: Bearer ${writerSession.accessToken}\r\nContent-Type: application/json\r\nContent-Length: ${Buffer.byteLength(e3LostText)}\r\nConnection: close\r\n\r\n${e3LostText}`
+  );
+  await eventually(
+    async () =>
+      (await db
+        .collection('mutationrequests')
+        .countDocuments({ _id: `${writerId}:${e3Lost.client_request_id}` })) === 1,
+    'E3 lost response did not commit',
+    20000
+  );
+  e3LostSocket.destroy();
+  const e3LostResult = (
+    await request(`/mutation-requests/${e3Lost.client_request_id}`, {
+      token: writerSession.accessToken,
+      schema: mutationRequestSchema,
+    })
+  ).data;
+  assert.equal(e3LostResult.result.expenseId, e3Expense.id);
+  assert.deepEqual(
+    (
+      await request(e3Path, {
+        token: writerSession.accessToken,
+        method: 'PATCH',
+        body: e3Lost,
+        schema: expenseMutationResultSchema,
+      })
+    ).data,
+    e3LostResult.result
+  );
+  const e3Blob = `receipts/${writerTrip._id}/${randomUUID()}.jpg`;
+  await db.collection('expenses').updateOne(
+    { _id: e3Id },
+    {
+      $set: {
+        attachments: [
+          {
+            key: e3Blob,
+            contentType: 'image/jpeg',
+            size: 1,
+            uploadedBy: new mongoose.Types.ObjectId(writerId),
+            uploadedAt: new Date(),
+          },
+        ],
+      },
+    }
+  );
+  await db
+    .collection('comments')
+    .insertOne({ trip: writerTrip._id, expense: e3Id, text: 'remove with expense' });
+  const e3Delete = {
+    client_request_id: randomUUID(),
+    expected_revision: (await e3Context()).revision,
+  };
+  const e3Deleted = (
+    await request(e3Path, {
+      token: writerSession.accessToken,
+      method: 'DELETE',
+      body: e3Delete,
+      schema: expenseMutationResultSchema,
+    })
+  ).data;
+  assert.equal(e3Deleted.deleted, true);
+  assert.deepEqual(
+    (
+      await request(e3Path, {
+        token: writerSession.accessToken,
+        method: 'DELETE',
+        body: e3Delete,
+        schema: expenseMutationResultSchema,
+      })
+    ).data,
+    e3Deleted
+  );
+  assert.equal(await db.collection('comments').countDocuments({ expense: e3Id }), 0);
+  assert.equal(await db.collection('blobcleanupjobs').countDocuments({ _id: e3Blob }), 1);
+  assert.deepEqual(await create(e3Body), e3Expense);
+  assert.equal(await db.collection('expenses').countDocuments({ _id: e3Id }), 0);
+  const e3Gone = {
+    ...e3Stale,
+    client_request_id: randomUUID(),
+    expected_revision: e3Delete.expected_revision,
+  };
+  assert.equal(
+    (
+      await request(e3Path, {
+        token: writerSession.accessToken,
+        method: 'PATCH',
+        body: e3Gone,
+        status: 409,
+      })
+    ).error.code,
+    'RESOURCE_GONE'
+  );
+  assert.equal(
+    (
+      await request(`/mutation-requests/${e3Gone.client_request_id}`, {
+        token: writerSession.accessToken,
+        schema: mutationRequestSchema,
+      })
+    ).data.code,
+    'RESOURCE_GONE'
+  );
+  pass(
+    'E3: metadata preservation, Web conflict, equal tail cents, UUID concurrency, lost response, deletion/retirement and C replay never resurrects'
+  );
 
   // Return the trip to its pristine state for device testing.
   for (const name of ['expenses', 'expensecreaterequests', 'notifications', 'activitylogs'])
