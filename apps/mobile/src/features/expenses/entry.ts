@@ -82,6 +82,13 @@ export function reasonOf(error: unknown): UnconfirmedReason {
   return 'server';
 }
 
+/** A local guard is not a new server 429 and must not extend the existing deadline. */
+class LocalRateLimitError extends ApiError {
+  constructor(remaining: number) {
+    super('RATE_LIMITED', 429, Math.ceil(remaining / 1000));
+  }
+}
+
 const cents = (value: number) => Math.round(value * 100);
 /** Whether the stored expense is the one that was entered (it can only differ after a 409). */
 export function sameExpense(payload: ExpenseCreateInput, expense: ExpenseDetail) {
@@ -284,6 +291,11 @@ export class ExpenseEntry {
     return { store, record };
   }
 
+  private guardRateLimit(store: PendingExpenseStore, scope: PendingScope) {
+    const remaining = (store.rateLimitUntil?.(scope) ?? 0) - this.now();
+    if (remaining > 0) throw new LocalRateLimitError(remaining);
+  }
+
   private async post(
     store: PendingExpenseStore,
     record: PendingExpense,
@@ -296,7 +308,14 @@ export class ExpenseEntry {
         record.accountId,
         `${tripPath(record.tripId)}/expenses`,
         expenseDetailSchema,
-        { method: 'POST', body: record.payload, beforeSend }
+        {
+          method: 'POST',
+          body: record.payload,
+          beforeSend: () => {
+            beforeSend?.();
+            this.guardRateLimit(store, record);
+          },
+        }
       );
     } catch (error) {
       return this.failed(store, record, error);
@@ -336,7 +355,7 @@ export class ExpenseEntry {
     record: PendingExpense,
     error: unknown
   ) {
-    if (!(error instanceof ApiError)) return;
+    if (!(error instanceof ApiError) || error instanceof LocalRateLimitError) return;
     if (error.status !== 429 && verdictOf(error) !== 'conflict') return;
     if (!store.pause) return;
     await store.pause(
@@ -357,7 +376,8 @@ export class ExpenseEntry {
       result = await this.deps.request(
         record.accountId,
         `${tripPath(record.tripId)}/expense-requests/${encodeURIComponent(record.clientRequestId)}`,
-        expenseRequestSchema
+        expenseRequestSchema,
+        { beforeSend: () => this.guardRateLimit(store, record) }
       );
     } catch (error) {
       try {

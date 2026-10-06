@@ -1066,3 +1066,74 @@ it.each(['discard', 'restore'] as const)(
     expect(h.server.expenses).toHaveLength(1);
   }
 );
+
+it.each(
+  ['queue', 'pending'].flatMap((writer) =>
+    ['retryAt', 'setStatus', 'refresh', 'lookup', 'follow-up lookup'].map((operation) => ({
+      writer,
+      operation,
+    }))
+  )
+)(
+  'blocks a new cross-trip rate limit from $writer during C $operation',
+  async ({ writer, operation }) => {
+    const h = await harness();
+    const a = await h.enqueue(1);
+    const b = await h.enqueue(2, OTHER_TRIP);
+    await h.store.prepare(b, {
+      ...confirmedFields(b.input, options, preview),
+      client_request_id: b.clientRequestId,
+    });
+    await h.pending.setStatus(h.scope, b.clientRequestId, 'unconfirmed');
+    const until = Date.now() + 120_000;
+    const pause = () =>
+      writer === 'queue'
+        ? h.store.pause(a, 'busy', until)
+        : h.pending.pause!(h.scope, a.clientRequestId, 'busy', until);
+    if (operation === 'retryAt' || operation === 'lookup') {
+      const retryAt = h.pending.retryAt!;
+      vi.spyOn(h.pending, 'retryAt').mockImplementationOnce(async (...args) => {
+        const stale = await retryAt(...args);
+        await pause();
+        return stale;
+      });
+    } else if (operation === 'setStatus' || operation === 'follow-up lookup') {
+      const setStatus = h.pending.setStatus;
+      vi.spyOn(h.pending, 'setStatus').mockImplementation(async (...args) => {
+        await setStatus(...args);
+        if (args[2] === (operation === 'setStatus' ? 'sending' : 'unconfirmed')) await pause();
+      });
+      if (operation === 'follow-up lookup')
+        h.server.fail('POST', /\/expenses$/, { kind: 'status', status: 500 });
+    } else {
+      h.server.fail('POST', /\/expenses$/, { kind: 'status', status: 401 });
+      h.hook(async (path) => {
+        if (path.endsWith('/auth/refresh')) await pause();
+      });
+    }
+    h.calls.length = 0;
+    const outcome =
+      operation === 'lookup'
+        ? await h.entry.lookup(h.scope, b.clientRequestId)
+        : await h.entry.retry(h.scope, b.clientRequestId);
+    expect(outcome).toMatchObject({ kind: 'unconfirmed', reason: 'busy' });
+    expect(h.calls.filter((c) => c.path.includes('/expense-requests/'))).toHaveLength(0);
+    expect(h.server.posts()).toHaveLength(
+      operation === 'refresh' || operation === 'follow-up lookup' ? 1 : 0
+    );
+    expect(h.server.expenses).toHaveLength(0);
+    expect(await h.pending.get(h.scope, b.clientRequestId)).toMatchObject({
+      payload: { client_request_id: b.clientRequestId },
+    });
+    expect(await h.store.rateLimitUntil(h.scope)).toBe(until);
+    h.advance(119_000);
+    expect(await h.entry.retry(h.scope, b.clientRequestId)).toMatchObject({
+      kind: 'unconfirmed',
+      reason: 'busy',
+    });
+    expect(await h.store.rateLimitUntil(h.scope)).toBe(until);
+    h.advance(1_000);
+    expect(await h.entry.retry(h.scope, b.clientRequestId)).toMatchObject({ kind: 'saved' });
+    expect(h.server.expenses).toHaveLength(1);
+  }
+);

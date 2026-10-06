@@ -368,11 +368,13 @@ it.each(['queue', 'pending'] as const)(
     await pause('busy', 120_000);
     await pause('busy', 90_000);
     await pause('conflict', 150_000);
+    expect(h.pending.rateLimitUntil!(scope)).toBe(120_000);
     expect(await h.queue.rateLimitUntil(scope)).toBe(120_000);
     for (const other of [
       { ...scope, accountId: hex(2) },
       { ...scope, environment: 'https://b.test' },
     ]) {
+      expect(h.pending.rateLimitUntil!(other)).toBe(0);
       expect(await h.queue.rateLimitUntil(other)).toBe(0);
       expect(await h.pending.retryAt!(other, uuidOf(999))).toBe(0);
     }
@@ -406,6 +408,8 @@ it.each(['queue', 'pending'] as const)(
         'disk full'
       );
     }
+    const observer = await createPendingExpenseStore(broken);
+    expect(observer.rateLimitUntil!(scope)).toBe(0);
     expect(await h.queue.rateLimitUntil(scope)).toBe(0);
     expect(await h.queue.list(scope)).toMatchObject([{ nextAt: 0, rateLimitUntil: 0 }]);
   }

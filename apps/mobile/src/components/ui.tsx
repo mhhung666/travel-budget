@@ -291,7 +291,8 @@ export const styles = StyleSheet.create({
   },
   chip: {
     minHeight: 44,
-    borderRadius: 999,
+    // Keep multiline labels inside the background at accessibility text sizes.
+    borderRadius: 16,
     borderWidth: 1,
     paddingVertical: 8,
     paddingHorizontal: 16,

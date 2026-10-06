@@ -1,4 +1,8 @@
-import { extendExpenseRateLimit, readExpenseRateLimit } from './expenseRateLimit';
+import {
+  extendExpenseRateLimit,
+  readExpenseRateLimit,
+  rememberExpenseRateLimit,
+} from './expenseRateLimit';
 import { z } from 'zod';
 import { expenseCreateInput, expenseOptionsSchema } from '@/api/contracts';
 import type { ExpenseOptions, ExpenseCreateInput } from '@/api/contracts';
@@ -162,8 +166,8 @@ export async function createExpenseQueueStore(db: SqlDatabase): Promise<ExpenseQ
         })
       ),
     pause: (r, reason, nextAt, attention = false) =>
-      serial(() =>
-        transaction(db, async () => {
+      serial(async () => {
+        await transaction(db, async () => {
           if (reason === 'busy') await extendExpenseRateLimit(db, r, nextAt);
           await db.runAsync(
             `UPDATE expense_queue SET reason = CASE WHEN status = 'prepared' AND reason = 'conflict' THEN reason ELSE ? END, next_at = MAX(next_at, ?), rate_limit_until = MAX(rate_limit_until, ?), status = CASE WHEN status = 'queued' AND ? = 1 THEN 'attention' ELSE status END WHERE ${WHERE} AND status IN ('queued', 'prepared')`,
@@ -173,8 +177,9 @@ export async function createExpenseQueueStore(db: SqlDatabase): Promise<ExpenseQ
             attention ? 1 : 0,
             ...args(r)
           );
-        })
-      ),
+        });
+        if (reason === 'busy') rememberExpenseRateLimit(db, r, nextAt);
+      }),
     discard: (r) =>
       serial(() =>
         transaction(db, async () => {

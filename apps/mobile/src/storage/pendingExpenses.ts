@@ -1,4 +1,9 @@
-import { extendExpenseRateLimit, readExpenseRateLimit } from './expenseRateLimit';
+import {
+  currentExpenseRateLimit,
+  extendExpenseRateLimit,
+  readExpenseRateLimit,
+  rememberExpenseRateLimit,
+} from './expenseRateLimit';
 import { expenseCreateInput, type ExpenseCreateInput } from '@/api/contracts';
 import { databaseTask, migrateExpenseDatabase, transaction } from './expenseDatabase';
 import { expenseDraftSchema, type DraftRef, type ExpenseDraftStore } from './expenseDrafts';
@@ -35,6 +40,8 @@ export interface PendingExpenseStore {
   list(scope: PendingScope, tripId?: string): Promise<PendingExpense[]>;
   /** Maximum of the request cooldown and the durable account/environment rate limit. */
   retryAt?(scope: PendingScope, clientRequestId: string): Promise<number>;
+  /** Synchronous account deadline, hydrated by retryAt and updated after committed pauses. */
+  rateLimitUntil?(scope: PendingScope): number;
   /** Persist account rate limits and queue cooldown / conflict at the HTTP boundary. */
   pause?(
     scope: PendingScope,
@@ -248,6 +255,7 @@ export async function createPendingExpenseStore(db: SqlDatabase): Promise<Pendin
         );
         return rows.flatMap((row) => toRecord(row) ?? []);
       }),
+    rateLimitUntil: (scope) => currentExpenseRateLimit(db, scope),
     retryAt: (scope, clientRequestId) =>
       serial(async () => {
         const row = await db.getFirstAsync<{ next_at: number }>(
@@ -271,8 +279,8 @@ export async function createPendingExpenseStore(db: SqlDatabase): Promise<Pendin
         );
       }),
     pause: (scope, clientRequestId, reason, nextAt) =>
-      serial(() =>
-        transaction(db, async () => {
+      serial(async () => {
+        await transaction(db, async () => {
           if (reason === 'busy') await extendExpenseRateLimit(db, scope, nextAt);
           await db.runAsync(
             `UPDATE expense_queue SET reason = CASE WHEN reason = 'conflict' THEN reason ELSE ? END,
@@ -285,8 +293,9 @@ export async function createPendingExpenseStore(db: SqlDatabase): Promise<Pendin
             scope.accountId,
             clientRequestId
           );
-        })
-      ),
+        });
+        if (reason === 'busy') rememberExpenseRateLimit(db, scope, nextAt);
+      }),
     remove: (scope, clientRequestId, resolution = 'committed') =>
       serial(() =>
         transaction(db, async () => {

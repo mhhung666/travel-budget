@@ -7,8 +7,8 @@
 ### 2026-10-05～2026-10-06
 
 - Web／workspace：補齊 React PDF、next-themes、cmdk 與 React Leaflet／core 的 React 型別依賴，修復 53 個型別錯誤；frozen install、根 check、Web 正式 build、Mobile 三平台匯出與 Expo 相容性通過。
-- Mobile：完成 C 返回／鍵盤及無障礙修正，新增 D1 隔離草稿／原子交接、D2 最小快照／受限離線入口，以及 D3 明確均分確認／多筆前景佇列；修正 409 無 receipt／同旅行 C 未結案阻塞其他旅行，等待落盤，衝突與 429 限速期限分開保存／判斷，以獨立帳號／環境資料保存限速，C 恢復／查詢／重試與新增共用，捨棄／移回／結案及重啟不解除等待；本機身分 schema 不相容仍保留有效 token 供線上刷新；修正提交依規範升 patch，尚未發布。未確認草稿不自動入帳，分攤仍由後端決定。
-- Mobile 驗收／工具：兩平台以原生 SQLite、隔離 MongoDB 與 HTTP 核對保存／當機恢復、撤權、佇列及持久化 429／409；C 序列、refresh 重送及晚到回應撤權補驗通過，完成 D 的 32 組配置操作與 iOS 鍵盤／VoiceOver 錯誤及私人資料焦點核對。兩項限速 P2 複審確認修正，含 schema 6 升級與交易回滾；新增 12 個回歸案例後，585 個既有測試（554 行為／31 工具）、Mobile check、三平台匯出與 Expo 相容性通過。另重現 C 重試在 SQLite 等待期間新增跨旅行 429 後仍 POST 的 P2 競態，待修正。產品修正的兩平台複驗仍待執行；iOS 最大字級長成員名稱另有 P2 視覺缺陷，閱讀器剩餘項目／TalkBack 人工驗收見 [本機驗收](apps/mobile/docs/LOCAL_ACCEPTANCE.md#尚未完成的驗收)，D 尚未結案；真機／development build 另排。
+- Mobile：完成 C 返回／鍵盤與無障礙修正及 D1–D3 草稿、離線入口和均分佇列；409／原 C 待確認只阻擋同旅行，429 獨立按帳號／環境持久化，捨棄與重啟不解除等待。修正 SQLite 等待期間新增限速仍送出的競態，在 POST／receipt／refresh 重送前同步攔截；本機身分 schema 不相容仍可用有效 token 線上刷新，最大字級成員選項改用固定圓角；本次提交依規範升 patch。
+- Mobile 驗收：595 個既有測試（含新增十個限速競態回歸）、check、三平台匯出與 Expo 相容性複審通過；另重現 D 將本機限速攔截當成新 429、延長原等待期限的 P2，待修正。既有兩平台 D 的 32 組操作及 SQL／HTTP／DB 核對、iOS 鍵盤與部分 VoiceOver 已完成；本次限速修正與選項顯示／選取仍待裝置複驗，閱讀器剩餘範圍、TalkBack 人工驗收及真機／development build 見 [本機驗收](apps/mobile/docs/LOCAL_ACCEPTANCE.md#尚未完成的驗收)。D 尚未結案、產品尚未發布。
 
 ### 2026-10-04
 
