@@ -161,6 +161,49 @@ describe.skipIf(!uri || !allowed)('E4 isolated payment transactions', () => {
     expect(await db.collection('notifications').countDocuments()).toBe(0);
     expect((await context()).settlement.status).toBe('outstanding');
   });
+  it.each(['mobile', 'web'])(
+    '%s actor records a partial payment between two other real members',
+    async (adapter) => {
+      await db.collection('users').updateOne({ _id: virtual }, { $set: { isVirtual: false } });
+      await db.collection('expenses').updateOne({ _id: expense }, { $set: { payer: virtual } });
+      const body = { ...(await createBody(20)), to_id: virtual.toString() };
+      const deliver = vi.fn(async () => undefined);
+      if (adapter === 'mobile') {
+        const first = await create(body, deliver);
+        expect(await create(body, deliver)).toEqual(first);
+        expect(await readTripMutation(db, actor.toString(), body.client_request_id)).toMatchObject({
+          status: 'committed',
+          operation: 'payment.create',
+          resourceId: first.result.paymentId,
+        });
+      } else {
+        await recordPaymentForActor(
+          db,
+          actor.toString(),
+          trip.toString(),
+          {
+            from_id: body.from_id,
+            to_id: body.to_id,
+            amount: body.amount,
+          },
+          secret,
+          deliver
+        );
+      }
+      expect(await db.collection('payments').countDocuments()).toBe(1);
+      const notifications = await db.collection('notifications').find().toArray();
+      expect(notifications.map((n) => n.user.toString()).sort()).toEqual(
+        [peer, virtual].map(String).sort()
+      );
+      const activities = await db.collection('activitylogs').find().toArray();
+      expect(activities).toHaveLength(1);
+      expect(new Set([...notifications, ...activities].map((n) => n._id.toString())).size).toBe(3);
+      expect(deliver).toHaveBeenCalledTimes(1);
+      expect(
+        (await context()).settlement.balances.find((b) => b.userId === peer.toString())?.balance
+      ).toBe(-30);
+    }
+  );
   it('same UUID concurrent/replay writes once; failure after commit stays successful', async () => {
     const body = await createBody();
     const deliver = vi.fn(async () => {

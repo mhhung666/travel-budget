@@ -29,10 +29,14 @@ export class AccountEntryError extends Error {
 const CI = { locale: 'en', strength: 2 } as const;
 const hashCode = (code: string) => createHash('sha256').update(code).digest('hex');
 const MINUTE = 60_000;
+const RESET_CODE_LIFETIME = 15 * MINUTE;
+const RESET_CODE_MAX_ATTEMPTS = 5;
 export const accountPolicy = {
   source: { windowMs: 60 * MINUTE, maximum: 20, gapMs: 0 },
   register: { windowMs: 60 * MINUTE, maximum: 20, gapMs: 0 },
-  send: { windowMs: 60 * MINUTE, maximum: 5, gapMs: MINUTE },
+  // Anonymous requests must not invalidate a code that its owner can still use.
+  // Locked codes have a 60-second recovery exception that still retains this hourly cap.
+  send: { windowMs: 60 * MINUTE, maximum: 5, gapMs: RESET_CODE_LIFETIME },
   verify: { windowMs: 15 * MINUTE, maximum: 10, gapMs: 0 },
 };
 type Policy = typeof accountPolicy;
@@ -47,7 +51,12 @@ interface Attempt {
   hits: Date[];
   grant: string;
   expiresAt: Date;
+  // Mirror the issued-code lifecycle even for unknown emails, without storing their address.
+  resetFailures?: number;
+  resetExpiresAt?: Date;
 }
+const attemptKey = (context: AccountContext, kind: keyof Policy, identity: string) =>
+  createHmac('sha256', context.secret).update(`account-entry:${kind}:${identity}`).digest('hex');
 interface Account {
   _id: mongo.ObjectId;
   username: string;
@@ -81,13 +90,12 @@ export async function claimAccountLimit(
   db: mongo.Db,
   context: AccountContext,
   kind: keyof Policy,
-  identity: string
+  identity: string,
+  session?: mongo.ClientSession
 ) {
   const now = (context.now ?? Date.now)();
   const { windowMs, maximum, gapMs } = (context.policy ?? accountPolicy)[kind];
-  const _id = createHmac('sha256', context.secret)
-    .update(`account-entry:${kind}:${identity}`)
-    .digest('hex');
+  const _id = attemptKey(context, kind, identity);
   const grant = randomUUID();
   const collection = db.collection<Attempt>(ACCOUNT_ATTEMPTS);
   const pipeline = [
@@ -137,10 +145,11 @@ export async function claimAccountLimit(
     record = await collection.findOneAndUpdate({ _id }, pipeline, {
       upsert: true,
       returnDocument: 'after',
+      session,
     });
   } catch (error) {
     // Concurrent first upserts may race on _id; retry only that collision, without inserting.
-    if (!(error instanceof mongo.MongoServerError) || error.code !== 11000) throw error;
+    if (session || !(error instanceof mongo.MongoServerError) || error.code !== 11000) throw error;
     record = await collection.findOneAndUpdate({ _id }, pipeline, { returnDocument: 'after' });
   }
   if (!record) throw new Error('Account limit unavailable');
@@ -195,27 +204,71 @@ export async function requestAccountReset(
 ) {
   const input = passwordResetRequestInput.parse(raw);
   await sourceLimit(db, context);
-  await claimAccountLimit(db, context, 'send', input.email);
   const user = await db
     .collection<Account>('users')
     .findOne({ email: input.email, isVirtual: { $ne: true } }, { collation: CI });
-  if (user) {
-    const code = await db.client.withSession((session) =>
+  const issueCode = () =>
+    db.client.withSession((session) =>
       session.withTransaction(
         async () => {
           const codes = db.collection<ResetCode>('passwordresetcodes');
-          const previous = await codes.findOne({ user: user._id }, { session });
+          const previous = user ? await codes.findOne({ user: user._id }, { session }) : null;
+          const now = (context.now ?? Date.now)();
+          const sends = db.collection<Attempt>(ACCOUNT_ATTEMPTS);
+          const sendKey = attemptKey(context, 'send', input.email);
+          const sendState = await sends.findOne({ _id: sendKey }, { session });
+          const protectedUntil =
+            previous?.expiresAt ?? (!user ? sendState?.resetExpiresAt : undefined);
+          const failures = previous?.attempts ?? (!user ? sendState?.resetFailures : 0) ?? 0;
+          // Covers codes issued before this policy and a delayed concurrent transaction.
+          // A still-usable code must survive anonymous resends. A locked one may be replaced.
+          if (
+            protectedUntil &&
+            protectedUntil.getTime() > now &&
+            failures < RESET_CODE_MAX_ATTEMPTS
+          )
+            throw new AccountEntryError(
+              'RATE_LIMITED',
+              Math.max(1, Math.ceil((protectedUntil.getTime() - now) / 1000))
+            );
+          // Commit the issuance quota together with the code. Active-code refusals above
+          // consume no quota, including codes issued by an older deployment.
+          const locked = failures >= RESET_CODE_MAX_ATTEMPTS;
+          const policy = context.policy ?? accountPolicy;
+          await claimAccountLimit(
+            db,
+            {
+              ...context,
+              now: () => now,
+              policy: locked
+                ? {
+                    ...policy,
+                    send: { ...policy.send, gapMs: Math.min(MINUTE, policy.send.gapMs) },
+                  }
+                : policy,
+            },
+            'send',
+            input.email,
+            session
+          );
+          await sends.updateOne(
+            { _id: sendKey },
+            {
+              $set: { resetFailures: 0, resetExpiresAt: new Date(now + RESET_CODE_LIFETIME) },
+            },
+            { session }
+          );
+          if (!user) return null;
           let next: string;
           do {
             next = randomInt(0, 1_000_000).toString().padStart(6, '0');
           } while (hashCode(next) === previous?.codeHash);
-          const now = (context.now ?? Date.now)();
           await codes.updateOne(
             { user: user._id },
             {
               $set: {
                 codeHash: hashCode(next),
-                expiresAt: new Date(now + 15 * MINUTE),
+                expiresAt: new Date(now + RESET_CODE_LIFETIME),
                 attempts: 0,
               },
               $setOnInsert: { createdAt: new Date(now) },
@@ -232,6 +285,19 @@ export async function requestAccountReset(
         }
       )
     );
+  let code: string | null = null;
+  for (let attempt = 0; attempt < 10; attempt++) {
+    try {
+      code = await issueCode();
+      break;
+    } catch (error) {
+      // A concurrent first upsert can abort the transaction with a duplicate key.
+      // Retry the whole transaction, never an operation in the aborted session.
+      if (attempt === 9 || !(error instanceof mongo.MongoServerError) || error.code !== 11000)
+        throw error;
+    }
+  }
+  if (user && code) {
     // Delivery failure has the same accepted response as an unknown email. Never log the code.
     await deliver(user.email, code, input.locale ?? user.locale ?? 'zh').catch(() => {});
   }
@@ -255,13 +321,35 @@ export async function confirmAccountReset(
           { session, collation: CI }
         );
         const record = user ? await codes.findOne({ user: user._id }, { session }) : null;
-        if (!user || !record) return 'INVALID_CODE' as const;
+        const sends = db.collection<Attempt>(ACCOUNT_ATTEMPTS);
+        const sendKey = attemptKey(context, 'send', input.email);
+        const failedAttempt = () =>
+          sends.updateOne(
+            { _id: sendKey, resetExpiresAt: { $gt: new Date((context.now ?? Date.now)()) } },
+            { $inc: { resetFailures: 1 } },
+            { session }
+          );
+        if (!user || !record) {
+          // Unknown emails follow the same failed-code/reissue lifecycle. Otherwise the
+          // early-resend exception would distinguish registered addresses after five guesses.
+          const state = await sends.findOne({ _id: sendKey }, { session });
+          if (
+            state?.resetExpiresAt &&
+            state.resetExpiresAt.getTime() <= (context.now ?? Date.now)()
+          )
+            return 'CODE_EXPIRED' as const;
+          if ((state?.resetFailures ?? 0) >= RESET_CODE_MAX_ATTEMPTS)
+            return 'TOO_MANY_ATTEMPTS' as const;
+          await failedAttempt();
+          return 'INVALID_CODE' as const;
+        }
         if (record.expiresAt.getTime() <= (context.now ?? Date.now)())
           return 'CODE_EXPIRED' as const;
-        if ((record.attempts ?? 0) >= 5) return 'TOO_MANY_ATTEMPTS' as const;
+        if ((record.attempts ?? 0) >= RESET_CODE_MAX_ATTEMPTS) return 'TOO_MANY_ATTEMPTS' as const;
         if (record.codeHash !== hashCode(input.code)) {
           // Committed with the transaction; concurrent failures retry and cannot lose increments.
           await codes.updateOne({ _id: record._id }, { $inc: { attempts: 1 } }, { session });
+          await failedAttempt();
           return 'INVALID_CODE' as const;
         }
         await codes.deleteOne({ _id: record._id }, { session });

@@ -138,7 +138,8 @@ async function persistJoinEffects(
     meta: {},
     createdAt: new Date(),
   };
-  await db.collection('activitylogs').insertOne(common, { session });
+  // The driver adds _id to its input; keep the notification template untouched.
+  await db.collection('activitylogs').insertOne({ ...common }, { session });
   if (recipients.length)
     await db.collection('notifications').insertMany(
       recipients.map((u) => ({ ...common, user: u._id, tripName: trip.name, read: false })),

@@ -9,6 +9,7 @@ import {
   confirmAccountReset,
   claimAccountLimit,
   ACCOUNT_ATTEMPTS,
+  accountPolicy,
   type AccountContext,
 } from '@/lib/accountEntry';
 import {
@@ -142,9 +143,195 @@ describe.skipIf(!uri || !allowed)('E2 account entry against isolated replica set
     clock += 15 * 60_000;
     await expect(confirm()).rejects.toMatchObject({ code: 'CODE_EXPIRED' });
   });
-  it('resend replaces a code, resets attempts, and never logs delivery secrets', async () => {
+  it('anonymous repeated requests cannot invalidate a delivered code or exhaust the next issuance', async () => {
+    await registerAccount(db, input(), context);
+    const delivered: string[] = [];
+    const deliver = vi.fn(async (_email: string, code: string) => {
+      delivered.push(code);
+    });
+    await requestAccountReset(db, { email }, context, deliver);
+    const original = await db.collection('passwordresetcodes').findOne();
+    for (let i = 1; i <= 5; i++) {
+      clock += 60_000;
+      await expect(requestAccountReset(db, { email }, context, deliver)).rejects.toMatchObject({
+        code: 'RATE_LIMITED',
+        retryAfter: 900 - i * 60,
+      });
+      expect(await db.collection('passwordresetcodes').findOne()).toEqual(original);
+    }
+    expect(deliver).toHaveBeenCalledTimes(1);
+    expect(await confirm(delivered[0])).toEqual({ reset: true });
+    // At the original expiry a new request succeeds, rather than waiting for the hour cap.
+    clock += 10 * 60_000;
+    await requestAccountReset(db, { email }, context, deliver);
+    expect(deliver).toHaveBeenCalledTimes(2);
+    expect(await confirm(delivered[1], 'AnotherPassword')).toEqual({ reset: true });
+  });
+  it.each([true, false])(
+    'known=%s locked code can be replaced after 60 seconds, with identical responses',
+    async (known) => {
+      if (known) await registerAccount(db, input(), context);
+      const delivered: string[] = [];
+      const deliver = vi.fn(async (_email: string, code: string) => {
+        delivered.push(code);
+      });
+      await requestAccountReset(db, { email }, context, deliver);
+      const wrong = delivered[0] === '000008' ? '000009' : '000008';
+      await Promise.all(
+        Array.from({ length: 5 }, () =>
+          expect(confirm(wrong)).rejects.toMatchObject({ code: 'INVALID_CODE' })
+        )
+      );
+      await expect(confirm(delivered[0] ?? wrong)).rejects.toMatchObject({
+        code: 'TOO_MANY_ATTEMPTS',
+      });
+      const original = await db.collection('passwordresetcodes').findOne();
+      clock += 31_000;
+      await expect(requestAccountReset(db, { email }, context, deliver)).rejects.toMatchObject({
+        code: 'RATE_LIMITED',
+        retryAfter: 29,
+      });
+      expect(await db.collection('passwordresetcodes').findOne()).toEqual(original);
+      clock += 29_000;
+      const results = await Promise.allSettled(
+        Array.from({ length: 4 }, () => requestAccountReset(db, { email }, context, deliver))
+      );
+      expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+      for (const result of results)
+        if (result.status === 'rejected')
+          expect(result.reason).toMatchObject({ code: 'RATE_LIMITED', retryAfter: 900 });
+      if (known) {
+        expect(delivered).toHaveLength(2);
+        expect(delivered[1]).not.toBe(delivered[0]);
+        expect((await db.collection('passwordresetcodes').findOne())!.attempts).toBe(0);
+        await expect(confirm(delivered[0])).rejects.toMatchObject({ code: 'INVALID_CODE' });
+        expect(await confirm(delivered[1])).toEqual({ reset: true });
+      } else expect(deliver).not.toHaveBeenCalled();
+    }
+  );
+  it.each([true, false])(
+    'known=%s four wrong attempts cannot shorten the usable-code window',
+    async (known) => {
+      if (known) await registerAccount(db, input(), context);
+      let delivered = '';
+      await requestAccountReset(db, { email }, context, async (_email, code) => {
+        delivered = code;
+      });
+      const wrong = delivered === '000008' ? '000009' : '000008';
+      for (let i = 0; i < 4; i++)
+        await expect(confirm(wrong)).rejects.toMatchObject({ code: 'INVALID_CODE' });
+      clock += 60_000;
+      await expect(
+        requestAccountReset(db, { email }, context, async () => {})
+      ).rejects.toMatchObject({
+        code: 'RATE_LIMITED',
+        retryAfter: 840,
+      });
+      if (known) expect(await confirm(delivered)).toEqual({ reset: true });
+    }
+  );
+  it.each([true, false])(
+    'known=%s locked-code recovery retains the hourly send cap and rejects without changing state',
+    async (known) => {
+      if (known) await registerAccount(db, input(), context);
+      let delivered = '';
+      await requestAccountReset(db, { email }, context, async (_email, code) => {
+        delivered = code;
+      });
+      // Fill the shared hourly counter without altering the issued-code lifecycle.
+      const noSpacing = {
+        ...context,
+        policy: { ...accountPolicy, send: { ...accountPolicy.send, gapMs: 0 } },
+      };
+      for (let i = 0; i < 4; i++) await claimAccountLimit(db, noSpacing, 'send', email);
+      // Even with a full hourly quota, a usable code reports the same remaining lifetime
+      // for known and unknown addresses; the cap cannot expose whether a user exists.
+      await expect(
+        requestAccountReset(db, { email }, context, async () => {})
+      ).rejects.toMatchObject({
+        code: 'RATE_LIMITED',
+        retryAfter: 900,
+      });
+      const wrong = delivered === '000008' ? '000009' : '000008';
+      for (let i = 0; i < 5; i++)
+        await expect(confirm(wrong)).rejects.toMatchObject({ code: 'INVALID_CODE' });
+      const before = await db.collection(ACCOUNT_ATTEMPTS).find().toArray();
+      const original = await db.collection('passwordresetcodes').findOne();
+      clock += 60_000;
+      const deliver = vi.fn(async () => undefined);
+      await expect(requestAccountReset(db, { email }, context, deliver)).rejects.toMatchObject({
+        code: 'RATE_LIMITED',
+        retryAfter: 3540,
+      });
+      expect(deliver).not.toHaveBeenCalled();
+      expect(await db.collection(ACCOUNT_ATTEMPTS).find().toArray()).toEqual(before);
+      expect(await db.collection('passwordresetcodes').findOne()).toEqual(original);
+    }
+  );
+  it('protects pre-existing codes and failed attempts without claiming or extending an issuance', async () => {
     await seed();
     await confirm('000008').catch(() => {});
+    const original = await db.collection('passwordresetcodes').findOne();
+    const limits = await db.collection(ACCOUNT_ATTEMPTS).find().toArray();
+    const deliver = vi.fn(async () => undefined);
+    clock += 60_000;
+    await expect(requestAccountReset(db, { email }, context, deliver)).rejects.toMatchObject({
+      code: 'RATE_LIMITED',
+      retryAfter: 840,
+    });
+    expect(await db.collection('passwordresetcodes').findOne()).toEqual(original);
+    expect(await db.collection(ACCOUNT_ATTEMPTS).find().toArray()).toEqual(limits);
+    clock += 14 * 60_000;
+    await requestAccountReset(db, { email }, context, deliver);
+    expect(deliver).toHaveBeenCalledTimes(1);
+  });
+  it.each(['storage failure', 'first-upsert collision'])(
+    '%s rolls back the issuance quota before retry',
+    async (failure) => {
+      await registerAccount(db, input(), context);
+      const original = db.collection.bind(db);
+      const codes = db.collection('passwordresetcodes');
+      let failed = false;
+      const wrapped = Object.create(db) as mongo.Db;
+      wrapped.collection = ((name: string) =>
+        name === 'passwordresetcodes'
+          ? new Proxy(codes, {
+              get(target, key) {
+                if (key === 'updateOne')
+                  return async (...args: Parameters<typeof codes.updateOne>) => {
+                    if (failed) return target.updateOne(...args);
+                    failed = true;
+                    if (failure === 'first-upsert collision')
+                      throw new mongo.MongoServerError({ code: 11000, message: 'duplicate key' });
+                    throw new Error('disk unavailable');
+                  };
+                const value = Reflect.get(target, key);
+                return typeof value === 'function' ? value.bind(target) : value;
+              },
+            })
+          : original(name)) as typeof db.collection;
+      const deliver = vi.fn(async () => undefined);
+      if (failure === 'storage failure') {
+        await expect(requestAccountReset(wrapped, { email }, context, deliver)).rejects.toThrow(
+          'disk unavailable'
+        );
+        expect(deliver).not.toHaveBeenCalled();
+        expect(await db.collection('passwordresetcodes').countDocuments()).toBe(0);
+        expect(await requestAccountReset(db, { email }, context, deliver)).toEqual({
+          accepted: true,
+        });
+      } else {
+        expect(await requestAccountReset(wrapped, { email }, context, deliver)).toEqual({
+          accepted: true,
+        });
+      }
+      expect(deliver).toHaveBeenCalledTimes(1);
+    }
+  );
+  it('resend replaces an expired code, resets attempts, and never logs delivery secrets', async () => {
+    await seed();
+    await confirm('000008').catch(() => {});
+    clock += 15 * 60_000;
     let latest = '';
     const deliver = vi.fn(async (_email: string, code: string) => {
       latest = code;
@@ -225,7 +412,7 @@ describe.skipIf(!uri || !allowed)('E2 account entry against isolated replica set
     expect(await confirm()).toEqual({ reset: true });
   });
   it.each([true, false])(
-    'known=%s email uses identical acceptance, cooldown and rolling hourly cap',
+    'known=%s email uses identical cooldown without exhausting issuance at code expiry',
     async (known) => {
       if (known) await registerAccount(db, input(), context);
       const deliver = vi.fn(async () => {
@@ -237,35 +424,39 @@ describe.skipIf(!uri || !allowed)('E2 account entry against isolated replica set
       clock += 31_000;
       await expect(requestAccountReset(db, { email }, context, deliver)).rejects.toMatchObject({
         code: 'RATE_LIMITED',
-        retryAfter: 29,
+        retryAfter: 869,
       });
-      for (let i = 0; i < 4; i++) {
-        clock += 60_000;
+      // Rejections cannot consume the hourly allowance; each expiry permits a fresh email.
+      clock += 869_000;
+      for (let i = 0; i < 8; i++) {
         await requestAccountReset(db, { email }, context, deliver);
+        clock += 15 * 60_000;
       }
-      clock += 60_000;
-      await expect(requestAccountReset(db, { email }, context, deliver)).rejects.toMatchObject({
-        code: 'RATE_LIMITED',
-        retryAfter: 3269,
-      });
       for (const doc of await db.collection(ACCOUNT_ATTEMPTS).find().toArray())
         expect(JSON.stringify(doc)).not.toContain(email);
     }
   );
-  it('concurrent send claims allow one; repeated rejections preserve the original deadline', async () => {
-    const results = await Promise.allSettled(
-      Array.from({ length: 8 }, () => requestAccountReset(db, { email }, context, async () => {}))
-    );
-    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
-    clock += 31_000;
-    await expect(requestAccountReset(db, { email }, context, async () => {})).rejects.toMatchObject(
-      { retryAfter: 29 }
-    );
-    clock += 29_000;
-    expect(await requestAccountReset(db, { email }, context, async () => {})).toEqual({
-      accepted: true,
-    });
-  });
+  it.each([true, false])(
+    'known=%s concurrent send claims allow one; rejections preserve the deadline',
+    async (known) => {
+      if (known) await registerAccount(db, input(), context);
+      const results = await Promise.allSettled(
+        Array.from({ length: 8 }, () => requestAccountReset(db, { email }, context, async () => {}))
+      );
+      expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+      for (const result of results)
+        if (result.status === 'rejected')
+          expect(result.reason).toMatchObject({ code: 'RATE_LIMITED', retryAfter: 900 });
+      clock += 31_000;
+      await expect(
+        requestAccountReset(db, { email }, context, async () => {})
+      ).rejects.toMatchObject({ retryAfter: 869 });
+      clock += 869_000;
+      expect(await requestAccountReset(db, { email }, context, async () => {})).toEqual({
+        accepted: true,
+      });
+    }
+  );
   it.each(['register', 'verify', 'source'] as const)(
     '%s with no cooldown admits an earlier timestamp arriving later without shortening expiry',
     async (kind) => {

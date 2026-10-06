@@ -2078,7 +2078,7 @@ try {
   );
   // E1: real HTTP, replica-set transactions and database counts, no production service.
   const eTransactions = await exec('pnpm', ['exec', 'vitest', 'run', 'src/__tests__/tripEntry.integration.test.ts'], { env: { ...process.env, MONGODB_E1_TEST_URI: uri, MONGODB_E1_TEST_ALLOW_WRITES: '1' }, maxBuffer: 1024 * 1024 });
-  assert(eTransactions.stdout.includes('4 passed'), 'E1 transaction cases did not run');
+  assert(eTransactions.stdout.includes('5 passed'), 'E1 transaction cases did not run');
   pass('E1 real transaction rollback, competing terminal results and post-commit effect failures');
   const eCreator = await login('mobile-empty');
   const eJoiner = await login('mobile-b');

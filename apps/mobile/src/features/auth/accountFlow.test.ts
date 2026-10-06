@@ -344,3 +344,59 @@ it('send and verification deadlines remain independent when both endpoints retur
   await flow.submit(true);
   expect(fetcher).toHaveBeenCalledTimes(3);
 });
+
+it.each(['TOO_MANY_ATTEMPTS', 'INVALID_CODE', 'RATE_LIMITED'])(
+  '%s only unlocks stale resend cooldown after a confirmed locked-code response',
+  async (code) => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-06T00:00:00Z'));
+    let requests = 0;
+    const fetcher = vi.fn<Fetcher>(async (url) => {
+      if (url.endsWith('/request')) {
+        requests++;
+        if (requests <= 2)
+          return Response.json(
+            { error: { code: 'RATE_LIMITED' } },
+            {
+              status: 429,
+              headers: { 'Retry-After': requests === 1 ? '900' : '29' },
+            }
+          );
+        return Response.json({ data: { accepted: true } });
+      }
+      return Response.json(
+        { error: { code } },
+        {
+          status: code === 'RATE_LIMITED' ? 429 : 400,
+          headers: code === 'RATE_LIMITED' ? { 'Retry-After': '120' } : {},
+        }
+      );
+    });
+    const { flow } = setup('request', fetcher);
+    flow.setField('email', 'test@example.com');
+    await flow.submit();
+    const deadline = accountRetryAt(flow.getSnapshot(), true);
+    flow.continueWithCode();
+    flow.setField('code', '000007');
+    flow.setField('password', '123456');
+    flow.setField('confirmation', '123456');
+    await flow.submit();
+    expect(requests).toBe(1); // No automatic send after a failed confirmation.
+    if (code !== 'TOO_MANY_ATTEMPTS') {
+      expect(accountRetryAt(flow.getSnapshot(), true)).toBe(deadline);
+      await flow.submit(true);
+      expect(requests).toBe(1);
+      return;
+    }
+    expect(accountRetryAt(flow.getSnapshot(), true)).toBe(0);
+    await flow.submit(true); // Must get through ApiClient's obsolete 900-second wait too.
+    expect(requests).toBe(2);
+    expect(accountRetryAt(flow.getSnapshot(), true)).toBe(Date.now() + 29_000);
+    await flow.submit(true);
+    expect(requests).toBe(2);
+    vi.advanceTimersByTime(29_000);
+    await flow.submit(true);
+    expect(requests).toBe(3);
+    expect(flow.getSnapshot().accepted).toBe(true);
+  }
+);

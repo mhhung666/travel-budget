@@ -6,9 +6,9 @@
 
 ### 2026-10-06
 
-- E1／E2：旅行入口與帳號入口已交付並通過獨立複驗，含建立／加入提交後失敗、寄碼／驗碼分離限流及逆序到達修正；規則與操作見 [E 規格](apps/mobile/docs/ROADMAP.md#e-規格基本使用流程) 與 [本機驗收](apps/mobile/docs/LOCAL_ACCEPTANCE.md#e2-帳號入口驗收交接)。
+- E1／E2：修正多成員加入時通知重複鍵。密碼重設保護仍可用的碼，錯碼滿五次後可於上次寄碼 60 秒後重寄，保留小時配額；已知／未知 Email 的恢復狀態與配額同交易。Mobile 收到次數用盡才解除舊寄碼等待供手動重試。待處理：Email 寄碼／驗碼額度可被他人耗盡，導致一小時內無法重設；來源限制加入後再評估簡化額外狀態，見 [E2 契約](apps/mobile/docs/BACKEND_CONTRACT.md#e2-註冊與-email-驗證碼重設)。
 - E3：手機基本資料／明確重新均分、刪除、原始 HMAC 前條件及 UUID 恢復已交付；衝突只保留實際修改、拒絕重開可回基本資料兩項 P2 已通過獨立複驗。Mobile 692 項及三平台匯出通過，既有 Web 2,043／隔離交易 216 項、真 HTTP 與根 check／build 基線保留；見 [E3 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#e3-支出維護驗收交接)。
-- E4：手機建議／手動還款、部分／超額付款與誤登撤銷已完成獨立審查，未發現需修正的程式問題；Web／HTTP 共用交易，UUID receipt 與通知／動態原子提交，SQLite 延續 C／D／E 協調與恢復保護，兩應用依功能交付調升 minor。獨立複驗 Web 2,052、Mobile 717、隔離交易 238 項、真 HTTP、frozen install、根 check／build、三平台匯出及 Expo 相容性通過；E1–E4 裝置驗收仍待統一執行，範圍見 [E4 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#e4-還款驗收交接)，未部署或執行遠端 migration。
+- E4／Web 後端：修正第三位成員替兩位正式成員記錄部分付款時通知重複鍵；加入／付款活動均使用獨立文件，新增多收件人、重播及重設碼保護／回滾回歸。Web 2,052、Mobile 720、隔離交易 252 項與三平台匯出通過；根 check／正式 build、真 HTTP 及 Expo 相容性通過；兩應用依修正調升 patch，未部署或執行遠端 migration。E1–E4 裝置驗收仍待統一執行，見 [交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#e4-還款驗收交接)。
 
 ### 2026-10-05～2026-10-06
 

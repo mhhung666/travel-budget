@@ -197,7 +197,16 @@ export class AccountFlow {
       }
     } catch (error) {
       if (!this.active || version !== this.version) return;
+      // A locked code can now be replaced earlier than a still-usable code. Let an explicit
+      // resend ask the server for the current spacing/quota; never send automatically.
+      const lockedCode =
+        stage === 'confirm' &&
+        error instanceof ApiError &&
+        error.status === 400 &&
+        error.code === 'TOO_MANY_ATTEMPTS';
+      if (lockedCode) this.api.clearCooldown('/auth/password-reset/request');
       this.publish({
+        ...(lockedCode ? { retryAt: { ...this.state.retryAt, request: 0 } } : {}),
         error,
         ...(error instanceof ApiError && error.status === 429
           ? {

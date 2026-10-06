@@ -289,7 +289,8 @@ export async function writePayment(
               meta,
               createdAt: raw.createdAt,
             };
-            await db.collection('activitylogs').insertOne(common, { session });
+            // The driver adds _id to its input; keep the notification template untouched.
+            await db.collection('activitylogs').insertOne({ ...common }, { session });
             const recipients = [...new Set([fields.from_id, fields.to_id])].filter(
               (id) => id !== actorId && !state.byId.get(id)?.isVirtual
             );

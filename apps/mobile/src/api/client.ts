@@ -52,6 +52,10 @@ export class ApiClient {
     private fetcher: Fetcher = fetch,
     private timeoutMs = 15_000
   ) {}
+  /** Clear an obsolete wait only after the server explicitly reports a state change. */
+  clearCooldown(path: string) {
+    this.cooldowns.delete(path);
+  }
   async request<T>(path: string, schema: z.ZodType<T>, options: RequestOptions = {}): Promise<T> {
     if (!this.baseUrl) throw new ApiError('CONFIGURATION');
     const remaining = (this.cooldowns.get(path) ?? 0) - Date.now();

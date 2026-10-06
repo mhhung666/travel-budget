@@ -88,6 +88,33 @@ describe.skipIf(!uri || !allowed)('E1 transactions against isolated replica set'
     expect(await db.collection('activitylogs').countDocuments()).toBe(1);
     expect(await db.collection('notifications').countDocuments()).toBe(1);
   });
+  it('joining two existing real members creates independent notifications and replays once', async () => {
+    const created = await enterTrip(db, actor.toHexString(), 'trip.create', body());
+    const trip = await db.collection('trips').findOne({ _id: new mongo.ObjectId(created.tripId) });
+    await enterTrip(db, peer.toHexString(), 'trip.join', {
+      client_request_id: randomUUID(),
+      invite_code: trip!.hashCode,
+    });
+    const third = new mongo.ObjectId();
+    await db.collection('users').insertOne({ _id: third, displayName: 'Third' });
+    const input = { client_request_id: randomUUID(), invite_code: trip!.hashCode };
+    const deliver = vi.fn(async () => undefined);
+    const first = await enterTrip(db, third.toString(), 'trip.join', input, deliver);
+    expect(await enterTrip(db, third.toString(), 'trip.join', input, deliver)).toEqual(first);
+    expect((await db.collection('trips').findOne({ _id: trip!._id }))!.members).toHaveLength(3);
+    const notifications = await db.collection('notifications').find({ actor: third }).toArray();
+    expect(notifications.map((n) => n.user.toString()).sort()).toEqual(
+      [actor, peer].map(String).sort()
+    );
+    const activities = await db.collection('activitylogs').find({ actor: third }).toArray();
+    expect(activities).toHaveLength(1);
+    expect(new Set([...notifications, ...activities].map((n) => n._id.toString())).size).toBe(3);
+    expect(deliver).toHaveBeenCalledTimes(1);
+    expect(await readTripMutation(db, third.toString(), input.client_request_id)).toMatchObject({
+      status: 'committed',
+      operation: 'trip.join',
+    });
+  });
   it('concurrent different UUID joins add only one member/event; rejected key remains terminal', async () => {
     const created = await enterTrip(db, actor.toHexString(), 'trip.create', body());
     const trip = await db.collection('trips').findOne({ _id: new mongo.ObjectId(created.tripId) });
