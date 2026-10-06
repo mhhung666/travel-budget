@@ -8,7 +8,7 @@
 
 - Web／workspace：補齊 React PDF、next-themes、cmdk 與 React Leaflet／core 的 React 型別依賴，修復 53 個型別錯誤；frozen install、根 check、Web 正式 build、Mobile 三平台匯出與 Expo 相容性通過。
 - Mobile：完成 C 返回／鍵盤及無障礙修正，新增 D1 隔離草稿／原子交接、D2 最小快照／受限離線入口，以及 D3 明確均分確認／多筆前景佇列；未確認草稿不自動入帳，分攤仍由後端決定。
-- Mobile 驗收／工具：兩平台以原生 SQLite、隔離 MongoDB 與 HTTP 核對保存／當機恢復、撤權、佇列與持久化 429／409；補驗 iOS 完整軟體鍵盤新增及 VoiceOver 主要草稿／佇列操作。新增限定 fixture 的故障注入與 UUID／內容雜湊證據，541 個測試、Mobile check、三平台匯出與 Expo 相容性通過；本輪已收束，尚未全數結案；顯示自動化阻擋、完整閱讀器及其他撤權競態見 [本機驗收](apps/mobile/docs/LOCAL_ACCEPTANCE.md#尚未完成的驗收)，真機／development build 另排。
+- Mobile 驗收／工具：兩平台以原生 SQLite、隔離 MongoDB 與 HTTP 核對保存／當機恢復、撤權、佇列及持久化 429／409；C 序列、refresh 重送及晚到回應撤權補驗通過，完成 D 的 32 組配置操作與 iOS 鍵盤／VoiceOver 錯誤及私人資料焦點核對。543 個測試、Mobile check、三平台匯出與 Expo 相容性通過；iOS 最大字級長成員名稱有 P2 視覺缺陷，閱讀器剩餘項目／TalkBack 人工驗收見 [本機驗收](apps/mobile/docs/LOCAL_ACCEPTANCE.md#尚未完成的驗收)，D 尚未結案；真機／development build 另排。
 
 ### 2026-10-04
 

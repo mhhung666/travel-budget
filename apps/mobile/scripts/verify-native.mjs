@@ -38,6 +38,8 @@ const { values } = parseArgs({
     'native-locale': { type: 'boolean', default: false },
     'ios-done-point': { type: 'string', default: '' },
     'sqlite-gate-port': { type: 'string' },
+    'display-start': { type: 'string' },
+    'display-text-sizes': { type: 'string', default: 'default,largest' },
     'other-metro-port': { type: 'string' },
     'other-network-port': { type: 'string' },
   },
@@ -62,11 +64,12 @@ assert(
     'ledger',
     'entry',
     'drafts',
+    'draft-display',
   ].includes(values.suite),
-  'Use --suite auth-trips|sessions|lifecycle|network|appearance|expiry|locales|keyboard|ledger|entry|drafts'
+  'Use --suite auth-trips|sessions|lifecycle|network|appearance|expiry|locales|keyboard|ledger|entry|drafts|draft-display'
 );
 const needsControl = values.suite !== 'auth-trips';
-if (values.suite === 'drafts')
+if (['drafts', 'draft-display'].includes(values.suite))
   assert(
     values['native-sqlite'],
     'Draft acceptance requires --native-sqlite to verify the device database'
@@ -94,7 +97,9 @@ const ledgerKeys = ['ledgerTrip', 'emptyLedgerTrip', 'settledLedgerTrip'];
 if (['ledger', 'locales'].includes(values.suite))
   for (const key of ledgerKeys)
     assert(/^[a-f0-9]{24}$/.test(fixture[key]), `Invalid ${key}; restart dev:mobile-api`);
-const usesWriterTrip = ['entry', 'locales', 'keyboard', 'drafts'].includes(values.suite);
+const usesWriterTrip = ['entry', 'locales', 'keyboard', 'drafts', 'draft-display'].includes(
+  values.suite
+);
 if (usesWriterTrip) {
   assert(/^[a-f0-9]{24}$/.test(fixture.writerTrip), 'Invalid writerTrip; restart dev:mobile-api');
   for (const key of ['writer', 'peer', 'virtual', 'removed'])
@@ -159,6 +164,7 @@ function localizedEnv(locale) {
     MAESTRO_DRAFT_DISCARD_FAILED: exact(t.draftDiscardFailed),
     MAESTRO_DRAFT_LOAD_FAILED: exact(t.draftLoadFailed),
     MAESTRO_ENTRY_NOT_SENT: exact(t.entryNotSent),
+    MAESTRO_LOCAL_UPDATED: exact(t.localUpdated),
     MAESTRO_LOCAL_DRAFTS: exact(t.localDrafts),
     MAESTRO_LOGOUT: exact(t.logout),
     MAESTRO_LOCAL_SESSION: exact(t.localSessionHint),
@@ -194,7 +200,9 @@ const env = {
   MAESTRO_PRIVATE_TRIP: fixture.privateTrip,
   MAESTRO_REQUIRE_KEYBOARD: String(values.suite === 'keyboard'),
   MAESTRO_DIRECT_DRAFT_FORM: String(
-    values.suite === 'drafts' && values.platform === 'ios' && values['text-size'] === 'largest'
+    ['drafts', 'draft-display'].includes(values.suite) &&
+      values.platform === 'ios' &&
+      values['text-size'] === 'largest'
   ),
   MAESTRO_IOS_DONE_POINT: values['ios-done-point'] || 'id',
   ...(['ledger', 'locales'].includes(values.suite)
@@ -400,6 +408,21 @@ try {
               );
               return { checkpoint: 'environment-other' };
             }
+            if (command === 'sqlite-await-queue-attention') {
+              for (let attempt = 0; attempt < 100; attempt++) {
+                await nativeSqlite.command('sqlite-checkpoint-attention-ready');
+                const state = JSON.parse(
+                  await readFile(join(artifacts, 'sqlite-attention-ready.json'), 'utf8')
+                );
+                if (
+                  state.expense_queue[0]?.status === 'attention' &&
+                  state.draft_trip[0]?.denied === 1
+                )
+                  return { persisted: true };
+                await delay(100);
+              }
+              throw new Error('Late response was not durably blocked by known denial');
+            }
             if (command === 'sqlite-await-refresh-failure') {
               for (let attempt = 0; attempt < 100; attempt++) {
                 if (
@@ -489,7 +512,7 @@ try {
     );
   }
   // The phone keeps unconfirmed requests across runs; settle leftovers before measuring anything.
-  if (usesWriterTrip) await runFlow('entry-drain');
+  if (usesWriterTrip && values.suite !== 'draft-display') await runFlow('entry-drain');
   if (values.suite === 'locales') {
     const localeFlows = values['locale-flows']?.split(',') ?? [
       'auth-trips',
@@ -528,6 +551,102 @@ try {
     for (const flow of wanted)
       assert(entryFlows.includes(flow), `Unknown entry flow ${flow}; use ${entryFlows.join(', ')}`);
     for (const flow of wanted) await runEntryFlow(flow);
+  } else if (values.suite === 'draft-display') {
+    const displayTextSizes = values['display-text-sizes'].split(',');
+    assert(
+      displayTextSizes.length > 0 &&
+        new Set(displayTextSizes).size === displayTextSizes.length &&
+        displayTextSizes.every((size) => ['default', 'largest'].includes(size)),
+      'Use --display-text-sizes default|largest|default,largest'
+    );
+    assert(
+      !values['display-start'] ||
+        /^(en|zh|zh-CN|jp)-(default|largest)-(light|dark)$/.test(values['display-start']),
+      'Invalid display resume profile'
+    );
+    let displayStarted = !values['display-start'];
+    for (const locale of values.locales.split(',')) {
+      assert(Object.hasOwn(messages, locale), 'Unsupported D display locale');
+      for (const textSize of displayTextSizes) {
+        for (const appearance of ['light', 'dark']) {
+          const profile = `${locale}-${textSize}-${appearance}`;
+          if (!displayStarted && profile === values['display-start']) displayStarted = true;
+          if (!displayStarted) continue;
+          const restoreLocale = configureNativeLocale(values.platform, values.device, locale);
+          const restoreProfile = configureNativeDisplay(values.platform, values.device, {
+            textSize,
+            appearance,
+          });
+          const name = `d-display-${locale}-${textSize}-${appearance}`;
+          try {
+            Object.assign(env, localizedEnv(locale));
+            env.MAESTRO_DIRECT_DRAFT_FORM = String(
+              values.platform === 'ios' && textSize === 'largest'
+            );
+            const reset = await fetch(`${fixture.controlUrl}/reset-limits`, {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${fixture.controlToken}` },
+            });
+            assert.equal(reset.status, 200);
+            const from = authTrace.events.length;
+            const result = { flow: 'draft-display', locale, textSize, appearance, passed: false };
+            entryResults.push(result);
+            await runFlow('draft-display', name);
+            const evidence = {};
+            for (const checkpoint of [
+              'display-saved',
+              'display-queued',
+              'display-returned',
+              'display-discarded',
+            ]) {
+              evidence[checkpoint] = JSON.parse(
+                await readFile(join(artifacts, `sqlite-${checkpoint}.json`), 'utf8')
+              );
+            }
+            const saved = evidence['display-saved'].expense_draft[0];
+            const queued = evidence['display-queued'].expense_queue[0];
+            const restored = evidence['display-returned'].expense_draft[0];
+            assert.equal(JSON.parse(saved.input).amountText, '101');
+            assert.equal(JSON.parse(saved.input).description, 'TEST D display');
+            assert.equal(queued.status, 'queued');
+            assert.equal(evidence['display-queued'].expense_queue.length, 1);
+            assert(Object.values(evidence).every((state) => state.pending_expense.length === 0));
+            assert.equal(queued.input, saved.input);
+            assert.equal(restored.input, saved.input);
+            assert.equal(evidence['display-returned'].expense_queue.length, 0);
+            assert.equal(
+              JSON.parse(evidence['display-discarded'].expense_draft[0].input).description,
+              ''
+            );
+            assert(
+              !authTrace.events
+                .slice(from)
+                .some((e) => e.method === 'POST' && /\/expenses$/.test(e.path)),
+              'Display test must not create an expense'
+            );
+            result.database = await (
+              await fetch(`${fixture.controlUrl}/entry-state`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${fixture.controlToken}` },
+              })
+            ).json();
+            assert.equal(result.database.expenses, 0);
+            assert.equal(result.database.receipts, 0);
+            await writeFile(
+              join(artifacts, `${name}-sqlite.json`),
+              JSON.stringify(evidence, null, 2),
+              { mode: 0o600 }
+            );
+            result.passed = true;
+            console.log(`Verified ${name}: native UI, SQLite, and zero writes.`);
+          } finally {
+            restoreProfile();
+            restoreLocale();
+          }
+        }
+      }
+    }
+    assert(displayStarted, 'The requested display resume profile was not included in --locales');
   } else if (values.suite === 'drafts') {
     const allowed = [
       'draft-restart',
@@ -552,6 +671,10 @@ try {
           'draft-crash',
           'queue-crash',
           'queue-revocation-race',
+          'queue-serial-revocation',
+          'queue-refresh-revocation',
+          'queue-late-options',
+          'queue-late-preview',
           'queue-rate-post',
           'queue-rate-lookup',
           'queue-conflict',
@@ -568,6 +691,10 @@ try {
           'draft-crash',
           'queue-crash',
           'queue-revocation-race',
+          'queue-serial-revocation',
+          'queue-refresh-revocation',
+          'queue-late-options',
+          'queue-late-preview',
           'queue-credential-failure',
           'draft-legacy',
           'draft-edit-race',
@@ -628,13 +755,15 @@ try {
         .slice(from)
         .filter((e) => e.method === 'POST' && /\/trips\/[^/]+\/expenses$/.test(e.path));
       const expectedStatuses =
-        flow === 'queue-rate-post'
-          ? [429, 200]
-          : ['queue-refresh-failure', 'queue-credential-failure'].includes(flow)
-            ? [401, 200]
-            : flow === 'queue-conflict'
-              ? [409]
-              : Array(count).fill(200);
+        flow === 'queue-refresh-revocation'
+          ? [401]
+          : flow === 'queue-rate-post'
+            ? [429, 200]
+            : ['queue-refresh-failure', 'queue-credential-failure'].includes(flow)
+              ? [401, 200]
+              : flow === 'queue-conflict'
+                ? [409]
+                : Array(count).fill(200);
       assert.deepEqual(
         posts.map((e) => e.status),
         expectedStatuses,
@@ -948,6 +1077,111 @@ try {
         );
         assert.equal(JSON.parse(restored.expense_draft[0].input).amountText, '12.');
         assert.equal(restored.pending_expense.length, 0);
+      }
+      if (['queue-serial-revocation', 'queue-refresh-revocation'].includes(flow)) {
+        const before = await readState('race-before-release');
+        const after = await readState('revoked-prepared');
+        assert.equal(before.pending_expense.length, 1);
+        assert.equal(after.pending_expense.length, 1);
+        assert.equal(
+          after.pending_expense[0].client_request_id,
+          before.pending_expense[0].client_request_id
+        );
+        assert.equal(after.pending_expense[0].payload, before.pending_expense[0].payload);
+        assert.equal(after.expense_queue[0].status, 'prepared');
+        const gates = sqlGate.events.slice(gateFrom);
+        const held = gates.find(
+          (e) =>
+            e.held &&
+            e.stage ===
+              (flow === 'queue-serial-revocation' ? 'lookup-before-fetch' : 'credential-pause')
+        );
+        assert(held?.releasedAt, 'Real native request must be paused and released');
+        const denial = authTrace.events
+          .slice(from)
+          .find(
+            (e) =>
+              e.at > held.at &&
+              e.at < held.releasedAt &&
+              /expense-options$/.test(e.path) &&
+              [403, 404].includes(e.status) &&
+              !e.injected
+          );
+        assert(denial, 'Backend denial must actually be learned before replay');
+        if (flow === 'queue-serial-revocation') {
+          assert(
+            gates.some(
+              (e) =>
+                e.stage === 'c-retry-enqueued' &&
+                e.at >= gates.find((event) => event.stage === 'queue-serial-ready').at &&
+                e.at < denial.at &&
+                e.id === before.pending_expense[0].client_request_id
+            )
+          );
+          assert.equal(held.id, before.pending_expense[0].client_request_id);
+          assert(
+            gates.some((e) => e.stage === 'post-before-fetch' && e.at >= held.releasedAt),
+            'C retry must reach the actual HTTP guard'
+          );
+        } else {
+          assert(
+            authTrace.events
+              .slice(from)
+              .some((e) => e.path === '/api/v1/auth/refresh' && e.status === 200 && !e.injected)
+          );
+          assert.equal(posts[0].expenseRequest.id, before.pending_expense[0].client_request_id);
+          assert.equal(
+            posts[0].expenseRequest.fingerprint,
+            createHash('sha256').update(before.pending_expense[0].payload).digest('hex')
+          );
+        }
+        await nativeSqlite.command('sqlite-reset-case');
+      }
+      if (['queue-late-options', 'queue-late-preview'].includes(flow)) {
+        const before = await readState('late-queued');
+        const after = await readState('late-revoked');
+        assert.equal(before.expense_queue.length, 1);
+        assert.equal(after.expense_queue.length, 1);
+        assert.equal(
+          after.expense_queue[0].client_request_id,
+          before.expense_queue[0].client_request_id
+        );
+        assert.equal(after.expense_queue[0].input, before.expense_queue[0].input);
+        assert.equal(after.expense_queue[0].status, 'attention');
+        assert.equal(after.expense_queue[0].reason, 'access');
+        assert.equal(after.pending_expense.length, 0);
+        assert.equal(after.draft_trip[0].denied, 1);
+        assert.equal(after.draft_trip[0].options, null);
+        const held = sqlGate.events
+          .slice(gateFrom)
+          .find(
+            (e) =>
+              e.held &&
+              e.stage ===
+                (flow === 'queue-late-options'
+                  ? 'options-after-response'
+                  : 'preview-after-response')
+          );
+        assert(held?.releasedAt);
+        const path = flow === 'queue-late-options' ? /expense-options$/ : /expenses\/preview$/;
+        assert(
+          authTrace.events
+            .slice(from)
+            .some((e) => path.test(e.path) && e.status === 200 && e.at <= held.at && !e.injected)
+        );
+        assert(
+          authTrace.events
+            .slice(from)
+            .some(
+              (e) =>
+                /expense-options$/.test(e.path) &&
+                [403, 404].includes(e.status) &&
+                e.at > held.at &&
+                e.at < held.releasedAt &&
+                !e.injected
+            )
+        );
+        await nativeSqlite.command('sqlite-reset-case');
       }
       if (flow === 'queue-revocation-race') {
         const state = await readState('revoked-prepared');

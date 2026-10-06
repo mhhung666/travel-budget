@@ -17,6 +17,14 @@ const stages = new Set([
   'before-cleanup',
   'credential-set',
   'credential-legacy',
+  'credential-pause',
+  'queue-serial-probe',
+  'queue-serial-ready',
+  'c-retry-enqueued',
+  'lookup-before-fetch',
+  'options-after-response',
+  'preview-after-response',
+  'post-before-fetch',
 ]);
 
 /** Only the isolated native checkout calls these pauses; application builds contain no hook. */
@@ -27,6 +35,7 @@ export async function startNativeSqlGate(port) {
   const held = new Set();
   let armed = null;
   let observed = null;
+  let armedFrom = 0;
   const server = createServer((req, res) => {
     const reply = (status, body) => {
       res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
@@ -42,7 +51,12 @@ export async function startNativeSqlGate(port) {
       if (event.held) {
         armed = null;
         observed = event;
-        if (stage.startsWith('credential-')) {
+        if (stage === 'queue-serial-probe') {
+          event.injected = true;
+          armed = 'lookup-before-fetch';
+          return reply(201, {});
+        }
+        if (stage === 'credential-set' || stage === 'credential-legacy') {
           event.injected = true;
           return reply(stage === 'credential-set' ? 500 : 201, {});
         }
@@ -60,8 +74,23 @@ export async function startNativeSqlGate(port) {
       if (!stages.has(stage)) return reply(400, {});
       if (armed || held.size) return reply(409, {});
       armed = stage;
+      armedFrom = events.length;
       observed = null;
       return reply(200, { armed: stage });
+    }
+    if (command.startsWith('wait-event-')) {
+      const stage = command.slice(11);
+      if (!stages.has(stage)) return reply(400, {});
+      void (async () => {
+        const deadline = Date.now() + 10000;
+        while (!res.destroyed && Date.now() < deadline) {
+          const event = events.slice(armedFrom).findLast((e) => e.stage === stage);
+          if (event) return reply(200, event);
+          await delay(100);
+        }
+        if (!res.destroyed) reply(409, {});
+      })();
+      return;
     }
     if (command.startsWith('wait-')) {
       const stage = command.slice(5);
@@ -78,6 +107,7 @@ export async function startNativeSqlGate(port) {
       return;
     }
     if (command === 'release') {
+      if (observed && held.size) observed.releasedAt = Date.now();
       armed = null;
       for (const response of held) {
         response.writeHead(200, { 'Content-Type': 'application/json' });

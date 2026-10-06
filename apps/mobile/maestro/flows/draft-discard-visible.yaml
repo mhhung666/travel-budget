@@ -1,0 +1,19 @@
+appId: ${MAESTRO_APP_ID}
+---
+# Drag within the Page margin; a restored form's large inputs/actions can consume center swipes.
+- repeat:
+    times: 15
+    while:
+      notVisible:
+        id: draft-discard
+    commands:
+      - swipe:
+          start: '97%,85%'
+          end: '97%,15%'
+          duration: 500
+- swipe:
+    start: '97%,85%'
+    end: '97%,15%'
+    duration: 500
+- assertVisible:
+    id: draft-discard

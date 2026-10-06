@@ -224,7 +224,11 @@ pnpm --filter travel-budget-mobile test:native \
 
 Android 換成 `--platform android --device emulator-5554`，先 `adb root`，再建立 Metro 的 `adb reverse tcp:8094 tcp:8094`；重啟 adb 會清除此轉送。`draft-offline`／`queue-multiple` 暫時開啟模擬器飛航模式並關閉 Wi-Fi 與行動數據，流程結束會還原原設定；iOS 模擬器採 HTTP 斷線注入，不能當作真機飛航證據。D suite 在 iOS 最大字級時以既有 deep link 開啟新增表單，避免 Maestro 旅行卡片邊界定位失準；此路徑不驗證卡片導覽，其他配置仍走旅行摘要入口。`--flows` 可選 `draft-restart,draft-offline,draft-expiry,draft-snapshot,draft-accounts,draft-revoked,draft-storage,draft-open-failure,queue-storage,queue-multiple,queue-edit,queue-lost,queue-members` 的子集。
 
-精確當機在新的 managed Git worktree 執行 `pnpm --filter travel-budget-mobile exec node scripts/instrument-native-sqlite.mjs --workspace WORKTREE_ROOT`，只改該隔離 checkout 的 SQLite 開啟與憑證寫入包裝；原 checkout／正式 bundle 不含暫停點。其 Metro 設定 `EXPO_PUBLIC_NATIVE_SQL_GATE_URL`（iOS loopback 或 Android `10.0.2.2`）、`EXPO_PUBLIC_NATIVE_ACCOUNT`／`EXPO_PUBLIC_NATIVE_TRIP` 為 fixture writer／writerTrip，再搭配 `--sqlite-gate-port` 與同一 proxy port 執行 `--flows draft-crash,queue-crash,queue-revocation-race`。每個案例保存 gate 時間／UUID、真 SQLite 檢查點與 HTTP 證據。
+精確當機在新的 managed Git worktree 執行 `pnpm --filter travel-budget-mobile exec node scripts/instrument-native-sqlite.mjs --workspace WORKTREE_ROOT`，只在該隔離 checkout 包裝 SQLite、憑證寫入、C 序列與 HTTP 邊界；原 checkout／正式 bundle 不含暫停點。其 Metro 設定 `EXPO_PUBLIC_NATIVE_SQL_GATE_URL`（iOS loopback 或 Android `10.0.2.2`）、`EXPO_PUBLIC_NATIVE_ACCOUNT`／`EXPO_PUBLIC_NATIVE_TRIP` 為 fixture writer／writerTrip，再搭配 `--sqlite-gate-port` 與同一 proxy port 執行 `--flows draft-crash,queue-crash,queue-revocation-race`。每個案例保存 gate 時間／UUID、真 SQLite 檢查點與 HTTP 證據。
+
+其他撤權時機用 `--flows queue-serial-revocation,queue-refresh-revocation,queue-late-options,queue-late-preview`。序列案例先排入真 C receipt lookup、暫停其 HTTP，核對 retry 已排隊後才撤權；refresh 案例注入首次 POST 401、完成真 refresh，再暫停憑證發布以核對重送前撤權。晚到選項／預覽案例保留真後端 200，切背景並從另一表單取得實際 404 後才釋放回應。只計實際 UI、SQL、gate、HTTP 與 DB 斷言；測試 adapter 不代表正式 App 有此排程。
+
+D 顯示矩陣使用 `--suite draft-display --native-sqlite --native-locale --locales en,zh,zh-CN,jp`，每平台跑四語 × 預設／最大字級 × 深淺色共 16 組。每組涵蓋真 SQLite 保存失敗／重試、明確均分確認、待送內容、移回草稿、快照更新時間與捨棄，並核對原始輸入及零入帳；不是所有故障逐配置重跑。`--display-start en-largest-light` 可接續未完成配置；`--display-text-sizes default` 可先完成單一字級。每組開始只停止 App 並清理該 disposable fixture scope，原始證據保留。iOS 部分成員／捨棄點擊受 Maestro 畫框定位影響，仍需原生操作輔助及獨立 SQL／HTTP／DB 複核；工具失敗不可改寫成通過，操作通過也不代替視覺檢查。
 
 refresh／憑證案例為 `queue-refresh-failure,queue-credential-failure,draft-legacy`；後兩者也需要隔離 checkout 與 gate。憑證失敗是在 SDK 寫入前回報錯誤，舊格式仍透過真 SecureStore 保存 token；此注入不能當作實際 Keychain 故障。快速編輯案例 `draft-edit-race` 在原生 SQL 更新前暫停，核對返回重進與捨棄競態。
 
@@ -289,9 +293,10 @@ D1／D2／D3 程式已完成；2026-10-05～06 主要裝置情境已通過，已
 
 已完成的登入／旅行、A／B 與 C 核心修正結果，以及本機歷史證據，合併至 [archive](archive/README.md)。以下項目仍須驗收，不能因封存已完成成果而視為通過：
 
-- D：主要草稿／離線／佇列及故障復原情境已通過，D 尚未全部結案。剩餘補驗分三類：① D 四語、預設／最大字級與深淺色配置（既有 C 的 32 組不替代 D）；② 完整 VoiceOver／TalkBack，包含錯誤導覽與換帳號／撤權後的私人資料及焦點；③ C 序列等待、refresh 重送等其他撤權競態，以及晚到選項回應／切背景時機組合。已驗 SQL 等待撤權不能代表其餘時機。各項通過範圍與限制以 archive 的 UI／SQL／HTTP／DB 證據為準。
-- 本輪 D 顯示補驗未通過：繁中最大字級／深色的 iOS 日期清除輸入與 Android 冷啟動續填導覽受自動化操作阻擋，保留人工複驗，尚不足以判定產品缺陷；簡中／日文後續配置未執行，跨日後 fixture 日期檢查拒絕繼續。重跑須重新建立當日 fixture，勿修改日期或時鐘繞過檢查。
-- C（依使用者決定曾暫緩，不阻擋 D1）：iOS 軟體鍵盤已完成整段 `entry-create` 並核對 receipt／份額／副作用；VoiceOver 已完成主要輸入、保存失敗重試、離線續填、入佇列／移回草稿及重新授權後確認送出，連線恢復由前景查 receipt 清理。完整錯誤與私人資料導覽、TalkBack 仍待驗。既有兩平台十個核心情境與 32 組顯示配置通過；Android Gboard 輸入與動作鍵已操作驗證。
+- D：主要草稿／離線／佇列與故障復原、兩平台 C 序列等待／refresh 重送撤權，以及晚到選項／預覽經切背景再收到撤權，均已補驗。四語 × 預設／最大字級 × 深淺色共 32 組的草稿／佇列操作與 SQL／HTTP／DB 核對完成；iOS 14 組及 Android 一組使用原生輔助操作獨立補證，保留原自動化失敗結果。D 尚未結案：以下視覺缺陷與閱讀器項目仍須完成。
+- D 顯示需修正（P2）：iOS 最大輔助字級下，長成員名稱換行後超出 `src/components/ui.tsx` 的膠囊背景；淺色模式下，已選取項目的部分白字落在頁面淺色背景而難以辨識。需修正選項背景／文字排版，再複驗長名稱的最大字級深淺色及受影響的選取操作。證據見 archive，不能因 32 組操作完成而標示顯示全數通過。
+- 閱讀器：VoiceOver 已補驗必填／格式／日期／逾時錯誤、停用按鈕朗讀，以及 A→B→A／實際撤權下的資料隱藏與焦點。忙碌 AX 狀態已核對，實際忙碌朗讀、完整觸控手勢及 C 手動恢復操作仍未全部核對。2026-10-06 依使用者決定，TalkBack 保留待人工驗收；Android 模擬器視窗無法接入電腦操作工具，不計通過。
+- C（依使用者決定曾暫緩，不阻擋 D1）：iOS 軟體鍵盤已完成整段 `entry-create` 並核對 receipt／份額／副作用；VoiceOver 已完成主要輸入、保存失敗重試、離線續填、入佇列／移回草稿及重新授權後確認送出，連線恢復由前景查 receipt 清理。閱讀器剩餘範圍見上一項。既有兩平台十個核心情境及 C 的 32 組顯示配置保留原通過範圍；共用選項元件的本次視覺缺陷仍需修正。Android Gboard 輸入與動作鍵已操作驗證。
 - A：支出／結算的大字級／外觀矩陣，以及裝置上的「撤銷旅行資格後再斷線」組合故障。兩平台四語／預設字級／淺色的完整登入與唯讀流程已通過。
 - 網路／後端：裝置斷網／飛航模式、限速與封包遺失、429 真實交易競爭；refresh 400／413／415 故障目前只有模擬 HTTP 證據。
 - 建置／裝置：完成 development build 與 iOS／Android 實體裝置驗收。根 check／build 基線已修復並通過；Expo Go 或 bundle export 不替代原生建置與真機項目。

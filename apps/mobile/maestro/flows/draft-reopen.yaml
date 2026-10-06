@@ -24,6 +24,7 @@ appId: ${MAESTRO_APP_ID}
 - scrollUntilVisible:
     element:
       id: local-trip-${MAESTRO_WRITER_TRIP}
+    centerElement: true
     timeout: 30000
 - tapOn:
     id: local-trip-${MAESTRO_WRITER_TRIP}

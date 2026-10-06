@@ -1,0 +1,60 @@
+appId: ${MAESTRO_APP_ID}
+---
+- runFlow:
+    file: flows/queue-create-offline.yaml
+    env:
+      DESCRIPTION: TEST D3 queue-late-options
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-late-queued
+- runScript:
+    file: sql-gate-command.js
+    env:
+      COMMAND: arm-options-after-response
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online
+- scrollUntilVisible:
+    element:
+      id: queue-sync
+    direction: UP
+- tapOn:
+    id: queue-sync
+- runScript:
+    file: sql-gate-command.js
+    env:
+      COMMAND: wait-options-after-response
+- pressKey: Home
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: writer-leave
+- openLink: ${MAESTRO_EXPO_URL + '/--/trips/' + MAESTRO_WRITER_TRIP + '/expenses/new'}
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-await-known-denial
+- runScript:
+    file: sql-gate-command.js
+    env:
+      COMMAND: release
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-await-queue-attention
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-late-revoked
+- runFlow:
+    file: flows/entry-expect.yaml
+    env:
+      EXPECT_EXPENSES: '0'
+      EXPECT_RECEIPTS: '0'
+- takeScreenshot: late-response-after-background-and-known-denial
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: writer-rejoin

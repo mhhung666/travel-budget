@@ -1,0 +1,119 @@
+appId: ${MAESTRO_APP_ID}
+---
+# Focused D display matrix: saved/error states, explicit queue rule, move back, snapshot time.
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-reset-case
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: entry-reset
+- runFlow:
+    file: flows/draft-display-open.yaml
+    env:
+      USERNAME: mobile-writer
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: disconnect
+- runFlow:
+    file: flows/draft-fill.yaml
+    env:
+      DESCRIPTION: TEST D display
+      AMOUNT: '100'
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-save-fail
+- scrollUntilVisible:
+    element:
+      id: new-expense-amount
+    direction: UP
+    visibilityPercentage: 30
+- tapOn:
+    id: new-expense-amount
+    point: '95%,50%'
+- eraseText
+- inputText: '101'
+- runFlow: flows/entry-keyboard-done.yaml
+- scrollUntilVisible:
+    element: ${MAESTRO_DRAFT_SAVE_FAILED}
+    direction: UP
+- assertVisible: ${MAESTRO_DRAFT_SAVE_FAILED}
+- takeScreenshot: draft-error-display
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-clear
+- scrollUntilVisible:
+    element:
+      id: draft-save-retry
+    visibilityPercentage: 30
+- tapOn:
+    id: draft-save-retry
+- extendedWaitUntil:
+    visible: ${MAESTRO_DRAFT_SAVED}
+    timeout: 30000
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-display-saved
+- scrollUntilVisible:
+    element:
+      id: expense-queue-confirm
+    visibilityPercentage: 30
+- takeScreenshot: explicit-rule-display
+- tapOn:
+    id: expense-queue-confirm
+- extendedWaitUntil:
+    visible: ${MAESTRO_QUEUE_TITLE}
+    timeout: 30000
+- scrollUntilVisible:
+    element: TEST D display
+    visibilityPercentage: 30
+- assertVisible: TEST D display
+- takeScreenshot: queued-display
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-display-queued
+- scrollUntilVisible:
+    element: ${MAESTRO_QUEUE_EDIT}
+    visibilityPercentage: 30
+- tapOn: ${MAESTRO_QUEUE_EDIT}
+- scrollUntilVisible:
+    element: '${MAESTRO_LOCAL_UPDATED}.*'
+    direction: UP
+- assertVisible: '${MAESTRO_LOCAL_UPDATED}.*'
+- takeScreenshot: snapshot-time-display
+- scrollUntilVisible:
+    element:
+      id: draft-restore
+    visibilityPercentage: 30
+- tapOn:
+    id: draft-restore
+- assertVisible:
+    id: new-expense-description
+    text: TEST D display
+- scrollUntilVisible:
+    element:
+      id: new-expense-amount
+- assertVisible:
+    id: new-expense-amount
+    text: '101'
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-display-returned
+- runFlow: flows/draft-discard-visible.yaml
+- tapOn:
+    id: draft-discard
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-display-discarded

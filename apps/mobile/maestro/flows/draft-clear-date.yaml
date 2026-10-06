@@ -1,0 +1,6 @@
+appId: ${MAESTRO_APP_ID}
+---
+- tapOn:
+    id: new-expense-date
+    point: '95%,50%'
+- eraseText

@@ -1,0 +1,41 @@
+import type { PendingScope } from './pendingExpenses';
+import type { ExpenseEntry } from '@/features/expenses/entry';
+
+/** Isolated acceptance only: metadata pauses around real C operations and HTTP. */
+export async function nativeRaceEvent(stage: string, id: string) {
+  const url = process.env.EXPO_PUBLIC_NATIVE_SQL_GATE_URL;
+  if (!__DEV__ || !url) throw new Error('ISOLATED_NATIVE_GATE_REQUIRED');
+  return fetch(`${url}/event?stage=${encodeURIComponent(stage)}&id=${encodeURIComponent(id)}`);
+}
+
+export async function nativeRequestPause(baseUrl: string, path: string, received = false) {
+  if (baseUrl !== process.env.EXPO_PUBLIC_API_BASE_URL) return;
+  const trip = process.env.EXPO_PUBLIC_NATIVE_TRIP;
+  if (!trip || !path.startsWith(`/trips/${trip}/`)) return;
+  const lookup = path.match(/\/expense-requests\/([0-9a-f-]{36})$/i);
+  const stage = received
+    ? path.endsWith('/expense-options')
+      ? 'options-after-response'
+      : path.endsWith('/expenses/preview')
+        ? 'preview-after-response'
+        : null
+    : lookup
+      ? 'lookup-before-fetch'
+      : path.endsWith('/expenses')
+        ? 'post-before-fetch'
+        : null;
+  if (stage && !(await nativeRaceEvent(stage, lookup?.[1] ?? '00000000-0000-4000-8000-000000000002')).ok)
+    throw new Error('NATIVE_REQUEST_GATE_FAILURE');
+}
+
+export async function nativeSerialProbe(entry: ExpenseEntry, scope: PendingScope, tripId: string, id: string) {
+  if (scope.environment !== process.env.EXPO_PUBLIC_API_BASE_URL ||
+    scope.accountId !== process.env.EXPO_PUBLIC_NATIVE_ACCOUNT ||
+    tripId !== process.env.EXPO_PUBLIC_NATIVE_TRIP) return;
+  const mode = await nativeRaceEvent('queue-serial-probe', id);
+  if (!mode.ok) throw new Error('NATIVE_SERIAL_GATE_FAILURE');
+  if (mode.status !== 201) return;
+  // A real C lookup starts first; its real HTTP is held so retry must wait in C's serial chain.
+  void entry.lookup(scope, id).catch(() => undefined);
+  if (!(await nativeRaceEvent('queue-serial-ready', id)).ok) throw new Error('NATIVE_SERIAL_GATE_FAILURE');
+}

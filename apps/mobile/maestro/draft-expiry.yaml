@@ -61,10 +61,7 @@ appId: ${MAESTRO_APP_ID}
 - scrollUntilVisible:
     element:
       id: new-expense-date
-- tapOn:
-    id: new-expense-date
-    point: '95%,50%'
-- eraseText
+- runFlow: flows/draft-clear-date.yaml
 - inputText: '2026-'
 - assertVisible:
     id: new-expense-date

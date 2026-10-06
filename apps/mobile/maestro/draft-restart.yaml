@@ -20,10 +20,7 @@ appId: ${MAESTRO_APP_ID}
 - scrollUntilVisible:
     element:
       id: new-expense-date
-- tapOn:
-    id: new-expense-date
-    point: '95%,50%'
-- eraseText
+- runFlow: flows/draft-clear-date.yaml
 - inputText: '2026-'
 - assertVisible:
     id: new-expense-date
@@ -54,6 +51,7 @@ appId: ${MAESTRO_APP_ID}
 - scrollUntilVisible:
     element:
       id: draft-restore
+    centerElement: true
     timeout: 60000
 - tapOn:
     id: draft-restore
@@ -86,13 +84,14 @@ appId: ${MAESTRO_APP_ID}
 - scrollUntilVisible:
     element:
       id: new-expense-description
-    direction: UP
+    direction: DOWN
     timeout: 30000
 - assertNotVisible: TEST D1 unfinished
 - runFlow: flows/draft-reopen.yaml
 - scrollUntilVisible:
     element:
       id: draft-restore
+    centerElement: true
     timeout: 60000
 - tapOn:
     id: draft-restore

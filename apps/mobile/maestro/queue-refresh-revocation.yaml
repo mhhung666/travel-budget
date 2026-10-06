@@ -1,0 +1,60 @@
+appId: ${MAESTRO_APP_ID}
+---
+- runFlow:
+    file: flows/queue-create-offline.yaml
+    env:
+      DESCRIPTION: TEST D3 revoke during refresh
+- runScript:
+    file: sql-gate-command.js
+    env:
+      COMMAND: arm-credential-pause
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: online-post-401
+- scrollUntilVisible:
+    element:
+      id: queue-sync
+    direction: UP
+- tapOn:
+    id: queue-sync
+- runScript:
+    file: sql-gate-command.js
+    env:
+      COMMAND: wait-credential-pause
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: writer-leave
+- openLink: ${MAESTRO_EXPO_URL + '/--/trips/' + MAESTRO_WRITER_TRIP + '/expenses/new'}
+# Real refresh succeeded; credential publication and the HTTP replay remain paused.
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-await-known-denial
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-race-before-release
+- runScript:
+    file: sql-gate-command.js
+    env:
+      COMMAND: release
+- extendedWaitUntil:
+    visible:
+      id: pending-card-0
+    timeout: 30000
+- runScript:
+    file: network-command.js
+    env:
+      COMMAND: sqlite-checkpoint-revoked-prepared
+- runFlow:
+    file: flows/entry-expect.yaml
+    env:
+      EXPECT_EXPENSES: '0'
+      EXPECT_RECEIPTS: '0'
+- takeScreenshot: known-revocation-blocks-refresh-replay
+- runScript:
+    file: fixture-command.js
+    env:
+      COMMAND: writer-rejoin
