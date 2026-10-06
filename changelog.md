@@ -8,7 +8,7 @@
 
 - Web／Mobile：依 [E 規格](apps/mobile/docs/ROADMAP.md#e-規格基本使用流程) 實作 E1 建立／加入旅行、邀請複製與分享；共用交易服務與 HTTP receipt 防重複旅行／成員／站內副作用，撤權／刪除後不重播加入。Web 加入結果補讀重新核對目前成員／刪除狀態；建立只回已提交 ID，避免補讀失敗誤報建立失敗。E2–E4 仍待實作。
 - Mobile：確認後以獨立 SQLite 操作表保存固定 UUID，重啟／回前景只查結果，明確原內容重試才送出；保存失敗零 HTTP，終局結果清除邀請 payload，429 與 C／D 共用帳號期限。未確認表單只留畫面，離開提醒；邀請碼不進一般快照。
-- 開發驗證：獨立複驗 Web 2,014 項、隔離交易 71 項與根 check／build 通過，涵蓋兩項 P2 及 ID 接續畫面流程；四個故障回歸在舊實作均失敗。既有 E1 Mobile 644 項、真 HTTP／MongoDB、frozen install、三平台匯出及 Expo 相容性通過。兩平台基本操作與四語／字級／鍵盤／分享仍待驗，清單見 [E1 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#e1-旅行入口驗收交接)。未部署或執行遠端 migration。
+- 開發驗證：獨立複驗 Web 2,014 項、隔離交易 71 項與根 check／build 通過，涵蓋兩項 P2 及 ID 接續畫面流程；四個故障回歸在舊實作均失敗。既有 E1 Mobile 644 項、真 HTTP／MongoDB、frozen install、三平台匯出及 Expo 相容性通過。依使用者決定，E1–E4 全部功能完成後統一執行兩平台裝置驗收；各片先審查與自動化驗證，未驗不計通過，清單見 [E1 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#e1-旅行入口驗收交接)。未部署或執行遠端 migration。
 
 ### 2026-10-05～2026-10-06
 

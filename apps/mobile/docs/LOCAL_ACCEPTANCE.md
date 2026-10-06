@@ -304,6 +304,8 @@ D1／D2／D3 程式已完成；2026-10-05～06 主要裝置情境已通過，已
 
 開發順序與交付條件見 [ROADMAP](ROADMAP.md)。本文件維護可重跑的操作與未驗項目，已完成結果只更新 archive 摘要。
 
+E 裝置驗收時程：依 2026-10-06 使用者決定，待 E1–E4 全部功能完成，再統一執行 iOS／Android 的完整使用流程、各片操作與必要故障驗收。各片先完成程式審查與自動化驗證並保留操作清單；尚未操作的裝置項目維持待驗，不計通過。
+
 ## E1 旅行入口驗收交接
 
 狀態：程式與自動化檢查已交付，審查兩項 Web P2 已修並通過獨立複驗，見 [E 規格](ROADMAP.md#e-規格基本使用流程)；**本節 iOS／Android 尚未執行**。D 既有通過不能覆蓋 E1。以 `pnpm --filter @travel-budget/web dev:mobile-api` 的 disposable MongoDB／實際 HTTP 為後端，使用既有隔離帳號；邀請頁後端 `APP_URL` 與手機 `EXPO_PUBLIC_WEB_ORIGIN` 須是同環境網站 origin。不同 origin 時明確配置；碼輸入不需連結 origin。
