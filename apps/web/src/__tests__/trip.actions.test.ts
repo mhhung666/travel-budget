@@ -8,6 +8,7 @@ const tripExists = vi.fn();
 const tripCreate = vi.fn();
 const tripFindByIdAndUpdate = vi.fn();
 const tripFindById = vi.fn();
+const tripFindOne = vi.fn();
 const tripFindOneAndUpdate = vi.fn();
 const tripDeleteOne = vi.fn();
 const tripUpdateOne = vi.fn();
@@ -83,6 +84,7 @@ vi.mock('@/models', () => ({
     create: (...args: unknown[]) => tripCreate(...args),
     findByIdAndUpdate: (...args: unknown[]) => tripFindByIdAndUpdate(...args),
     findById: (...args: unknown[]) => tripFindById(...args),
+    findOne: (...args: unknown[]) => tripFindOne(...args),
     findOneAndUpdate: (...args: unknown[]) => tripFindOneAndUpdate(...args),
     deleteOne: (...args: unknown[]) => tripDeleteOne(...args),
     updateOne: (...args: unknown[]) => tripUpdateOne(...args),
@@ -143,6 +145,10 @@ beforeEach(() => {
   deletion.commit.mockReset().mockResolvedValue(undefined);
   deletion.cleanup.mockReset().mockResolvedValue({ status: 'swept' });
   vi.clearAllMocks();
+  entry.enter.mockReset();
+  revalidatePath.mockReset();
+  tripFindById.mockReset();
+  tripFindOne.mockReset();
   getSession.mockResolvedValue({ userId: USER });
   getTripMembership.mockResolvedValue({ tripId: TRIP, role: 'admin' });
   getMemberTrip.mockResolvedValue({
@@ -153,6 +159,7 @@ beforeEach(() => {
   tripExists.mockResolvedValue(null);
   tripFindByIdAndUpdate.mockReturnValue(lean(tripDoc()));
   tripFindById.mockReturnValue(selectLean(tripDoc()));
+  tripFindOne.mockReturnValue(lean(tripDoc()));
   expenseAggregate.mockResolvedValue([{ expenseCount: 3, todaySpent: 1200, totalSpent: 1800 }]);
   tripFindOneAndUpdate.mockReturnValue(lean(tripDoc()));
   tripDeleteOne.mockResolvedValue({ deletedCount: 1 });
@@ -206,10 +213,8 @@ describe('createTrip', () => {
     expect(tripCreate).not.toHaveBeenCalled();
   });
 
-  it('creates the caller as admin with a generated share code', async () => {
-    const doc = tripDoc({ hashCode: 'newcode1', name: 'Tokyo 2026' });
+  it('returns the committed ID without a second trip read', async () => {
     entry.enter.mockResolvedValue({ tripId: TRIP });
-    tripFindById.mockReturnValue(lean(doc));
     const result = await createTrip({
       name: ' Tokyo 2026 ',
       description: '  Autumn trip  ',
@@ -217,7 +222,9 @@ describe('createTrip', () => {
       end_date: '2026-09-05',
     });
 
-    expect(result.success).toBe(true);
+    expect(result).toEqual({ success: true, data: { id: TRIP } });
+    expect(tripFindById).not.toHaveBeenCalled();
+    expect(tripFindOne).not.toHaveBeenCalled();
     expect(entry.enter).toHaveBeenCalledWith(
       undefined,
       USER,
@@ -233,6 +240,38 @@ describe('createTrip', () => {
       undefined
     );
     expect(revalidatePath).toHaveBeenCalledWith('/trips');
+  });
+  it.each(['unavailable', 'missing'])(
+    'keeps committed success when a later read is %s',
+    async (failure) => {
+      entry.enter.mockResolvedValue({ tripId: TRIP });
+      const read = () => {
+        if (failure === 'unavailable') throw new Error('read unavailable');
+        return lean(null);
+      };
+      tripFindById.mockImplementationOnce(read);
+      tripFindOne.mockImplementationOnce(read);
+      expect(await createTrip({ name: 'Tokyo' })).toEqual({ success: true, data: { id: TRIP } });
+      expect(entry.enter).toHaveBeenCalledOnce();
+      expect(tripFindById).not.toHaveBeenCalled();
+      expect(tripFindOne).not.toHaveBeenCalled();
+    }
+  );
+  it('keeps committed success when cache refresh fails', async () => {
+    entry.enter.mockResolvedValue({ tripId: TRIP });
+    revalidatePath.mockImplementationOnce(() => {
+      throw new Error('cache unavailable');
+    });
+    expect(await createTrip({ name: 'Tokyo' })).toEqual({ success: true, data: { id: TRIP } });
+  });
+  it('still reports a write failure without returning a created ID', async () => {
+    entry.enter.mockRejectedValueOnce(new Error('transaction aborted'));
+    expect(await createTrip({ name: 'Tokyo' })).toEqual({
+      success: false,
+      error: 'INTERNAL_ERROR',
+      code: 'INTERNAL_ERROR',
+    });
+    expect(revalidatePath).not.toHaveBeenCalled();
   });
 });
 
@@ -307,8 +346,13 @@ describe('joinTrip', () => {
   });
   it('uses the shared service and returns an already joined trip successfully', async () => {
     entry.enter.mockResolvedValue({ tripId: TRIP, alreadyMember: true });
-    tripFindById.mockReturnValue(lean(tripDoc()));
     expect((await joinTrip('oldcode1')).success).toBe(true);
+    expect(tripFindOne).toHaveBeenCalledWith({
+      _id: TRIP,
+      'members.user': USER,
+      expenseDeliveryDeleting: { $ne: true },
+    });
+    expect(tripFindById).not.toHaveBeenCalled();
     expect(entry.enter).toHaveBeenCalledWith(
       undefined,
       USER,
@@ -319,6 +363,34 @@ describe('joinTrip', () => {
     expect(notify).not.toHaveBeenCalled();
     expect(logActivity).not.toHaveBeenCalled();
   });
+  it.each(['removed', 'deleting'])(
+    'does not return private trip fields if the caller is %s during delivery',
+    async (state) => {
+      const current = tripDoc({
+        hashCode: 'rotated1',
+        ...(state === 'removed' ? { members: [] } : { expenseDeliveryDeleting: true }),
+      });
+      entry.enter.mockImplementationOnce(async () => {
+        tripFindById.mockReturnValue(lean(current));
+        tripFindOne.mockImplementationOnce((filter) =>
+          lean(
+            filter['members.user'] === USER &&
+              (state === 'removed' || filter.expenseDeliveryDeleting?.$ne === true)
+              ? null
+              : current
+          )
+        );
+        return { tripId: TRIP, alreadyMember: false };
+      });
+      expect(await joinTrip('oldcode1')).toEqual({
+        success: false,
+        error: 'NOT_FOUND',
+        code: 'NOT_FOUND',
+      });
+      expect(revalidatePath).not.toHaveBeenCalled();
+      expect(tripFindById).not.toHaveBeenCalled();
+    }
+  );
   it('maps invalid invitations without performing adapter side effects', async () => {
     const { TripEntryError } = await import('@/lib/tripEntry');
     entry.enter.mockRejectedValueOnce(new TripEntryError('INVITATION_INVALID'));

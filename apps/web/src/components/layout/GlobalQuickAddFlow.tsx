@@ -27,7 +27,7 @@ interface GlobalQuickAddFlowProps {
   onClose: () => void;
 }
 
-function rememberTrip(trip: Pick<Trip, 'id' | 'hash_code'>) {
+function rememberTrip(trip: Pick<Trip, 'id'>) {
   try {
     localStorage.setItem(QUICK_ADD_LAST_TRIP_KEY, trip.id);
   } catch {
@@ -221,12 +221,12 @@ export function GlobalQuickAddFlow({
   };
 
   const selectTrip = (
-    trip: Pick<Trip, 'id' | 'hash_code'>,
+    trip: Pick<Trip, 'id'> & Partial<Pick<Trip, 'hash_code'>>,
     path: 'picker' | 'created' = 'picker'
   ) => {
     rememberTrip(trip);
     setSelectedPath(path);
-    setSelectedTripId(trip.hash_code);
+    setSelectedTripId(trip.hash_code ?? trip.id);
     setForcePicker(false);
   };
 

@@ -22,7 +22,7 @@ import {
 import { deleteTripAtomically } from '@/lib/tripDeletion';
 import { createNote, updateNote, deleteNote } from '@/actions/note.actions';
 import { addVirtualMember, addFriendsToTrip, updateMemberRole } from '@/actions/member.actions';
-import { regenerateHashCode, joinTrip } from '@/actions/trip.actions';
+import { createTrip, regenerateHashCode, joinTrip } from '@/actions/trip.actions';
 import { enableAlbumShare, disableAlbumShare } from '@/actions/albumShare.actions';
 import { createExpense, updateExpense, deleteExpense } from '@/actions/expense.actions';
 import { createComment, deleteComment } from '@/actions/comment.actions';
@@ -352,6 +352,61 @@ describe.skipIf(!uri || !allowed)('trip writers against isolated replica set', (
     );
     expect(await joinTrip(tripId)).toMatchObject({ success: false });
   });
+  it.each(['removed', 'deleting'])(
+    'withholds the join result after %s during post-commit notification',
+    async (state) => {
+      mocks.session.mockResolvedValue({ userId: real.toHexString() });
+      mocks.notify.mockImplementationOnce(async () => {
+        await Trip.updateOne(
+          { _id: tripId },
+          {
+            $set: {
+              hashCode: 'rotated1',
+              ...(state === 'deleting' ? { expenseDeliveryDeleting: true } : {}),
+            },
+            ...(state === 'removed' ? { $pull: { members: { user: real } } } : {}),
+          }
+        );
+      });
+      expect(await joinTrip(tripId)).toEqual({
+        success: false,
+        error: 'NOT_FOUND',
+        code: 'NOT_FOUND',
+      });
+      expect(mocks.notify).toHaveBeenCalledOnce();
+      const receipt = await mongoose.connection
+        .db!.collection('mutationrequests')
+        .findOne({ 'terminal.resourceId': tripId, 'terminal.operation': 'trip.join' });
+      expect(receipt?.terminal.status).toBe('committed');
+    }
+  );
+  it.each(['unavailable', 'missing'])(
+    'returns the committed create ID without a %s follow-up read',
+    async (failure) => {
+      const before = await Trip.countDocuments();
+      const read = vi.spyOn(Trip, 'findById').mockImplementation(() => {
+        if (failure === 'unavailable') throw new Error('read unavailable after commit');
+        return { lean: async () => null } as ReturnType<typeof Trip.findById>;
+      });
+      try {
+        const result = await createTrip({ name: 'Committed trip' });
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('expected committed success');
+        expect(read).not.toHaveBeenCalled();
+        expect(await Trip.countDocuments()).toBe(before + 1);
+        expect(await Trip.findOne({ _id: result.data.id, 'members.user': admin })).not.toBeNull();
+        expect(
+          await mongoose.connection.db!.collection('mutationrequests').countDocuments({
+            'terminal.resourceId': result.data.id,
+            'terminal.operation': 'trip.create',
+            'terminal.status': 'committed',
+          })
+        ).toBe(1);
+      } finally {
+        read.mockRestore();
+      }
+    }
+  );
   it('rolls back a newly created virtual user if adding the member fails', async () => {
     const before = await mongoose.connection.db!.collection('users').countDocuments();
     const original = mongo.Collection.prototype.updateOne;

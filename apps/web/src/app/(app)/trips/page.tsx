@@ -191,7 +191,7 @@ export default function TripsPage() {
         onClose={() => setShowCreateModal(false)}
         onSuccess={(trip) => {
           reloadTrips();
-          router.push(ROUTES.TRIP_DETAIL(trip.hash_code));
+          router.push(ROUTES.TRIP_DETAIL(trip.id));
         }}
       />
 

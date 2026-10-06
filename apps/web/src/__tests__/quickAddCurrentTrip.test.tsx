@@ -1,9 +1,11 @@
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import type { TripWithMembers } from '@/types';
 
 const mocks = vi.hoisted(() => ({ useTrips: vi.fn() }));
-vi.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({}) }));
+vi.mock('@tanstack/react-query', () => ({
+  useQueryClient: () => ({ invalidateQueries: vi.fn() }),
+}));
 vi.mock('@/hooks/queries', () => ({ useTrips: mocks.useTrips, tripKeys: {} }));
 vi.mock('@/lib/productEvents', () => ({ trackProductEvent: vi.fn() }));
 vi.mock('@/components/common', () => ({
@@ -30,7 +32,14 @@ vi.mock('@/hooks/useTripSpace', () => ({
   }),
 }));
 vi.mock('@/components/trips/DeferredDialogs', () => ({
-  CreateTripDialog: () => null,
+  CreateTripDialog: ({
+    open,
+    onSuccess,
+  }: {
+    open: boolean;
+    onSuccess: (trip: { id: string }) => void;
+  }) =>
+    open ? <button onClick={() => onSuccess({ id: 'new-trip' })}>finish creation</button> : null,
   ExpenseFormSheet: ({ tripName, tripId }: { tripName: string; tripId: string }) => (
     <p>
       expense-form {tripId} {tripName}
@@ -71,4 +80,12 @@ it('still asks which trip outside a trip', () => {
   render(<GlobalQuickAddFlow open preferredTripId={null} onClose={vi.fn()} />);
   expect(screen.getByText('pickTrip')).toBeInTheDocument();
   expect(screen.queryByText(/expense-form/)).not.toBeInTheDocument();
+});
+
+it('continues into the expense form with only the committed trip ID', () => {
+  mocks.useTrips.mockReturnValue({ data: [], isLoading: false });
+  render(<GlobalQuickAddFlow open preferredTripId={null} onClose={vi.fn()} />);
+  fireEvent.click(screen.getByRole('button', { name: 'createTrip' }));
+  fireEvent.click(screen.getByRole('button', { name: 'finish creation' }));
+  expect(screen.getByText('expense-form new-trip trip:new-trip')).toBeInTheDocument();
 });

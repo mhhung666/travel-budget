@@ -92,7 +92,7 @@ export const getTripShell = withAuth(
  * Create a new trip
  */
 export const createTrip = withAuth(
-  async (session, input: CreateTripInput): Promise<ActionResult<Trip>> => {
+  async (session, input: CreateTripInput): Promise<ActionResult<Pick<Trip, 'id'>>> => {
     try {
       const validation = createTripSchema.safeParse(input);
       if (!validation.success) {
@@ -121,15 +121,14 @@ export const createTrip = withAuth(
         undefined,
         destination_location
       );
-      const trip = await TripModel.findById(result.tripId).lean<LeanTrip>();
-      if (!trip) return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
-
       try {
         revalidatePath('/trips');
       } catch {
         logger.error('Trip cache refresh failed');
       }
-      return { success: true, data: toTripDto(trip, session.userId) };
+      // The write is committed. Navigation needs only its ID; a later read failure
+      // must not invite the form to create another trip with a new UUID.
+      return { success: true, data: { id: result.tripId } };
     } catch (error) {
       logger.error('Create trip error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
@@ -385,7 +384,13 @@ export const joinTrip = withAuth(
         },
         deliverJoinNotification
       );
-      const trip = await TripModel.findById(result.tripId).lean<LeanTrip>();
+      // Notification delivery may have awaited removal or deletion after commit.
+      // Authorize in the same query that reads the current private trip fields.
+      const trip = await TripModel.findOne({
+        _id: result.tripId,
+        'members.user': session.userId,
+        expenseDeliveryDeleting: { $ne: true },
+      }).lean<LeanTrip>();
       if (!trip) return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
 
       try {

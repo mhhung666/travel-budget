@@ -3,25 +3,44 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TripWithMembers } from '@/types';
 
-const mocks = vi.hoisted(() => ({ getTrips: vi.fn() }));
+const mocks = vi.hoisted(() => ({ getTrips: vi.fn(), push: vi.fn() }));
 vi.mock('@/actions', () => ({ getTrips: mocks.getTrips }));
 vi.mock('@/actions/tripLanding.actions', () => ({ getTripLanding: vi.fn() }));
 vi.mock('@/components/providers/QueryProvider', () => ({ useAuthenticatedSession: () => true }));
-vi.mock('@/i18n/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock('@/i18n/navigation', () => ({ useRouter: () => ({ push: mocks.push }) }));
 vi.mock('@/hooks/queries', async () => {
   const { useTrips } = await import('@/hooks/queries/useTripQueries');
   const { tripKeys } = await import('@/hooks/queries/keys');
   return { useTrips, tripKeys, useTripArchiveMutations: () => ({}) };
 });
 vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: vi.fn() }) }));
-vi.mock('@/components/trips/CreateTripDialog', () => ({ default: () => null }));
-vi.mock('@/components/trips/JoinTripDialog', () => ({ default: () => null }));
+vi.mock('@/components/trips/DeferredDialogs', () => ({
+  CreateTripDialog: ({
+    open,
+    onSuccess,
+  }: {
+    open: boolean;
+    onSuccess: (trip: { id: string }) => void;
+  }) =>
+    open ? (
+      <button onClick={() => onSuccess({ id: 'committed-trip' })}>finish creation</button>
+    ) : null,
+  JoinTripDialog: () => null,
+  TripExpenseQuickAdd: () => null,
+}));
 vi.mock('@/components/trips/TripList', () => ({
   default: ({ trips }: { trips: TripWithMembers[] }) => (
     <div>{trips.map((trip) => trip.name).join(',')}</div>
   ),
 }));
-vi.mock('@/components/trips/EmptyTripsState', () => ({ default: () => <p>empty-trips</p> }));
+vi.mock('@/components/trips/EmptyTripsState', () => ({
+  default: ({ onCreate }: { onCreate: () => void }) => (
+    <div>
+      <p>empty-trips</p>
+      <button onClick={onCreate}>createTrip</button>
+    </div>
+  ),
+}));
 vi.mock('@/components/skeletons', () => ({ TripsPageSkeleton: () => <p>trip-skeleton</p> }));
 vi.mock('@/components/map', () => ({
   TripMapView: ({ loading }: { loading: boolean }) => (
@@ -53,6 +72,14 @@ function mount() {
   );
 }
 describe('trip list query feedback', () => {
+  it('navigates to the created ID when only a commit receipt is returned', async () => {
+    mocks.getTrips.mockResolvedValue({ success: true, data: [] });
+    mount();
+    await screen.findByText('empty-trips');
+    fireEvent.click(screen.getByRole('button', { name: 'createTrip' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'finish creation' }));
+    expect(mocks.push).toHaveBeenCalledWith('/trips/committed-trip');
+  });
   it('preserves the cached map on background failure', async () => {
     client.setQueryData(tripKeys.list, []);
     mocks.getTrips.mockResolvedValue({ success: false, error: 'INTERNAL_ERROR' });

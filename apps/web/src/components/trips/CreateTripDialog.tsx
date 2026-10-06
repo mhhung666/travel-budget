@@ -25,7 +25,7 @@ import { trackProductEvent } from '@/lib/productEvents';
 interface CreateTripDialogProps {
   open: boolean;
   onClose: () => void;
-  onSuccess: (trip: Trip) => void;
+  onSuccess: (trip: Pick<Trip, 'id'>) => void;
 }
 
 const FORM_ID = 'create-trip-form';
