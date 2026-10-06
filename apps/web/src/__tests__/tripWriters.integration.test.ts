@@ -61,7 +61,7 @@ vi.mock('@/lib/photoSanitize', () => ({
 vi.mock('next/server', () => ({ after: vi.fn() }));
 vi.mock('@/lib/auth', () => ({ getSession: mocks.session }));
 vi.mock('@/lib/mongodb', () => ({ dbConnect: vi.fn() }));
-vi.mock('@/lib/notify', () => ({ notify: mocks.notify }));
+vi.mock('@/lib/notify', () => ({ notify: mocks.notify, deliverJoinNotification: mocks.notify }));
 vi.mock('@/lib/activity', () => ({ logActivity: mocks.activity }));
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 const uri = process.env.MONGODB_MEMBER_TEST_URI;
@@ -342,7 +342,7 @@ describe.skipIf(!uri || !allowed)('trip writers against isolated replica set', (
   it('only joins once when two requests race and rejects deleting trips', async () => {
     mocks.session.mockResolvedValue({ userId: real.toHexString() });
     const results = await Promise.all([joinTrip(tripId), joinTrip(tripId)]);
-    expect(results.filter((r) => r.success)).toHaveLength(1);
+    expect(results.filter((r) => r.success)).toHaveLength(2);
     expect((await Trip.findById(tripId))!.members.filter((m) => m.user.equals(real))).toHaveLength(
       1
     );

@@ -50,6 +50,24 @@ export function TripsScreen() {
           <View style={{ gap: 16, marginBottom: 20 }}>
             <Copy>{user?.displayName}</Copy>
             <Title>{t.trips}</Title>
+            <Action
+              testID="create-trip"
+              label={t.createTrip}
+              disabled={!online}
+              onPress={() => router.push('/trips/create')}
+            />
+            <Action
+              testID="join-trip"
+              label={t.joinTrip}
+              disabled={!online}
+              onPress={() => router.push('/trips/join')}
+            />
+            <Action
+              secondary
+              testID="pending-operations"
+              label={t.pendingOperations}
+              onPress={() => router.push('/trips/operations')}
+            />
             <Copy>{t.tripsHint}</Copy>
             <Action
               testID="logout"

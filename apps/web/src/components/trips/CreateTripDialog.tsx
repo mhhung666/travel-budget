@@ -175,6 +175,7 @@ export default function CreateTripDialog({ open, onClose, onSuccess }: CreateTri
           <Label htmlFor="name">{t('create.name')}</Label>
           <Input
             id="name"
+            maxLength={100}
             value={formData.name}
             placeholder={t('create.namePlaceholder')}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -210,6 +211,7 @@ export default function CreateTripDialog({ open, onClose, onSuccess }: CreateTri
               <Label htmlFor="description">{t('create.description')}</Label>
               <Textarea
                 id="description"
+                maxLength={2000}
                 value={formData.description}
                 placeholder={t('create.descriptionPlaceholder')}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}

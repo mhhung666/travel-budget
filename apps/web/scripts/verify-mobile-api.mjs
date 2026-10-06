@@ -26,6 +26,7 @@ import {
   expenseRequestSchema,
 } from '@travel-budget/contracts';
 import { up as migrateSessions } from '../migrations/20261002100000-mobile-session-expiry.js';
+import { up as migrateMutations } from '../migrations/20261006100000-mutation-requests.js';
 import { up as migrateRequests } from '../migrations/20260912160000-expense-create-requests.js';
 
 const args = new Set(process.argv.slice(2));
@@ -121,6 +122,8 @@ try {
   );
   await migrateSessions(db);
   await migrateRequests(db);
+  await migrateMutations(db);
+  await migrateMutations(db);
   const now = new Date();
   const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   const day = new Date(`${date}T00:00:00.000Z`);
@@ -1657,6 +1660,76 @@ try {
   await refresh(first, 401);
   await me(rotated, 401);
   await me(other);
+  // E1: real HTTP, replica-set transactions and database counts, no production service.
+  const eTransactions = await exec('pnpm', ['exec', 'vitest', 'run', 'src/__tests__/tripEntry.integration.test.ts'], { env: { ...process.env, MONGODB_E1_TEST_URI: uri, MONGODB_E1_TEST_ALLOW_WRITES: '1' }, maxBuffer: 1024 * 1024 });
+  assert(eTransactions.stdout.includes('4 passed'), 'E1 transaction cases did not run');
+  pass('E1 real transaction rollback, competing terminal results and post-commit effect failures');
+  const eCreator = await login('mobile-empty');
+  const eJoiner = await login('mobile-b');
+  const eCreate = { client_request_id: randomUUID(), name: 'TEST E1', description: ' Entry ', start_date: '2024-02-29', end_date: '2025-01-01' };
+  const eRequest = (path, body, token = eCreator.accessToken, status = 200) => request(path, { body, token, status });
+  const eAccepted = await Promise.all(Array.from({ length: 6 }, () => eRequest('/trips', eCreate)));
+  assert(eAccepted.every(r => r.data.tripId === eAccepted[0].data.tripId));
+  const eTripId = new mongoose.Types.ObjectId(eAccepted[0].data.tripId);
+  const eTrip = await db.collection('trips').findOne({ _id: eTripId });
+  assert.equal(eTrip.members.length, 1); assert.equal(eTrip.members[0].role, 'admin');
+  assert.equal(eTrip.description, 'Entry'); assert.match(eTrip.hashCode, /^[a-z0-9]{8}$/);
+  assert.equal(await db.collection('trips').countDocuments({ name: 'TEST E1' }), 1);
+  assert.equal(await db.collection('mutationrequests').countDocuments({ _id: `${eCreator.user.id}:${eCreate.client_request_id}` }), 1);
+  const eLanding = await request(`/trips/${eTripId}/landing`, { token: eCreator.accessToken });
+  assert.equal(eLanding.data.mySpent, 0); assert.equal(eLanding.data.myBalance, 0);
+  assert.equal('code' in eLanding.data, false); assert.equal('hashCode' in eLanding.data, false);
+  const invitation = (await eRequest(`/trips/${eTripId}/invitation`)).data;
+  assert.deepEqual(invitation, { code: eTrip.hashCode, url: `${origin}/join/${eTrip.hashCode}` });
+  await eRequest(`/trips/${eTripId}/invitation`, undefined, eJoiner.accessToken, 404);
+  await eRequest('/trips', { ...eCreate, name: 'Changed' }, eCreator.accessToken, 409);
+  await eRequest('/trips/join', { client_request_id: eCreate.client_request_id, invite_code: eTrip.hashCode }, eCreator.accessToken, 409);
+  for (const invalid of [{ name: '   ' }, { name: 'x'.repeat(101) }, { start_date: '2025-02-29' }, { start_date: '2026-01-02', end_date: '2026-01-01' }, { destination: 'Tokyo' }]) await eRequest('/trips', { ...eCreate, client_request_id: randomUUID(), ...invalid }, eCreator.accessToken, 400);
+  for (const dates of [[null, null], [null, '2026-01-01'], ['2026-01-01', null]]) await eRequest('/trips', { ...eCreate, client_request_id: randomUUID(), name: 'TEST E1 optional', start_date: dates[0], end_date: dates[1] });
+  const eJoin = { client_request_id: randomUUID(), invite_code: eTrip.hashCode.toUpperCase() };
+  const joined = await Promise.all(Array.from({ length: 6 }, () => eRequest('/trips/join', eJoin, eJoiner.accessToken)));
+  assert(joined.every(r => r.data.tripId === eTripId.toString() && r.data.alreadyMember === false));
+  assert.equal((await db.collection('trips').findOne({ _id: eTripId })).members.length, 2);
+  assert.equal(await db.collection('activitylogs').countDocuments({ trip: eTripId, type: 'member_joined' }), 1);
+  assert.equal(await db.collection('notifications').countDocuments({ trip: eTripId, type: 'member_joined' }), 1);
+  assert.equal((await eRequest('/trips/join', { ...eJoin, client_request_id: randomUUID() }, eJoiner.accessToken)).data.alreadyMember, true);
+  assert.equal(await db.collection('activitylogs').countDocuments({ trip: eTripId }), 1);
+  await db.collection('trips').updateOne({ _id: eTripId }, { $pull: { members: { user: new mongoose.Types.ObjectId(eJoiner.user.id) } } });
+  await eRequest('/trips/join', eJoin, eJoiner.accessToken, 404);
+  await eRequest(`/mutation-requests/${eJoin.client_request_id}`, undefined, eJoiner.accessToken, 404);
+  assert.equal((await db.collection('trips').findOne({ _id: eTripId })).members.length, 1);
+  await db.collection('trips').updateOne({ _id: eTripId }, { $set: { hashCode: 'abc123' } });
+  const invalidJoin = { client_request_id: randomUUID(), invite_code: eTrip.hashCode };
+  await eRequest('/trips/join', invalidJoin, eJoiner.accessToken, 404);
+  assert.equal((await eRequest(`/mutation-requests/${invalidJoin.client_request_id}`, undefined, eJoiner.accessToken)).data.status, 'rejected');
+  await eRequest('/trips/join', { client_request_id: randomUUID(), invite_code: eTripId.toString() }, eJoiner.accessToken, 400);
+  await eRequest('/trips/join', { client_request_id: randomUUID(), invite_code: 'abc123' }, eJoiner.accessToken);
+  // A dropped acknowledgement is recovered by the same account UUID, never name matching.
+  const eLost = { ...eCreate, client_request_id: randomUUID(), name: 'TEST E1 lost' };
+  const eSocket = connect(port, '127.0.0.1'); eSocket.on('error', () => {}); await once(eSocket, 'connect');
+  const eText = JSON.stringify(eLost);
+  eSocket.write(`POST /api/v1/trips HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\nAuthorization: Bearer ${eCreator.accessToken}\r\nContent-Type: application/json\r\nContent-Length: ${Buffer.byteLength(eText)}\r\nConnection: close\r\n\r\n${eText}`);
+  await eventually(async () => await db.collection('mutationrequests').countDocuments({ _id: `${eCreator.user.id}:${eLost.client_request_id}` }) === 1, 'E1 dropped response never committed', 20000);
+  eSocket.destroy();
+  const eRecovered = (await eRequest(`/mutation-requests/${eLost.client_request_id}`)).data;
+  assert.equal(eRecovered.status, 'committed');
+  assert.equal((await eRequest('/trips', eLost)).data.tripId, eRecovered.resourceId);
+  assert.equal(await db.collection('trips').countDocuments({ name: 'TEST E1 lost' }), 1);
+  assert.equal((await eRequest(`/mutation-requests/${eLost.client_request_id}`, undefined, eJoiner.accessToken)).data.status, 'not_found');
+  await db.collection('trips').deleteOne({ _id: new mongoose.Types.ObjectId(eRecovered.resourceId) });
+  await eRequest(`/mutation-requests/${eLost.client_request_id}`, undefined, eCreator.accessToken, 404);
+  await eRequest('/trips', eLost, eCreator.accessToken, 404);
+  assert.equal(await db.collection('mutationrequests').countDocuments({ _id: `${eCreator.user.id}:${eLost.client_request_id}` }), 1);
+  pass('E1: create/join receipts, concurrent membership/effect dedupe, invitation privacy, revoked/deleted replay, old code, strict dates, dropped response');
+  // Keep --serve's established empty-account/ledger fixtures pristine for C/D device suites.
+  const eFixtureTrips = await db.collection('trips').find({ name: /^TEST E1/, 'members.user': new mongoose.Types.ObjectId(eCreator.user.id) }, { projection: { _id: 1 } }).toArray();
+  const eTripIds = eFixtureTrips.map(trip => trip._id);
+  for (const name of ['notifications', 'activitylogs']) await db.collection(name).deleteMany({ trip: { $in: eTripIds } });
+  await db.collection('trips').deleteMany({ _id: { $in: eTripIds } });
+  await db.collection('mutationrequests').deleteMany({});
+  assert.equal(await db.collection('trips').countDocuments({ 'members.user': new mongoose.Types.ObjectId(eCreator.user.id) }), 0);
+
+
   const concurrent = await login();
   const races = await Promise.all(
     [0, 1].map(() =>

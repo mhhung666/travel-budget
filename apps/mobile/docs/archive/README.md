@@ -67,3 +67,7 @@ D 顯示的 32 組操作與資料核對已完成：每平台四語 × 預設／�
 - D 剩餘補驗：`/tmp/tb-d-remaining-{android-refresh-revocation,android-late-races,ios-races}.log`（`CexLDX`、`dIeTHi`；Android 晚到案例路徑見 log）。C 序列 Android 原跑次 `5FkXVa` 保留失敗總結，以 `verified-serial-revocation.json` 獨立核對 enqueue 在真 C probe 後、實際拒絕前，release 後確實到達 HTTP guard。繁中最大／深色重啟為 `pjqAnC`、iOS `7JQNPM` 原失敗及 `/tmp/tb-d-remaining-ios-manual/verified-manual-{restoration,discard}.json`。
 - D 顯示／視覺：`/tmp/tb-d-display-{android,android-2,android-3,android-4,ios-2}.log`、`/tmp/tb-d-remaining-matrix-evidence.json` 核對 32 組操作；iOS 原生輔助產物 `/tmp/tb-d-display-ios-manual/<語系>-<字級>-<外觀>/verified.json` 保存 SQL、HTTP、DB 與截圖。日文預設深色觀察器暫時讀取失敗，保留原 log 並獨立補讀捨棄後同一 scope，JSON 註記限制；其餘原工具失敗亦保留。P2 截圖：`/tmp/tb-d-display-ios-manual/jp-largest-dark/members-light.png`，程式位置 `src/components/ui.tsx:294`。
 - VoiceOver 錯誤／私人資料：`/tmp/tb-d-remaining-ios-manual/verified-voiceover-errors-privacy.json`、`/tmp/tb-d-remaining-vo-*.json` 保存實際朗讀與核對。`Remaining.xcresult` 觀察器逾時、`Remaining2.xcresult` 正常結束；退出狀態不代替功能通過。最新開發檢查為 `/tmp/tb-d-remaining-final-{tests,check,export,expo}.log`。
+
+## E1 旅行入口（2026-10-06）
+
+已實作線上建立／加入、邀請複製／分享與確認後 SQLite／UUID 恢復；Web／HTTP 共用交易與獨立 receipt，通知／動態防重，撤權／刪除不重播。真 SQLite、隔離 MongoDB 交易與實際 HTTP 已核對保存／丟回應／重啟、併發、終局拒絕與 429 隔離；現況見 [FEATURES](../FEATURES.md) 與 [契約](../BACKEND_CONTRACT.md#e1-旅行入口與操作-receipt)。Web 2,006、Mobile 644 個測試、4 個真交易案例、HTTP／MongoDB、根 check／build、frozen install、三平台匯出與 Expo 相容性通過。E1 兩平台新畫面仍待獨立操作驗收，清單見 [本機驗收](../LOCAL_ACCEPTANCE.md#e1-旅行入口驗收交接)；E2–E4 仍為待辦，未部署／執行遠端 migration。

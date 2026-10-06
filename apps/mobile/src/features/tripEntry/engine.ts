@@ -1,0 +1,244 @@
+import {
+  mutationRequestSchema,
+  tripMutationResultSchema,
+  type MutationRequest,
+} from '@travel-budget/contracts';
+import { ApiError } from '@/api/client';
+import { LocalRateLimitError, type EntryRequest } from '@/features/expenses/entry';
+import type { PendingScope } from '@/storage/pendingExpenses';
+import {
+  mutationPayload,
+  type MutationPayload,
+  type MutationStore,
+  type PendingMutation,
+} from '@/storage/mutations';
+export type MutationOutcome =
+  | { kind: 'completed'; result: MutationRequest }
+  | { kind: 'pending'; error?: unknown }
+  | { kind: 'not-sent'; error?: unknown }
+  | { kind: 'blocked' };
+interface Deps {
+  store: () => Promise<MutationStore>;
+  request: EntryRequest;
+  newId: () => string;
+  active: (scope: PendingScope) => boolean;
+  /** Capture a synchronous guard before SQLite/serial waits; rejects intervening sign-in changes. */
+  guard?: (scope: PendingScope) => () => void;
+  now?: () => number;
+  changed?: (scope: PendingScope) => void;
+  committed?: (scope: PendingScope, tripId: string) => unknown;
+}
+export class TripEntry {
+  private flights = new Map<string, Promise<MutationOutcome>>();
+  private now: () => number;
+  constructor(private deps: Deps) {
+    this.now = deps.now ?? Date.now;
+  }
+  list(scope: PendingScope) {
+    return this.deps.store().then((store) => store.list(scope));
+  }
+  private run(
+    scope: PendingScope,
+    task: (guard: () => void) => Promise<MutationOutcome>
+  ): Promise<MutationOutcome> {
+    const key = JSON.stringify([scope.environment, scope.accountId]);
+    const running = this.flights.get(key);
+    if (running) return Promise.resolve({ kind: 'blocked' });
+    const captured = this.deps.guard?.(scope);
+    const guard = () => {
+      captured?.();
+      if (!this.deps.active(scope)) throw new ApiError('CANCELLED');
+    };
+    const work = Promise.resolve()
+      .then(() => task(guard))
+      .finally(() => {
+        if (this.flights.get(key) === work) this.flights.delete(key);
+        this.deps.changed?.(scope);
+      });
+    this.flights.set(key, work);
+    return work;
+  }
+  confirm(
+    scope: PendingScope,
+    payload:
+      | {
+          operation: 'trip.create';
+          body: Omit<
+            Extract<MutationPayload, { operation: 'trip.create' }>['body'],
+            'client_request_id'
+          >;
+        }
+      | { operation: 'trip.join'; body: { invite_code: string } }
+  ) {
+    return this.run(scope, async (guard) => {
+      let record: PendingMutation;
+      let store: MutationStore;
+      try {
+        guard();
+        store = await this.deps.store();
+        await this.ready(store, scope, guard);
+        const parsed = mutationPayload.parse({
+          ...payload,
+          body: { ...payload.body, client_request_id: this.deps.newId() },
+        });
+        record = {
+          ...scope,
+          operation: parsed.operation,
+          payload: parsed,
+          result: null,
+          clientRequestId: parsed.body.client_request_id,
+          status: 'pending',
+          conflict: false,
+          createdAt: this.now(),
+        };
+        if (!(await store.insert(record))) return { kind: 'blocked' };
+      } catch (error) {
+        return { kind: 'not-sent', error };
+      }
+      return this.send(store, record, guard);
+    });
+  }
+  lookup(scope: PendingScope, key: string) {
+    return this.run(scope, async (guard) => {
+      try {
+        const store = await this.deps.store();
+        const record = await store.get(scope, key);
+        if (!record) return { kind: 'blocked' };
+        if (record.result) return { kind: 'completed', result: record.result };
+        return await this.query(store, record, guard);
+      } catch (error) {
+        return { kind: 'pending', error };
+      }
+    });
+  }
+  retry(scope: PendingScope, key: string) {
+    return this.run(scope, async (guard) => {
+      try {
+        const store = await this.deps.store();
+        const record = await store.get(scope, key);
+        if (!record) return { kind: 'blocked' };
+        if (record.result) return { kind: 'completed', result: record.result };
+        // Every retry first asks for the original terminal result, including after a crash before POST.
+        const queried = await this.query(store, record, guard);
+        if (queried.kind !== 'pending' || queried.error || record.conflict) return queried;
+        return this.send(store, record, guard);
+      } catch (error) {
+        return { kind: 'pending', error };
+      }
+    });
+  }
+  async recover(scope: PendingScope) {
+    const records = await this.list(scope);
+    for (const record of records) {
+      if (!this.deps.active(scope)) return;
+      if (record.status === 'pending') await this.lookup(scope, record.clientRequestId);
+    }
+  }
+  async dismiss(scope: PendingScope, key: string) {
+    await (await this.deps.store()).dismiss(scope, key);
+    this.deps.changed?.(scope);
+  }
+  private async ready(store: MutationStore, scope: PendingScope, guard: () => void) {
+    guard();
+    const until = await store.retryAt(scope);
+    guard();
+    if (until > this.now()) throw new LocalRateLimitError(until, this.now());
+  }
+  private beforeSend(store: MutationStore, scope: PendingScope, guard: () => void) {
+    return () => {
+      guard();
+      const until = store.rateLimitUntil(scope);
+      if (until > this.now()) throw new LocalRateLimitError(until, this.now());
+    };
+  }
+  private async failed(
+    store: MutationStore,
+    record: PendingMutation,
+    error: unknown
+  ): Promise<MutationOutcome> {
+    try {
+      if (
+        error instanceof ApiError &&
+        error.status === 429 &&
+        !(error instanceof LocalRateLimitError)
+      )
+        await store.pause(record, this.now() + (error.retryAfter ?? 30) * 1000);
+      if (error instanceof ApiError && error.status === 409 && error.source === 'request')
+        await store.conflict(record, record.clientRequestId);
+    } catch (saveError) {
+      return { kind: 'pending', error: saveError };
+    }
+    return { kind: 'pending', error };
+  }
+  private async finish(
+    store: MutationStore,
+    record: PendingMutation,
+    result: MutationRequest
+  ): Promise<MutationOutcome> {
+    if (result.status === 'not_found') return { kind: 'pending' };
+    await store.complete(record, record.clientRequestId, result);
+    if (result.status === 'committed')
+      await Promise.resolve()
+        .then(() => this.deps.committed?.(record, result.resourceId))
+        .catch(() => undefined);
+    return { kind: 'completed', result };
+  }
+  private async query(
+    store: MutationStore,
+    record: PendingMutation,
+    guard: () => void
+  ): Promise<MutationOutcome> {
+    try {
+      await this.ready(store, record, guard);
+      const result = await this.deps.request(
+        record.accountId,
+        `/mutation-requests/${record.clientRequestId}`,
+        mutationRequestSchema,
+        { beforeSend: this.beforeSend(store, record, guard) }
+      );
+      guard();
+      // A UUID collision may resolve another operation: display its result without replaying ours.
+      return await this.finish(store, record, result);
+    } catch (error) {
+      return this.failed(store, record, error);
+    }
+  }
+  private async send(
+    store: MutationStore,
+    record: PendingMutation,
+    guard: () => void
+  ): Promise<MutationOutcome> {
+    try {
+      await this.ready(store, record, guard);
+      const result = await this.deps.request(
+        record.accountId,
+        record.operation === 'trip.create' ? '/trips' : '/trips/join',
+        tripMutationResultSchema,
+        {
+          method: 'POST',
+          body: record.payload!.body,
+          beforeSend: this.beforeSend(store, record, guard),
+        }
+      );
+      guard();
+      return await this.finish(store, record, {
+        status: 'committed',
+        operation: record.operation,
+        resourceId: result.tripId,
+        result,
+      });
+    } catch (error) {
+      const failed = await this.failed(store, record, error);
+      // Preserve all earlier ambiguity, even API input rejection; only a terminal receipt clears it.
+      if (
+        failed.kind === 'pending' &&
+        failed.error === error &&
+        error instanceof ApiError &&
+        [404, 409].includes(error.status) &&
+        error.source === 'request'
+      )
+        return this.query(store, record, guard);
+      return failed;
+    }
+  }
+}

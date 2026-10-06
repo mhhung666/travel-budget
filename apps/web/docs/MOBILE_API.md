@@ -37,3 +37,9 @@
 `dev:mobile-api` 的獨立 loopback 控制通道供 Maestro 撤銷／到期隔離帳號的 session，採每次執行的隨機憑證並隨環境關閉。它只在測試腳本內存在，不加入 Next.js routes 或共用契約，也不隨 `--lan` 對外開放。
 
 Web／後端 workspace 名稱為 `@travel-budget/web`；在根目錄可用 `pnpm --filter @travel-budget/web exec vitest run <test-path>`。依賴使用根 lockfile，版本與環境設定仍屬各 app。手機程式現在位於同 repository 的 `apps/mobile`；既有 `travel-budget-mobile` repository 已棄用。
+
+## E1 旅行建立／加入
+
+新增 `POST /trips`、`POST /trips/join`、`GET /trips/:id/invitation` 與 `GET /mutation-requests/:uuid`，現行契約以共用 schema／OpenAPI 及 [Mobile 契約](../../mobile/docs/BACKEND_CONTRACT.md#e1-旅行入口與操作-receipt) 為準。`lib/tripEntry.ts` 抽離 cookie，Web／HTTP 共用交易；同帳號 UUID 的 receipt 保留終局結果，成功、成員變更與通知／動態原子提交，重播先重新授權。手機只接受有效邀請碼，Web adapter 保留 ObjectId 相容入口；已加入回成功。
+
+migration `20261006100000-mutation-requests.js` 使用既有 Trip hashCode 唯一索引及 account:uuid 的 `_id` 唯一約束，無 TTL，rollback 不丟 receipt。隔離 `test:mobile-api` 可重跑 migration，核對真 HTTP／交易與資料庫筆數；本次未執行遠端 migration。邀請 URL 由 `APP_URL` origin 產生，只在成員明確取邀請時輸出，列表／landing DTO 不增加碼。後端先部署相容能力與必要索引，再發手機。

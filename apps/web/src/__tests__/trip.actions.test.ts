@@ -32,6 +32,11 @@ const cascade = {
   usage: vi.fn(),
 };
 
+const entry = vi.hoisted(() => ({ enter: vi.fn() }));
+vi.mock('@/lib/tripEntry', async (original) => ({
+  ...(await original<typeof import('@/lib/tripEntry')>()),
+  enterTrip: entry.enter,
+}));
 const deletion = vi.hoisted(() => ({ commit: vi.fn(), cleanup: vi.fn() }));
 vi.mock('@/lib/tripDeletion', () => ({
   deleteTripAtomically: deletion.commit,
@@ -63,7 +68,10 @@ vi.mock('@/lib/hashcode', () => ({
 vi.mock('@/lib/storage', () => ({
   deleteByPrefix: (...args: unknown[]) => deleteByPrefix(...args),
 }));
-vi.mock('@/lib/notify', () => ({ notify: (...args: unknown[]) => notify(...args) }));
+vi.mock('@/lib/notify', () => ({
+  notify: (...args: unknown[]) => notify(...args),
+  deliverJoinNotification: vi.fn(),
+}));
 vi.mock('@/lib/activity', () => ({ logActivity: (...args: unknown[]) => logActivity(...args) }));
 vi.mock('@/lib/photoItinerary', () => ({ rebindAutoPhotosToItinerary: vi.fn() }));
 vi.mock('@/lib/logger', () => ({
@@ -200,7 +208,8 @@ describe('createTrip', () => {
 
   it('creates the caller as admin with a generated share code', async () => {
     const doc = tripDoc({ hashCode: 'newcode1', name: 'Tokyo 2026' });
-    tripCreate.mockResolvedValue({ toObject: () => doc });
+    entry.enter.mockResolvedValue({ tripId: TRIP });
+    tripFindById.mockReturnValue(lean(doc));
     const result = await createTrip({
       name: ' Tokyo 2026 ',
       description: '  Autumn trip  ',
@@ -209,14 +218,19 @@ describe('createTrip', () => {
     });
 
     expect(result.success).toBe(true);
-    expect(tripExists).toHaveBeenCalledWith({ hashCode: 'newcode1' });
-    expect(tripCreate).toHaveBeenCalledWith(
+    expect(entry.enter).toHaveBeenCalledWith(
+      undefined,
+      USER,
+      'trip.create',
       expect.objectContaining({
         name: 'Tokyo 2026',
         description: 'Autumn trip',
-        hashCode: 'newcode1',
-        members: [{ user: USER, role: 'admin' }],
-      })
+        start_date: '2026-09-01',
+        end_date: '2026-09-05',
+        client_request_id: expect.any(String),
+      }),
+      undefined,
+      undefined
     );
     expect(revalidatePath).toHaveBeenCalledWith('/trips');
   });
@@ -283,50 +297,36 @@ describe('admin-only trip mutations', () => {
 });
 
 describe('joinTrip', () => {
-  it('rejects an empty code and an existing member without mutating the trip', async () => {
-    const empty = await joinTrip('');
-    expect(empty).toEqual({ success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' });
-
-    const conflict = await joinTrip('oldcode1');
-    expect(conflict).toEqual({ success: false, error: 'CONFLICT', code: 'CONFLICT' });
-    expect(tripFindOneAndUpdate).not.toHaveBeenCalled();
+  it('rejects an empty code before calling the shared service', async () => {
+    expect(await joinTrip('')).toEqual({
+      success: false,
+      error: 'VALIDATION_ERROR',
+      code: 'VALIDATION_ERROR',
+    });
+    expect(entry.enter).not.toHaveBeenCalled();
   });
-
-  it('joins by share code and emits member notifications only after success', async () => {
-    getTripMembership.mockResolvedValue(null);
-    tripFindOneAndUpdate.mockReturnValue(lean(tripDoc()));
-    const result = await joinTrip('oldcode1');
-    expect(result.success).toBe(true);
-    expect(tripFindOneAndUpdate).toHaveBeenCalledWith(
-      {
-        $or: [{ hashCode: 'oldcode1' }],
-        'members.user': { $ne: USER },
-        expenseDeliveryDeleting: { $ne: true },
-      },
-      { $push: { members: { user: USER, role: 'member' } } },
-      { new: true }
+  it('uses the shared service and returns an already joined trip successfully', async () => {
+    entry.enter.mockResolvedValue({ tripId: TRIP, alreadyMember: true });
+    tripFindById.mockReturnValue(lean(tripDoc()));
+    expect((await joinTrip('oldcode1')).success).toBe(true);
+    expect(entry.enter).toHaveBeenCalledWith(
+      undefined,
+      USER,
+      'trip.join',
+      expect.objectContaining({ invite_code: 'oldcode1', client_request_id: expect.any(String) }),
+      expect.any(Function)
     );
-    expect(notify).toHaveBeenCalledWith({
-      tripId: TRIP,
-      actorId: USER,
-      type: 'member_joined',
-    });
-    expect(logActivity).toHaveBeenCalledWith({
-      tripId: TRIP,
-      actorId: USER,
-      type: 'member_joined',
-    });
+    expect(notify).not.toHaveBeenCalled();
+    expect(logActivity).not.toHaveBeenCalled();
   });
-
-  it('returns not found and emits no side effects for an unknown code', async () => {
-    getTripMembership.mockResolvedValue(null);
-    tripFindOneAndUpdate.mockReturnValue(lean(null));
+  it('maps invalid invitations without performing adapter side effects', async () => {
+    const { TripEntryError } = await import('@/lib/tripEntry');
+    entry.enter.mockRejectedValueOnce(new TripEntryError('INVITATION_INVALID'));
     expect(await joinTrip('missing1')).toEqual({
       success: false,
       error: 'NOT_FOUND',
       code: 'NOT_FOUND',
     });
     expect(notify).not.toHaveBeenCalled();
-    expect(logActivity).not.toHaveBeenCalled();
   });
 });

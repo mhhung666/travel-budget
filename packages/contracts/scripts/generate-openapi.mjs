@@ -16,12 +16,22 @@ import {
   expenseCreateInput,
   expenseRequestSchema,
   MAX_EXPENSE_AMOUNT,
+  tripCreateInput,
+  tripJoinInput,
+  tripMutationResultSchema,
+  invitationSchema,
+  mutationRequestSchema,
 } from '../src/index.ts';
 
 const maxAmount = MAX_EXPENSE_AMOUNT.toLocaleString('en-US', { minimumFractionDigits: 2 });
 
 const schemas = Object.fromEntries(
   Object.entries({
+    TripCreateInput: tripCreateInput,
+    TripJoinInput: tripJoinInput,
+    TripMutationResult: tripMutationResultSchema,
+    Invitation: invitationSchema,
+    MutationRequest: mutationRequestSchema,
     LoginInput: loginInput,
     RefreshInput: refreshInput,
     User: userSchema,
@@ -39,7 +49,9 @@ const schemas = Object.fromEntries(
     Logout: z.object({ loggedOut: z.literal(true) }),
     Error: z.object({ error: z.object({ code: z.string() }), requestId: z.string() }),
   }).map(([name, schema]) => {
-    const { $schema, ...json } = z.toJSONSchema(schema);
+    const { $schema, ...json } = z.toJSONSchema(schema, {
+      io: ['TripCreateInput', 'TripJoinInput'].includes(name) ? 'input' : 'output',
+    });
     return [name, json];
   })
 );
@@ -87,7 +99,33 @@ const paths = {
   '/auth/refresh': { post: operation('refresh', 'Session', 'RefreshInput') },
   '/auth/logout': { post: operation('logout', 'Logout', 'RefreshInput') },
   '/me': { get: operation('me', 'User') },
+  '/trips/join': {
+    post: operation('joinTrip', 'TripMutationResult', 'TripJoinInput', {
+      authenticated: true,
+      errors: [409],
+    }),
+  },
+  '/mutation-requests/{clientRequestId}': {
+    get: {
+      ...operation('mutationRequest', 'MutationRequest'),
+      parameters: [
+        {
+          name: 'clientRequestId',
+          in: 'path',
+          required: true,
+          schema: { type: 'string', format: 'uuid' },
+        },
+      ],
+    },
+  },
+  '/trips/{id}/invitation': {
+    get: { ...operation('invitation', 'Invitation'), parameters: [tripIdParam] },
+  },
   '/trips': {
+    post: operation('createTrip', 'TripMutationResult', 'TripCreateInput', {
+      authenticated: true,
+      errors: [409],
+    }),
     get: {
       ...operation('trips', 'Trips'),
       parameters: [

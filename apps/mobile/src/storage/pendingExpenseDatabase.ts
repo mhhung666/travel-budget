@@ -1,3 +1,4 @@
+import { createMutationStore } from './mutations';
 import * as SQLite from 'expo-sqlite';
 import { createExpenseQueueStore, type ExpenseQueueStore } from './expenseQueue';
 import {
@@ -52,4 +53,15 @@ export function openExpenseQueueStore() {
       throw error;
     });
   return queue;
+}
+
+let mutations: Promise<import('./mutations').MutationStore> | null = null;
+export function openMutationStore() {
+  mutations ??= openDatabase()
+    .then(createMutationStore)
+    .catch((error: unknown) => {
+      mutations = null;
+      throw error;
+    });
+  return mutations;
 }

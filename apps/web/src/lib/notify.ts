@@ -247,3 +247,8 @@ async function sendNotificationEmails({
 
   await sendEmailBatch(messages);
 }
+
+/** Post-commit fan-out for join records already persisted atomically by tripEntry. */
+export async function deliverJoinNotification(event: import('./tripEntry').JoinDelivery) {
+  await Promise.allSettled([sendNotificationEmails(event), sendPush(event)]);
+}

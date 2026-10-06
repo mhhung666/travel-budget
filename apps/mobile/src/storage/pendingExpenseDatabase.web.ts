@@ -13,3 +13,7 @@ export function openDraftTripStore(): Promise<import('./draftTrips').DraftTripSt
 export function openExpenseQueueStore(): Promise<import('./expenseQueue').ExpenseQueueStore> {
   return Promise.reject(new ApiError('NATIVE_ONLY'));
 }
+
+export function openMutationStore(): Promise<import('./mutations').MutationStore> {
+  return Promise.reject(new ApiError('NATIVE_ONLY'));
+}

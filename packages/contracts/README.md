@@ -14,3 +14,5 @@ pnpm contracts:check
 套件直接輸出 TypeScript source，由 Next.js `transpilePackages`、Expo Metro 和 Node.js 24 的 type stripping 各自處理。沒有額外的發版或建置流程。HTTP envelope、授權、refresh 輪替、分頁與部署順序見 [後端 API](../../apps/web/docs/MOBILE_API.md)與 [Mobile 契約](../../apps/mobile/docs/BACKEND_CONTRACT.md)。
 
 應用各自發布，API version 不是產品 version；維持已發布 App 的契約相容性。金額、成員權限與最後寫入仍由後端既有服務負責。
+
+E1 增加旅行建立／加入嚴格輸入、專用 invitation DTO 與 account-scoped mutation receipt。E1 UUID／邀請碼正規化小寫；日期與名稱／說明上限供 Web／Mobile 共用。原 C／D 支出契約與 receipt 形狀保留。

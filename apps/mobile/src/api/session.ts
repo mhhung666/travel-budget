@@ -32,6 +32,8 @@ export class SessionManager {
     private clearPrivateData: () => Promise<void>
   ) {}
   getSnapshot = () => this.state;
+  /** Changes on sign-in/invalidation, but not a token refresh of the same session. */
+  getSignInVersion = () => this.revision;
   subscribe = (callback: () => void) => {
     this.listeners.add(callback);
     return () => {

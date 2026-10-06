@@ -1,6 +1,7 @@
 import { MAX_ACTIVITIES_PER_DAY } from '@/lib/itineraryLimits';
 import { isCalendarDate, MAX_ITINERARY_DAY_NUMBER } from '@/lib/itineraryDayTarget';
 import { z } from 'zod';
+import { tripFieldsSchema } from '@travel-budget/contracts';
 import { SUPPORTED_CURRENCY_CODES } from '@/constants/currencies';
 
 // Currency codes
@@ -42,21 +43,21 @@ export const locationSchema = z.object({
 // Trip schemas
 export const createTripSchema = z
   .object({
-    name: z.string().min(1, '旅行名稱不能為空').trim(),
-    description: z.string().optional(),
-    start_date: z.string().optional().nullable(),
-    end_date: z.string().optional().nullable(),
+    name: tripFieldsSchema.shape.name,
+    description: tripFieldsSchema.shape.description.removeDefault().optional(),
+    start_date: z
+      .union([z.iso.date(), z.literal('')])
+      .nullable()
+      .optional(),
+    end_date: z
+      .union([z.iso.date(), z.literal('')])
+      .nullable()
+      .optional(),
     destination_location: locationSchema.optional().nullable(),
   })
-  .refine(
-    (data) => {
-      if (data.start_date && data.end_date) {
-        return new Date(data.start_date) <= new Date(data.end_date);
-      }
-      return true;
-    },
-    { message: '開始日期不能晚於結束日期' }
-  );
+  .refine((v) => !v.start_date || !v.end_date || v.start_date <= v.end_date, {
+    message: '開始日期不能晚於結束日期',
+  });
 
 export const updateTripSchema = z
   .object({

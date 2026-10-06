@@ -3,6 +3,7 @@ import { useEffect, useState, type PropsWithChildren } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from '@/features/auth/AuthProvider';
 import { DraftCatalogProvider } from '@/features/localDrafts/provider';
+import { TripEntryProvider } from '@/features/tripEntry/provider';
 import { ExpenseEntryProvider } from '@/features/expenses/entryProvider';
 import { subscribeQueryLifecycle } from './queryLifecycle';
 
@@ -22,7 +23,9 @@ export function AppProviders({ children }: PropsWithChildren) {
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <DraftCatalogProvider>
-            <ExpenseEntryProvider>{children}</ExpenseEntryProvider>
+            <ExpenseEntryProvider>
+              <TripEntryProvider>{children}</TripEntryProvider>
+            </ExpenseEntryProvider>
           </DraftCatalogProvider>
         </AuthProvider>
       </QueryClientProvider>

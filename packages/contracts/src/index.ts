@@ -196,3 +196,51 @@ export type MobileExpensePreviewInput = z.infer<typeof expensePreviewInput>;
 export type MobileExpensePreview = z.infer<typeof expensePreviewSchema>;
 export type MobileExpenseCreateInput = z.infer<typeof expenseCreateInput>;
 export type MobileExpenseRequest = z.infer<typeof expenseRequestSchema>;
+
+// E1: online confirmation; one account-scoped UUID survives every retry.
+export const tripFieldsSchema = z
+  .object({
+    name: z.string().trim().min(1).max(100),
+    description: z.string().trim().max(2000).default(''),
+    start_date: dateSchema.nullable().default(null),
+    end_date: dateSchema.nullable().default(null),
+  })
+  .strict()
+  .refine((v) => !v.start_date || !v.end_date || v.start_date <= v.end_date, 'Invalid date range');
+export const tripCreateInput = tripFieldsSchema.safeExtend({
+  client_request_id: clientRequestIdSchema.toLowerCase(),
+});
+export const inviteCodeSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .regex(/^[a-z0-9]{6,10}$/);
+export const tripJoinInput = z
+  .object({
+    client_request_id: clientRequestIdSchema.toLowerCase(),
+    invite_code: inviteCodeSchema,
+  })
+  .strict();
+export const tripMutationResultSchema = z.object({
+  tripId: idSchema,
+  alreadyMember: z.boolean().optional(),
+});
+export const invitationSchema = z.object({ code: inviteCodeSchema, url: z.url() });
+export const mutationRequestSchema = z.discriminatedUnion('status', [
+  z.object({ status: z.literal('not_found') }),
+  z.object({
+    status: z.literal('committed'),
+    operation: z.enum(['trip.create', 'trip.join']),
+    resourceId: idSchema,
+    result: tripMutationResultSchema,
+  }),
+  z.object({
+    status: z.literal('rejected'),
+    operation: z.enum(['trip.create', 'trip.join']),
+    code: z.literal('INVITATION_INVALID'),
+  }),
+]);
+export type TripCreateInput = z.infer<typeof tripCreateInput>;
+export type TripJoinInput = z.infer<typeof tripJoinInput>;
+export type TripMutationResult = z.infer<typeof tripMutationResultSchema>;
+export type MutationRequest = z.infer<typeof mutationRequestSchema>;

@@ -44,6 +44,12 @@ export function TripScreen({ id }: { id: string }) {
           {!!trip.description && <Copy>{trip.description}</Copy>}
           <Copy>{t[trip.role]}</Copy>
           <Action
+            testID="trip-invitation"
+            label={t.inviteMembers}
+            disabled={!online}
+            onPress={() => router.push({ pathname: '/trips/[id]/invitation', params: { id } })}
+          />
+          <Action
             testID="trip-expenses"
             label={t.expenses}
             onPress={() => router.push({ pathname: '/trips/[id]/expenses', params: { id } })}

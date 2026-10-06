@@ -108,12 +108,12 @@ it('upgrades a D1 database without replacing its draft or pending tables', async
   };
   await pending.drafts.start(raw);
   await db.execAsync(
-    'DROP TABLE draft_trip; DROP TABLE expense_queue; DROP TABLE expense_rate_limit; PRAGMA user_version = 2'
+    'DROP TABLE draft_trip; DROP TABLE expense_queue; DROP TABLE expense_rate_limit; DROP TABLE pending_mutation; PRAGMA user_version = 2'
   );
   const store = await createDraftTripStore(db);
   expect(await store.list(scope)).toEqual([]);
   expect(await (await createPendingExpenseStore(db)).drafts.load(scope, tripId)).toEqual(raw);
-  expect(await db.getFirstAsync('PRAGMA user_version')).toEqual({ user_version: 6 });
+  expect(await db.getFirstAsync('PRAGMA user_version')).toEqual({ user_version: 7 });
 });
 it('fails closed on malformed persisted options and exposes storage failures', async () => {
   const db = open();

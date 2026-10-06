@@ -184,7 +184,7 @@ describe('migration and atomic handoff', () => {
     const old = await createPendingExpenseStore(db);
     await old.insert(pending());
     await db.execAsync(
-      'DROP TABLE expense_draft; DROP TABLE draft_trip; DROP TABLE expense_queue; DROP TABLE expense_rate_limit; PRAGMA user_version = 1;'
+      'DROP TABLE expense_draft; DROP TABLE draft_trip; DROP TABLE expense_queue; DROP TABLE expense_rate_limit; DROP TABLE pending_mutation; PRAGMA user_version = 1;'
     );
     const upgraded = await createPendingExpenseStore(db);
     expect(await upgraded.list(scope)).toEqual([pending()]);

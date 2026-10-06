@@ -68,6 +68,20 @@ Trip DTO 包含 `id/name/description/startDate/endDate/destination/archived/memb
 
 App 啟動、回前景、恢復連線及前景每 30 秒同步；有效線上登入、連線與前景狀態每一步都重檢。撤權世代檢查經 C 傳至 HTTP transport，每次 fetch 前同步執行，涵蓋序列等待、SQLite 讀取／保存及憑證刷新後重送；已凍結的 UUID／內容保留，不因本機阻擋而清除。多筆依保存順序序列處理，未解決的暫時性故障／冷卻擋住後續送出；需人工處理的未送出項目可跳過。409 尚查不到 receipt 與等待同旅行 C 結案屬旅行內阻塞，保存至少 30 秒等待並跳過該旅行的後續項目，其他旅行繼續；重啟後亦適用。原 C 非佇列紀錄仍只自動查詢、不自動重送；同旅行有 C pending 時不交接下一筆，C 結案且等待期限到後恢復交接。C 的 POST、手動／自動查詢及失敗後查詢收到 429，皆在回報前保存最早重試時間；後續錯誤不縮短既有期限，重啟與 C 手動查詢／重試仍尊重 Retry-After。429 期限獨立於可刪除的支出列，按帳號／環境保存，C 新增／恢復／手動查詢／重試與佇列同步共用；捨棄、移回草稿及 receipt 結案皆不縮短等待。衝突標記與 429 限速期限分開保存／判斷，限速到期前同帳號／環境的所有旅行皆暫停，無論衝突項目在佇列中的順序；到期後無 receipt 的衝突仍只阻擋該旅行。409 在查詢 receipt 前保存衝突，查詢的 401／403／404／429 不解除衝突，未查明前不自動重送；其他不確定故障至少等待 30 秒。refresh 失敗不清資料，登入失效停止同步，重新登入原帳號後可繼續；撤權保留紀錄並提示。已開始的 HTTP 可以完成，但背景／斷線／換帳號後不啟動下一步。OS 背景排程未實作。
 
+## E1 旅行入口與操作 receipt
+
+已實作 `POST /trips`（UUID、name、description、可空 start_date／end_date → `{ tripId }`）、`POST /trips/join`（UUID、invite_code → `{ tripId, alreadyMember }`）、`GET /trips/:id/invitation`（成員 → `{ code, url }`）與 `GET /mutation-requests/:uuid`（原帳號 → `not_found`／`committed`／`rejected`）。輸入嚴格，UUID 正規化小寫；邀請碼 trim／小寫 6–10 碼英數，ObjectId 不可加入。日期／名稱上限與 Web 共用。建立者 admin；有效碼已加入者成功但不新增成員／副作用。邀請 URL 使用後端 `APP_URL` 的 origin，無配置則回 5xx；手機獨立 Web host 時設定 `EXPO_PUBLIC_WEB_ORIGIN`，預設核對 API origin。兩端必須指向同一環境。
+
+Web／Mobile 共用 `lib/tripEntry.ts`，旅行、成員、receipt 與新加入的站內通知／動態在 MongoDB snapshot／majority 交易提交；邀請碼用安全亂數，唯一索引碰撞有限重試。Receipt `_id` 為操作者＋小寫 UUID，指紋含種類與標準化 body，不設 TTL、不隨旅行刪除。Web 保留 ObjectId 加入 adapter；手機只用有效碼。重播／結果查詢先重新核對成員及刪除狀態，加入後撤權不自動再加入；不同內容／操作 UUID 回 409。無效邀請保存 `INVITATION_INVALID` 終局拒絕，後來碼變有效也不重新執行原操作。Email／push 在提交後 best-effort，重播不再次排程；外部失敗不改報加入失敗。
+
+手機 schema 7 的獨立操作表保留 C／D 舊資料與限速；保存失敗不送出。確認後凍結 body／UUID，所有不確定、401／404／refresh 失敗及 409 保留，409 標記不可被後續查詢拒絕覆蓋。僅 200／committed 或終局 rejected 結案並清除敏感 payload；一般 400 只證明本次嘗試，不能推論先前未提交。`not_found` 不表示原請求未執行，也不可換 UUID。啟動、回前景、重連只自動查詢，POST 原內容重試須明確操作，且先查原 receipt。每個帳號／環境同種類未結案操作擋住新確認，重複點擊亦在引擎與 SQLite 防重；E1 尚無 tripId 時不冒用帳務旅行鎖。
+
+E 的寫入／查詢與 C／D 共用 `expense_rate_limit`。429 先落盤絕對期限，SQLite／序列等待與 refresh 後每次 fetch 前同步檢查，登入世代變更也停止；本機攔截不延長期限。完成、移除提示不刪等待。加入成功只以最小 tripId 導向，再由既有授權讀取建立快照。
+
+後端新 migration `20261006100000-mutation-requests.js` 可在隔離環境重跑，使用 MongoDB `_id` 唯一約束及既有邀請碼唯一索引；需部署相容後端／索引後才發 App。本次未執行遠端 migration 或裝置驗收。
+
 ## 尚未實作
+
+E2–E4 的註冊／重設密碼、支出維護及還款 API 仍是提案，完整流程、擬新增端點與驗收條件統一見 [E 規格](ROADMAP.md#e-規格基本使用流程)；以下現況不因規劃而視為已實作。
 
 外幣與非均分輸入、編輯／刪除已入帳支出、登記還款、附件 begin／finish、推播、帳號刪除及 OS 背景同步均屬後續工作（見 [路線](ROADMAP.md)）。D1 原始草稿、D2 受限入口與 D3 離線確認／多筆前景待送佇列沿用既有 HTTP 端點；AI 仍只產生草稿，正式寫入需使用者確認。實作與開發測試不代表已部署或兩平台裝置驗收通過。

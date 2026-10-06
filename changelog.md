@@ -4,6 +4,12 @@
 
 ## Unreleased
 
+### 2026-10-06
+
+- Web／Mobile：依 [E 規格](apps/mobile/docs/ROADMAP.md#e-規格基本使用流程) 實作 E1 建立／加入旅行、邀請複製與分享；共用交易服務與 HTTP receipt 防重複旅行／成員／站內副作用，撤權／刪除後不重播加入。E2–E4 仍待實作。
+- Mobile：確認後以獨立 SQLite 操作表保存固定 UUID，重啟／回前景只查結果，明確原內容重試才送出；保存失敗零 HTTP，終局結果清除邀請 payload，429 與 C／D 共用帳號期限。未確認表單只留畫面，離開提醒；邀請碼不進一般快照。
+- 開發驗證：新增 45 個 Mobile 案例與 4 個隔離交易案例；Web 2,006、Mobile 644 個測試、真 HTTP／MongoDB、根 check／build、frozen install、三平台匯出及 Expo 相容性通過。兩平台 E1 基本操作與四語／字級／鍵盤／分享驗收交由其他人，清單見 [E1 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#e1-旅行入口驗收交接)。未部署或執行遠端 migration。
+
 ### 2026-10-05～2026-10-06
 
 - Web／workspace：補齊 React PDF、next-themes、cmdk 與 React Leaflet／core 的 React 型別依賴，修復 53 個型別錯誤；frozen install、根 check、Web 正式 build、Mobile 三平台匯出與 Expo 相容性通過。

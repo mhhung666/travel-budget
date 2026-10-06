@@ -126,3 +126,9 @@ React Native 畫面不能直接沿用 Radix、DOM、Leaflet 或 Next provider。
 pnpm workspace 統一安裝與 lockfile；App 各自保留 React／Expo 相容組合、產品版本與發布流程。根目錄 package 是 private coordinator，沒有產品版本。整併與邊界見 [repository 決策](../../../docs/decisions/0001-monorepo.md)。Expo 自動偵測 workspace 並設定 Metro，無須額外的 monorepo resolver 設定。
 
 官方依據：[Expo Router 安裝與入口](https://docs.expo.dev/router/installation/)、[Expo monorepo 支援](https://docs.expo.dev/guides/monorepos/)、[TanStack Query React Native 整合](https://tanstack.com/query/latest/docs/framework/react/react-native)。
+
+## 旅行入口（E1）
+
+`features/tripEntry` 的線上表單、操作恢復引擎與邀請頁接獨立 E HTTP；`storage/mutations.ts` 在同一 DB schema 7 新增 `pending_mutation`，按環境／帳號／UUID 保存確認內容，交易升級保留 C／D。未確認表單只留畫面記憶體，導航以未儲存提醒保護；已確認者不可改／捨棄，只有終局 receipt 結案並清除 payload。啟動／前景／連線事件只查，不自動 POST。`expense_rate_limit` 仍是 C／D／E 共用帳號期限，同步鏡像守住最後一次 fetch；額外登入世代守住 SQLite 等待後 A→B→A。E1 無 tripId 時按操作種類防重，後續帳務種類需依 ROADMAP 擴充共用旅行序列。
+
+邀請頁用當次畫面狀態，沒有 Query 或 SQLite 快取；帳號／登入世代、請求世代與撤權 token 核對後才顯示或複製／分享。加入回應不保存 D 快照，導向後的 landing／expense-options 才重新授權。後端 `tripEntry.ts` 是 Web／HTTP 共用旅行交易服務，receipt 與站內副作用同交易，外部寄送於提交後處理。

@@ -23,8 +23,10 @@ import type { Trip, TripWithMembers } from '@/types';
 import type { TripShell } from '@/types';
 import { logger } from '@/lib/logger';
 import { toTripDto } from '@/lib/dto';
-import { notify } from '@/lib/notify';
-import { logActivity } from '@/lib/activity';
+import { deliverJoinNotification } from '@/lib/notify';
+import { enterTrip, TripEntryError } from '@/lib/tripEntry';
+import { randomUUID } from 'node:crypto';
+import { inviteCodeSchema } from '@travel-budget/contracts';
 import { isEffectiveTripDateRangeValid } from '@/lib/dateRange';
 import { rebindAutoPhotosInTransaction } from '@/lib/photoItineraryTransaction';
 import {
@@ -105,24 +107,29 @@ export const createTrip = withAuth(
 
       await dbConnect();
 
-      // Generate unique hash code
-      const hashCode = await generateUniqueHashCode(async (code) => {
-        return (await TripModel.exists({ hashCode: code })) !== null;
-      });
+      const result = await enterTrip(
+        mongoose.connection.db!,
+        session.userId,
+        'trip.create',
+        {
+          client_request_id: randomUUID(),
+          name,
+          description: description ?? '',
+          start_date: start_date || null,
+          end_date: end_date || null,
+        },
+        undefined,
+        destination_location
+      );
+      const trip = await TripModel.findById(result.tripId).lean<LeanTrip>();
+      if (!trip) return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
 
-      // Create trip with the creator as admin member
-      const trip = await TripModel.create({
-        name,
-        description: description?.trim() || '',
-        startDate: start_date ? new Date(start_date) : undefined,
-        endDate: end_date ? new Date(end_date) : undefined,
-        destinationLocation: destination_location ?? undefined,
-        hashCode,
-        members: [{ user: session.userId, role: 'admin' }],
-      });
-
-      revalidatePath('/trips');
-      return { success: true, data: toTripDto(trip.toObject() as LeanTrip, session.userId) };
+      try {
+        revalidatePath('/trips');
+      } catch {
+        logger.error('Trip cache refresh failed');
+      }
+      return { success: true, data: toTripDto(trip, session.userId) };
     } catch (error) {
       logger.error('Create trip error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
@@ -362,47 +369,35 @@ export const joinTrip = withAuth(
 
       await dbConnect();
 
-      const membership = await getTripMembership(session.userId, tripIdOrCode);
-      if (membership) {
-        // 已是成員
-        return { success: false, error: 'CONFLICT', code: 'CONFLICT' };
-      }
-
-      // 原子核對尚非成員與刪除狀態，避免並行加入產生重複成員。
-      const trip = await TripModel.findOneAndUpdate(
-        {
-          expenseDeliveryDeleting: { $ne: true },
-          'members.user': { $ne: session.userId },
-          $or: [
-            ...(isObjectIdLike(tripIdOrCode) ? [{ _id: tripIdOrCode }] : []),
-            { hashCode: tripIdOrCode },
-          ],
-        },
-        { $push: { members: { user: session.userId, role: 'member' } } },
-        { new: true }
-      ).lean<LeanTrip>();
-
-      if (!trip) {
+      // Web retains its historical ObjectId entry; Mobile accepts only a validated invitation.
+      const target = isObjectIdLike(tripIdOrCode)
+        ? await TripModel.findById(tripIdOrCode).select('hashCode').lean<{ hashCode: string }>()
+        : null;
+      if (!inviteCodeSchema.safeParse(target?.hashCode ?? tripIdOrCode).success)
         return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+      const result = await enterTrip(
+        mongoose.connection.db!,
+        session.userId,
+        'trip.join',
+        {
+          client_request_id: randomUUID(),
+          invite_code: target?.hashCode ?? tripIdOrCode,
+        },
+        deliverJoinNotification
+      );
+      const trip = await TripModel.findById(result.tripId).lean<LeanTrip>();
+      if (!trip) return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+
+      try {
+        revalidatePath('/trips');
+      } catch {
+        logger.error('Trip cache refresh failed');
       }
-
-      // 通知既有成員「有新成員加入」（觸發者＝加入者，fan-out 預設排除自己）
-      await notify({
-        tripId: trip._id.toString(),
-        actorId: session.userId,
-        type: 'member_joined',
-      });
-      // 動態牆紀錄（觸發者＝加入者本人，動態牆會顯示）
-      await logActivity({
-        tripId: trip._id.toString(),
-        actorId: session.userId,
-        type: 'member_joined',
-      });
-
-      revalidatePath('/trips');
       return { success: true, data: toTripDto(trip, session.userId) };
     } catch (error) {
-      logger.error('Join trip error', error);
+      if (error instanceof TripEntryError)
+        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+      logger.error('Join trip error');
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
   }

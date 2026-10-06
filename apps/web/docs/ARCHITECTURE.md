@@ -51,3 +51,5 @@ Next.js App Router 與 React 組成介面，TanStack Query 負責查詢、重新
 新增支出只有一個寫入服務：`lib/expenseCreate.ts#createExpenseForActor` 接受已授權的旅行與操作者及 `createExpenseSchema` 的輸出，內含 `withTripWrite` 交易、成員／分攤／金額驗證、收據驗證、與支出同交易提交的冪等 receipt（`expenseCreateRequest.ts`）及通知／outbox 副作用，且不 import `next/*`。Web Server Action（`expense.actions.ts#createExpense`，cookie）與手機 HTTP（`lib/mobile/expenseWrite.ts`，bearer）是它的兩個 adapter：各自驗證登入、解析旅行與輸入、處理自己的快取／排程並對照錯誤碼。成員順序（`lib/mobile/expenseOptions.ts`）與 Web 成員清單相同，均分預覽重用 `computeSplits`，手機不複製金額演算法。
 
 [packages/contracts/openapi.json](../../../packages/contracts/openapi.json) 是共用契約產物；在 repository 根目錄執行 `pnpm contracts:generate` 更新、`pnpm contracts:check` 檢查同步。Vercel 使用 Root Directory `apps/web`，啟用 outside-root source files 以建置共享契約；本目錄 `vercel.json` 保留既有 cron。
+
+`lib/tripEntry.ts` 提供 E1 Web／Mobile 共用建立／加入交易。獨立 `mutationrequests` 以操作者／UUID 唯一 `_id` 保存成功／終局拒絕；建立、成員更新與站內副作用同交易，安全亂數邀請碼使用既有唯一索引。加入先以有效碼取得旅行 fence；重播／查詢須重新核對目前成員，已移除者不能再次加入。外部通知在提交後執行、重播不排程，不影響已提交結果。E3／E4 共用寫入與 revision 仍未實作，不能把 E1 操作表視為已提供帳務維護。

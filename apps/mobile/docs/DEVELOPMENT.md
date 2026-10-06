@@ -81,3 +81,9 @@ pnpm contracts:check
 5. 測試無旅行、非成員旅行、錯誤密碼、大字體、深淺色、四語與鍵盤遮擋；iOS／Android 都要操作。
 
 本機若缺 Xcode Simulator／Android Emulator 或測試後端，應明確標示尚未完成上述裝置驗收。Web 預覽只能檢查版面與安全路由，不能取代原生 SecureStore 與實際登入流程。
+
+## E1 開發與交接
+
+新增可選 `EXPO_PUBLIC_WEB_ORIGIN`，在 API 與 Web host 不同時指定本環境的網站 origin，必須和後端 `APP_URL` origin 一致；沒有 path/query/憑證，不指向其他環境。變更後重啟 Metro。邀請頁使用 Expo Clipboard 與系統 Share，未設定 Universal Links／App Links。
+
+`features/tripEntry/*.test.ts` 用真 SQLite 檔案重開驗證保存前送出禁止、凍結 UUID、丟回應、重啟只查詢、手動原內容重試、清理失敗、雙擊／同種類阻塞、帳號／環境與登入世代隔離、409／404、終局拒絕及 C／D 共用 429 原期限；另驗舊 schema 6 升級與交易回滾。Web 的 `test:mobile-api` 已涵蓋 E1 真 HTTP、隔離 replica set 與四個服務交易案例（只由此工具提供 disposable URI），核對旅行／receipt／成員／通知／動態數，以及日期、舊碼、重設、撤權／刪除與丟回應恢復。裝置清單見 [E1](LOCAL_ACCEPTANCE.md#e1-旅行入口驗收交接)，交給其他人執行。
