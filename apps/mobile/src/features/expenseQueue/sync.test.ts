@@ -14,7 +14,7 @@ import { fakeExpenseServer, hex, uuidOf } from '@/test/expenseServer';
 import { memoryDatabase } from '@/test/sqlite';
 import { ExpenseQueue } from './sync';
 
-const [ANN, BOB, CAT, TRIP] = [hex(1), hex(2), hex(3), hex(100)];
+const [ANN, BOB, CAT, TRIP, OTHER_TRIP] = [hex(1), hex(2), hex(3), hex(100), hex(101)];
 const options: ExpenseOptions = {
   members: [ANN, BOB, CAT].map((id) => ({ id, displayName: id })),
   categories: ['food', 'other'],
@@ -45,7 +45,7 @@ async function harness() {
   const server = fakeExpenseServer();
   server.addAccount(ANN, 'ann');
   server.addAccount(BOB, 'bob');
-  [ANN, BOB, CAT].forEach((id) => server.addMember(TRIP, id));
+  [TRIP, OTHER_TRIP].forEach((trip) => [ANN, BOB, CAT].forEach((id) => server.addMember(trip, id)));
   let token: string | null = null;
   let currentOptions = options;
   const calls: { method: string; path: string; body: unknown }[] = [];
@@ -126,8 +126,8 @@ async function harness() {
       memberIds: [ANN, BOB, CAT],
     },
   });
-  const enqueue = async (n: number) => {
-    const d = draft(n);
+  const enqueue = async (n: number, tripId = TRIP) => {
+    const d = { ...draft(n), tripId };
     await pending.drafts.start(d);
     await queue.enqueue(d, options);
     return (await store.list(scope)).at(-1)!;
@@ -822,3 +822,247 @@ it('blocks revocation while C retry waits behind an earlier serialized lookup', 
   ]);
   expect(await h.pending.list(h.scope)).toHaveLength(1);
 });
+
+it.each(['new', 'prepared', 'retry'] as const)(
+  'skips a %s 409 without receipt and its trip, persists the wait, and sends other trips',
+  async (state) => {
+    const h = await harness();
+    const r = await h.enqueue(1);
+    await h.enqueue(2);
+    const other = await h.enqueue(3, OTHER_TRIP);
+    const payload = {
+      ...confirmedFields(r.input, options, preview),
+      client_request_id: r.clientRequestId,
+    };
+    if (state !== 'new') {
+      await h.store.prepare(r, payload);
+      if (state === 'prepared') await h.store.pause(r, 'conflict', 0);
+    }
+    if (state !== 'prepared') {
+      h.server.fail('POST', new RegExp(`/trips/${TRIP}/expenses$`), {
+        kind: 'status',
+        status: 409,
+        code: 'IDEMPOTENCY_CONFLICT',
+      });
+    }
+    await h.queue.synchronize(h.scope);
+    expect(h.server.expenses).toHaveLength(1);
+    expect(h.server.posts().at(-1)?.body).toMatchObject({
+      client_request_id: other.clientRequestId,
+    });
+    expect(await h.queue.list(h.scope)).toMatchObject([
+      {
+        clientRequestId: r.clientRequestId,
+        status: 'prepared',
+        reason: 'conflict',
+        nextAt: Date.now() + 30_000,
+      },
+      { status: 'queued' },
+    ]);
+    expect((await h.pending.get(h.scope, r.clientRequestId))?.payload).toEqual(payload);
+    const before = h.calls.length;
+    await h.reopen();
+    await h.enqueue(4, OTHER_TRIP);
+    await h.queue.synchronize(h.scope);
+    expect(h.server.expenses).toHaveLength(2);
+    expect(h.calls.slice(before).filter((c) => c.path.includes(`/trips/${TRIP}/`))).toEqual([]);
+    h.advance(31_000);
+    await h.queue.synchronize(h.scope);
+    expect(h.server.posts().filter((c) => c.path.includes(`/trips/${TRIP}/`))).toHaveLength(
+      state === 'prepared' ? 0 : 1
+    );
+    expect(await h.queue.list(h.scope)).toMatchObject([
+      { clientRequestId: r.clientRequestId, reason: 'conflict', nextAt: Date.now() + 30_000 },
+      { status: 'queued' },
+    ]);
+  }
+);
+
+it('waits durably behind C for just that trip and resumes after C resolves without blocking other trips', async () => {
+  const h = await harness();
+  const r = await h.enqueue(1);
+  await h.enqueue(2);
+  await h.enqueue(3, OTHER_TRIP);
+  const id = uuidOf(900);
+  await h.pending.insert({
+    ...h.scope,
+    tripId: TRIP,
+    clientRequestId: id,
+    payload: { ...confirmedFields(r.input, options, preview), client_request_id: id },
+    status: 'unconfirmed',
+    createdAt: 1,
+    updatedAt: 1,
+  });
+  await h.queue.synchronize(h.scope);
+  expect(h.server.expenses).toHaveLength(1);
+  expect(await h.queue.list(h.scope)).toMatchObject([
+    { status: 'queued', reason: 'pending', nextAt: Date.now() + 30_000 },
+    { status: 'queued' },
+  ]);
+  const before = h.calls.length;
+  await h.reopen();
+  await h.enqueue(4, OTHER_TRIP);
+  await h.queue.synchronize(h.scope);
+  expect(h.server.expenses).toHaveLength(2);
+  expect(h.calls.slice(before).filter((c) => c.path.includes(`/trips/${TRIP}/`))).toEqual([]);
+  await h.pending.remove(h.scope, id);
+  h.advance(31_000);
+  await h.queue.synchronize(h.scope);
+  expect(h.server.expenses).toHaveLength(4);
+  expect(h.server.receipts.size).toBe(4);
+  expect(await h.queue.list(h.scope)).toEqual([]);
+});
+
+it('still blocks subsequent trips during a transient 429 and its persisted cooldown', async () => {
+  const h = await harness();
+  await h.enqueue(1);
+  await h.enqueue(2, OTHER_TRIP);
+  h.server.fail('POST', /\/expenses$/, { kind: 'status', status: 429, retryAfter: 120 });
+  await h.queue.synchronize(h.scope);
+  await h.reopen();
+  h.advance(31_000);
+  await h.queue.synchronize(h.scope);
+  expect(h.calls.filter((c) => c.path.includes(`/trips/${OTHER_TRIP}/`))).toEqual([]);
+  expect(h.server.expenses).toHaveLength(0);
+  h.advance(90_000);
+  await h.queue.synchronize(h.scope);
+  expect(h.server.expenses).toHaveLength(2);
+  expect(h.server.receipts.size).toBe(2);
+});
+
+it.each(
+  (['lookup', 'recover', 'retry'] as const).flatMap((operation) =>
+    [false, true].map((otherTripFirst) => ({ operation, otherTripFirst }))
+  )
+)(
+  'keeps a conflict 429 account-wide after restart: $operation, other trip first=$otherTripFirst',
+  async ({ operation, otherTripFirst }) => {
+    const h = await harness();
+    if (otherTripFirst) await h.enqueue(1, OTHER_TRIP);
+    const r = await h.enqueue(2);
+    if (!otherTripFirst) await h.enqueue(3, OTHER_TRIP);
+    await h.store.prepare(r, {
+      ...confirmedFields(r.input, options, preview),
+      client_request_id: r.clientRequestId,
+    });
+    await h.store.pause(r, 'conflict', 0);
+    const method = operation === 'retry' ? 'POST' : 'GET';
+    h.server.fail(method, operation === 'retry' ? /\/expenses$/ : /expense-requests/, {
+      kind: 'status',
+      status: 429,
+      retryAfter: 120,
+    });
+    if (operation === 'recover') await h.entry.recover(h.scope);
+    else await h.entry[operation](h.scope, r.clientRequestId);
+    const before = h.calls.length;
+    await h.reopen();
+    h.advance(31_000);
+    // A later trip-local wait cannot shorten or change the scope of the rate limit.
+    await h.store.pause(r, 'conflict', Date.now() + 30_000);
+    await h.queue.synchronize(h.scope);
+    expect(h.calls.slice(before).filter((c) => c.path.startsWith('/trips/'))).toEqual([]);
+    expect(h.server.expenses).toHaveLength(0);
+    h.advance(89_000);
+    await h.queue.synchronize(h.scope);
+    expect(h.server.expenses).toHaveLength(1);
+    expect(h.server.posts().filter((p) => p.path.includes(`/trips/${OTHER_TRIP}/`))).toHaveLength(
+      1
+    );
+    expect(await h.queue.list(h.scope)).toMatchObject([
+      { clientRequestId: r.clientRequestId, status: 'prepared', reason: 'conflict' },
+    ]);
+    expect(h.server.posts().filter((p) => p.path.includes(`/trips/${TRIP}/`))).toHaveLength(
+      operation === 'retry' ? 1 : 0
+    );
+  }
+);
+
+it('retains the account rate limit when a queue POST 409 is followed by a lookup 429', async () => {
+  const h = await harness();
+  const r = await h.enqueue(1);
+  await h.enqueue(2, OTHER_TRIP);
+  h.server.fail('POST', /\/expenses$/, {
+    kind: 'status',
+    status: 409,
+    code: 'IDEMPOTENCY_CONFLICT',
+  });
+  h.server.fail('GET', /expense-requests/, { kind: 'status', status: 429, retryAfter: 120 });
+  await h.queue.synchronize(h.scope);
+  expect(await h.queue.list(h.scope)).toMatchObject([
+    { reason: 'conflict', rateLimitUntil: Date.now() + 120_000 },
+    { status: 'queued' },
+  ]);
+  const before = h.calls.length;
+  await h.reopen();
+  h.advance(31_000);
+  await h.queue.synchronize(h.scope);
+  expect(h.calls.slice(before).filter((c) => c.path.startsWith('/trips/'))).toEqual([]);
+  h.advance(89_000);
+  await h.queue.synchronize(h.scope);
+  expect(h.server.expenses).toHaveLength(1);
+  expect(h.server.receipts.size).toBe(1);
+  expect(h.server.posts().filter((p) => p.path.includes(`/trips/${TRIP}/`))).toHaveLength(1);
+  expect(await h.queue.list(h.scope)).toMatchObject([
+    { clientRequestId: r.clientRequestId, reason: 'conflict' },
+  ]);
+});
+
+it.each(['lookup', 'retry', 'recover'] as const)(
+  'blocks C %s on another trip through a full restart until the account deadline',
+  async (operation) => {
+    const h = await harness();
+    const a = await h.enqueue(1);
+    const b = await h.enqueue(2, OTHER_TRIP);
+    for (const r of [a, b])
+      await h.store.prepare(r, {
+        ...confirmedFields(r.input, options, preview),
+        client_request_id: r.clientRequestId,
+      });
+    h.server.fail('GET', /expense-requests/, { kind: 'status', status: 429, retryAfter: 120 });
+    await h.entry.lookup(h.scope, a.clientRequestId);
+    await h.reopen();
+    h.advance(31_000);
+    const before = h.calls.length;
+    const invoke = () =>
+      operation === 'recover'
+        ? h.entry.recover(h.scope)
+        : h.entry[operation](h.scope, b.clientRequestId);
+    await invoke();
+    expect(h.calls.slice(before)).toEqual([]);
+    h.advance(89_000);
+    await invoke();
+    expect(h.calls.slice(before).some((c) => c.path.includes(`/trips/${OTHER_TRIP}/`))).toBe(true);
+  }
+);
+
+it.each(['discard', 'restore'] as const)(
+  'retains the account wait after %s removes the last rate-limited queue row',
+  async (operation) => {
+    const h = await harness();
+    const a = await h.enqueue(1);
+    h.hook(async (path) =>
+      path.endsWith('/expense-options')
+        ? Response.json(
+            { error: { code: 'RATE_LIMITED' } },
+            { status: 429, headers: { 'Retry-After': '120' } }
+          )
+        : undefined
+    );
+    await h.queue.synchronize(h.scope);
+    expect(await h.queue.list(h.scope)).toMatchObject([{ reason: 'busy' }]);
+    if (operation === 'discard') await h.queue.discard(a);
+    else await h.queue.restore(a);
+    expect(await h.queue.list(h.scope)).toEqual([]);
+    h.hook(undefined);
+    await h.reopen();
+    h.advance(31_000);
+    await h.enqueue(2, OTHER_TRIP);
+    const before = h.calls.length;
+    await h.queue.synchronize(h.scope);
+    expect(h.calls.slice(before)).toEqual([]);
+    expect(h.server.expenses).toHaveLength(0);
+    h.advance(89_000);
+    await h.queue.synchronize(h.scope);
+    expect(h.server.expenses).toHaveLength(1);
+  }
+);

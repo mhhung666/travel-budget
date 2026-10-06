@@ -1,3 +1,4 @@
+import { extendExpenseRateLimit, readExpenseRateLimit } from './expenseRateLimit';
 import { z } from 'zod';
 import { expenseCreateInput, expenseOptionsSchema } from '@/api/contracts';
 import type { ExpenseOptions, ExpenseCreateInput } from '@/api/contracts';
@@ -14,10 +15,12 @@ const queueSchema = z.object({
   status: z.enum(['queued', 'attention', 'prepared', 'resolved']),
   reason: z.string().nullable(),
   nextAt: z.number(),
+  rateLimitUntil: z.number(),
   createdAt: z.number(),
 });
 export type QueuedExpense = z.infer<typeof queueSchema> & PendingScope;
 export interface ExpenseQueueStore {
+  rateLimitUntil(scope: PendingScope): Promise<number>;
   list(scope: PendingScope): Promise<QueuedExpense[]>;
   enqueue(draft: StoredExpenseDraft, options: ExpenseOptions, id: string): Promise<void>;
   /** Atomically freezes the body and puts it under C's crash-safe recovery. */
@@ -36,6 +39,7 @@ type Row = {
   status: string;
   reason: string | null;
   next_at: number;
+  rate_limit_until: number;
   created_at: number;
 };
 const args = (r: PendingScope & { clientRequestId: string }) => [
@@ -59,6 +63,7 @@ export async function createExpenseQueueStore(db: SqlDatabase): Promise<ExpenseQ
     return live;
   };
   return {
+    rateLimitUntil: (scope) => serial(() => readExpenseRateLimit(db, scope)),
     list: (scope) =>
       serial(async () => {
         const rows = await db.getAllAsync<Row>(
@@ -77,6 +82,7 @@ export async function createExpenseQueueStore(db: SqlDatabase): Promise<ExpenseQ
             status: r.status,
             reason: r.reason,
             nextAt: r.next_at,
+            rateLimitUntil: r.rate_limit_until,
             createdAt: r.created_at,
           }),
         }));
@@ -107,7 +113,7 @@ export async function createExpenseQueueStore(db: SqlDatabase): Promise<ExpenseQ
           )
             throw new Error('DRAFT_CHANGED');
           await db.runAsync(
-            "INSERT INTO expense_queue VALUES (?, ?, ?, ?, ?, ?, 'queued', NULL, 0, ?)",
+            "INSERT INTO expense_queue (environment, account_id, client_request_id, trip_id, input, roster, status, reason, next_at, created_at) VALUES (?, ?, ?, ?, ?, ?, 'queued', NULL, 0, ?)",
             draft.environment,
             draft.accountId,
             id,
@@ -156,15 +162,19 @@ export async function createExpenseQueueStore(db: SqlDatabase): Promise<ExpenseQ
         })
       ),
     pause: (r, reason, nextAt, attention = false) =>
-      serial(async () => {
-        await db.runAsync(
-          `UPDATE expense_queue SET reason = CASE WHEN status = 'prepared' AND reason = 'conflict' THEN reason ELSE ? END, next_at = MAX(next_at, ?), status = CASE WHEN status = 'queued' AND ? = 1 THEN 'attention' ELSE status END WHERE ${WHERE} AND status IN ('queued', 'prepared')`,
-          reason,
-          nextAt,
-          attention ? 1 : 0,
-          ...args(r)
-        );
-      }),
+      serial(() =>
+        transaction(db, async () => {
+          if (reason === 'busy') await extendExpenseRateLimit(db, r, nextAt);
+          await db.runAsync(
+            `UPDATE expense_queue SET reason = CASE WHEN status = 'prepared' AND reason = 'conflict' THEN reason ELSE ? END, next_at = MAX(next_at, ?), rate_limit_until = MAX(rate_limit_until, ?), status = CASE WHEN status = 'queued' AND ? = 1 THEN 'attention' ELSE status END WHERE ${WHERE} AND status IN ('queued', 'prepared')`,
+            reason,
+            nextAt,
+            reason === 'busy' ? nextAt : 0,
+            attention ? 1 : 0,
+            ...args(r)
+          );
+        })
+      ),
     discard: (r) =>
       serial(() =>
         transaction(db, async () => {

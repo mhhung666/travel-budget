@@ -1,5 +1,7 @@
 import { expect, it, vi } from 'vitest';
 import { decodeCredential, encodeCredential } from './sessionCredential';
+import { ApiClient } from '@/api/client';
+import { SessionManager } from '@/api/session';
 import { createCredentialStore } from './credentials';
 
 const native = vi.hoisted(() => ({ data: new Map<string, string>(), fail: false }));
@@ -43,3 +45,65 @@ it('atomically saves credential and identity, isolates environments, and clears 
   expect(await a.get()).toBeNull();
   expect(await a.getLocalUser!()).toBeNull();
 });
+
+it.each([
+  null,
+  undefined,
+  {},
+  { id: user.id },
+  { ...user, id: 'invalid' },
+  { ...user, displayName: 1 },
+])('keeps the refresh token when saved local identity is incompatible: %j', (savedUser) => {
+  expect(
+    decodeCredential(JSON.stringify({ version: 1, token: 'refresh', user: savedUser }))
+  ).toEqual({ token: 'refresh', user: null });
+});
+it.each([
+  '{',
+  '{"version":2,"token":"refresh"}',
+  '{"version":1,"token":""}',
+  '{"version":1,"token":7}',
+])('still rejects malformed credential envelopes: %s', (value) =>
+  expect(() => decodeCredential(value)).toThrow()
+);
+it.each(['online', 'offline'] as const)(
+  'restores %s without a storage error when only saved identity is incompatible',
+  async (mode) => {
+    const environment = `https://identity-${mode}.test`;
+    const store = createCredentialStore(environment);
+    // Model an old saved user missing a field now required by the current runtime schema.
+    native.data.set(
+      `travel-budget.session.${environment.replace(/\W/g, '_')}`,
+      JSON.stringify({
+        version: 1,
+        token: 'refresh',
+        user: { id: user.id, username: user.username },
+      })
+    );
+    expect(await store.get()).toBe('refresh');
+    expect(await store.getLocalUser!()).toBeNull();
+    const fetcher = vi.fn(async (_url: string, init?: RequestInit) => {
+      expect(JSON.parse(String(init?.body))).toEqual({ refreshToken: 'refresh' });
+      if (mode === 'offline') throw new TypeError('offline');
+      return Response.json({
+        data: { user, accessToken: 'access-new', refreshToken: 'refresh-new', expiresIn: 900 },
+      });
+    });
+    const manager = new SessionManager(new ApiClient(environment, fetcher), store, async () => {});
+    await manager.restore();
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    if (mode === 'online') {
+      expect(manager.getSnapshot()).toMatchObject({ status: 'signedIn', user });
+      expect(await store.get()).toBe('refresh-new');
+      expect(await store.getLocalUser!()).toEqual(user);
+    } else {
+      expect(manager.getSnapshot()).toMatchObject({
+        status: 'error',
+        user: null,
+        error: { code: 'NETWORK' },
+      });
+      expect(await store.get()).toBe('refresh');
+      expect(await store.getLocalUser!()).toBeNull();
+    }
+  }
+);

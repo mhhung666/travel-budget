@@ -76,13 +76,15 @@ it('upgrades schema 3 with drafts, pending and trip snapshots intact', async () 
   });
   const trips = await createDraftTripStore(h.db);
   await trips.rememberOptions(scope, tripId, options, 1000);
-  await h.db.execAsync('DROP TABLE expense_queue; PRAGMA user_version = 3');
+  await h.db.execAsync(
+    'DROP TABLE expense_queue; DROP TABLE expense_rate_limit; PRAGMA user_version = 3'
+  );
   const queue = await createExpenseQueueStore(h.db);
   expect(await queue.list(scope)).toEqual([]);
   expect((await h.pending.drafts.load(scope, tripId))?.draftId).toBe(uuidOf(2));
   expect(await h.pending.list(scope)).toHaveLength(1);
   expect((await trips.get(scope, tripId))?.options).toEqual(options);
-  expect(await h.db.getFirstAsync('PRAGMA user_version')).toEqual({ user_version: 4 });
+  expect(await h.db.getFirstAsync('PRAGMA user_version')).toEqual({ user_version: 6 });
 });
 it('isolates queue operations by environment and account', async () => {
   const h = await setup();
@@ -205,7 +207,7 @@ it.each([
   opened.splice(opened.indexOf(db), 1);
   const sql = preparing
     ? "INSERT INTO pending_expense VALUES (?, ?, ?, ?, ?, 'sending', ?, ?);"
-    : "INSERT INTO expense_queue VALUES (?, ?, ?, ?, ?, ?, 'queued', NULL, 0, ?);";
+    : "INSERT INTO expense_queue (environment, account_id, client_request_id, trip_id, input, roster, status, reason, next_at, created_at) VALUES (?, ?, ?, ?, ?, ?, 'queued', NULL, 0, ?);";
   const params = preparing
     ? [
         scope.environment,
@@ -282,4 +284,158 @@ it('cannot reuse a queue record identifier to mutate another trip', async () => 
   await expect(h.queue.discard(other)).rejects.toThrow('QUEUE_CHANGED');
   expect(await h.queue.list(scope)).toHaveLength(1);
   expect(await h.pending.list(scope)).toEqual([]);
+});
+
+it.each(['busy', 'conflict', 'pending'])(
+  'upgrades schema 4 with %s waits and frozen records intact',
+  async (reason) => {
+    const h = await setup();
+    await h.queue.prepare(h.record, payload(h.record.clientRequestId));
+    await h.queue.pause(h.record, reason, 120_000);
+    const frozen = await h.pending.list(scope);
+    await h.db.execAsync(
+      'ALTER TABLE expense_queue DROP COLUMN rate_limit_until; DROP TABLE expense_rate_limit; PRAGMA user_version = 4'
+    );
+    const upgraded = await createExpenseQueueStore(h.db);
+    expect(await upgraded.list(scope)).toMatchObject([
+      {
+        ...h.record,
+        status: 'prepared',
+        reason,
+        nextAt: 120_000,
+        rateLimitUntil: reason === 'pending' ? 0 : 120_000,
+      },
+    ]);
+    expect(await h.pending.list(scope)).toEqual(frozen);
+    expect(await h.db.getFirstAsync('PRAGMA user_version')).toEqual({ user_version: 6 });
+  }
+);
+
+it('rolls back a failed schema 4 wait migration and safely retries without losing data', async () => {
+  const h = await setup();
+  await h.queue.prepare(h.record, payload(h.record.clientRequestId));
+  await h.queue.pause(h.record, 'conflict', 120_000);
+  await h.db.execAsync(
+    'ALTER TABLE expense_queue DROP COLUMN rate_limit_until; DROP TABLE expense_rate_limit; PRAGMA user_version = 4'
+  );
+  const broken: SqlDatabase = {
+    ...h.db,
+    execAsync: async (sql) => {
+      await h.db.execAsync(sql);
+      if (sql.includes('ADD COLUMN rate_limit_until')) throw new Error('disk full');
+    },
+  };
+  await expect(createExpenseQueueStore(broken)).rejects.toThrow('disk full');
+  expect(await h.db.getFirstAsync('PRAGMA user_version')).toEqual({ user_version: 4 });
+  const upgraded = await createExpenseQueueStore(h.db);
+  expect(await upgraded.list(scope)).toMatchObject([
+    { status: 'prepared', reason: 'conflict', rateLimitUntil: 120_000 },
+  ]);
+  expect(await h.pending.list(scope)).toHaveLength(1);
+});
+
+it.each(['queue', 'pending'] as const)(
+  'keeps a conflict and rate limit independently via the %s store',
+  async (writer) => {
+    const h = await setup();
+    await h.queue.prepare(h.record, payload(h.record.clientRequestId));
+    const pause = (reason: string, deadline: number) =>
+      writer === 'queue'
+        ? h.queue.pause(h.record, reason, deadline)
+        : h.pending.pause!(scope, h.record.clientRequestId, reason, deadline);
+    await pause('conflict', 30_000);
+    expect(await h.queue.list(scope)).toMatchObject([
+      { reason: 'conflict', nextAt: 30_000, rateLimitUntil: 0 },
+    ]);
+    await pause('busy', 120_000);
+    await pause('conflict', 60_000);
+    await pause('busy', 90_000);
+    expect(await h.queue.list(scope)).toMatchObject([
+      { reason: 'conflict', nextAt: 120_000, rateLimitUntil: 120_000 },
+    ]);
+  }
+);
+
+it.each(['queue', 'pending'] as const)(
+  'keeps account deadlines isolated and monotonic via %s, independently of row cleanup',
+  async (writer) => {
+    const h = await setup();
+    const pause = (reason: string, until: number) =>
+      writer === 'queue'
+        ? h.queue.pause(h.record, reason, until)
+        : h.pending.pause!(scope, h.record.clientRequestId, reason, until);
+    // C also persists limits without a matching prepared queue row.
+    await pause('busy', 120_000);
+    await pause('busy', 90_000);
+    await pause('conflict', 150_000);
+    expect(await h.queue.rateLimitUntil(scope)).toBe(120_000);
+    for (const other of [
+      { ...scope, accountId: hex(2) },
+      { ...scope, environment: 'https://b.test' },
+    ]) {
+      expect(await h.queue.rateLimitUntil(other)).toBe(0);
+      expect(await h.pending.retryAt!(other, uuidOf(999))).toBe(0);
+    }
+    await h.queue.discard(h.record);
+    expect(await h.pending.retryAt!(scope, uuidOf(999))).toBe(120_000);
+  }
+);
+
+it('keeps the account deadline after C receipt cleanup', async () => {
+  const h = await setup();
+  await h.queue.prepare(h.record, payload(h.record.clientRequestId));
+  await h.pending.pause!(scope, h.record.clientRequestId, 'busy', 120_000);
+  await h.pending.remove(scope, h.record.clientRequestId);
+  expect(await h.queue.list(scope)).toEqual([]);
+  expect(await h.pending.list(scope)).toEqual([]);
+  expect(await h.queue.rateLimitUntil(scope)).toBe(120_000);
+});
+
+it.each(['queue', 'pending'] as const)(
+  'rolls back the %s row pause and account deadline together on storage failure',
+  async (writer) => {
+    const h = await setup();
+    await h.queue.prepare(h.record, payload(h.record.clientRequestId));
+    const broken = failAt(h.db, /UPDATE expense_queue/);
+    if (writer === 'queue') {
+      const store = await createExpenseQueueStore(broken);
+      await expect(store.pause(h.record, 'busy', 120_000)).rejects.toThrow('disk full');
+    } else {
+      const store = await createPendingExpenseStore(broken);
+      await expect(store.pause!(scope, h.record.clientRequestId, 'busy', 120_000)).rejects.toThrow(
+        'disk full'
+      );
+    }
+    expect(await h.queue.rateLimitUntil(scope)).toBe(0);
+    expect(await h.queue.list(scope)).toMatchObject([{ nextAt: 0, rateLimitUntil: 0 }]);
+  }
+);
+
+it('migrates schema 5 deadlines by account and environment and rolls back a failed migration', async () => {
+  const h = await setup();
+  const other = { ...draft(2), tripId: hex(200) };
+  await h.pending.drafts.start(other);
+  await h.queue.enqueue(other, options, uuidOf(101));
+  const records = await h.queue.list(scope);
+  await h.queue.pause(records[0], 'busy', 120_000);
+  await h.queue.pause(records[1], 'busy', 90_000);
+  await h.db.execAsync('DROP TABLE expense_rate_limit; PRAGMA user_version = 5');
+  const broken: SqlDatabase = {
+    ...h.db,
+    execAsync: async (sql) => {
+      await h.db.execAsync(sql);
+      if (sql.includes('INSERT INTO expense_rate_limit')) throw new Error('disk full');
+    },
+  };
+  await expect(createExpenseQueueStore(broken)).rejects.toThrow('disk full');
+  expect(await h.db.getFirstAsync('PRAGMA user_version')).toEqual({ user_version: 5 });
+  expect(
+    await h.db.getFirstAsync("SELECT name FROM sqlite_master WHERE name = 'expense_rate_limit'")
+  ).toBeNull();
+  const upgraded = await createExpenseQueueStore(h.db);
+  expect(await upgraded.rateLimitUntil(scope)).toBe(120_000);
+  expect(await upgraded.rateLimitUntil({ ...scope, accountId: hex(2) })).toBe(0);
+  expect(await upgraded.rateLimitUntil({ ...scope, environment: 'https://b.test' })).toBe(0);
+  for (const r of records) await upgraded.discard(r);
+  expect(await h.pending.retryAt!(scope, uuidOf(999))).toBe(120_000);
 });

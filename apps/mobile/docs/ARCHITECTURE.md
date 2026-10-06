@@ -103,7 +103,7 @@ Web 預覽沒有登入也沒有資料庫，打包時改用 `pendingExpenseDataba
 
 ## 受限離線入口（D2）
 
-`SessionManager` 的 `local` 狀態只有本機帳號身分，沒有 session／access token。SecureStore 將 refresh token 與線上確認過的 user 原子保存在同一環境 slot；舊格式 token 仍可線上更新，但不能推測本機帳號。只有 restore 的 NETWORK／TIMEOUT 可降入本機模式，401 清除身分，安全儲存失敗與其他伺服器錯誤仍顯示登入錯誤。`(member)` 路由只接受 signedIn；`(local)` 的 `/drafts` 與 `/drafts/[id]` 接受 signedIn／local。本機表單共用 D1 editor，禁止離線 HTTP 預覽／提交；可按 D3 契約明確確認均分規則並加入待送佇列。`requestAs` 仍須有效 session，未確認草稿不因網路恢復自動送出。同步與 C 的自動結果查詢只在 signedIn／前景／連線時執行。
+`SessionManager` 的 `local` 狀態只有本機帳號身分，沒有 session／access token。SecureStore 將 refresh token 與線上確認過的 user 原子保存在同一環境 slot；token 外層格式與 user 分開驗證；本機 user 不符合目前 schema 時忽略身分，保留有效 token 供線上刷新，不能因此進入本機模式。舊格式 token 仍可線上更新，但不能推測本機帳號。只有 restore 的 NETWORK／TIMEOUT 可降入本機模式，401 清除身分，安全儲存失敗與其他伺服器錯誤仍顯示登入錯誤。`(member)` 路由只接受 signedIn；`(local)` 的 `/drafts` 與 `/drafts/[id]` 接受 signedIn／local。本機表單共用 D1 editor，禁止離線 HTTP 預覽／提交；可按 D3 契約明確確認均分規則並加入待送佇列。`requestAs` 仍須有效 session，未確認草稿不因網路恢復自動送出。同步與 C 的自動結果查詢只在 signedIn／前景／連線時執行。
 
 資料庫版本 3 新增 `draft_trip`，保留 D1／C 表與原始輸入。只保存旅行名稱、成員／分類選項、更新時間與拒絕標記，不保存帳務數字或整份 Query cache。`DraftCatalog` 觀察 Query 的實際成功讀取並以共用 SQLite 序列保存；手動寫入 Query cache 不算授權。旅行摘要預載成員選項，只有名稱的快照可顯示入口但不能建立草稿。快照保存失敗不阻擋既有線上帳務，提供本機保存失敗提示。
 
@@ -111,9 +111,9 @@ Web 預覽沒有登入也沒有資料庫，打包時改用 `pendingExpenseDataba
 
 ## 確認後的待送佇列（D3）
 
-`features/expenseQueue/sync.ts` 的 `ExpenseQueue` 共用 App 層引擎與生命週期；登入路由及本機路由皆可進 `/queue`。`storage/expenseQueue.ts` 保存每筆均分意圖，資料庫版本 4 僅新增 `expense_queue`，保留 C／D1／D2 資料。所有表共用序列／交易；查詢快取清除不影響佇列。確認草稿與原世代 tombstone 在同一交易，避免同一草稿重複加入，下一次開啟可建立新草稿。未送出項目移回草稿時產生新的草稿世代；舊 editor 保存不得覆蓋。準備送出與 C pending 原子交接，C 結案也原子清理佇列／pending。原始輸入及成員 ID 順序只存本機，不含 token／成員姓名／整份預覽；凍結後的 HTTP body 保存在 pending。
+`features/expenseQueue/sync.ts` 的 `ExpenseQueue` 共用 App 層引擎與生命週期；登入路由及本機路由皆可進 `/queue`。`storage/expenseQueue.ts` 保存每筆均分意圖，資料庫版本 4 新增 `expense_queue`；版本 5 加入列內 `rate_limit_until`，版本 6 新增按帳號／環境保存的 `expense_rate_limit` 並遷移各範圍最大期限，保留 C／D1／D2 與既有佇列資料。所有表共用序列／交易；查詢快取清除不影響佇列。確認草稿與原世代 tombstone 在同一交易，避免同一草稿重複加入，下一次開啟可建立新草稿。未送出項目移回草稿時產生新的草稿世代；舊 editor 保存不得覆蓋。準備送出與 C pending 原子交接，C 結案也原子清理佇列／pending。原始輸入及成員 ID 順序只存本機，不含 token／成員姓名／整份預覽；凍結後的 HTTP body 保存在 pending。
 
-同步先重讀選項並比對整份 ID 順序，再取後端預覽；跨撤權世代的回應不能交接，非同步交接完成後再檢查撤權，並將同一世代與前景／連線檢查經 C 傳到 HTTP transport，每次 fetch 前同步執行，涵蓋 C 序列等待、SQLite 讀取／狀態保存及 refresh 後重送；撤權後保留 UUID／凍結內容並停止新的 POST。準備後只能查回／同 UUID 重試；失去授權保留原紀錄，refresh 錯誤不當成支出拒絕。C 在 POST／查詢收到 429 時立即持久化 `next_at`，涵蓋手動操作、自動恢復及 POST 失敗後的查詢；後續較短等待不覆蓋已存期限。409 在查詢原 receipt 前先落盤，後續撤權、登入或限速錯誤不清除衝突；C 查詢／手動重試也遵守冷卻；App 前景以 30 秒 tick、回前景及網路恢復繼續，每個帳號環境只執行一個佇列 run，同一 pending 的 lookup／retry 仍由 C 序列。未入佇列的草稿從不自動提交，非佇列 C 紀錄只查詢。完整狀態、確認／分攤與失敗語意見 [D3 契約](BACKEND_CONTRACT.md#d3-離線確認與分攤契約)。尚無 OS 背景工作。
+同步先重讀選項並比對整份 ID 順序，再取後端預覽；跨撤權世代的回應不能交接，非同步交接完成後再檢查撤權，並將同一世代與前景／連線檢查經 C 傳到 HTTP transport，每次 fetch 前同步執行，涵蓋 C 序列等待、SQLite 讀取／狀態保存及 refresh 後重送；撤權後保留 UUID／凍結內容並停止新的 POST。準備後只能查回／同 UUID 重試；失去授權保留原紀錄，refresh 錯誤不當成支出拒絕。C 在 POST／查詢收到 429 時立即持久化 `next_at`，涵蓋手動操作、自動恢復及 POST 失敗後的查詢；後續較短等待不覆蓋已存期限。429 在同一交易保存列內等待與獨立帳號／環境期限；佇列同步及 C 新增、手動查詢／重試、自動恢復皆讀取共用期限，捨棄、移回草稿或 receipt 結案不會解除等待，非佇列 C 的 429 也會保存。每輪同步先檢查限速，再決定是否跳過衝突旅行；`reason = conflict` 不會將限速降成旅行內等待。版本 4 的衝突紀錄無法區分舊等待來源，升級保守將既有 `next_at` 同時保留為限速期限，到期後仍可只跳過該旅行。409 在查詢原 receipt 前先落盤，後續撤權、登入或限速錯誤不清除衝突；C 查詢／手動重試也遵守冷卻；App 前景以 30 秒 tick、回前景及網路恢復繼續，每個帳號環境只執行一個佇列 run，同一 pending 的 lookup／retry 仍由 C 序列。409 尚查不到 receipt，以及同旅行 C 未結案導致交接受阻，皆保存至少 30 秒等待，只跳過該旅行並繼續其他旅行；重啟後同樣遵守等待，409 保留原 UUID／凍結內容且不自動 POST。其他暫時性故障及其冷卻仍停止本輪。未入佇列的草稿從不自動提交，非佇列 C 紀錄只查詢。完整狀態、確認／分攤與失敗語意見 [D3 契約](BACKEND_CONTRACT.md#d3-離線確認與分攤契約)。尚無 OS 背景工作。
 
 ## 共用與平台界線
 

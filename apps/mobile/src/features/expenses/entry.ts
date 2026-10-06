@@ -210,7 +210,8 @@ export class ExpenseEntry {
       this.opening.delete(lock);
     }
     this.deps.onChange?.(scope, tripId);
-    return this.serial(scope, record.clientRequestId, () => this.post(store, record));
+    // New submissions share the durable account cooldown used by recovery and manual retry.
+    return this.retry(scope, record.clientRequestId);
   }
 
   /** Asks the server what it has for a pending request. Read-only. */

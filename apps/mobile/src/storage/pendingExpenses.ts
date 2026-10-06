@@ -1,3 +1,4 @@
+import { extendExpenseRateLimit, readExpenseRateLimit } from './expenseRateLimit';
 import { expenseCreateInput, type ExpenseCreateInput } from '@/api/contracts';
 import { databaseTask, migrateExpenseDatabase, transaction } from './expenseDatabase';
 import { expenseDraftSchema, type DraftRef, type ExpenseDraftStore } from './expenseDrafts';
@@ -32,8 +33,9 @@ export interface PendingExpenseStore {
   drafts: ExpenseDraftStore;
   get(scope: PendingScope, clientRequestId: string): Promise<PendingExpense | null>;
   list(scope: PendingScope, tripId?: string): Promise<PendingExpense[]>;
+  /** Maximum of the request cooldown and the durable account/environment rate limit. */
   retryAt?(scope: PendingScope, clientRequestId: string): Promise<number>;
-  /** Persist queue cooldown / conflict at the HTTP boundary, including manual C operations. */
+  /** Persist account rate limits and queue cooldown / conflict at the HTTP boundary. */
   pause?(
     scope: PendingScope,
     clientRequestId: string,
@@ -247,17 +249,15 @@ export async function createPendingExpenseStore(db: SqlDatabase): Promise<Pendin
         return rows.flatMap((row) => toRecord(row) ?? []);
       }),
     retryAt: (scope, clientRequestId) =>
-      serial(
-        async () =>
-          (
-            await db.getFirstAsync<{ next_at: number }>(
-              'SELECT next_at FROM expense_queue WHERE environment = ? AND account_id = ? AND client_request_id = ?',
-              scope.environment,
-              scope.accountId,
-              clientRequestId
-            )
-          )?.next_at ?? 0
-      ),
+      serial(async () => {
+        const row = await db.getFirstAsync<{ next_at: number }>(
+          'SELECT next_at FROM expense_queue WHERE environment = ? AND account_id = ? AND client_request_id = ?',
+          scope.environment,
+          scope.accountId,
+          clientRequestId
+        );
+        return Math.max(row?.next_at ?? 0, await readExpenseRateLimit(db, scope));
+      }),
     setStatus: (scope, clientRequestId, status) =>
       serial(async () => {
         await db.runAsync(
@@ -271,17 +271,22 @@ export async function createPendingExpenseStore(db: SqlDatabase): Promise<Pendin
         );
       }),
     pause: (scope, clientRequestId, reason, nextAt) =>
-      serial(async () => {
-        await db.runAsync(
-          `UPDATE expense_queue SET reason = CASE WHEN reason = 'conflict' THEN reason ELSE ? END,
-          next_at = MAX(next_at, ?) WHERE environment = ? AND account_id = ? AND client_request_id = ? AND status = 'prepared'`,
-          reason,
-          nextAt,
-          scope.environment,
-          scope.accountId,
-          clientRequestId
-        );
-      }),
+      serial(() =>
+        transaction(db, async () => {
+          if (reason === 'busy') await extendExpenseRateLimit(db, scope, nextAt);
+          await db.runAsync(
+            `UPDATE expense_queue SET reason = CASE WHEN reason = 'conflict' THEN reason ELSE ? END,
+          next_at = MAX(next_at, ?), rate_limit_until = MAX(rate_limit_until, ?)
+          WHERE environment = ? AND account_id = ? AND client_request_id = ? AND status = 'prepared'`,
+            reason,
+            nextAt,
+            reason === 'busy' ? nextAt : 0,
+            scope.environment,
+            scope.accountId,
+            clientRequestId
+          );
+        })
+      ),
     remove: (scope, clientRequestId, resolution = 'committed') =>
       serial(() =>
         transaction(db, async () => {

@@ -111,11 +111,22 @@ export class ExpenseQueue {
   private async run(scope: PendingScope) {
     if (!this.deps.active(scope)) return;
     const store = await this.deps.store();
+    const blockedTrips = new Set<string>();
     try {
-      for (const r of await store.list(scope)) {
+      const records = await store.list(scope);
+      // The account deadline survives discarding, restoring, and resolving individual records.
+      if ((await store.rateLimitUntil(scope)) > this.now()) return;
+      for (const r of records) {
         if (!this.deps.active(scope)) return;
         if (r.status === 'attention' || r.status === 'resolved') continue;
-        if (r.nextAt > this.now()) return;
+        if (blockedTrips.has(r.tripId)) continue;
+        if (r.nextAt > this.now()) {
+          // Conflict investigation and waiting behind C are trip-local, even after restart.
+          // Transient transport/server failures and rate limits still pause the whole run.
+          if (r.reason !== 'conflict' && r.reason !== 'pending') return;
+          blockedTrips.add(r.tripId);
+          continue;
+        }
         const version = this.deps.authorizationVersion?.(scope, r.tripId);
         const stillAuthorized = () => version === this.deps.authorizationVersion?.(scope, r.tripId);
         // C awaits its serial queue and SQLite reads/status writes; refresh can await again.
@@ -133,9 +144,16 @@ export class ExpenseQueue {
             this.deps.active(scope)
           ) {
             // A previous 409 is an ID conflict to investigate, not authorization to overwrite it.
-            if (r.reason === 'conflict') return;
+            if (r.reason === 'conflict') {
+              await store.pause(r, 'conflict', this.now() + 30_000);
+              blockedTrips.add(r.tripId);
+              continue;
+            }
             const sent = await this.deps.entry.retry(scope, r.clientRequestId, beforeSend);
-            if (!(await this.outcome(store, r, sent))) return;
+            if (!(await this.outcome(store, r, sent))) {
+              if (sent.kind !== 'unconfirmed' || sent.reason !== 'conflict') return;
+              blockedTrips.add(r.tripId);
+            }
           } else if (!(await this.outcome(store, r, found))) return;
           continue;
         }
@@ -173,7 +191,11 @@ export class ExpenseQueue {
             ...confirmedFields(r.input, options, preview),
             client_request_id: r.clientRequestId,
           });
-          if (!(await store.prepare(r, payload))) return;
+          if (!(await store.prepare(r, payload))) {
+            await store.pause(r, 'pending', this.now() + 30_000);
+            blockedTrips.add(r.tripId);
+            continue;
+          }
           if (!this.deps.active(scope)) return;
           // SQLite handoff is asynchronous too: a newer denial may arrive during its transaction.
           // Keep the frozen request under C, but do not start a write using the stale preflight.
@@ -182,7 +204,10 @@ export class ExpenseQueue {
             return;
           }
           const sent = await this.deps.entry.retry(scope, r.clientRequestId, beforeSend);
-          if (!(await this.outcome(store, r, sent))) return;
+          if (!(await this.outcome(store, r, sent))) {
+            if (sent.kind !== 'unconfirmed' || sent.reason !== 'conflict') return;
+            blockedTrips.add(r.tripId);
+          }
         } catch (error) {
           // Before prepare no write was attempted; denial requires explicit review, credentials pause.
           const live = (await store.list(scope)).find(

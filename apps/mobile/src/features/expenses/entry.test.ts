@@ -370,14 +370,23 @@ describe('an outcome that is not clear', () => {
     expect(await h.pending()).toHaveLength(1);
   });
 
-  it('retries a 429 without a wait', async () => {
+  it('uses a durable 30-second fallback when a 429 omits Retry-After', async () => {
     const h = await harness();
     await h.login('ann');
     h.fail('POST', { kind: 'status', status: 429, code: 'BUSY' });
     expect(
       expectKind(await h.entry.submit(h.scope(ANN), TRIP, fields()), 'unconfirmed').reason
     ).toBe('busy');
-    expectKind(await h.entry.retry(h.scope(ANN), uuidOf(1)), 'saved');
+    const nextAt = await h.store.retryAt!(h.scope(ANN), uuidOf(1));
+    expect(nextAt).toBeGreaterThan(Date.now() + 29_000);
+    expectKind(await h.entry.retry(h.scope(ANN), uuidOf(1)), 'unconfirmed');
+    expect(h.server.posts()).toHaveLength(1);
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(nextAt);
+    try {
+      expectKind(await h.entry.retry(h.scope(ANN), uuidOf(1)), 'saved');
+    } finally {
+      clock.mockRestore();
+    }
     expect(h.server.expenses).toHaveLength(1);
   });
 });
@@ -1058,4 +1067,18 @@ describe('D1 hands a durable draft to C', () => {
     expect(h.server.expenses).toHaveLength(1);
     expect(await h.store.drafts.load(h.scope(ANN), TRIP)).toBeNull();
   });
+});
+
+it('holds new C submissions on other trips behind the persistent account rate limit', async () => {
+  const h = await harness();
+  await h.login('ann');
+  h.fail('POST', { kind: 'status', status: 429, code: 'BUSY', retryAfter: 120 });
+  expectKind(await h.entry.submit(h.scope(ANN), TRIP, fields()), 'unconfirmed');
+  // No D3 queue row exists for this source; a new engine must still enforce its deadline.
+  const entry = h.makeEntry();
+  const result = expectKind(await entry.submit(h.scope(ANN), OTHER_TRIP, fields()), 'unconfirmed');
+  expect(result.reason).toBe('busy');
+  expect(h.server.posts()).toHaveLength(1);
+  expect(h.server.lookups()).toHaveLength(0);
+  expect(await h.pending()).toHaveLength(2);
 });

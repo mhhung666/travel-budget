@@ -45,7 +45,11 @@ const retryNeedle = `    return this.serial(scope, clientRequestId, async () => 
       const loaded = await this.load(scope, clientRequestId);
       return 'store' in loaded ? this.post(loaded.store, loaded.record, beforeSend) : loaded;
     });`;
-const prepareNeedle = '          if (!(await store.prepare(r, payload))) return;';
+const prepareNeedle = `          if (!(await store.prepare(r, payload))) {
+            await store.pause(r, 'pending', this.now() + 30_000);
+            blockedTrips.add(r.tripId);
+            continue;
+          }`;
 const responseNeedle = '      checkAborted(options.signal);\n      if (timedOut)';
 assert(
   clientSource.includes('      options.beforeSend?.();') && clientSource.includes(responseNeedle),

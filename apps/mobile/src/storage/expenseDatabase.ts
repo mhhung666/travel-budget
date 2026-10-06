@@ -22,7 +22,7 @@ export async function transaction<T>(db: SqlDatabase, task: () => Promise<T>): P
   }
 }
 
-const SCHEMA_VERSION = 4;
+const SCHEMA_VERSION = 6;
 /** Central, additive migration: the original C table and every pending request are retained. */
 export function migrateExpenseDatabase(db: SqlDatabase): Promise<void> {
   return databaseTask(db, async () => {
@@ -63,7 +63,8 @@ export function migrateExpenseDatabase(db: SqlDatabase): Promise<void> {
           PRIMARY KEY (environment, account_id, trip_id)
         );
       `);
-      await db.execAsync(`
+      if (version < 4)
+        await db.execAsync(`
         CREATE TABLE expense_queue (
           environment TEXT NOT NULL, account_id TEXT NOT NULL, client_request_id TEXT NOT NULL,
           trip_id TEXT NOT NULL, input TEXT NOT NULL, roster TEXT NOT NULL,
@@ -71,8 +72,25 @@ export function migrateExpenseDatabase(db: SqlDatabase): Promise<void> {
           reason TEXT, next_at INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL,
           PRIMARY KEY (environment, account_id, client_request_id)
         );
-        PRAGMA user_version = ${SCHEMA_VERSION};
       `);
+      if (version < 5)
+        await db.execAsync(`
+        ALTER TABLE expense_queue ADD COLUMN rate_limit_until INTEGER NOT NULL DEFAULT 0;
+        -- Legacy conflict rows may hide a 429; conservatively retain their existing deadline.
+        UPDATE expense_queue SET rate_limit_until = next_at WHERE reason IN ('busy', 'conflict');
+      `);
+      if (version < 6)
+        await db.execAsync(`
+        CREATE TABLE expense_rate_limit (
+          environment TEXT NOT NULL, account_id TEXT NOT NULL,
+          rate_limit_until INTEGER NOT NULL,
+          PRIMARY KEY (environment, account_id)
+        );
+        INSERT INTO expense_rate_limit (environment, account_id, rate_limit_until)
+          SELECT environment, account_id, MAX(rate_limit_until) FROM expense_queue
+          GROUP BY environment, account_id HAVING MAX(rate_limit_until) > 0;
+      `);
+      await db.execAsync(`PRAGMA user_version = ${SCHEMA_VERSION}`);
     });
   });
 }

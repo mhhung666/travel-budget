@@ -7,8 +7,8 @@
 ### 2026-10-05～2026-10-06
 
 - Web／workspace：補齊 React PDF、next-themes、cmdk 與 React Leaflet／core 的 React 型別依賴，修復 53 個型別錯誤；frozen install、根 check、Web 正式 build、Mobile 三平台匯出與 Expo 相容性通過。
-- Mobile：完成 C 返回／鍵盤及無障礙修正，新增 D1 隔離草稿／原子交接、D2 最小快照／受限離線入口，以及 D3 明確均分確認／多筆前景佇列；未確認草稿不自動入帳，分攤仍由後端決定。
-- Mobile 驗收／工具：兩平台以原生 SQLite、隔離 MongoDB 與 HTTP 核對保存／當機恢復、撤權、佇列及持久化 429／409；C 序列、refresh 重送及晚到回應撤權補驗通過，完成 D 的 32 組配置操作與 iOS 鍵盤／VoiceOver 錯誤及私人資料焦點核對。543 個測試、Mobile check、三平台匯出與 Expo 相容性通過；iOS 最大字級長成員名稱有 P2 視覺缺陷，閱讀器剩餘項目／TalkBack 人工驗收見 [本機驗收](apps/mobile/docs/LOCAL_ACCEPTANCE.md#尚未完成的驗收)，D 尚未結案；真機／development build 另排。
+- Mobile：完成 C 返回／鍵盤及無障礙修正，新增 D1 隔離草稿／原子交接、D2 最小快照／受限離線入口，以及 D3 明確均分確認／多筆前景佇列；修正 409 無 receipt／同旅行 C 未結案阻塞其他旅行，等待落盤，衝突與 429 限速期限分開保存／判斷，以獨立帳號／環境資料保存限速，C 恢復／查詢／重試與新增共用，捨棄／移回／結案及重啟不解除等待；本機身分 schema 不相容仍保留有效 token 供線上刷新；修正提交依規範升 patch，尚未發布。未確認草稿不自動入帳，分攤仍由後端決定。
+- Mobile 驗收／工具：兩平台以原生 SQLite、隔離 MongoDB 與 HTTP 核對保存／當機恢復、撤權、佇列及持久化 429／409；C 序列、refresh 重送及晚到回應撤權補驗通過，完成 D 的 32 組配置操作與 iOS 鍵盤／VoiceOver 錯誤及私人資料焦點核對。兩項限速 P2 複審確認修正，含 schema 6 升級與交易回滾；新增 12 個回歸案例後，585 個既有測試（554 行為／31 工具）、Mobile check、三平台匯出與 Expo 相容性通過。另重現 C 重試在 SQLite 等待期間新增跨旅行 429 後仍 POST 的 P2 競態，待修正。產品修正的兩平台複驗仍待執行；iOS 最大字級長成員名稱另有 P2 視覺缺陷，閱讀器剩餘項目／TalkBack 人工驗收見 [本機驗收](apps/mobile/docs/LOCAL_ACCEPTANCE.md#尚未完成的驗收)，D 尚未結案；真機／development build 另排。
 
 ### 2026-10-04
 
