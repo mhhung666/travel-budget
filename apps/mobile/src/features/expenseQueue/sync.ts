@@ -11,6 +11,7 @@ import type { PendingScope } from '@/storage/pendingExpenses';
 import type { ExpenseQueueStore, QueuedExpense } from '@/storage/expenseQueue';
 import { confirmedFields, previewInputOf, validateDraft } from '@/features/expenses/draft';
 import {
+  LocalRateLimitError,
   reasonOf,
   type EntryRequest,
   type ExpenseEntry,
@@ -95,7 +96,9 @@ export class ExpenseQueue {
     await store.pause(
       r,
       reasonOf(error),
-      this.now() + Math.max(30, seconds ?? 30) * 1000,
+      error instanceof LocalRateLimitError
+        ? error.until
+        : this.now() + Math.max(30, seconds ?? 30) * 1000,
       attention
     );
   }
@@ -103,8 +106,12 @@ export class ExpenseQueue {
     if (outcome.kind === 'saved' || outcome.kind === 'rejected' || outcome.kind === 'gone')
       return true;
     if (outcome.kind === 'unconfirmed') {
-      const seconds = outcome.error instanceof ApiError ? outcome.error.retryAfter : undefined;
-      await store.pause(r, outcome.reason, this.now() + Math.max(30, seconds ?? 30) * 1000);
+      if (outcome.error instanceof LocalRateLimitError)
+        await store.pause(r, outcome.reason, outcome.error.until);
+      else {
+        const seconds = outcome.error instanceof ApiError ? outcome.error.retryAfter : undefined;
+        await store.pause(r, outcome.reason, this.now() + Math.max(30, seconds ?? 30) * 1000);
+      }
     } else await store.pause(r, 'storage', this.now() + 30_000);
     return false;
   }

@@ -681,6 +681,7 @@ try {
           'queue-refresh-failure',
           'queue-credential-failure',
           'draft-legacy',
+          'draft-incompatible',
           'draft-edit-race',
           'draft-environments',
         ].includes(flow),
@@ -697,6 +698,7 @@ try {
           'queue-late-preview',
           'queue-credential-failure',
           'draft-legacy',
+          'draft-incompatible',
           'draft-edit-race',
         ].includes(flow)
       )
@@ -1064,10 +1066,9 @@ try {
           )
         );
       }
-      if (flow === 'draft-legacy') {
-        assert(
-          sqlGate.events.slice(gateFrom).some((e) => e.stage === 'credential-legacy' && e.injected)
-        );
+      if (['draft-legacy', 'draft-incompatible'].includes(flow)) {
+        const stage = flow === 'draft-legacy' ? 'credential-legacy' : 'credential-incompatible';
+        assert(sqlGate.events.slice(gateFrom).some((e) => e.stage === stage && e.injected));
         const blocked = await readState('legacy-blocked');
         const restored = await readState('legacy-restored');
         assert.equal(blocked.expense_draft[0].input, restored.expense_draft[0].input);

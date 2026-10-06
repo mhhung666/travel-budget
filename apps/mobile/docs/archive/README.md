@@ -21,7 +21,7 @@
 
 已實作每個環境／帳號／旅行一份原始輸入草稿、保存狀態與失敗重試、續填／明確捨棄、重新授權與失效選項修正，以及同一 SQLite 交易交給 C 的 UUID／凍結內容。D2 保存最小旅行名稱與成員選項快照、更新時間和持久化拒絕標記；SecureStore 將本機帳號身分與憑證原子保存，離線冷啟動可在受限模式建立／續填草稿。未確認的草稿不自動寫帳；直接入帳須線上授權、新預覽與確認，D3 的均分規則確認另見下述成果及契約。
 
-開發驗證涵蓋真 SQLite 重開、schema 升級、修訂／捨棄／快照與拒絕競態、晚到選項回應、保存／交接／清理失敗、子程序終止、帳號／環境隔離、429 持久化等待、409 衝突及 refresh 失敗。D3 複審修正撤權檢查至每次 fetch 前，包含 C 序列／SQLite 等待與 refresh 重送；原 UUID／內容保留，後续回應不縮短等待或消除衝突。產品複審修正 409／C 未結案的旅行內等待、有效 refresh token 的保留，以及 schema 6 帳號／環境限速持久化：C 恢復與手動操作共同遵守，捨棄／移回／結案不清除期限。驗證結果見根目錄 [changelog](../../../../changelog.md)。本次修正的裝置複驗待其他人執行，不沿用先前通過結果。
+開發驗證涵蓋真 SQLite 重開、schema 升級、修訂／捨棄／快照與拒絕競態、晚到選項回應、保存／交接／清理失敗、子程序終止、帳號／環境隔離、429 持久化等待、409 衝突及 refresh 失敗。D3 複審修正撤權檢查至每次 fetch 前，包含 C 序列／SQLite 等待與 refresh 重送；原 UUID／內容保留，後续回應不縮短等待或消除衝突。產品複審修正 409／C 未結案的旅行內等待、有效 refresh token 的保留，以及 schema 6 帳號／環境限速持久化：C 恢復與手動操作共同遵守，捨棄／移回／結案不清除期限。驗證結果見根目錄 [changelog](../../../../changelog.md)。2026-10-06 再修正 D 將本機攔截套用新 429 最少 30 秒退避、造成原 120 秒期限延至 149 秒的 P2；C 回傳原始毫秒期限，D 原樣持久化。四個真 SQLite 回歸確認 load／receipt／POST／refresh 在剩 999 毫秒時攔截，重啟後於原期限沿原 UUID 恢復。
 
 裝置複驗（2026-10-05～06，本輪已收束）：iPhone 18 Pro／iOS 27 與 Android API 36 Expo Go，使用獨立一次性 MongoDB replica set、隔離帳號、模擬器原生 SQLite 與 HTTP 代理。以下通過基本情境，不代表全部 D 操作表完成：
 
@@ -39,17 +39,21 @@
 | HTTP 限速／衝突    | iOS 的 POST 與 receipt lookup 429 已驗：實際 180 秒等待跨冷啟動及 C 手動操作保持，期限後沿原 UUID／內容恢復。409 後查詢被拒絕，仍持久化衝突且不自動重送。Android POST／查詢 429 與 409 也已通過；查詢 429 使用提交後丟回應並立即斷線，避免 Android HTTP 自動重試先行消耗故障。                                                                                               |
 | VoiceOver 已驗部分 | iOS 27 使用原生 VoiceOver 取得實際朗讀：保存狀態、輸入、radio／checkbox 選取狀態、停用提交與離線確認說明可讀。實際單點選取焦點、雙點切換成員及捨棄可操作；捨棄後輸入清空。主要續填／佇列操作另見下述補驗；必填／格式／日期／逾時錯誤與換帳號／撤權焦點另已補驗；其餘閱讀器限制見下述摘要。                                                                                   |
 
-兩平台 refresh 500 與憑證輪替保存失敗已驗：原 UUID／凍結內容保留，換 B 帳號不洩漏，回 A 後只入帳一次；兩平台舊格式憑證離線不可當作已驗證身分，重新授權後原草稿保留。憑證保存失敗為原生 adapter 在 SecureStore 寫入前注入錯誤，不代表實體 Keychain 損壞。兩平台延遲保存返回／捨棄也已通過，核對新世代確實落盤後冷啟動不復活舊輸入。兩平台跨 API 環境隔離也已通過：另一環境看不到原草稿、選項或佇列，返回原環境 UUID／內容不變，HTTP／DB 零入帳。兩平台晚到選項／預覽也已補驗：真後端 200 保留至切背景、另一表單學到實際 404 後才釋放，原 UUID／原始輸入保留，queue 為 access attention、pending 為零，快照拒絕且無選項，POST／DB 零寫入。這些不能以已有開發測試取代裝置證據；D 尚未結案，完整契約及待驗清單見 [本機驗收](../LOCAL_ACCEPTANCE.md#d1-草稿驗收交接)。真機與 development build 另列 F。
+兩平台 refresh 500 與憑證輪替保存失敗已驗：原 UUID／凍結內容保留，換 B 帳號不洩漏，回 A 後只入帳一次；兩平台舊格式憑證離線不可當作已驗證身分，重新授權後原草稿保留。憑證保存失敗為原生 adapter 在 SecureStore 寫入前注入錯誤，不代表實體 Keychain 損壞。兩平台延遲保存返回／捨棄也已通過，核對新世代確實落盤後冷啟動不復活舊輸入。兩平台跨 API 環境隔離也已通過：另一環境看不到原草稿、選項或佇列，返回原環境 UUID／內容不變，HTTP／DB 零入帳。兩平台晚到選項／預覽也已補驗：真後端 200 保留至切背景、另一表單學到實際 404 後才釋放，原 UUID／原始輸入保留，queue 為 access attention、pending 為零，快照拒絕且無選項，POST／DB 零寫入。這些不能以已有開發測試取代裝置證據；D 核心交付完成，完整裝置驗收仍有暫緩項目；完整契約及待驗清單見 [本機驗收](../LOCAL_ACCEPTANCE.md#d1-草稿驗收交接)。真機與 development build 另列 F。
 
 VoiceOver 已實際完成文字／數字輸入、SQLite 保存失敗重試、離線冷啟動續填、均分入佇列及移回草稿。重新授權後取得新預覽並明確送出；丟回應保留 pending，連線恢復由前景 receipt 查詢清理，POST／expense／receipt／副作用各一次。另取得必填、金額格式、無效日期、逾時錯誤與停用按鈕的實際朗讀；保持閱讀器開啟完成 A→B→A，登出及撤權後焦點移至一般入口／無權限提示、原私人欄位與選項隱藏，回 A 原始草稿保留。忙碌 AX 狀態已確認，實際忙碌朗讀與完整觸控手勢／C 手動恢復操作尚未全部核對。2026-10-06 使用者決定 TalkBack 保留待人工驗收：Android 視窗無法接入電腦操作工具，不把角色樹當作實際閱讀器證據。
 
 D 顯示的 32 組操作與資料核對已完成：每平台四語 × 預設／最大字級 × 深淺色，涵蓋真 SQLite 保存失敗／重試、明確均分入佇列、101 元內容、移回續填、快照更新時間及捨棄，全部 HTTP／DB 零入帳。Android 一組最終捲動及 iOS 14 組由原生輔助操作獨立補證；保留原自動化失敗，不稱整次工具執行通過。iOS 最大字級仍用既有 deep link，旅行卡片導覽未驗；原生 AX 設值也不代替所有配置的完整軟體鍵盤。先前繁中最大／深色的 Android 冷啟動續填已重跑通過，iOS 不完整日期原樣恢復／捨棄已有獨立手動 SQL／HTTP／DB 證據。
 
-視覺驗收另發現 P2：iOS 最大輔助字級的長成員名稱換行後，固定 `borderRadius: 999` 背景呈橢圓、文字仍按矩形排列，部分首末行落到弧線外；淺色已選取白字難以辨識。操作與 SQL 完成不代表此項通過。2026-10-06 共用 Chip 已改為固定圓角，保留完整名稱與字級縮放；修正後最大字級深淺色及選取操作尚待裝置複驗。D 仍保留此複驗、VoiceOver 未核對範圍與 TalkBack 人工驗收，真機／development build 另列 F。
+視覺驗收發現的 P2 已修正：iOS 最大輔助字級的多行長名稱，原本超出 `borderRadius: 999` 的橢圓背景，淺色已選取白字難以辨識。共用 Chip 改為固定圓角並保留完整名稱與字級縮放；兩平台隔離原生畫面使用產品 Chip 補驗，最大字級深淺色的長名稱完整落在背景內，文字可辨識，選取→取消→再選取均通過。此項為共用元件視覺及點選驗證，不宣稱重跑整份表單矩陣。D 僅剩 VoiceOver 未核對範圍與 TalkBack 人工驗收；依 2026-10-06 使用者決定，剩餘驗收暫緩，不阻擋合併 master 與進入 E，未驗項目不計通過。真機／development build 另列 F，完整待辦見 [本機驗收](../LOCAL_ACCEPTANCE.md#尚未完成的驗收)。
+
+2026-10-06 身分／佇列補驗：兩平台 `draft-incompatible` 經真正 SecureStore 保存有效 token 與缺欄位的舊身分 DTO，離線冷啟動不開啟私人資料，恢復線上後刷新身分、再次離線可續填原草稿，HTTP／DB 零入帳。另以隔離原生測試畫面執行產品 C／D 引擎、expo-sqlite 與 SecureStore，每平台 11 個、共 22 個案例通過：A 的 409／原 C pending 只阻擋 A，B 可送且重啟後仍正確；429 期限跨捨棄／移回／結案／衝突及冷啟動保留；SQLite 讀取／狀態等待與 refresh 回應完成、憑證發布前新增 429，剩不到一秒仍阻擋 POST／receipt，原期限到期後同 UUID／內容只入帳一次。使用真實 120 秒等待，HTTP 代理注入 409／429／401，成功寫入由隔離真後端處理；獨立 MongoDB 核對全部 22 個 UUID 的 expense／receipt／成功 POST 各一。這些是原生引擎整合證據，不取代完整 UI 或閱讀器手動操作。599 個測試（568 個功能、31 個工具）、Mobile check、三平台匯出與 Expo 相容性檢查通過。
 
 ## 本機證據
 
 以下為當時私有暫存位置，可能被系統清理；產物不提交，需複驗時使用現行驗收工具重跑。
+
+- D 最後補驗（2026-10-06）：`/tmp/tb-d-final-native/verified-results.json` 保存 22 個原生案例的後端獨立核對，`events.json`、`ios-sqlite/`、`android-sqlite/` 保存時序及 SQLite 檢查點，`ios-chip/`、`android-chip/` 保存最大字級深淺色選取結果與截圖。身分格式 UI 流程 log 為 `/tmp/tb-d-final-ios-identity-final.log`、`/tmp/tb-d-final-android-identity.log`，產物分別為 `travel-budget-native-TeiGxM`／`travel-budget-native-jRfuf2`；早期工具失敗不計通過。最終開發檢查為 `/tmp/tb-d-final-all-tests.log`、`/tmp/tb-d-final-check-final.log`、`/tmp/tb-d-final-export.log`。
 
 - A：`/tmp/tb-a-reaccept-{tests,db,edge,check,build,ios,android}.log`、`/tmp/tb-a-reaccept-edge.test.ts`；裝置產物 `travel-budget-native-IGhYLg`（iOS）、`travel-budget-native-cmMvHo`（Android）。
 - B：`/tmp/tb-b-final-{tests,db,http,edge,check,build,quality,export}.log`、`/tmp/tb-b-reaccept-edge.test.ts`。額外 DB 案例可暫放 Web `src/__tests__`，以隔離 replica set 和 Vitest `-t 'REVIEW:'` 重跑後移除。

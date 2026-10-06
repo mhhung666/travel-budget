@@ -1137,3 +1137,67 @@ it.each(
     expect(h.server.expenses).toHaveLength(1);
   }
 );
+
+it.each(['load', 'lookup', 'post', 'refresh'] as const)(
+  'keeps the original deadline when D receives a local C %s block with one second left',
+  async (operation) => {
+    const h = await harness();
+    // Process B first so A can establish the account wait while B is already in flight.
+    const b = await h.enqueue(1, OTHER_TRIP);
+    const a = await h.enqueue(2);
+    if (operation === 'lookup')
+      await h.store.prepare(b, {
+        ...confirmedFields(b.input, options, preview),
+        client_request_id: b.clientRequestId,
+      });
+    const until = Date.now() + 120_000;
+    const pause = async () => {
+      await h.store.pause(a, 'busy', until);
+      h.advance(119_001);
+    };
+    if (operation === 'load' || operation === 'lookup') {
+      const retryAt = h.pending.retryAt!;
+      vi.spyOn(h.pending, 'retryAt').mockImplementationOnce(async (...args) => {
+        const stale = await retryAt(...args);
+        await pause();
+        return operation === 'load' ? until : stale;
+      });
+    } else if (operation === 'post') {
+      const prepare = h.store.prepare;
+      vi.spyOn(h.store, 'prepare').mockImplementationOnce(async (...args) => {
+        const result = await prepare(...args);
+        await setStatus(h.scope, b.clientRequestId, 'unconfirmed');
+        return result;
+      });
+      const setStatus = h.pending.setStatus;
+      vi.spyOn(h.pending, 'setStatus').mockImplementationOnce(async (...args) => {
+        await setStatus(...args);
+        await pause();
+      });
+    } else {
+      h.server.fail('POST', /\/expenses$/, { kind: 'status', status: 401 });
+      h.hook(async (path) => {
+        if (path.endsWith('/auth/refresh')) await pause();
+      });
+    }
+    await h.queue.synchronize(h.scope);
+    expect(h.server.expenses).toHaveLength(0);
+    expect(h.server.posts()).toHaveLength(operation === 'refresh' ? 1 : 0);
+    expect(h.calls.filter((call) => call.path.includes('/expense-requests/'))).toEqual([]);
+    expect(await h.store.rateLimitUntil(h.scope)).toBe(until);
+    expect((await h.queue.list(h.scope))[0].nextAt).toBe(until);
+    const payload = (await h.pending.get(h.scope, b.clientRequestId))!.payload;
+    h.hook(undefined);
+    await h.reopen();
+    const before = h.calls.length;
+    h.advance(998);
+    await h.queue.synchronize(h.scope);
+    expect(h.calls).toHaveLength(before);
+    h.advance(1);
+    await h.queue.synchronize(h.scope);
+    const posts = h.calls.slice(before).filter((call) => call.path.endsWith('/expenses'));
+    expect(posts[0].body).toEqual(payload);
+    expect(h.server.expenses).toHaveLength(2);
+    expect(h.server.receipts.size).toBe(2);
+  }
+);

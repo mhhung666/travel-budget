@@ -74,13 +74,14 @@ test('credential faults are one-shot metadata controls with no credential payloa
     for (const [stage, status] of [
       ['credential-set', 500],
       ['credential-legacy', 201],
+      ['credential-incompatible', 201],
     ]) {
       assert.equal((await control(`arm-${stage}`)).status, 200);
       assert.equal((await event(stage)).status, status);
       assert.equal((await control(`wait-${stage}`)).status, 200);
       assert.equal((await event(stage)).status, 200);
     }
-    assert.equal(gate.events.filter((e) => e.injected).length, 2);
+    assert.equal(gate.events.filter((e) => e.injected).length, 3);
     assert(
       gate.events.every((e) =>
         Object.keys(e).every((k) => ['stage', 'id', 'at', 'held', 'injected'].includes(k))

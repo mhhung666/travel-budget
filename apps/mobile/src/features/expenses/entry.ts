@@ -83,9 +83,12 @@ export function reasonOf(error: unknown): UnconfirmedReason {
 }
 
 /** A local guard is not a new server 429 and must not extend the existing deadline. */
-class LocalRateLimitError extends ApiError {
-  constructor(remaining: number) {
-    super('RATE_LIMITED', 429, Math.ceil(remaining / 1000));
+export class LocalRateLimitError extends ApiError {
+  constructor(
+    public until: number,
+    now: number
+  ) {
+    super('RATE_LIMITED', 429, Math.ceil((until - now) / 1000));
   }
 }
 
@@ -280,11 +283,7 @@ export class ExpenseEntry {
     try {
       const nextAt = (await store.retryAt?.(scope, id)) ?? 0;
       if (nextAt > this.now())
-        return unconfirmed(
-          record,
-          'busy',
-          new ApiError('RATE_LIMITED', 429, Math.ceil((nextAt - this.now()) / 1000))
-        );
+        return unconfirmed(record, 'busy', new LocalRateLimitError(nextAt, this.now()));
     } catch (error) {
       return { kind: 'not-sent', error };
     }
@@ -292,8 +291,8 @@ export class ExpenseEntry {
   }
 
   private guardRateLimit(store: PendingExpenseStore, scope: PendingScope) {
-    const remaining = (store.rateLimitUntil?.(scope) ?? 0) - this.now();
-    if (remaining > 0) throw new LocalRateLimitError(remaining);
+    const until = store.rateLimitUntil?.(scope) ?? 0;
+    if (until > this.now()) throw new LocalRateLimitError(until, this.now());
   }
 
   private async post(

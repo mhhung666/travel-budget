@@ -17,6 +17,7 @@ const stages = new Set([
   'before-cleanup',
   'credential-set',
   'credential-legacy',
+  'credential-incompatible',
   'credential-pause',
   'queue-serial-probe',
   'queue-serial-ready',
@@ -56,7 +57,7 @@ export async function startNativeSqlGate(port) {
           armed = 'lookup-before-fetch';
           return reply(201, {});
         }
-        if (stage === 'credential-set' || stage === 'credential-legacy') {
+        if (['credential-set', 'credential-legacy', 'credential-incompatible'].includes(stage)) {
           event.injected = true;
           return reply(stage === 'credential-set' ? 500 : 201, {});
         }
