@@ -766,7 +766,8 @@
       "loginLink": "ログイン",
       "error": "登録に失敗しました",
       "passwordMismatch": "パスワードが一致しません",
-      "passwordHelp": "6文字以上"
+      "passwordHelp": "6文字以上、UTF-8で72バイト以内。空白もパスワードに含まれます",
+      "rateLimited": "リクエストが多すぎます。{seconds}秒後に再試行してください。"
     },
     "forgotPassword": {
       "link": "パスワードをお忘れですか？",
@@ -786,7 +787,8 @@
       "error": "エラーが発生しました。後でもう一度お試しください。",
       "invalidCode": "確認コードが正しくありません",
       "codeExpired": "コードの有効期限が切れました。再度取得してください。",
-      "tooManyAttempts": "試行回数が多すぎます。コードを再取得してください。"
+      "tooManyAttempts": "試行回数が多すぎます。コードを再取得してください。",
+      "rateLimited": "リクエストが多すぎます。{seconds}秒後に再試行してください。"
     },
     "submitting": "処理中…"
   },

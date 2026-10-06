@@ -80,8 +80,26 @@ E 的寫入／查詢與 C／D 共用 `expense_rate_limit`。429 先落盤絕對�
 
 後端新 migration `20261006100000-mutation-requests.js` 可在隔離環境重跑，使用 MongoDB `_id` 唯一約束及既有邀請碼唯一索引；需部署相容後端／索引後才發 App。本次未執行遠端 migration 或裝置驗收。
 
+## E2 註冊與 Email 驗證碼重設
+
+| 匿名端點                            | 輸入                                            | 成功                                    |
+| ----------------------------------- | ----------------------------------------------- | --------------------------------------- |
+| `POST /auth/register`               | `username`、`display_name`、`email`、`password` | 最小 user DTO；不附憑證／cookie         |
+| `POST /auth/password-reset/request` | `email`、選填 `locale`                          | `{ accepted: true }`（所有 Email 相同） |
+| `POST /auth/password-reset/confirm` | `email`、六位字串 `code`、`new_password`        | `{ reset: true }`                       |
+
+帳號 trim 後 3–200 字，顯示名稱 1–100 字；Email trim／小寫並驗格式，最多 254 字。新密碼至少六字元、最多 72 UTF-8 bytes，空白保留；舊登入輸入不改。確認密碼不送 API，未知欄位拒絕。409 `ACCOUNT_CONFLICT` 不區分帳號／Email。400 `INVALID_CODE`、`CODE_EXPIRED`、`TOO_MANY_ATTEMPTS` 可重新寄碼；429 `RATE_LIMITED` 附 Retry-After。逾時、5xx 或無法驗證成功回應均結果不明：建立／重設可先登入核對，不能自動重送，也不保存密碼。
+
+`accountEntry.ts` 共用 Web／HTTP 規則；六位碼 15 分鐘有效，五次錯碼上限；錯誤嘗試、密碼更新／碼消耗與重新寄碼的競態在 MongoDB 交易內處理。同碼併發只成功一次，重寄的新碼與尚存舊碼不同，副作用在提交後 best-effort；不印碼到本機／正式 log。現有 Mobile 密碼 fingerprint 檢查使舊 session 失效；Web cookie 機制不宣稱全撤銷。本機 C／D／E1 紀錄不刪。
+
+匿名限流為原子滑動時窗：每正規化 Email 寄碼每 60 秒一次、每小時五次；驗碼每 15 分鐘十次（未知 Email 同樣計數）；註冊另按帳號每小時二十次。可信來源的註冊／寄碼共用每小時二十次，只在 `VERCEL=1` 接受平台覆寫的單一 `x-forwarded-for` IP；其他環境忽略用戶轉送 header，仍保留 Email／帳號限制，需部署入口另做流量限制。政策集中 `accountPolicy`，adapter 不各自定義。計數 `_id` 用 JWT secret 的 domain-separated HMAC，不記明文 Email／IP，TTL 不取代期限判斷；與已登入帳務限流分開。
+
+手機按註冊、寄碼、驗碼分開保存記憶體中的等待期限；首次寄碼與重新寄碼共用寄碼期限。按鈕與送出守衛只套用該操作期限，寄碼受限仍可提交已有的有效碼，驗碼受限仍可明確重新寄碼；寄碼成功不解除驗碼等待。本機攔截不延長原期限，後端及 HTTP client 各自的限流仍保留。
+
+migration `20261006120000-account-entry-limits.js` 建立匿名計數 TTL 並確保既有 reset-code unique／TTL 索引。驗證使用隔離 replica set、mock 寄信 adapter 與隔離 HTTP 資料庫，不寄正式信件；後端先部署相容服務／索引，App 後行。本次未執行遠端 migration。
+
 ## 尚未實作
 
-E2–E4 的註冊／重設密碼、支出維護及還款 API 仍是提案，完整流程、擬新增端點與驗收條件統一見 [E 規格](ROADMAP.md#e-規格基本使用流程)；以下現況不因規劃而視為已實作。
+E3–E4 的支出維護及還款 API 仍是提案，完整流程、擬新增端點與驗收條件統一見 [E 規格](ROADMAP.md#e-規格基本使用流程)；以下現況不因規劃而視為已實作。
 
 外幣與非均分輸入、編輯／刪除已入帳支出、登記還款、附件 begin／finish、推播、帳號刪除及 OS 背景同步均屬後續工作（見 [路線](ROADMAP.md)）。D1 原始草稿、D2 受限入口與 D3 離線確認／多筆前景待送佇列沿用既有 HTTP 端點；AI 仍只產生草稿，正式寫入需使用者確認。實作與開發測試不代表已部署或兩平台裝置驗收通過。

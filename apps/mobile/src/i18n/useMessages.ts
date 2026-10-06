@@ -2,7 +2,7 @@ import { useLocales } from 'expo-localization';
 
 import { messages, type AppLocale } from './messages';
 
-export function useMessages() {
+export function useAppLocale(): AppLocale {
   const [deviceLocale] = useLocales();
   let locale: AppLocale = 'en';
 
@@ -14,5 +14,9 @@ export function useMessages() {
       script === 'Hans' || (!script && (region === 'CN' || region === 'SG')) ? 'zh-CN' : 'zh';
   }
 
-  return messages[locale];
+  return locale;
+}
+
+export function useMessages() {
+  return messages[useAppLocale()];
 }

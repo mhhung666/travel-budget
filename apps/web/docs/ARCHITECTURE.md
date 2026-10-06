@@ -53,3 +53,9 @@ Next.js App Router 與 React 組成介面，TanStack Query 負責查詢、重新
 [packages/contracts/openapi.json](../../../packages/contracts/openapi.json) 是共用契約產物；在 repository 根目錄執行 `pnpm contracts:generate` 更新、`pnpm contracts:check` 檢查同步。Vercel 使用 Root Directory `apps/web`，啟用 outside-root source files 以建置共享契約；本目錄 `vercel.json` 保留既有 cron。
 
 `lib/tripEntry.ts` 提供 E1 Web／Mobile 共用建立／加入交易。獨立 `mutationrequests` 以操作者／UUID 唯一 `_id` 保存成功／終局拒絕；建立、成員更新與站內副作用同交易，安全亂數邀請碼使用既有唯一索引。加入先以有效碼取得旅行 fence；重播／查詢須重新核對目前成員，已移除者不能再次加入。外部通知在提交後執行、重播不排程，不影響已提交結果。Web 加入結果補讀將目前成員與刪除狀態納入同一查詢；Web 建立僅回傳已提交的旅行 ID，畫面以 ID 接續，不因提交後讀取失敗重新建立。E3／E4 共用寫入與 revision 仍未實作，不能把 E1 操作表視為已提供帳務維護。
+
+## E2 共用帳號服務
+
+`accountEntry.ts` 供 Web cookie adapter 與 `/api/v1/auth` 匿名 adapter 共用註冊／寄碼／重設規則。`accountAdapter.ts` 只取得 DB、可信來源與寄信。註冊由既有 username／Email 的不分大小寫唯一索引防併發，Web cookie 副作用失敗不推翻已建立帳號；HTTP 不建 session。reset-code 更替與密碼更新／碼消耗使用 replica-set 交易，錯誤嘗試也原子提交，寄信在提交後且不印驗證碼。
+
+`accountentryattempts` 以 HMAC key 原子保存滑動時窗與冷卻，註冊／寄碼來源共用限流、Email 與驗碼另限；拒絕不延長原期限，未知 Email 使用同樣計數。可信來源只解析 Vercel 覆寫的單一 IP header；其他部署保留帳號／Email 限制。契約及 migration 見 [手機 API](MOBILE_API.md#e2-匿名帳號入口)。

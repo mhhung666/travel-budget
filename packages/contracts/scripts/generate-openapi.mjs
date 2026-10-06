@@ -2,6 +2,11 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { z } from 'zod';
 import {
   loginInput,
+  registerInput,
+  passwordResetRequestInput,
+  passwordResetInput,
+  passwordResetAcceptedSchema,
+  passwordResetResultSchema,
   refreshInput,
   userSchema,
   sessionSchema,
@@ -32,6 +37,11 @@ const schemas = Object.fromEntries(
     TripMutationResult: tripMutationResultSchema,
     Invitation: invitationSchema,
     MutationRequest: mutationRequestSchema,
+    RegisterInput: registerInput,
+    PasswordResetRequestInput: passwordResetRequestInput,
+    PasswordResetInput: passwordResetInput,
+    PasswordResetAccepted: passwordResetAcceptedSchema,
+    PasswordResetResult: passwordResetResultSchema,
     LoginInput: loginInput,
     RefreshInput: refreshInput,
     User: userSchema,
@@ -50,7 +60,7 @@ const schemas = Object.fromEntries(
     Error: z.object({ error: z.object({ code: z.string() }), requestId: z.string() }),
   }).map(([name, schema]) => {
     const { $schema, ...json } = z.toJSONSchema(schema, {
-      io: ['TripCreateInput', 'TripJoinInput'].includes(name) ? 'input' : 'output',
+      io: name.endsWith('Input') ? 'input' : 'output',
     });
     return [name, json];
   })
@@ -95,6 +105,27 @@ const dateParam = {
 const objectId = { type: 'string', pattern: '^[a-fA-F0-9]{24}$' };
 const tripIdParam = { name: 'id', in: 'path', required: true, schema: objectId };
 const paths = {
+  '/auth/register': {
+    post: {
+      ...operation('register', 'User', 'RegisterInput', { errors: [409] }),
+      description:
+        'Creates an account without a session. ACCOUNT_CONFLICT covers either username or email. New passwords: minimum 6 characters, maximum 72 UTF-8 bytes; never trimmed. Timeout/5xx: outcome unknown; try login, never automatically resend or persist the password.',
+    },
+  },
+  '/auth/password-reset/request': {
+    post: {
+      ...operation('requestPasswordReset', 'PasswordResetAccepted', 'PasswordResetRequestInput'),
+      description:
+        'Same accepted response for all emails; delivery is best effort. Per normalized email: once per 60 seconds, five per rolling hour. Trusted source: shared registration/send limit of twenty per rolling hour. 429 includes Retry-After.',
+    },
+  },
+  '/auth/password-reset/confirm': {
+    post: {
+      ...operation('resetPassword', 'PasswordResetResult', 'PasswordResetInput'),
+      description:
+        'Six-digit string, including leading zeros; valid 15 minutes, five incorrect attempts, ten verification requests per email per rolling 15 minutes. Password update and code consumption are atomic; one concurrent success. Resend invalidates the previous code. Mobile sessions expire after password change; Web cookies do not. Timeout/5xx: try logging in with the new password.',
+    },
+  },
   '/auth/login': { post: operation('login', 'Session', 'LoginInput') },
   '/auth/refresh': { post: operation('refresh', 'Session', 'RefreshInput') },
   '/auth/logout': { post: operation('logout', 'Logout', 'RefreshInput') },

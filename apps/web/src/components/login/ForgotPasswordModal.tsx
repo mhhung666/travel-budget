@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { newPasswordSchema } from '@travel-budget/contracts';
 import { Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { requestPasswordReset, resetPassword } from '@/actions';
@@ -63,10 +64,12 @@ export default function ForgotPasswordModal({ open, onClose }: ForgotPasswordMod
   };
 
   // token / 訊息字串 → 顯示文字（已知 token 對應本地化訊息，否則退回 generic）。
-  const messageFor = (token: string) =>
-    token in ERROR_TOKEN_KEYS
-      ? t(`forgotPassword.${ERROR_TOKEN_KEYS[token]}`)
-      : token || t('forgotPassword.error');
+  const messageFor = (token: string, seconds = 60) =>
+    token === 'RATE_LIMITED'
+      ? t('forgotPassword.rateLimited', { seconds })
+      : token in ERROR_TOKEN_KEYS
+        ? t(`forgotPassword.${ERROR_TOKEN_KEYS[token]}`)
+        : token || t('forgotPassword.error');
 
   const handleRequest = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,7 +82,7 @@ export default function ForgotPasswordModal({ open, onClose }: ForgotPasswordMod
         locale: locale as 'en' | 'zh' | 'zh-CN' | 'jp',
       });
       if (!result.success) {
-        setError(messageFor(result.error));
+        setError(messageFor(result.error, result.retryAfter));
         return;
       }
       setSuccess(t('forgotPassword.codeSent'));
@@ -93,13 +96,19 @@ export default function ForgotPasswordModal({ open, onClose }: ForgotPasswordMod
     e.preventDefault();
     setError('');
     setSuccess('');
+    if (!newPasswordSchema.safeParse(newPassword).success) {
+      setError(t('register.passwordHelp'));
+      return;
+    }
     setLoading(true);
     try {
       const result = await resetPassword({ email, code, new_password: newPassword });
       if (!result.success) {
-        setError(messageFor(result.error));
+        setError(messageFor(result.error, result.retryAfter));
         return;
       }
+      setCode('');
+      setNewPassword('');
       setSuccess(t('forgotPassword.success'));
       setTimeout(() => {
         reset();
@@ -119,7 +128,7 @@ export default function ForgotPasswordModal({ open, onClose }: ForgotPasswordMod
         locale: locale as 'en' | 'zh' | 'zh-CN' | 'jp',
       });
       if (!result.success) {
-        setError(messageFor(result.error));
+        setError(messageFor(result.error, result.retryAfter));
         return;
       }
       setSuccess(t('forgotPassword.codeSent'));

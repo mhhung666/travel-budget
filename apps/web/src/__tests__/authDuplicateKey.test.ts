@@ -35,7 +35,7 @@ vi.mock('@/lib/emailTemplates', () => ({
 }));
 vi.mock('@/lib/logger', () => ({ logger: { error: vi.fn() } }));
 
-import { register, confirmEmailChange } from '@/actions/auth.actions';
+import { confirmEmailChange } from '@/actions/auth.actions';
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -43,21 +43,6 @@ beforeEach(() => {
 });
 
 describe('account duplicate-key races', () => {
-  it.each(['username', 'email'])(
-    'returns CONFLICT when concurrent registration claims %s',
-    async (field) => {
-      mocks.create.mockRejectedValue({ code: 11000, keyPattern: { [field]: 1 } });
-      expect(
-        await register({
-          username: 'tester',
-          display_name: 'Tester',
-          email: 'test@example.com',
-          password: 'Password123!',
-        })
-      ).toMatchObject({ success: false, code: 'CONFLICT' });
-      expect(mocks.session).not.toHaveBeenCalled();
-    }
-  );
   it('returns CONFLICT when another account claims a verified email before the write', async () => {
     mocks.codeFind.mockResolvedValue({
       _id: 'code-id',

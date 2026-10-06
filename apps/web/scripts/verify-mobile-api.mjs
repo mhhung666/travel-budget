@@ -26,6 +26,7 @@ import {
   expenseRequestSchema,
 } from '@travel-budget/contracts';
 import { up as migrateSessions } from '../migrations/20261002100000-mobile-session-expiry.js';
+import { up as migrateAccounts } from '../migrations/20261006120000-account-entry-limits.js';
 import { up as migrateMutations } from '../migrations/20261006100000-mutation-requests.js';
 import { up as migrateRequests } from '../migrations/20260912160000-expense-create-requests.js';
 
@@ -121,6 +122,8 @@ try {
     'MongoDB did not elect a primary'
   );
   await migrateSessions(db);
+  await migrateAccounts(db);
+  await migrateAccounts(db);
   await migrateRequests(db);
   await migrateMutations(db);
   await migrateMutations(db);
@@ -1660,6 +1663,111 @@ try {
   await refresh(first, 401);
   await me(rotated, 401);
   await me(other);
+  // E2 uses only isolated accounts; mail is unconfigured. Seed a known hash in this disposable DB.
+  const e2Body = {
+    username: ' mobile-e2 ',
+    display_name: ' E2 user ',
+    email: ' MOBILE-E2@EXAMPLE.INVALID ',
+    password: ' 密碼123 ',
+  };
+  const e2Created = await request('/auth/register', { body: e2Body, schema: userSchema });
+  assert.equal(e2Created.data.username, 'mobile-e2');
+  assert.equal(e2Created.response.headers.get('set-cookie'), null);
+  assert.equal(
+    await db
+      .collection('mobilesessions')
+      .countDocuments({ user: new mongoose.Types.ObjectId(e2Created.data.id) }),
+    0
+  );
+  await request('/auth/register', {
+    body: { ...e2Body, username: 'MOBILE-E2', email: 'other-e2@example.invalid' },
+    status: 409,
+  });
+  await request('/auth/register', {
+    body: { ...e2Body, username: 'other-e2', email: 'mobile-e2@example.invalid' },
+    status: 409,
+  });
+  await request('/auth/register', { body: { ...e2Body, password: '中'.repeat(25) }, status: 400 });
+  const e2Old = (
+    await request('/auth/login', {
+      body: { username: 'mobile-e2', password: e2Body.password },
+      schema: sessionSchema,
+    })
+  ).data;
+  const e2Email = 'mobile-e2@example.invalid';
+  const e2UserId = new mongoose.Types.ObjectId(e2Created.data.id);
+  const acceptedKnown = await request('/auth/password-reset/request', { body: { email: e2Email } });
+  const acceptedUnknown = await request('/auth/password-reset/request', {
+    body: { email: 'unknown-e2@example.invalid' },
+  });
+  assert.deepEqual(acceptedKnown.data, acceptedUnknown.data);
+  for (const email of [e2Email, 'unknown-e2@example.invalid']) {
+    const limited = await request('/auth/password-reset/request', { body: { email }, status: 429 });
+    assert(+limited.response.headers.get('retry-after') > 0);
+  }
+  await db
+    .collection('passwordresetcodes')
+    .updateOne(
+      { user: e2UserId },
+      { $set: { codeHash: createHash('sha256').update('000007').digest('hex') } }
+    );
+  const e2Reset = { email: e2Email, code: '000007', new_password: 'E2-new-password' };
+  const e2Concurrent = await Promise.all(
+    Array.from({ length: 2 }, async () => {
+      const response = await fetch(`${origin}/api/v1/auth/password-reset/confirm`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(e2Reset),
+      });
+      return response.status;
+    })
+  );
+  assert.deepEqual(e2Concurrent.sort(), [200, 400]);
+  assert.equal(await db.collection('passwordresetcodes').countDocuments({ user: e2UserId }), 0);
+  await me(e2Old, 401);
+  await refresh(e2Old, 401);
+  const e2New = (
+    await request('/auth/login', {
+      body: { username: 'MOBILE-E2', password: e2Reset.new_password },
+      schema: sessionSchema,
+    })
+  ).data;
+  await me(e2New);
+  // Lost reset acknowledgement: observe commit in the isolated DB, discard the socket, then log in.
+  await db
+    .collection('passwordresetcodes')
+    .insertOne({
+      user: e2UserId,
+      codeHash: createHash('sha256').update('000008').digest('hex'),
+      attempts: 0,
+      expiresAt: new Date(Date.now() + 900000),
+    });
+  const e2Lost = { ...e2Reset, code: '000008', new_password: 'E2-after-lost-response' };
+  const e2Socket = connect(port, '127.0.0.1');
+  e2Socket.on('error', () => {});
+  await once(e2Socket, 'connect');
+  const e2Text = JSON.stringify(e2Lost);
+  e2Socket.write(
+    `POST /api/v1/auth/password-reset/confirm HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\nContent-Type: application/json\r\nContent-Length: ${Buffer.byteLength(e2Text)}\r\nConnection: close\r\n\r\n${e2Text}`
+  );
+  await eventually(
+    async () =>
+      (await db.collection('passwordresetcodes').countDocuments({ user: e2UserId })) === 0,
+    'E2 lost reset did not commit',
+    20000
+  );
+  e2Socket.destroy();
+  const e2Recovered = (
+    await request('/auth/login', {
+      body: { username: 'mobile-e2', password: e2Lost.new_password },
+      schema: sessionSchema,
+    })
+  ).data;
+  await me(e2Recovered);
+  assert.equal(await db.collection('users').countDocuments({ _id: e2UserId }), 1);
+  pass(
+    'E2: anonymous registration, unique fields, UTF-8 boundary, identical send acceptance/rate limit, one concurrent reset, old session invalidation, lost-response login recovery'
+  );
   // E1: real HTTP, replica-set transactions and database counts, no production service.
   const eTransactions = await exec('pnpm', ['exec', 'vitest', 'run', 'src/__tests__/tripEntry.integration.test.ts'], { env: { ...process.env, MONGODB_E1_TEST_URI: uri, MONGODB_E1_TEST_ALLOW_WRITES: '1' }, maxBuffer: 1024 * 1024 });
   assert(eTransactions.stdout.includes('4 passed'), 'E1 transaction cases did not run');

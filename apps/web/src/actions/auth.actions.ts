@@ -1,12 +1,20 @@
 'use server';
 
 import crypto from 'crypto';
+import { headers } from 'next/headers';
+import {
+  AccountEntryError,
+  registerAccount,
+  requestAccountReset,
+  confirmAccountReset,
+} from '@/lib/accountEntry';
+import { accountEnvironment, deliverAccountReset } from '@/lib/accountAdapter';
 import bcrypt from 'bcryptjs';
 import { dbConnect } from '@/lib/mongodb';
-import { User as UserModel, PasswordResetCode, EmailChangeCode } from '@/models';
+import { User as UserModel, EmailChangeCode } from '@/models';
 import { createSession, deleteSession, getSession } from '@/lib/auth';
 import { sendEmail } from '@/lib/email';
-import { buildPasswordResetEmail, buildEmailChangeEmail } from '@/lib/emailTemplates';
+import { buildEmailChangeEmail } from '@/lib/emailTemplates';
 import {
   loginSchema,
   notificationPrefsSchema,
@@ -147,46 +155,27 @@ export async function register(input: RegisterInput): Promise<ActionResult<AuthU
       };
     }
 
-    const { username, display_name, email, password } = validation.data;
-
-    await dbConnect();
-
-    // Check if username exists (case-insensitive)
-    const existingUsername = await UserModel.findOne({ username }).collation(CI).select('_id');
-    if (existingUsername) {
-      return { success: false, error: 'CONFLICT', code: 'CONFLICT' };
-    }
-
-    // Check if email exists (case-insensitive)
-    const existingEmail = await UserModel.findOne({ email }).collation(CI).select('_id');
-    if (existingEmail) {
-      return { success: false, error: 'CONFLICT', code: 'CONFLICT' };
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const newUser = await UserModel.create({
-      username,
-      displayName: display_name,
-      email,
-      password: hashedPassword,
-    });
-
-    await createSession(newUser._id.toString(), username);
-
+    const { db, context } = await accountEnvironment(await headers());
+    const user = await registerAccount(db, validation.data, context);
+    // Cookie creation is an adapter concern; committed registration stays successful.
+    await createSession(user.id, user.username).catch(() => {});
     return {
       success: true,
-      data: {
-        id: newUser._id.toString(),
-        username: newUser.username,
-        display_name: newUser.displayName,
-      },
+      data: { id: user.id, username: user.username, display_name: user.displayName },
     };
   } catch (error) {
+    if (error instanceof AccountEntryError) {
+      return {
+        success: false,
+        error: error.code === 'ACCOUNT_CONFLICT' ? 'CONFLICT' : error.code,
+        code: error.code === 'ACCOUNT_CONFLICT' ? 'CONFLICT' : 'RATE_LIMITED',
+        ...(error.retryAfter ? { retryAfter: error.retryAfter } : {}),
+      };
+    }
     if (isAccountDuplicateKey(error)) {
       return { success: false, error: 'CONFLICT', code: 'CONFLICT' };
     }
-    logger.error('Registration error', error);
+    logger.error('Registration failed');
     return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
   }
 }
@@ -294,119 +283,46 @@ export const updateNotificationPrefs = withAuth(
   }
 );
 
-/**
- * 忘記密碼 — 步驟一：以 Email 索取驗證碼。
- *
- * 安全性：**不洩漏 Email 是否存在** —— 無論帳號是否存在皆回傳相同的成功結果（信箱
- * 存在時才實際寄碼）。每位使用者最多一筆有效碼（upsert 覆寫，重新索取即作廢前一組）。
- * 寄信為 best-effort：未配置 Resend 時，非 production 會把碼寫進 log 以便本機測試。
- */
+/** Web cookie adapter shares the anonymous account rules with Mobile. */
 export async function requestPasswordReset(
   input: RequestPasswordResetInput
 ): Promise<ActionResult<{ message: string }>> {
+  const parsed = requestPasswordResetSchema.safeParse(input);
+  if (!parsed.success)
+    return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
   try {
-    const validation = requestPasswordResetSchema.safeParse(input);
-    if (!validation.success) {
-      return {
-        success: false,
-        error: validation.error.issues[0].message,
-        code: 'VALIDATION_ERROR',
-      };
-    }
-
-    const { email, locale } = validation.data;
-
-    await dbConnect();
-    const user = await UserModel.findOne({ email }).collation(CI).select('email locale');
-
-    // 帳號存在才產碼寄信；不存在則靜默（回傳一致成功，避免列舉信箱）。
-    if (user?.email) {
-      const code = generateVerificationCode();
-      await PasswordResetCode.findOneAndUpdate(
-        { user: user._id },
-        {
-          codeHash: hashVerificationCode(code),
-          expiresAt: new Date(Date.now() + CODE_TTL_MS),
-          attempts: 0,
-        },
-        { upsert: true }
-      );
-
-      const content = await buildPasswordResetEmail({
-        code,
-        locale: locale ?? user.locale ?? 'zh',
-        expiresMinutes: CODE_EXPIRES_MINUTES,
-      });
-      const sent = await sendEmail({ to: user.email, content });
-      if (!sent && process.env.NODE_ENV !== 'production') {
-        // 本機 / 未配置 Resend：把碼印到 log 方便測試（production 不印）。
-        logger.info(`[dev] password reset code for ${user.email}: ${code}`);
-      }
-    }
-
+    const { db, context } = await accountEnvironment(await headers());
+    await requestAccountReset(db, parsed.data, context, deliverAccountReset);
     return { success: true, data: { message: 'OK' } };
   } catch (error) {
-    logger.error('Request password reset error', error);
-    return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
+    return accountActionFailure(error);
   }
 }
-
-/**
- * 忘記密碼 — 步驟二：以 Email + 驗證碼重設密碼。
- *
- * 失敗一律回傳 VALIDATION_ERROR 並以穩定的 error token（INVALID_CODE / CODE_EXPIRED /
- * TOO_MANY_ATTEMPTS）讓前端對應本地化訊息——同樣不區分「信箱不存在」與「碼錯誤」以免列舉。
- * 成功後刪除該驗證碼（一次性）。
- */
 export async function resetPassword(
   input: ResetPasswordInput
 ): Promise<ActionResult<{ message: string }>> {
+  const parsed = resetPasswordSchema.safeParse(input);
+  if (!parsed.success)
+    return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
   try {
-    const validation = resetPasswordSchema.safeParse(input);
-    if (!validation.success) {
-      return {
-        success: false,
-        error: validation.error.issues[0].message,
-        code: 'VALIDATION_ERROR',
-      };
-    }
-
-    const { email, code, new_password } = validation.data;
-
-    await dbConnect();
-    const user = await UserModel.findOne({ email }).collation(CI).select('_id');
-    const record = user ? await PasswordResetCode.findOne({ user: user._id }) : null;
-
-    // 信箱不存在或無有效碼：一律當成「碼無效」回應（不洩漏信箱是否存在）。
-    if (!user || !record) {
-      return { success: false, error: 'INVALID_CODE', code: 'VALIDATION_ERROR' };
-    }
-
-    if (record.expiresAt.getTime() < Date.now()) {
-      await PasswordResetCode.deleteOne({ _id: record._id });
-      return { success: false, error: 'CODE_EXPIRED', code: 'VALIDATION_ERROR' };
-    }
-
-    if ((record.attempts ?? 0) >= CODE_MAX_ATTEMPTS) {
-      await PasswordResetCode.deleteOne({ _id: record._id });
-      return { success: false, error: 'TOO_MANY_ATTEMPTS', code: 'VALIDATION_ERROR' };
-    }
-
-    if (record.codeHash !== hashVerificationCode(code)) {
-      await PasswordResetCode.updateOne({ _id: record._id }, { $inc: { attempts: 1 } });
-      return { success: false, error: 'INVALID_CODE', code: 'VALIDATION_ERROR' };
-    }
-
-    // 驗證通過：更新密碼並作廢驗證碼（一次性）。
-    const hashedPassword = await bcrypt.hash(new_password, 10);
-    await UserModel.updateOne({ _id: user._id }, { $set: { password: hashedPassword } });
-    await PasswordResetCode.deleteOne({ _id: record._id });
-
+    const { db, context } = await accountEnvironment(await headers());
+    await confirmAccountReset(db, parsed.data, context);
     return { success: true, data: { message: '密碼已重設成功' } };
   } catch (error) {
-    logger.error('Reset password error', error);
-    return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
+    return accountActionFailure(error);
   }
+}
+function accountActionFailure(error: unknown): ActionResult<never> {
+  if (error instanceof AccountEntryError)
+    return {
+      success: false,
+      error: error.code,
+      code: error.code === 'RATE_LIMITED' ? 'RATE_LIMITED' : 'VALIDATION_ERROR',
+      ...(error.retryAfter ? { retryAfter: error.retryAfter } : {}),
+    };
+  // Do not log request bodies, passwords, codes or database values from these public adapters.
+  logger.error('Account entry failed');
+  return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
 }
 
 /**

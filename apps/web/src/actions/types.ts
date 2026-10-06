@@ -4,7 +4,7 @@
  */
 export type ActionResult<T> =
   | { success: true; data: T }
-  | { success: false; error: string; code?: ErrorCode };
+  | { success: false; error: string; code?: ErrorCode; retryAfter?: number };
 
 /**
  * Common error codes for client-side handling
@@ -15,6 +15,7 @@ export const ErrorCodes = {
   NOT_FOUND: 'NOT_FOUND',
   VALIDATION_ERROR: 'VALIDATION_ERROR',
   CONFLICT: 'CONFLICT',
+  RATE_LIMITED: 'RATE_LIMITED',
   ACTIVITY_LIMIT: 'ACTIVITY_LIMIT',
   // 依日期新增行程日：表單開啟後旅程起訖被改動，舊基準算出的 Day N 不可信。
   TRIP_DATES_CHANGED: 'TRIP_DATES_CHANGED',

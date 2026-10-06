@@ -5,6 +5,45 @@ export const dateSchema = z.iso.date();
 export const loginInput = z
   .object({ username: z.string().min(1).max(200), password: z.string().min(1).max(1024) })
   .strict();
+// UTF-8 length without relying on a native TextEncoder implementation.
+export function passwordBytes(value: string): number {
+  return Array.from(value).reduce((size, char) => {
+    const code = char.codePointAt(0)!;
+    return size + (code <= 0x7f ? 1 : code <= 0x7ff ? 2 : code <= 0xffff ? 3 : 4);
+  }, 0);
+}
+export const newPasswordSchema = z
+  .string()
+  .min(6)
+  .max(72)
+  .refine((s) => passwordBytes(s) <= 72);
+const accountEmail = z.string().trim().toLowerCase().email().max(254);
+export const registerInput = z
+  .object({
+    username: z.string().trim().min(3).max(200),
+    display_name: z.string().trim().min(1).max(100),
+    email: accountEmail,
+    password: newPasswordSchema,
+  })
+  .strict();
+export const passwordResetRequestInput = z
+  .object({
+    email: accountEmail,
+    locale: z.enum(['zh', 'zh-CN', 'en', 'jp']).optional(),
+  })
+  .strict();
+export const passwordResetInput = z
+  .object({
+    email: accountEmail,
+    code: z.string().regex(/^\d{6}$/),
+    new_password: newPasswordSchema,
+  })
+  .strict();
+export const passwordResetAcceptedSchema = z.object({ accepted: z.literal(true) }).strict();
+export const passwordResetResultSchema = z.object({ reset: z.literal(true) }).strict();
+export type RegisterInput = z.infer<typeof registerInput>;
+export type PasswordResetRequestInput = z.infer<typeof passwordResetRequestInput>;
+export type PasswordResetInput = z.infer<typeof passwordResetInput>;
 export const refreshInput = z.object({ refreshToken: z.string().min(1).max(2048) }).strict();
 export const userSchema = z.object({ id: idSchema, username: z.string(), displayName: z.string() });
 export const sessionSchema = z.object({

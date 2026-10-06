@@ -766,7 +766,8 @@
       "loginLink": "立即登录",
       "error": "注册失败",
       "passwordMismatch": "密码不符",
-      "passwordHelp": "至少 6 个字符"
+      "passwordHelp": "至少 6 个字符，最多 72 UTF-8 bytes；空格也是密码的一部分",
+      "rateLimited": "操作过于频繁，请等待 {seconds} 秒再试。"
     },
     "forgotPassword": {
       "link": "忘记密码？",
@@ -786,7 +787,8 @@
       "error": "操作失败，请稍后再试",
       "invalidCode": "验证码错误",
       "codeExpired": "验证码已过期，请重新获取",
-      "tooManyAttempts": "尝试次数过多，请重新获取验证码"
+      "tooManyAttempts": "尝试次数过多，请重新获取验证码",
+      "rateLimited": "操作过于频繁，请等待 {seconds} 秒再试。"
     },
     "submitting": "处理中…"
   },

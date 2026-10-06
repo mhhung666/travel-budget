@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { newPasswordSchema } from '@travel-budget/contracts';
 import { Link } from '@/i18n/navigation';
 import { ArrowLeft, Loader2, AlertCircle } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -40,6 +41,10 @@ export default function LoginForm({ hideBackToHome = false, redirectTo }: LoginF
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    if (!isLogin && !newPasswordSchema.safeParse(formData.password).success) {
+      setError(t('register.passwordHelp'));
+      return;
+    }
     setLoading(true);
 
     try {
@@ -53,7 +58,11 @@ export default function LoginForm({ hideBackToHome = false, redirectTo }: LoginF
           });
 
       if (!result.success) {
-        throw new Error(result.error || (isLogin ? t('login.error') : t('register.error')));
+        throw new Error(
+          result.code === 'RATE_LIMITED'
+            ? t('register.rateLimited', { seconds: result.retryAfter ?? 60 })
+            : result.error || (isLogin ? t('login.error') : t('register.error'))
+        );
       }
 
       if (!isLogin) {

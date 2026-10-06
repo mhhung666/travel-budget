@@ -336,7 +336,8 @@
       "loginLink": "Login now",
       "error": "Registration failed",
       "passwordMismatch": "Passwords do not match",
-      "passwordHelp": "At least 6 characters"
+      "passwordHelp": "At least 6 characters, at most 72 UTF-8 bytes; spaces are part of the password",
+      "rateLimited": "Too many requests. Wait {seconds} seconds and try again."
     },
     "forgotPassword": {
       "link": "Forgot password?",
@@ -356,7 +357,8 @@
       "error": "Something went wrong. Please try again later.",
       "invalidCode": "Incorrect verification code",
       "codeExpired": "The code has expired. Please request a new one.",
-      "tooManyAttempts": "Too many attempts. Please request a new code."
+      "tooManyAttempts": "Too many attempts. Please request a new code.",
+      "rateLimited": "Too many requests. Wait {seconds} seconds and try again."
     },
     "submitting": "Submitting…"
   },

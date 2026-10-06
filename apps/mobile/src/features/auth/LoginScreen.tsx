@@ -1,3 +1,4 @@
+import { router, useLocalSearchParams } from 'expo-router';
 import { useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useAuth } from './AuthProvider';
@@ -9,7 +10,8 @@ export function LoginScreen() {
   const { manager, error: sessionError } = useAuth();
   const t = useMessages();
   const p = usePalette();
-  const [username, setUsername] = useState('');
+  const params = useLocalSearchParams<{ username?: string; notice?: string }>();
+  const [username, setUsername] = useState(params.username ?? '');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -52,6 +54,8 @@ export function LoginScreen() {
             {t.login}
           </Text>
           <Copy>{t.loginHint}</Copy>
+          {params.notice === 'registered' && <Notice>{t.registered}</Notice>}
+          {params.notice === 'passwordResetDone' && <Notice>{t.passwordResetDone}</Notice>}
           <Text style={{ color: p.text, fontSize: 16 }}>{t.username}</Text>
           <TextInput
             testID="login-username"
@@ -99,6 +103,26 @@ export function LoginScreen() {
             busy={busy}
             disabled={Platform.OS === 'web'}
             onPress={() => void submit()}
+          />
+          <Action
+            testID="login-register"
+            secondary
+            label={t.createAccount}
+            disabled={busy}
+            onPress={() => {
+              setPassword('');
+              router.push('/register');
+            }}
+          />
+          <Action
+            testID="login-forgot"
+            secondary
+            label={t.forgotPassword}
+            disabled={busy}
+            onPress={() => {
+              setPassword('');
+              router.push('/password-reset');
+            }}
           />
         </View>
       </Page>

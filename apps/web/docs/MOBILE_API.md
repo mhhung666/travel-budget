@@ -43,3 +43,11 @@ Web／後端 workspace 名稱為 `@travel-budget/web`；在根目錄可用 `pnpm
 新增 `POST /trips`、`POST /trips/join`、`GET /trips/:id/invitation` 與 `GET /mutation-requests/:uuid`，現行契約以共用 schema／OpenAPI 及 [Mobile 契約](../../mobile/docs/BACKEND_CONTRACT.md#e1-旅行入口與操作-receipt) 為準。`lib/tripEntry.ts` 抽離 cookie，Web／HTTP 共用交易；同帳號 UUID 的 receipt 保留終局結果，成功、成員變更與通知／動態原子提交，重播先重新授權。手機只接受有效邀請碼，Web adapter 保留 ObjectId 相容入口；已加入回成功。
 
 migration `20261006100000-mutation-requests.js` 使用既有 Trip hashCode 唯一索引及 account:uuid 的 `_id` 唯一約束，無 TTL，rollback 不丟 receipt。隔離 `test:mobile-api` 可重跑 migration，核對真 HTTP／交易與資料庫筆數；本次未執行遠端 migration。邀請 URL 由 `APP_URL` origin 產生，只在成員明確取邀請時輸出，列表／landing DTO 不增加碼。後端先部署相容能力與必要索引，再發手機。
+
+## E2 匿名帳號入口
+
+已加入 `POST /auth/register`、`POST /auth/password-reset/request`、`POST /auth/password-reset/confirm`；共用契約、完整限制與狀態碼見 [Mobile E2 契約](../../mobile/docs/BACKEND_CONTRACT.md#e2-註冊與-email-驗證碼重設)。三個入口不讀 Web cookie／bearer、不建 session，成功／錯誤均 no-store。Web action 透過相同 `accountEntry.ts`；新密碼 UTF-8 上限、單次碼消耗與匿名限流同步適用兩端。
+
+來源解析依 [Vercel request headers](https://vercel.com/docs/headers/request-headers#x-forwarded-for)，只在 Vercel 部署信任平台覆寫的單一 IP；本機／其他 hosting 不直接信任 client header。匿名限流不共用帳務帳號等待。migration `20261006120000-account-entry-limits.js` 確保 reset-code unique／TTL、新增計數 TTL；未執行遠端 migration。
+
+`accountEntry.integration.test.ts` 使用 `MONGODB_MEMBER_TEST_URI` 加 `MONGODB_MEMBER_TEST_ALLOW_WRITES=1`，只建隨機獨立 DB 並清除；涵蓋正規化唯一衝突、UTF-8／空白密碼、同碼併發、第五次錯碼、到期／重寄競態、交易回滾、共用限流、Web／HTTP 互登入與舊手機憑證失效。CI 的交易工作已納入。`test:mobile-api` 另核對實際匿名 HTTP、一次重設及丟回應後登入恢復；寄信 adapter 使用 mock 或無正式寄信設定。兩平台 UI／SecureStore 由其他人驗收。

@@ -1,7 +1,12 @@
 import { MAX_ACTIVITIES_PER_DAY } from '@/lib/itineraryLimits';
 import { isCalendarDate, MAX_ITINERARY_DAY_NUMBER } from '@/lib/itineraryDayTarget';
 import { z } from 'zod';
-import { tripFieldsSchema } from '@travel-budget/contracts';
+import {
+  tripFieldsSchema,
+  registerInput,
+  passwordResetRequestInput,
+  passwordResetInput,
+} from '@travel-budget/contracts';
 import { SUPPORTED_CURRENCY_CODES } from '@/constants/currencies';
 
 // Currency codes
@@ -187,25 +192,9 @@ export const loginSchema = z.object({
   password: z.string().min(1, '請輸入密碼'),
 });
 
-export const registerSchema = z.object({
-  username: z.string().min(3, '用戶名至少需要 3 個字元'),
-  display_name: z.string().min(1, '請輸入顯示名稱'),
-  email: z.string().email('請輸入有效的電子郵件'),
-  password: z.string().min(6, '密碼至少需要 6 個字元'),
-});
-
-// 忘記密碼步驟一：以 Email 索取驗證碼。locale 帶入當前 UI 語系，供寄信決定語系。
-export const requestPasswordResetSchema = z.object({
-  email: z.string().email('請輸入有效的電子郵件'),
-  locale: z.enum(['en', 'zh', 'zh-CN', 'jp']).optional(),
-});
-
-// 忘記密碼步驟二：以 Email + 6 位數驗證碼重設密碼。
-export const resetPasswordSchema = z.object({
-  email: z.string().email('請輸入有效的電子郵件'),
-  code: z.string().regex(/^\d{6}$/, '驗證碼為 6 位數字'),
-  new_password: z.string().min(6, '新密碼至少需要 6 個字元'),
-});
+export const registerSchema = registerInput;
+export const requestPasswordResetSchema = passwordResetRequestInput;
+export const resetPasswordSchema = passwordResetInput;
 
 // 個人資料 / 密碼更新。Email 變更不走這裡——改用「寄碼驗證新信箱」的兩步流程
 // （requestEmailChange / confirmEmailChange），故此處不再接受 new_email。
