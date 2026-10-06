@@ -1,4 +1,19 @@
 const zh = {
+  recordPayment: '登記已付款',
+  manualPayment: '手動登記',
+  revokePayment: '撤銷這筆登記',
+  paymentFrom: '付款人',
+  paymentTo: '收款人',
+  paymentNote: '備註',
+  confirmPayment: '確認還款登記',
+  paymentExternalOnly: '只記錄已在外部完成的還款，不會執行轉帳。',
+  paymentChanged: '結算、成員或還款已變動。輸入保留，請核對最新內容並重新確認。',
+  invalidPayment:
+    '請選擇不同的有效成員、0.01–1,000,000,000.00 TWD（最多兩位小數），備註最多 200 字。',
+  paymentDeviation: '實際付款與目前建議不同；可登記部分或超額付款，結算由後端重新計算。',
+  revokePaymentWarning: '撤銷只修正誤登紀錄，不會退款。確認後移除此筆登記並重算結算。',
+  reconfirmPayment: '核對最新內容並保留輸入',
+  resumePayment: '保留原輸入重新登記',
   resumeExpenseEdit: '保留原輸入重新編輯',
   editExpense: '編輯支出',
   deleteExpense: '刪除支出',
@@ -282,6 +297,21 @@ export type Messages = Record<keyof typeof zh, string>;
 export const messages = {
   zh,
   'zh-CN': {
+    recordPayment: '登记已付款',
+    manualPayment: '手动登记',
+    revokePayment: '撤销这笔登记',
+    paymentFrom: '付款人',
+    paymentTo: '收款人',
+    paymentNote: '备注',
+    confirmPayment: '确认还款登记',
+    paymentExternalOnly: '只记录已在外部完成的还款，不会执行转账。',
+    paymentChanged: '结算、成员或还款已变动。输入保留，请核对最新内容并重新确认。',
+    invalidPayment:
+      '请选择不同的有效成员、0.01–1,000,000,000.00 TWD（最多两位小数），备注最多 200 字。',
+    paymentDeviation: '实际付款与目前建议不同；可登记部分或超额付款，结算由后端重新计算。',
+    revokePaymentWarning: '撤销只修正误登记录，不会退款。确认后移除此笔登记并重算结算。',
+    reconfirmPayment: '核对最新内容并保留输入',
+    resumePayment: '保留原输入重新登记',
     resumeExpenseEdit: '保留原输入重新编辑',
     editExpense: '编辑支出',
     deleteExpense: '删除支出',
@@ -560,6 +590,25 @@ export const messages = {
     done: '完成',
   },
   en: {
+    recordPayment: 'Record paid',
+    manualPayment: 'Record manually',
+    revokePayment: 'Revoke this record',
+    paymentFrom: 'Paid by',
+    paymentTo: 'Paid to',
+    paymentNote: 'Note',
+    confirmPayment: 'Review payment',
+    paymentExternalOnly:
+      'Record a payment already made outside the app. This does not transfer money.',
+    paymentChanged:
+      'Settlement, members or payment changed. Input kept; review the latest state and confirm again.',
+    invalidPayment:
+      'Choose different current members and 0.01–1,000,000,000.00 TWD (up to two decimals). Note: up to 200 characters.',
+    paymentDeviation:
+      'Actual payment differs from the suggestion. Partial and excess payments are allowed; the server recalculates settlement.',
+    revokePaymentWarning:
+      'Revocation corrects a mistaken record and does not refund money. Confirm to remove the record and recalculate settlement.',
+    reconfirmPayment: 'Review latest and keep input',
+    resumePayment: 'Resume original payment input',
     resumeExpenseEdit: 'Edit again with saved input',
     editExpense: 'Edit expense',
     deleteExpense: 'Delete expense',
@@ -876,6 +925,24 @@ export const messages = {
     done: 'Done',
   },
   jp: {
+    recordPayment: '支払い済みを記録',
+    manualPayment: '手動で記録',
+    revokePayment: 'この記録を取り消す',
+    paymentFrom: '支払者',
+    paymentTo: '受取人',
+    paymentNote: 'メモ',
+    confirmPayment: '支払い記録を確認',
+    paymentExternalOnly: 'アプリ外で完了した支払いを記録します。送金は行いません。',
+    paymentChanged:
+      '精算・メンバー・支払いが変更されました。入力を保持し、最新内容を確認して再確定してください。',
+    invalidPayment:
+      '異なる現在のメンバーと0.01–1,000,000,000.00 TWD（小数2桁まで）を選択してください。メモは200文字まで。',
+    paymentDeviation:
+      '実際の支払いは提案と異なります。一部・超過支払いも記録でき、サーバーで再計算します。',
+    revokePaymentWarning:
+      '取り消しは誤記録の修正であり、返金ではありません。確定すると記録を削除して再計算します。',
+    reconfirmPayment: '最新内容を確認して入力を保持',
+    resumePayment: '元の支払い入力を再開',
     resumeExpenseEdit: '入力を保持して再編集',
     editExpense: '支出を編集',
     deleteExpense: '支出を削除',

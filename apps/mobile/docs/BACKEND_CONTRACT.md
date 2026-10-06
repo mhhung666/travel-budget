@@ -112,8 +112,29 @@ revision 對原始業務欄位、支出／旅行 ID 與目前成員的儲存／�
 
 成功後重讀第一頁、明細、結算、landing 與列表摘要；刪除明細快取並避開其預期 404。重讀失敗保留成功，僅提供只讀重試；不樂觀調整餘額。兩平台操作待全部 E 完成後統一驗收，未部署／未執行遠端 migration。
 
+## E4 登記與撤銷還款
+
+已實作以下成員 Bearer 端點，沿用嚴格 JSON、8 KiB、no-store、snake_case 輸入與 camelCase 回應；schema／OpenAPI 的唯一來源仍是共用 contracts。
+
+| 路徑                                                | 輸入／結果                                                                                |
+| --------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `GET /trips/:id/payment-context`                    | `{ members: [{ id, displayName }], settlement, settlementRevision }`                      |
+| `POST /trips/:id/payments`                          | UUID、expected_revision、from_id、to_id、amount、note → `{ tripId, paymentId, revision }` |
+| `GET /trips/:id/payments/:paymentId/revoke-context` | `{ payment, revision }`，僅方向、金額、備註、日期等白名單                                 |
+| `DELETE /trips/:id/payments/:paymentId`             | JSON UUID、expected_revision → `{ tripId, paymentId, deleted: true }`                     |
+
+任何目前成員都可代記／撤銷，包括虛擬成員。付款／收款必須是不同的有效成員 ID；TWD 金額 0.01–1,000,000,000.00，最多兩位小數；備註 trim 後最多 200 字。部分、超額、沒有建議的手動付款均可，建議不作上限。只記錄外部已完成的實際付款，不執行轉帳；撤銷是修正誤登而非退款。成功只表示登記／撤銷完成，不表示餘額歸零；結算由後端重算。
+
+`paymentWrite.ts` 為 Web cookie action 與 Mobile HTTP 共用的 actor／交易服務，`calculateSettlementDetail` 抽出既有結算計算供模型讀取與交易快照使用。context 在同一 trip fence／snapshot 內讀成員、支出及還款；HMAC token 綁定 trip ID、成員儲存／有效順序、原始支出業務欄位與 payment ID／方向／金額／備註。背景送達狀態及顯示名稱不影響 token；Web 支出或還款修改、D 新增及身分轉換會使舊確認失效。不是持續遞增版本，內容還原可回相同 token。
+
+Mobile 登記在寫入交易內重算／比較 `expected_revision`；不一致保存終局 `409 SETTLEMENT_CHANGED`。相同 UUID／內容先重新授權及查 receipt，再檢查新前條件；不同內容回 `IDEMPOTENCY_CONFLICT`。兩個不同 UUID 依同一舊狀態登記，只有第一筆可提交；新狀態經再次明確確認後可以同額登記，不按金額猜測重複。撤銷比較原始 payment ID／方向／金額／備註 HMAC，變動回 `409 RESOURCE_CHANGED`，已消失回 `409 RESOURCE_GONE`；context 的單筆消失是 `404 RESOURCE_GONE`，非旅行撤權。
+
+payment、receipt、一次 `payment_recorded` 活動與通知在同一交易提交。只通知付款／收款雙方中非操作者、非虛擬成員；提交後 Email／push 失敗仍是成功，重播不再寄送。撤銷沿用 Web 不新增通知／動態的語意；建立 receipt 永久保留，撤銷後 create 重播仍回原成功，不能恢復 payment。receipt 查詢只回最小結果，不輸出服務內保存的 Web 顯示快照。既有 Web 表單 adapter 取得當前 context 後呼叫同一服務；新金額精度與上限驗證同步適用 Web。
+
+Mobile 未確認輸入僅保留當次畫面並有離開提醒；開表單及確認前讀最新 context，衝突保留金額／方向／備註，核對最新後再明確確認，不能自動換建議額送出。確認後沿用 schema 8 的獨立 E 操作表，先保存 UUID／body 再 HTTP；回應不明、重啟、回前景／重連只查原 receipt，不自動重送。終局拒絕保留原輸入供重開，新確認才用新 UUID；未確定不能改／捨棄。C／D／E3／E4 同旅行 pending 原子互擋，其他旅行仍可操作，共用帳號／環境 429 絕對期限及最後 fetch 前登入／撤權守衛。成功刷新結算、列表與 landing，讀取失敗保留成功且只讀重試，不在 App 算餘額。
+
+沿用 E1 receipt 唯一索引、既有 payments 索引及 SQLite schema 8，不新增 migration／原生依賴。開發測試／三平台匯出不等於裝置驗收；獨立審查及兩平台基本操作見 [E4 交接](LOCAL_ACCEPTANCE.md#e4-還款驗收交接)，未部署／未執行遠端 migration。
+
 ## 尚未實作
 
-E4 還款 API 仍是提案，完整流程、擬新增端點與驗收條件統一見 [E 規格](ROADMAP.md#e-規格基本使用流程)；以下現況不因規劃而視為已實作。
-
-外幣與非均分金額編輯、登記還款、附件 begin／finish、推播、帳號刪除及 OS 背景同步均屬後續工作（見 [路線](ROADMAP.md)）。D1 原始草稿、D2 受限入口與 D3 離線確認／多筆前景待送佇列沿用既有 HTTP 端點；AI 仍只產生草稿，正式寫入需使用者確認。實作與開發測試不代表已部署或兩平台裝置驗收通過。
+外幣與非均分金額編輯、附件 begin／finish、推播、帳號刪除及 OS 背景同步均屬後續工作（見 [路線](ROADMAP.md)）。D1 原始草稿、D2 受限入口與 D3 離線確認／多筆前景待送佇列沿用既有 HTTP 端點；AI 仍只產生草稿，正式寫入需使用者確認。實作與開發測試不代表已部署或兩平台裝置驗收通過。

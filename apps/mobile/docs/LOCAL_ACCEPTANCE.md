@@ -365,3 +365,28 @@ pnpm --filter @travel-budget/web test:mobile-api
 | 成功但重讀失敗與表單操作               | 不重送帳務，只讀重試；刪後離開明細。深淺色、最大字級、鍵盤捲動／動作鍵、disabled／busy、錯誤焦點及危險確認標籤                       |
 
 驗證：本次修正獨立複驗通過 Mobile 692 項（含新增 7 項回歸）、Mobile check、三平台匯出與 Expo 相容性；原審查兩個重現案例另重跑皆通過，暫存測試已移除。既有獨立複驗基線：Web 2,043 項、Mobile 685 項（含 Node SQLite 與工具）、E2／E3／既有寫入隔離交易 216 項通過，其中 E3 新增 17 項；完整真 HTTP、frozen install、契約同步、根 check／build、三平台匯出及 Expo 相容性通過，bundle export 不算裝置通過。E2 零冷卻限流修正見 [E2 交接](#e2-帳號入口驗收交接)。
+
+## E4 還款驗收交接
+
+狀態：程式、自動化與 E4 獨立審查已完成，未發現需修正的程式問題；**E1–E4 的 iOS／Android 統一裝置驗收待執行**。沒有執行真機／閱讀器驗收，未部署或遠端 migration。原始草稿、D 佇列與 E1／E3 紀錄保留，E4 沿用同一 SQLite schema 8。
+
+自動化用真 Node SQLite 檔案重開、畫面回呼及可丟棄 MongoDB replica set／Next.js HTTP；回呼測試不取代原生操作。手機涵蓋部分／超額／手動確認、衝突保留輸入、撤銷二次確認、丟回應／保存失敗／重啟、隔離、同旅行互擋與 120 秒期限。後端涵蓋同 UUID 僅一 payment／receipt／通知／活動、不同 UUID 同前條件只一筆、原始支出／成員／還款變更、撤權、交易回滾及撤銷後不復活。
+
+```bash
+pnpm --filter travel-budget-mobile exec vitest run src/features/settlement/paymentForm.test.ts src/features/settlement/paymentRecovery.test.ts src/features/settlement/PaymentScreen.test.ts
+MONGODB_MEMBER_TEST_URI='mongodb://127.0.0.1:27017/?directConnection=true' MONGODB_MEMBER_TEST_ALLOW_WRITES=1 pnpm --filter @travel-budget/web exec vitest run src/__tests__/paymentWrite.integration.test.ts
+pnpm --filter @travel-budget/web test:mobile-api
+```
+
+| 裝置待驗                | 操作與核對                                                                                                                                                                                                                |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 建議／手動登記          | 登記已在外部完成的付款，不發起轉帳；同名／虛擬成員依 ID，部分、超額、無建議與反向實際付款均可。0／負數／第三位小數／超上限／同一人拒絕，偏離建議需提示；Web 與 Mobile 結算互讀一致。                                      |
+| 兩人／Web／D 同時變動   | 保留舊表單時新增、修改支出或還款、轉換成員身分；兩個 UUID 同舊前條件只一筆，其餘 rejected SETTLEMENT_CHANGED；輸入不丟，核對最新後明確再次確認，新 UUID 才可登記。                                                        |
+| 撤銷與取消              | 確認方向／金額／備註、明示非退款；取消零 DELETE，變更原始方向或備註必須重看最新，刪 payment 後結算重算；原 create receipt 重播仍成功，但 payment 不復活、通知／活動不重複。                                               |
+| 保存、當機與丟回應      | SQLite 失敗零寫入 HTTP；落盤後送前、POST／DELETE 後結案前終止 App，重啟只查原 UUID；查不到才手動原內容重試，不能換 UUID／改內容／捨棄。以 mutationrequests `_id=actor:uuid` 核對只有一筆 receipt，create 最多一 payment。 |
+| 換帳號／撤權／429／協調 | A→B→A 與不同環境只顯示／送原 scope；撤權隱藏內容且保留紀錄，resource-only 404 不撤銷旅行。429 等待 120 秒重啟 31 秒後 C／D／E3／E4 及其他旅行仍零送出，到期才恢復；同旅行 pending 互擋、沒有帳號限速時其他旅行仍可操作。  |
+| 成功後讀取失敗／表單    | 保留成功，只重新整理帳務，不要求重新登記。四語、深淺色、最大字級、鍵盤捲動／完成、錯誤焦點、忙碌／停用、離開提醒及危險確認標籤；完整閱讀器及真機仍列 F。                                                                  |
+
+故障代理的既有 drop-response 目標是支出端點，不能當成 E4 裝置證據；需另設 `/api/v1/trips/:id/payments` 及單筆 DELETE 的可控代理，或依真 HTTP 工具的 socket 案例操作。完成 E4 審查後，按本文件 E1–E4 表統一驗收完整「註冊 → 建立／加入 → 新增／修正 → 還款／撤銷」流程。
+
+獨立複驗：Web 2,052 項、Mobile 717 項（686 Vitest＋31 工具）、隔離交易 238 項（含 E4 22 項）通過；frozen install、契約同步、根 check／build、完整真 HTTP、三平台匯出及 Expo 相容性通過。核對還款／receipt／通知／動態原子提交、同 UUID 重播、結算衝突再確認及撤銷後不復活，未發現需修正的程式問題。此為程式審查與自動化證據，裝置驗收未計通過。

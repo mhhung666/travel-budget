@@ -24,6 +24,9 @@ import {
   expenseOptionsSchema,
   expensePreviewSchema,
   expenseRequestSchema,
+  paymentContextSchema,
+  paymentRevokeContextSchema,
+  paymentMutationResultSchema,
   expenseEditContextSchema,
   expenseMutationResultSchema,
   mutationRequestSchema,
@@ -1892,8 +1895,75 @@ try {
     'E3: metadata preservation, Web conflict, equal tail cents, UUID concurrency, lost response, deletion/retirement and C replay never resurrects'
   );
 
+  // E4 uses only this disposable writer trip; verify actual HTTP and committed row counts.
+  for (const name of ['expenses', 'expensecreaterequests', 'payments', 'notifications', 'activitylogs'])
+    await db.collection(name).deleteMany({ trip: writerTrip._id });
+  await create(payload({ original_amount: 100, splits: [
+    { user_id: writerId, share_amount: 50 }, { user_id: peerId, share_amount: 50 },
+  ] }));
+  const e4Context = async () => (await request(`${tripPath}/payment-context`, {
+    token: writerSession.accessToken, schema: paymentContextSchema,
+  })).data;
+  const e4Path = `${tripPath}/payments`;
+  const e4Post = async (body, status = 200) => (await request(e4Path, {
+    token: writerSession.accessToken, body, status, ...(status === 200 ? { schema: paymentMutationResultSchema } : {}),
+  })).data;
+  const e4Initial = await e4Context();
+  assert.equal(e4Initial.settlement.suggestedTransfers[0].amount, 50);
+  assert(!JSON.stringify(e4Initial).includes('username'));
+  for (const deniedToken of [undefined, outsiderSession.accessToken])
+    await request(`${tripPath}/payment-context`, { token: deniedToken, status: deniedToken ? 404 : 401 });
+  const e4Body = { client_request_id: randomUUID(), expected_revision: e4Initial.settlementRevision,
+    from_id: peerId, to_id: writerId, amount: 20.01, note: ' partial ' };
+  for (const invalid of [{ amount: 0.001 }, { amount: 1000000000.01 }, { to_id: peerId }, { currency: 'USD' }])
+    await e4Post({ ...e4Body, ...invalid, client_request_id: randomUUID() }, 400);
+  assert.equal(await db.collection('payments').countDocuments({ trip: writerTrip._id }), 0);
+  const e4Results = await Promise.all(Array.from({ length: 4 }, () => e4Post(e4Body)));
+  assert.deepEqual(e4Results, Array(4).fill(e4Results[0]));
+  const e4Id = new mongoose.Types.ObjectId(e4Results[0].paymentId);
+  assert.equal(await db.collection('payments').countDocuments({ trip: writerTrip._id }), 1);
+  assert.equal(await db.collection('notifications').countDocuments({ trip: writerTrip._id, 'meta.payment_id': String(e4Id) }), 1);
+  assert.equal(await db.collection('activitylogs').countDocuments({ trip: writerTrip._id, 'meta.payment_id': String(e4Id) }), 1);
+  const e4After = await e4Context();
+  assert.deepEqual(e4After.settlement, (await request(`${tripPath}/settlement`, { token: writerSession.accessToken, schema: settlementSchema })).data);
+  assert.equal(e4After.settlement.balances.find((b) => b.userId === peerId).balance, -29.99);
+  const e4Stale = { ...e4Body, client_request_id: randomUUID() };
+  await e4Post(e4Stale, 409);
+  assert.equal((await request(`/mutation-requests/${e4Stale.client_request_id}`, { token: writerSession.accessToken, schema: mutationRequestSchema })).data.code, 'SETTLEMENT_CHANGED');
+  // Web-style edit with the same net totals invalidates an older confirmation too.
+  await db.collection('expenses').updateOne({ trip: writerTrip._id }, { $set: { description: 'Web changed description' } });
+  await e4Post({ ...e4Body, client_request_id: randomUUID(), expected_revision: e4After.settlementRevision }, 409);
+  // Lose acknowledgements for both operations and resolve their durable UUID receipts.
+  const e4Lost = { ...e4Body, client_request_id: randomUUID(), expected_revision: (await e4Context()).settlementRevision,
+    from_id: writerId, to_id: virtualId, amount: 0.01, note: 'manual external payment' };
+  const e4SocketWrite = async (method, path, body) => {
+    const socket = connect(port, '127.0.0.1'); socket.on('error', () => {}); await once(socket, 'connect');
+    const text = JSON.stringify(body);
+    socket.write(`${method} /api/v1${path} HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\nAuthorization: Bearer ${writerSession.accessToken}\r\nContent-Type: application/json\r\nContent-Length: ${Buffer.byteLength(text)}\r\nConnection: close\r\n\r\n${text}`);
+    await eventually(async () => (await db.collection('mutationrequests').countDocuments({ _id: `${writerId}:${body.client_request_id}` })) === 1, 'E4 lost response did not commit', 20000);
+    socket.destroy();
+    return (await request(`/mutation-requests/${body.client_request_id}`, { token: writerSession.accessToken, schema: mutationRequestSchema })).data;
+  };
+  const e4LostResult = await e4SocketWrite('POST', e4Path, e4Lost);
+  assert.deepEqual(await e4Post(e4Lost), e4LostResult.result);
+  assert.equal(await db.collection('payments').countDocuments({ trip: writerTrip._id }), 2);
+  const e4RemovePath = `${e4Path}/${e4Id}`;
+  const e4Revoke = async () => (await request(`${e4RemovePath}/revoke-context`, { token: writerSession.accessToken, schema: paymentRevokeContextSchema })).data;
+  const e4OldRemove = await e4Revoke();
+  await db.collection('payments').updateOne({ _id: e4Id }, { $set: { note: 'Web revised note' } });
+  const e4ConflictRemove = { client_request_id: randomUUID(), expected_revision: e4OldRemove.revision };
+  assert.equal((await request(e4RemovePath, { token: writerSession.accessToken, method: 'DELETE', body: e4ConflictRemove, status: 409 })).data, undefined);
+  const e4Remove = { client_request_id: randomUUID(), expected_revision: (await e4Revoke()).revision };
+  const e4Removed = await e4SocketWrite('DELETE', e4RemovePath, e4Remove);
+  assert.equal(e4Removed.result.deleted, true);
+  assert.deepEqual((await request(e4RemovePath, { token: writerSession.accessToken, method: 'DELETE', body: e4Remove, schema: paymentMutationResultSchema })).data, e4Removed.result);
+  assert.deepEqual(await e4Post(e4Body), e4Results[0]);
+  assert.equal(await db.collection('payments').countDocuments({ _id: e4Id }), 0);
+  await request(`${e4RemovePath}/revoke-context`, { token: writerSession.accessToken, status: 404 });
+  pass('E4: partial/manual/virtual payments, cent validation, atomic UUID replay, stale settlement and revoke revisions, lost POST/DELETE acknowledgements, creation replay never resurrects');
+
   // Return the trip to its pristine state for device testing.
-  for (const name of ['expenses', 'expensecreaterequests', 'notifications', 'activitylogs'])
+  for (const name of ['expenses', 'expensecreaterequests', 'payments', 'notifications', 'activitylogs'])
     await db.collection(name).deleteMany({ trip: writerTrip._id });
   const rotated = (await refresh(first)).data;
   assert.notEqual(rotated.refreshToken, first.refreshToken);

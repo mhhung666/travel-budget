@@ -52,7 +52,7 @@ Next.js App Router 與 React 組成介面，TanStack Query 負責查詢、重新
 
 [packages/contracts/openapi.json](../../../packages/contracts/openapi.json) 是共用契約產物；在 repository 根目錄執行 `pnpm contracts:generate` 更新、`pnpm contracts:check` 檢查同步。Vercel 使用 Root Directory `apps/web`，啟用 outside-root source files 以建置共享契約；本目錄 `vercel.json` 保留既有 cron。
 
-`lib/tripEntry.ts` 提供 E1 Web／Mobile 共用建立／加入交易。獨立 `mutationrequests` 以操作者／UUID 唯一 `_id` 保存成功／終局拒絕；建立、成員更新與站內副作用同交易，安全亂數邀請碼使用既有唯一索引。加入先以有效碼取得旅行 fence；重播／查詢須重新核對目前成員，已移除者不能再次加入。外部通知在提交後執行、重播不排程，不影響已提交結果。Web 加入結果補讀將目前成員與刪除狀態納入同一查詢；Web 建立僅回傳已提交的旅行 ID，畫面以 ID 接續，不因提交後讀取失敗重新建立。E3 已擴充帳務 receipt／revision；E4 還款仍未實作。
+`lib/tripEntry.ts` 提供 E1 Web／Mobile 共用建立／加入交易。獨立 `mutationrequests` 以操作者／UUID 唯一 `_id` 保存成功／終局拒絕；建立、成員更新與站內副作用同交易，安全亂數邀請碼使用既有唯一索引。加入先以有效碼取得旅行 fence；重播／查詢須重新核對目前成員，已移除者不能再次加入。外部通知在提交後執行、重播不排程，不影響已提交結果。Web 加入結果補讀將目前成員與刪除狀態納入同一查詢；Web 建立僅回傳已提交的旅行 ID，畫面以 ID 接續，不因提交後讀取失敗重新建立。E3 已擴充帳務 receipt／revision；E4 還款已接續同一 receipt。
 
 ## E2 共用帳號服務
 
@@ -65,3 +65,7 @@ Next.js App Router 與 React 組成介面，TanStack Query 負責查詢、重新
 Web update／delete action 抽成 `expenseMaintenance.ts` 的 actor service，保留進階欄位與附件驗證；Mobile adapter 使用同模組的嚴格 basic／equal 操作。`withTripWriteInDatabase` 與既有 writer 共用 parent fence／snapshot transaction，context 與 HMAC token 取自原始 BSON，前條件、expense／comment／retirement／活動及 E receipt 在交易內處理。對 body 不同的 UUID 衝突不覆蓋原結果；終局拒絕也同交易，receipt 讀取對其 tripId 重授權。
 
 清理與快取在提交後，失敗不推翻已寫入／刪除；E receipt 與既有 C creation receipt 均不隨資源刪除移除。詳細契約見 [Mobile E3](../../mobile/docs/BACKEND_CONTRACT.md#e3-支出維護)。
+
+## E4 共用還款服務
+
+`paymentWrite.ts` 抽離 Web cookie，Web／Mobile 共用金額到分、成員及 trip fence／snapshot 交易；`calculateSettlementDetail` 抽出原結算計算供兩種讀取使用。Mobile context 與 HMAC 在同一快照產生，payment／終局 receipt／一次活動及站內通知同交易；重播先重授權，不重做副作用，撤銷保留建立 receipt。提交後外部通知／快取失敗不推翻成功；Web 不再因 populate 失敗回報已提交為失敗。沿用既有索引與 schema，沒有新增 migration；完整 API 與邊界見 [E4](../../mobile/docs/BACKEND_CONTRACT.md#e4-登記與撤銷還款)。

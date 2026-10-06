@@ -5,6 +5,8 @@ import {
   mutationRequestSchema,
   expenseUpdateInput,
   expenseDeleteInput,
+  paymentCreateInput,
+  paymentDeleteInput,
   idSchema,
 } from '@travel-budget/contracts';
 import { databaseTask, migrateExpenseDatabase, transaction } from './expenseDatabase';
@@ -30,6 +32,13 @@ export const mutationPayload = z.discriminatedUnion('operation', [
     tripId: idSchema,
     expenseId: idSchema,
     body: expenseDeleteInput,
+  }),
+  z.object({ operation: z.literal('payment.create'), tripId: idSchema, body: paymentCreateInput }),
+  z.object({
+    operation: z.literal('payment.delete'),
+    tripId: idSchema,
+    paymentId: idSchema,
+    body: paymentDeleteInput,
   }),
 ]);
 export type MutationPayload = z.infer<typeof mutationPayload>;
@@ -161,7 +170,7 @@ export async function createMutationStore(db: SqlDatabase): Promise<MutationStor
       serial(async () => {
         if (result.status === 'not_found') throw new Error('NOT_TERMINAL');
         await db.runAsync(
-          "UPDATE pending_mutation SET status = 'completed', payload = CASE WHEN ? = 1 AND operation LIKE 'expense.%' THEN payload ELSE NULL END, result = ? WHERE environment = ? AND account_id = ? AND client_request_id = ?",
+          "UPDATE pending_mutation SET status = 'completed', payload = CASE WHEN ? = 1 AND (operation LIKE 'expense.%' OR operation LIKE 'payment.%') THEN payload ELSE NULL END, result = ? WHERE environment = ? AND account_id = ? AND client_request_id = ?",
           result.status === 'rejected' ? 1 : 0,
           JSON.stringify(mutationRequestSchema.parse(result)),
           ...scopeArgs(scope),

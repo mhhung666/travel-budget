@@ -32,7 +32,7 @@
 
 測試在 `apps/web` 執行：`pnpm exec vitest run src/__tests__/mobileSession.test.ts src/__tests__/mobileTrips.test.ts src/__tests__/mobileHttp.test.ts src/__tests__/mobileExpenses.test.ts src/__tests__/mobileSettlement.test.ts src/__tests__/settlementRead.test.ts src/__tests__/mobileExpenseWrite.test.ts src/__tests__/expenseCreateRequest.test.ts src/__tests__/expenseAmountRange.test.ts src/__tests__/expense.actions.test.ts`。這組單元測試使用隔離的 model mocks；`expense.actions.test.ts` 同時鎖定 Web 新增沒有行為退步。`mobileReadApi.integration.test.ts` 在獨立測試 MongoDB 上驗證游標分頁、與 Web 讀取一致、歷史／外幣／虛擬成員資料與授權，需 `MONGODB_QUEUE_TEST_URI` 與 `MONGODB_QUEUE_TEST_ALLOW_WRITES=1`（CI 的真 MongoDB 工作已包含），未設定時略過。新增支出需要交易，`mobileExpenseWrite.integration.test.ts` 因此要在**單節點 replica set** 上執行，沿用其他 trip writer 整合測試的 `MONGODB_MEMBER_TEST_URI`（例如 `mongodb://127.0.0.1:27017/?directConnection=true`）與 `MONGODB_MEMBER_TEST_ALLOW_WRITES=1`，CI 的 `expense-writes` 工作會啟動 replica set 並同時執行 `tripWriters.integration.test.ts`。它驗證預覽到新增的固定順序均分、與 Web 的互讀一致、八個併發相同請求只提交一次且副作用不重複（含不同大小寫與十六種不同拼法、Web 與手機兩個入口混合）、同 key 不同內容 409、刪除或失去成員資格後的重播／查詢、以獨立建出的舊格式 receipt 與本版寫入的 receipt，在小寫、大寫與兩種混合拼法的每一種組合下的重播／查詢／409／刪除後不復活，以及以 explain 確認不分大小寫的查詢只掃該操作者在該旅行的索引範圍、單筆上限內的金額從預覽到儲存與結算逐分一致、超過上限的請求不留資料、回滾（receipt 或支出寫入失敗不留任何資料）與無效輸入不留 receipt。另可執行 `pnpm test:mobile-api`，以可丟棄的 Docker MongoDB 與 Next.js 開發伺服器驗證實際 HTTP／資料庫流程（資料庫現為單節點 replica set，涵蓋上述新增流程並以獨立計算的預期值核對儲存結果，另模擬回應遺失：伺服器仍提交、以 key 查得、重送不重複）；`pnpm dev:mobile-api` 保留環境與測試帳號供裝置連線，已開著的舊環境不是 replica set，需重啟才能使用新增 API。手機 SecureStore 與 iOS／Android 真機串接仍需操作驗收，詳見 [本機驗收流程](../../mobile/docs/LOCAL_ACCEPTANCE.md)。
 
-手機畫面已使用上述新增端點，提供 TWD 均分預覽、確認與 SQLite 待確認恢復；現況與裝置驗收見 [手機功能](../../mobile/docs/FEATURES.md) 與 [本機驗收](../../mobile/docs/LOCAL_ACCEPTANCE.md)。尚無手機端離線 outbox、附件上傳、登記還款、外幣與非均分新增、推播或帳號刪除 API。
+手機畫面已使用上述新增端點，提供 TWD 均分預覽、確認與 SQLite 待確認恢復；現況與裝置驗收見 [手機功能](../../mobile/docs/FEATURES.md) 與 [本機驗收](../../mobile/docs/LOCAL_ACCEPTANCE.md)。D 的離線均分確認／前景待送佇列已實作；尚無附件上傳、外幣與非均分新增、推播或帳號刪除 API。
 
 `dev:mobile-api` 的獨立 loopback 控制通道供 Maestro 撤銷／到期隔離帳號的 session，採每次執行的隨機憑證並隨環境關閉。它只在測試腳本內存在，不加入 Next.js routes 或共用契約，也不隨 `--lan` 對外開放。
 
@@ -57,3 +57,9 @@ migration `20261006100000-mutation-requests.js` 使用既有 Trip hashCode 唯�
 新增成員 `edit-context` GET 及單筆支出 PATCH／DELETE，Web／HTTP 的 actor 邊界與交易服務集中在 `expenseMaintenance.ts`。原帳號 mutation receipt 支援 expense.update／expense.delete，回應帶 tripId／expenseId；schema／模式、版本、錯誤與恢復規則見 [Mobile E3 契約](../../mobile/docs/BACKEND_CONTRACT.md#e3-支出維護)。context 使用原始業務欄位 HMAC，unknown category 不套用列表補值，任一 Web 業務修改均使舊確認失效。沿用 E1 receipt `_id` 唯一約束及既有 blob cleanup 設施，不新增遠端 migration。
 
 `expenseMaintenance.integration.test.ts` 使用 opt-in 隔離 replica set；CI 與 `test:mobile-api` 涵蓋 transaction rollback、終局競爭、撤權、保留歷史欄位、刪除清理、socket 丟回應與 C 重播不復活。兩平台畫面由其他人於 E 全部完成後驗收。
+
+## E4 還款
+
+新增成員 payment-context、還款 POST、單筆 revoke-context 與 DELETE；Web payment action 也委派共用 `paymentWrite.ts`。支援任意實際付款的到分驗證、結算／原始還款 HMAC 前條件、終局 UUID receipt、同交易活動與站內通知，提交後外部寄送失敗仍成功，重播／撤銷不復活或重複扣抵。完整 schema、錯誤與恢復見 [Mobile E4 契約](../../mobile/docs/BACKEND_CONTRACT.md#e4-登記與撤銷還款)。
+
+`paymentWrite.integration.test.ts` 以 opt-in 隨機隔離 replica set 核對部分／超額／虛擬付款、同 UUID 與不同 UUID 競爭、原始變更、撤權、回滾、撤銷與 Web 共用服務；CI 已加入。`test:mobile-api` 核對真 HTTP／DB 與丟 POST／DELETE 回應，原生成員／四語畫面仍待其他人驗收。沿用 E1 receipt 與既有 payment 索引，不新增 migration／遠端操作。

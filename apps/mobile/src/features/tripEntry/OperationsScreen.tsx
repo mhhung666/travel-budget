@@ -52,7 +52,11 @@ export function OperationsScreen() {
                 ? t.joinTrip
                 : record.operation === 'expense.update'
                   ? t.editExpense
-                  : t.deleteExpense}
+                  : record.operation === 'expense.delete'
+                    ? t.deleteExpense
+                    : record.operation === 'payment.create'
+                      ? t.recordPayment
+                      : t.revokePayment}
           </Title>
           <Copy>{record.clientRequestId}</Copy>
           {record.status === 'pending' ? (
@@ -77,9 +81,11 @@ export function OperationsScreen() {
               <Notice>
                 {record.result?.status === 'committed'
                   ? t.operationDone
-                  : record.operation.startsWith('expense.')
-                    ? t.expenseChanged
-                    : t.operationRejected}
+                  : record.operation.startsWith('payment.')
+                    ? t.paymentChanged
+                    : record.operation.startsWith('expense.')
+                      ? t.expenseChanged
+                      : t.operationRejected}
               </Notice>
               {record.result?.status === 'committed' && (
                 <Action
@@ -110,6 +116,26 @@ export function OperationsScreen() {
                           expenseId: 'expenseId' in record.payload! ? record.payload.expenseId : '',
                           remove: record.operation === 'expense.delete' ? 'true' : 'false',
                           source: record.clientRequestId,
+                        },
+                      })
+                    }
+                  />
+                )}
+              {record.result?.status === 'rejected' &&
+                record.payload?.operation.startsWith('payment.') &&
+                record.tripId &&
+                record.result.code !== 'RESOURCE_GONE' && (
+                  <Action
+                    label={t.resumePayment}
+                    onPress={() =>
+                      router.push({
+                        pathname: '/trips/[id]/payments/edit',
+                        params: {
+                          id: record.tripId!,
+                          source: record.clientRequestId,
+                          ...(record.payload?.operation === 'payment.delete'
+                            ? { paymentId: record.payload.paymentId }
+                            : {}),
                         },
                       })
                     }

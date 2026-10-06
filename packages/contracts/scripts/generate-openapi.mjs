@@ -26,6 +26,11 @@ import {
   tripMutationResultSchema,
   invitationSchema,
   mutationRequestSchema,
+  paymentContextSchema,
+  paymentRevokeContextSchema,
+  paymentCreateInput,
+  paymentDeleteInput,
+  paymentMutationResultSchema,
   expenseEditContextSchema,
   expenseUpdateInput,
   expenseDeleteInput,
@@ -41,6 +46,11 @@ const schemas = Object.fromEntries(
     TripMutationResult: tripMutationResultSchema,
     Invitation: invitationSchema,
     MutationRequest: mutationRequestSchema,
+    PaymentContext: paymentContextSchema,
+    PaymentRevokeContext: paymentRevokeContextSchema,
+    PaymentCreateInput: paymentCreateInput,
+    PaymentDeleteInput: paymentDeleteInput,
+    PaymentMutationResult: paymentMutationResultSchema,
     ExpenseEditContext: expenseEditContextSchema,
     ExpenseUpdateInput: expenseUpdateInput,
     ExpenseDeleteInput: expenseDeleteInput,
@@ -280,6 +290,50 @@ const paths = {
       ],
       description:
         'Amounts are TWD rounded by the existing money rules; originalAmount, currency and exchangeRate describe the entered value. An expense of another trip returns 404.',
+    },
+  },
+  '/trips/{id}/payment-context': {
+    get: {
+      ...operation('paymentContext', 'PaymentContext'),
+      parameters: [tripIdParam],
+      description:
+        'Fresh members and backend settlement in one snapshot, with an opaque trip-bound revision. External payments only; suggestions are unpaid.',
+    },
+  },
+  '/trips/{id}/payments': {
+    post: {
+      ...operation('createPayment', 'PaymentMutationResult', 'PaymentCreateInput', {
+        authenticated: true,
+        errors: [409],
+      }),
+      parameters: [tripIdParam],
+      description:
+        'Records an actual external TWD payment (two decimals, 0.01 to 1,000,000,000). Partial, excess and manual payments are allowed. UUID/immutable body survive every retry. SETTLEMENT_CHANGED is a terminal receipt: reload and explicitly reconfirm with a new UUID. Timeout/5xx: lookup original mutation request; never change UUID. Replay after revocation does not resurrect the payment.',
+    },
+  },
+  '/trips/{id}/payments/{paymentId}/revoke-context': {
+    get: {
+      ...operation('paymentRevokeContext', 'PaymentRevokeContext'),
+      parameters: [
+        tripIdParam,
+        { name: 'paymentId', in: 'path', required: true, schema: objectId },
+      ],
+      description:
+        'Current direction, amount, note and opaque raw payment revision. RESOURCE_GONE is a resource-only 404.',
+    },
+  },
+  '/trips/{id}/payments/{paymentId}': {
+    delete: {
+      ...operation('revokePayment', 'PaymentMutationResult', 'PaymentDeleteInput', {
+        authenticated: true,
+        errors: [409],
+      }),
+      parameters: [
+        tripIdParam,
+        { name: 'paymentId', in: 'path', required: true, schema: objectId },
+      ],
+      description:
+        'Revokes a mistaken registration; does not refund money. Every member may revoke. Raw payment revision guards identity changes; original creation receipt remains valid.',
     },
   },
   '/trips/{id}/settlement': {

@@ -25,7 +25,7 @@ D1 草稿、D2 受限離線入口與 D3 均分佇列的核心已交付，成果�
 
 ## E 規格：基本使用流程
 
-狀態：**E1–E3 程式已實作，兩平台基本操作待 E1–E4 全部功能完成後統一驗收；E3 待獨立審查，E4 尚未實作**（2026-10-06）。E1–E3 現況見 [FEATURES](FEATURES.md) 與 [契約](BACKEND_CONTRACT.md)，其餘新增端點、錯誤碼及限制仍為提案。E 的目標是讓使用者在手機完成「建立帳號 → 建立或加入旅行 → 記帳 → 修正帳務 → 登記還款」。本節是 E 規格的單一維護位置；實作後才移入 FEATURES／BACKEND_CONTRACT，結果合併至 archive。
+狀態：**E1–E4 程式、獨立審查與自動化驗證已完成，兩平台基本操作待統一驗收**（2026-10-06）。E1–E4 現況見 [FEATURES](FEATURES.md) 與 [契約](BACKEND_CONTRACT.md)，本節保留交付規則，現行端點與錯誤以契約為準。E 的目標是讓使用者在手機完成「建立帳號 → 建立或加入旅行 → 記帳 → 修正帳務 → 登記還款」。本節是 E 規格的單一維護位置；實作後才移入 FEATURES／BACKEND_CONTRACT，結果合併至 archive。
 
 E1 審查兩項 Web P2 已修正並通過獨立複驗：加入結果補讀在同一查詢核對目前成員與刪除狀態；建立只回傳已提交 ID，兩個畫面入口以 ID 接續。Web 2,014 項、隔離交易 71 項及根 check／build 通過；四個故障回歸案例在舊實作均失敗。E1 兩平台裝置驗收仍待執行。
 
@@ -72,7 +72,7 @@ E1 先交付共用寫入保護的最小版本，E3／E4 再增加操作種類，
 
 ### 4. E2：註冊與重設密碼
 
-已實作共用服務、匿名 HTTP、手機畫面與故障回歸；寄碼 429 誤鎖驗碼的 P2 已分開操作期限修正，程式審查及獨立複驗通過。E3 開發另修正零冷卻限流誤擋晚到請求，此新增修正待獨立複驗；兩平台基本操作依約待 E1–E4 全部完成後統一驗收，見 [本機驗收](LOCAL_ACCEPTANCE.md#e2-帳號入口驗收交接)。現行 API／限流與環境限制見 [後端契約](BACKEND_CONTRACT.md#e2-註冊與-email-驗證碼重設)。以下保留產品規則；匿名 HTTP 不使用 E1 receipt，也不保存密碼。
+已實作共用服務、匿名 HTTP、手機畫面與故障回歸；寄碼 429 誤鎖驗碼的 P2 已分開操作期限修正，程式審查及獨立複驗通過。E3 開發另修正零冷卻限流誤擋晚到請求，此新增修正已通過獨立複驗；兩平台基本操作依約待 E1–E4 全部完成後統一驗收，見 [本機驗收](LOCAL_ACCEPTANCE.md#e2-帳號入口驗收交接)。現行 API／限流與環境限制見 [後端契約](BACKEND_CONTRACT.md#e2-註冊與-email-驗證碼重設)。以下保留產品規則；匿名 HTTP 不使用 E1 receipt，也不保存密碼。
 
 **註冊**：登入頁新增「建立帳號」「忘記密碼」。欄位為帳號、顯示名稱、Email、密碼、確認密碼；確認密碼只供 UI，不送 API。帳號 trim 後 3–200 字、顯示名稱 trim 後 1–100 字、Email trim 並沿用既有格式與不分大小寫唯一規則。沿用既有至少六字元密碼政策，不自行 trim 密碼；新設密碼加上 bcrypt 的 72 UTF-8 bytes 上限，兩端提示一致，既有登入輸入相容性不因本片改動。
 
@@ -90,39 +90,32 @@ Mobile 註冊成功回最小 user DTO，回登入頁並帶入帳號，由使用�
 
 ### 5. E3：編輯與刪除已入帳支出
 
-程式、故障測試與獨立審查已完成；衝突欄位合併、拒絕紀錄切回基本資料兩項 P2 已通過獨立複驗，Mobile 692 項、check、三平台匯出與 Expo 相容性通過，未發現新問題。E 全部完成後兩平台統一驗收。現行白名單、基本資料／明確重新均分、HMAC revision、終局 receipt、刪除清理與 C／D 原子協調見 [E3 契約](BACKEND_CONTRACT.md#e3-支出維護)；交接案例見 [本機驗收](LOCAL_ACCEPTANCE.md#e3-支出維護驗收交接)。保留 admin／member 協作權限、未確認線上表單與既有進階資料，結果不明只用原 UUID 查詢／重試。未部署；E4 接續。
+程式、故障測試與獨立審查已完成；衝突欄位合併、拒絕紀錄切回基本資料兩項 P2 已通過獨立複驗，Mobile 692 項、check、三平台匯出與 Expo 相容性通過，未發現新問題。E 全部完成後兩平台統一驗收。現行白名單、基本資料／明確重新均分、HMAC revision、終局 receipt、刪除清理與 C／D 原子協調見 [E3 契約](BACKEND_CONTRACT.md#e3-支出維護)；交接案例見 [本機驗收](LOCAL_ACCEPTANCE.md#e3-支出維護驗收交接)。保留 admin／member 協作權限、未確認線上表單與既有進階資料，結果不明只用原 UUID 查詢／重試。未部署；E4 現況見下節。
 
 ### 6. E4：登記與撤銷還款
 
-**入口**：結算的建議轉帳列提供「登記已付款」，另有「手動登記」。前者預填付款人、收款人與建議金額；兩者都進可調整表單，最後顯示「誰付給誰、多少 TWD、備註」讓使用者確認。畫面明示 App 只記錄已在外部完成的還款，不執行轉帳；建議不是已付款紀錄。
+程式、共用後端／HTTP、手機畫面、故障測試及獨立審查已完成，未發現需修正的程式問題；待 E 全流程兩平台統一驗收。可從建議轉帳或手動登記外部實際付款，包含部分／超額／虛擬成員；撤銷誤登保留建立 receipt，不執行轉帳或退款。原始結算／payment HMAC 前條件、UUID 終局 receipt、通知／動態同交易及 C／D／E 共用恢復保護見 [E4 契約](BACKEND_CONTRACT.md#e4-登記與撤銷還款)，操作與核對表見 [E4 交接](LOCAL_ACCEPTANCE.md#e4-還款驗收交接)。沒有新增離線還款草稿、背景自動重送或遠端 migration。
 
-欄位為付款人／收款人（不同的當前旅行成員，以 id 辨識同名）、金額（0.01–1,000,000,000.00、最多兩位小數）、備註（trim 後最多 200 字）。沿用 Web 信任模型：任何成員可代其他成員登記，包含虛擬成員；支援部分還款、無建議的手動還款及高於建議金額的實際付款，不把建議額當硬上限。偏離建議須清楚顯示確認，不能標成「已全部結清」；是否歸零由後端重算。
-
-開表單及確認前取得新的 payment context：最小成員選項、目前 settlement 及 `settlement_revision`。revision 綁定旅行，對成員 ID、支出 ID／計算輸入與 payment ID／金額／方向生成不透明狀態 token，在同一 trip write 交易內重算／比較，避免兩人同時照舊建議各記一筆。所有影響這些結算輸入的變更（包含 D 前景佇列寫入、Web 支出或還款）都會觸發衝突；回 `409 SETTLEMENT_CHANGED` 時保留輸入，重讀並要求再次確認，不能自動替換金額後送出。不同 UUID 仍可在新狀態下經明確確認登記同額付款，不按金額誤判重複。
-
-**撤銷**：還款歷史提供「撤銷這筆登記」，任何成員可操作；確認方向、金額與備註後刪除該 payment，並重算結算。若真有新一筆反向付款，應另建新紀錄，不能用撤銷冒充退款。撤銷使用自己的 UUID 及 payment revision（至少包含付款／收款原始 ID、金額、備註），避免虛擬成員認領等變更後沿用舊確認。成功時原 payment-create receipt 仍保留，重播不得恢復被撤銷的付款。
-
-登記或撤銷成功後刷新結算、旅行列表與 landing；不在 Mobile 另算帳務。通知／動態保留既有業務語意，同一操作重播不再觸發；E 不增加催款或刪除通知功能。
-
-### 7. HTTP 契約與後續提案
+### 7. HTTP 契約
 
 所有路徑以下省略 `/api/v1`；輸入延續 snake_case、回應 camelCase。沿用嚴格 JSON、8 KiB、no-store 及 `{ data }`／`{ error: { code }, requestId }` envelope；欄位未知回 400。契約實作時只定義於 packages/contracts，不把下表複製成另一套 runtime schema。
 
-| 交付  | 路徑                                              | 輸入與成功回應摘要                                                                                    |
-| ----- | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| E1    | `POST /trips`                                     | UUID、name、description、start_date／end_date → `{ tripId }`，200 含重播；後續讀現有 landing          |
-| E1    | `POST /trips/join`                                | UUID、invite_code → `{ tripId, alreadyMember }`；只以有效碼解析                                       |
-| E1    | `GET /trips/:id/invitation`                       | 成員 Bearer → `{ code, url }`；不放進一般 Trip DTO                                                    |
-| E1 起 | `GET /mutation-requests/:uuid`                    | 原帳號 Bearer → `not_found`／`committed`（operation、resourceId、最小結果）／`rejected`（終局拒絕碼） |
-| E2    | `POST /auth/register`                             | username、display_name、email、password → 最小 user，200；不回 token                                  |
-| E2    | `POST /auth/password-reset/request`               | email、locale → `{ accepted: true }`；不表示實際送達                                                  |
-| E2    | `POST /auth/password-reset/confirm`               | email、code、new_password → `{ reset: true }`；無自動登入                                             |
-| E3    | `GET /trips/:id/expenses/:expenseId/edit-context` | expense、options、revision、capabilities／限制原因                                                    |
-| E3    | `PATCH /trips/:id/expenses/:expenseId`            | UUID、expected_revision、mode、changes → `{ tripId, expenseId, revision }`                            |
-| E3    | `DELETE /trips/:id/expenses/:expenseId`           | JSON UUID、expected_revision → `{ tripId, expenseId, deleted: true }`                                 |
-| E4    | `GET /trips/:id/payment-context`                  | members、settlement、settlementRevision、各 payment 的 revision                                       |
-| E4    | `POST /trips/:id/payments`                        | UUID、expected_settlement_revision、from_id、to_id、amount、note → `{ paymentId }`                    |
-| E4    | `DELETE /trips/:id/payments/:paymentId`           | JSON UUID、expected_revision → `{ paymentId, deleted: true }`                                         |
+| 交付  | 路徑                                                | 輸入與成功回應摘要                                                                                    |
+| ----- | --------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| E1    | `POST /trips`                                       | UUID、name、description、start_date／end_date → `{ tripId }`，200 含重播；後續讀現有 landing          |
+| E1    | `POST /trips/join`                                  | UUID、invite_code → `{ tripId, alreadyMember }`；只以有效碼解析                                       |
+| E1    | `GET /trips/:id/invitation`                         | 成員 Bearer → `{ code, url }`；不放進一般 Trip DTO                                                    |
+| E1 起 | `GET /mutation-requests/:uuid`                      | 原帳號 Bearer → `not_found`／`committed`（operation、resourceId、最小結果）／`rejected`（終局拒絕碼） |
+| E2    | `POST /auth/register`                               | username、display_name、email、password → 最小 user，200；不回 token                                  |
+| E2    | `POST /auth/password-reset/request`                 | email、locale → `{ accepted: true }`；不表示實際送達                                                  |
+| E2    | `POST /auth/password-reset/confirm`                 | email、code、new_password → `{ reset: true }`；無自動登入                                             |
+| E3    | `GET /trips/:id/expenses/:expenseId/edit-context`   | expense、options、revision、capabilities／限制原因                                                    |
+| E3    | `PATCH /trips/:id/expenses/:expenseId`              | UUID、expected_revision、mode、changes → `{ tripId, expenseId, revision }`                            |
+| E3    | `DELETE /trips/:id/expenses/:expenseId`             | JSON UUID、expected_revision → `{ tripId, expenseId, deleted: true }`                                 |
+| E4    | `GET /trips/:id/payment-context`                    | members、settlement、settlementRevision                                                               |
+| E4    | `POST /trips/:id/payments`                          | UUID、expected_revision、from_id、to_id、amount、note → `{ tripId, paymentId, revision }`             |
+| E4    | `GET /trips/:id/payments/:paymentId/revoke-context` | → `{ payment, revision }`；單筆不存在回 RESOURCE_GONE                                                 |
+| E4    | `DELETE /trips/:id/payments/:paymentId`             | JSON UUID、expected_revision → `{ tripId, paymentId, deleted: true }`                                 |
 
 UUID 欄位為 `client_request_id`；E UUID 統一小寫正規化。PATCH 的 mode 為 `basic` 或 `equal`，changes 必須非空且按模式使用嚴格 schema，不能夾帶其他欄位。一般成員路徑只接受 ObjectId 並重新授權；404 統一涵蓋非成員、旅行不存在及他旅行資源，不能 fallback public API。邀請碼只在加入／明確取邀請這兩個入口流動；匿名 auth 路徑不接受成員資料操作。
 

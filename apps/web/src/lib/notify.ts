@@ -252,3 +252,8 @@ async function sendNotificationEmails({
 export async function deliverJoinNotification(event: import('./tripEntry').JoinDelivery) {
   await Promise.allSettled([sendNotificationEmails(event), sendPush(event)]);
 }
+
+/** Payment fan-out has already committed with the receipt. */
+export async function deliverPaymentNotification(event: import('./paymentWrite').PaymentDelivery) {
+  await Promise.allSettled([sendNotificationEmails(event), sendPush(event)]);
+}

@@ -61,7 +61,11 @@ vi.mock('@/lib/photoSanitize', () => ({
 vi.mock('next/server', () => ({ after: vi.fn() }));
 vi.mock('@/lib/auth', () => ({ getSession: mocks.session }));
 vi.mock('@/lib/mongodb', () => ({ dbConnect: vi.fn() }));
-vi.mock('@/lib/notify', () => ({ notify: mocks.notify, deliverJoinNotification: mocks.notify }));
+vi.mock('@/lib/notify', () => ({
+  notify: mocks.notify,
+  deliverJoinNotification: mocks.notify,
+  deliverPaymentNotification: mocks.notify,
+}));
 vi.mock('@/lib/activity', () => ({ logActivity: mocks.activity }));
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 const uri = process.env.MONGODB_MEMBER_TEST_URI;
@@ -82,6 +86,8 @@ describe.skipIf(!uri || !allowed)('trip writers against isolated replica set', (
   let flightId: string;
   let stayId: string;
   beforeAll(async () => {
+    vi.stubEnv('MONGODB_URI', uri!);
+    vi.stubEnv('JWT_SECRET', 'isolated-trip-writers-secret-at-least-32-characters');
     await mongoose.connect(uri!, {
       dbName: `tb_writers_${randomUUID().replaceAll('-', '')}`,
       autoIndex: false,
@@ -104,6 +110,7 @@ describe.skipIf(!uri || !allowed)('trip writers against isolated replica set', (
       if (owned) await mongoose.connection.db!.dropDatabase();
     } finally {
       await mongoose.disconnect();
+      vi.unstubAllEnvs();
     }
   });
   beforeEach(async () => {

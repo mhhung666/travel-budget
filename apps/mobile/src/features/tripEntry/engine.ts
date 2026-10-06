@@ -2,6 +2,8 @@ import {
   mutationRequestSchema,
   tripMutationResultSchema,
   expenseMutationResultSchema,
+  paymentMutationResultSchema,
+  type PaymentMutationResult,
   type MutationRequest,
   type TripMutationResult,
   type ExpenseMutationResult,
@@ -222,21 +224,29 @@ export class TripEntry {
   ): Promise<MutationOutcome> {
     try {
       await this.ready(store, record, guard);
-      const result = await this.deps.request<TripMutationResult | ExpenseMutationResult>(
+      const result = await this.deps.request<
+        TripMutationResult | ExpenseMutationResult | PaymentMutationResult
+      >(
         record.accountId,
-        record.operation === 'trip.create'
-          ? '/trips'
-          : record.operation === 'trip.join'
-            ? '/trips/join'
-            : `/trips/${record.tripId}/expenses/${'expenseId' in record.payload! ? record.payload.expenseId : ''}`,
-        record.operation.startsWith('expense.')
-          ? expenseMutationResultSchema
-          : tripMutationResultSchema,
+        record.operation === 'payment.create'
+          ? `/trips/${record.tripId}/payments`
+          : record.operation === 'payment.delete'
+            ? `/trips/${record.tripId}/payments/${record.payload?.operation === 'payment.delete' ? record.payload.paymentId : ''}`
+            : record.operation === 'trip.create'
+              ? '/trips'
+              : record.operation === 'trip.join'
+                ? '/trips/join'
+                : `/trips/${record.tripId}/expenses/${'expenseId' in record.payload! ? record.payload.expenseId : ''}`,
+        record.operation.startsWith('payment.')
+          ? paymentMutationResultSchema
+          : record.operation.startsWith('expense.')
+            ? expenseMutationResultSchema
+            : tripMutationResultSchema,
         {
           method:
             record.operation === 'expense.update'
               ? 'PATCH'
-              : record.operation === 'expense.delete'
+              : record.operation === 'expense.delete' || record.operation === 'payment.delete'
                 ? 'DELETE'
                 : 'POST',
           body: record.payload!.body,
@@ -247,7 +257,12 @@ export class TripEntry {
       return await this.finish(store, record, {
         status: 'committed',
         operation: record.operation,
-        resourceId: 'expenseId' in result ? result.expenseId : result.tripId,
+        resourceId:
+          'expenseId' in result
+            ? result.expenseId
+            : 'paymentId' in result
+              ? result.paymentId
+              : result.tripId,
         result,
       });
     } catch (error) {

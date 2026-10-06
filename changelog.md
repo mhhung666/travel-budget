@@ -6,9 +6,9 @@
 
 ### 2026-10-06
 
-- Web／Mobile：E1／E2 已通過獨立複驗；共用註冊、Email 六位碼重設、匿名限流與寄碼／驗碼期限隔離已交付，兩端帳號可互登入，密碼／碼不落盤。另修正 HTTP 複驗發現的零冷卻限流誤擋晚到請求，保留原計數／到期；三個逆序時間回歸舊版皆失敗。細節與驗證見 [E2 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#e2-帳號入口驗收交接)。
-- E3：手機線上編輯／刪除支出，預設只改基本資料並保留外幣、非均分及附件／標籤／行程，明確 TWD 重新均分才改份額；原始業務 HMAC 前條件、終局 UUID receipt 與刪除清理同交易，拒絕保留輸入供重新核對，Web 維護抽成後端服務。SQLite schema 8 保留舊資料，以原子 pending 檢查協調 C／D／E 同旅行、共享 429 與撤權守衛，回應不明重啟只查。
-- E3 獨立審查：Web 2,043、Mobile 685、隔離交易 216 項與真 HTTP 通過，新增 E2 限流修正已複驗；兩項畫面 P2 已結案，衝突後只保留實際修改、其餘採最新值，拒絕紀錄重開可切回基本資料。新增 7 項回歸，獨立複驗 Mobile 692 項、原兩個重現案例、check、三平台匯出與 Expo 相容性通過，未發現新問題，見 [E3 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#e3-支出維護驗收交接)。兩平台依約於 E1–E4 全部完成後統一驗收；本次交付依功能變更調升兩個應用的 minor 版本；E4 未實作，E3 未部署／執行遠端 migration。
+- E1／E2：旅行入口與帳號入口已交付並通過獨立複驗，含建立／加入提交後失敗、寄碼／驗碼分離限流及逆序到達修正；規則與操作見 [E 規格](apps/mobile/docs/ROADMAP.md#e-規格基本使用流程) 與 [本機驗收](apps/mobile/docs/LOCAL_ACCEPTANCE.md#e2-帳號入口驗收交接)。
+- E3：手機基本資料／明確重新均分、刪除、原始 HMAC 前條件及 UUID 恢復已交付；衝突只保留實際修改、拒絕重開可回基本資料兩項 P2 已通過獨立複驗。Mobile 692 項及三平台匯出通過，既有 Web 2,043／隔離交易 216 項、真 HTTP 與根 check／build 基線保留；見 [E3 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#e3-支出維護驗收交接)。
+- E4：手機建議／手動還款、部分／超額付款與誤登撤銷已完成獨立審查，未發現需修正的程式問題；Web／HTTP 共用交易，UUID receipt 與通知／動態原子提交，SQLite 延續 C／D／E 協調與恢復保護，兩應用依功能交付調升 minor。獨立複驗 Web 2,052、Mobile 717、隔離交易 238 項、真 HTTP、frozen install、根 check／build、三平台匯出及 Expo 相容性通過；E1–E4 裝置驗收仍待統一執行，範圍見 [E4 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#e4-還款驗收交接)，未部署或執行遠端 migration。
 
 ### 2026-10-05～2026-10-06
 

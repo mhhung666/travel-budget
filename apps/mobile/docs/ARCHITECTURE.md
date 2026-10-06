@@ -129,7 +129,7 @@ pnpm workspace 統一安裝與 lockfile；App 各自保留 React／Expo 相容�
 
 ## 旅行入口（E1）
 
-`features/tripEntry` 的線上表單、操作恢復引擎與邀請頁接獨立 E HTTP；`storage/mutations.ts` 在同一 DB schema 7 新增 `pending_mutation`，按環境／帳號／UUID 保存確認內容，交易升級保留 C／D。未確認表單只留畫面記憶體，導航以未儲存提醒保護；已確認者不可改／捨棄，只有終局 receipt 結案並清除 payload。啟動／前景／連線事件只查，不自動 POST。`expense_rate_limit` 仍是 C／D／E 共用帳號期限，同步鏡像守住最後一次 fetch；額外登入世代守住 SQLite 等待後 A→B→A。E1 無 tripId 時按操作種類防重，E3 以同一 SQLite 序列／原子 pending 檢查協調 C／D／E 同旅行的確認與交接。
+`features/tripEntry` 的線上表單、操作恢復引擎與邀請頁接獨立 E HTTP；`storage/mutations.ts` 在同一 DB schema 7 新增 `pending_mutation`，按環境／帳號／UUID 保存確認內容，交易升級保留 C／D。未確認表單只留畫面記憶體，導航以未儲存提醒保護；已確認者不可改／捨棄，只有終局 receipt 結案；成功清除 payload，E3／E4 拒絕保留輸入供新確認。啟動／前景／連線事件只查，不自動 POST。`expense_rate_limit` 仍是 C／D／E 共用帳號期限，同步鏡像守住最後一次 fetch；額外登入世代守住 SQLite 等待後 A→B→A。E1 無 tripId 時按操作種類防重，E3／E4 以同一 SQLite 序列／原子 pending 檢查協調 C／D／E 同旅行的確認與交接。
 
 邀請頁用當次畫面狀態，沒有 Query 或 SQLite 快取；帳號／登入世代、請求世代與撤權 token 核對後才顯示或複製／分享。加入回應不保存 D 快照，導向後的 landing／expense-options 才重新授權。後端 `tripEntry.ts` 是 Web／HTTP 共用旅行交易服務，receipt 與站內副作用同交易，外部寄送於提交後處理。
 
@@ -144,3 +144,9 @@ pnpm workspace 統一安裝與 lockfile；App 各自保留 React／Expo 相容�
 `expenses/maintenance.ts` 處理白名單差異、context／preview／再核對版本；`EditExpenseScreen` 的表單只存當次畫面，明確確認交給既有 `TripEntry` 引擎，與 D editor 分開。`pending_mutation` schema 8 增加 trip_id，C insert／D prepare／E insert 在同 DB 交易互查鎖；原請求恢復仍可執行。scope 的登入世代與每旅行撤權 token 在非同步等待前捕捉、每次 fetch 前核對，共用帳號期限不隨結案或提示移除消失。
 
 E3 成功只存最小 receipt 結果並刷新資源，刪除明細不再重讀；終局拒絕保留本人非敏感輸入供明確重開，重開先授權及讀最新 context，可切回基本資料再人工確認。衝突核對採前一 context 為基線，只保留實際修改的欄位，其餘更新為最新內容，取消舊預覽並要求重新確認。結果不明不能換 body／UUID／捨棄，生命週期只查。四語、語意色彩、safe area、鍵盤與無障礙標籤沿用共用 UI；裝置驗收另行交接。
+
+## E4 還款
+
+`settlement/paymentForm.ts` 只驗證輸入並核對後端建議，不複製結算算法；`PaymentScreen` 共用登記／撤銷的線上表單，明確核對最新 context 後才交 `TripEntry` 保存。`payment.create`／`payment.delete` 沿用 schema 8 E 操作表、帳號／環境期限、C／D／E 同旅行互斥與登入／撤權守衛，無額外 schema 升級或原生依賴。
+
+已確認請求凍結，啟動／前景／重連只查 receipt；終局拒絕保留原輸入，重開先讀授權 context，新確認才有新 UUID。查詢快照不保存還款 context，撤權立即隱藏私人資料。成功刷新既有結算／landing／列表，只讀失敗不推翻寫入；方向／金額不依 receipt 歷史快照樂觀覆蓋目前資料。後端服務與完整錯誤規則見 [E4 契約](BACKEND_CONTRACT.md#e4-登記與撤銷還款)。

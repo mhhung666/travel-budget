@@ -53,7 +53,16 @@ export async function readSettlementDetail(
       .lean<PaymentDtoInput[]>(),
   ]);
 
-  const members = (trip?.members || []).map((m) => m.user).filter((u) => u !== null);
+  return calculateSettlementDetail(trip?.members ?? [], expenses, paymentDocs);
+}
+
+/** Shared calculation for model reads and transaction snapshots; no second settlement algorithm. */
+export function calculateSettlementDetail(
+  memberDocs: PopulatedMember[],
+  expenses: LeanExpenseForSettlement[],
+  paymentDocs: PaymentDtoInput[]
+): SettlementDetail {
+  const members = memberDocs.map((m) => m.user).filter((u) => u !== null);
 
   const paidByUser = new Map<string, number>();
   const owedByUser = new Map<string, number>();

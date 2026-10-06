@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { ActivityIndicator, Text, View } from 'react-native';
 import type { Settlement } from '@/api/contracts';
 import {
@@ -61,7 +62,17 @@ function Balances({ settlement, userId }: { settlement: Settlement; userId?: str
   );
 }
 
-function Details({ settlement, userId }: { settlement: Settlement; userId?: string }) {
+function Details({
+  settlement,
+  userId,
+  tripId,
+  online,
+}: {
+  settlement: Settlement;
+  userId?: string;
+  tripId: string;
+  online: boolean;
+}) {
   const p = usePalette();
   const t = useMessages();
   const mine = viewerBalance(settlement, userId);
@@ -98,6 +109,21 @@ function Details({ settlement, userId }: { settlement: Settlement; userId?: stri
                 {money(transfer.amount)}
               </Text>
               <Badge label={t.unpaid} />
+              <Action
+                label={t.recordPayment}
+                disabled={!online}
+                onPress={() =>
+                  router.push({
+                    pathname: '/trips/[id]/payments/edit',
+                    params: {
+                      id: tripId,
+                      from: transfer.fromId,
+                      to: transfer.toId,
+                      amount: String(transfer.amount),
+                    },
+                  })
+                }
+              />
             </Card>
           ))
         )}
@@ -119,6 +145,17 @@ function Details({ settlement, userId }: { settlement: Settlement; userId?: stri
               </Text>
               <Copy>{localDate(new Date(payment.createdAt))}</Copy>
               {!!payment.note && <Copy>{payment.note}</Copy>}
+              <Action
+                secondary
+                label={t.revokePayment}
+                disabled={!online}
+                onPress={() =>
+                  router.push({
+                    pathname: '/trips/[id]/payments/edit',
+                    params: { id: tripId, paymentId: payment.id },
+                  })
+                }
+              />
             </Card>
           ))
         )}
@@ -183,7 +220,14 @@ export function SettlementScreen({ tripId }: { tripId: string }) {
             label={t.totalExpenses}
             value={money(settlement.totalExpenses)}
           />
-          {status !== 'empty' && <Details settlement={settlement} userId={user?.id} />}
+          <Action
+            label={t.manualPayment}
+            disabled={!online}
+            onPress={() =>
+              router.push({ pathname: '/trips/[id]/payments/edit', params: { id: tripId } })
+            }
+          />
+          <Details settlement={settlement} userId={user?.id} tripId={tripId} online={online} />
           <Copy>{t.amountsInTwd}</Copy>
           <Action
             testID="settlement-refresh"

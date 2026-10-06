@@ -328,14 +328,59 @@ export type ExpenseUpdateInput = z.infer<typeof expenseUpdateInput>;
 export type ExpenseDeleteInput = z.infer<typeof expenseDeleteInput>;
 export type ExpenseEditContext = z.infer<typeof expenseEditContextSchema>;
 export type ExpenseMutationResult = z.infer<typeof expenseMutationResultSchema>;
+// E4: record external payments; suggestions are never a hard upper bound.
+export const paymentFieldsSchema = z
+  .object({
+    from_id: idSchema.toLowerCase(),
+    to_id: idSchema.toLowerCase(),
+    amount: centAmount,
+    note: z.string().trim().max(200).default(''),
+  })
+  .strict()
+  .refine((v) => v.from_id !== v.to_id, { message: '付款人與收款人不能相同', path: ['to_id'] });
+export const paymentCreateInput = paymentFieldsSchema.safeExtend(mutationIdentity);
+export const paymentDeleteInput = z.object(mutationIdentity).strict();
+export const paymentMutationResultSchema = z
+  .object({
+    tripId: idSchema,
+    paymentId: idSchema,
+    revision: resourceRevisionSchema.optional(),
+    deleted: z.literal(true).optional(),
+  })
+  .refine((v) => Boolean(v.revision) !== Boolean(v.deleted), 'Payment outcome required');
+export const paymentContextSchema = z.object({
+  members: expenseOptionsSchema.shape.members,
+  settlement: settlementSchema,
+  settlementRevision: resourceRevisionSchema,
+});
+export const paymentRevokeContextSchema = z.object({
+  payment: settlementSchema.shape.payments.element,
+  revision: resourceRevisionSchema,
+});
+export type PaymentCreateInput = z.infer<typeof paymentCreateInput>;
+export type PaymentDeleteInput = z.infer<typeof paymentDeleteInput>;
+export type PaymentContext = z.infer<typeof paymentContextSchema>;
+export type PaymentRevokeContext = z.infer<typeof paymentRevokeContextSchema>;
+export type PaymentMutationResult = z.infer<typeof paymentMutationResultSchema>;
 export const mutationRequestSchema = z.discriminatedUnion('status', [
   z.object({ status: z.literal('not_found') }),
   z
     .object({
       status: z.literal('committed'),
-      operation: z.enum(['trip.create', 'trip.join', 'expense.update', 'expense.delete']),
+      operation: z.enum([
+        'trip.create',
+        'trip.join',
+        'expense.update',
+        'expense.delete',
+        'payment.create',
+        'payment.delete',
+      ]),
       resourceId: idSchema,
-      result: z.union([expenseMutationResultSchema.strict(), tripMutationResultSchema.strict()]),
+      result: z.union([
+        expenseMutationResultSchema.strict(),
+        paymentMutationResultSchema.strict(),
+        tripMutationResultSchema.strict(),
+      ]),
     })
     .refine(
       (v) =>
@@ -343,13 +388,32 @@ export const mutationRequestSchema = z.discriminatedUnion('status', [
           ? 'expenseId' in v.result &&
             v.resourceId === v.result.expenseId &&
             (v.operation === 'expense.update' ? !!v.result.revision : v.result.deleted === true)
-          : !('expenseId' in v.result) && v.resourceId === v.result.tripId,
+          : v.operation.startsWith('payment.')
+            ? 'paymentId' in v.result &&
+              v.resourceId === v.result.paymentId &&
+              (v.operation === 'payment.create' ? !!v.result.revision : v.result.deleted === true)
+            : !('expenseId' in v.result) &&
+              !('paymentId' in v.result) &&
+              v.resourceId === v.result.tripId,
       'Receipt outcome does not match its operation'
     ),
   z.object({
     status: z.literal('rejected'),
-    operation: z.enum(['trip.create', 'trip.join', 'expense.update', 'expense.delete']),
-    code: z.enum(['INVITATION_INVALID', 'RESOURCE_CHANGED', 'RESOURCE_GONE', 'VALIDATION_ERROR']),
+    operation: z.enum([
+      'trip.create',
+      'trip.join',
+      'expense.update',
+      'expense.delete',
+      'payment.create',
+      'payment.delete',
+    ]),
+    code: z.enum([
+      'INVITATION_INVALID',
+      'RESOURCE_CHANGED',
+      'RESOURCE_GONE',
+      'VALIDATION_ERROR',
+      'SETTLEMENT_CHANGED',
+    ]),
     tripId: idSchema.optional(),
   }),
 ]);

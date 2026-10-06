@@ -46,7 +46,7 @@ export function TripEntryProvider({ children }: PropsWithChildren) {
           try {
             return await manager.requestAs(userId, path, schema, options);
           } catch (error) {
-            const match = /^\/trips\/([^/]+)\/expenses\//.exec(path);
+            const match = /^\/trips\/([^/]+)\/(?:expenses|payments)(?:\/|$)/.exec(path);
             if (
               match &&
               error instanceof ApiError &&

@@ -31,6 +31,7 @@ export class TripEntryError extends Error {
       | 'IDEMPOTENCY_CONFLICT'
       | 'INVITATION_INVALID'
       | 'BUSY'
+      | 'SETTLEMENT_CHANGED'
       | 'RESOURCE_CHANGED'
       | 'RESOURCE_GONE'
       | 'VALIDATION_ERROR'
@@ -64,7 +65,7 @@ async function authorizeReceipt(
   const tripId =
     terminal.status === 'rejected'
       ? terminal.tripId!
-      : terminal.operation.startsWith('expense.')
+      : !terminal.operation.startsWith('trip.')
         ? terminal.result.tripId
         : terminal.resourceId;
   const trip = await db
