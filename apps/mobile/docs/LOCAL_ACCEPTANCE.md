@@ -20,6 +20,14 @@ U0c 的 [對照原型](design/u0c.html) 與 [ROADMAP 視覺規格](ROADMAP.md#u0
 - 四語 × 深淺色 × 預設／最大原生字級，核對長名稱／金額／按鈕換行、48 觸控目標、卡片子按鈕可達及鍵盤不遮主動作；TextField 的 ref、decimal-pad 完成、Next／Done、多行與拖曳收鍵盤仍需實機核對。
 - VoiceOver 核對 checkbox／radio、busy／disabled、提示與欄位錯誤；一般說明、自動保存及每秒倒數不反覆通知，失敗／需處理訊息才 polite，已存草稿不能讀成已入帳。以上由其他人執行；Android 延後，不計兩平台通過。
 
+## U1b 導覽驗收交接
+
+2026-10-07：新增 18 個回歸案例，核對實際路由樹、穩定分頁 key、選擇器交接／取消、登入 guard、離線選擇／失敗及撤權隱藏；Mobile 771 項測試、check 與三平台匯出通過。原生閱讀器、鍵盤、手勢與交易筆數本輪未驗，仍由其他人執行，Android 延後。
+
+- iOS 先驗「旅行／我的」往返保留位置、「記一筆」取消回原入口；線上明確選旅行、離線只顯示有選項快照、無旅行建立／加入、存檔失敗與 pending 不可繞過。直接開明細／表單沒有歷史時，返回宣告的父頁；新建成功、支出成功仍回原旅行／清單。
+- 概覽／支出／結算反覆切換不堆疊、邀請入口一致；表單不顯示全域列。iOS 手勢、頁首、系統 Back 與 E 未確認離開提醒一致；D 離開保存，已確認 C／D／E 卸載後只處理原 UUID，不能改頁後另送。換帳號、local 與撤權立即隱藏私有頁／名稱，登出失敗能重試。
+- 四語／深淺色／最大字級檢查固定導覽、可捲動旅行名稱、表單內容與主動作；頂／底 safe area 不重複、FlatList 分頁／下拉更新保留。驗收前調整既有 Maestro 的路徑：登出先點 `nav-me`；本機先 `local-work`／`my-local-work` → `/work`；概覽改點 `trip-tab-index`（原 `expenses-back`／`settlement-back`），支出／結算仍為 `trip-expenses`／`trip-settlement`。原匿名登入及表單 IDs 保留，不可直接套用舊腳本後將未操作判為通過。
+
 ## 先決條件
 
 - 根目錄完成 `pnpm install --frozen-lockfile`；Node／pnpm 版本依 repository 設定。

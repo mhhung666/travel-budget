@@ -5,12 +5,10 @@ import { errorMessage, isAccessDenied } from '@/features/auth/errorMessage';
 import { money } from '@/i18n/format';
 import { useMessages } from '@/i18n/useMessages';
 import { useOnline } from '@/providers/useOnline';
-import { useExpenseOptions } from '@/features/expenses/entryQueries';
 import { useTrip } from './queries';
 
 export function TripScreen({ id }: { id: string }) {
   const query = useTrip(id);
-  useExpenseOptions(id);
   const trip = query.data;
   const t = useMessages();
   const online = useOnline();
@@ -18,12 +16,6 @@ export function TripScreen({ id }: { id: string }) {
   const denied = isAccessDenied(query.error);
   return (
     <Page>
-      <Action
-        testID="trip-back"
-        secondary
-        label={t.back}
-        onPress={() => router.replace('/trips')}
-      />
       {!online && <Notice tone="warning">{t.offline}</Notice>}
       {query.isPending && online && <ActivityIndicator accessibilityLabel={t.loading} />}
       {query.isError && (
@@ -46,25 +38,9 @@ export function TripScreen({ id }: { id: string }) {
           {!!trip.description && <Copy>{trip.description}</Copy>}
           <Copy>{t[trip.role]}</Copy>
           <Action
-            testID="trip-invitation"
-            label={t.inviteMembers}
-            disabled={!online}
-            onPress={() => router.push({ pathname: '/trips/[id]/invitation', params: { id } })}
-          />
-          <Action
-            testID="trip-expenses"
-            label={t.expenses}
-            onPress={() => router.push({ pathname: '/trips/[id]/expenses', params: { id } })}
-          />
-          <Action
             testID="trip-add-expense"
             label={t.addExpense}
             onPress={() => router.push({ pathname: '/trips/[id]/expenses/new', params: { id } })}
-          />
-          <Action
-            testID="trip-settlement"
-            label={t.settlement}
-            onPress={() => router.push({ pathname: '/trips/[id]/settlement', params: { id } })}
           />
           <Metric label={t.startDate} value={trip.startDate ?? t.notSet} />
           <Metric label={t.endDate} value={trip.endDate ?? t.notSet} />

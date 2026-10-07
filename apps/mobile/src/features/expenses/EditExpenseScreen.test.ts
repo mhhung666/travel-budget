@@ -47,6 +47,7 @@ vi.mock('expo-router', () => ({
   useNavigation: () => ({ dispatch: vi.fn() }),
 }));
 vi.mock('expo-router/react-navigation', () => ({ usePreventRemove: vi.fn() }));
+vi.mock('@/features/navigation/TripContext', () => ({ TripContext: 'TripContext' }));
 vi.mock('@/components/ui', () =>
   Object.fromEntries(
     [

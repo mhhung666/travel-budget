@@ -22,9 +22,10 @@ Server Actions 與 HTTP API 是兩個呼叫入口，部署初期同在現有 Nex
 
 ```text
 src/
-  app/                 Expo Router 路由；只組裝畫面與導航
+  app/                 Expo Router 路由；匿名帳號頁與 (app) 的線上分頁／私有動作／受限本機頁
   features/
     auth/              登入、恢復登入與安全路由；匿名註冊／Email 驗證碼重設
+    navigation/        全域／旅行分頁、我的、選旅行與本機記帳入口
     trips/             旅行列表、摘要與查詢 hooks
     expenses/          支出清單、明細、游標查詢與列資料轉換；新增支出：輸入驗證、草稿與預覽狀態、
                        送出與不確定結果恢復引擎、待確認畫面
@@ -42,6 +43,10 @@ assets/                目前保留 Expo 模板圖示
 ```
 
 路由為 `trips/[id]`（摘要）、`trips/[id]/expenses`（清單）、`trips/[id]/expenses/new`（新增）、`trips/[id]/expenses/[expenseId]`（明細）與 `trips/[id]/settlement`；`features/expenses`、`settlement` 各放畫面、查詢選項與可單元測試的純函式。
+
+`AppProviders` 留在根 `_layout`，登入、QueryClient、草稿、C／D 與 E 引擎不因切分頁／表單而重建。`(app)` 的 Stack 同時容納 `(tabs)`、私有 `trips` 動作、`record` 選擇器及 `(local)`；`Stack.Protected` 只在 signedIn 時提供前三者，local 只進本機頁。全域及旅行分頁使用既有 Expo Router Tabs；同層透過 navigator 的 navigate 切換，選取當前頁不堆疊。選擇器以 replace 交給既有新增／本機草稿，取消可 pop 回原分頁；成功進旅行使用 dismissTo 沿用原分頁。網址維持原路徑，新增 `/me`、`/record` 與 `/work`。
+
+`components/frame.tsx` 按容器分配安全區域：全域列負責底部、旅行頁首負責頂部，FlatList 直接使用 ScreenFrame，不外包 ScrollView。`components/screen.tsx` 管理共用頁首與 FormPage 的鍵盤避讓，表單在分頁外仍沿用 feature 的 usePreventRemove 與 D 保存；命名旅行上下文與整個旅行空間受既有 catalog／HTTP 撤權限制，長名稱留在可捲動內容中。
 
 支出清單使用 TanStack Query 的游標式無限查詢；下拉更新只保留並重讀最新一頁，較舊頁面按需再載入。所有私人查詢的 key 以 `[API 環境, 帳號, 資源, 旅行…]` 開頭，換帳號不會讀到同一筆快取，登出仍會清除全部。
 
@@ -105,7 +110,7 @@ Web 預覽沒有登入也沒有資料庫，打包時改用 `pendingExpenseDataba
 
 ## 受限離線入口（D2）
 
-`SessionManager` 的 `local` 狀態只有本機帳號身分，沒有 session／access token。SecureStore 將 refresh token 與線上確認過的 user 原子保存在同一環境 slot；token 外層格式與 user 分開驗證；本機 user 不符合目前 schema 時忽略身分，保留有效 token 供線上刷新，不能因此進入本機模式。舊格式 token 仍可線上更新，但不能推測本機帳號。只有 restore 的 NETWORK／TIMEOUT 可降入本機模式，401 清除身分，安全儲存失敗與其他伺服器錯誤仍顯示登入錯誤。`(member)` 路由只接受 signedIn；`(local)` 的 `/drafts` 與 `/drafts/[id]` 接受 signedIn／local。本機表單共用 D1 editor，禁止離線 HTTP 預覽／提交；可按 D3 契約明確確認均分規則並加入待送佇列。`requestAs` 仍須有效 session，未確認草稿不因網路恢復自動送出。同步與 C 的自動結果查詢只在 signedIn／前景／連線時執行。
+`SessionManager` 的 `local` 狀態只有本機帳號身分，沒有 session／access token。SecureStore 將 refresh token 與線上確認過的 user 原子保存在同一環境 slot；token 外層格式與 user 分開驗證；本機 user 不符合目前 schema 時忽略身分，保留有效 token 供線上刷新，不能因此進入本機模式。舊格式 token 仍可線上更新，但不能推測本機帳號。只有 restore 的 NETWORK／TIMEOUT 可降入本機模式，401 清除身分，安全儲存失敗與其他伺服器錯誤仍顯示登入錯誤。`(app)` 的線上分頁與私有動作只接受 signedIn；`(local)` 的 `/drafts` 與 `/drafts/[id]` 接受 signedIn／local。本機表單共用 D1 editor，禁止離線 HTTP 預覽／提交；可按 D3 契約明確確認均分規則並加入待送佇列。`requestAs` 仍須有效 session，未確認草稿不因網路恢復自動送出。同步與 C 的自動結果查詢只在 signedIn／前景／連線時執行。
 
 資料庫版本 3 新增 `draft_trip`，保留 D1／C 表與原始輸入。只保存旅行名稱、成員／分類選項、更新時間與拒絕標記，不保存帳務數字或整份 Query cache。`DraftCatalog` 觀察 Query 的實際成功讀取並以共用 SQLite 序列保存；手動寫入 Query cache 不算授權。旅行摘要預載成員選項，只有名稱的快照可顯示入口但不能建立草稿。快照保存失敗不阻擋既有線上帳務，提供本機保存失敗提示。
 

@@ -1,9 +1,10 @@
+import { FormPage } from '@/components/screen';
+import { TripContext } from '@/features/navigation/TripContext';
 import { useEffect, useId, useReducer, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   InputAccessoryView,
   Keyboard,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
   Text,
@@ -19,7 +20,6 @@ import {
   Copy,
   DetailRow,
   Notice,
-  Page,
   Section,
   TextField,
   Title,
@@ -180,37 +180,27 @@ function ScopedNewExpenseScreen({ tripId }: { tripId: string }) {
   })();
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    <FormPage
+      key={saved ? 'saved' : showPending ? 'pending' : 'form'}
+      backLabel={t.backShort}
+      backTestID="new-expense-back"
+      title={!saved && !showPending ? t.addExpense : undefined}
+      onBack={() => goBack({ pathname: '/trips/[id]/expenses', params: { id: tripId } })}
     >
-      {/* A new view starts at the top instead of keeping the previous view's scroll position. */}
-      <Page key={saved ? 'saved' : showPending ? 'pending' : 'form'} form>
+      <TripContext tripId={tripId} />
+      {!saved && !showPending && <Copy>{t.newExpenseHint}</Copy>}
+      {!online && !saved && <Notice tone="warning">{t.offlineEntry}</Notice>}
+      {!online && !saved && !denied && (
         <Action
-          testID="new-expense-back"
           secondary
-          label={t.backShort}
-          onPress={() => goBack({ pathname: '/trips/[id]/expenses', params: { id: tripId } })}
+          label={t.localDrafts}
+          onPress={() => router.replace({ pathname: '/drafts/[id]', params: { id: tripId } })}
         />
-        {!saved && !showPending && (
-          <>
-            <Title>{t.addExpense}</Title>
-            <Copy>{t.newExpenseHint}</Copy>
-          </>
-        )}
-        {!online && !saved && <Notice tone="warning">{t.offlineEntry}</Notice>}
-        {!online && !saved && !denied && (
-          <Action
-            secondary
-            label={t.localDrafts}
-            onPress={() => router.replace({ pathname: '/drafts/[id]', params: { id: tripId } })}
-          />
-        )}
-        {banner === 'rejected' && !saved && <Notice tone="danger">{t.entryRejected}</Notice>}
-        {banner === 'not-sent' && !saved && <Notice tone="danger">{t.entryNotSent}</Notice>}
-        {body}
-      </Page>
-    </KeyboardAvoidingView>
+      )}
+      {banner === 'rejected' && !saved && <Notice tone="danger">{t.entryRejected}</Notice>}
+      {banner === 'not-sent' && !saved && <Notice tone="danger">{t.entryNotSent}</Notice>}
+      {body}
+    </FormPage>
   );
 }
 

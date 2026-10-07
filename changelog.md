@@ -7,7 +7,7 @@
 ### 2026-10-07
 
 - Mobile CI：依 Expo 相容性檢查更新五個套件的 patch 與根 lockfile，修正檢查回報相依過期；frozen install、workspace 檢查／測試、Web build 與三平台匯出通過。未重新執行原生裝置驗收，未調整產品版本或部署。
-- Mobile U0～U1a：交付 iOS／Web 盤點與 U0c 對照稿，實作共用 teal 深淺色 tokens、按鈕變體、語意提示／Badge、選取勾選、聚焦欄位與原生輪廓圖示；保存既有鍵盤、無障礙及交易流程，避免自動保存／倒數反覆朗讀。新增 30 個回歸案例，Mobile 753 項測試、check 與三平台匯出通過，本次提交調升 Mobile patch 版本；iOS 優先，原生字級／閱讀器由其他人驗收，Android 延後，導覽與逐頁重排接續 U1b／U1c／U2。
+- Mobile U0～U1b：交付 iOS／Web 對照與共用深淺色元件，新增全域／旅行分頁、我的、選旅行與本機記帳入口；表單獨立、保留根登入／草稿／佇列引擎及原 UUID 流程。U1a／U1b 提交各調升 Mobile patch；U1b 新增 18 個案例，Mobile 771 項測試、check 與三平台匯出通過。iOS 原生字級／手勢／閱讀器與 Maestro 導覽更新由其他人驗收，Android 延後，資訊重排接續 U1c／U2。
 - Mobile 文件：依 E1–E4 最新驗收更新狀態、合併完成摘要至 archive，精簡 roadmap 並排定 U Web／Mobile 體驗對齊與 F 原生建置、帳號恢復／刪除及真機試用；細化 U0 對照／設計決策、U1 共用元件／導覽與 U2 五組核心流程的交付及驗收，於試用包前完成。未重跑歷史驗收或實作 F。
 
 ### 2026-10-06～2026-10-07

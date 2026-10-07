@@ -1,9 +1,11 @@
+import { goBack } from '@/components/navigation';
+import { FormPage } from '@/components/screen';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Keyboard, TextInput } from 'react-native';
 import { router, useNavigation } from 'expo-router';
 import { usePreventRemove } from 'expo-router/react-navigation';
 import { tripFieldsSchema } from '@travel-budget/contracts';
-import { Action, Notice, Page, TextField, Title } from '@/components/ui';
+import { Action, Notice, TextField } from '@/components/ui';
 import { useMessages } from '@/i18n/useMessages';
 import { useOnline } from '@/providers/useOnline';
 import { errorMessage } from '@/features/auth/errorMessage';
@@ -100,7 +102,10 @@ export function TripFormScreen({ mode }: { mode: 'create' | 'join' }) {
           )
             return;
           if (outcome.kind === 'completed' && outcome.result.status === 'committed')
-            router.replace({ pathname: '/trips/[id]', params: { id: outcome.result.resourceId } });
+            router.dismissTo({
+              pathname: '/trips/[id]',
+              params: { id: outcome.result.resourceId },
+            });
           else router.replace('/trips/operations');
         }, 0);
       }
@@ -114,15 +119,13 @@ export function TripFormScreen({ mode }: { mode: 'create' | 'join' }) {
   const edit = (key: keyof typeof fields, value: string) =>
     setFields((old) => ({ ...old, [key]: value }));
   return (
-    <Page form>
-      <Action
-        testID="trip-form-back"
-        secondary
-        label={t.back}
-        disabled={busy}
-        onPress={() => router.back()}
-      />
-      <Title>{mode === 'create' ? t.createTrip : t.joinTrip}</Title>
+    <FormPage
+      title={mode === 'create' ? t.createTrip : t.joinTrip}
+      backLabel={t.back}
+      backTestID="trip-form-back"
+      busy={busy}
+      onBack={() => goBack('/trips')}
+    >
       <Notice>{mode === 'create' ? t.tripFormHint : t.inviteHint}</Notice>
       {mode === 'create' ? (
         <>
@@ -203,6 +206,6 @@ export function TripFormScreen({ mode }: { mode: 'create' | 'join' }) {
         label={t.pendingOperations}
         onPress={() => router.push('/trips/operations')}
       />
-    </Page>
+    </FormPage>
   );
 }

@@ -13,7 +13,7 @@ import {
   Title,
   usePalette,
 } from '@/components/ui';
-import { goBack } from '@/components/navigation';
+import { TripContext } from '@/features/navigation/TripContext';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { errorMessage, isAccessDenied } from '@/features/auth/errorMessage';
 import { memberName } from '@/features/expenses/rows';
@@ -178,12 +178,7 @@ export function SettlementScreen({ tripId }: { tripId: string }) {
   const status = settlement?.status;
   return (
     <Page>
-      <Action
-        testID="settlement-back"
-        secondary
-        label={t.backToTrip}
-        onPress={() => goBack({ pathname: '/trips/[id]', params: { id: tripId } })}
-      />
+      <TripContext tripId={tripId} />
       <Title>{t.settlement}</Title>
       <Copy>{t.settlementHint}</Copy>
       {!online && <Notice tone="warning">{t.offline}</Notice>}

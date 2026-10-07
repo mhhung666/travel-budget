@@ -7,12 +7,10 @@ import {
   Text,
   TextInput,
   View,
-  useColorScheme,
   type Insets,
   type TextInputProps,
   type ViewStyle,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   Children,
   useEffect,
@@ -21,7 +19,9 @@ import {
   type Ref,
   type ReactNode,
 } from 'react';
-import { colors, radius, sizing, spacing, toneColors, typography, type Tone } from '@/theme/tokens';
+import { radius, sizing, spacing, toneColors, typography, type Tone } from '@/theme/tokens';
+import { usePalette } from '@/theme/usePalette';
+import { ScreenFrame } from './frame';
 import { Icon, type IconName } from './icons';
 export { Icon, type IconName } from './icons';
 
@@ -40,7 +40,7 @@ function noticeText(children: ReactNode) {
     .join('');
 }
 
-export const usePalette = () => colors[useColorScheme() === 'dark' ? 'dark' : 'light'];
+export { usePalette } from '@/theme/usePalette';
 export function Page({
   children,
   style,
@@ -48,7 +48,7 @@ export function Page({
 }: PropsWithChildren<{ style?: ViewStyle; form?: boolean }>) {
   const palette = usePalette();
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: palette.background }}>
+    <ScreenFrame style={{ backgroundColor: palette.background }}>
       <ScrollView
         keyboardShouldPersistTaps="handled"
         // A numeric keyboard has no return key on iOS; dragging the page down puts it away.
@@ -57,7 +57,7 @@ export function Page({
       >
         {children}
       </ScrollView>
-    </SafeAreaView>
+    </ScreenFrame>
   );
 }
 export function Title({ children }: PropsWithChildren) {

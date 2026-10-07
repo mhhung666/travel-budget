@@ -1,10 +1,12 @@
+import { PageHeader } from '@/components/screen';
+import { goBack } from '@/components/navigation';
+import { TripContext } from '@/features/navigation/TripContext';
 import { useEffect, useState } from 'react';
 import { AppState, Share } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
-import { router } from 'expo-router';
 import { ApiError } from '@/api/client';
 import { invitationSchema } from '@travel-budget/contracts';
-import { Action, Copy, Notice, Page, Title } from '@/components/ui';
+import { Action, Copy, Notice, Page } from '@/components/ui';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { useDraftCatalog } from '@/features/localDrafts/provider';
 import { errorMessage, isAccessDenied } from '@/features/auth/errorMessage';
@@ -96,8 +98,13 @@ export function InvitationScreen({ id }: { id: string }) {
   };
   return (
     <Page>
-      <Action testID="invitation-back" secondary label={t.back} onPress={() => router.back()} />
-      <Title>{t.inviteMembers}</Title>
+      <PageHeader
+        title={t.inviteMembers}
+        backTestID="invitation-back"
+        backLabel={t.backShort}
+        onBack={() => goBack({ pathname: '/trips/[id]', params: { id } })}
+      />
+      <TripContext tripId={id} />
       <Notice tone="warning">{t.invitationWarning}</Notice>
       {scope && !catalog.isVisible(scope, id) ? (
         <Notice tone="danger">{errorMessage(new ApiError('NOT_FOUND', 404), t)}</Notice>

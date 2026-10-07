@@ -1,3 +1,4 @@
+import { goBack } from '@/components/navigation';
 import { useState } from 'react';
 import { router } from 'expo-router';
 import { Action, Card, Copy, Notice, Page, Title } from '@/components/ui';
@@ -35,8 +36,8 @@ export function OperationsScreen() {
       <Action
         testID="operations-back"
         secondary
-        label={t.back}
-        onPress={() => router.replace('/trips')}
+        label={t.backShort}
+        onPress={() => goBack('/work')}
       />
       <Title>{t.pendingOperations}</Title>
       <Notice>{t.pendingSaved}</Notice>

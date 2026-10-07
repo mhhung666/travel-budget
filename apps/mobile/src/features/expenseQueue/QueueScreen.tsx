@@ -1,3 +1,4 @@
+import { goBack } from '@/components/navigation';
 import { useState } from 'react';
 import { ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
@@ -46,7 +47,7 @@ function ScopedQueueScreen() {
     });
   return (
     <Page>
-      <Action secondary label={t.backShort} onPress={() => router.replace('/drafts')} />
+      <Action secondary label={t.backShort} onPress={() => goBack('/work')} />
       <Title>{t.queueTitle}</Title>
       <Copy>{t.queueHint}</Copy>
       {status === 'local' && (

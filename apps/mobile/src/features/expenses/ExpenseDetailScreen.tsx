@@ -1,3 +1,5 @@
+import { PageHeader } from '@/components/screen';
+import { TripContext } from '@/features/navigation/TripContext';
 import { ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import { Action, Card, Copy, DetailRow, Notice, Page, Section, Title } from '@/components/ui';
@@ -17,14 +19,14 @@ export function ExpenseDetailScreen({ tripId, expenseId }: { tripId: string; exp
   const denied = isAccessDenied(query.error);
   return (
     <Page>
-      <Action
-        testID="expense-back"
-        secondary
-        label={t.backToExpenses}
-        onPress={() =>
+      <PageHeader
+        backTestID="expense-back"
+        backLabel={t.backToExpenses}
+        onBack={() =>
           router.dismissTo({ pathname: '/trips/[id]/expenses', params: { id: tripId } })
         }
       />
+      <TripContext tripId={tripId} />
       {!online && <Notice tone="warning">{t.offline}</Notice>}
       {query.isPending && online && <ActivityIndicator accessibilityLabel={t.loading} />}
       {query.isError && (

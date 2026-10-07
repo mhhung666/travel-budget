@@ -1,9 +1,9 @@
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ScreenFrame } from '@/components/frame';
+import { TripContext } from '@/features/navigation/TripContext';
 import { router } from 'expo-router';
 import type { Expense } from '@/api/contracts';
 import { Action, Copy, Notice, Title, styles, usePalette } from '@/components/ui';
-import { goBack } from '@/components/navigation';
 import { errorMessage, isAccessDenied } from '@/features/auth/errorMessage';
 import { formatCurrency, money } from '@/i18n/format';
 import { useMessages } from '@/i18n/useMessages';
@@ -76,7 +76,7 @@ export function ExpensesScreen({ tripId }: { tripId: string }) {
   const denied = isAccessDenied(query.error);
   const expenses = denied ? [] : uniqueExpenses(query.data?.pages ?? []);
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: p.background }}>
+    <ScreenFrame>
       <FlatList
         testID="expenses-list"
         data={expenses}
@@ -94,12 +94,7 @@ export function ExpensesScreen({ tripId }: { tripId: string }) {
         }
         ListHeaderComponent={
           <View style={{ gap: 16, marginBottom: 20 }}>
-            <Action
-              testID="expenses-back"
-              secondary
-              label={t.backToTrip}
-              onPress={() => goBack({ pathname: '/trips/[id]', params: { id: tripId } })}
-            />
+            <TripContext tripId={tripId} />
             <Title>{t.expenses}</Title>
             <Copy>{t.expensesHint}</Copy>
             {hasPending && <Notice tone="warning">{t.pendingExpensesNotice}</Notice>}
@@ -159,6 +154,6 @@ export function ExpensesScreen({ tripId }: { tripId: string }) {
           ) : null
         }
       />
-    </SafeAreaView>
+    </ScreenFrame>
   );
 }

@@ -1,3 +1,5 @@
+import { TripContext } from '@/features/navigation/TripContext';
+import { FormPage } from '@/components/screen';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, AppState, Keyboard, Platform, TextInput } from 'react-native';
 import { router, useFocusEffect, useNavigation } from 'expo-router';
@@ -11,7 +13,6 @@ import {
   Copy,
   DetailRow,
   Notice,
-  Page,
   Section,
   TextField,
   Title,
@@ -311,15 +312,14 @@ export function EditExpenseScreen({
         : { pathname: '/trips/[id]/expenses/[expenseId]', params: { id: tripId, expenseId } }
     );
   return (
-    <Page form>
-      <Action
-        testID="expense-maintain-back"
-        secondary
-        label={t.back}
-        disabled={busy}
-        onPress={back}
-      />
-      <Title>{remove ? t.deleteExpense : t.editExpense}</Title>
+    <FormPage
+      title={remove ? t.deleteExpense : t.editExpense}
+      backLabel={remove && done ? t.backToExpenses : t.backToExpense}
+      backTestID="expense-maintain-back"
+      busy={busy}
+      onBack={back}
+    >
+      <TripContext tripId={tripId} />
       {!online && <Notice tone="warning">{t.offline}</Notice>}
       {Platform.OS === 'web' && <Notice>{t.nativeOnly}</Notice>}
       {!!error && <Notice tone="danger">{error}</Notice>}
@@ -553,6 +553,6 @@ export function EditExpenseScreen({
       ) : (
         <Action label={t.retry} busy={busy} disabled={!online} onPress={() => void load()} />
       )}
-    </Page>
+    </FormPage>
   );
 }

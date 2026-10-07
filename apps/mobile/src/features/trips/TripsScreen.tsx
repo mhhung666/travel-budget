@@ -1,8 +1,6 @@
-import { useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ScreenFrame } from '@/components/frame';
 import { router } from 'expo-router';
-import { useAuth } from '@/features/auth/AuthProvider';
 import { errorMessage } from '@/features/auth/errorMessage';
 import { Action, Copy, Notice, Title, styles, usePalette } from '@/components/ui';
 import { useMessages } from '@/i18n/useMessages';
@@ -11,29 +9,15 @@ import { useOnline } from '@/providers/useOnline';
 import { useTrips } from './queries';
 
 export function TripsScreen() {
-  const { manager, user } = useAuth();
   const t = useMessages();
   const p = usePalette();
   const query = useTrips();
   const online = useOnline();
-  const [logoutError, setLogoutError] = useState<unknown>();
-  const [loggingOut, setLoggingOut] = useState(false);
-  const logout = async () => {
-    setLoggingOut(true);
-    setLogoutError(undefined);
-    try {
-      await manager.logout();
-    } catch (error) {
-      setLogoutError(error);
-    } finally {
-      setLoggingOut(false);
-    }
-  };
   const items = query.data?.pages.flatMap((page) => page.items) ?? [];
   // Page membership can shift after a concurrent Web edit; avoid duplicate cards.
   const trips = [...new Map(items.map((trip) => [trip.id, trip])).values()];
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: p.background }}>
+    <ScreenFrame>
       <FlatList
         testID="trips-list"
         data={trips}
@@ -48,7 +32,6 @@ export function TripsScreen() {
         }
         ListHeaderComponent={
           <View style={{ gap: 16, marginBottom: 20 }}>
-            <Copy>{user?.displayName}</Copy>
             <Title>{t.trips}</Title>
             <Action
               testID="create-trip"
@@ -62,28 +45,13 @@ export function TripsScreen() {
               disabled={!online}
               onPress={() => router.push('/trips/join')}
             />
-            <Action
-              secondary
-              testID="pending-operations"
-              label={t.pendingOperations}
-              onPress={() => router.push('/trips/operations')}
-            />
             <Copy>{t.tripsHint}</Copy>
             <Action
-              testID="logout"
-              secondary
-              label={loggingOut ? t.loggingOut : t.logout}
-              busy={loggingOut}
-              onPress={() => void logout()}
+              testID="local-work"
+              variant="secondary"
+              label={t.localWork}
+              onPress={() => router.push('/work')}
             />
-            {!!logoutError && <Notice tone="danger">{errorMessage(logoutError, t)}</Notice>}
-            <Action
-              secondary
-              testID="local-drafts"
-              label={t.localDrafts}
-              onPress={() => router.push('/drafts')}
-            />
-            <Action secondary label={t.queueTitle} onPress={() => router.push('/queue')} />
             {!online && <Notice tone="warning">{t.offline}</Notice>}
             {query.isError && (
               <>
@@ -164,6 +132,6 @@ export function TripsScreen() {
           ) : null
         }
       />
-    </SafeAreaView>
+    </ScreenFrame>
   );
 }

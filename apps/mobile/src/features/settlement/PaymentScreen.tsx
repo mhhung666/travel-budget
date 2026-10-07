@@ -1,3 +1,5 @@
+import { TripContext } from '@/features/navigation/TripContext';
+import { FormPage } from '@/components/screen';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, AppState, Keyboard, Platform, TextInput } from 'react-native';
 import { router, useFocusEffect, useNavigation } from 'expo-router';
@@ -20,7 +22,6 @@ import {
   Copy,
   DetailRow,
   Notice,
-  Page,
   Section,
   TextField,
   Title,
@@ -339,17 +340,16 @@ export function PaymentScreen({
   const native = Platform.OS !== 'web';
   const visible = !!scope && catalog.isVisible(scope, tripId);
   return (
-    <Page form>
-      <Action
-        testID="payment-back"
-        secondary
-        label={t.back}
-        disabled={busy}
-        onPress={() =>
-          router.dismissTo({ pathname: '/trips/[id]/settlement', params: { id: tripId } })
-        }
-      />
-      <Title>{paymentId ? t.revokePayment : t.recordPayment}</Title>
+    <FormPage
+      title={paymentId ? t.revokePayment : t.recordPayment}
+      backLabel={t.backToSettlement}
+      backTestID="payment-back"
+      busy={busy}
+      onBack={() =>
+        router.dismissTo({ pathname: '/trips/[id]/settlement', params: { id: tripId } })
+      }
+    >
+      <TripContext tripId={tripId} />
       <Notice>{t.paymentExternalOnly}</Notice>
       {!online && <Notice tone="warning">{t.offline}</Notice>}
       {!native && <Notice>{t.nativeOnly}</Notice>}
@@ -515,6 +515,6 @@ export function PaymentScreen({
           )}
         </>
       )}
-    </Page>
+    </FormPage>
   );
 }

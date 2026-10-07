@@ -1,5 +1,7 @@
+import { FormPage } from '@/components/screen';
+import { goBack } from '@/components/navigation';
 import { useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import { Action, Card, Copy, Notice, Page, Title } from '@/components/ui';
 import { useAuth } from '@/features/auth/AuthProvider';
@@ -49,9 +51,7 @@ function LocalSessionActions() {
         }}
       />
       {!!logoutError && <Notice tone="danger">{errorMessage(logoutError, t)}</Notice>}
-      {status === 'signedIn' && (
-        <Action secondary label={t.back} onPress={() => router.replace('/trips')} />
-      )}
+      {status === 'signedIn' && <Action secondary label={t.back} onPress={() => goBack('/me')} />}
     </>
   );
 }
@@ -108,61 +108,54 @@ function ScopedLocalDraftScreen({ tripId }: { tripId: string }) {
   const online = useOnline();
   const trip = query.data?.[0];
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <Page form>
-        <Action secondary label={t.backShort} onPress={() => router.replace('/drafts')} />
-        <Title>{t.localDrafts}</Title>
-        <Notice>{t.localDraftHint}</Notice>
-        <LocalSessionActions />
-        {query.storageFailed && <Notice tone="danger">{t.localSnapshotFailed}</Notice>}
-        {(query.isPending || pending.isPending) && (
-          <ActivityIndicator accessibilityLabel={t.loading} />
-        )}
-        {(query.isError || pending.isError) && (
-          <>
-            <Notice tone="danger">{t.draftLoadFailed}</Notice>
-            <Action
-              label={t.retry}
-              onPress={() => {
-                void query.refetch();
-                void pending.refetch();
-              }}
-            />
-          </>
-        )}
-        {!query.isPending && !query.isError && (!trip || !trip.options) && (
-          <Notice tone="warning">{t.localTripUnavailable}</Notice>
-        )}
-        {!!pending.data?.length && <Notice tone="warning">{t.pendingBlocks}</Notice>}
-        {trip && (
-          <>
-            <Title>{trip.name ?? t.cachedTrip}</Title>
-            <Copy>
-              {t.localUpdated}: {new Date(trip.updatedAt).toLocaleString()}
-            </Copy>
-          </>
-        )}
-        {trip?.options &&
-          query.scope &&
-          !pending.isPending &&
-          !pending.isError &&
-          !pending.data?.length && (
-            <LocalDraftForm scope={query.scope} tripId={tripId} options={trip.options} />
-          )}
-        {status === 'signedIn' && (
+    <FormPage title={t.localDrafts} backLabel={t.backShort} onBack={() => goBack('/drafts')}>
+      <Notice>{t.localDraftHint}</Notice>
+      <LocalSessionActions />
+      {query.storageFailed && <Notice tone="danger">{t.localSnapshotFailed}</Notice>}
+      {(query.isPending || pending.isPending) && (
+        <ActivityIndicator accessibilityLabel={t.loading} />
+      )}
+      {(query.isError || pending.isError) && (
+        <>
+          <Notice tone="danger">{t.draftLoadFailed}</Notice>
           <Action
-            testID="local-review-online"
-            label={t.reviewOnline}
-            disabled={!online}
-            onPress={() =>
-              router.replace({ pathname: '/trips/[id]/expenses/new', params: { id: tripId } })
-            }
+            label={t.retry}
+            onPress={() => {
+              void query.refetch();
+              void pending.refetch();
+            }}
           />
+        </>
+      )}
+      {!query.isPending && !query.isError && (!trip || !trip.options) && (
+        <Notice tone="warning">{t.localTripUnavailable}</Notice>
+      )}
+      {!!pending.data?.length && <Notice tone="warning">{t.pendingBlocks}</Notice>}
+      {trip && (
+        <>
+          <Title>{trip.name ?? t.cachedTrip}</Title>
+          <Copy>
+            {t.localUpdated}: {new Date(trip.updatedAt).toLocaleString()}
+          </Copy>
+        </>
+      )}
+      {trip?.options &&
+        query.scope &&
+        !pending.isPending &&
+        !pending.isError &&
+        !pending.data?.length && (
+          <LocalDraftForm scope={query.scope} tripId={tripId} options={trip.options} />
         )}
-      </Page>
-    </KeyboardAvoidingView>
+      {status === 'signedIn' && (
+        <Action
+          testID="local-review-online"
+          label={t.reviewOnline}
+          disabled={!online}
+          onPress={() =>
+            router.replace({ pathname: '/trips/[id]/expenses/new', params: { id: tripId } })
+          }
+        />
+      )}
+    </FormPage>
   );
 }
