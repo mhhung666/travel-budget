@@ -1,0 +1,42 @@
+{
+  "purpose": "U0c selected disposable TEST screenshots; original pixels, no credentials. Native captures show full Device Hub; HTML crops presentation with CSS only. This is a representative visual baseline, not native acceptance.",
+  "capturedOn": "2026-10-07",
+  "screens": [
+    {
+      "file": "C01-ios-en-light-new-expense.jpg",
+      "sourceCommit": "57e9dff4f15d512fb449f05631bbbcda3b08d665",
+      "case": "C01",
+      "locale": "en",
+      "appearance": "light",
+      "sha256": "b9a4eab763eb3de1e0401a4e02cbe413f02469cdf016de34f509b28b9cfc68f1",
+      "sourceSize": [2200, 1600]
+    },
+    {
+      "file": "C01-ios-en-light-trip.jpg",
+      "sourceCommit": "57e9dff4f15d512fb449f05631bbbcda3b08d665",
+      "case": "C01",
+      "locale": "en",
+      "appearance": "light",
+      "sha256": "941dff2765945e93cba0a975e27f3feaf74c28bc8d059fb1a4b404dc8e8c328c",
+      "sourceSize": [2200, 1600]
+    },
+    {
+      "file": "C01-web-390-en-light-new-expense.jpg",
+      "sourceCommit": "57e9dff4f15d512fb449f05631bbbcda3b08d665",
+      "case": "C01",
+      "locale": "en",
+      "appearance": "light",
+      "sha256": "2dd15297dbcb1e306b3b176af65617427e4927a189e6d8c17c2e78a89363a964",
+      "sourceSize": [390, 844]
+    },
+    {
+      "file": "C01-web-390-en-light-trip.jpg",
+      "sourceCommit": "57e9dff4f15d512fb449f05631bbbcda3b08d665",
+      "case": "C01",
+      "locale": "en",
+      "appearance": "light",
+      "sha256": "0664712fb559930e36b963e0d3ccba8d131a04431c6e87de8941188a440205b0",
+      "sourceSize": [390, 844]
+    }
+  ]
+}

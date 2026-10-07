@@ -1,0 +1,1507 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'none'; font-src 'none'; base-uri 'none'; form-action 'none'"
+    />
+    <title>U0c · iOS 視覺與流程規格</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        background: #edf2ef;
+        color: #18181b;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+      }
+      button,
+      input,
+      textarea,
+      select {
+        font: inherit;
+      }
+      button,
+      select,
+      summary {
+        cursor: pointer;
+      }
+      button:focus-visible,
+      select:focus-visible,
+      input:focus-visible,
+      summary:focus-visible,
+      a:focus-visible {
+        outline: 3px solid #175bab;
+        outline-offset: 3px;
+      }
+      .workbench {
+        max-width: 1320px;
+        margin: auto;
+        padding: 24px;
+      }
+      .masthead {
+        display: flex;
+        gap: 24px;
+        align-items: start;
+        justify-content: space-between;
+      }
+      .eyebrow {
+        color: #366058;
+        font-size: 12px;
+        letter-spacing: 0.12em;
+        font-weight: 700;
+        margin: 0 0 8px;
+      }
+      h1 {
+        margin: 0;
+        font-size: 28px;
+        line-height: 1.3;
+      }
+      .intro {
+        max-width: 800px;
+        color: #52645c;
+        line-height: 1.6;
+      }
+      .design-tag {
+        border: 1px solid #a5bdb2;
+        border-radius: 999px;
+        padding: 8px 12px;
+        white-space: nowrap;
+        font-size: 13px;
+      }
+      .tools {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        padding: 16px 0 24px;
+        align-items: end;
+      }
+      .tools label {
+        display: grid;
+        gap: 6px;
+        font-size: 13px;
+        color: #40544a;
+      }
+      .tools select,
+      .tools button {
+        min-height: 44px;
+        padding: 8px 12px;
+        border: 1px solid #849a8f;
+        border-radius: 10px;
+        background: white;
+        color: #18181b;
+      }
+      .stage {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 390px) minmax(0, 1fr);
+        gap: 24px;
+        align-items: start;
+      }
+      .stage.baseline-hidden {
+        grid-template-columns: minmax(0, 390px) minmax(0, 1fr);
+      }
+      .stage.baseline-hidden .baseline {
+        display: none;
+      }
+      .pane-title {
+        font-size: 14px;
+        line-height: 20px;
+        margin: 0 0 12px;
+        color: #40544a;
+      }
+      .baseline figure {
+        margin: 0;
+      }
+      .baseline figcaption {
+        font-size: 12px;
+        line-height: 18px;
+        color: #52645c;
+        margin-top: 12px;
+      }
+      .baseline img {
+        width: 100%;
+        display: block;
+      }
+      .baseline-box {
+        background: white;
+        border-radius: 20px;
+        overflow: hidden;
+        border: 1px solid #c9d6cf;
+      }
+      .native-crop {
+        position: relative;
+        aspect-ratio: 575 / 1244;
+        overflow: hidden;
+      }
+      .native-crop img {
+        width: 382.6087%;
+        max-width: none;
+        position: absolute;
+        left: -134.7826%;
+        top: -15.1125%;
+      }
+      .target {
+        --background: #f6f8f7;
+        --surface: #ffffff;
+        --text: #18181b;
+        --muted: #5f6565;
+        --primary: #1b7e74;
+        --on-primary: #ffffff;
+        --pressed: #14685f;
+        --border: #d8e3df;
+        --control-border: #7b8e87;
+        --selected: #eff9f6;
+        --disabled: #e5ece9;
+        --on-disabled: #536159;
+        --success: #177347;
+        --success-bg: #e8f5ed;
+        --warning: #8d4b09;
+        --warning-bg: #fff3d9;
+        --info: #175bab;
+        --info-bg: #edf4ff;
+        --danger: #b42318;
+        --danger-bg: #fdeeeb;
+        --on-danger: #ffffff;
+        --danger-fill: #b42318;
+        --focus: #175bab;
+        --scale: 1;
+        color-scheme: light;
+        color: var(--text);
+      }
+      .target[data-theme='dark'] {
+        --background: #101817;
+        --surface: #182321;
+        --text: #f4faf8;
+        --muted: #adbeb8;
+        --primary: #37beac;
+        --on-primary: #032621;
+        --pressed: #66d1bf;
+        --border: #364a43;
+        --control-border: #728a80;
+        --selected: #1d3b34;
+        --disabled: #283a34;
+        --on-disabled: #b0c1b9;
+        --success: #6bdba3;
+        --success-bg: #183b29;
+        --warning: #f5c45c;
+        --warning-bg: #382d16;
+        --info: #8fbbff;
+        --info-bg: #1c2f48;
+        --danger: #ffb4a9;
+        --danger-bg: #44231f;
+        --on-danger: #3e0d09;
+        --danger-fill: #ffb4a9;
+        --focus: #8fbbff;
+        color-scheme: dark;
+      }
+      .target button:focus-visible,
+      .target input:focus-visible,
+      .target textarea:focus-visible,
+      .target summary:focus-visible {
+        outline-color: var(--focus);
+      }
+      .phone {
+        height: 844px;
+        display: flex;
+        flex-direction: column;
+        background: var(--background);
+        border: 1px solid var(--control-border);
+        border-radius: 24px;
+        overflow: hidden;
+      }
+      .safe-top {
+        flex-shrink: 0;
+        height: 44px;
+        padding: 12px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        color: var(--text);
+        font-size: 12px;
+      }
+      .screen-scroll {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        scrollbar-width: thin;
+      }
+      .target[data-size='large'] {
+        --scale: 2;
+      }
+      .screen-scroll h2 {
+        font-size: calc(24px * var(--scale));
+        line-height: 1.34;
+        margin: 0;
+        font-weight: 700;
+        overflow-wrap: anywhere;
+      }
+      .screen-scroll h3 {
+        font-size: calc(20px * var(--scale));
+        line-height: 1.4;
+        margin: 0;
+        font-weight: 600;
+      }
+      .screen-scroll p {
+        margin: 0;
+      }
+      .body {
+        padding: 16px;
+        display: grid;
+        gap: 16px;
+        font-size: calc(16px * var(--scale));
+        line-height: 1.5;
+      }
+      .header {
+        padding: 8px 16px 16px;
+        display: grid;
+        gap: 8px;
+      }
+      .header-row,
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .header-row {
+        justify-content: space-between;
+      }
+      .subtitle,
+      .muted {
+        color: var(--muted);
+      }
+      .subtitle,
+      .small {
+        font-size: calc(14px * var(--scale));
+        line-height: 1.43;
+        overflow-wrap: anywhere;
+      }
+      .meta {
+        font-size: calc(12px * var(--scale));
+        line-height: 1.5;
+        color: var(--muted);
+      }
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 16px;
+        display: grid;
+        gap: 12px;
+        min-width: 0;
+      }
+      .card h3 {
+        font-size: calc(20px * var(--scale));
+      }
+      .card p {
+        overflow-wrap: anywhere;
+      }
+      .metrics {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      .metric {
+        min-width: 0;
+      }
+      .metric strong {
+        display: block;
+        font-size: calc(24px * var(--scale));
+        line-height: 1.34;
+        font-weight: 700;
+        overflow-wrap: anywhere;
+        margin-top: 4px;
+      }
+      .target[data-size='large'] .metrics {
+        grid-template-columns: 1fr;
+      }
+      .positive {
+        color: var(--success);
+      }
+      .warning {
+        color: var(--warning);
+      }
+      .money {
+        font-variant-numeric: tabular-nums;
+        overflow-wrap: anywhere;
+      }
+      .button {
+        min-height: 48px;
+        max-width: 100%;
+        border: 1px solid transparent;
+        border-radius: 12px;
+        padding: 12px 16px;
+        background: var(--primary);
+        color: var(--on-primary);
+        font-size: calc(16px * var(--scale));
+        font-weight: 600;
+        line-height: 1.5;
+        text-align: center;
+        overflow-wrap: anywhere;
+      }
+      .button:active {
+        background: var(--pressed);
+      }
+      .button.secondary {
+        background: var(--surface);
+        color: var(--primary);
+        border-color: var(--control-border);
+      }
+      .button.ghost {
+        background: transparent;
+        color: var(--primary);
+        padding: 8px 12px;
+      }
+      .button.danger {
+        background: var(--danger-fill);
+        color: var(--on-danger);
+      }
+      .button:disabled {
+        background: var(--disabled);
+        color: var(--on-disabled);
+        border-color: transparent;
+        cursor: default;
+      }
+      .full {
+        width: 100%;
+      }
+      .tabs {
+        display: flex;
+        gap: 4px;
+        padding: 0 16px;
+        border-bottom: 1px solid var(--border);
+        flex-wrap: wrap;
+      }
+      .tabs .button {
+        border-radius: 0;
+        border-bottom: 3px solid transparent;
+        flex: 1;
+        padding: 8px;
+      }
+      .tabs .button[aria-current='page'] {
+        border-bottom-color: var(--primary);
+        color: var(--primary);
+      }
+      .nav {
+        flex-shrink: 0;
+        display: flex;
+        flex-wrap: wrap;
+        border-top: 1px solid var(--border);
+        padding: 8px 8px 24px;
+        background: var(--surface);
+        gap: 4px;
+      }
+      .nav .button {
+        flex: 1;
+        padding: 8px;
+        font-size: calc(14px * var(--scale));
+      }
+      .nav .button[aria-current='page'] {
+        background: var(--selected);
+      }
+      .badge {
+        display: inline-block;
+        border-radius: 999px;
+        padding: 4px 10px;
+        font-size: calc(12px * var(--scale));
+        font-weight: 600;
+        line-height: 1.5;
+        background: var(--selected);
+        color: var(--primary);
+        align-self: start;
+        justify-self: start;
+      }
+      .notice {
+        display: grid;
+        gap: 8px;
+        padding: 12px;
+        border-radius: 12px;
+        border: 1px solid currentColor;
+        font-size: calc(14px * var(--scale));
+        line-height: 1.5;
+        color: var(--info);
+        background: var(--info-bg);
+        overflow-wrap: anywhere;
+      }
+      .notice[data-tone='success'] {
+        color: var(--success);
+        background: var(--success-bg);
+      }
+      .notice[data-tone='warning'] {
+        color: var(--warning);
+        background: var(--warning-bg);
+      }
+      .notice[data-tone='danger'] {
+        color: var(--danger);
+        background: var(--danger-bg);
+      }
+      .field {
+        display: grid;
+        gap: 8px;
+        min-width: 0;
+      }
+      .field label {
+        font-size: calc(14px * var(--scale));
+        font-weight: 600;
+        line-height: 1.43;
+      }
+      .field input,
+      .field textarea {
+        background: var(--surface);
+        color: var(--text);
+        min-height: 52px;
+        width: 100%;
+        border: 1px solid var(--control-border);
+        border-radius: 12px;
+        padding: 12px;
+        font-size: calc(16px * var(--scale));
+        line-height: 1.5;
+      }
+      .field textarea {
+        resize: vertical;
+      }
+      .field input.amount {
+        min-height: 72px;
+        font-size: calc(32px * var(--scale));
+        line-height: 1.25;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+      }
+      .field input[aria-invalid='true'] {
+        border-color: var(--danger);
+      }
+      .field-error {
+        color: var(--danger);
+        font-size: calc(14px * var(--scale));
+        line-height: 1.5;
+      }
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .chip {
+        min-height: 48px;
+        border: 1px solid var(--control-border);
+        border-radius: 12px;
+        padding: 8px 12px;
+        font-size: calc(14px * var(--scale));
+        line-height: 1.5;
+        background: var(--surface);
+        color: var(--text);
+        text-align: left;
+        overflow-wrap: anywhere;
+        max-width: 100%;
+      }
+      .chip[aria-checked='true'] {
+        background: var(--selected);
+        border-color: var(--primary);
+        color: var(--primary);
+      }
+      .summary-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: start;
+      }
+      .summary-row span {
+        overflow-wrap: anywhere;
+      }
+      .summary-row strong {
+        font-variant-numeric: tabular-nums;
+      }
+      .target[data-size='large'] .summary-row {
+        grid-template-columns: 1fr;
+        gap: 4px;
+      }
+      .details {
+        border-top: 1px solid var(--border);
+        padding-top: 12px;
+      }
+      .details summary {
+        min-height: 48px;
+        padding: 10px 0;
+        color: var(--primary);
+      }
+      .details p {
+        margin: 8px 0;
+        font-size: calc(14px * var(--scale));
+      }
+      .target[data-size='large'] .header-row {
+        align-items: start;
+      }
+      .note {
+        color: #40544a;
+        font-size: 14px;
+        line-height: 1.6;
+      }
+      .notes {
+        grid-column: 1 / -1;
+        background: white;
+        border: 1px solid #c9d6cf;
+        border-radius: 16px;
+        padding: 20px;
+        margin-top: 24px;
+      }
+      .notes h2 {
+        font-size: 20px;
+        margin-top: 0;
+      }
+      .notes ul {
+        padding-left: 20px;
+        line-height: 1.8;
+      }
+      .flow {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+      }
+      .flow div {
+        background: #f6f8f7;
+        padding: 16px;
+        border-radius: 12px;
+        line-height: 1.6;
+      }
+      .table-wrap {
+        overflow-x: auto;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 14px;
+      }
+      th,
+      td {
+        border-bottom: 1px solid #d8e3df;
+        padding: 10px;
+        text-align: left;
+        vertical-align: top;
+        white-space: nowrap;
+      }
+      .swatch {
+        width: 16px;
+        height: 16px;
+        border-radius: 4px;
+        display: inline-block;
+        margin-right: 8px;
+        border: 1px solid #849a8f;
+        vertical-align: middle;
+      }
+      footer {
+        color: #52645c;
+        font-size: 13px;
+        line-height: 1.6;
+        margin: 24px 0;
+      }
+      @media (max-width: 980px) {
+        .stage {
+          grid-template-columns: minmax(0, 390px) minmax(0, 1fr);
+        }
+        .baseline.web {
+          grid-column: 2;
+        }
+        .baseline.ios {
+          grid-row: 1;
+          grid-column: 2;
+        }
+        .target {
+          grid-row: 1 / 3;
+          grid-column: 1;
+        }
+      }
+      @media (max-width: 680px) {
+        .workbench {
+          padding: 16px;
+        }
+        .stage,
+        .stage.baseline-hidden {
+          display: flex;
+          flex-direction: column;
+        }
+        .target {
+          order: -1;
+          width: min(100%, 390px);
+          align-self: center;
+        }
+        .baseline {
+          width: min(100%, 390px);
+          align-self: center;
+        }
+        .flow {
+          grid-template-columns: 1fr;
+        }
+        .masthead {
+          display: block;
+        }
+        .design-tag {
+          display: inline-block;
+          margin-top: 12px;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        * {
+          scroll-behavior: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="workbench">
+      <header class="masthead">
+        <div>
+          <p class="eyebrow">TRAVEL BUDGET / TASK U / U0c</p>
+          <h1>iOS 對照稿與視覺規格</h1>
+          <p class="intro">
+            以 U0a 的 C01／C05
+            測試資料設計完整概覽與新增流程，附列表、結算及本機狀態。左／右為既有英文淺色截圖，中央為設計；切換配置只影響設計。原型沒有帳號、持久化、帳務計算或網路寫入。
+          </p>
+        </div>
+        <span class="design-tag">設計原型 · 尚未套入 App</span>
+      </header>
+      <div class="tools" aria-label="設計配置">
+        <label
+          >畫面<select id="page">
+            <option value="overview">旅行概覽</option>
+            <option value="expense">新增支出</option>
+            <option value="trips">旅行列表</option>
+            <option value="settlement">結算</option>
+            <option value="local">本機記帳</option>
+            <option value="mine">我的</option>
+          </select></label
+        >
+        <label
+          >語系<select id="locale">
+            <option value="zh">繁體中文</option>
+            <option value="en">English</option>
+          </select></label
+        >
+        <label
+          >外觀<select id="theme">
+            <option value="light">淺色</option>
+            <option value="dark">深色</option>
+          </select></label
+        >
+        <label
+          >字級<select id="size">
+            <option value="default">預設 1×</option>
+            <option value="large">大字級壓力稿 2×</option>
+          </select></label
+        >
+        <label>狀態<select id="state"></select></label>
+        <button id="baseline" type="button" aria-pressed="true">隱藏基線</button>
+      </div>
+      <div class="stage" id="stage">
+        <section class="baseline ios" aria-label="既有 iOS 基線">
+          <h2 class="pane-title">既有 iOS · 英文／淺色</h2>
+          <figure>
+            <div class="baseline-box native-crop">
+              <img
+                id="ios-image"
+                src="u0c-baseline/C01-ios-en-light-trip.jpg"
+                alt="既有 iOS 旅行概覽，頁首與操作占用首屏"
+              />
+            </div>
+            <figcaption>
+              U0a 原始 Device Hub 截圖，只以 CSS 顯示裝置範圍。<a
+                id="ios-original"
+                href="u0c-baseline/C01-ios-en-light-trip.jpg"
+                >完整原檔</a
+              >
+            </figcaption>
+          </figure>
+        </section>
+        <section
+          class="target"
+          id="target"
+          data-theme="light"
+          data-size="default"
+          aria-label="iOS 設計原型"
+        >
+          <h2 class="pane-title" id="target-label">iOS 設計 · 繁中／淺色／預設</h2>
+          <div class="phone">
+            <div class="safe-top" aria-hidden="true"><span>9:41</span><span>••• ▰</span></div>
+            <div class="screen-scroll" id="screen" tabindex="0" aria-label="可捲動的設計畫面"></div>
+            <nav class="nav" id="global" aria-label="全域導覽"></nav>
+          </div>
+          <p class="note">
+            390 寬設計框。內容可捲動；2× 是排版壓力稿，不能代表 iOS Dynamic Type
+            最大值或裝置驗收。表單隱藏全域列。
+          </p>
+        </section>
+        <section class="baseline web" aria-label="既有 Web 基線">
+          <h2 class="pane-title">既有 Web · 英文／淺色</h2>
+          <figure>
+            <div class="baseline-box">
+              <img
+                id="web-image"
+                src="u0c-baseline/C01-web-390-en-light-trip.jpg"
+                alt="既有 Web 旅行空間，行程與本人分攤摘要"
+              />
+            </div>
+            <figcaption>
+              相同 C01 旅行、390×844；新增基線是空表單，設計草稿／預覽用 C05。Web 行程能力保留。<a
+                id="web-original"
+                href="u0c-baseline/C01-web-390-en-light-trip.jpg"
+                >完整原檔</a
+              >
+            </figcaption>
+          </figure>
+        </section>
+      </div>
+      <section class="notes" aria-labelledby="decision-title">
+        <h2 id="decision-title">操作與資訊順序</h2>
+        <div class="flow">
+          <div>
+            <strong>全域：旅行／記一筆／我的</strong><br />旅行卡片 →
+            概覽／支出／結算。全域記一筆先選旅行；不默選上一趟。我的承接帳號、登出、本機入口。
+          </div>
+          <div>
+            <strong>新增：輸入 → 新預覽 → 確認</strong><br />金額／說明／分類 → 日期／付款人 →
+            分攤。保存狀態與入帳分開。C／D 的 UUID、草稿與守衛不變。
+          </div>
+          <div>
+            <strong>結果不明：查詢 → 同操作重試</strong><br />凍結內容保留，不能編輯、捨棄或換
+            UUID。429 使用已保存期限，查詢與重試一起等待。撤權隱藏私人資料。
+          </div>
+        </div>
+        <ul id="page-notes"></ul>
+      </section>
+      <section class="notes" aria-labelledby="components-title">
+        <h2 id="components-title">U1a 元件狀態</h2>
+        <div class="target" id="samples" data-theme="light" data-size="default">
+          <div class="body">
+            <div class="row">
+              <button class="button" type="button">Primary</button
+              ><button class="button secondary" type="button">Secondary</button
+              ><button class="button ghost" type="button">Ghost</button
+              ><button class="button danger" type="button">Danger</button
+              ><button class="button" type="button" disabled>Disabled</button
+              ><button class="button" type="button" aria-busy="true" disabled>◌ Busy</button>
+            </div>
+            <div class="chips">
+              <button type="button" class="chip" role="radio" aria-checked="true">
+                ✓ 選取 Selected</button
+              ><button type="button" class="chip" role="radio" aria-checked="false">
+                未選取 Unselected
+              </button>
+            </div>
+            <div class="notice" data-tone="success">
+              ✓ 已保存在此裝置 · 尚未入帳 / Saved on this device · Not recorded
+            </div>
+            <div class="notice" data-tone="warning">
+              ! 結果待確認 · 保留原操作 / Result unknown · Keep the original operation
+            </div>
+            <div class="notice" data-tone="danger">
+              ! 保存失敗 · 請重試 / Could not save · Retry
+            </div>
+            <div class="notice">
+              i 預覽只供核對，確認後才送出 / Review the preview before confirming
+            </div>
+            <div class="field">
+              <label for="sample-error">金額 Amount</label
+              ><input
+                id="sample-error"
+                value="12.345"
+                readonly
+                aria-invalid="true"
+                aria-describedby="sample-error-hint"
+              /><span id="sample-error-hint" class="field-error"
+                >最多兩位小數 / Use at most two decimal places</span
+              >
+            </div>
+          </div>
+        </div>
+      </section>
+      <section class="notes" aria-labelledby="format-title">
+        <h2 id="format-title">四語顯示樣本 · 輸入與算法不變</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>值</th>
+                <th>zh</th>
+                <th>zh-CN</th>
+                <th>en</th>
+                <th>jp</th>
+              </tr>
+            </thead>
+            <tbody id="format-samples"></tbody>
+          </table>
+        </div>
+        <p class="note">
+          沿用 Web 精選幣別符號：TWD→NT$、JPY→¥、USD→$、EUR→€、HKD→HK$、THB→฿；不認識的代碼用
+          CODE＋空格。畫面需同時標明原幣代碼；所有幣別至多兩位小數，不藏分攤尾差。餘額顯示方向＋絕對值，零值是「目前無應收應付」。
+        </p>
+      </section>
+      <footer>
+        唯一文字規格：<a href="../ROADMAP.md">ROADMAP U0c</a>。原始基線來源／雜湊：<a
+          href="u0c-baseline/sources.json"
+          >sources.json</a
+        >。本稿選用 disposable TEST
+        資料，沒有真實帳號或憑證；四語／鍵盤／返回／閱讀器與帳務故障由後續 iOS 獨立驗收核對，Android
+        延後。
+      </footer>
+    </main>
+    <script>
+      // Design-only fixture. No fetch, storage, imported app code, or settlement calculation.
+      const copy = {
+        zh: {
+          trips: '旅行',
+          log: '記一筆',
+          mine: '我的',
+          overview: '概覽',
+          expenses: '支出',
+          settlement: '結算',
+          backTrips: '‹ 旅行',
+          backExpenses: '‹ 支出',
+          cancel: '取消',
+          invite: '邀請',
+          tripName: 'TEST U0A 多人帳務與長旅行名稱：台北與東京跨城市旅程',
+          shortTrip: 'TEST U0A 新旅行',
+          active: '旅行中',
+          admin: '管理員',
+          share: '我的分攤',
+          receive: '應收',
+          payable: '應付',
+          zero: '目前無應收應付',
+          today: '今日團費',
+          group: '全團支出',
+          budget: '個人預算',
+          notSet: '未設定',
+          people: '成員',
+          expenseCount: '支出筆數',
+          date: '日期',
+          detail: '旅行資訊',
+          supplement: '補充說明',
+          dateValue: '2026年10月7日–9日',
+          create: '建立旅行',
+          join: '加入旅行',
+          local: '本機記帳',
+          localBrief: '草稿 1 · 待送 0 · 待確認 0',
+          refresh: '重新整理',
+          retry: '重試',
+          emptyTrip: '還沒有旅行',
+          emptyTripHint: '建立旅行，或使用旅伴的邀請碼加入。',
+          emptyExpenses: '尚無帳務',
+          emptyExpensesHint: '記下第一筆支出後，這裡會顯示你的分攤與應收付。',
+          loadError: '無法讀取最新帳務',
+          loadErrorHint: '請重試。這不是零支出；不顯示未確認的數字。',
+          offline: '目前離線',
+          offlineHint: '帳務尚未重新確認，請連線後更新。本機草稿仍可續填。',
+          denied: '無法存取此旅行',
+          deniedHint: '可能已離開旅行或權限變更。私人帳務與成員資料已隱藏。',
+          loading: '正在讀取…',
+          amount: '金額（TWD）',
+          description: '說明',
+          descriptionExample: 'TEST U0a local visual draft',
+          category: '分類',
+          other: '其他',
+          food: '飲食',
+          transport: '交通',
+          accommodation: '住宿',
+          payer: '付款人',
+          members: '分攤成員',
+          you: '本人',
+          virtual: '虛擬成員',
+          memberA: 'TEST 同名 · 01c3cc',
+          memberB: 'TEST 同名 · 01c3cd',
+          memberLong: 'TEST 虛擬成員與超長顯示名稱：同行旅伴的共同備用帳戶',
+          draftSaved: '✓ 已存本機 · 尚未入帳',
+          draftSaving: '◌ 正在保存草稿…',
+          draftFailed: '草稿保存失敗',
+          draftFailedHint: '最新輸入仍在此畫面，離開或重啟可能遺失；成功保存前不能確認送出。',
+          scopeDetails: '草稿保存與手機限制',
+          scopeHint:
+            '草稿保存在這支手機，僅供目前帳號與旅行續填。手機新增目前為 TWD 均分；外幣與其他分攤方式請使用網站。',
+          rule: '勾選成員均分。預覽前會重新確認成員，任何修改都需要取得新預覽。',
+          previewButton: '檢視分攤預覽（範例）',
+          previewTitle: '確認分攤',
+          previewHint: '請核對總額、付款人與所有成員份額。尚未入帳，確認後才送出。',
+          total: '總額',
+          confirm: '確認送出（示意）',
+          edit: '返回修改',
+          discard: '捨棄草稿',
+          discardHint: '此處只是示範，沒有刪除本機資料。',
+          queueTitle: '確認後自動送出',
+          queueRule:
+            '確認後只在前景、連線且登入有效時自動送出，尚未入帳。依勾選成員均分，後端決定份額與尾差；送出前重讀名單／順序，改變時暫停並要求重新確認。',
+          queue: '確認加入待送佇列（示意）',
+          unknown: '結果待確認',
+          unknownHint: '這筆可能已入帳，請先查詢結果。確認前保留原始內容，不能修改或重新記一筆。',
+          sameTrip: '此旅行的其他記帳操作暫停，直到確認這筆結果。',
+          check: '查詢原操作結果（示意）',
+          sameRetry: '以原內容重試（示意）',
+          waiting: '限速等待',
+          waitingHint: '範例：依已保存的期限等待 120 秒。等待期間不能查詢或重送；重啟不會解除。',
+          conflict: '需要處理衝突',
+          conflictHint: '這筆操作有衝突，請先查詢原紀錄，不要重新記一筆。',
+          stale: '資料不是最新',
+          staleHint: '顯示上次已確認資料，請重新整理後再操作；不因重新讀取失敗顯示零。',
+          saved: '已入帳（示例）',
+          savedHint: '這筆已確認入帳，可以返回支出清單。',
+          listReturn: '返回支出清單',
+          continue: '續填草稿',
+          drafts: '草稿',
+          queueLabel: '待送佇列',
+          pending: '待確認操作',
+          emptyLocal: '尚無本機工作',
+          emptyLocalHint: '草稿、待送與待確認仍可由此找到；空資料不等於讀取失敗。',
+          localError: '無法讀取本機紀錄',
+          localErrorHint: '不能顯示零筆，也不能以新操作替代可能已送出的項目。',
+          account: '帳號',
+          logout: '登出',
+          accountHint: '只顯示現有帳號資訊；沒有新增設定或個資修改。',
+          suggested: '建議轉帳',
+          paid: '已登記還款',
+          balances: '全員餘額',
+          payment: '登記實際已付款',
+          paymentHint: '只記錄已付款，不執行轉帳。',
+          paymentRow: 'TEST 同名 · 01c3cd → TEST 同名 · 01c3cc',
+          received: '收款人',
+          paidBy: '付款人',
+          settlementHint: '建議金額依後端結算，登記部分／超額付款前需重新確認。',
+          sourceNote: '固定測試資料・操作僅為示意。',
+          queued: '等待送出（示例）',
+          queuedHint: '已確認入佇列，尚未入帳；僅前景且線上時依 D3 規則處理。',
+          demoCheck: '原型沒有結果查詢，仍顯示待確認。',
+          demoRetry: '原型沒有重送；正式 App 將重試同一筆原始內容。',
+        },
+        en: {
+          trips: 'Trips',
+          log: 'Log expense',
+          mine: 'Me',
+          overview: 'Overview',
+          expenses: 'Expenses',
+          settlement: 'Settle up',
+          backTrips: '‹ Trips',
+          backExpenses: '‹ Expenses',
+          cancel: 'Cancel',
+          invite: 'Invite',
+          tripName: 'TEST U0A 多人帳務與長旅行名稱：台北與東京跨城市旅程',
+          shortTrip: 'TEST U0A 新旅行',
+          active: 'On your trip',
+          admin: 'Admin',
+          share: 'My share',
+          receive: 'To receive',
+          payable: 'To pay',
+          zero: 'No outstanding balance',
+          today: 'Today’s group spending',
+          group: 'Group spending',
+          budget: 'Personal budget',
+          notSet: 'Not set',
+          people: 'Members',
+          expenseCount: 'Expenses',
+          date: 'Date',
+          detail: 'Trip details',
+          supplement: 'More about this trip',
+          dateValue: 'Oct 7–9, 2026',
+          create: 'Create trip',
+          join: 'Join trip',
+          local: 'Local expenses',
+          localBrief: 'Drafts 1 · Queued 0 · Unconfirmed 0',
+          refresh: 'Refresh',
+          retry: 'Retry',
+          emptyTrip: 'No trips yet',
+          emptyTripHint: 'Create a trip or join with a companion’s invite code.',
+          emptyExpenses: 'No expenses yet',
+          emptyExpensesHint: 'Your share and balance appear after the first expense.',
+          loadError: 'Could not load current expenses',
+          loadErrorHint: 'Retry. This is not zero spending; unconfirmed numbers stay hidden.',
+          offline: 'You’re offline',
+          offlineHint:
+            'These expenses have not been rechecked. Reconnect to refresh. You can still edit a local draft.',
+          denied: 'Cannot access this trip',
+          deniedHint:
+            'Membership or access may have changed. Private expenses and member details are hidden.',
+          loading: 'Loading…',
+          amount: 'Amount (TWD)',
+          description: 'Description',
+          descriptionExample: 'TEST U0a local visual draft',
+          category: 'Category',
+          other: 'Other',
+          food: 'Food & drink',
+          transport: 'Transportation',
+          accommodation: 'Accommodation',
+          payer: 'Payer',
+          members: 'Split with',
+          you: 'You',
+          virtual: 'Virtual member',
+          memberA: 'TEST 同名 · 01c3cc',
+          memberB: 'TEST 同名 · 01c3cd',
+          memberLong: 'TEST 虛擬成員與超長顯示名稱：同行旅伴的共同備用帳戶',
+          draftSaved: '✓ Saved on device · Not recorded',
+          draftSaving: '◌ Saving draft…',
+          draftFailed: 'Could not save the draft',
+          draftFailedHint:
+            'Your latest input is on this screen and may be lost on exit or restart. Confirmation is blocked until it is saved.',
+          scopeDetails: 'Draft storage & mobile limits',
+          scopeHint:
+            'Drafts stay on this device for this account and trip. Mobile creates equal TWD splits. Use the website for foreign currency or other splits.',
+          rule: 'Split equally among selected members. Recheck members before previewing. Every edit needs a new preview.',
+          previewButton: 'Review split preview (sample)',
+          previewTitle: 'Review the split',
+          previewHint:
+            'Review the total, payer and every member’s share. Not recorded yet; confirmation sends it.',
+          total: 'Total',
+          confirm: 'Confirm expense (demo)',
+          edit: 'Back to edit',
+          discard: 'Discard draft',
+          discardHint: 'This is a demo. No local data was deleted.',
+          queueTitle: 'Send automatically after confirmation',
+          queueRule:
+            'Confirmation queues automatic sending while foregrounded, online and signed in. Not recorded yet. The backend assigns equal shares and rounding. Recheck member IDs and order; any change pauses for confirmation.',
+          queue: 'Confirm queue entry (demo)',
+          unknown: 'Result unknown',
+          unknownHint:
+            'This may already be recorded. Check its result first. Keep the original content; do not edit or record it again.',
+          sameTrip: 'Other expense actions in this trip wait until this result is confirmed.',
+          check: 'Check original result (demo)',
+          sameRetry: 'Retry original content (demo)',
+          waiting: 'Rate limit wait',
+          waitingHint:
+            'Sample: wait for the saved 120-second deadline. Lookup and retry both wait; restarting does not clear it.',
+          conflict: 'Conflict needs attention',
+          conflictHint:
+            'This operation has a conflict. Check the original record; do not create a new expense.',
+          stale: 'Not up to date',
+          staleHint:
+            'Showing previously confirmed data. Refresh before acting; a failed refresh does not mean zero.',
+          saved: 'Recorded (sample)',
+          savedHint: 'This expense is confirmed as recorded. You can return to expenses.',
+          listReturn: 'Back to expenses',
+          continue: 'Continue draft',
+          drafts: 'Drafts',
+          queueLabel: 'Queued expenses',
+          pending: 'Unconfirmed operations',
+          emptyLocal: 'No local work yet',
+          emptyLocalHint:
+            'Drafts, queue and unconfirmed work remain discoverable. Empty is different from a read failure.',
+          localError: 'Could not read local records',
+          localErrorHint:
+            'Do not show zero or replace an operation that may already have been sent.',
+          account: 'Account',
+          logout: 'Sign out',
+          accountHint: 'Existing account information only. No new settings or profile editing.',
+          suggested: 'Suggested transfers',
+          paid: 'Recorded payments',
+          balances: 'All balances',
+          payment: 'Record money already paid',
+          paymentHint: 'Records a payment; does not transfer money.',
+          paymentRow: 'TEST 同名 · 01c3cd → TEST 同名 · 01c3cc',
+          received: 'Recipient',
+          paidBy: 'Payer',
+          settlementHint:
+            'Backend settlement determines suggestions. Recheck before recording partial or larger payments.',
+          sourceNote: 'Fixed test data · Demo actions only.',
+          queued: 'Queued (sample)',
+          queuedHint:
+            'Confirmed for the queue, not recorded yet. D3 processes it while foregrounded and online.',
+          demoCheck: 'This prototype does not look up results. The result remains unknown.',
+          demoRetry: 'This prototype does not resend. The app retries the same original operation.',
+        },
+      };
+      const stateNames = {
+        normal: '正常',
+        empty: '空資料',
+        loading: '讀取中',
+        error: '讀取失敗',
+        stale: '更新失敗／舊資料',
+        offline: '離線',
+        denied: '撤權',
+        draft: '已保存草稿',
+        saving: '保存中',
+        'save-failed': '保存失敗',
+        preview: '新預覽',
+        unknown: '結果不明',
+        429: '429 等待',
+        conflict: '409＋429',
+        saved: '已入帳示例',
+        queued: '待送示例',
+      };
+      const allowed = {
+        overview: ['normal', 'empty', 'loading', 'error', 'stale', 'offline', 'denied'],
+        expense: [
+          'normal',
+          'draft',
+          'saving',
+          'save-failed',
+          'preview',
+          'unknown',
+          '429',
+          'conflict',
+          'saved',
+          'queued',
+          'loading',
+          'error',
+          'offline',
+          'denied',
+        ],
+        trips: ['normal', 'empty', 'loading', 'error', 'stale', 'offline'],
+        settlement: ['normal', 'empty', 'loading', 'error', 'offline', 'denied'],
+        local: ['draft', 'empty', 'error', 'unknown', '429', 'conflict', 'queued', 'denied'],
+        mine: ['normal'],
+      };
+      const controls = Object.fromEntries(
+        ['page', 'locale', 'theme', 'size', 'state'].map((id) => [id, document.getElementById(id)])
+      );
+      const screen = document.getElementById('screen');
+      let demoMessage = '';
+      function escapeHtml(value) {
+        return String(value)
+          .replaceAll('&', '&amp;')
+          .replaceAll('<', '&lt;')
+          .replaceAll('>', '&gt;')
+          .replaceAll('"', '&quot;');
+      }
+      const money = (value, code = 'TWD', locale = controls.locale.value) => {
+        const symbols = { TWD: 'NT$', JPY: '¥', USD: '$', EUR: '€', HKD: 'HK$', THB: '฿' };
+        const locales = { zh: 'zh-TW', 'zh-CN': 'zh-CN', en: 'en-US', jp: 'ja-JP' };
+        const digits = new Intl.NumberFormat(locales[locale], {
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 2,
+        }).format(Math.abs(value));
+        return `${value < 0 ? '-' : ''}${symbols[code] ?? `${code} `}${digits}`;
+      };
+      const button = (label, action, variant = '', disabled = false) =>
+        `<button type="button" class="button ${variant}" data-action="${action}" ${disabled ? 'disabled' : ''}>${escapeHtml(label)}</button>`;
+      const notice = (title, body = '', tone = 'info') =>
+        `<div class="notice" data-tone="${tone}"><strong>${escapeHtml(title)}</strong>${body ? `<span>${escapeHtml(body)}</span>` : ''}</div>`;
+      const metric = (label, value, style = '') =>
+        `<div class="card metric"><span class="small muted">${escapeHtml(label)}</span><strong class="money ${style}">${escapeHtml(value)}</strong></div>`;
+      const line = (label, value) =>
+        `<div class="summary-row"><span>${escapeHtml(label)}</span><strong class="money">${escapeHtml(value)}</strong></div>`;
+      function header(t, title, form = false, privateName = true) {
+        return `<header class="header"><div class="header-row">${button(form ? t.backExpenses : t.backTrips, form ? 'expenses' : 'trips', 'ghost')}${form || !privateName ? '' : button(t.invite, 'invite', 'ghost')}</div><h2>${escapeHtml(title)}</h2>${!privateName ? '' : `<p class="subtitle">${form ? escapeHtml(t.tripName) : `Taipei · ${t.admin}`}</p>`}</header>`;
+      }
+      const tripTabs = (t, selected) =>
+        `<nav class="tabs" aria-label="${t.overview} / ${t.expenses} / ${t.settlement}">${['overview', 'expenses', 'settlement'].map((page) => `<button type="button" class="button ghost" data-action="${page}" ${page === selected ? 'aria-current="page"' : ''}>${t[page]}</button>`).join('')}</nav>`;
+      function failure(t, state) {
+        if (state === 'loading') return notice(t.loading);
+        if (state === 'denied')
+          return (
+            notice(t.denied, t.deniedHint, 'danger') +
+            button(t.backTrips, 'trips', 'secondary full')
+          );
+        if (state === 'offline')
+          return (
+            notice(t.offline, t.offlineHint, 'warning') + button(t.local, 'local', 'secondary full')
+          );
+        if (state === 'error')
+          return (
+            notice(t.loadError, t.loadErrorHint, 'danger') +
+            button(t.retry, 'demo', 'secondary full')
+          );
+        return '';
+      }
+      function overview(t, state) {
+        const hidden = ['loading', 'error', 'offline', 'denied'].includes(state);
+        let content = failure(t, state);
+        if (!hidden) {
+          if (state === 'stale') content += notice(t.stale, t.staleHint, 'warning');
+          content += `<div class="row"><span class="badge">${t.active}</span><span class="meta">TWD</span></div>`;
+          content += `<div class="metrics">${metric(t.share, money(state === 'empty' ? 0 : 43.3))}${metric(state === 'empty' ? t.zero : t.receive, money(state === 'empty' ? 0 : 36.21), state === 'empty' ? '' : 'positive')}</div>`;
+          if (state === 'empty') content += notice(t.emptyExpenses, t.emptyExpensesHint);
+          content += button(t.log, 'expense', 'full');
+          content += `<section class="card"><h3>${t.detail}</h3>${line(t.today, money(state === 'empty' ? 0 : 199.91))}${line(t.date, t.dateValue)}${line(t.people, state === 'empty' ? '2' : '3')}${line(t.budget, t.notSet)}${line(t.expenseCount, state === 'empty' ? '0' : '2')}<details class="details"><summary>${t.supplement}</summary><p>TEST U0a disposable visual baseline</p></details></section>`;
+        }
+        return (
+          header(
+            t,
+            state === 'denied' ? t.overview : state === 'empty' ? t.shortTrip : t.tripName,
+            false,
+            state !== 'denied'
+          ) +
+          (!hidden ? tripTabs(t, 'overview') : '') +
+          `<div class="body">${content}</div>`
+        );
+      }
+      function chips(t, kind) {
+        const names =
+          kind === 'category'
+            ? [t.other, t.food, t.transport, t.accommodation]
+            : [`${t.memberA} · ${t.you}`, t.memberB, `${t.memberLong} · ${t.virtual}`];
+        return `<section class="field"><h3>${t[kind]}</h3><div class="chips">${names.map((name, i) => `<button type="button" class="chip" role="${kind === 'members' ? 'checkbox' : 'radio'}" aria-checked="${kind === 'members' || i === 0}" data-action="sample-selection">${kind === 'members' || i === 0 ? '✓ ' : ''}${escapeHtml(name)}</button>`).join('')}</div></section>`;
+      }
+      function field(label, value, id, amount = false) {
+        if (id === 'description')
+          return `<div class="field"><label for="${id}">${label}</label><textarea id="${id}" rows="2" readonly>${escapeHtml(value)}</textarea></div>`;
+        return `<div class="field"><label for="${id}">${label}</label><input id="${id}" class="${amount ? 'amount' : ''}" value="${escapeHtml(value)}" placeholder="${amount ? '0' : ''}" readonly /></div>`;
+      }
+      function pending(t, state) {
+        let html = notice(t.unknown, t.unknownHint, 'warning');
+        if (state === 'conflict') html += notice(t.conflict, t.conflictHint, 'warning');
+        if (state === '429' || state === 'conflict')
+          html += notice(t.waiting, t.waitingHint, 'warning');
+        html += `<div class="card"><h3>${t.descriptionExample}</h3>${line(t.amount, money(12.34))}${line(t.date, '2026-10-07')}<p class="meta">${t.sourceNote}</p></div><p class="small muted">${t.sameTrip}</p>`;
+        html +=
+          button(t.check, 'demo-check', 'full', state !== 'unknown') +
+          button(t.sameRetry, 'demo-retry', 'secondary full', state !== 'unknown');
+        return html;
+      }
+      function expense(t, state) {
+        let html = '';
+        if (['loading', 'error', 'denied'].includes(state)) html = failure(t, state);
+        else if (['unknown', '429', 'conflict'].includes(state)) html = pending(t, state);
+        else if (state === 'saved')
+          html = notice(t.saved, t.savedHint, 'success') + button(t.listReturn, 'expenses', 'full');
+        else if (state === 'queued')
+          html = notice(t.queued, t.queuedHint) + button(t.local, 'local', 'full');
+        else if (state === 'preview') {
+          html = `<h3>${t.previewTitle}</h3>${notice(t.previewHint)}<div class="card"><h3>${t.descriptionExample}</h3>${line(t.total, money(12.34))}${line(t.payer, `${t.memberA} · ${t.you}`)}${line(t.date, '2026-10-07')}${line(t.category, t.other)}${line(`${t.memberA} · ${t.you}`, money(4.12))}${line(t.memberB, money(4.11))}${line(`${t.memberLong} · ${t.virtual}`, money(4.11))}</div>${button(t.confirm, 'unknown', 'full')}${button(t.edit, 'draft', 'secondary full')}`;
+        } else {
+          if (state === 'offline') html += notice(t.offline, t.offlineHint, 'warning');
+          if (state === 'save-failed')
+            html +=
+              notice(t.draftFailed, t.draftFailedHint, 'danger') +
+              button(t.retry, 'draft', 'secondary full');
+          else
+            html += notice(
+              state === 'saving' ? t.draftSaving : t.draftSaved,
+              '',
+              state === 'saving' ? 'info' : 'success'
+            );
+          const populated = state !== 'normal';
+          html +=
+            field(t.amount, populated ? '12.34' : '', 'amount', true) +
+            field(t.description, populated ? t.descriptionExample : '', 'description');
+          html +=
+            chips(t, 'category') +
+            field(t.date, '2026-10-07', 'date') +
+            chips(t, 'payer') +
+            chips(t, 'members');
+          html += `<p class="small muted">${t.rule}</p>${button(t.previewButton, 'preview', 'full', state === 'offline' || state === 'saving' || state === 'save-failed')}`;
+          html += `<details class="details"><summary>${t.scopeDetails}</summary><p>${t.scopeHint}</p></details>`;
+          html += `<section class="card"><h3>${t.queueTitle}</h3><p class="small muted">${t.queueRule}</p>${button(t.queue, 'queued', 'secondary full', state === 'saving' || state === 'save-failed')}</section>`;
+          html += button(t.discard, 'demo-discard', 'ghost full');
+        }
+        return (
+          header(t, t.log, true, state !== 'denied') +
+          `<div class="body">${html}<p class="meta">${t.sourceNote}</p></div>`
+        );
+      }
+      function trips(t, state) {
+        let html = `<div class="row">${button(t.create, 'demo', 'secondary')}${button(t.join, 'demo', 'secondary')}</div>${button(`${t.local} ›`, 'local', 'secondary full')}<p class="meta">${state === 'normal' ? t.localBrief : t.sourceNote}</p>`;
+        if (['loading', 'error', 'offline'].includes(state)) html += failure(t, state);
+        else if (state === 'empty')
+          html += `<section class="card"><h3>${t.emptyTrip}</h3><p>${t.emptyTripHint}</p></section>`;
+        else {
+          if (state === 'stale') html += notice(t.stale, t.staleHint, 'warning');
+          html += `<article class="card"><span class="badge">${t.active}</span><h3>${t.tripName}</h3><p class="small muted">${t.dateValue} · 3 ${t.people}</p>${line(t.share, money(43.3))}${line(t.receive, money(36.21))}${button(t.overview, 'overview', 'ghost full')}</article><article class="card"><h3>${t.shortTrip}</h3><p class="small muted">${t.dateValue} · 2 ${t.people}</p>${line(t.share, money(0))}${button(t.overview, 'overview', 'ghost full')}</article>`;
+        }
+        return `<header class="header"><h2>${t.trips}</h2></header><div class="body">${html}</div>`;
+      }
+      function settlement(t, state) {
+        let html = failure(t, state);
+        if (!['loading', 'error', 'offline', 'denied'].includes(state)) {
+          html += metric(
+            state === 'empty' ? t.zero : t.receive,
+            money(state === 'empty' ? 0 : 36.21),
+            state === 'empty' ? '' : 'positive'
+          );
+          if (state === 'empty') html += notice(t.emptyExpenses, t.emptyExpensesHint);
+          else
+            html += `<section class="card"><h3>${t.suggested}</h3><p>${t.paymentRow}</p><strong class="money">${money(36.21)}</strong><p class="small muted">${t.settlementHint}</p>${button(t.payment, 'demo', 'full')}</section><section class="card"><h3>${t.paid}</h3><p>${t.paymentRow}</p>${line(t.amount, money(20.5))}<p class="small muted">2026-10-07</p></section><section class="card"><h3>${t.balances}</h3>${line(`${t.memberA} · ${t.you}`, `${t.receive} ${money(36.21)}`)}${line(t.memberB, `${t.payable} ${money(92.81)}`)}${line(`${t.memberLong} · ${t.virtual}`, `${t.receive} ${money(56.6)}`)}${line(t.group, money(199.91))}</section>`;
+          html += `<p class="small muted">${t.paymentHint}</p>`;
+        }
+        return (
+          header(
+            t,
+            state === 'denied' ? t.settlement : state === 'empty' ? t.shortTrip : t.tripName,
+            false,
+            state !== 'denied'
+          ) +
+          (['denied', 'loading', 'error', 'offline'].includes(state)
+            ? ''
+            : tripTabs(t, 'settlement')) +
+          `<div class="body">${html}</div>`
+        );
+      }
+      function local(t, state) {
+        let html = '';
+        if (state === 'error')
+          html =
+            notice(t.localError, t.localErrorHint, 'danger') +
+            button(t.retry, 'demo', 'secondary full');
+        else if (state === 'denied') html = failure(t, state);
+        else if (state === 'empty') html = notice(t.emptyLocal, t.emptyLocalHint);
+        else if (['unknown', '429', 'conflict'].includes(state)) html = pending(t, state);
+        else if (state === 'queued')
+          html =
+            notice(t.queued, t.queuedHint) +
+            `<section class="card"><h3>${t.descriptionExample}</h3>${line(t.amount, money(12.34))}</section>`;
+        else
+          html = `<section class="card"><span class="badge">${t.drafts} · 1</span><h3>${t.tripName}</h3><p>${t.descriptionExample}</p>${line(t.amount, money(12.34))}<p class="small muted">${t.draftSaved}</p>${button(t.continue, 'draft', 'full')}</section><section class="card">${line(t.queueLabel, '0')}${line(t.pending, '0')}</section>`;
+        return `<header class="header"><div class="header-row">${button(t.backTrips, 'trips', 'ghost')}</div><h2>${t.local}</h2></header><div class="body">${html}</div>`;
+      }
+      function mine(t) {
+        return `<header class="header"><h2>${t.mine}</h2></header><div class="body"><section class="card"><h3>${t.account}</h3><p>TEST 同名</p><p class="small muted">u0a-base</p><p class="small muted">${t.accountHint}</p></section>${button(t.local, 'local', 'secondary full')}${button(t.logout, 'demo', 'ghost full')}</div>`;
+      }
+      const pageNotes = {
+        overview: [
+          '概覽不是行程：不放尚無能力的分頁。本人分攤／應收付排在日期、團費與說明前。',
+          '長標題換行；預設雙指標、大字級單欄。未知／撤權不顯示私人數字，更新失敗可展示明確標示的舊資料。',
+          '邀請僅保留入口，點擊後走 E1 明確取得邀請碼，不預抓。',
+        ],
+        expense: [
+          '金額優先；固定範例欄位唯讀，按鈕只切換設計狀態。實作預覽必須由後端重新取得，不能沿用此 HTML。',
+          '確認區顯示所有分攤與尾差；原型確認後顯示結果不明，只有後端終局 receipt 能切到已入帳。',
+          '保存失敗不能確認送出；草稿可修、已交接的原 UUID／內容不可改。等待與衝突同時存在。',
+          '取消／返回沿用既有草稿保存；隱藏全域列，保留 iOS 鍵盤完成與可捲動主動作。',
+        ],
+        trips: [
+          '建立／加入收為一列，登出移到我的；本機記帳入口零筆也可找到。',
+          '卡片顯示既有 phase、名稱、日期、人數、本人分攤／應收付；不逐卡查預算，也不猜結清。',
+          '全域記一筆先選旅行；原型示意入口，不新增 API。',
+        ],
+        settlement: [
+          '本人方向 → 建議 → 已登記還款 → 全員餘額。手動登記表單先顯示付款人／收款人／金額，再參考結算。',
+          '零餘額是目前無應收應付；無帳務與有還款結清須由實際 DTO 判斷。',
+          '只記實付，UUID／結算 revision／多人舊建議重新確認不變。',
+        ],
+        local: [
+          '草稿、待送、待確認區分；讀取失敗不是零筆。只有準備前的佇列可移回草稿／捨棄。',
+          '撤權隱藏名稱／成員，仍保留原紀錄。存取恢復須重新線上授權。',
+          '429 依已持久化帳號／環境期限，衝突不解除等待。',
+        ],
+        mine: [
+          '承接現有帳號、登出、本機記帳入口。沒有新增外觀／語系偏好或個資服務。',
+          '系統語系與外觀沿用原生；原型控制列只用於設計檢視。',
+        ],
+      };
+      function setStates(preferred = 'normal') {
+        const options = allowed[controls.page.value];
+        controls.state.innerHTML = options
+          .map((value) => `<option value="${value}">${stateNames[value]}</option>`)
+          .join('');
+        controls.state.value = options.includes(preferred) ? preferred : options[0];
+      }
+      function render() {
+        const { page, locale, theme, size, state } = Object.fromEntries(
+          Object.entries(controls).map(([key, control]) => [key, control.value])
+        );
+        const t = copy[locale];
+        const target = document.getElementById('target');
+        target.dataset.theme = theme;
+        target.dataset.size = size;
+        target.lang = locale === 'zh' ? 'zh-Hant' : 'en';
+        document.getElementById('samples').dataset.theme = theme;
+        document.getElementById('samples').dataset.size = size;
+        document.getElementById('target-label').textContent =
+          `iOS 設計 · ${locale === 'zh' ? '繁中' : 'English'}／${theme === 'light' ? '淺色' : '深色'}／${size === 'large' ? '大字級 2×' : '預設'}`;
+        screen.innerHTML =
+          { overview, expense, trips, settlement, local, mine }[page](t, state) +
+          (demoMessage ? `<div class="body">${notice(demoMessage)}</div>` : '');
+        screen.scrollTop = 0;
+        const nav = document.getElementById('global');
+        nav.hidden = page === 'expense';
+        nav.style.display = page === 'expense' ? 'none' : '';
+        nav.innerHTML = ['trips', 'log', 'mine']
+          .map(
+            (item) =>
+              `<button type="button" class="button ghost" data-action="${item === 'log' ? 'select-trip' : item}" ${(item === 'trips' && ['trips', 'overview', 'settlement'].includes(page)) || (item === 'mine' && page === 'mine') ? 'aria-current="page"' : ''}>${t[item]}</button>`
+          )
+          .join('');
+        const reference = page === 'expense' ? 'new-expense' : 'trip';
+        ['ios', 'web'].forEach((platform) => {
+          const path = `u0c-baseline/C01-${platform === 'web' ? 'web-390' : 'ios'}-en-light-${reference}.jpg`;
+          document.getElementById(`${platform}-image`).src = path;
+          document.getElementById(`${platform}-image`).alt =
+            `既有 ${platform} ${reference} · 英文／淺色`;
+          document.getElementById(`${platform}-original`).href = path;
+        });
+        // Only these two pages have exact baseline images; other arrangements are design examples.
+        const baselineButton = document.getElementById('baseline');
+        baselineButton.disabled = !['overview', 'expense'].includes(page);
+        document
+          .getElementById('stage')
+          .classList.toggle(
+            'baseline-hidden',
+            baselineButton.getAttribute('aria-pressed') === 'false' || baselineButton.disabled
+          );
+        document.getElementById('page-notes').innerHTML = pageNotes[page]
+          .map((text) => `<li>${text}</li>`)
+          .join('');
+      }
+      document.querySelector('.workbench').addEventListener('click', (event) => {
+        const action = event.target.closest('[data-action]')?.dataset.action;
+        if (!action) return;
+        const t = copy[controls.locale.value];
+        demoMessage = '';
+        if (['overview', 'trips', 'settlement', 'local', 'mine'].includes(action)) {
+          controls.page.value = action;
+          setStates();
+        } else if (action === 'expense' || action === 'draft') {
+          controls.page.value = 'expense';
+          setStates(action === 'draft' ? 'draft' : 'normal');
+        } else if (['preview', 'unknown', 'queued'].includes(action)) {
+          controls.page.value = 'expense';
+          setStates(action);
+        } else if (action === 'select-trip') {
+          controls.page.value = 'trips';
+          setStates();
+          demoMessage =
+            controls.locale.value === 'zh'
+              ? '先選旅行，再進入記帳；此原型不默選旅行。'
+              : 'Choose a trip before adding an expense; this prototype does not pick one for you.';
+        } else if (action === 'expenses') {
+          controls.page.value = 'overview';
+          setStates();
+          demoMessage =
+            controls.locale.value === 'zh'
+              ? '支出清單由 U2a 對齊；表單實作返回原清單。'
+              : 'Expenses are aligned in U2a; the implemented form returns to the original list.';
+        } else if (action === 'demo-check') demoMessage = t.demoCheck;
+        else if (action === 'demo-retry') demoMessage = t.demoRetry;
+        else if (action === 'demo-discard') demoMessage = t.discardHint;
+        else demoMessage = t.sourceNote;
+        render();
+      });
+      controls.page.addEventListener('change', () => {
+        demoMessage = '';
+        setStates();
+        render();
+      });
+      ['locale', 'theme', 'size', 'state'].forEach((id) =>
+        controls[id].addEventListener('change', () => {
+          demoMessage = '';
+          render();
+        })
+      );
+      document.getElementById('baseline').addEventListener('click', (event) => {
+        const visible = event.target.getAttribute('aria-pressed') !== 'true';
+        event.target.setAttribute('aria-pressed', String(visible));
+        event.target.textContent = visible ? '隱藏基線' : '顯示基線';
+        render();
+      });
+      const formatRows = [
+        [0, 'TWD'],
+        [0.01, 'TWD'],
+        [-36.21, 'TWD'],
+        [1234.5, 'TWD'],
+        [123456789.01, 'TWD'],
+        [3000, 'JPY'],
+        [33.33, 'JPY'],
+        [12.5, 'USD'],
+        [1.23, 'NOT-A-CODE'],
+      ];
+      document.getElementById('format-samples').innerHTML =
+        formatRows
+          .map(
+            ([value, currency]) =>
+              `<tr><td>${value} ${currency}</td>${['zh', 'zh-CN', 'en', 'jp'].map((locale) => `<td>${escapeHtml(money(value, currency, locale))}</td>`).join('')}</tr>`
+          )
+          .join('') +
+        '<tr><td>2026-10-07</td><td>2026年10月7日</td><td>2026年10月7日</td><td>Oct 7, 2026</td><td>2026年10月7日</td></tr>';
+      setStates();
+      render();
+    </script>
+  </body>
+</html>
