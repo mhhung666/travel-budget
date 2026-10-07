@@ -1,10 +1,14 @@
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native';
 import { ScreenFrame } from '@/components/frame';
 import { router } from 'expo-router';
-import { errorMessage } from '@/features/auth/errorMessage';
+import { errorMessage, isAccessDenied } from '@/features/auth/errorMessage';
 import { Action, Copy, Notice, Title, styles, usePalette } from '@/components/ui';
 import { useMessages } from '@/i18n/useMessages';
-import { money } from '@/i18n/format';
+import { spacing } from '@/theme/tokens';
+import { useAuth } from '@/features/auth/AuthProvider';
+import { useDraftCatalog } from '@/features/localDrafts/provider';
+import { TripCard } from './TripCard';
+import { LocalWorkLink } from './LocalWorkLink';
 import { useOnline } from '@/providers/useOnline';
 import { useTrips } from './queries';
 
@@ -13,9 +17,18 @@ export function TripsScreen() {
   const p = usePalette();
   const query = useTrips();
   const online = useOnline();
+  const { manager, user } = useAuth();
+  const { catalog } = useDraftCatalog();
+  const scope = user ? { environment: manager.api.baseUrl, accountId: user.id } : null;
   const items = query.data?.pages.flatMap((page) => page.items) ?? [];
   // Page membership can shift after a concurrent Web edit; avoid duplicate cards.
-  const trips = [...new Map(items.map((trip) => [trip.id, trip])).values()];
+  const denied = isAccessDenied(query.error);
+  const trips =
+    !scope || denied
+      ? []
+      : [...new Map(items.map((trip) => [trip.id, trip])).values()].filter((trip) =>
+          catalog.isVisible(scope, trip.id)
+        );
   return (
     <ScreenFrame>
       <FlatList
@@ -31,32 +44,33 @@ export function TripsScreen() {
           />
         }
         ListHeaderComponent={
-          <View style={{ gap: 16, marginBottom: 20 }}>
+          <View style={{ gap: spacing.small, marginBottom: spacing.medium }}>
             <Title>{t.trips}</Title>
-            <Action
-              testID="create-trip"
-              label={t.createTrip}
-              disabled={!online}
-              onPress={() => router.push('/trips/create')}
-            />
-            <Action
-              testID="join-trip"
-              label={t.joinTrip}
-              disabled={!online}
-              onPress={() => router.push('/trips/join')}
-            />
-            <Copy>{t.tripsHint}</Copy>
-            <Action
-              testID="local-work"
-              variant="secondary"
-              label={t.localWork}
-              onPress={() => router.push('/work')}
-            />
+            <View style={{ flexDirection: 'row', gap: spacing.small }}>
+              <View style={{ flex: 1 }}>
+                <Action
+                  testID="create-trip"
+                  label={t.createTrip}
+                  disabled={!online}
+                  onPress={() => router.push('/trips/create')}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Action
+                  testID="join-trip"
+                  variant="secondary"
+                  label={t.joinTrip}
+                  disabled={!online}
+                  onPress={() => router.push('/trips/join')}
+                />
+              </View>
+            </View>
+            <LocalWorkLink />
             {!online && <Notice tone="warning">{t.offline}</Notice>}
             {query.isError && (
               <>
-                <Notice tone={query.data ? 'warning' : 'danger'}>
-                  {query.data ? t.staleData : errorMessage(query.error, t)}
+                <Notice tone={query.data && !denied ? 'warning' : 'danger'}>
+                  {query.data && !denied ? t.staleData : errorMessage(query.error, t)}
                 </Notice>
                 <Action
                   label={t.retry}
@@ -85,42 +99,9 @@ export function TripsScreen() {
             </View>
           ) : null
         }
-        renderItem={({ item }) => (
-          <Pressable
-            testID={`trip-${item.id}`}
-            accessibilityRole="button"
-            accessibilityLabel={item.name}
-            onPress={() => router.push({ pathname: '/trips/[id]', params: { id: item.id } })}
-            style={({ pressed }) => ({
-              backgroundColor: p.surface,
-              borderColor: p.border,
-              borderWidth: 1,
-              borderRadius: 22,
-              padding: 22,
-              marginBottom: 16,
-              gap: 10,
-              opacity: pressed ? 0.8 : 1,
-            })}
-          >
-            <Text style={{ color: p.primary, fontSize: 14, fontWeight: '600' }}>
-              {item.archived ? t.archived : t[item.phase]}
-            </Text>
-            <Text style={{ color: p.text, fontSize: 24, fontWeight: '700' }}>{item.name}</Text>
-            {!!item.destination && <Copy>{item.destination}</Copy>}
-            <Copy>
-              {item.startDate ?? t.unscheduled}
-              {item.endDate ? ` — ${item.endDate}` : ''}
-            </Copy>
-            <View style={{ borderTopWidth: 1, borderColor: p.border, paddingTop: 12, gap: 4 }}>
-              <Copy>{t.mySpent}</Copy>
-              <Text style={{ color: p.text, fontSize: 22, fontWeight: '600' }}>
-                {money(item.mySpent)}
-              </Text>
-            </View>
-          </Pressable>
-        )}
+        renderItem={({ item }) => <TripCard trip={item} />}
         ListFooterComponent={
-          query.hasNextPage ? (
+          query.hasNextPage && !denied ? (
             <Action
               testID="trips-load-more"
               secondary

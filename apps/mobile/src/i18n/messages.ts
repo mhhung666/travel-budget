@@ -1,4 +1,7 @@
 const zh = {
+  tripDetails: '旅行資料',
+  moreAboutTrip: '目的地與補充說明',
+  localStatusUnavailable: '本機待處理狀態讀取失敗，請進入檢查。',
   navTrips: '旅行',
   myAccount: '我的',
   recordExpense: '記一筆',
@@ -307,6 +310,9 @@ export type Messages = Record<keyof typeof zh, string>;
 export const messages = {
   zh,
   'zh-CN': {
+    tripDetails: '旅行资料',
+    moreAboutTrip: '目的地与补充说明',
+    localStatusUnavailable: '本机待处理状态读取失败，请进入检查。',
     navTrips: '旅行',
     myAccount: '我的',
     recordExpense: '记一笔',
@@ -610,6 +616,9 @@ export const messages = {
     done: '完成',
   },
   en: {
+    tripDetails: 'Trip details',
+    moreAboutTrip: 'Destination and notes',
+    localStatusUnavailable: 'Local work status could not be read. Open it to check.',
     navTrips: 'Trips',
     myAccount: 'Me',
     recordExpense: 'Add expense',
@@ -955,6 +964,9 @@ export const messages = {
     done: 'Done',
   },
   jp: {
+    tripDetails: '旅行情報',
+    moreAboutTrip: '目的地と補足',
+    localStatusUnavailable: '端末の未処理状況を読み込めません。開いて確認してください。',
     navTrips: '旅行',
     myAccount: '自分',
     recordExpense: '支出を記録',

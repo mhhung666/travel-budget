@@ -1,11 +1,27 @@
-import { ActivityIndicator, View } from 'react-native';
+import { useState } from 'react';
+import { ActivityIndicator, Pressable, Text } from 'react-native';
 import { router } from 'expo-router';
-import { Action, Copy, Metric, Notice, Page, Title } from '@/components/ui';
+import {
+  Action,
+  Badge,
+  Card,
+  Copy,
+  DetailRow,
+  Notice,
+  Page,
+  Section,
+  Title,
+  usePalette,
+} from '@/components/ui';
 import { errorMessage, isAccessDenied } from '@/features/auth/errorMessage';
 import { money } from '@/i18n/format';
 import { useMessages } from '@/i18n/useMessages';
 import { useOnline } from '@/providers/useOnline';
 import { useTrip } from './queries';
+import { useAuth } from '@/features/auth/AuthProvider';
+import { useDraftCatalog } from '@/features/localDrafts/provider';
+import { sizing, spacing, typography } from '@/theme/tokens';
+import { TripFinancialSummary } from './TripSummary';
 
 export function TripScreen({ id }: { id: string }) {
   const query = useTrip(id);
@@ -13,7 +29,10 @@ export function TripScreen({ id }: { id: string }) {
   const t = useMessages();
   const online = useOnline();
   // Never leave a previously cached member payload visible after access is denied.
-  const denied = isAccessDenied(query.error);
+  const { manager, user } = useAuth();
+  const { catalog } = useDraftCatalog();
+  const scope = user ? { environment: manager.api.baseUrl, accountId: user.id } : null;
+  const denied = isAccessDenied(query.error) || !scope || !catalog.isVisible(scope, id);
   return (
     <Page>
       {!online && <Notice tone="warning">{t.offline}</Notice>}
@@ -32,43 +51,41 @@ export function TripScreen({ id }: { id: string }) {
       )}
       {trip && !denied && (
         <>
-          <Copy>{trip.archived ? t.archived : t[trip.phase]}</Copy>
+          <Badge label={trip.archived ? t.archived : t[trip.phase]} />
           <Title>{trip.name}</Title>
-          {!!trip.destination && <Copy>{trip.destination}</Copy>}
-          {!!trip.description && <Copy>{trip.description}</Copy>}
-          <Copy>{t[trip.role]}</Copy>
+          <TripFinancialSummary trip={trip} />
           <Action
             testID="trip-add-expense"
             label={t.addExpense}
             onPress={() => router.push({ pathname: '/trips/[id]/expenses/new', params: { id } })}
           />
-          <Metric label={t.startDate} value={trip.startDate ?? t.notSet} />
-          <Metric label={t.endDate} value={trip.endDate ?? t.notSet} />
-          <View style={{ marginTop: 8 }}>
-            <Title>{t.overview}</Title>
-          </View>
-          <Metric testID="trip-my-spent" label={t.mySpent} value={money(trip.mySpent)} />
-          <Metric
-            testID="trip-balance"
-            label={
-              trip.myBalance === 0 ? t.balanced : trip.myBalance > 0 ? t.receivable : t.payable
-            }
-            value={money(Math.abs(trip.myBalance))}
-          />
-          <Metric
-            testID="trip-group-spent"
-            label={t.todayGroupSpent}
-            value={money(trip.todayGroupSpent)}
-          />
-          <Metric
-            testID="trip-budget"
-            label={t.budgetTotal}
-            value={trip.budgetTotal === null ? t.notSet : money(trip.budgetTotal)}
-          />
-          <Metric label={t.memberCount} value={String(trip.memberCount)} />
-          <Metric label={t.expenseCount} value={String(trip.expenseCount)} />
-          <Copy>{t.baseCurrency}</Copy>
-          <Notice>{t.nextFeatures}</Notice>
+          <Section title={t.tripDetails}>
+            <Card>
+              <DetailRow
+                testID="trip-group-spent"
+                label={t.todayGroupSpent}
+                value={money(trip.todayGroupSpent)}
+              />
+              <DetailRow label={t.startDate} value={trip.startDate ?? t.notSet} />
+              <DetailRow label={t.endDate} value={trip.endDate ?? t.notSet} />
+              <DetailRow label={t.memberCount} value={String(trip.memberCount)} />
+              <DetailRow
+                testID="trip-budget"
+                label={t.budgetTotal}
+                value={trip.budgetTotal === null ? t.notSet : money(trip.budgetTotal)}
+              />
+              <DetailRow label={t.expenseCount} value={String(trip.expenseCount)} />
+              <Copy>{t[trip.role]}</Copy>
+              <Copy>{t.baseCurrency}</Copy>
+              {(!!trip.destination || !!trip.description) && (
+                <TripSupplement
+                  key={id}
+                  destination={trip.destination}
+                  description={trip.description}
+                />
+              )}
+            </Card>
+          </Section>
           <Action
             testID="trip-refresh"
             secondary
@@ -80,5 +97,43 @@ export function TripScreen({ id }: { id: string }) {
         </>
       )}
     </Page>
+  );
+}
+
+export function TripSupplement({
+  destination,
+  description,
+}: {
+  destination: string | null;
+  description: string | null;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const t = useMessages();
+  const p = usePalette();
+  return (
+    <>
+      <Pressable
+        testID="trip-supplement"
+        accessibilityRole="button"
+        accessibilityState={{ expanded }}
+        accessibilityLabel={t.moreAboutTrip}
+        onPress={() => setExpanded((value) => !value)}
+        style={{
+          minHeight: sizing.touch,
+          paddingVertical: spacing.compact,
+          justifyContent: 'center',
+        }}
+      >
+        <Text style={[typography.body, { color: p.primary, fontWeight: '600' }]}>
+          {t.moreAboutTrip}
+        </Text>
+      </Pressable>
+      {expanded && (
+        <>
+          {!!destination && <Copy>{destination}</Copy>}
+          {!!description && <Copy>{description}</Copy>}
+        </>
+      )}
+    </>
   );
 }
