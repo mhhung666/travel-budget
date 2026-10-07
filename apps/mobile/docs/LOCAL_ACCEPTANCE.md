@@ -2,6 +2,14 @@
 
 此流程啟動 `apps/web` 的實際 HTTP routes 與獨立 MongoDB，提供可丟棄的測試帳號。自動檢查不依賴正式資料或遠端服務，也不取代原生 SecureStore、操作介面與真機驗收。
 
+## U0a 畫面盤點交接
+
+2026-10-07 已補本輪 **26 張實際 iOS 代表畫面與 5 張同資料／英文 Web 對照**，私有 [截圖索引](/tmp/tb-u0a-20261007/index.html) 合併既有 Web／匿名預覽，共 66 張。配置、commit、案例 ID 及範圍見 `manifest.json`／`screens.json`；結論與設計界線只維護在 [ROADMAP U0](ROADMAP.md#u0盤點對照與設計定案)。本輪只保存專用本機草稿、讀取預覽與盤點畫面，未確認帳務、寄信／重設密碼、修改產品程式或執行獨立帳務驗收。
+
+iOS 由 Xcode **Device Hub** 提供原生畫面；沒有 Simulator.app 不代表裝置不可操作。續作取目前 `57e9dff` commit，API 沿用隔離 `49587`、Metro `8095`，原生 bundle 目的地已核對。使用 `u0a-*` 專用帳號，不沿用其他 Metro／E fixture；帳密僅在私有 `private-fixture.json`，不貼進文件／截圖。App 實際為英文／淺色，字級 3 與草稿代表值 11；系統切語言不等於 App 語系已驗。工具配置已恢復，截圖原檔保留 Device Hub 視窗；索引僅以 CSS 裁切顯示。
+
+**依使用者決定，以 iOS 為主要開發與交付基準；Android 補拍與裝置工作延後交給其他人。** iOS 非空佇列／結果不明、離線／拒絕／讀取失敗／冷啟動、提交終點及完整四語／外觀／字級仍未驗；不能將空佇列、正常預覽或歷史 E 證據當成上述狀態通過。重新開啟前先核對本機後端與 Metro 是否仍運作；`/tmp` 清除後須重建資料，不能沿用過期 ID。首輪 U1／U2 實作交接後由其他人執行 iOS 獨立驗收，Android 未驗不計通過。
+
 ## 先決條件
 
 - 根目錄完成 `pnpm install --frozen-lockfile`；Node／pnpm 版本依 repository 設定。
