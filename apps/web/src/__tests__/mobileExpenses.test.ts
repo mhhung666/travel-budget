@@ -104,8 +104,8 @@ describe('mobile expense list', () => {
     expect(query.sort).toHaveBeenCalledWith({ date: -1, createdAt: -1, _id: -1 });
     expect(query.limit).toHaveBeenCalledWith(21);
     expect(query.select.mock.calls[0][0]).not.toMatch(/attachments|tags|createdBy|expenseDelivery/);
-    expect(query.populate).toHaveBeenCalledWith('payer', 'displayName');
-    expect(query.populate).toHaveBeenCalledWith('splits.user', 'displayName');
+    expect(query.populate).toHaveBeenCalledWith('payer', 'displayName isVirtual');
+    expect(query.populate).toHaveBeenCalledWith('splits.user', 'displayName isVirtual');
   });
 
   it('pages 20 rows at a time and the cursor resumes after the last returned row', async () => {
@@ -273,4 +273,29 @@ describe('mobile expense detail', () => {
     });
     expect(mocks.findOne).not.toHaveBeenCalled();
   });
+});
+
+it('exposes virtual identity only on authorized reads, keyed by ID even with duplicate names', async () => {
+  const virtual = { ...person(bob, 'Amy'), isVirtual: true };
+  const row = doc(1, {
+    payer: virtual,
+    splits: [
+      { user: { ...person(viewer, 'Amy'), isVirtual: false }, shareAmount: 20.01 },
+      { user: virtual, shareAmount: 79.99 },
+      { user: null, shareAmount: 0 },
+    ],
+  });
+  mocks.find.mockReturnValue(chain([row]));
+  expect((await mobileExpenses(viewer, tripId, url())).items[0]).toMatchObject({
+    payerId: bob,
+    payerIsVirtual: true,
+  });
+  mocks.findOne.mockReturnValue(chain(row));
+  const detail = await mobileExpense(viewer, tripId, row._id.toString());
+  expect(detail.splits).toEqual([
+    { userId: viewer, displayName: 'Amy', shareAmount: 20.01, isVirtual: false },
+    { userId: bob, displayName: 'Amy', shareAmount: 79.99, isVirtual: true },
+    { userId: null, displayName: '', shareAmount: 0 },
+  ]);
+  expect(JSON.stringify(detail)).not.toMatch(/username|login-|private-key|tag-secret/);
 });

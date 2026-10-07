@@ -1,17 +1,42 @@
 import { describe, expect, it } from 'vitest';
-import { formatCurrency, formatRate, localDate, money } from './format';
+import { formatCurrency, formatDate, formatRate, localDate, money } from './format';
+import type { AppLocale } from './messages';
 
-describe('formatting', () => {
-  it('keeps backend cent precision and the TWD code', () => {
-    expect(money(50.01)).toMatch(/^TWD[\s ]50\.01$/);
-    expect(money(1000)).toMatch(/^TWD[\s ]1,000$/);
-    expect(money(0.1)).toMatch(/^TWD[\s ]0\.1$/);
-    expect(money(-20.5)).toMatch(/^-TWD[\s ]20\.5$/);
+const locales: AppLocale[] = ['zh', 'zh-CN', 'en', 'jp'];
+describe('display formatting', () => {
+  it.each(locales)('keeps cents, signs, separators and long amounts in %s', (locale) => {
+    expect(money(0, locale)).toBe('NT$0');
+    expect(money(0.01, locale)).toBe('NT$0.01');
+    expect(money(-36.21, locale)).toBe('-NT$36.21');
+    expect(money(1234.5, locale)).toBe('NT$1,234.5');
+    expect(money(123456789.01, locale)).toBe('NT$123,456,789.01');
+    expect(formatCurrency(33.33, 'JPY', locale)).toBe('¥33.33');
+    expect(formatCurrency(3000, 'JPY', locale)).toBe('¥3,000');
+    expect(formatCurrency(-12.5, 'USD', locale)).toBe('-$12.5');
+    expect(formatCurrency(12.5, 'EUR', locale)).toBe('€12.5');
+    expect(formatCurrency(12.5, 'HKD', locale)).toBe('HK$12.5');
+    expect(formatCurrency(12.5, 'THB', locale)).toBe('฿12.5');
+    expect(formatCurrency(1234.56, 'CHF', locale)).toBe('CHF 1,234.56');
+    expect(formatCurrency(1, 'NOT-A-CODE', locale)).toBe('NOT-A-CODE 1');
+    expect(formatCurrency(1, 'constructor', locale)).toBe('constructor 1');
   });
-  it('formats other currencies by code and survives codes Intl rejects', () => {
-    expect(formatCurrency(3000, 'JPY')).toMatch(/^JPY[\s ]3,000$/);
-    expect(formatCurrency(12.5, 'USD')).toMatch(/^USD[\s ]12\.5$/);
-    expect(formatCurrency(1, 'NOT-A-CODE')).toBe('1 NOT-A-CODE');
+  it.each(locales)('renders date-only components without a timezone in %s', (locale) => {
+    const zone = process.env.TZ;
+    try {
+      for (const tz of ['Pacific/Honolulu', 'Asia/Tokyo', 'America/Los_Angeles']) {
+        process.env.TZ = tz;
+        expect(formatDate('2026-10-07', locale)).toBe(
+          locale === 'en' ? 'Oct 7, 2026' : '2026年10月7日'
+        );
+        expect(formatDate('2024-02-29', locale)).toBe(
+          locale === 'en' ? 'Feb 29, 2024' : '2024年2月29日'
+        );
+      }
+    } finally {
+      if (zone === undefined) delete process.env.TZ;
+      else process.env.TZ = zone;
+    }
+    expect(formatDate('legacy date', locale)).toBe('legacy date');
   });
   it('formats small exchange rates without exponent notation', () => {
     expect(formatRate(0.0333)).toBe('0.0333');
@@ -19,7 +44,7 @@ describe('formatting', () => {
     expect(formatRate(0.00000123)).toBe('0.00000123');
     expect(formatRate(32.4567)).toBe('32.4567');
   });
-  it('reads the calendar date in the device time zone', () => {
+  it('reads the input calendar date in the device time zone', () => {
     expect(localDate(new Date(2026, 9, 3, 23, 59))).toBe('2026-10-03');
     expect(localDate(new Date(2026, 0, 5, 0, 0))).toBe('2026-01-05');
   });

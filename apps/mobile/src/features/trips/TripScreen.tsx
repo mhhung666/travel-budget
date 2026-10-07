@@ -14,7 +14,7 @@ import {
   usePalette,
 } from '@/components/ui';
 import { errorMessage, isAccessDenied } from '@/features/auth/errorMessage';
-import { money } from '@/i18n/format';
+import { useDisplayFormat } from '@/i18n/useDisplayFormat';
 import { useMessages } from '@/i18n/useMessages';
 import { useOnline } from '@/providers/useOnline';
 import { useTrip } from './queries';
@@ -27,6 +27,7 @@ export function TripScreen({ id }: { id: string }) {
   const query = useTrip(id);
   const trip = query.data;
   const t = useMessages();
+  const { money, date } = useDisplayFormat();
   const online = useOnline();
   // Never leave a previously cached member payload visible after access is denied.
   const { manager, user } = useAuth();
@@ -66,8 +67,11 @@ export function TripScreen({ id }: { id: string }) {
                 label={t.todayGroupSpent}
                 value={money(trip.todayGroupSpent)}
               />
-              <DetailRow label={t.startDate} value={trip.startDate ?? t.notSet} />
-              <DetailRow label={t.endDate} value={trip.endDate ?? t.notSet} />
+              <DetailRow
+                label={t.startDate}
+                value={trip.startDate ? date(trip.startDate) : t.notSet}
+              />
+              <DetailRow label={t.endDate} value={trip.endDate ? date(trip.endDate) : t.notSet} />
               <DetailRow label={t.memberCount} value={String(trip.memberCount)} />
               <DetailRow
                 testID="trip-budget"

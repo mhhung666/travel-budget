@@ -234,3 +234,28 @@ describe('online expense entry payloads', () => {
     ).toBe(true);
   });
 });
+
+it('reads optional virtual flags while accepting old expense responses', () => {
+  const old = {
+    id: '507f191e810c19729de860ea',
+    date: '2026-10-07',
+    description: 'TEST',
+    category: 'food',
+    payerId: '507f191e810c19729de860ea',
+    payerName: 'Amy',
+    amount: 1,
+    originalAmount: 1,
+    currency: 'TWD',
+    exchangeRate: 1,
+    splits: [{ userId: null, displayName: '', shareAmount: 1 }],
+  };
+  expect(expenseDetailSchema.parse(old)).toEqual(old);
+  expect(
+    expenseDetailSchema.parse({
+      ...old,
+      payerIsVirtual: true,
+      splits: [{ ...old.splits[0], isVirtual: false }],
+    })
+  ).toMatchObject({ payerIsVirtual: true, splits: [{ isVirtual: false }] });
+  expect(expenseDetailSchema.safeParse({ ...old, payerIsVirtual: 'yes' }).success).toBe(false);
+});

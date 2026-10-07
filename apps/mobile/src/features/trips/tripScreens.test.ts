@@ -2,7 +2,7 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import { isValidElement, type ReactElement, type ReactNode } from 'react';
 import { messages } from '@/i18n/messages';
 import { colors } from '@/theme/tokens';
-import { money } from '@/i18n/format';
+import { formatDate, money } from '@/i18n/format';
 import type { Trip } from '@/api/contracts';
 import { TripsScreen } from './TripsScreen';
 import { TripScreen, TripSupplement } from './TripScreen';
@@ -15,6 +15,7 @@ const h = vi.hoisted(() => ({
   dark: false,
   fontScale: 1,
   width: 390,
+  measuredWidth: 0,
   expanded: false,
   online: true,
   user: { id: 'account' } as { id: string } | null,
@@ -53,12 +54,20 @@ const h = vi.hoisted(() => ({
 }));
 vi.mock('react', async (original) => ({
   ...(await original<typeof import('react')>()),
-  useState: () => [
-    h.expanded,
-    (value: (old: boolean) => boolean) => {
-      h.expanded = value(h.expanded);
-    },
-  ],
+  useState: (initial: unknown) =>
+    typeof initial === 'number'
+      ? [
+          h.measuredWidth,
+          (value: number) => {
+            h.measuredWidth = value;
+          },
+        ]
+      : [
+          h.expanded,
+          (value: (old: boolean) => boolean) => {
+            h.expanded = value(h.expanded);
+          },
+        ],
 }));
 vi.mock('react-native', () => ({
   ...Object.fromEntries(
@@ -94,7 +103,7 @@ vi.mock('@/components/ui', async () => {
 });
 vi.mock('@/i18n/useMessages', async () => {
   const { messages } = await import('@/i18n/messages');
-  return { useMessages: () => messages[h.locale] };
+  return { useMessages: () => messages[h.locale], useAppLocale: () => h.locale };
 });
 vi.mock('@/features/auth/AuthProvider', () => ({
   useAuth: () => ({ user: h.user, manager: { api: { baseUrl: 'https://test/api/v1' } } }),
@@ -158,6 +167,7 @@ beforeEach(() => {
     dark: false,
     fontScale: 1,
     width: 390,
+    measuredWidth: 0,
     expanded: false,
     online: true,
     user: { id: 'account' },
@@ -190,9 +200,11 @@ it.each(['zh', 'zh-CN', 'en', 'jp'] as const)(
   (locale) => {
     const t = messages[locale];
     expect(tripDates({ startDate: null, endDate: null }, t)).toBe(t.unscheduled);
-    expect(tripDates(trip, t)).toBe('2026-10-08 — 2026-10-11');
-    expect(tripDates({ startDate: null, endDate: trip.endDate }, t)).toBe(
-      `${t.startDate}: ${t.notSet} · ${t.endDate}: 2026-10-11`
+    expect(tripDates(trip, t, locale)).toBe(
+      `${formatDate(trip.startDate!, locale)} — ${formatDate(trip.endDate!, locale)}`
+    );
+    expect(tripDates({ startDate: null, endDate: trip.endDate }, t, locale)).toBe(
+      `${t.startDate}: ${t.notSet} · ${t.endDate}: ${formatDate(trip.endDate!, locale)}`
     );
     expect(tripDates({ startDate: trip.startDate, endDate: null }, t)).toContain(
       `${t.endDate}: ${t.notSet}`
@@ -211,12 +223,16 @@ it.each([
   });
   expect(find(tree, 'testID', 'trip-my-spent').props.value).toBe(money(43.3));
 });
-it('stacks financial metrics at large text sizes or narrow width, without fixed height', () => {
+it('uses measured container width, including card padding and the page cap', () => {
+  h.width = 1200;
+  h.measuredWidth = 0;
+  const tree = TripFinancialSummary({ trip });
+  expect(tree.props.style.flexDirection).toBe('column');
+  (tree.props.onLayout as (e: unknown) => void)({ nativeEvent: { layout: { width: 310 } } });
+  expect(TripFinancialSummary({ trip }).props.style.flexDirection).toBe('column');
+  (tree.props.onLayout as (e: unknown) => void)({ nativeEvent: { layout: { width: 600 } } });
   expect(TripFinancialSummary({ trip }).props.style.flexDirection).toBe('row');
   h.fontScale = 2;
-  expect(TripFinancialSummary({ trip }).props.style.flexDirection).toBe('column');
-  h.fontScale = 1;
-  h.width = 320;
   expect(TripFinancialSummary({ trip }).props.style.flexDirection).toBe('column');
 });
 it('keeps long archived names and truthful accounting in the accessible card, in both palettes', () => {

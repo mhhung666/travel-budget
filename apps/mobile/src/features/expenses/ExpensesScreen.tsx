@@ -1,70 +1,17 @@
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native';
 import { ScreenFrame } from '@/components/frame';
 import { TripContext } from '@/features/navigation/TripContext';
 import { router } from 'expo-router';
-import type { Expense } from '@/api/contracts';
 import { Action, Copy, Notice, Title, styles, usePalette } from '@/components/ui';
 import { errorMessage, isAccessDenied } from '@/features/auth/errorMessage';
-import { formatCurrency, money } from '@/i18n/format';
 import { useMessages } from '@/i18n/useMessages';
 import { useOnline } from '@/providers/useOnline';
 import { usePendingExpenses } from './entryProvider';
 import { useExpenses } from './queries';
-import { isForeign, memberName, uniqueExpenses } from './rows';
-
-function ExpenseRow({ expense, tripId }: { expense: Expense; tripId: string }) {
-  const p = usePalette();
-  const t = useMessages();
-  const payer = memberName(expense.payerName, t);
-  const original = isForeign(expense)
-    ? formatCurrency(expense.originalAmount, expense.currency)
-    : null;
-  return (
-    <Pressable
-      testID={`expense-${expense.id}`}
-      accessibilityRole="button"
-      accessibilityLabel={[
-        expense.description,
-        expense.date,
-        `${t.paidBy} ${payer}`,
-        money(expense.amount),
-        original,
-      ]
-        .filter(Boolean)
-        .join(', ')}
-      onPress={() =>
-        router.push({
-          pathname: '/trips/[id]/expenses/[expenseId]',
-          params: { id: tripId, expenseId: expense.id },
-        })
-      }
-      style={({ pressed }) => ({
-        backgroundColor: p.surface,
-        borderColor: p.border,
-        borderWidth: 1,
-        borderRadius: 18,
-        padding: 18,
-        marginBottom: 12,
-        gap: 6,
-        opacity: pressed ? 0.8 : 1,
-      })}
-    >
-      <Text style={{ color: p.text, fontSize: 18, lineHeight: 26, fontWeight: '600' }}>
-        {expense.description}
-      </Text>
-      <Copy>{expense.date}</Copy>
-      <Text style={{ color: p.muted, fontSize: 16, lineHeight: 25 }}>
-        {t.paidBy} <Text style={{ color: p.text, fontWeight: '600' }}>{payer}</Text>
-      </Text>
-      <View style={{ borderTopWidth: 1, borderColor: p.border, paddingTop: 10, gap: 2 }}>
-        <Text style={{ color: p.text, fontSize: 20, fontWeight: '700' }}>
-          {money(expense.amount)}
-        </Text>
-        {original && <Copy>{original}</Copy>}
-      </View>
-    </Pressable>
-  );
-}
+import { uniqueExpenses } from './rows';
+import { ExpenseRow } from './ExpenseRow';
+import { useAuth } from '@/features/auth/AuthProvider';
+import { useDraftCatalog } from '@/features/localDrafts/provider';
 
 export function ExpensesScreen({ tripId }: { tripId: string }) {
   const t = useMessages();
@@ -73,8 +20,12 @@ export function ExpensesScreen({ tripId }: { tripId: string }) {
   const { query, refresh } = useExpenses(tripId);
   const hasPending = (usePendingExpenses(tripId).data?.length ?? 0) > 0;
   // Never leave a previously cached member payload visible after access is denied.
-  const denied = isAccessDenied(query.error);
+  const { user, manager } = useAuth();
+  const { catalog } = useDraftCatalog();
+  const scope = user ? { environment: manager.api.baseUrl, accountId: user.id } : null;
+  const denied = isAccessDenied(query.error) || !scope || !catalog.isVisible(scope, tripId);
   const expenses = denied ? [] : uniqueExpenses(query.data?.pages ?? []);
+  const payerPeers = expenses.map((e) => ({ id: e.payerId, name: e.payerName }));
   return (
     <ScreenFrame>
       <FlatList
@@ -126,7 +77,7 @@ export function ExpensesScreen({ tripId }: { tripId: string }) {
             online ? (
               <ActivityIndicator accessibilityLabel={t.loading} color={p.primary} />
             ) : null
-          ) : !query.isError ? (
+          ) : !query.isError && !denied ? (
             <View style={{ gap: 16 }}>
               <Title>{t.noExpenses}</Title>
               <Copy>{t.noExpensesHint}</Copy>
@@ -140,7 +91,7 @@ export function ExpensesScreen({ tripId }: { tripId: string }) {
             </View>
           ) : null
         }
-        renderItem={({ item }) => <ExpenseRow expense={item} tripId={tripId} />}
+        renderItem={({ item }) => <ExpenseRow expense={item} tripId={tripId} peers={payerPeers} />}
         ListFooterComponent={
           query.hasNextPage && !denied ? (
             <Action

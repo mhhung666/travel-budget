@@ -17,7 +17,15 @@ const PAGE_SIZE = 20;
 // Explicit projection: attachments, tags, itinerary links and outbox state never leave the database.
 const FIELDS =
   'payer amount originalAmount currency exchangeRate description category date createdAt splits';
-type LeanExpense = ExpenseDtoInput & { date: Date; createdAt: Date };
+type LeanExpense = Omit<ExpenseDtoInput, 'payer' | 'splits'> & {
+  date: Date;
+  createdAt: Date;
+  payer: (NonNullable<ExpenseDtoInput['payer']> & { isVirtual?: boolean }) | null;
+  splits: {
+    user: (NonNullable<ExpenseDtoInput['payer']> & { isVirtual?: boolean }) | null;
+    shareAmount: number;
+  }[];
+};
 type Cursor = { date: Date; createdAt: Date; id: string };
 
 // `<date ms>.<createdAt ms>.<id>`: exact stored values, so ties never skip or repeat a row.
@@ -81,7 +89,20 @@ export function toMobileExpenseDetail(expense: ExpenseDto): MobileExpenseDetail 
     })),
   };
 }
-// Same populate and DTO rules as the Web `getExpenses`; only display names are selected.
+/** Read metadata is kept separate from historical creation receipts and Web/public DTOs. */
+function readIdentity(expense: LeanExpense, tripId: string) {
+  const dto = toMobileExpenseDetail(toExpenseDto(expense, tripId, { attachments: false }));
+  if (typeof expense.payer?.isVirtual === 'boolean') dto.payerIsVirtual = expense.payer.isVirtual;
+  const flags = new Map(
+    (expense.splits ?? []).map((s) => [s.user?._id.toString(), s.user?.isVirtual])
+  );
+  dto.splits = dto.splits.map((s) => {
+    const flag = flags.get(s.userId ?? undefined);
+    return typeof flag === 'boolean' ? { ...s, isVirtual: flag } : s;
+  });
+  return dto;
+}
+// Same populate and DTO rules as the Web `getExpenses`; only display names and virtual-member flags are selected.
 export async function mobileExpenses(userId: string, id: string, url: URL) {
   const cursor = cursorParam(url);
   const tripId = await requireTripMember(userId, id);
@@ -89,14 +110,17 @@ export async function mobileExpenses(userId: string, id: string, url: URL) {
     .sort({ date: -1, createdAt: -1, _id: -1 })
     .limit(PAGE_SIZE + 1)
     .select(FIELDS)
-    .populate('payer', 'displayName')
-    .populate('splits.user', 'displayName')
+    .populate('payer', 'displayName isVirtual')
+    .populate('splits.user', 'displayName isVirtual')
     .lean<(LeanExpense & { _id: Types.ObjectId })[]>();
   const page = expenses.slice(0, PAGE_SIZE);
   return expensesSchema.parse({
-    items: page.map((expense) =>
-      toMobileExpense(toExpenseDto(expense, tripId, { attachments: false }))
-    ),
+    items: page.map((expense) => ({
+      ...toMobileExpense(toExpenseDto(expense, tripId, { attachments: false })),
+      ...(typeof expense.payer?.isVirtual === 'boolean'
+        ? { payerIsVirtual: expense.payer.isVirtual }
+        : {}),
+    })),
     nextCursor: expenses.length > PAGE_SIZE ? encodeExpenseCursor(page[page.length - 1]) : null,
   });
 }
@@ -106,11 +130,9 @@ export async function mobileExpense(userId: string, id: string, expenseId: strin
   // The trip filter rejects expenses that belong to another trip.
   const expense = await Expense.findOne({ _id: expenseId, trip: tripId })
     .select(FIELDS)
-    .populate('payer', 'displayName')
-    .populate('splits.user', 'displayName')
+    .populate('payer', 'displayName isVirtual')
+    .populate('splits.user', 'displayName isVirtual')
     .lean<LeanExpense | null>();
   if (!expense) throw new ApiError(404, 'NOT_FOUND');
-  return expenseDetailSchema.parse(
-    toMobileExpenseDetail(toExpenseDto(expense, tripId, { attachments: false }))
-  );
+  return expenseDetailSchema.parse(readIdentity(expense, tripId));
 }

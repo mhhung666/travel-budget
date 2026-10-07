@@ -26,7 +26,7 @@
 
 Trip DTO 包含 `id/name/description/startDate/endDate/destination/archived/memberCount/mySpent/myBalance/phase`。Landing 加入 `role/expenseCount/todayGroupSpent/budgetTotal`。日期為 date-only，金額為 TWD、保留既有到分規則；`myBalance` 正數是應收，負數是應付。沒有成員私人預算陣列、分享碼、檔案 key 或收據。
 
-支出清單按 `date`、`createdAt`、`_id` 降冪，游標編碼最後一筆的三個值，因此同日同時間的資料不會跨頁漏掉或重複；分頁不是快照，資料變更後從第一頁重讀。清單與明細 DTO 為明確白名單：id、日期、說明、分類（未知值歸為 `other`）、付款人、TWD 金額、原幣金額與幣別；明細另有匯率與各成員分攤。不輸出附件、標籤、行程關聯、登入帳號或分享碼。付款人或分攤成員的參照已不存在時，id 為 `null`、名稱為空字串。
+支出清單按 `date`、`createdAt`、`_id` 降冪，游標編碼最後一筆的三個值，因此同日同時間的資料不會跨頁漏掉或重複；分頁不是快照，資料變更後從第一頁重讀。清單與明細 DTO 為明確白名單：id、日期、說明、分類（未知值歸為 `other`）、付款人、TWD 金額、原幣金額與幣別；明細另有匯率與各成員分攤。不輸出附件、標籤、行程關聯、登入帳號或分享碼。付款人或分攤成員的參照已不存在時，id 為 `null`、名稱為空字串。授權清單／明細另提供可選 `payerIsVirtual`，明細分攤可選 `isVirtual`，只來自目前解析的使用者欄位；舊 API／歷史 receipt 缺旗標仍有效，缺值不可推定為正式或虛擬成員。此資訊不代表目前旅行成員資格。
 
 結算沿用 `readSettlement` 的餘額與最少轉帳計算（已先扣除已登記還款），`suggestedTransfers` 帶成員 id 以辨識同名成員，全部尚未付款；`status` 為 `empty`（無支出也無還款）、`settled` 或 `outstanding`（任何餘額未歸零即為此狀態）。結算仍讀取該旅行全部支出與還款，游標分頁不代表結算查詢有最佳化。
 

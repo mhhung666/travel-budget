@@ -305,6 +305,7 @@ describe.skipIf(!uri || !allowed)('mobile read APIs on MongoDB', () => {
     expect(await byDescription('virtual payer')).toMatchObject({
       payerId: guest._id.toHexString(),
       payerName: 'Name guest',
+      payerIsVirtual: true,
       splits: [{ shareAmount: 120 }, { shareAmount: 80 }],
     });
     const legacy = await byDescription('legacy');

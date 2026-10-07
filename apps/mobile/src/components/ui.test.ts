@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createElement, isValidElement, type ReactElement, type ReactNode } from 'react';
 import { Action, Badge, Card, Chip, Notice, Page, TextField } from './ui';
+import { PageHeader } from './screen';
 import { Icon } from './icons';
 import { colors, sizing } from '@/theme/tokens';
 
@@ -320,4 +321,19 @@ describe('selectable and decorative components', () => {
       keyboardDismissMode: 'on-drag',
     });
   });
+});
+
+it('keeps a header back control left aligned at content width and retains its 48 target', () => {
+  const onBack = vi.fn();
+  const tree = render(() =>
+    PageHeader({ backLabel: 'Back to expenses', onBack, backTestID: 'back' })
+  );
+  const action = find(tree, Action);
+  const wrapper = find(tree, 'View').props.children as Element[];
+  expect(wrapper[0].props.style).toMatchObject({ alignSelf: 'flex-start', maxWidth: '100%' });
+  expect(action.props).toMatchObject({ variant: 'ghost', icon: 'chevron-left', testID: 'back' });
+  const button = render(() => Action(action.props as Parameters<typeof Action>[0]));
+  expect(style(button).minHeight).toBe(48);
+  press(button);
+  expect(onBack).toHaveBeenCalledOnce();
 });

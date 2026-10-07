@@ -157,3 +157,7 @@ E3 成功只存最小 receipt 結果並刷新資源，刪除明細不再重讀�
 `settlement/paymentForm.ts` 只驗證輸入並核對後端建議，不複製結算算法；`PaymentScreen` 共用登記／撤銷的線上表單，明確核對最新 context 後才交 `TripEntry` 保存。`payment.create`／`payment.delete` 沿用 schema 8 E 操作表、帳號／環境期限、C／D／E 同旅行互斥與登入／撤權守衛，無額外 schema 升級或原生依賴。
 
 已確認請求凍結，啟動／前景／重連只查 receipt；終局拒絕保留原輸入，重開先讀授權 context，新確認才有新 UUID。查詢快照不保存還款 context，撤權立即隱藏私人資料。成功刷新既有結算／landing／列表，只讀失敗不推翻寫入；方向／金額不依 receipt 歷史快照樂觀覆蓋目前資料。後端服務與完整錯誤規則見 [E4 契約](BACKEND_CONTRACT.md#e4-登記與撤銷還款)。
+
+## U2a 顯示層
+
+`i18n/format.ts` 提供純金額／匯率／date-only 顯示，`useDisplayFormat` 依 App 四語傳入 locale；旅行卡片／概覽與支出閱讀共用，原始表單值與後端 money 規則不變。`expenses/ExpenseRow` 與 `rows.expenseMemberLabel` 只整理目前可見 DTO，使用 ID 識別本人及同名，null 參照與可選虛擬旗標明示狀態，沒有額外成員查詢或帳務快取。後端旗標只加入授權讀取的白名單，不改 Web／public DTO 或既有 receipt。

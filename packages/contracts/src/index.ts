@@ -95,6 +95,7 @@ export const expenseSchema = z.object({
   category: expenseCategorySchema,
   payerId: memberIdSchema,
   payerName: z.string(),
+  payerIsVirtual: z.boolean().optional(),
   amount: z.number(),
   originalAmount: z.number(),
   currency: z.string(),
@@ -102,7 +103,12 @@ export const expenseSchema = z.object({
 export const expenseDetailSchema = expenseSchema.extend({
   exchangeRate: z.number(),
   splits: z.array(
-    z.object({ userId: memberIdSchema, displayName: z.string(), shareAmount: z.number() })
+    z.object({
+      userId: memberIdSchema,
+      displayName: z.string(),
+      shareAmount: z.number(),
+      isVirtual: z.boolean().optional(),
+    })
   ),
 });
 export const expensesSchema = z.object({

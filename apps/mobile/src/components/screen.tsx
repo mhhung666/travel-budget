@@ -13,14 +13,16 @@ export type HeaderProps = {
 export function PageHeader({ title, backLabel, onBack, busy = false, backTestID }: HeaderProps) {
   return (
     <View style={{ gap: spacing.small }}>
-      <Action
-        variant="ghost"
-        icon="chevron-left"
-        label={backLabel}
-        disabled={busy}
-        testID={backTestID}
-        onPress={onBack}
-      />
+      <View style={{ alignSelf: 'flex-start', maxWidth: '100%' }}>
+        <Action
+          variant="ghost"
+          icon="chevron-left"
+          label={backLabel}
+          disabled={busy}
+          testID={backTestID}
+          onPress={onBack}
+        />
+      </View>
       {!!title && <Title>{title}</Title>}
     </View>
   );

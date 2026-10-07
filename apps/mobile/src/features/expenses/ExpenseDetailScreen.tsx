@@ -4,19 +4,38 @@ import { ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import { Action, Card, Copy, DetailRow, Notice, Page, Section, Title } from '@/components/ui';
 import { errorMessage, isAccessDenied } from '@/features/auth/errorMessage';
-import { formatCurrency, formatRate, money } from '@/i18n/format';
+import { useDisplayFormat } from '@/i18n/useDisplayFormat';
+import { useAuth } from '@/features/auth/AuthProvider';
+import { useDraftCatalog } from '@/features/localDrafts/provider';
 import { useMessages } from '@/i18n/useMessages';
 import { useOnline } from '@/providers/useOnline';
 import { useExpense } from './queries';
-import { categoryLabel, isForeign, memberName } from './rows';
+import { categoryLabel, isForeign, expenseMemberLabel, type ReadMember } from './rows';
 
 export function ExpenseDetailScreen({ tripId, expenseId }: { tripId: string; expenseId: string }) {
   const t = useMessages();
+  const f = useDisplayFormat();
+  const { user, manager } = useAuth();
+  const { catalog } = useDraftCatalog();
+  const scope = user ? { environment: manager.api.baseUrl, accountId: user.id } : null;
   const online = useOnline();
   const query = useExpense(tripId, expenseId);
   const expense = query.data;
   // Never leave a previously cached member payload visible after access is denied.
-  const denied = isAccessDenied(query.error);
+  const denied = isAccessDenied(query.error) || !scope || !catalog.isVisible(scope, tripId);
+  const payer: ReadMember = {
+    id: expense?.payerId ?? null,
+    name: expense?.payerName ?? '',
+    isVirtual: expense?.payerIsVirtual,
+  };
+  const peers: ReadMember[] = [
+    payer,
+    ...(expense?.splits.map((s) => ({
+      id: s.userId,
+      name: s.displayName,
+      isVirtual: s.isVirtual,
+    })) ?? []),
+  ];
   return (
     <Page>
       <PageHeader
@@ -50,7 +69,12 @@ export function ExpenseDetailScreen({ tripId, expenseId }: { tripId: string; exp
         <>
           <Title>{expense.description}</Title>
           <Card>
-            <DetailRow testID="expense-date" label={t.date} value={expense.date} />
+            <DetailRow
+              testID="expense-amount"
+              label={t.amountTwd}
+              value={f.money(expense.amount)}
+            />
+            <DetailRow testID="expense-date" label={t.date} value={f.date(expense.date)} />
             <DetailRow
               testID="expense-category"
               label={t.category}
@@ -59,20 +83,19 @@ export function ExpenseDetailScreen({ tripId, expenseId }: { tripId: string; exp
             <DetailRow
               testID="expense-payer"
               label={t.paidBy}
-              value={memberName(expense.payerName, t)}
+              value={expenseMemberLabel(payer, peers, user?.id, t)}
             />
-            <DetailRow testID="expense-amount" label={t.amountTwd} value={money(expense.amount)} />
             {isForeign(expense) && (
               <>
                 <DetailRow
                   testID="expense-original"
                   label={t.originalAmount}
-                  value={formatCurrency(expense.originalAmount, expense.currency)}
+                  value={`${expense.currency} · ${f.currency(expense.originalAmount, expense.currency)}`}
                 />
                 <DetailRow
                   testID="expense-rate"
                   label={t.exchangeRate}
-                  value={formatRate(expense.exchangeRate)}
+                  value={f.rate(expense.exchangeRate)}
                 />
               </>
             )}
@@ -86,8 +109,13 @@ export function ExpenseDetailScreen({ tripId, expenseId }: { tripId: string; exp
                   <DetailRow
                     key={`${split.userId ?? 'unknown'}-${index}`}
                     testID={`expense-split-${index}`}
-                    label={memberName(split.displayName, t)}
-                    value={money(split.shareAmount)}
+                    label={expenseMemberLabel(
+                      { id: split.userId, name: split.displayName, isVirtual: split.isVirtual },
+                      peers,
+                      user?.id,
+                      t
+                    )}
+                    value={f.money(split.shareAmount)}
                   />
                 ))}
               </Card>
@@ -96,6 +124,7 @@ export function ExpenseDetailScreen({ tripId, expenseId }: { tripId: string; exp
           <Copy>{t.amountsInTwd}</Copy>
           <Action
             testID="expense-edit"
+            variant="secondary"
             label={t.editExpense}
             disabled={!online}
             onPress={() =>
@@ -107,7 +136,7 @@ export function ExpenseDetailScreen({ tripId, expenseId }: { tripId: string; exp
           />
           <Action
             testID="expense-delete"
-            secondary
+            variant="danger"
             label={t.deleteExpense}
             disabled={!online}
             onPress={() =>
