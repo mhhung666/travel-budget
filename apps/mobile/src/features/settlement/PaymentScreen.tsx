@@ -81,7 +81,7 @@ export function PaymentScreen({
   const note = useRef<TextInput>(null);
   const dirty = !!fields && JSON.stringify(fields) !== JSON.stringify(initial);
   usePreventRemove(dirty && !busy && !pending && !done, ({ data }) =>
-    Alert.alert(t.unsavedTrip, undefined, [
+    Alert.alert(t.leaveFormTitle, t.unsavedTrip, [
       { text: t.stayForm, style: 'cancel' },
       { text: t.leaveForm, style: 'destructive', onPress: () => navigation.dispatch(data.action) },
     ])
@@ -341,6 +341,7 @@ export function PaymentScreen({
   return (
     <Page form>
       <Action
+        testID="payment-back"
         secondary
         label={t.back}
         disabled={busy}
@@ -396,6 +397,7 @@ export function PaymentScreen({
                   {showContext(latest)}
                   <Notice>{t.paymentChanged}</Notice>
                   <Action
+                    testID="payment-reconfirm"
                     label={t.reconfirmPayment}
                     onPress={() => {
                       setContext(latest);
@@ -412,6 +414,7 @@ export function PaymentScreen({
                   <Section title={t.paymentFrom}>
                     {context.members.map((m) => (
                       <Chip
+                        testID={`payment-from-${m.id}`}
                         key={m.id}
                         label={label(context, m.id)}
                         selected={fields.fromId === m.id}
@@ -423,6 +426,7 @@ export function PaymentScreen({
                   <Section title={t.paymentTo}>
                     {context.members.map((m) => (
                       <Chip
+                        testID={`payment-to-${m.id}`}
                         key={m.id}
                         label={label(context, m.id)}
                         selected={fields.toId === m.id}
@@ -432,6 +436,7 @@ export function PaymentScreen({
                     ))}
                   </Section>
                   <TextField
+                    testID="payment-amount"
                     inputRef={amount}
                     label={t.amountTwd}
                     value={fields.amountText}
@@ -448,6 +453,7 @@ export function PaymentScreen({
                     }}
                   />
                   <TextField
+                    testID="payment-note"
                     inputRef={note}
                     label={t.paymentNote}
                     value={fields.note}
@@ -481,6 +487,7 @@ export function PaymentScreen({
                     showContext(context)
                   )}
                   <Action
+                    testID="payment-submit"
                     label={paymentId ? t.revokePayment : t.recordPayment}
                     busy={busy}
                     disabled={!online || !native}
@@ -495,6 +502,7 @@ export function PaymentScreen({
                 </Card>
               ) : (
                 <Action
+                  testID="payment-preview"
                   label={t.confirmPayment}
                   busy={busy}
                   disabled={!online || !native || !!latest}

@@ -82,15 +82,17 @@ pnpm --filter @travel-budget/web dev:mobile-api
 
 ```bash
 # iOS Simulator
-EXPO_PUBLIC_API_BASE_URL=http://127.0.0.1:PORT/api/v1 \
+EXPO_NO_DOTENV=1 EXPO_PUBLIC_API_BASE_URL=http://127.0.0.1:PORT/api/v1 \
   NODE_OPTIONS=--dns-result-order=ipv4first \
   pnpm --filter travel-budget-mobile exec expo start --ios --localhost
 
 # Android Emulator：同時測兩平台時使用不同 Metro port
-EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:PORT/api/v1 \
+EXPO_NO_DOTENV=1 EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:PORT/api/v1 \
   NODE_OPTIONS=--dns-result-order=ipv4first \
   pnpm --filter travel-budget-mobile exec expo start --android --localhost --port 8082
 ```
+
+驗收 Metro 使用 `EXPO_NO_DOTENV=1`，避免載入其他環境的公開設定；啟動 App 前核對實際 bundle 的 API／網站 origin 與 fixture 相符。同時執行不同環境時使用獨立 source 與 Metro cache。
 
 iOS 指令固定 IPv4 優先，避免 Metro 只監聽 `::1`、Expo Go 卻連到 `127.0.0.1` 的不一致。Expo CLI 會安裝相容的 Expo Go；此階段不需要正式 App ID、簽章或 EAS project。development build 與正式套件驗收仍是後續工作。
 
@@ -306,9 +308,60 @@ D1／D2／D3 程式已完成；2026-10-05～06 主要裝置情境已通過，已
 
 E 裝置驗收時程：依 2026-10-06 使用者決定，待 E1–E4 全部功能完成，再統一執行 iOS／Android 的完整使用流程、各片操作與必要故障驗收。各片先完成程式審查與自動化驗證並保留操作清單；尚未操作的裝置項目維持待驗，不計通過。
 
+## E1–E4 原生驗收紀錄（2026-10-06～2026-10-07）
+
+狀態：**2026-10-07 E1–E4 本機原生驗收完成；真機／development build／完整閱讀器與外部郵件投遞未驗**。使用 iOS 27 iPhone 18 Pro Simulator 與 Android 36 Emulator 的 Expo Go，連接 disposable MongoDB／本機 Next.js HTTP；下列原生證據與開發測試分開計算。
+
+- 兩平台各 15 個基本操作案例通過：註冊與登入、建立旅行、邀請複製及另一帳號加入、新增 TWD 100、保留帳務修改基本資料、部分還款 10／撤銷、刪除支出、寄碼受理／前導零碼確認、新密碼登入與冷啟動。後端核對修改金額、還款／撤銷、刪除及舊 session 拒絕。
+- 兩平台故障套件各 28 個操作案例通過：E1 建立、E3 修改／刪除、E4 登記／撤銷的 SQLite 保存失敗零寫入 HTTP，以及丟回應後重啟、查回原 UUID，核對每個 UUID 僅一次寫入；最終支出／還款皆零筆。
+- 四語顯示主套件每平台 66 個案例通過，涵蓋四語各「淺色／預設字級」及「深色／最大字級」；建立／加入驗證、邀請複製／系統分享、0.01 均分與付款預覽、離開提醒、帳號錯誤／下一欄。兩平台另兩組外觀／字級各 66 個補驗案例已通過，基本顯示補齊完整 16 組；原生零未確認寫入、各 fixture 保留一筆支出／零還款。證據 `/tmp/tb-e-matrix-extra-android-en-1791358034281/display-final-audit.json`、`/tmp/tb-e-matrix-extra-ios-en-1791358590765/display-final-audit.json`。兩平台完整警告／危險確認亦已補齊 16 組，結果見下方。
+- 本機 Resend adapter 實際產生並接收驗證碼：iOS 22 案例通過；Android 主套件 21 案例加未知 Email 原生補驗 1 案例通過，主套件失敗仍保留。涵蓋 72／73 bytes、六字元新密碼、可用碼重寄保護、五次錯誤與 60 秒恢復、新碼重設丟回應、舊 access／refresh 拒絕、C／D／E 本機紀錄保留與原 UUID 同步。到期使用 scoped DB 時間注入；此工具不發外部郵件，不等同正式信箱投遞驗收。
+- 兩平台 E2 寄碼／驗碼各自期限已以實際寄碼與真實等待通過：寄碼 3300 秒仍可驗碼、驗碼 120 秒不阻擋手動重寄、重寄不清驗碼期限、零自動確認且到期手動成功。證據 `/tmp/tb-e-account-rate-ios-en-1791348868746/account-rate-evidence.json`、`/tmp/tb-e-account-rate-android-en-1791350211876/account-rate-evidence.json`；產物已清除碼與敏感畫面。
+- 兩平台 E2 註冊 120 秒限制、到期手動成功與離開 busy 表單後晚到回應不覆蓋登入輸入已通過。證據 `/tmp/tb-e-account-boundary-ios-en-1791349381853/account-boundary-evidence.json`、`/tmp/tb-e-account-boundary-android-en-1791350755714/account-boundary-evidence.json`；Android 清除欄位留下尾端／空值定位失敗另保留，後續以等待前後精確輸入斷言補驗。
+- Web 建立帳號在兩平台原生登入；兩平台實際重設帳號以新密碼在 Web UI 登入並讀回原旅行。註冊雙擊、busy 與大小寫／空白衝突兩平台各 2 案例通過，DB 每個身分仍僅一 user。
+- 進階帳務套件 Android 41／iOS 40 個案例通過：歷史外幣與非均分資料保留、衝突後手動確認、三人同名依 ID、第三人登記與反向／超額付款、撤銷前內容變更、成功後重讀失敗只重讀、刪除附件清理及原 receipt 重播不復活。Web UI 複驗發現同名成員角色／預填混淆，已改以成員 ID 判定並補回歸測試。私有證據：`/tmp/tb-e-advanced-android-en-1791302003408/advanced-evidence.json`、`/tmp/tb-e-advanced-ios-en-1791303051535/advanced-evidence.json`。
+- 兩平台邊界補驗已核對同名成員 ID 替換的拒絕／原輸入重開、單筆資源 404 保留旅行、舊邀請碼終局拒絕、加入丟回應後移除成員／刪除旅行的原 UUID 查詢與重試不再送 POST、邀請頁背景／晚到回應／撤權不殘留碼，以及支出／還款撤權後隱藏私人表單且保留原生 SQLite pending。HTTP／SQLite audit：`/tmp/tb-e-boundary-rest-android-en-1791304805247/boundary-evidence.json`、`/tmp/tb-e-boundary-ios-en-1791338028770/boundary-evidence.json`；行程變更先前證據另保留於 `/tmp/tb-e-boundary-android-en-1791304538336`，錯誤刺激與操作腳本失敗不改寫為通過。
+- 兩平台已補驗 E1 建立、E3 修改／刪除與 E4 登記／撤銷的實際 SQLite 結案 UPDATE 失敗；冷啟動與原 UUID 查詢皆不重送，五筆 receipt 已提交、最終支出／還款零筆。證據：`/tmp/tb-e-completion-android-en-1791338651973/completion-evidence.json`、`/tmp/tb-e-completion-ios-en-1791339776733/completion-evidence.json`。這不取代提交後、結案前真正終止程序的驗收。
+- 兩平台已完成建立旅行 POST／原 UUID 查詢、修改支出、登記還款四個入口的實際 HTTP 429／Retry-After 120：31 秒後冷啟動內 C／D／E 零提早查詢／寫入，SQLite 原始期限與 UUID／內容保留；到期後 D 僅同步一次，E 明確重試沿用原 UUID／body。iOS 第一輪末項超過期限，已保留失敗並重新收到實際 429 後補通過。各入口證據位於 `/tmp/tb-e-rate-{e1,e1-lookup,e3,e4}-{android,ios}-en-*/rate-evidence.json`；iOS 還款最後一輪為 `/tmp/tb-e-rate-e4-ios-en-1791343293256/rate-evidence.json`。兩平台另通過跨旅行 E3／E4 共用期限攔截，證據 `/tmp/tb-e-rate-cross-trip-e1-android-en-1791342774719/cross-rate-evidence.json`、`/tmp/tb-e-rate-cross-trip-e1-ios-en-1791348556959/cross-rate-evidence.json`。
+- iOS／Android 兩位正式成員以相同舊結算版號同時送出不同 UUID：一筆付款成功、一筆終局 `SETTLEMENT_CHANGED` 且原輸入保留，DB 核對僅一 payment、兩 receipt、各一付款通知／活動。私有證據：`/tmp/tb-e-payment-pair-evidence.json`；第一輪腳本提早結束的失敗另保留，不列通過。
+- 兩平台 C／D／E 完整協調以新 fixture 通過：同旅行 C／D 與 E3／E4 互擋、另一旅行還款／佇列可繼續、原 pending 保留且解除後只提交一次。證據 `/tmp/tb-e-coordinator-e1-android-en-1791347616274/coordinator-evidence.json`、`/tmp/tb-e-coordinator-e1-ios-en-1791347616275/coordinator-evidence.json`；前次已同步 fixture、草稿恢復與捲動腳本失敗保留，不算通過。
+- 兩平台五種操作（E1 建立、E3 修改／刪除、E4 登記／撤銷）已通過兩個真正程序終止時點：SQLite 保存後／fetch 前，以及 HTTP 成功後／SQLite 結案前。核對原生 pending payload、後端 receipt 指紋、跨帳號／API 環境隔離與原 UUID 恢復；送前手動提交一次、提交後只查不重送，最終支出／還款零筆。送前待確認畫面亦通過四語完整 16 組顯示。
+- 三個 await 時點新增限速的 30 組案例通過：fetch 前、實際 401 refresh 後、SQLite 插入前，各五種操作／兩平台。保存原始 120 秒期限，實際等待 31 秒後冷啟動零提早查詢／寫入；到期手動沿原 UUID／body 提交一次。插入前使用隔離開發 gate，並非 SQLite 檔案鎖。
+- 同程序 A→B→A 延遲保存共十組案例通過：實際切換前後 Expo PID 相同；A 晚到保存仍歸 A，B 不查送 A UUID、不受晚到導頁影響；回 A 才手動提交原 UUID 一次，最終帳務零筆。
+
+| 補驗證據           | 私有目錄（各有結果 JSON、HTTP／原生 SQLite 核對）                                                                                                                            |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 送前程序終止       | `/tmp/tb-e-presend-android-en-1791348428842`、`/tmp/tb-e-presend-ios-en-1791349677087`；Android E1／E3 原生 payload 補核對 `/tmp/tb-e-presend-body-android-en-1791351432290` |
+| 提交後程序終止     | `/tmp/tb-e-postsend-android-en-1791352287328`、`/tmp/tb-e-postsend-ios-en-1791353011294`                                                                                     |
+| fetch 前等待限速   | `/tmp/tb-e-guard-rate-mutation-before-fetch-android-en-1791353353932`、`/tmp/tb-e-guard-rate-mutation-before-fetch-ios-en-1791354653224`                                     |
+| refresh 後等待限速 | `/tmp/tb-e-guard-rate-mutation-after-refresh-android-en-1791354801201`、`/tmp/tb-e-guard-rate-mutation-after-refresh-ios-en-1791355651829`                                   |
+| 插入前等待限速     | `/tmp/tb-e-guard-rate-mutation-before-sqlite-insert-android-en-1791356192385`、`/tmp/tb-e-guard-rate-mutation-before-sqlite-insert-ios-en-1791356625533`                     |
+| 同程序身分隔離     | `/tmp/tb-e-live-scope-android-en-1791357155426`、`/tmp/tb-e-live-scope-ios-en-1791357622043`                                                                                 |
+
+證據限制：iOS 提交後程序終止續跑曾覆寫 gate 事件檔；五種操作改以程序終止後的原生 pending 快照、先前成功 HTTP、後端 receipt 與冷啟動／scope 操作交叉核對，不把遺失事件檔計為證據。Android refresh 還款第一次冷啟動落入離線身分並超過窗口，另以同 UUID／body 再次實際 401 refresh、新增期限補驗。未到 gate、驅動逾時、定位、查詢注入與 Expo 浮層遮擋等失敗均保留，不列通過；每組僅以完整後續核對計通過。
+
+- 尚未執行的範圍見下方剩餘待驗清單；準備好的腳本不計通過，完整閱讀器／真機範圍保留於 F。
+
+私有本機證據（含原生操作 log、截圖及結果，勿公開其中帳號／輸入）：`/tmp/tb-e-acceptance-ios-en-1791281610222`、`/tmp/tb-e-acceptance-android-en-1791281534379`；故障結果位於 `/tmp/tb-e-faults-ios-en-1791285121386`、`/tmp/tb-e-faults-android-en-1791284774392`。基本流程終局 DB 核對：`/tmp/tb-e-final-basic-audit.json`（每旅行兩位成員、六筆已提交 E receipt、支出／還款零筆）。`results.json` 僅以 `passed: true` 計通過；歷史失敗與後續補驗皆保留，不算作產品通過。
+
+裝置驗收發現 Android 離開提醒把長說明當成標題而截斷；已改為短標題與完整訊息，四語完整 16 組已重新驗證通過。Android 補驗 65 個原生案例皆通過，零未確認寫入、原支出／還款各一筆保留；證據 `/tmp/tb-e-supplement-android-en-1791361397646/display-final-audit.json`。iOS 四語完整 16 組亦通過，含最大字級提示框內捲動、全文與段末核對；68 個通過紀錄含 65 個主案例、冷啟動環境確認及兩個返回結算頁續驗，零未確認寫入，原支出／還款各一筆保留。證據 `/tmp/tb-e-supplement-ios-en-1791363439453/display-final-audit.json`。兩平台關鍵最大字級警告／危險標籤另人工檢視 18 張截圖，清單 `/tmp/tb-e-visual-qa-evidence.json`；全矩陣原生操作與人工截圖檢視範圍分開計算。
+
+續驗曾因其他環境切換，使 Expo bundle 的公開 API 位址與驗收 Metro 啟動值不一致：日文最大字級在登入頁停止，恢復登入亦失敗；該登入送往正式 API，不算本機驗收，未進入帳務表單。失敗證據保留。改用獨立暫存 source／Metro cache、`EXPO_NO_DOTENV=1`，先讀取實際 iOS bundle 確認 API 指向本機代理，再啟動 App；原測試帳號冷啟動恢復通過。後續驗收均以代理流量核對環境。日文最大字級另因返回結算頁時的捲動方向／位置判定而逾時；深淺色原流程均已完成警告與撤銷取消，保持 App 不重啟並補驗回頁首、向下捲動及總額顯示通過。結果連結原失敗 log 與各組 `*-return-continuation.log`，不改寫原失敗證據。
+
+為原生驗收增加穩定操作 testID，並擴充按環境／帳號隔離的 SQLite mutation 保存／結案故障注入。Mobile check、723 項測試（689 Vitest＋34 工具）與 iOS／Android／Web 匯出通過；Web 型別／Lint／格式及 2,054 項測試通過，另 442 項隔離整合測試未在此輪執行；匯出不算原生驗收。驗收完成後依使用者要求提交，兩應用各調升 patch；未部署或執行遠端 migration。
+
+### 剩餘待驗清單
+
+E1–E4 本機 iOS／Android Expo Go 操作與故障矩陣已完成，Web production build 與交付檢查通過。下列範圍保留待驗，不計通過：
+
+1. F：真機、development build、完整 VoiceOver／TalkBack（含先前 C／D 暫緩範圍）。
+2. 外部正式信箱投遞：localhost 收件匣已驗，不代表實際郵件供應商／收件匣投遞成功。
+
+驗收與補核對工具位於私有 `/tmp/tb-e-*.mjs`，顯示續驗入口為 `/tmp/tb-e-supplement-resume.mjs`；原生證據與歷史失敗保留在 `/tmp/tb-e-*`。開發 gate 僅在隔離 worktree `/Users/mhhung/.codex/worktrees/e-native-acceptance-7684/travel-budget`，未加入主專案產品程式。續驗前先確認 disposable API、Metro 與模擬器仍可用；若重建 fixture，需使用新帳號 ID／權杖／連接埠，不沿用舊秘密。
+
 ## E1 旅行入口驗收交接
 
-狀態：程式與自動化檢查已交付，審查兩項 Web P2 已修並通過獨立複驗；後續多成員加入時通知重複鍵亦已修正並通過真 MongoDB 回歸，見 [E 規格](ROADMAP.md#e-規格基本使用流程)；**本節 iOS／Android 尚未執行**。D 既有通過不能覆蓋 E1。以 `pnpm --filter @travel-budget/web dev:mobile-api` 的 disposable MongoDB／實際 HTTP 為後端，使用既有隔離帳號；邀請頁後端 `APP_URL` 與手機 `EXPO_PUBLIC_WEB_ORIGIN` 須是同環境網站 origin。不同 origin 時明確配置；碼輸入不需連結 origin。
+狀態：程式與自動化檢查已交付，審查兩項 Web P2 已修並通過獨立複驗；後續多成員加入時通知重複鍵亦已修正並通過真 MongoDB 回歸，見 [E 規格](ROADMAP.md#e-規格基本使用流程)；**本機 iOS／Android 操作與故障矩陣完成，證據及限制見上方原生驗收紀錄**。D 既有通過不能覆蓋 E1。以 `pnpm --filter @travel-budget/web dev:mobile-api` 的 disposable MongoDB／實際 HTTP 為後端，使用既有隔離帳號；邀請頁後端 `APP_URL` 與手機 `EXPO_PUBLIC_WEB_ORIGIN` 須是同環境網站 origin。不同 origin 時明確配置；碼輸入不需連結 origin。
 
 | 情境         | 操作與核對                                                                                                                                                                                                         |
 | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -324,20 +377,20 @@ E 裝置驗收時程：依 2026-10-06 使用者決定，待 E1–E4 全部功能
 
 ## E2 帳號入口驗收交接
 
-狀態：程式已實作，寄碼 429 誤鎖驗碼的 P2 已修正並通過獨立複驗；後續匿名換碼採可用碼 15 分鐘保護，鎖死碼允許 60 秒後重寄；手機收到次數用盡時解除舊寄碼等待並由後端重查，待裝置核對；Mobile 667 項、check、三平台匯出通過。E2 既有獨立基線為 Web 2,043 項、隔離交易 14 項及真 HTTP、frozen install、根 check／build、Expo 相容性通過。iOS／Android 基本操作依約待 E1–E4 全部完成後統一驗收。開發測試不列為裝置通過；不讀正式信箱／log，也不把密碼／碼放進 SQLite、查詢快取或截圖。產品規則與環境限制見 [E2 契約](BACKEND_CONTRACT.md#e2-註冊與-email-驗證碼重設)。
+狀態：程式已實作，寄碼 429 誤鎖驗碼的 P2 已修正並通過獨立複驗；後續匿名換碼採可用碼 15 分鐘保護，鎖死碼允許 60 秒後重寄；手機收到次數用盡時解除舊寄碼等待並由後端重查，兩平台已操作核對；最新 Mobile／Web 自動化結果見上方原生驗收紀錄。E2 既有獨立基線為 Web 2,043 項、隔離交易 14 項及真 HTTP、frozen install、根 check／build、Expo 相容性通過。iOS／Android 基本操作已執行；完整範圍見上方原生驗收紀錄。開發測試不列為裝置通過；不讀正式信箱／log，也不把密碼／碼放進 SQLite、查詢快取或截圖。產品規則與環境限制見 [E2 契約](BACKEND_CONTRACT.md#e2-註冊與-email-驗證碼重設)。
 
-限流回歸：首次寄碼或重新寄碼收到 `Retry-After: 3300` 後，仍可提交已有的有效碼；驗碼收到 120 秒等待後仍可明確重新寄碼，寄碼成功不解除驗碼等待。兩端同時受限時分別保留原期限，只在各自到期後允許該操作。四個回歸通過，前三個在修正前均失敗；獨立重現另外確認寄碼受限後立即驗碼成功，以及驗碼期限前 1 毫秒零 HTTP、恰好到期後允許驗碼，寄碼仍受限。裝置需核對提交／寄碼按鈕與各自倒數，後端及 HTTP client 限流保留。
+限流回歸：首次寄碼或重新寄碼收到 `Retry-After: 3300` 後，仍可提交已有的有效碼；驗碼收到 120 秒等待後仍可明確重新寄碼，寄碼成功不解除驗碼等待。兩端同時受限時分別保留原期限，只在各自到期後允許該操作。四個回歸通過，前三個在修正前均失敗；獨立重現另外確認寄碼受限後立即驗碼成功，以及驗碼期限前 1 毫秒零 HTTP、恰好到期後允許驗碼，寄碼仍受限。兩平台已核對提交／寄碼按鈕與各自倒數，後端及 HTTP client 限流保留。
 
 E3 開發 HTTP 複驗另修正零冷卻限流：較早捕捉時間的註冊／驗碼／來源請求晚到時，不因後到時間已取得計數而誤回 429；滑動時窗次數限制保留，晚到請求不縮短到期時間，拒絕以實際最早／最晚時間計算等待。三個逆序時間回歸在修正前皆失敗；獨立複驗 E2 隔離交易 17 項與完整真 HTTP 通過，此新增修正已完成審查。
 
-使用既有 `pnpm --filter @travel-budget/web dev:mobile-api` 隔離環境；開發 HTTP 測試以隔離 DB 的已知驗證碼 hash 核對，正式寄信未設定。裝置寄收信操作需驗收者接隔離寄信 adapter／測試收件匣，不能以正式帳號／正式信件替代。交易回歸：
+使用 `pnpm --filter @travel-budget/web dev:mobile-api --mailbox` 可啟動僅綁定 localhost 的 Resend 相容收件匣，不發送外部郵件。私有 fixture 的 `mailboxUrl` 與 `mailboxToken` 提供受權杖保護的 `GET /messages`／`DELETE /messages`；內容僅存記憶體、不寫 log，停止環境後清除。預設未加旗標仍停用寄信，開發 HTTP 測試使用隔離 DB 的已知碼 hash。此工具已通過 HTTP／權杖／清除／批次測試，兩平台原生實際寄碼／確認已操作，範圍與注入限制見上方原生驗收紀錄；不能把 localhost 收件匣當作正式郵件投遞證據。交易回歸：
 
 ```bash
 MONGODB_MEMBER_TEST_URI='mongodb://127.0.0.1:27017/?directConnection=true' MONGODB_MEMBER_TEST_ALLOW_WRITES=1 pnpm --filter @travel-budget/web exec vitest run src/__tests__/accountEntry.integration.test.ts
 pnpm --filter @travel-budget/web test:mobile-api
 ```
 
-| 裝置待驗                 | 核對                                                                                                                                                          |
+| 裝置驗收情境             | 核對                                                                                                                                                          |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 註冊 → 登入 → E1         | 成功回登入並帶入帳號，Web／Mobile 互登入；同帳號／Email 大小寫及空白衝突只一 user                                                                             |
 | 忘記密碼 → 六位碼 → 登入 | 存在／不存在 Email 相同受理及 429；前導零、15 分鐘到期、五次錯誤；可用碼不因重寄更換／延長；五次錯碼後，60 秒到期可手動重寄，新碼可驗；重新寄碼／已收到碼入口 |
@@ -348,13 +401,13 @@ pnpm --filter @travel-budget/web test:mobile-api
 
 ## E3 支出維護驗收交接
 
-狀態：程式與開發自動化已完成，**獨立審查的兩項 P2 已修正並通過獨立複驗，未發現新問題；iOS／Android 依約於 E1–E4 全部功能完成後由其他人統一驗收**。原有 D 草稿與佇列資料保留，E3 未部署。
+狀態：程式與開發自動化已完成，**獨立審查的兩項 P2 已修正並通過獨立複驗，未發現新問題；iOS／Android 本機操作與故障矩陣已完成，證據及限制見上方原生驗收紀錄**。原有 D 草稿與佇列資料保留，E3 未部署。
 
 修正結果：衝突核對後，以原始基線保留實際修改，未修改欄位採最新 context，避免覆蓋 Web 更新；拒絕紀錄重開可明確切回基本資料，送出不包含均分欄位。原審查兩個畫面回呼案例在修正前皆失敗，已納入 `EditExpenseScreen.test.ts`；另涵蓋提交後終局拒絕、連續衝突、分類／日期明確修改與帳務欄位更新，畫面回呼測試不等同原生操作。
 
 自動化使用真 Node SQLite 重開及隨機獨立 MongoDB replica-set DB；後者以 `MONGODB_MEMBER_TEST_URI`、`MONGODB_MEMBER_TEST_ALLOW_WRITES=1` 執行 `expenseMaintenance.integration.test.ts`，CI 已納入。`pnpm --filter @travel-budget/web test:mobile-api` 使用可丟棄 DB／Next.js，核對 metadata 保留、Web 修改衝突、0.01 均分、同 UUID 併發、真 socket 丟回應、刪除評論／blob retirement、C receipt 重播不復活。未使用遠端資料庫／migration。
 
-| 待裝置驗收情境                         | 應核對                                                                                                                               |
+| 裝置驗收情境                           | 應核對                                                                                                                               |
 | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | 基本資料與歷史帳務                     | 外幣／非均分／未知分類僅改所選欄位，附件／標籤／行程／建立資料不變；不改零 PATCH                                                     |
 | 明確重新均分                           | TWD／匯率 1、安全成員才可切換；同名成員依 ID；0.01 三人尾差、付款人不在分攤、新舊差異及四語確認                                      |
@@ -368,7 +421,7 @@ pnpm --filter @travel-budget/web test:mobile-api
 
 ## E4 還款驗收交接
 
-狀態：程式、自動化與 E4 獨立審查已完成；後續第三位成員替另外兩位記錄付款時通知重複鍵已修正，補上 Web／Mobile 共用服務回歸；**E1–E4 的 iOS／Android 統一裝置驗收待執行**。沒有執行真機／閱讀器驗收，未部署或遠端 migration。原始草稿、D 佇列與 E1／E3 紀錄保留，E4 沿用同一 SQLite schema 8。
+狀態：程式、自動化與 E4 獨立審查已完成；後續第三位成員替另外兩位記錄付款時通知重複鍵已修正，補上 Web／Mobile 共用服務回歸；**E1–E4 的本機 iOS／Android 操作與故障矩陣完成，證據及限制見上方原生驗收紀錄**。沒有執行真機／閱讀器驗收，未部署或遠端 migration。原始草稿、D 佇列與 E1／E3 紀錄保留，E4 沿用同一 SQLite schema 8。
 
 自動化用真 Node SQLite 檔案重開、畫面回呼及可丟棄 MongoDB replica set／Next.js HTTP；回呼測試不取代原生操作。手機涵蓋部分／超額／手動確認、衝突保留輸入、撤銷二次確認、丟回應／保存失敗／重啟、隔離、同旅行互擋與 120 秒期限。後端涵蓋同 UUID 僅一 payment／receipt／通知／活動、不同 UUID 同前條件只一筆、原始支出／成員／還款變更、撤權、交易回滾及撤銷後不復活。
 
@@ -378,7 +431,7 @@ MONGODB_MEMBER_TEST_URI='mongodb://127.0.0.1:27017/?directConnection=true' MONGO
 pnpm --filter @travel-budget/web test:mobile-api
 ```
 
-| 裝置待驗                | 操作與核對                                                                                                                                                                                                                     |
+| 裝置驗收情境            | 操作與核對                                                                                                                                                                                                                     |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | 建議／手動登記          | 登記已在外部完成的付款，不發起轉帳；同名／虛擬成員依 ID，部分、超額、無建議與反向實際付款均可；第三位成員替另外兩位記錄部分付款也須成功。0／負數／第三位小數／超上限／同一人拒絕，偏離建議需提示；Web 與 Mobile 結算互讀一致。 |
 | 兩人／Web／D 同時變動   | 保留舊表單時新增、修改支出或還款、轉換成員身分；兩個 UUID 同舊前條件只一筆，其餘 rejected SETTLEMENT_CHANGED；輸入不丟，核對最新後明確再次確認，新 UUID 才可登記。                                                             |
@@ -387,6 +440,6 @@ pnpm --filter @travel-budget/web test:mobile-api
 | 換帳號／撤權／429／協調 | A→B→A 與不同環境只顯示／送原 scope；撤權隱藏內容且保留紀錄，resource-only 404 不撤銷旅行。429 等待 120 秒重啟 31 秒後 C／D／E3／E4 及其他旅行仍零送出，到期才恢復；同旅行 pending 互擋、沒有帳號限速時其他旅行仍可操作。       |
 | 成功後讀取失敗／表單    | 保留成功，只重新整理帳務，不要求重新登記。四語、深淺色、最大字級、鍵盤捲動／完成、錯誤焦點、忙碌／停用、離開提醒及危險確認標籤；完整閱讀器及真機仍列 F。                                                                       |
 
-故障代理的既有 drop-response 目標是支出端點，不能當成 E4 裝置證據；需另設 `/api/v1/trips/:id/payments` 及單筆 DELETE 的可控代理，或依真 HTTP 工具的 socket 案例操作。完成 E4 審查後，按本文件 E1–E4 表統一驗收完整「註冊 → 建立／加入 → 新增／修正 → 還款／撤銷」流程。
+E4 已使用還款建立及單筆 DELETE 的可控代理操作，不能以支出端點的丟回應取代。完整「註冊 → 建立／加入 → 新增／修正 → 還款／撤銷」本機流程與故障證據見上方原生驗收紀錄。
 
-既有獨立複驗：Web 2,052 項、Mobile 717 項（686 Vitest＋31 工具）、隔離交易 238 項（含 E4 22 項）通過；frozen install、契約同步、根 check／build、完整真 HTTP、三平台匯出及 Expo 相容性通過。後續修正補上多收件人與有效碼保護，隔離交易 252 項通過，包含鎖死碼恢復與已知／未知 Email 一致性；核對還款／receipt／通知／動態原子提交、同 UUID 重播、結算衝突再確認及撤銷後不復活。最新修正見根 changelog；裝置驗收未計通過。
+既有獨立複驗：Web 2,052 項、Mobile 717 項（686 Vitest＋31 工具）、隔離交易 238 項（含 E4 22 項）通過；frozen install、契約同步、根 check／build、完整真 HTTP、三平台匯出及 Expo 相容性通過。後續修正補上多收件人與有效碼保護，隔離交易 252 項通過，包含鎖死碼恢復與已知／未知 Email 一致性；核對還款／receipt／通知／動態原子提交、同 UUID 重播、結算衝突再確認及撤銷後不復活。最新修正見根 changelog；上述開發基線不算裝置通過，本次原生範圍見上方驗收紀錄。

@@ -3,14 +3,59 @@ import { execFileSync } from 'node:child_process';
 import { mkdir, readdir, rename, rmdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-const triggers = ['save', 'discard', 'enqueue', 'prepare', 'cleanup', 'snapshot'];
+const triggers = [
+  'save',
+  'discard',
+  'enqueue',
+  'prepare',
+  'cleanup',
+  'snapshot',
+  'mutation_save',
+  'mutation_complete',
+];
 const literal = (value) => "'" + value.replaceAll("'", "''") + "'";
 const shellQuote = (value) => "'" + value.replaceAll("'", "'\\''") + "'";
+
+/** E mutations can have no trip yet; account deadlines also outlive individual trip rows. */
+export function nativeCheckpointSql(table, scope) {
+  assert(
+    [
+      'expense_draft',
+      'draft_trip',
+      'expense_queue',
+      'pending_expense',
+      'pending_mutation',
+      'expense_rate_limit',
+    ].includes(table),
+    'Unsupported checkpoint table'
+  );
+  const filters = { environment: scope.environment, account_id: scope.accountId };
+  if (!['pending_mutation', 'expense_rate_limit'].includes(table)) filters.trip_id = scope.tripId;
+  const where = Object.entries(filters)
+    .map(([key, value]) => `${key} = ${literal(value)}`)
+    .join(' AND ');
+  return `SELECT * FROM ${table} WHERE ${where};`;
+}
+
+/** Locate the device DB even when E1 has only a tripless request or an account deadline. */
+export function nativeDatabaseMatchSql(scope) {
+  const counts = [
+    'expense_draft',
+    'draft_trip',
+    'pending_expense',
+    'expense_queue',
+    'pending_mutation',
+    'expense_rate_limit',
+  ].map((table) => `(SELECT count(*) FROM (${nativeCheckpointSql(table, scope).slice(0, -1)}))`);
+  return `SELECT ${counts.join(' + ')};`;
+}
 
 /** Scoped test triggers fail the device's real SQLite statements; no application fault switch. */
 export function nativeFaultSql(command, scope) {
   if (command === 'sqlite-clear')
     return triggers.map((name) => `DROP TRIGGER IF EXISTS tb_native_${name};`).join('\n');
+  if (/^sqlite-mutation-(save|complete)-fail$/.test(command))
+    return nativeMutationFaultSql(command, scope);
   const name = command.match(/^sqlite-(save|discard|enqueue|prepare|cleanup|snapshot)-fail$/)?.[1];
   assert(name, 'Unknown native SQLite fault');
   const operations = {
@@ -31,6 +76,17 @@ export function nativeFaultSql(command, scope) {
     .join(' AND ');
   return `CREATE TRIGGER IF NOT EXISTS tb_native_${name} BEFORE ${operation} ON ${table}
     WHEN ${where} AND ${extra} BEGIN SELECT RAISE(FAIL, 'TB_NATIVE_SQLITE_${name}'); END;`;
+}
+
+/** Fail E persistence in the selected native account/environment without touching C/D rows. */
+export function nativeMutationFaultSql(command, scope) {
+  const action = command.match(/^sqlite-mutation-(save|complete)-fail$/)?.[1];
+  assert(action, 'Unknown native mutation fault');
+  const row = 'NEW';
+  const where = `${row}.environment = ${literal(scope.environment)} AND ${row}.account_id = ${literal(scope.accountId)}`;
+  return `CREATE TRIGGER IF NOT EXISTS tb_native_mutation_${action} BEFORE ${action === 'save' ? 'INSERT' : 'UPDATE OF status'} ON pending_mutation
+    WHEN ${where} ${action === 'complete' ? "AND NEW.status = 'completed'" : ''}
+    BEGIN SELECT RAISE(FAIL, 'TB_NATIVE_MUTATION_${action}'); END;`;
 }
 
 /** Remove only disposable fixture records after an unresolved-conflict measurement. */
@@ -88,9 +144,7 @@ export async function createNativeSqliteControl(platform, device, scope, artifac
       join(container, 'Documents', 'ExponentExperienceData'),
       (candidate) => {
         try {
-          const where = `environment=${literal(scope.environment)} AND account_id=${literal(scope.accountId)} AND trip_id=${literal(scope.tripId)}`;
-          const query = `SELECT (${['expense_draft', 'draft_trip', 'pending_expense', 'expense_queue'].map((table) => `(SELECT count(*) FROM ${table} WHERE ${where})`).join(' + ')});`;
-          return Number(run('sqlite3', [candidate, query])) > 0;
+          return Number(run('sqlite3', [candidate, nativeDatabaseMatchSql(scope)])) > 0;
         } catch {
           return false;
         }
@@ -215,17 +269,17 @@ export async function createNativeSqliteControl(platform, device, scope, artifac
       if (command === 'sqlite-clear') await restoreOpen();
       const checkpoint = command.match(/^sqlite-checkpoint-([a-z0-9-]+)$/)?.[1];
       if (checkpoint) {
-        const where = Object.entries({
-          environment: scope.environment,
-          account_id: scope.accountId,
-          trip_id: scope.tripId,
-        })
-          .map(([key, value]) => `${key} = ${literal(value)}`)
-          .join(' AND ');
         const state = {};
         state.capturedAt = Date.now();
-        for (const table of ['expense_draft', 'draft_trip', 'expense_queue', 'pending_expense'])
-          state[table] = JSON.parse(execute(`SELECT * FROM ${table} WHERE ${where};`) || '[]');
+        for (const table of [
+          'expense_draft',
+          'draft_trip',
+          'expense_queue',
+          'pending_expense',
+          'pending_mutation',
+          'expense_rate_limit',
+        ])
+          state[table] = JSON.parse(execute(nativeCheckpointSql(table, scope)) || '[]');
         await writeFile(
           join(artifacts, `sqlite-${checkpoint}.json`),
           JSON.stringify(state, null, 2) + '\n',

@@ -72,7 +72,7 @@ export function EditExpenseScreen({
   const dirty =
     !!context && !!fields && JSON.stringify(fields) !== JSON.stringify(editFields(context));
   usePreventRemove(dirty && !pending && !done && !busy, ({ data }) =>
-    Alert.alert(t.unsavedTrip, undefined, [
+    Alert.alert(t.leaveFormTitle, t.unsavedTrip, [
       { text: t.stayForm, style: 'cancel' },
       { text: t.leaveForm, style: 'destructive', onPress: () => navigation.dispatch(data.action) },
     ])
@@ -312,7 +312,13 @@ export function EditExpenseScreen({
     );
   return (
     <Page form>
-      <Action secondary label={t.back} disabled={busy} onPress={back} />
+      <Action
+        testID="expense-maintain-back"
+        secondary
+        label={t.back}
+        disabled={busy}
+        onPress={back}
+      />
       <Title>{remove ? t.deleteExpense : t.editExpense}</Title>
       {!online && <Notice>{t.offline}</Notice>}
       {Platform.OS === 'web' && <Notice>{t.nativeOnly}</Notice>}
@@ -367,6 +373,7 @@ export function EditExpenseScreen({
                 />
               ))}
               <Action
+                testID="expense-maintain-latest"
                 label={t.useLatestExpense}
                 onPress={() => {
                   setFields(rebaseEditFields(context, fields, latest));
@@ -386,6 +393,7 @@ export function EditExpenseScreen({
             <>
               <Notice>{t.basicExpenseHint}</Notice>
               <Chip
+                testID="expense-maintain-basic"
                 label={t.basicExpense}
                 selected={mode === 'basic'}
                 disabled={busy}
@@ -395,6 +403,7 @@ export function EditExpenseScreen({
                 }}
               />
               <Chip
+                testID="expense-maintain-equal"
                 label={t.equalExpense}
                 selected={mode === 'equal'}
                 disabled={busy || !context.capabilities.equal}
@@ -405,6 +414,7 @@ export function EditExpenseScreen({
               />
               {!context.capabilities.equal && <Notice>{t.expenseWebOnly}</Notice>}
               <TextField
+                testID="expense-maintain-description"
                 inputRef={first}
                 label={t.expenseDescription}
                 value={fields.description}
@@ -414,6 +424,7 @@ export function EditExpenseScreen({
                 onSubmitEditing={() => date.current?.focus()}
               />
               <TextField
+                testID="expense-maintain-date"
                 inputRef={date}
                 label={t.date}
                 value={fields.date}
@@ -441,6 +452,7 @@ export function EditExpenseScreen({
               {mode === 'equal' && (
                 <>
                   <TextField
+                    testID="expense-maintain-amount"
                     inputRef={amount}
                     label={t.amountTwd}
                     value={fields.amountText}
@@ -452,6 +464,7 @@ export function EditExpenseScreen({
                     {context.options.members.map((m) => (
                       <Chip
                         key={m.id}
+                        testID={`expense-maintain-payer-${m.id}`}
                         label={`${m.displayName} (${m.id.slice(-6)})`}
                         selected={fields.payerId === m.id}
                         disabled={busy}
@@ -463,6 +476,7 @@ export function EditExpenseScreen({
                     {context.options.members.map((m) => (
                       <Chip
                         key={m.id}
+                        testID={`expense-maintain-split-${m.id}`}
                         role="checkbox"
                         label={`${m.displayName} (${m.id.slice(-6)})`}
                         selected={fields.memberIds.includes(m.id)}

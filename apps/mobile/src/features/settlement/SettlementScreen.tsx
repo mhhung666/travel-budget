@@ -110,6 +110,7 @@ function Details({
               </Text>
               <Badge label={t.unpaid} />
               <Action
+                testID="settlement-record-payment"
                 label={t.recordPayment}
                 disabled={!online}
                 onPress={() =>
@@ -147,6 +148,7 @@ function Details({
               {!!payment.note && <Copy>{payment.note}</Copy>}
               <Action
                 secondary
+                testID={`payment-revoke-${payment.id}`}
                 label={t.revokePayment}
                 disabled={!online}
                 onPress={() =>
@@ -221,6 +223,7 @@ export function SettlementScreen({ tripId }: { tripId: string }) {
             value={money(settlement.totalExpenses)}
           />
           <Action
+            testID="settlement-manual-payment"
             label={t.manualPayment}
             disabled={!online}
             onPress={() =>

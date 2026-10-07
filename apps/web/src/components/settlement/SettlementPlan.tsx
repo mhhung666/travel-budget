@@ -40,13 +40,13 @@ interface SettlementPlanProps {
   currencyOptions?: string[];
   /** 成員專屬：點擊建議轉帳的「標記已付」（依身分顯示為「確認已收到／我已付款」）時觸發（登記一筆還款）。未傳即唯讀。 */
   onMarkPaid?: (transaction: Transaction) => void;
-  /** name → 頭像 URL（結算方案只帶名字，故以名字對應）。 */
-  avatarUrlByName?: Record<string, string | null>;
+  /** 成員 ID → 頭像 URL。 */
+  avatarUrlById?: Record<string, string | null>;
   /** 當事人（被欠款者）按下「提醒還款」時觸發，對該筆轉帳的付款人寄出提醒。未傳即不顯示。 */
   onRemind?: (transaction: Transaction) => void;
-  /** 目前登入者顯示名——只有當其為某筆轉帳的「收款人」時才顯示提醒按鈕。 */
-  currentUserName?: string;
-  /** 正在寄送提醒的轉帳鍵（`${from}__${to}`），用於該列按鈕的 loading 狀態。 */
+  /** 目前登入者 ID——只有當其為某筆轉帳的「收款人」時才顯示提醒按鈕。 */
+  currentUserId?: string;
+  /** 正在寄送提醒的轉帳鍵（`${fromId}__${toId}`），用於該列按鈕的 loading 狀態。 */
   remindingKey?: string | null;
   /** 旅行是否已有支出；沒有時空白狀態說「尚無需要結算的支出」而不是「已結清」。 */
   hasExpenses?: boolean;
@@ -62,9 +62,9 @@ export default function SettlementPlan({
   loadingRates,
   currencyOptions,
   onMarkPaid,
-  avatarUrlByName,
+  avatarUrlById,
   onRemind,
-  currentUserName,
+  currentUserId,
   remindingKey,
   hasExpenses = true,
   hasPayments = false,
@@ -168,7 +168,7 @@ export default function SettlementPlan({
                     <div className="flex items-center gap-3 w-full sm:w-auto justify-center sm:justify-start">
                       <Avatar className="h-10 w-10 border-2 border-destructive/30 bg-destructive/10">
                         <AvatarImage
-                          src={avatarUrlByName?.[transaction.from] ?? ''}
+                          src={avatarUrlById?.[transaction.fromId ?? ''] ?? ''}
                           alt={transaction.from}
                         />
                         <AvatarFallback className="text-destructive font-bold bg-transparent">
@@ -179,7 +179,7 @@ export default function SettlementPlan({
                         <p className="text-xs text-muted-foreground">{t('payer')}</p>
                         <p className="font-semibold text-foreground">
                           {transaction.from}
-                          {currentUserName && transaction.from === currentUserName && (
+                          {currentUserId && transaction.fromId === currentUserId && (
                             <span className="ml-1 text-xs font-normal text-muted-foreground">
                               ({t('you')})
                             </span>
@@ -210,7 +210,7 @@ export default function SettlementPlan({
                         <p className="text-xs text-muted-foreground">{t('payee')}</p>
                         <p className="font-semibold text-foreground">
                           {transaction.to}
-                          {currentUserName && transaction.to === currentUserName && (
+                          {currentUserId && transaction.toId === currentUserId && (
                             <span className="ml-1 text-xs font-normal text-muted-foreground">
                               ({t('you')})
                             </span>
@@ -219,7 +219,7 @@ export default function SettlementPlan({
                       </div>
                       <Avatar className="h-10 w-10 border-2 border-success/30 bg-success/10">
                         <AvatarImage
-                          src={avatarUrlByName?.[transaction.to] ?? ''}
+                          src={avatarUrlById?.[transaction.toId ?? ''] ?? ''}
                           alt={transaction.to}
                         />
                         <AvatarFallback className="text-success font-bold bg-transparent">
@@ -232,13 +232,13 @@ export default function SettlementPlan({
                   {(() => {
                     // 當事人（被欠款者）才看得到提醒按鈕：自己是這筆轉帳的收款人時。
                     const canRemind =
-                      !!onRemind && !!currentUserName && transaction.to === currentUserName;
-                    const reminding = remindingKey === `${transaction.from}__${transaction.to}`;
+                      !!onRemind && !!currentUserId && transaction.toId === currentUserId;
+                    const reminding = remindingKey === `${transaction.fromId}__${transaction.toId}`;
                     // 按鈕依身分改字：收款人確認收到、付款人回報已付；旁觀的成員維持中性「標記已付」。
                     const markPaidLabel =
-                      currentUserName && transaction.to === currentUserName
+                      currentUserId && transaction.toId === currentUserId
                         ? t('confirmReceived')
-                        : currentUserName && transaction.from === currentUserName
+                        : currentUserId && transaction.fromId === currentUserId
                           ? t('iPaid')
                           : t('markPaid');
                     if (!onMarkPaid && !canRemind) return null;

@@ -29,7 +29,7 @@ export function AccountScreen({ mode }: { mode: 'register' | 'request' }) {
   }, [state.retryAt]);
   const dirty = Object.values(state.fields).some(Boolean);
   usePreventRemove(dirty && state.stage !== 'done', ({ data }) =>
-    Alert.alert(t.unsavedAccount, undefined, [
+    Alert.alert(t.leaveFormTitle, t.unsavedAccount, [
       { text: t.stayForm, style: 'cancel' },
       { text: t.leaveForm, style: 'destructive', onPress: () => navigation.dispatch(data.action) },
     ])

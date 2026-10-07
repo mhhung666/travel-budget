@@ -26,6 +26,19 @@ export async function readSettlement(tripId: string, memberIds?: string[]): Prom
   return { balances, transactions, payments, totalExpenses };
 }
 
+/** Authorized Web members retain the identities already used by the mobile settlement view. */
+export async function readMemberSettlement(tripId: string): Promise<Settlement> {
+  const { transfers, ...data } = await readSettlementDetail(tripId);
+  return {
+    ...data,
+    transactions: data.transactions.map((transaction, index) => ({
+      ...transaction,
+      fromId: transfers[index].fromId,
+      toId: transfers[index].toId,
+    })),
+  };
+}
+
 export async function readSettlementDetail(
   tripId: string,
   memberIds?: string[]

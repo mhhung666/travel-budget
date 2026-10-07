@@ -32,7 +32,12 @@ export function OperationsScreen() {
   };
   return (
     <Page>
-      <Action secondary label={t.back} onPress={() => router.replace('/trips')} />
+      <Action
+        testID="operations-back"
+        secondary
+        label={t.back}
+        onPress={() => router.replace('/trips')}
+      />
       <Title>{t.pendingOperations}</Title>
       <Notice>{t.pendingSaved}</Notice>
       {records.isError && <Notice>{errorMessage(records.error, t)}</Notice>}
@@ -64,12 +69,14 @@ export function OperationsScreen() {
               <Notice>{t.operationUnknown}</Notice>
               {record.conflict && <Notice>{t.operationBlocked}</Notice>}
               <Action
+                testID={`mutation-check-${record.clientRequestId}`}
                 label={t.checkOperation}
                 busy={busy}
                 disabled={!online}
                 onPress={() => void run(record, 'lookup')}
               />
               <Action
+                testID={`mutation-retry-${record.clientRequestId}`}
                 label={t.retryOriginal}
                 busy={busy}
                 disabled={!online || record.conflict}
@@ -89,6 +96,7 @@ export function OperationsScreen() {
               </Notice>
               {record.result?.status === 'committed' && (
                 <Action
+                  testID={`mutation-open-${record.clientRequestId}`}
                   label={t.openTrip}
                   onPress={() =>
                     router.push({
@@ -107,6 +115,7 @@ export function OperationsScreen() {
                 'expenseId' in record.payload &&
                 record.result.code !== 'RESOURCE_GONE' && (
                   <Action
+                    testID={`mutation-resume-${record.clientRequestId}`}
                     label={t.resumeExpenseEdit}
                     onPress={() =>
                       router.push({
@@ -126,6 +135,7 @@ export function OperationsScreen() {
                 record.tripId &&
                 record.result.code !== 'RESOURCE_GONE' && (
                   <Action
+                    testID={`mutation-resume-${record.clientRequestId}`}
                     label={t.resumePayment}
                     onPress={() =>
                       router.push({

@@ -48,6 +48,9 @@ export interface Balance {
  * 轉帳交易（客戶端顯示用）
  */
 export interface Transaction {
+  /** Member-only identity; public display-name transactions omit these fields. */
+  fromId?: string;
+  toId?: string;
   from: string;
   to: string;
   amount: number;

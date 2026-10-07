@@ -35,13 +35,15 @@ import { up as migrateSessions } from '../migrations/20261002100000-mobile-sessi
 import { up as migrateAccounts } from '../migrations/20261006120000-account-entry-limits.js';
 import { up as migrateMutations } from '../migrations/20261006100000-mutation-requests.js';
 import { up as migrateRequests } from '../migrations/20260912160000-expense-create-requests.js';
+import { createLocalMailbox } from './local-mailbox.mjs';
 
 const args = new Set(process.argv.slice(2));
 assert(
-  [...args].every((arg) => ['--serve', '--lan'].includes(arg)),
-  'Use --serve [--lan]'
+  [...args].every((arg) => ['--serve', '--lan', '--mailbox'].includes(arg)),
+  'Use --serve [--lan] [--mailbox]'
 );
 assert(!args.has('--lan') || args.has('--serve'), '--lan requires --serve');
+assert(!args.has('--mailbox') || args.has('--serve'), '--mailbox requires --serve');
 const exec = promisify(execFile);
 const runId = randomUUID().replaceAll('-', '');
 const container = `tb-mobile-${runId}`;
@@ -53,6 +55,7 @@ let app;
 let appLog = '';
 let terminal;
 let control;
+let mailbox;
 let commandQueue = Promise.resolve();
 let stopping = false;
 const stop = new AbortController();
@@ -448,6 +451,7 @@ try {
     }
     for (const match of contents.matchAll(/^\s*(?:export\s+)?([\w]+)\s*=/gm)) env[match[1]] = '';
   }
+  if (args.has('--mailbox')) mailbox = await createLocalMailbox();
   Object.assign(env, {
     NODE_ENV: 'development',
     MONGODB_URI: uri,
@@ -455,7 +459,9 @@ try {
     APP_URL: origin,
     NEXT_TELEMETRY_DISABLED: '1',
     EXPENSE_BACKGROUND_DELIVERY: 'off',
-    RESEND_API_KEY: '',
+    RESEND_API_KEY: mailbox?.token ?? '',
+    RESEND_FROM: mailbox ? 'acceptance@example.test' : '',
+    RESEND_BASE_URL: mailbox?.url ?? '',
     R2_ACCOUNT_ID: '',
     R2_ACCESS_KEY_ID: '',
     R2_SECRET_ACCESS_KEY: '',
@@ -2366,6 +2372,8 @@ try {
       join(artifacts, 'fixture.json'),
       JSON.stringify({
         apiUrl: `${origin}/api/v1`,
+        container,
+        database: dbName,
         password,
         sharedTrip: String(shared._id),
         privateTrip: String(privateTrip._id),
@@ -2382,6 +2390,7 @@ try {
         date,
         controlUrl,
         controlToken,
+        ...(mailbox ? { mailboxUrl: mailbox.url, mailboxToken: mailbox.token } : {}),
       }),
       { mode: 0o600 }
     );
@@ -2432,6 +2441,7 @@ try {
     }
   }
   await mongo?.close();
+  await mailbox?.close();
   // Unique generated container name is the only cleanup target, including partial startup.
   await exec('docker', ['rm', '--force', container]).catch(() => {});
   await writeFile(join(artifacts, 'next.log'), appLog, { mode: 0o600 });

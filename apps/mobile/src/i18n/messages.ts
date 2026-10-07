@@ -91,6 +91,7 @@ const zh = {
   shareInvitation: '系統分享',
   copiedInvitation: '已複製邀請連結。',
   unsavedTrip: '離開會捨棄尚未確認的表單。',
+  leaveFormTitle: '離開表單？',
   leaveForm: '捨棄並離開',
   stayForm: '繼續填寫',
   pendingSaved: '已保存確認內容。結果不明時不可修改或捨棄；可離開並在待確認操作恢復。',
@@ -389,6 +390,7 @@ export const messages = {
     shareInvitation: '系统分享',
     copiedInvitation: '已复制邀请链接。',
     unsavedTrip: '离开会丢弃尚未确认的表单。',
+    leaveFormTitle: '离开表单？',
     leaveForm: '丢弃并离开',
     stayForm: '继续填写',
     pendingSaved: '已保存确认内容。结果不明时不可修改或丢弃；可离开并在待确认操作恢复。',
@@ -702,6 +704,7 @@ export const messages = {
     shareInvitation: 'Share',
     copiedInvitation: 'Invitation link copied.',
     unsavedTrip: 'Leaving discards this unconfirmed form.',
+    leaveFormTitle: 'Leave this form?',
     leaveForm: 'Discard and leave',
     stayForm: 'Keep editing',
     pendingSaved:
@@ -1035,6 +1038,7 @@ export const messages = {
     shareInvitation: '共有',
     copiedInvitation: '招待リンクをコピーしました。',
     unsavedTrip: '画面を離れると未確定の入力を破棄します。',
+    leaveFormTitle: 'フォームを離れますか？',
     leaveForm: '破棄して戻る',
     stayForm: '入力を続ける',
     pendingSaved:

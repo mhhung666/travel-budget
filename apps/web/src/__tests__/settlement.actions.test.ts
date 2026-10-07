@@ -158,8 +158,8 @@ describe('getSettlement', () => {
       { userId: CARA, username: 'Cara', totalPaid: 0, totalOwed: 30, balance: -30 },
     ]);
     expect(result.data.transactions).toEqual([
-      { from: 'Cara', to: 'Amy', amount: 30 },
-      { from: 'Bob', to: 'Amy', amount: 20 },
+      { from: 'Cara', to: 'Amy', fromId: CARA, toId: VIEWER, amount: 30 },
+      { from: 'Bob', to: 'Amy', fromId: BOB, toId: VIEWER, amount: 20 },
     ]);
     expect(result.data.payments).toEqual([
       expect.objectContaining({ fromId: BOB, toId: VIEWER, amount: 10, note: 'transfer' }),

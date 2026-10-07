@@ -96,7 +96,7 @@ export function InvitationScreen({ id }: { id: string }) {
   };
   return (
     <Page>
-      <Action secondary label={t.back} onPress={() => router.back()} />
+      <Action testID="invitation-back" secondary label={t.back} onPress={() => router.back()} />
       <Title>{t.inviteMembers}</Title>
       <Notice>{t.invitationWarning}</Notice>
       {scope && !catalog.isVisible(scope, id) ? (

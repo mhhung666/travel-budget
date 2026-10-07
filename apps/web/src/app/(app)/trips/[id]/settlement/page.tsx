@@ -72,11 +72,15 @@ export default function SettlementPage() {
     [trip?.currency_settings]
   );
 
-  // 建議轉帳只帶名字（calculateSettlement 不回 id）；用餘額表把名字對回 id 以預填登記表單。
-  const memberOptions = useMemo<PaymentMemberOption[]>(
-    () => balances.map((b) => ({ id: b.userId, name: b.username })),
-    [balances]
-  );
+  // 成員結算保留服務算出的 ID；顯示名稱可以相同，不能拿來反查成員。
+  const memberOptions = useMemo<PaymentMemberOption[]>(() => {
+    const counts = new Map<string, number>();
+    for (const b of balances) counts.set(b.username, (counts.get(b.username) ?? 0) + 1);
+    return balances.map((b) => ({
+      id: b.userId,
+      name: counts.get(b.username)! > 1 ? `${b.username} (${b.userId.slice(-6)})` : b.username,
+    }));
+  }, [balances]);
 
   // 以我為中心（5.4）：頁首摘要講「我」的應收應付；與我有關的轉帳排最前。
   const myBalance = useMemo(
@@ -87,42 +91,29 @@ export default function SettlementPage() {
     currentUser != null &&
     payments.some((p) => p.fromId === currentUser.id || p.toId === currentUser.id);
   const orderedTransactions = useMemo(() => {
-    const myName = currentUser?.display_name;
-    if (!myName) return transactions;
+    const myId = currentUser?.id;
+    if (!myId) return transactions;
     return [...transactions].sort(
       (a, b) =>
-        Number(b.from === myName || b.to === myName) - Number(a.from === myName || a.to === myName)
+        Number(b.fromId === myId || b.toId === myId) - Number(a.fromId === myId || a.toId === myId)
     );
-  }, [transactions, currentUser?.display_name]);
-  const nameToId = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const b of balances) map.set(b.username, b.userId);
-    return map;
-  }, [balances]);
-
-  // 成員頭像查表：每人統計用 userId；結算方案只帶名字，故另備 name → 頭像。
+  }, [transactions, currentUser?.id]);
   const avatarById = useMemo(
     () => Object.fromEntries(members.map((m) => [m.id, m.avatar_url ?? null])),
     [members]
   );
-  const avatarByName = useMemo(
-    () => Object.fromEntries(balances.map((b) => [b.username, avatarById[b.userId] ?? null])),
-    [balances, avatarById]
-  );
 
-  const handleMarkPaid = (tx: Transaction) =>
-    recordDialog.openDialog({
-      fromId: nameToId.get(tx.from) ?? '',
-      toId: nameToId.get(tx.to) ?? '',
-      amount: tx.amount,
-    });
+  const handleMarkPaid = (tx: Transaction) => {
+    if (!tx.fromId || !tx.toId) return;
+    recordDialog.openDialog({ fromId: tx.fromId, toId: tx.toId, amount: tx.amount });
+  };
 
-  // 提醒還款：當事人對欠他款的成員寄出提醒 Email。以 `${from}__${to}` 標記寄送中的列。
+  // 提醒還款：當事人對欠他款的成員寄出提醒 Email。以 `${fromId}__${toId}` 標記寄送中的列。
   const [remindingKey, setRemindingKey] = useState<string | null>(null);
   const handleRemind = async (tx: Transaction) => {
-    const debtorId = nameToId.get(tx.from);
+    const debtorId = tx.fromId;
     if (!debtorId) return;
-    setRemindingKey(`${tx.from}__${tx.to}`);
+    setRemindingKey(`${tx.fromId}__${tx.toId}`);
     try {
       await paymentMutations.remind.mutateAsync(debtorId);
       toast({ title: tSettlement('reminderSent') });
@@ -226,9 +217,9 @@ export default function SettlementPage() {
           loadingRates={loadingRates}
           currencyOptions={currencyOptions}
           onMarkPaid={isMember ? handleMarkPaid : undefined}
-          avatarUrlByName={avatarByName}
+          avatarUrlById={avatarById}
           onRemind={isMember ? handleRemind : undefined}
-          currentUserName={currentUser?.display_name}
+          currentUserId={isMember ? currentUser?.id : undefined}
           remindingKey={remindingKey}
           hasExpenses={totalExpenses >= MONEY_EPSILON}
           hasPayments={payments.length > 0}

@@ -35,7 +35,7 @@ export function TripFormScreen({ mode }: { mode: 'create' | 'join' }) {
   const end = useRef<TextInput>(null);
   const dirty = mode === 'join' ? !!invite : Object.values(fields).some(Boolean);
   usePreventRemove(dirty && !confirmed && !busy, ({ data }) =>
-    Alert.alert(t.unsavedTrip, undefined, [
+    Alert.alert(t.leaveFormTitle, t.unsavedTrip, [
       { text: t.stayForm, style: 'cancel' },
       { text: t.leaveForm, style: 'destructive', onPress: () => navigation.dispatch(data.action) },
     ])
@@ -115,7 +115,13 @@ export function TripFormScreen({ mode }: { mode: 'create' | 'join' }) {
     setFields((old) => ({ ...old, [key]: value }));
   return (
     <Page form>
-      <Action secondary label={t.back} disabled={busy} onPress={() => router.back()} />
+      <Action
+        testID="trip-form-back"
+        secondary
+        label={t.back}
+        disabled={busy}
+        onPress={() => router.back()}
+      />
       <Title>{mode === 'create' ? t.createTrip : t.joinTrip}</Title>
       <Notice>{mode === 'create' ? t.tripFormHint : t.inviteHint}</Notice>
       {mode === 'create' ? (
