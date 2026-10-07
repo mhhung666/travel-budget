@@ -24,11 +24,13 @@ export function TripScreen({ id }: { id: string }) {
         label={t.back}
         onPress={() => router.replace('/trips')}
       />
-      {!online && <Notice>{t.offline}</Notice>}
+      {!online && <Notice tone="warning">{t.offline}</Notice>}
       {query.isPending && online && <ActivityIndicator accessibilityLabel={t.loading} />}
       {query.isError && (
         <>
-          <Notice>{trip && !denied ? t.staleData : errorMessage(query.error, t)}</Notice>
+          <Notice tone={trip && !denied ? 'warning' : 'danger'}>
+            {trip && !denied ? t.staleData : errorMessage(query.error, t)}
+          </Notice>
           <Action
             label={t.retry}
             disabled={!online || query.isFetching}

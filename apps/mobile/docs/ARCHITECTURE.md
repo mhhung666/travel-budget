@@ -35,7 +35,7 @@ src/
   storage/             環境隔離的 SecureStore 憑證／本機身分；草稿、旅行快照與待確認支出的 SQLite 紀錄
   components/          共用按鈕、頁面、提示與指標
   i18n/                四語訊息與裝置語系 adapter
-  theme/               語意色彩與間距 tokens
+  theme/               深淺語意色彩、字級／行高、間距、圓角與尺寸 tokens
 docs/                  現況、規範、契約與規劃
   decisions/           架構決策紀錄
 assets/                目前保留 Expo 模板圖示
@@ -46,6 +46,8 @@ assets/                目前保留 Expo 模板圖示
 支出清單使用 TanStack Query 的游標式無限查詢；下拉更新只保留並重讀最新一頁，較舊頁面按需再載入。所有私人查詢的 key 以 `[API 環境, 帳號, 資源, 旅行…]` 開頭，換帳號不會讀到同一筆快取，登出仍會清除全部。
 
 依賴方向：`app → features → api / storage / i18n / theme`。API 與 storage 不得反向 import 畫面或路由；route 不直接呼叫 fetch，也不計算業務交易。跨 feature 使用明確的公開 export，避免引用彼此內部元件。
+
+共用 UI 使用 `theme/tokens.ts` 與 `components/ui.tsx`；`components/icons.tsx` 以原生 View 輪廓／ActivityIndicator 實作裝飾圖示，不新增字型或平台依賴。Action 的明確 `variant` 優先於舊 `secondary`；Notice 的 `tone` 決定視覺語意，`announce` 決定通知強度，可用 `announceText` 提供簡短摘要。一般說明預設不通知，warning／danger 預設 polite；自動保存與秒數倒數明確停用通知。iOS 按訊息／強度變更通知 VoiceOver，Android／Web 使用 live region；Card 不合併子控制項的朗讀焦點。TextField 的 ref、事件與鍵盤 props 由呼叫端提供，元件管理聚焦／錯誤輪廓，頁面仍負責業務驗證與完成入口。
 
 `api` 負責 transport、headers、timeout、錯誤映射；feature hooks 負責 query key 與快取失效。表單輸入由 `DraftEditor` 管理並持久化，遠端狀態交給 Query；沒有跨頁需求時不增加全域狀態框架。
 

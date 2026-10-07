@@ -320,12 +320,14 @@ export function EditExpenseScreen({
         onPress={back}
       />
       <Title>{remove ? t.deleteExpense : t.editExpense}</Title>
-      {!online && <Notice>{t.offline}</Notice>}
+      {!online && <Notice tone="warning">{t.offline}</Notice>}
       {Platform.OS === 'web' && <Notice>{t.nativeOnly}</Notice>}
-      {!!error && <Notice>{error}</Notice>}
+      {!!error && <Notice tone="danger">{error}</Notice>}
       {done ? (
         <>
-          <Notice>{refreshFailed ? t.savedRefreshFailed : t.operationDone}</Notice>
+          <Notice tone={refreshFailed ? 'warning' : 'success'} announce="polite">
+            {refreshFailed ? t.savedRefreshFailed : t.operationDone}
+          </Notice>
           {refreshFailed && (
             <Action
               label={t.refresh}
@@ -388,7 +390,7 @@ export function EditExpenseScreen({
             </Card>
           )}
           {remove ? (
-            <Notice>{t.deleteExpenseWarning}</Notice>
+            <Notice tone="warning">{t.deleteExpenseWarning}</Notice>
           ) : (
             <>
               <Notice>{t.basicExpenseHint}</Notice>

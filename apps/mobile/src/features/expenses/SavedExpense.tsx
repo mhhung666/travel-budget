@@ -57,11 +57,13 @@ export function SavedExpense({
   return (
     <>
       <Title>{t.savedTitle}</Title>
-      <Notice>{t.savedHint}</Notice>
-      {saved.differs && <Notice>{t.savedDiffers}</Notice>}
+      <Notice tone="success" announce="polite">
+        {t.savedHint}
+      </Notice>
+      {saved.differs && <Notice tone="warning">{t.savedDiffers}</Notice>}
       {refreshFailed && (
         <>
-          <Notice>{t.savedRefreshFailed}</Notice>
+          <Notice tone="warning">{t.savedRefreshFailed}</Notice>
           <Action
             testID="new-expense-refresh"
             label={refreshing ? t.loading : t.refresh}

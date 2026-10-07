@@ -54,8 +54,16 @@ export function LoginScreen() {
             {t.login}
           </Text>
           <Copy>{t.loginHint}</Copy>
-          {params.notice === 'registered' && <Notice>{t.registered}</Notice>}
-          {params.notice === 'passwordResetDone' && <Notice>{t.passwordResetDone}</Notice>}
+          {params.notice === 'registered' && (
+            <Notice tone="success" announce="polite">
+              {t.registered}
+            </Notice>
+          )}
+          {params.notice === 'passwordResetDone' && (
+            <Notice tone="success" announce="polite">
+              {t.passwordResetDone}
+            </Notice>
+          )}
           <Text style={{ color: p.text, fontSize: 16 }}>{t.username}</Text>
           <TextInput
             testID="login-username"
@@ -94,8 +102,10 @@ export function LoginScreen() {
               { color: p.text, borderColor: p.border, backgroundColor: p.background },
             ]}
           />
-          {!!error && <Notice>{error}</Notice>}
-          {!error && !!sessionError && <Notice>{errorMessage(sessionError, t)}</Notice>}
+          {!!error && <Notice tone="danger">{error}</Notice>}
+          {!error && !!sessionError && (
+            <Notice tone="danger">{errorMessage(sessionError, t)}</Notice>
+          )}
           {Platform.OS === 'web' && <Notice>{t.nativeOnly}</Notice>}
           <Action
             testID="login-submit"

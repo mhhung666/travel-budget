@@ -21,7 +21,7 @@ function LocalSessionActions() {
       {status === 'local' && (
         <>
           <Notice>{t.localSessionHint}</Notice>
-          {!!error && <Notice>{errorMessage(error, t)}</Notice>}
+          {!!error && <Notice tone="danger">{errorMessage(error, t)}</Notice>}
           <Action
             testID="local-restore-login"
             label={t.restoreOnline}
@@ -48,7 +48,7 @@ function LocalSessionActions() {
             .finally(() => setBusy(false));
         }}
       />
-      {!!logoutError && <Notice>{errorMessage(logoutError, t)}</Notice>}
+      {!!logoutError && <Notice tone="danger">{errorMessage(logoutError, t)}</Notice>}
       {status === 'signedIn' && (
         <Action secondary label={t.back} onPress={() => router.replace('/trips')} />
       )}
@@ -64,22 +64,22 @@ export function LocalTripsScreen() {
       <Notice>{t.localDraftHint}</Notice>
       <Action label={t.queueTitle} onPress={() => router.push('/queue')} />
       <LocalSessionActions />
-      {query.storageFailed && <Notice>{t.localSnapshotFailed}</Notice>}
+      {query.storageFailed && <Notice tone="danger">{t.localSnapshotFailed}</Notice>}
       {query.isPending && <ActivityIndicator accessibilityLabel={t.loading} />}
       {query.isError && (
         <>
-          <Notice>{t.draftLoadFailed}</Notice>
+          <Notice tone="danger">{t.draftLoadFailed}</Notice>
           <Action label={t.retry} onPress={() => void query.refetch()} />
         </>
       )}
-      {query.data?.length === 0 && <Notice>{t.localTripUnavailable}</Notice>}
+      {query.data?.length === 0 && <Notice tone="warning">{t.localTripUnavailable}</Notice>}
       {query.data?.map((trip) => (
         <Card key={trip.tripId}>
           <Title>{trip.name ?? t.cachedTrip}</Title>
           <Copy>
             {t.localUpdated}: {new Date(trip.updatedAt).toLocaleString()}
           </Copy>
-          {!trip.options && <Notice>{t.localTripUnavailable}</Notice>}
+          {!trip.options && <Notice tone="warning">{t.localTripUnavailable}</Notice>}
           <Action
             testID={`local-trip-${trip.tripId}`}
             label={t.draftRestore}
@@ -117,13 +117,13 @@ function ScopedLocalDraftScreen({ tripId }: { tripId: string }) {
         <Title>{t.localDrafts}</Title>
         <Notice>{t.localDraftHint}</Notice>
         <LocalSessionActions />
-        {query.storageFailed && <Notice>{t.localSnapshotFailed}</Notice>}
+        {query.storageFailed && <Notice tone="danger">{t.localSnapshotFailed}</Notice>}
         {(query.isPending || pending.isPending) && (
           <ActivityIndicator accessibilityLabel={t.loading} />
         )}
         {(query.isError || pending.isError) && (
           <>
-            <Notice>{t.draftLoadFailed}</Notice>
+            <Notice tone="danger">{t.draftLoadFailed}</Notice>
             <Action
               label={t.retry}
               onPress={() => {
@@ -134,9 +134,9 @@ function ScopedLocalDraftScreen({ tripId }: { tripId: string }) {
           </>
         )}
         {!query.isPending && !query.isError && (!trip || !trip.options) && (
-          <Notice>{t.localTripUnavailable}</Notice>
+          <Notice tone="warning">{t.localTripUnavailable}</Notice>
         )}
-        {!!pending.data?.length && <Notice>{t.pendingBlocks}</Notice>}
+        {!!pending.data?.length && <Notice tone="warning">{t.pendingBlocks}</Notice>}
         {trip && (
           <>
             <Title>{trip.name ?? t.cachedTrip}</Title>

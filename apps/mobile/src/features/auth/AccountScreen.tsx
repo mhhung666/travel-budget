@@ -82,7 +82,11 @@ export function AccountScreen({ mode }: { mode: 'register' | 'request' }) {
       <Page form>
         <Title>{mode === 'register' ? t.createAccount : t.forgotPassword}</Title>
         <Copy>{mode === 'register' ? t.registrationHint : t.resetHint}</Copy>
-        {state.accepted && <Notice>{t.resetAccepted}</Notice>}
+        {state.accepted && (
+          <Notice role="status" announce="polite">
+            {t.resetAccepted}
+          </Notice>
+        )}
         {fields.map(([key, label], index) => (
           <TextField
             key={key}
@@ -130,10 +134,18 @@ export function AccountScreen({ mode }: { mode: 'register' | 'request' }) {
           />
         ))}
         {state.stage !== 'request' && <Copy>{t.newPasswordHint}</Copy>}
-        {!!error && <Notice>{error}</Notice>}
-        {remaining > 0 && <Notice>{`${t.accountWait} ${remaining} ${t.seconds}`}</Notice>}
+        {!!error && <Notice tone="danger">{error}</Notice>}
+        {remaining > 0 && (
+          <Notice
+            tone="warning"
+            announce="none"
+          >{`${t.accountWait} ${remaining} ${t.seconds}`}</Notice>
+        )}
         {state.stage === 'confirm' && resendRemaining > 0 && (
-          <Notice>{`${t.resendCode}: ${t.accountWait} ${resendRemaining} ${t.seconds}`}</Notice>
+          <Notice
+            tone="warning"
+            announce="none"
+          >{`${t.resendCode}: ${t.accountWait} ${resendRemaining} ${t.seconds}`}</Notice>
         )}
         {Platform.OS === 'web' && <Notice>{t.nativeOnly}</Notice>}
         <Action

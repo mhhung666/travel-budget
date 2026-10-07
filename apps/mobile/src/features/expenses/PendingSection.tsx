@@ -53,9 +53,9 @@ export function PendingSection({
   return (
     <>
       <Title>{t.pendingTitle}</Title>
-      <Notice>{t.pendingHint}</Notice>
+      <Notice tone="warning">{t.pendingHint}</Notice>
       <Copy>{t.pendingBlocks}</Copy>
-      {!online && <Notice>{t.offline}</Notice>}
+      {!online && <Notice tone="warning">{t.offline}</Notice>}
       {records.map((record, index) => {
         const reason = reasonMessage(reasons[record.clientRequestId], t);
         const working = busy?.id === record.clientRequestId;
@@ -70,7 +70,7 @@ export function PendingSection({
               <DetailRow label={t.date} value={record.payload.date} />
               <DetailRow label={t.category} value={categoryLabel(record.payload.category, t)} />
             </Card>
-            {!!reason && <Notice>{reason}</Notice>}
+            {!!reason && <Notice tone="warning">{reason}</Notice>}
             <Action
               testID={`pending-check-${index}`}
               label={t.checkResult}

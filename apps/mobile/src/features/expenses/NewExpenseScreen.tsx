@@ -107,7 +107,7 @@ function ScopedNewExpenseScreen({ tripId }: { tripId: string }) {
       // Without the device database nothing can be saved first, so nothing may be sent.
       return (
         <>
-          <Notice>{t.entryNotSent}</Notice>
+          <Notice tone="danger">{t.entryNotSent}</Notice>
           <Action
             testID="new-expense-retry"
             label={t.retry}
@@ -133,7 +133,7 @@ function ScopedNewExpenseScreen({ tripId }: { tripId: string }) {
         />
       );
     }
-    if (denied) return <Notice>{t.notFound}</Notice>;
+    if (denied) return <Notice tone="danger">{t.notFound}</Notice>;
     if (options.isPending) {
       return online ? <ActivityIndicator accessibilityLabel={t.loading} /> : null;
     }
@@ -143,7 +143,7 @@ function ScopedNewExpenseScreen({ tripId }: { tripId: string }) {
           {options.isFetching ? (
             <ActivityIndicator accessibilityLabel={t.loading} />
           ) : (
-            <Notice>{errorMessage(options.error, t)}</Notice>
+            <Notice tone="danger">{errorMessage(options.error, t)}</Notice>
           )}
           <Action
             testID="new-expense-retry"
@@ -198,7 +198,7 @@ function ScopedNewExpenseScreen({ tripId }: { tripId: string }) {
             <Copy>{t.newExpenseHint}</Copy>
           </>
         )}
-        {!online && !saved && <Notice>{t.offlineEntry}</Notice>}
+        {!online && !saved && <Notice tone="warning">{t.offlineEntry}</Notice>}
         {!online && !saved && !denied && (
           <Action
             secondary
@@ -206,8 +206,8 @@ function ScopedNewExpenseScreen({ tripId }: { tripId: string }) {
             onPress={() => router.replace({ pathname: '/drafts/[id]', params: { id: tripId } })}
           />
         )}
-        {banner === 'rejected' && !saved && <Notice>{t.entryRejected}</Notice>}
-        {banner === 'not-sent' && !saved && <Notice>{t.entryNotSent}</Notice>}
+        {banner === 'rejected' && !saved && <Notice tone="danger">{t.entryRejected}</Notice>}
+        {banner === 'not-sent' && !saved && <Notice tone="danger">{t.entryNotSent}</Notice>}
         {body}
       </Page>
     </KeyboardAvoidingView>
@@ -259,7 +259,7 @@ function DraftForm(props: FormProps & { scope: PendingScope }) {
   if (state.phase === 'error')
     return (
       <>
-        <Notice>{t.draftLoadFailed}</Notice>
+        <Notice tone="danger">{t.draftLoadFailed}</Notice>
         <Action
           label={t.retry}
           testID="draft-load-retry"
@@ -272,7 +272,7 @@ function DraftForm(props: FormProps & { scope: PendingScope }) {
       <>
         <Title>{t.draftFound}</Title>
         <Copy>{t.draftResumeHint}</Copy>
-        {state.discardFailed && <Notice>{t.draftDiscardFailed}</Notice>}
+        {state.discardFailed && <Notice tone="danger">{t.draftDiscardFailed}</Notice>}
         <Action label={t.draftRestore} testID="draft-restore" onPress={editor.restore} />
         <Action
           secondary
@@ -286,7 +286,11 @@ function DraftForm(props: FormProps & { scope: PendingScope }) {
     <>
       <Copy>{t.draftHint}</Copy>
       <View testID="draft-save-status">
-        <Notice>
+        <Notice
+          tone={state.status === 'failed' ? 'danger' : 'info'}
+          role={state.status === 'failed' ? 'alert' : 'status'}
+          announce={state.status === 'failed' ? 'polite' : 'none'}
+        >
           {state.status === 'saving'
             ? t.draftSaving
             : state.status === 'saved'
@@ -302,7 +306,7 @@ function DraftForm(props: FormProps & { scope: PendingScope }) {
           onPress={() => void editor.flush().catch(() => undefined)}
         />
       )}
-      {state.discardFailed && <Notice>{t.draftDiscardFailed}</Notice>}
+      {state.discardFailed && <Notice tone="danger">{t.draftDiscardFailed}</Notice>}
       <EntryForm {...props} editor={editor} draft={state.record!.input} saveStatus={state.status} />
     </>
   );
@@ -645,7 +649,7 @@ function EntryForm({
         </View>
         {missingMembers.length > 0 && (
           <>
-            <Notice>{t.draftMembersChanged}</Notice>
+            <Notice tone="warning">{t.draftMembersChanged}</Notice>
             <Action
               secondary
               label={t.draftRemoveMembers}
@@ -668,8 +672,8 @@ function EntryForm({
         disabled={localOnly || !online || locked}
         onPress={() => void runPreview()}
       />
-      {!!previewError && <Notice>{errorMessage(previewError, t)}</Notice>}
-      {stale && <Notice>{t.previewStale}</Notice>}
+      {!!previewError && <Notice tone="danger">{errorMessage(previewError, t)}</Notice>}
+      {stale && <Notice tone="warning">{t.previewStale}</Notice>}
       {current && (
         <Section title={t.previewTitle}>
           <Copy>{t.previewHint}</Copy>
@@ -701,7 +705,7 @@ function EntryForm({
         onPress={() => void confirm()}
       />
       <Notice>{t.queueRule}</Notice>
-      {!!queueError && <Notice>{t.entryNotSent}</Notice>}
+      {!!queueError && <Notice tone="danger">{t.entryNotSent}</Notice>}
       <Action
         testID="expense-queue-confirm"
         label={t.queueConfirm}

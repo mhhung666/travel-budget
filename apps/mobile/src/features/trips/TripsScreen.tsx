@@ -76,7 +76,7 @@ export function TripsScreen() {
               busy={loggingOut}
               onPress={() => void logout()}
             />
-            {!!logoutError && <Notice>{errorMessage(logoutError, t)}</Notice>}
+            {!!logoutError && <Notice tone="danger">{errorMessage(logoutError, t)}</Notice>}
             <Action
               secondary
               testID="local-drafts"
@@ -84,10 +84,12 @@ export function TripsScreen() {
               onPress={() => router.push('/drafts')}
             />
             <Action secondary label={t.queueTitle} onPress={() => router.push('/queue')} />
-            {!online && <Notice>{t.offline}</Notice>}
+            {!online && <Notice tone="warning">{t.offline}</Notice>}
             {query.isError && (
               <>
-                <Notice>{query.data ? t.staleData : errorMessage(query.error, t)}</Notice>
+                <Notice tone={query.data ? 'warning' : 'danger'}>
+                  {query.data ? t.staleData : errorMessage(query.error, t)}
+                </Notice>
                 <Action
                   label={t.retry}
                   disabled={!online || query.isFetching}

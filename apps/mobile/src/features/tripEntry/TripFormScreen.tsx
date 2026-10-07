@@ -188,9 +188,9 @@ export function TripFormScreen({ mode }: { mode: 'create' | 'join' }) {
           onSubmitEditing={Keyboard.dismiss}
         />
       )}
-      {notSent && <Notice>{t.operationNotSent}</Notice>}
-      {!!error && <Notice>{error}</Notice>}
-      {!online && <Notice>{t.offline}</Notice>}
+      {notSent && <Notice tone="danger">{t.operationNotSent}</Notice>}
+      {!!error && <Notice tone="danger">{error}</Notice>}
+      {!online && <Notice tone="warning">{t.offline}</Notice>}
       <Action
         testID="trip-confirm"
         label={mode === 'create' ? t.createTrip : t.joinTrip}

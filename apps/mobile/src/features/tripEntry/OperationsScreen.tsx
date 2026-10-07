@@ -40,8 +40,8 @@ export function OperationsScreen() {
       />
       <Title>{t.pendingOperations}</Title>
       <Notice>{t.pendingSaved}</Notice>
-      {records.isError && <Notice>{errorMessage(records.error, t)}</Notice>}
-      {!!error && <Notice>{error}</Notice>}
+      {records.isError && <Notice tone="danger">{errorMessage(records.error, t)}</Notice>}
+      {!!error && <Notice tone="danger">{error}</Notice>}
       <Action
         secondary
         label={t.refresh}
@@ -66,8 +66,8 @@ export function OperationsScreen() {
           <Copy>{record.clientRequestId}</Copy>
           {record.status === 'pending' ? (
             <>
-              <Notice>{t.operationUnknown}</Notice>
-              {record.conflict && <Notice>{t.operationBlocked}</Notice>}
+              <Notice tone="warning">{t.operationUnknown}</Notice>
+              {record.conflict && <Notice tone="warning">{t.operationBlocked}</Notice>}
               <Action
                 testID={`mutation-check-${record.clientRequestId}`}
                 label={t.checkOperation}
@@ -85,7 +85,10 @@ export function OperationsScreen() {
             </>
           ) : (
             <>
-              <Notice>
+              <Notice
+                tone={record.result?.status === 'committed' ? 'success' : 'warning'}
+                announce="none"
+              >
                 {record.result?.status === 'committed'
                   ? t.operationDone
                   : record.operation.startsWith('payment.')

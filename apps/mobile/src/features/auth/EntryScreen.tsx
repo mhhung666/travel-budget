@@ -21,7 +21,7 @@ export function EntryScreen() {
         <ActivityIndicator accessibilityLabel={t.loading} />
       ) : (
         <>
-          <Notice>{errorMessage(auth.error, t)}</Notice>
+          <Notice tone="danger">{errorMessage(auth.error, t)}</Notice>
           <Action label={t.retry} onPress={() => void auth.manager.restore()} />
         </>
       )}

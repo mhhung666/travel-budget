@@ -351,12 +351,14 @@ export function PaymentScreen({
       />
       <Title>{paymentId ? t.revokePayment : t.recordPayment}</Title>
       <Notice>{t.paymentExternalOnly}</Notice>
-      {!online && <Notice>{t.offline}</Notice>}
+      {!online && <Notice tone="warning">{t.offline}</Notice>}
       {!native && <Notice>{t.nativeOnly}</Notice>}
-      {!!error && <Notice>{error}</Notice>}
+      {!!error && <Notice tone="danger">{error}</Notice>}
       {done ? (
         <>
-          <Notice>{refreshFailed ? t.savedRefreshFailed : t.operationDone}</Notice>
+          <Notice tone={refreshFailed ? 'warning' : 'success'} announce="polite">
+            {refreshFailed ? t.savedRefreshFailed : t.operationDone}
+          </Notice>
           {refreshFailed && (
             <Action
               label={t.refresh}
@@ -395,7 +397,7 @@ export function PaymentScreen({
                 <Card>
                   <Title>{t.latestExpense}</Title>
                   {showContext(latest)}
-                  <Notice>{t.paymentChanged}</Notice>
+                  <Notice tone="warning">{t.paymentChanged}</Notice>
                   <Action
                     testID="payment-reconfirm"
                     label={t.reconfirmPayment}
@@ -470,7 +472,7 @@ export function PaymentScreen({
                   </Copy>
                 </>
               )}
-              {paymentId && <Notice>{t.revokePaymentWarning}</Notice>}
+              {paymentId && <Notice tone="warning">{t.revokePaymentWarning}</Notice>}
               {prepared ? (
                 <Card>
                   <Title>{t.confirmPayment}</Title>
@@ -480,7 +482,7 @@ export function PaymentScreen({
                       <Copy>{money(prepared.amount)}</Copy>
                       <Copy>{prepared.note || '—'}</Copy>
                       {fields && paymentSuggestion(context, fields) !== prepared.amount && (
-                        <Notice>{t.paymentDeviation}</Notice>
+                        <Notice tone="warning">{t.paymentDeviation}</Notice>
                       )}
                     </>
                   ) : (

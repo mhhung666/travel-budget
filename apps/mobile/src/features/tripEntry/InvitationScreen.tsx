@@ -98,13 +98,13 @@ export function InvitationScreen({ id }: { id: string }) {
     <Page>
       <Action testID="invitation-back" secondary label={t.back} onPress={() => router.back()} />
       <Title>{t.inviteMembers}</Title>
-      <Notice>{t.invitationWarning}</Notice>
+      <Notice tone="warning">{t.invitationWarning}</Notice>
       {scope && !catalog.isVisible(scope, id) ? (
-        <Notice>{errorMessage(new ApiError('NOT_FOUND', 404), t)}</Notice>
+        <Notice tone="danger">{errorMessage(new ApiError('NOT_FOUND', 404), t)}</Notice>
       ) : (
-        !!current?.error && <Notice>{errorMessage(current.error, t)}</Notice>
+        !!current?.error && <Notice tone="danger">{errorMessage(current.error, t)}</Notice>
       )}
-      {!online && <Notice>{t.offline}</Notice>}
+      {!online && <Notice tone="warning">{t.offline}</Notice>}
       <Action
         label={t.refresh}
         busy={online && !current && (!scope || catalog.isVisible(scope, id))}
@@ -128,7 +128,7 @@ export function InvitationScreen({ id }: { id: string }) {
             label={t.shareInvitation}
             onPress={() => void act('share')}
           />
-          {!!feedback && <Notice>{feedback}</Notice>}
+          {!!feedback && <Notice announce="polite">{feedback}</Notice>}
         </>
       )}
     </Page>

@@ -63,10 +63,10 @@ function ScopedQueueScreen() {
         disabled={!online || status !== 'signedIn' || busy || !scope}
         onPress={() => void act(() => queue.synchronize(scope!))}
       />
-      {(records.isError || failed || syncFailed) && <Notice>{t.queueFailed}</Notice>}
+      {(records.isError || failed || syncFailed) && <Notice tone="danger">{t.queueFailed}</Notice>}
       {blocked && (
         <>
-          <Notice>{t.queueDraftExists}</Notice>
+          <Notice tone="warning">{t.queueDraftExists}</Notice>
           <Action
             label={t.queueReplaceDraft}
             disabled={busy}
@@ -93,7 +93,7 @@ function ScopedQueueScreen() {
                   : t.queueWaiting}
           </Copy>
           {!!r.reason && (
-            <Notice>
+            <Notice tone="warning">
               {r.reason === 'members'
                 ? t.draftMembersChanged
                 : r.reason === 'access'
@@ -113,7 +113,7 @@ function ScopedQueueScreen() {
             </Copy>
           )}
           {r.status === 'prepared' ? (
-            <Notice>{t.queueFrozen}</Notice>
+            <Notice tone="warning">{t.queueFrozen}</Notice>
           ) : (
             <>
               {r.status !== 'resolved' && (

@@ -102,7 +102,7 @@ export function ExpensesScreen({ tripId }: { tripId: string }) {
             />
             <Title>{t.expenses}</Title>
             <Copy>{t.expensesHint}</Copy>
-            {hasPending && <Notice>{t.pendingExpensesNotice}</Notice>}
+            {hasPending && <Notice tone="warning">{t.pendingExpensesNotice}</Notice>}
             <Action
               testID="expenses-add"
               label={hasPending ? t.reviewPending : t.addExpense}
@@ -110,10 +110,10 @@ export function ExpensesScreen({ tripId }: { tripId: string }) {
                 router.push({ pathname: '/trips/[id]/expenses/new', params: { id: tripId } })
               }
             />
-            {!online && <Notice>{t.offline}</Notice>}
+            {!online && <Notice tone="warning">{t.offline}</Notice>}
             {query.isError && (
               <>
-                <Notice>
+                <Notice tone={query.data && !denied ? 'warning' : 'danger'}>
                   {query.data && !denied ? t.staleData : errorMessage(query.error, t)}
                 </Notice>
                 <Action

@@ -25,11 +25,11 @@ export function ExpenseDetailScreen({ tripId, expenseId }: { tripId: string; exp
           router.dismissTo({ pathname: '/trips/[id]/expenses', params: { id: tripId } })
         }
       />
-      {!online && <Notice>{t.offline}</Notice>}
+      {!online && <Notice tone="warning">{t.offline}</Notice>}
       {query.isPending && online && <ActivityIndicator accessibilityLabel={t.loading} />}
       {query.isError && (
         <>
-          <Notice>
+          <Notice tone={expense && !denied ? 'warning' : 'danger'}>
             {expense && !denied
               ? t.staleData
               : denied

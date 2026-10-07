@@ -186,11 +186,13 @@ export function SettlementScreen({ tripId }: { tripId: string }) {
       />
       <Title>{t.settlement}</Title>
       <Copy>{t.settlementHint}</Copy>
-      {!online && <Notice>{t.offline}</Notice>}
+      {!online && <Notice tone="warning">{t.offline}</Notice>}
       {query.isPending && online && <ActivityIndicator accessibilityLabel={t.loading} />}
       {query.isError && (
         <>
-          <Notice>{settlement && !denied ? t.staleData : errorMessage(query.error, t)}</Notice>
+          <Notice tone={settlement && !denied ? 'warning' : 'danger'}>
+            {settlement && !denied ? t.staleData : errorMessage(query.error, t)}
+          </Notice>
           <Action
             testID="settlement-retry"
             label={t.retry}
