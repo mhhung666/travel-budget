@@ -361,7 +361,7 @@ E1–E4 本機 iOS／Android Expo Go 操作與故障矩陣已完成，Web produc
 
 ## E1 旅行入口驗收交接
 
-狀態：程式與自動化檢查已交付，審查兩項 Web P2 已修並通過獨立複驗；後續多成員加入時通知重複鍵亦已修正並通過真 MongoDB 回歸，見 [E 規格](ROADMAP.md#e-規格基本使用流程)；**本機 iOS／Android 操作與故障矩陣完成，證據及限制見上方原生驗收紀錄**。D 既有通過不能覆蓋 E1。以 `pnpm --filter @travel-budget/web dev:mobile-api` 的 disposable MongoDB／實際 HTTP 為後端，使用既有隔離帳號；邀請頁後端 `APP_URL` 與手機 `EXPO_PUBLIC_WEB_ORIGIN` 須是同環境網站 origin。不同 origin 時明確配置；碼輸入不需連結 origin。
+狀態：程式與自動化檢查已交付，審查兩項 Web P2 已修並通過獨立複驗；後續多成員加入時通知重複鍵亦已修正並通過真 MongoDB 回歸，見 [E 成果](archive/README.md#e1e4-基本使用流程2026-10-062026-10-07)；**本機 iOS／Android 操作與故障矩陣完成，證據及限制見上方原生驗收紀錄**。D 既有通過不能覆蓋 E1。以 `pnpm --filter @travel-budget/web dev:mobile-api` 的 disposable MongoDB／實際 HTTP 為後端，使用既有隔離帳號；邀請頁後端 `APP_URL` 與手機 `EXPO_PUBLIC_WEB_ORIGIN` 須是同環境網站 origin。不同 origin 時明確配置；碼輸入不需連結 origin。
 
 | 情境         | 操作與核對                                                                                                                                                                                                         |
 | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |

@@ -68,6 +68,10 @@ D 顯示的 32 組操作與資料核對已完成：每平台四語 × 預設／�
 - D 顯示／視覺：`/tmp/tb-d-display-{android,android-2,android-3,android-4,ios-2}.log`、`/tmp/tb-d-remaining-matrix-evidence.json` 核對 32 組操作；iOS 原生輔助產物 `/tmp/tb-d-display-ios-manual/<語系>-<字級>-<外觀>/verified.json` 保存 SQL、HTTP、DB 與截圖。日文預設深色觀察器暫時讀取失敗，保留原 log 並獨立補讀捨棄後同一 scope，JSON 註記限制；其餘原工具失敗亦保留。P2 截圖：`/tmp/tb-d-display-ios-manual/jp-largest-dark/members-light.png`，程式位置 `src/components/ui.tsx:294`。
 - VoiceOver 錯誤／私人資料：`/tmp/tb-d-remaining-ios-manual/verified-voiceover-errors-privacy.json`、`/tmp/tb-d-remaining-vo-*.json` 保存實際朗讀與核對。`Remaining.xcresult` 觀察器逾時、`Remaining2.xcresult` 正常結束；退出狀態不代替功能通過。最新開發檢查為 `/tmp/tb-d-remaining-final-{tests,check,export,expo}.log`。
 
-## E1 旅行入口（2026-10-06）
+## E1–E4 基本使用流程（2026-10-06～2026-10-07）
 
-已實作線上建立／加入、邀請複製／分享與確認後 SQLite／UUID 恢復；Web／HTTP 共用交易與獨立 receipt，通知／動態防重，撤權／刪除不重播。真 SQLite、隔離 MongoDB 交易與實際 HTTP 已核對保存／丟回應／重啟、併發、終局拒絕與 429 隔離；現況見 [FEATURES](../FEATURES.md) 與 [契約](../BACKEND_CONTRACT.md#e1-旅行入口與操作-receipt)。Web 2,006、Mobile 644 個測試、4 個真交易案例、HTTP／MongoDB、根 check／build、frozen install、三平台匯出與 Expo 相容性通過。E1 兩平台新畫面仍待獨立操作驗收，清單見 [本機驗收](../LOCAL_ACCEPTANCE.md#e1-旅行入口驗收交接)；E2–E4 仍為待辦，未部署／執行遠端 migration。
+完成建立／加入旅行與邀請、註冊／Email 驗證碼重設、支出編輯／刪除、還款／撤銷；保留 C／D 的持久化、帳號／環境隔離、UUID、撤權與限速保護。修正多成員通知、重設碼恢復、衝突保留輸入及同名成員結算識別；現行規則見 [FEATURES](../FEATURES.md) 與 [契約](../BACKEND_CONTRACT.md)，已完成設計細節查 Git。
+
+最新紀錄：兩平台 Expo Go 基本操作、程序終止／恢復、限速與隔離故障矩陣，以及四語／字級／外觀與危險確認通過；Mobile 723／Web 2,054 項、開發檢查、三平台匯出與 Web build 通過。一般 Web 測試另 442 項隔離整合案例未在最後一輪執行，不計該輪通過。實際證據、早期失敗與補驗範圍保留於 [E 原生驗收紀錄](../LOCAL_ACCEPTANCE.md#e1e4-原生驗收紀錄2026-10-062026-10-07)，本次文件整理未重跑。
+
+限制：development build、真機、完整閱讀器與外部郵件投遞未驗；Email 額度遭他人耗盡仍是已知待修問題，見 [E2 契約](../BACKEND_CONTRACT.md#e2-註冊與-email-驗證碼重設)。後續統一列 [F](../ROADMAP.md)，未部署／執行遠端 migration。

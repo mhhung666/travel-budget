@@ -78,7 +78,7 @@ Web／Mobile 共用 `lib/tripEntry.ts`，旅行、成員、receipt 與新加入�
 
 E 的寫入／查詢與 C／D 共用 `expense_rate_limit`。429 先落盤絕對期限，SQLite／序列等待與 refresh 後每次 fetch 前同步檢查，登入世代變更也停止；本機攔截不延長期限。完成、移除提示不刪等待。加入成功只以最小 tripId 導向，再由既有授權讀取建立快照。
 
-後端新 migration `20261006100000-mutation-requests.js` 可在隔離環境重跑，使用 MongoDB `_id` 唯一約束及既有邀請碼唯一索引；需部署相容後端／索引後才發 App。本次未執行遠端 migration 或裝置驗收。
+後端新 migration `20261006100000-mutation-requests.js` 可在隔離環境重跑，使用 MongoDB `_id` 唯一約束及既有邀請碼唯一索引；需部署相容後端／索引後才發 App。未執行遠端 migration；兩平台本機操作已驗，範圍與限制見 [本機驗收](LOCAL_ACCEPTANCE.md)。
 
 ## E2 註冊與 Email 驗證碼重設
 
@@ -114,7 +114,7 @@ revision 對原始業務欄位、支出／旅行 ID 與目前成員的儲存／�
 
 手機 SQLite schema 8 加上 E 的 trip_id／索引，保留 C／D／E1 與帳號等待。C 新增、D 交接及 E 確認在同一 SQLite 序列／交易檢查同旅行 pending；原 UUID 查詢／重試不被自己的鎖阻擋，D queued 可保留，其他旅行可繼續。未確認編輯只留畫面且與 D 草稿分離；確認後先落盤再 PATCH／DELETE，重啟／前景／重連只查 receipt，不自動重送。終局成功清 payload；E3 拒絕保留本人輸入供明確重開、讀新 context／預覽及新確認，未確定不能修改／捨棄。C／D／E 共用持久化 429 絕對期限與 fetch 前登入／撤權守衛。
 
-成功後重讀第一頁、明細、結算、landing 與列表摘要；刪除明細快取並避開其預期 404。重讀失敗保留成功，僅提供只讀重試；不樂觀調整餘額。兩平台操作待全部 E 完成後統一驗收，未部署／未執行遠端 migration。
+成功後重讀第一頁、明細、結算、landing 與列表摘要；刪除明細快取並避開其預期 404。重讀失敗保留成功，僅提供只讀重試；不樂觀調整餘額。兩平台本機操作與故障矩陣已驗，範圍與限制見 [本機驗收](LOCAL_ACCEPTANCE.md)；未部署／未執行遠端 migration。
 
 ## E4 登記與撤銷還款
 
