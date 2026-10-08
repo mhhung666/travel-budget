@@ -31,6 +31,7 @@ vi.mock('react', async (original) => ({
   },
   useCallback: (fn: unknown) => fn,
   useEffect: () => undefined,
+  useId: () => 'test-accessory',
 }));
 vi.mock('react-native', () => ({
   Alert: { alert: vi.fn() },
@@ -38,6 +39,10 @@ vi.mock('react-native', () => ({
   Keyboard: { dismiss: vi.fn() },
   Platform: { OS: 'ios' },
   TextInput: 'TextInput',
+  View: 'View',
+  Pressable: 'Pressable',
+  Text: 'Text',
+  InputAccessoryView: 'InputAccessoryView',
 }));
 vi.mock('expo-router', () => ({
   router: { push: vi.fn(), dismissTo: vi.fn() },
@@ -48,8 +53,9 @@ vi.mock('expo-router', () => ({
 }));
 vi.mock('expo-router/react-navigation', () => ({ usePreventRemove: vi.fn() }));
 vi.mock('@/features/navigation/TripContext', () => ({ TripContext: 'TripContext' }));
-vi.mock('@/components/ui', () =>
-  Object.fromEntries(
+vi.mock('@/components/ui', () => ({
+  usePalette: () => ({ surface: 'white', border: 'gray', primary: 'teal' }),
+  ...Object.fromEntries(
     [
       'Action',
       'Card',
@@ -62,8 +68,8 @@ vi.mock('@/components/ui', () =>
       'TextField',
       'Title',
     ].map((k) => [k, k])
-  )
-);
+  ),
+}));
 vi.mock('@/features/tripEntry/provider', () => ({
   useTripEntry: () => ({
     scope: h.scope,
@@ -84,7 +90,7 @@ vi.mock('@/features/localDrafts/provider', () => ({
     },
   }),
 }));
-vi.mock('@/i18n/useMessages', () => ({ useMessages: () => h.labels }));
+vi.mock('@/i18n/useMessages', () => ({ useMessages: () => h.labels, useAppLocale: () => 'en' }));
 vi.mock('@/providers/useOnline', () => ({ useOnline: () => true }));
 vi.mock('./entryQueries', () => ({ refreshTripData: vi.fn() }));
 vi.mock('@/storage/pendingExpenseDatabase', () => ({
@@ -125,8 +131,14 @@ const original: ExpenseEditContext = {
 // Exercise the screen's actual callbacks and request preparation. React mounting and
 // native adapters are mocked; these cases do not replace device interaction tests.
 let source: string | undefined;
+let remove = false;
 type NodeProps = {
   children?: unknown;
+  testID?: string;
+  value?: string;
+  kind?: string;
+  disabled?: boolean;
+  variant?: string;
   label?: string;
   selected?: boolean;
   onPress?: () => void;
@@ -135,7 +147,7 @@ type NodeProps = {
 function render() {
   h.i = 0;
   h.j = 0;
-  return EditExpenseScreen({ tripId, expenseId, source });
+  return EditExpenseScreen({ tripId, expenseId, source, remove });
 }
 function nodes(node: unknown): { props: NodeProps }[] {
   if (Array.isArray(node)) return node.flatMap(nodes);
@@ -163,6 +175,7 @@ beforeEach(() => {
   h.refs = [];
   h.i = h.j = 0;
   source = undefined;
+  remove = false;
   h.request.mockReset().mockResolvedValue(original);
   h.confirm.mockReset();
   h.get.mockReset();
@@ -181,7 +194,7 @@ it.each(['preview', 'rejected receipt'])(
       expense: { ...original.expense, category: 'other' as const },
     };
     if (conflictAt === 'preview') h.request.mockResolvedValue(latest);
-    find('previewSplit').onPress();
+    find('reviewExpenseChangesAction').onPress();
     await flush();
     if (conflictAt === 'rejected receipt') {
       h.request.mockResolvedValue(latest);
@@ -195,7 +208,7 @@ it.each(['preview', 'rejected receipt'])(
     }
     find('useLatestExpense').onPress();
     expect(h.confirm).not.toHaveBeenCalled();
-    find('previewSplit').onPress();
+    find('reviewExpenseChangesAction').onPress();
     await flush();
     h.confirm.mockResolvedValue({ kind: 'not-sent' });
     find('confirmExpenseEdit').onPress();
@@ -234,7 +247,7 @@ it('reopened rejected equal edit can explicitly return to metadata-only mode', a
   find('basicExpense').onPress();
   expect(find('basicExpense').selected).toBe(true);
   changeDescription('metadata only');
-  find('previewSplit').onPress();
+  find('reviewExpenseChangesAction').onPress();
   await flush();
   h.confirm.mockResolvedValue({ kind: 'not-sent' });
   find('confirmExpenseEdit').onPress();
@@ -246,4 +259,99 @@ it('reopened rejected equal edit can explicitly return to metadata-only mode', a
     changes: { description: 'metadata only' },
   });
   expect(h.request.mock.calls.every((call) => !String(call[1]).endsWith('/preview'))).toBe(true);
+});
+
+function findId(testID: string) {
+  const node = nodes(render()).find((n) => n.props.testID === testID);
+  if (!node) throw new Error(`Missing ${testID}`);
+  return node.props;
+}
+async function loadForm() {
+  render();
+  h.focus();
+  await flush();
+}
+it('requires explicit equal mode, puts amount first and returns to basic without changing protected fields', async () => {
+  await loadForm();
+  expect(nodes(render()).some((n) => n.props.testID === 'expense-maintain-amount')).toBe(false);
+  find('equalExpense').onPress();
+  const fields = nodes(render()).filter((n) => n.props.onChangeText);
+  expect(fields.map((n) => n.props.testID)).toEqual([
+    'expense-maintain-amount',
+    'expense-maintain-description',
+    'expense-maintain-date',
+  ]);
+  expect(findId('expense-maintain-amount')).toMatchObject({ kind: 'amount', value: '100' });
+  findId('expense-maintain-amount').onChangeText!('0200.50');
+  expect(findId('expense-maintain-amount').value).toBe('0200.50');
+  find('basicExpense').onPress();
+  changeDescription('basic change');
+  find('reviewExpenseChangesAction').onPress();
+  await flush();
+  expect(nodes(render()).some((n) => n.props.value === 'NT$100')).toBe(true);
+  h.confirm.mockResolvedValue({ kind: 'not-sent' });
+  find('confirmExpenseEdit').onPress();
+  await flush();
+  expect(h.confirm.mock.calls[0][1].body.changes).toEqual({ description: 'basic change' });
+});
+it('new previews and input changes do not bypass the explicit E confirmation', async () => {
+  await loadForm();
+  find('equalExpense').onPress();
+  h.request.mockImplementation(async (_account, path) =>
+    path.endsWith('/preview') ? { amount: 100, splits: original.expense.splits } : original
+  );
+  find('previewSplit').onPress();
+  await flush();
+  expect(findId('expense-maintain-confirm').variant).toBe('primary');
+  expect(h.confirm).not.toHaveBeenCalled();
+  changeDescription('new description');
+  expect(nodes(render()).some((n) => n.props.testID === 'expense-maintain-confirm')).toBe(false);
+  expect(h.confirm).not.toHaveBeenCalled();
+});
+it('keeps unknown category and foreign shares in basic mode and cannot enable unsupported equal editing', async () => {
+  const foreign = {
+    ...original,
+    category: 'legacy-transport',
+    capabilities: { ...original.capabilities, equal: false },
+    expense: {
+      ...original.expense,
+      amount: 99.9,
+      originalAmount: 3000,
+      currency: 'JPY',
+      exchangeRate: 0.0333,
+      splits: [{ ...original.expense.splits[0], shareAmount: 99.9 }],
+    },
+  };
+  h.request.mockResolvedValue(foreign);
+  await loadForm();
+  expect(find('equalExpense').disabled).toBe(true);
+  changeDescription('foreign metadata');
+  find('reviewExpenseChangesAction').onPress();
+  await flush();
+  h.confirm.mockResolvedValue({ kind: 'not-sent' });
+  find('confirmExpenseEdit').onPress();
+  await flush();
+  expect(h.confirm.mock.calls[0][1].body).toEqual({
+    expected_revision: foreign.revision,
+    mode: 'basic',
+    changes: { description: 'foreign metadata' },
+  });
+});
+it('delete still requires a fresh review and a separate danger confirmation', async () => {
+  remove = true;
+  await loadForm();
+  expect(nodes(render()).some((n) => n.props.onChangeText)).toBe(false);
+  find('reviewExpenseChangesAction').onPress();
+  await flush();
+  expect(h.confirm).not.toHaveBeenCalled();
+  expect(findId('expense-maintain-confirm').variant).toBe('danger');
+  h.confirm.mockResolvedValue({ kind: 'not-sent' });
+  find('deleteExpense').onPress();
+  await flush();
+  expect(h.confirm.mock.calls[0][1]).toEqual({
+    operation: 'expense.delete',
+    tripId,
+    expenseId,
+    body: { expected_revision: original.revision },
+  });
 });

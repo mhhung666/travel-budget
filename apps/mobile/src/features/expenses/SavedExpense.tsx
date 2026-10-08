@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { Action, Card, Copy, DetailRow, Notice, Section, Title } from '@/components/ui';
-import { money } from '@/i18n/format';
+import { Action, Card, Copy, DetailRow, Metric, Notice, Section, Title } from '@/components/ui';
+import { useDisplayFormat } from '@/i18n/useDisplayFormat';
 import { useMessages } from '@/i18n/useMessages';
 import { useOnline } from '@/providers/useOnline';
 import type { EntryOutcome } from './entry';
 import { useExpenseEntry } from './entryProvider';
 import { refreshTripData } from './entryQueries';
-import { categoryLabel, memberName } from './rows';
+import { categoryLabel, expenseMemberLabel, isForeign } from './rows';
 
 type Saved = Extract<EntryOutcome, { kind: 'saved' }>;
 
@@ -26,12 +26,15 @@ export function SavedExpense({
   onAnother: () => void;
 }) {
   const t = useMessages();
+  const f = useDisplayFormat();
   const online = useOnline();
   const client = useQueryClient();
   const { scope } = useExpenseEntry();
   const [refreshFailed, setRefreshFailed] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const { expense } = saved;
+  const payer = { id: expense.payerId, name: expense.payerName, isVirtual: expense.payerIsVirtual };
+  const peers = [payer, ...expense.splits.map((s) => ({ id: s.userId, name: s.displayName }))];
 
   useEffect(() => {
     let alive = true;
@@ -73,12 +76,24 @@ export function SavedExpense({
           />
         </>
       )}
+      <Metric testID="saved-amount" label={t.amountTwd} value={f.money(expense.amount)} />
       <Section title={expense.description}>
         <Card testID="new-expense-saved">
-          <DetailRow testID="saved-amount" label={t.amountTwd} value={money(expense.amount)} />
-          <DetailRow label={t.date} value={expense.date} />
+          <DetailRow label={t.date} value={f.date(expense.date)} />
           <DetailRow label={t.category} value={categoryLabel(expense.category, t)} />
-          <DetailRow label={t.paidBy} value={memberName(expense.payerName, t)} />
+          <DetailRow
+            label={t.paidBy}
+            value={expenseMemberLabel(payer, peers, scope?.accountId, t)}
+          />
+          {isForeign(expense) && (
+            <>
+              <DetailRow
+                label={t.originalAmount}
+                value={`${expense.currency} · ${f.currency(expense.originalAmount, expense.currency)}`}
+              />
+              <DetailRow label={t.exchangeRate} value={f.rate(expense.exchangeRate)} />
+            </>
+          )}
         </Card>
       </Section>
       <Section title={t.splitDetails}>
@@ -87,8 +102,13 @@ export function SavedExpense({
             <DetailRow
               key={`${split.userId ?? 'unknown'}-${index}`}
               testID={`saved-split-${index}`}
-              label={memberName(split.displayName, t)}
-              value={money(split.shareAmount)}
+              label={expenseMemberLabel(
+                { id: split.userId, name: split.displayName, isVirtual: split.isVirtual },
+                peers,
+                scope?.accountId,
+                t
+              )}
+              value={f.money(split.shareAmount)}
             />
           ))}
         </Card>

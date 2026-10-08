@@ -1,3 +1,4 @@
+import { Disclosure } from '@/components/Disclosure';
 import { FormPage } from '@/components/screen';
 import { TripContext } from '@/features/navigation/TripContext';
 import { useEffect, useId, useReducer, useRef, useState } from 'react';
@@ -28,7 +29,9 @@ import {
 import { goBack } from '@/components/navigation';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { errorMessage, isAccessDenied } from '@/features/auth/errorMessage';
-import { localDate, money } from '@/i18n/format';
+import { localDate } from '@/i18n/format';
+import { useDisplayFormat } from '@/i18n/useDisplayFormat';
+import { spacing, typography, sizing } from '@/theme/tokens';
 import { useMessages } from '@/i18n/useMessages';
 import { useOnline } from '@/providers/useOnline';
 import {
@@ -53,7 +56,7 @@ import {
   previewFailure,
   previewReducer,
 } from './previewState';
-import { categoryLabel, memberName } from './rows';
+import { categoryLabel, expenseMemberLabel } from './rows';
 import { SavedExpense } from './SavedExpense';
 import { useExpenseDraft } from './useExpenseDraft';
 import type { DraftEditor } from './draftEditor';
@@ -188,7 +191,6 @@ function ScopedNewExpenseScreen({ tripId }: { tripId: string }) {
       onBack={() => goBack({ pathname: '/trips/[id]/expenses', params: { id: tripId } })}
     >
       <TripContext tripId={tripId} />
-      {!saved && !showPending && <Copy>{t.newExpenseHint}</Copy>}
       {!online && !saved && <Notice tone="warning">{t.offlineEntry}</Notice>}
       {!online && !saved && !denied && (
         <Action
@@ -244,6 +246,7 @@ export function LocalDraftForm({
 
 function DraftForm(props: FormProps & { scope: PendingScope }) {
   const t = useMessages();
+  const p = usePalette();
   const { editor, state } = useExpenseDraft(props.scope, props.tripId, props.options);
   if (state.phase === 'loading') return <ActivityIndicator accessibilityLabel={t.loading} />;
   if (state.phase === 'error')
@@ -274,19 +277,20 @@ function DraftForm(props: FormProps & { scope: PendingScope }) {
     );
   return (
     <>
-      <Copy>{t.draftHint}</Copy>
       <View testID="draft-save-status">
-        <Notice
-          tone={state.status === 'failed' ? 'danger' : 'info'}
-          role={state.status === 'failed' ? 'alert' : 'status'}
-          announce={state.status === 'failed' ? 'polite' : 'none'}
-        >
-          {state.status === 'saving'
-            ? t.draftSaving
-            : state.status === 'saved'
-              ? t.draftSaved
-              : t.draftSaveFailed}
-        </Notice>
+        {state.status === 'failed' ? (
+          <Notice tone="danger" role="alert" announce="polite">
+            {t.draftSaveFailed}
+          </Notice>
+        ) : (
+          <Text
+            role="status"
+            accessibilityLiveRegion="none"
+            style={[typography.label, { color: p.muted }]}
+          >
+            {state.status === 'saving' ? t.draftSavingBrief : t.draftSavedBrief}
+          </Text>
+        )}
       </View>
       {state.status === 'failed' && (
         <Action
@@ -322,6 +326,7 @@ function EntryForm({
 }) {
   const t = useMessages();
   const p = usePalette();
+  const f = useDisplayFormat();
   const online = useOnline();
   const { user } = useAuth();
   const { entry, scope, manager } = useExpenseEntry();
@@ -334,6 +339,7 @@ function EntryForm({
   const inFlight = useRef<AbortController | null>(null);
   const sending = useRef(false);
   const amountInput = useRef<TextInput>(null);
+  const dateInput = useRef<TextInput>(null);
   // Reopened forms must attach their own accessory rather than reuse a recycled native view's ID.
   const amountAccessoryId = `new-expense-amount-${useId()}`;
 
@@ -359,7 +365,9 @@ function EntryForm({
     const found = attempted ? issues.find((entryIssue) => entryIssue.field === field) : undefined;
     return found ? issueMessage(found, t) : undefined;
   };
-  const mine = (id: string) => (id === user?.id ? ` · ${t.you}` : '');
+  const peers = options.members.map((m) => ({ id: m.id, name: m.displayName }));
+  const memberLabel = (id: string | null, name: string) =>
+    expenseMemberLabel({ id, name }, peers, user?.id, t);
 
   useEffect(() => () => inFlight.current?.abort(), []);
   useEffect(() => {
@@ -504,19 +512,10 @@ function EntryForm({
   return (
     <>
       <TextField
-        testID="new-expense-description"
-        label={t.expenseDescription}
-        value={draft.description}
-        onChangeText={(description) => edit({ description })}
-        editable={!locked}
-        returnKeyType="next"
-        onSubmitEditing={() => amountInput.current?.focus()}
-        error={message('description')}
-      />
-      <TextField
         testID="new-expense-amount"
         inputRef={amountInput}
         label={t.amountTwd}
+        kind="amount"
         placeholder={t.amountHint}
         value={draft.amountText}
         onChangeText={(amountText) => {
@@ -548,15 +547,50 @@ function EntryForm({
               accessibilityLabel={t.done}
               onPress={Keyboard.dismiss}
               hitSlop={8}
-              style={{ paddingVertical: 8, paddingHorizontal: 16 }}
+              style={{
+                minHeight: sizing.touch,
+                paddingVertical: spacing.small,
+                paddingHorizontal: spacing.medium,
+                justifyContent: 'center',
+              }}
             >
-              <Text style={{ color: p.primary, fontSize: 17, fontWeight: '600' }}>{t.done}</Text>
+              <Text style={[typography.body, { color: p.primary, fontWeight: '600' }]}>
+                {t.done}
+              </Text>
             </Pressable>
           </View>
         </InputAccessoryView>
       )}
       <TextField
+        testID="new-expense-description"
+        label={t.expenseDescription}
+        multiline
+        submitBehavior="submit"
+        value={draft.description}
+        onChangeText={(description) => edit({ description })}
+        editable={!locked}
+        returnKeyType="next"
+        onSubmitEditing={() => dateInput.current?.focus()}
+        error={message('description')}
+      />
+      <Section title={t.category}>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+          {options.categories.map((category) => (
+            <Chip
+              key={category}
+              testID={`new-expense-category-${category}`}
+              label={categoryLabel(category, t)}
+              selected={draft.category === category}
+              disabled={locked}
+              onPress={() => edit({ category })}
+            />
+          ))}
+        </View>
+        {!!message('category') && <FieldError message={message('category')!} />}
+      </Section>
+      <TextField
         testID="new-expense-date"
+        inputRef={dateInput}
         label={t.date}
         placeholder={t.dateFormatHint}
         value={draft.date}
@@ -593,28 +627,13 @@ function EntryForm({
           onPress={() => shift(1)}
         />
       </View>
-      <Section title={t.category}>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-          {options.categories.map((category) => (
-            <Chip
-              key={category}
-              testID={`new-expense-category-${category}`}
-              label={categoryLabel(category, t)}
-              selected={draft.category === category}
-              disabled={locked}
-              onPress={() => edit({ category })}
-            />
-          ))}
-        </View>
-        {!!message('category') && <FieldError message={message('category')!} />}
-      </Section>
       <Section title={t.paidBy}>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
           {options.members.map((member) => (
             <Chip
               key={member.id}
               testID={`new-expense-payer-${member.id}`}
-              label={`${memberName(member.displayName, t)}${mine(member.id)}`}
+              label={memberLabel(member.id, member.displayName)}
               selected={draft.payerId === member.id}
               disabled={locked}
               onPress={() => edit({ payerId: member.id })}
@@ -630,7 +649,7 @@ function EntryForm({
               key={member.id}
               testID={`new-expense-member-${member.id}`}
               role="checkbox"
-              label={`${memberName(member.displayName, t)}${mine(member.id)}`}
+              label={memberLabel(member.id, member.displayName)}
               selected={draft.memberIds.includes(member.id)}
               disabled={locked}
               onPress={() => toggle(member.id)}
@@ -654,9 +673,13 @@ function EntryForm({
         {!!message('members') && <FieldError message={message('members')!} />}
       </Section>
 
+      <Disclosure testID="expense-form-help" title={t.expenseFormHelp}>
+        <Copy>{t.newExpenseHint}</Copy>
+        <Copy>{t.draftHint}</Copy>
+      </Disclosure>
       <Action
         testID="new-expense-preview"
-        secondary
+        variant={current ? 'secondary' : 'primary'}
         label={previewing ? t.previewing : t.previewSplit}
         busy={previewing}
         disabled={localOnly || !online || locked}
@@ -671,14 +694,24 @@ function EntryForm({
             <DetailRow
               testID="new-expense-preview-total"
               label={t.amountTwd}
-              value={money(current.amount)}
+              value={f.money(current.amount)}
+            />
+            <DetailRow label={t.expenseDescription} value={draft.description} />
+            <DetailRow label={t.category} value={categoryLabel(draft.category, t)} />
+            <DetailRow label={t.date} value={f.date(draft.date)} />
+            <DetailRow
+              label={t.paidBy}
+              value={memberLabel(
+                draft.payerId,
+                options.members.find((m) => m.id === draft.payerId)?.displayName ?? ''
+              )}
             />
             {current.splits.map((split, index) => (
               <DetailRow
                 key={split.userId}
                 testID={`new-expense-split-${index}`}
-                label={`${memberName(split.displayName, t)}${mine(split.userId)}`}
-                value={money(split.shareAmount)}
+                label={memberLabel(split.userId, split.displayName)}
+                value={f.money(split.shareAmount)}
               />
             ))}
           </Card>
@@ -694,17 +727,20 @@ function EntryForm({
         }
         onPress={() => void confirm()}
       />
-      <Notice>{t.queueRule}</Notice>
-      {!!queueError && <Notice tone="danger">{t.entryNotSent}</Notice>}
+      <Section title={t.offlineExpenseConfirm}>
+        <Notice>{t.queueRule}</Notice>
+        {!!queueError && <Notice tone="danger">{t.entryNotSent}</Notice>}
+        <Action
+          testID="expense-queue-confirm"
+          variant={localOnly || !online ? 'primary' : 'secondary'}
+          label={t.queueConfirm}
+          busy={submitting}
+          disabled={locked || saveStatus !== 'saved'}
+          onPress={() => void enqueue()}
+        />
+      </Section>
       <Action
-        testID="expense-queue-confirm"
-        label={t.queueConfirm}
-        busy={submitting}
-        disabled={locked || saveStatus !== 'saved'}
-        onPress={() => void enqueue()}
-      />
-      <Action
-        secondary
+        variant="ghost"
         label={t.draftDiscard}
         testID="draft-discard"
         disabled={locked}

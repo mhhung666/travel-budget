@@ -1,7 +1,17 @@
 import { TripContext } from '@/features/navigation/TripContext';
 import { FormPage } from '@/components/screen';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, AppState, Keyboard, Platform, TextInput } from 'react-native';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import {
+  Alert,
+  AppState,
+  InputAccessoryView,
+  Keyboard,
+  Platform,
+  Pressable,
+  Text,
+  View,
+  TextInput,
+} from 'react-native';
 import { router, useFocusEffect, useNavigation } from 'expo-router';
 import { usePreventRemove } from 'expo-router/react-navigation';
 import { expenseEditContextSchema, type ExpenseEditContext } from '@travel-budget/contracts';
@@ -16,12 +26,15 @@ import {
   Section,
   TextField,
   Title,
+  usePalette,
 } from '@/components/ui';
 import { useTripEntry } from '@/features/tripEntry/provider';
 import { useDraftCatalog } from '@/features/localDrafts/provider';
 import { errorMessage, isAccessDenied } from '@/features/auth/errorMessage';
 import { useMessages } from '@/i18n/useMessages';
-import { money } from '@/i18n/format';
+import { useDisplayFormat } from '@/i18n/useDisplayFormat';
+import { ExpenseBaseline } from './ExpenseBaseline';
+import { spacing, sizing, typography } from '@/theme/tokens';
 import { useOnline } from '@/providers/useOnline';
 import { openMutationStore } from '@/storage/pendingExpenseDatabase';
 import { refreshTripData } from './entryQueries';
@@ -34,7 +47,7 @@ import {
   type PreparedEdit,
 } from './maintenance';
 import { LocalRateLimitError } from './entry';
-import { categoryLabel, memberName } from './rows';
+import { categoryLabel, expenseMemberLabel } from './rows';
 import { isCalendarDate, parseAmount } from './input';
 
 export function EditExpenseScreen({
@@ -52,6 +65,9 @@ export function EditExpenseScreen({
   const { catalog } = useDraftCatalog();
   const client = useQueryClient();
   const t = useMessages();
+  const f = useDisplayFormat();
+  const p = usePalette();
+  const amountAccessoryId = `expense-maintain-amount-${useId()}`;
   const online = useOnline();
   const navigation = useNavigation();
   const [context, setContext] = useState<ExpenseEditContext | null>(null);
@@ -305,6 +321,14 @@ export function EditExpenseScreen({
     const known = context?.options.categories.find((c) => c === value);
     return known ? categoryLabel(known, t) : (value ?? '—');
   };
+  const peers = [
+    ...(context?.options.members.map((m) => ({ id: m.id, name: m.displayName })) ?? []),
+    ...(context?.expense.splits.map((s) => ({ id: s.userId, name: s.displayName })) ?? []),
+    ...(latest?.expense.splits.map((s) => ({ id: s.userId, name: s.displayName })) ?? []),
+    { id: context?.expense.payerId ?? null, name: context?.expense.payerName ?? '' },
+  ];
+  const memberLabel = (id: string | null, name: string) =>
+    expenseMemberLabel({ id, name }, peers, scope?.accountId, t);
   const back = () =>
     router.dismissTo(
       remove && done
@@ -355,23 +379,23 @@ export function EditExpenseScreen({
         <Action label={t.pendingOperations} onPress={() => router.push('/trips/operations')} />
       ) : context && fields && !hidden && (!scope || catalog.isVisible(scope, tripId)) ? (
         <>
-          <Card>
-            <DetailRow label={t.expenseDescription} value={context.expense.description} />
-            <DetailRow label={t.date} value={context.expense.date} />
-            <DetailRow label={t.paidBy} value={memberName(context.expense.payerName, t)} />
-            <DetailRow label={t.amountTwd} value={money(context.expense.amount)} />
-          </Card>
+          <ExpenseBaseline
+            expense={context.expense}
+            category={categoryName(context.category)}
+            viewerId={scope?.accountId}
+            full={remove}
+          />
           {latest && (
             <Card>
               <Title>{t.latestExpense}</Title>
               <DetailRow label={t.expenseDescription} value={latest.expense.description} />
-              <DetailRow label={t.date} value={latest.expense.date} />
-              <DetailRow label={t.amountTwd} value={money(latest.expense.amount)} />
+              <DetailRow label={t.date} value={f.date(latest.expense.date)} />
+              <DetailRow label={t.amountTwd} value={f.money(latest.expense.amount)} />
               {latest.expense.splits.map((s, i) => (
                 <DetailRow
                   key={i}
-                  label={memberName(s.displayName, t)}
-                  value={money(s.shareAmount)}
+                  label={memberLabel(s.userId, s.displayName)}
+                  value={f.money(s.shareAmount)}
                 />
               ))}
               <Action
@@ -393,7 +417,7 @@ export function EditExpenseScreen({
             <Notice tone="warning">{t.deleteExpenseWarning}</Notice>
           ) : (
             <>
-              <Notice>{t.basicExpenseHint}</Notice>
+              <Notice>{mode === 'basic' ? t.basicExpenseHint : t.equalExpenseHint}</Notice>
               <Chip
                 testID="expense-maintain-basic"
                 label={t.basicExpense}
@@ -415,16 +439,80 @@ export function EditExpenseScreen({
                 }}
               />
               {!context.capabilities.equal && <Notice>{t.expenseWebOnly}</Notice>}
+              {mode === 'equal' && (
+                <>
+                  <TextField
+                    testID="expense-maintain-amount"
+                    inputRef={amount}
+                    label={t.amountTwd}
+                    kind="amount"
+                    placeholder={t.amountHint}
+                    returnKeyType="done"
+                    onSubmitEditing={Keyboard.dismiss}
+                    inputAccessoryViewID={amountAccessoryId}
+                    autoCorrect={false}
+                    value={fields.amountText}
+                    editable={!busy}
+                    keyboardType="decimal-pad"
+                    onChangeText={(amountText) => change({ amountText })}
+                  />
+                  {Platform.OS === 'ios' && (
+                    <InputAccessoryView nativeID={amountAccessoryId}>
+                      <View
+                        style={{
+                          backgroundColor: p.surface,
+                          alignItems: 'flex-end',
+                          borderTopWidth: 1,
+                          borderColor: p.border,
+                          padding: spacing.small,
+                        }}
+                      >
+                        <Pressable
+                          testID="expense-maintain-keyboard-done"
+                          accessibilityRole="button"
+                          accessibilityLabel={t.done}
+                          onPress={Keyboard.dismiss}
+                          style={{
+                            minHeight: sizing.touch,
+                            justifyContent: 'center',
+                            paddingHorizontal: spacing.medium,
+                          }}
+                        >
+                          <Text style={[typography.body, { color: p.primary, fontWeight: '600' }]}>
+                            {t.done}
+                          </Text>
+                        </Pressable>
+                      </View>
+                    </InputAccessoryView>
+                  )}
+                </>
+              )}
               <TextField
                 testID="expense-maintain-description"
                 inputRef={first}
                 label={t.expenseDescription}
+                multiline
+                submitBehavior="submit"
                 value={fields.description}
                 editable={!busy}
                 onChangeText={(description) => change({ description })}
                 returnKeyType="next"
                 onSubmitEditing={() => date.current?.focus()}
               />
+              <Section title={t.category}>
+                <Copy>{categoryName(fields.category)}</Copy>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.small }}>
+                  {context.options.categories.map((category) => (
+                    <Chip
+                      key={category}
+                      label={categoryLabel(category, t)}
+                      selected={fields.category === category}
+                      disabled={busy}
+                      onPress={() => change({ category })}
+                    />
+                  ))}
+                </View>
+              </Section>
               <TextField
                 testID="expense-maintain-date"
                 inputRef={date}
@@ -433,65 +521,46 @@ export function EditExpenseScreen({
                 editable={!busy}
                 onChangeText={(date) => change({ date })}
                 autoCapitalize="none"
-                placeholder="YYYY-MM-DD"
-                returnKeyType={mode === 'equal' ? 'next' : 'done'}
-                onSubmitEditing={() =>
-                  mode === 'equal' ? amount.current?.focus() : Keyboard.dismiss()
-                }
+                placeholder={t.dateFormatHint}
+                returnKeyType="done"
+                onSubmitEditing={Keyboard.dismiss}
               />
-              <Section title={t.category}>
-                <Copy>{categoryName(fields.category)}</Copy>
-                {context.options.categories.map((category) => (
-                  <Chip
-                    key={category}
-                    label={categoryLabel(category, t)}
-                    selected={fields.category === category}
-                    disabled={busy}
-                    onPress={() => change({ category })}
-                  />
-                ))}
-              </Section>
               {mode === 'equal' && (
                 <>
-                  <TextField
-                    testID="expense-maintain-amount"
-                    inputRef={amount}
-                    label={t.amountTwd}
-                    value={fields.amountText}
-                    editable={!busy}
-                    keyboardType="decimal-pad"
-                    onChangeText={(amountText) => change({ amountText })}
-                  />
                   <Section title={t.paidBy}>
-                    {context.options.members.map((m) => (
-                      <Chip
-                        key={m.id}
-                        testID={`expense-maintain-payer-${m.id}`}
-                        label={`${m.displayName} (${m.id.slice(-6)})`}
-                        selected={fields.payerId === m.id}
-                        disabled={busy}
-                        onPress={() => change({ payerId: m.id })}
-                      />
-                    ))}
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.small }}>
+                      {context.options.members.map((m) => (
+                        <Chip
+                          key={m.id}
+                          testID={`expense-maintain-payer-${m.id}`}
+                          label={memberLabel(m.id, m.displayName)}
+                          selected={fields.payerId === m.id}
+                          disabled={busy}
+                          onPress={() => change({ payerId: m.id })}
+                        />
+                      ))}
+                    </View>
                   </Section>
                   <Section title={t.splitDetails}>
-                    {context.options.members.map((m) => (
-                      <Chip
-                        key={m.id}
-                        testID={`expense-maintain-split-${m.id}`}
-                        role="checkbox"
-                        label={`${m.displayName} (${m.id.slice(-6)})`}
-                        selected={fields.memberIds.includes(m.id)}
-                        disabled={busy}
-                        onPress={() =>
-                          change({
-                            memberIds: fields.memberIds.includes(m.id)
-                              ? fields.memberIds.filter((id) => id !== m.id)
-                              : [...fields.memberIds, m.id],
-                          })
-                        }
-                      />
-                    ))}
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.small }}>
+                      {context.options.members.map((m) => (
+                        <Chip
+                          key={m.id}
+                          testID={`expense-maintain-split-${m.id}`}
+                          role="checkbox"
+                          label={memberLabel(m.id, m.displayName)}
+                          selected={fields.memberIds.includes(m.id)}
+                          disabled={busy}
+                          onPress={() =>
+                            change({
+                              memberIds: fields.memberIds.includes(m.id)
+                                ? fields.memberIds.filter((id) => id !== m.id)
+                                : [...fields.memberIds, m.id],
+                            })
+                          }
+                        />
+                      ))}
+                    </View>
                   </Section>
                 </>
               )}
@@ -504,26 +573,43 @@ export function EditExpenseScreen({
               {!remove && (
                 <>
                   <DetailRow label={t.expenseDescription} value={fields.description} />
-                  <DetailRow label={t.date} value={fields.date} />
+                  <DetailRow label={t.date} value={f.date(fields.date)} />
                   <DetailRow label={t.category} value={categoryName(fields.category)} />
-                  {mode === 'equal' && (
+                  {mode === 'basic' && (
                     <>
-                      <DetailRow
-                        label={t.amountTwd}
-                        value={`${money(context.expense.amount)} → ${money(prepared.preview!.amount)}`}
-                      />
+                      <DetailRow label={t.amountTwd} value={f.money(context.expense.amount)} />
                       <DetailRow
                         label={t.paidBy}
-                        value={
-                          context.options.members.find((m) => m.id === fields.payerId)
-                            ?.displayName ?? ''
-                        }
+                        value={memberLabel(context.expense.payerId, context.expense.payerName)}
                       />
                       {context.expense.splits.map((s, i) => (
                         <DetailRow
                           key={i}
-                          label={`${t.currentExpense}: ${memberName(s.displayName, t)}`}
-                          value={money(s.shareAmount)}
+                          label={memberLabel(s.userId, s.displayName)}
+                          value={f.money(s.shareAmount)}
+                        />
+                      ))}
+                    </>
+                  )}
+                  {mode === 'equal' && (
+                    <>
+                      <DetailRow
+                        label={t.amountTwd}
+                        value={`${f.money(context.expense.amount)} → ${f.money(prepared.preview!.amount)}`}
+                      />
+                      <DetailRow
+                        label={t.paidBy}
+                        value={memberLabel(
+                          fields.payerId,
+                          context.options.members.find((m) => m.id === fields.payerId)
+                            ?.displayName ?? ''
+                        )}
+                      />
+                      {context.expense.splits.map((s, i) => (
+                        <DetailRow
+                          key={i}
+                          label={`${t.currentExpense}: ${memberLabel(s.userId, s.displayName)}`}
+                          value={f.money(s.shareAmount)}
                         />
                       ))}
                     </>
@@ -531,10 +617,15 @@ export function EditExpenseScreen({
                 </>
               )}
               {prepared.preview?.splits.map((s) => (
-                <DetailRow key={s.userId} label={s.displayName} value={money(s.shareAmount)} />
+                <DetailRow
+                  key={s.userId}
+                  label={memberLabel(s.userId, s.displayName)}
+                  value={f.money(s.shareAmount)}
+                />
               ))}
               <Action
                 testID="expense-maintain-confirm"
+                variant={remove ? 'danger' : 'primary'}
                 label={remove ? t.deleteExpense : t.confirmExpenseEdit}
                 busy={busy}
                 disabled={!online || Platform.OS === 'web' || !!latest}
@@ -544,7 +635,8 @@ export function EditExpenseScreen({
           )}
           <Action
             testID="expense-maintain-preview"
-            label={remove ? t.confirmExpenseEdit : t.previewSplit}
+            label={remove || mode === 'basic' ? t.reviewExpenseChangesAction : t.previewSplit}
+            variant={prepared ? 'secondary' : 'primary'}
             busy={busy}
             disabled={!online || Platform.OS === 'web' || !!latest}
             onPress={() => void check()}

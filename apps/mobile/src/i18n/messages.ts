@@ -30,6 +30,8 @@ const zh = {
   editExpense: '編輯支出',
   deleteExpense: '刪除支出',
   basicExpense: '基本資料',
+  equalExpenseHint:
+    '重新預覽 TWD 金額、付款人與勾選成員的均分；確認後才更新帳務，附件及其他資料保留。',
   equalExpense: 'TWD 重新均分',
   basicExpenseHint: '預設只修改說明、分類與日期；原金額、付款人、分攤、附件及其他資料均保留。',
   expenseWebOnly: '此筆帳務只能修改基本資料；金額或分攤請到 Web 處理。',
@@ -39,6 +41,7 @@ const zh = {
   useLatestExpense: '核對後保留輸入並重新預覽',
   reloadExpense: '重新載入並清除輸入',
   deleteExpenseWarning: '刪除會影響結算，並移除相關評論及附件關聯。無法還原；未確認前不會刪除。',
+  reviewExpenseChangesAction: '核對變更',
   confirmExpenseEdit: '確認變更',
   noExpenseChanges: '沒有變更，無需送出。',
   invalidExpenseEdit: '請核對說明、日期、分類、金額及有效成員。',
@@ -142,6 +145,10 @@ const zh = {
   localTripUnavailable: '此旅行尚無可用的本機選項，或存取已被拒絕。請連線登入並開啟旅行後再試。',
   localSnapshotFailed: '旅行選項保存失敗，重啟後可能無法離線續填。請連線重新載入旅行。',
   cachedTrip: '已保存的旅行',
+  expenseFormHelp: '記帳與草稿說明',
+  draftSavingBrief: '保存中，尚未入帳',
+  draftSavedBrief: '已保存在此裝置，尚未入帳',
+  offlineExpenseConfirm: '離線均分與待送',
   draftFound: '有未完成的支出草稿',
   draftResumeHint: '續填後請重新確認成員並預覽分攤；草稿尚未入帳。',
   draftRestore: '續填草稿',
@@ -343,6 +350,8 @@ export const messages = {
     editExpense: '编辑支出',
     deleteExpense: '删除支出',
     basicExpense: '基本资料',
+    equalExpenseHint:
+      '重新预览 TWD 金额、付款人与勾选成员的均分；确认后才更新账务，附件及其他资料保留。',
     equalExpense: 'TWD 重新均分',
     basicExpenseHint: '默认只修改说明、分类与日期；原金额、付款人、分摊、附件及其他资料均保留。',
     expenseWebOnly: '此笔账务只能修改基本资料；金额或分摊请到 Web 处理。',
@@ -352,6 +361,7 @@ export const messages = {
     useLatestExpense: '核对后保留输入并重新预览',
     reloadExpense: '重新加载并清除输入',
     deleteExpenseWarning: '删除会影响结算，并移除相关评论及附件关联。无法恢复；未确认前不会删除。',
+    reviewExpenseChangesAction: '核对变更',
     confirmExpenseEdit: '确认变更',
     noExpenseChanges: '没有变更，无需发送。',
     invalidExpenseEdit: '请核对说明、日期、分类、金额及有效成员。',
@@ -455,6 +465,10 @@ export const messages = {
     localTripUnavailable: '此旅行尚无可用的本机选项，或访问已被拒绝。请联网登录并打开旅行后重试。',
     localSnapshotFailed: '旅行选项保存失败，重启后可能无法离线填写。请联网重新加载旅行。',
     cachedTrip: '已保存的旅行',
+    expenseFormHelp: '记账与草稿说明',
+    draftSavingBrief: '保存中，尚未入账',
+    draftSavedBrief: '已保存在此设备，尚未入账',
+    offlineExpenseConfirm: '离线均分与待发',
     draftFound: '有未完成的支出草稿',
     draftResumeHint: '继续填写后请重新确认成员并预览分摊；草稿尚未入账。',
     draftRestore: '继续填写草稿',
@@ -655,6 +669,8 @@ export const messages = {
     editExpense: 'Edit expense',
     deleteExpense: 'Delete expense',
     basicExpense: 'Basic details',
+    equalExpenseHint:
+      'Preview the TWD amount, payer and equal shares again. Only confirmation updates the expense; attachments and other data are preserved.',
     equalExpense: 'Split TWD equally again',
     basicExpenseHint:
       'Only description, category and date change by default. Amount, payer, shares, attachments and other data are preserved.',
@@ -668,6 +684,7 @@ export const messages = {
     reloadExpense: 'Reload and clear input',
     deleteExpenseWarning:
       'Deletion affects settlement and removes related comments and attachment links. It cannot be undone. Nothing is deleted before confirmation.',
+    reviewExpenseChangesAction: 'Review changes',
     confirmExpenseEdit: 'Confirm changes',
     noExpenseChanges: 'No changes to send.',
     invalidExpenseEdit: 'Check description, date, category, amount and current members.',
@@ -789,6 +806,10 @@ export const messages = {
     localSnapshotFailed:
       'Trip options could not be saved. Offline editing may be unavailable after restart. Reload the trip online.',
     cachedTrip: 'Saved trip',
+    expenseFormHelp: 'Expense and draft help',
+    draftSavingBrief: 'Saving draft · not recorded',
+    draftSavedBrief: 'Saved on this device · not recorded',
+    offlineExpenseConfirm: 'Offline equal split and queue',
     draftFound: 'An unfinished expense draft',
     draftResumeHint:
       'Review members and get a new split preview before confirming. This draft is not recorded.',
@@ -1004,6 +1025,8 @@ export const messages = {
     editExpense: '支出を編集',
     deleteExpense: '支出を削除',
     basicExpense: '基本情報',
+    equalExpenseHint:
+      'TWD 金額・支払者・選択メンバーの均等分担を再プレビューします。確認後に更新し、添付とその他の情報は保持します。',
     equalExpense: 'TWD を再度均等分担',
     basicExpenseHint:
       '通常は内容・分類・日付のみ変更します。金額・支払者・分担・添付・その他の情報は保持します。',
@@ -1016,6 +1039,7 @@ export const messages = {
     reloadExpense: '再読込して入力を消去',
     deleteExpenseWarning:
       '削除は精算に影響し、関連コメントと添付の関連付けも削除します。復元できません。確認前には削除しません。',
+    reviewExpenseChangesAction: '変更内容を確認',
     confirmExpenseEdit: '変更を確認',
     noExpenseChanges: '変更はありません。',
     invalidExpenseEdit: '内容・日付・分類・金額・現在のメンバーを確認してください。',
@@ -1138,6 +1162,10 @@ export const messages = {
     localSnapshotFailed:
       '旅行の選択肢を保存できませんでした。再起動後はオフラインで編集できない場合があります。接続して旅行を再読込してください。',
     cachedTrip: '保存済みの旅行',
+    expenseFormHelp: '記帳と下書きの説明',
+    draftSavingBrief: '保存中・まだ未記帳',
+    draftSavedBrief: '端末に保存済み・まだ未記帳',
+    offlineExpenseConfirm: 'オフライン均等分担と送信待ち',
     draftFound: '未完成の支出下書きがあります',
     draftResumeHint: 'メンバーを確認して分担を再プレビューしてください。まだ記帳されていません。',
     draftRestore: '下書きを再開',
