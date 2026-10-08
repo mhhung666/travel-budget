@@ -1,3 +1,4 @@
+import { baseCurrency } from '@/api/ledger';
 import type { z } from 'zod';
 import { ApiError, type RequestOptions } from '@/api/client';
 import {
@@ -15,7 +16,7 @@ export type EntryRequest = <T>(
   userId: string,
   path: string,
   schema: z.ZodType<T>,
-  options?: Pick<RequestOptions, 'method' | 'body' | 'beforeSend'>
+  options?: Pick<RequestOptions, 'method' | 'body' | 'beforeSend' | 'apiVersion'>
 ) => Promise<T>;
 
 export interface EntryDeps {
@@ -212,6 +213,9 @@ export class ExpenseEntry {
         ...scope,
         tripId,
         clientRequestId: payload.client_request_id,
+        apiVersion: 'base_currency' in payload ? 2 : 1,
+        baseCurrency: 'base_currency' in payload ? payload.base_currency : 'TWD',
+        moneyScale: 2,
         payload,
         status: 'sending',
         createdAt: now,
@@ -245,7 +249,12 @@ export class ExpenseEntry {
   ): Promise<EntryOutcome> {
     return this.serial(scope, clientRequestId, async () => {
       const loaded = await this.load(scope, clientRequestId);
-      return 'store' in loaded ? this.post(loaded.store, loaded.record, beforeSend) : loaded;
+      if (!('store' in loaded)) return loaded;
+      if ((loaded.record.apiVersion ?? ('base_currency' in loaded.record.payload ? 2 : 1)) === 2) {
+        const found = await this.lookupCore(loaded.store, loaded.record);
+        if (found.kind !== 'unconfirmed' || found.reason !== 'not-found') return found;
+      }
+      return this.post(loaded.store, loaded.record, beforeSend);
     });
   }
 
@@ -313,6 +322,7 @@ export class ExpenseEntry {
         `${tripPath(record.tripId)}/expenses`,
         expenseDetailSchema,
         {
+          apiVersion: record.apiVersion ?? ('base_currency' in record.payload ? 2 : 1),
           method: 'POST',
           body: record.payload,
           beforeSend: () => {
@@ -324,6 +334,11 @@ export class ExpenseEntry {
     } catch (error) {
       return this.failed(store, record, error);
     }
+    if (
+      ('base_currency' in record.payload ? record.payload.base_currency : 'TWD') !==
+      (expense.ledger?.baseCurrency ?? 'TWD')
+    )
+      return unconfirmed(record, 'server', new ApiError('LEDGER_CURRENCY_MISMATCH'));
     return this.settle(store, record, expense);
   }
 
@@ -333,7 +348,10 @@ export class ExpenseEntry {
     error: unknown
   ): Promise<EntryOutcome> {
     const verdict = verdictOf(error);
-    if (verdict === 'rejected') {
+    if (
+      verdict === 'rejected' &&
+      (record.apiVersion ?? ('base_currency' in record.payload ? 2 : 1)) === 1
+    ) {
       await this.drop(store, record, 'rejected');
       return { kind: 'rejected', error: error as ApiError };
     }
@@ -381,7 +399,10 @@ export class ExpenseEntry {
         record.accountId,
         `${tripPath(record.tripId)}/expense-requests/${encodeURIComponent(record.clientRequestId)}`,
         expenseRequestSchema,
-        { beforeSend: () => this.guardRateLimit(store, record) }
+        {
+          apiVersion: record.apiVersion ?? ('base_currency' in record.payload ? 2 : 1),
+          beforeSend: () => this.guardRateLimit(store, record),
+        }
       );
     } catch (error) {
       try {
@@ -391,7 +412,18 @@ export class ExpenseEntry {
       }
       return unconfirmed(record, reasonOf(error), error);
     }
-    if (result.status === 'committed') return this.settle(store, record, result.expense);
+    if (result.status === 'committed') {
+      if (
+        ('base_currency' in record.payload ? record.payload.base_currency : 'TWD') !==
+        baseCurrency(result.expense)
+      )
+        return unconfirmed(record, 'server', new ApiError('LEDGER_CURRENCY_MISMATCH'));
+      return this.settle(store, record, result.expense);
+    }
+    if (result.status === 'rejected') {
+      await this.drop(store, record, 'rejected');
+      return { kind: 'rejected', error: new ApiError(result.code, 409) };
+    }
     await this.mark(store, record, 'unconfirmed');
     return unconfirmed(record, 'not-found');
   }

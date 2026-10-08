@@ -22,7 +22,7 @@ export async function transaction<T>(db: SqlDatabase, task: () => Promise<T>): P
   }
 }
 
-const SCHEMA_VERSION = 8;
+const SCHEMA_VERSION = 9;
 /** Central, additive migration: the original C table and every pending request are retained. */
 export function migrateExpenseDatabase(db: SqlDatabase): Promise<void> {
   return databaseTask(db, async () => {
@@ -105,6 +105,16 @@ export function migrateExpenseDatabase(db: SqlDatabase): Promise<void> {
         ALTER TABLE pending_mutation ADD COLUMN trip_id TEXT;
         CREATE INDEX pending_mutation_by_trip ON pending_mutation(environment, account_id, trip_id, status);
       `);
+      if (version < 9)
+        await db.execAsync(`
+          ALTER TABLE pending_expense ADD COLUMN api_version INTEGER NOT NULL DEFAULT 1;
+          ALTER TABLE pending_expense ADD COLUMN base_currency TEXT NOT NULL DEFAULT 'TWD';
+          ALTER TABLE pending_expense ADD COLUMN money_scale INTEGER NOT NULL DEFAULT 2;
+          ALTER TABLE pending_mutation ADD COLUMN api_version INTEGER NOT NULL DEFAULT 1;
+          ALTER TABLE pending_mutation ADD COLUMN base_currency TEXT;
+          ALTER TABLE pending_mutation ADD COLUMN money_scale INTEGER NOT NULL DEFAULT 2;
+          UPDATE pending_mutation SET base_currency = 'TWD';
+        `);
       await db.execAsync(`PRAGMA user_version = ${SCHEMA_VERSION}`);
     });
   });

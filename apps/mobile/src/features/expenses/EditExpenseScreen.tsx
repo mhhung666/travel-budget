@@ -1,3 +1,4 @@
+import { baseCurrency } from '@/api/ledger';
 import { TripContext } from '@/features/navigation/TripContext';
 import { FormPage } from '@/components/screen';
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
@@ -14,7 +15,7 @@ import {
 } from 'react-native';
 import { router, useFocusEffect, useNavigation } from 'expo-router';
 import { usePreventRemove } from 'expo-router/react-navigation';
-import { expenseEditContextSchema, type ExpenseEditContext } from '@travel-budget/contracts';
+import { expenseEditContextSchema, type ExpenseEditContext } from '@/api/contracts';
 import { ApiError } from '@/api/client';
 import {
   Action,
@@ -66,13 +67,13 @@ export function EditExpenseScreen({
   const { entry, scope, manager } = useTripEntry();
   const { catalog } = useDraftCatalog();
   const client = useQueryClient();
-  const t = useMessages();
-  const f = useDisplayFormat();
   const p = usePalette();
   const amountAccessoryId = `expense-maintain-amount-${useId()}`;
   const online = useOnline();
   const navigation = useNavigation();
   const [context, setContext] = useState<ExpenseEditContext | null>(null);
+  const t = useMessages(baseCurrency(context));
+  const f = useDisplayFormat(baseCurrency(context));
   const [latest, setLatest] = useState<ExpenseEditContext | null>(null);
   const [fields, setFields] = useState<EditFields | null>(null);
   const [mode, setMode] = useState<'basic' | 'equal'>('basic');
@@ -296,7 +297,7 @@ export function EditExpenseScreen({
             operation: 'expense.delete',
             tripId,
             expenseId,
-            body: { expected_revision: context.revision },
+            body: { base_currency: baseCurrency(context), expected_revision: context.revision },
           })
         : await entry.confirm(scope, {
             operation: 'expense.update',
@@ -552,7 +553,7 @@ export function EditExpenseScreen({
                     </View>
                   </Section>
                   <Copy>{t.expenseRateHint}</Copy>
-                  {fields.currency !== 'TWD' && (
+                  {fields.currency !== baseCurrency(context) && (
                     <TextField
                       testID="expense-maintain-rate"
                       inputRef={rate}
@@ -571,7 +572,7 @@ export function EditExpenseScreen({
                     testID="expense-maintain-amount"
                     inputRef={amount}
                     label={
-                      fields.currency === 'TWD'
+                      fields.currency === baseCurrency(context)
                         ? t.amountTwd
                         : `${t.originalAmount} (${fields.currency})`
                     }

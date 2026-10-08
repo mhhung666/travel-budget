@@ -20,7 +20,7 @@ const tripPath = (tripId: string) => `/trips/${encodeURIComponent(tripId)}`;
 
 // Keys carry the API environment and account, so one account never reads another's cache entry.
 export const expensesKey = (baseUrl: string, userId: string | undefined, tripId: string) =>
-  [baseUrl, userId, 'expenses', tripId] as const;
+  [baseUrl, userId, 'expenses', tripId, 'v2'] as const;
 
 export const expensesQuery = (manager: Requester, userId: string | undefined, tripId: string) =>
   infiniteQueryOptions({
@@ -45,7 +45,7 @@ export const expenseQuery = (
   expenseId: string
 ) =>
   queryOptions({
-    queryKey: [manager.api.baseUrl, userId, 'expense', tripId, expenseId],
+    queryKey: [manager.api.baseUrl, userId, 'expense', tripId, expenseId, 'v2'],
     enabled: !!userId,
     queryFn: ({ client, queryKey, signal }) =>
       keepAccessDenial(client, queryKey, () =>

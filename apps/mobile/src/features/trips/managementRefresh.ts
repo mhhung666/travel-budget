@@ -1,5 +1,5 @@
 import type { QueryClient } from '@tanstack/react-query';
-import { landingSchema, expenseOptionsSchema } from '@travel-budget/contracts';
+import { landingSchema, expenseOptionsSchema } from '@/api/contracts';
 import { ApiError } from '@/api/client';
 import type { SessionManager } from '@/api/session';
 import type { PendingScope } from '@/storage/pendingExpenses';
@@ -53,7 +53,10 @@ export async function refreshManagedTrip(
       beforeSend();
       await catalog.rememberOptions(scope, tripId, options);
       beforeSend();
-      client.setQueryData([scope.environment, scope.accountId, 'expense-options', tripId], options);
+      client.setQueryData(
+        [scope.environment, scope.accountId, 'expense-options', tripId, 'v2'],
+        options
+      );
     } catch (error) {
       if (
         error instanceof ApiError &&
@@ -69,7 +72,7 @@ export async function refreshManagedTrip(
   beforeSend();
   // Stop an older options read before publishing the newly authorized roster.
   await client.cancelQueries({
-    queryKey: [scope.environment, scope.accountId, 'expense-options', tripId],
+    queryKey: [scope.environment, scope.accountId, 'expense-options', tripId, 'v2'],
     exact: true,
   });
   beforeSend();

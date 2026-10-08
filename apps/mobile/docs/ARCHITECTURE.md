@@ -18,6 +18,16 @@ flowchart LR
 
 Server Actions 與 HTTP API 是兩個呼叫入口，部署初期同在現有 Next.js。權限、分帳、交易、冪等與檔案驗證只維護一套服務。此專案不建立 API server、MongoDB connection 或 migrations。
 
+## B3：Mobile 帳本與舊資料恢復
+
+線上旅行／帳務讀取與新確認操作使用 v2，HTTP 必須驗證共用 v2 schema 的 ledger；缺單位、子資料單位不一致或服務未就緒都阻擋，不 fallback v1。`api.baseUrl` 仍是原已驗證 v1 環境識別；transport 從同 origin 派生 v2，共用登入世代、refresh、beforeSend 與 SQLite／429 scope。遠端 Query key 尾端加 v2，本機 key 不變。名冊觀察器與 catalog 保留原撤權世代規則。
+
+`api/contracts.ts` 只組合共用 schema：選用的 optional ledger 型別允許讀舊本機 TWD 快照；live v2 一律要求 ledger。`api/ledger.ts` 的缺欄位 TWD 退路只供上述已知 v1／舊快照與尚未載入的畫面。所有閱讀、原幣判斷、均分預覽／編輯、還款及匯率設定使用實際基準；JPY 也保留兩位精度，結算與尾差仍由後端決定。每日參考值走旅行 v2 endpoint，並核對回傳基準。
+
+SQLite schema 9 以同一交易在 C／E envelope 加 api_version、base_currency、money_scale；舊列外標 v1／TWD／2，不改 frozen JSON、UUID、順序、denied 或 429。新草稿 raw JSON 保存 ledger／apiVersion，catalog 保存帶 ledger 的選項；舊 raw JSON 不重寫，只能按 TWD 續填，續填與目前選項單位不同時保留並阻擋確認。新 C／E 保存 v2 body 與來源單位；加入前未知基準的 E envelope 以 null 保留未知，查回原 receipt 才取得單位，不預設為 TWD，恢復查原 endpoint、原 UUID，不能跟隨新設定重建 body。C 新版重試先查 receipt，錯誤或不同單位不清紀錄；已損壞的 pending 解析阻擋，不再略過讓新 UUID 可送。
+
+D queued／prepared 延續 v1 的 TWD／匯率 1／均分；非 TWD 帳本與外幣只能保存草稿，入列／prepare／同步各自檢查。非 TWD 建立依後端 capabilities 顯示選擇，後端開關目前仍關閉。iPhone＋iPad 操作由他人驗收，Android 僅保留工程相容；B4 未完成，完整裝置與閱讀器不在此結案。
+
 ## 目錄與依賴
 
 ```text

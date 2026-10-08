@@ -8,7 +8,7 @@ import {
   memberClaimInvitationSchema,
   type TripAccessContext,
   type TripAccessInput,
-} from '@travel-budget/contracts';
+} from '@/api/contracts';
 import { FormPage } from '@/components/screen';
 import { Action, Card, Copy, DetailRow, Notice, Section } from '@/components/ui';
 import { useTripEntry } from '@/features/tripEntry/provider';

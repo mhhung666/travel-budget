@@ -1,5 +1,11 @@
 import { z } from 'zod';
 import {
+  mutationRequestV2Schema,
+  tripCreateV2Input,
+  tripCurrencyV2Input,
+  expenseDeleteV2Input,
+  paymentCreateV2Input,
+  paymentDeleteV2Input,
   tripAccessInput,
   tripCurrencyInput,
   virtualMemberCreateInput,
@@ -14,7 +20,7 @@ import {
   paymentCreateInput,
   paymentDeleteInput,
   idSchema,
-} from '@travel-budget/contracts';
+} from '@/api/contracts';
 import { databaseTask, migrateExpenseDatabase, transaction } from './expenseDatabase';
 import {
   currentExpenseRateLimit,
@@ -25,7 +31,11 @@ import {
 import type { PendingScope, SqlDatabase } from './pendingExpenses';
 
 export const mutationPayload = z.discriminatedUnion('operation', [
-  z.object({ operation: z.literal('trip.currency'), tripId: idSchema, body: tripCurrencyInput }),
+  z.object({
+    operation: z.literal('trip.currency'),
+    tripId: idSchema,
+    body: z.union([tripCurrencyV2Input, tripCurrencyInput]),
+  }),
   z.object({ operation: z.literal('trip.access'), tripId: idSchema, body: tripAccessInput }),
   z.object({
     operation: z.literal('member.create'),
@@ -38,7 +48,10 @@ export const mutationPayload = z.discriminatedUnion('operation', [
     memberId: idSchema,
     body: virtualMemberRenameInput,
   }),
-  z.object({ operation: z.literal('trip.create'), body: tripCreateInput }),
+  z.object({
+    operation: z.literal('trip.create'),
+    body: z.union([tripCreateV2Input, tripCreateInput]),
+  }),
   z.object({ operation: z.literal('trip.join'), body: tripJoinInput }),
   z.object({ operation: z.literal('trip.update'), tripId: idSchema, body: tripUpdateInput }),
   z.object({ operation: z.literal('trip.archive'), tripId: idSchema, body: tripArchiveInput }),
@@ -52,19 +65,26 @@ export const mutationPayload = z.discriminatedUnion('operation', [
     operation: z.literal('expense.delete'),
     tripId: idSchema,
     expenseId: idSchema,
-    body: expenseDeleteInput,
+    body: z.union([expenseDeleteV2Input, expenseDeleteInput]),
   }),
-  z.object({ operation: z.literal('payment.create'), tripId: idSchema, body: paymentCreateInput }),
+  z.object({
+    operation: z.literal('payment.create'),
+    tripId: idSchema,
+    body: z.union([paymentCreateV2Input, paymentCreateInput]),
+  }),
   z.object({
     operation: z.literal('payment.delete'),
     tripId: idSchema,
     paymentId: idSchema,
-    body: paymentDeleteInput,
+    body: z.union([paymentDeleteV2Input, paymentDeleteInput]),
   }),
 ]);
 export type MutationPayload = z.infer<typeof mutationPayload>;
 export interface PendingMutation extends PendingScope {
   clientRequestId: string;
+  apiVersion?: 1 | 2;
+  baseCurrency?: string;
+  moneyScale?: 2;
   operation: MutationPayload['operation'];
   payload: MutationPayload | null;
   result: z.infer<typeof mutationRequestSchema> | null;
@@ -89,6 +109,9 @@ export interface MutationStore {
   pause(scope: PendingScope, until: number): Promise<void>;
 }
 interface Row {
+  api_version: 1 | 2;
+  base_currency: string | null;
+  money_scale: 2;
   environment: string;
   account_id: string;
   client_request_id: string;
@@ -110,13 +133,28 @@ function decode(row: Row): PendingMutation {
       ('tripId' in payload ? payload.tripId : null) !== row.trip_id)
   )
     throw new Error('INVALID_MUTATION');
+  if (
+    ![1, 2].includes(row.api_version) ||
+    row.money_scale !== 2 ||
+    (payload &&
+      'base_currency' in payload.body &&
+      (row.api_version !== 2 || payload.body.base_currency !== row.base_currency))
+  )
+    throw new Error('INVALID_MUTATION_LEDGER');
   return {
+    apiVersion: row.api_version,
+    baseCurrency: row.base_currency ?? undefined,
+    moneyScale: row.money_scale,
     environment: row.environment,
     accountId: row.account_id,
     clientRequestId: row.client_request_id,
     operation: row.operation,
     payload,
-    result: row.result ? mutationRequestSchema.parse(JSON.parse(row.result)) : null,
+    result: row.result
+      ? (row.api_version === 2 ? mutationRequestV2Schema : mutationRequestSchema).parse(
+          JSON.parse(row.result)
+        )
+      : null,
     status: row.status,
     conflict: !!row.conflict,
     createdAt: row.created_at,
@@ -168,13 +206,20 @@ export async function createMutationStore(db: SqlDatabase): Promise<MutationStor
               );
           if (pending) return false;
           await db.runAsync(
-            "INSERT INTO pending_mutation (environment, account_id, client_request_id, operation, payload, trip_id, status, conflict, created_at) VALUES (?, ?, ?, ?, ?, ?, 'pending', 0, ?)",
+            "INSERT INTO pending_mutation (environment, account_id, client_request_id, operation, payload, trip_id, status, conflict, created_at, api_version, base_currency, money_scale) VALUES (?, ?, ?, ?, ?, ?, 'pending', 0, ?, ?, ?, 2)",
             ...scopeArgs(record),
             record.clientRequestId,
             record.operation,
             JSON.stringify(parsed),
             tripId,
-            record.createdAt
+            record.createdAt,
+            record.apiVersion ?? 1,
+            record.baseCurrency ??
+              ('base_currency' in parsed.body
+                ? parsed.body.base_currency
+                : record.apiVersion === 2
+                  ? null
+                  : 'TWD')
           );
           return true;
         })
@@ -191,7 +236,14 @@ export async function createMutationStore(db: SqlDatabase): Promise<MutationStor
       serial(() =>
         transaction(db, async () => {
           if (result.status === 'not_found') throw new Error('NOT_TERMINAL');
-          const parsed = mutationRequestSchema.parse(result);
+          const row = await db.getFirstAsync<{ api_version: number }>(
+            'SELECT api_version FROM pending_mutation WHERE environment = ? AND account_id = ? AND client_request_id = ?',
+            ...scopeArgs(scope),
+            key
+          );
+          const parsed = (
+            row?.api_version === 2 ? mutationRequestV2Schema : mutationRequestSchema
+          ).parse(result);
           if (
             parsed.status === 'committed' &&
             parsed.operation === 'trip.access' &&
@@ -208,7 +260,7 @@ export async function createMutationStore(db: SqlDatabase): Promise<MutationStor
           await db.runAsync(
             "UPDATE pending_mutation SET status = 'completed', payload = CASE WHEN ? = 1 AND (operation LIKE 'expense.%' OR operation LIKE 'payment.%' OR operation LIKE 'member.%' OR operation IN ('trip.update', 'trip.archive', 'trip.access', 'trip.currency')) THEN payload ELSE NULL END, result = ? WHERE environment = ? AND account_id = ? AND client_request_id = ?",
             result.status === 'rejected' ? 1 : 0,
-            JSON.stringify(mutationRequestSchema.parse(result)),
+            JSON.stringify(parsed),
             ...scopeArgs(scope),
             key
           );

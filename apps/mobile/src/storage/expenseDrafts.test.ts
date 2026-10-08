@@ -184,10 +184,12 @@ describe('migration and atomic handoff', () => {
     const old = await createPendingExpenseStore(db);
     await old.insert(pending());
     await db.execAsync(
-      'DROP TABLE expense_draft; DROP TABLE draft_trip; DROP TABLE expense_queue; DROP TABLE expense_rate_limit; DROP TABLE pending_mutation; PRAGMA user_version = 1;'
+      'DROP TABLE expense_draft; DROP TABLE draft_trip; DROP TABLE expense_queue; DROP TABLE expense_rate_limit; DROP TABLE pending_mutation; ALTER TABLE pending_expense DROP COLUMN api_version; ALTER TABLE pending_expense DROP COLUMN base_currency; ALTER TABLE pending_expense DROP COLUMN money_scale; PRAGMA user_version = 1;'
     );
     const upgraded = await createPendingExpenseStore(db);
-    expect(await upgraded.list(scope)).toEqual([pending()]);
+    expect(await upgraded.list(scope)).toEqual([
+      { ...pending(), apiVersion: 1, baseCurrency: 'TWD', moneyScale: 2 },
+    ]);
     await upgraded.drafts.start(draft({ tripId: hex(200) }));
     expect(await upgraded.drafts.load(scope, hex(200))).toEqual(draft({ tripId: hex(200) }));
   });
@@ -226,7 +228,9 @@ describe('migration and atomic handoff', () => {
     await store.drafts.start(draft());
     await store.insert(pending(), draft());
     const restarted = await createPendingExpenseStore(db);
-    expect(await restarted.list(scope)).toEqual([pending()]);
+    expect(await restarted.list(scope)).toEqual([
+      { ...pending(), apiVersion: 1, baseCurrency: 'TWD', moneyScale: 2 },
+    ]);
     await expect(restarted.drafts.load(scope, tripId)).rejects.toThrow('DRAFT_HANDED_OFF');
     await expect(restarted.drafts.discard(scope, tripId, draft().draftId)).rejects.toThrow();
     expect(await restarted.drafts.save(draft({ revision: 2 }))).toBe(false);
@@ -252,7 +256,7 @@ describe('migration and atomic handoff', () => {
       const db = new DatabaseSync(process.argv[1]);
       const record = JSON.parse(process.argv[3]);
       db.exec('BEGIN IMMEDIATE');
-      db.prepare("INSERT INTO pending_expense VALUES (?, ?, ?, ?, ?, 'sending', 1000, 1000)").run(
+      db.prepare("INSERT INTO pending_expense (environment, account_id, client_request_id, trip_id, payload, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'sending', 1000, 1000)").run(
         record.environment, record.accountId, record.clientRequestId, record.tripId, JSON.stringify(record.payload));
       if (process.argv[2] !== 'inserted') db.prepare("UPDATE expense_draft SET status = 'handed-off', client_request_id = ?").run(record.clientRequestId);
       if (process.argv[2] === 'committed') db.exec('COMMIT');
@@ -266,7 +270,9 @@ describe('migration and atomic handoff', () => {
       expect(child.status, child.stderr.toString()).toBe(0);
       const restarted = await createPendingExpenseStore(open(path));
       if (stage === 'committed') {
-        expect(await restarted.list(scope)).toEqual([pending()]);
+        expect(await restarted.list(scope)).toEqual([
+          { ...pending(), apiVersion: 1, baseCurrency: 'TWD', moneyScale: 2 },
+        ]);
         await expect(restarted.drafts.load(scope, tripId)).rejects.toThrow('DRAFT_HANDED_OFF');
       } else {
         expect(await restarted.list(scope)).toEqual([]);

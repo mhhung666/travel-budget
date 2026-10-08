@@ -13,7 +13,16 @@ import {
   type MutationRequest,
   type TripMutationResult,
   type ExpenseMutationResult,
-} from '@travel-budget/contracts';
+} from '@/api/contracts';
+import { baseCurrency } from '@/api/ledger';
+import {
+  expenseUpdateV2Input,
+  expenseDeleteV2Input,
+  paymentCreateV2Input,
+  paymentDeleteV2Input,
+  tripCurrencyV2Input,
+  tripCreateV2Input,
+} from '@/api/contracts';
 import { ApiError } from '@/api/client';
 import { LocalRateLimitError, type EntryRequest } from '@/features/expenses/entry';
 import type { PendingScope } from '@/storage/pendingExpenses';
@@ -29,6 +38,7 @@ export type MutationOutcome =
   | { kind: 'not-sent'; error?: unknown }
   | { kind: 'blocked' };
 interface Deps {
+  contractVersion?: 1 | 2;
   store: () => Promise<MutationStore>;
   request: EntryRequest;
   newId: () => string;
@@ -74,7 +84,9 @@ export class TripEntry {
     scope: PendingScope,
     payload: MutationPayload extends infer P
       ? P extends MutationPayload
-        ? Omit<P, 'body'> & { body: Omit<P['body'], 'client_request_id'> }
+        ? Omit<P, 'body'> & {
+            body: Omit<P['body'], 'client_request_id'> & { base_currency?: string };
+          }
         : never
       : never
   ) {
@@ -89,8 +101,23 @@ export class TripEntry {
           ...payload,
           body: { ...payload.body, client_request_id: this.deps.newId() },
         });
+        if (this.deps.contractVersion === 2) {
+          const schemas = {
+            'trip.create': tripCreateV2Input,
+            'expense.update': expenseUpdateV2Input,
+            'expense.delete': expenseDeleteV2Input,
+            'payment.create': paymentCreateV2Input,
+            'payment.delete': paymentDeleteV2Input,
+            'trip.currency': tripCurrencyV2Input,
+          };
+          const schema = schemas[parsed.operation as keyof typeof schemas];
+          schema?.parse(parsed.body);
+        }
         record = {
           ...scope,
+          apiVersion: this.deps.contractVersion ?? 1,
+          baseCurrency: 'base_currency' in parsed.body ? parsed.body.base_currency : undefined,
+          moneyScale: 2,
           operation: parsed.operation,
           payload: parsed,
           result: null,
@@ -194,6 +221,13 @@ export class TripEntry {
   ): Promise<MutationOutcome> {
     if (result.status === 'not_found') return { kind: 'pending' };
     if (
+      record.apiVersion === 2 &&
+      result.status === 'committed' &&
+      (!('ledger' in result) ||
+        (record.baseCurrency && baseCurrency(result) !== record.baseCurrency))
+    )
+      throw new ApiError('LEDGER_CURRENCY_MISMATCH');
+    if (
       result.status === 'committed' &&
       result.operation === 'trip.access' &&
       'exited' in result.result &&
@@ -234,7 +268,10 @@ export class TripEntry {
         record.accountId,
         `/mutation-requests/${record.clientRequestId}`,
         mutationRequestSchema,
-        { beforeSend: this.beforeSend(store, receiptScope, guard) }
+        {
+          apiVersion: record.apiVersion ?? 1,
+          beforeSend: this.beforeSend(store, receiptScope, guard),
+        }
       );
       guard(exiting ? undefined : record.tripId);
       // A UUID collision may resolve another operation: display its result without replaying ours.
@@ -294,6 +331,7 @@ export class TripEntry {
                   ? expenseMutationResultSchema
                   : tripMutationResultSchema,
         {
+          apiVersion: record.apiVersion ?? 1,
           method:
             record.operation === 'member.rename' ||
             record.operation === 'expense.update' ||
@@ -308,6 +346,7 @@ export class TripEntry {
       );
       guard(record.tripId);
       return await this.finish(store, record, {
+        ...('ledger' in result ? { ledger: result.ledger } : {}),
         status: 'committed',
         operation: record.operation,
         resourceId:

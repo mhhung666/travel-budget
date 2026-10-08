@@ -1,3 +1,4 @@
+import { baseCurrency } from '@/api/ledger';
 import { MemberRosterNotice } from '@/features/expenses/MemberRosterNotice';
 import { useMemo } from 'react';
 import { useTripMembers } from './useTripMembers';
@@ -17,10 +18,10 @@ import { useAuth } from '@/features/auth/AuthProvider';
 import { useDraftCatalog } from '@/features/localDrafts/provider';
 
 export function ExpensesScreen({ tripId }: { tripId: string }) {
-  const t = useMessages();
   const p = usePalette();
   const online = useOnline();
   const { query, refresh } = useExpenses(tripId);
+  const t = useMessages(baseCurrency(query.data?.pages[0]));
   const hasPending = (usePendingExpenses(tripId).data?.length ?? 0) > 0;
   // Never leave a previously cached member payload visible after access is denied.
   const { user, manager } = useAuth();

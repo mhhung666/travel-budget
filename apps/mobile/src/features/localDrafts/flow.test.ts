@@ -24,6 +24,7 @@ import { DraftCatalog } from './catalog';
 const scope = { environment: 'https://a.test', accountId: hex(1) };
 const tripId = hex(100);
 const initial: ExpenseOptions = {
+  ledger: { baseCurrency: 'TWD', moneyScale: 2 },
   members: [
     { id: hex(1), displayName: 'Ann' },
     { id: hex(2), displayName: 'Bob' },
@@ -62,10 +63,17 @@ it('offline cold start edits only raw input, then requires restored auth, curren
   const fetcher: Fetcher = async (url, init) => {
     if (!online) throw new TypeError('airplane mode');
     const route = new URL(url).pathname;
-    if (route.endsWith('/expense-options')) return Response.json({ data: options });
+    if (route.endsWith('/expense-options'))
+      return Response.json({
+        data: { ...options, ledger: { baseCurrency: 'TWD', moneyScale: 2 } },
+      });
     if (route.endsWith('/expenses/preview'))
       return Response.json({
         data: {
+          ledger: { baseCurrency: 'TWD', moneyScale: 2 },
+          originalAmount: 100,
+          currency: 'TWD',
+          exchangeRate: 1,
           amount: 100,
           splits: options.members.map((member) => ({
             userId: member.id,

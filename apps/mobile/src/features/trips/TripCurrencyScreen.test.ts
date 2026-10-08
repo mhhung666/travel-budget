@@ -213,6 +213,7 @@ it('fresh review, precise rate and double tap confirmation; input change clears 
     operation: 'trip.currency',
     tripId,
     body: {
+      base_currency: 'TWD',
       expected_revision: original.revision,
       settings: { default_currency: null, currencies: [{ code: 'JPY', rate: 0.22 }] },
     },

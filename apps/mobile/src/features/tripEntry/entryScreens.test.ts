@@ -4,6 +4,9 @@ import { ApiError } from '@/api/client';
 import { messages } from '@/i18n/messages';
 import { TripFormScreen } from './TripFormScreen';
 import { InvitationScreen } from './InvitationScreen';
+vi.mock('@tanstack/react-query', () => ({
+  useQuery: () => ({ data: { nonTwdCreationEnabled: false } }),
+}));
 
 const h = vi.hoisted(() => ({
   values: [] as unknown[],
@@ -69,7 +72,10 @@ vi.mock('@/components/navigation', () => ({ goBack: h.goBack }));
 vi.mock('@/features/navigation/TripContext', () => ({ TripContext: 'TripContext' }));
 vi.mock('@/components/ui', () =>
   Object.fromEntries(
-    ['Action', 'Card', 'Copy', 'DetailRow', 'Notice', 'Page', 'TextField'].map((n) => [n, n])
+    ['Chip', 'Action', 'Card', 'Copy', 'DetailRow', 'Notice', 'Page', 'TextField'].map((n) => [
+      n,
+      n,
+    ])
   )
 );
 vi.mock('@/i18n/useMessages', async () => {
@@ -204,6 +210,7 @@ it('invalid trip focuses the failed date without sending; submitted date-only va
   expect(h.confirm.mock.calls[0][1]).toEqual({
     operation: 'trip.create',
     body: {
+      base_currency: 'TWD',
       name: 'Trip',
       description: 'TEST description',
       start_date: '2026-10-08',

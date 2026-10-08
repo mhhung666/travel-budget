@@ -31,8 +31,8 @@ const invalidated = (cache: QueryClient, key: QueryKey) =>
 
 describe('refreshTripData', () => {
   const keys = {
-    list: [BASE, USER, 'expenses', TRIP],
-    detail: [BASE, USER, 'expense', TRIP, 'e1'],
+    list: [BASE, USER, 'expenses', TRIP, 'v2'],
+    detail: [BASE, USER, 'expense', TRIP, 'e1', 'v2'],
     settlement: [BASE, USER, 'settlement', TRIP],
     landing: [BASE, USER, 'trip', TRIP, '2026-10-04'],
     trips: [BASE, USER, 'trips', '2026-10-04'],
@@ -40,9 +40,9 @@ describe('refreshTripData', () => {
   const unrelated = {
     otherTrip: [BASE, USER, 'expenses', OTHER_TRIP],
     otherTripLanding: [BASE, USER, 'trip', OTHER_TRIP, '2026-10-04'],
-    otherAccount: [BASE, OTHER_USER, 'expenses', TRIP],
-    otherEnvironment: ['https://b.test/api/v1', USER, 'expenses', TRIP],
-    options: [BASE, USER, 'expense-options', TRIP],
+    otherAccount: [BASE, OTHER_USER, 'expenses', TRIP, 'v2'],
+    otherEnvironment: ['https://b.test/api/v1', USER, 'expenses', TRIP, 'v2'],
+    options: [BASE, USER, 'expense-options', TRIP, 'v2'],
   };
 
   function seeded() {
@@ -211,8 +211,8 @@ describe('member options after a refused preview', () => {
     await m.observer.refetch();
     const others = [
       [BASE, USER, 'expense-options', OTHER_TRIP],
-      [BASE, OTHER_USER, 'expense-options', TRIP],
-      ['https://b.test/api/v1', USER, 'expense-options', TRIP],
+      [BASE, OTHER_USER, 'expense-options', TRIP, 'v2'],
+      ['https://b.test/api/v1', USER, 'expense-options', TRIP, 'v2'],
     ];
     for (const key of others) m.cache.setQueryData(key, options);
     recordAccessDenial(m.cache, m.query.queryKey, new ApiError('FORBIDDEN', 403));

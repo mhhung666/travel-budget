@@ -1,10 +1,12 @@
 import { z } from 'zod';
-import { expenseCategories } from '@/api/contracts';
+import { expenseCategories, ledgerSchema } from '@/api/contracts';
 import type { PendingScope } from './pendingExpenses';
 
 /** Raw inputs, deliberately allowing incomplete amounts and dates. No preview or credentials. */
 export const expenseDraftSchema = z
   .object({
+    ledger: ledgerSchema.optional(),
+    apiVersion: z.union([z.literal(1), z.literal(2)]).optional(),
     description: z.string(),
     amountText: z.string(),
     // Optional fields preserve legacy raw JSON without rewriting old generations or frozen bodies.
@@ -38,6 +40,7 @@ export interface ExpenseDraftStore {
 
 /** D remains TWD only, including every persistence and synchronization entry point. */
 export const isTwdQueueDraft = (draft: ExpenseDraft) =>
+  (draft.ledger?.baseCurrency ?? 'TWD') === 'TWD' &&
   (draft.currency ?? 'TWD') === 'TWD' &&
   (draft.rateText === undefined ||
     (/^\d+(\.\d+)?([eE][+-]?\d+)?$/.test(draft.rateText.trim()) && Number(draft.rateText) === 1));

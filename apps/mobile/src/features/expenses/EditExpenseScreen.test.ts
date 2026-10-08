@@ -386,7 +386,7 @@ it('delete still requires a fresh review and a separate danger confirmation', as
     operation: 'expense.delete',
     tripId,
     expenseId,
-    body: { expected_revision: original.revision },
+    body: { base_currency: 'TWD', expected_revision: original.revision },
   });
 });
 

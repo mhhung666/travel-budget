@@ -7,18 +7,18 @@ export type AmountResult =
  * Reads typed original-amount text without guessing (TWD additionally keeps its amount limit): digits with an optional point and one or two decimals,
  * nothing else. `parseFloat` would quietly turn "12abc" or "1e3" into a number; here they fail.
  */
-export function parseAmount(text: string, currency = 'TWD'): AmountResult {
+export function parseAmount(text: string, currency = 'TWD', base = 'TWD'): AmountResult {
   const value = text.trim();
   if (!value) return { ok: false, reason: 'empty' };
   if (!/^\d+(\.\d{1,2})?$/.test(value)) return { ok: false, reason: 'format' };
   const amount = Number(value);
   if (
-    (currency === 'TWD' && amount > MAX_EXPENSE_AMOUNT) ||
+    (currency === base && amount > MAX_EXPENSE_AMOUNT) ||
     !Number.isSafeInteger(Math.round(amount * 100))
   )
     return { ok: false, reason: 'tooLarge' };
   if (
-    !(currency === 'TWD'
+    !(currency === base
       ? isPositiveCentAmount(amount)
       : amount >= 0.01 && Math.round(amount * 100) / 100 === amount)
   )

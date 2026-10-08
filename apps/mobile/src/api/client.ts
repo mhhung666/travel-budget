@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { responseSchema } from './contracts';
 
 export class ApiError extends Error {
   constructor(
@@ -18,6 +19,7 @@ export function checkAborted(signal?: AbortSignal) {
 }
 
 export type RequestOptions = {
+  apiVersion?: 1 | 2;
   method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
   body?: unknown;
   accessToken?: string;
@@ -58,6 +60,9 @@ export class ApiClient {
   }
   async request<T>(path: string, schema: z.ZodType<T>, options: RequestOptions = {}): Promise<T> {
     if (!this.baseUrl) throw new ApiError('CONFIGURATION');
+    const version =
+      options.apiVersion ?? (/^\/(trips(?:[/?]|$)|mutation-requests(?:[/?]|$))/.test(path) ? 2 : 1);
+    const url = version === 2 ? this.baseUrl.replace(/\/v1$/, '/v2') : this.baseUrl;
     const remaining = (this.cooldowns.get(path) ?? 0) - Date.now();
     if (remaining > 0) throw new ApiError('RATE_LIMITED', 429, Math.ceil(remaining / 1000));
     checkAborted(options.signal);
@@ -82,7 +87,7 @@ export class ApiClient {
         signal: controller.signal,
       };
       options.beforeSend?.();
-      const response = await this.fetcher(`${this.baseUrl}${path}`, init);
+      const response = await this.fetcher(`${url}${path}`, init);
       const body: unknown = await response.json().catch((error: unknown) => {
         // Malformed JSON is a payload error; interrupted body reads are transport failures.
         if (error instanceof SyntaxError) return null;
@@ -99,15 +104,36 @@ export class ApiClient {
             : Number(rawRetry);
         if (response.status === 429 && Number.isFinite(retryAfter) && retryAfter > 0)
           this.cooldowns.set(path, Date.now() + retryAfter * 1000);
+        if (version === 2 && response.status === 404 && !error.success)
+          throw new ApiError('LEDGER_SERVICE_UNAVAILABLE', 503);
         throw new ApiError(
           error.success ? error.data.error.code : 'SERVER_ERROR',
           response.status,
           Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : undefined
         );
       }
-      const parsed = z.object({ data: schema }).safeParse(body);
+      const parsed = z.object({ data: responseSchema(schema, version) }).safeParse(body);
       if (!parsed.success) throw new ApiError('INVALID_RESPONSE');
-      return parsed.data.data;
+      const data = parsed.data.data;
+      if (version === 2 && data && typeof data === 'object' && 'ledger' in data) {
+        const unit = (data as { ledger: { baseCurrency: string } }).ledger.baseCurrency;
+        const children = 'items' in data ? (data as { items: unknown[] }).items : [];
+        for (const child of [
+          ...children,
+          ...['expense', 'options', 'settlement', 'result'].flatMap((key) =>
+            key in data ? [(data as Record<string, unknown>)[key]] : []
+          ),
+        ]) {
+          if (
+            child &&
+            typeof child === 'object' &&
+            'ledger' in child &&
+            (child as { ledger: { baseCurrency: string } }).ledger.baseCurrency !== unit
+          )
+            throw new ApiError('INVALID_RESPONSE');
+        }
+      }
+      return data;
     } catch (error) {
       checkAborted(options.signal);
       if (timedOut) throw new ApiError('TIMEOUT');

@@ -102,7 +102,7 @@ it('a membership denial after commit hides the trip through existing catalog gua
 
 it('a late old options response cannot replace the refreshed roster or virtual flag', async () => {
   const f = fixture(),
-    key = [scope.environment, scope.accountId, 'expense-options', tripId];
+    key = [scope.environment, scope.accountId, 'expense-options', tripId, 'v2'];
   let resolve!: (data: unknown) => void;
   const old = f.client
     .fetchQuery({
@@ -133,6 +133,6 @@ it('denial during options persistence stops publication to the label cache', asy
   });
   await expect(f.run()).rejects.toMatchObject({ code: 'CANCELLED' });
   expect(
-    f.client.getQueryData([scope.environment, scope.accountId, 'expense-options', tripId])
+    f.client.getQueryData([scope.environment, scope.accountId, 'expense-options', tripId, 'v2'])
   ).toBeUndefined();
 });

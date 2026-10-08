@@ -4,9 +4,9 @@ import {
   tripLocationSchema,
   type TripSettings,
   type TripUpdateInput,
-} from '@travel-budget/contracts';
+} from '@/api/contracts';
 import type { EntryRequest } from '@/features/expenses/entry';
-import { tripSettingsSchema } from '@travel-budget/contracts';
+import { tripSettingsSchema } from '@/api/contracts';
 export interface TripSettingsFields {
   name: string;
   description: string;

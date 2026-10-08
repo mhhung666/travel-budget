@@ -4,14 +4,16 @@ import {
   formatDate,
   formatRate,
   formatInstant,
-  money,
 } from './format';
 import { useAppLocale } from './useMessages';
 
-export function useDisplayFormat() {
+export function useDisplayFormat(base = 'TWD') {
   const locale = useAppLocale();
   return {
-    money: (value: number) => money(value, locale),
+    money: (value: number, code = base) =>
+      code === 'TWD'
+        ? formatCurrency(value, code, locale)
+        : formatOriginalAmount(value, code, locale),
     currency: (value: number, code: string) => formatCurrency(value, code, locale),
     originalAmount: (value: number, code: string) => formatOriginalAmount(value, code, locale),
     date: (value: string) => formatDate(value, locale),

@@ -4,7 +4,7 @@
 
 ## Workspace 邊界
 
-此應用位於 `apps/web`（`@travel-budget/web`），原生 App 位於 `apps/mobile`；兩者在同一 repository 維護、各自版本與發布。Web 仍擁有業務後端、MongoDB models、migrations 與外部服務。手機目前透過 HTTP 存取 `/api/v1`；B1 已提供 `/api/v2` 帳本契約，B2 Web 已接新版帳本讀寫，Mobile 遷移留 B3。跨應用文件見 [repository 入口](../../../docs/README.md)。
+此應用位於 `apps/web`（`@travel-budget/web`），原生 App 位於 `apps/mobile`；兩者在同一 repository 維護、各自版本與發布。Web 仍擁有業務後端、MongoDB models、migrations 與外部服務。B1 提供 `/api/v2` 帳本契約，B2 Web／B3 Mobile 已接新版帳本讀寫；Mobile 舊已確認操作與 D TWD 佇列保留 `/api/v1`。跨應用文件見 [repository 入口](../../../docs/README.md)。
 
 共用 [packages/contracts/src/index.ts](../../../packages/contracts/src/index.ts) 只包含 API DTO、Zod runtime schema 等可供原生使用的契約，透過 `@travel-budget/contracts` 匯入。它不包含 Mongoose、Server Actions 或 server SDK。Web 的 [contract.ts](../src/lib/mobile/contract.ts) 只保留薄 adapter。
 
@@ -58,7 +58,7 @@ Next.js App Router 與 React 組成介面，TanStack Query 負責查詢、重新
 
 新版未送出支出草稿的 key 包含 origin／帳號／旅行／單位／版本。舊未分帳號 LocalStorage 草稿留在原 key，顯示不含內容的提示，**不自動載入或改寫**，避免跨帳號顯示；已確認 outbox 照原 UUID 恢復。非 TWD 新增需連線，斷線可保留未確認表單，不降級為 TWD。其他操作只在確認後持久化，不新增離線授權。
 
-非 TWD 建立仍由伺服器能力及 `ENABLE_NON_TWD_LEDGER` 控制，預設關閉。B3 Mobile 與 B4 獨立 Web／iPhone／iPad 操作、PWA 升級矩陣及精確 DB 核對仍待完成；Android 延後。工程檢查與剩餘驗收集中於 [B 交接](../../mobile/docs/LOCAL_ACCEPTANCE.md#b-基準幣別驗收b1b2-實作交接)。
+非 TWD 建立仍由伺服器能力及 `ENABLE_NON_TWD_LEDGER` 控制，預設關閉。B3 Mobile 已實作；B4 獨立 Web／iPhone／iPad 操作、PWA 升級矩陣及精確 DB 核對仍待完成；Android 延後。工程檢查與剩餘驗收集中於 [B 交接](../../mobile/docs/LOCAL_ACCEPTANCE.md#b-基準幣別驗收b1b2b3-實作交接)。
 
 ## 手機 HTTP adapter
 

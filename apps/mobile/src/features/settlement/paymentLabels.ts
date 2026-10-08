@@ -1,6 +1,5 @@
-import type { PaymentContext, PaymentRevokeContext } from '@travel-budget/contracts';
+import type { PaymentContext, PaymentRevokeContext, ExpenseOptions } from '@/api/contracts';
 import { createMemberLabelIndex, type ReadMember } from '@/features/expenses/rows';
-import type { ExpenseOptions } from '@/api/contracts';
 import type { Messages } from '@/i18n/messages';
 import { settlementMembers } from './view';
 

@@ -1,3 +1,4 @@
+import { baseCurrency } from '@/api/ledger';
 import { MemberRosterNotice } from '@/features/expenses/MemberRosterNotice';
 import { TripContext } from '@/features/navigation/TripContext';
 import { FormPage } from '@/components/screen';
@@ -24,7 +25,7 @@ import {
   type PaymentRevokeContext,
   type PaymentCreateInput,
   type PaymentDeleteInput,
-} from '@travel-budget/contracts';
+} from '@/api/contracts';
 import { ApiError } from '@/api/client';
 import {
   Action,
@@ -76,13 +77,13 @@ export function PaymentScreen({
   const { catalog } = useDraftCatalog();
   const members = useTripMembers(tripId, !!paymentId);
   const client = useQueryClient();
-  const t = useMessages();
-  const f = useDisplayFormat();
   const p = usePalette();
   const amountAccessoryId = `payment-amount-${useId()}`;
   const online = useOnline();
   const navigation = useNavigation();
   const [context, setContext] = useState<Context | null>(null);
+  const t = useMessages(baseCurrency(context));
+  const f = useDisplayFormat(baseCurrency(context));
   const [latest, setLatest] = useState<Context | null>(null);
   const [fields, setFields] = useState<PaymentFields | null>(null);
   const [prepared, setPrepared] = useState<

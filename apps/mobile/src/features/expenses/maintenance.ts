@@ -1,3 +1,4 @@
+import { baseCurrency } from '@/api/ledger';
 import {
   expenseEditContextSchema,
   expenseUpdateInput,
@@ -6,7 +7,7 @@ import {
   type ExpenseEditContext,
   type ExpenseUpdateInput,
   type MobileExpensePreview,
-} from '@travel-budget/contracts';
+} from '@/api/contracts';
 import { parseAmount, parseRate } from './input';
 import type { EntryRequest } from './entry';
 export interface EditFields {
@@ -46,7 +47,7 @@ export function rebaseEditFields(
     next.description = fields.description;
   if (fields.category !== baseline.category) next.category = fields.category;
   if (fields.date !== baseline.date) next.date = fields.date;
-  const amount = parseAmount(fields.amountText, fields.currency);
+  const amount = parseAmount(fields.amountText, fields.currency, baseCurrency(previous));
   // Original amount, currency and rate describe one monetary input. Keeping just
   // one part would silently reinterpret it using a collaborator's other parts.
   const amountChanged =
@@ -79,22 +80,23 @@ export function editChanges(
   if (fields.category !== context.category) changes.category = fields.category;
   if (fields.date !== context.expense.date) changes.date = fields.date;
   if (mode === 'equal') {
-    const amount = parseAmount(fields.amountText, fields.currency);
+    const amount = parseAmount(fields.amountText, fields.currency, baseCurrency(context));
     const known = new Set(context.options.members.map((m) => m.id));
     if (
       !canRecalculate(context) ||
       (context.options.supportedCurrencies &&
         !context.options.supportedCurrencies.includes(fields.currency)) ||
       !parseRate(fields.rateText) ||
-      (fields.currency === 'TWD' && parseRate(fields.rateText) !== 1) ||
+      (fields.currency === baseCurrency(context) && parseRate(fields.rateText) !== 1) ||
       !amount.ok ||
       !fields.payerId ||
       !known.has(fields.payerId) ||
       fields.memberIds.some((id) => !known.has(id)) ||
       !preview ||
       !expensePreviewSchema.safeParse(preview).success ||
-      (fields.currency === 'TWD' && preview.amount !== amount.amount) ||
-      (fields.currency !== 'TWD' &&
+      baseCurrency(preview) !== baseCurrency(context) ||
+      (fields.currency === baseCurrency(context) && preview.amount !== amount.amount) ||
+      (fields.currency !== baseCurrency(context) &&
         (preview.originalAmount !== amount.amount ||
           preview.currency !== fields.currency ||
           preview.exchangeRate !== parseRate(fields.rateText))) ||
@@ -111,7 +113,8 @@ export function editChanges(
       throw new Error('INVALID_EDIT');
     Object.assign(changes, {
       original_amount: amount.amount,
-      ...(context.capabilities.recalculate !== undefined || fields.currency !== 'TWD'
+      ...(context.capabilities.recalculate !== undefined ||
+      fields.currency !== baseCurrency(context)
         ? { currency: fields.currency, exchange_rate: parseRate(fields.rateText) }
         : {}),
       payer_id: fields.payerId,
@@ -120,15 +123,17 @@ export function editChanges(
   }
   if (Object.keys(changes).length === 0) return null;
   const parsed = expenseUpdateInput.parse({
+    ...(context.ledger ? { base_currency: baseCurrency(context) } : {}),
     client_request_id: dummyKey,
     expected_revision: context.revision,
     mode,
     changes,
   });
-  return { mode: parsed.mode, changes: parsed.changes } as Omit<
-    ExpenseUpdateInput,
-    'client_request_id' | 'expected_revision'
-  >;
+  return {
+    ...('base_currency' in parsed ? { base_currency: parsed.base_currency } : {}),
+    mode: parsed.mode,
+    changes: parsed.changes,
+  } as Omit<ExpenseUpdateInput, 'client_request_id' | 'expected_revision'>;
 }
 export interface PreparedEdit {
   context: ExpenseEditContext;
@@ -149,22 +154,30 @@ export async function prepareEdit(
   const path = `/trips/${tripId}/expenses/${expenseId}/edit-context`;
   const current = await request(accountId, path, expenseEditContextSchema, { beforeSend });
   beforeSend();
-  if (current.revision !== context.revision)
+  if (current.revision !== context.revision || baseCurrency(current) !== baseCurrency(context))
     return { context: current, changes: null, preview: null };
   let preview: MobileExpensePreview | null = null;
   if (mode === 'equal') {
-    const amount = parseAmount(fields.amountText, fields.currency);
+    const amount = parseAmount(fields.amountText, fields.currency, baseCurrency(context));
     const rate = parseRate(fields.rateText);
     if (!amount.ok || !rate || !canRecalculate(current)) throw new Error('INVALID_EDIT');
     const body = expensePreviewInput.parse(
-      fields.currency === 'TWD'
-        ? { amount: amount.amount, member_ids: fields.memberIds }
-        : {
+      current.ledger
+        ? {
+            base_currency: baseCurrency(current),
             amount: amount.amount,
             currency: fields.currency,
             exchange_rate: rate,
             member_ids: fields.memberIds,
           }
+        : fields.currency === baseCurrency(context)
+          ? { amount: amount.amount, member_ids: fields.memberIds }
+          : {
+              amount: amount.amount,
+              currency: fields.currency,
+              exchange_rate: rate,
+              member_ids: fields.memberIds,
+            }
     );
     preview = await request(accountId, `/trips/${tripId}/expenses/preview`, expensePreviewSchema, {
       method: 'POST',

@@ -1,3 +1,4 @@
+import { baseCurrency } from '@/api/ledger';
 import type { Expense, ExpenseDetail, ExpenseOptions } from '@/api/contracts';
 import type { Messages } from '@/i18n/messages';
 
@@ -18,7 +19,8 @@ export function categoryLabel(category: Expense['category'], t: Messages) {
 export function memberName(name: string, t: Messages) {
   return name || t.unknownMember;
 }
-export const isForeign = (expense: Pick<Expense, 'currency'>) => expense.currency !== 'TWD';
+export const isForeign = (expense: Pick<Expense, 'currency' | 'ledger'>) =>
+  expense.currency !== baseCurrency(expense);
 
 /** Pages can overlap when data changes between requests; keep the first (newest) occurrence. */
 export function uniqueExpenses(pages: { items: Expense[] }[]): Expense[] {

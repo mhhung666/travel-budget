@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { AppState, Share } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { ApiError } from '@/api/client';
-import { invitationSchema } from '@travel-budget/contracts';
+import { invitationSchema } from '@/api/contracts';
 import { Action, Card, DetailRow, Notice, Page } from '@/components/ui';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { useDraftCatalog } from '@/features/localDrafts/provider';

@@ -1,3 +1,4 @@
+import { baseCurrency } from '@/api/ledger';
 import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
@@ -27,14 +28,14 @@ export function SavedExpense({
   onAnother: () => void;
   labels: MemberLabelIndex;
 }) {
-  const t = useMessages();
-  const f = useDisplayFormat();
+  const { expense } = saved;
+  const t = useMessages(baseCurrency(expense));
+  const f = useDisplayFormat(baseCurrency(expense));
   const online = useOnline();
   const client = useQueryClient();
   const { scope } = useExpenseEntry();
   const [refreshFailed, setRefreshFailed] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const { expense } = saved;
   const payer = { id: expense.payerId, name: expense.payerName, isVirtual: expense.payerIsVirtual };
 
   useEffect(() => {

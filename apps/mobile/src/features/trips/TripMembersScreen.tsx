@@ -3,11 +3,7 @@ import { Alert, AppState, Keyboard } from 'react-native';
 import { router, useNavigation } from 'expo-router';
 import { usePreventRemove } from 'expo-router/react-navigation';
 import { onlineManager, useQueryClient } from '@tanstack/react-query';
-import {
-  tripMembersSchema,
-  virtualMemberNameSchema,
-  type TripMembers,
-} from '@travel-budget/contracts';
+import { tripMembersSchema, virtualMemberNameSchema, type TripMembers } from '@/api/contracts';
 import { FormPage } from '@/components/screen';
 import { goBack } from '@/components/navigation';
 import { Action, Card, Copy, DetailRow, Notice, Section, TextField } from '@/components/ui';

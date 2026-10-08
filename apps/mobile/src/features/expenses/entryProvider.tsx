@@ -38,7 +38,25 @@ export function ExpenseEntryProvider({ children }: PropsWithChildren) {
       try {
         if (AppState.currentState !== 'active' || !onlineManager.isOnline())
           throw new ApiError('CANCELLED');
-        return await manager.requestAs(userId, path, schema, options);
+        const scope = { environment: manager.api.baseUrl, accountId: userId };
+        const version = manager.getSignInVersion();
+        const captured = catalog.captureAccess(scope);
+        const trip = /^\/trips\/([^/]+)\//.exec(path)?.[1];
+        return await manager.requestAs(userId, path, schema, {
+          ...options,
+          beforeSend: () => {
+            options?.beforeSend?.();
+            if (
+              AppState.currentState !== 'active' ||
+              !onlineManager.isOnline() ||
+              version !== manager.getSignInVersion()
+            )
+              throw new ApiError('CANCELLED');
+            captured(trip);
+            if (trip && options?.method === 'POST' && !catalog.isVisible(scope, trip))
+              throw new ApiError('ACCESS_REVOKED', 403);
+          },
+        });
       } catch (error) {
         const match = /^\/trips\/([^/]+)\//.exec(path);
         if (

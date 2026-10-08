@@ -156,7 +156,7 @@ it('reads legacy draft/pending bodies unchanged alongside foreign requests in sc
   expect(await h.store.drafts.load(h.scope, hex(101))).toEqual(legacyDraft);
   expect((await h.store.get(h.scope, legacy.client_request_id))!.payload).toEqual(legacy);
   expect(await h.db.getFirstAsync('SELECT payload FROM pending_expense')).toEqual(raw);
-  expect(await h.db.getFirstAsync('PRAGMA user_version')).toEqual({ user_version: 8 });
+  expect(await h.db.getFirstAsync('PRAGMA user_version')).toEqual({ user_version: 9 });
 });
 it('crash after draft handoff retains original UUID/body and never reapplies settings on retry', async () => {
   const h = await fixture();

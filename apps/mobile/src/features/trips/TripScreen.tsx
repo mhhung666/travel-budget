@@ -1,3 +1,4 @@
+import { baseCurrency } from '@/api/ledger';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, Text } from 'react-native';
 import { router } from 'expo-router';
@@ -26,8 +27,8 @@ import { TripFinancialSummary } from './TripSummary';
 export function TripScreen({ id }: { id: string }) {
   const query = useTrip(id);
   const trip = query.data;
-  const t = useMessages();
-  const { money, date } = useDisplayFormat();
+  const t = useMessages(baseCurrency(trip));
+  const { money, date } = useDisplayFormat(baseCurrency(trip));
   const online = useOnline();
   // Never leave a previously cached member payload visible after access is denied.
   const { manager, user } = useAuth();

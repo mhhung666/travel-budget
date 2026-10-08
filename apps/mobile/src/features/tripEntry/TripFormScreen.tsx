@@ -4,8 +4,9 @@ import { useEffect, useRef, useState } from 'react';
 import { Alert, Keyboard, TextInput } from 'react-native';
 import { router, useNavigation } from 'expo-router';
 import { usePreventRemove } from 'expo-router/react-navigation';
-import { tripFieldsSchema } from '@travel-budget/contracts';
-import { Action, Copy, Notice, TextField } from '@/components/ui';
+import { useQuery } from '@tanstack/react-query';
+import { ledgerCapabilitiesSchema, tripFieldsSchema } from '@/api/contracts';
+import { Action, Chip, Copy, Notice, TextField } from '@/components/ui';
 import { useMessages } from '@/i18n/useMessages';
 import { useOnline } from '@/providers/useOnline';
 import { errorMessage } from '@/features/auth/errorMessage';
@@ -18,6 +19,13 @@ export function TripFormScreen({ mode }: { mode: 'create' | 'join' }) {
   const { entry, scope, manager } = useTripEntry();
   const navigation = useNavigation();
   const [fields, setFields] = useState({ name: '', description: '', start_date: '', end_date: '' });
+  const [base, setBase] = useState('TWD');
+  const [baseSearch, setBaseSearch] = useState('');
+  const capabilities = useQuery({
+    queryKey: [manager.api.baseUrl, scope?.accountId, 'ledger-capabilities', 'v2'],
+    enabled: mode === 'create' && !!scope && online,
+    queryFn: () => manager.request('/capabilities', ledgerCapabilitiesSchema, { apiVersion: 2 }),
+  });
   const [invite, setInvite] = useState('');
   const [busy, setBusy] = useState(false);
   const inFlight = useRef(false);
@@ -64,7 +72,7 @@ export function TripFormScreen({ mode }: { mode: 'create' | 'join' }) {
         ).current?.focus();
         return;
       }
-      payload = { operation: 'trip.create', body: parsed.data };
+      payload = { operation: 'trip.create', body: { ...parsed.data, base_currency: base } };
     } else {
       const code = parseInvitation(invite, scope.environment, process.env.EXPO_PUBLIC_WEB_ORIGIN);
       if (!code) {
@@ -129,6 +137,37 @@ export function TripFormScreen({ mode }: { mode: 'create' | 'join' }) {
       <Copy>{mode === 'create' ? t.tripFormHint : t.inviteHint}</Copy>
       {mode === 'create' ? (
         <>
+          <Copy>{t.ledgerName}</Copy>
+          <Notice>{t.ledgerFixed}</Notice>
+          {capabilities.data?.nonTwdCreationEnabled && (
+            <TextField
+              label={t.searchCurrency}
+              value={baseSearch}
+              onChangeText={setBaseSearch}
+              editable={!busy && !confirmed}
+              autoCapitalize="characters"
+              maxLength={3}
+            />
+          )}
+          {(capabilities.data?.nonTwdCreationEnabled
+            ? [
+                ...new Set([
+                  base,
+                  ...capabilities.data.supportedBaseCurrencies
+                    .filter((code) => code.includes(baseSearch.trim().toUpperCase()))
+                    .slice(0, 12),
+                ]),
+              ]
+            : ['TWD']
+          ).map((code) => (
+            <Chip
+              key={code}
+              label={code}
+              selected={base === code}
+              disabled={busy || confirmed}
+              onPress={() => setBase(code)}
+            />
+          ))}
           <TextField
             inputRef={first}
             testID="trip-name"
@@ -196,12 +235,15 @@ export function TripFormScreen({ mode }: { mode: 'create' | 'join' }) {
       )}
       {notSent && <Notice tone="danger">{t.operationNotSent}</Notice>}
       {!!error && <Notice tone="danger">{error}</Notice>}
+      {mode === 'create' && capabilities.isError && (
+        <Notice tone="warning">{t.ledgerUnavailable}</Notice>
+      )}
       {!online && <Notice tone="warning">{t.offline}</Notice>}
       <Action
         testID="trip-confirm"
         label={mode === 'create' ? t.createTrip : t.joinTrip}
         busy={busy}
-        disabled={!online || confirmed}
+        disabled={!online || confirmed || (mode === 'create' && !capabilities.data)}
         onPress={() => void submit()}
       />
       <Action

@@ -1,3 +1,4 @@
+import { baseCurrency } from '@/api/ledger';
 import { ApiError } from '@/api/client';
 import { openMutationStore } from '@/storage/pendingExpenseDatabase';
 import { expenseReadGuard, expenseReadWait } from './readGuard';
@@ -17,9 +18,8 @@ import {
   type TextInput,
 } from 'react-native';
 import { router } from 'expo-router';
-import { referenceRatesSchema, type ReferenceRates } from '@travel-budget/contracts';
+import { referenceRatesSchema, type ReferenceRates, ExpenseOptions } from '@/api/contracts';
 import { isTwdQueueDraft } from '@/storage/expenseDrafts';
-import type { ExpenseOptions } from '@/api/contracts';
 import {
   Action,
   Card,
@@ -351,9 +351,9 @@ function EntryForm({
   draft: ExpenseDraft;
   saveStatus: 'saving' | 'saved' | 'failed';
 }) {
-  const t = useMessages();
+  const t = useMessages(baseCurrency(options));
   const p = usePalette();
-  const f = useDisplayFormat();
+  const f = useDisplayFormat(baseCurrency(options));
   const online = useOnline();
   const { user } = useAuth();
   const { entry, scope, manager } = useExpenseEntry();
@@ -403,7 +403,7 @@ function EntryForm({
     if (
       found?.field === 'amount' &&
       found.code === 'tooLarge' &&
-      (draft.currency ?? 'TWD') !== 'TWD'
+      (draft.currency ?? 'TWD') !== baseCurrency(options)
     )
       return t.foreignAmountTooLarge;
     return found ? issueMessage(found, t) : undefined;
@@ -551,13 +551,15 @@ function EntryForm({
       beforeSend();
       const value = await manager.requestAs(
         scope.accountId,
-        '/exchange-rates',
+        `/trips/${encodeURIComponent(tripId)}/exchange-rates`,
         referenceRatesSchema,
         { beforeSend }
       );
       beforeSend();
       if (ticket !== rateTicket.current || revision !== editor.getSnapshot().record?.revision)
         return;
+      if (baseCurrency(value) !== baseCurrency(options))
+        throw new ApiError('LEDGER_CURRENCY_MISMATCH');
       setRates(value);
     } catch (error) {
       if (ticket !== rateTicket.current) return;
@@ -646,14 +648,18 @@ function EntryForm({
               onPress={() => {
                 setRates(null);
                 setRateError(false);
-                edit(currencyDefaults(options, code));
+                edit({
+                  ...currencyDefaults(options, code),
+                  ledger: draft.ledger,
+                  apiVersion: draft.apiVersion,
+                });
               }}
             />
           ))}
         </View>
         {!!message('currency') && <FieldError message={message('currency')!} />}
       </Section>
-      {(draft.currency ?? 'TWD') !== 'TWD' && (
+      {(draft.currency ?? 'TWD') !== baseCurrency(options) && (
         <>
           <TextField
             testID="new-expense-rate"
@@ -721,7 +727,7 @@ function EntryForm({
         testID="new-expense-amount"
         inputRef={amountInput}
         label={
-          (draft.currency ?? 'TWD') === 'TWD'
+          (draft.currency ?? 'TWD') === baseCurrency(options)
             ? t.amountTwd
             : `${t.originalAmount} (${draft.currency})`
         }
@@ -906,7 +912,7 @@ function EntryForm({
               label={t.amountTwd}
               value={f.money(current.amount)}
             />
-            {(draft.currency ?? 'TWD') !== 'TWD' && (
+            {(draft.currency ?? 'TWD') !== baseCurrency(options) && (
               <>
                 <DetailRow
                   label={t.originalAmount}

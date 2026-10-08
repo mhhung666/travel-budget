@@ -1,10 +1,11 @@
+import { baseCurrency } from '@/api/ledger';
 import {
   paymentFieldsSchema,
   paymentContextSchema,
   paymentRevokeContextSchema,
   type PaymentContext,
   type PaymentRevokeContext,
-} from '@travel-budget/contracts';
+} from '@/api/contracts';
 import { parseAmount } from '@/features/expenses/input';
 import type { EntryRequest } from '@/features/expenses/entry';
 export interface PaymentFields {
@@ -25,7 +26,7 @@ export function paymentFields(
   };
 }
 export function paymentInput(context: PaymentContext, fields: PaymentFields) {
-  const amount = parseAmount(fields.amountText);
+  const amount = parseAmount(fields.amountText, baseCurrency(context), baseCurrency(context));
   if (
     !amount.ok ||
     ![fields.fromId, fields.toId].every((id) => context.members.some((m) => m.id === id))
@@ -61,10 +62,18 @@ export async function preparePayment(
     { beforeSend }
   );
   beforeSend();
-  if (current.settlementRevision !== context.settlementRevision) return { current, body: null };
+  if (
+    current.settlementRevision !== context.settlementRevision ||
+    baseCurrency(current) !== baseCurrency(context)
+  )
+    return { current, body: null };
   return {
     current,
-    body: { ...paymentInput(current, fields), expected_revision: current.settlementRevision },
+    body: {
+      ...(current.ledger ? { base_currency: baseCurrency(current) } : {}),
+      ...paymentInput(current, fields),
+      expected_revision: current.settlementRevision,
+    },
   };
 }
 export async function preparePaymentRevocation(
@@ -84,6 +93,12 @@ export async function preparePaymentRevocation(
   beforeSend();
   return {
     current,
-    body: current.revision === context.revision ? { expected_revision: current.revision } : null,
+    body:
+      current.revision === context.revision && baseCurrency(current) === baseCurrency(context)
+        ? {
+            ...(current.ledger ? { base_currency: baseCurrency(current) } : {}),
+            expected_revision: current.revision,
+          }
+        : null,
   };
 }

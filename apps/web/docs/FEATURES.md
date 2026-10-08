@@ -52,7 +52,7 @@
 
 `/api/public/*` 是刻意未登入的唯讀分享介面。隱私與 DTO 契約見 [ARCHITECTURE.md](ARCHITECTURE.md)。
 
-B2 Web 帳本及固定 UUID 恢復已實作；非 TWD 建立開關預設關閉，B3 Mobile／B4 獨立操作仍待完成，見 [帳本與恢復](ARCHITECTURE.md#b2-web-帳本與恢復)。
+B2 Web 帳本及固定 UUID 恢復已實作；非 TWD 建立開關預設關閉，B3 Mobile 已實作，B4 獨立操作仍待完成，見 [帳本與恢復](ARCHITECTURE.md#b2-web-帳本與恢復)。
 
 ## 使用限制
 

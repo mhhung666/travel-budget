@@ -256,5 +256,5 @@ it('existing schema 8 G1 rows and G2a intents coexist after restart without a mi
     'trip.currency',
     'trip.update',
   ]);
-  expect(await h.db.getFirstAsync('PRAGMA user_version')).toEqual({ user_version: 8 });
+  expect(await h.db.getFirstAsync('PRAGMA user_version')).toEqual({ user_version: 9 });
 });

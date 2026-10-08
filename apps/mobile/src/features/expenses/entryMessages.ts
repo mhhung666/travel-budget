@@ -15,7 +15,7 @@ export function issueMessage(issue: DraftIssue, t: Messages): string {
         tooLarge: t.amountTooLarge,
       }[issue.code];
     case 'currency':
-      return t.invalidCurrencySettings;
+      return issue.code === 'mismatch' ? t.ledgerMismatch : t.invalidCurrencySettings;
     case 'rate':
       return t.invalidExpenseRate;
     case 'date':

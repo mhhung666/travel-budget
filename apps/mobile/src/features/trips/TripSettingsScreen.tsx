@@ -8,7 +8,7 @@ import {
   type TripSettings,
   type TripUpdateInput,
   type TripArchiveInput,
-} from '@travel-budget/contracts';
+} from '@/api/contracts';
 import { FormPage } from '@/components/screen';
 import { goBack } from '@/components/navigation';
 import { Action, Card, Copy, DetailRow, Notice, Section, TextField } from '@/components/ui';

@@ -1,3 +1,4 @@
+import { baseCurrency } from '@/api/ledger';
 import { Pressable, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import type { Expense } from '@/api/contracts';
@@ -17,8 +18,8 @@ export function ExpenseRow({
   labels: MemberLabelIndex;
 }) {
   const p = usePalette();
-  const t = useMessages();
-  const f = useDisplayFormat();
+  const t = useMessages(baseCurrency(expense));
+  const f = useDisplayFormat(baseCurrency(expense));
   const payer = labels.label({
     id: expense.payerId,
     name: expense.payerName,

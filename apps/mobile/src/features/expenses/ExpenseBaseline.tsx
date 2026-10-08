@@ -1,3 +1,4 @@
+import { baseCurrency } from '@/api/ledger';
 import type { ExpenseDetail } from '@/api/contracts';
 import { Card, DetailRow } from '@/components/ui';
 import { Disclosure } from '@/components/Disclosure';
@@ -17,8 +18,8 @@ export function ExpenseBaseline({
   labels: MemberLabelIndex;
   full?: boolean;
 }) {
-  const t = useMessages();
-  const f = useDisplayFormat();
+  const t = useMessages(baseCurrency(expense));
+  const f = useDisplayFormat(baseCurrency(expense));
   const payer = { id: expense.payerId, name: expense.payerName, isVirtual: expense.payerIsVirtual };
   const details = (
     <>

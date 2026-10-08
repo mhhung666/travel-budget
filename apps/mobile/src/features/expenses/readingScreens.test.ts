@@ -497,3 +497,27 @@ it('does not request hidden trip roster on pull-to-refresh or expense retry', ()
   expect(h.refresh).toHaveBeenCalledTimes(2);
   expect(h.memberRetry).not.toHaveBeenCalled();
 });
+
+it.each(['USD', 'JPY'] as const)(
+  'B3 list/detail and accessibility identify the %s ledger and retain cents',
+  (base) => {
+    const e = {
+      ...expense,
+      ledger: { baseCurrency: base, moneyScale: 2 as const },
+      amount: 0.01,
+      originalAmount: 0.01,
+      currency: base,
+      exchangeRate: 1,
+    };
+    h.detail.data = e;
+    const row = ExpenseRow({
+      expense: e,
+      tripId: 'trip',
+      labels: createMemberLabelIndex(h.roster, [], h.user?.id, messages.en),
+    });
+    const value = `${base} · ${base === 'JPY' ? '¥' : '$'}0.01`;
+    expect(find(detail(), 'expense-amount').props.value).toBe(value);
+    expect(find(row, 'expense-fx').props.accessibilityLabel).toContain(value);
+    expect(nodes(row).filter((n) => n.props.testID === 'expense-original-fx')).toHaveLength(0);
+  }
+);

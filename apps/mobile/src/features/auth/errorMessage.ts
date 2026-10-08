@@ -2,6 +2,10 @@ import { ApiError } from '@/api/client';
 import type { Messages } from '@/i18n/messages';
 export function errorMessage(error: unknown, t: Messages): string {
   if (!(error instanceof ApiError)) return t.genericError;
+  if (error.code === 'LEDGER_CURRENCY_MISMATCH') return t.ledgerMismatch;
+  if (['CLIENT_UPGRADE_REQUIRED', 'LEDGER_SERVICE_UNAVAILABLE'].includes(error.code))
+    return t.ledgerUnavailable;
+  if (error.code === 'FEATURE_NOT_AVAILABLE') return t.ledgerCreationDisabled;
   if (error.code === 'CONFIGURATION') return t.configurationError;
   if (error.code === 'STORAGE') return t.storageError;
   if (error.code === 'NATIVE_ONLY') return t.nativeOnly;

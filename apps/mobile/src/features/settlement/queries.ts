@@ -10,7 +10,7 @@ export const settlementQuery = (
   tripId: string
 ) =>
   queryOptions({
-    queryKey: [manager.api.baseUrl, userId, 'settlement', tripId],
+    queryKey: [manager.api.baseUrl, userId, 'settlement', tripId, 'v2'],
     enabled: !!userId,
     queryFn: ({ client, queryKey, signal }) =>
       keepAccessDenial(client, queryKey, () =>

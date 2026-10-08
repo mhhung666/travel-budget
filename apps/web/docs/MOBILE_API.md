@@ -1,6 +1,6 @@
 # 手機 API
 
-**B1 已實作，尚未部署／開放非 TWD 建立**：依 [B0–B4 規格](../../mobile/docs/ROADMAP.md#b旅程基準幣別改造規格2026-10-08) 新增 `/api/v2` 帳務及旅行／成員管理薄路由，沿用同一 bearer session、服務、交易與資料庫。登入／refresh 保持 v1；B4 不移除 v1。B2 Web 已使用新版帳本 adapter；Mobile 畫面仍使用 v1，遷移留 B3。Web 的公開新版路徑與瀏覽器恢復見 [B2 架構](ARCHITECTURE.md#b2-web-帳本與恢復)。
+**B1 已實作，尚未部署／開放非 TWD 建立**：依 [B0–B4 規格](../../mobile/docs/ROADMAP.md#b旅程基準幣別改造規格2026-10-08) 新增 `/api/v2` 帳務及旅行／成員管理薄路由，沿用同一 bearer session、服務、交易與資料庫。登入／refresh 保持 v1；B4 不移除 v1。B2 Web 已使用新版帳本 adapter；B3 Mobile 線上已接 v2，舊已確認操作與 D TWD 佇列保留 v1。Web 的公開新版路徑與瀏覽器恢復見 [B2 架構](ARCHITECTURE.md#b2-web-帳本與恢復)。
 
 ## B1 基準幣別契約
 
@@ -12,7 +12,7 @@
 - C receipt 維持 `trip:actor:原 UUID 拼法`，E／旅行維持 `actor:小寫 UUID`，不另建新版 namespace。v1 指紋／終局 DTO 原樣保留；新 v2 金額指紋含版本與輸入單位，receipt／revision 保存實際單位，非金額操作以版本、旅行參照與 receipt 單位識別。跨版本原 UUID 回 409，不寫第二筆；錯誤基準保存終局 rejection，不能換 UUID 重做已確認操作。
 - `lib/ledger.ts` 的 AsyncLocalStorage 僅由 v2 伺服器 adapter 啟用，不接受 header 選擇契約。交易取得 parent fence、核對成員與單位後才寫；共用計算保留原分角／尾差規則，`computeSplits.twd` 暫留為舊用戶端相容名稱，`computeLedgerSplits` 提供中性結果。個人預算 setter 只更新 actor，與既有 Web 共用 parent 交易，HTTP／Mobile 預算介面留 G4。
 
-完整 schema／路由見 [OpenAPI](../../../packages/contracts/openapi.json)；自動檢查與獨立待驗集中於 [B 交接](../../mobile/docs/LOCAL_ACCEPTANCE.md#b-基準幣別驗收b1b2-實作交接)。
+完整 schema／路由見 [OpenAPI](../../../packages/contracts/openapi.json)；自動檢查與獨立待驗集中於 [B 交接](../../mobile/docs/LOCAL_ACCEPTANCE.md#b-基準幣別驗收b1b2b3-實作交接)。
 
 G1c 另提供成員管理 context／角色、移除、本人退出及旅行刪除，與僅管理員可讀的虛擬認領連結。共用交易／cascade／版本及最小退出 receipt 的狹義授權例外見 [G1c 契約](../../mobile/docs/BACKEND_CONTRACT.md#g1c-權限與危險操作)；Web 認領憑證流程沿用既有實作，手機只複製／分享能力連結。
 

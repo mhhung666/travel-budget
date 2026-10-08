@@ -13,3 +13,5 @@ Timeout 與取消涵蓋完整回應內容讀取；JSON 語法錯誤與傳輸中�
 後端規格見 [後端契約](../../docs/BACKEND_CONTRACT.md)。
 
 refresh 的 HTTP／傳輸錯誤保留 code、status、Retry-After，另標記 `ApiError.source = refresh`；不能當成原資源請求的寫入拒絕。晚到的錯誤先檢查登入世代。
+
+B3 旅行／帳務預設 v2；auth 保留 v1。恢復用保存的 apiVersion 明確選原 endpoint，baseUrl／scope 不變；HTTP schema 仍取共用 contracts。相容與單位規則見 [B3 架構](../../docs/ARCHITECTURE.md#b3mobile-帳本與舊資料恢復)。

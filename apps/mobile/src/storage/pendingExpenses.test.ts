@@ -52,8 +52,15 @@ describe('pending expense store', () => {
     const store = await createPendingExpenseStore(open());
     const saved = record(1);
     await store.insert(saved);
-    expect(await store.get(scope(), uuid(1))).toEqual(saved);
-    expect(await store.list(scope())).toEqual([saved]);
+    expect(await store.get(scope(), uuid(1))).toEqual({
+      ...saved,
+      apiVersion: 1,
+      baseCurrency: 'TWD',
+      moneyScale: 2,
+    });
+    expect(await store.list(scope())).toEqual([
+      { ...saved, apiVersion: 1, baseCurrency: 'TWD', moneyScale: 2 },
+    ]);
   });
 
   it('keeps hostile text as data', async () => {
@@ -76,17 +83,17 @@ describe('pending expense store', () => {
     expect(await second.list(scope())).toHaveLength(1);
     expect(
       (await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version'))?.user_version
-    ).toBe(8);
+    ).toBe(9);
   });
 
   it('refuses, and leaves untouched, a database written by a newer app', async () => {
     const db = open();
     await createPendingExpenseStore(db);
-    await db.execAsync('PRAGMA user_version = 9');
+    await db.execAsync('PRAGMA user_version = 10');
     await expect(createPendingExpenseStore(db)).rejects.toThrow('PENDING_STORE_NEWER');
     expect(
       (await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version'))?.user_version
-    ).toBe(9);
+    ).toBe(10);
   });
 
   describe('isolation', () => {
@@ -96,7 +103,9 @@ describe('pending expense store', () => {
     const otherEnvironment = scope(hex(1), 'https://api.example.test/api/v1');
     const setup = async () => {
       store = await createPendingExpenseStore(open());
-      await store.insert(record(1, { ...accountA }));
+      await store.insert(
+        record(1, { ...accountA, apiVersion: 1, baseCurrency: 'TWD', moneyScale: 2 })
+      );
       await store.insert(record(2, { ...accountB }));
       await store.insert(record(3, { ...otherEnvironment }));
     };
@@ -115,7 +124,9 @@ describe('pending expense store', () => {
       await store.remove(accountB, uuid(1));
       await store.remove(otherEnvironment, uuid(1));
       await store.setStatus(accountB, uuid(1), 'unconfirmed');
-      expect(await store.get(accountA, uuid(1))).toEqual(record(1, { ...accountA }));
+      expect(await store.get(accountA, uuid(1))).toEqual(
+        record(1, { ...accountA, apiVersion: 1, baseCurrency: 'TWD', moneyScale: 2 })
+      );
     });
 
     it('allows the same request id for different accounts without mixing them', async () => {
@@ -177,7 +188,7 @@ describe('pending expense store', () => {
     await createPendingExpenseStore(db);
     await expect(
       db.runAsync(
-        `INSERT INTO pending_expense VALUES (?, ?, ?, ?, ?, 'done', 1, 1)`,
+        `INSERT INTO pending_expense (environment, account_id, client_request_id, trip_id, payload, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'done', 1, 1)`,
         ENV,
         hex(1),
         uuid(1),
@@ -187,13 +198,13 @@ describe('pending expense store', () => {
     ).rejects.toThrow();
   });
 
-  it('skips rows that are no longer valid requests without deleting them', async () => {
+  it('blocks damaged rows without deleting them or exposing a fresh UUID path', async () => {
     const db = open();
     const store = await createPendingExpenseStore(db);
     await store.insert(record(1));
     const insert = (id: string, payload: string) =>
       db.runAsync(
-        `INSERT INTO pending_expense VALUES (?, ?, ?, ?, ?, 'unconfirmed', 1, 1)`,
+        `INSERT INTO pending_expense (environment, account_id, client_request_id, trip_id, payload, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'unconfirmed', 1, 1)`,
         ENV,
         hex(1),
         id,
@@ -203,8 +214,8 @@ describe('pending expense store', () => {
     await insert(uuid(2), 'not json');
     await insert(uuid(3), JSON.stringify({ ...record(3).payload, original_amount: -1 }));
     await insert(uuid(4), JSON.stringify(record(5).payload)); // body belongs to another request id
-    expect((await store.list(scope())).map((r) => r.clientRequestId)).toEqual([uuid(1)]);
-    expect(await store.get(scope(), uuid(2))).toBeNull();
+    await expect(store.list(scope())).rejects.toThrow('INVALID_PENDING_LEDGER');
+    await expect(store.get(scope(), uuid(2))).rejects.toThrow('INVALID_PENDING_LEDGER');
     const rows = await db.getAllAsync<{ n: number }>('SELECT COUNT(*) AS n FROM pending_expense');
     expect(rows[0].n).toBe(4);
   });

@@ -1,6 +1,7 @@
 import { useLocales } from 'expo-localization';
 
-import { messages, type AppLocale } from './messages';
+import type { AppLocale } from './messages';
+import { ledgerMessages } from './ledgerMessages';
 
 export function useAppLocale(): AppLocale {
   const [deviceLocale] = useLocales();
@@ -17,6 +18,6 @@ export function useAppLocale(): AppLocale {
   return locale;
 }
 
-export function useMessages() {
-  return messages[useAppLocale()];
+export function useMessages(base = 'TWD') {
+  return ledgerMessages(useAppLocale(), base);
 }

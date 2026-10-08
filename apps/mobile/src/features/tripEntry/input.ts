@@ -1,4 +1,4 @@
-import { inviteCodeSchema } from '@travel-budget/contracts';
+import { inviteCodeSchema } from '@/api/contracts';
 /** Strict environment origin and path only; never fetch arbitrary links. */
 export function parseInvitation(
   value: string,

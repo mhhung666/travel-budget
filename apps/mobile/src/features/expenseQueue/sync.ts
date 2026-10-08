@@ -54,7 +54,8 @@ export class ExpenseQueue {
     return this.deps.store().then((s) => s.list(scope));
   }
   async enqueue(draft: StoredExpenseDraft, options: ExpenseOptions) {
-    if (!isTwdQueueDraft(draft.input)) throw new Error('UNSUPPORTED_QUEUE_CURRENCY');
+    if ((options.ledger?.baseCurrency ?? 'TWD') !== 'TWD' || !isTwdQueueDraft(draft.input))
+      throw new Error('UNSUPPORTED_QUEUE_CURRENCY');
     if (validateDraft(draft.input, options).length) throw new Error('INVALID_DRAFT');
     // Shared HTTP schema enforces member count, IDs, amount and date without calculating splits.
     const input = previewInputOf(draft.input, options);
@@ -174,7 +175,8 @@ export class ExpenseQueue {
           const options = await this.deps.request(
             scope.accountId,
             `${path}/expense-options`,
-            expenseOptionsSchema
+            expenseOptionsSchema,
+            { apiVersion: 1 }
           );
           if (!this.deps.active(scope)) return;
           if (!stillAuthorized()) {
@@ -192,7 +194,7 @@ export class ExpenseQueue {
             scope.accountId,
             `${path}/expenses/preview`,
             expensePreviewSchema,
-            { method: 'POST', body: previewInputOf(r.input, options) }
+            { apiVersion: 1, method: 'POST', body: previewInputOf(r.input, options) }
           );
           if (!this.deps.active(scope)) return;
           if (!stillAuthorized()) {

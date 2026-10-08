@@ -1,3 +1,4 @@
+import * as shared from '@travel-budget/contracts';
 import { expenseUpdateInput, expenseEditContextSchema } from '@travel-budget/contracts';
 import contract from '@travel-budget/contracts/openapi.json';
 import { describe, expect, it } from 'vitest';
@@ -44,9 +45,9 @@ describe('published backend contract', () => {
     Settlement: settlementSchema,
     ExpenseOptions: expenseOptionsSchema,
     ExpensePreview: expensePreviewSchema,
-    ExpenseRequest: expenseRequestSchema,
-    ExpensePreviewInput: expensePreviewInput,
-    ExpenseCreateInput: expenseCreateInput,
+    ExpenseRequest: shared.expenseRequestSchema,
+    ExpensePreviewInput: shared.expensePreviewInput,
+    ExpenseCreateInput: shared.expenseCreateInput,
     ExpenseUpdateInput: expenseUpdateInput,
     ExpenseEditContext: expenseEditContextSchema,
   })) {

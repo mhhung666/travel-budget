@@ -1,4 +1,9 @@
 const zh = {
+  ledgerName: '帳本基準幣別',
+  ledgerFixed: '建立後固定；所有帳本金額保留兩位小數。',
+  ledgerMismatch: '草稿與旅行帳本單位不符。原稿已保留，請重新確認。',
+  ledgerUnavailable: '服務尚未提供新版帳本契約，請稍後重試或更新。',
+  ledgerCreationDisabled: '目前尚未開放建立非 TWD 基準旅行。',
   foreignAmountTooLarge: '原幣金額太大，無法安全保留到分。換算後 TWD 上限為 1,000,000,000。',
   expenseCurrency: '支出幣別',
   manualRate: '手動匯率',
@@ -407,6 +412,11 @@ export type Messages = Record<keyof typeof zh, string>;
 export const messages = {
   zh,
   'zh-CN': {
+    ledgerName: '账本基准币别',
+    ledgerFixed: '创建后固定；所有账本金额保留两位小数。',
+    ledgerMismatch: '草稿与旅行账本单位不符。原稿已保留，请重新确认。',
+    ledgerUnavailable: '服务尚未提供新版账本契约，请稍后重试或更新。',
+    ledgerCreationDisabled: '目前尚未开放创建非 TWD 基准旅行。',
     foreignAmountTooLarge: '原币金额太大，无法安全保留到分。换算后 TWD 上限为 1,000,000,000。',
     expenseCurrency: '支出币别',
     manualRate: '手动汇率',
@@ -809,6 +819,12 @@ export const messages = {
     done: '完成',
   },
   en: {
+    ledgerName: 'Ledger base currency',
+    ledgerFixed: 'Fixed after creation. All ledger currencies use two decimals.',
+    ledgerMismatch:
+      'The draft and trip ledger units differ. Your input is retained; review it again.',
+    ledgerUnavailable: 'The ledger service is not ready. Retry later or update.',
+    ledgerCreationDisabled: 'Creating trips with a non-TWD base is not enabled yet.',
     foreignAmountTooLarge:
       'The original amount is too large to store safe integer cents. Converted TWD cannot exceed 1,000,000,000.',
     expenseCurrency: 'Expense currency',
@@ -1275,6 +1291,12 @@ export const messages = {
     done: 'Done',
   },
   jp: {
+    ledgerName: '帳簿の基準通貨',
+    ledgerFixed: '作成後は固定です。全通貨の帳簿精度は小数2桁です。',
+    ledgerMismatch:
+      '下書きと旅程の帳簿通貨が一致しません。入力を保持しました。再確認してください。',
+    ledgerUnavailable: '新しい帳簿サービスはまだ利用できません。後で再試行または更新してください。',
+    ledgerCreationDisabled: 'TWD 以外の基準通貨での旅程作成はまだ有効になっていません。',
     foreignAmountTooLarge:
       '原通貨の金額が大きすぎ、安全な整数セントで保存できません。換算 TWD の上限は 1,000,000,000 です。',
     expenseCurrency: '支出の通貨',

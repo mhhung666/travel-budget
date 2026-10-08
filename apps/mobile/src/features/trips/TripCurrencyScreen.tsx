@@ -1,3 +1,4 @@
+import { baseCurrency } from '@/api/ledger';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, AppState, Keyboard } from 'react-native';
 import { router, useNavigation } from 'expo-router';
@@ -9,7 +10,7 @@ import {
   type TripCurrencyContext,
   type TripCurrencyInput,
   type ReferenceRates,
-} from '@travel-budget/contracts';
+} from '@/api/contracts';
 import { FormPage } from '@/components/screen';
 import { goBack } from '@/components/navigation';
 import { Action, Card, Chip, Copy, DetailRow, Notice, Section, TextField } from '@/components/ui';
@@ -26,16 +27,16 @@ import { currencyFields, currencySettings, type CurrencyFields } from './currenc
 export function TripCurrencyScreen({ tripId, source }: { tripId: string; source?: string }) {
   const { entry, scope, manager } = useTripEntry();
   const { catalog } = useDraftCatalog();
-  const t = useMessages();
   const online = useOnline();
   const navigation = useNavigation();
   const [context, setContext] = useState<TripCurrencyContext | null>(null);
+  const t = useMessages(baseCurrency(context));
   const [latest, setLatest] = useState<TripCurrencyContext | null>(null);
   const [fields, setFields] = useState<CurrencyFields | null>(null);
   const [initial, setInitial] = useState<CurrencyFields | null>(null);
-  const [prepared, setPrepared] = useState<Omit<TripCurrencyInput, 'client_request_id'> | null>(
-    null
-  );
+  const [prepared, setPrepared] = useState<
+    (Omit<TripCurrencyInput, 'client_request_id'> & { base_currency?: string }) | null
+  >(null);
   const [rates, setRates] = useState<ReferenceRates | null>(null);
   const [ratesError, setRatesError] = useState(false);
   const [search, setSearch] = useState('');
@@ -143,11 +144,13 @@ export function TripCurrencyScreen({ tripId, source }: { tripId: string; source?
     try {
       const data = await manager.requestAs(
         scope!.accountId,
-        '/exchange-rates',
+        `/trips/${encodeURIComponent(tripId)}/exchange-rates`,
         referenceRatesSchema,
         { beforeSend }
       );
       beforeSend();
+      if (context && baseCurrency(data) !== baseCurrency(context))
+        throw new ApiError('LEDGER_CURRENCY_MISMATCH');
       if (v === generation.current) setRates(data);
     } catch (failure) {
       if (v === generation.current && current()) setRatesError(true);
@@ -189,7 +192,7 @@ export function TripCurrencyScreen({ tripId, source }: { tripId: string; source?
       if (!context || !fields || context.role !== 'admin') return;
       let settings;
       try {
-        settings = currencySettings(fields, context.supportedCurrencies);
+        settings = currencySettings(fields, context.supportedCurrencies, baseCurrency(context));
       } catch {
         setError(t.invalidCurrencySettings);
         return;
@@ -205,7 +208,11 @@ export function TripCurrencyScreen({ tripId, source }: { tripId: string; source?
         setError(t.currencyChanged);
         return;
       }
-      setPrepared({ expected_revision: data.revision, settings });
+      setPrepared({
+        base_currency: baseCurrency(data),
+        expected_revision: data.revision,
+        settings,
+      });
       Keyboard.dismiss();
     });
   };
@@ -238,13 +245,22 @@ export function TripCurrencyScreen({ tripId, source }: { tripId: string; source?
     });
   const detail = (data: TripCurrencyContext['settings']) => (
     <Card>
-      <DetailRow label={t.defaultCurrency} value={data?.default_currency ?? 'TWD'} />
+      <DetailRow
+        label={t.defaultCurrency}
+        value={data?.default_currency ?? baseCurrency(context)}
+      />
       {!data?.currencies.length && <Copy>{t.currencyEmpty}</Copy>}
       {data?.currencies.map((c) => (
         <DetailRow
           key={c.code}
           label={c.code}
-          value={c.code === 'TWD' ? '1' : c.rate == null ? t.referenceRate : String(c.rate)}
+          value={
+            c.code === baseCurrency(context)
+              ? '1'
+              : c.rate == null
+                ? t.referenceRate
+                : String(c.rate)
+          }
         />
       ))}
     </Card>
@@ -312,7 +328,7 @@ export function TripCurrencyScreen({ tripId, source }: { tripId: string; source?
                       (search.trim()
                         ? code.includes(search.trim().toUpperCase())
                         : [
-                            'TWD',
+                            baseCurrency(context),
                             'JPY',
                             'USD',
                             'EUR',
@@ -345,7 +361,7 @@ export function TripCurrencyScreen({ tripId, source }: { tripId: string; source?
                 {fields.rows.map((row) => (
                   <Card key={row.code}>
                     <Copy>{row.code}</Copy>
-                    {row.code === 'TWD' ? (
+                    {row.code === baseCurrency(context) ? (
                       <Copy>{t.currencyBaseHint}</Copy>
                     ) : (
                       <>
@@ -378,7 +394,9 @@ export function TripCurrencyScreen({ tripId, source }: { tripId: string; source?
                       onPress={() =>
                         change({
                           defaultCurrency:
-                            fields.defaultCurrency === row.code ? 'TWD' : fields.defaultCurrency,
+                            fields.defaultCurrency === row.code
+                              ? baseCurrency(context)
+                              : fields.defaultCurrency,
                           rows: fields.rows.filter((c) => c.code !== row.code),
                         })
                       }
@@ -388,7 +406,11 @@ export function TripCurrencyScreen({ tripId, source }: { tripId: string; source?
               </Section>
               <Section title={t.defaultCurrency}>
                 {Array.from(
-                  new Set(['TWD', fields.defaultCurrency, ...fields.rows.map((c) => c.code)])
+                  new Set([
+                    baseCurrency(context),
+                    fields.defaultCurrency,
+                    ...fields.rows.map((c) => c.code),
+                  ])
                 ).map((code) => (
                   <Chip
                     key={code}
@@ -411,7 +433,7 @@ export function TripCurrencyScreen({ tripId, source }: { tripId: string; source?
           )}
           <Section title={t.referenceRate}>
             {(canEdit ? fields.rows : ((latest ?? context).settings?.currencies ?? []))
-              .filter((row) => row.code !== 'TWD')
+              .filter((row) => row.code !== baseCurrency(context))
               .map((row) => (
                 <Card key={row.code}>
                   <DetailRow

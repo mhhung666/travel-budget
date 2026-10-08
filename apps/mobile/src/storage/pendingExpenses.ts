@@ -28,6 +28,9 @@ export interface PendingExpense extends PendingScope {
   tripId: string;
   clientRequestId: string;
   /** The frozen request body, including `client_request_id`. Never edited after it is saved. */
+  apiVersion?: 1 | 2;
+  baseCurrency?: string;
+  moneyScale?: 2;
   payload: ExpenseCreateInput;
   status: PendingStatus;
   createdAt: number;
@@ -62,31 +65,44 @@ interface Row {
   account_id: string;
   client_request_id: string;
   trip_id: string;
+  api_version: 1 | 2;
+  base_currency: string;
+  money_scale: 2;
   payload: string;
   status: PendingStatus;
   created_at: number;
   updated_at: number;
 }
 const COLUMNS =
-  'environment, account_id, client_request_id, trip_id, payload, status, created_at, updated_at';
+  'environment, account_id, client_request_id, trip_id, payload, status, created_at, updated_at, api_version, base_currency, money_scale';
 
-/** A row whose body is no longer a valid request cannot be sent, so it is left out, never rewritten. */
-function toRecord(row: Row): PendingExpense | null {
+/** Invalid frozen rows block recovery instead of disappearing and permitting a replacement UUID. */
+function toRecord(row: Row): PendingExpense {
   try {
     const payload = expenseCreateInput.parse(JSON.parse(row.payload));
-    if (payload.client_request_id !== row.client_request_id) return null;
+    if (
+      payload.client_request_id !== row.client_request_id ||
+      row.money_scale !== 2 ||
+      (row.api_version === 2
+        ? !('base_currency' in payload) || payload.base_currency !== row.base_currency
+        : row.api_version !== 1 || row.base_currency !== 'TWD' || 'base_currency' in payload)
+    )
+      throw new Error('INVALID_PENDING_LEDGER');
     return {
       environment: row.environment,
       accountId: row.account_id,
       tripId: row.trip_id,
       clientRequestId: row.client_request_id,
+      apiVersion: row.api_version,
+      baseCurrency: row.base_currency,
+      moneyScale: row.money_scale,
       payload,
       status: row.status,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
   } catch {
-    return null;
+    throw new Error('INVALID_PENDING_LEDGER');
   }
 }
 
@@ -218,8 +234,23 @@ export async function createPendingExpenseStore(db: SqlDatabase): Promise<Pendin
             )
               throw new Error('DRAFT_CHANGED');
           }
+          const payload = expenseCreateInput.parse(record.payload);
+          const version = record.apiVersion ?? ('base_currency' in payload ? 2 : 1);
+          const base = 'base_currency' in payload ? payload.base_currency : 'TWD';
+          if (
+            (version === 2) !== 'base_currency' in payload ||
+            (record.baseCurrency && record.baseCurrency !== base) ||
+            (record.moneyScale !== undefined && record.moneyScale !== 2)
+          )
+            throw new Error('INVALID_PENDING_LEDGER');
+          if (draft) {
+            const source = await draftRow(record, record.tripId);
+            const input = expenseDraftSchema.parse(JSON.parse(source!.input));
+            if ((input.ledger?.baseCurrency ?? 'TWD') !== base)
+              throw new Error('DRAFT_LEDGER_CHANGED');
+          }
           await db.runAsync(
-            `INSERT INTO pending_expense (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO pending_expense (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             record.environment,
             record.accountId,
             record.clientRequestId,
@@ -227,7 +258,11 @@ export async function createPendingExpenseStore(db: SqlDatabase): Promise<Pendin
             JSON.stringify(expenseCreateInput.parse(record.payload)),
             record.status,
             record.createdAt,
-            record.updatedAt
+            record.updatedAt,
+            record.apiVersion ?? ('base_currency' in record.payload ? 2 : 1),
+            record.baseCurrency ??
+              ('base_currency' in record.payload ? record.payload.base_currency : 'TWD'),
+            2
           );
           if (draft)
             await db.runAsync(

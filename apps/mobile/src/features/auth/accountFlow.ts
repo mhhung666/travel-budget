@@ -5,7 +5,7 @@ import {
   passwordResetAcceptedSchema,
   passwordResetResultSchema,
   userSchema,
-} from '@travel-budget/contracts';
+} from '@/api/contracts';
 import { ApiClient, ApiError } from '@/api/client';
 import type { Messages, AppLocale } from '@/i18n/messages';
 import { errorMessage } from './errorMessage';

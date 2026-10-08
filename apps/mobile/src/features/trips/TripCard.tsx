@@ -1,3 +1,4 @@
+import { baseCurrency } from '@/api/ledger';
 import { Pressable, Text } from 'react-native';
 import { router } from 'expo-router';
 import type { Trip } from '@/api/contracts';
@@ -9,8 +10,8 @@ import { TripFinancialSummary, TripMetadata, tripDates } from './TripSummary';
 
 export function TripCard({ trip }: { trip: Trip }) {
   const p = usePalette();
-  const t = useMessages();
-  const { money, locale } = useDisplayFormat();
+  const t = useMessages(baseCurrency(trip));
+  const { money, locale } = useDisplayFormat(baseCurrency(trip));
   const state = trip.archived ? t.archived : t[trip.phase];
   const balance = trip.myBalance === 0 ? t.balanced : trip.myBalance > 0 ? t.receivable : t.payable;
   return (

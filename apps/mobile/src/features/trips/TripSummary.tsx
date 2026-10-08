@@ -1,3 +1,4 @@
+import { baseCurrency } from '@/api/ledger';
 import { useState } from 'react';
 import { Text, View, useWindowDimensions } from 'react-native';
 import type { Trip } from '@/api/contracts';
@@ -21,9 +22,9 @@ export function tripDates(
 }
 
 export function TripMetadata({ trip }: { trip: Trip }) {
-  const t = useMessages();
+  const t = useMessages(baseCurrency(trip));
   const p = usePalette();
-  const { locale } = useDisplayFormat();
+  const { locale } = useDisplayFormat(baseCurrency(trip));
   return (
     <Text style={[typography.label, { color: p.muted }]}>
       {tripDates(trip, t, locale)}
@@ -38,11 +39,11 @@ export function TripFinancialSummary({
   trip,
   compact = false,
 }: {
-  trip: Pick<Trip, 'mySpent' | 'myBalance'>;
+  trip: Pick<Trip, 'mySpent' | 'myBalance' | 'ledger'>;
   compact?: boolean;
 }) {
-  const t = useMessages();
-  const { money } = useDisplayFormat();
+  const t = useMessages(baseCurrency(trip));
+  const { money } = useDisplayFormat(baseCurrency(trip));
   const [width, setWidth] = useState(0);
   const { fontScale } = useWindowDimensions();
   const columns = (width - spacing.small) / fontScale >= 320;

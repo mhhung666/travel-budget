@@ -271,3 +271,17 @@ it('loading, initial failure and refresh keep their existing read-only controls'
   (find('settlement-refresh').props.onPress as () => void)();
   expect(h.query.refetch).toHaveBeenCalledTimes(2);
 });
+
+it.each(['USD', 'JPY'] as const)('B3 settlement and payments preserve %s cents', (base) => {
+  h.query.data = {
+    ...original,
+    ledger: { baseCurrency: base, moneyScale: 2 as const },
+    totalExpenses: 0.01,
+  };
+  const tree = render();
+  expect(find('settlement-total', tree).props.value).toBe(
+    `${base} · ${base === 'JPY' ? '¥' : '$'}0.01`
+  );
+  expect(texts(tree)).toContain(`${base} ·`);
+  expect(texts(tree)).not.toContain('NT$');
+});

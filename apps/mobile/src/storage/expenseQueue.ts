@@ -94,7 +94,8 @@ export async function createExpenseQueueStore(db: SqlDatabase): Promise<ExpenseQ
     enqueue: (draft, options, id) =>
       serial(() =>
         transaction(db, async () => {
-          if (!isTwdQueueDraft(draft.input)) throw new Error('UNSUPPORTED_QUEUE_CURRENCY');
+          if ((options.ledger?.baseCurrency ?? 'TWD') !== 'TWD' || !isTwdQueueDraft(draft.input))
+            throw new Error('UNSUPPORTED_QUEUE_CURRENCY');
           z.uuid().parse(id);
           const roster = expenseOptionsSchema.parse(options).members.map((m) => m.id);
           const input = JSON.stringify(expenseDraftSchema.parse(draft.input));
@@ -144,7 +145,7 @@ export async function createExpenseQueueStore(db: SqlDatabase): Promise<ExpenseQ
           if (!isTwdQueueDraft(expenseDraftSchema.parse(JSON.parse(live.input))))
             throw new Error('UNSUPPORTED_QUEUE_CURRENCY');
           const body = expenseCreateInput.parse(payload);
-          if (body.currency !== 'TWD' || body.exchange_rate !== 1)
+          if (body.currency !== 'TWD' || body.exchange_rate !== 1 || 'base_currency' in body)
             throw new Error('UNSUPPORTED_QUEUE_CURRENCY');
           if (body.client_request_id !== r.clientRequestId) throw new Error('QUEUE_ID_CHANGED');
           // Wait behind C's unresolved request of this trip; no duplicate raw entry is created.
@@ -163,7 +164,7 @@ export async function createExpenseQueueStore(db: SqlDatabase): Promise<ExpenseQ
           if (mutation) return false;
           if (pending) return false;
           await db.runAsync(
-            "INSERT INTO pending_expense VALUES (?, ?, ?, ?, ?, 'sending', ?, ?)",
+            "INSERT INTO pending_expense (environment, account_id, client_request_id, trip_id, payload, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'sending', ?, ?)",
             ...args(r),
             r.tripId,
             JSON.stringify(body),

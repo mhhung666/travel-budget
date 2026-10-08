@@ -116,15 +116,20 @@ export function PendingSection({
             >
               <DetailRow
                 testID={`pending-amount-${index}`}
-                label={t.amountTwd}
+                label={t.amountTwd.replace(
+                  'TWD',
+                  'base_currency' in record.payload ? record.payload.base_currency : 'TWD'
+                )}
                 value={format.money(
                   record.payload.splits.reduce(
                     (sum, s) => sum + Math.round(s.share_amount * 100),
                     0
-                  ) / 100
+                  ) / 100,
+                  'base_currency' in record.payload ? record.payload.base_currency : 'TWD'
                 )}
               />
-              {record.payload.currency !== 'TWD' && (
+              {record.payload.currency !==
+                ('base_currency' in record.payload ? record.payload.base_currency : 'TWD') && (
                 <>
                   <DetailRow
                     label={t.originalAmount}

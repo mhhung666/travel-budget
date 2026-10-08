@@ -29,7 +29,7 @@ export const expenseOptionsQuery = (
   tripId: string
 ) =>
   queryOptions({
-    queryKey: [manager.api.baseUrl, userId, 'expense-options', tripId],
+    queryKey: [manager.api.baseUrl, userId, 'expense-options', tripId, 'v2'],
     enabled: !!userId,
     refetchOnMount: 'always',
     queryFn: ({ client, queryKey, signal }) =>
@@ -101,7 +101,7 @@ export async function refreshTripData(
 ): Promise<void> {
   if (deletedExpenseId)
     client.removeQueries({
-      queryKey: [baseUrl, userId, 'expense', tripId, deletedExpenseId],
+      queryKey: [baseUrl, userId, 'expense', tripId, deletedExpenseId, 'v2'],
       exact: true,
     });
   keepFirstPage(client, expensesKey(baseUrl, userId, tripId));

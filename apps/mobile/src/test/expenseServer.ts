@@ -77,6 +77,9 @@ export function fakeExpenseServer() {
   function detailOf(body: ReturnType<typeof expenseCreateInput.parse>): ExpenseDetail {
     const label = names();
     return {
+      ...('base_currency' in body
+        ? { ledger: { baseCurrency: body.base_currency, moneyScale: 2 as const } }
+        : {}),
       id: hex(10_000 + expenses.length + 1),
       date: body.date,
       description: body.description,
@@ -84,7 +87,7 @@ export function fakeExpenseServer() {
       payerId: body.payer_id,
       payerName: label.get(body.payer_id) ?? '',
       amount:
-        body.currency === 'TWD'
+        body.currency === ('base_currency' in body ? body.base_currency : 'TWD')
           ? body.original_amount
           : body.splits.reduce((sum, s) => sum + Math.round(s.share_amount * 100), 0) / 100,
       originalAmount: body.original_amount,

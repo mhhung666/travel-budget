@@ -1,3 +1,4 @@
+import { baseCurrency } from '@/api/ledger';
 import { MemberRosterNotice } from '@/features/expenses/MemberRosterNotice';
 import { useMemo } from 'react';
 import { useTripMembers } from '@/features/expenses/useTripMembers';
@@ -52,8 +53,8 @@ function Route({
 
 function Balances({ settlement, labels }: { settlement: Settlement; labels: MemberLabelIndex }) {
   const p = usePalette();
-  const t = useMessages();
-  const f = useDisplayFormat();
+  const t = useMessages(baseCurrency(settlement));
+  const f = useDisplayFormat(baseCurrency(settlement));
   return (
     <Card>
       {settlement.balances.map((entry) => (
@@ -101,8 +102,8 @@ function Details({
   labels: MemberLabelIndex;
 }) {
   const p = usePalette();
-  const t = useMessages();
-  const f = useDisplayFormat();
+  const t = useMessages(baseCurrency(settlement));
+  const f = useDisplayFormat(baseCurrency(settlement));
   const transfers = orderTransfers(settlement.suggestedTransfers, userId);
   return (
     <>
@@ -221,15 +222,15 @@ function Details({
 }
 
 export function SettlementScreen({ tripId }: { tripId: string }) {
-  const t = useMessages();
   const p = usePalette();
-  const f = useDisplayFormat();
   const { user, manager } = useAuth();
   const { catalog } = useDraftCatalog();
   const scope = user ? { environment: manager.api.baseUrl, accountId: user.id } : null;
   const online = useOnline();
   const query = useSettlement(tripId);
   const settlement = query.data;
+  const t = useMessages(baseCurrency(settlement));
+  const f = useDisplayFormat(baseCurrency(settlement));
   // Never leave a previously cached member payload visible after access is denied.
   const members = useTripMembers(tripId);
   const denied =

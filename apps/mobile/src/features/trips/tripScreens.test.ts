@@ -404,3 +404,22 @@ it('counts the same visible scopes and trip results as the recovery lists', () =
   expect(content(LocalWorkLink())).toContain(messages.en.localStatusUnavailable);
   expect(content(LocalWorkLink())).not.toContain(': 0');
 });
+
+it.each(['USD', 'JPY'] as const)(
+  'B3 trip summaries use their own %s unit rather than default expense currency',
+  (base) => {
+    const t = {
+      ...trip,
+      ledger: { baseCurrency: base, moneyScale: 2 as const },
+      mySpent: 0.01,
+      myBalance: -0.01,
+    };
+    const view = TripFinancialSummary({ trip: t });
+    expect(find(view, 'testID', 'trip-my-spent').props.value).toBe(
+      `${base} · ${base === 'JPY' ? '¥' : '$'}0.01`
+    );
+    expect(find(view, 'testID', 'trip-balance').props.value).toBe(
+      `${base} · ${base === 'JPY' ? '¥' : '$'}0.01`
+    );
+  }
+);

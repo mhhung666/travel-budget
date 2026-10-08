@@ -1,6 +1,8 @@
 # 後端分工與 API 契約
 
-**B1 後端已實作**：[B0–B4 規格](ROADMAP.md#b旅程基準幣別改造規格2026-10-08) 的模型、共用服務與 v2／v1 保護已交付，實際契約見 [Web API 的 B1 說明](../../web/docs/MOBILE_API.md#b1-基準幣別契約)。非 TWD 建立預設關閉；B2／B3／B4 尚未完成。Mobile 仍使用下列 v1／TWD 流程，尚未升級 transport、SQLite 或畫面，不能把新單位套入舊 pending。
+B3 Mobile 已使用 B1 v2 契約。線上回應必須帶合法 ledger；基準單位、v1 安全阻擋及原 UUID 恢復規則見 [B1 API](../../web/docs/MOBILE_API.md#b1-基準幣別契約)，Mobile 持久化與傳輸見 [B3 架構](ARCHITECTURE.md#b3mobile-帳本與舊資料恢復)。下方 v1／TWD 節保留歷史相容契約，舊已確認操作及 D TWD 均分佇列繼續使用它。
+
+**B1 後端已實作**：[B0–B4 規格](ROADMAP.md#b旅程基準幣別改造規格2026-10-08) 的模型、共用服務與 v2／v1 保護已交付，實際契約見 [Web API 的 B1 說明](../../web/docs/MOBILE_API.md#b1-基準幣別契約)。非 TWD 建立預設關閉；B2 Web／B3 Mobile 已實作，B4 獨立跨端核對待完成。下列 v1／TWD 流程只供舊操作恢復，不能把新單位套入舊 pending。
 
 手機沿用同一 repository 中 `apps/web` 的後端與資料庫。唯讀切片（登入、旅行、支出清單／明細、結算）與線上新增支出的後端端點（成員資料、均分預覽、冪等新增、結果查詢）已實作，手機的新增畫面與待確認紀錄已使用這些端點；尚未代表任何遠端環境已部署。
 

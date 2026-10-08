@@ -58,7 +58,7 @@ describe('HTTP boundary', () => {
       })
     ).resolves.toEqual(data);
     expect(fetcher).toHaveBeenCalledWith(
-      `https://example.com/api/v1${path}`,
+      `https://example.com/api/v2${path}`,
       expect.objectContaining({
         method: 'GET',
         headers: expect.objectContaining({ Authorization: 'Bearer private' }),
