@@ -1,4 +1,5 @@
 import type { Settlement } from '@/api/contracts';
+import type { ReadMember } from '@/features/expenses/rows';
 
 type Transfer = Settlement['suggestedTransfers'][number];
 
@@ -10,4 +11,19 @@ export function orderTransfers(transfers: Transfer[], userId: string | undefined
 }
 export function viewerBalance(settlement: Settlement, userId: string | undefined) {
   return settlement.balances.find((balance) => balance.userId === userId)?.balance ?? null;
+}
+
+/** Every visible identity participates in disambiguation, including removed trip members. */
+export function settlementMembers(settlement: Settlement): ReadMember[] {
+  return [
+    ...settlement.balances.map((b) => ({ id: b.userId, name: b.displayName })),
+    ...settlement.suggestedTransfers.flatMap((r) => [
+      { id: r.fromId, name: r.fromName },
+      { id: r.toId, name: r.toName },
+    ]),
+    ...settlement.payments.flatMap((p) => [
+      { id: p.fromId, name: p.fromName },
+      { id: p.toId, name: p.toName },
+    ]),
+  ];
 }

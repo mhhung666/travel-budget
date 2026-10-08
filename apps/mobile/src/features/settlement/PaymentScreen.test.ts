@@ -10,6 +10,10 @@ const h = vi.hoisted(() => ({
   request: vi.fn(),
   confirm: vi.fn(),
   get: vi.fn(),
+  dismiss: vi.fn(),
+  refresh: vi.fn(),
+  visible: true,
+  online: true,
   scope: { environment: 'https://example/api/v1', accountId: '111111111111111111111111' },
   labels: new Proxy({}, { get: (_t, k) => String(k) }),
 }));
@@ -31,13 +35,18 @@ vi.mock('react', async (original) => ({
   },
   useCallback: (fn: unknown) => fn,
   useEffect: () => undefined,
+  useId: () => 'payment-test-accessory',
 }));
 vi.mock('react-native', () => ({
   Alert: { alert: vi.fn() },
   AppState: { currentState: 'active' },
-  Keyboard: { dismiss: vi.fn() },
+  Keyboard: { dismiss: h.dismiss },
   Platform: { OS: 'ios' },
   TextInput: 'TextInput',
+  View: 'View',
+  Text: 'Text',
+  Pressable: 'Pressable',
+  InputAccessoryView: 'InputAccessoryView',
 }));
 vi.mock('expo-router', () => ({
   router: { push: vi.fn(), dismissTo: vi.fn() },
@@ -48,8 +57,9 @@ vi.mock('expo-router', () => ({
 }));
 vi.mock('expo-router/react-navigation', () => ({ usePreventRemove: vi.fn() }));
 vi.mock('@/features/navigation/TripContext', () => ({ TripContext: 'TripContext' }));
-vi.mock('@/components/ui', () =>
-  Object.fromEntries(
+vi.mock('@/components/ui', () => ({
+  usePalette: () => ({ surface: 'white', border: 'gray', primary: 'teal' }),
+  ...Object.fromEntries(
     [
       'Action',
       'Card',
@@ -62,8 +72,8 @@ vi.mock('@/components/ui', () =>
       'TextField',
       'Title',
     ].map((k) => [k, k])
-  )
-);
+  ),
+}));
 vi.mock('@/features/tripEntry/provider', () => ({
   useTripEntry: () => ({
     scope: h.scope,
@@ -79,14 +89,14 @@ vi.mock('@/features/localDrafts/provider', () => ({
   useDraftCatalog: () => ({
     catalog: {
       captureAccess: () => () => undefined,
-      isVisible: () => true,
+      isVisible: () => h.visible,
       deny: vi.fn(),
     },
   }),
 }));
-vi.mock('@/i18n/useMessages', () => ({ useMessages: () => h.labels }));
-vi.mock('@/providers/useOnline', () => ({ useOnline: () => true }));
-vi.mock('@/features/expenses/entryQueries', () => ({ refreshTripData: vi.fn() }));
+vi.mock('@/i18n/useMessages', () => ({ useMessages: () => h.labels, useAppLocale: () => 'en' }));
+vi.mock('@/providers/useOnline', () => ({ useOnline: () => h.online }));
+vi.mock('@/features/expenses/entryQueries', () => ({ refreshTripData: h.refresh }));
 vi.mock('@/storage/pendingExpenseDatabase', () => ({
   openMutationStore: async () => ({
     retryAt: async () => 0,
@@ -119,6 +129,16 @@ const original: PaymentContext = {
 let paymentId: string | undefined, source: string | undefined;
 type NodeProps = {
   children?: unknown;
+  testID?: string;
+  title?: string;
+  kind?: string;
+  variant?: string;
+  editable?: boolean;
+  inputAccessoryViewID?: string;
+  nativeID?: string;
+  inputRef?: { current: unknown };
+  style?: { minHeight?: number };
+  onSubmitEditing?: () => void;
   label?: string;
   value?: string;
   disabled?: boolean;
@@ -167,6 +187,9 @@ beforeEach(() => {
   h.request.mockReset().mockResolvedValue(original);
   h.confirm.mockReset();
   h.get.mockReset();
+  h.dismiss.mockReset();
+  h.refresh.mockReset().mockResolvedValue(undefined);
+  h.visible = h.online = true;
 });
 it('suggestion form confirms actual partial payment only once despite two immediate presses', async () => {
   await open();
@@ -300,4 +323,132 @@ it('revocation cancellation writes nothing; changed raw identity is reviewed aga
     paymentId,
     body: { expected_revision: latest.revision },
   });
+});
+
+it('puts parties, amount and note before optional settlement, keeping raw input and iOS keyboard controls', async () => {
+  await open();
+  const list = nodes(render());
+  const indices = ['paymentFrom', 'paymentTo'].map((title) =>
+    list.findIndex((n) => n.props.title === title)
+  );
+  const amountIndex = list.findIndex((n) => n.props.testID === 'payment-amount');
+  const noteIndex = list.findIndex((n) => n.props.testID === 'payment-note');
+  const referenceIndex = list.findIndex((n) => n.props.testID === 'payment-reference');
+  expect(indices[0]).toBeLessThan(indices[1]);
+  expect(indices[1]).toBeLessThan(amountIndex);
+  expect(amountIndex).toBeLessThan(noteIndex);
+  expect(noteIndex).toBeLessThan(referenceIndex);
+  expect(input('amountTwd').kind).toBe('amount');
+  input('amountTwd', '00020.01');
+  expect(input('amountTwd').value).toBe('00020.01');
+  const focus = vi.fn();
+  input('paymentNote').inputRef!.current = { focus };
+  const done = list.find((n) => n.props.testID === 'payment-keyboard-done')!.props;
+  expect(done.style!.minHeight).toBeGreaterThanOrEqual(48);
+  done.onPress!();
+  expect(h.dismiss).toHaveBeenCalledOnce();
+  expect(focus).not.toHaveBeenCalled();
+  input('paymentNote').onSubmitEditing!();
+  expect(h.dismiss).toHaveBeenCalledTimes(2);
+  expect(h.confirm).not.toHaveBeenCalled();
+});
+it('review contains distinct same-name parties, amount, trimmed note and visible deviation warning', async () => {
+  await open();
+  input('amountTwd', '60.01');
+  input('paymentNote', '  actual payment  ');
+  action('confirmPayment').onPress();
+  await flush();
+  const details = nodes(render())
+    .filter((n) => n.props.value && !n.props.onChangeText)
+    .map((n) => [n.props.label, n.props.value]);
+  expect(details).toContainEqual(['paymentFrom', 'Same · #3']);
+  expect(details).toContainEqual(['paymentTo', 'Same · #1 · you']);
+  expect(details).toContainEqual(['amountTwd', 'NT$60.01']);
+  expect(details).toContainEqual(['paymentNote', 'actual payment']);
+  expect(nodes(render()).some((n) => n.props.children === 'paymentDeviation')).toBe(true);
+  expect(action('recordPayment').variant).toBe('primary');
+  expect(h.confirm).not.toHaveBeenCalled();
+  action('back').onPress();
+  input('amountTwd', '10');
+  expect(nodes(render()).some((n) => n.props.testID === 'payment-submit')).toBe(false);
+});
+it('revocation keeps removed-party label and full record before its separate dangerous confirmation', async () => {
+  paymentId = tripId;
+  h.request.mockResolvedValue({
+    payment: {
+      id: paymentId,
+      fromId: null,
+      fromName: 'Old',
+      toId: h.scope.accountId,
+      toName: 'Me',
+      amount: 20.01,
+      note: 'wrong record',
+      createdAt: '2026-10-06T12:00:00.000Z',
+    },
+    revision: 'a'.repeat(64),
+  });
+  await open();
+  expect(
+    nodes(render()).some(
+      (n) => n.props.label === 'paymentFrom' && n.props.value === 'removedMember'
+    )
+  ).toBe(true);
+  expect(nodes(render()).some((n) => n.props.value === 'wrong record')).toBe(true);
+  expect(nodes(render()).some((n) => n.props.children === 'revokePaymentWarning')).toBe(true);
+  action('confirmPayment').onPress();
+  await flush();
+  expect(action('revokePayment').variant).toBe('danger');
+  expect(h.confirm).not.toHaveBeenCalled();
+});
+it('completed payment with refresh failure retries reads without submitting again', async () => {
+  await open();
+  action('confirmPayment').onPress();
+  await flush();
+  h.confirm.mockResolvedValue({
+    kind: 'completed',
+    result: { status: 'committed' },
+    refreshed: false,
+  });
+  action('recordPayment').onPress();
+  await flush();
+  expect(nodes(render()).some((n) => n.props.children === 'savedRefreshFailed')).toBe(true);
+  expect(nodes(render()).some((n) => n.props.testID === 'payment-submit')).toBe(false);
+  action('refresh').onPress();
+  await flush();
+  expect(h.refresh).toHaveBeenCalledOnce();
+  expect(h.confirm).toHaveBeenCalledOnce();
+  expect(nodes(render()).some((n) => n.props.children === 'operationDone')).toBe(true);
+});
+it('catalog denial hides every party, reference and write control from a cached form', async () => {
+  await open();
+  h.visible = false;
+  const list = nodes(render());
+  expect(
+    list.some(
+      (n) =>
+        n.props.testID === 'payment-amount' ||
+        n.props.testID === 'payment-preview' ||
+        n.props.testID === 'payment-reference'
+    )
+  ).toBe(false);
+  expect(list.some((n) => n.props.label === 'retry')).toBe(true);
+  expect(h.confirm).not.toHaveBeenCalled();
+});
+it('offline review is disabled and pending outcome exposes recovery without another write control', async () => {
+  await open();
+  h.online = false;
+  expect(action('confirmPayment').disabled).toBe(true);
+  h.online = true;
+  action('confirmPayment').onPress();
+  await flush();
+  h.confirm.mockResolvedValue({ kind: 'pending' });
+  action('recordPayment').onPress();
+  await flush();
+  expect(action('pendingOperations')).toBeDefined();
+  expect(
+    nodes(render()).some(
+      (n) => n.props.testID === 'payment-preview' || n.props.testID === 'payment-submit'
+    )
+  ).toBe(false);
+  expect(h.confirm).toHaveBeenCalledOnce();
 });

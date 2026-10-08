@@ -16,25 +16,34 @@ import {
 import { TripContext } from '@/features/navigation/TripContext';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { errorMessage, isAccessDenied } from '@/features/auth/errorMessage';
-import { memberName } from '@/features/expenses/rows';
-import { localDate, money } from '@/i18n/format';
+import { expenseMemberLabel, type ReadMember } from '@/features/expenses/rows';
+import { useDraftCatalog } from '@/features/localDrafts/provider';
+import { spacing, typography } from '@/theme/tokens';
+import { localDate } from '@/i18n/format';
+import { useDisplayFormat } from '@/i18n/useDisplayFormat';
 import type { Messages } from '@/i18n/messages';
 import { useMessages } from '@/i18n/useMessages';
 import { useOnline } from '@/providers/useOnline';
 import { useSettlement } from './queries';
-import { orderTransfers, viewerBalance } from './view';
+import { orderTransfers, settlementMembers, viewerBalance } from './view';
 
-type Party = { id: string | null; name: string };
-
-/** The viewer is "You"; a person who no longer resolves keeps a neutral label. */
-const partyLabel = ({ id, name }: Party, userId: string | undefined, t: Messages) =>
-  id !== null && id === userId ? t.you : memberName(name, t);
-
-function Route({ from, to, userId, t }: { from: Party; to: Party; userId?: string; t: Messages }) {
+function Route({
+  from,
+  to,
+  peers,
+  userId,
+  t,
+}: {
+  from: ReadMember;
+  to: ReadMember;
+  peers: ReadMember[];
+  userId?: string;
+  t: Messages;
+}) {
   const p = usePalette();
   return (
-    <Text style={{ color: p.text, fontSize: 18, lineHeight: 26, fontWeight: '600' }}>
-      {partyLabel(from, userId, t)} {'→'} {partyLabel(to, userId, t)}
+    <Text style={[typography.body, { color: p.text, fontWeight: '600' }]}>
+      {expenseMemberLabel(from, peers, userId, t)} {'→'} {expenseMemberLabel(to, peers, userId, t)}
     </Text>
   );
 }
@@ -42,19 +51,30 @@ function Route({ from, to, userId, t }: { from: Party; to: Party; userId?: strin
 function Balances({ settlement, userId }: { settlement: Settlement; userId?: string }) {
   const p = usePalette();
   const t = useMessages();
+  const f = useDisplayFormat();
+  const peers = settlementMembers(settlement);
   return (
     <Card>
       {settlement.balances.map((entry) => (
-        <View key={entry.userId} testID={`settlement-balance-${entry.userId}`} style={{ gap: 4 }}>
-          <Text style={{ color: p.text, fontSize: 18, lineHeight: 26, fontWeight: '600' }}>
-            {entry.userId === userId ? t.you : memberName(entry.displayName, t)}
+        <View
+          key={entry.userId}
+          testID={`settlement-balance-${entry.userId}`}
+          style={{ gap: spacing.tiny }}
+        >
+          <Text style={[typography.body, { color: p.text, fontWeight: '600' }]}>
+            {expenseMemberLabel({ id: entry.userId, name: entry.displayName }, peers, userId, t)}
           </Text>
-          <Text style={{ color: p.text, fontSize: 17, lineHeight: 24, fontWeight: '700' }}>
+          <Text
+            style={[
+              typography.body,
+              { color: p.text, fontWeight: '700', fontVariant: ['tabular-nums'] },
+            ]}
+          >
             {entry.balance > 0 ? t.toReceive : entry.balance < 0 ? t.toPay : t.settledShort}{' '}
-            {money(Math.abs(entry.balance))}
+            {f.money(Math.abs(entry.balance))}
           </Text>
-          <Text style={{ color: p.muted, fontSize: 14, lineHeight: 20 }}>
-            {t.paidTotal} {money(entry.totalPaid)} {'·'} {t.owedTotal} {money(entry.totalOwed)}
+          <Text style={[typography.label, { color: p.muted }]}>
+            {t.paidTotal} {f.money(entry.totalPaid)} {'·'} {t.owedTotal} {f.money(entry.totalOwed)}
           </Text>
         </View>
       ))}
@@ -75,20 +95,11 @@ function Details({
 }) {
   const p = usePalette();
   const t = useMessages();
-  const mine = viewerBalance(settlement, userId);
+  const f = useDisplayFormat();
+  const peers = settlementMembers(settlement);
   const transfers = orderTransfers(settlement.suggestedTransfers, userId);
   return (
     <>
-      {mine !== null && (
-        <Metric
-          testID="settlement-my-balance"
-          label={mine === 0 ? t.balanced : mine > 0 ? t.receivable : t.payable}
-          value={money(Math.abs(mine))}
-        />
-      )}
-      <Section title={t.memberBalances}>
-        <Balances settlement={settlement} userId={userId} />
-      </Section>
       <Section title={t.suggestedTransfers}>
         {transfers.length === 0 ? (
           <Copy>{t.noSuggestedTransfers}</Copy>
@@ -97,16 +108,22 @@ function Details({
             <Card
               key={`${transfer.fromId}-${transfer.toId}-${index}`}
               testID={`settlement-transfer-${index}`}
-              style={{ gap: 8 }}
+              style={{ gap: spacing.small }}
             >
               <Route
                 from={{ id: transfer.fromId, name: transfer.fromName }}
                 to={{ id: transfer.toId, name: transfer.toName }}
+                peers={peers}
                 userId={userId}
                 t={t}
               />
-              <Text style={{ color: p.text, fontSize: 20, fontWeight: '700' }}>
-                {money(transfer.amount)}
+              <Text
+                style={[
+                  typography.section,
+                  { color: p.text, fontWeight: '700', fontVariant: ['tabular-nums'] },
+                ]}
+              >
+                {f.money(transfer.amount)}
               </Text>
               <Badge label={t.unpaid} />
               <Action
@@ -129,25 +146,44 @@ function Details({
           ))
         )}
       </Section>
+      <Action
+        testID="settlement-manual-payment"
+        variant="secondary"
+        label={t.manualPayment}
+        disabled={!online}
+        onPress={() =>
+          router.push({ pathname: '/trips/[id]/payments/edit', params: { id: tripId } })
+        }
+      />
       <Section title={t.registeredPayments}>
         {settlement.payments.length === 0 ? (
           <Copy>{t.noPayments}</Copy>
         ) : (
           settlement.payments.map((payment) => (
-            <Card key={payment.id} testID={`settlement-payment-${payment.id}`} style={{ gap: 8 }}>
+            <Card
+              key={payment.id}
+              testID={`settlement-payment-${payment.id}`}
+              style={{ gap: spacing.small }}
+            >
               <Route
                 from={{ id: payment.fromId, name: payment.fromName }}
                 to={{ id: payment.toId, name: payment.toName }}
+                peers={peers}
                 userId={userId}
                 t={t}
               />
-              <Text style={{ color: p.text, fontSize: 20, fontWeight: '700' }}>
-                {money(payment.amount)}
+              <Text
+                style={[
+                  typography.section,
+                  { color: p.text, fontWeight: '700', fontVariant: ['tabular-nums'] },
+                ]}
+              >
+                {f.money(payment.amount)}
               </Text>
-              <Copy>{localDate(new Date(payment.createdAt))}</Copy>
+              <Copy>{f.date(localDate(new Date(payment.createdAt)))}</Copy>
               {!!payment.note && <Copy>{payment.note}</Copy>}
               <Action
-                secondary
+                variant="danger"
                 testID={`payment-revoke-${payment.id}`}
                 label={t.revokePayment}
                 disabled={!online}
@@ -162,6 +198,14 @@ function Details({
           ))
         )}
       </Section>
+      <Section title={t.memberBalances}>
+        <Balances settlement={settlement} userId={userId} />
+      </Section>
+      <Metric
+        testID="settlement-total"
+        label={t.totalExpenses}
+        value={f.money(settlement.totalExpenses)}
+      />
     </>
   );
 }
@@ -169,18 +213,21 @@ function Details({
 export function SettlementScreen({ tripId }: { tripId: string }) {
   const t = useMessages();
   const p = usePalette();
-  const { user } = useAuth();
+  const f = useDisplayFormat();
+  const { user, manager } = useAuth();
+  const { catalog } = useDraftCatalog();
+  const scope = user ? { environment: manager.api.baseUrl, accountId: user.id } : null;
   const online = useOnline();
   const query = useSettlement(tripId);
   const settlement = query.data;
   // Never leave a previously cached member payload visible after access is denied.
-  const denied = isAccessDenied(query.error);
+  const denied = isAccessDenied(query.error) || !scope || !catalog.isVisible(scope, tripId);
+  const mine = settlement ? viewerBalance(settlement, user?.id) : null;
   const status = settlement?.status;
   return (
     <Page>
       <TripContext tripId={tripId} />
       <Title>{t.settlement}</Title>
-      <Copy>{t.settlementHint}</Copy>
       {!online && <Notice tone="warning">{t.offline}</Notice>}
       {query.isPending && online && <ActivityIndicator accessibilityLabel={t.loading} />}
       {query.isError && (
@@ -198,11 +245,18 @@ export function SettlementScreen({ tripId }: { tripId: string }) {
       )}
       {settlement && !denied && (
         <>
+          {mine !== null && (
+            <Metric
+              testID="settlement-my-balance"
+              label={mine === 0 ? t.balanced : mine > 0 ? t.receivable : t.payable}
+              value={f.money(Math.abs(mine))}
+            />
+          )}
           <Card>
             <Text
               testID="settlement-status"
               accessibilityRole="header"
-              style={{ color: p.text, fontSize: 20, lineHeight: 28, fontWeight: '700' }}
+              style={[typography.section, { color: p.text, fontWeight: '700' }]}
             >
               {status === 'empty'
                 ? t.settlementEmpty
@@ -214,19 +268,7 @@ export function SettlementScreen({ tripId }: { tripId: string }) {
               <Copy>{status === 'empty' ? t.settlementEmptyHint : t.settlementSettledHint}</Copy>
             )}
           </Card>
-          <Metric
-            testID="settlement-total"
-            label={t.totalExpenses}
-            value={money(settlement.totalExpenses)}
-          />
-          <Action
-            testID="settlement-manual-payment"
-            label={t.manualPayment}
-            disabled={!online}
-            onPress={() =>
-              router.push({ pathname: '/trips/[id]/payments/edit', params: { id: tripId } })
-            }
-          />
+          <Copy>{t.settlementHint}</Copy>
           <Details settlement={settlement} userId={user?.id} tripId={tripId} online={online} />
           <Copy>{t.amountsInTwd}</Copy>
           <Action
