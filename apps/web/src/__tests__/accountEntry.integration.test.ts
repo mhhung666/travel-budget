@@ -22,6 +22,11 @@ import { loginMobile, requireMobileUser, refreshMobile } from '@/lib/mobile/sess
 import { POST as registerHttp } from '@/app/api/v1/auth/register/route';
 import { POST as requestHttp } from '@/app/api/v1/auth/password-reset/request/route';
 import { POST as confirmHttp } from '@/app/api/v1/auth/password-reset/confirm/route';
+import { POST as registerV2 } from '@/app/api/v2/auth/register/route';
+import { POST as confirmV2 } from '@/app/api/v2/auth/password-reset/confirm/route';
+import { POST as loginV2 } from '@/app/api/v2/auth/login/route';
+import { POST as refreshV2 } from '@/app/api/v2/auth/refresh/route';
+import { GET as meV2 } from '@/app/api/v2/me/route';
 import { User, PasswordResetCode } from '@/models';
 
 const secret = 'isolated-account-entry-secret-at-least-32-chars';
@@ -535,5 +540,39 @@ describe.skipIf(!uri || !allowed)('E2 account entry against isolated replica set
     expect(
       await register({ ...input(), username: 'second', email: 'second@example.invalid' })
     ).toMatchObject({ success: true });
+  });
+  it('v2 auth shares accounts, sessions and single-use reset codes with v1', async () => {
+    const body = (data: unknown) =>
+      new Request('http://test/api/v2', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+    const created = await registerV2(body(input()));
+    expect(created.status).toBe(200);
+    expect((await created.json()).data).not.toHaveProperty('ledger');
+    const signed = await loginV2(body({ username: 'tester', password: ' 密碼123 ' }));
+    const session = (await signed.json()).data;
+    const identity = await meV2(
+      new Request('http://test/api/v2/me', {
+        headers: { authorization: `Bearer ${session.accessToken}` },
+      })
+    );
+    expect((await identity.json()).data).toEqual(session.user);
+    const rotated = await refreshV2(body({ refreshToken: session.refreshToken }));
+    expect(rotated.status).toBe(200);
+    const { refreshToken } = (await rotated.json()).data;
+    expect(await requestPasswordReset({ email })).toMatchObject({ success: true });
+    const code = '000007';
+    await db
+      .collection('passwordresetcodes')
+      .updateOne({}, { $set: { codeHash: createHash('sha256').update(code).digest('hex') } });
+    const results = await Promise.all([
+      confirmV2(body({ email, code, new_password: 'NewPassword' })),
+      confirmHttp(body({ email, code, new_password: 'OtherPass' })),
+    ]);
+    expect(results.map((r) => r.status).sort()).toEqual([200, 400]);
+    // The password change ends the v2-issued device session as well.
+    await expect(refreshMobile(refreshToken)).rejects.toMatchObject({ status: 401 });
   });
 });

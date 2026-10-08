@@ -6,9 +6,9 @@
 
 ### 2026-10-08
 
-- Mobile U1／U2：完成既有頁面、帳號／旅行表單、本機／佇列恢復顯示與共用身分格式整理；保留 C／D／E、UUID、原期限及撤權，提交相應 patch。開發檢查／iOS 待驗見 [本機驗收](apps/mobile/docs/LOCAL_ACCEPTANCE.md)，Android 延後，未部署。
-- Mobile U review／規劃：修正有效等待、原幣代碼、可見筆數、名冊同名短碼／歷史消歧及顯示負零，memo 還款標籤並移除期限暖快取額外讀取；980 項測試、check 與三平台匯出通過；唯一姓名／朗讀文字與未知名冊不加碼，清單更新／錯誤重試一起重讀名冊、隱藏時略過一般名冊更新，明確重試仍走原授權流程，現名／歷史限制見交接。[修正交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#u-靜態審查修正交接2026-10-08)記未驗範圍與延期整理；G 規格已盤點，該輪以 Mobile patch 交付，未改交易／撤權保護或部署。
-- G1／G2／帳本基準（Web／Mobile）：完成旅行管理、外幣均分與 B1–B3 固定基準／v2，保留舊 TWD／v1／UUID 恢復；B4 備妥隔離故障／DB 核對工具。Web 恢復、receipt／revision、錯誤碼與匯率快取已修正；v2 業務拒絕收據／Mobile 草稿恢復、非 TWD AI 草稿授權及旅行列表批次驗證通過獨立複驗，184 項重點回歸與契約同步檢查通過，兩應用以 patch 交付；CI 補修 Mobile roadmap 格式與 MongoDB 測試自動建表競態，保留空庫／擁有權檢查；新增 [B5 版本整併／v1 退役計畫](apps/mobile/docs/ROADMAP.md#b5v1v2-整併與-v1-退役已規劃尚未實作)，已細化為 B5a–e、共用入口與 Mobile 搬移的分段提交／回歸條件；舊版使用未確認前保留相容恢復，停用須先完成終局協議與必要跨端驗收。測試範圍與裝置待驗見 [B 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#b-基準幣別驗收b1b2b3-實作交接)；非 TWD 建立關閉，G3／G4／F 延後，未部署。
+- B5a／B5b-1（Web／contracts）：完成依賴與退役門檻盤點，新增共用 v2 auth／me，帳本 route 明確指定回應 schema／單位模式並同步 OpenAPI。獨立審查及 Web 2,245、Mobile 1,205＋工具 40、帳號 DB 29 項、真 HTTP、根 check、build／匯出通過；Web patch，完整 v1 保留，Mobile 呼叫端未搬移。下一片見 [B5b-2](apps/mobile/docs/ROADMAP.md#b5v1v2-整併與-v1-退役進行中)，尚未部署或驗收原生升級。
+- Mobile U1／U2：完成頁面與表單整理，修正恢復等待、原幣代碼、可見筆數、名冊同名短碼與負零，保留原 UUID／期限／撤權；相應 patch 與工程檢查已完成。iOS 字級／閱讀器、歷史名冊限制及延期整理見 [U 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#u-靜態審查修正交接2026-10-08)，Android 延後。
+- G1／G2／B1–B4（Web／Mobile）：完成旅行管理、外幣均分與固定基準／v2，保留舊 TWD／v1／UUID 恢復；補隔離驗收工具，修正終局拒絕收據、AI 授權、列表批次驗證及 CI 格式／MongoDB 建表競態，184 項重點回歸通過並提交兩應用 patch。跨端操作待驗見 [B 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#b-基準幣別驗收b1b2b3-實作交接)；非 TWD 建立關閉，G3／G4／F 延後，未部署。
 
 ### 2026-10-07
 

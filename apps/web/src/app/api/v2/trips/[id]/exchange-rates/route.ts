@@ -1,4 +1,5 @@
-import { apiLedgerResponse } from '@/lib/mobile/ledgerHttp';
+import { v2Schemas } from '@travel-budget/contracts';
+import { apiLedgerResponse, v2Output } from '@/lib/mobile/ledgerHttp';
 import { ApiError } from '@/lib/mobile/http';
 import { requireMobileUser } from '@/lib/mobile/session';
 import { requireTripMember } from '@/lib/mobile/access';
@@ -7,7 +8,7 @@ import { getAllCurrencyCodes } from '@/constants/currencies';
 import { readReferenceRates, rebaseReferenceRates } from '@/lib/referenceRates';
 export const runtime = 'nodejs';
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  return apiLedgerResponse(request, async () => {
+  return apiLedgerResponse(v2Output.trip(v2Schemas.V2ReferenceRates), async () => {
     const user = await requireMobileUser(request);
     await requireTripMember(user.id, (await params).id);
     try {

@@ -1,6 +1,6 @@
 # 手機 API
 
-**B1 已實作，尚未部署／開放非 TWD 建立**：依 [B0–B4 規格](../../mobile/docs/ROADMAP.md#b旅程基準幣別改造規格2026-10-08) 新增 `/api/v2` 帳務及旅行／成員管理薄路由，沿用同一 bearer session、服務、交易與資料庫。登入／refresh 保持 v1；B4 不移除 v1。B2 Web 已使用新版帳本 adapter；B3 Mobile 線上已接 v2，舊已確認操作與 D TWD 佇列保留 v1。Web 的公開新版路徑與瀏覽器恢復見 [B2 架構](ARCHITECTURE.md#b2-web-帳本與恢復)。
+**B1 已實作，尚未部署／開放非 TWD 建立**：依 [B0–B4 規格](../../mobile/docs/ROADMAP.md#b旅程基準幣別改造規格2026-10-08) 新增 `/api/v2` 帳務及旅行／成員管理薄路由，沿用同一 bearer session、服務、交易與資料庫。B5b-1 起 auth（登入／refresh／登出／註冊／寄碼／重設）與 `me` 也有 v2 薄入口，與 v1 共用 session、限流、一次性碼與 schema，回應不帶 ledger；Mobile 仍呼叫 v1，搬移屬 B5c-1。B4／B5b 不移除 v1。B2 Web 已使用新版帳本 adapter；B3 Mobile 線上已接 v2，舊已確認操作與 D TWD 佇列保留 v1。Web 的公開新版路徑與瀏覽器恢復見 [B2 架構](ARCHITECTURE.md#b2-web-帳本與恢復)。
 
 ## B1 基準幣別契約
 

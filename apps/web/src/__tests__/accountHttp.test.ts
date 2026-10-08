@@ -1,4 +1,4 @@
-import { expect, it, vi, beforeEach } from 'vitest';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
 const mocks = vi.hoisted(() => ({
   register: vi.fn(),
   request: vi.fn(),
@@ -22,9 +22,12 @@ vi.mock('@/lib/auth', () => ({
   deleteSession: vi.fn(),
 }));
 import { AccountEntryError } from '@/lib/accountEntry';
-import { POST as register } from '@/app/api/v1/auth/register/route';
-import { POST as request } from '@/app/api/v1/auth/password-reset/request/route';
-import { POST as confirm } from '@/app/api/v1/auth/password-reset/confirm/route';
+import { POST as v1Register } from '@/app/api/v1/auth/register/route';
+import { POST as v1Request } from '@/app/api/v1/auth/password-reset/request/route';
+import { POST as v1Confirm } from '@/app/api/v1/auth/password-reset/confirm/route';
+import { POST as v2Register } from '@/app/api/v2/auth/register/route';
+import { POST as v2Request } from '@/app/api/v2/auth/password-reset/request/route';
+import { POST as v2Confirm } from '@/app/api/v2/auth/password-reset/confirm/route';
 import {
   register as registerWeb,
   requestPasswordReset,
@@ -53,46 +56,51 @@ beforeEach(() => {
   mocks.confirm.mockResolvedValue({ reset: true });
   mocks.cookie.mockResolvedValue(undefined);
 });
-it('register returns only a user and no authentication/cookie', async () => {
-  const response = await register(body(input));
-  expect(response.status).toBe(200);
-  expect(response.headers.get('cache-control')).toBe('no-store');
-  expect(response.headers.get('set-cookie')).toBeNull();
-  expect(await response.json()).toEqual({
-    data: { id: '111111111111111111111111', username: 'tester', displayName: 'Name' },
+describe.each([
+  ['v1', v1Register, v1Request, v1Confirm],
+  ['v2', v2Register, v2Request, v2Confirm],
+] as const)('%s account HTTP', (_version, register, request, confirm) => {
+  it('register returns only a user and no authentication/cookie', async () => {
+    const response = await register(body(input));
+    expect(response.status).toBe(200);
+    expect(response.headers.get('cache-control')).toBe('no-store');
+    expect(response.headers.get('set-cookie')).toBeNull();
+    expect(await response.json()).toEqual({
+      data: { id: '111111111111111111111111', username: 'tester', displayName: 'Name' },
+    });
+    expect(mocks.cookie).not.toHaveBeenCalled();
   });
-  expect(mocks.cookie).not.toHaveBeenCalled();
-});
-it.each([
-  ['ACCOUNT_CONFLICT', 409],
-  ['RATE_LIMITED', 429],
-] as const)('maps async %s to HTTP %s', async (code, status) => {
-  mocks.register.mockRejectedValue(
-    new AccountEntryError(code, code === 'RATE_LIMITED' ? 57 : undefined)
-  );
-  const response = await register(body(input));
-  expect(response.status).toBe(status);
-  expect((await response.json()).error.code).toBe(code);
-  if (status === 429) expect(response.headers.get('retry-after')).toBe('57');
-});
-it.each(['INVALID_CODE', 'CODE_EXPIRED', 'TOO_MANY_ATTEMPTS'] as const)(
-  'maps %s without leaking account details',
-  async (code) => {
-    mocks.confirm.mockRejectedValue(new AccountEntryError(code));
-    const response = await confirm(
-      body({ email: input.email, code: '000007', new_password: input.password })
+  it.each([
+    ['ACCOUNT_CONFLICT', 409],
+    ['RATE_LIMITED', 429],
+  ] as const)('maps async %s to HTTP %s', async (code, status) => {
+    mocks.register.mockRejectedValue(
+      new AccountEntryError(code, code === 'RATE_LIMITED' ? 57 : undefined)
     );
-    expect(response.status).toBe(400);
+    const response = await register(body(input));
+    expect(response.status).toBe(status);
     expect((await response.json()).error.code).toBe(code);
-  }
-);
-it('request accepts a normalized email, rejects extra data and bad content types', async () => {
-  expect((await request(body({ email: ' TEST@EXAMPLE.COM ' }))).status).toBe(200);
-  expect(mocks.request.mock.calls[0][1]).toEqual({ email: 'test@example.com' });
-  expect((await request(body({ email: input.email, password: 'secret' }))).status).toBe(400);
-  expect((await register(new Request('http://test', { method: 'POST', body: '{}' }))).status).toBe(
-    415
+    if (status === 429) expect(response.headers.get('retry-after')).toBe('57');
+  });
+  it.each(['INVALID_CODE', 'CODE_EXPIRED', 'TOO_MANY_ATTEMPTS'] as const)(
+    'maps %s without leaking account details',
+    async (code) => {
+      mocks.confirm.mockRejectedValue(new AccountEntryError(code));
+      const response = await confirm(
+        body({ email: input.email, code: '000007', new_password: input.password })
+      );
+      expect(response.status).toBe(400);
+      expect((await response.json()).error.code).toBe(code);
+    }
   );
+  it('request accepts a normalized email, rejects extra data and bad content types', async () => {
+    expect((await request(body({ email: ' TEST@EXAMPLE.COM ' }))).status).toBe(200);
+    expect(mocks.request.mock.calls[0][1]).toEqual({ email: 'test@example.com' });
+    expect((await request(body({ email: input.email, password: 'secret' }))).status).toBe(400);
+    expect(
+      (await register(new Request('http://test', { method: 'POST', body: '{}' }))).status
+    ).toBe(415);
+  });
 });
 it('Web preserves committed registration when cookie creation fails', async () => {
   mocks.cookie.mockRejectedValue(new Error('cookie failed'));

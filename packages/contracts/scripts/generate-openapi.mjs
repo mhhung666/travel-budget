@@ -11,6 +11,7 @@ import {
   refreshInput,
   userSchema,
   sessionSchema,
+  logoutResultSchema,
   tripsSchema,
   landingSchema,
   expensesSchema,
@@ -106,7 +107,7 @@ const schemas = Object.fromEntries(
     ExpensePreview: expensePreviewSchema,
     ExpenseCreateInput: expenseCreateInput,
     ExpenseRequest: expenseRequestSchema,
-    Logout: z.object({ loggedOut: z.literal(true) }),
+    Logout: logoutResultSchema,
     Error: z.object({ error: z.object({ code: z.string() }), requestId: z.string() }),
   }).map(([name, schema]) => {
     const { $schema, ...json } = z.toJSONSchema(schema, {
@@ -502,6 +503,13 @@ const rewriteV2 = (value) => {
   );
 };
 for (const [path, item] of Object.entries({ ...paths })) {
+  if (path.startsWith('/auth') || path === '/me') {
+    // Same identity schemas, rate limits and refresh rotation; no trip ledger.
+    const next = rewriteV2(item);
+    next.servers = [{ url: '/api' }];
+    paths[`/v2${path}`] = next;
+    continue;
+  }
   if (!path.startsWith('/trips') && !path.startsWith('/mutation-requests')) continue;
   const next = rewriteV2(item);
   next.servers = [{ url: '/api/v2' }];

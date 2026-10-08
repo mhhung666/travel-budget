@@ -2485,6 +2485,50 @@ try {
   assert.deepEqual(races.map((res) => res.status).sort(), [200, 401]);
   await me(concurrent, 401);
   pass('atomic rotation, replay revocation and independent device sessions');
+  // B5b-1: v2 auth/me are thin entries over the same device sessions; identity carries no ledger.
+  const v2Auth = (path, options) => request(path, { version: 'v2', ...options });
+  const v2Session = (
+    await v2Auth('/auth/login', { body: { username: 'mobile-a', password }, schema: sessionSchema })
+  ).data;
+  assert(!('ledger' in v2Session) && !('ledger' in v2Session.user));
+  const v2Me = (await v2Auth('/me', { token: v2Session.accessToken, schema: userSchema })).data;
+  assert.deepEqual(v2Me, v2Session.user);
+  assert.deepEqual((await me(v2Session)).data, v2Me);
+  const v2Rotated = (
+    await v2Auth('/auth/refresh', {
+      body: { refreshToken: v2Session.refreshToken },
+      schema: sessionSchema,
+    })
+  ).data;
+  const crossRotated = (await refresh(v2Rotated)).data;
+  const v2Races = await Promise.all(
+    [0, 1].map(() =>
+      fetch(`${origin}/api/v2/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: crossRotated.refreshToken }),
+        signal: AbortSignal.timeout(60_000),
+      })
+    )
+  );
+  assert.deepEqual(v2Races.map((res) => res.status).sort(), [200, 401]);
+  await v2Auth('/auth/refresh', { body: { refreshToken: v2Rotated.refreshToken }, status: 401 });
+  await me(crossRotated, 401);
+  const v2Out = (
+    await v2Auth('/auth/login', { body: { username: 'mobile-a', password }, schema: sessionSchema })
+  ).data;
+  assert.deepEqual(
+    (await v2Auth('/auth/logout', { body: { refreshToken: v2Out.refreshToken } })).data,
+    { loggedOut: true }
+  );
+  await v2Auth('/me', { token: v2Out.accessToken, status: 401 });
+  await me(v2Out, 401);
+  assert.equal(
+    (await fetch(`${origin}/api/v2/auth/unknown`, { method: 'POST' })).status,
+    404,
+    'unknown v2 auth path must not fall back to another contract'
+  );
+  pass('B5b-1 v2 auth/me: shared sessions and limits, one refresh consumer across versions, logout, no ledger');
   const expired = await login();
   await db
     .collection('mobilesessions')
@@ -2546,6 +2590,13 @@ try {
     status: 429,
   });
   assert(Number(limited.response.headers.get('retry-after')) > 0);
+  // v1 and v2 share one login limit; switching API version does not reset it.
+  const limitedV2 = await request('/auth/login', {
+    version: 'v2',
+    body: { username: 'mobile-rate', password },
+    status: 429,
+  });
+  assert(Number(limitedV2.response.headers.get('retry-after')) > 0);
   pass('login rate limit and Retry-After');
   await verifyLedgerApi({ db, request, login, ObjectId: mongoose.Types.ObjectId, date, origin, creationEnabled: args.has('--ledger-creation') });
   const b4 = await createLedgerAcceptance({ db, ObjectId: mongoose.Types.ObjectId, passwordHash: hash, date });

@@ -19,7 +19,19 @@ vi.mock('@/models/MobileSession', () => ({
   MobileSession: { create: mocks.create, findOne: mocks.findSession, updateOne: mocks.update },
   MobileLoginAttempt: { findOneAndUpdate: mocks.throttle },
 }));
+vi.mock('@/lib/accountAdapter', () => ({
+  accountEnvironment: vi.fn(),
+  deliverAccountReset: vi.fn(),
+}));
 import { loginMobile, refreshMobile, requireMobileUser, logoutMobile } from '@/lib/mobile/session';
+import { POST as v1Login } from '@/app/api/v1/auth/login/route';
+import { POST as v1Refresh } from '@/app/api/v1/auth/refresh/route';
+import { POST as v1Logout } from '@/app/api/v1/auth/logout/route';
+import { GET as v1Me } from '@/app/api/v1/me/route';
+import { POST as v2Login } from '@/app/api/v2/auth/login/route';
+import { POST as v2Refresh } from '@/app/api/v2/auth/refresh/route';
+import { POST as v2Logout } from '@/app/api/v2/auth/logout/route';
+import { GET as v2Me } from '@/app/api/v2/me/route';
 import { decrypt } from '@/lib/auth';
 const user = {
   _id: '507f191e810c19729de860ea',
@@ -148,4 +160,87 @@ describe('mobile device sessions', () => {
     });
     expect(mocks.create).not.toHaveBeenCalled();
   });
+});
+
+const routes = {
+  v1: { login: v1Login, refresh: v1Refresh, logout: v1Logout, me: v1Me },
+  v2: { login: v2Login, refresh: v2Refresh, logout: v2Logout, me: v2Me },
+};
+type Version = keyof typeof routes;
+const post = (version: Version, path: string, data: unknown, type = 'application/json') =>
+  new Request(`https://example.com/api/${version}/auth/${path}`, {
+    method: 'POST',
+    headers: { 'content-type': type },
+    body: JSON.stringify(data),
+  });
+const me = (version: Version, token: string) =>
+  routes[version].me(
+    new Request(`https://example.com/api/${version}/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+  );
+const signIn = async (version: Version) =>
+  (await (await routes[version].login(post(version, 'login', credentials))).json()).data;
+const credentials = { username: 'travel', password: 'password' };
+describe.each(['v1', 'v2'] as const)('%s auth HTTP', (version) => {
+  const route = routes[version];
+  it('logs in, reads me and rotates refresh once without a ledger', async () => {
+    const response = await route.login(post(version, 'login', credentials));
+    expect(response.status).toBe(200);
+    expect(response.headers.get('cache-control')).toBe('no-store');
+    const session = (await response.json()).data;
+    expect(Object.keys(session).sort()).toEqual([
+      'accessToken',
+      'expiresIn',
+      'refreshToken',
+      'user',
+    ]);
+    const identity = { id: user._id, username: 'travel', displayName: 'Travel' };
+    expect(session.user).toEqual(identity);
+    expect(await (await me(version, session.accessToken)).json()).toEqual({ data: identity });
+    const rotated = await route.refresh(
+      post(version, 'refresh', { refreshToken: session.refreshToken })
+    );
+    const next = (await rotated.json()).data;
+    expect(next.refreshToken).not.toBe(session.refreshToken);
+    expect(mocks.create).toHaveBeenCalledTimes(1);
+    const replay = await route.refresh(
+      post(version, 'refresh', { refreshToken: session.refreshToken })
+    );
+    expect(replay.status).toBe(401);
+    expect((await replay.json()).error.code).toBe('SESSION_REVOKED');
+  });
+  it('logs out with the refresh token and rejects the access token afterwards', async () => {
+    const session = await signIn(version);
+    const response = await route.logout(
+      post(version, 'logout', { refreshToken: session.refreshToken })
+    );
+    expect(await response.json()).toEqual({ data: { loggedOut: true } });
+    expect((await me(version, session.accessToken)).status).toBe(401);
+  });
+  it('keeps login limits, credential errors and body validation', async () => {
+    mocks.throttle.mockResolvedValue({ count: 11 });
+    const limited = await route.login(post(version, 'login', credentials));
+    expect(limited.status).toBe(429);
+    expect(Number(limited.headers.get('retry-after'))).toBeGreaterThan(0);
+    expect(mocks.credentials).not.toHaveBeenCalled();
+    mocks.throttle.mockResolvedValue({ count: 1 });
+    mocks.credentials.mockResolvedValue(null);
+    const invalid = await route.login(post(version, 'login', credentials));
+    expect([invalid.status, (await invalid.json()).error.code]).toEqual([
+      401,
+      'INVALID_CREDENTIALS',
+    ]);
+    expect((await route.login(post(version, 'login', { ...credentials, x: 1 }))).status).toBe(400);
+    expect((await route.refresh(post(version, 'refresh', {}, 'text/plain'))).status).toBe(415);
+  });
+});
+it('one device session refreshes across API versions with a single consumer', async () => {
+  const session = await signIn('v1');
+  const v2 = await v2Refresh(post('v2', 'refresh', { refreshToken: session.refreshToken }));
+  const next = (await v2.json()).data;
+  const v1 = await v1Refresh(post('v1', 'refresh', { refreshToken: next.refreshToken }));
+  expect(v1.status).toBe(200);
+  const replay = await v2Refresh(post('v2', 'refresh', { refreshToken: next.refreshToken }));
+  expect((await replay.json()).error.code).toBe('SESSION_REVOKED');
 });

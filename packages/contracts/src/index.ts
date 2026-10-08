@@ -46,6 +46,7 @@ export type PasswordResetRequestInput = z.infer<typeof passwordResetRequestInput
 export type PasswordResetInput = z.infer<typeof passwordResetInput>;
 export const refreshInput = z.object({ refreshToken: z.string().min(1).max(2048) }).strict();
 export const userSchema = z.object({ id: idSchema, username: z.string(), displayName: z.string() });
+export const logoutResultSchema = z.object({ loggedOut: z.literal(true) });
 export const sessionSchema = z.object({
   accessToken: z.string(),
   refreshToken: z.string(),
