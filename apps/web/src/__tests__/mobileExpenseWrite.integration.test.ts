@@ -3,6 +3,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import mongoose, { mongo } from 'mongoose';
 import { MAX_EXPENSE_AMOUNT, type MobileExpenseDetail } from '@travel-budget/contracts';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { withLedgerV2 } from '@/lib/ledger';
 import { Expense, Trip } from '@/models';
 import { createExpense, deleteExpense, getExpenses } from '@/actions/expense.actions';
 import { getMembers } from '@/actions/member.actions';
@@ -161,6 +162,148 @@ describe.skipIf(!uri || !allowed)('mobile expense write against an isolated repl
     ).id;
   });
   afterEach(() => vi.restoreAllMocks());
+
+  describe('v2 durable expense validation refusal', () => {
+    it.each(['TWD', 'USD', 'JPY'])(
+      'records a removed split member refusal for %s and replays it after rejoining',
+      async (base) =>
+        withLedgerV2(async () => {
+          await db()
+            .collection('trips')
+            .updateOne({ _id: new mongo.ObjectId(tripId) }, { $set: { baseCurrency: base } });
+          const preview = await mobileExpensePreview(
+            jsonRequest({
+              base_currency: base,
+              amount: 100,
+              currency: base,
+              exchange_rate: 1,
+              member_ids: [hex(amy), hex(bob), hex(cara)],
+            }),
+            hex(amy),
+            tripId
+          );
+          const payload = body({
+            base_currency: base,
+            currency: base,
+            splits: preview.splits.map((s) => ({ user_id: s.userId, share_amount: s.shareAmount })),
+          });
+          await Trip.updateOne({ _id: tripId }, { $pull: { members: { user: bob } } });
+          await expect(create(payload)).rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
+          expect(await lookup(payload.client_request_id)).toMatchObject({
+            status: 'rejected',
+            code: 'VALIDATION_ERROR',
+            ledger: { baseCurrency: base, moneyScale: 2 },
+          });
+          expect(await count('expenses')).toBe(0);
+          expect(await count('expensecreaterequests')).toBe(1);
+          expect(await effects()).toEqual({ notifications: 0, activity: 0 });
+          await Trip.updateOne(
+            { _id: tripId },
+            { $push: { members: { user: bob, role: 'member' } } }
+          );
+          await expect(create(payload)).rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
+          await expect(create({ ...payload, description: 'Changed body' })).rejects.toMatchObject({
+            code: 'IDEMPOTENCY_CONFLICT',
+          });
+          // Only explicit new confirmation starts a new UUID. The old UUID stays terminal forever.
+          expect(await create({ ...payload, client_request_id: randomUUID() })).toMatchObject({
+            amount: 100,
+          });
+          expect(await count('expenses')).toBe(1);
+          expect(await count('expensecreaterequests')).toBe(2);
+          expect(await lookup(payload.client_request_id)).toMatchObject({
+            status: 'rejected',
+            code: 'VALIDATION_ERROR',
+          });
+        })
+    );
+    it('serializes simultaneous validation refusals into one terminal receipt', async () =>
+      withLedgerV2(async () => {
+        const payload = body({ base_currency: 'TWD' });
+        await Trip.updateOne({ _id: tripId }, { $pull: { members: { user: bob } } });
+        const outcomes = await Promise.allSettled([create(payload), create(payload)]);
+        expect(
+          outcomes.every(
+            (result) => result.status === 'rejected' && result.reason.code === 'VALIDATION_ERROR'
+          )
+        ).toBe(true);
+        expect(await count('expensecreaterequests')).toBe(1);
+        expect(await count('expenses')).toBe(0);
+      }));
+    it('does not publish any terminal receipt for an actor removed before submission', async () =>
+      withLedgerV2(async () => {
+        const payload = body({ base_currency: 'TWD' });
+        await Trip.updateOne({ _id: tripId }, { $pull: { members: { user: amy } } });
+        await expect(create(payload)).rejects.toMatchObject({ status: 404 });
+        expect(await count('expensecreaterequests')).toBe(0);
+        expect(await count('expenses')).toBe(0);
+      }));
+    it('preserves a committed result after split members leave', async () =>
+      withLedgerV2(async () => {
+        const payload = body({ base_currency: 'TWD' });
+        const accepted = await create(payload);
+        await Trip.updateOne({ _id: tripId }, { $pull: { members: { user: bob } } });
+        expect(await create(payload)).toEqual(accepted);
+        expect(await lookup(payload.client_request_id)).toMatchObject({
+          status: 'committed',
+          expense: accepted,
+        });
+        expect(await count('expenses')).toBe(1);
+        expect(await count('expensecreaterequests')).toBe(1);
+      }));
+    it.each(['shares', 'rate', 'attachment'])(
+      'records known pre-write %s validation under the same UUID',
+      async (invalid) =>
+        withLedgerV2(async () => {
+          const payload = body({
+            base_currency: 'TWD',
+            ...(invalid === 'shares' ? { splits: [{ user_id: hex(amy), share_amount: 99 }] } : {}),
+            ...(invalid === 'rate' ? { currency: 'USD', exchange_rate: 1e12 } : {}),
+            ...(invalid === 'attachment'
+              ? {
+                  attachments: [
+                    { key: `receipts/${tripId}/missing.jpg`, content_type: 'image/jpeg', size: 10 },
+                  ],
+                }
+              : {}),
+          });
+          if (invalid === 'attachment') {
+            mocks.head.mockResolvedValue(null);
+            await expect(
+              createExpenseForActor(
+                { tripId, actorId: hex(amy), input: createExpenseSchema.parse(payload) },
+                mocks.after
+              )
+            ).rejects.toThrow('VALIDATION_ERROR');
+          } else await expect(create(payload)).rejects.toThrow('VALIDATION_ERROR');
+          expect(await lookup(payload.client_request_id)).toMatchObject({
+            status: 'rejected',
+            code: 'VALIDATION_ERROR',
+          });
+          expect(await count('expenses')).toBe(0);
+          expect(await count('expensecreaterequests')).toBe(1);
+        })
+    );
+    it('rolls back instead of publishing a refusal when receipt persistence fails', async () =>
+      withLedgerV2(async () => {
+        const payload = body({ base_currency: 'TWD' });
+        await Trip.updateOne({ _id: tripId }, { $pull: { members: { user: bob } } });
+        const original = mongo.Collection.prototype.insertOne;
+        const spy = vi.spyOn(mongo.Collection.prototype, 'insertOne').mockImplementation(function (
+          this: mongo.Collection,
+          ...args
+        ) {
+          if (this.collectionName === 'expensecreaterequests')
+            throw new Error('receipt unavailable');
+          return original.apply(this, args);
+        });
+        await expect(create(payload)).rejects.toThrow('receipt unavailable');
+        spy.mockRestore();
+        expect(await lookup(payload.client_request_id)).toEqual({ status: 'not_found' });
+        expect(await count('expenses')).toBe(0);
+        expect(await count('expensecreaterequests')).toBe(0);
+      }));
+  });
 
   describe('G2b currency preview to durable receipt', () => {
     it.each([

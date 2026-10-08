@@ -28,6 +28,7 @@ import {
   CacheFirst,
   ExpirationPlugin,
   NetworkOnly,
+  NetworkFirst,
   Serwist,
 } from 'serwist';
 
@@ -48,6 +49,17 @@ const runtimeCaching: RuntimeCaching[] = [
       request.cache === 'no-store',
     method: 'GET',
     handler: new NetworkOnly(),
+  },
+  {
+    matcher: ({ sameOrigin, url }) => sameOrigin && url.pathname === '/api/exchange-rates',
+    method: 'GET',
+    handler: new NetworkFirst({
+      cacheName: 'reference-rates',
+      plugins: [
+        new CacheableResponsePlugin({ statuses: [200] }),
+        new ExpirationPlugin({ maxEntries: 1, maxAgeSeconds: 7 * 24 * 60 * 60 }),
+      ],
+    }),
   },
   // Leaflet raster basemap tiles — keep the basemap available offline.
   // Hosts must track src/components/map/basemaps.ts: Esri Gray Canvas (primary)

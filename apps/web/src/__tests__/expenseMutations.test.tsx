@@ -272,3 +272,14 @@ describe('expense optimistic and offline acceptance', () => {
     }
   );
 });
+
+it('does not retry a definitive UUID/content conflict as a transport error', async () => {
+  createExpense.mockResolvedValue({ success: false, error: 'CONFLICT', code: 'CONFLICT' });
+  const { result } = renderHook(() => useExpenseMutations('trip'), { wrapper });
+  await act(async () => {
+    result.current.create.mutate(vars);
+  });
+  await waitFor(() => expect(result.current.create.isError).toBe(true));
+  expect(createExpense).toHaveBeenCalledOnce();
+  expect(client.getQueryData(key)).toEqual([]);
+});

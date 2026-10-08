@@ -161,10 +161,24 @@ async function writeEntry(client: QueryClient, entry: ConfirmedWebEntry, initial
   client.setQueryData(confirmedWebKey, result);
   return result[entry.request.body.client_request_id];
 }
+const definitiveWriteRefusals = new Set([
+  'INVITATION_INVALID',
+  'FEATURE_NOT_AVAILABLE',
+  'RESOURCE_CHANGED',
+  'RESOURCE_GONE',
+  'SETTLEMENT_CHANGED',
+  'LEDGER_CURRENCY_MISMATCH',
+  'NOT_FOUND',
+  'VALIDATION_ERROR',
+  'FORBIDDEN',
+  'CONFLICT',
+  'IDEMPOTENCY_CONFLICT',
+]);
 class WebWriteError extends Error {
   constructor(
     message: string,
-    readonly retryAfter?: number
+    readonly retryAfter?: number,
+    readonly code?: string
   ) {
     super(message);
   }
@@ -175,7 +189,7 @@ async function unwrap<T>(client: QueryClient, p: Promise<ActionResult<T>>) {
     if (r.retryAfter && Number.isFinite(r.retryAfter) && r.retryAfter > 0) {
       await saveWebCooldown(client, r.retryAfter);
     }
-    throw new WebWriteError(r.error, r.retryAfter);
+    throw new WebWriteError(r.error, r.retryAfter, r.code);
   }
   return r.data;
 }
@@ -272,12 +286,20 @@ export async function resumeConfirmedWebWrite(
         );
     }
   } catch (error) {
-    // Never clear an unknown write or allocate another UUID. A terminal refusal is queried on retry.
-    if (b.active)
+    // Only an explicit write refusal can retire this intent. Transport failures and
+    // lookup denials remain unknown: a committed receipt may be temporarily inaccessible.
+    const refused = error instanceof WebWriteError && definitiveWriteRefusals.has(error.code ?? '');
+    if (b.active) {
       await writeEntry(client, {
         ...entry,
+        status: refused ? 'rejected' : 'pending',
         error: error instanceof Error ? error.message : String(error),
       });
+      if (refused) {
+        await releaseWebTripWrite(client, request.body.client_request_id).catch(() => undefined);
+        void client.invalidateQueries();
+      }
+    }
     throw error;
   }
   if (!b.active) throw new Error('UNAUTHORIZED');

@@ -17,7 +17,17 @@ B2 開發檢查：Web 單元／行為 2,168 項、Mobile 1,172 項＋工具 34 �
 
 B3 開發檢查：Mobile 65 檔 1,203 項＋工具 34 項、Web 2,168 項及隔離 replica-set 15 檔 380 項通過；frozen install、根 check／contracts／build、三平台匯出與 Expo 相容性通過。新增案例涵蓋 USD 20.10 均分／TWD 外幣、JPY 0.01／100.01、四語閱讀／結算與表單、缺 ledger／錯單位阻擋、v2 丟回應查原 UUID、加入前未知基準、舊 v1 恢復、真 SQLite schema 8→9 中斷回滾／檔案重開、429 原期限與非 TWD 不入 D 佇列。真 HTTP v1／v2、C／E／G 寫入及資料庫筆數矩陣通過；只用隔離資料庫及合成匯率，HTTP 診斷 `/var/folders/m4/fgf8qnv17_zcmkxf4s9cmd440000gn/T/travel-budget-mobile-EGI0Ds/next.log`，Mobile 故障案例見 `src/features/expenses/ledger.test.ts`。未操作裝置，不把 mock 畫面或匯出視為原生驗收。
 
-**他人仍待驗**：B1–B3 獨立程式複驗與新舊 Server Action／HTTP 矩陣；B4 核對 Web、iPhone＋iPad 的操作／重啟、原 UUID、舊草稿／SQLite、撤權／429、公開輸出及精確資料庫帳務。Android 裝置延後，未驗不計通過；未部署、未跑遠端 migration、未開啟非 TWD。
+帳本審查修正已實作：Web 明確寫入拒絕保存 rejected 並解鎖，補查拒絕仍保留未知結果；已刪支出的新更新保存 RESOURCE_GONE，已提交更新重播沿用原 receipt／實際 BSON revision。建立地點經 schema 驗證，帳本／金額錯誤保留原碼；結算改只讀 snapshot，跨旅行驗證固定兩次子文件探查，C 由服務查原 UUID，表單恢復公開 GET／SW 日快照及共用換算。回歸涵蓋存檔失敗、邀請碼修正、刪除後重播、連續改付款人／分攤、撤權、40 趟批次查詢與公布日期不一致；補齊四語 RESOURCE_GONE 及恢復被拒後保留說明／關閉不刪紀錄，年度回顧保留所有名冊預算的單位檢查。與本次補修合併的最新開發檢查見下方；未操作裝置或宣稱 PWA 實際離線畫面驗收，非 TWD 建立仍關閉。
+
+**獨立程式審查修正（2026-10-08）**：`edb94f22` 至 B4 及未提交修正的三項發現已補修並通過獨立程式複驗，未發現這三項修正的新增阻擋問題。本輪實際重跑 Web 35 項、Mobile／真 SQLite 23 項、隔離 MongoDB 交易 126 項及 contracts 同步檢查，全部通過；未重跑完整工程檢查、真 HTTP 或裝置操作。原暫時探針已改為以下保留的回歸案例。
+
+- **P1／v2 新增驗證拒絕：已修**。合法凍結請求的付款人／分攤／金額等業務拒絕，在寫支出前、同一授權父旅行交易保存 `VALIDATION_ERROR` receipt；原 UUID／指紋與終局不變，先核對既有提交。真 replica-set 涵蓋 TWD／USD／JPY 的預覽後退出、重新加入／不同 body／新確認、併發拒絕、已提交後成員退出、已知驗證與收據保存失敗回滾；真 SQLite 檔案重開涵蓋拒絕／丟回應補查、恢復原始輸入及下一筆正常送出。一般 400、schema 拒絕與未知故障仍不清除不明操作，v1 保留原行為。
+- **P2／非 TWD AI 草稿：已修**。文字與收據兩入口使用伺服器 v2 context；真權限服務的 USD／JPY route 回歸確認可取草稿，撤權及其他旅行收據 key 在 provider／private storage 前拒絕；舊 v1 非 TWD 阻擋保留。
+- **P2／旅行列表查詢：已修**。共用列表改 `validateLedgerChildrenBatch`；1／20／40 趟混合幣別固定兩次子文件探查，摘要仍整批兩次；Mobile 分頁每次固定相同查詢數，仍會讀完整帳號列表。損壞支出／還款單位在摘要前拒絕，舊 v1 過濾及空帳號保留。
+
+本次開發檢查：Web 2,226 項、Mobile 1,205 項＋工具 40 項、隔離 replica-set 13 檔 350 項、真 HTTP、frozen install、根 check／contracts／build、三平台匯出及 Expo 相容性通過；實作回歸使用合成資料／provider stub 與自建可丟棄 DB，不代表瀏覽器／原生畫面驗收。
+
+**他人仍待驗**：新舊 Server Action／HTTP 完整矩陣；B4 核對 Web、iPhone＋iPad 的操作／重啟、原 UUID、舊草稿／SQLite、撤權／429、公開輸出及精確資料庫帳務。Android 裝置延後，未驗不計通過；未部署、未跑遠端 migration、未開啟非 TWD。
 
 ### B4 隔離工具與操作交接
 
@@ -68,7 +78,7 @@ fixture 終端的 `b4-state` 取得三趟完整帳務與 receipt 白名單 snaps
 | 預算／跨旅程統計／公開／匯出 | USD 私人預算只對 A；TWD／USD 分組、不混算；JPY .01 顯示／朗讀／匯出完整，舊公開入口阻擋非 TWD、新入口不含私人欄位。待驗。            |
 | 建立開關／回退               | 本機關／開模式分別核對新建、既有帳務及原 UUID 恢復；服務不支援 v2 不改走 v1。正式部署／開放另依指示，待驗。                          |
 
-開發檢查：Mobile 1,203 項行為測試與工具 40 項、Web 核對工具 7 項通過；根 check／contracts 及三平台匯出通過。一般關閉與本機開啟建立模式的完整真 HTTP 均通過；三種幣別各完成新增／部分還款／撤銷共 9 次丟回應，原 UUID 查回並由 CLI 核對 DB 精確值／筆數，沒有操作裝置。合成 wire 證據 `/var/folders/m4/fgf8qnv17_zcmkxf4s9cmd440000gn/T/travel-budget-ledger-network-9c3XRK/traffic-2.json`，HTTP 診斷 `/var/folders/m4/fgf8qnv17_zcmkxf4s9cmd440000gn/T/travel-budget-mobile-gjfmkn/next.log`；只使用自建資料庫，結束已清理。
+開發檢查：Mobile 1,203 項行為測試與工具 40 項、Web 核對工具 7 項通過；根 check／contracts／build、三平台匯出及 Expo 相容性通過。一般關閉與本機開啟建立模式的完整真 HTTP 均通過；三種幣別各完成新增／部分還款／撤銷共 9 次丟回應，原 UUID 查回並由 CLI 核對 DB 精確值／筆數，沒有操作裝置。合成 wire 證據 `/var/folders/m4/fgf8qnv17_zcmkxf4s9cmd440000gn/T/travel-budget-ledger-network-9c3XRK/traffic-2.json`，HTTP 診斷 `/var/folders/m4/fgf8qnv17_zcmkxf4s9cmd440000gn/T/travel-budget-mobile-gjfmkn/next.log`；只使用自建資料庫，結束已清理。
 
 驗收者在本節更新結果，附 commit、應用版本來源、裝置／OS、操作者、證據路徑與未完成項；先保留 iPhone＋iPad 必要案例，Android 延後。必要帳務或 iOS 案例未完成，B4 不結案、非 TWD 不開放，G3／G4／F 維持原安排。
 

@@ -14,6 +14,7 @@ import {
   settleAiUsageQuota,
   type AiUsageQuotaReservation,
 } from '@/lib/ai/aiUsageQuota';
+import { withLedgerV2 } from '@/lib/ledger';
 import { logger } from '@/lib/logger';
 
 export const runtime = 'nodejs';
@@ -50,7 +51,11 @@ function errorResponse(code: ErrorCode) {
   );
 }
 
-export async function POST(request: NextRequest) {
+export function POST(request: NextRequest) {
+  return withLedgerV2(() => draftForMember(request));
+}
+
+async function draftForMember(request: NextRequest) {
   const startedAt = Date.now();
   const session = await getSessionFromRequest(request);
   if (!session) return errorResponse('UNAUTHENTICATED');

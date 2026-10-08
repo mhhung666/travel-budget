@@ -1932,6 +1932,8 @@
     "wait": "伺服器要求暫停送出。等待期限結束後，請補查原操作。",
     "storageInvalid": "無法讀取已確認操作的本機紀錄。請保留瀏覽器資料，修復儲存後再補查。",
     "writeUnknown": "操作結果仍未確認。請保留此紀錄，稍後補查原操作。",
+    "writeRejected": "此操作已被拒絕。請重新讀取資料，修正後再次確認。",
+    "RESOURCE_GONE": "這筆資料已被刪除，請重新讀取旅程。",
     "RESOURCE_CHANGED": "資料已被其他人修改，請重新讀取並再次確認。",
     "SETTLEMENT_CHANGED": "結算已變更，請重新讀取並再次確認。",
     "LEDGER_CURRENCY_MISMATCH": "帳本幣別不一致，請重新讀取旅程。",

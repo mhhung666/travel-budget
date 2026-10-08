@@ -1,9 +1,3 @@
-vi.mock('@/actions/ledger.actions', () => ({
-  getTripReferenceRates: vi.fn(async () => ({
-    success: true,
-    data: { rates: { USD: 32 }, dates: {}, ledger: { baseCurrency: 'TWD', moneyScale: 2 } },
-  })),
-}));
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useExpenseForm } from '@/components/trips/detail/expense-form/useExpenseForm';
@@ -114,7 +108,12 @@ describe('AI accuracy audit: scoring and product regressions', () => {
         'fetch',
         vi.fn().mockResolvedValue({
           ok: true,
-          json: async () => ({ success: true, rates: { USD: 32 } }),
+          json: async () => ({
+            success: true,
+            rates: { TWD: 1, USD: 32 },
+            dates: { USD: '2026-10-08' },
+            provider: 'Frankfurter',
+          }),
         })
       );
       const formMembers = members.map((member) => ({

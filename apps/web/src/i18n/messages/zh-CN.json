@@ -1932,6 +1932,8 @@
     "wait": "服务器要求暂停发送。等待期限结束后，请补查原操作。",
     "storageInvalid": "无法读取已确认操作的本机记录。请保留浏览器数据，修复存储后再补查。",
     "writeUnknown": "操作结果仍未确认。请保留此记录，稍后补查原操作。",
+    "writeRejected": "此操作已被拒绝。请重新读取数据，修正后再次确认。",
+    "RESOURCE_GONE": "这条记录已被删除，请重新读取旅程。",
     "RESOURCE_CHANGED": "数据已被其他人修改，请重新读取并再次确认。",
     "SETTLEMENT_CHANGED": "结算已变更，请重新读取并再次确认。",
     "LEDGER_CURRENCY_MISMATCH": "账本币种不一致，请重新读取旅行。",

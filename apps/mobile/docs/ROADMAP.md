@@ -8,7 +8,7 @@ C 線上記帳、D 草稿／離線均分佇列與 E1–E4 基本使用流程已�
 
 **2026-10-08 優先順序調整：先 G 補齊日常旅行記帳功能，再 F 原生交付與集中裝置驗收。** U1／U2a–e 已提交首輪實作，主要完成既有頁面對齊，並未補齊 Web 的產品能力。依使用者指示，現階段暫緩裝置與完整流程審查；必要的型別、契約、受影響帳務／權限回歸仍隨開發執行。歷史待驗項目保留，未驗不計通過。已修正 [U review 清單](LOCAL_ACCEPTANCE.md#u-靜態審查修正交接2026-10-08)，G1a–c 已實作並分片提交；本輪範圍核對及重點回歸通過，完整獨立驗收仍未完成。G2a 幣別設定與匯率已實作，G2b 外幣新增與草稿已實作，G2c 外幣編輯已實作；本次程式審查的 3 項 P2 與 1 項 P3 已修正並通過獨立複驗，見 [G2 修正清單](LOCAL_ACCEPTANCE.md#g2-獨立程式審查2026-10-08)；裝置與完整流程仍待驗。
 
-**目前為 B4 隔離工具交接與獨立跨端核對**：B0 定案、B1 共用模型／服務／相容契約、B2 Web 及 B3 Mobile 流程已實作，待獨立複驗；非 TWD 建立預設關閉，B4 跨端核對與 G3／G4／F 仍未執行。
+**目前為 B4 跨端核對，接續 B5 版本整併／v1 退役**：B1–B3 已實作，三項程式審查修正已獨立複驗；操作驗收仍見 LOCAL_ACCEPTANCE。B5a／b 可先做盤點與共用入口整理，停用舊契約須滿足 B5 退役條件；非 TWD 建立預設關閉，G3／G4／F 延後。
 
 ## U：Web／Mobile 使用體驗一致性
 
@@ -237,7 +237,7 @@ flowchart TD
 
 ### B：旅程基準幣別改造規格（2026-10-08）
 
-**排程：B0 → B1 → B2 → B3 → B4 → G3 → G4。** 本節是跨 Web／Mobile／後端的單一實作規格，取代先前方向提案；此處 B0–B4 不同於歷史的「B：新增支出 API」。B0 定案、B1 後端、B2 Web 與 B3 Mobile 已實作，v2 契約及固定基準資料已提供；獨立核對與跨端開放仍待 B4，非 TWD 建立預設關閉。G2 程式審查已結案，裝置待驗沿用原清單；F 仍暫緩。
+**排程：B0 → B1 → B2 → B3 → B4 → B5 → G3 → G4。** 本節是跨 Web／Mobile／後端的單一實作規格，取代先前方向提案；此處 B0–B5 不同於歷史的「B：新增支出 API」。B0 定案、B1 後端、B2 Web 與 B3 Mobile 已實作，v2 契約及固定基準資料已提供；獨立核對與跨端開放仍待 B4，非 TWD 建立預設關閉。G2 程式審查已結案，裝置待驗沿用原清單；F 仍暫緩。
 
 #### B0：金額、匯率與相容決策
 
@@ -312,7 +312,7 @@ B 只改 Web 既有預算／統計／公開／匯出入口的單位；Mobile 預
 | B1 模型／共用服務     | 建立時固定基準、DB 單位快照、金額／分攤／結算／付款／預算／聚合共用規則、v2 schemas／routes／receipts、v1 保護、參考匯率及能力開關。新舊 Server Action 一起守住缺單位；UI 仍不開非 TWD。                                   | 舊 TWD fixtures 與 receipt 回應／指紋不變；缺欄位／無效欄位分清。隔離真 DB 核對不同基準、付款／撤銷、個人預算權限、父旅行 fence、併發 UUID／回滾。真 HTTP 比對新 schema、v1 篩選／深連結／加入拒絕、舊 UUID 查回與一次寫入；跨版本／不同 body 不可建立第二筆。                                                 |
 | B2 Web 全流程         | 建立／加入、清單／概覽、既有四種分攤新增／編輯／刪除、付款／撤銷、預算、分類／趨勢／搜尋／年度與跨旅程統計、公開結算／CSV／JSON／文字、年度 PNG 及既有行程 PDF（無帳務金額）、通知摘要。草稿／outbox／PWA 升級含來源單位。 | Web 顯示、DB、預覽、結算與匯出同單位同分攤；跨幣別無混合總額或跨組金額排序，游標包含幣別篩選。公開資訊不含私人預算／收據／登入資料。舊 PWA cache、舊排隊 UUID、雙分頁、同時修改／丟回應／重開及開關回退不漏帳／重複。普通成員可正常記帳，只有既有管理員操作限制不變。                                          |
 | B3 Mobile 全流程      | 以 iPhone＋iPad 為主，新增基準選擇、v2 query／transport、閱讀／均分新增／基本與均分編輯、結算／還款、幣別設定、四語單位／提示、SQLite 及 query／catalog 升級。TWD 舊 pending 用 v1；非 TWD 草稿可保存但 D 不排隊。         | 真 SQLite 從現行 schema 8 升級、檔案重開／升級中斷／保存失敗，保留全部 C／D／E／429。HTTP／表單案例核對缺 ledger、基準不符、JPY 小數、重新預覽、設定改變、換帳號 A→B→A、撤權、等待期間修改／離線／背景與原 UUID 恢復；不轉成另一 API 版。iOS 操作交接他人，Android 保持開發檢查相容但裝置延後。                |
-| B4 跨端核對／開放條件 | 使用隔離 Web＋HTTP＋iPhone／iPad，同資料／同 UUID／同帳務操作；完成新舊版本矩陣、公開／匯出與舊 TWD 升級。                                                                                                                 | 下列固定案例及故障矩陣逐項由他人核對並附 DB expense／payment／receipt 筆數與精確數值；iOS 基本操作與跨端帳務不得以 bundle export 代替。待驗／環境限制明列，未完成必要帳務案例不開放非 TWD。Android 裝置延後不冒稱雙平台通過；F 的完整閱讀器／真機矩陣不在此結案。通過後另按使用者指示部署／開放，再接 G3／G4。 |
+| B4 跨端核對／開放條件 | 使用隔離 Web＋HTTP＋iPhone／iPad，同資料／同 UUID／同帳務操作；完成新舊版本矩陣、公開／匯出與舊 TWD 升級。                                                                                                                 | 下列固定案例及故障矩陣逐項由他人核對並附 DB expense／payment／receipt 筆數與精確數值；iOS 基本操作與跨端帳務不得以 bundle export 代替。待驗／環境限制明列，未完成必要帳務案例不開放非 TWD。Android 裝置延後不冒稱雙平台通過；F 的完整閱讀器／真機矩陣不在此結案。通過後另按使用者指示部署／開放，再接 B5 整併與 G3／G4。 |
 
 **B0 固定帳務案例（預定斷言）**：固定成員 A、B、C 的合法 24 碼 ID 與順序；A 付款、三人均分，所有計算用同一後端。UI 可省略 .00，但不能省略非零小數／幣別。以下本金與付款都按本表 ledger，而不是裝置地區決定。
 
@@ -333,6 +333,33 @@ B 只改 Web 既有預算／統計／公開／匯出入口的單位；Mobile 預
 
 **各片檢查**：B1–B3 涉及跨 workspace，按根規範執行 frozen install、contracts generate／check、根 check／test:run／build／export:check；新增隔離 replica-set 交易、真 HTTP、SQLite 遷移與新舊 client fixture，匯率以隔離 mock 驗證。B2 核對正式 build 下 PWA，B3 核對 Expo 相容性及四語 schema／表單。B4 由他人做 Web／iOS 操作與 DB 核對，證據只集中在 LOCAL_ACCEPTANCE；未完成先記待驗，不能以單元測試冒充裝置通過。逐片 commit／push、版本、遠端 migration／設定與分發均依使用者指示，不由本規格授權。
 
+#### B5：v1／v2 整併與 v1 退役（已規劃，尚未實作）
+
+**目標**：新版 Web／Mobile 的新操作統一使用 v2 契約與一套核心服務，逐步移除 v1 執行入口。v1 退役不改歷史帳務、不刪 receipt，也不把舊 UUID／frozen body 直接改標 v2。本節補上 B0 相容期之後的退役安排；過渡期間仍遵循 B0 的相容與金額規則。
+
+**實際盤點（2026-10-08）**：會員 API 有 32 個 v1、26 個 v2 `route.ts`，其中 24 組路徑成對（數字是檔案數，非 HTTP method 數）；新版仍依賴 v1，不可直接移除整個目錄。
+
+| 範圍／程式入口 | 現況 | B5 處理方式 |
+| --- | --- | --- |
+| 會員路由 `apps/web/src/app/api/v1`、`v2` | 24 組旅行、支出、還款、成員、設定與 receipt 路由多只差 response wrapper，底層服務已共用 | 抽共用 handler／明確輸入輸出 schema，路由只選契約；過渡保留 v1 adapter，達退役條件後刪除。授權、限流、錯誤碼只維護一份。 |
+| 認證／本人 | 6 個 `auth/*` 與 `me` 只有 v1，新 App 仍呼叫 | 補 v2 薄入口並切換呼叫端，共用現有認證及 session 服務與 schema；不要求 ledger、不輪替 token 或讓使用者重新登入。舊 auth 入口最後才退役，恢復舊 pending 仍需要登入。 |
+| 匯率／能力 | v1 全域 `exchange-rates`；v2 旅行範圍匯率與 `capabilities`；Web 另有公開 GET 日快照 | 共用報價來源／換算核心，保留公開快照與會員旅行匯率的不同授權、快取與回應語意；確認呼叫者搬移後移除 v1 匯率，不強併成同一資料邊界。 |
+| 共用服務／契約 `lib/ledger.ts`、`lib/mobile/ledgerHttp.ts`、`packages/contracts` | 已共用交易／分攤，版本由 context 與 wrapper 選擇，部分依 URL 猜 schema | 明確指定 route schema 與版本，避免未知路徑 fallback；重複 schema 抽共用欄位，v2 新輸出必帶 ledger。歷史資料缺欄位解析與舊 receipt 指紋獨立成相容模組，不能隨 v1 HTTP 一起刪。 |
+| Web Server Actions／公開 API | `getLedger*` 與舊 action wrapper 並存；11 組 `/api/public/trips/*` 與 `/api/public/v2/trips/*` 成對 | 共用讀寫 handler，盤點現行 UI、公開分享、已開分頁、SW／IndexedDB outbox 的呼叫；新操作統一新版。舊公開 DTO 不直接改成 v2，公開網址／隱私與匿名認領行為保留；PWA 升級不得清 pending。 |
+| Mobile transport／環境識別 `api/client.ts` | URL 設定要求 `/api/v1`，依 path 派生 v2；SQLite／429／session scope 使用既有環境值 | 新請求明確預設 v2，版本覆寫只留舊操作恢復；將 transport URL 與持久化 environment identity 分開，提供舊 URL 別名解析。不得因改 base URL 開出新 scope、遺失 token／pending／撤權或等待期限。 |
+| Mobile D 佇列 `expenseQueue/sync.ts` | 新的 queued D 也固定用 v1 options／preview，prepared 交 C 原版送出 | 新 enqueue 保存 v2 envelope，options／preview／prepare 同版；仍只開 TWD 基準＋TWD 原幣＋均分。舊 queued／prepared／C／E 保留原版，舊草稿經重新預覽及明確確認才建立新 v2 操作，不順便擴外幣離線。 |
+| 測試／工具／文件 | 舊 fixture、真 HTTP 代理與設定包含 v1 | 更新新操作預設，保留精簡的舊 receipt／升級／退役契約測試；歷史測試資料的 v1 字樣不是執行依賴，不全域取代。API、架構文件引用本節，完成後摘要歸 archive。 |
+
+**實作順序與交付條件**：每片完成後由另一模型審查，B5 不一次堆完。
+
+1. **B5a／依賴與退役方式定案**：沿上表查到實際呼叫點，補各類入口的保留／搬移／刪除清單與測試位置。核實是否曾分發舊 App、部署可用 v1、存在舊 PWA 或須保留的本機資料；現有 DB receipt 只能證明過去提交，不能證明離線裝置沒有 pending。若僅自有可丟棄 fixture，記錄範圍後可縮短相容期；有真實使用或無法確認則採 B5d 過渡。不能從「尚無正式商店 App」推斷沒有人使用 v1。
+2. **B5b／共用入口整併**：先抽會員／公開 routes 及 Server Actions 的重複協調，補 v2 auth／me，明確指定 schema；舊 v1 回應及 side effect 不變。驗收同一業務兩版本的授權、UUID 去重、交易回滾、非 TWD 防護與匿名資料邊界，不能只測 route re-export。
+3. **B5c／新版全面停止產生 v1 操作**：切換 auth／me、transport 預設與 D 新 enqueue，將舊恢復集中為獨立 adapter。真 SQLite／IndexedDB 升級核對原 UUID／body／版本、環境隔離、429、原 session 及原草稿；新使用者完整登入→記帳→離線佇列→重啟流程不產生 v1 請求。B4 必要帳務／跨端案例未過，不進入停用階段；本片完成後重驗受影響的 B4 案例。
+4. **B5d／舊操作收尾與相容入口退役**：依 B5a 決定直接退役或保留最小舊版恢復。過渡期使用原 endpoint／原 UUID 完成 lookup 和必要的同 body 重試；單純 `not_found` 不授權換 UUID 或當作已拒絕。若停止接受新的 v1 寫入，必須先提供交易內、同原 receipt namespace 的權威終局拒絕，與同 UUID 併發提交互斥，且能回收舊 queued D 的確認意圖；舊 pending 未解前不能一律回升級錯誤。舊 client 的升級提示、支援終止條件、恢復入口與相容回退版本須具體列明，不能只設日期或靠 client 版本 header。
+5. **B5e／刪除與結案**：已確認沒有需支援的 v1 client，且舊操作已結案或有通過驗收的替代恢復機制，才刪 v1 live routes、舊 action wrapper 與不再使用的 runtime schema／版本分支；保留必要歷史 decoder／fingerprint、DB receipt 與升級測試。若仍有恢復入口，狀態寫「一般 v1 已退役，舊操作恢復仍保留」，不宣稱全面移除。停用部署／遠端設定另依使用者指示。
+
+**B5 完成判準**：新操作只有一套 v2 流程；相容碼集中且每個保留入口都有用途與退出條件。TWD／USD／JPY 精確帳務、成員／公開權限、舊 UUID 丟回應／重啟／回滾、舊新 PWA 同時開啟、Mobile 換帳號／撤權／429 全部回歸；跨 workspace 執行 frozen install、contracts generate／check、check、test:run、build、export:check，並以真 HTTP／隔離 DB／SQLite 驗證。Web＋iPhone／iPad 的升級操作另列實際證據，Android 沿用延後限制。沒有 v1 流量一段時間只能作輔助證據，不足以證明離線裝置已收尾；不為退役清空 DB、本機佇列或重算歷史帳務。非 TWD 建立開關仍由 B4 決定，不隨 B5 自動開啟。
+
 ### G2 之後
 
 - **G3a → G3b**：先讓共用後端預覽／驗證與契約支援固定金額、百分比、份數，再接新增／編輯表單及草稿恢復。固定金額的輸入單位明確標原幣，旅程基準分攤由後端決定；每種模式均核對總額、尾差及歷史編輯。
@@ -342,7 +369,7 @@ B 只改 Web 既有預算／統計／公開／匯出入口的單位；Mobile 預
 
 **G2／G3 的開發界線**：先交付線上新增／編輯，D 離線佇列暫維持 TWD 均分並明示限制；不得將外幣或非均分意圖降級成均分送出。需要擴離線時另做持久化 schema／舊草稿遷移與恢復切片。新契約須相容既有 App；換算、分角、尾差由共用後端決定，Mobile 只呈現預覽與確認。
 
-**後續安排**：B0 → B1 → B2 → B3 → B4 → G3 → G4 → G5 → G6（G2 本次程式審查已結案；B0 規格已補齊，B1–B3 已實作，獨立複驗及 B4 待完成）；每片完成再審查，不一次堆完整 App。F2 已知帳號恢復缺陷可在功能開發期間修復，F3 帳號刪除仍是正式交付前獨立工作；F1 建置準備可穿插，但不以簽章或裝置矩陣阻擋 G。G 核心功能補齊後再集中處理 F 與原生驗收。未驗清單只維護在 LOCAL_ACCEPTANCE，不因延後重複新增報告。
+**後續安排**：B0 → B1 → B2 → B3 → B4 → B5 → G3 → G4 → G5 → G6（G2 本次程式審查已結案；B0 規格已補齊，B1–B3 已實作，三項修正已複驗，B4 操作驗收與 B5 待完成）；每片完成再審查，不一次堆完整 App。F2 已知帳號恢復缺陷可在功能開發期間修復，F3 帳號刪除仍是正式交付前獨立工作；F1 建置準備可穿插，但不以簽章或裝置矩陣阻擋 G。G 核心功能補齊後再集中處理 F 與原生驗收。未驗清單只維護在 LOCAL_ACCEPTANCE，不因延後重複新增報告。
 
 ## F 交付順序
 

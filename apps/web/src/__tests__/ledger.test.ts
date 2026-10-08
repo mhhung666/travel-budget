@@ -199,3 +199,37 @@ describe('immutable two-decimal ledger contract', () => {
     expect(() => moneyTotal([Number.MAX_SAFE_INTEGER])).toThrow('MONEY_TOTAL_OUT_OF_RANGE');
   });
 });
+
+it('validates forty mixed-ledger trips with only two indexed child probes', async () => {
+  const { mongo } = await import('mongoose');
+  const { validateLedgerChildrenBatch } = await import('@/lib/ledger');
+  const { vi } = await import('vitest');
+  const findOne = vi.fn().mockResolvedValue(null);
+  const db = { collection: vi.fn(() => ({ findOne })) } as unknown as import('mongoose').mongo.Db;
+  const trips = Array.from({ length: 40 }, (_, i) => ({
+    _id: new mongo.ObjectId(),
+    ...(i % 2 ? { baseCurrency: 'USD' } : {}),
+  }));
+  await validateLedgerChildrenBatch(db, trips);
+  expect(findOne).toHaveBeenCalledTimes(2);
+  const clauses = findOne.mock.calls[0][0].$or;
+  expect(clauses).toHaveLength(2);
+  expect(clauses.map((v: { trip: { $in: unknown[] } }) => v.trip.$in.length)).toEqual([20, 20]);
+  expect(clauses[0].$nor).toEqual([{ baseCurrency: 'TWD' }, { baseCurrency: { $exists: false } }]);
+  expect(clauses[1].baseCurrency).toEqual({ $ne: 'USD' });
+  findOne.mockResolvedValueOnce(null).mockResolvedValueOnce({ _id: new mongo.ObjectId() });
+  await expect(validateLedgerChildrenBatch(db, trips)).rejects.toThrow('LEDGER_DATA_INVALID');
+});
+it('rejects a private budget in the wrong unit even in a batched read', async () => {
+  const { mongo } = await import('mongoose');
+  const { validateLedgerChildrenBatch } = await import('@/lib/ledger');
+  await expect(
+    validateLedgerChildrenBatch({} as import('mongoose').mongo.Db, [
+      {
+        _id: new mongo.ObjectId(),
+        baseCurrency: 'USD',
+        members: [{ budget: { baseCurrency: 'JPY', total: 1 } }],
+      },
+    ])
+  ).rejects.toThrow('LEDGER_DATA_INVALID');
+});

@@ -1,5 +1,4 @@
 import { isSupportedCurrency } from '@/constants/currencies';
-import { rejectExpenseCreateRequest } from './expenseCreateRequest';
 import {
   ledgerStamp,
   ledgerMismatch,
@@ -211,70 +210,85 @@ export async function createExpenseForActor(
   // 換算後先收斂到分再寫入：30.004 這種未取整的金額會讓統計（逐筆取整）與
   // 結算（加總後取整）在同一趟旅行算出 60 與 60.01 兩個數字。
   const amount = roundMoney(original_amount * exchange_rate);
-  assertWritable(input, amount);
+  if (!isLedgerV2()) assertWritable(input, amount);
 
   // 驗證並轉換收據附件（key 須屬本 trip、物件須存在、size/type 以 headObject 為準）
   let attachmentDocs: AttachmentDoc[] = [];
+  let attachmentsValid = true;
   if (attachments && attachments.length > 0) {
     const resolved = await resolveAttachments(tripId, actorId, attachments);
-    if (!resolved) throw new TripWriteError('VALIDATION_ERROR');
-    attachmentDocs = resolved;
+    if (!resolved && !isLedgerV2()) throw new TripWriteError('VALIDATION_ERROR');
+    attachmentsValid = resolved !== null;
+    attachmentDocs = resolved ?? [];
   }
 
   const background = await prepareExpenseBackgroundWrite();
   const result = await withTripWrite(tripId, actorId, async (transactionSession) => {
-    if (ledgerMismatch()) {
-      await rejectExpenseCreateRequest(mongoose.connection.db!, transactionSession, request);
-      return { rejected: true as const };
-    }
     return withExpenseCreateRequest(
       mongoose.connection.db!,
       transactionSession,
       request,
       async () => {
-        if (
-          isLedgerV2() &&
-          input.currency === currentLedger().baseCurrency &&
-          input.exchange_rate !== 1
-        )
-          throw new TripWriteError('VALIDATION_ERROR');
-        // Validate payer and split members are trip members
-        const trip = await Trip.findById(tripId)
-          .session(transactionSession)
-          .select('name hashCode members expenseDeliveryDeleting')
-          .lean<{
-            name: string;
-            hashCode: string;
-            members: { user: { toString(): string } }[];
-            expenseDeliveryDeleting?: boolean;
-          }>();
-        if (!trip || trip.expenseDeliveryDeleting) {
-          throw new TripWriteError('NOT_FOUND');
-        }
-        const memberIds = new Set((trip?.members || []).map((m) => m.user.toString()));
+        if (ledgerMismatch()) return { rejected: 'LEDGER_CURRENCY_MISMATCH' as const };
+        let trip;
+        let memberIds: Set<string>;
+        let shareAmounts: number[];
+        try {
+          assertWritable(input, amount);
+          if (!attachmentsValid) throw new TripWriteError('VALIDATION_ERROR');
+          if (
+            isLedgerV2() &&
+            input.currency === currentLedger().baseCurrency &&
+            input.exchange_rate !== 1
+          )
+            throw new TripWriteError('VALIDATION_ERROR');
+          // Validate payer and split members are trip members
+          trip = await Trip.findById(tripId)
+            .session(transactionSession)
+            .select('name hashCode members expenseDeliveryDeleting')
+            .lean<{
+              name: string;
+              hashCode: string;
+              members: { user: { toString(): string } }[];
+              expenseDeliveryDeleting?: boolean;
+            }>();
+          if (!trip || trip.expenseDeliveryDeleting) {
+            throw new TripWriteError('NOT_FOUND');
+          }
+          memberIds = new Set((trip?.members || []).map((m) => m.user.toString()));
 
-        if (!memberIds.has(payer_id)) {
-          throw new TripWriteError('VALIDATION_ERROR');
-        }
-        for (const split of splits) {
-          if (!memberIds.has(split.user_id)) {
+          if (!memberIds.has(payer_id)) {
             throw new TripWriteError('VALIDATION_ERROR');
           }
-        }
+          for (const split of splits) {
+            if (!memberIds.has(split.user_id)) {
+              throw new TripWriteError('VALIDATION_ERROR');
+            }
+          }
 
-        // Split shares (TWD) must add up to the expense amount. The form already
-        // allocates the remainder exactly; the tolerance here only absorbs decimal
-        // rounding, so an unallocated gap can no longer reach the database.
-        if (!splitsMatchAmount(splits, amount)) {
-          throw new TripWriteError('VALIDATION_ERROR');
-        }
-        const shareAmounts = allocateShares(splits, amount);
+          // Split shares (TWD) must add up to the expense amount. The form already
+          // allocates the remainder exactly; the tolerance here only absorbs decimal
+          // rounding, so an unallocated gap can no longer reach the database.
+          if (!splitsMatchAmount(splits, amount)) {
+            throw new TripWriteError('VALIDATION_ERROR');
+          }
+          shareAmounts = allocateShares(splits, amount);
 
-        // 關聯行程日（可複選，若有）須全部屬本 trip
-        if (!(await itineraryDaysBelongToTrip(tripId, itinerary_day_ids, transactionSession))) {
-          throw new TripWriteError('VALIDATION_ERROR');
+          // 關聯行程日（可複選，若有）須全部屬本 trip
+          if (!(await itineraryDaysBelongToTrip(tripId, itinerary_day_ids, transactionSession))) {
+            throw new TripWriteError('VALIDATION_ERROR');
+          }
+        } catch (error) {
+          // Only known business validation before any expense/blob write is terminal. Unknown DB,
+          // storage and transaction errors still abort, and cannot erase an ambiguous earlier write.
+          if (
+            !isLedgerV2() ||
+            !(error instanceof TripWriteError) ||
+            error.code !== 'VALIDATION_ERROR'
+          )
+            throw error;
+          return { rejected: error.code };
         }
-
         const expenseId = new Types.ObjectId();
         // Resolve response names and immutable actor name BEFORE the insert. No post-write populate
         // can fail and misrepresent an already committed expense as a failed creation.
@@ -367,7 +381,7 @@ export async function createExpenseForActor(
       }
     );
   });
-  if ('rejected' in result) throw new LedgerError('LEDGER_CURRENCY_MISMATCH');
+  if ('rejected' in result && result.rejected) throw new LedgerError(result.rejected);
   if (result.replayed) return { replayed: true, data: result.data };
   const { data, trip, memberIds } = result;
 

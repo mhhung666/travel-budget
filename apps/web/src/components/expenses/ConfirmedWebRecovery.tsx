@@ -10,25 +10,30 @@ import {
 import { Button } from '@/components/ui/button';
 export function ConfirmedWebRecovery() {
   const client = useQueryClient(),
-    t = useTranslations('ledger');
+    t = useTranslations('ledger'),
+    tCommon = useTranslations('common');
   const query = useQuery({
     queryKey: confirmedWebKey,
     queryFn: () => readConfirmedWebWrites(client),
     staleTime: Infinity,
   });
   const [busy, setBusy] = useState(false),
-    [error, setError] = useState('');
+    [error, setError] = useState<{ id: string; message: string } | null>(null);
   const pending = Object.values(query.data ?? {}).filter((e) => e.status === 'pending');
+  const failedEntry = error ? query.data?.[error.id] : undefined;
+  const shownError = failedEntry ? error : null;
+  const errorKey = shownError?.message.replace(/^ledger\./, '');
+  const rejected = failedEntry?.status === 'rejected';
   if (query.isError)
     return (
       <p role="alert" className="px-4 py-3">
         {t('storageInvalid')}
       </p>
     );
-  if (!pending.length) return null;
+  if (!pending.length && !shownError) return null;
   return (
     <aside className="border-b bg-muted px-4 py-3" role="status">
-      <p>{t('pendingWrite')}</p>
+      {pending.length > 0 && <p>{t('pendingWrite')}</p>}
       {pending.map((e) => (
         <div key={e.request.body.client_request_id} className="flex items-center gap-3">
           <span>
@@ -39,12 +44,15 @@ export function ConfirmedWebRecovery() {
             disabled={busy}
             onClick={async () => {
               setBusy(true);
-              setError('');
+              setError(null);
               try {
                 await resumeConfirmedWebWrite(client, e);
                 await query.refetch();
               } catch (err) {
-                setError(err instanceof Error ? err.message : String(err));
+                setError({
+                  id: e.request.body.client_request_id,
+                  message: err instanceof Error ? err.message : String(err),
+                });
               } finally {
                 setBusy(false);
               }
@@ -54,12 +62,20 @@ export function ConfirmedWebRecovery() {
           </Button>
         </div>
       ))}
-      {error && (
-        <p role="alert">
-          {t.has(error.replace(/^ledger\./, ''))
-            ? t(error.replace(/^ledger\./, ''))
-            : t('writeUnknown')}
-        </p>
+      {shownError && (
+        <div>
+          <div role="alert">
+            {rejected && <p>{t('writeRejected')}</p>}
+            {errorKey && t.has(errorKey) ? (
+              <p>{t(errorKey)}</p>
+            ) : (
+              !rejected && <p>{t('writeUnknown')}</p>
+            )}
+          </div>
+          <Button variant="ghost" disabled={busy} onClick={() => setError(null)}>
+            {tCommon('close')}
+          </Button>
+        </div>
       )}
     </aside>
   );

@@ -556,3 +556,88 @@ it('a v2 generic 400 cannot erase an earlier ambiguous write', async () => {
   expect((await entry.retry(scope, uuid(1))).kind).toBe('unconfirmed');
   expect((await store.get(scope, uuid(1)))?.payload).toEqual(body());
 });
+
+it.each([false, true])(
+  'a v2 validation receipt releases a frozen draft after restart (lost response=%s)',
+  async (lost) => {
+    const dir = mkdtempSync(join(tmpdir(), 'tb-v2-refusal-'));
+    dirs.push(dir);
+    const file = join(dir, 'draft.sqlite');
+    let db = open(file);
+    let store = await createPendingExpenseStore(db);
+    const raw = { ...draft, amountText: '03000.00', rateText: '0.006700' };
+    const savedDraft = {
+      ...scope,
+      tripId,
+      draftId: uuid(100),
+      revision: 1,
+      input: raw,
+      updatedAt: 1,
+    };
+    await store.drafts.start(savedDraft);
+    let refused = false,
+      posts = 0,
+      ids = 1;
+    const makeEntry = () =>
+      new ExpenseEntry({
+        store: async () => store,
+        newId: () => uuid(ids++),
+        request: async (_a, path, schema, opts) => {
+          expect(opts?.apiVersion).toBe(2);
+          if (opts?.method === 'POST') {
+            posts++;
+            if (posts === 1) {
+              expect(opts.body).toEqual(body());
+              refused = true;
+              throw new ApiError(lost ? 'NETWORK' : 'VALIDATION_ERROR', lost ? undefined : 400);
+            }
+            return schema.parse(detail);
+          }
+          // Failure of the first follow-up read forces recovery through a reopened SQLite database.
+          if (lost && refused && posts === 1 && path.includes(uuid(1)))
+            throw new ApiError('NETWORK');
+          return schema.parse(
+            refused && posts === 1 && path.includes(uuid(1))
+              ? { status: 'rejected', code: 'VALIDATION_ERROR', ledger }
+              : { status: 'not_found' }
+          );
+        },
+      });
+    const first = await makeEntry().submit(
+      scope,
+      tripId,
+      confirmedFields(draft, options, preview),
+      savedDraft
+    );
+    expect(first.kind).toBe(lost ? 'unconfirmed' : 'rejected');
+    opened.splice(opened.indexOf(db), 1);
+    db.close();
+    db = open(file);
+    store = await createPendingExpenseStore(db);
+    if (lost) {
+      const recovery = new ExpenseEntry({
+        store: async () => store,
+        newId: () => uuid(99),
+        request: async (_a, path, schema, opts) => {
+          expect(opts?.apiVersion).toBe(2);
+          expect(opts?.method).not.toBe('POST');
+          expect(path).toContain(uuid(1));
+          return schema.parse({ status: 'rejected', code: 'VALIDATION_ERROR', ledger });
+        },
+      });
+      expect((await recovery.recover(scope))[0]).toMatchObject({
+        kind: 'rejected',
+        error: { code: 'VALIDATION_ERROR' },
+      });
+    }
+    expect(await store.list(scope)).toEqual([]);
+    const restored = await store.drafts.load(scope, tripId);
+    expect(restored).toEqual({ ...savedDraft, revision: 2 });
+    expect(
+      (await makeEntry().submit(scope, tripId, confirmedFields(draft, options, preview), restored!))
+        .kind
+    ).toBe('saved');
+    expect(posts).toBe(2);
+    expect(await store.list(scope)).toEqual([]);
+  }
+);

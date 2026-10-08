@@ -54,6 +54,7 @@ export const ROUTES = {
       ME: '/api/auth/me',
       UPDATE: '/api/auth/update',
     },
+    EXCHANGE_RATES: '/api/exchange-rates',
     TRIPS: '/api/trips',
     TRIP: (id: string | number) => `/api/trips/${id}`,
     TRIP_EXPENSES: (id: string | number) => `/api/trips/${id}/expenses`,

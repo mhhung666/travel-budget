@@ -26,7 +26,7 @@ import {
 } from '@travel-budget/contracts';
 import { calculateSettlementDetail } from './settlementRead';
 import { toMobileSettlement } from './mobile/settlement';
-import { withTripWriteInDatabase } from './tripWriteTransaction';
+import { withTripWriteInDatabase, withTripReadInDatabase } from './tripWriteTransaction';
 import { MUTATION_REQUESTS, TripEntryError } from './tripEntry';
 import type { PaymentRecord } from '@/types';
 
@@ -206,7 +206,7 @@ export function readPaymentContext(
   tripId: string,
   secret: string
 ): Promise<PaymentContext> {
-  return withTripWriteInDatabase(
+  return withTripReadInDatabase(
     db,
     tripId,
     actorId,
@@ -219,7 +219,7 @@ export function readWebPaymentContext(
   tripId: string,
   secret: string
 ) {
-  return withTripWriteInDatabase(db, tripId, actorId, async (session) => {
+  return withTripReadInDatabase(db, tripId, actorId, async (session) => {
     const state = await snapshot(db, session, tripId, secret);
     return {
       ...state.settlement,
@@ -242,7 +242,7 @@ export function readPaymentRevokeContext(
   paymentId: string,
   secret: string
 ): Promise<PaymentRevokeContext> {
-  return withTripWriteInDatabase(db, tripId, actorId, async (session) => {
+  return withTripReadInDatabase(db, tripId, actorId, async (session) => {
     const state = await snapshot(db, session, tripId, secret);
     const raw = state.payments.find((p) => p._id.toString() === paymentId);
     if (!raw) throw new TripEntryError('RESOURCE_GONE');

@@ -252,17 +252,25 @@ describe.skipIf(!uri || !allowed)('trip writers against isolated replica set', (
   it.each(writers)(
     'rejects %s after the actor is removed during initial authorization',
     async (_name, write) => {
-      const original = mongo.Collection.prototype.findOneAndUpdate;
+      // A missing payment revoke now uses a read-only snapshot rather than a fence.
+      // Remove membership at that authorization read; other writers still use the fence.
+      const method = _name === 'payment delete' ? 'findOne' : 'findOneAndUpdate';
+      const original = mongo.Collection.prototype[method];
       let changed = false;
-      const spy = vi
-        .spyOn(mongo.Collection.prototype, 'findOneAndUpdate')
-        .mockImplementation(async function (this: mongo.Collection, ...args) {
-          if (this.collectionName === 'trips' && !changed) {
-            changed = true;
-            await Trip.updateOne({ _id: tripId }, { $pull: { members: { user: admin } } });
-          }
-          return original.apply(this, args);
-        });
+      const spy = vi.spyOn(mongo.Collection.prototype, method).mockImplementation(async function (
+        this: mongo.Collection,
+        ...args
+      ) {
+        if (
+          this.collectionName === 'trips' &&
+          !changed &&
+          (method !== 'findOne' || (args[1] && 'session' in args[1] && args[1].session))
+        ) {
+          changed = true;
+          await Trip.updateOne({ _id: tripId }, { $pull: { members: { user: admin } } });
+        }
+        return Reflect.apply(original, this, args);
+      });
       try {
         expect(await write()).toMatchObject({ code: 'FORBIDDEN' });
       } finally {

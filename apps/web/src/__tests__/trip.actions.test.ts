@@ -407,3 +407,38 @@ it('a committed Web update survives cache refresh failure', async () => {
   });
   expect((await updateTrip(TRIP, { name: 'Updated' })).success).toBe(true);
 });
+
+it.each([
+  { name: 'Tokyo', display_name: 'Tokyo', lat: '35', lon: 139 },
+  { name: 'Tokyo', display_name: 'Tokyo', lat: 91, lon: 139 },
+  { name: 'Tokyo', display_name: 'Tokyo', lat: 35, lon: 181 },
+  { name: 'Tokyo', lat: 35, lon: 139 },
+])('rejects a forged v2 destination before entering the trip service: %j', async (destination) => {
+  const { createLedgerTrip } = await import('@/actions/trip.actions');
+  const result = await createLedgerTrip(
+    {
+      client_request_id: crypto.randomUUID(),
+      name: 'Tokyo',
+      description: '',
+      start_date: null,
+      end_date: null,
+      base_currency: 'TWD',
+    },
+    destination as never
+  );
+  expect(result).toEqual({ success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' });
+  expect(entry.enter).not.toHaveBeenCalled();
+});
+it.each(['getLedgerTrip', 'getLedgerTripShell'] as const)(
+  '%s preserves ledger corruption instead of a transient internal error',
+  async (name) => {
+    const { LedgerError } = await import('@/lib/ledger');
+    const actions = await import('@/actions/trip.actions');
+    getMemberTrip.mockRejectedValueOnce(new LedgerError('LEDGER_DATA_INVALID'));
+    expect(await actions[name](TRIP)).toEqual({
+      success: false,
+      error: 'LEDGER_DATA_INVALID',
+      code: 'LEDGER_DATA_INVALID',
+    });
+  }
+);

@@ -13,6 +13,7 @@ import {
   isLedgerV2,
   assertUnit,
   currentLedger,
+  LedgerError,
 } from './ledger';
 import { assertBlobsAvailable, RetiredBlobError } from '@/lib/blobReferences';
 import { allocateMoney, roundMoney } from '@/lib/money';
@@ -43,7 +44,12 @@ import {
   type ExpenseUpdateInput,
   type MutationRequest,
 } from '@travel-budget/contracts';
-import { withTripWrite, TripWriteError, withTripWriteInDatabase } from './tripWriteTransaction';
+import {
+  withTripWrite,
+  TripWriteError,
+  withTripWriteInDatabase,
+  withTripReadInDatabase,
+} from './tripWriteTransaction';
 import { MUTATION_REQUESTS, TripEntryError } from './tripEntry';
 import { getAllCurrencyCodes, isSupportedCurrency } from '@/constants/currencies';
 import { computeSplits } from './expenseSplit';
@@ -498,7 +504,7 @@ export const updateExpenseForActor = async (
   tripId: string,
   expenseId: string,
   input: UpdateExpenseInput
-): Promise<ActionResult<{ message: string }>> => {
+): Promise<ActionResult<{ message: string; revision?: string }>> => {
   try {
     const validation = updateExpenseSchema.safeParse(input);
     if (!validation.success) {
@@ -530,32 +536,75 @@ export const updateExpenseForActor = async (
       tags,
     } = validation.data;
 
-    // 讀取目前值（同時作為 existence check）
-    const snapshot = await Expense.findOne({ _id: expenseId, trip: tripId })
-      .select(
-        'payer amount originalAmount currency exchangeRate description category date splits attachments tags itineraryDays'
-      )
-      .lean<{
-        originalAmount: number;
-        exchangeRate: number;
-        description: string;
-        splits: { user: { toString(): string }; shareAmount: number }[];
-        attachments?: {
-          key: string;
-          contentType: string;
-          size: number;
-          uploadedBy: { toString(): string };
-          uploadedAt: Date;
-        }[];
-      }>();
+    // Attachment verification is external I/O. A replay must not depend on the
+    // continued existence of the expense or an already retired receipt blob.
+    if (isLedgerV2() && attachments !== undefined) {
+      const previous = await withTripReadInDatabase(
+        mongoose.connection.db!,
+        tripId,
+        actorId,
+        async (session) => {
+          const receipt = await mongoose.connection.db!.collection(MUTATION_REQUESTS).findOne(
+            {
+              _id: `${actorId.toLowerCase()}:${validation.data.client_request_id!.toLowerCase()}` as never,
+            },
+            { session }
+          );
+          if (!receipt) return undefined;
+          checkReceiptVersion({ contractVersion: receipt.contractVersion, ledger: receipt.ledger });
+          const fingerprint = createHash('sha256')
+            .update(
+              JSON.stringify(
+                canonical({
+                  contractVersion: 2,
+                  baseCurrency: validation.data.base_currency,
+                  operation: 'web.expense.update',
+                  tripId,
+                  expenseId,
+                  input: validation.data,
+                })
+              )
+            )
+            .digest('hex');
+          if (receipt.fingerprint !== fingerprint) throw new TripWriteError('CONFLICT');
+          return receipt.terminal as Terminal;
+        }
+      );
+      if (previous?.status === 'rejected')
+        return { success: false, error: previous.code, code: previous.code };
+      if (previous?.status === 'committed')
+        return { success: true, data: { message: '支出已更新', ...previous.result } };
+    }
+    // Only attachments need an outside-transaction baseline on v2; existence and
+    // terminal outcomes are checked under the write fence below.
+    const snapshot =
+      isLedgerV2() && attachments === undefined
+        ? null
+        : await Expense.findOne({ _id: expenseId, trip: tripId })
+            .select(
+              'payer amount originalAmount currency exchangeRate description category date splits attachments tags itineraryDays'
+            )
+            .lean<{
+              originalAmount: number;
+              exchangeRate: number;
+              description: string;
+              splits: { user: { toString(): string }; shareAmount: number }[];
+              attachments?: {
+                key: string;
+                contentType: string;
+                size: number;
+                uploadedBy: { toString(): string };
+                uploadedAt: Date;
+              }[];
+            }>();
 
-    if (!snapshot) {
+    if (!snapshot && !isLedgerV2()) {
       return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     }
 
-    const initialKeys = new Set((snapshot.attachments ?? []).map((a) => a.key));
+    const initialKeys = new Set((snapshot?.attachments ?? []).map((a) => a.key));
     const verified =
-      attachments === undefined
+      attachments === undefined || !snapshot
         ? []
         : await resolveAttachments(
             tripId,
@@ -587,9 +636,7 @@ export const updateExpenseForActor = async (
             }[];
           }>();
 
-        if (!current) {
-          throw new TripWriteError('NOT_FOUND');
-        }
+        if (!current && !isLedgerV2()) throw new TripWriteError('NOT_FOUND');
 
         if (isLedgerV2()) {
           const unit = validation.data.base_currency!;
@@ -626,19 +673,21 @@ export const updateExpenseForActor = async (
             .session(transactionSession)
             .select('members baseCurrency')
             .lean();
-          const revision = webExpenseRevision(
-            getEnv().JWT_SECRET,
-            tripId,
-            current,
-            parent!.members
-          );
-          if (unit !== currentLedger().baseCurrency || body.expected_revision !== revision) {
+          const revision = current
+            ? webExpenseRevision(getEnv().JWT_SECRET, tripId, current, parent!.members)
+            : undefined;
+          if (
+            !current ||
+            unit !== currentLedger().baseCurrency ||
+            body.expected_revision !== revision
+          ) {
             const terminal = terminalWithLedger({
               status: 'rejected' as const,
               operation: 'expense.update' as const,
               tripId,
-              code:
-                unit !== currentLedger().baseCurrency
+              code: !current
+                ? ('RESOURCE_GONE' as const)
+                : unit !== currentLedger().baseCurrency
                   ? ('LEDGER_CURRENCY_MISMATCH' as const)
                   : ('RESOURCE_CHANGED' as const),
             });
@@ -682,6 +731,7 @@ export const updateExpenseForActor = async (
             throw new TripWriteError('VALIDATION_ERROR');
         }
 
+        if (!current) throw new TripWriteError('NOT_FOUND');
         // Updates must preserve the same trip-member boundary as creation. Without
         // this check, a client that knows an outside user id could replace the payer
         // or a split participant after the expense was created.
@@ -808,7 +858,12 @@ export const updateExpenseForActor = async (
               revision: webExpenseRevision(
                 getEnv().JWT_SECRET,
                 tripId,
-                { ...current, ...set },
+                (await Expense.findOne({ _id: expenseId, trip: tripId })
+                  .session(transactionSession)
+                  .select(
+                    'payer amount originalAmount currency exchangeRate description category date splits attachments tags itineraryDays'
+                  )
+                  .lean())!,
                 (await Trip.findById(tripId).session(transactionSession).select('members').lean())!
                   .members
               ),
@@ -851,7 +906,7 @@ export const updateExpenseForActor = async (
       return {
         success: false,
         error: terminal.code,
-        code: terminal.code === 'RESOURCE_CHANGED' ? 'RESOURCE_CHANGED' : 'VALIDATION_ERROR',
+        code: terminal.code,
       };
     await cleanupRetiredBlobs(mongoose.connection.db!, removed).catch(() => undefined);
 
@@ -863,12 +918,17 @@ export const updateExpenseForActor = async (
         type: 'expense_updated',
         meta: {
           expense_id: expenseId,
-          description: description !== undefined ? description.trim() : current.description,
+          description: description !== undefined ? description.trim() : current!.description,
         },
       });
 
-    return { success: true, data: { message: '支出已更新' } };
+    return {
+      success: true,
+      data: { message: '支出已更新', ...(terminal?.status === 'committed' ? terminal.result : {}) },
+    };
   } catch (error) {
+    if (error instanceof LedgerError)
+      return { success: false, error: error.code, code: error.code };
     if (error instanceof RetiredBlobError)
       return { success: false, error: error.code, code: error.code };
     if (error instanceof TripWriteError)

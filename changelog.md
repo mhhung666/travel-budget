@@ -8,7 +8,7 @@
 
 - Mobile U1／U2：完成既有頁面、帳號／旅行表單、本機／佇列恢復顯示與共用身分格式整理；保留 C／D／E、UUID、原期限及撤權，提交相應 patch。開發檢查／iOS 待驗見 [本機驗收](apps/mobile/docs/LOCAL_ACCEPTANCE.md)，Android 延後，未部署。
 - Mobile U review／規劃：修正有效等待、原幣代碼、可見筆數、名冊同名短碼／歷史消歧及顯示負零，memo 還款標籤並移除期限暖快取額外讀取；980 項測試、check 與三平台匯出通過；唯一姓名／朗讀文字與未知名冊不加碼，清單更新／錯誤重試一起重讀名冊、隱藏時略過一般名冊更新，明確重試仍走原授權流程，現名／歷史限制見交接。[修正交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#u-靜態審查修正交接2026-10-08)記未驗範圍與延期整理；G 規格已盤點，該輪以 Mobile patch 交付，未改交易／撤權保護或部署。
-- G1／G2／帳本基準（Web／Mobile）：完成旅行管理、外幣均分及 G2 審查修正；B0 定案、B1–B3 接入固定基準、兩位小數、v2 帳務與四語顯示，保留舊 TWD／v1／UUID 恢復，非 TWD 離線只存草稿。B4 補齊隔離 fixture、v2 故障代理及精確 DB／UUID 核對工具，工程與隔離 HTTP／交易通過；獨立複驗與 Web／iPhone／iPad 操作仍待驗，見 [B 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#b4-隔離工具與操作交接)。非 TWD 建立預設關閉，G3／G4／F 延後，未部署。
+- G1／G2／帳本基準（Web／Mobile）：完成旅行管理、外幣均分與 B1–B3 固定基準／v2，保留舊 TWD／v1／UUID 恢復；B4 備妥隔離故障／DB 核對工具。Web 恢復、receipt／revision、錯誤碼與匯率快取已修正；v2 業務拒絕收據／Mobile 草稿恢復、非 TWD AI 草稿授權及旅行列表批次驗證通過獨立複驗，184 項重點回歸與契約同步檢查通過，兩應用以 patch 交付；新增 [B5 版本整併／v1 退役計畫](apps/mobile/docs/ROADMAP.md#b5v1v2-整併與-v1-退役已規劃尚未實作)，涵蓋共用入口、登入／離線佇列搬移與舊操作收尾。測試範圍與裝置待驗見 [B 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#b-基準幣別驗收b1b2b3-實作交接)；非 TWD 建立關閉，G3／G4／F 延後，未部署。
 
 ### 2026-10-07
 

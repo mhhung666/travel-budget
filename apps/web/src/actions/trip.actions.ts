@@ -1,5 +1,7 @@
 'use server';
 
+import { ledgerActionFailure } from '@/lib/ledger';
+
 import { readTripShell, type LeanTripShell } from '@/lib/tripShellRead';
 import { readMemberTrips } from '@/lib/tripListRead';
 import { revalidatePath } from 'next/cache';
@@ -13,6 +15,7 @@ import { generateUniqueHashCode } from '@/lib/hashcode';
 import { deletePrefixPage } from '@/lib/storage';
 import {
   createTripSchema,
+  locationSchema,
   updateTripSchema,
   type CreateTripInput,
   type UpdateTripInput,
@@ -42,6 +45,8 @@ export const getLedgerTrips = withAuth(
       const formattedTrips = await readMemberTrips(session.userId);
       return { success: true, data: formattedTrips };
     } catch (error) {
+      const failure = ledgerActionFailure(error);
+      if (failure) return failure;
       logger.error('Get trips error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
@@ -64,6 +69,8 @@ export const getLedgerTrip = withAuth(async (session, id: string): Promise<Actio
 
     return { success: true, data: toTripDto(result.trip, session.userId) };
   } catch (error) {
+    const failure = ledgerActionFailure(error);
+    if (failure) return failure;
     logger.error('Get trip error', error);
     return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
   }
@@ -80,6 +87,8 @@ export const getLedgerTripShell = withAuth(
       if (!result) return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
       return { success: true, data: await readTripShell(result.trip, session.userId, viewerDate) };
     } catch (error) {
+      const failure = ledgerActionFailure(error);
+      if (failure) return failure;
       logger.error('Get trip shell error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
@@ -129,6 +138,8 @@ export const createTrip = withAuth(
       // must not invite the form to create another trip with a new UUID.
       return { success: true, data: { id: result.tripId } };
     } catch (error) {
+      const failure = ledgerActionFailure(error);
+      if (failure) return failure;
       logger.error('Create trip error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
@@ -173,6 +184,8 @@ export const updateTrip = withAuth(
       }
       return { success: true, data: toTripDto(trip as unknown as LeanTrip, session.userId) };
     } catch (error) {
+      const failure = ledgerActionFailure(error);
+      if (failure) return failure;
       if (error instanceof TripManagementError || error instanceof TripWriteError) {
         return { success: false, error: error.code, code: error.code };
       }
@@ -213,6 +226,8 @@ export const deleteTrip = withAuth(
       }
       return { success: true, data: { message: '旅行已刪除' } };
     } catch (error) {
+      const failure = ledgerActionFailure(error);
+      if (failure) return failure;
       if (error instanceof TripDeletionError)
         return { success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' };
       logger.error('Delete trip error', error);
@@ -263,6 +278,8 @@ export const regenerateHashCode = withAuth(
       revalidatePath(`/trips/${membership.tripId}`);
       return { success: true, data: toTripDto(trip, session.userId) };
     } catch (error) {
+      const failure = ledgerActionFailure(error);
+      if (failure) return failure;
       logger.error('Regenerate hash code error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
@@ -306,6 +323,8 @@ export const archiveTrip = withAuth(async (session, id: string): Promise<ActionR
   try {
     return await setArchivedAt(session, id, new Date());
   } catch (error) {
+    const failure = ledgerActionFailure(error);
+    if (failure) return failure;
     if (error instanceof TripWriteError || error instanceof TripEntryError)
       return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     logger.error('Archive trip error', error);
@@ -317,6 +336,8 @@ export const unarchiveTrip = withAuth(async (session, id: string): Promise<Actio
   try {
     return await setArchivedAt(session, id, null);
   } catch (error) {
+    const failure = ledgerActionFailure(error);
+    if (failure) return failure;
     if (error instanceof TripWriteError || error instanceof TripEntryError)
       return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     logger.error('Unarchive trip error', error);
@@ -368,6 +389,8 @@ export const joinTrip = withAuth(
       }
       return { success: true, data: toTripDto(trip, session.userId) };
     } catch (error) {
+      const failure = ledgerActionFailure(error);
+      if (failure) return failure;
       if (error instanceof TripEntryError)
         return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
       logger.error('Join trip error');
@@ -386,6 +409,7 @@ export const createLedgerTrip = withAuth(
     input: import('zod').infer<typeof import('@travel-budget/contracts').tripCreateV2Input>,
     destination?: CreateTripInput['destination_location']
   ): Promise<ActionResult<Pick<Trip, 'id'>>> => {
+    const location = locationSchema.nullable().optional().parse(destination);
     await dbConnect();
     const result = await enterTrip(
       mongoose.connection.db!,
@@ -393,7 +417,7 @@ export const createLedgerTrip = withAuth(
       'trip.create',
       input,
       undefined,
-      destination
+      location
     );
     try {
       revalidatePath('/trips');

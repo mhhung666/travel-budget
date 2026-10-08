@@ -12,7 +12,7 @@ interface Receipt {
   fingerprint: string;
   data?: Expense;
   contractVersion?: number;
-  rejected?: 'LEDGER_CURRENCY_MISMATCH';
+  rejected?: 'LEDGER_CURRENCY_MISMATCH' | 'VALIDATION_ERROR';
 }
 interface Scope {
   tripId: string;
@@ -107,12 +107,14 @@ export async function readExpenseCreateResult(
   return receipt.data;
 }
 
+type Rejection = { rejected: NonNullable<Receipt['rejected']> };
+
 /** Must run under withTripWrite's parent fence, in the same transaction as the insert.
  * Keep receipts after expense deletion: a late retry must never recreate a deleted expense.
  * The built-in unique _id index guards equal spellings and the trip fence serializes the rest;
  * no TTL may forget accepted requests.
  */
-export async function withExpenseCreateRequest<T extends { data: Expense }>(
+export async function withExpenseCreateRequest<T extends { data: Expense } | Rejection>(
   db: mongo.Db,
   session: mongo.ClientSession,
   request: Request,
@@ -121,6 +123,10 @@ export async function withExpenseCreateRequest<T extends { data: Expense }>(
   const existing = await readExpenseCreateResult(db, request, session);
   if (existing) return { replayed: true, data: existing };
   const result = await create();
+  if ('rejected' in result) {
+    await rejectExpenseCreateRequest(db, session, request, result.rejected);
+    return { ...result, replayed: false };
+  }
   const key = request.input.client_request_id;
   if (key) {
     await db.collection<Receipt>(EXPENSE_CREATE_REQUESTS).insertOne(
@@ -149,16 +155,18 @@ export async function readExpenseCreateRejection(
 export async function rejectExpenseCreateRequest(
   db: mongo.Db,
   session: mongo.ClientSession,
-  request: Request
+  request: Request,
+  code: NonNullable<Receipt['rejected']> = 'LEDGER_CURRENCY_MISMATCH'
 ) {
-  const key = request.input.client_request_id!;
+  const key = request.input.client_request_id;
+  if (!key) throw new TripWriteError('VALIDATION_ERROR');
   await db.collection<Receipt>(EXPENSE_CREATE_REQUESTS).insertOne(
     {
       _id: receiptId(request, key),
       fingerprint: fingerprintOf(request.input, key),
       trip: new mongo.ObjectId(request.tripId),
       ...receiptStamp(),
-      rejected: 'LEDGER_CURRENCY_MISMATCH',
+      rejected: code,
     },
     { session }
   );

@@ -1,5 +1,12 @@
 'use server';
-import { authorizeLedger, baseCurrency, ledgerOf, validateLedgerChildren } from '@/lib/ledger';
+
+import {
+  ledgerActionFailure,
+  authorizeLedger,
+  baseCurrency,
+  ledgerOf,
+  validateLedgerChildrenBatch,
+} from '@/lib/ledger';
 
 import mongoose, { Types, type PipelineStage } from 'mongoose';
 import { roundMoney, normalizeShares, moneyTotal } from '@/lib/money';
@@ -253,7 +260,7 @@ export const getLedgerStats = withAuth(
         new Set(['TWD', ...userTrips.map((t) => baseCurrency(t))])
       ).sort();
       const selectedTrips = userTrips.filter((t) => baseCurrency(t) === currency);
-      for (const trip of selectedTrips) await validateLedgerChildren(mongoose.connection.db!, trip);
+      await validateLedgerChildrenBatch(mongoose.connection.db!, selectedTrips);
       const tripIds = selectedTrips.map((t) => t._id);
 
       // 查詢區間（分類統計依支出 date）
@@ -331,6 +338,8 @@ export const getLedgerStats = withAuth(
         },
       };
     } catch (error) {
+      const failure = ledgerActionFailure(error);
+      if (failure) return failure;
       logger.error('Get stats error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
@@ -387,7 +396,7 @@ export const getLedgerStatsExpensePage = withAuth(
       if (!isSupportedCurrency(currency))
         return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
       const selectedTrips = userTrips.filter((t) => baseCurrency(t) === currency);
-      for (const trip of selectedTrips) await validateLedgerChildren(mongoose.connection.db!, trip);
+      await validateLedgerChildrenBatch(mongoose.connection.db!, selectedTrips);
       const allowedTripIds = selectedTrips.map((trip) => trip._id);
       if (
         (filters.tripId && !Types.ObjectId.isValid(filters.tripId)) ||
@@ -497,6 +506,8 @@ export const getLedgerStatsExpensePage = withAuth(
         },
       };
     } catch (error) {
+      const failure = ledgerActionFailure(error);
+      if (failure) return failure;
       logger.error('Get stats expense page error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
@@ -549,6 +560,8 @@ export const getLedgerTripStats = withAuth(
         },
       };
     } catch (error) {
+      const failure = ledgerActionFailure(error);
+      if (failure) return failure;
       logger.error('Get trip stats error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }

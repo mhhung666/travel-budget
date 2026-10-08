@@ -1,4 +1,6 @@
 'use server';
+
+import { ledgerActionFailure } from '@/lib/ledger';
 import { getTripMembership } from '@/lib/permissions';
 import { readWebPaymentContext } from '@/lib/paymentWrite';
 import { getEnv } from '@/lib/env';
@@ -22,6 +24,8 @@ export const getLedgerSettlement = withAuth(
         ),
       };
     } catch (error) {
+      const failure = ledgerActionFailure(error);
+      if (failure) return failure;
       logger.error('Get settlement error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }

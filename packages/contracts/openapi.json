@@ -13021,7 +13021,10 @@
               },
               "code": {
                 "type": "string",
-                "const": "LEDGER_CURRENCY_MISMATCH"
+                "enum": [
+                  "LEDGER_CURRENCY_MISMATCH",
+                  "VALIDATION_ERROR"
+                ]
               },
               "ledger": {
                 "type": "object",

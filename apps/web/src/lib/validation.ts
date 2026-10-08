@@ -41,8 +41,8 @@ export const locationSchema = z.object({
   name: z.string(),
   names: z.record(z.string(), z.string()).optional(),
   display_name: z.string(),
-  lat: z.number(),
-  lon: z.number(),
+  lat: z.number().min(-90).max(90),
+  lon: z.number().min(-180).max(180),
   country: z.string().optional(),
   country_code: z.string().optional(),
 });

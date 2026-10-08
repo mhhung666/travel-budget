@@ -20,7 +20,7 @@ import {
   type UpdateExpenseInput,
 } from '@/lib/validation';
 import { withAuth as legacyAuth, withLedgerAuth as withAuth, withLegacyTripRead } from './withAuth';
-import { isLedgerV2, withLedgerV2, parseLedgerInput, LedgerError } from '@/lib/ledger';
+import { isLedgerV2, withLedgerV2, parseLedgerInput, ledgerActionFailure } from '@/lib/ledger';
 import type { ActionResult } from './types';
 import type { Expense as ExpenseDto } from '@/types';
 import { logger } from '@/lib/logger';
@@ -36,19 +36,14 @@ type LeanExpense = ExpenseDtoInput & { date: Date };
 export const getLedgerExpenses = withAuth(
   async (session, tripIdOrCode: string): Promise<ActionResult<ExpenseDto[]>> => {
     try {
-      const membership = await getTripMembership(session.userId, tripIdOrCode);
-      if (!membership) {
-        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
-      }
-
-      const { tripId } = membership;
+      const parent = await getMemberTrip(session.userId, tripIdOrCode, 'members baseCurrency');
+      if (!parent) return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+      const { tripId } = parent.membership;
 
       // splits 已內嵌，payer 與 splits.user 一次 populate，徹底消除原本的 N+1
       const expenses = await Expense.find({ trip: tripId })
         .sort({ date: -1, createdAt: -1 })
         .lean<LeanExpense[]>();
-      const parent = await getMemberTrip(session.userId, tripId, 'members baseCurrency');
-      if (!parent) return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
       // Capture raw identities before populate replaces a historical missing user with null.
       const revisions = new Map(
         expenses.map((e) => [
@@ -66,6 +61,8 @@ export const getLedgerExpenses = withAuth(
       }));
       return { success: true, data };
     } catch (error) {
+      const failure = ledgerActionFailure(error);
+      if (failure) return failure;
       logger.error('Get expenses error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
@@ -87,6 +84,8 @@ export const getExpenseTags = withAuth(
         data: tags.filter((tag): tag is string => typeof tag === 'string' && tag.length > 0).sort(),
       };
     } catch (error) {
+      const failure = ledgerActionFailure(error);
+      if (failure) return failure;
       logger.error('Get expense tags error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
@@ -142,6 +141,8 @@ export const createExpense = legacyAuth(
       }
       return { success: true, data: created.data };
     } catch (error) {
+      const failure = ledgerActionFailure(error);
+      if (failure) return failure;
       if (error instanceof RetiredBlobError)
         return { success: false, error: error.code, code: error.code };
       if (error instanceof TripWriteError)
@@ -187,6 +188,8 @@ export const updateExpense = legacyAuth(
       }
       return result;
     } catch (error) {
+      const failure = ledgerActionFailure(error);
+      if (failure) return failure;
       logger.error('updateExpense adapter error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
@@ -215,6 +218,8 @@ export const deleteExpense = legacyAuth(
       }
       return result;
     } catch (error) {
+      const failure = ledgerActionFailure(error);
+      if (failure) return failure;
       logger.error('deleteExpense adapter error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
@@ -239,6 +244,8 @@ export const getReceiptUrl = withAuth(
       const url = await presignGet('receipts', key);
       return { success: true, data: { url } };
     } catch (error) {
+      const failure = ledgerActionFailure(error);
+      if (failure) return failure;
       logger.error('getReceiptUrl error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
@@ -285,9 +292,11 @@ export const lookupExpenseCreation = legacyAuth(
           })) ?? null,
       };
     } catch (error) {
+      const failure = ledgerActionFailure(error);
+      if (failure) return failure;
       if (error instanceof z.ZodError)
         return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
-      if (error instanceof LedgerError)
+      if (error instanceof TripWriteError)
         return { success: false, error: error.code, code: error.code };
       logger.error('lookupExpenseCreation error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };

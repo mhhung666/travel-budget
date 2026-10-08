@@ -1,6 +1,7 @@
 import type { mongo } from 'mongoose';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { z } from 'zod';
+import { MoneyTotalError } from './money';
 import * as contracts from '@travel-budget/contracts';
 import { isSupportedCurrency, getAllCurrencyCodes } from '@/constants/currencies';
 
@@ -16,6 +17,18 @@ export class LedgerError extends Error {
   ) {
     super(code);
   }
+}
+/** Share terminal accounting error mapping between wrappers and action-local catches. */
+export function ledgerActionFailure(error: unknown) {
+  if (error instanceof LedgerError)
+    return { success: false as const, error: error.code, code: error.code };
+  if (error instanceof MoneyTotalError)
+    return {
+      success: false as const,
+      error: 'MONEY_TOTAL_OUT_OF_RANGE',
+      code: 'MONEY_TOTAL_OUT_OF_RANGE' as const,
+    };
+  return undefined;
 }
 /** Server-owned request context, never selected by a client header. Shared services also default to v1. */
 const requests = new AsyncLocalStorage<{
@@ -135,21 +148,44 @@ export function ledgerOutput<T extends object>(
 export const ledgerRevision = (value: unknown) =>
   isLedgerV2() ? { contractVersion: 2, ledger: currentLedger(), value } : value;
 
-export async function validateLedgerChildren(
+type LedgerParent = {
+  _id: mongo.ObjectId;
+  baseCurrency?: unknown;
+  members?: { budget?: object | null }[];
+};
+/** Two indexed child probes per batch, independent of the number of trips. */
+export async function validateLedgerChildrenBatch(
   db: mongo.Db,
-  trip: { _id: mongo.ObjectId; baseCurrency?: unknown; members?: { budget?: object | null }[] },
+  trips: LedgerParent[],
   session?: mongo.ClientSession
 ) {
-  const currency = baseCurrency(trip);
-  for (const collection of ['expenses', 'payments']) {
-    const invalidUnit =
-      currency === 'TWD'
-        ? { $nor: [{ baseCurrency: 'TWD' }, { baseCurrency: { $exists: false } }] }
-        : { baseCurrency: { $ne: currency } };
-    const invalid = await db
-      .collection(collection)
-      .findOne({ trip: trip._id, ...invalidUnit }, { session, projection: { _id: 1 } });
-    if (invalid) throw new LedgerError('LEDGER_DATA_INVALID');
+  const groups = new Map<string, mongo.ObjectId[]>();
+  for (const trip of trips) {
+    const currency = baseCurrency(trip);
+    for (const member of trip.members ?? []) if (member.budget) assertUnit(member.budget, currency);
+    const ids = groups.get(currency) ?? [];
+    ids.push(trip._id);
+    groups.set(currency, ids);
   }
-  for (const member of trip.members ?? []) if (member.budget) assertUnit(member.budget, currency);
+  if (!groups.size) return;
+  const invalid = [...groups].map(([currency, ids]) => ({
+    trip: { $in: ids },
+    ...(currency === 'TWD'
+      ? { $nor: [{ baseCurrency: 'TWD' }, { baseCurrency: { $exists: false } }] }
+      : { baseCurrency: { $ne: currency } }),
+  }));
+  // MongoDB sessions do not support concurrent operations within a transaction.
+  for (const collection of ['expenses', 'payments']) {
+    if (
+      await db.collection(collection).findOne({ $or: invalid }, { session, projection: { _id: 1 } })
+    )
+      throw new LedgerError('LEDGER_DATA_INVALID');
+  }
+}
+export async function validateLedgerChildren(
+  db: mongo.Db,
+  trip: LedgerParent,
+  session?: mongo.ClientSession
+) {
+  return validateLedgerChildrenBatch(db, [trip], session);
 }

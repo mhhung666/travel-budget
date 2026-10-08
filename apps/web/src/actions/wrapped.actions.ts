@@ -1,7 +1,9 @@
 'use server';
 
+import { ledgerActionFailure } from '@/lib/ledger';
+
 import mongoose, { Types } from 'mongoose';
-import { baseCurrency, validateLedgerChildren } from '@/lib/ledger';
+import { baseCurrency, validateLedgerChildrenBatch } from '@/lib/ledger';
 import type { Ledger } from '@travel-budget/contracts';
 import { dbConnect } from '@/lib/mongodb';
 import { Trip, Expense, ItineraryDay, FlightRecord, StayRecord } from '@/models';
@@ -28,7 +30,10 @@ export interface YearInReviewResult {
   monetaryGroups?: { ledger: Ledger; review: YearInReviewData }[];
 }
 
-type LeanMember = { user?: { _id: Types.ObjectId; isVirtual?: boolean } | null };
+type LeanMember = {
+  budget?: object | null;
+  user?: { _id: Types.ObjectId; isVirtual?: boolean } | null;
+};
 type LeanTrip = {
   _id: Types.ObjectId;
   baseCurrency?: string;
@@ -70,8 +75,8 @@ export const getLedgerYearInReview = withAuth(
         .populate('members.user', 'isVirtual')
         .lean<LeanTrip[]>();
 
-      for (const trip of trips)
-        await validateLedgerChildren(mongoose.connection.db!, { ...trip, members: [] });
+      // Apply the same ledger integrity boundary as stats, including all roster budgets.
+      await validateLedgerChildrenBatch(mongoose.connection.db!, trips);
       const tripIds = trips.map((t) => t._id);
       const hasTrips = tripIds.length > 0;
 
@@ -178,6 +183,8 @@ export const getLedgerYearInReview = withAuth(
         }));
       return { success: true, data: { review, availableYears, monetaryGroups } };
     } catch (error) {
+      const failure = ledgerActionFailure(error);
+      if (failure) return failure;
       logger.error('Get year in review error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }

@@ -26,6 +26,8 @@ Server Actions 與 HTTP API 是兩個呼叫入口，部署初期同在現有 Nex
 
 SQLite schema 9 以同一交易在 C／E envelope 加 api_version、base_currency、money_scale；舊列外標 v1／TWD／2，不改 frozen JSON、UUID、順序、denied 或 429。新草稿 raw JSON 保存 ledger／apiVersion，catalog 保存帶 ledger 的選項；舊 raw JSON 不重寫，只能按 TWD 續填，續填與目前選項單位不同時保留並阻擋確認。新 C／E 保存 v2 body 與來源單位；加入前未知基準的 E envelope 以 null 保留未知，查回原 receipt 才取得單位，不預設為 TWD，恢復查原 endpoint、原 UUID，不能跟隨新設定重建 body。C 新版重試先查 receipt，錯誤或不同單位不清紀錄；已損壞的 pending 解析阻擋，不再略過讓新 UUID 可送。
 
+v2 C 的業務驗證拒絕由後端交易保存 receipt，含 `VALIDATION_ERROR`；原 UUID 補查取得終局後，SQLite 原子解除 pending 並恢復 handed-off 草稿的原始輸入／新 revision，使用者重讀名冊及重新預覽後才能新確認。重啟只查詢；一般 400、`not_found` 或補查失敗仍保留原 UUID，不猜測未提交，也不直接換 UUID 解除阻塞。
+
 D queued／prepared 延續 v1 的 TWD／匯率 1／均分；非 TWD 帳本與外幣只能保存草稿，入列／prepare／同步各自檢查。非 TWD 建立依後端 capabilities 顯示選擇，後端開關目前仍關閉。iPhone＋iPad 操作由他人驗收，Android 僅保留工程相容；B4 未完成，完整裝置與閱讀器不在此結案。
 
 ## 目錄與依賴

@@ -9,6 +9,7 @@
 - `/api/v2/capabilities` 回傳支援幣別及建立開關；`ENABLE_NON_TWD_LEDGER` 預設關閉，只有字串 `true` 啟用新非 TWD 建立。關閉不影響既有非 TWD 帳務與恢復。此旗標未加入遠端設定；B4 獨立驗收通過後另依使用者指示開放。
 - `/api/v2/trips/:id/exchange-rates` 從既有 TWD-per-unit 日快照推導原幣／基準匯率，跨外幣日期需相同。缺資料列入 `unavailable`，不補匯率；供應商故障回 503，可繼續手動輸入。
 - v1 列表先排除非 TWD 再分頁／計算，旅行深連結、名冊、邀請與帳務操作在授權後回 `409 CLIENT_UPGRADE_REQUIRED`；加入在新增成員前阻擋。舊 Web 帳務 action 身分／公開 URL 同樣阻擋非 TWD，舊統計只讀 TWD；B2 新身分／公開 v2 路徑可讀寫實際帳本。
+- v2 新增支出的合法凍結請求在業務驗證被拒時（如預覽後付款／分攤成員退出、加總不符），於父旅行交易內保存 `VALIDATION_ERROR` 終局 receipt，查詢回 `rejected` 及實際 ledger；單位不符仍為 `LEDGER_CURRENCY_MISMATCH`。先核對已有 receipt，原 UUID 重播保留原終局，不因成員重新加入而改寫；已提交結果不受後續名冊／附件變動影響。schema／身分拒絕與未知 DB／儲存錯誤不冒充可確認的業務終局，客戶端不能憑任意 400 清除未知操作。舊 v1 行為不變。
 - C receipt 維持 `trip:actor:原 UUID 拼法`，E／旅行維持 `actor:小寫 UUID`，不另建新版 namespace。v1 指紋／終局 DTO 原樣保留；新 v2 金額指紋含版本與輸入單位，receipt／revision 保存實際單位，非金額操作以版本、旅行參照與 receipt 單位識別。跨版本原 UUID 回 409，不寫第二筆；錯誤基準保存終局 rejection，不能換 UUID 重做已確認操作。
 - `lib/ledger.ts` 的 AsyncLocalStorage 僅由 v2 伺服器 adapter 啟用，不接受 header 選擇契約。交易取得 parent fence、核對成員與單位後才寫；共用計算保留原分角／尾差規則，`computeSplits.twd` 暫留為舊用戶端相容名稱，`computeLedgerSplits` 提供中性結果。個人預算 setter 只更新 actor，與既有 Web 共用 parent 交易，HTTP／Mobile 預算介面留 G4。
 

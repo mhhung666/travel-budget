@@ -804,7 +804,7 @@ export const expenseRequestV2Schema = z.discriminatedUnion('status', [
   z.object({ status: z.literal('committed'), expense: expenseDetailV2Schema }),
   z.object({
     status: z.literal('rejected'),
-    code: z.literal('LEDGER_CURRENCY_MISMATCH'),
+    code: z.enum(['LEDGER_CURRENCY_MISMATCH', 'VALIDATION_ERROR']),
     ledger: ledgerSchema,
   }),
 ]);

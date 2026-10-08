@@ -863,3 +863,33 @@ describe('expense creation lookup validation', () => {
     }
   );
 });
+
+it.each([1, 2])(
+  'returns CONFLICT for a v%s lookup with a changed body under the original UUID',
+  async (version) => {
+    const lookup = version === 2 ? lookupLedgerExpenseCreation : lookupExpenseCreation;
+    const body = {
+      ...validInput,
+      client_request_id: crypto.randomUUID(),
+      ...(version === 2 ? { base_currency: 'TWD' } : {}),
+    };
+    const { authorizeLedger } = await import('@/lib/ledger');
+    getTripMembership.mockImplementationOnce(async () => {
+      authorizeLedger({});
+      return { tripId: TRIP, role: 'member' };
+    });
+    receiptFind.mockResolvedValueOnce({
+      _id: `${TRIP}:${USER}:${body.client_request_id}`,
+      fingerprint: 'different',
+      ...(version === 2
+        ? { contractVersion: 2, ledger: { baseCurrency: 'TWD', moneyScale: 2 } }
+        : {}),
+      terminal: { status: 'committed' },
+    });
+    expect(await lookup(TRIP, body)).toEqual({
+      success: false,
+      error: 'CONFLICT',
+      code: 'CONFLICT',
+    });
+  }
+);

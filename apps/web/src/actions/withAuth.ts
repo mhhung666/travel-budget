@@ -1,7 +1,6 @@
-import { withLedgerV2, LedgerError } from '@/lib/ledger';
+import { withLedgerV2, LedgerError, ledgerActionFailure } from '@/lib/ledger';
 import { getSession, type SessionPayload } from '@/lib/auth';
 import { ErrorCodes, type ActionResult, type ErrorCode } from './types';
-import { MoneyTotalError } from '@/lib/money';
 import { z } from 'zod';
 import { getTripMembership } from '@/lib/permissions';
 
@@ -38,14 +37,8 @@ export function withLedgerAuth<TArgs extends unknown[], TResult>(
         try {
           return await fn(session, ...args);
         } catch (error) {
-          if (error instanceof LedgerError)
-            return { success: false, error: error.code, code: error.code };
-          if (error instanceof MoneyTotalError)
-            return {
-              success: false,
-              error: 'MONEY_TOTAL_OUT_OF_RANGE',
-              code: 'MONEY_TOTAL_OUT_OF_RANGE',
-            };
+          const failure = ledgerActionFailure(error);
+          if (failure) return failure;
           if (error instanceof z.ZodError)
             return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
           const code = (error as { code?: unknown })?.code;

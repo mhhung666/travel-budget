@@ -1,6 +1,9 @@
 'use client';
 
-import { getTripReferenceRates } from '@/actions/ledger.actions';
+import { referenceRatesSchema } from '@travel-budget/contracts';
+import { rebaseReferenceRates } from '@/lib/referenceRateMath';
+import { getAllCurrencyCodes } from '@/constants/currencies';
+import { ROUTES } from '@/constants/routes';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { roundMoney } from '@/lib/money';
@@ -146,18 +149,13 @@ export function useExpenseForm({
     setLoadingRates(true);
     setRatesError('');
     try {
-      const result = await getTripReferenceRates(tripId);
-      if (result.success) {
-        const data = result.data;
-        if (data.ledger.baseCurrency !== baseCurrency) throw new Error('LEDGER_CURRENCY_MISMATCH');
-        setRateDates(data.dates);
-        setExchangeRates(data.rates);
-        return data.rates;
-      }
-      setRatesError(tExpense('error.ratesLoadFailed'));
-      setExchangeRates({});
-      setRateDates({});
-      return null;
+      const response = await fetch(ROUTES.API.EXCHANGE_RATES);
+      if (!response.ok) throw new Error('rates unavailable');
+      const snapshot = referenceRatesSchema.parse(await response.json());
+      const data = rebaseReferenceRates(snapshot, baseCurrency, getAllCurrencyCodes());
+      setRateDates(data.dates);
+      setExchangeRates(data.rates);
+      return data.rates;
     } catch {
       setExchangeRates({});
       setRateDates({});

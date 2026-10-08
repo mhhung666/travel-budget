@@ -1939,6 +1939,8 @@
     "wait": "The server requested a pause. Check the original operation after the waiting period.",
     "storageInvalid": "Confirmed operation storage could not be read. Keep browser data and repair storage before recovery.",
     "writeUnknown": "The result is unconfirmed. Keep this record and check the original operation later.",
+    "writeRejected": "This operation was rejected. Reload the data, make corrections, and confirm again.",
+    "RESOURCE_GONE": "This record was deleted. Reload the trip.",
     "RESOURCE_CHANGED": "Someone changed this record. Reload and confirm again.",
     "SETTLEMENT_CHANGED": "Settlement changed. Reload and confirm again.",
     "LEDGER_CURRENCY_MISMATCH": "Ledger currencies differ. Reload the trip.",

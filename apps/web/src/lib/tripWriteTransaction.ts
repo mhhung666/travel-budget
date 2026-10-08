@@ -56,3 +56,31 @@ export async function withTripWriteInDatabase<T>(
     )
   );
 }
+
+/** Membership and financial context from one consistent snapshot, without a write fence. */
+export async function withTripReadInDatabase<T>(
+  db: mongo.Db,
+  tripId: string,
+  actorId: string,
+  read: (session: mongo.ClientSession) => Promise<T>
+): Promise<T> {
+  return db.client.withSession((session) =>
+    session.withTransaction(
+      async () => {
+        const parent = await db.collection('trips').findOne(
+          {
+            _id: new mongo.ObjectId(tripId),
+            'members.user': new mongo.ObjectId(actorId),
+            expenseDeliveryDeleting: { $ne: true },
+          },
+          { session }
+        );
+        if (!parent) throw new TripWriteError('FORBIDDEN');
+        authorizeLedger(parent);
+        if (isLedgerV2()) await validateLedgerChildren(db, parent, session);
+        return read(session);
+      },
+      { readConcern: { level: 'snapshot' }, readPreference: 'primary', timeoutMS: 20_000 }
+    )
+  );
+}

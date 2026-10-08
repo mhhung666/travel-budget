@@ -241,3 +241,79 @@ it('heals an E reservation left after a durable terminal without expiring a pend
   await confirmWebWrite(client(), request());
   expect(h.write).toHaveBeenCalledTimes(2);
 });
+
+it.each([
+  'INVITATION_INVALID',
+  'FEATURE_NOT_AVAILABLE',
+  'RESOURCE_CHANGED',
+  'RESOURCE_GONE',
+  'SETTLEMENT_CHANGED',
+  'LEDGER_CURRENCY_MISMATCH',
+  'NOT_FOUND',
+  'VALIDATION_ERROR',
+  'FORBIDDEN',
+  'CONFLICT',
+  'IDEMPOTENCY_CONFLICT',
+])(
+  'retires an explicit %s write refusal across reload and releases the trip reservation',
+  async (code) => {
+    const c = client(),
+      r = request();
+    h.write.mockResolvedValueOnce({ success: false, error: 'localized refusal', code });
+    await expect(confirmWebWrite(c, r)).rejects.toThrow('localized refusal');
+    const reloaded = client();
+    const entry = (await readConfirmedWebWrites(reloaded))[r.body.client_request_id];
+    expect(entry.status).toBe('rejected');
+    await expect(resumeConfirmedWebWrite(reloaded, entry)).rejects.toThrow('localized refusal');
+    await confirmWebWrite(reloaded, request());
+    expect(h.write).toHaveBeenCalledTimes(2);
+  }
+);
+it('permits correcting an invalid invitation with a fresh confirmed UUID', async () => {
+  const c = client();
+  const join = (invite_code: string): ConfirmedWebWrite => ({
+    operation: 'trip.join',
+    body: { client_request_id: crypto.randomUUID(), invite_code },
+  });
+  h.write.mockResolvedValueOnce({
+    success: false,
+    error: 'INVITATION_INVALID',
+    code: 'INVITATION_INVALID',
+  });
+  await expect(confirmWebWrite(c, join('badcode1'))).rejects.toThrow('INVITATION_INVALID');
+  await confirmWebWrite(client(), join('goodcode'));
+  expect(h.write).toHaveBeenCalledTimes(2);
+});
+it('never retires an ambiguous write merely because its receipt lookup is denied', async () => {
+  const c = client(),
+    r = request();
+  h.write.mockRejectedValueOnce(new TypeError('lost response'));
+  await expect(confirmWebWrite(c, r)).rejects.toThrow();
+  h.lookup.mockResolvedValueOnce({ success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' });
+  await expect(
+    resumeConfirmedWebWrite(c, (await readConfirmedWebWrites(c))[r.body.client_request_id])
+  ).rejects.toThrow('FORBIDDEN');
+  expect((await readConfirmedWebWrites(c))[r.body.client_request_id].status).toBe('pending');
+  expect(h.write).toHaveBeenCalledOnce();
+});
+it('keeps an explicit refusal pending if saving its terminal fails, then recovers with the same UUID', async () => {
+  const c = client(),
+    r = request();
+  h.write.mockImplementationOnce(async () => {
+    h.save.mockRejectedValueOnce(new Error('quota'));
+    return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
+  });
+  await expect(confirmWebWrite(c, r)).rejects.toThrow('quota');
+  const entry = (await readConfirmedWebWrites(c))[r.body.client_request_id];
+  expect(entry.status).toBe('pending');
+  h.write.mockResolvedValueOnce({
+    success: false,
+    error: 'VALIDATION_ERROR',
+    code: 'VALIDATION_ERROR',
+  });
+  await expect(resumeConfirmedWebWrite(client(), entry)).rejects.toThrow('VALIDATION_ERROR');
+  expect(h.lookup).toHaveBeenLastCalledWith(r.body.client_request_id);
+  expect((await readConfirmedWebWrites(client()))[r.body.client_request_id].status).toBe(
+    'rejected'
+  );
+});

@@ -37,7 +37,7 @@ Next.js App Router 與 React 組成介面，TanStack Query 負責查詢、重新
 - JWT 搭配 httpOnly cookie 驗證身分。每個旅程操作自行檢查成員與角色；Server Actions 回傳 `ActionResult<T>`，輸入由 Zod 驗證。
 - 公開分享採獨立資料邊界：不輸出私人預算、收據或成員限定筆記；公開相簿不輸出位置、EXIF 或內部 key。
 - 行程與跨資料集合的寫入使用交易及衝突檢查，需要支援交易的 MongoDB replica set 或 sharded cluster。刪除相關資料須明確處理，外部檔案清理由持久化工作補送。
-- AI 只產生可編輯草稿，使用者確認後才走既有寫入流程；行程匯入限 admin，支出草稿限成員。三種 AI 入口共用每日使用量及成本限制；模型設定、格式相容性與正規化入口見 [AI 維護與測試](AI.md)。
+- AI 只產生可編輯草稿，使用者確認後才走既有寫入流程；行程匯入限 admin，支出草稿限成員。支出文字／收據草稿入口由伺服器啟用 v2 帳本授權，支援既有非 TWD 旅行，仍先核對成員與收據 key 歸屬、不寫帳務；三種 AI 入口共用每日使用量及成本限制；模型設定、格式相容性與正規化入口見 [AI 維護與測試](AI.md)。
 - Service worker 快取頁面與資源；查詢快取及離線新增支出保存於 IndexedDB。不可快取 Server Action POST 或 API 寫入；改變持久化快取格式時須更新 `PERSIST_BUSTER`。
 - 新增介面字串須補齊四語。路由不帶語系前綴，路徑使用 [routes.ts](../src/constants/routes.ts) 的 builder。
 - PWA 需以 `pnpm build`（webpack）及 `pnpm start` 驗證；開發模式不啟用 service worker。
@@ -46,13 +46,13 @@ Next.js App Router 與 React 組成介面，TanStack Query 負責查詢、重新
 
 ## B2 Web 帳本與恢復
 
-旅程頁首、支出／四種分攤、本人預算、結算與部分還款均使用回應的 `ledger.baseCurrency`，包含 JPY 在內一律保留兩位帳本小數。匯率是每一單位原幣換得多少基準幣；原幣等於基準時固定 1。參考匯率共用後端日快照，跨外幣日期不同或缺值不推導。一般成員可記帳／代記還款與設定本人預算；幣別設定只供管理員修改，不能改建立時固定的基準。只修改支出說明／分類／日期時保留原額、原幣、完整匯率、分攤及附件／標籤／行程關聯。
+旅程頁首、支出／四種分攤、本人預算、結算與部分還款均使用回應的 `ledger.baseCurrency`，包含 JPY 在內一律保留兩位帳本小數。匯率是每一單位原幣換得多少基準幣；原幣等於基準時固定 1。參考匯率共用後端日快照，Web 表單以 GET `/api/exchange-rates` 取得可由 SW 快取的公開快照，再復用共用純函式換算基準；日期不同或缺值不推導，快取保留公布日期，缺離線快取時顯示失敗。一般成員可記帳／代記還款與設定本人預算；幣別設定只供管理員修改，不能改建立時固定的基準。只修改支出說明／分類／日期時保留原額、原幣、完整匯率、分攤及附件／標籤／行程關聯。
 
-跨旅行統計、金額排序／分頁及年度回顧按帳本幣別分組，不加總混合幣別。CSV／Markdown 欄位明示基準及原幣／匯率，JSON 支出匯出使用 `{ version: 2, ledger, expenses }`，空匯出也保留單位；結算輸出帶單位。年度回顧 PNG 依目前選取幣別輸出。既有 PDF 是行程閱讀器，沒有帳務金額，不新增帳務 PDF。結算與旅行統計首版只顯示基準，不換算成第三種幣別。
+跨旅行統計、金額排序／分頁及年度回顧按帳本幣別分組，不加總混合幣別。旅行列表、跨旅行統計與年度回顧的子文件單位驗證按幣別批次查詢，每批固定兩次索引探查，仍逐一核對成員預算；年度回顧也檢查所有目前名冊成員的預算，任一單位與旅程基準不符便拒絕整頁帳務讀取，與 stats 相同。讀取 action 保留 LEDGER_DATA_INVALID 等帳本錯誤碼，不轉為可重試的 INTERNAL_ERROR。CSV／Markdown 欄位明示基準及原幣／匯率，JSON 支出匯出使用 `{ version: 2, ledger, expenses }`，空匯出也保留單位；結算輸出帶單位。年度回顧 PNG 依目前選取幣別輸出。既有 PDF 是行程閱讀器，沒有帳務金額，不新增帳務 PDF。結算與旅行統計首版只顯示基準，不換算成第三種幣別。
 
 新版畫面透過明確的 `getLedger*` Server Action 身分及 `/api/public/v2/trips/:code/*` 分享 adapter；舊 Server Action／公開路徑維持 TWD，非 TWD 深連結回 `CLIENT_UPGRADE_REQUIRED`（公開 HTTP 409），舊列表排除非 TWD。v1／v2 共用服務及資料庫，不接受 header 切換單位。新版公開財務讀取使用唯一 URL 與 no-store，避免舊 service worker 回傳 TWD 快取；公開輸出仍不含私人預算、收據 key 或私人 revision。
 
-建立／加入、修改／刪除支出、登記／撤銷還款及預算／幣別設定先將固定 UUID、原 body、版本、單位及 revision 存入帳號／環境隔離的 IndexedDB，才查詢原 receipt；只有 `not_found` 重送相同操作。不明結果保留，透過全域恢復提示補查，不換 UUID 或讓使用者捨棄。終局衝突重讀後須再次確認；支出、設定與結算各有 HMAC revision。修改／刪除活動與 receipt 同交易，重播不增加紀錄。設定使用同一 `actor:UUID` receipt 唯一 namespace，其 Web 專用 operation 為 `budget.set`／`currency.set`。
+建立／加入、修改／刪除支出、登記／撤銷還款及預算／幣別設定先將固定 UUID、原 body、版本、單位及 revision 存入帳號／環境隔離的 IndexedDB，才查詢原 receipt；只有 `not_found` 重送相同操作。不明結果保留，透過全域恢復提示補查，不換 UUID 或讓使用者捨棄。明確的寫入拒絕（包含服務驗證前拒絕）先將 journal 終局保存為 rejected，再解除旅行保留，允許使用者修正並重新確認。手動恢復被拒時，保留四語說明直到使用者關閉提示；關閉不刪除 journal，結果不明仍可補查。receipt 補查的拒絕不能推斷原寫入失敗。C 新增只呼叫一次寫入 action，由服務先查原 receipt，再於交易內核對，避免瀏覽器重複補查。終局衝突重讀後須再次確認；支出、設定與結算各有 HMAC revision。修改／刪除活動與 receipt 同交易，重播不增加紀錄。設定使用同一 `actor:UUID` receipt 唯一 namespace，其 Web 專用 operation 為 `budget.set`／`currency.set`。
 
 同旅行的 Web C 支出佇列與新版操作共用原子寫入保留紀錄；結果未知不自動到期，只在終局落盤後釋放；若頁面在落盤與釋放之間關閉，下一筆操作依相同 UUID 的已保存終局解除保留。伺服器要求的等待期限按帳號保存，receipt 補查／C 送出也遵守；保存期限失敗仍保留記憶體期限。登出停止目前世代，原 UUID 與終局歷史保留給原帳號，以便恢復並解除中斷的保留紀錄。query cache 的 `PERSIST_BUSTER` 更新為帳本版，C outbox 在淘汰舊讀取快取前恢復；舊 C body／UUID 仍走原契約。雙分頁留下較舊讀取快取時，使用其後已保存且同單位的提交基線恢復摘要；較新的快取不被舊基線覆蓋。
 
@@ -64,7 +64,7 @@ Next.js App Router 與 React 組成介面，TanStack Query 負責查詢、重新
 
 `src/app/api/v1` 是原生用戶端入口，`src/lib/mobile` 管理獨立 bearer session、錯誤 envelope 與 DTO 組裝；輸入與回應 schema 由 `@travel-budget/contracts` 匯入。`credentials.ts`、`tripListRead.ts` 同時供 Web Server Actions 與手機呼叫；摘要重用成員權限及 `tripShellRead`／`tripListSummary`。支出清單／明細（`lib/mobile/expenses.ts`）重用 `toExpenseDto` 與 `Expense` 索引，結算（`lib/mobile/settlement.ts`）重用 `readSettlementDetail`（`readSettlement` 的成員 id 版本，原回傳不變）；兩者先經 `lib/mobile/access.ts` 驗證成員 ObjectId，再讀資料。手機簽章與 Web cookie 隔離，MongoDB 儲存 refresh 雜湊與撤銷狀態。詳細安全邊界及 OpenAPI 見 [手機 API](MOBILE_API.md)。
 
-新增支出只有一個寫入服務：`lib/expenseCreate.ts#createExpenseForActor` 接受已授權的旅行與操作者及 `createExpenseSchema` 的輸出，內含 `withTripWrite` 交易、成員／分攤／金額驗證、收據驗證、與支出同交易提交的冪等 receipt（`expenseCreateRequest.ts`）及通知／outbox 副作用，且不 import `next/*`。Web Server Action（`expense.actions.ts#createExpense`，cookie）與手機 HTTP（`lib/mobile/expenseWrite.ts`，bearer）是它的兩個 adapter：各自驗證登入、解析旅行與輸入、處理自己的快取／排程並對照錯誤碼。成員順序（`lib/mobile/expenseOptions.ts`）與 Web 成員清單相同，均分預覽重用 `computeSplits`，手機不複製金額演算法。
+新增支出只有一個寫入服務：`lib/expenseCreate.ts#createExpenseForActor` 接受已授權的旅行與操作者及 `createExpenseSchema` 的輸出，內含 `withTripWrite` 交易、成員／分攤／金額驗證、收據驗證、與支出同交易提交的冪等 receipt（`expenseCreateRequest.ts`）及通知／outbox 副作用；v2 合法請求的業務驗證拒絕也在 parent fence 交易內保存終局 receipt，已有提交／拒絕優先重播，未知故障仍回滾，不改 v1。且不 import `next/*`。Web Server Action（`expense.actions.ts#createExpense`，cookie）與手機 HTTP（`lib/mobile/expenseWrite.ts`，bearer）是它的兩個 adapter：各自驗證登入、解析旅行與輸入、處理自己的快取／排程並對照錯誤碼。成員順序（`lib/mobile/expenseOptions.ts`）與 Web 成員清單相同，均分預覽重用 `computeSplits`，手機不複製金額演算法。
 
 [packages/contracts/openapi.json](../../../packages/contracts/openapi.json) 是共用契約產物；在 repository 根目錄執行 `pnpm contracts:generate` 更新、`pnpm contracts:check` 檢查同步。Vercel 使用 Root Directory `apps/web`，啟用 outside-root source files 以建置共享契約；本目錄 `vercel.json` 保留既有 cron。
 
@@ -78,13 +78,13 @@ Next.js App Router 與 React 組成介面，TanStack Query 負責查詢、重新
 
 ## E3 支出維護服務
 
-Web update／delete action 抽成 `expenseMaintenance.ts` 的 actor service，保留進階欄位與附件驗證；Mobile adapter 使用同模組的嚴格 basic／equal 操作。`withTripWriteInDatabase` 與既有 writer 共用 parent fence／snapshot transaction，context 與 HMAC token 取自原始 BSON，前條件、expense／comment／retirement／活動及 E receipt 在交易內處理。對 body 不同的 UUID 衝突不覆蓋原結果；終局拒絕也同交易，receipt 讀取對其 tripId 重授權。
+Web update／delete action 抽成 `expenseMaintenance.ts` 的 actor service，保留進階欄位與附件驗證；Mobile adapter 使用同模組的嚴格 basic／equal 操作。`withTripWriteInDatabase` 與既有 writer 共用 parent fence／snapshot transaction，context 與 HMAC token 取自原始 BSON，前條件、expense／comment／retirement／活動及 E receipt 在交易內處理。對 body 不同的 UUID 衝突不覆蓋原結果；終局拒絕也同交易，receipt 讀取對其 tripId 重授權。Web v2 更新先核對既有 receipt，資源被刪除的新更新保存 RESOURCE_GONE；已提交重播不依賴資源或附件繼續存在。更新成功的 revision 從交易內實際保存的 BSON 計算，與下一次讀取一致。
 
 清理與快取在提交後，失敗不推翻已寫入／刪除；E receipt 與既有 C creation receipt 均不隨資源刪除移除。詳細契約見 [Mobile E3](../../mobile/docs/BACKEND_CONTRACT.md#e3-支出維護)。
 
 ## E4 共用還款服務
 
-`paymentWrite.ts` 抽離 Web cookie，Web／Mobile 共用金額到分、成員及 trip fence／snapshot 交易；`calculateSettlementDetail` 抽出原結算計算供兩種讀取使用。Mobile context 與 HMAC 在同一快照產生，payment／終局 receipt／一次活動及站內通知同交易；重播先重授權，不重做副作用，撤銷保留建立 receipt。提交後外部通知／快取失敗不推翻成功；Web 不再因 populate 失敗回報已提交為失敗。沿用既有索引與 schema，沒有新增 migration；完整 API 與邊界見 [E4](../../mobile/docs/BACKEND_CONTRACT.md#e4-登記與撤銷還款)。
+`paymentWrite.ts` 抽離 Web cookie，Web／Mobile 共用金額到分、成員及 trip fence／snapshot 交易；`calculateSettlementDetail` 抽出原結算計算供兩種讀取使用。Mobile context 與 HMAC 在同一快照產生，payment／終局 receipt／一次活動及站內通知同交易；重播先重授權，不重做副作用，撤銷保留建立 receipt。提交後外部通知／快取失敗不推翻成功；Web 不再因 populate 失敗回報已提交為失敗。結算及還款確認頁的讀取使用授權、子資料驗證與 HMAC 同一份只讀 snapshot，不遞增父旅行 fence；真正寫入仍使用原 fence 與最新 revision 核對。沿用既有索引與 schema，沒有新增 migration；完整 API 與邊界見 [E4](../../mobile/docs/BACKEND_CONTRACT.md#e4-登記與撤銷還款)。
 
 ## G1a 旅行管理
 

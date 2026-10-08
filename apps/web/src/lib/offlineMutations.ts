@@ -2,12 +2,7 @@ import { claimWebTripWrite } from './webWriteCoordination';
 import { saveWebCooldown, assertWebCooldown } from './confirmedWebWrites';
 import { replaceEqualDeep, type QueryClient } from '@tanstack/react-query';
 import { saveExpenseOutbox } from './expenseOutbox';
-import {
-  createExpense,
-  createLedgerExpense,
-  lookupExpenseCreation,
-  lookupLedgerExpenseCreation,
-} from '@/actions';
+import { createExpense, createLedgerExpense } from '@/actions';
 import type { ActionResult } from '@/actions';
 import type { CreateExpenseInput } from '@/lib/validation';
 import { tripKeys } from '@/hooks/queries/keys';
@@ -143,27 +138,19 @@ export async function executeExpenseCreate(
   } catch (error) {
     throw new RetryableExpenseError(error instanceof Error ? error.message : String(error));
   }
+  if (
+    !queryClient
+      .getMutationCache()
+      .getAll()
+      .some((m) => m.state.variables === vars)
+  )
+    throw new Error('Expense request was cleared');
   let result: ActionResult<Expense>;
   try {
-    const lookup = await (
-      vars.contractVersion === 2 ? lookupLedgerExpenseCreation : lookupExpenseCreation
-    )(vars.tripId, vars.input);
-    if (
-      !queryClient
-        .getMutationCache()
-        .getAll()
-        .some((m) => m.state.variables === vars)
-    )
-      throw new Error('Expense request was cleared');
-    result =
-      lookup.success && lookup.data
-        ? { success: true, data: lookup.data }
-        : !lookup.success
-          ? lookup
-          : await (vars.contractVersion === 2 ? createLedgerExpense : createExpense)(
-              vars.tripId,
-              vars.input
-            );
+    result = await (vars.contractVersion === 2 ? createLedgerExpense : createExpense)(
+      vars.tripId,
+      vars.input
+    );
   } catch (error) {
     throw new RetryableExpenseError(error instanceof Error ? error.message : String(error));
   }
