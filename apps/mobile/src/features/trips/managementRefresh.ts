@@ -23,7 +23,7 @@ export async function refreshManagedTrip(
   const beforeSend = () => {
     if (
       manager.getSignInVersion() !== version ||
-      manager.api.baseUrl !== scope.environment ||
+      manager.api.environment !== scope.environment ||
       manager.getSnapshot().status !== 'signedIn' ||
       manager.getSnapshot().user?.id !== scope.accountId
     )

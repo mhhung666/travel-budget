@@ -27,7 +27,7 @@ export async function expenseReadGuard(
       manager.getSignInVersion() !== version ||
       manager.getSnapshot().status !== 'signedIn' ||
       manager.getSnapshot().user?.id !== scope.accountId ||
-      manager.api.baseUrl !== scope.environment ||
+      manager.api.environment !== scope.environment ||
       !onlineManager.isOnline() ||
       AppState.currentState !== 'active'
     )

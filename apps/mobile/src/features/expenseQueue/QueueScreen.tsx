@@ -18,7 +18,7 @@ import type { QueuedExpense } from '@/storage/expenseQueue';
 
 export function QueueScreen() {
   const { manager, user, status } = useAuth();
-  return <ScopedQueueScreen key={JSON.stringify([manager.api.baseUrl, user?.id, status])} />;
+  return <ScopedQueueScreen key={JSON.stringify([manager.api.environment, user?.id, status])} />;
 }
 function ScopedQueueScreen() {
   const { queue, scope, records, syncFailed } = useExpenseQueue();
@@ -33,7 +33,7 @@ function ScopedQueueScreen() {
     !!scope &&
     manager.getSignInVersion() === version &&
     manager.getSnapshot().user?.id === scope.accountId &&
-    manager.api.baseUrl === scope.environment;
+    manager.api.environment === scope.environment;
   const visible = (r: QueuedExpense) => current() && queueRecordVisible(r, scope, catalog);
   const items = records.isError ? undefined : records.data?.filter(visible);
   const deadline = useRecoveryDeadline(

@@ -11,7 +11,7 @@ export default function EditRoute() {
   const { manager, user } = useAuth();
   return (
     <EditExpenseScreen
-      key={`${manager.api.baseUrl}:${user?.id}:${id}:${expenseId}:${remove}:${source}`}
+      key={`${manager.api.environment}:${user?.id}:${id}:${expenseId}:${remove}:${source}`}
       tripId={id}
       expenseId={expenseId}
       remove={remove === 'true'}

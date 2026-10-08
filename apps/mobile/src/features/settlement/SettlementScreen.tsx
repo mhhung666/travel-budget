@@ -225,7 +225,7 @@ export function SettlementScreen({ tripId }: { tripId: string }) {
   const p = usePalette();
   const { user, manager } = useAuth();
   const { catalog } = useDraftCatalog();
-  const scope = user ? { environment: manager.api.baseUrl, accountId: user.id } : null;
+  const scope = user ? { environment: manager.api.environment, accountId: user.id } : null;
   const online = useOnline();
   const query = useSettlement(tripId);
   const settlement = query.data;

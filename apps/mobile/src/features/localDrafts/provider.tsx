@@ -27,7 +27,7 @@ export function useDraftCatalog() {
 export function useLocalTrips(tripId?: string) {
   const { manager, user } = useAuth();
   const { catalog, revision, storageFailed } = useDraftCatalog();
-  const scope = user ? { environment: manager.api.baseUrl, accountId: user.id } : null;
+  const scope = user ? { environment: manager.api.environment, accountId: user.id } : null;
   const client = useQueryClient();
   const query = useQuery({
     queryKey: [scope?.environment, scope?.accountId, 'local-draft-trips', tripId],
@@ -41,9 +41,9 @@ export function useLocalTrips(tripId?: string) {
   });
   useEffect(() => {
     void client.invalidateQueries({
-      queryKey: [manager.api.baseUrl, user?.id, 'local-draft-trips'],
+      queryKey: [manager.api.environment, user?.id, 'local-draft-trips'],
     });
-  }, [client, manager.api.baseUrl, user?.id, revision]);
+  }, [client, manager.api.environment, user?.id, revision]);
   // Immediate denial filtering closes the gap before the persisted reread finishes.
   const data = scope
     ? query.data?.filter((trip) => catalog.isVisible(scope, trip.tripId))

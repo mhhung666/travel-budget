@@ -1,3 +1,4 @@
+import { savedExpenseVersion } from '@/api/recovery';
 import { baseCurrency } from '@/api/ledger';
 import type { z } from 'zod';
 import { ApiError, type RequestOptions } from '@/api/client';
@@ -213,7 +214,7 @@ export class ExpenseEntry {
         ...scope,
         tripId,
         clientRequestId: payload.client_request_id,
-        apiVersion: 'base_currency' in payload ? 2 : 1,
+        apiVersion: savedExpenseVersion({ payload }),
         baseCurrency: 'base_currency' in payload ? payload.base_currency : 'TWD',
         moneyScale: 2,
         payload,
@@ -250,7 +251,7 @@ export class ExpenseEntry {
     return this.serial(scope, clientRequestId, async () => {
       const loaded = await this.load(scope, clientRequestId);
       if (!('store' in loaded)) return loaded;
-      if ((loaded.record.apiVersion ?? ('base_currency' in loaded.record.payload ? 2 : 1)) === 2) {
+      if (savedExpenseVersion(loaded.record) === 2) {
         const found = await this.lookupCore(loaded.store, loaded.record);
         if (found.kind !== 'unconfirmed' || found.reason !== 'not-found') return found;
       }
@@ -322,7 +323,7 @@ export class ExpenseEntry {
         `${tripPath(record.tripId)}/expenses`,
         expenseDetailSchema,
         {
-          apiVersion: record.apiVersion ?? ('base_currency' in record.payload ? 2 : 1),
+          apiVersion: savedExpenseVersion(record),
           method: 'POST',
           body: record.payload,
           beforeSend: () => {
@@ -348,10 +349,7 @@ export class ExpenseEntry {
     error: unknown
   ): Promise<EntryOutcome> {
     const verdict = verdictOf(error);
-    if (
-      verdict === 'rejected' &&
-      (record.apiVersion ?? ('base_currency' in record.payload ? 2 : 1)) === 1
-    ) {
+    if (verdict === 'rejected' && savedExpenseVersion(record) === 1) {
       await this.drop(store, record, 'rejected');
       return { kind: 'rejected', error: error as ApiError };
     }
@@ -400,7 +398,7 @@ export class ExpenseEntry {
         `${tripPath(record.tripId)}/expense-requests/${encodeURIComponent(record.clientRequestId)}`,
         expenseRequestSchema,
         {
-          apiVersion: record.apiVersion ?? ('base_currency' in record.payload ? 2 : 1),
+          apiVersion: savedExpenseVersion(record),
           beforeSend: () => this.guardRateLimit(store, record),
         }
       );

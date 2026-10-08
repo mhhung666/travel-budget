@@ -25,7 +25,7 @@ import {
 export function ExpenseDetailScreen({ tripId, expenseId }: { tripId: string; expenseId: string }) {
   const { user, manager } = useAuth();
   const { catalog } = useDraftCatalog();
-  const scope = user ? { environment: manager.api.baseUrl, accountId: user.id } : null;
+  const scope = user ? { environment: manager.api.environment, accountId: user.id } : null;
   const online = useOnline();
   const query = useExpense(tripId, expenseId);
   const expense = query.data;

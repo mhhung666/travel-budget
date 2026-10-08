@@ -21,7 +21,7 @@ function fixture() {
     return path.includes('landing') ? { name: 'New name' } : { members: [], categories: [] };
   });
   const manager = {
-    api: { baseUrl: scope.environment },
+    api: { environment: scope.environment },
     getSignInVersion: () => version,
     getSnapshot: () => ({ status: 'signedIn', user: { id: scope.accountId } }),
     requestAs,

@@ -6,7 +6,7 @@ export default function SettingsRoute() {
   const { manager, user } = useAuth();
   return (
     <TripSettingsScreen
-      key={`${manager.api.baseUrl}:${user?.id}:${id}:${source}`}
+      key={`${manager.api.environment}:${user?.id}:${id}:${source}`}
       tripId={id}
       source={source}
     />

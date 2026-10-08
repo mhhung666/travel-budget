@@ -76,7 +76,7 @@ async function harness() {
     );
   let manager = makeManager();
   await manager.login('ann', 'password');
-  const scope = { environment: manager.api.baseUrl, accountId: ANN };
+  const scope = { environment: manager.api.environment, accountId: ANN };
   let active = true;
   let accessVersion = 0;
   let now = Date.now();

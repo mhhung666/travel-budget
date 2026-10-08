@@ -26,7 +26,7 @@ export function ExpensesScreen({ tripId }: { tripId: string }) {
   // Never leave a previously cached member payload visible after access is denied.
   const { user, manager } = useAuth();
   const { catalog } = useDraftCatalog();
-  const scope = user ? { environment: manager.api.baseUrl, accountId: user.id } : null;
+  const scope = user ? { environment: manager.api.environment, accountId: user.id } : null;
   const members = useTripMembers(tripId);
   const refreshAll = () => Promise.all([refresh(), members.refresh()]);
   const denied =

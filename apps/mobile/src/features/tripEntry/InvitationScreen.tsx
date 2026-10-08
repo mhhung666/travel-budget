@@ -26,10 +26,10 @@ export function InvitationScreen({ id }: { id: string }) {
   const [feedback, setFeedback] = useState('');
   const [refresh, setRefresh] = useState(0);
   const accountId = user?.id;
-  const scope = accountId ? { environment: manager.api.baseUrl, accountId } : null;
+  const scope = accountId ? { environment: manager.api.environment, accountId } : null;
   const signInVersion = manager.getSignInVersion();
   const requestKey = JSON.stringify([
-    manager.api.baseUrl,
+    manager.api.environment,
     accountId,
     signInVersion,
     id,
@@ -39,7 +39,7 @@ export function InvitationScreen({ id }: { id: string }) {
   useEffect(() => {
     if (!accountId || !online) return;
     const controller = new AbortController();
-    const scope = { environment: manager.api.baseUrl, accountId };
+    const scope = { environment: manager.api.environment, accountId };
     const version = catalog.accessVersion(scope, id);
     void manager
       .requestAs(accountId, `/trips/${encodeURIComponent(id)}/invitation`, invitationSchema, {

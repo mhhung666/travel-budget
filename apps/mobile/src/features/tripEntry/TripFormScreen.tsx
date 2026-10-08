@@ -22,9 +22,9 @@ export function TripFormScreen({ mode }: { mode: 'create' | 'join' }) {
   const [base, setBase] = useState('TWD');
   const [baseSearch, setBaseSearch] = useState('');
   const capabilities = useQuery({
-    queryKey: [manager.api.baseUrl, scope?.accountId, 'ledger-capabilities', 'v2'],
+    queryKey: [manager.api.environment, scope?.accountId, 'ledger-capabilities', 'v2'],
     enabled: mode === 'create' && !!scope && online,
-    queryFn: () => manager.request('/capabilities', ledgerCapabilitiesSchema, { apiVersion: 2 }),
+    queryFn: () => manager.request('/capabilities', ledgerCapabilitiesSchema),
   });
   const [invite, setInvite] = useState('');
   const [busy, setBusy] = useState(false);

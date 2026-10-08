@@ -9,7 +9,7 @@ export function TripContext({ tripId }: { tripId: string }) {
   const query = useTrip(tripId);
   const { manager, user, status } = useAuth();
   const { catalog } = useDraftCatalog();
-  const scope = user ? { environment: manager.api.baseUrl, accountId: user.id } : null;
+  const scope = user ? { environment: manager.api.environment, accountId: user.id } : null;
   if (
     status !== 'signedIn' ||
     !scope ||

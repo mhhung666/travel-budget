@@ -2,6 +2,9 @@ import assert from 'node:assert/strict';
 import { Buffer } from 'node:buffer';
 import { createHash } from 'node:crypto';
 
+/** Session refresh on either version: new builds use v2, an older build or recovery may use v1. */
+export const isRefreshPath = (path) => /^\/api\/v[12]\/auth\/refresh$/.test(path);
+
 /** Keep only expiry metadata and one-way fingerprints; never retain credentials or bodies. */
 export function createAuthTrace() {
   const events = [];
@@ -66,7 +69,7 @@ export function verifyNaturalRefresh(events, original) {
   assert(deniedIndex >= 0, 'Missing backend 401 for the naturally expired access JWT');
   const denied = events[deniedIndex];
   const after = events.slice(deniedIndex + 1);
-  const refreshes = after.filter((e) => e.path === '/api/v1/auth/refresh');
+  const refreshes = after.filter((e) => isRefreshPath(e.path));
   assert.equal(refreshes.length, 1, 'Expected exactly one refresh after expiry');
   assert.equal(refreshes[0].status, 200, 'Refresh failed');
   const replay = after.find(

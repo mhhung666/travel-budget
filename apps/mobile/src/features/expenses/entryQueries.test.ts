@@ -177,7 +177,7 @@ describe('member options after a refused preview', () => {
   const options = { members: [], categories: [] };
   function mounted(read: () => Promise<unknown>) {
     const cache = client();
-    const manager = { api: { baseUrl: BASE }, requestAs: vi.fn(read) };
+    const manager = { api: { environment: BASE }, requestAs: vi.fn(read) };
     const query = expenseOptionsQuery(manager as never, USER, TRIP);
     const observer = new QueryObserver(cache, query);
     const stop = observer.subscribe(() => {});
@@ -227,7 +227,11 @@ describe('D1 authorization before showing local input', () => {
     const cache = client();
     let read = async () => ({ members: [], categories: [] });
     const requestAs = vi.fn(() => read());
-    const query = expenseOptionsQuery({ api: { baseUrl: BASE }, requestAs } as never, USER, TRIP);
+    const query = expenseOptionsQuery(
+      { api: { environment: BASE }, requestAs } as never,
+      USER,
+      TRIP
+    );
     expect(query.refetchOnMount).toBe('always');
     cache.setQueryData(query.queryKey, { members: [], categories: [] });
     const before = cache.getQueryState(query.queryKey)!.dataUpdateCount;

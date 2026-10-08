@@ -22,8 +22,8 @@ const item = (n: number) => ({
   currency: 'TWD',
 });
 type Request = (path: string) => Promise<unknown>;
-const manager = (request: Request, baseUrl = 'https://a.test/api/v1') => ({
-  api: { baseUrl },
+const manager = (request: Request, environment = 'https://a.test/api/v1') => ({
+  api: { environment },
   request: request as never,
 });
 const client = () => new QueryClient({ defaultOptions: { queries: { retry: false } } });

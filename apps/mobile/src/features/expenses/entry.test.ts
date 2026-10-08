@@ -112,7 +112,10 @@ async function harness(options: { timeoutMs?: number } = {}) {
     entry: makeEntry(),
     makeEntry,
     before: (hook: (method: string, path: string) => Promise<void | Response>) => before.push(hook),
-    scope: (accountId: string): PendingScope => ({ environment: manager.api.baseUrl, accountId }),
+    scope: (accountId: string): PendingScope => ({
+      environment: manager.api.environment,
+      accountId,
+    }),
     login: (name: 'ann' | 'bob') => manager.login(name, 'secret'),
     fail: (
       method: 'GET' | 'POST',
@@ -120,7 +123,7 @@ async function harness(options: { timeoutMs?: number } = {}) {
       pattern = method === 'POST' ? /\/expenses$/ : /expense-requests/
     ) => server.fail(method, pattern, fault),
     pending: (accountId = ANN, tripId?: string) =>
-      real.list({ environment: manager.api.baseUrl, accountId }, tripId),
+      real.list({ environment: manager.api.environment, accountId }, tripId),
   };
 }
 

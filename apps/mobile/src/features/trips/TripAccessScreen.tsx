@@ -45,7 +45,7 @@ export function TripAccessScreen({ tripId }: { tripId: string }) {
   const current = () =>
     !!scope &&
     manager.getSignInVersion() === version &&
-    manager.api.baseUrl === scope.environment &&
+    manager.api.environment === scope.environment &&
     manager.getSnapshot().status === 'signedIn' &&
     manager.getSnapshot().user?.id === scope.accountId;
   const visible = current() && !!scope && catalog.isVisible(scope, tripId);

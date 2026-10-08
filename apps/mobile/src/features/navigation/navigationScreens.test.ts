@@ -130,7 +130,7 @@ vi.mock('@/features/auth/AuthProvider', () => ({
   useAuth: () => ({
     status: h.status,
     user: { id: 'account', username: 'test', displayName: 'TEST account' },
-    manager: { api: { baseUrl: 'https://example/api/v1' }, logout: h.logout },
+    manager: { api: { environment: 'https://example/api/v1' }, logout: h.logout },
   }),
 }));
 vi.mock('@/features/auth/errorMessage', () => ({

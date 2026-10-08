@@ -26,7 +26,7 @@ const payloads: [RegExp, unknown][] = [
   [/\/landing/, { id: 't1', name: 'Private trip' }],
 ];
 const manager = {
-  api: { baseUrl: BASE },
+  api: { environment: BASE },
   request: vi.fn(async (path: string) => {
     if (world.mode === 'denied') throw new ApiError('NOT_FOUND', 404);
     if (world.mode === 'timeout') throw new ApiError('TIMEOUT');

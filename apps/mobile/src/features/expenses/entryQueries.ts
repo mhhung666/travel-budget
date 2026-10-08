@@ -12,16 +12,16 @@ import { isAccessDenied } from '@/features/auth/errorMessage';
 import { expensesKey, keepFirstPage } from './queries';
 
 type Requester = Pick<SessionManager, 'requestAs'> & {
-  api: Pick<SessionManager['api'], 'baseUrl'>;
+  api: Pick<SessionManager['api'], 'environment'>;
 };
 const tripPath = (tripId: string) => `/trips/${encodeURIComponent(tripId)}`;
 
 /** Pending expense records of a trip, read from the device database (never from the network). */
 export const pendingKey = (
-  baseUrl: string | undefined,
+  environment: string | undefined,
   userId: string | undefined,
   tripId: string
-) => [baseUrl, userId, 'pending-expenses', tripId] as const;
+) => [environment, userId, 'pending-expenses', tripId] as const;
 
 export const expenseOptionsQuery = (
   manager: Requester,
@@ -29,7 +29,7 @@ export const expenseOptionsQuery = (
   tripId: string
 ) =>
   queryOptions({
-    queryKey: [manager.api.baseUrl, userId, 'expense-options', tripId, 'v2'],
+    queryKey: [manager.api.environment, userId, 'expense-options', tripId, 'v2'],
     enabled: !!userId,
     refetchOnMount: 'always',
     queryFn: ({ client, queryKey, signal }) =>
@@ -94,24 +94,24 @@ export const requestPreview = (
  */
 export async function refreshTripData(
   client: QueryClient,
-  baseUrl: string,
+  environment: string,
   userId: string,
   tripId: string,
   deletedExpenseId?: string
 ): Promise<void> {
   if (deletedExpenseId)
     client.removeQueries({
-      queryKey: [baseUrl, userId, 'expense', tripId, deletedExpenseId, 'v2'],
+      queryKey: [environment, userId, 'expense', tripId, deletedExpenseId, 'v2'],
       exact: true,
     });
-  keepFirstPage(client, expensesKey(baseUrl, userId, tripId));
+  keepFirstPage(client, expensesKey(environment, userId, tripId));
   const refetch = (...key: unknown[]) =>
-    client.invalidateQueries({ queryKey: [baseUrl, userId, ...key] }, { throwOnError: true });
+    client.invalidateQueries({ queryKey: [environment, userId, ...key] }, { throwOnError: true });
   await Promise.all([
     refetch('expenses', tripId),
     client.invalidateQueries(
       {
-        queryKey: [baseUrl, userId, 'expense', tripId],
+        queryKey: [environment, userId, 'expense', tripId],
         predicate: (query) => query.queryKey[4] !== deletedExpenseId,
       },
       { throwOnError: true }

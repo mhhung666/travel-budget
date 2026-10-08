@@ -20,7 +20,7 @@ Server Actions 與 HTTP API 是兩個呼叫入口，部署初期同在現有 Nex
 
 ## B3：Mobile 帳本與舊資料恢復
 
-線上旅行／帳務讀取與新確認操作使用 v2，HTTP 必須驗證共用 v2 schema 的 ledger；缺單位、子資料單位不一致或服務未就緒都阻擋，不 fallback v1。`api.baseUrl` 仍是原已驗證 v1 環境識別；transport 從同 origin 派生 v2，共用登入世代、refresh、beforeSend 與 SQLite／429 scope。遠端 Query key 尾端加 v2，本機 key 不變。名冊觀察器與 catalog 保留原撤權世代規則。
+線上旅行／帳務讀取與新確認操作使用 v2，HTTP 必須驗證共用 v2 schema 的 ledger；缺單位、子資料單位不一致或服務未就緒都阻擋，不 fallback v1。B5c-1 起 `api.environment` 是原已驗證 v1 環境識別（設定 `/api/v2` 也正規化為同一字串），`transport(version)` 從同 origin 選 URL；auth 與所有新請求預設 v2，共用登入世代、refresh、beforeSend 與 SQLite／429 scope。舊紀錄的原版本只由 `api/recovery.ts` 決定。遠端 Query key 尾端加 v2，本機 key 不變。名冊觀察器與 catalog 保留原撤權世代規則。
 
 `api/contracts.ts` 只組合共用 schema：選用的 optional ledger 型別允許讀舊本機 TWD 快照；live v2 一律要求 ledger。`api/ledger.ts` 的缺欄位 TWD 退路只供上述已知 v1／舊快照與尚未載入的畫面。所有閱讀、原幣判斷、均分預覽／編輯、還款及匯率設定使用實際基準；JPY 也保留兩位精度，結算與尾差仍由後端決定。每日參考值走旅行 v2 endpoint，並核對回傳基準。
 

@@ -15,13 +15,15 @@ const AuthContext = createContext<SessionManager | null>(null);
 export function AuthProvider({ children }: PropsWithChildren) {
   const cache = useQueryClient();
   const [manager] = useState(() => {
-    let baseUrl = '';
+    let environment = '';
     try {
-      baseUrl = validateBaseUrl(process.env.EXPO_PUBLIC_API_BASE_URL, __DEV__);
+      environment = validateBaseUrl(process.env.EXPO_PUBLIC_API_BASE_URL, __DEV__);
     } catch {
       /* login presents a localized setup error */
     }
-    return new SessionManager(new ApiClient(baseUrl), createCredentialStore(baseUrl), async () => {
+    // One identity for both versions: the credential key never follows the transport choice.
+    const api = new ApiClient(environment);
+    return new SessionManager(api, createCredentialStore(api.environment), async () => {
       await cache.cancelQueries();
       cache.clear();
     });

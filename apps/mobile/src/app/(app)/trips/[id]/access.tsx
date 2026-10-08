@@ -4,5 +4,5 @@ import { useAuth } from '@/features/auth/AuthProvider';
 export default function AccessRoute() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { manager, user } = useAuth();
-  return <TripAccessScreen key={`${manager.api.baseUrl}:${user?.id}:${id}`} tripId={id} />;
+  return <TripAccessScreen key={`${manager.api.environment}:${user?.id}:${id}`} tripId={id} />;
 }

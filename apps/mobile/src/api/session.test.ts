@@ -350,10 +350,10 @@ describe('private query cache lifecycle', () => {
       );
       try {
         await manager.login('traveler', 'password');
-        cache.setQueryData([manager.api.baseUrl, user.id, 'trips'], [{ name: 'Private trip' }]);
+        cache.setQueryData([manager.api.environment, user.id, 'trips'], [{ name: 'Private trip' }]);
         const loading = cache
           .fetchQuery({
-            queryKey: [manager.api.baseUrl, user.id, 'trip', 'slow'],
+            queryKey: [manager.api.environment, user.id, 'trip', 'slow'],
             queryFn: ({ signal }) => manager.request('/slow-trip', schema, { signal }),
           })
           .catch(() => {});
@@ -634,4 +634,46 @@ describe('refresh error provenance', () => {
       expect(fetcher.mock.calls.filter(([url]) => url.endsWith('/expenses'))).toHaveLength(1);
     }
   );
+});
+
+describe('B5c-1 authentication transport', () => {
+  it('refreshes a credential saved by the v1 release on v2 without asking to sign in again', async () => {
+    let token: string | null = 'refresh-v1-era';
+    const store: CredentialStore = {
+      get: async () => token,
+      set: async (value) => {
+        token = value;
+      },
+      clear: async () => {
+        token = null;
+      },
+    };
+    const calls: { url: string; body: unknown }[] = [];
+    const fetcher = vi.fn<Fetcher>().mockImplementation(async (url, init) => {
+      calls.push({ url: String(url), body: init?.body && JSON.parse(String(init.body)) });
+      if (String(url).endsWith('/auth/logout')) return ok({ loggedOut: true });
+      return ok(session(calls.length));
+    });
+    const manager = new SessionManager(
+      new ApiClient('https://example.com/api/v1', fetcher),
+      store,
+      async () => {}
+    );
+    await manager.restore();
+    expect(manager.getSnapshot()).toEqual({ status: 'signedIn', user });
+    expect(token).toBe('refresh-1');
+    await manager.logout();
+    await manager.login('traveler', 'password');
+    expect(calls).toEqual([
+      {
+        url: 'https://example.com/api/v2/auth/refresh',
+        body: { refreshToken: 'refresh-v1-era' },
+      },
+      { url: 'https://example.com/api/v2/auth/logout', body: { refreshToken: 'refresh-1' } },
+      {
+        url: 'https://example.com/api/v2/auth/login',
+        body: { username: 'traveler', password: 'password' },
+      },
+    ]);
+  });
 });

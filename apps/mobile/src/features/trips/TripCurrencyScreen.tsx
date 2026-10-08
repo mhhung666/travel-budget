@@ -55,7 +55,7 @@ export function TripCurrencyScreen({ tripId, source }: { tripId: string; source?
     manager.getSignInVersion() === version &&
     manager.getSnapshot().status === 'signedIn' &&
     manager.getSnapshot().user?.id === scope.accountId &&
-    scope.environment === manager.api.baseUrl;
+    scope.environment === manager.api.environment;
   const visible = current() && !!scope && catalog.isVisible(scope, tripId);
   const dirty = !!fields && JSON.stringify(fields) !== JSON.stringify(initial);
   usePreventRemove(dirty && !busy && !done && !pending, ({ data }) =>

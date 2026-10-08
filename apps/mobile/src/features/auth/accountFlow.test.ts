@@ -400,3 +400,33 @@ it.each(['TOO_MANY_ATTEMPTS', 'INVALID_CODE', 'RATE_LIMITED'])(
     expect(flow.getSnapshot().accepted).toBe(true);
   }
 );
+
+it('sends registration and both password reset steps to v2 of the same environment', async () => {
+  const urls: string[] = [];
+  const fetcher = vi.fn<Fetcher>(async (url) => {
+    urls.push(String(url));
+    return Response.json({
+      data: String(url).endsWith('/register')
+        ? user
+        : String(url).endsWith('/request')
+          ? { accepted: true }
+          : { reset: true },
+    });
+  });
+  const register = setup('register', fetcher);
+  valid(register.flow);
+  await register.flow.submit();
+  const reset = setup('request', fetcher);
+  reset.flow.setField('email', 'test@example.com');
+  await reset.flow.submit();
+  reset.flow.setField('code', '123456');
+  reset.flow.setField('password', 'new-password');
+  reset.flow.setField('confirmation', 'new-password');
+  await reset.flow.submit();
+  expect(reset.flow.getSnapshot().result?.notice).toBe('passwordResetDone');
+  expect(urls).toEqual([
+    'https://test.example/api/v2/auth/register',
+    'https://test.example/api/v2/auth/password-reset/request',
+    'https://test.example/api/v2/auth/password-reset/confirm',
+  ]);
+});

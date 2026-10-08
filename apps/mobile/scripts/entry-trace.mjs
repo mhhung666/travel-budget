@@ -1,20 +1,52 @@
 import assert from 'node:assert/strict';
+import { isRefreshPath } from './auth-trace.mjs';
 
-const WRITE = /^\/api\/v1\/trips\/[a-f0-9]{24}\/expenses$/;
-const PREVIEW = /^\/api\/v1\/trips\/[a-f0-9]{24}\/expenses\/preview$/;
-const LOOKUP = /^\/api\/v1\/trips\/[a-f0-9]{24}\/expense-requests\/[0-9a-f-]{36}$/;
+const WRITE = /^\/api\/v[12]\/trips\/[a-f0-9]{24}\/expenses$/;
+const PREVIEW = /^\/api\/v[12]\/trips\/[a-f0-9]{24}\/expenses\/preview$/;
+const LOOKUP = /^\/api\/v[12]\/trips\/[a-f0-9]{24}\/expense-requests\/[0-9a-f-]{36}$/;
 
-/** The expense traffic the proxy saw (what reached the backend), split by purpose. */
+const versionOf = (event) => Number(event.path.match(/^\/api\/v([12])\//)[1]);
+
+/**
+ * The expense traffic the proxy saw (what reached the backend), split by purpose. A v2 request
+ * asks for its receipt before every send (`ExpenseEntry.retry`), so the lookup right before each
+ * v2 write is that pre-send check, not a recovery lookup; it is reported apart as `checks`.
+ */
 export function expenseTraffic(events) {
   const pick = (method, pattern) =>
     events.filter((event) => event.method === method && pattern.test(event.path.split('?')[0]));
+  const writes = pick('POST', WRITE);
+  const previews = pick('POST', PREVIEW);
+  const allLookups = pick('GET', LOOKUP);
+  const versions = new Set([...writes, ...previews, ...allLookups].map(versionOf));
+  assert(versions.size <= 1, 'an expense operation switched API version');
+  const version = versions.size ? [...versions][0] : undefined;
+  const ordered = events.filter((event) => writes.includes(event) || allLookups.includes(event));
+  const checks = [];
+  if (version === 2)
+    for (const write of writes) {
+      const before = ordered[ordered.indexOf(write) - 1];
+      assert(
+        before && allLookups.includes(before) && before.status === 200 && !checks.includes(before),
+        'a v2 write was sent without first asking for its receipt'
+      );
+      if (write.expenseRequest)
+        assert(
+          before.path.endsWith(`/expense-requests/${write.expenseRequest.id}`),
+          'the pre-send check asked about another request'
+        );
+      checks.push(before);
+    }
   return {
-    writes: pick('POST', WRITE),
-    previews: pick('POST', PREVIEW),
-    lookups: pick('GET', LOOKUP),
-    refreshes: events.filter((event) => event.path === '/api/v1/auth/refresh'),
+    version,
+    writes,
+    previews,
+    checks,
+    lookups: allLookups.filter((event) => !checks.includes(event)),
+    refreshes: events.filter((event) => isRefreshPath(event.path)),
   };
 }
+const after = (events, first, then) => events.indexOf(then) > events.indexOf(first);
 const statuses = (list) => list.map((event) => event.status);
 const bySomeoneElse = (list, account) => list.filter((event) => event.userId !== account);
 
@@ -35,7 +67,15 @@ const expectations = {
     assert.equal(writes[0].dropped, true, 'its answer was dropped');
     assert.deepEqual(statuses(lookups), [200], 'the lookup found it');
   },
-  'entry-lost-retry': ({ writes, lookups }) => {
+  'entry-lost-retry': ({ version, writes, lookups }, { events }) => {
+    if (version === 2) {
+      // Retry asks first; the committed receipt settles it and nothing is sent again.
+      assert.deepEqual(statuses(writes), [200], 'one write; the retry found it instead');
+      assert.equal(writes[0].dropped, true);
+      assert.deepEqual(statuses(lookups), [200], 'the retry looked the request up once');
+      assert(after(events, writes[0], lookups[0]), 'the retry lookup followed the lost write');
+      return;
+    }
     assert.deepEqual(statuses(writes), [200, 200], 'the write, then its identical repeat');
     assert.equal(writes[0].dropped, true);
     assert(!writes[1].dropped);
@@ -46,10 +86,12 @@ const expectations = {
     assert.equal(writes[0].dropped, true);
     assert(lookups.length >= 1 && lookups.every((event) => event.status === 200));
   },
-  'entry-retry': ({ writes, lookups }, { counts }) => {
+  'entry-retry': ({ version, writes, lookups }, { counts }) => {
     assert.deepEqual(statuses(writes), [200], 'only the repeat reached the backend');
     assert(!writes[0].dropped);
-    assert(counts.disconnect >= 2, 'the first write and its lookup never left the phone');
+    // v1 sends, then looks up; v2 stops at its pre-send check, so nothing was sent to be lost.
+    if (version === 2) assert(counts.disconnect >= 1, 'the first attempt never left the phone');
+    else assert(counts.disconnect >= 2, 'the first write and its lookup never left the phone');
     assert(lookups.length >= 1 && lookups.at(-1).status === 200);
   },
   'entry-accounts': ({ writes, lookups }, { events, writer, peer }) => {
@@ -76,9 +118,19 @@ const expectations = {
     );
     assert.equal(lookups.at(-1).status, 200, 'after signing in again the request was found');
   },
-  'entry-rejected': ({ writes }) => {
+  'entry-rejected': ({ version, writes, lookups }, { events }) => {
     assert.deepEqual(statuses(writes), [400, 200], 'refused once, then a new request accepted');
     assert(!writes[0].dropped && !writes[1].dropped);
+    if (version !== 2) return assert.equal(lookups.length, 0);
+    // A v2 refusal is only final once its receipt says rejected.
+    assert.deepEqual(statuses(lookups), [200], 'the refusal was confirmed by its receipt');
+    assert(after(events, writes[0], lookups[0]) && after(events, lookups[0], writes[1]));
+    if (writes[0].expenseRequest && writes[1].expenseRequest)
+      assert.notEqual(
+        writes[0].expenseRequest.id,
+        writes[1].expenseRequest.id,
+        'the corrected request is a new submission'
+      );
   },
   'entry-appearance': ({ writes, previews, lookups }) => {
     assert.deepEqual(statuses(writes), [200], 'one write');
@@ -105,6 +157,8 @@ export const entryFlows = Object.keys(expectations);
 export function verifyEntryTraffic(flow, events, context) {
   assert(Object.hasOwn(expectations, flow), `No traffic expectation for ${flow}`);
   const traffic = expenseTraffic(events);
+  if (context.apiVersion !== undefined)
+    assert.equal(traffic.version, context.apiVersion, 'Unexpected expense API version');
   const { writer } = context;
   // Whatever the scenario, the writes and lookups belong to the writer.
   assert.deepEqual(
@@ -116,12 +170,23 @@ export function verifyEntryTraffic(flow, events, context) {
   return traffic;
 }
 
+/** v2 retains the terminal refusal as well as the corrected request's committed receipt. */
+export function entryReceiptExpectations(apiVersion) {
+  assert([1, 2].includes(apiVersion), 'Expense API version must be 1 or 2');
+  return { rejected: apiVersion === 2 ? 1 : 0, corrected: apiVersion === 2 ? 2 : 1 };
+}
+
 /** Check the stored ledger independently of the success text displayed by the app. */
-export function verifyEntryDatabase(flow, database) {
+export function verifyEntryDatabase(flow, database, apiVersion = 2) {
   assert(Object.hasOwn(expectations, flow), `No database expectation for ${flow}`);
+  const receipts = entryReceiptExpectations(apiVersion);
   const expected = flow === 'entry-preview-revoked' ? 0 : 1;
   assert.equal(database.expenses, expected, 'Unexpected DB expense count');
-  assert.equal(database.receipts, expected, 'Unexpected DB receipt count');
+  assert.equal(
+    database.receipts,
+    flow === 'entry-rejected' ? receipts.corrected : expected,
+    'Unexpected DB receipt count'
+  );
   const amount = flow === 'entry-retry' ? 50 : flow === 'entry-lost-retry' ? 75.5 : 100;
   assert.deepEqual(database.amounts, expected ? [amount] : [], 'Unexpected stored amount');
 }

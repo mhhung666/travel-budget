@@ -79,7 +79,7 @@ vi.mock('@/i18n/useMessages', async () => {
 vi.mock('@/providers/useOnline', () => ({ useOnline: () => h.online }));
 const scope = { environment: 'https://test/api/v1', accountId: 'account-a' };
 const manager = {
-  api: { baseUrl: scope.environment },
+  api: { environment: scope.environment },
   getSignInVersion: () => h.version,
   getSnapshot: () => ({ status: h.status, user: { id: h.account } }),
   restore: h.restoreLogin,

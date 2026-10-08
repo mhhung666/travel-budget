@@ -62,6 +62,12 @@ test('natural expiry requires backend rejection, one refresh and replay with a n
   const refresh = { method: 'POST', path: '/api/v1/auth/refresh', status: 200, at: 903000 };
   const replay = { ...original, fingerprint: 'new', expiresAt: 1801000, at: 904000 };
   verifyNaturalRefresh([original, denied, refresh, replay], original);
+  // B5c-1: current builds refresh on v2; the expiry acceptance must see that rotation too.
+  const v2Refresh = { ...refresh, path: '/api/v2/auth/refresh' };
+  verifyNaturalRefresh([original, denied, v2Refresh, replay], original);
+  assert.throws(() =>
+    verifyNaturalRefresh([original, denied, refresh, v2Refresh, replay], original)
+  );
   for (const events of [
     [original, refresh, replay],
     [original, { ...denied, at: 900000 }, refresh, replay],

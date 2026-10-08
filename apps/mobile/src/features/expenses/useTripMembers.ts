@@ -11,7 +11,7 @@ export function tripMemberQuery(...args: Parameters<typeof expenseOptionsQuery>)
 export function useTripMembers(tripId: string, enabled = true) {
   const { manager, user, status } = useAuth();
   const { catalog } = useDraftCatalog();
-  const scope = user ? { environment: manager.api.baseUrl, accountId: user.id } : null;
+  const scope = user ? { environment: manager.api.environment, accountId: user.id } : null;
   const allowed = status === 'signedIn' && !!scope && catalog.isVisible(scope, tripId);
   const query = useQuery({
     ...tripMemberQuery(manager, user?.id, tripId),

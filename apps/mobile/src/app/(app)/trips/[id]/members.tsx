@@ -6,7 +6,7 @@ export default function MembersRoute() {
   const { manager, user } = useAuth();
   return (
     <TripMembersScreen
-      key={`${manager.api.baseUrl}:${user?.id}:${id}:${source}`}
+      key={`${manager.api.environment}:${user?.id}:${id}:${source}`}
       tripId={id}
       source={source}
     />

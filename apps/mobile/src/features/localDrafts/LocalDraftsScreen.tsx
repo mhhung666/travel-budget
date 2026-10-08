@@ -102,7 +102,7 @@ export function LocalDraftScreen({ tripId }: { tripId: string }) {
   // A new account/environment gets fresh component state and editor.
   return (
     <ScopedLocalDraftScreen
-      key={JSON.stringify([manager.api.baseUrl, user?.id, tripId])}
+      key={JSON.stringify([manager.api.environment, user?.id, tripId])}
       tripId={tripId}
     />
   );

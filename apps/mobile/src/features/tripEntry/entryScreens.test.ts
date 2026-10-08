@@ -84,7 +84,7 @@ vi.mock('@/i18n/useMessages', async () => {
 });
 vi.mock('@/providers/useOnline', () => ({ useOnline: () => h.online }));
 const manager = {
-  api: { baseUrl: 'https://test/api/v1' },
+  api: { environment: 'https://test/api/v1' },
   getSignInVersion: () => h.version,
   requestAs: h.request,
 };

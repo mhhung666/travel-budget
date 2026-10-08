@@ -136,7 +136,7 @@ vi.mock('./entryProvider', () => ({
     scope: h.scope,
     entry: { submit: h.submit },
     manager: {
-      api: { baseUrl: h.scope.environment },
+      api: { environment: h.scope.environment },
       getSignInVersion: () => h.signInVersion,
       requestAs: h.requestRates,
       getSnapshot: () => ({

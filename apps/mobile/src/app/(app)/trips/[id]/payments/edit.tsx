@@ -13,7 +13,7 @@ export default function PaymentRoute() {
   const { manager, user } = useAuth();
   return (
     <PaymentScreen
-      key={`${manager.api.baseUrl}:${user?.id}:${id}:${paymentId}:${source}:${from}:${to}:${amount}`}
+      key={`${manager.api.environment}:${user?.id}:${id}:${paymentId}:${source}:${from}:${to}:${amount}`}
       tripId={id}
       paymentId={paymentId}
       source={source}

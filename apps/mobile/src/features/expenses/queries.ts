@@ -15,16 +15,18 @@ import { keepAccessDenial } from '@/features/auth/accessGuard';
 import { isAccessDenied } from '@/features/auth/errorMessage';
 
 type ExpensePage = z.infer<typeof expensesSchema>;
-type Requester = Pick<SessionManager, 'request'> & { api: Pick<SessionManager['api'], 'baseUrl'> };
+type Requester = Pick<SessionManager, 'request'> & {
+  api: Pick<SessionManager['api'], 'environment'>;
+};
 const tripPath = (tripId: string) => `/trips/${encodeURIComponent(tripId)}`;
 
 // Keys carry the API environment and account, so one account never reads another's cache entry.
-export const expensesKey = (baseUrl: string, userId: string | undefined, tripId: string) =>
-  [baseUrl, userId, 'expenses', tripId, 'v2'] as const;
+export const expensesKey = (environment: string, userId: string | undefined, tripId: string) =>
+  [environment, userId, 'expenses', tripId, 'v2'] as const;
 
 export const expensesQuery = (manager: Requester, userId: string | undefined, tripId: string) =>
   infiniteQueryOptions({
-    queryKey: expensesKey(manager.api.baseUrl, userId, tripId),
+    queryKey: expensesKey(manager.api.environment, userId, tripId),
     enabled: !!userId,
     initialPageParam: null as string | null,
     queryFn: ({ client, queryKey, pageParam, signal }) =>
@@ -45,7 +47,7 @@ export const expenseQuery = (
   expenseId: string
 ) =>
   queryOptions({
-    queryKey: [manager.api.baseUrl, userId, 'expense', tripId, expenseId, 'v2'],
+    queryKey: [manager.api.environment, userId, 'expense', tripId, expenseId, 'v2'],
     enabled: !!userId,
     queryFn: ({ client, queryKey, signal }) =>
       keepAccessDenial(client, queryKey, () =>

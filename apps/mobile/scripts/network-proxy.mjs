@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { Buffer } from 'node:buffer';
 import { createHash, randomBytes } from 'node:crypto';
 import { createServer, request } from 'node:http';
+import { isRefreshPath } from './auth-trace.mjs';
 
 // Original drop-response commands still target C only; B4 drop-write-response targets confirmed writes.
 const isExpenseCreate = (req) =>
@@ -136,7 +137,7 @@ export async function startNetworkProxy(apiUrl, port, observe = () => {}, native
       : req.method === 'GET' &&
           /^\/api\/v[12]\/trips\/[a-f0-9]{24}\/expense-requests\/[0-9a-f-]{36}$/.test(pathname)
         ? 'lookup'
-        : req.method === 'POST' && pathname === '/api/v1/auth/refresh'
+        : req.method === 'POST' && isRefreshPath(pathname)
           ? 'refresh'
           : null;
     const mutationLookup =

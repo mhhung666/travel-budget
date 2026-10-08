@@ -33,7 +33,7 @@ export function TripScreen({ id }: { id: string }) {
   // Never leave a previously cached member payload visible after access is denied.
   const { manager, user } = useAuth();
   const { catalog } = useDraftCatalog();
-  const scope = user ? { environment: manager.api.baseUrl, accountId: user.id } : null;
+  const scope = user ? { environment: manager.api.environment, accountId: user.id } : null;
   const denied = isAccessDenied(query.error) || !scope || !catalog.isVisible(scope, id);
   return (
     <Page>

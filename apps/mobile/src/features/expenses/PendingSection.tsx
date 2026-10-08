@@ -48,7 +48,7 @@ export function PendingSection({
     manager.getSignInVersion() === version &&
     manager.getSnapshot().status === 'signedIn' &&
     manager.getSnapshot().user?.id === scope.accountId &&
-    manager.api.baseUrl === scope.environment;
+    manager.api.environment === scope.environment;
   const visible = (record: PendingExpense) =>
     current() &&
     record.environment === scope?.environment &&

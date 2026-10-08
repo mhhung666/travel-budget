@@ -19,7 +19,7 @@ export function TripsScreen() {
   const online = useOnline();
   const { manager, user } = useAuth();
   const { catalog } = useDraftCatalog();
-  const scope = user ? { environment: manager.api.baseUrl, accountId: user.id } : null;
+  const scope = user ? { environment: manager.api.environment, accountId: user.id } : null;
   const items = query.data?.pages.flatMap((page) => page.items) ?? [];
   // Page membership can shift after a concurrent Web edit; avoid duplicate cards.
   const denied = isAccessDenied(query.error);

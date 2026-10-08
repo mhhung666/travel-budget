@@ -24,7 +24,7 @@ export function useTrips() {
   const { manager, user } = useAuth();
   const date = useToday();
   return useInfiniteQuery({
-    queryKey: [manager.api.baseUrl, user?.id, 'trips', date, 'v2'],
+    queryKey: [manager.api.environment, user?.id, 'trips', date, 'v2'],
     enabled: !!user,
     initialPageParam: 1,
     queryFn: ({ pageParam, signal }) =>
@@ -33,13 +33,13 @@ export function useTrips() {
   });
 }
 export const tripQuery = (
-  manager: Pick<SessionManager, 'request'> & { api: Pick<SessionManager['api'], 'baseUrl'> },
+  manager: Pick<SessionManager, 'request'> & { api: Pick<SessionManager['api'], 'environment'> },
   userId: string | undefined,
   id: string,
   date: string
 ) =>
   queryOptions({
-    queryKey: [manager.api.baseUrl, userId, 'trip', id, date, 'v2'],
+    queryKey: [manager.api.environment, userId, 'trip', id, date, 'v2'],
     enabled: !!userId,
     queryFn: ({ client, queryKey, signal }) =>
       keepAccessDenial(client, queryKey, () =>

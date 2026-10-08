@@ -1,3 +1,4 @@
+import { savedExpenseVersion } from '@/api/recovery';
 import {
   currentExpenseRateLimit,
   extendExpenseRateLimit,
@@ -235,7 +236,7 @@ export async function createPendingExpenseStore(db: SqlDatabase): Promise<Pendin
               throw new Error('DRAFT_CHANGED');
           }
           const payload = expenseCreateInput.parse(record.payload);
-          const version = record.apiVersion ?? ('base_currency' in payload ? 2 : 1);
+          const version = savedExpenseVersion({ apiVersion: record.apiVersion, payload });
           const base = 'base_currency' in payload ? payload.base_currency : 'TWD';
           if (
             (version === 2) !== 'base_currency' in payload ||
@@ -259,7 +260,7 @@ export async function createPendingExpenseStore(db: SqlDatabase): Promise<Pendin
             record.status,
             record.createdAt,
             record.updatedAt,
-            record.apiVersion ?? ('base_currency' in record.payload ? 2 : 1),
+            savedExpenseVersion(record),
             record.baseCurrency ??
               ('base_currency' in record.payload ? record.payload.base_currency : 'TWD'),
             2

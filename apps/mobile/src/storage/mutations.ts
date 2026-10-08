@@ -1,3 +1,4 @@
+import { savedMutationVersion } from '@/api/recovery';
 import { z } from 'zod';
 import {
   mutationRequestV2Schema,
@@ -213,7 +214,7 @@ export async function createMutationStore(db: SqlDatabase): Promise<MutationStor
             JSON.stringify(parsed),
             tripId,
             record.createdAt,
-            record.apiVersion ?? 1,
+            savedMutationVersion(record),
             record.baseCurrency ??
               ('base_currency' in parsed.body
                 ? parsed.body.base_currency

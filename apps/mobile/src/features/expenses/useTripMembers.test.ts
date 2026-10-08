@@ -17,7 +17,7 @@ const h = vi.hoisted(() => ({
 const roster = [{ id: '0123456789abcdef01a1b2c3', displayName: 'Alice' }];
 const manager = {
   api: {
-    get baseUrl() {
+    get environment() {
       return h.environment;
     },
   },

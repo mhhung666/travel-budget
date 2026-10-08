@@ -94,7 +94,7 @@ vi.mock('@/features/tripEntry/provider', () => ({
     entry: { confirm: h.confirm },
     manager: {
       getSignInVersion: () => 1,
-      api: { baseUrl: h.scope.environment },
+      api: { environment: h.scope.environment },
       getSnapshot: () => ({ status: 'signedIn', user: { id: h.scope.accountId } }),
       requestAs: h.request,
     },

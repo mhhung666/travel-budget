@@ -5,12 +5,12 @@ import { useAuth } from '@/features/auth/AuthProvider';
 import { keepAccessDenial } from '@/features/auth/accessGuard';
 
 export const settlementQuery = (
-  manager: Pick<SessionManager, 'request'> & { api: Pick<SessionManager['api'], 'baseUrl'> },
+  manager: Pick<SessionManager, 'request'> & { api: Pick<SessionManager['api'], 'environment'> },
   userId: string | undefined,
   tripId: string
 ) =>
   queryOptions({
-    queryKey: [manager.api.baseUrl, userId, 'settlement', tripId, 'v2'],
+    queryKey: [manager.api.environment, userId, 'settlement', tripId, 'v2'],
     enabled: !!userId,
     queryFn: ({ client, queryKey, signal }) =>
       keepAccessDenial(client, queryKey, () =>

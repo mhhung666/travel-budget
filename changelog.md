@@ -4,9 +4,13 @@
 
 ## Unreleased
 
+### 2026-10-09
+
+- Mobile B5c-1：修正 v2 拒絕後重送的 Maestro／DB 驗收收據計數，保留 v1 預期；補實際檢查腳本與版本一致性回歸，Mobile 1,215 項＋工具 46 項、check／contracts／三平台匯出通過。原生裝置／升級操作仍待驗，見 [B 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#b-基準幣別驗收b1b2b3-實作交接)。
+
 ### 2026-10-08
 
-- B5a／B5b-1～3（Web／contracts）：完成退役盤點、共用 auth／會員操作與明確回應契約；11 組公開 route 抽中立 handler，新版支出 action 共用原 adapter。B5b-3 獨立審查、Web 2,318 項、隔離 DB 181 項、根 check 及正式 build PWA 10 項通過；保持行為重構不升版，完整 v1 保留，原生升級待驗。接續 [B5c-1](apps/mobile/docs/ROADMAP.md#b5v1v2-整併與-v1-退役進行中) 搬移 Mobile transport／登入。
+- B5（Web／Mobile／contracts）：完成退役盤點、共用 auth／會員／公開入口及 action wrapper。B5c-1 新請求預設 v2，保留原環境憑證／SQLite 分區與舊操作版本；Mobile 1,215 項＋工具 43 項、Mobile check／contracts／三平台匯出複驗通過。v2 流量斷言已修正，收據計數後續修正與原生限制見 [B 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#b-基準幣別驗收b1b2b3-實作交接)。
 - Mobile U1／U2：完成頁面與表單整理，修正恢復等待、原幣代碼、可見筆數、名冊同名短碼與負零，保留原 UUID／期限／撤權；相應 patch 與工程檢查已完成。iOS 字級／閱讀器、歷史名冊限制及延期整理見 [U 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#u-靜態審查修正交接2026-10-08)，Android 延後。
 - G1／G2／B1–B4（Web／Mobile）：完成旅行管理、外幣均分與固定基準／v2，保留舊 TWD／v1／UUID 恢復；補隔離驗收工具，修正終局拒絕收據、AI 授權、列表批次驗證及 CI 格式／MongoDB 建表競態，184 項重點回歸通過並提交兩應用 patch。跨端操作待驗見 [B 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#b-基準幣別驗收b1b2b3-實作交接)；非 TWD 建立關閉，G3／G4／F 延後，未部署。
 

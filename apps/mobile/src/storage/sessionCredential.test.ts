@@ -1,6 +1,6 @@
 import { expect, it, vi } from 'vitest';
 import { decodeCredential, encodeCredential } from './sessionCredential';
-import { ApiClient } from '@/api/client';
+import { ApiClient, validateBaseUrl } from '@/api/client';
 import { SessionManager } from '@/api/session';
 import { createCredentialStore } from './credentials';
 
@@ -107,3 +107,25 @@ it.each(['online', 'offline'] as const)(
     }
   }
 );
+
+it('keeps one SecureStore credential when the configured address moves from v1 to v2', async () => {
+  const v1 = new ApiClient(validateBaseUrl('https://switch.test/api/v1', false));
+  await createCredentialStore(v1.environment).set('refresh-v1-era', user);
+  const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
+    expect(url).toBe('https://switch.test/api/v2/auth/refresh');
+    expect(JSON.parse(String(init?.body))).toEqual({ refreshToken: 'refresh-v1-era' });
+    return Response.json({
+      data: { user, accessToken: 'access-new', refreshToken: 'refresh-new', expiresIn: 900 },
+    });
+  });
+  const v2 = new ApiClient(validateBaseUrl('https://switch.test/api/v2', false), fetcher);
+  expect(v2.environment).toBe(v1.environment);
+  const store = createCredentialStore(v2.environment);
+  const manager = new SessionManager(v2, store, async () => {});
+  await manager.restore();
+  expect(manager.getSnapshot()).toMatchObject({ status: 'signedIn', user });
+  expect(fetcher).toHaveBeenCalledOnce();
+  // The rotated token replaced the original entry instead of starting a second one.
+  expect(await createCredentialStore(v1.environment).get()).toBe('refresh-new');
+  expect([...native.data.keys()].filter((key) => key.includes('switch'))).toHaveLength(1);
+});

@@ -55,7 +55,7 @@ vi.mock('@/i18n/useMessages', async () => {
 });
 vi.mock('@/providers/useOnline', () => ({ useOnline: () => h.online }));
 vi.mock('@/features/auth/AuthProvider', () => ({
-  useAuth: () => ({ user: h.user, manager: { api: { baseUrl: 'https://test/api/v1' } } }),
+  useAuth: () => ({ user: h.user, manager: { api: { environment: 'https://test/api/v1' } } }),
 }));
 vi.mock('@/features/localDrafts/provider', () => ({
   useDraftCatalog: () => ({ catalog: { isVisible: () => h.visible } }),

@@ -10,7 +10,7 @@ export function useLocalWorkCounts() {
   const { catalog } = useDraftCatalog();
   const queue = useExpenseQueue().records;
   const operations = useTripEntry().records;
-  const scope = user ? { environment: manager.api.baseUrl, accountId: user.id } : null;
+  const scope = user ? { environment: manager.api.environment, accountId: user.id } : null;
   return {
     showOperations: status === 'signedIn',
     queue,

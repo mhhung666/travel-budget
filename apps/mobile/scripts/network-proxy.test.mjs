@@ -139,6 +139,14 @@ test('local faults block upstream writes and recover without changing HTTP paylo
     await assert.rejects(() => call(200), { name: 'TimeoutError' });
     assert.equal(received.length, 1, 'faults must not consume refresh credentials upstream');
     assert.equal((await command('online')).status, 200);
+    // B5c-1: a v2 refresh is the same fault target as the v1 one.
+    assert.equal((await command('refresh-500')).status, 200);
+    const v2 = await fetch(`${proxy.url}/api/v2/auth/refresh`, {
+      method: 'POST',
+      body: '{"refreshToken":"test-only"}',
+    });
+    assert.equal(v2.status, 500);
+    assert.equal(received.length, 1, 'an injected v2 refresh never reaches upstream');
     assert.equal((await call()).status, 429);
     assert.equal(received.length, 2);
     assert.deepEqual(proxy.counts, { forwarded: 2, disconnect: 1, timeout: 1, dropped: 0 });

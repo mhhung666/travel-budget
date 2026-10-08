@@ -149,7 +149,8 @@ function TripChrome({ children, state, navigation }: LayoutProps) {
   const options = useExpenseOptions(id);
   const denied =
     isAccessDenied(query.error) ||
-    (!!user && !catalog.isVisible({ environment: manager.api.baseUrl, accountId: user.id }, id));
+    (!!user &&
+      !catalog.isVisible({ environment: manager.api.environment, accountId: user.id }, id));
   return (
     <View style={{ flex: 1, backgroundColor: p.background }}>
       <SafeAreaView edges={['top', 'left', 'right']} style={{ backgroundColor: p.surface }}>

@@ -67,7 +67,7 @@ async function fixture() {
     async () => {}
   );
   await manager.login('me', 'password');
-  const scope = { environment: manager.api.baseUrl, accountId: ME };
+  const scope = { environment: manager.api.environment, accountId: ME };
   const engine = () =>
     new ExpenseEntry({
       store: async () => store,

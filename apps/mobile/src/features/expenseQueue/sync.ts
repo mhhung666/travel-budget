@@ -1,3 +1,4 @@
+import { QUEUED_EXPENSE_VERSION } from '@/api/recovery';
 import { ApiError } from '@/api/client';
 import {
   expenseOptionsSchema,
@@ -176,7 +177,7 @@ export class ExpenseQueue {
             scope.accountId,
             `${path}/expense-options`,
             expenseOptionsSchema,
-            { apiVersion: 1 }
+            { apiVersion: QUEUED_EXPENSE_VERSION }
           );
           if (!this.deps.active(scope)) return;
           if (!stillAuthorized()) {
@@ -194,7 +195,11 @@ export class ExpenseQueue {
             scope.accountId,
             `${path}/expenses/preview`,
             expensePreviewSchema,
-            { apiVersion: 1, method: 'POST', body: previewInputOf(r.input, options) }
+            {
+              apiVersion: QUEUED_EXPENSE_VERSION,
+              method: 'POST',
+              body: previewInputOf(r.input, options),
+            }
           );
           if (!this.deps.active(scope)) return;
           if (!stillAuthorized()) {

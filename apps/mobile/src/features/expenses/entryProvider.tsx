@@ -38,7 +38,7 @@ export function ExpenseEntryProvider({ children }: PropsWithChildren) {
       try {
         if (AppState.currentState !== 'active' || !onlineManager.isOnline())
           throw new ApiError('CANCELLED');
-        const scope = { environment: manager.api.baseUrl, accountId: userId };
+        const scope = { environment: manager.api.environment, accountId: userId };
         const version = manager.getSignInVersion();
         const captured = catalog.captureAccess(scope);
         const trip = /^\/trips\/([^/]+)\//.exec(path)?.[1];
@@ -67,7 +67,7 @@ export function ExpenseEntryProvider({ children }: PropsWithChildren) {
         )
           await catalog
             .deny(
-              { environment: manager.api.baseUrl, accountId: userId },
+              { environment: manager.api.environment, accountId: userId },
               decodeURIComponent(match[1])
             )
             .catch(() => undefined);
@@ -105,7 +105,7 @@ export function ExpenseEntryProvider({ children }: PropsWithChildren) {
           onlineManager.isOnline() &&
           manager.getSnapshot().status === 'signedIn' &&
           manager.getSnapshot().user?.id === scope.accountId &&
-          manager.api.baseUrl === scope.environment,
+          manager.api.environment === scope.environment,
         onChange: (scope) => {
           void client.invalidateQueries({ queryKey: queueKey(scope) });
         },
@@ -126,7 +126,7 @@ export function useExpenseEntry() {
   const entry = useContext(EntryContext);
   const { manager, user } = useAuth();
   if (!entry) throw new Error('ExpenseEntryProvider is missing');
-  const environment = manager.api.baseUrl;
+  const environment = manager.api.environment;
   const accountId = user?.id;
   const scope = useMemo<PendingScope | null>(
     () => (accountId ? { environment, accountId } : null),

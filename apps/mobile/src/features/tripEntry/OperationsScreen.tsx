@@ -16,7 +16,9 @@ import { operationRecordVisible } from '@/features/recovery/visibility';
 import type { PendingMutation } from '@/storage/mutations';
 export function OperationsScreen() {
   const { manager, user, status } = useAuth();
-  return <ScopedOperationsScreen key={JSON.stringify([manager.api.baseUrl, user?.id, status])} />;
+  return (
+    <ScopedOperationsScreen key={JSON.stringify([manager.api.environment, user?.id, status])} />
+  );
 }
 function ScopedOperationsScreen() {
   const { entry, scope, records } = useTripEntry();
@@ -33,7 +35,7 @@ function ScopedOperationsScreen() {
     manager.getSignInVersion() === version &&
     manager.getSnapshot().status === 'signedIn' &&
     manager.getSnapshot().user?.id === scope.accountId &&
-    manager.api.baseUrl === scope.environment;
+    manager.api.environment === scope.environment;
   const visible = (record: PendingMutation) =>
     current() && operationRecordVisible(record, scope, catalog);
   const accessTitle = (record: PendingMutation) => {

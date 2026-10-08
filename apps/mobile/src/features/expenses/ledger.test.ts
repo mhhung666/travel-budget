@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { ApiClient, ApiError } from '@/api/client';
+import { ApiClient, ApiError, validateBaseUrl } from '@/api/client';
+import { QUEUED_EXPENSE_VERSION, savedExpenseVersion, savedMutationVersion } from '@/api/recovery';
 import { baseCurrency } from '@/api/ledger';
 import {
   expenseOptionsSchema,
@@ -249,7 +250,7 @@ describe('B3 monetary contract and input', () => {
 });
 
 describe('B3 transport', () => {
-  it('derives v2 from the same validated origin and leaves authentication on v1', async () => {
+  it('derives v2 from the same validated origin', async () => {
     const fetcher = vi.fn(async (_url: string) => Response.json({ data: options }));
     const api = new ApiClient(scope.environment, fetcher);
     expect(
@@ -258,7 +259,7 @@ describe('B3 transport', () => {
     expect(fetcher.mock.calls[0][0]).toBe(
       `https://test.invalid/api/v2/trips/${tripId}/expense-options`
     );
-    expect(api.baseUrl).toBe(scope.environment);
+    expect(api.environment).toBe(scope.environment);
   });
   it.each([undefined, null, { baseCurrency: 'USD', moneyScale: 0 }])(
     'rejects absent or damaged live units: %j',
@@ -308,9 +309,35 @@ describe('B3 transport', () => {
       })
     );
     expect(
-      (await api.request('/capabilities', ledgerCapabilitiesSchema, { apiVersion: 2 }))
-        .nonTwdCreationEnabled
+      (await api.request('/capabilities', ledgerCapabilitiesSchema)).nonTwdCreationEnabled
     ).toBe(false);
+  });
+});
+
+describe('B5c-1 environment and recovery versions', () => {
+  it('keeps the SQLite scope when the configured address names v2', () => {
+    const configured = validateBaseUrl(scope.environment.replace(/v1$/, 'v2'), false);
+    expect(new ApiClient(configured).environment).toBe(scope.environment);
+  });
+  it('resumes saved records on their original version and never relabels them', () => {
+    const v1Body = { ...body(), currency: 'TWD' } as Record<string, unknown>;
+    delete v1Body.base_currency;
+    expect(savedExpenseVersion({ payload: body() })).toBe(2);
+    expect(savedExpenseVersion({ payload: v1Body })).toBe(1);
+    expect(savedExpenseVersion({ apiVersion: 1, payload: body() })).toBe(1);
+    expect(savedMutationVersion({})).toBe(1);
+    expect(savedMutationVersion({ apiVersion: 2 })).toBe(2);
+    expect(QUEUED_EXPENSE_VERSION).toBe(1);
+  });
+  it('overrides the v2 default only through the recovery adapter', () => {
+    const root = join(process.cwd(), 'src');
+    const offenders = readdirSync(root, { recursive: true })
+      .filter((file) => /\.tsx?$/.test(file) && !/\.test\.tsx?$/.test(file))
+      .filter((file) => !['api/recovery.ts', 'api/client.ts'].includes(file))
+      .filter((file) =>
+        /apiVersion(?:: [12]\b(?! as const)|\s*\?\?)/.test(readFileSync(join(root, file), 'utf8'))
+      );
+    expect(offenders).toEqual([]);
   });
 });
 

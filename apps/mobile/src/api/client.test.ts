@@ -199,3 +199,60 @@ it('preserves a synchronous send guard failure without starting HTTP', async () 
   await expect(client.request('/expenses', schema)).resolves.toEqual({ value: 'ok' });
   expect(fetcher).toHaveBeenCalledTimes(1);
 });
+
+// B5c-1: new requests default to v2; v1 and v2 addresses are one environment with one wait.
+describe('environment identity and transport', () => {
+  const ok = () => Response.json({ data: { value: 'ok' } });
+  it('accepts either configured version as the same original environment', () => {
+    expect(validateBaseUrl('https://example.com/api/v2/', false)).toBe(
+      'https://example.com/api/v1'
+    );
+    expect(validateBaseUrl('https://example.com/api/v1', false)).toBe('https://example.com/api/v1');
+    expect(() => validateBaseUrl('https://example.com/api/v3', false)).toThrow('CONFIGURATION');
+    expect(() => validateBaseUrl('https://example.com/api', false)).toThrow('CONFIGURATION');
+  });
+  it('sends every new request to v2 and only an explicit recovery version to v1', async () => {
+    const fetcher = vi.fn<Fetcher>().mockImplementation(async () => ok());
+    const api = new ApiClient(validateBaseUrl('https://example.com/api/v2', false), fetcher);
+    expect(api.environment).toBe('https://example.com/api/v1');
+    for (const path of ['/auth/login', '/auth/refresh', '/me', '/capabilities', '/trips'])
+      await api.request(path, schema, { method: 'POST' });
+    await api.request('/auth/refresh', schema, { method: 'POST', apiVersion: 1 });
+    expect(fetcher.mock.calls.map(([url]) => url)).toEqual([
+      'https://example.com/api/v2/auth/login',
+      'https://example.com/api/v2/auth/refresh',
+      'https://example.com/api/v2/me',
+      'https://example.com/api/v2/capabilities',
+      'https://example.com/api/v2/trips',
+      'https://example.com/api/v1/auth/refresh',
+    ]);
+  });
+  it('shares one Retry-After wait between both versions of a path', async () => {
+    const fetcher = vi
+      .fn<Fetcher>()
+      .mockResolvedValue(
+        Response.json(
+          { error: { code: 'RATE_LIMITED' } },
+          { status: 429, headers: { 'Retry-After': '60' } }
+        )
+      );
+    const api = new ApiClient('https://example.com/api/v1', fetcher);
+    await expect(api.request('/auth/login', schema, { apiVersion: 1 })).rejects.toMatchObject({
+      status: 429,
+    });
+    await expect(api.request('/auth/login', schema)).rejects.toMatchObject({
+      code: 'RATE_LIMITED',
+      retryAfter: 60,
+    });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+  it('does not quietly fall back to v1 when the server has no v2 route', async () => {
+    const fetcher = vi.fn<Fetcher>().mockResolvedValue(new Response('missing', { status: 404 }));
+    const api = new ApiClient('https://example.com/api/v1', fetcher);
+    await expect(
+      api.request('/auth/login', schema, { method: 'POST', body: { username: 'a' } })
+    ).rejects.toMatchObject({ code: 'LEDGER_SERVICE_UNAVAILABLE' });
+    expect(fetcher).toHaveBeenCalledOnce();
+    expect(fetcher.mock.calls[0][0]).toBe('https://example.com/api/v2/auth/login');
+  });
+});

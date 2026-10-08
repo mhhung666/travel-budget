@@ -19,6 +19,7 @@ export function checkAborted(signal?: AbortSignal) {
 }
 
 export type RequestOptions = {
+  /** Only the recovery adapter (`recovery.ts`) overrides the v2 default for a saved operation. */
   apiVersion?: 1 | 2;
   method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
   body?: unknown;
@@ -27,6 +28,10 @@ export type RequestOptions = {
   /** Synchronous guard immediately before each fetch, including a session refresh replay. */
   beforeSend?: () => void;
 };
+/**
+ * The configured API address may name either version. Both resolve to one environment identity,
+ * the original `/api/v1` spelling, so SecureStore, SQLite scopes, query keys and waits stay shared.
+ */
 export function validateBaseUrl(value: string | undefined, development: boolean) {
   if (!value) throw new ApiError('CONFIGURATION');
   try {
@@ -37,10 +42,10 @@ export function validateBaseUrl(value: string | undefined, development: boolean)
       url.password ||
       url.search ||
       url.hash ||
-      !/^\/api\/v1\/?$/.test(url.pathname)
+      !/^\/api\/v[12]\/?$/.test(url.pathname)
     )
       throw new Error();
-    return value.replace(/\/$/, '');
+    return value.replace(/\/$/, '').replace(/\/v2$/, '/v1');
   } catch {
     throw new ApiError('CONFIGURATION');
   }
@@ -48,9 +53,11 @@ export function validateBaseUrl(value: string | undefined, development: boolean)
 export type Fetcher = (url: string, options?: RequestInit) => Promise<Response>;
 
 export class ApiClient {
+  // Keyed by path only: a wait applies to both versions of the same endpoint.
   private cooldowns = new Map<string, number>();
   constructor(
-    public readonly baseUrl: string,
+    /** Persisted environment identity; never a transport choice. */
+    public readonly environment: string,
     private fetcher: Fetcher = fetch,
     private timeoutMs = 15_000
   ) {}
@@ -58,11 +65,14 @@ export class ApiClient {
   clearCooldown(path: string) {
     this.cooldowns.delete(path);
   }
+  /** Transport URL for one request. There is no fallback to another version. */
+  transport(version: 1 | 2) {
+    return this.environment.replace(/\/v1$/, `/v${version}`);
+  }
   async request<T>(path: string, schema: z.ZodType<T>, options: RequestOptions = {}): Promise<T> {
-    if (!this.baseUrl) throw new ApiError('CONFIGURATION');
-    const version =
-      options.apiVersion ?? (/^\/(trips(?:[/?]|$)|mutation-requests(?:[/?]|$))/.test(path) ? 2 : 1);
-    const url = version === 2 ? this.baseUrl.replace(/\/v1$/, '/v2') : this.baseUrl;
+    if (!this.environment) throw new ApiError('CONFIGURATION');
+    const version = options.apiVersion ?? 2;
+    const url = this.transport(version);
     const remaining = (this.cooldowns.get(path) ?? 0) - Date.now();
     if (remaining > 0) throw new ApiError('RATE_LIMITED', 429, Math.ceil(remaining / 1000));
     checkAborted(options.signal);

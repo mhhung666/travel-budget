@@ -1,3 +1,4 @@
+import { savedMutationVersion } from '@/api/recovery';
 import {
   mutationRequestSchema,
   tripAccessResultSchema,
@@ -269,7 +270,7 @@ export class TripEntry {
         `/mutation-requests/${record.clientRequestId}`,
         mutationRequestSchema,
         {
-          apiVersion: record.apiVersion ?? 1,
+          apiVersion: savedMutationVersion(record),
           beforeSend: this.beforeSend(store, receiptScope, guard),
         }
       );
@@ -331,7 +332,7 @@ export class TripEntry {
                   ? expenseMutationResultSchema
                   : tripMutationResultSchema,
         {
-          apiVersion: record.apiVersion ?? 1,
+          apiVersion: savedMutationVersion(record),
           method:
             record.operation === 'member.rename' ||
             record.operation === 'expense.update' ||

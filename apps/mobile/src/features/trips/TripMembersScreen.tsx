@@ -49,7 +49,7 @@ export function TripMembersScreen({ tripId, source }: { tripId: string; source?:
     manager.getSignInVersion() === version &&
     manager.getSnapshot().status === 'signedIn' &&
     manager.getSnapshot().user?.id === scope.accountId &&
-    manager.api.baseUrl === scope.environment;
+    manager.api.environment === scope.environment;
   const visible = current() && !!scope && catalog.isVisible(scope, tripId);
   const editing = target !== undefined;
   usePreventRemove(editing && name !== initial && !busy && !pending && !done, ({ data }) =>

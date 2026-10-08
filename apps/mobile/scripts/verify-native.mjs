@@ -9,8 +9,13 @@ import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { setTimeout as delay } from 'node:timers/promises';
 import { startNetworkProxy } from './network-proxy.mjs';
-import { createAuthTrace, verifyNaturalRefresh } from './auth-trace.mjs';
-import { entryFlows, verifyEntryTraffic, verifyEntryDatabase } from './entry-trace.mjs';
+import { createAuthTrace, isRefreshPath, verifyNaturalRefresh } from './auth-trace.mjs';
+import {
+  entryFlows,
+  entryReceiptExpectations,
+  verifyEntryTraffic,
+  verifyEntryDatabase,
+} from './entry-trace.mjs';
 import { configureNativeLocale } from './native-locale.mjs';
 import { configureNativeDisplay } from './native-display.mjs';
 import { createNativeSqliteControl } from './native-sqlite.mjs';
@@ -31,6 +36,7 @@ const { values } = parseArgs({
     suite: { type: 'string', default: 'auth-trips' },
     flows: { type: 'string' },
     'locale-flows': { type: 'string' },
+    'entry-api-version': { type: 'string', default: '2' },
     'flow-timeout': { type: 'string', default: '20' },
     appearance: { type: 'string' },
     'text-size': { type: 'string' },
@@ -44,6 +50,8 @@ const { values } = parseArgs({
     'other-network-port': { type: 'string' },
   },
 });
+const entryApiVersion = Number(values['entry-api-version']);
+const entryReceipts = entryReceiptExpectations(entryApiVersion);
 assert(['ios', 'android'].includes(values.platform), 'Use --platform ios|android');
 assert(values.device, 'Select a simulator with --device <UUID or emulator serial>');
 assert(values.fixture, 'Use --fixture <path printed by dev:mobile-api>');
@@ -196,6 +204,8 @@ const env = {
   MAESTRO_APP_ID: values.platform === 'ios' ? 'host.exp.Exponent' : 'host.exp.exponent',
   MAESTRO_EXPO_URL: `exp://127.0.0.1:${port}`,
   MAESTRO_PASSWORD: fixture.password,
+  MAESTRO_ENTRY_REJECTED_RECEIPTS: String(entryReceipts.rejected),
+  MAESTRO_ENTRY_CORRECTED_RECEIPTS: String(entryReceipts.corrected),
   MAESTRO_SHARED_TRIP: fixture.sharedTrip,
   MAESTRO_PRIVATE_TRIP: fixture.privateTrip,
   MAESTRO_REQUIRE_KEYBOARD: String(values.suite === 'keyboard'),
@@ -311,13 +321,14 @@ async function runFlow(flow, artifactName = flow) {
 async function runEntryFlow(flow, artifactName = flow, locale = values.locale) {
   const from = authTrace.events.length;
   const disconnects = proxy?.counts.disconnect ?? 0;
-  const result = { flow, artifactName, locale, passed: false };
+  const result = { flow, artifactName, locale, apiVersion: entryApiVersion, passed: false };
   entryResults.push(result);
   await runFlow(flow, artifactName);
   if (proxy) {
     verifyEntryTraffic(flow, authTrace.events.slice(from), {
       writer: fixture.writerMembers.writer,
       peer: fixture.writerMembers.peer,
+      apiVersion: entryApiVersion,
       counts: { ...proxy.counts, disconnect: proxy.counts.disconnect - disconnects },
     });
   }
@@ -328,7 +339,7 @@ async function runEntryFlow(flow, artifactName = flow, locale = values.locale) {
   });
   assert.equal(response.status, 200, 'Unable to verify stored expenses');
   result.database = await response.json();
-  verifyEntryDatabase(flow, result.database);
+  verifyEntryDatabase(flow, result.database, entryApiVersion);
   result.passed = true;
   console.log(`Verified database${proxy ? ' and backend traffic' : ''} for ${artifactName}.`);
 }
@@ -427,7 +438,7 @@ try {
               for (let attempt = 0; attempt < 100; attempt++) {
                 if (
                   authTrace.events.some(
-                    (e) => e.path === '/api/v1/auth/refresh' && e.injected && e.status === 500
+                    (e) => isRefreshPath(e.path) && e.injected && e.status === 500
                   )
                 )
                   return { observed: true };
@@ -832,7 +843,7 @@ try {
         assert(
           authTrace.events
             .slice(from)
-            .some((e) => e.path === '/api/v1/auth/refresh' && e.status === 401 && !e.injected),
+            .some((e) => isRefreshPath(e.path) && e.status === 401 && !e.injected),
           'Actual backend session expiry must require login'
         );
       }
@@ -1012,7 +1023,7 @@ try {
           assert(
             authTrace.events
               .slice(from)
-              .some((e) => e.path === '/api/v1/auth/refresh' && e.status === 500 && e.injected)
+              .some((e) => isRefreshPath(e.path) && e.status === 500 && e.injected)
           );
         } else {
           assert(
@@ -1021,7 +1032,7 @@ try {
           assert(
             authTrace.events
               .slice(from)
-              .some((e) => e.path === '/api/v1/auth/refresh' && e.status === 200 && !e.injected)
+              .some((e) => isRefreshPath(e.path) && e.status === 200 && !e.injected)
           );
         }
       }
@@ -1128,7 +1139,7 @@ try {
           assert(
             authTrace.events
               .slice(from)
-              .some((e) => e.path === '/api/v1/auth/refresh' && e.status === 200 && !e.injected)
+              .some((e) => isRefreshPath(e.path) && e.status === 200 && !e.injected)
           );
           assert.equal(posts[0].expenseRequest.id, before.pending_expense[0].client_request_id);
           assert.equal(
@@ -1333,10 +1344,10 @@ try {
     await runFlow('expiry-refresh');
     verifyNaturalRefresh(authTrace.events, original);
     console.log('Verified expired JWT → backend 401 → one refresh → successful replay.');
-    const refreshCount = authTrace.events.filter((e) => e.path === '/api/v1/auth/refresh').length;
+    const refreshCount = authTrace.events.filter((e) => isRefreshPath(e.path)).length;
     await runFlow('expiry-restore');
     assert.equal(
-      authTrace.events.filter((e) => e.path === '/api/v1/auth/refresh' && e.status === 200).length,
+      authTrace.events.filter((e) => isRefreshPath(e.path) && e.status === 200).length,
       refreshCount + 1,
       'Cold start must restore the rotated SecureStore credential'
     );

@@ -42,12 +42,12 @@ name: A refusal before anything is written returns to editing; the corrected req
     timeout: 60000
 - assertVisible: ${MAESTRO_ENTRY_REJECTED}
 - takeScreenshot: entry-rejected
-# Nothing was written and nothing is waiting: the form is back, and the preview must be redone.
+# No expense was written. v2 retains the terminal refusal receipt; v1 does not.
 - runFlow:
     file: flows/entry-expect.yaml
     env:
       EXPECT_EXPENSES: '0'
-      EXPECT_RECEIPTS: '0'
+      EXPECT_RECEIPTS: ${MAESTRO_ENTRY_REJECTED_RECEIPTS}
 - assertNotVisible:
     id: pending-card-0
 - assertVisible:
@@ -86,4 +86,4 @@ name: A refusal before anything is written returns to editing; the corrected req
     file: flows/entry-expect.yaml
     env:
       EXPECT_EXPENSES: '1'
-      EXPECT_RECEIPTS: '1'
+      EXPECT_RECEIPTS: ${MAESTRO_ENTRY_CORRECTED_RECEIPTS}

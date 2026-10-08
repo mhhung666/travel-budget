@@ -30,7 +30,7 @@ export function TripEntryProvider({ children }: PropsWithChildren) {
         store: openMutationStore,
         newId: () => Crypto.randomUUID(),
         active: (scope) =>
-          manager.api.baseUrl === scope.environment &&
+          manager.api.environment === scope.environment &&
           manager.getSnapshot().status === 'signedIn' &&
           manager.getSnapshot().user?.id === scope.accountId &&
           onlineManager.isOnline() &&
@@ -66,7 +66,7 @@ export function TripEntryProvider({ children }: PropsWithChildren) {
                 (error.status === 404 && error.code === 'NOT_FOUND'))
             )
               await catalog
-                .deny({ environment: manager.api.baseUrl, accountId: userId }, match[1])
+                .deny({ environment: manager.api.environment, accountId: userId }, match[1])
                 .catch(() => undefined);
             throw error;
           }
@@ -151,8 +151,8 @@ export function useTripEntry() {
   if (!entry) throw new Error('TripEntryProvider missing');
   const { manager, user, status } = useAuth();
   const scope = useMemo(
-    () => (user ? { environment: manager.api.baseUrl, accountId: user.id } : null),
-    [manager.api.baseUrl, user]
+    () => (user ? { environment: manager.api.environment, accountId: user.id } : null),
+    [manager.api.environment, user]
   );
   const records = useQuery({
     queryKey: keyOf(scope),
