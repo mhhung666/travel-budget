@@ -4,16 +4,25 @@ export type AmountResult =
   { ok: true; amount: number } | { ok: false; reason: 'empty' | 'format' | 'zero' | 'tooLarge' };
 
 /**
- * Reads typed TWD text without guessing: digits with an optional point and one or two decimals,
+ * Reads typed original-amount text without guessing (TWD additionally keeps its amount limit): digits with an optional point and one or two decimals,
  * nothing else. `parseFloat` would quietly turn "12abc" or "1e3" into a number; here they fail.
  */
-export function parseAmount(text: string): AmountResult {
+export function parseAmount(text: string, currency = 'TWD'): AmountResult {
   const value = text.trim();
   if (!value) return { ok: false, reason: 'empty' };
   if (!/^\d+(\.\d{1,2})?$/.test(value)) return { ok: false, reason: 'format' };
   const amount = Number(value);
-  if (amount > MAX_EXPENSE_AMOUNT) return { ok: false, reason: 'tooLarge' };
-  if (!isPositiveCentAmount(amount)) return { ok: false, reason: 'zero' };
+  if (
+    (currency === 'TWD' && amount > MAX_EXPENSE_AMOUNT) ||
+    !Number.isSafeInteger(Math.round(amount * 100))
+  )
+    return { ok: false, reason: 'tooLarge' };
+  if (
+    !(currency === 'TWD'
+      ? isPositiveCentAmount(amount)
+      : amount >= 0.01 && Math.round(amount * 100) / 100 === amount)
+  )
+    return { ok: false, reason: 'zero' };
   return { ok: true, amount };
 }
 
@@ -39,4 +48,11 @@ export function addDays(date: string, days: number): string {
     String(shifted.getUTCMonth() + 1).padStart(2, '0'),
     String(shifted.getUTCDate()).padStart(2, '0'),
   ].join('-');
+}
+
+/** No truncation or precision rounding: preserve String(number), including tiny/large exponents. */
+export function parseRate(text: string): number | null {
+  if (!/^\d+(\.\d+)?([eE][+-]?\d+)?$/.test(text.trim())) return null;
+  const rate = Number(text);
+  return Number.isFinite(rate) && rate > 0 ? rate : null;
 }

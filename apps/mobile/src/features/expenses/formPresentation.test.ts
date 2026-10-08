@@ -29,6 +29,10 @@ const h = vi.hoisted(() => ({
   pending: [] as unknown[],
   authorized: true,
   denied: false,
+  requestRates: vi.fn(),
+  pause: vi.fn(),
+  until: 0,
+  signInVersion: 1,
   requestPreview: vi.fn(),
   submit: vi.fn(),
   enqueue: vi.fn(),
@@ -74,6 +78,7 @@ vi.mock('react-native', () => ({
   ...Object.fromEntries(
     ['Text', 'View', 'Pressable', 'ActivityIndicator', 'InputAccessoryView'].map((n) => [n, n])
   ),
+  AppState: { currentState: 'active' },
   Keyboard: { dismiss: h.dismiss },
   Platform: { OS: 'ios' },
 }));
@@ -105,7 +110,14 @@ vi.mock('@/components/ui', async () => {
   };
 });
 vi.mock('@/features/localDrafts/provider', () => ({
-  useDraftCatalog: () => ({ catalog: { isVisible: () => !h.denied } }),
+  useDraftCatalog: () => ({
+    catalog: {
+      isVisible: () => !h.denied,
+      captureAccess: () => () => {
+        if (h.denied) throw new Error('CANCELLED');
+      },
+    },
+  }),
 }));
 vi.mock('@/features/auth/AuthProvider', () => ({
   useAuth: () => ({ user: { id: h.scope.accountId } }),
@@ -124,6 +136,9 @@ vi.mock('./entryProvider', () => ({
     scope: h.scope,
     entry: { submit: h.submit },
     manager: {
+      api: { baseUrl: h.scope.environment },
+      getSignInVersion: () => h.signInVersion,
+      requestAs: h.requestRates,
       getSnapshot: () => ({
         status: h.online ? 'signedIn' : 'local',
         user: { id: h.scope.accountId },
@@ -160,7 +175,17 @@ vi.mock('./useExpenseDraft', () => ({
     },
   }),
 }));
-vi.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({}) }));
+vi.mock('@tanstack/react-query', () => ({
+  useQueryClient: () => ({}),
+  onlineManager: { isOnline: () => h.online },
+}));
+vi.mock('@/storage/pendingExpenseDatabase', () => ({
+  openMutationStore: async () => ({
+    retryAt: async () => 0,
+    rateLimitUntil: () => h.until,
+    pause: h.pause,
+  }),
+}));
 vi.mock('./entryQueries', async () => ({
   useExpenseOptions: () => ({
     data: h.options,
@@ -244,6 +269,8 @@ beforeEach(() => {
   h.authorized = true;
   h.denied = false;
   h.phase = 'editing';
+  h.until = 0;
+  h.signInVersion = 1;
   h.saveStatus = 'saved';
   h.discardFailed = false;
   h.revision = 1;
@@ -488,3 +515,139 @@ it.each(['zh', 'zh-CN', 'en', 'jp'] as const)(
     }
   }
 );
+
+it.each(Object.keys(messages) as (keyof typeof messages)[])(
+  'shows full foreign confirmation and blocks the TWD queue in %s',
+  async (locale) => {
+    h.locale = locale;
+    h.draft = {
+      ...h.draft,
+      currency: 'JPY',
+      amountText: '000100.00',
+      rateText: '0.2156789012345',
+      rateSource: 'manual',
+    };
+    h.requestPreview.mockResolvedValue({
+      amount: 21.57,
+      originalAmount: 100,
+      currency: 'JPY',
+      exchangeRate: 0.2156789012345,
+      splits: detail.splits.map((s, index) => ({ ...s, shareAmount: index === 0 ? 10.79 : 10.78 })),
+    });
+    press(id(form().entryTree, 'new-expense-preview'));
+    await flush();
+    const tree = form().entryTree;
+    expect(id(tree, 'new-expense-confirm').props.disabled).toBe(false);
+    const rows = nodes(id(tree, 'new-expense-preview-card')).filter((e) => e.type === 'DetailRow');
+    expect(rows.find((e) => e.props.label === messages[locale].exchangeRate)?.props.value).toBe(
+      '0.2156789012345'
+    );
+    expect(
+      rows.find((e) => e.props.label === messages[locale].originalAmount)?.props.value
+    ).toContain('JPY');
+    expect(id(tree, 'expense-queue-confirm').props.disabled).toBe(true);
+    (id(tree, 'expense-queue-confirm').props.onPress as () => void)();
+    await flush();
+    expect(h.enqueue).not.toHaveBeenCalled();
+    change(id(tree, 'new-expense-rate'), '0.216');
+    expect(id(form().entryTree, 'new-expense-confirm').props.disabled).toBe(true);
+  }
+);
+it('currency switches preserve original digits and use the selected pinned rate without reapplying settings', () => {
+  h.draft = { ...h.draft, amountText: '000100.01' };
+  h.options = {
+    ...h.options,
+    currencySettings: {
+      default_currency: 'JPY',
+      currencies: [
+        { code: 'JPY', rate: 0.2156789012345 },
+        { code: 'USD', rate: null },
+      ],
+    },
+  };
+  press(id(form().entryTree, 'new-expense-currency-JPY'));
+  expect(h.draft).toMatchObject({
+    amountText: '000100.01',
+    currency: 'JPY',
+    rateText: '0.2156789012345',
+  });
+  h.options.currencySettings!.currencies[0].rate = 9;
+  expect(id(form().entryTree, 'new-expense-rate').props.value).toBe('0.2156789012345');
+  press(id(form().entryTree, 'new-expense-currency-USD'));
+  expect(h.draft).toMatchObject({ amountText: '000100.01', currency: 'USD', rateText: '' });
+  expect(h.requestPreview).not.toHaveBeenCalled();
+});
+it('reference rates require explicit read and apply; failures and missing quotes retain manual input', async () => {
+  h.draft = { ...h.draft, currency: 'JPY', rateText: '0.2156789012345', rateSource: 'manual' };
+  form();
+  expect(h.requestRates).not.toHaveBeenCalled();
+  h.requestRates.mockResolvedValueOnce({
+    rates: { TWD: 1, JPY: 0.216789012345 },
+    dates: { JPY: '2026-10-07' },
+    provider: 'Frankfurter',
+  });
+  press(id(form().entryTree, 'new-expense-load-rates'));
+  await flush();
+  expect(h.draft.rateText).toBe('0.2156789012345');
+  expect(nodes(form().entryTree).some((e) => e.props.value === '2026-10-07')).toBe(true);
+  press(id(form().entryTree, 'new-expense-use-rate'));
+  expect(h.draft).toMatchObject({
+    rateText: '0.216789012345',
+    rateSource: 'reference',
+    rateDate: '2026-10-07',
+  });
+  h.requestRates.mockRejectedValueOnce(new Error('offline'));
+  press(id(form().entryTree, 'new-expense-load-rates'));
+  await flush();
+  expect(h.draft.rateText).toBe('0.216789012345');
+  expect(nodes(form().entryTree).some((e) => e.props.testID === 'new-expense-use-rate')).toBe(
+    false
+  );
+  h.requestRates.mockResolvedValueOnce({ rates: { TWD: 1 }, dates: {}, provider: 'Frankfurter' });
+  press(id(form().entryTree, 'new-expense-load-rates'));
+  await flush();
+  expect(
+    nodes(form().entryTree).some((e) => e.props.children === messages.en.rateUnavailable)
+  ).toBe(true);
+  expect(h.draft.rateText).toBe('0.216789012345');
+});
+it.each(['edit', 'account', 'denial', 'offline'] as const)(
+  'does not expose late reference response after %s',
+  async (mode) => {
+    h.draft = { ...h.draft, currency: 'JPY', rateText: '0.215' };
+    let finish!: (v: unknown) => void;
+    h.requestRates.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finish = resolve;
+      })
+    );
+    press(id(form().entryTree, 'new-expense-load-rates'));
+    await flush();
+    if (mode === 'edit') change(id(form().entryTree, 'new-expense-rate'), '0.214');
+    if (mode === 'account') h.signInVersion++;
+    if (mode === 'denial') h.denied = true;
+    if (mode === 'offline') h.online = false;
+    finish({ rates: { TWD: 1, JPY: 0.22 }, dates: { JPY: '2026-10-07' }, provider: 'Frankfurter' });
+    await flush();
+    // Inspect the form directly for denial; the outer screen additionally hides it.
+    if (!h.denied)
+      expect(nodes(form().entryTree).some((e) => e.props.testID === 'new-expense-use-rate')).toBe(
+        false
+      );
+    expect(h.draft.rateText).toBe(mode === 'edit' ? '0.214' : '0.215');
+  }
+);
+it('stores reference-read 429 as an account wait and prevents another upstream request', async () => {
+  const { ApiError } = await import('@/api/client');
+  h.draft = { ...h.draft, currency: 'JPY', rateText: '0.215' };
+  h.pause.mockImplementation(async (_scope, until) => {
+    h.until = until;
+  });
+  h.requestRates.mockRejectedValueOnce(new ApiError('BUSY', 429, 120));
+  press(id(form().entryTree, 'new-expense-load-rates'));
+  await flush();
+  expect(h.pause).toHaveBeenCalledWith(h.scope, expect.any(Number));
+  press(id(form().entryTree, 'new-expense-load-rates'));
+  await flush();
+  expect(h.requestRates).toHaveBeenCalledOnce();
+});

@@ -77,12 +77,14 @@ export const requestPreview = (
   userId: string,
   tripId: string,
   input: ExpensePreviewInput,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  beforeSend?: () => void
 ) =>
   manager.requestAs(userId, `${tripPath(tripId)}/expenses/preview`, expensePreviewSchema, {
     method: 'POST',
     body: input,
     signal,
+    beforeSend,
   });
 
 /**

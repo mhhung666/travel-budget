@@ -83,10 +83,13 @@ export function fakeExpenseServer() {
       category: body.category,
       payerId: body.payer_id,
       payerName: label.get(body.payer_id) ?? '',
-      amount: body.original_amount,
+      amount:
+        body.currency === 'TWD'
+          ? body.original_amount
+          : body.splits.reduce((sum, s) => sum + Math.round(s.share_amount * 100), 0) / 100,
       originalAmount: body.original_amount,
-      currency: 'TWD',
-      exchangeRate: 1,
+      currency: body.currency,
+      exchangeRate: body.exchange_rate,
       splits: body.splits.map((split) => ({
         userId: split.user_id,
         displayName: label.get(split.user_id) ?? '',

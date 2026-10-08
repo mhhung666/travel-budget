@@ -951,7 +951,7 @@ try {
       schema: expenseOptionsSchema,
     })
   ).data;
-  assertKeys(options, ['members', 'categories'], 'options');
+  assertKeys(options, ['members', 'categories', 'currencySettings', 'supportedCurrencies'], 'options');
   assert.deepEqual(
     options.members,
     memberOrder.map((user) => ({ id: hexId(user._id), displayName: user.displayName, isVirtual: user.isVirtual })),
@@ -1400,7 +1400,7 @@ try {
         ],
       },
     ],
-    ['foreign currency', { currency: 'JPY' }],
+    ['unsupported currency', { currency: 'ZZZ' }],
     ['other exchange rate', { exchange_rate: 30 }],
     ['unknown category', { category: 'games' }],
     ['blank description', { description: '   ' }],
@@ -1468,7 +1468,7 @@ try {
   );
   assert.equal((await create({ ...reused, date })).description, 'TEST online dinner');
   pass(
-    'expense creation rejects invalid, foreign, unsupported and unauthorized requests without writing'
+    'expense creation rejects invalid, unsupported and unauthorized requests without writing'
   );
 
   // The client sends the request but never reads the response, as if it were lost on the way back:
@@ -1499,6 +1499,41 @@ try {
     1
   );
   pass('lost response: the commit survives, the key finds it and the retry repeats nothing');
+
+  // G2b: frozen original currency/rate survive lost acknowledgement and later settings.
+  const g2bTrip = new mongoose.Types.ObjectId();
+  await db.collection('trips').insertOne({ _id: g2bTrip, name: 'TEST G2b', members: [{ user: writer._id, role: 'admin' }], currencySettings: { defaultCurrency: 'JPY', currencies: [{ code: 'JPY', rate: 0.2156789012345 }] } });
+  const g2bPath = `/trips/${g2bTrip}/expenses`;
+  const g2bOptions = (await request(`/trips/${g2bTrip}/expense-options`, { token: writerSession.accessToken, schema: expenseOptionsSchema })).data;
+  assert.equal(g2bOptions.currencySettings.default_currency, 'JPY');
+  const g2bPreview = (await request(`${g2bPath}/preview`, { token: writerSession.accessToken, body: { amount: 100, currency: 'JPY', exchange_rate: 0.2156789012345, member_ids: [writerId] }, schema: expensePreviewSchema })).data;
+  assert.deepEqual({ amount: g2bPreview.amount, originalAmount: g2bPreview.originalAmount, currency: g2bPreview.currency, exchangeRate: g2bPreview.exchangeRate }, { amount: 21.57, originalAmount: 100, currency: 'JPY', exchangeRate: 0.2156789012345 });
+  const g2bBody = payload({ original_amount: 100, currency: 'JPY', exchange_rate: g2bPreview.exchangeRate, description: 'TEST G2b lost response', splits: g2bPreview.splits.map(s => ({ user_id: s.userId, share_amount: s.shareAmount })) });
+  const g2bSocket = connect(port, '127.0.0.1');
+  g2bSocket.on('error', () => {});
+  await once(g2bSocket, 'connect');
+  const g2bText = JSON.stringify(g2bBody);
+  g2bSocket.write(`POST /api/v1${g2bPath} HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\nAuthorization: Bearer ${writerSession.accessToken}\r\nContent-Type: application/json\r\nContent-Length: ${Buffer.byteLength(g2bText)}\r\nConnection: close\r\n\r\n${g2bText}`);
+  await eventually(async () => (await db.collection('expensecreaterequests').countDocuments({ _id: `${g2bTrip}:${writerId}:${g2bBody.client_request_id}` })) === 1, 'G2b did not commit before socket close', 20_000);
+  g2bSocket.destroy();
+  await db.collection('trips').updateOne({ _id: g2bTrip }, { $set: { currencySettings: { defaultCurrency: 'USD', currencies: [{ code: 'JPY', rate: 9 }] } } });
+  const g2bFound = (await request(`/trips/${g2bTrip}/expense-requests/${g2bBody.client_request_id}`, { token: writerSession.accessToken, schema: expenseRequestSchema })).data;
+  assert.equal(g2bFound.status, 'committed');
+  assert.equal(g2bFound.expense.amount, g2bPreview.amount);
+  assert.equal(g2bFound.expense.exchangeRate, g2bPreview.exchangeRate);
+  assert.deepEqual((await request(g2bPath, { token: writerSession.accessToken, body: g2bBody, schema: expenseDetailSchema })).data, g2bFound.expense);
+  assert.equal(await db.collection('expenses').countDocuments({ trip: g2bTrip }), 1);
+  assert.equal(await db.collection('expensecreaterequests').countDocuments({ trip: g2bTrip }), 1);
+  const g2bRaw = await db.collection('expenses').findOne({ trip: g2bTrip });
+  assert.equal(g2bRaw.amount, 21.57); assert.equal(g2bRaw.originalAmount, 100); assert.equal(g2bRaw.exchangeRate, 0.2156789012345);
+  await request(`${g2bPath}/preview`, { token: writerSession.accessToken, body: { amount: 1_000_000_000, currency: 'JPY', exchange_rate: 2, member_ids: [writerId] }, status: 400 });
+  await request(g2bPath, { token: writerSession.accessToken, body: { ...g2bBody, exchange_rate: 0.22 }, status: 409 });
+  await db.collection('trips').updateOne({ _id: g2bTrip }, { $pull: { members: { user: writer._id } } });
+  await request(`/trips/${g2bTrip}/expense-requests/${g2bBody.client_request_id}`, { token: writerSession.accessToken, status: 404 });
+  await db.collection('trips').deleteOne({ _id: g2bTrip });
+  await db.collection('expenses').deleteMany({ trip: g2bTrip });
+  await db.collection('expensecreaterequests').deleteMany({ trip: g2bTrip });
+  pass('G2b: original currency/precise rate, TWD preview/DB/receipt agree, dropped response and changed settings replay once, conversion limit and revoked access');
 
   // The largest accepted amount stays exact from the preview to the settlement. Above it the
   // backend's cent rounding drifts (1e13 comes back as 1e13 + 0.01), which the requests refused

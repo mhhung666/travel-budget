@@ -342,7 +342,7 @@ const paths = {
         errors: [409],
       }),
       parameters: [tripIdParam],
-      description: `Creates one TWD expense (rate 1) split among trip members. original_amount and every share_amount have at most two decimals and are at most ${maxAmount}; anything larger returns 400 and writes nothing. client_request_id is a UUID the client generates once per confirmed submission and reuses for every retry of the same payload (letter case does not matter); the first success and every replay return 200 with the same body, and replays are authorized again. A 4xx status means this request wrote nothing (409: the key was already used with different content). A 5xx status, timeout or dropped connection leaves the outcome unknown: query /expense-requests/{clientRequestId} or retry the identical payload. 429 means the trip write could not start; nothing was written, retry with the same key after Retry-After. Unknown fields are rejected; an expense deleted after creation is not created again by a replay.`,
+      description: `Creates one supported currency expense split among trip members. original_amount has at most two decimals with safe integer cents; exchange_rate is a finite positive full-precision TWD-per-unit rate (TWD requires 1). Converted TWD total and every share_amount are at most ${maxAmount}; invalid conversion returns 400 and writes nothing. client_request_id is a UUID the client generates once per confirmed submission and reuses for every retry of the same payload (letter case does not matter); the first success and every replay return 200 with the same body, and replays are authorized again. A 4xx status means this request wrote nothing (409: the key was already used with different content). A 5xx status, timeout or dropped connection leaves the outcome unknown: query /expense-requests/{clientRequestId} or retry the identical payload. 429 means the trip write could not start; nothing was written, retry with the same key after Retry-After. Unknown fields are rejected; an expense deleted after creation is not created again by a replay.`,
     },
   },
   '/trips/{id}/expenses/preview': {
@@ -351,7 +351,7 @@ const paths = {
         authenticated: true,
       }),
       parameters: [tripIdParam],
-      description: `Equal split of a TWD amount (two decimals, at most ${maxAmount}) among the selected members, returned in expense-options order (the earliest joined member among them receives the leftover cent) whatever order the request used. Read-only: nothing is stored or reserved, and creating the expense validates everything again.`,
+      description: `Equal split among selected members. Legacy {amount, member_ids} remains TWD with its original response. Explicit {amount, currency, exchange_rate, member_ids} treats amount as original currency (safe cents), echoes originalAmount/currency/exchangeRate, and returns converted amount and TWD shares (at most ${maxAmount}). Shares follow expense-options order; original-cent allocation and TWD conversion use Web computeSplits, independent of request order. Currency settings never replace an explicit request rate. Read-only: nothing is stored or reserved, and creating the expense validates everything again.`,
     },
   },
   '/trips/{id}/expense-options': {

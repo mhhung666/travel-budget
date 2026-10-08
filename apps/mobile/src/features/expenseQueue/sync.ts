@@ -6,7 +6,7 @@ import {
   expensePreviewInput,
   type ExpenseOptions,
 } from '@/api/contracts';
-import type { StoredExpenseDraft } from '@/storage/expenseDrafts';
+import { isTwdQueueDraft, type StoredExpenseDraft } from '@/storage/expenseDrafts';
 import type { PendingScope } from '@/storage/pendingExpenses';
 import type { ExpenseQueueStore, QueuedExpense } from '@/storage/expenseQueue';
 import { confirmedFields, previewInputOf, validateDraft } from '@/features/expenses/draft';
@@ -54,6 +54,7 @@ export class ExpenseQueue {
     return this.deps.store().then((s) => s.list(scope));
   }
   async enqueue(draft: StoredExpenseDraft, options: ExpenseOptions) {
+    if (!isTwdQueueDraft(draft.input)) throw new Error('UNSUPPORTED_QUEUE_CURRENCY');
     if (validateDraft(draft.input, options).length) throw new Error('INVALID_DRAFT');
     // Shared HTTP schema enforces member count, IDs, amount and date without calculating splits.
     const input = previewInputOf(draft.input, options);
@@ -125,6 +126,10 @@ export class ExpenseQueue {
       if ((await store.rateLimitUntil(scope)) > this.now()) return;
       for (const r of records) {
         if (!this.deps.active(scope)) return;
+        if (!isTwdQueueDraft(r.input)) {
+          await store.pause(r, 'currency', 0, true);
+          continue;
+        }
         if (r.status === 'attention' || r.status === 'resolved') continue;
         if (blockedTrips.has(r.tripId)) continue;
         if (r.nextAt > this.now()) {

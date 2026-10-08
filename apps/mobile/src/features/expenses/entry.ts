@@ -105,7 +105,11 @@ export function sameExpense(payload: ExpenseCreateInput, expense: ExpenseDetail)
     expense.date === payload.date &&
     expense.category === payload.category &&
     expense.payerId === payload.payer_id &&
-    cents(expense.amount) === cents(payload.original_amount) &&
+    expense.currency === payload.currency &&
+    expense.exchangeRate === payload.exchange_rate &&
+    expense.originalAmount === payload.original_amount &&
+    cents(expense.amount) ===
+      payload.splits.reduce((sum, split) => sum + cents(split.share_amount), 0) &&
     shares(expense.splits.map((split) => [split.userId, split.shareAmount])) ===
       shares(payload.splits.map((split) => [split.user_id, split.share_amount]))
   );
@@ -188,7 +192,8 @@ export class ExpenseEntry {
     scope: PendingScope,
     tripId: string,
     fields: ExpenseFields,
-    draft?: DraftRef
+    draft?: DraftRef,
+    beforeSend?: () => void
   ): Promise<EntryOutcome> {
     const lock = `${scopeKey(scope)}\n${tripId}`;
     if (this.opening.has(lock)) return { kind: 'blocked' };
@@ -221,7 +226,7 @@ export class ExpenseEntry {
     }
     this.deps.onChange?.(scope, tripId);
     // New submissions share the durable account cooldown used by recovery and manual retry.
-    return this.retry(scope, record.clientRequestId);
+    return this.retry(scope, record.clientRequestId, beforeSend);
   }
 
   /** Asks the server what it has for a pending request. Read-only. */

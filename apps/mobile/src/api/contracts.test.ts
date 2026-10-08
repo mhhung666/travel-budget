@@ -165,7 +165,7 @@ describe('online expense entry payloads', () => {
       createBody
     );
     for (const bad of [
-      { currency: 'JPY' },
+      { currency: 'jpy' },
       { exchange_rate: 30 },
       { client_request_id: 'abc' },
       { client_request_id: undefined },

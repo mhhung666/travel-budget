@@ -79,3 +79,9 @@ it.each(locales)(
     expect(formatCurrency(-0.01, 'JPY', locale)).toBe('-¥0.01');
   }
 );
+
+it('shows precise and extreme exchange rates without reducing them to zero or an eight-decimal approximation', () => {
+  expect(formatRate(0.2156789012345)).toBe('0.2156789012345');
+  expect(formatRate(1e-12)).toBe('1e-12');
+  expect(formatRate(1e308)).toBe('1e+308');
+});

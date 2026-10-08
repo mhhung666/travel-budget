@@ -1,4 +1,11 @@
 const zh = {
+  foreignAmountTooLarge: '原幣金額太大，無法安全保留到分。換算後 TWD 上限為 1,000,000,000。',
+  expenseCurrency: '支出幣別',
+  manualRate: '手動匯率',
+  expenseRateHint: '1 單位原幣 = ? TWD。保留完整精度；不會自動改用新匯率。',
+  useReferenceRate: '套用參考匯率',
+  invalidExpenseRate: '請輸入有效正數匯率；TWD 固定為 1。',
+  foreignDraftOnlineOnly: '外幣草稿可保存；需連線重新預覽及確認，不能加入 TWD 待送佇列。',
   currencySettings: '旅行幣別與匯率',
   commonCurrencies: '常用幣別',
   defaultCurrency: '新增支出的預設幣別',
@@ -13,8 +20,7 @@ const zh = {
   rateProvider: '來源',
   rateUnavailable: '沒有此幣別的參考匯率',
   loadReferenceRates: '讀取參考匯率',
-  referenceRateHint:
-    '每日發布的參考值，並非即時報價；設定只影響之後的預填。外幣記帳將在下一階段開放。',
+  referenceRateHint: '每日發布的參考值，並非即時報價；設定只影響之後的預填。',
   rateLoadFailed: '參考匯率讀取失敗；輸入保留，可重試或設定有效的手動匯率。',
   removeCurrency: '移除幣別',
   currencyAdminOnly: '僅管理員可修改幣別設定。',
@@ -345,7 +351,7 @@ const zh = {
   noPayments: '尚無已登記還款。',
   you: '你',
   addExpense: '新增支出',
-  newExpenseHint: '目前只能記 TWD 支出，並由勾選的成員均分；外幣或其他分攤方式請先在網站記錄。',
+  newExpenseHint: '原幣與匯率經後端換算成 TWD，由勾選成員均分；其他分攤方式請先在網站記錄。',
   expenseDescription: '說明',
   amountHint: '例如 100 或 100.50',
   dateFormatHint: '格式 YYYY-MM-DD',
@@ -400,6 +406,13 @@ export type Messages = Record<keyof typeof zh, string>;
 export const messages = {
   zh,
   'zh-CN': {
+    foreignAmountTooLarge: '原币金额太大，无法安全保留到分。换算后 TWD 上限为 1,000,000,000。',
+    expenseCurrency: '支出币别',
+    manualRate: '手动汇率',
+    expenseRateHint: '1 单位原币 = ? TWD。保留完整精度；不会自动改用新汇率。',
+    useReferenceRate: '采用参考汇率',
+    invalidExpenseRate: '请输入有效正数汇率；TWD 固定为 1。',
+    foreignDraftOnlineOnly: '外币草稿可保存；需联网重新预览及确认，不能加入 TWD 待发队列。',
     currencySettings: '旅行币别与汇率',
     commonCurrencies: '常用币别',
     defaultCurrency: '新增支出的默认币别',
@@ -414,7 +427,7 @@ export const messages = {
     rateProvider: '来源',
     rateUnavailable: '没有此币别的参考汇率',
     loadReferenceRates: '读取参考汇率',
-    referenceRateHint: '每日发布的参考值，并非实时报价。外币记账将在下一阶段开放。',
+    referenceRateHint: '每日发布的参考值，并非实时报价。设置只影响之后的预填。',
     rateLoadFailed: '参考汇率读取失败；输入保留，可重试或设置有效的手动汇率。',
     removeCurrency: '移除币别',
     currencyAdminOnly: '仅管理员可修改币别设置。',
@@ -744,7 +757,7 @@ export const messages = {
     noPayments: '暂无已登记还款。',
     you: '你',
     addExpense: '新增支出',
-    newExpenseHint: '目前只能记 TWD 支出，并由勾选的成员均分；外币或其他分摊方式请先在网站记录。',
+    newExpenseHint: '原币与汇率经服务器换算为 TWD，由勾选成员均分；其他分摊方式请先在网站记录。',
     expenseDescription: '说明',
     amountHint: '例如 100 或 100.50',
     dateFormatHint: '格式 YYYY-MM-DD',
@@ -794,6 +807,16 @@ export const messages = {
     done: '完成',
   },
   en: {
+    foreignAmountTooLarge:
+      'The original amount is too large to store safe integer cents. Converted TWD cannot exceed 1,000,000,000.',
+    expenseCurrency: 'Expense currency',
+    manualRate: 'Manual rate',
+    expenseRateHint:
+      '1 original currency unit = ? TWD. Full precision is preserved; rates never change automatically.',
+    useReferenceRate: 'Use reference rate',
+    invalidExpenseRate: 'Enter a valid positive rate. TWD always uses 1.',
+    foreignDraftOnlineOnly:
+      'Foreign currency drafts can be saved. Connect, preview again and confirm online; the offline queue supports TWD only.',
     currencySettings: 'Trip currencies and rates',
     commonCurrencies: 'Common currencies',
     defaultCurrency: 'Default for new expenses',
@@ -810,7 +833,7 @@ export const messages = {
     rateUnavailable: 'No reference rate for this currency',
     loadReferenceRates: 'Load reference rates',
     referenceRateHint:
-      'Daily published reference values, not live quotes. Foreign expense entry arrives in the next stage.',
+      'Daily published reference values, not live quotes. Settings affect future defaults only.',
     rateLoadFailed:
       'Reference rates unavailable. Input is retained; retry or enter a valid custom rate.',
     removeCurrency: 'Remove currency',
@@ -1188,7 +1211,7 @@ export const messages = {
     you: 'You',
     addExpense: 'Add expense',
     newExpenseHint:
-      'For now you can add TWD expenses split equally between the members you select. For foreign currency or other splits, use the website.',
+      'The server converts original currency and rate to TWD, then splits among selected members. Use the website for other split methods.',
     expenseDescription: 'Description',
     amountHint: 'For example 100 or 100.50',
     dateFormatHint: 'Format YYYY-MM-DD',
@@ -1247,6 +1270,15 @@ export const messages = {
     done: 'Done',
   },
   jp: {
+    foreignAmountTooLarge:
+      '原通貨の金額が大きすぎ、安全な整数セントで保存できません。換算 TWD の上限は 1,000,000,000 です。',
+    expenseCurrency: '支出の通貨',
+    manualRate: '手動レート',
+    expenseRateHint: '原通貨 1 単位 = ? TWD。精度を保持し、レートは自動で変更しません。',
+    useReferenceRate: '参考レートを適用',
+    invalidExpenseRate: '有効な正のレートを入力してください。TWD は常に 1 です。',
+    foreignDraftOnlineOnly:
+      '外貨の下書きは保存できます。オンラインで再プレビューして確認してください。送信待ちは TWD のみです。',
     currencySettings: '旅行の通貨とレート',
     commonCurrencies: 'よく使う通貨',
     defaultCurrency: '新規支出の既定通貨',
@@ -1262,7 +1294,7 @@ export const messages = {
     rateUnavailable: 'この通貨の参考レートはありません',
     loadReferenceRates: '参考レートを取得',
     referenceRateHint:
-      '日次公表の参考値であり、リアルタイム価格ではありません。外貨記帳は次の段階で対応します。',
+      '日次公表の参考値であり、リアルタイム価格ではありません。設定は今後の初期入力にのみ適用されます。',
     rateLoadFailed:
       '参考レートを取得できません。入力は保持されます。再試行または有効なレートを入力してください。',
     removeCurrency: '通貨を削除',
@@ -1636,7 +1668,7 @@ export const messages = {
     you: '自分',
     addExpense: '支出を追加',
     newExpenseHint:
-      '現在は TWD の支出を、選んだメンバーで均等に分ける形式のみ追加できます。外貨やその他の分け方は Web サイトで記録してください。',
+      '原通貨とレートをサーバーが TWD に換算し、選んだメンバーで均等に分けます。他の分担方法は Web で記録してください。',
     expenseDescription: '内容',
     amountHint: '例: 100 または 100.50',
     dateFormatHint: '形式 YYYY-MM-DD',

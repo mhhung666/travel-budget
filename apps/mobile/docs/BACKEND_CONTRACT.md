@@ -34,7 +34,7 @@ Trip DTO 包含 `id/name/description/startDate/endDate/destination/archived/memb
 
 ### 線上新增支出的契約
 
-本輪只支援 TWD、匯率 1 與勾選成員均分。新增 body（snake_case，沿用 Web 輸入名稱；回應仍是 camelCase DTO）：`client_request_id`（UUID，必填）、`payer_id`、`original_amount`、`currency: 'TWD'`、`exchange_rate: 1`、`description`（trim 後 1–200 字）、`category`、`date`（YYYY-MM-DD，須是真實日期）、`splits: [{ user_id, share_amount }]`（1–100 位、不可重複、可為 0、至多兩位小數）。金額為正值、至多兩位小數，且金額與每份分攤不超過單筆上限 1,000,000,000.00（超過回 400、不寫入，預覽同樣）；附件、標籤、行程關聯等其他欄位一律 400，不被忽略。付款人可不參與分攤。
+線上新增支援 TWD／外幣與勾選成員均分，匯率／原額細節见 [G2b](#g2b-原幣預覽與新增)。新增 body（snake_case，沿用 Web 輸入名稱；回應仍是 camelCase DTO）：`client_request_id`（UUID，必填）、`payer_id`、`original_amount`、`currency`（支援 ISO）、`exchange_rate`（TWD 固定 1）、`description`（trim 後 1–200 字）、`category`、`date`（YYYY-MM-DD，須是真實日期）、`splits: [{ user_id, share_amount }]`（1–100 位、不可重複、可為 0、至多兩位小數）。金額為正值、至多兩位小數，且TWD／換算後金額與每份分攤不超過單筆上限 1,000,000,000.00（超過回 400、不寫入，預覽同樣）；附件、標籤、行程關聯等其他欄位一律 400，不被忽略。付款人可不參與分攤。
 
 預覽 `{ amount, member_ids }` 由後端呼叫 Web 表單使用的 `computeSplits('equal')`，結果一律依 `expense-options` 的成員順序（與請求順序無關）：100 元三人為 33.34／33.33／33.33。預覽不寫入、不保留交易，新增時後端仍重新驗證成員、加總與金額，所以預覽不代表日後一定能寫入。App 應原樣送出預覽的分攤，不自行計算。
 
@@ -179,4 +179,12 @@ expense-options／payment-context members 新增可選 isVirtual；結算 balanc
 
 Web 設定 Action 與 HTTP 共用 currencySettings／tripManagement 的父旅行交易與正規化；管理員資格在交易內重驗。revision 只覆蓋幣別設定，不因名稱／封存或帳務改變失效；同內容回到原狀可使用相同 revision，並非單調計數。舊 revision 409 `RESOURCE_CHANGED`、降為一般成員 403 `FORBIDDEN`、失去成員資格 404 `NOT_FOUND`。確認寫入與 `trip.currency` receipt 原子提交，UUID／凍結內容重播不覆蓋之後的新設定；終局拒絕可依原 UUID 查回。receipt 仍需目前成員資格，不使用 G1c 成功退出例外；不同 body／operation 同 UUID 409。
 
-設定寫入不讀外部匯率，不改任何 expense／payment，也不更新 C 已確認 body。舊 App TWD／匯率 1 契約維持；本片未開放外幣新增／預覽／編輯，後續 G2b／c 才擴充。
+設定寫入不讀外部匯率，不改任何 expense／payment，也不更新 C 已確認 body。舊 App TWD／匯率 1 契約維持；外幣新增／預覽已由 G2b 擴充；編輯留 G2c。
+
+## G2b 原幣預覽與新增
+
+- `expense-options` 加可選 currencySettings（snake_case 設定內容或 null）與 supportedCurrencies。僅成員可讀，同一次 Trip 查詢取得名冊與設定；舊 App 忽略新增欄位。沒有私人預算、分享碼或其他帳務。
+- `expenses/preview` 舊 `{ amount, member_ids }` 保留 TWD／1，回應仍 `{ amount, splits }`。新 `{ amount, currency, exchange_rate, member_ids }` 必須同時提供幣別與匯率；amount 為原幣，回應另含 originalAmount／currency／exchangeRate，amount 與 splits.shareAmount 仍為 TWD。幣別用後端支援清單；匯率有限正數、方向 TWD／原幣、TWD 固定 1。原幣至少 0.01、至多兩位小數且分為安全整數；TWD 原額及換算後 TWD／份額上限仍為 1,000,000,000。溢位、不支援或成員變動 400，不留 receipt。
+- `expenses` 放寬既有 currency／exchange_rate，原幣驗證同上，完整匯率不做格式化後回寫。Web createExpenseForActor 再驗換算、成員、日期、加總與交易；預覽 shares 源自 Web 的原幣分角再換算，不能在手機另算 TWD 均分。很小的有效換算依既有規則可取整為零。已提交 receipt 重播不重取設定或匯率；原 UUID 不同匯率仍 409，刪除後不復活、撤權不能重播／查詢。
+
+回應 runtime schema 檢查 TWD 到分、分攤加總／唯一成員與完整原幣回音；手機 confirmedFields 再確認屬於当前原幣／匯率／成員。C SQLite 讀取同步使用擴充 create schema，D raw draft 新欄位可選，schema 8 無遷移、舊紀錄原內容不改。D TWD 佇列在引擎、SQLite enqueue／prepare 與同步都拒絕外幣；保存草稿不等於允許離線送出。外幣編輯 context／寫入尚未擴充。

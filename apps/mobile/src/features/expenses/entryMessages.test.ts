@@ -11,6 +11,8 @@ const issues: DraftIssue[] = [
   { field: 'amount', code: 'format' },
   { field: 'amount', code: 'zero' },
   { field: 'amount', code: 'tooLarge' },
+  { field: 'currency', code: 'invalid' },
+  { field: 'rate', code: 'invalid' },
   { field: 'date', code: 'invalid' },
   { field: 'payer', code: 'required' },
   { field: 'members', code: 'required' },

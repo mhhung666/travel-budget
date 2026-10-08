@@ -6,7 +6,7 @@ import {
 import { z } from 'zod';
 import { expenseCreateInput, expenseOptionsSchema } from '@/api/contracts';
 import type { ExpenseOptions, ExpenseCreateInput } from '@/api/contracts';
-import { expenseDraftSchema, type StoredExpenseDraft } from './expenseDrafts';
+import { expenseDraftSchema, isTwdQueueDraft, type StoredExpenseDraft } from './expenseDrafts';
 import type { PendingScope, SqlDatabase } from './pendingExpenses';
 import { databaseTask, migrateExpenseDatabase, transaction } from './expenseDatabase';
 
@@ -94,6 +94,7 @@ export async function createExpenseQueueStore(db: SqlDatabase): Promise<ExpenseQ
     enqueue: (draft, options, id) =>
       serial(() =>
         transaction(db, async () => {
+          if (!isTwdQueueDraft(draft.input)) throw new Error('UNSUPPORTED_QUEUE_CURRENCY');
           z.uuid().parse(id);
           const roster = expenseOptionsSchema.parse(options).members.map((m) => m.id);
           const input = JSON.stringify(expenseDraftSchema.parse(draft.input));
@@ -140,7 +141,11 @@ export async function createExpenseQueueStore(db: SqlDatabase): Promise<ExpenseQ
         transaction(db, async () => {
           const live = await row(r);
           if (!live || live.status !== 'queued' || live.trip_id !== r.tripId) return false;
+          if (!isTwdQueueDraft(expenseDraftSchema.parse(JSON.parse(live.input))))
+            throw new Error('UNSUPPORTED_QUEUE_CURRENCY');
           const body = expenseCreateInput.parse(payload);
+          if (body.currency !== 'TWD' || body.exchange_rate !== 1)
+            throw new Error('UNSUPPORTED_QUEUE_CURRENCY');
           if (body.client_request_id !== r.clientRequestId) throw new Error('QUEUE_ID_CHANGED');
           // Wait behind C's unresolved request of this trip; no duplicate raw entry is created.
           const pending = await db.getFirstAsync(

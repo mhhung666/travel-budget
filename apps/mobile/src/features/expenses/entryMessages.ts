@@ -14,6 +14,10 @@ export function issueMessage(issue: DraftIssue, t: Messages): string {
         zero: t.amountZero,
         tooLarge: t.amountTooLarge,
       }[issue.code];
+    case 'currency':
+      return t.invalidCurrencySettings;
+    case 'rate':
+      return t.invalidExpenseRate;
     case 'date':
       return t.dateInvalid;
     case 'payer':

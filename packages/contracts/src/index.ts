@@ -155,7 +155,7 @@ export const settlementSchema = z.object({
     })
   ),
 });
-// Online expense entry. This round supports TWD only, rate 1, and members chosen for an equal split.
+// Online equal expense entry; original currency is frozen alongside TWD shares.
 export const MAX_EXPENSE_MEMBERS = 100;
 export const MAX_EXPENSE_DESCRIPTION = 200;
 /**
@@ -188,28 +188,90 @@ const centShare = z
   .refine(isCentShare, 'Use a non-negative share with at most two decimals');
 const noDuplicates = (values: string[]) => new Set(values).size === values.length;
 
+export const currencyCodeSchema = z.string().regex(/^[A-Z]{3}$/);
+export const currencySettingsSchema = z
+  .object({
+    default_currency: currencyCodeSchema.nullable(),
+    currencies: z
+      .array(
+        z
+          .object({
+            code: currencyCodeSchema,
+            rate: z.number().finite().positive().nullable(),
+          })
+          .strict()
+      )
+      .max(30),
+  })
+  .strict();
+/** Original foreign amount: cent precision, with safely representable integer cents. */
+export const originalExpenseAmount = z
+  .number()
+  .finite()
+  .min(0.01)
+  .refine(
+    (value) =>
+      Number.isSafeInteger(Math.round(value * 100)) && Math.round(value * 100) / 100 === value,
+    'Original amount must have safe integer cents'
+  );
+export const expenseRate = z.number().finite().positive();
 // Members in the order used to place the leftover cents of an equal split (earliest joined first).
 export const expenseOptionsSchema = z.object({
   members: z.array(
     z.object({ id: idSchema, displayName: z.string(), isVirtual: z.boolean().optional() })
   ),
   categories: z.array(expenseCategorySchema),
+  currencySettings: currencySettingsSchema.nullable().optional(),
+  supportedCurrencies: z.array(currencyCodeSchema).optional(),
 });
-export const expensePreviewInput = z
-  .object({
-    amount: centAmount,
-    member_ids: z
-      .array(idSchema)
-      .min(1)
-      .max(MAX_EXPENSE_MEMBERS)
-      .refine(noDuplicates, 'Members must be unique'),
-  })
-  .strict();
+const previewMembers = z
+  .array(idSchema)
+  .min(1)
+  .max(MAX_EXPENSE_MEMBERS)
+  .refine(noDuplicates, 'Members must be unique');
+// Legacy TWD requests keep their original shape. Currency requests explicitly include both fields.
+export const expensePreviewInput = z.union([
+  z.object({ amount: centAmount, member_ids: previewMembers }).strict(),
+  z
+    .object({
+      amount: originalExpenseAmount,
+      currency: currencyCodeSchema,
+      exchange_rate: expenseRate,
+      member_ids: previewMembers,
+    })
+    .strict()
+    .refine(
+      (v) => v.currency !== 'TWD' || (v.exchange_rate === 1 && isPositiveCentAmount(v.amount)),
+      'TWD uses rate 1 and the TWD amount limit'
+    ),
+]);
 // Shares are returned in expense-options member order whatever order the request used.
-export const expensePreviewSchema = z.object({
-  amount: z.number(),
-  splits: z.array(z.object({ userId: idSchema, displayName: z.string(), shareAmount: z.number() })),
-});
+export const expensePreviewSchema = z
+  .object({
+    amount: centShare,
+    originalAmount: originalExpenseAmount.optional(),
+    currency: currencyCodeSchema.optional(),
+    exchangeRate: expenseRate.optional(),
+    splits: z
+      .array(z.object({ userId: idSchema, displayName: z.string(), shareAmount: centShare }))
+      .min(1)
+      .max(MAX_EXPENSE_MEMBERS),
+  })
+  .refine(
+    (v) =>
+      new Set(v.splits.map((s) => s.userId)).size === v.splits.length &&
+      v.splits.reduce((sum, s) => sum + Math.round(s.shareAmount * 100), 0) ===
+        Math.round(v.amount * 100),
+    'Preview shares must equal the TWD total'
+  )
+  .refine(
+    (v) =>
+      (v.originalAmount === undefined &&
+        v.currency === undefined &&
+        v.exchangeRate === undefined) ||
+      (v.originalAmount !== undefined && v.currency !== undefined && v.exchangeRate !== undefined),
+    'Currency previews echo all original fields'
+  );
 // One UUID per user-confirmed submission, reused by every retry of that submission.
 export const clientRequestIdSchema = z.uuid();
 // Field names mirror the Web expense input; unknown fields (attachments, tags, itinerary days, ...)
@@ -218,9 +280,9 @@ export const expenseCreateInput = z
   .object({
     client_request_id: clientRequestIdSchema,
     payer_id: idSchema,
-    original_amount: centAmount,
-    currency: z.literal('TWD'),
-    exchange_rate: z.literal(1),
+    original_amount: originalExpenseAmount,
+    currency: currencyCodeSchema,
+    exchange_rate: expenseRate,
     description: z.string().trim().min(1).max(MAX_EXPENSE_DESCRIPTION),
     category: expenseCategorySchema,
     date: dateSchema,
@@ -233,7 +295,12 @@ export const expenseCreateInput = z
         'Members must be unique'
       ),
   })
-  .strict();
+  .strict()
+  .refine(
+    (v) =>
+      v.currency !== 'TWD' || (v.exchange_rate === 1 && isPositiveCentAmount(v.original_amount)),
+    'TWD uses rate 1 and the TWD amount limit'
+  );
 export const expenseRequestSchema = z.discriminatedUnion('status', [
   z.object({ status: z.literal('not_found') }),
   z.object({ status: z.literal('committed'), expense: expenseDetailSchema }),
@@ -366,22 +433,6 @@ export type TripArchiveInput = z.infer<typeof tripArchiveInput>;
 export type TripManagementResult = z.infer<typeof tripManagementResultSchema>;
 export type TripLocation = z.infer<typeof tripLocationSchema>;
 // G2a: 1 foreign unit = TWD; settings never rewrite existing expenses.
-export const currencyCodeSchema = z.string().regex(/^[A-Z]{3}$/);
-export const currencySettingsSchema = z
-  .object({
-    default_currency: currencyCodeSchema.nullable(),
-    currencies: z
-      .array(
-        z
-          .object({
-            code: currencyCodeSchema,
-            rate: z.number().finite().positive().nullable(),
-          })
-          .strict()
-      )
-      .max(30),
-  })
-  .strict();
 export const tripCurrencyInput = z
   .object({
     ...mutationIdentity,

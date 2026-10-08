@@ -34,7 +34,7 @@ G1c 另提供成員管理 context／角色、移除、本人退出及旅行刪�
 
 測試在 `apps/web` 執行：`pnpm exec vitest run src/__tests__/mobileSession.test.ts src/__tests__/mobileTrips.test.ts src/__tests__/mobileHttp.test.ts src/__tests__/mobileExpenses.test.ts src/__tests__/mobileSettlement.test.ts src/__tests__/settlementRead.test.ts src/__tests__/mobileExpenseWrite.test.ts src/__tests__/expenseCreateRequest.test.ts src/__tests__/expenseAmountRange.test.ts src/__tests__/expense.actions.test.ts`。這組單元測試使用隔離的 model mocks；`expense.actions.test.ts` 同時鎖定 Web 新增沒有行為退步。`mobileReadApi.integration.test.ts` 在獨立測試 MongoDB 上驗證游標分頁、與 Web 讀取一致、歷史／外幣／虛擬成員資料與授權，需 `MONGODB_QUEUE_TEST_URI` 與 `MONGODB_QUEUE_TEST_ALLOW_WRITES=1`（CI 的真 MongoDB 工作已包含），未設定時略過。新增支出需要交易，`mobileExpenseWrite.integration.test.ts` 因此要在**單節點 replica set** 上執行，沿用其他 trip writer 整合測試的 `MONGODB_MEMBER_TEST_URI`（例如 `mongodb://127.0.0.1:27017/?directConnection=true`）與 `MONGODB_MEMBER_TEST_ALLOW_WRITES=1`，CI 的 `expense-writes` 工作會啟動 replica set 並同時執行 `tripWriters.integration.test.ts`。它驗證預覽到新增的固定順序均分、與 Web 的互讀一致、八個併發相同請求只提交一次且副作用不重複（含不同大小寫與十六種不同拼法、Web 與手機兩個入口混合）、同 key 不同內容 409、刪除或失去成員資格後的重播／查詢、以獨立建出的舊格式 receipt 與本版寫入的 receipt，在小寫、大寫與兩種混合拼法的每一種組合下的重播／查詢／409／刪除後不復活，以及以 explain 確認不分大小寫的查詢只掃該操作者在該旅行的索引範圍、單筆上限內的金額從預覽到儲存與結算逐分一致、超過上限的請求不留資料、回滾（receipt 或支出寫入失敗不留任何資料）與無效輸入不留 receipt。另可執行 `pnpm test:mobile-api`，以可丟棄的 Docker MongoDB 與 Next.js 開發伺服器驗證實際 HTTP／資料庫流程（資料庫現為單節點 replica set，涵蓋上述新增流程並以獨立計算的預期值核對儲存結果，另模擬回應遺失：伺服器仍提交、以 key 查得、重送不重複）；`pnpm dev:mobile-api` 保留環境與測試帳號供裝置連線，已開著的舊環境不是 replica set，需重啟才能使用新增 API。手機 SecureStore 與 iOS／Android 真機串接仍需操作驗收，詳見 [本機驗收流程](../../mobile/docs/LOCAL_ACCEPTANCE.md)。
 
-手機畫面已使用上述新增端點，提供 TWD 均分預覽、確認與 SQLite 待確認恢復；現況與裝置驗收見 [手機功能](../../mobile/docs/FEATURES.md) 與 [本機驗收](../../mobile/docs/LOCAL_ACCEPTANCE.md)。D 的離線均分確認／前景待送佇列已實作；尚無附件上傳、外幣與非均分新增、推播或帳號刪除 API。
+手機畫面已使用上述新增端點，提供 TWD 均分預覽、確認與 SQLite 待確認恢復；現況與裝置驗收見 [手機功能](../../mobile/docs/FEATURES.md) 與 [本機驗收](../../mobile/docs/LOCAL_ACCEPTANCE.md)。D 的離線均分確認／前景待送佇列已實作；尚無附件上傳、非均分新增、外幣金額編輯、推播或帳號刪除 API。
 
 `dev:mobile-api` 的獨立 loopback 控制通道供 Maestro 撤銷／到期隔離帳號的 session，採每次執行的隨機憑證並隨環境關閉。它只在測試腳本內存在，不加入 Next.js routes 或共用契約，也不隨 `--lan` 對外開放。
 
@@ -77,3 +77,9 @@ migration `20261006100000-mutation-requests.js` 使用既有 Trip hashCode 唯�
 ## G2a 幣別設定
 
 成員讀取、管理員修改 `/trips/:id/currency-settings`；`/exchange-rates` 以 bearer 取得既有後端每日參考值。共用 Web 設定交易，獨立 revision、UUID receipt 與成員資格重驗；既有支出、舊 App TWD body 不改。真 HTTP 工具另覆蓋幣別設定的嚴格輸入、精度、丟回應／原 UUID 重播、衝突、降權／撤權與帳務保留。來源／缺值／回應細節集中在 [G2a 契約](../../mobile/docs/BACKEND_CONTRACT.md#g2a-旅行幣別與參考匯率)；工具不要求外部匯率供應商即時可用，上游方向／日期與失敗用隔離 mock 測試。
+
+## G2b 外幣新增
+
+expense-options 在同一 Trip 讀取補設定／支援 ISO 清單，preview 新形狀接原額／精確 TWD-per-unit 匯率，沿用 computeSplits 的原幣分角及 TWD 尾差；新增 adapter 放寬 currency／rate 後仍委派既有 createExpenseForActor。舊 TWD preview／body 和舊 receipt 指紋不改；原 UUID 重播不重取任何設定或匯率。輸入、上限及 SQLite 相容語意見 [G2b 契約](../../mobile/docs/BACKEND_CONTRACT.md#g2b-原幣預覽與新增)，本節補充先前 TWD 首片描述。
+
+既有 mobileExpenseWrite.integration 加精確外幣預覽→DB／receipt、零 TWD、小／大匯率及換算上限、併發去重／改設定後重播、原匯率 409 與回滾。test:mobile-api 在自建旅行核對真 socket 丟回應、原 UUID 恢復只一筆支出／receipt、精確匯率、超額及撤權。新草稿／手機 UI 的原生操作另由其他人驗收；不新增 migration 或远端設定。

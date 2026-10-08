@@ -445,3 +445,29 @@ it('migrates schema 5 deadlines by account and environment and rolls back a fail
   for (const r of records) await upgraded.discard(r);
   expect(await h.pending.retryAt!(scope, uuidOf(999))).toBe(120_000);
 });
+
+it('rejects foreign draft enqueue and frozen preparation at the SQLite boundary', async () => {
+  const db = open();
+  const pending = await createPendingExpenseStore(db);
+  const queue = await createExpenseQueueStore(db);
+  const foreign = { ...draft(), input: { ...draft().input, currency: 'JPY', rateText: '0.215' } };
+  await pending.drafts.start(foreign);
+  await expect(queue.enqueue(foreign, options, uuidOf(100))).rejects.toThrow(
+    'UNSUPPORTED_QUEUE_CURRENCY'
+  );
+  expect(await pending.drafts.load(scope, tripId)).toEqual(foreign);
+  expect(await queue.list(scope)).toEqual([]);
+  await pending.drafts.discard(scope, tripId, foreign.draftId);
+  await pending.drafts.start(draft(2));
+  await queue.enqueue(draft(2), options, uuidOf(101));
+  const record = (await queue.list(scope))[0];
+  await expect(
+    queue.prepare(record, {
+      ...payload(record.clientRequestId),
+      currency: 'JPY',
+      exchange_rate: 0.215,
+    })
+  ).rejects.toThrow('UNSUPPORTED_QUEUE_CURRENCY');
+  expect(await pending.list(scope)).toEqual([]);
+  expect((await queue.list(scope))[0].status).toBe('queued');
+});

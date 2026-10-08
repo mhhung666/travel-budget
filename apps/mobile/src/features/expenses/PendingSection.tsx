@@ -117,8 +117,25 @@ export function PendingSection({
               <DetailRow
                 testID={`pending-amount-${index}`}
                 label={t.amountTwd}
-                value={format.money(record.payload.original_amount)}
+                value={format.money(
+                  record.payload.splits.reduce(
+                    (sum, s) => sum + Math.round(s.share_amount * 100),
+                    0
+                  ) / 100
+                )}
               />
+              {record.payload.currency !== 'TWD' && (
+                <>
+                  <DetailRow
+                    label={t.originalAmount}
+                    value={format.originalAmount(
+                      record.payload.original_amount,
+                      record.payload.currency
+                    )}
+                  />
+                  <DetailRow label={t.exchangeRate} value={String(record.payload.exchange_rate)} />
+                </>
+              )}
               <DetailRow label={t.date} value={format.date(record.payload.date)} />
               <DetailRow label={t.category} value={categoryLabel(record.payload.category, t)} />
 

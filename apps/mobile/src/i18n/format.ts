@@ -62,9 +62,13 @@ export function localDate(now = new Date()) {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 }
 
-/** Exchange rates can be tiny (JPY → TWD); avoid exponent notation. */
+/** Show full rate precision; use round-trip exponent text for extreme magnitudes, never zero. */
 export function formatRate(rate: number, locale: AppLocale = 'en') {
-  return new Intl.NumberFormat(displayLocales[locale], { maximumFractionDigits: 8 }).format(rate);
+  if (!Number.isFinite(rate) || (rate !== 0 && (Math.abs(rate) < 1e-8 || Math.abs(rate) >= 1e21)))
+    return String(rate);
+  return new Intl.NumberFormat(displayLocales[locale], { maximumSignificantDigits: 17 }).format(
+    rate
+  );
 }
 
 /** An instant, unlike a date-only value: display its original deadline in the device time zone. */

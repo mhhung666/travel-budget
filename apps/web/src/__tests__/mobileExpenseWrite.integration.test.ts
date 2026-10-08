@@ -162,6 +162,116 @@ describe.skipIf(!uri || !allowed)('mobile expense write against an isolated repl
   });
   afterEach(() => vi.restoreAllMocks());
 
+  describe('G2b currency preview to durable receipt', () => {
+    it.each([
+      [100, 0.2156789012345, 'JPY', 21.57],
+      [0.01, 1e-7, 'KRW', 0],
+      [50_000_000_000, 0.02, 'JPY', 1_000_000_000],
+      [0.01, 1e11, 'USD', 1_000_000_000],
+    ])(
+      'stores original %s at rate %s %s exactly and replays after settings change',
+      async (original, rate, currency, total) => {
+        const p = await mobileExpensePreview(
+          jsonRequest({
+            amount: original,
+            currency,
+            exchange_rate: rate,
+            member_ids: [hex(cara), hex(bob), hex(amy)],
+          }),
+          hex(amy),
+          tripId
+        );
+        expect(p).toMatchObject({
+          amount: total,
+          originalAmount: original,
+          currency,
+          exchangeRate: rate,
+        });
+        const payload = body({
+          original_amount: original,
+          currency,
+          exchange_rate: rate,
+          splits: p.splits.map((s) => ({ user_id: s.userId, share_amount: s.shareAmount })),
+        });
+        const outcomes = await Promise.all(Array.from({ length: 4 }, () => create(payload)));
+        expect(
+          outcomes.every((value) => JSON.stringify(value) === JSON.stringify(outcomes[0]))
+        ).toBe(true);
+        expect(outcomes[0]).toMatchObject({
+          amount: total,
+          originalAmount: original,
+          exchangeRate: rate,
+          currency,
+          splits: p.splits,
+        });
+        const raw = await db()
+          .collection('expenses')
+          .findOne({ _id: new mongo.ObjectId(outcomes[0].id) });
+        expect(raw).toMatchObject({
+          amount: total,
+          originalAmount: original,
+          exchangeRate: rate,
+          currency,
+        });
+        expect(
+          raw!.splits.reduce(
+            (sum: number, split: { shareAmount: number }) =>
+              sum + Math.round(split.shareAmount * 100),
+            0
+          )
+        ).toBe(Math.round(total * 100));
+        await Trip.updateOne(
+          { _id: tripId },
+          {
+            $set: {
+              currencySettings: { defaultCurrency: 'USD', currencies: [{ code: 'JPY', rate: 9 }] },
+            },
+          }
+        );
+        expect(await lookup(payload.client_request_id)).toEqual({
+          status: 'committed',
+          expense: outcomes[0],
+        });
+        expect(await create(payload)).toEqual(outcomes[0]);
+        expect(await count('expenses')).toBe(1);
+        expect(await count('expensecreaterequests')).toBe(1);
+        await expect(create({ ...payload, exchange_rate: rate * 2 })).rejects.toMatchObject({
+          status: 409,
+        });
+      }
+    );
+    it('rejects overflowing conversion and rolls back receipt/expense as a single foreign write', async () => {
+      const invalid = body({ currency: 'JPY', original_amount: 100, exchange_rate: 1e308 });
+      await expect(create(invalid)).rejects.toMatchObject({ status: 400 });
+      expect(await count('expenses')).toBe(0);
+      const p = await mobileExpensePreview(
+        jsonRequest({ amount: 100, currency: 'JPY', exchange_rate: 0.215, member_ids: [hex(amy)] }),
+        hex(amy),
+        tripId
+      );
+      const payload = body({
+        currency: 'JPY',
+        exchange_rate: 0.215,
+        splits: p.splits.map((s) => ({ user_id: s.userId, share_amount: s.shareAmount })),
+      });
+      const originalInsert = mongo.Collection.prototype.insertOne;
+      const spy = vi
+        .spyOn(mongo.Collection.prototype, 'insertOne')
+        .mockImplementation(async function (this: mongo.Collection, ...args) {
+          if (this.collectionName === 'expensecreaterequests')
+            throw new Error('foreign receipt failure');
+          return originalInsert.apply(this, args);
+        });
+      try {
+        await expect(create(payload)).rejects.toThrow('foreign receipt failure');
+      } finally {
+        spy.mockRestore();
+      }
+      expect(await count('expenses')).toBe(0);
+      expect(await count('expensecreaterequests')).toBe(0);
+    });
+  });
+
   it('previews, creates and reads back a fixed-order equal split that all readers agree on', async () => {
     const options = await mobileExpenseOptions(hex(amy), tripId);
     expect(options.members.map((member) => member.displayName)).toEqual(['Amy', 'Bob', 'Cara']);
@@ -513,7 +623,7 @@ describe.skipIf(!uri || !allowed)('mobile expense write against an isolated repl
       ['an amount just above the limit', { original_amount: 1_000_000_000.01 }],
       ['the amount that used to drift by a cent', { original_amount: 10_000_000_000_000 }],
       ['a fractional cent', { original_amount: 10.005 }],
-      ['another currency', { currency: 'JPY' }],
+      ['unsupported currency', { currency: 'ZZZ' }],
       ['an attachment list', { attachments: [] }],
     ])('rejects %s at the boundary and writes nothing', async (_label, overrides) => {
       await expect(create(body(overrides))).rejects.toMatchObject({ status: 400 });

@@ -69,7 +69,7 @@ it('strict mutation identity and receipt outcome, with unchanged old TWD input',
     }).success
   ).toBe(false);
   expect(expenseCreateInput.shape.currency.safeParse('TWD').success).toBe(true);
-  expect(expenseCreateInput.shape.currency.safeParse('JPY').success).toBe(false);
+  expect(expenseCreateInput.shape.currency.safeParse('JPY').success).toBe(true);
 });
 it('reference dates and base rate are required; unknown foreign rates are never guessed', () => {
   expect(

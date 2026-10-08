@@ -179,3 +179,9 @@ E3 成功只存最小 receipt 結果並刷新資源，刪除明細不再重讀�
 `TripCurrencyScreen` 的 route 按環境／帳號／旅行／恢復來源隔離。畫面一次讀最新設定，用回傳的 supportedCurrencies 搜尋與建立欄位，不在每列掛查詢。未確認輸入不落盤；參考匯率明確讀取，與設定內容分開，失敗保留輸入且不產生假匯率。`currencyForm` 保留完整數值與可 round-trip 的科學記號，不用 parseFloat 部分解析或格式化四捨五入。
 
 確認後新增 `trip.currency` payload，仍使用 schema 8 的 pending_mutation／同旅行協調／共用帳號 429，無新資料表；Web／HTTP 回傳原 revision result，E 引擎處理原 UUID 查詢與重送。拒絕保存原 settings 供 scoped 畫面重讀後恢復，403 admin loss 先查 receipt，不清除有效成員快取。成功用既有 refreshManagedTrip 更新授權快取；不改草稿、C pending 或 D 佇列內容。契約見 [G2a](BACKEND_CONTRACT.md#g2a-旅行幣別與參考匯率)。
+
+## G2b 原幣新增與固定匯率
+
+expense-options 在同一次旅行讀取補常用／預設設定與後端支援清單。新增使用完整原幣額與匯率預覽，後端仍 computeSplits→roundMoney→既有 createExpenseForActor／receipt，不新增手機換算演算法或改供應商。草稿保存可選 currency／rateText／rateSource／rateDate；缺欄位的既有 JSON 維持 TWD／1，schema 8 無 DDL／重寫。confirmedFields 驗回應原幣／精確匯率、成員與 TWD 分攤加總，再原子交接 C；sameExpense 比對固定原額／幣別／匯率與每份分。
+
+表單的參考／預覽讀取共用 SQLite 帳號限速與登入／catalog 世代；確認 guard 經 ExpenseEntry.submit 傳入原內容 retry，每次 transport（含 refresh 重送）重新核對。429 保存失敗保持本表單期限並提示，後續先重試落盤；重啟保護仍以成功保存為前提。D 入列與 prepare／同步另檢查 TWD／1，外幣草稿不會被解讀成 TWD 意圖。讀取設定或参考值不改已存在原始輸入或 frozen body。

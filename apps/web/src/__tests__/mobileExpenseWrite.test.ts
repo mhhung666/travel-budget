@@ -336,7 +336,7 @@ describe('expense creation adapter', () => {
     ['unknown field', { attachments: [] }],
     ['tags', { tags: ['a'] }],
     ['itinerary days', { itinerary_day_ids: [] }],
-    ['foreign currency', { currency: 'JPY' }],
+    ['unsupported currency', { currency: 'ZZZ' }],
     ['other rate', { exchange_rate: 0.5 }],
     ['missing currency', { currency: undefined }],
     ['missing key', { client_request_id: undefined }],
@@ -383,6 +383,89 @@ describe('expense creation adapter', () => {
       mobileCreateExpense(post('{}', { 'Content-Type': 'text/plain' }), AMY, TRIP, after)
     ).rejects.toMatchObject({ status: 415 });
     expect(mocks.create).not.toHaveBeenCalled();
+  });
+});
+
+describe('G2b foreign preview and create boundaries', () => {
+  const foreign = (amount = 100, exchange_rate = 0.2156789012345, currency = 'JPY') => ({
+    amount,
+    exchange_rate,
+    currency,
+    member_ids: [CARA, AMY, BOB],
+  });
+  it('echoes exact original currency/rate and uses the same original-cent weighting as Web', async () => {
+    const preview = await mobileExpensePreview(post(foreign()), AMY, TRIP);
+    expect(preview).toMatchObject({
+      amount: 21.57,
+      originalAmount: 100,
+      currency: 'JPY',
+      exchangeRate: 0.2156789012345,
+    });
+    expect(preview.splits.map((s) => s.userId)).toEqual([AMY, BOB, CARA]);
+    expect(preview.splits.reduce((sum, s) => sum + Math.round(s.shareAmount * 100), 0)).toBe(2157);
+    await mobileCreateExpense(
+      post(
+        expenseBody({
+          currency: 'JPY',
+          exchange_rate: 0.2156789012345,
+          splits: preview.splits.map((s) => ({ user_id: s.userId, share_amount: s.shareAmount })),
+        })
+      ),
+      AMY,
+      TRIP,
+      after
+    );
+    expect(mocks.create.mock.calls[0][0].input).toMatchObject({
+      currency: 'JPY',
+      exchange_rate: 0.2156789012345,
+    });
+  });
+  it.each([
+    [50_000_000_000, 0.02, 1_000_000_000],
+    [0.01, 1e-7, 0],
+    [0.01, 1e11, 1_000_000_000],
+  ])(
+    'supports original %s and rate %s without inventing precision rules',
+    async (amount, rate, expected) => {
+      const value = await mobileExpensePreview(post(foreign(amount, rate)), AMY, TRIP);
+      expect(value.amount).toBe(expected);
+      expect(value.exchangeRate).toBe(rate);
+    }
+  );
+  it.each([
+    foreign(100, Infinity),
+    foreign(100, 0),
+    foreign(100, -1),
+    foreign(100, 1, 'ZZZ'),
+    foreign(1e15, 1e-8),
+    foreign(100, 1, 'jpy'),
+    foreign(1_000_000_000, 2),
+    foreign(1_000_000_000, 1e308),
+    foreign(100, 2, 'TWD'),
+    foreign(1.001, 1),
+  ])('rejects invalid foreign preview before computing shares', async (body) => {
+    await expect(mobileExpensePreview(post(body), AMY, TRIP)).rejects.toMatchObject({
+      status: 400,
+    });
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+  it('includes only the current trip currency settings and supported codes in member options', async () => {
+    mocks.findTrip.mockReturnValue(
+      tripQuery({
+        members: standardMembers(),
+        currencySettings: {
+          defaultCurrency: 'JPY',
+          currencies: [{ code: 'JPY', rate: 0.2156789012345 }],
+        },
+      })
+    );
+    const options = await mobileExpenseOptions(AMY, TRIP);
+    expect(options.currencySettings).toEqual({
+      default_currency: 'JPY',
+      currencies: [{ code: 'JPY', rate: 0.2156789012345 }],
+    });
+    expect(options.supportedCurrencies).toContain('JPY');
+    expect(JSON.stringify(options)).not.toContain('login-');
   });
 });
 

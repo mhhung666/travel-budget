@@ -1201,3 +1201,29 @@ it.each(['load', 'lookup', 'post', 'refresh'] as const)(
     expect(h.server.receipts.size).toBe(2);
   }
 );
+
+it('rejects foreign enqueue even through the engine and skips injected foreign intent during synchronization', async () => {
+  const h = await harness();
+  const d = { ...h.draft(1), input: { ...h.draft(1).input, currency: 'JPY', rateText: '0.215' } };
+  await h.pending.drafts.start(d);
+  await expect(h.queue.enqueue(d, options)).rejects.toThrow('UNSUPPORTED_QUEUE_CURRENCY');
+  expect(h.calls.filter((c) => c.path.includes('/expenses'))).toHaveLength(0);
+  // Simulate a future/externally injected intent; G2 must never silently reinterpret it as TWD.
+  await h.db.runAsync(
+    "INSERT INTO expense_queue (environment, account_id, client_request_id, trip_id, input, roster, status, reason, next_at, created_at) VALUES (?, ?, ?, ?, ?, ?, 'queued', NULL, 0, 1)",
+    h.scope.environment,
+    h.scope.accountId,
+    uuidOf(900),
+    TRIP,
+    JSON.stringify(d.input),
+    JSON.stringify([ANN, BOB, CAT])
+  );
+  await h.enqueue(2, OTHER_TRIP);
+  await h.queue.synchronize(h.scope);
+  expect((await h.store.list(h.scope)).find((r) => r.tripId === TRIP)).toMatchObject({
+    status: 'attention',
+    reason: 'currency',
+  });
+  expect(h.calls.some((c) => c.path.includes(TRIP))).toBe(false);
+  expect(h.server.expenses).toHaveLength(1);
+});

@@ -1,3 +1,6 @@
+import { ApiError } from '@/api/client';
+import { openMutationStore } from '@/storage/pendingExpenseDatabase';
+import { expenseReadGuard, expenseReadWait } from './readGuard';
 import { Disclosure } from '@/components/Disclosure';
 import { FormPage } from '@/components/screen';
 import { TripContext } from '@/features/navigation/TripContext';
@@ -14,6 +17,8 @@ import {
   type TextInput,
 } from 'react-native';
 import { router } from 'expo-router';
+import { referenceRatesSchema, type ReferenceRates } from '@travel-budget/contracts';
+import { isTwdQueueDraft } from '@/storage/expenseDrafts';
 import type { ExpenseOptions } from '@/api/contracts';
 import {
   Action,
@@ -36,6 +41,8 @@ import { spacing, typography, sizing } from '@/theme/tokens';
 import { useMessages } from '@/i18n/useMessages';
 import { useOnline } from '@/providers/useOnline';
 import {
+  currencyDefaults,
+  draftCurrencies,
   confirmedFields,
   previewInputOf,
   previewKey,
@@ -67,7 +74,7 @@ type Saved = Extract<EntryOutcome, { kind: 'saved' }>;
 type Banner = 'rejected' | 'not-sent' | null;
 
 /**
- * Add a TWD expense split equally between chosen members: fill in, preview the backend's split,
+ * Add a currency expense split equally between chosen members: fill in, preview the backend's split,
  * confirm. Confirming freezes the request on the device before anything is sent; the entry engine
  * owns it from there, so closing this screen never loses or cancels it.
  */
@@ -351,6 +358,14 @@ function EntryForm({
   const { user } = useAuth();
   const { entry, scope, manager } = useExpenseEntry();
   const { queue } = useExpenseQueue();
+  const { catalog } = useDraftCatalog();
+  const [rates, setRates] = useState<ReferenceRates | null>(null);
+  const [rateError, setRateError] = useState(false);
+  const [rateRequest, setRateRequest] = useState<number | null>(null);
+  const rateLoading = rateRequest !== null;
+  const rateTicket = useRef(0);
+  const readDeadline = useRef(0);
+  const [readStorageFailed, setReadStorageFailed] = useState(false);
   const [queueError, setQueueError] = useState(false);
   const [attempted, setAttempted] = useState(false);
   const [previews, dispatch] = useReducer(previewReducer, initialPreview);
@@ -372,6 +387,8 @@ function EntryForm({
   const previewing = isPreviewing(previews, key);
   const previewError = previewFailure(previews, key);
   const edit = (patch: Partial<ExpenseDraft>) => {
+    rateTicket.current++;
+    setRateRequest(null);
     reset();
     editor.edit({ ...editor.getSnapshot().record!.input, ...patch });
   };
@@ -383,6 +400,12 @@ function EntryForm({
   };
   const message = (field: DraftIssue['field']) => {
     const found = attempted ? issues.find((entryIssue) => entryIssue.field === field) : undefined;
+    if (
+      found?.field === 'amount' &&
+      found.code === 'tooLarge' &&
+      (draft.currency ?? 'TWD') !== 'TWD'
+    )
+      return t.foreignAmountTooLarge;
     return found ? issueMessage(found, t) : undefined;
   };
   const labels = useMemo(
@@ -391,15 +414,46 @@ function EntryForm({
   );
   const memberLabel = (id: string | null, name: string) => labels.label({ id, name });
 
-  useEffect(() => () => inFlight.current?.abort(), []);
+  useEffect(
+    () => () => {
+      inFlight.current?.abort();
+      rateTicket.current++;
+    },
+    []
+  );
   useEffect(() => {
     // Reconnection must never unlock a preview made before the connection was lost.
     if (!online || localOnly) {
+      rateTicket.current++;
       inFlight.current?.abort();
       inFlight.current = null;
       dispatch({ type: 'clear', ticket: ++tickets.current });
     }
   }, [online, localOnly]);
+
+  async function guard() {
+    if (!scope) throw new ApiError('CANCELLED');
+    const beforeSend = await expenseReadGuard(
+      manager,
+      catalog,
+      scope,
+      tripId,
+      readDeadline.current
+    );
+    setReadStorageFailed(false);
+    return beforeSend;
+  }
+  async function rememberLimit(error: unknown) {
+    const until = expenseReadWait(error);
+    if (scope && until) {
+      readDeadline.current = Math.max(readDeadline.current, until);
+      try {
+        await (await openMutationStore()).pause(scope, readDeadline.current);
+      } catch {
+        setReadStorageFailed(true);
+      }
+    }
+  }
 
   const runPreview = async () => {
     setAttempted(true);
@@ -421,6 +475,8 @@ function EntryForm({
     dispatch({ type: 'start', ticket, key: requestKey });
     try {
       // Always recheck authorization, members and categories before producing a new preview.
+      const beforeSend = await guard();
+      beforeSend();
       const revision = editor.getSnapshot().record?.revision;
       const fresh = await refreshOptions();
       if (controller.signal.aborted || revision !== editor.getSnapshot().record?.revision) return;
@@ -436,14 +492,17 @@ function EntryForm({
         scope.accountId,
         tripId,
         freshInput,
-        controller.signal
+        controller.signal,
+        beforeSend
       );
+      beforeSend();
       dispatch({ type: 'resolve', ticket, key: requestKey, value });
     } catch (error) {
       if (controller.signal.aborted) {
         dispatch({ type: 'abandon', ticket });
         return;
       }
+      await rememberLimit(error);
       dispatch({ type: 'reject', ticket, key: requestKey, error });
       if (isAccessDenied(error)) onDenied(error);
     }
@@ -451,7 +510,14 @@ function EntryForm({
 
   const enqueue = async () => {
     setAttempted(true);
-    if (sending.current || !scope || issues.length || saveStatus !== 'saved') return;
+    if (
+      !isTwdQueueDraft(draft) ||
+      sending.current ||
+      !scope ||
+      issues.length ||
+      saveStatus !== 'saved'
+    )
+      return;
     const identity = manager.getSnapshot();
     if (!['signedIn', 'local'].includes(identity.status) || identity.user?.id !== scope.accountId)
       return;
@@ -473,6 +539,36 @@ function EntryForm({
     }
   };
 
+  const loadRates = async () => {
+    if (localOnly || !online || !scope || submitting || rateLoading) return;
+    const ticket = ++rateTicket.current;
+    const revision = editor.getSnapshot().record?.revision;
+    setRateRequest(ticket);
+    setRates(null);
+    setRateError(false);
+    try {
+      const beforeSend = await guard();
+      beforeSend();
+      const value = await manager.requestAs(
+        scope.accountId,
+        '/exchange-rates',
+        referenceRatesSchema,
+        { beforeSend }
+      );
+      beforeSend();
+      if (ticket !== rateTicket.current || revision !== editor.getSnapshot().record?.revision)
+        return;
+      setRates(value);
+    } catch (error) {
+      if (ticket !== rateTicket.current) return;
+      await rememberLimit(error);
+      setRateError(true);
+      if (isAccessDenied(error)) onDenied(error);
+    } finally {
+      setRateRequest((current) => (current === ticket ? null : current));
+    }
+  };
+
   const confirm = async () => {
     if (
       localOnly ||
@@ -488,12 +584,16 @@ function EntryForm({
     onSubmitting(true);
     onBanner(null);
     try {
+      const beforeSend = await guard();
+      beforeSend();
       const stored = await editor.flush();
+      beforeSend();
       const outcome = await entry.submit(
         scope,
         tripId,
         confirmedFields(stored.input, options, current),
-        stored
+        stored,
+        beforeSend
       );
       if (outcome.kind === 'saved' || outcome.kind === 'unconfirmed' || outcome.kind === 'blocked')
         editor.close();
@@ -533,10 +633,98 @@ function EntryForm({
 
   return (
     <>
+      {readStorageFailed && <Notice tone="danger">{t.storageError}</Notice>}
+      <Section title={t.expenseCurrency}>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+          {draftCurrencies(options, draft).map((code) => (
+            <Chip
+              key={code}
+              testID={`new-expense-currency-${code}`}
+              label={code}
+              selected={(draft.currency ?? 'TWD') === code}
+              disabled={locked}
+              onPress={() => {
+                setRates(null);
+                setRateError(false);
+                edit(currencyDefaults(options, code));
+              }}
+            />
+          ))}
+        </View>
+        {!!message('currency') && <FieldError message={message('currency')!} />}
+      </Section>
+      {(draft.currency ?? 'TWD') !== 'TWD' && (
+        <>
+          <TextField
+            testID="new-expense-rate"
+            label={t.exchangeRate}
+            value={draft.rateText ?? ''}
+            keyboardType="decimal-pad"
+            returnKeyType="done"
+            onSubmitEditing={Keyboard.dismiss}
+            inputAccessoryViewID={amountAccessoryId}
+            editable={!locked}
+            autoCorrect={false}
+            error={message('rate')}
+            onChangeText={(rateText) =>
+              edit({ rateText, rateSource: 'manual', rateDate: undefined })
+            }
+          />
+          <Copy>{t.expenseRateHint}</Copy>
+          <Copy>
+            {draft.rateSource === 'reference'
+              ? `${t.referenceRate} · Frankfurter · ${draft.rateDate ?? ''}`
+              : draft.rateSource === 'trip'
+                ? draft.rateText
+                  ? t.customRate
+                  : t.rateUnavailable
+                : t.manualRate}
+          </Copy>
+          <Action
+            testID="new-expense-load-rates"
+            secondary
+            label={t.loadReferenceRates}
+            busy={rateLoading}
+            disabled={localOnly || !online || locked}
+            onPress={() => void loadRates()}
+          />
+          {rateError && <Notice tone="warning">{t.rateLoadFailed}</Notice>}
+          {rates && (
+            <Card>
+              {rates.rates[draft.currency!] !== undefined ? (
+                <>
+                  <DetailRow label={t.referenceRate} value={String(rates.rates[draft.currency!])} />
+                  <DetailRow label={t.ratePublished} value={rates.dates[draft.currency!]} />
+                  <Copy>Frankfurter</Copy>
+                  <Action
+                    testID="new-expense-use-rate"
+                    secondary
+                    label={t.useReferenceRate}
+                    disabled={locked}
+                    onPress={() =>
+                      edit({
+                        rateText: String(rates.rates[draft.currency!]),
+                        rateSource: 'reference',
+                        rateDate: rates.dates[draft.currency!],
+                      })
+                    }
+                  />
+                </>
+              ) : (
+                <Notice tone="warning">{t.rateUnavailable}</Notice>
+              )}
+            </Card>
+          )}
+        </>
+      )}
       <TextField
         testID="new-expense-amount"
         inputRef={amountInput}
-        label={t.amountTwd}
+        label={
+          (draft.currency ?? 'TWD') === 'TWD'
+            ? t.amountTwd
+            : `${t.originalAmount} (${draft.currency})`
+        }
         kind="amount"
         placeholder={t.amountHint}
         value={draft.amountText}
@@ -718,6 +906,15 @@ function EntryForm({
               label={t.amountTwd}
               value={f.money(current.amount)}
             />
+            {(draft.currency ?? 'TWD') !== 'TWD' && (
+              <>
+                <DetailRow
+                  label={t.originalAmount}
+                  value={f.originalAmount(current.originalAmount!, current.currency!)}
+                />
+                <DetailRow label={t.exchangeRate} value={String(current.exchangeRate)} />
+              </>
+            )}
             <DetailRow label={t.expenseDescription} value={draft.description} />
             <DetailRow label={t.category} value={categoryLabel(draft.category, t)} />
             <DetailRow label={t.date} value={f.date(draft.date)} />
@@ -750,14 +947,14 @@ function EntryForm({
         onPress={() => void confirm()}
       />
       <Section title={t.offlineExpenseConfirm}>
-        <Notice>{t.queueRule}</Notice>
+        <Notice>{isTwdQueueDraft(draft) ? t.queueRule : t.foreignDraftOnlineOnly}</Notice>
         {!!queueError && <Notice tone="danger">{t.entryNotSent}</Notice>}
         <Action
           testID="expense-queue-confirm"
           variant={localOnly || !online ? 'primary' : 'secondary'}
           label={t.queueConfirm}
           busy={submitting}
-          disabled={locked || saveStatus !== 'saved'}
+          disabled={locked || saveStatus !== 'saved' || !isTwdQueueDraft(draft)}
           onPress={() => void enqueue()}
         />
       </Section>

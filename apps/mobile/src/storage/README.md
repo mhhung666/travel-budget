@@ -15,3 +15,5 @@ access token 與帳務查詢快取只放記憶體；本機身分只存 SecureSto
 `draftTrips.ts` 定義版本 3 的最小旅行快照：按環境／帳號／旅行保存名稱、成員／分類選項與更新時間。拒絕標記清空快照私人內容但保留 D1 原始輸入；旅行名稱讀取不能解除拒絕，只有新選項成功保存才可恢復。共用同一 SQLite 連線與序列；Web adapter 仍不載入 SQLite。本機身分、草稿與快照的操作邊界見 [架構](../../docs/ARCHITECTURE.md#受限離線入口d2)。
 
 `mutations.ts` 在版本 7 新增 E1 `pending_mutation`，使用同一連線／交易升級與帳號限速，但與 `expense_queue` 分表。只保存明確確認的旅行建立／加入 body 與固定 UUID；不存未確認表單。所有讀寫隔離環境／帳號，未結案不可改或刪；終局結果清除 payload（邀請碼），保留最小提示直到使用者移除。一般拒絕或 not_found 不刪不確定紀錄；409 標記獨立於限速。收到 429 沿用 `expense_rate_limit`，提示移除／結案不清期限，與 C／D 同步鏡像共用。
+
+G2b 沿用 schema 8。expense_draft 的 raw JSON 可加 currency／rateText／rateSource／rateDate；缺欄位按旧 TWD／1 使用，不补写旧原始字串或 frozen pending。pending_expense 用扩充后的 strict create schema 读原币／完整 rate；UUID 与 body 不因旅行设定、参考值或重启更换。外币 raw draft 不能写入 D TWD queue，prepare 与同步也独立检验此界线。

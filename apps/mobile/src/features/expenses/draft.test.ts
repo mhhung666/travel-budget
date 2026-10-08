@@ -44,6 +44,10 @@ describe('newDraft', () => {
     expect(newDraft(options, ANN, '2026-10-04')).toEqual({
       description: '',
       amountText: '',
+      currency: 'TWD',
+      rateText: '1',
+      rateSource: 'trip',
+      rateDate: undefined,
       category: 'food',
       date: '2026-10-04',
       payerId: ANN,
@@ -196,5 +200,107 @@ describe('confirmedFields', () => {
     expect(() => confirmedFields(valid({ payerId: null }), options, shares)).toThrow(
       'INVALID_DRAFT'
     );
+  });
+});
+
+describe('G2b raw currency intent', () => {
+  const foreign = (patch: Partial<ExpenseDraft> = {}) =>
+    valid({ currency: 'JPY', amountText: '000100.00', rateText: '0.2156789012345', ...patch });
+  it('prefills only new drafts from pinned settings, never defaulting missing foreign rates to 1', () => {
+    const settingOptions = {
+      ...options,
+      currencySettings: {
+        default_currency: 'JPY',
+        currencies: [{ code: 'JPY', rate: 0.2156789012345 }],
+      },
+    };
+    expect(newDraft(settingOptions, ME, '2026-10-08')).toMatchObject({
+      currency: 'JPY',
+      rateText: '0.2156789012345',
+      rateSource: 'trip',
+    });
+    expect(
+      newDraft(
+        {
+          ...settingOptions,
+          currencySettings: { ...settingOptions.currencySettings, currencies: [] },
+        },
+        ME,
+        '2026-10-08'
+      ).rateText
+    ).toBe('');
+    expect(validateDraft(foreign({ rateText: '' }), options)).toContainEqual({
+      field: 'rate',
+      code: 'invalid',
+    });
+  });
+  it('checks both currency and full precision rate against the preview, keeping TWD shares', () => {
+    const input = foreign();
+    const value = {
+      ...preview(21.57, [
+        [ME, 7.19],
+        [ANN, 7.19],
+        [BOB, 7.19],
+      ]),
+      originalAmount: 100,
+      currency: 'JPY',
+      exchangeRate: 0.2156789012345,
+    };
+    expect(confirmedFields(input, options, value)).toMatchObject({
+      original_amount: 100,
+      currency: 'JPY',
+      exchange_rate: 0.2156789012345,
+      splits: [
+        { user_id: ME, share_amount: 7.19 },
+        { user_id: ANN, share_amount: 7.19 },
+        { user_id: BOB, share_amount: 7.19 },
+      ],
+    });
+    for (const change of [{ rateText: '0.216' }, { currency: 'USD' }, { amountText: '101' }]) {
+      expect(() => confirmedFields(foreign(change), options, value)).toThrow('STALE_PREVIEW');
+      expect(previewKey(previewInputOf(foreign(change), options)!)).not.toBe(
+        previewKey(previewInputOf(input, options)!)
+      );
+    }
+    expect(() =>
+      confirmedFields(
+        input,
+        options,
+        preview(100, [
+          [ME, 33.34],
+          [ANN, 33.33],
+          [BOB, 33.33],
+        ])
+      )
+    ).toThrow('STALE_PREVIEW');
+  });
+  it.each(['', '0', '-1', '1oops', 'Infinity', '1,234', '1e309'])(
+    'rejects rate %j without guessing',
+    (rateText) => {
+      expect(validateDraft(foreign({ rateText }), options)).toContainEqual({
+        field: 'rate',
+        code: 'invalid',
+      });
+      expect(previewInputOf(foreign({ rateText }), options)).toBeNull();
+    }
+  );
+  it.each(['1e-7', '1e11', '0.2156789012345'])(
+    'preserves rate %s numerically without display rounding',
+    (rateText) => {
+      expect(previewInputOf(foreign({ rateText }), options)).toMatchObject({
+        currency: 'JPY',
+        exchange_rate: Number(rateText),
+      });
+    }
+  );
+  it('allows safe large foreign originals, keeps JPY cents and rejects unsupported currencies', () => {
+    expect(validateDraft(foreign({ amountText: '50000000000' }), options)).toEqual([]);
+    expect(previewInputOf(foreign({ amountText: '100.01' }), options)?.amount).toBe(100.01);
+    expect(
+      validateDraft(foreign({ currency: 'ZZZ' }), {
+        ...options,
+        supportedCurrencies: ['TWD', 'JPY'],
+      })
+    ).toContainEqual({ field: 'currency', code: 'invalid' });
   });
 });

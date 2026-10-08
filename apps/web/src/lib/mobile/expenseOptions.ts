@@ -1,6 +1,8 @@
 import { Trip } from '@/models';
 import { computeSplits } from '@/lib/expenseSplit';
 import { roundMoney } from '@/lib/money';
+import { getAllCurrencyCodes, isSupportedCurrency } from '@/constants/currencies';
+import { MAX_EXPENSE_AMOUNT } from '@travel-budget/contracts';
 import { ApiError, readBody } from './http';
 import { requireTripMember } from './access';
 import {
@@ -11,6 +13,10 @@ import {
 } from './contract';
 
 type TripMembers = {
+  currencySettings?: {
+    defaultCurrency?: string | null;
+    currencies?: { code: string; rate?: number | null }[];
+  } | null;
   members: {
     user: { _id: { toString(): string }; displayName: string; isVirtual?: boolean } | null;
     joinedAt?: Date;
@@ -23,12 +29,15 @@ type TripMembers = {
  * out. This is the order of the Web member list (`getMembers`), so leftover cents of an equal split
  * go to the same member on both clients.
  */
-export async function readExpenseMembers(tripId: string) {
+async function readExpenseTrip(tripId: string, withSettings = false) {
   const trip = await Trip.findById(tripId)
-    .select('members')
+    .select(withSettings ? 'members currencySettings' : 'members')
     .populate('members.user', 'displayName isVirtual')
     .lean<TripMembers | null>();
   if (!trip) throw new ApiError(404, 'NOT_FOUND');
+  return trip;
+}
+function membersOf(trip: TripMembers) {
   const joined = (member: TripMembers['members'][number]) =>
     member.joinedAt ? new Date(member.joinedAt).toISOString() : '';
   return trip.members
@@ -41,22 +50,47 @@ export async function readExpenseMembers(tripId: string) {
     }));
 }
 
+export async function readExpenseMembers(tripId: string) {
+  return membersOf(await readExpenseTrip(tripId));
+}
+
 export async function mobileExpenseOptions(userId: string, id: string) {
   const tripId = await requireTripMember(userId, id);
+  const trip = await readExpenseTrip(tripId, true);
+  const settings = trip.currencySettings;
   return expenseOptionsSchema.parse({
-    members: await readExpenseMembers(tripId),
+    currencySettings: settings
+      ? {
+          default_currency: settings.defaultCurrency ?? null,
+          currencies: (settings.currencies ?? []).map((c) => ({
+            code: c.code,
+            rate: c.rate ?? null,
+          })),
+        }
+      : null,
+    supportedCurrencies: getAllCurrencyCodes(),
+    members: membersOf(trip),
     categories: [...expenseCategories],
   });
 }
 
 /**
- * Equal split of a TWD amount, computed by the same `computeSplits` the Web form uses. The result
+ * Equal split of an original currency amount, computed by the same `computeSplits` the Web form uses. The result
  * always follows member order, so the request order cannot move the leftover cent. Nothing is
  * stored: creating the expense validates its own payload again. Authorizes before reading the body.
  */
 export async function mobileExpensePreview(request: Request, userId: string, id: string) {
   const tripId = await requireTripMember(userId, id);
   const input = await readBody(request, expensePreviewInput);
+  const currency = 'currency' in input ? input.currency : 'TWD';
+  const rate = 'exchange_rate' in input ? input.exchange_rate : 1;
+  const product = input.amount * rate;
+  if (
+    !isSupportedCurrency(currency) ||
+    !Number.isFinite(product) ||
+    roundMoney(product) > MAX_EXPENSE_AMOUNT
+  )
+    throw new ApiError(400, 'VALIDATION_ERROR');
   const members = await readExpenseMembers(tripId);
   const known = new Set(members.map((member) => member.id));
   if (input.member_ids.some((memberId) => !known.has(memberId))) {
@@ -67,10 +101,11 @@ export async function mobileExpensePreview(request: Request, userId: string, id:
     'equal',
     members.map((member) => ({ id: member.id, selected: chosen.has(member.id), value: '' })),
     input.amount,
-    1
+    rate
   );
   return expensePreviewSchema.parse({
-    amount: roundMoney(input.amount),
+    amount: roundMoney(product),
+    ...('currency' in input ? { originalAmount: input.amount, currency, exchangeRate: rate } : {}),
     splits: members
       .filter((member) => chosen.has(member.id))
       .map((member) => ({

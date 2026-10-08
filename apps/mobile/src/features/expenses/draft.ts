@@ -1,12 +1,13 @@
 import {
   MAX_EXPENSE_DESCRIPTION,
+  expensePreviewSchema,
   type ExpenseCreateInput,
   type ExpenseOptions,
   type ExpensePreview,
   type ExpensePreviewInput,
 } from '@/api/contracts';
 import type { ExpenseDraft } from '@/storage/expenseDrafts';
-import { isCalendarDate, parseAmount } from './input';
+import { isCalendarDate, parseAmount, parseRate } from './input';
 
 /** What a user-confirmed submission carries before it receives its request id. */
 export type ExpenseFields = Omit<ExpenseCreateInput, 'client_request_id'>;
@@ -16,6 +17,7 @@ export type { ExpenseDraft } from '@/storage/expenseDrafts';
 export type DraftIssue =
   | { field: 'description'; code: 'required' | 'tooLong' }
   | { field: 'amount'; code: 'empty' | 'format' | 'zero' | 'tooLarge' }
+  | { field: 'currency' | 'rate'; code: 'invalid' }
   | { field: 'date'; code: 'invalid' }
   | { field: 'payer'; code: 'required' }
   | { field: 'members'; code: 'required' | 'changed' }
@@ -31,6 +33,7 @@ export function newDraft(
   return {
     description: '',
     amountText: '',
+    ...currencyDefaults(options),
     category: 'food',
     date: today,
     payerId: userId && ids.includes(userId) ? userId : (ids[0] ?? null),
@@ -44,8 +47,14 @@ export function validateDraft(draft: ExpenseDraft, options: ExpenseOptions): Dra
   if (!description) issues.push({ field: 'description', code: 'required' });
   else if (description.length > MAX_EXPENSE_DESCRIPTION)
     issues.push({ field: 'description', code: 'tooLong' });
-  const amount = parseAmount(draft.amountText);
+  const amount = parseAmount(draft.amountText, draft.currency ?? 'TWD');
   if (!amount.ok) issues.push({ field: 'amount', code: amount.reason });
+  if (
+    !/^[A-Z]{3}$/.test(draft.currency ?? 'TWD') ||
+    (options.supportedCurrencies && !options.supportedCurrencies.includes(draft.currency ?? 'TWD'))
+  )
+    issues.push({ field: 'currency', code: 'invalid' });
+  if (draftRate(draft) === null) issues.push({ field: 'rate', code: 'invalid' });
   if (!isCalendarDate(draft.date)) issues.push({ field: 'date', code: 'invalid' });
   const ids = new Set(options.members.map((member) => member.id));
   if (!draft.payerId || !ids.has(draft.payerId)) issues.push({ field: 'payer', code: 'required' });
@@ -62,19 +71,27 @@ export function previewInputOf(
   draft: ExpenseDraft,
   options: ExpenseOptions
 ): ExpensePreviewInput | null {
-  const amount = parseAmount(draft.amountText);
+  const amount = parseAmount(draft.amountText, draft.currency ?? 'TWD');
   const chosen = new Set(draft.memberIds);
   const member_ids = options.members.filter((member) => chosen.has(member.id)).map((m) => m.id);
+  const rate = draftRate(draft);
   return amount.ok &&
+    rate !== null &&
     member_ids.length > 0 &&
     draft.memberIds.every((id) => options.members.some((m) => m.id === id))
-    ? { amount: amount.amount, member_ids }
+    ? {
+        amount: amount.amount,
+        member_ids,
+        ...(draft.currency && draft.currency !== 'TWD'
+          ? { currency: draft.currency, exchange_rate: rate }
+          : {}),
+      }
     : null;
 }
 
-/** Identifies what a preview was computed for; any change to amount or members makes it stale. */
+/** Identifies what a preview was computed for; any change to amount, currency, rate or members makes it stale. */
 export const previewKey = (request: ExpensePreviewInput) =>
-  `${request.amount}|${request.member_ids.join(',')}`;
+  `${request.amount}|${'currency' in request ? request.currency : 'TWD'}|${'exchange_rate' in request ? request.exchange_rate : 1}|${request.member_ids.join(',')}`;
 
 /**
  * The frozen body of a confirmed submission. The shares are the backend's preview, sent as
@@ -88,17 +105,22 @@ export function confirmedFields(
   const request = previewInputOf(draft, options);
   const issues = validateDraft(draft, options);
   if (!request || issues.length > 0 || !draft.payerId) throw new Error('INVALID_DRAFT');
+  if (!expensePreviewSchema.safeParse(preview).success) throw new Error('STALE_PREVIEW');
   const shared = preview.splits.map((split) => split.userId).sort();
   if (
-    preview.amount !== request.amount ||
+    ('currency' in request
+      ? preview.originalAmount !== request.amount ||
+        preview.currency !== request.currency ||
+        preview.exchangeRate !== request.exchange_rate
+      : preview.amount !== request.amount) ||
     shared.join(',') !== [...request.member_ids].sort().join(',')
   )
     throw new Error('STALE_PREVIEW');
   return {
     payer_id: draft.payerId,
     original_amount: request.amount,
-    currency: 'TWD',
-    exchange_rate: 1,
+    currency: draft.currency ?? 'TWD',
+    exchange_rate: draftRate(draft)!,
     description: draft.description.trim(),
     category: draft.category,
     date: draft.date,
@@ -107,4 +129,34 @@ export function confirmedFields(
       share_amount: split.shareAmount,
     })),
   };
+}
+
+export const draftRate = (draft: ExpenseDraft): number | null => {
+  if ((draft.currency ?? 'TWD') === 'TWD')
+    return draft.rateText === undefined || parseRate(draft.rateText) === 1 ? 1 : null;
+  return parseRate(draft.rateText ?? '');
+};
+/** Only newly created drafts read these defaults; restoring a saved draft never applies them. */
+export function currencyDefaults(
+  options: ExpenseOptions,
+  currency = options.currencySettings?.default_currency ?? 'TWD'
+): Partial<ExpenseDraft> {
+  const pinned = options.currencySettings?.currencies.find((c) => c.code === currency)?.rate;
+  return {
+    currency,
+    rateText: currency === 'TWD' ? '1' : pinned == null ? '' : String(pinned),
+    rateSource: 'trip',
+    rateDate: undefined,
+  };
+}
+export function draftCurrencies(options: ExpenseOptions, draft: ExpenseDraft): string[] {
+  const codes = options.currencySettings?.currencies.map((c) => c.code) ?? [];
+  return [
+    ...new Set([
+      ...(codes.length ? codes : ['TWD']),
+      'TWD',
+      options.currencySettings?.default_currency ?? 'TWD',
+      draft.currency ?? 'TWD',
+    ]),
+  ];
 }
