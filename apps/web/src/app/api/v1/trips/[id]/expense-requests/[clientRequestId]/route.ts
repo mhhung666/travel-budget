@@ -1,14 +1,9 @@
 import { apiResponse } from '@/lib/mobile/http';
-import { requireMobileUser } from '@/lib/mobile/session';
-import { mobileExpenseRequest } from '@/lib/mobile/expenseWrite';
+import { mobileOperation } from '@/lib/mobile/operations';
 export const runtime = 'nodejs';
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string; clientRequestId: string }> }
 ) {
-  return apiResponse(async () => {
-    const user = await requireMobileUser(request);
-    const { id, clientRequestId } = await params;
-    return mobileExpenseRequest(user.id, id, clientRequestId);
-  });
+  return apiResponse(() => mobileOperation('expense.request', request, params));
 }

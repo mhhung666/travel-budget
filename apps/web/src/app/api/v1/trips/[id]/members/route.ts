@@ -1,18 +1,9 @@
 import { apiResponse } from '@/lib/mobile/http';
-import { requireMobileUser } from '@/lib/mobile/session';
-import { mobileTripMembers, mobileManageMember } from '@/lib/mobile/members';
+import { mobileOperation } from '@/lib/mobile/operations';
 export const runtime = 'nodejs';
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  return apiResponse(async () => {
-    const user = await requireMobileUser(request);
-    const { id } = await params;
-    return mobileTripMembers(user.id, id);
-  });
+  return apiResponse(() => mobileOperation('member.list', request, params));
 }
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  return apiResponse(async () => {
-    const user = await requireMobileUser(request);
-    const { id } = await params;
-    return mobileManageMember(request, user.id, id);
-  });
+  return apiResponse(() => mobileOperation('member.create', request, params));
 }

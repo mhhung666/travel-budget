@@ -1,11 +1,6 @@
 import { apiResponse } from '@/lib/mobile/http';
-import { requireMobileUser } from '@/lib/mobile/session';
-import { mobileManageTrip } from '@/lib/mobile/tripManagement';
+import { mobileOperation } from '@/lib/mobile/operations';
 export const runtime = 'nodejs';
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  return apiResponse(async () => {
-    const user = await requireMobileUser(request);
-    const { id } = await params;
-    return mobileManageTrip(request, user.id, id, 'trip.update');
-  });
+  return apiResponse(() => mobileOperation('trip.update', request, params));
 }

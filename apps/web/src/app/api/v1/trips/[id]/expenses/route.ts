@@ -1,19 +1,9 @@
-import { after } from 'next/server';
 import { apiResponse } from '@/lib/mobile/http';
-import { requireMobileUser } from '@/lib/mobile/session';
-import { mobileExpenses } from '@/lib/mobile/expenses';
-import { mobileCreateExpense } from '@/lib/mobile/expenseWrite';
+import { mobileOperation } from '@/lib/mobile/operations';
 export const runtime = 'nodejs';
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  return apiResponse(async () => {
-    const user = await requireMobileUser(request);
-    return mobileExpenses(user.id, (await params).id, new URL(request.url));
-  });
+  return apiResponse(() => mobileOperation('expense.list', request, params));
 }
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  return apiResponse(async () => {
-    const user = await requireMobileUser(request);
-    // `after` runs the delivery trigger once the response has been sent, as the Web action does.
-    return mobileCreateExpense(request, user.id, (await params).id, (task) => after(task));
-  });
+  return apiResponse(() => mobileOperation('expense.create', request, params));
 }

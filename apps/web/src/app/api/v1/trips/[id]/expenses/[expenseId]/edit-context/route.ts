@@ -1,14 +1,9 @@
 import { apiResponse } from '@/lib/mobile/http';
-import { requireMobileUser } from '@/lib/mobile/session';
-import { mobileEditContext } from '@/lib/mobile/expenseMaintenance';
+import { mobileOperation } from '@/lib/mobile/operations';
 export const runtime = 'nodejs';
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string; expenseId: string }> }
 ) {
-  return apiResponse(async () => {
-    const user = await requireMobileUser(request);
-    const { id, expenseId } = await params;
-    return mobileEditContext(user.id, id, expenseId);
-  });
+  return apiResponse(() => mobileOperation('expense.editContext', request, params));
 }

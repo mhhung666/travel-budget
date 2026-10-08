@@ -1,10 +1,6 @@
 import { apiResponse } from '@/lib/mobile/http';
-import { requireMobileUser } from '@/lib/mobile/session';
-import { mobileInvitation } from '@/lib/mobile/tripEntry';
+import { mobileOperation } from '@/lib/mobile/operations';
 export const runtime = 'nodejs';
-export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
-  return apiResponse(async () => {
-    const user = await requireMobileUser(request);
-    return mobileInvitation(user.id, (await context.params).id);
-  });
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  return apiResponse(() => mobileOperation('trip.invitation', request, params));
 }

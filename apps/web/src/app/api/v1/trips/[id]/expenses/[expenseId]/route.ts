@@ -1,36 +1,21 @@
-import { mobileMaintainExpense } from '@/lib/mobile/expenseMaintenance';
 import { apiResponse } from '@/lib/mobile/http';
-import { requireMobileUser } from '@/lib/mobile/session';
-import { mobileExpense } from '@/lib/mobile/expenses';
+import { mobileOperation } from '@/lib/mobile/operations';
 export const runtime = 'nodejs';
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string; expenseId: string }> }
 ) {
-  return apiResponse(async () => {
-    const user = await requireMobileUser(request);
-    const { id, expenseId } = await params;
-    return mobileExpense(user.id, id, expenseId);
-  });
+  return apiResponse(() => mobileOperation('expense.detail', request, params));
 }
-
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string; expenseId: string }> }
 ) {
-  return apiResponse(async () => {
-    const user = await requireMobileUser(request);
-    const { id, expenseId } = await params;
-    return mobileMaintainExpense(request, user.id, id, expenseId, 'expense.update');
-  });
+  return apiResponse(() => mobileOperation('expense.update', request, params));
 }
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string; expenseId: string }> }
 ) {
-  return apiResponse(async () => {
-    const user = await requireMobileUser(request);
-    const { id, expenseId } = await params;
-    return mobileMaintainExpense(request, user.id, id, expenseId, 'expense.delete');
-  });
+  return apiResponse(() => mobileOperation('expense.delete', request, params));
 }

@@ -1,11 +1,6 @@
 import { apiResponse } from '@/lib/mobile/http';
-import { requireMobileUser } from '@/lib/mobile/session';
-import { mobileManageTrip } from '@/lib/mobile/tripManagement';
+import { mobileOperation } from '@/lib/mobile/operations';
 export const runtime = 'nodejs';
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  return apiResponse(async () => {
-    const user = await requireMobileUser(request);
-    const { id } = await params;
-    return mobileManageTrip(request, user.id, id, 'trip.archive');
-  });
+  return apiResponse(() => mobileOperation('trip.archive', request, params));
 }

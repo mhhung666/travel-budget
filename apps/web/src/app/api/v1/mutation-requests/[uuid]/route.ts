@@ -1,10 +1,6 @@
 import { apiResponse } from '@/lib/mobile/http';
-import { requireMobileUser } from '@/lib/mobile/session';
-import { mobileMutationRequest } from '@/lib/mobile/tripEntry';
+import { mobileOperation } from '@/lib/mobile/operations';
 export const runtime = 'nodejs';
-export async function GET(request: Request, context: { params: Promise<{ uuid: string }> }) {
-  return apiResponse(async () => {
-    const user = await requireMobileUser(request);
-    return mobileMutationRequest(user.id, (await context.params).uuid);
-  });
+export async function GET(request: Request, { params }: { params: Promise<{ uuid: string }> }) {
+  return apiResponse(() => mobileOperation('mutation.request', request, params));
 }

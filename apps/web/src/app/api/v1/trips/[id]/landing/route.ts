@@ -1,10 +1,6 @@
 import { apiResponse } from '@/lib/mobile/http';
-import { requireMobileUser } from '@/lib/mobile/session';
-import { mobileLanding, viewerDate } from '@/lib/mobile/trips';
+import { mobileOperation } from '@/lib/mobile/operations';
 export const runtime = 'nodejs';
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  return apiResponse(async () => {
-    const user = await requireMobileUser(request);
-    return mobileLanding(user.id, (await params).id, viewerDate(new URL(request.url)));
-  });
+  return apiResponse(() => mobileOperation('trip.landing', request, params));
 }

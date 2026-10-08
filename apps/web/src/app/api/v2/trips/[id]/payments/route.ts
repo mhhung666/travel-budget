@@ -1,12 +1,9 @@
 import { v2Schemas } from '@travel-budget/contracts';
-import { apiLedgerResponse as apiResponse, v2Output } from '@/lib/mobile/ledgerHttp';
-import { requireMobileUser } from '@/lib/mobile/session';
-import { mobileWritePayment } from '@/lib/mobile/payments';
+import { apiLedgerResponse, v2Output } from '@/lib/mobile/ledgerHttp';
+import { mobileOperation } from '@/lib/mobile/operations';
 export const runtime = 'nodejs';
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  return apiResponse(v2Output.trip(v2Schemas.V2PaymentMutationResult), async () => {
-    const user = await requireMobileUser(request);
-    const { id } = await params;
-    return mobileWritePayment(request, user.id, id);
-  });
+  return apiLedgerResponse(v2Output.trip(v2Schemas.V2PaymentMutationResult), () =>
+    mobileOperation('payment.create', request, params)
+  );
 }

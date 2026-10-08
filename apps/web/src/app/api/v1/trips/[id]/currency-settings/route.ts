@@ -1,16 +1,9 @@
 import { apiResponse } from '@/lib/mobile/http';
-import { requireMobileUser } from '@/lib/mobile/session';
-import { mobileTripCurrency, mobileManageTrip } from '@/lib/mobile/tripManagement';
+import { mobileOperation } from '@/lib/mobile/operations';
 export const runtime = 'nodejs';
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  return apiResponse(async () => {
-    const user = await requireMobileUser(request);
-    return mobileTripCurrency(user.id, (await params).id);
-  });
+  return apiResponse(() => mobileOperation('trip.currencyContext', request, params));
 }
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  return apiResponse(async () => {
-    const user = await requireMobileUser(request);
-    return mobileManageTrip(request, user.id, (await params).id, 'trip.currency');
-  });
+  return apiResponse(() => mobileOperation('trip.currency', request, params));
 }
