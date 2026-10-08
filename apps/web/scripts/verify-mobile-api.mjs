@@ -34,21 +34,24 @@ import {
   tripAccessContextSchema, tripAccessResultSchema, memberClaimInvitationSchema,
   memberMutationResultSchema,
   mutationRequestSchema,
+  v2Schemas,
 } from '@travel-budget/contracts';
 import { up as migrateSessions } from '../migrations/20261002100000-mobile-session-expiry.js';
 import { up as migrateAccounts } from '../migrations/20261006120000-account-entry-limits.js';
 import { up as migrateMutations } from '../migrations/20261006100000-mutation-requests.js';
 import { up as migrateRequests } from '../migrations/20260912160000-expense-create-requests.js';
 import { verifyLedgerApi } from './verify-ledger-api.mjs';
+import { createLedgerAcceptance, verifyLedgerStage, verifyLedgerAcceptanceHttp } from './ledger-acceptance.mjs';
 import { createLocalMailbox } from './local-mailbox.mjs';
 
 const args = new Set(process.argv.slice(2));
 assert(
-  [...args].every((arg) => ['--serve', '--lan', '--mailbox'].includes(arg)),
-  'Use --serve [--lan] [--mailbox]'
+  [...args].every((arg) => ['--serve', '--lan', '--mailbox', '--ledger-creation'].includes(arg)),
+  'Use --serve [--lan] [--mailbox] [--ledger-creation]'
 );
 assert(!args.has('--lan') || args.has('--serve'), '--lan requires --serve');
 assert(!args.has('--mailbox') || args.has('--serve'), '--mailbox requires --serve');
+assert(!args.has('--ledger-creation') || args.has('--serve'), '--ledger-creation requires --serve and affects only the owned local backend');
 const exec = promisify(execFile);
 const runId = randomUUID().replaceAll('-', '');
 const container = `tb-mobile-${runId}`;
@@ -480,7 +483,7 @@ try {
     AI_GATEWAY_API_KEY: '',
     OPENAI_API_KEY: '',
     CRON_SECRET: '',
-    ENABLE_NON_TWD_LEDGER: 'false',
+    ENABLE_NON_TWD_LEDGER: args.has('--ledger-creation') ? 'true' : 'false',
   });
   app = spawn(
     process.execPath,
@@ -2544,7 +2547,12 @@ try {
   });
   assert(Number(limited.response.headers.get('retry-after')) > 0);
   pass('login rate limit and Retry-After');
-  await verifyLedgerApi({ db, request, login, ObjectId: mongoose.Types.ObjectId, date, origin });
+  await verifyLedgerApi({ db, request, login, ObjectId: mongoose.Types.ObjectId, date, origin, creationEnabled: args.has('--ledger-creation') });
+  const b4 = await createLedgerAcceptance({ db, ObjectId: mongoose.Types.ObjectId, passwordHash: hash, date });
+  const pristineB4 = await b4.snapshot();
+  for (const base of ['TWD', 'USD', 'JPY']) verifyLedgerStage(b4.fixture, pristineB4, base, 'empty');
+  await verifyLedgerAcceptanceHttp({ b4, db, request, login, ObjectId: mongoose.Types.ObjectId, schemas: v2Schemas, date });
+  pass('B4 pristine TWD/USD/JPY device fixtures and version isolation');
   // Return fresh fixtures for device testing; automated acceptance must not consume their quota.
   await db.collection('mobilesessions').deleteMany({});
   await db.collection('mobileloginattempts').deleteMany({});
@@ -2596,6 +2604,7 @@ try {
       };
     };
     const fixtureCommands = {
+      ...b4.commands,
       'reset-limits': async () => {
         await db.collection('mobileloginattempts').deleteMany({});
         return {};
@@ -2705,12 +2714,15 @@ try {
           removed: String(writerRemoved._id),
         },
         date,
+        ledgerAcceptance: b4.fixture,
+        ledgerCreationEnabled: args.has('--ledger-creation'),
         controlUrl,
         controlToken,
         ...(mailbox ? { mailboxUrl: mailbox.url, mailboxToken: mailbox.token } : {}),
       }),
       { mode: 0o600 }
     );
+    console.log(`B4 accounts: b4-a, b4-b, b4-c; ledger creation gate (local only): ${args.has('--ledger-creation')}; trip IDs are in fixture.json`);
     console.log(`Local fixture details: ${join(artifacts, 'fixture.json')}`);
     const commandList = `${Object.keys(fixtureCommands).join(', ')}, quit`;
     console.log(`Commands: ${commandList}`);
@@ -2725,7 +2737,7 @@ try {
       void enqueueCommand(command)
         .then((result) =>
           console.log(
-            `DONE ${command}${command === 'entry-state' ? ` ${JSON.stringify(result)}` : ''}`
+            `DONE ${command}${['entry-state', 'b4-state'].includes(command) ? ` ${JSON.stringify(result)}` : ''}`
           )
         )
         .catch(() => {

@@ -5,7 +5,15 @@ import { once } from 'node:events';
 import { v2Schemas, tripsSchema, mutationRequestSchema } from '@travel-budget/contracts';
 
 /** Runs only inside verify-mobile-api's owned, disposable database and authenticated HTTP server. */
-export async function verifyLedgerApi({ db, request, login, ObjectId, date, origin }) {
+export async function verifyLedgerApi({
+  db,
+  request,
+  login,
+  ObjectId,
+  date,
+  origin,
+  creationEnabled = false,
+}) {
   const session = await login('mobile-ledger');
   const actor = new ObjectId(session.user.id);
   const peer = (await db.collection('users').findOne({ username: 'mobile-ledger-b' }))._id;
@@ -16,33 +24,54 @@ export async function verifyLedgerApi({ db, request, login, ObjectId, date, orig
   const call = (path, options = {}) =>
     request(path, { token: session.accessToken, version: 'v2', ...options });
   const cap = (await call('/capabilities', { schema: v2Schemas.V2Capabilities })).data;
-  assert.equal(cap.nonTwdCreationEnabled, false);
-  const blocked = {
-    client_request_id: randomUUID(),
-    name: 'Must not create',
-    base_currency: 'USD',
-  };
-  assert.equal(
-    (await call('/trips', { body: blocked, status: 409 })).error.code,
-    'FEATURE_NOT_AVAILABLE'
-  );
-  const rejected = (
-    await call(`/mutation-requests/${blocked.client_request_id}`, {
-      schema: v2Schemas.V2MutationRequest,
-    })
-  ).data;
-  assert.equal(rejected.code, 'FEATURE_NOT_AVAILABLE');
-  assert.deepEqual(rejected.ledger, unit);
-  assert.equal(await db.collection('trips').countDocuments({ name: blocked.name }), 0);
-  assert.equal(
-    (
-      await request(`/mutation-requests/${blocked.client_request_id}`, {
-        token: session.accessToken,
-        status: 409,
+  assert.equal(cap.nonTwdCreationEnabled, creationEnabled);
+  if (creationEnabled) {
+    for (const base of ['USD', 'JPY']) {
+      const body = {
+        client_request_id: randomUUID(),
+        name: `B4 local create ${base}`,
+        base_currency: base,
+      };
+      const result = (await call('/trips', { body, schema: v2Schemas.V2TripMutationResult })).data;
+      const repeated = (await call('/trips', { body, schema: v2Schemas.V2TripMutationResult }))
+        .data;
+      assert.deepEqual(repeated, result);
+      assert.deepEqual(result.ledger, { baseCurrency: base, moneyScale: 2 });
+      assert.equal(
+        await db
+          .collection('trips')
+          .countDocuments({ _id: new ObjectId(result.tripId), baseCurrency: base }),
+        1
+      );
+    }
+  } else {
+    const blocked = {
+      client_request_id: randomUUID(),
+      name: 'Must not create',
+      base_currency: 'USD',
+    };
+    assert.equal(
+      (await call('/trips', { body: blocked, status: 409 })).error.code,
+      'FEATURE_NOT_AVAILABLE'
+    );
+    const rejected = (
+      await call(`/mutation-requests/${blocked.client_request_id}`, {
+        schema: v2Schemas.V2MutationRequest,
       })
-    ).error.code,
-    'CLIENT_UPGRADE_REQUIRED'
-  );
+    ).data;
+    assert.equal(rejected.code, 'FEATURE_NOT_AVAILABLE');
+    assert.deepEqual(rejected.ledger, unit);
+    assert.equal(await db.collection('trips').countDocuments({ name: blocked.name }), 0);
+    assert.equal(
+      (
+        await request(`/mutation-requests/${blocked.client_request_id}`, {
+          token: session.accessToken,
+          status: 409,
+        })
+      ).error.code,
+      'CLIENT_UPGRADE_REQUIRED'
+    );
+  }
 
   const trip = new ObjectId();
   await db.collection('trips').insertOne({

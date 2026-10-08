@@ -332,3 +332,79 @@ test('one-shot status faults keep the write UUID/hash and never reach the fixtur
     await new Promise((resolve) => upstream.close(resolve));
   }
 });
+
+test('B4 v2 confirmed mutations drop one reply, preserve UUID bytes and leave previews/lookup/auth untouched', async () => {
+  const received = [];
+  const events = [];
+  const upstream = createServer(async (req, res) => {
+    let body = '';
+    for await (const chunk of req) body += chunk;
+    received.push({ method: req.method, path: req.url, body });
+    res.end('{}');
+  });
+  await new Promise((resolve) => upstream.listen(0, '127.0.0.1', resolve));
+  const proxy = await startNetworkProxy(
+    `http://127.0.0.1:${upstream.address().port}/api/v1`,
+    0,
+    (event) => events.push(event)
+  );
+  const id = '12345678-1234-4234-8234-123456789012';
+  const body = JSON.stringify({
+    client_request_id: id,
+    description: 'private form',
+    base_currency: 'USD',
+  });
+  const trip = 'a'.repeat(24);
+  const call = (path, method = 'POST', text = body) =>
+    fetch(`${proxy.url}/api/v2${path}`, { method, ...(method === 'GET' ? {} : { body: text }) });
+  const arm = (command) =>
+    fetch(`${proxy.url}/__network/${command}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${proxy.token}` },
+    });
+  try {
+    for (const [path, method] of [
+      [`/trips/${trip}/expenses`, 'POST'],
+      [`/trips/${trip}/expenses/${trip}`, 'PATCH'],
+      [`/trips/${trip}/expenses/${trip}`, 'DELETE'],
+      [`/trips/${trip}/payments`, 'POST'],
+      [`/trips/${trip}/payments/${trip}`, 'DELETE'],
+      ['/trips', 'POST'],
+      ['/trips/join', 'POST'],
+    ]) {
+      await arm('drop-write-response');
+      assert.equal((await call(`/trips/${trip}/expenses/preview`)).status, 200);
+      assert.equal((await call(`/mutation-requests/${id}`, 'GET')).status, 200);
+      await assert.rejects(() => call(path, method));
+      assert.equal((await call(path, method)).status, 200);
+      const last = events.slice(-2);
+      assert.equal(last[0].dropped, true);
+      assert.equal(last[1].dropped, undefined);
+      assert.deepEqual(last[0].mutationRequest, last[1].mutationRequest);
+      assert.equal(
+        last[0].mutationRequest.fingerprint,
+        createHash('sha256').update(body).digest('hex')
+      );
+    }
+    await arm('write-429');
+    assert.equal((await call(`/trips/${trip}/expenses/preview`)).status, 200);
+    const before = received.length;
+    const limited = await call(`/trips/${trip}/payments`, 'POST');
+    assert.equal(limited.status, 429);
+    assert.equal(limited.headers.get('retry-after'), '180');
+    assert.equal(received.length, before, 'synthetic 429 must not forward writes');
+    await arm('mutation-lookup-429');
+    assert.equal((await call(`/mutation-requests/${id}`, 'GET')).status, 429);
+    await arm('drop-write-response-offline');
+    await assert.rejects(() => call(`/trips/${trip}/payments`, 'POST'));
+    await assert.rejects(() => call(`/mutation-requests/${id}`, 'GET'));
+    await arm('online');
+    assert.equal((await call(`/mutation-requests/${id}`, 'GET')).status, 200);
+    assert(!JSON.stringify(events).includes('private form'));
+    assert.equal((await fetch(`${proxy.url}/api/v3/trips`)).status, 404);
+  } finally {
+    await proxy.close();
+    upstream.closeAllConnections();
+    await new Promise((resolve) => upstream.close(resolve));
+  }
+});

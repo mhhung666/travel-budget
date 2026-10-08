@@ -19,6 +19,59 @@ B3 開發檢查：Mobile 65 檔 1,203 項＋工具 34 項、Web 2,168 項及隔�
 
 **他人仍待驗**：B1–B3 獨立程式複驗與新舊 Server Action／HTTP 矩陣；B4 核對 Web、iPhone＋iPad 的操作／重啟、原 UUID、舊草稿／SQLite、撤權／429、公開輸出及精確資料庫帳務。Android 裝置延後，未驗不計通過；未部署、未跑遠端 migration、未開啟非 TWD。
 
+### B4 隔離工具與操作交接
+
+工具已補齊；**B4 獨立 Web／iPhone／iPad 驗收仍待執行**，不因 HTTP 或核對工具通過而開放非 TWD。以下只操作工具自己建立的 loopback 資料庫，fixture／控制憑證及輸出保留在暫存目錄，不提交 Git。
+
+```bash
+# 根目錄：預設保留正式規則，非 TWD 建立關閉，但提供既有 USD／JPY 旅行
+pnpm --filter @travel-budget/web dev:mobile-api
+# 要驗「建立非 TWD」時，改用這個指令；開關只影響該次自建後端
+pnpm --filter @travel-budget/web dev:mobile-api --ledger-creation
+```
+
+輸出的 `fixture.json`（0600）新增 `ledgerAcceptance`：帳號 `b4-a`／`b4-b`／`b4-c`，依序為 A（管理員）／B／C；密碼沿用該次 fixture。三趟空旅行為舊 TWD（DB 缺基準）、USD、JPY，邀請碼與 ID 在檔案內。USD 預設記帳 JPY、自訂 JPY 0.0067／TWD 0.03，A 私人預算 10 USD。非 TWD 關閉開關時，既有旅行仍可讀寫；一般模式與本機開啟模式都需核對。啟動先跑真 HTTP／DB 核對，再清除這三趟工具產生的帳務與 receipt，保留空旅行給操作者；其他 fixture 不變。
+
+```bash
+# 另一個終端：建立供新版 Mobile 使用的故障代理，不啟動或操作裝置
+pnpm --filter travel-budget-mobile exec node scripts/serve-ledger-network.mjs \
+  --fixture /tmp/該次路徑/fixture.json --port 8109
+# Expo 的 EXPO_PUBLIC_API_BASE_URL 使用 http://127.0.0.1:8109/api/v1；v2 自動派生
+# 代理會顯示 network.json；以下命令不需把 token 貼到 shell
+pnpm --filter travel-budget-mobile exec node scripts/serve-ledger-network.mjs \
+  --control /tmp/代理路徑/network.json --command drop-write-response-offline
+# 在恢復／重啟前，讓 transport 上線
+pnpm --filter travel-budget-mobile exec node scripts/serve-ledger-network.mjs \
+  --control /tmp/代理路徑/network.json --command online
+```
+
+`drop-write-response`／`drop-write-response-offline` 只丟下一筆已確認 POST／PATCH／DELETE 的上游回應，涵蓋建立／加入、支出新增／維護與還款／撤銷；preview、receipt、登入與 refresh 不消耗它。`write-429`、`mutation-lookup-429`、C 的 `post-429`／`lookup-429` 注入一次 180 秒等待且不轉送；`disconnect`／`timeout` 可驗連線失敗。注入前保持畫面在確認前，避免背景請求先消耗 fault；`online` 會清除未使用 fault。代理終端輸入 `snapshot` 保存累積事件，`quit`／Ctrl+C 保存最後一份並關閉；事件只有帳號 ID、UUID、請求位元組雜湊、路徑／狀態／時間，不保存 token 或正文。snapshot 同時核對已觀察 UUID 的 endpoint／版本／method／body hash 與查詢帳號；缺少較早寫入基線會明列，違反固定請求則記失敗、工具退出碼非零，不能把這份 wire 證據當作 DB 或裝置通過。舊 `test:native` 流程未宣告涵蓋 B4，新操作由驗收者執行。
+
+固定案例在**同一趟空旅行**由 A 代記：A 付款、A／B／C 均分，再由 A 登記 B→A 的部分還款並撤銷。TWD／JPY 為 100.01、匯率 1、付款 0.01；USD 為 3,000 JPY × 0.0067、付款 3.35 USD，精確值見 [B0 固定案例](ROADMAP.md#b旅程基準幣別改造規格2026-10-08)。每個階段可用只讀核對指令，HTTP 透過受保護的 fixture 控制通道取得一致的 DB snapshot：
+
+```bash
+pnpm --filter @travel-budget/web exec node scripts/check-ledger-acceptance.mjs \
+  --fixture /tmp/該次路徑/fixture.json --currency USD --stage expense \
+  --output /tmp/該次路徑/usd-expense.json
+```
+
+`--stage` 支援 `empty`／`expense`／`partial`／`revoked`；幣別支援 TWD／USD／JPY。核對原額／匯率／幣別、成員份額、精確餘額、expense／payment／terminal receipt 筆數、UUID、版本、單位與 resource ID；額外支出、缺 receipt、同 UUID 不同操作或錯單位皆失敗。固定案例要求由 A 操作，其他故障／衝突案例使用新 fixture；不要清除未結案 UUID 來讓核對通過。`--output` 不覆寫舊證據且權限為 0600；輸出明示裝置待驗。
+
+fixture 終端的 `b4-state` 取得三趟完整帳務與 receipt 白名單 snapshot；`b4-usd-leave-a`／`b4-usd-rejoin-a`（另有 twd／jpy）供撤權／恢復操作。撤權後 receipt 仍須受正式權限限制；fixture 控制不是產品 API。需保存 snapshot 時，使用既有 `controlUrl`／`controlToken` 的 POST 通道，勿把憑證寫入證據。此工具不直接連外部 DB、不重建使用者端 UUID、不遷移或設定遠端。
+
+| 他人操作核對                 | 必留證據／目前狀態                                                                                                                   |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| 固定案例、Web ↔ iPhone／iPad | 一端新增、另一端讀回；每台重新啟動後單位與數值一致，附 DB 核對輸出與畫面。待驗。                                                     |
+| 丟回應／重啟／換帳號         | 保存前後同 UUID／body hash、receipt 與 DB 筆數；A→B→A 不顯示／送出 A 的操作，查原版本恢復。待驗。                                    |
+| 編輯／衝突／還款／撤銷       | Web 先改後 Mobile 重確認；基本編輯保留原額／匯率／附件；付款及撤銷丟回應不重複扣抵，附 snapshot 與原 UUID。待驗。                    |
+| 舊 TWD／SQLite／429／撤權    | 用舊包建立 C／D／E 與草稿再升級，原 body 不變；保存失敗不送出、等待跨重啟有效、撤權晚到回應不得解鎖。SQLite 故障沿用原生工具，待驗。 |
+| 預算／跨旅程統計／公開／匯出 | USD 私人預算只對 A；TWD／USD 分組、不混算；JPY .01 顯示／朗讀／匯出完整，舊公開入口阻擋非 TWD、新入口不含私人欄位。待驗。            |
+| 建立開關／回退               | 本機關／開模式分別核對新建、既有帳務及原 UUID 恢復；服務不支援 v2 不改走 v1。正式部署／開放另依指示，待驗。                          |
+
+開發檢查：Mobile 1,203 項行為測試與工具 40 項、Web 核對工具 7 項通過；根 check／contracts 及三平台匯出通過。一般關閉與本機開啟建立模式的完整真 HTTP 均通過；三種幣別各完成新增／部分還款／撤銷共 9 次丟回應，原 UUID 查回並由 CLI 核對 DB 精確值／筆數，沒有操作裝置。合成 wire 證據 `/var/folders/m4/fgf8qnv17_zcmkxf4s9cmd440000gn/T/travel-budget-ledger-network-9c3XRK/traffic-2.json`，HTTP 診斷 `/var/folders/m4/fgf8qnv17_zcmkxf4s9cmd440000gn/T/travel-budget-mobile-gjfmkn/next.log`；只使用自建資料庫，結束已清理。
+
+驗收者在本節更新結果，附 commit、應用版本來源、裝置／OS、操作者、證據路徑與未完成項；先保留 iPhone＋iPad 必要案例，Android 延後。必要帳務或 iOS 案例未完成，B4 不結案、非 TWD 不開放，G3／G4／F 維持原安排。
+
 ## U 靜態審查修正交接（2026-10-08）
 
 核對基準 `5eadc40`；本輪已實作 1–3、5、6，並整理 8、量測後修正 7。只修改 Mobile 顯示與查詢，未修改交易引擎、HTTP 契約或 catalog 撤權保護；以 Mobile patch 交付，當時依使用者指示先不做 G1。9a／9b 的整體重構延後。

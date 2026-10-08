@@ -75,3 +75,31 @@ test('natural expiry requires backend rejection, one refresh and replay with a n
     verifyNaturalRefresh([denied, refresh, replay], { ...original, issuedAt: 900000 })
   );
 });
+
+test('B4 confirmed-mutation evidence keeps only UUID/fingerprint and validates their shape', () => {
+  const trace = createAuthTrace();
+  const mutationRequest = {
+    id: '12345678-1234-4234-8234-123456789012',
+    fingerprint: 'c'.repeat(64),
+    body: 'private input',
+    token: 'private token',
+  };
+  trace.observe({
+    method: 'PATCH',
+    path: '/api/v2/trips/x/expenses/y',
+    status: 200,
+    mutationRequest,
+  });
+  assert.deepEqual(trace.events[0].mutationRequest, {
+    id: mutationRequest.id,
+    fingerprint: mutationRequest.fingerprint,
+  });
+  assert(!JSON.stringify(trace.events).includes('private'));
+  trace.observe({
+    method: 'POST',
+    path: '/api/v2/trips',
+    status: 200,
+    mutationRequest: { ...mutationRequest, id: 'invalid' },
+  });
+  assert.equal(trace.events[1].mutationRequest, undefined);
+});

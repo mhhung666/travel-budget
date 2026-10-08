@@ -7,7 +7,16 @@ export function createAuthTrace() {
   const events = [];
   return {
     events,
-    observe({ method, path, authorization, status, dropped, expenseRequest, injected }) {
+    observe({
+      method,
+      path,
+      authorization,
+      status,
+      dropped,
+      expenseRequest,
+      mutationRequest,
+      injected,
+    }) {
       const event = { method, path, status, at: Date.now(), ...(dropped ? { dropped: true } : {}) };
       if (injected) event.injected = true;
       if (
@@ -16,6 +25,15 @@ export function createAuthTrace() {
         /^[0-9a-f]{64}$/.test(expenseRequest.fingerprint)
       )
         event.expenseRequest = { id: expenseRequest.id, fingerprint: expenseRequest.fingerprint };
+      if (
+        mutationRequest &&
+        /^[0-9a-f-]{36}$/i.test(mutationRequest.id) &&
+        /^[0-9a-f]{64}$/.test(mutationRequest.fingerprint)
+      )
+        event.mutationRequest = {
+          id: mutationRequest.id,
+          fingerprint: mutationRequest.fingerprint,
+        };
       if (authorization?.startsWith('Bearer ')) {
         try {
           const token = authorization.slice(7);

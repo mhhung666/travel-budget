@@ -3,10 +3,10 @@ import { Buffer } from 'node:buffer';
 import { createHash, randomBytes } from 'node:crypto';
 import { createServer, request } from 'node:http';
 
-// The only write the drop-response modes may touch: creating an expense (not its preview or lookups).
+// Original drop-response commands still target C only; B4 drop-write-response targets confirmed writes.
 const isExpenseCreate = (req) =>
   req.method === 'POST' &&
-  /^\/api\/v1\/trips\/[a-f0-9]{24}\/expenses$/.test(new URL(req.url, 'http://proxy').pathname);
+  /^\/api\/v[12]\/trips\/[a-f0-9]{24}\/expenses$/.test(new URL(req.url, 'http://proxy').pathname);
 
 /** Disposable loopback transport faults. Never mounted in the application/backend. */
 export async function startNetworkProxy(apiUrl, port, observe = () => {}, nativeCommand) {
@@ -15,6 +15,11 @@ export async function startNetworkProxy(apiUrl, port, observe = () => {}, native
     api.protocol === 'http:' && api.hostname === '127.0.0.1' && api.pathname === '/api/v1',
     'Network acceptance requires the disposable loopback API'
   );
+  const writePath =
+    /^\/api\/v[12]\/(?:trips(?:\/join)?|trips\/[a-f0-9]{24}\/(?:expenses(?:\/[a-f0-9]{24})?|payments(?:\/[a-f0-9]{24})?|currency-settings|settings|members(?:\/[a-f0-9]{24})?|access|archive))$/;
+  const isWrite = (req) =>
+    ['POST', 'PATCH', 'DELETE'].includes(req.method) &&
+    writePath.test(new URL(req.url, 'http://proxy').pathname);
   const token = randomBytes(32).toString('hex');
   let mode = 'online';
   // One-shot: the next expense creation is forwarded and committed upstream, then its response is
@@ -60,16 +65,28 @@ export async function startNetworkProxy(apiUrl, port, observe = () => {}, native
         return reply(200, { injected: command });
       }
       if (
-        !['online', 'disconnect', 'timeout', 'drop-response', 'drop-response-offline'].includes(
-          command
-        )
+        ![
+          'online',
+          'disconnect',
+          'timeout',
+          'drop-response',
+          'drop-response-offline',
+          'drop-write-response',
+          'drop-write-response-offline',
+        ].includes(command)
       ) {
-        const match = command.match(/^(post|lookup|refresh)-(401|403|404|409|429|500)$/);
+        const match = command.match(
+          /^(post|lookup|refresh|write|mutation-lookup)-(401|403|404|409|429|500)$/
+        );
         if (!match) return reply(404, {});
         injections.set(match[1], Number(match[2]));
         return reply(200, { injected: command });
       }
-      if (command.startsWith('drop-response')) armed = { offline: command.endsWith('-offline') };
+      if (command.startsWith('drop-response') || command.startsWith('drop-write-response'))
+        armed = {
+          offline: command.endsWith('-offline'),
+          allWrites: command.startsWith('drop-write-response'),
+        };
       else {
         mode = command;
         // `online` also stands down a drop that was armed but never used.
@@ -80,7 +97,7 @@ export async function startNetworkProxy(apiUrl, port, observe = () => {}, native
       }
       return reply(200, { mode, armed: armed !== null });
     }
-    if (!/^\/api\/v1\//.test(req.url)) return reply(404, {});
+    if (!/^\/api\/v[12]\//.test(req.url)) return reply(404, {});
     if (mode === 'disconnect') {
       counts.disconnect++;
       return res.destroy();
@@ -92,9 +109,9 @@ export async function startNetworkProxy(apiUrl, port, observe = () => {}, native
       req.resume();
       return;
     }
-    // Only fixture expense writes: keep the UUID and a one-way byte fingerprint, never body data.
+    // Only confirmed fixture writes: keep the UUID and a one-way byte fingerprint, never body data.
     let expenseRequest;
-    if (isExpenseCreate(req)) {
+    if (isWrite(req)) {
       const chunks = [];
       let bytes = 0;
       req.on('data', (chunk) => {
@@ -117,14 +134,23 @@ export async function startNetworkProxy(apiUrl, port, observe = () => {}, native
     const target = isExpenseCreate(req)
       ? 'post'
       : req.method === 'GET' &&
-          /^\/api\/v1\/trips\/[a-f0-9]{24}\/expense-requests\/[0-9a-f-]{36}$/.test(pathname)
+          /^\/api\/v[12]\/trips\/[a-f0-9]{24}\/expense-requests\/[0-9a-f-]{36}$/.test(pathname)
         ? 'lookup'
         : req.method === 'POST' && pathname === '/api/v1/auth/refresh'
           ? 'refresh'
           : null;
-    const injected = injections.get(target);
+    const mutationLookup =
+      req.method === 'GET' && /^\/api\/v[12]\/mutation-requests\/[0-9a-f-]{36}$/i.test(pathname);
+    const faultTarget = injections.has(target)
+      ? target
+      : isWrite(req)
+        ? 'write'
+        : mutationLookup
+          ? 'mutation-lookup'
+          : null;
+    const injected = injections.get(faultTarget);
     if (injected) {
-      injections.delete(target);
+      injections.delete(faultTarget);
       req.resume();
       req.on('end', () => {
         observe({
@@ -133,7 +159,12 @@ export async function startNetworkProxy(apiUrl, port, observe = () => {}, native
           authorization: req.headers.authorization,
           status: injected,
           injected: true,
-          ...(expenseRequest ? { expenseRequest } : {}),
+          ...(expenseRequest
+            ? {
+                mutationRequest: expenseRequest,
+                ...(isExpenseCreate(req) ? { expenseRequest } : {}),
+              }
+            : {}),
         });
         const codes = {
           401: 'UNAUTHORIZED',
@@ -153,7 +184,7 @@ export async function startNetworkProxy(apiUrl, port, observe = () => {}, native
       return;
     }
     counts.forwarded++;
-    const drop = armed && isExpenseCreate(req) ? armed : null;
+    const drop = armed && (armed.allWrites ? isWrite(req) : isExpenseCreate(req)) ? armed : null;
     if (drop) armed = null;
     const upstream = request(
       {
@@ -169,7 +200,12 @@ export async function startNetworkProxy(apiUrl, port, observe = () => {}, native
           path: req.url,
           authorization: req.headers.authorization,
           status: response.statusCode,
-          ...(expenseRequest ? { expenseRequest } : {}),
+          ...(expenseRequest
+            ? {
+                mutationRequest: expenseRequest,
+                ...(isExpenseCreate(req) ? { expenseRequest } : {}),
+              }
+            : {}),
           ...(drop ? { dropped: true } : {}),
         });
         if (drop) {
