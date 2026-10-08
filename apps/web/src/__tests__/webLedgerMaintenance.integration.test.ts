@@ -38,6 +38,8 @@ describe.skipIf(!uri || !allowed)(
       await mongoose.connect(uri!, {
         dbName: `tb_web_ledger_${randomUUID().replaceAll('-', '')}`,
         autoIndex: false,
+        // The ownership check must run before Mongoose creates any model collections.
+        autoCreate: false,
       });
       db = mongoose.connection.db!;
       expect((await db.admin().command({ hello: 1 })).setName).toBeTruthy();
