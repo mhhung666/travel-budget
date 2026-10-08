@@ -393,6 +393,8 @@ const paths = {
         authenticated: true,
         errors: [409],
       }),
+      description:
+        'Basic metadata preserves all accounting. Explicit equal recalculation accepts paired original currency/rate; omitted fields retain the legacy TWD/1 operation. Context recalculate capability requires existing canonical equal shares. UUID/revision, authorization and terminal receipt rules apply.',
       parameters: [
         tripIdParam,
         { name: 'expenseId', in: 'path', required: true, schema: objectId },

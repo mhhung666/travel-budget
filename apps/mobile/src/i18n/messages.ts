@@ -106,9 +106,10 @@ const zh = {
   editExpense: '編輯支出',
   deleteExpense: '刪除支出',
   basicExpense: '基本資料',
-  equalExpenseHint:
-    '重新預覽 TWD 金額、付款人與勾選成員的均分；確認後才更新帳務，附件及其他資料保留。',
-  equalExpense: 'TWD 重新均分',
+  editCurrencyHint:
+    '原幣與匯率沿用此筆支出，不套用新旅程設定。切換幣別保留輸入數字，新幣別可預填旅程匯率；請核對並重新預覽。',
+  equalExpenseHint: '重新預覽原幣金額、匯率與 TWD 均分；確認後才更新帳務，附件及其他資料保留。',
+  equalExpense: '重新均分',
   basicExpenseHint: '預設只修改說明、分類與日期；原金額、付款人、分攤、附件及其他資料均保留。',
   expenseWebOnly: '此筆帳務只能修改基本資料；金額或分攤請到 Web 處理。',
   expenseChanged: '支出或成員已變動。輸入保留，請核對最新內容並重新確認。',
@@ -120,7 +121,7 @@ const zh = {
   reviewExpenseChangesAction: '核對變更',
   confirmExpenseEdit: '確認變更',
   noExpenseChanges: '沒有變更，無需送出。',
-  invalidExpenseEdit: '請核對說明、日期、分類、金額及有效成員。',
+  invalidExpenseEdit: '請核對說明、日期、分類、原幣金額、匯率及有效成員。',
   reviewExpenseChanges: '請核對以下變更與新舊分攤，確認後才送出。',
   alreadyHaveCode: '我已收到驗證碼',
   createAccount: '建立帳號',
@@ -512,9 +513,10 @@ export const messages = {
     editExpense: '编辑支出',
     deleteExpense: '删除支出',
     basicExpense: '基本资料',
-    equalExpenseHint:
-      '重新预览 TWD 金额、付款人与勾选成员的均分；确认后才更新账务，附件及其他资料保留。',
-    equalExpense: 'TWD 重新均分',
+    editCurrencyHint:
+      '原币与汇率沿用此笔支出，不套用新旅程设置。切换币别保留输入数字，新币别可预填旅程汇率；请核对并重新预览。',
+    equalExpenseHint: '重新预览原币金额、汇率与 TWD 均分；确认后才更新账务，附件及其他资料保留。',
+    equalExpense: '重新均分',
     basicExpenseHint: '默认只修改说明、分类与日期；原金额、付款人、分摊、附件及其他资料均保留。',
     expenseWebOnly: '此笔账务只能修改基本资料；金额或分摊请到 Web 处理。',
     expenseChanged: '支出或成员已变动。输入保留，请核对最新内容并重新确认。',
@@ -526,7 +528,7 @@ export const messages = {
     reviewExpenseChangesAction: '核对变更',
     confirmExpenseEdit: '确认变更',
     noExpenseChanges: '没有变更，无需发送。',
-    invalidExpenseEdit: '请核对说明、日期、分类、金额及有效成员。',
+    invalidExpenseEdit: '请核对说明、日期、分类、原币金额、汇率及有效成员。',
     reviewExpenseChanges: '请核对以下变更与新旧分摊，确认后才发送。',
     alreadyHaveCode: '我已收到验证码',
     createAccount: '创建账号',
@@ -935,9 +937,11 @@ export const messages = {
     editExpense: 'Edit expense',
     deleteExpense: 'Delete expense',
     basicExpense: 'Basic details',
+    editCurrencyHint:
+      'The expense keeps its original currency and rate. Changing currency keeps the typed amount and may prefill the trip rate; review and preview again.',
     equalExpenseHint:
-      'Preview the TWD amount, payer and equal shares again. Only confirmation updates the expense; attachments and other data are preserved.',
-    equalExpense: 'Split TWD equally again',
+      'Preview the original amount, exchange rate and TWD equal shares again. Only confirmation updates the expense; attachments and other data are preserved.',
+    equalExpense: 'Split equally again',
     basicExpenseHint:
       'Only description, category and date change by default. Amount, payer, shares, attachments and other data are preserved.',
     expenseWebOnly:
@@ -953,7 +957,8 @@ export const messages = {
     reviewExpenseChangesAction: 'Review changes',
     confirmExpenseEdit: 'Confirm changes',
     noExpenseChanges: 'No changes to send.',
-    invalidExpenseEdit: 'Check description, date, category, amount and current members.',
+    invalidExpenseEdit:
+      'Check description, date, category, original amount, exchange rate and current members.',
     reviewExpenseChanges: 'Review these changes and the old and new shares before confirming.',
     alreadyHaveCode: 'I already have a code',
     createAccount: 'Create account',
@@ -1390,9 +1395,11 @@ export const messages = {
     editExpense: '支出を編集',
     deleteExpense: '支出を削除',
     basicExpense: '基本情報',
+    editCurrencyHint:
+      'この支出の元の通貨とレートを維持します。通貨変更でも入力額はそのままです。新通貨は旅行レートを初期入力します。確認し、再プレビューしてください。',
     equalExpenseHint:
-      'TWD 金額・支払者・選択メンバーの均等分担を再プレビューします。確認後に更新し、添付とその他の情報は保持します。',
-    equalExpense: 'TWD を再度均等分担',
+      '元の金額・レート・TWD の均等分担を再プレビューします。確認後に更新し、添付とその他の情報は保持します。',
+    equalExpense: '再度均等分担',
     basicExpenseHint:
       '通常は内容・分類・日付のみ変更します。金額・支払者・分担・添付・その他の情報は保持します。',
     expenseWebOnly: 'この支出は基本情報のみ編集できます。金額や分担は Web で変更してください。',
@@ -1407,7 +1414,7 @@ export const messages = {
     reviewExpenseChangesAction: '変更内容を確認',
     confirmExpenseEdit: '変更を確認',
     noExpenseChanges: '変更はありません。',
-    invalidExpenseEdit: '内容・日付・分類・金額・現在のメンバーを確認してください。',
+    invalidExpenseEdit: '内容・日付・分類・元の金額・レート・現在のメンバーを確認してください。',
     reviewExpenseChanges: '変更内容と変更前後の分担を確認してから送信してください。',
     alreadyHaveCode: 'コードを受け取っています',
     createAccount: 'アカウント作成',

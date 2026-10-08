@@ -8,7 +8,7 @@
 
 - Mobile U1／U2：完成既有頁面、帳號／旅行表單、本機／佇列恢復顯示與共用身分格式整理；保留 C／D／E、UUID、原期限及撤權，提交相應 patch。開發檢查／iOS 待驗見 [本機驗收](apps/mobile/docs/LOCAL_ACCEPTANCE.md)，Android 延後，未部署。
 - Mobile U review／規劃：修正有效等待、原幣代碼、可見筆數、名冊同名短碼／歷史消歧及顯示負零，memo 還款標籤並移除期限暖快取額外讀取；980 項測試、check 與三平台匯出通過；唯一姓名／朗讀文字與未知名冊不加碼，清單更新／錯誤重試一起重讀名冊、隱藏時略過一般名冊更新，明確重試仍走原授權流程，現名／歷史限制見交接。[修正交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#u-靜態審查修正交接2026-10-08)記未驗範圍與延期整理；G 規格已盤點，該輪以 Mobile patch 交付，未改交易／撤權保護或部署。
-- G1／G2／Web／Mobile：G1 設定、成員與存取管理已分片交付，範圍核對摘要移入 archive；G2a 新增常用／預設幣別、自訂與每日參考匯率，Web／HTTP 共用交易、版本確認與原 UUID／SQLite 恢復，G2b 加外幣新增、精確匯率確認／原 UUID 草稿交接及恢復，舊 schema／TWD 佇列保留。[G1](apps/mobile/docs/LOCAL_ACCEPTANCE.md#g1c-權限與危險操作交接)／[G2a 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#g2a-幣別設定與匯率交接)集中記錄檢查與 iOS 待驗；[G2b 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#g2b-外幣新增與草稿交接)記故障檢查；G2c、原生認領及 F 另排，未部署。
+- G1／G2／Web／Mobile：分片完成旅行／成員／存取管理、幣別設定與參考匯率、外幣新增草稿及均分編輯；歷史帳務保留，明確重算／衝突再確認，原 UUID、SQLite、共用限速與舊 TWD 佇列相容。各片開發檢查與 iOS 待驗集中於 [G1](apps/mobile/docs/LOCAL_ACCEPTANCE.md#g1c-權限與危險操作交接)／[G2](apps/mobile/docs/LOCAL_ACCEPTANCE.md#g2c-外幣編輯交接)；G3、原生認領及 F 另排，未部署。
 
 ### 2026-10-07
 

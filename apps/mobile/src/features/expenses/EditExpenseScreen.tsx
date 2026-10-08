@@ -41,14 +41,16 @@ import { refreshTripData } from './entryQueries';
 import { onlineManager, useQueryClient } from '@tanstack/react-query';
 import {
   editFields,
+  canRecalculate,
   prepareEdit,
   rebaseEditFields,
   type EditFields,
   type PreparedEdit,
 } from './maintenance';
-import { LocalRateLimitError } from './entry';
+import { expenseReadGuard, expenseReadWait } from './readGuard';
+import { currencyDefaults, draftCurrencies } from './draft';
 import { categoryLabel, createMemberLabelIndex, expenseMembers } from './rows';
-import { isCalendarDate, parseAmount } from './input';
+import { isCalendarDate, parseAmount, parseRate } from './input';
 
 export function EditExpenseScreen({
   tripId,
@@ -79,13 +81,17 @@ export function EditExpenseScreen({
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState(false);
   const [done, setDone] = useState(false);
+  const [completed, setCompleted] = useState<PreparedEdit | null>(null);
   const [hidden, setHidden] = useState(false);
   const [refreshFailed, setRefreshFailed] = useState(false);
   const flight = useRef(false);
   const generation = useRef(0);
+  const inputGeneration = useRef(0);
   const first = useRef<TextInput>(null);
   const date = useRef<TextInput>(null);
   const amount = useRef<TextInput>(null);
+  const rate = useRef<TextInput>(null);
+  const unsavedWait = useRef(0);
   const dirty =
     !!context && !!fields && JSON.stringify(fields) !== JSON.stringify(editFields(context));
   usePreventRemove(dirty && !pending && !done && !busy, ({ data }) =>
@@ -94,40 +100,29 @@ export function EditExpenseScreen({
       { text: t.leaveForm, style: 'destructive', onPress: () => navigation.dispatch(data.action) },
     ])
   );
-  const guard = useCallback(async () => {
-    if (!scope || !onlineManager.isOnline() || AppState.currentState !== 'active')
-      throw new ApiError('CANCELLED');
-    const version = manager.getSignInVersion();
-    const captured = catalog.captureAccess(scope);
-    const store = await openMutationStore();
-    await store.retryAt(scope);
-    return () => {
-      if (
-        !onlineManager.isOnline() ||
-        AppState.currentState !== 'active' ||
-        manager.getSignInVersion() !== version ||
-        !manager.getSnapshot().user ||
-        manager.getSnapshot().user?.id !== scope.accountId
-      )
-        throw new ApiError('CANCELLED');
-      captured(tripId);
-      const until = store.rateLimitUntil(scope);
-      if (until > Date.now()) throw new LocalRateLimitError(until, Date.now());
-    };
-  }, [scope, manager, catalog, tripId]);
+  const guard = useCallback(
+    async (allowHidden = false) => {
+      if (!scope) throw new ApiError('CANCELLED');
+      const beforeSend = await expenseReadGuard(
+        manager,
+        catalog,
+        scope,
+        tripId,
+        unsavedWait.current,
+        allowHidden
+      );
+      beforeSend();
+      return beforeSend;
+    },
+    [scope, manager, catalog, tripId]
+  );
   const fail = async (failure: unknown, active: () => boolean) => {
     if (!active()) return;
-    if (
-      failure instanceof ApiError &&
-      failure.status === 429 &&
-      !(failure instanceof LocalRateLimitError) &&
-      scope
-    )
-      await (
-        await openMutationStore()
-      )
-        .pause(scope, Date.now() + (failure.retryAfter ?? 30) * 1000)
-        .catch(() => undefined);
+    const wait = expenseReadWait(failure);
+    if (wait && scope) {
+      unsavedWait.current = Math.max(unsavedWait.current, wait);
+      await (await openMutationStore()).pause(scope, unsavedWait.current).catch(() => undefined);
+    }
     if (!active()) return;
     if (isAccessDenied(failure)) {
       setHidden(true);
@@ -142,7 +137,7 @@ export function EditExpenseScreen({
     setBusy(true);
     setPrepared(null);
     try {
-      const beforeSend = await guard();
+      const beforeSend = await guard(true);
       const read = await manager.requestAs(
         scope.accountId,
         `/trips/${tripId}/expenses/${expenseId}/edit-context`,
@@ -171,8 +166,11 @@ export function EditExpenseScreen({
           if (changes.description !== undefined) initial.description = changes.description;
           if (changes.category !== undefined) initial.category = changes.category;
           if (changes.date !== undefined) initial.date = changes.date;
-          if (previous.payload.body.mode === 'equal' && read.capabilities.equal) {
+          if (previous.payload.body.mode === 'equal' && canRecalculate(read)) {
             initial.amountText = String(previous.payload.body.changes.original_amount);
+            // Missing fields are the frozen legacy TWD operation, never the current expense rate.
+            initial.currency = previous.payload.body.changes.currency ?? 'TWD';
+            initial.rateText = String(previous.payload.body.changes.exchange_rate ?? 1);
             initial.payerId = previous.payload.body.changes.payer_id;
             initial.memberIds = previous.payload.body.changes.splits.map((s) => s.user_id);
             initialMode = 'equal';
@@ -202,14 +200,24 @@ export function EditExpenseScreen({
       };
     }, [load])
   );
-  useEffect(
-    () =>
-      onlineManager.subscribe((connected) => {
-        if (!connected) setPrepared(null);
-      }),
-    []
-  );
+  useEffect(() => {
+    const invalidate = () => {
+      inputGeneration.current++;
+      setPrepared(null);
+    };
+    const unsubscribe = onlineManager.subscribe((connected) => {
+      if (!connected) invalidate();
+    });
+    const lifecycle = AppState.addEventListener('change', (state) => {
+      if (state !== 'active') invalidate();
+    });
+    return () => {
+      unsubscribe();
+      lifecycle.remove();
+    };
+  }, []);
   const change = (patch: Partial<EditFields>) => {
+    inputGeneration.current++;
     setPrepared(null);
     setFields((old) => (old ? { ...old, ...patch } : old));
   };
@@ -220,6 +228,7 @@ export function EditExpenseScreen({
     setError('');
     setPrepared(null);
     const v = generation.current;
+    const inputVersion = inputGeneration.current;
     try {
       const beforeSend = await guard();
       const next = remove
@@ -244,7 +253,7 @@ export function EditExpenseScreen({
             beforeSend
           );
       beforeSend();
-      if (v !== generation.current) return;
+      if (v !== generation.current || inputVersion !== inputGeneration.current) return;
       if (next.context.revision !== context.revision) {
         setLatest(next.context);
         setError(t.expenseChanged);
@@ -255,11 +264,17 @@ export function EditExpenseScreen({
         setPrepared(next);
       }
     } catch (failure) {
-      if (failure instanceof ApiError) await fail(failure, () => v === generation.current);
-      else if (v === generation.current) {
+      if (failure instanceof ApiError)
+        await fail(
+          failure,
+          () => v === generation.current && inputVersion === inputGeneration.current
+        );
+      else if (v === generation.current && inputVersion === inputGeneration.current) {
         setError(t.invalidExpenseEdit);
         if (!isCalendarDate(fields.date)) date.current?.focus();
-        else if (mode === 'equal' && !parseAmount(fields.amountText).ok) amount.current?.focus();
+        else if (mode === 'equal' && !parseAmount(fields.amountText, fields.currency).ok)
+          amount.current?.focus();
+        else if (mode === 'equal' && !parseRate(fields.rateText)) rate.current?.focus();
         else first.current?.focus();
       }
     } finally {
@@ -274,6 +289,8 @@ export function EditExpenseScreen({
     setError('');
     const v = generation.current;
     try {
+      const beforeSend = await guard();
+      beforeSend();
       const outcome = remove
         ? await entry.confirm(scope, {
             operation: 'expense.delete',
@@ -291,6 +308,7 @@ export function EditExpenseScreen({
       if (outcome.kind === 'completed') {
         if (outcome.result.status === 'committed') {
           setDone(true);
+          setCompleted(prepared);
           setPrepared(null);
           setRefreshFailed(outcome.refreshed === false);
         } else {
@@ -365,6 +383,51 @@ export function EditExpenseScreen({
           <Notice tone={refreshFailed ? 'warning' : 'success'} announce="polite">
             {refreshFailed ? t.savedRefreshFailed : t.operationDone}
           </Notice>
+          {!remove && completed && (
+            <Card testID="expense-maintain-saved">
+              <Title>{t.savedTitle}</Title>
+              <DetailRow
+                label={t.expenseDescription}
+                value={
+                  completed.changes?.changes.description ?? completed.context.expense.description
+                }
+              />
+              <DetailRow
+                label={t.date}
+                value={f.date(completed.changes?.changes.date ?? completed.context.expense.date)}
+              />
+              <DetailRow
+                label={t.amountTwd}
+                value={f.money(completed.preview?.amount ?? completed.context.expense.amount)}
+              />
+              <DetailRow
+                label={t.originalAmount}
+                value={f.originalAmount(
+                  completed.preview
+                    ? (completed.preview.originalAmount ?? completed.preview.amount)
+                    : completed.context.expense.originalAmount,
+                  completed.preview
+                    ? (completed.preview.currency ?? 'TWD')
+                    : completed.context.expense.currency
+                )}
+              />
+              <DetailRow
+                label={t.exchangeRate}
+                value={String(
+                  completed.preview
+                    ? (completed.preview.exchangeRate ?? 1)
+                    : completed.context.expense.exchangeRate
+                )}
+              />
+              {(completed.preview?.splits ?? completed.context.expense.splits).map((s, i) => (
+                <DetailRow
+                  key={i}
+                  label={memberLabel(s.userId, s.displayName)}
+                  value={f.money(s.shareAmount)}
+                />
+              ))}
+            </Card>
+          )}
           {refreshFailed && (
             <Action
               label={t.refresh}
@@ -404,6 +467,11 @@ export function EditExpenseScreen({
               <DetailRow label={t.expenseDescription} value={latest.expense.description} />
               <DetailRow label={t.date} value={f.date(latest.expense.date)} />
               <DetailRow label={t.amountTwd} value={f.money(latest.expense.amount)} />
+              <DetailRow
+                label={t.originalAmount}
+                value={f.originalAmount(latest.expense.originalAmount, latest.expense.currency)}
+              />
+              <DetailRow label={t.exchangeRate} value={String(latest.expense.exchangeRate)} />
               {latest.expense.splits.map((s, i) => (
                 <DetailRow
                   key={i}
@@ -415,12 +483,13 @@ export function EditExpenseScreen({
                 testID="expense-maintain-latest"
                 label={t.useLatestExpense}
                 onPress={() => {
+                  inputGeneration.current++;
                   setFields(rebaseEditFields(context, fields, latest));
                   setContext(latest);
                   setLatest(null);
                   setPrepared(null);
                   setError('');
-                  if (!latest.capabilities.equal) setMode('basic');
+                  if (!canRecalculate(latest)) setMode('basic');
                 }}
               />
               <Action secondary label={t.reloadExpense} onPress={() => void load()} />
@@ -437,6 +506,7 @@ export function EditExpenseScreen({
                 selected={mode === 'basic'}
                 disabled={busy}
                 onPress={() => {
+                  inputGeneration.current++;
                   setMode('basic');
                   setPrepared(null);
                 }}
@@ -445,19 +515,66 @@ export function EditExpenseScreen({
                 testID="expense-maintain-equal"
                 label={t.equalExpense}
                 selected={mode === 'equal'}
-                disabled={busy || !context.capabilities.equal}
+                disabled={busy || !canRecalculate(context)}
                 onPress={() => {
+                  inputGeneration.current++;
                   setMode('equal');
                   setPrepared(null);
                 }}
               />
-              {!context.capabilities.equal && <Notice>{t.expenseWebOnly}</Notice>}
+              {!canRecalculate(context) && <Notice>{t.expenseWebOnly}</Notice>}
               {mode === 'equal' && (
                 <>
+                  <Notice>{t.editCurrencyHint}</Notice>
+                  <Section title={t.expenseCurrency}>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.small }}>
+                      {draftCurrencies(context.options, { ...fields, category: 'other' }).map(
+                        (currency) => (
+                          <Chip
+                            key={currency}
+                            testID={`expense-maintain-currency-${currency}`}
+                            label={currency}
+                            selected={fields.currency === currency}
+                            disabled={busy}
+                            onPress={() => {
+                              if (currency === fields.currency) return;
+                              change({
+                                currency,
+                                rateText:
+                                  currency === context.expense.currency
+                                    ? String(context.expense.exchangeRate)
+                                    : (currencyDefaults(context.options, currency).rateText ?? ''),
+                              });
+                            }}
+                          />
+                        )
+                      )}
+                    </View>
+                  </Section>
+                  <Copy>{t.expenseRateHint}</Copy>
+                  {fields.currency !== 'TWD' && (
+                    <TextField
+                      testID="expense-maintain-rate"
+                      inputRef={rate}
+                      label={t.exchangeRate}
+                      value={fields.rateText}
+                      editable={!busy}
+                      autoCorrect={false}
+                      keyboardType="decimal-pad"
+                      returnKeyType="next"
+                      inputAccessoryViewID={amountAccessoryId}
+                      onSubmitEditing={() => amount.current?.focus()}
+                      onChangeText={(rateText) => change({ rateText })}
+                    />
+                  )}
                   <TextField
                     testID="expense-maintain-amount"
                     inputRef={amount}
-                    label={t.amountTwd}
+                    label={
+                      fields.currency === 'TWD'
+                        ? t.amountTwd
+                        : `${t.originalAmount} (${fields.currency})`
+                    }
                     kind="amount"
                     placeholder={t.amountHint}
                     returnKeyType="done"
@@ -592,6 +709,17 @@ export function EditExpenseScreen({
                     <>
                       <DetailRow label={t.amountTwd} value={f.money(context.expense.amount)} />
                       <DetailRow
+                        label={t.originalAmount}
+                        value={f.originalAmount(
+                          context.expense.originalAmount,
+                          context.expense.currency
+                        )}
+                      />
+                      <DetailRow
+                        label={t.exchangeRate}
+                        value={String(context.expense.exchangeRate)}
+                      />
+                      <DetailRow
                         label={t.paidBy}
                         value={memberLabel(context.expense.payerId, context.expense.payerName)}
                       />
@@ -606,6 +734,14 @@ export function EditExpenseScreen({
                   )}
                   {mode === 'equal' && (
                     <>
+                      <DetailRow
+                        label={t.originalAmount}
+                        value={`${f.originalAmount(context.expense.originalAmount, context.expense.currency)} → ${f.originalAmount(Number(fields.amountText), fields.currency)}`}
+                      />
+                      <DetailRow
+                        label={t.exchangeRate}
+                        value={`${String(context.expense.exchangeRate)} → ${fields.rateText}`}
+                      />
                       <DetailRow
                         label={t.amountTwd}
                         value={`${f.money(context.expense.amount)} → ${f.money(prepared.preview!.amount)}`}

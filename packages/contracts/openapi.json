@@ -3828,6 +3828,7 @@
             }
           }
         },
+        "description": "Basic metadata preserves all accounting. Explicit equal recalculation accepts paired original currency/rate; omitted fields retain the legacy TWD/1 operation. Context recalculate capability requires existing canonical equal shares. UUID/revision, authorization and terminal receipt rules apply.",
         "parameters": [
           {
             "name": "id",
@@ -6589,6 +6590,9 @@
               "equal": {
                 "type": "boolean"
               },
+              "recalculate": {
+                "type": "boolean"
+              },
               "reason": {
                 "anyOf": [
                   {
@@ -6721,6 +6725,14 @@
                   "original_amount": {
                     "type": "number",
                     "minimum": 0.01
+                  },
+                  "currency": {
+                    "type": "string",
+                    "pattern": "^[A-Z]{3}$"
+                  },
+                  "exchange_rate": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
                   },
                   "payer_id": {
                     "type": "string",

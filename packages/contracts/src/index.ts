@@ -373,10 +373,22 @@ export const expenseUpdateInput = z.discriminatedUnion('mode', [
       changes: basicExpenseChanges
         .extend({
           original_amount: expenseCreateInput.shape.original_amount,
+          currency: currencyCodeSchema.optional(),
+          exchange_rate: expenseRate.optional(),
           payer_id: idSchema,
           splits: expenseCreateInput.shape.splits,
         })
-        .strict(),
+        .strict()
+        .refine(
+          (v) => (v.currency === undefined) === (v.exchange_rate === undefined),
+          'Currency and rate must be supplied together'
+        )
+        .refine(
+          (v) =>
+            (v.currency ?? 'TWD') !== 'TWD' ||
+            ((v.exchange_rate ?? 1) === 1 && isPositiveCentAmount(v.original_amount)),
+          'TWD uses rate 1 and the TWD amount limit'
+        ),
     })
     .strict(),
 ]);
@@ -547,6 +559,8 @@ export const expenseEditContextSchema = z.object({
   capabilities: z.object({
     basic: z.literal(true),
     equal: z.boolean(),
+    // Additive capability: old clients only offer TWD editing through equal.
+    recalculate: z.boolean().optional(),
     reason: z.enum(['foreign', 'historical', 'members']).nullable(),
   }),
 });

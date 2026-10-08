@@ -1,3 +1,5 @@
+import { ApiError } from '@/api/client';
+import { messages, type AppLocale } from '@/i18n/messages';
 import { EditExpenseScreen } from './EditExpenseScreen';
 import { beforeEach, expect, it, vi } from 'vitest';
 import type { ExpenseEditContext } from '@travel-budget/contracts';
@@ -6,11 +8,18 @@ const h = vi.hoisted(() => ({
   refs: [] as { current: unknown }[],
   i: 0,
   j: 0,
+  effects: [] as (() => (() => void) | void)[],
+  lifecycle: (() => undefined) as (state: string) => void,
   focus: (() => undefined) as () => unknown,
   request: vi.fn(),
   confirm: vi.fn(),
   get: vi.fn(),
+  pause: vi.fn(),
+  remember: vi.fn(),
+  visible: true,
+  until: 0,
   scope: { environment: 'https://example/api/v1', accountId: '111111111111111111111111' },
+  locale: null as AppLocale | null,
   labels: new Proxy({}, { get: (_t, k) => String(k) }),
 }));
 vi.mock('react', async (original) => ({
@@ -30,13 +39,21 @@ vi.mock('react', async (original) => ({
     return (h.refs[j] ??= { current: initial });
   },
   useCallback: (fn: unknown) => fn,
-  useEffect: () => undefined,
+  useEffect: (effect: () => (() => void) | void) => {
+    h.effects.push(effect);
+  },
   useMemo: (factory: () => unknown) => factory(),
   useId: () => 'test-accessory',
 }));
 vi.mock('react-native', () => ({
   Alert: { alert: vi.fn() },
-  AppState: { currentState: 'active' },
+  AppState: {
+    currentState: 'active',
+    addEventListener: (_event: string, fn: (state: string) => void) => {
+      h.lifecycle = fn;
+      return { remove: vi.fn() };
+    },
+  },
   Keyboard: { dismiss: vi.fn() },
   Platform: { OS: 'ios' },
   TextInput: 'TextInput',
@@ -77,7 +94,8 @@ vi.mock('@/features/tripEntry/provider', () => ({
     entry: { confirm: h.confirm },
     manager: {
       getSignInVersion: () => 1,
-      getSnapshot: () => ({ user: { id: h.scope.accountId } }),
+      api: { baseUrl: h.scope.environment },
+      getSnapshot: () => ({ status: 'signedIn', user: { id: h.scope.accountId } }),
       requestAs: h.request,
     },
   }),
@@ -86,18 +104,23 @@ vi.mock('@/features/localDrafts/provider', () => ({
   useDraftCatalog: () => ({
     catalog: {
       captureAccess: () => () => undefined,
-      isVisible: () => true,
+      isVisible: () => h.visible,
+      rememberOptions: h.remember,
       deny: vi.fn(),
     },
   }),
 }));
-vi.mock('@/i18n/useMessages', () => ({ useMessages: () => h.labels, useAppLocale: () => 'en' }));
+vi.mock('@/i18n/useMessages', () => ({
+  useMessages: () => (h.locale ? messages[h.locale] : h.labels),
+  useAppLocale: () => h.locale ?? 'en',
+}));
 vi.mock('@/providers/useOnline', () => ({ useOnline: () => true }));
 vi.mock('./entryQueries', () => ({ refreshTripData: vi.fn() }));
 vi.mock('@/storage/pendingExpenseDatabase', () => ({
   openMutationStore: async () => ({
     retryAt: async () => 0,
-    rateLimitUntil: () => 0,
+    rateLimitUntil: () => h.until,
+    pause: h.pause,
     get: h.get,
   }),
 }));
@@ -174,12 +197,22 @@ async function flush() {
 beforeEach(() => {
   h.values = [];
   h.refs = [];
+  h.effects = [];
   h.i = h.j = 0;
   source = undefined;
   remove = false;
+  h.locale = null;
   h.request.mockReset().mockResolvedValue(original);
   h.confirm.mockReset();
   h.get.mockReset();
+  h.visible = true;
+  h.until = 0;
+  h.pause.mockReset().mockImplementation(async (_scope, until) => {
+    h.until = until;
+  });
+  h.remember.mockReset().mockImplementation(async () => {
+    h.visible = true;
+  });
 });
 it.each(['preview', 'rejected receipt'])(
   'rebase after %s retains only my changes',
@@ -355,4 +388,269 @@ it('delete still requires a fresh review and a separate danger confirmation', as
     expenseId,
     body: { expected_revision: original.revision },
   });
+});
+
+const foreignEqual: ExpenseEditContext = {
+  ...original,
+  capabilities: { basic: true, equal: false, recalculate: true, reason: 'foreign' },
+  expense: {
+    ...original.expense,
+    currency: 'JPY',
+    exchangeRate: 0.2156789012345,
+    originalAmount: 100,
+    amount: 21.57,
+    splits: [{ ...original.expense.splits[0], shareAmount: 21.57 }],
+  },
+  options: {
+    ...original.options,
+    supportedCurrencies: ['TWD', 'JPY', 'USD'],
+    currencySettings: {
+      default_currency: 'USD',
+      currencies: [
+        { code: 'JPY', rate: 9 },
+        { code: 'USD', rate: 30 },
+      ],
+    },
+  },
+};
+function previewRequest(context = foreignEqual) {
+  h.request.mockImplementation(async (_account, path, _schema, options) => {
+    if (!path.endsWith('/preview')) return context;
+    const body = options.body;
+    const total = Math.round(body.amount * (body.exchange_rate ?? 1) * 100) / 100;
+    return {
+      amount: total,
+      ...(body.currency
+        ? { originalAmount: body.amount, currency: body.currency, exchangeRate: body.exchange_rate }
+        : {}),
+      splits: [{ userId: h.scope.accountId, displayName: 'A', shareAmount: total }],
+    };
+  });
+}
+it.each(['zh', 'zh-CN', 'en', 'jp'] as AppLocale[])(
+  'foreign editing in %s keeps historical rate and explicitly confirms full monetary source',
+  async (locale) => {
+    h.locale = locale;
+    const t = messages[locale];
+    previewRequest();
+    await loadForm();
+    expect(
+      nodes(render()).some(
+        (n) => n.props.onChangeText && n.props.testID === 'expense-maintain-rate'
+      )
+    ).toBe(false);
+    find(t.equalExpense).onPress();
+    expect(findId('expense-maintain-rate').value).toBe('0.2156789012345');
+    expect(nodes(render()).some((n) => n.props.children === t.editCurrencyHint)).toBe(true);
+    findId('expense-maintain-amount').onChangeText!('0200.01');
+    findId('expense-maintain-rate').onChangeText!('0.3333333333333333');
+    find(t.previewSplit).onPress();
+    await flush();
+    expect(h.confirm).not.toHaveBeenCalled();
+    expect(
+      nodes(render()).some((n) => n.props.value === '0.2156789012345 → 0.3333333333333333')
+    ).toBe(true);
+    h.confirm.mockResolvedValue({
+      kind: 'completed',
+      result: { status: 'committed' },
+      refreshed: true,
+    });
+    find(t.confirmExpenseEdit).onPress();
+    await flush();
+    expect(h.confirm.mock.calls[0][1].body.changes).toMatchObject({
+      original_amount: 200.01,
+      currency: 'JPY',
+      exchange_rate: 0.3333333333333333,
+      splits: [{ user_id: h.scope.accountId, share_amount: 66.67 }],
+    });
+    expect(findId('expense-maintain-saved')).toBeTruthy();
+    expect(nodes(render()).some((n) => n.props.value === '0.3333333333333333')).toBe(true);
+  }
+);
+it('currency switching preserves digits, uses only explicit new-currency defaults, and restores the historical rate', async () => {
+  previewRequest();
+  await loadForm();
+  find('equalExpense').onPress();
+  findId('expense-maintain-amount').onChangeText!('00100.01');
+  find('previewSplit').onPress();
+  await flush();
+  expect(findId('expense-maintain-confirm')).toBeTruthy();
+  findId('expense-maintain-currency-USD').onPress!();
+  expect(findId('expense-maintain-rate').value).toBe('30');
+  expect(findId('expense-maintain-amount').value).toBe('00100.01');
+  expect(nodes(render()).some((n) => n.props.testID === 'expense-maintain-confirm')).toBe(false);
+  findId('expense-maintain-currency-JPY').onPress!();
+  expect(findId('expense-maintain-rate').value).toBe('0.2156789012345');
+  findId('expense-maintain-currency-TWD').onPress!();
+  expect(nodes(render()).some((n) => n.props.testID === 'expense-maintain-rate')).toBe(false);
+  find('previewSplit').onPress();
+  await flush();
+  h.confirm.mockResolvedValue({ kind: 'not-sent' });
+  find('confirmExpenseEdit').onPress();
+  await flush();
+  expect(h.confirm.mock.calls[0][1].body.changes).toMatchObject({
+    currency: 'TWD',
+    exchange_rate: 1,
+    original_amount: 100.01,
+  });
+});
+it.each(['expense-maintain-amount', 'expense-maintain-rate'])(
+  'late preview cannot restore confirmation after %s changed',
+  async (field) => {
+    previewRequest();
+    await loadForm();
+    find('equalExpense').onPress();
+    let reply!: (value: unknown) => void;
+    h.request.mockImplementation(async (_account, path) =>
+      path.endsWith('/preview')
+        ? new Promise((resolve) => {
+            reply = resolve;
+          })
+        : foreignEqual
+    );
+    find('previewSplit').onPress();
+    await flush();
+    findId(field).onChangeText!(field.endsWith('amount') ? '101' : '0.5');
+    reply({
+      amount: 21.57,
+      originalAmount: 100,
+      currency: 'JPY',
+      exchangeRate: 0.2156789012345,
+      splits: foreignEqual.expense.splits,
+    });
+    await flush();
+    expect(nodes(render()).some((n) => n.props.testID === 'expense-maintain-confirm')).toBe(false);
+    expect(h.confirm).not.toHaveBeenCalled();
+  }
+);
+it('rejected foreign edit resumes its frozen currency/rate, then needs new preview and confirmation', async () => {
+  source = '11111111-1111-4111-8111-111111111111';
+  h.get.mockResolvedValue({
+    status: 'completed',
+    result: { status: 'rejected' },
+    payload: {
+      operation: 'expense.update',
+      tripId,
+      expenseId,
+      body: {
+        mode: 'equal',
+        changes: {
+          original_amount: 0.01,
+          currency: 'USD',
+          exchange_rate: 1e-12,
+          payer_id: h.scope.accountId,
+          splits: [{ user_id: h.scope.accountId, share_amount: 0 }],
+        },
+      },
+    },
+  });
+  previewRequest();
+  await loadForm();
+  expect(find('equalExpense').selected).toBe(true);
+  expect(findId('expense-maintain-rate').value).toBe('1e-12');
+  expect(findId('expense-maintain-amount').value).toBe('0.01');
+  expect(h.confirm).not.toHaveBeenCalled();
+  find('previewSplit').onPress();
+  await flush();
+  h.confirm.mockResolvedValue({ kind: 'not-sent' });
+  find('confirmExpenseEdit').onPress();
+  await flush();
+  expect(h.confirm.mock.calls[0][1].body.changes).toMatchObject({
+    currency: 'USD',
+    exchange_rate: 1e-12,
+  });
+});
+it('conflict to a non-equal expense disables recalculation without writing or clearing metadata edits', async () => {
+  previewRequest();
+  await loadForm();
+  find('equalExpense').onPress();
+  changeDescription('my metadata');
+  const latest = {
+    ...foreignEqual,
+    revision: 'b'.repeat(64),
+    capabilities: { basic: true, equal: false, recalculate: false, reason: 'historical' },
+  };
+  h.request.mockResolvedValue(latest);
+  find('previewSplit').onPress();
+  await flush();
+  find('useLatestExpense').onPress();
+  expect(find('equalExpense').disabled).toBe(true);
+  expect(find('basicExpense').selected).toBe(true);
+  find('reviewExpenseChangesAction').onPress();
+  await flush();
+  h.confirm.mockResolvedValue({ kind: 'not-sent' });
+  find('confirmExpenseEdit').onPress();
+  await flush();
+  expect(h.confirm.mock.calls[0][1].body).toEqual({
+    expected_revision: latest.revision,
+    mode: 'basic',
+    changes: { description: 'my metadata' },
+  });
+});
+
+it('explicit context retry can restore hidden access, while later preview requires visible catalog', async () => {
+  h.visible = false;
+  previewRequest();
+  await loadForm();
+  expect(h.remember).toHaveBeenCalledWith(h.scope, tripId, foreignEqual.options);
+  find('equalExpense').onPress();
+  const preview = find('previewSplit');
+  h.visible = false;
+  const calls = h.request.mock.calls.length;
+  preview.onPress();
+  await flush();
+  expect(h.request).toHaveBeenCalledTimes(calls);
+  expect(h.confirm).not.toHaveBeenCalled();
+});
+it('failed 429 persistence blocks subsequent reads until saving the original deadline succeeds', async () => {
+  h.request.mockRejectedValueOnce(new ApiError('BUSY', 429, 120));
+  h.pause.mockRejectedValue(new Error('disk full'));
+  await loadForm();
+  const until = h.pause.mock.calls[0][1];
+  find('retry').onPress();
+  await flush();
+  expect(h.request).toHaveBeenCalledTimes(1);
+  expect(h.pause.mock.calls[1][1]).toBe(until);
+  h.pause.mockImplementation(async (_scope, deadline) => {
+    h.until = deadline;
+  });
+  find('retry').onPress();
+  await flush();
+  expect(h.request).toHaveBeenCalledTimes(1); // persisted wait still prevents transport
+  expect(h.until).toBe(until);
+  expect(h.confirm).not.toHaveBeenCalled();
+});
+
+it('backgrounding invalidates confirmation and a preview still in flight', async () => {
+  previewRequest();
+  await loadForm();
+  const dispose = h.effects[0]();
+  find('equalExpense').onPress();
+  find('previewSplit').onPress();
+  await flush();
+  expect(findId('expense-maintain-confirm')).toBeTruthy();
+  h.lifecycle('background');
+  expect(nodes(render()).some((n) => n.props.testID === 'expense-maintain-confirm')).toBe(false);
+  let reply!: (value: unknown) => void;
+  h.request.mockImplementation(async (_account, path) =>
+    path.endsWith('/preview')
+      ? new Promise((resolve) => {
+          reply = resolve;
+        })
+      : foreignEqual
+  );
+  find('previewSplit').onPress();
+  await flush();
+  h.lifecycle('inactive');
+  reply({
+    amount: 21.57,
+    originalAmount: 100,
+    currency: 'JPY',
+    exchangeRate: 0.2156789012345,
+    splits: foreignEqual.expense.splits,
+  });
+  await flush();
+  expect(nodes(render()).some((n) => n.props.testID === 'expense-maintain-confirm')).toBe(false);
+  expect(h.confirm).not.toHaveBeenCalled();
+  dispose?.();
 });

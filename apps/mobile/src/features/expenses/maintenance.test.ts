@@ -55,9 +55,13 @@ it('basic whitelist rejects invalid dates/unknown new categories and permits exp
     changes: { category: 'food' },
   });
 });
-it('foreign/invalid-member edits cannot silently convert to equal, preview must match input', () => {
+it('unsupported/invalid-member edits cannot silently convert to equal, preview must match input', () => {
   expect(() => editChanges(context, editFields(context), 'equal')).toThrow();
-  const twd = { ...context, capabilities: { basic: true as const, equal: true, reason: null } };
+  const twd = {
+    ...context,
+    expense: { ...context.expense, currency: 'TWD', exchangeRate: 1, originalAmount: 100 },
+    capabilities: { basic: true as const, equal: true, reason: null },
+  };
   expect(() =>
     editChanges(
       twd,
@@ -107,7 +111,11 @@ it('changed context preserves input and never previews/sends automatically', asy
   expect(request).toHaveBeenCalledTimes(1);
 });
 it('member changes during preview invalidate it without accepting a newer revision', async () => {
-  const twd = { ...context, capabilities: { basic: true as const, equal: true, reason: null } };
+  const twd = {
+    ...context,
+    expense: { ...context.expense, currency: 'TWD', exchangeRate: 1, originalAmount: 100 },
+    capabilities: { basic: true as const, equal: true, reason: null },
+  };
   const request = vi
     .fn()
     .mockResolvedValueOnce(twd)
@@ -245,4 +253,148 @@ it('whitespace-only or reverted edits do not overwrite remote metadata', () => {
   );
   expect(fields.description).toBe('remote');
   expect(editChanges(fresh, fields, 'basic')).toBeNull();
+});
+
+const foreignEqual: ExpenseEditContext = {
+  ...context,
+  category: 'food',
+  capabilities: { basic: true, equal: false, recalculate: true, reason: 'foreign' },
+  options: {
+    ...context.options,
+    supportedCurrencies: ['TWD', 'JPY', 'USD'],
+    currencySettings: { default_currency: 'USD', currencies: [{ code: 'JPY', rate: 9 }] },
+  },
+  expense: {
+    ...context.expense,
+    originalAmount: 100,
+    exchangeRate: 0.2156789012345,
+    amount: 21.57,
+    splits: [
+      { userId: actor, displayName: 'Same', shareAmount: 10.79 },
+      { userId: peer, displayName: 'Same', shareAmount: 10.78 },
+    ],
+  },
+};
+const foreignPreview = {
+  amount: 21.57,
+  originalAmount: 100,
+  currency: 'JPY',
+  exchangeRate: 0.2156789012345,
+  splits: foreignEqual.expense.splits.map((s) => ({ ...s, userId: s.userId! })),
+};
+it('editing starts from historical currency/rate even when current trip settings differ', () => {
+  const fields = editFields(foreignEqual);
+  expect(fields).toMatchObject({ currency: 'JPY', rateText: '0.2156789012345', amountText: '100' });
+  expect(editChanges(foreignEqual, { ...fields, description: 'basic' }, 'basic')).toEqual({
+    mode: 'basic',
+    changes: { description: 'basic' },
+  });
+  expect(editChanges(foreignEqual, fields, 'equal', foreignPreview)).toMatchObject({
+    mode: 'equal',
+    changes: { currency: 'JPY', exchange_rate: 0.2156789012345, original_amount: 100 },
+  });
+});
+it.each([
+  { amountText: '101' },
+  { currency: 'USD' },
+  { rateText: '0.2156789012346' },
+  { payerId: third, memberIds: [actor, third] },
+  { rateText: '0' },
+  { rateText: 'NaN' },
+  { currency: 'ZZZ' },
+  { memberIds: [actor, actor] },
+])('rejects stale foreign preview or invalid input: %j', (patch) => {
+  expect(() =>
+    editChanges(foreignEqual, { ...editFields(foreignEqual), ...patch }, 'equal', foreignPreview)
+  ).toThrow();
+});
+it('rejects malformed preview totals and TWD rate changes independently', () => {
+  expect(() =>
+    editChanges(foreignEqual, editFields(foreignEqual), 'equal', { ...foreignPreview, amount: 20 })
+  ).toThrow();
+  expect(() =>
+    editChanges(
+      foreignEqual,
+      { ...editFields(foreignEqual), currency: 'TWD', rateText: '2' },
+      'equal',
+      { amount: 100, splits: [{ userId: actor, displayName: 'A', shareAmount: 100 }] }
+    )
+  ).toThrow();
+});
+it('preview sends precise historical rate and foreign amount, then rechecks the expense/member revision', async () => {
+  const request = vi
+    .fn()
+    .mockResolvedValueOnce(foreignEqual)
+    .mockResolvedValueOnce(foreignPreview)
+    .mockResolvedValueOnce(foreignEqual);
+  const next = await prepareEdit(
+    request as never,
+    actor,
+    peer,
+    peer,
+    foreignEqual,
+    editFields(foreignEqual),
+    'equal',
+    () => undefined
+  );
+  expect(request.mock.calls[1][3].body).toEqual({
+    amount: 100,
+    currency: 'JPY',
+    exchange_rate: 0.2156789012345,
+    member_ids: [actor, peer],
+  });
+  expect(next.changes).toMatchObject({
+    changes: { currency: 'JPY', exchange_rate: 0.2156789012345 },
+  });
+});
+it.each([
+  [0.01, '1e-12', 0],
+  [50000000000, '0.02', 1000000000],
+  [0.01, '1e11', 1000000000],
+])('keeps original amount/rate for small and large conversion %s × %s', (original, rate, total) => {
+  const fields = {
+    ...editFields(foreignEqual),
+    amountText: String(original),
+    rateText: String(rate),
+    memberIds: [actor],
+  };
+  const preview = {
+    originalAmount: Number(original),
+    currency: 'JPY',
+    exchangeRate: Number(rate),
+    amount: Number(total),
+    splits: [{ userId: actor, displayName: 'A', shareAmount: Number(total) }],
+  };
+  expect(editChanges(foreignEqual, fields, 'equal', preview)).toMatchObject({
+    changes: { original_amount: Number(original), exchange_rate: Number(rate) },
+  });
+});
+it('conflict review takes remote currency/rate only when not edited, and keeps explicit currency/rate edits', () => {
+  const latest = {
+    ...foreignEqual,
+    revision: 'b'.repeat(64),
+    expense: {
+      ...foreignEqual.expense,
+      currency: 'USD',
+      exchangeRate: 30,
+      originalAmount: 20,
+      amount: 600,
+    },
+  };
+  expect(rebaseEditFields(foreignEqual, editFields(foreignEqual), latest)).toEqual(
+    editFields(latest)
+  );
+  const mine = { ...editFields(foreignEqual), currency: 'TWD', rateText: '1', amountText: '120' };
+  expect(rebaseEditFields(foreignEqual, mine, latest)).toMatchObject({
+    currency: 'TWD',
+    rateText: '1',
+    amountText: '120',
+  });
+  expect(
+    rebaseEditFields(foreignEqual, { ...editFields(foreignEqual), rateText: '0.5' }, latest)
+  ).toMatchObject({
+    currency: 'JPY',
+    rateText: '0.5',
+    amountText: '20',
+  });
 });

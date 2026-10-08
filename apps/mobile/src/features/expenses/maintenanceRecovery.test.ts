@@ -321,3 +321,66 @@ it('a rejected operation keeps only its own input across reopen for explicit fre
   });
   expect(await h.store.get({ ...scope, accountId: tripId }, key)).toBeNull();
 });
+
+const foreignPayload = {
+  ...payload,
+  body: {
+    mode: 'equal' as const,
+    expected_revision: 'a'.repeat(64),
+    changes: {
+      original_amount: 100.01,
+      currency: 'JPY',
+      exchange_rate: 0.2156789012345,
+      payer_id: scope.accountId,
+      splits: [{ user_id: scope.accountId, share_amount: 21.57 }],
+    },
+  },
+};
+it('foreign lost PATCH reply survives reopen, isolates account/environment and only recovers one receipt', async () => {
+  const h = await fixture();
+  h.request.mockImplementationOnce(async () => {
+    h.receipts.set(key, result);
+    throw new ApiError('NETWORK');
+  });
+  expect((await h.engine().confirm(scope, foreignPayload)).kind).toBe('pending');
+  await h.restart();
+  expect((await h.store.get(scope, key))?.payload).toEqual({
+    ...foreignPayload,
+    body: { ...foreignPayload.body, client_request_id: key },
+  });
+  expect(await h.store.get({ ...scope, accountId: tripId }, key)).toBeNull();
+  expect(await h.store.get({ ...scope, environment: 'https://other/api/v1' }, key)).toBeNull();
+  await h.engine().recover(scope);
+  expect(h.request.mock.calls.filter((c) => c[3]?.method === 'PATCH')).toHaveLength(1);
+  expect((await h.store.get(scope, key))?.status).toBe('completed');
+});
+it('foreign storage failure never sends; missing receipt replays exact original UUID/rate after restart', async () => {
+  const h = await fixture();
+  vi.spyOn(h.store, 'insert').mockRejectedValueOnce(new Error('disk full'));
+  expect((await h.engine().confirm(scope, foreignPayload)).kind).toBe('not-sent');
+  expect(h.request).not.toHaveBeenCalled();
+  h.request.mockRejectedValueOnce(new ApiError('NETWORK'));
+  await h.engine().confirm(scope, foreignPayload);
+  await h.restart();
+  await h.engine().retry(scope, key);
+  const patches = h.request.mock.calls.filter((c) => c[3]?.method === 'PATCH');
+  expect(patches).toHaveLength(2);
+  expect(patches[0][3]?.body).toEqual(patches[1][3]?.body);
+  expect(patches[1][3]?.body).toEqual({ ...foreignPayload.body, client_request_id: key });
+});
+it('foreign 429 survives restart and revocation blocks replay while retaining the same frozen operation', async () => {
+  const h = await fixture();
+  h.request.mockRejectedValueOnce(new ApiError('BUSY', 429, 120));
+  expect((await h.engine().confirm(scope, foreignPayload)).kind).toBe('pending');
+  await h.restart();
+  h.now = 131000;
+  const calls = h.request.mock.calls.length;
+  await h.engine().retry(scope, key);
+  expect(h.request).toHaveBeenCalledTimes(calls);
+  expect((await h.store.get(scope, key))?.payload).toMatchObject({ body: foreignPayload.body });
+  h.now = 220000;
+  h.request.mockRejectedValue(new ApiError('NOT_FOUND', 404));
+  await h.engine().retry(scope, key);
+  expect((await h.store.get(scope, key))?.status).toBe('pending');
+  expect((await h.store.get(scope, key))?.payload).toMatchObject({ body: foreignPayload.body });
+});

@@ -1528,8 +1528,66 @@ try {
   assert.equal(g2bRaw.amount, 21.57); assert.equal(g2bRaw.originalAmount, 100); assert.equal(g2bRaw.exchangeRate, 0.2156789012345);
   await request(`${g2bPath}/preview`, { token: writerSession.accessToken, body: { amount: 1_000_000_000, currency: 'JPY', exchange_rate: 2, member_ids: [writerId] }, status: 400 });
   await request(g2bPath, { token: writerSession.accessToken, body: { ...g2bBody, exchange_rate: 0.22 }, status: 409 });
+  // G2c: edit the stored foreign expense, not the current trip currency default.
+  const g2cId = g2bFound.expense.id;
+  const g2cPath = `${g2bPath}/${g2cId}`;
+  const g2cContext = () => request(`${g2cPath}/edit-context`, { token: writerSession.accessToken, schema: expenseEditContextSchema }).then(r => r.data);
+  const g2cOriginal = await g2cContext();
+  assert.equal(g2cOriginal.capabilities.equal, false); // legacy clients remain TWD-only
+  assert.equal(g2cOriginal.capabilities.recalculate, true);
+  assert.equal(g2cOriginal.expense.exchangeRate, 0.2156789012345);
+  assert.equal(g2cOriginal.options.currencySettings.currencies[0].rate, 9);
+  const g2cPreview = (await request(`${g2bPath}/preview`, { token: writerSession.accessToken,
+    body: { amount: 200.01, currency: 'JPY', exchange_rate: 0.3333333333333333, member_ids: [writerId] },
+    schema: expensePreviewSchema })).data;
+  assert.equal(g2cPreview.amount, 66.67);
+  const g2cBody = { client_request_id: randomUUID(), expected_revision: g2cOriginal.revision, mode: 'equal',
+    changes: { original_amount: 200.01, currency: 'JPY', exchange_rate: 0.3333333333333333,
+      payer_id: writerId, splits: g2cPreview.splits.map(s => ({ user_id: s.userId, share_amount: s.shareAmount })) } };
+  const g2cSocket = connect(port, '127.0.0.1');
+  g2cSocket.on('error', () => {});
+  await once(g2cSocket, 'connect');
+  const g2cText = JSON.stringify(g2cBody);
+  g2cSocket.write(`PATCH /api/v1${g2cPath} HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\nAuthorization: Bearer ${writerSession.accessToken}\r\nContent-Type: application/json\r\nContent-Length: ${Buffer.byteLength(g2cText)}\r\nConnection: close\r\n\r\n${g2cText}`);
+  await eventually(async () => await db.collection('mutationrequests').countDocuments({
+    _id: `${writerId}:${g2cBody.client_request_id}` }) === 1, 'G2c PATCH did not commit before socket close', 20_000);
+  g2cSocket.destroy();
+  const g2cReceipt = (await request(`/mutation-requests/${g2cBody.client_request_id}`, {
+    token: writerSession.accessToken, schema: mutationRequestSchema })).data;
+  assert.equal(g2cReceipt.status, 'committed');
+  assert.deepEqual((await request(g2cPath, { token: writerSession.accessToken, method: 'PATCH',
+    body: g2cBody, schema: expenseMutationResultSchema })).data, g2cReceipt.result);
+  const g2cRaw = await db.collection('expenses').findOne({ _id: new mongoose.Types.ObjectId(g2cId) });
+  assert.equal(g2cRaw.originalAmount, 200.01);
+  assert.equal(g2cRaw.currency, 'JPY');
+  assert.equal(g2cRaw.exchangeRate, 0.3333333333333333);
+  assert.equal(g2cRaw.amount, 66.67);
+  assert.equal(g2cRaw.splits[0].shareAmount, 66.67);
+  assert.equal(await db.collection('expenses').countDocuments({ trip: g2bTrip }), 1);
+  assert.equal(await db.collection('activitylogs').countDocuments({ trip: g2bTrip, type: 'expense_updated' }), 1);
+  const g2cDetail = (await request(g2cPath, { token: writerSession.accessToken, schema: expenseDetailSchema })).data;
+  assert.equal(g2cDetail.originalAmount, 200.01);
+  assert.equal(g2cDetail.amount, 66.67);
+  const g2cStale = { ...g2cBody, client_request_id: randomUUID(),
+    expected_revision: (await g2cContext()).revision };
+  await db.collection('expenses').updateOne({ _id: g2cRaw._id }, { $set: { exchangeRate: 0.5 } });
+  assert.equal((await request(g2cPath, { token: writerSession.accessToken, method: 'PATCH',
+    body: g2cStale, status: 409 })).error.code, 'RESOURCE_CHANGED');
+  await request(g2cPath, { token: writerSession.accessToken, method: 'PATCH',
+    body: { ...g2cBody, changes: { ...g2cBody.changes, exchange_rate: 0.2 } }, status: 409 });
+  await db.collection('expenses').updateOne({ _id: g2cRaw._id }, { $set: { exchangeRate: g2cRaw.exchangeRate } });
+  const g2cConvert = { ...g2cBody, client_request_id: randomUUID(), expected_revision: (await g2cContext()).revision,
+    changes: { original_amount: 0.01, currency: 'TWD', exchange_rate: 1, payer_id: writerId,
+      splits: [{ user_id: writerId, share_amount: 0.01 }] } };
+  await request(g2cPath, { token: writerSession.accessToken, method: 'PATCH', body: g2cConvert, schema: expenseMutationResultSchema });
+  assert.equal((await g2cContext()).expense.currency, 'TWD');
+  pass('G2c: historical rate retained, foreign PATCH acknowledgement lost and original UUID recovered once, precise DB/DTO, Web conflict and explicit currency conversion');
   await db.collection('trips').updateOne({ _id: g2bTrip }, { $pull: { members: { user: writer._id } } });
   await request(`/trips/${g2bTrip}/expense-requests/${g2bBody.client_request_id}`, { token: writerSession.accessToken, status: 404 });
+  await request(`/mutation-requests/${g2cBody.client_request_id}`, { token: writerSession.accessToken, status: 404 });
+  await db.collection('mutationrequests').deleteMany({ 'terminal.tripId': String(g2bTrip) });
+  await db.collection('mutationrequests').deleteMany({ 'terminal.result.tripId': String(g2bTrip) });
+  await db.collection('activitylogs').deleteMany({ trip: g2bTrip });
   await db.collection('trips').deleteOne({ _id: g2bTrip });
   await db.collection('expenses').deleteMany({ trip: g2bTrip });
   await db.collection('expensecreaterequests').deleteMany({ trip: g2bTrip });

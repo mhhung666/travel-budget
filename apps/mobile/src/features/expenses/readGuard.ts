@@ -13,7 +13,8 @@ export async function expenseReadGuard(
   catalog: DraftCatalog,
   scope: PendingScope,
   tripId: string,
-  unsavedUntil = 0
+  unsavedUntil = 0,
+  allowHidden = false
 ) {
   const captured = catalog.captureAccess(scope);
   const version = manager.getSignInVersion();
@@ -32,7 +33,7 @@ export async function expenseReadGuard(
     )
       throw new ApiError('CANCELLED');
     captured(tripId);
-    if (!catalog.isVisible(scope, tripId)) throw new ApiError('CANCELLED');
+    if (!allowHidden && !catalog.isVisible(scope, tripId)) throw new ApiError('CANCELLED');
     const until = store.rateLimitUntil(scope);
     if (until > Date.now()) throw new LocalRateLimitError(until, Date.now());
   };

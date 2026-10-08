@@ -1,3 +1,4 @@
+import { expenseUpdateInput, expenseEditContextSchema } from '@travel-budget/contracts';
 import contract from '@travel-budget/contracts/openapi.json';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
@@ -46,6 +47,8 @@ describe('published backend contract', () => {
     ExpenseRequest: expenseRequestSchema,
     ExpensePreviewInput: expensePreviewInput,
     ExpenseCreateInput: expenseCreateInput,
+    ExpenseUpdateInput: expenseUpdateInput,
+    ExpenseEditContext: expenseEditContextSchema,
   })) {
     it(`keeps ${name} response fields in sync`, () => {
       const actual = z.toJSONSchema(schema);
@@ -346,4 +349,54 @@ it('G1c inputs preserve role target IDs and reject private fields; exit results 
   expect(mutationRequestSchema.safeParse({ ...receipt, operation: 'trip.create' }).success).toBe(
     false
   );
+});
+
+describe('G2c update compatibility', () => {
+  const legacy = {
+    client_request_id: '11111111-1111-4111-8111-111111111111',
+    expected_revision: 'a'.repeat(64),
+    mode: 'equal',
+    changes: {
+      original_amount: 100,
+      payer_id: '111111111111111111111111',
+      splits: [{ user_id: '111111111111111111111111', share_amount: 100 }],
+    },
+  };
+  it('does not normalize or rewrite frozen legacy TWD bodies', () => {
+    expect(expenseUpdateInput.parse(legacy)).toEqual(legacy);
+    expect(
+      expenseUpdateInput.safeParse({
+        ...legacy,
+        changes: { ...legacy.changes, original_amount: 1000000000.01 },
+      }).success
+    ).toBe(false);
+    expect(
+      expenseUpdateInput.parse({
+        ...legacy,
+        changes: {
+          ...legacy.changes,
+          original_amount: 50000000000,
+          currency: 'JPY',
+          exchange_rate: 0.02,
+        },
+      })
+    ).toMatchObject({
+      changes: { original_amount: 50000000000, exchange_rate: 0.02 },
+    });
+  });
+  it.each([
+    { currency: 'JPY' },
+    { exchange_rate: 0.2 },
+    { currency: 'TWD', exchange_rate: 2 },
+    { currency: 'JPY', exchange_rate: 0 },
+    { currency: 'JPY', exchange_rate: Infinity },
+    { currency: 'jpy', exchange_rate: 0.2 },
+    { currency: 'JPY', exchange_rate: 0.2, tags: [] },
+    { original_amount: 0 },
+    { original_amount: 1.234 },
+  ])('rejects partial/invalid currency/rate or unsupported update fields %j', (patch) => {
+    expect(
+      expenseUpdateInput.safeParse({ ...legacy, changes: { ...legacy.changes, ...patch } }).success
+    ).toBe(false);
+  });
 });

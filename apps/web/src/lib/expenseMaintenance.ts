@@ -18,7 +18,8 @@ import {
   expenseEditContextSchema,
   expenseUpdateInput,
   expenseDeleteInput,
-  isPositiveCentAmount,
+  expenseCreateInput,
+  MAX_EXPENSE_AMOUNT,
   isCentShare,
   MAX_EXPENSE_MEMBERS,
   type ExpenseEditContext,
@@ -29,6 +30,7 @@ import {
 } from '@travel-budget/contracts';
 import { withTripWrite, TripWriteError, withTripWriteInDatabase } from './tripWriteTransaction';
 import { MUTATION_REQUESTS, TripEntryError } from './tripEntry';
+import { getAllCurrencyCodes, isSupportedCurrency } from '@/constants/currencies';
 import { computeSplits } from './expenseSplit';
 import { retireUnreferencedBlobs } from './blobReferences';
 import { cleanupRetiredBlobs } from './blobCleanup';
@@ -49,6 +51,10 @@ interface RawExpense extends mongo.Document {
 }
 interface Parent extends mongo.Document {
   members: { user: mongo.ObjectId; joinedAt?: Date }[];
+  currencySettings?: {
+    defaultCurrency?: string;
+    currencies?: { code: string; rate?: number | null }[];
+  } | null;
 }
 type Terminal = Exclude<MutationRequest, { status: 'not_found' }>;
 interface Receipt {
@@ -120,7 +126,7 @@ async function contextInSnapshot(
     .findOne({ _id: new mongo.ObjectId(expenseId), trip: new mongo.ObjectId(tripId) }, { session });
   if (!raw || !parent) return null;
   const users = await db
-    .collection<{ _id: mongo.ObjectId; displayName: string }>('users')
+    .collection<{ _id: mongo.ObjectId; displayName: string; isVirtual?: boolean }>('users')
     .find(
       {
         _id: {
@@ -131,39 +137,77 @@ async function contextInSnapshot(
           ],
         },
       },
-      { session, projection: { displayName: 1 } }
+      { session, projection: { displayName: 1, isVirtual: 1 } }
     )
     .toArray();
+  const virtual = new Map(users.map((u) => [u._id.toString(), u.isVirtual === true]));
   const names = new Map(users.map((u) => [u._id.toString(), u.displayName]));
   const members = parent.members
     .filter((m) => names.has(m.user.toString()))
     .sort((a, b) =>
       (a.joinedAt?.toISOString() ?? '').localeCompare(b.joinedAt?.toISOString() ?? '')
     )
-    .map((m) => ({ id: m.user.toString(), displayName: names.get(m.user.toString())! }));
+    .map((m) => ({
+      id: m.user.toString(),
+      displayName: names.get(m.user.toString())!,
+      isVirtual: virtual.get(m.user.toString())!,
+    }));
   const known = new Set(members.map((m) => m.id));
   const splits = raw.splits ?? [];
   const currency = raw.currency ?? 'TWD';
   const rate = raw.exchangeRate ?? 1;
   const original = raw.originalAmount ?? raw.amount;
-  const reason =
-    currency !== 'TWD' || rate !== 1
-      ? 'foreign'
-      : !isPositiveCentAmount(original) ||
-          raw.originalAmount === undefined ||
-          raw.exchangeRate === undefined ||
-          raw.currency === undefined ||
-          raw.amount !== original ||
-          splits.length < 1 ||
-          splits.some((s) => !isCentShare(s.shareAmount)) ||
-          splits.length > MAX_EXPENSE_MEMBERS ||
-          new Set(splits.map((s) => s.user?.toString())).size !== splits.length
-        ? 'historical'
-        : !raw.payer ||
-            !known.has(raw.payer.toString()) ||
-            splits.some((s) => !known.has(s.user?.toString()))
-          ? 'members'
-          : null;
+  const selected = new Set(splits.map((s) => s.user?.toString()));
+  const validMoney =
+    expenseCreateInput.shape.original_amount.safeParse(original).success &&
+    isSupportedCurrency(currency) &&
+    Number.isFinite(rate) &&
+    rate > 0 &&
+    (currency !== 'TWD' || rate === 1) &&
+    Number.isFinite(original * rate) &&
+    roundMoney(original * rate) <= MAX_EXPENSE_AMOUNT &&
+    raw.amount === roundMoney(original * rate);
+  const validStructure =
+    validMoney &&
+    raw.originalAmount !== undefined &&
+    raw.exchangeRate !== undefined &&
+    raw.currency !== undefined &&
+    splits.length >= 1 &&
+    splits.length <= MAX_EXPENSE_MEMBERS &&
+    splits.every((s) => isCentShare(s.shareAmount)) &&
+    selected.size === splits.length;
+  const validMembers =
+    !!raw.payer &&
+    known.has(raw.payer.toString()) &&
+    splits.every((s) => known.has(s.user?.toString()));
+  // The DB has no split-mode field. Only exact equality with the canonical original-currency
+  // allocation permits recalculation; arbitrary historical/non-equal shares remain basic-only.
+  const equalShares =
+    validStructure && validMembers
+      ? computeSplits(
+          'equal',
+          members.map((m) => ({
+            id: m.id,
+            selected: selected.has(m.id),
+            value: '',
+          })),
+          original,
+          rate
+        ).twd
+      : {};
+  const recalculate =
+    validStructure &&
+    validMembers &&
+    splits.every((s) => equalShares[s.user.toString()] === s.shareAmount);
+  const reason = recalculate
+    ? currency === 'TWD'
+      ? null
+      : 'foreign'
+    : !validStructure
+      ? 'historical'
+      : !validMembers
+        ? 'members'
+        : 'historical';
   const member = (id?: mongo.ObjectId) => (id && names.has(id.toString()) ? id.toString() : null);
   return expenseEditContextSchema.parse({
     expense: {
@@ -174,6 +218,7 @@ async function contextInSnapshot(
         ? raw.category
         : 'other',
       payerId: member(raw.payer),
+      payerIsVirtual: raw.payer ? virtual.get(raw.payer.toString()) : undefined,
       payerName: raw.payer ? (names.get(raw.payer.toString()) ?? '') : '',
       amount: raw.amount,
       originalAmount: original,
@@ -182,16 +227,30 @@ async function contextInSnapshot(
       splits: splits.map((s) => ({
         userId: member(s.user),
         displayName: names.get(s.user?.toString()) ?? '',
+        isVirtual: virtual.get(s.user?.toString()),
         shareAmount: s.shareAmount,
       })),
     },
     category: raw.category ?? null,
-    options: { members, categories: [...expenseCategories] },
+    options: {
+      members,
+      categories: [...expenseCategories],
+      supportedCurrencies: getAllCurrencyCodes(),
+      currencySettings: parent.currencySettings
+        ? {
+            default_currency: parent.currencySettings.defaultCurrency ?? null,
+            currencies: (parent.currencySettings.currencies ?? []).map((c) => ({
+              code: c.code,
+              rate: c.rate ?? null,
+            })),
+          }
+        : null,
+    },
     revision: expenseRevision(secret, tripId, raw, [
       parent.members.map((m) => m.user),
       members.map((m) => m.id),
     ]),
-    capabilities: { basic: true, equal: reason === null, reason },
+    capabilities: { basic: true, equal: recalculate && currency === 'TWD', recalculate, reason },
   });
 }
 export function readExpenseEditContext(
@@ -257,26 +316,39 @@ export async function maintainExpense(
             if (changes.date !== undefined) set.date = new Date(changes.date);
             if (update.mode === 'equal') {
               const { original_amount, payer_id, splits } = update.changes;
+              const currency = update.changes.currency ?? 'TWD';
+              const rate = update.changes.exchange_rate ?? 1;
+              const product = original_amount * rate;
               const selected = new Set(splits.map((s) => s.user_id));
               const members = current.options.members;
-              const shares = computeSplits(
-                'equal',
-                members.map((m) => ({ id: m.id, selected: selected.has(m.id), value: '' })),
-                original_amount,
-                1
-              ).twd;
+              const shares =
+                isSupportedCurrency(currency) &&
+                Number.isFinite(product) &&
+                roundMoney(product) <= MAX_EXPENSE_AMOUNT
+                  ? computeSplits(
+                      'equal',
+                      members.map((m) => ({ id: m.id, selected: selected.has(m.id), value: '' })),
+                      original_amount,
+                      rate
+                    ).twd
+                  : {};
               invalid =
-                !current.capabilities.equal ||
+                !(update.changes.currency === undefined
+                  ? current.capabilities.equal
+                  : current.capabilities.recalculate) ||
+                !isSupportedCurrency(currency) ||
+                !Number.isFinite(product) ||
+                roundMoney(product) > MAX_EXPENSE_AMOUNT ||
                 !members.some((m) => m.id === payer_id) ||
                 splits.some((s) => shares[s.user_id] !== s.share_amount) ||
                 members.filter((m) => selected.has(m.id)).length !== splits.length;
               set = {
                 ...set,
                 originalAmount: original_amount,
-                amount: original_amount,
+                amount: roundMoney(product),
                 payer: new mongo.ObjectId(payer_id),
-                currency: 'TWD',
-                exchangeRate: 1,
+                currency,
+                exchangeRate: rate,
                 splits: members
                   .filter((m) => selected.has(m.id))
                   .map((m) => ({ user: new mongo.ObjectId(m.id), shareAmount: shares[m.id] })),

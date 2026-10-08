@@ -106,7 +106,7 @@ migration `20261006120000-account-entry-limits.js` 建立匿名計數 TTL 並確
 
 已實作 `GET /trips/:id/expenses/:expenseId/edit-context`、同資源 `PATCH`／`DELETE`。admin／member 都可操作；僅成員 Bearer，嚴格 JSON／8 KiB／no-store，輸入 snake_case。context 在 trip fence 的一致交易內取得明細、最新 options、raw category、HMAC revision 與 equal 能力／限制原因，不輸出附件、標籤或行程內容。單筆已不存在回 `404 RESOURCE_GONE`，旅行未授權回 `404 NOT_FOUND`；手機不把單筆消失當作整個旅行撤權。
 
-PATCH 帶 `client_request_id`、`expected_revision`、`mode`、非空 `changes`。`basic` 只接受實際修改的說明、分類、日期，未送欄位原樣保留，未知歷史分類不被 DTO 的 `other` 寫回。`equal` 必須明確選擇並帶完整 original_amount／payer_id／splits；只限後端判定可安全映射的原 TWD／匯率 1 帳務。確認前重讀 context，預覽後再查版本，金額 0.01–1,000,000,000.00、最多 100 位，後端以既有 equal 計算再次核對每份尾差。附件、標籤、行程關聯與建立資料均不清除。成功最小結果為 `{ tripId, expenseId, revision }`。
+PATCH 帶 `client_request_id`、`expected_revision`、`mode`、非空 `changes`。`basic` 只接受實際修改的說明、分類、日期，未送欄位原樣保留，未知歷史分類不被 DTO 的 `other` 寫回。`equal` 必須明確選擇並帶完整 original_amount／payer_id／splits；舊形狀只限後端判定可重算的 TWD／匯率 1 帳務；外幣成對欄位與 capability 擴充見 [G2c](#g2c-原幣均分編輯)。確認前重讀 context，預覽後再查版本，金額 0.01–1,000,000,000.00、最多 100 位，後端以既有 equal 計算再次核對每份尾差。附件、標籤、行程關聯與建立資料均不清除。成功最小結果為 `{ tripId, expenseId, revision }`。
 
 DELETE 的 JSON body 為 UUID／expected_revision，成功 `{ tripId, expenseId, deleted: true }`。同交易移除 expense／comments、安排既有 blob retirement、寫一次活動及 receipt；提交後檔案清理失敗仍是成功，建立 receipt 不刪。`409 RESOURCE_CHANGED`／`RESOURCE_GONE`／`VALIDATION_ERROR` 均保存終局 rejected receipt；相同 UUID 重播先授權及查 receipt，再檢查新前條件，同 key 不同內容回 `IDEMPOTENCY_CONFLICT`。`mutation-requests` 延續原帳號查詢，E3 結果含獨立 tripId 與 expenseId，終局拒絕也重新核對旅行資格。
 
@@ -169,7 +169,7 @@ expense-options／payment-context members 新增可選 isVirtual；結算 balanc
 
 ## 尚未實作
 
-外幣與非均分金額編輯、附件 begin／finish、推播、帳號刪除及 OS 背景同步均屬後續工作（見 [路線](ROADMAP.md)）。D1 原始草稿、D2 受限入口與 D3 離線確認／多筆前景待送佇列沿用既有 HTTP 端點；AI 仍只產生草稿，正式寫入需使用者確認。實作與開發測試不代表已部署或兩平台裝置驗收通過。
+非均分金額編輯、附件 begin／finish、推播、帳號刪除及 OS 背景同步均屬後續工作（見 [路線](ROADMAP.md)）。D1 原始草稿、D2 受限入口與 D3 離線確認／多筆前景待送佇列沿用既有 HTTP 端點；AI 仍只產生草稿，正式寫入需使用者確認。實作與開發測試不代表已部署或兩平台裝置驗收通過。
 
 ## G2a 旅行幣別與參考匯率
 
@@ -179,7 +179,7 @@ expense-options／payment-context members 新增可選 isVirtual；結算 balanc
 
 Web 設定 Action 與 HTTP 共用 currencySettings／tripManagement 的父旅行交易與正規化；管理員資格在交易內重驗。revision 只覆蓋幣別設定，不因名稱／封存或帳務改變失效；同內容回到原狀可使用相同 revision，並非單調計數。舊 revision 409 `RESOURCE_CHANGED`、降為一般成員 403 `FORBIDDEN`、失去成員資格 404 `NOT_FOUND`。確認寫入與 `trip.currency` receipt 原子提交，UUID／凍結內容重播不覆蓋之後的新設定；終局拒絕可依原 UUID 查回。receipt 仍需目前成員資格，不使用 G1c 成功退出例外；不同 body／operation 同 UUID 409。
 
-設定寫入不讀外部匯率，不改任何 expense／payment，也不更新 C 已確認 body。舊 App TWD／匯率 1 契約維持；外幣新增／預覽已由 G2b 擴充；編輯留 G2c。
+設定寫入不讀外部匯率，不改任何 expense／payment，也不更新 C 已確認 body。舊 App TWD／匯率 1 契約維持；外幣新增／預覽已由 G2b 擴充；編輯見 G2c。
 
 ## G2b 原幣預覽與新增
 
@@ -187,4 +187,12 @@ Web 設定 Action 與 HTTP 共用 currencySettings／tripManagement 的父旅行
 - `expenses/preview` 舊 `{ amount, member_ids }` 保留 TWD／1，回應仍 `{ amount, splits }`。新 `{ amount, currency, exchange_rate, member_ids }` 必須同時提供幣別與匯率；amount 為原幣，回應另含 originalAmount／currency／exchangeRate，amount 與 splits.shareAmount 仍為 TWD。幣別用後端支援清單；匯率有限正數、方向 TWD／原幣、TWD 固定 1。原幣至少 0.01、至多兩位小數且分為安全整數；TWD 原額及換算後 TWD／份額上限仍為 1,000,000,000。溢位、不支援或成員變動 400，不留 receipt。
 - `expenses` 放寬既有 currency／exchange_rate，原幣驗證同上，完整匯率不做格式化後回寫。Web createExpenseForActor 再驗換算、成員、日期、加總與交易；預覽 shares 源自 Web 的原幣分角再換算，不能在手機另算 TWD 均分。很小的有效換算依既有規則可取整為零。已提交 receipt 重播不重取設定或匯率；原 UUID 不同匯率仍 409，刪除後不復活、撤權不能重播／查詢。
 
-回應 runtime schema 檢查 TWD 到分、分攤加總／唯一成員與完整原幣回音；手機 confirmedFields 再確認屬於当前原幣／匯率／成員。C SQLite 讀取同步使用擴充 create schema，D raw draft 新欄位可選，schema 8 無遷移、舊紀錄原內容不改。D TWD 佇列在引擎、SQLite enqueue／prepare 與同步都拒絕外幣；保存草稿不等於允許離線送出。外幣編輯 context／寫入尚未擴充。
+回應 runtime schema 檢查 TWD 到分、分攤加總／唯一成員與完整原幣回音；手機 confirmedFields 再確認屬於当前原幣／匯率／成員。C SQLite 讀取同步使用擴充 create schema，D raw draft 新欄位可選，schema 8 無遷移、舊紀錄原內容不改。D TWD 佇列在引擎、SQLite enqueue／prepare 與同步都拒絕外幣；保存草稿不等於允許離線送出。外幣編輯見 G2c。
+
+## G2c 原幣均分編輯
+
+沿用 E3 的 edit-context／PATCH／mutation-requests。context 的 options 補 G2b 幣別設定／支援清單及虛擬旗標；capabilities.recalculate 為可選 boolean，支持 TWD／外幣均分重算。equal 仍只代表舊 App 的 TWD 能力，reason 保留原 enum。recalculate 需要完整合法原額／匯率、換算總額與現存 TWD 金額一致、付款人／分攤在目前名冊，以及份額逐人等於 computeSplits 的原幣均分結果；不同尾差／非均分／無效歷史資料只允許 basic。DB 沒有原始模式，數值相同者無法辨識最初使用哪種模式。
+
+mode=equal 的 changes 可成對新增 currency／exchange_rate，original_amount 沿用 G2b 原幣安全到分規則，TWD／換算後總額與每份 TWD 分攤上限不變。TWD rate 固定 1；ISO 語法由 contracts 驗證、後端核對支援清單。未帶兩欄的舊 body 嚴格按 TWD／1 處理且不補欄位，不改舊指紋；僅帶一欄／無效 rate／未知欄位為 400。後端再以目前名冊與請求原額／匯率計算每份 TWD，偽造份額、不可重算或換算溢位為終局 409 VALIDATION_ERROR；Web／成員修改原始業務欄位仍為 409 RESOURCE_CHANGED。基本更新完全不重算歷史金額。
+
+支出、活動與終局 E receipt 同交易；原 UUID 重播不套新設定、後續編輯或匯率，不新增 migration。撤權仍拒絕重播／查詢。Mobile 預覽使用 G2b 原幣形狀、確認後才進 E；SQLite 原 body、共用限速期限、帳號／環境及登入世代隔離保持，故障／裝置交接見 [G2c](LOCAL_ACCEPTANCE.md#g2c-外幣編輯交接)。
