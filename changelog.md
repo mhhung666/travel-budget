@@ -6,9 +6,10 @@
 
 ### 2026-10-08
 
-- Mobile U2e：統一本機／佇列與 C／E 恢復狀態卡，區分空／讀取失敗、需處理／結果不明／完成；原 SQLite 429 期限、凍結操作限制及帳號／撤權隱藏明確呈現，補雙擊與晚到回呼保護。未改引擎／HTTP，驗證及 iOS 待驗見 [U2e 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#u2e-本機與恢復驗收交接)，Android 延後；本片提交調升 Mobile patch，未部署。
-- Mobile U2d：登入／帳號與旅行／邀請表單、iOS 驗證碼焦點及主次操作已整理；E1／E2 引擎、原期限與秘密清除保留。已提交並推送 Mobile patch，未部署；驗證及 iOS 待驗見 [U2d 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#u2d-帳號與旅行表單驗收交接)，Android 延後。
+- Mobile U2d／U2e：整理帳號／旅行表單及本機／佇列恢復狀態，補焦點、主次操作、雙擊與晚到回呼保護；保留 E1／E2、C／D／E 原期限、秘密清除、UUID 與撤權。各片已提交 Mobile patch，未部署；開發驗證及 iOS 待驗見 [本機驗收](apps/mobile/docs/LOCAL_ACCEPTANCE.md)，Android 延後。
 - Mobile U1c／U2a–U2c／API：旅行入口、支出閱讀／表單、結算／還款及共用格式／身分已整理並提交相應 patch；保留 C／D／E、HTTP／UUID／429，成功後刷新失敗只重讀。驗證與原生待驗見 [U1c／U2a](apps/mobile/docs/LOCAL_ACCEPTANCE.md#u1c-旅行入口驗收交接)、[U2b](apps/mobile/docs/LOCAL_ACCEPTANCE.md#u2b-新增與編輯驗收交接)／[U2c](apps/mobile/docs/LOCAL_ACCEPTANCE.md#u2c-結算與還款驗收交接)；Android 延後，結算虛擬旗標另排，未部署。
+
+- Mobile 規劃：U1／U2 首輪實作後，改先補旅行／成員管理、多幣別、進階分攤、預算查帳、偏好與收據；下一片 G1a 旅行資料／個人封存。完整裝置與流程驗收延後，必要開發檢查保留；本次僅盤點與更新路線，並核對／記錄 U 靜態 review 十項修正交接（含不成立與待量測項）；未修改產品程式、實作 G 或重跑裝置驗收。
 
 ### 2026-10-07
 
