@@ -50,7 +50,7 @@ Next.js App Router 與 React 組成介面，TanStack Query 負責查詢、重新
 
 跨旅行統計、金額排序／分頁及年度回顧按帳本幣別分組，不加總混合幣別。旅行列表、跨旅行統計與年度回顧的子文件單位驗證按幣別批次查詢，每批固定兩次索引探查，仍逐一核對成員預算；年度回顧也檢查所有目前名冊成員的預算，任一單位與旅程基準不符便拒絕整頁帳務讀取，與 stats 相同。讀取 action 保留 LEDGER_DATA_INVALID 等帳本錯誤碼，不轉為可重試的 INTERNAL_ERROR。CSV／Markdown 欄位明示基準及原幣／匯率，JSON 支出匯出使用 `{ version: 2, ledger, expenses }`，空匯出也保留單位；結算輸出帶單位。年度回顧 PNG 依目前選取幣別輸出。既有 PDF 是行程閱讀器，沒有帳務金額，不新增帳務 PDF。結算與旅行統計首版只顯示基準，不換算成第三種幣別。
 
-新版畫面透過明確的 `getLedger*` Server Action 身分及 `/api/public/v2/trips/:code/*` 分享 adapter；舊 Server Action／公開路徑維持 TWD，非 TWD 深連結回 `CLIENT_UPGRADE_REQUIRED`（公開 HTTP 409），舊列表排除非 TWD。v1／v2 共用服務及資料庫，不接受 header 切換單位。新版公開財務讀取使用唯一 URL 與 no-store，避免舊 service worker 回傳 TWD 快取；公開輸出仍不含私人預算、收據 key 或私人 revision。
+新版畫面透過明確的 `getLedger*` Server Action 身分及 `/api/public/v2/trips/:code/*` 分享 adapter；舊 Server Action／公開路徑維持 TWD，非 TWD 深連結回 `CLIENT_UPGRADE_REQUIRED`（公開 HTTP 409），舊列表排除非 TWD。v1／v2 共用服務及資料庫，不接受 header 切換單位。新版公開財務讀取使用唯一 URL 與 no-store，避免舊 service worker 回傳 TWD 快取；公開輸出仍不含私人預算、收據 key 或私人 revision。兩版 11 組公開 route 共用中立 handler（唯讀快照 `lib/publicTripReads.ts`、匿名認領 `lib/publicMemberClaims.ts`），v2 只以 `withPublicLedgerV2` 加上帳本 context，不 import 舊 route、不讀 session。新版 Server Action 身分若重用舊 cookie adapter，以 `withLedgerIdentity` 在 v2 context 執行同一 body，舊身分維持 v1 輸入與 receipt。
 
 建立／加入、修改／刪除支出、登記／撤銷還款及預算／幣別設定先將固定 UUID、原 body、版本、單位及 revision 存入帳號／環境隔離的 IndexedDB，才查詢原 receipt；只有 `not_found` 重送相同操作。不明結果保留，透過全域恢復提示補查，不換 UUID 或讓使用者捨棄。明確的寫入拒絕（包含服務驗證前拒絕）先將 journal 終局保存為 rejected，再解除旅行保留，允許使用者修正並重新確認。手動恢復被拒時，保留四語說明直到使用者關閉提示；關閉不刪除 journal，結果不明仍可補查。receipt 補查的拒絕不能推斷原寫入失敗。C 新增只呼叫一次寫入 action，由服務先查原 receipt，再於交易內核對，避免瀏覽器重複補查。終局衝突重讀後須再次確認；支出、設定與結算各有 HMAC revision。修改／刪除活動與 receipt 同交易，重播不增加紀錄。設定使用同一 `actor:UUID` receipt 唯一 namespace，其 Web 專用 operation 為 `budget.set`／`currency.set`。
 

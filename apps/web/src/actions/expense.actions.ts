@@ -19,8 +19,13 @@ import {
   type CreateExpenseInput,
   type UpdateExpenseInput,
 } from '@/lib/validation';
-import { withAuth as legacyAuth, withLedgerAuth as withAuth, withLegacyTripRead } from './withAuth';
-import { isLedgerV2, withLedgerV2, parseLedgerInput, ledgerActionFailure } from '@/lib/ledger';
+import {
+  withAuth as legacyAuth,
+  withLedgerAuth as withAuth,
+  withLedgerIdentity,
+  withLegacyTripRead,
+} from './withAuth';
+import { isLedgerV2, parseLedgerInput, ledgerActionFailure } from '@/lib/ledger';
 import type { ActionResult } from './types';
 import type { Expense as ExpenseDto } from '@/types';
 import { logger } from '@/lib/logger';
@@ -253,9 +258,7 @@ export const getReceiptUrl = withAuth(
 );
 
 /** Separate action identity for confirmed v2 bodies; old queues keep createExpense. */
-export async function createLedgerExpense(id: string, input: CreateExpenseInput) {
-  return withLedgerV2(() => createExpense(id, input));
-}
+export const createLedgerExpense = withLedgerIdentity(createExpense);
 
 export const deleteLedgerExpense = withAuth(
   async (
@@ -303,16 +306,8 @@ export const lookupExpenseCreation = legacyAuth(
     }
   }
 );
-export async function lookupLedgerExpenseCreation(id: string, input: CreateExpenseInput) {
-  return withLedgerV2(() => lookupExpenseCreation(id, input));
-}
+export const lookupLedgerExpenseCreation = withLedgerIdentity(lookupExpenseCreation);
 
-export async function updateLedgerExpense(
-  id: string,
-  expenseId: string,
-  input: UpdateExpenseInput
-) {
-  return withLedgerV2(() => updateExpense(id, expenseId, input));
-}
+export const updateLedgerExpense = withLedgerIdentity(updateExpense);
 
 export const getExpenses = withLegacyTripRead(getLedgerExpenses);

@@ -61,6 +61,17 @@ export function withLedgerAuth<TArgs extends unknown[], TResult>(
   );
 }
 
+/**
+ * New action identity over a version-aware cookie adapter. Old queued Web/PWA bundles keep the
+ * adapter's own identity (v1 input and receipt); the new identity runs the same adapter in the
+ * ledger v2 context, so both share one body, reservation and receipt lookup.
+ */
+export function withLedgerIdentity<TArgs extends unknown[], TResult>(
+  action: (...args: TArgs) => Promise<TResult>
+) {
+  return async (...args: TArgs): Promise<TResult> => withLedgerV2(() => action(...args));
+}
+
 /** Existing action identities remain TWD-only for older Web/PWA bundles. */
 export function withLegacyTripRead<TArgs extends [string, ...unknown[]], TResult>(
   action: (...args: TArgs) => Promise<ActionResult<TResult>>

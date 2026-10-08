@@ -1,5 +1,4 @@
-import { GET as legacyGET } from '@/app/api/public/trips/[id]/itinerary/route';
-import { withLedgerV2 } from '@/lib/ledger';
-export async function GET(...args: Parameters<typeof legacyGET>) {
-  return withLedgerV2(() => legacyGET(...args));
-}
+import { publicTripReads } from '@/lib/publicTripReads';
+import { withPublicLedgerV2 } from '@/lib/withPublicTrip';
+
+export const GET = withPublicLedgerV2(publicTripReads.itinerary);

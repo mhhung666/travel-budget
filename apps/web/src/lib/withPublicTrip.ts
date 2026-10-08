@@ -1,4 +1,4 @@
-import { LedgerError } from './ledger';
+import { LedgerError, withLedgerV2 } from './ledger';
 import { MoneyTotalError } from './money';
 import { NextRequest, NextResponse } from 'next/server';
 import { getTripIdByHashCode } from '@/lib/permissions';
@@ -61,4 +61,12 @@ export function withPublicTrip<P extends Record<string, string>>(
       return apiError(PublicApiError.INTERNAL_ERROR, 500);
     }
   };
+}
+
+/**
+ * Public v2 entry: the same neutral handler as v1, run in the ledger v2 context so financial
+ * reads carry their unit. It adds no session or fields; the data boundary stays the handler's.
+ */
+export function withPublicLedgerV2<A extends unknown[], R>(handler: (...args: A) => Promise<R>) {
+  return (...args: A): Promise<R> => withLedgerV2(() => handler(...args));
 }

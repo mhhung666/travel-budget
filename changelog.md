@@ -6,7 +6,7 @@
 
 ### 2026-10-08
 
-- B5a／B5b-1～2（Web／contracts）：完成退役盤點、共用 v2 auth／me 與明確回應契約；24 組會員業務 route 共用 31 個操作，保留兩版 DTO／交易／UUID。B5b-2 獨立審查、Web 2,303 項、隔離 DB 236 項、真 HTTP、根 check 與 build 通過，保持行為重構不升版；完整 v1 保留，Mobile 呼叫端及原生升級尚未搬移／驗收。接續 [B5b-3](apps/mobile/docs/ROADMAP.md#b5v1v2-整併與-v1-退役進行中)。
+- B5a／B5b-1～3（Web／contracts）：完成退役盤點、共用 auth／會員操作與明確回應契約；11 組公開 route 抽中立 handler，新版支出 action 共用原 adapter。B5b-3 獨立審查、Web 2,318 項、隔離 DB 181 項、根 check 及正式 build PWA 10 項通過；保持行為重構不升版，完整 v1 保留，原生升級待驗。接續 [B5c-1](apps/mobile/docs/ROADMAP.md#b5v1v2-整併與-v1-退役進行中) 搬移 Mobile transport／登入。
 - Mobile U1／U2：完成頁面與表單整理，修正恢復等待、原幣代碼、可見筆數、名冊同名短碼與負零，保留原 UUID／期限／撤權；相應 patch 與工程檢查已完成。iOS 字級／閱讀器、歷史名冊限制及延期整理見 [U 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#u-靜態審查修正交接2026-10-08)，Android 延後。
 - G1／G2／B1–B4（Web／Mobile）：完成旅行管理、外幣均分與固定基準／v2，保留舊 TWD／v1／UUID 恢復；補隔離驗收工具，修正終局拒絕收據、AI 授權、列表批次驗證及 CI 格式／MongoDB 建表競態，184 項重點回歸通過並提交兩應用 patch。跨端操作待驗見 [B 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#b-基準幣別驗收b1b2b3-實作交接)；非 TWD 建立關閉，G3／G4／F 延後，未部署。
 
