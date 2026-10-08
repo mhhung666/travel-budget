@@ -1,4 +1,4 @@
-import { beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { TripCurrencyScreen } from './TripCurrencyScreen';
 import { ApiError } from '@/api/client';
 import type { TripCurrencyContext } from '@travel-budget/contracts';
@@ -12,6 +12,7 @@ const h = vi.hoisted(() => ({
   confirm: vi.fn(),
   get: vi.fn(),
   pause: vi.fn(),
+  retryAt: vi.fn(),
   refresh: vi.fn(),
   prevent: vi.fn(),
   online: true,
@@ -111,7 +112,7 @@ vi.mock('@/features/localDrafts/provider', () => ({
 }));
 vi.mock('@/storage/pendingExpenseDatabase', () => ({
   openMutationStore: async () => ({
-    retryAt: async () => h.until,
+    retryAt: h.retryAt,
     rateLimitUntil: () => h.until,
     get: h.get,
     pause: h.pause,
@@ -133,6 +134,7 @@ interface Props {
   children?: unknown;
   editable?: boolean;
   disabled?: boolean;
+  busy?: boolean;
   onPress?: () => unknown;
   onChangeText?: (value: string) => void;
   inputRef?: { current: unknown };
@@ -174,10 +176,14 @@ beforeEach(() => {
   h.online = h.visible = true;
   h.version = h.access = 1;
   h.until = 0;
+  h.retryAt.mockImplementation(async () => h.until);
   h.user = 'a'.repeat(24);
   h.request.mockImplementation(async (_actor, _path, _schema, options) => {
     options?.beforeSend?.();
     return original;
+  });
+  h.pause.mockImplementation(async (_scope, until: number) => {
+    h.until = Math.max(h.until, until);
   });
   h.confirm.mockResolvedValue({
     kind: 'completed',
@@ -341,3 +347,132 @@ it('rejected original input is restored without automatic re-confirmation', asyn
   expect(find('currency-rate-JPY').value).toBe('0.23');
   expect(h.confirm).not.toHaveBeenCalled();
 });
+
+afterEach(() => vi.useRealTimers());
+it.each(['admin', 'member'] as const)(
+  'reference values/date/provider are readable by %s without changing settings',
+  async (role) => {
+    h.request.mockResolvedValueOnce({ ...original, role });
+    await mount();
+    h.request.mockResolvedValueOnce({
+      rates: { TWD: 1, JPY: 0.215 },
+      dates: { JPY: '2026-10-07' },
+      provider: 'Frankfurter',
+    });
+    find('currency-reference').onPress!();
+    await flush();
+    const values = nodes(render()).map((n) => n.props.value);
+    expect(values).toContain('0.215');
+    expect(values).toContain('2026-10-07');
+    expect(values).toContain('Frankfurter');
+    expect(h.confirm).not.toHaveBeenCalled();
+    if (role === 'member')
+      expect(nodes(render()).some((n) => n.props.testID === 'currency-review')).toBe(false);
+    else expect(find('currency-rate-JPY').value).toBe('');
+  }
+);
+it('failed 429 persistence blocks reads until the original deadline, without extending it', async () => {
+  vi.useFakeTimers();
+  const now = Date.now();
+  await mount();
+  h.pause
+    .mockRejectedValueOnce(new Error('disk full'))
+    .mockRejectedValueOnce(new Error('disk full'));
+  h.request.mockRejectedValueOnce(new ApiError('RATE_LIMITED', 429, 120));
+  find('currency-reference').onPress!();
+  await flush();
+  expect(h.request).toHaveBeenCalledTimes(2);
+  const deadline = now + 120000;
+  expect(h.pause.mock.calls[0][1]).toBe(deadline);
+  vi.setSystemTime(now + 31000);
+  find('currency-reference').onPress!();
+  await flush();
+  expect(h.request).toHaveBeenCalledTimes(2);
+  expect(h.pause.mock.calls[1][1]).toBe(deadline);
+  find('currency-reference').onPress!();
+  await flush();
+  expect(h.pause.mock.calls[2][1]).toBe(deadline);
+  expect(h.until).toBe(deadline);
+  expect(h.request).toHaveBeenCalledTimes(2);
+  vi.setSystemTime(deadline - 1);
+  find('currency-reference').onPress!();
+  await flush();
+  expect(h.request).toHaveBeenCalledTimes(2);
+  vi.setSystemTime(deadline);
+  find('currency-reference').onPress!();
+  await flush();
+  expect(h.request).toHaveBeenCalledTimes(3);
+});
+it.each(['offline', 'background', 'input'] as const)(
+  'late review cannot restore confirmation after %s; explicit review still works',
+  async (kind) => {
+    await mount();
+    edit('JPY', '0.23');
+    let resolve!: (value: TripCurrencyContext) => void;
+    h.request.mockImplementationOnce(
+      () =>
+        new Promise((r) => {
+          resolve = r;
+        })
+    );
+    find('currency-review').onPress!();
+    await flush();
+    if (kind === 'offline') {
+      h.online = false;
+      h.connection(false);
+      h.online = true;
+      h.connection(true);
+    } else if (kind === 'background') {
+      h.background('background');
+      h.background('active');
+    } else edit('JPY', '0.24');
+    resolve(original);
+    await flush();
+    expect(nodes(render()).some((n) => n.props.testID === 'currency-confirm')).toBe(false);
+    expect(find('currency-rate-JPY').value).toBe(kind === 'input' ? '0.24' : '0.23');
+    expect(find('currency-review').busy).not.toBe(true);
+    expect(h.confirm).not.toHaveBeenCalled();
+    find('currency-review').onPress!();
+    await flush();
+    expect(nodes(render()).some((n) => n.props.testID === 'currency-confirm')).toBe(true);
+  }
+);
+
+it.each(['offline', 'background', 'input'] as const)(
+  'review cancelled while SQLite guard waits cannot start HTTP after %s',
+  async (kind) => {
+    await mount();
+    edit('JPY', '0.23');
+    let release!: () => void;
+    h.retryAt.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          release = resolve;
+        })
+    );
+    const reads = h.request.mock.calls.length;
+    find('currency-review').onPress!();
+    await flush();
+    expect(h.request).toHaveBeenCalledTimes(reads);
+    if (kind === 'offline') {
+      h.online = false;
+      h.connection(false);
+      h.online = true;
+      h.connection(true);
+    } else if (kind === 'background') {
+      h.background('background');
+      h.background('active');
+    } else edit('JPY', '0.24');
+    release();
+    await flush();
+    expect(h.request).toHaveBeenCalledTimes(reads);
+    expect(nodes(render()).some((n) => n.props.testID === 'currency-confirm')).toBe(false);
+    expect(find('currency-rate-JPY').value).toBe(kind === 'input' ? '0.24' : '0.23');
+    expect(find('currency-review').busy).toBe(false);
+    expect(h.confirm).not.toHaveBeenCalled();
+    find('currency-review').onPress!();
+    await flush();
+    expect(h.request).toHaveBeenCalledTimes(reads + 1);
+    expect(nodes(render()).some((n) => n.props.testID === 'currency-confirm')).toBe(true);
+  }
+);

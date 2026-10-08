@@ -654,3 +654,42 @@ it('backgrounding invalidates confirmation and a preview still in flight', async
   expect(h.confirm).not.toHaveBeenCalled();
   dispose?.();
 });
+it('conflict reconfirmation keeps 120 JPY as a complete input instead of mixing with remote USD', async () => {
+  previewRequest();
+  await loadForm();
+  find('equalExpense').onPress();
+  findId('expense-maintain-amount').onChangeText!('120');
+  const latest = {
+    ...foreignEqual,
+    revision: 'b'.repeat(64),
+    expense: {
+      ...foreignEqual.expense,
+      originalAmount: 20,
+      currency: 'USD',
+      exchangeRate: 30,
+      amount: 600,
+      splits: [{ ...foreignEqual.expense.splits[0], shareAmount: 600 }],
+    },
+  };
+  previewRequest(latest);
+  find('previewSplit').onPress();
+  await flush();
+  find('useLatestExpense').onPress();
+  expect(findId('expense-maintain-amount').value).toBe('120');
+  expect(findId('expense-maintain-rate').value).toBe('0.2156789012345');
+  expect(h.confirm).not.toHaveBeenCalled();
+  find('previewSplit').onPress();
+  await flush();
+  expect(h.request.mock.calls.findLast((call) => call[1].endsWith('/preview'))?.[3].body).toEqual({
+    amount: 120,
+    currency: 'JPY',
+    exchange_rate: 0.2156789012345,
+    member_ids: [h.scope.accountId],
+  });
+  find('confirmExpenseEdit').onPress();
+  await flush();
+  expect(h.confirm.mock.calls[0][1].body).toMatchObject({
+    expected_revision: latest.revision,
+    changes: { original_amount: 120, currency: 'JPY', exchange_rate: 0.2156789012345 },
+  });
+});

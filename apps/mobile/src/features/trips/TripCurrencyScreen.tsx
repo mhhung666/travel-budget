@@ -20,7 +20,7 @@ import { errorMessage } from '@/features/auth/errorMessage';
 import { useOnline } from '@/providers/useOnline';
 import { useMessages } from '@/i18n/useMessages';
 import { openMutationStore } from '@/storage/pendingExpenseDatabase';
-import { LocalRateLimitError } from '@/features/expenses/entry';
+import { expenseReadGuard, expenseReadWait } from '@/features/expenses/readGuard';
 import { currencyFields, currencySettings, type CurrencyFields } from './currencyForm';
 
 export function TripCurrencyScreen({ tripId, source }: { tripId: string; source?: string }) {
@@ -46,6 +46,8 @@ export function TripCurrencyScreen({ tripId, source }: { tripId: string; source?
   const [refreshFailed, setRefreshFailed] = useState(false);
   const flight = useRef(false);
   const generation = useRef(0);
+  const reviewGeneration = useRef(0);
+  const unsavedWait = useRef(0);
   const version = manager.getSignInVersion();
   const current = () =>
     !!scope &&
@@ -63,30 +65,16 @@ export function TripCurrencyScreen({ tripId, source }: { tripId: string; source?
   );
   async function guard() {
     if (!scope || !current()) throw new ApiError('CANCELLED');
-    const captured = catalog.captureAccess(scope);
-    const store = await openMutationStore();
-    await store.retryAt(scope);
-    return () => {
-      if (!current() || !onlineManager.isOnline() || AppState.currentState !== 'active')
-        throw new ApiError('CANCELLED');
-      captured(tripId);
-      if (!catalog.isVisible(scope, tripId)) throw new ApiError('CANCELLED');
-      const until = store.rateLimitUntil(scope);
-      if (until > Date.now()) throw new LocalRateLimitError(until, Date.now());
-    };
+    return expenseReadGuard(manager, catalog, scope, tripId, unsavedWait.current);
   }
+
   async function fail(failure: unknown, v: number) {
     if (v !== generation.current || !current()) return;
-    if (
-      failure instanceof ApiError &&
-      failure.status === 429 &&
-      !(failure instanceof LocalRateLimitError) &&
-      scope
-    ) {
+    const wait = expenseReadWait(failure);
+    if (wait && scope) {
+      unsavedWait.current = Math.max(unsavedWait.current, wait);
       try {
-        await (
-          await openMutationStore()
-        ).pause(scope, Date.now() + (failure.retryAfter ?? 30) * 1000);
+        await (await openMutationStore()).pause(scope, unsavedWait.current);
       } catch {
         if (v === generation.current && current()) setError(t.storageError);
         return;
@@ -170,10 +158,10 @@ export function TripCurrencyScreen({ tripId, source }: { tripId: string; source?
     const lifetime = ++generation.current;
     void run(load);
     const connection = onlineManager.subscribe((connected) => {
-      if (!connected) setPrepared(null);
+      if (!connected) invalidateReview();
     });
     const background = AppState.addEventListener('change', (state) => {
-      if (state !== 'active') setPrepared(null);
+      if (state !== 'active') invalidateReview();
     });
     return () => {
       generation.current = lifetime + 1;
@@ -183,14 +171,22 @@ export function TripCurrencyScreen({ tripId, source }: { tripId: string; source?
     // Route keyed by environment/account/trip/source; locale changes keep input.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  function change(next: CurrencyFields) {
-    setFields(next);
+  function invalidateReview() {
+    reviewGeneration.current++;
     setPrepared(null);
   }
-  const review = () =>
-    run(async (beforeSend, v) => {
+  function change(next: CurrencyFields) {
+    setFields(next);
+    invalidateReview();
+  }
+  const review = () => {
+    if (flight.current || !online || !visible) return;
+    // Capture the click before run awaits SQLite, not when its task finally starts.
+    invalidateReview();
+    const reviewVersion = reviewGeneration.current;
+    return run(async (beforeSend, v) => {
+      if (reviewVersion !== reviewGeneration.current) return;
       if (!context || !fields || context.role !== 'admin') return;
-      setPrepared(null);
       let settings;
       try {
         settings = currencySettings(fields, context.supportedCurrencies);
@@ -198,8 +194,12 @@ export function TripCurrencyScreen({ tripId, source }: { tripId: string; source?
         setError(t.invalidCurrencySettings);
         return;
       }
-      const data = await read(beforeSend);
-      if (v !== generation.current) return;
+      const reviewGuard = () => {
+        if (reviewVersion !== reviewGeneration.current) throw new ApiError('CANCELLED');
+        beforeSend();
+      };
+      const data = await read(reviewGuard);
+      if (v !== generation.current || reviewVersion !== reviewGeneration.current) return;
       if (data.role !== 'admin' || data.revision !== context.revision) {
         setLatest(data);
         setError(t.currencyChanged);
@@ -208,6 +208,7 @@ export function TripCurrencyScreen({ tripId, source }: { tripId: string; source?
       setPrepared({ expected_revision: data.revision, settings });
       Keyboard.dismiss();
     });
+  };
   const submit = () =>
     run(async (_beforeSend, v) => {
       if (!prepared || !scope) return;
@@ -367,18 +368,6 @@ export function TripCurrencyScreen({ tripId, source }: { tripId: string; source?
                           }
                         />
                         <Copy>{t.customRateHint}</Copy>
-                        <DetailRow
-                          label={t.referenceRate}
-                          value={
-                            rates?.rates[row.code] == null
-                              ? t.rateUnavailable
-                              : String(rates.rates[row.code])
-                          }
-                        />
-                        {rates?.dates[row.code] && (
-                          <DetailRow label={t.ratePublished} value={rates.dates[row.code]} />
-                        )}
-                        {rates && <DetailRow label={t.rateProvider} value={rates.provider} />}
                       </>
                     )}
                     <Action
@@ -420,6 +409,26 @@ export function TripCurrencyScreen({ tripId, source }: { tripId: string; source?
               />
             </>
           )}
+          <Section title={t.referenceRate}>
+            {(canEdit ? fields.rows : ((latest ?? context).settings?.currencies ?? []))
+              .filter((row) => row.code !== 'TWD')
+              .map((row) => (
+                <Card key={row.code}>
+                  <DetailRow
+                    label={row.code}
+                    value={
+                      rates?.rates[row.code] == null
+                        ? t.rateUnavailable
+                        : String(rates.rates[row.code])
+                    }
+                  />
+                  {rates?.dates[row.code] && (
+                    <DetailRow label={t.ratePublished} value={rates.dates[row.code]} />
+                  )}
+                </Card>
+              ))}
+            {rates && <DetailRow label={t.rateProvider} value={rates.provider} />}
+          </Section>
           <Copy>{t.referenceRateHint}</Copy>
           {ratesError && <Notice tone="warning">{t.rateLoadFailed}</Notice>}
           <Action

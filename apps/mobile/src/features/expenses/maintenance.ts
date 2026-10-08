@@ -47,18 +47,16 @@ export function rebaseEditFields(
   if (fields.category !== baseline.category) next.category = fields.category;
   if (fields.date !== baseline.date) next.date = fields.date;
   const amount = parseAmount(fields.amountText, fields.currency);
-  if (
+  // Original amount, currency and rate describe one monetary input. Keeping just
+  // one part would silently reinterpret it using a collaborator's other parts.
+  const amountChanged =
     fields.amountText !== baseline.amountText &&
-    (!amount.ok || amount.amount !== previous.expense.originalAmount)
-  )
-    next.amountText = fields.amountText;
-  if (fields.currency !== baseline.currency) {
-    next.currency = fields.currency;
-    next.rateText = fields.rateText;
-  } else if (
+    (!amount.ok || amount.amount !== previous.expense.originalAmount);
+  const rateChanged =
     fields.rateText !== baseline.rateText &&
-    parseRate(fields.rateText) !== previous.expense.exchangeRate
-  ) {
+    parseRate(fields.rateText) !== previous.expense.exchangeRate;
+  if (amountChanged || fields.currency !== baseline.currency || rateChanged) {
+    next.amountText = fields.amountText;
     next.currency = fields.currency;
     next.rateText = fields.rateText;
   }

@@ -395,6 +395,44 @@ it('conflict review takes remote currency/rate only when not edited, and keeps e
   ).toMatchObject({
     currency: 'JPY',
     rateText: '0.5',
-    amountText: '20',
+    amountText: '100',
   });
+});
+
+it.each([
+  { amountText: '120' },
+  { currency: 'TWD', rateText: '1' },
+  { rateText: '0.5' },
+  { amountText: 'unfinished' },
+])('conflict preserves the entire local monetary input when one part changes: %j', (change) => {
+  const fields = { ...editFields(foreignEqual), ...change };
+  const latest = {
+    ...foreignEqual,
+    revision: 'b'.repeat(64),
+    expense: {
+      ...foreignEqual.expense,
+      originalAmount: 20,
+      currency: 'USD',
+      exchangeRate: 30,
+      description: 'remote',
+    },
+  };
+  expect(rebaseEditFields(foreignEqual, fields, latest)).toEqual({
+    ...editFields(latest),
+    amountText: fields.amountText,
+    currency: fields.currency,
+    rateText: fields.rateText,
+  });
+});
+it('format-only money changes take the complete latest monetary input', () => {
+  const latest = {
+    ...foreignEqual,
+    expense: { ...foreignEqual.expense, originalAmount: 20, currency: 'USD', exchangeRate: 30 },
+  };
+  const fields = {
+    ...editFields(foreignEqual),
+    amountText: '100.00',
+    rateText: '0.215678901234500',
+  };
+  expect(rebaseEditFields(foreignEqual, fields, latest)).toEqual(editFields(latest));
 });

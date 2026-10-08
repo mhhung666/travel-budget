@@ -1,5 +1,7 @@
 # 手機 API
 
+**待實作**：[旅程基準幣別 B0–B4 規格](../../mobile/docs/ROADMAP.md#b旅程基準幣別改造規格2026-10-08) 定義 v2 明確單位、v1 安全阻擋與共用服務改造；目前仍只有既有 v1／TWD 能力，不代表 v2 已可呼叫。
+
 G1c 另提供成員管理 context／角色、移除、本人退出及旅行刪除，與僅管理員可讀的虛擬認領連結。共用交易／cascade／版本及最小退出 receipt 的狹義授權例外見 [G1c 契約](../../mobile/docs/BACKEND_CONTRACT.md#g1c-權限與危險操作)；Web 認領憑證流程沿用既有實作，手機只複製／分享能力連結。
 
 已在程式碼加入 `/api/v1` 的登入、更新憑證、登出、目前使用者、旅行列表、旅行摘要、支出清單／明細與結算，以及線上新增支出所需的成員資料、均分預覽、冪等新增與結果查詢。這不代表遠端環境已部署。契約以 [packages/contracts/src/index.ts](../../../packages/contracts/src/index.ts) 的 Zod schema 為單一來源；Web 與手機透過 `@travel-budget/contracts` 匯入，Web 的 `src/lib/mobile/contract.ts` 只保留薄 adapter。共用產物見 [OpenAPI](../../../packages/contracts/openapi.json)，在 repository 根目錄執行 `pnpm contracts:generate` 產生、`pnpm contracts:check` 檢查同步。
