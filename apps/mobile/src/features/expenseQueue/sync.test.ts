@@ -27,6 +27,9 @@ const preview = {
     { userId: CAT, displayName: '', shareAmount: 33.33 },
   ],
 };
+// B5c-2: new queue records ask v2, whose options and preview carry the unit and original echo.
+const ledger = { baseCurrency: 'TWD', moneyScale: 2 as const };
+const v2preview = { ...preview, ledger, originalAmount: 100, currency: 'TWD', exchangeRate: 1 };
 const opened: { close(): void }[] = [];
 const dirs: string[] = [];
 afterEach(() => {
@@ -48,21 +51,32 @@ async function harness() {
   [TRIP, OTHER_TRIP].forEach((trip) => [ANN, BOB, CAT].forEach((id) => server.addMember(trip, id)));
   let token: string | null = null;
   let currentOptions = options;
-  const calls: { method: string; path: string; body: unknown }[] = [];
+  const calls: { method: string; path: string; version: number; body: unknown }[] = [];
   let hook: ((path: string, method: string) => Promise<Response | void>) | undefined;
   const fetcher: Fetcher = async (url, init) => {
-    const pathname = new URL(url).pathname;
+    const full = new URL(url).pathname;
+    const version = Number(/^\/api\/v([12])\//.exec(full)?.[1]);
+    const pathname = full.replace(/^\/api\/v[12]/, '');
     const method = init?.method ?? 'GET';
-    calls.push({ method, path: pathname, body: init?.body ? JSON.parse(String(init.body)) : null });
+    calls.push({
+      method,
+      path: pathname,
+      version,
+      body: init?.body ? JSON.parse(String(init.body)) : null,
+    });
     const response = await hook?.(pathname, method);
     if (response) return response;
-    if (pathname.endsWith('/expense-options')) return Response.json({ data: currentOptions });
-    if (pathname.endsWith('/expenses/preview')) return Response.json({ data: preview });
-    return server.fetcher(url, init);
+    if (pathname.endsWith('/expense-options'))
+      return Response.json({
+        data: version === 2 ? { ledger, ...currentOptions } : currentOptions,
+      });
+    if (pathname.endsWith('/expenses/preview'))
+      return Response.json({ data: version === 2 ? v2preview : preview });
+    return server.fetcher(url.replace(/\/api\/v[12]/, ''), init);
   };
   const makeManager = () =>
     new SessionManager(
-      new ApiClient('https://example.test', fetcher),
+      new ApiClient('https://example.test/api/v1', fetcher),
       {
         get: async () => token,
         set: async (value) => {
@@ -273,7 +287,7 @@ describe('confirmed equal-split queue and foreground sync', () => {
     const h = await harness();
     const r = await h.enqueue(1);
     const payload = {
-      ...confirmedFields(r.input, options, preview),
+      ...confirmedFields(r.input, { ...options, ledger }, v2preview),
       client_request_id: r.clientRequestId,
     };
     await h.store.prepare(r, payload);
@@ -288,6 +302,8 @@ describe('confirmed equal-split queue and foreground sync', () => {
     const h = await harness();
     const r = await h.enqueue(1);
     h.server.fail('POST', /\/expenses$/, { kind: 'drop-response' });
+    // The v2 receipt check before the send finds nothing; the lookup after the lost answer fails.
+    h.server.fail('GET', /expense-requests/, { kind: 'pass' });
     h.server.fail('GET', /expense-requests/, { kind: 'network' });
     await h.queue.synchronize(h.scope);
     expect(h.server.expenses).toHaveLength(1);
@@ -345,7 +361,8 @@ describe('confirmed equal-split queue and foreground sync', () => {
     await h.manager.login('bob', 'password');
     await h.queue.synchronize(h.scope);
     expect(await h.queue.list({ ...h.scope, accountId: BOB })).toEqual([]);
-    expect(h.server.posts()).toHaveLength(1); // The only attempted POST used Ann's session before revocation was learned.
+    // The v2 receipt check learned the revocation, so nothing was posted with Ann's session.
+    expect(h.server.posts()).toHaveLength(0);
     h.server.restore(ANN);
     await h.manager.login('ann', 'password');
     h.advance(31_000);
@@ -367,7 +384,7 @@ describe('confirmed equal-split queue and foreground sync', () => {
     h.hook(undefined);
     const r = await h.enqueue(2);
     await h.store.prepare(r, {
-      ...confirmedFields(r.input, options, preview),
+      ...confirmedFields(r.input, { ...options, ledger }, v2preview),
       client_request_id: r.clientRequestId,
     });
     h.server.removeMember(TRIP, ANN);
@@ -381,6 +398,7 @@ describe('confirmed equal-split queue and foreground sync', () => {
     const h = await harness();
     const r = await h.enqueue(1);
     const expense = expenseDetailSchema.parse({
+      ledger,
       id: hex(900),
       amount: 100,
       originalAmount: 100,
@@ -398,7 +416,8 @@ describe('confirmed equal-split queue and foreground sync', () => {
     expect(await h.queue.list(h.scope)).toMatchObject([{ status: 'resolved', reason: 'conflict' }]);
     expect(await h.pending.list(h.scope)).toEqual([]);
     await h.queue.synchronize(h.scope);
-    expect(h.server.posts()).toHaveLength(1);
+    // The v2 receipt check found the other content before anything was sent.
+    expect(h.server.posts()).toHaveLength(0);
     await expect(h.queue.restore((await h.queue.list(h.scope))[0])).rejects.toThrow(
       'QUEUE_RESOLVED'
     );
@@ -412,7 +431,10 @@ describe('confirmed equal-split queue and foreground sync', () => {
       ...h.scope,
       tripId: TRIP,
       clientRequestId: uuidOf(900),
-      payload: { ...confirmedFields(r.input, options, preview), client_request_id: uuidOf(900) },
+      payload: {
+        ...confirmedFields(r.input, { ...options, ledger }, v2preview),
+        client_request_id: uuidOf(900),
+      },
       status: 'unconfirmed',
       createdAt: 1,
       updatedAt: 1,
@@ -588,7 +610,7 @@ it('persists a 429 received by C manual retry before returning to the queue', as
   const h = await harness();
   const r = await h.enqueue(1);
   const payload = {
-    ...confirmedFields(r.input, options, preview),
+    ...confirmedFields(r.input, { ...options, ledger }, v2preview),
     client_request_id: r.clientRequestId,
   };
   await h.store.prepare(r, payload);
@@ -609,7 +631,8 @@ it('persists a 429 received by C manual retry before returning to the queue', as
     reason: 'busy',
   });
   expect(h.server.posts()).toHaveLength(1);
-  expect(h.server.lookups()).toHaveLength(0);
+  // Only the receipt check of the first retry, before its POST received the 429.
+  expect(h.server.lookups()).toHaveLength(1);
   h.advance(90_000);
   await h.queue.synchronize(h.scope);
   expect(h.server.posts().at(-1)?.body).toEqual(payload);
@@ -620,13 +643,15 @@ it('retains the longer 429 wait from the lookup following a failed POST', async 
   const h = await harness();
   await h.enqueue(1);
   h.server.fail('POST', /\/expenses$/, { kind: 'network' });
+  h.server.fail('GET', /expense-requests/, { kind: 'pass' });
   h.server.fail('GET', /expense-requests/, { kind: 'status', status: 429, retryAfter: 120 });
   await h.queue.synchronize(h.scope);
   await h.reopen();
   h.advance(31_000);
   await h.queue.synchronize(h.scope);
   expect(h.server.posts()).toHaveLength(1);
-  expect(h.server.lookups()).toHaveLength(1);
+  // The receipt check before the POST, then the follow-up that received the 429.
+  expect(h.server.lookups()).toHaveLength(2);
   h.advance(90_000);
   await h.queue.synchronize(h.scope);
   expect(h.server.expenses).toHaveLength(1);
@@ -640,6 +665,7 @@ it('persists a POST 409 before a lookup access denial can mask the conflict', as
     status: 409,
     code: 'IDEMPOTENCY_CONFLICT',
   });
+  h.server.fail('GET', /expense-requests/, { kind: 'pass' });
   h.server.fail('GET', /expense-requests/, { kind: 'status', status: 403, code: 'FORBIDDEN' });
   await h.queue.synchronize(h.scope);
   expect(await h.queue.list(h.scope)).toMatchObject([{ status: 'prepared', reason: 'conflict' }]);
@@ -659,7 +685,7 @@ it.each(['lookup', 'recover'] as const)(
     const h = await harness();
     const r = await h.enqueue(1);
     await h.store.prepare(r, {
-      ...confirmedFields(r.input, options, preview),
+      ...confirmedFields(r.input, { ...options, ledger }, v2preview),
       client_request_id: r.clientRequestId,
     });
     h.server.fail('GET', /expense-requests/, { kind: 'status', status: 429, retryAfter: 120 });
@@ -688,7 +714,7 @@ it('persists a manual C 409 before its follow-up lookup receives a 429', async (
   const h = await harness();
   const r = await h.enqueue(1);
   await h.store.prepare(r, {
-    ...confirmedFields(r.input, options, preview),
+    ...confirmedFields(r.input, { ...options, ledger }, v2preview),
     client_request_id: r.clientRequestId,
   });
   h.server.fail('POST', /\/expenses$/, {
@@ -696,6 +722,7 @@ it('persists a manual C 409 before its follow-up lookup receives a 429', async (
     status: 409,
     code: 'IDEMPOTENCY_CONFLICT',
   });
+  h.server.fail('GET', /expense-requests/, { kind: 'pass' });
   h.server.fail('GET', /expense-requests/, { kind: 'status', status: 429, retryAfter: 120 });
   expect(await h.entry.retry(h.scope, r.clientRequestId)).toMatchObject({
     kind: 'unconfirmed',
@@ -754,7 +781,7 @@ it('blocks a prepared retry when revocation arrives during its receipt lookup', 
   const h = await harness();
   const r = await h.enqueue(1);
   await h.store.prepare(r, {
-    ...confirmedFields(r.input, options, preview),
+    ...confirmedFields(r.input, { ...options, ledger }, v2preview),
     client_request_id: r.clientRequestId,
   });
   h.hook(async (path) => {
@@ -831,7 +858,7 @@ it.each(['new', 'prepared', 'retry'] as const)(
     await h.enqueue(2);
     const other = await h.enqueue(3, OTHER_TRIP);
     const payload = {
-      ...confirmedFields(r.input, options, preview),
+      ...confirmedFields(r.input, { ...options, ledger }, v2preview),
       client_request_id: r.clientRequestId,
     };
     if (state !== 'new') {
@@ -888,7 +915,10 @@ it('waits durably behind C for just that trip and resumes after C resolves witho
     ...h.scope,
     tripId: TRIP,
     clientRequestId: id,
-    payload: { ...confirmedFields(r.input, options, preview), client_request_id: id },
+    payload: {
+      ...confirmedFields(r.input, { ...options, ledger }, v2preview),
+      client_request_id: id,
+    },
     status: 'unconfirmed',
     createdAt: 1,
     updatedAt: 1,
@@ -942,7 +972,7 @@ it.each(
     const r = await h.enqueue(2);
     if (!otherTripFirst) await h.enqueue(3, OTHER_TRIP);
     await h.store.prepare(r, {
-      ...confirmedFields(r.input, options, preview),
+      ...confirmedFields(r.input, { ...options, ledger }, v2preview),
       client_request_id: r.clientRequestId,
     });
     await h.store.pause(r, 'conflict', 0);
@@ -986,6 +1016,7 @@ it('retains the account rate limit when a queue POST 409 is followed by a lookup
     status: 409,
     code: 'IDEMPOTENCY_CONFLICT',
   });
+  h.server.fail('GET', /expense-requests/, { kind: 'pass' });
   h.server.fail('GET', /expense-requests/, { kind: 'status', status: 429, retryAfter: 120 });
   await h.queue.synchronize(h.scope);
   expect(await h.queue.list(h.scope)).toMatchObject([
@@ -1015,7 +1046,7 @@ it.each(['lookup', 'retry', 'recover'] as const)(
     const b = await h.enqueue(2, OTHER_TRIP);
     for (const r of [a, b])
       await h.store.prepare(r, {
-        ...confirmedFields(r.input, options, preview),
+        ...confirmedFields(r.input, { ...options, ledger }, v2preview),
         client_request_id: r.clientRequestId,
       });
     h.server.fail('GET', /expense-requests/, { kind: 'status', status: 429, retryAfter: 120 });
@@ -1081,7 +1112,7 @@ it.each(
     const a = await h.enqueue(1);
     const b = await h.enqueue(2, OTHER_TRIP);
     await h.store.prepare(b, {
-      ...confirmedFields(b.input, options, preview),
+      ...confirmedFields(b.input, { ...options, ledger }, v2preview),
       client_request_id: b.clientRequestId,
     });
     await h.pending.setStatus(h.scope, b.clientRequestId, 'unconfirmed');
@@ -1101,7 +1132,9 @@ it.each(
       const setStatus = h.pending.setStatus;
       vi.spyOn(h.pending, 'setStatus').mockImplementation(async (...args) => {
         await setStatus(...args);
-        if (args[2] === (operation === 'setStatus' ? 'sending' : 'unconfirmed')) await pause();
+        // The v2 receipt check also writes `unconfirmed`; the follow-up is the write after POST.
+        if (operation === 'setStatus' ? args[2] === 'sending' : h.server.posts().length > 0)
+          await pause();
       });
       if (operation === 'follow-up lookup')
         h.server.fail('POST', /\/expenses$/, { kind: 'status', status: 500 });
@@ -1117,7 +1150,10 @@ it.each(
         ? await h.entry.lookup(h.scope, b.clientRequestId)
         : await h.entry.retry(h.scope, b.clientRequestId);
     expect(outcome).toMatchObject({ kind: 'unconfirmed', reason: 'busy' });
-    expect(h.calls.filter((c) => c.path.includes('/expense-requests/'))).toHaveLength(0);
+    // A retry's v2 receipt check ran before the deadline was written; nothing is asked after it.
+    expect(h.calls.filter((c) => c.path.includes('/expense-requests/'))).toHaveLength(
+      operation === 'retryAt' || operation === 'lookup' ? 0 : 1
+    );
     expect(h.server.posts()).toHaveLength(
       operation === 'refresh' || operation === 'follow-up lookup' ? 1 : 0
     );
@@ -1147,7 +1183,7 @@ it.each(['load', 'lookup', 'post', 'refresh'] as const)(
     const a = await h.enqueue(2);
     if (operation === 'lookup')
       await h.store.prepare(b, {
-        ...confirmedFields(b.input, options, preview),
+        ...confirmedFields(b.input, { ...options, ledger }, v2preview),
         client_request_id: b.clientRequestId,
       });
     const until = Date.now() + 120_000;
@@ -1183,7 +1219,10 @@ it.each(['load', 'lookup', 'post', 'refresh'] as const)(
     await h.queue.synchronize(h.scope);
     expect(h.server.expenses).toHaveLength(0);
     expect(h.server.posts()).toHaveLength(operation === 'refresh' ? 1 : 0);
-    expect(h.calls.filter((call) => call.path.includes('/expense-requests/'))).toEqual([]);
+    // Only B's v2 receipt check, which ran before the deadline was written.
+    expect(h.calls.filter((call) => call.path.includes('/expense-requests/'))).toHaveLength(
+      operation === 'post' || operation === 'refresh' ? 1 : 0
+    );
     expect(await h.store.rateLimitUntil(h.scope)).toBe(until);
     expect((await h.queue.list(h.scope))[0].nextAt).toBe(until);
     const payload = (await h.pending.get(h.scope, b.clientRequestId))!.payload;
@@ -1226,4 +1265,123 @@ it('rejects foreign enqueue even through the engine and skips injected foreign i
   });
   expect(h.calls.some((c) => c.path.includes(TRIP))).toBe(false);
   expect(h.server.expenses).toHaveLength(1);
+});
+
+describe('B5c-2 queue versions', () => {
+  const trips = (h: Awaited<ReturnType<typeof harness>>, trip = TRIP) =>
+    h.calls.filter((c) => c.path.startsWith(`/trips/${trip}/`));
+  const legacy = (h: Awaited<ReturnType<typeof harness>>, id: string) =>
+    h.db.runAsync('UPDATE expense_queue SET api_version = 1 WHERE client_request_id = ?', id);
+
+  it('sends a new queued expense on v2 from options to the write, once, with its unit', async () => {
+    const h = await harness();
+    const r = await h.enqueue(1);
+    expect(r.apiVersion).toBe(2);
+    // Two concurrent runs share one synchronization; the trip gets one expense and receipt.
+    await Promise.all([h.queue.synchronize(h.scope), h.queue.synchronize(h.scope)]);
+    expect(trips(h).map((c) => [c.method, c.path.split('/').at(-1), c.version])).toEqual([
+      ['GET', 'expense-options', 2],
+      ['POST', 'preview', 2],
+      ['GET', r.clientRequestId, 2],
+      ['POST', 'expenses', 2],
+    ]);
+    expect(h.server.posts()[0].body).toEqual({
+      ...confirmedFields(r.input, { ...options, ledger }, v2preview),
+      client_request_id: r.clientRequestId,
+    });
+    expect(h.server.posts()[0].body).toMatchObject({ base_currency: 'TWD' });
+    expect(h.server.expenses).toHaveLength(1);
+    expect(h.server.receipts.size).toBe(1);
+    expect(await h.queue.list(h.scope)).toEqual([]);
+    expect(await h.pending.list(h.scope)).toEqual([]);
+  });
+
+  it('resumes a prepared v2 record with one receipt check, never a second write after a lost answer', async () => {
+    const h = await harness();
+    const r = await h.enqueue(1);
+    h.server.fail('POST', /\/expenses$/, { kind: 'drop-response' });
+    h.server.fail('GET', /expense-requests/, { kind: 'pass' });
+    h.server.fail('GET', /expense-requests/, { kind: 'network' });
+    await h.queue.synchronize(h.scope);
+    expect(await h.pending.list(h.scope)).toMatchObject([{ apiVersion: 2, baseCurrency: 'TWD' }]);
+    await h.reopen();
+    h.advance(31_000);
+    const before = h.calls.length;
+    await h.queue.synchronize(h.scope);
+    expect(
+      h.calls
+        .slice(before)
+        .filter((c) => c.path.startsWith('/trips/'))
+        .map((c) => c.version)
+    ).toEqual([2]);
+    expect(h.server.lookups().at(-1)?.path).toContain(r.clientRequestId);
+    expect(h.server.posts()).toHaveLength(1);
+    expect(h.server.expenses).toHaveLength(1);
+    expect(await h.queue.list(h.scope)).toEqual([]);
+  });
+
+  it('keeps a record queued by an older release on v1 while a new one in another trip uses v2', async () => {
+    const h = await harness();
+    const old = await h.enqueue(1);
+    await legacy(h, old.clientRequestId);
+    const fresh = await h.enqueue(2, OTHER_TRIP);
+    await h.reopen();
+    await h.queue.synchronize(h.scope);
+    // v1 never asks before its first write; the frozen v1 body has no unit.
+    expect(trips(h).map((c) => [c.method, c.path.split('/').at(-1), c.version])).toEqual([
+      ['GET', 'expense-options', 1],
+      ['POST', 'preview', 1],
+      ['POST', 'expenses', 1],
+    ]);
+    expect(trips(h, OTHER_TRIP).every((c) => c.version === 2)).toBe(true);
+    const [v1Post, v2Post] = h.server.posts();
+    expect(v1Post.body).toEqual({
+      ...confirmedFields(old.input, options, preview),
+      client_request_id: old.clientRequestId,
+    });
+    expect(v1Post.body).not.toHaveProperty('base_currency');
+    expect(v2Post.body).toMatchObject({
+      client_request_id: fresh.clientRequestId,
+      base_currency: 'TWD',
+    });
+    expect(h.server.expenses).toHaveLength(2);
+  });
+
+  it('resumes a v1 record prepared by an older release with a v1 lookup, then its v1 write', async () => {
+    const h = await harness();
+    const r = await h.enqueue(1);
+    await legacy(h, r.clientRequestId);
+    const live = (await h.store.list(h.scope))[0];
+    const body = {
+      ...confirmedFields(r.input, options, preview),
+      client_request_id: r.clientRequestId,
+    };
+    await h.store.prepare(live, body);
+    expect(await h.pending.list(h.scope)).toMatchObject([{ apiVersion: 1, payload: body }]);
+    await h.reopen();
+    await h.queue.synchronize(h.scope);
+    expect(trips(h).map((c) => [c.method, c.version])).toEqual([
+      ['GET', 1],
+      ['POST', 1],
+    ]);
+    expect(h.server.posts()[0].body).toEqual(body);
+    expect(h.server.expenses).toHaveLength(1);
+  });
+
+  it('holds a queued record for review when the trip unit is not TWD, sending nothing', async () => {
+    const h = await harness();
+    await h.enqueue(1);
+    h.hook(async (path) =>
+      path.endsWith('/expense-options')
+        ? Response.json({ data: { ...options, ledger: { baseCurrency: 'USD', moneyScale: 2 } } })
+        : undefined
+    );
+    await h.queue.synchronize(h.scope);
+    expect(await h.queue.list(h.scope)).toMatchObject([
+      { status: 'attention', reason: 'currency' },
+    ]);
+    expect(h.calls.filter((c) => c.path.endsWith('/preview'))).toEqual([]);
+    expect(h.server.posts()).toEqual([]);
+    expect(await h.pending.list(h.scope)).toEqual([]);
+  });
 });

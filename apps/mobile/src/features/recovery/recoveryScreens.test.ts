@@ -173,6 +173,7 @@ const queueRecord = (status: QueuedExpense['status'] = 'queued'): QueuedExpense 
     category: 'food',
   },
   roster: ['member'],
+  apiVersion: 2,
   status,
   reason: null,
   nextAt: 0,

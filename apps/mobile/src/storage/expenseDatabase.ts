@@ -22,7 +22,7 @@ export async function transaction<T>(db: SqlDatabase, task: () => Promise<T>): P
   }
 }
 
-const SCHEMA_VERSION = 9;
+const SCHEMA_VERSION = 10;
 /** Central, additive migration: the original C table and every pending request are retained. */
 export function migrateExpenseDatabase(db: SqlDatabase): Promise<void> {
   return databaseTask(db, async () => {
@@ -115,6 +115,11 @@ export function migrateExpenseDatabase(db: SqlDatabase): Promise<void> {
           ALTER TABLE pending_mutation ADD COLUMN money_scale INTEGER NOT NULL DEFAULT 2;
           UPDATE pending_mutation SET base_currency = 'TWD';
         `);
+      // Queued D records written before B5c-2 keep their v1 options / preview / write.
+      if (version < 10)
+        await db.execAsync(
+          'ALTER TABLE expense_queue ADD COLUMN api_version INTEGER NOT NULL DEFAULT 1;'
+        );
       await db.execAsync(`PRAGMA user_version = ${SCHEMA_VERSION}`);
     });
   });

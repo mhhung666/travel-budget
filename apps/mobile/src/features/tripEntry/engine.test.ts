@@ -277,7 +277,7 @@ it('schema 6 upgrade preserves C/D rows and account waits, failure rolls back th
   const c = await createPendingExpenseStore(h.db);
   await c.pause!(scope, key, 'busy', 220000);
   await h.db.execAsync(
-    `INSERT INTO draft_trip VALUES ('env','actor','trip','name','{}',1,0); DROP TABLE pending_mutation; ALTER TABLE pending_expense DROP COLUMN api_version; ALTER TABLE pending_expense DROP COLUMN base_currency; ALTER TABLE pending_expense DROP COLUMN money_scale; PRAGMA user_version = 6;`
+    `INSERT INTO draft_trip VALUES ('env','actor','trip','name','{}',1,0); DROP TABLE pending_mutation; ALTER TABLE pending_expense DROP COLUMN api_version; ALTER TABLE pending_expense DROP COLUMN base_currency; ALTER TABLE pending_expense DROP COLUMN money_scale; ALTER TABLE expense_queue DROP COLUMN api_version; PRAGMA user_version = 6;`
   );
   const original = h.db.execAsync;
   const broken = {
@@ -295,5 +295,5 @@ it('schema 6 upgrade preserves C/D rows and account waits, failure rolls back th
   const upgraded = await createMutationStore(h.db);
   expect(await upgraded.retryAt(scope)).toBe(220000);
   expect(await h.db.getFirstAsync('SELECT name FROM draft_trip')).toEqual({ name: 'name' });
-  expect(await h.db.getFirstAsync('PRAGMA user_version')).toEqual({ user_version: 9 });
+  expect(await h.db.getFirstAsync('PRAGMA user_version')).toEqual({ user_version: 10 });
 });

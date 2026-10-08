@@ -14,4 +14,4 @@ Timeout 與取消涵蓋完整回應內容讀取；JSON 語法錯誤與傳輸中�
 
 refresh 的 HTTP／傳輸錯誤保留 code、status、Retry-After，另標記 `ApiError.source = refresh`；不能當成原資源請求的寫入拒絕。晚到的錯誤先檢查登入世代。
 
-B5c-1 起所有新請求（含 auth／帳號流程）預設 v2，不依路徑猜版本，也不在 v2 不可用時降回 v1。`api.environment` 是持久化環境身分：設定可寫 `/api/v1` 或 `/api/v2`，都正規化為原 `/api/v1` 字串，SecureStore、SQLite scope、Query key 與共用 429 不分裂；`transport(version)` 只決定送出 URL。保存的舊操作只經 `recovery.ts` 選原版（C／E 原紀錄、D 佇列在 B5c-2 前維持 v1）；HTTP schema 仍取共用 contracts。相容與單位規則見 [B3 架構](../../docs/ARCHITECTURE.md#b3mobile-帳本與舊資料恢復)。
+B5c-1 起所有新請求（含 auth／帳號流程）預設 v2，不依路徑猜版本，也不在 v2 不可用時降回 v1。`api.environment` 是持久化環境身分：設定可寫 `/api/v1` 或 `/api/v2`，都正規化為原 `/api/v1` 字串，SecureStore、SQLite scope、Query key 與共用 429 不分裂；`transport(version)` 只決定送出 URL。保存的舊操作只經 `recovery.ts` 選原版（C／E 原紀錄、D 佇列依入列時保存的版本；B5c-2 前入列者為 v1）；HTTP schema 仍取共用 contracts。相容與單位規則見 [B3 架構](../../docs/ARCHITECTURE.md#b3mobile-帳本與舊資料恢復)。

@@ -416,3 +416,64 @@ test('B4 v2 confirmed mutations drop one reply, preserve UUID bytes and leave pr
     await new Promise((resolve) => upstream.close(resolve));
   }
 });
+
+test('the conflict fault refuses the lookup after the POST 409, never the v2 pre-send check', async () => {
+  let forwarded = [];
+  const upstream = createServer((req, res) => {
+    forwarded.push(`${req.method} ${req.url}`);
+    req.resume();
+    req.on('end', () => res.end(JSON.stringify({ data: { status: 'not_found' } })));
+  });
+  await new Promise((resolve) => upstream.listen(0, '127.0.0.1', resolve));
+  const events = [];
+  const proxy = await startNetworkProxy(
+    `http://127.0.0.1:${upstream.address().port}/api/v1`,
+    0,
+    (event) => events.push(event)
+  );
+  const trip = 'a'.repeat(24);
+  const id = '12345678-1234-4234-8234-123456789012';
+  const command = (name) =>
+    fetch(`${proxy.url}/__network/${name}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${proxy.token}` },
+    });
+  const lookup = (v) => fetch(`${proxy.url}/api/v${v}/trips/${trip}/expense-requests/${id}`);
+  const create = (v) =>
+    fetch(`${proxy.url}/api/v${v}/trips/${trip}/expenses`, {
+      method: 'POST',
+      body: JSON.stringify({ client_request_id: id }),
+    });
+  try {
+    // v2: check → POST → follow-up lookup.
+    await command('online-post-409-lookup-403');
+    assert.equal((await lookup(2)).status, 200, 'the pre-send check passes through');
+    assert.equal((await create(2)).status, 409);
+    assert.equal((await lookup(2)).status, 403);
+    assert.equal((await lookup(2)).status, 200, 'each fault is used once');
+    // v1: POST → follow-up lookup, with no check before it.
+    await command('online-post-409-lookup-403');
+    assert.equal((await create(1)).status, 409);
+    assert.equal((await lookup(1)).status, 403);
+    // The follow-up is never armed without its POST, and `online` stands it down.
+    await command('online-post-409-lookup-403');
+    await command('online');
+    assert.equal((await lookup(2)).status, 200);
+    assert.equal((await create(2)).status, 200);
+    assert.equal((await lookup(2)).status, 200);
+    assert.deepEqual(
+      events.filter((e) => e.injected).map((e) => [e.method, e.status]),
+      [
+        ['POST', 409],
+        ['GET', 403],
+        ['POST', 409],
+        ['GET', 403],
+      ]
+    );
+    assert.equal(forwarded.filter((r) => r.startsWith('POST')).length, 1);
+  } finally {
+    await proxy.close();
+    upstream.closeAllConnections();
+    await new Promise((resolve) => upstream.close(resolve));
+  }
+});

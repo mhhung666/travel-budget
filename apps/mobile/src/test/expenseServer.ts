@@ -23,7 +23,9 @@ export type Fault =
       bare?: boolean;
     }
   /** A 200 whose body is not the contract, after committing. */
-  | { kind: 'garbage' };
+  | { kind: 'garbage' }
+  /** Nothing goes wrong; it only lets one matching request through ahead of later faults. */
+  | { kind: 'pass' };
 
 interface Receipt {
   fingerprint: string;

@@ -16,6 +16,8 @@ const queueSchema = z.object({
   input: expenseDraftSchema,
   // Order is part of the equal-split rule: it determines who receives the extra cent.
   roster: z.array(z.string()),
+  // Fixed when queued: options, preview and the write all use it, and C resumes on it.
+  apiVersion: z.union([z.literal(1), z.literal(2)]),
   status: z.enum(['queued', 'attention', 'prepared', 'resolved']),
   reason: z.string().nullable(),
   nextAt: z.number(),
@@ -40,6 +42,7 @@ type Row = {
   trip_id: string;
   input: string;
   roster: string;
+  api_version: number;
   status: string;
   reason: string | null;
   next_at: number;
@@ -83,6 +86,7 @@ export async function createExpenseQueueStore(db: SqlDatabase): Promise<ExpenseQ
             tripId: r.trip_id,
             input: JSON.parse(r.input),
             roster: JSON.parse(r.roster),
+            apiVersion: r.api_version,
             status: r.status,
             reason: r.reason,
             nextAt: r.next_at,
@@ -119,7 +123,8 @@ export async function createExpenseQueueStore(db: SqlDatabase): Promise<ExpenseQ
           )
             throw new Error('DRAFT_CHANGED');
           await db.runAsync(
-            "INSERT INTO expense_queue (environment, account_id, client_request_id, trip_id, input, roster, status, reason, next_at, created_at) VALUES (?, ?, ?, ?, ?, ?, 'queued', NULL, 0, ?)",
+            // New queued records are v2 from their first preview; older rows stay v1 (schema 10).
+            "INSERT INTO expense_queue (environment, account_id, client_request_id, trip_id, input, roster, status, reason, next_at, created_at, api_version) VALUES (?, ?, ?, ?, ?, ?, 'queued', NULL, 0, ?, 2)",
             draft.environment,
             draft.accountId,
             id,
@@ -145,8 +150,16 @@ export async function createExpenseQueueStore(db: SqlDatabase): Promise<ExpenseQ
           if (!isTwdQueueDraft(expenseDraftSchema.parse(JSON.parse(live.input))))
             throw new Error('UNSUPPORTED_QUEUE_CURRENCY');
           const body = expenseCreateInput.parse(payload);
-          if (body.currency !== 'TWD' || body.exchange_rate !== 1 || 'base_currency' in body)
+          if (
+            body.currency !== 'TWD' ||
+            body.exchange_rate !== 1 ||
+            ('base_currency' in body && body.base_currency !== 'TWD')
+          )
             throw new Error('UNSUPPORTED_QUEUE_CURRENCY');
+          // The stored version decides, never the caller: a v1 record cannot turn into v2.
+          const version = live.api_version;
+          if (version !== r.apiVersion || (version === 2) !== 'base_currency' in body)
+            throw new Error('QUEUE_VERSION_CHANGED');
           if (body.client_request_id !== r.clientRequestId) throw new Error('QUEUE_ID_CHANGED');
           // Wait behind C's unresolved request of this trip; no duplicate raw entry is created.
           const pending = await db.getFirstAsync(
@@ -164,12 +177,13 @@ export async function createExpenseQueueStore(db: SqlDatabase): Promise<ExpenseQ
           if (mutation) return false;
           if (pending) return false;
           await db.runAsync(
-            "INSERT INTO pending_expense (environment, account_id, client_request_id, trip_id, payload, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'sending', ?, ?)",
+            "INSERT INTO pending_expense (environment, account_id, client_request_id, trip_id, payload, status, created_at, updated_at, api_version, base_currency, money_scale) VALUES (?, ?, ?, ?, ?, 'sending', ?, ?, ?, 'TWD', 2)",
             ...args(r),
             r.tripId,
             JSON.stringify(body),
             r.createdAt,
-            Date.now()
+            Date.now(),
+            version
           );
           await db.runAsync(
             `UPDATE expense_queue SET status = 'prepared', reason = NULL, next_at = 0 WHERE ${WHERE}`,

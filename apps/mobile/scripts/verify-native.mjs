@@ -13,6 +13,7 @@ import { createAuthTrace, isRefreshPath, verifyNaturalRefresh } from './auth-tra
 import {
   entryFlows,
   entryReceiptExpectations,
+  verifyConflictTraffic,
   verifyEntryTraffic,
   verifyEntryDatabase,
 } from './entry-trace.mjs';
@@ -980,6 +981,7 @@ try {
         assert.equal(recovered.pending_expense.length, 0);
       }
       if (flow === 'queue-conflict') {
+        verifyConflictTraffic(authTrace.events.slice(from));
         const before = await readState('conflict-before');
         const after = await readState('conflict-after');
         assert.equal(before.expense_queue.length, 1);

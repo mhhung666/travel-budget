@@ -153,6 +153,25 @@ const expectations = {
 };
 export const entryFlows = Object.keys(expectations);
 
+/**
+ * D `queue-conflict`: the injected POST 409 is answered, and the first lookup after it is the
+ * injected 403. v2 asks for its receipt before the POST (split off as the check); v1 does not.
+ */
+export function verifyConflictTraffic(events) {
+  const traffic = expenseTraffic(events);
+  const { writes, lookups } = traffic;
+  assert.deepEqual(statuses(writes), [409], 'one write, refused as a conflict');
+  assert.equal(writes[0].injected, true, 'the conflict was the injected one');
+  assert.equal(traffic.checks.length, traffic.version === 2 ? 1 : 0);
+  assert(
+    lookups.every((event) => after(events, writes[0], event)),
+    'no recovery lookup before the write'
+  );
+  assert.equal(lookups[0]?.status, 403, 'the lookup following the conflict was refused');
+  assert.equal(lookups[0].injected, true, 'the refusal was the injected one');
+  return traffic;
+}
+
 /** Throws when the traffic of one flow contradicts what that scenario promises. */
 export function verifyEntryTraffic(flow, events, context) {
   assert(Object.hasOwn(expectations, flow), `No traffic expectation for ${flow}`);

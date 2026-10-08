@@ -1,4 +1,5 @@
-import { QUEUED_EXPENSE_VERSION } from '@/api/recovery';
+import { savedQueueVersion } from '@/api/recovery';
+import { baseCurrency } from '@/api/ledger';
 import { ApiError } from '@/api/client';
 import {
   expenseOptionsSchema,
@@ -118,6 +119,18 @@ export class ExpenseQueue {
     } else await store.pause(r, 'storage', this.now() + 30_000);
     return false;
   }
+  /** False when the run must stop; a 409 without a receipt only blocks its own trip. */
+  private async sent(
+    store: ExpenseQueueStore,
+    r: QueuedExpense,
+    outcome: EntryOutcome,
+    blockedTrips: Set<string>
+  ) {
+    if (await this.outcome(store, r, outcome)) return true;
+    if (outcome.kind !== 'unconfirmed' || outcome.reason !== 'conflict') return false;
+    blockedTrips.add(r.tripId);
+    return true;
+  }
   private async run(scope: PendingScope) {
     if (!this.deps.active(scope)) return;
     const store = await this.deps.store();
@@ -151,8 +164,13 @@ export class ExpenseQueue {
         };
         if (r.status === 'prepared') {
           // After a crash / lost response, ask before repeating the frozen UUID and payload.
-          const found = await this.deps.entry.lookup(scope, r.clientRequestId);
+          // C's v2 retry asks by itself first; a 409 under investigation is only looked up.
+          const resend = savedQueueVersion(r) === 2 && r.reason !== 'conflict';
+          const found = resend
+            ? await this.deps.entry.retry(scope, r.clientRequestId, beforeSend)
+            : await this.deps.entry.lookup(scope, r.clientRequestId);
           if (
+            !resend &&
             found.kind === 'unconfirmed' &&
             found.reason === 'not-found' &&
             this.deps.active(scope)
@@ -164,24 +182,29 @@ export class ExpenseQueue {
               continue;
             }
             const sent = await this.deps.entry.retry(scope, r.clientRequestId, beforeSend);
-            if (!(await this.outcome(store, r, sent))) {
-              if (sent.kind !== 'unconfirmed' || sent.reason !== 'conflict') return;
-              blockedTrips.add(r.tripId);
-            }
+            if (!(await this.sent(store, r, sent, blockedTrips))) return;
+          } else if (resend) {
+            if (!(await this.sent(store, r, found, blockedTrips))) return;
           } else if (!(await this.outcome(store, r, found))) return;
           continue;
         }
         try {
           const path = `/trips/${encodeURIComponent(r.tripId)}`;
+          const apiVersion = savedQueueVersion(r);
           const options = await this.deps.request(
             scope.accountId,
             `${path}/expense-options`,
             expenseOptionsSchema,
-            { apiVersion: QUEUED_EXPENSE_VERSION }
+            { apiVersion }
           );
           if (!this.deps.active(scope)) return;
           if (!stillAuthorized()) {
             await store.pause(r, 'access', 0, true);
+            continue;
+          }
+          // The queue only holds TWD ledgers; a trip whose unit is not TWD needs review.
+          if (baseCurrency(options) !== 'TWD') {
+            await store.pause(r, 'currency', 0, true);
             continue;
           }
           if (
@@ -196,7 +219,7 @@ export class ExpenseQueue {
             `${path}/expenses/preview`,
             expensePreviewSchema,
             {
-              apiVersion: QUEUED_EXPENSE_VERSION,
+              apiVersion,
               method: 'POST',
               body: previewInputOf(r.input, options),
             }
@@ -223,10 +246,7 @@ export class ExpenseQueue {
             return;
           }
           const sent = await this.deps.entry.retry(scope, r.clientRequestId, beforeSend);
-          if (!(await this.outcome(store, r, sent))) {
-            if (sent.kind !== 'unconfirmed' || sent.reason !== 'conflict') return;
-            blockedTrips.add(r.tripId);
-          }
+          if (!(await this.sent(store, r, sent, blockedTrips))) return;
         } catch (error) {
           // Before prepare no write was attempted; denial requires explicit review, credentials pause.
           const live = (await store.list(scope)).find(

@@ -6,6 +6,7 @@
 
 ### 2026-10-09
 
+- Mobile B5c-2：新 D 佇列原子保存 v2、全程同版交 C，舊列保留 v1；修正原生驗收工具與衝突故障注入。獨立審查及 Mobile 1,224 項＋工具 48 項、check／contracts／三平台匯出通過；原生衝突與升級操作未驗，見 [B 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#b-基準幣別驗收b1b2b3-實作交接)。
 - Mobile B5c-1：修正 v2 拒絕後重送的 Maestro／DB 驗收收據計數，保留 v1 預期；補實際檢查腳本與版本一致性回歸，Mobile 1,215 項＋工具 46 項、check／contracts／三平台匯出通過。原生裝置／升級操作仍待驗，見 [B 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#b-基準幣別驗收b1b2b3-實作交接)。
 
 ### 2026-10-08

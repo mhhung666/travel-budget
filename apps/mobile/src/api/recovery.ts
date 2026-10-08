@@ -16,5 +16,6 @@ export const savedExpenseVersion = (record: { apiVersion?: Version; payload: obj
 export const savedMutationVersion = (record: { apiVersion?: Version }): Version =>
   record.apiVersion ?? 1;
 
-/** D queued expenses keep their v1 envelope until B5c-2 moves the queue. */
-export const QUEUED_EXPENSE_VERSION: Version = 1;
+/** D queued expenses: a record queued before B5c-2 keeps v1 from options through its write. */
+export const savedQueueVersion = (record: { apiVersion?: Version }): Version =>
+  record.apiVersion ?? 1;

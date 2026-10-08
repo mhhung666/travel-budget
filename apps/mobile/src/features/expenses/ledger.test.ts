@@ -3,7 +3,7 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ApiClient, ApiError, validateBaseUrl } from '@/api/client';
-import { QUEUED_EXPENSE_VERSION, savedExpenseVersion, savedMutationVersion } from '@/api/recovery';
+import { savedExpenseVersion, savedMutationVersion, savedQueueVersion } from '@/api/recovery';
 import { baseCurrency } from '@/api/ledger';
 import {
   expenseOptionsSchema,
@@ -327,7 +327,8 @@ describe('B5c-1 environment and recovery versions', () => {
     expect(savedExpenseVersion({ apiVersion: 1, payload: body() })).toBe(1);
     expect(savedMutationVersion({})).toBe(1);
     expect(savedMutationVersion({ apiVersion: 2 })).toBe(2);
-    expect(QUEUED_EXPENSE_VERSION).toBe(1);
+    expect(savedQueueVersion({})).toBe(1);
+    expect(savedQueueVersion({ apiVersion: 2 })).toBe(2);
   });
   it('overrides the v2 default only through the recovery adapter', () => {
     const root = join(process.cwd(), 'src');
@@ -412,7 +413,7 @@ describe('B3 SQLite and frozen recovery', () => {
     const before = await db.getFirstAsync('SELECT payload FROM pending_expense');
     const eBefore = await db.getFirstAsync('SELECT payload FROM pending_mutation');
     await db.execAsync(
-      'ALTER TABLE pending_expense DROP COLUMN api_version; ALTER TABLE pending_expense DROP COLUMN base_currency; ALTER TABLE pending_expense DROP COLUMN money_scale; ALTER TABLE pending_mutation DROP COLUMN api_version; ALTER TABLE pending_mutation DROP COLUMN base_currency; ALTER TABLE pending_mutation DROP COLUMN money_scale; PRAGMA user_version=8;'
+      'ALTER TABLE pending_expense DROP COLUMN api_version; ALTER TABLE pending_expense DROP COLUMN base_currency; ALTER TABLE pending_expense DROP COLUMN money_scale; ALTER TABLE pending_mutation DROP COLUMN api_version; ALTER TABLE pending_mutation DROP COLUMN base_currency; ALTER TABLE pending_mutation DROP COLUMN money_scale; ALTER TABLE expense_queue DROP COLUMN api_version; PRAGMA user_version=8;'
     );
     const broken = {
       ...db,
@@ -431,7 +432,7 @@ describe('B3 SQLite and frozen recovery', () => {
     expect(await (await createMutationStore(db)).retryAt(scope)).toBeGreaterThan(
       Date.now() + 110000
     );
-    expect(await db.getFirstAsync('PRAGMA user_version')).toEqual({ user_version: 9 });
+    expect(await db.getFirstAsync('PRAGMA user_version')).toEqual({ user_version: 10 });
   });
   it.each([1, 2] as const)(
     'C restores original v%s UUID and endpoint after a lost answer',

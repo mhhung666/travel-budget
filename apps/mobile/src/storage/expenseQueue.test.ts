@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { hex, uuidOf } from '@/test/expenseServer';
 import { memoryDatabase } from '@/test/sqlite';
 import { createPendingExpenseStore, type SqlDatabase } from './pendingExpenses';
@@ -31,8 +31,13 @@ const draft = (n = 1): StoredExpenseDraft => ({
   },
 });
 const preview = { amount: 100, splits: [{ userId: hex(1), displayName: 'Ann', shareAmount: 100 }] };
-const payload = (id: string) => ({
-  ...confirmedFields(draft().input, options, preview),
+const ledger = { baseCurrency: 'TWD', moneyScale: 2 as const };
+// New queued records are v2 (B5c-2); records queued by an older release stay v1.
+const v2preview = { ...preview, ledger, originalAmount: 100, currency: 'TWD', exchangeRate: 1 };
+const payload = (id: string, version: 1 | 2 = 2) => ({
+  ...(version === 2
+    ? confirmedFields(draft().input, { ...options, ledger }, v2preview)
+    : confirmedFields(draft().input, options, preview)),
   client_request_id: id,
 });
 const opened: (SqlDatabase & { close(): void })[] = [];
@@ -61,6 +66,11 @@ async function setup(db = open()) {
   const record = (await queue.list(scope))[0];
   return { db, pending, queue, record };
 }
+/** Relabels the queued row as one written before B5c-2, when every queued record was v1. */
+async function legacy(h: Awaited<ReturnType<typeof setup>>) {
+  await h.db.runAsync('UPDATE expense_queue SET api_version = 1');
+  return { ...h, record: (await h.queue.list(scope))[0] };
+}
 it('upgrades schema 3 with drafts, pending and trip snapshots intact', async () => {
   const h = await setup();
   await h.queue.discard(h.record);
@@ -69,7 +79,7 @@ it('upgrades schema 3 with drafts, pending and trip snapshots intact', async () 
     ...scope,
     tripId: hex(200),
     clientRequestId: uuidOf(200),
-    payload: payload(uuidOf(200)),
+    payload: payload(uuidOf(200), 1),
     status: 'unconfirmed',
     createdAt: 1000,
     updatedAt: 1000,
@@ -84,7 +94,7 @@ it('upgrades schema 3 with drafts, pending and trip snapshots intact', async () 
   expect((await h.pending.drafts.load(scope, tripId))?.draftId).toBe(uuidOf(2));
   expect(await h.pending.list(scope)).toHaveLength(1);
   expect((await trips.get(scope, tripId))?.options).toEqual(options);
-  expect(await h.db.getFirstAsync('PRAGMA user_version')).toEqual({ user_version: 9 });
+  expect(await h.db.getFirstAsync('PRAGMA user_version')).toEqual({ user_version: 10 });
 });
 it('isolates queue operations by environment and account', async () => {
   const h = await setup();
@@ -206,8 +216,8 @@ it.each([
   db.close();
   opened.splice(opened.indexOf(db), 1);
   const sql = preparing
-    ? "INSERT INTO pending_expense (environment, account_id, client_request_id, trip_id, payload, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'sending', ?, ?);"
-    : "INSERT INTO expense_queue (environment, account_id, client_request_id, trip_id, input, roster, status, reason, next_at, created_at) VALUES (?, ?, ?, ?, ?, ?, 'queued', NULL, 0, ?);";
+    ? "INSERT INTO pending_expense (environment, account_id, client_request_id, trip_id, payload, status, created_at, updated_at, api_version, base_currency, money_scale) VALUES (?, ?, ?, ?, ?, 'sending', ?, ?, 2, 'TWD', 2);"
+    : "INSERT INTO expense_queue (environment, account_id, client_request_id, trip_id, input, roster, status, reason, next_at, created_at, api_version) VALUES (?, ?, ?, ?, ?, ?, 'queued', NULL, 0, ?, 2);";
   const params = preparing
     ? [
         scope.environment,
@@ -289,12 +299,12 @@ it('cannot reuse a queue record identifier to mutate another trip', async () => 
 it.each(['busy', 'conflict', 'pending'])(
   'upgrades schema 4 with %s waits and frozen records intact',
   async (reason) => {
-    const h = await setup();
-    await h.queue.prepare(h.record, payload(h.record.clientRequestId));
+    const h = await legacy(await setup());
+    await h.queue.prepare(h.record, payload(h.record.clientRequestId, 1));
     await h.queue.pause(h.record, reason, 120_000);
     const frozen = await h.pending.list(scope);
     await h.db.execAsync(
-      'ALTER TABLE expense_queue DROP COLUMN rate_limit_until; DROP TABLE expense_rate_limit; DROP TABLE pending_mutation; ALTER TABLE pending_expense DROP COLUMN api_version; ALTER TABLE pending_expense DROP COLUMN base_currency; ALTER TABLE pending_expense DROP COLUMN money_scale; PRAGMA user_version = 4'
+      'ALTER TABLE expense_queue DROP COLUMN api_version; ALTER TABLE expense_queue DROP COLUMN rate_limit_until; DROP TABLE expense_rate_limit; DROP TABLE pending_mutation; ALTER TABLE pending_expense DROP COLUMN api_version; ALTER TABLE pending_expense DROP COLUMN base_currency; ALTER TABLE pending_expense DROP COLUMN money_scale; PRAGMA user_version = 4'
     );
     const upgraded = await createExpenseQueueStore(h.db);
     expect(await upgraded.list(scope)).toMatchObject([
@@ -307,16 +317,16 @@ it.each(['busy', 'conflict', 'pending'])(
       },
     ]);
     expect(await h.pending.list(scope)).toEqual(frozen);
-    expect(await h.db.getFirstAsync('PRAGMA user_version')).toEqual({ user_version: 9 });
+    expect(await h.db.getFirstAsync('PRAGMA user_version')).toEqual({ user_version: 10 });
   }
 );
 
 it('rolls back a failed schema 4 wait migration and safely retries without losing data', async () => {
-  const h = await setup();
-  await h.queue.prepare(h.record, payload(h.record.clientRequestId));
+  const h = await legacy(await setup());
+  await h.queue.prepare(h.record, payload(h.record.clientRequestId, 1));
   await h.queue.pause(h.record, 'conflict', 120_000);
   await h.db.execAsync(
-    'ALTER TABLE expense_queue DROP COLUMN rate_limit_until; DROP TABLE expense_rate_limit; DROP TABLE pending_mutation; ALTER TABLE pending_expense DROP COLUMN api_version; ALTER TABLE pending_expense DROP COLUMN base_currency; ALTER TABLE pending_expense DROP COLUMN money_scale; PRAGMA user_version = 4'
+    'ALTER TABLE expense_queue DROP COLUMN api_version; ALTER TABLE expense_queue DROP COLUMN rate_limit_until; DROP TABLE expense_rate_limit; DROP TABLE pending_mutation; ALTER TABLE pending_expense DROP COLUMN api_version; ALTER TABLE pending_expense DROP COLUMN base_currency; ALTER TABLE pending_expense DROP COLUMN money_scale; PRAGMA user_version = 4'
   );
   const broken: SqlDatabase = {
     ...h.db,
@@ -424,7 +434,7 @@ it('migrates schema 5 deadlines by account and environment and rolls back a fail
   await h.queue.pause(records[0], 'busy', 120_000);
   await h.queue.pause(records[1], 'busy', 90_000);
   await h.db.execAsync(
-    'DROP TABLE expense_rate_limit; DROP TABLE pending_mutation; ALTER TABLE pending_expense DROP COLUMN api_version; ALTER TABLE pending_expense DROP COLUMN base_currency; ALTER TABLE pending_expense DROP COLUMN money_scale; PRAGMA user_version = 5'
+    'ALTER TABLE expense_queue DROP COLUMN api_version; DROP TABLE expense_rate_limit; DROP TABLE pending_mutation; ALTER TABLE pending_expense DROP COLUMN api_version; ALTER TABLE pending_expense DROP COLUMN base_currency; ALTER TABLE pending_expense DROP COLUMN money_scale; PRAGMA user_version = 5'
   );
   const broken: SqlDatabase = {
     ...h.db,
@@ -470,4 +480,95 @@ it('rejects foreign draft enqueue and frozen preparation at the SQLite boundary'
   ).rejects.toThrow('UNSUPPORTED_QUEUE_CURRENCY');
   expect(await pending.list(scope)).toEqual([]);
   expect((await queue.list(scope))[0].status).toBe('queued');
+});
+
+describe('B5c-2 queued version', () => {
+  it('stores a new queue record as v2 and hands C the same version and unit', async () => {
+    const h = await setup();
+    expect(h.record.apiVersion).toBe(2);
+    expect(await h.queue.prepare(h.record, payload(h.record.clientRequestId))).toBe(true);
+    expect(await h.pending.list(scope)).toMatchObject([
+      {
+        clientRequestId: h.record.clientRequestId,
+        apiVersion: 2,
+        baseCurrency: 'TWD',
+        moneyScale: 2,
+        payload: payload(h.record.clientRequestId),
+      },
+    ]);
+  });
+  it('keeps a pre-B5c-2 record on v1 and refuses to switch either record version', async () => {
+    const h = await legacy(await setup());
+    expect(h.record.apiVersion).toBe(1);
+    // Neither a v2 body nor a caller claiming v2 relabels the stored v1 record.
+    for (const [record, body] of [
+      [h.record, payload(h.record.clientRequestId)],
+      [{ ...h.record, apiVersion: 2 as const }, payload(h.record.clientRequestId, 1)],
+      [{ ...h.record, apiVersion: 2 as const }, payload(h.record.clientRequestId)],
+    ] as const)
+      await expect(h.queue.prepare(record, body)).rejects.toThrow('QUEUE_VERSION_CHANGED');
+    const fresh = await legacy(await setup());
+    await expect(
+      fresh.queue.prepare({ ...fresh.record, apiVersion: 2 }, payload(fresh.record.clientRequestId))
+    ).rejects.toThrow('QUEUE_VERSION_CHANGED');
+    expect(await h.pending.list(scope)).toEqual([]);
+    expect(await h.queue.prepare(h.record, payload(h.record.clientRequestId, 1))).toBe(true);
+    expect(await h.pending.list(scope)).toMatchObject([{ apiVersion: 1, baseCurrency: 'TWD' }]);
+    // And a v2 record never accepts a v1 body.
+    const v2 = await setup(open());
+    await expect(
+      v2.queue.prepare(v2.record, payload(v2.record.clientRequestId, 1))
+    ).rejects.toThrow('QUEUE_VERSION_CHANGED');
+  });
+  it('refuses a v2 body for another base currency', async () => {
+    const h = await setup();
+    await expect(
+      h.queue.prepare(h.record, { ...payload(h.record.clientRequestId), base_currency: 'USD' })
+    ).rejects.toThrow('UNSUPPORTED_QUEUE_CURRENCY');
+    expect(await h.pending.list(scope)).toEqual([]);
+  });
+  it('upgrades schema 9 rows to v1 atomically and keeps them across reopening the file', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'tb-queue-v10-'));
+    dirs.push(dir);
+    const path = join(dir, 'expense.db');
+    const h = await legacy(await setup(open(path)));
+    await h.pending.drafts.start({ ...draft(2), tripId: hex(200) });
+    await h.queue.enqueue({ ...draft(2), tripId: hex(200) }, options, uuidOf(101));
+    const [first, second] = await h.queue.list(scope);
+    await h.queue.prepare(first, payload(first.clientRequestId, 1));
+    const frozen = await h.pending.list(scope);
+    await h.db.execAsync(
+      'ALTER TABLE expense_queue DROP COLUMN api_version; PRAGMA user_version = 9'
+    );
+    const broken: SqlDatabase = {
+      ...h.db,
+      execAsync: async (sql) => {
+        await h.db.execAsync(sql);
+        if (sql.includes('expense_queue ADD COLUMN api_version')) throw new Error('disk full');
+      },
+    };
+    await expect(createExpenseQueueStore(broken)).rejects.toThrow('disk full');
+    expect(await h.db.getFirstAsync('PRAGMA user_version')).toEqual({ user_version: 9 });
+    expect(
+      await h.db.getAllAsync(
+        "SELECT name FROM pragma_table_info('expense_queue') WHERE name = 'api_version'"
+      )
+    ).toEqual([]);
+    h.db.close();
+    opened.splice(opened.indexOf(h.db as never), 1);
+    const reopened = open(path);
+    const queue = await createExpenseQueueStore(reopened);
+    const pending = await createPendingExpenseStore(reopened);
+    expect(await reopened.getFirstAsync('PRAGMA user_version')).toEqual({ user_version: 10 });
+    // Both the prepared and the still-queued record were written as v1 and stay v1.
+    expect(await queue.list(scope)).toMatchObject([
+      { clientRequestId: first.clientRequestId, status: 'prepared', apiVersion: 1 },
+      { clientRequestId: second.clientRequestId, status: 'queued', apiVersion: 1 },
+    ]);
+    expect(await pending.list(scope)).toEqual(frozen);
+    // Records queued after the upgrade are v2.
+    await pending.drafts.start({ ...draft(3), tripId: hex(300) });
+    await queue.enqueue({ ...draft(3), tripId: hex(300) }, options, uuidOf(102));
+    expect((await queue.list(scope)).map((r) => r.apiVersion)).toEqual([1, 1, 2]);
+  });
 });

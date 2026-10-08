@@ -27,6 +27,9 @@ export async function startNetworkProxy(apiUrl, port, observe = () => {}, native
   // thrown away. `offline` also takes the connection down afterwards, as a dying network would.
   let armed = null;
   const injections = new Map();
+  // Faults armed only once another injected fault has fired: v2 asks for the receipt before its
+  // POST, so a lookup fault meant for the follow-up must not hit that pre-send check.
+  const followUps = new Map();
   const counts = { forwarded: 0, disconnect: 0, timeout: 0, dropped: 0 };
   const server = createServer((req, res) => {
     const reply = (status, body) => {
@@ -53,7 +56,7 @@ export async function startNetworkProxy(apiUrl, port, observe = () => {}, native
         'online-post-429': [['post', 429]],
         'online-post-409-lookup-403': [
           ['post', 409],
-          ['lookup', 403],
+          ['lookup', 403, 'post'],
         ],
         'online-lookup-429': [['lookup', 429]],
         'online-drop-response-offline': [],
@@ -62,7 +65,10 @@ export async function startNetworkProxy(apiUrl, port, observe = () => {}, native
         mode = 'online';
         armed = command === 'online-drop-response-offline' ? { offline: true } : null;
         injections.clear();
-        for (const [target, status] of atomicFaults[command]) injections.set(target, status);
+        followUps.clear();
+        for (const [target, status, after] of atomicFaults[command])
+          if (after) followUps.set(after, [...(followUps.get(after) ?? []), [target, status]]);
+          else injections.set(target, status);
         return reply(200, { injected: command });
       }
       if (
@@ -94,6 +100,7 @@ export async function startNetworkProxy(apiUrl, port, observe = () => {}, native
         if (command === 'online') {
           armed = null;
           injections.clear();
+          followUps.clear();
         }
       }
       return reply(200, { mode, armed: armed !== null });
@@ -152,6 +159,9 @@ export async function startNetworkProxy(apiUrl, port, observe = () => {}, native
     const injected = injections.get(faultTarget);
     if (injected) {
       injections.delete(faultTarget);
+      for (const [target, status] of followUps.get(faultTarget) ?? [])
+        injections.set(target, status);
+      followUps.delete(faultTarget);
       req.resume();
       req.on('end', () => {
         observe({

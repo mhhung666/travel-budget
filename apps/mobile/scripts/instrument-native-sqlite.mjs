@@ -43,7 +43,12 @@ const queueFile = join(workspace, 'apps/mobile/src/features/expenseQueue/sync.ts
 const queueSource = await readFile(queueFile, 'utf8');
 const retryNeedle = `    return this.serial(scope, clientRequestId, async () => {
       const loaded = await this.load(scope, clientRequestId);
-      return 'store' in loaded ? this.post(loaded.store, loaded.record, beforeSend) : loaded;
+      if (!('store' in loaded)) return loaded;
+      if (savedExpenseVersion(loaded.record) === 2) {
+        const found = await this.lookupCore(loaded.store, loaded.record);
+        if (found.kind !== 'unconfirmed' || found.reason !== 'not-found') return found;
+      }
+      return this.post(loaded.store, loaded.record, beforeSend);
     });`;
 const prepareNeedle = `          if (!(await store.prepare(r, payload))) {
             await store.pause(r, 'pending', this.now() + 30_000);
@@ -83,11 +88,11 @@ await writeFile(
     clientSource
       .replace(
         '      options.beforeSend?.();',
-        '      await nativeRequestPause(this.baseUrl, path);\n      options.beforeSend?.();'
+        '      await nativeRequestPause(this.environment, path);\n      options.beforeSend?.();'
       )
       .replace(
         responseNeedle,
-        '      if (response.ok) await nativeRequestPause(this.baseUrl, path, true);\n      checkAborted(options.signal);\n      if (timedOut)'
+        '      if (response.ok) await nativeRequestPause(this.environment, path, true);\n      checkAborted(options.signal);\n      if (timedOut)'
       )
 );
 await writeFile(

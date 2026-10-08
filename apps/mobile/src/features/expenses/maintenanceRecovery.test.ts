@@ -182,7 +182,7 @@ it('E pending blocks D preparation while queued input and other trips are retain
     cKey
   );
   const item = (await queue.list(scope))[0];
-  expect(await queue.prepare(item, cFields)).toBe(false);
+  expect(await queue.prepare(item, { ...cFields, base_currency: 'TWD' })).toBe(false);
   expect((await queue.list(scope))[0].status).toBe('queued');
   expect(await c.list(scope)).toEqual([]);
 });
@@ -286,7 +286,7 @@ it('schema 7 upgrade preserves C/D, E1 rows and waits; failed ALTER rolls back',
   const c = await createPendingExpenseStore(h.db);
   await c.pause!(scope, key, 'busy', 220000);
   await h.db.execAsync(
-    'DROP INDEX pending_mutation_by_trip; ALTER TABLE pending_mutation DROP COLUMN trip_id; ALTER TABLE pending_expense DROP COLUMN api_version; ALTER TABLE pending_expense DROP COLUMN base_currency; ALTER TABLE pending_expense DROP COLUMN money_scale; ALTER TABLE pending_mutation DROP COLUMN api_version; ALTER TABLE pending_mutation DROP COLUMN base_currency; ALTER TABLE pending_mutation DROP COLUMN money_scale; PRAGMA user_version=7;'
+    'DROP INDEX pending_mutation_by_trip; ALTER TABLE pending_mutation DROP COLUMN trip_id; ALTER TABLE pending_expense DROP COLUMN api_version; ALTER TABLE pending_expense DROP COLUMN base_currency; ALTER TABLE pending_expense DROP COLUMN money_scale; ALTER TABLE pending_mutation DROP COLUMN api_version; ALTER TABLE pending_mutation DROP COLUMN base_currency; ALTER TABLE pending_mutation DROP COLUMN money_scale; ALTER TABLE expense_queue DROP COLUMN api_version; PRAGMA user_version=7;'
   );
   const original = h.db.execAsync;
   const broken = {
@@ -300,7 +300,7 @@ it('schema 7 upgrade preserves C/D, E1 rows and waits; failed ALTER rolls back',
   expect(await h.db.getFirstAsync('PRAGMA user_version')).toEqual({ user_version: 7 });
   await createMutationStore(h.db);
   expect(await h.store.retryAt(scope)).toBe(220000);
-  expect(await h.db.getFirstAsync('PRAGMA user_version')).toEqual({ user_version: 9 });
+  expect(await h.db.getFirstAsync('PRAGMA user_version')).toEqual({ user_version: 10 });
 });
 
 it('a rejected operation keeps only its own input across reopen for explicit fresh confirmation', async () => {

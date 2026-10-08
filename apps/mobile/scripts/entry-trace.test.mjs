@@ -6,6 +6,7 @@ import {
   entryFlows,
   entryReceiptExpectations,
   expenseTraffic,
+  verifyConflictTraffic,
   verifyEntryTraffic,
   verifyEntryDatabase,
 } from './entry-trace.mjs';
@@ -342,4 +343,27 @@ test('v2: recovery, refusal and session scenarios keep their order after the che
     v2(preview(404)),
     { ...refusedOptions(), path: `/api/v2/trips/${trip}/expense-options` },
   ]);
+});
+
+test('queue-conflict: the follow-up lookup after the injected 409 is the injected 403', () => {
+  const conflict = { status: 409, injected: true };
+  const refused = { injected: true };
+  verifyConflictTraffic([write(conflict), { ...lookup(403), ...refused }]);
+  verifyConflictTraffic([v2lookup(), v2write(conflict), { ...v2lookup(403), ...refused }]);
+  // The reviewer's case: the pre-send check got the 403, so the POST never left the phone.
+  assert.throws(() => verifyConflictTraffic([{ ...v2lookup(403), ...refused }]));
+  // A v2 POST without its check, an uninjected conflict, or a follow-up that was not refused.
+  assert.throws(() => verifyConflictTraffic([v2write(conflict), { ...v2lookup(403), ...refused }]));
+  assert.throws(() =>
+    verifyConflictTraffic([v2lookup(), v2write({ status: 409 }), { ...v2lookup(403), ...refused }])
+  );
+  assert.throws(
+    () => verifyConflictTraffic([v2lookup(), v2write(conflict), v2lookup()]),
+    /refused/
+  );
+  assert.throws(() => verifyConflictTraffic([v2lookup(), v2write(conflict), v2lookup(403)]));
+  // v1 never asks before its write.
+  assert.throws(() =>
+    verifyConflictTraffic([lookup(), write(conflict), { ...lookup(403), ...refused }])
+  );
 });
