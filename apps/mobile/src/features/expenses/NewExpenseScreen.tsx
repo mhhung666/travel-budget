@@ -1,7 +1,8 @@
 import { Disclosure } from '@/components/Disclosure';
 import { FormPage } from '@/components/screen';
 import { TripContext } from '@/features/navigation/TripContext';
-import { useEffect, useId, useReducer, useRef, useState } from 'react';
+import { useDraftCatalog } from '@/features/localDrafts/provider';
+import { useEffect, useId, useMemo, useReducer, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   InputAccessoryView,
@@ -56,7 +57,7 @@ import {
   previewFailure,
   previewReducer,
 } from './previewState';
-import { categoryLabel, expenseMemberLabel } from './rows';
+import { categoryLabel, createMemberLabelIndex, expenseMembers } from './rows';
 import { SavedExpense } from './SavedExpense';
 import { useExpenseDraft } from './useExpenseDraft';
 import type { DraftEditor } from './draftEditor';
@@ -87,13 +88,24 @@ function ScopedNewExpenseScreen({ tripId }: { tripId: string }) {
   const denyOptions = useDenyExpenseOptions(tripId);
   const pending = usePendingExpenses(tripId);
   const { scope } = useExpenseEntry();
+  const { catalog } = useDraftCatalog();
   const [submitting, setSubmitting] = useState(false);
   const [saved, setSaved] = useState<Saved | null>(null);
   const [banner, setBanner] = useState<Banner>(null);
   const [reasons, setReasons] = useState<Record<string, UnconfirmedReason>>({});
   const records = pending.data ?? [];
   // Never leave a previously cached member payload visible after access is denied.
-  const denied = isAccessDenied(options.error);
+  const denied = isAccessDenied(options.error) || !scope || !catalog.isVisible(scope, tripId);
+  const savedLabels = useMemo(
+    () =>
+      createMemberLabelIndex(
+        denied ? undefined : options.data?.members,
+        saved ? expenseMembers(saved.expense) : [],
+        scope?.accountId,
+        t
+      ),
+    [denied, options.data, saved, scope?.accountId, t]
+  );
   // Unconfirmed requests replace the form, but not while this screen is still sending one itself.
   const showPending = !saved && !submitting && records.length > 0;
   // Rereads the device list before the form gives way, so it never flashes back as idle.
@@ -104,7 +116,15 @@ function ScopedNewExpenseScreen({ tripId }: { tripId: string }) {
 
   const body = (() => {
     if (saved) {
-      return <SavedExpense saved={saved} tripId={tripId} onAnother={() => setSaved(null)} />;
+      if (denied) return <Notice tone="danger">{t.notFound}</Notice>;
+      return (
+        <SavedExpense
+          labels={savedLabels}
+          saved={saved}
+          tripId={tripId}
+          onAnother={() => setSaved(null)}
+        />
+      );
     }
     if (pending.isError) {
       // Without the device database nothing can be saved first, so nothing may be sent.
@@ -365,9 +385,11 @@ function EntryForm({
     const found = attempted ? issues.find((entryIssue) => entryIssue.field === field) : undefined;
     return found ? issueMessage(found, t) : undefined;
   };
-  const peers = options.members.map((m) => ({ id: m.id, name: m.displayName }));
-  const memberLabel = (id: string | null, name: string) =>
-    expenseMemberLabel({ id, name }, peers, user?.id, t);
+  const labels = useMemo(
+    () => createMemberLabelIndex(options.members, [], user?.id, t),
+    [options.members, user?.id, t]
+  );
+  const memberLabel = (id: string | null, name: string) => labels.label({ id, name });
 
   useEffect(() => () => inFlight.current?.abort(), []);
   useEffect(() => {

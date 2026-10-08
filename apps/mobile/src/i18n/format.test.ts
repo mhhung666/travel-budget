@@ -49,3 +49,33 @@ describe('display formatting', () => {
     expect(localDate(new Date(2026, 0, 5, 0, 0))).toBe('2026-01-05');
   });
 });
+
+it.each(locales)(
+  'identifies original currencies once and keeps their cents in %s',
+  async (locale) => {
+    const { formatOriginalAmount } = await import('./format');
+    for (const code of ['KRW', 'SGD', 'GBP']) {
+      expect(formatOriginalAmount(10000.25, code, locale)).toBe(`${code} 10,000.25`);
+    }
+    for (const [code, symbol] of [
+      ['JPY', '¥'],
+      ['USD', '$'],
+      ['EUR', '€'],
+      ['HKD', 'HK$'],
+      ['THB', '฿'],
+    ]) {
+      expect(formatOriginalAmount(10.01, code, locale)).toBe(`${code} · ${symbol}10.01`);
+    }
+  }
+);
+it.each(locales)(
+  'suppresses a minus only when the displayed amount rounds to zero in %s',
+  (locale) => {
+    for (const value of [-0, -0.001, -0.0049, 0, 0.001]) expect(money(value, locale)).toBe('NT$0');
+    expect(money(-0.005, locale)).toBe('-NT$0.01');
+    expect(money(-0.01, locale)).toBe('-NT$0.01');
+    expect(money(0.01, locale)).toBe('NT$0.01');
+    expect(formatCurrency(-0.001, 'KRW', locale)).toBe('KRW 0');
+    expect(formatCurrency(-0.01, 'JPY', locale)).toBe('-¥0.01');
+  }
+);

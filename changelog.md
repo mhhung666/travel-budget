@@ -8,8 +8,7 @@
 
 - Mobile U2d／U2e：整理帳號／旅行表單及本機／佇列恢復狀態，補焦點、主次操作、雙擊與晚到回呼保護；保留 E1／E2、C／D／E 原期限、秘密清除、UUID 與撤權。各片已提交 Mobile patch，未部署；開發驗證及 iOS 待驗見 [本機驗收](apps/mobile/docs/LOCAL_ACCEPTANCE.md)，Android 延後。
 - Mobile U1c／U2a–U2c／API：旅行入口、支出閱讀／表單、結算／還款及共用格式／身分已整理並提交相應 patch；保留 C／D／E、HTTP／UUID／429，成功後刷新失敗只重讀。驗證與原生待驗見 [U1c／U2a](apps/mobile/docs/LOCAL_ACCEPTANCE.md#u1c-旅行入口驗收交接)、[U2b](apps/mobile/docs/LOCAL_ACCEPTANCE.md#u2b-新增與編輯驗收交接)／[U2c](apps/mobile/docs/LOCAL_ACCEPTANCE.md#u2c-結算與還款驗收交接)；Android 延後，結算虛擬旗標另排，未部署。
-
-- Mobile 規劃：U1／U2 首輪實作後，改先補旅行／成員管理、多幣別、進階分攤、預算查帳、偏好與收據；下一片 G1a 旅行資料／個人封存。完整裝置與流程驗收延後，必要開發檢查保留；本次僅盤點與更新路線，並核對／記錄 U 靜態 review 十項修正交接（含不成立與待量測項）；未修改產品程式、實作 G 或重跑裝置驗收。
+- Mobile U review／規劃：修正有效等待、原幣代碼、可見筆數、名冊同名短碼／歷史消歧及顯示負零，memo 還款標籤並移除期限暖快取額外讀取；980 項測試、check 與三平台匯出通過；唯一姓名／朗讀文字與未知名冊不加碼，清單更新／錯誤重試一起重讀名冊、隱藏時略過一般名冊更新，明確重試仍走原授權流程，現名／歷史限制見交接。[修正交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#u-靜態審查修正交接2026-10-08)記未驗範圍與延期整理；G 規格已盤點，本輪以 Mobile patch 交付，未開始 G1、改交易／撤權保護或部署。
 
 ### 2026-10-07
 

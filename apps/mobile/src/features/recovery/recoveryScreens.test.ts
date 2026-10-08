@@ -124,6 +124,7 @@ vi.mock('@/features/localDrafts/provider', () => ({
 vi.mock('./useRecoveryDeadline', () => ({
   useRecoveryDeadline: () => ({
     until: h.until,
+    now: Date.now(),
     waiting: h.waiting,
     isError: h.waitFailed,
     isPending: h.waitPending,
@@ -522,3 +523,40 @@ it.each(['expense.update', 'payment.create'] as const)(
     expect(n.some((e) => e.props.testID === 'mutation-resume-uuid')).toBe(false);
   }
 );
+
+it.each(['nextAt', 'rateLimitUntil', 'account'] as const)(
+  'hides the expired %s row deadline without changing the record',
+  (source) => {
+    const now = Date.now();
+    const record = queueRecord('prepared');
+    if (source === 'account') h.until = now + 120000;
+    else record[source] = now + 120000;
+    h.queue = [record];
+    const original = structuredClone(record);
+    const expected = formatInstant(now + 120000, h.locale);
+    expect(texts(render(QueueScreen))).toContain(expected);
+    const spy = vi.spyOn(Date, 'now').mockReturnValue(now + 120000);
+    try {
+      expect(texts(render(QueueScreen))).not.toContain(expected);
+      expect(record).toEqual(original);
+      if (source === 'account') h.until = now + 240000;
+      else record[source] = now + 240000;
+      expect(texts(render(QueueScreen))).toContain(formatInstant(now + 240000, h.locale));
+    } finally {
+      spy.mockRestore();
+    }
+  }
+);
+it('keeps a future retry deadline off a resolved row', () => {
+  h.queue = [
+    {
+      ...queueRecord('resolved'),
+      nextAt: Date.now() + 120000,
+      rateLimitUntil: Date.now() + 240000,
+    },
+  ];
+  h.until = Date.now() + 360000;
+  const row = render(QueueScreen).find((n) => n.props.testID === 'queue-record-0')!;
+  expect(nodes(row).filter((n) => n.props.label === messages.en.queueRetryAt)).toHaveLength(0);
+  expect(h.queue[0].nextAt).toBeGreaterThan(Date.now());
+});

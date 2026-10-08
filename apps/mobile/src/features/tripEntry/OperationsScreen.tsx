@@ -12,6 +12,7 @@ import { useAuth } from '@/features/auth/AuthProvider';
 import { useDraftCatalog } from '@/features/localDrafts/provider';
 import { useRecoveryDeadline } from '@/features/recovery/useRecoveryDeadline';
 import { useDisplayFormat } from '@/i18n/useDisplayFormat';
+import { operationRecordVisible } from '@/features/recovery/visibility';
 import type { PendingMutation } from '@/storage/mutations';
 export function OperationsScreen() {
   const { manager, user, status } = useAuth();
@@ -33,13 +34,8 @@ function ScopedOperationsScreen() {
     manager.getSnapshot().status === 'signedIn' &&
     manager.getSnapshot().user?.id === scope.accountId &&
     manager.api.baseUrl === scope.environment;
-  const tripOf = (record: PendingMutation) =>
-    record.tripId ?? (record.result?.status === 'committed' ? record.result.result.tripId : null);
   const visible = (record: PendingMutation) =>
-    current() &&
-    record.environment === scope?.environment &&
-    record.accountId === scope?.accountId &&
-    (!tripOf(record) || catalog.isVisible(record, tripOf(record)!));
+    current() && operationRecordVisible(record, scope, catalog);
   const items = records.isError || records.isPending ? undefined : records.data?.filter(visible);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');

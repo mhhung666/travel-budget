@@ -7,6 +7,7 @@ import { Disclosure } from '@/components/Disclosure';
 import { messages } from '@/i18n/messages';
 import type { ExpenseOptions, ExpenseDetail } from '@/api/contracts';
 import type { ExpenseDraft } from './draft';
+import { createMemberLabelIndex, expenseMembers } from './rows';
 import { initialPreview } from './previewState';
 
 const h = vi.hoisted(() => ({
@@ -57,6 +58,7 @@ vi.mock('react', async (original) => ({
     ];
   },
   useRef: (initial: unknown) => (h.refs[h.refIndex++] ??= { current: initial }),
+  useMemo: (factory: () => unknown) => factory(),
   useId: () => 'test-keyboard',
   useEffect: (fn: () => void) => {
     h.effects.push(fn);
@@ -102,6 +104,9 @@ vi.mock('@/components/ui', async () => {
     usePalette: () => colors.light,
   };
 });
+vi.mock('@/features/localDrafts/provider', () => ({
+  useDraftCatalog: () => ({ catalog: { isVisible: () => !h.denied } }),
+}));
 vi.mock('@/features/auth/AuthProvider', () => ({
   useAuth: () => ({ user: { id: h.scope.accountId } }),
 }));
@@ -385,9 +390,14 @@ it('optional context expands without changing values, and exposes expanded state
 it('keeps foreign baseline read-only, and delete review always includes metadata', () => {
   const expense = { ...detail, originalAmount: 3000, currency: 'JPY', exchangeRate: 0.0333 };
   const tree = ExpenseBaseline({
+    labels: createMemberLabelIndex(
+      h.options.members,
+      expenseMembers(expense),
+      h.scope.accountId,
+      messages[h.locale]
+    ),
     expense,
     category: 'legacy-transport',
-    viewerId: h.scope.accountId,
     full: true,
   });
   expect(nodes(tree).some((e) => e.props.value === 'JPY · ¥3,000')).toBe(true);
@@ -403,7 +413,17 @@ it('a confirmed save with failed refresh stays saved and retries only reads', as
   };
   const render = () => {
     start();
-    return SavedExpense({ saved, tripId: 'trip', onAnother: vi.fn() });
+    return SavedExpense({
+      saved,
+      tripId: 'trip',
+      onAnother: vi.fn(),
+      labels: createMemberLabelIndex(
+        h.options.members,
+        expenseMembers(saved.expense),
+        h.scope.accountId,
+        messages[h.locale]
+      ),
+    });
   };
   render();
   h.effects.forEach((fn) => fn());
@@ -433,3 +453,38 @@ it('keeps missing draft members until explicit removal, then requires a fresh pr
   expect(h.draft.memberIds).not.toContain(missing);
   expect(id(form().entryTree, 'new-expense-confirm').props.disabled).toBe(true);
 });
+
+it.each(['zh', 'zh-CN', 'en', 'jp'] as const)(
+  'uses one original currency code in baseline and saved output in %s',
+  (locale) => {
+    h.locale = locale;
+    for (const currency of ['KRW', 'SGD', 'GBP']) {
+      const expense = { ...detail, currency, originalAmount: 10000.25 };
+      const original = ExpenseBaseline({
+        expense,
+        category: 'food',
+        full: true,
+        labels: createMemberLabelIndex(
+          h.options.members,
+          expenseMembers(expense),
+          h.scope.accountId,
+          messages[h.locale]
+        ),
+      });
+      expect(nodes(original).some((e) => e.props.value === `${currency} 10,000.25`)).toBe(true);
+      h.index = h.refIndex = 0;
+      const saved = SavedExpense({
+        tripId: 'trip',
+        onAnother: vi.fn(),
+        labels: createMemberLabelIndex(
+          h.options.members,
+          expenseMembers(expense),
+          h.scope.accountId,
+          messages[h.locale]
+        ),
+        saved: { kind: 'saved', expense, differs: false, refreshed: Promise.resolve(true) },
+      });
+      expect(nodes(saved).some((e) => e.props.value === `${currency} 10,000.25`)).toBe(true);
+    }
+  }
+);

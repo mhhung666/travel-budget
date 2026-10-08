@@ -13,7 +13,7 @@ export function viewerBalance(settlement: Settlement, userId: string | undefined
   return settlement.balances.find((balance) => balance.userId === userId)?.balance ?? null;
 }
 
-/** Every visible identity participates in disambiguation, including removed trip members. */
+/** Collect visible references for label indexes, including historical trip members. */
 export function settlementMembers(settlement: Settlement): ReadMember[] {
   return [
     ...settlement.balances.map((b) => ({ id: b.userId, name: b.displayName })),

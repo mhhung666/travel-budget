@@ -1,6 +1,6 @@
 import { TripContext } from '@/features/navigation/TripContext';
 import { FormPage } from '@/components/screen';
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   AppState,
@@ -47,7 +47,7 @@ import {
   type PreparedEdit,
 } from './maintenance';
 import { LocalRateLimitError } from './entry';
-import { categoryLabel, expenseMemberLabel } from './rows';
+import { categoryLabel, createMemberLabelIndex, expenseMembers } from './rows';
 import { isCalendarDate, parseAmount } from './input';
 
 export function EditExpenseScreen({
@@ -321,14 +321,27 @@ export function EditExpenseScreen({
     const known = context?.options.categories.find((c) => c === value);
     return known ? categoryLabel(known, t) : (value ?? '—');
   };
-  const peers = [
-    ...(context?.options.members.map((m) => ({ id: m.id, name: m.displayName })) ?? []),
-    ...(context?.expense.splits.map((s) => ({ id: s.userId, name: s.displayName })) ?? []),
-    ...(latest?.expense.splits.map((s) => ({ id: s.userId, name: s.displayName })) ?? []),
-    { id: context?.expense.payerId ?? null, name: context?.expense.payerName ?? '' },
-  ];
-  const memberLabel = (id: string | null, name: string) =>
-    expenseMemberLabel({ id, name }, peers, scope?.accountId, t);
+  const labels = useMemo(
+    () =>
+      createMemberLabelIndex(
+        context?.options.members,
+        context ? expenseMembers(context.expense) : [],
+        scope?.accountId,
+        t
+      ),
+    [context, scope?.accountId, t]
+  );
+  const latestLabels = useMemo(
+    () =>
+      createMemberLabelIndex(
+        latest?.options.members,
+        latest ? expenseMembers(latest.expense) : [],
+        scope?.accountId,
+        t
+      ),
+    [latest, scope?.accountId, t]
+  );
+  const memberLabel = (id: string | null, name: string) => labels.label({ id, name });
   const back = () =>
     router.dismissTo(
       remove && done
@@ -382,7 +395,7 @@ export function EditExpenseScreen({
           <ExpenseBaseline
             expense={context.expense}
             category={categoryName(context.category)}
-            viewerId={scope?.accountId}
+            labels={labels}
             full={remove}
           />
           {latest && (
@@ -394,7 +407,7 @@ export function EditExpenseScreen({
               {latest.expense.splits.map((s, i) => (
                 <DetailRow
                   key={i}
-                  label={memberLabel(s.userId, s.displayName)}
+                  label={latestLabels.label({ id: s.userId, name: s.displayName })}
                   value={f.money(s.shareAmount)}
                 />
               ))}

@@ -54,8 +54,16 @@ const h = vi.hoisted(() => ({
     refetch: vi.fn(),
   },
   trip: { data: { name: 'Private trip' }, error: undefined as unknown },
-  queue: { data: [] as { status: string }[], isPending: false, isError: false },
-  operations: { data: [] as { status: string }[], isPending: false, isError: false },
+  queue: {
+    data: [] as { status: string; environment?: string; accountId?: string; tripId?: string }[],
+    isPending: false,
+    isError: false,
+  },
+  operations: {
+    data: [] as { status: string; environment?: string; accountId?: string; tripId?: string }[],
+    isPending: false,
+    isError: false,
+  },
 }));
 vi.mock('react', async (original) => ({
   ...(await original<typeof import('react')>()),
@@ -310,4 +318,35 @@ it('hides all trip tab content and invitation after denial, even when landing da
   expect(nodes(chrome).some((node) => node.props.children === 'PRIVATE ledger')).toBe(false);
   expect(nodes(chrome).some((node) => node.props.testID === 'trip-invitation')).toBe(false);
   expect(find(chrome, 'children', 'notFound')).toBeDefined();
+});
+
+it('uses visible pending counts while keeping terminal notices and local-only permissions separate', () => {
+  const scope = { environment: 'https://example/api/v1', accountId: 'account', tripId: 'a' };
+  h.queue.data = [
+    { ...scope, status: 'queued' },
+    { ...scope, status: 'resolved' },
+    { ...scope, accountId: 'other', status: 'prepared' },
+  ];
+  h.operations.data = [
+    { ...scope, status: 'pending' },
+    { ...scope, status: 'completed' },
+  ];
+  let work = render(LocalWorkScreen);
+  expect(find(work, 'label', 'queueTitle').props.value).toBe('1');
+  expect(find(work, 'label', 'pendingOperations').props.value).toBe('1');
+  h.visible = false;
+  work = render(LocalWorkScreen);
+  expect(find(work, 'label', 'queueTitle').props.value).toBe('0');
+  expect(find(work, 'label', 'pendingOperations').props.value).toBe('0');
+  h.status = 'local';
+  h.visible = true;
+  work = render(LocalWorkScreen);
+  expect(find(work, 'label', 'queueTitle').props.value).toBe('1');
+  expect(nodes(work).some((n) => n.props.testID === 'pending-operations')).toBe(false);
+  h.queue.isError = true;
+  expect(
+    nodes(render(LocalWorkScreen)).some(
+      (n) => n.props.label === 'queueTitle' && n.props.value !== undefined
+    )
+  ).toBe(false);
 });

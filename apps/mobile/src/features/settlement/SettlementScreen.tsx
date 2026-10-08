@@ -1,3 +1,6 @@
+import { MemberRosterNotice } from '@/features/expenses/MemberRosterNotice';
+import { useMemo } from 'react';
+import { useTripMembers } from '@/features/expenses/useTripMembers';
 import { router } from 'expo-router';
 import { ActivityIndicator, Text, View } from 'react-native';
 import type { Settlement } from '@/api/contracts';
@@ -16,12 +19,15 @@ import {
 import { TripContext } from '@/features/navigation/TripContext';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { errorMessage, isAccessDenied } from '@/features/auth/errorMessage';
-import { expenseMemberLabel, type ReadMember } from '@/features/expenses/rows';
+import {
+  createMemberLabelIndex,
+  type MemberLabelIndex,
+  type ReadMember,
+} from '@/features/expenses/rows';
 import { useDraftCatalog } from '@/features/localDrafts/provider';
 import { spacing, typography } from '@/theme/tokens';
 import { localDate } from '@/i18n/format';
 import { useDisplayFormat } from '@/i18n/useDisplayFormat';
-import type { Messages } from '@/i18n/messages';
 import { useMessages } from '@/i18n/useMessages';
 import { useOnline } from '@/providers/useOnline';
 import { useSettlement } from './queries';
@@ -30,29 +36,24 @@ import { orderTransfers, settlementMembers, viewerBalance } from './view';
 function Route({
   from,
   to,
-  peers,
-  userId,
-  t,
+  labels,
 }: {
   from: ReadMember;
   to: ReadMember;
-  peers: ReadMember[];
-  userId?: string;
-  t: Messages;
+  labels: MemberLabelIndex;
 }) {
   const p = usePalette();
   return (
     <Text style={[typography.body, { color: p.text, fontWeight: '600' }]}>
-      {expenseMemberLabel(from, peers, userId, t)} {'→'} {expenseMemberLabel(to, peers, userId, t)}
+      {labels.label(from)} {'→'} {labels.label(to)}
     </Text>
   );
 }
 
-function Balances({ settlement, userId }: { settlement: Settlement; userId?: string }) {
+function Balances({ settlement, labels }: { settlement: Settlement; labels: MemberLabelIndex }) {
   const p = usePalette();
   const t = useMessages();
   const f = useDisplayFormat();
-  const peers = settlementMembers(settlement);
   return (
     <Card>
       {settlement.balances.map((entry) => (
@@ -62,7 +63,7 @@ function Balances({ settlement, userId }: { settlement: Settlement; userId?: str
           style={{ gap: spacing.tiny }}
         >
           <Text style={[typography.body, { color: p.text, fontWeight: '600' }]}>
-            {expenseMemberLabel({ id: entry.userId, name: entry.displayName }, peers, userId, t)}
+            {labels.label({ id: entry.userId, name: entry.displayName })}
           </Text>
           <Text
             style={[
@@ -87,16 +88,17 @@ function Details({
   userId,
   tripId,
   online,
+  labels,
 }: {
   settlement: Settlement;
   userId?: string;
   tripId: string;
   online: boolean;
+  labels: MemberLabelIndex;
 }) {
   const p = usePalette();
   const t = useMessages();
   const f = useDisplayFormat();
-  const peers = settlementMembers(settlement);
   const transfers = orderTransfers(settlement.suggestedTransfers, userId);
   return (
     <>
@@ -113,9 +115,7 @@ function Details({
               <Route
                 from={{ id: transfer.fromId, name: transfer.fromName }}
                 to={{ id: transfer.toId, name: transfer.toName }}
-                peers={peers}
-                userId={userId}
-                t={t}
+                labels={labels}
               />
               <Text
                 style={[
@@ -168,9 +168,7 @@ function Details({
               <Route
                 from={{ id: payment.fromId, name: payment.fromName }}
                 to={{ id: payment.toId, name: payment.toName }}
-                peers={peers}
-                userId={userId}
-                t={t}
+                labels={labels}
               />
               <Text
                 style={[
@@ -199,7 +197,7 @@ function Details({
         )}
       </Section>
       <Section title={t.memberBalances}>
-        <Balances settlement={settlement} userId={userId} />
+        <Balances settlement={settlement} labels={labels} />
       </Section>
       <Metric
         testID="settlement-total"
@@ -221,7 +219,19 @@ export function SettlementScreen({ tripId }: { tripId: string }) {
   const query = useSettlement(tripId);
   const settlement = query.data;
   // Never leave a previously cached member payload visible after access is denied.
-  const denied = isAccessDenied(query.error) || !scope || !catalog.isVisible(scope, tripId);
+  const members = useTripMembers(tripId);
+  const denied =
+    members.denied || isAccessDenied(query.error) || !scope || !catalog.isVisible(scope, tripId);
+  const labels = useMemo(
+    () =>
+      createMemberLabelIndex(
+        members.roster,
+        settlement ? settlementMembers(settlement) : [],
+        user?.id,
+        t
+      ),
+    [members.roster, settlement, user?.id, t]
+  );
   const mine = settlement ? viewerBalance(settlement, user?.id) : null;
   const status = settlement?.status;
   return (
@@ -229,6 +239,7 @@ export function SettlementScreen({ tripId }: { tripId: string }) {
       <TripContext tripId={tripId} />
       <Title>{t.settlement}</Title>
       {!online && <Notice tone="warning">{t.offline}</Notice>}
+      <MemberRosterNotice members={members} online={online} />
       {query.isPending && online && <ActivityIndicator accessibilityLabel={t.loading} />}
       {query.isError && (
         <>
@@ -269,7 +280,13 @@ export function SettlementScreen({ tripId }: { tripId: string }) {
             )}
           </Card>
           <Copy>{t.settlementHint}</Copy>
-          <Details settlement={settlement} userId={user?.id} tripId={tripId} online={online} />
+          <Details
+            labels={labels}
+            settlement={settlement}
+            userId={user?.id}
+            tripId={tripId}
+            online={online}
+          />
           <Copy>{t.amountsInTwd}</Copy>
           <Action
             testID="settlement-refresh"

@@ -1,4 +1,5 @@
 import { PaymentScreen } from './PaymentScreen';
+import * as labelHelpers from './paymentLabels';
 import { beforeEach, expect, it, vi } from 'vitest';
 import type { PaymentContext } from '@travel-budget/contracts';
 const h = vi.hoisted(() => ({
@@ -6,6 +7,8 @@ const h = vi.hoisted(() => ({
   refs: [] as { current: unknown }[],
   i: 0,
   j: 0,
+  m: 0,
+  memos: [] as { deps: unknown[]; value: unknown }[],
   focus: (() => undefined) as () => unknown,
   request: vi.fn(),
   confirm: vi.fn(),
@@ -34,8 +37,17 @@ vi.mock('react', async (original) => ({
     return (h.refs[j] ??= { current: initial });
   },
   useCallback: (fn: unknown) => fn,
+  useMemo: (fn: () => unknown, deps: unknown[]) => {
+    const i = h.m++;
+    if (!h.memos[i] || deps.some((v, n) => !Object.is(v, h.memos[i].deps[n])))
+      h.memos[i] = { deps, value: fn() };
+    return h.memos[i].value;
+  },
   useEffect: () => undefined,
   useId: () => 'payment-test-accessory',
+}));
+vi.mock('@/features/expenses/useTripMembers', () => ({
+  useTripMembers: () => ({ roster: undefined, denied: false }),
 }));
 vi.mock('react-native', () => ({
   Alert: { alert: vi.fn() },
@@ -146,7 +158,7 @@ type NodeProps = {
   onChangeText?: (value: string) => void;
 };
 function render() {
-  h.i = h.j = 0;
+  h.i = h.j = h.m = 0;
   return PaymentScreen({
     tripId,
     paymentId,
@@ -181,8 +193,9 @@ async function open() {
 }
 beforeEach(() => {
   h.values = [];
+  h.memos = [];
   h.refs = [];
-  h.i = h.j = 0;
+  h.i = h.j = h.m = 0;
   paymentId = source = undefined;
   h.request.mockReset().mockResolvedValue(original);
   h.confirm.mockReset();
@@ -361,8 +374,8 @@ it('review contains distinct same-name parties, amount, trimmed note and visible
   const details = nodes(render())
     .filter((n) => n.props.value && !n.props.onChangeText)
     .map((n) => [n.props.label, n.props.value]);
-  expect(details).toContainEqual(['paymentFrom', 'Same · #3']);
-  expect(details).toContainEqual(['paymentTo', 'Same · #1 · you']);
+  expect(details).toContainEqual(['paymentFrom', `Same · #${peerId.slice(-6)}`]);
+  expect(details).toContainEqual(['paymentTo', `Same · #${h.scope.accountId.slice(-6)} · you`]);
   expect(details).toContainEqual(['amountTwd', 'NT$60.01']);
   expect(details).toContainEqual(['paymentNote', 'actual payment']);
   expect(nodes(render()).some((n) => n.props.children === 'paymentDeviation')).toBe(true);
@@ -451,4 +464,62 @@ it('offline review is disabled and pending outcome exposes recovery without anot
     )
   ).toBe(false);
   expect(h.confirm).toHaveBeenCalledOnce();
+});
+
+it('reuses label indexes during input renders and builds the conflicting latest context separately', async () => {
+  const spy = vi.spyOn(labelHelpers, 'paymentLabels');
+  const oldMessages = h.labels;
+  const oldViewer = h.scope.accountId;
+  try {
+    await open();
+    render();
+    const count = spy.mock.calls.length;
+    input('paymentNote', 'first');
+    render();
+    input('paymentNote', 'second');
+    render();
+    expect(spy).toHaveBeenCalledTimes(count);
+    const latest: PaymentContext = {
+      ...original,
+      settlementRevision: 'b'.repeat(64),
+      members: original.members.map((m) => ({ ...m, displayName: 'New name' })),
+      settlement: {
+        ...original.settlement,
+        suggestedTransfers: original.settlement.suggestedTransfers.map((r) => ({
+          ...r,
+          fromName: 'New name',
+          toName: 'New name',
+        })),
+      },
+    };
+    h.request.mockResolvedValue(latest);
+    action('confirmPayment').onPress();
+    await flush();
+    const tree = render();
+    expect(spy).toHaveBeenCalledTimes(count + 1);
+    expect(spy.mock.calls.at(-1)![0]).toBe(latest);
+    expect(spy.mock.calls.at(-1)![1]).toBe(h.scope.accountId);
+    expect(spy.mock.calls.at(-1)![2]).toBe(h.labels);
+    const text = (node: unknown): string => {
+      if (Array.isArray(node)) return node.map(text).join('');
+      if (node && typeof node === 'object' && 'props' in node)
+        return text((node as { props: { children?: unknown } }).props.children);
+      return typeof node === 'string' ? node : '';
+    };
+    expect(text(tree)).toContain(`Same · #${peerId.slice(-6)}`);
+    expect(text(tree)).toContain(`New name · #${peerId.slice(-6)}`);
+    const { messages } = await import('@/i18n/messages');
+    h.labels = messages.jp;
+    render();
+    expect(spy).toHaveBeenCalledTimes(count + 3);
+    expect(spy.mock.results.at(-1)!.value.choice(h.scope.accountId)).toContain(messages.jp.you);
+    h.scope.accountId = peerId;
+    render();
+    expect(spy).toHaveBeenCalledTimes(count + 5);
+    expect(spy.mock.results.at(-1)!.value.choice(peerId)).toContain(messages.jp.you);
+  } finally {
+    h.labels = oldMessages;
+    h.scope.accountId = oldViewer;
+    spy.mockRestore();
+  }
 });

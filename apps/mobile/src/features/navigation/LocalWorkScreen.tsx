@@ -3,14 +3,12 @@ import { Action, DetailRow, Notice, Page } from '@/components/ui';
 import { PageHeader } from '@/components/screen';
 import { goBack } from '@/components/navigation';
 import { useAuth } from '@/features/auth/AuthProvider';
-import { useExpenseQueue } from '@/features/expenses/entryProvider';
-import { useTripEntry } from '@/features/tripEntry/provider';
+import { useLocalWorkCounts } from '@/features/recovery/useLocalWorkCounts';
 import { useMessages } from '@/i18n/useMessages';
 
 export function LocalWorkScreen() {
   const { status } = useAuth();
-  const { records: queue } = useExpenseQueue();
-  const { records: operations } = useTripEntry();
+  const { queue, operations, queueCount, operationCount } = useLocalWorkCounts();
   const t = useMessages();
   return (
     <Page>
@@ -27,13 +25,10 @@ export function LocalWorkScreen() {
       />
       {queue.isError ? (
         <Notice tone="danger">{t.queueFailed}</Notice>
-      ) : queue.isPending ? (
+      ) : queueCount === undefined ? (
         <Notice role="status">{t.loading}</Notice>
       ) : (
-        <DetailRow
-          label={t.queueTitle}
-          value={String(queue.data?.filter((record) => record.status !== 'resolved').length ?? 0)}
-        />
+        <DetailRow label={t.queueTitle} value={String(queueCount)} />
       )}
       <Action
         label={t.queueTitle}
@@ -45,15 +40,10 @@ export function LocalWorkScreen() {
         <>
           {operations.isError ? (
             <Notice tone="danger">{t.queueFailed}</Notice>
-          ) : operations.isPending ? (
+          ) : operationCount === undefined ? (
             <Notice role="status">{t.loading}</Notice>
           ) : (
-            <DetailRow
-              label={t.pendingOperations}
-              value={String(
-                operations.data?.filter((record) => record.status === 'pending').length ?? 0
-              )}
-            />
+            <DetailRow label={t.pendingOperations} value={String(operationCount)} />
           )}
           <Action
             label={t.pendingOperations}

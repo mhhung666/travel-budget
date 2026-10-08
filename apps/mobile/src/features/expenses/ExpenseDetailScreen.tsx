@@ -1,3 +1,6 @@
+import { MemberRosterNotice } from '@/features/expenses/MemberRosterNotice';
+import { useMemo } from 'react';
+import { useTripMembers } from './useTripMembers';
 import { PageHeader } from '@/components/screen';
 import { TripContext } from '@/features/navigation/TripContext';
 import { ActivityIndicator } from 'react-native';
@@ -10,7 +13,13 @@ import { useDraftCatalog } from '@/features/localDrafts/provider';
 import { useMessages } from '@/i18n/useMessages';
 import { useOnline } from '@/providers/useOnline';
 import { useExpense } from './queries';
-import { categoryLabel, isForeign, expenseMemberLabel, type ReadMember } from './rows';
+import {
+  categoryLabel,
+  isForeign,
+  createMemberLabelIndex,
+  expenseMembers,
+  type ReadMember,
+} from './rows';
 
 export function ExpenseDetailScreen({ tripId, expenseId }: { tripId: string; expenseId: string }) {
   const t = useMessages();
@@ -22,20 +31,19 @@ export function ExpenseDetailScreen({ tripId, expenseId }: { tripId: string; exp
   const query = useExpense(tripId, expenseId);
   const expense = query.data;
   // Never leave a previously cached member payload visible after access is denied.
-  const denied = isAccessDenied(query.error) || !scope || !catalog.isVisible(scope, tripId);
+  const members = useTripMembers(tripId);
+  const denied =
+    members.denied || isAccessDenied(query.error) || !scope || !catalog.isVisible(scope, tripId);
   const payer: ReadMember = {
     id: expense?.payerId ?? null,
     name: expense?.payerName ?? '',
     isVirtual: expense?.payerIsVirtual,
   };
-  const peers: ReadMember[] = [
-    payer,
-    ...(expense?.splits.map((s) => ({
-      id: s.userId,
-      name: s.displayName,
-      isVirtual: s.isVirtual,
-    })) ?? []),
-  ];
+  const labels = useMemo(
+    () =>
+      createMemberLabelIndex(members.roster, expense ? expenseMembers(expense) : [], user?.id, t),
+    [members.roster, expense, user?.id, t]
+  );
   return (
     <Page>
       <PageHeader
@@ -47,6 +55,7 @@ export function ExpenseDetailScreen({ tripId, expenseId }: { tripId: string; exp
       />
       <TripContext tripId={tripId} />
       {!online && <Notice tone="warning">{t.offline}</Notice>}
+      <MemberRosterNotice members={members} online={online} />
       {query.isPending && online && <ActivityIndicator accessibilityLabel={t.loading} />}
       {query.isError && (
         <>
@@ -80,17 +89,13 @@ export function ExpenseDetailScreen({ tripId, expenseId }: { tripId: string; exp
               label={t.category}
               value={categoryLabel(expense.category, t)}
             />
-            <DetailRow
-              testID="expense-payer"
-              label={t.paidBy}
-              value={expenseMemberLabel(payer, peers, user?.id, t)}
-            />
+            <DetailRow testID="expense-payer" label={t.paidBy} value={labels.label(payer)} />
             {isForeign(expense) && (
               <>
                 <DetailRow
                   testID="expense-original"
                   label={t.originalAmount}
-                  value={`${expense.currency} · ${f.currency(expense.originalAmount, expense.currency)}`}
+                  value={f.originalAmount(expense.originalAmount, expense.currency)}
                 />
                 <DetailRow
                   testID="expense-rate"
@@ -109,12 +114,11 @@ export function ExpenseDetailScreen({ tripId, expenseId }: { tripId: string; exp
                   <DetailRow
                     key={`${split.userId ?? 'unknown'}-${index}`}
                     testID={`expense-split-${index}`}
-                    label={expenseMemberLabel(
-                      { id: split.userId, name: split.displayName, isVirtual: split.isVirtual },
-                      peers,
-                      user?.id,
-                      t
-                    )}
+                    label={labels.label({
+                      id: split.userId,
+                      name: split.displayName,
+                      isVirtual: split.isVirtual,
+                    })}
                     value={f.money(split.shareAmount)}
                   />
                 ))}

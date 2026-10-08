@@ -16,12 +16,18 @@ const symbols: Record<string, string> = {
 };
 /** Display only: preserve cents for every currency, including JPY; never change stored amounts. */
 export function formatCurrency(value: number, currency: string, locale: AppLocale = 'en') {
-  const number = new Intl.NumberFormat(displayLocales[locale], {
+  const formatter = new Intl.NumberFormat(displayLocales[locale], {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
-  }).format(Math.abs(value));
+  });
+  const number = formatter.format(Math.abs(value));
   const prefix = typeof symbols[currency] === 'string' ? symbols[currency] : `${currency} `;
-  return `${value < 0 ? '-' : ''}${prefix}${number}`;
+  return `${value < 0 && number !== formatter.format(0) ? '-' : ''}${prefix}${number}`;
+}
+/** Original amounts always identify the currency; unknown symbols already include its code. */
+export function formatOriginalAmount(value: number, currency: string, locale: AppLocale = 'en') {
+  const amount = formatCurrency(value, currency, locale);
+  return typeof symbols[currency] === 'string' ? `${currency} · ${amount}` : amount;
 }
 export const money = (value: number, locale: AppLocale = 'en') =>
   formatCurrency(value, 'TWD', locale);

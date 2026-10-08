@@ -12,6 +12,8 @@ import { useDraftCatalog } from '@/features/localDrafts/provider';
 import { useRecoveryDeadline } from '@/features/recovery/useRecoveryDeadline';
 import { useDisplayFormat } from '@/i18n/useDisplayFormat';
 import { parseAmount } from '@/features/expenses/input';
+import { queueRecordVisible } from '@/features/recovery/visibility';
+import { queueRetryDeadline } from './presentation';
 import type { QueuedExpense } from '@/storage/expenseQueue';
 
 export function QueueScreen() {
@@ -25,7 +27,6 @@ function ScopedQueueScreen() {
   const t = useMessages();
   const format = useDisplayFormat();
   const { catalog } = useDraftCatalog();
-  const deadline = useRecoveryDeadline(scope, records.dataUpdatedAt);
   const flight = useRef(false);
   const version = manager.getSignInVersion();
   const current = () =>
@@ -33,12 +34,13 @@ function ScopedQueueScreen() {
     manager.getSignInVersion() === version &&
     manager.getSnapshot().user?.id === scope.accountId &&
     manager.api.baseUrl === scope.environment;
-  const visible = (r: QueuedExpense) =>
-    current() &&
-    r.environment === scope?.environment &&
-    r.accountId === scope?.accountId &&
-    catalog.isVisible(r, r.tripId);
+  const visible = (r: QueuedExpense) => current() && queueRecordVisible(r, scope, catalog);
   const items = records.isError ? undefined : records.data?.filter(visible);
+  const deadline = useRecoveryDeadline(
+    scope,
+    records.dataUpdatedAt,
+    items?.reduce((max, r) => Math.max(max, queueRetryDeadline(r, 0)), 0) ?? 0
+  );
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   const [blocked, setBlocked] = useState<QueuedExpense | null>(null);
@@ -163,10 +165,10 @@ function ScopedQueueScreen() {
                         : t.queuePaused}
             </Notice>
           )}
-          {Math.max(r.nextAt, r.rateLimitUntil, deadline.until) > 0 && (
+          {queueRetryDeadline(r, deadline.until) > deadline.now && (
             <DetailRow
               label={t.queueRetryAt}
-              value={format.instant(Math.max(r.nextAt, r.rateLimitUntil, deadline.until))}
+              value={format.instant(queueRetryDeadline(r, deadline.until))}
             />
           )}
           {r.status === 'prepared' ? (

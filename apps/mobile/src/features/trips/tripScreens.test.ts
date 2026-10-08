@@ -49,8 +49,16 @@ const h = vi.hoisted(() => ({
     isFetching: false,
     refetch: vi.fn(),
   },
-  queue: { data: [] as { status: string }[], isPending: false, isError: false },
-  operations: { data: [] as { status: string }[], isPending: false, isError: false },
+  queue: {
+    data: [] as { status: string; environment: string; accountId: string; tripId: string | null }[],
+    isPending: false,
+    isError: false,
+  },
+  operations: {
+    data: [] as { status: string; environment: string; accountId: string; tripId: string | null }[],
+    isPending: false,
+    isError: false,
+  },
 }));
 vi.mock('react', async (original) => ({
   ...(await original<typeof import('react')>()),
@@ -106,7 +114,11 @@ vi.mock('@/i18n/useMessages', async () => {
   return { useMessages: () => messages[h.locale], useAppLocale: () => h.locale };
 });
 vi.mock('@/features/auth/AuthProvider', () => ({
-  useAuth: () => ({ user: h.user, manager: { api: { baseUrl: 'https://test/api/v1' } } }),
+  useAuth: () => ({
+    status: 'signedIn',
+    user: h.user,
+    manager: { api: { baseUrl: 'https://test/api/v1' } },
+  }),
 }));
 vi.mock('@/features/localDrafts/provider', () => ({
   useDraftCatalog: () => ({ catalog: { isVisible: h.visible } }),
@@ -334,8 +346,15 @@ it('makes long supplement text reachable through an expanded disclosure', () => 
   expect(content(TripSupplement(props))).toContain(props.description);
 });
 it('counts only unresolved queue and pending E operations without exposing payloads', () => {
-  h.queue.data = [{ status: 'resolved' }, { status: 'waiting' }];
-  h.operations.data = [{ status: 'pending' }, { status: 'committed' }];
+  const scope = { environment: 'https://test/api/v1', accountId: 'account', tripId: 'trip' };
+  h.queue.data = [
+    { ...scope, status: 'resolved' },
+    { ...scope, status: 'queued' },
+  ];
+  h.operations.data = [
+    { ...scope, status: 'pending' },
+    { ...scope, status: 'completed' },
+  ];
   expect(content(LocalWorkLink())).toContain(`${messages.en.queueTitle}: 1`);
   expect(content(LocalWorkLink())).toContain(`${messages.en.pendingOperations}: 1`);
 });
@@ -352,5 +371,36 @@ it.each(['queue', 'operations'] as const)(
 it('does not turn local loading into zero', () => {
   h.queue.isPending = true;
   expect(content(LocalWorkLink())).toContain(messages.en.loading);
+  expect(content(LocalWorkLink())).not.toContain(': 0');
+});
+
+it('counts the same visible scopes and trip results as the recovery lists', () => {
+  const scope = { environment: 'https://test/api/v1', accountId: 'account', tripId: 'trip' };
+  h.deniedIds = ['hidden'];
+  h.queue.data = [
+    { ...scope, status: 'queued' },
+    { ...scope, status: 'attention', tripId: 'hidden' },
+    { ...scope, status: 'prepared', accountId: 'other' },
+    { ...scope, status: 'queued', environment: 'https://other/api/v1' },
+    { ...scope, status: 'resolved' },
+  ];
+  h.operations.data = [
+    { ...scope, status: 'pending' },
+    { ...scope, status: 'pending', tripId: 'hidden' },
+    { ...scope, status: 'pending', accountId: 'other' },
+    { ...scope, status: 'pending', environment: 'https://other/api/v1' },
+    { ...scope, status: 'completed' },
+  ];
+  expect(content(LocalWorkLink())).toContain(`${messages.en.queueTitle}: 1`);
+  expect(content(LocalWorkLink())).toContain(`${messages.en.pendingOperations}: 1`);
+  h.deniedIds = ['trip', 'hidden'];
+  expect(content(LocalWorkLink())).toContain(`${messages.en.queueTitle}: 0`);
+  expect(content(LocalWorkLink())).toContain(`${messages.en.pendingOperations}: 0`);
+  h.user = { id: 'other' };
+  h.deniedIds = [];
+  expect(content(LocalWorkLink())).toContain(`${messages.en.queueTitle}: 1`);
+  expect(content(LocalWorkLink())).toContain(`${messages.en.pendingOperations}: 1`);
+  h.queue.isError = true;
+  expect(content(LocalWorkLink())).toContain(messages.en.localStatusUnavailable);
   expect(content(LocalWorkLink())).not.toContain(': 0');
 });

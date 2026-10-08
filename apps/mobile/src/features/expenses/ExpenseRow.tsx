@@ -2,34 +2,31 @@ import { Pressable, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import type { Expense } from '@/api/contracts';
 import { usePalette } from '@/components/ui';
-import { useAuth } from '@/features/auth/AuthProvider';
 import { useDisplayFormat } from '@/i18n/useDisplayFormat';
 import { useMessages } from '@/i18n/useMessages';
 import { radius, sizing, spacing, typography } from '@/theme/tokens';
-import { categoryLabel, expenseMemberLabel, isForeign, type ReadMember } from './rows';
+import { categoryLabel, type MemberLabelIndex, isForeign } from './rows';
 
 export function ExpenseRow({
   expense,
   tripId,
-  peers,
+  labels,
 }: {
   expense: Expense;
   tripId: string;
-  peers: ReadMember[];
+  labels: MemberLabelIndex;
 }) {
   const p = usePalette();
   const t = useMessages();
-  const { user } = useAuth();
   const f = useDisplayFormat();
-  const payer = expenseMemberLabel(
-    { id: expense.payerId, name: expense.payerName, isVirtual: expense.payerIsVirtual },
-    peers,
-    user?.id,
-    t
-  );
+  const payer = labels.label({
+    id: expense.payerId,
+    name: expense.payerName,
+    isVirtual: expense.payerIsVirtual,
+  });
   const category = categoryLabel(expense.category, t);
   const original = isForeign(expense)
-    ? `${expense.currency} · ${f.currency(expense.originalAmount, expense.currency)}`
+    ? f.originalAmount(expense.originalAmount, expense.currency)
     : null;
   return (
     <Pressable

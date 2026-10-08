@@ -1,3 +1,6 @@
+import { MemberRosterNotice } from '@/features/expenses/MemberRosterNotice';
+import { useMemo } from 'react';
+import { useTripMembers } from './useTripMembers';
 import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native';
 import { ScreenFrame } from '@/components/frame';
 import { TripContext } from '@/features/navigation/TripContext';
@@ -8,7 +11,7 @@ import { useMessages } from '@/i18n/useMessages';
 import { useOnline } from '@/providers/useOnline';
 import { usePendingExpenses } from './entryProvider';
 import { useExpenses } from './queries';
-import { uniqueExpenses } from './rows';
+import { uniqueExpenses, createMemberLabelIndex } from './rows';
 import { ExpenseRow } from './ExpenseRow';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { useDraftCatalog } from '@/features/localDrafts/provider';
@@ -23,9 +26,24 @@ export function ExpensesScreen({ tripId }: { tripId: string }) {
   const { user, manager } = useAuth();
   const { catalog } = useDraftCatalog();
   const scope = user ? { environment: manager.api.baseUrl, accountId: user.id } : null;
-  const denied = isAccessDenied(query.error) || !scope || !catalog.isVisible(scope, tripId);
-  const expenses = denied ? [] : uniqueExpenses(query.data?.pages ?? []);
-  const payerPeers = expenses.map((e) => ({ id: e.payerId, name: e.payerName }));
+  const members = useTripMembers(tripId);
+  const refreshAll = () => Promise.all([refresh(), members.refresh()]);
+  const denied =
+    members.denied || isAccessDenied(query.error) || !scope || !catalog.isVisible(scope, tripId);
+  const expenses = useMemo(
+    () => (denied ? [] : uniqueExpenses(query.data?.pages ?? [])),
+    [denied, query.data]
+  );
+  const labels = useMemo(
+    () =>
+      createMemberLabelIndex(
+        members.roster,
+        expenses.map((e) => ({ id: e.payerId, name: e.payerName })),
+        user?.id,
+        t
+      ),
+    [members.roster, expenses, user?.id, t]
+  );
   return (
     <ScreenFrame>
       <FlatList
@@ -35,10 +53,10 @@ export function ExpensesScreen({ tripId }: { tripId: string }) {
         contentContainerStyle={[styles.page, { flexGrow: 1 }]}
         refreshControl={
           <RefreshControl
-            refreshing={query.isRefetching && !query.isFetchingNextPage}
+            refreshing={(query.isRefetching && !query.isFetchingNextPage) || members.isFetching}
             onRefresh={() => {
               // Refreshing offline would drop loaded pages without being able to reread them.
-              if (online) void refresh();
+              if (online) void refreshAll();
             }}
             tintColor={p.primary}
           />
@@ -57,6 +75,7 @@ export function ExpensesScreen({ tripId }: { tripId: string }) {
               }
             />
             {!online && <Notice tone="warning">{t.offline}</Notice>}
+            <MemberRosterNotice members={members} online={online} />
             {query.isError && (
               <>
                 <Notice tone={query.data && !denied ? 'warning' : 'danger'}>
@@ -65,8 +84,8 @@ export function ExpensesScreen({ tripId }: { tripId: string }) {
                 <Action
                   testID="expenses-retry"
                   label={t.retry}
-                  disabled={!online || query.isFetching}
-                  onPress={() => void query.refetch()}
+                  disabled={!online || query.isFetching || members.isFetching}
+                  onPress={() => void refreshAll()}
                 />
               </>
             )}
@@ -86,12 +105,12 @@ export function ExpensesScreen({ tripId }: { tripId: string }) {
                 secondary
                 label={t.refresh}
                 disabled={!online}
-                onPress={() => void refresh()}
+                onPress={() => void refreshAll()}
               />
             </View>
           ) : null
         }
-        renderItem={({ item }) => <ExpenseRow expense={item} tripId={tripId} peers={payerPeers} />}
+        renderItem={({ item }) => <ExpenseRow expense={item} tripId={tripId} labels={labels} />}
         ListFooterComponent={
           query.hasNextPage && !denied ? (
             <Action

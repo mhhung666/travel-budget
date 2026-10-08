@@ -31,6 +31,7 @@ vi.mock('react', async (original) => ({
   },
   useCallback: (fn: unknown) => fn,
   useEffect: () => undefined,
+  useMemo: (factory: () => unknown) => factory(),
   useId: () => 'test-accessory',
 }));
 vi.mock('react-native', () => ({

@@ -7,6 +7,7 @@ import { memoryDatabase } from '@/test/sqlite';
 import { createMutationStore, type MutationStore } from '@/storage/mutations';
 import { createPendingExpenseStore } from '@/storage/pendingExpenses';
 import { TripEntry } from '@/features/tripEntry/engine';
+import { useRecoveryClock } from './useRecoveryClock';
 import { recoveryDeadlineOptions, useRecoveryDeadline } from './useRecoveryDeadline';
 
 const h = vi.hoisted(() => ({
@@ -14,6 +15,8 @@ const h = vi.hoisted(() => ({
   until: 0,
   failed: false,
   values: [] as unknown[],
+  refs: [] as { current: unknown }[],
+  j: 0,
   i: 0,
   effects: [] as (() => void | (() => void))[],
   refetch: vi.fn(),
@@ -36,6 +39,7 @@ vi.mock('react', async (original) => ({
       },
     ];
   },
+  useRef: (initial: unknown) => (h.refs[h.j++] ??= { current: initial }),
   useEffect: (fn: () => void | (() => void)) => h.effects.push(fn),
 }));
 vi.mock('@tanstack/react-query', () => ({
@@ -46,6 +50,8 @@ const id = '11111111-1111-4111-8111-111111111111';
 const cleanups: (() => void)[] = [];
 beforeEach(() => {
   h.values = [];
+  h.refs = [];
+  h.j = 0;
   h.i = 0;
   h.effects = [];
   h.failed = false;
@@ -126,13 +132,43 @@ it('expires the presentation clock without changing, saving or announcing the de
     const cleanup = effect();
     if (cleanup) cleanups.push(cleanup);
   }
-  expect(h.refetch).toHaveBeenCalledTimes(1);
+  expect(h.refetch).not.toHaveBeenCalled();
   vi.advanceTimersByTime(31000);
-  h.i = 0;
+  h.i = h.j = 0;
   expect(useRecoveryDeadline(scope, 1).waiting).toBe(true);
   vi.advanceTimersByTime(89000);
-  h.i = 0;
+  h.i = h.j = 0;
   const last = useRecoveryDeadline(scope, 1);
   expect(last.waiting).toBe(false);
   expect(last.until).toBe(220000);
+});
+
+it('updates a row-only waiting clock at expiry and restarts it only for a longer deadline', () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(100000);
+  let until = 130000;
+  expect(useRecoveryClock(until)).toBe(100000);
+  for (const effect of h.effects.splice(0)) {
+    const cleanup = effect();
+    if (cleanup) cleanups.push(cleanup);
+  }
+  vi.advanceTimersByTime(30000);
+  h.i = 0;
+  expect(useRecoveryClock(until)).toBe(130000);
+  expect(until).toBe(130000);
+  expect(vi.getTimerCount()).toBe(0);
+  h.effects = [];
+  until = 250000;
+  h.i = 0;
+  expect(useRecoveryClock(until)).toBe(130000);
+  for (const effect of h.effects.splice(0)) {
+    const cleanup = effect();
+    if (cleanup) cleanups.push(cleanup);
+  }
+  vi.advanceTimersByTime(0);
+  expect(vi.getTimerCount()).toBe(1);
+  vi.advanceTimersByTime(120000);
+  h.i = 0;
+  expect(useRecoveryClock(until)).toBe(250000);
+  expect(vi.getTimerCount()).toBe(0);
 });

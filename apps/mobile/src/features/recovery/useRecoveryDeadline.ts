@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { openMutationStore } from '@/storage/pendingExpenseDatabase';
+import { useRecoveryClock } from './useRecoveryClock';
 import type { PendingScope } from '@/storage/pendingExpenses';
 
 /** C/D/E use the same durable account deadline. Presentation never resets or extends it. */
@@ -15,24 +16,28 @@ export function recoveryDeadlineOptions(scope: PendingScope | null) {
     queryFn: async () => (await openMutationStore()).retryAt(scope!),
   };
 }
-export function useRecoveryDeadline(scope: PendingScope | null, revision: unknown) {
+export function useRecoveryDeadline(scope: PendingScope | null, revision: unknown, rowUntil = 0) {
   const query = useQuery(recoveryDeadlineOptions(scope));
   const { refetch } = query;
   const enabled = !!scope;
-  // Reload after local records or an action outcome changes, including persisted HTTP 429s.
+  const observed = useRef({
+    environment: scope?.environment,
+    accountId: scope?.accountId,
+    revision,
+  });
+  // Query handles mount/scope fetches. Only an existing scope's new revision needs another read.
   useEffect(() => {
-    if (enabled) void refetch();
+    const previous = observed.current;
+    observed.current = { environment: scope?.environment, accountId: scope?.accountId, revision };
+    if (
+      enabled &&
+      previous.environment === scope?.environment &&
+      previous.accountId === scope?.accountId &&
+      !Object.is(previous.revision, revision)
+    )
+      void refetch();
   }, [enabled, scope?.environment, scope?.accountId, revision, refetch]);
-  const [now, setNow] = useState(Date.now);
   const until = query.data ?? 0;
-  useEffect(() => {
-    if (!until) return;
-    const timer = setInterval(() => {
-      const time = Date.now();
-      setNow(time);
-      if (time >= until) clearInterval(timer);
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [until]);
-  return { ...query, until, waiting: until > now };
+  const now = useRecoveryClock(Math.max(until, rowUntil));
+  return { ...query, until, now, waiting: until > now };
 }

@@ -20,6 +20,19 @@ const h = vi.hoisted(() => ({
     refetch: vi.fn(),
   },
 }));
+vi.mock('react', async (original) => ({
+  ...(await original<typeof import('react')>()),
+  useMemo: (factory: () => unknown) => factory(),
+}));
+vi.mock('@/features/expenses/useTripMembers', () => ({
+  useTripMembers: () => ({
+    roster: [
+      { id: a, displayName: 'Same' },
+      { id: b, displayName: 'Same' },
+    ],
+    denied: false,
+  }),
+}));
 vi.mock('react-native', () =>
   Object.fromEntries(['Text', 'View', 'ActivityIndicator'].map((n) => [n, n]))
 );
@@ -131,15 +144,17 @@ it.each(Object.keys(messages) as (keyof typeof messages)[])(
       value: money(20.01, locale),
     });
     expect(texts(find('settlement-transfer-0', tree))).toContain(
-      `Same · #a · ${t.you} → Same · #b`
+      `Same · #${a.slice(-6)} · ${t.you} → Same · #${b.slice(-6)}`
     );
     expect(texts(find('settlement-payment-payment', tree))).toContain(
-      `${t.removedMember} → Same · #b`
+      `${t.removedMember} → Same · #${b.slice(-6)}`
     );
     expect(texts(find('settlement-payment-payment', tree))).toContain(
       formatDate(localDate(new Date(original.payments[0].createdAt)), locale)
     );
-    expect(texts(find(`settlement-balance-${a}`, tree))).toContain(`Same · #a · ${t.you}`);
+    expect(texts(find(`settlement-balance-${a}`, tree))).toContain(
+      `Same · #${a.slice(-6)} · ${t.you}`
+    );
     expect(
       nodes(tree).some(
         (n) => n.props.numberOfLines !== undefined || n.props.allowFontScaling === false

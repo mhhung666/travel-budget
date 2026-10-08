@@ -1,6 +1,7 @@
+import { MemberRosterNotice } from '@/features/expenses/MemberRosterNotice';
 import { TripContext } from '@/features/navigation/TripContext';
 import { FormPage } from '@/components/screen';
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   AppState,
@@ -44,8 +45,8 @@ import { useMessages } from '@/i18n/useMessages';
 import { localDate } from '@/i18n/format';
 import { useDisplayFormat } from '@/i18n/useDisplayFormat';
 import { Disclosure } from '@/components/Disclosure';
-import { expenseMemberLabel, type ReadMember } from '@/features/expenses/rows';
-import { settlementMembers } from './view';
+import { useTripMembers } from '@/features/expenses/useTripMembers';
+import { paymentLabels } from './paymentLabels';
 import { spacing, sizing, typography } from '@/theme/tokens';
 import { useOnline } from '@/providers/useOnline';
 import { openMutationStore } from '@/storage/pendingExpenseDatabase';
@@ -73,6 +74,7 @@ export function PaymentScreen({
 }) {
   const { entry, scope, manager } = useTripEntry();
   const { catalog } = useDraftCatalog();
+  const members = useTripMembers(tripId, !!paymentId);
   const client = useQueryClient();
   const t = useMessages();
   const f = useDisplayFormat();
@@ -334,20 +336,17 @@ export function PaymentScreen({
     setFields((f) => (f ? { ...f, ...patch } : f));
     setPrepared(null);
   };
-  const peers = (data: Context): ReadMember[] =>
-    'members' in data
-      ? [
-          ...data.members.map((m) => ({ id: m.id, name: m.displayName })),
-          ...settlementMembers(data.settlement),
-        ]
-      : [
-          { id: data.payment.fromId, name: data.payment.fromName },
-          { id: data.payment.toId, name: data.payment.toName },
-        ];
-  const party = (data: Context, id: string | null, name: string) =>
-    expenseMemberLabel({ id, name }, peers(data), scope?.accountId, t);
-  const label = (data: PaymentContext, id: string) =>
-    party(data, id, data.members.find((m) => m.id === id)?.displayName ?? '');
+  const contextLabels = useMemo(
+    () => paymentLabels(context, scope?.accountId, t, members.roster),
+    [context, scope?.accountId, t, members.roster]
+  );
+  const latestLabels = useMemo(
+    () => paymentLabels(latest, scope?.accountId, t, members.roster),
+    [latest, scope?.accountId, t, members.roster]
+  );
+  const labels = (data: Context) => (data === latest ? latestLabels : contextLabels);
+  const party = (data: Context, id: string | null, name: string) => labels(data).party(id, name);
+  const label = (data: PaymentContext, id: string) => labels(data).choice(id);
   const showContext = (data: Context) =>
     'payment' in data ? (
       <>
@@ -386,7 +385,7 @@ export function PaymentScreen({
       </>
     );
   const native = Platform.OS !== 'web';
-  const visible = !!scope && catalog.isVisible(scope, tripId);
+  const visible = !!scope && catalog.isVisible(scope, tripId) && !members.denied;
   return (
     <FormPage
       title={paymentId ? t.revokePayment : t.recordPayment}
@@ -400,6 +399,7 @@ export function PaymentScreen({
       <TripContext tripId={tripId} />
       <Notice>{t.paymentExternalOnly}</Notice>
       {!online && <Notice tone="warning">{t.offline}</Notice>}
+      <MemberRosterNotice members={members} online={online} />
       {!native && <Notice>{t.nativeOnly}</Notice>}
       {!!error && <Notice tone="danger">{error}</Notice>}
       {done ? (

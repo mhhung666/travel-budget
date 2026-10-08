@@ -8,7 +8,7 @@ import { useOnline } from '@/providers/useOnline';
 import type { EntryOutcome } from './entry';
 import { useExpenseEntry } from './entryProvider';
 import { refreshTripData } from './entryQueries';
-import { categoryLabel, expenseMemberLabel, isForeign } from './rows';
+import { categoryLabel, type MemberLabelIndex, isForeign } from './rows';
 
 type Saved = Extract<EntryOutcome, { kind: 'saved' }>;
 
@@ -20,10 +20,12 @@ export function SavedExpense({
   saved,
   tripId,
   onAnother,
+  labels,
 }: {
   saved: Saved;
   tripId: string;
   onAnother: () => void;
+  labels: MemberLabelIndex;
 }) {
   const t = useMessages();
   const f = useDisplayFormat();
@@ -34,7 +36,6 @@ export function SavedExpense({
   const [refreshing, setRefreshing] = useState(false);
   const { expense } = saved;
   const payer = { id: expense.payerId, name: expense.payerName, isVirtual: expense.payerIsVirtual };
-  const peers = [payer, ...expense.splits.map((s) => ({ id: s.userId, name: s.displayName }))];
 
   useEffect(() => {
     let alive = true;
@@ -81,15 +82,12 @@ export function SavedExpense({
         <Card testID="new-expense-saved">
           <DetailRow label={t.date} value={f.date(expense.date)} />
           <DetailRow label={t.category} value={categoryLabel(expense.category, t)} />
-          <DetailRow
-            label={t.paidBy}
-            value={expenseMemberLabel(payer, peers, scope?.accountId, t)}
-          />
+          <DetailRow label={t.paidBy} value={labels.label(payer)} />
           {isForeign(expense) && (
             <>
               <DetailRow
                 label={t.originalAmount}
-                value={`${expense.currency} · ${f.currency(expense.originalAmount, expense.currency)}`}
+                value={f.originalAmount(expense.originalAmount, expense.currency)}
               />
               <DetailRow label={t.exchangeRate} value={f.rate(expense.exchangeRate)} />
             </>
@@ -102,12 +100,11 @@ export function SavedExpense({
             <DetailRow
               key={`${split.userId ?? 'unknown'}-${index}`}
               testID={`saved-split-${index}`}
-              label={expenseMemberLabel(
-                { id: split.userId, name: split.displayName, isVirtual: split.isVirtual },
-                peers,
-                scope?.accountId,
-                t
-              )}
+              label={labels.label({
+                id: split.userId,
+                name: split.displayName,
+                isVirtual: split.isVirtual,
+              })}
               value={f.money(split.shareAmount)}
             />
           ))}

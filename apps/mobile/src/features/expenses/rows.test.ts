@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { expenseCategories, type Expense } from '@/api/contracts';
 import { messages } from '@/i18n/messages';
-import { categoryLabel, expenseMemberLabel, isForeign, memberName, uniqueExpenses } from './rows';
+import {
+  categoryLabel,
+  createMemberLabelIndex,
+  isForeign,
+  memberName,
+  uniqueExpenses,
+} from './rows';
 
 const expense = (id: string, overrides: Partial<Expense> = {}): Expense => ({
   id,
@@ -46,34 +52,118 @@ describe('expense rows', () => {
   });
 });
 
-it.each(Object.keys(messages) as (keyof typeof messages)[])(
-  'identifies self, virtual and removed references in %s',
+const a = '0123456789abcdef01a1b2c3';
+const b = '0123456789abcdef01b9c0d1';
+const c = '0123456789abcdef02b9c0d1';
+const d = '0123456789abcdef03b9c0d1';
+const e = '0123456789abcdef04b9c0d1';
+const localeKeys = Object.keys(messages) as (keyof typeof messages)[];
+it.each(localeKeys)(
+  'keeps unique names free of IDs and preserves self/virtual/removed in %s',
   (locale) => {
     const t = messages[locale];
-    const a = { id: 'a123456', name: 'Same' },
-      b = { id: 'b123456', name: 'Same', isVirtual: true };
-    const peers = [a, b, a];
-    expect(expenseMemberLabel(a, peers, a.id, t)).toBe(`Same · #a123456 · ${t.you}`);
-    expect(expenseMemberLabel(b, peers, a.id, t)).toBe(`Same · #b123456 · ${t.virtualMember}`);
-    expect(expenseMemberLabel(b, peers.slice().reverse(), a.id, t)).toBe(
-      expenseMemberLabel(b, peers, a.id, t)
+    for (const id of [a, b, c, d, e]) expect(id).toMatch(/^[a-f0-9]{24}$/);
+    const index = createMemberLabelIndex(
+      [
+        { id: a, displayName: 'Alice' },
+        { id: b, displayName: 'Bob' },
+      ],
+      [],
+      a,
+      t
     );
-    expect(expenseMemberLabel({ id: null, name: 'Stale private name' }, peers, a.id, t)).toBe(
-      t.removedMember
-    );
-    expect(expenseMemberLabel({ id: 'other', name: 'One' }, peers, a.id, t)).toBe('One');
-    expect(expenseMemberLabel({ id: 'other', name: '' }, [], a.id, t)).toBe(t.unknownMember);
+    expect(index.label({ id: a, name: 'Alice' })).toBe(`Alice · ${t.you}`);
+    expect(index.label({ id: b, name: 'Bob', isVirtual: true })).toBe(`Bob · ${t.virtualMember}`);
+    expect(index.label({ id: null, name: 'Stale private name' })).toBe(t.removedMember);
+    expect(index.label({ id: a, name: 'Old name' })).toBe(`Alice · ${t.you}`);
   }
 );
-it('uses the shortest distinguishing suffix and never marks a same-name person as self', () => {
-  const peers = [
-    { id: 'id-ab', name: 'Amy' },
-    { id: 'id-cb', name: 'Amy' },
-    { id: 'id-ad', name: 'Amy' },
-  ];
-  expect(expenseMemberLabel(peers[0], peers, 'id-cb', messages.en)).toBe('Amy · #ab');
-  expect(expenseMemberLabel(peers[2], peers, 'id-cb', messages.en)).toBe('Amy · #d');
-});
+it.each(localeKeys)(
+  'uses roster-based six-digit codes independent of visible pages in %s',
+  (locale) => {
+    const t = messages[locale];
+    const roster = [
+      { id: a, displayName: 'Alice' },
+      { id: b, displayName: 'Alice' },
+    ];
+    const first = { id: a, name: 'Alice' };
+    const other = { id: b, name: 'Alice' };
+    for (const references of [[first], [first, other], [other, first]]) {
+      const index = createMemberLabelIndex(roster, references, undefined, t);
+      expect(index.label(first)).toBe('Alice · #a1b2c3');
+      expect(index.label(other)).toBe('Alice · #b9c0d1');
+      expect(index.label(first)).not.toContain(a);
+    }
+  }
+);
+it.each(localeKeys)(
+  'lengthens colliding suffixes consistently for roster and historical references in %s',
+  (locale) => {
+    const t = messages[locale];
+    const roster = [
+      { id: b, displayName: 'Alice' },
+      { id: c, displayName: 'Alice' },
+    ];
+    for (const ordered of [roster, roster.slice().reverse()]) {
+      const index = createMemberLabelIndex(ordered, [], undefined, t);
+      expect(index.label({ id: b, name: 'Alice' })).toBe('Alice · #1b9c0d1');
+      expect(index.label({ id: c, name: 'Alice' })).toBe('Alice · #2b9c0d1');
+    }
+    const history = [
+      { id: d, name: 'Alice' },
+      { id: e, name: 'Alice' },
+    ];
+    for (const ordered of [history, history.slice().reverse()]) {
+      const index = createMemberLabelIndex(
+        [
+          { id: a, displayName: 'Alice' },
+          { id: b, displayName: 'Alice' },
+        ],
+        ordered,
+        undefined,
+        t
+      );
+      expect(index.label({ id: b, name: 'Alice' })).toBe('Alice · #b9c0d1');
+      expect(index.label(history[0])).toBe('Alice · #3b9c0d1');
+      expect(index.label(history[1])).toBe('Alice · #4b9c0d1');
+    }
+  }
+);
+it.each(localeKeys)(
+  'codes historical references only with a roster, without reviving null identities in %s',
+  (locale) => {
+    const t = messages[locale];
+    const history = [
+      { id: b, name: 'Alice', isVirtual: true },
+      { id: null, name: 'Secret' },
+    ];
+    const index = createMemberLabelIndex([{ id: a, displayName: 'Alice' }], history, b, t);
+    expect(index.label(history[0])).toBe(`Alice · #b9c0d1 · ${t.you} · ${t.virtualMember}`);
+    expect(index.label(history[1])).toBe(t.removedMember);
+    expect(index.label({ id: a, name: 'Alice' })).toBe('Alice');
+    const unavailable = createMemberLabelIndex(undefined, history, undefined, t);
+    expect(unavailable.label(history[0])).toBe(`Alice · ${t.virtualMember}`);
+    expect(unavailable.label(history[1])).toBe(t.removedMember);
+  }
+);
+
+it.each(localeKeys)(
+  'does not infer historical membership from an unavailable roster in %s',
+  (locale) => {
+    const t = messages[locale];
+    const references = [
+      { id: b, name: 'Alice', isVirtual: true },
+      { id: c, name: 'Alice' },
+    ];
+    const unavailable = createMemberLabelIndex(undefined, references, b, t);
+    expect(unavailable.label(references[0])).toBe(`Alice · ${t.you} · ${t.virtualMember}`);
+    expect(unavailable.label(references[1])).toBe('Alice');
+    // An empty but successfully read roster is different from missing roster data.
+    const empty = createMemberLabelIndex([], references, b, t);
+    expect(empty.label(references[0])).toContain('Alice · #1b9c0d1');
+    expect(empty.label(references[1])).toBe('Alice · #2b9c0d1');
+  }
+);
 
 it('uses Other for unrecognized display categories without mutating the stored value', () => {
   const stored = 'legacy-category' as Expense['category'];
