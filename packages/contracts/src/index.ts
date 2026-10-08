@@ -307,6 +307,57 @@ export const expenseUpdateInput = z.discriminatedUnion('mode', [
     .strict(),
 ]);
 export const expenseDeleteInput = z.object(mutationIdentity).strict();
+// G1a: a location keeps its real coordinates; omitted changes preserve all historical fields.
+export const tripLocationSchema = z
+  .object({
+    name: z.string().trim().min(1).max(300),
+    display_name: z.string().trim().min(1).max(2000),
+    lat: z.number().min(-90).max(90),
+    lon: z.number().min(-180).max(180),
+    names: z.record(z.string(), z.string()).optional(),
+    country: z.string().optional(),
+    country_code: z.string().optional(),
+  })
+  .strict();
+export const tripChangesSchema = z
+  .object({
+    name: tripFieldsSchema.shape.name.optional(),
+    description: z.string().trim().max(2000).optional(),
+    start_date: dateSchema.nullable().optional(),
+    end_date: dateSchema.nullable().optional(),
+    destination_location: tripLocationSchema.nullable().optional(),
+  })
+  .strict()
+  .refine((v) => Object.keys(v).length > 0, 'Changes required')
+  .refine((v) => !v.start_date || !v.end_date || v.start_date <= v.end_date, 'Invalid date range');
+export const tripUpdateInput = z
+  .object({ ...mutationIdentity, changes: tripChangesSchema })
+  .strict();
+export const tripArchiveInput = z.object({ ...mutationIdentity, archived: z.boolean() }).strict();
+export const tripSettingsSchema = z.object({
+  tripId: idSchema,
+  name: z.string(),
+  description: z.string(),
+  startDate: dateSchema.nullable(),
+  endDate: dateSchema.nullable(),
+  destination: tripLocationSchema.nullable(),
+  role: z.enum(['admin', 'member']),
+  archived: z.boolean(),
+  revision: resourceRevisionSchema,
+  archiveRevision: resourceRevisionSchema,
+});
+export const tripManagementResultSchema = z
+  .object({
+    tripId: idSchema,
+    revision: resourceRevisionSchema.optional(),
+    archived: z.boolean().optional(),
+  })
+  .refine((v) => (v.revision !== undefined) !== (v.archived !== undefined), 'Outcome required');
+export type TripSettings = z.infer<typeof tripSettingsSchema>;
+export type TripUpdateInput = z.infer<typeof tripUpdateInput>;
+export type TripArchiveInput = z.infer<typeof tripArchiveInput>;
+export type TripManagementResult = z.infer<typeof tripManagementResultSchema>;
+export type TripLocation = z.infer<typeof tripLocationSchema>;
 export const expenseMutationResultSchema = z
   .object({
     tripId: idSchema,
@@ -376,6 +427,8 @@ export const mutationRequestSchema = z.discriminatedUnion('status', [
       operation: z.enum([
         'trip.create',
         'trip.join',
+        'trip.update',
+        'trip.archive',
         'expense.update',
         'expense.delete',
         'payment.create',
@@ -385,6 +438,7 @@ export const mutationRequestSchema = z.discriminatedUnion('status', [
       result: z.union([
         expenseMutationResultSchema.strict(),
         paymentMutationResultSchema.strict(),
+        tripManagementResultSchema.strict(),
         tripMutationResultSchema.strict(),
       ]),
     })
@@ -398,9 +452,16 @@ export const mutationRequestSchema = z.discriminatedUnion('status', [
             ? 'paymentId' in v.result &&
               v.resourceId === v.result.paymentId &&
               (v.operation === 'payment.create' ? !!v.result.revision : v.result.deleted === true)
-            : !('expenseId' in v.result) &&
-              !('paymentId' in v.result) &&
-              v.resourceId === v.result.tripId,
+            : v.operation === 'trip.update' || v.operation === 'trip.archive'
+              ? v.resourceId === v.result.tripId &&
+                (v.operation === 'trip.update'
+                  ? 'revision' in v.result && !!v.result.revision
+                  : 'archived' in v.result && v.result.archived !== undefined)
+              : !('expenseId' in v.result) &&
+                !('paymentId' in v.result) &&
+                !('revision' in v.result) &&
+                !('archived' in v.result) &&
+                v.resourceId === v.result.tripId,
       'Receipt outcome does not match its operation'
     ),
   z.object({
@@ -408,6 +469,8 @@ export const mutationRequestSchema = z.discriminatedUnion('status', [
     operation: z.enum([
       'trip.create',
       'trip.join',
+      'trip.update',
+      'trip.archive',
       'expense.update',
       'expense.delete',
       'payment.create',
@@ -415,6 +478,7 @@ export const mutationRequestSchema = z.discriminatedUnion('status', [
     ]),
     code: z.enum([
       'INVITATION_INVALID',
+      'FORBIDDEN',
       'RESOURCE_CHANGED',
       'RESOURCE_GONE',
       'VALIDATION_ERROR',

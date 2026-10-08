@@ -21,6 +21,10 @@ import {
   expenseCreateInput,
   expenseRequestSchema,
   MAX_EXPENSE_AMOUNT,
+  tripSettingsSchema,
+  tripUpdateInput,
+  tripArchiveInput,
+  tripManagementResultSchema,
   tripCreateInput,
   tripJoinInput,
   tripMutationResultSchema,
@@ -41,6 +45,10 @@ const maxAmount = MAX_EXPENSE_AMOUNT.toLocaleString('en-US', { minimumFractionDi
 
 const schemas = Object.fromEntries(
   Object.entries({
+    TripSettings: tripSettingsSchema,
+    TripUpdateInput: tripUpdateInput,
+    TripArchiveInput: tripArchiveInput,
+    TripManagementResult: tripManagementResultSchema,
     TripCreateInput: tripCreateInput,
     TripJoinInput: tripJoinInput,
     TripMutationResult: tripMutationResultSchema,
@@ -187,6 +195,27 @@ const paths = {
       ],
       description:
         '20 items/page; ongoing, upcoming, unscheduled, past, archived. Pagination is not a snapshot; refresh from page 1 after changes.',
+    },
+  },
+  '/trips/{id}/settings': {
+    get: { ...operation('tripSettings', 'TripSettings'), parameters: [tripIdParam] },
+  },
+  '/trips/{id}': {
+    patch: {
+      ...operation('updateTrip', 'TripManagementResult', 'TripUpdateInput', {
+        authenticated: true,
+        errors: [403, 409],
+      }),
+      parameters: [tripIdParam],
+    },
+  },
+  '/trips/{id}/archive': {
+    post: {
+      ...operation('archiveTrip', 'TripManagementResult', 'TripArchiveInput', {
+        authenticated: true,
+        errors: [409],
+      }),
+      parameters: [tripIdParam],
     },
   },
   '/trips/{id}/landing': {

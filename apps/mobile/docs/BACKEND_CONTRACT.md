@@ -139,6 +139,14 @@ Mobile 未確認輸入僅保留當次畫面並有離開提醒；開表單及確�
 
 沿用 E1 receipt 唯一索引、既有 payments 索引及 SQLite schema 8，不新增 migration／原生依賴。開發測試／三平台匯出不等於裝置驗收；獨立審查及兩平台基本操作見 [E4 交接](LOCAL_ACCEPTANCE.md#e4-還款驗收交接)，未部署／未執行遠端 migration。
 
+## G1a 旅行資料與個人封存
+
+新增成員 `GET /trips/:id/settings`、管理員 `PATCH /trips/:id`、成員 `POST /trips/:id/archive`。context 只回名稱、說明、date-only 起訖、白名單地點、本人角色／封存、旅行資料 revision 及本人 archiveRevision；不含私人預算、其他成員、邀請碼或幣別設定。PATCH 嚴格 body 為 UUID／expected_revision／非空 changes，只接受實際修改的 name、description、start_date、end_date、destination_location；名稱 1–100、說明最多 2000 字，完整地點為 name／display_name／lat／lon 及選填語系／國家，空日期／目的地用 null 清除，未知欄位拒絕。archive 嚴格 body 為 UUID／expected_revision／archived boolean；封存只影響本人，不停用旅行。
+
+`tripManagement.ts` 與 Web update／archive action 共用父旅行 fence／snapshot 交易及日期／自動相片重綁。PATCH revision 以原始資料的 HMAC 比對，不受私人封存、背景 fence 或預算影響；archiveRevision 只綁旅行／操作者／本人封存狀態。部分日期與既有日期在交易內核對；非管理員新編輯保存終局 `FORBIDDEN` receipt，API 回 403，仍是成員者可查拒絕結果且可封存。旅行／成員資格消失為 404 `NOT_FOUND`，重播與結果查詢皆重新授權；只失去管理員角色可重播既有結果。revision 不一致回 409 `RESOURCE_CHANGED`，日期範圍無效回 409 `VALIDATION_ERROR`，均保存終局拒絕。
+
+旅行更新／個人封存與 `mutationrequests` receipt 同交易提交；相同 UUID／內容先重授權及查 receipt，不依最新 revision 重做。不同內容回 `IDEMPOTENCY_CONFLICT`；成功最小結果為 `{ tripId, revision }` 或 `{ tripId, archived }`，通用 mutation 查詢新增 trip.update／trip.archive，原操作向下相容。提交後快取重讀失敗不回報寫入失敗。沿用現有 receipt 索引及 Mobile schema 8 E 操作表，沒有新增 migration。429 及重啟／帳號隔離沿用 C／D／E 保護；未部署、不執行遠端 migration。
+
 ## 尚未實作
 
 外幣與非均分金額編輯、附件 begin／finish、推播、帳號刪除及 OS 背景同步均屬後續工作（見 [路線](ROADMAP.md)）。D1 原始草稿、D2 受限入口與 D3 離線確認／多筆前景待送佇列沿用既有 HTTP 端點；AI 仍只產生草稿，正式寫入需使用者確認。實作與開發測試不代表已部署或兩平台裝置驗收通過。

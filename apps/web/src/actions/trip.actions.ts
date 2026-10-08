@@ -27,12 +27,8 @@ import { deliverJoinNotification } from '@/lib/notify';
 import { enterTrip, TripEntryError } from '@/lib/tripEntry';
 import { randomUUID } from 'node:crypto';
 import { inviteCodeSchema } from '@travel-budget/contracts';
-import { isEffectiveTripDateRangeValid } from '@/lib/dateRange';
-import { rebindAutoPhotosInTransaction } from '@/lib/photoItineraryTransaction';
-import {
-  withItineraryDayUpdateTransaction,
-  ItineraryDayUpdateError,
-} from '@/lib/itineraryDayUpdate';
+import { updateTripForActor, archiveTripForActor, TripManagementError } from '@/lib/tripManagement';
+import { TripWriteError } from '@/lib/tripWriteTransaction';
 
 /** 將 Mongoose Trip 文件映射為對外 DTO（維持 snake_case 以相容前端） */
 type LeanTrip = TripDoc & { _id: { toString(): string }; createdAt: Date };
@@ -159,57 +155,22 @@ export const updateTrip = withAuth(
         };
       }
 
-      const { name, description, start_date, end_date, destination_location } = validation.data;
-
-      const updateData: Record<string, unknown> = {};
-      if (name !== undefined) updateData.name = name.trim();
-      if (description !== undefined) updateData.description = description?.trim() || '';
-      if (start_date !== undefined) updateData.startDate = start_date ? new Date(start_date) : null;
-      if (end_date !== undefined) updateData.endDate = end_date ? new Date(end_date) : null;
-      if (destination_location !== undefined)
-        updateData.destinationLocation = destination_location ?? null;
-
       await dbConnect();
-      const db = mongoose.connection.db!;
-      const result = await withItineraryDayUpdateTransaction<ActionResult<Trip>>(
-        db,
-        membership.tripId,
+      const trip = await updateTripForActor(
+        mongoose.connection.db!,
         session.userId,
-        async (transactionSession, currentDates) => {
-          // Merge partial date edits with the dates protected by this transaction.
-          if (
-            (start_date !== undefined || end_date !== undefined) &&
-            !isEffectiveTripDateRangeValid(
-              currentDates.startDate,
-              currentDates.endDate,
-              start_date,
-              end_date
-            )
-          ) {
-            return { success: false, error: '開始日期不能晚於結束日期', code: 'VALIDATION_ERROR' };
-          }
-          const trip = await TripModel.findByIdAndUpdate(
-            membership.tripId,
-            { $set: updateData },
-            { new: true, session: transactionSession }
-          ).lean<LeanTrip>();
-          if (!trip) throw new ItineraryDayUpdateError('FORBIDDEN');
-          if (start_date !== undefined || end_date !== undefined) {
-            await rebindAutoPhotosInTransaction(
-              db,
-              transactionSession,
-              new mongoose.mongo.ObjectId(membership.tripId),
-              trip,
-              new Date()
-            );
-          }
-          return { success: true, data: toTripDto(trip, session.userId) };
-        }
+        membership.tripId,
+        validation.data
       );
-      if (result.success) revalidatePath(`/trips/${id}`);
-      return result;
+      try {
+        revalidatePath(`/trips/${id}`);
+        revalidatePath('/trips');
+      } catch {
+        logger.error('Trip cache refresh failed');
+      }
+      return { success: true, data: toTripDto(trip as unknown as LeanTrip, session.userId) };
     } catch (error) {
-      if (error instanceof ItineraryDayUpdateError) {
+      if (error instanceof TripManagementError || error instanceof TripWriteError) {
         return { success: false, error: error.code, code: error.code };
       }
       logger.error('Update trip error', error);
@@ -319,29 +280,27 @@ async function setArchivedAt(
     return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
   }
 
-  // 定位到當前使用者那筆 member，只改自己的 archivedAt（positional `$`）
-  const trip = await TripModel.findOneAndUpdate(
-    {
-      _id: membership.tripId,
-      'members.user': session.userId,
-      expenseDeliveryDeleting: { $ne: true },
-    },
-    { $set: { 'members.$.archivedAt': archivedAt } },
-    { new: true }
-  ).lean<LeanTrip>();
-
-  if (!trip) {
-    return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+  const trip = await archiveTripForActor(
+    mongoose.connection.db!,
+    session.userId,
+    membership.tripId,
+    !!archivedAt
+  );
+  try {
+    revalidatePath('/trips');
+    revalidatePath(`/trips/${membership.tripId}`);
+  } catch {
+    logger.error('Trip cache refresh failed');
   }
-
-  revalidatePath('/trips');
-  return { success: true, data: toTripDto(trip, session.userId) };
+  return { success: true, data: toTripDto(trip as unknown as LeanTrip, session.userId) };
 }
 
 export const archiveTrip = withAuth(async (session, id: string): Promise<ActionResult<Trip>> => {
   try {
     return await setArchivedAt(session, id, new Date());
   } catch (error) {
+    if (error instanceof TripWriteError || error instanceof TripEntryError)
+      return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     logger.error('Archive trip error', error);
     return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
   }
@@ -351,6 +310,8 @@ export const unarchiveTrip = withAuth(async (session, id: string): Promise<Actio
   try {
     return await setArchivedAt(session, id, null);
   } catch (error) {
+    if (error instanceof TripWriteError || error instanceof TripEntryError)
+      return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
     logger.error('Unarchive trip error', error);
     return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
   }

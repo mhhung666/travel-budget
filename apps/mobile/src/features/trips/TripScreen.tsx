@@ -60,6 +60,12 @@ export function TripScreen({ id }: { id: string }) {
             label={t.addExpense}
             onPress={() => router.push({ pathname: '/trips/[id]/expenses/new', params: { id } })}
           />
+          <Action
+            testID="trip-settings"
+            variant="secondary"
+            label={t.tripSettings}
+            onPress={() => router.push({ pathname: '/trips/[id]/settings', params: { id } })}
+          />
           <Section title={t.tripDetails}>
             <Card>
               <DetailRow

@@ -1,5 +1,7 @@
 import { z } from 'zod';
 import {
+  tripUpdateInput,
+  tripArchiveInput,
   tripCreateInput,
   tripJoinInput,
   mutationRequestSchema,
@@ -21,6 +23,8 @@ import type { PendingScope, SqlDatabase } from './pendingExpenses';
 export const mutationPayload = z.discriminatedUnion('operation', [
   z.object({ operation: z.literal('trip.create'), body: tripCreateInput }),
   z.object({ operation: z.literal('trip.join'), body: tripJoinInput }),
+  z.object({ operation: z.literal('trip.update'), tripId: idSchema, body: tripUpdateInput }),
+  z.object({ operation: z.literal('trip.archive'), tripId: idSchema, body: tripArchiveInput }),
   z.object({
     operation: z.literal('expense.update'),
     tripId: idSchema,
@@ -170,7 +174,7 @@ export async function createMutationStore(db: SqlDatabase): Promise<MutationStor
       serial(async () => {
         if (result.status === 'not_found') throw new Error('NOT_TERMINAL');
         await db.runAsync(
-          "UPDATE pending_mutation SET status = 'completed', payload = CASE WHEN ? = 1 AND (operation LIKE 'expense.%' OR operation LIKE 'payment.%') THEN payload ELSE NULL END, result = ? WHERE environment = ? AND account_id = ? AND client_request_id = ?",
+          "UPDATE pending_mutation SET status = 'completed', payload = CASE WHEN ? = 1 AND (operation LIKE 'expense.%' OR operation LIKE 'payment.%' OR operation IN ('trip.update', 'trip.archive')) THEN payload ELSE NULL END, result = ? WHERE environment = ? AND account_id = ? AND client_request_id = ?",
           result.status === 'rejected' ? 1 : 0,
           JSON.stringify(mutationRequestSchema.parse(result)),
           ...scopeArgs(scope),

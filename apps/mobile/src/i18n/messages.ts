@@ -1,4 +1,26 @@
 const zh = {
+  discardTripChanges: '捨棄未確認變更',
+  archiveFinishEdits: '先保存或捨棄旅行資料變更，再調整個人封存。',
+  tripSettings: '旅行設定',
+  tripAdminOnly: '僅管理員可修改旅行資料；你仍可管理自己的封存狀態。',
+  tripSettingsHint: '核對最新資料後才保存。未確認輸入只留在本畫面。',
+  tripSettingsChanged: '旅行資料或封存狀態已變動。輸入保留，請核對最新內容後再確認。',
+  tripSettingsReconfirm: '核對最新內容，保留輸入',
+  invalidTripSettings:
+    '請確認名稱、日期範圍及目的地，沒有變更時不需送出。目的地需要名稱、地址與有效座標。',
+  tripDestination: '目的地',
+  destinationAddress: '完整地址',
+  latitude: '緯度',
+  longitude: '經度',
+  destinationCoordinatesHint:
+    '沿用原目的地座標；改選地點請填真實緯度與經度。清除目的地請使用下方按鈕。',
+  clearDestination: '清除目的地',
+  personalArchive: '個人封存',
+  personalArchiveHint: '只影響你自己的旅行列表排序。旅行仍可閱讀與記帳，不影響其他成員。',
+  archiveTrip: '封存旅行',
+  unarchiveTrip: '取消封存',
+  tripNotArchived: '未封存',
+
   tripDetails: '旅行資料',
   moreAboutTrip: '目的地與補充說明',
   localStatusUnavailable: '本機待處理狀態讀取失敗，請進入檢查。',
@@ -330,6 +352,28 @@ export type Messages = Record<keyof typeof zh, string>;
 export const messages = {
   zh,
   'zh-CN': {
+    discardTripChanges: '舍弃未确认变更',
+    archiveFinishEdits: '先保存或舍弃旅行资料变更，再调整个人归档。',
+    tripSettings: '旅行设置',
+    tripAdminOnly: '仅管理员可修改旅行资料；你仍可管理自己的归档状态。',
+    tripSettingsHint: '核对最新资料后才保存。未确认输入只留在本画面。',
+    tripSettingsChanged: '旅行资料或归档状态已变动。输入保留，请核对最新内容后再确认。',
+    tripSettingsReconfirm: '核对最新内容，保留输入',
+    invalidTripSettings:
+      '请确认名称、日期范围及目的地，没有变更时无需提交。目的地需要名称、地址与有效坐标。',
+    tripDestination: '目的地',
+    destinationAddress: '完整地址',
+    latitude: '纬度',
+    longitude: '经度',
+    destinationCoordinatesHint:
+      '沿用原目的地坐标；改选地点请填真实纬度与经度。清除目的地请使用下方按钮。',
+    clearDestination: '清除目的地',
+    personalArchive: '个人归档',
+    personalArchiveHint: '只影响你自己的旅行列表排序。旅行仍可阅读与记账，不影响其他成员。',
+    archiveTrip: '归档旅行',
+    unarchiveTrip: '取消归档',
+    tripNotArchived: '未归档',
+
     tripDetails: '旅行资料',
     moreAboutTrip: '目的地与补充说明',
     localStatusUnavailable: '本机待处理状态读取失败，请进入检查。',
@@ -656,6 +700,32 @@ export const messages = {
     done: '完成',
   },
   en: {
+    discardTripChanges: 'Discard unconfirmed changes',
+    archiveFinishEdits: 'Save or discard trip edits before changing your archive status.',
+    tripSettings: 'Trip settings',
+    tripAdminOnly:
+      'Only admins may edit trip details. You can still manage your own archive status.',
+    tripSettingsHint:
+      'Review current details before saving. Unconfirmed input stays on this screen.',
+    tripSettingsChanged:
+      'Trip details or archive status changed. Your input is retained; review the latest details and confirm again.',
+    tripSettingsReconfirm: 'Review latest details and keep input',
+    invalidTripSettings:
+      'Check the name, dates and destination. No changes need no submission. A destination requires a name, address and valid coordinates.',
+    tripDestination: 'Destination',
+    destinationAddress: 'Full address',
+    latitude: 'Latitude',
+    longitude: 'Longitude',
+    destinationCoordinatesHint:
+      'Existing destination coordinates are retained. Enter real coordinates for a different place; use the button below to clear it.',
+    clearDestination: 'Clear destination',
+    personalArchive: 'Personal archive',
+    personalArchiveHint:
+      'Changes only your trip list order. Everyone can still read and write in the trip.',
+    archiveTrip: 'Archive trip',
+    unarchiveTrip: 'Unarchive trip',
+    tripNotArchived: 'Not archived',
+
     tripDetails: 'Trip details',
     moreAboutTrip: 'Destination and notes',
     localStatusUnavailable: 'Local work status could not be read. Open it to check.',
@@ -1026,6 +1096,29 @@ export const messages = {
     done: 'Done',
   },
   jp: {
+    discardTripChanges: '未確認の変更を破棄',
+    archiveFinishEdits: '旅行情報の変更を保存または破棄してからアーカイブを変更してください。',
+    tripSettings: '旅行設定',
+    tripAdminOnly: '旅行情報の変更は管理者のみです。自分のアーカイブ状態は変更できます。',
+    tripSettingsHint: '最新情報を確認後に保存します。未確認の入力はこの画面だけに残ります。',
+    tripSettingsChanged:
+      '旅行情報またはアーカイブ状態が変わりました。入力を保持しています。最新情報を確認して再度確定してください。',
+    tripSettingsReconfirm: '最新情報を確認し、入力を保持',
+    invalidTripSettings:
+      '名前、日付、目的地を確認してください。変更がなければ送信不要です。目的地には名前、住所、有効な座標が必要です。',
+    tripDestination: '目的地',
+    destinationAddress: '住所',
+    latitude: '緯度',
+    longitude: '経度',
+    destinationCoordinatesHint:
+      '既存の座標は保持されます。別の場所には実際の座標を入力してください。解除は下のボタンを使います。',
+    clearDestination: '目的地を解除',
+    personalArchive: '個人アーカイブ',
+    personalArchiveHint: '自分の旅行一覧の順序のみを変更します。全員が引き続き閲覧・記帳できます。',
+    archiveTrip: '旅行をアーカイブ',
+    unarchiveTrip: 'アーカイブを解除',
+    tripNotArchived: '未アーカイブ',
+
     tripDetails: '旅行情報',
     moreAboutTrip: '目的地と補足',
     localStatusUnavailable: '端末の未処理状況を読み込めません。開いて確認してください。',

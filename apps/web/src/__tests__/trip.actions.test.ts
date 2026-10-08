@@ -44,14 +44,11 @@ vi.mock('@/lib/tripDeletion', () => ({
   TripDeletionError: class extends Error {},
 }));
 vi.mock('@/lib/tripCleanup', () => ({ runTripCleanup: deletion.cleanup }));
-vi.mock('@/lib/itineraryDayUpdate', async (original) => ({
-  ...(await original<typeof import('@/lib/itineraryDayUpdate')>()),
-  withItineraryDayUpdateTransaction: (
-    _db: unknown,
-    _trip: string,
-    _actor: string,
-    update: (session: unknown, dates: { startDate: Date; endDate: Date }) => Promise<unknown>
-  ) => update(undefined, { startDate: new Date('2026-07-01'), endDate: new Date('2026-07-10') }),
+const management = vi.hoisted(() => ({ update: vi.fn(), archive: vi.fn() }));
+vi.mock('@/lib/tripManagement', async (original) => ({
+  ...(await original<typeof import('@/lib/tripManagement')>()),
+  updateTripForActor: management.update,
+  archiveTripForActor: management.archive,
 }));
 vi.mock('next/cache', () => ({ revalidatePath: (...args: unknown[]) => revalidatePath(...args) }));
 vi.mock('@/lib/auth', () => ({ getSession: () => getSession() }));
@@ -157,6 +154,8 @@ beforeEach(() => {
   });
   dbConnect.mockResolvedValue(undefined);
   tripExists.mockResolvedValue(null);
+  management.update.mockReset().mockResolvedValue(tripDoc());
+  management.archive.mockReset().mockResolvedValue(tripDoc());
   tripFindByIdAndUpdate.mockReturnValue(lean(tripDoc()));
   tripFindById.mockReturnValue(selectLean(tripDoc()));
   tripFindOne.mockReturnValue(lean(tripDoc()));
@@ -289,14 +288,10 @@ describe('admin-only trip mutations', () => {
   });
 
   it('updates a trip through its resolved id', async () => {
-    tripFindByIdAndUpdate.mockReturnValue(lean(tripDoc({ name: 'Updated' })));
+    management.update.mockResolvedValueOnce(tripDoc({ name: 'Updated' }));
     const result = await updateTrip('oldcode1', { name: ' Updated ' });
     expect(result.success).toBe(true);
-    expect(tripFindByIdAndUpdate).toHaveBeenCalledWith(
-      TRIP,
-      { $set: { name: 'Updated' } },
-      { new: true, session: undefined }
-    );
+    expect(management.update.mock.calls[0].slice(1)).toEqual([USER, TRIP, { name: 'Updated' }]);
     expect(revalidatePath).toHaveBeenCalledWith('/trips/oldcode1');
   });
 
@@ -401,4 +396,11 @@ describe('joinTrip', () => {
     });
     expect(notify).not.toHaveBeenCalled();
   });
+});
+
+it('a committed Web update survives cache refresh failure', async () => {
+  revalidatePath.mockImplementationOnce(() => {
+    throw new Error('cache');
+  });
+  expect((await updateTrip(TRIP, { name: 'Updated' })).success).toBe(true);
 });

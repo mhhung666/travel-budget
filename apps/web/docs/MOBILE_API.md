@@ -63,3 +63,7 @@ migration `20261006100000-mutation-requests.js` 使用既有 Trip hashCode 唯�
 新增成員 payment-context、還款 POST、單筆 revoke-context 與 DELETE；Web payment action 也委派共用 `paymentWrite.ts`。支援任意實際付款的到分驗證、結算／原始還款 HMAC 前條件、終局 UUID receipt、同交易活動與各自獨立 `_id` 的站內通知，測試包含第三位操作者替兩位正式成員記錄部分付款，提交後外部寄送失敗仍成功，重播／撤銷不復活或重複扣抵。完整 schema、錯誤與恢復見 [Mobile E4 契約](../../mobile/docs/BACKEND_CONTRACT.md#e4-登記與撤銷還款)。
 
 `paymentWrite.integration.test.ts` 以 opt-in 隨機隔離 replica set 核對部分／超額／虛擬付款、同 UUID 與不同 UUID 競爭、原始變更、撤權、回滾、撤銷與 Web 共用服務；CI 已加入。`test:mobile-api` 核對真 HTTP／DB 與丟 POST／DELETE 回應，原生成員／四語畫面仍待其他人驗收。沿用 E1 receipt 與既有 payment 索引，不新增 migration／遠端操作。
+
+## G1a 旅行資料與封存
+
+新增 settings GET、旅行 PATCH 與個人 archive POST；成員 Bearer、嚴格 JSON／8 KiB／no-store。僅 admin 可修改資料，任何成員可封存自己；失去 admin 的新操作有終局拒絕，仍可查結果，不當作整趟旅行撤權。獨立資料／本人封存 revision、欄位、最小結果與錯誤見 [共用契約](../../mobile/docs/BACKEND_CONTRACT.md#g1a-旅行資料與個人封存)。Web／HTTP 共用 `tripManagement.ts`，沿用 receipt／父旅行交易及相片 auto 重綁，無新增 migration。`tripManagement.integration.test.ts` 已納入隔離交易 CI；裝置／真機交其他人，未部署。

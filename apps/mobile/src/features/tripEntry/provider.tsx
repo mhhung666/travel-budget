@@ -14,6 +14,7 @@ import { useAuth } from '@/features/auth/AuthProvider';
 import { openMutationStore } from '@/storage/pendingExpenseDatabase';
 import type { PendingScope } from '@/storage/pendingExpenses';
 import { TripEntry } from './engine';
+import { refreshManagedTrip } from '@/features/trips/managementRefresh';
 import { refreshTripData } from '@/features/expenses/entryQueries';
 import { useDraftCatalog } from '@/features/localDrafts/provider';
 const Context = createContext<TripEntry | null>(null);
@@ -46,12 +47,16 @@ export function TripEntryProvider({ children }: PropsWithChildren) {
           try {
             return await manager.requestAs(userId, path, schema, options);
           } catch (error) {
-            const match = /^\/trips\/([^/]+)\/(?:expenses|payments)(?:\/|$)/.exec(path);
+            const match = /^\/trips\/([^/]+)(?:\/(?:expenses|payments|archive)(?:\/|$)|$)/.exec(
+              path
+            );
             if (
               match &&
               error instanceof ApiError &&
               error.source === 'request' &&
-              (error.status === 403 || (error.status === 404 && error.code === 'NOT_FOUND'))
+              ((error.status === 403 &&
+                !(path === `/trips/${match[1]}` && error.code === 'FORBIDDEN')) ||
+                (error.status === 404 && error.code === 'NOT_FOUND'))
             )
               await catalog
                 .deny({ environment: manager.api.baseUrl, accountId: userId }, match[1])
@@ -64,6 +69,13 @@ export function TripEntryProvider({ children }: PropsWithChildren) {
         },
         committed: async (scope, tripId, result) => {
           // Normal authorized landing/options reads establish D snapshots, never the join receipt.
+          if (
+            result.status === 'committed' &&
+            ['trip.update', 'trip.archive'].includes(result.operation)
+          ) {
+            await refreshManagedTrip(client, manager, catalog, scope, tripId);
+            return;
+          }
           await Promise.all([
             refreshTripData(
               client,

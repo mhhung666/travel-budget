@@ -69,3 +69,7 @@ Web update／delete action 抽成 `expenseMaintenance.ts` 的 actor service，�
 ## E4 共用還款服務
 
 `paymentWrite.ts` 抽離 Web cookie，Web／Mobile 共用金額到分、成員及 trip fence／snapshot 交易；`calculateSettlementDetail` 抽出原結算計算供兩種讀取使用。Mobile context 與 HMAC 在同一快照產生，payment／終局 receipt／一次活動及站內通知同交易；重播先重授權，不重做副作用，撤銷保留建立 receipt。提交後外部通知／快取失敗不推翻成功；Web 不再因 populate 失敗回報已提交為失敗。沿用既有索引與 schema，沒有新增 migration；完整 API 與邊界見 [E4](../../mobile/docs/BACKEND_CONTRACT.md#e4-登記與撤銷還款)。
+
+## G1a 旅行管理
+
+`tripManagement.ts` 抽出 Web update／archive action 的旅行修改與本人封存，Mobile settings／PATCH／archive adapter 共用同一 parent fence／snapshot transaction。地點／date-only／部分日期與 auto 相片重綁規則保留；Mobile 比較原始旅行資料 HMAC 或本人封存 HMAC，再於交易寫入資料及 E receipt。重播先檢查目前成員資格，降權不推翻原成功，新編輯的降權保存可查拒絕；結果查詢沿用 `readTripMutation`。提交後讀取／快取不推翻成功。契約見 [G1a](../../mobile/docs/BACKEND_CONTRACT.md#g1a-旅行資料與個人封存)。

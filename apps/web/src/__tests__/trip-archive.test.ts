@@ -1,9 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// archiveTrip / unarchiveTrip 不需真實 DB：mock 連線、session、membership 與 Trip model。
+// Cookie adapter delegates to the shared per-member transaction service.
 const getSession = vi.fn();
 const getTripMembership = vi.fn();
-const findOneAndUpdate = vi.fn();
+const management = vi.hoisted(() => ({ archive: vi.fn() }));
+vi.mock('@/lib/tripManagement', async (original) => ({
+  ...(await original<typeof import('@/lib/tripManagement')>()),
+  archiveTripForActor: management.archive,
+}));
+import { TripWriteError } from '@/lib/tripWriteTransaction';
+const findOneAndUpdate = management.archive;
 
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 
@@ -53,11 +59,13 @@ function leanTrip(archivedAt: Date | null) {
 }
 
 function mockUpdateReturns(doc: unknown) {
-  findOneAndUpdate.mockReturnValue({ lean: () => Promise.resolve(doc) });
+  if (doc) management.archive.mockResolvedValueOnce(doc);
+  else management.archive.mockRejectedValueOnce(new TripWriteError('FORBIDDEN'));
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
+  management.archive.mockReset();
   getSession.mockResolvedValue({ userId: VIEWER });
   getTripMembership.mockResolvedValue({ tripId: TRIP_ID, role: 'admin' });
 });
@@ -90,14 +98,7 @@ describe('archiveTrip', () => {
     if (!result.success) throw new Error('expected success');
     expect(result.data.archived_at).toBe('2025-06-17T00:00:00.000Z');
 
-    // 只更新 viewer 自己那筆 member（positional `$`），且設了一個 Date
-    const [filter, update] = findOneAndUpdate.mock.calls[0];
-    expect(filter).toEqual({
-      _id: TRIP_ID,
-      'members.user': VIEWER,
-      expenseDeliveryDeleting: { $ne: true },
-    });
-    expect(update.$set['members.$.archivedAt']).toBeInstanceOf(Date);
+    expect(management.archive.mock.calls[0].slice(1)).toEqual([VIEWER, TRIP_ID, true]);
   });
 
   it('returns NOT_FOUND when the trip disappears mid-update', async () => {
@@ -119,7 +120,6 @@ describe('unarchiveTrip', () => {
     if (!result.success) throw new Error('expected success');
     expect(result.data.archived_at).toBeNull();
 
-    const [, update] = findOneAndUpdate.mock.calls[0];
-    expect(update.$set['members.$.archivedAt']).toBeNull();
+    expect(management.archive.mock.calls[0].slice(1)).toEqual([VIEWER, TRIP_ID, false]);
   });
 });

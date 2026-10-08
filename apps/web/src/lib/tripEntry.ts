@@ -27,6 +27,7 @@ interface Parent {
 export class TripEntryError extends Error {
   constructor(
     public code:
+      | 'FORBIDDEN'
       | 'NOT_FOUND'
       | 'IDEMPOTENCY_CONFLICT'
       | 'INVITATION_INVALID'

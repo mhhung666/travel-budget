@@ -161,3 +161,7 @@ E3 成功只存最小 receipt 結果並刷新資源，刪除明細不再重讀�
 ## U2a 顯示層
 
 `i18n/format.ts` 提供純金額／匯率／date-only 顯示，`useDisplayFormat` 依 App 四語傳入 locale；旅行卡片／概覽與支出閱讀共用，原始表單值與後端 money 規則不變。`expenses/ExpenseRow` 與 `rows.expenseMemberLabel` 只整理目前可見 DTO，使用 ID 識別本人及同名，null 參照與可選虛擬旗標明示狀態，沒有額外成員查詢或帳務快取。後端旗標只加入授權讀取的白名單，不改 Web／public DTO 或既有 receipt。
+
+## G1a 旅行管理
+
+`features/trips/TripSettingsScreen.tsx` 由私有 settings 路由依環境／帳號／旅行重新掛載；`settingsForm.ts` 只準備實際修改欄位及衝突重新套用。HTTP／contracts 與 Web 共用 `tripManagement.ts`；管理員資料及個人封存分開 revision，日期沿用相片重綁。確認後擴充既有 TripEntry／mutationPayload 的 trip.update／trip.archive，不另建引擎或 DB；pending 的同旅行鎖延續 C／D／E。`managementRefresh.ts` 在提交成功後只讀刷新相關 Query 與 D 名稱／選項快照，擷取登入／catalog 世代並同步檢查 429 期限；失敗不改已提交結果，429 落盤。地點只傳白名單真實座標，首片不增加地理搜尋依賴。
