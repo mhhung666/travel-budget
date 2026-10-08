@@ -12,13 +12,15 @@ const key = '11111111-1111-4111-8111-111111111111';
 const tripId = '222222222222222222222222';
 const payload = {
   operation: 'trip.create' as const,
-  body: { name: 'Trip', description: '', start_date: null, end_date: null },
+  body: { name: 'Trip', description: '', start_date: null, end_date: null, base_currency: 'TWD' },
 };
+const ledger = { baseCurrency: 'TWD', moneyScale: 2 as const };
 const result = {
   status: 'committed' as const,
   operation: 'trip.create' as const,
   resourceId: tripId,
-  result: { tripId },
+  ledger,
+  result: { tripId, ledger },
 };
 let cleanup: (() => void)[] = [];
 afterEach(() => {
@@ -103,7 +105,7 @@ it('persists before POST and retains a minimal completed result without sensitiv
   let saw = false;
   h.request.mockImplementationOnce(async () => {
     saw = (await h.store.list(scope))[0].status === 'pending';
-    return { tripId };
+    return { tripId, ledger };
   });
   expect((await h.engine().confirm(scope, payload)).kind).toBe('completed');
   expect(saw).toBe(true);
@@ -138,6 +140,7 @@ it('crash before POST is query-only on restart, explicit retry uses the frozen k
     result: null,
     status: 'pending',
     conflict: false,
+    apiVersion: 2,
     createdAt: 1,
   });
   await h.restart();
@@ -189,7 +192,7 @@ it('late success after loss of eligibility keeps the original pending record', a
   const h = await fixture();
   h.request.mockImplementationOnce(async () => {
     h.active = false;
-    return { tripId };
+    return { tripId, ledger };
   });
   expect((await h.engine().confirm(scope, payload)).kind).toBe('pending');
   expect((await h.store.list(scope))[0].status).toBe('pending');
@@ -252,7 +255,7 @@ it('latest deadline is rechecked at transport after async waits', async () => {
     const c = await createPendingExpenseStore(h.db);
     await c.pause!(scope, key, 'busy', 220000);
     options?.beforeSend?.();
-    return { tripId };
+    return { tripId, ledger };
   });
   expect((await h.engine().confirm(scope, payload)).kind).toBe('pending');
   expect(await h.store.retryAt(scope)).toBe(220000);

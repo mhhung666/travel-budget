@@ -54,5 +54,7 @@ export function reasonMessage(reason: UnconfirmedReason | undefined, t: Messages
       return t.sessionExpired;
     case 'server':
       return t.genericError;
+    case 'retired':
+      return t.retiredRecord;
   }
 }

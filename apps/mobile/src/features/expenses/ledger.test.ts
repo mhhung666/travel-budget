@@ -3,7 +3,8 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ApiClient, ApiError, validateBaseUrl } from '@/api/client';
-import { savedExpenseVersion, savedMutationVersion, savedQueueVersion } from '@/api/recovery';
+import { retiredExpense, retiredOperation } from '@/api/recovery';
+import { insertLegacyPending } from '@/test/legacy';
 import { baseCurrency } from '@/api/ledger';
 import {
   expenseOptionsSchema,
@@ -314,31 +315,222 @@ describe('B3 transport', () => {
   });
 });
 
-describe('B5c-1 environment and recovery versions', () => {
+describe('B5d-1 environment and retired v1 records', () => {
   it('keeps the SQLite scope when the configured address names v2', () => {
     const configured = validateBaseUrl(scope.environment.replace(/v1$/, 'v2'), false);
     expect(new ApiClient(configured).environment).toBe(scope.environment);
   });
-  it('resumes saved records on their original version and never relabels them', () => {
+  it('retires saved v1 records by their stored version and never relabels them', () => {
     const v1Body = { ...body(), currency: 'TWD' } as Record<string, unknown>;
     delete v1Body.base_currency;
-    expect(savedExpenseVersion({ payload: body() })).toBe(2);
-    expect(savedExpenseVersion({ payload: v1Body })).toBe(1);
-    expect(savedExpenseVersion({ apiVersion: 1, payload: body() })).toBe(1);
-    expect(savedMutationVersion({})).toBe(1);
-    expect(savedMutationVersion({ apiVersion: 2 })).toBe(2);
-    expect(savedQueueVersion({})).toBe(1);
-    expect(savedQueueVersion({ apiVersion: 2 })).toBe(2);
+    expect(retiredExpense({ payload: body() })).toBe(false);
+    expect(retiredExpense({ payload: v1Body })).toBe(true);
+    expect(retiredExpense({ apiVersion: 1, payload: body() })).toBe(true);
+    expect(retiredOperation({})).toBe(true);
+    expect(retiredOperation({ apiVersion: 1 })).toBe(true);
+    expect(retiredOperation({ apiVersion: 2 })).toBe(false);
   });
-  it('overrides the v2 default only through the recovery adapter', () => {
+  it('has no way left to send a request on v1', () => {
     const root = join(process.cwd(), 'src');
     const offenders = readdirSync(root, { recursive: true })
       .filter((file) => /\.tsx?$/.test(file) && !/\.test\.tsx?$/.test(file))
-      .filter((file) => !['api/recovery.ts', 'api/client.ts'].includes(file))
+      // The retirement decoder is the only place an unlabelled record is read as v1.
+      .filter((file) => file !== 'api/recovery.ts' && !file.startsWith('test/'))
       .filter((file) =>
-        /apiVersion(?:: [12]\b(?! as const)|\s*\?\?)/.test(readFileSync(join(root, file), 'utf8'))
+        /apiVersion\s*\?\?|apiVersion: 1\b|transport\(\s*1|\/v1\//.test(
+          readFileSync(join(root, file), 'utf8')
+        )
       );
     expect(offenders).toEqual([]);
+  });
+});
+
+/** The confirmed fields of a frozen body, as the entry receives them before it adds an id. */
+const withoutId = (frozen: { client_request_id: string }) => {
+  const fields: Partial<typeof frozen> = { ...frozen };
+  delete fields.client_request_id;
+  return fields as Parameters<ExpenseEntry['submit']>[2];
+};
+describe('B5d-1 retired v1 operations are never sent, only discarded', () => {
+  const v1Body = () => {
+    const legacy = { ...body(), currency: 'TWD', original_amount: 20.1, exchange_rate: 1 };
+    delete (legacy as { base_currency?: string }).base_currency;
+    return legacy;
+  };
+  const neverCalled = () =>
+    vi.fn(async () => {
+      throw new Error('a retired operation reached transport');
+    });
+
+  it('creates only v2 C requests, at the entry and at the SQLite boundary', async () => {
+    const store = await createPendingExpenseStore(open());
+    const request = neverCalled();
+    const entry = new ExpenseEntry({ store: async () => store, request, newId: () => uuid(1) });
+    const fields = withoutId(v1Body());
+    expect((await entry.submit(scope, tripId, fields)).kind).toBe('not-sent');
+    for (const saved of [
+      { ...record(), apiVersion: 1 as const },
+      { ...record(), apiVersion: undefined },
+      { ...record(), payload: v1Body() },
+    ])
+      await expect(store.insert(saved)).rejects.toThrow('INVALID_PENDING_LEDGER');
+    expect(await store.list(scope)).toEqual([]);
+    expect(request).not.toHaveBeenCalled();
+  });
+
+  it('decodes a v1 C row unchanged, and lookup, retry and recovery send nothing', async () => {
+    const db = open();
+    const store = await createPendingExpenseStore(db);
+    await insertLegacyPending(db, { ...scope, tripId, payload: v1Body() });
+    const raw = await db.getFirstAsync('SELECT * FROM pending_expense');
+    const request = neverCalled();
+    const entry = new ExpenseEntry({ store: async () => store, request, newId: () => uuid(2) });
+    const retired = { kind: 'unconfirmed', clientRequestId: uuid(1), reason: 'retired' };
+    expect(await entry.lookup(scope, uuid(1))).toEqual(retired);
+    expect(await entry.retry(scope, uuid(1))).toEqual(retired);
+    expect(await entry.recover(scope)).toEqual([retired]);
+    expect(request).not.toHaveBeenCalled();
+    expect(await db.getFirstAsync('SELECT * FROM pending_expense')).toEqual(raw);
+    expect(await store.get(scope, uuid(1))).toMatchObject({ apiVersion: 1, payload: v1Body() });
+    // It still holds the trip until the user discards it.
+    const fields = withoutId(body());
+    expect((await entry.submit(scope, tripId, fields)).kind).toBe('blocked');
+  });
+
+  it('discards only a v1 C row, with its draft and queue row, and frees the trip', async () => {
+    const db = open();
+    const store = await createPendingExpenseStore(db);
+    const changed = vi.fn();
+    const request = vi.fn(
+      async (_a: string, _p: string, schema: { parse: (v: unknown) => unknown }) =>
+        schema.parse({ status: 'not_found' })
+    );
+    const entry = new ExpenseEntry({
+      store: async () => store,
+      request: request as never,
+      newId: () => uuid(3),
+      onChange: changed,
+    });
+    await store.insert({ ...record(), tripId: id(8) });
+    await expect(entry.abandon(scope, uuid(1))).rejects.toThrow('NOT_RETIRED');
+    expect(await store.list(scope, id(8))).toHaveLength(1);
+
+    await store.drafts.start({
+      ...scope,
+      tripId,
+      draftId: uuid(50),
+      revision: 1,
+      input: draft,
+      updatedAt: 1,
+    });
+    await db.runAsync(
+      "UPDATE expense_draft SET status = 'handed-off', client_request_id = ? WHERE trip_id = ?",
+      uuid(7),
+      tripId
+    );
+    await insertLegacyPending(db, {
+      ...scope,
+      tripId,
+      payload: { ...v1Body(), client_request_id: uuid(7) },
+    });
+    await db.runAsync(
+      "INSERT INTO expense_queue (environment, account_id, client_request_id, trip_id, input, roster, status, reason, next_at, created_at, api_version) VALUES (?, ?, ?, ?, '{}', '[]', 'prepared', NULL, 0, 1, 1)",
+      scope.environment,
+      scope.accountId,
+      uuid(7),
+      tripId
+    );
+    await entry.abandon(scope, uuid(7));
+    expect(await store.list(scope, tripId)).toEqual([]);
+    expect(await db.getAllAsync('SELECT * FROM expense_queue')).toEqual([]);
+    expect(
+      await db.getFirstAsync('SELECT status, input FROM expense_draft WHERE trip_id = ?', tripId)
+    ).toEqual({ status: 'discarded', input: '{}' });
+    expect(changed).toHaveBeenCalledWith(scope, tripId);
+    await entry.abandon(scope, uuid(7)); // already gone: nothing to do
+    expect(request).not.toHaveBeenCalled();
+    const fields = withoutId(body());
+    request.mockImplementation(async (_a, path, schema) =>
+      schema.parse(path.endsWith('/expenses') ? detail : { status: 'not_found' })
+    );
+    expect((await entry.submit(scope, tripId, fields)).kind).toBe('saved');
+  });
+
+  it('creates only v2 E operations, never sends a v1 one, and discards only pending v1', async () => {
+    const db = open();
+    const store = await createMutationStore(db);
+    const request = neverCalled();
+    const engine = new TripEntry({
+      store: async () => store,
+      request,
+      newId: () => uuid(5),
+      active: () => true,
+    });
+    const v1 = {
+      ...scope,
+      clientRequestId: uuid(5),
+      operation: 'trip.join' as const,
+      payload: {
+        operation: 'trip.join' as const,
+        body: { client_request_id: uuid(5), invite_code: 'ABCDEF' },
+      },
+      result: null,
+      status: 'pending' as const,
+      conflict: false,
+      createdAt: 1,
+    };
+    await expect(store.insert(v1)).rejects.toThrow('INVALID_MUTATION_LEDGER');
+    await expect(store.insert({ ...v1, apiVersion: 1 })).rejects.toThrow('INVALID_MUTATION_LEDGER');
+    // What an older release wrote: the row is v1.
+    await store.insert({ ...v1, apiVersion: 2 });
+    await db.runAsync('UPDATE pending_mutation SET api_version = 1');
+    const raw = await db.getFirstAsync('SELECT * FROM pending_mutation');
+    expect(await engine.lookup(scope, uuid(5))).toEqual({ kind: 'retired' });
+    expect(await engine.retry(scope, uuid(5))).toEqual({ kind: 'retired' });
+    await engine.recover(scope);
+    expect(request).not.toHaveBeenCalled();
+    expect(await db.getFirstAsync('SELECT * FROM pending_mutation')).toEqual(raw);
+    // A pending v2 operation and a completed v1 one are never discarded this way.
+    await store.insert({
+      ...v1,
+      apiVersion: 2,
+      clientRequestId: uuid(6),
+      operation: 'trip.create',
+      payload: {
+        operation: 'trip.create',
+        body: {
+          client_request_id: uuid(6),
+          name: 'T',
+          description: '',
+          start_date: null,
+          end_date: null,
+          base_currency: 'TWD',
+        },
+      },
+    });
+    await db.runAsync(
+      "INSERT INTO pending_mutation (environment, account_id, client_request_id, operation, payload, trip_id, status, conflict, created_at, api_version, base_currency, money_scale, result) VALUES (?, ?, ?, 'trip.create', NULL, NULL, 'completed', 0, 1, 1, 'TWD', 2, ?)",
+      scope.environment,
+      scope.accountId,
+      uuid(4),
+      JSON.stringify({
+        status: 'committed',
+        operation: 'trip.create',
+        resourceId: tripId,
+        result: { tripId },
+      })
+    );
+    for (const key of [uuid(4), uuid(6)]) await engine.abandon(scope, key);
+    expect((await store.list(scope)).map((r) => r.clientRequestId).sort()).toEqual([
+      uuid(4),
+      uuid(5),
+      uuid(6),
+    ]);
+    await engine.abandon(scope, uuid(5));
+    expect((await store.list(scope)).map((r) => r.clientRequestId).sort()).toEqual([
+      uuid(4),
+      uuid(6),
+    ]);
   });
 });
 
@@ -395,9 +587,10 @@ describe('B3 SQLite and frozen recovery', () => {
       payload: { ...body(), currency: 'TWD', original_amount: 20.1, exchange_rate: 1 },
     };
     delete (legacy.payload as { base_currency?: string }).base_currency;
-    await store.insert(legacy);
+    await insertLegacyPending(db, legacy);
     await mutations.insert({
       ...scope,
+      apiVersion: 2,
       clientRequestId: uuid(2),
       operation: 'trip.join',
       payload: {
@@ -434,30 +627,19 @@ describe('B3 SQLite and frozen recovery', () => {
     );
     expect(await db.getFirstAsync('PRAGMA user_version')).toEqual({ user_version: 10 });
   });
-  it.each([1, 2] as const)(
-    'C restores original v%s UUID and endpoint after a lost answer',
-    async (version) => {
-      const db = open();
-      const store = await createPendingExpenseStore(db);
-      const original = record();
-      if (version === 1) {
-        original.apiVersion = 1;
-        original.baseCurrency = 'TWD';
-        delete (original.payload as { base_currency?: string }).base_currency;
-      }
-      await store.insert(original);
-      const received = { ...detail, ...(version === 1 ? { ledger: undefined } : {}) };
-      const request = vi.fn(async (_account, path, schema, opts) => {
-        expect(opts.apiVersion).toBe(version);
-        expect(path).toContain(uuid(1));
-        return schema.parse({ status: 'committed', expense: received });
-      });
-      const entry = new ExpenseEntry({ store: async () => store, request, newId: () => uuid(99) });
-      expect((await entry.lookup(scope, uuid(1))).kind).toBe('saved');
-      expect(request).toHaveBeenCalledOnce();
-      expect(await store.list(scope)).toEqual([]);
-    }
-  );
+  it('C restores the original v2 UUID and endpoint after a lost answer', async () => {
+    const db = open();
+    const store = await createPendingExpenseStore(db);
+    await store.insert(record());
+    const request = vi.fn(async (_account, path, schema) => {
+      expect(path).toContain(uuid(1));
+      return schema.parse({ status: 'committed', expense: detail });
+    });
+    const entry = new ExpenseEntry({ store: async () => store, request, newId: () => uuid(99) });
+    expect((await entry.lookup(scope, uuid(1))).kind).toBe('saved');
+    expect(request).toHaveBeenCalledOnce();
+    expect(await store.list(scope)).toEqual([]);
+  });
   it('keeps v2 E body/UUID after network loss and queries the same-version receipt on restart', async () => {
     const db = open();
     const store = await createMutationStore(db);
@@ -469,7 +651,6 @@ describe('B3 SQLite and frozen recovery', () => {
       request,
       newId: () => uuid(4),
       active: () => true,
-      contractVersion: 2 as const,
     };
     expect(
       (
@@ -486,7 +667,6 @@ describe('B3 SQLite and frozen recovery', () => {
     const raw = await db.getFirstAsync('SELECT payload FROM pending_mutation');
     await new TripEntry(deps).lookup(scope, uuid(4));
     expect(request.mock.calls.at(-1)?.[1]).toBe(`/mutation-requests/${uuid(4)}`);
-    expect(request.mock.calls.at(-1)?.[3]).toMatchObject({ apiVersion: 2 });
     expect(await db.getFirstAsync('SELECT payload FROM pending_mutation')).toEqual(raw);
     expect((await store.get(scope, uuid(4)))?.clientRequestId).toBe(uuid(4));
   });
@@ -514,7 +694,6 @@ it('a restarted v2 join discovers the receipt unit without inventing TWD', async
     store: async () => store,
     newId: () => uuid(7),
     active: () => true,
-    contractVersion: 2,
     request: async () => {
       throw new ApiError('NETWORK');
     },
@@ -525,7 +704,6 @@ it('a restarted v2 join discovers the receipt unit without inventing TWD', async
     store: async () => store,
     newId: () => uuid(8),
     active: () => true,
-    contractVersion: 2,
     request: async (_a, _p, schema) =>
       schema.parse({
         status: 'committed',
@@ -548,7 +726,6 @@ it('a lost v2 C response recovers once with the original base and UUID', async (
     store: async () => store,
     newId: () => uuid(1),
     request: async (_a, path, schema, options) => {
-      expect(options?.apiVersion).toBe(2);
       if (options?.method === 'POST') {
         posts++;
         seen.push(options.body);
@@ -611,7 +788,6 @@ it.each([false, true])(
         store: async () => store,
         newId: () => uuid(ids++),
         request: async (_a, path, schema, opts) => {
-          expect(opts?.apiVersion).toBe(2);
           if (opts?.method === 'POST') {
             posts++;
             if (posts === 1) {
@@ -647,7 +823,6 @@ it.each([false, true])(
         store: async () => store,
         newId: () => uuid(99),
         request: async (_a, path, schema, opts) => {
-          expect(opts?.apiVersion).toBe(2);
           expect(opts?.method).not.toBe('POST');
           expect(path).toContain(uuid(1));
           return schema.parse({ status: 'rejected', code: 'VALIDATION_ERROR', ledger });

@@ -1,4 +1,4 @@
-import { savedExpenseVersion } from '@/api/recovery';
+import { retiredExpense } from '@/api/recovery';
 import { baseCurrency } from '@/api/ledger';
 import type { z } from 'zod';
 import { ApiError, type RequestOptions } from '@/api/client';
@@ -17,7 +17,7 @@ export type EntryRequest = <T>(
   userId: string,
   path: string,
   schema: z.ZodType<T>,
-  options?: Pick<RequestOptions, 'method' | 'body' | 'beforeSend' | 'apiVersion'>
+  options?: Pick<RequestOptions, 'method' | 'body' | 'beforeSend'>
 ) => Promise<T>;
 
 export interface EntryDeps {
@@ -42,7 +42,9 @@ export type UnconfirmedReason =
   | 'access'
   | 'conflict'
   | 'cancelled'
-  | 'not-found';
+  | 'not-found'
+  /** Saved by a release that sent v1: never sent or looked up again, only discarded. */
+  | 'retired';
 export type EntryOutcome =
   /** The server confirmed it; the pending record is gone. `differs`: the stored expense is not what was entered. */
   | { kind: 'saved'; expense: ExpenseDetail; differs: boolean; refreshed: Promise<boolean> }
@@ -209,13 +211,15 @@ export class ExpenseEntry {
         ...fields,
         client_request_id: this.deps.newId(),
       });
+      // Only a v2 body (one that names its ledger unit) can be sent.
+      if (!('base_currency' in payload)) throw new Error('INVALID_PENDING_LEDGER');
       const now = this.now();
       record = {
         ...scope,
         tripId,
         clientRequestId: payload.client_request_id,
-        apiVersion: savedExpenseVersion({ payload }),
-        baseCurrency: 'base_currency' in payload ? payload.base_currency : 'TWD',
+        apiVersion: 2,
+        baseCurrency: payload.base_currency,
         moneyScale: 2,
         payload,
         status: 'sending',
@@ -238,11 +242,16 @@ export class ExpenseEntry {
   lookup(scope: PendingScope, clientRequestId: string): Promise<EntryOutcome> {
     return this.serial(scope, clientRequestId, async () => {
       const loaded = await this.load(scope, clientRequestId);
-      return 'store' in loaded ? this.lookupCore(loaded.store, loaded.record) : loaded;
+      if (!('store' in loaded)) return loaded;
+      if (retiredExpense(loaded.record)) return unconfirmed(loaded.record, 'retired');
+      return this.lookupCore(loaded.store, loaded.record);
     });
   }
 
-  /** Repeats the frozen request; transport checks beforeSend after all waits and before any replay. */
+  /**
+   * Asks for the receipt first, then repeats the frozen request only if the server has none;
+   * transport checks beforeSend after all waits and before any replay.
+   */
   retry(
     scope: PendingScope,
     clientRequestId: string,
@@ -251,11 +260,25 @@ export class ExpenseEntry {
     return this.serial(scope, clientRequestId, async () => {
       const loaded = await this.load(scope, clientRequestId);
       if (!('store' in loaded)) return loaded;
-      if (savedExpenseVersion(loaded.record) === 2) {
-        const found = await this.lookupCore(loaded.store, loaded.record);
-        if (found.kind !== 'unconfirmed' || found.reason !== 'not-found') return found;
-      }
+      if (retiredExpense(loaded.record)) return unconfirmed(loaded.record, 'retired');
+      const found = await this.lookupCore(loaded.store, loaded.record);
+      if (found.kind !== 'unconfirmed' || found.reason !== 'not-found') return found;
       return this.post(loaded.store, loaded.record, beforeSend);
+    });
+  }
+
+  /**
+   * Removes a request saved by a release that sent v1, at the user's explicit request. Its outcome
+   * stays unknown; nothing is sent. A failure to remove it is reported, never retried silently.
+   */
+  abandon(scope: PendingScope, clientRequestId: string): Promise<void> {
+    return this.serial(scope, clientRequestId, async () => {
+      const store = await this.deps.store();
+      const record = await store.get(scope, clientRequestId);
+      if (!record) return;
+      if (!retiredExpense(record)) throw new Error('NOT_RETIRED');
+      await store.remove(scopeOf(record), clientRequestId, 'abandoned');
+      this.deps.onChange?.(scopeOf(record), record.tripId);
     });
   }
 
@@ -315,7 +338,8 @@ export class ExpenseEntry {
     record: PendingExpense,
     beforeSend?: () => void
   ): Promise<EntryOutcome> {
-    if (record.status !== 'sending') await this.mark(store, record, 'sending');
+    // Also after the receipt check, which marks a request it did not find as unconfirmed.
+    await this.mark(store, record, 'sending');
     let expense: ExpenseDetail;
     try {
       expense = await this.deps.request(
@@ -323,7 +347,6 @@ export class ExpenseEntry {
         `${tripPath(record.tripId)}/expenses`,
         expenseDetailSchema,
         {
-          apiVersion: savedExpenseVersion(record),
           method: 'POST',
           body: record.payload,
           beforeSend: () => {
@@ -349,10 +372,6 @@ export class ExpenseEntry {
     error: unknown
   ): Promise<EntryOutcome> {
     const verdict = verdictOf(error);
-    if (verdict === 'rejected' && savedExpenseVersion(record) === 1) {
-      await this.drop(store, record, 'rejected');
-      return { kind: 'rejected', error: error as ApiError };
-    }
     await this.mark(store, record, 'unconfirmed');
     try {
       // Record 409 before its follow-up lookup, and 429 before returning to any caller.
@@ -397,10 +416,7 @@ export class ExpenseEntry {
         record.accountId,
         `${tripPath(record.tripId)}/expense-requests/${encodeURIComponent(record.clientRequestId)}`,
         expenseRequestSchema,
-        {
-          apiVersion: savedExpenseVersion(record),
-          beforeSend: () => this.guardRateLimit(store, record),
-        }
+        { beforeSend: () => this.guardRateLimit(store, record) }
       );
     } catch (error) {
       try {

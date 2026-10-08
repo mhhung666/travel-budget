@@ -17,8 +17,10 @@ const currencyPayload = {
   body: {
     expected_revision: revision,
     settings: { default_currency: 'JPY', currencies: [{ code: 'JPY', rate: 0.2156789012345 }] },
+    base_currency: 'TWD',
   },
 };
+const ledger = { baseCurrency: 'TWD', moneyScale: 2 as const };
 const updatePayload = {
   operation: 'trip.update' as const,
   tripId,
@@ -102,7 +104,13 @@ it.each(['trip.update', 'trip.archive', 'trip.currency'] as const)(
     });
     expect((await h.engine().confirm(scope, input)).kind).toBe('pending');
     await h.restart();
-    h.request.mockResolvedValue({ status: 'committed', operation, resourceId: tripId, result });
+    h.request.mockResolvedValue({
+      status: 'committed',
+      operation,
+      resourceId: tripId,
+      ledger,
+      result: { ...result, ledger },
+    });
     await h.engine().recover(scope);
     expect(h.request.mock.calls[1][1]).toBe(`/mutation-requests/${key}`);
     expect((await h.store.list(scope))[0]).toMatchObject({ status: 'completed', payload: null });
@@ -188,7 +196,9 @@ it.each([updatePayload, currencyPayload])(
         category: 'food' as const,
         date: '2026-10-08',
         splits: [{ user_id: scope.accountId, share_amount: 1 }],
+        base_currency: 'TWD',
       },
+      apiVersion: 2 as const,
       status: 'sending' as const,
       createdAt: 0,
       updatedAt: 0,
@@ -197,7 +207,7 @@ it.each([updatePayload, currencyPayload])(
     await pending.insert(record);
     expect((await h.engine().confirm(scope, payload)).kind).toBe('blocked');
     expect(h.request).not.toHaveBeenCalled();
-    h.request.mockResolvedValue({ tripId: 'd'.repeat(24), revision });
+    h.request.mockResolvedValue({ tripId: 'd'.repeat(24), revision, ledger });
     expect((await h.engine().confirm(scope, { ...payload, tripId: 'd'.repeat(24) })).kind).toBe(
       'completed'
     );
@@ -226,7 +236,7 @@ it.each([updatePayload, currencyPayload])(
     await h.restart();
     h.request
       .mockResolvedValueOnce({ status: 'not_found' })
-      .mockResolvedValueOnce({ tripId, revision });
+      .mockResolvedValueOnce({ tripId, revision, ledger });
     await h.engine().retry(scope, key);
     expect(h.request.mock.calls[2][3]?.body).toEqual({ ...payload.body, client_request_id: key });
   }
@@ -249,6 +259,7 @@ it('existing schema 8 G1 rows and G2a intents coexist after restart without a mi
     tripId: otherTrip,
     status: 'pending',
     conflict: false,
+    apiVersion: 2,
     createdAt: 1,
   });
   await h.restart();

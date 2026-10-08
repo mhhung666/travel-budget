@@ -1,4 +1,3 @@
-import { savedMutationVersion } from '@/api/recovery';
 import { z } from 'zod';
 import {
   mutationRequestV2Schema,
@@ -105,6 +104,8 @@ export interface MutationStore {
     result: z.infer<typeof mutationRequestSchema>
   ): Promise<void>;
   dismiss(scope: PendingScope, key: string): Promise<void>;
+  /** Deletes a pending v1 operation (saved before B5d-1) that the user chose to discard. */
+  abandon(scope: PendingScope, key: string): Promise<void>;
   retryAt(scope: PendingScope): Promise<number>;
   rateLimitUntil(scope: PendingScope): number;
   pause(scope: PendingScope, until: number): Promise<void>;
@@ -191,6 +192,8 @@ export async function createMutationStore(db: SqlDatabase): Promise<MutationStor
           const parsed = mutationPayload.parse(record.payload);
           if (parsed.body.client_request_id !== record.clientRequestId)
             throw new Error('INVALID_MUTATION');
+          // Only v2 operations are saved now; v1 rows from older releases are decoded, never created.
+          if (record.apiVersion !== 2) throw new Error('INVALID_MUTATION_LEDGER');
           const tripId = 'tripId' in parsed ? parsed.tripId : null;
           const pending = tripId
             ? await db.getFirstAsync(
@@ -214,13 +217,9 @@ export async function createMutationStore(db: SqlDatabase): Promise<MutationStor
             JSON.stringify(parsed),
             tripId,
             record.createdAt,
-            savedMutationVersion(record),
+            2,
             record.baseCurrency ??
-              ('base_currency' in parsed.body
-                ? parsed.body.base_currency
-                : record.apiVersion === 2
-                  ? null
-                  : 'TWD')
+              ('base_currency' in parsed.body ? parsed.body.base_currency : null)
           );
           return true;
         })
@@ -271,6 +270,14 @@ export async function createMutationStore(db: SqlDatabase): Promise<MutationStor
       serial(async () => {
         await db.runAsync(
           "DELETE FROM pending_mutation WHERE environment = ? AND account_id = ? AND client_request_id = ? AND status = 'completed'",
+          ...scopeArgs(scope),
+          key
+        );
+      }),
+    abandon: (scope, key) =>
+      serial(async () => {
+        await db.runAsync(
+          "DELETE FROM pending_mutation WHERE environment = ? AND account_id = ? AND client_request_id = ? AND status = 'pending' AND api_version = 1",
           ...scopeArgs(scope),
           key
         );

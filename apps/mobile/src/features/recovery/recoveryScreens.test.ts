@@ -1,4 +1,4 @@
-import { beforeEach, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { isValidElement, type ReactElement, type ReactNode } from 'react';
 import { QueueScreen } from '@/features/expenseQueue/QueueScreen';
 import { OperationsScreen } from '@/features/tripEntry/OperationsScreen';
@@ -40,6 +40,7 @@ const h = vi.hoisted(() => ({
   lookup: vi.fn(),
   retry: vi.fn(),
   dismiss: vi.fn(),
+  abandon: vi.fn(),
   push: vi.fn(),
   replace: vi.fn(),
   back: vi.fn(),
@@ -98,19 +99,22 @@ const query = (data: unknown) => ({
 });
 vi.mock('@/features/expenses/entryProvider', () => ({
   useExpenseQueue: () => ({
-    queue: { synchronize: h.sync, restore: h.restore, discard: h.discard },
+    queue: { synchronize: h.sync, restore: h.restore, discard: h.discard, abandon: h.abandon },
     scope,
     records: query(h.queue),
     syncFailed: false,
   }),
-  useExpenseEntry: () => ({ scope, entry: { lookup: h.lookup, retry: h.retry } }),
+  useExpenseEntry: () => ({
+    scope,
+    entry: { lookup: h.lookup, retry: h.retry, abandon: h.abandon },
+  }),
   usePendingExpenses: () => query(h.pending),
 }));
 vi.mock('@/features/tripEntry/provider', () => ({
   useTripEntry: () => ({
     scope,
     records: query(h.operations),
-    entry: { lookup: h.lookup, retry: h.retry, dismiss: h.dismiss },
+    entry: { lookup: h.lookup, retry: h.retry, dismiss: h.dismiss, abandon: h.abandon },
   }),
 }));
 vi.mock('@/features/localDrafts/provider', () => ({
@@ -183,6 +187,7 @@ const queueRecord = (status: QueuedExpense['status'] = 'queued'): QueuedExpense 
 const operation = (status: PendingMutation['status'] = 'pending'): PendingMutation => ({
   ...scope,
   clientRequestId: 'uuid',
+  apiVersion: 2,
   operation: 'trip.create',
   payload: null,
   result:
@@ -202,7 +207,9 @@ const pendingRecord = (): PendingExpense => ({
   ...scope,
   clientRequestId: 'uuid',
   tripId: 'trip',
+  apiVersion: 2,
   payload: {
+    base_currency: 'TWD',
     client_request_id: 'uuid',
     description: 'Private expense',
     original_amount: 1234.5,
@@ -253,6 +260,7 @@ beforeEach(() => {
   h.lookup.mockResolvedValue({ kind: 'pending' });
   h.retry.mockResolvedValue({ kind: 'pending' });
   h.restore.mockResolvedValue(undefined);
+  h.abandon.mockResolvedValue(undefined);
 });
 it.each(['zh', 'zh-CN', 'en', 'jp'] as const)(
   'distinguishes empty, loading and failed local reads in %s',
@@ -653,4 +661,77 @@ it('currency rejection resumes only the scoped currency form with original input
   });
   h.visible = false;
   expect(render(OperationsScreen).some((e) => e.props.testID === 'operation-uuid')).toBe(false);
+});
+
+describe('B5d-1 records saved by a release that sent v1', () => {
+  const v1Pending = (): PendingExpense => {
+    const record = pendingRecord();
+    const payload: Partial<typeof record.payload> & { base_currency?: string } = {
+      ...record.payload,
+    };
+    delete payload.base_currency;
+    return { ...record, apiVersion: 1, payload: payload as PendingExpense['payload'] };
+  };
+  it('offers only an explicit discard for a C request, even offline', async () => {
+    h.pending = [v1Pending()];
+    h.online = false;
+    const n = render(pendingScreen);
+    expect(texts(n)).toContain(messages.en.retiredRecord);
+    expect(n.some((e) => e.props.testID === 'pending-check-0')).toBe(false);
+    expect(n.some((e) => e.props.testID === 'pending-retry-0')).toBe(false);
+    const discard = action(n, 'pending-discard-0');
+    expect(discard.variant).toBe('danger');
+    expect(discard.disabled).toBe(false);
+    discard.onPress();
+    discard.onPress();
+    await flush();
+    expect(h.abandon).toHaveBeenCalledTimes(1);
+    expect(h.abandon).toHaveBeenCalledWith(scope, 'uuid');
+    expect(h.settled).toHaveBeenCalledWith({ kind: 'gone' });
+    expect(h.lookup).not.toHaveBeenCalled();
+    expect(h.retry).not.toHaveBeenCalled();
+  });
+  it('keeps a C request whose discard failed and says so', async () => {
+    h.pending = [v1Pending()];
+    h.abandon.mockRejectedValueOnce(new Error('disk full'));
+    action(render(pendingScreen), 'pending-discard-0').onPress();
+    await flush();
+    expect(h.settled).not.toHaveBeenCalled();
+    expect(texts(render(pendingScreen))).toContain(messages.en.genericError);
+  });
+  it('offers only an explicit discard for an E operation', async () => {
+    h.operations = [{ ...operation(), apiVersion: 1 }];
+    const n = render(OperationsScreen);
+    expect(texts(n)).toContain(messages.en.retiredRecord);
+    expect(n.some((e) => e.props.testID === 'mutation-check-uuid')).toBe(false);
+    expect(n.some((e) => e.props.testID === 'mutation-retry-uuid')).toBe(false);
+    action(n, 'mutation-discard-uuid').onPress();
+    await flush();
+    expect(h.abandon).toHaveBeenCalledWith(scope, 'uuid');
+    expect(h.lookup).not.toHaveBeenCalled();
+    expect(h.retry).not.toHaveBeenCalled();
+  });
+  it('lets a queued D record go back to a draft or be discarded, and a prepared one be discarded', async () => {
+    h.queue = [{ ...queueRecord('attention'), apiVersion: 1, reason: 'retired' }];
+    let n = render(QueueScreen);
+    expect(texts(n)).toContain(messages.en.retiredQueued);
+    expect(texts(n)).toContain(messages.en.queueEdit);
+    expect(texts(n)).toContain(messages.en.queueDiscard);
+    h.queue = [{ ...queueRecord('prepared'), apiVersion: 1 }];
+    h.values = [];
+    h.refs = [];
+    n = render(QueueScreen);
+    expect(texts(n)).toContain(messages.en.retiredRecord);
+    expect(texts(n)).not.toContain(messages.en.queueFrozen);
+    action(n, 'queue-discard-retired-0').onPress();
+    await flush();
+    expect(h.abandon).toHaveBeenCalledWith(h.queue[0]);
+    // A prepared v2 record stays frozen.
+    h.queue = [queueRecord('prepared')];
+    h.values = [];
+    h.refs = [];
+    n = render(QueueScreen);
+    expect(texts(n)).toContain(messages.en.queueFrozen);
+    expect(n.some((e) => e.props.testID === 'queue-discard-retired-0')).toBe(false);
+  });
 });

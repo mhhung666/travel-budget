@@ -83,7 +83,13 @@ it('reads an E HTTP 429 original deadline after closing and reopening SQLite, ne
   expect(
     await entry.confirm(scope, {
       operation: 'trip.create',
-      body: { name: 'Trip', description: '', start_date: null, end_date: null },
+      body: {
+        name: 'Trip',
+        description: '',
+        start_date: null,
+        end_date: null,
+        base_currency: 'TWD',
+      },
     })
   ).toMatchObject({ kind: 'pending' });
   h.store = store;

@@ -10,8 +10,14 @@ import { memoryDatabase } from '@/test/sqlite';
 import { fakeExpenseServer, hex, uuidOf } from '@/test/expenseServer';
 import { ExpenseEntry, sameExpense } from './entry';
 import { confirmedFields, newDraft } from './draft';
+import { insertLegacyPending } from '@/test/legacy';
 const [ME, OTHER, TRIP] = [hex(1), hex(2), hex(100)];
-const options = { members: [{ id: ME, displayName: 'Me' }], categories: ['food' as const] };
+const ledger = { baseCurrency: 'TWD', moneyScale: 2 as const };
+const options = {
+  ledger,
+  members: [{ id: ME, displayName: 'Me' }],
+  categories: ['food' as const],
+};
 const draft = (scope: { environment: string; accountId: string }): StoredExpenseDraft => ({
   ...scope,
   tripId: TRIP,
@@ -32,6 +38,7 @@ const draft = (scope: { environment: string; accountId: string }): StoredExpense
   },
 });
 const preview = {
+  ledger,
   amount: 21.57,
   originalAmount: 100,
   currency: 'JPY',
@@ -142,15 +149,7 @@ it('reads legacy draft/pending bodies unchanged alongside foreign requests in sc
     date: '2026-10-08',
     splits: [{ user_id: ME, share_amount: 100 }],
   };
-  await h.store.insert({
-    ...h.scope,
-    tripId: hex(102),
-    clientRequestId: legacy.client_request_id,
-    payload: legacy,
-    status: 'unconfirmed',
-    createdAt: 1000,
-    updatedAt: 1000,
-  });
+  await insertLegacyPending(h.db, { ...h.scope, tripId: hex(102), payload: legacy });
   const raw = await h.db.getFirstAsync<{ payload: string }>('SELECT payload FROM pending_expense');
   await h.restart();
   expect(await h.store.drafts.load(h.scope, hex(101))).toEqual(legacyDraft);
@@ -168,6 +167,7 @@ it('crash after draft handoff retains original UUID/body and never reapplies set
       ...h.scope,
       tripId: TRIP,
       clientRequestId: body.client_request_id,
+      apiVersion: 2,
       payload: body,
       status: 'sending',
       createdAt: 1000,
@@ -198,6 +198,8 @@ it('lost POST and lookup responses recover from receipt after restart with only 
   const d = draft(h.scope);
   await h.store.drafts.start(d);
   h.server.fail('POST', /\/expenses$/, { kind: 'drop-response' });
+  // The check before sending passes; the lookup after the lost answer is lost too.
+  h.server.fail('GET', /expense-requests/, { kind: 'pass' });
   h.server.fail('GET', /expense-requests/, { kind: 'drop-response' });
   const first = await h
     .engine()
@@ -238,6 +240,7 @@ it('storage failure rolls back foreign handoff and never sends; definite rejecti
     kind: 'status',
     status: 400,
     code: 'VALIDATION_ERROR',
+    receipt: true,
   });
   expect(
     (await h.engine().submit(h.scope, TRIP, confirmedFields(d.input, options, preview), d)).kind
@@ -280,6 +283,8 @@ it('foreign pending respects durable 429 after restart; original amount/rate dif
 it('sign-out and revoked membership keep the frozen foreign body for the original account', async () => {
   const h = await fixture();
   h.server.fail('POST', /\/expenses$/, { kind: 'drop-response' });
+  // The check before sending passes; the lookup after the lost answer is lost too.
+  h.server.fail('GET', /expense-requests/, { kind: 'pass' });
   h.server.fail('GET', /expense-requests/, { kind: 'drop-response' });
   await h.engine().submit(h.scope, TRIP, confirmedFields(draft(h.scope).input, options, preview));
   await h.manager.login('other', 'password');

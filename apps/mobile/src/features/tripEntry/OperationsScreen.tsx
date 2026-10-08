@@ -14,6 +14,7 @@ import { useRecoveryDeadline } from '@/features/recovery/useRecoveryDeadline';
 import { useDisplayFormat } from '@/i18n/useDisplayFormat';
 import { operationRecordVisible } from '@/features/recovery/visibility';
 import type { PendingMutation } from '@/storage/mutations';
+import { retiredOperation } from '@/api/recovery';
 export function OperationsScreen() {
   const { manager, user, status } = useAuth();
   return (
@@ -56,10 +57,14 @@ function ScopedOperationsScreen() {
   const items = records.isError || records.isPending ? undefined : records.data?.filter(visible);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const run = async (record: PendingMutation, action: 'lookup' | 'retry' | 'dismiss') => {
+  const run = async (
+    record: PendingMutation,
+    action: 'lookup' | 'retry' | 'dismiss' | 'abandon'
+  ) => {
     if (!scope || flight.current || !visible(record)) return;
     if (
       action !== 'dismiss' &&
+      action !== 'abandon' &&
       (!online || deadline.waiting || deadline.isPending || deadline.isError)
     )
       return;
@@ -68,11 +73,13 @@ function ScopedOperationsScreen() {
     setError('');
     try {
       if (action === 'dismiss') await entry.dismiss(scope, record.clientRequestId);
+      else if (action === 'abandon') await entry.abandon(scope, record.clientRequestId);
       else {
         const result = await entry[action](scope, record.clientRequestId);
         if (result.kind === 'pending')
           setError(result.error ? errorMessage(result.error, t) : t.operationUnknown);
         if (result.kind === 'blocked') setError(t.operationBlocked);
+        if (result.kind === 'retired') setError(t.retiredRecord);
       }
     } catch (failure) {
       setError(errorMessage(failure, t));
@@ -160,7 +167,19 @@ function ScopedOperationsScreen() {
           }
         >
           <DetailRow label={t.requestId} value={record.clientRequestId} />
-          {record.status === 'pending' ? (
+          {record.status === 'pending' && retiredOperation(record) ? (
+            <>
+              <Notice tone="warning">{t.retiredRecord}</Notice>
+              <Action
+                testID={`mutation-discard-${record.clientRequestId}`}
+                label={t.discardRetired}
+                busy={busy}
+                variant="danger"
+                disabled={busy}
+                onPress={() => void run(record, 'abandon')}
+              />
+            </>
+          ) : record.status === 'pending' ? (
             <>
               <Notice tone="warning">{t.operationUnknown}</Notice>
               {record.conflict && <Notice tone="warning">{t.pendingConflict}</Notice>}

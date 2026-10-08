@@ -16,7 +16,7 @@ const queueSchema = z.object({
   input: expenseDraftSchema,
   // Order is part of the equal-split rule: it determines who receives the extra cent.
   roster: z.array(z.string()),
-  // Fixed when queued: options, preview and the write all use it, and C resumes on it.
+  // Fixed when queued. Rows queued before B5c-2 are v1 and are never sent again (B5d-1).
   apiVersion: z.union([z.literal(1), z.literal(2)]),
   status: z.enum(['queued', 'attention', 'prepared', 'resolved']),
   reason: z.string().nullable(),
@@ -157,8 +157,7 @@ export async function createExpenseQueueStore(db: SqlDatabase): Promise<ExpenseQ
           )
             throw new Error('UNSUPPORTED_QUEUE_CURRENCY');
           // The stored version decides, never the caller: a v1 record cannot turn into v2.
-          const version = live.api_version;
-          if (version !== r.apiVersion || (version === 2) !== 'base_currency' in body)
+          if (live.api_version !== 2 || r.apiVersion !== 2 || !('base_currency' in body))
             throw new Error('QUEUE_VERSION_CHANGED');
           if (body.client_request_id !== r.clientRequestId) throw new Error('QUEUE_ID_CHANGED');
           // Wait behind C's unresolved request of this trip; no duplicate raw entry is created.
@@ -177,13 +176,12 @@ export async function createExpenseQueueStore(db: SqlDatabase): Promise<ExpenseQ
           if (mutation) return false;
           if (pending) return false;
           await db.runAsync(
-            "INSERT INTO pending_expense (environment, account_id, client_request_id, trip_id, payload, status, created_at, updated_at, api_version, base_currency, money_scale) VALUES (?, ?, ?, ?, ?, 'sending', ?, ?, ?, 'TWD', 2)",
+            "INSERT INTO pending_expense (environment, account_id, client_request_id, trip_id, payload, status, created_at, updated_at, api_version, base_currency, money_scale) VALUES (?, ?, ?, ?, ?, 'sending', ?, ?, 2, 'TWD', 2)",
             ...args(r),
             r.tripId,
             JSON.stringify(body),
             r.createdAt,
-            Date.now(),
-            version
+            Date.now()
           );
           await db.runAsync(
             `UPDATE expense_queue SET status = 'prepared', reason = NULL, next_at = 0 WHERE ${WHERE}`,

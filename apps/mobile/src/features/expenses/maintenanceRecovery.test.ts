@@ -22,13 +22,16 @@ const payload = {
     mode: 'basic' as const,
     expected_revision: 'a'.repeat(64),
     changes: { description: 'edited' },
+    base_currency: 'TWD',
   },
 };
+const ledger = { baseCurrency: 'TWD', moneyScale: 2 as const };
 const result = {
   status: 'committed' as const,
   operation: 'expense.update' as const,
   resourceId: expenseId,
-  result: { tripId, expenseId, revision: 'b'.repeat(64) },
+  ledger,
+  result: { tripId, expenseId, revision: 'b'.repeat(64), ledger },
 };
 const cFields = {
   client_request_id: cKey,
@@ -40,6 +43,7 @@ const cFields = {
   category: 'food' as const,
   date: '2026-10-06',
   splits: [{ user_id: scope.accountId, share_amount: 100 }],
+  base_currency: 'TWD',
 };
 let cleanup: (() => void)[] = [];
 afterEach(() => {
@@ -136,6 +140,7 @@ it('C and E confirmation race allows only one durable trip operation; another tr
     tripId,
     clientRequestId: cKey,
     payload: cFields,
+    apiVersion: 2 as const,
     status: 'sending' as const,
     createdAt: 1,
     updatedAt: 1,
@@ -182,7 +187,7 @@ it('E pending blocks D preparation while queued input and other trips are retain
     cKey
   );
   const item = (await queue.list(scope))[0];
-  expect(await queue.prepare(item, { ...cFields, base_currency: 'TWD' })).toBe(false);
+  expect(await queue.prepare(item, cFields)).toBe(false);
   expect((await queue.list(scope))[0].status).toBe('queued');
   expect(await c.list(scope)).toEqual([]);
 });
@@ -194,6 +199,7 @@ it('C pending blocks a new E edit without HTTP, and a different trip can confirm
     tripId,
     clientRequestId: cKey,
     payload: cFields,
+    apiVersion: 2 as const,
     status: 'sending',
     createdAt: 1,
     updatedAt: 1,
@@ -245,6 +251,7 @@ it('terminal conflict releases trip lock; 429 deadline survives restart and look
     tripId,
     clientRequestId: cKey,
     payload: cFields,
+    apiVersion: 2 as const,
     status: 'sending',
     createdAt: 1,
     updatedAt: 1,
@@ -334,6 +341,7 @@ const foreignPayload = {
       payer_id: scope.accountId,
       splits: [{ user_id: scope.accountId, share_amount: 21.57 }],
     },
+    base_currency: 'TWD',
   },
 };
 it('foreign lost PATCH reply survives reopen, isolates account/environment and only recovers one receipt', async () => {

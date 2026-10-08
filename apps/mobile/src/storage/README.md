@@ -18,4 +18,4 @@ access token 與帳務查詢快取只放記憶體；本機身分只存 SecureSto
 
 G2b 沿用 schema 8。expense_draft 的 raw JSON 可加 currency／rateText／rateSource／rateDate；缺欄位按旧 TWD／1 使用，不补写旧原始字串或 frozen pending。pending_expense 用扩充后的 strict create schema 读原币／完整 rate；UUID 与 body 不因旅行设定、参考值或重启更换。外币 raw draft 不能写入 D TWD queue，prepare 与同步也独立检验此界线。
 
-B3 使用 schema 9，C／E envelope 保存 API 版與帳本單位，舊 frozen JSON 不重寫；草稿／快照與恢復規則集中見 [B3 架構](../../docs/ARCHITECTURE.md#b3mobile-帳本與舊資料恢復)。B5c-2 使用 schema 10，`expense_queue.api_version` 保存入列版本（舊列 v1、新列 v2），prepare 依此交 C。
+B3 使用 schema 9，C／E envelope 保存 API 版與帳本單位，舊 frozen JSON 不重寫；草稿／快照與恢復規則集中見 [B3 架構](../../docs/ARCHITECTURE.md#b3mobile-帳本與舊資料恢復)。B5c-2 使用 schema 10，`expense_queue.api_version` 保存入列版本（舊列 v1、新列 v2），prepare 依此交 C。B5d-1 起 C／E insert 與 D prepare 只接受 v2，舊 v1 列照常解碼；`remove(…, 'abandoned')` 與 mutation `abandon` 只供使用者捨棄退役紀錄。

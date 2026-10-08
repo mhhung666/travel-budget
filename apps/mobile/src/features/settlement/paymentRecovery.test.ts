@@ -18,13 +18,16 @@ const body = {
   to_id: paymentId,
   amount: 20.01,
   note: 'partial',
+  base_currency: 'TWD',
 };
+const ledger = { baseCurrency: 'TWD', moneyScale: 2 as const };
 const payload = { operation: 'payment.create' as const, tripId, body };
 const committed = {
   status: 'committed' as const,
   operation: 'payment.create' as const,
   resourceId: paymentId,
-  result: { tripId, paymentId, revision: 'b'.repeat(64) },
+  ledger,
+  result: { tripId, paymentId, revision: 'b'.repeat(64), ledger },
 };
 let cleanup: (() => void)[] = [];
 afterEach(() => {
@@ -96,11 +99,16 @@ it.each(['payment.create', 'payment.delete'] as const)(
     const input =
       operation === 'payment.create'
         ? payload
-        : { operation, tripId, paymentId, body: { expected_revision: body.expected_revision } };
+        : {
+            operation,
+            tripId,
+            paymentId,
+            body: { expected_revision: body.expected_revision, base_currency: 'TWD' },
+          };
     const terminal =
       operation === 'payment.create'
         ? committed
-        : { ...committed, operation, result: { tripId, paymentId, deleted: true } };
+        : { ...committed, operation, result: { tripId, paymentId, deleted: true, ledger } };
     h.request.mockRejectedValueOnce(new ApiError('NETWORK'));
     expect((await h.engine().confirm(scope, input)).kind).toBe('pending');
     const call = h.request.mock.calls[0];
@@ -163,6 +171,7 @@ it('terminal settlement conflict retains input across restart and releases same-
       },
       status: 'pending',
       conflict: false,
+      apiVersion: 2,
       result: null,
       createdAt: 1,
     })
@@ -199,6 +208,7 @@ it('C/E3/E4 atomic coordination blocks same trip; another trip can still prepare
     category: 'food' as const,
     date: '2026-10-06',
     splits: [{ user_id: scope.accountId, share_amount: 1 }],
+    base_currency: 'TWD',
   };
   const c = await createPendingExpenseStore(h.db);
   const record = {
@@ -206,6 +216,7 @@ it('C/E3/E4 atomic coordination blocks same trip; another trip can still prepare
     tripId,
     clientRequestId: fields.client_request_id,
     payload: fields,
+    apiVersion: 2 as const,
     status: 'sending' as const,
     createdAt: 1,
     updatedAt: 1,
@@ -229,6 +240,7 @@ it('C/E3/E4 atomic coordination blocks same trip; another trip can still prepare
       payload: e3,
       status: 'pending',
       conflict: false,
+      apiVersion: 2,
       result: null,
       createdAt: 1,
     })

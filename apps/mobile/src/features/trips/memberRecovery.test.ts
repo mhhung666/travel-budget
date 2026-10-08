@@ -11,6 +11,7 @@ const scope = { environment: 'https://test/api/v1', accountId: 'a'.repeat(24) },
   tripId = 'b'.repeat(24),
   key = '11111111-1111-4111-8111-111111111111',
   revision = 'c'.repeat(64);
+const ledger = { baseCurrency: 'TWD', moneyScale: 2 as const };
 const payload = {
   operation: 'member.create' as const,
   tripId,
@@ -89,7 +90,8 @@ it.each(['member.create', 'member.rename'] as const)(
       status: 'committed',
       operation,
       resourceId: memberId,
-      result: { tripId, memberId, revision },
+      ledger,
+      result: { tripId, memberId, revision, ledger },
     });
     await h.engine().recover(scope);
     expect(h.request.mock.calls[1][1]).toBe(`/mutation-requests/${key}`);
@@ -131,7 +133,7 @@ it('lookup before a manual retry preserves the exact target, normalized name and
   await h.restart();
   h.request
     .mockResolvedValueOnce({ status: 'not_found' })
-    .mockResolvedValueOnce({ tripId, memberId, revision });
+    .mockResolvedValueOnce({ tripId, memberId, revision, ledger });
   expect((await h.engine().retry(scope, key)).kind).toBe('completed');
   expect(h.request.mock.calls[2][1]).toBe(`/trips/${tripId}/members/${memberId}`);
   expect(h.request.mock.calls[2][3]?.body).toEqual({
@@ -183,7 +185,9 @@ it('same-trip C and G confirmation are coordinated atomically; another trip may 
       category: 'food' as const,
       date: '2026-10-08',
       splits: [{ user_id: scope.accountId, share_amount: 1 }],
+      base_currency: 'TWD',
     },
+    apiVersion: 2 as const,
     status: 'sending' as const,
     createdAt: 0,
     updatedAt: 0,
@@ -192,7 +196,7 @@ it('same-trip C and G confirmation are coordinated atomically; another trip may 
   await pending.insert(record);
   expect((await h.engine().confirm(scope, payload)).kind).toBe('blocked');
   expect(h.request).not.toHaveBeenCalled();
-  h.request.mockResolvedValue({ tripId: 'd'.repeat(24), memberId, revision });
+  h.request.mockResolvedValue({ tripId: 'd'.repeat(24), memberId, revision, ledger });
   expect((await h.engine().confirm(scope, { ...payload, tripId: 'd'.repeat(24) })).kind).toBe(
     'completed'
   );
@@ -233,7 +237,8 @@ it.each(['leave', 'delete'] as const)(
       status: 'committed',
       operation: 'trip.access',
       resourceId: tripId,
-      result: { tripId, action, exited: true },
+      ledger,
+      result: { tripId, action, exited: true, ledger },
     });
     expect((await make().lookup(scope, key)).kind).toBe('completed');
     await h.restart();
@@ -268,7 +273,7 @@ it('exit receipt and durable catalog denial commit atomically and survive restar
   const drafts = await createDraftTripStore(h.db);
   await drafts.rememberName(scope, tripId, 'Private trip', 1);
   await drafts.rememberOptions(scope, tripId, { members: [], categories: [] }, 1);
-  h.request.mockResolvedValue({ tripId, action: 'delete', exited: true });
+  h.request.mockResolvedValue({ tripId, action: 'delete', exited: true, ledger });
   expect(
     (
       await h.engine().confirm(scope, {
@@ -293,7 +298,7 @@ it('failed exit receipt persistence hides immediately and leaves a recoverable o
     exited: hide,
   });
   vi.spyOn(h.store, 'complete').mockRejectedValueOnce(new Error('disk full'));
-  h.request.mockResolvedValue({ tripId, action: 'leave', exited: true });
+  h.request.mockResolvedValue({ tripId, action: 'leave', exited: true, ledger });
   expect(
     (
       await engine.confirm(scope, {
@@ -310,7 +315,8 @@ it('failed exit receipt persistence hides immediately and leaves a recoverable o
     status: 'committed',
     operation: 'trip.access',
     resourceId: tripId,
-    result: { tripId, action: 'leave', exited: true },
+    ledger,
+    result: { tripId, action: 'leave', exited: true, ledger },
   });
   expect((await h.engine().lookup(scope, key)).kind).toBe('completed');
 });
@@ -328,7 +334,7 @@ it('final exit tombstone waits for older catalog saves even when its separate de
     active: () => true,
     exited: () => catalogDrain,
   });
-  h.request.mockResolvedValue({ tripId, action: 'delete', exited: true });
+  h.request.mockResolvedValue({ tripId, action: 'delete', exited: true, ledger });
   const pending = engine.confirm(scope, {
     operation: 'trip.access',
     tripId,

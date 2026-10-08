@@ -37,7 +37,6 @@ const { values } = parseArgs({
     suite: { type: 'string', default: 'auth-trips' },
     flows: { type: 'string' },
     'locale-flows': { type: 'string' },
-    'entry-api-version': { type: 'string', default: '2' },
     'flow-timeout': { type: 'string', default: '20' },
     appearance: { type: 'string' },
     'text-size': { type: 'string' },
@@ -51,7 +50,8 @@ const { values } = parseArgs({
     'other-network-port': { type: 'string' },
   },
 });
-const entryApiVersion = Number(values['entry-api-version']);
+// B5d-1: the App sends only v2, so its traffic and receipts are checked against v2 alone.
+const entryApiVersion = 2;
 const entryReceipts = entryReceiptExpectations(entryApiVersion);
 assert(['ios', 'android'].includes(values.platform), 'Use --platform ios|android');
 assert(values.device, 'Select a simulator with --device <UUID or emulator serial>');

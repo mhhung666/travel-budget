@@ -19,8 +19,6 @@ export function checkAborted(signal?: AbortSignal) {
 }
 
 export type RequestOptions = {
-  /** Only the recovery adapter (`recovery.ts`) overrides the v2 default for a saved operation. */
-  apiVersion?: 1 | 2;
   method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
   body?: unknown;
   accessToken?: string;
@@ -53,7 +51,7 @@ export function validateBaseUrl(value: string | undefined, development: boolean)
 export type Fetcher = (url: string, options?: RequestInit) => Promise<Response>;
 
 export class ApiClient {
-  // Keyed by path only: a wait applies to both versions of the same endpoint.
+  // Keyed by path, so one wait covers every request to the same endpoint.
   private cooldowns = new Map<string, number>();
   constructor(
     /** Persisted environment identity; never a transport choice. */
@@ -65,14 +63,13 @@ export class ApiClient {
   clearCooldown(path: string) {
     this.cooldowns.delete(path);
   }
-  /** Transport URL for one request. There is no fallback to another version. */
-  transport(version: 1 | 2) {
-    return this.environment.replace(/\/v1$/, `/v${version}`);
+  /** Every request is sent on v2; there is no fallback to v1. */
+  transport() {
+    return this.environment.replace(/\/v1$/, '/v2');
   }
   async request<T>(path: string, schema: z.ZodType<T>, options: RequestOptions = {}): Promise<T> {
     if (!this.environment) throw new ApiError('CONFIGURATION');
-    const version = options.apiVersion ?? 2;
-    const url = this.transport(version);
+    const url = this.transport();
     const remaining = (this.cooldowns.get(path) ?? 0) - Date.now();
     if (remaining > 0) throw new ApiError('RATE_LIMITED', 429, Math.ceil(remaining / 1000));
     checkAborted(options.signal);
@@ -114,7 +111,7 @@ export class ApiClient {
             : Number(rawRetry);
         if (response.status === 429 && Number.isFinite(retryAfter) && retryAfter > 0)
           this.cooldowns.set(path, Date.now() + retryAfter * 1000);
-        if (version === 2 && response.status === 404 && !error.success)
+        if (response.status === 404 && !error.success)
           throw new ApiError('LEDGER_SERVICE_UNAVAILABLE', 503);
         throw new ApiError(
           error.success ? error.data.error.code : 'SERVER_ERROR',
@@ -122,10 +119,10 @@ export class ApiClient {
           Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : undefined
         );
       }
-      const parsed = z.object({ data: responseSchema(schema, version) }).safeParse(body);
+      const parsed = z.object({ data: responseSchema(schema, 2) }).safeParse(body);
       if (!parsed.success) throw new ApiError('INVALID_RESPONSE');
       const data = parsed.data.data;
-      if (version === 2 && data && typeof data === 'object' && 'ledger' in data) {
+      if (data && typeof data === 'object' && 'ledger' in data) {
         const unit = (data as { ledger: { baseCurrency: string } }).ledger.baseCurrency;
         const children = 'items' in data ? (data as { items: unknown[] }).items : [];
         for (const child of [

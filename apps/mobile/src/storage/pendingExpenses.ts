@@ -1,4 +1,3 @@
-import { savedExpenseVersion } from '@/api/recovery';
 import {
   currentExpenseRateLimit,
   extendExpenseRateLimit,
@@ -57,7 +56,8 @@ export interface PendingExpenseStore {
   remove(
     scope: PendingScope,
     clientRequestId: string,
-    resolution?: 'committed' | 'rejected' | 'conflict'
+    /** `abandoned`: a retired v1 request the user discarded; its outcome stays unknown. */
+    resolution?: 'committed' | 'rejected' | 'conflict' | 'abandoned'
   ): Promise<void>;
 }
 
@@ -236,10 +236,11 @@ export async function createPendingExpenseStore(db: SqlDatabase): Promise<Pendin
               throw new Error('DRAFT_CHANGED');
           }
           const payload = expenseCreateInput.parse(record.payload);
-          const version = savedExpenseVersion({ apiVersion: record.apiVersion, payload });
-          const base = 'base_currency' in payload ? payload.base_currency : 'TWD';
+          // Only v2 requests are saved now; v1 rows from older releases are decoded, never created.
+          if (record.apiVersion !== 2 || !('base_currency' in payload))
+            throw new Error('INVALID_PENDING_LEDGER');
+          const base = payload.base_currency;
           if (
-            (version === 2) !== 'base_currency' in payload ||
             (record.baseCurrency && record.baseCurrency !== base) ||
             (record.moneyScale !== undefined && record.moneyScale !== 2)
           )
@@ -256,13 +257,12 @@ export async function createPendingExpenseStore(db: SqlDatabase): Promise<Pendin
             record.accountId,
             record.clientRequestId,
             record.tripId,
-            JSON.stringify(expenseCreateInput.parse(record.payload)),
+            JSON.stringify(payload),
             record.status,
             record.createdAt,
             record.updatedAt,
-            savedExpenseVersion(record),
-            record.baseCurrency ??
-              ('base_currency' in record.payload ? record.payload.base_currency : 'TWD'),
+            2,
+            base,
             2
           );
           if (draft)
@@ -342,8 +342,8 @@ export async function createPendingExpenseStore(db: SqlDatabase): Promise<Pendin
     remove: (scope, clientRequestId, resolution = 'committed') =>
       serial(() =>
         transaction(db, async () => {
-          // Rejection restores the raw input atomically with removal. Success leaves a tombstone,
-          // so queued writes from the old editor cannot bring a submitted draft back.
+          // Rejection restores the raw input atomically with removal. Success and abandoning leave a
+          // tombstone, so queued writes from the old editor cannot bring a submitted draft back.
           await db.runAsync(
             `UPDATE expense_draft SET status = ?, revision = revision + 1,
         input = CASE WHEN ? <> 'rejected' THEN '{}' ELSE input END, client_request_id = NULL
@@ -354,7 +354,7 @@ export async function createPendingExpenseStore(db: SqlDatabase): Promise<Pendin
             scope.accountId,
             clientRequestId
           );
-          if (resolution === 'committed')
+          if (resolution === 'committed' || resolution === 'abandoned')
             await db.runAsync(
               'DELETE FROM expense_queue WHERE environment = ? AND account_id = ? AND client_request_id = ?',
               scope.environment,

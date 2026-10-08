@@ -211,23 +211,21 @@ describe('environment identity and transport', () => {
     expect(() => validateBaseUrl('https://example.com/api/v3', false)).toThrow('CONFIGURATION');
     expect(() => validateBaseUrl('https://example.com/api', false)).toThrow('CONFIGURATION');
   });
-  it('sends every new request to v2 and only an explicit recovery version to v1', async () => {
+  it('sends every request to v2', async () => {
     const fetcher = vi.fn<Fetcher>().mockImplementation(async () => ok());
     const api = new ApiClient(validateBaseUrl('https://example.com/api/v2', false), fetcher);
     expect(api.environment).toBe('https://example.com/api/v1');
     for (const path of ['/auth/login', '/auth/refresh', '/me', '/capabilities', '/trips'])
       await api.request(path, schema, { method: 'POST' });
-    await api.request('/auth/refresh', schema, { method: 'POST', apiVersion: 1 });
     expect(fetcher.mock.calls.map(([url]) => url)).toEqual([
       'https://example.com/api/v2/auth/login',
       'https://example.com/api/v2/auth/refresh',
       'https://example.com/api/v2/me',
       'https://example.com/api/v2/capabilities',
       'https://example.com/api/v2/trips',
-      'https://example.com/api/v1/auth/refresh',
     ]);
   });
-  it('shares one Retry-After wait between both versions of a path', async () => {
+  it('keeps a Retry-After wait for later requests to the same path', async () => {
     const fetcher = vi
       .fn<Fetcher>()
       .mockResolvedValue(
@@ -237,7 +235,7 @@ describe('environment identity and transport', () => {
         )
       );
     const api = new ApiClient('https://example.com/api/v1', fetcher);
-    await expect(api.request('/auth/login', schema, { apiVersion: 1 })).rejects.toMatchObject({
+    await expect(api.request('/auth/login', schema)).rejects.toMatchObject({
       status: 429,
     });
     await expect(api.request('/auth/login', schema)).rejects.toMatchObject({

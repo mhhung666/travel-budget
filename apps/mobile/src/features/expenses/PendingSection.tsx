@@ -7,6 +7,7 @@ import { useAuth } from '@/features/auth/AuthProvider';
 import { useDraftCatalog } from '@/features/localDrafts/provider';
 import { useRecoveryDeadline } from '@/features/recovery/useRecoveryDeadline';
 import type { PendingExpense } from '@/storage/pendingExpenses';
+import { retiredExpense } from '@/api/recovery';
 import { useOnline } from '@/providers/useOnline';
 import { categoryLabel } from './rows';
 import { reasonMessage } from './entryMessages';
@@ -54,7 +55,27 @@ export function PendingSection({
     record.environment === scope?.environment &&
     record.accountId === scope?.accountId &&
     catalog.isVisible(record, record.tripId);
-  const [busy, setBusy] = useState<{ id: string; mode: 'check' | 'retry' } | null>(null);
+  const [busy, setBusy] = useState<{ id: string; mode: 'check' | 'retry' | 'discard' } | null>(
+    null
+  );
+  const [discardFailed, setDiscardFailed] = useState(false);
+
+  /** Only a retired v1 request can be discarded; it needs no connection, since nothing is sent. */
+  const discard = async (record: PendingExpense) => {
+    if (flight.current || !scope || !visible(record)) return;
+    flight.current = true;
+    setBusy({ id: record.clientRequestId, mode: 'discard' });
+    setDiscardFailed(false);
+    try {
+      await entry.abandon(scope, record.clientRequestId);
+      if (visible(record)) onSettled({ kind: 'gone' });
+    } catch {
+      setDiscardFailed(true);
+    } finally {
+      flight.current = false;
+      setBusy(null);
+    }
+  };
 
   const act = async (record: PendingExpense, mode: 'check' | 'retry') => {
     if (
@@ -92,6 +113,7 @@ export function PendingSection({
         </Notice>
         <Copy>{t.pendingBlocks}</Copy>
         {!online && <Notice tone="warning">{t.offline}</Notice>}
+        {discardFailed && <Notice tone="danger">{t.genericError}</Notice>}
         {status !== 'signedIn' && <Notice tone="warning">{t.sessionExpired}</Notice>}
         {deadline.isError && (
           <RecoveryCard message={t.recoveryLoadFailed} tone="danger">
@@ -104,7 +126,8 @@ export function PendingSection({
           </RecoveryCard>
         )}
         {records.filter(visible).map((record, index) => {
-          const reason = reasonMessage(reasons[record.clientRequestId], t);
+          const retired = retiredExpense(record);
+          const reason = reasonMessage(retired ? 'retired' : reasons[record.clientRequestId], t);
           const working = busy?.id === record.clientRequestId;
           return (
             <RecoveryCard
@@ -145,35 +168,48 @@ export function PendingSection({
               <DetailRow label={t.category} value={categoryLabel(record.payload.category, t)} />
 
               {!!reason && <Notice tone="warning">{reason}</Notice>}
-              <Action
-                testID={`pending-check-${index}`}
-                label={t.checkResult}
-                busy={working && busy?.mode === 'check'}
-                disabled={
-                  !online ||
-                  status !== 'signedIn' ||
-                  !!busy ||
-                  deadline.isPending ||
-                  deadline.isError ||
-                  deadline.waiting
-                }
-                onPress={() => void act(record, 'check')}
-              />
-              <Action
-                testID={`pending-retry-${index}`}
-                variant="secondary"
-                label={t.retrySame}
-                busy={working && busy?.mode === 'retry'}
-                disabled={
-                  !online ||
-                  status !== 'signedIn' ||
-                  !!busy ||
-                  deadline.isPending ||
-                  deadline.isError ||
-                  deadline.waiting
-                }
-                onPress={() => void act(record, 'retry')}
-              />
+              {retired ? (
+                <Action
+                  testID={`pending-discard-${index}`}
+                  variant="danger"
+                  label={t.discardRetired}
+                  busy={working && busy?.mode === 'discard'}
+                  disabled={!!busy}
+                  onPress={() => void discard(record)}
+                />
+              ) : (
+                <>
+                  <Action
+                    testID={`pending-check-${index}`}
+                    label={t.checkResult}
+                    busy={working && busy?.mode === 'check'}
+                    disabled={
+                      !online ||
+                      status !== 'signedIn' ||
+                      !!busy ||
+                      deadline.isPending ||
+                      deadline.isError ||
+                      deadline.waiting
+                    }
+                    onPress={() => void act(record, 'check')}
+                  />
+                  <Action
+                    testID={`pending-retry-${index}`}
+                    variant="secondary"
+                    label={t.retrySame}
+                    busy={working && busy?.mode === 'retry'}
+                    disabled={
+                      !online ||
+                      status !== 'signedIn' ||
+                      !!busy ||
+                      deadline.isPending ||
+                      deadline.isError ||
+                      deadline.waiting
+                    }
+                    onPress={() => void act(record, 'retry')}
+                  />
+                </>
+              )}
             </RecoveryCard>
           );
         })}

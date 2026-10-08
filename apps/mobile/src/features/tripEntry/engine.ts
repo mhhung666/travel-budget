@@ -1,4 +1,4 @@
-import { savedMutationVersion } from '@/api/recovery';
+import { retiredOperation } from '@/api/recovery';
 import {
   mutationRequestSchema,
   tripAccessResultSchema,
@@ -37,9 +37,10 @@ export type MutationOutcome =
   | { kind: 'completed'; result: MutationRequest; refreshed?: boolean }
   | { kind: 'pending'; error?: unknown }
   | { kind: 'not-sent'; error?: unknown }
-  | { kind: 'blocked' };
+  | { kind: 'blocked' }
+  /** Saved by a release that sent v1: never sent or looked up again, only discarded. */
+  | { kind: 'retired' };
 interface Deps {
-  contractVersion?: 1 | 2;
   store: () => Promise<MutationStore>;
   request: EntryRequest;
   newId: () => string;
@@ -102,21 +103,18 @@ export class TripEntry {
           ...payload,
           body: { ...payload.body, client_request_id: this.deps.newId() },
         });
-        if (this.deps.contractVersion === 2) {
-          const schemas = {
-            'trip.create': tripCreateV2Input,
-            'expense.update': expenseUpdateV2Input,
-            'expense.delete': expenseDeleteV2Input,
-            'payment.create': paymentCreateV2Input,
-            'payment.delete': paymentDeleteV2Input,
-            'trip.currency': tripCurrencyV2Input,
-          };
-          const schema = schemas[parsed.operation as keyof typeof schemas];
-          schema?.parse(parsed.body);
-        }
+        const schemas = {
+          'trip.create': tripCreateV2Input,
+          'expense.update': expenseUpdateV2Input,
+          'expense.delete': expenseDeleteV2Input,
+          'payment.create': paymentCreateV2Input,
+          'payment.delete': paymentDeleteV2Input,
+          'trip.currency': tripCurrencyV2Input,
+        };
+        schemas[parsed.operation as keyof typeof schemas]?.parse(parsed.body);
         record = {
           ...scope,
-          apiVersion: this.deps.contractVersion ?? 1,
+          apiVersion: 2,
           baseCurrency: 'base_currency' in parsed.body ? parsed.body.base_currency : undefined,
           moneyScale: 2,
           operation: parsed.operation,
@@ -142,6 +140,7 @@ export class TripEntry {
         const record = await store.get(scope, key);
         if (!record) return { kind: 'blocked' };
         if (record.result) return { kind: 'completed', result: record.result };
+        if (retiredOperation(record)) return { kind: 'retired' };
         return await this.query(store, record, guard);
       } catch (error) {
         return { kind: 'pending', error };
@@ -155,6 +154,7 @@ export class TripEntry {
         const record = await store.get(scope, key);
         if (!record) return { kind: 'blocked' };
         if (record.result) return { kind: 'completed', result: record.result };
+        if (retiredOperation(record)) return { kind: 'retired' };
         // Every retry first asks for the original terminal result, including after a crash before POST.
         const queried = await this.query(store, record, guard);
         if (queried.kind !== 'pending' || queried.error || record.conflict) return queried;
@@ -168,11 +168,17 @@ export class TripEntry {
     const records = await this.list(scope);
     for (const record of records) {
       if (!this.deps.active(scope)) return;
-      if (record.status === 'pending') await this.lookup(scope, record.clientRequestId);
+      if (record.status === 'pending' && !retiredOperation(record))
+        await this.lookup(scope, record.clientRequestId);
     }
   }
   async dismiss(scope: PendingScope, key: string) {
     await (await this.deps.store()).dismiss(scope, key);
+    this.deps.changed?.(scope);
+  }
+  /** Removes a pending v1 operation at the user's explicit request; its outcome stays unknown. */
+  async abandon(scope: PendingScope, key: string) {
+    await (await this.deps.store()).abandon(scope, key);
     this.deps.changed?.(scope);
   }
   private async ready(
@@ -222,7 +228,6 @@ export class TripEntry {
   ): Promise<MutationOutcome> {
     if (result.status === 'not_found') return { kind: 'pending' };
     if (
-      record.apiVersion === 2 &&
       result.status === 'committed' &&
       (!('ledger' in result) ||
         (record.baseCurrency && baseCurrency(result) !== record.baseCurrency))
@@ -269,10 +274,7 @@ export class TripEntry {
         record.accountId,
         `/mutation-requests/${record.clientRequestId}`,
         mutationRequestSchema,
-        {
-          apiVersion: savedMutationVersion(record),
-          beforeSend: this.beforeSend(store, receiptScope, guard),
-        }
+        { beforeSend: this.beforeSend(store, receiptScope, guard) }
       );
       guard(exiting ? undefined : record.tripId);
       // A UUID collision may resolve another operation: display its result without replaying ours.
@@ -332,7 +334,6 @@ export class TripEntry {
                   ? expenseMutationResultSchema
                   : tripMutationResultSchema,
         {
-          apiVersion: savedMutationVersion(record),
           method:
             record.operation === 'member.rename' ||
             record.operation === 'expense.update' ||

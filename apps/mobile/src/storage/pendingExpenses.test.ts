@@ -18,6 +18,9 @@ function record(n: number, patch: Partial<PendingExpense> = {}): PendingExpense 
     ...scope(),
     tripId: hex(100),
     clientRequestId,
+    apiVersion: 2,
+    baseCurrency: 'TWD',
+    moneyScale: 2,
     payload: {
       client_request_id: clientRequestId,
       payer_id: hex(1),
@@ -31,6 +34,7 @@ function record(n: number, patch: Partial<PendingExpense> = {}): PendingExpense 
         { user_id: hex(1), share_amount: 50 },
         { user_id: hex(2), share_amount: 50 },
       ],
+      base_currency: 'TWD',
     },
     status: 'sending',
     createdAt: 1_000 + n,
@@ -52,15 +56,8 @@ describe('pending expense store', () => {
     const store = await createPendingExpenseStore(open());
     const saved = record(1);
     await store.insert(saved);
-    expect(await store.get(scope(), uuid(1))).toEqual({
-      ...saved,
-      apiVersion: 1,
-      baseCurrency: 'TWD',
-      moneyScale: 2,
-    });
-    expect(await store.list(scope())).toEqual([
-      { ...saved, apiVersion: 1, baseCurrency: 'TWD', moneyScale: 2 },
-    ]);
+    expect(await store.get(scope(), uuid(1))).toEqual(saved);
+    expect(await store.list(scope())).toEqual([saved]);
   });
 
   it('keeps hostile text as data', async () => {
@@ -103,9 +100,7 @@ describe('pending expense store', () => {
     const otherEnvironment = scope(hex(1), 'https://api.example.test/api/v1');
     const setup = async () => {
       store = await createPendingExpenseStore(open());
-      await store.insert(
-        record(1, { ...accountA, apiVersion: 1, baseCurrency: 'TWD', moneyScale: 2 })
-      );
+      await store.insert(record(1, { ...accountA }));
       await store.insert(record(2, { ...accountB }));
       await store.insert(record(3, { ...otherEnvironment }));
     };
@@ -124,9 +119,7 @@ describe('pending expense store', () => {
       await store.remove(accountB, uuid(1));
       await store.remove(otherEnvironment, uuid(1));
       await store.setStatus(accountB, uuid(1), 'unconfirmed');
-      expect(await store.get(accountA, uuid(1))).toEqual(
-        record(1, { ...accountA, apiVersion: 1, baseCurrency: 'TWD', moneyScale: 2 })
-      );
+      expect(await store.get(accountA, uuid(1))).toEqual(record(1, { ...accountA }));
     });
 
     it('allows the same request id for different accounts without mixing them', async () => {

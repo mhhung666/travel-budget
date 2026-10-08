@@ -20,13 +20,13 @@ Server Actions 與 HTTP API 是兩個呼叫入口，部署初期同在現有 Nex
 
 ## B3：Mobile 帳本與舊資料恢復
 
-線上旅行／帳務讀取與新確認操作使用 v2，HTTP 必須驗證共用 v2 schema 的 ledger；缺單位、子資料單位不一致或服務未就緒都阻擋，不 fallback v1。B5c-1 起 `api.environment` 是原已驗證 v1 環境識別（設定 `/api/v2` 也正規化為同一字串），`transport(version)` 從同 origin 選 URL；auth 與所有新請求預設 v2，共用登入世代、refresh、beforeSend 與 SQLite／429 scope。舊紀錄的原版本只由 `api/recovery.ts` 決定。遠端 Query key 尾端加 v2，本機 key 不變。名冊觀察器與 catalog 保留原撤權世代規則。
+線上旅行／帳務讀取與新確認操作使用 v2，HTTP 必須驗證共用 v2 schema 的 ledger；缺單位、子資料單位不一致或服務未就緒都阻擋，不 fallback v1。B5c-1 起 `api.environment` 是原已驗證 v1 環境識別（設定 `/api/v2` 也正規化為同一字串），`transport()` 從同 origin 送出 v2；B5d-1 起所有請求（含 auth 與恢復）只走 v2，共用登入世代、refresh、beforeSend 與 SQLite／429 scope。`api/recovery.ts` 只判定 v1 舊紀錄已退役：仍解碼、不改標，但不再送出或補查。遠端 Query key 尾端加 v2，本機 key 不變。名冊觀察器與 catalog 保留原撤權世代規則。
 
 `api/contracts.ts` 只組合共用 schema：選用的 optional ledger 型別允許讀舊本機 TWD 快照；live v2 一律要求 ledger。`api/ledger.ts` 的缺欄位 TWD 退路只供上述已知 v1／舊快照與尚未載入的畫面。所有閱讀、原幣判斷、均分預覽／編輯、還款及匯率設定使用實際基準；JPY 也保留兩位精度，結算與尾差仍由後端決定。每日參考值走旅行 v2 endpoint，並核對回傳基準。
 
 SQLite schema 9 以同一交易在 C／E envelope 加 api_version、base_currency、money_scale；舊列外標 v1／TWD／2，不改 frozen JSON、UUID、順序、denied 或 429。新草稿 raw JSON 保存 ledger／apiVersion，catalog 保存帶 ledger 的選項；舊 raw JSON 不重寫，只能按 TWD 續填，續填與目前選項單位不同時保留並阻擋確認。新 C／E 保存 v2 body 與來源單位；加入前未知基準的 E envelope 以 null 保留未知，查回原 receipt 才取得單位，不預設為 TWD，恢復查原 endpoint、原 UUID，不能跟隨新設定重建 body。C 新版重試先查 receipt，錯誤或不同單位不清紀錄；已損壞的 pending 解析阻擋，不再略過讓新 UUID 可送。
 
-SQLite schema 10（B5c-2）在 D `expense_queue` 加 api_version：升級前的列標 v1，之後入列為 v2。options、預覽、prepare 與交 C 的 pending envelope 都用該列保存的版本，prepare 以 SQLite 現值為準，版本或 body 不符就拒絕，不改標舊列、不補算金額。D 仍只接受 TWD 基準＋TWD 原幣＋均分。
+SQLite schema 10（B5c-2）在 D `expense_queue` 加 api_version：升級前的列標 v1，之後入列為 v2。options、預覽、prepare 與交 C 的 pending envelope 都用該列保存的版本，prepare 以 SQLite 現值為準，版本或 body 不符就拒絕，不改標舊列、不補算金額。D 仍只接受 TWD 基準＋TWD 原幣＋均分。B5d-1 起只建立 v2 的 C／D／E 紀錄（SQLite insert／prepare 也拒絕 v1），舊 v1 列不送出、不補查：C pending 與已 prepare 的 D 只能由使用者在待處理／佇列畫面明確捨棄（同交易移除 C 列與 D 列、草稿留 tombstone，結果仍未知）；未 prepare 的 D 轉為需確認（reason `retired`），可移回草稿重新確認或捨棄；E pending 只能捨棄，已完成的 v1 結果照常顯示。schema 不變。
 
 v2 C 的業務驗證拒絕由後端交易保存 receipt，含 `VALIDATION_ERROR`；原 UUID 補查取得終局後，SQLite 原子解除 pending 並恢復 handed-off 草稿的原始輸入／新 revision，使用者重讀名冊及重新預覽後才能新確認。重啟只查詢；一般 400、`not_found` 或補查失敗仍保留原 UUID，不猜測未提交，也不直接換 UUID 解除阻塞。
 

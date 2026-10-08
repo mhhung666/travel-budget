@@ -13,6 +13,7 @@ import type { StoredExpenseDraft } from '@/storage/expenseDrafts';
 import { fakeExpenseServer, hex, uuidOf } from '@/test/expenseServer';
 import { memoryDatabase } from '@/test/sqlite';
 import { ExpenseQueue } from './sync';
+import { LEGACY_PENDING_SQL } from '@/test/legacy';
 
 const [ANN, BOB, CAT, TRIP, OTHER_TRIP] = [hex(1), hex(2), hex(3), hex(100), hex(101)];
 const options: ExpenseOptions = {
@@ -431,6 +432,7 @@ describe('confirmed equal-split queue and foreground sync', () => {
       ...h.scope,
       tripId: TRIP,
       clientRequestId: uuidOf(900),
+      apiVersion: 2,
       payload: {
         ...confirmedFields(r.input, { ...options, ledger }, v2preview),
         client_request_id: uuidOf(900),
@@ -915,6 +917,7 @@ it('waits durably behind C for just that trip and resumes after C resolves witho
     ...h.scope,
     tripId: TRIP,
     clientRequestId: id,
+    apiVersion: 2,
     payload: {
       ...confirmedFields(r.input, { ...options, ledger }, v2preview),
       client_request_id: id,
@@ -1267,7 +1270,7 @@ it('rejects foreign enqueue even through the engine and skips injected foreign i
   expect(h.server.expenses).toHaveLength(1);
 });
 
-describe('B5c-2 queue versions', () => {
+describe('B5c-2 / B5d-1 queue versions', () => {
   const trips = (h: Awaited<ReturnType<typeof harness>>, trip = TRIP) =>
     h.calls.filter((c) => c.path.startsWith(`/trips/${trip}/`));
   const legacy = (h: Awaited<ReturnType<typeof harness>>, id: string) =>
@@ -1320,52 +1323,66 @@ describe('B5c-2 queue versions', () => {
     expect(await h.queue.list(h.scope)).toEqual([]);
   });
 
-  it('keeps a record queued by an older release on v1 while a new one in another trip uses v2', async () => {
+  it('holds a record queued by an older release for review, sending nothing for it (B5d-1)', async () => {
     const h = await harness();
     const old = await h.enqueue(1);
     await legacy(h, old.clientRequestId);
     const fresh = await h.enqueue(2, OTHER_TRIP);
     await h.reopen();
     await h.queue.synchronize(h.scope);
-    // v1 never asks before its first write; the frozen v1 body has no unit.
-    expect(trips(h).map((c) => [c.method, c.path.split('/').at(-1), c.version])).toEqual([
-      ['GET', 'expense-options', 1],
-      ['POST', 'preview', 1],
-      ['POST', 'expenses', 1],
-    ]);
+    expect(trips(h)).toEqual([]);
     expect(trips(h, OTHER_TRIP).every((c) => c.version === 2)).toBe(true);
-    const [v1Post, v2Post] = h.server.posts();
-    expect(v1Post.body).toEqual({
-      ...confirmedFields(old.input, options, preview),
-      client_request_id: old.clientRequestId,
-    });
-    expect(v1Post.body).not.toHaveProperty('base_currency');
-    expect(v2Post.body).toMatchObject({
-      client_request_id: fresh.clientRequestId,
-      base_currency: 'TWD',
-    });
-    expect(h.server.expenses).toHaveLength(2);
+    expect(h.server.posts().map((c) => c.body)).toMatchObject([
+      { client_request_id: fresh.clientRequestId, base_currency: 'TWD' },
+    ]);
+    expect(await h.queue.list(h.scope)).toMatchObject([
+      {
+        clientRequestId: old.clientRequestId,
+        status: 'attention',
+        reason: 'retired',
+        apiVersion: 1,
+      },
+    ]);
+    // Reviewing it again starts from the raw draft; the old record is never sent.
+    await h.queue.restore((await h.queue.list(h.scope))[0]);
+    expect((await h.pending.drafts.load(h.scope, TRIP))?.input).toEqual(old.input);
+    await h.queue.synchronize(h.scope);
+    expect(trips(h)).toEqual([]);
+    expect(await h.queue.list(h.scope)).toEqual([]);
   });
 
-  it('resumes a v1 record prepared by an older release with a v1 lookup, then its v1 write', async () => {
+  it('never looks up or resends a v1 record prepared by an older release; discarding clears both rows', async () => {
     const h = await harness();
     const r = await h.enqueue(1);
-    await legacy(h, r.clientRequestId);
+    const other = await h.enqueue(2, OTHER_TRIP);
     const live = (await h.store.list(h.scope))[0];
-    const body = {
-      ...confirmedFields(r.input, options, preview),
+    await h.store.prepare(live, {
+      ...confirmedFields(r.input, { ...options, ledger }, v2preview),
       client_request_id: r.clientRequestId,
-    };
-    await h.store.prepare(live, body);
-    expect(await h.pending.list(h.scope)).toMatchObject([{ apiVersion: 1, payload: body }]);
+    });
+    // What a pre-B5c-2 release wrote: both rows v1 and a body without a unit.
+    await h.db.execAsync(
+      LEGACY_PENDING_SQL +
+        "UPDATE pending_expense SET api_version = 1; UPDATE expense_queue SET api_version = 1 WHERE status = 'prepared';"
+    );
     await h.reopen();
     await h.queue.synchronize(h.scope);
-    expect(trips(h).map((c) => [c.method, c.version])).toEqual([
-      ['GET', 1],
-      ['POST', 1],
+    expect(trips(h)).toEqual([]);
+    expect(h.server.posts().map((c) => c.body)).toMatchObject([
+      { client_request_id: other.clientRequestId },
     ]);
-    expect(h.server.posts()[0].body).toEqual(body);
-    expect(h.server.expenses).toHaveLength(1);
+    expect(await h.entry.retry(h.scope, r.clientRequestId)).toMatchObject({
+      kind: 'unconfirmed',
+      reason: 'retired',
+    });
+    expect(trips(h)).toEqual([]);
+    const [prepared] = await h.queue.list(h.scope);
+    expect(prepared).toMatchObject({ status: 'prepared', apiVersion: 1 });
+    await expect(h.queue.abandon({ ...prepared, apiVersion: 2 })).rejects.toThrow('NOT_RETIRED');
+    await h.queue.abandon(prepared);
+    expect(await h.queue.list(h.scope)).toEqual([]);
+    expect(await h.pending.list(h.scope)).toEqual([]);
+    expect(trips(h)).toEqual([]);
   });
 
   it('holds a queued record for review when the trip unit is not TWD, sending nothing', async () => {

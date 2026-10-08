@@ -10,6 +10,7 @@ import { createExpenseQueueStore } from './expenseQueue';
 import { createDraftTripStore } from './draftTrips';
 import type { StoredExpenseDraft } from './expenseDrafts';
 import { confirmedFields } from '@/features/expenses/draft';
+import { LEGACY_PENDING_SQL, legacyPending } from '@/test/legacy';
 
 declare const process: { execPath: string };
 const scope = { environment: 'https://a.test', accountId: hex(1) };
@@ -32,7 +33,7 @@ const draft = (n = 1): StoredExpenseDraft => ({
 });
 const preview = { amount: 100, splits: [{ userId: hex(1), displayName: 'Ann', shareAmount: 100 }] };
 const ledger = { baseCurrency: 'TWD', moneyScale: 2 as const };
-// New queued records are v2 (B5c-2); records queued by an older release stay v1.
+// New queued records are v2 (B5c-2); records queued by an older release stay v1 and are retired.
 const v2preview = { ...preview, ledger, originalAmount: 100, currency: 'TWD', exchangeRate: 1 };
 const payload = (id: string, version: 1 | 2 = 2) => ({
   ...(version === 2
@@ -40,6 +41,8 @@ const payload = (id: string, version: 1 | 2 = 2) => ({
     : confirmedFields(draft().input, options, preview)),
   client_request_id: id,
 });
+/** Turns a prepared v2 record and its C row back into what a pre-B5c-2 release had written. */
+const RELABEL_V1 = LEGACY_PENDING_SQL + 'UPDATE pending_expense SET api_version = 1;';
 const opened: (SqlDatabase & { close(): void })[] = [];
 const dirs: string[] = [];
 const open = (path?: string) => {
@@ -79,7 +82,8 @@ it('upgrades schema 3 with drafts, pending and trip snapshots intact', async () 
     ...scope,
     tripId: hex(200),
     clientRequestId: uuidOf(200),
-    payload: payload(uuidOf(200), 1),
+    apiVersion: 2,
+    payload: payload(uuidOf(200)),
     status: 'unconfirmed',
     createdAt: 1000,
     updatedAt: 1000,
@@ -87,7 +91,8 @@ it('upgrades schema 3 with drafts, pending and trip snapshots intact', async () 
   const trips = await createDraftTripStore(h.db);
   await trips.rememberOptions(scope, tripId, options, 1000);
   await h.db.execAsync(
-    'DROP TABLE expense_queue; DROP TABLE expense_rate_limit; DROP TABLE pending_mutation; ALTER TABLE pending_expense DROP COLUMN api_version; ALTER TABLE pending_expense DROP COLUMN base_currency; ALTER TABLE pending_expense DROP COLUMN money_scale; PRAGMA user_version = 3'
+    LEGACY_PENDING_SQL +
+      'DROP TABLE expense_queue; DROP TABLE expense_rate_limit; DROP TABLE pending_mutation; ALTER TABLE pending_expense DROP COLUMN api_version; ALTER TABLE pending_expense DROP COLUMN base_currency; ALTER TABLE pending_expense DROP COLUMN money_scale; PRAGMA user_version = 3'
   );
   const queue = await createExpenseQueueStore(h.db);
   expect(await queue.list(scope)).toEqual([]);
@@ -275,6 +280,7 @@ it('explicit discard of a current draft cannot replace a handed-off or unconfirm
       ...scope,
       tripId,
       clientRequestId: id,
+      apiVersion: 2,
       payload: payload(id),
       status: 'sending',
       createdAt: 1000,
@@ -299,17 +305,19 @@ it('cannot reuse a queue record identifier to mutate another trip', async () => 
 it.each(['busy', 'conflict', 'pending'])(
   'upgrades schema 4 with %s waits and frozen records intact',
   async (reason) => {
-    const h = await legacy(await setup());
-    await h.queue.prepare(h.record, payload(h.record.clientRequestId, 1));
+    const h = await setup();
+    await h.queue.prepare(h.record, payload(h.record.clientRequestId));
     await h.queue.pause(h.record, reason, 120_000);
-    const frozen = await h.pending.list(scope);
+    const frozen = (await h.pending.list(scope)).map(legacyPending);
     await h.db.execAsync(
-      'ALTER TABLE expense_queue DROP COLUMN api_version; ALTER TABLE expense_queue DROP COLUMN rate_limit_until; DROP TABLE expense_rate_limit; DROP TABLE pending_mutation; ALTER TABLE pending_expense DROP COLUMN api_version; ALTER TABLE pending_expense DROP COLUMN base_currency; ALTER TABLE pending_expense DROP COLUMN money_scale; PRAGMA user_version = 4'
+      LEGACY_PENDING_SQL +
+        'ALTER TABLE expense_queue DROP COLUMN api_version; ALTER TABLE expense_queue DROP COLUMN rate_limit_until; DROP TABLE expense_rate_limit; DROP TABLE pending_mutation; ALTER TABLE pending_expense DROP COLUMN api_version; ALTER TABLE pending_expense DROP COLUMN base_currency; ALTER TABLE pending_expense DROP COLUMN money_scale; PRAGMA user_version = 4'
     );
     const upgraded = await createExpenseQueueStore(h.db);
     expect(await upgraded.list(scope)).toMatchObject([
       {
         ...h.record,
+        apiVersion: 1,
         status: 'prepared',
         reason,
         nextAt: 120_000,
@@ -322,11 +330,12 @@ it.each(['busy', 'conflict', 'pending'])(
 );
 
 it('rolls back a failed schema 4 wait migration and safely retries without losing data', async () => {
-  const h = await legacy(await setup());
-  await h.queue.prepare(h.record, payload(h.record.clientRequestId, 1));
+  const h = await setup();
+  await h.queue.prepare(h.record, payload(h.record.clientRequestId));
   await h.queue.pause(h.record, 'conflict', 120_000);
   await h.db.execAsync(
-    'ALTER TABLE expense_queue DROP COLUMN api_version; ALTER TABLE expense_queue DROP COLUMN rate_limit_until; DROP TABLE expense_rate_limit; DROP TABLE pending_mutation; ALTER TABLE pending_expense DROP COLUMN api_version; ALTER TABLE pending_expense DROP COLUMN base_currency; ALTER TABLE pending_expense DROP COLUMN money_scale; PRAGMA user_version = 4'
+    LEGACY_PENDING_SQL +
+      'ALTER TABLE expense_queue DROP COLUMN api_version; ALTER TABLE expense_queue DROP COLUMN rate_limit_until; DROP TABLE expense_rate_limit; DROP TABLE pending_mutation; ALTER TABLE pending_expense DROP COLUMN api_version; ALTER TABLE pending_expense DROP COLUMN base_currency; ALTER TABLE pending_expense DROP COLUMN money_scale; PRAGMA user_version = 4'
   );
   const broken: SqlDatabase = {
     ...h.db,
@@ -497,23 +506,22 @@ describe('B5c-2 queued version', () => {
       },
     ]);
   });
-  it('keeps a pre-B5c-2 record on v1 and refuses to switch either record version', async () => {
+  it('never hands a pre-B5c-2 v1 record to C, but still lets it go back to a draft', async () => {
     const h = await legacy(await setup());
     expect(h.record.apiVersion).toBe(1);
-    // Neither a v2 body nor a caller claiming v2 relabels the stored v1 record.
+    // No body and no caller claiming v2 relabels the stored v1 record or sends it (B5d-1).
     for (const [record, body] of [
       [h.record, payload(h.record.clientRequestId)],
+      [h.record, payload(h.record.clientRequestId, 1)],
       [{ ...h.record, apiVersion: 2 as const }, payload(h.record.clientRequestId, 1)],
       [{ ...h.record, apiVersion: 2 as const }, payload(h.record.clientRequestId)],
     ] as const)
       await expect(h.queue.prepare(record, body)).rejects.toThrow('QUEUE_VERSION_CHANGED');
-    const fresh = await legacy(await setup());
-    await expect(
-      fresh.queue.prepare({ ...fresh.record, apiVersion: 2 }, payload(fresh.record.clientRequestId))
-    ).rejects.toThrow('QUEUE_VERSION_CHANGED');
     expect(await h.pending.list(scope)).toEqual([]);
-    expect(await h.queue.prepare(h.record, payload(h.record.clientRequestId, 1))).toBe(true);
-    expect(await h.pending.list(scope)).toMatchObject([{ apiVersion: 1, baseCurrency: 'TWD' }]);
+    expect((await h.queue.list(scope))[0]).toMatchObject({ status: 'queued', apiVersion: 1 });
+    await h.queue.restore(h.record, uuidOf(900));
+    expect((await h.pending.drafts.load(scope, tripId))?.input).toEqual(draft().input);
+    expect(await h.queue.list(scope)).toEqual([]);
     // And a v2 record never accepts a v1 body.
     const v2 = await setup(open());
     await expect(
@@ -531,14 +539,14 @@ describe('B5c-2 queued version', () => {
     const dir = mkdtempSync(join(tmpdir(), 'tb-queue-v10-'));
     dirs.push(dir);
     const path = join(dir, 'expense.db');
-    const h = await legacy(await setup(open(path)));
+    const h = await setup(open(path));
     await h.pending.drafts.start({ ...draft(2), tripId: hex(200) });
     await h.queue.enqueue({ ...draft(2), tripId: hex(200) }, options, uuidOf(101));
     const [first, second] = await h.queue.list(scope);
-    await h.queue.prepare(first, payload(first.clientRequestId, 1));
-    const frozen = await h.pending.list(scope);
+    await h.queue.prepare(first, payload(first.clientRequestId));
+    const frozen = (await h.pending.list(scope)).map(legacyPending);
     await h.db.execAsync(
-      'ALTER TABLE expense_queue DROP COLUMN api_version; PRAGMA user_version = 9'
+      RELABEL_V1 + 'ALTER TABLE expense_queue DROP COLUMN api_version; PRAGMA user_version = 9'
     );
     const broken: SqlDatabase = {
       ...h.db,

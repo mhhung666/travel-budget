@@ -13,6 +13,7 @@ import { useRecoveryDeadline } from '@/features/recovery/useRecoveryDeadline';
 import { useDisplayFormat } from '@/i18n/useDisplayFormat';
 import { parseAmount } from '@/features/expenses/input';
 import { queueRecordVisible } from '@/features/recovery/visibility';
+import { retiredOperation } from '@/api/recovery';
 import { queueRetryDeadline } from './presentation';
 import type { QueuedExpense } from '@/storage/expenseQueue';
 
@@ -160,9 +161,11 @@ function ScopedQueueScreen() {
                     ? t.sessionExpired
                     : r.reason === 'conflict'
                       ? t.pendingConflict
-                      : r.reason === 'busy'
-                        ? t.pendingBusy
-                        : t.queuePaused}
+                      : r.reason === 'retired'
+                        ? t.retiredQueued
+                        : r.reason === 'busy'
+                          ? t.pendingBusy
+                          : t.queuePaused}
             </Notice>
           )}
           {queueRetryDeadline(r, deadline.until) > deadline.now && (
@@ -171,7 +174,20 @@ function ScopedQueueScreen() {
               value={format.instant(queueRetryDeadline(r, deadline.until))}
             />
           )}
-          {r.status === 'prepared' ? (
+          {r.status === 'prepared' && retiredOperation(r) ? (
+            <>
+              <Notice tone="warning">{t.retiredRecord}</Notice>
+              <Action
+                testID={`queue-discard-retired-${index}`}
+                variant="danger"
+                label={t.discardRetired}
+                disabled={busy}
+                onPress={() => {
+                  if (visible(r)) void act(() => queue.abandon(r));
+                }}
+              />
+            </>
+          ) : r.status === 'prepared' ? (
             <Notice tone="warning">{t.queueFrozen}</Notice>
           ) : (
             <>

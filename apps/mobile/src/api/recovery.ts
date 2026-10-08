@@ -1,21 +1,14 @@
-import type { RequestOptions } from './client';
-
-type Version = NonNullable<RequestOptions['apiVersion']>;
-
 /**
- * The only places a request leaves the client's v2 default. An operation saved by an older release
- * is resumed on the wire version it was created with; a record is never relabelled by a newer
- * release or by the configured environment.
+ * Operations saved by a release that still sent v1 (B5d-1). They keep decoding, but are never
+ * sent or looked up again, and are never relabelled as v2: the user may only discard them (an
+ * unprepared queued expense may also go back to a draft). Only fixtures were on v1, so this is
+ * not a way to finish them.
  */
+type Saved = { apiVersion?: 1 | 2 };
 
 /** C expense records: a record from before `apiVersion` existed is v2 only if its body says so. */
-export const savedExpenseVersion = (record: { apiVersion?: Version; payload: object }): Version =>
-  record.apiVersion ?? ('base_currency' in record.payload ? 2 : 1);
+export const retiredExpense = (record: Saved & { payload: object }) =>
+  (record.apiVersion ?? ('base_currency' in record.payload ? 2 : 1)) === 1;
 
-/** E mutation records: an unlabelled record predates v2. */
-export const savedMutationVersion = (record: { apiVersion?: Version }): Version =>
-  record.apiVersion ?? 1;
-
-/** D queued expenses: a record queued before B5c-2 keeps v1 from options through its write. */
-export const savedQueueVersion = (record: { apiVersion?: Version }): Version =>
-  record.apiVersion ?? 1;
+/** E mutation records and D queued expenses: an unlabelled record predates v2. */
+export const retiredOperation = (record: Saved) => (record.apiVersion ?? 1) === 1;

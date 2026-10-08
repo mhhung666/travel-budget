@@ -44,10 +44,9 @@ const queueSource = await readFile(queueFile, 'utf8');
 const retryNeedle = `    return this.serial(scope, clientRequestId, async () => {
       const loaded = await this.load(scope, clientRequestId);
       if (!('store' in loaded)) return loaded;
-      if (savedExpenseVersion(loaded.record) === 2) {
-        const found = await this.lookupCore(loaded.store, loaded.record);
-        if (found.kind !== 'unconfirmed' || found.reason !== 'not-found') return found;
-      }
+      if (retiredExpense(loaded.record)) return unconfirmed(loaded.record, 'retired');
+      const found = await this.lookupCore(loaded.store, loaded.record);
+      if (found.kind !== 'unconfirmed' || found.reason !== 'not-found') return found;
       return this.post(loaded.store, loaded.record, beforeSend);
     });`;
 const prepareNeedle = `          if (!(await store.prepare(r, payload))) {

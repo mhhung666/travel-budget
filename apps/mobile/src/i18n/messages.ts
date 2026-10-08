@@ -400,6 +400,10 @@ const zh = {
   retrySame: '以原內容重試',
   pendingNotFound: '伺服器目前沒有這筆的紀錄。你可以用原內容重試，不會重複記帳。',
   pendingAccessLost: '無法確認：你可能已不是這趟旅行的成員。紀錄會保留在這支手機上。',
+  retiredRecord:
+    '這筆紀錄由舊版 App 建立，新版不再查詢或重送。它可能已記錄，也可能沒有；捨棄後請到帳務核對，必要時重新輸入。',
+  retiredQueued: '這筆離線紀錄由舊版 App 建立，新版不會送出。請移回草稿重新確認，或捨棄。',
+  discardRetired: '捨棄這筆紀錄',
   pendingBusy: '伺服器忙碌中，請稍後再以原內容重試。',
   pendingConflict: '伺服器上已有使用相同請求編號、但內容不同的紀錄，無法自動處理。請查詢結果。',
   pendingExpensesNotice: '有支出尚未確認是否已儲存，請先確認結果。',
@@ -812,6 +816,10 @@ export const messages = {
     retrySame: '以原内容重试',
     pendingNotFound: '服务器目前没有这笔的记录。你可以用原内容重试，不会重复记账。',
     pendingAccessLost: '无法确认：你可能已不是这趟旅行的成员。记录会保留在这部手机上。',
+    retiredRecord:
+      '这笔记录由旧版 App 建立，新版不再查询或重送。它可能已记录，也可能没有；丢弃后请到账务核对，必要时重新输入。',
+    retiredQueued: '这笔离线记录由旧版 App 建立，新版不会送出。请移回草稿重新确认，或丢弃。',
+    discardRetired: '丢弃这笔记录',
     pendingBusy: '服务器忙碌中，请稍后再以原内容重试。',
     pendingConflict: '服务器上已有使用相同请求编号、但内容不同的记录，无法自动处理。请查询结果。',
     pendingExpensesNotice: '有支出尚未确认是否已保存，请先确认结果。',
@@ -1282,6 +1290,11 @@ export const messages = {
       'The server has no record of it yet. You can retry with the same content without recording it twice.',
     pendingAccessLost:
       'It cannot be confirmed: you may no longer be a member of this trip. The record stays on this phone.',
+    retiredRecord:
+      'An older version of the app created this record. This version no longer checks or resends it, so it may or may not have been saved. After discarding it, check the expenses and enter it again if needed.',
+    retiredQueued:
+      'An older version of the app queued this record offline. This version will not send it. Move it back to a draft to confirm it again, or discard it.',
+    discardRetired: 'Discard this record',
     pendingBusy: 'The server is busy. Retry with the same content in a moment.',
     pendingConflict:
       'The server already has a record with the same request ID but different content, so it cannot be handled automatically. Check the result.',
@@ -1747,6 +1760,11 @@ export const messages = {
       'サーバーにはまだ記録がありません。同じ内容で再試行しても二重には記録されません。',
     pendingAccessLost:
       '確認できません。この旅行のメンバーではなくなっている可能性があります。記録はこの端末に残ります。',
+    retiredRecord:
+      'この記録は旧バージョンのアプリで作成されました。新バージョンでは確認も再送もしません。保存済みかどうかは不明です。破棄後に支出を確認し、必要なら入力し直してください。',
+    retiredQueued:
+      'このオフライン記録は旧バージョンのアプリで作成されたため、送信されません。下書きに戻して確認し直すか、破棄してください。',
+    discardRetired: 'この記録を破棄',
     pendingBusy: 'サーバーが混み合っています。しばらくしてから同じ内容で再試行してください。',
     pendingConflict:
       '同じ ID で内容の異なる記録がサーバーに既にあるため、自動では処理できません。結果を確認してください。',

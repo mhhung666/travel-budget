@@ -26,7 +26,6 @@ export function TripEntryProvider({ children }: PropsWithChildren) {
   const [entry] = useState(
     () =>
       new TripEntry({
-        contractVersion: 2,
         store: openMutationStore,
         newId: () => Crypto.randomUUID(),
         active: (scope) =>

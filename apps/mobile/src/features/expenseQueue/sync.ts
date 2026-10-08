@@ -1,4 +1,4 @@
-import { savedQueueVersion } from '@/api/recovery';
+import { retiredOperation } from '@/api/recovery';
 import { baseCurrency } from '@/api/ledger';
 import { ApiError } from '@/api/client';
 import {
@@ -68,6 +68,12 @@ export class ExpenseQueue {
   }
   async discard(record: QueuedExpense) {
     await (await this.deps.store()).discard(record);
+    this.deps.onChange?.(record);
+  }
+  /** A retired v1 record already handed to C is discarded there, with its queue row. */
+  async abandon(record: QueuedExpense) {
+    if (record.status !== 'prepared' || !retiredOperation(record)) throw new Error('NOT_RETIRED');
+    await this.deps.entry.abandon(record, record.clientRequestId);
     this.deps.onChange?.(record);
   }
   async restore(record: QueuedExpense, discardCurrent = false) {
@@ -147,6 +153,12 @@ export class ExpenseQueue {
         }
         if (r.status === 'attention' || r.status === 'resolved') continue;
         if (blockedTrips.has(r.tripId)) continue;
+        // A v1 record is never sent again: queued ones wait for review, prepared ones for C's discard
+        // (their C row already holds the trip, as any unresolved C request does).
+        if (retiredOperation(r)) {
+          if (r.status === 'queued') await store.pause(r, 'retired', 0, true);
+          continue;
+        }
         if (r.nextAt > this.now()) {
           // Conflict investigation and waiting behind C are trip-local, even after restart.
           // Transient transport/server failures and rate limits still pause the whole run.
@@ -163,39 +175,33 @@ export class ExpenseQueue {
           if (!this.deps.active(scope)) throw new ApiError('CANCELLED');
         };
         if (r.status === 'prepared') {
-          // After a crash / lost response, ask before repeating the frozen UUID and payload.
-          // C's v2 retry asks by itself first; a 409 under investigation is only looked up.
-          const resend = savedQueueVersion(r) === 2 && r.reason !== 'conflict';
-          const found = resend
-            ? await this.deps.entry.retry(scope, r.clientRequestId, beforeSend)
-            : await this.deps.entry.lookup(scope, r.clientRequestId);
+          // After a crash / lost response, C's retry asks before repeating the frozen UUID and
+          // payload. A 409 under investigation is only looked up.
+          if (r.reason !== 'conflict') {
+            const sent = await this.deps.entry.retry(scope, r.clientRequestId, beforeSend);
+            if (!(await this.sent(store, r, sent, blockedTrips))) return;
+            continue;
+          }
+          const found = await this.deps.entry.lookup(scope, r.clientRequestId);
           if (
-            !resend &&
             found.kind === 'unconfirmed' &&
             found.reason === 'not-found' &&
             this.deps.active(scope)
           ) {
             // A previous 409 is an ID conflict to investigate, not authorization to overwrite it.
-            if (r.reason === 'conflict') {
-              await store.pause(r, 'conflict', this.now() + 30_000);
-              blockedTrips.add(r.tripId);
-              continue;
-            }
-            const sent = await this.deps.entry.retry(scope, r.clientRequestId, beforeSend);
-            if (!(await this.sent(store, r, sent, blockedTrips))) return;
-          } else if (resend) {
-            if (!(await this.sent(store, r, found, blockedTrips))) return;
-          } else if (!(await this.outcome(store, r, found))) return;
+            await store.pause(r, 'conflict', this.now() + 30_000);
+            blockedTrips.add(r.tripId);
+            continue;
+          }
+          if (!(await this.outcome(store, r, found))) return;
           continue;
         }
         try {
           const path = `/trips/${encodeURIComponent(r.tripId)}`;
-          const apiVersion = savedQueueVersion(r);
           const options = await this.deps.request(
             scope.accountId,
             `${path}/expense-options`,
-            expenseOptionsSchema,
-            { apiVersion }
+            expenseOptionsSchema
           );
           if (!this.deps.active(scope)) return;
           if (!stillAuthorized()) {
@@ -219,7 +225,6 @@ export class ExpenseQueue {
             `${path}/expenses/preview`,
             expensePreviewSchema,
             {
-              apiVersion,
               method: 'POST',
               body: previewInputOf(r.input, options),
             }

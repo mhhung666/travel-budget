@@ -16,21 +16,23 @@ const BASE = 'https://example.test/api/v1';
 const [ANN, BOB, CAT] = [hex(1), hex(2), hex(3)];
 const [TRIP, OTHER_TRIP] = [hex(100), hex(200)];
 
-const fields = (patch: Partial<ExpenseFields> = {}): ExpenseFields => ({
-  payer_id: ANN,
-  original_amount: 100,
-  currency: 'TWD',
-  exchange_rate: 1,
-  description: 'Dinner',
-  category: 'food',
-  date: '2026-10-04',
-  splits: [
-    { user_id: ANN, share_amount: 33.34 },
-    { user_id: BOB, share_amount: 33.33 },
-    { user_id: CAT, share_amount: 33.33 },
-  ],
-  ...patch,
-});
+const fields = (patch: Partial<ExpenseFields> = {}): ExpenseFields =>
+  ({
+    payer_id: ANN,
+    original_amount: 100,
+    currency: 'TWD',
+    exchange_rate: 1,
+    description: 'Dinner',
+    category: 'food',
+    date: '2026-10-04',
+    splits: [
+      { user_id: ANN, share_amount: 33.34 },
+      { user_id: BOB, share_amount: 33.33 },
+      { user_id: CAT, share_amount: 33.33 },
+    ],
+    base_currency: 'TWD',
+    ...patch,
+  }) as ExpenseFields;
 function expectKind<K extends EntryOutcome['kind']>(outcome: EntryOutcome, kind: K) {
   expect(outcome.kind).toBe(kind);
   return outcome as Extract<EntryOutcome, { kind: K }>;
@@ -122,6 +124,11 @@ async function harness(options: { timeoutMs?: number } = {}) {
       fault: Fault,
       pattern = method === 'POST' ? /\/expenses$/ : /expense-requests/
     ) => server.fail(method, pattern, fault),
+    /** A v2 send first asks for its receipt; this fault hits the lookup that follows the send. */
+    failLookup: (fault: Fault) => {
+      server.fail('GET', /expense-requests/, { kind: 'pass' });
+      server.fail('GET', /expense-requests/, fault);
+    },
     pending: (accountId = ANN, tripId?: string) =>
       real.list({ environment: manager.api.environment, accountId }, tripId),
   };
@@ -150,7 +157,7 @@ describe('a confirmed submission', () => {
     expect(saved[0][0].payload).toEqual({ ...fields(), client_request_id: uuidOf(1) });
     expect(h.server.posts()).toHaveLength(1);
     expect(h.server.posts()[0].body).toEqual(saved[0][0].payload);
-    expect(h.server.lookups()).toHaveLength(0);
+    expect(h.server.lookups()).toHaveLength(1); // only the receipt check before sending
     expect(h.server.expenses).toHaveLength(1);
     expect(outcome.expense).toEqual(h.server.expenses[0]);
     expect(outcome.differs).toBe(false);
@@ -163,7 +170,7 @@ describe('a confirmed submission', () => {
     const h = await harness();
     await h.login('ann');
     h.fail('POST', { kind: 'network' });
-    h.fail('GET', { kind: 'network' });
+    h.failLookup({ kind: 'network' });
     await h.entry.submit(h.scope(ANN), TRIP, fields());
     const stored = JSON.stringify(await h.pending());
     expect(stored).not.toMatch(/access-|refresh-|Bearer/);
@@ -222,27 +229,42 @@ describe('a confirmed submission', () => {
 });
 
 describe('an explicit rejection', () => {
+  it('is final once its receipt says rejected: the record goes and the user may edit', async () => {
+    const h = await harness();
+    await h.login('ann');
+    h.fail('POST', { kind: 'status', status: 400, code: 'VALIDATION_ERROR', receipt: true });
+    const outcome = expectKind(await h.entry.submit(h.scope(ANN), TRIP, fields()), 'rejected');
+    expect(outcome.error).toMatchObject({ status: 409, code: 'VALIDATION_ERROR' });
+    expect(await h.pending()).toEqual([]);
+    // The check before sending, then the receipt that confirms the refusal.
+    expect(h.server.lookups()).toHaveLength(2);
+    // Fixed and confirmed again, it is a new submission with a new id.
+    expectKind(await h.entry.submit(h.scope(ANN), TRIP, fields()), 'saved');
+    expect(
+      h.server.posts().map((call) => (call.body as { client_request_id: string }).client_request_id)
+    ).toEqual([uuidOf(1), uuidOf(2)]);
+    expect(h.server.expenses).toHaveLength(1);
+  });
+
   it.each([
     [400, 'VALIDATION_ERROR'],
     [413, 'BODY_TOO_LARGE'],
     [415, 'INVALID_CONTENT_TYPE'],
   ])(
-    '%d means nothing was written: the record goes and the user may edit',
+    'a %d without a rejected receipt keeps the request, and only it can be repeated',
     async (status, code) => {
       const h = await harness();
       await h.login('ann');
       h.fail('POST', { kind: 'status', status, code });
-      const outcome = expectKind(await h.entry.submit(h.scope(ANN), TRIP, fields()), 'rejected');
-      expect(outcome.error).toMatchObject({ status, code });
-      expect(await h.pending()).toEqual([]);
-      expect(h.server.lookups()).toHaveLength(0);
-      // Fixed and confirmed again, it is a new submission with a new id.
-      expectKind(await h.entry.submit(h.scope(ANN), TRIP, fields()), 'saved');
+      const outcome = expectKind(await h.entry.submit(h.scope(ANN), TRIP, fields()), 'unconfirmed');
+      expect(outcome.reason).toBe('not-found');
+      expect(await h.pending()).toHaveLength(1);
+      expectKind(await h.entry.retry(h.scope(ANN), uuidOf(1)), 'saved');
       expect(
         h.server
           .posts()
           .map((call) => (call.body as { client_request_id: string }).client_request_id)
-      ).toEqual([uuidOf(1), uuidOf(2)]);
+      ).toEqual([uuidOf(1), uuidOf(1)]);
       expect(h.server.expenses).toHaveLength(1);
     }
   );
@@ -266,15 +288,15 @@ describe('an outcome that is not clear', () => {
     expect(h.server.expenses).toHaveLength(1);
     expect(outcome.expense).toEqual(h.server.expenses[0]);
     expect(h.server.posts()).toHaveLength(1);
-    expect(h.server.lookups()).toHaveLength(1);
+    expect(h.server.lookups()).toHaveLength(2); // the check before sending, then the recovery
     expect(await h.pending()).toEqual([]);
   });
 
-  it('keeps the request locked while it cannot be confirmed, and repeats it unchanged', async () => {
+  it('keeps the request locked while it cannot be confirmed, and finds it before repeating', async () => {
     const h = await harness();
     await h.login('ann');
     h.fail('POST', { kind: 'drop-response' });
-    h.fail('GET', { kind: 'network' });
+    h.failLookup({ kind: 'network' });
 
     const outcome = expectKind(await h.entry.submit(h.scope(ANN), TRIP, fields()), 'unconfirmed');
     expect(outcome.reason).toBe('network');
@@ -291,10 +313,10 @@ describe('an outcome that is not clear', () => {
       'saved'
     );
 
+    // The retry asks first; the committed receipt settles it and nothing is sent again.
     const again = expectKind(await h.entry.retry(h.scope(ANN), uuidOf(1)), 'saved');
     expect(again.expense).toEqual(h.server.expenses[0]);
-    const bodies = h.server.posts().map((call) => call.body);
-    expect(bodies[0]).toEqual(bodies[2]); // same id, same body
+    expect(h.server.posts()).toHaveLength(2);
     expect(h.server.expenses.map((expense) => expense.description)).toEqual(['Dinner', 'Taxi']);
     expect(await h.pending()).toEqual([]);
   });
@@ -303,7 +325,7 @@ describe('an outcome that is not clear', () => {
     const h = await harness();
     await h.login('ann');
     h.fail('POST', { kind: 'drop-response' });
-    h.fail('GET', { kind: 'network' });
+    h.failLookup({ kind: 'network' });
     await h.entry.submit(h.scope(ANN), TRIP, fields());
     const outcome = expectKind(await h.entry.lookup(h.scope(ANN), uuidOf(1)), 'saved');
     expect(outcome.expense.description).toBe('Dinner');
@@ -320,7 +342,7 @@ describe('an outcome that is not clear', () => {
     h.fail('POST', fault);
     expectKind(await h.entry.submit(h.scope(ANN), TRIP, fields()), 'saved');
     expect(h.server.expenses).toHaveLength(1);
-    expect(h.server.lookups()).toHaveLength(1);
+    expect(h.server.lookups()).toHaveLength(2);
   });
 
   it.each<[string, Fault]>([
@@ -354,7 +376,7 @@ describe('an outcome that is not clear', () => {
     const h = await harness({ timeoutMs: 30 });
     await h.login('ann');
     h.fail('POST', { kind: 'hang' });
-    h.fail('GET', { kind: 'hang' });
+    h.failLookup({ kind: 'hang' });
     const outcome = expectKind(await h.entry.submit(h.scope(ANN), TRIP, fields()), 'unconfirmed');
     expect(outcome.reason).toBe('timeout');
     expect(await h.pending()).toHaveLength(1);
@@ -366,7 +388,7 @@ describe('an outcome that is not clear', () => {
     h.fail('POST', { kind: 'status', status: 429, code: 'BUSY', retryAfter: 60 });
     const outcome = expectKind(await h.entry.submit(h.scope(ANN), TRIP, fields()), 'unconfirmed');
     expect(outcome.reason).toBe('busy');
-    expect(h.server.lookups()).toHaveLength(0);
+    expect(h.server.lookups()).toHaveLength(1); // only the check before sending
     const early = expectKind(await h.entry.retry(h.scope(ANN), uuidOf(1)), 'unconfirmed');
     expect(early.reason).toBe('busy');
     expect(h.server.posts()).toHaveLength(1); // the cooldown held it back locally
@@ -400,9 +422,11 @@ describe('refusals that prove nothing', () => {
     await h.login('ann');
     h.fail('POST', { kind: 'drop-response' });
     let removed = false;
-    h.before(async (method) => {
+    let posted = false;
+    h.before(async (method, path) => {
+      if (method === 'POST' && path.endsWith('/expenses')) posted = true;
       // Membership is lost after the server committed, before the client's lookup arrives.
-      if (method === 'GET' && !removed) {
+      if (method === 'GET' && posted && !removed) {
         removed = true;
         h.server.removeMember(TRIP, ANN);
       }
@@ -429,14 +453,16 @@ describe('refusals that prove nothing', () => {
     const outcome = expectKind(await h.entry.submit(h.scope(ANN), TRIP, fields()), 'unconfirmed');
     expect(outcome.reason).toBe('access');
     expect(await h.pending()).toHaveLength(1);
-    expect(h.server.lookups()).toHaveLength(0);
+    // The check before sending was refused, so nothing was sent.
+    expect(h.server.lookups()).toHaveLength(1);
+    expect(h.server.posts()).toHaveLength(0);
   });
 
   it('keeps the request when sign-in cannot be refreshed, and resolves it after signing in again', async () => {
     const h = await harness();
     await h.login('ann');
     h.fail('POST', { kind: 'drop-response' });
-    h.fail('GET', { kind: 'network' });
+    h.failLookup({ kind: 'network' });
     await h.entry.submit(h.scope(ANN), TRIP, fields());
     h.server.revoke(ANN);
 
@@ -455,10 +481,11 @@ describe('refusals that prove nothing', () => {
 });
 
 describe('a 409', () => {
-  it('finds the original request and never starts another with a new id', async () => {
+  it('finds the original request before sending and never starts another with a new id', async () => {
     const h = await harness();
     await h.login('ann');
     const original: ExpenseDetail = {
+      ledger: { baseCurrency: 'TWD', moneyScale: 2 },
       id: hex(777),
       date: '2026-10-01',
       description: 'Something else',
@@ -475,7 +502,7 @@ describe('a 409', () => {
     const outcome = expectKind(await h.entry.submit(h.scope(ANN), TRIP, fields()), 'saved');
     expect(outcome.expense).toEqual(original);
     expect(outcome.differs).toBe(true);
-    expect(h.server.posts()).toHaveLength(1);
+    expect(h.server.posts()).toHaveLength(0);
     expect(h.server.lookups()).toHaveLength(1);
     expect(await h.pending()).toEqual([]);
     expect(h.server.expenses).toHaveLength(0);
@@ -497,7 +524,7 @@ describe('accounts', () => {
     const h = await harness();
     await h.login('ann');
     h.fail('POST', { kind: 'drop-response' });
-    h.fail('GET', { kind: 'network' });
+    h.failLookup({ kind: 'network' });
     await h.entry.submit(h.scope(ANN), TRIP, fields());
     expect(await h.pending()).toHaveLength(1);
     return h;
@@ -641,7 +668,7 @@ describe('recovery', () => {
     const h = await harness();
     await h.login('ann');
     h.fail('POST', { kind: 'drop-response' });
-    h.fail('GET', { kind: 'network' });
+    h.failLookup({ kind: 'network' });
     await h.entry.submit(h.scope(ANN), TRIP, fields());
 
     const restarted = h.makeEntry(); // a new process: nothing in memory, only the saved record
@@ -657,7 +684,7 @@ describe('recovery', () => {
     const h = await harness();
     await h.login('ann');
     h.fail('POST', { kind: 'network' });
-    h.fail('GET', { kind: 'network' });
+    h.failLookup({ kind: 'network' });
     await h.entry.submit(h.scope(ANN), TRIP, fields());
     const restarted = h.makeEntry();
     const outcomes = await restarted.recover(h.scope(ANN));
@@ -677,10 +704,10 @@ describe('recovery', () => {
     const h = await harness();
     await h.login('ann');
     h.fail('POST', { kind: 'drop-response' });
-    h.fail('GET', { kind: 'network' });
+    h.failLookup({ kind: 'network' });
     await h.entry.submit(h.scope(ANN), TRIP, fields());
     h.fail('POST', { kind: 'drop-response' });
-    h.fail('GET', { kind: 'network' });
+    h.failLookup({ kind: 'network' });
     await h.entry.submit(h.scope(ANN), OTHER_TRIP, fields({ description: 'Taxi' }));
     h.server.seen.length = 0;
     const [one, two] = await Promise.all([
@@ -705,7 +732,7 @@ describe('concurrent operations on one request', () => {
     const h = await harness();
     await h.login('ann');
     h.fail('POST', { kind: 'network' });
-    h.fail('GET', { kind: 'network' });
+    h.failLookup({ kind: 'network' });
     await h.entry.submit(h.scope(ANN), TRIP, fields());
     h.server.seen.length = 0;
     const [retried, looked] = await Promise.all([
@@ -715,7 +742,7 @@ describe('concurrent operations on one request', () => {
     expect(retried.kind).toBe('saved');
     expect(looked.kind).toBe('gone');
     expect(h.server.posts()).toHaveLength(1);
-    expect(h.server.lookups()).toHaveLength(0);
+    expect(h.server.lookups()).toHaveLength(1); // the retry's own check, never the racing lookup
     expect(h.server.expenses).toHaveLength(1);
   });
 
@@ -723,7 +750,7 @@ describe('concurrent operations on one request', () => {
     const h = await harness();
     await h.login('ann');
     h.fail('POST', { kind: 'network' });
-    h.fail('GET', { kind: 'network' });
+    h.failLookup({ kind: 'network' });
     await h.entry.submit(h.scope(ANN), TRIP, fields());
     h.server.seen.length = 0;
     const results = await Promise.all([
@@ -767,7 +794,7 @@ describe('a confirmed request whose record cannot be removed', () => {
   it('keeps a refused request visible until its removal works', async () => {
     const h = await harness();
     await h.login('ann');
-    h.fail('POST', { kind: 'status', status: 400, code: 'VALIDATION_ERROR' });
+    h.fail('POST', { kind: 'status', status: 400, code: 'VALIDATION_ERROR', receipt: true });
     h.broken.remove = 1;
     expectKind(await h.entry.submit(h.scope(ANN), TRIP, fields()), 'rejected');
     expect(await h.entry.list(h.scope(ANN), TRIP)).toEqual([]);
@@ -862,11 +889,12 @@ describe('refresh failures do not reject pending expenses', () => {
       const h = await harness();
       await h.login('ann');
       h.fail('POST', { kind: 'drop-response' });
-      h.fail('GET', { kind: 'network' });
+      h.failLookup({ kind: 'network' });
       expectKind(await h.entry.submit(h.scope(ANN), TRIP, fields()), 'unconfirmed');
       const [pending] = await h.pending();
       expect(h.server.expenses).toHaveLength(1);
-      h.fail('POST', { kind: 'status', status: 401, code: 'UNAUTHORIZED' });
+      // The retry's receipt check is refused and the session cannot be refreshed.
+      h.fail('GET', { kind: 'status', status: 401, code: 'UNAUTHORIZED' });
       h.before(async (_method, path) => {
         if (path.endsWith('/auth/refresh'))
           return Response.json({ error: { code: 'VALIDATION_ERROR' } }, { status });
@@ -883,7 +911,7 @@ describe('refresh failures do not reject pending expenses', () => {
         }),
       ]);
       expectKind(await h.entry.submit(h.scope(ANN), TRIP, fields()), 'blocked');
-      expect(h.server.posts()).toHaveLength(2);
+      expect(h.server.posts()).toHaveLength(1);
       await h.login('ann');
       const recovered = expectKind(
         await h.entry.lookup(h.scope(ANN), pending.clientRequestId),
@@ -983,7 +1011,7 @@ describe('D1 hands a durable draft to C', () => {
     const h = await harness();
     await h.login('ann');
     const draft = await saveDraft(h);
-    h.fail('POST', { kind: 'status', status: 400, code: 'VALIDATION_ERROR' });
+    h.fail('POST', { kind: 'status', status: 400, code: 'VALIDATION_ERROR', receipt: true });
     expectKind(await h.entry.submit(h.scope(ANN), TRIP, fields(), draft), 'rejected');
     const restored = await h.store.drafts.load(h.scope(ANN), TRIP);
     expect(restored).toEqual({ ...draft, revision: 4 });
@@ -1003,6 +1031,7 @@ describe('D1 hands a durable draft to C', () => {
         ...h.scope(ANN),
         tripId: TRIP,
         clientRequestId: uuidOf(999),
+        apiVersion: 2,
         payload,
         status: 'sending',
         createdAt: 1000,
@@ -1024,18 +1053,18 @@ describe('D1 hands a durable draft to C', () => {
     await h.login('ann');
     const draft = await saveDraft(h);
     h.fail('POST', { kind: 'drop-response' });
-    h.fail('GET', { kind: 'network' });
+    h.failLookup({ kind: 'network' });
     const outcome = expectKind(
       await h.entry.submit(h.scope(ANN), TRIP, fields(), draft),
       'unconfirmed'
     );
     await expect(h.store.drafts.load(h.scope(ANN), TRIP)).rejects.toThrow('DRAFT_HANDED_OFF');
     const restarted = h.makeEntry();
+    // The retry finds the committed receipt instead of sending again.
     expectKind(await restarted.retry(h.scope(ANN), outcome.clientRequestId), 'saved');
     await restarted.recover(h.scope(ANN));
     expect(h.server.expenses).toHaveLength(1);
-    expect(h.server.posts()).toHaveLength(2);
-    expect(h.server.posts()[0].body).toEqual(h.server.posts()[1].body);
+    expect(h.server.posts()).toHaveLength(1);
     expect(await h.store.drafts.load(h.scope(ANN), TRIP)).toBeNull();
   });
   it('changing accounts after handoff retains A’s draft/request without using B’s credentials', async () => {
@@ -1082,6 +1111,6 @@ it('holds new C submissions on other trips behind the persistent account rate li
   const result = expectKind(await entry.submit(h.scope(ANN), OTHER_TRIP, fields()), 'unconfirmed');
   expect(result.reason).toBe('busy');
   expect(h.server.posts()).toHaveLength(1);
-  expect(h.server.lookups()).toHaveLength(0);
+  expect(h.server.lookups()).toHaveLength(1); // only the first request's check before sending
   expect(await h.pending()).toHaveLength(2);
 });

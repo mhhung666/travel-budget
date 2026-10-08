@@ -21,6 +21,8 @@ export type Fault =
       retryAfter?: number;
       /** A gateway's page instead of the API's error envelope. */
       bare?: boolean;
+      /** The API also keeps a terminal rejected receipt for that key, as v2 does for a 400. */
+      receipt?: boolean;
     }
   /** A 200 whose body is not the contract, after committing. */
   | { kind: 'garbage' }
@@ -48,6 +50,7 @@ export function fakeExpenseServer() {
   const tokens = new Map<string, string>();
   const members = new Map<string, Set<string>>();
   const receipts = new Map<string, Receipt>();
+  const rejections = new Map<string, string>();
   const expenses: ExpenseDetail[] = [];
   const seen: Seen[] = [];
   const revoked = new Set<string>();
@@ -134,6 +137,16 @@ export function fakeExpenseServer() {
         init?.signal?.addEventListener('abort', () => reject(new DOMException('', 'AbortError')));
       });
     if (fault?.kind === 'status' && !fault.after) {
+      const route = /^\/trips\/([a-f0-9]{24})\/expenses$/.exec(path);
+      const userId = tokens.get(String(headers.Authorization ?? '').replace('Bearer ', ''));
+      if (fault.receipt && route && userId && body?.base_currency)
+        rejections.set(
+          receiptKey(route[1], userId, body.client_request_id),
+          JSON.stringify({
+            code: fault.code,
+            ledger: { baseCurrency: body.base_currency, moneyScale: 2 },
+          })
+        );
       if (fault.bare) return new Response('<html>gateway</html>', { status: fault.status });
       return failure(
         fault.status,
@@ -168,9 +181,15 @@ export function fakeExpenseServer() {
         response = json(200, { data: expense });
       }
     } else {
-      const found = receipts.get(receiptKey(tripId, userId, decodeURIComponent(route[2])));
+      const key = receiptKey(tripId, userId, decodeURIComponent(route[2]));
+      const found = receipts.get(key);
+      const rejected = rejections.get(key);
       response = json(200, {
-        data: found ? { status: 'committed', expense: found.expense } : { status: 'not_found' },
+        data: found
+          ? { status: 'committed', expense: found.expense }
+          : rejected
+            ? { status: 'rejected', ...JSON.parse(rejected) }
+            : { status: 'not_found' },
       });
     }
     if (fault?.kind === 'drop-response') throw new TypeError('connection reset');
