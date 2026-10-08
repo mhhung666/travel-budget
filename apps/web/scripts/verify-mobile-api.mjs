@@ -39,6 +39,7 @@ import { up as migrateSessions } from '../migrations/20261002100000-mobile-sessi
 import { up as migrateAccounts } from '../migrations/20261006120000-account-entry-limits.js';
 import { up as migrateMutations } from '../migrations/20261006100000-mutation-requests.js';
 import { up as migrateRequests } from '../migrations/20260912160000-expense-create-requests.js';
+import { verifyLedgerApi } from './verify-ledger-api.mjs';
 import { createLocalMailbox } from './local-mailbox.mjs';
 
 const args = new Set(process.argv.slice(2));
@@ -479,6 +480,7 @@ try {
     AI_GATEWAY_API_KEY: '',
     OPENAI_API_KEY: '',
     CRON_SECRET: '',
+    ENABLE_NON_TWD_LEDGER: 'false',
   });
   app = spawn(
     process.execPath,
@@ -519,8 +521,8 @@ try {
     'Next.js did not start',
     120_000
   );
-  async function request(path, { token, body, status = 200, headers = {}, schema, method } = {}) {
-    const response = await fetch(`${origin}/api/v1${path}`, {
+  async function request(path, { token, body, status = 200, headers = {}, schema, method, version = 'v1' } = {}) {
+    const response = await fetch(`${origin}/api/${version}${path}`, {
       method: method ?? (body === undefined ? 'GET' : 'POST'),
       headers: {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -2542,6 +2544,7 @@ try {
   });
   assert(Number(limited.response.headers.get('retry-after')) > 0);
   pass('login rate limit and Retry-After');
+  await verifyLedgerApi({ db, request, login, ObjectId: mongoose.Types.ObjectId, date, origin });
   // Return fresh fixtures for device testing; automated acceptance must not consume their quota.
   await db.collection('mobilesessions').deleteMany({});
   await db.collection('mobileloginattempts').deleteMany({});

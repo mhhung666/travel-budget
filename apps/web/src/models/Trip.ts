@@ -18,6 +18,7 @@ const BudgetCategorySchema = new Schema(
  */
 const BudgetSchema = new Schema(
   {
+    baseCurrency: { type: String },
     total: { type: Number, default: null },
     categories: { type: [BudgetCategorySchema], default: [] },
   },
@@ -71,6 +72,8 @@ const CurrencySettingsSchema = new Schema(
 const TripSchema = new Schema(
   {
     name: { type: String, required: true },
+    // Missing means legacy TWD; never infer a child record's unit from its current parent.
+    baseCurrency: { type: String, immutable: true },
     description: { type: String, default: '' },
     startDate: { type: Date },
     endDate: { type: Date },

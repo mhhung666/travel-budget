@@ -1,3 +1,12 @@
+import type { LedgerMutationRequest } from '@travel-budget/contracts';
+import {
+  ledgerRevision,
+  parseLedgerInput,
+  ledgerFingerprint,
+  receiptStamp,
+  terminalWithLedger,
+  checkReceiptVersion,
+} from './ledger';
 import { createHash, createHmac, randomUUID } from 'node:crypto';
 import { mongo } from 'mongoose';
 import {
@@ -51,7 +60,7 @@ export async function roster(
     role: trip.members.find((m) => m.user.toString() === actorId)!.role ?? 'member',
     members,
     revision: createHmac('sha256', secret)
-      .update(JSON.stringify({ domain: 'members/v1', tripId, members }))
+      .update(JSON.stringify(ledgerRevision({ domain: 'members/v1', tripId, members })))
       .digest('hex'),
   });
 }
@@ -116,10 +125,11 @@ export function createVirtualMemberForActor(
     'admin'
   );
 }
-type Terminal = Exclude<MutationRequest, { status: 'not_found' }>;
+type Terminal = Exclude<MutationRequest | LedgerMutationRequest, { status: 'not_found' }>;
 interface Receipt {
   _id: string;
   fingerprint: string;
+  contractVersion?: number;
   terminal: Terminal;
   createdAt: Date;
 }
@@ -135,9 +145,11 @@ export async function manageMember(
   actorId = actorId.toLowerCase();
   tripId = tripId.toLowerCase();
   memberId = memberId?.toLowerCase();
-  const input = virtualMemberCreateInput.parse(body);
+  const input = parseLedgerInput(virtualMemberCreateInput, body);
   const fingerprint = createHash('sha256')
-    .update(JSON.stringify({ operation, tripId, memberId: memberId ?? null, input }))
+    .update(
+      JSON.stringify(ledgerFingerprint({ operation, tripId, memberId: memberId ?? null, input }))
+    )
     .digest('hex');
   const key = `${actorId.toLowerCase()}:${input.client_request_id}`;
   for (let attempt = 0; attempt < 10; attempt++) {
@@ -146,6 +158,7 @@ export async function manageMember(
         const receipts = db.collection<Receipt>(MUTATION_REQUESTS);
         const previous = await receipts.findOne({ _id: key }, { session });
         if (previous) {
+          checkReceiptVersion(previous);
           if (previous.fingerprint !== fingerprint)
             throw new TripEntryError('IDEMPOTENCY_CONFLICT');
           return previous.terminal;
@@ -188,7 +201,13 @@ export async function manageMember(
           };
         }
         await receipts.insertOne(
-          { _id: key, fingerprint, terminal: outcome, createdAt: new Date() },
+          {
+            _id: key,
+            fingerprint,
+            ...receiptStamp(),
+            terminal: terminalWithLedger(outcome),
+            createdAt: new Date(),
+          },
           { session }
         );
         return outcome;

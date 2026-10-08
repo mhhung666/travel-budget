@@ -1,5 +1,5 @@
 import { formatCurrency } from '@/constants/currencies';
-import { MONEY_EPSILON, roundMoney } from '@/lib/money';
+import { MONEY_EPSILON, roundMoney, moneyTotal } from '@/lib/money';
 
 interface Balance {
   userId: string;
@@ -86,12 +86,12 @@ export function applyPayments<T extends { userId: string; balance: number }>(
   const delta = new Map<string, number>();
   for (const p of payments) {
     if (!(p.amount > 0)) continue;
-    delta.set(p.from, (delta.get(p.from) ?? 0) + p.amount);
-    delta.set(p.to, (delta.get(p.to) ?? 0) - p.amount);
+    delta.set(p.from, moneyTotal([delta.get(p.from) ?? 0, p.amount]));
+    delta.set(p.to, moneyTotal([delta.get(p.to) ?? 0, -p.amount]));
   }
   return balances.map((b) => ({
     ...b,
-    balance: roundMoney(b.balance + (delta.get(b.userId) ?? 0)),
+    balance: moneyTotal([b.balance, delta.get(b.userId) ?? 0]),
   }));
 }
 

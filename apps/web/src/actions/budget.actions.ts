@@ -1,5 +1,8 @@
 'use server';
 
+import { LedgerError, authorizeLedger } from '@/lib/ledger';
+import mongoose from 'mongoose';
+import { setBudgetForActor } from '@/lib/budgetWrite';
 import { revalidatePath } from 'next/cache';
 import { Trip as TripModel, type TripDoc } from '@/models';
 import { getTripMembership } from '@/lib/permissions';
@@ -31,6 +34,7 @@ export const setTripBudget = withAuth(
       if (!membership) {
         return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
       }
+      authorizeLedger(membership);
       const validation = setBudgetSchema.safeParse(input);
       if (!validation.success) {
         return {
@@ -40,33 +44,18 @@ export const setTripBudget = withAuth(
         };
       }
 
-      const { total, categories } = validation.data;
-
-      const normalizedTotal = total != null && total > 0 ? total : null;
-      // 同一分類若重複，後者覆蓋前者；僅保留金額 > 0 者
-      const byCategory = new Map<string, number>();
-      for (const c of categories ?? []) {
-        if (c.amount > 0) byCategory.set(c.category, c.amount);
-      }
-      const normalizedCategories = Array.from(byCategory, ([category, amount]) => ({
-        category,
-        amount,
-      }));
-
-      const budget =
-        normalizedTotal === null && normalizedCategories.length === 0
-          ? null
-          : { total: normalizedTotal, categories: normalizedCategories };
-
-      const trip = await TripModel.findOneAndUpdate(
-        {
-          _id: membership.tripId,
-          'members.user': session.userId,
-          expenseDeliveryDeleting: { $ne: true },
-        },
-        { $set: { 'members.$.budget': budget } },
-        { new: true }
-      ).lean<LeanTrip>();
+      if (validation.data.base_currency && validation.data.base_currency !== 'TWD')
+        throw new LedgerError('LEDGER_CURRENCY_MISMATCH');
+      await setBudgetForActor(
+        mongoose.connection.db!,
+        session.userId,
+        membership.tripId,
+        validation.data
+      );
+      const trip = await TripModel.findOne({
+        _id: membership.tripId,
+        'members.user': session.userId,
+      }).lean<LeanTrip>();
 
       if (!trip) {
         return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
@@ -75,6 +64,8 @@ export const setTripBudget = withAuth(
       revalidatePath(`/trips/${tripIdOrCode}`);
       return { success: true, data: toTripDto(trip, session.userId) };
     } catch (error) {
+      if (error instanceof LedgerError)
+        return { success: false, error: error.code, code: 'VALIDATION_ERROR' };
       logger.error('Set trip budget error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }

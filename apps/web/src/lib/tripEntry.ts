@@ -1,3 +1,14 @@
+import type { LedgerMutationRequest } from '@travel-budget/contracts';
+import {
+  parseLedgerInput,
+  ledgerFingerprint,
+  receiptStamp,
+  terminalWithLedger,
+  checkReceiptVersion,
+  authorizeLedger,
+  isLedgerV2,
+  nonTwdCreationEnabled,
+} from './ledger';
 import { createHash, randomInt } from 'node:crypto';
 import { mongo } from 'mongoose';
 import {
@@ -11,10 +22,11 @@ import {
 
 export const MUTATION_REQUESTS = 'mutationrequests';
 type Operation = 'trip.create' | 'trip.join';
-type Terminal = Exclude<MutationRequest, { status: 'not_found' }>;
+type Terminal = Exclude<MutationRequest | LedgerMutationRequest, { status: 'not_found' }>;
 interface Receipt {
   _id: string;
   fingerprint: string;
+  contractVersion?: number;
   terminal: Terminal;
   createdAt: Date;
 }
@@ -22,6 +34,7 @@ interface Parent {
   _id: mongo.ObjectId;
   name: string;
   hashCode: string;
+  baseCurrency?: string;
   members: { user: mongo.ObjectId; role: string; joinedAt?: Date }[];
 }
 export class TripEntryError extends Error {
@@ -36,13 +49,18 @@ export class TripEntryError extends Error {
       | 'RESOURCE_CHANGED'
       | 'RESOURCE_GONE'
       | 'VALIDATION_ERROR'
+      | 'LEDGER_CURRENCY_MISMATCH'
+      | 'FEATURE_NOT_AVAILABLE'
+      | 'CLIENT_UPGRADE_REQUIRED'
   ) {
     super(code);
   }
 }
 const keyOf = (actor: string, key: string) => `${actor.toLowerCase()}:${key.toLowerCase()}`;
 const fingerprint = (operation: Operation, input: unknown) =>
-  createHash('sha256').update(JSON.stringify({ operation, input })).digest('hex');
+  createHash('sha256')
+    .update(JSON.stringify(ledgerFingerprint({ operation, input })))
+    .digest('hex');
 const code = () =>
   Array.from({ length: 8 }, () => 'abcdefghijklmnopqrstuvwxyz0123456789'[randomInt(36)]).join('');
 const memberFilter = (actorId: string) => ({
@@ -63,7 +81,7 @@ async function authorizeReceipt(
   terminal: Terminal
 ) {
   if (terminal.status === 'rejected' && !terminal.tripId) return;
-  // Actor UUID namespace only: an exit receipt contains no roster, ledger or invitation.
+  // Actor UUID namespace only: an exit receipt contains no roster or invitation.
   if (
     terminal.status === 'committed' &&
     terminal.operation === 'trip.access' &&
@@ -85,6 +103,7 @@ async function authorizeReceipt(
       { session }
     );
   if (!trip) throw new TripEntryError('NOT_FOUND');
+  authorizeLedger(trip);
 }
 
 /** Account UUID index is Mongo's built-in unique _id. No receipt TTL or resource cascade. */
@@ -92,7 +111,7 @@ export async function readTripMutation(
   db: mongo.Db,
   actorId: string,
   key: string
-): Promise<MutationRequest> {
+): Promise<MutationRequest | LedgerMutationRequest> {
   return db.client.withSession((session) =>
     session.withTransaction(async () => {
       const receipt = await db
@@ -100,6 +119,7 @@ export async function readTripMutation(
         .findOne({ _id: keyOf(actorId, key) }, { session });
       if (!receipt) return { status: 'not_found' as const };
       await authorizeReceipt(db, session, actorId, receipt.terminal);
+      checkReceiptVersion(receipt);
       return receipt.terminal;
     }, txOptions)
   );
@@ -170,12 +190,14 @@ export async function enterTrip(
   db: mongo.Db,
   actorId: string,
   operation: Operation,
-  body: TripCreateInput | TripJoinInput,
+  body: unknown,
   deliver: (event: JoinDelivery) => Promise<unknown> = async () => undefined,
   webDestination?: unknown
 ): Promise<TripMutationResult> {
   const input =
-    operation === 'trip.create' ? tripCreateInput.parse(body) : tripJoinInput.parse(body);
+    operation === 'trip.create'
+      ? parseLedgerInput(tripCreateInput, body)
+      : parseLedgerInput(tripJoinInput, body);
   const id = keyOf(actorId, input.client_request_id);
   const hash = fingerprint(operation, { ...input, ...(webDestination ? { webDestination } : {}) });
   // Unique receipt races and invitation-code collisions abort the whole transaction before retry.
@@ -186,6 +208,7 @@ export async function enterTrip(
           const receipts = db.collection<Receipt>(MUTATION_REQUESTS);
           const existing = await receipts.findOne({ _id: id }, { session });
           if (existing) {
+            checkReceiptVersion(existing);
             await authorizeReceipt(db, session, actorId, existing.terminal);
             if (existing.fingerprint !== hash) throw new TripEntryError('IDEMPOTENCY_CONFLICT');
             return { terminal: existing.terminal, delivery: undefined };
@@ -194,10 +217,35 @@ export async function enterTrip(
           let delivery: JoinDelivery | undefined;
           if (operation === 'trip.create') {
             const fields = input as TripCreateInput;
+            const requestedBase = isLedgerV2()
+              ? (input as TripCreateInput & { base_currency: string }).base_currency
+              : 'TWD';
+            authorizeLedger({ baseCurrency: requestedBase });
+            if (requestedBase !== 'TWD' && !nonTwdCreationEnabled()) {
+              const terminal = {
+                status: 'rejected' as const,
+                operation,
+                code: 'FEATURE_NOT_AVAILABLE' as const,
+              };
+              await receipts.insertOne(
+                {
+                  _id: id,
+                  fingerprint: hash,
+                  ...receiptStamp(),
+                  terminal: terminalWithLedger(terminal),
+                  createdAt: new Date(),
+                },
+                { session }
+              );
+              return { terminal, delivery: undefined };
+            }
             const tripId = new mongo.ObjectId();
             await db.collection('trips').insertOne(
               {
                 _id: tripId,
+                baseCurrency: isLedgerV2()
+                  ? (input as TripCreateInput & { base_currency: string }).base_currency
+                  : 'TWD',
                 name: fields.name,
                 description: fields.description,
                 ...(fields.start_date ? { startDate: new Date(fields.start_date) } : {}),
@@ -236,6 +284,7 @@ export async function enterTrip(
             );
             if (!trip) terminal = { status: 'rejected', operation, code: 'INVITATION_INVALID' };
             else {
+              authorizeLedger(trip);
               const alreadyMember = trip.members.some((m) => m.user.toString() === actorId);
               if (!alreadyMember) {
                 const member = {
@@ -260,7 +309,13 @@ export async function enterTrip(
             }
           }
           await receipts.insertOne(
-            { _id: id, fingerprint: hash, terminal, createdAt: new Date() },
+            {
+              _id: id,
+              fingerprint: hash,
+              ...receiptStamp(),
+              terminal: terminalWithLedger(terminal),
+              createdAt: new Date(),
+            },
             { session }
           );
           return { terminal, delivery };
@@ -272,7 +327,7 @@ export async function enterTrip(
         await Promise.resolve()
           .then(() => deliver(accepted.delivery!))
           .catch(() => undefined);
-      return accepted.terminal.result as TripMutationResult;
+      return terminalWithLedger(accepted.terminal).result as TripMutationResult;
     } catch (error) {
       if ((error as { code?: number })?.code === 11000 && attempt < 9) continue;
       throw error;

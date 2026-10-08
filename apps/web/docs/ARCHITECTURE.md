@@ -4,7 +4,7 @@
 
 ## Workspace 邊界
 
-此應用位於 `apps/web`（`@travel-budget/web`），原生 App 位於 `apps/mobile`；兩者在同一 repository 維護、各自版本與發布。Web 仍擁有業務後端、MongoDB models、migrations 與外部服務。手機透過 HTTP 存取 `/api/v1`。跨應用文件見 [repository 入口](../../../docs/README.md)。
+此應用位於 `apps/web`（`@travel-budget/web`），原生 App 位於 `apps/mobile`；兩者在同一 repository 維護、各自版本與發布。Web 仍擁有業務後端、MongoDB models、migrations 與外部服務。手機目前透過 HTTP 存取 `/api/v1`；B1 已提供 `/api/v2` 帳本契約，介面遷移留 B2／B3。跨應用文件見 [repository 入口](../../../docs/README.md)。
 
 共用 [packages/contracts/src/index.ts](../../../packages/contracts/src/index.ts) 只包含 API DTO、Zod runtime schema 等可供原生使用的契約，透過 `@travel-budget/contracts` 匯入。它不包含 Mongoose、Server Actions 或 server SDK。Web 的 [contract.ts](../src/lib/mobile/contract.ts) 只保留薄 adapter。
 
@@ -14,21 +14,21 @@
 
 Next.js App Router 與 React 組成介面，TanStack Query 負責查詢、重新整理及瀏覽器快取。主要業務操作透過 Server Actions，資料由 Mongoose 存入 MongoDB；API routes 另處理 AI 草稿、公開分享、匯率與排程等入口。
 
-| 程式位置 | 職責 |
-| --- | --- |
-| [src/app](../src/app/) | 頁面、路由與 API |
-| [src/components](../src/components/) | 旅程、支出、統計、相簿等介面 |
-| [src/actions](../src/actions/) | 業務操作、授權與資料寫入 |
-| [src/hooks](../src/hooks/) | 表單協調、查詢與快取更新 |
-| [src/models](../src/models/) | 帳號、旅程、支出、還款及其他資料模型 |
-| [src/lib](../src/lib/) | 分帳、權限、儲存、通知、AI 與離線同步 |
-| [src/i18n](../src/i18n/) | 繁中、簡中、英文、日文 |
-| [migrations](../migrations/) | 資料結構、索引與回填遷移 |
+| 程式位置                             | 職責                                  |
+| ------------------------------------ | ------------------------------------- |
+| [src/app](../src/app/)               | 頁面、路由與 API                      |
+| [src/components](../src/components/) | 旅程、支出、統計、相簿等介面          |
+| [src/actions](../src/actions/)       | 業務操作、授權與資料寫入              |
+| [src/hooks](../src/hooks/)           | 表單協調、查詢與快取更新              |
+| [src/models](../src/models/)         | 帳號、旅程、支出、還款及其他資料模型  |
+| [src/lib](../src/lib/)               | 分帳、權限、儲存、通知、AI 與離線同步 |
+| [src/i18n](../src/i18n/)             | 繁中、簡中、英文、日文                |
+| [migrations](../migrations/)         | 資料結構、索引與回填遷移              |
 
 ## 主要資料關係
 
 - **旅程**：包含成員、角色、幣別設定及每位成員的私人預算；行程日、支出、還款、相簿、清單與筆記歸屬旅程。
-- **支出與結算**：支出記錄付款人、原幣、匯率與各成員分攤金額；結算依餘額與已登記還款產生轉帳建議，基準幣為 TWD。
+- **支出與結算**：支出記錄付款人、原幣、匯率與各成員分攤金額；結算依餘額與已登記還款產生轉帳建議，B1 模型可固定旅程基準幣別，缺欄位的舊資料為 TWD；現行介面尚未開放非 TWD。規則與交易隔離見 [B1 API](MOBILE_API.md#b1-基準幣別契約)。
 - **個人資料**：統計彙整個人分攤；飛行與住宿紀錄屬於使用者，刪除旅程只解除終身紀錄的旅程關聯。
 - **檔案**：收據、票券及相簿透過 R2 儲存，資料庫保存物件 key；公開相簿使用移除位置資訊的獨立副本。
 

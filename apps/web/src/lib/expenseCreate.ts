@@ -1,11 +1,21 @@
+import { isSupportedCurrency } from '@/constants/currencies';
+import { rejectExpenseCreateRequest } from './expenseCreateRequest';
+import {
+  ledgerStamp,
+  ledgerMismatch,
+  isLedgerV2,
+  currentLedger,
+  LedgerError,
+  parseLedgerInput,
+} from './ledger';
 import mongoose, { Types, type mongo } from 'mongoose';
-import { MAX_EXPENSE_AMOUNT } from '@travel-budget/contracts';
+import { MAX_EXPENSE_AMOUNT, isCentShare } from '@travel-budget/contracts';
 import { assertBlobsAvailable } from '@/lib/blobReferences';
 import { allocateMoney, roundMoney, SPLIT_TOLERANCE } from '@/lib/money';
 import { readExpenseCreateResult, withExpenseCreateRequest } from '@/lib/expenseCreateRequest';
 import { withTripWrite, TripWriteError } from '@/lib/tripWriteTransaction';
 import { Expense, Trip, User, ItineraryDay, EXPENSE_CATEGORIES } from '@/models';
-import type { CreateExpenseInput } from '@/lib/validation';
+import { createExpenseSchema, type CreateExpenseInput } from '@/lib/validation';
 import type { Expense as ExpenseDto } from '@/types';
 import { logger } from '@/lib/logger';
 import { toExpenseDto, type ExpenseDtoInput } from '@/lib/dto';
@@ -126,8 +136,17 @@ const centsAreSafe = (amount: number) => Number.isSafeInteger(Math.round(amount 
  * March 3 instead of rejecting it, so the date must be checked as a calendar date.
  */
 function assertWritable(input: CreateExpenseInput, amount: number) {
+  if (
+    isLedgerV2() &&
+    (!isSupportedCurrency(input.currency) || input.splits.some((s) => !isCentShare(s.share_amount)))
+  )
+    throw new TripWriteError('VALIDATION_ERROR');
   if (!isCalendarDate(input.date)) throw new TripWriteError('VALIDATION_ERROR');
-  if (!centsAreSafe(input.original_amount)) throw new TripWriteError('VALIDATION_ERROR');
+  if (
+    !centsAreSafe(input.original_amount) ||
+    (isLedgerV2() && roundMoney(input.original_amount) !== input.original_amount)
+  )
+    throw new TripWriteError('VALIDATION_ERROR');
   // The TWD amount and shares are what gets summed, compared and rounded again on every read.
   // Beyond MAX_EXPENSE_AMOUNT the shared rounding stops returning cent values unchanged, so the
   // stored amount and shares would no longer be the ones the caller confirmed. A product that
@@ -165,6 +184,12 @@ export async function createExpenseForActor(
   { tripId, actorId, input }: CreateExpenseCommand,
   afterResponse: AfterResponse
 ): Promise<CreateExpenseResult> {
+  if (isLedgerV2()) {
+    input = parseLedgerInput(createExpenseSchema, input);
+    if (!input.base_currency) throw new TripWriteError('VALIDATION_ERROR');
+  }
+  if (!isLedgerV2() && input.base_currency && input.base_currency !== 'TWD')
+    throw new TripWriteError('VALIDATION_ERROR');
   const {
     payer_id,
     original_amount,
@@ -197,134 +222,151 @@ export async function createExpenseForActor(
   }
 
   const background = await prepareExpenseBackgroundWrite();
-  const result = await withTripWrite(tripId, actorId, (transactionSession) =>
-    withExpenseCreateRequest(mongoose.connection.db!, transactionSession, request, async () => {
-      // Validate payer and split members are trip members
-      const trip = await Trip.findById(tripId)
-        .session(transactionSession)
-        .select('name hashCode members expenseDeliveryDeleting')
-        .lean<{
-          name: string;
-          hashCode: string;
-          members: { user: { toString(): string } }[];
-          expenseDeliveryDeleting?: boolean;
-        }>();
-      if (!trip || trip.expenseDeliveryDeleting) {
-        throw new TripWriteError('NOT_FOUND');
-      }
-      const memberIds = new Set((trip?.members || []).map((m) => m.user.toString()));
+  const result = await withTripWrite(tripId, actorId, async (transactionSession) => {
+    if (ledgerMismatch()) {
+      await rejectExpenseCreateRequest(mongoose.connection.db!, transactionSession, request);
+      return { rejected: true as const };
+    }
+    return withExpenseCreateRequest(
+      mongoose.connection.db!,
+      transactionSession,
+      request,
+      async () => {
+        if (
+          isLedgerV2() &&
+          input.currency === currentLedger().baseCurrency &&
+          input.exchange_rate !== 1
+        )
+          throw new TripWriteError('VALIDATION_ERROR');
+        // Validate payer and split members are trip members
+        const trip = await Trip.findById(tripId)
+          .session(transactionSession)
+          .select('name hashCode members expenseDeliveryDeleting')
+          .lean<{
+            name: string;
+            hashCode: string;
+            members: { user: { toString(): string } }[];
+            expenseDeliveryDeleting?: boolean;
+          }>();
+        if (!trip || trip.expenseDeliveryDeleting) {
+          throw new TripWriteError('NOT_FOUND');
+        }
+        const memberIds = new Set((trip?.members || []).map((m) => m.user.toString()));
 
-      if (!memberIds.has(payer_id)) {
-        throw new TripWriteError('VALIDATION_ERROR');
-      }
-      for (const split of splits) {
-        if (!memberIds.has(split.user_id)) {
+        if (!memberIds.has(payer_id)) {
           throw new TripWriteError('VALIDATION_ERROR');
         }
-      }
+        for (const split of splits) {
+          if (!memberIds.has(split.user_id)) {
+            throw new TripWriteError('VALIDATION_ERROR');
+          }
+        }
 
-      // Split shares (TWD) must add up to the expense amount. The form already
-      // allocates the remainder exactly; the tolerance here only absorbs decimal
-      // rounding, so an unallocated gap can no longer reach the database.
-      if (!splitsMatchAmount(splits, amount)) {
-        throw new TripWriteError('VALIDATION_ERROR');
-      }
-      const shareAmounts = allocateShares(splits, amount);
+        // Split shares (TWD) must add up to the expense amount. The form already
+        // allocates the remainder exactly; the tolerance here only absorbs decimal
+        // rounding, so an unallocated gap can no longer reach the database.
+        if (!splitsMatchAmount(splits, amount)) {
+          throw new TripWriteError('VALIDATION_ERROR');
+        }
+        const shareAmounts = allocateShares(splits, amount);
 
-      // 關聯行程日（可複選，若有）須全部屬本 trip
-      if (!(await itineraryDaysBelongToTrip(tripId, itinerary_day_ids, transactionSession))) {
-        throw new TripWriteError('VALIDATION_ERROR');
-      }
+        // 關聯行程日（可複選，若有）須全部屬本 trip
+        if (!(await itineraryDaysBelongToTrip(tripId, itinerary_day_ids, transactionSession))) {
+          throw new TripWriteError('VALIDATION_ERROR');
+        }
 
-      const expenseId = new Types.ObjectId();
-      // Resolve response names and immutable actor name BEFORE the insert. No post-write populate
-      // can fail and misrepresent an already committed expense as a failed creation.
-      const people = await User.find({
-        _id: {
-          $in: [...new Set([actorId, payer_id, ...splits.map((split) => split.user_id)])],
-        },
-      })
-        .session(transactionSession)
-        .select('username displayName')
-        .lean<
+        const expenseId = new Types.ObjectId();
+        // Resolve response names and immutable actor name BEFORE the insert. No post-write populate
+        // can fail and misrepresent an already committed expense as a failed creation.
+        const people = await User.find({
+          _id: {
+            $in: [...new Set([actorId, payer_id, ...splits.map((split) => split.user_id)])],
+          },
+        })
+          .session(transactionSession)
+          .select('username displayName')
+          .lean<
+            {
+              _id: Types.ObjectId;
+              username: string;
+              displayName: string;
+            }[]
+          >();
+        const byId = new Map(people.map((person) => [person._id.toString(), person]));
+        const eventSnapshot = background
+          ? createExpenseDeliveryEvent({
+              expenseId: expenseId.toHexString(),
+              tripId,
+              actorId,
+              actorName: byId.get(actorId)?.displayName ?? '',
+              tripName: trip.name,
+              tripHashCode: trip.hashCode,
+              memberIds: [...memberIds],
+              description,
+              amount,
+              occurredAt: new Date(),
+            })
+          : undefined;
+        await assertBlobsAvailable(
+          mongoose.connection.db!,
+          transactionSession,
+          attachmentDocs.map((a) => a.key)
+        );
+        const [created] = await Expense.create(
+          [
+            {
+              ...(background
+                ? {
+                    _id: expenseId,
+                    expenseDelivery: initialExpenseDeliveryState(),
+                    expenseDeliveryEvent: eventSnapshot,
+                  }
+                : {}),
+              ...ledgerStamp(),
+              trip: tripId,
+              payer: payer_id,
+              amount,
+              originalAmount: original_amount,
+              currency,
+              exchangeRate: exchange_rate,
+              description,
+              category: category as (typeof EXPENSE_CATEGORIES)[number],
+              date: new Date(date),
+              splits: splits.map((s, i) => ({
+                user: s.user_id,
+                shareAmount: shareAmounts[i],
+              })),
+              attachments: attachmentDocs,
+              itineraryDays: [...new Set(itinerary_day_ids ?? [])],
+              createdBy: actorId,
+              tags: [...new Set(tags ?? [])],
+            },
+          ],
+          { session: transactionSession }
+        );
+
+        const person = (id: string) =>
+          byId.get(id) ?? {
+            _id: new Types.ObjectId(id),
+            username: 'Unknown',
+            displayName: 'Unknown',
+          };
+        const data = toExpenseDto(
           {
-            _id: Types.ObjectId;
-            username: string;
-            displayName: string;
-          }[]
-        >();
-      const byId = new Map(people.map((person) => [person._id.toString(), person]));
-      const eventSnapshot = background
-        ? createExpenseDeliveryEvent({
-            expenseId: expenseId.toHexString(),
-            tripId,
-            actorId,
-            actorName: byId.get(actorId)?.displayName ?? '',
-            tripName: trip.name,
-            tripHashCode: trip.hashCode,
-            memberIds: [...memberIds],
-            description,
-            amount,
-            occurredAt: new Date(),
-          })
-        : undefined;
-      await assertBlobsAvailable(
-        mongoose.connection.db!,
-        transactionSession,
-        attachmentDocs.map((a) => a.key)
-      );
-      const [created] = await Expense.create(
-        [
-          {
-            ...(background
-              ? {
-                  _id: expenseId,
-                  expenseDelivery: initialExpenseDeliveryState(),
-                  expenseDeliveryEvent: eventSnapshot,
-                }
-              : {}),
-            trip: tripId,
-            payer: payer_id,
-            amount,
-            originalAmount: original_amount,
-            currency,
-            exchangeRate: exchange_rate,
-            description,
-            category: category as (typeof EXPENSE_CATEGORIES)[number],
-            date: new Date(date),
-            splits: splits.map((s, i) => ({
-              user: s.user_id,
+            ...created.toObject(),
+            payer: person(payer_id),
+            splits: splits.map((split, i) => ({
+              user: person(split.user_id),
               shareAmount: shareAmounts[i],
             })),
-            attachments: attachmentDocs,
-            itineraryDays: [...new Set(itinerary_day_ids ?? [])],
-            createdBy: actorId,
-            tags: [...new Set(tags ?? [])],
-          },
-        ],
-        { session: transactionSession }
-      );
-
-      const person = (id: string) =>
-        byId.get(id) ?? {
-          _id: new Types.ObjectId(id),
-          username: 'Unknown',
-          displayName: 'Unknown',
-        };
-      const data = toExpenseDto(
-        {
-          ...created.toObject(),
-          payer: person(payer_id),
-          splits: splits.map((split, i) => ({
-            user: person(split.user_id),
-            shareAmount: shareAmounts[i],
-          })),
-        } as unknown as LeanExpense,
-        tripId
-      );
-      return { data, trip, memberIds };
-    })
-  );
+          } as unknown as LeanExpense,
+          tripId
+        );
+        return { data, trip, memberIds };
+      }
+    );
+  });
+  if ('rejected' in result) throw new LedgerError('LEDGER_CURRENCY_MISMATCH');
   if (result.replayed) return { replayed: true, data: result.data };
   const { data, trip, memberIds } = result;
 

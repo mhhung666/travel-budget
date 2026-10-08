@@ -299,3 +299,21 @@ export function normalizedSplitsExpr(): Record<string, unknown> {
     },
   };
 }
+
+export class MoneyTotalError extends Error {
+  constructor() {
+    super('MONEY_TOTAL_OUT_OF_RANGE');
+  }
+}
+
+/** Sum cent amounts without silently capping totals or losing a cent on later reads. */
+export function moneyTotal(values: number[]): number {
+  let cents = 0;
+  for (const v of values) {
+    if (!Number.isFinite(v)) throw new MoneyTotalError();
+    cents += Math.round(roundMoney(v) * 100);
+    if (!Number.isSafeInteger(cents) || roundMoney(cents / 100) !== cents / 100)
+      throw new MoneyTotalError();
+  }
+  return cents / 100;
+}

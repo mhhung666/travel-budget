@@ -1,3 +1,17 @@
+import type { LedgerMutationRequest } from '@travel-budget/contracts';
+import {
+  parseLedgerInput,
+  ledgerFingerprint,
+  receiptStamp,
+  terminalWithLedger,
+  checkReceiptVersion,
+  ledgerMismatch,
+  authorizeLedger,
+  ledgerStamp,
+  isLedgerV2,
+  assertUnit,
+  currentLedger,
+} from './ledger';
 import { assertBlobsAvailable, RetiredBlobError } from '@/lib/blobReferences';
 import { allocateMoney, roundMoney } from '@/lib/money';
 import {
@@ -25,7 +39,6 @@ import {
   type ExpenseEditContext,
   type ExpenseMutationResult,
   type ExpenseUpdateInput,
-  type ExpenseDeleteInput,
   type MutationRequest,
 } from '@travel-budget/contracts';
 import { withTripWrite, TripWriteError, withTripWriteInDatabase } from './tripWriteTransaction';
@@ -43,6 +56,7 @@ interface RawExpense extends mongo.Document {
   originalAmount?: number;
   exchangeRate?: number;
   currency?: string;
+  baseCurrency?: string;
   description: string;
   category?: string;
   date: Date;
@@ -50,16 +64,18 @@ interface RawExpense extends mongo.Document {
   attachments?: { key: string }[];
 }
 interface Parent extends mongo.Document {
+  baseCurrency?: string;
   members: { user: mongo.ObjectId; joinedAt?: Date }[];
   currencySettings?: {
     defaultCurrency?: string;
     currencies?: { code: string; rate?: number | null }[];
   } | null;
 }
-type Terminal = Exclude<MutationRequest, { status: 'not_found' }>;
+type Terminal = Exclude<MutationRequest | LedgerMutationRequest, { status: 'not_found' }>;
 interface Receipt {
   _id: string;
   fingerprint: string;
+  contractVersion?: number;
   terminal: Terminal;
   createdAt: Date;
 }
@@ -102,6 +118,7 @@ export function expenseRevision(
       JSON.stringify(
         canonical({
           domain: 'expense-maintenance/v1',
+          ...(isLedgerV2() ? { ledger: currentLedger(), contractVersion: 2 } : {}),
           tripId,
           expenseId: expense._id,
           fields: Object.fromEntries(businessFields.map((k) => [k, expense[k]])),
@@ -125,6 +142,8 @@ async function contextInSnapshot(
     .collection<RawExpense>('expenses')
     .findOne({ _id: new mongo.ObjectId(expenseId), trip: new mongo.ObjectId(tripId) }, { session });
   if (!raw || !parent) return null;
+  const base = authorizeLedger(parent).baseCurrency;
+  assertUnit(raw, base);
   const users = await db
     .collection<{ _id: mongo.ObjectId; displayName: string; isVirtual?: boolean }>('users')
     .find(
@@ -160,10 +179,11 @@ async function contextInSnapshot(
   const selected = new Set(splits.map((s) => s.user?.toString()));
   const validMoney =
     expenseCreateInput.shape.original_amount.safeParse(original).success &&
+    (!isLedgerV2() || roundMoney(original) === original) &&
     isSupportedCurrency(currency) &&
     Number.isFinite(rate) &&
     rate > 0 &&
-    (currency !== 'TWD' || rate === 1) &&
+    (currency !== base || rate === 1) &&
     Number.isFinite(original * rate) &&
     roundMoney(original * rate) <= MAX_EXPENSE_AMOUNT &&
     raw.amount === roundMoney(original * rate);
@@ -250,7 +270,12 @@ async function contextInSnapshot(
       parent.members.map((m) => m.user),
       members.map((m) => m.id),
     ]),
-    capabilities: { basic: true, equal: recalculate && currency === 'TWD', recalculate, reason },
+    capabilities: {
+      basic: true,
+      equal: recalculate && (isLedgerV2() || currency === 'TWD'),
+      recalculate,
+      reason,
+    },
   });
 }
 export function readExpenseEditContext(
@@ -273,17 +298,17 @@ export async function maintainExpense(
   tripId: string,
   expenseId: string,
   operation: 'expense.update' | 'expense.delete',
-  body: ExpenseUpdateInput | ExpenseDeleteInput,
+  body: unknown,
   secret: string,
   cleanup = cleanupRetiredBlobs
 ): Promise<ExpenseMutationResult> {
   const input =
     operation === 'expense.update'
-      ? expenseUpdateInput.parse(body)
-      : expenseDeleteInput.parse(body);
+      ? parseLedgerInput(expenseUpdateInput, body)
+      : parseLedgerInput(expenseDeleteInput, body);
   const key = `${actorId.toLowerCase()}:${input.client_request_id}`;
   const fingerprint = createHash('sha256')
-    .update(JSON.stringify(canonical({ operation, tripId, expenseId, input })))
+    .update(JSON.stringify(canonical(ledgerFingerprint({ operation, tripId, expenseId, input }))))
     .digest('hex');
   for (let attempt = 0; attempt < 10; attempt++) {
     try {
@@ -291,6 +316,7 @@ export async function maintainExpense(
         const receipts = db.collection<Receipt>(MUTATION_REQUESTS);
         const existing = await receipts.findOne({ _id: key }, { session });
         if (existing) {
+          checkReceiptVersion(existing);
           if (existing.fingerprint !== fingerprint)
             throw new TripEntryError('IDEMPOTENCY_CONFLICT');
           return { terminal: existing.terminal, keys: [] as string[] };
@@ -299,9 +325,14 @@ export async function maintainExpense(
         let terminal: Terminal;
         let keys: string[] = [];
         const reject = (
-          code: 'RESOURCE_GONE' | 'RESOURCE_CHANGED' | 'VALIDATION_ERROR'
+          code:
+            | 'RESOURCE_GONE'
+            | 'RESOURCE_CHANGED'
+            | 'VALIDATION_ERROR'
+            | 'LEDGER_CURRENCY_MISMATCH'
         ): Terminal => ({ status: 'rejected', operation, tripId, code });
-        if (!current) terminal = reject('RESOURCE_GONE');
+        if (ledgerMismatch()) terminal = reject('LEDGER_CURRENCY_MISMATCH');
+        else if (!current) terminal = reject('RESOURCE_GONE');
         else if (current.revision !== input.expected_revision)
           terminal = reject('RESOURCE_CHANGED');
         else {
@@ -336,6 +367,7 @@ export async function maintainExpense(
                 !(update.changes.currency === undefined
                   ? current.capabilities.equal
                   : current.capabilities.recalculate) ||
+                (isLedgerV2() && roundMoney(original_amount) !== original_amount) ||
                 !isSupportedCurrency(currency) ||
                 !Number.isFinite(product) ||
                 roundMoney(product) > MAX_EXPENSE_AMOUNT ||
@@ -344,6 +376,7 @@ export async function maintainExpense(
                 members.filter((m) => selected.has(m.id)).length !== splits.length;
               set = {
                 ...set,
+                ...ledgerStamp(),
                 originalAmount: original_amount,
                 amount: roundMoney(product),
                 payer: new mongo.ObjectId(payer_id),
@@ -407,7 +440,13 @@ export async function maintainExpense(
           }
         }
         await receipts.insertOne(
-          { _id: key, fingerprint, terminal, createdAt: new Date() },
+          {
+            _id: key,
+            fingerprint,
+            ...receiptStamp(),
+            terminal: terminalWithLedger(terminal),
+            createdAt: new Date(),
+          },
           { session }
         );
         return { terminal, keys };

@@ -1,4 +1,5 @@
 import { mongo } from 'mongoose';
+import { isLedgerV2, currentLedger } from './ledger';
 import { isSupportedCurrency } from '@/constants/currencies';
 import { TripManagementError } from './tripManagementError';
 import { withTripWriteInDatabase } from './tripWriteTransaction';
@@ -16,7 +17,10 @@ export function normalizeCurrencySettings(input: SettingsInput) {
       (c.rate != null && (!Number.isFinite(c.rate) || c.rate <= 0))
     )
       throw new TripManagementError('VALIDATION_ERROR');
-    byCode.set(c.code, c.code === 'TWD' ? null : (c.rate ?? null));
+    byCode.set(
+      c.code,
+      c.code === (isLedgerV2() ? currentLedger().baseCurrency : 'TWD') ? null : (c.rate ?? null)
+    );
   }
   const defaultCurrency = input.default_currency ?? null;
   if (defaultCurrency && !isSupportedCurrency(defaultCurrency))
@@ -42,14 +46,13 @@ export function setCurrencySettingsForActor(
   tripId: string,
   input: SettingsInput
 ) {
-  const settings = normalizeCurrencySettings(input);
   return withTripWriteInDatabase(
     db,
     tripId,
     actorId,
     async (session) => {
       const id = new mongo.ObjectId(tripId);
-      await applyCurrencySettings(db, session, id, settings);
+      await applyCurrencySettings(db, session, id, normalizeCurrencySettings(input));
       return db.collection('trips').findOne({ _id: id }, { session });
     },
     'admin'

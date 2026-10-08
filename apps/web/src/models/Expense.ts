@@ -43,6 +43,7 @@ const AttachmentSchema = new Schema(
 const ExpenseSchema = new Schema(
   {
     trip: { type: Schema.Types.ObjectId, ref: 'Trip', required: true, index: true },
+    baseCurrency: { type: String, immutable: true },
     payer: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     amount: { type: Number, required: true },
     originalAmount: { type: Number, default: 0 },

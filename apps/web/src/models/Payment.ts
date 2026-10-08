@@ -10,6 +10,7 @@ import mongoose, { Schema, type InferSchemaType, type Model } from 'mongoose';
 const PaymentSchema = new Schema(
   {
     trip: { type: Schema.Types.ObjectId, ref: 'Trip', required: true, index: true },
+    baseCurrency: { type: String, immutable: true },
     from: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     to: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     amount: { type: Number, required: true },

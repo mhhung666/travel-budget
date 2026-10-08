@@ -1,3 +1,12 @@
+import type { LedgerMutationRequest } from '@travel-budget/contracts';
+import {
+  ledgerRevision,
+  parseLedgerInput,
+  ledgerFingerprint,
+  receiptStamp,
+  terminalWithLedger,
+  checkReceiptVersion,
+} from './ledger';
 import { createHash, createHmac } from 'node:crypto';
 import { mongo } from 'mongoose';
 import {
@@ -13,8 +22,14 @@ import { removeMemberInTransaction } from './memberRemoval';
 import { deleteTripInTransaction, TRIP_CHILD_COLLECTIONS } from './tripDeletion';
 import { MUTATION_REQUESTS, TripEntryError } from './tripEntry';
 
-type Terminal = Exclude<MutationRequest, { status: 'not_found' }>;
-type Receipt = { _id: string; fingerprint: string; terminal: Terminal; createdAt: Date };
+type Terminal = Exclude<MutationRequest | LedgerMutationRequest, { status: 'not_found' }>;
+type Receipt = {
+  _id: string;
+  fingerprint: string;
+  contractVersion?: number;
+  terminal: Terminal;
+  createdAt: Date;
+};
 /** Include every deleted document in the opaque confirmation revision. Never return private data. */
 async function context(
   db: mongo.Db,
@@ -29,7 +44,7 @@ async function context(
   if (!parent) throw new TripEntryError('NOT_FOUND');
   const { expenseDeliveryFence: _fence, ...fields } = parent;
   const hash = createHmac('sha256', secret).update(
-    JSON.stringify({ domain: 'trip-access/v1', fields, members })
+    JSON.stringify(ledgerRevision({ domain: 'trip-access/v1', fields, members }))
   );
   let expenseCount = 0,
     paymentCount = 0;
@@ -108,10 +123,13 @@ export async function manageTripAccess(
 ): Promise<TripAccessResult> {
   actorId = actorId.toLowerCase();
   tripId = tripId.toLowerCase();
-  const input = tripAccessInput.parse(body);
+  const input = parseLedgerInput(tripAccessInput, body);
   const key = `${actorId}:${input.client_request_id}`;
-  const fingerprint = createHash('sha256').update(JSON.stringify({ tripId, input })).digest('hex');
+  const fingerprint = createHash('sha256')
+    .update(JSON.stringify(ledgerFingerprint({ tripId, input })))
+    .digest('hex');
   const replay = (receipt: Receipt) => {
+    checkReceiptVersion(receipt);
     if (receipt.fingerprint !== fingerprint) throw new TripEntryError('IDEMPOTENCY_CONFLICT');
     if (receipt.terminal.status === 'rejected') throw new TripEntryError(receipt.terminal.code);
     return receipt.terminal.result as TripAccessResult;
@@ -130,6 +148,7 @@ export async function manageTripAccess(
         const receipts = db.collection<Receipt>(MUTATION_REQUESTS);
         const existing = await receipts.findOne({ _id: key }, { session });
         if (existing) {
+          checkReceiptVersion(existing);
           replay(existing);
           return existing.terminal;
         }
@@ -178,12 +197,24 @@ export async function manageTripAccess(
           };
         }
         await receipts.insertOne(
-          { _id: key, fingerprint, terminal: outcome, createdAt: new Date() },
+          {
+            _id: key,
+            fingerprint,
+            ...receiptStamp(),
+            terminal: terminalWithLedger(outcome),
+            createdAt: new Date(),
+          },
           { session }
         );
         return outcome;
       });
-      return replay({ _id: key, fingerprint, terminal, createdAt: new Date() });
+      return replay({
+        _id: key,
+        fingerprint,
+        ...receiptStamp(),
+        terminal: terminalWithLedger(terminal),
+        createdAt: new Date(),
+      });
     } catch (error) {
       if ((error as { code?: number })?.code === 11000 && attempt < 9) continue;
       // A concurrent successful exit removed the parent before the duplicate acquired its fence.

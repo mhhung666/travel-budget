@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { z } from 'zod';
 import {
+  v2Schemas,
   loginInput,
   registerInput,
   passwordResetRequestInput,
@@ -56,6 +57,7 @@ const maxAmount = MAX_EXPENSE_AMOUNT.toLocaleString('en-US', { minimumFractionDi
 
 const schemas = Object.fromEntries(
   Object.entries({
+    ...v2Schemas,
     TripMembers: tripMembersSchema,
     TripAccessContext: tripAccessContextSchema,
     TripAccessInput: tripAccessInput,
@@ -473,6 +475,64 @@ const paths = {
     },
   },
 };
+// Each path has an explicit server; legacy URLs remain unchanged.
+for (const [path, item] of Object.entries(paths)) {
+  item.servers = [{ url: '/api/v1' }];
+  if (path.startsWith('/trips') || path.startsWith('/mutation-requests'))
+    for (const method of ['get', 'post', 'patch', 'delete'])
+      if (item[method])
+        item[method].responses[409] = {
+          description:
+            'CLIENT_UPGRADE_REQUIRED for non-TWD trips or v2 receipts; existing operation conflicts remain 409.',
+          content: { 'application/json': { schema: ref('Error') } },
+        };
+}
+const rewriteV2 = (value) => {
+  if (Array.isArray(value)) return value.map(rewriteV2);
+  if (!value || typeof value !== 'object') return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([key, v]) => {
+      if (key === '$ref' && typeof v === 'string') {
+        const name = v.split('/').at(-1);
+        return [key, v2Schemas[`V2${name}`] ? `#/components/schemas/V2${name}` : v];
+      }
+      if (key === 'operationId') return [key, `${v}V2`];
+      return [key, rewriteV2(v)];
+    })
+  );
+};
+for (const [path, item] of Object.entries({ ...paths })) {
+  if (!path.startsWith('/trips') && !path.startsWith('/mutation-requests')) continue;
+  const next = rewriteV2(item);
+  next.servers = [{ url: '/api/v2' }];
+  for (const method of ['get', 'post', 'patch', 'delete'])
+    if (next[method]) {
+      next[method].description =
+        'v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions.';
+      next[method].responses[409] = {
+        description:
+          'Currency mismatch, version conflict or feature unavailable; confirmed writes require original receipt lookup.',
+        content: { 'application/json': { schema: ref('Error') } },
+      };
+      next[method].responses[503] = {
+        description: 'Ledger data or total outside the safe range',
+        content: { 'application/json': { schema: ref('Error') } },
+      };
+    }
+  // OpenAPI path keys are relative to a neutral server so both route families coexist.
+  paths[`/v2${path}`] = next;
+  next.servers = [{ url: '/api' }];
+}
+paths['/v2/capabilities'] = {
+  servers: [{ url: '/api' }],
+  get: operation('ledgerCapabilitiesV2', 'V2Capabilities'),
+};
+paths['/v2/trips/{id}/exchange-rates'] = {
+  servers: [{ url: '/api' }],
+  parameters: [tripIdParam],
+  get: operation('tripReferenceRatesV2', 'V2ReferenceRates'),
+};
+
 const output = new URL('../openapi.json', import.meta.url);
 const generated =
   JSON.stringify(
@@ -480,9 +540,9 @@ const generated =
       openapi: '3.1.0',
       info: {
         title: 'Travel Budget mobile HTTP API',
-        version: 'v1',
+        version: 'v1+v2',
         description:
-          'Contract version, independent of application version. Native client; no cross-origin browser access. Refresh rotation is single-use; replay revokes the device session. Absolute 30-day lifetime, 15-minute access token. Logout uses refreshToken. Dates are date-only; money is TWD rounded by existing services.',
+          'Contract version, independent of application version. Native client; no cross-origin browser access. Refresh rotation is single-use; replay revokes the device session. Absolute 30-day lifetime, 15-minute access token. Logout uses refreshToken. Dates are date-only; v1 money is TWD; v2 money explicitly identifies the immutable trip base currency. Both use the same two-decimal services.',
       },
       servers: [{ url: '/api/v1' }],
       paths,

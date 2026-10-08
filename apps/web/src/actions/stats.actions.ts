@@ -1,4 +1,5 @@
 'use server';
+import { authorizeLedger } from '@/lib/ledger';
 
 import { Types, type PipelineStage } from 'mongoose';
 import { roundMoney, normalizeShares } from '@/lib/money';
@@ -224,7 +225,10 @@ export const getStats = withAuth(
       await dbConnect();
 
       // 1. Get all trips the user is part of
-      const userTrips = await Trip.find({ 'members.user': session.userId })
+      const userTrips = await Trip.find({
+        'members.user': session.userId,
+        $or: [{ baseCurrency: { $exists: false } }, { baseCurrency: 'TWD' }],
+      })
         .select('_id')
         .lean<{ _id: Types.ObjectId }[]>();
 
@@ -331,7 +335,10 @@ export const getStatsExpensePage = withAuth(
 
       await dbConnect();
 
-      const userTrips = await Trip.find({ 'members.user': session.userId })
+      const userTrips = await Trip.find({
+        'members.user': session.userId,
+        $or: [{ baseCurrency: { $exists: false } }, { baseCurrency: 'TWD' }],
+      })
         .select('_id')
         .lean<{ _id: Types.ObjectId }[]>();
       if (!userTrips.length) {
@@ -457,6 +464,7 @@ export const getTripStats = withAuth(
         return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
       }
 
+      authorizeLedger(membership);
       const { tripId } = membership;
 
       const [trip, expenses, days] = await Promise.all([

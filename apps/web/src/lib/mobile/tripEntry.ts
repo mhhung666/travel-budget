@@ -1,3 +1,5 @@
+import { isLedgerV2 } from '@/lib/ledger';
+import { mutationRequestV2Schema } from '@travel-budget/contracts';
 import mongoose from 'mongoose';
 import {
   clientRequestIdSchema,
@@ -16,7 +18,15 @@ import { requireTripMember } from './access';
 export function tripEntryError(error: unknown): unknown {
   if (error instanceof TripEntryError) {
     if (error.code === 'BUSY') return new ApiError(429, 'BUSY', 1);
-    if (error.code === 'IDEMPOTENCY_CONFLICT') return new ApiError(409, error.code);
+    if (
+      [
+        'IDEMPOTENCY_CONFLICT',
+        'FEATURE_NOT_AVAILABLE',
+        'LEDGER_CURRENCY_MISMATCH',
+        'CLIENT_UPGRADE_REQUIRED',
+      ].includes(error.code)
+    )
+      return new ApiError(409, error.code);
     return new ApiError(404, error.code);
   }
   if (
@@ -54,7 +64,7 @@ export async function mobileMutationRequest(actorId: string, uuid: string) {
   if (!key.success) throw new ApiError(400, 'VALIDATION_ERROR');
   await dbConnect();
   try {
-    return mutationRequestSchema.parse(
+    return (isLedgerV2() ? mutationRequestV2Schema : mutationRequestSchema).parse(
       await readTripMutation(mongoose.connection.db!, actorId, key.data)
     );
   } catch (error) {

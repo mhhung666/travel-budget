@@ -50,6 +50,9 @@ export const locationSchema = z.object({
 // Trip schemas
 export const createTripSchema = z
   .object({
+    // Legacy Web forms cannot select or modify the ledger until B2.
+    baseCurrency: z.never().optional(),
+    base_currency: z.never().optional(),
     name: tripFieldsSchema.shape.name,
     description: tripFieldsSchema.shape.description.removeDefault().optional(),
     start_date: z
@@ -68,6 +71,9 @@ export const createTripSchema = z
 
 export const updateTripSchema = z
   .object({
+    // Legacy Web forms cannot select or modify the ledger until B2.
+    baseCurrency: z.never().optional(),
+    base_currency: z.never().optional(),
     name: z.string().min(1, '旅行名稱不能為空').trim().optional(),
     description: z.string().nullable().optional(),
     start_date: z.string().nullable().optional(),
@@ -97,6 +103,7 @@ export const attachmentInputSchema = z.object({
 
 // Expense schemas
 export const createExpenseSchema = z.object({
+  base_currency: currencyCodeSchema.optional(),
   client_request_id: z.string().uuid().optional(),
   payer_id: objectIdSchema,
   original_amount: z.number().positive('金額必須大於 0'),
@@ -121,6 +128,7 @@ export const createExpenseSchema = z.object({
 });
 
 export const updateExpenseSchema = z.object({
+  base_currency: currencyCodeSchema.optional(),
   payer_id: objectIdSchema.optional(),
   original_amount: z.number().positive('金額必須大於 0').optional(),
   currency: currencyCodeSchema.optional(),
@@ -149,6 +157,7 @@ export const updateExpenseSchema = z.object({
 
 // Budget schemas（金額一律基準幣 TWD）
 export const setBudgetSchema = z.object({
+  base_currency: currencyCodeSchema.optional(),
   total: z.number().min(0, '預算不能為負').nullable().optional(),
   categories: z
     .array(

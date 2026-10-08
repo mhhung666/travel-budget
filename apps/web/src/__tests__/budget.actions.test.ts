@@ -2,7 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const getSession = vi.fn();
 const getTripMembership = vi.fn();
-const findOneAndUpdate = vi.fn();
+const findOne = vi.fn();
+const setBudgetForActor = vi.fn();
+vi.mock('@/lib/budgetWrite', () => ({
+  setBudgetForActor: (...args: unknown[]) => setBudgetForActor(...args),
+}));
 
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 
@@ -16,7 +20,7 @@ vi.mock('@/lib/permissions', () => ({
 
 vi.mock('@/models', () => ({
   Trip: {
-    findOneAndUpdate: (...args: unknown[]) => findOneAndUpdate(...args),
+    findOne: (...args: unknown[]) => findOne(...args),
   },
 }));
 
@@ -45,7 +49,7 @@ function leanTrip(budget: { total: number | null; categories: unknown[] } | null
 }
 
 function mockUpdateReturns(doc: unknown) {
-  findOneAndUpdate.mockReturnValue({ lean: () => Promise.resolve(doc) });
+  findOne.mockReturnValue({ lean: () => Promise.resolve(doc) });
 }
 
 beforeEach(() => {
@@ -78,18 +82,14 @@ describe('setTripBudget', () => {
       categories: [{ category: 'food', amount: 8000 }],
     });
 
-    expect(findOneAndUpdate).toHaveBeenCalledWith(
-      { _id: TRIP_ID, 'members.user': VIEWER, expenseDeliveryDeleting: { $ne: true } },
-      {
-        $set: {
-          'members.$.budget': {
-            total: 30000,
-            categories: [{ category: 'food', amount: 8000 }],
-          },
-        },
-      },
-      { new: true }
-    );
+    expect(setBudgetForActor).toHaveBeenCalledWith(undefined, VIEWER, TRIP_ID, {
+      total: 30000,
+      categories: [
+        { category: 'food', amount: 5000 },
+        { category: 'food', amount: 8000 },
+      ],
+    });
+    expect(findOne).toHaveBeenCalledWith({ _id: TRIP_ID, 'members.user': VIEWER });
   });
 
   it('clears only the caller’s budget when every amount is empty or zero', async () => {
@@ -101,8 +101,9 @@ describe('setTripBudget', () => {
     });
 
     expect(result.success).toBe(true);
-    expect(findOneAndUpdate.mock.calls[0][1]).toEqual({
-      $set: { 'members.$.budget': null },
+    expect(setBudgetForActor).toHaveBeenCalledWith(undefined, VIEWER, TRIP_ID, {
+      total: 0,
+      categories: [{ category: 'food', amount: 0 }],
     });
   });
 
@@ -112,7 +113,7 @@ describe('setTripBudget', () => {
     const result = await setTripBudget(TRIP_ID, { total: 1000 });
 
     expect(result).toEqual({ success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' });
-    expect(findOneAndUpdate).not.toHaveBeenCalled();
+    expect(findOne).not.toHaveBeenCalled();
   });
 
   it('rejects invalid amounts before writing', async () => {
@@ -120,6 +121,6 @@ describe('setTripBudget', () => {
 
     expect(result.success).toBe(false);
     if (!result.success) expect(result.code).toBe('VALIDATION_ERROR');
-    expect(findOneAndUpdate).not.toHaveBeenCalled();
+    expect(findOne).not.toHaveBeenCalled();
   });
 });

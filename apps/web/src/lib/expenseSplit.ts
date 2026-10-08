@@ -43,12 +43,15 @@ function num(s: string): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-export function computeSplits(
+export function computeLedgerSplits(
   mode: SplitMode,
   members: SplitMemberInput[],
   originalAmount: number,
   exchangeRate: number
-): SplitComputation {
+): Omit<SplitComputation, 'twd' | 'allocatedTWD'> & {
+  ledger: Record<string, number>;
+  allocatedLedger: number;
+} {
   const selected = members.filter((m) => m.selected);
   const original: Record<string, number> = {};
   for (const m of members) original[m.id] = 0;
@@ -109,21 +112,37 @@ export function computeSplits(
   }
   const allocatedOriginal = roundMoney(selected.reduce((a, m) => a + (original[m.id] || 0), 0));
 
-  const twd: Record<string, number> = {};
-  for (const m of members) twd[m.id] = roundMoney((original[m.id] || 0) * exchangeRate);
-  // TWD 才是存進 DB、供結算與統計加總的數字，換算後同樣要剛好等於整筆金額。
+  const ledger: Record<string, number> = {};
+  for (const m of members) ledger[m.id] = roundMoney((original[m.id] || 0) * exchangeRate);
+  // 帳本基準金額供結算與統計加總，換算後同樣要剛好等於整筆金額。
   if (balanced) {
-    const twdShares = allocateMoney(
+    const ledgerShares = allocateMoney(
       originalAmount * exchangeRate,
       selected.map((m) => original[m.id] || 0)
     );
     selected.forEach((m, i) => {
-      twd[m.id] = twdShares[i];
+      ledger[m.id] = ledgerShares[i];
     });
   }
-  const allocatedTWD = roundMoney(selected.reduce((a, m) => a + (twd[m.id] || 0), 0));
+  const allocatedLedger = roundMoney(selected.reduce((a, m) => a + (ledger[m.id] || 0), 0));
 
-  return { original, twd, allocatedOriginal, allocatedTWD, balanced, imbalance };
+  return { original, ledger, allocatedOriginal, allocatedLedger, balanced, imbalance };
+}
+
+/** Legacy result keys remain stable for existing TWD clients. */
+export function computeSplits(
+  mode: SplitMode,
+  members: SplitMemberInput[],
+  originalAmount: number,
+  exchangeRate: number
+): SplitComputation {
+  const { ledger, allocatedLedger, ...result } = computeLedgerSplits(
+    mode,
+    members,
+    originalAmount,
+    exchangeRate
+  );
+  return { ...result, twd: ledger, allocatedTWD: allocatedLedger };
 }
 
 /**

@@ -1,3 +1,4 @@
+import { receiptStamp, checkReceiptVersion, ledgerFingerprint, LedgerError } from './ledger';
 import { createHash } from 'node:crypto';
 import { mongo } from 'mongoose';
 import type { CreateExpenseInput } from './validation';
@@ -9,7 +10,9 @@ interface Receipt {
   _id: string;
   trip: mongo.ObjectId;
   fingerprint: string;
-  data: Expense;
+  data?: Expense;
+  contractVersion?: number;
+  rejected?: 'LEDGER_CURRENCY_MISMATCH';
 }
 interface Scope {
   tripId: string;
@@ -31,7 +34,7 @@ const receiptId = (scope: Scope, spelling: string) =>
   `${scope.tripId}:${scope.actorId}:${spelling}`;
 const fingerprintOf = (input: CreateExpenseInput, key: string) =>
   createHash('sha256')
-    .update(JSON.stringify({ ...input, client_request_id: key }))
+    .update(JSON.stringify(ledgerFingerprint({ ...input, client_request_id: key })))
     .digest('hex');
 
 const escapePattern = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -79,7 +82,9 @@ export async function readExpenseCreateReceipt(
   db: mongo.Db,
   { tripId, actorId, clientRequestId }: Scope & { clientRequestId: string }
 ): Promise<Expense | undefined> {
-  return (await findReceipt(db, { tripId, actorId }, clientRequestId))?.data;
+  const receipt = await findReceipt(db, { tripId, actorId }, clientRequestId);
+  if (receipt) checkReceiptVersion(receipt);
+  return receipt?.data;
 }
 
 export async function readExpenseCreateResult(
@@ -91,12 +96,14 @@ export async function readExpenseCreateResult(
   if (!key) return;
   const receipt = await findReceipt(db, request, key, session);
   if (!receipt) return;
+  checkReceiptVersion(receipt);
   // The stored fingerprint covers the spelling of the key the receipt was stored under (the end
   // of its `_id`), which may differ from the spelling of this retry.
   const stored = receipt._id.slice(receiptId(request, '').length);
   if (receipt.fingerprint !== fingerprintOf(request.input, stored)) {
     throw new TripWriteError('CONFLICT');
   }
+  if (receipt.rejected) throw new LedgerError(receipt.rejected);
   return receipt.data;
 }
 
@@ -121,10 +128,38 @@ export async function withExpenseCreateRequest<T extends { data: Expense }>(
         _id: receiptId(request, key),
         fingerprint: fingerprintOf(request.input, key),
         trip: new mongo.ObjectId(request.tripId),
+        ...receiptStamp(),
         data: result.data,
       },
       { session }
     );
   }
   return { ...result, replayed: false };
+}
+
+export async function readExpenseCreateRejection(
+  db: mongo.Db,
+  scope: Scope & { clientRequestId: string }
+) {
+  const receipt = await findReceipt(db, scope, scope.clientRequestId);
+  if (receipt) checkReceiptVersion(receipt);
+  return receipt?.rejected;
+}
+
+export async function rejectExpenseCreateRequest(
+  db: mongo.Db,
+  session: mongo.ClientSession,
+  request: Request
+) {
+  const key = request.input.client_request_id!;
+  await db.collection<Receipt>(EXPENSE_CREATE_REQUESTS).insertOne(
+    {
+      _id: receiptId(request, key),
+      fingerprint: fingerprintOf(request.input, key),
+      trip: new mongo.ObjectId(request.tripId),
+      ...receiptStamp(),
+      rejected: 'LEDGER_CURRENCY_MISMATCH',
+    },
+    { session }
+  );
 }

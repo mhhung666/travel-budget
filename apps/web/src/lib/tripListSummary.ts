@@ -1,5 +1,6 @@
+import { moneyTotal } from './ledger';
 import { Types } from 'mongoose';
-import { roundMoney, roundMoneyExpr, normalizedSplitsExpr } from '@/lib/money';
+import { roundMoneyExpr, normalizedSplitsExpr } from '@/lib/money';
 import { Expense, Payment } from '@/models';
 
 export type TripListSummary = {
@@ -81,17 +82,17 @@ export async function readTripListSummaries(
     if (!(payment.amount > 0)) continue;
     const tripId = payment.trip.toString();
     const sign = payment.from.toString() === viewerId ? 1 : -1;
-    paymentDelta.set(tripId, (paymentDelta.get(tripId) ?? 0) + sign * payment.amount);
+    paymentDelta.set(tripId, moneyTotal([paymentDelta.get(tripId) ?? 0, sign * payment.amount]));
   }
 
   const expensesByTrip = new Map(expenseRows.map((row) => [row._id.toString(), row]));
   for (const tripId of tripIds) {
     const row = expensesByTrip.get(tripId);
-    const paid = roundMoney(row?.paid ?? 0);
-    const owed = roundMoney(row?.owed ?? 0);
+    const paid = moneyTotal([row?.paid ?? 0]);
+    const owed = moneyTotal([row?.owed ?? 0]);
     result.set(tripId, {
       mySpent: owed,
-      myBalance: roundMoney(roundMoney(paid - owed) + (paymentDelta.get(tripId) ?? 0)),
+      myBalance: moneyTotal([paid, -owed, paymentDelta.get(tripId) ?? 0]),
     });
   }
   return result;

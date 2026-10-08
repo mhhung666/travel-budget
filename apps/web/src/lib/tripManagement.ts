@@ -1,3 +1,13 @@
+import { ledgerRevision } from './ledger';
+import type { LedgerMutationRequest } from '@travel-budget/contracts';
+import {
+  parseLedgerInput,
+  ledgerFingerprint,
+  receiptStamp,
+  terminalWithLedger,
+  checkReceiptVersion,
+  ledgerMismatch,
+} from './ledger';
 import { createHash, createHmac } from 'node:crypto';
 import { mongo } from 'mongoose';
 import {
@@ -44,7 +54,7 @@ function canonical(value: unknown): unknown {
 }
 function token(secret: string, domain: string, tripId: string, data: unknown) {
   return createHmac('sha256', secret)
-    .update(JSON.stringify(canonical({ domain, tripId, data })))
+    .update(JSON.stringify(canonical(ledgerRevision({ domain, tripId, data }))))
     .digest('hex');
 }
 function editable(trip: Parent) {
@@ -124,6 +134,8 @@ async function applyChanges(
     destination_location?: unknown;
   }
 ) {
+  if ('baseCurrency' in changes || 'base_currency' in changes)
+    throw new TripManagementError('VALIDATION_ERROR');
   if (
     (changes.start_date !== undefined || changes.end_date !== undefined) &&
     !isEffectiveTripDateRangeValid(
@@ -173,10 +185,11 @@ export function readTripSettings(db: mongo.Db, actorId: string, tripId: string, 
     context(await parent(db, session, tripId), actorId, secret)
   );
 }
-type Terminal = Exclude<MutationRequest, { status: 'not_found' }>;
+type Terminal = Exclude<MutationRequest | LedgerMutationRequest, { status: 'not_found' }>;
 interface Receipt {
   _id: string;
   fingerprint: string;
+  contractVersion?: number;
   terminal: Terminal;
   createdAt: Date;
 }
@@ -185,20 +198,20 @@ export async function manageTrip(
   actorId: string,
   tripId: string,
   operation: 'trip.update' | 'trip.archive' | 'trip.currency',
-  body: TripUpdateInput | TripArchiveInput | TripCurrencyInput,
+  body: unknown,
   secret: string
 ): Promise<TripManagementResult> {
   actorId = actorId.toLowerCase();
   tripId = tripId.toLowerCase();
   const input =
     operation === 'trip.currency'
-      ? tripCurrencyInput.parse(body)
+      ? parseLedgerInput(tripCurrencyInput, body)
       : operation === 'trip.update'
-        ? tripUpdateInput.parse(body)
-        : tripArchiveInput.parse(body);
+        ? parseLedgerInput(tripUpdateInput, body)
+        : parseLedgerInput(tripArchiveInput, body);
   const key = `${actorId.toLowerCase()}:${input.client_request_id}`;
   const fingerprint = createHash('sha256')
-    .update(JSON.stringify(canonical({ operation, tripId, input })))
+    .update(JSON.stringify(canonical(ledgerFingerprint({ operation, tripId, input }))))
     .digest('hex');
   for (let attempt = 0; attempt < 10; attempt++) {
     try {
@@ -206,6 +219,7 @@ export async function manageTrip(
         const receipts = db.collection<Receipt>(MUTATION_REQUESTS);
         const previous = await receipts.findOne({ _id: key }, { session });
         if (previous) {
+          checkReceiptVersion(previous);
           if (previous.fingerprint !== fingerprint)
             throw new TripEntryError('IDEMPOTENCY_CONFLICT');
           return previous.terminal;
@@ -215,13 +229,17 @@ export async function manageTrip(
         const currency =
           operation === 'trip.currency' ? currencyContext(trip, actorId, secret) : null;
         let outcome: Terminal;
-        const reject = (code: 'RESOURCE_CHANGED' | 'VALIDATION_ERROR' | 'FORBIDDEN'): Terminal => ({
+        const reject = (
+          code: 'RESOURCE_CHANGED' | 'VALIDATION_ERROR' | 'FORBIDDEN' | 'LEDGER_CURRENCY_MISMATCH'
+        ): Terminal => ({
           status: 'rejected',
           operation,
           tripId,
           code,
         });
-        if (operation !== 'trip.archive' && current.role !== 'admin') outcome = reject('FORBIDDEN');
+        if (ledgerMismatch()) outcome = reject('LEDGER_CURRENCY_MISMATCH');
+        else if (operation !== 'trip.archive' && current.role !== 'admin')
+          outcome = reject('FORBIDDEN');
         else if (
           (operation === 'trip.currency'
             ? currency!.revision
@@ -259,7 +277,13 @@ export async function manageTrip(
           }
         }
         await receipts.insertOne(
-          { _id: key, fingerprint, terminal: outcome, createdAt: new Date() },
+          {
+            _id: key,
+            fingerprint,
+            ...receiptStamp(),
+            terminal: terminalWithLedger(outcome),
+            createdAt: new Date(),
+          },
           { session }
         );
         return outcome;

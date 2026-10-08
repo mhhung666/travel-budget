@@ -1,3 +1,11 @@
+import mongoose from 'mongoose';
+import {
+  authorizeLedger,
+  isLedgerV2,
+  ledgerOutput,
+  ledgerOf,
+  validateLedgerChildren,
+} from '@/lib/ledger';
 import { readMemberTrips } from '@/lib/tripListRead';
 import { getMemberTrip } from '@/lib/permissions';
 import { toTripDto, type TripDtoInput } from '@/lib/dto';
@@ -10,7 +18,7 @@ import { dateSchema, idSchema, tripSchema, landingSchema, type MobileTrip } from
 
 function mapTrip(trip: TripWithMembers, today: string): MobileTrip {
   const phase = getTripPhase(trip.start_date, trip.end_date, dateFromLocalDateKey(today)!);
-  return tripSchema.parse({
+  const dto = tripSchema.parse({
     id: trip.id,
     name: trip.name,
     description: trip.description,
@@ -30,6 +38,9 @@ function mapTrip(trip: TripWithMembers, today: string): MobileTrip {
             ? 'upcoming'
             : 'unscheduled',
   });
+  return isLedgerV2()
+    ? ledgerOutput(dto, (trip as TripWithMembers & { ledger: ReturnType<typeof ledgerOf> }).ledger)
+    : dto;
 }
 export function viewerDate(url: URL) {
   const result = dateSchema.safeParse(
@@ -67,9 +78,15 @@ export async function mobileLanding(userId: string, id: string, today: string) {
   const result = await getMemberTrip<TripDtoInput & LeanTripShell>(
     userId,
     id,
-    'name description startDate endDate destinationLocation hashCode createdAt currencySettings'
+    'name description startDate endDate destinationLocation hashCode createdAt currencySettings baseCurrency'
   );
   if (!result) throw new ApiError(404, 'NOT_FOUND');
+  const ledger = authorizeLedger(result.trip as TripDtoInput & { baseCurrency?: string });
+  if (isLedgerV2())
+    await validateLedgerChildren(mongoose.connection.db!, {
+      ...result.trip,
+      _id: new mongoose.mongo.ObjectId(id),
+    });
   const [shell, summaries] = await Promise.all([
     readTripShell(result.trip, userId, today),
     readTripListSummaries([id], userId),
@@ -78,6 +95,7 @@ export async function mobileLanding(userId: string, id: string, today: string) {
     ...mapTrip(
       {
         ...toTripDto(result.trip, userId),
+        ...(isLedgerV2() ? { ledger } : {}),
         member_count: shell.member_count,
         my_spent: shell.total_spent,
         my_balance: summaries.get(id)?.myBalance ?? 0,

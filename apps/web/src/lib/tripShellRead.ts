@@ -1,3 +1,4 @@
+import { moneyTotal } from './ledger';
 import { Types } from 'mongoose';
 import { roundMoney, roundMoneyExpr, normalizedSplitsExpr } from '@/lib/money';
 import { Expense } from '@/models';
@@ -111,6 +112,10 @@ export async function readTripShell(
     ? trip.members.find((member) => member.user.toString() === viewerId)
     : undefined;
   const totals = aggregate[0] ?? { expenseCount: 0, todaySpent: 0, totalSpent: 0 };
+  for (const row of aggregate) {
+    moneyTotal([row.totalSpent]);
+    moneyTotal([row.todaySpent]);
+  }
   return {
     id: trip._id.toString(),
     name: trip.name,

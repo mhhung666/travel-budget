@@ -16,3 +16,5 @@ pnpm contracts:check
 應用各自發布，API version 不是產品 version；維持已發布 App 的契約相容性。金額、成員權限與最後寫入仍由後端既有服務負責。
 
 E1 增加旅行建立／加入嚴格輸入、專用 invitation DTO 與 account-scoped mutation receipt。E1 UUID／邀請碼正規化小寫；日期與名稱／說明上限供 Web／Mobile 共用。原 C／D 支出契約與 receipt 形狀保留。
+
+B1 增加獨立 v2 schemas 與 OpenAPI routes（`v2Schemas` registry），舊 v1 schema 不改。v2 的 ledger／明確原幣與基準輸入、終局 receipt 及支援能力詳見 [B1 API](../../apps/web/docs/MOBILE_API.md#b1-基準幣別契約)；這是後端交付，Mobile transport／持久化留 B3，非 TWD 建立預設關閉。

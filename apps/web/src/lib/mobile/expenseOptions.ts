@@ -1,3 +1,4 @@
+import { ledgerMismatch, LedgerError, isLedgerV2 } from '@/lib/ledger';
 import { Trip } from '@/models';
 import { computeSplits } from '@/lib/expenseSplit';
 import { roundMoney } from '@/lib/money';
@@ -82,10 +83,12 @@ export async function mobileExpenseOptions(userId: string, id: string) {
 export async function mobileExpensePreview(request: Request, userId: string, id: string) {
   const tripId = await requireTripMember(userId, id);
   const input = await readBody(request, expensePreviewInput);
+  if (ledgerMismatch()) throw new LedgerError('LEDGER_CURRENCY_MISMATCH');
   const currency = 'currency' in input ? input.currency : 'TWD';
   const rate = 'exchange_rate' in input ? input.exchange_rate : 1;
   const product = input.amount * rate;
   if (
+    (isLedgerV2() && roundMoney(input.amount) !== input.amount) ||
     !isSupportedCurrency(currency) ||
     !Number.isFinite(product) ||
     roundMoney(product) > MAX_EXPENSE_AMOUNT

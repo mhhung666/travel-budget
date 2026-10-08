@@ -6,6 +6,7 @@ import { toTripDto, type TripDtoInput } from '@/lib/dto';
 import { readTripShell, type LeanTripShell } from '@/lib/tripShellRead';
 import { readItinerary } from '@/lib/itineraryRead';
 import { readSettlement } from '@/lib/settlementRead';
+import { authorizeLedger } from './ledger';
 import type { TripLanding } from '@/types/tripLanding';
 
 const projection =
@@ -27,10 +28,11 @@ export async function readTripLanding(
     if (!/^[a-z0-9]{6,10}$/.test(id)) return null;
     await dbConnect();
     trip = await TripModel.findOne({ hashCode: id })
-      .select(`${projection} members.user`)
+      .select(`${projection} members.user baseCurrency`)
       .lean<LandingTrip | null>();
   }
   if (!trip) return null;
+  authorizeLedger(trip);
   const tripId = trip._id.toString();
   const dto = toTripDto(trip, viewerId);
   const today =
@@ -52,7 +54,8 @@ export async function readTripLanding(
     phase === 'postTrip'
       ? readSettlement(
           tripId,
-          trip.members.map((member) => member.user.toString())
+          trip.members.map((member) => member.user.toString()),
+          trip
         )
       : Promise.resolve(null),
   ]);

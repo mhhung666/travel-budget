@@ -6,12 +6,14 @@
 import { isValidObjectId } from 'mongoose';
 import { dbConnect } from '@/lib/mongodb';
 import { Trip } from '@/models';
+import { authorizeLedger } from './ledger';
 
 export type TripRole = 'admin' | 'member';
 
 export type MembershipResult = {
   tripId: string;
   role: TripRole;
+  baseCurrency?: string | null;
 };
 
 type MemberTripShape = {
@@ -38,11 +40,12 @@ export async function getMemberTrip<T extends MemberTripShape>(
 ): Promise<{ trip: T; membership: MembershipResult } | null> {
   await dbConnect();
   const trip = await Trip.findOne({ ...tripQuery(tripIdOrCode), 'members.user': userId })
-    .select(`${projection} members`)
+    .select(`${projection} members baseCurrency`)
     .lean<T | null>();
   if (!trip) return null;
   const member = trip.members.find((item) => item.user.toString() === userId);
   if (!member) return null;
+  authorizeLedger(trip);
   return {
     trip,
     membership: { tripId: trip._id.toString(), role: (member.role ?? 'member') as TripRole },
@@ -59,13 +62,20 @@ export async function getTripMembership(
 ): Promise<MembershipResult | null> {
   await dbConnect();
 
-  const trip = await Trip.findOne(tripQuery(tripIdOrCode)).select('_id members').lean();
+  const trip = await Trip.findOne(tripQuery(tripIdOrCode))
+    .select('_id members baseCurrency')
+    .lean();
   if (!trip) return null;
 
   const member = trip.members.find((m) => m.user.toString() === userId);
   if (!member) return null;
 
-  return { tripId: trip._id.toString(), role: member.role as TripRole };
+  authorizeLedger(trip);
+  return {
+    tripId: trip._id.toString(),
+    role: member.role as TripRole,
+    ...(trip.baseCurrency !== undefined ? { baseCurrency: trip.baseCurrency } : {}),
+  };
 }
 
 /**
@@ -121,7 +131,8 @@ export async function getTripIdByHashCode(hashCode: string): Promise<string | nu
   // 明確拒絕 ObjectId：公開端點只認 hash_code。
   if (isValidObjectId(hashCode)) return null;
 
-  const trip = await Trip.findOne({ hashCode }).select('_id').lean();
+  const trip = await Trip.findOne({ hashCode }).select('_id baseCurrency').lean();
+  if (trip) authorizeLedger(trip);
   return trip ? trip._id.toString() : null;
 }
 

@@ -698,3 +698,191 @@ export type TripCreateInput = z.infer<typeof tripCreateInput>;
 export type TripJoinInput = z.infer<typeof tripJoinInput>;
 export type TripMutationResult = z.infer<typeof tripMutationResultSchema>;
 export type MutationRequest = z.infer<typeof mutationRequestSchema>;
+
+// B1: a separate monetary contract; v1 retains its implicit TWD semantics.
+export const ledgerSchema = z
+  .object({ baseCurrency: currencyCodeSchema, moneyScale: z.literal(2) })
+  .strict();
+export type Ledger = z.infer<typeof ledgerSchema>;
+const ledgerFields = { ledger: ledgerSchema };
+const ledgerInputFields = { base_currency: currencyCodeSchema };
+const validBaseRate = (v: {
+  base_currency: string;
+  currency: string;
+  exchange_rate: number;
+  original_amount?: number;
+  amount?: number;
+}) =>
+  v.currency !== v.base_currency ||
+  (v.exchange_rate === 1 && isPositiveCentAmount(v.original_amount ?? v.amount ?? 0));
+export const ledgerCapabilitiesSchema = z
+  .object({
+    ledgerContractVersion: z.literal(2),
+    moneyScale: z.literal(2),
+    supportedBaseCurrencies: z.array(currencyCodeSchema),
+    nonTwdCreationEnabled: z.boolean(),
+  })
+  .strict();
+export const tripCreateV2Input = tripCreateInput.safeExtend(ledgerInputFields);
+export const tripJoinV2Input = tripJoinInput;
+export const expensePreviewV2Input = z
+  .object({
+    ...ledgerInputFields,
+    amount: originalExpenseAmount,
+    currency: currencyCodeSchema,
+    exchange_rate: expenseRate,
+    member_ids: previewMembers,
+  })
+  .strict()
+  .refine(validBaseRate, 'Base currency uses rate 1 and the ledger amount limit');
+export const expenseCreateV2Input = z
+  .object({ ...expenseCreateInput.shape, ...ledgerInputFields })
+  .strict()
+  .refine(validBaseRate, 'Base currency uses rate 1 and the ledger amount limit');
+export const expenseUpdateV2Input = z.discriminatedUnion('mode', [
+  expenseUpdateInput.options[0].safeExtend(ledgerInputFields),
+  z
+    .object({
+      ...mutationIdentity,
+      ...ledgerInputFields,
+      mode: z.literal('equal'),
+      changes: z
+        .object({
+          ...basicExpenseChanges.shape,
+          original_amount: originalExpenseAmount,
+          currency: currencyCodeSchema,
+          exchange_rate: expenseRate,
+          payer_id: idSchema,
+          splits: expenseCreateInput.shape.splits,
+        })
+        .strict(),
+    })
+    .strict()
+    .refine(
+      (v) => validBaseRate({ ...v.changes, base_currency: v.base_currency }),
+      'Invalid base rate'
+    ),
+]);
+export const expenseDeleteV2Input = expenseDeleteInput.safeExtend(ledgerInputFields);
+export const paymentCreateV2Input = paymentCreateInput.safeExtend(ledgerInputFields);
+export const paymentDeleteV2Input = paymentDeleteInput.safeExtend(ledgerInputFields);
+export const tripCurrencyV2Input = tripCurrencyInput.safeExtend(ledgerInputFields);
+export const tripV2Schema = tripSchema.safeExtend(ledgerFields);
+export const tripsV2Schema = tripsSchema.safeExtend({ items: z.array(tripV2Schema) });
+export const landingV2Schema = landingSchema.safeExtend(ledgerFields);
+export const expenseV2Schema = expenseSchema.safeExtend(ledgerFields);
+export const expensesV2Schema = expensesSchema.safeExtend({
+  ...ledgerFields,
+  items: z.array(expenseV2Schema),
+});
+export const expenseDetailV2Schema = expenseDetailSchema.safeExtend(ledgerFields);
+export const settlementV2Schema = settlementSchema.safeExtend(ledgerFields);
+export const expenseOptionsV2Schema = expenseOptionsSchema.safeExtend(ledgerFields);
+export const expensePreviewV2Schema = expensePreviewSchema.safeExtend({
+  ...ledgerFields,
+  originalAmount: originalExpenseAmount,
+  currency: currencyCodeSchema,
+  exchangeRate: expenseRate,
+});
+export const expenseEditContextV2Schema = expenseEditContextSchema.safeExtend({
+  ...ledgerFields,
+  expense: expenseDetailV2Schema,
+  options: expenseOptionsV2Schema,
+});
+export const paymentContextV2Schema = paymentContextSchema.safeExtend({
+  ...ledgerFields,
+  settlement: settlementV2Schema,
+});
+export const paymentRevokeContextV2Schema = paymentRevokeContextSchema.safeExtend(ledgerFields);
+export const tripCurrencyContextV2Schema = tripCurrencyContextSchema.safeExtend(ledgerFields);
+export const referenceRatesV2Schema = referenceRatesSchema.safeExtend({
+  ...ledgerFields,
+  unavailable: z.array(currencyCodeSchema),
+});
+export const expenseRequestV2Schema = z.discriminatedUnion('status', [
+  expenseRequestSchema.options[0],
+  z.object({ status: z.literal('committed'), expense: expenseDetailV2Schema }),
+  z.object({
+    status: z.literal('rejected'),
+    code: z.literal('LEDGER_CURRENCY_MISMATCH'),
+    ledger: ledgerSchema,
+  }),
+]);
+export const mutationRequestV2Schema = z.discriminatedUnion('status', [
+  mutationRequestSchema.options[0],
+  z
+    .object({
+      ...mutationRequestSchema.options[1].shape,
+      ledger: ledgerSchema,
+      result: z.union([
+        expenseMutationResultSchema.safeExtend(ledgerFields).strict(),
+        paymentMutationResultSchema.safeExtend(ledgerFields).strict(),
+        tripManagementResultSchema.safeExtend(ledgerFields).strict(),
+        tripMutationResultSchema.safeExtend(ledgerFields).strict(),
+        memberMutationResultSchema.safeExtend(ledgerFields).strict(),
+        tripAccessResultSchema.safeExtend(ledgerFields).strict(),
+      ]),
+    })
+    .refine((v) => {
+      const { ledger: _resultLedger, ...result } = v.result;
+      return (
+        v.ledger.baseCurrency === _resultLedger.baseCurrency &&
+        mutationRequestSchema.safeParse({ ...v, result }).success
+      );
+    }, 'Receipt outcome or unit does not match'),
+  z.object({
+    ...mutationRequestSchema.options[2].shape,
+    code: z.enum([
+      ...mutationRequestSchema.options[2].shape.code.options,
+      'LEDGER_CURRENCY_MISMATCH',
+      'FEATURE_NOT_AVAILABLE',
+      'CLIENT_UPGRADE_REQUIRED',
+    ]),
+    ledger: ledgerSchema.optional(),
+  }),
+]);
+
+export type LedgerMutationRequest = z.infer<typeof mutationRequestV2Schema>;
+export const v2Schemas = {
+  V2Ledger: ledgerSchema,
+  V2Capabilities: ledgerCapabilitiesSchema,
+  V2TripCreateInput: tripCreateV2Input,
+  V2TripJoinInput: tripJoinV2Input,
+  V2TripUpdateInput: tripUpdateInput,
+  V2TripArchiveInput: tripArchiveInput,
+  V2TripAccessInput: tripAccessInput,
+  V2VirtualMemberCreateInput: virtualMemberCreateInput,
+  V2VirtualMemberRenameInput: virtualMemberRenameInput,
+  V2ExpenseCreateInput: expenseCreateV2Input,
+  V2ExpensePreviewInput: expensePreviewV2Input,
+  V2ExpenseUpdateInput: expenseUpdateV2Input,
+  V2ExpenseDeleteInput: expenseDeleteV2Input,
+  V2PaymentCreateInput: paymentCreateV2Input,
+  V2PaymentDeleteInput: paymentDeleteV2Input,
+  V2TripCurrencyInput: tripCurrencyV2Input,
+  V2Trips: tripsV2Schema,
+  V2Landing: landingV2Schema,
+  V2Expenses: expensesV2Schema,
+  V2ExpenseDetail: expenseDetailV2Schema,
+  V2ExpenseOptions: expenseOptionsV2Schema,
+  V2ExpensePreview: expensePreviewV2Schema,
+  V2Settlement: settlementV2Schema,
+  V2ExpenseEditContext: expenseEditContextV2Schema,
+  V2PaymentContext: paymentContextV2Schema,
+  V2PaymentRevokeContext: paymentRevokeContextV2Schema,
+  V2TripCurrencyContext: tripCurrencyContextV2Schema,
+  V2ReferenceRates: referenceRatesV2Schema,
+  V2MutationRequest: mutationRequestV2Schema,
+  V2ExpenseRequest: expenseRequestV2Schema,
+  V2TripSettings: tripSettingsSchema.safeExtend(ledgerFields),
+  V2TripMembers: tripMembersSchema.safeExtend(ledgerFields),
+  V2TripAccessContext: tripAccessContextSchema.safeExtend(ledgerFields),
+  V2MemberClaimInvitation: memberClaimInvitationSchema.safeExtend(ledgerFields),
+  V2Invitation: invitationSchema.safeExtend(ledgerFields),
+  V2TripMutationResult: tripMutationResultSchema.safeExtend(ledgerFields),
+  V2TripManagementResult: tripManagementResultSchema.safeExtend(ledgerFields),
+  V2MemberMutationResult: memberMutationResultSchema.safeExtend(ledgerFields),
+  V2TripAccessResult: tripAccessResultSchema.safeExtend(ledgerFields),
+  V2ExpenseMutationResult: expenseMutationResultSchema.safeExtend(ledgerFields),
+  V2PaymentMutationResult: paymentMutationResultSchema.safeExtend(ledgerFields),
+} as const;

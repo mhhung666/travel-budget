@@ -1,3 +1,16 @@
+import { ledgerRevision } from './ledger';
+import type { LedgerMutationRequest } from '@travel-budget/contracts';
+import {
+  parseLedgerInput,
+  ledgerFingerprint,
+  receiptStamp,
+  terminalWithLedger,
+  checkReceiptVersion,
+  ledgerMismatch,
+  authorizeLedger,
+  ledgerStamp,
+  assertUnit,
+} from './ledger';
 import { createHash, createHmac, randomUUID } from 'node:crypto';
 import { mongo } from 'mongoose';
 import {
@@ -8,7 +21,6 @@ import {
   type PaymentContext,
   type PaymentRevokeContext,
   type PaymentCreateInput,
-  type PaymentDeleteInput,
   type PaymentMutationResult,
   type MutationRequest,
 } from '@travel-budget/contracts';
@@ -19,6 +31,7 @@ import { MUTATION_REQUESTS, TripEntryError } from './tripEntry';
 import type { PaymentRecord } from '@/types';
 
 interface Parent extends mongo.Document {
+  baseCurrency?: string;
   _id: mongo.ObjectId;
   name: string;
   hashCode: string;
@@ -56,10 +69,11 @@ export interface PaymentDelivery {
   actorName: string;
   meta: { payment_id: string; amount: number };
 }
-type Terminal = Exclude<MutationRequest, { status: 'not_found' }>;
+type Terminal = Exclude<MutationRequest | LedgerMutationRequest, { status: 'not_found' }>;
 interface Receipt {
   _id: string;
   fingerprint: string;
+  contractVersion?: number;
   terminal: Terminal;
   payment?: PaymentRecord;
   createdAt: Date;
@@ -79,7 +93,7 @@ function canonical(value: unknown): unknown {
 }
 function revision(secret: string, domain: string, tripId: string, fields: unknown) {
   return createHmac('sha256', secret)
-    .update(JSON.stringify(canonical({ domain, tripId, fields })))
+    .update(JSON.stringify(canonical(ledgerRevision({ domain, tripId, fields }))))
     .digest('hex');
 }
 export function paymentRevision(secret: string, tripId: string, payment: mongo.Document) {
@@ -116,6 +130,7 @@ async function snapshot(
     .collection<Parent>('trips')
     .findOne({ _id: new mongo.ObjectId(tripId) }, { session });
   if (!trip) throw new TripEntryError('NOT_FOUND');
+  const base = authorizeLedger(trip).baseCurrency;
   const expenses = await db
     .collection<RawExpense>('expenses')
     .find({ trip: trip._id }, { session })
@@ -125,6 +140,7 @@ async function snapshot(
     .find({ trip: trip._id }, { session })
     .sort({ createdAt: -1 })
     .toArray();
+  for (const record of [...expenses, ...payments]) assertUnit(record, base);
   const users = await db
     .collection<Person>('users')
     .find(
@@ -220,18 +236,18 @@ export async function writePayment(
   actorId: string,
   tripId: string,
   operation: 'payment.create' | 'payment.delete',
-  body: PaymentCreateInput | PaymentDeleteInput,
+  body: unknown,
   secret: string,
   paymentId?: string,
   deliver: (event: PaymentDelivery) => Promise<unknown> = async () => undefined
 ): Promise<{ result: PaymentMutationResult; payment?: PaymentRecord }> {
   const input =
     operation === 'payment.create'
-      ? paymentCreateInput.parse(body)
-      : paymentDeleteInput.parse(body);
+      ? parseLedgerInput(paymentCreateInput, body)
+      : parseLedgerInput(paymentDeleteInput, body);
   const key = `${actorId.toLowerCase()}:${input.client_request_id}`;
   const fingerprint = createHash('sha256')
-    .update(JSON.stringify(canonical({ operation, tripId, paymentId, input })))
+    .update(JSON.stringify(canonical(ledgerFingerprint({ operation, tripId, paymentId, input }))))
     .digest('hex');
   for (let attempt = 0; attempt < 10; attempt++) {
     try {
@@ -239,6 +255,7 @@ export async function writePayment(
         const receipts = db.collection<Receipt>(MUTATION_REQUESTS);
         const existing = await receipts.findOne({ _id: key }, { session });
         if (existing) {
+          checkReceiptVersion(existing);
           if (existing.fingerprint !== fingerprint)
             throw new TripEntryError('IDEMPOTENCY_CONFLICT');
           return { terminal: existing.terminal, payment: existing.payment, delivery: undefined };
@@ -248,9 +265,15 @@ export async function writePayment(
         let payment: PaymentRecord | undefined;
         let delivery: PaymentDelivery | undefined;
         const reject = (
-          code: 'SETTLEMENT_CHANGED' | 'RESOURCE_CHANGED' | 'RESOURCE_GONE' | 'VALIDATION_ERROR'
+          code:
+            | 'SETTLEMENT_CHANGED'
+            | 'RESOURCE_CHANGED'
+            | 'RESOURCE_GONE'
+            | 'VALIDATION_ERROR'
+            | 'LEDGER_CURRENCY_MISMATCH'
         ): Terminal => ({ status: 'rejected', operation, tripId, code });
-        if (operation === 'payment.create') {
+        if (ledgerMismatch()) terminal = reject('LEDGER_CURRENCY_MISMATCH');
+        else if (operation === 'payment.create') {
           const fields = input as PaymentCreateInput;
           if (state.context.settlementRevision !== fields.expected_revision)
             terminal = reject('SETTLEMENT_CHANGED');
@@ -266,6 +289,7 @@ export async function writePayment(
               trip: state.trip._id,
               from: new mongo.ObjectId(fields.from_id),
               to: new mongo.ObjectId(fields.to_id),
+              ...ledgerStamp(),
               amount: fields.amount,
               note: fields.note,
               createdBy: new mongo.ObjectId(actorId),
@@ -351,7 +375,8 @@ export async function writePayment(
           {
             _id: key,
             fingerprint,
-            terminal,
+            ...receiptStamp(),
+            terminal: terminalWithLedger(terminal),
             ...(payment ? { payment } : {}),
             createdAt: new Date(),
           },

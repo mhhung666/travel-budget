@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { logger } from '@/lib/logger';
+import { MoneyTotalError } from '@/lib/money';
+import { LedgerError, ledgerInputSchema, parseLedgerInput } from '@/lib/ledger';
 
 export class ApiError extends Error {
   constructor(
@@ -30,9 +32,10 @@ export async function readBody<T>(request: Request, schema: z.ZodType<T>): Promi
       }
       chunks.push(chunk.value);
     }
-    const data = schema.safeParse(JSON.parse(Buffer.concat(chunks).toString('utf8')));
+    const raw = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+    const data = ledgerInputSchema(schema).safeParse(raw);
     if (!data.success) throw new ApiError(400, 'VALIDATION_ERROR');
-    return data.data;
+    return parseLedgerInput(schema, raw);
   } catch (error) {
     if (error instanceof ApiError) throw error;
     throw new ApiError(400, 'VALIDATION_ERROR');
@@ -50,12 +53,25 @@ export async function apiResponse(operation: () => Promise<unknown>): Promise<Re
   try {
     return Response.json({ data: await operation() }, { headers });
   } catch (error) {
-    const known = error instanceof ApiError;
+    const failure =
+      error instanceof MoneyTotalError
+        ? new ApiError(503, 'MONEY_TOTAL_OUT_OF_RANGE')
+        : error instanceof LedgerError
+          ? new ApiError(
+              error.code === 'VALIDATION_ERROR'
+                ? 400
+                : ['LEDGER_DATA_INVALID', 'MONEY_TOTAL_OUT_OF_RANGE'].includes(error.code)
+                  ? 503
+                  : 409,
+              error.code
+            )
+          : error;
+    const known = failure instanceof ApiError;
     if (!known) logger.error('Mobile API request failed', { requestId });
-    if (known && error.retryAfter) headers['Retry-After'] = String(error.retryAfter);
+    if (known && failure.retryAfter) headers['Retry-After'] = String(failure.retryAfter);
     return Response.json(
-      { error: { code: known ? error.code : 'INTERNAL_ERROR' }, requestId },
-      { status: known ? error.status : 500, headers }
+      { error: { code: known ? failure.code : 'INTERNAL_ERROR' }, requestId },
+      { status: known ? failure.status : 500, headers }
     );
   }
 }

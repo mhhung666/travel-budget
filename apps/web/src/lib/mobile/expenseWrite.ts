@@ -1,3 +1,5 @@
+import { isLedgerV2, ledgerOutput, currentLedger } from '@/lib/ledger';
+import { readExpenseCreateRejection } from '@/lib/expenseCreateRequest';
 import mongoose from 'mongoose';
 import { RetiredBlobError } from '@/lib/blobReferences';
 import { createExpenseForActor, type AfterResponse } from '@/lib/expenseCreate';
@@ -91,6 +93,16 @@ export async function mobileExpenseRequest(userId: string, id: string, clientReq
     actorId: userId,
     clientRequestId: key.data,
   });
+  const rejected = isLedgerV2()
+    ? await readExpenseCreateRejection(mongoose.connection.db!, {
+        tripId,
+        actorId: userId,
+        clientRequestId: key.data,
+      })
+    : undefined;
+  if (rejected) return { status: 'rejected' as const, code: rejected, ledger: currentLedger() };
+  if (isLedgerV2() && accepted)
+    return { status: 'committed' as const, expense: ledgerOutput(toMobileExpenseDetail(accepted)) };
   return expenseRequestSchema.parse(
     accepted
       ? { status: 'committed', expense: toMobileExpenseDetail(accepted) }
