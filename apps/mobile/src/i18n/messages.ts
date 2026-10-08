@@ -117,6 +117,14 @@ const zh = {
 
   localDrafts: '本機支出草稿',
   queueTitle: '待送支出佇列',
+  localTripsEmpty: '尚無可用的本機旅行。連線登入並開啟旅行後，才會保存可續填的選項。',
+  operationsEmpty: '沒有待確認操作。',
+  recoveryWaiting: '等待時間尚未結束；原紀錄與內容保留。',
+  recoveryLoadFailed: '無法讀取本機紀錄或等待時間，請重試；這不代表操作失敗。',
+  recoveryUnknown: '結果待確認',
+  recoveryCompleted: '已完成',
+  recoveryRejected: '已拒絕，未提交',
+  requestId: '請求編號',
   queueDiscard: '捨棄待送支出',
   queueConflict:
     '此請求已對應不同內容的已入帳支出，未另建新支出。此卡保留原待送輸入供核對，不能再次送出。',
@@ -440,6 +448,14 @@ export const messages = {
 
     localDrafts: '本机支出草稿',
     queueTitle: '待发支出队列',
+    localTripsEmpty: '暂无可用的本机旅行。联网登录并打开旅行后，才会保存可续填的选项。',
+    operationsEmpty: '没有待确认操作。',
+    recoveryWaiting: '等待时间尚未结束；原记录与内容保留。',
+    recoveryLoadFailed: '无法读取本机记录或等待时间，请重试；这不代表操作失败。',
+    recoveryUnknown: '结果待确认',
+    recoveryCompleted: '已完成',
+    recoveryRejected: '已拒绝，未提交',
+    requestId: '请求编号',
     queueDiscard: '丢弃待发支出',
     queueConflict:
       '此请求已对应不同内容的已入账支出，未另建新支出。此卡保留原待发输入供核对，不能再次发送。',
@@ -779,6 +795,16 @@ export const messages = {
 
     localDrafts: 'Local expense drafts',
     queueTitle: 'Expense queue',
+    localTripsEmpty:
+      'No local trips available. Sign in online and open a trip to save its options for later.',
+    operationsEmpty: 'No pending operations.',
+    recoveryWaiting: 'The wait has not ended. The original record and content are kept.',
+    recoveryLoadFailed:
+      'Local records or the wait deadline could not be read. Retry; this does not mean the operation failed.',
+    recoveryUnknown: 'Outcome unconfirmed',
+    recoveryCompleted: 'Completed',
+    recoveryRejected: 'Rejected, not committed',
+    requestId: 'Request ID',
     queueDiscard: 'Discard queued expense',
     queueConflict:
       'This request belongs to a recorded expense with different content. No new expense was created. This card keeps your original queued input for review and cannot be sent again.',
@@ -1137,6 +1163,16 @@ export const messages = {
 
     localDrafts: '端末の支出下書き',
     queueTitle: '送信待ちの支出',
+    localTripsEmpty:
+      '利用できる端末内の旅行はありません。オンラインでログインして旅行を開くと、選択肢が保存されます。',
+    operationsEmpty: '確認待ちの操作はありません。',
+    recoveryWaiting: '待機時間が終わっていません。元の記録と内容は保持されています。',
+    recoveryLoadFailed:
+      '端末内の記録または待機期限を読み取れません。再試行してください。操作の失敗を意味するものではありません。',
+    recoveryUnknown: '結果確認待ち',
+    recoveryCompleted: '完了',
+    recoveryRejected: '拒否・未確定',
+    requestId: 'リクエスト番号',
     queueDiscard: '送信待ちの支出を破棄',
     queueConflict:
       'このリクエストは別の内容で記帳済みです。新しい支出は作成していません。照合用に元の入力を保持し、再送信はできません。',

@@ -6,11 +6,9 @@
 
 ### 2026-10-08
 
-- Mobile U2d：登入與帳號表單套共用元件、階段標題與密碼欄說明，iOS 驗證碼下一欄只移焦點；旅行表單鍵盤順序、邀請碼／連結與複製／分享／刷新層級統一。E1／E2 引擎、寄碼／驗碼原期限、UUID 與秘密資料清除不變；驗證及 iOS 獨立待驗見 [U2d 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#u2d-帳號與旅行表單驗收交接)，Android 延後；本次提交調升 Mobile patch，未部署，下一片 U2e。
-
-- Mobile U2b／U2c：支出表單／完整預覽、短保存列、均分與基本模式及結算／還款資訊已整理，危險撤銷與本人／同名 ID 明確；保留 C／D／E 引擎、HTTP／UUID／429，成功後刷新失敗只重讀。已提交 Mobile patch，未部署；驗證及 iOS 獨立待驗見 [U2b](apps/mobile/docs/LOCAL_ACCEPTANCE.md#u2b-新增與編輯驗收交接)／[U2c](apps/mobile/docs/LOCAL_ACCEPTANCE.md#u2c-結算與還款驗收交接)，Android 延後，結算虛擬身分旗標另排。
-
-- Mobile U1c／U2a／API：旅行入口與本人帳務、支出閱讀／四語格式及 ID 身分資訊已整理；容器寬度、返回及相容 API 身分旗標已修正並提交相應 patch。驗證與原生待驗範圍見 [U1c／U2a 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#u1c-旅行入口驗收交接)，Android 延後；未部署。
+- Mobile U2e：統一本機／佇列與 C／E 恢復狀態卡，區分空／讀取失敗、需處理／結果不明／完成；原 SQLite 429 期限、凍結操作限制及帳號／撤權隱藏明確呈現，補雙擊與晚到回呼保護。未改引擎／HTTP，驗證及 iOS 待驗見 [U2e 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#u2e-本機與恢復驗收交接)，Android 延後；本片提交調升 Mobile patch，未部署。
+- Mobile U2d：登入／帳號與旅行／邀請表單、iOS 驗證碼焦點及主次操作已整理；E1／E2 引擎、原期限與秘密清除保留。已提交並推送 Mobile patch，未部署；驗證及 iOS 待驗見 [U2d 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#u2d-帳號與旅行表單驗收交接)，Android 延後。
+- Mobile U1c／U2a–U2c／API：旅行入口、支出閱讀／表單、結算／還款及共用格式／身分已整理並提交相應 patch；保留 C／D／E、HTTP／UUID／429，成功後刷新失敗只重讀。驗證與原生待驗見 [U1c／U2a](apps/mobile/docs/LOCAL_ACCEPTANCE.md#u1c-旅行入口驗收交接)、[U2b](apps/mobile/docs/LOCAL_ACCEPTANCE.md#u2b-新增與編輯驗收交接)／[U2c](apps/mobile/docs/LOCAL_ACCEPTANCE.md#u2c-結算與還款驗收交接)；Android 延後，結算虛擬旗標另排，未部署。
 
 ### 2026-10-07
 

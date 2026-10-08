@@ -60,3 +60,15 @@ export function localDate(now = new Date()) {
 export function formatRate(rate: number, locale: AppLocale = 'en') {
   return new Intl.NumberFormat(displayLocales[locale], { maximumFractionDigits: 8 }).format(rate);
 }
+
+/** An instant, unlike a date-only value: display its original deadline in the device time zone. */
+export function formatInstant(value: number, locale: AppLocale = 'en') {
+  return new Intl.DateTimeFormat(displayLocales[locale], {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }).format(new Date(value));
+}

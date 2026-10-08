@@ -1,28 +1,50 @@
 import { goBack } from '@/components/navigation';
-import { useState } from 'react';
-import { ActivityIndicator } from 'react-native';
+import { useRef, useState } from 'react';
 import { router } from 'expo-router';
-import { Action, Card, Copy, DetailRow, Notice, Page, Title } from '@/components/ui';
+import { Action, Copy, DetailRow, Notice, Page } from '@/components/ui';
 import { useExpenseQueue } from '@/features/expenses/entryProvider';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { useMessages } from '@/i18n/useMessages';
 import { useOnline } from '@/providers/useOnline';
+import { PageHeader } from '@/components/screen';
+import { RecoveryCard } from '@/components/RecoveryCard';
+import { useDraftCatalog } from '@/features/localDrafts/provider';
+import { useRecoveryDeadline } from '@/features/recovery/useRecoveryDeadline';
+import { useDisplayFormat } from '@/i18n/useDisplayFormat';
+import { parseAmount } from '@/features/expenses/input';
 import type { QueuedExpense } from '@/storage/expenseQueue';
 
 export function QueueScreen() {
-  const { manager, user } = useAuth();
-  return <ScopedQueueScreen key={JSON.stringify([manager.api.baseUrl, user?.id])} />;
+  const { manager, user, status } = useAuth();
+  return <ScopedQueueScreen key={JSON.stringify([manager.api.baseUrl, user?.id, status])} />;
 }
 function ScopedQueueScreen() {
   const { queue, scope, records, syncFailed } = useExpenseQueue();
   const { status, manager } = useAuth();
   const online = useOnline();
   const t = useMessages();
+  const format = useDisplayFormat();
+  const { catalog } = useDraftCatalog();
+  const deadline = useRecoveryDeadline(scope, records.dataUpdatedAt);
+  const flight = useRef(false);
+  const version = manager.getSignInVersion();
+  const current = () =>
+    !!scope &&
+    manager.getSignInVersion() === version &&
+    manager.getSnapshot().user?.id === scope.accountId &&
+    manager.api.baseUrl === scope.environment;
+  const visible = (r: QueuedExpense) =>
+    current() &&
+    r.environment === scope?.environment &&
+    r.accountId === scope?.accountId &&
+    catalog.isVisible(r, r.tripId);
+  const items = records.isError ? undefined : records.data?.filter(visible);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   const [blocked, setBlocked] = useState<QueuedExpense | null>(null);
   const act = async (action: () => Promise<unknown>) => {
-    if (busy) return;
+    if (flight.current || !current()) return;
+    flight.current = true;
     setBusy(true);
     setFailed(false);
     try {
@@ -30,12 +52,14 @@ function ScopedQueueScreen() {
     } catch {
       setFailed(true);
     } finally {
-      await records.refetch();
+      await Promise.all([records.refetch(), deadline.refetch()]);
+      flight.current = false;
       setBusy(false);
     }
   };
   const restore = (r: QueuedExpense, discardCurrent = false) =>
     act(async () => {
+      if (!visible(r)) return;
       try {
         await queue.restore(r, discardCurrent);
       } catch (error) {
@@ -43,56 +67,87 @@ function ScopedQueueScreen() {
         throw error;
       }
       setBlocked(null);
-      router.push({ pathname: '/drafts/[id]', params: { id: r.tripId } });
+      if (visible(r)) router.push({ pathname: '/drafts/[id]', params: { id: r.tripId } });
     });
   return (
     <Page>
-      <Action secondary label={t.backShort} onPress={() => goBack('/work')} />
-      <Title>{t.queueTitle}</Title>
+      <PageHeader title={t.queueTitle} backLabel={t.backShort} onBack={() => goBack('/work')} />
       <Copy>{t.queueHint}</Copy>
+      {!online && <Notice tone="warning">{t.offline}</Notice>}
       {status === 'local' && (
-        <Action
-          label={t.restoreOnline}
-          disabled={!online || busy}
-          onPress={() => void act(() => manager.restore())}
-        />
+        <>
+          <Notice tone="warning">{t.localSessionHint}</Notice>
+          <Action
+            label={t.restoreOnline}
+            disabled={!online || busy}
+            onPress={() => void act(() => manager.restore())}
+          />
+        </>
       )}
       <Action
         testID="queue-sync"
         label={t.queueSync}
         busy={busy}
-        disabled={!online || status !== 'signedIn' || busy || !scope}
+        disabled={
+          !online ||
+          status !== 'signedIn' ||
+          busy ||
+          !scope ||
+          deadline.isPending ||
+          deadline.isError ||
+          deadline.waiting
+        }
         onPress={() => void act(() => queue.synchronize(scope!))}
       />
-      {(records.isError || failed || syncFailed) && <Notice tone="danger">{t.queueFailed}</Notice>}
-      {blocked && (
+      {(records.isError || deadline.isError) && (
+        <RecoveryCard message={t.recoveryLoadFailed} tone="danger">
+          <Action
+            label={t.retry}
+            onPress={() => {
+              void records.refetch();
+              void deadline.refetch();
+            }}
+          />
+        </RecoveryCard>
+      )}
+      {(failed || syncFailed) && <Notice tone="danger">{t.queueFailed}</Notice>}
+      {deadline.waiting && (
+        <RecoveryCard message={t.recoveryWaiting} tone="warning" testID="queue-wait">
+          <DetailRow label={t.queueRetryAt} value={format.instant(deadline.until)} />
+        </RecoveryCard>
+      )}
+      {blocked && visible(blocked) && (
         <>
           <Notice tone="warning">{t.queueDraftExists}</Notice>
           <Action
+            variant="danger"
             label={t.queueReplaceDraft}
             disabled={busy}
             onPress={() => void restore(blocked, true)}
           />
-          <Action secondary label={t.backShort} onPress={() => setBlocked(null)} />
+          <Action variant="ghost" label={t.cancel} onPress={() => setBlocked(null)} />
         </>
       )}
-      {records.isError && <Action label={t.retry} onPress={() => void records.refetch()} />}
-      {records.isPending && <ActivityIndicator accessibilityLabel={t.loading} />}
-      {records.data?.length === 0 && <Notice>{t.queueEmpty}</Notice>}
-      {records.data?.map((r, index) => (
-        <Card key={r.clientRequestId} testID={`queue-record-${index}`}>
-          <Title>{r.input.description}</Title>
-          <DetailRow label={t.amountTwd} value={r.input.amountText} />
-          <DetailRow label={t.date} value={r.input.date} />
-          <Copy>
-            {r.status === 'resolved'
+      {records.isPending && <RecoveryCard message={t.loading} />}
+      {items?.length === 0 && <RecoveryCard message={t.queueEmpty} testID="queue-empty" />}
+      {items?.map((r, index) => (
+        <RecoveryCard
+          key={r.clientRequestId}
+          testID={`queue-record-${index}`}
+          title={r.input.description}
+          tone={r.status === 'queued' ? 'info' : 'warning'}
+          message={
+            r.status === 'resolved'
               ? t.queueConflict
               : r.status === 'attention'
                 ? t.queueAttention
                 : r.status === 'prepared'
                   ? t.queueUnknown
-                  : t.queueWaiting}
-          </Copy>
+                  : t.queueWaiting
+          }
+        >
+          <DetailRow label={t.amountTwd} value={queueAmount(r.input.amountText, format.money)} />
+          <DetailRow label={t.date} value={format.date(r.input.date)} />
           {!!r.reason && (
             <Notice tone="warning">
               {r.reason === 'members'
@@ -108,10 +163,11 @@ function ScopedQueueScreen() {
                         : t.queuePaused}
             </Notice>
           )}
-          {r.nextAt > 0 && (
-            <Copy>
-              {t.queueRetryAt}: {new Date(r.nextAt).toLocaleString()}
-            </Copy>
+          {Math.max(r.nextAt, r.rateLimitUntil, deadline.until) > 0 && (
+            <DetailRow
+              label={t.queueRetryAt}
+              value={format.instant(Math.max(r.nextAt, r.rateLimitUntil, deadline.until))}
+            />
           )}
           {r.status === 'prepared' ? (
             <Notice tone="warning">{t.queueFrozen}</Notice>
@@ -119,22 +175,29 @@ function ScopedQueueScreen() {
             <>
               {r.status !== 'resolved' && (
                 <Action
-                  secondary
+                  variant="secondary"
                   label={t.queueEdit}
                   disabled={busy}
                   onPress={() => void restore(r)}
                 />
               )}
               <Action
-                secondary
+                variant={r.status === 'resolved' ? 'ghost' : 'danger'}
                 label={r.status === 'resolved' ? t.queueDismiss : t.queueDiscard}
                 disabled={busy}
-                onPress={() => void act(() => queue.discard(r))}
+                onPress={() => {
+                  if (visible(r)) void act(() => queue.discard(r));
+                }}
               />
             </>
           )}
-        </Card>
+        </RecoveryCard>
       ))}
     </Page>
   );
+}
+
+function queueAmount(text: string, money: (amount: number) => string) {
+  const parsed = parseAmount(text);
+  return parsed.ok ? money(parsed.amount) : text;
 }

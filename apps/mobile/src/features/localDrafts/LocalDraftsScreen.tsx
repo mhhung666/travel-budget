@@ -1,9 +1,10 @@
-import { FormPage } from '@/components/screen';
+import { FormPage, PageHeader } from '@/components/screen';
+import { RecoveryCard } from '@/components/RecoveryCard';
+import { useDisplayFormat } from '@/i18n/useDisplayFormat';
 import { goBack } from '@/components/navigation';
 import { useState } from 'react';
-import { ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
-import { Action, Card, Copy, Notice, Page, Title } from '@/components/ui';
+import { Action, Card, Copy, DetailRow, Notice, Page, Section } from '@/components/ui';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { errorMessage } from '@/features/auth/errorMessage';
 import { LocalDraftForm } from '@/features/expenses/NewExpenseScreen';
@@ -22,7 +23,7 @@ function LocalSessionActions() {
     <>
       {status === 'local' && (
         <>
-          <Notice>{t.localSessionHint}</Notice>
+          <Notice tone="warning">{t.localSessionHint}</Notice>
           {!!error && <Notice tone="danger">{errorMessage(error, t)}</Notice>}
           <Action
             testID="local-restore-login"
@@ -37,7 +38,7 @@ function LocalSessionActions() {
         </>
       )}
       <Action
-        secondary
+        variant="ghost"
         label={t.logout}
         disabled={!online || busy}
         busy={busy}
@@ -51,40 +52,46 @@ function LocalSessionActions() {
         }}
       />
       {!!logoutError && <Notice tone="danger">{errorMessage(logoutError, t)}</Notice>}
-      {status === 'signedIn' && <Action secondary label={t.back} onPress={() => goBack('/me')} />}
     </>
   );
 }
 export function LocalTripsScreen() {
   const query = useLocalTrips();
   const t = useMessages();
+  const { status } = useAuth();
+  const format = useDisplayFormat();
+  const items = query.isError || query.isPending ? undefined : query.data;
   return (
     <Page>
-      <Title>{t.localDrafts}</Title>
-      <Notice>{t.localDraftHint}</Notice>
-      <Action label={t.queueTitle} onPress={() => router.push('/queue')} />
+      <PageHeader
+        title={t.localDrafts}
+        backLabel={t.backShort}
+        onBack={() => goBack(status === 'local' ? '/work' : '/me')}
+      />
+      <Copy>{t.localDraftHint}</Copy>
+      <Action variant="secondary" label={t.queueTitle} onPress={() => router.push('/queue')} />
       <LocalSessionActions />
       {query.storageFailed && <Notice tone="danger">{t.localSnapshotFailed}</Notice>}
-      {query.isPending && <ActivityIndicator accessibilityLabel={t.loading} />}
+      {query.isPending && <RecoveryCard message={t.loading} />}
       {query.isError && (
-        <>
-          <Notice tone="danger">{t.draftLoadFailed}</Notice>
+        <RecoveryCard message={t.draftLoadFailed} tone="danger">
           <Action label={t.retry} onPress={() => void query.refetch()} />
-        </>
+        </RecoveryCard>
       )}
-      {query.data?.length === 0 && <Notice tone="warning">{t.localTripUnavailable}</Notice>}
-      {query.data?.map((trip) => (
+      {items?.length === 0 && (
+        <RecoveryCard message={t.localTripsEmpty} testID="local-trips-empty" />
+      )}
+      {items?.map((trip) => (
         <Card key={trip.tripId}>
-          <Title>{trip.name ?? t.cachedTrip}</Title>
-          <Copy>
-            {t.localUpdated}: {new Date(trip.updatedAt).toLocaleString()}
-          </Copy>
-          {!trip.options && <Notice tone="warning">{t.localTripUnavailable}</Notice>}
-          <Action
-            testID={`local-trip-${trip.tripId}`}
-            label={t.draftRestore}
-            onPress={() => router.push({ pathname: '/drafts/[id]', params: { id: trip.tripId } })}
-          />
+          <Section title={trip.name ?? t.cachedTrip}>
+            <DetailRow label={t.localUpdated} value={format.instant(trip.updatedAt)} />
+            {!trip.options && <Notice tone="warning">{t.localTripUnavailable}</Notice>}
+            <Action
+              testID={`local-trip-${trip.tripId}`}
+              label={t.draftRestore}
+              onPress={() => router.push({ pathname: '/drafts/[id]', params: { id: trip.tripId } })}
+            />
+          </Section>
         </Card>
       ))}
     </Page>
@@ -106,18 +113,16 @@ function ScopedLocalDraftScreen({ tripId }: { tripId: string }) {
   const { status } = useAuth();
   const t = useMessages();
   const online = useOnline();
-  const trip = query.data?.[0];
+  const format = useDisplayFormat();
+  const trip = query.isError || query.isPending ? undefined : query.data?.[0];
   return (
     <FormPage title={t.localDrafts} backLabel={t.backShort} onBack={() => goBack('/drafts')}>
-      <Notice>{t.localDraftHint}</Notice>
+      <Copy>{t.localDraftHint}</Copy>
       <LocalSessionActions />
       {query.storageFailed && <Notice tone="danger">{t.localSnapshotFailed}</Notice>}
-      {(query.isPending || pending.isPending) && (
-        <ActivityIndicator accessibilityLabel={t.loading} />
-      )}
+      {(query.isPending || pending.isPending) && <RecoveryCard message={t.loading} />}
       {(query.isError || pending.isError) && (
-        <>
-          <Notice tone="danger">{t.draftLoadFailed}</Notice>
+        <RecoveryCard message={t.draftLoadFailed} tone="danger">
           <Action
             label={t.retry}
             onPress={() => {
@@ -125,19 +130,16 @@ function ScopedLocalDraftScreen({ tripId }: { tripId: string }) {
               void pending.refetch();
             }}
           />
-        </>
+        </RecoveryCard>
       )}
       {!query.isPending && !query.isError && (!trip || !trip.options) && (
         <Notice tone="warning">{t.localTripUnavailable}</Notice>
       )}
       {!!pending.data?.length && <Notice tone="warning">{t.pendingBlocks}</Notice>}
       {trip && (
-        <>
-          <Title>{trip.name ?? t.cachedTrip}</Title>
-          <Copy>
-            {t.localUpdated}: {new Date(trip.updatedAt).toLocaleString()}
-          </Copy>
-        </>
+        <Section title={trip.name ?? t.cachedTrip}>
+          <DetailRow label={t.localUpdated} value={format.instant(trip.updatedAt)} />
+        </Section>
       )}
       {trip?.options &&
         query.scope &&
