@@ -1,5 +1,6 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import { refreshManagedTrip } from './managementRefresh';
+import { QueryClient } from '@tanstack/react-query';
 import { ApiError } from '@/api/client';
 const h = vi.hoisted(() => ({ pause: vi.fn(), refresh: vi.fn(), until: 0 }));
 vi.mock('@/storage/pendingExpenseDatabase', () => ({
@@ -15,7 +16,7 @@ const scope = { environment: 'https://test/api/v1', accountId: 'a'.repeat(24) },
 function fixture() {
   let version = 1,
     denial = 1;
-  const requestAs = vi.fn(async (_actor, path, _schema, options) => {
+  const requestAs = vi.fn(async (_actor, path, _schema, options): Promise<unknown> => {
     options?.beforeSend?.();
     return path.includes('landing') ? { name: 'New name' } : { members: [], categories: [] };
   });
@@ -37,9 +38,10 @@ function fixture() {
     rememberOptions: vi.fn(),
     deny: vi.fn(async () => undefined),
   };
-  const run = () =>
-    refreshManagedTrip({} as never, manager as never, catalog as never, scope, tripId);
+  const client = new QueryClient();
+  const run = () => refreshManagedTrip(client, manager as never, catalog as never, scope, tripId);
   return {
+    client,
     manager,
     catalog,
     requestAs,
@@ -96,4 +98,41 @@ it('a membership denial after commit hides the trip through existing catalog gua
   f.requestAs.mockRejectedValueOnce(new ApiError('NOT_FOUND', 404));
   await expect(f.run()).rejects.toMatchObject({ status: 404 });
   expect(f.catalog.deny).toHaveBeenCalledWith(scope, tripId);
+});
+
+it('a late old options response cannot replace the refreshed roster or virtual flag', async () => {
+  const f = fixture(),
+    key = [scope.environment, scope.accountId, 'expense-options', tripId];
+  let resolve!: (data: unknown) => void;
+  const old = f.client
+    .fetchQuery({
+      queryKey: key,
+      queryFn: () =>
+        new Promise((r) => {
+          resolve = r;
+        }),
+    })
+    .catch(() => undefined);
+  const fresh = {
+    members: [{ id: 'd'.repeat(24), displayName: 'Renamed', isVirtual: true }],
+    categories: [],
+  };
+  f.requestAs.mockImplementation(async (_actor, path, _schema, options) => {
+    options?.beforeSend?.();
+    return path.includes('landing') ? { name: 'Trip' } : fresh;
+  });
+  await f.run();
+  resolve({ members: [{ id: 'd'.repeat(24), displayName: 'Old' }], categories: [] });
+  await old;
+  expect(f.client.getQueryData(key)).toEqual(fresh);
+});
+it('denial during options persistence stops publication to the label cache', async () => {
+  const f = fixture();
+  f.catalog.rememberOptions.mockImplementation(async () => {
+    f.deny();
+  });
+  await expect(f.run()).rejects.toMatchObject({ code: 'CANCELLED' });
+  expect(
+    f.client.getQueryData([scope.environment, scope.accountId, 'expense-options', tripId])
+  ).toBeUndefined();
 });

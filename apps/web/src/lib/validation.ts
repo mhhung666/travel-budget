@@ -1,3 +1,4 @@
+import { virtualMemberNameSchema } from '@travel-budget/contracts';
 import { MAX_ACTIVITIES_PER_DAY } from '@/lib/itineraryLimits';
 import { isCalendarDate, MAX_ITINERARY_DAY_NUMBER } from '@/lib/itineraryDayTarget';
 import { z } from 'zod';
@@ -235,7 +236,7 @@ export const pushSubscriptionSchema = z.object({
 
 // Member schemas
 export const addVirtualMemberSchema = z.object({
-  display_name: z.string().min(1, '名稱不能為空').trim(),
+  display_name: virtualMemberNameSchema,
 });
 
 // 從好友一次挑選多人加入旅程（ROADMAP #12 Phase 3）。上限與 UI 一次可選人數對齊。

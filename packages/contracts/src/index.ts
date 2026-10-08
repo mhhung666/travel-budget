@@ -122,6 +122,7 @@ export const settlementSchema = z.object({
     z.object({
       userId: idSchema,
       displayName: z.string(),
+      isVirtual: z.boolean().optional(),
       totalPaid: z.number(),
       totalOwed: z.number(),
       balance: z.number(),
@@ -132,8 +133,10 @@ export const settlementSchema = z.object({
     z.object({
       fromId: idSchema,
       fromName: z.string(),
+      fromIsVirtual: z.boolean().optional(),
       toId: idSchema,
       toName: z.string(),
+      toIsVirtual: z.boolean().optional(),
       amount: z.number(),
     })
   ),
@@ -142,8 +145,10 @@ export const settlementSchema = z.object({
       id: idSchema,
       fromId: memberIdSchema,
       fromName: z.string(),
+      fromIsVirtual: z.boolean().optional(),
       toId: memberIdSchema,
       toName: z.string(),
+      toIsVirtual: z.boolean().optional(),
       amount: z.number(),
       note: z.string().nullable(),
       createdAt: z.iso.datetime(),
@@ -185,7 +190,9 @@ const noDuplicates = (values: string[]) => new Set(values).size === values.lengt
 
 // Members in the order used to place the leftover cents of an equal split (earliest joined first).
 export const expenseOptionsSchema = z.object({
-  members: z.array(z.object({ id: idSchema, displayName: z.string() })),
+  members: z.array(
+    z.object({ id: idSchema, displayName: z.string(), isVirtual: z.boolean().optional() })
+  ),
   categories: z.array(expenseCategorySchema),
 });
 export const expensePreviewInput = z
@@ -358,6 +365,33 @@ export type TripUpdateInput = z.infer<typeof tripUpdateInput>;
 export type TripArchiveInput = z.infer<typeof tripArchiveInput>;
 export type TripManagementResult = z.infer<typeof tripManagementResultSchema>;
 export type TripLocation = z.infer<typeof tripLocationSchema>;
+// G1b member management. IDs and virtual flags are member-only; no login identifiers.
+export const virtualMemberNameSchema = z.string().trim().min(1).max(200);
+export const tripMembersSchema = z.object({
+  tripId: idSchema,
+  role: z.enum(['admin', 'member']),
+  revision: resourceRevisionSchema,
+  members: z.array(
+    z.object({
+      id: idSchema,
+      displayName: z.string(),
+      isVirtual: z.boolean(),
+      role: z.enum(['admin', 'member']),
+      joinedAt: z.iso.datetime().nullable(),
+    })
+  ),
+});
+export const virtualMemberCreateInput = z
+  .object({ ...mutationIdentity, display_name: virtualMemberNameSchema })
+  .strict();
+export const virtualMemberRenameInput = virtualMemberCreateInput;
+export const memberMutationResultSchema = z
+  .object({ tripId: idSchema, memberId: idSchema, revision: resourceRevisionSchema })
+  .strict();
+export type TripMembers = z.infer<typeof tripMembersSchema>;
+export type VirtualMemberCreateInput = z.infer<typeof virtualMemberCreateInput>;
+export type VirtualMemberRenameInput = z.infer<typeof virtualMemberRenameInput>;
+export type MemberMutationResult = z.infer<typeof memberMutationResultSchema>;
 export const expenseMutationResultSchema = z
   .object({
     tripId: idSchema,
@@ -429,6 +463,8 @@ export const mutationRequestSchema = z.discriminatedUnion('status', [
         'trip.join',
         'trip.update',
         'trip.archive',
+        'member.create',
+        'member.rename',
         'expense.update',
         'expense.delete',
         'payment.create',
@@ -440,28 +476,35 @@ export const mutationRequestSchema = z.discriminatedUnion('status', [
         paymentMutationResultSchema.strict(),
         tripManagementResultSchema.strict(),
         tripMutationResultSchema.strict(),
+        memberMutationResultSchema,
       ]),
     })
     .refine(
       (v) =>
-        v.operation.startsWith('expense.')
-          ? 'expenseId' in v.result &&
-            v.resourceId === v.result.expenseId &&
-            (v.operation === 'expense.update' ? !!v.result.revision : v.result.deleted === true)
-          : v.operation.startsWith('payment.')
-            ? 'paymentId' in v.result &&
-              v.resourceId === v.result.paymentId &&
-              (v.operation === 'payment.create' ? !!v.result.revision : v.result.deleted === true)
-            : v.operation === 'trip.update' || v.operation === 'trip.archive'
-              ? v.resourceId === v.result.tripId &&
-                (v.operation === 'trip.update'
-                  ? 'revision' in v.result && !!v.result.revision
-                  : 'archived' in v.result && v.result.archived !== undefined)
-              : !('expenseId' in v.result) &&
-                !('paymentId' in v.result) &&
-                !('revision' in v.result) &&
-                !('archived' in v.result) &&
-                v.resourceId === v.result.tripId,
+        v.operation.startsWith('member.')
+          ? 'memberId' in v.result && v.resourceId === v.result.memberId
+          : v.operation.startsWith('expense.')
+            ? 'expenseId' in v.result &&
+              v.resourceId === v.result.expenseId &&
+              (v.operation === 'expense.update' ? !!v.result.revision : v.result.deleted === true)
+            : v.operation.startsWith('payment.')
+              ? 'paymentId' in v.result &&
+                v.resourceId === v.result.paymentId &&
+                (v.operation === 'payment.create' ? !!v.result.revision : v.result.deleted === true)
+              : v.operation === 'trip.update' || v.operation === 'trip.archive'
+                ? !('memberId' in v.result) &&
+                  !('expenseId' in v.result) &&
+                  !('paymentId' in v.result) &&
+                  v.resourceId === v.result.tripId &&
+                  (v.operation === 'trip.update'
+                    ? 'revision' in v.result && !!v.result.revision
+                    : 'archived' in v.result && v.result.archived !== undefined)
+                : !('memberId' in v.result) &&
+                  !('expenseId' in v.result) &&
+                  !('paymentId' in v.result) &&
+                  !('revision' in v.result) &&
+                  !('archived' in v.result) &&
+                  v.resourceId === v.result.tripId,
       'Receipt outcome does not match its operation'
     ),
   z.object({
@@ -471,6 +514,8 @@ export const mutationRequestSchema = z.discriminatedUnion('status', [
       'trip.join',
       'trip.update',
       'trip.archive',
+      'member.create',
+      'member.rename',
       'expense.update',
       'expense.delete',
       'payment.create',

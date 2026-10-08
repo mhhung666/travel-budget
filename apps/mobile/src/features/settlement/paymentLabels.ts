@@ -17,8 +17,12 @@ export function paymentLabels(
     : 'members' in data
       ? settlementMembers(data.settlement)
       : [
-          { id: data.payment.fromId, name: data.payment.fromName },
-          { id: data.payment.toId, name: data.payment.toName },
+          {
+            id: data.payment.fromId,
+            name: data.payment.fromName,
+            isVirtual: data.payment.fromIsVirtual,
+          },
+          { id: data.payment.toId, name: data.payment.toName, isVirtual: data.payment.toIsVirtual },
         ];
   const labels = createMemberLabelIndex(
     data && 'members' in data ? data.members : roster,

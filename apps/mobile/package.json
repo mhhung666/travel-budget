@@ -2,7 +2,7 @@
   "name": "travel-budget-mobile",
   "license": "0BSD",
   "main": "expo-router/entry",
-  "version": "0.12.0",
+  "version": "0.13.0",
   "dependencies": {
     "@tanstack/react-query": "^5.104.0",
     "@travel-budget/contracts": "workspace:*",

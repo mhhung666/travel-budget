@@ -8,7 +8,7 @@
 
 - Mobile U1／U2：完成既有頁面、帳號／旅行表單、本機／佇列恢復顯示與共用身分格式整理；保留 C／D／E、UUID、原期限及撤權，提交相應 patch。開發檢查／iOS 待驗見 [本機驗收](apps/mobile/docs/LOCAL_ACCEPTANCE.md)，Android 延後，未部署。
 - Mobile U review／規劃：修正有效等待、原幣代碼、可見筆數、名冊同名短碼／歷史消歧及顯示負零，memo 還款標籤並移除期限暖快取額外讀取；980 項測試、check 與三平台匯出通過；唯一姓名／朗讀文字與未知名冊不加碼，清單更新／錯誤重試一起重讀名冊、隱藏時略過一般名冊更新，明確重試仍走原授權流程，現名／歷史限制見交接。[修正交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#u-靜態審查修正交接2026-10-08)記未驗範圍與延期整理；G 規格已盤點，該輪以 Mobile patch 交付，未改交易／撤權保護或部署。
-- G1a／Web／Mobile：新增旅行設定、管理員資料編輯與個人封存；共用交易／HTTP 契約、獨立版本確認、固定 UUID、SQLite 恢復與同旅行協調，保留相片重綁與私人資料。目的地首片採手動地址／真實座標，搜尋另排；Web 2,068／Mobile 1,028／隔離交易 76 項、根檢查／build／匯出通過，iOS 待驗見 [G1a 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#g1a-旅行資料與封存交接)。分支分片提交，G1b／G1c 待接續，F 暫緩，未部署。
+- G1a／G1b／Web／Mobile：完成旅行設定／個人封存、全名冊與管理員虛擬建立／更名，帳務頁共用現名／虛擬旗標；共用服務、版本確認、固定 UUID、SQLite 恢復與交易 fence，保留帳務、相片重綁與私人資料。目的地搜尋、G1c 與 F 另排；Web 2,080／Mobile 1,058／隔離交易 214 項、真 HTTP 及根檢查／build／匯出通過，iOS 待驗見 [G1 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#g1b-成員與虛擬成員交接)。分片提交，未部署。
 
 ### 2026-10-07
 

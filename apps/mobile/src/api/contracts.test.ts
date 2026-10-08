@@ -259,3 +259,49 @@ it('reads optional virtual flags while accepting old expense responses', () => {
   ).toMatchObject({ payerIsVirtual: true, splits: [{ isVirtual: false }] });
   expect(expenseDetailSchema.safeParse({ ...old, payerIsVirtual: 'yes' }).success).toBe(false);
 });
+
+it('G1b names are bounded and receipts cannot masquerade as another operation', async () => {
+  const { virtualMemberCreateInput, memberMutationResultSchema, mutationRequestSchema } =
+    await import('@travel-budget/contracts');
+  const tripId = 'a'.repeat(24),
+    memberId = 'b'.repeat(24),
+    revision = 'c'.repeat(64);
+  const identity = {
+    client_request_id: '11111111-1111-4111-8111-111111111111',
+    expected_revision: revision,
+  };
+  expect(
+    virtualMemberCreateInput.parse({ ...identity, display_name: ' Alice ' }).display_name
+  ).toBe('Alice');
+  for (const display_name of ['', '   ', 'x'.repeat(201)])
+    expect(virtualMemberCreateInput.safeParse({ ...identity, display_name }).success).toBe(false);
+  expect(
+    virtualMemberCreateInput.safeParse({ ...identity, display_name: 'Alice', role: 'admin' })
+      .success
+  ).toBe(false);
+  const result = memberMutationResultSchema.parse({ tripId, memberId, revision });
+  expect(
+    mutationRequestSchema.safeParse({
+      status: 'committed',
+      operation: 'member.create',
+      resourceId: memberId,
+      result,
+    }).success
+  ).toBe(true);
+  expect(
+    mutationRequestSchema.safeParse({
+      status: 'committed',
+      operation: 'member.rename',
+      resourceId: tripId,
+      result,
+    }).success
+  ).toBe(false);
+  expect(
+    mutationRequestSchema.safeParse({
+      status: 'committed',
+      operation: 'trip.update',
+      resourceId: tripId,
+      result,
+    }).success
+  ).toBe(false);
+});

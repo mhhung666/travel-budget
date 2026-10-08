@@ -31,7 +31,12 @@ import type { TripStatsDay, TripStatsExpense, TripStatsMember } from '@/lib/trip
  * the needed fields satisfies them.
  */
 
-type PopulatedRef = { _id: { toString(): string }; username: string; displayName: string } | null;
+type PopulatedRef = {
+  _id: { toString(): string };
+  username: string;
+  displayName: string;
+  isVirtual?: boolean;
+} | null;
 
 /** Minimal lean Expense shape `toExpenseDto` needs (payer + splits populated). */
 export type ExpenseDtoInput = {

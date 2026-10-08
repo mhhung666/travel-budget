@@ -47,15 +47,18 @@ export function TripEntryProvider({ children }: PropsWithChildren) {
           try {
             return await manager.requestAs(userId, path, schema, options);
           } catch (error) {
-            const match = /^\/trips\/([^/]+)(?:\/(?:expenses|payments|archive)(?:\/|$)|$)/.exec(
-              path
-            );
+            const match =
+              /^\/trips\/([^/]+)(?:\/(?:expenses|payments|archive|members)(?:\/|$)|$)/.exec(path);
             if (
               match &&
               error instanceof ApiError &&
               error.source === 'request' &&
               ((error.status === 403 &&
-                !(path === `/trips/${match[1]}` && error.code === 'FORBIDDEN')) ||
+                !(
+                  (path === `/trips/${match[1]}` ||
+                    path.startsWith(`/trips/${match[1]}/members`)) &&
+                  error.code === 'FORBIDDEN'
+                )) ||
                 (error.status === 404 && error.code === 'NOT_FOUND'))
             )
               await catalog
@@ -71,7 +74,9 @@ export function TripEntryProvider({ children }: PropsWithChildren) {
           // Normal authorized landing/options reads establish D snapshots, never the join receipt.
           if (
             result.status === 'committed' &&
-            ['trip.update', 'trip.archive'].includes(result.operation)
+            ['trip.update', 'trip.archive', 'member.create', 'member.rename'].includes(
+              result.operation
+            )
           ) {
             await refreshManagedTrip(client, manager, catalog, scope, tripId);
             return;

@@ -16,14 +16,18 @@ export function viewerBalance(settlement: Settlement, userId: string | undefined
 /** Collect visible references for label indexes, including historical trip members. */
 export function settlementMembers(settlement: Settlement): ReadMember[] {
   return [
-    ...settlement.balances.map((b) => ({ id: b.userId, name: b.displayName })),
+    ...settlement.balances.map((b) => ({
+      id: b.userId,
+      name: b.displayName,
+      isVirtual: b.isVirtual,
+    })),
     ...settlement.suggestedTransfers.flatMap((r) => [
-      { id: r.fromId, name: r.fromName },
-      { id: r.toId, name: r.toName },
+      { id: r.fromId, name: r.fromName, isVirtual: r.fromIsVirtual },
+      { id: r.toId, name: r.toName, isVirtual: r.toIsVirtual },
     ]),
     ...settlement.payments.flatMap((p) => [
-      { id: p.fromId, name: p.fromName },
-      { id: p.toId, name: p.toName },
+      { id: p.fromId, name: p.fromName, isVirtual: p.fromIsVirtual },
+      { id: p.toId, name: p.toName, isVirtual: p.toIsVirtual },
     ]),
   ];
 }

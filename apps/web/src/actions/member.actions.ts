@@ -1,12 +1,12 @@
 'use server';
 
 import { withTripWrite, TripWriteError } from '@/lib/tripWriteTransaction';
-import { randomUUID } from 'crypto';
+import { createVirtualMemberForActor } from '@/lib/memberManagement';
 import mongoose, { isValidObjectId } from 'mongoose';
 import { removeTripMember, MemberRemovalError } from '@/lib/memberRemoval';
 import { revalidatePath } from 'next/cache';
 import { dbConnect } from '@/lib/mongodb';
-import { Trip, User } from '@/models';
+import { Trip } from '@/models';
 import { Friendship, friendshipPairKey } from '@/models';
 import { getTripMembership } from '@/lib/permissions';
 import {
@@ -105,45 +105,20 @@ export const addVirtualMember = withAuth(
 
       await dbConnect();
 
-      const { newUser, joinedAt } = await withTripWrite(
-        membership.tripId,
+      const member = await createVirtualMemberForActor(
+        mongoose.connection.db!,
         session.userId,
-        async (transactionSession) => {
-          // Create virtual user
-          const virtualUsername = `virtual_${randomUUID()}`;
-          const [newUser] = await User.create(
-            [
-              {
-                username: virtualUsername,
-                displayName: display_name.trim(),
-                email: `${virtualUsername}@virtual.local`,
-                password: randomUUID(),
-                isVirtual: true,
-              },
-            ],
-            { session: transactionSession }
-          );
-
-          const joinedAt = new Date();
-          await Trip.updateOne(
-            { _id: membership.tripId },
-            { $push: { members: { user: newUser._id, role: 'member', joinedAt } } },
-            { session: transactionSession }
-          );
-          return { newUser, joinedAt };
-        },
-        'admin'
+        membership.tripId,
+        display_name
       );
-      const member: Member = {
-        id: newUser._id.toString(),
-        username: newUser.username,
-        display_name: newUser.displayName,
-        is_virtual: true,
-        joined_at: joinedAt.toISOString(),
-        role: 'member',
-      };
-
-      revalidatePath(`/trips/${tripIdOrCode}`);
+      try {
+        revalidatePath(`/trips/${membership.tripId}`);
+      } catch (error) {
+        logger.error('Virtual member cache refresh failed after commit', {
+          tripId: membership.tripId,
+          error,
+        });
+      }
       return { success: true, data: member };
     } catch (error) {
       if (error instanceof TripWriteError)

@@ -11,7 +11,10 @@ import {
 } from './contract';
 
 type TripMembers = {
-  members: { user: { _id: { toString(): string }; displayName: string } | null; joinedAt?: Date }[];
+  members: {
+    user: { _id: { toString(): string }; displayName: string; isVirtual?: boolean } | null;
+    joinedAt?: Date;
+  }[];
 };
 
 /**
@@ -23,7 +26,7 @@ type TripMembers = {
 export async function readExpenseMembers(tripId: string) {
   const trip = await Trip.findById(tripId)
     .select('members')
-    .populate('members.user', 'displayName')
+    .populate('members.user', 'displayName isVirtual')
     .lean<TripMembers | null>();
   if (!trip) throw new ApiError(404, 'NOT_FOUND');
   const joined = (member: TripMembers['members'][number]) =>
@@ -34,6 +37,7 @@ export async function readExpenseMembers(tripId: string) {
     .map((member) => ({
       id: member.user!._id.toString(),
       displayName: member.user!.displayName,
+      isVirtual: member.user!.isVirtual === true,
     }));
 }
 

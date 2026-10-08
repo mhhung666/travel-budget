@@ -4,7 +4,12 @@ import { roundMoney, normalizeShares } from '@/lib/money';
 import { toPaymentRecord, type PaymentDtoInput } from '@/lib/dto';
 import type { Balance, Settlement } from '@/types';
 type PopulatedMember = {
-  user: { _id: { toString(): string }; username: string; displayName: string } | null;
+  user: {
+    _id: { toString(): string };
+    username: string;
+    displayName: string;
+    isVirtual?: boolean;
+  } | null;
 };
 
 type LeanExpenseForSettlement = {
@@ -15,7 +20,10 @@ type LeanExpenseForSettlement = {
 
 /** 建議轉帳的成員 id 版本；`Settlement.transactions` 只帶顯示名稱，同名成員無法分辨。 */
 export type SettlementTransfer = { fromId: string; toId: string; amount: number };
-export type SettlementDetail = Settlement & { transfers: SettlementTransfer[] };
+export type SettlementDetail = Settlement & {
+  transfers: SettlementTransfer[];
+  virtualMembers?: Record<string, boolean>;
+};
 
 export async function readSettlement(tripId: string, memberIds?: string[]): Promise<Settlement> {
   const { balances, transactions, payments, totalExpenses } = await readSettlementDetail(
@@ -28,10 +36,13 @@ export async function readSettlement(tripId: string, memberIds?: string[]): Prom
 
 /** Authorized Web members retain the identities already used by the mobile settlement view. */
 export async function readMemberSettlement(tripId: string): Promise<Settlement> {
-  const { transfers, ...data } = await readSettlementDetail(tripId);
+  const { transfers, balances, transactions, payments, totalExpenses } =
+    await readSettlementDetail(tripId);
   return {
-    ...data,
-    transactions: data.transactions.map((transaction, index) => ({
+    balances,
+    payments,
+    totalExpenses,
+    transactions: transactions.map((transaction, index) => ({
       ...transaction,
       fromId: transfers[index].fromId,
       toId: transfers[index].toId,
@@ -47,21 +58,21 @@ export async function readSettlementDetail(
   const [trip, expenses, paymentDocs] = await Promise.all([
     memberIds
       ? User.find({ _id: { $in: memberIds } })
-          .select('username displayName')
+          .select('username displayName isVirtual')
           .lean<NonNullable<PopulatedMember['user']>[]>()
           .then((users) => {
             const byId = new Map(users.map((user) => [user._id.toString(), user]));
             return { members: memberIds.map((id) => ({ user: byId.get(id) ?? null })) };
           })
       : Trip.findById(tripId)
-          .populate('members.user', 'username displayName')
+          .populate('members.user', 'username displayName isVirtual')
           .select('members')
           .lean<{ members: PopulatedMember[] } | null>(),
     Expense.find({ trip: tripId }).select('payer amount splits').lean<LeanExpenseForSettlement[]>(),
     Payment.find({ trip: tripId })
       .sort({ createdAt: -1 })
-      .populate('from', 'username displayName')
-      .populate('to', 'username displayName')
+      .populate('from', 'username displayName isVirtual')
+      .populate('to', 'username displayName isVirtual')
       .select('from to amount note createdAt')
       .lean<PaymentDtoInput[]>(),
   ]);
@@ -130,5 +141,17 @@ export function calculateSettlementDetail(
     amount: t.amount,
   }));
 
-  return { balances, transactions, transfers, payments, totalExpenses: roundMoney(totalExpenses) };
+  const virtualMembers = Object.fromEntries(
+    [...members, ...paymentDocs.flatMap((p) => [p.from, p.to])]
+      .filter((u) => u !== null)
+      .map((u) => [u!._id.toString(), u!.isVirtual === true])
+  );
+  return {
+    balances,
+    transactions,
+    transfers,
+    payments,
+    virtualMembers,
+    totalExpenses: roundMoney(totalExpenses),
+  };
 }

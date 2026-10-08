@@ -137,9 +137,9 @@ describe('expense options', () => {
     const options = await mobileExpenseOptions(AMY, TRIP);
     // Bob and Amy joined together: stored order decides. The dangling reference is skipped.
     expect(options.members).toEqual([
-      { id: BOB, displayName: 'Bob' },
-      { id: AMY, displayName: 'Amy' },
-      { id: CARA, displayName: 'Cara' },
+      { id: BOB, displayName: 'Bob', isVirtual: false },
+      { id: AMY, displayName: 'Amy', isVirtual: true },
+      { id: CARA, displayName: 'Cara', isVirtual: false },
     ]);
     expect(options.categories).toEqual([...expenseCategories]);
     expect(JSON.stringify(options)).not.toContain('login-');

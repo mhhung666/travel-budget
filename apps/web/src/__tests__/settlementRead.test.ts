@@ -82,9 +82,11 @@ describe('readSettlementDetail', () => {
     expect(Object.keys(result).sort()).toEqual(
       ['balances', 'payments', 'totalExpenses', 'transactions'].sort()
     );
-    const { transfers, ...detail } = await readSettlementDetail(TRIP);
+    const { transfers, virtualMembers, ...detail } = await readSettlementDetail(TRIP);
     expect(transfers).toHaveLength(2);
     expect(result).toEqual(detail);
+    expect(virtualMembers).toBeDefined();
+    expect(result).not.toHaveProperty('virtualMembers');
   });
 });
 

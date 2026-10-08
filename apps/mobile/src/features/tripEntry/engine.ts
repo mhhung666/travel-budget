@@ -1,5 +1,7 @@
 import {
   mutationRequestSchema,
+  memberMutationResultSchema,
+  type MemberMutationResult,
   tripMutationResultSchema,
   tripManagementResultSchema,
   type TripManagementResult,
@@ -227,32 +229,44 @@ export class TripEntry {
     try {
       await this.ready(store, record, guard);
       const result = await this.deps.request<
-        TripMutationResult | ExpenseMutationResult | PaymentMutationResult | TripManagementResult
+        | TripMutationResult
+        | ExpenseMutationResult
+        | PaymentMutationResult
+        | TripManagementResult
+        | MemberMutationResult
       >(
         record.accountId,
-        record.operation === 'trip.update'
-          ? `/trips/${record.tripId}`
-          : record.operation === 'trip.archive'
-            ? `/trips/${record.tripId}/archive`
-            : record.operation === 'payment.create'
-              ? `/trips/${record.tripId}/payments`
-              : record.operation === 'payment.delete'
-                ? `/trips/${record.tripId}/payments/${record.payload?.operation === 'payment.delete' ? record.payload.paymentId : ''}`
-                : record.operation === 'trip.create'
-                  ? '/trips'
-                  : record.operation === 'trip.join'
-                    ? '/trips/join'
-                    : `/trips/${record.tripId}/expenses/${'expenseId' in record.payload! ? record.payload.expenseId : ''}`,
-        record.operation === 'trip.update' || record.operation === 'trip.archive'
-          ? tripManagementResultSchema
-          : record.operation.startsWith('payment.')
-            ? paymentMutationResultSchema
-            : record.operation.startsWith('expense.')
-              ? expenseMutationResultSchema
-              : tripMutationResultSchema,
+        record.operation === 'member.create'
+          ? `/trips/${record.tripId}/members`
+          : record.operation === 'member.rename'
+            ? `/trips/${record.tripId}/members/${record.payload?.operation === 'member.rename' ? record.payload.memberId : ''}`
+            : record.operation === 'trip.update'
+              ? `/trips/${record.tripId}`
+              : record.operation === 'trip.archive'
+                ? `/trips/${record.tripId}/archive`
+                : record.operation === 'payment.create'
+                  ? `/trips/${record.tripId}/payments`
+                  : record.operation === 'payment.delete'
+                    ? `/trips/${record.tripId}/payments/${record.payload?.operation === 'payment.delete' ? record.payload.paymentId : ''}`
+                    : record.operation === 'trip.create'
+                      ? '/trips'
+                      : record.operation === 'trip.join'
+                        ? '/trips/join'
+                        : `/trips/${record.tripId}/expenses/${'expenseId' in record.payload! ? record.payload.expenseId : ''}`,
+        record.operation.startsWith('member.')
+          ? memberMutationResultSchema
+          : record.operation === 'trip.update' || record.operation === 'trip.archive'
+            ? tripManagementResultSchema
+            : record.operation.startsWith('payment.')
+              ? paymentMutationResultSchema
+              : record.operation.startsWith('expense.')
+                ? expenseMutationResultSchema
+                : tripMutationResultSchema,
         {
           method:
-            record.operation === 'expense.update' || record.operation === 'trip.update'
+            record.operation === 'member.rename' ||
+            record.operation === 'expense.update' ||
+            record.operation === 'trip.update'
               ? 'PATCH'
               : record.operation === 'expense.delete' || record.operation === 'payment.delete'
                 ? 'DELETE'
@@ -266,11 +280,13 @@ export class TripEntry {
         status: 'committed',
         operation: record.operation,
         resourceId:
-          'expenseId' in result
-            ? result.expenseId
-            : 'paymentId' in result
-              ? result.paymentId
-              : result.tripId,
+          'memberId' in result
+            ? result.memberId
+            : 'expenseId' in result
+              ? result.expenseId
+              : 'paymentId' in result
+                ? result.paymentId
+                : result.tripId,
         result,
       });
     } catch (error) {
@@ -281,7 +297,7 @@ export class TripEntry {
         failed.error === error &&
         error instanceof ApiError &&
         ([404, 409].includes(error.status) ||
-          (record.operation === 'trip.update' &&
+          ((record.operation === 'trip.update' || record.operation.startsWith('member.')) &&
             error.status === 403 &&
             error.code === 'FORBIDDEN')) &&
         error.source === 'request'

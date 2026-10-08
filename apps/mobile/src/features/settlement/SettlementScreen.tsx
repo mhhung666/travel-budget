@@ -63,7 +63,11 @@ function Balances({ settlement, labels }: { settlement: Settlement; labels: Memb
           style={{ gap: spacing.tiny }}
         >
           <Text style={[typography.body, { color: p.text, fontWeight: '600' }]}>
-            {labels.label({ id: entry.userId, name: entry.displayName })}
+            {labels.label({
+              id: entry.userId,
+              name: entry.displayName,
+              isVirtual: entry.isVirtual,
+            })}
           </Text>
           <Text
             style={[
@@ -113,8 +117,12 @@ function Details({
               style={{ gap: spacing.small }}
             >
               <Route
-                from={{ id: transfer.fromId, name: transfer.fromName }}
-                to={{ id: transfer.toId, name: transfer.toName }}
+                from={{
+                  id: transfer.fromId,
+                  name: transfer.fromName,
+                  isVirtual: transfer.fromIsVirtual,
+                }}
+                to={{ id: transfer.toId, name: transfer.toName, isVirtual: transfer.toIsVirtual }}
                 labels={labels}
               />
               <Text
@@ -166,8 +174,12 @@ function Details({
               style={{ gap: spacing.small }}
             >
               <Route
-                from={{ id: payment.fromId, name: payment.fromName }}
-                to={{ id: payment.toId, name: payment.toName }}
+                from={{
+                  id: payment.fromId,
+                  name: payment.fromName,
+                  isVirtual: payment.fromIsVirtual,
+                }}
+                to={{ id: payment.toId, name: payment.toName, isVirtual: payment.toIsVirtual }}
                 labels={labels}
               />
               <Text

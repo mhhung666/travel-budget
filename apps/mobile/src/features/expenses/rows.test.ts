@@ -170,3 +170,25 @@ it('uses Other for unrecognized display categories without mutating the stored v
   expect(categoryLabel(stored, messages.en)).toBe(messages.en.categoryOther);
   expect(stored).toBe('legacy-category');
 });
+
+it.each(localeKeys)(
+  'current virtual flags override stale references and reach choices in %s',
+  (locale) => {
+    const t = messages[locale];
+    const labels = createMemberLabelIndex(
+      [
+        { id: a, displayName: 'Alice', isVirtual: true },
+        { id: b, displayName: 'Bob', isVirtual: false },
+      ],
+      [],
+      undefined,
+      t
+    );
+    expect(labels.label({ id: a, name: 'Old' })).toBe(`Alice · ${t.virtualMember}`);
+    expect(labels.label({ id: b, name: 'Old', isVirtual: true })).toBe('Bob');
+    const unavailable = createMemberLabelIndex(undefined, [], undefined, t);
+    expect(unavailable.label({ id: a, name: 'Alice', isVirtual: true })).toBe(
+      `Alice · ${t.virtualMember}`
+    );
+  }
+);

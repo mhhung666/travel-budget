@@ -53,6 +53,7 @@ export async function refreshManagedTrip(
       beforeSend();
       await catalog.rememberOptions(scope, tripId, options);
       beforeSend();
+      client.setQueryData([scope.environment, scope.accountId, 'expense-options', tripId], options);
     } catch (error) {
       if (
         error instanceof ApiError &&
@@ -65,6 +66,12 @@ export async function refreshManagedTrip(
       throw error;
     }
   };
+  beforeSend();
+  // Stop an older options read before publishing the newly authorized roster.
+  await client.cancelQueries({
+    queryKey: [scope.environment, scope.accountId, 'expense-options', tripId],
+    exact: true,
+  });
   beforeSend();
   // Invalidate all affected read caches even if the durable name/options refresh fails.
   await Promise.all([

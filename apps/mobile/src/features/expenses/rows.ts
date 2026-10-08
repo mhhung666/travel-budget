@@ -96,7 +96,7 @@ export function createMemberLabelIndex(
           : known
             ? currentCodes.get(member.id)
             : (historicalCodes.get(name)?.get(member.id) ?? member.id.slice(-6));
-      return `${name}${code ? ` · #${code}` : ''}${member.id === viewerId ? ` · ${t.you}` : ''}${member.isVirtual === true ? ` · ${t.virtualMember}` : ''}`;
+      return `${name}${code ? ` · #${code}` : ''}${member.id === viewerId ? ` · ${t.you}` : ''}${(known?.isVirtual ?? member.isVirtual) === true ? ` · ${t.virtualMember}` : ''}`;
     },
   };
 }

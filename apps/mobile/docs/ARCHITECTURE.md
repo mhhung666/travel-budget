@@ -165,3 +165,7 @@ E3 成功只存最小 receipt 結果並刷新資源，刪除明細不再重讀�
 ## G1a 旅行管理
 
 `features/trips/TripSettingsScreen.tsx` 由私有 settings 路由依環境／帳號／旅行重新掛載；`settingsForm.ts` 只準備實際修改欄位及衝突重新套用。HTTP／contracts 與 Web 共用 `tripManagement.ts`；管理員資料及個人封存分開 revision，日期沿用相片重綁。確認後擴充既有 TripEntry／mutationPayload 的 trip.update／trip.archive，不另建引擎或 DB；pending 的同旅行鎖延續 C／D／E。`managementRefresh.ts` 在提交成功後只讀刷新相關 Query 與 D 名稱／選項快照，擷取登入／catalog 世代並同步檢查 429 期限；失敗不改已提交結果，429 落盤。地點只傳白名單真實座標，首片不增加地理搜尋依賴。
+
+## G1b 成員管理
+
+`TripMembersScreen` 由環境／帳號／旅行／恢復來源重新掛載，線上讀全名冊、核對 revision 後確認建立／更名；未確認輸入不落盤。沿用 TripEntry／mutationPayload 的 member.create／member.rename 與 schema 8 操作表，pending 互斥、固定 UUID、429 及撤權世代不另造機制。管理員拒絕不當作失去成員資格，原結果仍可查；對象不再虛擬需取消更名。成功只讀刷新沿用 managementRefresh，取消舊 options 請求後發布授權新名冊至共用 label Query 與 D 快照，避免晚到舊資料覆蓋現名／旗標。結算歷史旗標由後端原參照提供，public 結算仍使用原白名單；契約見 [G1b](BACKEND_CONTRACT.md#g1b-成員與虛擬成員)。

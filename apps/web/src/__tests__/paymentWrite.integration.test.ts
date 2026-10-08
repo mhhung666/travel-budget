@@ -130,12 +130,15 @@ describe.skipIf(!uri || !allowed)('E4 isolated payment transactions', () => {
         fromId: peer.toString(),
         toId: actor.toString(),
         fromName: 'Same name',
+        fromIsVirtual: false,
         toName: 'Same name',
+        toIsVirtual: false,
         amount: 50,
       },
     ]);
     expect(c.members).toHaveLength(3);
-    expect(JSON.stringify(c)).not.toMatch(/private|email|hashCode|username|isVirtual/);
+    expect(c.members.map((m) => m.isVirtual)).toEqual([false, false, true]);
+    expect(JSON.stringify(c)).not.toMatch(/private|email|hashCode|username/);
   });
   it.each([0.01, 20, 80, 1000000000])(
     'partial/excess payment %s uses backend settlement, no suggestion cap',

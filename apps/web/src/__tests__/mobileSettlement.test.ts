@@ -163,3 +163,45 @@ describe('mobile settlement endpoint adapter', () => {
     expect(mocks.read).not.toHaveBeenCalled();
   });
 });
+
+it('member-only settlement includes current and historical virtual identity without login identifiers', async () => {
+  const { calculateSettlementDetail } =
+    await vi.importActual<typeof import('@/lib/settlementRead')>('@/lib/settlementRead');
+  const realId = 'a'.repeat(24),
+    virtualId = 'b'.repeat(24),
+    historicalId = 'c'.repeat(24);
+  const person = (id: string, isVirtual: boolean) => ({
+    _id: { toString: () => id },
+    username: 'private-login',
+    displayName: 'Alice',
+    isVirtual,
+  });
+  const detail = calculateSettlementDetail(
+    [{ user: person(realId, false) }, { user: person(virtualId, true) }],
+    [
+      {
+        payer: { toString: () => realId },
+        amount: 20,
+        splits: [{ user: { toString: () => virtualId }, shareAmount: 20 }],
+      },
+    ],
+    [
+      {
+        _id: { toString: () => 'd'.repeat(24) },
+        from: person(historicalId, true),
+        to: person(realId, false),
+        amount: 1,
+        createdAt: new Date('2026-10-01'),
+      },
+    ]
+  );
+  const data = toMobileSettlement(detail);
+  expect(data.balances.map((b) => b.isVirtual)).toEqual([false, true]);
+  expect(data.suggestedTransfers[0]).toMatchObject({ fromIsVirtual: true, toIsVirtual: false });
+  expect(data.payments[0]).toMatchObject({
+    fromId: historicalId,
+    fromIsVirtual: true,
+    toIsVirtual: false,
+  });
+  expect(JSON.stringify(data)).not.toMatch(/username|private-login|virtualMembers/);
+});

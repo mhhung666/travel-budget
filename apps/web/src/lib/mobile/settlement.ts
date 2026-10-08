@@ -26,6 +26,9 @@ export function toMobileSettlement(settlement: SettlementDetail): MobileSettleme
     balances: settlement.balances.map((balance) => ({
       userId: balance.userId,
       displayName: balance.username,
+      ...(settlement.virtualMembers
+        ? { isVirtual: settlement.virtualMembers[balance.userId] === true }
+        : {}),
       totalPaid: balance.totalPaid,
       totalOwed: balance.totalOwed,
       balance: balance.balance,
@@ -33,6 +36,12 @@ export function toMobileSettlement(settlement: SettlementDetail): MobileSettleme
     suggestedTransfers: settlement.transfers.map((transfer) => ({
       fromId: transfer.fromId,
       fromName: names.get(transfer.fromId) ?? '',
+      ...(settlement.virtualMembers
+        ? {
+            fromIsVirtual: settlement.virtualMembers[transfer.fromId] === true,
+            toIsVirtual: settlement.virtualMembers[transfer.toId] === true,
+          }
+        : {}),
       toId: transfer.toId,
       toName: names.get(transfer.toId) ?? '',
       amount: transfer.amount,
@@ -41,6 +50,12 @@ export function toMobileSettlement(settlement: SettlementDetail): MobileSettleme
       id: payment.id,
       fromId: payment.fromId || null,
       fromName: payment.fromId ? payment.fromName : '',
+      ...(settlement.virtualMembers
+        ? {
+            fromIsVirtual: settlement.virtualMembers[payment.fromId] === true,
+            toIsVirtual: settlement.virtualMembers[payment.toId] === true,
+          }
+        : {}),
       toId: payment.toId || null,
       toName: payment.toId ? payment.toName : '',
       amount: payment.amount,

@@ -73,3 +73,7 @@ Web update／delete action 抽成 `expenseMaintenance.ts` 的 actor service，�
 ## G1a 旅行管理
 
 `tripManagement.ts` 抽出 Web update／archive action 的旅行修改與本人封存，Mobile settings／PATCH／archive adapter 共用同一 parent fence／snapshot transaction。地點／date-only／部分日期與 auto 相片重綁規則保留；Mobile 比較原始旅行資料 HMAC 或本人封存 HMAC，再於交易寫入資料及 E receipt。重播先檢查目前成員資格，降權不推翻原成功，新編輯的降權保存可查拒絕；結果查詢沿用 `readTripMutation`。提交後讀取／快取不推翻成功。契約見 [G1a](../../mobile/docs/BACKEND_CONTRACT.md#g1a-旅行資料與個人封存)。
+
+## G1b 成員管理
+
+`memberManagement.ts` 共用 Web 虛擬建立與 Mobile 全名冊／建立／更名；父旅行交易重新授權管理員及比對名冊 HMAC，User／membership／receipt 原子提交。更名寫入 User fence 與跨旅行認領競爭，保留所有帳務參照；已提交 Web cache 失敗仍成功。`settlementRead` 只在內部 detail 攜帶虛擬旗標索引，public／Web DTO 明確排除，成員 HTTP mapper 才輸出可選旗標。端點／恢復規則見 [G1b 契約](../../mobile/docs/BACKEND_CONTRACT.md#g1b-成員與虛擬成員)。

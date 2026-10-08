@@ -21,6 +21,10 @@ import {
   expenseCreateInput,
   expenseRequestSchema,
   MAX_EXPENSE_AMOUNT,
+  tripMembersSchema,
+  virtualMemberCreateInput,
+  virtualMemberRenameInput,
+  memberMutationResultSchema,
   tripSettingsSchema,
   tripUpdateInput,
   tripArchiveInput,
@@ -45,6 +49,10 @@ const maxAmount = MAX_EXPENSE_AMOUNT.toLocaleString('en-US', { minimumFractionDi
 
 const schemas = Object.fromEntries(
   Object.entries({
+    TripMembers: tripMembersSchema,
+    VirtualMemberCreateInput: virtualMemberCreateInput,
+    VirtualMemberRenameInput: virtualMemberRenameInput,
+    MemberMutationResult: memberMutationResultSchema,
     TripSettings: tripSettingsSchema,
     TripUpdateInput: tripUpdateInput,
     TripArchiveInput: tripArchiveInput,
@@ -218,6 +226,34 @@ const paths = {
       parameters: [tripIdParam],
     },
   },
+  '/trips/{id}/members': {
+    get: {
+      ...operation('tripMembers', 'TripMembers'),
+      parameters: [tripIdParam],
+      description:
+        'Current authorized member roster in joined order. No username, email or budget.',
+    },
+    post: {
+      ...operation('createVirtualMember', 'MemberMutationResult', 'VirtualMemberCreateInput', {
+        authenticated: true,
+        errors: [403, 409],
+      }),
+      parameters: [tripIdParam],
+      description:
+        'Admin only. Persist one UUID before sending; stale roster yields a terminal rejection. Replay is authorized as a current member.',
+    },
+  },
+  '/trips/{id}/members/{memberId}': {
+    patch: {
+      ...operation('renameVirtualMember', 'MemberMutationResult', 'VirtualMemberRenameInput', {
+        authenticated: true,
+        errors: [403, 409],
+      }),
+      parameters: [tripIdParam, { name: 'memberId', in: 'path', required: true, schema: objectId }],
+      description:
+        'Admin only, current virtual members only. Same UUID and payload for every retry; query the original result after an ambiguous response.',
+    },
+  },
   '/trips/{id}/landing': {
     get: {
       ...operation('landing', 'Landing'),
@@ -262,7 +298,7 @@ const paths = {
       ...operation('expenseOptions', 'ExpenseOptions'),
       parameters: [tripIdParam],
       description:
-        'Trip members (earliest joined first, virtual members included; ids and display names only) and the expense categories. Members only.',
+        'Trip members (earliest joined first, virtual members included; ids, display names and optional virtual flags only) and the expense categories. Members only.',
     },
   },
   '/trips/{id}/expense-requests/{clientRequestId}': {

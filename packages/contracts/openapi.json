@@ -1725,6 +1725,409 @@
         ]
       }
     },
+    "/trips/{id}/members": {
+      "get": {
+        "operationId": "tripMembers",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/TripMembers"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]{24}$"
+            }
+          }
+        ],
+        "description": "Current authorized member roster in joined order. No username, email or budget."
+      },
+      "post": {
+        "operationId": "createVirtualMember",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VirtualMemberCreateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success; Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/MemberMutationResult"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]{24}$"
+            }
+          }
+        ],
+        "description": "Admin only. Persist one UUID before sending; stale roster yields a terminal rejection. Replay is authorized as a current member."
+      }
+    },
+    "/trips/{id}/members/{memberId}": {
+      "patch": {
+        "operationId": "renameVirtualMember",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VirtualMemberRenameInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success; Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/MemberMutationResult"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]{24}$"
+            }
+          },
+          {
+            "name": "memberId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]{24}$"
+            }
+          }
+        ],
+        "description": "Admin only, current virtual members only. Same UUID and payload for every retry; query the original result after an ambiguous response."
+      }
+    },
     "/trips/{id}/landing": {
       "get": {
         "operationId": "landing",
@@ -2328,7 +2731,7 @@
             }
           }
         ],
-        "description": "Trip members (earliest joined first, virtual members included; ids and display names only) and the expense categories. Members only."
+        "description": "Trip members (earliest joined first, virtual members included; ids, display names and optional virtual flags only) and the expense categories. Members only."
       }
     },
     "/trips/{id}/expense-requests/{clientRequestId}": {
@@ -3597,6 +4000,151 @@
       }
     },
     "schemas": {
+      "TripMembers": {
+        "type": "object",
+        "properties": {
+          "tripId": {
+            "type": "string",
+            "pattern": "^[a-f\\d]{24}$"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "member"
+            ]
+          },
+          "revision": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[a-f\\d]{24}$"
+                },
+                "displayName": {
+                  "type": "string"
+                },
+                "isVirtual": {
+                  "type": "boolean"
+                },
+                "role": {
+                  "type": "string",
+                  "enum": [
+                    "admin",
+                    "member"
+                  ]
+                },
+                "joinedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "displayName",
+                "isVirtual",
+                "role",
+                "joinedAt"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "tripId",
+          "role",
+          "revision",
+          "members"
+        ],
+        "additionalProperties": false
+      },
+      "VirtualMemberCreateInput": {
+        "type": "object",
+        "properties": {
+          "client_request_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "expected_revision": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "display_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "client_request_id",
+          "expected_revision",
+          "display_name"
+        ],
+        "additionalProperties": false
+      },
+      "VirtualMemberRenameInput": {
+        "type": "object",
+        "properties": {
+          "client_request_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "expected_revision": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "display_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "client_request_id",
+          "expected_revision",
+          "display_name"
+        ],
+        "additionalProperties": false
+      },
+      "MemberMutationResult": {
+        "type": "object",
+        "properties": {
+          "tripId": {
+            "type": "string",
+            "pattern": "^[a-f\\d]{24}$"
+          },
+          "memberId": {
+            "type": "string",
+            "pattern": "^[a-f\\d]{24}$"
+          },
+          "revision": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        },
+        "required": [
+          "tripId",
+          "memberId",
+          "revision"
+        ],
+        "additionalProperties": false
+      },
       "TripSettings": {
         "type": "object",
         "properties": {
@@ -4010,6 +4558,8 @@
                   "trip.join",
                   "trip.update",
                   "trip.archive",
+                  "member.create",
+                  "member.rename",
                   "expense.update",
                   "expense.delete",
                   "payment.create",
@@ -4109,6 +4659,29 @@
                       "tripId"
                     ],
                     "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "tripId": {
+                        "type": "string",
+                        "pattern": "^[a-f\\d]{24}$"
+                      },
+                      "memberId": {
+                        "type": "string",
+                        "pattern": "^[a-f\\d]{24}$"
+                      },
+                      "revision": {
+                        "type": "string",
+                        "pattern": "^[a-f0-9]{64}$"
+                      }
+                    },
+                    "required": [
+                      "tripId",
+                      "memberId",
+                      "revision"
+                    ],
+                    "additionalProperties": false
                   }
                 ]
               }
@@ -4135,6 +4708,8 @@
                   "trip.join",
                   "trip.update",
                   "trip.archive",
+                  "member.create",
+                  "member.rename",
                   "expense.update",
                   "expense.delete",
                   "payment.create",
@@ -4180,6 +4755,9 @@
                 },
                 "displayName": {
                   "type": "string"
+                },
+                "isVirtual": {
+                  "type": "boolean"
                 }
               },
               "required": [
@@ -4215,6 +4793,9 @@
                     "displayName": {
                       "type": "string"
                     },
+                    "isVirtual": {
+                      "type": "boolean"
+                    },
                     "totalPaid": {
                       "type": "number"
                     },
@@ -4247,12 +4828,18 @@
                     "fromName": {
                       "type": "string"
                     },
+                    "fromIsVirtual": {
+                      "type": "boolean"
+                    },
                     "toId": {
                       "type": "string",
                       "pattern": "^[a-f\\d]{24}$"
                     },
                     "toName": {
                       "type": "string"
+                    },
+                    "toIsVirtual": {
+                      "type": "boolean"
                     },
                     "amount": {
                       "type": "number"
@@ -4291,6 +4878,9 @@
                     "fromName": {
                       "type": "string"
                     },
+                    "fromIsVirtual": {
+                      "type": "boolean"
+                    },
                     "toId": {
                       "anyOf": [
                         {
@@ -4304,6 +4894,9 @@
                     },
                     "toName": {
                       "type": "string"
+                    },
+                    "toIsVirtual": {
+                      "type": "boolean"
                     },
                     "amount": {
                       "type": "number"
@@ -4383,6 +4976,9 @@
               "fromName": {
                 "type": "string"
               },
+              "fromIsVirtual": {
+                "type": "boolean"
+              },
               "toId": {
                 "anyOf": [
                   {
@@ -4396,6 +4992,9 @@
               },
               "toName": {
                 "type": "string"
+              },
+              "toIsVirtual": {
+                "type": "boolean"
               },
               "amount": {
                 "type": "number"
@@ -4657,6 +5256,9 @@
                     },
                     "displayName": {
                       "type": "string"
+                    },
+                    "isVirtual": {
+                      "type": "boolean"
                     }
                   },
                   "required": [
@@ -5598,6 +6200,9 @@
                 "displayName": {
                   "type": "string"
                 },
+                "isVirtual": {
+                  "type": "boolean"
+                },
                 "totalPaid": {
                   "type": "number"
                 },
@@ -5630,12 +6235,18 @@
                 "fromName": {
                   "type": "string"
                 },
+                "fromIsVirtual": {
+                  "type": "boolean"
+                },
                 "toId": {
                   "type": "string",
                   "pattern": "^[a-f\\d]{24}$"
                 },
                 "toName": {
                   "type": "string"
+                },
+                "toIsVirtual": {
+                  "type": "boolean"
                 },
                 "amount": {
                   "type": "number"
@@ -5674,6 +6285,9 @@
                 "fromName": {
                   "type": "string"
                 },
+                "fromIsVirtual": {
+                  "type": "boolean"
+                },
                 "toId": {
                   "anyOf": [
                     {
@@ -5687,6 +6301,9 @@
                 },
                 "toName": {
                   "type": "string"
+                },
+                "toIsVirtual": {
+                  "type": "boolean"
                 },
                 "amount": {
                   "type": "number"
@@ -5744,6 +6361,9 @@
                 },
                 "displayName": {
                   "type": "string"
+                },
+                "isVirtual": {
+                  "type": "boolean"
                 }
               },
               "required": [

@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { createHash, randomUUID } from 'node:crypto';
 import mongoose, { mongo } from 'mongoose';
-import { MAX_EXPENSE_AMOUNT } from '@travel-budget/contracts';
+import { MAX_EXPENSE_AMOUNT, type MobileExpenseDetail } from '@travel-budget/contracts';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Expense, Trip } from '@/models';
 import { createExpense, deleteExpense, getExpenses } from '@/actions/expense.actions';
@@ -64,6 +64,12 @@ const jsonRequest = (body: unknown) =>
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
+
+/** Creation receipts remain historical and lack read-time identity metadata. */
+function receiptFields(detail: MobileExpenseDetail) {
+  const { payerIsVirtual: _payerFlag, ...data } = detail;
+  return { ...data, splits: data.splits.map(({ isVirtual: _flag, ...split }) => split) };
+}
 
 describe.skipIf(!uri || !allowed)('mobile expense write against an isolated replica set', () => {
   let owned = false;
@@ -159,7 +165,8 @@ describe.skipIf(!uri || !allowed)('mobile expense write against an isolated repl
   it('previews, creates and reads back a fixed-order equal split that all readers agree on', async () => {
     const options = await mobileExpenseOptions(hex(amy), tripId);
     expect(options.members.map((member) => member.displayName)).toEqual(['Amy', 'Bob', 'Cara']);
-    expect(JSON.stringify(options)).not.toMatch(/login|isVirtual|email/);
+    expect(options.members.map((m) => m.isVirtual)).toEqual([false, false, true]);
+    expect(JSON.stringify(options)).not.toMatch(/login|email/);
 
     const preview = await mobileExpensePreview(
       jsonRequest({ amount: 100, member_ids: [...options.members].reverse().map((m) => m.id) }),
@@ -211,7 +218,10 @@ describe.skipIf(!uri || !allowed)('mobile expense write against an isolated repl
     );
     expect(list.items).toHaveLength(1);
     expect(list.items[0]).toMatchObject({ id: created.id, amount: 100, payerName: 'Amy' });
-    expect(await mobileExpense(hex(bob), tripId, created.id)).toEqual(created);
+    const read = await mobileExpense(hex(bob), tripId, created.id);
+    expect(read.payerIsVirtual).toBe(false);
+    expect(read.splits.map((s) => s.isVirtual)).toEqual([false, false, true]);
+    expect(receiptFields(read)).toEqual(created);
     const web = await getExpenses(tripId);
     expect(web.success && web.data).toHaveLength(1);
     if (web.success) {
@@ -548,7 +558,7 @@ describe.skipIf(!uri || !allowed)('mobile expense write against an isolated repl
       async (stored, retried) => {
         const payload = body({ client_request_id: stored });
         const original = await acceptedEarlier(payload);
-        const committed = await mobileExpense(hex(amy), tripId, original.id);
+        const committed = receiptFields(await mobileExpense(hex(amy), tripId, original.id));
         const before = await state();
         const retry = { ...payload, client_request_id: retried };
 
@@ -818,7 +828,7 @@ describe.skipIf(!uri || !allowed)('mobile expense write against an isolated repl
           listed.success &&
             listed.data.map((item) => [item.amount, item.splits.map((s) => s.share_amount)])
         ).toEqual([[amount, shares]]);
-        expect(await mobileExpense(hex(amy), tripId, created.id)).toEqual(created);
+        expect(receiptFields(await mobileExpense(hex(amy), tripId, created.id))).toEqual(created);
 
         const settlement = await mobileSettlement(hex(amy), tripId);
         expect(settlement.totalExpenses).toBe(amount);

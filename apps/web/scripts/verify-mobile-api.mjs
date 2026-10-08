@@ -29,6 +29,8 @@ import {
   paymentMutationResultSchema,
   expenseEditContextSchema,
   expenseMutationResultSchema,
+  tripMembersSchema,
+  memberMutationResultSchema,
   mutationRequestSchema,
 } from '@travel-budget/contracts';
 import { up as migrateSessions } from '../migrations/20261002100000-mobile-session-expiry.js';
@@ -83,6 +85,11 @@ async function freePort() {
   const { port } = server.address();
   await new Promise((resolve) => server.close(resolve));
   return port;
+}
+// Current identity metadata is deliberately absent from historical creation receipts.
+function receiptFields(detail) {
+  const { payerIsVirtual: _payerFlag, ...data } = detail;
+  return { ...data, splits: data.splits.map(({ isVirtual: _flag, ...split }) => split) };
 }
 const pass = (name) => console.log(`PASS ${name}`);
 try {
@@ -664,6 +671,7 @@ try {
         'category',
         'payerId',
         'payerName',
+        'payerIsVirtual',
         'amount',
         'originalAmount',
         'currency',
@@ -677,6 +685,7 @@ try {
       category: expected.category,
       payerId: hexId(doc.payer),
       payerName: names.get(hexId(doc.payer)),
+      payerIsVirtual: hexId(doc.payer) === hexId(virtualGuest._id),
       amount: expected.amountCents / 100,
       originalAmount: expected.originalAmount,
       currency: expected.currency,
@@ -705,6 +714,7 @@ try {
         'category',
         'payerId',
         'payerName',
+        'payerIsVirtual',
         'amount',
         'originalAmount',
         'currency',
@@ -721,7 +731,7 @@ try {
       `${doc.description}: shares`
     );
     for (const split of detail.splits) {
-      assertKeys(split, ['userId', 'displayName', 'shareAmount'], 'split');
+      assertKeys(split, ['userId', 'displayName', 'shareAmount', 'isVirtual'], 'split');
       assert.equal(split.displayName, names.get(split.userId));
     }
     assert.equal(
@@ -780,7 +790,7 @@ try {
     [...net].sort()
   );
   for (const entry of ledgerSettlement.balances) {
-    assertKeys(entry, ['userId', 'displayName', 'totalPaid', 'totalOwed', 'balance'], 'balance');
+    assertKeys(entry, ['userId', 'displayName', 'isVirtual', 'totalPaid', 'totalOwed', 'balance'], 'balance');
     assert.equal(toCents(entry.totalPaid), paid.get(entry.userId) ?? 0);
     assert.equal(toCents(entry.totalOwed), owed.get(entry.userId) ?? 0);
     assert.equal(entry.displayName, names.get(entry.userId));
@@ -788,7 +798,7 @@ try {
   // Following every suggestion must clear every balance.
   const remaining = new Map(net);
   for (const transfer of ledgerSettlement.suggestedTransfers) {
-    assertKeys(transfer, ['fromId', 'fromName', 'toId', 'toName', 'amount'], 'transfer');
+    assertKeys(transfer, ['fromId', 'fromName', 'fromIsVirtual', 'toId', 'toName', 'toIsVirtual', 'amount'], 'transfer');
     assert.equal(transfer.fromName, names.get(transfer.fromId));
     assert.equal(transfer.toName, names.get(transfer.toId));
     remaining.set(transfer.fromId, remaining.get(transfer.fromId) + toCents(transfer.amount));
@@ -805,8 +815,10 @@ try {
       {
         fromId: hexId(ledgerPeer._id),
         fromName: 'TEST mobile-ledger-b',
+        fromIsVirtual: false,
         toId: hexId(ledgerOwner._id),
         toName: 'TEST mobile-ledger',
+        toIsVirtual: false,
         amount: 20.5,
         note: 'TEST cash',
       },
@@ -940,7 +952,7 @@ try {
   assertKeys(options, ['members', 'categories'], 'options');
   assert.deepEqual(
     options.members,
-    memberOrder.map((user) => ({ id: hexId(user._id), displayName: user.displayName })),
+    memberOrder.map((user) => ({ id: hexId(user._id), displayName: user.displayName, isVirtual: user.isVirtual })),
     'members follow join time, then stored order, with virtual members included'
   );
   assert.deepEqual(options.categories, [
@@ -1139,12 +1151,12 @@ try {
     [dinner.id]
   );
   assert.deepEqual(
-    (
+    receiptFields((
       await request(`${createPath}/${dinner.id}`, {
         token: peerSession.accessToken,
         schema: expenseDetailSchema,
       })
-    ).data,
+    ).data),
     dinner
   );
   const dinnerSettlement = await settlementOf(writerTrip._id, writerSession.accessToken);
@@ -1967,6 +1979,135 @@ try {
   assert.equal(await db.collection('payments').countDocuments({ _id: e4Id }), 0);
   await request(`${e4RemovePath}/revoke-context`, { token: writerSession.accessToken, status: 404 });
   pass('E4: partial/manual/virtual payments, cent validation, atomic UUID replay, stale settlement and revoke revisions, lost POST/DELETE acknowledgements, creation replay never resurrects');
+
+  // G1b owns a separate fixture, leaving existing device member/ledger fixtures unchanged.
+  const g1bTrip = new mongoose.Types.ObjectId(),
+    g1bPath = `/trips/${g1bTrip}/members`;
+  await db.collection('trips').insertOne({
+    _id: g1bTrip,
+    name: 'TEST G1b',
+    hashCode: 'g1b-fixture',
+    members: [
+      { user: writer._id, role: 'admin', joinedAt: new Date() },
+      { user: writerPeer._id, role: 'member', joinedAt: new Date() },
+    ],
+  });
+  const g1bRead = async (token = writerSession.accessToken) =>
+    (await request(g1bPath, { token, schema: tripMembersSchema })).data;
+  const g1bOriginal = await g1bRead();
+  assert(!/username|email|password|budget|hashCode/.test(JSON.stringify(g1bOriginal)));
+  await request(g1bPath, { status: 401 });
+  await request(g1bPath, { token: outsiderSession.accessToken, status: 404 });
+  const g1bBody = {
+    client_request_id: randomUUID(),
+    expected_revision: g1bOriginal.revision,
+    display_name: ' TEST virtual ',
+  };
+  await request(g1bPath, {
+    token: writerSession.accessToken,
+    body: { ...g1bBody, role: 'admin' },
+    status: 400,
+  });
+  await request(g1bPath, {
+    token: peerSession.accessToken,
+    body: { ...g1bBody, client_request_id: randomUUID() },
+    status: 403,
+  });
+  const g1bResult = await e4SocketWrite('POST', g1bPath, g1bBody);
+  assert.equal(g1bResult.operation, 'member.create');
+  const g1bMember = new mongoose.Types.ObjectId(g1bResult.result.memberId);
+  const g1bReplays = await Promise.all(
+    Array.from(
+      { length: 3 },
+      async () =>
+        (
+          await request(g1bPath, {
+            token: writerSession.accessToken,
+            body: g1bBody,
+            schema: memberMutationResultSchema,
+          })
+        ).data
+    )
+  );
+  assert.deepEqual(g1bReplays, Array(3).fill(g1bResult.result));
+  assert.equal((await g1bRead()).members.filter((m) => m.isVirtual).length, 1);
+  assert.equal(await db.collection('users').countDocuments({ _id: g1bMember }), 1);
+  await request(g1bPath, {
+    token: writerSession.accessToken,
+    body: { ...g1bBody, client_request_id: randomUUID() },
+    status: 409,
+  });
+  const g1bRename = {
+    client_request_id: randomUUID(),
+    expected_revision: (await g1bRead()).revision,
+    display_name: 'Renamed virtual',
+  };
+  const g1bRenameResult = await e4SocketWrite('PATCH', `${g1bPath}/${g1bMember}`, g1bRename);
+  assert.equal(g1bRenameResult.operation, 'member.rename');
+  assert.equal(
+    (await g1bRead()).members.find((m) => m.id === String(g1bMember)).displayName,
+    'Renamed virtual'
+  );
+  assert.deepEqual(
+    (
+      await request(`${g1bPath}/${g1bMember}`, {
+        token: writerSession.accessToken,
+        method: 'PATCH',
+        body: g1bRename,
+        schema: memberMutationResultSchema,
+      })
+    ).data,
+    g1bRenameResult.result
+  );
+  const g1bOptions = (
+    await request(`/trips/${g1bTrip}/expense-options`, {
+      token: writerSession.accessToken,
+      schema: expenseOptionsSchema,
+    })
+  ).data;
+  assert.equal(g1bOptions.members.find((m) => m.id === String(g1bMember)).isVirtual, true);
+  await db
+    .collection('trips')
+    .updateOne(
+      { _id: g1bTrip, 'members.user': writer._id },
+      { $set: { 'members.$.role': 'member' } }
+    );
+  await request(g1bPath, {
+    token: writerSession.accessToken,
+    body: {
+      ...g1bBody,
+      client_request_id: randomUUID(),
+      expected_revision: (await g1bRead()).revision,
+    },
+    status: 403,
+  });
+  assert.deepEqual(
+    (
+      await request(`/mutation-requests/${g1bBody.client_request_id}`, {
+        token: writerSession.accessToken,
+        schema: mutationRequestSchema,
+      })
+    ).data,
+    g1bResult
+  );
+  await db
+    .collection('trips')
+    .updateOne({ _id: g1bTrip }, { $pull: { members: { user: writer._id } } });
+  await request(g1bPath, { token: writerSession.accessToken, status: 404 });
+  await request(`/mutation-requests/${g1bBody.client_request_id}`, {
+    token: writerSession.accessToken,
+    status: 404,
+  });
+  await db.collection('users').deleteOne({ _id: g1bMember });
+  await db.collection('trips').deleteOne({ _id: g1bTrip });
+  await db
+    .collection('mutationrequests')
+    .deleteMany({
+      $or: [{ 'terminal.tripId': String(g1bTrip) }, { 'terminal.result.tripId': String(g1bTrip) }],
+    });
+  pass(
+    'G1b: authorized roster, strict virtual creation/rename, dropped responses, UUID replay, one user/member, role loss and revoked receipt access'
+  );
 
   // Return the trip to its pristine state for device testing.
   for (const name of ['expenses', 'expensecreaterequests', 'payments', 'notifications', 'activitylogs'])

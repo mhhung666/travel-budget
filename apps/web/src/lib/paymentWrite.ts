@@ -145,7 +145,11 @@ async function snapshot(
     .sort((a, b) =>
       (a.joinedAt?.toISOString() ?? '').localeCompare(b.joinedAt?.toISOString() ?? '')
     )
-    .map((m) => ({ id: m.user.toString(), displayName: byId.get(m.user.toString())!.displayName }));
+    .map((m) => ({
+      id: m.user.toString(),
+      displayName: byId.get(m.user.toString())!.displayName,
+      isVirtual: byId.get(m.user.toString())!.isVirtual === true,
+    }));
   const populated = payments.map((p) => ({
     ...p,
     from: byId.has(p.from.toString()) ? { ...byId.get(p.from.toString())!, username: '' } : null,
@@ -159,6 +163,7 @@ async function snapshot(
           _id: m.user,
           username: '',
           displayName: byId.get(m.user.toString())!.displayName,
+          isVirtual: byId.get(m.user.toString())!.isVirtual === true,
         },
       })),
     expenses,

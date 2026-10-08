@@ -67,3 +67,7 @@ migration `20261006100000-mutation-requests.js` 使用既有 Trip hashCode 唯�
 ## G1a 旅行資料與封存
 
 新增 settings GET、旅行 PATCH 與個人 archive POST；成員 Bearer、嚴格 JSON／8 KiB／no-store。僅 admin 可修改資料，任何成員可封存自己；失去 admin 的新操作有終局拒絕，仍可查結果，不當作整趟旅行撤權。獨立資料／本人封存 revision、欄位、最小結果與錯誤見 [共用契約](../../mobile/docs/BACKEND_CONTRACT.md#g1a-旅行資料與個人封存)。Web／HTTP 共用 `tripManagement.ts`，沿用 receipt／父旅行交易及相片 auto 重綁，無新增 migration。`tripManagement.integration.test.ts` 已納入隔離交易 CI；裝置／真機交其他人，未部署。
+
+## G1b 成員與虛擬成員
+
+新增 members GET／POST 及 members/:memberId PATCH；Bearer 成員讀全名冊，管理員才可建立／更名虛擬身分，strict JSON／8 KiB／no-store。Web 虛擬建立與 HTTP 共用 memberManagement，名冊 revision、UUID receipt 及跨旅行認領的 User fence 保留權限／帳務。現任選項與結算歷史補可選虛擬旗標，不改 public DTO。詳見 [共用契約](../../mobile/docs/BACKEND_CONTRACT.md#g1b-成員與虛擬成員)；memberManagement.integration 已納入隔離交易 CI，test:mobile-api 新增真 HTTP 丟 POST／PATCH 回應、重播／撤權及 DB 筆數核對。原生 UI 由其他人驗收，未部署。
