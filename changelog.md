@@ -6,9 +6,9 @@
 
 ### 2026-10-08
 
-- Mobile U2c：本人應收付／建議優先，還款紀錄／全員餘額分區；還款先選當事人與填金額，完整確認／危險撤銷、四語格式與 ID 標籤沿用 U 元件，catalog 撤權立即遮蔽快取。原 E4 引擎／契約不變；結算虛擬身分旗標另排。驗證與 iOS 獨立待驗見 [U2c 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#u2c-結算與還款驗收交接)，Android 延後；本次提交調升 Mobile patch，未部署，下一片 U2d。
+- Mobile U2d：登入與帳號表單套共用元件、階段標題與密碼欄說明，iOS 驗證碼下一欄只移焦點；旅行表單鍵盤順序、邀請碼／連結與複製／分享／刷新層級統一。E1／E2 引擎、寄碼／驗碼原期限、UUID 與秘密資料清除不變；驗證及 iOS 獨立待驗見 [U2d 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#u2d-帳號與旅行表單驗收交接)，Android 延後；本次提交調升 Mobile patch，未部署，下一片 U2e。
 
-- Mobile U2b：新增／本機草稿與均分編輯採金額優先、多行說明及完整預覽，保存提示短列、一般說明可展開；基本編輯／均分模式與危險刪除明確分開，iOS 金額完成列及已入帳結果整理，刷新失敗只重讀。保留原 C／D／E 引擎與 HTTP／UUID／429；驗證及 iOS 獨立待驗見 [U2b 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#u2b-新增與編輯驗收交接)，Android 延後。本次提交調升 Mobile patch，未部署，下一片 U2c。
+- Mobile U2b／U2c：支出表單／完整預覽、短保存列、均分與基本模式及結算／還款資訊已整理，危險撤銷與本人／同名 ID 明確；保留 C／D／E 引擎、HTTP／UUID／429，成功後刷新失敗只重讀。已提交 Mobile patch，未部署；驗證及 iOS 獨立待驗見 [U2b](apps/mobile/docs/LOCAL_ACCEPTANCE.md#u2b-新增與編輯驗收交接)／[U2c](apps/mobile/docs/LOCAL_ACCEPTANCE.md#u2c-結算與還款驗收交接)，Android 延後，結算虛擬身分旗標另排。
 
 - Mobile U1c／U2a／API：旅行入口與本人帳務、支出閱讀／四語格式及 ID 身分資訊已整理；容器寬度、返回及相容 API 身分旗標已修正並提交相應 patch。驗證與原生待驗範圍見 [U1c／U2a 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#u1c-旅行入口驗收交接)，Android 延後；未部署。
 

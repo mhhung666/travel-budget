@@ -1,10 +1,20 @@
 import { FormPage } from '@/components/screen';
 import { goBack } from '@/components/navigation';
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { Alert, Keyboard, Platform, TextInput } from 'react-native';
+import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from 'react';
+import {
+  Alert,
+  InputAccessoryView,
+  Keyboard,
+  Platform,
+  Pressable,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { router, useFocusEffect, useNavigation } from 'expo-router';
 import { usePreventRemove } from 'expo-router/react-navigation';
-import { Action, Copy, Notice, TextField } from '@/components/ui';
+import { Action, Copy, Notice, TextField, usePalette } from '@/components/ui';
+import { sizing, spacing, typography } from '@/theme/tokens';
 import { useMessages, useAppLocale } from '@/i18n/useMessages';
 import { useAuth } from './AuthProvider';
 import { AccountFlow, accountError, accountRetryAt } from './accountFlow';
@@ -13,6 +23,8 @@ export function AccountScreen({ mode }: { mode: 'register' | 'request' }) {
   const { manager } = useAuth();
   const locale = useAppLocale();
   const t = useMessages();
+  const p = usePalette();
+  const codeAccessoryId = `account-code-${useId()}`;
   const navigation = useNavigation();
   const [flow] = useState(() => new AccountFlow(manager.api, mode, locale));
   const state = useSyncExternalStore(flow.subscribe, flow.getSnapshot, flow.getSnapshot);
@@ -78,7 +90,13 @@ export function AccountScreen({ mode }: { mode: 'register' | 'request' }) {
   const error = accountError(state, t);
   return (
     <FormPage
-      title={mode === 'register' ? t.createAccount : t.forgotPassword}
+      title={
+        mode === 'register'
+          ? t.createAccount
+          : state.stage === 'confirm'
+            ? t.resetPassword
+            : t.forgotPassword
+      }
       backLabel={t.backToLogin}
       busy={state.busy}
       backTestID="account-back"
@@ -95,6 +113,8 @@ export function AccountScreen({ mode }: { mode: 'register' | 'request' }) {
           key={key}
           testID={`account-${key}`}
           label={label}
+          description={key === 'password' ? t.newPasswordHint : undefined}
+          inputAccessoryViewID={key === 'code' ? codeAccessoryId : undefined}
           inputRef={(input) => {
             inputs.current[index] = input;
           }}
@@ -136,7 +156,44 @@ export function AccountScreen({ mode }: { mode: 'register' | 'request' }) {
           }
         />
       ))}
-      {state.stage !== 'request' && <Copy>{t.newPasswordHint}</Copy>}
+      {state.stage === 'confirm' && Platform.OS === 'ios' && (
+        <InputAccessoryView nativeID={codeAccessoryId}>
+          <View
+            style={{
+              backgroundColor: p.surface,
+              alignItems: 'flex-end',
+              borderTopWidth: 1,
+              borderColor: p.border,
+              padding: spacing.small,
+            }}
+          >
+            <Pressable
+              testID="account-code-next"
+              accessibilityRole="button"
+              accessibilityLabel={t.nextField}
+              disabled={state.busy}
+              accessibilityState={{ disabled: state.busy }}
+              onPress={() =>
+                inputs.current[fields.findIndex(([key]) => key === 'password')]?.focus()
+              }
+              style={{
+                minHeight: sizing.touch,
+                justifyContent: 'center',
+                paddingHorizontal: spacing.medium,
+              }}
+            >
+              <Text
+                style={[
+                  typography.body,
+                  { color: state.busy ? p.onDisabled : p.primary, fontWeight: '600' },
+                ]}
+              >
+                {t.nextField}
+              </Text>
+            </Pressable>
+          </View>
+        </InputAccessoryView>
+      )}
       {!!error && <Notice tone="danger">{error}</Notice>}
       {remaining > 0 && (
         <Notice
@@ -153,6 +210,7 @@ export function AccountScreen({ mode }: { mode: 'register' | 'request' }) {
       {Platform.OS === 'web' && <Notice>{t.nativeOnly}</Notice>}
       <Action
         testID="account-submit"
+        variant="primary"
         label={
           state.stage === 'register'
             ? t.createAccount
@@ -167,7 +225,7 @@ export function AccountScreen({ mode }: { mode: 'register' | 'request' }) {
       {state.stage === 'request' && (
         <Action
           testID="account-have-code"
-          secondary
+          variant="ghost"
           label={t.alreadyHaveCode}
           disabled={state.busy}
           onPress={() => flow.continueWithCode()}
@@ -176,7 +234,7 @@ export function AccountScreen({ mode }: { mode: 'register' | 'request' }) {
       {state.stage === 'confirm' && (
         <Action
           testID="account-resend"
-          secondary
+          variant="secondary"
           label={t.resendCode}
           disabled={state.busy || resendRemaining > 0 || Platform.OS === 'web'}
           onPress={() => void submit(true)}

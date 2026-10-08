@@ -5,7 +5,7 @@ import { Alert, Keyboard, TextInput } from 'react-native';
 import { router, useNavigation } from 'expo-router';
 import { usePreventRemove } from 'expo-router/react-navigation';
 import { tripFieldsSchema } from '@travel-budget/contracts';
-import { Action, Notice, TextField } from '@/components/ui';
+import { Action, Copy, Notice, TextField } from '@/components/ui';
 import { useMessages } from '@/i18n/useMessages';
 import { useOnline } from '@/providers/useOnline';
 import { errorMessage } from '@/features/auth/errorMessage';
@@ -126,7 +126,7 @@ export function TripFormScreen({ mode }: { mode: 'create' | 'join' }) {
       busy={busy}
       onBack={() => goBack('/trips')}
     >
-      <Notice>{mode === 'create' ? t.tripFormHint : t.inviteHint}</Notice>
+      <Copy>{mode === 'create' ? t.tripFormHint : t.inviteHint}</Copy>
       {mode === 'create' ? (
         <>
           <TextField
@@ -148,6 +148,9 @@ export function TripFormScreen({ mode }: { mode: 'create' | 'join' }) {
             editable={!busy && !confirmed}
             onChangeText={(value) => edit('description', value)}
             multiline
+            submitBehavior="submit"
+            returnKeyType="next"
+            onSubmitEditing={() => start.current?.focus()}
             maxLength={2000}
           />
           <TextField
@@ -159,7 +162,7 @@ export function TripFormScreen({ mode }: { mode: 'create' | 'join' }) {
             onChangeText={(value) => edit('start_date', value)}
             returnKeyType="next"
             onSubmitEditing={() => end.current?.focus()}
-            placeholder="YYYY-MM-DD"
+            placeholder={t.dateFormatHint}
             autoCapitalize="none"
             maxLength={10}
           />
@@ -170,7 +173,7 @@ export function TripFormScreen({ mode }: { mode: 'create' | 'join' }) {
             value={fields.end_date}
             editable={!busy && !confirmed}
             onChangeText={(value) => edit('end_date', value)}
-            placeholder="YYYY-MM-DD"
+            placeholder={t.dateFormatHint}
             autoCapitalize="none"
             maxLength={10}
             returnKeyType="done"
@@ -202,7 +205,7 @@ export function TripFormScreen({ mode }: { mode: 'create' | 'join' }) {
         onPress={() => void submit()}
       />
       <Action
-        secondary
+        variant="ghost"
         label={t.pendingOperations}
         onPress={() => router.push('/trips/operations')}
       />

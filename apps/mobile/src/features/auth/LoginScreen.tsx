@@ -1,15 +1,14 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, TextInput } from 'react-native';
 import { useAuth } from './AuthProvider';
 import { errorMessage } from './errorMessage';
-import { Action, Copy, Notice, Page, Title, usePalette } from '@/components/ui';
+import { Action, Card, Copy, Notice, Page, TextField, Title } from '@/components/ui';
 import { useMessages } from '@/i18n/useMessages';
 
 export function LoginScreen() {
   const { manager, error: sessionError } = useAuth();
   const t = useMessages();
-  const p = usePalette();
   const params = useLocalSearchParams<{ username?: string; notice?: string }>();
   const [username, setUsername] = useState(params.username ?? '');
   const [password, setPassword] = useState('');
@@ -41,19 +40,10 @@ export function LoginScreen() {
       style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <Page style={{ justifyContent: 'center' }}>
-        <View style={{ gap: 10, marginBottom: 20 }}>
-          <Title>{t.title}</Title>
-          <Copy>{t.subtitle}</Copy>
-        </View>
-        <View style={[s.card, { backgroundColor: p.surface, borderColor: p.border }]}>
-          <Text
-            accessibilityRole="header"
-            style={{ color: p.text, fontSize: 24, fontWeight: '700' }}
-          >
-            {t.login}
-          </Text>
-          <Copy>{t.loginHint}</Copy>
+      <Page form>
+        <Title>{t.login}</Title>
+        <Copy>{t.loginHint}</Copy>
+        <Card>
           {params.notice === 'registered' && (
             <Notice tone="success" announce="polite">
               {t.registered}
@@ -64,8 +54,8 @@ export function LoginScreen() {
               {t.passwordResetDone}
             </Notice>
           )}
-          <Text style={{ color: p.text, fontSize: 16 }}>{t.username}</Text>
-          <TextInput
+          <TextField
+            label={t.username}
             testID="login-username"
             accessibilityLabel={t.username}
             value={username}
@@ -77,15 +67,11 @@ export function LoginScreen() {
             returnKeyType="next"
             editable={!busy}
             onSubmitEditing={() => passwordInput.current?.focus()}
-            style={[
-              s.input,
-              { color: p.text, borderColor: p.border, backgroundColor: p.background },
-            ]}
           />
-          <Text style={{ color: p.text, fontSize: 16 }}>{t.password}</Text>
-          <TextInput
+          <TextField
+            label={t.password}
             testID="login-password"
-            ref={passwordInput}
+            inputRef={passwordInput}
             accessibilityLabel={t.password}
             value={password}
             onChangeText={setPassword}
@@ -97,10 +83,6 @@ export function LoginScreen() {
             returnKeyType="go"
             editable={!busy}
             onSubmitEditing={() => void submit()}
-            style={[
-              s.input,
-              { color: p.text, borderColor: p.border, backgroundColor: p.background },
-            ]}
           />
           {!!error && <Notice tone="danger">{error}</Notice>}
           {!error && !!sessionError && (
@@ -114,32 +96,28 @@ export function LoginScreen() {
             disabled={Platform.OS === 'web'}
             onPress={() => void submit()}
           />
-          <Action
-            testID="login-register"
-            secondary
-            label={t.createAccount}
-            disabled={busy}
-            onPress={() => {
-              setPassword('');
-              router.push('/register');
-            }}
-          />
-          <Action
-            testID="login-forgot"
-            secondary
-            label={t.forgotPassword}
-            disabled={busy}
-            onPress={() => {
-              setPassword('');
-              router.push('/password-reset');
-            }}
-          />
-        </View>
+        </Card>
+        <Action
+          testID="login-register"
+          variant="secondary"
+          label={t.createAccount}
+          disabled={busy}
+          onPress={() => {
+            setPassword('');
+            router.push('/register');
+          }}
+        />
+        <Action
+          testID="login-forgot"
+          variant="ghost"
+          label={t.forgotPassword}
+          disabled={busy}
+          onPress={() => {
+            setPassword('');
+            router.push('/password-reset');
+          }}
+        />
       </Page>
     </KeyboardAvoidingView>
   );
 }
-const s = StyleSheet.create({
-  card: { borderRadius: 24, borderWidth: 1, padding: 22, gap: 14 },
-  input: { borderWidth: 1, borderRadius: 12, minHeight: 52, padding: 14, fontSize: 18 },
-});

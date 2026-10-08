@@ -6,7 +6,7 @@ import { AppState, Share } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { ApiError } from '@/api/client';
 import { invitationSchema } from '@travel-budget/contracts';
-import { Action, Copy, Notice, Page } from '@/components/ui';
+import { Action, Card, DetailRow, Notice, Page } from '@/components/ui';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { useDraftCatalog } from '@/features/localDrafts/provider';
 import { errorMessage, isAccessDenied } from '@/features/auth/errorMessage';
@@ -101,7 +101,7 @@ export function InvitationScreen({ id }: { id: string }) {
       <PageHeader
         title={t.inviteMembers}
         backTestID="invitation-back"
-        backLabel={t.backShort}
+        backLabel={t.backToTrip}
         onBack={() => goBack({ pathname: '/trips/[id]', params: { id } })}
       />
       <TripContext tripId={id} />
@@ -112,19 +112,12 @@ export function InvitationScreen({ id }: { id: string }) {
         !!current?.error && <Notice tone="danger">{errorMessage(current.error, t)}</Notice>
       )}
       {!online && <Notice tone="warning">{t.offline}</Notice>}
-      <Action
-        label={t.refresh}
-        busy={online && !current && (!scope || catalog.isVisible(scope, id))}
-        disabled={!online}
-        onPress={() => {
-          setFeedback('');
-          setRefresh((v) => v + 1);
-        }}
-      />
       {visible && (
         <>
-          <Copy>{visible.code}</Copy>
-          <Copy>{visible.url}</Copy>
+          <Card testID="invitation-details">
+            <DetailRow testID="invitation-code" label={t.invitationCode} value={visible.code} />
+            <DetailRow testID="invitation-link" label={t.invitationLink} value={visible.url} />
+          </Card>
           <Action
             testID="invitation-copy"
             label={t.copyInvitation}
@@ -132,12 +125,28 @@ export function InvitationScreen({ id }: { id: string }) {
           />
           <Action
             testID="invitation-share"
+            variant="secondary"
             label={t.shareInvitation}
             onPress={() => void act('share')}
           />
-          {!!feedback && <Notice announce="polite">{feedback}</Notice>}
+          {!!feedback && (
+            <Notice tone={feedback === t.copyFailed ? 'danger' : 'success'} announce="polite">
+              {feedback}
+            </Notice>
+          )}
         </>
       )}
+      <Action
+        testID="invitation-refresh"
+        variant={visible ? 'ghost' : 'secondary'}
+        label={current?.error ? t.retry : t.refresh}
+        busy={online && !current && (!scope || catalog.isVisible(scope, id))}
+        disabled={!online}
+        onPress={() => {
+          setFeedback('');
+          setRefresh((v) => v + 1);
+        }}
+      />
     </Page>
   );
 }
