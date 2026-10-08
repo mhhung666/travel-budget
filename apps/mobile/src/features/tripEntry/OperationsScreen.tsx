@@ -132,27 +132,29 @@ function ScopedOperationsScreen() {
                 : t.recoveryRejected
           }
           title={
-            record.operation === 'trip.access'
-              ? accessTitle(record)
-              : record.operation === 'member.create'
-                ? t.addVirtualMember
-                : record.operation === 'member.rename'
-                  ? t.renameVirtualMember
-                  : record.operation === 'trip.create'
-                    ? t.createTrip
-                    : record.operation === 'trip.update'
-                      ? t.tripSettings
-                      : record.operation === 'trip.archive'
-                        ? t.personalArchive
-                        : record.operation === 'trip.join'
-                          ? t.joinTrip
-                          : record.operation === 'expense.update'
-                            ? t.editExpense
-                            : record.operation === 'expense.delete'
-                              ? t.deleteExpense
-                              : record.operation === 'payment.create'
-                                ? t.recordPayment
-                                : t.revokePayment
+            record.operation === 'trip.currency'
+              ? t.currencySettings
+              : record.operation === 'trip.access'
+                ? accessTitle(record)
+                : record.operation === 'member.create'
+                  ? t.addVirtualMember
+                  : record.operation === 'member.rename'
+                    ? t.renameVirtualMember
+                    : record.operation === 'trip.create'
+                      ? t.createTrip
+                      : record.operation === 'trip.update'
+                        ? t.tripSettings
+                        : record.operation === 'trip.archive'
+                          ? t.personalArchive
+                          : record.operation === 'trip.join'
+                            ? t.joinTrip
+                            : record.operation === 'expense.update'
+                              ? t.editExpense
+                              : record.operation === 'expense.delete'
+                                ? t.deleteExpense
+                                : record.operation === 'payment.create'
+                                  ? t.recordPayment
+                                  : t.revokePayment
           }
         >
           <DetailRow label={t.requestId} value={record.clientRequestId} />
@@ -200,19 +202,21 @@ function ScopedOperationsScreen() {
               >
                 {record.result?.status === 'committed'
                   ? t.operationDone
-                  : record.operation === 'trip.access'
-                    ? t.membersChanged
-                    : record.operation.startsWith('member.')
+                  : record.operation === 'trip.currency'
+                    ? t.currencyChanged
+                    : record.operation === 'trip.access'
                       ? t.membersChanged
-                      : record.operation === 'trip.update' || record.operation === 'trip.archive'
-                        ? t.tripSettingsChanged
-                        : record.operation.startsWith('payment.')
-                          ? t.paymentChanged
-                          : record.operation.startsWith('expense.')
-                            ? t.expenseChanged
-                            : record.operation === 'trip.join'
-                              ? t.operationRejected
-                              : t.recoveryRejected}
+                      : record.operation.startsWith('member.')
+                        ? t.membersChanged
+                        : record.operation === 'trip.update' || record.operation === 'trip.archive'
+                          ? t.tripSettingsChanged
+                          : record.operation.startsWith('payment.')
+                            ? t.paymentChanged
+                            : record.operation.startsWith('expense.')
+                              ? t.expenseChanged
+                              : record.operation === 'trip.join'
+                                ? t.operationRejected
+                                : t.recoveryRejected}
               </Notice>
               {record.result?.status === 'committed' &&
                 !('exited' in record.result.result && record.result.result.exited) && (
@@ -265,14 +269,19 @@ function ScopedOperationsScreen() {
               {record.result?.status === 'rejected' &&
                 record.tripId &&
                 record.payload &&
-                (record.operation === 'trip.update' || record.operation === 'trip.archive') && (
+                (record.operation === 'trip.update' ||
+                  record.operation === 'trip.archive' ||
+                  record.operation === 'trip.currency') && (
                   <Action
                     testID={`mutation-resume-${record.clientRequestId}`}
                     label={t.tripSettingsReconfirm}
                     onPress={() => {
                       if (!visible(record)) return;
                       router.push({
-                        pathname: '/trips/[id]/settings',
+                        pathname:
+                          record.operation === 'trip.currency'
+                            ? '/trips/[id]/currency-settings'
+                            : '/trips/[id]/settings',
                         params: { id: record.tripId!, source: record.clientRequestId },
                       });
                     }}

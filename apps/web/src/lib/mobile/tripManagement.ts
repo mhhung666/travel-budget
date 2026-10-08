@@ -1,6 +1,11 @@
 import mongoose from 'mongoose';
-import { tripUpdateInput, tripArchiveInput } from '@travel-budget/contracts';
-import { manageTrip, readTripSettings, TripManagementError } from '@/lib/tripManagement';
+import { tripUpdateInput, tripArchiveInput, tripCurrencyInput } from '@travel-budget/contracts';
+import {
+  manageTrip,
+  readTripSettings,
+  readTripCurrency,
+  TripManagementError,
+} from '@/lib/tripManagement';
 import { TripEntryError } from '@/lib/tripEntry';
 import { TripWriteError } from '@/lib/tripWriteTransaction';
 import { getEnv } from '@/lib/env';
@@ -32,13 +37,15 @@ export async function mobileManageTrip(
   request: Request,
   actorId: string,
   id: string,
-  operation: 'trip.update' | 'trip.archive'
+  operation: 'trip.update' | 'trip.archive' | 'trip.currency'
 ) {
   const tripId = await requireTripMember(actorId, id);
   const body =
-    operation === 'trip.update'
-      ? await readBody(request, tripUpdateInput)
-      : await readBody(request, tripArchiveInput);
+    operation === 'trip.currency'
+      ? await readBody(request, tripCurrencyInput)
+      : operation === 'trip.update'
+        ? await readBody(request, tripUpdateInput)
+        : await readBody(request, tripArchiveInput);
   try {
     return await manageTrip(
       mongoose.connection.db!,
@@ -48,6 +55,15 @@ export async function mobileManageTrip(
       body,
       getEnv().JWT_SECRET
     );
+  } catch (error) {
+    throw mapError(error);
+  }
+}
+
+export async function mobileTripCurrency(actorId: string, id: string) {
+  const tripId = await requireTripMember(actorId, id);
+  try {
+    return await readTripCurrency(mongoose.connection.db!, actorId, tripId, getEnv().JWT_SECRET);
   } catch (error) {
     throw mapError(error);
   }

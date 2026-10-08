@@ -91,7 +91,7 @@ jobs:
       # Shared Web/mobile creation service: atomic receipt, concurrent duplicates, replay after
       # deletion or member removal, rollback, plus the existing trip-writer transactions.
       - name: Verify expense creation, idempotent replay and rollback
-        run: pnpm --filter @travel-budget/web exec vitest run src/__tests__/mobileExpenseWrite.integration.test.ts src/__tests__/tripWriters.integration.test.ts src/__tests__/tripEntry.integration.test.ts src/__tests__/accountEntry.integration.test.ts src/__tests__/expenseMaintenance.integration.test.ts src/__tests__/paymentWrite.integration.test.ts src/__tests__/tripManagement.integration.test.ts src/__tests__/memberManagement.integration.test.ts src/__tests__/tripAccess.integration.test.ts
+        run: pnpm --filter @travel-budget/web exec vitest run src/__tests__/mobileExpenseWrite.integration.test.ts src/__tests__/tripWriters.integration.test.ts src/__tests__/tripEntry.integration.test.ts src/__tests__/accountEntry.integration.test.ts src/__tests__/expenseMaintenance.integration.test.ts src/__tests__/paymentWrite.integration.test.ts src/__tests__/tripManagement.integration.test.ts src/__tests__/memberManagement.integration.test.ts src/__tests__/tripAccess.integration.test.ts src/__tests__/tripCurrencyManagement.integration.test.ts
         env:
           MONGODB_MEMBER_TEST_URI: mongodb://127.0.0.1:27017/?directConnection=true
           MONGODB_MEMBER_TEST_ALLOW_WRITES: '1'

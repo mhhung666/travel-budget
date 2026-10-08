@@ -30,6 +30,9 @@ import {
   virtualMemberRenameInput,
   memberMutationResultSchema,
   tripSettingsSchema,
+  tripCurrencyContextSchema,
+  tripCurrencyInput,
+  referenceRatesSchema,
   tripUpdateInput,
   tripArchiveInput,
   tripManagementResultSchema,
@@ -61,6 +64,9 @@ const schemas = Object.fromEntries(
     VirtualMemberCreateInput: virtualMemberCreateInput,
     VirtualMemberRenameInput: virtualMemberRenameInput,
     MemberMutationResult: memberMutationResultSchema,
+    TripCurrencyContext: tripCurrencyContextSchema,
+    TripCurrencyInput: tripCurrencyInput,
+    ReferenceRates: referenceRatesSchema,
     TripSettings: tripSettingsSchema,
     TripUpdateInput: tripUpdateInput,
     TripArchiveInput: tripArchiveInput,
@@ -211,6 +217,28 @@ const paths = {
       ],
       description:
         '20 items/page; ongoing, upcoming, unscheduled, past, archived. Pagination is not a snapshot; refresh from page 1 after changes.',
+    },
+  },
+  '/exchange-rates': {
+    get: {
+      ...operation('referenceRates', 'ReferenceRates', undefined, {
+        authenticated: true,
+        errors: [503],
+      }),
+      description:
+        'Latest published daily reference; 1 foreign unit = TWD. Dates are provider publication dates. No invented fallback.',
+    },
+  },
+  '/trips/{id}/currency-settings': {
+    get: { ...operation('tripCurrencySettings', 'TripCurrencyContext'), parameters: [tripIdParam] },
+    post: {
+      ...operation('updateTripCurrency', 'TripManagementResult', 'TripCurrencyInput', {
+        authenticated: true,
+        errors: [403, 409],
+      }),
+      parameters: [tripIdParam],
+      description:
+        'Admin-only full replacement. Opaque settings revision, original UUID receipt. Existing expenses and confirmed requests remain unchanged.',
     },
   },
   '/trips/{id}/settings': {

@@ -1342,6 +1342,368 @@
         "description": "20 items/page; ongoing, upcoming, unscheduled, past, archived. Pagination is not a snapshot; refresh from page 1 after changes."
       }
     },
+    "/exchange-rates": {
+      "get": {
+        "operationId": "referenceRates",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReferenceRates"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Latest published daily reference; 1 foreign unit = TWD. Dates are provider publication dates. No invented fallback."
+      }
+    },
+    "/trips/{id}/currency-settings": {
+      "get": {
+        "operationId": "tripCurrencySettings",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/TripCurrencyContext"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]{24}$"
+            }
+          }
+        ]
+      },
+      "post": {
+        "operationId": "updateTripCurrency",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TripCurrencyInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success; Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/TripManagementResult"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]{24}$"
+            }
+          }
+        ],
+        "description": "Admin-only full replacement. Opaque settings revision, original UUID receipt. Existing expenses and confirmed requests remain unchanged."
+      }
+    },
     "/trips/{id}/settings": {
       "get": {
         "operationId": "tripSettings",
@@ -4773,6 +5135,206 @@
         ],
         "additionalProperties": false
       },
+      "TripCurrencyContext": {
+        "type": "object",
+        "properties": {
+          "tripId": {
+            "type": "string",
+            "pattern": "^[a-f\\d]{24}$"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "member"
+            ]
+          },
+          "revision": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "settings": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "default_currency": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[A-Z]{3}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "currencies": {
+                    "maxItems": 30,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "pattern": "^[A-Z]{3}$"
+                        },
+                        "rate": {
+                          "anyOf": [
+                            {
+                              "type": "number",
+                              "exclusiveMinimum": 0
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "rate"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "default_currency",
+                  "currencies"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "supportedCurrencies": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[A-Z]{3}$"
+            }
+          }
+        },
+        "required": [
+          "tripId",
+          "role",
+          "revision",
+          "settings",
+          "supportedCurrencies"
+        ],
+        "additionalProperties": false
+      },
+      "TripCurrencyInput": {
+        "type": "object",
+        "properties": {
+          "client_request_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "expected_revision": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "settings": {
+            "type": "object",
+            "properties": {
+              "default_currency": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[A-Z]{3}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "currencies": {
+                "maxItems": 30,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "pattern": "^[A-Z]{3}$"
+                    },
+                    "rate": {
+                      "anyOf": [
+                        {
+                          "type": "number",
+                          "exclusiveMinimum": 0
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "rate"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "default_currency",
+              "currencies"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "client_request_id",
+          "expected_revision",
+          "settings"
+        ],
+        "additionalProperties": false
+      },
+      "ReferenceRates": {
+        "type": "object",
+        "properties": {
+          "rates": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string",
+              "pattern": "^[A-Z]{3}$"
+            },
+            "additionalProperties": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          },
+          "dates": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string",
+              "pattern": "^[A-Z]{3}$"
+            },
+            "additionalProperties": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+            }
+          },
+          "provider": {
+            "type": "string",
+            "const": "Frankfurter"
+          }
+        },
+        "required": [
+          "rates",
+          "dates",
+          "provider"
+        ],
+        "additionalProperties": false
+      },
       "TripSettings": {
         "type": "object",
         "properties": {
@@ -5185,6 +5747,7 @@
                   "trip.create",
                   "trip.join",
                   "trip.update",
+                  "trip.currency",
                   "trip.archive",
                   "trip.access",
                   "member.create",
@@ -5363,6 +5926,7 @@
                   "trip.create",
                   "trip.join",
                   "trip.update",
+                  "trip.currency",
                   "trip.archive",
                   "trip.access",
                   "member.create",

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import {
   tripAccessInput,
+  tripCurrencyInput,
   virtualMemberCreateInput,
   virtualMemberRenameInput,
   tripUpdateInput,
@@ -24,6 +25,7 @@ import {
 import type { PendingScope, SqlDatabase } from './pendingExpenses';
 
 export const mutationPayload = z.discriminatedUnion('operation', [
+  z.object({ operation: z.literal('trip.currency'), tripId: idSchema, body: tripCurrencyInput }),
   z.object({ operation: z.literal('trip.access'), tripId: idSchema, body: tripAccessInput }),
   z.object({
     operation: z.literal('member.create'),
@@ -204,7 +206,7 @@ export async function createMutationStore(db: SqlDatabase): Promise<MutationStor
             );
           }
           await db.runAsync(
-            "UPDATE pending_mutation SET status = 'completed', payload = CASE WHEN ? = 1 AND (operation LIKE 'expense.%' OR operation LIKE 'payment.%' OR operation LIKE 'member.%' OR operation IN ('trip.update', 'trip.archive', 'trip.access')) THEN payload ELSE NULL END, result = ? WHERE environment = ? AND account_id = ? AND client_request_id = ?",
+            "UPDATE pending_mutation SET status = 'completed', payload = CASE WHEN ? = 1 AND (operation LIKE 'expense.%' OR operation LIKE 'payment.%' OR operation LIKE 'member.%' OR operation IN ('trip.update', 'trip.archive', 'trip.access', 'trip.currency')) THEN payload ELSE NULL END, result = ? WHERE environment = ? AND account_id = ? AND client_request_id = ?",
             result.status === 'rejected' ? 1 : 0,
             JSON.stringify(mutationRequestSchema.parse(result)),
             ...scopeArgs(scope),

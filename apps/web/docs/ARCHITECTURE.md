@@ -81,3 +81,7 @@ Web update／delete action 抽成 `expenseMaintenance.ts` 的 actor service，�
 ## G1c 存取管理
 
 `tripAccess.ts` 在父旅行交易內核對最新 HMAC／角色，角色寫入共用 Web 服務；移除／退出與刪除分別復用 `memberRemoval`／`tripDeletion` 的交易內業務，保留帳務或完整 cascade 的界線不變。角色／移除／刪除 Web action 的提交後 revalidate 失敗仍成功。最小成功退出／刪除 receipt 以操作者 UUID 保留、可於資格消失後讀／重播，沒有延伸其他 receipt 的撤權邊界。認領連結 adapter 重新授權 admin／虛擬成員，仍由 Web public 身分服務驗證對方憑證與遷移帳務。端點與邊界見 [G1c 契約](../../mobile/docs/BACKEND_CONTRACT.md#g1c-權限與危險操作)。
+
+## G2a 幣別設定與參考匯率
+
+`currencySettings.ts` 將既有 Web 正規化與父旅行交易抽為共用服務；`tripManagement.ts` 用獨立 currency HMAC 檢查版本、重新授權 admin，與 `trip.currency` receipt 原子提交，既有支出與已確認內容不回溯更新。Web cache revalidate 失敗不把已提交操作回報失敗。`referenceRates.ts` 共用既有 Frankfurter 每日代理，Web public 與 Mobile bearer adapter 維持各自 envelope／no-store 邊界，沒有新增供應商或 remote 設定。端點、缺值與恢復規則見 [G2a 契約](../../mobile/docs/BACKEND_CONTRACT.md#g2a-旅行幣別與參考匯率)。

@@ -73,3 +73,7 @@ migration `20261006100000-mutation-requests.js` 使用既有 Trip hashCode 唯�
 ## G1b 成員與虛擬成員
 
 新增 members GET／POST 及 members/:memberId PATCH；Bearer 成員讀全名冊，管理員才可建立／更名虛擬身分，strict JSON／8 KiB／no-store。Web 虛擬建立與 HTTP 共用 memberManagement，名冊 revision、UUID receipt 及跨旅行認領的 User fence 保留權限／帳務。現任選項與結算歷史補可選虛擬旗標，不改 public DTO。詳見 [共用契約](../../mobile/docs/BACKEND_CONTRACT.md#g1b-成員與虛擬成員)；memberManagement.integration 已納入隔離交易 CI，test:mobile-api 新增真 HTTP 丟 POST／PATCH 回應、重播／撤權及 DB 筆數核對。原生 UI 由其他人驗收，未部署。
+
+## G2a 幣別設定
+
+成員讀取、管理員修改 `/trips/:id/currency-settings`；`/exchange-rates` 以 bearer 取得既有後端每日參考值。共用 Web 設定交易，獨立 revision、UUID receipt 與成員資格重驗；既有支出、舊 App TWD body 不改。真 HTTP 工具另覆蓋幣別設定的嚴格輸入、精度、丟回應／原 UUID 重播、衝突、降權／撤權與帳務保留。來源／缺值／回應細節集中在 [G2a 契約](../../mobile/docs/BACKEND_CONTRACT.md#g2a-旅行幣別與參考匯率)；工具不要求外部匯率供應商即時可用，上游方向／日期與失敗用隔離 mock 測試。

@@ -173,3 +173,9 @@ E3 成功只存最小 receipt 結果並刷新資源，刪除明細不再重讀�
 ## G1c 存取管理
 
 `TripAccessScreen` 掛在名冊管理入口，依環境／帳號／旅行重新掛載，讀 context／重新選擇／明確確認，再交同一 TripEntry 的 trip.access 操作。角色與移除只讀刷新；成功退出／刪除先隱藏記憶體入口，等待已排入 catalog 的舊快照保存完成後，SQLite `complete` 與 draft_trip denied 同交易提交，再取消旅行讀取並刷新列表。原結果恢復只對 leave／delete 意圖放行帳號範圍的 receipt，從不放行隱藏旅行的寫入；成功後操作列表不再導航至舊旅行，其他撤權資料仍隱藏。即使丟回應、退出後重啟或本機結案失敗，都保留原 UUID。認領入口只讀授權 URL，由使用者複製／系統分享到既有 Web 認領流程。契約及限制見 [G1c](BACKEND_CONTRACT.md#g1c-權限與危險操作)。
+
+## G2a 幣別設定
+
+`TripCurrencyScreen` 的 route 按環境／帳號／旅行／恢復來源隔離。畫面一次讀最新設定，用回傳的 supportedCurrencies 搜尋與建立欄位，不在每列掛查詢。未確認輸入不落盤；參考匯率明確讀取，與設定內容分開，失敗保留輸入且不產生假匯率。`currencyForm` 保留完整數值與可 round-trip 的科學記號，不用 parseFloat 部分解析或格式化四捨五入。
+
+確認後新增 `trip.currency` payload，仍使用 schema 8 的 pending_mutation／同旅行協調／共用帳號 429，無新資料表；Web／HTTP 回傳原 revision result，E 引擎處理原 UUID 查詢與重送。拒絕保存原 settings 供 scoped 畫面重讀後恢復，403 admin loss 先查 receipt，不清除有效成員快取。成功用既有 refreshManagedTrip 更新授權快取；不改草稿、C pending 或 D 佇列內容。契約見 [G2a](BACKEND_CONTRACT.md#g2a-旅行幣別與參考匯率)。

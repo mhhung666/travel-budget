@@ -29,6 +29,7 @@ import {
   paymentMutationResultSchema,
   expenseEditContextSchema,
   expenseMutationResultSchema,
+  tripCurrencyContextSchema, tripManagementResultSchema,
   tripMembersSchema,
   tripAccessContextSchema, tripAccessResultSchema, memberClaimInvitationSchema,
   memberMutationResultSchema,
@@ -2109,6 +2110,39 @@ try {
   pass(
     'G1b: authorized roster, strict virtual creation/rename, dropped responses, UUID replay, one user/member, role loss and revoked receipt access'
   );
+
+  // G2a: own disposable trip, no upstream requests or rewrites of historical money.
+  const g2aTrip = new mongoose.Types.ObjectId();
+  const g2aPath = `/trips/${g2aTrip}/currency-settings`;
+  await db.collection('trips').insertOne({ _id: g2aTrip, name: 'TEST G2a', currencySettings: null, members: [{ user: writer._id, role: 'admin' }, { user: writerPeer._id, role: 'member' }] });
+  const g2aExpense = { trip: g2aTrip, payer: writer._id, currency: 'JPY', originalAmount: 100, exchangeRate: 0.21, amount: 21, splits: [{ user: writerPeer._id, shareAmount: 21 }] };
+  await db.collection('expenses').insertOne(g2aExpense);
+  const g2aRead = async (token = writerSession.accessToken) => (await request(g2aPath, { token, schema: tripCurrencyContextSchema })).data;
+  const g2aInitial = await g2aRead();
+  assert(!/hashCode|budget|password|email|members|splits/.test(JSON.stringify(g2aInitial)));
+  assert.equal((await g2aRead(peerSession.accessToken)).role, 'member');
+  const g2aBody = { client_request_id: randomUUID(), expected_revision: g2aInitial.revision, settings: { default_currency: 'JPY', currencies: [{ code: 'JPY', rate: 0.2156789012345 }, { code: 'TWD', rate: 9 }] } };
+  await request(g2aPath, { token: writerSession.accessToken, body: { ...g2aBody, secret: 'invalid' }, status: 400 });
+  await request(g2aPath, { token: peerSession.accessToken, body: { ...g2aBody, client_request_id: randomUUID() }, status: 403 });
+  const g2aLost = await e4SocketWrite('POST', g2aPath, g2aBody);
+  assert.equal(g2aLost.operation, 'trip.currency');
+  assert.deepEqual((await request(g2aPath, { token: writerSession.accessToken, body: g2aBody, schema: tripManagementResultSchema })).data, g2aLost.result);
+  assert.equal(await db.collection('mutationrequests').countDocuments({ _id: `${writerId}:${g2aBody.client_request_id}` }), 1);
+  assert.deepEqual((await g2aRead()).settings.currencies, [{ code: 'JPY', rate: 0.2156789012345 }, { code: 'TWD', rate: null }]);
+  const g2aUpdated = { ...g2aBody, client_request_id: randomUUID(), expected_revision: (await g2aRead()).revision, settings: { default_currency: null, currencies: [] } };
+  await request(g2aPath, { token: writerSession.accessToken, body: g2aUpdated, schema: tripManagementResultSchema });
+  await request(g2aPath, { token: writerSession.accessToken, body: { ...g2aBody, client_request_id: randomUUID(), expected_revision: g2aUpdated.expected_revision }, status: 409 });
+  assert.equal((await g2aRead()).settings, null);
+  assert.equal((await db.collection('expenses').findOne({ trip: g2aTrip })).exchangeRate, 0.21);
+  assert.equal((await db.collection('expenses').findOne({ trip: g2aTrip })).amount, 21);
+  await db.collection('trips').updateOne({ _id: g2aTrip, 'members.user': writer._id }, { $set: { 'members.$.role': 'member' } });
+  await request(g2aPath, { token: writerSession.accessToken, body: { ...g2aBody, client_request_id: randomUUID(), expected_revision: (await g2aRead()).revision }, status: 403 });
+  assert.equal((await request(`/mutation-requests/${g2aBody.client_request_id}`, { token: writerSession.accessToken, schema: mutationRequestSchema })).data.status, 'committed');
+  await db.collection('trips').deleteOne({ _id: g2aTrip });
+  await request(`/mutation-requests/${g2aBody.client_request_id}`, { token: writerSession.accessToken, status: 404 });
+  await db.collection('expenses').deleteMany({ trip: g2aTrip });
+  await db.collection('mutationrequests').deleteMany({ $or: [{ 'terminal.tripId': String(g2aTrip) }, { 'terminal.result.tripId': String(g2aTrip) }] });
+  pass('G2a: shared settings, member read/admin write, strict input, precision, lost response original UUID replay, stale settings, historical expense preservation, demotion/removal');
 
   // G1c uses its own disposable trip. A successful exit receipt is deliberately readable
   // after membership loss, while every roster/ledger/other receipt remains denied.

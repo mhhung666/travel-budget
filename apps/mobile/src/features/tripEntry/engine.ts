@@ -259,30 +259,34 @@ export class TripEntry {
         | TripAccessResult
       >(
         record.accountId,
-        record.operation === 'trip.access'
-          ? `/trips/${record.tripId}/access`
-          : record.operation === 'member.create'
-            ? `/trips/${record.tripId}/members`
-            : record.operation === 'member.rename'
-              ? `/trips/${record.tripId}/members/${record.payload?.operation === 'member.rename' ? record.payload.memberId : ''}`
-              : record.operation === 'trip.update'
-                ? `/trips/${record.tripId}`
-                : record.operation === 'trip.archive'
-                  ? `/trips/${record.tripId}/archive`
-                  : record.operation === 'payment.create'
-                    ? `/trips/${record.tripId}/payments`
-                    : record.operation === 'payment.delete'
-                      ? `/trips/${record.tripId}/payments/${record.payload?.operation === 'payment.delete' ? record.payload.paymentId : ''}`
-                      : record.operation === 'trip.create'
-                        ? '/trips'
-                        : record.operation === 'trip.join'
-                          ? '/trips/join'
-                          : `/trips/${record.tripId}/expenses/${'expenseId' in record.payload! ? record.payload.expenseId : ''}`,
+        record.operation === 'trip.currency'
+          ? `/trips/${record.tripId}/currency-settings`
+          : record.operation === 'trip.access'
+            ? `/trips/${record.tripId}/access`
+            : record.operation === 'member.create'
+              ? `/trips/${record.tripId}/members`
+              : record.operation === 'member.rename'
+                ? `/trips/${record.tripId}/members/${record.payload?.operation === 'member.rename' ? record.payload.memberId : ''}`
+                : record.operation === 'trip.update'
+                  ? `/trips/${record.tripId}`
+                  : record.operation === 'trip.archive'
+                    ? `/trips/${record.tripId}/archive`
+                    : record.operation === 'payment.create'
+                      ? `/trips/${record.tripId}/payments`
+                      : record.operation === 'payment.delete'
+                        ? `/trips/${record.tripId}/payments/${record.payload?.operation === 'payment.delete' ? record.payload.paymentId : ''}`
+                        : record.operation === 'trip.create'
+                          ? '/trips'
+                          : record.operation === 'trip.join'
+                            ? '/trips/join'
+                            : `/trips/${record.tripId}/expenses/${'expenseId' in record.payload! ? record.payload.expenseId : ''}`,
         record.operation === 'trip.access'
           ? tripAccessResultSchema
           : record.operation.startsWith('member.')
             ? memberMutationResultSchema
-            : record.operation === 'trip.update' || record.operation === 'trip.archive'
+            : record.operation === 'trip.update' ||
+                record.operation === 'trip.archive' ||
+                record.operation === 'trip.currency'
               ? tripManagementResultSchema
               : record.operation.startsWith('payment.')
                 ? paymentMutationResultSchema
@@ -324,7 +328,8 @@ export class TripEntry {
         failed.error === error &&
         error instanceof ApiError &&
         ([404, 409].includes(error.status) ||
-          ((record.operation === 'trip.update' ||
+          ((record.operation === 'trip.currency' ||
+            record.operation === 'trip.update' ||
             record.operation === 'trip.access' ||
             record.operation.startsWith('member.')) &&
             error.status === 403 &&

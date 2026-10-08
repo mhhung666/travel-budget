@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { Trip as TripModel, type TripDoc } from '@/models';
+import { type TripDoc } from '@/models';
 import { getTripMembership } from '@/lib/permissions';
 import { setCurrencySettingsSchema, type SetCurrencySettingsInput } from '@/lib/validation';
 import { withAuth } from './withAuth';
@@ -9,6 +9,10 @@ import type { ActionResult } from './types';
 import type { Trip } from '@/types';
 import { logger } from '@/lib/logger';
 import { toTripDto } from '@/lib/dto';
+import mongoose from 'mongoose';
+import { setCurrencySettingsForActor } from '@/lib/currencySettings';
+import { TripManagementError } from '@/lib/tripManagement';
+import { TripWriteError } from '@/lib/tripWriteTransaction';
 
 type LeanTrip = TripDoc & { _id: { toString(): string }; createdAt: Date };
 
@@ -20,7 +24,7 @@ type LeanTrip = TripDoc & { _id: { toString(): string }; createdAt: Date };
  *
  * 正規化規則：
  * - 同一幣別重複時後者覆蓋前者；TWD 為基準幣，自訂匯率一律清為 null。
- * - rate <= 0 或未提供 → null（用即時匯率）。
+ * - 未提供 rate → null（用參考匯率）；非正數或非有限值拒絕。
  * - 預設幣別與常用清單皆空 → 整個 currencySettings 設為 null（回到「尚未設定」）。
  */
 export const setTripCurrencySettings = withAuth(
@@ -47,33 +51,28 @@ export const setTripCurrencySettings = withAuth(
         };
       }
 
-      const { default_currency, currencies } = validation.data;
-
-      const byCode = new Map<string, number | null>();
-      for (const c of currencies ?? []) {
-        byCode.set(c.code, c.code !== 'TWD' && c.rate != null && c.rate > 0 ? c.rate : null);
-      }
-      const normalizedCurrencies = Array.from(byCode, ([code, rate]) => ({ code, rate }));
-      const normalizedDefault = default_currency ?? null;
-
-      const currencySettings =
-        normalizedDefault === null && normalizedCurrencies.length === 0
-          ? null
-          : { defaultCurrency: normalizedDefault, currencies: normalizedCurrencies };
-
-      const trip = await TripModel.findByIdAndUpdate(
+      const trip = await setCurrencySettingsForActor(
+        mongoose.connection.db!,
+        session.userId,
         membership.tripId,
-        { $set: { currencySettings } },
-        { new: true }
-      ).lean<LeanTrip>();
+        validation.data
+      );
 
       if (!trip) {
         return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
       }
 
-      revalidatePath(`/trips/${tripIdOrCode}`);
-      return { success: true, data: toTripDto(trip, session.userId) };
+      try {
+        revalidatePath(`/trips/${tripIdOrCode}`);
+      } catch (error) {
+        logger.error('Currency settings revalidation failed', error);
+      }
+      return { success: true, data: toTripDto(trip as unknown as LeanTrip, session.userId) };
     } catch (error) {
+      if (error instanceof TripManagementError)
+        return { success: false, error: error.code, code: error.code };
+      if (error instanceof TripWriteError)
+        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
       logger.error('Set trip currency settings error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }

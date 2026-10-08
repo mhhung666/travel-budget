@@ -108,9 +108,13 @@ export function TripEntryProvider({ children }: PropsWithChildren) {
           // Normal authorized landing/options reads establish D snapshots, never the join receipt.
           if (
             result.status === 'committed' &&
-            ['trip.update', 'trip.archive', 'member.create', 'member.rename'].includes(
-              result.operation
-            )
+            [
+              'trip.update',
+              'trip.archive',
+              'trip.currency',
+              'member.create',
+              'member.rename',
+            ].includes(result.operation)
           ) {
             await refreshManagedTrip(client, manager, catalog, scope, tripId);
             return;

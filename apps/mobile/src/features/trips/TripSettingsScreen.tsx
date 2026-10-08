@@ -417,6 +417,15 @@ export function TripSettingsScreen({ tripId, source }: { tripId: string; source?
               }}
             />
           )}
+          <Action
+            testID="settings-currency"
+            variant="secondary"
+            label={t.currencySettings}
+            disabled={busy || dirty || !!prepared}
+            onPress={() =>
+              router.push({ pathname: '/trips/[id]/currency-settings', params: { id: tripId } })
+            }
+          />
           <Section title={t.personalArchive}>
             <Copy>{t.personalArchiveHint}</Copy>
             {dirty && <Copy>{t.archiveFinishEdits}</Copy>}

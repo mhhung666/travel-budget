@@ -2,6 +2,9 @@ import { createHash, createHmac } from 'node:crypto';
 import { mongo } from 'mongoose';
 import {
   tripSettingsSchema,
+  tripCurrencyContextSchema,
+  tripCurrencyInput,
+  type TripCurrencyInput,
   tripUpdateInput,
   tripArchiveInput,
   type TripSettings,
@@ -12,7 +15,10 @@ import {
 } from '@travel-budget/contracts';
 import { withTripWriteInDatabase } from './tripWriteTransaction';
 import { MUTATION_REQUESTS, TripEntryError } from './tripEntry';
+import { normalizeCurrencySettings, applyCurrencySettings } from './currencySettings';
+import { getAllCurrencyCodes } from '@/constants/currencies';
 import { isEffectiveTripDateRangeValid } from './dateRange';
+import { TripManagementError } from './tripManagementError';
 import { rebindAutoPhotosInTransaction } from './photoItineraryTransaction';
 
 interface Parent extends mongo.Document {
@@ -23,11 +29,7 @@ interface Parent extends mongo.Document {
   endDate?: Date | null;
   members: { user: mongo.ObjectId; role: 'admin' | 'member'; archivedAt?: Date | null }[];
 }
-export class TripManagementError extends Error {
-  constructor(public code: 'FORBIDDEN' | 'VALIDATION_ERROR') {
-    super(code);
-  }
-}
+export { TripManagementError } from './tripManagementError';
 function canonical(value: unknown): unknown {
   if (value === undefined) return null;
   if (value instanceof Date) return value.toISOString();
@@ -78,6 +80,29 @@ function context(trip: Parent, actorId: string, secret: string): TripSettings {
       archived: !!me.archivedAt,
     }),
   });
+}
+function currencyContext(trip: Parent, actorId: string, secret: string) {
+  const settings = trip.currencySettings
+    ? {
+        default_currency: trip.currencySettings.defaultCurrency ?? null,
+        currencies: trip.currencySettings.currencies.map(
+          (c: { code: string; rate?: number | null }) => ({ code: c.code, rate: c.rate ?? null })
+        ),
+      }
+    : null;
+  return tripCurrencyContextSchema.parse({
+    tripId: trip._id.toString(),
+    role: trip.members.find((m) => m.user.toString() === actorId)!.role,
+    revision: token(secret, 'trip-currency/v1', trip._id.toString(), settings),
+    settings,
+    supportedCurrencies: getAllCurrencyCodes(),
+  });
+}
+export function readTripCurrency(db: mongo.Db, actorId: string, tripId: string, secret: string) {
+  actorId = actorId.toLowerCase();
+  return withTripWriteInDatabase(db, tripId, actorId, async (session) =>
+    currencyContext(await parent(db, session, tripId), actorId, secret)
+  );
 }
 async function parent(db: mongo.Db, session: mongo.ClientSession, tripId: string) {
   const trip = await db
@@ -159,12 +184,18 @@ export async function manageTrip(
   db: mongo.Db,
   actorId: string,
   tripId: string,
-  operation: 'trip.update' | 'trip.archive',
-  body: TripUpdateInput | TripArchiveInput,
+  operation: 'trip.update' | 'trip.archive' | 'trip.currency',
+  body: TripUpdateInput | TripArchiveInput | TripCurrencyInput,
   secret: string
 ): Promise<TripManagementResult> {
+  actorId = actorId.toLowerCase();
+  tripId = tripId.toLowerCase();
   const input =
-    operation === 'trip.update' ? tripUpdateInput.parse(body) : tripArchiveInput.parse(body);
+    operation === 'trip.currency'
+      ? tripCurrencyInput.parse(body)
+      : operation === 'trip.update'
+        ? tripUpdateInput.parse(body)
+        : tripArchiveInput.parse(body);
   const key = `${actorId.toLowerCase()}:${input.client_request_id}`;
   const fingerprint = createHash('sha256')
     .update(JSON.stringify(canonical({ operation, tripId, input })))
@@ -181,6 +212,8 @@ export async function manageTrip(
         }
         const trip = await parent(db, session, tripId);
         const current = context(trip, actorId, secret);
+        const currency =
+          operation === 'trip.currency' ? currencyContext(trip, actorId, secret) : null;
         let outcome: Terminal;
         const reject = (code: 'RESOURCE_CHANGED' | 'VALIDATION_ERROR' | 'FORBIDDEN'): Terminal => ({
           status: 'rejected',
@@ -188,15 +221,22 @@ export async function manageTrip(
           tripId,
           code,
         });
-        if (operation === 'trip.update' && current.role !== 'admin') outcome = reject('FORBIDDEN');
+        if (operation !== 'trip.archive' && current.role !== 'admin') outcome = reject('FORBIDDEN');
         else if (
-          (operation === 'trip.update' ? current.revision : current.archiveRevision) !==
-          input.expected_revision
+          (operation === 'trip.currency'
+            ? currency!.revision
+            : operation === 'trip.update'
+              ? current.revision
+              : current.archiveRevision) !== input.expected_revision
         )
           outcome = reject('RESOURCE_CHANGED');
         else {
           try {
-            if (operation === 'trip.update')
+            if (operation === 'trip.currency') {
+              const normalized = normalizeCurrencySettings((input as TripCurrencyInput).settings);
+              await applyCurrencySettings(db, session, trip._id, normalized);
+              trip.currencySettings = normalized;
+            } else if (operation === 'trip.update')
               await applyChanges(db, session, trip, (input as TripUpdateInput).changes);
             else
               await applyArchive(db, session, trip, actorId, (input as TripArchiveInput).archived);
@@ -206,9 +246,11 @@ export async function manageTrip(
               operation,
               resourceId: tripId,
               result:
-                operation === 'trip.update'
-                  ? { tripId, revision: next.revision }
-                  : { tripId, archived: next.archived },
+                operation === 'trip.currency'
+                  ? { tripId, revision: currencyContext(trip, actorId, secret).revision }
+                  : operation === 'trip.update'
+                    ? { tripId, revision: next.revision }
+                    : { tripId, archived: next.archived },
             };
           } catch (error) {
             if (!(error instanceof TripManagementError && error.code === 'VALIDATION_ERROR'))

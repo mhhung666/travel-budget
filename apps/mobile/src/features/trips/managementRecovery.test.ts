@@ -11,7 +11,15 @@ const scope = { environment: 'https://test/api/v1', accountId: 'a'.repeat(24) },
   tripId = 'b'.repeat(24),
   key = '11111111-1111-4111-8111-111111111111',
   revision = 'c'.repeat(64);
-const payload = {
+const currencyPayload = {
+  operation: 'trip.currency' as const,
+  tripId,
+  body: {
+    expected_revision: revision,
+    settings: { default_currency: 'JPY', currencies: [{ code: 'JPY', rate: 0.2156789012345 }] },
+  },
+};
+const updatePayload = {
   operation: 'trip.update' as const,
   tripId,
   body: { expected_revision: revision, changes: { name: 'User edit' } },
@@ -69,19 +77,25 @@ async function fixture() {
     },
   };
 }
-it.each(['trip.update', 'trip.archive'] as const)(
+it.each(['trip.update', 'trip.archive', 'trip.currency'] as const)(
   '%s persists before sending and crash recovery only queries its original UUID',
   async (operation) => {
     const h = await fixture();
     const input =
-      operation === 'trip.update'
-        ? payload
-        : { operation, tripId, body: { expected_revision: revision, archived: true } };
-    const result = operation === 'trip.update' ? { tripId, revision } : { tripId, archived: true };
+      operation === 'trip.currency'
+        ? currencyPayload
+        : operation === 'trip.update'
+          ? updatePayload
+          : { operation, tripId, body: { expected_revision: revision, archived: true } };
+    const result = operation !== 'trip.archive' ? { tripId, revision } : { tripId, archived: true };
     h.request.mockImplementationOnce(async (_user, path, _schema, options) => {
       expect((await h.store.list(scope))[0].payload?.operation).toBe(operation);
       expect(path).toBe(
-        operation === 'trip.update' ? `/trips/${tripId}` : `/trips/${tripId}/archive`
+        operation === 'trip.currency'
+          ? `/trips/${tripId}/currency-settings`
+          : operation === 'trip.update'
+            ? `/trips/${tripId}`
+            : `/trips/${tripId}/archive`
       );
       expect(options?.method).toBe(operation === 'trip.update' ? 'PATCH' : 'POST');
       throw new ApiError('NETWORK');
@@ -96,93 +110,151 @@ it.each(['trip.update', 'trip.archive'] as const)(
     expect(await h.store.list({ ...scope, environment: 'https://other/api/v1' })).toEqual([]);
   }
 );
-it('storage insert failure prevents the confirmed HTTP write', async () => {
+it.each([updatePayload, currencyPayload])(
+  'storage insert failure prevents the confirmed HTTP write ($operation)',
+  async (payload) => {
+    const h = await fixture();
+    vi.spyOn(h.store, 'insert').mockRejectedValueOnce(new Error('disk full'));
+    expect((await h.engine().confirm(scope, payload)).kind).toBe('not-sent');
+    expect(h.request).not.toHaveBeenCalled();
+  }
+);
+it.each([updatePayload, currencyPayload])(
+  'receipt conflict retains only intended edits for explicit rebase, no new UUID retry ($operation)',
+  async (payload) => {
+    const h = await fixture();
+    const result = {
+      status: 'rejected',
+      operation: payload.operation,
+      tripId,
+      code: 'RESOURCE_CHANGED',
+    };
+    h.request
+      .mockRejectedValueOnce(new ApiError('RESOURCE_CHANGED', 409))
+      .mockResolvedValue(result);
+    expect((await h.engine().confirm(scope, payload)).kind).toBe('completed');
+    await h.restart();
+    expect((await h.store.list(scope))[0].payload).toMatchObject(payload);
+    h.request.mockClear();
+    await h.engine().retry(scope, key);
+    expect(h.request).not.toHaveBeenCalled();
+  }
+);
+it.each([updatePayload, currencyPayload])(
+  'lost admin is terminal and readable without falsely hiding membership ($operation)',
+  async (payload) => {
+    const h = await fixture();
+    h.request.mockRejectedValueOnce(new ApiError('FORBIDDEN', 403)).mockResolvedValue({
+      status: 'rejected',
+      operation: payload.operation,
+      tripId,
+      code: 'FORBIDDEN',
+    });
+    const outcome = await h.engine().confirm(scope, payload);
+    expect(outcome).toMatchObject({ kind: 'completed', result: { code: 'FORBIDDEN' } });
+  }
+);
+it.each([updatePayload, currencyPayload])(
+  '429 stays persisted across restart and blocks another trip until its original deadline ($operation)',
+  async (payload) => {
+    const h = await fixture();
+    h.request.mockRejectedValueOnce(new ApiError('RATE_LIMITED', 429, 120));
+    expect((await h.engine().confirm(scope, payload)).kind).toBe('pending');
+    await h.restart();
+    h.now = 131000;
+    expect((await h.engine().confirm(scope, { ...payload, tripId: 'd'.repeat(24) })).kind).toBe(
+      'not-sent'
+    );
+    expect(h.request).toHaveBeenCalledTimes(1);
+    expect(await h.store.retryAt(scope)).toBe(220000);
+  }
+);
+it.each([updatePayload, currencyPayload])(
+  'same-trip C and G confirmation are coordinated atomically; another trip may continue ($operation)',
+  async (payload) => {
+    const h = await fixture();
+    const pending = await createPendingExpenseStore(h.db);
+    const record = {
+      ...scope,
+      tripId,
+      clientRequestId: '22222222-2222-4222-8222-222222222222',
+      payload: {
+        client_request_id: '22222222-2222-4222-8222-222222222222',
+        payer_id: scope.accountId,
+        original_amount: 1,
+        currency: 'TWD' as const,
+        exchange_rate: 1 as const,
+        description: 'meal',
+        category: 'food' as const,
+        date: '2026-10-08',
+        splits: [{ user_id: scope.accountId, share_amount: 1 }],
+      },
+      status: 'sending' as const,
+      createdAt: 0,
+      updatedAt: 0,
+      conflict: false,
+    };
+    await pending.insert(record);
+    expect((await h.engine().confirm(scope, payload)).kind).toBe('blocked');
+    expect(h.request).not.toHaveBeenCalled();
+    h.request.mockResolvedValue({ tripId: 'd'.repeat(24), revision });
+    expect((await h.engine().confirm(scope, { ...payload, tripId: 'd'.repeat(24) })).kind).toBe(
+      'completed'
+    );
+  }
+);
+it.each([updatePayload, currencyPayload])(
+  'login generation changed in SQLite wait prevents all sending ($operation)',
+  async (payload) => {
+    const h = await fixture();
+    const insert = h.store.insert.bind(h.store);
+    vi.spyOn(h.store, 'insert').mockImplementationOnce(async (record) => {
+      const result = await insert(record);
+      h.version = 1;
+      return result;
+    });
+    expect((await h.engine().confirm(scope, payload)).kind).toBe('pending');
+    expect(h.request).not.toHaveBeenCalled();
+  }
+);
+it.each([updatePayload, currencyPayload])(
+  'unchanged original body and UUID are used after lookup confirms not_found ($operation)',
+  async (payload) => {
+    const h = await fixture();
+    h.request.mockRejectedValueOnce(new ApiError('NETWORK'));
+    await h.engine().confirm(scope, payload);
+    await h.restart();
+    h.request
+      .mockResolvedValueOnce({ status: 'not_found' })
+      .mockResolvedValueOnce({ tripId, revision });
+    await h.engine().retry(scope, key);
+    expect(h.request.mock.calls[2][3]?.body).toEqual({ ...payload.body, client_request_id: key });
+  }
+);
+it('existing schema 8 G1 rows and G2a intents coexist after restart without a migration', async () => {
   const h = await fixture();
-  vi.spyOn(h.store, 'insert').mockRejectedValueOnce(new Error('disk full'));
-  expect((await h.engine().confirm(scope, payload)).kind).toBe('not-sent');
-  expect(h.request).not.toHaveBeenCalled();
-});
-it('receipt conflict retains only intended edits for explicit rebase, no new UUID retry', async () => {
-  const h = await fixture();
-  const result = { status: 'rejected', operation: 'trip.update', tripId, code: 'RESOURCE_CHANGED' };
-  h.request.mockRejectedValueOnce(new ApiError('RESOURCE_CHANGED', 409)).mockResolvedValue(result);
-  expect((await h.engine().confirm(scope, payload)).kind).toBe('completed');
-  await h.restart();
-  expect((await h.store.list(scope))[0].payload).toMatchObject(payload);
-  h.request.mockClear();
-  await h.engine().retry(scope, key);
-  expect(h.request).not.toHaveBeenCalled();
-});
-it('lost admin is terminal and readable without falsely hiding membership', async () => {
-  const h = await fixture();
-  h.request
-    .mockRejectedValueOnce(new ApiError('FORBIDDEN', 403))
-    .mockResolvedValue({ status: 'rejected', operation: 'trip.update', tripId, code: 'FORBIDDEN' });
-  const outcome = await h.engine().confirm(scope, payload);
-  expect(outcome).toMatchObject({ kind: 'completed', result: { code: 'FORBIDDEN' } });
-});
-it('429 stays persisted across restart and blocks another trip until its original deadline', async () => {
-  const h = await fixture();
-  h.request.mockRejectedValueOnce(new ApiError('RATE_LIMITED', 429, 120));
-  expect((await h.engine().confirm(scope, payload)).kind).toBe('pending');
-  await h.restart();
-  h.now = 131000;
-  expect((await h.engine().confirm(scope, { ...payload, tripId: 'd'.repeat(24) })).kind).toBe(
-    'not-sent'
-  );
-  expect(h.request).toHaveBeenCalledTimes(1);
-  expect(await h.store.retryAt(scope)).toBe(220000);
-});
-it('same-trip C and G confirmation are coordinated atomically; another trip may continue', async () => {
-  const h = await fixture();
-  const pending = await createPendingExpenseStore(h.db);
-  const record = {
+  h.request.mockRejectedValue(new ApiError('NETWORK'));
+  await h.engine().confirm(scope, updatePayload);
+  const otherTrip = 'd'.repeat(24);
+  await h.store.insert({
     ...scope,
-    tripId,
     clientRequestId: '22222222-2222-4222-8222-222222222222',
+    operation: 'trip.currency',
     payload: {
-      client_request_id: '22222222-2222-4222-8222-222222222222',
-      payer_id: scope.accountId,
-      original_amount: 1,
-      currency: 'TWD' as const,
-      exchange_rate: 1 as const,
-      description: 'meal',
-      category: 'food' as const,
-      date: '2026-10-08',
-      splits: [{ user_id: scope.accountId, share_amount: 1 }],
+      ...currencyPayload,
+      tripId: otherTrip,
+      body: { ...currencyPayload.body, client_request_id: '22222222-2222-4222-8222-222222222222' },
     },
-    status: 'sending' as const,
-    createdAt: 0,
-    updatedAt: 0,
+    result: null,
+    tripId: otherTrip,
+    status: 'pending',
     conflict: false,
-  };
-  await pending.insert(record);
-  expect((await h.engine().confirm(scope, payload)).kind).toBe('blocked');
-  expect(h.request).not.toHaveBeenCalled();
-  h.request.mockResolvedValue({ tripId: 'd'.repeat(24), revision });
-  expect((await h.engine().confirm(scope, { ...payload, tripId: 'd'.repeat(24) })).kind).toBe(
-    'completed'
-  );
-});
-it('login generation changed in SQLite wait prevents all sending', async () => {
-  const h = await fixture();
-  const insert = h.store.insert.bind(h.store);
-  vi.spyOn(h.store, 'insert').mockImplementationOnce(async (record) => {
-    const result = await insert(record);
-    h.version = 1;
-    return result;
+    createdAt: 1,
   });
-  expect((await h.engine().confirm(scope, payload)).kind).toBe('pending');
-  expect(h.request).not.toHaveBeenCalled();
-});
-it('unchanged original body and UUID are used after lookup confirms not_found', async () => {
-  const h = await fixture();
-  h.request.mockRejectedValueOnce(new ApiError('NETWORK'));
-  await h.engine().confirm(scope, payload);
   await h.restart();
-  h.request
-    .mockResolvedValueOnce({ status: 'not_found' })
-    .mockResolvedValueOnce({ tripId, revision });
-  await h.engine().retry(scope, key);
-  expect(h.request.mock.calls[2][3]?.body).toEqual({ ...payload.body, client_request_id: key });
+  expect((await h.store.list(scope)).map((r) => r.payload?.operation).sort()).toEqual([
+    'trip.currency',
+    'trip.update',
+  ]);
+  expect(await h.db.getFirstAsync('PRAGMA user_version')).toEqual({ user_version: 8 });
 });

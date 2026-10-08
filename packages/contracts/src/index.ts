@@ -365,6 +365,52 @@ export type TripUpdateInput = z.infer<typeof tripUpdateInput>;
 export type TripArchiveInput = z.infer<typeof tripArchiveInput>;
 export type TripManagementResult = z.infer<typeof tripManagementResultSchema>;
 export type TripLocation = z.infer<typeof tripLocationSchema>;
+// G2a: 1 foreign unit = TWD; settings never rewrite existing expenses.
+export const currencyCodeSchema = z.string().regex(/^[A-Z]{3}$/);
+export const currencySettingsSchema = z
+  .object({
+    default_currency: currencyCodeSchema.nullable(),
+    currencies: z
+      .array(
+        z
+          .object({
+            code: currencyCodeSchema,
+            rate: z.number().finite().positive().nullable(),
+          })
+          .strict()
+      )
+      .max(30),
+  })
+  .strict();
+export const tripCurrencyInput = z
+  .object({
+    ...mutationIdentity,
+    settings: currencySettingsSchema,
+  })
+  .strict();
+export const tripCurrencyContextSchema = z.object({
+  tripId: idSchema,
+  role: z.enum(['admin', 'member']),
+  revision: resourceRevisionSchema,
+  settings: currencySettingsSchema.nullable(),
+  supportedCurrencies: z.array(currencyCodeSchema),
+});
+export const referenceRatesSchema = z
+  .object({
+    rates: z.record(currencyCodeSchema, z.number().finite().positive()),
+    dates: z.record(currencyCodeSchema, dateSchema),
+    provider: z.literal('Frankfurter'),
+  })
+  .refine(
+    (v) =>
+      v.rates.TWD === 1 &&
+      Object.entries(v.rates).every(([code]) => code === 'TWD' || v.dates[code] !== undefined),
+    'Publication date required'
+  );
+export type TripCurrencyInput = z.infer<typeof tripCurrencyInput>;
+export type TripCurrencyContext = z.infer<typeof tripCurrencyContextSchema>;
+export type CurrencySettings = z.infer<typeof currencySettingsSchema>;
+export type ReferenceRates = z.infer<typeof referenceRatesSchema>;
 // G1b member management. IDs and virtual flags are member-only; no login identifiers.
 export const virtualMemberNameSchema = z.string().trim().min(1).max(200);
 export const tripMembersSchema = z.object({
@@ -500,6 +546,7 @@ export const mutationRequestSchema = z.discriminatedUnion('status', [
         'trip.create',
         'trip.join',
         'trip.update',
+        'trip.currency',
         'trip.archive',
         'trip.access',
         'member.create',
@@ -535,13 +582,15 @@ export const mutationRequestSchema = z.discriminatedUnion('status', [
                   (v.operation === 'payment.create'
                     ? !!v.result.revision
                     : v.result.deleted === true)
-                : v.operation === 'trip.update' || v.operation === 'trip.archive'
+                : v.operation === 'trip.update' ||
+                    v.operation === 'trip.currency' ||
+                    v.operation === 'trip.archive'
                   ? !('exited' in v.result) &&
                     !('memberId' in v.result) &&
                     !('expenseId' in v.result) &&
                     !('paymentId' in v.result) &&
                     v.resourceId === v.result.tripId &&
-                    (v.operation === 'trip.update'
+                    (v.operation !== 'trip.archive'
                       ? 'revision' in v.result && !!v.result.revision
                       : 'archived' in v.result && v.result.archived !== undefined)
                   : !('exited' in v.result) &&
@@ -559,6 +608,7 @@ export const mutationRequestSchema = z.discriminatedUnion('status', [
       'trip.create',
       'trip.join',
       'trip.update',
+      'trip.currency',
       'trip.archive',
       'trip.access',
       'member.create',

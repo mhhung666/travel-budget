@@ -170,3 +170,13 @@ expense-options／payment-context members 新增可選 isVirtual；結算 balanc
 ## 尚未實作
 
 外幣與非均分金額編輯、附件 begin／finish、推播、帳號刪除及 OS 背景同步均屬後續工作（見 [路線](ROADMAP.md)）。D1 原始草稿、D2 受限入口與 D3 離線確認／多筆前景待送佇列沿用既有 HTTP 端點；AI 仍只產生草稿，正式寫入需使用者確認。實作與開發測試不代表已部署或兩平台裝置驗收通過。
+
+## G2a 旅行幣別與參考匯率
+
+- `GET /trips/:id/currency-settings`：成員專用 `TripCurrencyContext`，只含 tripId、role、設定內容、後端支援的 ISO 幣別清單與獨立 currency revision。沒有分享碼、私人預算、名冊或帳務；支援清單沿用後端 Intl，Mobile 不另維護一份允許清單。
+- `POST /trips/:id/currency-settings`：嚴格 `TripCurrencyInput`，含 `client_request_id`、`expected_revision` 與完整 `settings: { default_currency, currencies: [{ code, rate }] }`。rate 為有限正數或 null；最多 30 列。後端依既有 Web 規則同幣別後列覆蓋前列、TWD rate 清為 null、default null 且清單空時整份設定清為 null；預設 TWD 可用 null 表達。Mobile 選單限制預設外幣必須在常用清單內，後端仍接受 Web 既有合法設定形狀。
+- `GET /exchange-rates`：Bearer 認證，`ReferenceRates` 的 rates、dates、provider 使用既有 Frankfurter 後端代理，方向 `1 原幣 = ? TWD`。rates.TWD 固定 1；每個外幣有發布日期，缺幣別即缺值。上游失敗 503 `SERVICE_UNAVAILABLE`，沒有杜撰的外幣兜底。HTTP 回應 no-store，上游保留既有 900 秒 revalidation；日期不是取得時間或即時報價。
+
+Web 設定 Action 與 HTTP 共用 currencySettings／tripManagement 的父旅行交易與正規化；管理員資格在交易內重驗。revision 只覆蓋幣別設定，不因名稱／封存或帳務改變失效；同內容回到原狀可使用相同 revision，並非單調計數。舊 revision 409 `RESOURCE_CHANGED`、降為一般成員 403 `FORBIDDEN`、失去成員資格 404 `NOT_FOUND`。確認寫入與 `trip.currency` receipt 原子提交，UUID／凍結內容重播不覆蓋之後的新設定；終局拒絕可依原 UUID 查回。receipt 仍需目前成員資格，不使用 G1c 成功退出例外；不同 body／operation 同 UUID 409。
+
+設定寫入不讀外部匯率，不改任何 expense／payment，也不更新 C 已確認 body。舊 App TWD／匯率 1 契約維持；本片未開放外幣新增／預覽／編輯，後續 G2b／c 才擴充。

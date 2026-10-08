@@ -617,3 +617,39 @@ it('hidden non-exit role/removal receipts still require membership and never dis
   h.visible = false;
   expect(render(OperationsScreen).some((e) => e.props.testID === 'operation-uuid')).toBe(false);
 });
+it('currency rejection resumes only the scoped currency form with original input source', () => {
+  const r: PendingMutation = {
+    ...scope,
+    clientRequestId: 'uuid',
+    operation: 'trip.currency',
+    status: 'completed',
+    conflict: false,
+    createdAt: 1,
+    tripId: 'trip',
+    result: {
+      status: 'rejected',
+      operation: 'trip.currency',
+      tripId: 'trip',
+      code: 'RESOURCE_CHANGED',
+    },
+    payload: {
+      operation: 'trip.currency',
+      tripId: 'trip',
+      body: {
+        client_request_id: 'uuid',
+        expected_revision: 'a'.repeat(64),
+        settings: { default_currency: 'JPY', currencies: [{ code: 'JPY', rate: 0.2 }] },
+      },
+    },
+  };
+  h.operations = [r];
+  const n = render(OperationsScreen);
+  expect(texts(n)).toContain(messages.en.currencyChanged);
+  action(n, 'mutation-resume-uuid').onPress();
+  expect(h.push).toHaveBeenCalledWith({
+    pathname: '/trips/[id]/currency-settings',
+    params: { id: 'trip', source: 'uuid' },
+  });
+  h.visible = false;
+  expect(render(OperationsScreen).some((e) => e.props.testID === 'operation-uuid')).toBe(false);
+});
