@@ -1,9 +1,10 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { recordPayment, deletePayment, remindPayment } from '@/actions';
+import { remindPayment } from '@/actions';
 import type { ActionResult } from '@/actions';
 import type { RecordPaymentInput } from '@/lib/validation';
+import { confirmWebWrite } from '@/lib/confirmedWebWrites';
 import { tripKeys } from './keys';
 
 async function unwrap<T>(p: Promise<ActionResult<T>>): Promise<T> {
@@ -29,12 +30,37 @@ export function usePaymentMutations(tripId: string) {
   };
 
   const record = useMutation({
-    mutationFn: (input: RecordPaymentInput) => unwrap(recordPayment(tripId, input)),
+    mutationFn: (
+      input: RecordPaymentInput & { expected_revision: string; base_currency: string }
+    ) =>
+      confirmWebWrite(queryClient, {
+        operation: 'payment.create',
+        tripId,
+        body: { ...input, client_request_id: crypto.randomUUID() },
+      }),
     onSuccess: invalidate,
   });
 
   const remove = useMutation({
-    mutationFn: (paymentId: string) => unwrap(deletePayment(tripId, paymentId)),
+    mutationFn: ({
+      paymentId,
+      revision,
+      baseCurrency,
+    }: {
+      paymentId: string;
+      revision: string;
+      baseCurrency: string;
+    }) =>
+      confirmWebWrite(queryClient, {
+        operation: 'payment.delete',
+        tripId,
+        paymentId,
+        body: {
+          client_request_id: crypto.randomUUID(),
+          expected_revision: revision,
+          base_currency: baseCurrency,
+        },
+      }),
     onSuccess: invalidate,
   });
 

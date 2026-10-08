@@ -5,6 +5,7 @@ import { QueryStatus } from '@/components/common/QueryStatus';
 import { QueryReadDialog } from '@/components/common/QueryReadDialog';
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { TripLedgerProvider } from './LedgerCurrency';
 import { ExpenseFormSheet, BudgetDialog } from '@/components/trips/DeferredDialogs';
 import { ArrowLeft, History, MoreHorizontal, Settings, Wallet } from 'lucide-react';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
@@ -183,247 +184,258 @@ export function TripSpaceShell({
   const percent = total !== null && total > 0 ? Math.min((totalSpent / total) * 100, 100) : 0;
 
   return (
-    <TripSpaceProvider value={contextValue}>
-      <div ref={rootRef} className="flex min-h-full flex-col">
-        {/* 空間頁首 + 分頁列 + 摘要條：sticky（行動端置頂；桌機貼在 AppShell 頂列下方） */}
-        <div
-          ref={stickyHeaderRef}
-          className="sticky top-0 z-40 border-b bg-background/95 pt-[env(safe-area-inset-top)] backdrop-blur supports-[backdrop-filter]:bg-background/80 md:top-16"
-        >
-          <div className="container mx-auto max-w-6xl px-2 sm:px-4">
-            {/* 頁首列 */}
-            <div
-              className={cn(
-                'flex items-center gap-1 transition-[height] duration-200',
-                isCompact ? 'h-10' : 'h-12'
-              )}
-            >
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-11 w-11 shrink-0 text-muted-foreground hover:text-foreground"
-                aria-label={onMorePage ? tTrips('detail.backToTrip') : tTrips('detail.backToTrips')}
-                onClick={() => router.push(backTarget)}
+    <TripLedgerProvider value={trip?.ledger?.baseCurrency ?? null}>
+      <TripSpaceProvider value={contextValue}>
+        <div ref={rootRef} className="flex min-h-full flex-col">
+          {/* 空間頁首 + 分頁列 + 摘要條：sticky（行動端置頂；桌機貼在 AppShell 頂列下方） */}
+          <div
+            ref={stickyHeaderRef}
+            className="sticky top-0 z-40 border-b bg-background/95 pt-[env(safe-area-inset-top)] backdrop-blur supports-[backdrop-filter]:bg-background/80 md:top-16"
+          >
+            <div className="container mx-auto max-w-6xl px-2 sm:px-4">
+              {/* 頁首列 */}
+              <div
+                className={cn(
+                  'flex items-center gap-1 transition-[height] duration-200',
+                  isCompact ? 'h-10' : 'h-12'
+                )}
               >
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-11 w-11 shrink-0 text-muted-foreground hover:text-foreground"
+                  aria-label={
+                    onMorePage ? tTrips('detail.backToTrip') : tTrips('detail.backToTrips')
+                  }
+                  onClick={() => router.push(backTarget)}
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                </Button>
 
-              {mounted && trip ? (
-                <h1 className="min-w-0 flex-1 truncate text-base font-semibold">{trip.name}</h1>
-              ) : (
-                <div className="min-w-0 flex-1">
-                  {(!mounted || isLoading) && <Skeleton className="h-5 w-32" />}
+                {mounted && trip ? (
+                  <h1 className="min-w-0 flex-1 truncate text-base font-semibold">
+                    {trip.name}{' '}
+                    <span className="text-xs font-normal text-muted-foreground">
+                      {trip.ledger?.baseCurrency}
+                    </span>
+                  </h1>
+                ) : (
+                  <div className="min-w-0 flex-1">
+                    {(!mounted || isLoading) && <Skeleton className="h-5 w-32" />}
+                  </div>
+                )}
+
+                <div className="flex shrink-0 items-center gap-1">
+                  {/* AppShell 頂列在行程空間內於行動端隱藏，鈴鐺移到這裡（桌機仍在頂列） */}
+                  <span className="md:hidden">
+                    <NotificationBell />
+                  </span>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-11 w-11"
+                        aria-label={tTrip('more')}
+                      >
+                        <MoreHorizontal className="h-5 w-5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      {isMember && (
+                        <DropdownMenuItem onClick={() => budgetDialog.openDialog()}>
+                          <Wallet className="mr-2 h-4 w-4" />
+                          {tBudget('title')}
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuItem onClick={() => router.push(ROUTES.TRIP_ACTIVITY(tripId))}>
+                        <History className="mr-2 h-4 w-4" />
+                        {tTrip('viewActivity')}
+                      </DropdownMenuItem>
+                      {isMember && (
+                        <DropdownMenuItem onClick={() => router.push(ROUTES.TRIP_SETTINGS(tripId))}>
+                          <Settings className="mr-2 h-4 w-4" />
+                          {tTrip('settings')}
+                        </DropdownMenuItem>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
-              )}
-
-              <div className="flex shrink-0 items-center gap-1">
-                {/* AppShell 頂列在行程空間內於行動端隱藏，鈴鐺移到這裡（桌機仍在頂列） */}
-                <span className="md:hidden">
-                  <NotificationBell />
-                </span>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-11 w-11"
-                      aria-label={tTrip('more')}
-                    >
-                      <MoreHorizontal className="h-5 w-5" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    {isMember && (
-                      <DropdownMenuItem onClick={() => budgetDialog.openDialog()}>
-                        <Wallet className="mr-2 h-4 w-4" />
-                        {tBudget('title')}
-                      </DropdownMenuItem>
-                    )}
-                    <DropdownMenuItem onClick={() => router.push(ROUTES.TRIP_ACTIVITY(tripId))}>
-                      <History className="mr-2 h-4 w-4" />
-                      {tTrip('viewActivity')}
-                    </DropdownMenuItem>
-                    {isMember && (
-                      <DropdownMenuItem onClick={() => router.push(ROUTES.TRIP_SETTINGS(tripId))}>
-                        <Settings className="mr-2 h-4 w-4" />
-                        {tTrip('settings')}
-                      </DropdownMenuItem>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
               </div>
-            </div>
 
-            {/* 分頁列：可橫向滑動 */}
-            <nav
-              aria-label={tTrip('tabs.label')}
-              className="-mb-px flex overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-            >
-              {tabs.map((tab) => {
-                const active = isTabActive(tab);
-                return (
-                  <Link
-                    key={tab.href}
-                    href={tab.href}
-                    aria-current={active ? 'page' : undefined}
-                    className={cn(
-                      'flex h-11 shrink-0 items-center border-b-2 px-4 text-sm font-medium transition-colors',
-                      active
-                        ? 'border-primary text-foreground'
-                        : 'border-transparent text-muted-foreground hover:text-foreground'
-                    )}
-                  >
-                    {tab.label}
-                  </Link>
-                );
-              })}
-            </nav>
-
-            {/* 子分頁列：隨手記／清單、花費分析收在所屬主分頁下 */}
-            {subTabs && (
+              {/* 分頁列：可橫向滑動 */}
               <nav
-                aria-label={tTrip('tabs.subLabel')}
-                className="flex overflow-x-auto border-t [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                aria-label={tTrip('tabs.label')}
+                className="-mb-px flex overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
               >
-                {subTabs.map((sub) => {
-                  const active = isLinkActive(sub);
-                  // 外層 Link 撐滿 44px 觸控高度，視覺膠囊留在內層 span，不增加視覺份量
+                {tabs.map((tab) => {
+                  const active = isTabActive(tab);
                   return (
                     <Link
-                      key={sub.href}
-                      href={sub.href}
+                      key={tab.href}
+                      href={tab.href}
                       aria-current={active ? 'page' : undefined}
-                      className="group flex h-11 shrink-0 items-center px-0.5"
+                      className={cn(
+                        'flex h-11 shrink-0 items-center border-b-2 px-4 text-sm font-medium transition-colors',
+                        active
+                          ? 'border-primary text-foreground'
+                          : 'border-transparent text-muted-foreground hover:text-foreground'
+                      )}
                     >
-                      <span
-                        className={cn(
-                          'rounded-full px-3 py-1 text-xs font-medium transition-colors',
-                          // 選取態不用 text-primary：淺色模式在 primary/10 底上對比僅 4.29:1
-                          active
-                            ? 'bg-primary/10 text-foreground ring-1 ring-inset ring-primary/40'
-                            : 'text-muted-foreground group-hover:bg-muted group-hover:text-foreground'
-                        )}
-                      >
-                        {sub.label}
-                      </span>
+                      {tab.label}
                     </Link>
                   );
                 })}
               </nav>
-            )}
-          </div>
 
-          {/* 個人資訊不出現在公開分享：只有正式成員看到自己的分攤支出與預算。 */}
-          {isMember && (
-            <div
-              className={cn(
-                'border-t bg-muted/40',
-                isCompact && !isFinancialContext && 'hidden md:block'
-              )}
-            >
-              <div className="container mx-auto flex h-9 max-w-6xl items-center justify-between gap-3 px-4 text-sm">
-                {/* 口徑：每筆支出分攤給本人的金額，不含代墊他人的部分（見結算頁）。 */}
-                <span className="shrink-0 text-muted-foreground" title={tBudget('shareHint')}>
-                  {tBudget('totalSpent')}{' '}
-                  <span className="font-semibold tabular-nums text-foreground">
-                    {formatCurrency(totalSpent, 'TWD', locale)}
-                  </span>
-                </span>
-                {total !== null ? (
-                  <span
-                    className={cn(
-                      'truncate text-xs tabular-nums',
-                      overBudget ? 'font-medium text-destructive' : 'text-muted-foreground'
-                    )}
-                  >
-                    {tBudget('myTotal')} {formatCurrency(total, 'TWD', locale)} ·{' '}
-                    {overBudget
-                      ? `${tBudget('overBudget')} ${formatCurrency(totalSpent - total, 'TWD', locale)}`
-                      : `${tBudget('remaining')} ${formatCurrency(total - totalSpent, 'TWD', locale)}`}
-                  </span>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => budgetDialog.openDialog()}
-                    // 摘要條只有 36px 高：負 margin 讓按鈕框達 44px 而不撐高摘要條
-                    className="-my-1 -mr-3 flex h-11 min-w-11 shrink-0 items-center px-3 text-xs font-medium text-primary hover:underline"
-                  >
-                    {tBudget('empty.cta')}
-                  </button>
-                )}
-              </div>
-              {total !== null && (
-                <div
-                  role="progressbar"
-                  aria-label={tBudget('title')}
-                  aria-valuemin={0}
-                  aria-valuemax={total}
-                  aria-valuenow={Math.min(totalSpent, total)}
-                  className="h-1 w-full bg-muted"
+              {/* 子分頁列：隨手記／清單、花費分析收在所屬主分頁下 */}
+              {subTabs && (
+                <nav
+                  aria-label={tTrip('tabs.subLabel')}
+                  className="flex overflow-x-auto border-t [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
                 >
-                  <div
-                    className={cn('h-full', overBudget ? 'bg-destructive' : 'bg-primary')}
-                    style={{ width: `${percent}%` }}
-                  />
-                </div>
+                  {subTabs.map((sub) => {
+                    const active = isLinkActive(sub);
+                    // 外層 Link 撐滿 44px 觸控高度，視覺膠囊留在內層 span，不增加視覺份量
+                    return (
+                      <Link
+                        key={sub.href}
+                        href={sub.href}
+                        aria-current={active ? 'page' : undefined}
+                        className="group flex h-11 shrink-0 items-center px-0.5"
+                      >
+                        <span
+                          className={cn(
+                            'rounded-full px-3 py-1 text-xs font-medium transition-colors',
+                            // 選取態不用 text-primary：淺色模式在 primary/10 底上對比僅 4.29:1
+                            active
+                              ? 'bg-primary/10 text-foreground ring-1 ring-inset ring-primary/40'
+                              : 'text-muted-foreground group-hover:bg-muted group-hover:text-foreground'
+                          )}
+                        >
+                          {sub.label}
+                        </span>
+                      </Link>
+                    );
+                  })}
+                </nav>
               )}
             </div>
+
+            {/* 個人資訊不出現在公開分享：只有正式成員看到自己的分攤支出與預算。 */}
+            {isMember && (
+              <div
+                className={cn(
+                  'border-t bg-muted/40',
+                  isCompact && !isFinancialContext && 'hidden md:block'
+                )}
+              >
+                <div className="container mx-auto flex h-9 max-w-6xl items-center justify-between gap-3 px-4 text-sm">
+                  {/* 口徑：每筆支出分攤給本人的金額，不含代墊他人的部分（見結算頁）。 */}
+                  <span className="shrink-0 text-muted-foreground" title={tBudget('shareHint')}>
+                    {tBudget('totalSpent')}{' '}
+                    <span className="font-semibold tabular-nums text-foreground">
+                      {formatCurrency(totalSpent, trip?.ledger?.baseCurrency ?? 'TWD', locale)}
+                    </span>
+                  </span>
+                  {total !== null ? (
+                    <span
+                      className={cn(
+                        'truncate text-xs tabular-nums',
+                        overBudget ? 'font-medium text-destructive' : 'text-muted-foreground'
+                      )}
+                    >
+                      {tBudget('myTotal')}{' '}
+                      {formatCurrency(total, trip?.ledger?.baseCurrency ?? 'TWD', locale)} ·{' '}
+                      {overBudget
+                        ? `${tBudget('overBudget')} ${formatCurrency(totalSpent - total, trip?.ledger?.baseCurrency ?? 'TWD', locale)}`
+                        : `${tBudget('remaining')} ${formatCurrency(total - totalSpent, trip?.ledger?.baseCurrency ?? 'TWD', locale)}`}
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => budgetDialog.openDialog()}
+                      // 摘要條只有 36px 高：負 margin 讓按鈕框達 44px 而不撐高摘要條
+                      className="-my-1 -mr-3 flex h-11 min-w-11 shrink-0 items-center px-3 text-xs font-medium text-primary hover:underline"
+                    >
+                      {tBudget('empty.cta')}
+                    </button>
+                  )}
+                </div>
+                {total !== null && (
+                  <div
+                    role="progressbar"
+                    aria-label={tBudget('title')}
+                    aria-valuemin={0}
+                    aria-valuemax={total}
+                    aria-valuenow={Math.min(totalSpent, total)}
+                    className="h-1 w-full bg-muted"
+                  >
+                    <div
+                      className={cn('h-full', overBudget ? 'bg-destructive' : 'bg-primary')}
+                      style={{ width: `${percent}%` }}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <BackgroundRefreshContext.Provider value={true}>
+            <div className="relative flex-1">
+              <TripRefreshIndicator tripId={tripId} />
+              <QueryStatus
+                query={
+                  mounted
+                    ? shellQuery
+                    : {
+                        data: undefined,
+                        isFetching: true,
+                        refetch: shellQuery.refetch,
+                      }
+                }
+              />
+              {children}
+            </div>
+          </BackgroundRefreshContext.Provider>
+
+          {/* 空間層級 Dialogs：新增支出（旅行內 CTA／工具列共用）、預算 */}
+          {addExpenseDialog.open && (
+            <>
+              {/* Start the requested chunk in parallel with metadata; only the read dialog is visible until ready. */}
+              <ExpenseFormSheet
+                preload
+                mode="add"
+                tripId={tripId}
+                open={formReady}
+                onClose={addExpenseDialog.closeDialog}
+                onSubmit={handleAddExpense}
+                members={members}
+                currentUser={currentUser}
+                itineraryDays={itineraryDays}
+                existingTags={existingTags}
+                initialDescription={addExpenseDialog.data?.description}
+                currencySettings={trip?.currency_settings ?? null}
+                tripName={trip?.name}
+              />
+              {!formReady && (
+                <QueryReadDialog query={formQuery} onClose={addExpenseDialog.closeDialog} />
+              )}
+            </>
+          )}
+
+          {budgetDialog.open && (
+            <BudgetDialog
+              open
+              onClose={budgetDialog.closeDialog}
+              onSubmit={handleSetBudget}
+              budget={trip?.budget ?? null}
+              revision={trip?.budget_revision}
+              legacyBudget={trip?.legacy_budget ?? null}
+            />
           )}
         </div>
-
-        <BackgroundRefreshContext.Provider value={true}>
-          <div className="relative flex-1">
-            <TripRefreshIndicator tripId={tripId} />
-            <QueryStatus
-              query={
-                mounted
-                  ? shellQuery
-                  : {
-                      data: undefined,
-                      isFetching: true,
-                      refetch: shellQuery.refetch,
-                    }
-              }
-            />
-            {children}
-          </div>
-        </BackgroundRefreshContext.Provider>
-
-        {/* 空間層級 Dialogs：新增支出（旅行內 CTA／工具列共用）、預算 */}
-        {addExpenseDialog.open && (
-          <>
-            {/* Start the requested chunk in parallel with metadata; only the read dialog is visible until ready. */}
-            <ExpenseFormSheet
-              preload
-              mode="add"
-              tripId={tripId}
-              open={formReady}
-              onClose={addExpenseDialog.closeDialog}
-              onSubmit={handleAddExpense}
-              members={members}
-              currentUser={currentUser}
-              itineraryDays={itineraryDays}
-              existingTags={existingTags}
-              initialDescription={addExpenseDialog.data?.description}
-              currencySettings={trip?.currency_settings ?? null}
-              tripName={trip?.name}
-            />
-            {!formReady && (
-              <QueryReadDialog query={formQuery} onClose={addExpenseDialog.closeDialog} />
-            )}
-          </>
-        )}
-
-        {budgetDialog.open && (
-          <BudgetDialog
-            open
-            onClose={budgetDialog.closeDialog}
-            onSubmit={handleSetBudget}
-            budget={trip?.budget ?? null}
-            legacyBudget={trip?.legacy_budget ?? null}
-          />
-        )}
-      </div>
-    </TripSpaceProvider>
+      </TripSpaceProvider>
+    </TripLedgerProvider>
   );
 }

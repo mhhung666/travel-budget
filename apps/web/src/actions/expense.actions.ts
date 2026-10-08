@@ -1,19 +1,26 @@
 'use server';
 
+import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { after } from 'next/server';
 import { createExpenseForActor } from '@/lib/expenseCreate';
 import { TripWriteError } from '@/lib/tripWriteTransaction';
 import { RetiredBlobError } from '@/lib/blobReferences';
 import { Expense } from '@/models';
-import { updateExpenseForActor, deleteExpenseForActor } from '@/lib/expenseMaintenance';
-import { getTripMembership } from '@/lib/permissions';
+import {
+  updateExpenseForActor,
+  deleteExpenseForActor,
+  webExpenseRevision,
+} from '@/lib/expenseMaintenance';
+import { getEnv } from '@/lib/env';
+import { getMemberTrip, getTripMembership } from '@/lib/permissions';
 import {
   createExpenseSchema,
   type CreateExpenseInput,
   type UpdateExpenseInput,
 } from '@/lib/validation';
-import { withAuth } from './withAuth';
+import { withAuth as legacyAuth, withLedgerAuth as withAuth, withLegacyTripRead } from './withAuth';
+import { isLedgerV2, withLedgerV2, parseLedgerInput, LedgerError } from '@/lib/ledger';
 import type { ActionResult } from './types';
 import type { Expense as ExpenseDto } from '@/types';
 import { logger } from '@/lib/logger';
@@ -26,7 +33,7 @@ type LeanExpense = ExpenseDtoInput & { date: Date };
 /**
  * Get all expenses for a trip
  */
-export const getExpenses = withAuth(
+export const getLedgerExpenses = withAuth(
   async (session, tripIdOrCode: string): Promise<ActionResult<ExpenseDto[]>> => {
     try {
       const membership = await getTripMembership(session.userId, tripIdOrCode);
@@ -39,11 +46,24 @@ export const getExpenses = withAuth(
       // splits 已內嵌，payer 與 splits.user 一次 populate，徹底消除原本的 N+1
       const expenses = await Expense.find({ trip: tripId })
         .sort({ date: -1, createdAt: -1 })
-        .populate('payer', 'username displayName')
-        .populate('splits.user', 'username displayName')
         .lean<LeanExpense[]>();
-
-      const data = expenses.map((e) => toExpenseDto(e, tripId));
+      const parent = await getMemberTrip(session.userId, tripId, 'members baseCurrency');
+      if (!parent) return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+      // Capture raw identities before populate replaces a historical missing user with null.
+      const revisions = new Map(
+        expenses.map((e) => [
+          e._id.toString(),
+          webExpenseRevision(getEnv().JWT_SECRET, tripId, e, parent.trip.members),
+        ])
+      );
+      await Expense.populate(expenses, [
+        { path: 'payer', select: 'username displayName' },
+        { path: 'splits.user', select: 'username displayName' },
+      ]);
+      const data = expenses.map((e) => ({
+        ...toExpenseDto(e, tripId),
+        revision: revisions.get(e._id.toString())!,
+      }));
       return { success: true, data };
     } catch (error) {
       logger.error('Get expenses error', error);
@@ -78,7 +98,7 @@ export const getExpenseTags = withAuth(
  * input and owns Next.js cache invalidation. The write itself lives in `lib/expenseCreate.ts`,
  * shared with the native HTTP API.
  */
-export const createExpense = withAuth(
+export const createExpense = legacyAuth(
   async (
     session,
     tripIdOrCode: string,
@@ -92,7 +112,15 @@ export const createExpense = withAuth(
 
       const { tripId } = membership;
 
-      const validation = createExpenseSchema.safeParse(input);
+      const validation = (
+        isLedgerV2()
+          ? createExpenseSchema.extend({
+              base_currency: createExpenseSchema.shape.currency,
+              client_request_id: createExpenseSchema.shape.client_request_id.unwrap(),
+              exchange_rate: createExpenseSchema.shape.exchange_rate.removeDefault(),
+            })
+          : createExpenseSchema
+      ).safeParse(input);
       if (!validation.success) {
         return {
           success: false,
@@ -118,6 +146,13 @@ export const createExpense = withAuth(
         return { success: false, error: error.code, code: error.code };
       if (error instanceof TripWriteError)
         return { success: false, error: error.code, code: error.code };
+      if (
+        isLedgerV2() &&
+        (error as { hasErrorLabel?: (label: string) => boolean })?.hasErrorLabel?.(
+          'TransientTransactionError'
+        )
+      )
+        return { success: false, error: 'BUSY', code: 'BUSY', retryAfter: 1 };
       logger.error('Create expense error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
@@ -127,7 +162,7 @@ export const createExpense = withAuth(
 /**
  * Update an expense
  */
-export const updateExpense = withAuth(
+export const updateExpense = legacyAuth(
   async (
     session,
     tripIdOrCode: string,
@@ -161,7 +196,7 @@ export const updateExpense = withAuth(
 /**
  * Delete an expense
  */
-export const deleteExpense = withAuth(
+export const deleteExpense = legacyAuth(
   async (
     session,
     tripIdOrCode: string,
@@ -209,3 +244,66 @@ export const getReceiptUrl = withAuth(
     }
   }
 );
+
+/** Separate action identity for confirmed v2 bodies; old queues keep createExpense. */
+export async function createLedgerExpense(id: string, input: CreateExpenseInput) {
+  return withLedgerV2(() => createExpense(id, input));
+}
+
+export const deleteLedgerExpense = withAuth(
+  async (
+    session,
+    id: string,
+    expenseId: string,
+    body: { client_request_id: string; expected_revision: string; base_currency: string }
+  ) => {
+    const member = await getTripMembership(session.userId, id);
+    if (!member) return { success: false as const, error: 'NOT_FOUND', code: 'NOT_FOUND' as const };
+    const result = await deleteExpenseForActor(session.userId, member.tripId, expenseId, body);
+    return result;
+  }
+);
+
+export const lookupExpenseCreation = legacyAuth(
+  async (
+    session,
+    id: string,
+    input: CreateExpenseInput
+  ): Promise<ActionResult<ExpenseDto | null>> => {
+    try {
+      const member = await getTripMembership(session.userId, id);
+      if (!member) return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+      const { readExpenseCreateResult } = await import('@/lib/expenseCreateRequest');
+      const { default: mongoose } = await import('mongoose');
+      return {
+        success: true,
+        data:
+          (await readExpenseCreateResult(mongoose.connection.db!, {
+            tripId: member.tripId,
+            actorId: session.userId,
+            input: parseLedgerInput(createExpenseSchema, input),
+          })) ?? null,
+      };
+    } catch (error) {
+      if (error instanceof z.ZodError)
+        return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
+      if (error instanceof LedgerError)
+        return { success: false, error: error.code, code: error.code };
+      logger.error('lookupExpenseCreation error', error);
+      return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
+    }
+  }
+);
+export async function lookupLedgerExpenseCreation(id: string, input: CreateExpenseInput) {
+  return withLedgerV2(() => lookupExpenseCreation(id, input));
+}
+
+export async function updateLedgerExpense(
+  id: string,
+  expenseId: string,
+  input: UpdateExpenseInput
+) {
+  return withLedgerV2(() => updateExpense(id, expenseId, input));
+}
+
+export const getExpenses = withLegacyTripRead(getLedgerExpenses);

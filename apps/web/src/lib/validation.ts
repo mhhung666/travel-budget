@@ -128,6 +128,11 @@ export const createExpenseSchema = z.object({
 });
 
 export const updateExpenseSchema = z.object({
+  client_request_id: z.string().uuid().optional(),
+  expected_revision: z
+    .string()
+    .regex(/^[a-f0-9]{64}$/)
+    .optional(),
   base_currency: currencyCodeSchema.optional(),
   payer_id: objectIdSchema.optional(),
   original_amount: z.number().positive('金額必須大於 0').optional(),
@@ -157,6 +162,10 @@ export const updateExpenseSchema = z.object({
 
 // Budget schemas（金額一律基準幣 TWD）
 export const setBudgetSchema = z.object({
+  expected_revision: z
+    .string()
+    .regex(/^[a-f0-9]{64}$/)
+    .optional(),
   base_currency: currencyCodeSchema.optional(),
   total: z.number().min(0, '預算不能為負').nullable().optional(),
   categories: z
@@ -172,6 +181,11 @@ export const setBudgetSchema = z.object({
 // 旅程幣別設定：常用幣別清單（rate 為自訂匯率 1 外幣 = ? TWD，null = 用即時匯率）
 // 與新增支出的預設幣別。兩者皆空 → action 會把整個 currencySettings 清為 null。
 export const setCurrencySettingsSchema = z.object({
+  expected_revision: z
+    .string()
+    .regex(/^[a-f0-9]{64}$/)
+    .optional(),
+  base_currency: currencyCodeSchema.optional(),
   default_currency: currencyCodeSchema.nullable().optional(),
   currencies: z
     .array(

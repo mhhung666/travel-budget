@@ -1,6 +1,7 @@
 'use client';
+import { useLedgerCurrency } from '@/components/trips/space/LedgerCurrency';
 
-import { useId, useState } from 'react';
+import { useId } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import {
   ArrowRight,
@@ -34,8 +35,8 @@ import { EmptyState } from '@/components/common';
 interface SettlementPlanProps {
   transactions: Transaction[];
   /** 顯示換算用匯率表（呼叫端已把旅程自訂匯率蓋過即時匯率，見 lib/tripCurrency）。 */
-  exchangeRates: Record<string, number>;
-  loadingRates: boolean;
+  exchangeRates?: Record<string, number>;
+  loadingRates?: boolean;
   /** 顯示幣別選項（旅程常用幣別排前）；未傳則用預設順序。 */
   currencyOptions?: string[];
   /** 成員專屬：點擊建議轉帳的「標記已付」（依身分顯示為「確認已收到／我已付款」）時觸發（登記一筆還款）。未傳即唯讀。 */
@@ -58,9 +59,6 @@ interface SettlementPlanProps {
 
 export default function SettlementPlan({
   transactions,
-  exchangeRates,
-  loadingRates,
-  currencyOptions,
   onMarkPaid,
   avatarUrlById,
   onRemind,
@@ -70,26 +68,14 @@ export default function SettlementPlan({
   hasPayments = false,
   onAddExpense,
 }: SettlementPlanProps) {
+  const baseCurrency = useLedgerCurrency();
   const currencyId = useId();
   const t = useTranslations('settlement');
   const locale = useLocale();
-  const [selectedCurrency, setSelectedCurrency] = useState('TWD');
-  const options = currencyOptions ?? ['TWD', 'JPY', 'USD', 'EUR', 'HKD', 'THB'];
+  const selectedCurrency = baseCurrency;
+  const options = [baseCurrency];
 
-  const convertAmount = (amount: number): number => {
-    if (selectedCurrency === 'TWD') return amount;
-    const rate = exchangeRates[selectedCurrency];
-    return rate ? amount / rate : amount;
-  };
-
-  // 全站金額一律走 formatCurrency（NT$1,972），不自行拼 `TWD 1972.00`。
-  // 外幣是依匯率換算的參考金額，標「約」和帳內精確的 TWD 金額區分。
-  const formatAmount = (amount: number): string =>
-    selectedCurrency === 'TWD'
-      ? formatCurrency(amount, 'TWD', locale)
-      : t('approxAmount', {
-          amount: formatCurrency(convertAmount(amount), selectedCurrency, locale),
-        });
+  const formatAmount = (amount: number) => formatCurrency(amount, baseCurrency, locale);
 
   return (
     <Card>
@@ -108,11 +94,7 @@ export default function SettlementPlan({
           <Label htmlFor={currencyId} className="sr-only">
             {t('currency')}
           </Label>
-          <Select
-            value={selectedCurrency}
-            onValueChange={setSelectedCurrency}
-            disabled={loadingRates}
-          >
+          <Select value={selectedCurrency} onValueChange={() => {}} disabled>
             <SelectTrigger id={currencyId} aria-label={t('currency')} className="h-8">
               <SelectValue placeholder={t('currency')} />
             </SelectTrigger>
@@ -193,9 +175,9 @@ export default function SettlementPlan({
                       <p className="text-lg font-bold tabular-nums text-warning">
                         {formatAmount(transaction.amount)}
                       </p>
-                      {selectedCurrency !== 'TWD' && (
+                      {selectedCurrency !== baseCurrency && (
                         <p className="text-xs text-muted-foreground">
-                          ({formatCurrency(transaction.amount, 'TWD', locale)})
+                          ({formatCurrency(transaction.amount, baseCurrency, locale)})
                         </p>
                       )}
                       <div className="flex justify-center mt-1 text-muted-foreground/50">

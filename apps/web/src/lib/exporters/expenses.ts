@@ -1,4 +1,4 @@
-import { roundMoney, normalizeShares } from '@/lib/money';
+import { roundMoney, normalizeShares, moneyTotal } from '@/lib/money';
 import type { Expense } from '@/types';
 import type { ExportFile, ExportFormat } from './types';
 import { FORMAT_META } from './types';
@@ -42,35 +42,49 @@ function mdCell(value: unknown): string {
     .replace(/\r?\n/g, ' ');
 }
 
-function toMarkdown(expenses: Expense[], labels: ExpenseLabels): string {
+function toMarkdown(expenses: Expense[], labels: ExpenseLabels, unit: string): string {
   const { columns: c } = labels;
-  const head = [c.date, c.description, c.category, c.payer, c.amountTwd, c.splits, c.tags];
+  const head = [
+    c.date,
+    c.description,
+    c.category,
+    c.payer,
+    `${c.amountTwd} (${unit})`,
+    c.originalAmount,
+    c.currency,
+    c.rate,
+    `${c.splits} (${unit})`,
+    c.tags,
+  ];
   const rows = expenses.map((e) => [
     isoDate(e.date),
     mdCell(e.description),
     mdCell(labels.category(e.category)),
     mdCell(e.payer_name),
     roundMoney(e.amount),
+    e.original_amount,
+    e.currency,
+    e.exchange_rate,
     mdCell(splitsText(e)),
     mdCell(e.tags.join(', ')),
   ]);
   // 與統計、結算同一種取整順序：逐筆收斂到分再加總。
-  const total = roundMoney(expenses.reduce((sum, e) => sum + roundMoney(e.amount), 0));
+  const total = moneyTotal(expenses.map((e) => e.amount));
 
   const lines = [
-    `# ${labels.heading}`,
+    `# ${labels.heading} (${unit})`,
     '',
     `| ${head.join(' | ')} |`,
     `| ${head.map(() => '---').join(' | ')} |`,
     ...rows.map((r) => `| ${r.join(' | ')} |`),
     '',
-    `**${labels.total}: ${total}**`,
+    `**${labels.total}: ${total.toFixed(2)} ${unit}**`,
     '',
   ];
   return lines.join('\n');
 }
 
-function toExpenseCsv(expenses: Expense[], labels: ExpenseLabels): string {
+function toExpenseCsv(expenses: Expense[], labels: ExpenseLabels, unit: string): string {
   const { columns: c } = labels;
   return toCsv(
     [
@@ -78,11 +92,11 @@ function toExpenseCsv(expenses: Expense[], labels: ExpenseLabels): string {
       c.description,
       c.category,
       c.payer,
-      c.amountTwd,
+      `${c.amountTwd} (${unit})`,
       c.originalAmount,
       c.currency,
       c.rate,
-      c.splits,
+      `${c.splits} (${unit})`,
       c.tags,
     ],
     expenses.map((e) => [
@@ -106,8 +120,11 @@ function toExpenseCsv(expenses: Expense[], labels: ExpenseLabels): string {
 export function exportExpenses(
   expenses: Expense[],
   format: ExportFormat,
-  labels: ExpenseLabels
+  labels: ExpenseLabels,
+  baseCurrency = expenses[0]?.ledger?.baseCurrency ?? 'TWD'
 ): ExportFile {
+  if (expenses.some((e) => (e.ledger?.baseCurrency ?? 'TWD') !== baseCurrency))
+    throw new Error('LEDGER_CURRENCY_MISMATCH');
   expenses = expenses.map((e) => {
     const shares = normalizeShares(
       e.amount,
@@ -115,6 +132,7 @@ export function exportExpenses(
     );
     return {
       ...e,
+      ledger: { baseCurrency, moneyScale: 2 },
       amount: roundMoney(e.amount),
       splits: e.splits.map((s, i) => ({ ...s, share_amount: shares[i] })),
     };
@@ -123,13 +141,17 @@ export function exportExpenses(
   let content: string;
   switch (format) {
     case 'markdown':
-      content = toMarkdown(expenses, labels);
+      content = toMarkdown(expenses, labels, baseCurrency);
       break;
     case 'csv':
-      content = toExpenseCsv(expenses, labels);
+      content = toExpenseCsv(expenses, labels, baseCurrency);
       break;
     case 'json':
-      content = JSON.stringify(expenses, null, 2);
+      content = JSON.stringify(
+        { version: 2, ledger: { baseCurrency, moneyScale: 2 }, expenses },
+        null,
+        2
+      );
       break;
   }
   return { content, ...meta };

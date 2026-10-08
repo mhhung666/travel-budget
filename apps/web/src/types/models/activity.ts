@@ -20,6 +20,8 @@ export interface ActivityLogMeta {
   /** expense_*：支出描述 / TWD 金額 / 支出 id（deleted 時 id 已失效，僅供顯示）。 */
   description?: string;
   amount?: number;
+  /** Event-time ledger; old events without a unit are TWD. */
+  baseCurrency?: string;
   expense_id?: string;
   /** payment_recorded：還款金額 / 還款 id。 */
   payment_id?: string;

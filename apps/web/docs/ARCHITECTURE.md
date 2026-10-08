@@ -4,7 +4,7 @@
 
 ## Workspace 邊界
 
-此應用位於 `apps/web`（`@travel-budget/web`），原生 App 位於 `apps/mobile`；兩者在同一 repository 維護、各自版本與發布。Web 仍擁有業務後端、MongoDB models、migrations 與外部服務。手機目前透過 HTTP 存取 `/api/v1`；B1 已提供 `/api/v2` 帳本契約，介面遷移留 B2／B3。跨應用文件見 [repository 入口](../../../docs/README.md)。
+此應用位於 `apps/web`（`@travel-budget/web`），原生 App 位於 `apps/mobile`；兩者在同一 repository 維護、各自版本與發布。Web 仍擁有業務後端、MongoDB models、migrations 與外部服務。手機目前透過 HTTP 存取 `/api/v1`；B1 已提供 `/api/v2` 帳本契約，B2 Web 已接新版帳本讀寫，Mobile 遷移留 B3。跨應用文件見 [repository 入口](../../../docs/README.md)。
 
 共用 [packages/contracts/src/index.ts](../../../packages/contracts/src/index.ts) 只包含 API DTO、Zod runtime schema 等可供原生使用的契約，透過 `@travel-budget/contracts` 匯入。它不包含 Mongoose、Server Actions 或 server SDK。Web 的 [contract.ts](../src/lib/mobile/contract.ts) 只保留薄 adapter。
 
@@ -28,7 +28,7 @@ Next.js App Router 與 React 組成介面，TanStack Query 負責查詢、重新
 ## 主要資料關係
 
 - **旅程**：包含成員、角色、幣別設定及每位成員的私人預算；行程日、支出、還款、相簿、清單與筆記歸屬旅程。
-- **支出與結算**：支出記錄付款人、原幣、匯率與各成員分攤金額；結算依餘額與已登記還款產生轉帳建議，B1 模型可固定旅程基準幣別，缺欄位的舊資料為 TWD；現行介面尚未開放非 TWD。規則與交易隔離見 [B1 API](MOBILE_API.md#b1-基準幣別契約)。
+- **支出與結算**：支出記錄付款人、原幣、匯率與各成員分攤金額；結算依餘額與已登記還款產生轉帳建議，B1 模型可固定旅程基準幣別，缺欄位的舊資料為 TWD；Web 已支援讀寫既有非 TWD 帳本，新建開關仍關閉。規則與交易隔離見 [B1 API](MOBILE_API.md#b1-基準幣別契約)。
 - **個人資料**：統計彙整個人分攤；飛行與住宿紀錄屬於使用者，刪除旅程只解除終身紀錄的旅程關聯。
 - **檔案**：收據、票券及相簿透過 R2 儲存，資料庫保存物件 key；公開相簿使用移除位置資訊的獨立副本。
 
@@ -43,6 +43,22 @@ Next.js App Router 與 React 組成介面，TanStack Query 負責查詢、重新
 - PWA 需以 `pnpm build`（webpack）及 `pnpm start` 驗證；開發模式不啟用 service worker。
 
 細部設計、資料庫遷移操作與子系統注意事項已收進 [封存索引](archive/README.md)，修改相關子系統時可按需查閱。
+
+## B2 Web 帳本與恢復
+
+旅程頁首、支出／四種分攤、本人預算、結算與部分還款均使用回應的 `ledger.baseCurrency`，包含 JPY 在內一律保留兩位帳本小數。匯率是每一單位原幣換得多少基準幣；原幣等於基準時固定 1。參考匯率共用後端日快照，跨外幣日期不同或缺值不推導。一般成員可記帳／代記還款與設定本人預算；幣別設定只供管理員修改，不能改建立時固定的基準。只修改支出說明／分類／日期時保留原額、原幣、完整匯率、分攤及附件／標籤／行程關聯。
+
+跨旅行統計、金額排序／分頁及年度回顧按帳本幣別分組，不加總混合幣別。CSV／Markdown 欄位明示基準及原幣／匯率，JSON 支出匯出使用 `{ version: 2, ledger, expenses }`，空匯出也保留單位；結算輸出帶單位。年度回顧 PNG 依目前選取幣別輸出。既有 PDF 是行程閱讀器，沒有帳務金額，不新增帳務 PDF。結算與旅行統計首版只顯示基準，不換算成第三種幣別。
+
+新版畫面透過明確的 `getLedger*` Server Action 身分及 `/api/public/v2/trips/:code/*` 分享 adapter；舊 Server Action／公開路徑維持 TWD，非 TWD 深連結回 `CLIENT_UPGRADE_REQUIRED`（公開 HTTP 409），舊列表排除非 TWD。v1／v2 共用服務及資料庫，不接受 header 切換單位。新版公開財務讀取使用唯一 URL 與 no-store，避免舊 service worker 回傳 TWD 快取；公開輸出仍不含私人預算、收據 key 或私人 revision。
+
+建立／加入、修改／刪除支出、登記／撤銷還款及預算／幣別設定先將固定 UUID、原 body、版本、單位及 revision 存入帳號／環境隔離的 IndexedDB，才查詢原 receipt；只有 `not_found` 重送相同操作。不明結果保留，透過全域恢復提示補查，不換 UUID 或讓使用者捨棄。終局衝突重讀後須再次確認；支出、設定與結算各有 HMAC revision。修改／刪除活動與 receipt 同交易，重播不增加紀錄。設定使用同一 `actor:UUID` receipt 唯一 namespace，其 Web 專用 operation 為 `budget.set`／`currency.set`。
+
+同旅行的 Web C 支出佇列與新版操作共用原子寫入保留紀錄；結果未知不自動到期，只在終局落盤後釋放；若頁面在落盤與釋放之間關閉，下一筆操作依相同 UUID 的已保存終局解除保留。伺服器要求的等待期限按帳號保存，receipt 補查／C 送出也遵守；保存期限失敗仍保留記憶體期限。登出停止目前世代，原 UUID 與終局歷史保留給原帳號，以便恢復並解除中斷的保留紀錄。query cache 的 `PERSIST_BUSTER` 更新為帳本版，C outbox 在淘汰舊讀取快取前恢復；舊 C body／UUID 仍走原契約。雙分頁留下較舊讀取快取時，使用其後已保存且同單位的提交基線恢復摘要；較新的快取不被舊基線覆蓋。
+
+新版未送出支出草稿的 key 包含 origin／帳號／旅行／單位／版本。舊未分帳號 LocalStorage 草稿留在原 key，顯示不含內容的提示，**不自動載入或改寫**，避免跨帳號顯示；已確認 outbox 照原 UUID 恢復。非 TWD 新增需連線，斷線可保留未確認表單，不降級為 TWD。其他操作只在確認後持久化，不新增離線授權。
+
+非 TWD 建立仍由伺服器能力及 `ENABLE_NON_TWD_LEDGER` 控制，預設關閉。B3 Mobile 與 B4 獨立 Web／iPhone／iPad 操作、PWA 升級矩陣及精確 DB 核對仍待完成；Android 延後。工程檢查與剩餘驗收集中於 [B 交接](../../mobile/docs/LOCAL_ACCEPTANCE.md#b-基準幣別驗收b1b2-實作交接)。
 
 ## 手機 HTTP adapter
 

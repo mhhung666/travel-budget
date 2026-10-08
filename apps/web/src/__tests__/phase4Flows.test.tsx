@@ -1,3 +1,8 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+vi.mock('@/lib/confirmedWebWrites', () => ({
+  confirmWebWrite: (_client: unknown, r: { body: { invite_code: string } }) =>
+    joinTrip(r.body.invite_code).then((v: { data: unknown }) => v.data),
+}));
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -40,7 +45,11 @@ describe('Phase 4 critical flow interactions', () => {
     const onSuccess = vi.fn();
     joinTrip.mockResolvedValue({ success: true, data: joinedTrip });
 
-    render(<JoinTripDialog open onClose={vi.fn()} onSuccess={onSuccess} />);
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <JoinTripDialog open onClose={vi.fn()} onSuccess={onSuccess} />
+      </QueryClientProvider>
+    );
 
     await user.type(
       screen.getByRole('textbox', { name: 'join.tripId' }),
@@ -53,7 +62,11 @@ describe('Phase 4 critical flow interactions', () => {
   });
 
   it('keeps the join dialog free of serious/critical axe violations', async () => {
-    render(<JoinTripDialog open onClose={vi.fn()} onSuccess={vi.fn()} />);
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <JoinTripDialog open onClose={vi.fn()} onSuccess={vi.fn()} />
+      </QueryClientProvider>
+    );
 
     await expectNoSeriousAxeViolations(document.body);
   });

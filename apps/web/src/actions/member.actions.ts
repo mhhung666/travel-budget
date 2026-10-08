@@ -17,7 +17,7 @@ import {
   type AddVirtualMemberInput,
   type AddFriendsToTripInput,
 } from '@/lib/validation';
-import { withAuth } from './withAuth';
+import { withLedgerAuth as withAuth } from './withAuth';
 import type { ActionResult } from './types';
 import type { Member } from '@/types';
 import { logger } from '@/lib/logger';

@@ -1,4 +1,11 @@
 'use client';
+import {
+  bindConfirmedWebWrites,
+  stopConfirmedWebWrites,
+  readConfirmedWebWrites,
+  confirmedWebKey,
+} from '@/lib/confirmedWebWrites';
+import { ConfirmedWebRecovery } from '@/components/expenses/ConfirmedWebRecovery';
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { onlineManager, QueryClient } from '@tanstack/react-query';
@@ -40,6 +47,7 @@ export async function clearQueryState(
 ): Promise<void> {
   if ('stop' in persister && typeof persister.stop === 'function') persister.stop();
   await queryClient.cancelQueries();
+  stopConfirmedWebWrites(queryClient);
   queryClient.clear();
   await clearExpenseOutbox(queryClient);
   clearTripAccessModes();
@@ -48,7 +56,12 @@ export async function clearQueryState(
 
 function shouldPersistQuery(query: { queryKey: readonly unknown[]; state: { status: string } }) {
   const rootKey = query.queryKey[0];
-  const excludedRoots = new Set(['expenseOutbox', 'notifications', 'mapPhotos']);
+  const excludedRoots = new Set([
+    'expenseOutbox',
+    'confirmedWebWrites',
+    'notifications',
+    'mapPhotos',
+  ]);
   const isPhotoQuery = rootKey === 'trip' && query.queryKey[2] === 'photos';
   return !excludedRoots.has(String(rootKey)) && !isPhotoQuery && query.state.status === 'success';
 }
@@ -100,7 +113,10 @@ export function QueryProvider({
     return client;
   });
 
-  const [outbox] = useState(() => bindExpenseOutbox(queryClient, cacheScope));
+  const [outbox] = useState(() => {
+    bindConfirmedWebWrites(queryClient, cacheScope);
+    return bindExpenseOutbox(queryClient, cacheScope);
+  });
   const [persister] = useState(() => createQueryPersister(cacheScope));
 
   useEffect(() => {
@@ -112,6 +128,9 @@ export function QueryProvider({
       Object.values(
         queryClient.getQueryData<Record<string, { status: string }>>(expenseOutboxQueryKey) ?? {}
       ).some((entry) => entry.status !== 'done') ||
+      Object.values(
+        queryClient.getQueryData<Record<string, { status: string }>>(confirmedWebKey) ?? {}
+      ).some((e) => e.status === 'pending') ||
       queryClient
         .getMutationCache()
         .getAll()
@@ -156,9 +175,15 @@ export function QueryProvider({
           // auto-resumes them on reconnect.
           onSuccess={async () => {
             queryClient.setQueryData(expenseOutboxQueryKey, await outbox.read());
+            try {
+              queryClient.setQueryData(confirmedWebKey, await readConfirmedWebWrites(queryClient));
+            } catch {
+              /* The recovery query surfaces storage failures without deleting unknown writes. */
+            }
             void queryClient.resumePausedMutations();
           }}
         >
+          <ConfirmedWebRecovery />
           {children}
         </PersistQueryClientProvider>
       </QueryPersistenceContext.Provider>

@@ -1,15 +1,8 @@
 'use client';
 
+import { confirmWebWrite } from '@/lib/confirmedWebWrites';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  updateTrip,
-  deleteTrip,
-  regenerateHashCode,
-  archiveTrip,
-  unarchiveTrip,
-  setTripBudget,
-  setTripCurrencySettings,
-} from '@/actions';
+import { updateTrip, deleteTrip, regenerateHashCode, archiveTrip, unarchiveTrip } from '@/actions';
 import type { ActionResult } from '@/actions';
 import type { UpdateTripInput, SetBudgetInput, SetCurrencySettingsInput } from '@/lib/validation';
 import type { Trip } from '@/types';
@@ -46,12 +39,19 @@ export function useTripMutations(tripId: string) {
   // Personal budget lives on the caller's embedded trip membership. The detail DTO
   // only carries that viewer's budget; progress is derived from their expense splits.
   const setBudget = useMutation({
-    mutationFn: (input: SetBudgetInput) => unwrap(setTripBudget(tripId, input)),
-    onSuccess: (trip: Trip) => {
-      queryClient.setQueryData(tripKeys.detail(tripId), trip);
-      queryClient.invalidateQueries({ queryKey: tripKeys.detail(tripId) });
+    mutationFn: async (input: SetBudgetInput) => {
+      await confirmWebWrite(queryClient, {
+        operation: 'budget.set',
+        tripId,
+        body: {
+          ...input,
+          client_request_id: crypto.randomUUID(),
+          base_currency: input.base_currency!,
+          expected_revision: input.expected_revision!,
+        },
+      });
       queryClient.invalidateQueries({ queryKey: tripKeys.shell(tripId) });
-      // Trip cards show my share vs budget.
+      queryClient.invalidateQueries({ queryKey: tripKeys.detail(tripId) });
       queryClient.invalidateQueries({ queryKey: tripKeys.list });
     },
   });
@@ -60,9 +60,17 @@ export function useTripMutations(tripId: string) {
   // trip detail query and the consumers (expense form / settlement / stats)
   // derive everything client-side from trip.currency_settings.
   const setCurrencySettings = useMutation({
-    mutationFn: (input: SetCurrencySettingsInput) => unwrap(setTripCurrencySettings(tripId, input)),
-    onSuccess: (trip: Trip) => {
-      queryClient.setQueryData(tripKeys.detail(tripId), trip);
+    mutationFn: async (input: SetCurrencySettingsInput) => {
+      await confirmWebWrite(queryClient, {
+        operation: 'currency.set',
+        tripId,
+        body: {
+          ...input,
+          client_request_id: crypto.randomUUID(),
+          base_currency: input.base_currency!,
+          expected_revision: input.expected_revision!,
+        },
+      });
       queryClient.invalidateQueries({ queryKey: tripKeys.detail(tripId) });
       queryClient.invalidateQueries({ queryKey: tripKeys.shell(tripId) });
     },

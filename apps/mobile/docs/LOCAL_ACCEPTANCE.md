@@ -2,9 +2,9 @@
 
 此流程啟動 `apps/web` 的實際 HTTP routes 與獨立 MongoDB，提供可丟棄的測試帳號。自動檢查不依賴正式資料或遠端服務，也不取代原生 SecureStore、操作介面與真機驗收。
 
-## B 基準幣別驗收（B1 實作交接）
+## B 基準幣別驗收（B1／B2 實作交接）
 
-固定案例、新舊版本矩陣與 B1–B4 條件統一見 [B0 規格](ROADMAP.md#b旅程基準幣別改造規格2026-10-08)。B1 後端已實作，契約／開關見 [B1 API](../../web/docs/MOBILE_API.md#b1-基準幣別契約)；B2 Web、B3 Mobile／SQLite 及 B4 獨立操作仍待完成，非 TWD 建立預設關閉。
+固定案例、新舊版本矩陣與 B1–B4 條件統一見 [B0 規格](ROADMAP.md#b旅程基準幣別改造規格2026-10-08)。B1 後端已實作，契約／開關見 [B1 API](../../web/docs/MOBILE_API.md#b1-基準幣別契約)；B2 Web 已實作，行為與恢復見 [B2 架構](../../web/docs/ARCHITECTURE.md#b2-web-帳本與恢復)；B3 Mobile／SQLite 及 B4 獨立操作仍待完成，非 TWD 建立預設關閉。
 
 | B1 開發檢查              | 結果／範圍                                                                                                                                                                                                                                                                         |
 | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -13,7 +13,9 @@
 | 真 HTTP                  | `pnpm --filter @travel-budget/web test:mobile-api` 通過原 C／E／G 案例及 `verify-ledger-api.mjs` 的 v2 schema、v1 篩選／深連結／加入阻擋、原 UUID／版本隔離與 v2 丟回應恢復、USD 支出／付款／撤銷與缺單位 503。原 v1 receipt 指紋與回應保留；核對 expense／payment／receipt 筆數。 |
 | 工程檢查                 | frozen install、contracts、根 check／test:run／build、三平台匯出與 Expo 相容性通過。原生 bundle 不等於裝置驗收。                                                                                                                                                                   |
 
-**他人仍待驗**：B1 獨立程式複驗與新舊 Server Action／HTTP 矩陣；B2／B3 完成後再核對 Web、iPhone＋iPad 的操作／重啟、原 UUID、舊草稿／SQLite、撤權／429、公開輸出及精確資料庫帳務。Android 裝置延後，未驗不計通過；未部署、未跑遠端 migration、未開啟非 TWD。
+B2 開發檢查：Web 單元／行為 2,168 項、Mobile 1,172 項＋工具 34 項、隔離 replica-set 15 檔 362 項通過（含新 Web 帳本 15 項）；frozen install、根 check／contracts／build、三平台匯出與 Expo 相容性通過。涵蓋四種分攤、USD／JPY、舊 TWD／v1 阻擋、衝突與撤權、設定 receipt、原 UUID 恢復、429 保存失敗與雙分頁舊摘要基線。正式 build 下 PWA 10 組通過：真 IndexedDB／SW 離線重啟、丟回應只寫一次、撤權後修正、存檔失敗不送出、雙分頁、連續拒絕恢復、讀取快取遺失、新舊公開 HTTP 隔離、外幣／非均分基本編輯一次更新，以及 JPY 0.01。只用工具自建的本機可丟棄資料庫及合成匯率；本輪沒有操作裝置。真 HTTP v1／v2、E／G 寫入回歸及非 TWD 關閉開關／損壞資料拒絕矩陣亦通過。合成證據：PWA `/var/folders/m4/fgf8qnv17_zcmkxf4s9cmd440000gn/T/travel-budget-offline-vktBOU/results.json`；HTTP 診斷 `/var/folders/m4/fgf8qnv17_zcmkxf4s9cmd440000gn/T/travel-budget-mobile-GHq2CY/next.log`。
+
+**他人仍待驗**：B1／B2 獨立程式複驗與新舊 Server Action／HTTP 矩陣；B3 完成後再核對 Web、iPhone＋iPad 的操作／重啟、原 UUID、舊草稿／SQLite、撤權／429、公開輸出及精確資料庫帳務。Android 裝置延後，未驗不計通過；未部署、未跑遠端 migration、未開啟非 TWD。
 
 ## U 靜態審查修正交接（2026-10-08）
 

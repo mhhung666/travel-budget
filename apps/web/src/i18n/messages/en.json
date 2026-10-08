@@ -42,7 +42,7 @@
     "successTitle": "Success",
     "warningTitle": "Warning",
     "infoTitle": "Info",
-    "pendingOfflineLogout": "You have pending expenses or unresolved drafts. Signing out removes their saved input from this device. Sign out?",
+    "pendingOfflineLogout": "Some expenses or operation results are unresolved. Signing out pauses sending and keeps the original records for recovery under this account. Sign out?",
     "queryOfflineCached": "You are offline. Showing saved data.",
     "queryOfflineMissing": "You are offline and this data is not saved on this device. It will load when you reconnect.",
     "shareLink": "Share link"
@@ -386,7 +386,7 @@
       "formDescription": "Enter the amount and confirm who paid and how it is split.",
       "amount": "Amount",
       "currency": "Currency",
-      "exchangeRate": "Exchange Rate (to TWD)",
+      "exchangeRate": "Exchange rate (to ledger base currency)",
       "description": "Description",
       "descriptionPlaceholder": "e.g., Lunch, Transportation, Hotel",
       "ai": {
@@ -439,7 +439,7 @@
       "payer": "Payer",
       "payerPlaceholder": "Select payer",
       "refreshRate": "Refresh exchange rate",
-      "rateEquation": "1 {currency} = {rate} TWD",
+      "rateEquation": "1 {currency} = {rate} {baseCurrency}",
       "referenceRateDate": "Frankfurter daily reference · Data date {date} (not a live quote)",
       "itineraryDay": "Linked day",
       "itineraryDaysHint": "Pick one or more; multi-day expenses are split evenly across daily spend",
@@ -687,7 +687,7 @@
     "paymentHistoryEmpty": "No transfers recorded yet",
     "paymentHistoryNoExpenses": "No transfers recorded yet. You can still log money sent ahead, like a deposit.",
     "paymentRecorded": "Transfer recorded",
-    "amountLabel": "Amount (TWD)",
+    "amountLabel": "Amount",
     "noteLabel": "Note (optional)",
     "notePlaceholder": "e.g. cash, bank transfer…",
     "selectMember": "Select member",
@@ -749,7 +749,7 @@
     },
     "dialog": {
       "title": "Set my budget",
-      "description": "Budgets are in TWD. Spending is calculated from your share of each expense.",
+      "description": "Budgets use the ledger base currency. Spending is the sum of your shares of expenses.",
       "private": "Only you can see this budget",
       "totalLabel": "My total budget",
       "totalPlaceholder": "e.g. 30000",
@@ -1025,7 +1025,7 @@
       "addCurrency": "Add currency",
       "searchPlaceholder": "Search currency (code or name)",
       "noMatch": "No matching currency",
-      "empty": "No currencies added yet — new expenses will use TWD.",
+      "empty": "No frequent currencies added. New expenses use the ledger base currency.",
       "remove": "Remove",
       "customRate": "Custom exchange rate"
     },
@@ -1921,6 +1921,38 @@
       "iosHome": "Choose “Add to Home Screen” (scroll down or check “Edit Actions” if needed).",
       "iosConfirm": "Tap “Add” to open Travel Budget from your home screen.",
       "fallback": "The install prompt could not open. Choose “Install app” or “Add to home screen” from your browser menu."
+    }
+  },
+  "ledger": {
+    "baseCurrency": "Ledger base currency",
+    "immutable": "Fixed after creation. Splits, repayments and budgets use this currency.",
+    "precision": "Ledger amounts use {currency} with two decimal places, including JPY.",
+    "pendingWrite": "A confirmed operation is awaiting its result. Recover it before submitting another operation for that trip.",
+    "recover": "Check and recover",
+    "onlineOnly": "Connect before submitting to this ledger.",
+    "legacyDraft": "An older draft without an account marker remains on this device. It is not automatically restored into this account.",
+    "rateEquation": "1 {currency} = {rate} {baseCurrency}",
+    "budgetDescription": "Budgets use the ledger base currency. Spending is the sum of your shares of expenses.",
+    "emptyCurrencies": "No frequent currencies added. New expenses use the ledger base currency.",
+    "reload": "Reload settings",
+    "amount": "Amount",
+    "wait": "The server requested a pause. Check the original operation after the waiting period.",
+    "storageInvalid": "Confirmed operation storage could not be read. Keep browser data and repair storage before recovery.",
+    "writeUnknown": "The result is unconfirmed. Keep this record and check the original operation later.",
+    "RESOURCE_CHANGED": "Someone changed this record. Reload and confirm again.",
+    "SETTLEMENT_CHANGED": "Settlement changed. Reload and confirm again.",
+    "LEDGER_CURRENCY_MISMATCH": "Ledger currencies differ. Reload the trip.",
+    "CLIENT_UPGRADE_REQUIRED": "Update the app before opening this trip.",
+    "BUSY": "The server is busy. Wait before checking the original operation.",
+    "operations": {
+      "trip_create": "Create trip",
+      "trip_join": "Join trip",
+      "expense_update": "Edit expense",
+      "expense_delete": "Delete expense",
+      "payment_create": "Record payment",
+      "payment_delete": "Revoke payment",
+      "budget_set": "Set budget",
+      "currency_set": "Set expense currency"
     }
   }
 }

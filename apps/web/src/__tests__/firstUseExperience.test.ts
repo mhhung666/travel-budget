@@ -20,7 +20,7 @@ describe('Phase 2A first-use experience contracts', () => {
     const page = readSource('app', '(app)', 'trips', 'page.tsx');
 
     expect(dialog).toContain('onSuccess(createdTrip)');
-    expect(page).toContain('ROUTES.TRIP_DETAIL(trip.hash_code)');
+    expect(page).toContain('ROUTES.TRIP_DETAIL(trip.id)');
     expect(page).toContain('router.push');
   });
 

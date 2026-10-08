@@ -1,6 +1,13 @@
+import { claimWebTripWrite } from './webWriteCoordination';
+import { saveWebCooldown, assertWebCooldown } from './confirmedWebWrites';
 import { replaceEqualDeep, type QueryClient } from '@tanstack/react-query';
 import { saveExpenseOutbox } from './expenseOutbox';
-import { createExpense } from '@/actions';
+import {
+  createExpense,
+  createLedgerExpense,
+  lookupExpenseCreation,
+  lookupLedgerExpenseCreation,
+} from '@/actions';
 import type { ActionResult } from '@/actions';
 import type { CreateExpenseInput } from '@/lib/validation';
 import { tripKeys } from '@/hooks/queries/keys';
@@ -79,6 +86,7 @@ export const expenseCreateMutationKey = ['expenses', 'create'] as const;
  * reload) mutation can target the right trip without a live component. */
 export interface CreateExpenseVars {
   tripId: string;
+  contractVersion?: 2;
   input: CreateExpenseInput;
   /** Atomically replace a rejected draft only after its corrected submission is durable. */
   replacesRequestId?: string;
@@ -129,13 +137,41 @@ export async function executeExpenseCreate(
       .some((m) => m.state.variables === vars)
   )
     throw new Error('Expense request was cleared');
+  try {
+    await assertWebCooldown(queryClient);
+    await claimWebTripWrite(queryClient, vars.tripId, vars.input.client_request_id!);
+  } catch (error) {
+    throw new RetryableExpenseError(error instanceof Error ? error.message : String(error));
+  }
   let result: ActionResult<Expense>;
   try {
-    result = await createExpense(vars.tripId, vars.input);
+    const lookup = await (
+      vars.contractVersion === 2 ? lookupLedgerExpenseCreation : lookupExpenseCreation
+    )(vars.tripId, vars.input);
+    if (
+      !queryClient
+        .getMutationCache()
+        .getAll()
+        .some((m) => m.state.variables === vars)
+    )
+      throw new Error('Expense request was cleared');
+    result =
+      lookup.success && lookup.data
+        ? { success: true, data: lookup.data }
+        : !lookup.success
+          ? lookup
+          : await (vars.contractVersion === 2 ? createLedgerExpense : createExpense)(
+              vars.tripId,
+              vars.input
+            );
   } catch (error) {
     throw new RetryableExpenseError(error instanceof Error ? error.message : String(error));
   }
   if (!result.success) {
+    if (result.retryAfter) {
+      await saveWebCooldown(queryClient, result.retryAfter);
+      throw new RetryableExpenseError(result.error);
+    }
     if (result.code === 'INTERNAL_ERROR') throw new RetryableExpenseError(result.error);
     try {
       await saveExpenseOutbox(queryClient, vars, context, 'failed', result.error);

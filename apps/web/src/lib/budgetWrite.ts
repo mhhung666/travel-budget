@@ -15,19 +15,10 @@ export async function setBudgetForActor(
   if (!isLedgerV2() && input.base_currency && input.base_currency !== 'TWD')
     throw new LedgerError('LEDGER_CURRENCY_MISMATCH');
   if (isLedgerV2() && !input.base_currency) throw new LedgerError('VALIDATION_ERROR');
-  if (
-    (input.total != null && !isCentShare(input.total)) ||
-    (input.categories ?? []).some((c) => !isCentShare(c.amount))
-  )
-    throw new LedgerError('VALIDATION_ERROR');
+  normalizeBudgetAmounts(input);
   return withTripWriteInDatabase(db, tripId, actorId, async (session) => {
     if (ledgerMismatch()) throw new LedgerError('LEDGER_CURRENCY_MISMATCH');
-    const total = input.total != null && input.total > 0 ? input.total : null;
-    const byCategory = new Map<string, number>();
-    for (const c of input.categories ?? []) if (c.amount > 0) byCategory.set(c.category, c.amount);
-    const categories = Array.from(byCategory, ([category, amount]) => ({ category, amount }));
-    const budget =
-      total === null && !categories.length ? null : { ...ledgerStamp(), total, categories };
+    const budget = normalizeBudget(input);
     await db
       .collection('trips')
       .updateOne(
@@ -37,4 +28,22 @@ export async function setBudgetForActor(
       );
     return budget;
   });
+}
+
+function normalizeBudgetAmounts(input: SetBudgetInput) {
+  if (
+    (input.total != null && !isCentShare(input.total)) ||
+    (input.categories ?? []).some((c) => !isCentShare(c.amount))
+  )
+    throw new LedgerError('VALIDATION_ERROR');
+}
+export function normalizeBudget(input: SetBudgetInput) {
+  normalizeBudgetAmounts(input);
+  const total = input.total != null && input.total > 0 ? input.total : null;
+  const byCategory = new Map<string, number>();
+  for (const c of input.categories ?? []) if (c.amount > 0) byCategory.set(c.category, c.amount);
+  const categories = Array.from(byCategory, ([category, amount]) => ({ category, amount }));
+  const budget =
+    total === null && !categories.length ? null : { ...ledgerStamp(), total, categories };
+  return budget;
 }

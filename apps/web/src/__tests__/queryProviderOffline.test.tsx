@@ -41,7 +41,12 @@ vi.mock('idb-keyval', () => ({
     storage.delete(key);
   },
 }));
-vi.mock('@/actions', () => ({ createExpense, updateExpense: vi.fn(), deleteExpense: vi.fn() }));
+vi.mock('@/actions', () => ({
+  lookupExpenseCreation: vi.fn(async () => ({ success: true, data: null })),
+  createExpense,
+  updateExpense: vi.fn(),
+  deleteExpense: vi.fn(),
+}));
 vi.mock('@/lib/productEvents', () => ({ trackProductEvent: vi.fn() }));
 
 const vars = {
@@ -170,7 +175,7 @@ describe('QueryProvider offline startup', () => {
           ? 'invalid json'
           : JSON.stringify({
               timestamp: kind === 'expired' ? 1 : Date.now(),
-              buster: kind === 'incompatible' ? 'old' : 'v13',
+              buster: kind === 'incompatible' ? 'old' : 'v14-ledger',
               clientState: { mutations: [], queries: [] },
             })
       );
@@ -237,10 +242,11 @@ describe('QueryProvider offline startup', () => {
       );
     });
     expect(createExpense).toHaveBeenCalledOnce();
+    const journalBeforeLogout = structuredClone(storage.get(getExpenseOutboxKey(scope)));
     await act(async () => {
       await mounted.result.current.clearForLogout();
     });
-    expect(storage.get(getExpenseOutboxKey(scope))).toBeUndefined();
+    expect(storage.get(getExpenseOutboxKey(scope))).toEqual(journalBeforeLogout);
     mounted.unmount();
   });
   it.each([false, true])(
@@ -352,7 +358,11 @@ describe('QueryProvider offline startup', () => {
     snapshot.setQueryData(shellKey, first);
     storage.set(
       persistKey,
-      JSON.stringify({ timestamp: Date.now(), buster: 'v13', clientState: dehydrate(snapshot) })
+      JSON.stringify({
+        timestamp: Date.now(),
+        buster: 'v14-ledger',
+        clientState: dehydrate(snapshot),
+      })
     );
     for (const [amount, projection] of [
       [31, first],
@@ -402,7 +412,11 @@ describe('QueryProvider offline startup', () => {
       snapshot.setQueryData(shellKey, second);
       storage.set(
         persistKey,
-        JSON.stringify({ timestamp: Date.now(), buster: 'v13', clientState: dehydrate(snapshot) })
+        JSON.stringify({
+          timestamp: Date.now(),
+          buster: 'v14-ledger',
+          clientState: dehydrate(snapshot),
+        })
       );
       for (const [amount, previousShell, appliedShell, status] of [
         [31, base, first, firstStatus],
@@ -442,6 +456,47 @@ describe('QueryProvider offline startup', () => {
       snapshot.clear();
     }
   );
+  it.each([true, false])(
+    'recovers a newer durable baseline only when the cached snapshot is older (older=%s)',
+    async (older) => {
+      const now = Date.now();
+      const stale = { expense_count: 5, total_spent: 113, today_spent: 113 } as TripShell;
+      const base = { ...stale, expense_count: 6, total_spent: 150, today_spent: 150 };
+      const first = { ...base, expense_count: 7, total_spent: 191, today_spent: 191 };
+      const second = { ...base, expense_count: 8, total_spent: 234, today_spent: 234 };
+      const snapshot = new QueryClient();
+      snapshot.setQueryData(shellKey, stale);
+      storage.set(
+        persistKey,
+        JSON.stringify({
+          timestamp: now - (older ? 2000 : 0),
+          buster: 'v14-ledger',
+          clientState: dehydrate(snapshot),
+        })
+      );
+      for (const [id, previousShell, appliedShell, status, offset] of [
+        ['first', base, first, 'failed', 1000],
+        ['second', first, second, 'pending', 500],
+      ] as const) {
+        await createExpenseOutbox(scope).write({
+          vars: { ...vars, input: { ...vars.input, client_request_id: id } },
+          status,
+          createdAt: now - offset,
+          context: {
+            optimisticId: `optimistic_${id}`,
+            wasOffline: true,
+            previousShell,
+            appliedShell,
+          },
+        });
+      }
+      const restored = await createQueryPersister(scope).restoreClient();
+      expect(
+        restored!.clientState.queries.find((q) => q.queryKey[2] === 'shell')!.state.data
+      ).toMatchObject({ total_spent: older ? 193 : 113 });
+      snapshot.clear();
+    }
+  );
   it.each(['failed', 'done', 'pending'] as const)(
     'reconciles a second journal transition after persisting a partially restored summary: %s',
     async (nextStatus) => {
@@ -454,7 +509,7 @@ describe('QueryProvider offline startup', () => {
         persistKey,
         JSON.stringify({
           timestamp: Date.now(),
-          buster: 'v13',
+          buster: 'v14-ledger',
           clientState: dehydrate(snapshot),
         })
       );

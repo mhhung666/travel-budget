@@ -22,6 +22,7 @@ export interface TripExpenseDigestInput {
   /** 旅程公開 hashCode（摘要信連結用，見 emailTemplates BuildEmailInput）。 */
   tripHashCode: string;
   tripName: string;
+  baseCurrency?: string;
   members: { userId: string; archivedAt?: Date | null }[];
   expenses: DigestExpense[];
 }
@@ -31,6 +32,7 @@ export interface UserTripDigest {
   /** 旅程公開 hashCode（摘要信連結用，見 emailTemplates BuildEmailInput）。 */
   tripHashCode: string;
   tripName: string;
+  baseCurrency?: string;
   expenses: { description: string; amount: number; payerName: string }[];
 }
 
@@ -60,7 +62,12 @@ export function computeExpenseDigests(
       if (forUser.length === 0) continue;
 
       const list = result.get(member.userId) ?? [];
-      list.push({ tripHashCode: trip.tripHashCode, tripName: trip.tripName, expenses: forUser });
+      list.push({
+        tripHashCode: trip.tripHashCode,
+        tripName: trip.tripName,
+        ...(trip.baseCurrency ? { baseCurrency: trip.baseCurrency } : {}),
+        expenses: forUser,
+      });
       result.set(member.userId, list);
     }
   }

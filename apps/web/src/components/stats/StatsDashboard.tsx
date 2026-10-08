@@ -137,7 +137,8 @@ export default function StatsDashboard({
   const numberLocale =
     locale === 'zh' ? 'zh-TW' : locale === 'jp' ? 'ja-JP' : locale === 'zh-CN' ? 'zh-CN' : 'en-US';
   // 與預算列、結算頁共用同一個金額格式（NT$1,972），避免同一筆錢有三種寫法。
-  const formatCurrency = (amount: number) => formatMoney(amount, 'TWD', locale);
+  const formatCurrency = (amount: number) =>
+    formatMoney(amount, stats?.ledger?.baseCurrency ?? 'TWD', locale);
   const formatDate = (date: string) =>
     new Intl.DateTimeFormat(numberLocale, {
       month: 'short',

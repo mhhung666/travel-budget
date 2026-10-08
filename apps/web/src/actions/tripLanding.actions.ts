@@ -1,12 +1,12 @@
 'use server';
 
-import { withAuth } from './withAuth';
+import { withLedgerAuth as withAuth, withLegacyTripRead } from './withAuth';
 import type { ActionResult } from './types';
 import type { TripLanding } from '@/types/tripLanding';
 import { readTripLanding } from '@/lib/tripLandingRead';
 import { logger } from '@/lib/logger';
 
-export const getTripLanding = withAuth(
+export const getLedgerTripLanding = withAuth(
   async (session, id: string, viewerDate?: string): Promise<ActionResult<TripLanding>> => {
     try {
       const data = await readTripLanding(id, session.userId, viewerDate);
@@ -19,3 +19,5 @@ export const getTripLanding = withAuth(
     }
   }
 );
+
+export const getTripLanding = withLegacyTripRead(getLedgerTripLanding);

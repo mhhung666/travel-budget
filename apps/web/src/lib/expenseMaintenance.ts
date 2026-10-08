@@ -1,3 +1,5 @@
+import { z } from 'zod';
+import { getEnv } from '@/lib/env';
 import type { LedgerMutationRequest } from '@travel-budget/contracts';
 import {
   parseLedgerInput,
@@ -76,6 +78,7 @@ interface Receipt {
   _id: string;
   fingerprint: string;
   contractVersion?: number;
+  ledger?: unknown;
   terminal: Terminal;
   createdAt: Date;
 }
@@ -127,6 +130,28 @@ export function expenseRevision(
       )
     )
     .digest('hex');
+}
+export function webExpenseRevision(
+  secret: string,
+  tripId: string,
+  expense: mongo.Document,
+  members: { user: { toString(): string } }[]
+) {
+  const ref = (value: unknown) =>
+    value && typeof value === 'object' && '_id' in value ? (value as { _id: unknown })._id : value;
+  return expenseRevision(
+    secret,
+    tripId,
+    {
+      ...expense,
+      payer: ref(expense.payer),
+      splits: (expense.splits ?? []).map((s: { user: unknown; shareAmount: number }) => ({
+        ...s,
+        user: ref(s.user),
+      })),
+    },
+    members.map((m) => m.user.toString())
+  );
 }
 async function contextInSnapshot(
   db: mongo.Db,
@@ -316,7 +341,10 @@ export async function maintainExpense(
         const receipts = db.collection<Receipt>(MUTATION_REQUESTS);
         const existing = await receipts.findOne({ _id: key }, { session });
         if (existing) {
-          checkReceiptVersion(existing);
+          checkReceiptVersion({
+            contractVersion: existing.contractVersion,
+            ledger: existing.ledger,
+          });
           if (existing.fingerprint !== fingerprint)
             throw new TripEntryError('IDEMPOTENCY_CONFLICT');
           return { terminal: existing.terminal, keys: [] as string[] };
@@ -481,6 +509,13 @@ export const updateExpenseForActor = async (
       };
     }
 
+    if (
+      isLedgerV2() &&
+      (!validation.data.base_currency ||
+        !validation.data.client_request_id ||
+        !validation.data.expected_revision)
+    )
+      return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
     const {
       original_amount,
       currency,
@@ -497,7 +532,9 @@ export const updateExpenseForActor = async (
 
     // 讀取目前值（同時作為 existence check）
     const snapshot = await Expense.findOne({ _id: expenseId, trip: tripId })
-      .select('originalAmount exchangeRate description splits attachments')
+      .select(
+        'payer amount originalAmount currency exchangeRate description category date splits attachments tags itineraryDays'
+      )
       .lean<{
         originalAmount: number;
         exchangeRate: number;
@@ -526,14 +563,16 @@ export const updateExpenseForActor = async (
             attachments.filter((a) => !initialKeys.has(a.key))
           );
     if (!verified) return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
-    const { current, removed } = await withTripWrite(
+    const { current, removed, terminal } = await withTripWrite(
       tripId,
       actorId,
       async (transactionSession) => {
         // 讀取目前值（同時作為 existence check）
         const current = await Expense.findOne({ _id: expenseId, trip: tripId })
           .session(transactionSession)
-          .select('originalAmount exchangeRate description splits attachments')
+          .select(
+            'payer amount originalAmount currency exchangeRate description category date splits attachments tags itineraryDays'
+          )
           .lean<{
             originalAmount: number;
             exchangeRate: number;
@@ -550,6 +589,97 @@ export const updateExpenseForActor = async (
 
         if (!current) {
           throw new TripWriteError('NOT_FOUND');
+        }
+
+        if (isLedgerV2()) {
+          const unit = validation.data.base_currency!;
+          const body = validation.data;
+          const key = `${actorId.toLowerCase()}:${body.client_request_id!.toLowerCase()}`;
+          const fingerprint = createHash('sha256')
+            .update(
+              JSON.stringify(
+                canonical({
+                  contractVersion: 2,
+                  baseCurrency: unit,
+                  operation: 'web.expense.update',
+                  tripId,
+                  expenseId,
+                  input: body,
+                })
+              )
+            )
+            .digest('hex');
+          const receipts = mongoose.connection.db!.collection(MUTATION_REQUESTS);
+          const existing = await receipts.findOne(
+            { _id: key as never },
+            { session: transactionSession }
+          );
+          if (existing) {
+            checkReceiptVersion({
+              contractVersion: existing.contractVersion,
+              ledger: existing.ledger,
+            });
+            if (existing.fingerprint !== fingerprint) throw new TripWriteError('CONFLICT');
+            return { current, removed: [] as string[], terminal: existing.terminal as Terminal };
+          }
+          const parent = await Trip.findById(tripId)
+            .session(transactionSession)
+            .select('members baseCurrency')
+            .lean();
+          const revision = webExpenseRevision(
+            getEnv().JWT_SECRET,
+            tripId,
+            current,
+            parent!.members
+          );
+          if (unit !== currentLedger().baseCurrency || body.expected_revision !== revision) {
+            const terminal = terminalWithLedger({
+              status: 'rejected' as const,
+              operation: 'expense.update' as const,
+              tripId,
+              code:
+                unit !== currentLedger().baseCurrency
+                  ? ('LEDGER_CURRENCY_MISMATCH' as const)
+                  : ('RESOURCE_CHANGED' as const),
+            });
+            await receipts.insertOne(
+              {
+                _id: key as never,
+                fingerprint,
+                terminal,
+                ...receiptStamp(),
+                createdAt: new Date(),
+              },
+              { session: transactionSession }
+            );
+            return { current, removed: [] as string[], terminal };
+          }
+          const raw = current as typeof current & { currency: string; amount: number };
+          const oa = original_amount ?? current.originalAmount,
+            er = exchange_rate ?? current.exchangeRate,
+            code = currency ?? raw.currency;
+          if (
+            (original_amount !== undefined ||
+              currency !== undefined ||
+              exchange_rate !== undefined ||
+              splits !== undefined ||
+              payer_id !== undefined) &&
+            ((code === unit && er !== 1) ||
+              !isSupportedCurrency(code) ||
+              !Number.isSafeInteger(Math.round(oa * 100)) ||
+              roundMoney(oa) !== oa ||
+              !Number.isFinite(oa * er) ||
+              roundMoney(oa * er) > MAX_EXPENSE_AMOUNT ||
+              splits?.some((s) => !isCentShare(s.share_amount)) ||
+              ((original_amount !== undefined ||
+                currency !== undefined ||
+                exchange_rate !== undefined) &&
+                (!splits ||
+                  original_amount === undefined ||
+                  currency === undefined ||
+                  exchange_rate === undefined)))
+          )
+            throw new TripWriteError('VALIDATION_ERROR');
         }
 
         // Updates must preserve the same trip-member boundary as creation. Without
@@ -593,7 +723,7 @@ export const updateExpenseForActor = async (
           set.tags = [...new Set(tags)];
         }
 
-        // Recalculate TWD amount if needed
+        // Recalculate ledger amount if needed
         let newAmount: number | undefined;
         if (original_amount !== undefined || exchange_rate !== undefined) {
           const oa = original_amount ?? current.originalAmount;
@@ -650,21 +780,92 @@ export const updateExpenseForActor = async (
         );
 
         await retireUnreferencedBlobs(mongoose.connection.db!, transactionSession, tripId, removed);
-        return { current, removed };
+        let terminal: Terminal | undefined;
+        if (isLedgerV2()) {
+          const body = validation.data;
+          const key = `${actorId.toLowerCase()}:${body.client_request_id!.toLowerCase()}`;
+          const fingerprint = createHash('sha256')
+            .update(
+              JSON.stringify(
+                canonical({
+                  contractVersion: 2,
+                  baseCurrency: body.base_currency,
+                  operation: 'web.expense.update',
+                  tripId,
+                  expenseId,
+                  input: body,
+                })
+              )
+            )
+            .digest('hex');
+          terminal = terminalWithLedger({
+            status: 'committed',
+            operation: 'expense.update',
+            resourceId: expenseId,
+            result: {
+              tripId,
+              expenseId,
+              revision: webExpenseRevision(
+                getEnv().JWT_SECRET,
+                tripId,
+                { ...current, ...set },
+                (await Trip.findById(tripId).session(transactionSession).select('members').lean())!
+                  .members
+              ),
+            },
+          } as Terminal);
+          await mongoose.connection.db!.collection(MUTATION_REQUESTS).insertOne(
+            {
+              _id: key as never,
+              fingerprint,
+              terminal,
+              ...receiptStamp(),
+              createdAt: new Date(),
+            },
+            { session: transactionSession }
+          );
+          await mongoose.connection.db!.collection('activitylogs').insertOne(
+            {
+              trip: new mongo.ObjectId(tripId),
+              actor: new mongo.ObjectId(actorId),
+              actorName:
+                (
+                  await mongoose.connection
+                    .db!.collection('users')
+                    .findOne(
+                      { _id: new mongo.ObjectId(actorId) },
+                      { session: transactionSession, projection: { displayName: 1 } }
+                    )
+                )?.displayName ?? '',
+              type: 'expense_updated',
+              meta: { expense_id: expenseId, description: description ?? current.description },
+              createdAt: new Date(),
+            },
+            { session: transactionSession }
+          );
+        }
+        return { current, removed, terminal };
       }
     );
+    if (terminal?.status === 'rejected')
+      return {
+        success: false,
+        error: terminal.code,
+        code: terminal.code === 'RESOURCE_CHANGED' ? 'RESOURCE_CHANGED' : 'VALIDATION_ERROR',
+      };
     await cleanupRetiredBlobs(mongoose.connection.db!, removed).catch(() => undefined);
 
     // 動態牆紀錄（描述取更新後的有效值；best-effort）
-    await logActivity({
-      tripId,
-      actorId: actorId,
-      type: 'expense_updated',
-      meta: {
-        expense_id: expenseId,
-        description: description !== undefined ? description.trim() : current.description,
-      },
-    });
+    if (!isLedgerV2())
+      await logActivity({
+        tripId,
+        actorId: actorId,
+        type: 'expense_updated',
+        meta: {
+          expense_id: expenseId,
+          description: description !== undefined ? description.trim() : current.description,
+        },
+      });
 
     return { success: true, data: { message: '支出已更新' } };
   } catch (error) {
@@ -680,16 +881,82 @@ export const updateExpenseForActor = async (
 export const deleteExpenseForActor = async (
   actorId: string,
   tripId: string,
-  expenseId: string
+  expenseId: string,
+  confirmation?: { client_request_id: string; expected_revision: string; base_currency: string }
 ): Promise<ActionResult<{ message: string }>> => {
   try {
     const doc = await withTripWrite(tripId, actorId, async (transactionSession) => {
       // 先讀附件 key（刪 R2 物件用）+ 描述（動態牆顯示用）
       const doc = await Expense.findOne({ _id: expenseId, trip: tripId })
         .session(transactionSession)
-        .select('attachments description')
+        .select(
+          'payer amount originalAmount currency exchangeRate description category date splits attachments tags itineraryDays'
+        )
         .lean<{ attachments?: { key: string }[]; description?: string }>();
 
+      if (isLedgerV2()) {
+        if (
+          !confirmation ||
+          !z.string().uuid().safeParse(confirmation.client_request_id).success ||
+          !/^[a-f0-9]{64}$/.test(confirmation.expected_revision)
+        )
+          throw new TripWriteError('VALIDATION_ERROR');
+        const key = `${actorId.toLowerCase()}:${confirmation.client_request_id.toLowerCase()}`;
+        const receipts = mongoose.connection.db!.collection(MUTATION_REQUESTS);
+        const fingerprint = createHash('sha256')
+          .update(
+            JSON.stringify(
+              canonical({
+                contractVersion: 2,
+                operation: 'web.expense.delete',
+                tripId,
+                expenseId,
+                input: confirmation,
+              })
+            )
+          )
+          .digest('hex');
+        const existing = await receipts.findOne(
+          { _id: key as never },
+          { session: transactionSession }
+        );
+        if (existing) {
+          checkReceiptVersion({
+            contractVersion: existing.contractVersion,
+            ledger: existing.ledger,
+          });
+          if (existing.fingerprint !== fingerprint) throw new TripWriteError('CONFLICT');
+          return { ...doc, terminal: existing.terminal as Terminal };
+        }
+        const parent = await Trip.findById(tripId)
+          .session(transactionSession)
+          .select('members baseCurrency')
+          .lean();
+        const code =
+          confirmation.base_currency !== currentLedger().baseCurrency
+            ? 'LEDGER_CURRENCY_MISMATCH'
+            : !doc
+              ? 'RESOURCE_GONE'
+              : confirmation.expected_revision !==
+                  webExpenseRevision(getEnv().JWT_SECRET, tripId, doc, parent!.members)
+                ? 'RESOURCE_CHANGED'
+                : null;
+        const terminal = terminalWithLedger(
+          code
+            ? { status: 'rejected', operation: 'expense.delete', tripId, code }
+            : {
+                status: 'committed',
+                operation: 'expense.delete',
+                resourceId: expenseId,
+                result: { tripId, expenseId, deleted: true },
+              }
+        );
+        await receipts.insertOne(
+          { _id: key as never, fingerprint, terminal, ...receiptStamp(), createdAt: new Date() },
+          { session: transactionSession }
+        );
+        if (code) return { ...doc, terminal: terminal as Terminal };
+      }
       await Expense.deleteOne({ _id: expenseId, trip: tripId }, { session: transactionSession });
 
       await Comment.deleteMany(
@@ -702,19 +969,49 @@ export const deleteExpenseForActor = async (
         tripId,
         (doc?.attachments ?? []).map((a) => a.key)
       );
+      if (isLedgerV2())
+        await mongoose.connection.db!.collection('activitylogs').insertOne(
+          {
+            trip: new mongo.ObjectId(tripId),
+            actor: new mongo.ObjectId(actorId),
+            actorName:
+              (
+                await mongoose.connection
+                  .db!.collection('users')
+                  .findOne(
+                    { _id: new mongo.ObjectId(actorId) },
+                    { session: transactionSession, projection: { displayName: 1 } }
+                  )
+              )?.displayName ?? '',
+            type: 'expense_deleted',
+            meta: {
+              description: doc?.description ?? '',
+              baseCurrency: currentLedger().baseCurrency,
+            },
+            createdAt: new Date(),
+          },
+          { session: transactionSession }
+        );
       return doc;
     });
 
+    if (doc && 'terminal' in doc && (doc.terminal as Terminal).status === 'rejected')
+      return {
+        success: false,
+        error: (doc.terminal as Extract<Terminal, { status: 'rejected' }>).code,
+        code: 'CONFLICT',
+      };
     const keys = (doc?.attachments ?? []).map((a) => a.key);
     await cleanupRetiredBlobs(mongoose.connection.db!, keys).catch(() => undefined);
 
     // 動態牆紀錄（支出已刪，描述取自刪除前的快照；best-effort）
-    await logActivity({
-      tripId: tripId,
-      actorId: actorId,
-      type: 'expense_deleted',
-      meta: { description: doc?.description ?? '' },
-    });
+    if (!isLedgerV2())
+      await logActivity({
+        tripId: tripId,
+        actorId: actorId,
+        type: 'expense_deleted',
+        meta: { description: doc?.description ?? '' },
+      });
 
     return { success: true, data: { message: '支出已刪除' } };
   } catch (error) {

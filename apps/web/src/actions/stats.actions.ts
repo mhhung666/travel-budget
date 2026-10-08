@@ -1,13 +1,13 @@
 'use server';
-import { authorizeLedger } from '@/lib/ledger';
+import { authorizeLedger, baseCurrency, ledgerOf, validateLedgerChildren } from '@/lib/ledger';
 
-import { Types, type PipelineStage } from 'mongoose';
-import { roundMoney, normalizeShares } from '@/lib/money';
+import mongoose, { Types, type PipelineStage } from 'mongoose';
+import { roundMoney, normalizeShares, moneyTotal } from '@/lib/money';
 import { dbConnect } from '@/lib/mongodb';
 import { Trip, Expense, ItineraryDay } from '@/models';
 import { getTripMembership } from '@/lib/permissions';
 import { computeTripStats } from '@/lib/tripStats';
-import { withAuth } from './withAuth';
+import { withLedgerAuth as withAuth, withAuth as legacyAuth, withLegacyTripRead } from './withAuth';
 import type { ActionResult } from './types';
 import type {
   StatsData,
@@ -21,6 +21,7 @@ import type {
   TimeInterval,
   TripStatsData,
 } from '@/types';
+import { isSupportedCurrency } from '@/constants/currencies';
 import { logger } from '@/lib/logger';
 import { generateStatsInsights, STATS_INSIGHT_RULE_VERSION } from '@/lib/statsInsights';
 import { aggregateTimeline, resolveTimelineInterval } from '@/lib/histogram';
@@ -34,6 +35,7 @@ import {
 } from '@/lib/dto';
 
 interface GetStatsOptions {
+  baseCurrency?: string;
   startDate?: string;
   endDate?: string;
   timelineInterval?: TimeInterval;
@@ -53,6 +55,7 @@ type LeanStatExpense = {
   description: string;
   splits: { user: { toString(): string }; shareAmount: number }[];
   trip: { _id: { toString(): string }; name: string; startDate?: Date | null } | null;
+  baseCurrency?: string;
   tags?: string[] | null;
 };
 
@@ -67,6 +70,7 @@ type StatsAggregate = {
 };
 
 export interface GetStatsExpensePageOptions {
+  baseCurrency?: string;
   startDate?: string;
   endDate?: string;
   filters?: StatsExpenseFilters;
@@ -106,6 +110,7 @@ function aggregatePersonalStats(expenses: LeanStatExpense[], userId: string): St
     const category = expense.category || 'other';
     const tripId = expense.trip?._id.toString() || '';
     const detail: ExpenseDetail = {
+      ledger: ledgerOf(expense),
       id: expense._id.toString(),
       date: expense.date instanceof Date ? expense.date.toISOString().slice(0, 10) : expense.date,
       description: expense.description || '',
@@ -119,7 +124,7 @@ function aggregatePersonalStats(expenses: LeanStatExpense[], userId: string): St
 
     const categoryValue = categoryMap.get(category) || { total: 0, count: 0, details: [] };
     categoryMap.set(category, {
-      total: categoryValue.total + share,
+      total: moneyTotal([categoryValue.total, share]),
       count: categoryValue.count + 1,
       details: [...categoryValue.details, detail],
     });
@@ -134,7 +139,7 @@ function aggregatePersonalStats(expenses: LeanStatExpense[], userId: string): St
       };
       tripMap.set(tripId, {
         ...tripValue,
-        total: tripValue.total + share,
+        total: moneyTotal([tripValue.total, share]),
         count: tripValue.count + 1,
         details: [...tripValue.details, detail],
       });
@@ -143,7 +148,7 @@ function aggregatePersonalStats(expenses: LeanStatExpense[], userId: string): St
     for (const tag of expense.tags ?? []) {
       const tagValue = tagMap.get(tag) || { total: 0, count: 0, details: [] };
       tagMap.set(tag, {
-        total: tagValue.total + share,
+        total: moneyTotal([tagValue.total, share]),
         count: tagValue.count + 1,
         details: [...tagValue.details, detail],
       });
@@ -177,7 +182,7 @@ function aggregatePersonalStats(expenses: LeanStatExpense[], userId: string): St
     categoryStats,
     tripStats,
     tagStats,
-    totalAmount: roundMoney(categoryStats.reduce((sum, category) => sum + category.total, 0)),
+    totalAmount: moneyTotal(categoryStats.map((c) => c.total)),
     totalExpenses: expenses.length,
     tripCount: tripStats.length,
     recentExpenses: sortDetails(allDetails),
@@ -191,6 +196,7 @@ function emptyStats(options: GetStatsOptions = {}): StatsData {
       ? resolveTimelineInterval(startDate, endDate, timelineInterval)
       : timelineInterval;
   return {
+    ledger: { baseCurrency: options.baseCurrency ?? 'TWD', moneyScale: 2 },
     categoryStats: [],
     tripStats: [],
     tagStats: [],
@@ -217,26 +223,38 @@ function emptyStats(options: GetStatsOptions = {}): StatsData {
 /**
  * Get personal statistics
  */
-export const getStats = withAuth(
+export const getLedgerStats = withAuth(
   async (session, options: GetStatsOptions = {}): Promise<ActionResult<StatsData>> => {
     try {
       const { startDate, endDate, timelineInterval = 'day', timelineFilters = {} } = options;
 
+      if (!isSupportedCurrency(options.baseCurrency ?? 'TWD'))
+        return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
       await dbConnect();
 
       // 1. Get all trips the user is part of
       const userTrips = await Trip.find({
         'members.user': session.userId,
-        $or: [{ baseCurrency: { $exists: false } }, { baseCurrency: 'TWD' }],
       })
-        .select('_id')
-        .lean<{ _id: Types.ObjectId }[]>();
+        .select('_id baseCurrency members')
+        .lean<
+          { _id: Types.ObjectId; baseCurrency?: string; members: { budget?: object | null }[] }[]
+        >();
 
       if (userTrips.length === 0) {
         return { success: true, data: emptyStats(options) };
       }
 
-      const tripIds = userTrips.map((t) => t._id);
+      const currency = options.baseCurrency ?? 'TWD';
+      const ledger = { baseCurrency: currency, moneyScale: 2 as const };
+      if (!isSupportedCurrency(currency))
+        return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
+      const currencies = Array.from(
+        new Set(['TWD', ...userTrips.map((t) => baseCurrency(t))])
+      ).sort();
+      const selectedTrips = userTrips.filter((t) => baseCurrency(t) === currency);
+      for (const trip of selectedTrips) await validateLedgerChildren(mongoose.connection.db!, trip);
+      const tripIds = selectedTrips.map((t) => t._id);
 
       // 查詢區間（分類統計依支出 date）
       const rangeStart = startDate ? new Date(`${startDate}T00:00:00.000Z`) : null;
@@ -252,7 +270,7 @@ export const getStats = withAuth(
         'splits.user': session.userId,
         ...(rangeStart || rangeEnd ? { date: dateFilter } : {}),
       })
-        .select('amount category date description splits trip tags')
+        .select('amount category date description splits trip tags baseCurrency')
         .populate('trip', 'name startDate')
         .lean<LeanStatExpense[]>();
 
@@ -288,9 +306,17 @@ export const getStats = withAuth(
       return {
         success: true,
         data: {
-          categoryStats: current.categoryStats.map(({ details: _details, ...stat }) => stat),
-          tripStats: current.tripStats.map(({ details: _details, ...stat }) => stat),
-          tagStats: current.tagStats.map(({ details: _details, ...stat }) => stat),
+          ledger,
+          currencies,
+          categoryStats: current.categoryStats.map(({ details: _details, ...stat }) => ({
+            ...stat,
+            ledger,
+          })),
+          tripStats: current.tripStats.map(({ details: _details, ...stat }) => ({
+            ...stat,
+            ledger,
+          })),
+          tagStats: current.tagStats.map(({ details: _details, ...stat }) => ({ ...stat, ledger })),
           totalAmount: current.totalAmount,
           totalExpenses: current.totalExpenses,
           tripCount: current.tripCount,
@@ -299,7 +325,7 @@ export const getStats = withAuth(
             : 0,
           startDate: effectiveStart || null,
           endDate: effectiveEnd || null,
-          timeline,
+          timeline: { ...timeline, ledger },
           insights,
           insightRuleVersion: STATS_INSIGHT_RULE_VERSION,
         },
@@ -315,7 +341,7 @@ export const getStats = withAuth(
  * Cursor-paginated personal expense details. Filtering and sorting happen in
  * MongoDB so the statistics response never needs to carry an unbounded detail list.
  */
-export const getStatsExpensePage = withAuth(
+export const getLedgerStatsExpensePage = withAuth(
   async (
     session,
     options: GetStatsExpensePageOptions = {}
@@ -328,29 +354,53 @@ export const getStatsExpensePage = withAuth(
         sort = 'dateDesc',
         cursor: encodedCursor,
       } = options;
-      const cursor = encodedCursor ? decodeStatsExpenseCursor(encodedCursor, sort) : null;
+      const cursor = encodedCursor
+        ? decodeStatsExpenseCursor(encodedCursor, sort, options.baseCurrency ?? 'TWD')
+        : null;
       if (encodedCursor && !cursor) {
         return { success: false, error: 'INVALID_CURSOR', code: 'VALIDATION_ERROR' };
       }
 
+      if (!isSupportedCurrency(options.baseCurrency ?? 'TWD'))
+        return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
       await dbConnect();
 
       const userTrips = await Trip.find({
         'members.user': session.userId,
-        $or: [{ baseCurrency: { $exists: false } }, { baseCurrency: 'TWD' }],
       })
-        .select('_id')
-        .lean<{ _id: Types.ObjectId }[]>();
+        .select('_id baseCurrency members')
+        .lean<
+          { _id: Types.ObjectId; baseCurrency?: string; members: { budget?: object | null }[] }[]
+        >();
       if (!userTrips.length) {
-        return { success: true, data: { items: [], nextCursor: null } };
+        return {
+          success: true,
+          data: {
+            ledger: { baseCurrency: options.baseCurrency ?? 'TWD', moneyScale: 2 },
+            items: [],
+            nextCursor: null,
+          },
+        };
       }
 
-      const allowedTripIds = userTrips.map((trip) => trip._id);
+      const currency = options.baseCurrency ?? 'TWD';
+      if (!isSupportedCurrency(currency))
+        return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
+      const selectedTrips = userTrips.filter((t) => baseCurrency(t) === currency);
+      for (const trip of selectedTrips) await validateLedgerChildren(mongoose.connection.db!, trip);
+      const allowedTripIds = selectedTrips.map((trip) => trip._id);
       if (
         (filters.tripId && !Types.ObjectId.isValid(filters.tripId)) ||
         (filters.expenseId && !Types.ObjectId.isValid(filters.expenseId))
       ) {
-        return { success: true, data: { items: [], nextCursor: null } };
+        return {
+          success: true,
+          data: {
+            ledger: { baseCurrency: options.baseCurrency ?? 'TWD', moneyScale: 2 },
+            items: [],
+            nextCursor: null,
+          },
+        };
       }
 
       const dateStart = filters.periodStart || startDate;
@@ -422,6 +472,7 @@ export const getStatsExpensePage = withAuth(
         hasNextPage && last
           ? encodeStatsExpenseCursor({
               sort,
+              baseCurrency: currency,
               value: amountSort ? last.shareAmount : last.date.toISOString(),
               id: last._id.toString(),
             })
@@ -430,7 +481,9 @@ export const getStatsExpensePage = withAuth(
       return {
         success: true,
         data: {
+          ledger: { baseCurrency: currency, moneyScale: 2 },
           items: pageRows.map((row) => ({
+            ledger: { baseCurrency: currency, moneyScale: 2 },
             id: row._id.toString(),
             date: dateOnly(row.date),
             description: row.description || '',
@@ -456,7 +509,7 @@ export const getStatsExpensePage = withAuth(
  * ranking and average-per-person-per-day. Heavy lifting is the pure
  * computeTripStats; this only authorizes + loads (one trip + its expenses).
  */
-export const getTripStats = withAuth(
+export const getLedgerTripStats = withAuth(
   async (session, tripIdOrCode: string): Promise<ActionResult<TripStatsData>> => {
     try {
       const membership = await getTripMembership(session.userId, tripIdOrCode);
@@ -488,10 +541,40 @@ export const getTripStats = withAuth(
         range,
         days: mappedDays,
       } = toTripStatsInputs(trip, expenses, days);
-      return { success: true, data: computeTripStats(mapped, members, range, mappedDays) };
+      return {
+        success: true,
+        data: {
+          ...computeTripStats(mapped, members, range, mappedDays),
+          ledger: authorizeLedger(membership),
+        },
+      };
     } catch (error) {
       logger.error('Get trip stats error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
+  }
+);
+
+export const getTripStats = withLegacyTripRead(getLedgerTripStats);
+
+export const getStats = legacyAuth(async (_session, options: GetStatsOptions = {}) => {
+  if (options.baseCurrency && options.baseCurrency !== 'TWD')
+    return {
+      success: false as const,
+      error: 'CLIENT_UPGRADE_REQUIRED',
+      code: 'CLIENT_UPGRADE_REQUIRED' as const,
+    };
+  return getLedgerStats({ ...options, baseCurrency: 'TWD' });
+});
+
+export const getStatsExpensePage = legacyAuth(
+  async (_session, options: GetStatsExpensePageOptions = {}) => {
+    if (options.baseCurrency && options.baseCurrency !== 'TWD')
+      return {
+        success: false as const,
+        error: 'CLIENT_UPGRADE_REQUIRED',
+        code: 'CLIENT_UPGRADE_REQUIRED' as const,
+      };
+    return getLedgerStatsExpensePage({ ...options, baseCurrency: 'TWD' });
   }
 );

@@ -14,7 +14,12 @@ import { registerOfflineMutationDefaults } from '@/lib/offlineMutations';
 import { buildOptimisticExpense } from '@/lib/optimisticExpense';
 
 const createExpense = vi.hoisted(() => vi.fn());
-vi.mock('@/actions', () => ({ createExpense, updateExpense: vi.fn(), deleteExpense: vi.fn() }));
+vi.mock('@/actions', () => ({
+  lookupExpenseCreation: vi.fn(async () => ({ success: true, data: null })),
+  createExpense,
+  updateExpense: vi.fn(),
+  deleteExpense: vi.fn(),
+}));
 vi.mock('@/lib/productEvents', () => ({ trackProductEvent: vi.fn() }));
 import { useExpenseMutations } from '@/hooks/queries/useExpenseMutations';
 const vars = {

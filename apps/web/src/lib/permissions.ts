@@ -3,10 +3,10 @@
  * 用於驗證用戶在旅行中的權限
  */
 
-import { isValidObjectId } from 'mongoose';
+import mongoose, { isValidObjectId } from 'mongoose';
 import { dbConnect } from '@/lib/mongodb';
 import { Trip } from '@/models';
-import { authorizeLedger } from './ledger';
+import { authorizeLedger, isLedgerV2, validateLedgerChildren } from './ledger';
 
 export type TripRole = 'admin' | 'member';
 
@@ -18,7 +18,7 @@ export type MembershipResult = {
 
 type MemberTripShape = {
   _id: { toString(): string };
-  members: { user: { toString(): string }; role?: TripRole | null }[];
+  members: { user: { toString(): string }; role?: TripRole | null; budget?: object | null }[];
 };
 
 /**
@@ -46,6 +46,11 @@ export async function getMemberTrip<T extends MemberTripShape>(
   const member = trip.members.find((item) => item.user.toString() === userId);
   if (!member) return null;
   authorizeLedger(trip);
+  if (isLedgerV2())
+    await validateLedgerChildren(mongoose.connection.db!, {
+      ...trip,
+      _id: new mongoose.mongo.ObjectId(trip._id.toString()),
+    });
   return {
     trip,
     membership: { tripId: trip._id.toString(), role: (member.role ?? 'member') as TripRole },
@@ -71,6 +76,11 @@ export async function getTripMembership(
   if (!member) return null;
 
   authorizeLedger(trip);
+  if (isLedgerV2())
+    await validateLedgerChildren(mongoose.connection.db!, {
+      ...trip,
+      _id: new mongoose.mongo.ObjectId(trip._id.toString()),
+    });
   return {
     tripId: trip._id.toString(),
     role: member.role as TripRole,
@@ -131,8 +141,11 @@ export async function getTripIdByHashCode(hashCode: string): Promise<string | nu
   // 明確拒絕 ObjectId：公開端點只認 hash_code。
   if (isValidObjectId(hashCode)) return null;
 
-  const trip = await Trip.findOne({ hashCode }).select('_id baseCurrency').lean();
-  if (trip) authorizeLedger(trip);
+  const trip = await Trip.findOne({ hashCode }).select('_id baseCurrency members').lean();
+  if (trip) {
+    authorizeLedger(trip);
+    if (isLedgerV2()) await validateLedgerChildren(mongoose.connection.db!, trip);
+  }
   return trip ? trip._id.toString() : null;
 }
 

@@ -124,6 +124,7 @@ export default function TripSettingsPage() {
         {/* 幣別設定（常用幣別／自訂匯率／預設幣別；admin 可改） */}
         <TripCurrencySettings
           settings={trip.currency_settings}
+          revision={trip.currency_revision}
           canEdit={isAdmin}
           onSave={handleSaveCurrencySettings}
         />

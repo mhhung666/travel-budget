@@ -25,7 +25,7 @@ import {
 } from '@/lib/validation';
 import type { ActionResult } from './types';
 import type { TripPhoto } from '@/types';
-import { withAuth } from './withAuth';
+import { withLedgerAuth as withAuth } from './withAuth';
 import { logger } from '@/lib/logger';
 import { toTripPhotoDto, type TripPhotoDtoInput } from '@/lib/dto';
 import {

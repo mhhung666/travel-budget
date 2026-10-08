@@ -1,3 +1,4 @@
+import { roundMoney } from './money';
 import type { CreateExpenseInput } from '@/lib/validation';
 import type { Expense } from '@/types';
 
@@ -41,7 +42,7 @@ interface OptimisticContext {
 /**
  * Build a fully-shaped {@link Expense} DTO from a create input, resolving member
  * display names locally (no server round trip) so the optimistic row renders
- * identically to a real one. The TWD `amount` is derived the same way the server
+ * identically to a real one. The ledger `amount` is derived the same way the server
  * does (`original_amount * exchange_rate`).
  */
 export function buildOptimisticExpense(input: CreateExpenseInput, ctx: OptimisticContext): Expense {
@@ -49,11 +50,16 @@ export function buildOptimisticExpense(input: CreateExpenseInput, ctx: Optimisti
   const payer = memberById.get(input.payer_id);
 
   return {
+    ...(input.base_currency
+      ? { ledger: { baseCurrency: input.base_currency, moneyScale: 2 as const } }
+      : {}),
     id: ctx.id,
     trip_id: ctx.tripId,
     payer_id: input.payer_id,
     payer_name: payer?.display_name ?? payer?.username ?? '',
-    amount: input.original_amount * input.exchange_rate,
+    amount: input.base_currency
+      ? roundMoney(input.original_amount * input.exchange_rate)
+      : input.original_amount * input.exchange_rate,
     original_amount: input.original_amount,
     currency: input.currency,
     exchange_rate: input.exchange_rate,

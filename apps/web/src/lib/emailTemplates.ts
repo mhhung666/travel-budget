@@ -1,3 +1,4 @@
+import { formatCurrency } from '@/constants/currencies';
 import { createTranslator } from 'next-intl';
 import { ROUTES } from '@/constants/routes';
 import { defaultLocale, locales, type Locale } from '@/i18n/routing';
@@ -73,11 +74,8 @@ function escapeHtml(s: string): string {
     .replace(/"/g, '&quot;');
 }
 
-function formatTwd(amount: number, locale: Locale): string {
-  const numberLocale = locale === 'zh' ? 'zh-TW' : locale === 'jp' ? 'ja-JP' : locale;
-  return `NT$${new Intl.NumberFormat(numberLocale, {
-    maximumFractionDigits: 0,
-  }).format(Math.round(amount))}`;
+function formatLedgerMoney(amount: number, locale: Locale, baseCurrency = 'TWD'): string {
+  return `${baseCurrency} ${formatCurrency(amount, baseCurrency, locale === 'jp' ? 'ja' : locale)}`;
 }
 
 function brandedSubject(t: EmailTranslator, subject: string): string {
@@ -147,13 +145,19 @@ export async function buildNotificationEmail(input: BuildEmailInput): Promise<Em
     actor: actorName,
     tripName,
     description: meta.description ?? '',
-    amount: typeof meta.amount === 'number' ? meta.amount : 0,
+    amount:
+      typeof meta.amount === 'number'
+        ? formatLedgerMoney(meta.amount, locale, meta.baseCurrency)
+        : '',
   };
 
   // subject / body 每個 type 各有對應 key（email.<type>.subject / .body）。
   const subject = brandedSubject(t, t(`${type}.subject`, vars));
   const body = t(`${type}.body`, vars);
-  const amount = typeof meta.amount === 'number' ? formatTwd(meta.amount, locale) : undefined;
+  const amount =
+    typeof meta.amount === 'number'
+      ? formatLedgerMoney(meta.amount, locale, meta.baseCurrency)
+      : undefined;
   const details = [
     tripName ? detailRow(t('labels.trip'), tripName) : '',
     actorName ? detailRow(t('labels.actor'), actorName) : '',
@@ -412,6 +416,7 @@ interface BuildPaymentReminderInput {
   tripName: string;
   /** 待還款金額（TWD，取整顯示）。 */
   amount: number;
+  baseCurrency?: string;
 }
 
 /**
@@ -434,12 +439,12 @@ export async function buildPaymentReminderEmail(
   const vars = {
     actor: input.actorName,
     tripName: input.tripName,
-    amount: Math.round(input.amount),
+    amount: formatLedgerMoney(input.amount, locale, input.baseCurrency),
   };
 
   const subject = brandedSubject(t, t('paymentReminder.subject', vars));
   const body = t('paymentReminder.body', vars);
-  const amount = formatTwd(input.amount, locale);
+  const amount = formatLedgerMoney(input.amount, locale, input.baseCurrency);
 
   const text = [
     t('brandName'),
@@ -490,6 +495,7 @@ export interface DigestTripLine {
   /** 旅程公開 hashCode（連結用，見 BuildEmailInput）。 */
   tripHashCode: string;
   tripName: string;
+  baseCurrency?: string;
   expenses: { description: string; amount: number; payerName: string }[];
 }
 
@@ -523,7 +529,9 @@ export async function buildExpenseDigestEmail(input: BuildDigestInput): Promise<
     const url = toAbsoluteUrl(input.appUrl, ROUTES.TRIP_EXPENSES(tr.tripHashCode));
     textParts.push(`${tr.tripName}　${url}`);
     for (const e of tr.expenses) {
-      textParts.push(`  • ${e.description} — ${formatTwd(e.amount, locale)}（${e.payerName}）`);
+      textParts.push(
+        `  • ${e.description} — ${formatLedgerMoney(e.amount, locale, tr.baseCurrency)}（${e.payerName}）`
+      );
     }
     textParts.push('');
   }
@@ -539,7 +547,7 @@ export async function buildExpenseDigestEmail(input: BuildDigestInput): Promise<
           (e) => `<li style="margin: 0 0 6px; line-height: 1.5;">
           ${escapeHtml(e.description)}
           <span style="color: #64748b;"> — ${escapeHtml(
-            formatTwd(e.amount, locale)
+            formatLedgerMoney(e.amount, locale, tr.baseCurrency)
           )}（${escapeHtml(e.payerName)}）</span>
         </li>`
         )

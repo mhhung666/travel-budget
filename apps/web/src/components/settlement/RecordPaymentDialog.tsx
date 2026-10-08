@@ -1,4 +1,7 @@
 'use client';
+import { ledgerErrorMessage } from '@/lib/ledgerErrorMessage';
+import { isCentShare } from '@travel-budget/contracts';
+import { useLedgerCurrency } from '@/components/trips/space/LedgerCurrency';
 
 import { useId, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
@@ -40,7 +43,7 @@ interface RecordPaymentDialogProps {
 
 /**
  * 登記一筆還款（標記「已付清」）。付款人／收款人以下拉選單選擇（預填自點擊的
- * 建議轉帳，但可調整以支援部分結清或計畫外的還款）；金額為基準幣 TWD。
+ * 建議轉帳，但可調整以支援部分結清或計畫外的還款）；金額為旅程基準幣。
  */
 export default function RecordPaymentDialog({
   open,
@@ -49,6 +52,8 @@ export default function RecordPaymentDialog({
   initial,
   onSubmit,
 }: RecordPaymentDialogProps) {
+  const baseCurrency = useLedgerCurrency();
+  const tLedger = useTranslations('ledger');
   const fieldId = useId();
   const t = useTranslations('settlement');
   const tCommon = useTranslations('common');
@@ -96,7 +101,7 @@ export default function RecordPaymentDialog({
       setError(t('errorSamePerson'));
       return;
     }
-    if (!Number.isFinite(amt) || amt <= 0) {
+    if (!isCentShare(amt) || amt <= 0) {
       setError(t('errorAmount'));
       return;
     }
@@ -129,11 +134,12 @@ export default function RecordPaymentDialog({
           <DialogDescription>{t('recordPaymentDescription')}</DialogDescription>
         </DialogHeader>
 
+        <p>{tLedger('precision', { currency: baseCurrency })}</p>
         <form onSubmit={handleSubmit} className="space-y-4 py-2">
           {shownError && (
             <Alert variant="destructive">
               <AlertTitle>{tCommon('errorTitle')}</AlertTitle>
-              <AlertDescription>{shownError}</AlertDescription>
+              <AlertDescription>{ledgerErrorMessage(shownError, tLedger)}</AlertDescription>
             </Alert>
           )}
 

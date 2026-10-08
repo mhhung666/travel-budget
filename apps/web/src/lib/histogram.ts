@@ -1,3 +1,4 @@
+import { moneyTotal } from './money';
 import type {
   CategoryStat,
   ExpenseDetail,
@@ -30,14 +31,14 @@ export function aggregateTimeline(
     const index = bucketIndexes.get(bucketStart);
     if (index === undefined) continue;
 
-    dataPoints[index].amount += expense.amount;
+    dataPoints[index].amount = moneyTotal([dataPoints[index].amount, expense.amount]);
     dataPoints[index].count += 1;
   }
 
   return {
     interval,
     dataPoints,
-    totalAmount: dataPoints.reduce((sum, point) => sum + point.amount, 0),
+    totalAmount: moneyTotal(dataPoints.map((p) => p.amount)),
     totalCount: dataPoints.reduce((sum, point) => sum + point.count, 0),
   };
 }

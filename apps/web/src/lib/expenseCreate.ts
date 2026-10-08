@@ -304,6 +304,7 @@ export async function createExpenseForActor(
               memberIds: [...memberIds],
               description,
               amount,
+              baseCurrency: ledgerStamp().baseCurrency,
               occurredAt: new Date(),
             })
           : undefined;
@@ -393,7 +394,7 @@ export async function createExpenseForActor(
     tripId,
     actorId,
     type: 'expense_added' as const,
-    meta: { expense_id: data.id, description, amount },
+    meta: { expense_id: data.id, description, amount, baseCurrency: ledgerStamp().baseCurrency },
   };
   const effects = await Promise.allSettled([
     Promise.resolve().then(() =>

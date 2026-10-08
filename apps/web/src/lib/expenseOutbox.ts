@@ -1,4 +1,5 @@
-import { get, update, del } from 'idb-keyval';
+import { releaseWebTripWrite } from './webWriteCoordination';
+import { get, update } from 'idb-keyval';
 import type { Expense } from '@/types';
 import type { QueryClient } from '@tanstack/react-query';
 import type { CreateExpenseVars, ExpenseCreateContext } from './offlineMutations';
@@ -49,7 +50,9 @@ export function createExpenseOutbox(scope: string) {
       });
       return committed;
     },
-    clear: async () => del(key),
+    clear: async () => {
+      /* Logout stops this client; retain UUID history for original-account recovery and interrupted reservation release. */
+    },
   };
 }
 export function bindExpenseOutbox(client: QueryClient, scope: string) {
@@ -79,6 +82,8 @@ export async function saveExpenseOutbox(
   });
   if (cleared.has(client)) throw new Error('Expense request was cleared');
   client.setQueryData(expenseOutboxQueryKey, entries);
+  if (status !== 'pending' && vars.input.client_request_id)
+    await releaseWebTripWrite(client, vars.input.client_request_id).catch(() => undefined);
 }
 export async function clearExpenseOutbox(client: QueryClient) {
   cleared.add(client);

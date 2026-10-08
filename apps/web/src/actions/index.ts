@@ -20,12 +20,14 @@ export type { AuthUser, AuthUserWithCreatedAt } from './auth.actions';
 export { getAiUsageSummary, type AiUsageSummary } from './aiUsage.actions';
 
 // Trip actions
-export { getTripLanding } from './tripLanding.actions';
+export { getLedgerTripLanding as getTripLanding } from './tripLanding.actions';
 export {
-  getTrips,
-  getTrip,
-  getTripShell,
+  getLedgerTrips as getTrips,
+  getLedgerTrip as getTrip,
+  getLedgerTripShell as getTripShell,
   createTrip,
+  createLedgerTrip,
+  joinLedgerTrip,
   updateTrip,
   deleteTrip,
   regenerateHashCode,
@@ -36,12 +38,17 @@ export {
 
 // Expense actions
 export {
-  getExpenses,
+  getLedgerExpenses as getExpenses,
   getExpenseTags,
   createExpense,
+  createLedgerExpense,
+  deleteLedgerExpense,
   updateExpense,
+  updateLedgerExpense,
   deleteExpense,
   getReceiptUrl,
+  lookupExpenseCreation,
+  lookupLedgerExpenseCreation,
 } from './expense.actions';
 
 // Upload actions（R2 blob 上傳簽名）
@@ -74,7 +81,7 @@ export {
 } from './member.actions';
 
 // Settlement actions
-export { getSettlement } from './settlement.actions';
+export { getLedgerSettlement as getSettlement } from './settlement.actions';
 
 // Payment actions（結算還款 / 標記已付 / 提醒還款）
 export { recordPayment, deletePayment, remindPayment } from './payment.actions';
@@ -131,11 +138,18 @@ export {
 } from './albumShare.actions';
 
 // Stats actions
-export { getStats, getStatsExpensePage, getTripStats } from './stats.actions';
+export {
+  getLedgerStats as getStats,
+  getLedgerStatsExpensePage as getStatsExpensePage,
+  getLedgerTripStats as getTripStats,
+} from './stats.actions';
 export type { GetStatsExpensePageOptions } from './stats.actions';
 
 // Year in review actions（年度旅行回顧 / Travel Wrapped）
-export { getYearInReview, type YearInReviewResult } from './wrapped.actions';
+export {
+  getLedgerYearInReview as getYearInReview,
+  type YearInReviewResult,
+} from './wrapped.actions';
 
 // Map share actions
 export {
@@ -193,3 +207,5 @@ export {
 
 // Locale action（UI 語系 cookie；見 i18n/config.ts 的「無 i18n 路由」設定）
 export { setLocale } from './locale.actions';
+
+export * from './ledger.actions';

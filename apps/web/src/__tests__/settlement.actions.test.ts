@@ -1,189 +1,44 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-
-const getSession = vi.fn();
-const getTripMembership = vi.fn();
-const dbConnect = vi.fn();
-const tripFindById = vi.fn();
-const expenseFind = vi.fn();
-const paymentFind = vi.fn();
-const loggerError = vi.fn();
-
-vi.mock('@/lib/auth', () => ({ getSession: () => getSession() }));
-vi.mock('@/lib/mongodb', () => ({ dbConnect: (...args: unknown[]) => dbConnect(...args) }));
-vi.mock('@/lib/permissions', () => ({
-  getTripMembership: (...args: unknown[]) => getTripMembership(...args),
-}));
-vi.mock('@/lib/logger', () => ({
-  logger: { error: (...args: unknown[]) => loggerError(...args) },
-}));
-vi.mock('@/models', () => ({
-  Trip: { findById: (...args: unknown[]) => tripFindById(...args) },
-  Expense: { find: (...args: unknown[]) => expenseFind(...args) },
-  Payment: { find: (...args: unknown[]) => paymentFind(...args) },
-}));
-
+const h = vi.hoisted(() => ({ session: vi.fn(), member: vi.fn(), read: vi.fn(), error: vi.fn() }));
+vi.mock('@/lib/auth', () => ({ getSession: h.session }));
+vi.mock('@/lib/permissions', () => ({ getTripMembership: h.member }));
+vi.mock('@/lib/paymentWrite', () => ({ readWebPaymentContext: h.read }));
+vi.mock('@/lib/env', () => ({ getEnv: () => ({ JWT_SECRET: 'test-secret' }) }));
+vi.mock('@/lib/logger', () => ({ logger: { error: h.error } }));
 import { getSettlement } from '@/actions/settlement.actions';
-
-const VIEWER = '507f191e810c19729de860ea';
-const BOB = '507f191e810c19729de860eb';
-const CARA = '507f191e810c19729de860ec';
-const TRIP = '507f1f77bcf86cd799439011';
-
-const ref = (id: string) => ({ toString: () => id });
-const user = (id: string, displayName: string) => ({
-  _id: ref(id),
-  username: displayName.toLowerCase(),
-  displayName,
-});
-
-function tripQuery(value: unknown) {
-  return {
-    populate: () => ({ select: () => ({ lean: () => Promise.resolve(value) }) }),
-  };
-}
-
-function expenseQuery(value: unknown) {
-  return { select: () => ({ lean: () => Promise.resolve(value) }) };
-}
-
-function paymentQuery(value: unknown) {
-  return {
-    sort: () => ({
-      populate: () => ({
-        populate: () => ({ select: () => ({ lean: () => Promise.resolve(value) }) }),
-      }),
-    }),
-  };
-}
-
 beforeEach(() => {
   vi.clearAllMocks();
-  getSession.mockResolvedValue({ userId: VIEWER });
-  getTripMembership.mockResolvedValue({ tripId: TRIP, role: 'member' });
-  dbConnect.mockResolvedValue(undefined);
-  tripFindById.mockReturnValue(
-    tripQuery({
-      members: [
-        { user: user(VIEWER, 'Amy') },
-        { user: user(BOB, 'Bob') },
-        { user: user(CARA, 'Cara') },
-      ],
-    })
-  );
-  expenseFind.mockReturnValue(expenseQuery([]));
-  paymentFind.mockReturnValue(paymentQuery([]));
+  h.session.mockResolvedValue({ userId: 'actor' });
+  h.member.mockResolvedValue({ tripId: 'resolved-trip' });
 });
-
-describe('getSettlement', () => {
-  it('rejects unauthenticated callers before membership and database access', async () => {
-    getSession.mockResolvedValue(null);
-    expect(await getSettlement(TRIP)).toEqual({
-      success: false,
-      error: 'UNAUTHORIZED',
-      code: 'UNAUTHORIZED',
-    });
-    expect(getTripMembership).not.toHaveBeenCalled();
-    expect(dbConnect).not.toHaveBeenCalled();
+describe('Web settlement snapshot adapter', () => {
+  it('rejects a logged-out caller without reading any snapshot', async () => {
+    h.session.mockResolvedValue(null);
+    expect(await getSettlement('code')).toMatchObject({ success: false, code: 'UNAUTHORIZED' });
+    expect(h.read).not.toHaveBeenCalled();
   });
-
-  it('rejects non-members without loading settlement data', async () => {
-    getTripMembership.mockResolvedValue(null);
-    expect(await getSettlement(TRIP)).toEqual({
-      success: false,
-      error: 'NOT_FOUND',
-      code: 'NOT_FOUND',
-    });
-    expect(dbConnect).not.toHaveBeenCalled();
-    expect(expenseFind).not.toHaveBeenCalled();
+  it('rejects a non-member without reading any snapshot', async () => {
+    h.member.mockResolvedValue(null);
+    expect(await getSettlement('code')).toMatchObject({ success: false, code: 'NOT_FOUND' });
+    expect(h.read).not.toHaveBeenCalled();
   });
-
-  it('rounds each expense to cents so the totals match the stats page', async () => {
-    // 舊資料可能存了未取整的換算金額（30.004）。逐筆取整再加總才會與統計一致；
-    // 加總後才取整會得到 60.01（見 docs/archive/tests/AMOUNT_CONSISTENCY_ACCEPTANCE_2026-09-16.md）。
-    expenseFind.mockReturnValue(
-      expenseQuery(
-        [30.004, 30.004].map((amount) => ({
-          payer: ref(VIEWER),
-          amount,
-          splits: [
-            { user: ref(VIEWER), shareAmount: amount / 2 },
-            { user: ref(BOB), shareAmount: amount / 2 },
-          ],
-        }))
-      )
-    );
-
-    const result = await getSettlement(TRIP);
-    expect(result.success).toBe(true);
-    if (!result.success) throw new Error('expected success');
-    expect(result.data.totalExpenses).toBe(60);
-    expect(result.data.balances.find((b) => b.userId === VIEWER)?.totalOwed).toBe(30);
+  it('returns balances and confirmation revision from the same service snapshot', async () => {
+    const snapshot = {
+      ledger: { baseCurrency: 'USD', moneyScale: 2 },
+      totalExpenses: 20.1,
+      balances: [],
+      payments: [],
+      transactions: [],
+      settlementRevision: 'a'.repeat(64),
+      paymentRevisions: {},
+    };
+    h.read.mockResolvedValue(snapshot);
+    expect(await getSettlement('code')).toEqual({ success: true, data: snapshot });
+    expect(h.read).toHaveBeenCalledWith(undefined, 'actor', 'resolved-trip', 'test-secret');
   });
-
-  it('aggregates embedded splits, applies payments, and returns minimum transfers', async () => {
-    expenseFind.mockReturnValue(
-      expenseQuery([
-        {
-          payer: ref(VIEWER),
-          amount: 90,
-          splits: [
-            { user: ref(VIEWER), shareAmount: 30 },
-            { user: ref(BOB), shareAmount: 30 },
-            { user: ref(CARA), shareAmount: 30 },
-          ],
-        },
-      ])
-    );
-    paymentFind.mockReturnValue(
-      paymentQuery([
-        {
-          _id: ref('507f1f77bcf86cd799439099'),
-          from: user(BOB, 'Bob'),
-          to: user(VIEWER, 'Amy'),
-          amount: 10,
-          note: 'transfer',
-          createdAt: new Date('2026-09-01T00:00:00.000Z'),
-        },
-      ])
-    );
-
-    const result = await getSettlement(TRIP);
-
-    expect(result.success).toBe(true);
-    if (!result.success) throw new Error('expected success');
-    expect(result.data.totalExpenses).toBe(90);
-    expect(result.data.balances).toEqual([
-      { userId: VIEWER, username: 'Amy', totalPaid: 90, totalOwed: 30, balance: 50 },
-      { userId: BOB, username: 'Bob', totalPaid: 0, totalOwed: 30, balance: -20 },
-      { userId: CARA, username: 'Cara', totalPaid: 0, totalOwed: 30, balance: -30 },
-    ]);
-    expect(result.data.transactions).toEqual([
-      { from: 'Cara', to: 'Amy', fromId: CARA, toId: VIEWER, amount: 30 },
-      { from: 'Bob', to: 'Amy', fromId: BOB, toId: VIEWER, amount: 20 },
-    ]);
-    expect(result.data.payments).toEqual([
-      expect.objectContaining({ fromId: BOB, toId: VIEWER, amount: 10, note: 'transfer' }),
-    ]);
-  });
-
-  it('handles a trip with no populated members as an empty settlement', async () => {
-    tripFindById.mockReturnValue(tripQuery(null));
-    const result = await getSettlement(TRIP);
-    expect(result).toEqual({
-      success: true,
-      data: { balances: [], transactions: [], payments: [], totalExpenses: 0 },
-    });
-  });
-
-  it('maps database failures to a stable internal error', async () => {
-    expenseFind.mockImplementationOnce(() => {
-      throw new Error('database unavailable');
-    });
-    expect(await getSettlement(TRIP)).toEqual({
-      success: false,
-      error: 'INTERNAL_ERROR',
-      code: 'INTERNAL_ERROR',
-    });
-    expect(loggerError).toHaveBeenCalledWith('Get settlement error', expect.any(Error));
+  it('reports a failed snapshot rather than an empty settlement', async () => {
+    h.read.mockRejectedValueOnce(new Error('database unavailable'));
+    expect(await getSettlement('code')).toMatchObject({ success: false, code: 'INTERNAL_ERROR' });
+    expect(h.error).toHaveBeenCalledOnce();
   });
 });

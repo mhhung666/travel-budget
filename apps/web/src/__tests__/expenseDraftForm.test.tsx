@@ -50,6 +50,10 @@ it('restores all rejected input into an add form for correction without applying
   expect(result.current.showAdvanced).toBe(true);
   expect(result.current.buildSubmitData()).toEqual({
     ...input,
+    base_currency: 'TWD',
+    contractVersion: 2,
+    expected_revision: undefined,
+    preserve_money: false,
     original_amount: '12',
     exchange_rate: '30',
   });

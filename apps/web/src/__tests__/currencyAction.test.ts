@@ -7,7 +7,8 @@ const h = vi.hoisted(() => ({
   revalidate: vi.fn(),
   dto: vi.fn(),
 }));
-vi.mock('@/actions/withAuth', () => ({
+vi.mock('@/actions/withAuth', async (original) => ({
+  ...(await original<typeof import('@/actions/withAuth')>()),
   withAuth:
     (fn: (...args: unknown[]) => unknown) =>
     (...args: unknown[]) =>

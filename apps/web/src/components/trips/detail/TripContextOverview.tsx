@@ -1,4 +1,5 @@
 'use client';
+import { useLedgerCurrency } from '@/components/trips/space/LedgerCurrency';
 
 import { useState } from 'react';
 import {
@@ -53,6 +54,7 @@ export default function TripContextOverview({
   onEdit,
   onAddExpense,
 }: TripContextOverviewProps) {
+  const baseCurrency = useLedgerCurrency();
   const t = useTranslations('trip.context');
   const tTrip = useTranslations('trip');
   const tCommon = useTranslations('common');
@@ -96,7 +98,8 @@ export default function TripContextOverview({
           ? t('todayActivitiesDone')
           : t('noActivityToday')
     );
-    if (isMember) summary.push(t('todaySpent', { amount: formatCurrency(todaySpent, 'TWD') }));
+    if (isMember)
+      summary.push(t('todaySpent', { amount: formatCurrency(todaySpent, baseCurrency) }));
   } else if (settlement) {
     const outstanding = settlement.transactions.reduce(
       (sum, transaction) => sum + transaction.amount,
@@ -104,7 +107,7 @@ export default function TripContextOverview({
     );
     summary.push(
       outstanding > 0
-        ? t('outstanding', { amount: formatCurrency(outstanding, 'TWD') })
+        ? t('outstanding', { amount: formatCurrency(outstanding, baseCurrency) })
         : t('settled')
     );
   }

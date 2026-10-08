@@ -1,4 +1,5 @@
 'use client';
+import { useLedgerCurrency } from '@/components/trips/space/LedgerCurrency';
 import { QueryStatus } from '@/components/common/QueryStatus';
 
 import { memo, useDeferredValue, useMemo, useRef, useState } from 'react';
@@ -83,6 +84,8 @@ export default function TripExpenses({
   onEdit,
   onDelete,
 }: TripExpensesProps) {
+  const contextBase = useLedgerCurrency();
+  const baseCurrency = expenses[0]?.ledger?.baseCurrency ?? contextBase;
   const tExpense = useTranslations('expense');
   const tExport = useTranslations('export');
   const tCategory = useTranslations('category');
@@ -117,23 +120,28 @@ export default function TripExpenses({
   };
 
   const buildExport = (format: ExportFormat) =>
-    exportExpenses(expenses, format, {
-      heading: tExport('expense.heading'),
-      total: tExport('expense.total'),
-      columns: {
-        date: tExport('expense.colDate'),
-        description: tExport('expense.colDescription'),
-        category: tExport('expense.colCategory'),
-        payer: tExport('expense.colPayer'),
-        amountTwd: tExport('expense.colAmountTwd'),
-        originalAmount: tExport('expense.colOriginalAmount'),
-        currency: tExport('expense.colCurrency'),
-        rate: tExport('expense.colRate'),
-        splits: tExport('expense.colSplits'),
-        tags: tExport('expense.colTags'),
+    exportExpenses(
+      expenses,
+      format,
+      {
+        heading: tExport('expense.heading'),
+        total: tExport('expense.total'),
+        columns: {
+          date: tExport('expense.colDate'),
+          description: tExport('expense.colDescription'),
+          category: tExport('expense.colCategory'),
+          payer: tExport('expense.colPayer'),
+          amountTwd: tExpense('form.amount'),
+          originalAmount: tExport('expense.colOriginalAmount'),
+          currency: tExport('expense.colCurrency'),
+          rate: tExport('expense.colRate'),
+          splits: tExport('expense.colSplits'),
+          tags: tExport('expense.colTags'),
+        },
+        category: (key) => (CATEGORY_CODES.includes(key) ? tCategory(key) : key),
       },
-      category: (key) => (CATEGORY_CODES.includes(key) ? tCategory(key) : key),
-    });
+      baseCurrency
+    );
 
   return (
     <section
@@ -377,6 +385,7 @@ const ExpenseResults = memo(function ExpenseResults({
   | 'onEdit'
   | 'onDelete'
 > & { itineraryDays: ItineraryDay[] }) {
+  const baseCurrency = useLedgerCurrency();
   const tExpense = useTranslations('expense');
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -480,7 +489,7 @@ const ExpenseResults = memo(function ExpenseResults({
                 <div className="flex items-baseline justify-between px-1">
                   <h3 className="text-sm font-medium text-muted-foreground">{group.label}</h3>
                   <span className="text-xs tabular-nums text-muted-foreground">
-                    {formatCurrency(roundMoney(group.total), 'TWD')}
+                    {formatCurrency(roundMoney(group.total), baseCurrency)}
                   </span>
                 </div>
                 <div className="space-y-2">

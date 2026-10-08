@@ -1,4 +1,5 @@
 'use client';
+import { useLedgerCurrency } from '@/components/trips/space/LedgerCurrency';
 
 import { useState } from 'react';
 import { CalendarDays, ChevronDown, CloudOff, Edit2, Trash2 } from 'lucide-react';
@@ -48,6 +49,8 @@ export default function ExpenseListItem({
   onEdit,
   onDelete,
 }: ExpenseListItemProps) {
+  const contextBase = useLedgerCurrency();
+  const baseCurrency = expense.ledger?.baseCurrency ?? contextBase;
   const tExpense = useTranslations('expense');
   const tOffline = useTranslations('offline');
   const tItinerary = useTranslations('itinerary');
@@ -91,9 +94,9 @@ export default function ExpenseListItem({
 
         <span className="shrink-0 text-right">
           <span className="block font-semibold tabular-nums text-primary">
-            {formatCurrency(expense.amount, 'TWD')}
+            {formatCurrency(expense.amount, baseCurrency)}
           </span>
-          {expense.currency !== 'TWD' && (
+          {expense.currency !== baseCurrency && (
             <span className="block text-xs tabular-nums text-muted-foreground">
               {Number(expense.original_amount).toLocaleString()} {expense.currency}
             </span>
@@ -114,7 +117,7 @@ export default function ExpenseListItem({
           {/* 日期／匯率／Day／標籤 */}
           <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
             <span>{new Date(expense.date).toLocaleDateString()}</span>
-            {expense.currency !== 'TWD' && (
+            {expense.currency !== baseCurrency && (
               <span>
                 · {tExpense('rate')} {expense.exchange_rate}
               </span>
@@ -144,7 +147,8 @@ export default function ExpenseListItem({
             <div className="flex flex-wrap gap-1.5">
               {expense.splits.map((split) => (
                 <Badge key={split.user_id} variant="outline" className="font-normal">
-                  {split.display_name}: {formatCurrency(roundMoney(split.share_amount), 'TWD')}
+                  {split.display_name}:{' '}
+                  {formatCurrency(roundMoney(split.share_amount), baseCurrency)}
                 </Badge>
               ))}
             </div>

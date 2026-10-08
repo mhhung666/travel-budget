@@ -1,4 +1,5 @@
 'use client';
+import { useLedgerCurrency } from '@/components/trips/space/LedgerCurrency';
 
 import { useLocale, useTranslations } from 'next-intl';
 import type { Member } from '@/types';
@@ -43,6 +44,7 @@ export function SplitSection({
   onValueChange,
   onSelectAll,
 }: SplitSectionProps) {
+  const baseCurrency = useLedgerCurrency();
   const tExpense = useTranslations('expense');
   const tCommon = useTranslations('common');
   const locale = useLocale();
@@ -118,9 +120,9 @@ export function SplitSection({
 
               {state.selected ? (
                 <div className="flex items-center gap-2">
-                  {/* converted TWD share */}
+                  {/* converted ledger share */}
                   <span className="text-xs tabular-nums text-muted-foreground">
-                    {formatCurrency(twdShare, 'TWD', locale)}
+                    {formatCurrency(twdShare, baseCurrency, locale)}
                   </span>
                   {splitMode !== 'equal' && (
                     <div className="flex items-center gap-1">
@@ -148,12 +150,12 @@ export function SplitSection({
         })}
       </div>
 
-      {/* Allocation summary (TWD) */}
+      {/* Allocation summary (ledger) */}
       {anySelected && originalAmount > 0 && (
         <p className="px-1 text-xs tabular-nums text-muted-foreground">
           {tExpense('split.allocated', {
-            allocated: formatCurrency(split.allocatedTWD, 'TWD', locale),
-            total: formatCurrency(totalAmountTWD, 'TWD', locale),
+            allocated: formatCurrency(split.allocatedTWD, baseCurrency, locale),
+            total: formatCurrency(totalAmountTWD, baseCurrency, locale),
           })}
         </p>
       )}

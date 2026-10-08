@@ -13,8 +13,9 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@/lib/mongodb', () => ({ dbConnect: vi.fn() }));
-vi.mock('@/actions/withAuth', () => ({
-  withAuth:
+vi.mock('@/actions/withAuth', async (original) => ({
+  ...(await original<typeof import('@/actions/withAuth')>()),
+  withLedgerAuth:
     (fn: (...args: unknown[]) => unknown) =>
     (...args: unknown[]) =>
       fn({ userId: 'viewer' }, ...args),

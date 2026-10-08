@@ -5,6 +5,7 @@ import { getStatsExpensePage } from '@/actions';
 import type { StatsExpenseFilters, StatsExpensePage, StatsExpenseSort } from '@/types';
 
 interface StatsExpensePageFilters {
+  baseCurrency?: string;
   startDate?: string;
   endDate?: string;
   filters?: StatsExpenseFilters;
@@ -18,6 +19,7 @@ export function useStatsExpensePages(options: StatsExpensePageFilters, enabled =
   return useInfiniteQuery({
     queryKey: [
       'stats',
+      options.baseCurrency ?? 'TWD',
       'expense-pages',
       startDate ?? null,
       endDate ?? null,
@@ -32,6 +34,7 @@ export function useStatsExpensePages(options: StatsExpensePageFilters, enabled =
     initialPageParam: undefined as string | undefined,
     queryFn: async ({ pageParam }): Promise<StatsExpensePage> => {
       const result = await getStatsExpensePage({
+        baseCurrency: options.baseCurrency,
         startDate: startDate || undefined,
         endDate: endDate || undefined,
         sort,

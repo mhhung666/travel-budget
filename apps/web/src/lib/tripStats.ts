@@ -1,3 +1,4 @@
+import { moneyTotal } from './money';
 import { allocateMoney, roundMoney, normalizeShares } from '@/lib/money';
 import type {
   CategoryStat,
@@ -95,7 +96,7 @@ export function computeTripStats(
       tripName: e.payerName, // 群組視角：明細列顯示付款人
     };
     categoryMap.set(category, {
-      total: current.total + amount,
+      total: moneyTotal([current.total, amount]),
       count: current.count + 1,
       details: [...current.details, detail],
     });
@@ -103,19 +104,19 @@ export function computeTripStats(
     for (const tag of e.tags ?? []) {
       const currentTag = tagMap.get(tag) || { total: 0, count: 0, details: [] };
       tagMap.set(tag, {
-        total: currentTag.total + amount,
+        total: moneyTotal([currentTag.total, amount]),
         count: currentTag.count + 1,
         details: [...currentTag.details, detail],
       });
     }
 
-    if (e.payerId) paidByUser.set(e.payerId, (paidByUser.get(e.payerId) || 0) + amount);
+    if (e.payerId) paidByUser.set(e.payerId, moneyTotal([paidByUser.get(e.payerId) ?? 0, amount]));
     const shares = normalizeShares(
       amount,
       (e.splits || []).map((s) => s.shareAmount || 0)
     );
     for (const [i, s] of (e.splits || []).entries()) {
-      shareByUser.set(s.userId, (shareByUser.get(s.userId) || 0) + shares[i]);
+      shareByUser.set(s.userId, moneyTotal([shareByUser.get(s.userId) ?? 0, shares[i]]));
     }
 
     // 關聯多個行程日時把金額平均分攤到每一天（跨夜飯店分散到各晚）；未關聯歸入 null 桶。
@@ -129,7 +130,10 @@ export function computeTripStats(
     );
     dayKeys.forEach((dayKey, i) => {
       const dayAgg = spendByDay.get(dayKey) || { total: 0, count: 0 };
-      spendByDay.set(dayKey, { total: dayAgg.total + perDay[i], count: dayAgg.count + 1 });
+      spendByDay.set(dayKey, {
+        total: moneyTotal([dayAgg.total, perDay[i]]),
+        count: dayAgg.count + 1,
+      });
     });
 
     if (e.date) {
@@ -156,7 +160,7 @@ export function computeTripStats(
     }))
     .sort((a, b) => b.total - a.total);
 
-  const totalAmount = roundMoney(categoryStats.reduce((sum, c) => sum + c.total, 0));
+  const totalAmount = moneyTotal(categoryStats.map((c) => c.total));
   const totalExpenses = categoryStats.reduce((sum, c) => sum + c.count, 0);
 
   const memberSpends: MemberSpend[] = members

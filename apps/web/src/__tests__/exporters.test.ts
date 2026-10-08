@@ -179,7 +179,7 @@ describe('exportExpenses', () => {
     const { content } = exportExpenses(withPipe, 'markdown', expenseLabels);
     expect(content).toContain('| Date | Description |');
     expect(content).toContain('a \\| b');
-    expect(content).toContain('**Total: 300**');
+    expect(content).toContain('**Total: 300.00 TWD**');
   });
 
   it('renders csv with localized category and quoted comma field', () => {
@@ -192,7 +192,11 @@ describe('exportExpenses', () => {
 
   it('renders json round-trippable to the original data', () => {
     const { content } = exportExpenses(expenses, 'json', expenseLabels);
-    expect(JSON.parse(content)).toEqual(expenses);
+    expect(JSON.parse(content)).toEqual({
+      version: 2,
+      ledger: { baseCurrency: 'TWD', moneyScale: 2 },
+      expenses: expenses.map((e) => ({ ...e, ledger: { baseCurrency: 'TWD', moneyScale: 2 } })),
+    });
   });
 });
 
@@ -217,7 +221,7 @@ const settlement: SettlementExportData = {
 describe('exportSettlement', () => {
   it('renders markdown with balances and transfers', () => {
     const { content } = exportSettlement(settlement, 'markdown', settlementLabels);
-    expect(content).toContain('**Total: 300**');
+    expect(content).toContain('**Total: 300.00 TWD**');
     expect(content).toContain('| Alice | 300 | 150 | 150 |');
     expect(content).toContain('- Bob → Alice: 150');
   });
@@ -233,13 +237,16 @@ describe('exportSettlement', () => {
 
   it('renders csv of balances', () => {
     const { content } = exportSettlement(settlement, 'csv', settlementLabels);
-    expect(content).toContain('Member,Paid,Owed,Balance');
+    expect(content).toContain('Member,Paid (TWD),Owed (TWD),Balance (TWD)');
     expect(content).toContain('Bob,0,150,-150');
   });
 
   it('renders json round-trippable to the original data', () => {
     const { content } = exportSettlement(settlement, 'json', settlementLabels);
-    expect(JSON.parse(content)).toEqual(settlement);
+    expect(JSON.parse(content)).toEqual({
+      ...settlement,
+      ledger: { baseCurrency: 'TWD', moneyScale: 2 },
+    });
   });
 });
 
@@ -257,7 +264,7 @@ it('exports legacy split remainders consistently in every format', () => {
     expect(content).toContain('A: 15.13; B: 15.12');
     expect(content).toContain('30.25');
   }
-  const [row] = JSON.parse(exportExpenses([legacy], 'json', expenseLabels).content);
+  const [row] = JSON.parse(exportExpenses([legacy], 'json', expenseLabels).content).expenses;
   expect(row.splits.map((s: { share_amount: number }) => s.share_amount)).toEqual([15.13, 15.12]);
   expect(legacy.splits[0].share_amount).toBe(15.125);
 });

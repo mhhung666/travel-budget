@@ -1,4 +1,5 @@
 'use client';
+import { useLedgerCurrency } from '@/components/trips/space/LedgerCurrency';
 
 import { useLocale, useTranslations } from 'next-intl';
 import { ArrowRight, Plus, Trash2, ReceiptText } from 'lucide-react';
@@ -28,6 +29,7 @@ export default function PaymentHistory({
   onDelete,
   hasExpenses = true,
 }: PaymentHistoryProps) {
+  const baseCurrency = useLedgerCurrency();
   const t = useTranslations('settlement');
   const locale = useLocale();
   const dateFmt = new Intl.DateTimeFormat(locale, { dateStyle: 'medium' });
@@ -79,7 +81,7 @@ export default function PaymentHistory({
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <span className="font-semibold tabular-nums text-success">
-                    {formatCurrency(p.amount, 'TWD')}
+                    {formatCurrency(p.amount, baseCurrency)}
                   </span>
                   {canManage && (
                     <Button

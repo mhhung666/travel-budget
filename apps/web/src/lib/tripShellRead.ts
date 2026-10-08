@@ -1,9 +1,11 @@
-import { moneyTotal } from './ledger';
+import { webSettingsRevision } from './webSettingsWrite';
+import { isLedgerV2, ledgerOf, moneyTotal } from './ledger';
 import { Types } from 'mongoose';
 import { roundMoney, roundMoneyExpr, normalizedSplitsExpr } from '@/lib/money';
 import { Expense } from '@/models';
 import type { TripShell } from '@/types';
 export type LeanTripShell = {
+  baseCurrency?: string | null;
   _id: { toString(): string };
   name: string;
   startDate?: Date | null;
@@ -117,7 +119,32 @@ export async function readTripShell(
     moneyTotal([row.todaySpent]);
   }
   return {
-    id: trip._id.toString(),
+    ...(isLedgerV2()
+      ? {
+          ledger: ledgerOf(trip),
+          budget_revision: viewerId
+            ? webSettingsRevision(
+                tripId,
+                viewerId,
+                trip,
+                'budget',
+                trip.members.find((m) => m.user.toString() === viewerId)?.budget
+              )
+            : undefined,
+          ...(viewerId
+            ? {
+                currency_revision: webSettingsRevision(
+                  tripId,
+                  undefined,
+                  trip,
+                  'currency',
+                  trip.currencySettings
+                ),
+              }
+            : {}),
+        }
+      : {}),
+    id: tripId,
     name: trip.name,
     start_date: trip.startDate?.toISOString().slice(0, 10) ?? null,
     end_date: trip.endDate?.toISOString().slice(0, 10) ?? null,

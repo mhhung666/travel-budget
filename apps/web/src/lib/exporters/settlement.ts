@@ -4,6 +4,7 @@ import { FORMAT_META } from './types';
 import { toCsv } from './csv';
 
 export interface SettlementExportData {
+  ledger?: { baseCurrency: string; moneyScale: 2 };
   balances: Balance[];
   transactions: Transaction[];
   totalExpenses: number;
@@ -25,12 +26,13 @@ export interface SettlementLabels {
 
 function toMarkdown(data: SettlementExportData, labels: SettlementLabels): string {
   const { columns: c } = labels;
-  const head = [c.member, c.paid, c.owed, c.balance];
+  const unit = data.ledger?.baseCurrency ?? 'TWD';
+  const head = [c.member, `${c.paid} (${unit})`, `${c.owed} (${unit})`, `${c.balance} (${unit})`];
 
   const lines = [
-    `# ${labels.heading}`,
+    `# ${labels.heading} (${unit})`,
     '',
-    `**${labels.totalExpenses}: ${data.totalExpenses}**`,
+    `**${labels.totalExpenses}: ${data.totalExpenses.toFixed(2)} ${unit}**`,
     '',
     `## ${labels.balancesHeading}`,
     '',
@@ -47,7 +49,10 @@ function toMarkdown(data: SettlementExportData, labels: SettlementLabels): strin
   if (data.transactions.length === 0) {
     lines.push(labels.noTransfers, '');
   } else {
-    lines.push(...data.transactions.map((t) => `- ${t.from} → ${t.to}: ${t.amount}`), '');
+    lines.push(
+      ...data.transactions.map((t) => `- ${t.from} → ${t.to}: ${t.amount.toFixed(2)} ${unit}`),
+      ''
+    );
   }
 
   return lines.join('\n');
@@ -55,8 +60,9 @@ function toMarkdown(data: SettlementExportData, labels: SettlementLabels): strin
 
 function toSettlementCsv(data: SettlementExportData, labels: SettlementLabels): string {
   const { columns: c } = labels;
+  const unit = data.ledger?.baseCurrency ?? 'TWD';
   return toCsv(
-    [c.member, c.paid, c.owed, c.balance],
+    [c.member, `${c.paid} (${unit})`, `${c.owed} (${unit})`, `${c.balance} (${unit})`],
     data.balances.map((b) => [b.username, b.totalPaid, b.totalOwed, b.balance])
   );
 }
@@ -69,6 +75,7 @@ export function exportSettlement(
   format: ExportFormat,
   labels: SettlementLabels
 ): ExportFile {
+  data = { ...data, ledger: data.ledger ?? { baseCurrency: 'TWD', moneyScale: 2 } };
   const meta = FORMAT_META[format];
   let content: string;
   switch (format) {

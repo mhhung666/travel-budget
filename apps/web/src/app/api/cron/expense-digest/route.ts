@@ -1,3 +1,4 @@
+import { baseCurrency, ledgerOf, LedgerError } from '@/lib/ledger';
 import { NextRequest, NextResponse } from 'next/server';
 import { dbConnect } from '@/lib/mongodb';
 import { Trip, Expense, User } from '@/models';
@@ -22,6 +23,7 @@ export const dynamic = 'force-dynamic';
 const LOOKBACK_MS = 24 * 60 * 60 * 1000;
 
 type LeanExpense = {
+  baseCurrency?: string;
   trip: { toString(): string };
   amount: number;
   description: string;
@@ -29,6 +31,7 @@ type LeanExpense = {
   payer?: { displayName?: string | null } | null;
 };
 type LeanTrip = {
+  baseCurrency?: string;
   _id: { toString(): string };
   name: string;
   hashCode: string;
@@ -64,7 +67,7 @@ export async function GET(req: NextRequest) {
     // 1. 過去 24h 新增的支出（含付款人顯示名供摘要顯示）
     const since = new Date(Date.now() - LOOKBACK_MS);
     const expenses = await Expense.find({ createdAt: { $gte: since } })
-      .select('trip amount description createdBy payer')
+      .select('trip baseCurrency amount description createdBy payer')
       .populate('payer', 'displayName')
       .lean<LeanExpense[]>();
     if (expenses.length === 0) {
@@ -87,14 +90,18 @@ export async function GET(req: NextRequest) {
 
     // 3. 載入相關旅程（取成員 + 名稱）
     const trips = await Trip.find({ _id: { $in: [...expByTrip.keys()] } })
-      .select('name members hashCode')
+      .select('baseCurrency name members hashCode')
       .lean<LeanTrip[]>();
 
     const tripInputs: TripExpenseDigestInput[] = trips.map((t) => {
       const id = t._id.toString();
+      const unit = baseCurrency(t);
+      if (expenses.some((e) => e.trip.toString() === id && ledgerOf(e).baseCurrency !== unit))
+        throw new LedgerError('LEDGER_DATA_INVALID');
       return {
         tripHashCode: t.hashCode,
         tripName: t.name,
+        baseCurrency: unit,
         members: (t.members || []).map((m) => ({
           userId: m.user.toString(),
           archivedAt: m.archivedAt ?? null,

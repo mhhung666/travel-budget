@@ -1,4 +1,5 @@
 'use client';
+import { requireWebLedger } from '@/lib/webLedger';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import type { TripLanding } from '@/types/tripLanding';
 
@@ -60,7 +61,7 @@ export function useTrips(enabled = true) {
     queryKey: tripKeys.list,
     queryFn: async (): Promise<TripWithMembers[]> => {
       const res = await getTrips();
-      return unwrapActionResult(res);
+      return requireWebLedger(unwrapActionResult(res));
     },
     enabled,
   });

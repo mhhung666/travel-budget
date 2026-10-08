@@ -28,6 +28,8 @@ export interface ExpenseDraftForm {
 }
 
 export interface ExpenseDraftSnapshot {
+  ledger?: { baseCurrency: string; moneyScale: 2 };
+  contractVersion?: 2;
   form: ExpenseDraftForm;
   splitMode: SplitMode;
   splitState: Record<string, { selected: boolean; value: string }>;
@@ -86,7 +88,11 @@ function isSnapshot(value: unknown): value is ExpenseDraftSnapshot {
 }
 
 /** 讀取草稿；格式不符、版本不同或已過期都回 null（並順手清掉）。 */
-export function loadExpenseDraft(tripId: string, now = Date.now()): ExpenseDraftSnapshot | null {
+export function loadExpenseDraft(
+  tripId: string,
+  now = Date.now(),
+  baseCurrency?: string
+): ExpenseDraftSnapshot | null {
   const store = storage();
   if (!store) return null;
   const key = expenseDraftKey(tripId);
@@ -122,6 +128,7 @@ export function loadExpenseDraft(tripId: string, now = Date.now()): ExpenseDraft
     return null;
   }
 
+  if (baseCurrency && (stored.snapshot.ledger?.baseCurrency ?? 'TWD') !== baseCurrency) return null;
   return stored.snapshot;
 }
 

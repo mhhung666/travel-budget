@@ -42,7 +42,7 @@
     "successTitle": "成功",
     "warningTitle": "警告",
     "infoTitle": "提示",
-    "pendingOfflineLogout": "还有待同步支出或未处理草稿。退出将移除此设备保存的输入，确定退出？",
+    "pendingOfflineLogout": "还有待同步支出或未确认结果。退出会暂停发送并保留原操作，回到同一账号后可查询恢复。确定退出？",
     "queryOfflineCached": "当前离线，显示已保存的数据。",
     "queryOfflineMissing": "当前离线，此数据尚未保存在设备上。恢复连接后会重新加载。",
     "shareLink": "分享链接"
@@ -334,7 +334,7 @@
       "formDescription": "输入金额，并确认付款人与分账方式。",
       "amount": "金额",
       "currency": "币种",
-      "exchangeRate": "汇率 (换算为 TWD)",
+      "exchangeRate": "汇率（换算至账本基准币种）",
       "description": "描述",
       "descriptionPlaceholder": "例：午餐、交通费、酒店住宿",
       "ai": {
@@ -387,7 +387,7 @@
       "payer": "付款人",
       "payerPlaceholder": "选择付款人",
       "refreshRate": "重新获取汇率",
-      "rateEquation": "1 {currency} = {rate} TWD",
+      "rateEquation": "1 {currency} = {rate} {baseCurrency}",
       "referenceRateDate": "Frankfurter 每日参考汇率 · 数据日期 {date}（非实时成交价）",
       "itineraryDay": "关联行程日",
       "itineraryDaysHint": "可多选；跨夜的支出选多天会自动平均分摊到每日花费",
@@ -635,7 +635,7 @@
     "paymentHistoryEmpty": "尚无转账记录",
     "paymentHistoryNoExpenses": "尚无转账记录。出发前先转给旅伴的订金或垫付款，也可以先登记。",
     "paymentRecorded": "已登记转账",
-    "amountLabel": "金额（TWD）",
+    "amountLabel": "金额",
     "noteLabel": "备注（选填）",
     "notePlaceholder": "例如：现金、转账…",
     "selectMember": "选择成员",
@@ -697,7 +697,7 @@
     },
     "dialog": {
       "title": "设定我的预算",
-      "description": "预算以新台币计算，实际花费依每笔支出分摊给你的金额统计。",
+      "description": "预算使用账本基准币种，实际花费依每笔支出的本人分摊累计。",
       "private": "只有你看得到这份预算",
       "totalLabel": "我的总预算",
       "totalPlaceholder": "例如 30000",
@@ -1025,7 +1025,7 @@
       "addCurrency": "添加币种",
       "searchPlaceholder": "搜索币种（代码或名称）",
       "noMatch": "找不到匹配的币种",
-      "empty": "尚未添加币种——新增支出将使用新台币。",
+      "empty": "尚未加入常用币种，新增支出使用账本基准币种。",
       "remove": "移除",
       "customRate": "自定义汇率"
     },
@@ -1914,6 +1914,38 @@
       "iosHome": "选择“添加到主屏幕”（若未看到，请向下滚动或查看“编辑操作”）。",
       "iosConfirm": "点击“添加”，就能从主屏幕打开旅行记账。",
       "fallback": "暂时无法打开安装窗口，请从浏览器菜单选择“安装应用”或“添加到主屏幕”。"
+    }
+  },
+  "ledger": {
+    "baseCurrency": "账本基准币种",
+    "immutable": "建立后固定，所有分摊、还款与预算均使用此币种。",
+    "precision": "账本金额以 {currency} 计算，统一保留两位小数（含 JPY）。",
+    "pendingWrite": "有已确认的操作尚待查明结果，请先恢复后再提交同旅程的下一笔操作。",
+    "recover": "查询并恢复",
+    "onlineOnly": "此账本需要联网后提交。",
+    "legacyDraft": "本机保留了旧版未标示账号的草稿；为避免带入其他账号，本版不自动恢复。",
+    "rateEquation": "1 {currency} = {rate} {baseCurrency}",
+    "budgetDescription": "预算使用账本基准币种，实际花费依每笔支出的本人分摊累计。",
+    "emptyCurrencies": "尚未加入常用币种，新增支出使用账本基准币种。",
+    "reload": "重新加载设置",
+    "amount": "金额",
+    "wait": "服务器要求暂停发送。等待期限结束后，请补查原操作。",
+    "storageInvalid": "无法读取已确认操作的本机记录。请保留浏览器数据，修复存储后再补查。",
+    "writeUnknown": "操作结果仍未确认。请保留此记录，稍后补查原操作。",
+    "RESOURCE_CHANGED": "数据已被其他人修改，请重新读取并再次确认。",
+    "SETTLEMENT_CHANGED": "结算已变更，请重新读取并再次确认。",
+    "LEDGER_CURRENCY_MISMATCH": "账本币种不一致，请重新读取旅行。",
+    "CLIENT_UPGRADE_REQUIRED": "请更新应用程序后再打开此旅行。",
+    "BUSY": "服务器暂时忙碌，请等待后补查原操作。",
+    "operations": {
+      "trip_create": "创建旅行",
+      "trip_join": "加入旅行",
+      "expense_update": "修改支出",
+      "expense_delete": "删除支出",
+      "payment_create": "登记还款",
+      "payment_delete": "撤销还款",
+      "budget_set": "设置预算",
+      "currency_set": "设置记账币种"
     }
   }
 }

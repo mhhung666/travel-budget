@@ -1,3 +1,4 @@
+import type { Ledger } from '@travel-budget/contracts';
 /**
  * 消費分攤資訊
  */
@@ -23,6 +24,8 @@ export interface ExpenseAttachment {
  * 消費記錄
  */
 export interface Expense {
+  ledger?: Ledger;
+  revision?: string;
   id: string;
   trip_id: string;
   payer_id: string;

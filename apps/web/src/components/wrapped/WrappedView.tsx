@@ -1,7 +1,8 @@
 'use client';
+import { formatCurrency } from '@/constants/currencies';
 import { QueryStatus } from '@/components/common/QueryStatus';
 
-import { useMemo, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Loader2, Download, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -10,17 +11,6 @@ import { useCurrentUser, useYearInReview } from '@/hooks/queries';
 import { logger } from '@/lib/logger';
 import { WrappedCard } from './WrappedCard';
 import WrappedShareDialog from './WrappedShareDialog';
-
-/** app locale → Intl BCP-47（金額/數字在地化）。 */
-function bcp47(locale: string): string {
-  return locale === 'zh'
-    ? 'zh-TW'
-    : locale === 'zh-CN'
-      ? 'zh-CN'
-      : locale === 'jp'
-        ? 'ja-JP'
-        : 'en-US';
-}
 
 /** 每月花費長條（highlight 最高月）；僅在有花費時呈現。 */
 function MonthlyBars({
@@ -65,17 +55,13 @@ export default function WrappedView() {
   const cardRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);
 
-  const formatMoney = useMemo(() => {
-    const fmt = new Intl.NumberFormat(bcp47(locale), {
-      style: 'currency',
-      currency: 'TWD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    });
-    return (n: number) => fmt.format(n);
-  }, [locale]);
-
-  const review = data?.review;
+  const tLedger = useTranslations('ledger');
+  const [currency, setCurrency] = useState('TWD');
+  const group =
+    data?.monetaryGroups?.find((g) => g.ledger.baseCurrency === currency) ??
+    data?.monetaryGroups?.[0];
+  const review = group?.review ?? data?.review;
+  const formatMoney = (n: number) => formatCurrency(n, group?.ledger.baseCurrency ?? 'TWD', locale);
   const availableYears = data?.availableYears ?? [];
   const activeYear = review?.year ?? year ?? null;
 
@@ -144,6 +130,17 @@ export default function WrappedView() {
 
   return (
     <main className="container mx-auto max-w-2xl px-4 py-6 pb-12">
+      {data?.monetaryGroups && (
+        <select
+          aria-label={tLedger('baseCurrency')}
+          value={group?.ledger.baseCurrency ?? 'TWD'}
+          onChange={(e) => setCurrency(e.target.value)}
+        >
+          {data.monetaryGroups.map((g) => (
+            <option key={g.ledger.baseCurrency}>{g.ledger.baseCurrency}</option>
+          ))}
+        </select>
+      )}
       <QueryStatus query={reviewQuery} />
       {/* 年份切換 */}
       <div className="mb-5 flex flex-wrap items-center gap-1.5">

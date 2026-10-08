@@ -1,3 +1,6 @@
+vi.mock('@/lib/env', () => ({
+  getEnv: () => ({ JWT_SECRET: 'b2-unit-tests-only-secret-32-characters' }),
+}));
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const getSession = vi.fn();

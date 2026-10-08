@@ -72,7 +72,9 @@ export function useTripSpace(tripId: string, loadExpenseForm = false) {
   const handleAddExpense = async (data: ExpenseFormData) => {
     await expenseMutations.create.enqueue({
       tripId,
+      contractVersion: 2,
       input: {
+        base_currency: shell!.ledger!.baseCurrency,
         payer_id: data.payer_id,
         original_amount: parseFloat(data.original_amount),
         currency: data.currency,

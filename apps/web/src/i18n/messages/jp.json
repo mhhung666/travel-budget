@@ -42,7 +42,7 @@
     "successTitle": "成功",
     "warningTitle": "警告",
     "infoTitle": "お知らせ",
-    "pendingOfflineLogout": "未同期の支出または下書きがあります。ログアウトすると端末の保存内容が削除されます。ログアウトしますか？",
+    "pendingOfflineLogout": "未同期の支出または未確認の操作があります。ログアウトすると送信を停止し、同じアカウントで再開できるよう元の記録を保持します。ログアウトしますか？",
     "queryOfflineCached": "オフラインです。保存済みのデータを表示しています。",
     "queryOfflineMissing": "オフラインで、このデータは端末に保存されていません。再接続すると読み込みます。",
     "shareLink": "共有リンク"
@@ -334,7 +334,7 @@
       "formDescription": "金額を入力し、支払者と割り勘方法を確認します。",
       "amount": "金額",
       "currency": "通貨",
-      "exchangeRate": "為替レート（TWD換算）",
+      "exchangeRate": "為替レート（帳簿の基準通貨へ）",
       "description": "説明",
       "descriptionPlaceholder": "例：ランチ、交通費、ホテル宿泊",
       "ai": {
@@ -387,7 +387,7 @@
       "payer": "支払者",
       "payerPlaceholder": "支払者を選択",
       "refreshRate": "為替レートを更新",
-      "rateEquation": "1 {currency} = {rate} TWD",
+      "rateEquation": "1 {currency} = {rate} {baseCurrency}",
       "referenceRateDate": "Frankfurter 日次参考レート · データ日付 {date}（リアルタイム価格ではありません）",
       "itineraryDay": "関連する日程",
       "itineraryDaysHint": "複数選択可。連泊などの支出は選んだ日数で1日の支出に均等配分されます",
@@ -635,7 +635,7 @@
     "paymentHistoryEmpty": "送金の記録はまだありません",
     "paymentHistoryNoExpenses": "送金の記録はまだありません。出発前に渡した前払い金なども記録できます。",
     "paymentRecorded": "送金を記録しました",
-    "amountLabel": "金額（TWD）",
+    "amountLabel": "金額",
     "noteLabel": "メモ（任意）",
     "notePlaceholder": "例：現金、振込…",
     "selectMember": "メンバーを選択",
@@ -697,7 +697,7 @@
     },
     "dialog": {
       "title": "自分の予算を設定",
-      "description": "予算はTWDで計算され、実際の支出は各支出で自分に割り当てられた金額を集計します。",
+      "description": "予算は帳簿の基準通貨を使用し、支出は自分の分担額の合計です。",
       "private": "この予算は自分だけが見ることができます",
       "totalLabel": "自分の総予算",
       "totalPlaceholder": "例：30000",
@@ -1025,7 +1025,7 @@
       "addCurrency": "通貨を追加",
       "searchPlaceholder": "通貨を検索（コードまたは名称）",
       "noMatch": "一致する通貨がありません",
-      "empty": "まだ通貨が追加されていません——支出は TWD で登録されます。",
+      "empty": "通貨が未設定の場合、新しい支出は帳簿の基準通貨を使用します。",
       "remove": "削除",
       "customRate": "カスタム為替レート"
     },
@@ -1914,6 +1914,38 @@
       "iosHome": "「ホーム画面に追加」を選びます（見つからない場合は下にスクロールするか、「アクションを編集」を確認してください）。",
       "iosConfirm": "「追加」をタップすると、ホーム画面から旅行記帳を開けます。",
       "fallback": "インストール画面を開けませんでした。ブラウザのメニューから「アプリをインストール」または「ホーム画面に追加」を選んでください。"
+    }
+  },
+  "ledger": {
+    "baseCurrency": "帳簿の基準通貨",
+    "immutable": "作成後は固定です。分割、返済、予算にこの通貨を使用します。",
+    "precision": "帳簿金額は {currency} で、小数点以下2桁まで記録します（JPYも含む）。",
+    "pendingWrite": "確定済みの操作の結果を確認してください。同じ旅行の次の操作は復元後に送信できます。",
+    "recover": "確認して復元",
+    "onlineOnly": "接続してからこの帳簿に送信してください。",
+    "legacyDraft": "この端末にアカウント情報のない旧版の下書きが残っています。別のアカウントへの読み込みを防ぐため、自動復元しません。",
+    "rateEquation": "1 {currency} = {rate} {baseCurrency}",
+    "budgetDescription": "予算は帳簿の基準通貨を使用し、支出は自分の分担額の合計です。",
+    "emptyCurrencies": "通貨が未設定の場合、新しい支出は帳簿の基準通貨を使用します。",
+    "reload": "設定を再読み込み",
+    "amount": "金額",
+    "wait": "サーバーの待機期限が終了してから元の操作を確認してください。",
+    "storageInvalid": "確定した操作の保存記録を読み取れません。ブラウザーのデータを保持し、保存機能を修復してから確認してください。",
+    "writeUnknown": "結果が未確認です。この記録を保持し、後で元の操作を確認してください。",
+    "RESOURCE_CHANGED": "他の人が変更しました。再読み込みして再確認してください。",
+    "SETTLEMENT_CHANGED": "精算が変わりました。再読み込みして再確認してください。",
+    "LEDGER_CURRENCY_MISMATCH": "帳簿通貨が一致しません。旅行を再読み込みしてください。",
+    "CLIENT_UPGRADE_REQUIRED": "アプリを更新してから旅行を開いてください。",
+    "BUSY": "サーバーが混雑しています。待機してから元の操作を確認してください。",
+    "operations": {
+      "trip_create": "旅行を作成",
+      "trip_join": "旅行に参加",
+      "expense_update": "支出を編集",
+      "expense_delete": "支出を削除",
+      "payment_create": "返済を記録",
+      "payment_delete": "返済を取消",
+      "budget_set": "予算を設定",
+      "currency_set": "記帳通貨を設定"
     }
   }
 }

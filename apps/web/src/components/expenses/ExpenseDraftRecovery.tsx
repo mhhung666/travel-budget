@@ -53,6 +53,7 @@ function EditDraft({ entry, onClose }: { entry: ExpenseOutboxEntry; onClose: () 
     );
   return (
     <ExpenseFormSheet
+      baseCurrency={entry.vars.input.base_currency ?? 'TWD'}
       mode="add"
       tripId={entry.vars.tripId}
       open
@@ -63,9 +64,11 @@ function EditDraft({ entry, onClose }: { entry: ExpenseOutboxEntry; onClose: () 
       onSubmit={async (data) => {
         await create.enqueue({
           tripId: entry.vars.tripId,
+          contractVersion: 2,
           replacesRequestId: entry.vars.input.client_request_id,
           input: {
             ...data,
+            base_currency: entry.vars.input.base_currency ?? 'TWD',
             original_amount: Number(data.original_amount),
             exchange_rate: Number(data.exchange_rate),
           },

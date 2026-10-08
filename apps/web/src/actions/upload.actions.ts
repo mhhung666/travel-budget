@@ -3,7 +3,7 @@
 import mongoose from 'mongoose';
 import { withPhotoUpdateTransaction } from '@/lib/photoUpdateTransaction';
 import { photoUploadJobs, PHOTO_UPLOAD_LEASE_MS } from '@/lib/photoUploadJobs';
-import { withAuth } from './withAuth';
+import { withLedgerAuth as withAuth } from './withAuth';
 import type { ActionResult } from './types';
 import { getTripMembership } from '@/lib/permissions';
 import {

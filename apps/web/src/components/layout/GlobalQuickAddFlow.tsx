@@ -169,6 +169,7 @@ export function GlobalExpenseForm({
 
   return (
     <ExpenseFormSheet
+      baseCurrency={trip.ledger!.baseCurrency}
       mode="add"
       tripId={tripId}
       open={open}

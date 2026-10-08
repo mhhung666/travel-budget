@@ -1,3 +1,4 @@
+import { moneyTotal, roundMoney } from './money';
 import type { YearInReviewCategory, YearInReviewData } from '@/types';
 import { haversineKm } from './geo';
 import { yearsSpanned } from './dateRange';
@@ -133,15 +134,15 @@ export function computeYearInReview(inputs: YearInReviewInputs, year: number): Y
     if (e.date.slice(0, 4) !== yearPrefix) continue;
     const amount = e.shareAmount || 0;
     const category = e.category || 'other';
-    categoryMap.set(category, (categoryMap.get(category) || 0) + amount);
+    categoryMap.set(category, moneyTotal([categoryMap.get(category) ?? 0, amount]));
     const month = Number(e.date.slice(5, 7)) - 1;
-    if (month >= 0 && month < 12) monthlySpend[month] += amount;
-    totalSpend += amount;
+    if (month >= 0 && month < 12) monthlySpend[month] = moneyTotal([monthlySpend[month], amount]);
+    totalSpend = moneyTotal([totalSpend, amount]);
     expenseCount += 1;
   }
 
   const categoryBreakdown: YearInReviewCategory[] = Array.from(categoryMap.entries())
-    .map(([category, total]) => ({ category, total: Math.round(total) }))
+    .map(([category, total]) => ({ category, total: roundMoney(total) }))
     .sort((a, b) => b.total - a.total);
 
   // busiestMonth：花費最高的月份；全為 0（無花費）時為 null。
@@ -193,11 +194,11 @@ export function computeYearInReview(inputs: YearInReviewInputs, year: number): Y
     distanceKm: Math.round(distanceKm),
     longestTripDays,
     companionCount: companionSet.size,
-    totalSpend: Math.round(totalSpend),
+    totalSpend: roundMoney(totalSpend),
     expenseCount,
     topCategory: categoryBreakdown[0] ?? null,
     categoryBreakdown,
-    monthlySpend: monthlySpend.map((v) => Math.round(v)),
+    monthlySpend: monthlySpend.map(roundMoney),
     busiestMonth,
     flightCount,
     newAirlineCount,

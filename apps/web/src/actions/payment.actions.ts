@@ -1,4 +1,5 @@
 'use server';
+import { baseCurrency } from '@/lib/ledger';
 
 import { TripWriteError } from '@/lib/tripWriteTransaction';
 import { revalidatePath } from 'next/cache';
@@ -9,7 +10,7 @@ import { calculateSettlement, applyPayments } from '@/lib/settlement';
 import { getEnv, getResendConfig } from '@/lib/env';
 import { sendEmail } from '@/lib/email';
 import { buildPaymentReminderEmail } from '@/lib/emailTemplates';
-import { withAuth } from './withAuth';
+import { withLedgerAuth as withAuth, withAuth as legacyAuth } from './withAuth';
 import type { ActionResult } from './types';
 import type { PaymentRecord } from '@/types';
 import { logger } from '@/lib/logger';
@@ -19,7 +20,7 @@ import { TripEntryError } from '@/lib/tripEntry';
 import { recordPaymentForActor, deletePaymentForActor } from '@/lib/paymentWrite';
 
 /** Cookie adapters share the transaction service with mobile. */
-export const recordPayment = withAuth(
+export const recordPayment = legacyAuth(
   async (
     session,
     tripIdOrCode: string,
@@ -63,7 +64,7 @@ export const recordPayment = withAuth(
     }
   }
 );
-export const deletePayment = withAuth(
+export const deletePayment = legacyAuth(
   async (
     session,
     tripIdOrCode: string,
@@ -132,7 +133,8 @@ export const remindPayment = withAuth(
 
       // 一次取成員 + 支出 + 還款，記憶體中重算結算（比照 getSettlement）
       const [trip, expenses, paymentDocs] = await Promise.all([
-        Trip.findById(tripId).select('name hashCode members').lean<{
+        Trip.findById(tripId).select('baseCurrency name hashCode members').lean<{
+          baseCurrency?: string;
           name: string;
           hashCode: string;
           members: { user: { toString(): string } }[];
@@ -212,6 +214,7 @@ export const remindPayment = withAuth(
         tripHashCode: trip.hashCode,
         tripName: trip.name,
         amount: owed.amount,
+        baseCurrency: baseCurrency(trip),
       });
       const sent = await sendEmail({ to: debtor.email, content });
       if (!sent) {

@@ -4,7 +4,7 @@ import { dbConnect } from '@/lib/mongodb';
 import { Trip } from '@/models';
 import { getTripMembership } from '@/lib/permissions';
 import { ensureSanitizedPhotoCopies } from '@/lib/photoSanitize';
-import { withAuth } from './withAuth';
+import { withLedgerAuth as withAuth } from './withAuth';
 import type { ActionResult } from './types';
 import { generateUniqueHashCode } from '@/lib/hashcode';
 import { logger } from '@/lib/logger';

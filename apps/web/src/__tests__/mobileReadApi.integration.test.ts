@@ -87,6 +87,8 @@ describe.skipIf(!uri || !allowed)('mobile read APIs on MongoDB', () => {
     ...extra,
   });
   beforeAll(async () => {
+    vi.stubEnv('MONGODB_URI', uri!);
+    vi.stubEnv('JWT_SECRET', 'isolated-b2-mobile-read-secret-at-least-32-characters');
     await mongoose.connect(uri!, {
       dbName: `tb_mobile_read_${randomUUID().replaceAll('-', '')}`,
       serverSelectionTimeoutMS: 5000,

@@ -1,3 +1,4 @@
+vi.mock('@/lib/confirmedWebWrites', () => ({ confirmWebWrite: vi.fn(async () => ({})) }));
 import type { PropsWithChildren } from 'react';
 import { act, renderHook } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -58,7 +59,13 @@ describe('trips list summary invalidation', () => {
     expect(client.getQueryState(tripKeys.list)?.isInvalidated).toBe(true);
 
     seedList();
-    await act(() => result.current.remove.mutateAsync('p1'));
+    await act(() =>
+      result.current.remove.mutateAsync({
+        paymentId: 'p1',
+        revision: 'a'.repeat(64),
+        baseCurrency: 'TWD',
+      })
+    );
     expect(client.getQueryState(tripKeys.list)?.isInvalidated).toBe(true);
   });
 

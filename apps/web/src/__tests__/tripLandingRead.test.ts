@@ -1,3 +1,10 @@
+vi.mock('@/lib/env', () => ({
+  getEnv: () => ({ JWT_SECRET: 'b2-unit-tests-only-secret-32-characters' }),
+}));
+vi.mock('@/lib/ledger', async (original) => ({
+  ...(await original<typeof import('@/lib/ledger')>()),
+  validateLedgerChildren: vi.fn(),
+}));
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 
@@ -22,8 +29,8 @@ vi.mock('@/models', () => ({
   Payment: { find: mocks.payments },
   User: { find: mocks.users },
 }));
-import { getTripLanding } from '@/actions/tripLanding.actions';
-import { GET } from '@/app/api/public/trips/[id]/landing/route';
+import { getLedgerTripLanding as getTripLanding } from '@/actions/tripLanding.actions';
+import { GET } from '@/app/api/public/v2/trips/[id]/landing/route';
 const userId = '507f191e810c19729de860ea';
 const tripId = '507f1f77bcf86cd799439011';
 function chain(data: unknown) {
@@ -127,7 +134,7 @@ describe('trip landing authorization and data boundary', () => {
 
   it('public route strips private fields even when the model mock returns them', async () => {
     const res = await GET(
-      new NextRequest('https://example.com/api/public/trips/abc12345/landing?date=2026-09-05'),
+      new NextRequest('https://example.com/api/public/v2/trips/abc12345/landing?date=2026-09-05'),
       { params: Promise.resolve({ id: 'abc12345' }) }
     );
     expect(res.status).toBe(200);

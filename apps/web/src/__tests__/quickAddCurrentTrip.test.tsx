@@ -18,7 +18,11 @@ vi.mock('@/components/common', () => ({
 }));
 vi.mock('@/hooks/useTripSpace', () => ({
   useTripSpace: (tripId: string) => ({
-    trip: { name: `trip:${tripId}`, currency_settings: null },
+    trip: {
+      ledger: { baseCurrency: 'TWD', moneyScale: 2 },
+      name: `trip:${tripId}`,
+      currency_settings: null,
+    },
     isLoading: false,
     members: [{ id: 'me' }],
     currentUser: { id: 'me' },

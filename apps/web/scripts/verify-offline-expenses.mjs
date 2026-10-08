@@ -3,13 +3,14 @@ import assert from 'node:assert/strict';
 import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
 import { randomBytes, randomUUID } from 'node:crypto';
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, rm, writeFile, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createServer } from 'node:net';
 import { chromium } from 'playwright';
 import mongoose from 'mongoose';
 import { SignJWT } from 'jose';
+import { verifyWebLedgerBrowser } from './verify-web-ledger-browser.mjs';
 import { up as migrateRequests } from '../migrations/20260912160000-expense-create-requests.js';
 
 const exec = promisify(execFile);
@@ -36,6 +37,15 @@ async function eventually(check, message, timeout = 30_000) {
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
   throw new Error(message);
+}
+async function reloadPage(tab) {
+  try {
+    await tab.reload();
+  } catch (error) {
+    if (!error.message.includes('net::ERR_ABORTED')) throw error;
+    // A final Server Action refresh can supersede navigation; require a completed reload.
+    await tab.goto(tab.url());
+  }
 }
 async function freePort() {
   const server = createServer();
@@ -173,6 +183,7 @@ try {
     MONGODB_URI: uri,
     JWT_SECRET: jwtSecret,
     APP_URL: origin,
+    ENABLE_NON_TWD_LEDGER: 'false',
     EXPENSE_BACKGROUND_DELIVERY: 'off',
     NEXT_TELEMETRY_DISABLED: '1',
     RESEND_API_KEY: '',
@@ -185,6 +196,22 @@ try {
     OPENAI_API_KEY: '',
     CRON_SECRET: '',
   };
+  // Only the owned child server uses deterministic rates; no provider traffic or production switch.
+  const rateFixture = join(artifacts, 'rate-fixture.cjs');
+  await writeFile(
+    rateFixture,
+    `const original = globalThis.fetch;
+    globalThis.fetch = (input, init) => {
+      const url = typeof input === 'string' ? input : input.url ?? String(input);
+      if (url === 'https://api.frankfurter.dev/v2/rates?base=TWD') return Promise.resolve(new Response(JSON.stringify([
+        {base:'TWD',quote:'USD',rate:0.03125,date:'2026-10-08'},
+        {base:'TWD',quote:'JPY',rate:4.7,date:'2026-10-08'},
+        {base:'TWD',quote:'EUR',rate:0.028,date:'2026-10-08'}
+      ]), {status:200,headers:{'Content-Type':'application/json'}}));
+      return original(input, init);
+    };`
+  );
+  env.NODE_OPTIONS = `${env.NODE_OPTIONS ?? ''} --require ${rateFixture}`;
   if (!process.argv.includes('--skip-build')) {
     console.log('Building production application with Service Worker');
     try {
@@ -302,7 +329,7 @@ try {
     'No Service Worker controller'
   );
   // Warm the document after activation; the first navigation precedes SW control.
-  await page.reload();
+  await reloadPage(page);
   await openForm();
   await eventually(async () => {
     const cached = await idbRead(cacheKey);
@@ -317,9 +344,9 @@ try {
   assert.equal((await entries()).filter((entry) => entry.status === 'pending').length, 1);
   assert.equal(await count('offline-reload'), 0);
   // The mutation journal must survive even before the throttled query snapshot flush.
-  await page.reload();
+  await reloadPage(page);
   await page.getByText('offline-reload', { exact: true }).first().waitFor();
-  await page.reload();
+  await reloadPage(page);
   await page.getByText('offline-reload', { exact: true }).first().waitFor();
   assert.equal((await entries()).filter((entry) => entry.status === 'pending').length, 1);
   assert.equal(await count('offline-reload'), 0);
@@ -338,13 +365,23 @@ try {
   );
   pass('real IndexedDB + SW: immediate and repeated offline reload, then exactly one write');
 
+  // Receipt lookup and write carry the same body. Target the compiled writer explicitly.
+  const actions = JSON.parse(await readFile('.next/server/server-reference-manifest.json', 'utf8'));
+  const createActionIds = new Set(
+    Object.entries(actions.node)
+      .filter(([, action]) =>
+        ['createExpense', 'createLedgerExpense'].includes(action.exportedName)
+      )
+      .map(([id]) => id)
+  );
+  assert.ok(createActionIds.size > 0, 'The production manifest must identify expense writers');
   // Commit the actual server action, then drop its response to the browser.
   let dropped = false;
   await page.route('**/*', async (route) => {
     if (
       !dropped &&
       route.request().method() === 'POST' &&
-      route.request().headers()['next-action'] &&
+      createActionIds.has(route.request().headers()['next-action']) &&
       (route.request().postData() ?? '').includes('lost-response')
     ) {
       dropped = true;
@@ -361,7 +398,7 @@ try {
     'Did not commit the dropped-response fixture'
   );
   await page.unrouteAll({ behavior: 'wait' });
-  await page.reload();
+  await reloadPage(page);
   await page.getByText('lost-response', { exact: true }).first().waitFor();
   await setConnectivityOffline(false);
   await eventually(
@@ -381,7 +418,32 @@ try {
     async () => (await entries()).some((entry) => entry.status === 'failed'),
     'Rejected input was not retained'
   );
-  await page.reload();
+  // Reproduce a tab closing after the terminal is durable but before lock cleanup.
+  const failedId = (await entries()).find((entry) => entry.status === 'failed').vars.input
+    .client_request_id;
+  await page.evaluate(
+    ({ key, trip, id }) =>
+      new Promise((resolve, reject) => {
+        const request = indexedDB.open('keyval-store');
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+          const database = request.result;
+          const transaction = database.transaction('keyval', 'readwrite');
+          transaction.objectStore('keyval').put({ [trip]: id }, key);
+          transaction.oncomplete = () => {
+            database.close();
+            resolve();
+          };
+          transaction.onerror = () => reject(transaction.error);
+        };
+      }),
+    {
+      key: `travel-budget-write-coordination:${encodeURIComponent(`user:${userId}`)}`,
+      trip: String(tripId),
+      id: failedId,
+    }
+  );
+  await reloadPage(page);
   await page.getByRole('button', { name: 'Review drafts', exact: true }).click();
   await page.getByText(/rejected-draft ·/).waitFor();
   const downloadPromise = page.waitForEvent('download');
@@ -456,7 +518,7 @@ try {
   await firstPage.getByText('tab-one', { exact: true }).first().waitFor();
   await secondPage.getByText('tab-two', { exact: true }).first().waitFor();
   await eventually(
-    async () => (await firstPage.locator('body').innerText()).includes('My spending NT$150'),
+    async () => (await firstPage.locator('body').innerText()).includes('My share NT$150'),
     'Offline multi-tab shell did not include both pending expenses'
   );
   await setConnectivityOffline(false);
@@ -475,7 +537,7 @@ try {
   );
   await secondPage.close();
   page = firstPage;
-  await page.reload();
+  await reloadPage(page);
   await page.getByText('tab-two', { exact: true }).first().waitFor();
 
   // Reproduce the production timing gap: restore after one rejection, then reject
@@ -513,7 +575,7 @@ try {
       }),
     outboxKey
   );
-  await page.reload();
+  await reloadPage(page);
   await page.getByText('staged-reject-two', { exact: true }).first().waitFor();
   let heldSecond = false;
   await page.route('**/*', async (route) => {
@@ -540,10 +602,10 @@ try {
   await setConnectivityOffline(false);
   await eventually(() => heldSecond, 'Second staged request was not held');
   await page.unrouteAll({ behavior: 'wait' });
-  await page.reload();
+  await reloadPage(page);
   await setConnectivityOffline(true);
   await eventually(
-    async () => (await page.locator('body').innerText()).includes('My spending NT$193'),
+    async () => (await page.locator('body').innerText()).includes('My share NT$193'),
     'Partially rejected shell did not retain only the second amount'
   );
   // Wait for this recombined projection to be persisted, then reject its last request.
@@ -578,18 +640,11 @@ try {
   await setConnectivityOffline(true);
   await page.unrouteAll({ behavior: 'wait' });
   for (let reload = 0; reload < 2; reload++) {
-    try {
-      await page.reload();
-    } catch (error) {
-      if (!error.message.includes('net::ERR_ABORTED')) throw error;
-      // Next's final action refresh can supersede a simultaneous navigation.
-      // Require a completed navigation; never count the pre-reload DOM as a pass.
-      await page.goto(expensesUrl);
-    }
+    await reloadPage(page);
     await setConnectivityOffline(true);
     await page.getByRole('button', { name: 'Review drafts', exact: true }).waitFor();
     await eventually(
-      async () => (await page.locator('body').innerText()).includes('My spending NT$150'),
+      async () => (await page.locator('body').innerText()).includes('My share NT$150'),
       'Failed contributions survived offline reload'
     );
     assert.equal(await page.getByText('staged-reject-two', { exact: true }).count(), 0);
@@ -610,7 +665,7 @@ try {
     'staged permanent failures: recombined summary survives repeated offline reload without a server refetch'
   );
   await setConnectivityOffline(false);
-  await page.reload();
+  await reloadPage(page);
   await page.getByText('tab-two', { exact: true }).first().waitFor();
 
   await openForm();
@@ -640,7 +695,7 @@ try {
       }),
     cacheKey
   );
-  await page.reload();
+  await reloadPage(page);
   // Traffic stays blocked throughout navigation. Chrome can reset only its online
   // indicator; reapply the native override before asserting the offline-read UI.
   await setConnectivityOffline(true);
@@ -661,14 +716,14 @@ try {
     async () => (await count('missing-read-cache')) === 1,
     'Independent journal was lost with read cache'
   );
-  await page.reload();
+  await reloadPage(page);
   await page.getByText('missing-read-cache', { exact: true }).first().waitFor();
   pass(
     'missing offline read cache shows a clear message while the independent journal remains recoverable and syncs'
   );
 
   await eventually(
-    async () => (await page.locator('body').innerText()).includes('My spending NT$191'),
+    async () => (await page.locator('body').innerText()).includes('My share NT$191'),
     'Final shell summary did not reconcile to 191'
   );
   assert.equal(pageErrors.length, 0, `Browser errors: ${pageErrors.join('; ')}`);
@@ -682,6 +737,9 @@ try {
     );
   }, 'Offline form identity was not persisted');
   assert.equal(await db.collection('expensecreaterequests').countDocuments({ trip: tripId }), 7);
+
+  await verifyWebLedgerBrowser({ db, page, origin, userId, idbRead, eventually, pass });
+  assert.equal(pageErrors.length, 0, `Browser errors: ${pageErrors.join('; ')}`);
 
   await writeFile(
     join(artifacts, 'results.json'),
@@ -707,6 +765,47 @@ try {
       )
     );
     await page.screenshot({ path: join(artifacts, 'failure.png'), fullPage: true }).catch(() => {});
+    await writeFile(
+      join(artifacts, 'failure-journals.json'),
+      JSON.stringify(
+        await page
+          .evaluate(
+            () =>
+              new Promise((resolve, reject) => {
+                const open = indexedDB.open('keyval-store');
+                open.onerror = () => reject(open.error);
+                open.onsuccess = () => {
+                  const database = open.result,
+                    tx = database.transaction('keyval', 'readonly'),
+                    store = tx.objectStore('keyval');
+                  const keys = store.getAllKeys(),
+                    values = store.getAll();
+                  tx.oncomplete = () => {
+                    database.close();
+                    resolve(
+                      Object.fromEntries(
+                        keys.result
+                          .map((key, i) => [String(key), values.result[i]])
+                          .map(([key, value]) => [
+                            key,
+                            key.startsWith('travel-budget-rq-cache:')
+                              ? JSON.parse(value)
+                                  .clientState.queries.filter((q) => q.queryKey[2] === 'shell')
+                                  .map((q) => ({ key: q.queryKey, data: q.state.data }))
+                              : value,
+                          ])
+                      )
+                    );
+                  };
+                  tx.onerror = () => reject(tx.error);
+                };
+              })
+          )
+          .catch(() => ({})),
+        null,
+        2
+      )
+    );
     await writeFile(
       join(artifacts, 'failure.txt'),
       await page

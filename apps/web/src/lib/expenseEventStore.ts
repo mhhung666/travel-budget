@@ -129,6 +129,7 @@ export async function createExpenseEventStore(db: mongo.Db) {
                   expense_id: event.expenseId,
                   description: event.description,
                   amount: event.amount,
+                  baseCurrency: event.baseCurrency ?? 'TWD',
                 },
                 createdAt: event.occurredAt,
               };

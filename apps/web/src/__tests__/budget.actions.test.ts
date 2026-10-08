@@ -1,3 +1,6 @@
+vi.mock('@/lib/env', () => ({
+  getEnv: () => ({ JWT_SECRET: 'b2-unit-tests-only-secret-32-characters' }),
+}));
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const getSession = vi.fn();
@@ -68,6 +71,7 @@ describe('setTripBudget', () => {
     );
 
     const result = await setTripBudget(TRIP_ID, {
+      base_currency: 'TWD',
       total: 30000,
       categories: [
         { category: 'food', amount: 5000 },
@@ -83,6 +87,7 @@ describe('setTripBudget', () => {
     });
 
     expect(setBudgetForActor).toHaveBeenCalledWith(undefined, VIEWER, TRIP_ID, {
+      base_currency: 'TWD',
       total: 30000,
       categories: [
         { category: 'food', amount: 5000 },
@@ -96,12 +101,14 @@ describe('setTripBudget', () => {
     mockUpdateReturns(leanTrip(null));
 
     const result = await setTripBudget(TRIP_ID, {
+      base_currency: 'TWD',
       total: 0,
       categories: [{ category: 'food', amount: 0 }],
     });
 
     expect(result.success).toBe(true);
     expect(setBudgetForActor).toHaveBeenCalledWith(undefined, VIEWER, TRIP_ID, {
+      base_currency: 'TWD',
       total: 0,
       categories: [{ category: 'food', amount: 0 }],
     });
@@ -110,14 +117,14 @@ describe('setTripBudget', () => {
   it('returns NOT_FOUND when the caller is not a trip member', async () => {
     getTripMembership.mockResolvedValue(null);
 
-    const result = await setTripBudget(TRIP_ID, { total: 1000 });
+    const result = await setTripBudget(TRIP_ID, { base_currency: 'TWD', total: 1000 });
 
     expect(result).toEqual({ success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' });
     expect(findOne).not.toHaveBeenCalled();
   });
 
   it('rejects invalid amounts before writing', async () => {
-    const result = await setTripBudget(TRIP_ID, { total: -1 });
+    const result = await setTripBudget(TRIP_ID, { base_currency: 'TWD', total: -1 });
 
     expect(result.success).toBe(false);
     if (!result.success) expect(result.code).toBe('VALIDATION_ERROR');

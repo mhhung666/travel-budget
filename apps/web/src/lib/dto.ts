@@ -1,3 +1,5 @@
+import { webSettingsRevision } from './webSettingsWrite';
+import { isLedgerV2, ledgerOf } from './ledger';
 import { roundMoney, normalizeShares } from '@/lib/money';
 import type { ChecklistKind } from '@/types';
 import type {
@@ -40,6 +42,7 @@ type PopulatedRef = {
 
 /** Minimal lean Expense shape `toExpenseDto` needs (payer + splits populated). */
 export type ExpenseDtoInput = {
+  baseCurrency?: string | null;
   _id: { toString(): string };
   amount: number;
   originalAmount: number;
@@ -77,6 +80,7 @@ export function toExpenseDto(
     (e.splits || []).map((s) => s.shareAmount)
   );
   return {
+    ...(isLedgerV2() ? { ledger: ledgerOf(e) } : {}),
     id: e._id.toString(),
     trip_id: tripId,
     amount: roundMoney(e.amount),
@@ -109,6 +113,7 @@ export function toExpenseDto(
 
 /** Minimal lean Trip shape `toTripDto` needs. `members` is only read when `viewerId` is given. */
 export type TripDtoInput = {
+  baseCurrency?: string | null;
   _id: { toString(): string };
   name: string;
   description?: string | null;
@@ -139,6 +144,33 @@ export type TripDtoInput = {
 export function toTripDto(t: TripDtoInput, viewerId?: string): TripDto {
   const self = viewerId ? t.members?.find((m) => m.user.toString() === viewerId) : undefined;
   return {
+    ...(isLedgerV2()
+      ? {
+          ledger: ledgerOf(t),
+          ...(viewerId
+            ? {
+                currency_revision: webSettingsRevision(
+                  t._id.toString(),
+                  undefined,
+                  t,
+                  'currency',
+                  t.currencySettings
+                ),
+              }
+            : {}),
+          ...(viewerId
+            ? {
+                budget_revision: webSettingsRevision(
+                  t._id.toString(),
+                  viewerId,
+                  t,
+                  'budget',
+                  self?.budget
+                ),
+              }
+            : {}),
+        }
+      : {}),
     id: t._id.toString(),
     name: t.name,
     description: t.description ?? null,
@@ -227,6 +259,7 @@ export function toTripStatsInputs(
     .map((u) => ({ userId: u._id.toString(), name: u.displayName }));
 
   const mapped: TripStatsExpense[] = expenses.map((e) => ({
+    ...(isLedgerV2() ? { ledger: ledgerOf(e) } : {}),
     id: e._id.toString(),
     category: e.category,
     date: toDateStr(e.date),
@@ -308,6 +341,7 @@ export function toChecklistDto(c: ChecklistDtoInput): Checklist {
 
 /** Minimal lean Payment shape `toPaymentRecord` needs (from + to populated). */
 export type PaymentDtoInput = {
+  baseCurrency?: string | null;
   _id: { toString(): string };
   from: PopulatedRef;
   to: PopulatedRef;
@@ -324,6 +358,7 @@ export type PaymentDtoInput = {
  */
 export function toPaymentRecord(p: PaymentDtoInput): PaymentRecord {
   return {
+    ...(isLedgerV2() ? { ledger: ledgerOf(p) } : {}),
     id: p._id.toString(),
     fromId: p.from?._id.toString() || '',
     fromName: p.from?.displayName || 'Unknown',
@@ -526,6 +561,7 @@ export function toTripPhotoDto(
   });
 
   return {
+    ...(isLedgerV2() ? { ledger: ledgerOf(p) } : {}),
     id: p._id.toString(),
     trip_id: p.trip.toString(),
     url: urls.url,
@@ -589,6 +625,7 @@ export function toPublicAlbumPhotoDto(
   urls: { url: string; thumbUrl: string }
 ): PublicAlbumPhoto {
   return {
+    ...(isLedgerV2() ? { ledger: ledgerOf(p) } : {}),
     id: p._id.toString(),
     url: urls.url,
     thumb_url: urls.thumbUrl,

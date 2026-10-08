@@ -49,6 +49,8 @@ describe('BudgetDialog', { timeout: 15_000 }, () => {
 
     await waitFor(() =>
       expect(onSubmit).toHaveBeenCalledWith({
+        base_currency: 'TWD',
+        expected_revision: undefined,
         total: 30000,
         categories: [{ category: 'food', amount: 9000 }],
       })
@@ -73,6 +75,13 @@ describe('BudgetDialog', { timeout: 15_000 }, () => {
     expect(screen.getByLabelText('food')).toHaveValue(null);
 
     await user.click(screen.getByRole('button', { name: 'dialog.save' }));
-    await waitFor(() => expect(onSubmit).toHaveBeenCalledWith({ total: null, categories: [] }));
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith({
+        base_currency: 'TWD',
+        expected_revision: undefined,
+        total: null,
+        categories: [],
+      })
+    );
   });
 });

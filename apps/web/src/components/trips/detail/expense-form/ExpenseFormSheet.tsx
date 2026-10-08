@@ -1,7 +1,10 @@
 'use client';
+import { ledgerErrorMessage } from '@/lib/ledgerErrorMessage';
+import { useLedgerCurrency, TripLedgerProvider } from '@/components/trips/space/LedgerCurrency';
 
 import { ArrowLeftRight, ChevronDown, ChevronUp, DollarSign, Loader2 } from 'lucide-react';
-import { useState } from 'react';
+import { expenseDraftKey } from '@/lib/expenseDraftStorage';
+import { useState, useSyncExternalStore } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { formatCurrency } from '@/constants/currencies';
 import { getPinnedRate, getTripExpenseCurrencies } from '@/lib/tripCurrency';
@@ -24,6 +27,7 @@ import { ExpenseAiInput } from './ExpenseAiInput';
 import { useExpenseForm, type ExpenseFormData } from './useExpenseForm';
 
 interface ExpenseFormSheetProps {
+  baseCurrency?: string;
   mode: 'add' | 'edit';
   tripId: string;
   open: boolean;
@@ -47,6 +51,10 @@ interface ExpenseFormSheetProps {
 }
 
 const FORM_ID = 'expense-form';
+function subscribeStorage(onChange: () => void) {
+  window.addEventListener('storage', onChange);
+  return () => window.removeEventListener('storage', onChange);
+}
 
 /** 被擋下的離開動作：為什麼要問，以及使用者確認後要執行什麼。 */
 interface PendingLeave {
@@ -64,6 +72,7 @@ interface PendingLeave {
  * 行動端為全螢幕 Sheet、桌機為 Dialog（ResponsiveFormSheet 雙形態）。
  */
 export default function ExpenseFormSheet({
+  baseCurrency: providedBase,
   mode,
   tripId,
   open,
@@ -79,10 +88,24 @@ export default function ExpenseFormSheet({
   tripName,
   onSwitchTrip,
 }: ExpenseFormSheetProps) {
+  const contextBase = useLedgerCurrency();
+  const baseCurrency = providedBase ?? contextBase;
   const tExpense = useTranslations('expense');
   const tCommon = useTranslations('common');
+  const tLedger = useTranslations('ledger');
   const locale = useLocale();
   const { toast } = useToast();
+  const hasLegacyDraft = useSyncExternalStore(
+    subscribeStorage,
+    () => {
+      try {
+        return mode === 'add' && open && !!localStorage.getItem(expenseDraftKey(tripId));
+      } catch {
+        return false;
+      }
+    },
+    () => false
+  );
   const [submitting, setSubmitting] = useState(false);
   // 內容留不住時才擋下離開：編輯既有支出（不落地草稿），或草稿寫入失敗。
   const [pendingLeave, setPendingLeave] = useState<PendingLeave | null>(null);
@@ -116,6 +139,7 @@ export default function ExpenseFormSheet({
     split,
     isValidSplit,
     splitWarning,
+    preserveMoney,
     buildSubmitData,
     handleModeChange,
     handleSplitToggle,
@@ -131,6 +155,7 @@ export default function ExpenseFormSheet({
     clearDraft,
     discardDraft,
   } = useExpenseForm({
+    baseCurrency,
     mode,
     tripId,
     open,
@@ -184,13 +209,12 @@ export default function ExpenseFormSheet({
     e.preventDefault();
     setError('');
 
-    if (!isValidSplit) {
+    const data = buildSubmitData();
+    if (!data) return;
+    if (!data.preserve_money && !isValidSplit) {
       setError(splitWarning);
       return;
     }
-
-    const data = buildSubmitData();
-    if (!data) return;
 
     setSubmitting(true);
     try {
@@ -204,16 +228,16 @@ export default function ExpenseFormSheet({
     }
   };
 
-  // 匯率帶入順序：TWD 固定 1 → 旅程自訂匯率 → 即時匯率。
+  // 匯率帶入順序：基準幣固定 1 → 旅程自訂匯率 → 即時匯率。
   // 找不到新幣別的匯率時清空，不沿用前一個幣別的數字，以免靜默記錯。
   const handleCurrencyChange = (value: string) => {
-    const pinned = getPinnedRate(currencySettings, value);
+    const pinned = getPinnedRate(currencySettings, value, baseCurrency);
     const rate =
-      value === 'TWD'
+      value === baseCurrency
         ? '1.0'
         : pinned != null
           ? String(pinned)
-          : exchangeRates[value]?.toFixed(6) || '';
+          : exchangeRates[value]?.toString() || '';
     setForm({ ...form, currency: value, exchange_rate: rate });
   };
 
@@ -221,7 +245,7 @@ export default function ExpenseFormSheet({
     const rates = await fetchExchangeRates();
     const live = rates?.[form.currency];
     if (live) {
-      setForm((prev) => ({ ...prev, exchange_rate: live.toFixed(6) }));
+      setForm((prev) => ({ ...prev, exchange_rate: live.toString() }));
     }
   };
 
@@ -234,10 +258,10 @@ export default function ExpenseFormSheet({
   // 均分有尾差（100／3 → 33.34、33.33、33.33）時不能宣稱「每人 X」，只說幾人均分。
   const evenShares = selectedMemberIds.every((id) => (split.twd[id] ?? 0) === firstSelectedShare);
   const firstShareLabel = hasValidExchangeRate
-    ? formatCurrency(firstSelectedShare, 'TWD', locale)
+    ? formatCurrency(firstSelectedShare, baseCurrency, locale)
     : '—';
   const allocatedLabel = hasValidExchangeRate
-    ? formatCurrency(split.allocatedTWD, 'TWD', locale)
+    ? formatCurrency(split.allocatedTWD, baseCurrency, locale)
     : '—';
   const splitSummary =
     splitMode === 'equal'
@@ -253,11 +277,11 @@ export default function ExpenseFormSheet({
           allocated: allocatedLabel,
         });
   const conversionSummary =
-    form.currency !== 'TWD' && originalAmount > 0
+    form.currency !== baseCurrency && originalAmount > 0
       ? hasValidExchangeRate
         ? tExpense('form.summary.converted', {
             original: formatCurrency(originalAmount, form.currency, locale),
-            converted: formatCurrency(totalAmountTWD, 'TWD', locale),
+            converted: formatCurrency(totalAmountTWD, baseCurrency, locale),
           })
         : loadingRates
           ? tExpense('form.summary.loadingRate')
@@ -266,258 +290,287 @@ export default function ExpenseFormSheet({
 
   const submitLabel = mode === 'add' ? tExpense('add') : tCommon('save');
   // 外幣缺匯率時強制展開「更多設定」，讓匯率欄位與錯誤訊息不被藏起來。
-  const rateMissing = form.currency !== 'TWD' && !hasValidExchangeRate && !loadingRates;
+  const rateMissing = form.currency !== baseCurrency && !hasValidExchangeRate && !loadingRates;
   const advancedOpen = showAdvanced || rateMissing;
   const formTitle = mode === 'add' ? tExpense('add') : tExpense('edit');
 
   return (
     <>
-      <ResponsiveFormSheet
-        open={open}
-        onOpenChange={(val) => !val && handleRequestClose()}
-        title={
-          tripName ? (
-            <span className="flex min-w-0 flex-col">
-              <span>{formTitle}</span>
-              <span className="truncate text-sm font-normal text-muted-foreground">
-                {tExpense('form.recordingTo', { trip: tripName })}
+      <TripLedgerProvider value={baseCurrency}>
+        <ResponsiveFormSheet
+          open={open}
+          onOpenChange={(val) => !val && handleRequestClose()}
+          title={
+            tripName ? (
+              <span className="flex min-w-0 flex-col">
+                <span>{formTitle}</span>
+                <span className="truncate text-sm font-normal text-muted-foreground">
+                  {tExpense('form.recordingTo', { trip: tripName })}
+                </span>
               </span>
-            </span>
-          ) : (
-            formTitle
-          )
-        }
-        description={tExpense('form.formDescription')}
-        footer={
-          <>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleRequestClose}
-              className="max-md:hidden"
-            >
-              {tCommon('cancel')}
-            </Button>
-            <Button
-              type="submit"
-              form={FORM_ID}
-              disabled={
-                submitting ||
-                !isValidSplit ||
-                !hasValidAmount ||
-                !hasValidExchangeRate ||
-                !form.original_amount
-              }
-              className="max-md:h-12 max-md:w-full max-md:text-base"
-            >
-              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {submitLabel}
-            </Button>
-          </>
-        }
-      >
-        <form id={FORM_ID} onSubmit={handleSubmit} className="space-y-4">
-          {error && (
-            <Alert variant="destructive">
-              <AlertTitle>{tCommon('errorTitle')}</AlertTitle>
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
+            ) : (
+              formTitle
+            )
+          }
+          description={tExpense('form.formDescription')}
+          footer={
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleRequestClose}
+                className="max-md:hidden"
+              >
+                {tCommon('cancel')}
+              </Button>
+              <Button
+                type="submit"
+                form={FORM_ID}
+                disabled={
+                  submitting ||
+                  (!preserveMoney &&
+                    (!isValidSplit ||
+                      !hasValidAmount ||
+                      !hasValidExchangeRate ||
+                      !form.original_amount))
+                }
+                className="max-md:h-12 max-md:w-full max-md:text-base"
+              >
+                {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {submitLabel}
+              </Button>
+            </>
+          }
+        >
+          <form id={FORM_ID} onSubmit={handleSubmit} className="space-y-4">
+            {error && (
+              <Alert variant="destructive">
+                <AlertTitle>{tCommon('errorTitle')}</AlertTitle>
+                <AlertDescription>{ledgerErrorMessage(error, tLedger)}</AlertDescription>
+              </Alert>
+            )}
 
-          {/* 帶回上次未完成的內容時明講，並給一鍵回到空白表單的出口 */}
-          {draftRestored && (
-            <Alert>
-              <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
-                <span>{tExpense('form.draft.restored')}</span>
+            {/* 帶回上次未完成的內容時明講，並給一鍵回到空白表單的出口 */}
+            {hasLegacyDraft && (
+              <p role="status" className="text-sm text-muted-foreground">
+                {tLedger('legacyDraft')}
+              </p>
+            )}
+            {draftRestored && (
+              <Alert>
+                <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
+                  <span>{tExpense('form.draft.restored')}</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="min-h-11"
+                    onClick={handleDiscardDraft}
+                  >
+                    {tExpense('form.draft.discard')}
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* 旅行名稱已常駐在標題下方；這裡只補切換入口，不重複顯示名稱 */}
+            {handleSwitchTrip && (
+              <div className="-mt-2 flex items-center justify-end gap-2">
+                {/* 填了內容才說明：草稿留在原旅行，不會跟著帶到另一趟（UX 第三輪第 3 項） */}
+                {showSwitchDraftHint && (
+                  <p id="switch-trip-draft-hint" className="text-xs text-muted-foreground">
+                    {tExpense('form.switchTripDraftHint', { trip: tripName })}
+                  </p>
+                )}
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="min-h-11"
-                  onClick={handleDiscardDraft}
+                  onClick={handleSwitchTrip}
+                  aria-describedby={showSwitchDraftHint ? 'switch-trip-draft-hint' : undefined}
+                  className="min-h-11 shrink-0 gap-1.5 text-muted-foreground"
                 >
-                  {tExpense('form.draft.discard')}
+                  <ArrowLeftRight className="h-4 w-4" aria-hidden="true" />
+                  {tExpense('form.switchTrip')}
                 </Button>
-              </AlertDescription>
-            </Alert>
-          )}
+              </div>
+            )}
 
-          {/* 旅行名稱已常駐在標題下方；這裡只補切換入口，不重複顯示名稱 */}
-          {handleSwitchTrip && (
-            <div className="-mt-2 flex items-center justify-end gap-2">
-              {/* 填了內容才說明：草稿留在原旅行，不會跟著帶到另一趟（UX 第三輪第 3 項） */}
-              {showSwitchDraftHint && (
-                <p id="switch-trip-draft-hint" className="text-xs text-muted-foreground">
-                  {tExpense('form.switchTripDraftHint', { trip: tripName })}
-                </p>
+            {/* 1. 金額（Hero）＋幣別 */}
+            <p className="text-xs text-muted-foreground">
+              {tLedger('precision', { currency: baseCurrency })}
+            </p>
+            <AmountField
+              amount={form.original_amount}
+              currency={form.currency}
+              onAmountChange={(value) => setForm({ ...form, original_amount: value })}
+              onCurrencyChange={handleCurrencyChange}
+              currencyOptions={getTripExpenseCurrencies(
+                currencySettings,
+                form.currency,
+                baseCurrency
               )}
+            />
+            {conversionSummary && (
+              <p
+                className={
+                  hasValidExchangeRate
+                    ? '-mt-2 px-1 text-xs text-muted-foreground'
+                    : '-mt-2 px-1 text-xs font-medium text-destructive'
+                }
+              >
+                {conversionSummary}
+              </p>
+            )}
+
+            {/* 2. 描述 */}
+            <Input
+              id="expense-description"
+              aria-label={tExpense('form.description')}
+              placeholder={tExpense('form.descriptionPlaceholder')}
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              required
+            />
+
+            {/* 3. 分類（icon 網格） */}
+            <CategoryPicker
+              value={form.category}
+              onChange={(category) => setForm((prev) => ({ ...prev, category }))}
+            />
+
+            {/* 4. 直接可改：付款人／日期／分帳（預設：我付款、今天、全員均分） */}
+            <PayerDateFields
+              payerId={form.payer_id}
+              date={form.date}
+              onPayerChange={(payer_id) => setForm((prev) => ({ ...prev, payer_id }))}
+              onDateChange={(date) => setForm((prev) => ({ ...prev, date }))}
+              members={members}
+              currentUserId={currentUser?.id}
+            />
+
+            <div className="space-y-3">
               <Button
                 type="button"
                 variant="ghost"
-                size="sm"
-                onClick={handleSwitchTrip}
-                aria-describedby={showSwitchDraftHint ? 'switch-trip-draft-hint' : undefined}
-                className="min-h-11 shrink-0 gap-1.5 text-muted-foreground"
+                className="h-auto min-h-11 w-full justify-between rounded-lg border px-3 py-2 text-left font-normal hover:bg-muted/60"
+                onClick={() => setShowSplit(!showSplit)}
+                aria-expanded={showSplit}
               >
-                <ArrowLeftRight className="h-4 w-4" aria-hidden="true" />
-                {tExpense('form.switchTrip')}
+                <span className="flex min-w-0 flex-col items-start">
+                  <span className="text-xs text-muted-foreground">
+                    {tExpense('form.splitWith')}
+                  </span>
+                  <span className="truncate font-medium">{splitSummary}</span>
+                </span>
+                {showSplit ? (
+                  <ChevronUp className="h-4 w-4" />
+                ) : (
+                  <ChevronDown className="h-4 w-4" />
+                )}
               </Button>
-            </div>
-          )}
 
-          {/* 1. 金額（Hero）＋幣別 */}
-          <AmountField
-            amount={form.original_amount}
-            currency={form.currency}
-            onAmountChange={(value) => setForm({ ...form, original_amount: value })}
-            onCurrencyChange={handleCurrencyChange}
-            currencyOptions={getTripExpenseCurrencies(currencySettings, form.currency)}
-          />
-          {conversionSummary && (
-            <p
-              className={
-                hasValidExchangeRate
-                  ? '-mt-2 px-1 text-xs text-muted-foreground'
-                  : '-mt-2 px-1 text-xs font-medium text-destructive'
-              }
-            >
-              {conversionSummary}
-            </p>
-          )}
-
-          {/* 2. 描述 */}
-          <Input
-            id="expense-description"
-            aria-label={tExpense('form.description')}
-            placeholder={tExpense('form.descriptionPlaceholder')}
-            value={form.description}
-            onChange={(e) => setForm({ ...form, description: e.target.value })}
-            required
-          />
-
-          {/* 3. 分類（icon 網格） */}
-          <CategoryPicker
-            value={form.category}
-            onChange={(category) => setForm((prev) => ({ ...prev, category }))}
-          />
-
-          {/* 4. 直接可改：付款人／日期／分帳（預設：我付款、今天、全員均分） */}
-          <PayerDateFields
-            payerId={form.payer_id}
-            date={form.date}
-            onPayerChange={(payer_id) => setForm((prev) => ({ ...prev, payer_id }))}
-            onDateChange={(date) => setForm((prev) => ({ ...prev, date }))}
-            members={members}
-            currentUserId={currentUser?.id}
-          />
-
-          <div className="space-y-3">
-            <Button
-              type="button"
-              variant="ghost"
-              className="h-auto min-h-11 w-full justify-between rounded-lg border px-3 py-2 text-left font-normal hover:bg-muted/60"
-              onClick={() => setShowSplit(!showSplit)}
-              aria-expanded={showSplit}
-            >
-              <span className="flex min-w-0 flex-col items-start">
-                <span className="text-xs text-muted-foreground">{tExpense('form.splitWith')}</span>
-                <span className="truncate font-medium">{splitSummary}</span>
-              </span>
-              {showSplit ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            </Button>
-
-            {showSplit && (
-              <div className="rounded-lg bg-muted/30 p-3 animate-in fade-in slide-in-from-top-2">
-                <SplitSection
-                  members={members}
-                  splitMode={splitMode}
-                  splitState={splitState}
-                  split={split}
-                  currency={form.currency}
-                  anySelected={anySelected}
-                  originalAmount={originalAmount}
-                  totalAmountTWD={totalAmountTWD}
-                  onModeChange={handleModeChange}
-                  onToggle={handleSplitToggle}
-                  onValueChange={handleValueChange}
-                  onSelectAll={handleSelectAll}
-                />
-              </div>
-            )}
-          </div>
-
-          {/* 5. 次要入口：一句話記帳／掃描收據（AI 只產生草稿，套用後仍可在上方修改） */}
-          {mode === 'add' && (
-            <ExpenseAiInput
-              open={open}
-              tripId={tripId}
-              attachments={attachments}
-              onAttachmentsChange={setAttachments}
-              members={members}
-              onApplyTextDraft={applyTextDraft}
-              onApplyReceiptDraft={applyReceiptDraft}
-            />
-          )}
-
-          {/* 6. 更多設定（折疊）：行程日／標籤／匯率／收據 */}
-          <Button
-            type="button"
-            variant="ghost"
-            className="h-auto min-h-11 w-full justify-between rounded-lg border bg-muted/30 px-3 py-2 text-left font-normal text-muted-foreground hover:bg-muted/60"
-            onClick={() => setShowAdvanced(!advancedOpen)}
-            aria-expanded={advancedOpen}
-            disabled={rateMissing}
-          >
-            <span className="flex min-w-0 flex-col items-start">
-              <span className="font-medium text-foreground">{tExpense('form.moreSettings')}</span>
-              <span className="text-xs">
-                {mode === 'edit'
-                  ? tExpense('form.moreSettingsHintWithReceipts')
-                  : tExpense('form.moreSettingsHint')}
-              </span>
-            </span>
-            {advancedOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </Button>
-
-          {advancedOpen && (
-            <div className="space-y-4 rounded-lg bg-muted/30 p-4 animate-in fade-in slide-in-from-top-2">
-              <AdvancedFields
-                currency={form.currency}
-                exchangeRate={form.exchange_rate}
-                onExchangeRateChange={(exchange_rate) =>
-                  setForm((prev) => ({ ...prev, exchange_rate }))
-                }
-                itineraryDays={itineraryDays}
-                itineraryDayIds={itineraryDayIds}
-                onItineraryDayToggle={handleItineraryDayToggle}
-                tags={tags}
-                onTagsChange={setTags}
-                existingTags={existingTags}
-                loadingRates={loadingRates}
-                ratesError={ratesError}
-                rateDate={rateDates[form.currency]}
-                onRefreshRates={handleRefreshRates}
-              />
-
-              {mode === 'edit' && (
-                <div className="space-y-2">
-                  <Label>{tExpense('receipts.label')}</Label>
-                  <ReceiptUploader tripId={tripId} value={attachments} onChange={setAttachments} />
+              {showSplit && (
+                <div className="rounded-lg bg-muted/30 p-3 animate-in fade-in slide-in-from-top-2">
+                  <SplitSection
+                    members={members}
+                    splitMode={splitMode}
+                    splitState={splitState}
+                    split={split}
+                    currency={form.currency}
+                    anySelected={anySelected}
+                    originalAmount={originalAmount}
+                    totalAmountTWD={totalAmountTWD}
+                    onModeChange={handleModeChange}
+                    onToggle={handleSplitToggle}
+                    onValueChange={handleValueChange}
+                    onSelectAll={handleSelectAll}
+                  />
                 </div>
               )}
             </div>
-          )}
 
-          {/* 分帳警告固定顯示在折疊區之外——收合狀態下送出鍵被停用時，原因仍看得到 */}
-          {splitWarning && (
-            <Alert variant="warning">
-              <DollarSign className="h-4 w-4" />
-              <AlertTitle>{tCommon('warningTitle')}</AlertTitle>
-              <AlertDescription>{splitWarning}</AlertDescription>
-            </Alert>
-          )}
-        </form>
-      </ResponsiveFormSheet>
+            {/* 5. 次要入口：一句話記帳／掃描收據（AI 只產生草稿，套用後仍可在上方修改） */}
+            {mode === 'add' && (
+              <ExpenseAiInput
+                open={open}
+                tripId={tripId}
+                attachments={attachments}
+                onAttachmentsChange={setAttachments}
+                members={members}
+                onApplyTextDraft={applyTextDraft}
+                onApplyReceiptDraft={applyReceiptDraft}
+              />
+            )}
+
+            {/* 6. 更多設定（折疊）：行程日／標籤／匯率／收據 */}
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-auto min-h-11 w-full justify-between rounded-lg border bg-muted/30 px-3 py-2 text-left font-normal text-muted-foreground hover:bg-muted/60"
+              onClick={() => setShowAdvanced(!advancedOpen)}
+              aria-expanded={advancedOpen}
+              disabled={rateMissing}
+            >
+              <span className="flex min-w-0 flex-col items-start">
+                <span className="font-medium text-foreground">{tExpense('form.moreSettings')}</span>
+                <span className="text-xs">
+                  {mode === 'edit'
+                    ? tExpense('form.moreSettingsHintWithReceipts')
+                    : tExpense('form.moreSettingsHint')}
+                </span>
+              </span>
+              {advancedOpen ? (
+                <ChevronUp className="h-4 w-4" />
+              ) : (
+                <ChevronDown className="h-4 w-4" />
+              )}
+            </Button>
+
+            {advancedOpen && (
+              <div className="space-y-4 rounded-lg bg-muted/30 p-4 animate-in fade-in slide-in-from-top-2">
+                <AdvancedFields
+                  currency={form.currency}
+                  exchangeRate={form.exchange_rate}
+                  onExchangeRateChange={(exchange_rate) =>
+                    setForm((prev) => ({ ...prev, exchange_rate }))
+                  }
+                  itineraryDays={itineraryDays}
+                  itineraryDayIds={itineraryDayIds}
+                  onItineraryDayToggle={handleItineraryDayToggle}
+                  tags={tags}
+                  onTagsChange={setTags}
+                  existingTags={existingTags}
+                  loadingRates={loadingRates}
+                  ratesError={ratesError}
+                  rateDate={rateDates[form.currency]}
+                  onRefreshRates={handleRefreshRates}
+                />
+
+                {mode === 'edit' && (
+                  <div className="space-y-2">
+                    <Label>{tExpense('receipts.label')}</Label>
+                    <ReceiptUploader
+                      tripId={tripId}
+                      value={attachments}
+                      onChange={setAttachments}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 分帳警告固定顯示在折疊區之外——收合狀態下送出鍵被停用時，原因仍看得到 */}
+            {splitWarning && (
+              <Alert variant="warning">
+                <DollarSign className="h-4 w-4" />
+                <AlertTitle>{tCommon('warningTitle')}</AlertTitle>
+                <AlertDescription>{splitWarning}</AlertDescription>
+              </Alert>
+            )}
+          </form>
+        </ResponsiveFormSheet>
+      </TripLedgerProvider>
       <ConfirmDialog
         open={pendingLeave != null}
         title={tExpense(

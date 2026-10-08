@@ -1,4 +1,5 @@
 'use client';
+import { useLedgerCurrency } from '@/components/trips/space/LedgerCurrency';
 
 import { Loader2, RefreshCw } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -43,6 +44,7 @@ export function AdvancedFields({
   rateDate,
   onRefreshRates,
 }: AdvancedFieldsProps) {
+  const baseCurrency = useLedgerCurrency();
   const tExpense = useTranslations('expense');
   const tItinerary = useTranslations('itinerary');
 
@@ -86,7 +88,7 @@ export function AdvancedFields({
         />
       </div>
 
-      {currency !== 'TWD' && (
+      {currency !== baseCurrency && (
         <div className="space-y-2">
           <Label htmlFor="expense-exchange-rate">{tExpense('form.exchangeRate')}</Label>
           <div className="flex gap-2">
@@ -126,8 +128,9 @@ export function AdvancedFields({
           {Number(exchangeRate) > 0 && (
             <p className="text-xs text-muted-foreground">
               {tExpense('form.rateEquation', {
+                baseCurrency,
                 currency,
-                rate: Number(exchangeRate).toFixed(4),
+                rate: String(Number(exchangeRate)),
               })}
             </p>
           )}

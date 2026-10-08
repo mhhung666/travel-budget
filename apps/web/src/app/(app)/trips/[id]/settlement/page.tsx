@@ -1,4 +1,5 @@
 'use client';
+import { TripLedgerProvider } from '@/components/trips/space/LedgerCurrency';
 import { RecordPaymentDialog } from '@/components/trips/DeferredDialogs';
 import { QueryStatus } from '@/components/common/QueryStatus';
 
@@ -17,7 +18,6 @@ import {
   useCurrentUser,
   useMembers,
   useSettlement,
-  useExchangeRates,
   useTrip,
   useTripMembership,
   usePaymentMutations,
@@ -27,7 +27,6 @@ import { useToast } from '@/hooks/use-toast';
 import { ConfirmDialog } from '@/components/common';
 import { useTripSpaceActions } from '@/components/trips/space/TripSpaceContext';
 import { exportSettlement, type ExportFormat } from '@/lib/exporters';
-import { resolveTripRates, getTripDisplayCurrencies } from '@/lib/tripCurrency';
 import type { Transaction } from '@/types';
 import type { RecordPaymentInput } from '@/lib/validation';
 import { SettlementSkeleton } from '@/components/skeletons';
@@ -49,28 +48,22 @@ export default function SettlementPage() {
     data: settlement = { balances: [], transactions: [], payments: [], totalExpenses: 0 },
     isLoading: loading,
   } = settlementQuery;
-  const ratesQuery = useExchangeRates();
-  const { data: exchangeRates = { TWD: 1 }, isFetching: loadingRates } = ratesQuery;
   const membership = useTripMembership(tripId);
   const { isMember } = membership;
   const paymentMutations = usePaymentMutations(tripId);
   const { data: members = [] } = useMembers(tripId);
   const { openAddExpense } = useTripSpaceActions();
 
-  const recordDialog = useDialog<{ fromId: string; toId: string; amount: number }>();
-  const deletePaymentDialog = useDialog<string>();
+  const recordDialog = useDialog<{
+    fromId?: string;
+    toId?: string;
+    amount?: number;
+    revision: string;
+    baseCurrency: string;
+  }>();
+  const deletePaymentDialog = useDialog<{ id: string; revision: string; baseCurrency: string }>();
 
   const { balances, transactions, payments, totalExpenses } = settlement;
-
-  // 顯示換算：旅程自訂匯率優先於即時匯率；幣別選項常用排前（見 lib/tripCurrency）
-  const displayRates = useMemo(
-    () => resolveTripRates(trip?.currency_settings, exchangeRates),
-    [trip?.currency_settings, exchangeRates]
-  );
-  const currencyOptions = useMemo(
-    () => getTripDisplayCurrencies(trip?.currency_settings),
-    [trip?.currency_settings]
-  );
 
   // 成員結算保留服務算出的 ID；顯示名稱可以相同，不能拿來反查成員。
   const memberOptions = useMemo<PaymentMemberOption[]>(() => {
@@ -105,7 +98,13 @@ export default function SettlementPage() {
 
   const handleMarkPaid = (tx: Transaction) => {
     if (!tx.fromId || !tx.toId) return;
-    recordDialog.openDialog({ fromId: tx.fromId, toId: tx.toId, amount: tx.amount });
+    recordDialog.openDialog({
+      fromId: tx.fromId,
+      toId: tx.toId,
+      amount: tx.amount,
+      revision: settlement.settlementRevision!,
+      baseCurrency: settlement.ledger!.baseCurrency,
+    });
   };
 
   // 提醒還款：當事人對欠他款的成員寄出提醒 Email。以 `${fromId}__${toId}` 標記寄送中的列。
@@ -131,22 +130,37 @@ export default function SettlementPage() {
   };
 
   const openBlankRecord = () => {
-    recordDialog.setData(null);
-    recordDialog.openDialog();
+    recordDialog.openDialog({
+      revision: settlement.settlementRevision!,
+      baseCurrency: settlement.ledger!.baseCurrency,
+    });
   };
 
   const handleRecordSubmit = async (input: RecordPaymentInput) => {
-    await paymentMutations.record.mutateAsync(input);
+    await paymentMutations.record.mutateAsync({
+      ...input,
+      expected_revision: recordDialog.data!.revision,
+      base_currency: recordDialog.data!.baseCurrency,
+    });
     toast({ title: tSettlement('paymentRecorded') });
   };
 
-  const handleDeletePayment = (id: string) => deletePaymentDialog.openDialog(id);
+  const handleDeletePayment = (id: string) =>
+    deletePaymentDialog.openDialog({
+      id,
+      revision: settlement.paymentRevisions![id],
+      baseCurrency: settlement.ledger!.baseCurrency,
+    });
 
   const confirmDeletePayment = async () => {
     const id = deletePaymentDialog.data;
     if (!id) return;
     try {
-      await paymentMutations.remove.mutateAsync(id);
+      await paymentMutations.remove.mutateAsync({
+        paymentId: id.id,
+        revision: id.revision,
+        baseCurrency: id.baseCurrency,
+      });
       deletePaymentDialog.closeDialog();
       toast({ title: tCommon('deleted') });
     } catch (err: unknown) {
@@ -159,19 +173,23 @@ export default function SettlementPage() {
   };
 
   const buildExport = (format: ExportFormat) =>
-    exportSettlement({ balances, transactions, totalExpenses }, format, {
-      heading: tExport('settlement.heading'),
-      totalExpenses: tExport('settlement.totalExpenses'),
-      balancesHeading: tExport('settlement.balancesHeading'),
-      transfersHeading: tExport('settlement.transfersHeading'),
-      noTransfers: tExport('settlement.noTransfers'),
-      columns: {
-        member: tExport('settlement.colMember'),
-        paid: tExport('settlement.colPaid'),
-        owed: tExport('settlement.colOwed'),
-        balance: tExport('settlement.colBalance'),
-      },
-    });
+    exportSettlement(
+      { balances, transactions, totalExpenses, ledger: settlementQuery.data?.ledger },
+      format,
+      {
+        heading: tExport('settlement.heading'),
+        totalExpenses: tExport('settlement.totalExpenses'),
+        balancesHeading: tExport('settlement.balancesHeading'),
+        transfersHeading: tExport('settlement.transfersHeading'),
+        noTransfers: tExport('settlement.noTransfers'),
+        columns: {
+          member: tExport('settlement.colMember'),
+          paid: tExport('settlement.colPaid'),
+          owed: tExport('settlement.colOwed'),
+          balance: tExport('settlement.colBalance'),
+        },
+      }
+    );
 
   if (loading) {
     return <SettlementSkeleton />;
@@ -180,83 +198,91 @@ export default function SettlementPage() {
   if (settlementQuery.data === undefined) return <QueryStatus query={settlementQuery} />;
 
   return (
-    <div className="container mx-auto max-w-6xl py-4 px-4 sm:px-6">
-      <QueryStatus query={tripQuery} />
-      <QueryStatus query={settlementQuery} />
-      <QueryStatus query={ratesQuery} />
-      <QueryStatus query={membership.query} />
-      {/* 頁首由行程空間殼提供，此列只放匯出 */}
-      <div className="mb-4 flex items-center justify-end">
-        <ExportMenu
-          build={buildExport}
-          fileBaseName={`${trip?.name ?? 'trip'}-${tExport('settlement.heading')}`}
-          disabled={balances.length === 0}
+    <TripLedgerProvider value={settlementQuery.data.ledger?.baseCurrency ?? null}>
+      <div className="container mx-auto max-w-6xl py-4 px-4 sm:px-6">
+        <QueryStatus query={tripQuery} />
+        <QueryStatus query={settlementQuery} />
+        <QueryStatus query={membership.query} />
+        {/* 頁首由行程空間殼提供，此列只放匯出 */}
+        <div className="mb-4 flex items-center justify-end">
+          <ExportMenu
+            build={buildExport}
+            fileBaseName={`${trip?.name ?? 'trip'}-${tExport('settlement.heading')}`}
+            disabled={balances.length === 0}
+          />
+        </div>
+
+        {/* 摘要：先講「我」的應收應付，總支出次之（訪客檢視退回總支出） */}
+        <SettlementSummary
+          totalExpenses={totalExpenses}
+          myBalance={myBalance}
+          hasMyPayments={hasMyPayments}
+        />
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* 每人統計（我排最前） */}
+          <SettlementBalances
+            balances={balances}
+            avatarUrlById={avatarById}
+            currentUserId={currentUser?.id}
+            hasActivity={totalExpenses >= MONEY_EPSILON || payments.length > 0}
+          />
+
+          {/* 結算方案（與我有關的轉帳排最前） */}
+          <SettlementPlan
+            transactions={orderedTransactions}
+            onMarkPaid={isMember ? handleMarkPaid : undefined}
+            avatarUrlById={avatarById}
+            onRemind={isMember ? handleRemind : undefined}
+            currentUserId={isMember ? currentUser?.id : undefined}
+            remindingKey={remindingKey}
+            hasExpenses={totalExpenses >= MONEY_EPSILON}
+            hasPayments={payments.length > 0}
+            onAddExpense={isMember ? () => openAddExpense() : undefined}
+          />
+        </div>
+
+        {/* 已結清紀錄 */}
+        <div className="mt-6">
+          <PaymentHistory
+            payments={payments}
+            canManage={isMember}
+            onRecord={openBlankRecord}
+            onDelete={handleDeletePayment}
+            hasExpenses={totalExpenses >= MONEY_EPSILON}
+          />
+        </div>
+
+        <RecordPaymentDialog
+          open={recordDialog.open}
+          onClose={recordDialog.closeDialog}
+          members={memberOptions}
+          initial={
+            recordDialog.data?.fromId &&
+            recordDialog.data?.toId &&
+            recordDialog.data?.amount != null
+              ? {
+                  fromId: recordDialog.data.fromId,
+                  toId: recordDialog.data.toId,
+                  amount: recordDialog.data.amount,
+                }
+              : null
+          }
+          onSubmit={handleRecordSubmit}
+        />
+
+        <ConfirmDialog
+          open={deletePaymentDialog.open}
+          title={tSettlement('deletePayment')}
+          message={tSettlement('deletePaymentConfirm')}
+          severity="error"
+          confirmText={tCommon('delete')}
+          cancelText={tCommon('cancel')}
+          loading={paymentMutations.remove.isPending}
+          onConfirm={confirmDeletePayment}
+          onCancel={deletePaymentDialog.closeDialog}
         />
       </div>
-
-      {/* 摘要：先講「我」的應收應付，總支出次之（訪客檢視退回總支出） */}
-      <SettlementSummary
-        totalExpenses={totalExpenses}
-        myBalance={myBalance}
-        hasMyPayments={hasMyPayments}
-      />
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* 每人統計（我排最前） */}
-        <SettlementBalances
-          balances={balances}
-          avatarUrlById={avatarById}
-          currentUserId={currentUser?.id}
-          hasActivity={totalExpenses >= MONEY_EPSILON || payments.length > 0}
-        />
-
-        {/* 結算方案（與我有關的轉帳排最前） */}
-        <SettlementPlan
-          transactions={orderedTransactions}
-          exchangeRates={displayRates}
-          loadingRates={loadingRates}
-          currencyOptions={currencyOptions}
-          onMarkPaid={isMember ? handleMarkPaid : undefined}
-          avatarUrlById={avatarById}
-          onRemind={isMember ? handleRemind : undefined}
-          currentUserId={isMember ? currentUser?.id : undefined}
-          remindingKey={remindingKey}
-          hasExpenses={totalExpenses >= MONEY_EPSILON}
-          hasPayments={payments.length > 0}
-          onAddExpense={isMember ? () => openAddExpense() : undefined}
-        />
-      </div>
-
-      {/* 已結清紀錄 */}
-      <div className="mt-6">
-        <PaymentHistory
-          payments={payments}
-          canManage={isMember}
-          onRecord={openBlankRecord}
-          onDelete={handleDeletePayment}
-          hasExpenses={totalExpenses >= MONEY_EPSILON}
-        />
-      </div>
-
-      <RecordPaymentDialog
-        open={recordDialog.open}
-        onClose={recordDialog.closeDialog}
-        members={memberOptions}
-        initial={recordDialog.data}
-        onSubmit={handleRecordSubmit}
-      />
-
-      <ConfirmDialog
-        open={deletePaymentDialog.open}
-        title={tSettlement('deletePayment')}
-        message={tSettlement('deletePaymentConfirm')}
-        severity="error"
-        confirmText={tCommon('delete')}
-        cancelText={tCommon('cancel')}
-        loading={paymentMutations.remove.isPending}
-        onConfirm={confirmDeletePayment}
-        onCancel={deletePaymentDialog.closeDialog}
-      />
-    </div>
+    </TripLedgerProvider>
   );
 }

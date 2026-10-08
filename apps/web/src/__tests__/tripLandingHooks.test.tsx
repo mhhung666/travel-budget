@@ -13,7 +13,7 @@ vi.mock('@/i18n/navigation', () => ({ usePathname: () => mocks.path }));
 vi.mock('@/components/providers/QueryProvider', () => ({
   useAuthenticatedSession: () => mocks.authenticated,
 }));
-vi.mock('@/actions/tripLanding.actions', () => ({ getTripLanding: mocks.landing }));
+vi.mock('@/actions/tripLanding.actions', () => ({ getLedgerTripLanding: mocks.landing }));
 vi.mock('@/actions', () => ({
   getTripShell: mocks.shell,
   getTrip: mocks.trip,
@@ -22,8 +22,8 @@ vi.mock('@/actions', () => ({
 import { useTripShell, useTrip, useItinerary } from '@/hooks/queries/useTripQueries';
 import { clearTripAccessModes } from '@/hooks/queries/fetcher';
 const payload = {
-  shell: { id: 'trip', name: 'Tokyo' },
-  trip: { id: 'trip', name: 'Tokyo' },
+  shell: { id: 'trip', name: 'Tokyo', ledger: { baseCurrency: 'TWD', moneyScale: 2 } },
+  trip: { id: 'trip', name: 'Tokyo', ledger: { baseCurrency: 'TWD', moneyScale: 2 } },
   itinerary: [],
   checklists: [],
   settlement: null,
@@ -89,7 +89,9 @@ describe('landing hook wiring', () => {
     );
     await waitFor(() => expect(view.getByText(/ready/)).toBeTruthy());
     expect(fetchMock).toHaveBeenCalledOnce();
-    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('/landing?date='));
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('/landing?date='), {
+      cache: 'no-store',
+    });
     expect(mocks.landing).not.toHaveBeenCalled();
     expect(mocks.trip).not.toHaveBeenCalled();
   });

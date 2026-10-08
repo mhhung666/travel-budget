@@ -51,7 +51,8 @@ export default function TripCard({
   const isArchived = trip.archived_at != null;
   // 卡片狀態（UX #6）：即將出發／旅行中 · Day N／待結算／已結清；封存旅行不標。
   const status = getTripCardStatus(trip);
-  const money = (amount: number) => formatCurrency(Math.abs(amount), 'TWD', locale);
+  const money = (amount: number) =>
+    formatCurrency(Math.abs(amount), trip.ledger?.baseCurrency ?? 'TWD', locale);
   const budgetTotal = trip.budget?.total ?? null;
   const pending = status.kind === 'pendingSettlement';
   const summary = pending

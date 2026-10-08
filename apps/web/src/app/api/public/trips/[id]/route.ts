@@ -8,7 +8,9 @@ import { toTripDto, type TripDtoInput } from '@/lib/dto';
 export const GET = withPublicTrip(
   async ({ tripId }) => {
     const trip = await Trip.findById(tripId)
-      .select('name description startDate endDate destinationLocation hashCode createdAt')
+      .select(
+        'baseCurrency name description startDate endDate destinationLocation hashCode createdAt'
+      )
       .lean<TripDtoInput>();
 
     if (!trip) {

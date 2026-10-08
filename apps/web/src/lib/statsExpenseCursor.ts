@@ -1,6 +1,7 @@
 import type { StatsExpenseSort } from '@/types';
 
 export interface StatsExpenseCursor {
+  baseCurrency?: string;
   sort: StatsExpenseSort;
   value: string | number;
   id: string;
@@ -12,7 +13,8 @@ export function encodeStatsExpenseCursor(cursor: StatsExpenseCursor): string {
 
 export function decodeStatsExpenseCursor(
   encoded: string,
-  expectedSort: StatsExpenseSort
+  expectedSort: StatsExpenseSort,
+  baseCurrency?: string
 ): StatsExpenseCursor | null {
   try {
     if (encoded.length > 512) return null;
@@ -22,6 +24,7 @@ export function decodeStatsExpenseCursor(
     const cursor = value as Partial<StatsExpenseCursor>;
     if (
       cursor.sort !== expectedSort ||
+      cursor.baseCurrency !== baseCurrency ||
       (typeof cursor.value !== 'string' && typeof cursor.value !== 'number') ||
       typeof cursor.id !== 'string' ||
       !/^[a-f\d]{24}$/i.test(cursor.id)

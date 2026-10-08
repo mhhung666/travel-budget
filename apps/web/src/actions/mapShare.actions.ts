@@ -2,7 +2,7 @@
 
 import { dbConnect } from '@/lib/mongodb';
 import { User } from '@/models';
-import { withAuth } from './withAuth';
+import { withLedgerAuth as withAuth } from './withAuth';
 import type { ActionResult } from './types';
 import { generateUniqueHashCode } from '@/lib/hashcode';
 import { logger } from '@/lib/logger';

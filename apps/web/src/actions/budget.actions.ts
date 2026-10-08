@@ -44,8 +44,6 @@ export const setTripBudget = withAuth(
         };
       }
 
-      if (validation.data.base_currency && validation.data.base_currency !== 'TWD')
-        throw new LedgerError('LEDGER_CURRENCY_MISMATCH');
       await setBudgetForActor(
         mongoose.connection.db!,
         session.userId,

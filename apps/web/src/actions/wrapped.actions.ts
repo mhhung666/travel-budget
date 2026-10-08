@@ -1,9 +1,11 @@
 'use server';
 
-import { Types } from 'mongoose';
+import mongoose, { Types } from 'mongoose';
+import { baseCurrency, validateLedgerChildren } from '@/lib/ledger';
+import type { Ledger } from '@travel-budget/contracts';
 import { dbConnect } from '@/lib/mongodb';
 import { Trip, Expense, ItineraryDay, FlightRecord, StayRecord } from '@/models';
-import { withAuth } from './withAuth';
+import { withLedgerAuth as withAuth, withAuth as legacyAuth } from './withAuth';
 import type { ActionResult } from './types';
 import type { YearInReviewData, Location } from '@/types';
 import {
@@ -23,17 +25,20 @@ export interface YearInReviewResult {
   review: YearInReviewData;
   /** 有資料可回顧的年份（新到舊）；空＝此使用者尚無旅行/支出。 */
   availableYears: number[];
+  monetaryGroups?: { ledger: Ledger; review: YearInReviewData }[];
 }
 
 type LeanMember = { user?: { _id: Types.ObjectId; isVirtual?: boolean } | null };
 type LeanTrip = {
   _id: Types.ObjectId;
+  baseCurrency?: string;
   startDate?: Date | null;
   endDate?: Date | null;
   destinationLocation?: Location | null;
   members: LeanMember[];
 };
 type LeanExpense = {
+  baseCurrency?: string;
   date: Date;
   category: string | null;
   splits: { user: Types.ObjectId; shareAmount: number }[];
@@ -55,16 +60,18 @@ const toPoint = (loc: Location | null | undefined) =>
  * [computeYearInReview] 彙整。`year` 省略/ null 時取最近一個有資料的年份。
  * 金額（總花費/分類）只在此登入 action 回傳；公開分享走另一支去識別化路由。
  */
-export const getYearInReview = withAuth(
+export const getLedgerYearInReview = withAuth(
   async (session, year?: number | null): Promise<ActionResult<YearInReviewResult>> => {
     try {
       await dbConnect();
 
       const trips = await Trip.find({ 'members.user': session.userId })
-        .select('startDate endDate destinationLocation members')
+        .select('startDate endDate destinationLocation members baseCurrency')
         .populate('members.user', 'isVirtual')
         .lean<LeanTrip[]>();
 
+      for (const trip of trips)
+        await validateLedgerChildren(mongoose.connection.db!, { ...trip, members: [] });
       const tripIds = trips.map((t) => t._id);
       const hasTrips = tripIds.length > 0;
 
@@ -78,7 +85,7 @@ export const getYearInReview = withAuth(
       const [expenses, days, flightRecs, stayRecs] = await Promise.all([
         hasTrips
           ? Expense.find({ trip: { $in: tripIds }, 'splits.user': session.userId })
-              .select('date category splits')
+              .select('date category splits baseCurrency')
               .lean<LeanExpense[]>()
           : Promise.resolve<LeanExpense[]>([]),
         hasTrips
@@ -145,7 +152,7 @@ export const getYearInReview = withAuth(
         {
           trips: reviewTrips,
           itinerary: reviewPlaces,
-          expenses: reviewExpenses,
+          expenses: reviewExpenses.filter((_, i) => baseCurrency(expenses[i]) === 'TWD'),
           flights: reviewFlights,
           stays: reviewStays,
           selfUserId: session.userId,
@@ -153,7 +160,23 @@ export const getYearInReview = withAuth(
         targetYear
       );
 
-      return { success: true, data: { review, availableYears } };
+      const monetaryGroups = Array.from(new Set(['TWD', ...trips.map((t) => baseCurrency(t))]))
+        .sort()
+        .map((currency) => ({
+          ledger: { baseCurrency: currency, moneyScale: 2 as const },
+          review: computeYearInReview(
+            {
+              trips: reviewTrips,
+              itinerary: reviewPlaces,
+              expenses: reviewExpenses.filter((_, i) => baseCurrency(expenses[i]) === currency),
+              flights: reviewFlights,
+              stays: reviewStays,
+              selfUserId: session.userId,
+            },
+            targetYear
+          ),
+        }));
+      return { success: true, data: { review, availableYears, monetaryGroups } };
     } catch (error) {
       logger.error('Get year in review error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
@@ -179,3 +202,12 @@ function emptyReview(year: number): YearInReviewData {
     busiestMonth: null,
   };
 }
+
+export const getYearInReview = legacyAuth(async (_session, year?: number | null) => {
+  const result = await getLedgerYearInReview(year);
+  if (!result.success) return result;
+  return {
+    success: true as const,
+    data: { review: result.data.review, availableYears: result.data.availableYears },
+  };
+});

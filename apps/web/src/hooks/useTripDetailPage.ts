@@ -94,14 +94,20 @@ export function useTripDetailPage(tripId: string) {
     await expenseMutations.update.mutateAsync({
       expenseId: editingExpense.id,
       input: {
-        payer_id: data.payer_id,
-        original_amount: parseFloat(data.original_amount),
-        currency: data.currency,
-        exchange_rate: parseFloat(data.exchange_rate),
+        base_currency: trip!.ledger!.baseCurrency,
+        expected_revision: editingExpense.revision,
+        ...(data.preserve_money
+          ? {}
+          : {
+              payer_id: data.payer_id,
+              original_amount: Number(data.original_amount),
+              currency: data.currency,
+              exchange_rate: Number(data.exchange_rate),
+              splits: data.splits,
+            }),
         description: data.description.trim(),
         category: data.category,
         date: data.date,
-        splits: data.splits,
         attachments: data.attachments,
         itinerary_day_ids: data.itinerary_day_ids,
         tags: data.tags,
@@ -142,7 +148,7 @@ export function useTripDetailPage(tripId: string) {
     }
 
     try {
-      await expenseMutations.remove.mutateAsync(deletingExpense.id);
+      await expenseMutations.remove.mutateAsync(deletingExpense);
       trackProductEvent('expense_correction', {
         action: 'deleted',
         timing: getCorrectionTiming(deletingExpense.created_at),

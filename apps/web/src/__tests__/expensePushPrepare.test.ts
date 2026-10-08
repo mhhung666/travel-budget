@@ -229,7 +229,12 @@ describe('dormant expense push preparation', () => {
       actorName: event.actorName,
       tripHashCode: event.tripHashCode,
       tripName: event.tripName,
-      meta: { expense_id: event.expenseId, description: event.description, amount: event.amount },
+      meta: {
+        expense_id: event.expenseId,
+        description: event.description,
+        amount: event.amount,
+        baseCurrency: 'TWD',
+      },
       appUrl: 'https://example.com',
     });
     if (result.status !== 'ready') throw new Error('Expected ready');
@@ -337,4 +342,13 @@ describe('dormant expense push preparation', () => {
     f.sendDevice.mockRejectedValue(new Error('transport failed'));
     await expect(result.send()).rejects.toThrow('transport failed');
   });
+});
+
+it('retains the original USD unit while preparing delayed delivery', async () => {
+  const f = fixture();
+  f.expense.expenseDeliveryEvent.baseCurrency = 'USD';
+  await f.prepare(subscriptionId);
+  expect(f.buildPayload).toHaveBeenCalledWith(
+    expect.objectContaining({ meta: expect.objectContaining({ amount: 123, baseCurrency: 'USD' }) })
+  );
 });

@@ -22,7 +22,7 @@ import {
 } from '@/lib/ai/itineraryImportSchema';
 import { logger } from '@/lib/logger';
 import { logActivity } from '@/lib/activity';
-import { withAuth } from './withAuth';
+import { withLedgerAuth as withAuth } from './withAuth';
 import type { ActionResult } from './types';
 
 const confirmItineraryImportInputSchema = z

@@ -17,6 +17,8 @@ export interface NotificationMeta {
   /** expense_added：支出描述 / TWD 金額 / 支出 id。expense_comment_added 的支出描述亦沿用此欄位。 */
   description?: string;
   amount?: number;
+  /** Event-time ledger; old events without a unit are TWD. */
+  baseCurrency?: string;
   expense_id?: string;
   /** payment_recorded：還款 id。 */
   payment_id?: string;

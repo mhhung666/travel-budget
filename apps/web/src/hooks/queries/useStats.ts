@@ -5,6 +5,7 @@ import { getStats } from '@/actions';
 import type { StatsData, TimeInterval } from '@/types';
 
 interface StatsFilters {
+  baseCurrency?: string;
   startDate?: string;
   endDate?: string;
   timelineInterval?: TimeInterval;
@@ -30,6 +31,7 @@ export function useStats(filters: StatsFilters, enabled = true) {
   return useQuery({
     queryKey: [
       'stats',
+      filters.baseCurrency ?? 'TWD',
       startDate ?? null,
       endDate ?? null,
       'timeline',
@@ -41,6 +43,7 @@ export function useStats(filters: StatsFilters, enabled = true) {
     ],
     queryFn: async (): Promise<StatsData> => {
       const result = await getStats({
+        baseCurrency: filters.baseCurrency,
         startDate: startDate || undefined,
         endDate: endDate || undefined,
         timelineInterval,
@@ -49,7 +52,10 @@ export function useStats(filters: StatsFilters, enabled = true) {
       if (!result.success) throw new Error(result.error);
       return result.data;
     },
-    placeholderData: keepPreviousData,
+    placeholderData: (previous, query) =>
+      query?.queryKey[1] === (filters.baseCurrency ?? 'TWD')
+        ? keepPreviousData(previous)
+        : undefined,
     enabled,
   });
 }

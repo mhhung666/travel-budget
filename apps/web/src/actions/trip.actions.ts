@@ -17,7 +17,7 @@ import {
   type CreateTripInput,
   type UpdateTripInput,
 } from '@/lib/validation';
-import { withAuth } from './withAuth';
+import { withLedgerAuth as withAuth, withAuth as legacyAuth, withLegacyTripRead } from './withAuth';
 import type { ActionResult } from './types';
 import type { Trip, TripWithMembers } from '@/types';
 import type { TripShell } from '@/types';
@@ -36,20 +36,22 @@ type LeanTrip = TripDoc & { _id: { toString(): string }; createdAt: Date };
 /**
  * Get all trips for the current user
  */
-export const getTrips = withAuth(async (session): Promise<ActionResult<TripWithMembers[]>> => {
-  try {
-    const formattedTrips = await readMemberTrips(session.userId);
-    return { success: true, data: formattedTrips };
-  } catch (error) {
-    logger.error('Get trips error', error);
-    return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
+export const getLedgerTrips = withAuth(
+  async (session): Promise<ActionResult<TripWithMembers[]>> => {
+    try {
+      const formattedTrips = await readMemberTrips(session.userId);
+      return { success: true, data: formattedTrips };
+    } catch (error) {
+      logger.error('Get trips error', error);
+      return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
+    }
   }
-});
+);
 
 /**
  * Get a single trip by ID or hash code
  */
-export const getTrip = withAuth(async (session, id: string): Promise<ActionResult<Trip>> => {
+export const getLedgerTrip = withAuth(async (session, id: string): Promise<ActionResult<Trip>> => {
   try {
     const result = await getMemberTrip<LeanTrip>(
       session.userId,
@@ -67,7 +69,7 @@ export const getTrip = withAuth(async (session, id: string): Promise<ActionResul
   }
 });
 
-export const getTripShell = withAuth(
+export const getLedgerTripShell = withAuth(
   async (session, id: string, viewerDate?: string): Promise<ActionResult<TripShell>> => {
     try {
       const result = await getMemberTrip<LeanTripShell>(
@@ -109,6 +111,7 @@ export const createTrip = withAuth(
         'trip.create',
         {
           client_request_id: randomUUID(),
+          base_currency: 'TWD',
           name,
           description: description ?? '',
           start_date: start_date || null,
@@ -376,3 +379,53 @@ export const joinTrip = withAuth(
 function isObjectIdLike(value: string): boolean {
   return /^[0-9a-fA-F]{24}$/.test(value);
 }
+
+export const createLedgerTrip = withAuth(
+  async (
+    session,
+    input: import('zod').infer<typeof import('@travel-budget/contracts').tripCreateV2Input>,
+    destination?: CreateTripInput['destination_location']
+  ): Promise<ActionResult<Pick<Trip, 'id'>>> => {
+    await dbConnect();
+    const result = await enterTrip(
+      mongoose.connection.db!,
+      session.userId,
+      'trip.create',
+      input,
+      undefined,
+      destination
+    );
+    try {
+      revalidatePath('/trips');
+    } catch {
+      /* committed */
+    }
+    return { success: true, data: { id: result.tripId } };
+  }
+);
+
+export const joinLedgerTrip = withAuth(
+  async (session, input: { client_request_id: string; invite_code: string }) => {
+    await dbConnect();
+    const result = await enterTrip(
+      mongoose.connection.db!,
+      session.userId,
+      'trip.join',
+      input,
+      deliverJoinNotification
+    );
+    return { success: true as const, data: { id: result.tripId } };
+  }
+);
+
+export const getTrip = withLegacyTripRead(getLedgerTrip);
+
+export const getTripShell = withLegacyTripRead(getLedgerTripShell);
+
+export const getTrips = legacyAuth(async (session): Promise<ActionResult<TripWithMembers[]>> => {
+  try {
+    return { success: true, data: await readMemberTrips(session.userId) };
+  } catch {
+    return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
+  }
+});

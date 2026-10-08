@@ -1,4 +1,5 @@
 'use client';
+import { useLedgerCurrency } from '@/components/trips/space/LedgerCurrency';
 
 import { TrendingUp, TrendingDown, CheckCircle, Minus } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
@@ -24,9 +25,10 @@ export default function SettlementBalances({
   currentUserId,
   hasActivity = true,
 }: SettlementBalancesProps) {
+  const baseCurrency = useLedgerCurrency();
   const t = useTranslations('settlement');
   const locale = useLocale();
-  const money = (amount: number) => formatCurrency(amount, 'TWD', locale);
+  const money = (amount: number) => formatCurrency(amount, baseCurrency, locale);
 
   const ordered = currentUserId
     ? [...balances].sort(

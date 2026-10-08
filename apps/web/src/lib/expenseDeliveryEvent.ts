@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { currencyCodeSchema } from '@travel-budget/contracts';
 
 const id = z.string().regex(/^[a-f0-9]{24}$/);
 
@@ -16,6 +17,7 @@ export const expenseDeliveryEventSchema = z
     memberIds: z.array(id),
     description: z.string(),
     amount: z.number().finite().nonnegative(),
+    baseCurrency: currencyCodeSchema.optional(),
     occurredAt: z.date(),
   })
   .strict()

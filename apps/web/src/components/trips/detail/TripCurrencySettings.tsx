@@ -1,4 +1,6 @@
 'use client';
+import { ledgerErrorMessage } from '@/lib/ledgerErrorMessage';
+import { useLedgerCurrency } from '@/components/trips/space/LedgerCurrency';
 import { QueryStatus } from '@/components/common/QueryStatus';
 
 import { useId, useEffect, useState } from 'react';
@@ -6,7 +8,7 @@ import { Coins, Loader2, X } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import type { TripCurrencySettings } from '@/types';
 import type { SetCurrencySettingsInput } from '@/lib/validation';
-import { DEFAULT_CURRENCY, getCurrencyLabel } from '@/constants/currencies';
+import { getCurrencyLabel } from '@/constants/currencies';
 import { useExchangeRates } from '@/hooks/queries';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,6 +25,7 @@ import CurrencyCombobox from './CurrencyCombobox';
 
 interface TripCurrencySettingsCardProps {
   settings: TripCurrencySettings | null;
+  revision?: string;
   /** 只有 admin 能改（與預算、旅程資訊一致）；非 admin 唯讀展示。 */
   canEdit: boolean;
   onSave: (input: SetCurrencySettingsInput) => Promise<void>;
@@ -37,46 +40,57 @@ type Row = { code: string; rate: string };
  */
 export default function TripCurrencySettingsCard({
   settings,
+  revision,
   canEdit,
   onSave,
 }: TripCurrencySettingsCardProps) {
+  const baseCurrency = useLedgerCurrency();
   const fieldId = useId();
   const t = useTranslations('trip');
+  const tLedger = useTranslations('ledger');
   const locale = useLocale();
-  const ratesQuery = useExchangeRates();
-  const { data: liveRates = { TWD: 1 } } = ratesQuery;
+  const ratesQuery = useExchangeRates(baseCurrency);
+  const { data: liveRates = { [baseCurrency]: 1 } } = ratesQuery;
 
+  const [dirty, setDirty] = useState(false);
+  const [capturedRevision, setCapturedRevision] = useState(revision);
   const [rows, setRows] = useState<Row[]>([]);
-  const [defaultCurrency, setDefaultCurrency] = useState(DEFAULT_CURRENCY);
+  const [defaultCurrency, setDefaultCurrency] = useState(baseCurrency);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
 
   // trip 載入 / 儲存成功後同步表單（settings 是 server 狀態的鏡像）
   useEffect(() => {
+    if (dirty) return;
     const next: Row[] = (settings?.currencies ?? []).map((c) => ({
       code: c.code,
       rate: c.rate != null ? String(c.rate) : '',
     }));
     // eslint-disable-next-line react-hooks/set-state-in-effect -- 以 server 端設定同步表單，為刻意的同步
     setRows(next);
-    setDefaultCurrency(settings?.default_currency ?? DEFAULT_CURRENCY);
-  }, [settings]);
+    setCapturedRevision(revision);
+    setDefaultCurrency(settings?.default_currency ?? baseCurrency);
+  }, [settings, baseCurrency, revision, dirty]);
 
   const codes = rows.map((r) => r.code);
-  // 預設幣別可選：基準幣 TWD + 已加入的幣別（去重）
-  const defaultOptions = Array.from(new Set([DEFAULT_CURRENCY, ...codes]));
+  // 預設幣別可選：旅程基準幣 + 已加入的幣別（去重）
+  const defaultOptions = Array.from(new Set([baseCurrency, ...codes]));
 
   const addCurrency = (code: string) => {
+    setDirty(true);
     setRows((prev) => (prev.some((r) => r.code === code) ? prev : [...prev, { code, rate: '' }]));
   };
 
   const removeCurrency = (code: string) => {
+    setDirty(true);
     setRows((prev) => prev.filter((r) => r.code !== code));
-    setDefaultCurrency((prev) => (prev === code ? DEFAULT_CURRENCY : prev));
+    setDefaultCurrency((prev) => (prev === code ? baseCurrency : prev));
   };
 
-  const setRate = (code: string, rate: string) =>
+  const setRate = (code: string, rate: string) => {
+    setDirty(true);
     setRows((prev) => prev.map((r) => (r.code === code ? { ...r, rate } : r)));
+  };
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -86,13 +100,16 @@ export default function TripCurrencySettingsCard({
         const n = parseFloat(r.rate);
         return {
           code: r.code,
-          rate: r.code !== DEFAULT_CURRENCY && Number.isFinite(n) && n > 0 ? n : null,
+          rate: r.code !== baseCurrency && Number.isFinite(n) && n > 0 ? n : null,
         };
       });
       await onSave({
-        default_currency: defaultCurrency === DEFAULT_CURRENCY ? null : defaultCurrency,
+        base_currency: baseCurrency,
+        expected_revision: capturedRevision,
+        default_currency: defaultCurrency === baseCurrency ? null : defaultCurrency,
         currencies,
       });
+      setDirty(false);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -121,7 +138,7 @@ export default function TripCurrencySettingsCard({
             </p>
           ) : (
             rows.map((row) => {
-              const isBase = row.code === DEFAULT_CURRENCY;
+              const isBase = row.code === baseCurrency;
               const live = liveRates[row.code];
               return (
                 <div key={row.code} className="flex items-center gap-3">
@@ -187,7 +204,14 @@ export default function TripCurrencySettingsCard({
           >
             {t('currencySettings.defaultCurrencyLabel')}
           </Label>
-          <Select value={defaultCurrency} onValueChange={setDefaultCurrency} disabled={!canEdit}>
+          <Select
+            value={defaultCurrency}
+            onValueChange={(v) => {
+              setDirty(true);
+              setDefaultCurrency(v);
+            }}
+            disabled={!canEdit}
+          >
             <SelectTrigger
               id={`${fieldId}-currencySettings-defaultCurrencyLabel`}
               aria-labelledby={`${fieldId}-currencySettings-defaultCurrencyLabel-label`}
@@ -207,7 +231,19 @@ export default function TripCurrencySettingsCard({
 
         <p className="text-xs text-muted-foreground">{t('currencySettings.hint')}</p>
 
-        {error && <p className="text-sm text-destructive">{error}</p>}
+        {dirty && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              setDirty(false);
+              setError('');
+            }}
+          >
+            {tLedger('reload')}
+          </Button>
+        )}
+        {error && <p className="text-sm text-destructive">{ledgerErrorMessage(error, tLedger)}</p>}
 
         {canEdit && (
           <Button onClick={handleSave} disabled={isSaving} className="w-full sm:w-auto gap-2">

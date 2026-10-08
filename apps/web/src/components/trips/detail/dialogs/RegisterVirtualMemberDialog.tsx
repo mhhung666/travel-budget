@@ -67,7 +67,7 @@ export default function RegisterVirtualMemberDialog({
     setLoading(true);
 
     try {
-      const response = await fetch(`/api/public/trips/${tripId}/convert-member`, {
+      const response = await fetch(`/api/public/v2/trips/${tripId}/convert-member`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

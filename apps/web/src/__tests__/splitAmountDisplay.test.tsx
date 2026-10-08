@@ -176,12 +176,7 @@ describe('expense form split display', () => {
 });
 
 describe('settlement plan reference amounts', () => {
-  it('marks converted foreign amounts as approximate and keeps TWD exact', async () => {
-    // Radix Select 依賴 jsdom 沒有的 pointer capture／scrollIntoView。
-    Element.prototype.hasPointerCapture ??= () => false;
-    Element.prototype.releasePointerCapture ??= () => {};
-    Element.prototype.scrollIntoView ??= () => {};
-    const user = userEvent.setup();
+  it('keeps repayment suggestions in the ledger unit', async () => {
     render(
       <SettlementPlan
         transactions={[{ from: 'Amy', to: 'Ben', amount: 61.5 }]}
@@ -192,10 +187,7 @@ describe('settlement plan reference amounts', () => {
       />
     );
     expect(screen.getByText('NT$61.5')).toBeInTheDocument();
-
-    await user.click(screen.getByRole('combobox'));
-    await user.click(screen.getByRole('option', { name: 'JPY' }));
-    expect(screen.getByText('approxAmount(¥307.5)')).toBeInTheDocument();
-    expect(screen.getByText('(NT$61.5)')).toBeInTheDocument();
+    expect(screen.queryByText('JPY')).not.toBeInTheDocument();
+    expect(screen.queryByText(/approxAmount/)).not.toBeInTheDocument();
   });
 });

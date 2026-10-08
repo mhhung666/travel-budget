@@ -1,3 +1,5 @@
+import { LedgerError } from './ledger';
+import { MoneyTotalError } from './money';
 import { NextRequest, NextResponse } from 'next/server';
 import { getTripIdByHashCode } from '@/lib/permissions';
 import { logger } from '@/lib/logger';
@@ -49,6 +51,12 @@ export function withPublicTrip<P extends Record<string, string>>(
       }
       return await handler({ request, tripId, params });
     } catch (error) {
+      if (error instanceof LedgerError && error.code === 'CLIENT_UPGRADE_REQUIRED')
+        return apiError(PublicApiError.CLIENT_UPGRADE_REQUIRED, 409);
+      if (error instanceof LedgerError && error.code === 'LEDGER_DATA_INVALID')
+        return apiError(PublicApiError.LEDGER_DATA_INVALID, 503);
+      if (error instanceof MoneyTotalError)
+        return apiError(PublicApiError.MONEY_TOTAL_OUT_OF_RANGE, 503);
       logger.error(logLabel, error);
       return apiError(PublicApiError.INTERNAL_ERROR, 500);
     }

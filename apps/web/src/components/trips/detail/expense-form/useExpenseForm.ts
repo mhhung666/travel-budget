@@ -1,7 +1,9 @@
 'use client';
 
+import { getTripReferenceRates } from '@/actions/ledger.actions';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { roundMoney } from '@/lib/money';
 import { DEFAULT_CATEGORY } from '@/constants/categories';
 import { computeSplits, reconstructOriginalShares, type SplitMode } from '@/lib/expenseSplit';
 import {
@@ -18,6 +20,10 @@ import type { NormalizedExpenseTextDraft } from '@/lib/ai/normalizeExpenseTextDr
 import type { ReceiptDraft } from '@/lib/ai/receiptDraftSchema';
 
 export interface ExpenseFormData {
+  preserve_money?: boolean;
+  base_currency?: string;
+  contractVersion?: 2;
+  expected_revision?: string;
   payer_id: string;
   original_amount: string;
   currency: string;
@@ -36,6 +42,7 @@ export interface ExpenseFormData {
 export type SplitState = Record<string, { selected: boolean; value: string }>;
 
 interface UseExpenseFormArgs {
+  baseCurrency?: string;
   mode: 'add' | 'edit';
   /** 草稿以旅行為單位各存一份；新增模式才會寫入。 */
   tripId: string;
@@ -45,7 +52,7 @@ interface UseExpenseFormArgs {
   expense?: Expense | null;
   /** 新增模式的預填描述（如清單購物項品名）；編輯模式忽略。 */
   initialDescription?: string;
-  /** 旅程幣別設定（預設幣別／自訂匯率）；null/未傳 = 未設定（預設 TWD、即時匯率）。 */
+  /** 旅程幣別設定（預設幣別／自訂匯率）；null/未傳 = 未設定（預設基準幣、參考匯率）。 */
   currencySettings?: TripCurrencySettings | null;
 }
 
@@ -81,9 +88,10 @@ function alignDraft(
 /**
  * 支出表單的狀態與計算（自 701 行的 ExpenseFormDialog 抽出，UI/UX 重設計 Phase 4）。
  * 分帳計算委派給純函式 lib/expenseSplit（有單元測試）：輸入為原幣，
- * 儲存時換算成 TWD 寫入 Expense.splits[].shareAmount。
+ * 儲存時換算成帳本基準幣寫入 Expense.splits[].shareAmount。
  */
 export function useExpenseForm({
+  baseCurrency = 'TWD',
   mode,
   tripId,
   open,
@@ -100,7 +108,7 @@ export function useExpenseForm({
   const [form, setForm] = useState({
     payer_id: '' as string,
     original_amount: '',
-    currency: 'TWD',
+    currency: baseCurrency,
     exchange_rate: '1.0',
     description: '',
     category: DEFAULT_CATEGORY,
@@ -119,10 +127,14 @@ export function useExpenseForm({
 
   // 只有「從零開始新增」才留草稿：編輯既有支出、或從離線草稿修補（expense 有值）都不寫入，
   // 免得本機內容和伺服器上的支出各說各話。
-  const draftTripId = mode === 'add' && !expense ? tripId : null;
+  const draftTripId =
+    mode === 'add' && !expense
+      ? `${typeof location === 'undefined' ? 'server' : location.origin}:${currentUser?.id ?? 'anonymous'}:${tripId}:${baseCurrency}:v2`
+      : null;
   const [draftRestored, setDraftRestored] = useState(false);
   // 開啟當下的「原始內容」，用來判斷使用者有沒有改過（新增＝預設值，編輯＝該筆支出）。
   const baselineRef = useRef<ExpenseDraftSnapshot | null>(null);
+  const [moneyBaseline, setMoneyBaseline] = useState<ExpenseDraftSnapshot | null>(null);
 
   // Exchange rate states
   const [exchangeRates, setExchangeRates] = useState<Record<string, number>>({});
@@ -134,11 +146,11 @@ export function useExpenseForm({
     setLoadingRates(true);
     setRatesError('');
     try {
-      const response = await fetch('/api/exchange-rates');
-      const data = await response.json();
-
-      if (response.ok && data.success) {
-        setRateDates(data.dates ?? {});
+      const result = await getTripReferenceRates(tripId);
+      if (result.success) {
+        const data = result.data;
+        if (data.ledger.baseCurrency !== baseCurrency) throw new Error('LEDGER_CURRENCY_MISMATCH');
+        setRateDates(data.dates);
         setExchangeRates(data.rates);
         return data.rates;
       }
@@ -158,8 +170,8 @@ export function useExpenseForm({
 
   // 新增模式的預設內容（今天、旅程預設幣別、平分全員）；草稿比對與「捨棄草稿」都以它為基準。
   const buildAddDefaults = useCallback((): ExpenseDraftSnapshot => {
-    const defaultCurrency = getTripDefaultCurrency(currencySettings);
-    const pinnedRate = getPinnedRate(currencySettings, defaultCurrency);
+    const defaultCurrency = getTripDefaultCurrency(currencySettings, baseCurrency);
+    const pinnedRate = getPinnedRate(currencySettings, defaultCurrency, baseCurrency);
     const splitState: SplitState = {};
     members.forEach((m) => {
       splitState[m.id] = { selected: true, value: '' };
@@ -170,7 +182,7 @@ export function useExpenseForm({
         original_amount: '',
         currency: defaultCurrency,
         exchange_rate:
-          defaultCurrency === 'TWD' ? '1.0' : pinnedRate != null ? String(pinnedRate) : '',
+          defaultCurrency === baseCurrency ? '1.0' : pinnedRate != null ? String(pinnedRate) : '',
         description: initialDescription ?? '',
         category: DEFAULT_CATEGORY,
         date: toLocalDateInputValue(),
@@ -181,8 +193,7 @@ export function useExpenseForm({
       tags: [],
       attachments: [],
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- currencySettings 同下方 effect：只影響開啟當下的預設值
-  }, [members, currentUser, initialDescription]);
+  }, [members, currentUser, initialDescription, currencySettings, baseCurrency]);
 
   /**
    * 套用一份內容到表單。`expandFilled` 用於帶回草稿：使用者填過的分帳／標籤／行程日
@@ -216,7 +227,7 @@ export function useExpenseForm({
           date: toDateInputValue(expense.date),
         });
 
-        // Reconstruct split inputs from stored TWD shares. We don't persist the
+        // Reconstruct split inputs from stored ledger shares. We don't persist the
         // split mode, so infer it: shares identical to an even split → 'equal'
         // (blank inputs), otherwise → 'amount' with each member's original amount.
         // 依成員順序排列：回存時 computeSplits 也按成員順序分配尾差。
@@ -247,7 +258,7 @@ export function useExpenseForm({
         // 既有支出：非均分才展開分帳；有填過更多設定的內容才展開，避免編輯時表單又拉長。
         setShowSplit(inferredMode !== 'equal');
         setShowAdvanced(
-          expense.currency !== 'TWD' ||
+          expense.currency !== baseCurrency ||
             (expense.tags?.length ?? 0) > 0 ||
             (expense.itinerary_day_ids?.length ?? 0) > 0 ||
             (mode === 'edit' && (expense.attachments?.length ?? 0) > 0)
@@ -269,16 +280,17 @@ export function useExpenseForm({
           tags: expense.tags ?? [],
           attachments: expense.attachments ?? [],
         };
+        setMoneyBaseline(baselineRef.current);
         setDraftRestored(false);
       } else {
-        // Add mode: Initialize with defaults（今天、旅程預設幣別（未設定則 TWD）、平分全員）；
+        // Add mode: Initialize with defaults（今天、旅程預設幣別（未設定則基準幣）、平分全員）；
         // 描述可由呼叫端預填（如清單購物項的品名，「勾完→記一筆」）。
         // 匯率預填順序：旅程自訂匯率 → 即時匯率（fetch 回來後補）→ 1.0。
         const defaults = buildAddDefaults();
         baselineRef.current = defaults;
         // 上次未完成的內容優先帶回；成員可能已異動，分帳狀態要對齊目前成員。
         const draft = draftTripId
-          ? alignDraft(loadExpenseDraft(draftTripId), members, defaults)
+          ? alignDraft(loadExpenseDraft(draftTripId, Date.now(), baseCurrency), members, defaults)
           : null;
         applySnapshot(draft ?? defaults, draft != null);
         setDraftRestored(draft != null);
@@ -289,14 +301,14 @@ export function useExpenseForm({
       // 只在匯率仍為空值（使用者沒動過）時補，避免蓋掉手動輸入。
       fetchExchangeRates().then((rates) => {
         if (mode !== 'add' || !rates) return;
-        const defaultCurrency = getTripDefaultCurrency(currencySettings);
-        if (defaultCurrency === 'TWD') return;
-        if (getPinnedRate(currencySettings, defaultCurrency) != null) return;
+        const defaultCurrency = getTripDefaultCurrency(currencySettings, baseCurrency);
+        if (defaultCurrency === baseCurrency) return;
+        if (getPinnedRate(currencySettings, defaultCurrency, baseCurrency) != null) return;
         const live = rates[defaultCurrency];
         if (!live) return;
         setForm((prev) =>
           prev.currency === defaultCurrency && prev.exchange_rate === ''
-            ? { ...prev, exchange_rate: live.toFixed(6) }
+            ? { ...prev, exchange_rate: live.toString() }
             : prev
         );
         // 自動補上的匯率不是使用者的輸入，基準值同步跟上，否則空白表單會被當成「改過」。
@@ -304,7 +316,7 @@ export function useExpenseForm({
         if (baseline?.form.currency === defaultCurrency && baseline.form.exchange_rate === '') {
           baselineRef.current = {
             ...baseline,
-            form: { ...baseline.form, exchange_rate: live.toFixed(6) },
+            form: { ...baseline.form, exchange_rate: live.toString() },
           };
         }
       });
@@ -313,6 +325,8 @@ export function useExpenseForm({
   }, [open, mode, expense, members, currentUser, initialDescription]);
 
   const snapshot: ExpenseDraftSnapshot = {
+    ledger: { baseCurrency, moneyScale: 2 },
+    contractVersion: 2,
     form,
     splitMode,
     splitState,
@@ -374,12 +388,18 @@ export function useExpenseForm({
   }, [open, draftTripId, isDirty, serializedSnapshot]);
 
   const originalAmount = parseFloat(form.original_amount) || 0;
-  const hasValidAmount = Number.isFinite(originalAmount) && originalAmount > 0;
+  const hasValidAmount =
+    Number.isFinite(originalAmount) &&
+    originalAmount > 0 &&
+    Number.isSafeInteger(Math.round(originalAmount * 100)) &&
+    roundMoney(originalAmount) === originalAmount;
   const parsedExchangeRate = Number(form.exchange_rate);
   const hasValidExchangeRate =
-    form.currency === 'TWD' || (Number.isFinite(parsedExchangeRate) && parsedExchangeRate > 0);
-  const exchangeRate = form.currency === 'TWD' ? 1 : hasValidExchangeRate ? parsedExchangeRate : 0;
-  const totalAmountTWD = originalAmount * exchangeRate;
+    form.currency === baseCurrency ||
+    (Number.isFinite(parsedExchangeRate) && parsedExchangeRate > 0);
+  const exchangeRate =
+    form.currency === baseCurrency ? 1 : hasValidExchangeRate ? parsedExchangeRate : 0;
+  const totalAmountTWD = roundMoney(originalAmount * exchangeRate);
   const anySelected = members.some((m) => splitState[m.id]?.selected);
 
   const split = computeSplits(
@@ -409,23 +429,40 @@ export function useExpenseForm({
         : tCommon('error.splitNotFullyAllocated');
   }
 
+  const baseline = moneyBaseline;
+  const preserveMoney =
+    mode === 'edit' &&
+    !!expense &&
+    !!baseline &&
+    ['payer_id', 'original_amount', 'currency', 'exchange_rate'].every(
+      (k) => form[k as keyof typeof form] === baseline.form[k as keyof typeof form]
+    ) &&
+    splitMode === baseline.splitMode &&
+    JSON.stringify(splitState) === JSON.stringify(baseline.splitState);
+
   const buildSubmitData = (): ExpenseFormData | null => {
-    if (!hasValidAmount) {
+    const preserve = preserveMoney;
+    if (!hasValidAmount && !preserve) {
       setError(tExpense('error.amountRequired'));
       return null;
     }
 
-    if (!hasValidExchangeRate) {
+    if (
+      !preserve &&
+      (!hasValidExchangeRate || !Number.isFinite(totalAmountTWD) || totalAmountTWD > 1_000_000_000)
+    ) {
       setError(tExpense('error.exchangeRateRequired'));
       return null;
     }
 
-    const finalSplits = members
-      .filter((m) => splitState[m.id]?.selected)
-      .map((m) => ({
-        user_id: m.id,
-        share_amount: split.twd[m.id], // converted TWD share
-      }));
+    const finalSplits = preserve
+      ? expense!.splits.map((s) => ({ user_id: s.user_id, share_amount: s.share_amount }))
+      : members
+          .filter((m) => splitState[m.id]?.selected)
+          .map((m) => ({
+            user_id: m.id,
+            share_amount: split.twd[m.id], // converted ledger share
+          }));
 
     if (finalSplits.length === 0) {
       setError(tExpense('error.noMembersSelected'));
@@ -434,6 +471,11 @@ export function useExpenseForm({
 
     return {
       ...form,
+      exchange_rate: form.currency === baseCurrency ? '1' : form.exchange_rate,
+      preserve_money: preserve,
+      base_currency: baseCurrency,
+      contractVersion: 2,
+      expected_revision: expense?.revision,
       splits: finalSplits,
       attachments,
       itinerary_day_ids: itineraryDayIds,
@@ -497,15 +539,15 @@ export function useExpenseForm({
   const applyTextDraft = (draft: NormalizedExpenseTextDraft) => {
     setForm((previous) => {
       const currency = draft.currency ?? previous.currency;
-      const pinnedRate = getPinnedRate(currencySettings, currency);
+      const pinnedRate = getPinnedRate(currencySettings, currency, baseCurrency);
       const exchangeRate =
         currency === previous.currency
           ? previous.exchange_rate
-          : currency === 'TWD'
+          : currency === baseCurrency
             ? '1.0'
             : pinnedRate != null
               ? String(pinnedRate)
-              : (exchangeRates[currency]?.toFixed(6) ?? '');
+              : (exchangeRates[currency]?.toString() ?? '');
       return {
         ...previous,
         description: draft.description,
@@ -550,13 +592,13 @@ export function useExpenseForm({
     const canApplyCurrency = draft.fieldStatus.currency === 'read' && draft.currency;
     setForm((previous) => {
       const currency = canApplyCurrency ? draft.currency! : previous.currency;
-      const pinnedRate = getPinnedRate(currencySettings, currency);
+      const pinnedRate = getPinnedRate(currencySettings, currency, baseCurrency);
       const exchangeRate =
-        currency === 'TWD'
+        currency === baseCurrency
           ? '1.0'
           : pinnedRate != null
             ? String(pinnedRate)
-            : (exchangeRates[currency]?.toFixed(6) ??
+            : (exchangeRates[currency]?.toString() ??
               (currency === previous.currency ? previous.exchange_rate : ''));
       return {
         ...previous,
@@ -606,6 +648,7 @@ export function useExpenseForm({
     split,
     isValidSplit,
     splitWarning,
+    preserveMoney,
     buildSubmitData,
     handleModeChange,
     handleSplitToggle,

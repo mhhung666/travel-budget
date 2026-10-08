@@ -3,7 +3,7 @@
 import { Types, type PipelineStage } from 'mongoose';
 import { dbConnect } from '@/lib/mongodb';
 import { Trip, ItineraryDay, Photo } from '@/models';
-import { withAuth } from './withAuth';
+import { withLedgerAuth as withAuth } from './withAuth';
 import type { ActionResult } from './types';
 import type { LocalizedNames, TripPhoto } from '@/types';
 import { tripOverlapsRange } from '@/lib/dateRange';

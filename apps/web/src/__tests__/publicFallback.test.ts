@@ -10,7 +10,10 @@ afterEach(() => {
 
 describe('fetchWithPublicFallback', () => {
   it('uses unique no-store URLs for explicit fresh public reads and never masks failures', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => 'fresh' });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ ledger: { baseCurrency: 'USD', moneyScale: 2 } }),
+    });
     vi.stubGlobal('fetch', fetchMock);
     const read = () =>
       fetchWithPublicFallback(
@@ -20,10 +23,12 @@ describe('fetchWithPublicFallback', () => {
         null,
         false
       );
-    expect(await read()).toBe('fresh');
-    expect(await read()).toBe('fresh');
+    expect(await read()).toEqual({ ledger: { baseCurrency: 'USD', moneyScale: 2 } });
+    expect(await read()).toEqual({ ledger: { baseCurrency: 'USD', moneyScale: 2 } });
     const [first, second] = fetchMock.mock.calls;
-    expect(first[0]).toMatch(/^\/api\/public\/trips\/abc12345\/landing\?date=2026-09-18&_fresh=/);
+    expect(first[0]).toMatch(
+      /^\/api\/public\/v2\/trips\/abc12345\/landing\?date=2026-09-18&_fresh=/
+    );
     expect(first[0]).not.toBe(second[0]);
     expect(first[1]).toEqual({ cache: 'no-store' });
     fetchMock.mockRejectedValueOnce(new Error('offline'));
@@ -36,7 +41,7 @@ describe('fetchWithPublicFallback', () => {
       .mockResolvedValueOnce({ success: false, code: 'NOT_FOUND' })
       .mockResolvedValue({ success: true, data: 'member' });
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => 'public' }));
-    const read = () => fetchWithPublicFallback('abc12345', action, { path: 'shell' }, '');
+    const read = () => fetchWithPublicFallback('abc12345', action, { path: 'itinerary' }, '');
     expect(await read()).toBe('public');
     expect(await read()).toBe('public');
     expect(action).toHaveBeenCalledOnce();
@@ -52,8 +57,8 @@ describe('fetchWithPublicFallback', () => {
       .fn()
       .mockRejectedValueOnce(new Error('network'))
       .mockResolvedValue({ success: true, data: 'member' });
-    const first = fetchWithPublicFallback('abc12345', action, { path: '' }, '');
-    const second = fetchWithPublicFallback('abc12345', action, { path: '' }, '');
+    const first = fetchWithPublicFallback('abc12345', action, { path: 'itinerary' }, '');
+    const second = fetchWithPublicFallback('abc12345', action, { path: 'itinerary' }, '');
     const results = await Promise.allSettled([first, second]);
     expect(results[0].status).toBe('rejected');
     expect(results[1]).toEqual({ status: 'fulfilled', value: 'member' });
@@ -67,7 +72,7 @@ describe('fetchWithPublicFallback', () => {
         new Promise<ActionResult<string>>((r) => {
           resolve = r;
         }),
-      { path: '' },
+      { path: 'itinerary' },
       ''
     );
     clearTripAccessModes();
@@ -75,7 +80,9 @@ describe('fetchWithPublicFallback', () => {
     resolve({ success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' });
     await first;
     const member = vi.fn().mockResolvedValue({ success: true, data: 'member' });
-    expect(await fetchWithPublicFallback('abc12345', member, { path: '' }, '')).toBe('member');
+    expect(await fetchWithPublicFallback('abc12345', member, { path: 'itinerary' }, '')).toBe(
+      'member'
+    );
     expect(member).toHaveBeenCalledOnce();
   });
   it('loads the public hash-code endpoint for a logged-in non-member', async () => {
@@ -86,14 +93,27 @@ describe('fetchWithPublicFallback', () => {
     });
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ trip: { id: 'trip-id', hash_code: 'a7x9k2' } }),
+      json: async () => ({
+        trip: {
+          id: 'trip-id',
+          hash_code: 'a7x9k2',
+          ledger: { baseCurrency: 'TWD', moneyScale: 2 },
+        },
+      }),
     });
     vi.stubGlobal('fetch', fetchMock);
 
     await expect(
       fetchWithPublicFallback('a7x9k2', serverAction, { path: '', responseKey: 'trip' }, null)
-    ).resolves.toEqual({ id: 'trip-id', hash_code: 'a7x9k2' });
-    expect(fetchMock).toHaveBeenCalledWith('/api/public/trips/a7x9k2/');
+    ).resolves.toEqual({
+      id: 'trip-id',
+      hash_code: 'a7x9k2',
+      ledger: { baseCurrency: 'TWD', moneyScale: 2 },
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringMatching(/^\/api\/public\/v2\/trips\/a7x9k2\/\?_fresh=/),
+      { cache: 'no-store' }
+    );
   });
 
   it('does not hide a real server failure behind the public endpoint', async () => {
@@ -115,7 +135,9 @@ describe('fetchWithPublicFallback', () => {
     const serverAction = vi.fn();
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ trip: { id: 'public-trip' } }),
+      json: async () => ({
+        trip: { id: 'public-trip', ledger: { baseCurrency: 'TWD', moneyScale: 2 } },
+      }),
     });
     vi.stubGlobal('fetch', fetchMock);
 
@@ -127,7 +149,7 @@ describe('fetchWithPublicFallback', () => {
         null,
         false
       )
-    ).resolves.toEqual({ id: 'public-trip' });
+    ).resolves.toEqual({ id: 'public-trip', ledger: { baseCurrency: 'TWD', moneyScale: 2 } });
     expect(serverAction).not.toHaveBeenCalled();
   });
 

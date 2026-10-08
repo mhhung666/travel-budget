@@ -108,6 +108,8 @@ import {
   getExpenseTags,
   getReceiptUrl,
   updateExpense,
+  lookupExpenseCreation,
+  lookupLedgerExpenseCreation,
 } from '@/actions/expense.actions';
 
 const USER = '507f191e810c19729de860ea';
@@ -839,4 +841,25 @@ describe('deleteExpense and getReceiptUrl', () => {
     });
     expect(presignGet).toHaveBeenCalledWith('receipts', RECEIPT);
   });
+});
+
+describe('expense creation lookup validation', () => {
+  it.each([1, 2])(
+    'returns a terminal validation result for malformed v%s queued input',
+    async (version) => {
+      const input = {
+        ...validInput,
+        original_amount: -1,
+        ...(version === 2 ? { base_currency: 'TWD' } : {}),
+      };
+      const lookup = version === 2 ? lookupLedgerExpenseCreation : lookupExpenseCreation;
+      expect(await lookup(TRIP, input)).toEqual({
+        success: false,
+        error: 'VALIDATION_ERROR',
+        code: 'VALIDATION_ERROR',
+      });
+      expect(receiptFind).not.toHaveBeenCalled();
+      expect(expenseCreate).not.toHaveBeenCalled();
+    }
+  );
 });

@@ -5,7 +5,7 @@ import { Types } from 'mongoose';
 import { Comment, Expense, User, Trip } from '@/models';
 import { getTripMembership } from '@/lib/permissions';
 import { createCommentSchema, type CreateCommentInput } from '@/lib/validation';
-import { withAuth } from './withAuth';
+import { withLedgerAuth as withAuth } from './withAuth';
 import type { ActionResult } from './types';
 import type { CommentDto } from '@/types';
 import { logger } from '@/lib/logger';

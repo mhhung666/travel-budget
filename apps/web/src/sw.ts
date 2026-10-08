@@ -43,7 +43,9 @@ const runtimeCaching: RuntimeCaching[] = [
   // Explicit fresh exports must never fall back to a previously authorized API response.
   {
     matcher: ({ request, sameOrigin, url }) =>
-      sameOrigin && url.pathname.startsWith('/api/public/trips/') && request.cache === 'no-store',
+      sameOrigin &&
+      /^\/api\/public\/(?:v2\/)?trips\//.test(url.pathname) &&
+      request.cache === 'no-store',
     method: 'GET',
     handler: new NetworkOnly(),
   },

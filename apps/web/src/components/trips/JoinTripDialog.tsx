@@ -1,8 +1,10 @@
 'use client';
+import { ledgerErrorMessage } from '@/lib/ledgerErrorMessage';
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { joinTrip } from '@/actions';
+import { confirmWebWrite } from '@/lib/confirmedWebWrites';
+import { useQueryClient } from '@tanstack/react-query';
 import { clearTripAccessModes } from '@/hooks/queries/fetcher';
 import type { Trip } from '@/types';
 import { parseTripInviteInput } from '@/lib/tripInvite';
@@ -23,13 +25,15 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 interface JoinTripDialogProps {
   open: boolean;
   onClose: () => void;
-  onSuccess: (trip: Trip) => void;
+  onSuccess: (trip: Pick<Trip, 'id'>) => void;
 }
 
 export default function JoinTripDialog({ open, onClose, onSuccess }: JoinTripDialogProps) {
   const t = useTranslations('trips');
+  const tLedger = useTranslations('ledger');
   const tCommon = useTranslations('common');
 
+  const client = useQueryClient();
   const [joinTripId, setJoinTripId] = useState('');
   const [error, setError] = useState('');
   const [isJoining, setIsJoining] = useState(false);
@@ -51,14 +55,12 @@ export default function JoinTripDialog({ open, onClose, onSuccess }: JoinTripDia
     setIsJoining(true);
 
     try {
-      const result = await joinTrip(code);
-      if (result.success || result.code === 'CONFLICT') clearTripAccessModes();
-
-      if (!result.success) {
-        throw new Error(result.error);
-      }
-
-      const joinedTrip = result.data;
+      const trip = (await confirmWebWrite(client, {
+        operation: 'trip.join',
+        body: { client_request_id: crypto.randomUUID(), invite_code: code },
+      })) as Pick<Trip, 'id'>;
+      clearTripAccessModes();
+      const joinedTrip = trip;
       handleClose();
       onSuccess(joinedTrip);
     } catch (err: unknown) {
@@ -84,7 +86,7 @@ export default function JoinTripDialog({ open, onClose, onSuccess }: JoinTripDia
           {error && (
             <Alert variant="destructive">
               <AlertTitle>{tCommon('errorTitle')}</AlertTitle>
-              <AlertDescription>{error}</AlertDescription>
+              <AlertDescription>{ledgerErrorMessage(error, tLedger)}</AlertDescription>
             </Alert>
           )}
 

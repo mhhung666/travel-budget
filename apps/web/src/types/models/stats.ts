@@ -1,4 +1,6 @@
+import type { Ledger } from '@travel-budget/contracts';
 export interface ExpenseDetail {
+  ledger?: Ledger;
   id: string;
   date: string;
   description: string;
@@ -71,6 +73,8 @@ export interface StatsInsight {
 }
 
 export interface StatsData {
+  currencies?: string[];
+  ledger?: Ledger;
   categoryStats: Omit<CategoryStat, 'details'>[];
   tripStats: Omit<PersonalTripStat, 'details'>[];
   tagStats: Omit<TagStat, 'details'>[];
@@ -97,6 +101,7 @@ export interface StatsExpenseFilters {
 }
 
 export interface StatsExpensePage {
+  ledger?: Ledger;
   items: ExpenseDetail[];
   nextCursor: string | null;
 }
@@ -138,6 +143,7 @@ export interface DailySpend {
 export type TripDayCountSource = 'tripDates' | 'expenseDates' | 'none';
 
 export interface TripStatsData {
+  ledger?: Ledger;
   categoryStats: CategoryStat[];
   tagStats: TagStat[];
   totalAmount: number;
@@ -202,6 +208,7 @@ export interface StatsTimelineBucket {
 }
 
 export interface StatsTimelineData {
+  ledger?: Ledger;
   interval: TimeInterval;
   dataPoints: StatsTimelineBucket[];
   totalAmount: number;

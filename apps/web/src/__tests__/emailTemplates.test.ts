@@ -215,7 +215,7 @@ describe('buildPaymentReminderEmail', () => {
     amount: 1234.6,
   };
 
-  it('links to the settlement page and rounds the amount', async () => {
+  it('links to settlement and retains ledger cents', async () => {
     const email = await buildPaymentReminderEmail({
       ...base,
       locale: 'en',
@@ -223,7 +223,7 @@ describe('buildPaymentReminderEmail', () => {
     });
     expect(email.html).toContain('https://app.example.com/trips/t1/settlement');
     expect(email.html).toContain('Tokyo');
-    expect(email.text).toContain('NT$1,235'); // 取整並依語系加上千分位
+    expect(email.text).toContain('TWD NT$1,234.6'); // 取整並依語系加上千分位
     expect(email.html).toContain('Security note');
   });
 

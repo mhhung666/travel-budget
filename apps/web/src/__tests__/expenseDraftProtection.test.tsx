@@ -130,7 +130,7 @@ it('keeps what was typed when the add form is closed, and brings it back', async
   await user.click(screen.getByRole('button', { name: 'cancel' }));
 
   expect(onClose).toHaveBeenCalledTimes(1);
-  expect(loadExpenseDraft(TRIP)?.form).toMatchObject({
+  expect(loadExpenseDraft(`${location.origin}:me:${TRIP}:TWD:v2`)?.form).toMatchObject({
     original_amount: '100',
     description: 'Night market',
   });
@@ -150,20 +150,20 @@ it('closes without leaving a draft when nothing was typed', async () => {
   await user.click(screen.getByRole('button', { name: 'cancel' }));
 
   expect(onClose).toHaveBeenCalledTimes(1);
-  expect(loadExpenseDraft(TRIP)).toBeNull();
+  expect(loadExpenseDraft(`${location.origin}:me:${TRIP}:TWD:v2`)).toBeNull();
   expect(screen.queryByText('form.draft.restored')).not.toBeInTheDocument();
 });
 
 it('lets the user discard a restored draft back to an empty form', async () => {
   const user = userEvent.setup();
-  saveExpenseDraft(TRIP, loadStubSnapshot('Night market'));
+  saveExpenseDraft(`${location.origin}:me:${TRIP}:TWD:v2`, loadStubSnapshot('Night market'));
   renderForm();
 
   await user.click(screen.getByRole('button', { name: 'form.draft.discard' }));
 
   expect(screen.getByLabelText('form.description')).toHaveValue('');
   expect(screen.getByLabelText('amount')).toHaveValue('');
-  expect(loadExpenseDraft(TRIP)).toBeNull();
+  expect(loadExpenseDraft(`${location.origin}:me:${TRIP}:TWD:v2`)).toBeNull();
   expect(screen.queryByText('form.draft.restored')).not.toBeInTheDocument();
 });
 
@@ -177,7 +177,7 @@ it('asks before dropping edits to an existing expense, and never stores them', a
 
   expect(onClose).not.toHaveBeenCalled();
   expect(screen.getByText('form.draft.unsavedTitle')).toBeInTheDocument();
-  expect(loadExpenseDraft(TRIP)).toBeNull();
+  expect(loadExpenseDraft(`${location.origin}:me:${TRIP}:TWD:v2`)).toBeNull();
 
   await user.click(screen.getByRole('button', { name: 'form.draft.keepEditing' }));
   expect(onClose).not.toHaveBeenCalled();
@@ -185,7 +185,7 @@ it('asks before dropping edits to an existing expense, and never stores them', a
   await user.click(screen.getByRole('button', { name: 'cancel' }));
   await user.click(screen.getByRole('button', { name: 'form.draft.discardChanges' }));
   expect(onClose).toHaveBeenCalledTimes(1);
-  expect(loadExpenseDraft(TRIP)).toBeNull();
+  expect(loadExpenseDraft(`${location.origin}:me:${TRIP}:TWD:v2`)).toBeNull();
 });
 
 it('closes an untouched edit form without asking', async () => {
@@ -208,7 +208,9 @@ it('keeps the draft immediately when switching trips, without waiting for the au
   await user.click(screen.getByRole('button', { name: /form\.switchTrip/ }));
 
   expect(onSwitchTrip).toHaveBeenCalledTimes(1);
-  expect(loadExpenseDraft(TRIP)?.form.original_amount).toBe('250');
+  expect(loadExpenseDraft(`${location.origin}:me:${TRIP}:TWD:v2`)?.form.original_amount).toBe(
+    '250'
+  );
 });
 
 it('asks instead of claiming the draft was kept when storage refuses the write', async () => {

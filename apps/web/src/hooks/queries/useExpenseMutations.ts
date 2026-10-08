@@ -1,5 +1,6 @@
 'use client';
 
+import { confirmWebWrite, assertNoConfirmedWebWrite } from '@/lib/confirmedWebWrites';
 import { useRef } from 'react';
 import { saveExpenseOutbox } from '@/lib/expenseOutbox';
 import {
@@ -8,7 +9,7 @@ import {
   useQueryClient,
   type QueryClient,
 } from '@tanstack/react-query';
-import { updateExpense, deleteExpense } from '@/actions';
+
 import type { UpdateExpenseInput } from '@/lib/validation';
 import type { AuthUserWithCreatedAt } from '@/actions';
 import type { Expense, Member, TripShell } from '@/types';
@@ -18,7 +19,6 @@ import {
   executeExpenseCreate,
   expenseCreateRetryOptions,
   invalidateExpenseDerived,
-  unwrap,
   type CreateExpenseVars,
   type ExpenseCreateContext,
   reconcileExpenseCreate,
@@ -75,7 +75,10 @@ export function useExpenseMutations(tripId: string) {
     ...expenseCreateRetryOptions,
     onMutate: (vars: CreateExpenseVars): Promise<ExpenseCreateContext> =>
       prepareExpenseCreate(queryClient, async () => {
+        await assertNoConfirmedWebWrite(queryClient, vars.tripId);
         const wasOffline = !onlineManager.isOnline();
+        if (vars.contractVersion === 2 && vars.input.base_currency !== 'TWD' && wasOffline)
+          throw new Error('ledger.onlineOnly');
         if (wasOffline) {
           trackProductEvent('offline_expense', { state: 'queued' });
         }
@@ -149,12 +152,32 @@ export function useExpenseMutations(tripId: string) {
 
   const update = useMutation({
     mutationFn: ({ expenseId, input }: { expenseId: string; input: UpdateExpenseInput }) =>
-      unwrap(updateExpense(tripId, expenseId, input)),
+      confirmWebWrite(queryClient, {
+        operation: 'expense.update',
+        tripId,
+        expenseId,
+        body: {
+          ...input,
+          base_currency: input.base_currency!,
+          client_request_id: input.client_request_id ?? crypto.randomUUID(),
+          expected_revision: input.expected_revision!,
+        },
+      }),
     onSuccess: invalidate,
   });
 
   const remove = useMutation({
-    mutationFn: (expenseId: string) => unwrap(deleteExpense(tripId, expenseId)),
+    mutationFn: (expense: Expense) =>
+      confirmWebWrite(queryClient, {
+        operation: 'expense.delete',
+        tripId,
+        expenseId: expense.id,
+        body: {
+          client_request_id: crypto.randomUUID(),
+          base_currency: expense.ledger!.baseCurrency,
+          expected_revision: expense.revision!,
+        },
+      }),
     onSuccess: invalidate,
   });
 

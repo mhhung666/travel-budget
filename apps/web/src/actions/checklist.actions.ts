@@ -20,7 +20,7 @@ import {
 } from '@/lib/validation';
 import type { ActionResult } from './types';
 import type { Checklist as ChecklistDto } from '@/types';
-import { withAuth } from './withAuth';
+import { withLedgerAuth as withAuth } from './withAuth';
 import { logger } from '@/lib/logger';
 import { toChecklistDto, type ChecklistDtoInput } from '@/lib/dto';
 

@@ -1,3 +1,4 @@
+import type { Ledger } from '@travel-budget/contracts';
 import type { Location } from '../common/location';
 import type { TripRole } from './user';
 import type { Budget } from './budget';
@@ -24,6 +25,9 @@ export interface TripCurrencySettings {
  * 旅程基本資訊
  */
 export interface Trip {
+  ledger?: Ledger;
+  budget_revision?: string;
+  currency_revision?: string;
   id: string;
   name: string;
   description: string | null;
@@ -59,6 +63,9 @@ export interface TripWithMembers extends Trip {
  * member profiles and expense rows so every trip sub-page can mount cheaply.
  */
 export interface TripShell {
+  ledger?: Ledger;
+  budget_revision?: string;
+  currency_revision?: string;
   id: string;
   name: string;
   start_date: string | null;

@@ -1,6 +1,8 @@
 'use client';
+import { ledgerErrorMessage } from '@/lib/ledgerErrorMessage';
+import { useLedgerCurrency } from '@/components/trips/space/LedgerCurrency';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { ChevronDown, Loader2, LockKeyhole, RotateCcw, Wallet } from 'lucide-react';
 import type { Budget } from '@/types';
@@ -27,6 +29,7 @@ interface BudgetDialogProps {
   onClose: () => void;
   onSubmit: (input: SetBudgetInput) => Promise<void>;
   budget: Budget | null;
+  revision?: string;
   legacyBudget?: Budget | null;
 }
 
@@ -41,10 +44,13 @@ export default function BudgetDialog({
   onClose,
   onSubmit,
   budget,
+  revision,
   legacyBudget = null,
 }: BudgetDialogProps) {
+  const baseCurrency = useLedgerCurrency();
   const t = useTranslations('budget');
   const tCategory = useTranslations('category');
+  const tLedger = useTranslations('ledger');
   const tCommon = useTranslations('common');
   const locale = useLocale();
 
@@ -54,9 +60,14 @@ export default function BudgetDialog({
   const [categoryAmounts, setCategoryAmounts] = useState<Record<string, string>>({});
   const [categoriesOpen, setCategoriesOpen] = useState(false);
 
+  const wasOpen = useRef(false);
+  const capturedRevision = useRef(revision);
   useEffect(() => {
-    if (!open) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- 開啟對話框時用 budget 帶入表單，為刻意的同步
+    const opening = open && !wasOpen.current;
+    wasOpen.current = open;
+    if (!opening) return;
+    capturedRevision.current = revision;
+
     setTotal(budget?.total != null ? String(budget.total) : '');
     const map: Record<string, string> = {};
     for (const c of budget?.categories ?? []) {
@@ -65,7 +76,7 @@ export default function BudgetDialog({
     setCategoryAmounts(map);
     setCategoriesOpen((budget?.categories.length ?? 0) > 0);
     setError('');
-  }, [open, budget]);
+  }, [open, budget, revision]);
 
   const activeCategoryCount = useMemo(
     () =>
@@ -106,7 +117,12 @@ export default function BudgetDialog({
       .map((c) => ({ category: c.category, amount: c.amount }));
 
     try {
-      await onSubmit({ total: parseAmount(total), categories });
+      await onSubmit({
+        base_currency: baseCurrency,
+        expected_revision: capturedRevision.current,
+        total: parseAmount(total),
+        categories,
+      });
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -138,7 +154,7 @@ export default function BudgetDialog({
             {error && (
               <Alert variant="destructive">
                 <AlertTitle>{tCommon('errorTitle')}</AlertTitle>
-                <AlertDescription>{error}</AlertDescription>
+                <AlertDescription>{ledgerErrorMessage(error, tLedger)}</AlertDescription>
               </Alert>
             )}
 
@@ -149,7 +165,7 @@ export default function BudgetDialog({
                   {t('dialog.legacyDescription', {
                     amount:
                       legacyBudget.total != null
-                        ? formatCurrency(legacyBudget.total, 'TWD', locale)
+                        ? formatCurrency(legacyBudget.total, baseCurrency, locale)
                         : t('dialog.legacyCategoriesOnly'),
                   })}
                 </AlertDescription>
@@ -162,7 +178,7 @@ export default function BudgetDialog({
                   {t('dialog.totalLabel')}
                 </Label>
                 <span className="rounded-full bg-muted px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
-                  TWD
+                  {baseCurrency}
                 </span>
               </div>
               <div className="relative">
@@ -170,13 +186,14 @@ export default function BudgetDialog({
                   className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-base font-medium text-muted-foreground"
                   aria-hidden
                 >
-                  NT$
+                  {baseCurrency}
                 </span>
                 <Input
                   id="budget-total"
                   type="number"
                   min="0"
-                  inputMode="numeric"
+                  inputMode="decimal"
+                  step="0.01"
                   value={total}
                   onChange={(e) => setTotal(e.target.value)}
                   placeholder={t('dialog.totalPlaceholder')}
@@ -213,7 +230,7 @@ export default function BudgetDialog({
                     <p className="mt-0.5 truncate text-xs text-muted-foreground">
                       {activeCategoryCount > 0
                         ? t('dialog.allocated', {
-                            amount: formatCurrency(allocatedAmount, 'TWD', locale),
+                            amount: formatCurrency(allocatedAmount, baseCurrency, locale),
                           })
                         : t('dialog.categoriesDescription')}
                     </p>
@@ -239,8 +256,9 @@ export default function BudgetDialog({
                           overAllocated && 'text-destructive'
                         )}
                       >
-                        {formatCurrency(allocatedAmount, 'TWD', locale)}
-                        {totalAmount !== null && ` / ${formatCurrency(totalAmount, 'TWD', locale)}`}
+                        {formatCurrency(allocatedAmount, baseCurrency, locale)}
+                        {totalAmount !== null &&
+                          ` / ${formatCurrency(totalAmount, baseCurrency, locale)}`}
                       </span>
                     </div>
                     {totalAmount !== null && (
@@ -264,14 +282,14 @@ export default function BudgetDialog({
                             ? t('dialog.overAllocated', {
                                 amount: formatCurrency(
                                   allocatedAmount - totalAmount,
-                                  'TWD',
+                                  baseCurrency,
                                   locale
                                 ),
                               })
                             : t('dialog.unallocated', {
                                 amount: formatCurrency(
                                   totalAmount - allocatedAmount,
-                                  'TWD',
+                                  baseCurrency,
                                   locale
                                 ),
                               })}
@@ -304,13 +322,14 @@ export default function BudgetDialog({
                           className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-xs text-muted-foreground"
                           aria-hidden
                         >
-                          NT$
+                          {baseCurrency}
                         </span>
                         <Input
                           id={`budget-category-${category.code}`}
                           type="number"
                           min="0"
-                          inputMode="numeric"
+                          inputMode="decimal"
+                          step="0.01"
                           value={categoryAmounts[category.code] ?? ''}
                           onChange={(e) =>
                             setCategoryAmounts((prev) => ({

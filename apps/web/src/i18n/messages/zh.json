@@ -42,7 +42,7 @@
     "successTitle": "成功",
     "warningTitle": "警告",
     "infoTitle": "提示",
-    "pendingOfflineLogout": "尚有待同步支出或未處理草稿。登出將移除這台裝置保存的輸入，確定登出？",
+    "pendingOfflineLogout": "尚有待同步支出或未確認結果。登出會暫停送出並保留原操作，回到同帳號後可查詢恢復。確定登出？",
     "queryOfflineCached": "目前離線，顯示已保存的資料。",
     "queryOfflineMissing": "目前離線，這份資料尚未保存在裝置上。恢復連線後會重新載入。",
     "shareLink": "分享連結"
@@ -334,7 +334,7 @@
       "formDescription": "輸入金額，並確認付款人與分帳方式。",
       "amount": "金額",
       "currency": "幣別",
-      "exchangeRate": "匯率 (換算為 TWD)",
+      "exchangeRate": "匯率（換算至帳本基準幣別）",
       "description": "描述",
       "descriptionPlaceholder": "例：午餐、交通費、飯店住宿",
       "ai": {
@@ -387,7 +387,7 @@
       "payer": "付款人",
       "payerPlaceholder": "選擇付款人",
       "refreshRate": "重新取得匯率",
-      "rateEquation": "1 {currency} = {rate} TWD",
+      "rateEquation": "1 {currency} = {rate} {baseCurrency}",
       "referenceRateDate": "Frankfurter 每日參考匯率 · 資料日期 {date}（非即時成交價）",
       "itineraryDay": "關聯行程日",
       "itineraryDaysHint": "可複選；跨夜的支出選多天會自動平均分攤到每日花費",
@@ -635,7 +635,7 @@
     "paymentHistoryEmpty": "尚無轉帳紀錄",
     "paymentHistoryNoExpenses": "尚無轉帳紀錄。出發前先轉給旅伴的訂金或代墊款，也可以先登記。",
     "paymentRecorded": "已登記轉帳",
-    "amountLabel": "金額（TWD）",
+    "amountLabel": "金額",
     "noteLabel": "備註（選填）",
     "notePlaceholder": "例如：現金、轉帳…",
     "selectMember": "選擇成員",
@@ -697,7 +697,7 @@
     },
     "dialog": {
       "title": "設定我的預算",
-      "description": "預算以新台幣計算，實際花費依每筆支出分攤給你的金額統計。",
+      "description": "預算使用帳本基準幣別，實際花費依每筆支出的本人分攤累計。",
       "private": "只有你看得到這份預算",
       "totalLabel": "我的總預算",
       "totalPlaceholder": "例如 30000",
@@ -1025,7 +1025,7 @@
       "addCurrency": "新增幣別",
       "searchPlaceholder": "搜尋幣別（代碼或名稱）",
       "noMatch": "找不到符合的幣別",
-      "empty": "尚未加入幣別——新增支出會使用新台幣。",
+      "empty": "尚未加入常用幣別，新增支出使用帳本基準幣別。",
       "remove": "移除",
       "customRate": "自訂匯率"
     },
@@ -1914,6 +1914,38 @@
       "iosHome": "選擇「加入主畫面」（若未看到，請往下捲動或查看「編輯動作」）。",
       "iosConfirm": "點選「加入」，就能從主畫面開啟旅行記帳。",
       "fallback": "暫時無法開啟安裝視窗，請從瀏覽器選單選擇「安裝應用程式」或「加到主畫面」。"
+    }
+  },
+  "ledger": {
+    "baseCurrency": "帳本基準幣別",
+    "immutable": "建立後固定，所有分攤、還款與預算均使用此幣別。",
+    "precision": "帳本金額以 {currency} 計算，統一保留兩位小數（含 JPY）。",
+    "pendingWrite": "有已確認的操作尚待查明結果，請先恢復後再送出同旅程的下一筆操作。",
+    "recover": "查詢並恢復",
+    "onlineOnly": "此帳本需要連線後送出。",
+    "legacyDraft": "本機保留了舊版未標示帳號的草稿；為避免帶入其他帳號，本版不自動恢復。",
+    "rateEquation": "1 {currency} = {rate} {baseCurrency}",
+    "budgetDescription": "預算使用帳本基準幣別，實際花費依每筆支出的本人分攤累計。",
+    "emptyCurrencies": "尚未加入常用幣別，新增支出使用帳本基準幣別。",
+    "reload": "重新載入設定",
+    "amount": "金額",
+    "wait": "伺服器要求暫停送出。等待期限結束後，請補查原操作。",
+    "storageInvalid": "無法讀取已確認操作的本機紀錄。請保留瀏覽器資料，修復儲存後再補查。",
+    "writeUnknown": "操作結果仍未確認。請保留此紀錄，稍後補查原操作。",
+    "RESOURCE_CHANGED": "資料已被其他人修改，請重新讀取並再次確認。",
+    "SETTLEMENT_CHANGED": "結算已變更，請重新讀取並再次確認。",
+    "LEDGER_CURRENCY_MISMATCH": "帳本幣別不一致，請重新讀取旅程。",
+    "CLIENT_UPGRADE_REQUIRED": "請更新應用程式後再開啟此旅程。",
+    "BUSY": "伺服器暫時忙碌，請等待後補查原操作。",
+    "operations": {
+      "trip_create": "建立旅行",
+      "trip_join": "加入旅行",
+      "expense_update": "修改支出",
+      "expense_delete": "刪除支出",
+      "payment_create": "登記還款",
+      "payment_delete": "撤銷還款",
+      "budget_set": "設定預算",
+      "currency_set": "設定記帳幣別"
     }
   }
 }

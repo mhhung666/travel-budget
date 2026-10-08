@@ -106,7 +106,12 @@ export function createExpensePushPrepare(
       actorName: event.actorName,
       tripHashCode: event.tripHashCode,
       tripName: event.tripName,
-      meta: { expense_id: event.expenseId, description: event.description, amount: event.amount },
+      meta: {
+        expense_id: event.expenseId,
+        description: event.description,
+        amount: event.amount,
+        baseCurrency: event.baseCurrency ?? 'TWD',
+      },
       appUrl: config.appUrl?.replace(/\/+$/, '') || null,
     });
     // Capture primitive values once for both HTTP and compare-and-delete, never a mutable DB object.

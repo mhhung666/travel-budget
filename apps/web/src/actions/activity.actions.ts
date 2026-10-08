@@ -3,7 +3,7 @@
 import { dbConnect } from '@/lib/mongodb';
 import { ActivityLog } from '@/models';
 import { getTripMembership } from '@/lib/permissions';
-import { withAuth } from './withAuth';
+import { withLedgerAuth as withAuth } from './withAuth';
 import type { ActionResult } from './types';
 import type { ActivityLogItem } from '@/types';
 import { logger } from '@/lib/logger';

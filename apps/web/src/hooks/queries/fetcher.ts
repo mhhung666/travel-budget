@@ -1,8 +1,9 @@
+import { requireWebLedger } from '@/lib/webLedger';
 import { ActionQueryError } from '@/lib/actionQuery';
 import type { ActionResult } from '@/actions';
 
 interface PublicEndpoint {
-  /** Path relative to /api/public/trips/{tripId}/, e.g. '' for trip, 'itinerary' */
+  /** Path relative to /api/public/v2/trips/{tripId}/, e.g. '' for trip, 'itinerary' */
   path: string;
   /**
    * Key in the public JSON response holding the data, e.g. 'itinerary'.
@@ -19,17 +20,21 @@ const accessModeByTrip = new Map<string, Promise<AccessMode>>();
 const resolvedAt = new Map<string, number>();
 
 async function fetchPublic<T>(tripId: string, endpoint: PublicEndpoint, defaultValue: T) {
-  const path = `/api/public/trips/${tripId}/${endpoint.path}`;
+  const monetary = ['', 'shell', 'landing', 'expenses', 'settlement', 'stats'].includes(
+    endpoint.path.split('?')[0]
+  );
+  const path = `/api/public/v2/trips/${tripId}/${endpoint.path}`;
   // A nonce also defeats offline fallback in older SWs that do not honor no-store.
-  const res = endpoint.fresh
-    ? await fetch(`${path}${path.includes('?') ? '&' : '?'}_fresh=${crypto.randomUUID()}`, {
-        cache: 'no-store',
-      })
-    : await fetch(path);
+  const res =
+    endpoint.fresh || monetary
+      ? await fetch(`${path}${path.includes('?') ? '&' : '?'}_fresh=${crypto.randomUUID()}`, {
+          cache: 'no-store',
+        })
+      : await fetch(path);
   if (!res.ok) throw new Error(`Failed to load (${res.status})`);
   const json = await res.json();
   const value = endpoint.responseKey ? json[endpoint.responseKey] : json;
-  return (value ?? defaultValue) as T;
+  return monetary ? requireWebLedger((value ?? defaultValue) as T) : ((value ?? defaultValue) as T);
 }
 
 /** Test/logout utility; normal sessions are isolated by the hard navigation on auth changes. */
@@ -98,7 +103,11 @@ export async function fetchWithPublicFallback<T>(
   if (result.success) {
     resolveMode?.('member');
     if (stillCurrent()) resolvedAt.set(tripId, Date.now());
-    return result.data;
+    return ['', 'shell', 'landing', 'expenses', 'settlement', 'stats'].includes(
+      publicEndpoint.path.split('?')[0]
+    )
+      ? requireWebLedger(result.data)
+      : result.data;
   }
 
   if (

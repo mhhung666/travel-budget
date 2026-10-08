@@ -15,7 +15,7 @@ import {
   type CreateStayRecordInput,
 } from '@/lib/validation';
 import { HOTEL_BRAND_IDS } from '@/constants/hotelBrands';
-import { withAuth } from './withAuth';
+import { withLedgerAuth as withAuth } from './withAuth';
 import type { ActionResult } from './types';
 import type {
   CollectionsData,

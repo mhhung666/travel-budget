@@ -1,4 +1,4 @@
-import { ledgerRevision } from './ledger';
+import { ledgerRevision, currentLedger } from './ledger';
 import type { LedgerMutationRequest } from '@travel-budget/contracts';
 import {
   parseLedgerInput,
@@ -67,7 +67,7 @@ export interface PaymentDelivery {
   tripHashCode: string;
   tripName: string;
   actorName: string;
-  meta: { payment_id: string; amount: number };
+  meta: { payment_id: string; amount: number; baseCurrency?: string };
 }
 type Terminal = Exclude<MutationRequest | LedgerMutationRequest, { status: 'not_found' }>;
 interface Receipt {
@@ -213,6 +213,28 @@ export function readPaymentContext(
     async (session) => (await snapshot(db, session, tripId, secret)).context
   );
 }
+export function readWebPaymentContext(
+  db: mongo.Db,
+  actorId: string,
+  tripId: string,
+  secret: string
+) {
+  return withTripWriteInDatabase(db, tripId, actorId, async (session) => {
+    const state = await snapshot(db, session, tripId, secret);
+    return {
+      ...state.settlement,
+      ledger: currentLedger(),
+      settlementRevision: state.context.settlementRevision,
+      paymentRevisions: Object.fromEntries(
+        state.payments.map((p) => [p._id.toString(), paymentRevision(secret, tripId, p)])
+      ),
+      transactions: state.settlement.transactions.map((t, i) => ({
+        ...t,
+        ...state.settlement.transfers[i],
+      })),
+    };
+  });
+}
 export function readPaymentRevokeContext(
   db: mongo.Db,
   actorId: string,
@@ -309,7 +331,11 @@ export async function writePayment(
               createdAt: raw.createdAt.toISOString(),
             };
             const actorName = state.byId.get(actorId)?.displayName ?? '';
-            const meta = { payment_id: payment.id, amount: payment.amount };
+            const meta = {
+              payment_id: payment.id,
+              amount: payment.amount,
+              baseCurrency: ledgerStamp().baseCurrency,
+            };
             const common = {
               trip: state.trip._id,
               actor: new mongo.ObjectId(actorId),

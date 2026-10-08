@@ -1,5 +1,7 @@
 'use client';
 
+import { rebaseReferenceRates } from '@/lib/referenceRateMath';
+import { getAllCurrencyCodes } from '@/constants/currencies';
 import { useQuery } from '@tanstack/react-query';
 
 /**
@@ -9,9 +11,9 @@ import { useQuery } from '@tanstack/react-query';
  * a long staleTime avoids refetching on every settlement view. Always includes
  * a TWD: 1 base so consumers have a usable default before/if the fetch fails.
  */
-export function useExchangeRates() {
+export function useExchangeRates(baseCurrency = 'TWD') {
   const query = useQuery({
-    queryKey: ['exchangeRates', 'frankfurter'],
+    queryKey: ['exchangeRates', 'frankfurter', baseCurrency],
     queryFn: async (): Promise<{
       rates: Record<string, number>;
       dates: Record<string, string>;
@@ -19,11 +21,16 @@ export function useExchangeRates() {
       const res = await fetch('/api/exchange-rates');
       if (!res.ok) throw new Error('Failed to load exchange rates');
       const data = await res.json();
-      if (data.success && data.rates) return { rates: data.rates, dates: data.dates ?? {} };
+      if (data.success && data.rates)
+        return rebaseReferenceRates(
+          { rates: data.rates, dates: data.dates ?? {}, provider: 'Frankfurter' },
+          baseCurrency,
+          getAllCurrencyCodes()
+        );
       throw new Error('Failed to load exchange rates');
     },
     staleTime: 15 * 60_000,
-    placeholderData: { rates: { TWD: 1 }, dates: {} },
+    placeholderData: { rates: { [baseCurrency]: 1 }, dates: {} },
   });
   return { ...query, data: query.data?.rates, rateDates: query.data?.dates ?? {} };
 }

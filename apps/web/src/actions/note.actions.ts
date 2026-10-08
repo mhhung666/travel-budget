@@ -25,7 +25,7 @@ import {
 import type { ActionResult } from './types';
 import type { TripNote } from '@/types';
 import { summarizeNote } from '@/lib/noteMarkdown';
-import { withAuth } from './withAuth';
+import { withLedgerAuth as withAuth } from './withAuth';
 import { logger } from '@/lib/logger';
 import { toTripNoteDto, type TripNoteDtoInput } from '@/lib/dto';
 import { isNoteKeyForTrip, NOTE_CONTENT_TYPES, MAX_NOTE_BYTES } from '@/lib/uploads';

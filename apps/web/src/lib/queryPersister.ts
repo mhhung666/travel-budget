@@ -30,7 +30,7 @@ const LEGACY_IDB_KEY = 'travel-budget-rq-cache';
 const IDB_KEY_PREFIX = `${LEGACY_IDB_KEY}:`;
 
 /** Cache-shape version. Bump to invalidate every client's persisted cache. */
-export const PERSIST_BUSTER = 'v13';
+export const PERSIST_BUSTER = 'v14-ledger';
 
 /** 7 days: long enough to cover a trip offline, short enough to self-clean. */
 export const PERSIST_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
@@ -83,7 +83,7 @@ export function createQueryPersister(cacheScope: string) {
     stop: () => {
       active = false;
     },
-    // Cache expiry/restore failures may call removeClient; only explicit logout clears the journal.
+    // Read-cache expiry and logout do not delete unresolved UUIDs from the independent journal.
     removeClient: cache.removeClient,
     restoreClient: async () => {
       let saved;
@@ -160,6 +160,16 @@ export function createQueryPersister(cacheScope: string) {
         );
         const pending = projections.filter((entry) => entry.status === 'pending');
         let base = query.state.data as ProjectedExpenseShell;
+        // Another tab may have last persisted an older server summary. A durable
+        // submission captured after that snapshot supplies the newer baseline.
+        const earliest = [...projections].sort((a, b) => a.createdAt - b.createdAt)[0];
+        const recoveredBase =
+          !base.expenseProjection &&
+          earliest &&
+          saved!.timestamp < earliest.createdAt &&
+          (base.ledger?.baseCurrency ?? 'TWD') ===
+            (earliest.context!.previousShell!.ledger?.baseCurrency ?? 'TWD');
+        if (recoveredBase) base = earliest.context!.previousShell!;
         if (base.expenseProjection) {
           const { base: serverBase, contributions } = base.expenseProjection;
           const retained = { ...contributions };
@@ -192,6 +202,7 @@ export function createQueryPersister(cacheScope: string) {
           base = projection.previousShell!;
         }
         if (
+          recoveredBase ||
           unwound.size ||
           pending.some(
             (entry) =>

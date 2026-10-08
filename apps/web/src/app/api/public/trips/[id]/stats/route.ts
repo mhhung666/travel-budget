@@ -1,3 +1,4 @@
+import { currentLedger, isLedgerV2 } from '@/lib/ledger';
 import { NextResponse } from 'next/server';
 import { Trip, Expense, ItineraryDay } from '@/models';
 import { computeTripStats } from '@/lib/tripStats';
@@ -33,7 +34,10 @@ export const GET = withPublicTrip(
       range,
       days: mappedDays,
     } = toTripStatsInputs(trip, expenses, days);
-    return NextResponse.json(computeTripStats(mapped, members, range, mappedDays));
+    return NextResponse.json({
+      ...computeTripStats(mapped, members, range, mappedDays),
+      ...(isLedgerV2() ? { ledger: currentLedger() } : {}),
+    });
   },
   { logLabel: 'Get public trip stats error' }
 );

@@ -1,4 +1,5 @@
 'use client';
+import { useLedgerCurrency } from '@/components/trips/space/LedgerCurrency';
 
 import { useLocale, useTranslations } from 'next-intl';
 import type { Balance } from '@/types';
@@ -24,9 +25,10 @@ export default function SettlementSummary({
   myBalance,
   hasMyPayments = false,
 }: SettlementSummaryProps) {
+  const baseCurrency = useLedgerCurrency();
   const t = useTranslations('settlement');
   const locale = useLocale();
-  const money = (amount: number) => formatCurrency(amount, 'TWD', locale);
+  const money = (amount: number) => formatCurrency(amount, baseCurrency, locale);
 
   if (!myBalance) {
     return (

@@ -2,7 +2,7 @@
 
 import mongoose from 'mongoose';
 import { after } from 'next/server';
-import { withAuth } from './withAuth';
+import { withLedgerAuth as withAuth } from './withAuth';
 import type { ActionResult } from './types';
 import { getTripMembership } from '@/lib/permissions';
 import { Photo, Trip } from '@/models';

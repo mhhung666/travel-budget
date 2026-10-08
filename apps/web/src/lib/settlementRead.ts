@@ -1,4 +1,4 @@
-import { authorizeLedger, assertUnit, moneyTotal } from './ledger';
+import { authorizeLedger, assertUnit, moneyTotal, isLedgerV2, currentLedger } from './ledger';
 import { Trip, Expense, Payment, User } from '@/models';
 import { calculateSettlement, applyPayments } from '@/lib/settlement';
 import { roundMoney, normalizeShares } from '@/lib/money';
@@ -37,7 +37,13 @@ export async function readSettlement(
     ledgerTrip
   );
   // 只回傳原有欄位：公開結算路由直接序列化這個結果。
-  return { balances, transactions, payments, totalExpenses };
+  return {
+    ...(isLedgerV2() ? { ledger: currentLedger() } : {}),
+    balances,
+    transactions,
+    payments,
+    totalExpenses,
+  };
 }
 
 /** Authorized Web members retain the identities already used by the mobile settlement view. */
@@ -45,6 +51,7 @@ export async function readMemberSettlement(tripId: string): Promise<Settlement> 
   const { transfers, balances, transactions, payments, totalExpenses } =
     await readSettlementDetail(tripId);
   return {
+    ...(isLedgerV2() ? { ledger: currentLedger() } : {}),
     balances,
     payments,
     totalExpenses,

@@ -2,7 +2,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { usePathname } from '@/i18n/navigation';
 import { useAuthenticatedSession } from '@/components/providers/QueryProvider';
-import { getTripLanding } from '@/actions/tripLanding.actions';
+import { getLedgerTripLanding as getTripLanding } from '@/actions/tripLanding.actions';
 import type { TripLanding } from '@/types/tripLanding';
 import { fetchWithPublicFallback } from './fetcher';
 import { bootstrapLanding } from './landingBootstrap';

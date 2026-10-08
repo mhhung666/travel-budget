@@ -1,3 +1,6 @@
+vi.mock('@/lib/env', () => ({
+  getEnv: () => ({ JWT_SECRET: 'b2-unit-tests-only-secret-32-characters' }),
+}));
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Cookie adapter delegates to the shared per-member transaction service.

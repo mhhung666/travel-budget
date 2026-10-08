@@ -1,4 +1,4 @@
-/** 支出表單支援的原幣選項（基準幣一律 TWD，見 lib/expenseSplit）。 */
+/** 支出表單支援的原幣選項（基準由旅程固定，見 lib/expenseSplit）。 */
 export const CURRENCY_OPTIONS = [
   { code: 'TWD', label: 'TWD' },
   { code: 'JPY', label: 'JPY' },

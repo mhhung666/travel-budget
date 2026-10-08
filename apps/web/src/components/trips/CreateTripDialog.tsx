@@ -1,11 +1,14 @@
 'use client';
+import { ledgerErrorMessage } from '@/lib/ledgerErrorMessage';
 import { QueryStatus } from '@/components/common/QueryStatus';
 
+import { confirmWebWrite } from '@/lib/confirmedWebWrites';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ChevronDown, Loader2 } from 'lucide-react';
 import LocationAutocomplete, { LocationOption } from '@/components/location/LocationAutocomplete';
-import { createTrip, addFriendsToTrip } from '@/actions';
+import { addFriendsToTrip, getLedgerCapabilities } from '@/actions';
 import { useFriends } from '@/hooks/queries';
 import type { Trip } from '@/types';
 
@@ -32,6 +35,18 @@ const FORM_ID = 'create-trip-form';
 
 export default function CreateTripDialog({ open, onClose, onSuccess }: CreateTripDialogProps) {
   const t = useTranslations('trips');
+  const tLedger = useTranslations('ledger');
+  const client = useQueryClient();
+  const [baseCurrency, setBaseCurrency] = useState('TWD');
+  const capabilities = useQuery({
+    queryKey: ['ledgerCapabilities'],
+    enabled: open,
+    queryFn: async () => {
+      const r = await getLedgerCapabilities();
+      if (!r.success) throw new Error(r.error);
+      return r.data;
+    },
+  });
   const tCommon = useTranslations('common');
 
   const [formData, setFormData] = useState({
@@ -63,6 +78,7 @@ export default function CreateTripDialog({ open, onClose, onSuccess }: CreateTri
   };
 
   const resetForm = () => {
+    setBaseCurrency('TWD');
     setDraftRetained(false);
     setError('');
     setFormData({ name: '', description: '', start_date: '', end_date: '' });
@@ -91,18 +107,18 @@ export default function CreateTripDialog({ open, onClose, onSuccess }: CreateTri
     setSubmitting(true);
 
     try {
-      const result = await createTrip({
-        ...formData,
-        start_date: formData.start_date || null,
-        end_date: formData.end_date || null,
-        destination_location: destinationLocation || null,
-      });
-
-      if (!result.success) {
-        throw new Error(result.error);
-      }
-
-      const createdTrip = result.data;
+      const result = (await confirmWebWrite(client, {
+        operation: 'trip.create',
+        body: {
+          client_request_id: crypto.randomUUID(),
+          base_currency: baseCurrency,
+          ...formData,
+          start_date: formData.start_date || null,
+          end_date: formData.end_date || null,
+        },
+        destination: destinationLocation || null,
+      })) as Pick<Trip, 'id'>;
+      const createdTrip = result;
       trackProductEvent('activation_step', { step: 'trip_created' });
 
       // 建立成功後，把勾選的好友直接加入新旅程（best-effort：即使失敗旅程仍已建立，
@@ -167,7 +183,7 @@ export default function CreateTripDialog({ open, onClose, onSuccess }: CreateTri
         {error && (
           <Alert variant="destructive">
             <AlertTitle>{tCommon('errorTitle')}</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
+            <AlertDescription>{ledgerErrorMessage(error, tLedger)}</AlertDescription>
           </Alert>
         )}
 
@@ -183,6 +199,24 @@ export default function CreateTripDialog({ open, onClose, onSuccess }: CreateTri
           />
         </div>
 
+        <div className="space-y-2">
+          <Label htmlFor="trip-base">{tLedger('baseCurrency')}</Label>
+          <select
+            id="trip-base"
+            value={baseCurrency}
+            disabled={submitting}
+            onChange={(e) => setBaseCurrency(e.target.value)}
+          >
+            {(capabilities.data?.nonTwdCreationEnabled
+              ? capabilities.data.supportedBaseCurrencies
+              : ['TWD']
+            ).map((c) => (
+              <option key={c}>{c}</option>
+            ))}
+          </select>
+          <p className="text-xs text-muted-foreground">{tLedger('immutable')}</p>
+          <QueryStatus query={capabilities} />
+        </div>
         <LocationAutocomplete
           value={destinationLocation}
           onChange={setDestinationLocation}

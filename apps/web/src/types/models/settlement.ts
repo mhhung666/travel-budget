@@ -1,3 +1,4 @@
+import type { Ledger } from '@travel-budget/contracts';
 /**
  * 用戶餘額狀態
  */
@@ -61,6 +62,7 @@ export interface Transaction {
  * 金額一律基準幣 TWD，與 balances / transactions 同單位，結算時淨額抵銷。
  */
 export interface PaymentRecord {
+  ledger?: Ledger;
   id: string;
   fromId: string;
   fromName: string;
@@ -75,6 +77,9 @@ export interface PaymentRecord {
  * 結算結果（含淨額後的餘額、建議轉帳、已登記還款）。
  */
 export interface Settlement {
+  settlementRevision?: string;
+  paymentRevisions?: Record<string, string>;
+  ledger?: Ledger;
   balances: Balance[];
   transactions: Transaction[];
   payments: PaymentRecord[];
