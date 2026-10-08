@@ -30,6 +30,7 @@ import {
   expenseEditContextSchema,
   expenseMutationResultSchema,
   tripMembersSchema,
+  tripAccessContextSchema, tripAccessResultSchema, memberClaimInvitationSchema,
   memberMutationResultSchema,
   mutationRequestSchema,
 } from '@travel-budget/contracts';
@@ -1954,13 +1955,13 @@ try {
   // Lose acknowledgements for both operations and resolve their durable UUID receipts.
   const e4Lost = { ...e4Body, client_request_id: randomUUID(), expected_revision: (await e4Context()).settlementRevision,
     from_id: writerId, to_id: virtualId, amount: 0.01, note: 'manual external payment' };
-  const e4SocketWrite = async (method, path, body) => {
+  const e4SocketWrite = async (method, path, body, token = writerSession.accessToken, accountId = writerId) => {
     const socket = connect(port, '127.0.0.1'); socket.on('error', () => {}); await once(socket, 'connect');
     const text = JSON.stringify(body);
-    socket.write(`${method} /api/v1${path} HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\nAuthorization: Bearer ${writerSession.accessToken}\r\nContent-Type: application/json\r\nContent-Length: ${Buffer.byteLength(text)}\r\nConnection: close\r\n\r\n${text}`);
-    await eventually(async () => (await db.collection('mutationrequests').countDocuments({ _id: `${writerId}:${body.client_request_id}` })) === 1, 'E4 lost response did not commit', 20000);
+    socket.write(`${method} /api/v1${path} HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\nAuthorization: Bearer ${token}\r\nContent-Type: application/json\r\nContent-Length: ${Buffer.byteLength(text)}\r\nConnection: close\r\n\r\n${text}`);
+    await eventually(async () => (await db.collection('mutationrequests').countDocuments({ _id: `${accountId}:${body.client_request_id}` })) === 1, 'E4 lost response did not commit', 20000);
     socket.destroy();
-    return (await request(`/mutation-requests/${body.client_request_id}`, { token: writerSession.accessToken, schema: mutationRequestSchema })).data;
+    return (await request(`/mutation-requests/${body.client_request_id}`, { token, schema: mutationRequestSchema })).data;
   };
   const e4LostResult = await e4SocketWrite('POST', e4Path, e4Lost);
   assert.deepEqual(await e4Post(e4Lost), e4LostResult.result);
@@ -2108,6 +2109,51 @@ try {
   pass(
     'G1b: authorized roster, strict virtual creation/rename, dropped responses, UUID replay, one user/member, role loss and revoked receipt access'
   );
+
+  // G1c uses its own disposable trip. A successful exit receipt is deliberately readable
+  // after membership loss, while every roster/ledger/other receipt remains denied.
+  const g1cTrip = new mongoose.Types.ObjectId(), g1cVirtual = new mongoose.Types.ObjectId();
+  const g1cPath = `/trips/${g1cTrip}/access`, g1cMembers = `/trips/${g1cTrip}/members`;
+  await db.collection('users').insertOne({ _id: g1cVirtual, username: `virtual_${g1cVirtual}`, displayName: 'G1c virtual', isVirtual: true, email: `g1c_${g1cVirtual}@virtual.local`, password: 'fixture' });
+  await db.collection('trips').insertOne({ _id: g1cTrip, name: 'TEST G1c', hashCode: 'g1c-fixture', members: [{ user: writer._id, role: 'admin' }, { user: writerPeer._id, role: 'member' }, { user: g1cVirtual, role: 'member' }] });
+  await db.collection('expenses').insertOne({ trip: g1cTrip, payer: g1cVirtual, amount: 12.34, splits: [{ user: g1cVirtual, shareAmount: 12.34 }] });
+  await db.collection('payments').insertOne({ trip: g1cTrip, from: writer._id, to: g1cVirtual, amount: 1.23 });
+  const g1cRead = async (token = writerSession.accessToken) => (await request(g1cPath, { token, schema: tripAccessContextSchema })).data;
+  const g1cOriginal = await g1cRead();
+  assert(!/username|email|password|budget|hashCode/.test(JSON.stringify(g1cOriginal)));
+  assert.equal(g1cOriginal.canLeave, false);
+  assert.equal(g1cOriginal.expenseCount, 1);
+  const g1cClaim = (await request(`${g1cMembers}/${g1cVirtual}/claim-invitation`, { token: writerSession.accessToken, schema: memberClaimInvitationSchema })).data;
+  assert.equal(new URL(g1cClaim.url).pathname, `/link-virtual/g1c-fixture/virtual_${g1cVirtual}`);
+  await request(`${g1cMembers}/${g1cVirtual}/claim-invitation`, { token: peerSession.accessToken, status: 403 });
+  const g1cDelete = { action: 'delete', client_request_id: randomUUID(), expected_revision: g1cOriginal.accessRevision };
+  await request(g1cPath, { token: writerSession.accessToken, body: { ...g1cDelete, role: 'admin' }, status: 400 });
+  await request(g1cPath, { token: peerSession.accessToken, body: { ...g1cDelete, client_request_id: randomUUID() }, status: 403 });
+  const g1cRole = { action: 'role', member_id: peerId, role: 'admin', client_request_id: randomUUID(), expected_revision: (await g1cRead()).accessRevision };
+  await request(g1cPath, { token: writerSession.accessToken, body: g1cRole, schema: tripAccessResultSchema });
+  await request(g1cPath, { token: writerSession.accessToken, body: g1cDelete, status: 409 });
+  const g1cRemove = { action: 'remove', member_id: String(g1cVirtual), client_request_id: randomUUID(), expected_revision: (await g1cRead()).accessRevision };
+  await request(g1cPath, { token: writerSession.accessToken, body: g1cRemove, schema: tripAccessResultSchema });
+  assert.equal(await db.collection('expenses').countDocuments({ trip: g1cTrip, payer: g1cVirtual }), 1);
+  assert.equal(await db.collection('payments').countDocuments({ trip: g1cTrip, to: g1cVirtual }), 1);
+  assert.equal(await db.collection('users').countDocuments({ _id: g1cVirtual }), 1);
+  await request(`${g1cMembers}/${g1cVirtual}/claim-invitation`, { token: writerSession.accessToken, status: 409 });
+  const g1cLeave = { action: 'leave', client_request_id: randomUUID(), expected_revision: (await g1cRead()).accessRevision };
+  const g1cLeft = await e4SocketWrite('POST', g1cPath, g1cLeave);
+  assert.deepEqual(g1cLeft.result, { tripId: String(g1cTrip), action: 'leave', exited: true });
+  assert.deepEqual((await request(g1cPath, { token: writerSession.accessToken, body: g1cLeave, schema: tripAccessResultSchema })).data, g1cLeft.result);
+  await request(g1cPath, { token: writerSession.accessToken, status: 404 });
+  await request(`/mutation-requests/${g1cRole.client_request_id}`, { token: writerSession.accessToken, status: 404 });
+  const g1cDestroy = { action: 'delete', client_request_id: randomUUID(), expected_revision: (await g1cRead(peerSession.accessToken)).accessRevision };
+  const g1cDeleted = await e4SocketWrite('POST', g1cPath, g1cDestroy, peerSession.accessToken, peerId);
+  assert.deepEqual(g1cDeleted.result, { tripId: String(g1cTrip), action: 'delete', exited: true });
+  assert.deepEqual((await request(g1cPath, { token: peerSession.accessToken, body: g1cDestroy, schema: tripAccessResultSchema })).data, g1cDeleted.result);
+  for (const name of ['expenses','payments','trips']) assert.equal(await db.collection(name).countDocuments(name === 'trips' ? { _id: g1cTrip } : { trip: g1cTrip }), 0);
+  assert.equal(await db.collection('tripcleanupjobs').countDocuments({ _id: g1cTrip }), 1);
+  await db.collection('tripcleanupjobs').deleteOne({ _id: g1cTrip });
+  await db.collection('users').deleteOne({ _id: g1cVirtual });
+  await db.collection('mutationrequests').deleteMany({ $or: [{ 'terminal.tripId': String(g1cTrip) }, { 'terminal.result.tripId': String(g1cTrip) }] });
+  pass('G1c: role/removal, preserved accounting, claim capability, last admin, stale deletion, lost leave/delete responses, minimal exit receipt replay');
 
   // Return the trip to its pristine state for device testing.
   for (const name of ['expenses', 'expensecreaterequests', 'payments', 'notifications', 'activitylogs'])

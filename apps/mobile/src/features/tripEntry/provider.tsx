@@ -48,7 +48,9 @@ export function TripEntryProvider({ children }: PropsWithChildren) {
             return await manager.requestAs(userId, path, schema, options);
           } catch (error) {
             const match =
-              /^\/trips\/([^/]+)(?:\/(?:expenses|payments|archive|members)(?:\/|$)|$)/.exec(path);
+              /^\/trips\/([^/]+)(?:\/(?:expenses|payments|archive|members|access)(?:\/|$)|$)/.exec(
+                path
+              );
             if (
               match &&
               error instanceof ApiError &&
@@ -56,6 +58,7 @@ export function TripEntryProvider({ children }: PropsWithChildren) {
               ((error.status === 403 &&
                 !(
                   (path === `/trips/${match[1]}` ||
+                    path === `/trips/${match[1]}/access` ||
                     path.startsWith(`/trips/${match[1]}/members`)) &&
                   error.code === 'FORBIDDEN'
                 )) ||
@@ -67,10 +70,41 @@ export function TripEntryProvider({ children }: PropsWithChildren) {
             throw error;
           }
         },
+        exited: (scope, tripId) => {
+          const hidden = catalog.deny(scope, tripId);
+          void client.cancelQueries({
+            predicate: (q) =>
+              q.queryKey[0] === scope.environment &&
+              q.queryKey[1] === scope.accountId &&
+              q.queryKey.includes(tripId),
+          });
+          return hidden;
+        },
         changed: (scope) => {
           void client.invalidateQueries({ queryKey: keyOf(scope) });
         },
         committed: async (scope, tripId, result) => {
+          if (
+            result.status === 'committed' &&
+            result.operation === 'trip.access' &&
+            'exited' in result.result
+          ) {
+            if (result.result.exited) {
+              // Hide first even when disk cleanup fails. Original receipt recovery is read-only.
+              const hidden = catalog.deny(scope, tripId);
+              await client.cancelQueries({
+                predicate: (q) =>
+                  q.queryKey[0] === scope.environment &&
+                  q.queryKey[1] === scope.accountId &&
+                  q.queryKey.includes(tripId),
+              });
+              await client.invalidateQueries({
+                queryKey: [scope.environment, scope.accountId, 'trips'],
+              });
+              await hidden;
+            } else await refreshManagedTrip(client, manager, catalog, scope, tripId);
+            return;
+          }
           // Normal authorized landing/options reads establish D snapshots, never the join receipt.
           if (
             result.status === 'committed' &&

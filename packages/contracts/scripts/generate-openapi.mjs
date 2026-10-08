@@ -22,6 +22,10 @@ import {
   expenseRequestSchema,
   MAX_EXPENSE_AMOUNT,
   tripMembersSchema,
+  tripAccessContextSchema,
+  tripAccessInput,
+  tripAccessResultSchema,
+  memberClaimInvitationSchema,
   virtualMemberCreateInput,
   virtualMemberRenameInput,
   memberMutationResultSchema,
@@ -50,6 +54,10 @@ const maxAmount = MAX_EXPENSE_AMOUNT.toLocaleString('en-US', { minimumFractionDi
 const schemas = Object.fromEntries(
   Object.entries({
     TripMembers: tripMembersSchema,
+    TripAccessContext: tripAccessContextSchema,
+    TripAccessInput: tripAccessInput,
+    TripAccessResult: tripAccessResultSchema,
+    MemberClaimInvitation: memberClaimInvitationSchema,
     VirtualMemberCreateInput: virtualMemberCreateInput,
     VirtualMemberRenameInput: virtualMemberRenameInput,
     MemberMutationResult: memberMutationResultSchema,
@@ -224,6 +232,31 @@ const paths = {
         errors: [409],
       }),
       parameters: [tripIdParam],
+    },
+  },
+  '/trips/{id}/access': {
+    get: {
+      ...operation('tripAccessContext', 'TripAccessContext'),
+      parameters: [tripIdParam],
+      description:
+        'Member-only current roster and deletion counts; opaque revision includes all deleted records.',
+    },
+    post: {
+      ...operation('manageTripAccess', 'TripAccessResult', 'TripAccessInput', {
+        authenticated: true,
+        errors: [403, 409],
+      }),
+      parameters: [tripIdParam],
+      description:
+        'Admin role/removal/delete, own leave. Fresh revision, one UUID. Only successful leave/delete receipts may be replayed by their original actor after membership loss. No ledger in exit receipts.',
+    },
+  },
+  '/trips/{id}/members/{memberId}/claim-invitation': {
+    get: {
+      ...operation('memberClaimInvitation', 'MemberClaimInvitation'),
+      parameters: [tripIdParam, { name: 'memberId', in: 'path', required: true, schema: objectId }],
+      description:
+        'Admin only. Existing Web claim capability for a current virtual member. Recipient registers or logs in on Web. Share-code rotation revokes the link.',
     },
   },
   '/trips/{id}/members': {

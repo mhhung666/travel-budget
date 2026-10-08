@@ -305,3 +305,45 @@ it('G1b names are bounded and receipts cannot masquerade as another operation', 
     }).success
   ).toBe(false);
 });
+it('G1c inputs preserve role target IDs and reject private fields; exit results match the operation', async () => {
+  const { tripAccessInput, tripAccessResultSchema, mutationRequestSchema } =
+    await import('@travel-budget/contracts');
+  const identity = {
+    client_request_id: '11111111-1111-4111-8111-111111111111',
+    expected_revision: 'a'.repeat(64),
+  };
+  expect(
+    tripAccessInput.parse({
+      ...identity,
+      action: 'role',
+      member_id: 'ABCDEF'.repeat(4),
+      role: 'admin',
+    })
+  ).toMatchObject({ member_id: 'abcdef'.repeat(4) });
+  expect(
+    tripAccessInput.safeParse({
+      ...identity,
+      action: 'remove',
+      member_id: 'b'.repeat(24),
+      password: 'secret',
+    }).success
+  ).toBe(false);
+  expect(
+    tripAccessResultSchema.safeParse({ tripId: 'b'.repeat(24), action: 'role', exited: true })
+      .success
+  ).toBe(false);
+  expect(
+    tripAccessResultSchema.safeParse({ tripId: 'b'.repeat(24), action: 'delete', exited: false })
+      .success
+  ).toBe(false);
+  const receipt = {
+    status: 'committed',
+    operation: 'trip.access',
+    resourceId: 'b'.repeat(24),
+    result: { tripId: 'b'.repeat(24), action: 'delete', exited: true },
+  };
+  expect(mutationRequestSchema.safeParse(receipt).success).toBe(true);
+  expect(mutationRequestSchema.safeParse({ ...receipt, operation: 'trip.create' }).success).toBe(
+    false
+  );
+});

@@ -560,3 +560,60 @@ it('keeps a future retry deadline off a resolved row', () => {
   expect(nodes(row).filter((n) => n.props.label === messages.en.queueRetryAt)).toHaveLength(0);
   expect(h.queue[0].nextAt).toBeGreaterThan(Date.now());
 });
+it.each(['leave', 'delete'] as const)(
+  'hidden %s intent exposes only receipt lookup and no write retry or old trip navigation',
+  async (kind) => {
+    const record: PendingMutation = {
+      ...operation(),
+      tripId: 'trip',
+      operation: 'trip.access',
+      payload: {
+        operation: 'trip.access',
+        tripId: 'trip',
+        body: { action: kind, client_request_id: 'uuid', expected_revision: 'a'.repeat(64) },
+      },
+    };
+    h.operations = [record];
+    h.visible = false;
+    let n = render(OperationsScreen);
+    expect(action(n, 'mutation-check-uuid').disabled).toBe(false);
+    expect(action(n, 'mutation-retry-uuid').disabled).toBe(true);
+    await action(n, 'mutation-check-uuid').onPress();
+    await flush();
+    expect(h.lookup).toHaveBeenCalledWith(scope, 'uuid');
+    record.status = 'completed';
+    record.payload = null;
+    record.result = {
+      status: 'committed',
+      operation: 'trip.access',
+      resourceId: 'trip',
+      result: { tripId: 'trip', action: kind, exited: true },
+    };
+    n = render(OperationsScreen);
+    expect(texts(n)).toContain(messages.en.operationDone);
+    expect(n.some((e) => e.props.testID === 'mutation-open-uuid')).toBe(false);
+    h.account = 'other';
+    expect(render(OperationsScreen).some((e) => e.props.testID === 'operation-uuid')).toBe(false);
+  }
+);
+it('hidden non-exit role/removal receipts still require membership and never display', () => {
+  h.operations = [
+    {
+      ...operation(),
+      tripId: 'trip',
+      operation: 'trip.access',
+      payload: {
+        operation: 'trip.access',
+        tripId: 'trip',
+        body: {
+          action: 'remove',
+          member_id: 'member',
+          client_request_id: 'uuid',
+          expected_revision: 'a'.repeat(64),
+        },
+      },
+    },
+  ];
+  h.visible = false;
+  expect(render(OperationsScreen).some((e) => e.props.testID === 'operation-uuid')).toBe(false);
+});

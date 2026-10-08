@@ -1,6 +1,8 @@
 'use server';
 
 import { withTripWrite, TripWriteError } from '@/lib/tripWriteTransaction';
+import { changeRoleForActor } from '@/lib/tripAccess';
+import { TripEntryError } from '@/lib/tripEntry';
 import { createVirtualMemberForActor } from '@/lib/memberManagement';
 import mongoose, { isValidObjectId } from 'mongoose';
 import { removeTripMember, MemberRemovalError } from '@/lib/memberRemoval';
@@ -261,27 +263,30 @@ export const updateMemberRole = withAuth(
         return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
       }
 
-      await withTripWrite(
+      if (!isValidObjectId(targetUserId) || !['admin', 'member'].includes(newRole))
+        return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
+      await changeRoleForActor(
+        mongoose.connection.db!,
         membership.tripId,
         session.userId,
-        async (transactionSession) => {
-          const result = await Trip.updateOne(
-            { _id: membership.tripId, 'members.user': targetUserId },
-            { $set: { 'members.$.role': newRole } },
-            { session: transactionSession }
-          );
-
-          if (result.matchedCount === 0) {
-            throw new TripWriteError('NOT_FOUND');
-          }
-        },
-        'admin'
+        targetUserId,
+        newRole
       );
-      revalidatePath(`/trips/${tripIdOrCode}`);
+      try {
+        revalidatePath(`/trips/${membership.tripId}`);
+      } catch (error) {
+        logger.error('Role cache refresh failed after commit', error);
+      }
       return { success: true, data: { message: '角色已更新' } };
     } catch (error) {
       if (error instanceof TripWriteError)
         return { success: false, error: error.code, code: error.code };
+      if (error instanceof TripEntryError)
+        return {
+          success: false,
+          error: error.code,
+          code: error.code === 'VALIDATION_ERROR' ? 'VALIDATION_ERROR' : 'NOT_FOUND',
+        };
       logger.error('Update member role error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
@@ -320,7 +325,11 @@ export const removeMember = withAuth(
         targetId: targetUserId,
       });
 
-      revalidatePath(`/trips/${tripIdOrCode}`);
+      try {
+        revalidatePath(`/trips/${membership.tripId}`);
+      } catch (error) {
+        logger.error('Removal cache refresh failed after commit', error);
+      }
       return {
         success: true,
         data: {

@@ -169,3 +169,7 @@ E3 成功只存最小 receipt 結果並刷新資源，刪除明細不再重讀�
 ## G1b 成員管理
 
 `TripMembersScreen` 由環境／帳號／旅行／恢復來源重新掛載，線上讀全名冊、核對 revision 後確認建立／更名；未確認輸入不落盤。沿用 TripEntry／mutationPayload 的 member.create／member.rename 與 schema 8 操作表，pending 互斥、固定 UUID、429 及撤權世代不另造機制。管理員拒絕不當作失去成員資格，原結果仍可查；對象不再虛擬需取消更名。成功只讀刷新沿用 managementRefresh，取消舊 options 請求後發布授權新名冊至共用 label Query 與 D 快照，避免晚到舊資料覆蓋現名／旗標。結算歷史旗標由後端原參照提供，public 結算仍使用原白名單；契約見 [G1b](BACKEND_CONTRACT.md#g1b-成員與虛擬成員)。
+
+## G1c 存取管理
+
+`TripAccessScreen` 掛在名冊管理入口，依環境／帳號／旅行重新掛載，讀 context／重新選擇／明確確認，再交同一 TripEntry 的 trip.access 操作。角色與移除只讀刷新；成功退出／刪除先隱藏記憶體入口，等待已排入 catalog 的舊快照保存完成後，SQLite `complete` 與 draft_trip denied 同交易提交，再取消旅行讀取並刷新列表。原結果恢復只對 leave／delete 意圖放行帳號範圍的 receipt，從不放行隱藏旅行的寫入；成功後操作列表不再導航至舊旅行，其他撤權資料仍隱藏。即使丟回應、退出後重啟或本機結案失敗，都保留原 UUID。認領入口只讀授權 URL，由使用者複製／系統分享到既有 Web 認領流程。契約及限制見 [G1c](BACKEND_CONTRACT.md#g1c-權限與危險操作)。

@@ -36,6 +36,21 @@ function ScopedOperationsScreen() {
     manager.api.baseUrl === scope.environment;
   const visible = (record: PendingMutation) =>
     current() && operationRecordVisible(record, scope, catalog);
+  const accessTitle = (record: PendingMutation) => {
+    const action =
+      record.payload?.operation === 'trip.access'
+        ? record.payload.body.action
+        : record.result?.status === 'committed' && 'action' in record.result.result
+          ? record.result.result.action
+          : undefined;
+    return action === 'delete'
+      ? t.deleteTrip
+      : action === 'leave'
+        ? t.leaveTrip
+        : action === 'remove'
+          ? t.removeMember
+          : t.tripAccess;
+  };
   const items = records.isError || records.isPending ? undefined : records.data?.filter(visible);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -117,25 +132,27 @@ function ScopedOperationsScreen() {
                 : t.recoveryRejected
           }
           title={
-            record.operation === 'member.create'
-              ? t.addVirtualMember
-              : record.operation === 'member.rename'
-                ? t.renameVirtualMember
-                : record.operation === 'trip.create'
-                  ? t.createTrip
-                  : record.operation === 'trip.update'
-                    ? t.tripSettings
-                    : record.operation === 'trip.archive'
-                      ? t.personalArchive
-                      : record.operation === 'trip.join'
-                        ? t.joinTrip
-                        : record.operation === 'expense.update'
-                          ? t.editExpense
-                          : record.operation === 'expense.delete'
-                            ? t.deleteExpense
-                            : record.operation === 'payment.create'
-                              ? t.recordPayment
-                              : t.revokePayment
+            record.operation === 'trip.access'
+              ? accessTitle(record)
+              : record.operation === 'member.create'
+                ? t.addVirtualMember
+                : record.operation === 'member.rename'
+                  ? t.renameVirtualMember
+                  : record.operation === 'trip.create'
+                    ? t.createTrip
+                    : record.operation === 'trip.update'
+                      ? t.tripSettings
+                      : record.operation === 'trip.archive'
+                        ? t.personalArchive
+                        : record.operation === 'trip.join'
+                          ? t.joinTrip
+                          : record.operation === 'expense.update'
+                            ? t.editExpense
+                            : record.operation === 'expense.delete'
+                              ? t.deleteExpense
+                              : record.operation === 'payment.create'
+                                ? t.recordPayment
+                                : t.revokePayment
           }
         >
           <DetailRow label={t.requestId} value={record.clientRequestId} />
@@ -167,6 +184,7 @@ function ScopedOperationsScreen() {
                   status !== 'signedIn' ||
                   busy ||
                   record.conflict ||
+                  (!!record.tripId && !catalog.isVisible(record, record.tripId)) ||
                   deadline.isPending ||
                   deadline.isError ||
                   deadline.waiting
@@ -182,34 +200,52 @@ function ScopedOperationsScreen() {
               >
                 {record.result?.status === 'committed'
                   ? t.operationDone
-                  : record.operation.startsWith('member.')
+                  : record.operation === 'trip.access'
                     ? t.membersChanged
-                    : record.operation === 'trip.update' || record.operation === 'trip.archive'
-                      ? t.tripSettingsChanged
-                      : record.operation.startsWith('payment.')
-                        ? t.paymentChanged
-                        : record.operation.startsWith('expense.')
-                          ? t.expenseChanged
-                          : record.operation === 'trip.join'
-                            ? t.operationRejected
-                            : t.recoveryRejected}
+                    : record.operation.startsWith('member.')
+                      ? t.membersChanged
+                      : record.operation === 'trip.update' || record.operation === 'trip.archive'
+                        ? t.tripSettingsChanged
+                        : record.operation.startsWith('payment.')
+                          ? t.paymentChanged
+                          : record.operation.startsWith('expense.')
+                            ? t.expenseChanged
+                            : record.operation === 'trip.join'
+                              ? t.operationRejected
+                              : t.recoveryRejected}
               </Notice>
-              {record.result?.status === 'committed' && (
-                <Action
-                  testID={`mutation-open-${record.clientRequestId}`}
-                  label={t.openTrip}
-                  onPress={() => {
-                    if (!visible(record)) return;
-                    router.push({
-                      pathname: '/trips/[id]',
-                      params: {
-                        id:
-                          record.result!.status === 'committed' ? record.result!.result.tripId : '',
-                      },
-                    });
-                  }}
-                />
-              )}
+              {record.result?.status === 'committed' &&
+                !('exited' in record.result.result && record.result.result.exited) && (
+                  <Action
+                    testID={`mutation-open-${record.clientRequestId}`}
+                    label={t.openTrip}
+                    onPress={() => {
+                      if (!visible(record)) return;
+                      router.push({
+                        pathname: '/trips/[id]',
+                        params: {
+                          id:
+                            record.result!.status === 'committed'
+                              ? record.result!.result.tripId
+                              : '',
+                        },
+                      });
+                    }}
+                  />
+                )}
+              {record.result?.status === 'rejected' &&
+                record.payload?.operation === 'trip.access' &&
+                record.tripId && (
+                  <Action
+                    label={t.tripSettingsReconfirm}
+                    onPress={() =>
+                      router.push({
+                        pathname: '/trips/[id]/access',
+                        params: { id: record.tripId! },
+                      })
+                    }
+                  />
+                )}
               {record.result?.status === 'rejected' &&
                 record.tripId &&
                 record.payload?.operation.startsWith('member.') &&

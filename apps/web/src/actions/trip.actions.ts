@@ -203,7 +203,11 @@ export const deleteTrip = withAuth(
         { tripId }
       ).catch((error) => logger.error('Delete trip: cleanup deferred', error));
 
-      revalidatePath('/trips');
+      try {
+        revalidatePath('/trips');
+      } catch (error) {
+        logger.error('Delete trip cache refresh failed after commit', error);
+      }
       return { success: true, data: { message: '旅行已刪除' } };
     } catch (error) {
       if (error instanceof TripDeletionError)

@@ -197,3 +197,148 @@ it('same-trip C and G confirmation are coordinated atomically; another trip may 
     'completed'
   );
 });
+
+it.each(['leave', 'delete'] as const)(
+  '%s survives restart and hidden membership; receipt only, no unauthorized resend',
+  async (action) => {
+    const h = await fixture();
+    let hidden = false;
+    const make = () =>
+      new TripEntry({
+        store: async () => h.store,
+        request: h.request,
+        newId: () => key,
+        active: () => true,
+        guard: () => (id) => {
+          if (id && hidden) throw new ApiError('CANCELLED');
+        },
+      });
+    h.request.mockRejectedValueOnce(new ApiError('NETWORK'));
+    expect(
+      (
+        await make().confirm(scope, {
+          operation: 'trip.access',
+          tripId,
+          body: { action, expected_revision: revision },
+        })
+      ).kind
+    ).toBe('pending');
+    await h.restart();
+    hidden = true;
+    h.request.mockResolvedValueOnce({ status: 'not_found' });
+    expect((await make().retry(scope, key)).kind).toBe('pending');
+    expect(h.request).toHaveBeenCalledTimes(2);
+    expect(h.request.mock.calls[1][1]).toBe(`/mutation-requests/${key}`);
+    h.request.mockResolvedValueOnce({
+      status: 'committed',
+      operation: 'trip.access',
+      resourceId: tripId,
+      result: { tripId, action, exited: true },
+    });
+    expect((await make().lookup(scope, key)).kind).toBe('completed');
+    await h.restart();
+    expect((await h.store.list(scope))[0]).toMatchObject({ status: 'completed', payload: null });
+    expect(h.request.mock.calls.slice(1).every((call) => call[3]?.method === undefined)).toBe(true);
+  }
+);
+it('exit receipt recovery still blocks a changed sign-in and respects persisted 429', async () => {
+  const h = await fixture();
+  h.request.mockRejectedValueOnce(new ApiError('RATE_LIMITED', 429, 120));
+  await h.engine().confirm(scope, {
+    operation: 'trip.access',
+    tripId,
+    body: { action: 'delete', expected_revision: revision },
+  });
+  await h.restart();
+  h.now = 131000;
+  expect((await h.engine().lookup(scope, key)).kind).toBe('pending');
+  expect(h.request).toHaveBeenCalledTimes(1);
+  h.now = 221000;
+  h.request.mockImplementationOnce(async (_actor, _path, _schema, options) => {
+    h.version = 1;
+    options.beforeSend();
+    return { status: 'not_found' };
+  });
+  expect((await h.engine().lookup(scope, key)).kind).toBe('pending');
+  expect((await h.store.list(scope))[0].status).toBe('pending');
+});
+it('exit receipt and durable catalog denial commit atomically and survive restart', async () => {
+  const h = await fixture();
+  const { createDraftTripStore } = await import('@/storage/draftTrips');
+  const drafts = await createDraftTripStore(h.db);
+  await drafts.rememberName(scope, tripId, 'Private trip', 1);
+  await drafts.rememberOptions(scope, tripId, { members: [], categories: [] }, 1);
+  h.request.mockResolvedValue({ tripId, action: 'delete', exited: true });
+  expect(
+    (
+      await h.engine().confirm(scope, {
+        operation: 'trip.access',
+        tripId,
+        body: { action: 'delete', expected_revision: revision },
+      })
+    ).kind
+  ).toBe('completed');
+  await h.restart();
+  expect(await (await createDraftTripStore(h.db)).get(scope, tripId)).toBeNull();
+  expect((await h.store.list(scope))[0].status).toBe('completed');
+});
+it('failed exit receipt persistence hides immediately and leaves a recoverable original intent', async () => {
+  const h = await fixture();
+  const hide = vi.fn();
+  const engine = new TripEntry({
+    store: async () => h.store,
+    request: h.request,
+    newId: () => key,
+    active: () => true,
+    exited: hide,
+  });
+  vi.spyOn(h.store, 'complete').mockRejectedValueOnce(new Error('disk full'));
+  h.request.mockResolvedValue({ tripId, action: 'leave', exited: true });
+  expect(
+    (
+      await engine.confirm(scope, {
+        operation: 'trip.access',
+        tripId,
+        body: { action: 'leave', expected_revision: revision },
+      })
+    ).kind
+  ).toBe('pending');
+  expect(hide).toHaveBeenCalledWith(expect.objectContaining(scope), tripId);
+  await h.restart();
+  expect((await h.store.list(scope))[0].status).toBe('pending');
+  h.request.mockResolvedValue({
+    status: 'committed',
+    operation: 'trip.access',
+    resourceId: tripId,
+    result: { tripId, action: 'leave', exited: true },
+  });
+  expect((await h.engine().lookup(scope, key)).kind).toBe('completed');
+});
+it('final exit tombstone waits for older catalog saves even when its separate denial fails', async () => {
+  const h = await fixture();
+  let release!: () => void;
+  const catalogDrain = new Promise<void>((_resolve, reject) => {
+    release = () => reject(new Error('denial disk full'));
+  });
+  const complete = vi.spyOn(h.store, 'complete');
+  const engine = new TripEntry({
+    store: async () => h.store,
+    request: h.request,
+    newId: () => key,
+    active: () => true,
+    exited: () => catalogDrain,
+  });
+  h.request.mockResolvedValue({ tripId, action: 'delete', exited: true });
+  const pending = engine.confirm(scope, {
+    operation: 'trip.access',
+    tripId,
+    body: { action: 'delete', expected_revision: revision },
+  });
+  for (let i = 0; i < 80; i++) await Promise.resolve();
+  expect(complete).not.toHaveBeenCalled();
+  release();
+  expect((await pending).kind).toBe('completed');
+  await h.restart();
+  const { createDraftTripStore } = await import('@/storage/draftTrips');
+  expect(await (await createDraftTripStore(h.db)).get(scope, tripId)).toBeNull();
+});

@@ -22,5 +22,12 @@ export function operationRecordVisible(
 ) {
   const tripId =
     record.tripId ?? (record.result?.status === 'committed' ? record.result.result.tripId : null);
-  return sameScope(record, scope) && (!tripId || catalog.isVisible(record, tripId));
+  const exitReceipt =
+    record.operation === 'trip.access' &&
+    ((record.payload?.operation === 'trip.access' &&
+      ['leave', 'delete'].includes(record.payload.body.action)) ||
+      (record.result?.status === 'committed' &&
+        'exited' in record.result.result &&
+        record.result.result.exited));
+  return sameScope(record, scope) && (exitReceipt || !tripId || catalog.isVisible(record, tripId));
 }

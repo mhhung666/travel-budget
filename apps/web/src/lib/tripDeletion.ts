@@ -45,21 +45,7 @@ export async function deleteTripAtomically(db: mongo.Db, tripId: string, actorId
             { session }
           );
         if (!parent) throw new TripDeletionError('FORBIDDEN');
-        // The job survives the parent. No external storage operation runs before commit.
-        await db.collection('tripcleanupjobs').updateOne(
-          { _id: trip },
-          {
-            $setOnInsert: {
-              createdAt: new Date(),
-              availableAt: new Date(),
-              attempts: 0,
-              prefixIndex: 0,
-            },
-          },
-          { session, upsert: true }
-        );
-        await clearTripChildren(db, trip, session);
-        await db.collection('trips').deleteOne({ _id: trip }, { session });
+        await deleteTripInTransaction(db, session, trip);
       },
       {
         readConcern: { level: 'snapshot' },
@@ -69,4 +55,26 @@ export async function deleteTripAtomically(db: mongo.Db, tripId: string, actorId
       }
     )
   );
+}
+
+export async function deleteTripInTransaction(
+  db: mongo.Db,
+  session: mongo.ClientSession,
+  trip: mongo.ObjectId
+) {
+  // The job survives the parent. No external storage operation runs before commit.
+  await db.collection('tripcleanupjobs').updateOne(
+    { _id: trip },
+    {
+      $setOnInsert: {
+        createdAt: new Date(),
+        availableAt: new Date(),
+        attempts: 0,
+        prefixIndex: 0,
+      },
+    },
+    { session, upsert: true }
+  );
+  await clearTripChildren(db, trip, session);
+  await db.collection('trips').deleteOne({ _id: trip }, { session });
 }

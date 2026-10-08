@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import {
+  tripAccessInput,
   virtualMemberCreateInput,
   virtualMemberRenameInput,
   tripUpdateInput,
@@ -23,6 +24,7 @@ import {
 import type { PendingScope, SqlDatabase } from './pendingExpenses';
 
 export const mutationPayload = z.discriminatedUnion('operation', [
+  z.object({ operation: z.literal('trip.access'), tripId: idSchema, body: tripAccessInput }),
   z.object({
     operation: z.literal('member.create'),
     tripId: idSchema,
@@ -184,16 +186,32 @@ export async function createMutationStore(db: SqlDatabase): Promise<MutationStor
         );
       }),
     complete: (scope, key, result) =>
-      serial(async () => {
-        if (result.status === 'not_found') throw new Error('NOT_TERMINAL');
-        await db.runAsync(
-          "UPDATE pending_mutation SET status = 'completed', payload = CASE WHEN ? = 1 AND (operation LIKE 'expense.%' OR operation LIKE 'payment.%' OR operation LIKE 'member.%' OR operation IN ('trip.update', 'trip.archive')) THEN payload ELSE NULL END, result = ? WHERE environment = ? AND account_id = ? AND client_request_id = ?",
-          result.status === 'rejected' ? 1 : 0,
-          JSON.stringify(mutationRequestSchema.parse(result)),
-          ...scopeArgs(scope),
-          key
-        );
-      }),
+      serial(() =>
+        transaction(db, async () => {
+          if (result.status === 'not_found') throw new Error('NOT_TERMINAL');
+          const parsed = mutationRequestSchema.parse(result);
+          if (
+            parsed.status === 'committed' &&
+            parsed.operation === 'trip.access' &&
+            'exited' in parsed.result &&
+            parsed.result.exited
+          ) {
+            await db.runAsync(
+              `INSERT INTO draft_trip (environment, account_id, trip_id, updated_at, denied) VALUES (?, ?, ?, 0, 1)
+             ON CONFLICT (environment, account_id, trip_id) DO UPDATE SET name = NULL, options = NULL, denied = 1`,
+              ...scopeArgs(scope),
+              parsed.result.tripId
+            );
+          }
+          await db.runAsync(
+            "UPDATE pending_mutation SET status = 'completed', payload = CASE WHEN ? = 1 AND (operation LIKE 'expense.%' OR operation LIKE 'payment.%' OR operation LIKE 'member.%' OR operation IN ('trip.update', 'trip.archive', 'trip.access')) THEN payload ELSE NULL END, result = ? WHERE environment = ? AND account_id = ? AND client_request_id = ?",
+            result.status === 'rejected' ? 1 : 0,
+            JSON.stringify(mutationRequestSchema.parse(result)),
+            ...scopeArgs(scope),
+            key
+          );
+        })
+      ),
     dismiss: (scope, key) =>
       serial(async () => {
         await db.runAsync(

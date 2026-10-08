@@ -380,6 +380,15 @@ export function TripMembersScreen({ tripId, source }: { tripId: string; source?:
                         />
                       )}
                       <Action
+                        testID="members-access"
+                        label={t.tripAccess}
+                        variant="secondary"
+                        disabled={busy || !online}
+                        onPress={() =>
+                          router.push({ pathname: '/trips/[id]/access', params: { id: tripId } })
+                        }
+                      />
+                      <Action
                         testID="members-refresh"
                         variant="ghost"
                         label={t.refresh}

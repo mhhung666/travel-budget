@@ -392,6 +392,44 @@ export type TripMembers = z.infer<typeof tripMembersSchema>;
 export type VirtualMemberCreateInput = z.infer<typeof virtualMemberCreateInput>;
 export type VirtualMemberRenameInput = z.infer<typeof virtualMemberRenameInput>;
 export type MemberMutationResult = z.infer<typeof memberMutationResultSchema>;
+// G1c: destructive/member access operations use a fresh online context.
+export const tripAccessContextSchema = tripMembersSchema.extend({
+  name: z.string(),
+  accessRevision: resourceRevisionSchema,
+  expenseCount: z.number().int().nonnegative(),
+  paymentCount: z.number().int().nonnegative(),
+  canLeave: z.boolean(),
+});
+export const tripAccessInput = z.discriminatedUnion('action', [
+  z
+    .object({
+      ...mutationIdentity,
+      action: z.literal('role'),
+      member_id: idSchema.toLowerCase(),
+      role: z.enum(['admin', 'member']),
+    })
+    .strict(),
+  z
+    .object({ ...mutationIdentity, action: z.literal('remove'), member_id: idSchema.toLowerCase() })
+    .strict(),
+  z.object({ ...mutationIdentity, action: z.literal('leave') }).strict(),
+  z.object({ ...mutationIdentity, action: z.literal('delete') }).strict(),
+]);
+export const tripAccessResultSchema = z
+  .object({
+    tripId: idSchema,
+    action: z.enum(['role', 'remove', 'leave', 'delete']),
+    exited: z.boolean(),
+  })
+  .strict()
+  .refine(
+    (v) => v.exited === (v.action === 'leave' || v.action === 'delete'),
+    'Invalid exit result'
+  );
+export const memberClaimInvitationSchema = z.object({ url: z.url() });
+export type TripAccessContext = z.infer<typeof tripAccessContextSchema>;
+export type TripAccessInput = z.infer<typeof tripAccessInput>;
+export type TripAccessResult = z.infer<typeof tripAccessResultSchema>;
 export const expenseMutationResultSchema = z
   .object({
     tripId: idSchema,
@@ -463,6 +501,7 @@ export const mutationRequestSchema = z.discriminatedUnion('status', [
         'trip.join',
         'trip.update',
         'trip.archive',
+        'trip.access',
         'member.create',
         'member.rename',
         'expense.update',
@@ -477,34 +516,41 @@ export const mutationRequestSchema = z.discriminatedUnion('status', [
         tripManagementResultSchema.strict(),
         tripMutationResultSchema.strict(),
         memberMutationResultSchema,
+        tripAccessResultSchema,
       ]),
     })
     .refine(
       (v) =>
-        v.operation.startsWith('member.')
-          ? 'memberId' in v.result && v.resourceId === v.result.memberId
-          : v.operation.startsWith('expense.')
-            ? 'expenseId' in v.result &&
-              v.resourceId === v.result.expenseId &&
-              (v.operation === 'expense.update' ? !!v.result.revision : v.result.deleted === true)
-            : v.operation.startsWith('payment.')
-              ? 'paymentId' in v.result &&
-                v.resourceId === v.result.paymentId &&
-                (v.operation === 'payment.create' ? !!v.result.revision : v.result.deleted === true)
-              : v.operation === 'trip.update' || v.operation === 'trip.archive'
-                ? !('memberId' in v.result) &&
-                  !('expenseId' in v.result) &&
-                  !('paymentId' in v.result) &&
-                  v.resourceId === v.result.tripId &&
-                  (v.operation === 'trip.update'
-                    ? 'revision' in v.result && !!v.result.revision
-                    : 'archived' in v.result && v.result.archived !== undefined)
-                : !('memberId' in v.result) &&
-                  !('expenseId' in v.result) &&
-                  !('paymentId' in v.result) &&
-                  !('revision' in v.result) &&
-                  !('archived' in v.result) &&
-                  v.resourceId === v.result.tripId,
+        v.operation === 'trip.access'
+          ? 'exited' in v.result && v.resourceId === v.result.tripId
+          : v.operation.startsWith('member.')
+            ? 'memberId' in v.result && v.resourceId === v.result.memberId
+            : v.operation.startsWith('expense.')
+              ? 'expenseId' in v.result &&
+                v.resourceId === v.result.expenseId &&
+                (v.operation === 'expense.update' ? !!v.result.revision : v.result.deleted === true)
+              : v.operation.startsWith('payment.')
+                ? 'paymentId' in v.result &&
+                  v.resourceId === v.result.paymentId &&
+                  (v.operation === 'payment.create'
+                    ? !!v.result.revision
+                    : v.result.deleted === true)
+                : v.operation === 'trip.update' || v.operation === 'trip.archive'
+                  ? !('exited' in v.result) &&
+                    !('memberId' in v.result) &&
+                    !('expenseId' in v.result) &&
+                    !('paymentId' in v.result) &&
+                    v.resourceId === v.result.tripId &&
+                    (v.operation === 'trip.update'
+                      ? 'revision' in v.result && !!v.result.revision
+                      : 'archived' in v.result && v.result.archived !== undefined)
+                  : !('exited' in v.result) &&
+                    !('memberId' in v.result) &&
+                    !('expenseId' in v.result) &&
+                    !('paymentId' in v.result) &&
+                    !('revision' in v.result) &&
+                    !('archived' in v.result) &&
+                    v.resourceId === v.result.tripId,
       'Receipt outcome does not match its operation'
     ),
   z.object({
@@ -514,6 +560,7 @@ export const mutationRequestSchema = z.discriminatedUnion('status', [
       'trip.join',
       'trip.update',
       'trip.archive',
+      'trip.access',
       'member.create',
       'member.rename',
       'expense.update',

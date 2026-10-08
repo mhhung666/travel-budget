@@ -1,5 +1,7 @@
 import {
   mutationRequestSchema,
+  tripAccessResultSchema,
+  type TripAccessResult,
   memberMutationResultSchema,
   type MemberMutationResult,
   tripMutationResultSchema,
@@ -35,6 +37,7 @@ interface Deps {
   guard?: (scope: PendingScope) => (tripId?: string | null) => void;
   now?: () => number;
   changed?: (scope: PendingScope) => void;
+  exited?: (scope: PendingScope, tripId: string) => void | Promise<void>;
   committed?: (scope: PendingScope, tripId: string, result: MutationRequest) => unknown;
 }
 export class TripEntry {
@@ -190,6 +193,18 @@ export class TripEntry {
     result: MutationRequest
   ): Promise<MutationOutcome> {
     if (result.status === 'not_found') return { kind: 'pending' };
+    if (
+      result.status === 'committed' &&
+      result.operation === 'trip.access' &&
+      'exited' in result.result &&
+      result.result.exited
+    ) {
+      // Drain older catalog saves before the atomic final tombstone; a failed separate
+      // denial must not prevent complete() from persisting its own tombstone.
+      await Promise.resolve()
+        .then(() => this.deps.exited?.(record, result.result.tripId))
+        .catch(() => undefined);
+    }
     await store.complete(record, record.clientRequestId, result);
     let refreshed = true;
     if (result.status === 'committed') {
@@ -206,15 +221,22 @@ export class TripEntry {
     record: PendingMutation,
     guard: (tripId?: string | null) => void
   ): Promise<MutationOutcome> {
+    // After an exit the trip is hidden, but an account-scoped minimal receipt remains readable.
+    const exiting =
+      record.payload?.operation === 'trip.access' &&
+      ['leave', 'delete'].includes(record.payload.body.action);
+    const receiptScope = exiting
+      ? { environment: record.environment, accountId: record.accountId }
+      : record;
     try {
-      await this.ready(store, record, guard);
+      await this.ready(store, receiptScope, guard);
       const result = await this.deps.request(
         record.accountId,
         `/mutation-requests/${record.clientRequestId}`,
         mutationRequestSchema,
-        { beforeSend: this.beforeSend(store, record, guard) }
+        { beforeSend: this.beforeSend(store, receiptScope, guard) }
       );
-      guard(record.tripId);
+      guard(exiting ? undefined : record.tripId);
       // A UUID collision may resolve another operation: display its result without replaying ours.
       return await this.finish(store, record, result);
     } catch (error) {
@@ -234,34 +256,39 @@ export class TripEntry {
         | PaymentMutationResult
         | TripManagementResult
         | MemberMutationResult
+        | TripAccessResult
       >(
         record.accountId,
-        record.operation === 'member.create'
-          ? `/trips/${record.tripId}/members`
-          : record.operation === 'member.rename'
-            ? `/trips/${record.tripId}/members/${record.payload?.operation === 'member.rename' ? record.payload.memberId : ''}`
-            : record.operation === 'trip.update'
-              ? `/trips/${record.tripId}`
-              : record.operation === 'trip.archive'
-                ? `/trips/${record.tripId}/archive`
-                : record.operation === 'payment.create'
-                  ? `/trips/${record.tripId}/payments`
-                  : record.operation === 'payment.delete'
-                    ? `/trips/${record.tripId}/payments/${record.payload?.operation === 'payment.delete' ? record.payload.paymentId : ''}`
-                    : record.operation === 'trip.create'
-                      ? '/trips'
-                      : record.operation === 'trip.join'
-                        ? '/trips/join'
-                        : `/trips/${record.tripId}/expenses/${'expenseId' in record.payload! ? record.payload.expenseId : ''}`,
-        record.operation.startsWith('member.')
-          ? memberMutationResultSchema
-          : record.operation === 'trip.update' || record.operation === 'trip.archive'
-            ? tripManagementResultSchema
-            : record.operation.startsWith('payment.')
-              ? paymentMutationResultSchema
-              : record.operation.startsWith('expense.')
-                ? expenseMutationResultSchema
-                : tripMutationResultSchema,
+        record.operation === 'trip.access'
+          ? `/trips/${record.tripId}/access`
+          : record.operation === 'member.create'
+            ? `/trips/${record.tripId}/members`
+            : record.operation === 'member.rename'
+              ? `/trips/${record.tripId}/members/${record.payload?.operation === 'member.rename' ? record.payload.memberId : ''}`
+              : record.operation === 'trip.update'
+                ? `/trips/${record.tripId}`
+                : record.operation === 'trip.archive'
+                  ? `/trips/${record.tripId}/archive`
+                  : record.operation === 'payment.create'
+                    ? `/trips/${record.tripId}/payments`
+                    : record.operation === 'payment.delete'
+                      ? `/trips/${record.tripId}/payments/${record.payload?.operation === 'payment.delete' ? record.payload.paymentId : ''}`
+                      : record.operation === 'trip.create'
+                        ? '/trips'
+                        : record.operation === 'trip.join'
+                          ? '/trips/join'
+                          : `/trips/${record.tripId}/expenses/${'expenseId' in record.payload! ? record.payload.expenseId : ''}`,
+        record.operation === 'trip.access'
+          ? tripAccessResultSchema
+          : record.operation.startsWith('member.')
+            ? memberMutationResultSchema
+            : record.operation === 'trip.update' || record.operation === 'trip.archive'
+              ? tripManagementResultSchema
+              : record.operation.startsWith('payment.')
+                ? paymentMutationResultSchema
+                : record.operation.startsWith('expense.')
+                  ? expenseMutationResultSchema
+                  : tripMutationResultSchema,
         {
           method:
             record.operation === 'member.rename' ||
@@ -297,7 +324,9 @@ export class TripEntry {
         failed.error === error &&
         error instanceof ApiError &&
         ([404, 409].includes(error.status) ||
-          ((record.operation === 'trip.update' || record.operation.startsWith('member.')) &&
+          ((record.operation === 'trip.update' ||
+            record.operation === 'trip.access' ||
+            record.operation.startsWith('member.')) &&
             error.status === 403 &&
             error.code === 'FORBIDDEN')) &&
         error.source === 'request'

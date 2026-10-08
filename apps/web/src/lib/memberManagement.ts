@@ -17,7 +17,7 @@ type Parent = {
   members: { user: mongo.ObjectId; role?: 'admin' | 'member'; joinedAt?: Date }[];
 };
 type Person = { _id: mongo.ObjectId; displayName: string; isVirtual?: boolean };
-async function roster(
+export async function roster(
   db: mongo.Db,
   session: mongo.ClientSession,
   actorId: string,

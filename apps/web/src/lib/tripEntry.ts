@@ -63,6 +63,14 @@ async function authorizeReceipt(
   terminal: Terminal
 ) {
   if (terminal.status === 'rejected' && !terminal.tripId) return;
+  // Actor UUID namespace only: an exit receipt contains no roster, ledger or invitation.
+  if (
+    terminal.status === 'committed' &&
+    terminal.operation === 'trip.access' &&
+    'exited' in terminal.result &&
+    terminal.result.exited
+  )
+    return;
   const tripId =
     terminal.status === 'rejected'
       ? terminal.tripId!

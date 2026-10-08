@@ -157,6 +157,16 @@ Mobile 未確認輸入僅保留當次畫面並有離開提醒；開表單及確�
 
 expense-options／payment-context members 新增可選 isVirtual；結算 balances／suggestedTransfers／payments（含撤銷 context）分別新增 isVirtual、fromIsVirtual／toIsVirtual。歷史付款對象仍存在時保留旗標，null 參照仍只顯示已移除。這些欄位只出現在成員 HTTP 白名單；Web／public DTO 及歷史支出建立 receipt 保持原格式。未部署，裝置驗收另交接。
 
+## G1c 權限與危險操作
+
+`GET /trips/:id/access` 回傳全名冊、旅行名稱、本人角色、是否可退出、支出／還款筆數及 `accessRevision`；不回私人預算、登入資料或分享碼。HMAC 包含旅行資料／名冊及待刪／解除連結的文件，背景父旅行 fence 排除；目前採完整讀取，旅行資料量大時讀取成本較高，未宣稱效能量測通過。確認後 `POST /trips/:id/access` 嚴格接收 UUID、expected_revision 及 action：role（member_id／role）、remove（member_id）、leave、delete。角色／移除／刪除需管理員；退出只處理本人，最後真人管理員不可退出。對象 ID 正規化為小寫，不能藉大小寫變更或移除自己。
+
+`tripAccess.ts`、Web 角色服務、`memberRemoval.ts` 及 `tripDeletion.ts` 共用交易內業務；父旅行 fence 序列化授權、角色與帳務寫入，資料與 trip.access receipt 原子提交。移除／退出保留帳務與共享身分，刪除沿用既有子文件 cascade／個人記錄解除連結／tripcleanupjobs，不在交易內呼叫檔案服務。403 FORBIDDEN、409 RESOURCE_CHANGED／RESOURCE_GONE／VALIDATION_ERROR 保存終局拒絕，會員存取消失為 404 NOT_FOUND；429 與相同 UUID 不同內容的 409 沿用既有保護。成功最小結果為 `{ tripId, action, exited }`，resourceId 為 tripId；不含歷史帳務或名冊。
+
+**原結果授權例外僅限成功退出／刪除**：操作者本人帳號命名空間中的原 UUID 可在資格消失後查詢／相同內容重播最小成功結果，其他操作和拒絕 receipt 仍重新授權目前成員。不能由 404 猜測成功，也不能換 UUID 重做。Mobile 只有這類退出意圖可略過 catalog 可見性查 receipt，登入世代、帳號、環境與 429 仍檢查；隱藏後寫入重試仍被守衛擋下。SQLite 在同一交易保存終局結果和 draft_trip denied，記憶體立即隱藏，即使本機保存失敗仍保留原意圖供只讀恢復。不新增 migration。
+
+管理員 `GET /trips/:id/members/:memberId/claim-invitation` 在同一旅行交易重新核對管理員／目前虛擬成員，只回 `{ url }`。URL 沿用 Web 的 `/link-virtual/:shareCode/:virtualUsername`，邀請能力是此端點明確的資料邊界例外；名冊及其他 DTO 不因此暴露 username／分享碼。認領／註冊仍由既有 public Web 路由及 `memberIdentity.ts` 完成、處理登入憑證、現成員拒絕及帳務遷移；Mobile 沒有新認領寫入／憑證持久化。被認領或移除的對象不產生新連結；降權回 403，不把一般成員資格誤當撤銷。
+
 ## 尚未實作
 
 外幣與非均分金額編輯、附件 begin／finish、推播、帳號刪除及 OS 背景同步均屬後續工作（見 [路線](ROADMAP.md)）。D1 原始草稿、D2 受限入口與 D3 離線確認／多筆前景待送佇列沿用既有 HTTP 端點；AI 仍只產生草稿，正式寫入需使用者確認。實作與開發測試不代表已部署或兩平台裝置驗收通過。
