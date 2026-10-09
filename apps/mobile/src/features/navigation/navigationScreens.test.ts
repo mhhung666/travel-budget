@@ -7,12 +7,14 @@ import { LocalWorkScreen } from './LocalWorkScreen';
 import { TripContext } from './TripContext';
 import { GlobalTabBar, TripLayout } from './layouts';
 import { FormPage } from '@/components/screen';
+import { TabRouter } from 'expo-router/build/react-navigation/routers';
 
 vi.mock('@/features/expenses/PendingReceipts', () => ({ PendingReceipts: 'PendingReceipts' }));
 const h = vi.hoisted(() => ({
   status: 'signedIn',
   online: true,
   pathname: '/trips',
+  tripId: 'a',
   visible: true,
   state: [] as unknown[],
   refs: [] as { current: unknown }[],
@@ -110,7 +112,7 @@ vi.mock('expo-router', async () => {
     Redirect: 'Redirect',
     router: { push: h.push, replace: h.replace, back: h.back, canGoBack: () => true },
     usePathname: () => h.pathname,
-    useLocalSearchParams: () => ({ id: 'a' }),
+    useLocalSearchParams: () => ({ id: h.tripId }),
   };
 });
 vi.mock('@/components/frame', () => ({
@@ -180,6 +182,7 @@ beforeEach(() => {
   h.status = 'signedIn';
   h.online = h.visible = true;
   h.pathname = '/trips';
+  h.tripId = 'a';
   h.state = [];
   h.refs = [];
   h.deps = [];
@@ -319,6 +322,51 @@ it('hides all trip tab content and invitation after denial, even when landing da
   expect(nodes(chrome).some((node) => node.props.children === 'PRIVATE ledger')).toBe(false);
   expect(nodes(chrome).some((node) => node.props.testID === 'trip-invitation')).toBe(false);
   expect(find(chrome, 'children', 'notFound')).toBeDefined();
+});
+
+it.each(
+  ['index', 'expenses', 'settlement'].flatMap((entry) =>
+    ['507f1f77bcf86cd799439011', '507f1f77bcf86cd799439012'].map((id) => ({ entry, id }))
+  )
+)('keeps trip $id when switching from a direct $entry entry to unvisited tabs', ({ entry, id }) => {
+  h.tripId = id;
+  const options = {
+    routeNames: ['index', 'expenses', 'settlement'],
+    routeParamList: {},
+    routeGetIdList: {},
+  };
+  const navigator = TabRouter({ backBehavior: 'none' });
+  // URL entry populates the matched child; the tab router adds unvisited siblings without params.
+  let state = navigator.getRehydratedState(
+    { stale: true, routes: [{ name: entry, params: { id } }] },
+    options
+  );
+  const keys = state.routes.map((route) => route.key);
+  const navigation = {
+    emit: vi.fn(() => ({ defaultPrevented: false })),
+    navigate: (name: string, params: object | undefined) => {
+      state = navigator.getRehydratedState(
+        navigator.getStateForAction(
+          state,
+          { type: 'NAVIGATE', payload: { name, params } },
+          options
+        )!,
+        options
+      );
+    },
+  };
+  for (const name of ['expenses', 'settlement', 'index', 'settlement', 'expenses']) {
+    const tabs = TripLayout() as Element;
+    const layout = (tabs.props.layout as (props: object) => Element)({
+      state,
+      navigation,
+      children: 'ledger',
+    });
+    const chrome = render(() => (layout.type as (props: object) => ReactElement)(layout.props));
+    press(find(chrome, 'testID', name === 'index' ? 'trip-tab-index' : `trip-${name}`));
+    expect(state.routes[state.index]).toMatchObject({ name, params: { id } });
+    expect(state.routes.map((route) => route.key)).toEqual(keys);
+  }
 });
 
 it('uses visible pending counts while keeping terminal notices and local-only permissions separate', () => {

@@ -201,7 +201,8 @@ function TripChrome({ children, state, navigation }: LayoutProps) {
                       ? 'trip-settlement'
                       : 'trip-tab-index'
                 }
-                onPress={() => selectTab({ state, navigation }, name)}
+                // Unvisited sibling tabs have no params; retain this navigator's trip identity.
+                onPress={() => selectTab({ state, navigation }, name, { id })}
               />
             ))}
           </View>

@@ -6,9 +6,8 @@
 
 ### 2026-10-10
 
-- G6b（Web／Mobile／contracts）：補收據選圖／拍照／PDF、確認上傳與移除、原 UUID／SQLite 恢復與逾期孤兒清理；conditional PUT 防覆寫，附件交易不改金額／分攤。已提交、未部署；工程證據與真 R2／原生待驗見 [G6b 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#g6b-附件寫入交接)。
-- G6a（Web／Mobile／contracts）：新增私人收據清單與每次重授權的短效開啟，手機支援圖片閱讀／外部 PDF、過期／背景清除與共用限速；根工程檢查、Web／Mobile 全量測試、隔離 HTTP／7 項 DB 與本機簽名驗證通過。已提交，真 R2／裝置仍待驗，G6b 寫入見上項，見 [G6a 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#g6a-私人收據閱讀交接)。
-
+- Mobile 分頁修正：總覽首次切到 Expenses／Settlement 時保留父層旅行 ID，避免以 `undefined` 查詢而誤顯示旅行不存在／非成員；補三種直接入口、兩趟旅行及反覆切換回歸；Mobile 1,448 項＋工具 48 項、check／三平台匯出通過。已提交、未部署，正式環境裝置仍待複驗。
+- G6（Web／Mobile／contracts）：已提交私人收據閱讀、選圖／拍照／PDF、確認上傳／移除、原 UUID／SQLite 恢復與逾期孤兒清理；短效連結、conditional PUT 防覆寫，附件交易不改金額／分攤。工程檢查已通過、未部署；真 R2／原生待驗見 [G6a](apps/mobile/docs/LOCAL_ACCEPTANCE.md#g6a-私人收據閱讀交接) 與 [G6b](apps/mobile/docs/LOCAL_ACCEPTANCE.md#g6b-附件寫入交接)。
 - Mobile G5：登入頁／我的新增四語與跟隨系統、淺深色偏好，保存成功才套用並跨重啟保留；補讀寫失敗恢復、關於版本及本環境網站入口。Mobile 1,412 項＋工具 48 項、check／三平台匯出及 Expo 相容性通過；已提交，裝置與正式客服／隱私入口仍待驗／待定，見 [G5 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#g5-語言與外觀交接)。
 
 ### 2026-10-09

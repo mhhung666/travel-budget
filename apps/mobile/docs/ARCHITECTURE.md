@@ -58,7 +58,7 @@ assets/                目前保留 Expo 模板圖示
 
 路由為 `trips/[id]`（摘要）、`trips/[id]/expenses`（清單）、`trips/[id]/expenses/new`（新增）、`trips/[id]/expenses/[expenseId]`（明細）與 `trips/[id]/settlement`；`features/expenses`、`settlement` 各放畫面、查詢選項與可單元測試的純函式。
 
-`AppProviders` 留在根 `_layout`，登入、QueryClient、草稿、C／D 與 E 引擎不因切分頁／表單而重建。`(app)` 的 Stack 同時容納 `(tabs)`、私有 `trips` 動作、`record` 選擇器及 `(local)`；`Stack.Protected` 只在 signedIn 時提供前三者，local 只進本機頁。全域及旅行分頁使用既有 Expo Router Tabs；同層透過 navigator 的 navigate 切換，選取當前頁不堆疊。選擇器以 replace 交給既有新增／本機草稿，取消可 pop 回原分頁；成功進旅行使用 dismissTo 沿用原分頁。網址維持原路徑，新增 `/me`、`/record` 與 `/work`。
+`AppProviders` 留在根 `_layout`，登入、QueryClient、草稿、C／D 與 E 引擎不因切分頁／表單而重建。`(app)` 的 Stack 同時容納 `(tabs)`、私有 `trips` 動作、`record` 選擇器及 `(local)`；`Stack.Protected` 只在 signedIn 時提供前三者，local 只進本機頁。全域及旅行分頁使用既有 Expo Router Tabs；同層透過 navigator 的 navigate 切換，選取當前頁不堆疊。旅行分頁切換明確傳入父層目前的 `id`：未造訪的 sibling route 尚無 params，不可只沿用目標 route.params，否則支出／名冊／結算會查詢 `/trips/undefined/...` 並誤顯示撤權。全域分頁不傳旅行參數。選擇器以 replace 交給既有新增／本機草稿，取消可 pop 回原分頁；成功進旅行使用 dismissTo 沿用原分頁。網址維持原路徑，新增 `/me`、`/record` 與 `/work`。
 
 `components/frame.tsx` 按容器分配安全區域：全域列負責底部、旅行頁首負責頂部，FlatList 直接使用 ScreenFrame，不外包 ScrollView。`components/screen.tsx` 管理共用頁首與 FormPage 的鍵盤避讓，表單在分頁外仍沿用 feature 的 usePreventRemove 與 D 保存；命名旅行上下文與整個旅行空間受既有 catalog／HTTP 撤權限制，長名稱留在可捲動內容中。
 
