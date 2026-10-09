@@ -223,6 +223,40 @@ const templates = {
         '20 items/page; ongoing, upcoming, unscheduled, past, archived. Pagination is not a snapshot; refresh from page 1 after changes.',
     },
   },
+  '/trips/{id}/expenses/{expenseId}/attachments': {
+    get: {
+      ...operation('receiptAttachments', 'V2ReceiptAttachments'),
+      parameters: [
+        tripIdParam,
+        {
+          name: 'expenseId',
+          in: 'path',
+          required: true,
+          schema: { type: 'string', pattern: '^[a-fA-F0-9]{24}$' },
+        },
+      ],
+    },
+  },
+  '/trips/{id}/expenses/{expenseId}/attachments/{attachmentId}': {
+    get: {
+      ...operation('receiptView', 'V2ReceiptView'),
+      parameters: [
+        tripIdParam,
+        {
+          name: 'expenseId',
+          in: 'path',
+          required: true,
+          schema: { type: 'string', pattern: '^[a-fA-F0-9]{24}$' },
+        },
+        {
+          name: 'attachmentId',
+          in: 'path',
+          required: true,
+          schema: { type: 'string', pattern: '^[a-f0-9]{64}$' },
+        },
+      ],
+    },
+  },
   '/trips/{id}/expense-search': {
     get: {
       ...operation('expenseSearch', 'V2ExpenseSearch', undefined, {
@@ -528,6 +562,10 @@ for (const [path, item] of Object.entries(templates)) {
       };
     }
 }
+paths['/v2/trips/{id}/expenses/{expenseId}/attachments'].get.description =
+  'Member-only attached receipt metadata. Opaque IDs, MIME type and bytes only; no storage keys or URLs. No public fallback or persistent cache.';
+paths['/v2/trips/{id}/expenses/{expenseId}/attachments/{attachmentId}'].get.description =
+  'Reauthorizes membership and expense attachment before and after storage checks. Returns a fresh HTTPS URL valid at most 300 seconds, with private no-store response override. Missing/detached objects: 404 ATTACHMENT_UNAVAILABLE. Previously issued URLs may remain valid until expiry; external viewers control their own downloads. No-store API response.';
 paths['/v2/trips/{id}/expense-search'].get.description =
   'Member-only full-trip literal description/payer search. AND filters: keyword (trimmed, max 200), category, payerId (id or missing), inclusive dateFrom/dateTo (YYYY-MM-DD). Unknown/repeated keys or invalid ranges return 400. Twenty rows per page, date/createdAt/id descending. Same snapshot supplies all matching totals, own normalized shares, category and member analysis. Cursor binds actor/trip/filters/result revision; changed results return 409 RESOURCE_CHANGED, restart page 1. No private budgets, tags, receipts, drafts or repayments.';
 paths['/v2/trips/{id}/budget'].get.description =

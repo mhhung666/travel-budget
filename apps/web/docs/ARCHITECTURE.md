@@ -62,7 +62,7 @@ Web 畫面只透過在 v2 context 執行的 Server Action 身分（`withLedgerAu
 
 ## 手機 HTTP adapter
 
-`src/app/api/v2` 是原生用戶端入口（`/api/v1` 已於 B5d-2 刪除），`src/lib/mobile` 管理獨立 bearer session、錯誤 envelope 與 DTO 組裝；輸入與回應 schema 由 `@travel-budget/contracts` 匯入。`credentials.ts`、`tripListRead.ts` 同時供 Web Server Actions 與手機呼叫；摘要重用成員權限及 `tripShellRead`／`tripListSummary`。支出清單／明細（`lib/mobile/expenses.ts`）重用 `toExpenseDto` 與 `Expense` 索引，結算（`lib/mobile/settlement.ts`）重用 `readSettlementDetail`（`readSettlement` 的成員 id 版本，原回傳不變）；兩者先經 `lib/mobile/access.ts` 驗證成員 ObjectId，再讀資料。手機簽章與 Web cookie 隔離，MongoDB 儲存 refresh 雜湊與撤銷狀態。`/api/v2` 帳本 route 經 `lib/mobile/ledgerHttp.ts` 回應，每個 method 明確宣告輸出 schema 與單位模式（`trip` 注入目前旅行 ledger、`service` 保留服務的逐列／receipt ledger、`none` 為無 ledger 的身分回應），不依 URL 推斷。auth／me 入口經 `lib/mobile/auth.ts`；同一 session、限流與單次 refresh 輪替。26 個會員業務 route 只選 v2 輸出 schema，登入驗證、讀參數與服務呼叫集中在 `lib/mobile/operations.ts` 的具名操作；`lib/mobile` 不再有 v1 分支，B5e 已移除無呼叫服務與舊公開路徑，共用 `lib/*` 的非 v2 分支保留作後續整理。詳細安全邊界及 OpenAPI 見 [手機 API](MOBILE_API.md)。
+`src/app/api/v2` 是原生用戶端入口（`/api/v1` 已於 B5d-2 刪除），`src/lib/mobile` 管理獨立 bearer session、錯誤 envelope 與 DTO 組裝；輸入與回應 schema 由 `@travel-budget/contracts` 匯入。`credentials.ts`、`tripListRead.ts` 同時供 Web Server Actions 與手機呼叫；摘要重用成員權限及 `tripShellRead`／`tripListSummary`。支出清單／明細（`lib/mobile/expenses.ts`）重用 `toExpenseDto` 與 `Expense` 索引，結算（`lib/mobile/settlement.ts`）重用 `readSettlementDetail`（`readSettlement` 的成員 id 版本，原回傳不變）；兩者先經 `lib/mobile/access.ts` 驗證成員 ObjectId，再讀資料。手機簽章與 Web cookie 隔離，MongoDB 儲存 refresh 雜湊與撤銷狀態。`/api/v2` 帳本 route 經 `lib/mobile/ledgerHttp.ts` 回應，每個 method 明確宣告輸出 schema 與單位模式（`trip` 注入目前旅行 ledger、`service` 保留服務的逐列／receipt ledger、`none` 為無 ledger 的身分回應），不依 URL 推斷。auth／me 入口經 `lib/mobile/auth.ts`；同一 session、限流與單次 refresh 輪替。28 個會員業務 route 只選 v2 輸出 schema，登入驗證、讀參數與服務呼叫集中在 `lib/mobile/operations.ts` 的具名操作；`lib/mobile` 不再有 v1 分支，B5e 已移除無呼叫服務與舊公開路徑，共用 `lib/*` 的非 v2 分支保留作後續整理。詳細安全邊界及 OpenAPI 見 [手機 API](MOBILE_API.md)。
 
 新增支出只有一個寫入服務：`lib/expenseCreate.ts#createExpenseForActor` 接受已授權的旅行與操作者及 `createExpenseSchema` 的輸出，內含 `withTripWrite` 交易、成員／分攤／金額驗證、收據驗證、與支出同交易提交的冪等 receipt（`expenseCreateRequest.ts`）及通知／outbox 副作用；v2 合法請求的業務驗證拒絕也在 parent fence 交易內保存終局 receipt，已有提交／拒絕優先重播，未知故障仍回滾，不改 v1。且不 import `next/*`。Web Server Action（`expense.actions.ts#createLedgerExpense`，cookie）與手機 HTTP（`lib/mobile/expenseWrite.ts`，bearer）是它的兩個 adapter：各自驗證登入、解析旅行與輸入、處理自己的快取／排程並對照錯誤碼。成員順序（`lib/mobile/expenseOptions.ts`）與 Web 成員清單相同，四模式預覽重用 `computeLedgerSplits`，HTTP 先以共用契約嚴格驗證數值，手機不複製金額演算法；進階確認在 create／maintenance 的原交易內透過 `expenseSplitConfirmation.ts` 核對同一引擎，基本編輯不動歷史份額；完整預覽與歷史資料決策見 [G3a-1 契約](../../mobile/docs/BACKEND_CONTRACT.md#g3a-1-進階分攤預覽)。
 
@@ -110,3 +110,8 @@ Web update／delete action 抽成 `expenseMaintenance.ts` 的 actor service，�
 ## G4b 授權搜尋 API
 
 `expenseSearch.ts` 在 `withTripReadInDatabase` 同一授權快照讀全旅行必要支出欄位、解析顯示名稱／虛擬旗標，共用 Web `toExpenseDto`／`filterExpenses`／`computeTripStats` 後才切 20 筆頁面。未知分類沿 native other，隱藏標籤不參與搜尋；同一回應帶全量總計及本人份額。游標綁 actor／trip／ledger／條件／內容 revision，資料變動拒絕拼頁，沒有跨請求快照或新索引。`mobile/expenseSearch.ts` 與具名 operation 處理嚴格 query、授權及 409；隱私／查詢界線見 [G4b 契約](../../mobile/docs/BACKEND_CONTRACT.md#g4b-搜尋與分析)。
+
+
+## G6a 私人收據
+
+`receiptRead.ts` 在 `withTripReadInDatabase` 授權快照中只讀 expense 附件投影，HTTP metadata mapper 去除 key，以 opaque id 定位。每次檢視重用 Web receipt key 規則、R2 strict HEAD 與 300 秒 `presignGet`；儲存等待後重讀授權與參照，避免發出已撤權／移除附件的連結。Mobile signer 選用 private no-store response override，Web signer 預設不變。沒有新模型／migration 或帳務寫入；端點與不能即時撤銷已交出 URL 的界線見 [G6a 契約](../../mobile/docs/BACKEND_CONTRACT.md#g6a-私人收據閱讀)。

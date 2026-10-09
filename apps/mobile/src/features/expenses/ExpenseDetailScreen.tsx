@@ -128,6 +128,18 @@ export function ExpenseDetailScreen({ tripId, expenseId }: { tripId: string; exp
           </Section>
           <Copy>{t.amountsInTwd}</Copy>
           <Action
+            testID="expense-receipts"
+            variant="secondary"
+            label={t.receipts}
+            disabled={!online}
+            onPress={() =>
+              router.push({
+                pathname: '/trips/[id]/expenses/[expenseId]/receipts',
+                params: { id: tripId, expenseId },
+              })
+            }
+          />
+          <Action
             testID="expense-edit"
             variant="secondary"
             label={t.editExpense}

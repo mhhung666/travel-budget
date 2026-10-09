@@ -259,3 +259,13 @@ mode=equal 的 changes 可成對新增 currency／exchange_rate，original_amoun
 `ExpenseSearchResult` 必帶 ledger、filters、revision、items（逐列 ledger）、nextCursor、全旅行 payers，以及同一次快照／同條件的 summary：count／total／mySpent、categories 的分類／筆數／總額、members 的姓名／ID／虛擬旗標／paid／share。sum 與 normalizeShares 沿 Web `toExpenseDto`、`filterExpenses`、`computeTripStats`，無手機金額引擎。未解析成員的付款及分攤仍納入總額，不因參照消失丟帳；非 TWD 帳本不轉為 TWD。沒有公開路由，沒有私人預算、帳號、Email、附件、標籤、行程或 receipt 欄位。
 
 後端目前讀全旅行必要投影後共用 Web 篩選／計算，再切頁；不是 MongoDB 全文索引或大型資料效能承諾。沒有 index／DB migration、寫 fence 或 receipt。舊後端缺端點仍需先部署相容後端，再發布新 App；跨旅行統計及其基準幣分組另排。
+
+## G6a 私人收據閱讀
+
+- `GET /api/v2/trips/:id/expenses/:expenseId/attachments` → `{ ledger, items: [{ id, contentType, size }] }`。id 是後端由儲存 key 產生的 SHA-256 opaque identifier；不提供 key、檔名、預簽名 URL 或其他支出欄位。空清單可用，最多沿 Web 的 10 個附件及單檔 8 MiB；格式為 JPEG／PNG／WebP／PDF。
+- `GET .../attachments/:attachmentId` → `{ ledger, id, contentType, size, url, expiresAt }`。HTTPS 短效 GET URL 與毫秒 Unix 到期時間，最多 300 秒；每次開啟重新取得。只簽目前支出已參照的物件，任意 key／其他支出／其他旅行無法借此簽名。
+- 僅 bearer 成員、ObjectId 路徑；不存在／未授權旅行 `404 NOT_FOUND`，支出消失或不屬於旅行 `404 EXPENSE_NOT_FOUND`，未附加／遺失／大小或 MIME 不符的檔案 `404 ATTACHMENT_UNAVAILABLE`。DB 附件中繼資料不合法 `503 ATTACHMENT_DATA_INVALID`；R2 設定／服務故障是可重試失敗，不冒充空清單。手機只在實際旅行拒絕時 deny catalog，單檔不存在不封鎖旅行。
+- 成員與支出參照於只讀 snapshot 核對，沿 Web 的 `isReceiptKeyForTrip`／`headObject`／`presignGet`；外部儲存等待完成後再開新授權快照核對資格與參照，才交出 URL。沒有 writer fence、帳務異動、receipt 寫入或 DB migration。
+- JSON API 維持 `Cache-Control: no-store`／`Vary: Authorization`，新簽名加入 R2 `response-cache-control=private, no-store`。原 Web `presignGet` 預設與 public／一般 expense DTO 不變；公開分享仍沒有收據。R2 連結不是可即時撤銷的 session：已交出的連結最長仍可使用至到期，外部下載由 OS／瀏覽器管理。
+
+先部署新增 v2 端點再提供需要它的 App。G6b 附件上傳／移除與原生交付另排；實際 R2／裝置下載未由隔離測試替代。

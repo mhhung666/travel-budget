@@ -1,4 +1,14 @@
 const zh = {
+  receipts: '收據附件',
+  receiptHint:
+    '圖片可在 App 內查看；PDF 會在瀏覽器開啟。連結約 5 分鐘後失效，請重新開啟取得新連結。外部瀏覽器可能保存下載的檔案。',
+  receiptUnavailable: '附件已移除、無法載入或連結已過期。請重新整理後再開啟。',
+  noReceipts: '這筆支出沒有收據附件。',
+  receiptImage: '收據圖片',
+  receiptOpenPdf: '在瀏覽器開啟 PDF',
+  receiptView: '查看收據',
+  receiptOpenBrowser: '在瀏覽器開啟圖片',
+  receiptClose: '關閉圖片',
   preferences: '語言與外觀',
   preferenceSystem: '跟隨系統',
   preferenceLight: '淺色',
@@ -493,6 +503,16 @@ export type Messages = Record<keyof typeof zh, string>;
 export const messages = {
   zh,
   'zh-CN': {
+    receipts: '收据附件',
+    receiptHint:
+      '图片可在 App 内查看；PDF 会在浏览器打开。链接约 5 分钟后失效，请重新打开获取新链接。外部浏览器可能保存下载的文件。',
+    receiptUnavailable: '附件已移除、无法加载或链接已过期。请刷新后重新打开。',
+    noReceipts: '这笔支出没有收据附件。',
+    receiptImage: '收据图片',
+    receiptOpenPdf: '在浏览器打开 PDF',
+    receiptView: '查看收据',
+    receiptOpenBrowser: '在浏览器打开图片',
+    receiptClose: '关闭图片',
     preferences: '语言与外观',
     preferenceSystem: '跟随系统',
     preferenceLight: '浅色',
@@ -981,6 +1001,17 @@ export const messages = {
     done: '完成',
   },
   en: {
+    receipts: 'Receipt attachments',
+    receiptHint:
+      'View images in the app; PDFs open in your browser. Links expire after about 5 minutes. Open again for a fresh link. External browsers may retain downloaded files.',
+    receiptUnavailable:
+      'The attachment was removed, failed to load, or its link expired. Refresh and open it again.',
+    noReceipts: 'This expense has no receipt attachments.',
+    receiptImage: 'Receipt image',
+    receiptOpenPdf: 'Open PDF in browser',
+    receiptView: 'View receipt',
+    receiptOpenBrowser: 'Open image in browser',
+    receiptClose: 'Close image',
     preferences: 'Language and appearance',
     preferenceSystem: 'Use system setting',
     preferenceLight: 'Light',
@@ -1547,6 +1578,17 @@ export const messages = {
     done: 'Done',
   },
   jp: {
+    receipts: '領収書の添付',
+    receiptHint:
+      '画像はアプリ内、PDF はブラウザで開きます。リンクは約 5 分で期限切れになります。再度開くと新しいリンクを取得します。外部ブラウザはダウンロードしたファイルを保存する場合があります。',
+    receiptUnavailable:
+      '添付ファイルが削除されたか、読み込みに失敗したか、リンクが期限切れです。更新して再度開いてください。',
+    noReceipts: 'この支出に領収書の添付はありません。',
+    receiptImage: '領収書の画像',
+    receiptOpenPdf: 'PDF をブラウザで開く',
+    receiptView: '領収書を表示',
+    receiptOpenBrowser: '画像をブラウザで開く',
+    receiptClose: '画像を閉じる',
     preferences: '言語と外観',
     preferenceSystem: 'システム設定に従う',
     preferenceLight: 'ライト',

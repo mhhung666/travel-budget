@@ -127,3 +127,8 @@ v2 preview 已透過 `computeLedgerSplits` 共用 Web 的均分／固定原幣�
 ## G4b 搜尋與分析
 
 新增成員 `GET /api/v2/trips/:id/expense-search`，舊支出清單不變。支援字面描述／付款人搜尋、分類／付款人 ID／含起訖日期，snapshot 內先算全量總計與分類／成員分析再切頁；每頁 20 筆，內容／條件改動使游標回 409，須刷新第一頁。契約、歷史資料與隱私規則見 [Mobile G4b](../../mobile/docs/BACKEND_CONTRACT.md#g4b-搜尋與分析)；真 HTTP 與獨立 DB 案例納入 `test:mobile-api`，原生操作另列。
+
+
+## G6a 私人收據閱讀
+
+新增 `GET /api/v2/trips/:id/expenses/:expenseId/attachments` 白名單 metadata 與 `GET .../attachments/:attachmentId` 短效檢視。兩者只給目前成員，後者再檢查實際物件並於簽名後重新核對資格／參照；普通 expense／public DTO 與附件寫入能力不變。完整欄位、錯誤、300 秒連結與 no-store 邊界見 [G6a 契約](../../mobile/docs/BACKEND_CONTRACT.md#g6a-私人收據閱讀)。隔離 HTTP／DB 與本機簽名驗證不取代真 R2／裝置下載。

@@ -235,3 +235,9 @@ maintenance 純函式以歷史原額／幣別／String(rate) 初始化，讀 con
 根層 `PreferencesProvider` 在 Auth／草稿／C／E providers 外初始化一次 `PreferenceStore`；完成讀取（成功或失敗）才掛載畫面，避免先顯示錯誤語言。語言／外觀更新只通知訂閱，不以偏好或帳號作為 provider key。`useAppLocale` 結合已保存的選擇與 Expo `useLocales`；`usePalette`、`AppAppearance` 共用解析後的主題。ThemeProvider／StatusBar 與語意色彩一致，原生 Appearance 手動覆寫在回到 system 時以 `unspecified` 解除。
 
 Store 將讀取、寫入、重設序列化；寫入成功才發布新選擇，失敗保留上一個持久值。初讀失敗不允許普通選擇覆蓋尚未讀到的設定，須重試讀取或明確重設。格式只允許 version／language／appearance，不保存帳號或業務資訊。獨立 SQLite／Web adapter 與保存界線見 [儲存說明](../src/storage/README.md)，畫面與限制見 [G5](FEATURES.md#g5-語言與外觀偏好)。
+
+## G6a 收據閱讀
+
+明細進入薄路由 `expenses/[expenseId]/receipts`，依環境／帳號／登入世代／旅行／支出重建 `ReceiptsScreen`。`ReceiptReader` 的清單、預簽名連結與載入狀態僅在本頁；每次開啟重取 URL，驗證 metadata／ledger／到期時間，guard 在 SQLite 等待後、transport refresh 重送前與回應後再次執行。實際 429 保存帳號共用原期限，失敗必須先補保存，本機攔截不延長；沒有新的帳務 UUID 或寫入。
+
+離頁／背景取消未完成請求並清除 URL／清單，回前景重讀；授權拒絕清內容，切帳號或舊請求不能顯示／開啟晚到的連結。圖片到期清除，圖片回呼綁定當次 ticket 物件，即使兩次簽名同字串也不能由舊失敗清掉新圖片。React Native Image 不帶 bearer、要求 reload；PDF／外部圖片只在明確操作後把 URL 交給 Linking，不做本機檔案保存。儲存回應 no-store 與已交出 URL 的撤銷限制見 [G6a 契約](BACKEND_CONTRACT.md#g6a-私人收據閱讀)。

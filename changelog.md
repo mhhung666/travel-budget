@@ -6,6 +6,8 @@
 
 ### 2026-10-10
 
+- G6a（Web／Mobile／contracts）：新增私人收據清單與每次重授權的短效開啟，手機支援圖片閱讀／外部 PDF、過期／背景清除與共用限速；根工程檢查、Web／Mobile 全量測試、隔離 HTTP／7 項 DB 與本機簽名驗證通過。已提交，真 R2／裝置與 G6b 寫入仍待後續，見 [G6a 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#g6a-私人收據閱讀交接)。
+
 - Mobile G5：登入頁／我的新增四語與跟隨系統、淺深色偏好，保存成功才套用並跨重啟保留；補讀寫失敗恢復、關於版本及本環境網站入口。Mobile 1,412 項＋工具 48 項、check／三平台匯出及 Expo 相容性通過；已提交，裝置與正式客服／隱私入口仍待驗／待定，見 [G5 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#g5-語言與外觀交接)。
 
 ### 2026-10-09

@@ -2023,6 +2023,40 @@ try {
     (await g3Request(`/trips/${g3Trip}/expense-requests/${g3Bad.client_request_id}`)).data.status,
     'rejected'
   );
+  // G6a: actual HTTP metadata and resource authorization, without any remote R2 access.
+  const receiptExpense = await db.collection('expenses').findOne({ trip: g3Trip });
+  const receiptPath = `/trips/${g3Trip}/expenses/${receiptExpense._id}/attachments`;
+  await request(receiptPath, { status: 401 });
+  const receiptKey = `receipts/${g3Trip}/${randomUUID()}.png`;
+  await db
+    .collection('expenses')
+    .updateOne(
+      { _id: receiptExpense._id },
+      { $set: { attachments: [{ key: receiptKey, contentType: 'image/png', size: 128 }] } }
+    );
+  const receiptList = (
+    await g3Request(receiptPath, { schema: contracts.receiptAttachmentsV2Schema })
+  ).data;
+  assert.equal(receiptList.items.length, 1);
+  assert.equal(receiptList.items[0].size, 128);
+  assert(!JSON.stringify(receiptList).includes(receiptKey));
+  assert(!('url' in receiptList.items[0]));
+  await g3Request(`${receiptPath}/${'f'.repeat(64)}`, { status: 404 });
+  await g3Request(`/trips/${g3Trip}/expenses/${new mongoose.Types.ObjectId()}/attachments`, {
+    status: 404,
+  });
+  await db
+    .collection('expenses')
+    .updateOne({ _id: receiptExpense._id }, { $unset: { attachments: '' } });
+  assert.equal(
+    (await g3Request(receiptPath, { schema: contracts.receiptAttachmentsV2Schema })).data.items
+      .length,
+    0
+  );
+  await g3Request(`${receiptPath}/${receiptList.items[0].id}`, { status: 404 });
+  pass(
+    'G6a HTTP: private metadata whitelist, authentication, missing expense and detached receipt without R2 calls'
+  );
   // G4b: filtered totals are computed before pagination; result changes require restart.
   const searchPath = `/trips/${g3Trip}/expense-search`;
   const search = (query = '') =>
@@ -3361,6 +3395,18 @@ try {
   assert.equal(await db.collection('users').countDocuments({ _id: e2UserId }), 1);
   pass(
     'E2: anonymous registration, unique fields, UTF-8 boundary, identical send acceptance/rate limit, one concurrent reset, old session invalidation, lost-response login recovery'
+  );
+  const receiptReads = await exec(
+    'pnpm',
+    ['exec', 'vitest', 'run', 'src/__tests__/receiptRead.integration.test.ts'],
+    {
+      env: { ...process.env, MONGODB_MEMBER_TEST_URI: uri, MONGODB_MEMBER_TEST_ALLOW_WRITES: '1' },
+      maxBuffer: 1024 * 1024,
+    }
+  );
+  assert(receiptReads.stdout.includes('7 passed'), 'Receipt read cases did not run');
+  pass(
+    'G6a isolated DB: attachment scope, metadata, storage failures and reauthorization after signing; R2 mocked'
   );
   const searchTransactions = await exec(
     'pnpm',

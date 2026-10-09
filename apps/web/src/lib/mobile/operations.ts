@@ -1,3 +1,4 @@
+import { mobileReceipts } from './receipts';
 import { mobileExpenseSearch } from './expenseSearch';
 import { mobileBudget, mobileSetBudget } from './budget';
 import { after } from 'next/server';
@@ -21,6 +22,7 @@ import { mobileTrips, mobileLanding, viewerDate } from './trips';
 type RouteParams = {
   id: string;
   expenseId: string;
+  attachmentId: string;
   memberId: string;
   paymentId: string;
   clientRequestId: string;
@@ -39,6 +41,12 @@ const op = <K extends keyof RouteParams = never>(handler: Operation<K>) => handl
  * from the wrapper's context, never from the operation.
  */
 const operations = {
+  'expense.receipts': op<'id' | 'expenseId'>((_, userId, p) =>
+    mobileReceipts(userId, p.id, p.expenseId)
+  ),
+  'expense.receiptView': op<'id' | 'expenseId' | 'attachmentId'>((_, userId, p) =>
+    mobileReceipts(userId, p.id, p.expenseId, p.attachmentId)
+  ),
   'expense.search': op<'id'>((request, userId, p) =>
     mobileExpenseSearch(userId, p.id, new URL(request.url))
   ),

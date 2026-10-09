@@ -981,6 +981,32 @@ export const expenseSearchV2Schema = z
 export type ExpenseSearchFilters = z.infer<typeof expenseSearchFiltersSchema>;
 export type ExpenseSearchInput = z.infer<typeof expenseSearchInputSchema>;
 export type ExpenseSearchResult = z.infer<typeof expenseSearchV2Schema>;
+// Private receipt metadata is opt-in; ordinary expense and public DTOs stay attachment-free.
+export const receiptAttachmentIdSchema = z.string().regex(/^[a-f0-9]{64}$/);
+export const receiptAttachmentSchema = z.object({
+  id: receiptAttachmentIdSchema,
+  contentType: z.enum(['image/jpeg', 'image/png', 'image/webp', 'application/pdf']),
+  size: z
+    .number()
+    .int()
+    .positive()
+    .max(8 * 1024 * 1024),
+});
+export const receiptAttachmentsV2Schema = z.object({
+  ...ledgerFields,
+  items: z.array(receiptAttachmentSchema).max(10),
+});
+export const receiptViewV2Schema = receiptAttachmentSchema.extend({
+  ...ledgerFields,
+  url: z.url().refine((value) => {
+    const url = new URL(value);
+    return url.protocol === 'https:' && !url.username && !url.password && !url.hash;
+  }, 'HTTPS receipt URL required'),
+  expiresAt: z.number().int().positive(),
+});
+export type ReceiptAttachment = z.infer<typeof receiptAttachmentSchema>;
+export type ReceiptAttachments = z.infer<typeof receiptAttachmentsV2Schema>;
+export type ReceiptView = z.infer<typeof receiptViewV2Schema>;
 export const expenseDetailV2Schema = expenseDetailSchema.safeExtend(ledgerFields);
 export const settlementV2Schema = settlementSchema.safeExtend(ledgerFields);
 export const expenseOptionsV2Schema = expenseOptionsSchema.safeExtend({
@@ -1081,6 +1107,8 @@ export const mutationRequestV2Schema = z.discriminatedUnion('status', [
 
 export type LedgerMutationRequest = z.infer<typeof mutationRequestV2Schema>;
 export const v2Schemas = {
+  V2ReceiptAttachments: receiptAttachmentsV2Schema,
+  V2ReceiptView: receiptViewV2Schema,
   V2ExpenseSearch: expenseSearchV2Schema,
   V2ExpenseSearchInput: expenseSearchInputSchema,
   V2BudgetInput: budgetV2Input,

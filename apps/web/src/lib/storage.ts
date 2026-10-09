@@ -22,7 +22,7 @@ import { getR2Config } from './env';
 export type R2Bucket = 'receipts' | 'avatars';
 
 const PUT_TTL_SECONDS = 120; // 簽名上傳的有效時間（足夠在慢速網路下完成）
-const GET_TTL_SECONDS = 300; // 簽名檢視的有效時間（收據圖）
+export const GET_TTL_SECONDS = 300; // 簽名檢視的有效時間（收據圖）
 
 let client: S3Client | null = null;
 
@@ -56,10 +56,20 @@ export async function presignPut(
 }
 
 /** 簽發短效檢視 URL（私有 bucket 的收據）。呼叫端須先驗成員身分。 */
-export async function presignGet(bucket: R2Bucket, key: string): Promise<string> {
-  return getSignedUrl(r2(), new GetObjectCommand({ Bucket: bucketName(bucket), Key: key }), {
-    expiresIn: GET_TTL_SECONDS,
-  });
+export async function presignGet(
+  bucket: R2Bucket,
+  key: string,
+  options: { noStore?: boolean } = {}
+): Promise<string> {
+  return getSignedUrl(
+    r2(),
+    new GetObjectCommand({
+      Bucket: bucketName(bucket),
+      Key: key,
+      ...(options.noStore ? { ResponseCacheControl: 'private, no-store' } : {}),
+    }),
+    { expiresIn: GET_TTL_SECONDS }
+  );
 }
 
 /** presignGetStable 的預設窗口：1 小時。 */
