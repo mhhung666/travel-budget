@@ -66,6 +66,14 @@ export function ExpensesScreen({ tripId }: { tripId: string }) {
           <View style={{ gap: 16, marginBottom: 20 }}>
             <TripContext tripId={tripId} />
             <Title>{t.expenses}</Title>
+            <Action
+              testID="expenses-search"
+              variant="secondary"
+              label={t.searchExpenses}
+              onPress={() =>
+                router.push({ pathname: '/trips/[id]/expense-search', params: { id: tripId } })
+              }
+            />
             <Copy>{t.expensesHint}</Copy>
             {hasPending && <Notice tone="warning">{t.pendingExpensesNotice}</Notice>}
             <Action

@@ -1426,6 +1426,205 @@
         "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
       }
     },
+    "/v2/trips/{id}/expense-search": {
+      "get": {
+        "operationId": "expenseSearchV2",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/V2ExpenseSearch"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Ledger data or total outside the safe range",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]{24}$"
+            }
+          },
+          {
+            "name": "keyword",
+            "in": "query",
+            "schema": {
+              "default": "",
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "accommodation",
+                "transportation",
+                "food",
+                "shopping",
+                "entertainment",
+                "tickets",
+                "other"
+              ]
+            }
+          },
+          {
+            "name": "payerId",
+            "in": "query",
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[a-f\\d]{24}$"
+                },
+                {
+                  "type": "string",
+                  "const": "missing"
+                }
+              ]
+            }
+          },
+          {
+            "name": "dateFrom",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+            }
+          },
+          {
+            "name": "dateTo",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}\\.[1-9]\\d{0,8}$"
+            }
+          }
+        ],
+        "description": "Member-only full-trip literal description/payer search. AND filters: keyword (trimmed, max 200), category, payerId (id or missing), inclusive dateFrom/dateTo (YYYY-MM-DD). Unknown/repeated keys or invalid ranges return 400. Twenty rows per page, date/createdAt/id descending. Same snapshot supplies all matching totals, own normalized shares, category and member analysis. Cursor binds actor/trip/filters/result revision; changed results return 409 RESOURCE_CHANGED, restart page 1. No private budgets, tags, receipts, drafts or repayments."
+      }
+    },
     "/v2/trips/{id}/budget": {
       "get": {
         "operationId": "budgetContextV2",
@@ -5609,6 +5808,322 @@
       }
     },
     "schemas": {
+      "V2ExpenseSearch": {
+        "type": "object",
+        "properties": {
+          "ledger": {
+            "type": "object",
+            "properties": {
+              "baseCurrency": {
+                "type": "string",
+                "pattern": "^[A-Z]{3}$"
+              },
+              "moneyScale": {
+                "type": "number",
+                "const": 2
+              }
+            },
+            "required": [
+              "baseCurrency",
+              "moneyScale"
+            ],
+            "additionalProperties": false
+          },
+          "filters": {
+            "type": "object",
+            "properties": {
+              "keyword": {
+                "default": "",
+                "type": "string",
+                "maxLength": 200
+              },
+              "category": {
+                "type": "string",
+                "enum": [
+                  "accommodation",
+                  "transportation",
+                  "food",
+                  "shopping",
+                  "entertainment",
+                  "tickets",
+                  "other"
+                ]
+              },
+              "payerId": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[a-f\\d]{24}$"
+                  },
+                  {
+                    "type": "string",
+                    "const": "missing"
+                  }
+                ]
+              },
+              "dateFrom": {
+                "type": "string",
+                "format": "date",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+              },
+              "dateTo": {
+                "type": "string",
+                "format": "date",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+              }
+            },
+            "required": [
+              "keyword"
+            ],
+            "additionalProperties": false
+          },
+          "items": {
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[a-f\\d]{24}$"
+                },
+                "date": {
+                  "type": "string",
+                  "format": "date",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "category": {
+                  "type": "string",
+                  "enum": [
+                    "accommodation",
+                    "transportation",
+                    "food",
+                    "shopping",
+                    "entertainment",
+                    "tickets",
+                    "other"
+                  ]
+                },
+                "payerId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[a-f\\d]{24}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "payerName": {
+                  "type": "string"
+                },
+                "payerIsVirtual": {
+                  "type": "boolean"
+                },
+                "amount": {
+                  "type": "number"
+                },
+                "originalAmount": {
+                  "type": "number"
+                },
+                "currency": {
+                  "type": "string"
+                },
+                "ledger": {
+                  "type": "object",
+                  "properties": {
+                    "baseCurrency": {
+                      "type": "string",
+                      "pattern": "^[A-Z]{3}$"
+                    },
+                    "moneyScale": {
+                      "type": "number",
+                      "const": 2
+                    }
+                  },
+                  "required": [
+                    "baseCurrency",
+                    "moneyScale"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "id",
+                "date",
+                "description",
+                "category",
+                "payerId",
+                "payerName",
+                "amount",
+                "originalAmount",
+                "currency",
+                "ledger"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "revision": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "payers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "userId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[a-f\\d]{24}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "displayName": {
+                  "type": "string"
+                },
+                "isVirtual": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "userId",
+                "displayName"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "summary": {
+            "type": "object",
+            "properties": {
+              "count": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "total": {
+                "type": "number",
+                "minimum": 0
+              },
+              "mySpent": {
+                "type": "number",
+                "minimum": 0
+              },
+              "categories": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "category": {
+                      "type": "string",
+                      "enum": [
+                        "accommodation",
+                        "transportation",
+                        "food",
+                        "shopping",
+                        "entertainment",
+                        "tickets",
+                        "other"
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "total": {
+                      "type": "number",
+                      "minimum": 0
+                    }
+                  },
+                  "required": [
+                    "category",
+                    "count",
+                    "total"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "members": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "userId": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "pattern": "^[a-f\\d]{24}$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "displayName": {
+                      "type": "string"
+                    },
+                    "isVirtual": {
+                      "type": "boolean"
+                    },
+                    "paid": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "share": {
+                      "type": "number",
+                      "minimum": 0
+                    }
+                  },
+                  "required": [
+                    "userId",
+                    "displayName",
+                    "paid",
+                    "share"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "count",
+              "total",
+              "mySpent",
+              "categories",
+              "members"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ledger",
+          "filters",
+          "items",
+          "nextCursor",
+          "revision",
+          "payers",
+          "summary"
+        ],
+        "additionalProperties": false
+      },
       "V2BudgetInput": {
         "type": "object",
         "properties": {

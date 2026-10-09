@@ -223,6 +223,22 @@ const templates = {
         '20 items/page; ongoing, upcoming, unscheduled, past, archived. Pagination is not a snapshot; refresh from page 1 after changes.',
     },
   },
+  '/trips/{id}/expense-search': {
+    get: {
+      ...operation('expenseSearch', 'V2ExpenseSearch', undefined, {
+        authenticated: true,
+        errors: [409],
+      }),
+      parameters: [
+        tripIdParam,
+        ...['keyword', 'category', 'payerId', 'dateFrom', 'dateTo', 'cursor'].map((name) => ({
+          name,
+          in: 'query',
+          schema: schemas.V2ExpenseSearchInput.properties[name],
+        })),
+      ],
+    },
+  },
   '/trips/{id}/budget': {
     get: { ...operation('budgetContext', 'V2BudgetContext'), parameters: [tripIdParam] },
     post: {
@@ -512,6 +528,8 @@ for (const [path, item] of Object.entries(templates)) {
       };
     }
 }
+paths['/v2/trips/{id}/expense-search'].get.description =
+  'Member-only full-trip literal description/payer search. AND filters: keyword (trimmed, max 200), category, payerId (id or missing), inclusive dateFrom/dateTo (YYYY-MM-DD). Unknown/repeated keys or invalid ranges return 400. Twenty rows per page, date/createdAt/id descending. Same snapshot supplies all matching totals, own normalized shares, category and member analysis. Cursor binds actor/trip/filters/result revision; changed results return 409 RESOURCE_CHANGED, restart page 1. No private budgets, tags, receipts, drafts or repayments.';
 paths['/v2/trips/{id}/budget'].get.description =
   'Signed-in member only: private total/category budget, opaque personal revision and all recorded trip expense shares using the Web calculator. No other member budgets, drafts or repayments.';
 paths['/v2/trips/{id}/budget'].post.description =

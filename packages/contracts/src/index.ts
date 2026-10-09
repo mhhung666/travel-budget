@@ -929,6 +929,58 @@ export const expensesV2Schema = expensesSchema.safeExtend({
   ...ledgerFields,
   items: z.array(expenseV2Schema),
 });
+/** Literal description/payer search; inclusive date-only bounds, all filters AND together. */
+export const expenseSearchFiltersSchema = z
+  .object({
+    keyword: z.string().trim().max(200).default(''),
+    category: expenseCategorySchema.optional(),
+    payerId: z.union([idSchema, z.literal('missing')]).optional(),
+    dateFrom: dateSchema.optional(),
+    dateTo: dateSchema.optional(),
+  })
+  .strict()
+  .refine((v) => !v.dateFrom || !v.dateTo || v.dateFrom <= v.dateTo, 'Invalid date range');
+export const expenseSearchInputSchema = expenseSearchFiltersSchema.safeExtend({
+  cursor: z
+    .string()
+    .regex(/^[a-f0-9]{64}\.[1-9]\d{0,8}$/)
+    .optional(),
+});
+const searchMemberSchema = z.object({
+  userId: idSchema.nullable(),
+  displayName: z.string(),
+  isVirtual: z.boolean().optional(),
+});
+const searchMoney = z.number().finite().nonnegative();
+export const expenseSearchV2Schema = z
+  .object({
+    ...ledgerFields,
+    filters: expenseSearchFiltersSchema,
+    items: z.array(expenseV2Schema).max(20),
+    nextCursor: z.string().nullable(),
+    revision: z.string().regex(/^[a-f0-9]{64}$/),
+    payers: z.array(searchMemberSchema),
+    summary: z.object({
+      count: z.number().int().nonnegative(),
+      total: searchMoney,
+      mySpent: searchMoney,
+      categories: z.array(
+        z.object({
+          category: expenseCategorySchema,
+          count: z.number().int().nonnegative(),
+          total: searchMoney,
+        })
+      ),
+      members: z.array(searchMemberSchema.extend({ paid: searchMoney, share: searchMoney })),
+    }),
+  })
+  .refine(
+    (v) => v.items.every((e) => e.ledger.baseCurrency === v.ledger.baseCurrency),
+    'Mixed ledger'
+  );
+export type ExpenseSearchFilters = z.infer<typeof expenseSearchFiltersSchema>;
+export type ExpenseSearchInput = z.infer<typeof expenseSearchInputSchema>;
+export type ExpenseSearchResult = z.infer<typeof expenseSearchV2Schema>;
 export const expenseDetailV2Schema = expenseDetailSchema.safeExtend(ledgerFields);
 export const settlementV2Schema = settlementSchema.safeExtend(ledgerFields);
 export const expenseOptionsV2Schema = expenseOptionsSchema.safeExtend({
@@ -1029,6 +1081,8 @@ export const mutationRequestV2Schema = z.discriminatedUnion('status', [
 
 export type LedgerMutationRequest = z.infer<typeof mutationRequestV2Schema>;
 export const v2Schemas = {
+  V2ExpenseSearch: expenseSearchV2Schema,
+  V2ExpenseSearchInput: expenseSearchInputSchema,
   V2BudgetInput: budgetV2Input,
   V2BudgetContext: budgetContextV2Schema,
   V2BudgetMutationResult: budgetMutationResultV2Schema,

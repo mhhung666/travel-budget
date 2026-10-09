@@ -246,3 +246,16 @@ mode=equal 的 changes 可成對新增 currency／exchange_rate，original_amoun
 - `budget.set` 復用 Web 既有 actor／UUID receipt namespace、parent fence 與交易；Mobile receipt adapter 只補回應的 resourceId，不改舊 receipt／指紋。`GET /mutation-requests/:uuid` 重授權目前成員，重播不覆蓋後續新預算；撤權者不能讀原結果。格式錯誤在寫入前 400；未知 DB 錯誤整筆回滾。沒有 migration。
 
 手機透過 E 的 pending_mutation 保存確認內容，SQLite schema 10 不增加表；普通離線草稿不保存預算。API／進度不混用 TWD 與其他基準幣，支出單位錯誤保持 fail-closed。部署順序仍是相容後端先於新 App；裝置待驗見 [G4a](LOCAL_ACCEPTANCE.md#g4a-個人預算交接)。
+
+## G4b 搜尋與分析
+
+`GET /api/v2/trips/:id/expense-search` 是相容新增端點；舊 `/expenses` 清單與游標不變。先驗 Bearer 成員，再在 `withTripReadInDatabase` snapshot 重驗授權與完整帳本單位。參數集中於 `expenseSearchInputSchema`：
+
+- `keyword`：trim 後最多 200 字；省略或空白不篩選，描述／付款人名稱的大小寫不敏感字面搜尋，不接受正規表示式或搜尋隱藏標籤。
+- `category`：既有七分類；未知歷史分類併入 other。`payerId`：ObjectId 或 `missing`（解析不到使用者的歷史參照）；同名依 ID 區分，不按姓名猜。選項列出全旅行曾付款者，不代表現任成員資格。
+- `dateFrom`／`dateTo`：真實 YYYY-MM-DD，與 Web DTO 的 date-only 規則一致，含兩端；單邊可省略，起日不得晚於迄日。所有條件 AND 組合。未知或重複鍵、非法格式皆 400。
+- `cursor`：端點專用的 revision／位移，綁登入者、旅行、ledger、正規化條件與全量讀取資料；不可沿用舊清單游標。每頁 20 筆，依 date／createdAt／id 降冪。條件、使用者顯示資料或支出變動導致 `409 RESOURCE_CHANGED`，須從第一頁重讀；不宣稱跨請求保留 DB snapshot。
+
+`ExpenseSearchResult` 必帶 ledger、filters、revision、items（逐列 ledger）、nextCursor、全旅行 payers，以及同一次快照／同條件的 summary：count／total／mySpent、categories 的分類／筆數／總額、members 的姓名／ID／虛擬旗標／paid／share。sum 與 normalizeShares 沿 Web `toExpenseDto`、`filterExpenses`、`computeTripStats`，無手機金額引擎。未解析成員的付款及分攤仍納入總額，不因參照消失丟帳；非 TWD 帳本不轉為 TWD。沒有公開路由，沒有私人預算、帳號、Email、附件、標籤、行程或 receipt 欄位。
+
+後端目前讀全旅行必要投影後共用 Web 篩選／計算，再切頁；不是 MongoDB 全文索引或大型資料效能承諾。沒有 index／DB migration、寫 fence 或 receipt。舊後端缺端點仍需先部署相容後端，再發布新 App；跨旅行統計及其基準幣分組另排。

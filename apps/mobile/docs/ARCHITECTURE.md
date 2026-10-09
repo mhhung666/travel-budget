@@ -223,3 +223,9 @@ maintenance 純函式以歷史原額／幣別／String(rate) 初始化，讀 con
 `BudgetScreen` 路由依環境／帳號／旅行／恢復來源重新掛載，線上讀本人 budget context，不新增 Query／SQLite 私人讀取快照。`budgetForm` 保留原始文字、嚴格驗證及衝突差異，不計算花費；進度來自後端完整支出的 Web 共用計算。核對／確認捕捉輸入世代，SQLite 等待、背景、斷線與晚到回應不能恢復失效確認。
 
 `budget.set` 加入現有 TripEntry／mutationPayload 與 OperationsScreen；保存原 revision／UUID／完整替換 body，沿既有 schema 10、共用 429、同旅行互斥與原結果恢復。終局拒絕保留原輸入供明確重開；成功只讀刷新 landing／旅行列表，不以舊 receipt 樂觀覆蓋預算。後端入口與隱私規則見 [G4a 契約](BACKEND_CONTRACT.md#g4a-個人預算)。
+
+## G4b 搜尋與分析
+
+`trips/[id]/expense-search` 以環境／帳號／登入世代／旅行為 key，`ExpenseSearchScreen` 使用四語表單與既有列表列、同名標記及語系格式。`ExpenseSearchReader` 是畫面生命週期內的唯讀控制器：只存已套用條件、全量 summary 與載入列；換條件立即清舊結果、abort 舊請求，離焦取消、返回從第一頁刷新。不建立 React Query 私人快取、SQLite 表或搜尋歷史。
+
+每次讀取先通過 `expenseReadGuard`，SQLite 後與 transport／refresh 重送前檢查登入、catalog 世代、前景／網路及持久共用等待。實際 429 保存原到期時間，保存失敗不能繞過；本機攔截不延長期限。舊回應以 generation 忽略；授權拒絕清結果，之後暫時故障不使私人資料重現。分頁只合併同 revision／單位，衝突保留上次結果並要求刷新，不拼接不同時點的總計與列表。後端契約與效能界線見 [G4b](BACKEND_CONTRACT.md#g4b-搜尋與分析)。

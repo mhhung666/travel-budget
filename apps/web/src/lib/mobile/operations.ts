@@ -1,3 +1,4 @@
+import { mobileExpenseSearch } from './expenseSearch';
 import { mobileBudget, mobileSetBudget } from './budget';
 import { after } from 'next/server';
 import { mobileMaintainExpense, mobileEditContext } from './expenseMaintenance';
@@ -38,6 +39,9 @@ const op = <K extends keyof RouteParams = never>(handler: Operation<K>) => handl
  * from the wrapper's context, never from the operation.
  */
 const operations = {
+  'expense.search': op<'id'>((request, userId, p) =>
+    mobileExpenseSearch(userId, p.id, new URL(request.url))
+  ),
   'budget.context': op<'id'>((_, userId, p) => mobileBudget(userId, p.id)),
   'budget.set': op<'id'>((request, userId, p) => mobileSetBudget(request, userId, p.id)),
   // Trips and members

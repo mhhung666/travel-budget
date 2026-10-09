@@ -6,8 +6,7 @@
 
 ### 2026-10-09
 
-- G4a（Web／Mobile／contracts）：手機可設定本人總／分類預算並查看全量分攤進度；沿 Web 共用計算、私人 revision 與交易，支援衝突核對、清空確認及 E 原 UUID 恢復。完整測試、check／build／三平台匯出及隔離 DB／HTTP 通過；裝置待驗見 [G4a 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#g4a-個人預算交接)；G4b 搜尋／分析與非 TWD 新建仍另排。
-
+- G4（Web／Mobile／contracts）：G4a 個人預算已提交；G4b 搜尋／日期／分類／付款人篩選及全量分析已接入並提交。共用 Web 計算及授權快照，支援分頁變更重讀、撤權清除與共用限速；工程／隔離 DB／HTTP 驗證及裝置待驗見 [G4b 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#g4b-搜尋與分析交接)，跨旅行分析、非 TWD 新建及原生驗收仍另排。
 - G3（Web／Mobile／contracts）：四模式預覽與交易內確認、手機新增／草稿及明確進階編輯已接入；歷史模式不推測，新舊份額可核對，衝突重預覽、拒絕重開與 C／E 原 UUID 恢復，D 仍限 TWD 均分。Mobile 1,358 項＋工具 48 項、check／三平台匯出與隔離 HTTP 通過；獨立審查、裝置及非 TWD 開放仍待後續，見 [G3 現況](apps/mobile/docs/FEATURES.md#g3b-2-進階支出編輯)。
 - B5（Web／Mobile／contracts）：新操作與公開入口統一 v2，退役舊路徑並修正非 TWD 參考匯率／AI context；舊紀錄不重送，保留歷史隔離及明確捨棄／草稿恢復。獨立審查、工程／隔離 DB／HTTP／PWA 驗證已通過，原生待驗見 [B 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#b-基準幣別驗收b1b2b3-實作交接)。
 

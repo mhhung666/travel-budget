@@ -2023,6 +2023,63 @@ try {
     (await g3Request(`/trips/${g3Trip}/expense-requests/${g3Bad.client_request_id}`)).data.status,
     'rejected'
   );
+  // G4b: filtered totals are computed before pagination; result changes require restart.
+  const searchPath = `/trips/${g3Trip}/expense-search`;
+  const search = (query = '') =>
+    g3Request(`${searchPath}${query}`, { schema: contracts.expenseSearchV2Schema }).then(
+      (r) => r.data
+    );
+  await request(searchPath, { status: 401 });
+  for (const query of [
+    '?keyword=a&keyword=b',
+    '?dateFrom=2026-02-30',
+    '?dateFrom=2026-10-09&dateTo=2026-10-08',
+    '?category=invalid',
+    '?payerId=bad',
+    '?unknown=true',
+  ])
+    await g3Request(searchPath + query, { status: 400 });
+  const searchSeed = await db.collection('expenses').findOne({ trip: g3Trip });
+  const searchCopies = Array.from({ length: 25 }, (_, i) => ({
+    ...searchSeed,
+    _id: new mongoose.Types.ObjectId(),
+    description: 'G4B Coffee [x].*',
+    category: 'food',
+    date: new Date('2026-10-08T23:59:59Z'),
+    createdAt: new Date('2026-10-09'),
+    clientRequestId: `g4b-${i}`,
+  }));
+  await db.collection('expenses').insertMany(searchCopies);
+  const searchQuery =
+    '?keyword=' +
+    encodeURIComponent('coffee [x].*') +
+    '&dateFrom=2026-10-08&dateTo=2026-10-08&category=food';
+  const searchFirst = await search(searchQuery);
+  assert.equal(searchFirst.items.length, 20);
+  assert.equal(searchFirst.summary.count, 25);
+  assert.equal(searchFirst.summary.total, Math.round(searchSeed.amount * 25 * 100) / 100);
+  const searchSecond = await search(searchQuery + '&cursor=' + searchFirst.nextCursor);
+  assert.equal(searchSecond.items.length, 5);
+  assert.deepEqual(searchFirst.summary, searchSecond.summary);
+  assert.equal(new Set([...searchFirst.items, ...searchSecond.items].map((e) => e.id)).size, 25);
+  assert.equal(searchSecond.nextCursor, null);
+  await db
+    .collection('expenses')
+    .updateOne({ _id: searchCopies[0]._id }, { $set: { description: 'changed' } });
+  assert.equal(
+    (
+      await g3Request(searchPath + searchQuery + '&cursor=' + searchFirst.nextCursor, {
+        status: 409,
+      })
+    ).error.code,
+    'RESOURCE_CHANGED'
+  );
+  assert.equal((await search(searchQuery)).summary.count, 24);
+  assert.equal((await search('?keyword=NOT_MATCHED_G4B')).summary.count, 0);
+  await db.collection('expenses').deleteMany({ _id: { $in: searchCopies.map((e) => e._id) } });
+  pass(
+    'G4b HTTP: authenticated strict filters, complete totals, literal keyword/date/category, pagination and concurrent revision restart'
+  );
   // G4a uses the existing Web budget receipt namespace without exposing other member budgets.
   const budgetPath = `/trips/${g3Trip}/budget`;
   const budgetContext = () =>
@@ -2106,6 +2163,7 @@ try {
   await db
     .collection('trips')
     .updateOne({ _id: g3Trip }, { $pull: { members: { user: writer._id } } });
+  await g3Request(searchPath, { status: 404 });
   await g3Request(budgetPath, { status: 404 });
   await g3Request(budgetPath, { body: budgetClear, status: 404 });
   await g3Request(`/mutation-requests/${budgetClear.client_request_id}`, { status: 404 });
@@ -3303,6 +3361,18 @@ try {
   assert.equal(await db.collection('users').countDocuments({ _id: e2UserId }), 1);
   pass(
     'E2: anonymous registration, unique fields, UTF-8 boundary, identical send acceptance/rate limit, one concurrent reset, old session invalidation, lost-response login recovery'
+  );
+  const searchTransactions = await exec(
+    'pnpm',
+    ['exec', 'vitest', 'run', 'src/__tests__/expenseSearch.integration.test.ts'],
+    {
+      env: { ...process.env, MONGODB_MEMBER_TEST_URI: uri, MONGODB_MEMBER_TEST_ALLOW_WRITES: '1' },
+      maxBuffer: 1024 * 1024,
+    }
+  );
+  assert(searchTransactions.stdout.includes('6 passed'), 'Search snapshot cases did not run');
+  pass(
+    'G4b isolated DB: full-trip TWD/USD/JPY parity, private projection, tied pagination, revocation and corrupted-ledger rejection'
   );
   const budgetTransactions = await exec(
     'pnpm',
