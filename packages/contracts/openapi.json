@@ -1426,6 +1426,278 @@
         "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
       }
     },
+    "/v2/trips/{id}/budget": {
+      "get": {
+        "operationId": "budgetContextV2",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/V2BudgetContext"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Ledger data or total outside the safe range",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]{24}$"
+            }
+          }
+        ],
+        "description": "Signed-in member only: private total/category budget, opaque personal revision and all recorded trip expense shares using the Web calculator. No other member budgets, drafts or repayments."
+      },
+      "post": {
+        "operationId": "setBudgetV2",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/V2BudgetInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success; Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/V2BudgetMutationResult"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Ledger data or total outside the safe range",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]{24}$"
+            }
+          }
+        ],
+        "description": "Full replacement of the actor budget in the immutable trip base currency. Zero/null removes a limit; unique categories and cent precision required. Same Web revision/transaction and original UUID budget.set receipt; conflict requires receipt lookup and fresh review."
+      }
+    },
     "/v2/trips/{id}/currency-settings": {
       "get": {
         "operationId": "tripCurrencySettingsV2",
@@ -5337,6 +5609,295 @@
       }
     },
     "schemas": {
+      "V2BudgetInput": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1000000000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "categories": {
+            "maxItems": 7,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "category": {
+                  "type": "string",
+                  "enum": [
+                    "accommodation",
+                    "transportation",
+                    "food",
+                    "shopping",
+                    "entertainment",
+                    "tickets",
+                    "other"
+                  ]
+                },
+                "amount": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1000000000
+                }
+              },
+              "required": [
+                "category",
+                "amount"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "base_currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$"
+          },
+          "client_request_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "expected_revision": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        },
+        "required": [
+          "total",
+          "categories",
+          "base_currency",
+          "client_request_id",
+          "expected_revision"
+        ],
+        "additionalProperties": false
+      },
+      "V2BudgetContext": {
+        "type": "object",
+        "properties": {
+          "ledger": {
+            "type": "object",
+            "properties": {
+              "baseCurrency": {
+                "type": "string",
+                "pattern": "^[A-Z]{3}$"
+              },
+              "moneyScale": {
+                "type": "number",
+                "const": 2
+              }
+            },
+            "required": [
+              "baseCurrency",
+              "moneyScale"
+            ],
+            "additionalProperties": false
+          },
+          "tripId": {
+            "type": "string",
+            "pattern": "^[a-f\\d]{24}$"
+          },
+          "revision": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "budget": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "total": {
+                    "anyOf": [
+                      {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1000000000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "categories": {
+                    "maxItems": 7,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "category": {
+                          "type": "string",
+                          "enum": [
+                            "accommodation",
+                            "transportation",
+                            "food",
+                            "shopping",
+                            "entertainment",
+                            "tickets",
+                            "other"
+                          ]
+                        },
+                        "amount": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1000000000
+                        }
+                      },
+                      "required": [
+                        "category",
+                        "amount"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "total",
+                  "categories"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "progress": {
+            "type": "object",
+            "properties": {
+              "total": {
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "totalSpent": {
+                "type": "number",
+                "minimum": 0
+              },
+              "remaining": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "hasBudget": {
+                "type": "boolean"
+              },
+              "categories": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "category": {
+                      "type": "string"
+                    },
+                    "budget": {
+                      "anyOf": [
+                        {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "spent": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "remaining": {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "category",
+                    "budget",
+                    "spent",
+                    "remaining"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "total",
+              "totalSpent",
+              "remaining",
+              "hasBudget",
+              "categories"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ledger",
+          "tripId",
+          "revision",
+          "budget",
+          "progress"
+        ],
+        "additionalProperties": false
+      },
+      "V2BudgetMutationResult": {
+        "type": "object",
+        "properties": {
+          "tripId": {
+            "type": "string",
+            "pattern": "^[a-f\\d]{24}$"
+          },
+          "updated": {
+            "type": "boolean",
+            "const": true
+          },
+          "ledger": {
+            "type": "object",
+            "properties": {
+              "baseCurrency": {
+                "type": "string",
+                "pattern": "^[A-Z]{3}$"
+              },
+              "moneyScale": {
+                "type": "number",
+                "const": 2
+              }
+            },
+            "required": [
+              "baseCurrency",
+              "moneyScale"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "tripId",
+          "updated",
+          "ledger"
+        ],
+        "additionalProperties": false
+      },
       "V2Capabilities": {
         "type": "object",
         "properties": {
@@ -8543,6 +9104,7 @@
                   "trip.join",
                   "trip.update",
                   "trip.currency",
+                  "budget.set",
                   "trip.archive",
                   "trip.access",
                   "member.create",
@@ -8730,6 +9292,43 @@
                         "type": "string",
                         "pattern": "^[a-f\\d]{24}$"
                       },
+                      "updated": {
+                        "type": "boolean",
+                        "const": true
+                      },
+                      "ledger": {
+                        "type": "object",
+                        "properties": {
+                          "baseCurrency": {
+                            "type": "string",
+                            "pattern": "^[A-Z]{3}$"
+                          },
+                          "moneyScale": {
+                            "type": "number",
+                            "const": 2
+                          }
+                        },
+                        "required": [
+                          "baseCurrency",
+                          "moneyScale"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "tripId",
+                      "updated",
+                      "ledger"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "tripId": {
+                        "type": "string",
+                        "pattern": "^[a-f\\d]{24}$"
+                      },
                       "memberId": {
                         "type": "string",
                         "pattern": "^[a-f\\d]{24}$"
@@ -8855,6 +9454,7 @@
                   "trip.join",
                   "trip.update",
                   "trip.currency",
+                  "budget.set",
                   "trip.archive",
                   "trip.access",
                   "member.create",

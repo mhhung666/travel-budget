@@ -1,5 +1,8 @@
 import { retiredOperation } from '@/api/recovery';
 import {
+  budgetV2Input,
+  budgetMutationResultV2Schema,
+  type BudgetMutationResult,
   mutationRequestSchema,
   tripAccessResultSchema,
   type TripAccessResult,
@@ -110,6 +113,7 @@ export class TripEntry {
           'payment.create': paymentCreateV2Input,
           'payment.delete': paymentDeleteV2Input,
           'trip.currency': tripCurrencyV2Input,
+          'budget.set': budgetV2Input,
         };
         schemas[parsed.operation as keyof typeof schemas]?.parse(parsed.body);
         record = {
@@ -291,6 +295,7 @@ export class TripEntry {
     try {
       await this.ready(store, record, guard);
       const result = await this.deps.request<
+        | BudgetMutationResult
         | TripMutationResult
         | ExpenseMutationResult
         | PaymentMutationResult
@@ -299,40 +304,44 @@ export class TripEntry {
         | TripAccessResult
       >(
         record.accountId,
-        record.operation === 'trip.currency'
-          ? `/trips/${record.tripId}/currency-settings`
+        record.operation === 'budget.set'
+          ? `/trips/${record.tripId}/budget`
+          : record.operation === 'trip.currency'
+            ? `/trips/${record.tripId}/currency-settings`
+            : record.operation === 'trip.access'
+              ? `/trips/${record.tripId}/access`
+              : record.operation === 'member.create'
+                ? `/trips/${record.tripId}/members`
+                : record.operation === 'member.rename'
+                  ? `/trips/${record.tripId}/members/${record.payload?.operation === 'member.rename' ? record.payload.memberId : ''}`
+                  : record.operation === 'trip.update'
+                    ? `/trips/${record.tripId}`
+                    : record.operation === 'trip.archive'
+                      ? `/trips/${record.tripId}/archive`
+                      : record.operation === 'payment.create'
+                        ? `/trips/${record.tripId}/payments`
+                        : record.operation === 'payment.delete'
+                          ? `/trips/${record.tripId}/payments/${record.payload?.operation === 'payment.delete' ? record.payload.paymentId : ''}`
+                          : record.operation === 'trip.create'
+                            ? '/trips'
+                            : record.operation === 'trip.join'
+                              ? '/trips/join'
+                              : `/trips/${record.tripId}/expenses/${'expenseId' in record.payload! ? record.payload.expenseId : ''}`,
+        record.operation === 'budget.set'
+          ? budgetMutationResultV2Schema
           : record.operation === 'trip.access'
-            ? `/trips/${record.tripId}/access`
-            : record.operation === 'member.create'
-              ? `/trips/${record.tripId}/members`
-              : record.operation === 'member.rename'
-                ? `/trips/${record.tripId}/members/${record.payload?.operation === 'member.rename' ? record.payload.memberId : ''}`
-                : record.operation === 'trip.update'
-                  ? `/trips/${record.tripId}`
-                  : record.operation === 'trip.archive'
-                    ? `/trips/${record.tripId}/archive`
-                    : record.operation === 'payment.create'
-                      ? `/trips/${record.tripId}/payments`
-                      : record.operation === 'payment.delete'
-                        ? `/trips/${record.tripId}/payments/${record.payload?.operation === 'payment.delete' ? record.payload.paymentId : ''}`
-                        : record.operation === 'trip.create'
-                          ? '/trips'
-                          : record.operation === 'trip.join'
-                            ? '/trips/join'
-                            : `/trips/${record.tripId}/expenses/${'expenseId' in record.payload! ? record.payload.expenseId : ''}`,
-        record.operation === 'trip.access'
-          ? tripAccessResultSchema
-          : record.operation.startsWith('member.')
-            ? memberMutationResultSchema
-            : record.operation === 'trip.update' ||
-                record.operation === 'trip.archive' ||
-                record.operation === 'trip.currency'
-              ? tripManagementResultSchema
-              : record.operation.startsWith('payment.')
-                ? paymentMutationResultSchema
-                : record.operation.startsWith('expense.')
-                  ? expenseMutationResultSchema
-                  : tripMutationResultSchema,
+            ? tripAccessResultSchema
+            : record.operation.startsWith('member.')
+              ? memberMutationResultSchema
+              : record.operation === 'trip.update' ||
+                  record.operation === 'trip.archive' ||
+                  record.operation === 'trip.currency'
+                ? tripManagementResultSchema
+                : record.operation.startsWith('payment.')
+                  ? paymentMutationResultSchema
+                  : record.operation.startsWith('expense.')
+                    ? expenseMutationResultSchema
+                    : tripMutationResultSchema,
         {
           method:
             record.operation === 'member.rename' ||

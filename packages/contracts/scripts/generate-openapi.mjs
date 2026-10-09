@@ -223,6 +223,16 @@ const templates = {
         '20 items/page; ongoing, upcoming, unscheduled, past, archived. Pagination is not a snapshot; refresh from page 1 after changes.',
     },
   },
+  '/trips/{id}/budget': {
+    get: { ...operation('budgetContext', 'V2BudgetContext'), parameters: [tripIdParam] },
+    post: {
+      ...operation('setBudget', 'V2BudgetMutationResult', 'V2BudgetInput', {
+        authenticated: true,
+        errors: [409],
+      }),
+      parameters: [tripIdParam],
+    },
+  },
   '/trips/{id}/currency-settings': {
     get: { ...operation('tripCurrencySettings', 'TripCurrencyContext'), parameters: [tripIdParam] },
     post: {
@@ -502,6 +512,10 @@ for (const [path, item] of Object.entries(templates)) {
       };
     }
 }
+paths['/v2/trips/{id}/budget'].get.description =
+  'Signed-in member only: private total/category budget, opaque personal revision and all recorded trip expense shares using the Web calculator. No other member budgets, drafts or repayments.';
+paths['/v2/trips/{id}/budget'].post.description =
+  'Full replacement of the actor budget in the immutable trip base currency. Zero/null removes a limit; unique categories and cent precision required. Same Web revision/transaction and original UUID budget.set receipt; conflict requires receipt lookup and fresh review.';
 paths['/v2/capabilities'] = { get: operation('ledgerCapabilitiesV2', 'V2Capabilities') };
 paths['/v2/trips/{id}/exchange-rates'] = {
   parameters: [tripIdParam],

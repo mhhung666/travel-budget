@@ -605,6 +605,9 @@ export type PaymentDeleteInput = z.infer<typeof paymentDeleteInput>;
 export type PaymentContext = z.infer<typeof paymentContextSchema>;
 export type PaymentRevokeContext = z.infer<typeof paymentRevokeContextSchema>;
 export type PaymentMutationResult = z.infer<typeof paymentMutationResultSchema>;
+export const budgetMutationResultSchema = z
+  .object({ tripId: idSchema, updated: z.literal(true) })
+  .strict();
 export const mutationRequestSchema = z.discriminatedUnion('status', [
   z.object({ status: z.literal('not_found') }),
   z
@@ -615,6 +618,7 @@ export const mutationRequestSchema = z.discriminatedUnion('status', [
         'trip.join',
         'trip.update',
         'trip.currency',
+        'budget.set',
         'trip.archive',
         'trip.access',
         'member.create',
@@ -630,44 +634,50 @@ export const mutationRequestSchema = z.discriminatedUnion('status', [
         paymentMutationResultSchema.strict(),
         tripManagementResultSchema.strict(),
         tripMutationResultSchema.strict(),
+        budgetMutationResultSchema,
         memberMutationResultSchema,
         tripAccessResultSchema,
       ]),
     })
     .refine(
       (v) =>
-        v.operation === 'trip.access'
-          ? 'exited' in v.result && v.resourceId === v.result.tripId
-          : v.operation.startsWith('member.')
-            ? 'memberId' in v.result && v.resourceId === v.result.memberId
-            : v.operation.startsWith('expense.')
-              ? 'expenseId' in v.result &&
-                v.resourceId === v.result.expenseId &&
-                (v.operation === 'expense.update' ? !!v.result.revision : v.result.deleted === true)
-              : v.operation.startsWith('payment.')
-                ? 'paymentId' in v.result &&
-                  v.resourceId === v.result.paymentId &&
-                  (v.operation === 'payment.create'
+        v.operation === 'budget.set'
+          ? 'updated' in v.result && v.result.updated === true && v.resourceId === v.result.tripId
+          : v.operation === 'trip.access'
+            ? 'exited' in v.result && v.resourceId === v.result.tripId
+            : v.operation.startsWith('member.')
+              ? 'memberId' in v.result && v.resourceId === v.result.memberId
+              : v.operation.startsWith('expense.')
+                ? 'expenseId' in v.result &&
+                  v.resourceId === v.result.expenseId &&
+                  (v.operation === 'expense.update'
                     ? !!v.result.revision
                     : v.result.deleted === true)
-                : v.operation === 'trip.update' ||
-                    v.operation === 'trip.currency' ||
-                    v.operation === 'trip.archive'
-                  ? !('exited' in v.result) &&
-                    !('memberId' in v.result) &&
-                    !('expenseId' in v.result) &&
-                    !('paymentId' in v.result) &&
-                    v.resourceId === v.result.tripId &&
-                    (v.operation !== 'trip.archive'
-                      ? 'revision' in v.result && !!v.result.revision
-                      : 'archived' in v.result && v.result.archived !== undefined)
-                  : !('exited' in v.result) &&
-                    !('memberId' in v.result) &&
-                    !('expenseId' in v.result) &&
-                    !('paymentId' in v.result) &&
-                    !('revision' in v.result) &&
-                    !('archived' in v.result) &&
-                    v.resourceId === v.result.tripId,
+                : v.operation.startsWith('payment.')
+                  ? 'paymentId' in v.result &&
+                    v.resourceId === v.result.paymentId &&
+                    (v.operation === 'payment.create'
+                      ? !!v.result.revision
+                      : v.result.deleted === true)
+                  : v.operation === 'trip.update' ||
+                      v.operation === 'trip.currency' ||
+                      v.operation === 'trip.archive'
+                    ? !('exited' in v.result) &&
+                      !('memberId' in v.result) &&
+                      !('expenseId' in v.result) &&
+                      !('paymentId' in v.result) &&
+                      v.resourceId === v.result.tripId &&
+                      (v.operation !== 'trip.archive'
+                        ? 'revision' in v.result && !!v.result.revision
+                        : 'archived' in v.result && v.result.archived !== undefined)
+                    : !('exited' in v.result) &&
+                      !('memberId' in v.result) &&
+                      !('expenseId' in v.result) &&
+                      !('paymentId' in v.result) &&
+                      !('revision' in v.result) &&
+                      !('archived' in v.result) &&
+                      !('updated' in v.result) &&
+                      v.resourceId === v.result.tripId,
       'Receipt outcome does not match its operation'
     ),
   z.object({
@@ -677,6 +687,7 @@ export const mutationRequestSchema = z.discriminatedUnion('status', [
       'trip.join',
       'trip.update',
       'trip.currency',
+      'budget.set',
       'trip.archive',
       'trip.access',
       'member.create',
@@ -866,6 +877,49 @@ export type ExpenseUpdateV2Input = z.infer<typeof expenseUpdateV2Input>;
 export const expenseDeleteV2Input = expenseDeleteInput.safeExtend(ledgerInputFields);
 export const paymentCreateV2Input = paymentCreateInput.safeExtend(ledgerInputFields);
 export const paymentDeleteV2Input = paymentDeleteInput.safeExtend(ledgerInputFields);
+// Private, full replacement of the signed-in member's budget. Zero removes a limit.
+export const budgetFieldsSchema = z
+  .object({
+    total: centShare.nullable(),
+    categories: z
+      .array(z.object({ category: z.enum(expenseCategories), amount: centShare }).strict())
+      .max(expenseCategories.length)
+      .refine((rows) => noDuplicates(rows.map((r) => r.category)), 'Unique categories required'),
+  })
+  .strict();
+export const budgetV2Input = budgetFieldsSchema
+  .extend({
+    ...ledgerInputFields,
+    client_request_id: clientRequestIdSchema,
+    expected_revision: resourceRevisionSchema,
+  })
+  .strict();
+const budgetProgressAmount = z.number().finite().nonnegative();
+export const budgetContextV2Schema = z.object({
+  ...ledgerFields,
+  tripId: idSchema,
+  revision: resourceRevisionSchema,
+  budget: budgetFieldsSchema.nullable(),
+  progress: z.object({
+    total: budgetProgressAmount.nullable(),
+    totalSpent: budgetProgressAmount,
+    remaining: z.number().finite().nullable(),
+    hasBudget: z.boolean(),
+    categories: z.array(
+      z.object({
+        category: z.string(),
+        budget: budgetProgressAmount.nullable(),
+        spent: budgetProgressAmount,
+        remaining: z.number().finite().nullable(),
+      })
+    ),
+  }),
+});
+export const budgetMutationResultV2Schema = budgetMutationResultSchema.extend(ledgerFields);
+export type BudgetContext = z.infer<typeof budgetContextV2Schema>;
+export type BudgetInput = z.infer<typeof budgetV2Input>;
+export type BudgetFields = z.infer<typeof budgetFieldsSchema>;
+export type BudgetMutationResult = z.infer<typeof budgetMutationResultV2Schema>;
 export const tripCurrencyV2Input = tripCurrencyInput.safeExtend(ledgerInputFields);
 export const tripV2Schema = tripSchema.safeExtend(ledgerFields);
 export const tripsV2Schema = tripsSchema.safeExtend({ items: z.array(tripV2Schema) });
@@ -949,6 +1003,7 @@ export const mutationRequestV2Schema = z.discriminatedUnion('status', [
         paymentMutationResultSchema.safeExtend(ledgerFields).strict(),
         tripManagementResultSchema.safeExtend(ledgerFields).strict(),
         tripMutationResultSchema.safeExtend(ledgerFields).strict(),
+        budgetMutationResultSchema.safeExtend(ledgerFields).strict(),
         memberMutationResultSchema.safeExtend(ledgerFields).strict(),
         tripAccessResultSchema.safeExtend(ledgerFields).strict(),
       ]),
@@ -974,6 +1029,9 @@ export const mutationRequestV2Schema = z.discriminatedUnion('status', [
 
 export type LedgerMutationRequest = z.infer<typeof mutationRequestV2Schema>;
 export const v2Schemas = {
+  V2BudgetInput: budgetV2Input,
+  V2BudgetContext: budgetContextV2Schema,
+  V2BudgetMutationResult: budgetMutationResultV2Schema,
   V2Ledger: ledgerSchema,
   V2Capabilities: ledgerCapabilitiesSchema,
   V2TripCreateInput: tripCreateV2Input,

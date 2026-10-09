@@ -112,6 +112,7 @@ export function TripEntryProvider({ children }: PropsWithChildren) {
               'trip.update',
               'trip.archive',
               'trip.currency',
+              'budget.set',
               'member.create',
               'member.rename',
             ].includes(result.operation)

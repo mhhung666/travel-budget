@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import {
+  budgetV2Input,
   mutationRequestV2Schema,
   tripCreateV2Input,
   tripCurrencyV2Input,
@@ -31,6 +32,7 @@ import {
 import type { PendingScope, SqlDatabase } from './pendingExpenses';
 
 export const mutationPayload = z.discriminatedUnion('operation', [
+  z.object({ operation: z.literal('budget.set'), tripId: idSchema, body: budgetV2Input }),
   z.object({
     operation: z.literal('trip.currency'),
     tripId: idSchema,
@@ -258,7 +260,7 @@ export async function createMutationStore(db: SqlDatabase): Promise<MutationStor
             );
           }
           await db.runAsync(
-            "UPDATE pending_mutation SET status = 'completed', payload = CASE WHEN ? = 1 AND (operation LIKE 'expense.%' OR operation LIKE 'payment.%' OR operation LIKE 'member.%' OR operation IN ('trip.update', 'trip.archive', 'trip.access', 'trip.currency')) THEN payload ELSE NULL END, result = ? WHERE environment = ? AND account_id = ? AND client_request_id = ?",
+            "UPDATE pending_mutation SET status = 'completed', payload = CASE WHEN ? = 1 AND (operation LIKE 'expense.%' OR operation LIKE 'payment.%' OR operation LIKE 'member.%' OR operation IN ('trip.update', 'trip.archive', 'trip.access', 'trip.currency', 'budget.set')) THEN payload ELSE NULL END, result = ? WHERE environment = ? AND account_id = ? AND client_request_id = ?",
             result.status === 'rejected' ? 1 : 0,
             JSON.stringify(parsed),
             ...scopeArgs(scope),

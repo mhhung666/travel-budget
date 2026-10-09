@@ -1,4 +1,21 @@
 const zh = {
+  personalBudget: '我的預算',
+  budgetChanged: '預算已變更，請核對最新設定再確認。',
+  invalidBudget: '請填入 0 至 1,000,000,000、最多兩位小數的金額。',
+  budgetPrivateHint: '預算僅供本人查看及修改，不向其他成員公開。',
+  budgetProgress: '預算進度',
+  budgetProgressHint:
+    '以整趟旅行已入帳的本人分攤計算，不包含未送出草稿、佇列及還款。顯示上次讀取結果，重新整理可取得最新花費。',
+  budgetLimit: '預算',
+  budgetOver: '超出預算',
+  budgetRemaining: '剩餘預算',
+  editBudget: '設定預算',
+  budgetInputHint:
+    '所有金額皆為旅程基準幣，空白或 0 表示取消該項預算。總額與分類可獨立設定，分類合計可高於總額。',
+  categoryBudgets: '分類預算',
+  clearBudget: '清空預算欄位',
+  budgetBefore: '目前預算',
+  budgetAfter: '確認後的預算',
   resplitExpense: '重新分攤',
   newSplitHint:
     '舊帳未保存原始分攤方式。請重新選擇模式及輸入，核對新舊份額後才會取代原帳；基本編輯保留原帳。',
@@ -438,6 +455,23 @@ export type Messages = Record<keyof typeof zh, string>;
 export const messages = {
   zh,
   'zh-CN': {
+    personalBudget: '我的预算',
+    budgetChanged: '预算已更改，请核对最新设置后再确认。',
+    invalidBudget: '请输入 0 至 1,000,000,000、最多两位小数的金额。',
+    budgetPrivateHint: '预算仅供本人查看和修改，不向其他成员公开。',
+    budgetProgress: '预算进度',
+    budgetProgressHint:
+      '按整趟旅行已入账的本人分摊计算，不包含未发送草稿、队列和还款。显示上次读取结果，刷新可获取最新花费。',
+    budgetLimit: '预算',
+    budgetOver: '超出预算',
+    budgetRemaining: '剩余预算',
+    editBudget: '设置预算',
+    budgetInputHint:
+      '所有金额均为旅程基准币，空白或 0 表示取消该项预算。总额和分类可独立设置，分类合计可高于总额。',
+    categoryBudgets: '分类预算',
+    clearBudget: '清空预算字段',
+    budgetBefore: '当前预算',
+    budgetAfter: '确认后的预算',
     resplitExpense: '重新分摊',
     newSplitHint:
       '旧账未保存原始分摊方式。请重新选择模式及输入，核对新旧份额后才会替换原账；基本编辑保留原账。',
@@ -871,6 +905,23 @@ export const messages = {
     done: '完成',
   },
   en: {
+    personalBudget: 'My budget',
+    budgetChanged: 'Your budget changed. Review the latest settings before confirming.',
+    invalidBudget: 'Enter an amount from 0 to 1,000,000,000 with at most two decimals.',
+    budgetPrivateHint: 'Only you can view and edit your budget. Other members cannot see it.',
+    budgetProgress: 'Budget progress',
+    budgetProgressHint:
+      'Uses your share of all recorded trip expenses, excluding drafts, queued expenses and repayments. Refresh to read the latest spending.',
+    budgetLimit: 'Budget',
+    budgetOver: 'Over budget',
+    budgetRemaining: 'Remaining budget',
+    editBudget: 'Edit budget',
+    budgetInputHint:
+      'Amounts use the trip base currency. Blank or 0 removes a limit. Total and category budgets are independent; category limits may exceed the total.',
+    categoryBudgets: 'Category budgets',
+    clearBudget: 'Clear budget fields',
+    budgetBefore: 'Current budget',
+    budgetAfter: 'Budget after confirmation',
     resplitExpense: 'Reallocate expense',
     newSplitHint:
       'The original split method was not saved. Choose a new method and inputs, then review old and new shares before replacing them. Basic edits preserve the original accounting.',
@@ -1377,6 +1428,23 @@ export const messages = {
     done: 'Done',
   },
   jp: {
+    personalBudget: '自分の予算',
+    budgetChanged: '予算が変更されました。最新の設定を確認してください。',
+    invalidBudget: '0〜1,000,000,000、小数点以下2桁以内で入力してください。',
+    budgetPrivateHint: '予算は自分だけが閲覧・編集でき、他のメンバーには公開されません。',
+    budgetProgress: '予算の進捗',
+    budgetProgressHint:
+      '旅行全体の記帳済み支出の自分の負担額です。下書き・送信待ち・返済は含みません。最新の支出は更新して確認してください。',
+    budgetLimit: '予算',
+    budgetOver: '予算超過',
+    budgetRemaining: '予算残額',
+    editBudget: '予算を設定',
+    budgetInputHint:
+      '金額は旅行の基準通貨です。空欄または0で設定を解除します。総額と分類別予算は独立して設定でき、分類の合計が総額を超えても保存できます。',
+    categoryBudgets: '分類別予算',
+    clearBudget: '予算の入力をクリア',
+    budgetBefore: '現在の予算',
+    budgetAfter: '確認後の予算',
     resplitExpense: '分担を再設定',
     newSplitHint:
       '元の分担方法は保存されていません。方式と入力を選び直し、変更前後の負担額を確認してから置き換えます。基本情報の編集では元の会計を保持します。',

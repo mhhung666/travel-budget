@@ -62,6 +62,12 @@ export function TripScreen({ id }: { id: string }) {
             onPress={() => router.push({ pathname: '/trips/[id]/expenses/new', params: { id } })}
           />
           <Action
+            testID="trip-budget-open"
+            variant="secondary"
+            label={t.personalBudget}
+            onPress={() => router.push({ pathname: '/trips/[id]/budget', params: { id } })}
+          />
+          <Action
             testID="trip-settings"
             variant="secondary"
             label={t.tripSettings}

@@ -237,3 +237,12 @@ mode=equal 的 changes 可成對新增 currency／exchange_rate，original_amoun
 能力採相容的可選欄位：`expense-options.splitCreateModes` 宣告四種新增模式，`edit-context.capabilities.splitModes` 宣告四種明確重算模式；缺欄位即不開放相應功能。`splitPreviewModes` 與舊 `equal`／`recalculate` 不能替代這兩個能力，嚴格的全域 capabilities 保持不變。HTTP body 總限制仍為 8 KiB。G3b-1 已接手機新增、原始文字草稿與 D 非均分防線，見 [手機現況](FEATURES.md#g3b-1-進階新增與草稿)；G3b-2 已接進階編輯、新舊比較與 E 原 UUID 恢復，見 [編輯現況](FEATURES.md#g3b-2-進階支出編輯)。裝置驗收仍待後續，沒有 migration 或非 TWD 新建開關變更。
 
 驗證集中在 `expenseSplitConfirmation.test.ts`、`mobileExpenseWrite.integration.test.ts`、`expenseMaintenance.integration.test.ts` 與 `test:mobile-api`：含四模式、精確確認、同 UUID 並發／回應遺失／重播、歷史非均分、成員變動／撤權、Web 所改業務欄位的 revision 衝突、原欄位保留及交易回滾。隔離資料庫測試也覆蓋 USD／JPY 基準、零換算與合法匯率上下界；真機驗收另列 LOCAL_ACCEPTANCE。
+
+## G4a 個人預算
+
+- `GET /api/v2/trips/:id/budget` 回傳 `ledger`、`tripId`、本人預算 HMAC `revision`、`budget`（null 或 total／categories）與全量 `progress`。progress 包含 total、totalSpent、remaining、hasBudget 與分類 budget／spent／remaining；remaining 為負表示超支，沒有該項預算則 null。只讀登入者預算，不接受使用者 ID 參數、不輸出其他成員或 legacy budget。
+- `POST` 同一路徑接受嚴格的 `BudgetInput`：`client_request_id`、`expected_revision`、`base_currency`、`total`（null 或非負金額）、完整 `categories` 陣列。分類限七種、不得重複；每欄最多兩位小數及 1,000,000,000，零代表移除。總額與分類獨立，可只設分類或分類合計高於總額；不是部分更新。
+- 寫入共用 Web `writeWebSettings(..., 'budget', ...)`／`normalizeBudget`，一般成員可改本人設定。revision 只綁本人原預算及單位；同人並行變更保存 `409 RESOURCE_CHANGED` 終局，UUID 不同 body 回 `409 IDEMPOTENCY_CONFLICT`。成功為 `{tripId, updated: true, ledger}`，不攜帶私人金額。
+- `budget.set` 復用 Web 既有 actor／UUID receipt namespace、parent fence 與交易；Mobile receipt adapter 只補回應的 resourceId，不改舊 receipt／指紋。`GET /mutation-requests/:uuid` 重授權目前成員，重播不覆蓋後續新預算；撤權者不能讀原結果。格式錯誤在寫入前 400；未知 DB 錯誤整筆回滾。沒有 migration。
+
+手機透過 E 的 pending_mutation 保存確認內容，SQLite schema 10 不增加表；普通離線草稿不保存預算。API／進度不混用 TWD 與其他基準幣，支出單位錯誤保持 fail-closed。部署順序仍是相容後端先於新 App；裝置待驗見 [G4a](LOCAL_ACCEPTANCE.md#g4a-個人預算交接)。

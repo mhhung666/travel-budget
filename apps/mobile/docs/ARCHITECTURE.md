@@ -217,3 +217,9 @@ maintenance 純函式以歷史原額／幣別／String(rate) 初始化，讀 con
 `maintenance.ts` 的 EditFields 保存可選的新 splitMode／逐模式 ID 文字；`editFields` 不猜歷史模式，未知成員以未解析選取保留。`EditExpenseScreen` 明確進入 split 模式再選分攤方式，共用 SplitFields。prepareEdit 在預覽前後讀 context，核對 revision、單位及編輯／預覽能力；editChanges 驗證完整 v2 預覽，按回傳 ID 對齊 values，產生既有 `mode: split` 契約。基本資料與舊 equal 路徑保持相容。
 
 進階衝突 rebase 保留整份帳務意圖，基本欄位仍只攜帶相對前一基準的修改；任何更動／離線／背景推進輸入世代，晚到預覽及確認守衛等待不能沿用失效結果。E 引擎與 schema 10 原樣保存完整操作，原 UUID／receipt／共用 429 不變；只有終局拒絕後才由來源操作的 body 還原新表單，不從歷史支出猜模式，不建立離線編輯草稿。能力及使用者行為見 [FEATURES](FEATURES.md#g3b-2-進階支出編輯)。
+
+## G4a 個人預算
+
+`BudgetScreen` 路由依環境／帳號／旅行／恢復來源重新掛載，線上讀本人 budget context，不新增 Query／SQLite 私人讀取快照。`budgetForm` 保留原始文字、嚴格驗證及衝突差異，不計算花費；進度來自後端完整支出的 Web 共用計算。核對／確認捕捉輸入世代，SQLite 等待、背景、斷線與晚到回應不能恢復失效確認。
+
+`budget.set` 加入現有 TripEntry／mutationPayload 與 OperationsScreen；保存原 revision／UUID／完整替換 body，沿既有 schema 10、共用 429、同旅行互斥與原結果恢復。終局拒絕保留原輸入供明確重開；成功只讀刷新 landing／旅行列表，不以舊 receipt 樂觀覆蓋預算。後端入口與隱私規則見 [G4a 契約](BACKEND_CONTRACT.md#g4a-個人預算)。

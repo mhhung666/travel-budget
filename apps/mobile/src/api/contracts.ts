@@ -3,6 +3,14 @@ import { sessionSchema as sharedSessionSchema } from '@travel-budget/contracts';
 import * as shared from '@travel-budget/contracts';
 
 export {
+  BudgetContext,
+  BudgetInput,
+  BudgetFields,
+  BudgetMutationResult,
+  budgetFieldsSchema,
+  budgetV2Input,
+  budgetContextV2Schema,
+  budgetMutationResultV2Schema,
   CurrencySettings,
   ExpenseMutationResult,
   Ledger,

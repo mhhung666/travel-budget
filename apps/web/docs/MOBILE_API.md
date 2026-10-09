@@ -118,3 +118,7 @@ v2 preview 已透過 `computeLedgerSplits` 共用 Web 的均分／固定原幣�
 新增的可選 split 與編輯的明確 mode=split 在原交易中共用 `expenseSplitConfirmation.ts` 核對 Web 計算結果、有效成員及每人確認份額，歷史帳不推測模式。基本編輯、舊 body 指紋、revision、UUID 與終局 receipt 語意保留；能力分別為 options.splitCreateModes、edit-context.capabilities.splitModes。完整格式、錯誤及手機後續界線見 [G3a-2 契約](../../mobile/docs/BACKEND_CONTRACT.md#g3a-2-進階分攤新增與編輯)。
 
 隔離 MongoDB 測試涵蓋四模式、非 TWD／零換算、成員異動、UUID 競爭／重播、拒絕持久化與交易回滾；真 HTTP 覆蓋四模式確認、外幣重算、丟失 PATCH 回應後沿原 UUID 查回及重播。裝置操作不以這些測試取代。
+
+## G4a 個人預算
+
+`GET/POST /api/v2/trips/:id/budget` 提供本人總／分類預算及全量分攤進度，使用 Web 共用計算、正規化與交易，普通成員可設定本人預算。`budget.set` 原 UUID 結果由既有 mutation-requests 查詢，不輸出私人金額。輸入、版本衝突、零／清空與隱私邊界集中於 [Mobile G4a 契約](../../mobile/docs/BACKEND_CONTRACT.md#g4a-個人預算)；隔離交易與 HTTP 驗證納入 `test:mobile-api`，裝置待驗另列。

@@ -62,8 +62,12 @@ export async function mobileMutationRequest(actorId: string, uuid: string) {
   if (!key.success) throw new ApiError(400, 'VALIDATION_ERROR');
   await dbConnect();
   try {
+    const result = await readTripMutation(mongoose.connection.db!, actorId, key.data);
+    // Web settings receipts predate the native resourceId envelope; never rewrite stored receipts.
     return mutationRequestV2Schema.parse(
-      await readTripMutation(mongoose.connection.db!, actorId, key.data)
+      result.status === 'committed' && result.operation === 'budget.set'
+        ? { ...result, resourceId: result.result.tripId }
+        : result
     );
   } catch (error) {
     throw tripEntryError(error);

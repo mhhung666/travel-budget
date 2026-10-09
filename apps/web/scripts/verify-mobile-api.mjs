@@ -2023,6 +2023,96 @@ try {
     (await g3Request(`/trips/${g3Trip}/expense-requests/${g3Bad.client_request_id}`)).data.status,
     'rejected'
   );
+  // G4a uses the existing Web budget receipt namespace without exposing other member budgets.
+  const budgetPath = `/trips/${g3Trip}/budget`;
+  const budgetContext = () =>
+    g3Request(budgetPath, { schema: contracts.budgetContextV2Schema }).then((r) => r.data);
+  const budgetBefore = await budgetContext();
+  const budgetBody = {
+    client_request_id: randomUUID(),
+    expected_revision: budgetBefore.revision,
+    base_currency: 'TWD',
+    total: 100.01,
+    categories: [{ category: 'food', amount: 150 }],
+  };
+  await g3Request(budgetPath, { body: { ...budgetBody, actorId: writerId }, status: 400 });
+  await g3Request(budgetPath, { body: { ...budgetBody, total: 1.001 }, status: 400 });
+  await request(budgetPath, { status: 401 });
+  const budgetAccepted = (
+    await g3Request(budgetPath, {
+      body: budgetBody,
+      schema: contracts.budgetMutationResultV2Schema,
+    })
+  ).data;
+  assert.equal(budgetAccepted.updated, true);
+  const budgetRead = await budgetContext();
+  assert.equal(budgetRead.budget.total, 100.01);
+  assert.deepEqual(budgetRead.budget.categories, [{ category: 'food', amount: 150 }]);
+  assert.equal(
+    budgetRead.progress.totalSpent,
+    (await g3Request(`/trips/${g3Trip}/landing`, { schema: landingSchema })).data.mySpent
+  );
+  const budgetReceipt = (
+    await g3Request(`/mutation-requests/${budgetBody.client_request_id}`, {
+      schema: contracts.mutationRequestV2Schema,
+    })
+  ).data;
+  assert.deepEqual(budgetReceipt.result, budgetAccepted);
+  assert.equal(budgetReceipt.operation, 'budget.set');
+  await g3Request(budgetPath, { body: { ...budgetBody, total: 200 }, status: 409 });
+  const budgetStale = { ...budgetBody, client_request_id: randomUUID(), total: 300 };
+  await g3Request(budgetPath, { body: budgetStale, status: 409 });
+  assert.equal(
+    (await g3Request(`/mutation-requests/${budgetStale.client_request_id}`)).data.code,
+    'RESOURCE_CHANGED'
+  );
+  const budgetClear = {
+    ...budgetBody,
+    client_request_id: randomUUID(),
+    expected_revision: budgetRead.revision,
+    total: 0,
+    categories: [],
+  };
+  // Drop the actual acknowledgement, then recover the original UUID and replay only that body.
+  const budgetSocket = connect(port, '127.0.0.1');
+  budgetSocket.on('error', () => {});
+  await once(budgetSocket, 'connect');
+  const budgetText = JSON.stringify(budgetClear);
+  budgetSocket.write(
+    `POST /api/v2${budgetPath} HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\nAuthorization: Bearer ${writerSession.accessToken}\r\nContent-Type: application/json\r\nContent-Length: ${Buffer.byteLength(budgetText)}\r\nConnection: close\r\n\r\n${budgetText}`
+  );
+  await eventually(
+    async () =>
+      !!(await db
+        .collection('mutationrequests')
+        .findOne({ _id: `${writerId}:${budgetClear.client_request_id}` })),
+    'budget did not commit',
+    20000
+  );
+  budgetSocket.destroy();
+  const budgetRecovered = (
+    await g3Request(`/mutation-requests/${budgetClear.client_request_id}`, {
+      schema: contracts.mutationRequestV2Schema,
+    })
+  ).data;
+  assert.equal(budgetRecovered.status, 'committed');
+  assert.deepEqual(
+    (await g3Request(budgetPath, { body: budgetClear })).data,
+    budgetRecovered.result
+  );
+  assert.equal((await budgetContext()).budget, null);
+  assert.deepEqual((await g3Request(budgetPath, { body: budgetBody })).data, budgetAccepted);
+  assert.equal((await budgetContext()).budget, null);
+  await db
+    .collection('trips')
+    .updateOne({ _id: g3Trip }, { $pull: { members: { user: writer._id } } });
+  await g3Request(budgetPath, { status: 404 });
+  await g3Request(budgetPath, { body: budgetClear, status: 404 });
+  await g3Request(`/mutation-requests/${budgetClear.client_request_id}`, { status: 404 });
+  await db.collection('mutationrequests').deleteMany({ trip: g3Trip });
+  pass(
+    'G4a HTTP: strict private budget, Web revision, original UUID/drop/replay, full spending and revoked access'
+  );
   await db.collection('trips').deleteOne({ _id: g3Trip });
   for (const name of ['expenses', 'expensecreaterequests', 'activitylogs', 'notifications'])
     await db.collection(name).deleteMany({ trip: g3Trip });
@@ -3213,6 +3303,18 @@ try {
   assert.equal(await db.collection('users').countDocuments({ _id: e2UserId }), 1);
   pass(
     'E2: anonymous registration, unique fields, UTF-8 boundary, identical send acceptance/rate limit, one concurrent reset, old session invalidation, lost-response login recovery'
+  );
+  const budgetTransactions = await exec(
+    'pnpm',
+    ['exec', 'vitest', 'run', 'src/__tests__/budgetRead.integration.test.ts'],
+    {
+      env: { ...process.env, MONGODB_MEMBER_TEST_URI: uri, MONGODB_MEMBER_TEST_ALLOW_WRITES: '1' },
+      maxBuffer: 1024 * 1024,
+    }
+  );
+  assert(budgetTransactions.stdout.includes('7 passed'), 'Budget transaction cases did not run');
+  pass(
+    'G4a private budgets: all-row Web parity, currencies, concurrent UUID, revision, revocation and rollback'
   );
   // E1: real HTTP, replica-set transactions and database counts, no production service.
   const eTransactions = await exec(

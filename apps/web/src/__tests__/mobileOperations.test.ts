@@ -25,6 +25,8 @@ const mocks = vi.hoisted(() => {
     'mobileInvitation',
     'mobileManageTrip',
     'mobileTripCurrency',
+    'mobileBudget',
+    'mobileSetBudget',
     'mobileTripSettings',
     'mobileTrips',
     'mobileLanding',
@@ -50,6 +52,7 @@ vi.mock('@/lib/mobile/settlement', () => mocks.service);
 vi.mock('@/lib/mobile/tripAccess', () => mocks.service);
 vi.mock('@/lib/mobile/tripEntry', () => mocks.service);
 vi.mock('@/lib/mobile/tripManagement', () => mocks.service);
+vi.mock('@/lib/mobile/budget', () => mocks.service);
 vi.mock('@/lib/mobile/trips', () => ({
   ...mocks.service,
   viewerDate: (url: URL) => url.searchParams.get('today'),
@@ -80,6 +83,8 @@ beforeEach(() => {
 
 // Every member operation and the exact service call it must make; a swapped id or mode fails here.
 const table: [MobileOperation, keyof typeof mocks.service, unknown[]][] = [
+  ['budget.context', 'mobileBudget', [userId, id]],
+  ['budget.set', 'mobileSetBudget', [anyRequest, userId, id]],
   ['trip.list', 'mobileTrips', [userId, anyUrl]],
   ['trip.create', 'mobileEnterTrip', [anyRequest, userId, 'trip.create']],
   ['trip.join', 'mobileEnterTrip', [anyRequest, userId, 'trip.join']],
@@ -162,6 +167,7 @@ const routes: Record<string, Partial<Record<(typeof methods)[number], MobileOper
   'mutation-requests/[uuid]/route.ts': { GET: 'mutation.request' },
   'trips/[id]/access/route.ts': { GET: 'access.context', POST: 'access.manage' },
   'trips/[id]/archive/route.ts': { POST: 'trip.archive' },
+  'trips/[id]/budget/route.ts': { GET: 'budget.context', POST: 'budget.set' },
   'trips/[id]/currency-settings/route.ts': { GET: 'trip.currencyContext', POST: 'trip.currency' },
   'trips/[id]/expense-options/route.ts': { GET: 'expense.options' },
   'trips/[id]/expense-requests/[clientRequestId]/route.ts': { GET: 'expense.request' },
@@ -190,7 +196,7 @@ const routes: Record<string, Partial<Record<(typeof methods)[number], MobileOper
 };
 
 describe('v2 member routes', () => {
-  it('covers exactly the 24 member routes and every operation once; no v1 family remains', () => {
+  it('covers exactly the 25 member routes and every operation once; no v1 family remains', () => {
     expect(existsSync(join(api, 'v1'))).toBe(false);
     expect(routeFiles('v2')).toEqual(Object.keys(routes).sort());
     const operations = Object.values(routes).flatMap((route) => Object.values(route));

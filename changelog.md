@@ -6,9 +6,10 @@
 
 ### 2026-10-09
 
+- G4a（Web／Mobile／contracts）：手機可設定本人總／分類預算並查看全量分攤進度；沿 Web 共用計算、私人 revision 與交易，支援衝突核對、清空確認及 E 原 UUID 恢復。完整測試、check／build／三平台匯出及隔離 DB／HTTP 通過；裝置待驗見 [G4a 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#g4a-個人預算交接)；G4b 搜尋／分析與非 TWD 新建仍另排。
+
 - G3（Web／Mobile／contracts）：四模式預覽與交易內確認、手機新增／草稿及明確進階編輯已接入；歷史模式不推測，新舊份額可核對，衝突重預覽、拒絕重開與 C／E 原 UUID 恢復，D 仍限 TWD 均分。Mobile 1,358 項＋工具 48 項、check／三平台匯出與隔離 HTTP 通過；獨立審查、裝置及非 TWD 開放仍待後續，見 [G3 現況](apps/mobile/docs/FEATURES.md#g3b-2-進階支出編輯)。
-- Web／Mobile／contracts B5e：刪除舊公開 URL 與無呼叫服務，修正非 TWD 參考匯率 503 與 AI 行程匯入 context。獨立審查及 Web 2,308 項、Mobile 1,234 項、隔離 DB 259 項、真 HTTP 34 段、PWA 瀏覽器 11 項、check／build／三平台匯出通過；原生操作待驗，見 [B 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#b-基準幣別驗收b1b2b3-實作交接)。
-- Web／Mobile B5d：新操作統一 v2，舊紀錄不重送，保留捨棄／草稿恢復與歷史隔離。Mobile API 設定改為只填後端網域，舊版本路徑仍對應同一登入／本機資料；同步文件與驗收工具提示，Mobile 1,236 項＋工具 48 項及三平台匯出通過。
+- B5（Web／Mobile／contracts）：新操作與公開入口統一 v2，退役舊路徑並修正非 TWD 參考匯率／AI context；舊紀錄不重送，保留歷史隔離及明確捨棄／草稿恢復。獨立審查、工程／隔離 DB／HTTP／PWA 驗證已通過，原生待驗見 [B 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#b-基準幣別驗收b1b2b3-實作交接)。
 
 ### 2026-10-08
 
