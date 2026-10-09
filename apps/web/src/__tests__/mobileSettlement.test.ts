@@ -1,16 +1,36 @@
 // @vitest-environment node
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import mongoose, { Types } from 'mongoose';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({ membership: vi.fn(), read: vi.fn() }));
 vi.mock('@/lib/permissions', () => ({ getTripMembership: mocks.membership }));
 vi.mock('@/lib/settlementRead', () => ({ readSettlementDetail: mocks.read }));
-import { mobileSettlement, settlementStatus, toMobileSettlement } from '@/lib/mobile/settlement';
+import * as reads from '@/lib/mobile/settlement';
 import type { SettlementDetail } from '@/lib/settlementRead';
+import { withLedgerV2 } from '@/lib/ledger';
 
 const amy = '507f191e810c19729de860ea';
 const bob = '507f191e810c19729de860eb';
 const cara = '507f191e810c19729de860ec';
 const tripId = '507f1f77bcf86cd799439011';
+// Native routes are v2 only, so the read runs inside the v2 ledger context.
+const mobileSettlement = (...args: Parameters<typeof reads.mobileSettlement>) =>
+  withLedgerV2(() => reads.mobileSettlement(...args));
+const { settlementStatus, toMobileSettlement } = reads;
+// The authorization re-read finds a TWD trip whose children all match its ledger.
+const previousDb = Object.getOwnPropertyDescriptor(mongoose.connection, 'db');
+Object.defineProperty(mongoose.connection, 'db', {
+  configurable: true,
+  value: {
+    collection: (name: string) => ({
+      findOne: async () => (name === 'trips' ? { _id: new Types.ObjectId(tripId) } : null),
+    }),
+  },
+});
+afterAll(() => {
+  if (previousDb) Object.defineProperty(mongoose.connection, 'db', previousDb);
+  else Reflect.deleteProperty(mongoose.connection, 'db');
+});
 const balance = (userId: string, name: string, paid: number, owed: number, net: number) => ({
   userId,
   username: name,

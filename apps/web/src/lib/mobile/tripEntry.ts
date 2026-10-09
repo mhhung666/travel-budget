@@ -1,11 +1,9 @@
-import { isLedgerV2 } from '@/lib/ledger';
-import { mutationRequestV2Schema } from '@travel-budget/contracts';
 import mongoose from 'mongoose';
 import {
   clientRequestIdSchema,
   tripCreateInput,
   tripJoinInput,
-  mutationRequestSchema,
+  mutationRequestV2Schema,
   invitationSchema,
 } from '@travel-budget/contracts';
 import { dbConnect } from '@/lib/mongodb';
@@ -64,7 +62,7 @@ export async function mobileMutationRequest(actorId: string, uuid: string) {
   if (!key.success) throw new ApiError(400, 'VALIDATION_ERROR');
   await dbConnect();
   try {
-    return (isLedgerV2() ? mutationRequestV2Schema : mutationRequestSchema).parse(
+    return mutationRequestV2Schema.parse(
       await readTripMutation(mongoose.connection.db!, actorId, key.data)
     );
   } catch (error) {

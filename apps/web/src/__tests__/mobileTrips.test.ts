@@ -1,5 +1,6 @@
 // @vitest-environment node
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import mongoose, { Types } from 'mongoose';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   list: vi.fn(),
   member: vi.fn(),
@@ -10,8 +11,30 @@ vi.mock('@/lib/tripListRead', () => ({ readMemberTrips: mocks.list }));
 vi.mock('@/lib/permissions', () => ({ getMemberTrip: mocks.member }));
 vi.mock('@/lib/tripShellRead', () => ({ readTripShell: mocks.shell }));
 vi.mock('@/lib/tripListSummary', () => ({ readTripListSummaries: mocks.summary }));
-import { mobileLanding, mobileTrips, viewerDate } from '@/lib/mobile/trips';
+vi.mock('@/lib/env', () => ({ getEnv: () => ({ JWT_SECRET: 'test' }) }));
+import * as reads from '@/lib/mobile/trips';
+import { withLedgerV2 } from '@/lib/ledger';
 const id = '507f191e810c19729de860ea';
+// Native routes are v2 only, so every read runs inside the v2 ledger context.
+const mobileTrips = (...args: Parameters<typeof reads.mobileTrips>) =>
+  withLedgerV2(() => reads.mobileTrips(...args));
+const mobileLanding = (...args: Parameters<typeof reads.mobileLanding>) =>
+  withLedgerV2(() => reads.mobileLanding(...args));
+const { viewerDate } = reads;
+// The authorization re-read finds a TWD trip whose children all match its ledger.
+const previousDb = Object.getOwnPropertyDescriptor(mongoose.connection, 'db');
+Object.defineProperty(mongoose.connection, 'db', {
+  configurable: true,
+  value: {
+    collection: (name: string) => ({
+      findOne: async () => (name === 'trips' ? { _id: new Types.ObjectId(id) } : null),
+    }),
+  },
+});
+afterAll(() => {
+  if (previousDb) Object.defineProperty(mongoose.connection, 'db', previousDb);
+  else Reflect.deleteProperty(mongoose.connection, 'db');
+});
 const trip = {
   id,
   name: 'Tokyo',
@@ -26,6 +49,8 @@ const trip = {
   hash_code: 'private-code',
   budget: { total: 100 },
   legacy_budget: { total: 999 },
+  // The shared v2 list reader attaches each trip's own ledger.
+  ledger: { baseCurrency: 'TWD', moneyScale: 2 },
 };
 beforeEach(() => {
   vi.clearAllMocks();
@@ -35,7 +60,12 @@ describe('mobile member reads', () => {
     mocks.list.mockResolvedValue([trip]);
     const result = await mobileTrips(id, new URL('https://example.com?date=2026-10-02'));
     expect(mocks.list).toHaveBeenCalledWith(id);
-    expect(result.items[0]).toMatchObject({ mySpent: 12.34, myBalance: -5.67, phase: 'ongoing' });
+    expect(result.items[0]).toMatchObject({
+      mySpent: 12.34,
+      myBalance: -5.67,
+      phase: 'ongoing',
+      ledger: { baseCurrency: 'TWD', moneyScale: 2 },
+    });
     expect(JSON.stringify(result)).not.toMatch(/hash_code|budget|private-code|legacy/);
   });
   it('prioritizes current trips, then future trips; archives come last', async () => {

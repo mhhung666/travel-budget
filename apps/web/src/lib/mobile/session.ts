@@ -9,6 +9,7 @@ import { MobileSession, MobileLoginAttempt } from '@/models/MobileSession';
 import { ApiError } from './http';
 import type { MobileUser } from './contract';
 
+// Token identity, not the API version: changing it would sign every device out.
 const ISSUER = 'travel-budget/mobile/v1';
 const ACCESS_SECONDS = 15 * 60;
 const SESSION_MS = 30 * 24 * 60 * 60 * 1000;

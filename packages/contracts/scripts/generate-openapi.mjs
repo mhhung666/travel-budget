@@ -155,7 +155,8 @@ const dateParam = {
 };
 const objectId = { type: 'string', pattern: '^[a-fA-F0-9]{24}$' };
 const tripIdParam = { name: 'id', in: 'path', required: true, schema: objectId };
-const paths = {
+// Shared operation templates; only their v2 forms below are published (v1 retired in B5d-2).
+const templates = {
   '/auth/register': {
     post: {
       ...operation('register', 'User', 'RegisterInput', { errors: [409] }),
@@ -220,16 +221,6 @@ const paths = {
       ],
       description:
         '20 items/page; ongoing, upcoming, unscheduled, past, archived. Pagination is not a snapshot; refresh from page 1 after changes.',
-    },
-  },
-  '/exchange-rates': {
-    get: {
-      ...operation('referenceRates', 'ReferenceRates', undefined, {
-        authenticated: true,
-        errors: [503],
-      }),
-      description:
-        'Latest published daily reference; 1 foreign unit = TWD. Dates are provider publication dates. No invented fallback.',
     },
   },
   '/trips/{id}/currency-settings': {
@@ -476,18 +467,6 @@ const paths = {
     },
   },
 };
-// Each path has an explicit server; legacy URLs remain unchanged.
-for (const [path, item] of Object.entries(paths)) {
-  item.servers = [{ url: '/api/v1' }];
-  if (path.startsWith('/trips') || path.startsWith('/mutation-requests'))
-    for (const method of ['get', 'post', 'patch', 'delete'])
-      if (item[method])
-        item[method].responses[409] = {
-          description:
-            'CLIENT_UPGRADE_REQUIRED for non-TWD trips or v2 receipts; existing operation conflicts remain 409.',
-          content: { 'application/json': { schema: ref('Error') } },
-        };
-}
 const rewriteV2 = (value) => {
   if (Array.isArray(value)) return value.map(rewriteV2);
   if (!value || typeof value !== 'object') return value;
@@ -502,24 +481,19 @@ const rewriteV2 = (value) => {
     })
   );
 };
-for (const [path, item] of Object.entries({ ...paths })) {
-  if (path.startsWith('/auth') || path === '/me') {
-    // Same identity schemas, rate limits and refresh rotation; no trip ledger.
-    const next = rewriteV2(item);
-    next.servers = [{ url: '/api' }];
-    paths[`/v2${path}`] = next;
-    continue;
-  }
-  if (!path.startsWith('/trips') && !path.startsWith('/mutation-requests')) continue;
+const paths = {};
+for (const [path, item] of Object.entries(templates)) {
   const next = rewriteV2(item);
-  next.servers = [{ url: '/api/v2' }];
+  paths[`/v2${path}`] = next;
+  // Auth and me keep the identity schemas, rate limits and refresh rotation; no trip ledger.
+  if (path.startsWith('/auth') || path === '/me') continue;
   for (const method of ['get', 'post', 'patch', 'delete'])
     if (next[method]) {
       next[method].description =
         'v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions.';
       next[method].responses[409] = {
         description:
-          'Currency mismatch, version conflict or feature unavailable; confirmed writes require original receipt lookup.',
+          'Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.',
         content: { 'application/json': { schema: ref('Error') } },
       };
       next[method].responses[503] = {
@@ -527,19 +501,30 @@ for (const [path, item] of Object.entries({ ...paths })) {
         content: { 'application/json': { schema: ref('Error') } },
       };
     }
-  // OpenAPI path keys are relative to a neutral server so both route families coexist.
-  paths[`/v2${path}`] = next;
-  next.servers = [{ url: '/api' }];
 }
-paths['/v2/capabilities'] = {
-  servers: [{ url: '/api' }],
-  get: operation('ledgerCapabilitiesV2', 'V2Capabilities'),
-};
+paths['/v2/capabilities'] = { get: operation('ledgerCapabilitiesV2', 'V2Capabilities') };
 paths['/v2/trips/{id}/exchange-rates'] = {
-  servers: [{ url: '/api' }],
   parameters: [tripIdParam],
   get: operation('tripReferenceRatesV2', 'V2ReferenceRates'),
 };
+
+// Publish only the schemas the v2 paths reach; v1-only DTOs stay in the TypeScript package.
+const reachable = new Set();
+const visit = (value) => {
+  if (Array.isArray(value)) return value.forEach(visit);
+  if (!value || typeof value !== 'object') return;
+  for (const [key, v] of Object.entries(value)) {
+    if (key === '$ref' && typeof v === 'string') {
+      const name = v.split('/').at(-1);
+      if (!reachable.has(name)) {
+        reachable.add(name);
+        visit(schemas[name]);
+      }
+    } else visit(v);
+  }
+};
+visit(paths);
+const published = Object.fromEntries(Object.entries(schemas).filter(([n]) => reachable.has(n)));
 
 const output = new URL('../openapi.json', import.meta.url);
 const generated =
@@ -548,15 +533,15 @@ const generated =
       openapi: '3.1.0',
       info: {
         title: 'Travel Budget mobile HTTP API',
-        version: 'v1+v2',
+        version: 'v2',
         description:
-          'Contract version, independent of application version. Native client; no cross-origin browser access. Refresh rotation is single-use; replay revokes the device session. Absolute 30-day lifetime, 15-minute access token. Logout uses refreshToken. Dates are date-only; v1 money is TWD; v2 money explicitly identifies the immutable trip base currency. Both use the same two-decimal services.',
+          'Contract version, independent of application version. Native client; no cross-origin browser access. Refresh rotation is single-use; replay revokes the device session. Absolute 30-day lifetime, 15-minute access token. Logout uses refreshToken. Dates are date-only; money explicitly identifies the immutable trip base currency, with two decimals. The retired v1 routes are not published.',
       },
-      servers: [{ url: '/api/v1' }],
+      servers: [{ url: '/api' }],
       paths,
       components: {
         securitySchemes: { bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' } },
-        schemas,
+        schemas: published,
       },
     },
     null,

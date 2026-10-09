@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { connect } from 'node:net';
 import { once } from 'node:events';
-import { v2Schemas, tripsSchema, mutationRequestSchema } from '@travel-budget/contracts';
+import { v2Schemas } from '@travel-budget/contracts';
 
 /** Runs only inside verify-mobile-api's owned, disposable database and authenticated HTTP server. */
 export async function verifyLedgerApi({
@@ -22,7 +22,7 @@ export async function verifyLedgerApi({
   const members = [actor, peer, third];
   const unit = { baseCurrency: 'USD', moneyScale: 2 };
   const call = (path, options = {}) =>
-    request(path, { token: session.accessToken, version: 'v2', ...options });
+    request(path, { token: session.accessToken, ...options });
   const cap = (await call('/capabilities', { schema: v2Schemas.V2Capabilities })).data;
   assert.equal(cap.nonTwdCreationEnabled, creationEnabled);
   if (creationEnabled) {
@@ -62,15 +62,6 @@ export async function verifyLedgerApi({
     assert.equal(rejected.code, 'FEATURE_NOT_AVAILABLE');
     assert.deepEqual(rejected.ledger, unit);
     assert.equal(await db.collection('trips').countDocuments({ name: blocked.name }), 0);
-    assert.equal(
-      (
-        await request(`/mutation-requests/${blocked.client_request_id}`, {
-          token: session.accessToken,
-          status: 409,
-        })
-      ).error.code,
-      'CLIENT_UPGRADE_REQUIRED'
-    );
   }
 
   const trip = new ObjectId();
@@ -116,42 +107,10 @@ export async function verifyLedgerApi({
     body: { ...previewBody, currency: 'USD', exchange_rate: 2 },
     status: 400,
   });
-  for (const endpoint of [
-    '/landing',
-    '/expense-options',
-    '/settlement',
-    '/members',
-    '/settings',
-    '/invitation',
-    '/currency-settings',
-    '/payment-context',
-    '/access',
-  ]) {
-    const response = await request(`${path}${endpoint}`, {
-      token: session.accessToken,
-      status: 409,
-    });
-    assert.equal(response.error.code, 'CLIENT_UPGRADE_REQUIRED');
-    assert.equal(response.data, undefined);
-  }
-  const v1List = (
-    await request(`/trips?date=${date}`, { token: session.accessToken, schema: tripsSchema })
-  ).data;
-  assert(!v1List.items.some((t) => t.id === String(trip)));
   const v2List = (await call(`/trips?date=${date}`, { schema: v2Schemas.V2Trips })).data;
   assert.deepEqual(v2List.items.find((t) => t.id === String(trip)).ledger, unit);
-  await request('/trips/join', {
-    token: outsider.accessToken,
-    body: { client_request_id: randomUUID(), invite_code: 'b1httpxx' },
-    status: 409,
-  });
-  // Remove the actor before testing a fresh join: a v1 request cannot add a member to USD.
+  // Remove the actor so the join below is a fresh one into a USD trip.
   await db.collection('trips').updateOne({ _id: trip }, { $pull: { members: { user: third } } });
-  await request('/trips/join', {
-    token: outsider.accessToken,
-    body: { client_request_id: randomUUID(), invite_code: 'b1httpxx' },
-    status: 409,
-  });
   assert.equal(
     await db.collection('trips').countDocuments({ _id: trip, 'members.user': third }),
     0
@@ -289,19 +248,9 @@ export async function verifyLedgerApi({
   });
   assert.equal(await db.collection('payments').countDocuments({ trip }), 0);
 
-  // TWD v2 receipts and revisions cannot be reused through v1 even though the trip is compatible.
   const twdBody = { client_request_id: randomUUID(), name: 'B1 TWD', base_currency: 'TWD' };
   const twd = (await call('/trips', { body: twdBody, schema: v2Schemas.V2TripMutationResult }))
     .data;
-  await request(`/mutation-requests/${twdBody.client_request_id}`, {
-    token: session.accessToken,
-    status: 409,
-  });
-  await request('/trips', {
-    token: session.accessToken,
-    body: { client_request_id: twdBody.client_request_id, name: twdBody.name },
-    status: 409,
-  });
   assert.equal(await db.collection('trips').countDocuments({ _id: new ObjectId(twd.tripId) }), 1);
   const lostBody = {
     ...body,
@@ -350,25 +299,6 @@ export async function verifyLedgerApi({
     await db.collection('expenses').countDocuments({ trip: new ObjectId(twd.tripId) }),
     1
   );
-  assert.equal(
-    (
-      await request(`/trips/${twd.tripId}/expense-requests/${lostBody.client_request_id}`, {
-        token: session.accessToken,
-        status: 409,
-      })
-    ).error.code,
-    'CLIENT_UPGRADE_REQUIRED'
-  );
-  const legacyBody = { client_request_id: randomUUID(), name: 'B1 old TWD' };
-  await request('/trips', { token: session.accessToken, body: legacyBody });
-  const old = (
-    await request(`/mutation-requests/${legacyBody.client_request_id}`, {
-      token: session.accessToken,
-      schema: mutationRequestSchema,
-    })
-  ).data;
-  assert(!('ledger' in old));
-  await call(`/mutation-requests/${legacyBody.client_request_id}`, { status: 409 });
 
   await db.collection('expenses').updateOne({ _id: raw._id }, { $unset: { baseCurrency: '' } });
   for (const endpoint of ['/landing', '/expenses', '/settlement', '/expense-options'])
@@ -415,6 +345,6 @@ export async function verifyLedgerApi({
     'committed'
   );
   console.log(
-    'PASS B1 v2 units, gate, v1 blocking/filtering, UUID receipts, expense/payment/revoke and corrupted-data rejection'
+    'PASS B1 v2 units, gate, UUID receipts, expense/payment/revoke and corrupted-data rejection'
   );
 }

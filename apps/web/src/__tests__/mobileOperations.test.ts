@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { readdirSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => {
@@ -66,7 +66,7 @@ const ids = {
   uuid: 'd3b07384-d9a0-4c9b-8f3e-2d7b6c4a1e22',
 };
 const userId = '507f191e810c19729de86000';
-const url = 'https://example.test/api/v1/x?today=2026-10-08';
+const url = 'https://example.test/api/v2/x?today=2026-10-08';
 const req = (method = 'GET') => new Request(url, { method });
 const { id, expenseId, memberId, paymentId, clientRequestId, uuid } = ids;
 const anyRequest = expect.any(Request);
@@ -150,55 +150,80 @@ describe('shared member operations', () => {
   });
 });
 
-// Route level: each v1/v2 pair runs the same operation and differs only in the ledger wrapper.
+// Route level: each v2 member route runs its named operation inside the ledger v2 wrapper.
 const api = join(process.cwd(), 'src/app/api');
 const routeFiles = (version: string) =>
   readdirSync(join(api, version), { recursive: true, encoding: 'utf8' })
     .filter((file) => file.endsWith('route.ts'))
-    .filter((file) => !/^(auth|me|exchange-rates|capabilities)\/|\/exchange-rates\//.test(file))
+    .filter((file) => !/^(auth|me|capabilities)\/|\/exchange-rates\//.test(file))
     .sort();
 const methods = ['GET', 'POST', 'PATCH', 'DELETE'] as const;
+const routes: Record<string, Partial<Record<(typeof methods)[number], MobileOperation>>> = {
+  'mutation-requests/[uuid]/route.ts': { GET: 'mutation.request' },
+  'trips/[id]/access/route.ts': { GET: 'access.context', POST: 'access.manage' },
+  'trips/[id]/archive/route.ts': { POST: 'trip.archive' },
+  'trips/[id]/currency-settings/route.ts': { GET: 'trip.currencyContext', POST: 'trip.currency' },
+  'trips/[id]/expense-options/route.ts': { GET: 'expense.options' },
+  'trips/[id]/expense-requests/[clientRequestId]/route.ts': { GET: 'expense.request' },
+  'trips/[id]/expenses/[expenseId]/edit-context/route.ts': { GET: 'expense.editContext' },
+  'trips/[id]/expenses/[expenseId]/route.ts': {
+    GET: 'expense.detail',
+    PATCH: 'expense.update',
+    DELETE: 'expense.delete',
+  },
+  'trips/[id]/expenses/preview/route.ts': { POST: 'expense.preview' },
+  'trips/[id]/expenses/route.ts': { GET: 'expense.list', POST: 'expense.create' },
+  'trips/[id]/invitation/route.ts': { GET: 'trip.invitation' },
+  'trips/[id]/landing/route.ts': { GET: 'trip.landing' },
+  'trips/[id]/members/[memberId]/claim-invitation/route.ts': { GET: 'member.claimInvitation' },
+  'trips/[id]/members/[memberId]/route.ts': { PATCH: 'member.update' },
+  'trips/[id]/members/route.ts': { GET: 'member.list', POST: 'member.create' },
+  'trips/[id]/payment-context/route.ts': { GET: 'payment.context' },
+  'trips/[id]/payments/[paymentId]/revoke-context/route.ts': { GET: 'payment.revokeContext' },
+  'trips/[id]/payments/[paymentId]/route.ts': { DELETE: 'payment.revoke' },
+  'trips/[id]/payments/route.ts': { POST: 'payment.create' },
+  'trips/[id]/route.ts': { PATCH: 'trip.update' },
+  'trips/[id]/settings/route.ts': { GET: 'trip.settings' },
+  'trips/[id]/settlement/route.ts': { GET: 'settlement.read' },
+  'trips/join/route.ts': { POST: 'trip.join' },
+  'trips/route.ts': { GET: 'trip.list', POST: 'trip.create' },
+};
 
-describe('paired v1/v2 member routes', () => {
-  const pairs = routeFiles('v1');
-
-  it('covers exactly the 24 paired routes', () => {
-    expect(pairs).toHaveLength(24);
-    expect(routeFiles('v2')).toEqual(pairs);
+describe('v2 member routes', () => {
+  it('covers exactly the 24 member routes and every operation once; no v1 family remains', () => {
+    expect(existsSync(join(api, 'v1'))).toBe(false);
+    expect(routeFiles('v2')).toEqual(Object.keys(routes).sort());
+    const operations = Object.values(routes).flatMap((route) => Object.values(route));
+    expect(operations.sort()).toEqual(table.map(([operation]) => operation).sort());
   });
 
-  it.each(pairs)('%s dispatches the same operation in both versions', async (file) => {
-    const v1 = await import(join(api, 'v1', file));
-    const v2 = await import(join(api, 'v2', file));
-    const exported = methods.filter((method) => method in v1);
-    expect(exported.length).toBeGreaterThan(0);
-    expect(methods.filter((method) => method in v2)).toEqual(exported);
-    for (const method of exported) {
-      const runs: { version: number; service: string; args: unknown[] }[] = [];
-      for (const [version, route] of [
-        [1, v1],
-        [2, v2],
-      ] as const) {
+  it.each(Object.entries(routes))(
+    '%s dispatches its operations under ledger v2',
+    async (file, map) => {
+      const route = await import(join(api, 'v2', file));
+      expect(methods.filter((method) => method in route)).toEqual(
+        methods.filter((method) => method in map)
+      );
+      for (const [method, operation] of Object.entries(map)) {
+        const [, service, args] = table.find(([name]) => name === operation)!;
         vi.clearAllMocks();
         mocks.user.mockResolvedValue({ id: userId });
+        const runs: { v2: boolean; service: string }[] = [];
         for (const [name, fn] of Object.entries(mocks.service))
-          fn.mockImplementation(async (...args: unknown[]) => {
-            const shown = args.map((arg) =>
-              typeof arg === 'function' ? 'fn' : arg instanceof Request ? arg.method : arg
-            );
-            runs.push({ version: isLedgerV2() ? 2 : 1, service: name, args: shown });
+          fn.mockImplementation(async () => {
+            runs.push({ v2: isLedgerV2(), service: name });
             return { ok: true };
           });
         const response: Response = await route[method](req(method), {
           params: Promise.resolve(ids),
         });
-        if (version === 1) expect(await response.json()).toEqual({ data: { ok: true } });
         // The stub is not a v2 DTO, so the declared schema must reject it.
-        else expect(response.status).toBe(503);
+        expect(response.status).toBe(503);
+        expect(runs).toEqual([{ v2: true, service }]);
+        expect(mocks.service[service].mock.calls[0]).toEqual(
+          args.map((arg) => (arg === anyRequest ? expect.objectContaining({ method }) : arg))
+        );
       }
-      expect(runs.map((run) => run.version)).toEqual([1, 2]);
-      expect(runs[1].service).toBe(runs[0].service);
-      expect(runs[1].args).toEqual(runs[0].args);
     }
-  });
+  );
 });

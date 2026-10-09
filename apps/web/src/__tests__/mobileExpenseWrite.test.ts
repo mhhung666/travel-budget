@@ -1,6 +1,6 @@
 // @vitest-environment node
-import { Types, mongo } from 'mongoose';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import mongoose, { Types, mongo } from 'mongoose';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { expenseCategories } from '@travel-budget/contracts';
 
 const mocks = vi.hoisted(() => ({
@@ -8,24 +8,51 @@ const mocks = vi.hoisted(() => ({
   findTrip: vi.fn(),
   create: vi.fn(),
   receipt: vi.fn(),
+  rejection: vi.fn(),
 }));
 vi.mock('@/lib/permissions', () => ({ getTripMembership: mocks.membership }));
 vi.mock('@/models', () => ({ Trip: { findById: mocks.findTrip }, Expense: {} }));
 vi.mock('@/lib/expenseCreate', () => ({ createExpenseForActor: mocks.create }));
-vi.mock('@/lib/expenseCreateRequest', () => ({ readExpenseCreateReceipt: mocks.receipt }));
+vi.mock('@/lib/expenseCreateRequest', () => ({
+  readExpenseCreateReceipt: mocks.receipt,
+  readExpenseCreateRejection: mocks.rejection,
+}));
 vi.mock('@/lib/logger', () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }));
-import { mobileExpenseOptions, mobileExpensePreview } from '@/lib/mobile/expenseOptions';
-import {
-  mobileCreateExpense,
-  mobileExpenseRequest,
-  toExpenseWriteError,
-} from '@/lib/mobile/expenseWrite';
+import * as options from '@/lib/mobile/expenseOptions';
+import * as writes from '@/lib/mobile/expenseWrite';
 import { ApiError, apiResponse } from '@/lib/mobile/http';
+import { withLedgerV2 } from '@/lib/ledger';
 import { RetiredBlobError } from '@/lib/blobReferences';
 import { logger } from '@/lib/logger';
 import { TripWriteError } from '@/lib/tripWriteTransaction';
+
+// Native routes are v2 only, so every adapter call runs inside the v2 ledger context.
+const v2 =
+  <A extends unknown[], R>(work: (...args: A) => Promise<R>) =>
+  (...args: A) =>
+    withLedgerV2(() => work(...args));
+const mobileExpenseOptions = v2(options.mobileExpenseOptions);
+const mobileExpensePreview = v2(options.mobileExpensePreview);
+const mobileCreateExpense = v2(writes.mobileCreateExpense);
+const mobileExpenseRequest = v2(writes.mobileExpenseRequest);
+const { toExpenseWriteError } = writes;
+// The authorization re-read finds a TWD trip whose children all match its ledger.
+const previousDb = Object.getOwnPropertyDescriptor(mongoose.connection, 'db');
+Object.defineProperty(mongoose.connection, 'db', {
+  configurable: true,
+  value: {
+    collection: (name: string) => ({
+      findOne: async () =>
+        name === 'trips' ? { _id: new Types.ObjectId('507f1f77bcf86cd799439011') } : null,
+    }),
+  },
+});
+afterAll(() => {
+  if (previousDb) Object.defineProperty(mongoose.connection, 'db', previousDb);
+  else Reflect.deleteProperty(mongoose.connection, 'db');
+});
 
 const AMY = '507f191e810c19729de860ea';
 const BOB = '507f191e810c19729de860eb';
@@ -33,6 +60,7 @@ const CARA = '507f191e810c19729de860ec';
 const GONE = '507f191e810c19729de860ed';
 const OUTSIDER = '507f191e810c19729de860ee';
 const TRIP = '507f1f77bcf86cd799439011';
+
 const KEY = '017fd635-8dc2-41c1-bf6a-ecbe40f18f90';
 const after = vi.fn();
 
@@ -58,12 +86,13 @@ const standardMembers = () =>
     [CARA, 'Cara', '2026-09-03T00:00:00.000Z'],
   ]);
 const post = (body: unknown, headers: Record<string, string> = {}) =>
-  new Request('https://example.com/api/v1', {
+  new Request('https://example.com/api/v2', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...headers },
     body: typeof body === 'string' ? body : JSON.stringify(body),
   });
 const expenseBody = (overrides: Record<string, unknown> = {}) => ({
+  base_currency: 'TWD',
   client_request_id: KEY,
   payer_id: AMY,
   original_amount: 100,
@@ -159,8 +188,12 @@ describe('expense options', () => {
 });
 
 describe('expense preview', () => {
-  const preview = (body: unknown, user = AMY) =>
-    mobileExpensePreview(post(body), user, TRIP) as Promise<{
+  const preview = (body: object, user = AMY) =>
+    mobileExpensePreview(
+      post({ base_currency: 'TWD', currency: 'TWD', exchange_rate: 1, ...body }),
+      user,
+      TRIP
+    ) as Promise<{
       amount: number;
       splits: { userId: string; displayName: string; shareAmount: number }[];
     }>;
@@ -168,6 +201,9 @@ describe('expense preview', () => {
   it('gives 100 among three members 33.34 / 33.33 / 33.33 in member order', async () => {
     expect(await preview({ amount: 100, member_ids: [AMY, BOB, CARA] })).toEqual({
       amount: 100,
+      originalAmount: 100,
+      currency: 'TWD',
+      exchangeRate: 1,
       splits: [
         { userId: AMY, displayName: 'Amy', shareAmount: 33.34 },
         { userId: BOB, displayName: 'Bob', shareAmount: 33.33 },
@@ -249,10 +285,14 @@ describe('expense preview', () => {
       { amount: 1_000_000_000.01, member_ids: [AMY] },
       { amount: 10_000_000_000_000, member_ids: [AMY] },
       { amount: '100', member_ids: [AMY] },
-      { amount: 100, member_ids: [AMY], currency: 'TWD' },
+      { amount: 100, member_ids: [AMY], tags: ['x'] },
       { member_ids: [AMY] },
     ])
       await expect(preview(body)).rejects.toMatchObject({ status: 400 });
+    // A client that believes the trip has another base currency learns so instead of a total.
+    await expect(
+      preview({ amount: 100, member_ids: [AMY], base_currency: 'JPY' })
+    ).rejects.toMatchObject({ code: 'LEDGER_CURRENCY_MISMATCH' });
   });
 
   it('checks membership before reading the body and enforces the body limits', async () => {
@@ -292,6 +332,7 @@ describe('expense creation adapter', () => {
       }),
     });
     expect(Object.keys(command.input)).toEqual([
+      'base_currency',
       'client_request_id',
       'payer_id',
       'original_amount',
@@ -388,6 +429,7 @@ describe('expense creation adapter', () => {
 
 describe('G2b foreign preview and create boundaries', () => {
   const foreign = (amount = 100, exchange_rate = 0.2156789012345, currency = 'JPY') => ({
+    base_currency: 'TWD',
     amount,
     exchange_rate,
     currency,
@@ -540,7 +582,7 @@ describe('expense request lookup', () => {
       expense: expect.objectContaining({ id: '507f1f77bcf86cd799439099', payerId: AMY }),
     });
     expect(JSON.stringify(result)).not.toMatch(/login-|receipts\/|secret-tag/);
-    expect(mocks.receipt).toHaveBeenCalledWith(undefined, {
+    expect(mocks.receipt).toHaveBeenCalledWith(expect.anything(), {
       tripId: TRIP,
       actorId: AMY,
       clientRequestId: KEY,

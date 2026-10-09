@@ -1,6 +1,7 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import { mobileTripCurrency, mobileManageTrip } from '@/lib/mobile/tripManagement';
-import { GET as ratesRoute } from '@/app/api/v1/exchange-rates/route';
+import { GET as ratesRoute } from '@/app/api/v2/trips/[id]/exchange-rates/route';
+import { authorizeLedger } from '@/lib/ledger';
 import { TripEntryError } from '@/lib/tripEntry';
 import { TripWriteError } from '@/lib/tripWriteTransaction';
 import { ApiError } from '@/lib/mobile/http';
@@ -19,7 +20,10 @@ vi.mock('@/lib/tripManagement', async (original) => ({
 }));
 vi.mock('@/lib/env', () => ({ getEnv: () => ({ JWT_SECRET: 'test' }) }));
 vi.mock('@/lib/mobile/session', () => ({ requireMobileUser: h.user }));
-vi.mock('@/lib/referenceRates', () => ({ readReferenceRates: h.rates }));
+vi.mock('@/lib/referenceRates', async (original) => ({
+  ...(await original<typeof import('@/lib/referenceRates')>()),
+  readReferenceRates: h.rates,
+}));
 vi.mock('@/lib/logger', () => ({ logger: { error: vi.fn() } }));
 const actor = 'a'.repeat(24),
   trip = 'b'.repeat(24);
@@ -71,22 +75,35 @@ it.each([
     { status }
   );
 });
-it('rates are bearer authenticated, no-store, and never substitute a missing value', async () => {
+it('trip rates are bearer and member authenticated, no-store, and never substitute a missing value', async () => {
+  const get = () =>
+    ratesRoute(new Request('http://test'), { params: Promise.resolve({ id: trip }) });
   h.user.mockRejectedValueOnce(new ApiError(401, 'UNAUTHORIZED'));
-  const denied = await ratesRoute(new Request('http://test'));
-  expect(denied.status).toBe(401);
+  expect((await get()).status).toBe(401);
+  h.member.mockRejectedValueOnce(new ApiError(404, 'NOT_FOUND'));
+  expect((await get()).status).toBe(404);
   expect(h.rates).not.toHaveBeenCalled();
+  // The real member check records the trip ledger the rates are rebased on.
+  h.member.mockImplementation(async () => {
+    authorizeLedger({ baseCurrency: 'TWD' });
+    return trip;
+  });
   h.rates.mockRejectedValueOnce(new Error('upstream'));
-  const failure = await ratesRoute(new Request('http://test'));
+  const failure = await get();
   expect(failure.status).toBe(503);
   expect((await failure.json()).error.code).toBe('SERVICE_UNAVAILABLE');
   h.rates.mockResolvedValue({
-    rates: { TWD: 1, JPY: 0.2 },
+    rates: { TWD: 1, JPY: 0.2, USD: 0.03 },
     dates: { JPY: '2026-10-07' },
     provider: 'Frankfurter',
   });
-  const result = await ratesRoute(new Request('http://test'));
+  const result = await get();
   expect(result.headers.get('cache-control')).toBe('no-store');
   expect(result.headers.get('vary')).toBe('Authorization');
-  expect((await result.json()).data.rates).toEqual({ TWD: 1, JPY: 0.2 });
+  const { data } = await result.json();
+  expect(data.ledger).toEqual({ baseCurrency: 'TWD', moneyScale: 2 });
+  expect(data.rates).toMatchObject({ TWD: 1, JPY: 0.2 });
+  // A quote without a publication date is reported unavailable, never filled in.
+  expect(data.unavailable).toEqual(expect.arrayContaining(['USD', 'EUR']));
+  expect(data.rates).not.toHaveProperty('USD');
 });

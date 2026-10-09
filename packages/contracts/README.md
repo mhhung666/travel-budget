@@ -1,6 +1,6 @@
 # 共用手機 API 契約
 
-`src/index.ts` 定義 `/api/v1` 的登入輸入、refresh 輸入、使用者、session、旅行列表與成員摘要，支出清單／明細與結算 schema，以及線上新增支出的成員資料、均分預覽、新增輸入與結果查詢 schema（輸入為 `.strict()`，並匯出金額到分的判斷函式供用戶端提交前驗證）。Web 和 Mobile 使用 `@travel-budget/contracts`；這個私有 workspace 套件僅依賴 Zod，不含 React、Next.js、資料庫、平台 API 或密鑰。
+`src/index.ts` 定義原生 API 的登入輸入、refresh 輸入、使用者、session、旅行列表與成員摘要，支出清單／明細與結算 schema，以及線上新增支出的成員資料、均分預覽、新增輸入與結果查詢 schema（輸入為 `.strict()`，並匯出金額到分的判斷函式供用戶端提交前驗證）。Web 和 Mobile 使用 `@travel-budget/contracts`；這個私有 workspace 套件僅依賴 Zod，不含 React、Next.js、資料庫、平台 API 或密鑰。
 
 `openapi.json` 是唯一 OpenAPI 產物，可透過 `@travel-budget/contracts/openapi.json` 引用。從 repository 根目錄執行：
 

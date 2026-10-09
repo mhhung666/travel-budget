@@ -1,18 +1,40 @@
 // @vitest-environment node
-import { Types } from 'mongoose';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import mongoose, { Types } from 'mongoose';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { expenseCategories } from '@travel-budget/contracts';
 import { EXPENSE_CATEGORIES } from '@/models/Expense';
 
 const mocks = vi.hoisted(() => ({ membership: vi.fn(), find: vi.fn(), findOne: vi.fn() }));
 vi.mock('@/lib/permissions', () => ({ getTripMembership: mocks.membership }));
 vi.mock('@/models', () => ({ Expense: { find: mocks.find, findOne: mocks.findOne } }));
-import { encodeExpenseCursor, mobileExpense, mobileExpenses } from '@/lib/mobile/expenses';
+import * as reads from '@/lib/mobile/expenses';
+import { withLedgerV2 } from '@/lib/ledger';
 
 const viewer = '507f191e810c19729de860ea';
 const bob = '507f191e810c19729de860eb';
 const tripId = '507f1f77bcf86cd799439011';
-const url = (query = '') => new URL(`https://example.com/api/v1/trips/${tripId}/expenses${query}`);
+const url = (query = '') => new URL(`https://example.com/api/v2/trips/${tripId}/expenses${query}`);
+
+// Native routes are v2 only, so every read runs inside the v2 ledger context.
+const mobileExpenses = (...args: Parameters<typeof reads.mobileExpenses>) =>
+  withLedgerV2(() => reads.mobileExpenses(...args));
+const mobileExpense = (...args: Parameters<typeof reads.mobileExpense>) =>
+  withLedgerV2(() => reads.mobileExpense(...args));
+const { encodeExpenseCursor } = reads;
+// The authorization re-read finds a TWD trip whose children all match its ledger.
+const previousDb = Object.getOwnPropertyDescriptor(mongoose.connection, 'db');
+Object.defineProperty(mongoose.connection, 'db', {
+  configurable: true,
+  value: {
+    collection: (name: string) => ({
+      findOne: async () => (name === 'trips' ? { _id: new Types.ObjectId(tripId) } : null),
+    }),
+  },
+});
+afterAll(() => {
+  if (previousDb) Object.defineProperty(mongoose.connection, 'db', previousDb);
+  else Reflect.deleteProperty(mongoose.connection, 'db');
+});
 
 function chain(data: unknown) {
   const query = {

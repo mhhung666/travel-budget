@@ -19,10 +19,8 @@ import {
   resetPassword,
 } from '@/actions/auth.actions';
 import { loginMobile, requireMobileUser, refreshMobile } from '@/lib/mobile/session';
-import { POST as registerHttp } from '@/app/api/v1/auth/register/route';
-import { POST as requestHttp } from '@/app/api/v1/auth/password-reset/request/route';
-import { POST as confirmHttp } from '@/app/api/v1/auth/password-reset/confirm/route';
 import { POST as registerV2 } from '@/app/api/v2/auth/register/route';
+import { POST as requestV2 } from '@/app/api/v2/auth/password-reset/request/route';
 import { POST as confirmV2 } from '@/app/api/v2/auth/password-reset/confirm/route';
 import { POST as loginV2 } from '@/app/api/v2/auth/login/route';
 import { POST as refreshV2 } from '@/app/api/v2/auth/refresh/route';
@@ -497,7 +495,7 @@ describe.skipIf(!uri || !allowed)('E2 account entry against isolated replica set
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(data),
       });
-    const created = await registerHttp(body(input()));
+    const created = await registerV2(body(input()));
     expect(created.status).toBe(200);
     expect(created.headers.get('set-cookie')).toBeNull();
     expect(mocks.cookie).not.toHaveBeenCalled();
@@ -506,12 +504,12 @@ describe.skipIf(!uri || !allowed)('E2 account entry against isolated replica set
     });
     const mobile = await loginMobile('Tester', ' 密碼123 ');
     expect(await requestPasswordReset({ email })).toMatchObject({ success: true });
-    expect((await requestHttp(body({ email }))).status).toBe(429);
+    expect((await requestV2(body({ email }))).status).toBe(429);
     const code = '000007';
     await db
       .collection('passwordresetcodes')
       .updateOne({}, { $set: { codeHash: createHash('sha256').update(code).digest('hex') } });
-    const reset = await confirmHttp(body({ email, code, new_password: 'NewPassword' }));
+    const reset = await confirmV2(body({ email, code, new_password: 'NewPassword' }));
     expect(reset.status).toBe(200);
     expect(await loginWeb({ username: 'tester', password: 'NewPassword' })).toMatchObject({
       success: true,
@@ -541,7 +539,7 @@ describe.skipIf(!uri || !allowed)('E2 account entry against isolated replica set
       await register({ ...input(), username: 'second', email: 'second@example.invalid' })
     ).toMatchObject({ success: true });
   });
-  it('v2 auth shares accounts, sessions and single-use reset codes with v1', async () => {
+  it('v2 auth shares accounts, sessions and single-use reset codes with Web', async () => {
     const body = (data: unknown) =>
       new Request('http://test/api/v2', {
         method: 'POST',
@@ -567,11 +565,12 @@ describe.skipIf(!uri || !allowed)('E2 account entry against isolated replica set
     await db
       .collection('passwordresetcodes')
       .updateOne({}, { $set: { codeHash: createHash('sha256').update(code).digest('hex') } });
-    const results = await Promise.all([
+    const [http, web] = await Promise.all([
       confirmV2(body({ email, code, new_password: 'NewPassword' })),
-      confirmHttp(body({ email, code, new_password: 'OtherPass' })),
+      resetPassword({ email, code, new_password: 'OtherPass' }),
     ]);
-    expect(results.map((r) => r.status).sort()).toEqual([200, 400]);
+    // One code, one consumer, whichever entry point wins.
+    expect([http.status === 200, web.success].filter(Boolean)).toHaveLength(1);
     // The password change ends the v2-issued device session as well.
     await expect(refreshMobile(refreshToken)).rejects.toMatchObject({ status: 401 });
   });

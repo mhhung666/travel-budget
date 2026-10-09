@@ -1,6 +1,6 @@
 # 手機 API
 
-**B1 已實作，尚未部署／開放非 TWD 建立**：依 [B0–B4 規格](../../mobile/docs/ROADMAP.md#b旅程基準幣別改造規格2026-10-08) 新增 `/api/v2` 帳務及旅行／成員管理薄路由，沿用同一 bearer session、服務、交易與資料庫。B5b-1 起 auth（登入／refresh／登出／註冊／寄碼／重設）與 `me` 也有 v2 薄入口，與 v1 共用 session、限流、一次性碼與 schema，回應不帶 ledger；Mobile 仍呼叫 v1，搬移屬 B5c-1。B4／B5b 不移除 v1。B2 Web 已使用新版帳本 adapter；B3 Mobile 線上已接 v2，舊已確認操作與 D TWD 佇列保留 v1。Web 的公開新版路徑與瀏覽器恢復見 [B2 架構](ARCHITECTURE.md#b2-web-帳本與恢復)。
+**B1 已實作，尚未部署／開放非 TWD 建立**：依 [B0–B4 規格](../../mobile/docs/ROADMAP.md#b旅程基準幣別改造規格2026-10-08) 新增 `/api/v2` 帳務及旅行／成員管理薄路由，沿用同一 bearer session、服務、交易與資料庫。B5b-1 起 auth（登入／refresh／登出／註冊／寄碼／重設）與 `me` 也有 v2 薄入口，與 v1 共用 session、限流、一次性碼與 schema，回應不帶 ledger；B5d-1 起 Mobile 只送 v2；**B5d-2 已刪除全部 32 個 `/api/v1` 會員 route**（含 v1 `exchange-rates`），未知 `/api/v1/*` 一律回 Next 404、不轉送其他契約，OpenAPI 只發布 v2。B2 Web 已使用新版帳本 adapter。Web 的公開新版路徑與瀏覽器恢復見 [B2 架構](ARCHITECTURE.md#b2-web-帳本與恢復)。
 
 ## B1 基準幣別契約
 
@@ -8,16 +8,16 @@
 - v2 金額回應／context 帶 `ledger: { baseCurrency, moneyScale: 2 }`；金額輸入必填 `base_currency`，原幣／匯率明確提供，匯率表示每單位原幣換得多少帳本幣。基準原幣 rate 必須 1，TWD 在其他帳本可用外幣匯率；JPY 也保留 0.01。單筆金額／份額／付款／預算上限 10 億；聚合不套用單筆上限，但超出安全分值回 `503 MONEY_TOTAL_OUT_OF_RANGE`。
 - `/api/v2/capabilities` 回傳支援幣別及建立開關；`ENABLE_NON_TWD_LEDGER` 預設關閉，只有字串 `true` 啟用新非 TWD 建立。關閉不影響既有非 TWD 帳務與恢復。此旗標未加入遠端設定；B4 獨立驗收通過後另依使用者指示開放。
 - `/api/v2/trips/:id/exchange-rates` 從既有 TWD-per-unit 日快照推導原幣／基準匯率，跨外幣日期需相同。缺資料列入 `unavailable`，不補匯率；供應商故障回 503，可繼續手動輸入。
-- v1 列表先排除非 TWD 再分頁／計算，旅行深連結、名冊、邀請與帳務操作在授權後回 `409 CLIENT_UPGRADE_REQUIRED`；加入在新增成員前阻擋。舊 Web 帳務 action 身分／公開 URL 同樣阻擋非 TWD，舊統計只讀 TWD；B2 新身分／公開 v2 路徑可讀寫實際帳本。
-- v2 新增支出的合法凍結請求在業務驗證被拒時（如預覽後付款／分攤成員退出、加總不符），於父旅行交易內保存 `VALIDATION_ERROR` 終局 receipt，查詢回 `rejected` 及實際 ledger；單位不符仍為 `LEDGER_CURRENCY_MISMATCH`。先核對已有 receipt，原 UUID 重播保留原終局，不因成員重新加入而改寫；已提交結果不受後續名冊／附件變動影響。schema／身分拒絕與未知 DB／儲存錯誤不冒充可確認的業務終局，客戶端不能憑任意 400 清除未知操作。舊 v1 行為不變。
-- C receipt 維持 `trip:actor:原 UUID 拼法`，E／旅行維持 `actor:小寫 UUID`，不另建新版 namespace。v1 指紋／終局 DTO 原樣保留；新 v2 金額指紋含版本與輸入單位，receipt／revision 保存實際單位，非金額操作以版本、旅行參照與 receipt 單位識別。跨版本原 UUID 回 409，不寫第二筆；錯誤基準保存終局 rejection，不能換 UUID 重做已確認操作。
+- 舊 Web 帳務 action 身分／公開 URL 仍阻擋非 TWD（`409 CLIENT_UPGRADE_REQUIRED`），舊統計只讀 TWD；B2 新身分／公開 v2 路徑可讀寫實際帳本。原生 v1 列表／深連結的同類阻擋已隨 B5d-2 移除。
+- v2 新增支出的合法凍結請求在業務驗證被拒時（如預覽後付款／分攤成員退出、加總不符），於父旅行交易內保存 `VALIDATION_ERROR` 終局 receipt，查詢回 `rejected` 及實際 ledger；單位不符仍為 `LEDGER_CURRENCY_MISMATCH`。先核對已有 receipt，原 UUID 重播保留原終局，不因成員重新加入而改寫；已提交結果不受後續名冊／附件變動影響。schema／身分拒絕與未知 DB／儲存錯誤不冒充可確認的業務終局，客戶端不能憑任意 400 清除未知操作。
+- C receipt 維持 `trip:actor:原 UUID 拼法`，E／旅行維持 `actor:小寫 UUID`，不另建新版 namespace。v1 指紋／終局 DTO 原樣保留；新 v2 金額指紋含版本與輸入單位，receipt／revision 保存實際單位，非金額操作以版本、旅行參照與 receipt 單位識別。v1 時期留下的 receipt 經 v2 重送或查詢回 `409 CLIENT_UPGRADE_REQUIRED`，不寫第二筆（舊 Web action 在 B5d-3 前仍可重播自己的舊 receipt）；錯誤基準保存終局 rejection，不能換 UUID 重做已確認操作。
 - `lib/ledger.ts` 的 AsyncLocalStorage 僅由 v2 伺服器 adapter 啟用，不接受 header 選擇契約。交易取得 parent fence、核對成員與單位後才寫；共用計算保留原分角／尾差規則，`computeSplits.twd` 暫留為舊用戶端相容名稱，`computeLedgerSplits` 提供中性結果。個人預算 setter 只更新 actor，與既有 Web 共用 parent 交易，HTTP／Mobile 預算介面留 G4。
 
 完整 schema／路由見 [OpenAPI](../../../packages/contracts/openapi.json)；自動檢查與獨立待驗集中於 [B 交接](../../mobile/docs/LOCAL_ACCEPTANCE.md#b-基準幣別驗收b1b2b3-實作交接)。
 
 G1c 另提供成員管理 context／角色、移除、本人退出及旅行刪除，與僅管理員可讀的虛擬認領連結。共用交易／cascade／版本及最小退出 receipt 的狹義授權例外見 [G1c 契約](../../mobile/docs/BACKEND_CONTRACT.md#g1c-權限與危險操作)；Web 認領憑證流程沿用既有實作，手機只複製／分享能力連結。
 
-已在程式碼加入 `/api/v1` 的登入、更新憑證、登出、目前使用者、旅行列表、旅行摘要、支出清單／明細與結算，以及線上新增支出所需的成員資料、均分預覽、冪等新增與結果查詢。這不代表遠端環境已部署。契約以 [packages/contracts/src/index.ts](../../../packages/contracts/src/index.ts) 的 Zod schema 為單一來源；Web 與手機透過 `@travel-budget/contracts` 匯入，Web 的 `src/lib/mobile/contract.ts` 只保留薄 adapter。共用產物見 [OpenAPI](../../../packages/contracts/openapi.json)，在 repository 根目錄執行 `pnpm contracts:generate` 產生、`pnpm contracts:check` 檢查同步。
+原生入口為 `/api/v2`（下列路徑皆相對於它）：登入、更新憑證、登出、目前使用者、旅行列表、旅行摘要、支出清單／明細與結算，以及線上新增支出所需的成員資料、均分預覽、冪等新增與結果查詢。金額回應另帶上節的 `ledger`，金額輸入另帶 `base_currency` 及明確原幣／匯率；以下欄位說明沿用原 DTO。這不代表遠端環境已部署。契約以 [packages/contracts/src/index.ts](../../../packages/contracts/src/index.ts) 的 Zod schema 為單一來源；Web 與手機透過 `@travel-budget/contracts` 匯入，Web 的 `src/lib/mobile/contract.ts` 只保留薄 adapter。共用產物見 [OpenAPI](../../../packages/contracts/openapi.json)，在 repository 根目錄執行 `pnpm contracts:generate` 產生、`pnpm contracts:check` 檢查同步。
 
 - Web Server Actions 與手機 HTTP handler 在後端共用 `credentials.ts`、`tripListRead.ts` 及既有權限／金額摘要；HTTP handler 不呼叫依賴 cookie 的 Server Action，手機 bundle 不匯入這些後端模組。
 - 手機 access JWT 15 分鐘、裝置 session 絕對期限 30 天；JWT key、issuer、audience 與 Web cookie 隔離。每次授權查詢 session 撤銷／期限與目前密碼 fingerprint。

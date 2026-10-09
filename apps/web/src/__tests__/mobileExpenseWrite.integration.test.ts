@@ -5,15 +5,33 @@ import { MAX_EXPENSE_AMOUNT, type MobileExpenseDetail } from '@travel-budget/con
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { withLedgerV2 } from '@/lib/ledger';
 import { Expense, Trip } from '@/models';
-import { createExpense, deleteExpense, getExpenses } from '@/actions/expense.actions';
+import {
+  createExpense,
+  createLedgerExpense,
+  deleteExpense,
+  getExpenses,
+} from '@/actions/expense.actions';
 import { getMembers } from '@/actions/member.actions';
 import { createExpenseForActor } from '@/lib/expenseCreate';
 import { receiptSearch } from '@/lib/expenseCreateRequest';
 import { createExpenseSchema } from '@/lib/validation';
-import { mobileExpense, mobileExpenses } from '@/lib/mobile/expenses';
-import { mobileExpenseOptions, mobileExpensePreview } from '@/lib/mobile/expenseOptions';
-import { mobileCreateExpense, mobileExpenseRequest } from '@/lib/mobile/expenseWrite';
-import { mobileSettlement } from '@/lib/mobile/settlement';
+import * as reads from '@/lib/mobile/expenses';
+import * as options from '@/lib/mobile/expenseOptions';
+import * as writes from '@/lib/mobile/expenseWrite';
+import * as settlements from '@/lib/mobile/settlement';
+
+// Native routes are v2 only: each adapter call is one request in its own v2 ledger context.
+const v2 =
+  <A extends unknown[], R>(work: (...args: A) => Promise<R>) =>
+  (...args: A) =>
+    withLedgerV2(() => work(...args));
+const mobileExpense = v2(reads.mobileExpense);
+const mobileExpenses = v2(reads.mobileExpenses);
+const mobileExpenseOptions = v2(options.mobileExpenseOptions);
+const mobileExpensePreview = v2(options.mobileExpensePreview);
+const mobileCreateExpense = v2(writes.mobileCreateExpense);
+const mobileExpenseRequest = v2(writes.mobileExpenseRequest);
+const mobileSettlement = v2(settlements.mobileSettlement);
 
 const mocks = vi.hoisted(() => ({
   session: vi.fn(),
@@ -59,12 +77,23 @@ const MIXED_2 = 'f47AC10b-58CC-4372-a567-0e02B2C3d479';
 const SPELLINGS = [LOWER, UPPER, MIXED, MIXED_2];
 /** [spelling first used, spelling used afterwards] for every combination. */
 const SPELLING_PAIRS = SPELLINGS.flatMap((first) => SPELLINGS.map((later) => [first, later]));
+// v2 bodies always declare the base currency they were confirmed against; the fixture trip is TWD.
 const jsonRequest = (body: unknown) =>
-  new Request('https://example.com/api/v1', {
+  new Request('https://example.com/api/v2', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    body: JSON.stringify(
+      body && typeof body === 'object' && !Array.isArray(body)
+        ? { base_currency: 'TWD', ...body }
+        : body
+    ),
   });
+
+/** A v2 lookup carries the trip ledger on the expense; the create response gets it from the route. */
+const ledgered = <T extends object>(expense: T) => ({
+  ...expense,
+  ledger: { baseCurrency: 'TWD', moneyScale: 2 },
+});
 
 /** Creation receipts remain historical and lack read-time identity metadata. */
 function receiptFields(detail: MobileExpenseDetail) {
@@ -101,6 +130,9 @@ describe.skipIf(!uri || !allowed)('mobile expense write against an isolated repl
   const create = (payload: unknown, user = amy, schedule = mocks.after) =>
     mobileCreateExpense(jsonRequest(payload), hex(user), tripId, schedule);
   const lookup = (key: string, user = amy) => mobileExpenseRequest(hex(user), tripId, key);
+  // The v2 Web action shares the receipt and its ledger with the native v2 adapter.
+  const webV2 = (payload: Payload) =>
+    createLedgerExpense(tripId, { base_currency: 'TWD', ...payload });
   // Notifications are per recipient and activity per trip; both are real writes in legacy mode.
   const effects = async () => ({
     notifications: await count('notifications'),
@@ -373,7 +405,7 @@ describe.skipIf(!uri || !allowed)('mobile expense write against an isolated repl
         );
         expect(await lookup(payload.client_request_id)).toEqual({
           status: 'committed',
-          expense: outcomes[0],
+          expense: ledgered(outcomes[0]),
         });
         expect(await create(payload)).toEqual(outcomes[0]);
         expect(await count('expenses')).toBe(1);
@@ -385,8 +417,10 @@ describe.skipIf(!uri || !allowed)('mobile expense write against an isolated repl
     );
     it('rejects overflowing conversion and rolls back receipt/expense as a single foreign write', async () => {
       const invalid = body({ currency: 'JPY', original_amount: 100, exchange_rate: 1e308 });
-      await expect(create(invalid)).rejects.toMatchObject({ status: 400 });
+      // v2 keeps the refusal as the UUID's terminal result; no expense is written.
+      await expect(create(invalid)).rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
       expect(await count('expenses')).toBe(0);
+      expect(await count('expensecreaterequests')).toBe(1);
       const p = await mobileExpensePreview(
         jsonRequest({ amount: 100, currency: 'JPY', exchange_rate: 0.215, member_ids: [hex(amy)] }),
         hex(amy),
@@ -411,7 +445,7 @@ describe.skipIf(!uri || !allowed)('mobile expense write against an isolated repl
         spy.mockRestore();
       }
       expect(await count('expenses')).toBe(0);
-      expect(await count('expensecreaterequests')).toBe(0);
+      expect(await count('expensecreaterequests')).toBe(1);
     });
   });
 
@@ -422,7 +456,12 @@ describe.skipIf(!uri || !allowed)('mobile expense write against an isolated repl
     expect(JSON.stringify(options)).not.toMatch(/login|email/);
 
     const preview = await mobileExpensePreview(
-      jsonRequest({ amount: 100, member_ids: [...options.members].reverse().map((m) => m.id) }),
+      jsonRequest({
+        amount: 100,
+        currency: 'TWD',
+        exchange_rate: 1,
+        member_ids: [...options.members].reverse().map((m) => m.id),
+      }),
       hex(amy),
       tripId
     );
@@ -467,7 +506,7 @@ describe.skipIf(!uri || !allowed)('mobile expense write against an isolated repl
     const list = await mobileExpenses(
       hex(bob),
       tripId,
-      new URL(`https://example.com/api/v1/trips/${tripId}/expenses`)
+      new URL(`https://example.com/api/v2/trips/${tripId}/expenses`)
     );
     expect(list.items).toHaveLength(1);
     expect(list.items[0]).toMatchObject({ id: created.id, amount: 100, payerName: 'Amy' });
@@ -544,7 +583,7 @@ describe.skipIf(!uri || !allowed)('mobile expense write against an isolated repl
       });
       const outcomes = await Promise.all(
         Array.from({ length: 12 }, (_, index) =>
-          index % 3 ? create(spelled(index)) : createExpense(tripId, spelled(index))
+          index % 3 ? create(spelled(index)) : webV2(spelled(index))
         )
       );
       const ids = outcomes.map((outcome) =>
@@ -642,7 +681,7 @@ describe.skipIf(!uri || !allowed)('mobile expense write against an isolated repl
       const created = await create(payload);
       expect(await lookup(payload.client_request_id)).toEqual({
         status: 'committed',
-        expense: created,
+        expense: ledgered(created),
       });
       expect(await lookup(payload.client_request_id, bob)).toEqual({ status: 'not_found' });
       await expect(lookup(payload.client_request_id, dan)).rejects.toMatchObject({ status: 404 });
@@ -658,7 +697,7 @@ describe.skipIf(!uri || !allowed)('mobile expense write against an isolated repl
       expect(await count('expenses')).toBe(0);
       expect(await lookup(payload.client_request_id)).toEqual({
         status: 'committed',
-        expense: created,
+        expense: ledgered(created),
       });
     });
 
@@ -728,18 +767,22 @@ describe.skipIf(!uri || !allowed)('mobile expense write against an isolated repl
       ['shares that do not add up', { splits: [{ user_id: hex(amy), share_amount: 99 }] }],
       ['a share beyond the amount', { splits: [{ user_id: hex(amy), share_amount: 100.02 }] }],
     ])(
-      'rejects %s and stores nothing, so the corrected request can reuse the key',
+      'rejects %s without an expense; the refusal is final and a correction needs a new key',
       async (_label, overrides) => {
         const payload = body(overrides);
-        await expect(create(payload)).rejects.toMatchObject({
-          status: 400,
+        await expect(create(payload)).rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
+        expect(await count('expenses')).toBe(0);
+        expect(await count('expensecreaterequests')).toBe(1);
+        expect(await effects()).toEqual({ notifications: 0, activity: 0 });
+        expect(await lookup(payload.client_request_id)).toMatchObject({
+          status: 'rejected',
           code: 'VALIDATION_ERROR',
         });
-        expect(await count('expenses')).toBe(0);
-        expect(await count('expensecreaterequests')).toBe(0);
-        expect(
-          await create({ ...payload, ...body(), client_request_id: payload.client_request_id })
-        ).toMatchObject({ amount: 100 });
+        const corrected = { ...payload, ...body(), client_request_id: payload.client_request_id };
+        await expect(create(corrected)).rejects.toMatchObject({ code: 'IDEMPOTENCY_CONFLICT' });
+        expect(await create({ ...corrected, client_request_id: randomUUID() })).toMatchObject({
+          amount: 100,
+        });
         expect(await count('expenses')).toBe(1);
       }
     );
@@ -799,7 +842,9 @@ describe.skipIf(!uri || !allowed)('mobile expense write against an isolated repl
       await receipts().insertOne(earlierReceipt(user, payload, accepted.data));
       return accepted.data;
     }
+    // The legacy Web action still replays these receipts until B5d-3; v2 never adopts them.
     const web = (payload: Payload) => createExpense(tripId, payload);
+    const upgrade = { code: 'CLIENT_UPGRADE_REQUIRED' };
     const state = async () => ({
       expenses: await count('expenses'),
       receipts: await count('expensecreaterequests'),
@@ -807,33 +852,32 @@ describe.skipIf(!uri || !allowed)('mobile expense write against an isolated repl
     });
 
     it.each(SPELLING_PAIRS)(
-      'replays a receipt stored for %s when the retry is sent as %s, without another expense',
+      'finds a receipt stored for %s when v2 retries it as %s, and refuses it without another expense',
       async (stored, retried) => {
         const payload = body({ client_request_id: stored });
         const original = await acceptedEarlier(payload);
-        const committed = receiptFields(await mobileExpense(hex(amy), tripId, original.id));
         const before = await state();
         const retry = { ...payload, client_request_id: retried };
 
         expect(await web(retry)).toEqual({ success: true, data: original });
-        expect(await create(retry)).toEqual(committed);
-        expect(await lookup(retried)).toEqual({ status: 'committed', expense: committed });
+        // A miss would create a new expense; finding the earlier receipt refuses the version change.
+        await expect(create(retry)).rejects.toMatchObject(upgrade);
+        await expect(lookup(retried)).rejects.toMatchObject(upgrade);
+        expect(await webV2(retry)).toMatchObject({ success: false, code: upgrade.code });
         expect(await state()).toEqual(before);
       }
     );
 
     it.each(SPELLING_PAIRS)(
-      'answers another payload under a key stored for %s with a conflict when sent as %s',
+      'answers another payload under a key stored for %s, sent as %s, without writing',
       async (stored, retried) => {
         const payload = body({ client_request_id: stored });
         await acceptedEarlier(payload);
         const changed = { ...payload, client_request_id: retried, description: 'Changed' };
         expect(await web(changed)).toMatchObject({ success: false, code: 'CONFLICT' });
-        await expect(create(changed)).rejects.toMatchObject({
-          status: 409,
-          code: 'IDEMPOTENCY_CONFLICT',
-        });
+        await expect(create(changed)).rejects.toMatchObject(upgrade);
         expect(await count('expenses')).toBe(1);
+        expect(await count('expensecreaterequests')).toBe(1);
       }
     );
 
@@ -845,12 +889,9 @@ describe.skipIf(!uri || !allowed)('mobile expense write against an isolated repl
         expect(await deleteExpense(tripId, original.id)).toMatchObject({ success: true });
         const retry = { ...payload, client_request_id: retried };
         expect(await web(retry)).toEqual({ success: true, data: original });
-        expect(await create(retry)).toMatchObject({ id: original.id });
+        await expect(create(retry)).rejects.toMatchObject(upgrade);
+        await expect(lookup(retried)).rejects.toMatchObject(upgrade);
         expect(await count('expenses')).toBe(0);
-        expect(await lookup(retried)).toMatchObject({
-          status: 'committed',
-          expense: { id: original.id },
-        });
       }
     );
 
@@ -863,12 +904,9 @@ describe.skipIf(!uri || !allowed)('mobile expense write against an isolated repl
       'shows a key stored for %s, asked for as %s, only to the member who used it while they belong',
       async (stored, asked) => {
         const payload = body({ client_request_id: stored, payer_id: hex(bob) });
-        const original = await acceptedEarlier(payload, bob);
+        await acceptedEarlier(payload, bob);
         expect(await lookup(asked, amy)).toEqual({ status: 'not_found' });
-        expect(await lookup(asked, bob)).toMatchObject({
-          status: 'committed',
-          expense: { id: original.id },
-        });
+        await expect(lookup(asked, bob)).rejects.toMatchObject(upgrade);
         await Trip.updateOne({ _id: tripId }, { $pull: { members: { user: bob } } });
         await expect(lookup(asked, bob)).rejects.toMatchObject({ status: 404 });
         await expect(create({ ...payload, client_request_id: asked }, bob)).rejects.toMatchObject({
@@ -883,15 +921,15 @@ describe.skipIf(!uri || !allowed)('mobile expense write against an isolated repl
       }
     );
 
-    it('stores new receipts exactly as earlier versions did, so an older server finds them', async () => {
+    it('stores v2 receipts under the key as first sent, marked so earlier versions refuse them', async () => {
       for (const key of [randomUUID(), randomUUID().toUpperCase(), MIXED]) {
         const payload = body({ client_request_id: key });
         const viaMobile = await create(payload);
-        const viaWeb = await web({
-          ...payload,
-          client_request_id: key.toLowerCase() === key ? key.toUpperCase() : key.toLowerCase(),
+        const other = key.toLowerCase() === key ? key.toUpperCase() : key.toLowerCase();
+        expect(await webV2({ ...payload, client_request_id: other })).toMatchObject({
+          success: true,
+          data: { id: viaMobile.id },
         });
-        expect(viaWeb.success).toBe(true);
         // The retry in the other case is the same request, so there is still only one receipt.
         expect(
           await receipts().countDocuments({
@@ -899,9 +937,13 @@ describe.skipIf(!uri || !allowed)('mobile expense write against an isolated repl
           })
         ).toBe(1);
         const stored = await receipts().findOne({ _id: `${tripId}:${hex(amy)}:${key}` });
-        const expected = earlierReceipt(amy, payload, viaMobile);
-        expect(stored?.fingerprint).toBe(expected.fingerprint);
-        expect(stored?.data).toMatchObject({ id: viaMobile.id });
+        // Not the earlier fingerprint: the version and ledger are part of what was confirmed.
+        expect(stored?.fingerprint).not.toBe(earlierReceipt(amy, payload, viaMobile).fingerprint);
+        expect(stored).toMatchObject({ contractVersion: 2, data: { id: viaMobile.id } });
+        expect(await web({ ...payload, client_request_id: other })).toMatchObject({
+          success: false,
+          code: 'CLIENT_UPGRADE_REQUIRED',
+        });
       }
     });
   });
@@ -909,7 +951,7 @@ describe.skipIf(!uri || !allowed)('mobile expense write against an isolated repl
   describe('a key in different letter cases is one key', () => {
     const receipts = () =>
       db().collection<{ _id: string; trip: mongo.ObjectId }>('expensecreaterequests');
-    const web = (payload: Payload) => createExpense(tripId, payload);
+    const web = webV2;
     const state = async () => ({
       expenses: await count('expenses'),
       receipts: await count('expensecreaterequests'),
@@ -923,7 +965,7 @@ describe.skipIf(!uri || !allowed)('mobile expense write against an isolated repl
         const payload = body({ client_request_id: first });
         const original = await create(payload);
 
-        expect(await lookup(later)).toEqual({ status: 'committed', expense: original });
+        expect(await lookup(later)).toEqual({ status: 'committed', expense: ledgered(original) });
         const settled = await state();
         const retry = { ...payload, client_request_id: later };
         expect(await create(retry)).toEqual(original);
@@ -941,7 +983,7 @@ describe.skipIf(!uri || !allowed)('mobile expense write against an isolated repl
         expect(await deleteExpense(tripId, original.id)).toMatchObject({ success: true });
         expect(await create(retry)).toEqual(original);
         expect(await web(retry)).toMatchObject({ success: true, data: { id: original.id } });
-        expect(await lookup(later)).toEqual({ status: 'committed', expense: original });
+        expect(await lookup(later)).toEqual({ status: 'committed', expense: ledgered(original) });
         expect(await count('expenses')).toBe(0);
 
         // One receipt, still keyed as the first request spelled it.
@@ -1045,7 +1087,7 @@ describe.skipIf(!uri || !allowed)('mobile expense write against an isolated repl
       'keeps %d exact from the preview to the stored expense, every reader and the settlement',
       async (amount) => {
         const preview = await mobileExpensePreview(
-          jsonRequest({ amount, member_ids: everyone() }),
+          jsonRequest({ amount, currency: 'TWD', exchange_rate: 1, member_ids: everyone() }),
           hex(amy),
           tripId
         );
@@ -1125,7 +1167,11 @@ describe.skipIf(!uri || !allowed)('mobile expense write against an isolated repl
       ['beyond the safe integers', 1e15, [5e14, 5e14]],
     ])('refuses %s everywhere before anything is written', async (_label, amount, halves) => {
       await expect(
-        mobileExpensePreview(jsonRequest({ amount, member_ids: everyone() }), hex(amy), tripId)
+        mobileExpensePreview(
+          jsonRequest({ amount, currency: 'TWD', exchange_rate: 1, member_ids: everyone() }),
+          hex(amy),
+          tripId
+        )
       ).rejects.toMatchObject({ status: 400 });
       const payload = body({
         original_amount: amount,
@@ -1180,7 +1226,7 @@ describe.skipIf(!uri || !allowed)('mobile expense write against an isolated repl
     const list = await mobileExpenses(
       hex(amy),
       tripId,
-      new URL(`https://example.com/api/v1/trips/${tripId}/expenses`)
+      new URL(`https://example.com/api/v2/trips/${tripId}/expenses`)
     );
     // Newest date first: the mobile expense (2026-10-03) precedes the Web one (2026-10-02).
     expect(list.items.map((item) => item.id)).toEqual([mobile.id, web.success ? web.data.id : '']);

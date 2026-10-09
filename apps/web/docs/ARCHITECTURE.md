@@ -4,7 +4,7 @@
 
 ## Workspace 邊界
 
-此應用位於 `apps/web`（`@travel-budget/web`），原生 App 位於 `apps/mobile`；兩者在同一 repository 維護、各自版本與發布。Web 仍擁有業務後端、MongoDB models、migrations 與外部服務。B1 提供 `/api/v2` 帳本契約，B2 Web／B3 Mobile 已接新版帳本讀寫；Mobile 舊已確認操作與 D TWD 佇列保留 `/api/v1`。跨應用文件見 [repository 入口](../../../docs/README.md)。
+此應用位於 `apps/web`（`@travel-budget/web`），原生 App 位於 `apps/mobile`；兩者在同一 repository 維護、各自版本與發布。Web 仍擁有業務後端、MongoDB models、migrations 與外部服務。B1 提供 `/api/v2` 帳本契約，B2 Web／B3 Mobile 已接新版帳本讀寫；B5d-1 起 Mobile 只送 v2，B5d-2 已刪除原生 `/api/v1`。跨應用文件見 [repository 入口](../../../docs/README.md)。
 
 共用 [packages/contracts/src/index.ts](../../../packages/contracts/src/index.ts) 只包含 API DTO、Zod runtime schema 等可供原生使用的契約，透過 `@travel-budget/contracts` 匯入。它不包含 Mongoose、Server Actions 或 server SDK。Web 的 [contract.ts](../src/lib/mobile/contract.ts) 只保留薄 adapter。
 
@@ -62,7 +62,7 @@ Next.js App Router 與 React 組成介面，TanStack Query 負責查詢、重新
 
 ## 手機 HTTP adapter
 
-`src/app/api/v1` 是原生用戶端入口，`src/lib/mobile` 管理獨立 bearer session、錯誤 envelope 與 DTO 組裝；輸入與回應 schema 由 `@travel-budget/contracts` 匯入。`credentials.ts`、`tripListRead.ts` 同時供 Web Server Actions 與手機呼叫；摘要重用成員權限及 `tripShellRead`／`tripListSummary`。支出清單／明細（`lib/mobile/expenses.ts`）重用 `toExpenseDto` 與 `Expense` 索引，結算（`lib/mobile/settlement.ts`）重用 `readSettlementDetail`（`readSettlement` 的成員 id 版本，原回傳不變）；兩者先經 `lib/mobile/access.ts` 驗證成員 ObjectId，再讀資料。手機簽章與 Web cookie 隔離，MongoDB 儲存 refresh 雜湊與撤銷狀態。`/api/v2` 帳本 route 經 `lib/mobile/ledgerHttp.ts` 回應，每個 method 明確宣告輸出 schema 與單位模式（`trip` 注入目前旅行 ledger、`service` 保留服務的逐列／receipt ledger、`none` 為無 ledger 的身分回應），不依 URL 推斷。auth／me 的 v1 與 v2 入口共用 `lib/mobile/auth.ts`，只差回應包裝；同一 session、限流與單次 refresh 輪替。24 組成對的會員業務 route 同樣只選版本包裝與 v2 schema，登入驗證、讀參數與服務呼叫集中在 `lib/mobile/operations.ts` 的具名操作；帳本版本由包裝的 context 決定，操作本身不分版。詳細安全邊界及 OpenAPI 見 [手機 API](MOBILE_API.md)。
+`src/app/api/v2` 是原生用戶端入口（`/api/v1` 已於 B5d-2 刪除），`src/lib/mobile` 管理獨立 bearer session、錯誤 envelope 與 DTO 組裝；輸入與回應 schema 由 `@travel-budget/contracts` 匯入。`credentials.ts`、`tripListRead.ts` 同時供 Web Server Actions 與手機呼叫；摘要重用成員權限及 `tripShellRead`／`tripListSummary`。支出清單／明細（`lib/mobile/expenses.ts`）重用 `toExpenseDto` 與 `Expense` 索引，結算（`lib/mobile/settlement.ts`）重用 `readSettlementDetail`（`readSettlement` 的成員 id 版本，原回傳不變）；兩者先經 `lib/mobile/access.ts` 驗證成員 ObjectId，再讀資料。手機簽章與 Web cookie 隔離，MongoDB 儲存 refresh 雜湊與撤銷狀態。`/api/v2` 帳本 route 經 `lib/mobile/ledgerHttp.ts` 回應，每個 method 明確宣告輸出 schema 與單位模式（`trip` 注入目前旅行 ledger、`service` 保留服務的逐列／receipt ledger、`none` 為無 ledger 的身分回應），不依 URL 推斷。auth／me 入口經 `lib/mobile/auth.ts`；同一 session、限流與單次 refresh 輪替。24 個會員業務 route 只選 v2 輸出 schema，登入驗證、讀參數與服務呼叫集中在 `lib/mobile/operations.ts` 的具名操作；`lib/mobile` 不再有 v1 分支，共用 `lib/*` 的非 v2 預設只留給 Web 舊 action 與公開路徑（B5d-3 再處理）。詳細安全邊界及 OpenAPI 見 [手機 API](MOBILE_API.md)。
 
 新增支出只有一個寫入服務：`lib/expenseCreate.ts#createExpenseForActor` 接受已授權的旅行與操作者及 `createExpenseSchema` 的輸出，內含 `withTripWrite` 交易、成員／分攤／金額驗證、收據驗證、與支出同交易提交的冪等 receipt（`expenseCreateRequest.ts`）及通知／outbox 副作用；v2 合法請求的業務驗證拒絕也在 parent fence 交易內保存終局 receipt，已有提交／拒絕優先重播，未知故障仍回滾，不改 v1。且不 import `next/*`。Web Server Action（`expense.actions.ts#createExpense`，cookie）與手機 HTTP（`lib/mobile/expenseWrite.ts`，bearer）是它的兩個 adapter：各自驗證登入、解析旅行與輸入、處理自己的快取／排程並對照錯誤碼。成員順序（`lib/mobile/expenseOptions.ts`）與 Web 成員清單相同，均分預覽重用 `computeSplits`，手機不複製金額演算法。
 
@@ -72,7 +72,7 @@ Next.js App Router 與 React 組成介面，TanStack Query 負責查詢、重新
 
 ## E2 共用帳號服務
 
-`accountEntry.ts` 供 Web cookie adapter 與 `/api/v1/auth` 匿名 adapter 共用註冊／寄碼／重設規則。`accountAdapter.ts` 只取得 DB、可信來源與寄信。註冊由既有 username／Email 的不分大小寫唯一索引防併發，Web cookie 副作用失敗不推翻已建立帳號；HTTP 不建 session。寄碼配額與 reset-code 建立、密碼更新／碼消耗使用 replica-set 交易，未到期且錯碼未滿五次的碼不得更換或延長期限（含舊部署建立的碼）；鎖死碼允許在上次寄碼 60 秒後更換，仍保留小時配額，錯誤嘗試也原子提交，寄信在提交後且不印驗證碼。
+`accountEntry.ts` 供 Web cookie adapter 與 `/api/v2/auth` 匿名 adapter 共用註冊／寄碼／重設規則。`accountAdapter.ts` 只取得 DB、可信來源與寄信。註冊由既有 username／Email 的不分大小寫唯一索引防併發，Web cookie 副作用失敗不推翻已建立帳號；HTTP 不建 session。寄碼配額與 reset-code 建立、密碼更新／碼消耗使用 replica-set 交易，未到期且錯碼未滿五次的碼不得更換或延長期限（含舊部署建立的碼）；鎖死碼允許在上次寄碼 60 秒後更換，仍保留小時配額，錯誤嘗試也原子提交，寄信在提交後且不印驗證碼。
 
 `accountentryattempts` 以 HMAC key 原子保存滑動時窗與冷卻，註冊／寄碼來源共用限流、Email 與驗碼另限；寄碼間隔對齊 15 分鐘有效期，避免匿名請求換掉仍可使用的碼，鎖死碼的 60 秒例外仍受每小時五次配額限制。已知／未知 Email 的碼期限與錯誤計數一併保存於 HMAC 計數文件，確保恢復例外回應一致。拒絕不消耗寄碼配額或延長原期限，未知 Email 使用同樣間隔與計數；寄信失敗亦須等原期限後再寄。可信來源只解析 Vercel 覆寫的單一 IP header；其他部署保留帳號／Email 限制。Email 共用驗碼額度被耗盡的定向阻斷仍未解決，後續防護見 [E2 契約](../../mobile/docs/BACKEND_CONTRACT.md#e2-註冊與-email-驗證碼重設)。契約及 migration 見 [手機 API](MOBILE_API.md#e2-匿名帳號入口)。
 

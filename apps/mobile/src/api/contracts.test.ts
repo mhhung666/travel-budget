@@ -1,5 +1,4 @@
 import * as shared from '@travel-budget/contracts';
-import { expenseUpdateInput, expenseEditContextSchema } from '@travel-budget/contracts';
 import contract from '@travel-budget/contracts/openapi.json';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
@@ -16,9 +15,11 @@ import {
   expensePreviewSchema,
   expenseCreateInput,
   expenseRequestSchema,
+  expenseEditContextSchema,
   isPositiveCentAmount,
   isCentShare,
   MAX_EXPENSE_AMOUNT,
+  responseSchema,
 } from './contracts';
 function normalize(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(normalize);
@@ -35,24 +36,29 @@ function normalize(value: unknown): unknown {
   return value;
 }
 describe('published backend contract', () => {
+  it('publishes only the v2 routes the client sends to', () => {
+    expect(contract.servers).toEqual([{ url: '/api' }]);
+    expect(Object.keys(contract.paths).every((path) => path.startsWith('/v2/'))).toBe(true);
+  });
+  // What the client sends and parses at the HTTP boundary, against the published v2 schema.
   for (const [name, schema] of Object.entries({
     User: userSchema,
     Session: sessionSchema,
-    Trips: tripsSchema,
-    Landing: landingSchema,
-    Expenses: expensesSchema,
-    ExpenseDetail: expenseDetailSchema,
-    Settlement: settlementSchema,
-    ExpenseOptions: expenseOptionsSchema,
-    ExpensePreview: expensePreviewSchema,
-    ExpenseRequest: shared.expenseRequestSchema,
-    ExpensePreviewInput: shared.expensePreviewInput,
-    ExpenseCreateInput: shared.expenseCreateInput,
-    ExpenseUpdateInput: expenseUpdateInput,
-    ExpenseEditContext: expenseEditContextSchema,
+    V2Trips: responseSchema(tripsSchema, 2),
+    V2Landing: responseSchema(landingSchema, 2),
+    V2Expenses: responseSchema(expensesSchema, 2),
+    V2ExpenseDetail: responseSchema(expenseDetailSchema, 2),
+    V2Settlement: responseSchema(settlementSchema, 2),
+    V2ExpenseOptions: responseSchema(expenseOptionsSchema, 2),
+    V2ExpensePreview: responseSchema(expensePreviewSchema, 2),
+    V2ExpenseRequest: responseSchema(expenseRequestSchema, 2),
+    V2ExpenseEditContext: responseSchema(expenseEditContextSchema, 2),
+    V2ExpensePreviewInput: shared.expensePreviewV2Input,
+    V2ExpenseCreateInput: shared.expenseCreateV2Input,
+    V2ExpenseUpdateInput: shared.expenseUpdateV2Input,
   })) {
-    it(`keeps ${name} response fields in sync`, () => {
-      const actual = z.toJSONSchema(schema);
+    it(`keeps ${name} fields in sync`, () => {
+      const actual = z.toJSONSchema(schema, { io: name.endsWith('Input') ? 'input' : 'output' });
       delete actual.$schema;
       const expected = normalize(
         contract.components.schemas[name as keyof typeof contract.components.schemas]
@@ -353,6 +359,7 @@ it('G1c inputs preserve role target IDs and reject private fields; exit results 
 });
 
 describe('G2c update compatibility', () => {
+  const { expenseUpdateInput } = shared;
   const legacy = {
     client_request_id: '11111111-1111-4111-8111-111111111111',
     expected_revision: 'a'.repeat(64),

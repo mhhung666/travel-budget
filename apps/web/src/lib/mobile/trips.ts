@@ -1,11 +1,5 @@
 import mongoose from 'mongoose';
-import {
-  authorizeLedger,
-  isLedgerV2,
-  ledgerOutput,
-  ledgerOf,
-  validateLedgerChildren,
-} from '@/lib/ledger';
+import { authorizeLedger, ledgerOutput, ledgerOf, validateLedgerChildren } from '@/lib/ledger';
 import { readMemberTrips } from '@/lib/tripListRead';
 import { getMemberTrip } from '@/lib/permissions';
 import { toTripDto, type TripDtoInput } from '@/lib/dto';
@@ -38,9 +32,10 @@ function mapTrip(trip: TripWithMembers, today: string): MobileTrip {
             ? 'upcoming'
             : 'unscheduled',
   });
-  return isLedgerV2()
-    ? ledgerOutput(dto, (trip as TripWithMembers & { ledger: ReturnType<typeof ledgerOf> }).ledger)
-    : dto;
+  return ledgerOutput(
+    dto,
+    (trip as TripWithMembers & { ledger: ReturnType<typeof ledgerOf> }).ledger
+  );
 }
 export function viewerDate(url: URL) {
   const result = dateSchema.safeParse(
@@ -82,11 +77,10 @@ export async function mobileLanding(userId: string, id: string, today: string) {
   );
   if (!result) throw new ApiError(404, 'NOT_FOUND');
   const ledger = authorizeLedger(result.trip as TripDtoInput & { baseCurrency?: string });
-  if (isLedgerV2())
-    await validateLedgerChildren(mongoose.connection.db!, {
-      ...result.trip,
-      _id: new mongoose.mongo.ObjectId(id),
-    });
+  await validateLedgerChildren(mongoose.connection.db!, {
+    ...result.trip,
+    _id: new mongoose.mongo.ObjectId(id),
+  });
   const [shell, summaries] = await Promise.all([
     readTripShell(result.trip, userId, today),
     readTripListSummaries([id], userId),
@@ -95,7 +89,7 @@ export async function mobileLanding(userId: string, id: string, today: string) {
     ...mapTrip(
       {
         ...toTripDto(result.trip, userId),
-        ...(isLedgerV2() ? { ledger } : {}),
+        ledger,
         member_count: shell.member_count,
         my_spent: shell.total_spent,
         my_balance: summaries.get(id)?.myBalance ?? 0,

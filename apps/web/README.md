@@ -19,7 +19,7 @@
 | 框架 | [Next.js 16](https://nextjs.org/)（App Router）+ [React 19](https://react.dev/) |
 | 語言 | [TypeScript](https://www.typescriptlang.org/)（`strict`） |
 | 資料庫 | [MongoDB](https://www.mongodb.com/) + [Mongoose](https://mongoosejs.com/) ODM |
-| 後端 | **Server Actions**（主要）+ API routes（公開分享 / 匯率 / 排程 / 手機 `/api/v1`） |
+| 後端 | **Server Actions**（主要）+ API routes（公開分享 / 匯率 / 排程 / 手機 `/api/v2`） |
 | 認證 | 自製 JWT（[`jose`](https://github.com/panva/jose)）+ httpOnly cookie；密碼 `bcryptjs` |
 | 驗證 | [Zod](https://zod.dev/) |
 | UI | [Shadcn UI](https://ui.shadcn.com/)（Radix）+ [Tailwind CSS](https://tailwindcss.com/) + [Lucide](https://lucide.dev/) 圖示 |
@@ -46,7 +46,7 @@ src/
 │   ├── (auth)/       # 登入與註冊
 │   ├── (public)/     # 公開加入/連結流程
 │   ├── (share)/      # 公開分享頁
-│   └── api/          # 公開分享 API + 匯率代理 + cron + 手機 /api/v1
+│   └── api/          # 公開分享 API + 匯率代理 + cron + 手機 /api/v2
 ├── components/       # React 元件（依功能分組：trips / stats / map / wrapped / ui...）
 ├── hooks/            # Custom hooks（+ queries/：React Query 查詢 / 失效層）
 ├── i18n/             # 國際化設定與四語系訊息檔

@@ -32,9 +32,9 @@ type Operation<K extends keyof RouteParams> = (
 const op = <K extends keyof RouteParams = never>(handler: Operation<K>) => handler;
 
 /**
- * Signed-in member operations shared by v1 and v2 routes. Each route only picks its version
- * wrapper (and the v2 output schema); authorization, body reading and services live here, and
- * the ledger version comes from the wrapper's context, never from the operation.
+ * Signed-in member operations behind the native `/api/v2` routes. Each route only picks its v2
+ * output schema; authorization, body reading and services live here, and the ledger version comes
+ * from the wrapper's context, never from the operation.
  */
 const operations = {
   // Trips and members

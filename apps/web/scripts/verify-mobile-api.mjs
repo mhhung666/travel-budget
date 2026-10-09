@@ -36,6 +36,7 @@ import {
   mutationRequestSchema,
   v2Schemas,
 } from '@travel-budget/contracts';
+import * as contracts from '@travel-budget/contracts';
 import { up as migrateSessions } from '../migrations/20261002100000-mobile-session-expiry.js';
 import { up as migrateAccounts } from '../migrations/20261006120000-account-entry-limits.js';
 import { up as migrateMutations } from '../migrations/20261006100000-mutation-requests.js';
@@ -98,6 +99,33 @@ function receiptFields(detail) {
   return { ...data, splits: data.splits.map(({ isVirtual: _flag, ...split }) => split) };
 }
 const pass = (name) => console.log(`PASS ${name}`);
+// Native routes are v2 only (B5d-2). Assertions written against the TWD member DTOs name the
+// original schema; the request is validated against its v2 form, every ledger unit in the reply
+// is checked, and the business fields are returned for the assertions below. Every fixture trip in
+// this file is TWD; other base currencies are verified in verify-ledger-api.mjs.
+const v2Pairs = new Map(
+  Object.entries(v2Schemas).flatMap(([name, v2]) => {
+    const stem = name.slice(2);
+    const original = contracts[`${stem[0].toLowerCase()}${stem.slice(1)}Schema`];
+    return original ? [[original, v2]] : [];
+  })
+);
+const TWD = { baseCurrency: 'TWD', moneyScale: 2 };
+function businessFields(value) {
+  if (Array.isArray(value)) return value.map(businessFields);
+  if (!value || typeof value !== 'object') return value;
+  return Object.fromEntries(
+    Object.entries(value).flatMap(([key, child]) => {
+      if (key !== 'ledger') return [[key, businessFields(child)]];
+      assert.deepEqual(child, TWD, 'every reply carries the TWD trip ledger');
+      return [];
+    })
+  );
+}
+// Writes that change money declare the base currency they were confirmed against.
+const withBase = (body) => ({ base_currency: 'TWD', ...body });
+// A TWD preview names its currency and rate explicitly in v2.
+const twdPreview = (body) => withBase({ currency: 'TWD', exchange_rate: 1, ...body });
 try {
   await exec('docker', ['info', '--format', '{{.ServerVersion}}']);
   // Expense creation commits the expense, its idempotency receipt and the trip fence in one
@@ -515,7 +543,7 @@ try {
         throw new Error('Next.js exited; stop any other apps/web dev server before retrying');
       try {
         return (
-          (await fetch(`${origin}/api/v1/me`, { signal: AbortSignal.timeout(2000) })).status === 401
+          (await fetch(`${origin}/api/v2/me`, { signal: AbortSignal.timeout(2000) })).status === 401
         );
       } catch {
         return false;
@@ -524,8 +552,8 @@ try {
     'Next.js did not start',
     120_000
   );
-  async function request(path, { token, body, status = 200, headers = {}, schema, method, version = 'v1' } = {}) {
-    const response = await fetch(`${origin}/api/${version}${path}`, {
+  async function request(path, { token, body, status = 200, headers = {}, schema, method } = {}) {
+    const response = await fetch(`${origin}/api/v2${path}`, {
       method: method ?? (body === undefined ? 'GET' : 'POST'),
       headers: {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -544,7 +572,13 @@ try {
       assert(payload.requestId);
     } else {
       assert(payload.data);
-      if (schema) (typeof schema.strict === 'function' ? schema.strict() : schema).parse(payload.data);
+      const v2 = v2Pairs.get(schema);
+      const strict = (s) => (typeof s.strict === 'function' ? s.strict() : s);
+      if (v2) {
+        strict(v2).parse(payload.data);
+        return { data: businessFields(payload.data), error: payload.error, response };
+      }
+      if (schema) strict(schema).parse(payload.data);
     }
     return { data: payload.data, error: payload.error, response };
   }
@@ -935,7 +969,7 @@ try {
   const recipients = memberOrder.filter((user) => !user.isVirtual).length - 1;
   const zero = { expenses: 0, receipts: 0, notifications: 0, activity: 0 };
   const rawPost = (path, token, text, headers = { 'Content-Type': 'application/json' }) =>
-    fetch(`${origin}/api/v1${path}`, {
+    fetch(`${origin}/api/v2${path}`, {
       method: 'POST',
       headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...headers },
       body: text,
@@ -980,13 +1014,15 @@ try {
 
   const previewPath = `${tripPath}/expenses/preview`;
   const preview = async (body, token = writerSession.accessToken) =>
-    (await request(previewPath, { token, body, schema: expensePreviewSchema })).data;
+    (await request(previewPath, { token, body: twdPreview(body), schema: expensePreviewSchema }))
+      .data;
   const sharesOf = (result) =>
     result.splits.map((split) => [split.userId, toCents(split.shareAmount)]);
   const evenFor = (ids, cents) =>
     ids.map((id, index) => [id, evenShares(cents, ids.length)[index]]);
   const hundred = await preview({ amount: 100, member_ids: evenIds });
-  assertKeys(hundred, ['amount', 'splits'], 'preview');
+  assertKeys(hundred, ['amount', 'originalAmount', 'currency', 'exchangeRate', 'splits'], 'preview');
+  assert.deepEqual([hundred.originalAmount, hundred.currency, hundred.exchangeRate], [100, 'TWD', 1]);
   assert.equal(hundred.amount, 100);
   assert.deepEqual(sharesOf(hundred), evenFor(evenIds, 10000));
   assert.deepEqual(
@@ -1035,17 +1071,21 @@ try {
     ['drifts by a cent', { amount: 10000000000000, member_ids: [writerId] }],
     ['string', { amount: '100', member_ids: [writerId] }],
     ['null', { amount: null, member_ids: [writerId] }],
-    ['unknown field', { amount: 100, member_ids: [writerId], currency: 'TWD' }],
+    ['unknown field', { amount: 100, member_ids: [writerId], note: 'x' }],
+    ['missing base currency', { base_currency: undefined, amount: 100, member_ids: [writerId] }],
   ];
   for (const [label, body] of badPreviews)
     await expectError(
-      await rawPost(previewPath, writerSession.accessToken, JSON.stringify(body)),
+      await rawPost(previewPath, writerSession.accessToken, JSON.stringify(twdPreview(body))),
       400,
       'VALIDATION_ERROR',
       label
     );
   for (const [label, text] of [
-    ['infinite amount', `{"amount":1e999,"member_ids":["${writerId}"]}`],
+    [
+      'infinite amount',
+      `{"base_currency":"TWD","currency":"TWD","exchange_rate":1,"amount":1e999,"member_ids":["${writerId}"]}`,
+    ],
     ['truncated JSON', '{"amount":'],
   ])
     await expectError(
@@ -1077,6 +1117,7 @@ try {
   const sharesFor = (ids, cents) =>
     evenFor(ids, cents).map(([id, share]) => ({ user_id: id, share_amount: share / 100 }));
   const payload = (overrides = {}) => ({
+    base_currency: 'TWD',
     client_request_id: randomUUID(),
     payer_id: writerId,
     original_amount: 100,
@@ -1227,7 +1268,7 @@ try {
     burst.map(async (response) => (await response.json()).data)
   );
   for (const result of burstResults) assert.deepEqual(result, burstResults[0]);
-  expenseDetailSchema.strict().parse(burstResults[0]);
+  v2Schemas.V2ExpenseDetail.strict().parse(burstResults[0]);
   assert.deepEqual(await counts(), {
     expenses: 3,
     receipts: 3,
@@ -1247,12 +1288,12 @@ try {
 
   const keyPath = (key) => `${tripPath}/expense-requests/${key}`;
   const lookup = async (key, token = writerSession.accessToken) => {
-    const { data } = await request(keyPath(key), { token });
-    expenseRequestSchema.parse(data);
+    const { data } = await request(keyPath(key), { token, schema: expenseRequestSchema });
     if (data.status === 'committed') {
       assertKeys(data, ['status', 'expense'], 'committed lookup');
       expenseDetailSchema.strict().parse(data.expense);
-    } else assert.deepEqual(data, { status: 'not_found' });
+    } else if (data.status === 'rejected') assertKeys(data, ['status', 'code'], 'refusal');
+    else assert.deepEqual(data, { status: 'not_found' });
     return data;
   };
   assert.deepEqual(await lookup(randomUUID()), { status: 'not_found' });
@@ -1316,7 +1357,7 @@ try {
     await rawPost(
       previewPath,
       removedWriter.accessToken,
-      JSON.stringify({ amount: 1, member_ids: [writerId] })
+      JSON.stringify(twdPreview({ amount: 1, member_ids: [writerId] }))
     ),
     404,
     'NOT_FOUND',
@@ -1417,17 +1458,30 @@ try {
     ['itinerary days', { itinerary_day_ids: [] }],
     ['unknown field', { note: 'x' }],
   ];
-  for (const [label, overrides] of rejects)
+  // v2 keeps a business refusal as the UUID's terminal result; a malformed body leaves nothing.
+  const businessRefusals = new Set([
+    'stranger as payer',
+    'stranger in split',
+    'shares short',
+    'shares over',
+  ]);
+  for (const [label, overrides] of rejects) {
+    const body = { ...payload(), ...overrides };
     await expectError(
-      await rawPost(
-        createPath,
-        writerSession.accessToken,
-        JSON.stringify({ ...payload(), ...overrides })
-      ),
+      await rawPost(createPath, writerSession.accessToken, JSON.stringify(body)),
       400,
       'VALIDATION_ERROR',
       label
     );
+    if (/^[0-9a-f-]{36}$/i.test(body.client_request_id ?? ''))
+      assert.deepEqual(
+        await lookup(body.client_request_id),
+        businessRefusals.has(label)
+          ? { status: 'rejected', code: 'VALIDATION_ERROR' }
+          : { status: 'not_found' },
+        label
+      );
+  }
   await expectError(
     await rawPost(createPath, writerSession.accessToken, '{"original_amount":1e999}'),
     400,
@@ -1462,10 +1516,10 @@ try {
     );
   assert.deepEqual(
     await counts(),
-    beforeRejects,
-    'rejected requests must not write or leave receipts'
+    { ...beforeRejects, receipts: beforeRejects.receipts + businessRefusals.size },
+    'rejected requests write no expense; only business refusals keep a terminal receipt'
   );
-  // Nothing was stored, so a corrected request may reuse the key of a rejected one.
+  // A malformed body stored nothing, so a corrected request may reuse its key.
   const reused = payload({ date: '2026-02-31' });
   await expectError(
     await rawPost(createPath, writerSession.accessToken, JSON.stringify(reused)),
@@ -1485,7 +1539,7 @@ try {
   await once(lostSocket, 'connect');
   const lostText = JSON.stringify(lostBody);
   lostSocket.write(
-    `POST /api/v1${createPath} HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\nAuthorization: Bearer ${writerSession.accessToken}\r\nContent-Type: application/json\r\nContent-Length: ${Buffer.byteLength(lostText)}\r\nConnection: close\r\n\r\n${lostText}`
+    `POST /api/v2${createPath} HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\nAuthorization: Bearer ${writerSession.accessToken}\r\nContent-Type: application/json\r\nContent-Length: ${Buffer.byteLength(lostText)}\r\nConnection: close\r\n\r\n${lostText}`
   );
   await eventually(
     async () =>
@@ -1511,14 +1565,14 @@ try {
   const g2bPath = `/trips/${g2bTrip}/expenses`;
   const g2bOptions = (await request(`/trips/${g2bTrip}/expense-options`, { token: writerSession.accessToken, schema: expenseOptionsSchema })).data;
   assert.equal(g2bOptions.currencySettings.default_currency, 'JPY');
-  const g2bPreview = (await request(`${g2bPath}/preview`, { token: writerSession.accessToken, body: { amount: 100, currency: 'JPY', exchange_rate: 0.2156789012345, member_ids: [writerId] }, schema: expensePreviewSchema })).data;
+  const g2bPreview = (await request(`${g2bPath}/preview`, { token: writerSession.accessToken, body: { base_currency: 'TWD', amount: 100, currency: 'JPY', exchange_rate: 0.2156789012345, member_ids: [writerId] }, schema: expensePreviewSchema })).data;
   assert.deepEqual({ amount: g2bPreview.amount, originalAmount: g2bPreview.originalAmount, currency: g2bPreview.currency, exchangeRate: g2bPreview.exchangeRate }, { amount: 21.57, originalAmount: 100, currency: 'JPY', exchangeRate: 0.2156789012345 });
   const g2bBody = payload({ original_amount: 100, currency: 'JPY', exchange_rate: g2bPreview.exchangeRate, description: 'TEST G2b lost response', splits: g2bPreview.splits.map(s => ({ user_id: s.userId, share_amount: s.shareAmount })) });
   const g2bSocket = connect(port, '127.0.0.1');
   g2bSocket.on('error', () => {});
   await once(g2bSocket, 'connect');
   const g2bText = JSON.stringify(g2bBody);
-  g2bSocket.write(`POST /api/v1${g2bPath} HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\nAuthorization: Bearer ${writerSession.accessToken}\r\nContent-Type: application/json\r\nContent-Length: ${Buffer.byteLength(g2bText)}\r\nConnection: close\r\n\r\n${g2bText}`);
+  g2bSocket.write(`POST /api/v2${g2bPath} HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\nAuthorization: Bearer ${writerSession.accessToken}\r\nContent-Type: application/json\r\nContent-Length: ${Buffer.byteLength(g2bText)}\r\nConnection: close\r\n\r\n${g2bText}`);
   await eventually(async () => (await db.collection('expensecreaterequests').countDocuments({ _id: `${g2bTrip}:${writerId}:${g2bBody.client_request_id}` })) === 1, 'G2b did not commit before socket close', 20_000);
   g2bSocket.destroy();
   await db.collection('trips').updateOne({ _id: g2bTrip }, { $set: { currencySettings: { defaultCurrency: 'USD', currencies: [{ code: 'JPY', rate: 9 }] } } });
@@ -1531,29 +1585,29 @@ try {
   assert.equal(await db.collection('expensecreaterequests').countDocuments({ trip: g2bTrip }), 1);
   const g2bRaw = await db.collection('expenses').findOne({ trip: g2bTrip });
   assert.equal(g2bRaw.amount, 21.57); assert.equal(g2bRaw.originalAmount, 100); assert.equal(g2bRaw.exchangeRate, 0.2156789012345);
-  await request(`${g2bPath}/preview`, { token: writerSession.accessToken, body: { amount: 1_000_000_000, currency: 'JPY', exchange_rate: 2, member_ids: [writerId] }, status: 400 });
+  await request(`${g2bPath}/preview`, { token: writerSession.accessToken, body: { base_currency: 'TWD', amount: 1_000_000_000, currency: 'JPY', exchange_rate: 2, member_ids: [writerId] }, status: 400 });
   await request(g2bPath, { token: writerSession.accessToken, body: { ...g2bBody, exchange_rate: 0.22 }, status: 409 });
   // G2c: edit the stored foreign expense, not the current trip currency default.
   const g2cId = g2bFound.expense.id;
   const g2cPath = `${g2bPath}/${g2cId}`;
   const g2cContext = () => request(`${g2cPath}/edit-context`, { token: writerSession.accessToken, schema: expenseEditContextSchema }).then(r => r.data);
   const g2cOriginal = await g2cContext();
-  assert.equal(g2cOriginal.capabilities.equal, false); // legacy clients remain TWD-only
+  assert.equal(g2cOriginal.capabilities.equal, true); // v2 edits foreign expenses in equal mode
   assert.equal(g2cOriginal.capabilities.recalculate, true);
   assert.equal(g2cOriginal.expense.exchangeRate, 0.2156789012345);
   assert.equal(g2cOriginal.options.currencySettings.currencies[0].rate, 9);
   const g2cPreview = (await request(`${g2bPath}/preview`, { token: writerSession.accessToken,
-    body: { amount: 200.01, currency: 'JPY', exchange_rate: 0.3333333333333333, member_ids: [writerId] },
+    body: { base_currency: 'TWD', amount: 200.01, currency: 'JPY', exchange_rate: 0.3333333333333333, member_ids: [writerId] },
     schema: expensePreviewSchema })).data;
   assert.equal(g2cPreview.amount, 66.67);
-  const g2cBody = { client_request_id: randomUUID(), expected_revision: g2cOriginal.revision, mode: 'equal',
+  const g2cBody = { base_currency: 'TWD', client_request_id: randomUUID(), expected_revision: g2cOriginal.revision, mode: 'equal',
     changes: { original_amount: 200.01, currency: 'JPY', exchange_rate: 0.3333333333333333,
       payer_id: writerId, splits: g2cPreview.splits.map(s => ({ user_id: s.userId, share_amount: s.shareAmount })) } };
   const g2cSocket = connect(port, '127.0.0.1');
   g2cSocket.on('error', () => {});
   await once(g2cSocket, 'connect');
   const g2cText = JSON.stringify(g2cBody);
-  g2cSocket.write(`PATCH /api/v1${g2cPath} HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\nAuthorization: Bearer ${writerSession.accessToken}\r\nContent-Type: application/json\r\nContent-Length: ${Buffer.byteLength(g2cText)}\r\nConnection: close\r\n\r\n${g2cText}`);
+  g2cSocket.write(`PATCH /api/v2${g2cPath} HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\nAuthorization: Bearer ${writerSession.accessToken}\r\nContent-Type: application/json\r\nContent-Length: ${Buffer.byteLength(g2cText)}\r\nConnection: close\r\n\r\n${g2cText}`);
   await eventually(async () => await db.collection('mutationrequests').countDocuments({
     _id: `${writerId}:${g2cBody.client_request_id}` }) === 1, 'G2c PATCH did not commit before socket close', 20_000);
   g2cSocket.destroy();
@@ -1701,29 +1755,38 @@ try {
       data: throwawayReceipt.data,
     });
     const beforeEarlier = await counts();
+    const refused = async (label, response) =>
+      assert.equal(response.error.code, 'CLIENT_UPGRADE_REQUIRED', label);
+    // A miss would create a second expense; finding the earlier receipt refuses the version change.
     for (const spelled of spellingsOf(earlierKey)) {
-      assert.deepEqual(
-        await create({ ...earlierBody, client_request_id: spelled }),
-        earlier,
-        `a replay of the earlier receipt stored as ${earlierKey}, key sent as ${spelled}`
+      const retry = { ...earlierBody, client_request_id: spelled };
+      const token = writerSession.accessToken;
+      await refused(spelled, await request(createPath, { token, body: retry, status: 409 }));
+      await refused(spelled, await request(keyPath(spelled), { token, status: 409 }));
+      await refused(
+        spelled,
+        await request(createPath, {
+          token,
+          body: { ...retry, description: 'TEST changed' },
+          status: 409,
+        })
       );
-      assert.deepEqual(await lookup(spelled), { status: 'committed', expense: earlier }, spelled);
-      const changed = await request(createPath, {
-        token: writerSession.accessToken,
-        body: { ...earlierBody, client_request_id: spelled, description: 'TEST changed' },
-        status: 409,
-      });
-      assert.equal(changed.error.code, 'IDEMPOTENCY_CONFLICT', spelled);
     }
-    assert.deepEqual(await counts(), beforeEarlier, 'replaying an earlier receipt writes nothing');
+    assert.deepEqual(await counts(), beforeEarlier, 'refusing an earlier receipt writes nothing');
     const earlierObjectId = new mongoose.Types.ObjectId(earlier.id);
     await db.collection('expenses').deleteOne({ _id: earlierObjectId });
     for (const spelled of spellingsOf(earlierKey))
-      assert.deepEqual(await create({ ...earlierBody, client_request_id: spelled }), earlier);
+      await refused(
+        spelled,
+        await request(createPath, {
+          token: writerSession.accessToken,
+          body: { ...earlierBody, client_request_id: spelled },
+          status: 409,
+        })
+      );
     assert.equal(await db.collection('expenses').countDocuments({ _id: earlierObjectId }), 0);
-    assert.deepEqual(await lookup(earlierKey), { status: 'committed', expense: earlier });
   }
-  pass('receipts stored by earlier versions replay in any letter case and never resurrect');
+  pass('receipts stored by earlier versions are found in any letter case, refused by v2 and never resurrect');
 
   // A key first sent with mixed letter case: the receipt keeps that spelling, and every other
   // spelling of the same UUID must still find it, replay it, be refused when the content changed
@@ -1806,10 +1869,11 @@ try {
   );
   const e3Foreign = await e3Context();
   assert.equal(e3Foreign.category, 'historical-category');
-  assert.equal(e3Foreign.capabilities.equal, false);
+  assert.equal(e3Foreign.capabilities.equal, true); // v2 edits foreign expenses in equal mode
   assert(!JSON.stringify(e3Foreign).includes('attachments'));
   const beforeE3Basic = await db.collection('expenses').findOne({ _id: e3Id });
   const e3Basic = {
+    base_currency: 'TWD',
     client_request_id: randomUUID(),
     expected_revision: e3Foreign.revision,
     mode: 'basic',
@@ -1838,6 +1902,7 @@ try {
   ])
     assert.deepEqual(afterE3Basic[field], beforeE3Basic[field], `metadata changed ${field}`);
   const e3Stale = {
+    base_currency: 'TWD',
     client_request_id: randomUUID(),
     expected_revision: (await e3Context()).revision,
     mode: 'basic',
@@ -1869,11 +1934,14 @@ try {
     .updateOne({ _id: e3Id }, { $set: { currency: 'TWD', originalAmount: 100, exchangeRate: 1 } });
   const e3EqualPreview = await preview({ amount: 0.01, member_ids: evenIds });
   const e3Equal = {
+    base_currency: 'TWD',
     client_request_id: randomUUID(),
     expected_revision: (await e3Context()).revision,
     mode: 'equal',
     changes: {
       original_amount: 0.01,
+      currency: 'TWD',
+      exchange_rate: 1,
       payer_id: writerId,
       splits: e3EqualPreview.splits.map((s) => ({
         user_id: s.userId,
@@ -1897,6 +1965,7 @@ try {
   );
   assert.equal((await db.collection('expenses').findOne({ _id: e3Id })).amount, 0.01);
   const e3Lost = {
+    base_currency: 'TWD',
     client_request_id: randomUUID(),
     expected_revision: (await e3Context()).revision,
     mode: 'basic',
@@ -1907,7 +1976,7 @@ try {
   await once(e3LostSocket, 'connect');
   const e3LostText = JSON.stringify(e3Lost);
   e3LostSocket.write(
-    `PATCH /api/v1${e3Path} HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\nAuthorization: Bearer ${writerSession.accessToken}\r\nContent-Type: application/json\r\nContent-Length: ${Buffer.byteLength(e3LostText)}\r\nConnection: close\r\n\r\n${e3LostText}`
+    `PATCH /api/v2${e3Path} HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\nAuthorization: Bearer ${writerSession.accessToken}\r\nContent-Type: application/json\r\nContent-Length: ${Buffer.byteLength(e3LostText)}\r\nConnection: close\r\n\r\n${e3LostText}`
   );
   await eventually(
     async () =>
@@ -1957,6 +2026,7 @@ try {
     .collection('comments')
     .insertOne({ trip: writerTrip._id, expense: e3Id, text: 'remove with expense' });
   const e3Delete = {
+    base_currency: 'TWD',
     client_request_id: randomUUID(),
     expected_revision: (await e3Context()).revision,
   };
@@ -2031,7 +2101,7 @@ try {
   assert(!JSON.stringify(e4Initial).includes('username'));
   for (const deniedToken of [undefined, outsiderSession.accessToken])
     await request(`${tripPath}/payment-context`, { token: deniedToken, status: deniedToken ? 404 : 401 });
-  const e4Body = { client_request_id: randomUUID(), expected_revision: e4Initial.settlementRevision,
+  const e4Body = { base_currency: 'TWD', client_request_id: randomUUID(), expected_revision: e4Initial.settlementRevision,
     from_id: peerId, to_id: writerId, amount: 20.01, note: ' partial ' };
   for (const invalid of [{ amount: 0.001 }, { amount: 1000000000.01 }, { to_id: peerId }, { currency: 'USD' }])
     await e4Post({ ...e4Body, ...invalid, client_request_id: randomUUID() }, 400);
@@ -2057,7 +2127,7 @@ try {
   const e4SocketWrite = async (method, path, body, token = writerSession.accessToken, accountId = writerId) => {
     const socket = connect(port, '127.0.0.1'); socket.on('error', () => {}); await once(socket, 'connect');
     const text = JSON.stringify(body);
-    socket.write(`${method} /api/v1${path} HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\nAuthorization: Bearer ${token}\r\nContent-Type: application/json\r\nContent-Length: ${Buffer.byteLength(text)}\r\nConnection: close\r\n\r\n${text}`);
+    socket.write(`${method} /api/v2${path} HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\nAuthorization: Bearer ${token}\r\nContent-Type: application/json\r\nContent-Length: ${Buffer.byteLength(text)}\r\nConnection: close\r\n\r\n${text}`);
     await eventually(async () => (await db.collection('mutationrequests').countDocuments({ _id: `${accountId}:${body.client_request_id}` })) === 1, 'E4 lost response did not commit', 20000);
     socket.destroy();
     return (await request(`/mutation-requests/${body.client_request_id}`, { token, schema: mutationRequestSchema })).data;
@@ -2069,9 +2139,9 @@ try {
   const e4Revoke = async () => (await request(`${e4RemovePath}/revoke-context`, { token: writerSession.accessToken, schema: paymentRevokeContextSchema })).data;
   const e4OldRemove = await e4Revoke();
   await db.collection('payments').updateOne({ _id: e4Id }, { $set: { note: 'Web revised note' } });
-  const e4ConflictRemove = { client_request_id: randomUUID(), expected_revision: e4OldRemove.revision };
+  const e4ConflictRemove = { base_currency: 'TWD', client_request_id: randomUUID(), expected_revision: e4OldRemove.revision };
   assert.equal((await request(e4RemovePath, { token: writerSession.accessToken, method: 'DELETE', body: e4ConflictRemove, status: 409 })).data, undefined);
-  const e4Remove = { client_request_id: randomUUID(), expected_revision: (await e4Revoke()).revision };
+  const e4Remove = { base_currency: 'TWD', client_request_id: randomUUID(), expected_revision: (await e4Revoke()).revision };
   const e4Removed = await e4SocketWrite('DELETE', e4RemovePath, e4Remove);
   assert.equal(e4Removed.result.deleted, true);
   assert.deepEqual((await request(e4RemovePath, { token: writerSession.accessToken, method: 'DELETE', body: e4Remove, schema: paymentMutationResultSchema })).data, e4Removed.result);
@@ -2219,7 +2289,7 @@ try {
   const g2aInitial = await g2aRead();
   assert(!/hashCode|budget|password|email|members|splits/.test(JSON.stringify(g2aInitial)));
   assert.equal((await g2aRead(peerSession.accessToken)).role, 'member');
-  const g2aBody = { client_request_id: randomUUID(), expected_revision: g2aInitial.revision, settings: { default_currency: 'JPY', currencies: [{ code: 'JPY', rate: 0.2156789012345 }, { code: 'TWD', rate: 9 }] } };
+  const g2aBody = { base_currency: 'TWD', client_request_id: randomUUID(), expected_revision: g2aInitial.revision, settings: { default_currency: 'JPY', currencies: [{ code: 'JPY', rate: 0.2156789012345 }, { code: 'TWD', rate: 9 }] } };
   await request(g2aPath, { token: writerSession.accessToken, body: { ...g2aBody, secret: 'invalid' }, status: 400 });
   await request(g2aPath, { token: peerSession.accessToken, body: { ...g2aBody, client_request_id: randomUUID() }, status: 403 });
   const g2aLost = await e4SocketWrite('POST', g2aPath, g2aBody);
@@ -2347,7 +2417,7 @@ try {
   const e2Reset = { email: e2Email, code: '000007', new_password: 'E2-new-password' };
   const e2Concurrent = await Promise.all(
     Array.from({ length: 2 }, async () => {
-      const response = await fetch(`${origin}/api/v1/auth/password-reset/confirm`, {
+      const response = await fetch(`${origin}/api/v2/auth/password-reset/confirm`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(e2Reset),
@@ -2381,7 +2451,7 @@ try {
   await once(e2Socket, 'connect');
   const e2Text = JSON.stringify(e2Lost);
   e2Socket.write(
-    `POST /api/v1/auth/password-reset/confirm HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\nContent-Type: application/json\r\nContent-Length: ${Buffer.byteLength(e2Text)}\r\nConnection: close\r\n\r\n${e2Text}`
+    `POST /api/v2/auth/password-reset/confirm HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\nContent-Type: application/json\r\nContent-Length: ${Buffer.byteLength(e2Text)}\r\nConnection: close\r\n\r\n${e2Text}`
   );
   await eventually(
     async () =>
@@ -2407,7 +2477,7 @@ try {
   pass('E1 real transaction rollback, competing terminal results and post-commit effect failures');
   const eCreator = await login('mobile-empty');
   const eJoiner = await login('mobile-b');
-  const eCreate = { client_request_id: randomUUID(), name: 'TEST E1', description: ' Entry ', start_date: '2024-02-29', end_date: '2025-01-01' };
+  const eCreate = { base_currency: 'TWD', client_request_id: randomUUID(), name: 'TEST E1', description: ' Entry ', start_date: '2024-02-29', end_date: '2025-01-01' };
   const eRequest = (path, body, token = eCreator.accessToken, status = 200) => request(path, { body, token, status });
   const eAccepted = await Promise.all(Array.from({ length: 6 }, () => eRequest('/trips', eCreate)));
   assert(eAccepted.every(r => r.data.tripId === eAccepted[0].data.tripId));
@@ -2420,7 +2490,7 @@ try {
   const eLanding = await request(`/trips/${eTripId}/landing`, { token: eCreator.accessToken });
   assert.equal(eLanding.data.mySpent, 0); assert.equal(eLanding.data.myBalance, 0);
   assert.equal('code' in eLanding.data, false); assert.equal('hashCode' in eLanding.data, false);
-  const invitation = (await eRequest(`/trips/${eTripId}/invitation`)).data;
+  const invitation = businessFields((await eRequest(`/trips/${eTripId}/invitation`)).data);
   assert.deepEqual(invitation, { code: eTrip.hashCode, url: `${origin}/join/${eTrip.hashCode}` });
   await eRequest(`/trips/${eTripId}/invitation`, undefined, eJoiner.accessToken, 404);
   await eRequest('/trips', { ...eCreate, name: 'Changed' }, eCreator.accessToken, 409);
@@ -2449,7 +2519,7 @@ try {
   const eLost = { ...eCreate, client_request_id: randomUUID(), name: 'TEST E1 lost' };
   const eSocket = connect(port, '127.0.0.1'); eSocket.on('error', () => {}); await once(eSocket, 'connect');
   const eText = JSON.stringify(eLost);
-  eSocket.write(`POST /api/v1/trips HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\nAuthorization: Bearer ${eCreator.accessToken}\r\nContent-Type: application/json\r\nContent-Length: ${Buffer.byteLength(eText)}\r\nConnection: close\r\n\r\n${eText}`);
+  eSocket.write(`POST /api/v2/trips HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\nAuthorization: Bearer ${eCreator.accessToken}\r\nContent-Type: application/json\r\nContent-Length: ${Buffer.byteLength(eText)}\r\nConnection: close\r\n\r\n${eText}`);
   await eventually(async () => await db.collection('mutationrequests').countDocuments({ _id: `${eCreator.user.id}:${eLost.client_request_id}` }) === 1, 'E1 dropped response never committed', 20000);
   eSocket.destroy();
   const eRecovered = (await eRequest(`/mutation-requests/${eLost.client_request_id}`)).data;
@@ -2474,7 +2544,7 @@ try {
   const concurrent = await login();
   const races = await Promise.all(
     [0, 1].map(() =>
-      fetch(`${origin}/api/v1/auth/refresh`, {
+      fetch(`${origin}/api/v2/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refreshToken: concurrent.refreshToken }),
@@ -2485,8 +2555,8 @@ try {
   assert.deepEqual(races.map((res) => res.status).sort(), [200, 401]);
   await me(concurrent, 401);
   pass('atomic rotation, replay revocation and independent device sessions');
-  // B5b-1: v2 auth/me are thin entries over the same device sessions; identity carries no ledger.
-  const v2Auth = (path, options) => request(path, { version: 'v2', ...options });
+  // v2 auth/me are thin entries over the device sessions; identity carries no ledger.
+  const v2Auth = request;
   const v2Session = (
     await v2Auth('/auth/login', { body: { username: 'mobile-a', password }, schema: sessionSchema })
   ).data;
@@ -2528,7 +2598,30 @@ try {
     404,
     'unknown v2 auth path must not fall back to another contract'
   );
-  pass('B5b-1 v2 auth/me: shared sessions and limits, one refresh consumer across versions, logout, no ledger');
+  // B5d-2: the retired v1 family is gone; nothing under it falls back to another contract.
+  for (const [method, path] of [
+    ['GET', '/me'],
+    ['POST', '/auth/login'],
+    ['POST', '/auth/refresh'],
+    ['GET', '/trips'],
+    ['POST', '/trips'],
+    ['GET', `/trips/${shared._id}/landing`],
+    ['POST', `/trips/${shared._id}/expenses`],
+    ['GET', '/exchange-rates'],
+  ]) {
+    const retired = await fetch(`${origin}/api/v1${path}`, {
+      method,
+      headers: {
+        Authorization: `Bearer ${v2Session.accessToken}`,
+        ...(method === 'POST' ? { 'Content-Type': 'application/json' } : {}),
+      },
+      ...(method === 'POST' ? { body: '{}' } : {}),
+      signal: AbortSignal.timeout(60_000),
+    });
+    assert.equal(retired.status, 404, `${method} /api/v1${path} must be gone`);
+    assert(!(await retired.text()).includes('"data"'), `${method} /api/v1${path} returned data`);
+  }
+  pass('v2 auth/me: shared sessions and limits, one refresh consumer, logout, no ledger; /api/v1 is 404');
   const expired = await login();
   await db
     .collection('mobilesessions')
@@ -2590,13 +2683,6 @@ try {
     status: 429,
   });
   assert(Number(limited.response.headers.get('retry-after')) > 0);
-  // v1 and v2 share one login limit; switching API version does not reset it.
-  const limitedV2 = await request('/auth/login', {
-    version: 'v2',
-    body: { username: 'mobile-rate', password },
-    status: 429,
-  });
-  assert(Number(limitedV2.response.headers.get('retry-after')) > 0);
   pass('login rate limit and Retry-After');
   await verifyLedgerApi({ db, request, login, ObjectId: mongoose.Types.ObjectId, date, origin, creationEnabled: args.has('--ledger-creation') });
   const b4 = await createLedgerAcceptance({ db, ObjectId: mongoose.Types.ObjectId, passwordHash: hash, date });
@@ -2697,6 +2783,7 @@ try {
       };
       if (req.headers.authorization !== `Bearer ${controlToken}`)
         return reply(401, { error: 'Unauthorized' });
+      // apiUrl stays the stored environment identity; the client derives /api/v2 from it.
       if (req.method === 'GET' && req.url === '/health')
         return reply(200, { apiUrl: `${origin}/api/v1` });
       if (req.method !== 'POST') return reply(405, { error: 'Method not allowed' });

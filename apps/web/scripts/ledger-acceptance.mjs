@@ -336,19 +336,13 @@ export async function verifyLedgerAcceptanceHttp({
   const session = await login('b4-a');
   const ids = b4.fixture.actors.map((a) => a.id);
   const call = (path, options = {}) =>
-    request(path, { token: session.accessToken, version: 'v2', ...options });
+    request(path, { token: session.accessToken, ...options });
   for (const [currency, spec] of Object.entries(ledgerCases)) {
     const ref = b4.fixture.trips[currency];
     const path = `/trips/${ref.id}`;
     const context = (await call(`${path}/expense-options`, { schema: schemas.V2ExpenseOptions }))
       .data;
     assert.equal(context.ledger.baseCurrency, currency);
-    if (currency !== 'TWD')
-      assert.equal(
-        (await request(`${path}/expense-options`, { token: session.accessToken, status: 409 }))
-          .error.code,
-        'CLIENT_UPGRADE_REQUIRED'
-      );
     const preview = (
       await call(`${path}/expenses/preview`, {
         schema: schemas.V2ExpensePreview,

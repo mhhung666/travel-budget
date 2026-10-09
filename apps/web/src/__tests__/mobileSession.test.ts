@@ -24,10 +24,6 @@ vi.mock('@/lib/accountAdapter', () => ({
   deliverAccountReset: vi.fn(),
 }));
 import { loginMobile, refreshMobile, requireMobileUser, logoutMobile } from '@/lib/mobile/session';
-import { POST as v1Login } from '@/app/api/v1/auth/login/route';
-import { POST as v1Refresh } from '@/app/api/v1/auth/refresh/route';
-import { POST as v1Logout } from '@/app/api/v1/auth/logout/route';
-import { GET as v1Me } from '@/app/api/v1/me/route';
 import { POST as v2Login } from '@/app/api/v2/auth/login/route';
 import { POST as v2Refresh } from '@/app/api/v2/auth/refresh/route';
 import { POST as v2Logout } from '@/app/api/v2/auth/logout/route';
@@ -78,7 +74,7 @@ beforeEach(() => {
   });
 });
 const request = (token: string) =>
-  new Request('https://example.com/api/v1/me', { headers: { Authorization: `Bearer ${token}` } });
+  new Request('https://example.com/api/v2/me', { headers: { Authorization: `Bearer ${token}` } });
 describe('mobile device sessions', () => {
   it('stores hashes only; separates mobile access, refresh, and Web cookie credentials', async () => {
     const session = await loginMobile('travel', 'password');
@@ -163,7 +159,6 @@ describe('mobile device sessions', () => {
 });
 
 const routes = {
-  v1: { login: v1Login, refresh: v1Refresh, logout: v1Logout, me: v1Me },
   v2: { login: v2Login, refresh: v2Refresh, logout: v2Logout, me: v2Me },
 };
 type Version = keyof typeof routes;
@@ -182,7 +177,7 @@ const me = (version: Version, token: string) =>
 const signIn = async (version: Version) =>
   (await (await routes[version].login(post(version, 'login', credentials))).json()).data;
 const credentials = { username: 'travel', password: 'password' };
-describe.each(['v1', 'v2'] as const)('%s auth HTTP', (version) => {
+describe.each(['v2'] as const)('%s auth HTTP', (version) => {
   const route = routes[version];
   it('logs in, reads me and rotates refresh once without a ledger', async () => {
     const response = await route.login(post(version, 'login', credentials));
@@ -234,13 +229,4 @@ describe.each(['v1', 'v2'] as const)('%s auth HTTP', (version) => {
     expect((await route.login(post(version, 'login', { ...credentials, x: 1 }))).status).toBe(400);
     expect((await route.refresh(post(version, 'refresh', {}, 'text/plain'))).status).toBe(415);
   });
-});
-it('one device session refreshes across API versions with a single consumer', async () => {
-  const session = await signIn('v1');
-  const v2 = await v2Refresh(post('v2', 'refresh', { refreshToken: session.refreshToken }));
-  const next = (await v2.json()).data;
-  const v1 = await v1Refresh(post('v1', 'refresh', { refreshToken: next.refreshToken }));
-  expect(v1.status).toBe(200);
-  const replay = await v2Refresh(post('v2', 'refresh', { refreshToken: next.refreshToken }));
-  expect((await replay.json()).error.code).toBe('SESSION_REVOKED');
 });

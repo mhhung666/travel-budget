@@ -8,7 +8,7 @@
 | [現有功能](FEATURES.md)                                  | 使用者能做什麼、主要操作流程與使用限制       |
 | [AI 維護與測試](AI.md)                                   | 三種 AI 功能的現況、設定、測試方式與評測入口 |
 | [架構摘要](ARCHITECTURE.md)                              | 核心資料流、程式入口與維護原則               |
-| [手機 API](MOBILE_API.md)                                | 原生 `/api/v1` 的認證、資料邊界與驗證        |
+| [手機 API](MOBILE_API.md)                                | 原生 `/api/v2` 的認證、資料邊界與驗證        |
 | [共用 OpenAPI](../../../packages/contracts/openapi.json) | Web／手機共用的 API 契約產物                 |
 | [專案 README](../README.md)                              | 安裝、環境設定與開發指令                     |
 

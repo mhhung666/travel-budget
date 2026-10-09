@@ -8,7 +8,7 @@ Detail lives in the linked docs — open the one matching your task; do not past
 Travel Budget Planner (旅行記帳) — multi-user trip expense tracking and bill-splitting.
 Next.js 16 (App Router) + React 19 + TypeScript, MongoDB (Mongoose), Shadcn UI (Radix) + Tailwind, next-intl.
 Primary backend = **Server Actions** in [src/actions/](src/actions). API routes also host public
-shares, AI drafts, exchange rates, cron jobs and the native `/api/v1` adapter. MongoDB, authorization,
+shares, AI drafts, exchange rates, cron jobs and the native `/api/v2` adapter (v1 retired in B5d-2). MongoDB, authorization,
 final writes and external SDKs belong to this app; Mobile consumes HTTP only.
 
 ## Commands
@@ -45,7 +45,7 @@ Canonical [OpenAPI](../../packages/contracts/openapi.json): run `pnpm contracts:
 - No FK/storage cascade: deleting a trip manually deletes expenses + itinerary days; R2 blob deletes are
   best-effort (log, never fail the user action).
 - Existing Web actions accept ObjectId strings or `hash_code` (`[a-z0-9]{6,10}`). Preserve those
-  contracts; `/api/public/*` accepts hash_code only, and native `/api/v1` accepts member ObjectIds only.
+  contracts; `/api/public/*` accepts hash_code only, and native `/api/v2` accepts member ObjectIds only.
 - NEVER add session checks to [src/app/api/public/](src/app/api/public) — unauthenticated by design.
 - NEVER return receipt attachments on public routes (`toExpenseDto(..., { attachments: false })`);
   receipts live in the private bucket only, avatars in the public one.

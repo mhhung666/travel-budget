@@ -6,13 +6,15 @@
 
 固定案例、新舊版本矩陣與 B1–B4 條件統一見 [B0 規格](ROADMAP.md#b旅程基準幣別改造規格2026-10-08)。B1 後端已實作，契約／開關見 [B1 API](../../web/docs/MOBILE_API.md#b1-基準幣別契約)；B2 Web 已實作，行為與恢復見 [B2 架構](../../web/docs/ARCHITECTURE.md#b2-web-帳本與恢復)；B3 Mobile／SQLite 已實作，見 [B3 架構](ARCHITECTURE.md#b3mobile-帳本與舊資料恢復)；B4 獨立操作仍待完成，非 TWD 建立預設關閉。
 
-B5a 已完成靜態依賴盤點、保守過渡決策與 [新請求／歷史恢復矩陣及退役門檻](ROADMAP.md#b5a-呼叫依賴與退役門檻)；產品程式未變更，舊版外部使用未確認，完整 v1 保留。B5b-1（v2 auth／me、明確回應契約）已實作，Web 單元、帳號真 DB 整合與 `test:mobile-api` 真 HTTP 已獨立複驗通過，程式審查未發現阻擋問題；B5b-2（會員業務 route 共用操作）已通過獨立審查，Web 2,303 項、8 檔隔離 DB 236 項與真 HTTP 複驗通過；B5b-3（Web／公開入口共用 handler）已通過獨立審查，Web 2,318 項、隔離 DB 181 項、根 check 與正式 build PWA 瀏覽器 10 項複驗通過；B5c-1（Mobile transport／登入預設 v2）已實作，流量與收據計數的審查問題已修正，驗證範圍見下段；B5c-2（D 新佇列改 v2）已通過審查與工程複驗，見下段；2026-10-09 使用者確認只有可丟棄 fixture，B5d 改為縮短退役（B5d-1 Mobile 單一 v2 → B5d-2 Web 會員 v1 → B5d-3 舊 PWA outbox → B5e），B5d-1 已通過獨立審查，其後尚未實作，舊包升級操作不再是前置，v2 原生操作仍待他人核對；驗收由其他人補證據，Android 延後，不把 B5a 文件核對列為裝置或退役通過。
+B5a 已完成靜態依賴盤點、保守過渡決策與 [新請求／歷史恢復矩陣及退役門檻](ROADMAP.md#b5a-呼叫依賴與退役門檻)；產品程式未變更，舊版外部使用未確認，完整 v1 保留。B5b-1（v2 auth／me、明確回應契約）已實作，Web 單元、帳號真 DB 整合與 `test:mobile-api` 真 HTTP 已獨立複驗通過，程式審查未發現阻擋問題；B5b-2（會員業務 route 共用操作）已通過獨立審查，Web 2,303 項、8 檔隔離 DB 236 項與真 HTTP 複驗通過；B5b-3（Web／公開入口共用 handler）已通過獨立審查，Web 2,318 項、隔離 DB 181 項、根 check 與正式 build PWA 瀏覽器 10 項複驗通過；B5c-1（Mobile transport／登入預設 v2）已實作，流量與收據計數的審查問題已修正，驗證範圍見下段；B5c-2（D 新佇列改 v2）已通過審查與工程複驗，見下段；2026-10-09 使用者確認只有可丟棄 fixture，B5d 改為縮短退役（B5d-1 Mobile 單一 v2 → B5d-2 Web 會員 v1 → B5d-3 舊 PWA outbox → B5e），B5d-1 已通過獨立審查，B5d-2（Web 會員 v1 退役）已通過獨立審查，其後尚未實作，舊包升級操作不再是前置，v2 原生操作仍待他人核對；驗收由其他人補證據，Android 延後，不把 B5a 文件核對列為裝置或退役通過。
 
 **B5c-1 審查修正**：v2 送前查詢與丟回應重試已按版本驗證；拒絕流程的 Maestro 中途檢查及最終 DB 檢查共用版本預期：v1 收據零筆→一筆，v2 保留拒絕收據，一筆→兩筆，支出皆零筆→一筆。`--entry-api-version` 預設 2，驗舊版明確傳 1；有代理時也核對實際流量版本。回歸直接讀 Maestro 檢查點並執行主機腳本，涵蓋缺收據、多收據、重複支出與錯版。Mobile 1,215 項＋工具 46 項、Mobile check、contracts check 與三平台匯出通過。原生裝置／升級操作仍待驗，不以工程檢查取代。
 
 **B5c-2 已審查**：新 D 入列以 SQLite schema 10 原子保存 v2，options／預覽／prepare／交 C 同版；舊列保留 v1，版本／body 不符拒絕，仍只支援 TWD 基準＋原幣＋均分。衝突驗收工具已修正：代理在注入 POST 409 後才啟用後續查詢 403，放行 v2 送前查詢；原生驗收另核對實際流量順序。獨立複驗 Mobile 1,224 項＋工具 48 項及 Mobile check 通過，涵蓋兩版順序、故障解除與流量正反例；同一交付的 contracts check、三平台匯出亦通過，未發現剩餘阻擋問題。原生 `queue-conflict`、舊包升級與 iPhone／iPad 操作尚未驗。
 
 **B5d-1 已審查**：Mobile transport 與新 C／D／E 紀錄只用 v2；舊 v1 紀錄仍可解碼、不改標、不送出或補查，只能明確捨棄（未 prepare 的 D 可移回草稿）。捨棄 C／已 prepare 的 D 在同一交易清除相關列、保留草稿 tombstone，不宣稱結果已知；已完成 v1 結果照常顯示。另修正送前查詢後 POST 期間的 sending 狀態，原生工具改只核對 v2。獨立複驗 Mobile 1,232 項＋工具 48 項、Mobile check 與三平台匯出通過，未發現阻擋問題；契約未變更，未執行原生裝置或 Maestro。
+
+**B5d-2 已審查**：刪除 32 個原生 `/api/v1` route，OpenAPI 只發布 33 條 v2 路徑與可達 schema；既有 v2 契約內容不變，公開 API／舊 Web action 留待 B5d-3。JWT issuer、歷史 receipt／指紋及 decoder 保留，v2 查詢／重送 v1 receipt 仍拒絕跨版，不新增帳務。獨立複驗 Web 2,307 項、Mobile 1,233 項＋工具 48 項、Web 工具 9 項、13 檔隔離 DB 355 項、真 HTTP 34 段（含 v1 404）、frozen install、contracts check、根 check、正式 build 與三平台匯出通過，未發現本片阻擋問題；未操作原生裝置。實作者另報 `coreAccountIndexes`／`itineraryConcurrency` 共 7 項既有整合失敗，已比對原 HEAD，本輪未重跑。**剩餘問題**：`V2ReferenceRates` 繼承 `rates.TWD === 1` 限制，非 TWD 旅行參考匯率回 503；此既有問題未修，需同步修 contracts／Mobile 解析後才能完成非 TWD 驗收。
 
 | B1 開發檢查              | 結果／範圍                                                                                                                                                                                                                                                                         |
 | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -437,7 +439,7 @@ adb -s emulator-5554 shell cmd uimode night yes
 | `entry-preview-revoked` | 預覽成功後本人被移出旅行，再預覽得到 404：整個畫面只剩「找不到旅行」，沒有成員、分攤與確認；後端零筆寫入、重讀成員選項也被拒；斷線後離開再回來仍不顯示                                                                                                                                                                              |
 | `entry-appearance`      | 裝置先設為最大字級／深色（見上方 `appearance` 指令）：表單、成員、預覽與「已儲存」都不在第一屏，逐一捲到可見後完成輸入、預覽、確認，再檢查儲存頁的三個按鈕並返回支出清單／旅行摘要（四語矩陣含摘要與清單兩種新增入口）；後端一筆支出、一個 receipt。每個步驟只要求捲到可見、不置中，因為最大字級下的區塊高過螢幕時 Maestro 無法置中 |
 
-代理新增兩個一次性、只限「建立支出」（`POST /api/v1|v2/trips/<id>/expenses`）的模式：`drop-response` 讓請求完整轉送並在後端提交後丟棄回應，之後代理維持連線；`drop-response-offline` 同上，之後代理斷線直到收到 `online`。預覽、查詢、其他寫入與登入不受影響；`online` 會一併解除尚未使用的丟回應設定；後端無法連線時不消耗它。`keyboard`（iOS）與 `locales` suite 也會跑 `entry-create`；大字體、深淺色則在設定好裝置後執行 `--suite entry --flows entry-appearance`（`entry-create` 的置中捲動在最大字級下不成立，只在預設字級執行）。
+代理新增兩個一次性、只限「建立支出」（`POST /api/v2/trips/<id>/expenses`）的模式：`drop-response` 讓請求完整轉送並在後端提交後丟棄回應，之後代理維持連線；`drop-response-offline` 同上，之後代理斷線直到收到 `online`。預覽、查詢、其他寫入與登入不受影響；`online` 會一併解除尚未使用的丟回應設定；後端無法連線時不消耗它。`keyboard`（iOS）與 `locales` suite 也會跑 `entry-create`；大字體、深淺色則在設定好裝置後執行 `--suite entry --flows entry-appearance`（`entry-create` 的置中捲動在最大字級下不成立，只在預設字級執行）。
 
 四語新增矩陣可用 `--suite locales --locale-flows entry-create --text-size default --appearance light`；最大字級則改成 `--locale-flows entry-appearance --text-size largest`，分別搭配 `--appearance light` 和 `dark`。`locales`／`keyboard` 也可傳 `--network-port` 以核對代理流量，Metro 必須使用同一代理位址。所有新增流程結束時獨立讀取隔離 DB，核對支出／receipt 筆數與實際金額；產物目錄的 `entry-results.json` 保存每個流程的結果，使用代理時另保存 `auth-trace.json`（含失敗時已收集的流量）。追蹤只含請求路徑、狀態、時間、帳號 ID 與 token 單向指紋，不保存 token／payload。UI、DB 與代理斷言全部通過才算該流程成功；這些證據仍不能取代螢幕閱讀器實際操作。
 
@@ -636,7 +638,7 @@ E1–E4 本機 iOS／Android Expo Go 操作與故障矩陣已完成，Web produc
 | 隔離／限速   | A→B→A、跨 API 環境僅讀送原 scope；E POST／查詢取得 429 等待 120 秒，重啟 31 秒 C／D／E 不送，120 秒到期才恢復，短等待／移除提示不延長或清期限；refresh／SQLite 等待中的新期限也攔截 fetch。                        |
 | 四語／無障礙 | 建立、加入、邀請、待確認畫面兩平台核對四語、深淺色、預設／最大字級、鍵盤捲動／完成鍵、欄位錯誤焦點、busy／disabled、未儲存離開提醒、複製／系統分享。完整閱讀器與真機範圍仍列 F。                                   |
 
-故障代理目前的丟回應模式以既有支出路徑為目標；E1 可用可控代理的 `/api/v1/trips`／`trips/join` 丟回應，或沿工具真 HTTP 測試的 raw socket 模式。不要把未擴充的支出代理模式當 E1 裝置故障已驗。遠端部署、migration、store build 不在本次開發範圍。
+故障代理目前的丟回應模式以既有支出路徑為目標；E1 可用可控代理的 `/api/v2/trips`／`trips/join` 丟回應，或沿工具真 HTTP 測試的 raw socket 模式。不要把未擴充的支出代理模式當 E1 裝置故障已驗。遠端部署、migration、store build 不在本次開發範圍。
 
 ## E2 帳號入口驗收交接
 

@@ -25,7 +25,7 @@ export type MobileAuthOperation =
   | 'me';
 
 /**
- * Shared auth/account handler; v1 and v2 routes differ only in their response wrapper.
+ * Auth/account handler behind the `/api/v2` auth routes.
  * No trip ledger is involved, and nothing here rotates tokens beyond the normal refresh.
  */
 export async function mobileAuth(request: Request, operation: MobileAuthOperation) {

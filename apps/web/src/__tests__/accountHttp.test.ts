@@ -22,9 +22,6 @@ vi.mock('@/lib/auth', () => ({
   deleteSession: vi.fn(),
 }));
 import { AccountEntryError } from '@/lib/accountEntry';
-import { POST as v1Register } from '@/app/api/v1/auth/register/route';
-import { POST as v1Request } from '@/app/api/v1/auth/password-reset/request/route';
-import { POST as v1Confirm } from '@/app/api/v1/auth/password-reset/confirm/route';
 import { POST as v2Register } from '@/app/api/v2/auth/register/route';
 import { POST as v2Request } from '@/app/api/v2/auth/password-reset/request/route';
 import { POST as v2Confirm } from '@/app/api/v2/auth/password-reset/confirm/route';
@@ -56,10 +53,8 @@ beforeEach(() => {
   mocks.confirm.mockResolvedValue({ reset: true });
   mocks.cookie.mockResolvedValue(undefined);
 });
-describe.each([
-  ['v1', v1Register, v1Request, v1Confirm],
-  ['v2', v2Register, v2Request, v2Confirm],
-] as const)('%s account HTTP', (_version, register, request, confirm) => {
+describe('v2 account HTTP', () => {
+  const [register, request, confirm] = [v2Register, v2Request, v2Confirm];
   it('register returns only a user and no authentication/cookie', async () => {
     const response = await register(body(input));
     expect(response.status).toBe(200);
