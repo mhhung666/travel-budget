@@ -46,23 +46,6 @@ export async function readSettlement(
   };
 }
 
-/** Authorized Web members retain the identities already used by the mobile settlement view. */
-export async function readMemberSettlement(tripId: string): Promise<Settlement> {
-  const { transfers, balances, transactions, payments, totalExpenses } =
-    await readSettlementDetail(tripId);
-  return {
-    ...(isLedgerV2() ? { ledger: currentLedger() } : {}),
-    balances,
-    payments,
-    totalExpenses,
-    transactions: transactions.map((transaction, index) => ({
-      ...transaction,
-      fromId: transfers[index].fromId,
-      toId: transfers[index].toId,
-    })),
-  };
-}
-
 export async function readSettlementDetail(
   tripId: string,
   memberIds?: string[],

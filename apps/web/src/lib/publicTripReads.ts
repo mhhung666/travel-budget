@@ -22,9 +22,9 @@ import {
 } from '@/lib/dto';
 
 /**
- * Read-only share snapshots behind `/api/public/trips/*` (v1) and `/api/public/v2/trips/*`.
- * Both versions call these handlers; the v2 route only adds the ledger context. They resolve
- * the hash code only, never read the session and never expose receipts or private budgets.
+ * Read-only share snapshots behind `/api/public/v2/trips/*` (the v1 URLs were removed in B5e).
+ * Each route wraps its handler in the ledger v2 context. They resolve the hash code only,
+ * never read the session and never expose receipts or private budgets.
  */
 
 type PopulatedMember = {

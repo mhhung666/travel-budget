@@ -9,7 +9,7 @@ import { PublicApiError, apiError } from '@/lib/publicApiError';
 import { withPublicTrip } from '@/lib/withPublicTrip';
 
 /**
- * Anonymous virtual-member claims behind `/api/public/trips/*` (v1) and `/api/public/v2/trips/*`.
+ * Anonymous virtual-member claims behind `/api/public/v2/trips/*`.
  * A claim proves an account (login or registration) for one virtual member of the hash-code trip;
  * it is not a member write and grants no roster or ledger access beyond the resulting session.
  */
@@ -19,7 +19,7 @@ const CI = { locale: 'en', strength: 2 } as const;
 
 /**
  * 將虛擬成員連結到已存在的會員（登入後遷移資料）
- * POST /api/public/trips/[id]/link-member and /api/public/v2/trips/[id]/link-member
+ * POST /api/public/v2/trips/[id]/link-member
  * Body: { virtualUserId, username, password }
  */
 const linkMember = withPublicTrip(
@@ -112,7 +112,7 @@ const linkMember = withPublicTrip(
 
 /**
  * 將虛擬成員轉換為正式會員（註冊）
- * POST /api/public/trips/[id]/convert-member and /api/public/v2/trips/[id]/convert-member
+ * POST /api/public/v2/trips/[id]/convert-member
  * Body: { virtualUserId, username, display_name, email, password }
  */
 const convertMember = withPublicTrip(

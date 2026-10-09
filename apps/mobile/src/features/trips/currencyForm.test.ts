@@ -1,5 +1,6 @@
 import { expect, it } from 'vitest';
 import { currencyFields, currencySettings } from './currencyForm';
+import { responseSchema } from '@/api/contracts';
 import {
   tripCurrencyInput,
   mutationRequestSchema,
@@ -90,6 +91,20 @@ it('reference dates and base rate are required; unknown foreign rates are never 
     referenceRatesSchema.safeParse({ provider: 'Frankfurter', rates: { TWD: 2 }, dates: {} })
       .success
   ).toBe(false);
+});
+
+it('a v2 response for a non-TWD trip is quoted in its own base, not in TWD', () => {
+  const usd = {
+    ledger: { baseCurrency: 'USD', moneyScale: 2 },
+    provider: 'Frankfurter',
+    rates: { USD: 1, TWD: 1 / 30, JPY: 0.007 },
+    dates: { TWD: '2026-10-07', JPY: '2026-10-07' },
+    unavailable: ['EUR'],
+  };
+  const v2 = responseSchema(referenceRatesSchema);
+  expect(v2.safeParse(usd).success).toBe(true);
+  expect(v2.safeParse({ ...usd, rates: { ...usd.rates, USD: 2 } }).success).toBe(false);
+  expect(v2.safeParse({ ...usd, dates: { TWD: '2026-10-07' } }).success).toBe(false);
 });
 
 it.each([1e-12, 1e20])('stored tiny/large rate %s round-trips without display rounding', (rate) => {

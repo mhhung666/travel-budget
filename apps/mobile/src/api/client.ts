@@ -119,7 +119,7 @@ export class ApiClient {
           Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : undefined
         );
       }
-      const parsed = z.object({ data: responseSchema(schema, 2) }).safeParse(body);
+      const parsed = z.object({ data: responseSchema(schema) }).safeParse(body);
       if (!parsed.success) throw new ApiError('INVALID_RESPONSE');
       const data = parsed.data.data;
       if (data && typeof data === 'object' && 'ledger' in data) {

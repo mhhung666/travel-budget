@@ -1,8 +1,7 @@
 import { mongo } from 'mongoose';
-import { isLedgerV2, currentLedger, LedgerError } from './ledger';
+import { isLedgerV2, currentLedger } from './ledger';
 import { isSupportedCurrency } from '@/constants/currencies';
 import { TripManagementError } from './tripManagementError';
-import { withTripWriteInDatabase } from './tripWriteTransaction';
 interface SettingsInput {
   base_currency?: string;
   default_currency?: string | null;
@@ -40,24 +39,4 @@ export async function applyCurrencySettings(
   currencySettings: ReturnType<typeof normalizeCurrencySettings>
 ) {
   await db.collection('trips').updateOne({ _id: id }, { $set: { currencySettings } }, { session });
-}
-export function setCurrencySettingsForActor(
-  db: mongo.Db,
-  actorId: string,
-  tripId: string,
-  input: SettingsInput
-) {
-  return withTripWriteInDatabase(
-    db,
-    tripId,
-    actorId,
-    async (session) => {
-      if (isLedgerV2() && input.base_currency !== currentLedger().baseCurrency)
-        throw new LedgerError('LEDGER_CURRENCY_MISMATCH');
-      const id = new mongo.ObjectId(tripId);
-      await applyCurrencySettings(db, session, id, normalizeCurrencySettings(input));
-      return db.collection('trips').findOne({ _id: id }, { session });
-    },
-    'admin'
-  );
 }

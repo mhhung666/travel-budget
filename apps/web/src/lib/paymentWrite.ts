@@ -11,7 +11,7 @@ import {
   ledgerStamp,
   assertUnit,
 } from './ledger';
-import { createHash, createHmac, randomUUID } from 'node:crypto';
+import { createHash, createHmac } from 'node:crypto';
 import { mongo } from 'mongoose';
 import {
   paymentContextSchema,
@@ -425,53 +425,4 @@ export async function writePayment(
     }
   }
   throw new TripEntryError('BUSY');
-}
-// Legacy Web forms get the current state; the same transaction still checks membership, money,
-// preconditions and fan-out. The mobile adapter requires a user-confirmed UUID/revision.
-export async function recordPaymentForActor(
-  db: mongo.Db,
-  actorId: string,
-  tripId: string,
-  fields: { from_id: string; to_id: string; amount: number; note?: string },
-  secret: string,
-  deliver: (event: PaymentDelivery) => Promise<unknown>
-) {
-  const context = await readPaymentContext(db, actorId, tripId, secret);
-  const { payment } = await writePayment(
-    db,
-    actorId,
-    tripId,
-    'payment.create',
-    paymentCreateInput.parse({
-      ...fields,
-      client_request_id: randomUUID(),
-      expected_revision: context.settlementRevision,
-    }),
-    secret,
-    undefined,
-    deliver
-  );
-  return payment!;
-}
-export async function deletePaymentForActor(
-  db: mongo.Db,
-  actorId: string,
-  tripId: string,
-  paymentId: string,
-  secret: string
-) {
-  try {
-    const context = await readPaymentRevokeContext(db, actorId, tripId, paymentId, secret);
-    await writePayment(
-      db,
-      actorId,
-      tripId,
-      'payment.delete',
-      { client_request_id: randomUUID(), expected_revision: context.revision },
-      secret,
-      paymentId
-    );
-  } catch (error) {
-    if (!(error instanceof TripEntryError && error.code === 'RESOURCE_GONE')) throw error;
-  }
 }

@@ -6,11 +6,14 @@ import { withLedgerV2, validateLedgerChildren } from '@/lib/ledger';
 import { enterTrip, readTripMutation, MUTATION_REQUESTS } from '@/lib/tripEntry';
 import { readPaymentContext, readPaymentRevokeContext, writePayment } from '@/lib/paymentWrite';
 import { readExpenseEditContext, maintainExpense } from '@/lib/expenseMaintenance';
-import { setBudgetForActor } from '@/lib/budgetWrite';
+import { writeWebSettings, webSettingsRevision } from '@/lib/webSettingsWrite';
 import { manageTrip, readTripCurrency } from '@/lib/tripManagement';
 import { readTripAccess, manageTripAccess } from '@/lib/tripAccess';
 import { withTripWriteInDatabase } from '@/lib/tripWriteTransaction';
 
+vi.mock('@/lib/env', () => ({
+  getEnv: () => ({ JWT_SECRET: 'b1-owned-test-secret-with-at-least-32-characters' }),
+}));
 const uri = process.env.MONGODB_MEMBER_TEST_URI;
 const allowed = process.env.MONGODB_MEMBER_TEST_ALLOW_WRITES === '1';
 if ((uri || allowed) && !(uri && allowed))
@@ -36,6 +39,19 @@ describe.skipIf(!uri || !allowed)('B1 isolated ledger transactions', () => {
     'notifications',
   ];
   const paymentContext = () => readPaymentContext(db, ids[0], trip.toString(), secret);
+  // The Web budget writer reads the actor's current budget revision, as the settings form does.
+  const setBudget = (actorId: string, body: object) =>
+    withLedgerV2(async () => {
+      const parent = await db.collection('trips').findOne({ _id: trip });
+      const budget = parent!.members.find(
+        (m: { user: mongo.ObjectId }) => m.user.toString() === actorId
+      )?.budget;
+      return writeWebSettings(db, actorId, trip.toString(), 'budget', {
+        client_request_id: randomUUID(),
+        expected_revision: webSettingsRevision(trip.toString(), actorId, parent!, 'budget', budget),
+        ...body,
+      });
+    });
   const createTrip = (base_currency: string, client_request_id = randomUUID()) =>
     enterTrip(db, ids[0], 'trip.create', { client_request_id, name: 'New base', base_currency });
   beforeAll(async () => {
@@ -296,41 +312,37 @@ describe.skipIf(!uri || !allowed)('B1 isolated ledger transactions', () => {
       });
     }));
   it('stamps only the actor budget and rejects missing/wrong units, unsafe cents and outsiders', async () => {
-    await withLedgerV2(() =>
-      setBudgetForActor(db, ids[1], trip.toString(), {
+    expect(
+      await setBudget(ids[1], {
         base_currency: 'USD',
         total: 10,
         categories: [{ category: 'food', amount: 7 }],
       })
-    );
-    const parent = await db.collection('trips').findOne({ _id: trip });
-    expect(parent!.members[1].budget).toEqual({
+    ).toMatchObject({ status: 'committed', operation: 'budget.set' });
+    const stored = {
       baseCurrency: 'USD',
       total: 10,
       categories: [{ category: 'food', amount: 7 }],
-    });
+    };
+    const parent = await db.collection('trips').findOne({ _id: trip });
+    expect(parent!.members[1].budget).toEqual(stored);
     expect(parent!.members[0].budget).toBeUndefined();
+    await expect(setBudget(ids[1], { total: 2 })).rejects.toMatchObject({ name: 'ZodError' });
     for (const body of [
-      { total: 2 },
       { base_currency: 'USD', total: 0.001 },
       { base_currency: 'USD', total: 1000000000.01 },
     ])
-      await expect(
-        withLedgerV2(() => setBudgetForActor(db, ids[1], trip.toString(), body))
-      ).rejects.toThrow('VALIDATION_ERROR');
+      await expect(setBudget(ids[1], body)).rejects.toThrow('VALIDATION_ERROR');
+    expect(await setBudget(ids[1], { base_currency: 'TWD', total: 2 })).toMatchObject({
+      status: 'rejected',
+      code: 'LEDGER_CURRENCY_MISMATCH',
+    });
     await expect(
-      withLedgerV2(() =>
-        setBudgetForActor(db, ids[1], trip.toString(), { base_currency: 'TWD', total: 2 })
-      )
-    ).rejects.toThrow('LEDGER_CURRENCY_MISMATCH');
-    await expect(
-      withLedgerV2(() =>
-        setBudgetForActor(db, new mongo.ObjectId().toString(), trip.toString(), {
-          base_currency: 'USD',
-          total: 2,
-        })
-      )
+      setBudget(new mongo.ObjectId().toString(), { base_currency: 'USD', total: 2 })
     ).rejects.toThrow('FORBIDDEN');
+    expect((await db.collection('trips').findOne({ _id: trip }))!.members[1].budget).toEqual(
+      stored
+    );
   });
   it('keeps base fixed while currency defaults change and refuses a base update', async () =>
     withLedgerV2(async () => {

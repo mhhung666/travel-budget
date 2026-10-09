@@ -22,8 +22,7 @@ import { getLedgerYearInReview as getYearInReview } from '@/actions/wrapped.acti
 import { GET as publicTrip } from '@/app/api/public/v2/trips/[id]/route';
 import { GET as publicShell } from '@/app/api/public/v2/trips/[id]/shell/route';
 import { GET as publicSettlement } from '@/app/api/public/v2/trips/[id]/settlement/route';
-import { GET as legacyPublicStats } from '@/app/api/public/trips/[id]/stats/route';
-import { GET as legacyPublicTrip } from '@/app/api/public/trips/[id]/route';
+import { GET as publicStats } from '@/app/api/public/v2/trips/[id]/stats/route';
 import { NextRequest } from 'next/server';
 import { computeLedgerSplits, type SplitMode } from '@/lib/expenseSplit';
 const h = vi.hoisted(() => ({ session: vi.fn() }));
@@ -180,7 +179,7 @@ describe.skipIf(!uri || !optIn)('B2 Web with an owned replica-set database', () 
   });
   it('reads USD public detail, shell and settlement without exposing private receipts or revisions', async () => {
     for (const route of [publicTrip, publicShell, publicSettlement]) {
-      const res = await route(new NextRequest('http://local.test/api/public/trips/b2usdxxx'), {
+      const res = await route(new NextRequest('http://local.test/api/public/v2/trips/b2usdxxx'), {
         params: Promise.resolve({ id: 'b2usdxxx' }),
       });
       expect(res.status).toBe(200);
@@ -192,20 +191,16 @@ describe.skipIf(!uri || !optIn)('B2 Web with an owned replica-set database', () 
       expect(data).not.toHaveProperty('currency_revision');
     }
   });
-  // The old Web action identities were removed in B5d-3; the old public URLs remain.
-  it('blocks old public URLs from reading USD as TWD', async () => {
-    const res = await legacyPublicTrip(
-      new NextRequest('http://local.test/api/public/trips/b2usdxxx'),
-      { params: Promise.resolve({ id: 'b2usdxxx' }) }
-    );
-    expect(res.status).toBe(409);
-    expect(await res.json()).toEqual({ error: 'CLIENT_UPGRADE_REQUIRED' });
-    const twdStats = await legacyPublicStats(
-      new NextRequest('http://local.test/api/public/trips/b2twdxxx/stats'),
+  // The old public URLs were removed in B5e; a trip stored before ledgers still decodes as TWD.
+  it('reads a historical trip without a stored base currency as TWD', async () => {
+    const res = await publicStats(
+      new NextRequest('http://local.test/api/public/v2/trips/b2twdxxx/stats'),
       { params: Promise.resolve({ id: 'b2twdxxx' }) }
     );
-    expect(twdStats.status).toBe(200);
-    expect((await twdStats.json()).totalAmount).toBe(100);
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.ledger).toEqual({ baseCurrency: 'TWD', moneyScale: 2 });
+    expect(json.totalAmount).toBe(100);
   });
   it('preserves foreign and non-equal accounting on metadata edits, and logs a UUID once', async () => {
     const before = await db.collection('expenses').findOne({ _id: expense });

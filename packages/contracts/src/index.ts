@@ -459,18 +459,20 @@ export const tripCurrencyContextSchema = z.object({
   settings: currencySettingsSchema.nullable(),
   supportedCurrencies: z.array(currencyCodeSchema),
 });
-export const referenceRatesSchema = z
-  .object({
-    rates: z.record(currencyCodeSchema, z.number().finite().positive()),
-    dates: z.record(currencyCodeSchema, dateSchema),
-    provider: z.literal('Frankfurter'),
-  })
-  .refine(
-    (v) =>
-      v.rates.TWD === 1 &&
-      Object.entries(v.rates).every(([code]) => code === 'TWD' || v.dates[code] !== undefined),
-    'Publication date required'
-  );
+const referenceRateFields = z.object({
+  rates: z.record(currencyCodeSchema, z.number().finite().positive()),
+  dates: z.record(currencyCodeSchema, dateSchema),
+  provider: z.literal('Frankfurter'),
+});
+/** Every quote is per one unit of `base`, which is itself 1 and needs no publication date. */
+const quotedIn = (base: string, v: z.infer<typeof referenceRateFields>) =>
+  v.rates[base] === 1 &&
+  Object.keys(v.rates).every((code) => code === base || v.dates[code] !== undefined);
+// The TWD daily snapshot (public GET and the server's rebase source).
+export const referenceRatesSchema = referenceRateFields.refine(
+  (v) => quotedIn('TWD', v),
+  'Publication date required'
+);
 export type TripCurrencyInput = z.infer<typeof tripCurrencyInput>;
 export type TripCurrencyContext = z.infer<typeof tripCurrencyContextSchema>;
 export type CurrencySettings = z.infer<typeof currencySettingsSchema>;
@@ -796,10 +798,10 @@ export const paymentContextV2Schema = paymentContextSchema.safeExtend({
 });
 export const paymentRevokeContextV2Schema = paymentRevokeContextSchema.safeExtend(ledgerFields);
 export const tripCurrencyContextV2Schema = tripCurrencyContextSchema.safeExtend(ledgerFields);
-export const referenceRatesV2Schema = referenceRatesSchema.safeExtend({
-  ...ledgerFields,
-  unavailable: z.array(currencyCodeSchema),
-});
+// Rebased to the trip base, so it must not inherit the snapshot's TWD = 1 rule.
+export const referenceRatesV2Schema = referenceRateFields
+  .extend({ ...ledgerFields, unavailable: z.array(currencyCodeSchema) })
+  .refine((v) => quotedIn(v.ledger.baseCurrency, v), 'Publication date required');
 export const expenseRequestV2Schema = z.discriminatedUnion('status', [
   expenseRequestSchema.options[0],
   z.object({ status: z.literal('committed'), expense: expenseDetailV2Schema }),

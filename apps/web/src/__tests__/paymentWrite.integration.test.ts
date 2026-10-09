@@ -8,8 +8,6 @@ import {
   readPaymentRevokeContext,
   writePayment,
   paymentRevision,
-  recordPaymentForActor,
-  deletePaymentForActor,
 } from '@/lib/paymentWrite';
 import { readTripMutation, MUTATION_REQUESTS } from '@/lib/tripEntry';
 const uri = process.env.MONGODB_MEMBER_TEST_URI;
@@ -164,49 +162,32 @@ describe.skipIf(!uri || !allowed)('E4 isolated payment transactions', () => {
     expect(await db.collection('notifications').countDocuments()).toBe(0);
     expect((await context()).settlement.status).toBe('outstanding');
   });
-  it.each(['mobile', 'web'])(
-    '%s actor records a partial payment between two other real members',
-    async (adapter) => {
-      await db.collection('users').updateOne({ _id: virtual }, { $set: { isVirtual: false } });
-      await db.collection('expenses').updateOne({ _id: expense }, { $set: { payer: virtual } });
-      const body = { ...(await createBody(20)), to_id: virtual.toString() };
-      const deliver = vi.fn(async () => undefined);
-      if (adapter === 'mobile') {
-        const first = await create(body, deliver);
-        expect(await create(body, deliver)).toEqual(first);
-        expect(await readTripMutation(db, actor.toString(), body.client_request_id)).toMatchObject({
-          status: 'committed',
-          operation: 'payment.create',
-          resourceId: first.result.paymentId,
-        });
-      } else {
-        await recordPaymentForActor(
-          db,
-          actor.toString(),
-          trip.toString(),
-          {
-            from_id: body.from_id,
-            to_id: body.to_id,
-            amount: body.amount,
-          },
-          secret,
-          deliver
-        );
-      }
-      expect(await db.collection('payments').countDocuments()).toBe(1);
-      const notifications = await db.collection('notifications').find().toArray();
-      expect(notifications.map((n) => n.user.toString()).sort()).toEqual(
-        [peer, virtual].map(String).sort()
-      );
-      const activities = await db.collection('activitylogs').find().toArray();
-      expect(activities).toHaveLength(1);
-      expect(new Set([...notifications, ...activities].map((n) => n._id.toString())).size).toBe(3);
-      expect(deliver).toHaveBeenCalledTimes(1);
-      expect(
-        (await context()).settlement.balances.find((b) => b.userId === peer.toString())?.balance
-      ).toBe(-30);
-    }
-  );
+  // Web and Mobile share this writer since B5d-3; the Web action only adds the session.
+  it('an actor records a partial payment between two other real members', async () => {
+    await db.collection('users').updateOne({ _id: virtual }, { $set: { isVirtual: false } });
+    await db.collection('expenses').updateOne({ _id: expense }, { $set: { payer: virtual } });
+    const body = { ...(await createBody(20)), to_id: virtual.toString() };
+    const deliver = vi.fn(async () => undefined);
+    const first = await create(body, deliver);
+    expect(await create(body, deliver)).toEqual(first);
+    expect(await readTripMutation(db, actor.toString(), body.client_request_id)).toMatchObject({
+      status: 'committed',
+      operation: 'payment.create',
+      resourceId: first.result.paymentId,
+    });
+    expect(await db.collection('payments').countDocuments()).toBe(1);
+    const notifications = await db.collection('notifications').find().toArray();
+    expect(notifications.map((n) => n.user.toString()).sort()).toEqual(
+      [peer, virtual].map(String).sort()
+    );
+    const activities = await db.collection('activitylogs').find().toArray();
+    expect(activities).toHaveLength(1);
+    expect(new Set([...notifications, ...activities].map((n) => n._id.toString())).size).toBe(3);
+    expect(deliver).toHaveBeenCalledTimes(1);
+    expect(
+      (await context()).settlement.balances.find((b) => b.userId === peer.toString())?.balance
+    ).toBe(-30);
+  });
   it('same UUID concurrent/replay writes once; failure after commit stays successful', async () => {
     const body = await createBody();
     const deliver = vi.fn(async () => {
@@ -375,20 +356,16 @@ describe.skipIf(!uri || !allowed)('E4 isolated payment transactions', () => {
     for (const name of ['payments', 'notifications', 'activitylogs', MUTATION_REQUESTS])
       expect(await db.collection(name).countDocuments()).toBe(0);
   });
-  it('Web actor adapters use same rules and tolerate delivery failure after commit', async () => {
-    const fields = { from_id: peer.toString(), to_id: actor.toString(), amount: 10.01 };
-    const saved = await recordPaymentForActor(
-      db,
-      actor.toString(),
-      trip.toString(),
-      fields,
-      secret,
-      async () => {
+  it('a delivery failure after commit keeps the payment, and revoking it removes it', async () => {
+    const body = await createBody(10.01);
+    const saved = await create(
+      body,
+      vi.fn(async () => {
         throw new Error('mail unavailable');
-      }
+      })
     );
-    expect((await context()).settlement.payments[0].id).toBe(saved.id);
-    await deletePaymentForActor(db, actor.toString(), trip.toString(), saved.id, secret);
+    expect((await context()).settlement.payments[0].id).toBe(saved.result.paymentId);
+    await revoke(saved.result.paymentId);
     expect((await context()).settlement.payments).toHaveLength(0);
     const raw = { _id: new mongo.ObjectId(), from: peer, to: actor, amount: 10, note: '' };
     expect(paymentRevision(secret, trip.toString(), raw)).not.toBe(

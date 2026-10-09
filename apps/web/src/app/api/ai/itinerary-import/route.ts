@@ -19,6 +19,7 @@ import {
   type ItineraryImportQuotaReservation,
 } from '@/lib/ai/itineraryImportQuota';
 import { logger } from '@/lib/logger';
+import { withLedgerV2 } from '@/lib/ledger';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -55,7 +56,12 @@ function sourceTooLong(value: unknown): boolean {
   );
 }
 
-export async function POST(request: NextRequest) {
+/** Like the other AI drafts, read the trip in the server-owned v2 context so any base currency works. */
+export function POST(request: NextRequest) {
+  return withLedgerV2(() => importForMember(request));
+}
+
+async function importForMember(request: NextRequest) {
   const startedAt = Date.now();
   const session = await getSessionFromRequest(request);
   if (!session) return errorResponse('UNAUTHENTICATED');

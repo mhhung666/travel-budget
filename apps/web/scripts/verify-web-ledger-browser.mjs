@@ -91,8 +91,11 @@ export async function verifyWebLedgerBrowser({
   ]);
   for (const endpoint of ['', '/expenses', '/settlement', '/stats']) {
     const old = await page.request.get(`${origin}/api/public/trips/b2usdtest${endpoint}`);
-    assert.equal(old.status(), 409);
-    assert.equal((await old.json()).error, 'CLIENT_UPGRADE_REQUIRED');
+    // B5e removed the v1 share URLs; they must not answer with any data.
+    assert.equal(old.status(), 404);
+    // Next's 404 page echoes the path, so check for trip data rather than the code.
+    const gone = await old.text();
+    assert.ok(!gone.includes('B2 USD ledger') && !gone.includes('"ledger"'), 'old URL leaked data');
     const fresh = await page.request.get(
       `${origin}/api/public/v2/trips/b2usdtest${endpoint}?_fresh=b2`
     );
@@ -104,9 +107,7 @@ export async function verifyWebLedgerBrowser({
     assert.equal(data.budget_revision, undefined);
     assert.equal(data.currency_revision, undefined);
   }
-  pass(
-    'B2 production public routes isolate v1 from USD and return v2 units without private revisions'
-  );
+  pass('B2 production public v1 routes are gone; v2 returns units without private revisions');
   const url = `${origin}/trips/${usdTrip}/expenses`;
   await page.goto(url);
   await page.getByText('B2 foreign metadata', { exact: true }).waitFor();

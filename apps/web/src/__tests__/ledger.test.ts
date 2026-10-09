@@ -10,6 +10,7 @@ import {
   ledgerSchema,
   tripCreateV2Input,
   mutationRequestV2Schema,
+  v2Schemas,
 } from '@travel-budget/contracts';
 import {
   authorizeLedger,
@@ -124,6 +125,15 @@ describe('immutable two-decimal ledger contract', () => {
     expect(result.rates).toEqual({ USD: 1, TWD: 1 / 30, JPY: 0.007 });
     expect(result.unavailable).toEqual(['EUR', 'THB']);
     expect(result.dates.TWD).toBe('2026-10-07');
+    // The v2 response is quoted in the trip base, not in the TWD snapshot unit.
+    expect(v2Schemas.V2ReferenceRates.parse(result)).toEqual(result);
+    expect(
+      v2Schemas.V2ReferenceRates.safeParse({ ...result, rates: { ...result.rates, USD: 2 } })
+        .success
+    ).toBe(false);
+    expect(
+      v2Schemas.V2ReferenceRates.safeParse({ ...result, dates: { TWD: '2026-10-07' } }).success
+    ).toBe(false);
   });
   it('never substitutes a missing base quote', () => {
     const result = rebaseReferenceRates(

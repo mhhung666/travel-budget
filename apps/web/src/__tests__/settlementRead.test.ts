@@ -8,7 +8,7 @@ vi.mock('@/models', () => ({
   Payment: { find: mocks.payments },
   User: { find: vi.fn() },
 }));
-import { readSettlement, readSettlementDetail, readMemberSettlement } from '@/lib/settlementRead';
+import { readSettlement, readSettlementDetail } from '@/lib/settlementRead';
 
 const TRIP = '507f1f77bcf86cd799439011';
 const [AMY, BOB, CARA] = [
@@ -92,10 +92,10 @@ describe('readSettlementDetail', () => {
 
 it('retains distinct IDs for member suggestions without adding them to public transactions', async () => {
   setup(['SAME', 'SAME', 'SAME']);
-  const memberResult = await readMemberSettlement(TRIP);
-  expect(memberResult.transactions).toEqual([
-    { from: 'SAME', to: 'SAME', fromId: BOB, toId: AMY, amount: 30 },
-    { from: 'SAME', to: 'SAME', fromId: CARA, toId: AMY, amount: 30 },
+  const { transfers } = await readSettlementDetail(TRIP);
+  expect(transfers.map(({ fromId, toId }) => ({ fromId, toId }))).toEqual([
+    { fromId: BOB, toId: AMY },
+    { fromId: CARA, toId: AMY },
   ]);
   expect((await readSettlement(TRIP)).transactions).toEqual([
     { from: 'SAME', to: 'SAME', amount: 30 },

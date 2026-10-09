@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => {
@@ -34,15 +34,14 @@ const handlers = { ...mocks.reads, ...mocks.claims };
 
 beforeEach(() => vi.clearAllMocks());
 
-// Public share entries: v1 and v2 call the same neutral handler; v2 only adds the ledger context.
-describe('public v1/v2 trip routes', () => {
-  const pairs = routeFiles(join(publicApi, 'v2'));
+// Public share entries: B5e removed the v1 URLs; each v2 route runs its neutral handler in v2.
+describe('public v2 trip routes', () => {
+  const routes = routeFiles(join(publicApi, 'v2'));
 
-  it('covers the 11 public trip pairs and no v2 route imports an old route', () => {
-    expect(pairs).toHaveLength(11);
-    const v1 = routeFiles(join(publicApi, 'trips')).map((file) => `trips/${file}`);
-    expect(v1).toEqual(pairs);
-    for (const file of pairs) {
+  it('covers the 11 public trip routes, with no v1 route left', () => {
+    expect(routes).toHaveLength(11);
+    expect(existsSync(join(publicApi, 'trips'))).toBe(false);
+    for (const file of routes) {
       const source = readFileSync(join(publicApi, 'v2', file), 'utf8');
       expect(source).not.toMatch(/@\/app\/api|from '\.\.?\//);
     }
@@ -55,12 +54,11 @@ describe('public v1/v2 trip routes', () => {
     }
   });
 
-  it.each(pairs)('%s dispatches the same handler in both versions', async (file) => {
-    const v1 = await import(join(publicApi, file));
-    const v2 = await import(join(publicApi, 'v2', file));
-    const [method] = Object.keys(v1);
+  it.each(routes)('%s dispatches one neutral handler in the v2 context', async (file) => {
+    const route = await import(join(publicApi, 'v2', file));
+    const [method] = Object.keys(route);
     expect(['GET', 'POST']).toContain(method);
-    expect(Object.keys(v2)).toEqual([method]);
+    expect(Object.keys(route)).toEqual([method]);
     const runs: { name: string; v2: boolean; args: unknown[] }[] = [];
     for (const [name, fn] of Object.entries(handlers))
       fn.mockImplementation(async (...args: unknown[]) => {
@@ -69,12 +67,8 @@ describe('public v1/v2 trip routes', () => {
       });
     const request = new Request('https://example.test/x', { method });
     const context = { params: Promise.resolve({ id: 'abc12345' }) };
-    await (await v2[method](request, context)).json();
+    await (await route[method](request, context)).json();
     expect(runs).toEqual([{ name: expect.any(String), v2: true, args: [request, context] }]);
-    // v1 exports the neutral handler itself, outside any ledger context.
-    expect(handlers[runs[0].name as keyof typeof handlers]).toBe(v1[method]);
-    await v1[method](request, context);
-    expect(runs[1]).toEqual({ name: runs[0].name, v2: false, args: [request, context] });
   });
 });
 

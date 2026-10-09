@@ -64,8 +64,8 @@ export function withPublicTrip<P extends Record<string, string>>(
 }
 
 /**
- * Public v2 entry: the same neutral handler as v1, run in the ledger v2 context so financial
- * reads carry their unit. It adds no session or fields; the data boundary stays the handler's.
+ * Public v2 entry: runs the neutral handler in the ledger v2 context so financial reads carry
+ * their unit. It adds no session or fields; the data boundary stays the handler's.
  */
 export function withPublicLedgerV2<A extends unknown[], R>(handler: (...args: A) => Promise<R>) {
   return (...args: A): Promise<R> => withLedgerV2(() => handler(...args));

@@ -37,6 +37,8 @@ const fixtureTripDate = new Intl.DateTimeFormat('en-CA', {
   month: '2-digit',
   day: '2-digit',
 }).format(new Date());
+// Public money reads are v2: each carries the trip ledger unit.
+const ledger = { baseCurrency: 'TWD', moneyScale: 2 };
 const trip = {
   id,
   name: 'Q3 Fixture',
@@ -50,6 +52,7 @@ const trip = {
   budget: null,
   legacy_budget: null,
   currency_settings: null,
+  ledger,
 };
 const shell = {
   ...trip,
@@ -89,6 +92,7 @@ const expenses = Array.from({ length: rows }, (_, i) => ({
   attachments: [],
   itinerary_day_ids: [],
   tags: [],
+  ledger,
 }));
 const fixtures = {
   '': { trip },
@@ -146,7 +150,7 @@ const proxy = createServer(async (req, res) => {
     return;
   }
   if (url.pathname.startsWith('/api/')) {
-    const prefix = `/api/public/trips/${id}/`;
+    const prefix = `/api/public/v2/trips/${id}/`;
     const key = url.pathname.startsWith(prefix) ? url.pathname.slice(prefix.length) : null;
     if (key !== null && Object.hasOwn(fixtures, key)) {
       // Fixed API delay, independent of real MongoDB or network variability.

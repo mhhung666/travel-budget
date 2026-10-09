@@ -107,3 +107,22 @@ it('trip rates are bearer and member authenticated, no-store, and never substitu
   expect(data.unavailable).toEqual(expect.arrayContaining(['USD', 'EUR']));
   expect(data.rates).not.toHaveProperty('USD');
 });
+it('a USD trip receives quotes rebased to USD instead of a TWD-snapshot validation failure', async () => {
+  h.member.mockImplementation(async () => {
+    authorizeLedger({ baseCurrency: 'USD' });
+    return trip;
+  });
+  h.rates.mockResolvedValue({
+    rates: { TWD: 1, USD: 30, JPY: 0.21 },
+    dates: { USD: '2026-10-07', JPY: '2026-10-07' },
+    provider: 'Frankfurter',
+  });
+  const result = await ratesRoute(new Request('http://test'), {
+    params: Promise.resolve({ id: trip }),
+  });
+  expect(result.status).toBe(200);
+  const { data } = await result.json();
+  expect(data.ledger).toEqual({ baseCurrency: 'USD', moneyScale: 2 });
+  expect(data.rates).toMatchObject({ USD: 1, TWD: 1 / 30, JPY: 0.007 });
+  expect(data.dates).toMatchObject({ TWD: '2026-10-07', JPY: '2026-10-07' });
+});

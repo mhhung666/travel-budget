@@ -133,9 +133,8 @@ export type PaymentRevokeContext = z.infer<typeof paymentRevokeContextSchema>;
 export type TripCurrencyContext = z.infer<typeof tripCurrencyContextSchema>;
 export type MutationRequest = z.infer<typeof mutationRequestSchema>;
 
-// Both adapters reference the shared schema source; no HTTP schemas are copied here.
-export function responseSchema<T>(schema: z.ZodType<T>, version: 1 | 2): z.ZodType<T> {
-  if (version === 1) return schema;
+// Maps a shared schema to its v2 response form (v1 was retired in B5d-1); no HTTP schemas are copied.
+export function responseSchema<T>(schema: z.ZodType<T>): z.ZodType<T> {
   const pairs: [z.ZodType, z.ZodType][] = [
     [tripSchema, shared.tripV2Schema],
     [tripsSchema, shared.tripsV2Schema],

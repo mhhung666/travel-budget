@@ -57,6 +57,7 @@ vi.mock('@/lib/logger', () => ({
 import { ItineraryImportProviderError } from '@/lib/ai/itineraryImportProvider';
 import { ItineraryImportQuotaError } from '@/lib/ai/itineraryImportQuota';
 import { POST } from '@/app/api/ai/itinerary-import/route';
+import { isLedgerV2 } from '@/lib/ledger';
 
 const context = {
   tripStartDate: '2026-09-01',
@@ -121,6 +122,19 @@ describe('POST /api/ai/itinerary-import', () => {
     });
     expect(mocks.loadContext).not.toHaveBeenCalled();
     expect(mocks.parseImport).not.toHaveBeenCalled();
+  });
+
+  it('reads trip context in the v2 ledger context so a non-TWD trip is not refused', async () => {
+    let v2 = false;
+    mocks.loadContext.mockImplementation(async () => {
+      v2 = isLedgerV2();
+      return { status: 'ok', tripId: 'trip-1', context };
+    });
+
+    const response = await POST(request({ tripId: 'trip-1', sourceText: 'Day 1 博物館' }));
+
+    expect(response.status).toBe(200);
+    expect(v2).toBe(true);
   });
 
   it('rejects a non-admin before calling the provider', async () => {

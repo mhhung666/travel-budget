@@ -1,10 +1,14 @@
 // @vitest-environment node
 import { randomUUID } from 'node:crypto';
 import { mongo } from 'mongoose';
-import { beforeAll, afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { manageTrip, readTripCurrency, updateTripForActor } from '@/lib/tripManagement';
-import { setCurrencySettingsForActor } from '@/lib/currencySettings';
+import { withLedgerV2 } from '@/lib/ledger';
+import { writeWebSettings, webSettingsRevision } from '@/lib/webSettingsWrite';
 import { readTripMutation, MUTATION_REQUESTS } from '@/lib/tripEntry';
+vi.mock('@/lib/env', () => ({
+  getEnv: () => ({ JWT_SECRET: 'g2a-isolated-test-secret-with-at-least-32-chars' }),
+}));
 const uri = process.env.MONGODB_MEMBER_TEST_URI;
 const allowed = process.env.MONGODB_MEMBER_TEST_ALLOW_WRITES === '1';
 if ((uri || allowed) && !(uri && allowed))
@@ -29,6 +33,23 @@ describe.skipIf(!uri || !allowed)('G2a isolated currency management', () => {
       ],
     },
   });
+  // The Web settings form writes through its own receipt at the current settings revision.
+  const writeWeb = (id: mongo.ObjectId, settings: object) =>
+    withLedgerV2(async () => {
+      const parent = await db.collection('trips').findOne({ _id: trip });
+      return writeWebSettings(db, id.toString(), trip.toString(), 'currency', {
+        client_request_id: randomUUID(),
+        expected_revision: webSettingsRevision(
+          trip.toString(),
+          undefined,
+          parent!,
+          'currency',
+          parent!.currencySettings
+        ),
+        base_currency: 'TWD',
+        ...settings,
+      });
+    });
   const write = (input: Awaited<ReturnType<typeof body>>, id = actor, database = db) =>
     manageTrip(database, id.toString(), trip.toString(), 'trip.currency', input, secret);
   beforeAll(async () => {
@@ -90,13 +111,15 @@ describe.skipIf(!uri || !allowed)('G2a isolated currency management', () => {
         { code: 'TWD', rate: null },
       ],
     });
-    await setCurrencySettingsForActor(db, actor.toString(), trip.toString(), {
-      default_currency: 'USD',
-      currencies: [
-        { code: 'USD', rate: 30 },
-        { code: 'USD', rate: 32 },
-      ],
-    });
+    expect(
+      await writeWeb(actor, {
+        default_currency: 'USD',
+        currencies: [
+          { code: 'USD', rate: 30 },
+          { code: 'USD', rate: 32 },
+        ],
+      })
+    ).toMatchObject({ status: 'committed', operation: 'currency.set' });
     expect((await context()).settings?.currencies).toEqual([{ code: 'USD', rate: 32 }]);
     expect(await db.collection('expenses').find({}).toArray()).toEqual(expenses);
     expect(await db.collection('payments').find({}).toArray()).toEqual(payments);
@@ -107,7 +130,7 @@ describe.skipIf(!uri || !allowed)('G2a isolated currency management', () => {
     const results = await Promise.all(Array.from({ length: 4 }, () => write(input)));
     expect(results.every((r) => r.revision === results[0].revision)).toBe(true);
     expect(await db.collection(MUTATION_REQUESTS).countDocuments()).toBe(1);
-    await setCurrencySettingsForActor(db, actor.toString(), trip.toString(), {});
+    expect(await writeWeb(actor, {})).toMatchObject({ status: 'committed' });
     expect(await write(input)).toEqual(results[0]);
     expect((await context()).settings).toBeNull();
     await expect(
@@ -121,7 +144,7 @@ describe.skipIf(!uri || !allowed)('G2a isolated currency management', () => {
     const input = await body();
     await updateTripForActor(db, actor.toString(), trip.toString(), { name: 'New name' });
     expect((await context()).revision).toBe(input.expected_revision);
-    await setCurrencySettingsForActor(db, actor.toString(), trip.toString(), input.settings);
+    expect(await writeWeb(actor, input.settings)).toMatchObject({ status: 'committed' });
     await expect(write(input)).rejects.toMatchObject({ code: 'RESOURCE_CHANGED' });
     expect(await readTripMutation(db, actor.toString(), input.client_request_id)).toMatchObject({
       status: 'rejected',
@@ -153,9 +176,7 @@ describe.skipIf(!uri || !allowed)('G2a isolated currency management', () => {
     expect(await readTripMutation(db, actor.toString(), rejected.client_request_id)).toMatchObject({
       code: 'FORBIDDEN',
     });
-    await expect(
-      setCurrencySettingsForActor(db, peer.toString(), trip.toString(), {})
-    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    await expect(writeWeb(peer, {})).rejects.toMatchObject({ code: 'FORBIDDEN' });
     await db
       .collection('trips')
       .updateOne({ _id: trip }, { $pull: { members: { user: actor } } } as mongo.Document);
