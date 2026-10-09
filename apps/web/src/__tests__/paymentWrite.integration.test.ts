@@ -2,14 +2,21 @@
 import { randomUUID } from 'node:crypto';
 import { mongo } from 'mongoose';
 import { beforeAll, afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { paymentCreateInput, paymentDeleteInput } from '@travel-budget/contracts';
 import {
-  readPaymentContext,
-  readPaymentRevokeContext,
-  writePayment,
-  paymentRevision,
-} from '@/lib/paymentWrite';
-import { readTripMutation, MUTATION_REQUESTS } from '@/lib/tripEntry';
+  paymentCreateV2Input as paymentCreateInput,
+  paymentDeleteV2Input as paymentDeleteInput,
+} from '@travel-budget/contracts';
+import * as payments from '@/lib/paymentWrite';
+import * as entry from '@/lib/tripEntry';
+import { inLedgerContext } from '@/test/ledgerContext';
+import { authorizeLedger, withLedgerV2 } from '@/lib/ledger';
+const { paymentRevision } = payments;
+const { MUTATION_REQUESTS } = entry;
+// Each call is one v2 request, as through the Web action or `/api/v2`.
+const readPaymentContext = inLedgerContext(payments.readPaymentContext);
+const readPaymentRevokeContext = inLedgerContext(payments.readPaymentRevokeContext);
+const writePayment = inLedgerContext(payments.writePayment);
+const readTripMutation = inLedgerContext(entry.readTripMutation);
 const uri = process.env.MONGODB_MEMBER_TEST_URI;
 const allowed = process.env.MONGODB_MEMBER_TEST_ALLOW_WRITES === '1';
 if ((uri || allowed) && !(uri && allowed))
@@ -36,6 +43,7 @@ describe.skipIf(!uri || !allowed)('E4 isolated payment transactions', () => {
   const context = () => readPaymentContext(db, actor.toString(), trip.toString(), secret);
   const createBody = async (amount = 50) =>
     paymentCreateInput.parse({
+      base_currency: 'TWD',
       client_request_id: randomUUID(),
       expected_revision: (await context()).settlementRevision,
       from_id: peer.toString(),
@@ -62,6 +70,7 @@ describe.skipIf(!uri || !allowed)('E4 isolated payment transactions', () => {
       'payment.delete',
       paymentDeleteInput.parse(
         body ?? {
+          base_currency: 'TWD',
           client_request_id: randomUUID(),
           expected_revision: (
             await readPaymentRevokeContext(db, actor.toString(), trip.toString(), id, secret)
@@ -274,6 +283,7 @@ describe.skipIf(!uri || !allowed)('E4 isolated payment transactions', () => {
     const first = await create(body);
     const id = first.result.paymentId;
     const removal = {
+      base_currency: 'TWD',
       client_request_id: randomUUID(),
       expected_revision: (
         await readPaymentRevokeContext(db, actor.toString(), trip.toString(), id, secret)
@@ -305,7 +315,11 @@ describe.skipIf(!uri || !allowed)('E4 isolated payment transactions', () => {
           { $set: { [field]: field === 'amount' ? 20 : field === 'note' ? 'changed' : virtual } }
         );
       await expect(
-        revoke(result.paymentId, { client_request_id: randomUUID(), expected_revision: c.revision })
+        revoke(result.paymentId, {
+          base_currency: 'TWD',
+          client_request_id: randomUUID(),
+          expected_revision: c.revision,
+        })
       ).rejects.toMatchObject({ code: 'RESOURCE_CHANGED' });
       expect(await db.collection('payments').countDocuments()).toBe(1);
     }
@@ -368,8 +382,12 @@ describe.skipIf(!uri || !allowed)('E4 isolated payment transactions', () => {
     await revoke(saved.result.paymentId);
     expect((await context()).settlement.payments).toHaveLength(0);
     const raw = { _id: new mongo.ObjectId(), from: peer, to: actor, amount: 10, note: '' };
-    expect(paymentRevision(secret, trip.toString(), raw)).not.toBe(
-      paymentRevision(secret, new mongo.ObjectId().toString(), raw)
-    );
+    // The revision covers the authorized trip unit, so compute it as a request would.
+    const revisionIn = (tripId: string) =>
+      withLedgerV2(() => {
+        authorizeLedger({});
+        return paymentRevision(secret, tripId, raw);
+      });
+    expect(revisionIn(trip.toString())).not.toBe(revisionIn(new mongo.ObjectId().toString()));
   });
 });

@@ -2,7 +2,6 @@ import { isSupportedCurrency } from '@/constants/currencies';
 import {
   ledgerStamp,
   ledgerMismatch,
-  isLedgerV2,
   currentLedger,
   LedgerError,
   parseLedgerInput,
@@ -136,14 +135,14 @@ const centsAreSafe = (amount: number) => Number.isSafeInteger(Math.round(amount 
  */
 function assertWritable(input: CreateExpenseInput, amount: number) {
   if (
-    isLedgerV2() &&
-    (!isSupportedCurrency(input.currency) || input.splits.some((s) => !isCentShare(s.share_amount)))
+    !isSupportedCurrency(input.currency) ||
+    input.splits.some((s) => !isCentShare(s.share_amount))
   )
     throw new TripWriteError('VALIDATION_ERROR');
   if (!isCalendarDate(input.date)) throw new TripWriteError('VALIDATION_ERROR');
   if (
     !centsAreSafe(input.original_amount) ||
-    (isLedgerV2() && roundMoney(input.original_amount) !== input.original_amount)
+    roundMoney(input.original_amount) !== input.original_amount
   )
     throw new TripWriteError('VALIDATION_ERROR');
   // The TWD amount and shares are what gets summed, compared and rounded again on every read.
@@ -183,12 +182,8 @@ export async function createExpenseForActor(
   { tripId, actorId, input }: CreateExpenseCommand,
   afterResponse: AfterResponse
 ): Promise<CreateExpenseResult> {
-  if (isLedgerV2()) {
-    input = parseLedgerInput(createExpenseSchema, input);
-    if (!input.base_currency) throw new TripWriteError('VALIDATION_ERROR');
-  }
-  if (!isLedgerV2() && input.base_currency && input.base_currency !== 'TWD')
-    throw new TripWriteError('VALIDATION_ERROR');
+  input = parseLedgerInput(createExpenseSchema, input);
+  if (!input.base_currency) throw new TripWriteError('VALIDATION_ERROR');
   const {
     payer_id,
     original_amount,
@@ -210,14 +205,12 @@ export async function createExpenseForActor(
   // 換算後先收斂到分再寫入：30.004 這種未取整的金額會讓統計（逐筆取整）與
   // 結算（加總後取整）在同一趟旅行算出 60 與 60.01 兩個數字。
   const amount = roundMoney(original_amount * exchange_rate);
-  if (!isLedgerV2()) assertWritable(input, amount);
 
   // 驗證並轉換收據附件（key 須屬本 trip、物件須存在、size/type 以 headObject 為準）
   let attachmentDocs: AttachmentDoc[] = [];
   let attachmentsValid = true;
   if (attachments && attachments.length > 0) {
     const resolved = await resolveAttachments(tripId, actorId, attachments);
-    if (!resolved && !isLedgerV2()) throw new TripWriteError('VALIDATION_ERROR');
     attachmentsValid = resolved !== null;
     attachmentDocs = resolved ?? [];
   }
@@ -236,11 +229,7 @@ export async function createExpenseForActor(
         try {
           assertWritable(input, amount);
           if (!attachmentsValid) throw new TripWriteError('VALIDATION_ERROR');
-          if (
-            isLedgerV2() &&
-            input.currency === currentLedger().baseCurrency &&
-            input.exchange_rate !== 1
-          )
+          if (input.currency === currentLedger().baseCurrency && input.exchange_rate !== 1)
             throw new TripWriteError('VALIDATION_ERROR');
           // Validate payer and split members are trip members
           trip = await Trip.findById(tripId)
@@ -281,12 +270,7 @@ export async function createExpenseForActor(
         } catch (error) {
           // Only known business validation before any expense/blob write is terminal. Unknown DB,
           // storage and transaction errors still abort, and cannot erase an ambiguous earlier write.
-          if (
-            !isLedgerV2() ||
-            !(error instanceof TripWriteError) ||
-            error.code !== 'VALIDATION_ERROR'
-          )
-            throw error;
+          if (!(error instanceof TripWriteError) || error.code !== 'VALIDATION_ERROR') throw error;
           return { rejected: error.code };
         }
         const expenseId = new Types.ObjectId();

@@ -2,9 +2,22 @@
 import { randomUUID } from 'node:crypto';
 import { mongo } from 'mongoose';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { maintainExpense, readExpenseEditContext, expenseRevision } from '@/lib/expenseMaintenance';
+import * as maintenance from '@/lib/expenseMaintenance';
 import { computeSplits } from '@/lib/expenseSplit';
-import { readTripMutation, MUTATION_REQUESTS } from '@/lib/tripEntry';
+import * as entry from '@/lib/tripEntry';
+import { authorizeLedger, withLedgerV2 } from '@/lib/ledger';
+import { inLedgerContext } from '@/test/ledgerContext';
+const { MUTATION_REQUESTS } = entry;
+// Each call is one v2 request, as through the Web action or `/api/v2`.
+const maintainExpense = inLedgerContext(maintenance.maintainExpense);
+const readExpenseEditContext = inLedgerContext(maintenance.readExpenseEditContext);
+const readTripMutation = inLedgerContext(entry.readTripMutation);
+/** The revision covers the authorized trip unit (a trip without one is historical TWD). */
+const expenseRevision = (...args: Parameters<typeof maintenance.expenseRevision>) =>
+  withLedgerV2(() => {
+    authorizeLedger({});
+    return maintenance.expenseRevision(...args);
+  });
 const uri = process.env.MONGODB_MEMBER_TEST_URI;
 const allowed = process.env.MONGODB_MEMBER_TEST_ALLOW_WRITES === '1';
 if ((uri || allowed) && !(uri && allowed))
@@ -23,6 +36,7 @@ describe.skipIf(!uri || !allowed)('E3 isolated replica-set transactions', () => 
   const read = () =>
     readExpenseEditContext(db, actor.toString(), trip.toString(), expense.toString(), secret);
   const update = async (changes: Record<string, unknown> = { description: 'updated' }) => ({
+    base_currency: 'TWD',
     client_request_id: randomUUID(),
     expected_revision: (await read()).revision,
     mode: 'basic' as const,
@@ -170,11 +184,15 @@ describe.skipIf(!uri || !allowed)('E3 isolated replica-set transactions', () => 
       }
     );
     const body = {
+      base_currency: 'TWD',
       client_request_id: randomUUID(),
       expected_revision: (await read()).revision,
       mode: 'equal',
+      // v2 amount changes always restate the currency and rate.
       changes: {
         original_amount: 0.01,
+        currency: 'TWD',
+        exchange_rate: 1,
         payer_id: peer.toString(),
         splits: ids.map((id, i) => ({ user_id: id.toString(), share_amount: i === 0 ? 0.01 : 0 })),
       },
@@ -187,11 +205,14 @@ describe.skipIf(!uri || !allowed)('E3 isolated replica-set transactions', () => 
   });
   it('foreign expense cannot be converted and fake equal shares produce terminal refusal', async () => {
     const body = {
+      base_currency: 'TWD',
       client_request_id: randomUUID(),
       expected_revision: (await read()).revision,
       mode: 'equal',
       changes: {
         original_amount: 100,
+        currency: 'TWD',
+        exchange_rate: 1,
         payer_id: actor.toString(),
         splits: [
           { user_id: actor.toString(), share_amount: 80 },
@@ -261,7 +282,12 @@ describe.skipIf(!uri || !allowed)('E3 isolated replica-set transactions', () => 
     const body = await update();
     const results = await Promise.allSettled([
       write(body),
-      write({ ...body, client_request_id: randomUUID(), changes: { description: 'other' } }),
+      write({
+        ...body,
+        base_currency: 'TWD',
+        client_request_id: randomUUID(),
+        changes: { description: 'other' },
+      }),
     ]);
     expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
     expect(await db.collection('activitylogs').countDocuments()).toBe(1);
@@ -285,7 +311,11 @@ describe.skipIf(!uri || !allowed)('E3 isolated replica-set transactions', () => 
     await db
       .collection<{ _id: string; expenseId: mongo.ObjectId }>('expensecreaterequests')
       .insertOne({ _id: 'creation', expenseId: expense });
-    const input = { client_request_id: randomUUID(), expected_revision: (await read()).revision };
+    const input = {
+      base_currency: 'TWD',
+      client_request_id: randomUUID(),
+      expected_revision: (await read()).revision,
+    };
     const cleanup = vi.fn(async () => {
       throw new Error('R2 down');
     });
@@ -362,7 +392,11 @@ describe.skipIf(!uri || !allowed)('E3 isolated replica-set transactions', () => 
     await db.collection('expenses').updateOne({ _id: expense }, { $set: { description: 'newer' } });
     await expect(
       write(
-        { client_request_id: randomUUID(), expected_revision: body.expected_revision },
+        {
+          base_currency: 'TWD',
+          client_request_id: randomUUID(),
+          expected_revision: body.expected_revision,
+        },
         'expense.delete'
       )
     ).rejects.toMatchObject({ code: 'RESOURCE_CHANGED' });
@@ -397,6 +431,7 @@ describe.skipIf(!uri || !allowed)('E3 isolated replica-set transactions', () => 
       rate
     );
     return {
+      base_currency: 'TWD',
       client_request_id: randomUUID(),
       expected_revision: revision,
       mode: 'equal',
@@ -423,7 +458,8 @@ describe.skipIf(!uri || !allowed)('E3 isolated replica-set transactions', () => 
     async (original, rate, currency) => {
       await seedEqual();
       const context = await read();
-      expect(context.capabilities).toMatchObject({ equal: false, recalculate: true });
+      // v2 allows equal recalculation in any original currency, not only TWD.
+      expect(context.capabilities).toMatchObject({ equal: true, recalculate: true });
       const before = await db.collection('expenses').findOne({ _id: expense });
       const body = equalBody(
         context.revision,

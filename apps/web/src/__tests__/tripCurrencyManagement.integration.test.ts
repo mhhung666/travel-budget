@@ -2,10 +2,17 @@
 import { randomUUID } from 'node:crypto';
 import { mongo } from 'mongoose';
 import { beforeAll, afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { manageTrip, readTripCurrency, updateTripForActor } from '@/lib/tripManagement';
 import { withLedgerV2 } from '@/lib/ledger';
 import { writeWebSettings, webSettingsRevision } from '@/lib/webSettingsWrite';
-import { readTripMutation, MUTATION_REQUESTS } from '@/lib/tripEntry';
+import * as tripManagementLib from '@/lib/tripManagement';
+import * as tripEntryLib from '@/lib/tripEntry';
+import { inLedgerContext } from '@/test/ledgerContext';
+// Each call is one v2 request, as through the Web action or `/api/v2`.
+const manageTrip = inLedgerContext(tripManagementLib.manageTrip);
+const readTripCurrency = inLedgerContext(tripManagementLib.readTripCurrency);
+const updateTripForActor = inLedgerContext(tripManagementLib.updateTripForActor);
+const readTripMutation = inLedgerContext(tripEntryLib.readTripMutation);
+const { MUTATION_REQUESTS } = tripEntryLib;
 vi.mock('@/lib/env', () => ({
   getEnv: () => ({ JWT_SECRET: 'g2a-isolated-test-secret-with-at-least-32-chars' }),
 }));
@@ -23,6 +30,7 @@ describe.skipIf(!uri || !allowed)('G2a isolated currency management', () => {
   const secret = 'g2a-isolated';
   const context = (id = actor) => readTripCurrency(db, id.toString(), trip.toString(), secret);
   const body = async () => ({
+    base_currency: 'TWD',
     client_request_id: randomUUID(),
     expected_revision: (await context()).revision,
     settings: {

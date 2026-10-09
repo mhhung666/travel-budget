@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   toExpenseDto,
   toTripDto,
@@ -11,6 +11,13 @@ import {
   type ActivityLogDtoInput,
   type TripNoteDtoInput,
 } from '@/lib/dto';
+
+// Trip DTOs for a viewer carry opaque settings revisions keyed by the server secret.
+vi.mock('@/lib/env', () => ({
+  getEnv: () => ({ JWT_SECRET: 'dto-test-secret-with-at-least-32-characters' }),
+}));
+const TWD = { baseCurrency: 'TWD', moneyScale: 2 };
+const revision = expect.stringMatching(/^[a-f0-9]{64}$/);
 
 const ref = (id: string, username: string, displayName: string) => ({
   _id: { toString: () => id },
@@ -38,6 +45,8 @@ describe('toExpenseDto', () => {
 
   it('maps a lean expense to the snake_case DTO with trip_id', () => {
     expect(toExpenseDto(base, 'trip9')).toEqual({
+      // A stored expense without a unit is a historical TWD record.
+      ledger: TWD,
       id: 'exp1',
       trip_id: 'trip9',
       amount: 300,
@@ -139,6 +148,9 @@ describe('toTripDto', () => {
 
   it('maps a trip and resolves archived_at from the viewer’s own member entry', () => {
     expect(toTripDto(base, 'u1')).toEqual({
+      ledger: TWD,
+      currency_revision: revision,
+      budget_revision: revision,
       id: 'trip1',
       name: 'Japan',
       description: 'spring',

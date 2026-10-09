@@ -34,7 +34,6 @@ vi.mock('@/lib/ai/aiUsageQuota', () => ({
 vi.mock('@/lib/logger', () => ({ logger: { info: vi.fn(), warn: vi.fn() } }));
 import { POST as textDraft } from '@/app/api/ai/expense-text-draft/route';
 import { POST as receiptDraft } from '@/app/api/ai/receipt-draft/route';
-import { getTripMembership } from '@/lib/permissions';
 const actor = new mongo.ObjectId(),
   tripId = new mongo.ObjectId();
 const key = `receipts/${tripId}/scan.webp`;
@@ -92,26 +91,20 @@ afterEach(() => {
   else Reflect.deleteProperty(mongoose.connection, 'db');
   vi.restoreAllMocks();
 });
-it.each(['USD', 'JPY'])(
-  'authorizes both AI draft routes for a %s trip without weakening v1',
-  async (baseCurrency) => {
-    h.member.mockResolvedValue({
-      _id: tripId,
-      baseCurrency,
-      members: [{ user: actor, role: 'member' }],
-    });
-    for (const receipt of [false, true]) {
-      const response = await (receipt ? receiptDraft : textDraft)(request(receipt));
-      expect(response.status).toBe(200);
-      expect(await response.json()).toMatchObject({ success: true, draft: { currency: 'USD' } });
-    }
-    expect(h.text).toHaveBeenCalledOnce();
-    expect(h.receipt).toHaveBeenCalledOnce();
-    await expect(getTripMembership(actor.toString(), tripId.toString())).rejects.toThrow(
-      'CLIENT_UPGRADE_REQUIRED'
-    );
+it.each(['USD', 'JPY'])('authorizes both AI draft routes for a %s trip', async (baseCurrency) => {
+  h.member.mockResolvedValue({
+    _id: tripId,
+    baseCurrency,
+    members: [{ user: actor, role: 'member' }],
+  });
+  for (const receipt of [false, true]) {
+    const response = await (receipt ? receiptDraft : textDraft)(request(receipt));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ success: true, draft: { currency: 'USD' } });
   }
-);
+  expect(h.text).toHaveBeenCalledOnce();
+  expect(h.receipt).toHaveBeenCalledOnce();
+});
 it.each([false, true])(
   'refuses removed members before provider or private storage (receipt=%s)',
   async (receipt) => {

@@ -123,7 +123,6 @@ describe.skipIf(!uri || !allowed)('B1 isolated ledger transactions', () => {
       ledger: { baseCurrency: 'USD', moneyScale: 2 },
     });
     expect(await db.collection('trips').countDocuments({})).toBe(1);
-    await expect(readTripMutation(db, ids[0], uuid)).rejects.toThrow('CLIENT_UPGRADE_REQUIRED');
   });
   it.each(['USD', 'JPY', 'TWD'])(
     'creates %s once under concurrent identical UUIDs',
@@ -146,18 +145,11 @@ describe.skipIf(!uri || !allowed)('B1 isolated ledger transactions', () => {
       ).rejects.toThrow('IDEMPOTENCY_CONFLICT');
     }
   );
-  it('rejects v1 joining USD without changing members or writing a receipt', async () => {
+  it('joins a USD trip once when the v2 request is replayed', async () => {
     await db
       .collection('trips')
       .updateOne({ _id: trip }, { $pull: { members: { user: third } } } as mongo.Document);
     const body = { client_request_id: randomUUID(), invite_code: 'b1usdxxx' };
-    await expect(enterTrip(db, ids[2], 'trip.join', body)).rejects.toThrow(
-      'CLIENT_UPGRADE_REQUIRED'
-    );
-    expect(await db.collection('trips').countDocuments({ _id: trip, 'members.user': third })).toBe(
-      0
-    );
-    expect(await db.collection(MUTATION_REQUESTS).countDocuments({})).toBe(0);
     await withLedgerV2(() => enterTrip(db, ids[2], 'trip.join', body));
     await withLedgerV2(() => enterTrip(db, ids[2], 'trip.join', body));
     expect(
@@ -407,7 +399,7 @@ describe.skipIf(!uri || !allowed)('B1 isolated ledger transactions', () => {
       ).toBeUndefined();
     }
   );
-  it('rolls back a failed write and retains the original legacy TWD receipt shape', async () => {
+  it('rolls back a failed write and refuses a receipt stored by v1', async () => {
     await db.collection('trips').updateOne({ _id: trip }, { $unset: { baseCurrency: '' } });
     await db.collection('expenses').updateOne({ _id: expense }, { $unset: { baseCurrency: '' } });
     await expect(
@@ -420,26 +412,28 @@ describe.skipIf(!uri || !allowed)('B1 isolated ledger transactions', () => {
     expect(
       (await db.collection('trips').findOne({ _id: trip }))!.expenseDeliveryFence
     ).toBeUndefined();
+    // A receipt stored by retired v1 has no contract version. v2 neither reads nor replays it,
+    // and the original UUID cannot be reused to create something else.
     const uuid = randomUUID();
-    const result = await enterTrip(db, ids[0], 'trip.create', {
-      client_request_id: uuid,
-      name: 'Legacy',
+    await db.collection<{ _id: string } & mongo.Document>(MUTATION_REQUESTS).insertOne({
+      _id: `${ids[0]}:${uuid}`,
+      fingerprint: 'v1',
+      terminal: {
+        status: 'committed',
+        operation: 'trip.create',
+        resourceId: trip.toString(),
+        result: { tripId: trip.toString() },
+      },
+      createdAt: new Date(),
     });
-    const receipt = await readTripMutation(db, ids[0], uuid);
-    expect(receipt).toEqual({
-      status: 'committed',
-      operation: 'trip.create',
-      resourceId: result.tripId,
-      result: { tripId: result.tripId },
-    });
-    expect(
-      (await db
-        .collection<{ _id: string; contractVersion?: number }>(MUTATION_REQUESTS)
-        .findOne({ _id: `${ids[0]}:${uuid}` }))!.contractVersion
-    ).toBeUndefined();
+    const trips = await db.collection('trips').countDocuments({});
+    await expect(withLedgerV2(() => readTripMutation(db, ids[0], uuid))).rejects.toThrow(
+      'CLIENT_UPGRADE_REQUIRED'
+    );
     await expect(withLedgerV2(() => createTrip('TWD', uuid))).rejects.toThrow(
       'CLIENT_UPGRADE_REQUIRED'
     );
+    expect(await db.collection('trips').countDocuments({})).toBe(trips);
     await validateLedgerChildren(db, (await db.collection('trips').findOne({ _id: trip }))!);
   });
   it('replays a successful v2 leave after membership has gone, without a second write', async () => {

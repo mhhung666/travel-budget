@@ -2,9 +2,19 @@
 import { randomUUID } from 'node:crypto';
 import { mongo } from 'mongoose';
 import { beforeAll, afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { readTripMembers, manageMember, createVirtualMemberForActor } from '@/lib/memberManagement';
-import { changeMemberIdentity } from '@/lib/memberIdentity';
-import { readTripMutation, MUTATION_REQUESTS } from '@/lib/tripEntry';
+import * as memberManagementLib from '@/lib/memberManagement';
+import * as memberIdentityLib from '@/lib/memberIdentity';
+import * as tripEntryLib from '@/lib/tripEntry';
+import { inLedgerContext } from '@/test/ledgerContext';
+// Each call is one v2 request, as through the Web action or `/api/v2`.
+const readTripMembers = inLedgerContext(memberManagementLib.readTripMembers);
+const manageMember = inLedgerContext(memberManagementLib.manageMember);
+const createVirtualMemberForActor = inLedgerContext(
+  memberManagementLib.createVirtualMemberForActor
+);
+const changeMemberIdentity = inLedgerContext(memberIdentityLib.changeMemberIdentity);
+const readTripMutation = inLedgerContext(tripEntryLib.readTripMutation);
+const { MUTATION_REQUESTS } = tripEntryLib;
 interface FixtureTrip {
   _id: mongo.ObjectId;
   hashCode?: string;

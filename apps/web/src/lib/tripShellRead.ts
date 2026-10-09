@@ -1,5 +1,5 @@
 import { webSettingsRevision } from './webSettingsWrite';
-import { isLedgerV2, ledgerOf, moneyTotal } from './ledger';
+import { ledgerOf, moneyTotal } from './ledger';
 import { Types } from 'mongoose';
 import { roundMoney, roundMoneyExpr, normalizedSplitsExpr } from '@/lib/money';
 import { Expense } from '@/models';
@@ -119,29 +119,25 @@ export async function readTripShell(
     moneyTotal([row.todaySpent]);
   }
   return {
-    ...(isLedgerV2()
+    ledger: ledgerOf(trip),
+    budget_revision: viewerId
+      ? webSettingsRevision(
+          tripId,
+          viewerId,
+          trip,
+          'budget',
+          trip.members.find((m) => m.user.toString() === viewerId)?.budget
+        )
+      : undefined,
+    ...(viewerId
       ? {
-          ledger: ledgerOf(trip),
-          budget_revision: viewerId
-            ? webSettingsRevision(
-                tripId,
-                viewerId,
-                trip,
-                'budget',
-                trip.members.find((m) => m.user.toString() === viewerId)?.budget
-              )
-            : undefined,
-          ...(viewerId
-            ? {
-                currency_revision: webSettingsRevision(
-                  tripId,
-                  undefined,
-                  trip,
-                  'currency',
-                  trip.currencySettings
-                ),
-              }
-            : {}),
+          currency_revision: webSettingsRevision(
+            tripId,
+            undefined,
+            trip,
+            'currency',
+            trip.currencySettings
+          ),
         }
       : {}),
     id: tripId,

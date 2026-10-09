@@ -6,7 +6,6 @@ import {
   terminalWithLedger,
   checkReceiptVersion,
   authorizeLedger,
-  isLedgerV2,
   nonTwdCreationEnabled,
 } from './ledger';
 import { createHash, randomInt } from 'node:crypto';
@@ -217,9 +216,8 @@ export async function enterTrip(
           let delivery: JoinDelivery | undefined;
           if (operation === 'trip.create') {
             const fields = input as TripCreateInput;
-            const requestedBase = isLedgerV2()
-              ? (input as TripCreateInput & { base_currency: string }).base_currency
-              : 'TWD';
+            const requestedBase = (input as TripCreateInput & { base_currency: string })
+              .base_currency;
             authorizeLedger({ baseCurrency: requestedBase });
             if (requestedBase !== 'TWD' && !nonTwdCreationEnabled()) {
               const terminal = {
@@ -243,9 +241,7 @@ export async function enterTrip(
             await db.collection('trips').insertOne(
               {
                 _id: tripId,
-                baseCurrency: isLedgerV2()
-                  ? (input as TripCreateInput & { base_currency: string }).base_currency
-                  : 'TWD',
+                baseCurrency: requestedBase,
                 name: fields.name,
                 description: fields.description,
                 ...(fields.start_date ? { startDate: new Date(fields.start_date) } : {}),

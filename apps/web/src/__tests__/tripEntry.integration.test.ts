@@ -2,7 +2,12 @@
 import { randomUUID } from 'node:crypto';
 import { mongo } from 'mongoose';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { enterTrip, readTripMutation, MUTATION_REQUESTS } from '@/lib/tripEntry';
+import * as tripEntryLib from '@/lib/tripEntry';
+import { inLedgerContext } from '@/test/ledgerContext';
+// Each call is one v2 request, as through the Web action or `/api/v2`.
+const enterTrip = inLedgerContext(tripEntryLib.enterTrip);
+const readTripMutation = inLedgerContext(tripEntryLib.readTripMutation);
+const { MUTATION_REQUESTS } = tripEntryLib;
 const uri = process.env.MONGODB_E1_TEST_URI ?? process.env.MONGODB_MEMBER_TEST_URI;
 const allowed =
   (process.env.MONGODB_E1_TEST_ALLOW_WRITES ?? process.env.MONGODB_MEMBER_TEST_ALLOW_WRITES) ===
@@ -43,6 +48,7 @@ describe.skipIf(!uri || !allowed)('E1 transactions against isolated replica set'
       await db.collection(name).deleteMany({});
   });
   const body = () => ({
+    base_currency: 'TWD',
     client_request_id: randomUUID(),
     name: 'Trip',
     description: '',

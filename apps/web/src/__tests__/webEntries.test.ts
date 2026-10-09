@@ -23,7 +23,7 @@ const mocks = vi.hoisted(() => {
 vi.mock('@/lib/publicTripReads', () => ({ publicTripReads: mocks.reads }));
 vi.mock('@/lib/publicMemberClaims', () => ({ publicMemberClaims: mocks.claims }));
 vi.mock('@/lib/auth', () => ({ getSession: mocks.session }));
-import { isLedgerV2 } from '@/lib/ledger';
+import { inLedgerContext } from '@/lib/ledger';
 
 const publicApi = join(process.cwd(), 'src/app/api/public');
 const routeFiles = (dir: string) =>
@@ -62,7 +62,7 @@ describe('public v2 trip routes', () => {
     const runs: { name: string; v2: boolean; args: unknown[] }[] = [];
     for (const [name, fn] of Object.entries(handlers))
       fn.mockImplementation(async (...args: unknown[]) => {
-        runs.push({ name, v2: isLedgerV2(), args });
+        runs.push({ name, v2: inLedgerContext(), args });
         return Response.json({ name });
       });
     const request = new Request('https://example.test/x', { method });
@@ -111,5 +111,22 @@ describe('retired Server Action identities', () => {
   it('every remaining ledger identity runs in the v2 context', () => {
     const source = readFileSync(join(actions, 'withAuth.ts'), 'utf8');
     expect(source).not.toMatch(/withLedgerIdentity|withLegacyTripRead/);
+  });
+});
+
+// Shared services: since v1 retired, no service may branch on a contract version again.
+describe('shared services have a single v2 path', () => {
+  const src = join(process.cwd(), 'src');
+  const product = readdirSync(src, { recursive: true, encoding: 'utf8' }).filter(
+    (file) => /\.(ts|tsx)$/.test(file) && !file.startsWith('__tests__') && !file.startsWith('test/')
+  );
+
+  it('has no version predicate, and only ledger.ts defines the context check', () => {
+    for (const file of product) {
+      const source = readFileSync(join(src, file), 'utf8');
+      expect(source, file).not.toMatch(/\bisLedgerV2\b/);
+      if (file !== join('lib', 'ledger.ts'))
+        expect(source, file).not.toMatch(/\binLedgerContext\b/);
+    }
   });
 });

@@ -1,6 +1,6 @@
 import mongoose, { mongo } from 'mongoose';
 import { dbConnect } from './mongodb';
-import { authorizeLedger, validateLedgerChildren, isLedgerV2 } from './ledger';
+import { authorizeLedger, validateLedgerChildren } from './ledger';
 
 export class TripWriteError extends Error {
   constructor(public readonly code: 'FORBIDDEN' | 'NOT_FOUND' | 'VALIDATION_ERROR' | 'CONFLICT') {
@@ -44,7 +44,7 @@ export async function withTripWriteInDatabase<T>(
         );
         if (!parent) throw new TripWriteError('FORBIDDEN');
         authorizeLedger(parent);
-        if (isLedgerV2()) await validateLedgerChildren(db, parent, session);
+        await validateLedgerChildren(db, parent, session);
         return write(session);
       },
       {
@@ -77,7 +77,7 @@ export async function withTripReadInDatabase<T>(
         );
         if (!parent) throw new TripWriteError('FORBIDDEN');
         authorizeLedger(parent);
-        if (isLedgerV2()) await validateLedgerChildren(db, parent, session);
+        await validateLedgerChildren(db, parent, session);
         return read(session);
       },
       { readConcern: { level: 'snapshot' }, readPreference: 'primary', timeoutMS: 20_000 }

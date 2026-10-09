@@ -54,7 +54,7 @@ vi.mock('@/lib/mobile/trips', () => ({
   ...mocks.service,
   viewerDate: (url: URL) => url.searchParams.get('today'),
 }));
-import { isLedgerV2 } from '@/lib/ledger';
+import { inLedgerContext } from '@/lib/ledger';
 import { mobileOperation, type MobileOperation } from '@/lib/mobile/operations';
 
 const ids = {
@@ -211,7 +211,7 @@ describe('v2 member routes', () => {
         const runs: { v2: boolean; service: string }[] = [];
         for (const [name, fn] of Object.entries(mocks.service))
           fn.mockImplementation(async () => {
-            runs.push({ v2: isLedgerV2(), service: name });
+            runs.push({ v2: inLedgerContext(), service: name });
             return { ok: true };
           });
         const response: Response = await route[method](req(method), {

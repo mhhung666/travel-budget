@@ -30,14 +30,19 @@ export function ledgerActionFailure(error: unknown) {
     };
   return undefined;
 }
-/** Server-owned request context, never selected by a client header. Shared services also default to v1. */
+/**
+ * Server-owned request context, never selected by a client header. Every ledger entry (Server
+ * Action, `/api/v2`, public v2, AI drafts) runs in it since v1 was retired in B5; it records the
+ * authorized trip unit and the unit the client confirmed. Services never branch on a version.
+ */
 const requests = new AsyncLocalStorage<{
   version: 2;
   expected?: string;
   ledger?: contracts.Ledger;
 }>();
 export const withLedgerV2 = <T>(work: () => T): T => requests.run({ version: 2 }, work);
-export const isLedgerV2 = () => requests.getStore()?.version === 2;
+/** For entry-point tests only: whether the caller set up the ledger context. */
+export const inLedgerContext = () => requests.getStore()?.version === 2;
 export function baseCurrency(record: object): string {
   const value = record as { baseCurrency?: unknown };
   if (value.baseCurrency === undefined) return 'TWD';
@@ -50,8 +55,6 @@ export function ledgerOf(value: object): contracts.Ledger {
 }
 export function authorizeLedger(value: object) {
   const ledger = ledgerOf(value);
-  if (!isLedgerV2() && ledger.baseCurrency !== 'TWD')
-    throw new LedgerError('CLIENT_UPGRADE_REQUIRED');
   const state = requests.getStore();
   if (state) state.ledger = ledger;
   return ledger;
@@ -68,18 +71,14 @@ export const ledgerMismatch = () => {
   const s = requests.getStore();
   return !!s?.expected && s.expected !== s.ledger?.baseCurrency;
 };
-export const ledgerStamp = () => ({
-  baseCurrency: isLedgerV2() ? currentLedger().baseCurrency : 'TWD',
+export const ledgerStamp = () => ({ baseCurrency: currentLedger().baseCurrency });
+export const receiptStamp = () => ({
+  contractVersion: 2,
+  ...(requests.getStore()?.ledger ? { ledger: currentLedger() } : {}),
 });
-export const receiptStamp = () =>
-  isLedgerV2()
-    ? { contractVersion: 2, ...(requests.getStore()?.ledger ? { ledger: currentLedger() } : {}) }
-    : {};
+/** A receipt without version 2 was stored by retired v1; it is refused, never replayed as v2. */
 export function checkReceiptVersion(receipt: { contractVersion?: unknown; ledger?: unknown }) {
-  if (receipt.contractVersion !== undefined && receipt.contractVersion !== 2)
-    throw new LedgerError('CLIENT_UPGRADE_REQUIRED');
-  if ((receipt.contractVersion === 2) !== isLedgerV2())
-    throw new LedgerError('CLIENT_UPGRADE_REQUIRED');
+  if (receipt.contractVersion !== 2) throw new LedgerError('CLIENT_UPGRADE_REQUIRED');
   if (receipt.ledger !== undefined) {
     const unit = contracts.ledgerSchema.safeParse(receipt.ledger);
     if (!unit.success || !isSupportedCurrency(unit.data.baseCurrency))
@@ -89,10 +88,12 @@ export function checkReceiptVersion(receipt: { contractVersion?: unknown; ledger
       throw new LedgerError('LEDGER_DATA_INVALID');
   }
 }
-export const ledgerFingerprint = (input: unknown) =>
-  isLedgerV2() ? { contractVersion: 2, baseCurrency: requests.getStore()?.expected, input } : input;
+export const ledgerFingerprint = (input: unknown) => ({
+  contractVersion: 2,
+  baseCurrency: requests.getStore()?.expected,
+  input,
+});
 export function terminalWithLedger<T>(terminal: T): T {
-  if (!isLedgerV2()) return terminal;
   if (!requests.getStore()?.ledger) return terminal;
   const t = terminal as T & { result?: object };
   return {
@@ -121,7 +122,7 @@ const inputs = new Map<z.ZodType, z.ZodType>([
   [contracts.tripCurrencyInput, contracts.tripCurrencyV2Input],
 ]);
 export function ledgerInputSchema<T>(schema: z.ZodType<T>): z.ZodType<T> {
-  return (isLedgerV2() ? (inputs.get(schema) ?? schema) : schema) as z.ZodType<T>;
+  return (inputs.get(schema) ?? schema) as z.ZodType<T>;
 }
 export function parseLedgerInput<T>(schema: z.ZodType<T>, body: unknown): T {
   const result = ledgerInputSchema(schema).parse(body);
@@ -145,8 +146,11 @@ export function ledgerOutput<T extends object>(
   return result as T & { ledger: contracts.Ledger };
 }
 
-export const ledgerRevision = (value: unknown) =>
-  isLedgerV2() ? { contractVersion: 2, ledger: currentLedger(), value } : value;
+export const ledgerRevision = (value: unknown) => ({
+  contractVersion: 2,
+  ledger: currentLedger(),
+  value,
+});
 
 type LedgerParent = {
   _id: mongo.ObjectId;

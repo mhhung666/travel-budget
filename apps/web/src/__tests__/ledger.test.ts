@@ -149,7 +149,11 @@ describe('immutable two-decimal ledger contract', () => {
     for (const baseCurrency of [null, '', 'INVALID', 1])
       expect(() => authorizeLedger({ baseCurrency })).toThrow('LEDGER_DATA_INVALID');
     expect(() => assertUnit({}, 'USD')).toThrow('LEDGER_DATA_INVALID');
-    expect(() => authorizeLedger({ baseCurrency: 'USD' })).toThrow('CLIENT_UPGRADE_REQUIRED');
+    // With v1 retired there is no TWD-only reader left to protect from a non-TWD trip.
+    expect(authorizeLedger({ baseCurrency: 'USD' })).toEqual({
+      baseCurrency: 'USD',
+      moneyScale: 2,
+    });
   });
   it('isolates concurrent request contexts and retains the frozen fingerprint identity', async () => {
     const values = await Promise.all(
@@ -167,9 +171,14 @@ describe('immutable two-decimal ledger contract', () => {
       )
     );
     expect(values.map((v) => v[0])).toEqual(['USD', 'JPY']);
-    expect(ledgerFingerprint(input)).toBe(input);
-    expect(() => checkReceiptVersion({ contractVersion: 2 })).toThrow('CLIENT_UPGRADE_REQUIRED');
+    // Each context hashes its own confirmed unit around the same frozen input.
+    expect(values.map((v) => v[1])).toEqual([
+      { contractVersion: 2, baseCurrency: 'USD', input },
+      { contractVersion: 2, baseCurrency: 'JPY', input },
+    ]);
+    // A receipt without version 2 was stored by v1 and is refused, never replayed.
     withLedgerV2(() => expect(() => checkReceiptVersion({})).toThrow('CLIENT_UPGRADE_REQUIRED'));
+    withLedgerV2(() => expect(() => checkReceiptVersion({ contractVersion: 2 })).not.toThrow());
   });
   it('accepts durable terminal currency rejection without pretending it committed', () => {
     expect(

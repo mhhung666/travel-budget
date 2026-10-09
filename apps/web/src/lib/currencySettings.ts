@@ -1,5 +1,5 @@
 import { mongo } from 'mongoose';
-import { isLedgerV2, currentLedger } from './ledger';
+import { currentLedger } from './ledger';
 import { isSupportedCurrency } from '@/constants/currencies';
 import { TripManagementError } from './tripManagementError';
 interface SettingsInput {
@@ -17,10 +17,7 @@ export function normalizeCurrencySettings(input: SettingsInput) {
       (c.rate != null && (!Number.isFinite(c.rate) || c.rate <= 0))
     )
       throw new TripManagementError('VALIDATION_ERROR');
-    byCode.set(
-      c.code,
-      c.code === (isLedgerV2() ? currentLedger().baseCurrency : 'TWD') ? null : (c.rate ?? null)
-    );
+    byCode.set(c.code, c.code === currentLedger().baseCurrency ? null : (c.rate ?? null));
   }
   const defaultCurrency = input.default_currency ?? null;
   if (defaultCurrency && !isSupportedCurrency(defaultCurrency))

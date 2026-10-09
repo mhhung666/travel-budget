@@ -1,4 +1,4 @@
-import { currentLedger, isLedgerV2, LedgerError } from './ledger';
+import { currentLedger, LedgerError } from './ledger';
 import { NextRequest, NextResponse } from 'next/server';
 import { Trip, Expense, ItineraryDay } from '@/models';
 import { PublicApiError, apiError } from '@/lib/publicApiError';
@@ -138,7 +138,7 @@ const stats = withPublicTrip(
     } = toTripStatsInputs(trip, expenses, days);
     return NextResponse.json({
       ...computeTripStats(mapped, members, range, mappedDays),
-      ...(isLedgerV2() ? { ledger: currentLedger() } : {}),
+      ledger: currentLedger(),
     });
   },
   { logLabel: 'Get public trip stats error' }

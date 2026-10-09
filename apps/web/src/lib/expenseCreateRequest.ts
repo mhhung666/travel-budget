@@ -25,7 +25,8 @@ interface Request extends Scope {
 
 /**
  * A receipt keeps the identity every earlier version wrote: `_id` is `trip:actor:key` with the key
- * spelled exactly as the client sent it, and the fingerprint hashes the schema-parsed input as is.
+ * spelled exactly as the client sent it, and the fingerprint hashes the schema-parsed input as is
+ * (inside `{ contractVersion: 2, baseCurrency }`; receipts without version 2 are v1 and refused).
  * Do not normalize either (lowercasing the key, for one, changes both): a retry of a request that
  * was accepted before the change would stop finding its receipt and create the expense again, and
  * an older server could not find what a newer one stored during a rollout or rollback.

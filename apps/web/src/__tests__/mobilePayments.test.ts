@@ -25,7 +25,9 @@ vi.mock('@/lib/env', () => ({ getEnv: () => ({ JWT_SECRET: 'e4-test' }) }));
 const trip = '111111111111111111111111',
   actor = '222222222222222222222222',
   payment = '333333333333333333333333';
+// Native requests are v2: every write confirms the trip unit.
 const body = {
+  base_currency: 'TWD',
   client_request_id: '11111111-1111-4111-8111-111111111111',
   expected_revision: 'a'.repeat(64),
   from_id: actor,
@@ -78,6 +80,7 @@ it('strict create body delegates normalized cents and post-commit delivery only 
 });
 it('delete body accepts only identity and delegates correct resource', async () => {
   const removal = {
+    base_currency: body.base_currency,
     client_request_id: body.client_request_id,
     expected_revision: body.expected_revision,
   };

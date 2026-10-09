@@ -397,18 +397,20 @@ export async function writePayment(
             };
           }
         }
+        // The first response is the stored receipt, so a replay returns exactly the same terminal.
+        const stored = terminalWithLedger(terminal);
         await receipts.insertOne(
           {
             _id: key,
             fingerprint,
             ...receiptStamp(),
-            terminal: terminalWithLedger(terminal),
+            terminal: stored,
             ...(payment ? { payment } : {}),
             createdAt: new Date(),
           },
           { session }
         );
-        return { terminal, payment, delivery };
+        return { terminal: stored, payment, delivery };
       });
       if (accepted.terminal.status === 'rejected') throw new TripEntryError(accepted.terminal.code);
       if (accepted.delivery)

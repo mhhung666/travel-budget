@@ -27,7 +27,9 @@ vi.mock('@/lib/referenceRates', async (original) => ({
 vi.mock('@/lib/logger', () => ({ logger: { error: vi.fn() } }));
 const actor = 'a'.repeat(24),
   trip = 'b'.repeat(24);
+// Native requests are v2: every write confirms the trip unit.
 const body = {
+  base_currency: 'TWD',
   client_request_id: '11111111-1111-4111-8111-111111111111',
   expected_revision: 'c'.repeat(64),
   settings: { default_currency: null, currencies: [{ code: 'JPY', rate: 0.21 }] },

@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { mongo } from 'mongoose';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it as vitestIt, vi } from 'vitest';
 import {
   readExpenseCreateReceipt,
   readExpenseCreateResult,
@@ -8,6 +8,7 @@ import {
   withExpenseCreateRequest,
 } from '@/lib/expenseCreateRequest';
 import { createExpenseSchema } from '@/lib/validation';
+import { parseLedgerInput, withLedgerV2 } from '@/lib/ledger';
 import { findStoredReceipt } from '@/test/receiptStore';
 import type { Expense } from '@/types';
 
@@ -34,6 +35,7 @@ const payload = (key: string, overrides: Record<string, unknown> = {}) => ({
     { user_id: ACTOR, share_amount: 60 },
     { user_id: OTHER, share_amount: 40 },
   ],
+  base_currency: 'TWD',
   ...overrides,
 });
 const parsed = (key: string, overrides?: Record<string, unknown>) =>
@@ -45,28 +47,50 @@ const request = (key: string, overrides?: Record<string, unknown>) => ({
 });
 const accepted = (id: string) => ({ id, description: 'Dinner' }) as Expense;
 
-// Constants computed with the identity of the code before key lookup became case-insensitive:
-// `_id` is `trip:actor:key` with the key as sent, the fingerprint is the SHA-256 of the
-// schema-parsed input. They must never change: receipts written by earlier versions have them.
+/** Every caller parses the confirmed unit first; it is part of the v2 fingerprint. */
+const inLedger = <T>(work: () => T) =>
+  withLedgerV2(() => {
+    parseLedgerInput(createExpenseSchema, payload(LOWER));
+    return work();
+  });
+type Body = (...args: never[]) => Promise<void> | void;
+const it = Object.assign(
+  (name: string, fn: () => Promise<void> | void) => vitestIt(name, () => inLedger(fn)),
+  {
+    each:
+      <T>(cases: readonly T[]) =>
+      (name: string, fn: Body) =>
+        vitestIt.each(cases as T[])(name, (...args: T[]) =>
+          inLedger(() => (fn as (...a: T[]) => Promise<void> | void)(...args))
+        ),
+  }
+);
+
+// The identity of a v2 receipt, computed from the formula rather than by the code under test:
+// `_id` is `trip:actor:key` with the key as sent, the fingerprint is the SHA-256 of
+// `{ contractVersion: 2, baseCurrency, input }`. Stored receipts depend on it never changing.
 const GOLDEN = {
   [LOWER]: {
     id: `${TRIP}:${ACTOR}:${LOWER}`,
-    json: `{"client_request_id":"${LOWER}","payer_id":"${ACTOR}","original_amount":100,"currency":"TWD","exchange_rate":1,"description":"Dinner","category":"food","date":"2026-09-12","splits":[{"user_id":"${ACTOR}","share_amount":60},{"user_id":"${OTHER}","share_amount":40}]}`,
-    fingerprint: '2e1111b142cb3dea9dce158d7eaf56068fa2b83240d36ad84918b43d09ef7aa3',
+    json: `{"base_currency":"TWD","client_request_id":"${LOWER}","payer_id":"${ACTOR}","original_amount":100,"currency":"TWD","exchange_rate":1,"description":"Dinner","category":"food","date":"2026-09-12","splits":[{"user_id":"${ACTOR}","share_amount":60},{"user_id":"${OTHER}","share_amount":40}]}`,
+    fingerprint: '8a85aa24ed3d866f1337d25e62154a95e4e7b92ab27b048604c5335970640c25',
   },
   [UPPER]: {
     id: `${TRIP}:${ACTOR}:${UPPER}`,
-    json: `{"client_request_id":"${UPPER}","payer_id":"${ACTOR}","original_amount":100,"currency":"TWD","exchange_rate":1,"description":"Dinner","category":"food","date":"2026-09-12","splits":[{"user_id":"${ACTOR}","share_amount":60},{"user_id":"${OTHER}","share_amount":40}]}`,
-    fingerprint: '26123c65afc3735e46d5e7c98f0653ed35a80665a65607659c30539329be9303',
+    json: `{"base_currency":"TWD","client_request_id":"${UPPER}","payer_id":"${ACTOR}","original_amount":100,"currency":"TWD","exchange_rate":1,"description":"Dinner","category":"food","date":"2026-09-12","splits":[{"user_id":"${ACTOR}","share_amount":60},{"user_id":"${OTHER}","share_amount":40}]}`,
+    fingerprint: 'e8d3dda8f2c09dc5120f3188517af582bda34c90c2d6bfa143cae3eef420cf33',
   },
 };
 
-/** A receipt as an earlier version stored it, built without any of the code under test. */
+/** A stored v2 receipt, built without any of the code under test. */
 const earlierReceipt = (key: string, data: Expense, overrides?: Record<string, unknown>) => ({
   _id: `${TRIP}:${ACTOR}:${key}`,
   trip: TRIP,
+  contractVersion: 2,
   fingerprint: createHash('sha256')
-    .update(JSON.stringify(parsed(key, overrides)))
+    .update(
+      JSON.stringify({ contractVersion: 2, baseCurrency: 'TWD', input: parsed(key, overrides) })
+    )
     .digest('hex'),
   data,
 });
@@ -102,7 +126,7 @@ function randomSpellings(count: number) {
 }
 
 describe('expense create receipts', () => {
-  it.each([LOWER, UPPER])('writes the identity of earlier versions for the key %s', async (key) => {
+  it.each([LOWER, UPPER])('writes the v2 receipt identity for the key %s', async (key) => {
     const golden = GOLDEN[key as keyof typeof GOLDEN];
     // The schema must keep producing the exact string the fingerprint was computed from.
     expect(JSON.stringify(parsed(key))).toBe(golden.json);
@@ -117,7 +141,7 @@ describe('expense create receipts', () => {
     expect(store.get(golden.id)?.fingerprint).toBe(golden.fingerprint);
   });
 
-  // Receipts of earlier versions keep the case they were sent: every spelling stored must answer
+  // Receipts keep the case they were sent: every spelling stored must answer
   // every spelling retried, including two different mixed ones.
   it.each(SPELLINGS.flatMap((stored) => SPELLINGS.map((retried) => [stored, retried])))(
     'replays a receipt stored as %s for a retry sent as %s',
@@ -135,23 +159,20 @@ describe('expense create receipts', () => {
     }
   );
 
-  it('still replays what an interim version stored after lowercasing an uppercase key', async () => {
-    // That version lowercased the key in the id and in the hashed input of an uppercase request.
-    const lowered = {
-      _id: `${TRIP}:${ACTOR}:${LOWER}`,
-      trip: TRIP,
-      fingerprint: createHash('sha256')
-        .update(JSON.stringify({ ...parsed(UPPER), client_request_id: LOWER }))
-        .digest('hex'),
-      data: accepted('e1'),
-    };
-    const { db } = fakeDb(lowered);
-    expect(await readExpenseCreateResult(db, request(UPPER))).toEqual(accepted('e1'));
-    expect(await readExpenseCreateResult(db, request(LOWER))).toEqual(accepted('e1'));
-    expect(await readExpenseCreateResult(db, request(MIXED))).toEqual(accepted('e1'));
+  // A receipt without version 2 was stored by retired v1. It is never replayed as a v2 result
+  // and never overwritten: the original request can only be resolved by its own client.
+  it.each(SPELLINGS)('refuses a v1 receipt retried as %s and writes nothing', async (retried) => {
+    const { contractVersion: _v1, ...v1 } = earlierReceipt(UPPER, accepted('e1'));
+    const { db, collection } = fakeDb(v1);
+    const created = vi.fn(async () => ({ data: accepted('e2') }));
     await expect(
-      readExpenseCreateResult(db, request(UPPER, { description: 'Different' }))
-    ).rejects.toMatchObject({ code: 'CONFLICT' });
+      withExpenseCreateRequest(db, session, request(retried), created)
+    ).rejects.toMatchObject({ code: 'CLIENT_UPGRADE_REQUIRED' });
+    await expect(
+      readExpenseCreateReceipt(db, { tripId: TRIP, actorId: ACTOR, clientRequestId: retried })
+    ).rejects.toMatchObject({ code: 'CLIENT_UPGRADE_REQUIRED' });
+    expect(created).not.toHaveBeenCalled();
+    expect(collection.insertOne).not.toHaveBeenCalled();
   });
 
   it.each(SPELLINGS.flatMap((stored) => SPELLINGS.map((retried) => [stored, retried])))(

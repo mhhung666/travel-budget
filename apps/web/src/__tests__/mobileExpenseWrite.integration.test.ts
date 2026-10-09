@@ -11,7 +11,10 @@ import {
   getLedgerExpenses as getExpenses,
 } from '@/actions/expense.actions';
 import { getMembers } from '@/actions/member.actions';
-import { createExpenseForActor } from '@/lib/expenseCreate';
+import * as expenseCreate from '@/lib/expenseCreate';
+import { inLedgerContext } from '@/test/ledgerContext';
+// A direct service call is one v2 request, as through the Web action or `/api/v2`.
+const createExpenseForActor = inLedgerContext(expenseCreate.createExpenseForActor);
 import { receiptSearch } from '@/lib/expenseCreateRequest';
 import { createExpenseSchema } from '@/lib/validation';
 import * as reads from '@/lib/mobile/expenses';
@@ -313,7 +316,11 @@ describe.skipIf(!uri || !allowed)('mobile expense write against an isolated repl
             mocks.head.mockResolvedValue(null);
             await expect(
               createExpenseForActor(
-                { tripId, actorId: hex(amy), input: createExpenseSchema.parse(payload) },
+                {
+                  tripId,
+                  actorId: hex(amy),
+                  input: createExpenseSchema.parse({ ...payload, base_currency: 'TWD' }),
+                },
                 mocks.after
               )
             ).rejects.toThrow('VALIDATION_ERROR');
@@ -606,7 +613,7 @@ describe.skipIf(!uri || !allowed)('mobile expense write against an isolated repl
     });
 
     it('reports exactly one creation among concurrent service calls', async () => {
-      const input = createExpenseSchema.parse(body());
+      const input = createExpenseSchema.parse({ ...body(), base_currency: 'TWD' });
       const outcomes = await Promise.all(
         Array.from({ length: 8 }, () =>
           createExpenseForActor({ tripId, actorId: hex(amy), input }, mocks.after)
@@ -1190,17 +1197,31 @@ describe.skipIf(!uri || !allowed)('mobile expense write against an isolated repl
       // The Web schema does not limit the amount: the service does.
       await expect(
         createExpenseForActor(
-          { tripId, actorId: hex(amy), input: createExpenseSchema.parse(payload) },
+          {
+            tripId,
+            actorId: hex(amy),
+            input: createExpenseSchema.parse({ ...payload, base_currency: 'TWD' }),
+          },
           mocks.after
         )
       ).rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
 
       expect(await count('expenses')).toBe(0);
-      expect(await count('expensecreaterequests')).toBe(0);
+      // A v2 business refusal is terminal: the key keeps one rejection receipt, no expense.
+      expect(await count('expensecreaterequests')).toBe(1);
+      expect(await lookup(payload.client_request_id)).toMatchObject({
+        status: 'rejected',
+        code: 'VALIDATION_ERROR',
+      });
       expect(await effects()).toEqual({ notifications: 0, activity: 0 });
-      // The key was never used up, so the corrected request goes through.
+      // The corrected request is a new operation with its own key.
       expect(
-        await create({ ...payload, original_amount: 100, splits: body().splits })
+        await create({
+          ...payload,
+          client_request_id: randomUUID(),
+          original_amount: 100,
+          splits: body().splits,
+        })
       ).toMatchObject({ amount: 100 });
     });
   });

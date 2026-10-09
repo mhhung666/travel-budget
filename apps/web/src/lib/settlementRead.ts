@@ -1,4 +1,4 @@
-import { authorizeLedger, assertUnit, moneyTotal, isLedgerV2, currentLedger } from './ledger';
+import { authorizeLedger, assertUnit, moneyTotal, currentLedger } from './ledger';
 import { Trip, Expense, Payment, User } from '@/models';
 import { calculateSettlement, applyPayments } from '@/lib/settlement';
 import { roundMoney, normalizeShares } from '@/lib/money';
@@ -38,7 +38,7 @@ export async function readSettlement(
   );
   // 只回傳原有欄位：公開結算路由直接序列化這個結果。
   return {
-    ...(isLedgerV2() ? { ledger: currentLedger() } : {}),
+    ledger: currentLedger(),
     balances,
     transactions,
     payments,

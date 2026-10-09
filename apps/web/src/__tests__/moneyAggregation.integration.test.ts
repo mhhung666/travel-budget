@@ -4,18 +4,27 @@ import mongoose, { mongo } from 'mongoose';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { roundMoney, roundMoneyExpr, normalizeShares, normalizedSplitsExpr } from '@/lib/money';
 import { Expense, User, Trip, Payment } from '@/models';
-import { readTripShell } from '@/lib/tripShellRead';
-import { readSettlement } from '@/lib/settlementRead';
-import { readTripListSummaries } from '@/lib/tripListSummary';
 import { computeTripStats } from '@/lib/tripStats';
 import { computeBudgetProgress } from '@/lib/budget';
 import { toExpenseDto } from '@/lib/dto';
 import { buildStatsExpensePagePipeline } from '@/lib/statsExpenseQuery';
 import { applyPayments } from '@/lib/settlement';
 import { getLedgerStats as getStats } from '@/actions/stats.actions';
+import * as settlementReadLib from '@/lib/settlementRead';
+import * as tripShellReadLib from '@/lib/tripShellRead';
+import * as tripListSummaryLib from '@/lib/tripListSummary';
+import { inLedgerContext } from '@/test/ledgerContext';
+// Each call is one v2 request, as through the Web action or `/api/v2`.
+const readSettlement = inLedgerContext(settlementReadLib.readSettlement);
+const readTripShell = inLedgerContext(tripShellReadLib.readTripShell);
+const readTripListSummaries = inLedgerContext(tripListSummaryLib.readTripListSummaries);
 const auth = vi.hoisted(() => ({ userId: '' }));
 vi.mock('@/lib/auth', () => ({ getSession: async () => ({ userId: auth.userId }) }));
 vi.mock('@/lib/mongodb', () => ({ dbConnect: async () => {} }));
+// A viewer's shell carries opaque settings revisions keyed by the server secret.
+vi.mock('@/lib/env', () => ({
+  getEnv: () => ({ JWT_SECRET: 'money-aggregation-secret-with-32-characters' }),
+}));
 
 // Only a fresh database on an explicitly supplied test server can be written/dropped.
 const uri = process.env.MONGODB_QUEUE_TEST_URI;

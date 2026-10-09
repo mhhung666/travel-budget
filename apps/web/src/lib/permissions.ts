@@ -6,7 +6,7 @@
 import mongoose, { isValidObjectId } from 'mongoose';
 import { dbConnect } from '@/lib/mongodb';
 import { Trip } from '@/models';
-import { authorizeLedger, isLedgerV2, validateLedgerChildren } from './ledger';
+import { authorizeLedger, validateLedgerChildren } from './ledger';
 
 export type TripRole = 'admin' | 'member';
 
@@ -46,11 +46,10 @@ export async function getMemberTrip<T extends MemberTripShape>(
   const member = trip.members.find((item) => item.user.toString() === userId);
   if (!member) return null;
   authorizeLedger(trip);
-  if (isLedgerV2())
-    await validateLedgerChildren(mongoose.connection.db!, {
-      ...trip,
-      _id: new mongoose.mongo.ObjectId(trip._id.toString()),
-    });
+  await validateLedgerChildren(mongoose.connection.db!, {
+    ...trip,
+    _id: new mongoose.mongo.ObjectId(trip._id.toString()),
+  });
   return {
     trip,
     membership: { tripId: trip._id.toString(), role: (member.role ?? 'member') as TripRole },
@@ -76,11 +75,10 @@ export async function getTripMembership(
   if (!member) return null;
 
   authorizeLedger(trip);
-  if (isLedgerV2())
-    await validateLedgerChildren(mongoose.connection.db!, {
-      ...trip,
-      _id: new mongoose.mongo.ObjectId(trip._id.toString()),
-    });
+  await validateLedgerChildren(mongoose.connection.db!, {
+    ...trip,
+    _id: new mongoose.mongo.ObjectId(trip._id.toString()),
+  });
   return {
     tripId: trip._id.toString(),
     role: member.role as TripRole,
@@ -144,7 +142,7 @@ export async function getTripIdByHashCode(hashCode: string): Promise<string | nu
   const trip = await Trip.findOne({ hashCode }).select('_id baseCurrency members').lean();
   if (trip) {
     authorizeLedger(trip);
-    if (isLedgerV2()) await validateLedgerChildren(mongoose.connection.db!, trip);
+    await validateLedgerChildren(mongoose.connection.db!, trip);
   }
   return trip ? trip._id.toString() : null;
 }

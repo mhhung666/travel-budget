@@ -10,9 +10,13 @@ vi.mock('@/lib/mongodb', () => ({ dbConnect: async () => {} }));
 import { Expense, Payment, Trip, User } from '@/models';
 import { getLedgerExpenses as getExpenses } from '@/actions/expense.actions';
 import { mobileExpense, mobileExpenses } from '@/lib/mobile/expenses';
-import { mobileSettlement } from '@/lib/mobile/settlement';
-import { readSettlement } from '@/lib/settlementRead';
 import { allocateMoney, roundMoney } from '@/lib/money';
+import * as settlementLib from '@/lib/mobile/settlement';
+import * as settlementReadLib from '@/lib/settlementRead';
+import { inLedgerContext } from '@/test/ledgerContext';
+// Each call is one v2 request, as through the Web action or `/api/v2`.
+const mobileSettlement = inLedgerContext(settlementLib.mobileSettlement);
+const readSettlement = inLedgerContext(settlementReadLib.readSettlement);
 
 // Only a fresh database on an explicitly supplied test server can be written/dropped.
 const uri = process.env.MONGODB_QUEUE_TEST_URI;

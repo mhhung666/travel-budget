@@ -100,11 +100,6 @@ it.each(['expenses', 'payments'])(
     expect(h.payments).not.toHaveBeenCalled();
   }
 );
-it('preserves legacy filtering without probing non-TWD children', async () => {
-  h.trips.mockResolvedValue([fixture(0), fixture(1, 'TWD'), fixture(2, 'USD')]);
-  expect(await readMemberTrips(viewer.toString())).toHaveLength(2);
-  expect(h.probe).not.toHaveBeenCalled();
-});
 it('does no child or summary query for an empty account', async () => {
   h.trips.mockResolvedValue([]);
   expect(await withLedgerV2(() => readMemberTrips(viewer.toString()))).toEqual([]);

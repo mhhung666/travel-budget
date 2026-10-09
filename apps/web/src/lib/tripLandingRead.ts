@@ -7,7 +7,7 @@ import { toTripDto, type TripDtoInput } from '@/lib/dto';
 import { readTripShell, type LeanTripShell } from '@/lib/tripShellRead';
 import { readItinerary } from '@/lib/itineraryRead';
 import { readSettlement } from '@/lib/settlementRead';
-import { authorizeLedger, isLedgerV2, validateLedgerChildren } from './ledger';
+import { authorizeLedger, validateLedgerChildren } from './ledger';
 import type { TripLanding } from '@/types/tripLanding';
 
 const projection =
@@ -34,11 +34,10 @@ export async function readTripLanding(
   }
   if (!trip) return null;
   authorizeLedger(trip);
-  if (isLedgerV2())
-    await validateLedgerChildren(mongoose.connection.db!, {
-      ...trip,
-      _id: new mongoose.mongo.ObjectId(trip._id.toString()),
-    });
+  await validateLedgerChildren(mongoose.connection.db!, {
+    ...trip,
+    _id: new mongoose.mongo.ObjectId(trip._id.toString()),
+  });
   const tripId = trip._id.toString();
   const dto = toTripDto(trip, viewerId);
   const today =

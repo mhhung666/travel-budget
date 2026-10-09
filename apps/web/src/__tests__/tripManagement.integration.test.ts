@@ -2,13 +2,16 @@
 import { randomUUID } from 'node:crypto';
 import { mongo } from 'mongoose';
 import { beforeAll, afterAll, beforeEach, describe, expect, it } from 'vitest';
-import {
-  manageTrip,
-  readTripSettings,
-  updateTripForActor,
-  archiveTripForActor,
-} from '@/lib/tripManagement';
-import { readTripMutation, MUTATION_REQUESTS } from '@/lib/tripEntry';
+import * as tripManagementLib from '@/lib/tripManagement';
+import * as tripEntryLib from '@/lib/tripEntry';
+import { inLedgerContext } from '@/test/ledgerContext';
+// Each call is one v2 request, as through the Web action or `/api/v2`.
+const manageTrip = inLedgerContext(tripManagementLib.manageTrip);
+const readTripSettings = inLedgerContext(tripManagementLib.readTripSettings);
+const updateTripForActor = inLedgerContext(tripManagementLib.updateTripForActor);
+const archiveTripForActor = inLedgerContext(tripManagementLib.archiveTripForActor);
+const readTripMutation = inLedgerContext(tripEntryLib.readTripMutation);
+const { MUTATION_REQUESTS } = tripEntryLib;
 const uri = process.env.MONGODB_MEMBER_TEST_URI;
 const allowed = process.env.MONGODB_MEMBER_TEST_ALLOW_WRITES === '1';
 if ((uri || allowed) && !(uri && allowed))
@@ -125,7 +128,11 @@ describe.skipIf(!uri || !allowed)('G1a isolated trip management', () => {
     expect((await context(peer)).archived).toBe(true);
     expect(
       await manageTrip(db, peer.toString(), trip.toString(), 'trip.archive', input, secret)
-    ).toEqual({ tripId: trip.toString(), archived: true });
+    ).toEqual({
+      tripId: trip.toString(),
+      archived: true,
+      ledger: { baseCurrency: 'TWD', moneyScale: 2 },
+    });
     await archiveTripForActor(db, peer.toString(), trip.toString(), false);
     expect((await context(peer)).archived).toBe(false);
     expect(

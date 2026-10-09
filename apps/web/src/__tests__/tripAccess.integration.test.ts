@@ -2,10 +2,18 @@
 import { randomUUID } from 'node:crypto';
 import { mongo } from 'mongoose';
 import { beforeAll, afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { manageTripAccess, readTripAccess, changeRoleForActor } from '@/lib/tripAccess';
-import { readTripMutation, MUTATION_REQUESTS } from '@/lib/tripEntry';
-import { removeTripMember } from '@/lib/memberRemoval';
 import { TRIP_CHILD_COLLECTIONS } from '@/lib/tripDeletion';
+import * as tripAccessLib from '@/lib/tripAccess';
+import * as tripEntryLib from '@/lib/tripEntry';
+import * as memberRemovalLib from '@/lib/memberRemoval';
+import { inLedgerContext } from '@/test/ledgerContext';
+// Each call is one v2 request, as through the Web action or `/api/v2`.
+const manageTripAccess = inLedgerContext(tripAccessLib.manageTripAccess);
+const readTripAccess = inLedgerContext(tripAccessLib.readTripAccess);
+const changeRoleForActor = inLedgerContext(tripAccessLib.changeRoleForActor);
+const readTripMutation = inLedgerContext(tripEntryLib.readTripMutation);
+const { MUTATION_REQUESTS } = tripEntryLib;
+const removeTripMember = inLedgerContext(memberRemovalLib.removeTripMember);
 const uri = process.env.MONGODB_MEMBER_TEST_URI;
 const allowed = process.env.MONGODB_MEMBER_TEST_ALLOW_WRITES === '1';
 if ((uri || allowed) && !(uri && allowed))
@@ -178,7 +186,11 @@ describe.skipIf(!uri || !allowed)('G1c isolated access transactions', () => {
       else await expect(write(old, who)).rejects.toThrow();
       const body = await input(action, who);
       const results = await Promise.all([write(body, who), write(body, who), write(body, who)]);
-      expect(results).toEqual(Array(3).fill({ tripId: String(trip), action, exited: true }));
+      // v2 results name the trip unit; replays return the stored result unchanged.
+      const ledger = { baseCurrency: 'TWD', moneyScale: 2 };
+      expect(results).toEqual(
+        Array(3).fill({ tripId: String(trip), action, exited: true, ledger })
+      );
       expect(await readTripMutation(db, String(who), body.client_request_id)).toMatchObject({
         status: 'committed',
         result: results[0],

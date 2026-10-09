@@ -200,17 +200,19 @@ export async function manageMember(
             result: { tripId, memberId: changedId, revision: next.revision },
           };
         }
+        // The first response is the stored receipt, so a replay returns exactly the same terminal.
+        const stored = terminalWithLedger(outcome);
         await receipts.insertOne(
           {
             _id: key,
             fingerprint,
             ...receiptStamp(),
-            terminal: terminalWithLedger(outcome),
+            terminal: stored,
             createdAt: new Date(),
           },
           { session }
         );
-        return outcome;
+        return stored;
       });
       if (terminal.status === 'rejected') throw new TripEntryError(terminal.code);
       return terminal.result as MemberMutationResult;

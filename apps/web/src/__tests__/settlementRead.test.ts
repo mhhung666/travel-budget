@@ -9,6 +9,7 @@ vi.mock('@/models', () => ({
   User: { find: vi.fn() },
 }));
 import { readSettlement, readSettlementDetail } from '@/lib/settlementRead';
+import { withLedgerV2 } from '@/lib/ledger';
 
 const TRIP = '507f1f77bcf86cd799439011';
 const [AMY, BOB, CARA] = [
@@ -77,14 +78,15 @@ describe('readSettlementDetail', () => {
     expect(detail.transfers.map((t) => t.fromId)).toEqual([BOB, CARA]);
   });
 
-  it('leaves the public settlement result exactly as before', async () => {
-    const result = await readSettlement(TRIP);
+  it('returns only the public settlement fields and the trip unit', async () => {
+    const result = await withLedgerV2(() => readSettlement(TRIP));
     expect(Object.keys(result).sort()).toEqual(
-      ['balances', 'payments', 'totalExpenses', 'transactions'].sort()
+      ['balances', 'ledger', 'payments', 'totalExpenses', 'transactions'].sort()
     );
+    expect(result.ledger).toEqual({ baseCurrency: 'TWD', moneyScale: 2 });
     const { transfers, virtualMembers, ...detail } = await readSettlementDetail(TRIP);
     expect(transfers).toHaveLength(2);
-    expect(result).toEqual(detail);
+    expect(result).toEqual({ ...detail, ledger: result.ledger });
     expect(virtualMembers).toBeDefined();
     expect(result).not.toHaveProperty('virtualMembers');
   });
@@ -97,7 +99,7 @@ it('retains distinct IDs for member suggestions without adding them to public tr
     { fromId: BOB, toId: AMY },
     { fromId: CARA, toId: AMY },
   ]);
-  expect((await readSettlement(TRIP)).transactions).toEqual([
+  expect((await withLedgerV2(() => readSettlement(TRIP))).transactions).toEqual([
     { from: 'SAME', to: 'SAME', amount: 30 },
     { from: 'SAME', to: 'SAME', amount: 30 },
   ]);

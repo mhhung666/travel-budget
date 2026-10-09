@@ -57,7 +57,7 @@ vi.mock('@/lib/logger', () => ({
 import { ItineraryImportProviderError } from '@/lib/ai/itineraryImportProvider';
 import { ItineraryImportQuotaError } from '@/lib/ai/itineraryImportQuota';
 import { POST } from '@/app/api/ai/itinerary-import/route';
-import { isLedgerV2 } from '@/lib/ledger';
+import { inLedgerContext } from '@/lib/ledger';
 
 const context = {
   tripStartDate: '2026-09-01',
@@ -127,7 +127,7 @@ describe('POST /api/ai/itinerary-import', () => {
   it('reads trip context in the v2 ledger context so a non-TWD trip is not refused', async () => {
     let v2 = false;
     mocks.loadContext.mockImplementation(async () => {
-      v2 = isLedgerV2();
+      v2 = inLedgerContext();
       return { status: 'ok', tripId: 'trip-1', context };
     });
 
