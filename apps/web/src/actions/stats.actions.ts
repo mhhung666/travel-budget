@@ -14,7 +14,7 @@ import { dbConnect } from '@/lib/mongodb';
 import { Trip, Expense, ItineraryDay } from '@/models';
 import { getTripMembership } from '@/lib/permissions';
 import { computeTripStats } from '@/lib/tripStats';
-import { withLedgerAuth as withAuth, withAuth as legacyAuth, withLegacyTripRead } from './withAuth';
+import { withLedgerAuth as withAuth } from './withAuth';
 import type { ActionResult } from './types';
 import type {
   StatsData,
@@ -565,29 +565,5 @@ export const getLedgerTripStats = withAuth(
       logger.error('Get trip stats error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
-  }
-);
-
-export const getTripStats = withLegacyTripRead(getLedgerTripStats);
-
-export const getStats = legacyAuth(async (_session, options: GetStatsOptions = {}) => {
-  if (options.baseCurrency && options.baseCurrency !== 'TWD')
-    return {
-      success: false as const,
-      error: 'CLIENT_UPGRADE_REQUIRED',
-      code: 'CLIENT_UPGRADE_REQUIRED' as const,
-    };
-  return getLedgerStats({ ...options, baseCurrency: 'TWD' });
-});
-
-export const getStatsExpensePage = legacyAuth(
-  async (_session, options: GetStatsExpensePageOptions = {}) => {
-    if (options.baseCurrency && options.baseCurrency !== 'TWD')
-      return {
-        success: false as const,
-        error: 'CLIENT_UPGRADE_REQUIRED',
-        code: 'CLIENT_UPGRADE_REQUIRED' as const,
-      };
-    return getLedgerStatsExpensePage({ ...options, baseCurrency: 'TWD' });
   }
 );

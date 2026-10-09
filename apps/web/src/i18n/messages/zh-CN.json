@@ -1660,6 +1660,7 @@
     "updateAvailable": "有新版本可用",
     "reload": "刷新",
     "pending": "待同步",
+    "legacyDraft": "这笔由旧版保存，已无法发送。它可能已经入账，请先查看支出列表，再导出或舍弃。",
     "queuedTitle": "已暂存支出",
     "queuedMessage": "已保存在这台设备，连接可用时会自动同步。",
     "writeUnavailableTitle": "离线时无法编辑",

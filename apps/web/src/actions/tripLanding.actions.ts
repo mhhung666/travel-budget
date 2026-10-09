@@ -1,6 +1,6 @@
 'use server';
 
-import { withLedgerAuth as withAuth, withLegacyTripRead } from './withAuth';
+import { withLedgerAuth as withAuth } from './withAuth';
 import type { ActionResult } from './types';
 import type { TripLanding } from '@/types/tripLanding';
 import { readTripLanding } from '@/lib/tripLandingRead';
@@ -19,5 +19,3 @@ export const getLedgerTripLanding = withAuth(
     }
   }
 );
-
-export const getTripLanding = withLegacyTripRead(getLedgerTripLanding);

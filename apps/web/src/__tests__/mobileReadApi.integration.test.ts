@@ -8,7 +8,7 @@ const auth = vi.hoisted(() => ({ userId: '' }));
 vi.mock('@/lib/auth', () => ({ getSession: async () => ({ userId: auth.userId }) }));
 vi.mock('@/lib/mongodb', () => ({ dbConnect: async () => {} }));
 import { Expense, Payment, Trip, User } from '@/models';
-import { getExpenses } from '@/actions/expense.actions';
+import { getLedgerExpenses as getExpenses } from '@/actions/expense.actions';
 import { mobileExpense, mobileExpenses } from '@/lib/mobile/expenses';
 import { mobileSettlement } from '@/lib/mobile/settlement';
 import { readSettlement } from '@/lib/settlementRead';

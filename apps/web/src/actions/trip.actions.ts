@@ -14,13 +14,12 @@ import { getMemberTrip, getTripMembership } from '@/lib/permissions';
 import { generateUniqueHashCode } from '@/lib/hashcode';
 import { deletePrefixPage } from '@/lib/storage';
 import {
-  createTripSchema,
   locationSchema,
   updateTripSchema,
   type CreateTripInput,
   type UpdateTripInput,
 } from '@/lib/validation';
-import { withLedgerAuth as withAuth, withAuth as legacyAuth, withLegacyTripRead } from './withAuth';
+import { withLedgerAuth as withAuth } from './withAuth';
 import type { ActionResult } from './types';
 import type { Trip, TripWithMembers } from '@/types';
 import type { TripShell } from '@/types';
@@ -90,57 +89,6 @@ export const getLedgerTripShell = withAuth(
       const failure = ledgerActionFailure(error);
       if (failure) return failure;
       logger.error('Get trip shell error', error);
-      return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
-    }
-  }
-);
-
-/**
- * Create a new trip
- */
-export const createTrip = withAuth(
-  async (session, input: CreateTripInput): Promise<ActionResult<Pick<Trip, 'id'>>> => {
-    try {
-      const validation = createTripSchema.safeParse(input);
-      if (!validation.success) {
-        return {
-          success: false,
-          error: validation.error.issues[0].message,
-          code: 'VALIDATION_ERROR',
-        };
-      }
-
-      const { name, description, start_date, end_date, destination_location } = validation.data;
-
-      await dbConnect();
-
-      const result = await enterTrip(
-        mongoose.connection.db!,
-        session.userId,
-        'trip.create',
-        {
-          client_request_id: randomUUID(),
-          base_currency: 'TWD',
-          name,
-          description: description ?? '',
-          start_date: start_date || null,
-          end_date: end_date || null,
-        },
-        undefined,
-        destination_location
-      );
-      try {
-        revalidatePath('/trips');
-      } catch {
-        logger.error('Trip cache refresh failed');
-      }
-      // The write is committed. Navigation needs only its ID; a later read failure
-      // must not invite the form to create another trip with a new UUID.
-      return { success: true, data: { id: result.tripId } };
-    } catch (error) {
-      const failure = ledgerActionFailure(error);
-      if (failure) return failure;
-      logger.error('Create trip error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
   }
@@ -441,15 +389,3 @@ export const joinLedgerTrip = withAuth(
     return { success: true as const, data: { id: result.tripId } };
   }
 );
-
-export const getTrip = withLegacyTripRead(getLedgerTrip);
-
-export const getTripShell = withLegacyTripRead(getLedgerTripShell);
-
-export const getTrips = legacyAuth(async (session): Promise<ActionResult<TripWithMembers[]>> => {
-  try {
-    return { success: true, data: await readMemberTrips(session.userId) };
-  } catch {
-    return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
-  }
-});

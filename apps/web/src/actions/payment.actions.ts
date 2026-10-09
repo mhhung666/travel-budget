@@ -1,105 +1,15 @@
 'use server';
 import { baseCurrency } from '@/lib/ledger';
 
-import { TripWriteError } from '@/lib/tripWriteTransaction';
-import { revalidatePath } from 'next/cache';
 import { Payment, Trip, Expense, User } from '@/models';
 import { getTripMembership } from '@/lib/permissions';
-import { recordPaymentSchema, type RecordPaymentInput } from '@/lib/validation';
 import { calculateSettlement, applyPayments } from '@/lib/settlement';
-import { getEnv, getResendConfig } from '@/lib/env';
+import { getResendConfig } from '@/lib/env';
 import { sendEmail } from '@/lib/email';
 import { buildPaymentReminderEmail } from '@/lib/emailTemplates';
-import { withLedgerAuth as withAuth, withAuth as legacyAuth } from './withAuth';
+import { withLedgerAuth as withAuth } from './withAuth';
 import type { ActionResult } from './types';
-import type { PaymentRecord } from '@/types';
 import { logger } from '@/lib/logger';
-import { deliverPaymentNotification } from '@/lib/notify';
-import mongoose from 'mongoose';
-import { TripEntryError } from '@/lib/tripEntry';
-import { recordPaymentForActor, deletePaymentForActor } from '@/lib/paymentWrite';
-
-/** Cookie adapters share the transaction service with mobile. */
-export const recordPayment = legacyAuth(
-  async (
-    session,
-    tripIdOrCode: string,
-    input: RecordPaymentInput
-  ): Promise<ActionResult<PaymentRecord>> => {
-    try {
-      const membership = await getTripMembership(session.userId, tripIdOrCode);
-      if (!membership) return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
-      const validation = recordPaymentSchema.safeParse(input);
-      if (!validation.success)
-        return {
-          success: false,
-          error: validation.error.issues[0].message,
-          code: 'VALIDATION_ERROR',
-        };
-      const data = await recordPaymentForActor(
-        mongoose.connection.db!,
-        session.userId,
-        membership.tripId,
-        validation.data,
-        getEnv().JWT_SECRET,
-        deliverPaymentNotification
-      );
-      try {
-        revalidatePath(`/trips/${tripIdOrCode}/settlement`);
-      } catch {
-        /* Committed success survives cache failure. */
-      }
-      return { success: true, data };
-    } catch (error) {
-      if (error instanceof TripWriteError)
-        return { success: false, error: error.code, code: error.code };
-      if (error instanceof TripEntryError)
-        return {
-          success: false,
-          error: error.code,
-          code: error.code === 'VALIDATION_ERROR' ? 'VALIDATION_ERROR' : 'CONFLICT',
-        };
-      logger.error('Record payment error', error);
-      return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
-    }
-  }
-);
-export const deletePayment = legacyAuth(
-  async (
-    session,
-    tripIdOrCode: string,
-    paymentId: string
-  ): Promise<ActionResult<{ message: string }>> => {
-    try {
-      const membership = await getTripMembership(session.userId, tripIdOrCode);
-      if (!membership) return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
-      await deletePaymentForActor(
-        mongoose.connection.db!,
-        session.userId,
-        membership.tripId,
-        paymentId,
-        getEnv().JWT_SECRET
-      );
-      try {
-        revalidatePath(`/trips/${tripIdOrCode}/settlement`);
-      } catch {
-        /* Already revoked. */
-      }
-      return { success: true, data: { message: '還款紀錄已刪除' } };
-    } catch (error) {
-      if (error instanceof TripWriteError)
-        return { success: false, error: error.code, code: error.code };
-      if (error instanceof TripEntryError)
-        return {
-          success: false,
-          error: error.code,
-          code: error.code === 'VALIDATION_ERROR' ? 'VALIDATION_ERROR' : 'CONFLICT',
-        };
-      logger.error('Delete payment error', error);
-      return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
-    }
-  }
-);
 
 type LeanExpenseForReminder = {
   payer: { toString(): string };

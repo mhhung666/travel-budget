@@ -24,7 +24,6 @@ vi.mock('@/lib/publicTripReads', () => ({ publicTripReads: mocks.reads }));
 vi.mock('@/lib/publicMemberClaims', () => ({ publicMemberClaims: mocks.claims }));
 vi.mock('@/lib/auth', () => ({ getSession: mocks.session }));
 import { isLedgerV2 } from '@/lib/ledger';
-import { withAuth, withLedgerIdentity } from '@/actions/withAuth';
 
 const publicApi = join(process.cwd(), 'src/app/api/public');
 const routeFiles = (dir: string) =>
@@ -79,29 +78,44 @@ describe('public v1/v2 trip routes', () => {
   });
 });
 
-// Server Actions: a new ledger identity reuses the old adapter and only switches the context.
-describe('withLedgerIdentity', () => {
-  const adapter = withAuth(async (session, value: string) => ({
-    success: true as const,
-    data: { userId: session.userId, value, v2: isLedgerV2() },
-  }));
-  const ledger = withLedgerIdentity(adapter);
+// Server Actions: B5d-3 removed the identities kept for old Web/PWA bundles.
+describe('retired Server Action identities', () => {
+  const actions = join(process.cwd(), 'src/actions');
+  const exported = readdirSync(actions)
+    .filter((file) => file.endsWith('.ts'))
+    .flatMap((file) =>
+      [...readFileSync(join(actions, file), 'utf8').matchAll(/^export const (\w+)/gm)].map(
+        (match) => match[1]
+      )
+    );
 
-  it('runs the shared adapter in v2 while the old identity stays v1', async () => {
-    mocks.session.mockResolvedValue({ userId: 'u1' });
-    await expect(adapter('x')).resolves.toEqual({
-      success: true,
-      data: { userId: 'u1', value: 'x', v2: false },
-    });
-    await expect(ledger('x')).resolves.toEqual({
-      success: true,
-      data: { userId: 'u1', value: 'x', v2: true },
-    });
-    expect(isLedgerV2()).toBe(false);
+  it.each([
+    'getTrips',
+    'getTrip',
+    'getTripShell',
+    'getTripLanding',
+    'getExpenses',
+    'getSettlement',
+    'getStats',
+    'getStatsExpensePage',
+    'getTripStats',
+    'getYearInReview',
+    'createTrip',
+    'createExpense',
+    'updateExpense',
+    'deleteExpense',
+    'lookupExpenseCreation',
+    'lookupLedgerExpenseCreation',
+    'recordPayment',
+    'deletePayment',
+    'setTripBudget',
+    'setTripCurrencySettings',
+  ])('%s is no longer a Server Action', (name) => {
+    expect(exported).not.toContain(name);
   });
 
-  it('keeps the adapter authentication for the new identity', async () => {
-    mocks.session.mockResolvedValue(null);
-    await expect(ledger('x')).resolves.toMatchObject({ success: false, code: 'UNAUTHORIZED' });
+  it('every remaining ledger identity runs in the v2 context', () => {
+    const source = readFileSync(join(actions, 'withAuth.ts'), 'utf8');
+    expect(source).not.toMatch(/withLedgerIdentity|withLegacyTripRead/);
   });
 });

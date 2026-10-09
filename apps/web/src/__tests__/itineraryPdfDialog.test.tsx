@@ -4,7 +4,7 @@ import ItineraryPdfExportDialog from '@/components/export/ItineraryPdfExportDial
 import type { ItineraryDay } from '@/types';
 
 const mocks = vi.hoisted(() => ({ read: vi.fn(), isMutating: vi.fn(() => 0) }));
-vi.mock('@/actions/tripLanding.actions', () => ({ getTripLanding: vi.fn() }));
+vi.mock('@/actions/tripLanding.actions', () => ({ getLedgerTripLanding: vi.fn() }));
 vi.mock('@/hooks/queries/fetcher', () => ({ fetchWithPublicFallback: mocks.read }));
 vi.mock('@/components/providers/QueryProvider', () => ({ useAuthenticatedSession: () => true }));
 vi.mock('@tanstack/react-query', () => ({

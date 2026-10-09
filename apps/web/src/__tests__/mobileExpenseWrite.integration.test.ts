@@ -6,10 +6,9 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { withLedgerV2 } from '@/lib/ledger';
 import { Expense, Trip } from '@/models';
 import {
-  createExpense,
   createLedgerExpense,
-  deleteExpense,
-  getExpenses,
+  deleteLedgerExpense,
+  getLedgerExpenses as getExpenses,
 } from '@/actions/expense.actions';
 import { getMembers } from '@/actions/member.actions';
 import { createExpenseForActor } from '@/lib/expenseCreate';
@@ -133,6 +132,17 @@ describe.skipIf(!uri || !allowed)('mobile expense write against an isolated repl
   // The v2 Web action shares the receipt and its ledger with the native v2 adapter.
   const webV2 = (payload: Payload) =>
     createLedgerExpense(tripId, { base_currency: 'TWD', ...payload });
+  // The Web delete confirms the revision the member last read.
+  const deleteExpense = async (trip: string, id: string) => {
+    const listed = await getExpenses(trip);
+    const revision = listed.success ? listed.data.find((item) => item.id === id)?.revision : null;
+    if (!revision) throw new Error('expense to delete is not listed');
+    return deleteLedgerExpense(trip, id, {
+      client_request_id: randomUUID(),
+      expected_revision: revision,
+      base_currency: 'TWD',
+    });
+  };
   // Notifications are per recipient and activity per trip; both are real writes in legacy mode.
   const effects = async () => ({
     notifications: await count('notifications'),
@@ -835,15 +845,13 @@ describe.skipIf(!uri || !allowed)('mobile expense write against an isolated repl
     /** The state after an earlier server accepted `payload` for `user`: its expense and its receipt. */
     async function acceptedEarlier(payload: Payload, user = amy) {
       mocks.session.mockResolvedValue({ userId: hex(user) });
-      const accepted = await createExpense(tripId, { ...payload, client_request_id: randomUUID() });
+      const accepted = await webV2({ ...payload, client_request_id: randomUUID() });
       mocks.session.mockResolvedValue({ userId: hex(amy) });
       if (!accepted.success) throw new Error('could not set up the earlier expense');
       await receipts().deleteMany({ trip: new mongo.ObjectId(tripId) });
       await receipts().insertOne(earlierReceipt(user, payload, accepted.data));
       return accepted.data;
     }
-    // The legacy Web action still replays these receipts until B5d-3; v2 never adopts them.
-    const web = (payload: Payload) => createExpense(tripId, payload);
     const upgrade = { code: 'CLIENT_UPGRADE_REQUIRED' };
     const state = async () => ({
       expenses: await count('expenses'),
@@ -855,11 +863,10 @@ describe.skipIf(!uri || !allowed)('mobile expense write against an isolated repl
       'finds a receipt stored for %s when v2 retries it as %s, and refuses it without another expense',
       async (stored, retried) => {
         const payload = body({ client_request_id: stored });
-        const original = await acceptedEarlier(payload);
+        await acceptedEarlier(payload);
         const before = await state();
         const retry = { ...payload, client_request_id: retried };
 
-        expect(await web(retry)).toEqual({ success: true, data: original });
         // A miss would create a new expense; finding the earlier receipt refuses the version change.
         await expect(create(retry)).rejects.toMatchObject(upgrade);
         await expect(lookup(retried)).rejects.toMatchObject(upgrade);
@@ -874,8 +881,8 @@ describe.skipIf(!uri || !allowed)('mobile expense write against an isolated repl
         const payload = body({ client_request_id: stored });
         await acceptedEarlier(payload);
         const changed = { ...payload, client_request_id: retried, description: 'Changed' };
-        expect(await web(changed)).toMatchObject({ success: false, code: 'CONFLICT' });
         await expect(create(changed)).rejects.toMatchObject(upgrade);
+        expect(await webV2(changed)).toMatchObject({ success: false, code: upgrade.code });
         expect(await count('expenses')).toBe(1);
         expect(await count('expensecreaterequests')).toBe(1);
       }
@@ -888,7 +895,6 @@ describe.skipIf(!uri || !allowed)('mobile expense write against an isolated repl
         const original = await acceptedEarlier(payload);
         expect(await deleteExpense(tripId, original.id)).toMatchObject({ success: true });
         const retry = { ...payload, client_request_id: retried };
-        expect(await web(retry)).toEqual({ success: true, data: original });
         await expect(create(retry)).rejects.toMatchObject(upgrade);
         await expect(lookup(retried)).rejects.toMatchObject(upgrade);
         expect(await count('expenses')).toBe(0);
@@ -913,7 +919,7 @@ describe.skipIf(!uri || !allowed)('mobile expense write against an isolated repl
           status: 404,
         });
         mocks.session.mockResolvedValue({ userId: hex(bob) });
-        expect(await web({ ...payload, client_request_id: asked })).toMatchObject({
+        expect(await webV2({ ...payload, client_request_id: asked })).toMatchObject({
           success: false,
           code: 'NOT_FOUND',
         });
@@ -921,7 +927,7 @@ describe.skipIf(!uri || !allowed)('mobile expense write against an isolated repl
       }
     );
 
-    it('stores v2 receipts under the key as first sent, marked so earlier versions refuse them', async () => {
+    it('stores v2 receipts under the key as first sent, marked with their version and ledger', async () => {
       for (const key of [randomUUID(), randomUUID().toUpperCase(), MIXED]) {
         const payload = body({ client_request_id: key });
         const viaMobile = await create(payload);
@@ -940,10 +946,6 @@ describe.skipIf(!uri || !allowed)('mobile expense write against an isolated repl
         // Not the earlier fingerprint: the version and ledger are part of what was confirmed.
         expect(stored?.fingerprint).not.toBe(earlierReceipt(amy, payload, viaMobile).fingerprint);
         expect(stored).toMatchObject({ contractVersion: 2, data: { id: viaMobile.id } });
-        expect(await web({ ...payload, client_request_id: other })).toMatchObject({
-          success: false,
-          code: 'CLIENT_UPGRADE_REQUIRED',
-        });
       }
     });
   });
@@ -1140,7 +1142,8 @@ describe.skipIf(!uri || !allowed)('mobile expense write against an isolated repl
     );
 
     it('converts a foreign amount to exactly the largest TWD amount', async () => {
-      const result = await createExpense(tripId, {
+      const result = await createLedgerExpense(tripId, {
+        base_currency: 'TWD',
         payer_id: hex(amy),
         original_amount: 50_000_000_000,
         currency: 'JPY',
@@ -1184,11 +1187,7 @@ describe.skipIf(!uri || !allowed)('mobile expense write against an isolated repl
         status: 400,
         code: 'VALIDATION_ERROR',
       });
-      // Neither the Web schema nor the service's callers limit the amount: the service does.
-      expect(await createExpense(tripId, payload)).toMatchObject({
-        success: false,
-        code: 'VALIDATION_ERROR',
-      });
+      // The Web schema does not limit the amount: the service does.
       await expect(
         createExpenseForActor(
           { tripId, actorId: hex(amy), input: createExpenseSchema.parse(payload) },
@@ -1207,7 +1206,8 @@ describe.skipIf(!uri || !allowed)('mobile expense write against an isolated repl
   });
 
   it('reads Web expenses with foreign currency and shows mobile expenses to Web with equal amounts', async () => {
-    const web = await createExpense(tripId, {
+    const web = await createLedgerExpense(tripId, {
+      base_currency: 'TWD',
       payer_id: hex(bob),
       original_amount: 3000,
       currency: 'JPY',

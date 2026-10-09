@@ -13,18 +13,15 @@ import { tripKeys } from '@/hooks/queries/keys';
 import { registerOfflineMutationDefaults } from '@/lib/offlineMutations';
 import { buildOptimisticExpense } from '@/lib/optimisticExpense';
 
-const createExpense = vi.hoisted(() => vi.fn());
-vi.mock('@/actions', () => ({
-  lookupExpenseCreation: vi.fn(async () => ({ success: true, data: null })),
-  createExpense,
-  updateExpense: vi.fn(),
-  deleteExpense: vi.fn(),
-}));
+const createLedgerExpense = vi.hoisted(() => vi.fn());
+vi.mock('@/actions', () => ({ createLedgerExpense }));
 vi.mock('@/lib/productEvents', () => ({ trackProductEvent: vi.fn() }));
 import { useExpenseMutations } from '@/hooks/queries/useExpenseMutations';
 const vars = {
   tripId: 'trip',
+  contractVersion: 2 as const,
   input: {
+    base_currency: 'TWD',
     payer_id: 'user',
     description: 'Dinner',
     original_amount: 100,
@@ -67,7 +64,7 @@ afterEach(() => {
 describe('expense optimistic and offline acceptance', () => {
   it('shows an immediate placeholder and reconciles to the committed DTO', async () => {
     let resolve!: (value: unknown) => void;
-    createExpense.mockReturnValue(
+    createLedgerExpense.mockReturnValue(
       new Promise((r) => {
         resolve = r;
       })
@@ -88,36 +85,36 @@ describe('expense optimistic and offline acceptance', () => {
     'retries an ambiguous %s failure using one request key',
     async (failure) => {
       if (failure === 'transport')
-        createExpense.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+        createLedgerExpense.mockRejectedValueOnce(new TypeError('Failed to fetch'));
       else
-        createExpense.mockResolvedValueOnce({
+        createLedgerExpense.mockResolvedValueOnce({
           success: false,
           code: 'INTERNAL_ERROR',
           error: 'INTERNAL_ERROR',
         });
-      createExpense.mockResolvedValueOnce({ success: true, data: saved });
+      createLedgerExpense.mockResolvedValueOnce({ success: true, data: saved });
       const { result } = renderHook(() => useExpenseMutations('trip'), { wrapper });
       act(() => result.current.create.mutate(vars));
       await waitFor(() => expect(result.current.create.failureCount).toBe(1));
       expect(client.getQueryData<Expense[]>(key)?.[0].id).toMatch(/^optimistic_/);
       await waitFor(() => expect(result.current.create.isSuccess).toBe(true), { timeout: 3000 });
-      expect(createExpense).toHaveBeenCalledTimes(2);
-      expect(createExpense.mock.calls[1][1]).toEqual(createExpense.mock.calls[0][1]);
+      expect(createLedgerExpense).toHaveBeenCalledTimes(2);
+      expect(createLedgerExpense.mock.calls[1][1]).toEqual(createLedgerExpense.mock.calls[0][1]);
       expect(client.getQueryData(key)).toEqual([saved]);
       expect(vars.input).not.toHaveProperty('client_request_id');
     }
   );
   it('does not send a delayed retry after logout clears the mutation cache', async () => {
-    createExpense.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    createLedgerExpense.mockRejectedValueOnce(new TypeError('Failed to fetch'));
     const { result } = renderHook(() => useExpenseMutations('trip'), { wrapper });
     act(() => result.current.create.mutate(vars));
     await waitFor(() => expect(result.current.create.failureCount).toBe(1));
     act(() => client.clear());
     await waitFor(() => expect(result.current.create.isError).toBe(true), { timeout: 3000 });
-    expect(createExpense).toHaveBeenCalledOnce();
+    expect(createLedgerExpense).toHaveBeenCalledOnce();
   });
   it('allocates distinct keys when submitting the same form object twice', async () => {
-    createExpense.mockResolvedValue({ success: true, data: saved });
+    createLedgerExpense.mockResolvedValue({ success: true, data: saved });
     const { result } = renderHook(() => useExpenseMutations('trip'), { wrapper });
     await act(async () => {
       await result.current.create.mutateAsync(vars);
@@ -125,13 +122,13 @@ describe('expense optimistic and offline acceptance', () => {
     await act(async () => {
       await result.current.create.mutateAsync(vars);
     });
-    expect(createExpense.mock.calls[0][1].client_request_id).not.toBe(
-      createExpense.mock.calls[1][1].client_request_id
+    expect(createLedgerExpense.mock.calls[0][1].client_request_id).not.toBe(
+      createLedgerExpense.mock.calls[1][1].client_request_id
     );
     expect(vars.input).not.toHaveProperty('client_request_id');
   });
   it('removes the placeholder even when no cache existed before a rejected create', async () => {
-    createExpense.mockResolvedValue({ success: false, error: 'VALIDATION_ERROR' });
+    createLedgerExpense.mockResolvedValue({ success: false, error: 'VALIDATION_ERROR' });
     const { result } = renderHook(() => useExpenseMutations('trip'), { wrapper });
     act(() => result.current.create.mutate(vars));
     await waitFor(() => expect(result.current.create.isError).toBe(true));
@@ -141,7 +138,7 @@ describe('expense optimistic and offline acceptance', () => {
     const shell = { expense_count: 1, total_spent: 10, today_spent: 10 } as TripShell;
     client.setQueryData(tripKeys.shell('trip'), shell);
     client.setQueryData(tripKeys.currentUser, { id: 'user' });
-    createExpense.mockResolvedValue({ success: false, error: 'FAILED' });
+    createLedgerExpense.mockResolvedValue({ success: false, error: 'FAILED' });
     const { result } = renderHook(() => useExpenseMutations('trip'), { wrapper });
     act(() => result.current.create.mutate(vars));
     await waitFor(() => expect(result.current.create.isError).toBe(true));
@@ -149,15 +146,15 @@ describe('expense optimistic and offline acceptance', () => {
   });
   it('does not erase a different concurrent successful create when an older create fails', async () => {
     let fail!: (value: unknown) => void;
-    createExpense.mockReturnValueOnce(
+    createLedgerExpense.mockReturnValueOnce(
       new Promise((r) => {
         fail = r;
       })
     );
     const { result } = renderHook(() => useExpenseMutations('trip'), { wrapper });
     act(() => result.current.create.mutate(vars));
-    await waitFor(() => expect(createExpense).toHaveBeenCalledOnce());
-    createExpense.mockResolvedValueOnce({ success: true, data: saved });
+    await waitFor(() => expect(createLedgerExpense).toHaveBeenCalledOnce());
+    createLedgerExpense.mockResolvedValueOnce({ success: true, data: saved });
     act(() =>
       result.current.create.mutate({ ...vars, input: { ...vars.input, description: 'Second' } })
     );
@@ -181,7 +178,7 @@ describe('expense optimistic and offline acceptance', () => {
       client.setQueryData(tripKeys.shell('trip'), base);
       client.setQueryData(tripKeys.currentUser, { id: 'user' });
       const replies: ((value: unknown) => void)[] = [];
-      createExpense.mockImplementation(() => new Promise((resolve) => replies.push(resolve)));
+      createLedgerExpense.mockImplementation(() => new Promise((resolve) => replies.push(resolve)));
       const mounted = renderHook(() => useExpenseMutations('trip'), { wrapper });
       try {
         for (const amount of [41, 43]) {
@@ -242,7 +239,7 @@ describe('expense optimistic and offline acceptance', () => {
       act(() => result.current.create.mutate(vars));
       await waitFor(() => expect(result.current.create.isPaused).toBe(true));
       await waitFor(() => expect(client.getQueryData<Expense[]>(key)?.length).toBe(1));
-      expect(createExpense).not.toHaveBeenCalled();
+      expect(createLedgerExpense).not.toHaveBeenCalled();
       const projectedShell = client.getQueryData(tripKeys.shell('trip'));
       const snapshot = JSON.parse(JSON.stringify(dehydrate(client)));
       unmount();
@@ -253,12 +250,12 @@ describe('expense optimistic and offline acceptance', () => {
       hydrate(resumed, snapshot);
       const refreshedShell = { ...shell, name: 'Updated trip', expense_count: 5, total_spent: 500 };
       if (newerShell) resumed.setQueryData(tripKeys.shell('trip'), refreshedShell);
-      createExpense.mockResolvedValue(
+      createLedgerExpense.mockResolvedValue(
         success ? { success: true, data: saved } : { success: false, error: 'FAILED' }
       );
       onlineManager.setOnline(true);
       await resumed.resumePausedMutations();
-      expect(createExpense).toHaveBeenCalledExactlyOnceWith(
+      expect(createLedgerExpense).toHaveBeenCalledExactlyOnceWith(
         vars.tripId,
         expect.objectContaining({ ...vars.input, client_request_id: expect.any(String) })
       );
@@ -274,12 +271,23 @@ describe('expense optimistic and offline acceptance', () => {
 });
 
 it('does not retry a definitive UUID/content conflict as a transport error', async () => {
-  createExpense.mockResolvedValue({ success: false, error: 'CONFLICT', code: 'CONFLICT' });
+  createLedgerExpense.mockResolvedValue({ success: false, error: 'CONFLICT', code: 'CONFLICT' });
   const { result } = renderHook(() => useExpenseMutations('trip'), { wrapper });
   await act(async () => {
     result.current.create.mutate(vars);
   });
   await waitFor(() => expect(result.current.create.isError).toBe(true));
-  expect(createExpense).toHaveBeenCalledOnce();
+  expect(createLedgerExpense).toHaveBeenCalledOnce();
   expect(client.getQueryData(key)).toEqual([]);
+});
+
+it('refuses to send a request without the v2 contract version', async () => {
+  const { contractVersion: _version, ...legacy } = vars;
+  const { result } = renderHook(() => useExpenseMutations('trip'), { wrapper });
+  await act(async () => {
+    result.current.create.mutate(legacy);
+  });
+  await waitFor(() => expect(result.current.create.isError).toBe(true));
+  expect(result.current.create.error?.message).toBe('Legacy expense request is not sent');
+  expect(createLedgerExpense).not.toHaveBeenCalled();
 });

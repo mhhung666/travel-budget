@@ -7,7 +7,7 @@ import { baseCurrency, validateLedgerChildrenBatch } from '@/lib/ledger';
 import type { Ledger } from '@travel-budget/contracts';
 import { dbConnect } from '@/lib/mongodb';
 import { Trip, Expense, ItineraryDay, FlightRecord, StayRecord } from '@/models';
-import { withLedgerAuth as withAuth, withAuth as legacyAuth } from './withAuth';
+import { withLedgerAuth as withAuth } from './withAuth';
 import type { ActionResult } from './types';
 import type { YearInReviewData, Location } from '@/types';
 import {
@@ -209,12 +209,3 @@ function emptyReview(year: number): YearInReviewData {
     busiestMonth: null,
   };
 }
-
-export const getYearInReview = legacyAuth(async (_session, year?: number | null) => {
-  const result = await getLedgerYearInReview(year);
-  if (!result.success) return result;
-  return {
-    success: true as const,
-    data: { review: result.data.review, availableYears: result.data.availableYears },
-  };
-});

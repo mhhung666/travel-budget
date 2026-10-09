@@ -102,15 +102,9 @@ vi.mock('@/models', () => ({
   Comment: { deleteMany: (...args: unknown[]) => commentDeleteMany(...args) },
 }));
 
-import {
-  createExpense,
-  deleteExpense,
-  getExpenseTags,
-  getReceiptUrl,
-  updateExpense,
-  lookupExpenseCreation,
-  lookupLedgerExpenseCreation,
-} from '@/actions/expense.actions';
+import { createLedgerExpense, getExpenseTags, getReceiptUrl } from '@/actions/expense.actions';
+import type { CreateExpenseInput } from '@/lib/validation';
+import { authorizeLedger } from '@/lib/ledger';
 
 const USER = '507f191e810c19729de860ea';
 const MEMBER = '507f191e810c19729de860eb';
@@ -121,6 +115,7 @@ const DAY = '507f1f77bcf86cd799439013';
 const RECEIPT = `receipts/${TRIP}/receipt.webp`;
 
 const validInput = {
+  base_currency: 'TWD',
   payer_id: USER,
   original_amount: 100,
   currency: 'USD',
@@ -134,23 +129,22 @@ const validInput = {
   ],
 };
 
+/** The v2 action requires a key; each call gets a fresh one unless the test fixes it. */
+const createExpense = (tripIdOrCode: string, input: Record<string, unknown>) =>
+  createLedgerExpense(tripIdOrCode, {
+    client_request_id: crypto.randomUUID(),
+    ...input,
+  } as CreateExpenseInput);
+
+/** Like the real membership read, records the trip's ledger (historical TWD) for the request. */
+const member = (tripId: string) => async () => {
+  authorizeLedger({});
+  return { tripId, role: 'member' };
+};
+
 function selectLean(value: unknown) {
   const query = { session: () => query, select: () => ({ lean: () => Promise.resolve(value) }) };
   return query;
-}
-
-function currentExpense(overrides: Record<string, unknown> = {}) {
-  return {
-    originalAmount: 100,
-    exchangeRate: 30,
-    description: 'Dinner',
-    splits: [
-      { user: USER, shareAmount: 1500 },
-      { user: MEMBER, shareAmount: 1500 },
-    ],
-    attachments: [],
-    ...overrides,
-  };
 }
 
 beforeEach(() => {
@@ -172,7 +166,7 @@ beforeEach(() => {
   after.mockImplementation(() => undefined);
   userFind.mockReturnValue(selectLean([{ _id: USER, displayName: 'Actor', username: 'actor' }]));
   getSession.mockResolvedValue({ userId: USER });
-  getTripMembership.mockResolvedValue({ tripId: TRIP, role: 'member' });
+  getTripMembership.mockImplementation(member(TRIP));
   tripFindById.mockReturnValue(
     selectLean({ name: 'Trip', hashCode: 'trip-code', members: [{ user: USER }, { user: MEMBER }] })
   );
@@ -246,13 +240,14 @@ describe('createExpense', () => {
       toObject: () => ({ _id: { toString: () => EXPENSE } }),
     });
 
+    // 100.01 × 0.3 = 30.003: the converted amount has a fraction of a cent.
     const result = await createExpense(TRIP, {
       ...validInput,
-      original_amount: 30.004,
-      exchange_rate: 1,
+      original_amount: 100.01,
+      exchange_rate: 0.3,
       splits: [
-        { user_id: USER, share_amount: 15.002 },
-        { user_id: MEMBER, share_amount: 15.002 },
+        { user_id: USER, share_amount: 15 },
+        { user_id: MEMBER, share_amount: 15 },
       ],
     });
     expect(result.success).toBe(true);
@@ -270,10 +265,7 @@ describe('createExpense', () => {
 
   // 容差內的尾差必須實際分配掉，不能只是各自四捨五入：500＋499.99 各自取整後仍是
   // 999.99，1,000 元的支出就永遠留下一分無人可還。
-  it.each([
-    ['a share that ends in a stray cent', 1000, [500, 499.99], [500.01, 499.99]],
-    ['shares that both round up', 10.01, [5.005, 5.005], [5.01, 5]],
-  ])(
+  it.each([['a share that ends in a stray cent', 1000, [500, 499.99], [500.01, 499.99]]])(
     'allocates the remainder for %s so stored shares add up exactly',
     async (_label, amount, shares, expected) => {
       expenseCreate.mockResolvedValue({
@@ -303,6 +295,27 @@ describe('createExpense', () => {
       );
     }
   );
+
+  // v2 stores what the caller confirmed: amounts and shares finer than a cent are refused, not
+  // silently rounded.
+  it.each([
+    ['an amount', { original_amount: 30.004, exchange_rate: 1 }],
+    [
+      'shares',
+      {
+        original_amount: 10.01,
+        exchange_rate: 1,
+        splits: [
+          { user_id: USER, share_amount: 5.005 },
+          { user_id: MEMBER, share_amount: 5.005 },
+        ],
+      },
+    ],
+  ])('rejects %s finer than a cent without writing', async (_label, fields) => {
+    const result = await createExpense(TRIP, { ...validInput, ...fields });
+    expect(result).toMatchObject({ success: false, code: 'VALIDATION_ERROR' });
+    expect(expenseCreate).not.toHaveBeenCalled();
+  });
 
   // V8 rolls 2026-02-31 over to March 3 instead of rejecting it, so a regex-valid date alone
   // would silently be stored on the wrong day.
@@ -361,7 +374,8 @@ describe('createExpense', () => {
     });
     expect(result).toMatchObject({ success: false, code: 'VALIDATION_ERROR' });
     expect(expenseCreate).not.toHaveBeenCalled();
-    expect(receipts.size).toBe(0);
+    // v2 keeps the refusal as the key's terminal result.
+    expect(receipts.size).toBe(1);
   });
 
   it('rejects a share above the limit even when the split still balances within a cent', async () => {
@@ -654,7 +668,7 @@ describe('createExpense request replay', () => {
     await createExpense(TRIP, input);
     getSession.mockResolvedValue({ userId: MEMBER });
     await createExpense(TRIP, input);
-    getTripMembership.mockResolvedValue({ tripId: DAY, role: 'member' });
+    getTripMembership.mockImplementation(member(DAY));
     await createExpense(DAY, input);
     expect(expenseCreate).toHaveBeenCalledTimes(3);
     expect(receipts.size).toBe(3);
@@ -701,132 +715,7 @@ describe('createExpense request replay', () => {
   });
 });
 
-describe('updateExpense', () => {
-  it('rejects a missing or cross-trip expense before updating', async () => {
-    expenseFindOne.mockReturnValue(selectLean(null));
-    expect(await updateExpense(TRIP, EXPENSE, { description: 'Updated' })).toEqual({
-      success: false,
-      error: 'NOT_FOUND',
-      code: 'NOT_FOUND',
-    });
-    expect(expenseUpdateOne).not.toHaveBeenCalled();
-  });
-
-  it('rebalances existing participants when the amount changes without explicit splits', async () => {
-    expenseFindOne.mockReturnValue(selectLean(currentExpense()));
-    const result = await updateExpense(TRIP, EXPENSE, { original_amount: 200 });
-    expect(result.success).toBe(true);
-    expect(expenseUpdateOne).toHaveBeenCalledWith(
-      { _id: EXPENSE, trip: TRIP },
-      {
-        $set: expect.objectContaining({
-          originalAmount: 200,
-          amount: 6000,
-          splits: [
-            { user: USER, shareAmount: 3000 },
-            { user: MEMBER, shareAmount: 3000 },
-          ],
-        }),
-      },
-      { session: undefined }
-    );
-  });
-
-  it('allocates the remainder of explicit splits when updating', async () => {
-    expenseFindOne.mockReturnValue(selectLean(currentExpense()));
-    const result = await updateExpense(TRIP, EXPENSE, {
-      original_amount: 3000,
-      exchange_rate: 1,
-      splits: [
-        { user_id: USER, share_amount: 1500 },
-        { user_id: MEMBER, share_amount: 1499.99 },
-      ],
-    });
-    expect(result.success).toBe(true);
-    expect(expenseUpdateOne).toHaveBeenCalledWith(
-      { _id: EXPENSE, trip: TRIP },
-      {
-        $set: expect.objectContaining({
-          amount: 3000,
-          splits: [
-            { user: USER, shareAmount: 1500.01 },
-            { user: MEMBER, shareAmount: 1499.99 },
-          ],
-        }),
-      },
-      { session: undefined }
-    );
-  });
-
-  it.each([
-    ['payer', { payer_id: OUTSIDER }],
-    ['split participant', { splits: [{ user_id: OUTSIDER, share_amount: 3000 }] }],
-  ])('rejects an outside %s when updating an existing expense', async (_label, input) => {
-    expenseFindOne.mockReturnValue(selectLean(currentExpense()));
-    const result = await updateExpense(TRIP, EXPENSE, input);
-    expect(result).toEqual({
-      success: false,
-      error: 'VALIDATION_ERROR',
-      code: 'VALIDATION_ERROR',
-    });
-    expect(expenseUpdateOne).not.toHaveBeenCalled();
-  });
-
-  it('preserves existing attachment metadata and removes dropped blobs best-effort', async () => {
-    const oldReceipt = `receipts/${TRIP}/old.webp`;
-    const keptReceipt = `receipts/${TRIP}/kept.webp`;
-    const kept = {
-      key: keptReceipt,
-      contentType: 'image/png',
-      size: 500,
-      uploadedBy: USER,
-      uploadedAt: new Date('2026-01-01T00:00:00.000Z'),
-    };
-    expenseFindOne.mockReturnValue(
-      selectLean(
-        currentExpense({
-          attachments: [kept, { ...kept, key: oldReceipt }],
-        })
-      )
-    );
-    deleteObjects.mockRejectedValueOnce(new Error('R2 unavailable'));
-
-    const result = await updateExpense(TRIP, EXPENSE, {
-      attachments: [{ key: keptReceipt, content_type: 'image/webp', size: 1 }],
-    });
-
-    expect(result.success).toBe(true);
-    expect(headObject).not.toHaveBeenCalled();
-    expect(deleteObjects).toHaveBeenCalledWith('receipts', [oldReceipt]);
-    expect(expenseUpdateOne).toHaveBeenCalledWith(
-      { _id: EXPENSE, trip: TRIP },
-      { $set: { attachments: [kept] } },
-      { session: undefined }
-    );
-  });
-});
-
-describe('deleteExpense and getReceiptUrl', () => {
-  it('cleans up receipt blobs and comments after a trip-scoped delete', async () => {
-    expenseFindOne.mockReturnValue(
-      selectLean({ attachments: [{ key: RECEIPT }], description: 'Dinner' })
-    );
-    const result = await deleteExpense(TRIP, EXPENSE);
-    expect(result.success).toBe(true);
-    expect(expenseDeleteOne).toHaveBeenCalledWith(
-      { _id: EXPENSE, trip: TRIP },
-      { session: undefined }
-    );
-    expect(deleteObjects).toHaveBeenCalledWith('receipts', [RECEIPT]);
-    expect(commentDeleteMany).toHaveBeenCalledWith(
-      { expense: EXPENSE, trip: TRIP },
-      { session: undefined }
-    );
-    expect(logActivity).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'expense_deleted', meta: { description: 'Dinner' } })
-    );
-  });
-
+describe('getReceiptUrl', () => {
   it('never signs a receipt key outside the resolved trip', async () => {
     const result = await getReceiptUrl(TRIP, 'receipts/another-trip/file.webp');
     expect(result).toEqual({ success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' });
@@ -842,54 +731,3 @@ describe('deleteExpense and getReceiptUrl', () => {
     expect(presignGet).toHaveBeenCalledWith('receipts', RECEIPT);
   });
 });
-
-describe('expense creation lookup validation', () => {
-  it.each([1, 2])(
-    'returns a terminal validation result for malformed v%s queued input',
-    async (version) => {
-      const input = {
-        ...validInput,
-        original_amount: -1,
-        ...(version === 2 ? { base_currency: 'TWD' } : {}),
-      };
-      const lookup = version === 2 ? lookupLedgerExpenseCreation : lookupExpenseCreation;
-      expect(await lookup(TRIP, input)).toEqual({
-        success: false,
-        error: 'VALIDATION_ERROR',
-        code: 'VALIDATION_ERROR',
-      });
-      expect(receiptFind).not.toHaveBeenCalled();
-      expect(expenseCreate).not.toHaveBeenCalled();
-    }
-  );
-});
-
-it.each([1, 2])(
-  'returns CONFLICT for a v%s lookup with a changed body under the original UUID',
-  async (version) => {
-    const lookup = version === 2 ? lookupLedgerExpenseCreation : lookupExpenseCreation;
-    const body = {
-      ...validInput,
-      client_request_id: crypto.randomUUID(),
-      ...(version === 2 ? { base_currency: 'TWD' } : {}),
-    };
-    const { authorizeLedger } = await import('@/lib/ledger');
-    getTripMembership.mockImplementationOnce(async () => {
-      authorizeLedger({});
-      return { tripId: TRIP, role: 'member' };
-    });
-    receiptFind.mockResolvedValueOnce({
-      _id: `${TRIP}:${USER}:${body.client_request_id}`,
-      fingerprint: 'different',
-      ...(version === 2
-        ? { contractVersion: 2, ledger: { baseCurrency: 'TWD', moneyScale: 2 } }
-        : {}),
-      terminal: { status: 'committed' },
-    });
-    expect(await lookup(TRIP, body)).toEqual({
-      success: false,
-      error: 'CONFLICT',
-      code: 'CONFLICT',
-    });
-  }
-);

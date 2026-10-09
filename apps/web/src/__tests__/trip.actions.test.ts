@@ -107,9 +107,8 @@ vi.mock('@/models', () => ({
 }));
 
 import {
-  createTrip,
   deleteTrip,
-  getTripShell,
+  getLedgerTripShell,
   joinTrip,
   regenerateHashCode,
   updateTrip,
@@ -172,9 +171,9 @@ beforeEach(() => {
   for (const operation of Object.values(cascade)) operation.mockResolvedValue({ deletedCount: 1 });
 });
 
-describe('getTripShell', () => {
+describe('getLedgerTripShell', () => {
   it('returns aggregate counters without loading member profiles or expense rows', async () => {
-    const result = await getTripShell('oldcode1');
+    const result = await getLedgerTripShell('oldcode1');
 
     expect(result).toEqual({
       success: true,
@@ -195,85 +194,6 @@ describe('getTripShell', () => {
     );
     expect(tripFindById).not.toHaveBeenCalled();
     expect(expenseAggregate).toHaveBeenCalledOnce();
-  });
-});
-
-describe('createTrip', () => {
-  it('rejects unauthenticated and invalid requests before connecting to the database', async () => {
-    getSession.mockResolvedValueOnce(null);
-    expect(await createTrip({ name: 'Tokyo' })).toEqual({
-      success: false,
-      error: 'UNAUTHORIZED',
-      code: 'UNAUTHORIZED',
-    });
-
-    const invalid = await createTrip({ name: '' });
-    expect(invalid.success).toBe(false);
-    if (invalid.success) throw new Error('expected failure');
-    expect(invalid.code).toBe('VALIDATION_ERROR');
-    expect(dbConnect).not.toHaveBeenCalled();
-    expect(tripCreate).not.toHaveBeenCalled();
-  });
-
-  it('returns the committed ID without a second trip read', async () => {
-    entry.enter.mockResolvedValue({ tripId: TRIP });
-    const result = await createTrip({
-      name: ' Tokyo 2026 ',
-      description: '  Autumn trip  ',
-      start_date: '2026-09-01',
-      end_date: '2026-09-05',
-    });
-
-    expect(result).toEqual({ success: true, data: { id: TRIP } });
-    expect(tripFindById).not.toHaveBeenCalled();
-    expect(tripFindOne).not.toHaveBeenCalled();
-    expect(entry.enter).toHaveBeenCalledWith(
-      undefined,
-      USER,
-      'trip.create',
-      expect.objectContaining({
-        name: 'Tokyo 2026',
-        description: 'Autumn trip',
-        start_date: '2026-09-01',
-        end_date: '2026-09-05',
-        client_request_id: expect.any(String),
-      }),
-      undefined,
-      undefined
-    );
-    expect(revalidatePath).toHaveBeenCalledWith('/trips');
-  });
-  it.each(['unavailable', 'missing'])(
-    'keeps committed success when a later read is %s',
-    async (failure) => {
-      entry.enter.mockResolvedValue({ tripId: TRIP });
-      const read = () => {
-        if (failure === 'unavailable') throw new Error('read unavailable');
-        return lean(null);
-      };
-      tripFindById.mockImplementationOnce(read);
-      tripFindOne.mockImplementationOnce(read);
-      expect(await createTrip({ name: 'Tokyo' })).toEqual({ success: true, data: { id: TRIP } });
-      expect(entry.enter).toHaveBeenCalledOnce();
-      expect(tripFindById).not.toHaveBeenCalled();
-      expect(tripFindOne).not.toHaveBeenCalled();
-    }
-  );
-  it('keeps committed success when cache refresh fails', async () => {
-    entry.enter.mockResolvedValue({ tripId: TRIP });
-    revalidatePath.mockImplementationOnce(() => {
-      throw new Error('cache unavailable');
-    });
-    expect(await createTrip({ name: 'Tokyo' })).toEqual({ success: true, data: { id: TRIP } });
-  });
-  it('still reports a write failure without returning a created ID', async () => {
-    entry.enter.mockRejectedValueOnce(new Error('transaction aborted'));
-    expect(await createTrip({ name: 'Tokyo' })).toEqual({
-      success: false,
-      error: 'INTERNAL_ERROR',
-      code: 'INTERNAL_ERROR',
-    });
-    expect(revalidatePath).not.toHaveBeenCalled();
   });
 });
 

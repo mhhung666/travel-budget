@@ -21,9 +21,9 @@ import { createQueryPersister, getQueryPersistKey } from '@/lib/queryPersister';
 import type { TripShell } from '@/types';
 import { buildOptimisticExpense } from '@/lib/optimisticExpense';
 
-const { storage, createExpense, writeGate } = vi.hoisted(() => ({
+const { storage, createLedgerExpense, writeGate } = vi.hoisted(() => ({
   storage: new Map<string, string>(),
-  createExpense: vi.fn(),
+  createLedgerExpense: vi.fn(),
   writeGate: vi.fn(async () => {}),
 }));
 // Keep the real async persister, JSON serialization and provider lifecycle.
@@ -41,17 +41,14 @@ vi.mock('idb-keyval', () => ({
     storage.delete(key);
   },
 }));
-vi.mock('@/actions', () => ({
-  lookupExpenseCreation: vi.fn(async () => ({ success: true, data: null })),
-  createExpense,
-  updateExpense: vi.fn(),
-  deleteExpense: vi.fn(),
-}));
+vi.mock('@/actions', () => ({ createLedgerExpense }));
 vi.mock('@/lib/productEvents', () => ({ trackProductEvent: vi.fn() }));
 
 const vars = {
   tripId: 'trip',
+  contractVersion: 2 as const,
   input: {
+    base_currency: 'TWD',
     payer_id: 'user',
     description: 'Offline dinner',
     original_amount: 100,
@@ -90,7 +87,7 @@ afterEach(() => {
   vi.restoreAllMocks();
   onlineManager.setOnline(true);
   storage.clear();
-  createExpense.mockReset();
+  createLedgerExpense.mockReset();
   writeGate.mockReset();
 });
 
@@ -115,7 +112,7 @@ describe('QueryProvider offline startup', () => {
     });
     await waitFor(() => expect(writeGate).toHaveBeenCalledOnce());
     expect(acknowledged).toBe(false);
-    expect(createExpense).not.toHaveBeenCalled();
+    expect(createLedgerExpense).not.toHaveBeenCalled();
     await act(async () => {
       release();
       await queued;
@@ -126,8 +123,8 @@ describe('QueryProvider offline startup', () => {
     mounted = renderHook(useProbe, { wrapper });
     await waitFor(() => expect(mounted.result.current.restoring).toBe(false));
     expect(mounted.result.current.client.getQueryData<unknown[]>(expenseKey)).toHaveLength(1);
-    expect(createExpense).not.toHaveBeenCalled();
-    createExpense.mockResolvedValue({
+    expect(createLedgerExpense).not.toHaveBeenCalled();
+    createLedgerExpense.mockResolvedValue({
       success: true,
       data: buildOptimisticExpense(vars.input, {
         tripId: 'trip',
@@ -138,7 +135,7 @@ describe('QueryProvider offline startup', () => {
     });
     browserOnline.mockReturnValue(true);
     act(() => window.dispatchEvent(new Event('online')));
-    await waitFor(() => expect(createExpense).toHaveBeenCalledOnce());
+    await waitFor(() => expect(createLedgerExpense).toHaveBeenCalledOnce());
     await waitFor(() =>
       expect(mounted.result.current.client.getMutationCache().getAll()[0].state.status).toBe(
         'success'
@@ -154,7 +151,7 @@ describe('QueryProvider offline startup', () => {
     await act(async () => {
       await expect(mounted.result.current.create.enqueue(vars)).rejects.toThrow('Storage is full');
     });
-    expect(createExpense).not.toHaveBeenCalled();
+    expect(createLedgerExpense).not.toHaveBeenCalled();
     expect(mounted.result.current.client.getQueryData(expenseKey)).toBeUndefined();
     expect(storage.get(getExpenseOutboxKey(scope))).toBeUndefined();
     mounted.unmount();
@@ -183,13 +180,13 @@ describe('QueryProvider offline startup', () => {
       await waitFor(() => expect(mounted.result.current.restoring).toBe(false));
       expect(mounted.result.current.client.getMutationCache().getAll()).toHaveLength(1);
       expect(mounted.result.current.client.getQueryData<unknown[]>(expenseKey)).toHaveLength(1);
-      expect(createExpense).not.toHaveBeenCalled();
+      expect(createLedgerExpense).not.toHaveBeenCalled();
       mounted.unmount();
     }
   );
   it('retains a rejected draft after reload and replaces it atomically when corrected', async () => {
     const browserOnline = vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(true);
-    createExpense.mockResolvedValue({
+    createLedgerExpense.mockResolvedValue({
       success: false,
       code: 'FORBIDDEN',
       error: 'Membership removed',
@@ -241,7 +238,7 @@ describe('QueryProvider offline startup', () => {
         'already been replaced'
       );
     });
-    expect(createExpense).toHaveBeenCalledOnce();
+    expect(createLedgerExpense).toHaveBeenCalledOnce();
     const journalBeforeLogout = structuredClone(storage.get(getExpenseOutboxKey(scope)));
     await act(async () => {
       await mounted.result.current.clearForLogout();
@@ -294,7 +291,7 @@ describe('QueryProvider offline startup', () => {
           total_spent: count * 100,
           today_spent: count * 100,
         });
-        expect(createExpense).not.toHaveBeenCalled();
+        expect(createLedgerExpense).not.toHaveBeenCalled();
       } finally {
         mounted.unmount();
       }
@@ -303,12 +300,12 @@ describe('QueryProvider offline startup', () => {
   it('does not revive a rejected contribution when another local write finishes later', async () => {
     vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(true);
     let rejectFirst!: (value: unknown) => void;
-    createExpense.mockReturnValueOnce(
+    createLedgerExpense.mockReturnValueOnce(
       new Promise((resolve) => {
         rejectFirst = resolve;
       })
     );
-    createExpense.mockImplementation(() => new Promise(() => {}));
+    createLedgerExpense.mockImplementation(() => new Promise(() => {}));
     const mounted = renderHook(useProbe, { wrapper });
     try {
       await waitFor(() => expect(mounted.result.current.restoring).toBe(false));
@@ -320,7 +317,7 @@ describe('QueryProvider offline startup', () => {
       await act(async () => {
         await mounted.result.current.create.enqueue(vars);
       });
-      await waitFor(() => expect(createExpense).toHaveBeenCalledOnce());
+      await waitFor(() => expect(createLedgerExpense).toHaveBeenCalledOnce());
       let release!: () => void;
       writeGate.mockImplementationOnce(
         () =>
@@ -393,7 +390,7 @@ describe('QueryProvider offline startup', () => {
     });
     expect(mounted.result.current.client.getQueryState(shellKey)?.isInvalidated).toBe(true);
     expect(mounted.result.current.client.getQueryData<unknown[]>(expenseKey)).toHaveLength(2);
-    expect(createExpense).not.toHaveBeenCalled();
+    expect(createLedgerExpense).not.toHaveBeenCalled();
     mounted.unmount();
     snapshot.clear();
   });
@@ -451,11 +448,104 @@ describe('QueryProvider offline startup', () => {
       expect(mounted.result.current.client.getQueryData<unknown[]>(expenseKey) ?? []).toHaveLength(
         pendingCount
       );
-      expect(createExpense).not.toHaveBeenCalled();
+      expect(createLedgerExpense).not.toHaveBeenCalled();
       mounted.unmount();
       snapshot.clear();
     }
   );
+  it('never sends a request queued before v2 and leaves it for the user to discard', async () => {
+    const base = { expense_count: 4, total_spent: 82, today_spent: 82 };
+    const legacyShell = { expense_count: 5, total_spent: 113, today_spent: 113 };
+    const both = { expense_count: 6, total_spent: 150, today_spent: 150 };
+    const snapshot = new QueryClient();
+    snapshot.setQueryData(shellKey, both);
+    storage.set(
+      persistKey,
+      JSON.stringify({
+        timestamp: Date.now(),
+        buster: 'v14-ledger',
+        clientState: dehydrate(snapshot),
+      })
+    );
+    const legacyId = crypto.randomUUID();
+    const currentId = crypto.randomUUID();
+    // The legacy record has no contract version and no base currency, as old bundles saved it.
+    const { contractVersion: _version, ...legacyVars } = vars;
+    const { base_currency: _unit, ...legacyInput } = vars.input;
+    for (const [entryVars, previousShell, appliedShell] of [
+      [
+        {
+          ...legacyVars,
+          input: { ...legacyInput, client_request_id: legacyId, original_amount: 31 },
+        },
+        base,
+        legacyShell,
+      ],
+      [
+        { ...vars, input: { ...vars.input, client_request_id: currentId, original_amount: 37 } },
+        legacyShell,
+        both,
+      ],
+    ] as const) {
+      await createExpenseOutbox(scope).write({
+        vars: entryVars,
+        status: 'pending',
+        createdAt: Date.now(),
+        context: {
+          optimisticId: `optimistic_${entryVars.input.client_request_id}`,
+          wasOffline: true,
+          previousShell: previousShell as TripShell,
+          appliedShell: appliedShell as TripShell,
+        },
+      });
+    }
+    let resolve!: (value: unknown) => void;
+    createLedgerExpense.mockReturnValue(new Promise((done) => (resolve = done)));
+    const mounted = renderHook(useProbe, { wrapper });
+    await waitFor(() => expect(mounted.result.current.restoring).toBe(false));
+    // Only the v2 request is projected and replayed.
+    expect(mounted.result.current.client.getQueryData(shellKey)).toMatchObject({
+      expense_count: 5,
+      total_spent: 119,
+      today_spent: 119,
+    });
+    expect(mounted.result.current.client.getQueryData<{ id: string }[]>(expenseKey)).toEqual([
+      expect.objectContaining({ id: `optimistic_${currentId}` }),
+    ]);
+    await waitFor(() => expect(createLedgerExpense).toHaveBeenCalledOnce());
+    expect(createLedgerExpense.mock.calls[0][1].client_request_id).toBe(currentId);
+    // Not even a failing mutation is created for the legacy record.
+    expect(
+      mounted.result.current.client
+        .getMutationCache()
+        .getAll()
+        .map(
+          (mutation) =>
+            (mutation.state.variables as { input: { client_request_id?: string } }).input
+              .client_request_id
+        )
+    ).toEqual([currentId]);
+    await act(async () => {
+      resolve({
+        success: true,
+        data: buildOptimisticExpense(vars.input, {
+          tripId: 'trip',
+          id: 'saved',
+          members: [],
+          createdAt: '2026-09-07T00:00:00Z',
+        }),
+      });
+    });
+    await waitFor(async () =>
+      expect((await createExpenseOutbox(scope).read())[currentId].status).toBe('done')
+    );
+    // The legacy record is kept unresolved: it still blocks logout until explicitly discarded.
+    expect((await createExpenseOutbox(scope).read())[legacyId].status).toBe('pending');
+    expect(mounted.result.current.hasPausedMutations()).toBe(true);
+    expect(createLedgerExpense).toHaveBeenCalledOnce();
+    mounted.unmount();
+    snapshot.clear();
+  });
   it.each([true, false])(
     'recovers a newer durable baseline only when the cached snapshot is older (older=%s)',
     async (older) => {
@@ -630,7 +720,7 @@ describe('QueryProvider offline startup', () => {
           { timeout: 3000 }
         );
         expect(persisted().mutations).toHaveLength(1);
-        expect(createExpense).not.toHaveBeenCalled();
+        expect(createLedgerExpense).not.toHaveBeenCalled();
       }
 
       const saved = buildOptimisticExpense(vars.input, {
@@ -639,13 +729,13 @@ describe('QueryProvider offline startup', () => {
         members: [],
         createdAt: '2026-09-12T00:00:00Z',
       });
-      createExpense.mockResolvedValue({ success: true, data: saved });
+      createLedgerExpense.mockResolvedValue({ success: true, data: saved });
       browserOnline.mockReturnValue(true);
       act(() => window.dispatchEvent(new Event('online')));
       await waitFor(() =>
         expect(mounted.result.current.client.getQueryData(expenseKey)).toEqual([saved])
       );
-      expect(createExpense).toHaveBeenCalledExactlyOnceWith(
+      expect(createLedgerExpense).toHaveBeenCalledExactlyOnceWith(
         vars.tripId,
         expect.objectContaining({ ...vars.input, client_request_id: expectedRequestId })
       );
@@ -659,7 +749,7 @@ describe('QueryProvider offline startup', () => {
       const browserOnline = vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(true);
       onlineManager.setOnline(true);
       let reject!: (reason: Error) => void;
-      createExpense.mockReturnValueOnce(
+      createLedgerExpense.mockReturnValueOnce(
         new Promise((_resolve, fail) => {
           reject = fail;
         })
@@ -667,8 +757,8 @@ describe('QueryProvider offline startup', () => {
       let mounted = renderHook(useProbe, { wrapper });
       await waitFor(() => expect(mounted.result.current.restoring).toBe(false));
       act(() => mounted.result.current.create.mutate(vars));
-      await waitFor(() => expect(createExpense).toHaveBeenCalledOnce());
-      const sent = structuredClone(createExpense.mock.calls[0][1]);
+      await waitFor(() => expect(createLedgerExpense).toHaveBeenCalledOnce());
+      const sent = structuredClone(createLedgerExpense.mock.calls[0][1]);
       expect(sent.client_request_id).toEqual(expect.any(String));
       if (phase === 'retrying') {
         browserOnline.mockReturnValue(false);
@@ -703,14 +793,14 @@ describe('QueryProvider offline startup', () => {
         members: [],
         createdAt: '2026-09-12T00:00:00Z',
       });
-      createExpense.mockResolvedValue({ success: true, data: saved });
+      createLedgerExpense.mockResolvedValue({ success: true, data: saved });
       browserOnline.mockReturnValue(true);
       act(() => window.dispatchEvent(new Event('online')));
       await waitFor(() =>
         expect(mounted.result.current.client.getQueryData(expenseKey)).toEqual([saved])
       );
-      expect(createExpense).toHaveBeenCalledTimes(2);
-      expect(createExpense.mock.calls[1][1]).toEqual(sent);
+      expect(createLedgerExpense).toHaveBeenCalledTimes(2);
+      expect(createLedgerExpense.mock.calls[1][1]).toEqual(sent);
       await waitFor(() => expect(persisted()?.mutations).toEqual([]), { timeout: 3000 });
       mounted.unmount();
     }

@@ -5,7 +5,7 @@ vi.mock('@/lib/permissions', () => ({ getTripMembership: h.member }));
 vi.mock('@/lib/paymentWrite', () => ({ readWebPaymentContext: h.read }));
 vi.mock('@/lib/env', () => ({ getEnv: () => ({ JWT_SECRET: 'test-secret' }) }));
 vi.mock('@/lib/logger', () => ({ logger: { error: h.error } }));
-import { getSettlement } from '@/actions/settlement.actions';
+import { getLedgerSettlement as getSettlement } from '@/actions/settlement.actions';
 beforeEach(() => {
   vi.clearAllMocks();
   h.session.mockResolvedValue({ userId: 'actor' });

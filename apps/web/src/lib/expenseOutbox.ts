@@ -14,6 +14,12 @@ export interface ExpenseOutboxEntry {
   expense?: Expense;
 }
 export type ExpenseOutbox = Record<string, ExpenseOutboxEntry>;
+/**
+ * Queued before the v2 contract. Its body and receipt belong to the retired action, so it is
+ * decoded and shown but never sent; only the user's explicit discard resolves it.
+ */
+export const isLegacyExpenseRequest = (vars: Pick<CreateExpenseVars, 'contractVersion'>) =>
+  vars.contractVersion !== 2;
 const cleared = new WeakSet<QueryClient>();
 const bindings = new WeakMap<QueryClient, ReturnType<typeof createExpenseOutbox>>();
 export const expenseOutboxQueryKey = ['expenseOutbox'] as const;

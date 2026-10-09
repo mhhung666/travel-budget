@@ -12,7 +12,7 @@ import { computeBudgetProgress } from '@/lib/budget';
 import { toExpenseDto } from '@/lib/dto';
 import { buildStatsExpensePagePipeline } from '@/lib/statsExpenseQuery';
 import { applyPayments } from '@/lib/settlement';
-import { getStats } from '@/actions/stats.actions';
+import { getLedgerStats as getStats } from '@/actions/stats.actions';
 const auth = vi.hoisted(() => ({ userId: '' }));
 vi.mock('@/lib/auth', () => ({ getSession: async () => ({ userId: auth.userId }) }));
 vi.mock('@/lib/mongodb', () => ({ dbConnect: async () => {} }));

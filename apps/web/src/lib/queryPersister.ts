@@ -2,7 +2,7 @@ import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persi
 import type { CreateExpenseVars, ExpenseCreateContext } from './offlineMutations';
 import type { PersistedClient } from '@tanstack/react-query-persist-client';
 import { get, set, del } from 'idb-keyval';
-import { createExpenseOutbox } from './expenseOutbox';
+import { createExpenseOutbox, isLegacyExpenseRequest } from './expenseOutbox';
 import { buildOptimisticExpense } from './optimisticExpense';
 import { tripKeys } from '@/hooks/queries/keys';
 import { replaceEqualDeep } from '@tanstack/react-query';
@@ -158,7 +158,10 @@ export function createQueryPersister(cacheScope: string) {
           (entry) =>
             entry.status !== 'done' && entry.context?.previousShell && entry.context.appliedShell
         );
-        const pending = projections.filter((entry) => entry.status === 'pending');
+        // A legacy request is never sent, so like a rejected draft it contributes no totals.
+        const pending = projections.filter(
+          (entry) => entry.status === 'pending' && !isLegacyExpenseRequest(entry.vars)
+        );
         let base = query.state.data as ProjectedExpenseShell;
         // Another tab may have last persisted an older server summary. A durable
         // submission captured after that snapshot supplies the newer baseline.
@@ -175,7 +178,11 @@ export function createQueryPersister(cacheScope: string) {
           const retained = { ...contributions };
           for (const entry of tripEntries) {
             const id = entry.vars.input.client_request_id!;
-            if (entry.status === 'failed' || (entry.status === 'done' && !entry.expense))
+            if (
+              entry.status === 'failed' ||
+              (entry.status === 'done' && !entry.expense) ||
+              (entry.status === 'pending' && isLegacyExpenseRequest(entry.vars))
+            )
               delete retained[id];
           }
           for (const entry of pending) {
@@ -237,7 +244,7 @@ export function createQueryPersister(cacheScope: string) {
               ...(query.state.data as Expense[]).filter((e) => e.id !== entry.expense!.id),
             ];
         }
-        if (entry.status !== 'pending') continue;
+        if (entry.status !== 'pending' || isLegacyExpenseRequest(entry.vars)) continue;
         const { vars } = entry;
         const optimisticId =
           entry.context?.optimisticId ?? `optimistic_${vars.input.client_request_id}`;

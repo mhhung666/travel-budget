@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useIsMutating, useQueryClient } from '@tanstack/react-query';
-import { getTripLanding } from '@/actions/tripLanding.actions';
+import { getLedgerTripLanding } from '@/actions/tripLanding.actions';
 import { fetchWithPublicFallback } from '@/hooks/queries/fetcher';
 import { useAuthenticatedSession } from '@/components/providers/QueryProvider';
 import type { TripLanding } from '@/types/tripLanding';
@@ -85,7 +85,7 @@ export default function ItineraryPdfExportDialog({
       // Bypass query/landing caches. The endpoint rechecks membership and strips public fields.
       const snapshot = await fetchWithPublicFallback(
         tripId,
-        getTripLanding,
+        getLedgerTripLanding,
         { path: 'landing', fresh: true },
         null as unknown as TripLanding,
         authenticated

@@ -5,7 +5,11 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useExpenseOutbox } from '@/hooks/useExpenseOutbox';
 import { useExpenseMutations } from '@/hooks/queries/useExpenseMutations';
 import { useMembers, useCurrentUser } from '@/hooks/queries/useTripQueries';
-import { saveExpenseOutbox, type ExpenseOutboxEntry } from '@/lib/expenseOutbox';
+import {
+  isLegacyExpenseRequest,
+  saveExpenseOutbox,
+  type ExpenseOutboxEntry,
+} from '@/lib/expenseOutbox';
 import { buildOptimisticExpense } from '@/lib/optimisticExpense';
 import { ExpenseFormSheet } from '@/components/trips/DeferredDialogs';
 import { ResponsiveFormSheet } from '@/components/common/ResponsiveFormSheet';
@@ -103,40 +107,46 @@ export function ExpenseDraftRecovery() {
       <ResponsiveFormSheet open={open && !editing} onOpenChange={setOpen} title={t('draftsTitle')}>
         {error && <p role="alert">{error}</p>}
         <ul className="space-y-4">
-          {failed.map((entry) => (
-            <li
-              key={entry.vars.input.client_request_id}
-              className="space-y-2 rounded-lg border p-3"
-            >
-              <p className="font-medium">
-                {entry.vars.input.description} · {entry.vars.input.currency}{' '}
-                {entry.vars.input.original_amount}
-              </p>
-              <p className="text-sm text-muted-foreground">{entry.error ?? t('pending')}</p>
-              <div className="flex flex-wrap gap-2">
-                {entry.status === 'failed' && (
-                  <Button onClick={() => setEditing(entry)}>{t('editDraft')}</Button>
-                )}
-                <Button variant="outline" onClick={() => download(entry)}>
-                  {t('exportDraft')}
-                </Button>
-                <Button
-                  disabled={entry.status !== 'failed'}
-                  variant="ghost"
-                  onClick={async () => {
-                    if (!window.confirm(t('discardDraftConfirm'))) return;
-                    try {
-                      await saveExpenseOutbox(client, entry.vars, entry.context, 'done');
-                    } catch (err) {
-                      setError(err instanceof Error ? err.message : String(err));
-                    }
-                  }}
-                >
-                  {t('discardDraft')}
-                </Button>
-              </div>
-            </li>
-          ))}
+          {failed.map((entry) => {
+            // Legacy requests are never sent; like rejected drafts, only the user resolves them.
+            const legacy = entry.status === 'pending' && isLegacyExpenseRequest(entry.vars);
+            return (
+              <li
+                key={entry.vars.input.client_request_id}
+                className="space-y-2 rounded-lg border p-3"
+              >
+                <p className="font-medium">
+                  {entry.vars.input.description} · {entry.vars.input.currency}{' '}
+                  {entry.vars.input.original_amount}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {legacy ? t('legacyDraft') : (entry.error ?? t('pending'))}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {entry.status === 'failed' && (
+                    <Button onClick={() => setEditing(entry)}>{t('editDraft')}</Button>
+                  )}
+                  <Button variant="outline" onClick={() => download(entry)}>
+                    {t('exportDraft')}
+                  </Button>
+                  <Button
+                    disabled={entry.status !== 'failed' && !legacy}
+                    variant="ghost"
+                    onClick={async () => {
+                      if (!window.confirm(t('discardDraftConfirm'))) return;
+                      try {
+                        await saveExpenseOutbox(client, entry.vars, entry.context, 'done');
+                      } catch (err) {
+                        setError(err instanceof Error ? err.message : String(err));
+                      }
+                    }}
+                  >
+                    {t('discardDraft')}
+                  </Button>
+                </div>
+              </li>
+            );
+          })}
         </ul>
       </ResponsiveFormSheet>
       {editing && (

@@ -5,7 +5,7 @@ import { getTripMembership } from '@/lib/permissions';
 import { readWebPaymentContext } from '@/lib/paymentWrite';
 import { getEnv } from '@/lib/env';
 import mongoose from 'mongoose';
-import { withLedgerAuth as withAuth, withLegacyTripRead } from './withAuth';
+import { withLedgerAuth as withAuth } from './withAuth';
 import type { ActionResult } from './types';
 import type { Settlement } from '@/types';
 import { logger } from '@/lib/logger';
@@ -31,5 +31,3 @@ export const getLedgerSettlement = withAuth(
     }
   }
 );
-
-export const getSettlement = withLegacyTripRead(getLedgerSettlement);

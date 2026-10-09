@@ -369,12 +369,14 @@ try {
   const actions = JSON.parse(await readFile('.next/server/server-reference-manifest.json', 'utf8'));
   const createActionIds = new Set(
     Object.entries(actions.node)
-      .filter(([, action]) =>
-        ['createExpense', 'createLedgerExpense'].includes(action.exportedName)
-      )
+      .filter(([, action]) => action.exportedName === 'createLedgerExpense')
       .map(([id]) => id)
   );
   assert.ok(createActionIds.size > 0, 'The production manifest must identify expense writers');
+  // B5d-3 retired the identities old bundles used; the build must not expose them.
+  const exported = new Set(Object.values(actions.node).map((action) => action.exportedName));
+  for (const retired of ['createExpense', 'lookupExpenseCreation', 'getTrips', 'recordPayment'])
+    assert.ok(!exported.has(retired), `${retired} must no longer be a Server Action`);
   // Commit the actual server action, then drop its response to the browser.
   let dropped = false;
   await page.route('**/*', async (route) => {
@@ -737,6 +739,79 @@ try {
     );
   }, 'Offline form identity was not persisted');
   assert.equal(await db.collection('expensecreaterequests').countDocuments({ trip: tripId }), 7);
+
+  // A request an old bundle queued has no contract version: it is listed, never sent.
+  const legacyId = randomUUID();
+  const legacyPosts = [];
+  page.on('request', (request) => {
+    if (request.method() === 'POST' && (request.postData() ?? '').includes(legacyId))
+      legacyPosts.push(request.url());
+  });
+  await page.evaluate(
+    ({ key, entry }) =>
+      new Promise((resolve, reject) => {
+        const open = indexedDB.open('keyval-store');
+        open.onsuccess = () => {
+          const database = open.result;
+          const tx = database.transaction('keyval', 'readwrite');
+          const store = tx.objectStore('keyval');
+          const read = store.get(key);
+          read.onsuccess = () =>
+            store.put({ ...read.result, [entry.vars.input.client_request_id]: entry }, key);
+          tx.oncomplete = () => {
+            database.close();
+            resolve();
+          };
+          tx.onerror = () => reject(tx.error);
+        };
+        open.onerror = () => reject(open.error);
+      }),
+    {
+      key: outboxKey,
+      entry: {
+        vars: {
+          tripId: String(tripId),
+          input: {
+            payer_id: String(userId),
+            description: 'legacy-queued',
+            original_amount: 47,
+            currency: 'TWD',
+            exchange_rate: 1,
+            category: 'food',
+            date: '2026-09-01',
+            splits: [{ user_id: String(userId), share_amount: 47 }],
+            client_request_id: legacyId,
+          },
+        },
+        status: 'pending',
+        createdAt: Date.now(),
+      },
+    }
+  );
+  await reloadPage(page);
+  await page.getByRole('button', { name: 'Review drafts', exact: true }).click();
+  const legacyItem = page.getByRole('listitem').filter({ hasText: /legacy-queued ·/ });
+  await legacyItem
+    .getByText('Saved by an older version and can no longer be sent.', { exact: false })
+    .waitFor();
+  // Give a resumed queue time to (wrongly) send it.
+  await page.waitForTimeout(2000);
+  assert.equal(legacyPosts.length, 0);
+  assert.equal(await count('legacy-queued'), 0);
+  page.once('dialog', (dialog) => dialog.accept());
+  await legacyItem.getByRole('button', { name: 'Discard draft', exact: true }).click();
+  await eventually(
+    async () =>
+      (await entries()).find((entry) => entry.vars.input.client_request_id === legacyId)?.status ===
+      'done',
+    'Legacy request was not discarded'
+  );
+  assert.equal(legacyPosts.length, 0);
+  assert.equal(await count('legacy-queued'), 0);
+  assert.equal(await db.collection('expenses').countDocuments({ trip: tripId }), 7);
+  pass(
+    'a request queued before v2 is listed but never sent, and only an explicit discard clears it'
+  );
 
   await verifyWebLedgerBrowser({ db, page, origin, userId, idbRead, eventually, pass });
   assert.equal(pageErrors.length, 0, `Browser errors: ${pageErrors.join('; ')}`);

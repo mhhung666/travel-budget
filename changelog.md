@@ -6,7 +6,7 @@
 
 ### 2026-10-09
 
-- Web B5d-2：刪除 32 個原生 v1 route，OpenAPI 只發布 v2；保留歷史收據拒絕跨版重送。獨立審查及 Web 2,307 項、Mobile 1,233 項、隔離 DB 355 項、真 HTTP、check／build／三平台匯出通過；既有非 TWD 參考匯率 503 仍待修，詳見 [B 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#b-基準幣別驗收b1b2b3-實作交接)。
+- Web B5d-2／3：退役原生 v1 routes、OpenAPI v1 與舊 Server Actions；PWA 舊 pending outbox 保留匯出／明確捨棄，不再送出。兩片獨立審查通過；本片 Web 2,306 項、隔離 DB 263 項、check／build、PWA 瀏覽器 11 項通過。既有非 TWD 參考匯率 503 待修，詳見 [B 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#b-基準幣別驗收b1b2b3-實作交接)。
 - Mobile B5d-1：依僅有可丟棄 fixture 的退役決策，App 只送 v2，舊 v1 待處理紀錄改為明確捨棄（未 prepare 的佇列可移回草稿）；修正送前查詢後 POST 狀態。獨立審查及 Mobile 1,232 項＋工具 48 項、check／三平台匯出通過，原生操作待驗；接續 Web 會員 v1 route 與舊 PWA outbox 退役。
 - Mobile B5c-1／2：新請求與新 D 佇列改用 v2，修正原生收據計數、衝突故障注入與流量斷言；各片獨立審查及 Mobile 測試、check／contracts／三平台匯出通過，原生操作未驗，見 [B 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#b-基準幣別驗收b1b2b3-實作交接)。
 

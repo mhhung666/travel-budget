@@ -1,8 +1,8 @@
 import { claimWebTripWrite } from './webWriteCoordination';
 import { saveWebCooldown, assertWebCooldown } from './confirmedWebWrites';
 import { replaceEqualDeep, type QueryClient } from '@tanstack/react-query';
-import { saveExpenseOutbox } from './expenseOutbox';
-import { createExpense, createLedgerExpense } from '@/actions';
+import { isLegacyExpenseRequest, saveExpenseOutbox } from './expenseOutbox';
+import { createLedgerExpense } from '@/actions';
 import type { ActionResult } from '@/actions';
 import type { CreateExpenseInput } from '@/lib/validation';
 import { tripKeys } from '@/hooks/queries/keys';
@@ -81,6 +81,7 @@ export const expenseCreateMutationKey = ['expenses', 'create'] as const;
  * reload) mutation can target the right trip without a live component. */
 export interface CreateExpenseVars {
   tripId: string;
+  /** Missing only on records queued before v2, which are never sent. */
   contractVersion?: 2;
   input: CreateExpenseInput;
   /** Atomically replace a rejected draft only after its corrected submission is durable. */
@@ -110,16 +111,12 @@ export async function executeExpenseCreate(
   ) {
     throw new Error('Expense request was cleared');
   }
-  // Older paused queues have no key; attach one before their first replay.
-  vars.input = {
-    ...vars.input,
-    client_request_id: vars.input.client_request_id ?? crypto.randomUUID(),
-  };
+  if (isLegacyExpenseRequest(vars)) throw new Error('Legacy expense request is not sent');
   const context = queryClient
     .getMutationCache()
     .getAll()
     .find((m) => m.state.variables === vars)?.state.context as ExpenseCreateContext | undefined;
-  // A restored legacy request must also reach durable storage before any network send.
+  // A restored request must also reach durable storage before any network send.
   try {
     await saveExpenseOutbox(queryClient, vars, context, 'pending');
   } catch {
@@ -147,10 +144,7 @@ export async function executeExpenseCreate(
     throw new Error('Expense request was cleared');
   let result: ActionResult<Expense>;
   try {
-    result = await (vars.contractVersion === 2 ? createLedgerExpense : createExpense)(
-      vars.tripId,
-      vars.input
-    );
+    result = await createLedgerExpense(vars.tripId, vars.input);
   } catch (error) {
     throw new RetryableExpenseError(error instanceof Error ? error.message : String(error));
   }

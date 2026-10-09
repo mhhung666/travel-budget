@@ -25,7 +25,6 @@ export {
   getLedgerTrips as getTrips,
   getLedgerTrip as getTrip,
   getLedgerTripShell as getTripShell,
-  createTrip,
   createLedgerTrip,
   joinLedgerTrip,
   updateTrip,
@@ -40,15 +39,10 @@ export {
 export {
   getLedgerExpenses as getExpenses,
   getExpenseTags,
-  createExpense,
   createLedgerExpense,
   deleteLedgerExpense,
-  updateExpense,
   updateLedgerExpense,
-  deleteExpense,
   getReceiptUrl,
-  lookupExpenseCreation,
-  lookupLedgerExpenseCreation,
 } from './expense.actions';
 
 // Upload actions（R2 blob 上傳簽名）
@@ -65,12 +59,6 @@ export {
 // Avatar actions（R2 頭像）
 export { setAvatar, removeAvatar } from './avatar.actions';
 
-// Budget actions
-export { setTripBudget } from './budget.actions';
-
-// Currency settings actions
-export { setTripCurrencySettings } from './currency.actions';
-
 // Member actions
 export {
   getMembers,
@@ -84,7 +72,7 @@ export {
 export { getLedgerSettlement as getSettlement } from './settlement.actions';
 
 // Payment actions（結算還款 / 標記已付 / 提醒還款）
-export { recordPayment, deletePayment, remindPayment } from './payment.actions';
+export { remindPayment } from './payment.actions';
 
 // Itinerary actions
 export {

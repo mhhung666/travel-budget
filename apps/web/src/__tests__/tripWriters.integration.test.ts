@@ -22,11 +22,17 @@ import {
 import { deleteTripAtomically } from '@/lib/tripDeletion';
 import { createNote, updateNote, deleteNote } from '@/actions/note.actions';
 import { addVirtualMember, addFriendsToTrip, updateMemberRole } from '@/actions/member.actions';
-import { createTrip, regenerateHashCode, joinTrip } from '@/actions/trip.actions';
+import { createLedgerTrip, regenerateHashCode, joinTrip } from '@/actions/trip.actions';
 import { enableAlbumShare, disableAlbumShare } from '@/actions/albumShare.actions';
-import { createExpense, updateExpense, deleteExpense } from '@/actions/expense.actions';
+import {
+  createLedgerExpense,
+  updateLedgerExpense,
+  deleteLedgerExpense,
+  getLedgerExpenses,
+} from '@/actions/expense.actions';
+import { getLedgerSettlement } from '@/actions/settlement.actions';
+import { writeWebPayment } from '@/actions/ledger.actions';
 import { createComment, deleteComment } from '@/actions/comment.actions';
-import { recordPayment, deletePayment } from '@/actions/payment.actions';
 import {
   createChecklist,
   createChecklistWithItems,
@@ -85,6 +91,7 @@ describe.skipIf(!uri || !allowed)('trip writers against isolated replica set', (
   let noteId: string;
   let flightId: string;
   let stayId: string;
+  let paymentId: string;
   beforeAll(async () => {
     vi.stubEnv('MONGODB_URI', uri!);
     vi.stubEnv('JWT_SECRET', 'isolated-trip-writers-secret-at-least-32-characters');
@@ -164,6 +171,9 @@ describe.skipIf(!uri || !allowed)('trip writers against isolated replica set', (
       createdBy: admin,
     });
     expenseId = expense.id;
+    paymentId = (
+      await Payment.create({ trip: tripId, from: member, to: admin, amount: 10, createdBy: admin })
+    ).id;
     const comment = await Comment.create({
       trip: tripId,
       expense: expenseId,
@@ -187,7 +197,55 @@ describe.skipIf(!uri || !allowed)('trip writers against isolated replica set', (
     from_id: member.toHexString(),
     to_id: admin.toHexString(),
     amount: 100,
+    note: '',
   });
+  // The Web writers are v2 identities: each confirms the key, unit and revision the member read.
+  const confirmation = () => ({ client_request_id: randomUUID(), base_currency: 'TWD' });
+  const createExpense = (trip: string, input: Record<string, unknown>) =>
+    createLedgerExpense(trip, { ...confirmation(), ...input } as Parameters<
+      typeof createLedgerExpense
+    >[1]);
+  const expenseRevision = async (trip: string, id: string) => {
+    const listed = await getLedgerExpenses(trip);
+    return (listed.success && listed.data.find((item) => item.id === id)?.revision) || '';
+  };
+  const updateExpense = async (trip: string, id: string, changes: Record<string, unknown>) =>
+    updateLedgerExpense(trip, id, {
+      ...changes,
+      ...confirmation(),
+      expected_revision: await expenseRevision(trip, id),
+    });
+  const deleteExpense = async (trip: string, id: string) =>
+    deleteLedgerExpense(trip, id, {
+      ...confirmation(),
+      expected_revision: await expenseRevision(trip, id),
+    });
+  const settlement = async (trip: string) => {
+    const read = await getLedgerSettlement(trip);
+    if (!read.success) throw new Error(read.code);
+    return read.data;
+  };
+  const recordPayment = async (trip: string, input: ReturnType<typeof paymentInput>) =>
+    writeWebPayment(trip, 'payment.create', {
+      ...input,
+      ...confirmation(),
+      expected_revision: (await settlement(trip)).settlementRevision,
+    });
+  const deletePayment = async (trip: string, id: string) =>
+    writeWebPayment(
+      trip,
+      'payment.delete',
+      { ...confirmation(), expected_revision: (await settlement(trip)).paymentRevisions?.[id] },
+      id
+    );
+  const createTrip = (input: { name: string }) =>
+    createLedgerTrip({
+      ...confirmation(),
+      name: input.name,
+      description: '',
+      start_date: null,
+      end_date: null,
+    });
   const expenseInput = () => ({
     payer_id: member.toHexString(),
     original_amount: 100,
@@ -231,7 +289,7 @@ describe.skipIf(!uri || !allowed)('trip writers against isolated replica set', (
     ['comment create', () => createComment(tripId, expenseId, { body: 'New' })],
     ['comment delete', () => deleteComment(tripId, expenseId, commentId)],
     ['payment create', () => recordPayment(tripId, paymentInput())],
-    ['payment delete', () => deletePayment(tripId, new mongo.ObjectId().toHexString())],
+    ['payment delete', () => deletePayment(tripId, paymentId)],
     ['checklist create', () => createChecklist(tripId, { title: 'New' })],
     [
       'checklist template',
@@ -252,25 +310,18 @@ describe.skipIf(!uri || !allowed)('trip writers against isolated replica set', (
   it.each(writers)(
     'rejects %s after the actor is removed during initial authorization',
     async (_name, write) => {
-      // A missing payment revoke now uses a read-only snapshot rather than a fence.
-      // Remove membership at that authorization read; other writers still use the fence.
-      const method = _name === 'payment delete' ? 'findOne' : 'findOneAndUpdate';
-      const original = mongo.Collection.prototype[method];
+      // Remove membership when the writer takes the trip fence.
+      const original = mongo.Collection.prototype.findOneAndUpdate;
       let changed = false;
-      const spy = vi.spyOn(mongo.Collection.prototype, method).mockImplementation(async function (
-        this: mongo.Collection,
-        ...args
-      ) {
-        if (
-          this.collectionName === 'trips' &&
-          !changed &&
-          (method !== 'findOne' || (args[1] && 'session' in args[1] && args[1].session))
-        ) {
-          changed = true;
-          await Trip.updateOne({ _id: tripId }, { $pull: { members: { user: admin } } });
-        }
-        return Reflect.apply(original, this, args);
-      });
+      const spy = vi
+        .spyOn(mongo.Collection.prototype, 'findOneAndUpdate')
+        .mockImplementation(async function (this: mongo.Collection, ...args) {
+          if (this.collectionName === 'trips' && !changed) {
+            changed = true;
+            await Trip.updateOne({ _id: tripId }, { $pull: { members: { user: admin } } });
+          }
+          return Reflect.apply(original, this, args);
+        });
       try {
         expect(await write()).toMatchObject({ code: 'FORBIDDEN' });
       } finally {
@@ -521,11 +572,14 @@ describe.skipIf(!uri || !allowed)('trip writers against isolated replica set', (
   it('creates and deletes payments with hash-code input', async () => {
     const trip = await Trip.findById(tripId).lean();
     const result = await recordPayment(trip!.hashCode, paymentInput());
-    expect(result.success).toBe(true);
-    const payment = await Payment.findOne({ trip: tripId });
-    expect(payment).not.toBeNull();
-    expect(await deletePayment(trip!.hashCode, payment!.id)).toMatchObject({ success: true });
-    expect(await Payment.countDocuments({ trip: tripId })).toBe(0);
+    if (!result.success) throw new Error(result.code);
+    const { paymentId: created } = result.data.result;
+    expect(await Payment.findById(created)).not.toBeNull();
+    expect(await deletePayment(trip!.hashCode, created)).toMatchObject({
+      success: true,
+      data: { result: { paymentId: created, deleted: true } },
+    });
+    expect(await Payment.findById(created)).toBeNull();
   });
   it('serializes a virtual identity claim with payment and assignment writers', async () => {
     const trip = await Trip.findById(tripId).lean();

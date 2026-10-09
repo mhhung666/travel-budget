@@ -1,8 +1,7 @@
-import { withLedgerV2, LedgerError, ledgerActionFailure } from '@/lib/ledger';
+import { withLedgerV2, ledgerActionFailure } from '@/lib/ledger';
 import { getSession, type SessionPayload } from '@/lib/auth';
 import { ErrorCodes, type ActionResult, type ErrorCode } from './types';
 import { z } from 'zod';
-import { getTripMembership } from '@/lib/permissions';
 
 /**
  * Higher-order function that wraps a Server Action with authentication.
@@ -59,32 +58,4 @@ export function withLedgerAuth<TArgs extends unknown[], TResult>(
         }
       })
   );
-}
-
-/**
- * New action identity over a version-aware cookie adapter. Old queued Web/PWA bundles keep the
- * adapter's own identity (v1 input and receipt); the new identity runs the same adapter in the
- * ledger v2 context, so both share one body, reservation and receipt lookup.
- */
-export function withLedgerIdentity<TArgs extends unknown[], TResult>(
-  action: (...args: TArgs) => Promise<TResult>
-) {
-  return async (...args: TArgs): Promise<TResult> => withLedgerV2(() => action(...args));
-}
-
-/** Existing action identities remain TWD-only for older Web/PWA bundles. */
-export function withLegacyTripRead<TArgs extends [string, ...unknown[]], TResult>(
-  action: (...args: TArgs) => Promise<ActionResult<TResult>>
-) {
-  return withAuth<TArgs, TResult>(async (session, ...args) => {
-    try {
-      if (!(await getTripMembership(session.userId, args[0])))
-        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
-      return await action(...args);
-    } catch (error) {
-      if (error instanceof LedgerError)
-        return { success: false, error: error.code, code: error.code };
-      return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
-    }
-  });
 }

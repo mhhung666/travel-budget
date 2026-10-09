@@ -1667,6 +1667,7 @@
     "updateAvailable": "A new version is available",
     "reload": "Reload",
     "pending": "Pending sync",
+    "legacyDraft": "Saved by an older version and can no longer be sent. It may already be recorded, so check the expense list before exporting or discarding it.",
     "queuedTitle": "Expense saved on this device",
     "queuedMessage": "Saved on this device. It will sync when a connection is available.",
     "writeUnavailableTitle": "Unavailable offline",
