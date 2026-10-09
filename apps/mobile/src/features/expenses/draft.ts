@@ -1,3 +1,5 @@
+import { expensePreviewV2Schema } from '@travel-budget/contracts';
+import { splitInputOf, splitModeOf, supportsSplitCreate } from './splitInput';
 import { baseCurrency, ledgerOf } from '@/api/ledger';
 import {
   MAX_EXPENSE_DESCRIPTION,
@@ -11,11 +13,13 @@ import type { ExpenseDraft } from '@/storage/expenseDrafts';
 import { isCalendarDate, parseAmount, parseRate } from './input';
 
 /** What a user-confirmed submission carries before it receives its request id. */
-export type ExpenseFields = Omit<ExpenseCreateInput, 'client_request_id'>;
+type WithoutRequestId<T> = T extends unknown ? Omit<T, 'client_request_id'> : never;
+export type ExpenseFields = WithoutRequestId<ExpenseCreateInput>;
 
 export type { ExpenseDraft } from '@/storage/expenseDrafts';
 
 export type DraftIssue =
+  | { field: 'split'; code: 'invalid' | 'unsupported' }
   | { field: 'currency'; code: 'mismatch' }
   | { field: 'description'; code: 'required' | 'tooLong' }
   | { field: 'amount'; code: 'empty' | 'format' | 'zero' | 'tooLarge' }
@@ -45,6 +49,10 @@ export function newDraft(
 
 export function validateDraft(draft: ExpenseDraft, options: ExpenseOptions): DraftIssue[] {
   const issues: DraftIssue[] = [];
+  if (!splitInputOf(draft, draft.memberIds) && draft.memberIds.length)
+    issues.push({ field: 'split', code: 'invalid' });
+  if (splitModeOf(draft) !== 'equal' && !supportsSplitCreate(options, splitModeOf(draft)))
+    issues.push({ field: 'split', code: 'unsupported' });
   if (baseCurrency(draft) !== baseCurrency(options))
     issues.push({ field: 'currency', code: 'mismatch' });
   const description = draft.description.trim();
@@ -87,6 +95,9 @@ export function previewInputOf(
   const chosen = new Set(draft.memberIds);
   const member_ids = options.members.filter((member) => chosen.has(member.id)).map((m) => m.id);
   const rate = draftRate(draft);
+  const split = splitInputOf(draft, member_ids);
+  const explicit = supportsSplitCreate(options, splitModeOf(draft));
+  if (!split || (split.mode !== 'equal' && !explicit)) return null;
   return baseCurrency(draft) === baseCurrency(options) &&
     amount.ok &&
     rate !== null &&
@@ -95,6 +106,7 @@ export function previewInputOf(
     ? {
         amount: amount.amount,
         member_ids,
+        ...(explicit ? { split } : {}),
         ...(options.ledger
           ? {
               base_currency: baseCurrency(options),
@@ -111,7 +123,7 @@ export function previewInputOf(
 
 /** Identifies what a preview was computed for; any change to amount, currency, rate or members makes it stale. */
 export const previewKey = (request: ExpensePreviewInput) =>
-  `${'base_currency' in request ? request.base_currency : 'TWD'}|${request.amount}|${'currency' in request ? request.currency : 'TWD'}|${'exchange_rate' in request ? request.exchange_rate : 1}|${request.member_ids.join(',')}`;
+  `${'base_currency' in request ? request.base_currency : 'TWD'}|${request.amount}|${'currency' in request ? request.currency : 'TWD'}|${'exchange_rate' in request ? request.exchange_rate : 1}|${request.member_ids.join(',')}|${JSON.stringify('split' in request ? request.split : undefined)}`;
 
 /**
  * The frozen body of a confirmed submission. The shares are the backend's preview, sent as
@@ -126,6 +138,14 @@ export function confirmedFields(
   const issues = validateDraft(draft, options);
   if (!request || issues.length > 0 || !draft.payerId) throw new Error('INVALID_DRAFT');
   if (!expensePreviewSchema.safeParse(preview).success) throw new Error('STALE_PREVIEW');
+  const explicit = 'split' in request && request.split !== undefined;
+  if (
+    explicit &&
+    (!expensePreviewV2Schema.safeParse(preview).success ||
+      preview.splitMode !== request.split!.mode)
+  )
+    throw new Error('STALE_PREVIEW');
+  if (!explicit && preview.splitMode !== undefined) throw new Error('STALE_PREVIEW');
   const shared = preview.splits.map((split) => split.userId).sort();
   if (
     baseCurrency(preview) !== baseCurrency(options) ||
@@ -139,6 +159,14 @@ export function confirmedFields(
     throw new Error('STALE_PREVIEW');
   return {
     ...(options.ledger ? { base_currency: baseCurrency(options) } : {}),
+    ...(explicit
+      ? {
+          split: splitInputOf(
+            draft,
+            preview.splits.map((s) => s.userId)
+          )!,
+        }
+      : {}),
     payer_id: draft.payerId,
     original_amount: request.amount,
     currency: draft.currency ?? 'TWD',

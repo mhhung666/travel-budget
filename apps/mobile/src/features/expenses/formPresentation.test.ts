@@ -651,3 +651,190 @@ it('stores reference-read 429 as an account wait and prevents another upstream r
   await flush();
   expect(h.requestRates).toHaveBeenCalledOnce();
 });
+
+function splitForm() {
+  return call(named(form().entryTree, 'SplitFields'));
+}
+function advancedOptions() {
+  h.options = {
+    ...h.options,
+    ledger: { baseCurrency: 'TWD', moneyScale: 2 },
+    splitPreviewModes: ['equal', 'amount', 'percent', 'shares'],
+    splitCreateModes: ['equal', 'amount', 'percent', 'shares'],
+  };
+  h.refetch.mockImplementation(async () => ({ data: h.options }));
+}
+function advancedPreview(mode = 'shares') {
+  return {
+    ...detail,
+    ledger: { baseCurrency: 'TWD', moneyScale: 2 },
+    splitMode: mode,
+    splits: detail.splits.map((s) => ({ ...s, originalShareAmount: s.shareAmount })),
+  };
+}
+it.each(Object.keys(messages) as (keyof typeof messages)[])(
+  'offers all modes and ID-labelled raw inputs in %s, preserving each mode and deselected text',
+  (locale) => {
+    h.locale = locale;
+    advancedOptions();
+    const who = h.scope.accountId;
+    const peer = '2'.repeat(24);
+    press(id(splitForm(), 'expense-split-mode-amount'));
+    change(id(splitForm(), `expense-split-value-${who}`), '00020.');
+    expect(id(splitForm(), `expense-split-value-${who}`).props.label).toContain(
+      messages[locale].you
+    );
+    expect(id(splitForm(), `expense-split-value-${peer}`).props.label).toContain('#2');
+    expect(id(splitForm(), `expense-split-value-${who}`).props).toMatchObject({
+      keyboardType: 'decimal-pad',
+      inputAccessoryViewID: 'new-expense-amount-test-keyboard',
+    });
+    press(id(splitForm(), 'expense-split-mode-percent'));
+    expect(id(splitForm(), `expense-split-value-${who}`).props.value).toBe('');
+    change(id(splitForm(), `expense-split-value-${who}`), '33.33');
+    press(id(splitForm(), 'expense-split-mode-shares'));
+    change(id(splitForm(), `expense-split-value-${who}`), '0');
+    press(id(form().entryTree, `new-expense-member-${who}`));
+    expect(nodes(splitForm()).some((e) => e.props.testID === `expense-split-value-${who}`)).toBe(
+      false
+    );
+    press(id(form().entryTree, `new-expense-member-${who}`));
+    expect(id(splitForm(), `expense-split-value-${who}`).props.value).toBe('0');
+    press(id(splitForm(), 'expense-split-mode-amount'));
+    expect(id(splitForm(), `expense-split-value-${who}`).props.value).toBe('00020.');
+    expect(h.draft.splitValues).toEqual({
+      amount: { [who]: '00020.' },
+      percent: { [who]: '33.33' },
+      shares: { [who]: '0' },
+    });
+    press(id(splitForm(), 'expense-split-mode-equal'));
+    expect(nodes(splitForm()).some((e) => e.type === 'TextField')).toBe(false);
+  }
+);
+it('keeps advanced drafts editable offline or on an older backend, with neither send path available', () => {
+  press(id(splitForm(), 'expense-split-mode-shares'));
+  expect(id(form().entryTree, 'new-expense-preview').props.disabled).toBe(true);
+  expect(id(form().entryTree, 'expense-queue-confirm').props.disabled).toBe(true);
+  press(id(form().entryTree, 'expense-queue-confirm'));
+  h.online = false;
+  expect(id(form(true).entryTree, 'new-expense-confirm').props.disabled).toBe(true);
+  expect(h.enqueue).not.toHaveBeenCalled();
+  expect(h.requestPreview).not.toHaveBeenCalled();
+});
+it('confirms mode and both per-person units, freezing the split only after saving the draft', async () => {
+  advancedOptions();
+  press(id(splitForm(), 'expense-split-mode-shares'));
+  h.requestPreview.mockResolvedValue(advancedPreview());
+  press(id(form().entryTree, 'new-expense-preview'));
+  await flush();
+  expect(h.requestPreview.mock.calls[0][3]).toMatchObject({
+    split: { mode: 'shares', values: [null, null] },
+  });
+  const tree = form().entryTree;
+  expect(id(tree, 'new-expense-confirm').props.disabled).toBe(false);
+  expect(id(tree, 'new-expense-original-split-0').props.value).toContain('50.01');
+  expect(
+    nodes(tree).some(
+      (e) => e.props.label === messages.en.splitMode && e.props.value === messages.en.splitShares
+    )
+  ).toBe(true);
+  press(id(tree, 'new-expense-confirm'));
+  await flush();
+  expect(h.flush).toHaveBeenCalledOnce();
+  expect(h.submit.mock.calls[0][2]).toMatchObject({
+    split: { mode: 'shares', values: [null, null] },
+  });
+});
+it('cancels advanced previews after mode, value, members, amount, currency or rate changes, including late replies', async () => {
+  advancedOptions();
+  press(id(splitForm(), 'expense-split-mode-shares'));
+  let resolve!: (v: unknown) => void;
+  h.requestPreview.mockImplementation(
+    () =>
+      new Promise((r) => {
+        resolve = r;
+      })
+  );
+  press(id(form().entryTree, 'new-expense-preview'));
+  await flush();
+  change(id(splitForm(), `expense-split-value-${h.scope.accountId}`), '2');
+  resolve(advancedPreview());
+  await flush();
+  expect(id(form().entryTree, 'new-expense-confirm').props.disabled).toBe(true);
+  h.requestPreview.mockResolvedValue(advancedPreview());
+  for (const edit of [
+    () => press(id(splitForm(), 'expense-split-mode-amount')),
+    () => change(id(splitForm(), `expense-split-value-${h.scope.accountId}`), '20'),
+    () => press(id(form().entryTree, `new-expense-member-${h.scope.accountId}`)),
+    () => change(id(form().entryTree, 'new-expense-amount'), '101'),
+    () => press(id(form().entryTree, 'new-expense-currency-JPY')),
+    () => change(id(form().entryTree, 'new-expense-rate'), '0.21'),
+  ]) {
+    h.options.currencySettings = {
+      default_currency: 'TWD',
+      currencies: [{ code: 'JPY', rate: 0.215 }],
+    };
+    press(id(form().entryTree, 'new-expense-preview'));
+    await flush();
+    edit();
+    expect(id(form().entryTree, 'new-expense-confirm').props.disabled).toBe(true);
+  }
+  expect(h.submit).not.toHaveBeenCalled();
+});
+
+it('rechecks write capability after refresh without degrading a restored advanced draft', async () => {
+  advancedOptions();
+  press(id(splitForm(), 'expense-split-mode-percent'));
+  change(id(splitForm(), `expense-split-value-${h.scope.accountId}`), '033.33');
+  h.refetch.mockResolvedValue({ data: { ...h.options, splitCreateModes: undefined } });
+  press(id(form().entryTree, 'new-expense-preview'));
+  await flush();
+  expect(h.requestPreview).not.toHaveBeenCalled();
+  expect(id(form().entryTree, 'new-expense-confirm').props.disabled).toBe(true);
+  expect(h.draft.splitValues?.percent?.[h.scope.accountId]).toBe('033.33');
+});
+it('rejects a legacy/mismatched preview for an explicit split before enabling confirmation', async () => {
+  advancedOptions();
+  press(id(splitForm(), 'expense-split-mode-shares'));
+  h.requestPreview.mockResolvedValue({ ...advancedPreview(), splitMode: undefined });
+  press(id(form().entryTree, 'new-expense-preview'));
+  await flush();
+  expect(id(form().entryTree, 'new-expense-confirm').props.disabled).toBe(true);
+  expect(nodes(form().entryTree).some((e) => e.props.testID === 'new-expense-preview-card')).toBe(
+    false
+  );
+  expect(h.submit).not.toHaveBeenCalled();
+});
+it('all-zero and malformed advanced input never reaches preview or the queue', async () => {
+  advancedOptions();
+  press(id(splitForm(), 'expense-split-mode-shares'));
+  for (const member of h.options.members)
+    change(id(splitForm(), `expense-split-value-${member.id}`), '0');
+  press(id(form().entryTree, 'new-expense-preview'));
+  await flush();
+  expect(h.requestPreview).not.toHaveBeenCalled();
+  change(id(splitForm(), `expense-split-value-${h.scope.accountId}`), '12abc');
+  press(id(form().entryTree, 'new-expense-preview'));
+  await flush();
+  expect(id(splitForm(), `expense-split-value-${h.scope.accountId}`).props.error).toBe(
+    messages.en.splitInvalid
+  );
+  expect(h.requestPreview).not.toHaveBeenCalled();
+  expect(h.enqueue).not.toHaveBeenCalled();
+});
+
+it('does not freeze values that changed while waiting for the draft flush', async () => {
+  advancedOptions();
+  press(id(splitForm(), 'expense-split-mode-shares'));
+  h.requestPreview.mockResolvedValue(advancedPreview());
+  press(id(form().entryTree, 'new-expense-preview'));
+  await flush();
+  expect(id(form().entryTree, 'new-expense-confirm').props.disabled).toBe(false);
+  h.flush.mockResolvedValue({
+    input: { ...h.draft, splitValues: { shares: { [h.scope.accountId]: '2' } } },
+  });
+  press(id(form().entryTree, 'new-expense-confirm'));
+  await flush();
+  expect(h.submit).not.toHaveBeenCalled();
+  expect(id(form().entryTree, 'new-expense-confirm').props.disabled).toBe(true);
+});

@@ -5,6 +5,8 @@ import type { UnconfirmedReason } from './entry';
 /** The text under a form field for one validation problem. */
 export function issueMessage(issue: DraftIssue, t: Messages): string {
   switch (issue.field) {
+    case 'split':
+      return issue.code === 'unsupported' ? t.splitUnavailable : t.splitInvalid;
     case 'description':
       return issue.code === 'required' ? t.descriptionRequired : t.descriptionTooLong;
     case 'amount':

@@ -200,6 +200,12 @@ expense-options 在同一次旅行讀取補常用／預設設定與後端支援�
 
 表單的參考／預覽讀取共用 SQLite 帳號限速與登入／catalog 世代；確認 guard 經 ExpenseEntry.submit 傳入原內容 retry，每次 transport（含 refresh 重送）重新核對。429 保存失敗保持本表單期限並提示，後續先重試落盤；重啟保護仍以成功保存為前提。D 入列與 prepare／同步另檢查 TWD／1，外幣草稿不會被解讀成 TWD 意圖。讀取設定或参考值不改已存在原始輸入或 frozen body。
 
+## G3b-1 進階新增資料流
+
+`SplitFields` 共用模式／逐人文字輸入；`splitInput.ts` 僅做文字與共用契約驗證、ID 對應，不計算分攤。草稿 JSON 增加可選 `splitMode` 與 `splitValues`（amount／percent／shares 各自以成員 ID 保存文字）；缺模式按均分讀取，SQLite schema 10 不重寫舊 JSON。選項快照保留可選 splitPreviewModes／splitCreateModes，線上預覽前刷新兩項能力；缺寫入能力不接受進階預覽／確認。
+
+預覽 key 含模式及逐人輸入，表單每次編輯取消請求／清除預覽；v2 runtime schema 核對雙單位份額，確認按回傳 ID 重排 split.values。C 原子交接、pending decoder、receipt 與原 UUID 直接保存相容契約的完整 body；不修改舊 body、序列或限速期限。D 共用 `isTwdQueueDraft` 增加均分限制，SQLite prepare 同時檢查當前列與確認 body，非均分只能還原草稿。手機編輯仍沿用下節 G2c，待 G3b-2 接入。
+
 ## G2c 外幣編輯
 
 E3 edit-context 在同一授權交易帶回旅程幣別選項與可選 recalculate 能力；equal 保持舊 App 的 TWD 範圍。後端將已存各人 TWD 份額與原額／歷史匯率的 computeSplits 比對，合法且相同才允許重算；基本更新仍只 $set 明確 metadata。PATCH 新形狀成對帶 currency／exchange_rate，省略兩欄仍為舊 TWD／1 body；凍結操作及 receipt 指紋不補預設或遷移。

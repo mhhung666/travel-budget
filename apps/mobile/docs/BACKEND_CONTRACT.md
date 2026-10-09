@@ -234,6 +234,6 @@ mode=equal 的 changes 可成對新增 currency／exchange_rate，original_amoun
 
 授權先於 body／receipt；相同 UUID／完整 body 重播既有終局結果，不因之後成員或支出改變而再次寫入，已撤權者仍不能查回。不同 body 沿用該 UUID 回 `409 IDEMPOTENCY_CONFLICT`。格式錯誤先回 `400 VALIDATION_ERROR`；交易內新增核對不符會保存 `VALIDATION_ERROR` 拒絕（POST 400，PATCH 409），編輯 revision 過期保存 `RESOURCE_CHANGED`。未知 DB 故障仍回滾支出、activity 及 receipt，不把未確認結果誤記為終局；待確認恢復沿原 UUID，不自動換 key 重送。
 
-能力採相容的可選欄位：`expense-options.splitCreateModes` 宣告四種新增模式，`edit-context.capabilities.splitModes` 宣告四種明確重算模式；缺欄位即不開放相應功能。`splitPreviewModes` 與舊 `equal`／`recalculate` 不能替代這兩個能力，嚴格的全域 capabilities 保持不變。HTTP body 總限制仍為 8 KiB。G3b 手機表單、原始文字草稿、D 的非均分防線及裝置驗收尚未完成；本片沒有 Mobile UI、migration 或非 TWD 新建開關變更。
+能力採相容的可選欄位：`expense-options.splitCreateModes` 宣告四種新增模式，`edit-context.capabilities.splitModes` 宣告四種明確重算模式；缺欄位即不開放相應功能。`splitPreviewModes` 與舊 `equal`／`recalculate` 不能替代這兩個能力，嚴格的全域 capabilities 保持不變。HTTP body 總限制仍為 8 KiB。G3b-1 已接手機新增、原始文字草稿與 D 非均分防線，見 [手機現況](FEATURES.md#g3b-1-進階新增與草稿)；進階編輯與裝置驗收仍待後續，沒有 migration 或非 TWD 新建開關變更。
 
 驗證集中在 `expenseSplitConfirmation.test.ts`、`mobileExpenseWrite.integration.test.ts`、`expenseMaintenance.integration.test.ts` 與 `test:mobile-api`：含四模式、精確確認、同 UUID 並發／回應遺失／重播、歷史非均分、成員變動／撤權、Web 所改業務欄位的 revision 衝突、原欄位保留及交易回滾。隔離資料庫測試也覆蓋 USD／JPY 基準、零換算與合法匯率上下界；真機驗收另列 LOCAL_ACCEPTANCE。

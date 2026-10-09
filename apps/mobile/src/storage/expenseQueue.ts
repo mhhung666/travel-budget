@@ -151,6 +151,7 @@ export async function createExpenseQueueStore(db: SqlDatabase): Promise<ExpenseQ
             throw new Error('UNSUPPORTED_QUEUE_CURRENCY');
           const body = expenseCreateInput.parse(payload);
           if (
+            ('split' in body && body.split !== undefined && body.split.mode !== 'equal') ||
             body.currency !== 'TWD' ||
             body.exchange_rate !== 1 ||
             ('base_currency' in body && body.base_currency !== 'TWD')

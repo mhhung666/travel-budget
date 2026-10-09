@@ -6,7 +6,7 @@
 
 ### 2026-10-09
 
-- Web B5 共用服務整理與金額遷移 CI 修正已通過獨立審查／驗證。G3a-1／G3a-2（Web／contracts）完成四種分攤預覽、嚴格輸入、交易內逐人確認及歷史帳明確重算；保留基本編輯、UUID／終局 receipt，新增能力與相容契約見 [G3 契約](apps/mobile/docs/BACKEND_CONTRACT.md#g3a-2-進階分攤新增與編輯)。完整測試、隔離交易／HTTP、check／build 及三平台匯出通過；手機表單／草稿、裝置及非 TWD 開放仍待後續。
+- G3a／G3b-1（Web／Mobile／contracts）：完成四模式預覽與交易內確認，手機新增支援逐人輸入、雙幣份額及原始文字草稿；C 保留完整請求與原 UUID，D 僅接受 TWD 均分。完整測試、check／build／三平台匯出通過，後端隔離交易／HTTP 於 G3a 通過；進階編輯、裝置及非 TWD 開放仍待後續，見 [G3 現況](apps/mobile/docs/FEATURES.md#g3b-1-進階新增與草稿)。
 - Web／Mobile／contracts B5e：刪除舊公開 URL 與無呼叫服務，修正非 TWD 參考匯率 503 與 AI 行程匯入 context。獨立審查及 Web 2,308 項、Mobile 1,234 項、隔離 DB 259 項、真 HTTP 34 段、PWA 瀏覽器 11 項、check／build／三平台匯出通過；原生操作待驗，見 [B 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#b-基準幣別驗收b1b2b3-實作交接)。
 - Web／Mobile B5d：新操作統一 v2，舊紀錄不重送，保留捨棄／草稿恢復與歷史隔離。Mobile API 設定改為只填後端網域，舊版本路徑仍對應同一登入／本機資料；同步文件與驗收工具提示，Mobile 1,236 項＋工具 48 項及三平台匯出通過。
 

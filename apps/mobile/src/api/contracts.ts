@@ -83,8 +83,16 @@ export const landingSchema = shared.landingSchema.safeExtend(unit);
 export const expenseSchema = shared.expenseSchema.safeExtend(unit);
 export const expenseDetailSchema = shared.expenseDetailSchema.safeExtend(unit);
 export const settlementSchema = shared.settlementSchema.safeExtend(unit);
-export const expenseOptionsSchema = shared.expenseOptionsSchema.safeExtend(unit);
-export const expensePreviewSchema = shared.expensePreviewSchema.safeExtend(unit);
+export const expenseOptionsSchema = shared.expenseOptionsSchema.safeExtend({
+  ...unit,
+  splitPreviewModes: shared.expenseOptionsV2Schema.shape.splitPreviewModes,
+  splitCreateModes: shared.expenseOptionsV2Schema.shape.splitCreateModes,
+});
+export const expensePreviewSchema = shared.expensePreviewSchema.safeExtend({
+  ...unit,
+  splitMode: shared.expensePreviewV2Schema.shape.splitMode,
+  splits: shared.expensePreviewV2Schema.shape.splits,
+});
 export const expenseEditContextSchema = shared.expenseEditContextSchema.safeExtend({
   ...unit,
   expense: expenseDetailSchema,

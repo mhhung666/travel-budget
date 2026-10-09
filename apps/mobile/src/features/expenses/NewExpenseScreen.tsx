@@ -1,3 +1,5 @@
+import { SplitFields } from './SplitFields';
+import { splitLabel, splitModeOf, supportsSplitCreate } from './splitInput';
 import { baseCurrency } from '@/api/ledger';
 import { ApiError } from '@/api/client';
 import { openMutationStore } from '@/storage/pendingExpenseDatabase';
@@ -74,7 +76,7 @@ type Saved = Extract<EntryOutcome, { kind: 'saved' }>;
 type Banner = 'rejected' | 'not-sent' | null;
 
 /**
- * Add a currency expense split equally between chosen members: fill in, preview the backend's split,
+ * Add a currency expense with a confirmed split between chosen members: fill in, preview the backend's split,
  * confirm. Confirming freezes the request on the device before anything is sent; the entry engine
  * owns it from there, so closing this screen never loses or cancels it.
  */
@@ -496,6 +498,7 @@ function EntryForm({
         beforeSend
       );
       beforeSend();
+      confirmedFields(draft, fresh, value);
       dispatch({ type: 'resolve', ticket, key: requestKey, value });
     } catch (error) {
       if (controller.signal.aborted) {
@@ -590,6 +593,8 @@ function EntryForm({
       beforeSend();
       const stored = await editor.flush();
       beforeSend();
+      const storedRequest = previewInputOf(stored.input, options);
+      if (!storedRequest || previewKey(storedRequest) !== key) throw new Error('STALE_PREVIEW');
       const outcome = await entry.submit(
         scope,
         tripId,
@@ -889,6 +894,20 @@ function EntryForm({
         {!!message('members') && <FieldError message={message('members')!} />}
       </Section>
 
+      <SplitFields
+        draft={draft}
+        members={options.members.map((m) => ({
+          id: m.id,
+          label: memberLabel(m.id, m.displayName),
+        }))}
+        t={t}
+        disabled={locked}
+        attempted={attempted}
+        available={supportsSplitCreate(options, splitModeOf(draft))}
+        accessoryId={amountAccessoryId}
+        onChange={edit}
+      />
+      {!!message('split') && <FieldError message={message('split')!} />}
       <Disclosure testID="expense-form-help" title={t.expenseFormHelp}>
         <Copy>{t.newExpenseHint}</Copy>
         <Copy>{t.draftHint}</Copy>
@@ -898,15 +917,27 @@ function EntryForm({
         variant={current ? 'secondary' : 'primary'}
         label={previewing ? t.previewing : t.previewSplit}
         busy={previewing}
-        disabled={localOnly || !online || locked}
+        disabled={
+          localOnly ||
+          !online ||
+          locked ||
+          (splitModeOf(draft) !== 'equal' && !supportsSplitCreate(options, splitModeOf(draft)))
+        }
         onPress={() => void runPreview()}
       />
-      {!!previewError && <Notice tone="danger">{errorMessage(previewError, t)}</Notice>}
+      {!!previewError && (
+        <Notice tone="danger">
+          {previewError instanceof ApiError && previewError.code === 'VALIDATION_ERROR'
+            ? t.splitPreviewInvalid
+            : errorMessage(previewError, t)}
+        </Notice>
+      )}
       {stale && <Notice tone="warning">{t.previewStale}</Notice>}
       {current && (
         <Section title={t.previewTitle}>
           <Copy>{t.previewHint}</Copy>
           <Card testID="new-expense-preview-card">
+            <DetailRow label={t.splitMode} value={splitLabel(splitModeOf(draft), t)} />
             <DetailRow
               testID="new-expense-preview-total"
               label={t.amountTwd}
@@ -932,12 +963,20 @@ function EntryForm({
               )}
             />
             {current.splits.map((split, index) => (
-              <DetailRow
-                key={split.userId}
-                testID={`new-expense-split-${index}`}
-                label={memberLabel(split.userId, split.displayName)}
-                value={f.money(split.shareAmount)}
-              />
+              <View key={split.userId} style={{ gap: spacing.small }}>
+                <DetailRow
+                  testID={`new-expense-split-${index}`}
+                  label={memberLabel(split.userId, split.displayName)}
+                  value={f.money(split.shareAmount)}
+                />
+                {split.originalShareAmount !== undefined && (
+                  <DetailRow
+                    testID={`new-expense-original-split-${index}`}
+                    label={t.originalAmount}
+                    value={f.originalAmount(split.originalShareAmount, current.currency!)}
+                  />
+                )}
+              </View>
             ))}
           </Card>
         </Section>
@@ -953,7 +992,13 @@ function EntryForm({
         onPress={() => void confirm()}
       />
       <Section title={t.offlineExpenseConfirm}>
-        <Notice>{isTwdQueueDraft(draft) ? t.queueRule : t.foreignDraftOnlineOnly}</Notice>
+        <Notice>
+          {isTwdQueueDraft(draft)
+            ? t.queueRule
+            : splitModeOf(draft) !== 'equal'
+              ? t.advancedDraftOnlineOnly
+              : t.foreignDraftOnlineOnly}
+        </Notice>
         {!!queueError && <Notice tone="danger">{t.entryNotSent}</Notice>}
         <Action
           testID="expense-queue-confirm"

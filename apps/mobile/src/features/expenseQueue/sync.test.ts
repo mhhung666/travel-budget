@@ -1402,3 +1402,57 @@ describe('B5c-2 / B5d-1 queue versions', () => {
     expect(await h.pending.list(h.scope)).toEqual([]);
   });
 });
+
+it.each(['amount', 'percent', 'shares'] as const)(
+  'never synchronizes %s intent, even with equal results',
+  async (splitMode) => {
+    const h = await harness();
+    const d = { ...h.draft(1), input: { ...h.draft(1).input, splitMode } };
+    await h.pending.drafts.start(d);
+    await expect(h.queue.enqueue(d, options)).rejects.toThrow();
+    await h.db.runAsync(
+      "INSERT INTO expense_queue (environment, account_id, client_request_id, trip_id, input, roster, status, reason, next_at, created_at, api_version) VALUES (?, ?, ?, ?, ?, ?, 'queued', NULL, 0, 1, 2)",
+      h.scope.environment,
+      h.scope.accountId,
+      uuidOf(900),
+      TRIP,
+      JSON.stringify(d.input),
+      JSON.stringify([ANN, BOB, CAT])
+    );
+    await h.enqueue(2, OTHER_TRIP);
+    await h.queue.synchronize(h.scope);
+    expect((await h.store.list(h.scope)).find((r) => r.tripId === TRIP)).toMatchObject({
+      status: 'attention',
+    });
+    expect(h.calls.some((c) => c.path.includes(TRIP))).toBe(false);
+    expect(h.server.expenses).toHaveLength(1);
+  }
+);
+
+it('can still synchronize an equal draft with the new explicit split capabilities', async () => {
+  const h = await harness();
+  await h.enqueue(1);
+  h.hook(async (path) => {
+    if (path.endsWith('/expense-options'))
+      return Response.json({
+        data: {
+          ...options,
+          ledger,
+          splitPreviewModes: ['equal', 'amount', 'percent', 'shares'],
+          splitCreateModes: ['equal', 'amount', 'percent', 'shares'],
+        },
+      });
+    if (path.endsWith('/preview'))
+      return Response.json({
+        data: {
+          ...v2preview,
+          splitMode: 'equal',
+          splits: preview.splits.map((s) => ({ ...s, originalShareAmount: s.shareAmount })),
+        },
+      });
+  });
+  await h.queue.synchronize(h.scope);
+  expect(h.server.posts()[0].body).toMatchObject({ split: { mode: 'equal' } });
+  expect(h.server.expenses).toHaveLength(1);
+  expect(await h.pending.list(h.scope)).toEqual([]);
+});

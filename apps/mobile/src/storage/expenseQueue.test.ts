@@ -580,3 +580,34 @@ describe('B5c-2 queued version', () => {
     expect((await queue.list(scope)).map((r) => r.apiVersion)).toEqual([1, 1, 2]);
   });
 });
+
+it.each(['amount', 'percent', 'shares'] as const)(
+  'rejects %s at SQLite enqueue/prepare without losing the draft',
+  async (splitMode) => {
+    const db = open();
+    const pending = await createPendingExpenseStore(db);
+    const queue = await createExpenseQueueStore(db);
+    const advanced = { ...draft(), input: { ...draft().input, splitMode } };
+    await pending.drafts.start(advanced);
+    await expect(queue.enqueue(advanced, options, uuidOf(100))).rejects.toThrow();
+    expect(await pending.drafts.load(scope, tripId)).toEqual(advanced);
+    expect(await queue.list(scope)).toEqual([]);
+    await pending.drafts.discard(scope, tripId, advanced.draftId);
+    await pending.drafts.start(draft(2));
+    await queue.enqueue(draft(2), options, uuidOf(100));
+    const record = (await queue.list(scope))[0];
+    await expect(
+      queue.prepare(record, {
+        ...payload(record.clientRequestId),
+        split: { mode: splitMode, values: [splitMode === 'shares' ? 1 : 100] },
+      })
+    ).rejects.toThrow();
+    expect(await pending.list(scope)).toEqual([]);
+    // The SQLite row, not a stale caller's equal draft, controls preparation.
+    await db.runAsync('UPDATE expense_queue SET input = ?', JSON.stringify(advanced.input));
+    await expect(queue.prepare(record, payload(record.clientRequestId))).rejects.toThrow();
+    expect(await pending.list(scope)).toEqual([]);
+    await queue.restore((await queue.list(scope))[0], uuidOf(3));
+    expect((await pending.drafts.load(scope, tripId))!.input).toEqual(advanced.input);
+  }
+);

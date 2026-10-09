@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { expenseSplitModeSchema } from '@travel-budget/contracts';
 import { expenseCategories, ledgerSchema } from '@/api/contracts';
 import type { PendingScope } from './pendingExpenses';
 
@@ -14,6 +15,16 @@ export const expenseDraftSchema = z
     rateText: z.string().optional(),
     rateSource: z.enum(['manual', 'trip', 'reference']).optional(),
     rateDate: z.string().optional(),
+    splitMode: expenseSplitModeSchema.optional(),
+    // Keep text per mode and member ID, including incomplete text and deselected members.
+    splitValues: z
+      .object({
+        amount: z.record(z.string(), z.string()).optional(),
+        percent: z.record(z.string(), z.string()).optional(),
+        shares: z.record(z.string(), z.string()).optional(),
+      })
+      .strict()
+      .optional(),
     category: z.enum(expenseCategories),
     date: z.string(),
     payerId: z.string().nullable(),
@@ -38,8 +49,9 @@ export interface ExpenseDraftStore {
   discard(scope: PendingScope, tripId: string, draftId: string): Promise<void>;
 }
 
-/** D remains TWD only, including every persistence and synchronization entry point. */
+/** D remains TWD equal only, including every persistence and synchronization entry point. */
 export const isTwdQueueDraft = (draft: ExpenseDraft) =>
+  (draft.splitMode ?? 'equal') === 'equal' &&
   (draft.ledger?.baseCurrency ?? 'TWD') === 'TWD' &&
   (draft.currency ?? 'TWD') === 'TWD' &&
   (draft.rateText === undefined ||
