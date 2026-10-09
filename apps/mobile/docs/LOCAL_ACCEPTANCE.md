@@ -6,21 +6,9 @@
 
 固定案例、新舊版本矩陣與 B1–B4 條件統一見 [B0 規格](ROADMAP.md#b旅程基準幣別改造規格2026-10-08)。B1 後端已實作，契約／開關見 [B1 API](../../web/docs/MOBILE_API.md#b1-基準幣別契約)；B2 Web 已實作，行為與恢復見 [B2 架構](../../web/docs/ARCHITECTURE.md#b2-web-帳本與恢復)；B3 Mobile／SQLite 已實作，見 [B3 架構](ARCHITECTURE.md#b3mobile-帳本與舊資料恢復)；B4 獨立操作仍待完成，非 TWD 建立預設關閉。
 
-B5a 已完成靜態依賴盤點、保守過渡決策與 [新請求／歷史恢復矩陣及退役門檻](ROADMAP.md#b5a-呼叫依賴與退役門檻)；產品程式未變更，舊版外部使用未確認，完整 v1 保留。B5b-1（v2 auth／me、明確回應契約）已實作，Web 單元、帳號真 DB 整合與 `test:mobile-api` 真 HTTP 已獨立複驗通過，程式審查未發現阻擋問題；B5b-2（會員業務 route 共用操作）已通過獨立審查，Web 2,303 項、8 檔隔離 DB 236 項與真 HTTP 複驗通過；B5b-3（Web／公開入口共用 handler）已通過獨立審查，Web 2,318 項、隔離 DB 181 項、根 check 與正式 build PWA 瀏覽器 10 項複驗通過；B5c-1（Mobile transport／登入預設 v2）已實作，流量與收據計數的審查問題已修正，驗證範圍見下段；B5c-2（D 新佇列改 v2）已通過審查與工程複驗，見下段；2026-10-09 使用者確認只有可丟棄 fixture，B5d 改為縮短退役（B5d-1 Mobile 單一 v2 → B5d-2 Web 會員 v1 → B5d-3 舊 PWA outbox → B5e），B5d-1 已通過獨立審查，B5d-2（Web 會員 v1 退役）已通過獨立審查，B5d-3（舊 PWA outbox／action）已通過獨立審查，B5e（結案核對）已通過獨立審查，舊包升級操作不再是前置，v2 原生操作仍待他人核對；驗收由其他人補證據，Android 延後，不把 B5a 文件核對列為裝置或退役通過。
+**B5 已結案並合併 master（`bea57178`）**：程式退役與工程審查完成，成果／驗證統一見 [B5 封存摘要](archive/README.md#b5-v1-退役與-v2-整併2026-10-09)。B5 剩餘原生／跨端待驗列於下方；不阻擋 G3 開發，未驗不算通過，非 TWD 建立仍關閉。
 
-**B5c-1 審查修正**：v2 送前查詢與丟回應重試已按版本驗證；拒絕流程的 Maestro 中途檢查及最終 DB 檢查共用版本預期：v1 收據零筆→一筆，v2 保留拒絕收據，一筆→兩筆，支出皆零筆→一筆。`--entry-api-version` 預設 2，驗舊版明確傳 1；有代理時也核對實際流量版本。回歸直接讀 Maestro 檢查點並執行主機腳本，涵蓋缺收據、多收據、重複支出與錯版。Mobile 1,215 項＋工具 46 項、Mobile check、contracts check 與三平台匯出通過。原生裝置／升級操作仍待驗，不以工程檢查取代。
-
-**B5c-2 已審查**：新 D 入列以 SQLite schema 10 原子保存 v2，options／預覽／prepare／交 C 同版；舊列保留 v1，版本／body 不符拒絕，仍只支援 TWD 基準＋原幣＋均分。衝突驗收工具已修正：代理在注入 POST 409 後才啟用後續查詢 403，放行 v2 送前查詢；原生驗收另核對實際流量順序。獨立複驗 Mobile 1,224 項＋工具 48 項及 Mobile check 通過，涵蓋兩版順序、故障解除與流量正反例；同一交付的 contracts check、三平台匯出亦通過，未發現剩餘阻擋問題。原生 `queue-conflict`、舊包升級與 iPhone／iPad 操作尚未驗。
-
-**B5d-1 已審查**：Mobile transport 與新 C／D／E 紀錄只用 v2；舊 v1 紀錄仍可解碼、不改標、不送出或補查，只能明確捨棄（未 prepare 的 D 可移回草稿）。捨棄 C／已 prepare 的 D 在同一交易清除相關列、保留草稿 tombstone，不宣稱結果已知；已完成 v1 結果照常顯示。另修正送前查詢後 POST 期間的 sending 狀態，原生工具改只核對 v2。獨立複驗 Mobile 1,232 項＋工具 48 項、Mobile check 與三平台匯出通過，未發現阻擋問題；契約未變更，未執行原生裝置或 Maestro。
-
-**B5d-2 已審查**：刪除 32 個原生 `/api/v1` route，OpenAPI 只發布 33 條 v2 路徑與可達 schema；既有 v2 契約內容不變，公開 API／舊 Web action 留待 B5d-3。JWT issuer、歷史 receipt／指紋及 decoder 保留，v2 查詢／重送 v1 receipt 仍拒絕跨版，不新增帳務。獨立複驗 Web 2,307 項、Mobile 1,233 項＋工具 48 項、Web 工具 9 項、13 檔隔離 DB 355 項、真 HTTP 34 段（含 v1 404）、frozen install、contracts check、根 check、正式 build 與三平台匯出通過，未發現本片阻擋問題；未操作原生裝置。實作者另報 `coreAccountIndexes`／`itineraryConcurrency` 共 7 項既有整合失敗，已比對原 HEAD，本輪未重跑。當時發現的非 TWD 參考匯率 503 已於 B5e 修正，見下段。
-
-**B5d-3 已審查**：舊 PWA pending outbox 保留原 body／UUID，只列出供匯出或明確捨棄，不恢復 mutation、不送出、不計入本機預估；捨棄前不自動釋放旅行寫入保留。刪除 20 個已無產品呼叫或已切換的 Server Action 身分，PDF 改用 `getLedgerTripLanding`，新增／修改支出直接使用 `withLedgerAuth`。新版 journal／writer 與歷史 receipt 邊界保留；舊公開 URL、共用 v1 分支及無呼叫服務留 B5e 盤點。獨立複驗 Web 2,306 項、7 檔隔離 DB 263 項、根 check／contracts、正式 build 及 PWA 瀏覽器 11 項通過，未發現阻擋問題；瀏覽器包含真 IndexedDB／SW、舊列不送出及捨棄、丟回應、多分頁與非 TWD 顯示。實作者另報較廣 DB 套件 524 項通過及 7 項既有失敗，本輪未重跑無關套件；Mobile 程式未改，未重跑 Mobile 測試／匯出及原生裝置。既有非 TWD 參考匯率問題仍見上段。
-
-**B5e 已審查**：刪除 11 個舊公開 `/api/public/trips/*` 與 5 個無呼叫服務；公開 v2 分享／匿名認領維持原權限邊界。AI 行程匯入補上 v2 context；參考匯率契約改按旅行基準驗證，Web route 與 Mobile 解析的非 TWD 回歸通過。保留環境 `/api/v1` 識別別名、歷史 decoder、缺欄位 TWD、receipt 指紋／UUID 規則與跨版拒絕；服務內無產品入口的 v1 分支另列後續整理。獨立複驗 frozen install、contracts generate／check（OpenAPI 無變化）、根 check、Web 2,308 項、Mobile 1,234 項＋工具 48 項、7 檔隔離 DB 259 項、真 HTTP 34 段及三平台匯出通過；正式 build 與 PWA 瀏覽器 11 項亦通過，未發現阻擋問題。實作者另報較廣 DB 套件 531 項通過及 7 項既有失敗，本輪未重跑無關套件。未操作原生裝置、未部署，非 TWD 建立仍預設關閉。
-
-**B5e 待他人核對**（附 commit、裝置／OS、操作者與證據路徑）：
+**B4／B5 原生與跨端待驗**（附 commit、裝置／OS、操作者與證據路徑）：
 
 1. iPhone＋iPad：登入／refresh／登出、旅行列表與加入、線上新增與離線佇列 D、編輯／刪除、付款／撤銷、設定／幣別／成員管理皆只走 `/api/v2`（代理流量無 `/api/v1` 請求）。
 2. 本機開啟非 TWD 建立後，USD 旅行在 Mobile 新增支出／幣別頁「讀取參考匯率」成功，數值以 USD 為 1；Web 對同旅行 AI 行程匯入可產生預覽。
@@ -90,14 +78,14 @@ pnpm --filter @travel-budget/web exec node scripts/check-ledger-acceptance.mjs \
 
 fixture 終端的 `b4-state` 取得三趟完整帳務與 receipt 白名單 snapshot；`b4-usd-leave-a`／`b4-usd-rejoin-a`（另有 twd／jpy）供撤權／恢復操作。撤權後 receipt 仍須受正式權限限制；fixture 控制不是產品 API。需保存 snapshot 時，使用既有 `controlUrl`／`controlToken` 的 POST 通道，勿把憑證寫入證據。此工具不直接連外部 DB、不重建使用者端 UUID、不遷移或設定遠端。
 
-| 他人操作核對                 | 必留證據／目前狀態                                                                                                                   |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| 固定案例、Web ↔ iPhone／iPad | 一端新增、另一端讀回；每台重新啟動後單位與數值一致，附 DB 核對輸出與畫面。待驗。                                                     |
-| 丟回應／重啟／換帳號         | 保存前後同 UUID／body hash、receipt 與 DB 筆數；A→B→A 不顯示／送出 A 的操作，查原版本恢復。待驗。                                    |
-| 編輯／衝突／還款／撤銷       | Web 先改後 Mobile 重確認；基本編輯保留原額／匯率／附件；付款及撤銷丟回應不重複扣抵，附 snapshot 與原 UUID。待驗。                    |
-| 舊 TWD／SQLite／429／撤權    | 用舊包建立 C／D／E 與草稿再升級，原 body 不變；保存失敗不送出、等待跨重啟有效、撤權晚到回應不得解鎖。SQLite 故障沿用原生工具，待驗。 |
-| 預算／跨旅程統計／公開／匯出 | USD 私人預算只對 A；TWD／USD 分組、不混算；JPY .01 顯示／朗讀／匯出完整，舊公開入口已移除（404）、新入口不含私人欄位。待驗。         |
-| 建立開關／回退               | 本機關／開模式分別核對新建、既有帳務及原 UUID 恢復；服務不支援 v2 不改走 v1。正式部署／開放另依指示，待驗。                          |
+| 他人操作核對                 | 必留證據／目前狀態                                                                                                                        |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| 固定案例、Web ↔ iPhone／iPad | 一端新增、另一端讀回；每台重新啟動後單位與數值一致，附 DB 核對輸出與畫面。待驗。                                                          |
+| 丟回應／重啟／換帳號         | 保存前後同 UUID／body hash、receipt 與 DB 筆數；A→B→A 不顯示／送出 A 的操作，查原版本恢復。待驗。                                         |
+| 編輯／衝突／還款／撤銷       | Web 先改後 Mobile 重確認；基本編輯保留原額／匯率／附件；付款及撤銷丟回應不重複扣抵，附 snapshot 與原 UUID。待驗。                         |
+| 舊 TWD／SQLite／429／撤權    | 升級保留舊 C／D／E 原 body，舊列不送出／只明確捨棄；保存失敗不送出、等待跨重啟有效、撤權晚到回應不得解鎖。SQLite 故障沿用原生工具，待驗。 |
+| 預算／跨旅程統計／公開／匯出 | USD 私人預算只對 A；TWD／USD 分組、不混算；JPY .01 顯示／朗讀／匯出完整，舊公開入口已移除（404）、新入口不含私人欄位。待驗。              |
+| 建立開關／回退               | 本機關／開模式分別核對新建、既有帳務及原 UUID 恢復；服務不支援 v2 不改走 v1。正式部署／開放另依指示，待驗。                               |
 
 開發檢查：Mobile 1,203 項行為測試與工具 40 項、Web 核對工具 7 項通過；根 check／contracts／build、三平台匯出及 Expo 相容性通過。一般關閉與本機開啟建立模式的完整真 HTTP 均通過；三種幣別各完成新增／部分還款／撤銷共 9 次丟回應，原 UUID 查回並由 CLI 核對 DB 精確值／筆數，沒有操作裝置。合成 wire 證據 `/var/folders/m4/fgf8qnv17_zcmkxf4s9cmd440000gn/T/travel-budget-ledger-network-9c3XRK/traffic-2.json`，HTTP 診斷 `/var/folders/m4/fgf8qnv17_zcmkxf4s9cmd440000gn/T/travel-budget-mobile-gjfmkn/next.log`；只使用自建資料庫，結束已清理。
 

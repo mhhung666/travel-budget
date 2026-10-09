@@ -7,8 +7,8 @@
 ### 2026-10-09
 
 - Web／Mobile／contracts B5e：刪除舊公開 URL 與無呼叫服務，修正非 TWD 參考匯率 503 與 AI 行程匯入 context。獨立審查及 Web 2,308 項、Mobile 1,234 項、隔離 DB 259 項、真 HTTP 34 段、PWA 瀏覽器 11 項、check／build／三平台匯出通過；原生操作待驗，見 [B 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#b-基準幣別驗收b1b2b3-實作交接)。
-- Web B5d-2／3：退役原生 v1 routes、OpenAPI v1 與舊 Server Actions；PWA 舊 pending outbox 保留匯出／明確捨棄，不再送出。兩片獨立審查通過；本片 Web 2,306 項、隔離 DB 263 項、check／build、PWA 瀏覽器 11 項通過。非 TWD 參考匯率問題已於 B5e 修正，詳見 [B 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#b-基準幣別驗收b1b2b3-實作交接)。
-- Mobile B5d-1：依僅有可丟棄 fixture 的退役決策，App 只送 v2，舊 v1 待處理紀錄改為明確捨棄（未 prepare 的佇列可移回草稿）；修正送前查詢後 POST 狀態。獨立審查及 Mobile 1,232 項＋工具 48 項、check／三平台匯出通過，原生操作待驗；接續 Web 會員 v1 route 與舊 PWA outbox 退役。
+- Web／Mobile B5d：新操作統一 v2，移除原生 v1 與舊 action；舊本機紀錄不再送出，只可明確捨棄，未 prepare 的 D 可移回草稿。歷史 receipt／UUID 與隔離保留，各片工程複驗通過。
+- 文件：B5 已完成狀態統一，舊計畫與逐片紀錄精簡至 archive；roadmap 下一步改為 G3 → G4，實機待驗與非 TWD 開放條件獨立保留。
 
 ### 2026-10-08
 
