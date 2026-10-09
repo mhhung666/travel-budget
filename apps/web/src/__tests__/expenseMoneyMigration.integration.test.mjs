@@ -3,10 +3,18 @@ import { randomUUID } from 'node:crypto';
 import mongoose from 'mongoose';
 import { afterAll, beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import { roundMoney, normalizeShares } from '../lib/money';
-import { readSettlement } from '../lib/settlementRead';
-import { readTripShell } from '../lib/tripShellRead';
+import * as settlementReadLib from '../lib/settlementRead';
+import * as tripShellReadLib from '../lib/tripShellRead';
+import { inLedgerContext } from '@/test/ledgerContext';
 import { up, down } from '../../migrations/20260916220000-normalize-expense-money.js';
+// Direct reader calls use the same per-request ledger context as production v2 entries.
+const readSettlement = inLedgerContext(settlementReadLib.readSettlement);
+const readTripShell = inLedgerContext(tripShellReadLib.readTripShell);
 vi.mock('@/lib/mongodb', () => ({ dbConnect: async () => {} }));
+// Viewer shells include signed settings revisions; no application secrets are needed here.
+vi.mock('@/lib/env', () => ({
+  getEnv: () => ({ JWT_SECRET: 'money-migration-test-secret-with-32-characters' }),
+}));
 
 // 與 moneyAggregation.integration.test.ts 相同閘門：只在明確提供的測試伺服器、全新資料庫寫入。
 const uri = process.env.MONGODB_QUEUE_TEST_URI;

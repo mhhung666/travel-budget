@@ -6,7 +6,7 @@
 
 ### 2026-10-09
 
-- Web B5 後續整理：移除共用服務 v1 分支，保留歷史 TWD 與 receipt／UUID 規則；首次回應與重播一致，相片 DTO 移除錯誤幣別。獨立審查及 check、Web 2,311 項、隔離 DB 349 項、真 HTTP 34 段通過。B5 文件結案封存，下一步 G3 → G4，實機待驗與非 TWD 開放條件保留。
+- Web B5 後續整理：移除共用服務 v1 分支，保留歷史 TWD 與 receipt／UUID 規則；首次回應與重播一致，相片 DTO 移除錯誤幣別。獨立審查及 check、Web 2,311 項、隔離 DB 349 項、真 HTTP 34 段通過。補齊金額遷移測試的 v2 context 與隔離密鑰，修復 CI 缺環境設定失敗；同組真 MongoDB 23 項通過。B5 文件封存，下一步 G3 → G4，實機／非 TWD 開放待驗。
 - Web／Mobile／contracts B5e：刪除舊公開 URL 與無呼叫服務，修正非 TWD 參考匯率 503 與 AI 行程匯入 context。獨立審查及 Web 2,308 項、Mobile 1,234 項、隔離 DB 259 項、真 HTTP 34 段、PWA 瀏覽器 11 項、check／build／三平台匯出通過；原生操作待驗，見 [B 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#b-基準幣別驗收b1b2b3-實作交接)。
 - Web／Mobile B5d：新操作統一 v2，舊紀錄不重送，保留捨棄／草稿恢復與歷史隔離。Mobile API 設定改為只填後端網域，舊版本路徑仍對應同一登入／本機資料；同步文件與驗收工具提示，Mobile 1,236 項＋工具 48 項及三平台匯出通過。
 
