@@ -32,6 +32,9 @@ vi.mock('react', async (original) => ({
     h.deps[i] = deps;
   },
 }));
+vi.mock('@/features/preferences/context', () => ({
+  usePreferences: () => ({ value: { appearance: 'system' } }),
+}));
 vi.mock('react-native', () => ({
   View: 'View',
   Text: 'Text',

@@ -1,4 +1,21 @@
 const zh = {
+  preferences: '語言與外觀',
+  preferenceSystem: '跟隨系統',
+  preferenceLight: '淺色',
+  preferenceDark: '深色',
+  preferenceScope: '偏好只保存在這台裝置，登出或換帳號後仍保留；不會同步到網站或其他裝置。',
+  preferenceLoadError: '無法讀取偏好，目前先跟隨系統。請重試，或重設語言與外觀。',
+  preferenceSaveError: '保存失敗，仍使用原本的設定。請再選一次。',
+  preferenceLanguage: '語言',
+  preferenceAppearance: '外觀',
+  preferenceReset: '重設語言與外觀',
+  preferenceResetHint: '只將語言與外觀改回跟隨系統，不影響帳號、草稿或待確認操作。',
+  preferenceAbout: '關於',
+  preferenceVersion: 'App 版本',
+  preferenceWebsiteHint: '在瀏覽器開啟此環境的網站；網站可能需要另外登入。',
+  preferenceWebsiteUnavailable: '網站尚未設定。',
+  preferenceLinkError: '無法開啟網站，請稍後重試。',
+  preferenceWebsite: '開啟網站',
   searchExpenses: '搜尋與分析',
   searchHint:
     '搜尋整趟旅行已入帳的支出，以旅程基準幣統計。不包含草稿、佇列與還款；重新整理可取得最新結果。',
@@ -476,6 +493,23 @@ export type Messages = Record<keyof typeof zh, string>;
 export const messages = {
   zh,
   'zh-CN': {
+    preferences: '语言与外观',
+    preferenceSystem: '跟随系统',
+    preferenceLight: '浅色',
+    preferenceDark: '深色',
+    preferenceScope: '偏好只保存在这台设备，退出或切换账号后仍保留；不会同步到网站或其他设备。',
+    preferenceLoadError: '无法读取偏好，目前先跟随系统。请重试，或重设语言与外观。',
+    preferenceSaveError: '保存失败，仍使用原本的设置。请再选一次。',
+    preferenceLanguage: '语言',
+    preferenceAppearance: '外观',
+    preferenceReset: '重设语言与外观',
+    preferenceResetHint: '只将语言与外观改回跟随系统，不影响账号、草稿或待确认操作。',
+    preferenceAbout: '关于',
+    preferenceVersion: 'App 版本',
+    preferenceWebsiteHint: '在浏览器打开此环境的网站；网站可能需要另外登录。',
+    preferenceWebsiteUnavailable: '网站尚未设置。',
+    preferenceLinkError: '无法打开网站，请稍后重试。',
+    preferenceWebsite: '打开网站',
     searchExpenses: '搜索与分析',
     searchHint:
       '搜索整趟旅行已入账的支出，以旅程基准币统计。不包含草稿、队列与还款；刷新可取得最新结果。',
@@ -947,6 +981,28 @@ export const messages = {
     done: '完成',
   },
   en: {
+    preferences: 'Language and appearance',
+    preferenceSystem: 'Use system setting',
+    preferenceLight: 'Light',
+    preferenceDark: 'Dark',
+    preferenceScope:
+      'Preferences stay on this device after signing out or switching accounts. They do not sync with the website or other devices.',
+    preferenceLoadError:
+      'Could not load preferences. Using system settings for now. Retry or reset language and appearance.',
+    preferenceSaveError:
+      'Could not save. Your previous settings are still in use. Select again to retry.',
+    preferenceLanguage: 'Language',
+    preferenceAppearance: 'Appearance',
+    preferenceReset: 'Reset language and appearance',
+    preferenceResetHint:
+      'Resets only language and appearance to system settings. Accounts, drafts and pending operations are unaffected.',
+    preferenceAbout: 'About',
+    preferenceVersion: 'App version',
+    preferenceWebsiteHint:
+      'Open this environment’s website in your browser. You may need to sign in separately.',
+    preferenceWebsiteUnavailable: 'The website is not configured.',
+    preferenceLinkError: 'Could not open the website. Please try again.',
+    preferenceWebsite: 'Open website',
     searchExpenses: 'Search and analysis',
     searchHint:
       'Search all recorded expenses in this trip, in its base currency. Excludes drafts, queued expenses and repayments. Refresh for the latest results.',
@@ -1491,6 +1547,28 @@ export const messages = {
     done: 'Done',
   },
   jp: {
+    preferences: '言語と外観',
+    preferenceSystem: 'システム設定に従う',
+    preferenceLight: 'ライト',
+    preferenceDark: 'ダーク',
+    preferenceScope:
+      '設定はこの端末にのみ保存され、ログアウトやアカウント切り替え後も保持されます。Web や他の端末には同期されません。',
+    preferenceLoadError:
+      '設定を読み込めません。現在はシステム設定を使用しています。再試行するか、言語と外観をリセットしてください。',
+    preferenceSaveError:
+      '保存できませんでした。以前の設定を使用しています。もう一度選択してください。',
+    preferenceLanguage: '言語',
+    preferenceAppearance: '外観',
+    preferenceReset: '言語と外観をリセット',
+    preferenceResetHint:
+      '言語と外観のみシステム設定に戻します。アカウント、下書き、確認待ちの操作には影響しません。',
+    preferenceAbout: 'このアプリについて',
+    preferenceVersion: 'アプリのバージョン',
+    preferenceWebsiteHint:
+      'この環境の Web サイトをブラウザで開きます。別途ログインが必要な場合があります。',
+    preferenceWebsiteUnavailable: 'Web サイトが設定されていません。',
+    preferenceLinkError: 'Web サイトを開けませんでした。もう一度お試しください。',
+    preferenceWebsite: 'Web サイトを開く',
     searchExpenses: '検索と分析',
     searchHint:
       '旅行全体の記録済み支出を基準通貨で検索します。下書き・送信待ち・返済は含みません。更新すると最新の結果を取得します。',

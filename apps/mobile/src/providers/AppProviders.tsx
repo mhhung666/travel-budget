@@ -1,6 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useState, type PropsWithChildren } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { PreferencesProvider } from '@/features/preferences/PreferencesProvider';
+import { AppAppearance } from '@/features/preferences/AppAppearance';
 import { AuthProvider } from '@/features/auth/AuthProvider';
 import { DraftCatalogProvider } from '@/features/localDrafts/provider';
 import { TripEntryProvider } from '@/features/tripEntry/provider';
@@ -20,15 +22,19 @@ export function AppProviders({ children }: PropsWithChildren) {
   useEffect(subscribeQueryLifecycle, []);
   return (
     <SafeAreaProvider>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <DraftCatalogProvider>
-            <ExpenseEntryProvider>
-              <TripEntryProvider>{children}</TripEntryProvider>
-            </ExpenseEntryProvider>
-          </DraftCatalogProvider>
-        </AuthProvider>
-      </QueryClientProvider>
+      <PreferencesProvider>
+        <AppAppearance>
+          <QueryClientProvider client={queryClient}>
+            <AuthProvider>
+              <DraftCatalogProvider>
+                <ExpenseEntryProvider>
+                  <TripEntryProvider>{children}</TripEntryProvider>
+                </ExpenseEntryProvider>
+              </DraftCatalogProvider>
+            </AuthProvider>
+          </QueryClientProvider>
+        </AppAppearance>
+      </PreferencesProvider>
     </SafeAreaProvider>
   );
 }

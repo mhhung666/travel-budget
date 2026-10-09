@@ -4,6 +4,10 @@
 
 ## Unreleased
 
+### 2026-10-10
+
+- Mobile G5：登入頁／我的新增四語與跟隨系統、淺深色偏好，保存成功才套用並跨重啟保留；補讀寫失敗恢復、關於版本及本環境網站入口。Mobile 1,412 項＋工具 48 項、check／三平台匯出及 Expo 相容性通過；已提交，裝置與正式客服／隱私入口仍待驗／待定，見 [G5 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#g5-語言與外觀交接)。
+
 ### 2026-10-09
 
 - G4（Web／Mobile／contracts）：G4a 個人預算已提交；G4b 搜尋／日期／分類／付款人篩選及全量分析已接入並提交。共用 Web 計算及授權快照，支援分頁變更重讀、撤權清除與共用限速；工程／隔離 DB／HTTP 驗證及裝置待驗見 [G4b 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#g4b-搜尋與分析交接)，跨旅行分析、非 TWD 新建及原生驗收仍另排。

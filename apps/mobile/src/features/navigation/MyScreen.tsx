@@ -39,6 +39,13 @@ export function MyScreen() {
         disabled={busy}
         onPress={() => router.push('/work')}
       />
+      <Action
+        testID="my-preferences"
+        variant="secondary"
+        label={t.preferences}
+        disabled={busy}
+        onPress={() => router.push('/preferences')}
+      />
       {!!error && <Notice tone="danger">{errorMessage(error, t)}</Notice>}
       <Action
         testID="logout"

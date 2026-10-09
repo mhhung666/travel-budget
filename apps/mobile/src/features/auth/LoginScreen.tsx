@@ -98,6 +98,13 @@ export function LoginScreen() {
           />
         </Card>
         <Action
+          testID="login-preferences"
+          variant="secondary"
+          label={t.preferences}
+          disabled={busy}
+          onPress={() => router.push('/preferences')}
+        />
+        <Action
           testID="login-register"
           variant="secondary"
           label={t.createAccount}

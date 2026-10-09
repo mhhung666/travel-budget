@@ -229,3 +229,9 @@ maintenance 純函式以歷史原額／幣別／String(rate) 初始化，讀 con
 `trips/[id]/expense-search` 以環境／帳號／登入世代／旅行為 key，`ExpenseSearchScreen` 使用四語表單與既有列表列、同名標記及語系格式。`ExpenseSearchReader` 是畫面生命週期內的唯讀控制器：只存已套用條件、全量 summary 與載入列；換條件立即清舊結果、abort 舊請求，離焦取消、返回從第一頁刷新。不建立 React Query 私人快取、SQLite 表或搜尋歷史。
 
 每次讀取先通過 `expenseReadGuard`，SQLite 後與 transport／refresh 重送前檢查登入、catalog 世代、前景／網路及持久共用等待。實際 429 保存原到期時間，保存失敗不能繞過；本機攔截不延長期限。舊回應以 generation 忽略；授權拒絕清結果，之後暫時故障不使私人資料重現。分頁只合併同 revision／單位，衝突保留上次結果並要求刷新，不拼接不同時點的總計與列表。後端契約與效能界線見 [G4b](BACKEND_CONTRACT.md#g4b-搜尋與分析)。
+
+## G5 裝置偏好
+
+根層 `PreferencesProvider` 在 Auth／草稿／C／E providers 外初始化一次 `PreferenceStore`；完成讀取（成功或失敗）才掛載畫面，避免先顯示錯誤語言。語言／外觀更新只通知訂閱，不以偏好或帳號作為 provider key。`useAppLocale` 結合已保存的選擇與 Expo `useLocales`；`usePalette`、`AppAppearance` 共用解析後的主題。ThemeProvider／StatusBar 與語意色彩一致，原生 Appearance 手動覆寫在回到 system 時以 `unspecified` 解除。
+
+Store 將讀取、寫入、重設序列化；寫入成功才發布新選擇，失敗保留上一個持久值。初讀失敗不允許普通選擇覆蓋尚未讀到的設定，須重試讀取或明確重設。格式只允許 version／language／appearance，不保存帳號或業務資訊。獨立 SQLite／Web adapter 與保存界線見 [儲存說明](../src/storage/README.md)，畫面與限制見 [G5](FEATURES.md#g5-語言與外觀偏好)。
