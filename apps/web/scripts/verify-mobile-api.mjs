@@ -1010,7 +1010,7 @@ try {
   ).data;
   assertKeys(
     options,
-    ['members', 'categories', 'currencySettings', 'supportedCurrencies'],
+    ['members', 'categories', 'currencySettings', 'supportedCurrencies', 'splitPreviewModes'],
     'options'
   );
   assert.deepEqual(
@@ -1091,6 +1091,48 @@ try {
       toCents(amount)
     );
   }
+  assert.deepEqual(options.splitPreviewModes, ['equal', 'amount', 'percent', 'shares']);
+  for (const [mode, values, amount, expected] of [
+    ['equal', undefined, 100.01, [33.34, 33.34, 33.33]],
+    ['amount', [20, null, null], 100, [20, 40, 40]],
+    ['percent', [33.33, 33.33, 33.33], 100, [33.34, 33.33, 33.33]],
+    ['shares', [1, 2, 3], 100, [16.67, 33.33, 50]],
+    ['shares', [0, null, 2], 100, [0, 33.33, 66.67]],
+  ]) {
+    const split = mode === 'equal' ? { mode } : { mode, values: [...values].reverse() };
+    const result = await preview({ amount, member_ids: [...evenIds].reverse(), split });
+    assert.equal(result.splitMode, mode);
+    assert.deepEqual(
+      result.splits.map((s) => s.userId),
+      evenIds
+    );
+    assert.deepEqual(
+      result.splits.map((s) => s.shareAmount),
+      expected
+    );
+    assert.deepEqual(
+      result.splits.map((s) => s.originalShareAmount),
+      expected
+    );
+  }
+  for (const split of [
+    { mode: 'amount', values: ['20garbage', null, null] },
+    { mode: 'amount', values: [10, 10, 10] },
+    { mode: 'percent', values: [50, 51, null] },
+    { mode: 'percent', values: [33.333, null, null] },
+    { mode: 'shares', values: [0, 0, 0] },
+    { mode: 'shares', values: [1, 2] },
+  ])
+    await expectError(
+      await rawPost(
+        previewPath,
+        writerSession.accessToken,
+        JSON.stringify(twdPreview({ amount: 100, member_ids: evenIds, split }))
+      ),
+      400,
+      'VALIDATION_ERROR'
+    );
+  pass('G3a-1: four split previews, original shares, stable member order and strict values');
   const badPreviews = [
     ['stranger', { amount: 100, member_ids: [outsiderId] }],
     ['duplicate', { amount: 100, member_ids: [writerId, writerId] }],

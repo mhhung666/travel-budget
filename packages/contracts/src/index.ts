@@ -728,6 +728,53 @@ export const ledgerCapabilitiesSchema = z
   .strict();
 export const tripCreateV2Input = tripCreateInput.safeExtend(ledgerInputFields);
 export const tripJoinV2Input = tripJoinInput;
+/** G3: JSON numbers only; null means an intentionally blank form field. */
+export const expenseSplitModeSchema = z.enum(['equal', 'amount', 'percent', 'shares']);
+const originalShare = z
+  .number()
+  .finite()
+  .min(0)
+  .refine(
+    (value) =>
+      Number.isSafeInteger(Math.round(value * 100)) && Math.round(value * 100) / 100 === value,
+    'Original shares must have safe integer cents'
+  );
+const splitValues = (value: z.ZodType<number>) =>
+  z.array(value.nullable()).min(1).max(MAX_EXPENSE_MEMBERS);
+export const expenseSplitInput = z.discriminatedUnion('mode', [
+  z.object({ mode: z.literal('equal') }).strict(),
+  z.object({ mode: z.literal('amount'), values: splitValues(originalShare) }).strict(),
+  z
+    .object({
+      mode: z.literal('percent'),
+      values: splitValues(
+        z
+          .number()
+          .min(0)
+          .max(100)
+          .refine(
+            (value) => Math.round(value * 100) / 100 === value,
+            'Percent uses at most two decimals'
+          )
+      ),
+    })
+    .strict(),
+  z
+    .object({
+      mode: z.literal('shares'),
+      values: splitValues(
+        z
+          .number()
+          .min(0)
+          .max(1_000_000)
+          .refine(
+            (value) => Math.round(value * 10_000) / 10_000 === value,
+            'Weights use at most four decimals'
+          )
+      ),
+    })
+    .strict(),
+]);
 export const expensePreviewV2Input = z
   .object({
     ...ledgerInputFields,
@@ -735,8 +782,21 @@ export const expensePreviewV2Input = z
     currency: currencyCodeSchema,
     exchange_rate: expenseRate,
     member_ids: previewMembers,
+    split: expenseSplitInput
+      .optional()
+      .describe(
+        'Omit for legacy equal preview. values align one-to-one with member_ids: null is blank, numeric 0 is explicit zero. amount uses safe integer cents; percent 0–100 with <=2 decimals; shares 0–1000000 with <=4 decimals. All-zero and unbalanced allocations are rejected. No string coercion.'
+      ),
   })
   .strict()
+  .refine(
+    (v) =>
+      !v.split ||
+      v.split.mode === 'equal' ||
+      (v.split.values.length === v.member_ids.length &&
+        v.split.values.some((value) => value === null || value > 0)),
+    'Provide one value per member; all-zero allocations are invalid'
+  )
   .refine(validBaseRate, 'Base currency uses rate 1 and the ledger amount limit');
 export const expenseCreateV2Input = z
   .object({ ...expenseCreateInput.shape, ...ledgerInputFields })
@@ -780,13 +840,39 @@ export const expensesV2Schema = expensesSchema.safeExtend({
 });
 export const expenseDetailV2Schema = expenseDetailSchema.safeExtend(ledgerFields);
 export const settlementV2Schema = settlementSchema.safeExtend(ledgerFields);
-export const expenseOptionsV2Schema = expenseOptionsSchema.safeExtend(ledgerFields);
-export const expensePreviewV2Schema = expensePreviewSchema.safeExtend({
+export const expenseOptionsV2Schema = expenseOptionsSchema.safeExtend({
   ...ledgerFields,
-  originalAmount: originalExpenseAmount,
-  currency: currencyCodeSchema,
-  exchangeRate: expenseRate,
+  // Optional for older backends; this advertises preview, never write support.
+  splitPreviewModes: z.array(expenseSplitModeSchema).optional(),
 });
+export const expensePreviewV2Schema = expensePreviewSchema
+  .safeExtend({
+    ...ledgerFields,
+    originalAmount: originalExpenseAmount,
+    currency: currencyCodeSchema,
+    exchangeRate: expenseRate,
+    splitMode: expenseSplitModeSchema.optional(),
+    splits: z
+      .array(
+        z.object({
+          userId: idSchema,
+          displayName: z.string(),
+          shareAmount: centShare,
+          originalShareAmount: originalShare.optional(),
+        })
+      )
+      .min(1)
+      .max(MAX_EXPENSE_MEMBERS),
+  })
+  .refine(
+    (v) =>
+      v.splitMode === undefined
+        ? v.splits.every((s) => s.originalShareAmount === undefined)
+        : v.splits.every((s) => s.originalShareAmount !== undefined) &&
+          v.splits.reduce((sum, s) => sum + Math.round(s.originalShareAmount! * 100), 0) ===
+            Math.round(v.originalAmount * 100),
+    'Explicit split previews require original shares summing to the original total'
+  );
 export const expenseEditContextV2Schema = expenseEditContextSchema.safeExtend({
   ...ledgerFields,
   expense: expenseDetailV2Schema,

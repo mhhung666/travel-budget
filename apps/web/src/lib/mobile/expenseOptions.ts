@@ -1,17 +1,12 @@
 import { ledgerMismatch, LedgerError } from '@/lib/ledger';
 import { Trip } from '@/models';
-import { computeSplits } from '@/lib/expenseSplit';
+import { computeLedgerSplits } from '@/lib/expenseSplit';
 import { roundMoney } from '@/lib/money';
 import { getAllCurrencyCodes, isSupportedCurrency } from '@/constants/currencies';
 import { MAX_EXPENSE_AMOUNT } from '@travel-budget/contracts';
 import { ApiError, readBody } from './http';
 import { requireTripMember } from './access';
-import {
-  expenseCategories,
-  expenseOptionsSchema,
-  expensePreviewInput,
-  expensePreviewSchema,
-} from './contract';
+import { expenseCategories, expenseOptionsSchema, expensePreviewV2Input } from './contract';
 
 type TripMembers = {
   currencySettings?: {
@@ -59,33 +54,36 @@ export async function mobileExpenseOptions(userId: string, id: string) {
   const tripId = await requireTripMember(userId, id);
   const trip = await readExpenseTrip(tripId, true);
   const settings = trip.currencySettings;
-  return expenseOptionsSchema.parse({
-    currencySettings: settings
-      ? {
-          default_currency: settings.defaultCurrency ?? null,
-          currencies: (settings.currencies ?? []).map((c) => ({
-            code: c.code,
-            rate: c.rate ?? null,
-          })),
-        }
-      : null,
-    supportedCurrencies: getAllCurrencyCodes(),
-    members: membersOf(trip),
-    categories: [...expenseCategories],
-  });
+  return {
+    ...expenseOptionsSchema.parse({
+      currencySettings: settings
+        ? {
+            default_currency: settings.defaultCurrency ?? null,
+            currencies: (settings.currencies ?? []).map((c) => ({
+              code: c.code,
+              rate: c.rate ?? null,
+            })),
+          }
+        : null,
+      supportedCurrencies: getAllCurrencyCodes(),
+      members: membersOf(trip),
+      categories: [...expenseCategories],
+    }),
+    splitPreviewModes: ['equal', 'amount', 'percent', 'shares'] as const,
+  };
 }
 
 /**
- * Equal split of an original currency amount, computed by the same `computeSplits` the Web form uses. The result
+ * Original currency split, computed by the same `computeLedgerSplits` the Web form uses. The result
  * always follows member order, so the request order cannot move the leftover cent. Nothing is
  * stored: creating the expense validates its own payload again. Authorizes before reading the body.
  */
 export async function mobileExpensePreview(request: Request, userId: string, id: string) {
   const tripId = await requireTripMember(userId, id);
-  const input = await readBody(request, expensePreviewInput);
+  const input = await readBody(request, expensePreviewV2Input);
   if (ledgerMismatch()) throw new LedgerError('LEDGER_CURRENCY_MISMATCH');
-  const currency = 'currency' in input ? input.currency : 'TWD';
-  const rate = 'exchange_rate' in input ? input.exchange_rate : 1;
+  const currency = input.currency;
+  const rate = input.exchange_rate;
   const product = input.amount * rate;
   if (
     roundMoney(input.amount) !== input.amount ||
@@ -100,21 +98,34 @@ export async function mobileExpensePreview(request: Request, userId: string, id:
     throw new ApiError(400, 'VALIDATION_ERROR');
   }
   const chosen = new Set(input.member_ids);
-  const { twd } = computeSplits(
-    'equal',
-    members.map((member) => ({ id: member.id, selected: chosen.has(member.id), value: '' })),
+  const split = input.split;
+  const values = new Map(
+    input.member_ids.map((id, i) => [id, split && split.mode !== 'equal' ? split.values[i] : null])
+  );
+  const { original, ledger, balanced } = computeLedgerSplits(
+    split?.mode ?? 'equal',
+    members.map((member) => ({
+      id: member.id,
+      selected: chosen.has(member.id),
+      value: values.get(member.id) == null ? '' : String(values.get(member.id)),
+    })),
     input.amount,
     rate
   );
-  return expensePreviewSchema.parse({
+  if (!balanced) throw new ApiError(400, 'VALIDATION_ERROR');
+  return {
     amount: roundMoney(product),
-    ...('currency' in input ? { originalAmount: input.amount, currency, exchangeRate: rate } : {}),
+    originalAmount: input.amount,
+    currency,
+    exchangeRate: rate,
+    ...(split ? { splitMode: split.mode } : {}),
     splits: members
       .filter((member) => chosen.has(member.id))
       .map((member) => ({
         userId: member.id,
         displayName: member.displayName,
-        shareAmount: twd[member.id],
+        shareAmount: ledger[member.id],
+        ...(split ? { originalShareAmount: original[member.id] } : {}),
       })),
-  });
+  };
 }

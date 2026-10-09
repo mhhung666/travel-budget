@@ -256,3 +256,27 @@ describe('reconstructOriginalShares (edit round trip)', () => {
     expect(reconstructOriginalShares(100, [33.34, 33.33, 33.33]).equal).toBe(true);
   });
 });
+
+describe('G3 shared Web/HTTP allocation fixtures', () => {
+  it.each([
+    ['equal', ['', '', ''], 100.01, [33.34, 33.34, 33.33]],
+    ['amount', ['20', '', ''], 100, [20, 40, 40]],
+    ['percent', ['33.33', '33.33', '33.33'], 100, [33.34, 33.33, 33.33]],
+    ['shares', ['1', '2', '3'], 100, [16.67, 33.33, 50]],
+    ['shares', ['0', '', '2'], 100, [0, 33.33, 66.67]],
+  ] as const)(
+    '%s preserves exact original and converted totals',
+    (mode, values, amount, expected) => {
+      const result = computeSplits(
+        mode,
+        values.map((value, i) => ({ id: String(i), selected: true, value })),
+        amount,
+        0.0067
+      );
+      expect(result.balanced).toBe(true);
+      expect(Object.values(result.original)).toEqual(expected);
+      expect(result.allocatedOriginal).toBe(amount);
+      expect(result.allocatedTWD).toBe(0.67);
+    }
+  );
+});

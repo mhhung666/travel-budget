@@ -104,3 +104,10 @@ expense-options 在同一 Trip 讀取補設定／支援 ISO 清單，preview 新
 expenseMaintenance 的 context 在同一 snapshot 帶回幣別選項／精確歷史匯率及 additive recalculate，equal 保留舊 App 的 TWD 語意；PATCH 成對的 currency／exchange_rate 可明確重算外幣，省略仍為原 TWD body／指紋。backend 逐人核對既存 canonical 原幣均分與新請求的 computeSplits、換算上限；非均分或缺歷史資料保持基本編輯，所有 metadata 模式仍保留附件／標籤／行程。完整限制集中於 [G2c 契約](../../mobile/docs/BACKEND_CONTRACT.md#g2c-原幣均分編輯)。
 
 expenseMaintenance.integration 覆蓋 JPY 小數、零 TWD、小／大 rate／換算上限、並發 UUID、副作用／receipt 去重、Web 衝突、撤權及交易回滾；test:mobile-api 在 G2b 自建隔離旅行核對真 PATCH 丟回應、原 UUID 查回／重播、DB／明細精確值及明確轉 TWD。沒有 migration 或遠端操作，iOS 另由其他人驗收。
+
+
+## G3a-1 進階分攤預覽
+
+v2 preview 已透過 `computeLedgerSplits` 共用 Web 的均分／固定原幣金額／百分比／份數；JSON number／null 嚴格輸入、穩定成員尾差與雙單位份額由共用契約驗證。`expense-options.splitPreviewModes` 只宣告預覽能力，舊均分 body／回應與全域 capabilities 保持相容。完整欄位、精度、容差及不保存歷史模式的決策集中在 [G3a-1 契約](../../mobile/docs/BACKEND_CONTRACT.md#g3a-1-進階分攤預覽)。寫入核對／手機 UI 尚待後續切片，不新增 migration、不開非 TWD 新建。
+
+`advancedExpensePreview.test.ts` 核對契約、v2 route、Web 同值、邊界與授權；`expenseSplit.test.ts` 保留獨立數值 fixtures。`test:mobile-api` 在自建隔離 DB／HTTP 核對四模式、原幣份額、逆序及錯誤，並確認預覽不寫入。

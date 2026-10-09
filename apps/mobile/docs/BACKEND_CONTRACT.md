@@ -200,3 +200,24 @@ Web 設定 Action 與 HTTP 共用 currencySettings／tripManagement 的父旅行
 mode=equal 的 changes 可成對新增 currency／exchange_rate，original_amount 沿用 G2b 原幣安全到分規則，TWD／換算後總額與每份 TWD 分攤上限不變。TWD rate 固定 1；ISO 語法由 contracts 驗證、後端核對支援清單。未帶兩欄的舊 body 嚴格按 TWD／1 處理且不補欄位，不改舊指紋；僅帶一欄／無效 rate／未知欄位為 400。後端再以目前名冊與請求原額／匯率計算每份 TWD，偽造份額、不可重算或換算溢位為終局 409 VALIDATION_ERROR；Web／成員修改原始業務欄位仍為 409 RESOURCE_CHANGED。基本更新完全不重算歷史金額。
 
 支出、活動與終局 E receipt 同交易；原 UUID 重播不套新設定、後續編輯或匯率，不新增 migration。撤權仍拒絕重播／查詢。Mobile 預覽使用 G2b 原幣形狀、確認後才進 E；SQLite 原 body、共用限速期限、帳號／環境及登入世代隔離保持，故障／裝置交接見 [G2c](LOCAL_ACCEPTANCE.md#g2c-外幣編輯交接)。
+
+## G3a-1 進階分攤預覽
+
+`POST /api/v2/trips/:id/expenses/preview` 保留 v2 的 `base_currency`、`amount`（原幣總額）、`currency`、`exchange_rate`、`member_ids`；新增可選 `split`。省略時仍為均分，回應與舊版相同，不補預設欄位至既有確認 body／receipt 指紋。
+
+| split                                                | 輸入與限制                                                             |
+| ---------------------------------------------------- | ---------------------------------------------------------------------- |
+| `{ mode: "equal" }`                                  | 均分；不能帶 `values`。                                                |
+| `{ mode: "amount", values: [20, null, null] }`       | 原幣固定金額，非負、至多兩位小數、整數分須安全可表示；留空者均分餘額。 |
+| `{ mode: "percent", values: [33.33, 33.33, 33.33] }` | 每人 0–100，至多兩位小數；留空者均分剩餘百分比。                       |
+| `{ mode: "shares", values: [1, 2, 3] }`              | 每人 0–1,000,000，至多四位小數；留空為 1。                             |
+
+`values` 與 **請求中的** `member_ids` 一對一、等長，成員仍為 1–100 位且不可重複；不接受缺項、多項、數字字串、空字串、布林或其他欄位。`null` 才是留空，`0` 是明確不分攤；全部明填零一律拒絕，含總額只有一分的情況。未填的表單文字由後續 Mobile 草稿保存，送預覽前必須完整驗證後轉 JSON number／null，不能用寬鬆 `parseFloat` 接受部分字串。
+
+先依 ID 對應輸入，再按 `expense-options` 的加入時間／同時刻儲存順序呼叫 Web 的 `computeLedgerSplits`；虛擬與同名成員以 ID 區分，已移除或帳號不存在者不能選。固定值／百分比全部填完卻不足、或手填超額時，以原幣差額到分後的 **0.01 容差** 判定，超過回 `400 VALIDATION_ERROR`，不發出可確認預覽。這不是百分比容差：33.33% 三人分 100 可以，分 1,000 少 0.10 則拒絕。容差內仍以最大餘數法補齊原幣份額，之後用完整匯率分配基準份額；同餘數依穩定名冊順序，請求排序不能移動尾差。零基準總額／零個人份額有效；原幣安全分、共用 roundMoney 不得漂移、基準單筆 1,000,000,000 上限及同幣匯率 1 沿用 B。
+
+明確帶 `split` 時，回應在既有 `ledger`、`amount`（基準總額）、`originalAmount`、`currency`、`exchangeRate`、`splits` 上，新增 `splitMode`，每個 split 新增 `originalShareAmount`。原幣份額及基準 `shareAmount` 各自到分加總等於相應總額。只回選中成員，不回傳帳號、Email、歷史輸入或私人資料。預覽仍為成員授權後的唯讀操作、8 KiB JSON／no-store；不保留鎖、UUID 或資料庫紀錄，不能代表稍後寫入必然成功。
+
+**能力與部署**：`GET /expense-options` 新增可選 `splitPreviewModes: ["equal", "amount", "percent", "shares"]`；缺欄位按僅有舊均分預覽處理。全域 `/capabilities` 保持原嚴格形狀，避免舊 App 拒絕新增 key。本片只宣告預覽，不能據此開放進階新增／編輯；模式／輸入與確認份額的寫入核對由 G3a-2 實作，UI／草稿在 G3b，需相容後端先部署。本片不改寫入 schema、revision、原 UUID 或 receipt。
+
+**歷史與保存決策**：新舊帳本均繼續只保存最終金額／份額，暫不新增持久化分攤模式或原始意圖，避免只有 Mobile 維護而被 Web 修改後失真。不能從最終份額推斷原百分比／份數或宣稱還原模式；基本編輯保留原帳，後續進階重算須重新選模式及明確確認。草稿與確認待送 body 可保存使用者當次意圖，但不是歷史支出的模式來源。本片不提供歷史固定金額預填。D 仍只允許 TWD 基準＋TWD 原幣＋均分，非均分不得因結果相等就降級入列。非 TWD 新建開關保持關閉，裝置驗收另列。

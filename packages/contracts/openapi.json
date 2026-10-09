@@ -5862,6 +5862,116 @@
               "type": "string",
               "pattern": "^[a-f\\d]{24}$"
             }
+          },
+          "split": {
+            "description": "Omit for legacy equal preview. values align one-to-one with member_ids: null is blank, numeric 0 is explicit zero. amount uses safe integer cents; percent 0–100 with <=2 decimals; shares 0–1000000 with <=4 decimals. All-zero and unbalanced allocations are rejected. No string coercion.",
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "mode": {
+                    "type": "string",
+                    "const": "equal"
+                  }
+                },
+                "required": [
+                  "mode"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "mode": {
+                    "type": "string",
+                    "const": "amount"
+                  },
+                  "values": {
+                    "minItems": 1,
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": {
+                      "anyOf": [
+                        {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "mode",
+                  "values"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "mode": {
+                    "type": "string",
+                    "const": "percent"
+                  },
+                  "values": {
+                    "minItems": 1,
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": {
+                      "anyOf": [
+                        {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 100
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "mode",
+                  "values"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "mode": {
+                    "type": "string",
+                    "const": "shares"
+                  },
+                  "values": {
+                    "minItems": 1,
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": {
+                      "anyOf": [
+                        {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1000000
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "mode",
+                  "values"
+                ],
+                "additionalProperties": false
+              }
+            ]
           }
         },
         "required": [
@@ -6861,6 +6971,18 @@
               "moneyScale"
             ],
             "additionalProperties": false
+          },
+          "splitPreviewModes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "equal",
+                "amount",
+                "percent",
+                "shares"
+              ]
+            }
           }
         },
         "required": [
@@ -6908,6 +7030,10 @@
                   "type": "number",
                   "minimum": 0,
                   "maximum": 1000000000
+                },
+                "originalShareAmount": {
+                  "type": "number",
+                  "minimum": 0
                 }
               },
               "required": [
@@ -6935,6 +7061,15 @@
               "moneyScale"
             ],
             "additionalProperties": false
+          },
+          "splitMode": {
+            "type": "string",
+            "enum": [
+              "equal",
+              "amount",
+              "percent",
+              "shares"
+            ]
           }
         },
         "required": [
@@ -7399,6 +7534,18 @@
                   "moneyScale"
                 ],
                 "additionalProperties": false
+              },
+              "splitPreviewModes": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "equal",
+                    "amount",
+                    "percent",
+                    "shares"
+                  ]
+                }
               }
             },
             "required": [
