@@ -218,6 +218,22 @@ mode=equal 的 changes 可成對新增 currency／exchange_rate，original_amoun
 
 明確帶 `split` 時，回應在既有 `ledger`、`amount`（基準總額）、`originalAmount`、`currency`、`exchangeRate`、`splits` 上，新增 `splitMode`，每個 split 新增 `originalShareAmount`。原幣份額及基準 `shareAmount` 各自到分加總等於相應總額。只回選中成員，不回傳帳號、Email、歷史輸入或私人資料。預覽仍為成員授權後的唯讀操作、8 KiB JSON／no-store；不保留鎖、UUID 或資料庫紀錄，不能代表稍後寫入必然成功。
 
-**能力與部署**：`GET /expense-options` 新增可選 `splitPreviewModes: ["equal", "amount", "percent", "shares"]`；缺欄位按僅有舊均分預覽處理。全域 `/capabilities` 保持原嚴格形狀，避免舊 App 拒絕新增 key。本片只宣告預覽，不能據此開放進階新增／編輯；模式／輸入與確認份額的寫入核對由 G3a-2 實作，UI／草稿在 G3b，需相容後端先部署。本片不改寫入 schema、revision、原 UUID 或 receipt。
+**能力與部署**：`GET /expense-options` 新增可選 `splitPreviewModes: ["equal", "amount", "percent", "shares"]`；缺欄位按僅有舊均分預覽處理。全域 `/capabilities` 保持原嚴格形狀，避免舊 App 拒絕新增 key。`splitPreviewModes` 只宣告預覽，不能據此開放進階新增／編輯；寫入能力另見下節 G3a-2，UI／草稿在 G3b，需相容後端先部署。舊請求的 revision、原 UUID 與 receipt 指紋不變。
 
 **歷史與保存決策**：新舊帳本均繼續只保存最終金額／份額，暫不新增持久化分攤模式或原始意圖，避免只有 Mobile 維護而被 Web 修改後失真。不能從最終份額推斷原百分比／份數或宣稱還原模式；基本編輯保留原帳，後續進階重算須重新選模式及明確確認。草稿與確認待送 body 可保存使用者當次意圖，但不是歷史支出的模式來源。本片不提供歷史固定金額預填。D 仍只允許 TWD 基準＋TWD 原幣＋均分，非均分不得因結果相等就降級入列。非 TWD 新建開關保持關閉，裝置驗收另列。
+
+## G3a-2 進階分攤新增與編輯
+
+`POST /api/v2/trips/:id/expenses` 新增可選 `split`，格式及限制沿用 G3a-1。`values` 此時與 **確認 body 的 `splits` 順序**一對一；每列仍是 `{ user_id, share_amount }`，`share_amount` 為確認的基準份額。若把預覽結果重新排序，必須按 ID 同步重排 values，不能沿用預覽請求的陣列索引。省略 `split` 保持舊建立 body、Web 驗證／分攤語意及 receipt 指紋，不補預設模式。
+
+`PATCH /api/v2/trips/:id/expenses/:expenseId` 新增明確 `mode: "split"`，保留 `base_currency`、`client_request_id`、`expected_revision`。`changes` 必填 `original_amount`、`currency`、`exchange_rate`、`payer_id`、`splits` 與 `split`；可同時帶基本欄位 description／category／date。不接受附件、標籤或行程欄位。基本編輯仍只寫使用者指定的基本欄位；原 `mode: "equal"` 的歷史可編輯判斷及請求格式不變。
+
+新模式不推測舊帳分攤方式；歷史非均分或含已移除成員的支出可以重新指定目前有效付款人／成員、完整原幣金額／匯率及模式，預覽確認後替換帳務。不能自動帶入推估模式、默默去掉歷史成員或改成均分。舊欄位、附件、標籤、行程與建立者在基本編輯保留原值，在重新分攤時亦只更換明確指定的帳務及基本欄位。資料庫繼續不保存模式；確認請求的完整意圖參與指紋，receipt 保留終局結果。
+
+後端在原 trip fence 交易的 snapshot 中核對目前存在的使用者／旅行成員，採與預覽一致的加入時間／儲存順序及 Web `computeLedgerSplits` 重算。確認份額須逐人**完全相等**，連尾差一分也不能轉給另一人；不套用舊建立流程的金額容差修補確認。模式輸入的平衡仍遵守 G3a-1 的原幣容差。基準金額零、個人零份額、虛擬成員、外幣及極端合法匯率沿用既有規則。
+
+授權先於 body／receipt；相同 UUID／完整 body 重播既有終局結果，不因之後成員或支出改變而再次寫入，已撤權者仍不能查回。不同 body 沿用該 UUID 回 `409 IDEMPOTENCY_CONFLICT`。格式錯誤先回 `400 VALIDATION_ERROR`；交易內新增核對不符會保存 `VALIDATION_ERROR` 拒絕（POST 400，PATCH 409），編輯 revision 過期保存 `RESOURCE_CHANGED`。未知 DB 故障仍回滾支出、activity 及 receipt，不把未確認結果誤記為終局；待確認恢復沿原 UUID，不自動換 key 重送。
+
+能力採相容的可選欄位：`expense-options.splitCreateModes` 宣告四種新增模式，`edit-context.capabilities.splitModes` 宣告四種明確重算模式；缺欄位即不開放相應功能。`splitPreviewModes` 與舊 `equal`／`recalculate` 不能替代這兩個能力，嚴格的全域 capabilities 保持不變。HTTP body 總限制仍為 8 KiB。G3b 手機表單、原始文字草稿、D 的非均分防線及裝置驗收尚未完成；本片沒有 Mobile UI、migration 或非 TWD 新建開關變更。
+
+驗證集中在 `expenseSplitConfirmation.test.ts`、`mobileExpenseWrite.integration.test.ts`、`expenseMaintenance.integration.test.ts` 與 `test:mobile-api`：含四模式、精確確認、同 UUID 並發／回應遺失／重播、歷史非均分、成員變動／撤權、Web 所改業務欄位的 revision 衝突、原欄位保留及交易回滾。隔離資料庫測試也覆蓋 USD／JPY 基準、零換算與合法匯率上下界；真機驗收另列 LOCAL_ACCEPTANCE。

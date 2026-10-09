@@ -1010,7 +1010,10 @@ try {
   ).data;
   assertKeys(
     options,
-    ['members', 'categories', 'currencySettings', 'supportedCurrencies', 'splitPreviewModes'],
+    [
+      'members', 'categories', 'currencySettings', 'supportedCurrencies',
+      'splitPreviewModes', 'splitCreateModes',
+    ],
     'options'
   );
   assert.deepEqual(
@@ -1910,6 +1913,121 @@ try {
   await db.collection('expensecreaterequests').deleteMany({ trip: g2bTrip });
   pass(
     'G2b: original currency/precise rate, TWD preview/DB/receipt agree, dropped response and changed settings replay once, conversion limit and revoked access'
+  );
+
+  // G3a-2: isolated trip, real confirmation bodies and lost-response recovery.
+  const g3Trip = new mongoose.Types.ObjectId();
+  await db.collection('trips').insertOne({
+    ...writerTrip,
+    _id: g3Trip,
+    hashCode: randomUUID().replaceAll('-', '').slice(0, 8),
+  });
+  const g3Path = `/trips/${g3Trip}/expenses`;
+  const g3Request = (path, options = {}) =>
+    request(path, { token: writerSession.accessToken, ...options });
+  for (const split of [
+    { mode: 'equal' },
+    { mode: 'amount', values: [20, null, null] },
+    { mode: 'percent', values: [33.33, 33.33, 33.33] },
+    { mode: 'shares', values: [1, 2, 3] },
+  ]) {
+    const p = (
+      await g3Request(`${g3Path}/preview`, {
+        body: twdPreview({ amount: 100, member_ids: evenIds, split }),
+        schema: expensePreviewSchema,
+      })
+    ).data;
+    const body = payload({
+      split,
+      splits: p.splits.map((s) => ({ user_id: s.userId, share_amount: s.shareAmount })),
+    });
+    const created = (await g3Request(g3Path, { body, schema: expenseDetailSchema })).data;
+    assert.deepEqual(
+      (await g3Request(g3Path, { body, schema: expenseDetailSchema })).data,
+      created
+    );
+    const context = (
+      await g3Request(`${g3Path}/${created.id}/edit-context`, { schema: expenseEditContextSchema })
+    ).data;
+    assert.deepEqual(context.capabilities.splitModes, ['equal', 'amount', 'percent', 'shares']);
+    const nextSplit = { mode: 'shares', values: [0, 1, 2] };
+    const next = (
+      await g3Request(`${g3Path}/preview`, {
+        body: {
+          base_currency: 'TWD',
+          currency: 'JPY',
+          exchange_rate: 0.2156789012345,
+          amount: 100,
+          member_ids: evenIds,
+          split: nextSplit,
+        },
+        schema: expensePreviewSchema,
+      })
+    ).data;
+    const edit = {
+      base_currency: 'TWD',
+      client_request_id: randomUUID(),
+      expected_revision: context.revision,
+      mode: 'split',
+      changes: {
+        original_amount: 100,
+        currency: 'JPY',
+        exchange_rate: next.exchangeRate,
+        payer_id: writerId,
+        split: nextSplit,
+        splits: next.splits.map((s) => ({ user_id: s.userId, share_amount: s.shareAmount })),
+      },
+    };
+    const text = JSON.stringify(edit);
+    const socket = connect(port, '127.0.0.1');
+    socket.on('error', () => {});
+    await once(socket, 'connect');
+    socket.write(
+      `PATCH /api/v2${g3Path}/${created.id} HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\nAuthorization: Bearer ${writerSession.accessToken}\r\nContent-Type: application/json\r\nContent-Length: ${Buffer.byteLength(text)}\r\nConnection: close\r\n\r\n${text}`
+    );
+    await eventually(
+      async () =>
+        (await db
+          .collection('mutationrequests')
+          .countDocuments({ _id: `${writerId}:${edit.client_request_id}` })) === 1,
+      'G3 edit did not commit',
+      20000
+    );
+    socket.destroy();
+    const found = (await g3Request(`/mutation-requests/${edit.client_request_id}`)).data;
+    assert.equal(found.status, 'committed');
+    assert.deepEqual(
+      (await g3Request(`${g3Path}/${created.id}`, { method: 'PATCH', body: edit })).data,
+      found.result
+    );
+    const raw = await db
+      .collection('expenses')
+      .findOne({ _id: new mongoose.Types.ObjectId(created.id) });
+    assert.deepEqual(
+      raw.splits.map((s) => s.shareAmount),
+      next.splits.map((s) => s.shareAmount)
+    );
+    assert.equal(raw.exchangeRate, next.exchangeRate);
+    assert.equal(raw.splitMode, undefined);
+    await g3Request(`${g3Path}/${created.id}`, {
+      method: 'PATCH',
+      body: { ...edit, changes: { ...edit.changes, split: { mode: 'shares', values: [2, 1, 0] } } },
+      status: 409,
+    });
+  }
+  assert.equal(await db.collection('expenses').countDocuments({ trip: g3Trip }), 4);
+  assert.equal(await db.collection('expensecreaterequests').countDocuments({ trip: g3Trip }), 4);
+  const g3Bad = payload({ split: { mode: 'shares', values: [1, 2, 3] } });
+  await g3Request(g3Path, { body: g3Bad, status: 400 });
+  assert.equal(
+    (await g3Request(`/trips/${g3Trip}/expense-requests/${g3Bad.client_request_id}`)).data.status,
+    'rejected'
+  );
+  await db.collection('trips').deleteOne({ _id: g3Trip });
+  for (const name of ['expenses', 'expensecreaterequests', 'activitylogs', 'notifications'])
+    await db.collection(name).deleteMany({ trip: g3Trip });
+  pass(
+    'G3a-2: four confirmed modes, explicit foreign edit, dropped response, original UUID receipt/replay and durable mismatch refusal'
   );
 
   // The largest accepted amount stays exact from the preview to the settlement. Above it the

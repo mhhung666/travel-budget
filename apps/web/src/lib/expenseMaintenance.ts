@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { confirmedExpenseShares } from './expenseSplitConfirmation';
 import { getEnv } from '@/lib/env';
 import type { LedgerMutationRequest } from '@travel-budget/contracts';
 import {
@@ -31,7 +32,7 @@ import mongoose, { mongo } from 'mongoose';
 import {
   expenseCategories,
   expenseEditContextSchema,
-  expenseUpdateInput,
+  expenseUpdateV2Input,
   expenseDeleteInput,
   expenseCreateInput,
   MAX_EXPENSE_AMOUNT,
@@ -39,7 +40,8 @@ import {
   MAX_EXPENSE_MEMBERS,
   type ExpenseEditContext,
   type ExpenseMutationResult,
-  type ExpenseUpdateInput,
+  type ExpenseUpdateV2Input,
+  type expenseSplitModeSchema,
   type MutationRequest,
 } from '@travel-budget/contracts';
 import {
@@ -164,7 +166,12 @@ async function contextInSnapshot(
   tripId: string,
   expenseId: string,
   secret: string
-): Promise<ExpenseEditContext | null> {
+): Promise<
+  | (ExpenseEditContext & {
+      capabilities: { splitModes: z.infer<typeof expenseSplitModeSchema>[] };
+    })
+  | null
+> {
   const parent = await db
     .collection<Parent>('trips')
     .findOne({ _id: new mongo.ObjectId(tripId) }, { session });
@@ -231,7 +238,8 @@ async function contextInSnapshot(
     known.has(raw.payer.toString()) &&
     splits.every((s) => known.has(s.user?.toString()));
   // The DB has no split-mode field. Only exact equality with the canonical original-currency
-  // allocation permits recalculation; arbitrary historical/non-equal shares remain basic-only.
+  // allocation permits legacy equal-mode recalculation; explicit split mode replaces the old
+  // allocation only after confirming a completely specified new split.
   const equalShares =
     validStructure && validMembers
       ? computeSplits(
@@ -259,7 +267,7 @@ async function contextInSnapshot(
         ? 'members'
         : 'historical';
   const member = (id?: mongo.ObjectId) => (id && names.has(id.toString()) ? id.toString() : null);
-  return expenseEditContextSchema.parse({
+  const context = expenseEditContextSchema.parse({
     expense: {
       id: raw._id.toString(),
       description: raw.description,
@@ -307,6 +315,13 @@ async function contextInSnapshot(
       reason,
     },
   });
+  return {
+    ...context,
+    capabilities: {
+      ...context.capabilities,
+      splitModes: ['equal', 'amount', 'percent', 'shares'],
+    },
+  };
 }
 export function readExpenseEditContext(
   db: mongo.Db,
@@ -334,7 +349,7 @@ export async function maintainExpense(
 ): Promise<ExpenseMutationResult> {
   const input =
     operation === 'expense.update'
-      ? parseLedgerInput(expenseUpdateInput, body)
+      ? parseLedgerInput(expenseUpdateV2Input, body)
       : parseLedgerInput(expenseDeleteInput, body);
   const key = `${actorId.toLowerCase()}:${input.client_request_id}`;
   const fingerprint = createHash('sha256')
@@ -373,33 +388,39 @@ export async function maintainExpense(
           let set: Record<string, unknown> = {};
           let invalid = false;
           if (operation === 'expense.update') {
-            const update = input as ExpenseUpdateInput;
+            const update = input as ExpenseUpdateV2Input;
             const { changes } = update;
             if (changes.description !== undefined) set.description = changes.description;
             if (changes.category !== undefined) set.category = changes.category;
             if (changes.date !== undefined) set.date = new Date(changes.date);
-            if (update.mode === 'equal') {
+            if (update.mode === 'equal' || update.mode === 'split') {
               const { original_amount, payer_id, splits } = update.changes;
               const currency = update.changes.currency ?? 'TWD';
               const rate = update.changes.exchange_rate ?? 1;
               const product = original_amount * rate;
               const selected = new Set(splits.map((s) => s.user_id));
               const members = current.options.members;
+              const confirmed =
+                update.mode === 'split' ? confirmedExpenseShares(update.changes, members) : null;
               const shares =
-                isSupportedCurrency(currency) &&
-                Number.isFinite(product) &&
-                roundMoney(product) <= MAX_EXPENSE_AMOUNT
-                  ? computeSplits(
-                      'equal',
-                      members.map((m) => ({ id: m.id, selected: selected.has(m.id), value: '' })),
-                      original_amount,
-                      rate
-                    ).twd
-                  : {};
+                update.mode === 'split'
+                  ? (confirmed ?? {})
+                  : isSupportedCurrency(currency) &&
+                      Number.isFinite(product) &&
+                      roundMoney(product) <= MAX_EXPENSE_AMOUNT
+                    ? computeSplits(
+                        'equal',
+                        members.map((m) => ({ id: m.id, selected: selected.has(m.id), value: '' })),
+                        original_amount,
+                        rate
+                      ).twd
+                    : {};
               invalid =
-                !(update.changes.currency === undefined
-                  ? current.capabilities.equal
-                  : current.capabilities.recalculate) ||
+                (update.mode === 'split'
+                  ? !confirmed
+                  : !(update.changes.currency === undefined
+                      ? current.capabilities.equal
+                      : current.capabilities.recalculate)) ||
                 roundMoney(original_amount) !== original_amount ||
                 !isSupportedCurrency(currency) ||
                 !Number.isFinite(product) ||
@@ -448,7 +469,7 @@ export async function maintainExpense(
                   expense_id: expenseId,
                   description:
                     operation === 'expense.update' && 'changes' in input
-                      ? ((input as ExpenseUpdateInput).changes.description ??
+                      ? ((input as ExpenseUpdateV2Input).changes.description ??
                         current.expense.description)
                       : current.expense.description,
                 },

@@ -354,6 +354,151 @@ describe.skipIf(!uri || !allowed)('mobile expense write against an isolated repl
       }));
   });
 
+  describe('G3 confirmed creation', () => {
+    it.each([
+      ['equal', undefined],
+      ['amount', [20, null, null]],
+      ['percent', [33.33, 33.33, 33.33]],
+      ['shares', [1, 2, 3]],
+      ['shares', [0, null, 2]],
+    ] as const)('previews, confirms and replays %s with reversed IDs', async (mode, values) => {
+      const selected = [hex(cara), hex(bob), hex(amy)];
+      const split = mode === 'equal' ? { mode } : { mode, values: [...values!].reverse() };
+      const preview = await mobileExpensePreview(
+        jsonRequest({
+          amount: 100,
+          currency: 'TWD',
+          exchange_rate: 1,
+          member_ids: selected,
+          split,
+        }),
+        hex(amy),
+        tripId
+      );
+      const payload = body({
+        split,
+        splits: [...preview.splits]
+          .reverse()
+          .map((s) => ({ user_id: s.userId, share_amount: s.shareAmount })),
+      });
+      const results = await Promise.all([create(payload), create(payload)]);
+      expect(results[0]).toEqual(results[1]);
+      expect(results[0].splits.map((s) => s.shareAmount)).toEqual(
+        [...preview.splits].reverse().map((s) => s.shareAmount)
+      );
+      expect(await count('expenses')).toBe(1);
+      expect(await count('expensecreaterequests')).toBe(1);
+      await Trip.updateOne({ _id: tripId }, { $pull: { members: { user: bob } } });
+      expect(await create(payload)).toEqual(results[0]);
+      expect(await lookup(payload.client_request_id)).toMatchObject({
+        status: 'committed',
+        expense: { id: results[0].id },
+      });
+      await expect(
+        create({ ...payload, split: { mode: 'shares', values: [2, 2, 2] } })
+      ).rejects.toMatchObject({ code: 'IDEMPOTENCY_CONFLICT' });
+    });
+    it.each([
+      ['TWD', 'JPY', 100, 0.2156789012345],
+      ['USD', 'JPY', 100, 0.0067],
+      ['JPY', 'JPY', 100.01, 1],
+      ['USD', 'KRW', 0.01, 1e-7],
+      ['TWD', 'USD', 0.01, 1e11],
+    ] as const)('confirms %s ledger / %s at %s × %s', async (base, currency, amount, rate) => {
+      await db()
+        .collection('trips')
+        .updateOne({ _id: new mongo.ObjectId(tripId) }, { $set: { baseCurrency: base } });
+      const split = { mode: 'shares', values: [0, 1, 2] };
+      const preview = await mobileExpensePreview(
+        jsonRequest({
+          base_currency: base,
+          amount,
+          currency,
+          exchange_rate: rate,
+          member_ids: [hex(amy), hex(bob), hex(cara)],
+          split,
+        }),
+        hex(amy),
+        tripId
+      );
+      const payload = body({
+        base_currency: base,
+        original_amount: amount,
+        currency,
+        exchange_rate: rate,
+        split,
+        splits: preview.splits.map((s) => ({ user_id: s.userId, share_amount: s.shareAmount })),
+      });
+      const created = await create(payload);
+      expect(created.amount).toBe(preview.amount);
+      expect(created.splits.map((s) => s.shareAmount)).toEqual(
+        preview.splits.map((s) => s.shareAmount)
+      );
+      expect(created.originalAmount).toBe(amount);
+      expect(created.exchangeRate).toBe(rate);
+      expect(await create(payload)).toEqual(created);
+    });
+    it('refuses removed participants before confirmation and preserves the refusal after rejoining', async () => {
+      const payload = body({ split: { mode: 'equal' } });
+      await Trip.updateOne({ _id: tripId }, { $pull: { members: { user: bob } } });
+      await expect(create(payload)).rejects.toThrow('VALIDATION_ERROR');
+      await Trip.updateOne({ _id: tripId }, { $push: { members: { user: bob, role: 'member' } } });
+      await expect(create(payload)).rejects.toThrow('VALIDATION_ERROR');
+      expect(await count('expenses')).toBe(0);
+    });
+    it('refuses a balanced but incorrect confirmation durably', async () => {
+      const payload = body({ split: { mode: 'shares', values: [1, 2, 3] } });
+      await expect(create(payload)).rejects.toThrow('VALIDATION_ERROR');
+      expect(await lookup(payload.client_request_id)).toMatchObject({
+        status: 'rejected',
+        code: 'VALIDATION_ERROR',
+      });
+      expect(await count('expenses')).toBe(0);
+      await expect(create(payload)).rejects.toThrow('VALIDATION_ERROR');
+      await expect(create({ ...payload, split: { mode: 'equal' } })).rejects.toMatchObject({
+        code: 'IDEMPOTENCY_CONFLICT',
+      });
+    });
+    it('refuses a deleted user still present in the trip roster', async () => {
+      const ghost = oid();
+      await Trip.updateOne(
+        { _id: tripId },
+        { $push: { members: { user: ghost, role: 'member' } } }
+      );
+      const payload = body({
+        split: { mode: 'equal' },
+        splits: [{ user_id: hex(ghost), share_amount: 100 }],
+      });
+      await expect(create(payload)).rejects.toThrow('VALIDATION_ERROR');
+      expect(await lookup(payload.client_request_id)).toMatchObject({
+        status: 'rejected',
+        code: 'VALIDATION_ERROR',
+      });
+    });
+    it('rolls back advanced creation if the receipt insert fails, then retries the same UUID', async () => {
+      const payload = body({ split: { mode: 'shares', values: [1, 1, 1] } });
+      const insert = mongo.Collection.prototype.insertOne;
+      const spy = vi.spyOn(mongo.Collection.prototype, 'insertOne').mockImplementation(function (
+        this: mongo.Collection,
+        ...args
+      ) {
+        if (this.collectionName === 'expensecreaterequests')
+          throw new Error('G3 receipt unavailable');
+        return insert.apply(this, args);
+      });
+      try {
+        await expect(create(payload)).rejects.toThrow('G3 receipt unavailable');
+      } finally {
+        spy.mockRestore();
+      }
+      expect(await count('expenses')).toBe(0);
+      expect(await lookup(payload.client_request_id)).toEqual({ status: 'not_found' });
+      expect(await count('activitylogs')).toBe(0);
+      await create(payload);
+      expect(await count('expenses')).toBe(1);
+    });
+  });
+
   describe('G2b currency preview to durable receipt', () => {
     it.each([
       [100, 0.2156789012345, 'JPY', 21.57],

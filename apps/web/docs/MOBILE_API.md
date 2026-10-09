@@ -108,6 +108,13 @@ expenseMaintenance.integration 覆蓋 JPY 小數、零 TWD、小／大 rate／�
 
 ## G3a-1 進階分攤預覽
 
-v2 preview 已透過 `computeLedgerSplits` 共用 Web 的均分／固定原幣金額／百分比／份數；JSON number／null 嚴格輸入、穩定成員尾差與雙單位份額由共用契約驗證。`expense-options.splitPreviewModes` 只宣告預覽能力，舊均分 body／回應與全域 capabilities 保持相容。完整欄位、精度、容差及不保存歷史模式的決策集中在 [G3a-1 契約](../../mobile/docs/BACKEND_CONTRACT.md#g3a-1-進階分攤預覽)。寫入核對／手機 UI 尚待後續切片，不新增 migration、不開非 TWD 新建。
+v2 preview 已透過 `computeLedgerSplits` 共用 Web 的均分／固定原幣金額／百分比／份數；JSON number／null 嚴格輸入、穩定成員尾差與雙單位份額由共用契約驗證。`expense-options.splitPreviewModes` 只宣告預覽能力，舊均分 body／回應與全域 capabilities 保持相容。完整欄位、精度、容差及不保存歷史模式的決策集中在 [G3a-1 契約](../../mobile/docs/BACKEND_CONTRACT.md#g3a-1-進階分攤預覽)。寫入核對已於 G3a-2 接上（見下節）；手機 UI 尚待 G3b，不新增 migration、不開非 TWD 新建。
 
 `advancedExpensePreview.test.ts` 核對契約、v2 route、Web 同值、邊界與授權；`expenseSplit.test.ts` 保留獨立數值 fixtures。`test:mobile-api` 在自建隔離 DB／HTTP 核對四模式、原幣份額、逆序及錯誤，並確認預覽不寫入。
+
+
+## G3a-2 進階分攤確認寫入
+
+新增的可選 split 與編輯的明確 mode=split 在原交易中共用 `expenseSplitConfirmation.ts` 核對 Web 計算結果、有效成員及每人確認份額，歷史帳不推測模式。基本編輯、舊 body 指紋、revision、UUID 與終局 receipt 語意保留；能力分別為 options.splitCreateModes、edit-context.capabilities.splitModes。完整格式、錯誤及手機後續界線見 [G3a-2 契約](../../mobile/docs/BACKEND_CONTRACT.md#g3a-2-進階分攤新增與編輯)。
+
+隔離 MongoDB 測試涵蓋四模式、非 TWD／零換算、成員異動、UUID 競爭／重播、拒絕持久化與交易回滾；真 HTTP 覆蓋四模式確認、外幣重算、丟失 PATCH 回應後沿原 UUID 查回及重播。裝置操作不以這些測試取代。

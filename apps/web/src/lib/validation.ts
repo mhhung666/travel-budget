@@ -1,4 +1,4 @@
-import { virtualMemberNameSchema } from '@travel-budget/contracts';
+import { expenseSplitInput, virtualMemberNameSchema } from '@travel-budget/contracts';
 import { MAX_ACTIVITIES_PER_DAY } from '@/lib/itineraryLimits';
 import { isCalendarDate, MAX_ITINERARY_DAY_NUMBER } from '@/lib/itineraryDayTarget';
 import { z } from 'zod';
@@ -125,6 +125,7 @@ export const createExpenseSchema = z.object({
   itinerary_day_ids: z.array(objectIdSchema).max(60, '關聯行程日過多').optional(),
   // 自訂標籤（可複選，自由文字）；空陣列/省略＝無標籤。
   tags: z.array(tagSchema).max(20, '標籤數量過多').optional(),
+  split: expenseSplitInput.optional(),
 });
 
 export const updateExpenseSchema = z.object({

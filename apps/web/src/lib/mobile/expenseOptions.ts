@@ -70,6 +70,7 @@ export async function mobileExpenseOptions(userId: string, id: string) {
       categories: [...expenseCategories],
     }),
     splitPreviewModes: ['equal', 'amount', 'percent', 'shares'] as const,
+    splitCreateModes: ['equal', 'amount', 'percent', 'shares'] as const,
   };
 }
 

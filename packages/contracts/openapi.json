@@ -5819,6 +5819,115 @@
           "base_currency": {
             "type": "string",
             "pattern": "^[A-Z]{3}$"
+          },
+          "split": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "mode": {
+                    "type": "string",
+                    "const": "equal"
+                  }
+                },
+                "required": [
+                  "mode"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "mode": {
+                    "type": "string",
+                    "const": "amount"
+                  },
+                  "values": {
+                    "minItems": 1,
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": {
+                      "anyOf": [
+                        {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "mode",
+                  "values"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "mode": {
+                    "type": "string",
+                    "const": "percent"
+                  },
+                  "values": {
+                    "minItems": 1,
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": {
+                      "anyOf": [
+                        {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 100
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "mode",
+                  "values"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "mode": {
+                    "type": "string",
+                    "const": "shares"
+                  },
+                  "values": {
+                    "minItems": 1,
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": {
+                      "anyOf": [
+                        {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1000000
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "mode",
+                  "values"
+                ],
+                "additionalProperties": false
+              }
+            ]
           }
         },
         "required": [
@@ -6135,6 +6244,221 @@
                   "exchange_rate",
                   "payer_id",
                   "splits"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "client_request_id",
+              "expected_revision",
+              "base_currency",
+              "mode",
+              "changes"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "client_request_id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "expected_revision": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "base_currency": {
+                "type": "string",
+                "pattern": "^[A-Z]{3}$"
+              },
+              "mode": {
+                "type": "string",
+                "const": "split"
+              },
+              "changes": {
+                "type": "object",
+                "properties": {
+                  "description": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "category": {
+                    "type": "string",
+                    "enum": [
+                      "accommodation",
+                      "transportation",
+                      "food",
+                      "shopping",
+                      "entertainment",
+                      "tickets",
+                      "other"
+                    ]
+                  },
+                  "date": {
+                    "type": "string",
+                    "format": "date",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                  },
+                  "original_amount": {
+                    "type": "number",
+                    "minimum": 0.01
+                  },
+                  "currency": {
+                    "type": "string",
+                    "pattern": "^[A-Z]{3}$"
+                  },
+                  "exchange_rate": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "payer_id": {
+                    "type": "string",
+                    "pattern": "^[a-f\\d]{24}$"
+                  },
+                  "splits": {
+                    "minItems": 1,
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "user_id": {
+                          "type": "string",
+                          "pattern": "^[a-f\\d]{24}$"
+                        },
+                        "share_amount": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1000000000
+                        }
+                      },
+                      "required": [
+                        "user_id",
+                        "share_amount"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "split": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "mode": {
+                            "type": "string",
+                            "const": "equal"
+                          }
+                        },
+                        "required": [
+                          "mode"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "mode": {
+                            "type": "string",
+                            "const": "amount"
+                          },
+                          "values": {
+                            "minItems": 1,
+                            "maxItems": 100,
+                            "type": "array",
+                            "items": {
+                              "anyOf": [
+                                {
+                                  "type": "number",
+                                  "minimum": 0
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        "required": [
+                          "mode",
+                          "values"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "mode": {
+                            "type": "string",
+                            "const": "percent"
+                          },
+                          "values": {
+                            "minItems": 1,
+                            "maxItems": 100,
+                            "type": "array",
+                            "items": {
+                              "anyOf": [
+                                {
+                                  "type": "number",
+                                  "minimum": 0,
+                                  "maximum": 100
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        "required": [
+                          "mode",
+                          "values"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "mode": {
+                            "type": "string",
+                            "const": "shares"
+                          },
+                          "values": {
+                            "minItems": 1,
+                            "maxItems": 100,
+                            "type": "array",
+                            "items": {
+                              "anyOf": [
+                                {
+                                  "type": "number",
+                                  "minimum": 0,
+                                  "maximum": 1000000
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        "required": [
+                          "mode",
+                          "values"
+                        ],
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "original_amount",
+                  "currency",
+                  "exchange_rate",
+                  "payer_id",
+                  "splits",
+                  "split"
                 ],
                 "additionalProperties": false
               }
@@ -6983,6 +7307,18 @@
                 "shares"
               ]
             }
+          },
+          "splitCreateModes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "equal",
+                "amount",
+                "percent",
+                "shares"
+              ]
+            }
           }
         },
         "required": [
@@ -7546,6 +7882,18 @@
                     "shares"
                   ]
                 }
+              },
+              "splitCreateModes": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "equal",
+                    "amount",
+                    "percent",
+                    "shares"
+                  ]
+                }
               }
             },
             "required": [
@@ -7586,6 +7934,18 @@
                     "type": "null"
                   }
                 ]
+              },
+              "splitModes": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "equal",
+                    "amount",
+                    "percent",
+                    "shares"
+                  ]
+                }
               }
             },
             "required": [

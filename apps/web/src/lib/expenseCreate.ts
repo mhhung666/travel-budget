@@ -1,3 +1,4 @@
+import { confirmedExpenseShares } from './expenseSplitConfirmation';
 import { isSupportedCurrency } from '@/constants/currencies';
 import {
   ledgerStamp,
@@ -238,7 +239,7 @@ export async function createExpenseForActor(
             .lean<{
               name: string;
               hashCode: string;
-              members: { user: { toString(): string } }[];
+              members: { user: { toString(): string }; joinedAt?: Date }[];
               expenseDeliveryDeleting?: boolean;
             }>();
           if (!trip || trip.expenseDeliveryDeleting) {
@@ -261,7 +262,24 @@ export async function createExpenseForActor(
           if (!splitsMatchAmount(splits, amount)) {
             throw new TripWriteError('VALIDATION_ERROR');
           }
-          shareAmounts = allocateShares(splits, amount);
+          if (input.split) {
+            const people = await User.find({ _id: { $in: [...memberIds] } })
+              .session(transactionSession)
+              .select('_id')
+              .lean<{ _id: Types.ObjectId }[]>();
+            const existing = new Set(people.map((p) => p._id.toString()));
+            const members = trip.members
+              .filter((m) => existing.has(m.user.toString()))
+              .sort((a, b) =>
+                (a.joinedAt?.toISOString() ?? '').localeCompare(b.joinedAt?.toISOString() ?? '')
+              )
+              .map((m) => ({ id: m.user.toString() }));
+            const shares = confirmedExpenseShares({ ...input, split: input.split }, members);
+            if (!shares) throw new TripWriteError('VALIDATION_ERROR');
+            shareAmounts = splits.map((s) => shares[s.user_id]);
+          } else {
+            shareAmounts = allocateShares(splits, amount);
+          }
 
           // 關聯行程日（可複選，若有）須全部屬本 trip
           if (!(await itineraryDaysBelongToTrip(tripId, itinerary_day_ids, transactionSession))) {

@@ -20,3 +20,5 @@ E1 增加旅行建立／加入嚴格輸入、專用 invitation DTO 與 account-s
 B1 增加獨立 v2 schemas 與 OpenAPI routes（`v2Schemas` registry），舊 v1 schema 不改。v2 的 ledger／明確原幣與基準輸入、終局 receipt 及支援能力詳見 [B1 API](../../apps/web/docs/MOBILE_API.md#b1-基準幣別契約)；這是後端交付，Mobile transport／持久化留 B3，非 TWD 建立預設關閉。
 
 G3a-1 擴充 v2 preview 的可選 `split`、逐人 JSON number／null 輸入與原幣份額，`expense-options.splitPreviewModes` 僅代表預覽能力；省略 split 的舊均分回應不變。精度／容差、歷史模式與後續寫入界線見 [G3 契約](../../apps/mobile/docs/BACKEND_CONTRACT.md#g3a-1-進階分攤預覽)。
+
+G3a-2 為 v2 create 增加可選 `split`，update 增加明確 `mode: "split"`；values 對齊確認 splits，舊請求不新增預設欄位。建立與編輯能力各自宣告於 options／edit-context，詳見 [確認寫入契約](../../apps/mobile/docs/BACKEND_CONTRACT.md#g3a-2-進階分攤新增與編輯)。

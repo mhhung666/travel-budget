@@ -798,10 +798,23 @@ export const expensePreviewV2Input = z
     'Provide one value per member; all-zero allocations are invalid'
   )
   .refine(validBaseRate, 'Base currency uses rate 1 and the ledger amount limit');
+const validSplitValues = (v: {
+  split?: z.infer<typeof expenseSplitInput>;
+  splits: { user_id: string }[];
+}) =>
+  !v.split ||
+  v.split.mode === 'equal' ||
+  (v.split.values.length === v.splits.length &&
+    v.split.values.some((value) => value === null || value > 0));
 export const expenseCreateV2Input = z
-  .object({ ...expenseCreateInput.shape, ...ledgerInputFields })
+  .object({
+    ...expenseCreateInput.shape,
+    ...ledgerInputFields,
+    split: expenseSplitInput.optional(),
+  })
   .strict()
-  .refine(validBaseRate, 'Base currency uses rate 1 and the ledger amount limit');
+  .refine(validBaseRate, 'Base currency uses rate 1 and the ledger amount limit')
+  .refine(validSplitValues, 'Provide one value per split; all-zero allocations are invalid');
 export const expenseUpdateV2Input = z.discriminatedUnion('mode', [
   expenseUpdateInput.options[0].safeExtend(ledgerInputFields),
   z
@@ -825,7 +838,31 @@ export const expenseUpdateV2Input = z.discriminatedUnion('mode', [
       (v) => validBaseRate({ ...v.changes, base_currency: v.base_currency }),
       'Invalid base rate'
     ),
+  z
+    .object({
+      ...mutationIdentity,
+      ...ledgerInputFields,
+      mode: z.literal('split'),
+      changes: z
+        .object({
+          ...basicExpenseChanges.shape,
+          original_amount: originalExpenseAmount,
+          currency: currencyCodeSchema,
+          exchange_rate: expenseRate,
+          payer_id: idSchema,
+          splits: expenseCreateInput.shape.splits,
+          split: expenseSplitInput,
+        })
+        .strict()
+        .refine(validSplitValues, 'Provide one value per split; all-zero allocations are invalid'),
+    })
+    .strict()
+    .refine(
+      (v) => validBaseRate({ ...v.changes, base_currency: v.base_currency }),
+      'Invalid base rate'
+    ),
 ]);
+export type ExpenseUpdateV2Input = z.infer<typeof expenseUpdateV2Input>;
 export const expenseDeleteV2Input = expenseDeleteInput.safeExtend(ledgerInputFields);
 export const paymentCreateV2Input = paymentCreateInput.safeExtend(ledgerInputFields);
 export const paymentDeleteV2Input = paymentDeleteInput.safeExtend(ledgerInputFields);
@@ -844,6 +881,7 @@ export const expenseOptionsV2Schema = expenseOptionsSchema.safeExtend({
   ...ledgerFields,
   // Optional for older backends; this advertises preview, never write support.
   splitPreviewModes: z.array(expenseSplitModeSchema).optional(),
+  splitCreateModes: z.array(expenseSplitModeSchema).optional(),
 });
 export const expensePreviewV2Schema = expensePreviewSchema
   .safeExtend({
@@ -877,6 +915,9 @@ export const expenseEditContextV2Schema = expenseEditContextSchema.safeExtend({
   ...ledgerFields,
   expense: expenseDetailV2Schema,
   options: expenseOptionsV2Schema,
+  capabilities: expenseEditContextSchema.shape.capabilities.extend({
+    splitModes: z.array(expenseSplitModeSchema).optional(),
+  }),
 });
 export const paymentContextV2Schema = paymentContextSchema.safeExtend({
   ...ledgerFields,

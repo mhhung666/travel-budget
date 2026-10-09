@@ -580,4 +580,192 @@ describe.skipIf(!uri || !allowed)('E3 isolated replica-set transactions', () => 
     expect(await db.collection('activitylogs').countDocuments({})).toBe(0);
     expect(await db.collection(MUTATION_REQUESTS).countDocuments({})).toBe(0);
   });
+  describe('G3 explicit reallocation', () => {
+    const advanced = async (mode: 'equal' | 'amount' | 'percent' | 'shares' = 'shares') => ({
+      ...(await update()),
+      mode: 'split',
+      changes: {
+        original_amount: 100,
+        currency: 'TWD',
+        exchange_rate: 1,
+        payer_id: actor.toString(),
+        split:
+          mode === 'equal'
+            ? { mode }
+            : {
+                mode,
+                values:
+                  mode === 'shares'
+                    ? [1, 2, 3]
+                    : mode === 'amount'
+                      ? [20, null, null]
+                      : [33.33, 33.33, 33.33],
+              },
+        splits: ids.map((id, i) => ({
+          user_id: id.toString(),
+          share_amount: (mode === 'shares'
+            ? [16.67, 33.33, 50]
+            : mode === 'amount'
+              ? [20, 40, 40]
+              : [33.34, 33.33, 33.33])[i],
+        })),
+      },
+    });
+    it.each(['equal', 'amount', 'percent', 'shares'] as const)(
+      'explicitly replaces historical non-equal shares with %s and keeps unrelated fields',
+      async (mode) => {
+        const before = await db.collection('expenses').findOne({ _id: expense });
+        const context = await read();
+        expect(context.capabilities.recalculate).toBe(false);
+        expect(context.capabilities.splitModes).toEqual(['equal', 'amount', 'percent', 'shares']);
+        const body = await advanced(mode);
+        const results = await Promise.all([write(body), write(body)]);
+        expect(results[0]).toEqual(results[1]);
+        const after = await db.collection('expenses').findOne({ _id: expense });
+        for (const field of [
+          'attachments',
+          'tags',
+          'itineraryDays',
+          'createdBy',
+          'createdAt',
+          'expenseDelivery',
+        ])
+          expect(after![field]).toEqual(before![field]);
+        expect(after!.splits.map((s: { shareAmount: number }) => s.shareAmount)).toEqual(
+          body.changes.splits.map((s) => s.share_amount)
+        );
+        expect(after!.split).toBeUndefined();
+        expect(after!.splitMode).toBeUndefined();
+        expect(await db.collection('activitylogs').countDocuments({})).toBe(1);
+        expect(await readTripMutation(db, actor.toString(), body.client_request_id)).toMatchObject({
+          status: 'committed',
+          result: results[0],
+        });
+        await db
+          .collection('trips')
+          .updateOne({ _id: trip }, { $pull: { members: { user: peer } } } as never);
+        expect(await write(body)).toEqual(results[0]);
+        await expect(
+          write({
+            ...body,
+            changes: { ...body.changes, split: { mode: 'shares', values: [2, 2, 2] } },
+          })
+        ).rejects.toMatchObject({ code: 'IDEMPOTENCY_CONFLICT' });
+      }
+    );
+    it.each(['members', 'splits', 'description', 'attachments'])(
+      'rejects stale confirmation after concurrent %s changes',
+      async (field) => {
+        const body = await advanced();
+        if (field === 'members')
+          await db
+            .collection('trips')
+            .updateOne({ _id: trip }, { $pull: { members: { user: peer } } } as never);
+        else
+          await db
+            .collection('expenses')
+            .updateOne(
+              { _id: expense },
+              { $set: { [field]: field === 'description' ? 'Web edited' : [] } }
+            );
+        const before = await db.collection('expenses').findOne({ _id: expense });
+        await expect(write(body)).rejects.toMatchObject({ code: 'RESOURCE_CHANGED' });
+        expect(await readTripMutation(db, actor.toString(), body.client_request_id)).toMatchObject({
+          status: 'rejected',
+          code: 'RESOURCE_CHANGED',
+        });
+        expect(await db.collection('expenses').findOne({ _id: expense })).toEqual(before);
+      }
+    );
+    it.each([
+      ['USD', 'JPY', 100, 0.0067, [0, 0.22, 0.45]],
+      ['TWD', 'KRW', 0.01, 1e-7, [0, 0, 0]],
+      ['TWD', 'USD', 0.01, 1e11, [0, 0, 1_000_000_000]],
+    ] as const)(
+      'reallocates a %s ledger in %s with exact converted confirmation',
+      async (base, currency, amount, rate, shares) => {
+        await db.collection('trips').updateOne({ _id: trip }, { $set: { baseCurrency: base } });
+        await db
+          .collection('expenses')
+          .updateOne({ _id: expense }, { $set: { baseCurrency: base, currency: base } });
+        const body = await advanced();
+        await write({
+          ...body,
+          base_currency: base,
+          changes: {
+            ...body.changes,
+            original_amount: amount,
+            currency,
+            exchange_rate: rate,
+            split: { mode: 'shares', values: [0, 1, 2] },
+            splits: ids.map((id, i) => ({ user_id: id.toString(), share_amount: shares[i] })),
+          },
+        });
+        const after = await db.collection('expenses').findOne({ _id: expense });
+        expect(after!.originalAmount).toBe(amount);
+        expect(after!.exchangeRate).toBe(rate);
+        expect(after!.splits.map((s: { shareAmount: number }) => s.shareAmount)).toEqual(shares);
+      }
+    );
+    it('rechecks authorization before exposing an earlier advanced receipt', async () => {
+      const body = await advanced();
+      await write(body);
+      await db
+        .collection('trips')
+        .updateOne({ _id: trip }, { $pull: { members: { user: actor } } } as never);
+      await expect(write(body)).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    });
+    it('requires reselecting removed historical members but can replace their old allocation', async () => {
+      await db
+        .collection('trips')
+        .updateOne({ _id: trip }, { $pull: { members: { user: peer } } } as never);
+      const body = await advanced();
+      await expect(write(body)).rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
+      const next = {
+        ...body,
+        client_request_id: randomUUID(),
+        changes: {
+          ...body.changes,
+          split: { mode: 'amount', values: [100] },
+          splits: [{ user_id: actor.toString(), share_amount: 100 }],
+        },
+      };
+      await write(next);
+      expect((await read()).expense.splits).toHaveLength(1);
+    });
+    it('persists a terminal refusal for a balanced one-cent mismatch', async () => {
+      const body = await advanced();
+      body.changes.splits[0].share_amount = 16.68;
+      body.changes.splits[1].share_amount = 33.32;
+      const before = await db.collection('expenses').findOne({ _id: expense });
+      await expect(write(body)).rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
+      await expect(write(body)).rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
+      expect(await db.collection('expenses').findOne({ _id: expense })).toEqual(before);
+      expect(await db.collection('activitylogs').countDocuments({})).toBe(0);
+    });
+    it('rolls back advanced edit and activity if the receipt cannot be committed', async () => {
+      const body = await advanced();
+      const before = await db.collection('expenses').findOne({ _id: expense });
+      const insert = mongo.Collection.prototype.insertOne;
+      const spy = vi.spyOn(mongo.Collection.prototype, 'insertOne').mockImplementation(function (
+        this: mongo.Collection,
+        doc,
+        options
+      ) {
+        if (this.collectionName === MUTATION_REQUESTS) throw new Error('G3 receipt unavailable');
+        return insert.call(this, doc, options);
+      });
+      try {
+        await expect(write(body)).rejects.toThrow('G3 receipt unavailable');
+      } finally {
+        spy.mockRestore();
+      }
+      expect(await db.collection('expenses').findOne({ _id: expense })).toEqual(before);
+      expect(await db.collection('activitylogs').countDocuments({})).toBe(0);
+      expect(await readTripMutation(db, actor.toString(), body.client_request_id)).toEqual({
+        status: 'not_found',
+      });
+      await write(body);
+    });
+  });
 });

@@ -82,7 +82,7 @@ beforeEach(() => {
 });
 
 describe('G3 preview contract', () => {
-  it('keeps the old equal shape, advertises only preview support, and leaves writes strict', async () => {
+  it('keeps the old equal shape and advertises split capabilities without changing legacy bodies', async () => {
     const result = await preview(body());
     expect(result.status).toBe(200);
     expect(result.data.splitMode).toBeUndefined();
@@ -120,7 +120,7 @@ describe('G3 preview contract', () => {
     expect(
       expenseCreateV2Input.safeParse({ ...confirmed, split: { mode: 'shares', values: [1, 2, 3] } })
         .success
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it.each([
