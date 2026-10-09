@@ -95,6 +95,7 @@ export const expensePreviewSchema = shared.expensePreviewSchema.safeExtend({
 });
 export const expenseEditContextSchema = shared.expenseEditContextSchema.safeExtend({
   ...unit,
+  capabilities: shared.expenseEditContextV2Schema.shape.capabilities,
   expense: expenseDetailSchema,
   options: expenseOptionsSchema,
 });

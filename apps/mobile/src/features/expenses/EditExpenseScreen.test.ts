@@ -693,3 +693,249 @@ it('conflict reconfirmation keeps 120 JPY as a complete input instead of mixing 
     changes: { original_amount: 120, currency: 'JPY', exchange_rate: 0.2156789012345 },
   });
 });
+
+function advancedContext() {
+  const modes = ['equal', 'amount', 'percent', 'shares'] as const;
+  return {
+    ...original,
+    ledger: { baseCurrency: 'TWD', moneyScale: 2 as const },
+    options: { ...original.options, splitPreviewModes: [...modes] },
+    capabilities: { ...original.capabilities, equal: false, splitModes: [...modes] },
+  };
+}
+function splitNodes() {
+  const element = nodes(render()).find(
+    (n) => (n as { type?: { name?: string } }).type?.name === 'SplitFields'
+  ) as unknown as { type: (p: never) => unknown; props: never };
+  return nodes(element.type(element.props));
+}
+function splitField(id: string) {
+  const item = splitNodes().find((n) => n.props.testID === id);
+  if (!item) throw new Error(`Missing split input ${id}`);
+  return item.props;
+}
+function previewFor(mode: 'equal' | 'amount' | 'percent' | 'shares') {
+  return {
+    ledger: { baseCurrency: 'TWD', moneyScale: 2 },
+    amount: 100,
+    originalAmount: 100,
+    currency: 'TWD',
+    exchangeRate: 1,
+    splitMode: mode,
+    splits: original.expense.splits.map((s) => ({ ...s, originalShareAmount: 100 })),
+  };
+}
+it.each(['zh', 'zh-CN', 'en', 'jp'] as const)(
+  'requires a new split choice in %s and confirms both units without inferring historical intent',
+  async (locale) => {
+    h.locale = locale;
+    const ctx = advancedContext();
+    h.request.mockResolvedValue(ctx);
+    await loadForm();
+    expect(findId('expense-maintain-basic').selected).toBe(true);
+    findId('expense-maintain-resplit').onPress!();
+    expect(
+      splitNodes()
+        .filter((n) => n.props.testID?.startsWith('expense-split-mode-'))
+        .every((n) => !n.props.selected)
+    ).toBe(true);
+    findId('expense-maintain-preview').onPress!();
+    await flush();
+    expect(h.request.mock.calls.some((c) => String(c[1]).endsWith('/preview'))).toBe(false);
+    for (const mode of ['equal', 'amount', 'percent', 'shares'] as const) {
+      splitField(`expense-split-mode-${mode}`).onPress!();
+      if (mode !== 'equal')
+        splitField(`expense-split-value-${h.scope.accountId}`).onChangeText!(
+          mode === 'shares' ? '0002.0000' : '00100.00'
+        );
+      h.request.mockImplementation(async (_user, path) =>
+        String(path).endsWith('/preview') ? previewFor(mode) : ctx
+      );
+      findId('expense-maintain-preview').onPress!();
+      await flush();
+      expect(findId('expense-maintain-confirm')).toBeTruthy();
+      expect(
+        nodes(render()).some(
+          (n) => n.props.label === messages[locale].originalAmount && n.props.value?.includes('100')
+        )
+      ).toBe(true);
+      h.confirm.mockResolvedValue({ kind: 'not-sent' });
+      findId('expense-maintain-confirm').onPress!();
+      await flush();
+      expect(h.confirm.mock.lastCall?.[1].body).toMatchObject({
+        mode: 'split',
+        expected_revision: ctx.revision,
+        changes: {
+          split: mode === 'equal' ? { mode } : { mode, values: [mode === 'shares' ? 2 : 100] },
+          original_amount: 100,
+          currency: 'TWD',
+          exchange_rate: 1,
+        },
+      });
+    }
+    findId('expense-maintain-basic').onPress!();
+    findId('expense-maintain-description').onChangeText!('only metadata');
+    findId('expense-maintain-preview').onPress!();
+    await flush();
+    findId('expense-maintain-confirm').onPress!();
+    await flush();
+    expect(h.confirm.mock.lastCall?.[1].body).toEqual({
+      base_currency: 'TWD',
+      mode: 'basic',
+      expected_revision: ctx.revision,
+      changes: { description: 'only metadata' },
+    });
+  }
+);
+it('requires explicit removal of unknown historical members and never treats their shares as an input mode', async () => {
+  const ctx = advancedContext();
+  const historical = {
+    ...ctx,
+    expense: {
+      ...ctx.expense,
+      payerId: null,
+      splits: [{ userId: null, displayName: 'Gone', shareAmount: 100 }],
+    },
+  };
+  h.request.mockResolvedValue(historical);
+  await loadForm();
+  findId('expense-maintain-resplit').onPress!();
+  splitField('expense-split-mode-equal').onPress!();
+  findId('expense-maintain-preview').onPress!();
+  await flush();
+  expect(h.confirm).not.toHaveBeenCalled();
+  expect(findId('expense-maintain-remove-missing')).toBeTruthy();
+  findId('expense-maintain-remove-missing').onPress!();
+  findId(`expense-maintain-split-${h.scope.accountId}`).onPress!();
+  findId(`expense-maintain-payer-${h.scope.accountId}`).onPress!();
+  h.request.mockImplementation(async (_user, path) =>
+    String(path).endsWith('/preview') ? previewFor('equal') : historical
+  );
+  findId('expense-maintain-preview').onPress!();
+  await flush();
+  expect(findId('expense-maintain-confirm')).toBeTruthy();
+});
+it('split changes cancel an in-flight preview, including a late successful reply', async () => {
+  const ctx = advancedContext();
+  h.request.mockResolvedValue(ctx);
+  await loadForm();
+  findId('expense-maintain-resplit').onPress!();
+  splitField('expense-split-mode-shares').onPress!();
+  let resolve!: (v: unknown) => void;
+  h.request.mockImplementation(async (_user, path) =>
+    String(path).endsWith('/preview')
+      ? new Promise((r) => {
+          resolve = r;
+        })
+      : ctx
+  );
+  findId('expense-maintain-preview').onPress!();
+  await flush();
+  splitField(`expense-split-value-${h.scope.accountId}`).onChangeText!('2');
+  resolve(previewFor('shares'));
+  await flush();
+  expect(nodes(render()).some((n) => n.props.testID === 'expense-maintain-confirm')).toBe(false);
+  expect(h.confirm).not.toHaveBeenCalled();
+});
+it('reopens a rejected split from its frozen ID-aligned values without resending, and permits basic editing', async () => {
+  const ctx = advancedContext();
+  source = '11111111-1111-4111-8111-111111111111';
+  h.request.mockResolvedValue(ctx);
+  h.get.mockResolvedValue({
+    status: 'completed',
+    result: { status: 'rejected' },
+    payload: {
+      operation: 'expense.update',
+      tripId,
+      expenseId,
+      body: {
+        mode: 'split',
+        changes: {
+          original_amount: 200,
+          currency: 'JPY',
+          exchange_rate: 0.25,
+          payer_id: h.scope.accountId,
+          split: { mode: 'shares', values: [null] },
+          splits: [{ user_id: h.scope.accountId, share_amount: 50 }],
+        },
+      },
+    },
+  });
+  await loadForm();
+  expect(findId('expense-maintain-resplit').selected).toBe(true);
+  expect(splitField('expense-split-mode-shares').selected).toBe(true);
+  expect(splitField(`expense-split-value-${h.scope.accountId}`).value).toBe('');
+  expect(findId('expense-maintain-amount').value).toBe('200');
+  expect(h.confirm).not.toHaveBeenCalled();
+  findId('expense-maintain-basic').onPress!();
+  changeDescription('basic after rejection');
+  findId('expense-maintain-preview').onPress!();
+  await flush();
+  h.confirm.mockResolvedValue({ kind: 'not-sent' });
+  findId('expense-maintain-confirm').onPress!();
+  await flush();
+  expect(h.confirm.mock.lastCall?.[1].body.changes).toEqual({
+    description: 'basic after rejection',
+  });
+});
+it('conflict review keeps split input and requires another preview using the reviewed revision', async () => {
+  const ctx = advancedContext();
+  h.request.mockResolvedValue(ctx);
+  await loadForm();
+  findId('expense-maintain-resplit').onPress!();
+  splitField('expense-split-mode-amount').onPress!();
+  splitField(`expense-split-value-${h.scope.accountId}`).onChangeText!('00100.00');
+  const latest = {
+    ...ctx,
+    revision: 'b'.repeat(64),
+    expense: {
+      ...ctx.expense,
+      description: 'remote',
+      currency: 'JPY',
+      exchangeRate: 0.25,
+      originalAmount: 400,
+    },
+  };
+  h.request.mockResolvedValue(latest);
+  findId('expense-maintain-preview').onPress!();
+  await flush();
+  findId('expense-maintain-latest').onPress!();
+  expect(findId('expense-maintain-resplit').selected).toBe(true);
+  expect(splitField(`expense-split-value-${h.scope.accountId}`).value).toBe('00100.00');
+  expect(findId('expense-maintain-amount').value).toBe('100');
+  expect(findId('expense-maintain-description').value).toBe('remote');
+  expect(h.confirm).not.toHaveBeenCalled();
+  h.request.mockImplementation(async (_user, path) =>
+    String(path).endsWith('/preview') ? previewFor('amount') : latest
+  );
+  findId('expense-maintain-preview').onPress!();
+  await flush();
+  h.confirm.mockResolvedValue({ kind: 'not-sent' });
+  findId('expense-maintain-confirm').onPress!();
+  await flush();
+  expect(h.confirm.mock.lastCall?.[1].body).toMatchObject({
+    expected_revision: latest.revision,
+    mode: 'split',
+    changes: { currency: 'TWD', split: { mode: 'amount', values: [100] } },
+  });
+  expect(h.confirm.mock.lastCall?.[1].body.changes.description).toBeUndefined();
+});
+
+it('backgrounding during the confirmation guard prevents freezing the invalidated preview', async () => {
+  const ctx = advancedContext();
+  h.request.mockResolvedValue(ctx);
+  await loadForm();
+  h.effects[0]();
+  findId('expense-maintain-resplit').onPress!();
+  splitField('expense-split-mode-equal').onPress!();
+  h.request.mockImplementation(async (_user, path) =>
+    String(path).endsWith('/preview') ? previewFor('equal') : ctx
+  );
+  findId('expense-maintain-preview').onPress!();
+  await flush();
+  findId('expense-maintain-confirm').onPress!();
+  h.lifecycle('background');
+  await flush();
+  expect(h.confirm).not.toHaveBeenCalled();
+  expect(nodes(render()).some((n) => n.props.testID === 'expense-maintain-confirm')).toBe(false);
+});

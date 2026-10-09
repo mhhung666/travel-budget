@@ -436,3 +436,198 @@ it('format-only money changes take the complete latest monetary input', () => {
   };
   expect(rebaseEditFields(foreignEqual, fields, latest)).toEqual(editFields(latest));
 });
+
+const advanced = {
+  ...foreignEqual,
+  ledger: { baseCurrency: 'TWD', moneyScale: 2 as const },
+  capabilities: {
+    ...foreignEqual.capabilities,
+    recalculate: false,
+    splitModes: ['equal', 'amount', 'percent', 'shares'] as const,
+  },
+  options: {
+    ...foreignEqual.options,
+    splitPreviewModes: ['equal', 'amount', 'percent', 'shares'] as const,
+  },
+};
+const advancedContext = () =>
+  structuredClone(advanced) as unknown as import('@/api/contracts').ExpenseEditContext;
+it.each(['equal', 'amount', 'percent', 'shares'] as const)(
+  'explicit %s edit maps values by ID and requires both capabilities',
+  async (splitMode) => {
+    const ctx = advancedContext();
+    const fields = {
+      ...editFields(ctx),
+      splitMode,
+      splitValues: { [splitMode]: { [actor]: '0020.00', [peer]: '' } },
+      memberIds: [peer, actor],
+    };
+    const preview = {
+      ...foreignPreview,
+      ledger: ctx.ledger,
+      splitMode,
+      splits: foreignPreview.splits.map((s, i) => ({ ...s, originalShareAmount: i ? 50 : 50 })),
+    };
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce(ctx)
+      .mockResolvedValueOnce(preview)
+      .mockResolvedValueOnce(ctx);
+    const prepared = await prepareEdit(
+      request as never,
+      actor,
+      peer,
+      peer,
+      ctx,
+      fields,
+      'split',
+      () => undefined
+    );
+    expect(request.mock.calls[1][3].body.split).toEqual(
+      splitMode === 'equal' ? { mode: splitMode } : { mode: splitMode, values: [null, 20] }
+    );
+    expect(prepared.changes).toMatchObject({
+      mode: 'split',
+      base_currency: 'TWD',
+      changes: {
+        currency: 'JPY',
+        exchange_rate: foreignPreview.exchangeRate,
+        split:
+          splitMode === 'equal' ? { mode: splitMode } : { mode: splitMode, values: [20, null] },
+      },
+    });
+    for (const broken of [
+      { ...ctx, capabilities: { ...ctx.capabilities, splitModes: undefined } },
+      { ...ctx, options: { ...ctx.options, splitPreviewModes: undefined } },
+    ])
+      expect(() => editChanges(broken, fields, 'split', preview)).toThrow('INVALID_EDIT');
+    expect(() => editChanges(ctx, { ...fields, splitMode: undefined }, 'split', preview)).toThrow();
+    expect(() => editChanges(ctx, fields, 'split', { ...preview, splitMode: undefined })).toThrow();
+    expect(() =>
+      editChanges(ctx, fields, 'split', { ...preview, splits: foreignPreview.splits })
+    ).toThrow();
+    expect(editChanges(ctx, { ...fields, description: 'basic only' }, 'basic')).toEqual({
+      base_currency: 'TWD',
+      mode: 'basic',
+      changes: { description: 'basic only' },
+    });
+  }
+);
+it('advanced conflict keeps the complete chosen monetary intent but adopts unchanged metadata', () => {
+  const ctx = advancedContext();
+  const fields = {
+    ...editFields(ctx),
+    splitMode: 'amount' as const,
+    splitValues: { amount: { [actor]: '00020.', [peer]: '0' } },
+  };
+  const latest = {
+    ...ctx,
+    category: 'other',
+    expense: {
+      ...ctx.expense,
+      description: 'remote',
+      currency: 'USD',
+      originalAmount: 40,
+      exchangeRate: 30,
+      payerId: third,
+      splits: [{ userId: third, displayName: 'Third', shareAmount: 1200 }],
+    },
+  };
+  expect(rebaseEditFields(ctx, fields, latest, 'split')).toEqual({
+    ...fields,
+    category: 'other',
+    description: 'remote',
+  });
+});
+it('historical unknown and removed members remain visible in the input and block reallocation', () => {
+  const ctx = advancedContext();
+  ctx.expense.splits = [
+    { userId: null, displayName: 'Unknown', shareAmount: 20 },
+    { userId: third, displayName: 'Removed', shareAmount: 1.57 },
+  ];
+  ctx.options.members = ctx.options.members.filter((m) => m.id !== third);
+  const fields = { ...editFields(ctx), splitMode: 'equal' as const };
+  expect(fields.memberIds).toEqual(['', third]);
+  expect(fields.splitValues).toBeUndefined();
+  expect(() =>
+    editChanges(ctx, fields, 'split', { ...foreignPreview, ledger: ctx.ledger, splitMode: 'equal' })
+  ).toThrow();
+});
+it('capability lost during preview prevents confirmation even at the same revision', async () => {
+  const ctx = advancedContext();
+  const request = vi
+    .fn()
+    .mockResolvedValueOnce(ctx)
+    .mockResolvedValueOnce({
+      ...foreignPreview,
+      ledger: ctx.ledger,
+      splitMode: 'equal',
+      splits: foreignPreview.splits.map((s) => ({ ...s, originalShareAmount: 50 })),
+    })
+    .mockResolvedValueOnce({ ...ctx, capabilities: { ...ctx.capabilities, splitModes: [] } });
+  await expect(
+    prepareEdit(
+      request as never,
+      actor,
+      peer,
+      peer,
+      ctx,
+      { ...editFields(ctx), splitMode: 'equal' },
+      'split',
+      () => undefined
+    )
+  ).rejects.toThrow('INVALID_EDIT');
+});
+
+it.each([
+  ['USD', 'JPY', 100, 0.25, 25],
+  ['JPY', 'USD', 100, 30, 3000],
+  ['JPY', 'JPY', 0.01, 1, 0.01],
+  ['USD', 'JPY', 0.01, 1e-12, 0],
+  ['USD', 'JPY', 0.01, 1e11, 1000000000],
+] as const)(
+  'advanced editing preserves %s / %s units and precise rate',
+  (base, currency, originalAmount, rate, amount) => {
+    const ctx = advancedContext();
+    ctx.ledger = { baseCurrency: base, moneyScale: 2 };
+    const fields = {
+      ...editFields(ctx),
+      currency,
+      amountText: String(originalAmount),
+      rateText: String(rate),
+      splitMode: 'shares' as const,
+      splitValues: { shares: { [actor]: '0', [peer]: '' } },
+    };
+    const preview = {
+      ledger: ctx.ledger,
+      amount,
+      originalAmount,
+      currency,
+      exchangeRate: rate,
+      splitMode: 'shares' as const,
+      splits: [
+        {
+          userId: peer,
+          displayName: 'Same',
+          shareAmount: amount,
+          originalShareAmount: originalAmount,
+        },
+        { userId: actor, displayName: 'Same', shareAmount: 0, originalShareAmount: 0 },
+      ],
+    };
+    expect(editChanges(ctx, fields, 'split', preview)).toMatchObject({
+      base_currency: base,
+      mode: 'split',
+      changes: {
+        original_amount: originalAmount,
+        currency,
+        exchange_rate: rate,
+        split: { mode: 'shares', values: [null, 0] },
+        splits: [
+          { user_id: peer, share_amount: amount },
+          { user_id: actor, share_amount: 0 },
+        ],
+      },
+    });
+  }
+);

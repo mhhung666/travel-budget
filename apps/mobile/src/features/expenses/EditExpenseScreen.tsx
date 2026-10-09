@@ -45,6 +45,9 @@ import {
   canRecalculate,
   prepareEdit,
   rebaseEditFields,
+  canSplitEdit,
+  editDraft,
+  type EditMode,
   type EditFields,
   type PreparedEdit,
 } from './maintenance';
@@ -52,6 +55,8 @@ import { expenseReadGuard, expenseReadWait } from './readGuard';
 import { currencyDefaults, draftCurrencies } from './draft';
 import { categoryLabel, createMemberLabelIndex, expenseMembers } from './rows';
 import { isCalendarDate, parseAmount, parseRate } from './input';
+import { SplitFields } from './SplitFields';
+import { splitLabel } from './splitInput';
 
 export function EditExpenseScreen({
   tripId,
@@ -76,7 +81,7 @@ export function EditExpenseScreen({
   const f = useDisplayFormat(baseCurrency(context));
   const [latest, setLatest] = useState<ExpenseEditContext | null>(null);
   const [fields, setFields] = useState<EditFields | null>(null);
-  const [mode, setMode] = useState<'basic' | 'equal'>('basic');
+  const [mode, setMode] = useState<EditMode>('basic');
   const [prepared, setPrepared] = useState<PreparedEdit | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -153,7 +158,7 @@ export function EditExpenseScreen({
       if (v !== generation.current) return;
       setContext(read);
       const initial = editFields(read);
-      let initialMode: 'basic' | 'equal' = 'basic';
+      let initialMode: EditMode = 'basic';
       if (source) {
         const previous = await (await openMutationStore()).get(scope, source);
         if (
@@ -167,14 +172,30 @@ export function EditExpenseScreen({
           if (changes.description !== undefined) initial.description = changes.description;
           if (changes.category !== undefined) initial.category = changes.category;
           if (changes.date !== undefined) initial.date = changes.date;
-          if (previous.payload.body.mode === 'equal' && canRecalculate(read)) {
+          if (
+            (previous.payload.body.mode === 'equal' && canRecalculate(read)) ||
+            previous.payload.body.mode === 'split'
+          ) {
             initial.amountText = String(previous.payload.body.changes.original_amount);
             // Missing fields are the frozen legacy TWD operation, never the current expense rate.
             initial.currency = previous.payload.body.changes.currency ?? 'TWD';
             initial.rateText = String(previous.payload.body.changes.exchange_rate ?? 1);
             initial.payerId = previous.payload.body.changes.payer_id;
             initial.memberIds = previous.payload.body.changes.splits.map((s) => s.user_id);
-            initialMode = 'equal';
+            initialMode = previous.payload.body.mode;
+            if (previous.payload.body.mode === 'split') {
+              const { split, splits } = previous.payload.body.changes;
+              initial.splitMode = split.mode;
+              if (split.mode !== 'equal')
+                initial.splitValues = {
+                  [split.mode]: Object.fromEntries(
+                    splits.map((s, i) => [
+                      s.user_id,
+                      split.values[i] === null ? '' : String(split.values[i]),
+                    ])
+                  ),
+                };
+            }
           }
         }
       }
@@ -255,7 +276,10 @@ export function EditExpenseScreen({
           );
       beforeSend();
       if (v !== generation.current || inputVersion !== inputGeneration.current) return;
-      if (next.context.revision !== context.revision) {
+      if (
+        next.context.revision !== context.revision ||
+        baseCurrency(next.context) !== baseCurrency(context)
+      ) {
         setLatest(next.context);
         setError(t.expenseChanged);
         setPrepared(null);
@@ -273,9 +297,12 @@ export function EditExpenseScreen({
       else if (v === generation.current && inputVersion === inputGeneration.current) {
         setError(t.invalidExpenseEdit);
         if (!isCalendarDate(fields.date)) date.current?.focus();
-        else if (mode === 'equal' && !parseAmount(fields.amountText, fields.currency).ok)
+        else if (
+          mode !== 'basic' &&
+          !parseAmount(fields.amountText, fields.currency, baseCurrency(context)).ok
+        )
           amount.current?.focus();
-        else if (mode === 'equal' && !parseRate(fields.rateText)) rate.current?.focus();
+        else if (mode !== 'basic' && !parseRate(fields.rateText)) rate.current?.focus();
         else first.current?.focus();
       }
     } finally {
@@ -289,9 +316,11 @@ export function EditExpenseScreen({
     setBusy(true);
     setError('');
     const v = generation.current;
+    const inputVersion = inputGeneration.current;
     try {
       const beforeSend = await guard();
       beforeSend();
+      if (v !== generation.current || inputVersion !== inputGeneration.current) return;
       const outcome = remove
         ? await entry.confirm(scope, {
             operation: 'expense.delete',
@@ -485,12 +514,12 @@ export function EditExpenseScreen({
                 label={t.useLatestExpense}
                 onPress={() => {
                   inputGeneration.current++;
-                  setFields(rebaseEditFields(context, fields, latest));
+                  setFields(rebaseEditFields(context, fields, latest, mode));
                   setContext(latest);
                   setLatest(null);
                   setPrepared(null);
                   setError('');
-                  if (!canRecalculate(latest)) setMode('basic');
+                  if (mode === 'equal' && !canRecalculate(latest)) setMode('basic');
                 }}
               />
               <Action secondary label={t.reloadExpense} onPress={() => void load()} />
@@ -500,7 +529,13 @@ export function EditExpenseScreen({
             <Notice tone="warning">{t.deleteExpenseWarning}</Notice>
           ) : (
             <>
-              <Notice>{mode === 'basic' ? t.basicExpenseHint : t.equalExpenseHint}</Notice>
+              <Notice>
+                {mode === 'basic'
+                  ? t.basicExpenseHint
+                  : mode === 'split'
+                    ? t.newSplitHint
+                    : t.equalExpenseHint}
+              </Notice>
               <Chip
                 testID="expense-maintain-basic"
                 label={t.basicExpense}
@@ -512,19 +547,35 @@ export function EditExpenseScreen({
                   setPrepared(null);
                 }}
               />
-              <Chip
-                testID="expense-maintain-equal"
-                label={t.equalExpense}
-                selected={mode === 'equal'}
-                disabled={busy || !canRecalculate(context)}
-                onPress={() => {
-                  inputGeneration.current++;
-                  setMode('equal');
-                  setPrepared(null);
-                }}
-              />
-              {!canRecalculate(context) && <Notice>{t.expenseWebOnly}</Notice>}
-              {mode === 'equal' && (
+              {(canSplitEdit(context) && mode !== 'equal') || mode === 'split' ? (
+                <Chip
+                  testID="expense-maintain-resplit"
+                  label={t.resplitExpense}
+                  selected={mode === 'split'}
+                  disabled={busy}
+                  onPress={() => {
+                    inputGeneration.current++;
+                    setMode('split');
+                    setPrepared(null);
+                  }}
+                />
+              ) : (
+                <Chip
+                  testID="expense-maintain-equal"
+                  label={t.equalExpense}
+                  selected={mode === 'equal'}
+                  disabled={busy || !canRecalculate(context)}
+                  onPress={() => {
+                    inputGeneration.current++;
+                    setMode('equal');
+                    setPrepared(null);
+                  }}
+                />
+              )}
+              {!canRecalculate(context) && !canSplitEdit(context) && (
+                <Notice>{t.expenseWebOnly}</Notice>
+              )}
+              {mode !== 'basic' && (
                 <>
                   <Notice>{t.editCurrencyHint}</Notice>
                   <Section title={t.expenseCurrency}>
@@ -656,7 +707,7 @@ export function EditExpenseScreen({
                 returnKeyType="done"
                 onSubmitEditing={Keyboard.dismiss}
               />
-              {mode === 'equal' && (
+              {mode !== 'basic' && (
                 <>
                   <Section title={t.paidBy}>
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.small }}>
@@ -673,6 +724,29 @@ export function EditExpenseScreen({
                     </View>
                   </Section>
                   <Section title={t.splitDetails}>
+                    {fields.memberIds.some(
+                      (id) => !context.options.members.some((m) => m.id === id)
+                    ) && (
+                      <>
+                        <Notice tone="warning">{t.removedSplitMembers}</Notice>
+                        <Action
+                          testID="expense-maintain-remove-missing"
+                          disabled={busy}
+                          secondary
+                          label={t.removeMissingSplitMembers}
+                          onPress={() =>
+                            change({
+                              memberIds: fields.memberIds.filter((id) =>
+                                context.options.members.some((m) => m.id === id)
+                              ),
+                            })
+                          }
+                        />
+                      </>
+                    )}
+                    {!context.options.members.some((m) => m.id === fields.payerId) && (
+                      <Notice tone="warning">{t.chooseCurrentPayer}</Notice>
+                    )}
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.small }}>
                       {context.options.members.map((m) => (
                         <Chip
@@ -693,6 +767,27 @@ export function EditExpenseScreen({
                       ))}
                     </View>
                   </Section>
+                  {mode === 'split' && (
+                    <SplitFields
+                      draft={editDraft(fields)}
+                      members={context.options.members.map((m) => ({
+                        id: m.id,
+                        label: memberLabel(m.id, m.displayName),
+                      }))}
+                      t={t}
+                      disabled={busy}
+                      attempted={!!error}
+                      requireSelection
+                      available={canSplitEdit(context, fields.splitMode)}
+                      accessoryId={amountAccessoryId}
+                      onChange={(patch) =>
+                        change({
+                          splitMode: patch.splitMode ?? fields.splitMode,
+                          splitValues: patch.splitValues ?? fields.splitValues,
+                        })
+                      }
+                    />
+                  )}
                 </>
               )}
             </>
@@ -733,8 +828,11 @@ export function EditExpenseScreen({
                       ))}
                     </>
                   )}
-                  {mode === 'equal' && (
+                  {mode !== 'basic' && (
                     <>
+                      {mode === 'split' && fields.splitMode && (
+                        <DetailRow label={t.splitMode} value={splitLabel(fields.splitMode, t)} />
+                      )}
                       <DetailRow
                         label={t.originalAmount}
                         value={`${f.originalAmount(context.expense.originalAmount, context.expense.currency)} → ${f.originalAmount(Number(fields.amountText), fields.currency)}`}
@@ -767,11 +865,19 @@ export function EditExpenseScreen({
                 </>
               )}
               {prepared.preview?.splits.map((s) => (
-                <DetailRow
-                  key={s.userId}
-                  label={memberLabel(s.userId, s.displayName)}
-                  value={f.money(s.shareAmount)}
-                />
+                <View key={s.userId} style={{ gap: spacing.small }}>
+                  <DetailRow
+                    key={s.userId}
+                    label={memberLabel(s.userId, s.displayName)}
+                    value={f.money(s.shareAmount)}
+                  />
+                  {s.originalShareAmount !== undefined && (
+                    <DetailRow
+                      label={t.originalAmount}
+                      value={f.originalAmount(s.originalShareAmount, prepared.preview!.currency!)}
+                    />
+                  )}
+                </View>
               ))}
               <Action
                 testID="expense-maintain-confirm"

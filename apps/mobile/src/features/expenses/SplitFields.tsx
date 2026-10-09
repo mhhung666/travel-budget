@@ -14,6 +14,7 @@ export function SplitFields({
   available,
   accessoryId,
   onChange,
+  requireSelection = false,
 }: {
   draft: ExpenseDraft;
   members: { id: string; label: string }[];
@@ -23,6 +24,7 @@ export function SplitFields({
   available: boolean;
   accessoryId?: string;
   onChange: (patch: Partial<ExpenseDraft>) => void;
+  requireSelection?: boolean;
 }) {
   const mode = splitModeOf(draft);
   const values = mode === 'equal' ? {} : (draft.splitValues?.[mode] ?? {});
@@ -34,21 +36,25 @@ export function SplitFields({
             key={value}
             testID={`expense-split-mode-${value}`}
             label={splitLabel(value, t)}
-            selected={mode === value}
+            selected={(!requireSelection || draft.splitMode !== undefined) && mode === value}
             disabled={disabled}
             onPress={() => onChange({ splitMode: value })}
           />
         ))}
       </View>
-      <Copy>
-        {mode === 'equal'
-          ? t.splitEqualHint
-          : mode === 'amount'
-            ? t.splitAmountHint
-            : mode === 'percent'
-              ? t.splitPercentHint
-              : t.splitSharesHint}
-      </Copy>
+      {requireSelection && draft.splitMode === undefined ? (
+        <Notice>{t.chooseNewSplit}</Notice>
+      ) : (
+        <Copy>
+          {mode === 'equal'
+            ? t.splitEqualHint
+            : mode === 'amount'
+              ? t.splitAmountHint
+              : mode === 'percent'
+                ? t.splitPercentHint
+                : t.splitSharesHint}
+        </Copy>
+      )}
       {mode !== 'equal' && !available && <Notice tone="warning">{t.splitUnavailable}</Notice>}
       {mode !== 'equal' &&
         members

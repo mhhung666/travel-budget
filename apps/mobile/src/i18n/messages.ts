@@ -1,4 +1,11 @@
 const zh = {
+  resplitExpense: '重新分攤',
+  newSplitHint:
+    '舊帳未保存原始分攤方式。請重新選擇模式及輸入，核對新舊份額後才會取代原帳；基本編輯保留原帳。',
+  chooseNewSplit: '請選擇這次重新分攤的方式。',
+  removedSplitMembers: '原分攤包含已移除或無法識別的成員。請確認移除這些選取，再選擇目前成員。',
+  removeMissingSplitMembers: '移除失效成員的選取',
+  chooseCurrentPayer: '請重新選擇目前有效的付款人。',
   splitMode: '分攤方式',
   splitEqual: '均分',
   splitAmount: '固定金額',
@@ -431,6 +438,13 @@ export type Messages = Record<keyof typeof zh, string>;
 export const messages = {
   zh,
   'zh-CN': {
+    resplitExpense: '重新分摊',
+    newSplitHint:
+      '旧账未保存原始分摊方式。请重新选择模式及输入，核对新旧份额后才会替换原账；基本编辑保留原账。',
+    chooseNewSplit: '请选择这次重新分摊的方式。',
+    removedSplitMembers: '原分摊包含已移除或无法识别的成员。请确认移除这些选择，再选择当前成员。',
+    removeMissingSplitMembers: '移除失效成员的选择',
+    chooseCurrentPayer: '请重新选择当前有效的付款人。',
     splitMode: '分摊方式',
     splitEqual: '均分',
     splitAmount: '固定金额',
@@ -857,6 +871,14 @@ export const messages = {
     done: '完成',
   },
   en: {
+    resplitExpense: 'Reallocate expense',
+    newSplitHint:
+      'The original split method was not saved. Choose a new method and inputs, then review old and new shares before replacing them. Basic edits preserve the original accounting.',
+    chooseNewSplit: 'Choose a method for this reallocation.',
+    removedSplitMembers:
+      'The original split includes removed or unidentified members. Explicitly remove these selections and choose current members.',
+    removeMissingSplitMembers: 'Remove unavailable member selections',
+    chooseCurrentPayer: 'Choose a current payer.',
     splitMode: 'Split method',
     splitEqual: 'Equal',
     splitAmount: 'Fixed amounts',
@@ -1355,6 +1377,14 @@ export const messages = {
     done: 'Done',
   },
   jp: {
+    resplitExpense: '分担を再設定',
+    newSplitHint:
+      '元の分担方法は保存されていません。方式と入力を選び直し、変更前後の負担額を確認してから置き換えます。基本情報の編集では元の会計を保持します。',
+    chooseNewSplit: '今回の分担方法を選択してください。',
+    removedSplitMembers:
+      '元の分担に削除済みまたは識別できないメンバーが含まれます。選択を明示的に解除し、現在のメンバーを選んでください。',
+    removeMissingSplitMembers: '無効なメンバーの選択を解除',
+    chooseCurrentPayer: '現在有効な支払者を選んでください。',
     splitMode: '分担方法',
     splitEqual: '均等',
     splitAmount: '固定金額',
