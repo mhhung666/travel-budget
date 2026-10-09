@@ -8,7 +8,7 @@ B3 Mobile 已使用 B1 v2 契約。線上回應必須帶合法 ledger；基準�
 
 ## 已實作端點
 
-基底路徑 `/api/v2`（`/api/v1` 已於 B5d-2 刪除；App 設定裡的 `/api/v1` 只是環境身分，送出時換成 v2）。手機與後端透過 `@travel-budget/contracts` 共用 schema，單一來源為 [packages/contracts/src/index.ts](../../../packages/contracts/src/index.ts)，OpenAPI 產物為 [packages/contracts/openapi.json](../../../packages/contracts/openapi.json)。從 repository 根目錄執行 `pnpm contracts:generate` 更新產物，`pnpm contracts:check` 檢查同步。手機沒有 Web source 或 DB 相依。
+基底路徑 `/api/v2`（`/api/v1` 已於 B5d-2 刪除；App 設定只填網域，舊的 `/api/v1`／`/api/v2` 結尾仍接受並對應同一個環境身分，送出時一律用 v2）。手機與後端透過 `@travel-budget/contracts` 共用 schema，單一來源為 [packages/contracts/src/index.ts](../../../packages/contracts/src/index.ts)，OpenAPI 產物為 [packages/contracts/openapi.json](../../../packages/contracts/openapi.json)。從 repository 根目錄執行 `pnpm contracts:generate` 更新產物，`pnpm contracts:check` 檢查同步。手機沒有 Web source 或 DB 相依。
 
 | 端點                                     | 輸入／回應                                                                        |
 | ---------------------------------------- | --------------------------------------------------------------------------------- |

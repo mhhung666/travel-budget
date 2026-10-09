@@ -111,7 +111,7 @@ try {
     JSON.stringify({ url: proxy.url, token: proxy.token }),
     { mode: 0o600, flag: 'wx' }
   );
-  console.log(`Mobile API: ${proxy.url}/api/v1 (v2 is derived on the same origin)`);
+  console.log(`Mobile API (EXPO_PUBLIC_API_BASE_URL): ${proxy.url}`);
   console.log(`Fault control credentials: ${join(artifacts, 'network.json')}`);
   console.log(
     'Commands here: snapshot, quit. Faults: POST /__network/online|disconnect|timeout|drop-write-response|drop-write-response-offline|write-429|mutation-lookup-429 with the local control bearer.'

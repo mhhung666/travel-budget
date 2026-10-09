@@ -211,6 +211,28 @@ describe('environment identity and transport', () => {
     expect(() => validateBaseUrl('https://example.com/api/v3', false)).toThrow('CONFIGURATION');
     expect(() => validateBaseUrl('https://example.com/api', false)).toThrow('CONFIGURATION');
   });
+  it('takes the backend origin alone, as the same environment as the older spellings', () => {
+    for (const origin of ['https://example.com', 'https://example.com/'])
+      expect(validateBaseUrl(origin, false)).toBe('https://example.com/api/v1');
+    expect(validateBaseUrl('http://localhost:3000/', true)).toBe('http://localhost:3000/api/v1');
+    // The identity keeps the address exactly as typed, so an existing scope is never renamed.
+    expect(validateBaseUrl('https://Example.com:443/api/v2', false)).toBe(
+      'https://Example.com:443/api/v1'
+    );
+    expect(validateBaseUrl('https://Example.com:443', false)).toBe(
+      'https://Example.com:443/api/v1'
+    );
+    expect(() => validateBaseUrl('https://example.com/other', false)).toThrow('CONFIGURATION');
+    expect(() => validateBaseUrl('http://example.com', false)).toThrow('CONFIGURATION');
+  });
+  it('sends an origin-configured client to v2', async () => {
+    const fetcher = vi.fn<Fetcher>().mockResolvedValue(ok());
+    await new ApiClient(validateBaseUrl('https://example.com', false), fetcher).request(
+      '/me',
+      z.object({ value: z.string() })
+    );
+    expect(fetcher.mock.calls[0][0]).toBe('https://example.com/api/v2/me');
+  });
   it('sends every request to v2', async () => {
     const fetcher = vi.fn<Fetcher>().mockImplementation(async () => ok());
     const api = new ApiClient(validateBaseUrl('https://example.com/api/v2', false), fetcher);

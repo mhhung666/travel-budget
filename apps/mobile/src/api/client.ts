@@ -27,8 +27,10 @@ export type RequestOptions = {
   beforeSend?: () => void;
 };
 /**
- * The configured API address may name either version. Both resolve to one environment identity,
- * the original `/api/v1` spelling, so SecureStore, SQLite scopes, query keys and waits stay shared.
+ * The configured address is the backend origin (`https://travel.example.com`). The older spellings
+ * with `/api/v1` or `/api/v2` still work. Every form resolves to one environment identity, the
+ * original `<origin>/api/v1` spelling, so SecureStore, SQLite scopes, query keys and waits stay
+ * shared when the setting is rewritten; requests always go to `/api/v2`.
  */
 export function validateBaseUrl(value: string | undefined, development: boolean) {
   if (!value) throw new ApiError('CONFIGURATION');
@@ -40,10 +42,11 @@ export function validateBaseUrl(value: string | undefined, development: boolean)
       url.password ||
       url.search ||
       url.hash ||
-      !/^\/api\/v[12]\/?$/.test(url.pathname)
+      !/^\/(?:api\/v[12]\/?)?$/.test(url.pathname)
     )
       throw new Error();
-    return value.replace(/\/$/, '').replace(/\/v2$/, '/v1');
+    // Spliced as typed, never normalized: a stored identity must match the old spelling exactly.
+    return `${value.replace(/\/$/, '').replace(/\/api\/v[12]$/, '')}/api/v1`;
   } catch {
     throw new ApiError('CONFIGURATION');
   }

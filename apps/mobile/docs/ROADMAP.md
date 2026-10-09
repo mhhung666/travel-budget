@@ -286,7 +286,7 @@ B 只改 Web 既有預算／統計／公開／匯出入口的單位；Mobile 預
 #### B0：歷史資料與持久化邊界
 
 - 原生 `/api/v1`、舊公開旅行 URL 與舊帳務 action 已退役，不再提供 v1 查詢或重播。歷史 receipt 保留原內容／指紋；跨版重送拒絕，不產生第二筆帳務。
-- Mobile `/api/v1` 設定拼法仍作環境識別別名，實際只送 v2；SecureStore、SQLite、catalog、帳號 429 與登入世代隔離不變。
+- Mobile 設定只需後端網域，舊的 `/api/v1`／`/api/v2` 拼法仍接受；內部環境識別維持原 `/api/v1` 拼法，實際只送 v2；SecureStore、SQLite、catalog、帳號 429 與登入世代隔離不變。
 - 舊 C／已 prepare 的 D／E 與 PWA outbox 不改標、不自動送出；按現行明確捨棄流程處理，未 prepare 的 D 可移回草稿重新確認。未確認 raw draft 不重寫，單位不符時阻擋確認。
 - v2 的結果不明操作保留原 UUID／凍結內容，取得終局才結案；本機保存失敗不送出。D 仍限 TWD 基準＋TWD 原幣＋均分，非 TWD 及進階分攤先提供線上操作與未確認草稿。
 

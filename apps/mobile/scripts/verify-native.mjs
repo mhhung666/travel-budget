@@ -508,7 +508,7 @@ try {
     );
     env.MAESTRO_NETWORK_URL = proxy.url;
     env.MAESTRO_NETWORK_TOKEN = proxy.token;
-    console.log(`Network proxy: ${proxy.url}/api/v1 (Metro must use this API port)`);
+    console.log(`Network proxy: ${proxy.url} (Metro must use this API origin)`);
   }
   if (values['other-network-port']) {
     assert(

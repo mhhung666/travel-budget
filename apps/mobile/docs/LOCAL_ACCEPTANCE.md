@@ -55,7 +55,7 @@ pnpm --filter @travel-budget/web dev:mobile-api --ledger-creation
 # 另一個終端：建立供新版 Mobile 使用的故障代理，不啟動或操作裝置
 pnpm --filter travel-budget-mobile exec node scripts/serve-ledger-network.mjs \
   --fixture /tmp/該次路徑/fixture.json --port 8109
-# Expo 的 EXPO_PUBLIC_API_BASE_URL 使用 http://127.0.0.1:8109/api/v1；v2 自動派生
+# Expo 的 EXPO_PUBLIC_API_BASE_URL 使用 http://127.0.0.1:8109（只填網域，App 自動走 /api/v2）
 # 代理會顯示 network.json；以下命令不需把 token 貼到 shell
 pnpm --filter travel-budget-mobile exec node scripts/serve-ledger-network.mjs \
   --control /tmp/代理路徑/network.json --command drop-write-response-offline
@@ -346,12 +346,12 @@ pnpm --filter @travel-budget/web dev:mobile-api
 
 ```bash
 # iOS Simulator
-EXPO_NO_DOTENV=1 EXPO_PUBLIC_API_BASE_URL=http://127.0.0.1:PORT/api/v1 \
+EXPO_NO_DOTENV=1 EXPO_PUBLIC_API_BASE_URL=http://127.0.0.1:PORT \
   NODE_OPTIONS=--dns-result-order=ipv4first \
   pnpm --filter travel-budget-mobile exec expo start --ios --localhost
 
 # Android Emulator：同時測兩平台時使用不同 Metro port
-EXPO_NO_DOTENV=1 EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:PORT/api/v1 \
+EXPO_NO_DOTENV=1 EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:PORT \
   NODE_OPTIONS=--dns-result-order=ipv4first \
   pnpm --filter travel-budget-mobile exec expo start --android --localhost --port 8082
 ```

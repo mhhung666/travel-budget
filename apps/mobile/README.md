@@ -27,7 +27,7 @@ pnpm --filter travel-budget-mobile export:check
 pnpm contracts:check
 ```
 
-在 `apps/mobile/.env.local` 設定 `EXPO_PUBLIC_API_BASE_URL`。iOS 模擬器可用 `http://localhost:3000/api/v1`；Android 模擬器用 `http://10.0.2.2:3000/api/v1`；真機使用電腦區域網路 IP。正式 bundle 要求 HTTPS。修改位址後重新啟動 Expo。未設定時仍可開啟登入頁，但無法登入。
+在 `apps/mobile/.env.local` 設定 `EXPO_PUBLIC_API_BASE_URL`。只填後端網域，App 會自動加上 `/api/v2`：iOS 模擬器可用 `http://localhost:3000`；Android 模擬器用 `http://10.0.2.2:3000`；真機使用電腦區域網路 IP。舊寫法（結尾 `/api/v1` 或 `/api/v2`）仍可用，且對應同一組登入與本機資料。正式 bundle 要求 HTTPS。修改位址後重新啟動 Expo。未設定時仍可開啟登入頁，但無法登入。
 
 在另一個終端機從 repository 根目錄執行 `pnpm dev` 或 `pnpm dev:web`，後端使用 `apps/web` 的 MongoDB 與 JWT 環境設定；請使用測試帳號。Web 預覽明確停用登入，完整流程須在 iOS／Android 執行。驗收步驟見 [開發規範](docs/DEVELOPMENT.md)。
 

@@ -75,7 +75,7 @@ pnpm contracts:check
 優先使用 [本機驗收流程](LOCAL_ACCEPTANCE.md) 的 `test:mobile-api`／`dev:mobile-api`，自動建立隔離 MongoDB 與測試帳號。以下步驟適用於另有既定測試後端的情況。
 
 1. 在 `apps/web` 設定獨立測試資料庫的環境，從 repository 根目錄啟動 `pnpm dev:web`。不要將正式密鑰複製到手機。session TTL migration 由後端環境負責，此次開發不自動執行遠端 migration。
-2. 從根目錄執行 `cp apps/mobile/.env.example apps/mobile/.env.local`，設定 `/api/v1` 的位址：iOS 模擬器 localhost、Android 模擬器 10.0.2.2、真機為電腦 LAN IP。API 改址後重啟 Expo；release bundle 必須 HTTPS。
+2. 從根目錄執行 `cp apps/mobile/.env.example apps/mobile/.env.local`，只填後端網域（如 `http://localhost:3000`，App 自動走 `/api/v2`）：iOS 模擬器 localhost、Android 模擬器 10.0.2.2、真機為電腦 LAN IP。API 改址後重啟 Expo；release bundle 必須 HTTPS。
 3. 在相容 Expo Go 或 development build 開啟 App，以測試用既有帳號登入（不是 Email）。確認旅行列表、載入更多、旅行摘要與 Web 金額一致。
 4. 重開 App、切前後景、關閉／恢復網路、登出再換另一測試帳號。確認舊資料不殘留，離線恢復登入／登出不假稱成功。後端撤銷 session 或變更密碼後應回到登入頁。
 5. 測試無旅行、非成員旅行、錯誤密碼、大字體、深淺色、四語與鍵盤遮擋；iOS／Android 都要操作。
