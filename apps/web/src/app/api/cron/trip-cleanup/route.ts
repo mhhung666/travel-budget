@@ -1,3 +1,4 @@
+import { expireReceiptWrites } from '@/lib/receiptWrite';
 import { timingSafeEqual } from 'node:crypto';
 import mongoose from 'mongoose';
 import { NextRequest, NextResponse } from 'next/server';
@@ -34,6 +35,9 @@ export async function GET(request: NextRequest) {
       results[result.status] = (results[result.status] ?? 0) + 1;
       if (result.status === 'idle') break;
     }
+    results.receipts_retired = await expireReceiptWrites(mongoose.connection.db!, {
+      deadline: Date.now() + 5000,
+    });
     results.uploads_retired = await expirePhotoUploadJobs(mongoose.connection.db!, {
       deadline: Math.min(deadline - 10_000, Date.now() + 10_000),
     });

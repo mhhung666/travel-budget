@@ -132,3 +132,7 @@ v2 preview 已透過 `computeLedgerSplits` 共用 Web 的均分／固定原幣�
 ## G6a 私人收據閱讀
 
 新增 `GET /api/v2/trips/:id/expenses/:expenseId/attachments` 白名單 metadata 與 `GET .../attachments/:attachmentId` 短效檢視。兩者只給目前成員，後者再檢查實際物件並於簽名後重新核對資格／參照；普通 expense／public DTO 與附件寫入能力不變。完整欄位、錯誤、300 秒連結與 no-store 邊界見 [G6a 契約](../../mobile/docs/BACKEND_CONTRACT.md#g6a-私人收據閱讀)。隔離 HTTP／DB 與本機簽名驗證不取代真 R2／裝置下載。
+
+## G6b 私人附件寫入
+
+新增 attachment-requests POST 與原 UUID GET／command POST；舊 expense DTO／body 不變。簽名不接受客戶端 key，參照與終局同交易，取消／到期沿既有 blob 清理。狀態、限額、相容、CORS／真 bucket 待驗見 [G6b 共用契約](../../mobile/docs/BACKEND_CONTRACT.md#g6b-收據附件寫入)。

@@ -241,3 +241,11 @@ Store 將讀取、寫入、重設序列化；寫入成功才發布新選擇，�
 明細進入薄路由 `expenses/[expenseId]/receipts`，依環境／帳號／登入世代／旅行／支出重建 `ReceiptsScreen`。`ReceiptReader` 的清單、預簽名連結與載入狀態僅在本頁；每次開啟重取 URL，驗證 metadata／ledger／到期時間，guard 在 SQLite 等待後、transport refresh 重送前與回應後再次執行。實際 429 保存帳號共用原期限，失敗必須先補保存，本機攔截不延長；沒有新的帳務 UUID 或寫入。
 
 離頁／背景取消未完成請求並清除 URL／清單，回前景重讀；授權拒絕清內容，切帳號或舊請求不能顯示／開啟晚到的連結。圖片到期清除，圖片回呼綁定當次 ticket 物件，即使兩次簽名同字串也不能由舊失敗清掉新圖片。React Native Image 不帶 bearer、要求 reload；PDF／外部圖片只在明確操作後把 URL 交給 Linking，不做本機檔案保存。儲存回應 no-store 與已交出 URL 的撤銷限制見 [G6a 契約](BACKEND_CONTRACT.md#g6a-私人收據閱讀)。
+
+## G6b 附件確認與恢復
+
+ReceiptWriteScreen／ReceiptWriter 先存後送；receiptWrites.ts 使用獨立 travel-budget-receipt-writes.db，每帳號／環境／支出一筆原 UUID、不可改輸入、檔名、取消意圖與終局。SQLite 失敗不送；重試先查詢，PUT 丟回應先 finish／HEAD，未上傳才重取連結。取消先落盤，完成先落盤再清檔；清理失敗保留紀錄。既有 C／D／E schema 不變；HTTP／refresh replay 與原生 PUT 共用存取世代及限速防線。
+
+receiptFiles 用 Expo picker／manipulator／filesystem：圖片最長邊 2400、JPEG quality 0.85，PDF 原檔，1 byte–8 MiB。檔案複製到 App 私有 document 子目錄，SQLite 只存隨機檔名，不存 URL／憑證。清理 picker 副本只限 App cache；未確認離頁刪檔，已確認不因離頁／登出／換帳號丟失，只讓原帳號恢復。無參照且超過 24 小時的本機孤兒於進入管理頁清理。PUT 限前景且有逾時／取消，不提供 OS 背景同步或照片庫寫入。
+
+「我的 → 本機工作 → 待確認附件」可回原操作，即使支出已刪除；仍須成員資格，撤權不繞過授權。本機待確認檔案不是閱讀快取，不承諾備份排除或卸載後恢復；原生生命週期見 LOCAL_ACCEPTANCE。

@@ -223,6 +223,53 @@ const templates = {
         '20 items/page; ongoing, upcoming, unscheduled, past, archived. Pagination is not a snapshot; refresh from page 1 after changes.',
     },
   },
+  '/trips/{id}/expenses/{expenseId}/attachment-requests': {
+    post: {
+      ...operation('receiptBegin', 'V2ReceiptWriteState', 'V2ReceiptWriteInput', {
+        authenticated: true,
+        errors: [409],
+      }),
+      parameters: [
+        tripIdParam,
+        { name: 'expenseId', in: 'path', required: true, schema: objectId },
+      ],
+      description:
+        'Private attachment add/remove intent. Save UUID before sending; replay same body only. No financial changes. Add requires upload and finish; remove commits immediately.',
+    },
+  },
+  '/trips/{id}/expenses/{expenseId}/attachment-requests/{clientRequestId}': {
+    get: {
+      ...operation('receiptWriteStatus', 'V2ReceiptWriteState'),
+      parameters: [
+        tripIdParam,
+        { name: 'expenseId', in: 'path', required: true, schema: objectId },
+        {
+          name: 'clientRequestId',
+          in: 'path',
+          required: true,
+          schema: { type: 'string', format: 'uuid' },
+        },
+      ],
+    },
+    post: {
+      ...operation('receiptWriteCommand', 'V2ReceiptUploadTicket', 'V2ReceiptWriteCommand', {
+        authenticated: true,
+        errors: [409],
+      }),
+      parameters: [
+        tripIdParam,
+        { name: 'expenseId', in: 'path', required: true, schema: objectId },
+        {
+          name: 'clientRequestId',
+          in: 'path',
+          required: true,
+          schema: { type: 'string', format: 'uuid' },
+        },
+      ],
+      description:
+        'Upload ticket requires Content-Type and If-None-Match:* PUT headers, no bearer credential. 120-second URL, 24-hour pending lifetime. Finish checks HEAD then commits reference and terminal result in one authorized transaction. Cancel retires unused blob. Always query original UUID after ambiguity.',
+    },
+  },
   '/trips/{id}/expenses/{expenseId}/attachments': {
     get: {
       ...operation('receiptAttachments', 'V2ReceiptAttachments'),

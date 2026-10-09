@@ -268,4 +268,14 @@ mode=equal 的 changes 可成對新增 currency／exchange_rate，original_amoun
 - 成員與支出參照於只讀 snapshot 核對，沿 Web 的 `isReceiptKeyForTrip`／`headObject`／`presignGet`；外部儲存等待完成後再開新授權快照核對資格與參照，才交出 URL。沒有 writer fence、帳務異動、receipt 寫入或 DB migration。
 - JSON API 維持 `Cache-Control: no-store`／`Vary: Authorization`，新簽名加入 R2 `response-cache-control=private, no-store`。原 Web `presignGet` 預設與 public／一般 expense DTO 不變；公開分享仍沒有收據。R2 連結不是可即時撤銷的 session：已交出的連結最長仍可使用至到期，外部下載由 OS／瀏覽器管理。
 
-先部署新增 v2 端點再提供需要它的 App。G6b 附件上傳／移除與原生交付另排；實際 R2／裝置下載未由隔離測試替代。
+先部署新增 v2 端點再提供需要它的 App。附件寫入見下節 G6b；原生交付另排；實際 R2／裝置下載未由隔離測試替代。
+
+## G6b 收據附件寫入
+
+新增 `/api/v2/trips/:id/expenses/:expenseId/attachment-requests`：POST 接受嚴格 receiptWriteInput，add 為 UUID／MIME／bytes，remove 為 UUID／opaque attachment ID。GET `/:uuid` 查狀態；POST `/:uuid` 接受 upload／finish／cancel。回應含 ledger／原 UUID／not_found、pending、committed 或 rejected；拒絕帶 code。新端點使用附件專用 UUID namespace，舊 App 不需改 body；先部署相容後端。
+
+後端 receiptWrite.ts／receiptwrites 以 actor＋小寫 UUID 為唯一鍵，固定旅行、支出與輸入；同 UUID 改內容回 409 IDEMPOTENCY_CONFLICT。讀取／重播皆重驗成員，附件參照與終局共用 Trip fence／MongoDB 交易。新增推入附件，移除只按 ID 移除；不替換其他附件或財務欄位。移除已不存在的附件仍能結案。finish 前 HEAD 核對 MIME／bytes，等待後再驗成員、支出、10 份上限及 retirement tombstone；storage 故障／UPLOAD_INCOMPLETE 保持 pending。
+
+upload 簽名 120 秒，須以相同 Content-Type、`If-None-Match: *` PUT，不攜帶 API token。獨立 signer 使用 WHEN_REQUIRED checksum，避免 SDK 簽入空檔案 checksum；conditional header 綁定簽名，舊連結不可覆寫已存在物件。412 仍需 finish／HEAD 核對，不直接當成功。支援依 [R2 官方表](https://developers.cloudflare.com/r2/api/s3/api/)，指定測試 bucket 的實際 PUT／HEAD／CORS 仍待驗。
+
+pending 固定 24 小時期限，最後 120 秒不再簽 PUT；取消／到期／支出已刪除／上限拒絕保存終局，無引用 key 交既有 blobcleanupjobs／trip-cleanup cron 雙次清理。cron 每次最多處理 25 筆過期操作，撤權或旅行消失也可清理；終局與 tombstone 不 TTL 刪除，避免重播復活。共用引用不刪其他支出仍使用的物件。沒有遠端 migration 或 R2 設定變更。

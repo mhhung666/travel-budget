@@ -1,4 +1,22 @@
 const zh = {
+  receiptManage: '管理收據',
+  receiptWriteHint:
+    '每筆支出最多 10 份，每份上限 8 MB。圖片轉為 JPEG；確認後上傳，待確認檔案保留於本機直到結案。',
+  receiptChoose: '選擇圖片',
+  receiptCamera: '拍攝收據',
+  receiptChoosePdf: '選擇 PDF',
+  receiptConfirm: '確認附件操作',
+  receiptRemove: '移除附件',
+  receiptRemoveConfirm: '只移除此支出的附件，不更動金額與分攤。確認移除？',
+  receiptPending: '待確認附件',
+  receiptPendingHint: '結果尚未確認。請查詢或沿原操作重試；不要重複新增。',
+  receiptSaved: '附件操作已完成。',
+  receiptRejected: '操作未完成，已結案。請重新整理收據後再操作。',
+  receiptDone: '結案並清除本機檔案',
+  receiptCancelUpload: '取消未完成上傳',
+  receiptPermission: '相機權限未開啟，請至系統設定允許，或選擇既有圖片。',
+  receiptFileSize: '檔案必須介於 1 byte 與 8 MB。',
+  receiptFileMissing: '本機檔案已遺失。先查詢結果；若尚未完成，取消後重新選檔。',
   receipts: '收據附件',
   receiptHint:
     '圖片可在 App 內查看；PDF 會在瀏覽器開啟。連結約 5 分鐘後失效，請重新開啟取得新連結。外部瀏覽器可能保存下載的檔案。',
@@ -503,6 +521,24 @@ export type Messages = Record<keyof typeof zh, string>;
 export const messages = {
   zh,
   'zh-CN': {
+    receiptManage: '管理收据',
+    receiptWriteHint:
+      '每笔支出最多 10 份，每份上限 8 MB。图片转为 JPEG；确认后上传，待确认文件保留于本机直到结案。',
+    receiptChoose: '选择图片',
+    receiptCamera: '拍摄收据',
+    receiptChoosePdf: '选择 PDF',
+    receiptConfirm: '确认附件操作',
+    receiptRemove: '移除附件',
+    receiptRemoveConfirm: '只移除此支出的附件，不更动金额与分摊。确认移除？',
+    receiptPending: '待确认附件',
+    receiptPendingHint: '结果尚未确认。请查询或沿原操作重试；不要重复新增。',
+    receiptSaved: '附件操作已完成。',
+    receiptRejected: '操作未完成，已结案。请刷新收据后再操作。',
+    receiptDone: '结案并清除本机文件',
+    receiptCancelUpload: '取消未完成上传',
+    receiptPermission: '相机权限未开启，请至系统设置允许，或选择已有图片。',
+    receiptFileSize: '文件必须介于 1 byte 与 8 MB。',
+    receiptFileMissing: '本机文件已丢失。先查询结果；若尚未完成，取消后重新选文件。',
     receipts: '收据附件',
     receiptHint:
       '图片可在 App 内查看；PDF 会在浏览器打开。链接约 5 分钟后失效，请重新打开获取新链接。外部浏览器可能保存下载的文件。',
@@ -1001,6 +1037,29 @@ export const messages = {
     done: '完成',
   },
   en: {
+    receiptManage: 'Manage receipts',
+    receiptWriteHint:
+      'Up to 10 files per expense, 8 MB each. Images become JPEG. Confirm before uploading; pending files stay on this device until resolved.',
+    receiptChoose: 'Choose image',
+    receiptCamera: 'Photograph receipt',
+    receiptChoosePdf: 'Choose PDF',
+    receiptConfirm: 'Confirm attachment action',
+    receiptRemove: 'Remove attachment',
+    receiptRemoveConfirm:
+      'Remove this attachment only. Amounts and shares stay the same. Continue?',
+    receiptPending: 'Pending attachments',
+    receiptPendingHint:
+      'The outcome is unconfirmed. Check or retry the original operation; do not add it again.',
+    receiptSaved: 'Attachment action completed.',
+    receiptRejected:
+      'The operation ended without completing. Refresh receipts before trying again.',
+    receiptDone: 'Dismiss and clear local file',
+    receiptCancelUpload: 'Cancel unfinished upload',
+    receiptPermission:
+      'Camera access is denied. Allow it in system settings or choose an existing image.',
+    receiptFileSize: 'Files must be between 1 byte and 8 MB.',
+    receiptFileMissing:
+      'The local file is missing. Check the result first; if unfinished, cancel and choose the file again.',
     receipts: 'Receipt attachments',
     receiptHint:
       'View images in the app; PDFs open in your browser. Links expire after about 5 minutes. Open again for a fresh link. External browsers may retain downloaded files.',
@@ -1578,6 +1637,26 @@ export const messages = {
     done: 'Done',
   },
   jp: {
+    receiptManage: '領収書を管理',
+    receiptWriteHint:
+      '支出ごとに最大10件、各8 MBまで。画像はJPEGに変換します。確認後にアップロードし、未確認ファイルは完了まで端末に保存します。',
+    receiptChoose: '画像を選ぶ',
+    receiptCamera: '領収書を撮影',
+    receiptChoosePdf: 'PDFを選ぶ',
+    receiptConfirm: '添付操作を確定',
+    receiptRemove: '添付を削除',
+    receiptRemoveConfirm: 'この支出の添付のみを削除します。金額や分担は変更しません。続けますか？',
+    receiptPending: '未確認の添付',
+    receiptPendingHint:
+      '結果は未確認です。元の操作を照会または再試行し、重複追加しないでください。',
+    receiptSaved: '添付操作が完了しました。',
+    receiptRejected: '操作は未完了のまま終了しました。領収書を更新してからやり直してください。',
+    receiptDone: '終了して端末のファイルを削除',
+    receiptCancelUpload: '未完了のアップロードを中止',
+    receiptPermission: 'カメラが許可されていません。設定で許可するか、既存の画像を選んでください。',
+    receiptFileSize: 'ファイルは1 byte以上8 MB以下にしてください。',
+    receiptFileMissing:
+      '端末のファイルがありません。結果を照会し、未完了なら中止して選び直してください。',
     receipts: '領収書の添付',
     receiptHint:
       '画像はアプリ内、PDF はブラウザで開きます。リンクは約 5 分で期限切れになります。再度開くと新しいリンクを取得します。外部ブラウザはダウンロードしたファイルを保存する場合があります。',

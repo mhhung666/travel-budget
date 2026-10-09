@@ -2057,6 +2057,24 @@ try {
   pass(
     'G6a HTTP: private metadata whitelist, authentication, missing expense and detached receipt without R2 calls'
   );
+  // G6b: frozen intent/replay/cancel/remove; no real storage calls.
+  const attachmentWrites = `/trips/${g3Trip}/expenses/${receiptExpense._id}/attachment-requests`;
+  const attachmentBody = { action: 'add', client_request_id: randomUUID(), contentType: 'image/jpeg', size: 100 };
+  await request(attachmentWrites, { body: attachmentBody, status: 401 });
+  const begunAttachment = (await g3Request(attachmentWrites, { body: attachmentBody, schema: contracts.receiptWriteStateSchema })).data;
+  assert.equal(begunAttachment.status, 'pending');
+  assert.equal((await g3Request(`${attachmentWrites}/${attachmentBody.client_request_id}`)).data.status, 'pending');
+  await g3Request(attachmentWrites, { body: { ...attachmentBody, size: 101 }, status: 409 });
+  const cancelledAttachment = (await g3Request(`${attachmentWrites}/${attachmentBody.client_request_id}`, { body: { action: 'cancel' }, schema: contracts.receiptUploadTicketSchema })).data;
+  assert.equal(cancelledAttachment.status, 'rejected');
+  assert.equal((await g3Request(attachmentWrites, { body: attachmentBody })).data.status, 'rejected');
+  const removalBody = { action: 'remove', client_request_id: randomUUID(), attachmentId: receiptList.items[0].id };
+  assert.equal((await g3Request(attachmentWrites, { body: removalBody })).data.status, 'committed');
+  assert.equal((await g3Request(attachmentWrites, { body: removalBody })).data.status, 'committed');
+  const receiptAfterWrite = await db.collection('expenses').findOne({ _id: receiptExpense._id });
+  assert.equal(receiptAfterWrite.amount, receiptExpense.amount);
+  assert.deepEqual(receiptAfterWrite.splits, receiptExpense.splits);
+  pass('G6b HTTP: original UUID intent, lookup, conflict, cancel/remove replay, unchanged financial fields');
   // G4b: filtered totals are computed before pagination; result changes require restart.
   const searchPath = `/trips/${g3Trip}/expense-search`;
   const search = (query = '') =>
@@ -3396,6 +3414,11 @@ try {
   pass(
     'E2: anonymous registration, unique fields, UTF-8 boundary, identical send acceptance/rate limit, one concurrent reset, old session invalidation, lost-response login recovery'
   );
+  const receiptWrites = await exec('pnpm', ['exec', 'vitest', 'run', 'src/__tests__/receiptWrite.integration.test.ts'], {
+    env: { ...process.env, MONGODB_MEMBER_TEST_URI: uri, MONGODB_MEMBER_TEST_ALLOW_WRITES: '1' }, maxBuffer: 1024 * 1024,
+  });
+  assert(receiptWrites.stdout.includes('8 passed'), 'Receipt write cases did not run');
+  pass('G6b isolated DB: reference/receipt atomicity, replay, cap, reauthorization, expiry and cleanup; storage mocked');
   const receiptReads = await exec(
     'pnpm',
     ['exec', 'vitest', 'run', 'src/__tests__/receiptRead.integration.test.ts'],

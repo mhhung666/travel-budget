@@ -25,6 +25,17 @@ const PUT_TTL_SECONDS = 120; // 簽名上傳的有效時間（足夠在慢速網
 export const GET_TTL_SECONDS = 300; // 簽名檢視的有效時間（收據圖）
 
 let client: S3Client | null = null;
+let uploadClient: S3Client | null = null;
+function immutableUploadClient() {
+  const cfg = getR2Config();
+  uploadClient ??= new S3Client({
+    region: 'auto',
+    endpoint: cfg.endpoint,
+    credentials: { accessKeyId: cfg.accessKeyId, secretAccessKey: cfg.secretAccessKey },
+    requestChecksumCalculation: 'WHEN_REQUIRED',
+  });
+  return uploadClient;
+}
 
 function r2(): S3Client {
   if (client) return client;
@@ -46,11 +57,17 @@ function bucketName(bucket: R2Bucket): string {
 export async function presignPut(
   bucket: R2Bucket,
   key: string,
-  contentType: string
+  contentType: string,
+  options: { immutable?: boolean } = {}
 ): Promise<string> {
   return getSignedUrl(
-    r2(),
-    new PutObjectCommand({ Bucket: bucketName(bucket), Key: key, ContentType: contentType }),
+    options.immutable ? immutableUploadClient() : r2(),
+    new PutObjectCommand({
+      Bucket: bucketName(bucket),
+      Key: key,
+      ContentType: contentType,
+      ...(options.immutable ? { IfNoneMatch: '*' } : {}),
+    }),
     { expiresIn: PUT_TTL_SECONDS }
   );
 }

@@ -27,6 +27,7 @@ const mocks = vi.hoisted(() => {
     'mobileTripCurrency',
     'mobileExpenseSearch',
     'mobileReceipts',
+    'mobileReceiptWrite',
     'mobileBudget',
     'mobileSetBudget',
     'mobileTripSettings',
@@ -88,6 +89,12 @@ beforeEach(() => {
 
 // Every member operation and the exact service call it must make; a swapped id or mode fails here.
 const table: [MobileOperation, keyof typeof mocks.service, unknown[]][] = [
+  ['expense.receiptBegin', 'mobileReceiptWrite', [anyRequest, userId, id, expenseId]],
+  [
+    'expense.receiptCommand',
+    'mobileReceiptWrite',
+    [anyRequest, userId, id, expenseId, clientRequestId],
+  ],
   ['expense.receipts', 'mobileReceipts', [userId, id, expenseId]],
   ['expense.receiptView', 'mobileReceipts', [userId, id, expenseId, ids.attachmentId]],
   ['expense.search', 'mobileExpenseSearch', [userId, id, anyUrl]],
@@ -180,6 +187,11 @@ const routes: Record<string, Partial<Record<(typeof methods)[number], MobileOper
   'trips/[id]/currency-settings/route.ts': { GET: 'trip.currencyContext', POST: 'trip.currency' },
   'trips/[id]/expense-options/route.ts': { GET: 'expense.options' },
   'trips/[id]/expense-requests/[clientRequestId]/route.ts': { GET: 'expense.request' },
+  'trips/[id]/expenses/[expenseId]/attachment-requests/route.ts': { POST: 'expense.receiptBegin' },
+  'trips/[id]/expenses/[expenseId]/attachment-requests/[clientRequestId]/route.ts': {
+    GET: 'expense.receiptCommand',
+    POST: 'expense.receiptCommand',
+  },
   'trips/[id]/expenses/[expenseId]/attachments/route.ts': { GET: 'expense.receipts' },
   'trips/[id]/expenses/[expenseId]/attachments/[attachmentId]/route.ts': {
     GET: 'expense.receiptView',
@@ -209,11 +221,11 @@ const routes: Record<string, Partial<Record<(typeof methods)[number], MobileOper
 };
 
 describe('v2 member routes', () => {
-  it('covers exactly the 28 member routes and every operation once; no v1 family remains', () => {
+  it('covers exactly the 30 member routes and every operation; no v1 family remains', () => {
     expect(existsSync(join(api, 'v1'))).toBe(false);
     expect(routeFiles('v2')).toEqual(Object.keys(routes).sort());
     const operations = Object.values(routes).flatMap((route) => Object.values(route));
-    expect(operations.sort()).toEqual(table.map(([operation]) => operation).sort());
+    expect([...new Set(operations)].sort()).toEqual(table.map(([operation]) => operation).sort());
   });
 
   it.each(Object.entries(routes))(

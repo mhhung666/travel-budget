@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({ env: vi.fn(), connect: vi.fn(), run: vi.fn(), 
 vi.mock('@/lib/env', () => ({ getEnv: mocks.env }));
 vi.mock('@/lib/mongodb', () => ({ dbConnect: mocks.connect }));
 vi.mock('@/lib/blobCleanup', () => ({ runBlobCleanup: mocks.blobs }));
+vi.mock('@/lib/receiptWrite', () => ({ expireReceiptWrites: vi.fn().mockResolvedValue(0) }));
 vi.mock('@/lib/photoUploadJobs', () => ({ expirePhotoUploadJobs: vi.fn().mockResolvedValue(0) }));
 vi.mock('@/lib/tripCleanup', () => ({ runTripCleanup: mocks.run }));
 vi.mock('@/lib/storage', () => ({ deletePrefixPage: vi.fn() }));
@@ -35,7 +36,7 @@ describe('trip cleanup cron authorization', () => {
   it('runs a bounded recovery batch', async () => {
     expect(await (await GET(request())).json()).toEqual({
       success: true,
-      results: { swept: 1, idle: 1, uploads_retired: 0, blobs_idle: 1 },
+      results: { swept: 1, idle: 1, uploads_retired: 0, receipts_retired: 0, blobs_idle: 1 },
     });
     expect(mocks.run).toHaveBeenCalledTimes(2);
   });

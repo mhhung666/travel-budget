@@ -1,3 +1,4 @@
+import { PendingReceipts } from '@/features/expenses/PendingReceipts';
 import { router } from 'expo-router';
 import { Action, DetailRow, Notice, Page } from '@/components/ui';
 import { PageHeader } from '@/components/screen';
@@ -36,6 +37,7 @@ export function LocalWorkScreen() {
         variant="secondary"
         onPress={() => router.push('/queue')}
       />
+      {status === 'signedIn' && <PendingReceipts />}
       {status === 'signedIn' && (
         <>
           {operations.isError ? (

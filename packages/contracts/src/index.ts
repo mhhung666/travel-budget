@@ -1004,6 +1004,45 @@ export const receiptViewV2Schema = receiptAttachmentSchema.extend({
   }, 'HTTPS receipt URL required'),
   expiresAt: z.number().int().positive(),
 });
+// Attachment operations have their own UUID namespace and never alter financial fields.
+export const receiptWriteInput = z.discriminatedUnion('action', [
+  z
+    .object({
+      action: z.literal('add'),
+      client_request_id: z.uuid(),
+      contentType: receiptAttachmentSchema.shape.contentType,
+      size: receiptAttachmentSchema.shape.size,
+    })
+    .strict(),
+  z
+    .object({
+      action: z.literal('remove'),
+      client_request_id: z.uuid(),
+      attachmentId: receiptAttachmentIdSchema,
+    })
+    .strict(),
+]);
+export const receiptWriteStateSchema = z.object({
+  ...ledgerFields,
+  clientRequestId: z.uuid(),
+  status: z.enum(['not_found', 'pending', 'committed', 'rejected']),
+  code: z.string().optional(),
+});
+export const receiptUploadTicketSchema = receiptWriteStateSchema.extend({
+  upload: z
+    .object({
+      url: receiptViewV2Schema.shape.url,
+      expiresAt: z.number().int().positive(),
+      contentType: receiptAttachmentSchema.shape.contentType,
+    })
+    .optional(),
+});
+export const receiptWriteCommand = z
+  .object({ action: z.enum(['upload', 'finish', 'cancel']) })
+  .strict();
+export type ReceiptWriteInput = z.infer<typeof receiptWriteInput>;
+export type ReceiptWriteState = z.infer<typeof receiptWriteStateSchema>;
+export type ReceiptUploadTicket = z.infer<typeof receiptUploadTicketSchema>;
 export type ReceiptAttachment = z.infer<typeof receiptAttachmentSchema>;
 export type ReceiptAttachments = z.infer<typeof receiptAttachmentsV2Schema>;
 export type ReceiptView = z.infer<typeof receiptViewV2Schema>;
@@ -1107,6 +1146,10 @@ export const mutationRequestV2Schema = z.discriminatedUnion('status', [
 
 export type LedgerMutationRequest = z.infer<typeof mutationRequestV2Schema>;
 export const v2Schemas = {
+  V2ReceiptWriteInput: receiptWriteInput,
+  V2ReceiptWriteCommand: receiptWriteCommand,
+  V2ReceiptWriteState: receiptWriteStateSchema,
+  V2ReceiptUploadTicket: receiptUploadTicketSchema,
   V2ReceiptAttachments: receiptAttachmentsV2Schema,
   V2ReceiptView: receiptViewV2Schema,
   V2ExpenseSearch: expenseSearchV2Schema,

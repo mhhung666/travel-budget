@@ -1,5 +1,5 @@
 import { useCallback, useState, useSyncExternalStore } from 'react';
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { AppState, Image, Linking, ScrollView } from 'react-native';
 import { receiptAttachmentsV2Schema, receiptViewV2Schema } from '@travel-budget/contracts';
 import { ApiError } from '@/api/client';
@@ -105,6 +105,16 @@ export function ReceiptsScreen({ tripId, expenseId }: { tripId: string; expenseI
         }
       />
       <Copy>{t.receiptHint}</Copy>
+      <Action
+        label={t.receiptManage}
+        disabled={!online || !visible}
+        onPress={() =>
+          router.push({
+            pathname: '/trips/[id]/expenses/[expenseId]/receipt-write',
+            params: { id: tripId, expenseId },
+          })
+        }
+      />
       {!online && <Notice tone="warning">{t.offline}</Notice>}
       {!visible && <Notice tone="danger">{t.expenseUnavailable}</Notice>}
       {!!state.error && (

@@ -8,6 +8,7 @@ import { TripContext } from './TripContext';
 import { GlobalTabBar, TripLayout } from './layouts';
 import { FormPage } from '@/components/screen';
 
+vi.mock('@/features/expenses/PendingReceipts', () => ({ PendingReceipts: 'PendingReceipts' }));
 const h = vi.hoisted(() => ({
   status: 'signedIn',
   online: true,

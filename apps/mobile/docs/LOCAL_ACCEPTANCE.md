@@ -239,7 +239,7 @@ iPhone／iPad 優先，Android 複驗維持延後；以下未驗項目不得以�
 
 ## G6a 私人收據閱讀交接
 
-2026-10-10 已實作未提交。Web 全量 **2,397 項**＋新增真 AWS SDK 本機簽名 **1 項**、Mobile **1,425 項＋工具 48 項**通過；根 frozen install／check／build、三平台匯出、Expo 相容性及隔離真 HTTP 通過。新增 **7 項隔離 MongoDB** 案例驗證 metadata 白名單、非成員／跨支出、已移除參照、儲存故障、簽名等待中的撤權／刪除與格式限制；此組 R2 是 mock。HTTP 實驗只檢查 metadata／404 邊界，不存取遠端儲存。AWS SDK 用假憑證本機簽名，確認 300 秒與 no-store 參數，不做下載。
+2026-10-10 已提交。Web 全量 **2,397 項**＋新增真 AWS SDK 本機簽名 **1 項**、Mobile **1,425 項＋工具 48 項**通過；根 frozen install／check／build、三平台匯出、Expo 相容性及隔離真 HTTP 通過。新增 **7 項隔離 MongoDB** 案例驗證 metadata 白名單、非成員／跨支出、已移除參照、儲存故障、簽名等待中的撤權／刪除與格式限制；此組 R2 是 mock。HTTP 實驗只檢查 metadata／404 邊界，不存取遠端儲存。AWS SDK 用假憑證本機簽名，確認 300 秒與 no-store 參數，不做下載。
 
 手機新增 13 項涵蓋晚到回應、跨帳號、SQLite 等待／refresh guard、共用 429 原期限、同 URL 舊圖片回呼、過期清除、背景／返回、外部開啟失敗與單檔 404 不 deny 旅行。**以下實際 R2 與裝置操作尚未驗收**（iPhone／iPad 優先，Android 延後）：
 
@@ -771,3 +771,17 @@ pnpm --filter @travel-budget/web test:mobile-api
 E4 已使用還款建立及單筆 DELETE 的可控代理操作，不能以支出端點的丟回應取代。完整「註冊 → 建立／加入 → 新增／修正 → 還款／撤銷」本機流程與故障證據見上方原生驗收紀錄。
 
 既有獨立複驗：Web 2,052 項、Mobile 717 項（686 Vitest＋31 工具）、隔離交易 238 項（含 E4 22 項）通過；frozen install、契約同步、根 check／build、完整真 HTTP、三平台匯出及 Expo 相容性通過。後續修正補上多收件人與有效碼保護，隔離交易 252 項通過，包含鎖死碼恢復與已知／未知 Email 一致性；核對還款／receipt／通知／動態原子提交、同 UUID 重播、結算衝突再確認及撤銷後不復活。最新修正見根 changelog；上述開發基線不算裝置通過，本次原生範圍見上方驗收紀錄。
+
+## G6b 附件寫入交接
+
+工程檢查：Web 全量 2,403 項、Mobile 全量 1,442 項及工具 48 項通過；一般 Web run 略過 606 項環境限定案例，不列為通過。上述新增 8 項 DB 另由隔離 HTTP 工具實際執行。根 frozen install／check／build、Mobile 最終 check、三平台匯出與 Expo 相容性通過。
+
+2026-10-10 已提交。8 項隔離 replica-set 測試驗證參照／終局原子性與回滾、重播不復活、上限、HEAD 故障／撤權、取消／到期與共用引用清理；真 HTTP 驗新增意圖、查詢、衝突、取消／移除重播及財務欄位不變，使用 disposable DB。R2 為 mock；真 AWS SDK 以假憑證在本機驗 conditional PUT 簽名，未連遠端。Mobile 補真 SQLite 檔案重開、原 UUID／帳號隔離、丟回應／先存後送、清檔失敗、相機拒絕、背景取消與確認／離頁競態。
+
+仍待驗，不以 bundle 或 mock 視為通過：
+
+- 指定測試 bucket：JPEG／PNG／WebP 轉 JPEG 及 PDF，上傳／HEAD／下載／移除、Content-Type／If-None-Match CORS、412、舊連結不能覆寫、storage 故障及無憑證外送。只用人工測試收據，不操作正式附件。
+- iPhone／iPad：相機／照片選擇、有限權限／拒絕、HEIC 轉檔、PDF provider／取消、超大檔、畫質／方向、四語／最大字級／VoiceOver。OS 權限用途文字已提供四語 locales，仍需在 F 原生建置核對；Android picker／轉檔／TalkBack 延後。
+- PUT／finish 丟回應、SQLite 前後終止／重啟、前後景、換帳號／環境及跨旅行 429／refresh 等待：核對原 UUID 只掛一次，離頁不刪已交接檔案，結果確認前不清 pending。
+- 與 Web 編輯／移除／刪除支出並行、撤權、十份競態、取消與 24 小時到期；指定測試 cron 核對無引用才清理、失敗重試及第二次掃除；公開 DTO 不含私人附件。
+- F3 帳號刪除未實作；未解決的待確認檔案留在原帳號 App 容器，不宣稱登出即清除、撤權立即抹除、備份排除或卸載後恢復。既有 B4／F gate 維持。
