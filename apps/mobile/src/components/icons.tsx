@@ -7,6 +7,7 @@ export type IconName =
   | 'plus'
   | 'user'
   | 'chevron-left'
+  | 'chevron-right'
   | 'user-plus'
   | 'check'
   | 'alert'
@@ -31,6 +32,10 @@ const paths: Partial<Record<IconName, readonly Segment[]>> = {
   'chevron-left': [
     [12, 4, 6, 10],
     [6, 10, 12, 16],
+  ],
+  'chevron-right': [
+    [7, 4, 13, 10],
+    [13, 10, 7, 16],
   ],
   'user-plus': [
     [14, 8, 20, 8],

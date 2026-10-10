@@ -9,6 +9,7 @@ import { TripScreen, TripSupplement } from './TripScreen';
 import { TripCard } from './TripCard';
 import { TripFinancialSummary, tripDates } from './TripSummary';
 import { LocalWorkLink } from './LocalWorkLink';
+import { EntryGroup } from '@/components/EntryGroup';
 
 const h = vi.hoisted(() => ({
   locale: 'en' as keyof typeof messages,
@@ -98,6 +99,7 @@ vi.mock('@/components/ui', async () => {
         'Card',
         'Copy',
         'DetailRow',
+        'Icon',
         'Metric',
         'Notice',
         'Page',
@@ -141,6 +143,8 @@ function nodes(node: ReactNode): Element[] {
   if (Array.isArray(node)) return node.flatMap(nodes);
   if (!isValidElement(node)) return [];
   const element = node as Element;
+  if (element.type === EntryGroup)
+    return [element, ...nodes(EntryGroup(element.props as Parameters<typeof EntryGroup>[0]))];
   return [element, ...nodes(element.props.children as ReactNode)];
 }
 function find(node: ReactNode, key: string, value: unknown) {
@@ -150,6 +154,8 @@ function find(node: ReactNode, key: string, value: unknown) {
 }
 function content(node: ReactNode): string {
   if (Array.isArray(node)) return node.map(content).join('');
+  if (isValidElement(node) && node.type === EntryGroup)
+    return content(EntryGroup(node.props as Parameters<typeof EntryGroup>[0]));
   if (isValidElement(node)) return content((node as Element).props.children as ReactNode);
   return typeof node === 'string' || typeof node === 'number' ? String(node) : '';
 }
@@ -358,6 +364,58 @@ it('counts only unresolved queue and pending E operations without exposing paylo
   expect(content(LocalWorkLink())).toContain(`${messages.en.queueTitle}: 1`);
   expect(content(LocalWorkLink())).toContain(`${messages.en.pendingOperations}: 1`);
 });
+it('keeps the local destination while hiding zero counts, including zero beside a positive count', () => {
+  expect(content(LocalWorkLink())).not.toContain(': 0');
+  expect(find(LocalWorkLink(), 'testID', 'local-work').props.accessibilityLabel).toBe(
+    messages.en.localWork
+  );
+  const scope = { environment: 'https://test/api/v1', accountId: 'account', tripId: 'a' };
+  h.operations.data = [{ ...scope, status: 'pending' }];
+  expect(content(LocalWorkLink())).not.toContain(messages.en.queueTitle);
+  expect(find(LocalWorkLink(), 'testID', 'local-work').props.accessibilityLabel).toContain(
+    `${messages.en.pendingOperations}: 1`
+  );
+});
+it.each(['admin', 'member'] as const)(
+  'keeps grouped destinations for %s, archived and offline trips with the current ID',
+  (role) => {
+    h.trip.data = { ...h.trip.data!, role, archived: true };
+    h.online = false;
+    for (const id of ['65a000000000000000000001', '65a000000000000000000002']) {
+      const tree = TripScreen({ id });
+      expect(find(tree, 'label', messages.en.archived)).toBeDefined();
+      for (const [testID, pathname] of [
+        ['trip-budget-open', '/trips/[id]/budget'],
+        ['trip-settings', '/trips/[id]/settings'],
+        ['trip-members', '/trips/[id]/members'],
+      ]) {
+        const row = find(tree, 'testID', testID);
+        expect(row.props.disabled).not.toBe(true);
+        press(row);
+        expect(h.push).toHaveBeenLastCalledWith({ pathname, params: { id } });
+      }
+      expect(
+        nodes(tree)
+          .filter((n) => n.type === 'Action' && !n.props.secondary)
+          .map((n) => n.props.testID)
+      ).toEqual(['trip-add-expense']);
+    }
+  }
+);
+it('keeps create, join and local work reachable in an empty travel list', () => {
+  h.list.data = { pages: [{ items: [] }] };
+  const tree = list();
+  expect(content(tree.props.ListEmptyComponent as ReactNode)).toContain(messages.en.noTrips);
+  for (const [testID, path] of [
+    ['create-trip', '/trips/create'],
+    ['join-trip', '/trips/join'],
+  ]) {
+    press(find(tree.props.ListHeaderComponent as ReactNode, 'testID', testID));
+    expect(h.push).toHaveBeenLastCalledWith(path);
+  }
+  press(find(LocalWorkLink(), 'testID', 'local-work'));
+  expect(h.push).toHaveBeenLastCalledWith('/work');
+});
 it.each(['queue', 'operations'] as const)(
   'does not turn %s failure into zero, and retains the local link',
   (source) => {
@@ -394,8 +452,9 @@ it('counts the same visible scopes and trip results as the recovery lists', () =
   expect(content(LocalWorkLink())).toContain(`${messages.en.queueTitle}: 1`);
   expect(content(LocalWorkLink())).toContain(`${messages.en.pendingOperations}: 1`);
   h.deniedIds = ['trip', 'hidden'];
-  expect(content(LocalWorkLink())).toContain(`${messages.en.queueTitle}: 0`);
-  expect(content(LocalWorkLink())).toContain(`${messages.en.pendingOperations}: 0`);
+  expect(content(LocalWorkLink())).not.toContain(messages.en.queueTitle);
+  expect(content(LocalWorkLink())).not.toContain(messages.en.pendingOperations);
+  expect(find(LocalWorkLink(), 'testID', 'local-work')).toBeDefined();
   h.user = { id: 'other' };
   h.deniedIds = [];
   expect(content(LocalWorkLink())).toContain(`${messages.en.queueTitle}: 1`);

@@ -2,7 +2,7 @@ import { baseCurrency } from '@/api/ledger';
 import { useState } from 'react';
 import { Text, View, useWindowDimensions } from 'react-native';
 import type { Trip } from '@/api/contracts';
-import { DetailRow, Metric, usePalette } from '@/components/ui';
+import { Metric, usePalette } from '@/components/ui';
 import { formatDate } from '@/i18n/format';
 import { useDisplayFormat } from '@/i18n/useDisplayFormat';
 import type { AppLocale, Messages } from '@/i18n/messages';
@@ -47,7 +47,7 @@ export function TripFinancialSummary({
   const [width, setWidth] = useState(0);
   const { fontScale } = useWindowDimensions();
   const columns = (width - spacing.small) / fontScale >= 320;
-  const Row = compact ? DetailRow : Metric;
+  const Row = compact ? CompactAmount : Metric;
   return (
     <View
       testID="trip-financial-summary"
@@ -68,6 +68,31 @@ export function TripFinancialSummary({
           value={money(Math.abs(trip.myBalance))}
         />
       </View>
+    </View>
+  );
+}
+
+/** Short labels and amounts share a line where they fit, and wrap without truncating. */
+function CompactAmount({ label, value }: { label: string; value: string }) {
+  const p = usePalette();
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
+        gap: spacing.small,
+      }}
+    >
+      <Text style={[typography.label, { color: p.muted, flexShrink: 1 }]}>{label}</Text>
+      <Text
+        style={[
+          typography.body,
+          { color: p.text, fontWeight: '700', fontVariant: ['tabular-nums'], flexShrink: 1 },
+        ]}
+      >
+        {value}
+      </Text>
     </View>
   );
 }

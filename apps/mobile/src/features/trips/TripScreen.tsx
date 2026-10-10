@@ -1,6 +1,7 @@
 import { baseCurrency } from '@/api/ledger';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, Text } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { EntryGroup } from '@/components/EntryGroup';
 import { router } from 'expo-router';
 import {
   Action,
@@ -53,32 +54,41 @@ export function TripScreen({ id }: { id: string }) {
       )}
       {trip && !denied && (
         <>
-          <Badge label={trip.archived ? t.archived : t[trip.phase]} />
-          <Title>{trip.name}</Title>
+          <View style={{ gap: spacing.small }}>
+            <Title>{trip.name}</Title>
+            <Badge label={trip.archived ? t.archived : t[trip.phase]} />
+          </View>
           <TripFinancialSummary trip={trip} />
           <Action
             testID="trip-add-expense"
             label={t.addExpense}
             onPress={() => router.push({ pathname: '/trips/[id]/expenses/new', params: { id } })}
           />
-          <Action
-            testID="trip-budget-open"
-            variant="secondary"
-            label={t.personalBudget}
-            onPress={() => router.push({ pathname: '/trips/[id]/budget', params: { id } })}
+          <EntryGroup
+            entries={[
+              {
+                testID: 'trip-budget-open',
+                label: t.personalBudget,
+                onPress: () => router.push({ pathname: '/trips/[id]/budget', params: { id } }),
+              },
+            ]}
           />
-          <Action
-            testID="trip-settings"
-            variant="secondary"
-            label={t.tripSettings}
-            onPress={() => router.push({ pathname: '/trips/[id]/settings', params: { id } })}
-          />
-          <Action
-            testID="trip-members"
-            variant="secondary"
-            label={t.tripMembers}
-            onPress={() => router.push({ pathname: '/trips/[id]/members', params: { id } })}
-          />
+          <Section title={t.tripManagement}>
+            <EntryGroup
+              entries={[
+                {
+                  testID: 'trip-settings',
+                  label: t.tripSettings,
+                  onPress: () => router.push({ pathname: '/trips/[id]/settings', params: { id } }),
+                },
+                {
+                  testID: 'trip-members',
+                  label: t.tripMembers,
+                  onPress: () => router.push({ pathname: '/trips/[id]/members', params: { id } }),
+                },
+              ]}
+            />
+          </Section>
           <Section title={t.tripDetails}>
             <Card>
               <DetailRow

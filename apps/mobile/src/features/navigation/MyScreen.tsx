@@ -1,6 +1,8 @@
 import { useRef, useState } from 'react';
 import { router } from 'expo-router';
-import { Action, Card, DetailRow, Notice, Page, Title } from '@/components/ui';
+import { Action, Card, DetailRow, Notice, Page, Section, Title } from '@/components/ui';
+import { EntryGroup } from '@/components/EntryGroup';
+import { LocalWorkLink } from '@/features/trips/LocalWorkLink';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { errorMessage } from '@/features/auth/errorMessage';
 import { useMessages } from '@/i18n/useMessages';
@@ -28,24 +30,28 @@ export function MyScreen() {
   return (
     <Page>
       <Title>{t.myAccount}</Title>
-      <Card>
-        <DetailRow label={t.displayName} value={user?.displayName ?? ''} />
-        <DetailRow label={t.username} value={user?.username ?? ''} />
-      </Card>
-      <Action
-        testID="my-local-work"
-        variant="secondary"
-        label={t.localWork}
-        disabled={busy}
-        onPress={() => router.push('/work')}
-      />
-      <Action
-        testID="my-preferences"
-        variant="secondary"
-        label={t.preferences}
-        disabled={busy}
-        onPress={() => router.push('/preferences')}
-      />
+      <Section title={t.accountSection}>
+        <Card>
+          <DetailRow label={t.displayName} value={user?.displayName ?? ''} />
+          <DetailRow label={t.username} value={user?.username ?? ''} />
+        </Card>
+      </Section>
+      <Section title={t.preferencesAndAbout}>
+        <EntryGroup
+          entries={[
+            {
+              testID: 'my-preferences',
+              label: t.preferences,
+              detail: t.preferenceAbout,
+              disabled: busy,
+              onPress: () => router.push('/preferences'),
+            },
+          ]}
+        />
+      </Section>
+      <Section title={t.localWork}>
+        <LocalWorkLink testID="my-local-work" disabled={busy} />
+      </Section>
       {!!error && <Notice tone="danger">{errorMessage(error, t)}</Notice>}
       <Action
         testID="logout"

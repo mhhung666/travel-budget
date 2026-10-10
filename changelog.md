@@ -8,7 +8,7 @@
 
 - Mobile：已提交 G5 四語／外觀偏好、裝置保存與關於入口，以及旅行分頁保留父層 ID 修正；check／三平台匯出與回歸通過，未部署。原生與客服／隱私入口待驗／待定，見 [G5 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#g5-語言與外觀交接)。
 - G6（Web／Mobile／contracts）：已提交私人收據閱讀、選圖／拍照／PDF、確認上傳／移除、原 UUID／SQLite 恢復與逾期孤兒清理；短效連結、conditional PUT 防覆寫，附件交易不改金額／分攤。工程檢查已通過、未部署；真 R2／原生待驗見 [G6a](apps/mobile/docs/LOCAL_ACCEPTANCE.md#g6a-私人收據閱讀交接) 與 [G6b](apps/mobile/docs/LOCAL_ACCEPTANCE.md#g6b-附件寫入交接)。
-- Mobile U3：完成六頁對照／目標規格，已提交 U3b-1 頁框、旅行上下文與大字級可捲動導覽選單並調升 Mobile patch；保留 trip ID、選取／返回與原交易 providers，並整理設計檔格式。1,470 項＋工具 48 項、check／三平台匯出通過；iOS 改前改後／最大字級與閱讀器待他人驗收，下一片 U3b-2；大筆數搜尋 500、完整裝置／R2 待驗仍另列，見 [U3 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#u3b-1-頁框與導覽交接)。
+- Mobile U3：完成六頁對照／目標規格並提交 U3b-1 頁框與大字級導覽；已提交 U3b-2 旅行卡／概覽與我的分組入口、本機零項收起並調升 Mobile patch，保留 trip ID、權限、離線／失敗及原交易 providers。Mobile 1,475 項＋工具 48 項、check／三平台匯出通過；iOS 首屏／最大字級與閱讀器待他人驗收，下一片 U3c-1；大筆數搜尋 500、完整裝置／R2 待驗仍另列，見 [U3 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#u3b-2-旅行與我的入口交接)。
 
 ### 2026-10-09
 

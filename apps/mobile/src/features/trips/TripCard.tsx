@@ -31,9 +31,9 @@ export function TripCard({ trip }: { trip: Trip }) {
         gap: spacing.compact,
       })}
     >
-      <Badge label={state} />
       <Text style={[typography.section, { color: p.text, fontWeight: '700' }]}>{trip.name}</Text>
       <TripMetadata trip={trip} />
+      <Badge label={state} />
       <TripFinancialSummary trip={trip} compact />
     </Pressable>
   );

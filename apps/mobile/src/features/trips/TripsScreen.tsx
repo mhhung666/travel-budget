@@ -45,7 +45,7 @@ export function TripsScreen() {
           />
         }
         ListHeaderComponent={
-          <View style={{ gap: spacing.small, marginBottom: spacing.medium }}>
+          <View style={{ gap: spacing.compact, marginBottom: spacing.medium }}>
             <ScrollChrome />
             <Title>{t.trips}</Title>
             <View style={{ flexDirection: 'row', gap: spacing.small }}>

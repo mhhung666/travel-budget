@@ -9,6 +9,8 @@ import { GlobalLayout, GlobalTabBar, TripLayout } from './layouts';
 import { NavigationMenu } from '@/components/NavigationMenu';
 import { ScrollChromeProvider } from '@/components/scrollChrome';
 import { FormPage } from '@/components/screen';
+import { EntryGroup } from '@/components/EntryGroup';
+import { LocalWorkLink } from '@/features/trips/LocalWorkLink';
 import { TabRouter } from 'expo-router/build/react-navigation/routers';
 
 vi.mock('@/features/expenses/PendingReceipts', () => ({ PendingReceipts: 'PendingReceipts' }));
@@ -127,10 +129,9 @@ vi.mock('@/components/frame', () => ({
 }));
 vi.mock('@/components/ui', () => ({
   ...Object.fromEntries(
-    ['Action', 'Card', 'Copy', 'DetailRow', 'Icon', 'Notice', 'Page', 'Title'].map((name) => [
-      name,
-      name,
-    ])
+    ['Action', 'Card', 'Copy', 'DetailRow', 'Icon', 'Notice', 'Page', 'Section', 'Title'].map(
+      (name) => [name, name]
+    )
   ),
   styles: { page: {} },
   usePalette: () => ({ surface: '#fff', background: '#fff' }),
@@ -174,6 +175,9 @@ function nodes(node: ReactNode): Element[] {
   if (Array.isArray(node)) return node.flatMap(nodes);
   if (!isValidElement(node)) return [];
   const element = node as Element;
+  if (element.type === EntryGroup)
+    return [element, ...nodes(EntryGroup(element.props as Parameters<typeof EntryGroup>[0]))];
+  if (element.type === LocalWorkLink) return nodes(LocalWorkLink(element.props));
   return [element, ...nodes(element.props.children as ReactNode)];
 }
 function find(node: ReactNode, field: string, value: unknown) {
@@ -300,11 +304,35 @@ it('keeps account controls available after logout fails, and prevents duplicate 
   press(find(element, 'testID', 'logout'));
   press(find(element, 'testID', 'logout'));
   expect(h.logout).toHaveBeenCalledOnce();
+  element = render(MyScreen);
+  for (const testID of ['my-preferences', 'my-local-work']) {
+    expect(find(element, 'testID', testID).props.disabled).toBe(true);
+    press(find(element, 'testID', testID));
+  }
+  expect(h.push).not.toHaveBeenCalled();
   reject(new Error('storage failure'));
   await new Promise((resolve) => setTimeout(resolve, 0));
   element = render(MyScreen);
   expect(find(element, 'testID', 'logout').props.busy).toBe(false);
   expect(find(element, 'children', 'failure')).toBeDefined();
+  press(find(element, 'testID', 'my-preferences'));
+  expect(h.push).toHaveBeenLastCalledWith('/preferences');
+  press(find(element, 'testID', 'my-local-work'));
+  expect(h.push).toHaveBeenLastCalledWith('/work');
+});
+it('orders account, preferences/about and local work before logout, with existing offline destinations', () => {
+  h.online = false;
+  const tree = render(MyScreen);
+  const sections = nodes(tree)
+    .filter((node) => node.type === 'Section')
+    .map((node) => node.props.title);
+  expect(sections).toEqual(['accountSection', 'preferencesAndAbout', 'localWork']);
+  expect(find(tree, 'label', 'displayName').props.value).toBe('TEST account');
+  expect(find(tree, 'testID', 'my-preferences').props.accessibilityLabel).toContain(
+    'preferenceAbout'
+  );
+  for (const testID of ['my-preferences', 'my-local-work'])
+    expect(find(tree, 'testID', testID).props.disabled).toBe(false);
 });
 it('uses the shared keyboard form container and forwards the route guard callback', () => {
   const onBack = vi.fn();
