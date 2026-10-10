@@ -260,6 +260,16 @@ iOS 由 Xcode **Device Hub** 提供原生畫面；沒有 Simulator.app 不代表
 
 U0c 的 [對照原型](design/u0c.html) 與 [ROADMAP 視覺規格](ROADMAP.md#u0c對照稿與交接) 已交接：兩份核心完整稿、列表／結算排列、正常／空／錯誤／本機與結果不明。原型 1×／2×、繁中／英文與深淺色是設計檢視；2× 不代表原生最大字級，不能記為裝置或帳務驗收。選用四張 disposable TEST 基線保存在 repository，來源 metadata 與完整原圖隨原型；其餘 66 張盤點仍在上述私有位置。U1a 已套入共用元件，實作與未驗範圍見 [ROADMAP U1](ROADMAP.md#u1共用視覺導覽與旅行入口)。
 
+### U3a 對照與目標稿交接
+
+2026-10-10 以 `8f3c3313` disposable 帳務重拍 Web／iOS 六頁；[原圖索引與環境](design/u3a-baseline/index.html)、[目標稿](design/u3a.html)、[規格與差異](ROADMAP.md#u3a-六頁定稿與交付)。英文／淺色／預設字級六頁，另補手機預算／搜尋／明細／空收據、鍵盤與百分比欄位；Text Size 11／深色僅支出及附件代表頁。預設字級與淺色已還原。這是設計基線，沒有確認帳務寫入；四種分攤模式只有目標稿／既有 HTTP 證據，不能算本輪原生四模式通過。
+
+- **U3b-1 必修**：最大字級下固定旅行分頁與底部導覽幾乎占滿支出畫面；改為可縮放、可捲動的選單導覽，補可見內容／返回與選取焦點操作。現況證據 `design/u3a-baseline/ios-en-largest-dark-expenses.png`。
+- **U3c-2 前 P2**：1,000 筆全量搜尋回 500，直接服務重現 MongoDB `getMore`／`maxTimeMS` 錯誤；[量測證據](design/u3a-baseline/search-measure.json)。48 筆三頁可讀不代表大旅行通過。修正後核對大筆數、跨頁同日、summary、revision／409 與完整授權快照。
+- **後續實作補驗**：原生四語／深淺色／最大字級核心頁、空旅行與零餘額、四模式／外幣與重啟草稿、非空待確認與 429／離線／撤權、搜尋條件與返回位置／寫入失效、真收據及 R2、VoiceOver、真機／development build。Android 仍延後。原型正常／空白／離線／待確認／撤權僅設計狀態，不算裝置驗收。
+
+原始補充 AX／截圖與暫存環境在 `/tmp/tb-u3a-20261010`；repository 保留核心六頁各端及必要補充原圖，檔案雜湊見 metadata。本輪結束已停止專用 API／Metro 並清理 disposable DB；HTML 對照稿不依賴後端。開發環境用不含原 `.env` 的來源副本，最終 iOS bundle 核對只含 localhost API；設定初期原 Expo virtual env 曾讀原 `.env.local`，合成帳號登入正式站被拒絕，之後隔離才取得上述基線。後續不可只相信 shell `EXPO_PUBLIC_*` 覆寫，啟動前必須核對實際 bundle 目的地。
+
 ## U1a 元件驗收交接
 
 2026-10-07：共用色彩／字級、Action 變體、Notice／Badge 語意、Chip 勾選與 TextField 聚焦已實作；Mobile 753 項測試（含 30 個新增案例）、check 與三平台匯出通過。這些是開發檢查，未執行本輪原生驗收。以本分支最新工作樹啟動 App，U0a 的舊 commit／截圖只作改版前對照。

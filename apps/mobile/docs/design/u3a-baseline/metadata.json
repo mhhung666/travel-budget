@@ -1,0 +1,112 @@
+{
+  "date": "2026-10-10",
+  "sourceCommit": "8f3c3313",
+  "purpose": "U3a design baseline, not complete device acceptance",
+  "data": "disposable u3a-base; TWD 100.01 uneven 10/80.01/10; JPY 3000 at .0333; repayment20.5; total199.91 myShare43.3 receive36.21",
+  "web": {
+    "viewport": [
+      390,
+      844
+    ],
+    "locale": "en",
+    "theme": "light",
+    "narrowSupplement": [
+      320,
+      740
+    ]
+  },
+  "ios": {
+    "device": "TravelBudget E Acceptance / iPhone 18 Pro Simulator",
+    "os": "iOS 27.0",
+    "runtime": "Expo Go",
+    "locale": "en",
+    "theme": "light",
+    "textSize": 3,
+    "maxTextSupplement": 11,
+    "logicalViewport": "not independently measured; screenshot pixels must not be treated as logical points"
+  },
+  "api": "http://127.0.0.1:55183",
+  "isolation": "Fresh local disposable MongoDB, external service configuration disabled. Expo launched from temporary source copy without original .env files; final bundle verified local API. Setup initially attempted synthetic test login against production due Expo virtual env using original .env.local; it failed; no real credentials used.",
+  "notVerified": [
+    "Android",
+    "full four-language/native text-size matrix",
+    "VoiceOver/TalkBack",
+    "real R2",
+    "device offline/pending/restart writes",
+    "1000-row search success"
+  ],
+  "files": [
+    {
+      "file": "ios-en-largest-dark-expenses.png",
+      "sha256": "1c2f94db8f212bd3a705633721283a9ea7a57ce429ca8969576bcce1a2454c4b"
+    },
+    {
+      "file": "ios-en-light-budget.png",
+      "sha256": "95447ee2872c943e569030a5eca77869646cb3048ed8e30c7642cf7af1aeb698"
+    },
+    {
+      "file": "ios-en-light-detail.png",
+      "sha256": "a8a7e9454120c49e77e77a0d38b7597eb9c89a1f5b7aa5eceaeec20d8204a9fe"
+    },
+    {
+      "file": "ios-en-light-expenses.png",
+      "sha256": "80c6b5030c1d0075323e4e6035c17e5697cb7ad8bd14ea536ee09f6d0e14fb48"
+    },
+    {
+      "file": "ios-en-light-me.png",
+      "sha256": "21f3ef02da2533dd89952792d287fd3640491191596906c806c5aae57399de7d"
+    },
+    {
+      "file": "ios-en-light-new.png",
+      "sha256": "cf26bf1c20c958665a9442f4dd278ad4b94595c7c1996dca393ea48ff07b21b4"
+    },
+    {
+      "file": "ios-en-light-overview.png",
+      "sha256": "7b5117fb70d7ef658db22b643f0d79a57733143eb39659e4f6ae388a3f3a5e10"
+    },
+    {
+      "file": "ios-en-light-receipts.png",
+      "sha256": "3bdb949b12be01d21a4abbf69181832a7128630cfa242004902eb4f7e79ed9d9"
+    },
+    {
+      "file": "ios-en-light-search.png",
+      "sha256": "b74103e525aaabfbf4be8152f51c6e39d943212f82c9637499e160f97cfb7d62"
+    },
+    {
+      "file": "ios-en-light-settlement.png",
+      "sha256": "c66378f002e1f27d67861ca7ef3e7e81397056d0005d91c7d978dd164546a3e6"
+    },
+    {
+      "file": "ios-en-light-trips.png",
+      "sha256": "9f85273ea4775139f456a64c6926f3a1007880f8600817358a1382ce213666cc"
+    },
+    {
+      "file": "web-320-en-light-filters.png",
+      "sha256": "4cf49ac6efe84233757b7c88acc83131daa69f32e075a46a2ca0a0768225f378"
+    },
+    {
+      "file": "web-en-light-expenses.png",
+      "sha256": "aaea7e8e216e16b071cbad51a8afc22c7f00cb25d295adff9e55f8a745f55848"
+    },
+    {
+      "file": "web-en-light-me.png",
+      "sha256": "e61d144731b91c34dff18592f11aa4cdc29f8de5f90978d0c6c603076c851a47"
+    },
+    {
+      "file": "web-en-light-new.png",
+      "sha256": "6690102782cb948464da632290b2cc7ae7ac302e366e03f142897be28a277d66"
+    },
+    {
+      "file": "web-en-light-overview.png",
+      "sha256": "2ed868c7cfe43ca2fd816430a86dc1b28339c5acebdafa446904c6bd2436a549"
+    },
+    {
+      "file": "web-en-light-settlement.png",
+      "sha256": "6fd3e9fa42eb6aff53b5a134abe6c4c210ab8ecbc3e2186b99649274aff2a503"
+    },
+    {
+      "file": "web-en-light-trips.png",
+      "sha256": "4c8ba8292a3ae8f47520d611c85e158cffff5837222fe09327e2f2429201c690"
+    }
+  ]
+}

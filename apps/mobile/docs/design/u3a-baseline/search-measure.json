@@ -1,0 +1,43 @@
+{
+  "environment": "local dev server, MongoDB8.0 replica set, mongodb7.2.0; serial requests; not production load",
+  "rows48": [
+    {
+      "ms": 35,
+      "count": 20,
+      "total": 48,
+      "dates": [
+        "2026-10-10"
+      ]
+    },
+    {
+      "ms": 29,
+      "count": 20,
+      "total": 48,
+      "dates": [
+        "2026-10-10",
+        "2026-10-09"
+      ]
+    },
+    {
+      "ms": 38,
+      "count": 8,
+      "total": 48,
+      "dates": [
+        "2026-10-09"
+      ]
+    }
+  ],
+  "rows1000": {
+    "httpStatus": 500,
+    "errorCode": "INTERNAL_ERROR",
+    "directServiceError": "MongoServerError: cannot set maxTimeMS on getMore command for a non-awaitData cursor",
+    "stack": [
+      "Connection.sendCommand",
+      "FindCursor.getMore",
+      "FindCursor.fetchBatch",
+      "FindCursor.next"
+    ],
+    "status": "reproduced twice over HTTP and once through readExpenseSearch inside withLedgerV2; unresolved; no valid latency sample"
+  },
+  "remaining": "Fix cursor/transaction timeout compatibility and add multi-batch regression before U3c-2; do not remove transaction/authentication guards or silently cap totals."
+}
