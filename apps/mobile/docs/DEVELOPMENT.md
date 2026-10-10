@@ -18,6 +18,8 @@ pnpm contracts:check
 
 進入 `apps/mobile` 後，原有 `pnpm dev`、`ios`、`android`、`web`、`check`、`test`、`export:check` 仍可使用。App 內的 `pnpm format` 格式化程式與文件；`pnpm check` 執行 TypeScript、ESLint 與格式檢查。`export:check` 產出 App 的 `dist/`，只驗證各平台 JS／資源打包，不是 IPA／APK。
 
+Mobile 文件也受 App 的 Prettier 規則檢查。根目錄 `.prettierignore` 排除 `apps/`，因此從根目錄直接指定 App 文件不代表已檢查；請使用 `pnpm --filter travel-budget-mobile exec prettier --write docs/ROADMAP.md`，再執行 `pnpm --filter travel-budget-mobile format:check`。
+
 新增 Native／Expo 套件時，從 `apps/mobile` 使用 `pnpm exec expo install <package>`，再執行 `pnpm exec expo install --check`。`expo-sqlite` 的 config plugin 只設定 FTS／SQLCipher 等選填建置屬性，預設用法不必加入 `app.config.ts`；它的 Web 版需要額外的 wasm 打包設定，所以資料庫入口以 `.web.ts` 檔案在 Web 預覽中換成不引入它的版本。一般純 JS 套件從根目錄用 `pnpm --filter travel-budget-mobile add <package>`；不要為了跟網站相同而強改 React 版本。
 
 共用契約透過 `@travel-budget/contracts` 引用，來源在 `packages/contracts/src/index.ts`。更動 schema 後從根目錄執行 `pnpm contracts:generate` 更新 `packages/contracts/openapi.json`，並以 `pnpm contracts:check` 檢查產物同步。

@@ -8,7 +8,7 @@
 
 - Mobile：已提交 G5 四語／外觀偏好、裝置保存與關於入口，以及旅行分頁保留父層 ID 修正；check／三平台匯出與回歸通過，未部署。原生與客服／隱私入口待驗／待定，見 [G5 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#g5-語言與外觀交接)。
 - G6（Web／Mobile／contracts）：已提交私人收據閱讀、選圖／拍照／PDF、確認上傳／移除、原 UUID／SQLite 恢復與逾期孤兒清理；短效連結、conditional PUT 防覆寫，附件交易不改金額／分攤。工程檢查已通過、未部署；真 R2／原生待驗見 [G6a](apps/mobile/docs/LOCAL_ACCEPTANCE.md#g6a-私人收據閱讀交接) 與 [G6b](apps/mobile/docs/LOCAL_ACCEPTANCE.md#g6b-附件寫入交接)。
-- 文件：依兩端現有元件盤點，建議下一階段優先 U3 介面整合：對照定稿 → 頁框／旅行入口 → 支出查帳 → 表單／結算與次頁；F1 建置可穿插。僅更新 [roadmap](apps/mobile/docs/ROADMAP.md)，未實作或重跑畫面驗收。
+- 文件：完成 U3 靜態研究，補齊六頁目標、七片交付與頁內搜尋的返回／失效／權限契約；明列全量搜尋成本及手機缺少的 Web 篩選能力。下一步 U3a 實際對照定稿，F1 可穿插；僅更新 [roadmap](apps/mobile/docs/ROADMAP.md)，未實作或重跑畫面驗收。修正 U3 表格格式並補 App 文件檢查指令，排除 CI #345 的 Mobile Prettier 失敗；乾淨提交快照重現後，格式修正與 Mobile check 通過。
 
 ### 2026-10-09
 
