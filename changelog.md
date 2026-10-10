@@ -6,9 +6,9 @@
 
 ### 2026-10-10
 
-- Mobile 分頁修正：總覽首次切到 Expenses／Settlement 時保留父層旅行 ID，避免以 `undefined` 查詢而誤顯示旅行不存在／非成員；補三種直接入口、兩趟旅行及反覆切換回歸；Mobile 1,448 項＋工具 48 項、check／三平台匯出通過。已提交、未部署，正式環境裝置仍待複驗。
+- Mobile：已提交 G5 四語／外觀偏好、裝置保存與關於入口，以及旅行分頁保留父層 ID 修正；check／三平台匯出與回歸通過，未部署。原生與客服／隱私入口待驗／待定，見 [G5 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#g5-語言與外觀交接)。
 - G6（Web／Mobile／contracts）：已提交私人收據閱讀、選圖／拍照／PDF、確認上傳／移除、原 UUID／SQLite 恢復與逾期孤兒清理；短效連結、conditional PUT 防覆寫，附件交易不改金額／分攤。工程檢查已通過、未部署；真 R2／原生待驗見 [G6a](apps/mobile/docs/LOCAL_ACCEPTANCE.md#g6a-私人收據閱讀交接) 與 [G6b](apps/mobile/docs/LOCAL_ACCEPTANCE.md#g6b-附件寫入交接)。
-- Mobile G5：登入頁／我的新增四語與跟隨系統、淺深色偏好，保存成功才套用並跨重啟保留；補讀寫失敗恢復、關於版本及本環境網站入口。Mobile 1,412 項＋工具 48 項、check／三平台匯出及 Expo 相容性通過；已提交，裝置與正式客服／隱私入口仍待驗／待定，見 [G5 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#g5-語言與外觀交接)。
+- 文件：依兩端現有元件盤點，建議下一階段優先 U3 介面整合：對照定稿 → 頁框／旅行入口 → 支出查帳 → 表單／結算與次頁；F1 建置可穿插。僅更新 [roadmap](apps/mobile/docs/ROADMAP.md)，未實作或重跑畫面驗收。
 
 ### 2026-10-09
 
